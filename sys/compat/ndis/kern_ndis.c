@@ -82,9 +82,9 @@ static void ndis_setdone_func(ndis_handle, ndis_status);
 static void ndis_getdone_func(ndis_handle, ndis_status);
 static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 static void ndis_sendrsrcavail_func(ndis_handle);
-static void ndis_intrhand(kdpc *, device_object *,
+static void ndis_intrsetup(kdpc *, device_object *,
 	irp *, struct ndis_softc *);
-static void ndis_return(kdpc *, void *, void *, void *);
+static void ndis_return(device_object *, void *);
 
 static image_patch_table kernndis_functbl[] = {
 	IMPORT_SFUNC(ndis_status_func, 4),
@@ -93,21 +93,31 @@ static image_patch_table kernndis_functbl[] = {
 	IMPORT_SFUNC(ndis_getdone_func, 2),
 	IMPORT_SFUNC(ndis_resetdone_func, 3),
 	IMPORT_SFUNC(ndis_sendrsrcavail_func, 1),
-	IMPORT_SFUNC(ndis_intrhand, 4),
+	IMPORT_SFUNC(ndis_intrsetup, 4),
 	IMPORT_SFUNC(ndis_return, 1),
 
 	{ NULL, NULL, NULL }
 };
 
-struct nd_head ndis_devhead;
-
-static struct mtx ndis_req_mtx;
+static struct nd_head ndis_devhead;
 
 /*
  * This allows us to export our symbols to other modules.
  * Note that we call ourselves 'ndisapi' to avoid a namespace
  * collision with if_ndis.ko, which internally calls itself
  * 'ndis.'
+ *
+ * Note: some of the subsystems depend on each other, so the
+ * order in which they're started is important. The order of
+ * importance is:
+ *
+ * HAL - spinlocks and IRQL manipulation
+ * ntoskrnl - DPC and workitem threads, object waiting
+ * windrv - driver/device registration
+ *
+ * The HAL should also be the last thing shut down, since
+ * the ntoskrnl subsystem will use spinlocks right up until
+ * the DPC and workitem threads are terminated.
  */
 
 static int
@@ -119,10 +129,10 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 	switch (cmd) {
 	case MOD_LOAD:
 		/* Initialize subsystems */
-		windrv_libinit();
 		hal_libinit();
-		ndis_libinit();
 		ntoskrnl_libinit();
+		windrv_libinit();
+		ndis_libinit();
 		usbd_libinit();
 
 		patch = kernndis_functbl;
@@ -135,42 +145,36 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 
 		TAILQ_INIT(&ndis_devhead);
 
-		mtx_init(&ndis_req_mtx, "NDIS request lock",
-		    MTX_NDIS_LOCK, MTX_DEF);
-
 		break;
 	case MOD_SHUTDOWN:
 		if (TAILQ_FIRST(&ndis_devhead) == NULL) {
 			/* Shut down subsystems */
-			hal_libfini();
 			ndis_libfini();
-			ntoskrnl_libfini();
 			usbd_libfini();
 			windrv_libfini();
+			ntoskrnl_libfini();
+			hal_libfini();
 
 			patch = kernndis_functbl;
 			while (patch->ipt_func != NULL) {
 				windrv_unwrap(patch->ipt_wrap);
 				patch++;
 			}
-			mtx_destroy(&ndis_req_mtx);
 		}
 		break;
 	case MOD_UNLOAD:
 		/* Shut down subsystems */
-		hal_libfini();
 		ndis_libfini();
-		ntoskrnl_libfini();
 		usbd_libfini();
 		windrv_libfini();
+		ntoskrnl_libfini();
+		hal_libfini();
 
 		patch = kernndis_functbl;
 		while (patch->ipt_func != NULL) {
 			windrv_unwrap(patch->ipt_wrap);
 			patch++;
 		}
-
-		mtx_destroy(&ndis_req_mtx);
 
 		break;
 	default:
@@ -182,34 +186,6 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 }
 DEV_MODULE(ndisapi, ndis_modevent, NULL);
 MODULE_VERSION(ndisapi, 1);
-
-int
-ndis_thsuspend(p, m, timo)
-	struct proc		*p;
-	struct mtx		*m;
-	int			timo;
-{
-	int			error;
-
-	if (m != NULL) {
-		error = msleep(&p->p_siglist, m,
-		    curthread->td_priority, "ndissp", timo);
-	} else {
-		PROC_LOCK(p);
-		error = msleep(&p->p_siglist, &p->p_mtx,
-		    curthread->td_priority|PDROP, "ndissp", timo);
-	}
-
-	return(error);
-}
-
-void
-ndis_thresume(p)
-	struct proc		*p;
-{
-	wakeup(&p->p_siglist);
-	return;
-}
 
 static void
 ndis_sendrsrcavail_func(adapter)
@@ -262,7 +238,7 @@ ndis_setdone_func(adapter, status)
 	block = adapter;
 
 	block->nmb_setstat = status;
-	wakeup(&block->nmb_setstat);
+	KeSetEvent(&block->nmb_setevent, IO_NO_INCREMENT, FALSE);
 	return;
 }
 
@@ -275,7 +251,7 @@ ndis_getdone_func(adapter, status)
 	block = adapter;
 
 	block->nmb_getstat = status;
-	wakeup(&block->nmb_getstat);
+	KeSetEvent(&block->nmb_getevent, IO_NO_INCREMENT, FALSE);
 	return;
 }
 
@@ -295,7 +271,8 @@ ndis_resetdone_func(adapter, status, addressingreset)
 
 	if (ifp->if_flags & IFF_DEBUG)
 		device_printf (sc->ndis_dev, "reset done...\n");
-	wakeup(sc);
+	KeSetEvent(&block->nmb_resetevent, IO_NO_INCREMENT, FALSE);
+
 	return;
 }
 
@@ -328,7 +305,6 @@ ndis_create_sysctls(arg)
 #endif
 	/* Add the driver-specific registry keys. */
 
-	vals = sc->ndis_regvals;
 	while(1) {
 		if (vals->nc_cfgkey == NULL)
 			break;
@@ -358,17 +334,8 @@ ndis_create_sysctls(arg)
 			continue;
 		}
 
-#if __FreeBSD_version < 502113
-		SYSCTL_ADD_STRING(&sc->ndis_ctx,
-		    SYSCTL_CHILDREN(sc->ndis_tree),
-#else
-		SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
-#endif
-		    OID_AUTO, vals->nc_cfgkey,
-		    CTLFLAG_RW, vals->nc_val,
-		    sizeof(vals->nc_val),
-		    vals->nc_cfgdesc);
+		ndis_add_sysctl(sc, vals->nc_cfgkey, vals->nc_cfgdesc,
+		    vals->nc_val, CTLFLAG_RW);
 		vals++;
 	}
 
@@ -420,8 +387,10 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 
 	cfg = malloc(sizeof(struct ndis_cfglist), M_DEVBUF, M_NOWAIT|M_ZERO);
 
-	if (cfg == NULL)
+	if (cfg == NULL) {
+		printf("failed for %s\n", key);
 		return(ENOMEM);
+	}
 
 	cfg->ndis_cfg.nc_cfgkey = strdup(key, M_DEVBUF);
 	if (desc == NULL) {
@@ -433,6 +402,7 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 
 	TAILQ_INSERT_TAIL(&sc->ndis_cfglist_head, cfg, link);
 
+	cfg->ndis_oid =
 #if __FreeBSD_version < 502113
 	SYSCTL_ADD_STRING(&sc->ndis_ctx, SYSCTL_CHILDREN(sc->ndis_tree),
 #else
@@ -446,18 +416,34 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 	return(0);
 }
 
+/*
+ * Somewhere, somebody decided "hey, let's automatically create
+ * a sysctl tree for each device instance as it's created -- it'll
+ * make life so much easier!" Lies. Why must they turn the kernel
+ * into a house of lies?
+ */
+
 int
 ndis_flush_sysctls(arg)
 	void			*arg;
 {
 	struct ndis_softc	*sc;
 	struct ndis_cfglist	*cfg;
+	struct sysctl_ctx_list	*clist;
 
 	sc = arg;
+
+#if __FreeBSD_version < 502113
+	clist = &sc->ndis_ctx;
+#else
+	clist = device_get_sysctl_ctx(sc->ndis_dev);
+#endif
 
 	while (!TAILQ_EMPTY(&sc->ndis_cfglist_head)) {
 		cfg = TAILQ_FIRST(&sc->ndis_cfglist_head);
 		TAILQ_REMOVE(&sc->ndis_cfglist_head, cfg, link);
+		sysctl_ctx_entry_del(clist, cfg->ndis_oid);
+		sysctl_remove_oid(cfg->ndis_oid, 1, 0);
 		free(cfg->ndis_cfg.nc_cfgkey, M_DEVBUF);
 		free(cfg->ndis_cfg.nc_cfgdesc, M_DEVBUF);
 		free(cfg, M_DEVBUF);
@@ -467,30 +453,39 @@ ndis_flush_sysctls(arg)
 }
 
 static void
-ndis_return(dpc, arg, sysarg1, sysarg2)
-	kdpc			*dpc;
+ndis_return(dobj, arg)
+	device_object		*dobj;
 	void			*arg;
-	void			*sysarg1;
-	void			*sysarg2;
 {
-	struct ndis_softc	*sc;
+	ndis_miniport_block	*block;
+	ndis_miniport_characteristics	*ch;
 	ndis_return_handler	returnfunc;
 	ndis_handle		adapter;
 	ndis_packet		*p;
 	uint8_t			irql;
+	list_entry		*l;
+
+	block = arg;
+	ch = IoGetDriverObjectExtension(dobj->do_drvobj, (void *)1);
 
 	p = arg;
-	sc = p->np_softc;
-	adapter = sc->ndis_block->nmb_miniportadapterctx;
+	adapter = block->nmb_miniportadapterctx;
 
 	if (adapter == NULL)
 		return;
 
-	returnfunc = sc->ndis_chars->nmc_return_packet_func;
+	returnfunc = ch->nmc_return_packet_func;
 
-	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
-	MSCALL2(returnfunc, adapter, p);
-	KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
+	KeAcquireSpinLock(&block->nmb_returnlock, &irql);
+	while (!IsListEmpty(&block->nmb_returnlist)) {
+		l = RemoveHeadList((&block->nmb_returnlist));
+		p = CONTAINING_RECORD(l, ndis_packet, np_list);
+		InitializeListHead((&p->np_list));
+		KeReleaseSpinLock(&block->nmb_returnlock, irql);
+		MSCALL2(returnfunc, adapter, p);
+		KeAcquireSpinLock(&block->nmb_returnlock, &irql);
+	}
+	KeReleaseSpinLock(&block->nmb_returnlock, irql);
 
 	return;
 }
@@ -501,6 +496,7 @@ ndis_return_packet(buf, arg)
 	void			*arg;
 {
 	ndis_packet		*p;
+	ndis_miniport_block	*block;
 
 	if (arg == NULL)
 		return;
@@ -514,8 +510,16 @@ ndis_return_packet(buf, arg)
 	if (p->np_refcnt)
 		return;
 
-	KeInitializeDpc(&p->np_dpc, kernndis_functbl[7].ipt_wrap, p);
-	KeInsertQueueDpc(&p->np_dpc, NULL, NULL);
+	block = ((struct ndis_softc *)p->np_softc)->ndis_block;
+
+	KeAcquireSpinLockAtDpcLevel(&block->nmb_returnlock);
+	InitializeListHead((&p->np_list));
+	InsertHeadList((&block->nmb_returnlist), (&p->np_list));
+	KeReleaseSpinLockFromDpcLevel(&block->nmb_returnlock);
+
+	IoQueueWorkItem(block->nmb_returnitem,
+	    (io_workitem_func)kernndis_functbl[7].ipt_wrap,
+	    WORKQUEUE_CRITICAL, block);
 
 	return;
 }
@@ -645,8 +649,13 @@ ndis_convert_res(arg)
 			case SYS_RES_IRQ:
 				prd->cprd_type = CmResourceTypeInterrupt;
 				prd->cprd_flags = 0;
+				/*
+				 * Always mark interrupt resources as
+				 * shared, since in our implementation,
+				 * they will be.
+				 */
 				prd->cprd_sharedisp =
-				    CmResourceShareDeviceExclusive;
+				    CmResourceShareShared;
 				prd->u.cprd_intr.cprd_level = brle->start;
 				prd->u.cprd_intr.cprd_vector = brle->start;
 				prd->u.cprd_intr.cprd_affinity = 0;
@@ -691,10 +700,13 @@ ndis_ptom(m0, p)
 	struct mbuf		**m0;
 	ndis_packet		*p;
 {
-	struct mbuf		*m, *prev = NULL;
+	struct mbuf		*m = NULL, *prev = NULL;
 	ndis_buffer		*buf;
 	ndis_packet_private	*priv;
 	uint32_t		totlen = 0;
+	struct ifnet		*ifp;
+	struct ether_header	*eh;
+	int			diff;
 
 	if (p == NULL || m0 == NULL)
 		return(EINVAL);
@@ -718,6 +730,7 @@ ndis_ptom(m0, p)
 		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
 		    p, 0, EXT_NDIS);
 		p->np_refcnt++;
+
 		totlen += m->m_len;
 		if (m->m_flags & M_PKTHDR)
 			*m0 = m;
@@ -726,6 +739,24 @@ ndis_ptom(m0, p)
 		prev = m;
 	}
 
+	/*
+	 * This is a hack to deal with the Marvell 8335 driver
+	 * which, when associated with an AP in WPA-PSK mode,
+	 * seems to overpad its frames by 8 bytes. I don't know
+	 * that the extra 8 bytes are for, and they're not there
+	 * in open mode, so for now clamp the frame size at 1514
+	 * until I can figure out how to deal with this properly,
+	 * otherwise if_ethersubr() will spank us by discarding
+	 * the 'oversize' frames.
+	 */
+
+	eh = mtod((*m0), struct ether_header *);
+	ifp = ((struct ndis_softc *)p->np_softc)->ifp;
+	if (totlen > ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE)) {
+		diff = totlen - ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE);
+		totlen -= diff;
+		m->m_len -= diff;
+	}
 	(*m0)->m_pkthdr.len = totlen;
 
 	return(0);
@@ -770,6 +801,7 @@ ndis_mtop(m0, p)
 			*p = NULL;
 			return(ENOMEM);
 		}
+		MmBuildMdlForNonPagedPool(buf);
 
 		if (priv->npp_head == NULL)
 			priv->npp_head = buf;
@@ -826,8 +858,8 @@ ndis_set_info(arg, oid, buf, buflen)
 	ndis_handle		adapter;
 	ndis_setinfo_handler	setfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
-	int			error;
 	uint8_t			irql;
+	uint64_t		duetime;
 
 	/*
 	 * According to the NDIS spec, MiniportQueryInformation()
@@ -840,24 +872,21 @@ ndis_set_info(arg, oid, buf, buflen)
 
 	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
 
-	if (sc->ndis_block->nmb_pendingreq != NULL)
+	if (sc->ndis_block->nmb_pendingreq != NULL) {
+		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		panic("ndis_set_info() called while other request pending");
-	else
+	} else
 		sc->ndis_block->nmb_pendingreq = (ndis_request *)sc;
 
-	NDIS_LOCK(sc);
 	setfunc = sc->ndis_chars->nmc_setinfo_func;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
 	if (adapter == NULL || setfunc == NULL ||
 	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
-		NDIS_UNLOCK(sc);
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		return(ENXIO);
 	}
-
-	NDIS_UNLOCK(sc);
 
 	rval = MSCALL6(setfunc, adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
@@ -867,14 +896,13 @@ ndis_set_info(arg, oid, buf, buflen)
 	KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
-		mtx_lock(&ndis_req_mtx);
-		error = msleep(&sc->ndis_block->nmb_setstat,
-		    &ndis_req_mtx,
-		    curthread->td_priority|PDROP,
-		    "ndisset", 5 * hz);
+		/* Wait up to 5 seconds. */
+		duetime = (5 * 1000000) * -10;
+		KeResetEvent(&sc->ndis_block->nmb_setevent);
+		KeWaitForSingleObject(&sc->ndis_block->nmb_setevent,
+		    0, 0, FALSE, &duetime);
 		rval = sc->ndis_block->nmb_setstat;
 	}
-
 
 	if (byteswritten)
 		*buflen = byteswritten;
@@ -1072,15 +1100,13 @@ ndis_reset_nic(arg)
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
-		mtx_lock(&ndis_req_mtx);
-		msleep(sc, &ndis_req_mtx,
-		    curthread->td_priority|PDROP, "ndisrst", 0);
+		KeResetEvent(&sc->ndis_block->nmb_resetevent);
+		KeWaitForSingleObject(&sc->ndis_block->nmb_resetevent,
+		    0, 0, FALSE, NULL);
 	}
 
 	return(0);
 }
-
-#define NDIS_REAP_TIMERS
 
 int
 ndis_halt_nic(arg)
@@ -1089,32 +1115,28 @@ ndis_halt_nic(arg)
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	ndis_halt_handler	haltfunc;
-#ifdef NDIS_REAP_TIMERS
-	ndis_miniport_timer	*t, *n;
-#endif
+	ndis_miniport_block	*block;
+	int			empty = 0;
+	uint8_t			irql;
 
 	sc = arg;
+	block = sc->ndis_block;
 
-#ifdef NDIS_REAP_TIMERS
-	/*
-	 * Drivers are sometimes very lax about cancelling all
-	 * their timers. Cancel them all ourselves, just to be
-	 * safe. We must do this before invoking MiniportHalt(),
-	 * since if we wait until after, the memory in which
-	 * the timers reside will no longer be valid.
-	 */
-
-	t = sc->ndis_block->nmb_timerlist;
-	while (t != NULL) {
-		KeCancelTimer(&t->nmt_ktimer);
-		n = t;
-		t = t->nmt_nexttimer;
-		n->nmt_nexttimer = NULL;
-	}
-	sc->ndis_block->nmb_timerlist = NULL;
 	if (!cold)
 		KeFlushQueuedDpcs();
-#endif
+
+	/*
+	 * Wait for all packets to be returned.
+	 */
+
+	while (1) {
+		KeAcquireSpinLock(&block->nmb_returnlock, &irql);
+		empty = IsListEmpty(&block->nmb_returnlist);
+		KeReleaseSpinLock(&block->nmb_returnlock, irql);
+		if (empty)
+			break;
+		NdisMSleep(1000);
+	}
 
 	NDIS_LOCK(sc);
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1123,7 +1145,6 @@ ndis_halt_nic(arg)
 		return(EIO);
 	}
 
-	sc->ndis_block->nmb_miniportadapterctx = NULL;
 	sc->ndis_block->nmb_devicectx = NULL;
 
 	/*
@@ -1136,6 +1157,10 @@ ndis_halt_nic(arg)
 	NDIS_UNLOCK(sc);
 
 	MSCALL1(haltfunc, adapter);
+
+	NDIS_LOCK(sc);
+	sc->ndis_block->nmb_miniportadapterctx = NULL;
+	NDIS_UNLOCK(sc);
 
 	return(0);
 }
@@ -1216,7 +1241,7 @@ ndis_init_nic(arg)
 	 * expects them to fire before the halt is called.
 	 */
 
-	ndis_thsuspend(curthread->td_proc, NULL, hz);
+	tsleep(curthread->td_proc, PWAIT, "ndwait", hz);
 
 	NDIS_LOCK(sc);
 	sc->ndis_block->nmb_devicectx = sc;
@@ -1292,33 +1317,26 @@ ndis_isr(arg, ourintr, callhandler)
 }
 
 static void
-ndis_intrhand(dpc, dobj, ip, sc)
+ndis_intrsetup(dpc, dobj, ip, sc)
 	kdpc			*dpc;
 	device_object		*dobj;
 	irp			*ip;
 	struct ndis_softc	*sc;
 {
-	ndis_handle		adapter;
-	ndis_interrupt_handler	intrfunc;
-	uint8_t			irql;
+	ndis_miniport_interrupt	*intr;
 
-	adapter = sc->ndis_block->nmb_miniportadapterctx;
-	intrfunc = sc->ndis_chars->nmc_interrupt_func;
+	intr = sc->ndis_block->nmb_interrupt;
 
-	if (adapter == NULL || intrfunc == NULL)
+	/* Sanity check. */
+
+	if (intr == NULL)
 		return;
 
-	if (NDIS_SERIALIZED(sc->ndis_block))
-		KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
-
-	MSCALL1(intrfunc, adapter);
-
-	/* If there's a MiniportEnableInterrupt() routine, call it. */
-
-	ndis_enable_intr(sc);
-
-	if (NDIS_SERIALIZED(sc->ndis_block))
-		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
+	KeAcquireSpinLockAtDpcLevel(&intr->ni_dpccountlock);
+	KeResetEvent(&intr->ni_dpcevt);
+	if (KeInsertQueueDpc(&intr->ni_dpc, NULL, NULL) == TRUE)
+		intr->ni_dpccnt++;
+	KeReleaseSpinLockFromDpcLevel(&intr->ni_dpccountlock);
 
 	return;
 }
@@ -1335,31 +1353,28 @@ ndis_get_info(arg, oid, buf, buflen)
 	ndis_handle		adapter;
 	ndis_queryinfo_handler	queryfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
-	int			error;
 	uint8_t			irql;
+	uint64_t		duetime;
 
 	sc = arg;
 
 	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
 
-	if (sc->ndis_block->nmb_pendingreq != NULL)
+	if (sc->ndis_block->nmb_pendingreq != NULL) {
+		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		panic("ndis_get_info() called while other request pending");
-	else
+	} else
 		sc->ndis_block->nmb_pendingreq = (ndis_request *)sc;
 
-	NDIS_LOCK(sc);
 	queryfunc = sc->ndis_chars->nmc_queryinfo_func;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
 	if (adapter == NULL || queryfunc == NULL ||
 	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
-		NDIS_UNLOCK(sc);
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		return(ENXIO);
 	}
-
-	NDIS_UNLOCK(sc);
 
 	rval = MSCALL6(queryfunc, adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
@@ -1371,11 +1386,11 @@ ndis_get_info(arg, oid, buf, buflen)
 	/* Wait for requests that block. */
 
 	if (rval == NDIS_STATUS_PENDING) {
-		mtx_lock(&ndis_req_mtx);
-		error = msleep(&sc->ndis_block->nmb_getstat,
-		    &ndis_req_mtx,
-		    curthread->td_priority|PDROP,
-		    "ndisget", 5 * hz);
+		/* Wait up to 5 seconds. */
+		duetime = (5 * 1000000) * -10;
+		KeResetEvent(&sc->ndis_block->nmb_getevent);
+		KeWaitForSingleObject(&sc->ndis_block->nmb_getevent,
+		    0, 0, FALSE, &duetime);
 		rval = sc->ndis_block->nmb_getstat;
 	}
 
@@ -1410,6 +1425,17 @@ NdisAddDevice(drv, pdo)
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
 	uint32_t		status;
+	int			error;
+
+	sc = device_get_softc(pdo->do_devext);
+
+        if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus) {
+		error = bus_setup_intr(sc->ndis_dev, sc->ndis_irq,
+		    INTR_TYPE_NET | INTR_MPSAFE,
+		    ntoskrnl_intr, NULL, &sc->ndis_intrhand);
+		if (error)
+			return(NDIS_STATUS_FAILURE);
+	}
 
 	status = IoCreateDevice(drv, sizeof(ndis_miniport_block), NULL,
 	    FILE_DEVICE_UNKNOWN, 0, FALSE, &fdo);
@@ -1424,13 +1450,19 @@ NdisAddDevice(drv, pdo)
 	block->nmb_physdeviceobj = pdo;
 	block->nmb_nextdeviceobj = IoAttachDeviceToDeviceStack(fdo, pdo);
 	KeInitializeSpinLock(&block->nmb_lock);
+	KeInitializeSpinLock(&block->nmb_returnlock);
+	KeInitializeEvent(&block->nmb_getevent, EVENT_TYPE_NOTIFY, TRUE);
+	KeInitializeEvent(&block->nmb_setevent, EVENT_TYPE_NOTIFY, TRUE);
+	KeInitializeEvent(&block->nmb_resetevent, EVENT_TYPE_NOTIFY, TRUE);
+	InitializeListHead(&block->nmb_parmlist);
+	InitializeListHead(&block->nmb_returnlist);
+	block->nmb_returnitem = IoAllocateWorkItem(fdo);
 
 	/*
 	 * Stash pointers to the miniport block and miniport
 	 * characteristics info in the if_ndis softc so the
 	 * UNIX wrapper driver can get to them later.
          */
-	sc = device_get_softc(pdo->do_devext);
 	sc->ndis_block = block;
 	sc->ndis_chars = IoGetDriverObjectExtension(drv, (void *)1);
 
@@ -1447,7 +1479,7 @@ NdisAddDevice(drv, pdo)
 			IoDeleteDevice(fdo);
 			return(status);
 		}
-		INIT_LIST_HEAD((&block->nmb_packetlist));
+		InitializeListHead((&block->nmb_packetlist));
 	}
 
 	/* Give interrupt handling priority over timers. */
@@ -1479,6 +1511,10 @@ ndis_unload_driver(arg)
 
 	sc = arg;
 
+	if (sc->ndis_intrhand)
+		bus_teardown_intr(sc->ndis_dev,
+		    sc->ndis_irq, sc->ndis_intrhand);
+
 	if (sc->ndis_block->nmb_rlist != NULL)
 		free(sc->ndis_block->nmb_rlist, M_DEVBUF);
 
@@ -1489,6 +1525,7 @@ ndis_unload_driver(arg)
 	if (sc->ndis_chars->nmc_transferdata_func != NULL)
 		NdisFreePacketPool(sc->ndis_block->nmb_rxpool);
 	fdo = sc->ndis_block->nmb_deviceobj;
+	IoFreeWorkItem(sc->ndis_block->nmb_returnitem);
 	IoDetachDevice(sc->ndis_block->nmb_nextdeviceobj);
 	IoDeleteDevice(fdo);
 
