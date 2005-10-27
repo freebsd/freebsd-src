@@ -1044,6 +1044,7 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 	for (s = 0; s <= maxslots; s++) {
 		pcifunchigh = 0;
 		f = 0;
+		DELAY(1);
 		hdrtype = REG(PCIR_HDRTYPE, 1);
 		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 			continue;
