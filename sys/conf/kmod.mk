@@ -143,8 +143,11 @@ PROG=	${KMOD}.ko
 FULLPROG=	${PROG}
 .else
 FULLPROG=	${PROG}.debug
-${PROG}: ${FULLPROG}
-	${OBJCOPY} --strip-debug ${FULLPROG} ${PROG}
+${PROG}: ${FULLPROG} ${PROG}.dbg
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.dbg\
+	    ${FULLPROG} ${.TARGET}
+${PROG}.dbg: ${FULLPROG}
+	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
 .if ${MACHINE_ARCH} != amd64
@@ -226,7 +229,7 @@ ${_ILINKS}:
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS}
 
 .if defined(DEBUG_FLAGS)
-CLEANFILES+= ${FULLPROG}
+CLEANFILES+= ${FULLPROG} ${PROG}.dbg
 .endif
 
 .if !target(install)
@@ -240,12 +243,11 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
 _kmodinstall:
-.if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG)
-	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}/${PROG}
-.else
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+.if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG)
+	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	    ${_INSTALLFLAGS} ${PROG}.dbg ${DESTDIR}${KMODDIR}
 .endif
 
 .include <bsd.links.mk>
