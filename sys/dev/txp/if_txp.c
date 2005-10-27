@@ -122,8 +122,10 @@ static void txp_tick(void *);
 static int txp_shutdown(device_t);
 static int txp_ioctl(struct ifnet *, u_long, caddr_t);
 static void txp_start(struct ifnet *);
+static void txp_start_locked(struct ifnet *);
 static void txp_stop(struct txp_softc *);
 static void txp_init(void *);
+static void txp_init_locked(struct txp_softc *);
 static void txp_watchdog(struct ifnet *);
 
 static void txp_release_resources(struct txp_softc *);
@@ -216,16 +218,17 @@ txp_attach(dev)
 	struct ifnet *ifp;
 	u_int16_t p1;
 	u_int32_t p2;
-	int unit, error = 0, rid;
+	int error = 0, rid;
 	u_char eaddr[6];
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	sc->sc_dev = dev;
 	sc->sc_cold = 1;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
+	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -324,8 +327,7 @@ txp_attach(dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = txp_ioctl;
 	ifp->if_start = txp_start;
 	ifp->if_watchdog = txp_watchdog;
@@ -339,9 +341,8 @@ txp_attach(dev)
 	 * Attach us everywhere
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_handle_init(&sc->sc_tick);
 
-	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    txp_intr, sc, &sc->sc_intrhand);
 
 	if (error) {
@@ -369,8 +370,11 @@ txp_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = sc->sc_ifp;
 
+	TXP_LOCK(sc);
 	txp_stop(sc);
+	TXP_UNLOCK(sc);
 	txp_shutdown(dev);
+	callout_drain(&sc->sc_tick);
 
 	ifmedia_removeall(&sc->sc_ifmedia);
 	ether_ifdetach(ifp);
@@ -657,6 +661,7 @@ txp_intr(vsc)
 	u_int32_t isr;
 
 	/* mask all interrupts */
+	TXP_LOCK(sc);
 	WRITE_REG(sc, TXP_IMR, TXP_INT_RESERVED | TXP_INT_SELF |
 	    TXP_INT_A2H_7 | TXP_INT_A2H_6 | TXP_INT_A2H_5 | TXP_INT_A2H_4 |
 	    TXP_INT_A2H_2 | TXP_INT_A2H_1 | TXP_INT_A2H_0 |
@@ -689,7 +694,8 @@ txp_intr(vsc)
 	/* unmask all interrupts */
 	WRITE_REG(sc, TXP_IMR, TXP_INT_A2H_3);
 
-	txp_start(sc->sc_ifp);
+	txp_start_locked(sc->sc_ifp);
+	TXP_UNLOCK(sc);
 
 	return;
 }
@@ -705,6 +711,7 @@ txp_rx_reclaim(sc, r)
 	struct txp_swdesc *sd = NULL;
 	u_int32_t roff, woff;
 
+	TXP_LOCK_ASSERT(sc);
 	roff = *r->r_roff;
 	woff = *r->r_woff;
 	rxd = r->r_desc + (roff / sizeof(struct txp_rx_desc));
@@ -736,24 +743,13 @@ txp_rx_reclaim(sc, r)
 			 */
 			struct mbuf *mnew;
 
-			MGETHDR(mnew, M_DONTWAIT, MT_DATA);
+			mnew = m_devget(mtod(m, caddr_t), rxd->rx_len,
+			    ETHER_ALIGN, ifp, NULL);
+			m_freem(m);
 			if (mnew == NULL) {
-				m_freem(m);
+				ifp->if_ierrors++;
 				goto next;
 			}
-			if (m->m_len > (MHLEN - 2)) {
-				MCLGET(mnew, M_DONTWAIT);
-				if (!(mnew->m_flags & M_EXT)) {
-					m_freem(mnew);
-					m_freem(m);
-					goto next;
-				}
-			}
-			mnew->m_pkthdr.rcvif = ifp;
-			m_adj(mnew, 2);
-			mnew->m_pkthdr.len = mnew->m_len = m->m_len;
-			m_copydata(m, 0, m->m_pkthdr.len, mtod(mnew, caddr_t));
-			m_freem(m);
 			m = mnew;
 		}
 #endif
@@ -776,7 +772,9 @@ txp_rx_reclaim(sc, r)
 				m, htons(rxd->rx_vlan >> 16), goto next);
 		}
 
+		TXP_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		TXP_LOCK(sc);
 
 next:
 
@@ -804,6 +802,7 @@ txp_rxbuf_reclaim(sc)
 	struct txp_swdesc *sd;
 	u_int32_t i;
 
+	TXP_LOCK_ASSERT(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
@@ -815,13 +814,9 @@ txp_rxbuf_reclaim(sc)
 		if (sd->sd_mbuf != NULL)
 			break;
 
-		MGETHDR(sd->sd_mbuf, M_DONTWAIT, MT_DATA);
+		sd->sd_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (sd->sd_mbuf == NULL)
-			goto err_sd;
-
-		MCLGET(sd->sd_mbuf, M_DONTWAIT);
-		if ((sd->sd_mbuf->m_flags & M_EXT) == 0)
-			goto err_mbuf;
+			return;
 		sd->sd_mbuf->m_pkthdr.rcvif = ifp;
 		sd->sd_mbuf->m_pkthdr.len = sd->sd_mbuf->m_len = MCLBYTES;
 
@@ -841,11 +836,6 @@ txp_rxbuf_reclaim(sc)
 	sc->sc_rxbufprod = i;
 
 	return;
-
-err_mbuf:
-	m_freem(sd->sd_mbuf);
-err_sd:
-	free(sd, M_DEVBUF);
 }
 
 /*
@@ -863,6 +853,7 @@ txp_tx_reclaim(sc, r)
 	struct txp_swdesc *sd = sc->sc_txd + cons;
 	struct mbuf *m;
 
+	TXP_LOCK_ASSERT(sc);
 	while (cons != idx) {
 		if (cnt == 0)
 			break;
@@ -905,6 +896,8 @@ txp_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	TXP_LOCK(sc);
+
 	/* mask all interrupts */
 	WRITE_REG(sc, TXP_IMR,
 	    TXP_INT_SELF | TXP_INT_PCI_TABORT | TXP_INT_PCI_MABORT |
@@ -914,6 +907,7 @@ txp_shutdown(dev)
 	txp_command(sc, TXP_CMD_TX_DISABLE, 0, 0, 0, NULL, NULL, NULL, 0);
 	txp_command(sc, TXP_CMD_RX_DISABLE, 0, 0, 0, NULL, NULL, NULL, 0);
 	txp_command(sc, TXP_CMD_HALT, 0, 0, 0, NULL, NULL, NULL, 0);
+	TXP_UNLOCK(sc);
 
 	return(0);
 }
@@ -1062,18 +1056,18 @@ txp_ioctl(ifp, command, data)
 {
 	struct txp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s, error = 0;
-
-	s = splnet();
+	int error = 0;
 
 	switch(command) {
 	case SIOCSIFFLAGS:
+		TXP_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			txp_init(sc);
+			txp_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				txp_stop(sc);
 		}
+		TXP_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1081,7 +1075,9 @@ txp_ioctl(ifp, command, data)
 		 * Multicast list has changed; set the hardware
 		 * filter accordingly.
 		 */
+		TXP_LOCK(sc);
 		txp_set_filter(sc);
+		TXP_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -1092,8 +1088,6 @@ txp_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	(void)splx(s);
 
 	return(error);
 }
@@ -1106,19 +1100,15 @@ txp_rxring_fill(sc)
 	struct ifnet *ifp;
 	struct txp_swdesc *sd;
 
+	TXP_LOCK_ASSERT(sc);
 	ifp = sc->sc_ifp;
 
 	for (i = 0; i < RXBUF_ENTRIES; i++) {
 		sd = sc->sc_rxbufs[i].rb_sd;
-		MGETHDR(sd->sd_mbuf, M_DONTWAIT, MT_DATA);
+		sd->sd_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (sd->sd_mbuf == NULL)
 			return(ENOBUFS);
 
-		MCLGET(sd->sd_mbuf, M_DONTWAIT);
-		if ((sd->sd_mbuf->m_flags & M_EXT) == 0) {
-			m_freem(sd->sd_mbuf);
-			return(ENOBUFS);
-		}
 		sd->sd_mbuf->m_pkthdr.len = sd->sd_mbuf->m_len = MCLBYTES;
 		sd->sd_mbuf->m_pkthdr.rcvif = ifp;
 
@@ -1140,6 +1130,7 @@ txp_rxring_empty(sc)
 	int i;
 	struct txp_swdesc *sd;
 
+	TXP_LOCK_ASSERT(sc);
 	if (sc->sc_rxbufs == NULL)
 		return;
 
@@ -1163,20 +1154,28 @@ txp_init(xsc)
 	void *xsc;
 {
 	struct txp_softc *sc;
+
+	sc = xsc;
+	TXP_LOCK(sc);
+	txp_init_locked(sc);
+	TXP_UNLOCK(sc);
+}
+
+static void
+txp_init_locked(sc)
+	struct txp_softc *sc;
+{
 	struct ifnet *ifp;
 	u_int16_t p1;
 	u_int32_t p2;
-	int s;
 
-	sc = xsc;
+	TXP_LOCK_ASSERT(sc);
 	ifp = sc->sc_ifp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	txp_stop(sc);
-
-	s = splnet();
 
 	txp_command(sc, TXP_CMD_MAX_PKT_SIZE_WRITE, TXP_MAX_PKTLEN, 0, 0,
 	    NULL, NULL, NULL, 1);
@@ -1209,9 +1208,7 @@ txp_init(xsc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_timer = 0;
 
-	sc->sc_tick = timeout(txp_tick, sc, hz);
-
-	splx(s);
+	callout_reset(&sc->sc_tick, hz, txp_tick, sc);
 }
 
 static void
@@ -1222,9 +1219,8 @@ txp_tick(vsc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct txp_rsp_desc *rsp = NULL;
 	struct txp_ext_desc *ext;
-	int s;
 
-	s = splnet();
+	TXP_LOCK_ASSERT(sc);
 	txp_rxbuf_reclaim(sc);
 
 	if (txp_command2(sc, TXP_CMD_READ_STATISTICS, 0, 0, 0, NULL, 0,
@@ -1250,14 +1246,25 @@ out:
 	if (rsp != NULL)
 		free(rsp, M_DEVBUF);
 
-	splx(s);
-	sc->sc_tick = timeout(txp_tick, sc, hz);
+	callout_reset(&sc->sc_tick, hz, txp_tick, sc);
 
 	return;
 }
 
 static void
 txp_start(ifp)
+	struct ifnet *ifp;
+{
+	struct txp_softc *sc;
+
+	sc = ifp->if_softc;
+	TXP_LOCK(sc);
+	txp_start_locked(ifp);
+	TXP_UNLOCK(sc);
+}
+
+static void
+txp_start_locked(ifp)
 	struct ifnet *ifp;
 {
 	struct txp_softc *sc = ifp->if_softc;
@@ -1269,6 +1276,7 @@ txp_start(ifp)
 	u_int32_t firstprod, firstcnt, prod, cnt;
 	struct m_tag *mtag;
 
+	TXP_LOCK_ASSERT(sc);
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	   IFF_DRV_RUNNING)
 		return;
@@ -1572,11 +1580,12 @@ txp_stop(sc)
 {
 	struct ifnet *ifp;
 
+	TXP_LOCK_ASSERT(sc);
 	ifp = sc->sc_ifp;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	untimeout(txp_tick, sc, sc->sc_tick);
+	callout_stop(&sc->sc_tick);
 
 	txp_command(sc, TXP_CMD_TX_DISABLE, 0, 0, 0, NULL, NULL, NULL, 1);
 	txp_command(sc, TXP_CMD_RX_DISABLE, 0, 0, 0, NULL, NULL, NULL, 1);
@@ -1601,8 +1610,11 @@ txp_ifmedia_upd(ifp)
 	struct ifmedia *ifm = &sc->sc_ifmedia;
 	u_int16_t new_xcvr;
 
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+	TXP_LOCK(sc);
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER) {
+		TXP_UNLOCK(sc);
 		return (EINVAL);
+	}
 
 	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_10_T) {
 		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
@@ -1616,16 +1628,21 @@ txp_ifmedia_upd(ifp)
 			new_xcvr = TXP_XCVR_100_HDX;
 	} else if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO) {
 		new_xcvr = TXP_XCVR_AUTO;
-	} else
+	} else {
+		TXP_UNLOCK(sc);
 		return (EINVAL);
+	}
 
 	/* nothing to do */
-	if (sc->sc_xcvr == new_xcvr)
+	if (sc->sc_xcvr == new_xcvr) {
+		TXP_UNLOCK(sc);
 		return (0);
+	}
 
 	txp_command(sc, TXP_CMD_XCVR_SELECT, new_xcvr, 0, 0,
 	    NULL, NULL, NULL, 0);
 	sc->sc_xcvr = new_xcvr;
+	TXP_UNLOCK(sc);
 
 	return (0);
 }
@@ -1642,6 +1659,7 @@ txp_ifmedia_sts(ifp, ifmr)
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
+	TXP_LOCK(sc);
 	if (txp_command(sc, TXP_CMD_PHY_MGMT_READ, 0, MII_BMSR, 0,
 	    &bmsr, NULL, NULL, 1))
 		goto bail;
@@ -1656,6 +1674,7 @@ txp_ifmedia_sts(ifp, ifmr)
 	if (txp_command(sc, TXP_CMD_PHY_MGMT_READ, 0, MII_ANLPAR, 0,
 	    &anlpar, NULL, NULL, 1))
 		goto bail;
+	TXP_UNLOCK(sc);
 
 	if (bmsr & BMSR_LINK)
 		ifmr->ifm_status |= IFM_ACTIVE;
@@ -1692,6 +1711,7 @@ txp_ifmedia_sts(ifp, ifmr)
 	return;
 
 bail:
+	TXP_UNLOCK(sc);
 	ifmr->ifm_active |= IFM_NONE;
 	ifmr->ifm_status &= ~IFM_AVALID;
 }
