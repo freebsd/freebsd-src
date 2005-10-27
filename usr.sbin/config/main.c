@@ -72,6 +72,7 @@ char 	srcdir[MAXPATHLEN];
 
 int	debugging;
 int	profiling;
+int	found_defaults;
 
 static void configfile(void);
 static void get_srcdir(void);
@@ -123,8 +124,15 @@ main(int argc, char **argv)
 	if (argc != 1)
 		usage();
 
-	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
-		err(2, "%s", PREFIX);
+	PREFIX = *argv;
+	if (freopen("DEFAULTS", "r", stdin) != NULL) {
+		found_defaults = 1;
+		yyfile = "DEFAULTS";
+	} else {
+		if (freopen(PREFIX, "r", stdin) == NULL)
+			err(2, "%s", PREFIX);
+		yyfile = PREFIX;
+	}
 
 	if (*destdir != '\0') {
 		len = strlen(destdir);
@@ -148,7 +156,6 @@ main(int argc, char **argv)
 	STAILQ_INIT(&fntab);
 	SLIST_INIT(&cputype);
 	STAILQ_INIT(&ftab);
-	yyfile = *argv;
 	if (yyparse())
 		exit(3);
 	if (machinename == NULL) {
