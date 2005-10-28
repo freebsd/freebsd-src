@@ -199,6 +199,7 @@ dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nve/if_nve.c		optional nve pci
+dev/pcf/pcf_isa.c		optional pcf
 dev/ppc/ppc.c			optional ppc
 dev/ppc/ppc_puc.c		optional ppc puc pci
 dev/random/nehemiah.c		optional random
@@ -325,7 +326,6 @@ i386/isa/isa.c			optional isa
 i386/isa/isa_dma.c		optional isa
 i386/isa/nmi.c			standard
 i386/isa/npx.c			optional npx
-i386/isa/pcf.c			optional pcf
 i386/isa/pcvt/pcvt_drv.c	optional vt
 i386/isa/pcvt/pcvt_ext.c	optional vt
 i386/isa/pcvt/pcvt_kbd.c	optional vt
