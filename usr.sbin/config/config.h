@@ -161,6 +161,7 @@ extern STAILQ_HEAD(files_name_head, files_name) fntab;
 
 extern int	profiling;
 extern int	debugging;
+extern int	found_defaults;
 
 extern int	maxusers;
 

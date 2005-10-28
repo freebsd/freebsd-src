@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <dirent.h>
 #include "y.tab.h"
 #include "config.h"
+#include "configvers.h"
 
 #ifndef TRUE
 #define TRUE	(1)
@@ -71,6 +72,7 @@ char 	srcdir[MAXPATHLEN];
 
 int	debugging;
 int	profiling;
+int	found_defaults;
 
 static void configfile(void);
 static void get_srcdir(void);
@@ -95,8 +97,11 @@ main(int argc, char **argv)
 	char *p;
 	char xxx[MAXPATHLEN];
 
-	while ((ch = getopt(argc, argv, "d:gp")) != -1)
+	while ((ch = getopt(argc, argv, "d:gpV")) != -1)
 		switch (ch) {
+		case 'V':
+			printf("%d\n", CONFIGVERS);
+			exit(0);
 		case 'd':
 			if (*destdir == '\0')
 				strlcpy(destdir, optarg, sizeof(destdir));
@@ -119,8 +124,15 @@ main(int argc, char **argv)
 	if (argc != 1)
 		usage();
 
-	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
-		err(2, "%s", PREFIX);
+	PREFIX = *argv;
+	if (freopen("DEFAULTS", "r", stdin) != NULL) {
+		found_defaults = 1;
+		yyfile = "DEFAULTS";
+	} else {
+		if (freopen(PREFIX, "r", stdin) == NULL)
+			err(2, "%s", PREFIX);
+		yyfile = PREFIX;
+	}
 
 	if (*destdir != '\0') {
 		len = strlen(destdir);
@@ -144,7 +156,6 @@ main(int argc, char **argv)
 	STAILQ_INIT(&fntab);
 	SLIST_INIT(&cputype);
 	STAILQ_INIT(&ftab);
-	yyfile = *argv;
 	if (yyparse())
 		exit(3);
 	if (machinename == NULL) {
@@ -204,7 +215,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-gp] [-d destdir] sysname\n");
+	fprintf(stderr, "usage: config [-Vgp] [-d destdir] sysname\n");
 	exit(1);
 }
 
