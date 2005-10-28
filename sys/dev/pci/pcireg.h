@@ -127,6 +127,7 @@
 #define PCIR_SUBDEV_0	0x2e
 #define PCIR_BIOS	0x30
 #define PCIM_BIOS_ENABLE	0x01
+#define PCIM_BIOS_ADDR_MASK	0xfffff800
 #define	PCIR_CAP_PTR	0x34
 #define PCIR_INTLINE	0x3c
 #define PCIR_INTPIN	0x3d
