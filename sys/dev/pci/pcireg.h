@@ -111,7 +111,18 @@
 
 #define PCIR_BARS	0x10
 #define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
-#define PCIR_CARDBUSCIS	0x28
+#define PCIR_CIS	0x28
+#define PCIM_CIS_ASI_MASK	0x7
+#define PCIM_CIS_ASI_TUPLE	0
+#define PCIM_CIS_ASI_BAR0	1
+#define PCIM_CIS_ASI_BAR1	2
+#define PCIM_CIS_ASI_BAR2	3
+#define PCIM_CIS_ASI_BAR3	4
+#define PCIM_CIS_ASI_BAR4	5
+#define PCIM_CIS_ASI_BAR5	6
+#define PCIM_CIS_ASI_ROM	7
+#define PCIM_CIS_ADDR_MASK	0x0ffffff8
+#define PCIM_CIS_ROM_MASK	0xf0000000
 #define PCIR_SUBVEND_0	0x2c
 #define PCIR_SUBDEV_0	0x2e
 #define PCIR_BIOS	0x30
