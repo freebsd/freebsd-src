@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-echo '1..42'
-
 COUNTER=1
 
 do_test() {
@@ -31,7 +29,9 @@ do_test() {
 	rm tmp.stdout tmp.stderr
 }
 
-TESTS=$(find -s . -name "*.[01]")
+TESTS=$(find -Es . -regex ".*\.[0-9]+")
+printf "1..%d\n" $(echo ${TESTS} | wc -w)
+
 for i in ${TESTS} ; do
 	do_test ${i} ${i##*.}
 done
