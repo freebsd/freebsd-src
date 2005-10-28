@@ -1391,6 +1391,8 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	pv_entry_t pv;
 
 	pv = get_pv_entry();
+	if (pv == NULL)
+		panic("no pv entries: increase vm.pmap.shpgperproc");
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
 	pv->pv_ptem = mpte;
