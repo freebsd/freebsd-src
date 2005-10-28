@@ -92,6 +92,7 @@ int	maxusers;
 #define ns(s)	strdup(s)
 int include(const char *, int);
 void yyerror(const char *s);
+int yywrap(void);
 
 static char *
 devopt(char *dev)
@@ -298,6 +299,21 @@ yyerror(const char *s)
 {
 
 	errx(1, "%s:%d: %s", yyfile, yyline + 1, s);
+}
+
+int
+yywrap(void)
+{
+
+	if (found_defaults) {
+		if (freopen(PREFIX, "r", stdin) == NULL)
+			err(2, "%s", PREFIX);		
+		yyfile = PREFIX;
+		yyline = 0;
+		found_defaults = 0;
+		return 0;
+	}
+	return 1;
 }
 
 /*
