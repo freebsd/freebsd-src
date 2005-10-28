@@ -274,12 +274,14 @@ umaskcmd(int argc __unused, char **argv)
 			umask(mask);
 		} else {
 			void *set;
+			INTOFF;
 			if ((set = setmode (ap)) == 0)
 				error("Illegal number: %s", ap);
 
 			mask = getmode (set, ~mask & 0777);
 			umask(~mask & 0777);
 			free(set);
+			INTON;
 		}
 	}
 	return 0;
