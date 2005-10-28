@@ -913,8 +913,7 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 	if (progif & PCIP_STORAGE_IDE_MODEPRIM) {
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(0), rl);
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(1), rl);
-	}
-	else {
+	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
 		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7,8,0);
@@ -925,8 +924,7 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(2), rl);
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(3), rl);
-	}
-	else {
+	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
 		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177,8,0);
