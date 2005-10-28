@@ -62,7 +62,7 @@ struct ng_vlan_filter {
 /* Structure returned by NGM_VLAN_GET_TABLE. */
 struct ng_vlan_table {
 	u_int32_t	n;
-	struct ng_vlan_filter filter[0];
+	struct ng_vlan_filter filter[];
 };
 
 /* Keep this in sync with the above structure definition. */

@@ -124,7 +124,7 @@ struct ngpppoestat {
 struct ngpppoe_init_data {
 	char		hook[NG_HOOKSIZ];	/* hook to monitor on */
 	u_int16_t	data_len;		/* Length of the service name */
-	char		data[0];		/* init data goes here */
+	char		data[];			/* init data goes here */
 };
 
 /* Keep this in sync with the above structure definition */
@@ -203,7 +203,7 @@ struct ngpppoe_sts {
 struct pppoe_tag {
 	u_int16_t tag_type;
 	u_int16_t tag_len;
-	char tag_data[0];
+	char tag_data[];
 }__packed;
 
 struct pppoe_hdr{
@@ -212,7 +212,7 @@ struct pppoe_hdr{
 	u_int8_t code;
 	u_int16_t sid;
 	u_int16_t length;
-	struct pppoe_tag tag[0];
+	struct pppoe_tag tag[];
 }__packed;
 
 
