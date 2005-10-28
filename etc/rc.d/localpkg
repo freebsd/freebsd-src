@@ -53,13 +53,12 @@ pkg_start()
 
 pkg_stop()
 {
-	echo -n 'Shutting down daemon processes:'
-
 	# For each dir in $local_startup, search for init scripts matching *.sh
 	case ${local_startup} in
 	[Nn][Oo] | '')
 		;;
 	*)
+		echo -n 'Shutting down daemon processes:'
 		slist=""
 		if [ -z "${script_name_sep}" ]; then
 			script_name_sep=" "
