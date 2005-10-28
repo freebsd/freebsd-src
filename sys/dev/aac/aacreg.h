@@ -1365,6 +1365,11 @@ struct aac_srb_response {
 	u_int8_t	sense[AAC_HOST_SENSE_DATA_MAX];
 };
 
+/*
+ * Status codes for SCSI passthrough commands.  Since they are based on ASPI,
+ * they also exactly match CAM status codes in both enumeration and meaning.
+ * They seem to also be used as status codes for synchronous FIBs.
+ */
 enum {
 	AAC_SRB_STS_PENDING			= 0x00,
 	AAC_SRB_STS_SUCCESS,

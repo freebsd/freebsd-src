@@ -1574,7 +1574,8 @@ aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 aac_check_firmware(struct aac_softc *sc)
 {
-	u_int32_t major, minor, options, atu_size;
+	u_int32_t major, minor, options = 0, atu_size = 0;
+	int status;
 
 	debug_called(1);
 
@@ -1603,30 +1604,37 @@ aac_check_firmware(struct aac_softc *sc)
 
 	/*
 	 * Retrieve the capabilities/supported options word so we know what
-	 * work-arounds to enable.
+	 * work-arounds to enable.  Some firmware revs don't support this
+	 * command.
 	 */
-	if (aac_sync_command(sc, AAC_MONKER_GETINFO, 0, 0, 0, 0, NULL)) {
-		device_printf(sc->aac_dev, "RequestAdapterInfo failed\n");
-		return (EIO);
-	}
-	options = AAC_GET_MAILBOX(sc, 1);
-	atu_size = AAC_GET_MAILBOX(sc, 2);
-	sc->supported_options = options;
+	if (aac_sync_command(sc, AAC_MONKER_GETINFO, 0, 0, 0, 0, &status)) {
+		if (status != AAC_SRB_STS_INVALID_REQUEST) {
+			device_printf(sc->aac_dev,
+			     "RequestAdapterInfo failed\n");
+			return (EIO);
+		}
+	} else {
+		options = AAC_GET_MAILBOX(sc, 1);
+		atu_size = AAC_GET_MAILBOX(sc, 2);
+		sc->supported_options = options;
 
-	if ((options & AAC_SUPPORTED_4GB_WINDOW) != 0 &&
-	    (sc->flags & AAC_FLAGS_NO4GB) == 0)
-		sc->flags |= AAC_FLAGS_4GB_WINDOW;
-	if (options & AAC_SUPPORTED_NONDASD)
-		sc->flags |= AAC_FLAGS_ENABLE_CAM;
-	if ((options & AAC_SUPPORTED_SGMAP_HOST64) != 0
-	     && (sizeof(bus_addr_t) > 4)) {
-		device_printf(sc->aac_dev, "Enabling 64-bit address support\n");
-		sc->flags |= AAC_FLAGS_SG_64BIT;
+		if ((options & AAC_SUPPORTED_4GB_WINDOW) != 0 &&
+		    (sc->flags & AAC_FLAGS_NO4GB) == 0)
+			sc->flags |= AAC_FLAGS_4GB_WINDOW;
+		if (options & AAC_SUPPORTED_NONDASD)
+			sc->flags |= AAC_FLAGS_ENABLE_CAM;
+		if ((options & AAC_SUPPORTED_SGMAP_HOST64) != 0
+		     && (sizeof(bus_addr_t) > 4)) {
+			device_printf(sc->aac_dev,
+			    "Enabling 64-bit address support\n");
+			sc->flags |= AAC_FLAGS_SG_64BIT;
+		}
+		if ((options & AAC_SUPPORTED_NEW_COMM)
+		 && sc->aac_if.aif_send_command)
+			sc->flags |= AAC_FLAGS_NEW_COMM;
+		if (options & AAC_SUPPORTED_64BIT_ARRAYSIZE)
+			sc->flags |= AAC_FLAGS_ARRAY_64BIT;
 	}
-	if ((options & AAC_SUPPORTED_NEW_COMM) && sc->aac_if.aif_send_command)
-		sc->flags |= AAC_FLAGS_NEW_COMM;
-	if (options & AAC_SUPPORTED_64BIT_ARRAYSIZE)
-		sc->flags |= AAC_FLAGS_ARRAY_64BIT;
 
 	/* Check for broken hardware that does a lower number of commands */
 	sc->aac_max_fibs = (sc->flags & AAC_FLAGS_256FIBS ? 256:512); 
@@ -1659,11 +1667,16 @@ aac_check_firmware(struct aac_softc *sc)
 	sc->aac_max_fib_size = sizeof(struct aac_fib);
 	sc->aac_max_sectors = 128;				/* 64KB */
 	if (sc->flags & AAC_FLAGS_SG_64BIT)
-		sc->aac_sg_tablesize = (AAC_FIB_DATASIZE - sizeof(struct aac_blockwrite64)
-			+ sizeof(struct aac_sg_table64)) / sizeof(struct aac_sg_table64);
+		sc->aac_sg_tablesize = (AAC_FIB_DATASIZE
+		 - sizeof(struct aac_blockwrite64)
+		 + sizeof(struct aac_sg_table64))
+		 / sizeof(struct aac_sg_table64);
 	else
-		sc->aac_sg_tablesize = (AAC_FIB_DATASIZE - sizeof(struct aac_blockwrite)
-			+ sizeof(struct aac_sg_table)) / sizeof(struct aac_sg_table);
+		sc->aac_sg_tablesize = (AAC_FIB_DATASIZE
+		 - sizeof(struct aac_blockwrite)
+		 + sizeof(struct aac_sg_table))
+		 / sizeof(struct aac_sg_table);
+
 	if (!aac_sync_command(sc, AAC_MONKER_GETCOMMPREF, 0, 0, 0, 0, NULL)) {
 		options = AAC_GET_MAILBOX(sc, 1);
 		sc->aac_max_fib_size = (options & 0xFFFF);
@@ -1999,7 +2012,7 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
 	if (sp != NULL)
 		*sp = status;
 
-	if (status != 0x01)
+	if (status != AAC_SRB_STS_SUCCESS)
 		return (-1);
 	return(0);
 }
