@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd October 10, 2005
+.Dd October 28, 2005
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -109,6 +109,8 @@ Returns the name of the associated interface as a
 .Tn ASCII
 string.
 Normally this is the same as the name of the node.
+.It Dv NGM_IFACE_GET_IFINDEX
+Returns the global index of the associated interface as a 32 bit integer.
 .It Dv NGM_IFACE_POINT2POINT
 Set the interface to point-to-point mode.
 The interface must not currently be up.
