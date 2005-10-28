@@ -48,6 +48,7 @@ extern int herefd;
 
 pointer ckmalloc(int);
 pointer ckrealloc(pointer, int);
+void ckfree(pointer);
 char *savestr(char *);
 pointer stalloc(int);
 void stunalloc(pointer);
@@ -72,5 +73,3 @@ void ungrabstackstr(char *, char *);
 #define STTOPC(p)	p[-1]
 #define STADJUST(amount, p)	(p += (amount), sstrnleft -= (amount))
 #define grabstackstr(p)	stalloc(stackblocksize() - sstrnleft)
-
-#define ckfree(p)	free((pointer)(p))
