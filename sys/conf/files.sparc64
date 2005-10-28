@@ -46,6 +46,8 @@ dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
 dev/ofw/openpromio.c		standard
+dev/pcf/envctrl.c		optional	pcf
+dev/pcf/pcf_ebus.c		optional	pcf ebus
 dev/sound/sbus/cs4231.c		optional	snd_audiocs ebus
 dev/sound/sbus/cs4231.c		optional	snd_audiocs sbus
 dev/syscons/scgfbrndr.c		optional	sc
