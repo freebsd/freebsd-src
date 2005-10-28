@@ -1,5 +1,6 @@
 /* k_cosf.c -- float version of k_cos.c
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Debugged and optimized by Bruce D. Evans.
  */
 
 /*
@@ -20,14 +21,12 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+/* Range of maximum relative error in polynomial: ~[-1.15e-10, 1.169e-10]. */
 static const float
-one =  1.0000000000e+00, /* 0x3f800000 */
-C1  =  4.1666667908e-02, /* 0x3d2aaaab */
-C2  = -1.3888889225e-03, /* 0xbab60b61 */
-C3  =  2.4801587642e-05, /* 0x37d00d01 */
-C4  = -2.7557314297e-07, /* 0xb493f27c */
-C5  =  2.0875723372e-09, /* 0x310f74f6 */
-C6  = -1.1359647598e-11; /* 0xad47d74e */
+one =  1.0,
+C1  =  0xaaaaa5.0p-28,	/*  0.04166664555668830871582031250 */
+C2  = -0xb60615.0p-33,	/* -0.001388731063343584537506103516 */
+C3  =  0xccf47d.0p-39;	/*  0.00002443254288664320483803749084 */
 
 float
 __kernel_cosf(float x, float y)
@@ -35,7 +34,7 @@ __kernel_cosf(float x, float y)
 	float hz,z,r,w;
 
 	z  = x*x;
-	r  = z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))));
+	r  = z*(C1+z*(C2+z*C3));
 	hz = (float)0.5*z;
 	w  = one-hz;
 	return w + (((one-w)-hz) + (z*r-x*y));

@@ -1,5 +1,6 @@
 /* k_sinf.c -- float version of k_sin.c
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
  */
 
 /*
@@ -20,14 +21,13 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+/* Range of maximum relative error in polynomial: ~[-1.61e-10, 1.621e-10]. */
 static const float
-half =  5.0000000000e-01,/* 0x3f000000 */
-S1  = -1.6666667163e-01, /* 0xbe2aaaab */
-S2  =  8.3333337680e-03, /* 0x3c088889 */
-S3  = -1.9841270114e-04, /* 0xb9500d01 */
-S4  =  2.7557314297e-06, /* 0x3638ef1b */
-S5  = -2.5050759689e-08, /* 0xb2d72f34 */
-S6  =  1.5896910177e-10; /* 0x2f2ec9d3 */
+half = 0.5,
+S1  = -0xaaaaab.0p-26,	/* -0.1666666716337203979492187500 */
+S2  =  0x8888ba.0p-30,	/*  0.008333379402756690979003906250 */
+S3  = -0xd02cb0.0p-36,	/* -0.0001985307317227125167846679687 */
+S4  =  0xbe18ff.0p-42;	/*  0.000002832675590980215929448604584 */
 
 float
 __kernel_sinf(float x, float y, int iy)
@@ -36,7 +36,7 @@ __kernel_sinf(float x, float y, int iy)
 
 	z	=  x*x;
 	v	=  z*x;
-	r	=  S2+z*(S3+z*(S4+z*(S5+z*S6)));
+	r	=  S2+z*(S3+z*S4);
 	if(iy==0) return x+v*(S1+z*r);
 	else      return x-((z*(half*y-v*r)-y)-v*S1);
 }
