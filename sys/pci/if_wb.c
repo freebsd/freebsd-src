@@ -1746,8 +1746,6 @@ wb_ioctl(ifp, command, data)
 		break;
 	}
 
-	WB_UNLOCK(sc);
-
 	return(error);
 }
 
