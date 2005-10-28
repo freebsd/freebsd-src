@@ -1,4 +1,4 @@
-Updating Information for FreeBSD current users
+Updating Information for FreeBSD STABLE users
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
@@ -225,6 +225,9 @@ COMMON ITEMS:
 	prefix all make commands with 'env -i '.  See the env(1) manual
 	page for more details.
 
+	Due to several updates to the build infrastructure, source
+	upgrades from versions prior to 5.3 no longer supported.
+
 	To build a kernel
 	-----------------
 	If you are updating from a prior version of FreeBSD (even one just
@@ -243,7 +246,7 @@ COMMON ITEMS:
 
 	To just build a kernel when you know that it won't mess you up
 	--------------------------------------------------------------
-	This assumes you are already running a 5.X system.  Replace
+	This assumes you are already running a 6.X system.  Replace
 	${arch} with the architecture of your machine (e.g. "i386",
 	"alpha", "amd64", "ia64", "pc98", "sparc64", etc).
 
@@ -296,8 +299,8 @@ COMMON ITEMS:
  	<reboot>
 
 
-	To upgrade in-place from 5.x-stable to current
-	----------------------------------------------
+	To upgrade in-place from 5.x-stable or higher to 6.x-stable
+	-----------------------------------------------------------
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]
 	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
@@ -342,13 +345,10 @@ COMMON ITEMS:
 
 	[5] Usually this step is a noop.  However, from time to time
 	you may need to do this if you get unknown user in the following
-	step.  It never hurts to do it all the time.  You may need to
-	install a new mergemaster (cd src/usr.sbin/mergemaster && make
-	install) after the buildworld before this step if you last updated
-	from current before 20020224 or from -stable before 20020408.
+	step.  It never hurts to do it all the time.
 
-	[8] In order to have a kernel that can run the 4.x binaries
-	needed to do an installworld, you must include the COMPAT_FREEBSD4
+	[8] In order to have a kernel that can run the 5.x binaries
+	needed to do an installworld, you must include the COMPAT_FREEBSD5
 	option in your kernel.  Failure to do so may leave you with a system
 	that is hard to boot to recover.
 
@@ -368,7 +368,7 @@ COMMON ITEMS:
 FORMAT:
 
 This file contains a list, in reverse chronological order, of major
-breakages in tracking -current.  Not all things will be listed here,
+breakages in tracking -STABLE.  Not all things will be listed here,
 and it only starts on October 16, 2004.  Updating files can found in
 previous releases if your system is older than this.
 
