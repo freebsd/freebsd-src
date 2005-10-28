@@ -29,12 +29,13 @@
 /*
  * Structure definitions for the Cardbus Bus driver
  */
-struct cardbus_devinfo {
+struct cardbus_devinfo
+{
 	struct pci_devinfo pci;
 	uint8_t        mprefetchable; /* bit mask of prefetchable BARs */
 	uint8_t        mbelow1mb; /* bit mask of BARs which require below 1Mb */
 	uint8_t        ibelow1mb; /* bit mask of BARs which require below 1Mb */
-#define        BARBIT(RID) (1<<(((RID)-CARDBUS_BASE0_REG)/4))
+#define        BARBIT(RID) (1<<(((RID)-PCIR_BARS)/4))
 	uint16_t	mfrid;		/* manufacturer id */
 	uint16_t	prodid;		/* product id */
 	u_int		funcid;		/* function id */
