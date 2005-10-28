@@ -2014,6 +2014,8 @@ nd6_need_cache(ifp)
 	case IFT_CARP:
 #endif
 	case IFT_GIF:		/* XXX need more cases? */
+	case IFT_PPP:
+	case IFT_TUNNEL:
 	case IFT_BRIDGE:
 		return (1);
 	default:
