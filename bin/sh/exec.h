@@ -39,6 +39,12 @@
 #define CMDBUILTIN 1		/* command is a shell builtin */
 #define CMDFUNCTION 2		/* command is a shell function */
 
+/* values for typecmd_impl's third parameter */
+enum {
+	TYPECMD_SMALLV,		/* command -v */
+	TYPECMD_BIGV,		/* command -V */
+	TYPECMD_TYPE		/* type */
+};
 
 struct cmdentry {
 	int cmdtype;
@@ -63,5 +69,6 @@ void deletefuncs(void);
 void addcmdentry(char *, struct cmdentry *);
 void defun(char *, union node *);
 int unsetfunc(char *);
+int typecmd_impl(int, char **, int);
 int typecmd(int, char **);
 void clearcmdentry(int);

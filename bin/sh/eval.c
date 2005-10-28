@@ -976,6 +976,7 @@ commandcmd(int argc, char **argv)
 	struct strlist *sp;
 	char *path;
 	int ch;
+	int cmd = -1;
 
 	for (sp = cmdenviron; sp ; sp = sp->next)
 		setvareq(sp->text, VEXPORT|VSTACK);
@@ -983,10 +984,16 @@ commandcmd(int argc, char **argv)
 
 	optind = optreset = 1;
 	opterr = 0;
-	while ((ch = getopt(argc, argv, "p")) != -1) {
+	while ((ch = getopt(argc, argv, "pvV")) != -1) {
 		switch (ch) {
 		case 'p':
 			path = stdpath;
+			break;
+		case 'v':
+			cmd = TYPECMD_SMALLV;
+			break;
+		case 'V':
+			cmd = TYPECMD_BIGV;
 			break;
 		case '?':
 		default:
@@ -996,6 +1003,11 @@ commandcmd(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (cmd != -1) {
+		if (argc != 1)
+			error("wrong number of arguments");
+		return typecmd_impl(2, argv - 1, cmd);
+	}
 	if (argc != 0) {
 		old = handler;
 		handler = &loc;
