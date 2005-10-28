@@ -966,7 +966,7 @@ g_raid3_clone_bio(struct g_raid3_softc *sc, struct bio *pbp)
 	if (cbp->bio_data == NULL) {
 		if (size > 16384)
 			g_raid3_64k_failed++;
-		if (size > 4096)
+		else if (size > 4096)
 			g_raid3_16k_failed++;
 		else
 			g_raid3_4k_failed++;
@@ -1560,6 +1560,17 @@ g_raid3_register_request(struct bio *pbp)
 		if (cbp == NULL) {
 			while ((cbp = G_RAID3_HEAD_BIO(pbp)) != NULL)
 				g_raid3_destroy_bio(sc, cbp);
+			/*
+			 * To prevent deadlock, we must run back up
+			 * with the ENOMEM for failed requests of any
+			 * of our consumers.  Our own sync requests
+			 * can stick around, as they are finite.
+			 */
+			if ((pbp->bio_cflags &
+			    G_RAID3_BIO_CFLAG_REGULAR) != 0) {
+				g_io_deliver(pbp, ENOMEM);
+				return (0);
+			}
 			return (ENOMEM);
 		}
 		cbp->bio_offset = offset;
