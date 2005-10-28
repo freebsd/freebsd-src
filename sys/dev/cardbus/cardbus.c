@@ -112,8 +112,8 @@ cardbus_add_map(device_t cbdev, device_t child, int reg)
 			return;
 	}
 
-	if (reg == CARDBUS_ROM_REG)
-		testval = CARDBUS_ROM_ADDRMASK;
+	if (reg == PCIR_BIOS)
+		testval = PCIM_BIOS_ADDR_MASK;
 	else
 		testval = ~0;
 
@@ -435,50 +435,48 @@ cardbus_attach_card(device_t cbdev)
 	device_t child;
 	int cardattached = 0;
 	int bus, slot, func;
+	int cardbusfunchigh = 0;
 
 	cardbus_detach_card(cbdev); /* detach existing cards */
 	POWER_ENABLE_SOCKET(brdev, cbdev);
 	bus = pcib_get_bus(cbdev);
+	slot = 0;
 	/* For each function, set it up and try to attach a driver to it */
-	for (slot = 0; slot <= CARDBUS_SLOTMAX; slot++) {
-		int cardbusfunchigh = 0;
-		for (func = 0; func <= cardbusfunchigh; func++) {
-			struct cardbus_devinfo *dinfo;
+	for (func = 0; func <= cardbusfunchigh; func++) {
+		struct cardbus_devinfo *dinfo;
 
-			dinfo = (struct cardbus_devinfo *)
-			    pci_read_device(brdev, bus, slot, func,
-				sizeof(struct cardbus_devinfo));
-			if (dinfo == NULL)
-				continue;
-			if (dinfo->pci.cfg.mfdev)
-				cardbusfunchigh = CARDBUS_FUNCMAX;
+		dinfo = (struct cardbus_devinfo *)
+		    pci_read_device(brdev, bus, slot, func,
+			sizeof(struct cardbus_devinfo));
+		if (dinfo == NULL)
+			continue;
+		if (dinfo->pci.cfg.mfdev)
+			cardbusfunchigh = PCI_FUNCMAX;
 
-			cardbus_device_setup_regs(brdev, bus, slot, func,
-			    &dinfo->pci.cfg);
-			child = device_add_child(cbdev, NULL, -1);
-			if (child == NULL) {
-				DEVPRINTF((cbdev, "Cannot add child!\n"));
-				pci_freecfg((struct pci_devinfo *)dinfo);
-				continue;
-			}
-			dinfo->pci.cfg.dev = child;
-			resource_list_init(&dinfo->pci.resources);
-			device_set_ivars(child, dinfo);
-			if (cardbus_do_cis(cbdev, child) != 0) {
-				DEVPRINTF((cbdev, "Can't parse cis\n"));
-				pci_freecfg((struct pci_devinfo *)dinfo);
-				continue;
-			}
-			cardbus_pickup_maps(cbdev, child);
-			cardbus_alloc_resources(cbdev, child);
-			pci_print_verbose(&dinfo->pci);
-			if (device_probe_and_attach(child) != 0)
-				cardbus_release_all_resources(cbdev, dinfo);
-			else
-				cardattached++;
+		cardbus_device_setup_regs(brdev, bus, slot, func,
+		    &dinfo->pci.cfg);
+		child = device_add_child(cbdev, NULL, -1);
+		if (child == NULL) {
+			DEVPRINTF((cbdev, "Cannot add child!\n"));
+			pci_freecfg((struct pci_devinfo *)dinfo);
+			continue;
 		}
+		dinfo->pci.cfg.dev = child;
+		resource_list_init(&dinfo->pci.resources);
+		device_set_ivars(child, dinfo);
+		if (cardbus_do_cis(cbdev, child) != 0) {
+			DEVPRINTF((cbdev, "Can't parse cis\n"));
+			pci_freecfg((struct pci_devinfo *)dinfo);
+			continue;
+		}
+		cardbus_pickup_maps(cbdev, child);
+		cardbus_alloc_resources(cbdev, child);
+		pci_print_verbose(&dinfo->pci);
+		if (device_probe_and_attach(child) != 0)
+			cardbus_release_all_resources(cbdev, dinfo);
+		else
+			cardattached++;
 	}
-
 	if (cardattached > 0)
 		return (0);
 	POWER_DISABLE_SOCKET(brdev, cbdev);
