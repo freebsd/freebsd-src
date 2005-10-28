@@ -325,7 +325,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	}
 
 	/* Convert from BAR type to BAR offset */
-	bar = CARDBUS_BASE0_REG + (bar - 1) * 4;
+	bar = PCIR_BAR(bar - 1);
 
 	if (type == SYS_RES_MEMORY) {
 		if (reg & TPL_BAR_REG_PREFETCHABLE)
@@ -491,8 +491,10 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	uint32_t testval;
 	uint32_t size;
 	struct resource *res;
+	uint32_t space;
 
-	switch (CARDBUS_CIS_SPACE(*start)) {
+	space = CARDBUS_CIS_SPACE(*start);
+	switch (space) {
 	case CARDBUS_CIS_ASI_TUPLE:
 		/* CIS in PCI config space need no initialization */
 		return ((struct resource*)~0UL);
@@ -502,21 +504,14 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	case CARDBUS_CIS_ASI_BAR3:
 	case CARDBUS_CIS_ASI_BAR4:
 	case CARDBUS_CIS_ASI_BAR5:
-		*rid = CARDBUS_BASE0_REG + (CARDBUS_CIS_SPACE(*start) - 1) * 4;
+		*rid = PCIR_BAR(space - CARDBUS_CIS_ASI_BAR0);
 		break;
 	case CARDBUS_CIS_ASI_ROM:
 		*rid = CARDBUS_ROM_REG;
-#if 0
-		/*
-		 * This mask doesn't contain the bit that actually enables
-		 * the Option ROM.
-		 */
-		pci_write_config(child, *rid, CARDBUS_ROM_ADDRMASK, 4);
-#endif
 		break;
 	default:
 		device_printf(cbdev, "Unable to read CIS: Unknown space: %d\n",
-		    CARDBUS_CIS_SPACE(*start));
+		    space);
 		return (NULL);
 	}
 
@@ -546,13 +541,12 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		return (NULL);
 	}
 	pci_write_config(child, *rid,
-	    rman_get_start(res) | ((*rid == CARDBUS_ROM_REG)?
-		CARDBUS_ROM_ENABLE : 0),
-	    4);
+	    rman_get_start(res) | ((*rid == CARDBUS_ROM_REG) ?
+		CARDBUS_ROM_ENABLE : 0), 4);
 	PCI_ENABLE_IO(cbdev, child, SYS_RES_MEMORY);
 
 	/* Flip to the right ROM image if CIS is in ROM */
-	if (CARDBUS_CIS_SPACE(*start) == CARDBUS_CIS_ASI_ROM) {
+	if (space == CARDBUS_CIS_ASI_ROM) {
 		bus_space_tag_t bt;
 		bus_space_handle_t bh;
 		uint32_t imagesize;
