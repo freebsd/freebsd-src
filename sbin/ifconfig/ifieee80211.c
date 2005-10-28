@@ -322,6 +322,8 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 			bzero(data, sizeof(data));
 			len = sizeof(data);
 			val = get_string(val, ",", data, &len);
+			if (val == NULL)
+				exit(1);
 
 			set80211(s, IEEE80211_IOC_WEPKEY, i, len, data);
 		}
