@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ipfw
-# REQUIRE: ppp-user
+# REQUIRE: ppp
 # BEFORE: NETWORKING
 # KEYWORD: nojail
 
