@@ -70,9 +70,8 @@ device		atpic			# 8259A compatability
 # Linux 32-bit ABI support
 options 	LINPROCFS		# Cannot be a module yet.
 
-# Bus support.  Do not remove isa, even if you have no isa slots
+# Bus support.
 device		acpi
-device		isa
 device		pci
 
 # Floppy drives
@@ -222,8 +221,6 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
-device		io		# I/O device
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
