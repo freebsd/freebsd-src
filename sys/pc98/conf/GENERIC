@@ -29,7 +29,6 @@ ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
-options 	PC98			# PC98
 #options 	SCHED_ULE		# ULE scheduler
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -66,7 +65,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #device		apic			# I/O APIC
 
-device		isa
+# Bus support.
 device		pci
 
 # Floppy drives
@@ -115,9 +114,6 @@ device		splash		# Splash screen and screen saver support
 device		sc
 
 #device		agp		# support several AGP chipsets
-
-# Floating point support - do not disable.
-device		npx
 
 # Power management support (see NOTES for more options)
 #device		apm
@@ -208,8 +204,6 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
-device		io		# I/O device
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
