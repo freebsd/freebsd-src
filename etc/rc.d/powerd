@@ -12,7 +12,7 @@
 
 name="powerd"
 rcvar=`set_rcvar`
-command="/usr/sbin/powerd"
+command="/usr/sbin/${name}"
 
 load_rc_config $name
 run_rc_command "$1"
