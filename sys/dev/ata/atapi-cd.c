@@ -337,9 +337,11 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 		bcopy(&cdp->toc, toc, sizeof(struct toc));
 		entry = toc->tab + (toc->hdr.ending_track + 1 -
 			toc->hdr.starting_track) + 1;
-		while (--entry >= toc->tab)
+		while (--entry >= toc->tab) {
 		    lba2msf(ntohl(entry->addr.lba), &entry->addr.msf.minute,
 			    &entry->addr.msf.second, &entry->addr.msf.frame);
+		    entry->addr_type = CD_MSF_FORMAT;
+		}
 	    }
 	    error = copyout(toc->tab + starting_track - toc->hdr.starting_track,
 			    te->data, len);
@@ -940,17 +942,17 @@ acd_read_toc(device_t dev)
     int8_t ccb[16];
     int track, ntracks, len;
 
-    if (acd_test_ready(dev))
-	return;
-
     if (!(atadev->flags & ATA_D_MEDIA_CHANGED))
 	return;
 
     atadev->flags &= ~ATA_D_MEDIA_CHANGED;
     bzero(&cdp->toc, sizeof(cdp->toc));
-    bzero(ccb, sizeof(ccb));
     cdp->disk_size = -1;                        /* hack for GEOM SOS */
 
+    if (acd_test_ready(dev))
+	return;
+
+    bzero(ccb, sizeof(ccb));
     len = sizeof(struct ioc_toc_header) + sizeof(struct cd_toc_entry);
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
