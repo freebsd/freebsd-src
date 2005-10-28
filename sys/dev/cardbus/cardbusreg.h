@@ -30,11 +30,6 @@
  * Register definitions for the Cardbus Bus
  */
 
-
-/* Cardbus bus constants */
-#define	CARDBUS_SLOTMAX		0
-#define	CARDBUS_FUNCMAX		7
-
 /* EXROM offsets for reading CIS */
 #define	CARDBUS_EXROM_SIGNATURE	0x00
 #define	CARDBUS_EXROM_DATA_PTR	0x18
