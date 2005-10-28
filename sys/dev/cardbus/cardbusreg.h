@@ -35,22 +35,6 @@
 #define	CARDBUS_SLOTMAX		0
 #define	CARDBUS_FUNCMAX		7
 
-/* Cardbus configuration header registers */
-#define	CARDBUS_CIS_REG		0x28
-# define	CARDBUS_CIS_ASIMASK		0x07
-# define	CARDBUS_CIS_ADDRMASK		0x0ffffff8
-# define	CARDBUS_CIS_ASI_TUPLE		0x00
-# define	CARDBUS_CIS_ASI_BAR0		0x01
-# define	CARDBUS_CIS_ASI_BAR1		0x02
-# define	CARDBUS_CIS_ASI_BAR2		0x03
-# define	CARDBUS_CIS_ASI_BAR3		0x04
-# define	CARDBUS_CIS_ASI_BAR4		0x05
-# define	CARDBUS_CIS_ASI_BAR5		0x06
-# define	CARDBUS_CIS_ASI_ROM		0x07
-#define	CARDBUS_ROM_REG		0x30
-# define	CARDBUS_ROM_ENABLE		0x00000001
-# define	CARDBUS_ROM_ADDRMASK		0xfffff800
-
 /* EXROM offsets for reading CIS */
 #define	CARDBUS_EXROM_SIGNATURE	0x00
 #define	CARDBUS_EXROM_DATA_PTR	0x18
@@ -65,16 +49,6 @@
 #define	CARDBUS_EXROM_DATA_DATA_REV	0x12 /* Revision Level of Code/Data */
 #define	CARDBUS_EXROM_DATA_CODE_TYPE	0x14 /* Code Type */
 #define	CARDBUS_EXROM_DATA_INDICATOR	0x15 /* Indicator */
-
-/* useful macros */
-#define	CARDBUS_CIS_ADDR(x)						\
-	(CARDBUS_CIS_ADDRMASK & (x))
-#define	CARDBUS_CIS_SPACE(x)						\
-	(CARDBUS_CIS_ASIMASK & (x))
-#define	CARDBUS_CIS_ASI_BAR(x)						\
-	(((CARDBUS_CIS_ASIMASK & (x))-1)*4+0x10)
-#define	CARDBUS_CIS_ASI_ROM_IMAGE(x)					\
-	(((x) >> 28) & 0xf)
 
 #define	CARDBUS_MAPREG_MEM_ADDR_MASK	0x0ffffff0
 #define	CARDBUS_MAPREG_MEM_ADDR(mr)					\
