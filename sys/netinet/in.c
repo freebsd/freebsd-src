@@ -307,8 +307,6 @@ in_control(so, cmd, data, ifp, td)
 			 * while we're modifying it.
 			 */
 			s = splnet();
-			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
-
 			ifa = &ia->ia_ifa;
 			IFA_LOCK_INIT(ifa);
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
@@ -324,6 +322,8 @@ in_control(so, cmd, data, ifp, td)
 				ia->ia_broadaddr.sin_family = AF_INET;
 			}
 			ia->ia_ifp = ifp;
+
+			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
 			splx(s);
 			iaIsNew = 1;
 		}
