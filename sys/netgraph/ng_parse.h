@@ -104,7 +104,7 @@
 	    int bar;			00 00 00 00
 	    char label[8];		61 62 63 0a 00 00 00 00
 	    u_char alen;		03 00
-	    short ary[0];	  	05 00 00 00 0a 00
+	    short ary[];	  	05 00 00 00 0a 00
 	};
 
 	ASCII value
