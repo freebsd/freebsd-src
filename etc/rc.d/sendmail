@@ -20,9 +20,9 @@ required_files="/etc/mail/${name}.cf"
 start_precmd="sendmail_precmd"
 
 load_rc_config $name
-command=${sendmail_program:-/usr/sbin/sendmail}
-pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
-procname=${sendmail_procname:-/usr/sbin/sendmail}
+command=${sendmail_program:-/usr/sbin/${name}}
+pidfile=${sendmail_pidfile:-/var/run/${name}.pid}
+procname=${sendmail_procname:-/usr/sbin/${name}}
 
 case ${sendmail_enable} in
 [Nn][Oo][Nn][Ee])

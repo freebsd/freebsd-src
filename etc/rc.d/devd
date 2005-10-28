@@ -12,7 +12,7 @@
 
 name="devd"
 rcvar=`set_rcvar`
-command="/sbin/devd"
+command="/sbin/${name}"
 
 load_rc_config $name
 run_rc_command "$1"
