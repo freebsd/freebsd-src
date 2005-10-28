@@ -36,12 +36,6 @@
 #define	CARDBUS_FUNCMAX		7
 
 /* Cardbus configuration header registers */
-#define	CARDBUS_BASE0_REG	0x10
-#define	CARDBUS_BASE1_REG	0x14
-#define	CARDBUS_BASE2_REG	0x18
-#define	CARDBUS_BASE3_REG	0x1C
-#define	CARDBUS_BASE4_REG	0x20
-#define	CARDBUS_BASE5_REG	0x24
 #define	CARDBUS_CIS_REG		0x28
 # define	CARDBUS_CIS_ASIMASK		0x07
 # define	CARDBUS_CIS_ADDRMASK		0x0ffffff8
