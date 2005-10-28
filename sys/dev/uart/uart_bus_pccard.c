@@ -64,19 +64,20 @@ static driver_t uart_pccard_driver = {
 static int
 uart_pccard_probe(device_t dev)
 {
-	int		error = 0;
-	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+	int error;
+	uint32_t fcn;
 
+	fcn = PCCARD_FUNCTION_UNSPEC;
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
 		return (error);
 	/*
 	 * If a serial card, we are likely the right driver.  However,
-	 * some serial cards are better servered by other drivers, so
+	 * some serial cards are better serviced by other drivers, so
 	 * allow other drivers to claim it, if they want.
 	 */
 	if (fcn == PCCARD_FUNCTION_SERIAL)
-		return (-100);
+		return (BUS_PROBE_GENERIC);
 
 	return (ENXIO);
 }
@@ -85,16 +86,14 @@ static int
 uart_pccard_attach(device_t dev)
 {
 	struct uart_softc *sc;
-	int err;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
 
-	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
-	/* until bus_setup_intr but how can I do so?*/
-	err = uart_bus_probe(dev, 0, 0, 0, 0);
-	if (err)
-		return (err);
+	error = uart_bus_probe(dev, 0, 0, 0, 0);
+	if (error > 0)
+		return (error);
 	return (uart_bus_attach(dev));
 }
 
