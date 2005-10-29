@@ -342,15 +342,21 @@ int
 cbb_shutdown(device_t brdev)
 {
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-	/* properly reset everything at shutdown */
 
+	/*
+	 * Place the cards in reset, turn off the interrupts and power
+	 * down the socket.
+	 */
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
 	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
-
 	cbb_set(sc, CBB_SOCKET_MASK, 0);
-
+	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
 	cbb_power(brdev, CARD_OFF);
 
+	/* 
+	 * For paranoia, turn off all address decoding.  Really not needed,
+	 * it seems, but it can't hurt
+	 */
 	exca_putb(&sc->exca[0], EXCA_ADDRWIN_ENABLE, 0);
 	pci_write_config(brdev, CBBR_MEMBASE0, 0, 4);
 	pci_write_config(brdev, CBBR_MEMLIMIT0, 0, 4);
@@ -360,7 +366,6 @@ cbb_shutdown(device_t brdev)
 	pci_write_config(brdev, CBBR_IOLIMIT0, 0, 4);
 	pci_write_config(brdev, CBBR_IOBASE1, 0, 4);
 	pci_write_config(brdev, CBBR_IOLIMIT1, 0, 4);
-	pci_write_config(brdev, PCIR_COMMAND, 0, 2);
 	return (0);
 }
 
