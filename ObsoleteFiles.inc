@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20051029: rc.d/ppp-user renamed to rc.d/ppp for convenience
+OLD_FILES+=etc/rc.d/ppp-user
 # 20051012: setkey(8) moved to /sbin/
 OLD_FILES+=usr/sbin/setkey
 # 20050927: bridge(4) replaced by if_bridge(4)

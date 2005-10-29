@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20051029:
+	/etc/rc.d/ppp-user has been renamed to /etc/rc.d/ppp.
+	Its /etc/rc.conf.d configuration file has been `ppp' from
+	the beginning, and hence there is no need to touch it.
+
 20051001:
 	kern.polling.enable sysctl MIB is now deprecated. Use ifconfig(8)
 	to turn polling(4) on your interfaces.
