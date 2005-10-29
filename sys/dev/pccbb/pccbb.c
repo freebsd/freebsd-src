@@ -300,12 +300,18 @@ cbb_detach(device_t brdev)
 	if (error > 0)
 		return (ENXIO);
 
-	mtx_lock(&sc->mtx);
-	/* 
-	 * XXX do we teardown all the ones still registered to guard against
-	 * XXX buggy client drivers?
-	 */
-	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
+	/* Turn off the interrupts */
+	cbb_set(sc, CBB_SOCKET_MASK, 0);
+
+	/* reset 16-bit pcmcia bus */
+	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+
+	/* turn off power */
+	cbb_power(brdev, CARD_OFF);
+
+	/* Ack the interrupt */
+	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
+
 	/*
 	 * Wait for the thread to die.  kthread_exit will do a wakeup
 	 * on the event thread's struct thread * so that we know it is
@@ -314,6 +320,8 @@ cbb_detach(device_t brdev)
 	 * the event thread happens only in kthread_exit, we don't
 	 * need to loop here.
 	 */
+	mtx_lock(&sc->mtx);
+	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
 	sc->flags |= CBB_KTHREAD_DONE;
 	if (sc->flags & CBB_KTHREAD_RUNNING) {
 		cv_broadcast(&sc->cv);
