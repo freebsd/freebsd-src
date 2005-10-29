@@ -166,6 +166,7 @@
 
 /* config registers for header type 2 (CardBus) devices */
 
+#define	PCIR_CAP_PTR_2	0x14
 #define PCIR_SECSTAT_2	0x16
 
 #define PCIR_PRIBUS_2	0x18

@@ -430,7 +430,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 		ptrptr = PCIR_CAP_PTR;
 		break;
 	case 2:
-		ptrptr = 0x14;
+		ptrptr = PCIR_CAP_PTR_2;
 		break;
 	default:
 		return;		/* no extended capabilities support */
