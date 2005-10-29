@@ -121,7 +121,7 @@ main(int argc, char **argv)
 		 * package name.  Otherwise we've come across a trailing '/' and
 		 * need to continue our quest.
 		 */
-		if (isalpha(*pkgs_split) || ((MatchType == MATCH_GLOB) && \
+		if (isalnum(*pkgs_split) || ((MatchType == MATCH_GLOB) && \
 		    strpbrk(pkgs_split, "*?[]") != NULL)) {
 		    *argv = pkgs_split;
 		    break;
