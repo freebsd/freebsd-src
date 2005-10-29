@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2005
+.Dd October 29, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1462,7 +1462,8 @@ A synonym for the
 .Ic cd
 built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
-Execute the specified
+.It Ic command Oo Fl v | V Oc Op Ar utility
+The first form of invocation executes the specified
 .Ar utility
 as a simple command (see the
 .Sx Simple Commands
@@ -1474,6 +1475,42 @@ option is specified, the command search is performed using a
 default value of
 .Ev PATH
 that is guaranteed to find all of the standard utilities.
+.Pp
+If the
+.Fl v
+option is specified, 
+.Ar utility
+is not executed but a description of its interpretation by the shell is
+printed.
+For ordinary commands the output is the path name; for shell built-in
+commands, shell functions and keywords only the name is written.
+Aliases are printed as
+.Dq Ic alias Ar name Ns = Ns Ar value .
+.Pp
+The
+.Fl V
+option is identical to
+.Fl v
+except for the output.
+It prints
+.Dq Ar utility Ic is Ar description
+where
+.Ar description
+is either
+.Bl -item -offset indent
+.It
+the path name to
+.Ar utility ,
+.It
+.Ic a shell builtin ,
+.It
+.Ic a shell function ,
+.It
+.Ic a shell keyword
+or
+.It
+.Ic an alias for Ar value .
+.El
 .It Ic echo Oo Fl e | n Oc Op Ar string
 Print
 .Ar string
