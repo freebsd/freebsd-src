@@ -1749,6 +1749,9 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	if (rle == NULL)
 		panic("pci_alloc_map: unexpectedly can't find resource.");
 	rle->res = res;
+	rle->start = rman_get_start(res);
+	rle->end = rman_get_end(res);
+	rle->count = count;
 	if (bootverbose)
 		device_printf(child,
 		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
