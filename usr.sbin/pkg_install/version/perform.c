@@ -165,6 +165,10 @@ pkg_do(char *pkg)
 	}
     }
     if (latest == NULL) {
+	/* Report package as not found in INDEX if the INDEX is not required. */
+	if (IndexFile == NULL && !UseINDEXOnly)
+		show_version(plist, NULL, plist.origin);
+	else {
 	/* We only pull in the INDEX once, if needed. */
 	if (SLIST_EMPTY(&Index)) {
 	    if (!IndexFile)
@@ -230,6 +234,7 @@ pkg_do(char *pkg)
 	    show_version(plist, NULL, NULL);
 	else
 	    show_version(plist, latest, "index");
+	}
     }
     if (latest != NULL)
 	free(latest);
