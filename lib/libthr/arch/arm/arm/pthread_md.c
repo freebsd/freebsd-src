@@ -32,10 +32,6 @@
 
 #include "pthread_md.h"
 
-struct umtx arm_umtx = {
-	.u_owner = UMTX_UNOWNED
-};
-
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
