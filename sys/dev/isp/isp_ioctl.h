@@ -185,3 +185,15 @@ struct isp_fc_param {
 
 #define	ISP_GET_FC_PARAM	_IOWR(ISP_IOC, 98, struct isp_fc_param)
 #define	ISP_SET_FC_PARAM	_IOWR(ISP_IOC, 99, struct isp_fc_param)
+
+/*
+ * Various Reset Goodies
+ */
+struct isp_fc_tsk_mgmt {
+	u_int32_t	loopid;		/* 0..255 */
+	u_int32_t	lun;
+	enum {
+	    CLEAR_ACA, TARGET_RESET, LUN_RESET, CLEAR_TASK_SET, ABORT_TASK_SET
+	} action;
+};
+#define	ISP_TSK_MGMT		_IOWR(ISP_IOC, 97, struct isp_fc_tsk_mgmt)
