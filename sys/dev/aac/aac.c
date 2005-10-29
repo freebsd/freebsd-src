@@ -2728,12 +2728,14 @@ aac_describe_controller(struct aac_softc *sc)
 
 	debug_called(2);
 
+	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
 
 	fib->data[0] = 0;
 	if (aac_sync_fib(sc, RequestAdapterInfo, 0, fib, 1)) {
 		device_printf(sc->aac_dev, "RequestAdapterInfo failed\n");
 		aac_release_sync_fib(sc);
+		mtx_unlock(&sc->aac_io_lock);
 		return;
 	}
 
@@ -2789,6 +2791,7 @@ aac_describe_controller(struct aac_softc *sc)
 			      "\24HEATSENSOR");
 	}
 	aac_release_sync_fib(sc);
+	mtx_unlock(&sc->aac_io_lock);
 }
 
 /*
