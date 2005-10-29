@@ -503,6 +503,65 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 		retval = EINVAL;
 		break;
 	}
+	case ISP_TSK_MGMT:
+	{
+		int needmarker;
+		struct isp_fc_tsk_mgmt *fct = (struct isp_fc_tsk_mgmt *) addr;
+		mbreg_t mbs;
+
+		if (IS_SCSI(isp)) {
+			retval = EINVAL;
+			break;
+		}
+
+		memset(&mbs, 0, sizeof (mbs));
+		needmarker = retval = 0;
+
+		switch (fct->action) {
+		case CLEAR_ACA:
+			mbs.param[0] = MBOX_CLEAR_ACA;
+			mbs.param[1] = fct->loopid << 8;
+			mbs.param[2] = fct->lun;
+			break;
+		case TARGET_RESET:
+			mbs.param[0] = MBOX_TARGET_RESET;
+			mbs.param[1] = fct->loopid << 8;
+			needmarker = 1;
+			break;
+		case LUN_RESET:
+			mbs.param[0] = MBOX_LUN_RESET;
+			mbs.param[1] = fct->loopid << 8;
+			mbs.param[2] = fct->lun;
+			needmarker = 1;
+			break;
+		case CLEAR_TASK_SET:
+			mbs.param[0] = MBOX_CLEAR_TASK_SET;
+			mbs.param[1] = fct->loopid << 8;
+			mbs.param[2] = fct->lun;
+			needmarker = 1;
+			break;
+		case ABORT_TASK_SET:
+			mbs.param[0] = MBOX_ABORT_TASK_SET;
+			mbs.param[1] = fct->loopid << 8;
+			mbs.param[2] = fct->lun;
+			needmarker = 1;
+			break;
+		default:
+			retval = EINVAL;
+			break;
+		}
+		if (retval == 0) {
+			ISP_LOCK(isp);
+			if (needmarker) {
+				isp->isp_sendmarker |= 1;
+			}
+			retval = isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+			ISP_UNLOCK(isp);
+			if (retval)
+				retval = EIO;
+		}
+		break;
+	}
 	default:
 		break;
 	}
