@@ -39,8 +39,6 @@
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
-extern int _thr_using_setbase;
-
 /*
  * Variant II tcb, first two members are required by rtld,
  * %gs points to the structure.
