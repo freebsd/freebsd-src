@@ -70,7 +70,7 @@ Boston, MA 02111-1307, USA.  */
 #ifdef FREEBSD_NATIVE
 #define FBSD_NATIVE_TARGET_OS_CPP_BUILTINS()				\
   do {									\
-	builtin_define_std ("__FreeBSD_cc_version=600001");		\
+	builtin_define_std ("__FreeBSD_cc_version=700001");		\
   } while (0)
 #else
 #define FBSD_NATIVE_TARGET_OS_CPP_BUILTINS()				\
