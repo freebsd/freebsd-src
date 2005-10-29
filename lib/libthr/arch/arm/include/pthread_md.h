@@ -35,9 +35,6 @@
 #include <sys/types.h>
 #include <machine/sysarch.h>
 #include <stddef.h>
-#include <errno.h>
-
-#include <sys/umtx.h>
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
@@ -82,7 +79,5 @@ _get_curthread(void)
 		return (_tcb_get()->tcb_thread);
 	return (NULL);
 }
-
-extern struct umtx arm_umtx;
 
 #endif /* _PTHREAD_MD_H_ */
