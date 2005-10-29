@@ -293,8 +293,6 @@ txp_attach(dev)
 		goto fail;
 	}
 
-	txp_set_filter(sc);
-
 	eaddr[0] = ((u_int8_t *)&p1)[1];
 	eaddr[1] = ((u_int8_t *)&p1)[0];
 	eaddr[2] = ((u_int8_t *)&p2)[3];
