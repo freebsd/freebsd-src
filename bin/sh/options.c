@@ -247,7 +247,7 @@ end_options2:
 STATIC void
 minus_o(char *name, int val)
 {
-	int doneset, i;
+	int i;
 
 	if (name == NULL) {
 		if (val) {
@@ -258,16 +258,13 @@ minus_o(char *name, int val)
 					optlist[i].val ? "on" : "off");
 		} else {
 			/* Output suitable for re-input to shell. */
-			for (doneset = i = 0; i < NOPTS; i++)
-				if (optlist[i].val) {
-					if (!doneset) {
-						out1str("set");
-						doneset = 1;
-					}
-					out1fmt(" -o %s", optlist[i].name);
-				}
-			if (doneset)
-				out1c('\n');
+			for (i = 0; i < NOPTS; i++) {
+				if (i % 6 == 0)
+					out1str(i == 0 ? "set" : "\nset");
+				out1fmt(" %co %s", optlist[i].val ? '-' : '+',
+					optlist[i].name);
+			}
+			out1c('\n');
 		}
 	} else {
 		for (i = 0; i < NOPTS; i++)
