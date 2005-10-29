@@ -336,6 +336,9 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 /* Gemplus */
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
 
+/* GlobalVillage */
+product GLOBALVILLAGE LANMODEM	0x0105 GlobalVillage Ethernet + Modem
+
 /* Grey Cell Systems, Ltd */
 product GREY_CELL TDK3000	0x3341 TDK 3000/3400/5670 Fast Ethernet/Modem
 product GREY_CELL DMF650TX	0xc0ab D-Link DMF-650TX
@@ -658,8 +661,9 @@ product ALLIEDTELESIS WR211PCM	{ "Allied&spTelesis&spK.K.", "WR211PCM", NULL, NU
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
-product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton Systems Inc. CFLT10N Ethernet
-product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
+product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton CFLT10N
+product BILLIONTON LNA100B	{ "Billionton", "LNA-100B", NULL, NULL } Billionton LNA-100B
+product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton LNT-10TN
 product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
 product COREGA ETHER_PCC_T	{ "corega&spK.K.", "corega&spEther&spPCC-T", NULL, NULL } Corega Ether PCC-T
 product COREGA ETHER_PCC_TD	{ "corega&spK.K.", "corega&spEther&spPCC-TD", NULL, NULL } Corega Ether PCC-TD
