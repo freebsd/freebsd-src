@@ -794,7 +794,7 @@ ng_btsocket_rfcomm_disconnect(struct socket *so)
  */
 
 int
-ng_btsocket_rfcomm_listen(struct socket *so, struct thread *td)
+ng_btsocket_rfcomm_listen(struct socket *so, int backlog, struct thread *td)
 {
 	ng_btsocket_rfcomm_pcb_p	 pcb = so2rfcomm_pcb(so);
 	ng_btsocket_rfcomm_session_p	 s = NULL;
@@ -858,7 +858,7 @@ ng_btsocket_rfcomm_listen(struct socket *so, struct thread *td)
 			goto out;
 		l2so = NULL;
 	}
-	solisten_proto(so);
+	solisten_proto(so, backlog);
 out:
 	SOCK_UNLOCK(so);
 	mtx_unlock(&ng_btsocket_rfcomm_sessions_mtx);

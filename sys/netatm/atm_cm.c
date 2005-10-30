@@ -536,12 +536,13 @@ done:
  *
  */
 int
-atm_cm_listen(so, epp, token, ap, copp)
+atm_cm_listen(so, epp, token, ap, copp, backlog)
 	struct socket	*so;
 	Atm_endpoint	*epp;
 	void		*token;
 	Atm_attributes	*ap;
 	Atm_connection	**copp;
+	int		 backlog;
 {
 	Atm_connection	*cop;
 	int		s, err = 0;
@@ -737,7 +738,7 @@ atm_cm_listen(so, epp, token, ap, copp)
 	cop->co_state = COS_LISTEN;
 	LINK2TAIL(cop, Atm_connection, atm_listen_queue, co_next);
 	if (so != NULL)
-		solisten_proto(so);
+		solisten_proto(so, backlog);
 
 donex:
 	(void) splx(s);

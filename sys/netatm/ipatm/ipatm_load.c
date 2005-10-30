@@ -524,7 +524,7 @@ ipatm_start()
 		 */
 		if ((err = atm_cm_listen(NULL, &ipatm_endpt,
 				(void *)(intptr_t)i, &ipatm_listeners[i].attr,
-				&ipatm_listeners[i].conn)) != 0)
+				&ipatm_listeners[i].conn, -1)) != 0)
 			goto done;
 	}
 
