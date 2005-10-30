@@ -50,7 +50,7 @@ variable rebootkey
 46 constant dot
 
 \ The BSD Daemon.  He is 19 rows high and 34 columns wide
-: technicolor-beastie ( x y -- )
+: beastie-logo ( x y -- )
 2dup at-xy ."               [1;31m,        ," 1+
 2dup at-xy ."              /(        )`" 1+
 2dup at-xy ."              \ \___   / |" 1+
@@ -72,7 +72,7 @@ variable rebootkey
 at-xy ."         `--{__________) [0m"
 ;
 
-: boring-beastie ( x y -- )
+: beastiebw-logo ( x y -- )
 	2dup at-xy ."              ,        ," 1+
 	2dup at-xy ."             /(        )`" 1+
 	2dup at-xy ."             \ \___   / |" 1+
@@ -94,18 +94,51 @@ at-xy ."         `--{__________) [0m"
 	     at-xy ."        `--{__________)"
 ;
 
-: print-beastie ( x y -- )
-	s" loader_color" getenv
+: fbsdbw-logo ( x y -- )
+	2dup at-xy ."      ______" 1+
+	2dup at-xy ."     |  ____| __ ___  ___ " 1+
+	2dup at-xy ."     | |__ | '__/ _ \/ _ \" 1+
+	2dup at-xy ."     |  __|| | |  __/  __/" 1+
+	2dup at-xy ."     | |   | | |    |    |" 1+
+	2dup at-xy ."     |_|   |_|  \___|\___|" 1+
+	2dup at-xy ."      ____   _____ _____" 1+
+	2dup at-xy ."     |  _ \ / ____|  __ \" 1+
+	2dup at-xy ."     | |_) | (___ | |  | |" 1+
+	2dup at-xy ."     |  _ < \___ \| |  | |" 1+
+	2dup at-xy ."     | |_) |____) | |__| |" 1+
+	2dup at-xy ."     |     |      |      |" 1+
+	     at-xy ."     |____/|_____/|_____/"
+;
+
+: print-logo ( x y -- )
+	s" loader_logo" getenv
 	dup -1 = if
 		drop
-		boring-beastie
+		fbsdbw-logo
 		exit
 	then
-	s" YES" compare-insensitive 0<> if
-		boring-beastie
+	2dup s" fbsdbw" compare-insensitive 0= if
+		2drop
+		fbsdbw-logo
 		exit
 	then
-	technicolor-beastie
+	2dup s" beastiebw" compare-insensitive 0= if
+		2drop
+		beastiebw-logo
+		exit
+	then
+	2dup s" beastie" compare-insensitive 0= if
+		2drop
+		beastie-logo
+		exit
+	then
+	2dup s" none" compare-insensitive 0= if
+		2drop
+		\ no logo
+		exit
+	then
+	2drop
+	fbsdbw-logo
 ;
 
 : acpienabled? ( -- flag )
@@ -144,7 +177,7 @@ at-xy ."         `--{__________) [0m"
 	8 menuY !
 	5 menuX !
 	clear
-	46 4 print-beastie
+	46 4 print-logo
 	42 20 2 2 box
 	13 6 at-xy ." Welcome to FreeBSD!"
 	printmenuitem ."  Boot FreeBSD [default]" bootkey !
