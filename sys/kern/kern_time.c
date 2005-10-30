@@ -88,7 +88,7 @@ static int	realtimer_gettime(struct itimer *, struct itimerspec *);
 static int	realtimer_settime(struct itimer *, int,
 			struct itimerspec *, struct itimerspec *);
 static int	realtimer_delete(struct itimer *);
-static void	realtimer_clocktime(clockid_t, struct timeval *);
+static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
 static void	realtimer_event_hook(struct proc *, clockid_t, int event);
 static int	kern_timer_create(struct thread *, clockid_t,
@@ -97,6 +97,7 @@ static int	kern_timer_delete(struct thread *, timer_t);
 
 int		register_posix_clock(int, struct kclock *);
 void		itimer_fire(struct itimer *it);
+int		itimespecfix(struct timespec *ts);
 
 #define CLOCK_CALL(clock, call, arglist)		\
 	((*posix_clocks[clock].call) arglist)
@@ -957,9 +958,11 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 
 	if (evp != NULL) {
 		if (evp->sigev_notify != SIGEV_NONE &&
-		    evp->sigev_notify != SIGEV_SIGNAL)
+		    evp->sigev_notify != SIGEV_SIGNAL &&
+		    evp->sigev_notify != SIGEV_THREAD_ID)
 			return (EINVAL);
-		if (evp->sigev_notify == SIGEV_SIGNAL &&
+		if ((evp->sigev_notify == SIGEV_SIGNAL ||
+		     evp->sigev_notify == SIGEV_THREAD_ID) &&
 			!_SIG_VALID(evp->sigev_signo))
 			return (EINVAL);
 	}
@@ -971,8 +974,8 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 	it->it_flags = 0;
 	it->it_usecount = 0;
 	it->it_active = 0;
-	timevalclear(&it->it_time.it_value);
-	timevalclear(&it->it_time.it_interval);
+	timespecclear(&it->it_time.it_value);
+	timespecclear(&it->it_time.it_interval);
 	it->it_overrun = 0;
 	it->it_overrun_last = 0;
 	it->it_clockid = clock_id;
@@ -1028,7 +1031,8 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 		it->it_sigev.sigev_value.sigval_int = id;
 	}
 
-	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL) {
+	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL ||
+	    it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
 		it->it_ksi.ksi_signo = it->it_sigev.sigev_signo;
 		it->it_ksi.ksi_code = SI_TIMER;
 		it->it_ksi.ksi_value = it->it_sigev.sigev_value;
@@ -1204,9 +1208,9 @@ timer_getoverrun(struct thread *td, struct timer_getoverrun_args *uap)
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
-		PROC_UNLOCK(p);
 		td->td_retval[0] = it->it_overrun_last;
 		ITIMER_UNLOCK(it);
+		PROC_UNLOCK(p);
 		error = 0;
 	}
 	return (error);
@@ -1230,18 +1234,14 @@ realtimer_delete(struct itimer *it)
 static int
 realtimer_gettime(struct itimer *it, struct itimerspec *ovalue)
 {
-	struct timespec ts;
+	struct timespec cts;
 
 	mtx_assert(&it->it_mtx, MA_OWNED);
 
-	TIMEVAL_TO_TIMESPEC(&it->it_time.it_value, &ovalue->it_value);
-	TIMEVAL_TO_TIMESPEC(&it->it_time.it_interval, &ovalue->it_interval);
-	if (it->it_clockid == CLOCK_REALTIME)
-		getnanotime(&ts);
-	else /* CLOCK_MONOTONIC */
-		getnanouptime(&ts);
+	realtimer_clocktime(it->it_clockid, &cts);
+	*ovalue = it->it_time;
 	if (ovalue->it_value.tv_sec != 0 || ovalue->it_value.tv_nsec != 0) {
-		timespecsub(&ovalue->it_value, &ts);
+		timespecsub(&ovalue->it_value, &cts);
 		if (ovalue->it_value.tv_sec < 0 ||
 		    (ovalue->it_value.tv_sec == 0 &&
 		     ovalue->it_value.tv_nsec == 0)) {
@@ -1256,42 +1256,42 @@ static int
 realtimer_settime(struct itimer *it, int flags,
 	struct itimerspec *value, struct itimerspec *ovalue)
 {
-	struct timeval tv, tv2;
-	struct itimerval val;
+	struct timespec cts, ts;
+	struct timeval tv;
+	struct itimerspec val;
 
 	mtx_assert(&it->it_mtx, MA_OWNED);
 
-	TIMESPEC_TO_TIMEVAL(&val.it_value, &value->it_value);
-	TIMESPEC_TO_TIMEVAL(&val.it_interval, &value->it_interval);
-
-	if (itimerfix(&val.it_value))
+	val = *value;
+	if (itimespecfix(&val.it_value))
 		return (EINVAL);
 
-	if (timevalisset(&val.it_value)) {
-		if (itimerfix(&val.it_interval))
+	if (timespecisset(&val.it_value)) {
+		if (itimespecfix(&val.it_interval))
 			return (EINVAL);
 	} else {
-		timevalclear(&val.it_interval);
+		timespecclear(&val.it_interval);
 	}
 	
 	if (ovalue != NULL)
 		realtimer_gettime(it, ovalue);
 
 	it->it_time = val;
-	if (timevalisset(&val.it_value)) {
-		realtimer_clocktime(it->it_clockid, &tv);
-		tv2 = val.it_value;
+	if (timespecisset(&val.it_value)) {
+		realtimer_clocktime(it->it_clockid, &cts);
+		ts = val.it_value;
 		if ((flags & TIMER_ABSTIME) == 0) {
 			/* Convert to absolute time. */
-			timevaladd(&it->it_time.it_value, &tv);
+			timespecadd(&it->it_time.it_value, &cts);
 		} else {
-			timevalsub(&tv2, &tv);
+			timespecsub(&ts, &cts);
 			/*
-			 * We don't care if tv2 is negative, tztohz will
+			 * We don't care if ts is negative, tztohz will
 			 * fix it.
 			 */
 		}
-		callout_reset(&it->it_callout, tvtohz(&tv2),
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		callout_reset(&it->it_callout, tvtohz(&tv),
 			realtimer_expire, it);
 	} else {
 		callout_stop(&it->it_callout);
@@ -1301,12 +1301,40 @@ realtimer_settime(struct itimer *it, int flags,
 }
 
 static void
-realtimer_clocktime(clockid_t id, struct timeval *tv)
+realtimer_clocktime(clockid_t id, struct timespec *ts)
 {
 	if (id == CLOCK_REALTIME)
-		getmicrotime(tv);
+		getnanotime(ts);
 	else	/* CLOCK_MONOTONIC */
-		getmicrouptime(tv);
+		getnanouptime(ts);
+}
+
+int
+itimer_accept(struct proc *p, timer_t timerid, ksiginfo_t *ksi)
+{
+	struct itimer *it;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	it = itimer_find(p, timerid, 0);
+	if (it != NULL) {
+		ksi->ksi_overrun = it->it_overrun;
+		it->it_overrun_last = it->it_overrun;
+		it->it_overrun = 0;
+		ITIMER_UNLOCK(it);
+		return (0);
+	}
+	return (EINVAL);
+}
+
+int
+itimespecfix(struct timespec *ts)
+{
+
+	if (ts->tv_sec < 0 || ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000)
+		return (EINVAL);
+	if (ts->tv_sec == 0 && ts->tv_nsec != 0 && ts->tv_nsec < tick * 1000)
+		ts->tv_nsec = tick * 1000;
+	return (0);
 }
 
 static void
@@ -1339,41 +1367,44 @@ realtimer_event_hook(struct proc *p, clockid_t clock_id, int event)
 static void
 realtimer_expire(void *arg)
 {
-	struct timeval tv, tv2;
+	struct timespec cts, ts;
+	struct timeval tv;
 	struct itimer *it;
 	struct proc *p;
 
 	it = (struct itimer *)arg;
 	p = it->it_proc;
 
-	realtimer_clocktime(it->it_clockid, &tv);
+	realtimer_clocktime(it->it_clockid, &cts);
 	/* Only fire if time is reached. */
-	if (timevalcmp(&it->it_time.it_value, &tv, <=)) {
-		if (timevalisset(&it->it_time.it_interval)) {
-			timevaladd(&it->it_time.it_value,
-				   &it->it_time.it_interval);
-			while (timevalcmp(&it->it_time.it_value, &tv, <=)) {
+	if (timespeccmp(&cts, &it->it_time.it_value, >=)) {
+		if (timespecisset(&it->it_time.it_interval)) {
+			timespecadd(&it->it_time.it_value,
+				    &it->it_time.it_interval);
+			while (timespeccmp(&cts, &it->it_time.it_value, >=)) {
 				it->it_overrun++;
-				timevaladd(&it->it_time.it_value,
-					&it->it_time.it_interval);
+				timespecadd(&it->it_time.it_value,
+					    &it->it_time.it_interval);
 			}
 		} else {
 			/* single shot timer ? */
-			timevalclear(&it->it_time.it_value);
+			timespecclear(&it->it_time.it_value);
 		}
-		if (timevalisset(&it->it_time.it_value)) {
-			tv2 = it->it_time.it_value;
-			timevalsub(&tv2, &tv);
-			callout_reset(&it->it_callout, tvtohz(&tv2),
+		if (timespecisset(&it->it_time.it_value)) {
+			ts = it->it_time.it_value;
+			timespecsub(&ts, &cts);
+			TIMESPEC_TO_TIMEVAL(&tv, &ts);
+			callout_reset(&it->it_callout, tvtohz(&tv),
 				 realtimer_expire, it);
 		}
 		ITIMER_UNLOCK(it);
 		itimer_fire(it);
 		ITIMER_LOCK(it);
-	} else if (timevalisset(&it->it_time.it_value)) {
-		tv2 = it->it_time.it_value;
-		timevalsub(&tv2, &tv);
-		callout_reset(&it->it_callout, tvtohz(&tv2), realtimer_expire,
+	} else if (timespecisset(&it->it_time.it_value)) {
+		ts = it->it_time.it_value;
+		timespecsub(&ts, &cts);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		callout_reset(&it->it_callout, tvtohz(&tv), realtimer_expire,
  			it);
 	}
 }
@@ -1382,20 +1413,48 @@ void
 itimer_fire(struct itimer *it)
 {
 	struct proc *p = it->it_proc;
+	struct thread *td;
 
-	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL) {
+	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL ||
+	    it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
 		PROC_LOCK(p);
-		ITIMER_LOCK(it);
 		if (KSI_ONQ(&it->it_ksi)) {
 			it->it_overrun++;
 		} else {
-			it->it_ksi.ksi_overrun = it->it_overrun;
-			it->it_overrun_last = it->it_overrun;
-			it->it_overrun = 0;
-			psignal_info(p, &it->it_ksi);
+			if (it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
+				/* XXX
+				 * This is too slow if there are many threads,
+				 * why the world don't have a thread hash table,
+				 * sigh.
+				 */
+				FOREACH_THREAD_IN_PROC(p, td) {
+					if (td->td_tid ==
+					    it->it_sigev.sigev_notify_thread_id)
+						break;
+				}
+				if (td != NULL)
+					tdsignal(td, it->it_ksi.ksi_signo,
+						&it->it_ksi, SIGTARGET_TD);
+				else {
+					/*
+					 * Broken userland code, thread went
+					 * away, disarm the timer.
+					 */
+#if 0
+					it->it_overrun++;
+#else
+					ITIMER_LOCK(it);
+					timespecclear(&it->it_time.it_value);
+					timespecclear(&it->it_time.it_interval);
+					callout_stop(&it->it_callout);
+					ITIMER_UNLOCK(it);
+#endif
+				}
+			} else {
+				psignal_info(p, &it->it_ksi);
+			}
 		}
 		PROC_UNLOCK(p);
-		ITIMER_UNLOCK(it);
 	}
 }
 
