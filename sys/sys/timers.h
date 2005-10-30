@@ -47,7 +47,7 @@
 struct itimer {
 	struct mtx  		it_mtx;
 	struct sigevent		it_sigev;
-	struct itimerval	it_time;
+	struct itimerspec	it_time;
 	struct proc 		*it_proc;
 	int	it_flags;
 	int	it_usecount;
@@ -113,6 +113,6 @@ struct	kclock {
 #define	ITIMER_EV_EXIT	1
 
 void	itimers_event_hook(struct proc *p, int event);
-
+int	itimer_accept(struct proc *p, timer_t tid, ksiginfo_t *ksi);
 #endif
 #endif /* !_SYS_TIMERS_H_ */
