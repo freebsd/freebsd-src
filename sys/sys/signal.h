@@ -158,28 +158,31 @@ union sigval {
 #if __POSIX_VISIBLE >= 199309
 struct sigevent {
 	int	sigev_notify;		/* Notification type */
-	union {
-		int	__sigev_signo;	/* Signal number */
-		int	__sigev_notify_kqueue;
-	} __sigev_u;
+	int	sigev_signo;		/* Signal number */
 	union sigval sigev_value;	/* Signal value */
-/*
- * XXX missing sigev_notify_function, sigev_notify_attributes.
- */
+	union {
+		__lwpid_t	_threadid;
+		struct {
+			void (*_function)(union sigval *);
+			void *_attribute; /* pthread_attr_t * */
+		} _sigev_thread;
+	} _sigev_un;
 };
-#define	sigev_signo		__sigev_u.__sigev_signo
-#if __BSD_VISIBLE
-#define	sigev_notify_kqueue	__sigev_u.__sigev_notify_kqueue
-#endif
 
-#define	SIGEV_NONE	0		/* No async notification */
-#define	SIGEV_SIGNAL	1		/* Generate a queued signal */
 #if __BSD_VISIBLE
-#define	SIGEV_KEVENT	3		/* Generate a kevent */
+#define	sigev_notify_kqueue		sigev_signo
+#define	sigev_notify_thread_id		_sigev_un._threadid
 #endif
-/*
- * XXX missing SIGEV_THREAD.
- */
+#define	sigev_notify_function		_sigev_un._sigev_thread._function
+#define	sigev_notify_attributes		_sigev_un._sigev_thread._attribute
+
+#define	SIGEV_NONE	0		/* No async notification. */
+#define	SIGEV_SIGNAL	1		/* Generate a queued signal. */
+#define	SIGEV_THREAD	2		/* Call back from another pthread. */
+#if __BSD_VISIBLE
+#define	SIGEV_KEVENT	3		/* Generate a kevent. */
+#define	SIGEV_THREAD_ID	4		/* Send signal to a kernel thread. */
+#endif
 #endif /* __POSIX_VISIBLE >= 199309 */
 
 #if __POSIX_VISIBLE >= 199309 || __XSI_VISIBLE
