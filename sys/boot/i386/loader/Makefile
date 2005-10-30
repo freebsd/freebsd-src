@@ -73,7 +73,7 @@ loader.help: help.common help.i386
 
 .PATH: ${.CURDIR}/../../forth 
 FILES=	loader loader.help loader.4th support.4th loader.conf
-FILES+= screen.4th frames.4th
+FILES+= screen.4th frames.4th beastie.4th
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_loader= ${BINMODE} -b
 FILESDIR_loader.conf=	/boot/defaults
