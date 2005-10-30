@@ -305,6 +305,16 @@ stack_save(struct stack *st)
 		callpc = *(vm_offset_t *)(stackframe + 4) - 4;
 		if ((callpc & 3) || (callpc < 0x100))
 			break;
+
+		/*
+		 * Don't bother traversing trap-frames - there should
+		 * be enough info down to the frame to work out where
+		 * things are going wrong. Plus, prevents this shortened
+		 * version of code from accessing user-space frames
+		 */
+		if (callpc + 4 == (db_addr_t) &trapexit)
+			break;
+
 		if (stack_put(st, callpc) == -1)
 			break;
 	}
