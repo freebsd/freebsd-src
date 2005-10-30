@@ -178,6 +178,7 @@ global:
 	_spinunlock;
 	_system;
 	_tcdrain;
+	_timer_create;
 	_usleep;
 	_vfork;
 	_wait;
@@ -343,6 +344,7 @@ global:
 	sleep;
 	system;
 	tcdrain;
+	timer_create;
 	usleep;
 	vfork;
 	wait;
