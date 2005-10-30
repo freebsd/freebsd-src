@@ -81,7 +81,7 @@ GLOBAL(esym)
 	.long	0			/* end of symbol table */
 
 GLOBAL(ofmsr)
-	.long	0			/* msr used in Open Firmware */
+	.long	0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
 
 GLOBAL(powersave)
 	.long	0
@@ -154,8 +154,17 @@ __start:
 
 	mfmsr	0
 	lis	9,ofmsr@ha
-	stw	0,ofmsr@l(9)
+	stwu	0,ofmsr@l(9)
 
+	mfsprg0	0			/* save SPRG0-3 */
+	stw	0,4(9)			/* ofmsr[1] = sprg0 */
+	mfsprg1 0
+	stw	0,8(9)			/* ofmsr[2] = sprg1 */
+	mfsprg2 0
+	stw	0,12(9)			/* ofmsr[3] = sprg2 */
+	mfsprg3 0
+	stw	0,16(9)			/* ofmsr[4] = sprg3 */
+	
 	bl	OF_init
 
 	lis	4,end@ha
