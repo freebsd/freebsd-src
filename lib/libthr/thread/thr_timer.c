@@ -107,7 +107,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	SIGEMPTYSET(set);
 	SIGADDSET(set, tmr->signo);
 	__sys_sigprocmask(SIG_BLOCK, &set, &oset);
-	ret = pthread_create(&newtd, &attr, timer_loop, tmr);
+	ret = _pthread_create(&newtd, &attr, timer_loop, tmr);
 	__sys_sigprocmask(SIG_SETMASK, &oset, NULL);
 	pthread_attr_destroy(&attr);
 	if (__predict_false(ret != 0)) {
@@ -152,6 +152,7 @@ timer_loop(void *arg)
 	siginfo_t si;
 	sigset_t set;
 
+	THR_CLEANUP_PUSH(curthread, free, tmr);
 	THR_UMTX_LOCK(curthread, &tmr->lock);
 	THR_UMTX_UNLOCK(curthread, &tmr->lock);
 	SIGEMPTYSET(set);
@@ -163,6 +164,7 @@ timer_loop(void *arg)
 				tmr->function(&tmr->value);
 		}
 	}
+	THR_CLEANUP_POP(curthread, 0);
 	free(tmr);
 	return (0);
 }
