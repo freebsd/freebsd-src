@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
+#include <sys/timers.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <vm/vm.h>
@@ -1252,6 +1253,8 @@ out:
 		ksiginfo_init(ksi);
 		sigqueue_get(&td->td_sigqueue, sig, ksi);
 		ksi->ksi_signo = sig;
+		if (ksi->ksi_code == SI_TIMER)
+			itimer_accept(p, ksi->ksi_timerid, ksi);
 		error = 0;
 		mtx_lock(&ps->ps_mtx);
 		action = ps->ps_sigact[_SIG_IDX(sig)];
@@ -2670,7 +2673,8 @@ postsig(sig)
 	ksiginfo_init(&ksi);
 	sigqueue_get(&td->td_sigqueue, sig, &ksi);
 	ksi.ksi_signo = sig;
-
+	if (ksi.ksi_code == SI_TIMER)
+		itimer_accept(p, ksi.ksi_timerid, &ksi);
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_PSIG))
