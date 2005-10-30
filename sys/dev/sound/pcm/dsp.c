@@ -512,9 +512,15 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		{
 	    		snd_chan_param *p = (snd_chan_param *)arg;
 
+			if (cmd == AIOSFMT &&
+			    ((p->play_format != 0 && p->play_rate == 0) ||
+			    (p->rec_format != 0 && p->rec_rate == 0))) {
+				ret = EINVAL;
+				break;
+			}
 	    		if (wrch) {
 				CHN_LOCK(wrch);
-				if (cmd == AIOSFMT) {
+				if (cmd == AIOSFMT && p->play_format != 0) {
 					chn_setformat(wrch, p->play_format);
 					chn_setspeed(wrch, p->play_rate);
 				}
@@ -527,7 +533,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	    		}
 	    		if (rdch) {
 				CHN_LOCK(rdch);
-				if (cmd == AIOSFMT) {
+				if (cmd == AIOSFMT && p->rec_format != 0) {
 					chn_setformat(rdch, p->rec_format);
 					chn_setspeed(rdch, p->rec_rate);
 				}
