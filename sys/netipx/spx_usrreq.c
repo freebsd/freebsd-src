@@ -99,7 +99,7 @@ static	int spx_connect(struct socket *so, struct sockaddr *nam,
 			struct thread *td);
 static	int spx_detach(struct socket *so);
 static	int spx_usr_disconnect(struct socket *so);
-static	int spx_listen(struct socket *so, struct thread *td);
+static	int spx_listen(struct socket *so, int backlog, struct thread *td);
 static	int spx_rcvd(struct socket *so, int flags);
 static	int spx_rcvoob(struct socket *so, struct mbuf *m, int flags);
 static	int spx_send(struct socket *so, int flags, struct mbuf *m,
@@ -1518,8 +1518,9 @@ spx_usr_disconnect(so)
 }
 
 static int
-spx_listen(so, td)
+spx_listen(so, backlog, td)
 	struct socket *so;
+	int backlog;
 	struct thread *td;
 {
 	int error;
@@ -1538,7 +1539,7 @@ spx_listen(so, td)
 		error = ipx_pcbbind(ipxp, NULL, td);
 	if (error == 0) {
 		cb->s_state = TCPS_LISTEN;
-		solisten_proto(so);
+		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
 	IPX_UNLOCK(ipxp);

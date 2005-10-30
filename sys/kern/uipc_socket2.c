@@ -1340,7 +1340,7 @@ pru_disconnect_notsupp(struct socket *so)
 }
 
 int
-pru_listen_notsupp(struct socket *so, struct thread *td)
+pru_listen_notsupp(struct socket *so, int backlog, struct thread *td)
 {
 	return EOPNOTSUPP;
 }

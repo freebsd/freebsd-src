@@ -290,7 +290,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
  * Prepare to accept connections.
  */
 static int
-tcp_usr_listen(struct socket *so, struct thread *td)
+tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
@@ -304,7 +304,7 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
-		solisten_proto(so);
+		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
 	COMMON_END(PRU_LISTEN);
@@ -312,7 +312,7 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 
 #ifdef INET6
 static int
-tcp6_usr_listen(struct socket *so, struct thread *td)
+tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
@@ -330,7 +330,7 @@ tcp6_usr_listen(struct socket *so, struct thread *td)
 	}
 	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
-		solisten_proto(so);
+		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
 	COMMON_END(PRU_LISTEN);

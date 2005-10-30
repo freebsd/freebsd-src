@@ -195,7 +195,7 @@ int  ng_btsocket_l2cap_control    (struct socket *, u_long, caddr_t,
 int  ng_btsocket_l2cap_ctloutput  (struct socket *, struct sockopt *);
 int  ng_btsocket_l2cap_detach     (struct socket *);
 int  ng_btsocket_l2cap_disconnect (struct socket *);
-int  ng_btsocket_l2cap_listen     (struct socket *, struct thread *);
+int  ng_btsocket_l2cap_listen     (struct socket *, int, struct thread *);
 int  ng_btsocket_l2cap_peeraddr   (struct socket *, struct sockaddr **);
 int  ng_btsocket_l2cap_send       (struct socket *, int, struct mbuf *,
                                    struct sockaddr *, struct mbuf *,

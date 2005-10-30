@@ -2406,7 +2406,7 @@ ng_btsocket_l2cap_disconnect(struct socket *so)
  */
 
 int
-ng_btsocket_l2cap_listen(struct socket *so, struct thread *td)
+ng_btsocket_l2cap_listen(struct socket *so, int backlog, struct thread *td)
 {
 	ng_btsocket_l2cap_pcb_p	pcb = so2l2cap_pcb(so);
 	int error;
@@ -2427,7 +2427,7 @@ ng_btsocket_l2cap_listen(struct socket *so, struct thread *td)
 		error = EDESTADDRREQ;
 		goto out;
 	}
-	solisten_proto(so);
+	solisten_proto(so, backlog);
 out:
 	SOCK_UNLOCK(so);
 	return (error);
