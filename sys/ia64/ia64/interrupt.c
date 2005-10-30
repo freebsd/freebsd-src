@@ -391,7 +391,6 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
 		    ih->ih_handler, ih->ih_argument, ih->ih_name);
 		ih->ih_handler(ih->ih_argument);
-		return;
 	}
 	critical_exit();
 
