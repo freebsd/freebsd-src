@@ -66,10 +66,11 @@ typedef struct aiocb {
 	off_t	aio_offset;		/* File offset for I/O */
 	volatile void *aio_buf;         /* I/O buffer in process space */
 	size_t	aio_nbytes;		/* Number of bytes for I/O */
-	struct	sigevent aio_sigevent;	/* Signal to deliver */
+	char 	__spare__[sizeof(int) * 2 + sizeof(void *)]; /* osigevent. */
 	int	aio_lio_opcode;		/* LIO opcode */
 	int	aio_reqprio;		/* Request priority -- ignored */
 	struct	__aiocb_private	_aiocb_private;
+	struct	sigevent aio_sigevent;	/* Signal to deliver */
 } aiocb_t;
 
 #ifndef _KERNEL
