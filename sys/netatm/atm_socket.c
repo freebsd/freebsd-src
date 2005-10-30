@@ -335,9 +335,10 @@ atm_sock_bind(so, addr)
  *
  */
 int
-atm_sock_listen(so, epp)
+atm_sock_listen(so, epp, backlog)
 	struct socket	*so;
 	Atm_endpoint	*epp;
+	int		 backlog;
 {
 	Atm_pcb		*atp = sotoatmpcb(so);
 
@@ -350,7 +351,8 @@ atm_sock_listen(so, epp)
 	/*
 	 * Start listening for incoming calls
 	 */
-	return (atm_cm_listen(so, epp, atp, &atp->atp_attr, &atp->atp_conn));
+	return (atm_cm_listen(so, epp, atp, &atp->atp_attr, &atp->atp_conn,
+	    backlog));
 }
 
 

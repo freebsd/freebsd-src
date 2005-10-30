@@ -82,7 +82,7 @@ void		atm_aal5_init(void);
 int		atm_cm_connect(Atm_endpoint *, void *, Atm_attributes *,
 			Atm_connection **);
 int		atm_cm_listen(struct socket *, Atm_endpoint *, void *,
-			Atm_attributes *, Atm_connection **);
+			Atm_attributes *, Atm_connection **, int);
 int		atm_cm_addllc(Atm_endpoint *, void *, struct attr_llc *,
 			Atm_connection *, Atm_connection **);
 int		atm_cm_addparty(Atm_connection *, int, struct t_atm_sap *);
@@ -152,7 +152,7 @@ void		atm_sock_init(void);
 int		atm_sock_attach(struct socket *, u_long, u_long);
 int		atm_sock_detach(struct socket *);
 int		atm_sock_bind(struct socket *, struct sockaddr *);
-int		atm_sock_listen(struct socket *, Atm_endpoint *);
+int		atm_sock_listen(struct socket *, Atm_endpoint *, int);
 int		atm_sock_connect(struct socket *, struct sockaddr *,
 			Atm_endpoint *);
 int		atm_sock_disconnect(struct socket *);

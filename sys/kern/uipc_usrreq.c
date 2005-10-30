@@ -126,7 +126,8 @@ static void    unp_mark(struct file *);
 static void    unp_discard(struct file *);
 static void    unp_freerights(struct file **, int);
 static int     unp_internalize(struct mbuf **, struct thread *);
-static int     unp_listen(struct socket *, struct unpcb *, struct thread *);
+static int     unp_listen(struct socket *, struct unpcb *, int,
+		   struct thread *);
 
 static int
 uipc_abort(struct socket *so)
@@ -275,7 +276,7 @@ uipc_disconnect(struct socket *so)
 }
 
 static int
-uipc_listen(struct socket *so, struct thread *td)
+uipc_listen(struct socket *so, int backlog, struct thread *td)
 {
 	struct unpcb *unp;
 	int error;
@@ -286,7 +287,7 @@ uipc_listen(struct socket *so, struct thread *td)
 		UNP_UNLOCK();
 		return (EINVAL);
 	}
-	error = unp_listen(so, unp, td);
+	error = unp_listen(so, unp, backlog, td);
 	UNP_UNLOCK();
 	return (error);
 }
@@ -1803,7 +1804,8 @@ unp_dispose(struct mbuf *m)
 }
 
 static int
-unp_listen(struct socket *so, struct unpcb *unp, struct thread *td)
+unp_listen(struct socket *so, struct unpcb *unp, int backlog,
+    struct thread *td)
 {
 	int error;
 
@@ -1814,7 +1816,7 @@ unp_listen(struct socket *so, struct unpcb *unp, struct thread *td)
 	if (error == 0) {
 		cru2x(td->td_ucred, &unp->unp_peercred);
 		unp->unp_flags |= UNP_HAVEPCCACHED;
-		solisten_proto(so);
+		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
 	return (error);

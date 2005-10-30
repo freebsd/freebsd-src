@@ -69,7 +69,8 @@ static int	atm_aal5_attach(struct socket *, int, struct thread *td);
 static int	atm_aal5_detach(struct socket *);
 static int	atm_aal5_bind(struct socket *, struct sockaddr *, 
 			struct thread *td);
-static int	atm_aal5_listen(struct socket *, struct thread *td);
+static int	atm_aal5_listen(struct socket *, int backlog,
+			struct thread *td);
 static int	atm_aal5_connect(struct socket *, struct sockaddr *,
 			struct thread *td);
 static int	atm_aal5_accept(struct socket *, struct sockaddr **);
@@ -328,13 +329,14 @@ atm_aal5_bind(so, addr, td)
  *
  */
 static int
-atm_aal5_listen(so, td)
+atm_aal5_listen(so, backlog, td)
 	struct socket	*so;
+	int		 backlog;
 	struct thread	*td;
 {
 	ATM_INTRO("listen");
 
-	err = atm_sock_listen(so, &atm_aal5_endpt);
+	err = atm_sock_listen(so, &atm_aal5_endpt, backlog);
 
 	ATM_OUTRO();
 }
