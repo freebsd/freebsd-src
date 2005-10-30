@@ -51,9 +51,10 @@ ENTRY(exp)
 	fldl	4(%esp)
 
 	/*
-	 * Ensure that the rounding mode is to nearest (to give the smallest
-	 * possible fraction) and that the precision is as high as possible.
-	 * We may as well mask interrupts if we switch the mode.
+	 * Extended precision is needed to reduce the maximum error from
+	 * hundreds of ulps to less than 1 ulp.  Switch to it if necessary.
+	 * We may as well set the rounding mode to to-nearest and mask traps
+	 * if we switch.
 	 */
 	fstcw	4(%esp)
 	movl	4(%esp),%eax
@@ -81,8 +82,9 @@ ENTRY(exp)
 
 x_Inf_or_NaN:
 	/*
-	 * Return 0 if x is -Inf.  Otherwise just return x, although the
-	 * C version would return (x + x) (Real Indefinite) if x is a NaN.
+	 * Return 0 if x is -Inf.  Otherwise just return x; when x is Inf
+	 * this gives Inf, and when x is a NaN this gives the same result
+	 * as (x + x) (x quieted).
 	 */
 	cmpl	$0xfff00000,8(%esp)
 	jne	x_not_minus_Inf
