@@ -294,21 +294,8 @@ solisten(so, backlog, td)
 	int backlog;
 	struct thread *td;
 {
-	int error;
 
-	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, td);
-	if (error)
-		return (error);
-
-	/*
-	 * XXXRW: The following state adjustment should occur in
-	 * solisten_proto(), but we don't currently pass the backlog request
-	 * to the protocol via pru_listen().
-	 */
-	if (backlog < 0 || backlog > somaxconn)
-		backlog = somaxconn;
-	so->so_qlimit = backlog;
-	return (0);
+	return ((*so->so_proto->pr_usrreqs->pru_listen)(so, backlog, td));
 }
 
 int
@@ -325,12 +312,16 @@ solisten_proto_check(so)
 }
 
 void
-solisten_proto(so)
+solisten_proto(so, backlog)
 	struct socket *so;
+	int backlog;
 {
 
 	SOCK_LOCK_ASSERT(so);
 
+	if (backlog < 0 || backlog > somaxconn)
+		backlog = somaxconn;
+	so->so_qlimit = backlog;
 	so->so_options |= SO_ACCEPTCONN;
 }
 
