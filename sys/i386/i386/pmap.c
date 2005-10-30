@@ -510,26 +510,6 @@ pmap_init2()
  * Low level helper routines.....
  ***************************************************/
 
-#if defined(PMAP_DIAGNOSTIC)
-
-/*
- * This code checks for non-writeable/modified pages.
- * This should be an invalid condition.
- */
-static int
-pmap_nw_modified(pt_entry_t ptea)
-{
-	int pte;
-
-	pte = (int) ptea;
-
-	if ((pte & (PG_M|PG_RW)) == PG_M)
-		return 1;
-	else
-		return 0;
-}
-#endif
-
 
 /*
  * this routine defines the region(s) of memory that should
@@ -1546,13 +1526,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(oldpte);
 		if (oldpte & PG_M) {
-#if defined(PMAP_DIAGNOSTIC)
-			if (pmap_nw_modified((pt_entry_t) oldpte)) {
-				printf(
-	"pmap_remove: modified page not writable: va: 0x%x, pte: 0x%x\n",
-				    va, oldpte);
-			}
-#endif
+			KASSERT((oldpte & PG_RW),
+	("pmap_remove_pte: modified page not writable: va: 0x%x, pte: 0x%x",
+			    va, oldpte));
 			if (pmap_track_modified(va))
 				vm_page_dirty(m);
 		}
@@ -1716,13 +1692,9 @@ pmap_remove_all(vm_page_t m)
 		 * Update the vm_page_t clean and reference bits.
 		 */
 		if (tpte & PG_M) {
-#if defined(PMAP_DIAGNOSTIC)
-			if (pmap_nw_modified((pt_entry_t) tpte)) {
-				printf(
-	"pmap_remove_all: modified page not writable: va: 0x%x, pte: 0x%x\n",
-				    pv->pv_va, tpte);
-			}
-#endif
+			KASSERT((tpte & PG_RW),
+	("pmap_remove_all: modified page not writable: va: 0x%x, pte: 0x%x",
+			    pv->pv_va, tpte));
 			if (pmap_track_modified(pv->pv_va))
 				vm_page_dirty(m);
 		}
@@ -2011,8 +1983,8 @@ validate:
 			}
 			if (origpte & PG_M) {
 				KASSERT((origpte & PG_RW),
-				    ("pmap_enter: modified page not writable:"
-				     " va: 0x%x, pte: 0x%x", va, origpte));
+	("pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x",
+				    va, origpte));
 				if ((origpte & PG_MANAGED) &&
 				    pmap_track_modified(va))
 					vm_page_dirty(om);
