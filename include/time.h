@@ -139,7 +139,15 @@ time_t mktime(struct tm *);
 size_t strftime(char * __restrict, size_t, const char * __restrict,
     const struct tm * __restrict);
 time_t time(time_t *);
-
+#if __POSIX_VISIBLE >= 200112
+struct sigevent;
+int timer_create(clockid_t, struct sigevent *__restrict, timer_t *__restrict);
+int timer_delete(timer_t);
+int timer_gettime(timer_t, struct itimerspec *);
+int timer_getoverrun(timer_t);
+int timer_settime(timer_t, int, const struct itimerspec *__restrict,
+	struct itimerspec *__restrict);
+#endif
 #if __POSIX_VISIBLE
 void tzset(void);
 #endif
