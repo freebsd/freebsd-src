@@ -467,9 +467,11 @@
 				    u_int nfds, int timeout); }
 253	AUE_NULL	MSTD	{ int issetugid(void); }
 254	AUE_NULL	MSTD	{ int lchown(char *path, int uid, int gid); }
-255	AUE_NULL	UNIMPL	nosys
-256	AUE_NULL	UNIMPL	nosys
-257	AUE_NULL	UNIMPL	nosys
+255	AUE_NULL	NOSTD	{ int aio_read(struct aiocb *aiocbp); }
+256	AUE_NULL	NOSTD	{ int aio_write(struct aiocb *aiocbp); }
+257	AUE_NULL	NOSTD	{ int lio_listio(int mode, \
+				    struct aiocb * const *acb_list, \
+				    int nent, struct sigevent *sig); }
 258	AUE_NULL	UNIMPL	nosys
 259	AUE_NULL	UNIMPL	nosys
 260	AUE_NULL	UNIMPL	nosys
@@ -551,11 +553,11 @@
 316	AUE_NULL	NOSTD	{ int aio_cancel(int fd, \
 				    struct aiocb *aiocbp); }
 317	AUE_NULL	NOSTD	{ int aio_error(struct aiocb *aiocbp); }
-318	AUE_NULL	NOSTD	{ int aio_read(struct aiocb *aiocbp); }
-319	AUE_NULL	NOSTD	{ int aio_write(struct aiocb *aiocbp); }
-320	AUE_NULL	NOSTD	{ int lio_listio(int mode, \
-				    struct aiocb * const *acb_list, \
-				    int nent, struct sigevent *sig); }
+318	AUE_NULL	NOSTD	{ int oaio_read(struct oaiocb *aiocbp); }
+319	AUE_NULL	NOSTD	{ int oaio_write(struct oaiocb *aiocbp); }
+320	AUE_NULL	NOSTD	{ int olio_listio(int mode, \
+				    struct oaiocb * const *acb_list, \
+				    int nent, struct osigevent *sig); }
 321	AUE_NULL	MSTD	{ int yield(void); }
 322	AUE_NULL	OBSOL	thr_sleep
 323	AUE_NULL	OBSOL	thr_wakeup
