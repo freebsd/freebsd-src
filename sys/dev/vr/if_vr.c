@@ -655,6 +655,8 @@ vr_attach(dev)
 
 	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->vr_stat_callout, &sc->vr_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -755,8 +757,6 @@ vr_attach(dev)
 		goto fail;
 	}
 
-	callout_handle_init(&sc->vr_stat_ch);
-
 	/* Call MI attach routine. */
 	ether_ifattach(ifp, eaddr);
 
@@ -799,16 +799,14 @@ vr_detach(device_t dev)
 		ether_poll_deregister(ifp);
 #endif
 
-	VR_LOCK(sc);
-
-	sc->suspended = 1;
-
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
-		vr_stop(sc);
-		VR_UNLOCK(sc);		/* XXX: Avoid recursive acquire. */
-		ether_ifdetach(ifp);
 		VR_LOCK(sc);
+		sc->suspended = 1;
+		vr_stop(sc);
+		VR_UNLOCK(sc);
+		callout_drain(&sc->vr_stat_callout);
+		ether_ifdetach(ifp);
 	}
 	if (sc->vr_miibus)
 		device_delete_child(dev, sc->vr_miibus);
@@ -827,7 +825,6 @@ vr_detach(device_t dev)
 	if (sc->vr_ldata)
 		contigfree(sc->vr_ldata, sizeof(struct vr_list_data), M_DEVBUF);
 
-	VR_UNLOCK(sc);
 	mtx_destroy(&sc->vr_mtx);
 
 	return (0);
@@ -1128,7 +1125,7 @@ vr_tick(void *xsc)
 	struct vr_softc		*sc = xsc;
 	struct mii_data		*mii;
 
-	VR_LOCK(sc);
+	VR_LOCK_ASSERT(sc);
 
 	if (sc->vr_flags & VR_F_RESTART) {
 		if_printf(sc->vr_ifp, "restarting\n");
@@ -1140,9 +1137,7 @@ vr_tick(void *xsc)
 
 	mii = device_get_softc(sc->vr_miibus);
 	mii_tick(mii);
-	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
-
-	VR_UNLOCK(sc);
+	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1532,7 +1527,7 @@ vr_init_locked(struct vr_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
+	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
 }
 
 /*
@@ -1668,7 +1663,7 @@ vr_stop(struct vr_softc *sc)
 	ifp = sc->vr_ifp;
 	ifp->if_timer = 0;
 
-	untimeout(vr_tick, sc, sc->vr_stat_ch);
+	callout_stop(&sc->vr_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_STOP);
