@@ -188,6 +188,11 @@ These values may also be viewed through
 .Rv -std sendfile
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EAGAIN
+The socket is marked for non-blocking I/O and not all data was sent due to
+the socket buffer being filled.
+If specified, the number of bytes successfully sent will be returned in
+.Fa *sbytes .
 .It Bq Er EBADF
 The
 .Fa fd
@@ -205,11 +210,15 @@ Partial data may have been sent.
 (This error can only occur when
 .Dv SF_NODISKIO
 is specified.)
-.It Bq Er ENOTSOCK
-The
-.Fa s
-argument
-is not a socket.
+.It Bq Er EFAULT
+An invalid address was specified for an argument.
+.It Bq Er EINTR
+A signal interrupted
+.Fn sendfile
+before it could be completed.
+If specified, the number
+of bytes successfully sent will be returned in
+.Fa *sbytes .
 .It Bq Er EINVAL
 The
 .Fa fd
@@ -225,29 +234,21 @@ The
 .Fa offset
 argument
 is negative.
+.It Bq Er EIO
+An error occurred while reading from
+.Fa fd .
 .It Bq Er ENOTCONN
 The
 .Fa s
 argument
 points to an unconnected socket.
+.It Bq Er ENOTSOCK
+The
+.Fa s
+argument
+is not a socket.
 .It Bq Er EPIPE
 The socket peer has closed the connection.
-.It Bq Er EIO
-An error occurred while reading from
-.Fa fd .
-.It Bq Er EFAULT
-An invalid address was specified for an argument.
-.It Bq Er EINTR
-A signal interrupted
-.Fn sendfile
-before it could be completed.
-If specified, the number
-of bytes successfully sent will be returned in
-.Fa *sbytes .
-.It Bq Er EAGAIN
-The socket is marked for non-blocking I/O and not all data was sent due to the socket buffer being filled.
-If specified, the number of bytes successfully sent will be returned in
-.Fa *sbytes .
 .El
 .Sh SEE ALSO
 .Xr netstat 1 ,
