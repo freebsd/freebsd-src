@@ -641,6 +641,14 @@ in6_control(so, cmd, data, ifp, td)
 		 */
 		if ((error = in6_update_ifa(ifp, ifra, ia, 0)) != 0)
 			return (error);
+		if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr))
+		    == NULL) {
+		    	/*
+			 * this can happen when the user specify the 0 valid
+			 * lifetime.
+			 */
+			break;
+		}
 
 		/*
 		 * then, make the prefix on-link on the interface.
@@ -693,41 +701,33 @@ in6_control(so, cmd, data, ifp, td)
 				return (EINVAL); /* XXX panic here? */
 			}
 		}
-		if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr))
-		    == NULL) {
-		    	/* XXX: this should not happen! */
-			log(LOG_ERR, "in6_control: addition succeeded, but"
-			    " no ifaddr\n");
-		} else {
-			if ((ia->ia6_flags & IN6_IFF_AUTOCONF) != 0 &&
-			    ia->ia6_ndpr == NULL) { /* new autoconfed addr */
-				ia->ia6_ndpr = pr;
-				pr->ndpr_refcnt++;
 
-				/*
-				 * If this is the first autoconf address from
-				 * the prefix, create a temporary address
-				 * as well (when specified).
-				 */
-				if (ip6_use_tempaddr &&
-				    pr->ndpr_refcnt == 1) {
-					int e;
-					if ((e = in6_tmpifadd(ia, 1, 0)) != 0) {
-						log(LOG_NOTICE, "in6_control: "
-						    "failed to create a "
-						    "temporary address, "
-						    "errno=%d\n", e);
-					}
-				}
-			}
+		/* relate the address to the prefix */
+		if (ia->ia6_ndpr == NULL) {
+			ia->ia6_ndpr = pr;
+			pr->ndpr_refcnt++;
 
 			/*
-			 * this might affect the status of autoconfigured
-			 * addresses, that is, this address might make
-			 * other addresses detached.
+			 * If this is the first autoconf address from the
+			 * prefix, create a temporary address as well
+			 * (when required).
 			 */
-			pfxlist_onlink_check();
+			if ((ia->ia6_flags & IN6_IFF_AUTOCONF) &&
+			    ip6_use_tempaddr && pr->ndpr_refcnt == 1) {
+				int e;
+				if ((e = in6_tmpifadd(ia, 1, 0)) != 0) {
+					log(LOG_NOTICE, "in6_control: failed "
+					    "to create a temporary address, "
+					    "errno=%d\n", e);
+				}
+			}
 		}
+
+		/*
+		 * this might affect the status of autoconfigured addresses,
+		 * that is, this address might make other addresses detached.
+		 */
+		pfxlist_onlink_check();
 		if (error == 0 && ia)
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
@@ -735,8 +735,6 @@ in6_control(so, cmd, data, ifp, td)
 
 	case SIOCDIFADDR_IN6:
 	{
-		int i = 0;
-		struct nd_prefixctl pr0;
 		struct nd_prefix *pr;
 
 		/*
@@ -747,37 +745,12 @@ in6_control(so, cmd, data, ifp, td)
 		 * and the prefix management.  We do this, however, to provide
 		 * as much backward compatibility as possible in terms of
 		 * the ioctl operation.
+		 * Note that in6_purgeaddr() will decrement ndpr_refcnt.
 		 */
-		bzero(&pr0, sizeof(pr0));
-		pr0.ndpr_ifp = ifp;
-		pr0.ndpr_plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr,
-					     NULL);
-		if (pr0.ndpr_plen == 128)
-			goto purgeaddr;
-		pr0.ndpr_prefix = ia->ia_addr;
-		/* apply the mask for safety. */
-		for (i = 0; i < 4; i++) {
-			pr0.ndpr_prefix.sin6_addr.s6_addr32[i] &=
-			    ifra->ifra_prefixmask.sin6_addr.s6_addr32[i];
-		}
-		/*
-		 * The logic of the following condition is a bit complicated.
-		 * We expire the prefix when
-		 * 1. the address obeys autoconfiguration and it is the
-		 *    only owner of the associated prefix, or
-		 * 2. the address does not obey autoconf and there is no
-		 *    other owner of the prefix.
-		 */
-		if ((pr = nd6_prefix_lookup(&pr0)) != NULL &&
-		    (((ia->ia6_flags & IN6_IFF_AUTOCONF) != 0 &&
-		      pr->ndpr_refcnt == 1) ||
-		     ((ia->ia6_flags & IN6_IFF_AUTOCONF) == 0 &&
-		      pr->ndpr_refcnt == 0))) {
-			pr->ndpr_expire = 1; /* XXX: just for expiration */
-		}
-
-	  purgeaddr:
+		pr = ia->ia6_ndpr;
 		in6_purgeaddr(&ia->ia_ifa);
+		if (pr && pr->ndpr_refcnt == 0)
+			prelist_remove(pr);
 		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
 	}
@@ -1399,21 +1372,24 @@ in6_unlink_ifa(ia, ifp)
 	}
 
 	/*
-	 * When an autoconfigured address is being removed, release the
-	 * reference to the base prefix.  Also, since the release might
-	 * affect the status of other (detached) addresses, call
-	 * pfxlist_onlink_check().
+	 * Release the reference to the base prefix.  There should be a
+	 * positive reference.
 	 */
-	if ((oia->ia6_flags & IN6_IFF_AUTOCONF) != 0) {
-		if (oia->ia6_ndpr == NULL) {
-			nd6log((LOG_NOTICE, "in6_unlink_ifa: autoconf'ed address "
-			    "%p has no prefix\n", oia));
-		} else {
-			oia->ia6_ndpr->ndpr_refcnt--;
-			oia->ia6_flags &= ~IN6_IFF_AUTOCONF;
-			oia->ia6_ndpr = NULL;
-		}
+	if (oia->ia6_ndpr == NULL) {
+		nd6log((LOG_NOTICE,
+		    "in6_unlink_ifa: autoconf'ed address "
+		    "%p has no prefix\n", oia));
+	} else {
+		oia->ia6_ndpr->ndpr_refcnt--;
+		oia->ia6_ndpr = NULL;
+	}
 
+	/*
+	 * Also, if the address being removed is autoconf'ed, call
+	 * pfxlist_onlink_check() since the release might affect the status of
+	 * other (detached) addresses. 
+	 */
+	if ((oia->ia6_flags & IN6_IFF_AUTOCONF)) {
 		pfxlist_onlink_check();
 	}
 
