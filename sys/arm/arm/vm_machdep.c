@@ -378,7 +378,7 @@ extern uma_zone_t l2zone;
 
 struct mtx smallalloc_mtx;
 
-MALLOC_DEFINE(M_VMSMALLALLOC, "VM Small alloc", "VM Small alloc data");
+MALLOC_DEFINE(M_VMSMALLALLOC, "vm_small_alloc", "VM Small alloc data");
 
 vm_offset_t alloc_curaddr;
 vm_offset_t alloc_firstaddr;

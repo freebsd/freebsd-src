@@ -90,7 +90,7 @@ static void g_bde_purge_sector(struct g_bde_softc *sc, int fraction);
 static u_int g_bde_nwork;
 SYSCTL_UINT(_debug, OID_AUTO, gbde_nwork, CTLFLAG_RD, &g_bde_nwork, 0, "");
 
-static MALLOC_DEFINE(M_GBDE, "GBDE", "GBDE data structures");
+static MALLOC_DEFINE(M_GBDE, "gbde", "GBDE data structures");
 
 static struct g_bde_work *
 g_bde_new_work(struct g_bde_softc *sc)

@@ -866,7 +866,7 @@ twed_detach(device_t dev)
 /********************************************************************************
  * Allocate a command buffer
  */
-MALLOC_DEFINE(TWE_MALLOC_CLASS, "twe commands", "twe commands");
+MALLOC_DEFINE(TWE_MALLOC_CLASS, "twe_commands", "twe commands");
 
 struct twe_request *
 twe_allocate_request(struct twe_softc *sc, int tag)

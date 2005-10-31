@@ -49,7 +49,7 @@
 #define NFS4DEV_NAME "nfs4"
 #define CDEV_MINOR 1
 
-MALLOC_DEFINE(M_NFS4DEV, "NFS4 dev", "NFS4 device");
+MALLOC_DEFINE(M_NFS4DEV, "nfs4_dev", "NFS4 device");
 
 struct nfs4dev_upcall {
   	/* request msg */

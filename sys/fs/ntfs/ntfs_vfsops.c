@@ -60,10 +60,10 @@
 #include <fs/ntfs/ntfs_ihash.h>
 #include <fs/ntfs/ntfsmount.h>
 
-static MALLOC_DEFINE(M_NTFSMNT, "NTFS mount", "NTFS mount structure");
-MALLOC_DEFINE(M_NTFSNTNODE,"NTFS ntnode",  "NTFS ntnode information");
-MALLOC_DEFINE(M_NTFSFNODE,"NTFS fnode",  "NTFS fnode information");
-MALLOC_DEFINE(M_NTFSDIR,"NTFS dir",  "NTFS dir buffer");
+static MALLOC_DEFINE(M_NTFSMNT, "ntfs_mount", "NTFS mount structure");
+MALLOC_DEFINE(M_NTFSNTNODE,"ntfs_ntnode",  "NTFS ntnode information");
+MALLOC_DEFINE(M_NTFSFNODE,"ntfs_fnode",  "NTFS fnode information");
+MALLOC_DEFINE(M_NTFSDIR,"ntfs_dir",  "NTFS dir buffer");
 
 struct sockaddr;
 

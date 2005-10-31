@@ -64,8 +64,8 @@
 
 extern struct vop_vector smbfs_vnodeops;	/* XXX -> .h file */
 
-MALLOC_DEFINE(M_SMBNODE, "SMBFS node", "SMBFS vnode private part");
-static MALLOC_DEFINE(M_SMBNODENAME, "SMBFS nname", "SMBFS node name");
+MALLOC_DEFINE(M_SMBNODE, "smbufs_node", "SMBFS vnode private part");
+static MALLOC_DEFINE(M_SMBNODENAME, "smbufs_nname", "SMBFS node name");
 
 int smbfs_hashprint(struct mount *mp);
 

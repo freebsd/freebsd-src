@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dirhash.h>
 #endif
 
-MALLOC_DEFINE(M_UFSMNT, "UFS mount", "UFS mount structure");
+MALLOC_DEFINE(M_UFSMNT, "ufs_mount", "UFS mount structure");
 
 /*
  * Return the root of a filesystem.

@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/shsec/g_shsec.h>
 
 
-static MALLOC_DEFINE(M_SHSEC, "shsec data", "GEOM_SHSEC Data");
+static MALLOC_DEFINE(M_SHSEC, "shsec_data", "GEOM_SHSEC Data");
 
 static uma_zone_t g_shsec_zone;
 

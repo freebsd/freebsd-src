@@ -51,7 +51,7 @@
 #include <sys/filedesc.h>
 #include <fs/unionfs/union.h>
 
-static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
+static MALLOC_DEFINE(M_UNIONFSMNT, "union_mount", "UNION mount structure");
 
 extern vfs_init_t       union_init;
 static vfs_root_t       union_root;

@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfs_lock.h>
 
-static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
+static MALLOC_DEFINE(M_NFSSVC, "nfsclient_srvsock", "Nfs server structure");
 
 static void	nfssvc_iod(void *);
 

@@ -70,7 +70,7 @@ SYSCTL_NODE(_vfs, OID_AUTO, smbfs, CTLFLAG_RW, 0, "SMB/CIFS filesystem");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, version, CTLFLAG_RD, &smbfs_version, 0, "");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, debuglevel, CTLFLAG_RW, &smbfs_debuglevel, 0, "");
 
-static MALLOC_DEFINE(M_SMBFSHASH, "SMBFS hash", "SMBFS hash table");
+static MALLOC_DEFINE(M_SMBFSHASH, "smbfs_hash", "SMBFS hash table");
 
 static vfs_init_t       smbfs_init;
 static vfs_uninit_t     smbfs_uninit;

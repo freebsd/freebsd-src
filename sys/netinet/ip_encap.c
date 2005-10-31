@@ -91,7 +91,7 @@
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
+static MALLOC_DEFINE(M_NETADDR, "encap_export_host", "Export host address structure");
 
 static void encap_add(struct encaptab *);
 static int mask_match(const struct encaptab *, const struct sockaddr *,

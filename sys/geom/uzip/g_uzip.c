@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(a)
 #endif
 
-MALLOC_DEFINE(M_GEOM_UZIP, "GEOM UZIP", "GEOM UZIP data structures");
+MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
 
 #define UZIP_CLASS_NAME	"UZIP"
 

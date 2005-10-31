@@ -52,7 +52,7 @@
 
 #include <fs/fdescfs/fdesc.h>
 
-static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
+static MALLOC_DEFINE(M_FDESCMNT, "fdesc_mount", "FDESC mount structure");
 
 static vfs_mount_t	fdesc_mount;
 static vfs_unmount_t	fdesc_unmount;
