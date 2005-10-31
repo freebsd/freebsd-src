@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/mbuf.h>
 #include <sys/mman.h>
 #include <sys/module.h>
 #include <sys/mount.h>
@@ -800,31 +801,51 @@ freebsd32_pwritev(struct thread *td, struct freebsd32_pwritev_args *uap)
 }
 
 static int
-freebsd32_copyiniov(struct iovec32 *iovp, u_int iovcnt, struct iovec **iov,
+freebsd32_copyiniov(struct iovec32 *iovp32, u_int iovcnt, struct iovec **iovp,
+    int error)
+{
+	struct iovec32 iov32;
+	struct iovec *iov;
+	u_int iovlen;
+	int i;
+
+	*iovp = NULL;
+	if (iovcnt > UIO_MAXIOV)
+		return (error);
+	iovlen = iovcnt * sizeof(struct iovec);
+	iov = malloc(iovlen, M_IOV, M_WAITOK);
+	for (i = 0; i < iovcnt; i++) {
+		error = copyin(&iovp32[i], &iov32, sizeof(struct iovec32));
+		if (error) {
+			free(iov, M_IOV);
+			return (error);
+		}
+		iov[i].iov_base = PTRIN(iov32.iov_base);
+		iov[i].iov_len = iov32.iov_len;
+	}
+	*iovp = iov;
+	return (0);
+}
+
+static int
+freebsd32_copyoutiov(struct iovec *iov, u_int iovcnt, struct iovec32 *iovp,
     int error)
 {
 	struct iovec32 iov32;
 	int i;
 
-	u_int iovlen;
-
-	*iov = NULL;
 	if (iovcnt > UIO_MAXIOV)
 		return (error);
-	iovlen = iovcnt * sizeof(struct iovec);
-	*iov = malloc(iovlen, M_IOV, M_WAITOK);
 	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
-		if (error) {
-			free(*iov, M_IOV);
-			*iov = NULL;
+		iov32.iov_base = PTROUT(iov[i].iov_base);
+		iov32.iov_len = iov[i].iov_len;
+		error = copyout(&iov32, &iovp[i], sizeof(iov32));
+		if (error)
 			return (error);
-		}
-		iov[i]->iov_base = PTRIN(iov32.iov_base);
-		iov[i]->iov_len = iov32.iov_len;
 	}
 	return (0);
 }
+
 
 struct msghdr32 {
 	u_int32_t	 msg_name;
@@ -853,8 +874,7 @@ freebsd32_copyinmsghdr(struct msghdr32 *msg32, struct msghdr *msg)
 	msg->msg_control = PTRIN(m32.msg_control);
 	msg->msg_controllen = m32.msg_controllen;
 	msg->msg_flags = m32.msg_flags;
-	return (freebsd32_copyiniov((struct iovec32 *)(uintptr_t)m32.msg_iov, m32.msg_iovlen, &msg->msg_iov,
-	    EMSGSIZE));
+	return (0);
 }
 
 static int
@@ -874,6 +894,103 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 	return (error);
 }
 
+#define FREEBSD32_ALIGNBYTES	(sizeof(int) - 1)
+#define FREEBSD32_ALIGN(p)	\
+	(((u_long)(p) + FREEBSD32_ALIGNBYTES) & ~FREEBSD32_ALIGNBYTES)
+#define	FREEBSD32_CMSG_SPACE(l)	\
+	(FREEBSD32_ALIGN(sizeof(struct cmsghdr)) + FREEBSD32_ALIGN(l))
+
+#define	FREEBSD32_CMSG_DATA(cmsg)	((unsigned char *)(cmsg) + \
+				 FREEBSD32_ALIGN(sizeof(struct cmsghdr)))
+static int
+freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
+{
+	struct cmsghdr *cm;
+	void *data;
+	socklen_t clen, datalen;
+	int error;
+	caddr_t ctlbuf;
+	int len, maxlen, copylen;
+	struct mbuf *m;
+	error = 0;
+
+	len    = msg->msg_controllen;
+	maxlen = msg->msg_controllen;
+	msg->msg_controllen = 0;
+
+	m = control;
+	ctlbuf = msg->msg_control;
+      
+	while (m && len > 0) {
+		cm = mtod(m, struct cmsghdr *);
+		clen = m->m_len;
+
+		while (cm != NULL) {
+
+			if (sizeof(struct cmsghdr) > clen ||
+			    cm->cmsg_len > clen) {
+				error = EINVAL;
+				break;
+			}	
+
+			data   = CMSG_DATA(cm);
+			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+
+			/* Adjust message length */
+			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
+			    datalen;
+
+
+			/* Copy cmsghdr */
+			copylen = sizeof(struct cmsghdr);
+			if (len < copylen) {
+				msg->msg_flags |= MSG_CTRUNC;
+				copylen = len;
+			}
+
+			error = copyout(cm,ctlbuf,copylen);
+			if (error)
+				goto exit;
+
+			ctlbuf += FREEBSD32_ALIGN(copylen);
+			len    -= FREEBSD32_ALIGN(copylen);
+
+			if (len <= 0)
+				break;
+
+			/* Copy data */
+			copylen = datalen;
+			if (len < copylen) {
+				msg->msg_flags |= MSG_CTRUNC;
+				copylen = len;
+			}
+
+			error = copyout(data,ctlbuf,copylen);
+			if (error)
+				goto exit;
+
+			ctlbuf += FREEBSD32_ALIGN(copylen);
+			len    -= FREEBSD32_ALIGN(copylen);
+
+			if (CMSG_SPACE(datalen) < clen) {
+				clen -= CMSG_SPACE(datalen);
+				cm = (struct cmsghdr *)
+					((caddr_t)cm + CMSG_SPACE(datalen));
+			} else {
+				clen = 0;
+				cm = NULL;
+			}
+		}	
+		m = m->m_next;
+	}
+
+	msg->msg_controllen = (len <= 0) ? maxlen :  ctlbuf - (caddr_t)msg->msg_control;
+	
+exit:
+	return (error);
+
+}
+
 int
 freebsd32_recvmsg(td, uap)
 	struct thread *td;
@@ -886,8 +1003,10 @@ freebsd32_recvmsg(td, uap)
 	struct msghdr msg;
 	struct msghdr32 m32;
 	struct iovec *uiov, *iov;
-	int error;
+	struct mbuf *control = NULL;
+	struct mbuf **controlp;
 
+	int error;
 	error = copyin(uap->msg, &m32, sizeof(m32));
 	if (error)
 		return (error);
@@ -901,15 +1020,70 @@ freebsd32_recvmsg(td, uap)
 	msg.msg_flags = uap->flags;
 	uiov = msg.msg_iov;
 	msg.msg_iov = iov;
-	error = kern_recvit(td, uap->s, &msg, NULL, UIO_SYSSPACE);
+
+	controlp = (msg.msg_control != NULL) ?  &control : NULL;
+	error = kern_recvit(td, uap->s, &msg, NULL, UIO_USERSPACE, controlp);
 	if (error == 0) {
 		msg.msg_iov = uiov;
-		error = freebsd32_copyoutmsghdr(&msg, uap->msg);
+		
+		if (control != NULL)
+			error = freebsd32_copy_msg_out(&msg, control);
+		
+		if (error == 0)
+			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
+
+		if (error == 0)
+			error = freebsd32_copyoutiov(iov, iov->iov_len,
+			    (struct iovec32 *)(uintptr_t)m32.msg_iov, EMSGSIZE);
 	}
 	free(iov, M_IOV);
-	free(uiov, M_IOV);
+
+	if (control != NULL)
+		m_freem(control);
+
 	return (error);
 }
+
+
+static int
+freebsd32_convert_msg_in(struct mbuf **controlp)
+{
+	struct mbuf *control = *controlp;
+	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	void *data;
+	socklen_t clen = control->m_len, datalen;
+	int error;
+
+	error = 0;
+	*controlp = NULL;
+
+	while (cm != NULL) {
+		if (sizeof(struct cmsghdr) > clen || cm->cmsg_len > clen) {
+			error = EINVAL;
+			break;
+		}
+
+		data = FREEBSD32_CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+
+		*controlp = sbcreatecontrol(data, datalen, cm->cmsg_type,
+		    cm->cmsg_level);
+		controlp = &(*controlp)->m_next;
+
+		if (FREEBSD32_CMSG_SPACE(datalen) < clen) {
+			clen -= FREEBSD32_CMSG_SPACE(datalen);
+			cm = (struct cmsghdr *)
+				((caddr_t)cm + FREEBSD32_CMSG_SPACE(datalen));
+		} else {
+			clen = 0;
+			cm = NULL;
+		}
+	}
+
+	m_freem(control);
+	return (error);
+}
+
 
 int
 freebsd32_sendmsg(struct thread *td,
@@ -918,6 +1092,8 @@ freebsd32_sendmsg(struct thread *td,
 	struct msghdr msg;
 	struct msghdr32 m32;
 	struct iovec *iov;
+	struct mbuf *control = NULL;
+	struct sockaddr *to = NULL;
 	int error;
 
 	error = copyin(uap->msg, &m32, sizeof(m32));
@@ -931,8 +1107,38 @@ freebsd32_sendmsg(struct thread *td,
 	if (error)
 		return (error);
 	msg.msg_iov = iov;
-	error = kern_sendit(td, uap->s, &msg, uap->flags, NULL, UIO_SYSSPACE);
+	if (msg.msg_name != NULL) {
+		error = getsockaddr(&to, msg.msg_name, msg.msg_namelen);
+		if (error) {
+			to = NULL;
+			goto out;
+		}
+		msg.msg_name = to;
+	}
+
+	if (msg.msg_control) {
+		if (msg.msg_controllen < sizeof(struct cmsghdr)) {
+			error = EINVAL;
+			goto out;
+		}
+
+		error = sockargs(&control, msg.msg_control,
+		    msg.msg_controllen, MT_CONTROL);
+		if (error)
+			goto out;
+		
+		error = freebsd32_convert_msg_in(&control);
+		if (error)
+			goto out;
+	}
+
+	error = kern_sendit(td, uap->s, &msg, uap->flags, control,
+	    UIO_USERSPACE);
+
+out:
 	free(iov, M_IOV);
+	if (to)
+		free(to, M_SONAME);
 	return (error);
 }
 
@@ -960,7 +1166,8 @@ freebsd32_recvfrom(struct thread *td,
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	error = kern_recvit(td, uap->s, &msg, (void *)(uintptr_t)uap->fromlenaddr, UIO_USERSPACE);
+	error = kern_recvit(td, uap->s, &msg,
+	    (void *)(uintptr_t)uap->fromlenaddr, UIO_USERSPACE, NULL);
 	return (error);
 }
 

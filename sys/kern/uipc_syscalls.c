@@ -923,12 +923,13 @@ sendmsg(td, uap)
 }
 
 int
-kern_recvit(td, s, mp, namelenp, segflg)
+kern_recvit(td, s, mp, namelenp, segflg, controlp)
 	struct thread *td;
 	int s;
 	struct msghdr *mp;
 	void *namelenp;
 	enum uio_seg segflg;
+	struct mbuf **controlp;
 {
 	struct uio auio;
 	struct iovec *iov;
@@ -943,6 +944,9 @@ kern_recvit(td, s, mp, namelenp, segflg)
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
+
+	if(controlp != NULL)
+		*controlp = 0;
 
 	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, s, &fp);
@@ -984,7 +988,8 @@ kern_recvit(td, s, mp, namelenp, segflg)
 #endif
 	len = auio.uio_resid;
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
-	    (struct mbuf **)0, mp->msg_control ? &control : (struct mbuf **)0,
+	    (struct mbuf **)0,
+	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
 	if (error) {
 		if (auio.uio_resid != (int)len && (error == ERESTART ||
@@ -1027,7 +1032,7 @@ kern_recvit(td, s, mp, namelenp, segflg)
 			goto out;
 		}
 	}
-	if (mp->msg_control) {
+	if (mp->msg_control && controlp == NULL) {
 #ifdef COMPAT_OLDSOCK
 		/*
 		 * We assume that old recvmsg calls won't receive access
@@ -1078,8 +1083,12 @@ out:
 	NET_UNLOCK_GIANT();
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
-	if (control)
+
+	if (error == 0 && controlp != NULL)  
+		*controlp = control;
+	else  if (control)
 		m_freem(control);
+
 	return (error);
 }
 
@@ -1091,7 +1100,7 @@ recvit(td, s, mp, namelenp)
 	void *namelenp;
 {
 
-	return (kern_recvit(td, s, mp, namelenp, UIO_USERSPACE));
+	return (kern_recvit(td, s, mp, namelenp, UIO_USERSPACE, NULL));
 }
 
 /*
