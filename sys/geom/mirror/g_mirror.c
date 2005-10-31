@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/mirror/g_mirror.h>
 
 
-static MALLOC_DEFINE(M_MIRROR, "mirror data", "GEOM_MIRROR Data");
+static MALLOC_DEFINE(M_MIRROR, "mirror_data", "GEOM_MIRROR Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0, "GEOM_MIRROR stuff");

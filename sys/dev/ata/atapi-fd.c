@@ -61,7 +61,7 @@ static int afd_prevent_allow(device_t, int);
 static int afd_test_ready(device_t);
 
 /* internal vars */
-static MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
+static MALLOC_DEFINE(M_AFD, "afd_driver", "ATAPI floppy driver buffers");
 
 static int 
 afd_probe(device_t dev)

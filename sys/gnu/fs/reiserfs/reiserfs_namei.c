@@ -13,7 +13,7 @@ static int	reiserfs_find_entry(struct reiserfs_node *dp,
     const char *name, int namelen,
     struct path * path_to_entry, struct reiserfs_dir_entry *de);
 
-MALLOC_DEFINE(M_REISERFSCOOKIES, "ReiserFS cookies",
+MALLOC_DEFINE(M_REISERFSCOOKIES, "reiserfs_cookies",
     "ReiserFS VOP_READDIR cookies");
 
 /* -------------------------------------------------------------------

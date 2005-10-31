@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/uma.h>
 
-static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
+static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);

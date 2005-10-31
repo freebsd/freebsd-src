@@ -74,10 +74,10 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
 
-static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
+static MALLOC_DEFINE(M_NFSSVC, "nfsserver_srvsock", "Nfs server structure");
 
-MALLOC_DEFINE(M_NFSRVDESC, "NFSV3 srvdesc", "NFS server socket descriptor");
-MALLOC_DEFINE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
+MALLOC_DEFINE(M_NFSRVDESC, "nfsserver_srvdesc", "NFS server socket descriptor");
+MALLOC_DEFINE(M_NFSD, "nfsserver_daemon", "Nfs server daemon structure");
 
 
 #define	TRUE	1

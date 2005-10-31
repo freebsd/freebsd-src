@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 
-static MALLOC_DEFINE(M_MSDOSFSFILENO, "MSDOSFS fileno", "MSDOSFS fileno mapping node");
+static MALLOC_DEFINE(M_MSDOSFSFILENO, "msdosfs_fileno", "MSDOSFS fileno mapping node");
 
 static struct mtx fileno_mtx;
 MTX_SYSINIT(fileno, &fileno_mtx, "MSDOSFS fileno", MTX_DEF);

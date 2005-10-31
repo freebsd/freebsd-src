@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local vars */
-static MALLOC_DEFINE(M_ATAPCI, "ATA PCI", "ATA driver PCI");
+static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 
 /* misc defines */
 #define IOMASK                  0xfffffffc

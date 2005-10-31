@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
-static MALLOC_DEFINE(M_VFS_HASH, "VFS hash", "VFS hash table");
+static MALLOC_DEFINE(M_VFS_HASH, "vfs_hash", "VFS hash table");
 
 static LIST_HEAD(vfs_hash_head, vnode)	*vfs_hash_tbl;
 static LIST_HEAD(,vnode)		vfs_hash_side;

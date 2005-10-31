@@ -53,7 +53,7 @@
 
 #include <fs/nullfs/null.h>
 
-static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
+static MALLOC_DEFINE(M_NULLFSMNT, "nullfs_mount", "NULLFS mount structure");
 
 static vfs_fhtovp_t	nullfs_fhtovp;
 static vfs_checkexp_t	nullfs_checkexp;

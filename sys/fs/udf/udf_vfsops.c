@@ -99,8 +99,8 @@
 #include <fs/udf/udf.h>
 #include <fs/udf/udf_mount.h>
 
-static MALLOC_DEFINE(M_UDFMOUNT, "UDF mount", "UDF mount structure");
-MALLOC_DEFINE(M_UDFFENTRY, "UDF fentry", "UDF file entry structure");
+static MALLOC_DEFINE(M_UDFMOUNT, "udf_mount", "UDF mount structure");
+MALLOC_DEFINE(M_UDFFENTRY, "udf_fentry", "UDF file entry structure");
 
 struct iconv_functions *udf_iconv = NULL;
 

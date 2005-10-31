@@ -73,7 +73,7 @@ SYSCTL_INT (_net_ncp, OID_AUTO, conn_cnt, CTLFLAG_RD, &ncp_conn_cnt, 0, "");
 SYSCTL_PROC(_net_ncp, OID_AUTO, conn_stat, CTLFLAG_RD|CTLTYPE_OPAQUE,
 	    NULL, 0, ncp_sysctl_connstat, "S,connstat", "Connections list");
 
-MALLOC_DEFINE(M_NCPDATA, "NCP data", "NCP private data");
+MALLOC_DEFINE(M_NCPDATA, "ncp_data", "NCP private data");
 
 int
 ncp_conn_init(void)

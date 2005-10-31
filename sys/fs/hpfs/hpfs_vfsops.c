@@ -53,8 +53,8 @@
 #include <fs/hpfs/hpfsmount.h>
 #include <fs/hpfs/hpfs_subr.h>
 
-MALLOC_DEFINE(M_HPFSMNT, "HPFS mount", "HPFS mount structure");
-MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
+MALLOC_DEFINE(M_HPFSMNT, "hpfs_mount", "HPFS mount structure");
+MALLOC_DEFINE(M_HPFSNO, "hpfs_node", "HPFS node structure");
 
 struct sockaddr;
 

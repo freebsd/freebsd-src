@@ -101,7 +101,7 @@ static void ata_raid_via_print_meta(struct via_raid_conf *meta);
 
 /* internal vars */   
 static struct ar_softc *ata_raid_arrays[MAX_ARRAYS];
-static MALLOC_DEFINE(M_AR, "AR driver", "ATA PseudoRAID driver");
+static MALLOC_DEFINE(M_AR, "ar_driver", "ATA PseudoRAID driver");
 static devclass_t ata_raid_sub_devclass;
 static int testing = 0;
 

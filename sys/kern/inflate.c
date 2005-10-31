@@ -20,7 +20,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #ifdef _KERNEL
-static MALLOC_DEFINE(M_GZIP, "Gzip trees", "Gzip trees");
+static MALLOC_DEFINE(M_GZIP, "gzip_trees", "Gzip trees");
 #endif
 
 /* needed to make inflate() work */

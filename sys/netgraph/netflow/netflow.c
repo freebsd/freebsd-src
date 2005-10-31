@@ -96,7 +96,7 @@ static const char rcs_id[] =
 			 ((t) << 3))	/* 8   */
 
 MALLOC_DECLARE(M_NETFLOW_HASH);
-MALLOC_DEFINE(M_NETFLOW_HASH, "NetFlow hash", "NetFlow hash");
+MALLOC_DEFINE(M_NETFLOW_HASH, "netflow_hash", "NetFlow hash");
 
 static int export_add(item_p, struct flow_entry *);
 static int export_send(priv_p, item_p);

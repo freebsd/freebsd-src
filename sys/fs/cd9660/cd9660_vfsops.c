@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
-MALLOC_DEFINE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
-MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
+MALLOC_DEFINE(M_ISOFSMNT, "isofs_mount", "ISOFS mount structure");
+MALLOC_DEFINE(M_ISOFSNODE, "isofs_node", "ISOFS vnode private part");
 
 struct iconv_functions *cd9660_iconv = NULL;
 

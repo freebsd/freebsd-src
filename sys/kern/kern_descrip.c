@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
-static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "file desc to leader",
+static MALLOC_DEFINE(M_FILEDESC, "filedesc", "Open file descriptor table");
+static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "filedesc_to_leader",
 		     "file desc to leader structures");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
