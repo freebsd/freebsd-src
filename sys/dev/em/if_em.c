@@ -468,16 +468,20 @@ em_attach(device_t dev)
 	adapter->hw.get_link_status = 1;
 	em_check_for_link(&adapter->hw);
 
-	/* Print the link status */
-	if (adapter->link_active == 1) {
-		em_get_speed_and_duplex(&adapter->hw, &adapter->link_speed, 
-					&adapter->link_duplex);
-		printf("em%d:  Speed:%d Mbps  Duplex:%s\n",
-		       adapter->unit,
-		       adapter->link_speed,
-		       adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half");
-	} else
-		printf("em%d:  Speed:N/A  Duplex:N/A\n", adapter->unit);
+	if (bootverbose) {
+		/* Print the link status */
+		if (adapter->link_active == 1) {
+			em_get_speed_and_duplex(&adapter->hw,
+			    &adapter->link_speed, &adapter->link_duplex);
+			printf("em%d:  Speed:%d Mbps  Duplex:%s\n",
+			       adapter->unit,
+			       adapter->link_speed,
+			       adapter->link_duplex == FULL_DUPLEX ? "Full" :
+				"Half");
+		} else
+			printf("em%d:  Speed:N/A  Duplex:N/A\n",
+			    adapter->unit);
+	}
 
 	/* Identify 82544 on PCIX */
         em_get_bus_info(&adapter->hw);
