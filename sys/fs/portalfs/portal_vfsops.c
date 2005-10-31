@@ -56,7 +56,7 @@
 
 #include <fs/portalfs/portal.h>
 
-static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
+static MALLOC_DEFINE(M_PORTALFSMNT, "portal_mount", "PORTAL mount structure");
 
 static vfs_unmount_t	portal_unmount;
 static vfs_root_t	portal_root;

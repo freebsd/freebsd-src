@@ -85,7 +85,7 @@ static int ast_wait_dsc(device_t, int);
 
 /* internal vars */
 static u_int64_t ast_total = 0;
-static MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
+static MALLOC_DEFINE(M_AST, "ast_driver", "ATAPI tape driver buffers");
 
 static int
 ast_probe(device_t dev)

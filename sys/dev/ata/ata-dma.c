@@ -54,7 +54,7 @@ static int ata_dmaload(device_t, caddr_t, int32_t, int, void *, int *);
 static int ata_dmaunload(device_t);
 
 /* local vars */
-static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
+static MALLOC_DEFINE(M_ATADMA, "ata_dma", "ATA driver DMA");
 
 /* misc defines */
 #define MAXTABSZ        PAGE_SIZE

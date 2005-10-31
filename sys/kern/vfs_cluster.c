@@ -58,7 +58,7 @@ SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0,
     "Debug VFS clustering code");
 #endif
 
-static MALLOC_DEFINE(M_SEGMENT, "cluster_save buffer", "cluster_save buffer");
+static MALLOC_DEFINE(M_SEGMENT, "cluster_save_buffer", "cluster_save buffer");
 
 static struct cluster_save *
 	cluster_collectbufs(struct vnode *vp, struct buf *last_bp);

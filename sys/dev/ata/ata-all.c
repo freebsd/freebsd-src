@@ -73,7 +73,7 @@ static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 
 /* global vars */
-MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
+MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 devclass_t ata_devclass;
 uma_zone_t ata_request_zone;

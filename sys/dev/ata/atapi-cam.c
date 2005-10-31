@@ -115,7 +115,7 @@ static struct atapi_hcb *allocate_hcb(struct atapi_xpt_softc *, int, int, union 
 static void free_hcb(struct atapi_hcb *hcb);
 static void free_softc(struct atapi_xpt_softc *scp);
 
-static MALLOC_DEFINE(M_ATACAM, "ATA CAM transport", "ATA driver CAM-XPT layer");
+static MALLOC_DEFINE(M_ATACAM, "ata_cam", "ATA driver CAM-XPT layer");
 
 static device_method_t atapi_cam_methods[] = {
 	DEVMETHOD(device_identify,      atapi_cam_identify),

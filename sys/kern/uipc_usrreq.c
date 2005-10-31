@@ -1614,6 +1614,7 @@ unp_gc(void)
 	LIST_FOREACH(fp, &filehead, f_list)
 		fp->f_gcflag &= ~(FMARK|FDEFER);
 	do {
+		KASSERT(unp_defer >= 0, ("unp_gc: unp_defer %d", unp_defer));
 		LIST_FOREACH(fp, &filehead, f_list) {
 			FILE_LOCK(fp);
 			/*

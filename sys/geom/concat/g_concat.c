@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/concat/g_concat.h>
 
 
-static MALLOC_DEFINE(M_CONCAT, "concat data", "GEOM_CONCAT Data");
+static MALLOC_DEFINE(M_CONCAT, "concat_data", "GEOM_CONCAT Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW, 0, "GEOM_CONCAT stuff");

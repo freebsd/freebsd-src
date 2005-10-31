@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_directio.h"
 #include "opt_swap.h"
 
-static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
+static MALLOC_DEFINE(M_BIOBUF, "biobuf", "BIO buffer");
 
 struct	bio_ops bioops;		/* I/O operation notification */
 

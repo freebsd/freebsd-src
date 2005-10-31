@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <coda/coda_subr.h>
 #include <coda/coda_opstats.h>
 
-MALLOC_DEFINE(M_CODA, "CODA storage", "Various Coda Structures");
+MALLOC_DEFINE(M_CODA, "coda", "Various Coda Structures");
 
 int codadebug = 0;
 int coda_vfsop_print_entry = 0;

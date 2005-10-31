@@ -94,8 +94,8 @@ static vfs_fhtovp_t		ext2_fhtovp;
 static vfs_vptofh_t		ext2_vptofh;
 static vfs_mount_t		ext2_mount;
 
-MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
-static MALLOC_DEFINE(M_EXT2MNT, "EXT2 mount", "EXT2 mount structure");
+MALLOC_DEFINE(M_EXT2NODE, "ext2_node", "EXT2 vnode private part");
+static MALLOC_DEFINE(M_EXT2MNT, "ext2_mount", "EXT2 mount structure");
 
 static struct vfsops ext2fs_vfsops = {
 	.vfs_fhtovp =		ext2_fhtovp,

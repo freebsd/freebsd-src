@@ -132,7 +132,7 @@ static int	mac_lomac_slot;
     LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr)
 #define	PSLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr = (val))
 
-MALLOC_DEFINE(M_MACLOMAC, "lomac label", "MAC/LOMAC labels");
+MALLOC_DEFINE(M_MACLOMAC, "mac_lomac_label", "MAC/LOMAC labels");
 
 static struct mac_lomac *
 lomac_alloc(int flag)

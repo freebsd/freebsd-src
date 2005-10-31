@@ -64,8 +64,8 @@ static LIST_HEAD(nwnode_hash_head,nwnode) *nwhashtbl;
 static u_long nwnodehash;
 static struct lock nwhashlock;
 
-static MALLOC_DEFINE(M_NWNODE, "NWFS node", "NWFS vnode private part");
-static MALLOC_DEFINE(M_NWFSHASH, "NWFS hash", "NWFS has table");
+static MALLOC_DEFINE(M_NWNODE, "nwfs_node", "NWFS vnode private part");
+static MALLOC_DEFINE(M_NWFSHASH, "nwfs_hash", "NWFS has table");
 
 static int nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS);
 

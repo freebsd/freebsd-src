@@ -88,8 +88,8 @@ static struct vop_vector udf_vnodeops = {
 	.vop_strategy =		udf_strategy,
 };
 
-MALLOC_DEFINE(M_UDFFID, "UDF FID", "UDF FileId structure");
-MALLOC_DEFINE(M_UDFDS, "UDF DS", "UDF Dirstream structure");
+MALLOC_DEFINE(M_UDFFID, "udf_fid", "UDF FileId structure");
+MALLOC_DEFINE(M_UDFDS, "udf_ds", "UDF Dirstream structure");
 
 #define UDF_INVALID_BMAP	-1
 
