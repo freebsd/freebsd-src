@@ -127,6 +127,23 @@
       has been added.  This allows to export &man.uma.9; allocator
       statistics via a binary structure stream.</para>
 
+    <para>The sysctl variable <varname>hw.pci.do_powerstate</varname>
+      has been changed from a boolean to a range.
+      <literal>0</literal> means no power management,
+      <literal>1</literal> means conservative power management which
+      any device class that has caused problems is added to the watch list,
+      <literal>2</literal> means aggressive power management where
+      any device class that is not fundamental to the system is added to the list,
+      and <literal>3</literal> means power them all down unconditionally.
+      The default is <literal>1</literal>.</para>
+
+    <para arch="ia64">The <filename>GENERIC</filename> kernel now enables
+      SMP support by default.</para>
+
+    <para>Sample kernel configuration files
+      <filename>src/sys/<replaceable>arch</replaceable>/conf/MAC</filename>
+      for the Mandatory Access Control framework have been added.</para>
+
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
@@ -168,6 +185,9 @@
       <para arch="amd64">The smbios(4) driver support for amd64 has been
 	added.</para>
 
+      <para>The tnt4882(4) driver which supports National Instruments
+	PCI-GPIB card has been added.</para>
+
       <para arch="i386">A new loader tunable
 	<varname>hw.apic.enable_extint</varname> has been added.
 	This tunable can be used not to mask the ExtINT pin on the first
@@ -177,6 +197,8 @@
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
+
+	<para>The &man.agp.4; driver now supports ATI IGP chipsets.</para>
 
 	<para>The &man.sound.4; driver now supports
 	  wider range sampling rate, multiple precisions choice,
@@ -206,6 +228,9 @@
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
+
+	<para>The &man.re.4; driver now supports D-Link DGE-528(T)
+	  Gigabit Ethernet card.</para>
 
 	<para>The &man.sf.4; driver is now MPSAFE. &merged;</para>
 
@@ -274,10 +299,17 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.aac.4; driver now supports the Adaptec 2610SA SATA-RAID
+	controller in some Hewlett-Packard machines.</para>
+
       <para>The &man.ata.4; driver now supports a workaround
 	for some controllers whose DMA does not work properly
 	in 48bit mode.  For the suspicious controllers
 	the PIO mode will be used for access to over 137GB areas.</para>
+
+      <para>The &man.ata.4; driver now supports the ITE IT8211F IDE controller,
+	and Promise PDC40718 and PDC40719 chip found in Promise
+	Fasttrak TX4300.</para>
 
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
 	It creates very huge provider (41PB) <filename>/dev/gzero</filename>
@@ -288,6 +320,9 @@
 
       <para>The <literal>GEOM_LABEL</literal> class now supports
 	Ext2FS and ReiserFS.</para>
+
+      <para>The &man.hptmv.4; driver has been updated and now supports
+	amd64 as well as PAE.</para>
 
       <para>The &man.mpt.4; driver has been updated to support
 	various new features such as RAID volume and RAID member
@@ -342,6 +377,8 @@
       flag to compare the symbolic link itself rather than the
       file that the link points to.</para>
 
+    <para>The &man.gpt.8; utility now supports setting GPT partition labels.</para>
+
     <para>The &man.ifconfig.8; utility now supports
       a <option>-k</option> flag to allow printing
       potentially sensitive keying material to standard output.
@@ -355,6 +392,12 @@
       no longer requires a network interface as its argument.  The
       argument still is supported for backward compatibility, but now
       it is deprecated and its use is discouraged.</para>
+
+    <para>The &man.kenv.1; utility now supports a <option>-q</option>
+      flag to suppress warnings.</para>
+
+    <para>The <application>libedit</application> library has been
+      updated from the NetBSD source tree as of August 2005.</para>
 
     <para>The &man.libmemstat.3; library has been added.
       This is for use by debugging and monitoring applications
@@ -395,6 +438,12 @@
     <para>The &man.powerd.8; program now supports a
       <option>-P</option> option which allows to specify pidfile.</para>
 
+    <para>The &man.rpcgen.1; utility now generates headers and stub files
+      which can be used with ANSI C compilers by default.</para>
+
+    <para>The &man.sysctl.8; utility now supports a <option>-q</option>
+      flag to suppress a limited set of warnings and errors.</para>
+
     <para>The shared library version number of all libraries have
       been updated due to some possible ABI changes.  The libraries
       include: snmp_*, libdialog, libg2c, libobjc,
@@ -426,9 +475,11 @@
       <para>The <varname>removable_interfaces</varname> variable
 	has been removed.</para>
 
-      <para>A new variable <varname>ifconfig_<replaceable>ifn</replaceable></varname>
-	has been added. This allows
-	<filename>/etc/rc.d/netif</filename>
+      <para>A new keyword <literal>NOAUTO</literal> in
+	<varname>ifconfig_<replaceable>ifn</replaceable></varname>
+	has been added. This prevents configuration of an interface
+	at boot time or via <filename>/etc/pccard_ether</filename>,
+	and allows <filename>/etc/rc.d/netif</filename>
 	to be used to start and stop an interface
 	on a purely manual basis.</para>
     </sect3>
@@ -439,6 +490,9 @@
 
     <para><application>libpcap</application> has been updated
       to v0.9.1 (release).</para>
+
+    <para><application>OpenSSH</application> has been updated from
+      version 4.0p1 to version 4.2p1.</para>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.3 to version 8.13.4.</para>
