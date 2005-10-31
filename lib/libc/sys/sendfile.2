@@ -247,6 +247,11 @@ The
 .Fa s
 argument
 is not a socket.
+.It Bq Er EOPNOTSUPP
+The file system for descriptor
+.Fa fd
+does not support
+.Fn sendfile .
 .It Bq Er EPIPE
 The socket peer has closed the connection.
 .El
