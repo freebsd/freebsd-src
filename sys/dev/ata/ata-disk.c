@@ -65,7 +65,7 @@ static disk_ioctl_t ad_ioctl;
 static dumper_t ad_dump;
 
 /* local vars */
-static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
+static MALLOC_DEFINE(M_AD, "ad_driver", "ATA disk driver");
 
 static int
 ad_probe(device_t dev)

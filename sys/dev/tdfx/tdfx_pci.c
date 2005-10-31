@@ -96,7 +96,7 @@ static device_method_t tdfx_methods[] = {
 	{ 0, 0 }
 };
 
-MALLOC_DEFINE(M_TDFX,"TDFX Driver","3DFX Graphics[/2D]/3D Accelerator(s)");
+MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerator(s)");
 
 #ifdef TDFX_LINUX
 MODULE_DEPEND(tdfx, linux, 1, 1, 1);

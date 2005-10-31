@@ -112,7 +112,7 @@ extern	int	path_mtu_discovery;
 #endif
 
 # ifdef IPFILTER_M_IPFILTER
-MALLOC_DEFINE(M_IPFILTER, "IP Filter", "IP Filter packet filter data structures");
+MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures");
 # endif
 
 

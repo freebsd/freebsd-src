@@ -45,7 +45,7 @@
 #include <fs/ntfs/ntfs_inode.h>
 #include <fs/ntfs/ntfs_ihash.h>
 
-MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
+MALLOC_DEFINE(M_NTFSNTHASH, "ntfs_nthash", "NTFS ntnode hash tables");
 
 /*
  * Structures associated with inode cacheing.

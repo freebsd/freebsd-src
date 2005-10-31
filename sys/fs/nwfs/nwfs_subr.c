@@ -52,7 +52,7 @@
 
 #define NCP_INFOSZ	(sizeof(struct nw_entry_info) - 257)
 
-MALLOC_DEFINE(M_NWFSDATA, "NWFS data", "NWFS private data");
+MALLOC_DEFINE(M_NWFSDATA, "nwfs_data", "NWFS private data");
 
 static int
 ncp_extract_file_info(struct nwmount *nmp, struct ncp_rq *rqp,

@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #define	TODO		printf("%s: not implemented!\n", __func__)
 
-static MALLOC_DEFINE(M_IOAPIC, "I/O APIC", "I/O APIC structures");
+static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
 
 /*
  * New interrupt support code..

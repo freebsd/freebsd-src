@@ -51,7 +51,7 @@
 #include <fs/smbfs/smbfs_node.h>
 #include <fs/smbfs/smbfs_subr.h>
 
-MALLOC_DEFINE(M_SMBFSDATA, "SMBFS data", "SMBFS private data");
+MALLOC_DEFINE(M_SMBFSDATA, "smbfs_data", "SMBFS private data");
 
 /* 
  * Time & date conversion routines taken from msdosfs. Although leap

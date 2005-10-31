@@ -64,8 +64,8 @@ static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static u_long null_node_hash;
 struct mtx null_hashmtx;
 
-static MALLOC_DEFINE(M_NULLFSHASH, "NULLFS hash", "NULLFS hash table");
-MALLOC_DEFINE(M_NULLFSNODE, "NULLFS node", "NULLFS vnode private part");
+static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
+MALLOC_DEFINE(M_NULLFSNODE, "nullfs_node", "NULLFS vnode private part");
 
 static struct vnode * null_hashget(struct mount *, struct vnode *);
 static struct vnode * null_hashins(struct mount *, struct null_node *);

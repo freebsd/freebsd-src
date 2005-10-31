@@ -75,11 +75,11 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsdiskless.h>
 
-MALLOC_DEFINE(M_NFSREQ, "NFS req", "NFS request header");
-MALLOC_DEFINE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
-MALLOC_DEFINE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
-MALLOC_DEFINE(M_NFSHASH, "NFS hash", "NFS hash tables");
-MALLOC_DEFINE(M_NFSDIRECTIO, "NFS DirectIO", "NFS Direct IO async write state");
+MALLOC_DEFINE(M_NFSREQ, "nfsclient_req", "NFS request header");
+MALLOC_DEFINE(M_NFSBIGFH, "nfsclient_bigfh", "NFS version 3 file handle");
+MALLOC_DEFINE(M_NFSDIROFF, "nfsclient_diroff", "NFS directory offset data");
+MALLOC_DEFINE(M_NFSHASH, "nfsclient_hash", "NFS hash tables");
+MALLOC_DEFINE(M_NFSDIRECTIO, "nfsclient_directio", "NFS Direct IO async write state");
 
 uma_zone_t nfsmount_zone;
 

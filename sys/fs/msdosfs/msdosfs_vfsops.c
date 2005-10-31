@@ -99,8 +99,8 @@ static const char *msdosfs_opts[] = {
 #define	MSDOSFS_NOCHECKSIG
 #endif
 
-MALLOC_DEFINE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
-static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
+MALLOC_DEFINE(M_MSDOSFSMNT, "msdosfs_mount", "MSDOSFS mount structure");
+static MALLOC_DEFINE(M_MSDOSFSFAT, "msdosfs_fat", "MSDOSFS file allocation table");
 
 struct iconv_functions *msdosfs_iconv = NULL;
 

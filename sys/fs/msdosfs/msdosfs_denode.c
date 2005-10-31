@@ -67,7 +67,7 @@
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 
-static MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
+static MALLOC_DEFINE(M_MSDOSFSNODE, "msdosfs_node", "MSDOSFS vnode private part");
 
 static int
 de_vncmpf(struct vnode *vp, void *arg)

@@ -48,7 +48,7 @@
 #include <geom/geom.h>
 #include <geom/gate/g_gate.h>
 
-static MALLOC_DEFINE(M_GATE, "gg data", "GEOM Gate Data");
+static MALLOC_DEFINE(M_GATE, "gg_data", "GEOM Gate Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW, 0, "GEOM_GATE stuff");

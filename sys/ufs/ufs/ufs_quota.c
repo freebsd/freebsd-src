@@ -62,7 +62,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_get_quota, CTLFLAG_RW,
     &unprivileged_get_quota, 0,
     "Unprivileged processes may retrieve quotas for other uids and gids");
 
-static MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
+static MALLOC_DEFINE(M_DQUOT, "ufs_quota", "UFS quota entries");
 
 /*
  * Quota name to error message mapping.

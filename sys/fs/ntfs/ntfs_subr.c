@@ -51,10 +51,10 @@
 #include <fs/ntfs/ntfs_compr.h>
 #include <fs/ntfs/ntfs_ihash.h>
 
-MALLOC_DEFINE(M_NTFSNTVATTR, "NTFS vattr", "NTFS file attribute information");
-MALLOC_DEFINE(M_NTFSRDATA, "NTFS res data", "NTFS resident data");
-MALLOC_DEFINE(M_NTFSRUN, "NTFS vrun", "NTFS vrun storage");
-MALLOC_DEFINE(M_NTFSDECOMP, "NTFS decomp", "NTFS decompression temporary");
+MALLOC_DEFINE(M_NTFSNTVATTR, "ntfs_vattr", "NTFS file attribute information");
+MALLOC_DEFINE(M_NTFSRDATA, "ntfsd_resdata", "NTFS resident data");
+MALLOC_DEFINE(M_NTFSRUN, "ntfs_vrun", "NTFS vrun storage");
+MALLOC_DEFINE(M_NTFSDECOMP, "ntfs_decomp", "NTFS decompression temporary");
 
 static int ntfs_ntlookupattr(struct ntfsmount *, const char *, int, int *, char **);
 static int ntfs_findvattr(struct ntfsmount *, struct ntnode *, struct ntvattr **, struct ntvattr **, u_int32_t, const char *, size_t, cn_t);

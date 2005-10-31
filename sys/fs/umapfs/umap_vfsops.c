@@ -51,7 +51,7 @@
 
 #include <fs/umapfs/umap.h>
 
-static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
+static MALLOC_DEFINE(M_UMAPFSMNT, "umap_mount", "UMAP mount structure");
 
 static vfs_omount_t		umapfs_omount;
 static vfs_root_t		umapfs_root;

@@ -41,9 +41,9 @@ static int	get_root_node(struct reiserfs_mount *rmp,
 		    struct reiserfs_node **root);
 uint32_t	find_hash_out(struct reiserfs_mount *rmp);
 
-MALLOC_DEFINE(M_REISERFSMNT, "ReiserFS mount", "ReiserFS mount structure");
-MALLOC_DEFINE(M_REISERFSPATH, "ReiserFS path", "ReiserFS path structure");
-MALLOC_DEFINE(M_REISERFSNODE, "ReiserFS node", "ReiserFS vnode private part");
+MALLOC_DEFINE(M_REISERFSMNT, "reiserfs_mount", "ReiserFS mount structure");
+MALLOC_DEFINE(M_REISERFSPATH, "reiserfs_path", "ReiserFS path structure");
+MALLOC_DEFINE(M_REISERFSNODE, "reiserfs_node", "ReiserFS vnode private part");
 
 /* -------------------------------------------------------------------
  * VFS operations

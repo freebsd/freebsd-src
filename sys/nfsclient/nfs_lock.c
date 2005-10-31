@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 
 extern void (*nlminfo_release_p)(struct proc *p);
 
-MALLOC_DEFINE(M_NFSLOCK, "NFS lock", "NFS lock request");
-MALLOC_DEFINE(M_NLMINFO, "nlminfo", "NFS lock process structure");
+MALLOC_DEFINE(M_NFSLOCK, "nfsclient_lock", "NFS lock request");
+MALLOC_DEFINE(M_NLMINFO, "nfsclient_nlminfo", "NFS lock process structure");
 
 static int nfslockdans(struct thread *td, struct lockd_ans *ansp);
 static void nlminfo_release(struct proc *p);

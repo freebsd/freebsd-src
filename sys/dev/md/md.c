@@ -94,8 +94,8 @@
 #define MD_NSECT (10000 * 2)
 #endif
 
-static MALLOC_DEFINE(M_MD, "MD disk", "Memory Disk");
-static MALLOC_DEFINE(M_MDSECT, "MD sectors", "Memory Disk Sectors");
+static MALLOC_DEFINE(M_MD, "md_disk", "Memory Disk");
+static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
 SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");

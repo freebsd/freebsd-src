@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/net_osdep.h>
 
-MALLOC_DEFINE(M_SECA, "key mgmt", "security associations, key management");
+MALLOC_DEFINE(M_SECA, "key_mgmt", "security associations, key management");
 
 /*
  * secpolicy management

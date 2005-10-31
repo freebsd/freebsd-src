@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/radix.h>
 
-static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
+static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
 static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);

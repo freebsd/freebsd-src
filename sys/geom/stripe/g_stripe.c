@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 
 #define	MAX_IO_SIZE	(DFLTPHYS * 2)
-static MALLOC_DEFINE(M_STRIPE, "stripe data", "GEOM_STRIPE Data");
+static MALLOC_DEFINE(M_STRIPE, "stripe_data", "GEOM_STRIPE Data");
 
 static uma_zone_t g_stripe_zone;
 

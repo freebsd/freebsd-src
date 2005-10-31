@@ -94,7 +94,7 @@ static int acd_format(device_t, struct cdr_format_params *);
 static int acd_test_ready(device_t);
 
 /* internal vars */
-static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
+static MALLOC_DEFINE(M_ACD, "acd_driver", "ATAPI CD driver buffers");
 static struct g_class acd_class = {
 	.name = "ACD",
 	.version = G_VERSION,

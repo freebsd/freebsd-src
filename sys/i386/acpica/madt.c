@@ -74,7 +74,7 @@ static MULTIPLE_APIC_TABLE *madt;
 static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
 
-MALLOC_DEFINE(M_MADT, "MADT Table", "ACPI MADT Table Items");
+MALLOC_DEFINE(M_MADT, "madt_table", "ACPI MADT Table Items");
 
 static enum intr_polarity interrupt_polarity(UINT16 Polarity, UINT8 Source);
 static enum intr_trigger interrupt_trigger(UINT16 TriggerMode, UINT8 Source);

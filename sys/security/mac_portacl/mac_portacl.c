@@ -113,7 +113,7 @@ SYSCTL_INT(_security_mac_portacl, OID_AUTO, port_high, CTLFLAG_RW,
     &mac_portacl_port_high, 0, "Highest port to enforce for");
 TUNABLE_INT("security.mac.portacl.port_high", &mac_portacl_port_high);
 
-MALLOC_DEFINE(M_PORTACL, "portacl rule", "Rules for mac_portacl");
+MALLOC_DEFINE(M_PORTACL, "mac_portacl_rule", "Rules for mac_portacl");
 
 #define	MAC_RULE_STRING_LEN	1024
 

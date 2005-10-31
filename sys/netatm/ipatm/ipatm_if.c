@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
 
-static MALLOC_DEFINE(M_IPATM_NIF, "ipatm nif", "IP/ATM network interfaces");
+static MALLOC_DEFINE(M_IPATM_NIF, "ipatm_nif", "IP/ATM network interfaces");
 
 /*
  * Local functions

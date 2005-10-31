@@ -72,7 +72,7 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 #define SSC_NSECT 409600
 #endif
 
-MALLOC_DEFINE(M_SSC, "SSC disk", "Simulator Disk");
+MALLOC_DEFINE(M_SSC, "ssc_disk", "Simulator Disk");
 
 static int sscrootready;
 
