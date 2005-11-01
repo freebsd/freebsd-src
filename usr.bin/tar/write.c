@@ -296,9 +296,13 @@ tar_mode_u(struct bsdtar *bsdtar)
 	archive_read_support_compression_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
-	archive_read_open_fd(a, bsdtar->fd,
+	if (archive_read_open_fd(a, bsdtar->fd,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
-	    DEFAULT_BYTES_PER_BLOCK);
+		DEFAULT_BYTES_PER_BLOCK) != ARCHIVE_OK) {
+		bsdtar_errc(bsdtar, 1, archive_errno(a),
+		    "Can't open %s: %s", bsdtar->filename,
+		    archive_error_string(a));
+	}
 
 	/* Build a list of all entries and their recorded mod times. */
 	while (0 == archive_read_next_header(a, &entry)) {
