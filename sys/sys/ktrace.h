@@ -54,7 +54,7 @@ struct ktr_header {
 	pid_t	ktr_pid;		/* process id */
 	char	ktr_comm[MAXCOMLEN+1];	/* command name */
 	struct	timeval ktr_time;	/* timestamp */
-	void	*ktr_buffer;
+	intptr_t	ktr_unused;	/* was ktr_buffer */
 };
 
 /*

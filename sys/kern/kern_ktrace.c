@@ -64,6 +64,7 @@ static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 struct ktr_request {
 	struct	ktr_header ktr_header;
+	void	*ktr_buffer;
 	struct	ucred *ktr_cred;
 	struct	vnode *ktr_vp;
 	union {
@@ -237,7 +238,8 @@ ktr_getrequest(int type)
 		microtime(&req->ktr_header.ktr_time);
 		req->ktr_header.ktr_pid = p->p_pid;
 		bcopy(p->p_comm, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
-		req->ktr_header.ktr_buffer = NULL;
+		req->ktr_header.ktr_unused = 0;
+		req->ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
 	} else {
 		p->p_traceflag |= KTRFAC_DROP;
@@ -272,8 +274,8 @@ ktr_freerequest(struct ktr_request *req)
 		vrele(req->ktr_vp);
 		mtx_unlock(&Giant);
 	}
-	if (req->ktr_header.ktr_buffer != NULL)
-		free(req->ktr_header.ktr_buffer, M_KTRACE);
+	if (req->ktr_buffer != NULL)
+		free(req->ktr_buffer, M_KTRACE);
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	mtx_unlock(&ktrace_mtx);
@@ -340,7 +342,7 @@ ktrsyscall(code, narg, args)
 	ktp->ktr_narg = narg;
 	if (buflen > 0) {
 		req->ktr_header.ktr_len = buflen;
-		req->ktr_header.ktr_buffer = buf;
+		req->ktr_buffer = buf;
 	}
 	ktr_submitrequest(req);
 }
@@ -387,7 +389,7 @@ ktrnamei(path)
 	}
 	if (namelen > 0) {
 		req->ktr_header.ktr_len = namelen;
-		req->ktr_header.ktr_buffer = buf;
+		req->ktr_buffer = buf;
 	}
 	ktr_submitrequest(req);
 }
@@ -436,7 +438,7 @@ ktrgenio(fd, rw, uio, error)
 	ktg->ktr_fd = fd;
 	ktg->ktr_rw = rw;
 	req->ktr_header.ktr_len = datalen;
-	req->ktr_header.ktr_buffer = buf;
+	req->ktr_buffer = buf;
 	ktr_submitrequest(req);
 }
 
@@ -684,7 +686,7 @@ utrace(td, uap)
 		free(cp, M_KTRACE);
 		return (ENOMEM);
 	}
-	req->ktr_header.ktr_buffer = cp;
+	req->ktr_buffer = cp;
 	req->ktr_header.ktr_len = uap->len;
 	ktr_submitrequest(req);
 	return (0);
@@ -827,8 +829,8 @@ ktr_writerequest(struct ktr_request *req)
 		kth->ktr_len += datalen;
 	}
 	if (buflen != 0) {
-		KASSERT(kth->ktr_buffer != NULL, ("ktrace: nothing to write"));
-		aiov[auio.uio_iovcnt].iov_base = kth->ktr_buffer;
+		KASSERT(req->ktr_buffer != NULL, ("ktrace: nothing to write"));
+		aiov[auio.uio_iovcnt].iov_base = req->ktr_buffer;
 		aiov[auio.uio_iovcnt].iov_len = buflen;
 		auio.uio_resid += buflen;
 		auio.uio_iovcnt++;
