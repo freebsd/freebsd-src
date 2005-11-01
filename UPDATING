@@ -8,7 +8,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
-20051001:
+20051101:
 	FreeBSD 6.0-RELEASE
 
 20051011:		FreeBSD-SA-05:21.openssl
