@@ -183,7 +183,7 @@ typedef union ptr_ovl
 #define OSD_PRINT(lvl,fp)               TEST_OUTPUT_LEVEL(lvl) {\
                                             AcpiOsPrintf PARAM_LIST(fp);}
 
-void __cdecl
+void
 AeCtrlCHandler (
     int                     Sig);
 

@@ -195,7 +195,7 @@ RSDT_DESCRIPTOR_REV1        *LocalRSDT;
  *
  *****************************************************************************/
 
-void __cdecl
+void
 AeCtrlCHandler (
     int                     Sig)
 {
