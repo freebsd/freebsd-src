@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 12 $
+ *              $Revision: 1.16 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,14 +118,17 @@
 #define __NSDUMPDV_C__
 
 #include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acnamesp.h>
 
+
+/* TBD: This entire module is apparently obsolete and should be removed */
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsdumpdv")
 
-
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
+#include <contrib/dev/acpica/acnamesp.h>
 
 /*******************************************************************************
  *
@@ -134,13 +137,16 @@
  * PARAMETERS:  Handle              - Node to be dumped
  *              Level               - Nesting level of the handle
  *              Context             - Passed into WalkNamespace
+ *              ReturnValue         - Not used
+ *
+ * RETURN:      Status
  *
  * DESCRIPTION: Dump a single Node that represents a device
  *              This procedure is a UserFunction called by AcpiNsWalkNamespace.
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiNsDumpOneDevice (
     ACPI_HANDLE             ObjHandle,
     UINT32                  Level,
@@ -185,12 +191,15 @@ AcpiNsDumpOneDevice (
  *
  * PARAMETERS:  None
  *
+ * RETURN:      None
+ *
  * DESCRIPTION: Dump all objects of type "device"
  *
  ******************************************************************************/
 
 void
-AcpiNsDumpRootDevices (void)
+AcpiNsDumpRootDevices (
+    void)
 {
     ACPI_HANDLE             SysBusHandle;
     ACPI_STATUS             Status;
@@ -220,6 +229,7 @@ AcpiNsDumpRootDevices (void)
                 AcpiNsDumpOneDevice, NULL, NULL);
 }
 
+#endif
 #endif
 
 

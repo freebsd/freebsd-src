@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 184 $
+ *              $Revision: 1.192 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -141,7 +141,8 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiNsRootInitialize (void)
+AcpiNsRootInitialize (
+    void)
 {
     ACPI_STATUS                 Status;
     const ACPI_PREDEFINED_NAMES *InitVal = NULL;
@@ -239,29 +240,28 @@ AcpiNsRootInitialize (void)
             switch (InitVal->Type)
             {
             case ACPI_TYPE_METHOD:
-                ObjDesc->Method.ParamCount = (UINT8) ACPI_STRTOUL
-                                                        (Val, NULL, 10);
+                ObjDesc->Method.ParamCount = (UINT8) ACPI_TO_INTEGER (Val);
                 ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
 
-#if defined (_ACPI_ASL_COMPILER) || defined (_ACPI_DUMP_APP)
+#if defined (ACPI_ASL_COMPILER)
 
-                /*
-                 * iASL Compiler cheats by putting parameter count
-                 * in the OwnerID
-                 */
-                NewNode->OwnerId = ObjDesc->Method.ParamCount;
+                /* Save the parameter count for the iASL compiler */
+
+                NewNode->Value = ObjDesc->Method.ParamCount;
 #else
                 /* Mark this as a very SPECIAL method */
 
                 ObjDesc->Method.MethodFlags = AML_METHOD_INTERNAL_ONLY;
+
+#ifndef ACPI_DUMP_APP
                 ObjDesc->Method.Implementation = AcpiUtOsiImplementation;
+#endif
 #endif
                 break;
 
             case ACPI_TYPE_INTEGER:
 
-                ObjDesc->Integer.Value =
-                        (ACPI_INTEGER) ACPI_STRTOUL (Val, NULL, 10);
+                ObjDesc->Integer.Value = ACPI_TO_INTEGER (Val);
                 break;
 
 
@@ -279,8 +279,7 @@ AcpiNsRootInitialize (void)
             case ACPI_TYPE_MUTEX:
 
                 ObjDesc->Mutex.Node = NewNode;
-                ObjDesc->Mutex.SyncLevel = (UINT8) ACPI_STRTOUL
-                                                        (Val, NULL, 10);
+                ObjDesc->Mutex.SyncLevel = (UINT8) (ACPI_TO_INTEGER (Val) - 1);
 
                 if (ACPI_STRCMP (InitVal->Name, "_GL_") == 0)
                 {
@@ -357,7 +356,7 @@ UnlockAndExit:
  *
  * FUNCTION:    AcpiNsLookup
  *
- * PARAMETERS:  PrefixNode      - Search scope if name is not fully qualified
+ * PARAMETERS:  ScopeInfo       - Current scope info block
  *              Pathname        - Search pathname, in internal format
  *                                (as represented in the AML stream)
  *              Type            - Type associated with name
@@ -602,7 +601,7 @@ AcpiNsLookup (
             Path++;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Multi Pathname (%d Segments, Flags=%X) \n",
+                "Multi Pathname (%d Segments, Flags=%X)\n",
                 NumSegments, Flags));
             break;
 

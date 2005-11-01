@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 61 $
+ *              $Revision: 1.71 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,242 @@
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbutils")
 
+/* Local prototypes */
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+ACPI_STATUS
+AcpiTbHandleToObject (
+    UINT16                  TableId,
+    ACPI_TABLE_DESC         **TableDesc);
+#endif
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbIsTableInstalled
+ *
+ * PARAMETERS:  NewTableDesc        - Descriptor for new table being installed
+ *
+ * RETURN:      Status - AE_ALREADY_EXISTS if the table is already installed
+ *
+ * DESCRIPTION: Determine if an ACPI table is already installed
+ *
+ * MUTEX:       Table data structures should be locked
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbIsTableInstalled (
+    ACPI_TABLE_DESC         *NewTableDesc)
+{
+    ACPI_TABLE_DESC         *TableDesc;
+
+
+    ACPI_FUNCTION_TRACE ("TbIsTableInstalled");
+
+
+    /* Get the list descriptor and first table descriptor */
+
+    TableDesc = AcpiGbl_TableLists[NewTableDesc->Type].Next;
+
+    /* Examine all installed tables of this type */
+
+    while (TableDesc)
+    {
+        /*
+         * If the table lengths match, perform a full bytewise compare. This
+         * means that we will allow tables with duplicate OemTableId(s), as
+         * long as the tables are different in some way.
+         *
+         * Checking if the table has been loaded into the namespace means that
+         * we don't check for duplicate tables during the initial installation
+         * of tables within the RSDT/XSDT.
+         */
+        if ((TableDesc->LoadedIntoNamespace) &&
+            (TableDesc->Pointer->Length == NewTableDesc->Pointer->Length) &&
+            (!ACPI_MEMCMP (TableDesc->Pointer, NewTableDesc->Pointer,
+                NewTableDesc->Pointer->Length)))
+        {
+            /* Match: this table is already installed */
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
+                "Table [%4.4s] already installed: Rev %X OemTableId [%8.8s]\n",
+                NewTableDesc->Pointer->Signature,
+                NewTableDesc->Pointer->Revision,
+                NewTableDesc->Pointer->OemTableId));
+
+            NewTableDesc->OwnerId       = TableDesc->OwnerId;
+            NewTableDesc->InstalledDesc = TableDesc;
+
+            return_ACPI_STATUS (AE_ALREADY_EXISTS);
+        }
+
+        /* Get next table on the list */
+
+        TableDesc = TableDesc->Next;
+    }
+
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbValidateTableHeader
+ *
+ * PARAMETERS:  TableHeader         - Logical pointer to the table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Check an ACPI table header for validity
+ *
+ * NOTE:  Table pointers are validated as follows:
+ *          1) Table pointer must point to valid physical memory
+ *          2) Signature must be 4 ASCII chars, even if we don't recognize the
+ *             name
+ *          3) Table must be readable for length specified in the header
+ *          4) Table checksum must be valid (with the exception of the FACS
+ *              which has no checksum because it contains variable fields)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbValidateTableHeader (
+    ACPI_TABLE_HEADER       *TableHeader)
+{
+    ACPI_NAME               Signature;
+
+
+    ACPI_FUNCTION_NAME ("TbValidateTableHeader");
+
+
+    /* Verify that this is a valid address */
+
+    if (!AcpiOsReadable (TableHeader, sizeof (ACPI_TABLE_HEADER)))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Cannot read table header at %p\n", TableHeader));
+
+        return (AE_BAD_ADDRESS);
+    }
+
+    /* Ensure that the signature is 4 ASCII characters */
+
+    ACPI_MOVE_32_TO_32 (&Signature, TableHeader->Signature);
+    if (!AcpiUtValidAcpiName (Signature))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Table signature at %p [%p] has invalid characters\n",
+            TableHeader, &Signature));
+
+        ACPI_REPORT_WARNING (("Invalid table signature found: [%4.4s]\n",
+            (char *) &Signature));
+
+        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
+        return (AE_BAD_SIGNATURE);
+    }
+
+    /* Validate the table length */
+
+    if (TableHeader->Length < sizeof (ACPI_TABLE_HEADER))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Invalid length in table header %p name %4.4s\n",
+            TableHeader, (char *) &Signature));
+
+        ACPI_REPORT_WARNING (("Invalid table header length (0x%X) found\n",
+            (UINT32) TableHeader->Length));
+
+        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
+        return (AE_BAD_HEADER);
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbVerifyTableChecksum
+ *
+ * PARAMETERS:  *TableHeader            - ACPI table to verify
+ *
+ * RETURN:      8 bit checksum of table
+ *
+ * DESCRIPTION: Does an 8 bit checksum of table and returns status.  A correct
+ *              table should have a checksum of 0.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbVerifyTableChecksum (
+    ACPI_TABLE_HEADER       *TableHeader)
+{
+    UINT8                   Checksum;
+    ACPI_STATUS             Status = AE_OK;
+
+
+    ACPI_FUNCTION_TRACE ("TbVerifyTableChecksum");
+
+
+    /* Compute the checksum on the table */
+
+    Checksum = AcpiTbGenerateChecksum (TableHeader, TableHeader->Length);
+
+    /* Return the appropriate exception */
+
+    if (Checksum)
+    {
+        ACPI_REPORT_WARNING ((
+            "Invalid checksum in table [%4.4s] (%02X, sum %02X is not zero)\n",
+            TableHeader->Signature, (UINT32) TableHeader->Checksum,
+            (UINT32) Checksum));
+
+        Status = AE_BAD_CHECKSUM;
+    }
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbGenerateChecksum
+ *
+ * PARAMETERS:  Buffer              - Buffer to checksum
+ *              Length              - Size of the buffer
+ *
+ * RETURN:      8 bit checksum of buffer
+ *
+ * DESCRIPTION: Computes an 8 bit checksum of the buffer(length) and returns it.
+ *
+ ******************************************************************************/
+
+UINT8
+AcpiTbGenerateChecksum (
+    void                    *Buffer,
+    UINT32                  Length)
+{
+    const UINT8             *limit;
+    const UINT8             *rover;
+    UINT8                   sum = 0;
+
+
+    if (Buffer && Length)
+    {
+        /*  Buffer and Length are valid   */
+
+        limit = (UINT8 *) Buffer + Length;
+
+        for (rover = Buffer; rover < limit; rover++)
+        {
+            sum = (UINT8) (sum + *rover);
+        }
+    }
+    return (sum);
+}
+
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 /*******************************************************************************
  *
  * FUNCTION:    AcpiTbHandleToObject
@@ -167,156 +402,6 @@ AcpiTbHandleToObject (
     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "TableId=%X does not exist\n", TableId));
     return (AE_BAD_PARAMETER);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbValidateTableHeader
- *
- * PARAMETERS:  TableHeader         - Logical pointer to the table
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Check an ACPI table header for validity
- *
- * NOTE:  Table pointers are validated as follows:
- *          1) Table pointer must point to valid physical memory
- *          2) Signature must be 4 ASCII chars, even if we don't recognize the
- *             name
- *          3) Table must be readable for length specified in the header
- *          4) Table checksum must be valid (with the exception of the FACS
- *              which has no checksum because it contains variable fields)
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiTbValidateTableHeader (
-    ACPI_TABLE_HEADER       *TableHeader)
-{
-    ACPI_NAME               Signature;
-
-
-    ACPI_FUNCTION_NAME ("TbValidateTableHeader");
-
-
-    /* Verify that this is a valid address */
-
-    if (!AcpiOsReadable (TableHeader, sizeof (ACPI_TABLE_HEADER)))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Cannot read table header at %p\n", TableHeader));
-        return (AE_BAD_ADDRESS);
-    }
-
-    /* Ensure that the signature is 4 ASCII characters */
-
-    ACPI_MOVE_32_TO_32 (&Signature, TableHeader->Signature);
-    if (!AcpiUtValidAcpiName (Signature))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Table signature at %p [%p] has invalid characters\n",
-            TableHeader, &Signature));
-
-        ACPI_REPORT_WARNING (("Invalid table signature found: [%4.4s]\n",
-            (char *) &Signature));
-        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
-        return (AE_BAD_SIGNATURE);
-    }
-
-    /* Validate the table length */
-
-    if (TableHeader->Length < sizeof (ACPI_TABLE_HEADER))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Invalid length in table header %p name %4.4s\n",
-            TableHeader, (char *) &Signature));
-
-        ACPI_REPORT_WARNING (("Invalid table header length (0x%X) found\n",
-            (UINT32) TableHeader->Length));
-        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
-        return (AE_BAD_HEADER);
-    }
-
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbVerifyTableChecksum
- *
- * PARAMETERS:  *TableHeader            - ACPI table to verify
- *
- * RETURN:      8 bit checksum of table
- *
- * DESCRIPTION: Does an 8 bit checksum of table and returns status.  A correct
- *              table should have a checksum of 0.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiTbVerifyTableChecksum (
-    ACPI_TABLE_HEADER       *TableHeader)
-{
-    UINT8                   Checksum;
-    ACPI_STATUS             Status = AE_OK;
-
-
-    ACPI_FUNCTION_TRACE ("TbVerifyTableChecksum");
-
-
-    /* Compute the checksum on the table */
-
-    Checksum = AcpiTbChecksum (TableHeader, TableHeader->Length);
-
-    /* Return the appropriate exception */
-
-    if (Checksum)
-    {
-        ACPI_REPORT_WARNING (("Invalid checksum in table [%4.4s] (%02X, sum %02X is not zero)\n",
-            TableHeader->Signature, (UINT32) TableHeader->Checksum, (UINT32) Checksum));
-
-        Status = AE_BAD_CHECKSUM;
-    }
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbChecksum
- *
- * PARAMETERS:  Buffer              - Buffer to checksum
- *              Length              - Size of the buffer
- *
- * RETURNS      8 bit checksum of buffer
- *
- * DESCRIPTION: Computes an 8 bit checksum of the buffer(length) and returns it.
- *
- ******************************************************************************/
-
-UINT8
-AcpiTbChecksum (
-    void                    *Buffer,
-    UINT32                  Length)
-{
-    const UINT8             *limit;
-    const UINT8             *rover;
-    UINT8                   sum = 0;
-
-
-    if (Buffer && Length)
-    {
-        /*  Buffer and Length are valid   */
-
-        limit = (UINT8 *) Buffer + Length;
-
-        for (rover = Buffer; rover < limit; rover++)
-        {
-            sum = (UINT8) (sum + *rover);
-        }
-    }
-    return (sum);
-}
+#endif
 
 

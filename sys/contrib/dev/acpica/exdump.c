@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 176 $
+ *              $Revision: 1.188 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,23 +125,56 @@
 #define _COMPONENT          ACPI_EXECUTER
         ACPI_MODULE_NAME    ("exdump")
 
-
 /*
  * The following routines are used for debug output only
  */
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-/*****************************************************************************
+/* Local prototypes */
+
+static void
+AcpiExOutString (
+    char                    *Title,
+    char                    *Value);
+
+static void
+AcpiExOutPointer (
+    char                    *Title,
+    void                    *Value);
+
+static void
+AcpiExOutInteger (
+    char                    *Title,
+    UINT32                  Value);
+
+static void
+AcpiExOutAddress (
+    char                    *Title,
+    ACPI_PHYSICAL_ADDRESS   Value);
+
+static void
+AcpiExDumpReference (
+    ACPI_OPERAND_OBJECT     *ObjDesc);
+
+static void
+AcpiExDumpPackage (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    UINT32                  Level,
+    UINT32                  Index);
+
+
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExDumpOperand
  *
- * PARAMETERS:  *ObjDesc          - Pointer to entry to be dumped
+ * PARAMETERS:  *ObjDesc        - Pointer to entry to be dumped
+ *              Depth           - Current nesting depth
  *
  * RETURN:      None
  *
  * DESCRIPTION: Dump an operand object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiExDumpOperand (
@@ -162,16 +195,15 @@ AcpiExDumpOperand (
 
     if (!ObjDesc)
     {
-        /*
-         * This could be a null element of a package
-         */
+        /* This could be a null element of a package */
+
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Null Object Descriptor\n"));
         return;
     }
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) == ACPI_DESC_TYPE_NAMED)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p is a NS Node: ", ObjDesc));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p Namespace Node: ", ObjDesc));
         ACPI_DUMP_ENTRY (ObjDesc, ACPI_LV_EXEC);
         return;
     }
@@ -197,6 +229,7 @@ AcpiExDumpOperand (
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p ", ObjDesc));
     }
 
+    /* Decode object type */
 
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
@@ -288,7 +321,7 @@ AcpiExDumpOperand (
 
     case ACPI_TYPE_BUFFER:
 
-        AcpiOsPrintf ("Buffer len %X @ %p \n",
+        AcpiOsPrintf ("Buffer len %X @ %p\n",
             ObjDesc->Buffer.Length, ObjDesc->Buffer.Pointer);
 
         Length = ObjDesc->Buffer.Length;
@@ -366,7 +399,9 @@ AcpiExDumpOperand (
     case ACPI_TYPE_STRING:
 
         AcpiOsPrintf ("String length %X @ %p ",
-            ObjDesc->String.Length, ObjDesc->String.Pointer);
+            ObjDesc->String.Length,
+            ObjDesc->String.Pointer);
+
         AcpiUtPrintString (ObjDesc->String.Pointer, ACPI_UINT8_MAX);
         AcpiOsPrintf ("\n");
         break;
@@ -382,10 +417,13 @@ AcpiExDumpOperand (
 
         AcpiOsPrintf (
             "RegionField: Bits=%X AccWidth=%X Lock=%X Update=%X at byte=%X bit=%X of below:\n",
-            ObjDesc->Field.BitLength, ObjDesc->Field.AccessByteWidth,
+            ObjDesc->Field.BitLength,
+            ObjDesc->Field.AccessByteWidth,
             ObjDesc->Field.FieldFlags & AML_FIELD_LOCK_RULE_MASK,
             ObjDesc->Field.FieldFlags & AML_FIELD_UPDATE_RULE_MASK,
-            ObjDesc->Field.BaseByteOffset, ObjDesc->Field.StartFieldBitOffset);
+            ObjDesc->Field.BaseByteOffset,
+            ObjDesc->Field.StartFieldBitOffset);
+
         AcpiExDumpOperand (ObjDesc->Field.RegionObj, Depth+1);
         break;
 
@@ -399,17 +437,19 @@ AcpiExDumpOperand (
     case ACPI_TYPE_BUFFER_FIELD:
 
         AcpiOsPrintf (
-            "BufferField: %X bits at byte %X bit %X of \n",
-            ObjDesc->BufferField.BitLength, ObjDesc->BufferField.BaseByteOffset,
+            "BufferField: %X bits at byte %X bit %X of\n",
+            ObjDesc->BufferField.BitLength,
+            ObjDesc->BufferField.BaseByteOffset,
             ObjDesc->BufferField.StartFieldBitOffset);
 
         if (!ObjDesc->BufferField.BufferObj)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "*NULL* \n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "*NULL*\n"));
         }
-        else if (ACPI_GET_OBJECT_TYPE (ObjDesc->BufferField.BufferObj) != ACPI_TYPE_BUFFER)
+        else if (ACPI_GET_OBJECT_TYPE (ObjDesc->BufferField.BufferObj) !=
+                    ACPI_TYPE_BUFFER)
         {
-            AcpiOsPrintf ("*not a Buffer* \n");
+            AcpiOsPrintf ("*not a Buffer*\n");
         }
         else
         {
@@ -426,10 +466,10 @@ AcpiExDumpOperand (
 
     case ACPI_TYPE_METHOD:
 
-        AcpiOsPrintf (
-            "Method(%X) @ %p:%X\n",
+        AcpiOsPrintf ("Method(%X) @ %p:%X\n",
             ObjDesc->Method.ParamCount,
-            ObjDesc->Method.AmlStart, ObjDesc->Method.AmlLength);
+            ObjDesc->Method.AmlStart,
+            ObjDesc->Method.AmlLength);
         break;
 
 
@@ -474,7 +514,7 @@ AcpiExDumpOperand (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExDumpOperands
  *
@@ -488,7 +528,7 @@ AcpiExDumpOperand (
  *
  * DESCRIPTION: Dump the object stack
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiExDumpOperands (
@@ -533,15 +573,15 @@ AcpiExDumpOperands (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-        "************* Stack dump from %s(%d), %s\n",
+        "************* Operand Stack dump from %s(%d), %s\n",
         ModuleName, LineNumber, Note));
     return;
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiExOut*
+ * FUNCTION:    AcpiExOut* functions
  *
  * PARAMETERS:  Title               - Descriptive text
  *              Value               - Value to be displayed
@@ -550,9 +590,9 @@ AcpiExDumpOperands (
  *              reduce the number of format strings required and keeps them
  *              all in one place for easy modification.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
-void
+static void
 AcpiExOutString (
     char                    *Title,
     char                    *Value)
@@ -560,7 +600,7 @@ AcpiExOutString (
     AcpiOsPrintf ("%20s : %s\n", Title, Value);
 }
 
-void
+static void
 AcpiExOutPointer (
     char                    *Title,
     void                    *Value)
@@ -568,15 +608,15 @@ AcpiExOutPointer (
     AcpiOsPrintf ("%20s : %p\n", Title, Value);
 }
 
-void
+static void
 AcpiExOutInteger (
     char                    *Title,
     UINT32                  Value)
 {
-    AcpiOsPrintf ("%20s : %X\n", Title, Value);
+    AcpiOsPrintf ("%20s : %.2X\n", Title, Value);
 }
 
-void
+static void
 AcpiExOutAddress (
     char                    *Title,
     ACPI_PHYSICAL_ADDRESS   Value)
@@ -590,16 +630,16 @@ AcpiExOutAddress (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExDumpNode
  *
  * PARAMETERS:  *Node               - Descriptor to dump
- *              Flags               - Force display
+ *              Flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the given.Node
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiExDumpNode (
@@ -630,27 +670,176 @@ AcpiExDumpNode (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExDumpReference
+ *
+ * PARAMETERS:  Object              - Descriptor to dump
+ *
+ * DESCRIPTION: Dumps a reference object
+ *
+ ******************************************************************************/
+
+static void
+AcpiExDumpReference (
+    ACPI_OPERAND_OBJECT     *ObjDesc)
+{
+    ACPI_BUFFER             RetBuf;
+    ACPI_STATUS             Status;
+
+
+    if (ObjDesc->Reference.Opcode == AML_INT_NAMEPATH_OP)
+    {
+        AcpiOsPrintf ("Named Object %p ", ObjDesc->Reference.Node);
+        RetBuf.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+        Status = AcpiNsHandleToPathname (ObjDesc->Reference.Node, &RetBuf);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiOsPrintf ("Could not convert name to pathname\n");
+        }
+        else
+        {
+           AcpiOsPrintf ("%s\n", (char *) RetBuf.Pointer);
+           ACPI_MEM_FREE (RetBuf.Pointer);
+        }
+    }
+    else if (ObjDesc->Reference.Object)
+    {
+        AcpiOsPrintf ("\nReferenced Object: %p\n", ObjDesc->Reference.Object);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExDumpPackage
+ *
+ * PARAMETERS:  Object              - Descriptor to dump
+ *              Level               - Indentation Level
+ *              Index               - Package index for this object
+ *
+ * DESCRIPTION: Dumps the elements of the package
+ *
+ ******************************************************************************/
+
+static void
+AcpiExDumpPackage (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    UINT32                  Level,
+    UINT32                  Index)
+{
+    UINT32                  i;
+
+
+    /* Indentation and index output */
+
+    if (Level > 0)
+    {
+        for (i = 0; i < Level; i++)
+        {
+            AcpiOsPrintf ("  ");
+        }
+
+        AcpiOsPrintf ("[%.2d] ", Index);
+    }
+
+    AcpiOsPrintf ("%p ", ObjDesc);
+
+    /* Null package elements are allowed */
+
+    if (!ObjDesc)
+    {
+        AcpiOsPrintf ("[Null Object]\n");
+        return;
+    }
+
+    /* Packages may only contain a few object types */
+
+    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    {
+    case ACPI_TYPE_INTEGER:
+
+        AcpiOsPrintf ("[Integer] = %8.8X%8.8X\n",
+                    ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
+        break;
+
+
+    case ACPI_TYPE_STRING:
+
+        AcpiOsPrintf ("[String]  Value: ");
+        for (i = 0; i < ObjDesc->String.Length; i++)
+        {
+            AcpiOsPrintf ("%c", ObjDesc->String.Pointer[i]);
+        }
+        AcpiOsPrintf ("\n");
+        break;
+
+
+    case ACPI_TYPE_BUFFER:
+
+        AcpiOsPrintf ("[Buffer] Length %.2X = ", ObjDesc->Buffer.Length);
+        if (ObjDesc->Buffer.Length)
+        {
+            AcpiUtDumpBuffer ((UINT8 *) ObjDesc->Buffer.Pointer,
+                    ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
+        }
+        else
+        {
+            AcpiOsPrintf ("\n");
+        }
+        break;
+
+
+    case ACPI_TYPE_PACKAGE:
+
+        AcpiOsPrintf ("[Package] Contains %d Elements:\n",
+                ObjDesc->Package.Count);
+
+        for (i = 0; i < ObjDesc->Package.Count; i++)
+        {
+            AcpiExDumpPackage (ObjDesc->Package.Elements[i], Level+1, i);
+        }
+        break;
+
+
+    case ACPI_TYPE_LOCAL_REFERENCE:
+
+        AcpiOsPrintf ("[Object Reference] ");
+        AcpiExDumpReference (ObjDesc);
+        break;
+
+
+    default:
+
+        AcpiOsPrintf ("[Unknown Type] %X\n", ACPI_GET_OBJECT_TYPE (ObjDesc));
+        break;
+    }
+}
+
+
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExDumpObjectDescriptor
  *
- * PARAMETERS:  *Object             - Descriptor to dump
- *              Flags               - Force display
+ * PARAMETERS:  Object              - Descriptor to dump
+ *              Flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the object descriptor given.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiExDumpObjectDescriptor (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT32                  Flags)
 {
-    UINT32                  i;
-
-
     ACPI_FUNCTION_TRACE ("ExDumpObjectDescriptor");
 
+
+    if (!ObjDesc)
+    {
+        return_VOID;
+    }
 
     if (!Flags)
     {
@@ -716,25 +905,13 @@ AcpiExDumpObjectDescriptor (
     case ACPI_TYPE_PACKAGE:
 
         AcpiExOutInteger ("Flags",          ObjDesc->Package.Flags);
-        AcpiExOutInteger ("Count",          ObjDesc->Package.Count);
-        AcpiExOutPointer ("Elements",       ObjDesc->Package.Elements);
+        AcpiExOutInteger ("Elements",       ObjDesc->Package.Count);
+        AcpiExOutPointer ("Element List",   ObjDesc->Package.Elements);
 
         /* Dump the package contents */
 
-        if (ObjDesc->Package.Count > 0)
-        {
-            AcpiOsPrintf ("\nPackage Contents:\n");
-            for (i = 0; i < ObjDesc->Package.Count; i++)
-            {
-                AcpiOsPrintf ("[%.3d] %p", i, ObjDesc->Package.Elements[i]);
-                if (ObjDesc->Package.Elements[i])
-                {
-                    AcpiOsPrintf (" %s",
-                        AcpiUtGetObjectTypeName (ObjDesc->Package.Elements[i]));
-                }
-                AcpiOsPrintf ("\n");
-            }
-        }
+        AcpiOsPrintf ("\nPackage Contents:\n");
+        AcpiExDumpPackage (ObjDesc, 0, 0);
         break;
 
 
@@ -757,7 +934,7 @@ AcpiExDumpObjectDescriptor (
         AcpiExOutInteger ("ParamCount",     ObjDesc->Method.ParamCount);
         AcpiExOutInteger ("Concurrency",    ObjDesc->Method.Concurrency);
         AcpiExOutPointer ("Semaphore",      ObjDesc->Method.Semaphore);
-        AcpiExOutInteger ("OwningId",       ObjDesc->Method.OwningId);
+        AcpiExOutInteger ("OwnerId",        ObjDesc->Method.OwnerId);
         AcpiExOutInteger ("AmlLength",      ObjDesc->Method.AmlLength);
         AcpiExOutPointer ("AmlStart",       ObjDesc->Method.AmlStart);
         break;
@@ -821,9 +998,6 @@ AcpiExDumpObjectDescriptor (
         AcpiExOutInteger ("BitLength",      ObjDesc->CommonField.BitLength);
         AcpiExOutInteger ("FldBitOffset",   ObjDesc->CommonField.StartFieldBitOffset);
         AcpiExOutInteger ("BaseByteOffset", ObjDesc->CommonField.BaseByteOffset);
-        AcpiExOutInteger ("DatumValidBits", ObjDesc->CommonField.DatumValidBits);
-        AcpiExOutInteger ("EndFldValidBits",ObjDesc->CommonField.EndFieldValidBits);
-        AcpiExOutInteger ("EndBufValidBits",ObjDesc->CommonField.EndBufferValidBits);
         AcpiExOutPointer ("ParentNode",     ObjDesc->CommonField.Node);
 
         switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
@@ -858,11 +1032,14 @@ AcpiExDumpObjectDescriptor (
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         AcpiExOutInteger ("TargetType",     ObjDesc->Reference.TargetType);
-        AcpiExOutString  ("Opcode",         (AcpiPsGetOpcodeInfo (ObjDesc->Reference.Opcode))->Name);
+        AcpiExOutString  ("Opcode",         (AcpiPsGetOpcodeInfo (
+                                             ObjDesc->Reference.Opcode))->Name);
         AcpiExOutInteger ("Offset",         ObjDesc->Reference.Offset);
         AcpiExOutPointer ("ObjDesc",        ObjDesc->Reference.Object);
         AcpiExOutPointer ("Node",           ObjDesc->Reference.Node);
         AcpiExOutPointer ("Where",          ObjDesc->Reference.Where);
+
+        AcpiExDumpReference (ObjDesc);
         break;
 
 

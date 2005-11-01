@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 74 $
+ *              $Revision: 1.80 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,6 +124,14 @@
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbinstal")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiTbMatchSignature (
+    char                    *Signature,
+    ACPI_TABLE_DESC         *TableInfo,
+    UINT8                   SearchType);
+
 
 /*******************************************************************************
  *
@@ -131,6 +139,7 @@
  *
  * PARAMETERS:  Signature           - Table signature to match
  *              TableInfo           - Return data
+ *              SearchType          - Table type to match (primary/secondary)
  *
  * RETURN:      Status
  *
@@ -139,7 +148,7 @@
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiTbMatchSignature (
     char                    *Signature,
     ACPI_TABLE_DESC         *TableInfo,
@@ -151,9 +160,8 @@ AcpiTbMatchSignature (
     ACPI_FUNCTION_TRACE ("TbMatchSignature");
 
 
-    /*
-     * Search for a signature match among the known table types
-     */
+    /* Search for a signature match among the known table types */
+
     for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++)
     {
         if (!(AcpiGbl_TableData[i].Flags & SearchType))
@@ -195,9 +203,7 @@ AcpiTbMatchSignature (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Load and validate all tables other than the RSDT.  The RSDT must
- *              already be loaded and validated.
- *              Install the table into the global data structs.
+ * DESCRIPTION: Install the table into the global data structures.
  *
  ******************************************************************************/
 
@@ -207,6 +213,7 @@ AcpiTbInstallTable (
 {
     ACPI_STATUS             Status;
 
+
     ACPI_FUNCTION_TRACE ("TbInstallTable");
 
 
@@ -215,9 +222,19 @@ AcpiTbInstallTable (
     Status = AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not acquire table mutex for [%4.4s], %s\n",
-            TableInfo->Pointer->Signature, AcpiFormatException (Status)));
+        ACPI_REPORT_ERROR (("Could not acquire table mutex, %s\n",
+            AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * Ignore a table that is already installed. For example, some BIOS
+     * ASL code will repeatedly attempt to load the same SSDT.
+     */
+    Status = AcpiTbIsTableInstalled (TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        goto UnlockAndExit;
     }
 
     /* Install the table into the global data structure */
@@ -225,13 +242,15 @@ AcpiTbInstallTable (
     Status = AcpiTbInitTableDescriptor (TableInfo->Type, TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not install ACPI table [%4.4s], %s\n",
+        ACPI_REPORT_ERROR (("Could not install table [%4.4s], %s\n",
             TableInfo->Pointer->Signature, AcpiFormatException (Status)));
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s located at %p\n",
         AcpiGbl_TableData[TableInfo->Type].Name, TableInfo->Pointer));
 
+
+UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     return_ACPI_STATUS (Status);
 }
@@ -242,6 +261,7 @@ AcpiTbInstallTable (
  * FUNCTION:    AcpiTbRecognizeTable
  *
  * PARAMETERS:  TableInfo           - Return value from AcpiTbGetTableBody
+ *              SearchType          - Table type to match (primary/secondary)
  *
  * RETURN:      Status
  *
@@ -285,7 +305,8 @@ AcpiTbRecognizeTable (
      * This can be any one of many valid ACPI tables, it just isn't one of
      * the tables that is consumed by the core subsystem
      */
-    Status = AcpiTbMatchSignature (TableHeader->Signature, TableInfo, SearchType);
+    Status = AcpiTbMatchSignature (TableHeader->Signature,
+                TableInfo, SearchType);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -325,6 +346,7 @@ AcpiTbInitTableDescriptor (
 {
     ACPI_TABLE_LIST         *ListHead;
     ACPI_TABLE_DESC         *TableDesc;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE_U32 ("TbInitTableDescriptor", TableType);
@@ -338,9 +360,16 @@ AcpiTbInitTableDescriptor (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    /*
-     * Install the table into the global data structure
-     */
+    /* Get a new owner ID for the table */
+
+    Status = AcpiUtAllocateOwnerId (&TableDesc->OwnerId);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Install the table into the global data structure */
+
     ListHead = &AcpiGbl_TableLists[TableType];
 
     /*
@@ -408,7 +437,6 @@ AcpiTbInitTableDescriptor (
     TableDesc->AmlStart             = (UINT8 *) (TableDesc->Pointer + 1),
     TableDesc->AmlLength            = (UINT32) (TableDesc->Length -
                                         (UINT32) sizeof (ACPI_TABLE_HEADER));
-    TableDesc->TableId              = AcpiUtAllocateOwnerId (ACPI_OWNER_TYPE_TABLE);
     TableDesc->LoadedIntoNamespace  = FALSE;
 
     /*
@@ -422,7 +450,7 @@ AcpiTbInitTableDescriptor (
 
     /* Return Data */
 
-    TableInfo->TableId          = TableDesc->TableId;
+    TableInfo->OwnerId          = TableDesc->OwnerId;
     TableInfo->InstalledDesc    = TableDesc;
 
     return_ACPI_STATUS (AE_OK);
@@ -442,7 +470,8 @@ AcpiTbInitTableDescriptor (
  ******************************************************************************/
 
 void
-AcpiTbDeleteAllTables (void)
+AcpiTbDeleteAllTables (
+    void)
 {
     ACPI_TABLE_TYPE         Type;
 

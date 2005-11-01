@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 103 $
+ *              $Revision: 1.106 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -130,7 +130,7 @@
 
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateAlias
  *
@@ -140,7 +140,7 @@
  *
  * DESCRIPTION: Create a new named alias
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateAlias (
@@ -217,8 +217,7 @@ AcpiExCreateAlias (
          * target node or the alias Node
          */
         Status = AcpiNsAttachObject (AliasNode,
-                                AcpiNsGetAttachedObject (TargetNode),
-                                TargetNode->Type);
+                    AcpiNsGetAttachedObject (TargetNode), TargetNode->Type);
         break;
     }
 
@@ -228,7 +227,7 @@ AcpiExCreateAlias (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateEvent
  *
@@ -238,7 +237,7 @@ AcpiExCreateAlias (
  *
  * DESCRIPTION: Create a new event object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateEvent (
@@ -263,7 +262,7 @@ AcpiExCreateEvent (
      * that the event is created in an unsignalled state
      */
     Status = AcpiOsCreateSemaphore (ACPI_NO_UNIT_LIMIT, 0,
-                                    &ObjDesc->Event.Semaphore);
+                &ObjDesc->Event.Semaphore);
     if (ACPI_FAILURE (Status))
     {
         goto Cleanup;
@@ -272,7 +271,7 @@ AcpiExCreateEvent (
     /* Attach object to the Node */
 
     Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) WalkState->Operands[0],
-                                    ObjDesc, ACPI_TYPE_EVENT);
+                ObjDesc, ACPI_TYPE_EVENT);
 
 Cleanup:
     /*
@@ -284,7 +283,7 @@ Cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateMutex
  *
@@ -296,7 +295,7 @@ Cleanup:
  *
  *              Mutex (Name[0], SyncLevel[1])
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateMutex (
@@ -348,20 +347,20 @@ Cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateRegion
  *
  * PARAMETERS:  AmlStart            - Pointer to the region declaration AML
  *              AmlLength           - Max length of the declaration AML
- *              Operands            - List of operands for the opcode
+ *              RegionSpace         - SpaceID for the region
  *              WalkState           - Current state
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Create a new operation region object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateRegion (
@@ -404,7 +403,7 @@ AcpiExCreateRegion (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
-                    AcpiUtGetRegionName (RegionSpace), RegionSpace));
+        AcpiUtGetRegionName (RegionSpace), RegionSpace));
 
     /* Create the region descriptor */
 
@@ -444,7 +443,7 @@ Cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateTableRegion
  *
@@ -454,7 +453,7 @@ Cleanup:
  *
  * DESCRIPTION: Create a new DataTableRegion object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateTableRegion (
@@ -546,7 +545,7 @@ Cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateProcessor
  *
@@ -558,7 +557,7 @@ Cleanup:
  *
  *              Processor (Name[0], CpuID[1], PblockAddr[2], PblockLength[3])
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateProcessor (
@@ -580,9 +579,8 @@ AcpiExCreateProcessor (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    /*
-     * Initialize the processor object from the operands
-     */
+    /* Initialize the processor object from the operands */
+
     ObjDesc->Processor.ProcId  = (UINT8)           Operand[1]->Integer.Value;
     ObjDesc->Processor.Address = (ACPI_IO_ADDRESS) Operand[2]->Integer.Value;
     ObjDesc->Processor.Length  = (UINT8)           Operand[3]->Integer.Value;
@@ -599,7 +597,7 @@ AcpiExCreateProcessor (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreatePowerResource
  *
@@ -611,7 +609,7 @@ AcpiExCreateProcessor (
  *
  *              PowerResource (Name[0], SystemLevel[1], ResourceOrder[2])
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreatePowerResource (
@@ -648,10 +646,10 @@ AcpiExCreatePowerResource (
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
-
 #endif
 
-/*****************************************************************************
+
+/*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateMethod
  *
@@ -663,7 +661,7 @@ AcpiExCreatePowerResource (
  *
  * DESCRIPTION: Create a new method object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiExCreateMethod (
