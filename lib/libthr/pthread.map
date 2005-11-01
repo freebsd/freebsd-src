@@ -179,6 +179,7 @@ global:
 	_system;
 	_tcdrain;
 	_timer_create;
+	_timer_delete;
 	_usleep;
 	_vfork;
 	_wait;
@@ -345,6 +346,7 @@ global:
 	system;
 	tcdrain;
 	timer_create;
+	timer_delete;
 	usleep;
 	vfork;
 	wait;
