@@ -1677,6 +1677,8 @@ vm_page_cowfault(vm_page_t m)
 		mnew->valid = VM_PAGE_BITS_ALL;
 		vm_page_dirty(mnew);
 		vm_page_flag_clear(mnew, PG_BUSY);
+		mnew->wire_count = m->wire_count - m->cow;
+		m->wire_count = m->cow;
 	}
 }
 
