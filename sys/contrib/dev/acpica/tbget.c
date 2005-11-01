@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,6 +123,19 @@
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbget")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiTbGetThisTable (
+    ACPI_POINTER            *Address,
+    ACPI_TABLE_HEADER       *Header,
+    ACPI_TABLE_DESC         *TableInfo);
+
+static ACPI_STATUS
+AcpiTbTableOverride (
+    ACPI_TABLE_HEADER       *Header,
+    ACPI_TABLE_DESC         *TableInfo);
+
 
 /*******************************************************************************
  *
@@ -150,9 +163,8 @@ AcpiTbGetTable (
     ACPI_FUNCTION_TRACE ("TbGetTable");
 
 
-    /*
-     * Get the header in order to get signature and table size
-     */
+    /* Get the header in order to get signature and table size */
+
     Status = AcpiTbGetTableHeader (Address, &Header);
     if (ACPI_FAILURE (Status))
     {
@@ -203,8 +215,8 @@ AcpiTbGetTableHeader (
 
 
     /*
-     * Flags contains the current processor mode (Virtual or Physical addressing)
-     * The PointerType is either Logical or Physical
+     * Flags contains the current processor mode (Virtual or Physical
+     * addressing) The PointerType is either Logical or Physical
      */
     switch (Address->PointerType)
     {
@@ -213,7 +225,8 @@ AcpiTbGetTableHeader (
 
         /* Pointer matches processor mode, copy the header */
 
-        ACPI_MEMCPY (ReturnHeader, Address->Pointer.Logical, sizeof (ACPI_TABLE_HEADER));
+        ACPI_MEMCPY (ReturnHeader, Address->Pointer.Logical,
+            sizeof (ACPI_TABLE_HEADER));
         break;
 
 
@@ -221,11 +234,12 @@ AcpiTbGetTableHeader (
 
         /* Create a logical address for the physical pointer*/
 
-        Status = AcpiOsMapMemory (Address->Pointer.Physical, sizeof (ACPI_TABLE_HEADER),
-                                    (void *) &Header);
+        Status = AcpiOsMapMemory (Address->Pointer.Physical,
+                    sizeof (ACPI_TABLE_HEADER), (void *) &Header);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_ERROR (("Could not map memory at %8.8X%8.8X for length %X\n",
+            ACPI_REPORT_ERROR ((
+                "Could not map memory at %8.8X%8.8X for length %X\n",
                 ACPI_FORMAT_UINT64 (Address->Pointer.Physical),
                 sizeof (ACPI_TABLE_HEADER)));
             return_ACPI_STATUS (Status);
@@ -289,9 +303,8 @@ AcpiTbGetTableBody (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /*
-     * Attempt table override.
-     */
+    /* Attempt table override. */
+
     Status = AcpiTbTableOverride (Header, TableInfo);
     if (ACPI_SUCCESS (Status))
     {
@@ -321,7 +334,7 @@ AcpiTbGetTableBody (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiTbTableOverride (
     ACPI_TABLE_HEADER       *Header,
     ACPI_TABLE_DESC         *TableInfo)
@@ -398,7 +411,7 @@ AcpiTbTableOverride (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiTbGetThisTable (
     ACPI_POINTER            *Address,
     ACPI_TABLE_HEADER       *Header,
@@ -413,8 +426,8 @@ AcpiTbGetThisTable (
 
 
     /*
-     * Flags contains the current processor mode (Virtual or Physical addressing)
-     * The PointerType is either Logical or Physical
+     * Flags contains the current processor mode (Virtual or Physical
+     * addressing) The PointerType is either Logical or Physical
      */
     switch (Address->PointerType)
     {
@@ -426,7 +439,8 @@ AcpiTbGetThisTable (
         FullTable = ACPI_MEM_ALLOCATE (Header->Length);
         if (!FullTable)
         {
-            ACPI_REPORT_ERROR (("Could not allocate table memory for [%4.4s] length %X\n",
+            ACPI_REPORT_ERROR ((
+                "Could not allocate table memory for [%4.4s] length %X\n",
                 Header->Signature, Header->Length));
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
@@ -447,13 +461,15 @@ AcpiTbGetThisTable (
          * Just map the table's physical memory
          * into our address space.
          */
-        Status = AcpiOsMapMemory (Address->Pointer.Physical, (ACPI_SIZE) Header->Length,
-                                    (void *) &FullTable);
+        Status = AcpiOsMapMemory (Address->Pointer.Physical,
+                    (ACPI_SIZE) Header->Length, (void *) &FullTable);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_ERROR (("Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
+            ACPI_REPORT_ERROR ((
+                "Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
                 Header->Signature,
-                ACPI_FORMAT_UINT64 (Address->Pointer.Physical), Header->Length));
+                ACPI_FORMAT_UINT64 (Address->Pointer.Physical),
+                Header->Length));
             return (Status);
         }
 
@@ -557,9 +573,8 @@ AcpiTbGetTablePtr (
         return_ACPI_STATUS (AE_OK);
     }
 
-    /*
-     * Check for instance out of range
-     */
+    /* Check for instance out of range */
+
     if (Instance > AcpiGbl_TableLists[TableType].Count)
     {
         return_ACPI_STATUS (AE_NOT_EXIST);
