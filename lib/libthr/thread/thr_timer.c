@@ -295,7 +295,7 @@ register_timer(struct timer *tmr)
 		memcpy(timer_list, list, timer_max * sizeof(void *));
 		timer_list = list;
 		timer_max = count;
-		THR_UMTX_UNLOCK(curthread, &timer_list_lock);
+		TIMERS_UNLOCK(curthread);
 	}
 	TIMERS_LOCK(curthread);
 	timer_list[tmr->timerid] = tmr;
