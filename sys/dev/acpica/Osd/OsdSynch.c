@@ -351,18 +351,19 @@ AcpiOsDeleteLock (ACPI_HANDLE Handle)
  * (and thus can't block) but since we have ithreads, we don't worry
  * about potentially blocking.
  */
-void
-AcpiOsAcquireLock (ACPI_HANDLE Handle, UINT32 Flags)
+ACPI_NATIVE_UINT
+AcpiOsAcquireLock (ACPI_HANDLE Handle)
 {
     struct mtx *m = (struct mtx *)Handle;
 
     if (Handle == NULL)
-	return;
+	return (0);
     mtx_lock(m);
+    return (0);
 }
 
 void
-AcpiOsReleaseLock (ACPI_HANDLE Handle, UINT32 Flags)
+AcpiOsReleaseLock (ACPI_HANDLE Handle, ACPI_NATIVE_UINT Flags)
 {
     struct mtx *m = (struct mtx *)Handle;
 

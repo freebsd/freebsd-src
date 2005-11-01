@@ -1957,7 +1957,7 @@ acpi_FindIndexedResource(ACPI_BUFFER *buf, int index, ACPI_RESOURCE **resp)
 	    return (AE_BAD_PARAMETER);
 
 	/* Check for terminator */
-	if (rp->Id == ACPI_RSTYPE_END_TAG || rp->Length == 0)
+	if (rp->Type == ACPI_RESOURCE_TYPE_END_TAG || rp->Length == 0)
 	    return (AE_NOT_FOUND);
 	rp = ACPI_NEXT_RESOURCE(rp);
     }
@@ -1989,7 +1989,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 	if ((buf->Pointer = AcpiOsAllocate(buf->Length)) == NULL)
 	    return (AE_NO_MEMORY);
 	rp = (ACPI_RESOURCE *)buf->Pointer;
-	rp->Id = ACPI_RSTYPE_END_TAG;
+	rp->Type = ACPI_RESOURCE_TYPE_END_TAG;
 	rp->Length = 0;
     }
     if (res == NULL)
@@ -2005,7 +2005,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 	/* Range check, don't go outside the buffer */
 	if (rp >= (ACPI_RESOURCE *)((u_int8_t *)buf->Pointer + buf->Length))
 	    return (AE_BAD_PARAMETER);
-	if (rp->Id == ACPI_RSTYPE_END_TAG || rp->Length == 0)
+	if (rp->Type == ACPI_RESOURCE_TYPE_END_TAG || rp->Length == 0)
 	    break;
 	rp = ACPI_NEXT_RESOURCE(rp);
     }
@@ -2022,8 +2022,8 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
      * for some reason we are stuffing a *really* huge resource.
      */
     while ((((u_int8_t *)rp - (u_int8_t *)buf->Pointer) + 
-	    res->Length + ACPI_RESOURCE_LENGTH_NO_DATA +
-	    ACPI_RESOURCE_LENGTH) >= buf->Length) {
+	    res->Length + ACPI_RS_SIZE_NO_DATA +
+	    ACPI_RS_SIZE_MIN) >= buf->Length) {
 	if ((newp = AcpiOsAllocate(buf->Length * 2)) == NULL)
 	    return (AE_NO_MEMORY);
 	bcopy(buf->Pointer, newp, buf->Length);
@@ -2035,11 +2035,11 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     }
 
     /* Insert the new resource. */
-    bcopy(res, rp, res->Length + ACPI_RESOURCE_LENGTH_NO_DATA);
+    bcopy(res, rp, res->Length + ACPI_RS_SIZE_NO_DATA);
 
     /* And add the terminator. */
     rp = ACPI_NEXT_RESOURCE(rp);
-    rp->Id = ACPI_RSTYPE_END_TAG;
+    rp->Type = ACPI_RESOURCE_TYPE_END_TAG;
     rp->Length = 0;
 
     return (AE_OK);

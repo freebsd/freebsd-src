@@ -323,13 +323,15 @@ struct acpi_parse_resource_set {
 		    uint32_t length);
     void	(*set_memoryrange)(device_t dev, void *context, uint32_t low,
 		    uint32_t high, uint32_t length, uint32_t align);
-    void	(*set_irq)(device_t dev, void *context, u_int32_t *irq,
+    void	(*set_irq)(device_t dev, void *context, u_int8_t *irq,
 		    int count, int trig, int pol);
-    void	(*set_drq)(device_t dev, void *context, u_int32_t *drq,
+    void	(*set_ext_irq)(device_t dev, void *context, u_int32_t *irq,
+		    int count, int trig, int pol);
+    void	(*set_drq)(device_t dev, void *context, u_int8_t *drq,
 		    int count);
-    void	(*set_start_dependant)(device_t dev, void *context,
+    void	(*set_start_dependent)(device_t dev, void *context,
 		    int preference);
-    void	(*set_end_dependant)(device_t dev, void *context);
+    void	(*set_end_dependent)(device_t dev, void *context);
 };
 
 extern struct	acpi_parse_resource_set acpi_res_parse_set;
