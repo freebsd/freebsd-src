@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 74 $
+ *              $Revision: 1.78 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -136,7 +136,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling, a nop for now
+ * DESCRIPTION: Setup a SystemMemory operation region
  *
  ******************************************************************************/
 
@@ -193,7 +193,7 @@ AcpiEvSystemMemoryRegionSetup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a IO operation region
  *
  ******************************************************************************/
 
@@ -224,14 +224,14 @@ AcpiEvIoSpaceRegionSetup (
  *
  * FUNCTION:    AcpiEvPciConfigRegionSetup
  *
- * PARAMETERS:  Handle             - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a PCI_Config operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -304,10 +304,14 @@ AcpiEvPciConfigRegionSetup (
             Status = AcpiUtExecute_HID (PciRootNode, &ObjectHID);
             if (ACPI_SUCCESS (Status))
             {
-                /* Got a valid _HID, check if this is a PCI root */
-
+                /*
+                 * Got a valid _HID string, check if this is a PCI root.
+                 * New for ACPI 3.0: check for a PCI Express root also.
+                 */
                 if (!(ACPI_STRNCMP (ObjectHID.Value, PCI_ROOT_HID_STRING,
-                                    sizeof (PCI_ROOT_HID_STRING))))
+                                    sizeof (PCI_ROOT_HID_STRING))           ||
+                    !(ACPI_STRNCMP (ObjectHID.Value, PCI_EXPRESS_ROOT_HID_STRING,
+                                    sizeof (PCI_EXPRESS_ROOT_HID_STRING)))))
                 {
                     /* Install a handler for this PCI root bridge */
 
@@ -420,7 +424,7 @@ AcpiEvPciConfigRegionSetup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a PciBAR operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -451,7 +455,7 @@ AcpiEvPciBarRegionSetup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a CMOS operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -482,7 +486,7 @@ AcpiEvCmosRegionSetup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Default region initialization
  *
  ******************************************************************************/
 

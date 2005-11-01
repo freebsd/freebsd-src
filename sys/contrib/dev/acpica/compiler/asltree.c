@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: asltree - parse tree management
- *              $Revision: 55 $
+ *              $Revision: 1.60 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,11 +116,21 @@
  *****************************************************************************/
 
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("asltree")
+
+/* Local prototypes */
+
+static ACPI_PARSE_OBJECT *
+TrGetNextNode (
+    void);
+
+static char *
+TrGetNodeFlagName (
+    UINT32                  Flags);
 
 
 /*******************************************************************************
@@ -137,13 +147,15 @@
  *
  ******************************************************************************/
 
-ACPI_PARSE_OBJECT *
-TrGetNextNode (void)
+static ACPI_PARSE_OBJECT *
+TrGetNextNode (
+    void)
 {
 
     if (Gbl_NodeCacheNext >= Gbl_NodeCacheLast)
     {
-        Gbl_NodeCacheNext = UtLocalCalloc (sizeof (ACPI_PARSE_OBJECT) * ASL_NODE_CACHE_SIZE);
+        Gbl_NodeCacheNext = UtLocalCalloc (sizeof (ACPI_PARSE_OBJECT) *
+                                ASL_NODE_CACHE_SIZE);
         Gbl_NodeCacheLast = Gbl_NodeCacheNext + ASL_NODE_CACHE_SIZE;
     }
 
@@ -298,13 +310,13 @@ TrUpdateNode (
  *
  * PARAMETERS:  Flags               - Flags word to be decoded
  *
- * RETURN:      Name string
+ * RETURN:      Name string. Always returns a valid string pointer.
  *
  * DESCRIPTION: Decode a flags word
  *
  ******************************************************************************/
 
-char *
+static char *
 TrGetNodeFlagName (
     UINT32                  Flags)
 {
@@ -372,10 +384,10 @@ TrGetNodeFlagName (
  *
  * FUNCTION:    TrSetNodeFlags
  *
- * PARAMETERS:  Op                - An existing parse node
+ * PARAMETERS:  Op                  - An existing parse node
  *              Flags               - New flags word
  *
- * RETURN:      The updated node
+ * RETURN:      The updated parser op
  *
  * DESCRIPTION: Set bits in the node flags word.  Will not clear bits, only set
  *
@@ -388,7 +400,8 @@ TrSetNodeFlags (
 {
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nSetNodeFlags: Op %p, %8.8X %s\n\n", Op, Flags, TrGetNodeFlagName (Flags));
+        "\nSetNodeFlags: Op %p, %8.8X %s\n\n", Op, Flags,
+        TrGetNodeFlagName (Flags));
 
     if (!Op)
     {
@@ -716,7 +729,8 @@ TrLinkChildren (
 
         if ((Child == PrevChild) && (Child != NULL))
         {
-            AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Child, "Child node list invalid");
+            AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Child,
+                "Child node list invalid");
             return Op;
         }
 
@@ -818,8 +832,10 @@ TrLinkPeerNode (
     if (Op1 == Op2)
     {
         DbgPrint (ASL_DEBUG_OUTPUT,
-            "\n\n************* Internal error, linking node to itself %p\n\n\n", Op1);
-        AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Op1, "Linking node to itself");
+            "\n\n************* Internal error, linking node to itself %p\n\n\n",
+            Op1);
+        AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Op1,
+            "Linking node to itself");
         return Op1;
     }
 
@@ -995,9 +1011,8 @@ TrWalkParseTree (
         {
             if (!NodePreviouslyVisited)
             {
-                /*
-                 * Let the callback process the node.
-                 */
+                /* Let the callback process the node. */
+
                 Status = DescendingCallback (Op, Level, Context);
                 if (ACPI_SUCCESS (Status))
                 {
@@ -1056,10 +1071,8 @@ TrWalkParseTree (
             if ((!Op->Asl.Child) ||
                 (NodePreviouslyVisited))
             {
-                /*
-                 * Let the callback process the node.
-                 *
-                 */
+                /* Let the callback process the node. */
+
                 Status = AscendingCallback (Op, Level, Context);
                 if (ACPI_FAILURE (Status))
                 {
@@ -1118,9 +1131,8 @@ TrWalkParseTree (
             }
             else
             {
-                /*
-                 * Let the callback process the node.
-                 */
+                /* Let the callback process the node. */
+
                 Status = DescendingCallback (Op, Level, Context);
                 if (ACPI_SUCCESS (Status))
                 {

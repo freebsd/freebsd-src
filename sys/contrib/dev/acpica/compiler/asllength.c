@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: asllength - Tree walk to determine package and opcode lengths
- *              $Revision: 31 $
+ *              $Revision: 1.35 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,13 +116,32 @@
  *****************************************************************************/
 
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/amlcode.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("asllength")
+
+/* Local prototypes */
+
+static UINT8
+CgGetPackageLenByteCount (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  PackageLength);
+
+static void
+CgGenerateAmlOpcodeLength (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+void
+LnAdjustLengthToRoot (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  LengthDelta);
+#endif
 
 
 /*******************************************************************************
@@ -199,47 +218,9 @@ LnPackageLengthWalk (
 
 /*******************************************************************************
  *
- * FUNCTION:    LnAdjustLengthToRoot
- *
- * PARAMETERS:  Op      - Node whose Length was changed
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Change the Subtree length of the given node, and bubble the
- *              change all the way up to the root node.  This allows for
- *              last second changes to a package length (for example, if the
- *              package length encoding gets shorter or longer.)
- *
- ******************************************************************************/
-
-void
-LnAdjustLengthToRoot (
-    ACPI_PARSE_OBJECT       *SubtreeOp,
-    UINT32                  LengthDelta)
-{
-    ACPI_PARSE_OBJECT       *Op;
-
-
-    /* Adjust all subtree lengths up to the root */
-
-    Op = SubtreeOp->Asl.Parent;
-    while (Op)
-    {
-        Op->Asl.AmlSubtreeLength -= LengthDelta;
-        Op = Op->Asl.Parent;
-    }
-
-    /* Adjust the global table length */
-
-    Gbl_TableLength -= LengthDelta;
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    CgGetPackageLenByteCount
  *
- * PARAMETERS:  Op            - Parse node
+ * PARAMETERS:  Op              - Parse node
  *              PackageLength   - Length to be encoded
  *
  * RETURN:      Required length of the package length encoding
@@ -249,7 +230,7 @@ LnAdjustLengthToRoot (
  *
  ******************************************************************************/
 
-UINT8
+static UINT8
 CgGetPackageLenByteCount (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  PackageLength)
@@ -291,7 +272,7 @@ CgGetPackageLenByteCount (
  *
  * FUNCTION:    CgGenerateAmlOpcodeLength
  *
- * PARAMETERS:  Op        - Parse node whose AML opcode lengths will be
+ * PARAMETERS:  Op          - Parse node whose AML opcode lengths will be
  *                            calculated
  *
  * RETURN:      None.
@@ -301,7 +282,7 @@ CgGetPackageLenByteCount (
  *
  ******************************************************************************/
 
-void
+static void
 CgGenerateAmlOpcodeLength (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -322,7 +303,8 @@ CgGenerateAmlOpcodeLength (
     Op->Asl.AmlPkgLenBytes = 0;
     if (Op->Asl.CompileFlags & NODE_AML_PACKAGE)
     {
-        Op->Asl.AmlPkgLenBytes = CgGetPackageLenByteCount (Op, Op->Asl.AmlSubtreeLength);
+        Op->Asl.AmlPkgLenBytes = CgGetPackageLenByteCount (
+                                    Op, Op->Asl.AmlSubtreeLength);
     }
 
     /* Data opcode lengths are easy */
@@ -425,7 +407,8 @@ CgGenerateAmlLengths (
     {
     case PARSEOP_DEFINITIONBLOCK:
 
-        Gbl_TableLength = sizeof (ACPI_TABLE_HEADER) + Op->Asl.AmlSubtreeLength;
+        Gbl_TableLength = sizeof (ACPI_TABLE_HEADER) +
+                            Op->Asl.AmlSubtreeLength;
         break;
 
     case PARSEOP_NAMESEG:
@@ -471,13 +454,17 @@ CgGenerateAmlLengths (
     case PARSEOP_STRING_LITERAL:
 
         Op->Asl.AmlOpcodeLength = 1;
-        Op->Asl.AmlLength = strlen (Op->Asl.Value.String) + 1; /* Get null terminator */
+
+        /* Get null terminator */
+
+        Op->Asl.AmlLength = strlen (Op->Asl.Value.String) + 1;
         break;
 
     case PARSEOP_PACKAGE_LENGTH:
 
         Op->Asl.AmlOpcodeLength = 0;
-        Op->Asl.AmlPkgLenBytes = CgGetPackageLenByteCount (Op, (UINT32) Op->Asl.Value.Integer);
+        Op->Asl.AmlPkgLenBytes = CgGetPackageLenByteCount (Op,
+                                    (UINT32) Op->Asl.Value.Integer);
         break;
 
     case PARSEOP_RAW_DATA:
@@ -500,5 +487,45 @@ CgGenerateAmlLengths (
         break;
     }
 }
+
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+/*******************************************************************************
+ *
+ * FUNCTION:    LnAdjustLengthToRoot
+ *
+ * PARAMETERS:  Op      - Node whose Length was changed
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Change the Subtree length of the given node, and bubble the
+ *              change all the way up to the root node.  This allows for
+ *              last second changes to a package length (for example, if the
+ *              package length encoding gets shorter or longer.)
+ *
+ ******************************************************************************/
+
+void
+LnAdjustLengthToRoot (
+    ACPI_PARSE_OBJECT       *SubtreeOp,
+    UINT32                  LengthDelta)
+{
+    ACPI_PARSE_OBJECT       *Op;
+
+
+    /* Adjust all subtree lengths up to the root */
+
+    Op = SubtreeOp->Asl.Parent;
+    while (Op)
+    {
+        Op->Asl.AmlSubtreeLength -= LengthDelta;
+        Op = Op->Asl.Parent;
+    }
+
+    /* Adjust the global table length */
+
+    Gbl_TableLength -= LengthDelta;
+}
+#endif
 
 

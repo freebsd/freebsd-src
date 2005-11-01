@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 103 $
+ *              $Revision: 1.106 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,15 +123,24 @@
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nssearch")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiNsSearchParentTree (
+    UINT32                  TargetName,
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OBJECT_TYPE        Type,
+    ACPI_NAMESPACE_NODE     **ReturnNode);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsSearchNode
  *
- * PARAMETERS:  *TargetName         - Ascii ACPI name to search for
- *              *Node               - Starting node where search will begin
- *              Type                - Object type to match
- *              **ReturnNode        - Where the matched Named obj is returned
+ * PARAMETERS:  TargetName      - Ascii ACPI name to search for
+ *              Node            - Starting node where search will begin
+ *              Type            - Object type to match
+ *              ReturnNode      - Where the matched Named obj is returned
  *
  * RETURN:      Status
  *
@@ -243,10 +252,10 @@ AcpiNsSearchNode (
  *
  * FUNCTION:    AcpiNsSearchParentTree
  *
- * PARAMETERS:  *TargetName         - Ascii ACPI name to search for
- *              *Node               - Starting node where search will begin
- *              Type                - Object type to match
- *              **ReturnNode        - Where the matched Node is returned
+ * PARAMETERS:  TargetName      - Ascii ACPI name to search for
+ *              Node            - Starting node where search will begin
+ *              Type            - Object type to match
+ *              ReturnNode      - Where the matched Node is returned
  *
  * RETURN:      Status
  *
@@ -341,12 +350,12 @@ AcpiNsSearchParentTree (
  *
  * PARAMETERS:  TargetName          - Ascii ACPI name to search for (4 chars)
  *              WalkState           - Current state of the walk
- *              *Node               - Starting node where search will begin
+ *              Node                - Starting node where search will begin
  *              InterpreterMode     - Add names only in ACPI_MODE_LOAD_PASS_x.
  *                                    Otherwise,search only.
  *              Type                - Object type to match
  *              Flags               - Flags describing the search restrictions
- *              **ReturnNode        - Where the Node is returned
+ *              ReturnNode          - Where the Node is returned
  *
  * RETURN:      Status
  *

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
- *              $Revision: 66 $
+ *              $Revision: 1.70 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -132,7 +132,8 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize and validate various ACPI registers
+ * DESCRIPTION: Initialize and validate the various ACPI registers defined in
+ *              the FADT.
  *
  ******************************************************************************/
 
@@ -150,7 +151,7 @@ AcpiHwInitialize (
 
     if (!AcpiGbl_FADT)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "A FADT is not loaded\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No FADT is present\n"));
 
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
@@ -209,7 +210,8 @@ AcpiHwSetMode (
      */
     if (!AcpiGbl_FADT->AcpiEnable && !AcpiGbl_FADT->AcpiDisable)
     {
-        ACPI_REPORT_ERROR (("No ACPI mode transition supported in this system (enable/disable both zero)\n"));
+        ACPI_REPORT_ERROR ((
+            "No ACPI mode transition supported in this system (enable/disable both zero)\n"));
         return_ACPI_STATUS (AE_OK);
     }
 
@@ -242,7 +244,8 @@ AcpiHwSetMode (
 
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not write mode change, %s\n", AcpiFormatException (Status)));
+        ACPI_REPORT_ERROR (("Could not write mode change, %s\n",
+            AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -255,7 +258,8 @@ AcpiHwSetMode (
     {
         if (AcpiHwGetMode() == Mode)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n", Mode));
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n",
+                Mode));
             return_ACPI_STATUS (AE_OK);
         }
         AcpiOsStall(1000);
@@ -267,7 +271,7 @@ AcpiHwSetMode (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiHwGetMode
  *
@@ -281,7 +285,8 @@ AcpiHwSetMode (
  ******************************************************************************/
 
 UINT32
-AcpiHwGetMode (void)
+AcpiHwGetMode (
+    void)
 {
     ACPI_STATUS             Status;
     UINT32                  Value;
@@ -296,21 +301,21 @@ AcpiHwGetMode (void)
      */
     if (!AcpiGbl_FADT->SmiCmd)
     {
-        return_VALUE (ACPI_SYS_MODE_ACPI);
+        return_UINT32 (ACPI_SYS_MODE_ACPI);
     }
 
     Status = AcpiGetRegister (ACPI_BITREG_SCI_ENABLE, &Value, ACPI_MTX_LOCK);
     if (ACPI_FAILURE (Status))
     {
-        return_VALUE (ACPI_SYS_MODE_LEGACY);
+        return_UINT32 (ACPI_SYS_MODE_LEGACY);
     }
 
     if (Value)
     {
-        return_VALUE (ACPI_SYS_MODE_ACPI);
+        return_UINT32 (ACPI_SYS_MODE_ACPI);
     }
     else
     {
-        return_VALUE (ACPI_SYS_MODE_LEGACY);
+        return_UINT32 (ACPI_SYS_MODE_LEGACY);
     }
 }

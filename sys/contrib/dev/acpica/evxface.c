@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 147 $
+ *              $Revision: 1.152 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -558,7 +558,8 @@ AcpiRemoveNotifyHandler (
 
     if (Device == ACPI_ROOT_OBJECT)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Removing notify handler for ROOT object.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Removing notify handler for ROOT object.\n"));
 
         if (((HandlerType & ACPI_SYSTEM_NOTIFY) &&
               !AcpiGbl_SystemNotify.Handler)        ||
@@ -651,8 +652,9 @@ UnlockAndExit:
  *
  * FUNCTION:    AcpiInstallGpeHandler
  *
- * PARAMETERS:  GpeNumber       - The GPE number within the GPE block
- *              GpeBlock        - GPE block (NULL == FADT GPEs)
+ * PARAMETERS:  GpeDevice       - Namespace node for the GPE (NULL for FADT
+ *                                defined GPEs)
+ *              GpeNumber       - The GPE number within the GPE block
  *              Type            - Whether this GPE should be treated as an
  *                                edge- or level-triggered interrupt.
  *              Address         - Address of the handler
@@ -675,6 +677,7 @@ AcpiInstallGpeHandler (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_HANDLER_INFO       *Handler;
     ACPI_STATUS             Status;
+    ACPI_NATIVE_UINT        Flags;
 
 
     ACPI_FUNCTION_TRACE ("AcpiInstallGpeHandler");
@@ -733,7 +736,7 @@ AcpiInstallGpeHandler (
 
     /* Install the handler */
 
-    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
     GpeEventInfo->Dispatch.Handler = Handler;
 
     /* Setup up dispatch flags to indicate handler (vs. method) */
@@ -741,7 +744,7 @@ AcpiInstallGpeHandler (
     GpeEventInfo->Flags &= ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);  /* Clear bits */
     GpeEventInfo->Flags |= (UINT8) (Type | ACPI_GPE_DISPATCH_HANDLER);
 
-    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
 
 
 UnlockAndExit:
@@ -754,8 +757,9 @@ UnlockAndExit:
  *
  * FUNCTION:    AcpiRemoveGpeHandler
  *
- * PARAMETERS:  GpeNumber       - The event to remove a handler
- *              GpeBlock        - GPE block (NULL == FADT GPEs)
+ * PARAMETERS:  GpeDevice       - Namespace node for the GPE (NULL for FADT
+ *                                defined GPEs)
+ *              GpeNumber       - The event to remove a handler
  *              Address         - Address of the handler
  *
  * RETURN:      Status
@@ -773,6 +777,7 @@ AcpiRemoveGpeHandler (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_HANDLER_INFO       *Handler;
     ACPI_STATUS             Status;
+    ACPI_NATIVE_UINT        Flags;
 
 
     ACPI_FUNCTION_TRACE ("AcpiRemoveGpeHandler");
@@ -826,7 +831,7 @@ AcpiRemoveGpeHandler (
 
     /* Remove the handler */
 
-    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
     Handler = GpeEventInfo->Dispatch.Handler;
 
     /* Restore Method node (if any), set dispatch flags */
@@ -837,7 +842,7 @@ AcpiRemoveGpeHandler (
     {
         GpeEventInfo->Flags |= ACPI_GPE_DISPATCH_METHOD;
     }
-    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
 
     /* Now we can free the handler object */
 
@@ -855,7 +860,8 @@ UnlockAndExit:
  * FUNCTION:    AcpiAcquireGlobalLock
  *
  * PARAMETERS:  Timeout         - How long the caller is willing to wait
- *              OutHandle       - A handle to the lock if acquired
+ *              Handle          - Where the handle to the lock is returned
+ *                                (if acquired)
  *
  * RETURN:      Status
  *
@@ -903,7 +909,7 @@ AcpiAcquireGlobalLock (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Release the ACPI Global Lock
+ * DESCRIPTION: Release the ACPI Global Lock. The handle must be valid.
  *
  ******************************************************************************/
 

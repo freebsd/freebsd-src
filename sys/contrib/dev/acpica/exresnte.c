@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 65 $
+ *              $Revision: 1.68 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -294,15 +294,15 @@ AcpiExResolveNodeToValue (
     case ACPI_TYPE_LOCAL_BANK_FIELD:
     case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "FieldRead Node=%p SourceDesc=%p Type=%X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "FieldRead Node=%p SourceDesc=%p Type=%X\n",
             Node, SourceDesc, EntryType));
 
         Status = AcpiExReadDataFromField (WalkState, SourceDesc, &ObjDesc);
         break;
 
-    /*
-     * For these objects, just return the object attached to the Node
-     */
+    /* For these objects, just return the object attached to the Node */
+
     case ACPI_TYPE_MUTEX:
     case ACPI_TYPE_METHOD:
     case ACPI_TYPE_POWER:
@@ -317,12 +317,12 @@ AcpiExResolveNodeToValue (
         AcpiUtAddReference (ObjDesc);
         break;
 
-
     /* TYPE_ANY is untyped, and thus there is no object associated with it */
 
     case ACPI_TYPE_ANY:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Untyped entry %p, no attached object!\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Untyped entry %p, no attached object!\n",
             Node));
 
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);  /* Cannot be AE_TYPE */
@@ -344,7 +344,8 @@ AcpiExResolveNodeToValue (
         default:
             /* No named references are allowed here */
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported Reference opcode %X (%s)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Unsupported Reference opcode %X (%s)\n",
                 SourceDesc->Reference.Opcode,
                 AcpiPsGetOpcodeName (SourceDesc->Reference.Opcode)));
 
@@ -353,11 +354,12 @@ AcpiExResolveNodeToValue (
         break;
 
 
-    /* Default case is for unknown types */
-
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Node %p - Unknown object type %X\n",
+        /* Default case is for unknown types */
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Node %p - Unknown object type %X\n",
             Node, EntryType));
 
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -365,7 +367,7 @@ AcpiExResolveNodeToValue (
     } /* switch (EntryType) */
 
 
-    /* Put the object descriptor on the stack */
+    /* Return the object descriptor */
 
     *ObjectPtr = (void *) ObjDesc;
     return_ACPI_STATUS (Status);

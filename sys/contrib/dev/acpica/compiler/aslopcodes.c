@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslopcode - AML opcode generation
- *              $Revision: 60 $
+ *              $Revision: 1.71 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,12 +116,77 @@
  *****************************************************************************/
 
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/amlcode.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslopcodes")
+
+
+/* UUID support */
+
+static UINT8 OpcMapToUUID[16] =
+{
+    6,4,2,0,11,9,16,14,19,21,24,26,28,30,32,34
+};
+
+/* Local prototypes */
+
+static void
+OpcDoAccessAs (
+    ACPI_PARSE_OBJECT       *Op);
+
+static void
+OpcDoUnicode (
+    ACPI_PARSE_OBJECT       *Op);
+
+static void
+OpcDoEisaId (
+    ACPI_PARSE_OBJECT       *Op);
+
+static void
+OpcDoUuId (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    OpcAmlOpcodeUpdateWalk
+ *
+ * PARAMETERS:  ASL_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Opcode update walk, ascending callback
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+OpcAmlOpcodeUpdateWalk (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context)
+{
+
+    /*
+     * Handle the Package() case where the actual opcode cannot be determined
+     * until the PackageLength operand has been folded and minimized.
+     * (PackageOp versus VarPackageOp)
+     *
+     * This is (as of ACPI 3.0) the only case where the AML opcode can change
+     * based upon the value of a parameter.
+     *
+     * The parser always inserts a VarPackage opcode, which can possibly be
+     * optimized to a Package opcode.
+     */
+    if (Op->Asl.ParseOpcode == PARSEOP_VAR_PACKAGE)
+    {
+        OpnDoPackage (Op);
+    }
+
+    return (AE_OK);
+}
 
 
 /*******************************************************************************
@@ -171,18 +236,26 @@ OpcGetIntegerWidth (
 {
     ACPI_PARSE_OBJECT       *Child;
 
+
     if (!Op)
     {
         return;
     }
 
-    Child = Op->Asl.Child;
-    Child = Child->Asl.Next;
-    Child = Child->Asl.Next;
+    if (Gbl_RevisionOverride)
+    {
+        AcpiUtSetIntegerWidth (Gbl_RevisionOverride);
+    }
+    else
+    {
+        Child = Op->Asl.Child;
+        Child = Child->Asl.Next;
+        Child = Child->Asl.Next;
 
-    /* Use the revision to set the integer width */
+        /* Use the revision to set the integer width */
 
-    AcpiUtSetIntegerWidth ((UINT8) Child->Asl.Value.Integer);
+        AcpiUtSetIntegerWidth ((UINT8) Child->Asl.Value.Integer);
+    }
 }
 
 
@@ -206,17 +279,18 @@ OpcSetOptimalIntegerSize (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-/*
-    TBD: - we don't want to optimize integers in the block header, but the
-    code below does not work correctly.
-
+#if 0
+    /*
+     * TBD: - we don't want to optimize integers in the block header, but the
+     * code below does not work correctly.
+     */
     if (Op->Asl.Parent &&
         Op->Asl.Parent->Asl.Parent &&
-        (Op->Asl.Parent->Asl.Parent->Asl.ParseOpcode == PARSEOP_DEFINITIONBLOCK))
+       (Op->Asl.Parent->Asl.Parent->Asl.ParseOpcode == PARSEOP_DEFINITIONBLOCK))
     {
         return 0;
     }
-*/
+#endif
 
     /*
      * Check for the special AML integers first - Zero, One, Ones.
@@ -232,13 +306,15 @@ OpcSetOptimalIntegerSize (
         case 0:
 
             Op->Asl.AmlOpcode = AML_ZERO_OP;
-            AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION, Op, "Zero");
+            AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
+                Op, "Zero");
             return 1;
 
         case 1:
 
             Op->Asl.AmlOpcode = AML_ONE_OP;
-            AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION, Op, "One");
+            AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
+                Op, "One");
             return 1;
 
         case ACPI_UINT32_MAX:
@@ -248,7 +324,8 @@ OpcSetOptimalIntegerSize (
             if (AcpiGbl_IntegerByteWidth == 4)
             {
                 Op->Asl.AmlOpcode = AML_ONES_OP;
-                AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION, Op, "Ones");
+                AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
+                    Op, "Ones");
                 return 1;
             }
             break;
@@ -260,7 +337,8 @@ OpcSetOptimalIntegerSize (
             if (AcpiGbl_IntegerByteWidth == 8)
             {
                 Op->Asl.AmlOpcode = AML_ONES_OP;
-                AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION, Op, "Ones");
+                AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
+                    Op, "Ones");
                 return 1;
             }
             break;
@@ -289,6 +367,19 @@ OpcSetOptimalIntegerSize (
     }
     else
     {
+        if (AcpiGbl_IntegerByteWidth == 4)
+        {
+            AslError (ASL_WARNING, ASL_MSG_INTEGER_LENGTH,
+                Op, NULL);
+
+            if (!Gbl_IgnoreErrors)
+            {
+                /* Truncate the integer to 32-bit */
+                Op->Asl.AmlOpcode = AML_DWORD_OP;
+                return 4;
+            }
+        }
+
         Op->Asl.AmlOpcode = AML_QWORD_OP;
         return 8;
     }
@@ -307,11 +398,11 @@ OpcSetOptimalIntegerSize (
  *
  ******************************************************************************/
 
-void
+static void
 OpcDoAccessAs (
-    ACPI_PARSE_OBJECT           *Op)
+    ACPI_PARSE_OBJECT       *Op)
 {
-    ACPI_PARSE_OBJECT           *Next;
+    ACPI_PARSE_OBJECT       *Next;
 
 
     Op->Asl.AmlOpcodeLength = 1;
@@ -350,17 +441,17 @@ OpcDoAccessAs (
  *
  ******************************************************************************/
 
-void
+static void
 OpcDoUnicode (
-    ACPI_PARSE_OBJECT           *Op)
+    ACPI_PARSE_OBJECT       *Op)
 {
-    ACPI_PARSE_OBJECT           *InitializerOp;
-    UINT32                      Length;
-    UINT32                      Count;
-    UINT32                      i;
-    UINT8                       *AsciiString;
-    UINT16                      *UnicodeString;
-    ACPI_PARSE_OBJECT           *BufferLengthOp;
+    ACPI_PARSE_OBJECT       *InitializerOp;
+    UINT32                  Length;
+    UINT32                  Count;
+    UINT32                  i;
+    UINT8                   *AsciiString;
+    UINT16                  *UnicodeString;
+    ACPI_PARSE_OBJECT       *BufferLengthOp;
 
 
     /* Change op into a buffer object */
@@ -448,7 +539,7 @@ OpcDoUnicode (
  *
  ******************************************************************************/
 
-void
+static void
 OpcDoEisaId (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -463,7 +554,7 @@ OpcDoEisaId (
 
     /*
      * The EISAID string must be exactly 7 characters and of the form
-     * "LLLXXXX" -- 3 letters and 4 hex digits (e.g., "PNP0001")
+     * "UUUXXXX" -- 3 uppercase letters and 4 hex digits (e.g., "PNP0001")
      */
     if (ACPI_STRLEN (InString) != 7)
     {
@@ -540,13 +631,11 @@ OpcDoEisaId (
  *
  * RETURN:      None
  *
- * DESCRIPTION: 
+ * DESCRIPTION: Convert UUID string to 16-byte buffer
  *
  ******************************************************************************/
 
-static UINT8 OpcMapToUUID[16] = {6,4,2,0,11,9,16,14,19,21,24,26,28,30,32,34};
-
-void
+static void
 OpcDoUuId (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -594,15 +683,18 @@ OpcDoUuId (
     }
     else for (i = 0; i < 16; i++)
     {
-        Buffer[i] = (char) (UtHexCharToValue (InString[OpcMapToUUID[i]]) << 4);
-        Buffer[i] = (char)  UtHexCharToValue (InString[OpcMapToUUID[i] + 1]);
+        Buffer[i]  = (char) (UtHexCharToValue (InString[OpcMapToUUID[i]]) << 4);
+        Buffer[i] |= (char)  UtHexCharToValue (InString[OpcMapToUUID[i] + 1]);
     }
 
     /* Change Op to a Buffer */
 
     Op->Asl.ParseOpcode = PARSEOP_BUFFER;
     Op->Common.AmlOpcode = AML_BUFFER_OP;
-    Op->Asl.CompileFlags &= ~NODE_COMPILE_TIME_CONST;   /* Disable further optimization */
+
+    /* Disable further optimization */
+
+    Op->Asl.CompileFlags &= ~NODE_COMPILE_TIME_CONST;
     UtSetParseOpName (Op);
 
     /* Child node is the buffer length */
@@ -707,18 +799,6 @@ OpcGenerateAmlOpcode (
 
         Op->Asl.Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
         Op->Asl.Child->Asl.Next->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
-        break;
-
-    case PARSEOP_PACKAGE:
-        /*
-         * The variable-length package has a different opcode
-         */
-        if ((Op->Asl.Child->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG) &&
-            (Op->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)     &&
-            (Op->Asl.Child->Asl.ParseOpcode != PARSEOP_BYTECONST))
-        {
-            Op->Asl.AmlOpcode = AML_VAR_PACKAGE_OP;
-        }
         break;
 
     default:
