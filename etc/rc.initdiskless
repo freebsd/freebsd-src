@@ -269,7 +269,7 @@ for i in ${templates} ; do
 	    nfspt=`/bin/cat $j/remount`
 	    $nfspt $j
 	    chkerr $? "$nfspt $j"
-	    to_umount="${to_umount} $j" # XXX hope it is really a mount!
+	    to_umount="$j ${to_umount}" # XXX hope it is really a mount!
 	fi
 
 	# NFS remount
@@ -281,7 +281,7 @@ for i in ${templates} ; do
 	    fi
 	    mount_nfs $nfspt $j
 	    chkerr $? "mount_nfs $nfspt $j"
-	    to_umount="${to_umount} $j"
+	    to_umount="$j ${to_umount}"
 	fi
     done
 done
