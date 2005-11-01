@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -162,8 +162,9 @@ AcpiHwClearAcpiStatus (
         }
     }
 
-    Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS,
-                    ACPI_BITMASK_ALL_FIXED_STATUS);
+    Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
+                ACPI_REGISTER_PM1_STATUS,
+                ACPI_BITMASK_ALL_FIXED_STATUS);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;
@@ -183,7 +184,7 @@ AcpiHwClearAcpiStatus (
 
     /* Clear the GPE Bits in all GPE registers in all GPE blocks */
 
-    Status = AcpiEvWalkGpeList (AcpiHwClearGpeBlock, ACPI_ISR);
+    Status = AcpiEvWalkGpeList (AcpiHwClearGpeBlock);
 
 UnlockAndExit:
     if (Flags & ACPI_MTX_LOCK)
@@ -217,30 +218,32 @@ AcpiGetSleepTypeData (
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_PARAMETER_INFO     Info;
+    char                    *SleepStateName;
 
 
     ACPI_FUNCTION_TRACE ("AcpiGetSleepTypeData");
 
 
-    /*
-     * Validate parameters
-     */
+    /* Validate parameters */
+
     if ((SleepState > ACPI_S_STATES_MAX) ||
         !SleepTypeA || !SleepTypeB)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /*
-     * Evaluate the namespace object containing the values for this state
-     */
+    /* Evaluate the namespace object containing the values for this state */
+
     Info.Parameters = NULL;
-    Status = AcpiNsEvaluateByName ((char *) (uintptr_t) AcpiGbl_SleepStateNames[SleepState],
-                    &Info);
+    Info.ReturnObject = NULL;
+    SleepStateName = (char *) (uintptr_t) AcpiGbl_SleepStateNames[SleepState];
+
+    Status = AcpiNsEvaluateByName (SleepStateName, &Info);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s while evaluating SleepState [%s]\n",
-            AcpiFormatException (Status), AcpiGbl_SleepStateNames[SleepState]));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "%s while evaluating SleepState [%s]\n",
+            AcpiFormatException (Status), SleepStateName));
 
         return_ACPI_STATUS (Status);
     }
@@ -249,7 +252,8 @@ AcpiGetSleepTypeData (
 
     if (!Info.ReturnObject)
     {
-        ACPI_REPORT_ERROR (("Missing Sleep State object\n"));
+        ACPI_REPORT_ERROR (("No Sleep State object returned from [%s]\n",
+            SleepStateName));
         Status = AE_NOT_EXIST;
     }
 
@@ -257,42 +261,53 @@ AcpiGetSleepTypeData (
 
     else if (ACPI_GET_OBJECT_TYPE (Info.ReturnObject) != ACPI_TYPE_PACKAGE)
     {
-        ACPI_REPORT_ERROR (("Sleep State object not a Package\n"));
+        ACPI_REPORT_ERROR (("Sleep State return object is not a Package\n"));
         Status = AE_AML_OPERAND_TYPE;
     }
 
-    /* The package must have at least two elements */
-
+    /*
+     * The package must have at least two elements.  NOTE (March 2005): This
+     * goes against the current ACPI spec which defines this object as a
+     * package with one encoded DWORD element.  However, existing practice
+     * by BIOS vendors seems to be to have 2 or more elements, at least
+     * one per sleep type (A/B).
+     */
     else if (Info.ReturnObject->Package.Count < 2)
     {
-        ACPI_REPORT_ERROR (("Sleep State package does not have at least two elements\n"));
+        ACPI_REPORT_ERROR ((
+            "Sleep State return package does not have at least two elements\n"));
         Status = AE_AML_NO_OPERAND;
     }
 
     /* The first two elements must both be of type Integer */
 
-    else if ((ACPI_GET_OBJECT_TYPE (Info.ReturnObject->Package.Elements[0]) != ACPI_TYPE_INTEGER) ||
-             (ACPI_GET_OBJECT_TYPE (Info.ReturnObject->Package.Elements[1]) != ACPI_TYPE_INTEGER))
+    else if ((ACPI_GET_OBJECT_TYPE (Info.ReturnObject->Package.Elements[0])
+                != ACPI_TYPE_INTEGER) ||
+             (ACPI_GET_OBJECT_TYPE (Info.ReturnObject->Package.Elements[1])
+                != ACPI_TYPE_INTEGER))
     {
-        ACPI_REPORT_ERROR (("Sleep State package elements are not both Integers (%s, %s)\n",
+        ACPI_REPORT_ERROR ((
+            "Sleep State return package elements are not both Integers (%s, %s)\n",
             AcpiUtGetObjectTypeName (Info.ReturnObject->Package.Elements[0]),
             AcpiUtGetObjectTypeName (Info.ReturnObject->Package.Elements[1])));
         Status = AE_AML_OPERAND_TYPE;
     }
     else
     {
-        /*
-         * Valid _Sx_ package size, type, and value
-         */
-        *SleepTypeA = (UINT8) (Info.ReturnObject->Package.Elements[0])->Integer.Value;
-        *SleepTypeB = (UINT8) (Info.ReturnObject->Package.Elements[1])->Integer.Value;
+        /* Valid _Sx_ package size, type, and value */
+
+        *SleepTypeA = (UINT8)
+            (Info.ReturnObject->Package.Elements[0])->Integer.Value;
+        *SleepTypeB = (UINT8)
+            (Info.ReturnObject->Package.Elements[1])->Integer.Value;
     }
 
     if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "While evaluating SleepState [%s], bad Sleep object %p type %s\n",
-            AcpiGbl_SleepStateNames[SleepState], Info.ReturnObject,
+            "%s While evaluating SleepState [%s], bad Sleep object %p type %s\n",
+            AcpiFormatException (Status),
+            SleepStateName, Info.ReturnObject,
             AcpiUtGetObjectTypeName (Info.ReturnObject)));
     }
 
@@ -307,9 +322,9 @@ AcpiGetSleepTypeData (
  *
  * PARAMETERS:  RegisterId          - Index of ACPI Register to access
  *
- * RETURN:      The bit mask to be used when accessing the register
+ * RETURN:      The bitmask to be used when accessing the register
  *
- * DESCRIPTION: Map RegisterId into a register bit mask.
+ * DESCRIPTION: Map RegisterId into a register bitmask.
  *
  ******************************************************************************/
 
@@ -453,7 +468,7 @@ AcpiSetRegister (
     /* Always do a register read first so we can insert the new bits  */
 
     Status = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK,
-                    BitRegInfo->ParentRegister, &RegisterValue);
+                BitRegInfo->ParentRegister, &RegisterValue);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;
@@ -493,7 +508,7 @@ AcpiSetRegister (
                 BitRegInfo->AccessBitMask, Value);
 
         Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
-                        ACPI_REGISTER_PM1_ENABLE, (UINT16) RegisterValue);
+                    ACPI_REGISTER_PM1_ENABLE, (UINT16) RegisterValue);
         break;
 
 
@@ -510,7 +525,7 @@ AcpiSetRegister (
                 BitRegInfo->AccessBitMask, Value);
 
         Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
-                        ACPI_REGISTER_PM1_CONTROL, (UINT16) RegisterValue);
+                    ACPI_REGISTER_PM1_CONTROL, (UINT16) RegisterValue);
         break;
 
 
@@ -525,17 +540,19 @@ AcpiSetRegister (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM2 control: Read %X from %8.8X%8.8X\n",
             RegisterValue,
-            ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm2CntBlk.Address))));
+            ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (
+                AcpiGbl_FADT->XPm2CntBlk.Address))));
 
         ACPI_REGISTER_INSERT_VALUE (RegisterValue, BitRegInfo->BitPosition,
                 BitRegInfo->AccessBitMask, Value);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_IO, "About to write %4.4X to %8.8X%8.8X\n",
             RegisterValue,
-            ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm2CntBlk.Address))));
+            ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (
+                AcpiGbl_FADT->XPm2CntBlk.Address))));
 
         Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
-                            ACPI_REGISTER_PM2_CONTROL, (UINT8) (RegisterValue));
+                    ACPI_REGISTER_PM2_CONTROL, (UINT8) (RegisterValue));
         break;
 
 
@@ -553,7 +570,9 @@ UnlockAndExit:
 
     /* Normalize the value that was read */
 
-    ACPI_DEBUG_EXEC (RegisterValue = ((RegisterValue & BitRegInfo->AccessBitMask) >> BitRegInfo->BitPosition));
+    ACPI_DEBUG_EXEC (RegisterValue =
+        ((RegisterValue & BitRegInfo->AccessBitMask) >>
+            BitRegInfo->BitPosition));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Set bits: %8.8X actual %8.8X register %X\n",
             Value, RegisterValue, BitRegInfo->ParentRegister));
@@ -567,7 +586,7 @@ UnlockAndExit:
  *
  * PARAMETERS:  UseLock             - Mutex hw access
  *              RegisterId          - RegisterID + Offset
- *              ReturnValue         - Value that was read from the register
+ *              ReturnValue         - Where the register value is returned
  *
  * RETURN:      Status and the value read.
  *
@@ -661,7 +680,8 @@ AcpiHwRegisterRead (
         break;
 
     default:
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Register ID: %X\n", RegisterId));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Register ID: %X\n",
+            RegisterId));
         Status = AE_BAD_PARAMETER;
         break;
     }
@@ -879,10 +899,11 @@ AcpiHwLowLevelRead (
         return (AE_BAD_PARAMETER);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
-            *Value, Width,
-            ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Address)),
-            AcpiUtGetRegionName (Reg->AddressSpaceId)));
+    ACPI_DEBUG_PRINT ((ACPI_DB_IO,
+        "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
+        *Value, Width,
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Address)),
+        AcpiUtGetRegionName (Reg->AddressSpaceId)));
 
     return (Status);
 }
@@ -960,10 +981,11 @@ AcpiHwLowLevelWrite (
         return (AE_BAD_PARAMETER);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
-            Value, Width,
-            ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Address)),
-            AcpiUtGetRegionName (Reg->AddressSpaceId)));
+    ACPI_DEBUG_PRINT ((ACPI_DB_IO,
+        "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
+        Value, Width,
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Address)),
+        AcpiUtGetRegionName (Reg->AddressSpaceId)));
 
     return (Status);
 }
