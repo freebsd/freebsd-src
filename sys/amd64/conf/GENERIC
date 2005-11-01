@@ -63,6 +63,7 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~215k to driver.
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
+options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
