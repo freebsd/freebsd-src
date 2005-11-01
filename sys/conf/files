@@ -208,6 +208,7 @@ contrib/dev/acpica/nsxfeval.c	optional acpi
 contrib/dev/acpica/nsxfname.c	optional acpi
 contrib/dev/acpica/nsxfobj.c	optional acpi
 contrib/dev/acpica/psargs.c	optional acpi
+contrib/dev/acpica/psloop.c	optional acpi
 contrib/dev/acpica/psopcode.c	optional acpi
 contrib/dev/acpica/psparse.c	optional acpi
 contrib/dev/acpica/psscope.c	optional acpi
@@ -219,6 +220,7 @@ contrib/dev/acpica/rsaddr.c	optional acpi
 contrib/dev/acpica/rscalc.c	optional acpi
 contrib/dev/acpica/rscreate.c	optional acpi
 contrib/dev/acpica/rsdump.c	optional acpi
+contrib/dev/acpica/rsinfo.c	optional acpi
 contrib/dev/acpica/rsio.c	optional acpi
 contrib/dev/acpica/rsirq.c	optional acpi
 contrib/dev/acpica/rslist.c	optional acpi
@@ -235,6 +237,8 @@ contrib/dev/acpica/tbutils.c	optional acpi
 contrib/dev/acpica/tbxface.c	optional acpi
 contrib/dev/acpica/tbxfroot.c	optional acpi
 contrib/dev/acpica/utalloc.c	optional acpi
+contrib/dev/acpica/utcache.c	optional acpi \
+	compile-with "${NORMAL_C} -DACPI_USE_LOCAL_CACHE"
 contrib/dev/acpica/utclib.c	optional acpi
 contrib/dev/acpica/utcopy.c	optional acpi
 contrib/dev/acpica/utdebug.c	optional acpi
@@ -244,7 +248,9 @@ contrib/dev/acpica/utglobal.c	optional acpi
 contrib/dev/acpica/utinit.c	optional acpi
 contrib/dev/acpica/utmath.c	optional acpi
 contrib/dev/acpica/utmisc.c	optional acpi
+contrib/dev/acpica/utmutex.c	optional acpi
 contrib/dev/acpica/utobject.c	optional acpi
+contrib/dev/acpica/utstate.c	optional acpi
 contrib/dev/acpica/utxface.c	optional acpi
 contrib/dev/ath/freebsd/ah_osdep.c optional ath_hal \
 	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"

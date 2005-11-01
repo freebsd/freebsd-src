@@ -24,15 +24,15 @@ SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c
 SRCS+=	nsload.c nsnames.c nsobject.c nsparse.c nssearch.c
 SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
-SRCS+=	psargs.c psopcode.c psparse.c psscope.c
+SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c
 SRCS+=	pstree.c psutils.c pswalk.c psxface.c
-SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsio.c
+SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c
 SRCS+=	rsirq.c rslist.c rsmemory.c rsmisc.c rsutils.c
 SRCS+=	rsxface.c tbconvrt.c tbget.c tbgetall.c tbinstal.c
 SRCS+=	tbrsdt.c tbutils.c tbxface.c tbxfroot.c utalloc.c
-SRCS+=	utclib.c utcopy.c utdebug.c utdelete.c uteval.c
-SRCS+=	utglobal.c utinit.c utmath.c utmisc.c utobject.c
-SRCS+=	utxface.c
+SRCS+=	utcache.c utclib.c utcopy.c utdebug.c utdelete.c
+SRCS+=	uteval.c utglobal.c utinit.c utmath.c utmisc.c
+SRCS+=	utmutex.c utobject.c utstate.c utxface.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c
@@ -64,6 +64,7 @@ DBSRC+=	dbinput.c dbstats.c dbutils.c dbxface.c
 DBSRC+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 DBSRC+=	dmresrcs.c dmutils.c dmwalk.c
 
+CFLAGS+=-DACPI_USE_LOCAL_CACHE
 .if !defined(KERNBUILDDIR)
 .if ACPI_MAX_THREADS
 CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}

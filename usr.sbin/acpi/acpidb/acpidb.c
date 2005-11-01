@@ -41,9 +41,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <acpi.h>
-#include <acnamesp.h>
-#include <acdebug.h>
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acdebug.h>
 
 /*
  * Dummy DSDT Table Header
