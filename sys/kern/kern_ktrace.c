@@ -237,8 +237,8 @@ ktr_getrequest(int type)
 		mtx_unlock(&ktrace_mtx);
 		microtime(&req->ktr_header.ktr_time);
 		req->ktr_header.ktr_pid = p->p_pid;
+		req->ktr_header.ktr_tid = td->td_tid;
 		bcopy(p->p_comm, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
-		req->ktr_header.ktr_unused = 0;
 		req->ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
 	} else {
