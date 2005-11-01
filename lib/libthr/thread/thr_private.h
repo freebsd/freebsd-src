@@ -728,14 +728,15 @@ void	_thr_signal_unblock(struct pthread *);
 void	_thr_signal_init(void);
 void	_thr_signal_deinit(void);
 int	_thr_send_sig(struct pthread *, int sig);
-void	_thr_list_init();
+void	_thr_list_init(void);
 void	_thr_hash_add(struct pthread *);
 void	_thr_hash_remove(struct pthread *);
 struct pthread *_thr_hash_find(struct pthread *);
 void	_thr_link(struct pthread *curthread, struct pthread *thread);
 void	_thr_unlink(struct pthread *curthread, struct pthread *thread);
 void	_thr_suspend_check(struct pthread *curthread);
-void	_thr_assert_lock_level() __dead2;
+void	_thr_assert_lock_level(void) __dead2;
+void	_thr_timer_init(void);
 void	_thr_report_creation(struct pthread *curthread,
 			   struct pthread *newthread);
 void	_thr_report_death(struct pthread *curthread);
