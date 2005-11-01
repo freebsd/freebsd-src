@@ -130,6 +130,8 @@
 #include <contrib/dev/acpica/acparser.h>
 #include <contrib/dev/acpica/acdebug.h>
 
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+
 #define _COMPONENT          ACPI_OS_SERVICES
         ACPI_MODULE_NAME    ("osunixxf")
 
