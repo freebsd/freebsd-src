@@ -229,7 +229,7 @@ madt_probe(void)
 		 * the version 1.0 portion of the RSDP.  Version 2.0 has
 		 * an additional checksum that we verify first.
 		 */
-		if (AcpiTbChecksum(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0) {
+		if (AcpiTbGenerateChecksum(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
 			if (bootverbose)
 				printf("MADT: RSDP failed extended checksum\n");
 			return (ENXIO);

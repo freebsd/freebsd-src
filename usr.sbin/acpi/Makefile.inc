@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 ACPICA_DIR= ${.CURDIR}/../../../sys/contrib/dev/acpica
-CFLAGS+= -I${.CURDIR}/../../../sys -I${ACPICA_DIR} -I${ACPICA_DIR}/compiler
+CFLAGS+= -I${.CURDIR}/../../../sys
 
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"
