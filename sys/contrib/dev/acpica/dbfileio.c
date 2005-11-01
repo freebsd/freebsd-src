@@ -140,6 +140,8 @@ FILE                        *AcpiGbl_DebugFile = NULL;
 
 /* Local prototypes */
 
+#ifdef ACPI_APPLICATION
+
 static ACPI_STATUS
 AcpiDbCheckTextModeCorruption (
     UINT8                   *Table,
@@ -150,6 +152,7 @@ static ACPI_STATUS
 AeLocalLoadTable (
     ACPI_TABLE_HEADER       *TablePtr);
 
+#endif
 
 /*******************************************************************************
  *
