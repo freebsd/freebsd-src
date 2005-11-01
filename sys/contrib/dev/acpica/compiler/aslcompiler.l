@@ -3,7 +3,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.l - Flex input file
- *              $Revision: $
+ *              $Revision: 1.74 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,7 +119,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 YYSTYPE AslCompilerlval;
 
@@ -357,6 +357,7 @@ NamePathTail                [.]{NameSeg}
 "MutexObj"                  { count (0); return (PARSEOP_OBJECTTYPE_MTX); }
 "OpRegionObj"               { count (0); return (PARSEOP_OBJECTTYPE_OPR); }
 "PowerResObj"               { count (0); return (PARSEOP_OBJECTTYPE_POW); }
+"ProcessorObj"              { count (0); return (PARSEOP_OBJECTTYPE_PRO); }
 "ThermalZoneObj"            { count (0); return (PARSEOP_OBJECTTYPE_THZ); }
 "BuffFieldObj"              { count (0); return (PARSEOP_OBJECTTYPE_BFF); }
 "DDBHandleObj"              { count (0); return (PARSEOP_OBJECTTYPE_DDB); }
@@ -476,7 +477,7 @@ NamePathTail                [.]{NameSeg}
                                 if (strcmp (AslCompilertext, "\\"))
                                 {
                                     strcpy (s, "____");
-                                    ACPI_STRUPR (AslCompilertext);
+                                    AcpiUtStrupr (AslCompilertext);
                                 }
                                 memcpy (s, AslCompilertext, strlen (AslCompilertext));
                                 AslCompilerlval.s = s;
@@ -486,7 +487,7 @@ NamePathTail                [.]{NameSeg}
 {NameString}                { char *s;
                                 count (0);
                                 s=malloc (strlen (AslCompilertext)+1);
-                                ACPI_STRUPR (AslCompilertext);
+                                AcpiUtStrupr (AslCompilertext);
                                 strcpy (s, AslCompilertext);
                                 s[strlen (AslCompilertext)] = 0;
                                 AslCompilerlval.s = s;
@@ -931,6 +932,7 @@ literal (void)
     UINT32              State = ASL_NORMAL_CHAR;
     UINT32              i = 0;
     UINT8               Digit;
+    UINT8               StringLength = 0;
     char                ConvertBuffer[4];
 
 
@@ -942,6 +944,17 @@ literal (void)
     InsertLineBuffer ('\"');
     while ((StringChar = (char) input()) != EOF)
     {
+        StringLength++;
+        if (StringLength == ACPI_MAX_STRING_CONVERSION)
+        {
+            /* Emit error only once, but keep going */
+
+            AslCommonError (ASL_ERROR, ASL_MSG_STRING_LENGTH,
+                            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
+                            Gbl_CurrentLineOffset, Gbl_CurrentColumn,
+                            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+        }
+
         InsertLineBuffer (StringChar);
 
 DoCharacter:

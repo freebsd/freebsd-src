@@ -3,7 +3,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.y - Bison input file (ASL grammar and actions)
- *              $Revision: $
+ *              $Revision: 1.92 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,11 +124,11 @@
  */
 #define YYINITDEPTH 600
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslparse")
@@ -353,6 +353,7 @@ AslLocalAllocate (unsigned int Size);
 %token <i> PARSEOP_OBJECTTYPE_OPR
 %token <i> PARSEOP_OBJECTTYPE_PKG
 %token <i> PARSEOP_OBJECTTYPE_POW
+%token <i> PARSEOP_OBJECTTYPE_PRO
 %token <i> PARSEOP_OBJECTTYPE_STR
 %token <i> PARSEOP_OBJECTTYPE_THZ
 %token <i> PARSEOP_OBJECTTYPE_UNK
@@ -611,6 +612,7 @@ AslLocalAllocate (unsigned int Size);
 %type <n> XOrTerm
 
 %type <n> OptionalTermArg
+%type <n> OptionalReturnArg
 %type <n> OptionalListString
 
 
@@ -626,7 +628,7 @@ AslLocalAllocate (unsigned int Size);
 %type <n> MatchOpKeyword
 %type <n> SerializeRuleKeyword
 %type <n> DMATypeKeyword
-%type <n> BusMasterKeyword
+%type <n> OptionalBusMasterKeyword
 %type <n> XferTypeKeyword
 %type <n> ResourceTypeKeyword
 %type <n> MinKeyword
@@ -634,7 +636,7 @@ AslLocalAllocate (unsigned int Size);
 %type <n> DecodeKeyword
 %type <n> RangeTypeKeyword
 %type <n> MemTypeKeyword
-%type <n> ReadWriteKeyword
+%type <n> OptionalReadWriteKeyword
 %type <n> InterruptTypeKeyword
 %type <n> InterruptLevel
 %type <n> ShareTypeKeyword
@@ -679,7 +681,6 @@ AslLocalAllocate (unsigned int Size);
 %type <n> DWordListTail
 
 %type <n> PackageTerm
-%type <n> PackageLengthTerm
 %type <n> PackageList
 %type <n> PackageListTail
 %type <n> PackageElement
@@ -756,6 +757,7 @@ AslLocalAllocate (unsigned int Size);
 %type <n> OptionalParameterTypePackage
 %type <n> OptionalParameterTypesPackage
 %type <n> OptionalReference
+%type <n> OptionalAccessSize
 
 
 %type <n> TermArgItem
@@ -793,7 +795,7 @@ DefinitionBlockTerm
         String ','
         DWordConst
         ')'                         {TrSetEndLineNumber ($<n>3);}
-            '{' ObjectList '}'      {$$ = TrLinkChildren ($<n>3,7,$4,$6,$8,$10,$12,$14,$18);}
+            '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,7,$4,$6,$8,$10,$12,$14,$18);}
     ;
 
 /* ACPI 3.0 -- allow semicolons between terms */
@@ -938,19 +940,23 @@ SimpleTarget
 
 /* Rules for specifying the Return type for control methods */
 
-ParameterTypePackageList
-    :                               {$$ = NULL;}
-    | ObjectTypeKeyword             {$$ = $1;}
-    | ObjectTypeKeyword ',' 
-        ParameterTypePackageList    {$$ = TrLinkPeerNodes (2,$1,$3);}
-    ;
-
 ParameterTypePackage
     :                               {$$ = NULL;}
     | ObjectTypeKeyword             {$$ = $1;}
-    | '{' 
-        ParameterTypePackageList 
+    | '{''}'                        {$$ = NULL;}
+    | '{'
+        ObjectTypeKeyword
       '}'                           {$$ = $2;}
+    | '{'
+        ParameterTypePackageList
+      '}'                           {$$ = $2;}
+    ;
+
+ParameterTypePackageList
+    :                               {$$ = NULL;}
+    | ObjectTypeKeyword             {$$ = $1;}
+    | ObjectTypeKeyword ','
+        ParameterTypePackageList    {$$ = TrLinkPeerNodes (2,$1,$3);}
     ;
 
 OptionalParameterTypePackage
@@ -961,25 +967,32 @@ OptionalParameterTypePackage
 
 /* Rules for specifying the Argument types for control methods */
 
-ParameterTypesPackageList
-    :                               {$$ = NULL;}
-    | ObjectTypeKeyword             {$$ = $1;}
-    | ObjectTypeKeyword ',' 
-        ParameterTypesPackage       {$$ = TrLinkPeerNodes (2,$1,$3);}
-    ;
-
 ParameterTypesPackage
     :                               {$$ = NULL;}
     | ObjectTypeKeyword             {$$ = $1;}
-    | '{' 
-        ParameterTypesPackageList 
-      '}'                           {$$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_DEFAULT_ARG),1,$2);}
+    | '{''}'                        {$$ = NULL;}
+    | '{'
+        ObjectTypeKeyword
+      '}'                           {$$ = $2;}
+    | '{'
+        ParameterTypesPackageList
+      '}'                           {$$ = $2;}
+    ;
+
+ParameterTypesPackageList
+    :                               {$$ = NULL;}
+    | ObjectTypeKeyword             {$$ = $1;}
+    | ParameterTypesPackage         {$$ = $1;}
+    | ParameterTypesPackage ','
+        ParameterTypesPackageList   {$$ = TrLinkPeerNodes (2,$1,$3);}
+    | ParameterTypesPackage ','
+        ParameterTypesPackage       {$$ = TrLinkPeerNodes (2,$1,$3);}
     ;
 
 OptionalParameterTypesPackage
     :                               {$$ = TrCreateLeafNode (PARSEOP_DEFAULT_ARG);}
     | ','                           {$$ = TrCreateLeafNode (PARSEOP_DEFAULT_ARG);}
-    | ',' ParameterTypesPackage     {$$ = $2;}
+    | ',' ParameterTypesPackage     {$$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_DEFAULT_ARG),1,$2);}
     ;
 
 
@@ -1153,7 +1166,7 @@ BankFieldTerm
         ')' '{'
             FieldUnitList '}'       {$$ = TrLinkChildren ($<n>3,7,$4,$5,$6,$8,$10,$12,$15);}
     | PARSEOP_BANKFIELD '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        error ')' '{' error '}'     {$$ = AslDoError(); yyclearin;}
     ;
 
 FieldUnitList
@@ -1296,7 +1309,7 @@ FieldTerm
         ')' '{'
             FieldUnitList '}'       {$$ = TrLinkChildren ($<n>3,5,$4,$6,$8,$10,$13);}
     | PARSEOP_FIELD '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        error ')' '{' error '}'     {$$ = AslDoError(); yyclearin;}
     ;
 
 FunctionTerm
@@ -1306,8 +1319,8 @@ FunctionTerm
         OptionalParameterTypesPackage
         ')' '{'
             TermList '}'            {$$ = TrLinkChildren ($<n>3,7,TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
-                                        TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),  
-                                        TrCreateLeafNode (PARSEOP_SERIALIZERULE_NOTSERIAL), 
+                                        TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),
+                                        TrCreateLeafNode (PARSEOP_SERIALIZERULE_NOTSERIAL),
                                         TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),$5,$6,$9);}
     | PARSEOP_FUNCTION '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
@@ -1323,7 +1336,7 @@ IndexFieldTerm
         ')' '{'
             FieldUnitList '}'       {$$ = TrLinkChildren ($<n>3,6,$4,$5,$7,$9,$11,$14);}
     | PARSEOP_INDEXFIELD '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        error ')' '{' error '}'     {$$ = AslDoError(); yyclearin;}
     ;
 
 MethodTerm
@@ -1526,9 +1539,9 @@ ResetTerm
 
 ReturnTerm
     : PARSEOP_RETURN '('			{$$ = TrCreateLeafNode (PARSEOP_RETURN);}
-        OptionalTermArg
+        OptionalReturnArg
         ')'                         {$$ = TrLinkChildren ($<n>3,1,$4);}
-    | PARSEOP_RETURN 				{$$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_RETURN),0);}
+    | PARSEOP_RETURN 				{$$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_RETURN),1,TrCreateLeafNode (PARSEOP_ZERO));}
     | PARSEOP_RETURN '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
@@ -2107,6 +2120,7 @@ ObjectTypeKeyword
     | PARSEOP_OBJECTTYPE_MTX                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_MTX);}
     | PARSEOP_OBJECTTYPE_OPR                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_OPR);}
     | PARSEOP_OBJECTTYPE_POW                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_POW);}
+    | PARSEOP_OBJECTTYPE_PRO                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_PRO);}
     | PARSEOP_OBJECTTYPE_THZ                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_THZ);}
     | PARSEOP_OBJECTTYPE_BFF                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_BFF);}
     | PARSEOP_OBJECTTYPE_DDB                {$$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE_DDB);}
@@ -2181,11 +2195,6 @@ DMATypeKeyword
     | PARSEOP_DMATYPE_F                     {$$ = TrCreateLeafNode (PARSEOP_DMATYPE_F);}
     ;
 
-BusMasterKeyword
-    : PARSEOP_BUSMASTERTYPE_MASTER          {$$ = TrCreateLeafNode (PARSEOP_BUSMASTERTYPE_MASTER);}
-    | PARSEOP_BUSMASTERTYPE_NOTMASTER       {$$ = TrCreateLeafNode (PARSEOP_BUSMASTERTYPE_NOTMASTER);}
-    ;
-
 XferTypeKeyword
     : PARSEOP_XFERTYPE_8                    {$$ = TrCreateLeafNode (PARSEOP_XFERTYPE_8);}
     | PARSEOP_XFERTYPE_8_16                 {$$ = TrCreateLeafNode (PARSEOP_XFERTYPE_8_16);}
@@ -2225,8 +2234,9 @@ MemTypeKeyword
     | PARSEOP_MEMTYPE_NONCACHEABLE          {$$ = TrCreateLeafNode (PARSEOP_MEMTYPE_NONCACHEABLE);}
     ;
 
-ReadWriteKeyword
-    : PARSEOP_READWRITETYPE_BOTH            {$$ = TrCreateLeafNode (PARSEOP_READWRITETYPE_BOTH);}
+OptionalReadWriteKeyword
+    :                                       {$$ = TrCreateLeafNode (PARSEOP_READWRITETYPE_BOTH);}
+    | PARSEOP_READWRITETYPE_BOTH            {$$ = TrCreateLeafNode (PARSEOP_READWRITETYPE_BOTH);}
     | PARSEOP_READWRITETYPE_READONLY        {$$ = TrCreateLeafNode (PARSEOP_READWRITETYPE_READONLY);}
     ;
 
@@ -2419,11 +2429,7 @@ DWordListTail
     ;
 
 PackageTerm
-    : PARSEOP_PACKAGE '('           {$$ = TrCreateLeafNode (PARSEOP_PACKAGE);}
-        PackageLengthTerm
-        ')' '{'
-            PackageList '}'         {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
-    | PARSEOP_PACKAGE '('                   {$$ = TrCreateLeafNode (PARSEOP_VAR_PACKAGE);}
+    : PARSEOP_PACKAGE '('           {$$ = TrCreateLeafNode (PARSEOP_VAR_PACKAGE);}
         VarPackageLengthTerm
         ')' '{'
             PackageList '}'         {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
@@ -2431,13 +2437,9 @@ PackageTerm
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
 
-PackageLengthTerm
-    :                               {$$ = NULL;}
-    | ByteConstExpr                 {}
-    ;
-
 VarPackageLengthTerm
-    : TermArg                       {}
+    :                               {$$ = TrCreateLeafNode (PARSEOP_DEFAULT_ARG);}
+    | TermArg                       {$$ = $1;}
     ;
 
 PackageList
@@ -2524,11 +2526,11 @@ ResourceMacroTerm
 DMATerm
     : PARSEOP_DMA '('               {$$ = TrCreateLeafNode (PARSEOP_DMA);}
         DMATypeKeyword
-        ',' BusMasterKeyword
+        OptionalBusMasterKeyword
         ',' XferTypeKeyword
         OptionalNameString_Last
         ')' '{'
-            ByteList '}'            {$$ = TrLinkChildren ($<n>3,5,$4,$6,$8,$9,$12);}
+            ByteList '}'            {$$ = TrLinkChildren ($<n>3,5,$4,$5,$7,$8,$11);}
     | PARSEOP_DMA '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
@@ -2562,7 +2564,7 @@ DWordMemoryTerm
         OptionalMinType
         OptionalMaxType
         OptionalMemType
-        ',' ReadWriteKeyword
+        ',' OptionalReadWriteKeyword
         ',' DWordConstExpr
         ',' DWordConstExpr
         ',' DWordConstExpr
@@ -2635,7 +2637,7 @@ ExtendedMemoryTerm
         OptionalMinType
         OptionalMaxType
         OptionalMemType
-        ',' ReadWriteKeyword
+        ',' OptionalReadWriteKeyword
         ',' QWordConstExpr
         ',' QWordConstExpr
         ',' QWordConstExpr
@@ -2731,7 +2733,7 @@ IRQTerm
 
 Memory24Term
     : PARSEOP_MEMORY24 '('          {$$ = TrCreateLeafNode (PARSEOP_MEMORY24);}
-        ReadWriteKeyword
+        OptionalReadWriteKeyword
         ',' WordConstExpr
         ',' WordConstExpr
         ',' WordConstExpr
@@ -2744,7 +2746,7 @@ Memory24Term
 
 Memory32FixedTerm
     : PARSEOP_MEMORY32FIXED '('     {$$ = TrCreateLeafNode (PARSEOP_MEMORY32FIXED);}
-        ReadWriteKeyword
+        OptionalReadWriteKeyword
         ',' DWordConstExpr
         ',' DWordConstExpr
         OptionalNameString_Last
@@ -2755,7 +2757,7 @@ Memory32FixedTerm
 
 Memory32Term
     : PARSEOP_MEMORY32 '('          {$$ = TrCreateLeafNode (PARSEOP_MEMORY32);}
-        ReadWriteKeyword
+        OptionalReadWriteKeyword
         ',' DWordConstExpr
         ',' DWordConstExpr
         ',' DWordConstExpr
@@ -2795,7 +2797,7 @@ QWordMemoryTerm
         OptionalMinType
         OptionalMaxType
         OptionalMemType
-        ',' ReadWriteKeyword
+        ',' OptionalReadWriteKeyword
         ',' QWordConstExpr
         ',' QWordConstExpr
         ',' QWordConstExpr
@@ -2838,7 +2840,8 @@ RegisterTerm
         ',' ByteConstExpr
         ',' ByteConstExpr
         ',' QWordConstExpr
-        ')'                         {$$ = TrLinkChildren ($<n>3,4,$4,$6,$8,$10);}
+        OptionalAccessSize
+        ')'                         {$$ = TrLinkChildren ($<n>3,5,$4,$6,$8,$10,$11);}
     | PARSEOP_REGISTER '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
@@ -2962,11 +2965,23 @@ AmlPackageLengthTerm
     : Integer                       {$$ = TrUpdateNode (PARSEOP_PACKAGE_LENGTH,(ACPI_PARSE_OBJECT *) $1);}
     ;
 
+OptionalBusMasterKeyword
+    : ','                                       {$$ = TrCreateLeafNode (PARSEOP_BUSMASTERTYPE_MASTER);}
+    | ',' PARSEOP_BUSMASTERTYPE_MASTER          {$$ = TrCreateLeafNode (PARSEOP_BUSMASTERTYPE_MASTER);}
+    | ',' PARSEOP_BUSMASTERTYPE_NOTMASTER       {$$ = TrCreateLeafNode (PARSEOP_BUSMASTERTYPE_NOTMASTER);}
+    ;
+
 OptionalAccessAttribTerm
     :                               {$$ = NULL;}
     | ','                           {$$ = NULL;}
     | ',' ByteConstExpr             {$$ = $2;}
     | ',' AccessAttribKeyword       {$$ = $2;}
+    ;
+
+OptionalAccessSize
+    :                               {$$ = TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0);}
+    | ','                           {$$ = TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0);}
+    | ',' ByteConstExpr             {$$ = $2;}
     ;
 
 OptionalAddressRange
@@ -3084,6 +3099,11 @@ OptionalStringData
 
 OptionalTermArg
     :                               {$$ = NULL;}
+    | TermArg                       {$$ = $1;}
+    ;
+
+OptionalReturnArg
+    :                               {$$ = TrCreateLeafNode (PARSEOP_ZERO);}       /* Placeholder is a ZeroOp object */
     | TermArg                       {$$ = $1;}
     ;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 120 $
+ *              $Revision: 1.124 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -163,6 +163,10 @@ AcpiExReadDataFromField (
     {
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
+    if (!RetBufferDesc)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
 
     if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_BUFFER_FIELD)
     {
@@ -201,8 +205,8 @@ AcpiExReadDataFromField (
          * Note: Smbus protocol value is passed in upper 16-bits of Function
          */
         Status = AcpiExAccessRegion (ObjDesc, 0,
-                        ACPI_CAST_PTR (ACPI_INTEGER, BufferDesc->Buffer.Pointer),
-                        ACPI_READ | (ObjDesc->Field.Attribute << 16));
+                    ACPI_CAST_PTR (ACPI_INTEGER, BufferDesc->Buffer.Pointer),
+                    ACPI_READ | (ObjDesc->Field.Attribute << 16));
         AcpiExReleaseGlobalLock (Locked);
         goto Exit;
     }
@@ -268,7 +272,7 @@ Exit:
     {
         AcpiUtRemoveReference (BufferDesc);
     }
-    else if (RetBufferDesc)
+    else
     {
         *RetBufferDesc = BufferDesc;
     }
@@ -283,6 +287,7 @@ Exit:
  *
  * PARAMETERS:  SourceDesc          - Contains data to write
  *              ObjDesc             - The named field
+ *              ResultDesc          - Where the return value is returned, if any
  *
  * RETURN:      Status
  *
@@ -343,13 +348,16 @@ AcpiExWriteDataToField (
         {
             ACPI_REPORT_ERROR (("SMBus write requires Buffer, found type %s\n",
                 AcpiUtGetObjectTypeName (SourceDesc)));
+
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
         if (SourceDesc->Buffer.Length < ACPI_SMBUS_BUFFER_SIZE)
         {
-            ACPI_REPORT_ERROR (("SMBus write requires Buffer of length %X, found length %X\n",
+            ACPI_REPORT_ERROR ((
+                "SMBus write requires Buffer of length %X, found length %X\n",
                 ACPI_SMBUS_BUFFER_SIZE, SourceDesc->Buffer.Length));
+
             return_ACPI_STATUS (AE_AML_BUFFER_LIMIT);
         }
 
@@ -360,14 +368,16 @@ AcpiExWriteDataToField (
         }
 
         Buffer = BufferDesc->Buffer.Pointer;
-        ACPI_MEMCPY (Buffer, SourceDesc->Buffer.Pointer, ACPI_SMBUS_BUFFER_SIZE);
+        ACPI_MEMCPY (Buffer, SourceDesc->Buffer.Pointer,
+            ACPI_SMBUS_BUFFER_SIZE);
 
         /* Lock entire transaction if requested */
 
         Locked = AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
 
         /*
-         * Perform the write (returns status and perhaps data in the same buffer)
+         * Perform the write (returns status and perhaps data in the
+         * same buffer)
          * Note: SMBus protocol type is passed in upper 16-bits of Function.
          */
         Status = AcpiExAccessRegion (ObjDesc, 0,
@@ -379,9 +389,8 @@ AcpiExWriteDataToField (
         return_ACPI_STATUS (Status);
     }
 
-    /*
-     * Get a pointer to the data to be written
-     */
+    /* Get a pointer to the data to be written */
+
     switch (ACPI_GET_OBJECT_TYPE (SourceDesc))
     {
     case ACPI_TYPE_INTEGER:
@@ -410,7 +419,8 @@ AcpiExWriteDataToField (
      * the ACPI specification.
      */
     NewBuffer = NULL;
-    RequiredLength = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
+    RequiredLength = ACPI_ROUND_BITS_UP_TO_BYTES (
+                        ObjDesc->CommonField.BitLength);
 
     if (Length < RequiredLength)
     {
@@ -436,6 +446,7 @@ AcpiExWriteDataToField (
         "FieldWrite [FROM]: Obj %p (%s:%X), Buf %p, ByteLen %X\n",
         SourceDesc, AcpiUtGetTypeName (ACPI_GET_OBJECT_TYPE (SourceDesc)),
         ACPI_GET_OBJECT_TYPE (SourceDesc), Buffer, Length));
+
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "FieldWrite [TO]:   Obj %p (%s:%X), BitLen %X, BitOff %X, ByteOff %X\n",
         ObjDesc, AcpiUtGetTypeName (ACPI_GET_OBJECT_TYPE (ObjDesc)),

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -185,15 +185,7 @@ AcpiOsGetRootPointer (
     ACPI_POINTER           *Address)
 {
 
-#if 0
-    /* The supporting code for this is not yet available.
-     * Return to the old situation for now.
-     */
     return (AeLocalGetRootPointer(Flags, Address));
-#else
-    return (AE_OK);
-#endif
-
 }
 
 
@@ -254,7 +246,7 @@ AcpiOsTableOverride (
 
     *NewTable = NULL;
 
-#ifdef _ACPI_EXEC_APP
+#ifdef ACPI_EXEC_APP
 
     /* This code exercises the table override mechanism in the core */
 
@@ -672,19 +664,19 @@ AcpiOsDeleteLock (
 }
 
 
-void
+ACPI_NATIVE_UINT
 AcpiOsAcquireLock (
-    ACPI_HANDLE             Handle,
-    UINT32                  Flags)
+    ACPI_HANDLE             Handle)
 {
     AcpiOsWaitSemaphore (Handle, 1, 0xFFFF);
+    return (0);
 }
 
 
 void
 AcpiOsReleaseLock (
     ACPI_HANDLE             Handle,
-    UINT32                  Flags)
+    ACPI_NATIVE_UINT        Flags)
 {
     AcpiOsSignalSemaphore (Handle, 1);
 }

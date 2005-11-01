@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
- *              $Revision: 24 $
+ *              $Revision: 1.28 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,6 +123,13 @@
 #define _COMPONENT          ACPI_EXECUTER
         ACPI_MODULE_NAME    ("exmutex")
 
+/* Local prototypes */
+
+static void
+AcpiExLinkMutex (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_THREAD_STATE       *Thread);
+
 
 /*******************************************************************************
  *
@@ -130,7 +137,7 @@
  *
  * PARAMETERS:  ObjDesc             - The mutex to be unlinked
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Remove a mutex from the "AcquiredMutex" list
  *
@@ -170,16 +177,16 @@ AcpiExUnlinkMutex (
  *
  * FUNCTION:    AcpiExLinkMutex
  *
- * PARAMETERS:  ObjDesc             - The mutex to be linked
- *              ListHead            - head of the "AcquiredMutex" list
+ * PARAMETERS:  ObjDesc         - The mutex to be linked
+ *              Thread          - Current executing thread object
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Add a mutex to the "AcquiredMutex" list for this walk
  *
  ******************************************************************************/
 
-void
+static void
 AcpiExLinkMutex (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_THREAD_STATE       *Thread)
@@ -211,8 +218,9 @@ AcpiExLinkMutex (
  *
  * FUNCTION:    AcpiExAcquireMutex
  *
- * PARAMETERS:  TimeDesc            - The 'time to delay' object descriptor
- *              ObjDesc             - The object descriptor for this op
+ * PARAMETERS:  TimeDesc            - Timeout integer
+ *              ObjDesc             - Mutex object
+ *              WalkState           - Current method execution state
  *
  * RETURN:      Status
  *
@@ -242,7 +250,7 @@ AcpiExAcquireMutex (
     if (!WalkState->Thread)
     {
         ACPI_REPORT_ERROR (("Cannot acquire Mutex [%4.4s], null thread info\n",
-                AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
+            AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
@@ -252,8 +260,9 @@ AcpiExAcquireMutex (
      */
     if (WalkState->Thread->CurrentSyncLevel > ObjDesc->Mutex.SyncLevel)
     {
-        ACPI_REPORT_ERROR (("Cannot acquire Mutex [%4.4s], incorrect SyncLevel\n",
-                AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
+        ACPI_REPORT_ERROR ((
+            "Cannot acquire Mutex [%4.4s], incorrect SyncLevel\n",
+            AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
         return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
     }
 
@@ -263,8 +272,10 @@ AcpiExAcquireMutex (
     {
         /* Special case for Global Lock, allow all threads */
 
-        if ((ObjDesc->Mutex.OwnerThread->ThreadId == WalkState->Thread->ThreadId) ||
-            (ObjDesc->Mutex.Semaphore == AcpiGbl_GlobalLockSemaphore))
+        if ((ObjDesc->Mutex.OwnerThread->ThreadId ==
+                WalkState->Thread->ThreadId)        ||
+            (ObjDesc->Mutex.Semaphore ==
+                AcpiGbl_GlobalLockSemaphore))
         {
             /*
              * The mutex is already owned by this thread,
@@ -306,6 +317,7 @@ AcpiExAcquireMutex (
  * FUNCTION:    AcpiExReleaseMutex
  *
  * PARAMETERS:  ObjDesc             - The object descriptor for this op
+ *              WalkState           - Current method execution state
  *
  * RETURN:      Status
  *
@@ -368,8 +380,9 @@ AcpiExReleaseMutex (
      */
     if (ObjDesc->Mutex.SyncLevel > WalkState->Thread->CurrentSyncLevel)
     {
-        ACPI_REPORT_ERROR (("Cannot release Mutex [%4.4s], incorrect SyncLevel\n",
-                AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
+        ACPI_REPORT_ERROR ((
+            "Cannot release Mutex [%4.4s], incorrect SyncLevel\n",
+            AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
         return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
     }
 
@@ -404,11 +417,11 @@ AcpiExReleaseMutex (
  *
  * FUNCTION:    AcpiExReleaseAllMutexes
  *
- * PARAMETERS:  MutexList             - Head of the mutex list
+ * PARAMETERS:  Thread          - Current executing thread object
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Release all mutexes in the list
+ * DESCRIPTION: Release all mutexes held by this thread
  *
  ******************************************************************************/
 

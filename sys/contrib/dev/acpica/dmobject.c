@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmobject - ACPI object decode and display
- *              $Revision: 11 $
+ *              $Revision: 1.17 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,8 +127,14 @@
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmnames")
 
+/* Local prototypes */
 
-/*****************************************************************************
+static void
+AcpiDmDecodeNode (
+    ACPI_NAMESPACE_NODE     *Node);
+
+
+/*******************************************************************************
  *
  * FUNCTION:    AcpiDmDumpMethodInfo
  *
@@ -142,7 +148,7 @@
  *              Dumps the method execution stack, and the method locals/args,
  *              and disassembles the AML opcode that failed.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiDmDumpMethodInfo (
@@ -171,6 +177,17 @@ AcpiDmDumpMethodInfo (
         return;
     }
 
+    /*
+     * If there is no Thread, we are not actually executing a method.
+     * This can happen when the iASL compiler calls the interpreter
+     * to perform constant folding.
+     */
+    Thread = WalkState->Thread;
+    if (!Thread)
+    {
+        return;
+    }
+
     /* Display exception and method name */
 
     AcpiOsPrintf ("\n**** Exception %s during execution of method ",
@@ -180,7 +197,6 @@ AcpiDmDumpMethodInfo (
     /* Display stack of executing methods */
 
     AcpiOsPrintf ("\n\nMethod Execution Stack:\n");
-    Thread = WalkState->Thread;
     NextWalkState = Thread->WalkStateList;
 
     /* Walk list of linked walk states */
@@ -236,7 +252,7 @@ AcpiDmDumpMethodInfo (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Short display of an internal object.  Numbers and Strings.
+ * DESCRIPTION: Short display of an internal object.  Numbers/Strings/Buffers.
  *
  ******************************************************************************/
 
@@ -316,11 +332,10 @@ AcpiDmDecodeInternalObject (
  *
  ******************************************************************************/
 
-void
+static void
 AcpiDmDecodeNode (
     ACPI_NAMESPACE_NODE     *Node)
 {
-
 
     AcpiOsPrintf ("<Node>            Name %4.4s",
             AcpiUtGetNodeName (Node));
@@ -405,7 +420,8 @@ AcpiDmDisplayInternalObject (
                 AcpiOsPrintf ("[Local%d] ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
-                    ObjDesc = WalkState->LocalVariables[ObjDesc->Reference.Offset].Object;
+                    ObjDesc = WalkState->LocalVariables[
+                                ObjDesc->Reference.Offset].Object;
                     AcpiOsPrintf ("%p", ObjDesc);
                     AcpiDmDecodeInternalObject (ObjDesc);
                 }
@@ -417,7 +433,8 @@ AcpiDmDisplayInternalObject (
                 AcpiOsPrintf ("[Arg%d]   ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
-                    ObjDesc = WalkState->Arguments[ObjDesc->Reference.Offset].Object;
+                    ObjDesc = WalkState->Arguments[
+                                ObjDesc->Reference.Offset].Object;
                     AcpiOsPrintf ("%p", ObjDesc);
                     AcpiDmDecodeInternalObject (ObjDesc);
                 }
@@ -449,7 +466,8 @@ AcpiDmDisplayInternalObject (
                     }
                     else
                     {
-                        AcpiDmDecodeInternalObject (*(ObjDesc->Reference.Where));
+                        AcpiDmDecodeInternalObject (
+                            *(ObjDesc->Reference.Where));
                     }
                     break;
 
@@ -493,6 +511,10 @@ AcpiDmDisplayInternalObject (
                 }
                 break;
 
+            case AML_INT_NAMEPATH_OP:
+
+                AcpiDmDecodeNode (ObjDesc->Reference.Node);
+                break;
 
             default:
 
@@ -527,7 +549,7 @@ AcpiDmDisplayInternalObject (
  *
  * FUNCTION:    AcpiDmDisplayLocals
  *
- * PARAMETERS:  None
+ * PARAMETERS:  WalkState       - State for current method
  *
  * RETURN:      None
  *
@@ -548,7 +570,8 @@ AcpiDmDisplayLocals (
     Node    = WalkState->MethodNode;
     if (!Node)
     {
-        AcpiOsPrintf ("No method node (Executing subtree for buffer or opregion)\n");
+        AcpiOsPrintf (
+            "No method node (Executing subtree for buffer or opregion)\n");
         return;
     }
 
@@ -574,7 +597,7 @@ AcpiDmDisplayLocals (
  *
  * FUNCTION:    AcpiDmDisplayArguments
  *
- * PARAMETERS:  None
+ * PARAMETERS:  WalkState       - State for current method
  *
  * RETURN:      None
  *
@@ -597,7 +620,8 @@ AcpiDmDisplayArguments (
     Node    = WalkState->MethodNode;
     if (!Node)
     {
-        AcpiOsPrintf ("No method node (Executing subtree for buffer or opregion)\n");
+        AcpiOsPrintf (
+            "No method node (Executing subtree for buffer or opregion)\n");
         return;
     }
 
@@ -610,8 +634,9 @@ AcpiDmDisplayArguments (
     NumArgs     = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
 
-    AcpiOsPrintf ("Arguments for Method [%4.4s]:  (%X arguments defined, max concurrency = %X)\n",
-            AcpiUtGetNodeName (Node), NumArgs, Concurrency);
+    AcpiOsPrintf (
+        "Arguments for Method [%4.4s]:  (%X arguments defined, max concurrency = %X)\n",
+        AcpiUtGetNodeName (Node), NumArgs, Concurrency);
 
     for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {

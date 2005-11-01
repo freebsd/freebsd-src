@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 126 $
+ *       $Revision: 1.130 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -167,9 +167,7 @@
     UINT32                          BitLength;          /* Length of field in bits */\
     UINT32                          BaseByteOffset;     /* Byte offset within containing object */\
     UINT8                           StartFieldBitOffset;/* Bit offset within first field datum (0-63) */\
-    UINT8                           DatumValidBits;     /* Valid bit in first "Field datum" */\
-    UINT8                           EndFieldValidBits;  /* Valid bits in the last "field datum" */\
-    UINT8                           EndBufferValidBits; /* Valid bits in the last "buffer datum" */\
+    UINT8                           AccessBitWidth;     /* Read/Write size in bits (8-64) */\
     UINT32                          Value;              /* Value to store into the Bank or Index register */\
     ACPI_NAMESPACE_NODE             *Node;              /* Link back to parent node */
 
@@ -209,6 +207,7 @@ typedef struct acpi_object_integer
     ACPI_INTEGER                    Value;
 
 } ACPI_OBJECT_INTEGER;
+
 
 /*
  * Note: The String and Buffer object must be identical through the Pointer
@@ -279,7 +278,7 @@ typedef struct acpi_object_method
     ACPI_INTERNAL_METHOD            Implementation;
     UINT8                           Concurrency;
     UINT8                           ThreadCount;
-    ACPI_OWNER_ID                   OwningId;
+    ACPI_OWNER_ID                   OwnerId;
 
 } ACPI_OBJECT_METHOD;
 
@@ -567,7 +566,6 @@ typedef union acpi_operand_object
  * ACPI_DESCRIPTOR - objects that share a common descriptor identifier
  *
  *****************************************************************************/
-
 
 /* Object descriptor types */
 

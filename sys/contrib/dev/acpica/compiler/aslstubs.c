@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslstubs - Stubs used to link to Aml interpreter
- *              $Revision: 13 $
+ *              $Revision: 1.14 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,9 +116,9 @@
  *****************************************************************************/
 
 #include <stdio.h>
-#include "aslcompiler.h"
-#include "acdispat.h"
-#include "actables.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/acdispat.h>
+#include <contrib/dev/acpica/actables.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")

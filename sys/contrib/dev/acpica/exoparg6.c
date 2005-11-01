@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg6 - AML execution - opcodes with 6 arguments
- *              $Revision: 13 $
+ *              $Revision: 1.23 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -150,87 +150,139 @@
  * fully resolved operands.
 !*/
 
+/* Local prototypes */
+
+static BOOLEAN
+AcpiExDoMatch (
+    UINT32                  MatchOp,
+    ACPI_OPERAND_OBJECT     *PackageObj,
+    ACPI_OPERAND_OBJECT     *MatchObj);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    AcpiExDoMatch
  *
  * PARAMETERS:  MatchOp         - The AML match operand
- *              PackageValue    - Value from the target package
- *              MatchValue      - Value to be matched
+ *              PackageObj      - Object from the target package
+ *              MatchObj        - Object to be matched
  *
  * RETURN:      TRUE if the match is successful, FALSE otherwise
  *
- * DESCRIPTION: Implements the low-level match for the ASL Match operator
+ * DESCRIPTION: Implements the low-level match for the ASL Match operator.
+ *              Package elements will be implicitly converted to the type of
+ *              the match object (Integer/Buffer/String).
  *
  ******************************************************************************/
 
-BOOLEAN
+static BOOLEAN
 AcpiExDoMatch (
     UINT32                  MatchOp,
-    ACPI_INTEGER            PackageValue,
-    ACPI_INTEGER            MatchValue)
+    ACPI_OPERAND_OBJECT     *PackageObj,
+    ACPI_OPERAND_OBJECT     *MatchObj)
 {
+    BOOLEAN                 LogicalResult = TRUE;
+    ACPI_STATUS             Status;
 
+
+    /*
+     * Note: Since the PackageObj/MatchObj ordering is opposite to that of
+     * the standard logical operators, we have to reverse them when we call
+     * DoLogicalOp in order to make the implicit conversion rules work
+     * correctly. However, this means we have to flip the entire equation
+     * also. A bit ugly perhaps, but overall, better than fussing the
+     * parameters around at runtime, over and over again.
+     *
+     * Below, P[i] refers to the package element, M refers to the Match object.
+     */
     switch (MatchOp)
     {
-    case MATCH_MTR:   /* always true */
+    case MATCH_MTR:
+
+        /* Always true */
 
         break;
 
+    case MATCH_MEQ:
 
-    case MATCH_MEQ:   /* true if equal   */
-
-        if (PackageValue != MatchValue)
+        /*
+         * True if equal: (P[i] == M)
+         * Change to:     (M == P[i])
+         */
+        Status = AcpiExDoLogicalOp (AML_LEQUAL_OP, MatchObj, PackageObj,
+                    &LogicalResult);
+        if (ACPI_FAILURE (Status))
         {
             return (FALSE);
         }
         break;
 
+    case MATCH_MLE:
 
-    case MATCH_MLE:   /* true if less than or equal  */
+        /*
+         * True if less than or equal: (P[i] <= M) (P[i] NotGreater than M)
+         * Change to:                  (M >= P[i]) (M NotLess than P[i])
+         */
+        Status = AcpiExDoLogicalOp (AML_LLESS_OP, MatchObj, PackageObj,
+                    &LogicalResult);
+        if (ACPI_FAILURE (Status))
+        {
+            return (FALSE);
+        }
+        LogicalResult = (BOOLEAN) !LogicalResult;
+        break;
 
-        if (PackageValue > MatchValue)
+    case MATCH_MLT:
+
+        /*
+         * True if less than: (P[i] < M)
+         * Change to:         (M > P[i])
+         */
+        Status = AcpiExDoLogicalOp (AML_LGREATER_OP, MatchObj, PackageObj,
+                    &LogicalResult);
+        if (ACPI_FAILURE (Status))
         {
             return (FALSE);
         }
         break;
 
+    case MATCH_MGE:
 
-    case MATCH_MLT:   /* true if less than   */
+        /*
+         * True if greater than or equal: (P[i] >= M) (P[i] NotLess than M)
+         * Change to:                     (M <= P[i]) (M NotGreater than P[i])
+         */
+        Status = AcpiExDoLogicalOp (AML_LGREATER_OP, MatchObj, PackageObj,
+                    &LogicalResult);
+        if (ACPI_FAILURE (Status))
+        {
+            return (FALSE);
+        }
+        LogicalResult = (BOOLEAN)!LogicalResult;
+        break;
 
-        if (PackageValue >= MatchValue)
+    case MATCH_MGT:
+
+        /*
+         * True if greater than: (P[i] > M)
+         * Change to:            (M < P[i])
+         */
+        Status = AcpiExDoLogicalOp (AML_LLESS_OP, MatchObj, PackageObj,
+                    &LogicalResult);
+        if (ACPI_FAILURE (Status))
         {
             return (FALSE);
         }
         break;
 
+    default:
 
-    case MATCH_MGE:   /* true if greater than or equal   */
-
-        if (PackageValue < MatchValue)
-        {
-            return (FALSE);
-        }
-        break;
-
-
-    case MATCH_MGT:   /* true if greater than    */
-
-        if (PackageValue <= MatchValue)
-        {
-            return (FALSE);
-        }
-        break;
-
-
-    default:    /* undefined   */
+        /* Undefined */
 
         return (FALSE);
     }
 
-
-    return TRUE;
+    return LogicalResult;
 }
 
 
@@ -253,38 +305,45 @@ AcpiExOpcode_6A_0T_1R (
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
     ACPI_STATUS             Status = AE_OK;
-    UINT32                  Index;
+    ACPI_INTEGER            Index;
     ACPI_OPERAND_OBJECT     *ThisElement;
 
 
-    ACPI_FUNCTION_TRACE_STR ("ExOpcode_6A_0T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_6A_0T_1R",
+        AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     switch (WalkState->Opcode)
     {
     case AML_MATCH_OP:
         /*
-         * Match (SearchPackage[0], MatchOp1[1], MatchObject1[2],
-         *                          MatchOp2[3], MatchObject2[4], StartIndex[5])
+         * Match (SearchPkg[0], MatchOp1[1], MatchObj1[2],
+         *                      MatchOp2[3], MatchObj2[4], StartIndex[5])
          */
 
-        /* Validate match comparison sub-opcodes */
+        /* Validate both Match Term Operators (MTR, MEQ, etc.) */
 
         if ((Operand[1]->Integer.Value > MAX_MATCH_OPERATOR) ||
             (Operand[3]->Integer.Value > MAX_MATCH_OPERATOR))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "operation encoding out of range\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Match operator out of range\n"));
             Status = AE_AML_OPERAND_VALUE;
             goto Cleanup;
         }
 
-        Index = (UINT32) Operand[5]->Integer.Value;
-        if (Index >= (UINT32) Operand[0]->Package.Count)
+        /* Get the package StartIndex, validate against the package length */
+
+        Index = Operand[5]->Integer.Value;
+        if (Index >= Operand[0]->Package.Count)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index beyond package end\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Index (%X%8.8X) beyond package end (%X)\n",
+                ACPI_FORMAT_UINT64 (Index), Operand[0]->Package.Count));
             Status = AE_AML_PACKAGE_LIMIT;
             goto Cleanup;
         }
+
+        /* Create an integer for the return value */
 
         ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!ReturnDesc)
@@ -299,40 +358,42 @@ AcpiExOpcode_6A_0T_1R (
         ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
 
         /*
-         * Examine each element until a match is found.  Within the loop,
+         * Examine each element until a match is found. Both match conditions
+         * must be satisfied for a match to occur. Within the loop,
          * "continue" signifies that the current element does not match
          * and the next should be examined.
          *
          * Upon finding a match, the loop will terminate via "break" at
-         * the bottom.  If it terminates "normally", MatchValue will be -1
-         * (its initial value) indicating that no match was found.  When
-         * returned as a Number, this will produce the Ones value as specified.
+         * the bottom.  If it terminates "normally", MatchValue will be
+         * ACPI_INTEGER_MAX (Ones) (its initial value) indicating that no
+         * match was found.
          */
         for ( ; Index < Operand[0]->Package.Count; Index++)
         {
+            /* Get the current package element */
+
             ThisElement = Operand[0]->Package.Elements[Index];
 
-            /*
-             * Treat any NULL or non-numeric elements as non-matching.
-             */
-            if (!ThisElement ||
-                ACPI_GET_OBJECT_TYPE (ThisElement) != ACPI_TYPE_INTEGER)
+            /* Treat any uninitialized (NULL) elements as non-matching */
+
+            if (!ThisElement)
             {
                 continue;
             }
 
             /*
-             * "continue" (proceed to next iteration of enclosing
-             * "for" loop) signifies a non-match.
+             * Both match conditions must be satisfied. Execution of a continue
+             * (proceed to next iteration of enclosing for loop) signifies a
+             * non-match.
              */
             if (!AcpiExDoMatch ((UINT32) Operand[1]->Integer.Value,
-                                ThisElement->Integer.Value, Operand[2]->Integer.Value))
+                                ThisElement, Operand[2]))
             {
                 continue;
             }
 
             if (!AcpiExDoMatch ((UINT32) Operand[3]->Integer.Value,
-                                ThisElement->Integer.Value, Operand[4]->Integer.Value))
+                                ThisElement, Operand[4]))
             {
                 continue;
             }
@@ -342,7 +403,6 @@ AcpiExOpcode_6A_0T_1R (
             ReturnDesc->Integer.Value = Index;
             break;
         }
-
         break;
 
 
@@ -354,12 +414,11 @@ AcpiExOpcode_6A_0T_1R (
 
     default:
 
-        ACPI_REPORT_ERROR (("AcpiExOpcode_3A_0T_0R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_6A_0T_1R: Unknown opcode %X\n",
                 WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
-
 
     WalkState->ResultObj = ReturnDesc;
 

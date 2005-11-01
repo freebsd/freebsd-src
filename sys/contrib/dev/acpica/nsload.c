@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 69 $
+ *              $Revision: 1.73 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,9 +124,24 @@
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsload")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiNsLoadTableByType (
+    ACPI_TABLE_TYPE         TableType);
+
+#ifdef ACPI_FUTURE_IMPLEMENTATION
+ACPI_STATUS
+AcpiNsUnloadNamespace (
+    ACPI_HANDLE             Handle);
+
+static ACPI_STATUS
+AcpiNsDeleteSubtree (
+    ACPI_HANDLE             StartHandle);
+#endif
+
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsLoadTable
@@ -238,7 +253,7 @@ AcpiNsLoadTable (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiNsLoadTableByType (
     ACPI_TABLE_TYPE         TableType)
 {
@@ -264,7 +279,7 @@ AcpiNsLoadTableByType (
     {
     case ACPI_TABLE_DSDT:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Loading DSDT\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Namespace load: DSDT\n"));
 
         TableDesc = AcpiGbl_TableLists[ACPI_TABLE_DSDT].Next;
 
@@ -286,50 +301,21 @@ AcpiNsLoadTableByType (
 
 
     case ACPI_TABLE_SSDT:
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Loading %d SSDTs\n",
-            AcpiGbl_TableLists[ACPI_TABLE_SSDT].Count));
-
-        /*
-         * Traverse list of SSDT tables
-         */
-        TableDesc = AcpiGbl_TableLists[ACPI_TABLE_SSDT].Next;
-        for (i = 0; i < AcpiGbl_TableLists[ACPI_TABLE_SSDT].Count; i++)
-        {
-            /*
-             * Only attempt to load table if it is not
-             * already loaded!
-             */
-            if (!TableDesc->LoadedIntoNamespace)
-            {
-                Status = AcpiNsLoadTable (TableDesc, AcpiGbl_RootNode);
-                if (ACPI_FAILURE (Status))
-                {
-                    break;
-                }
-
-                TableDesc->LoadedIntoNamespace = TRUE;
-            }
-
-            TableDesc = TableDesc->Next;
-        }
-        break;
-
-
     case ACPI_TABLE_PSDT:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Loading %d PSDTs\n",
-            AcpiGbl_TableLists[ACPI_TABLE_PSDT].Count));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Namespace load: %d SSDT or PSDTs\n",
+            AcpiGbl_TableLists[TableType].Count));
 
         /*
-         * Traverse list of PSDT tables
+         * Traverse list of SSDT or PSDT tables
          */
-        TableDesc = AcpiGbl_TableLists[ACPI_TABLE_PSDT].Next;
-
-        for (i = 0; i < AcpiGbl_TableLists[ACPI_TABLE_PSDT].Count; i++)
+        TableDesc = AcpiGbl_TableLists[TableType].Next;
+        for (i = 0; i < AcpiGbl_TableLists[TableType].Count; i++)
         {
-            /* Only attempt to load table if it is not already loaded! */
-
+            /*
+             * Only attempt to load table into namespace if it is not
+             * already loaded!
+             */
             if (!TableDesc->LoadedIntoNamespace)
             {
                 Status = AcpiNsLoadTable (TableDesc, AcpiGbl_RootNode);
@@ -412,6 +398,7 @@ AcpiNsLoadNamespace (
 }
 
 
+#ifdef ACPI_FUTURE_IMPLEMENTATION
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsDeleteSubtree
@@ -428,7 +415,7 @@ AcpiNsLoadNamespace (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiNsDeleteSubtree (
     ACPI_HANDLE             StartHandle)
 {
@@ -549,6 +536,6 @@ AcpiNsUnloadNamespace (
 
     return_ACPI_STATUS (Status);
 }
-
+#endif
 #endif
 
