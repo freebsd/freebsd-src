@@ -212,14 +212,14 @@ AcpiUtTrimFunctionName (
 
     /* All Function names are longer than 4 chars, check is safe */
 
-    if (*(ACPI_CAST_PTR (UINT32, FunctionName)) == ACPI_PREFIX_MIXED)
+    if (*((UINT32 *) (uintptr_t) FunctionName) == ACPI_PREFIX_MIXED)
     {
         /* This is the case where the original source has not been modified */
 
         return (FunctionName + 4);
     }
 
-    if (*(ACPI_CAST_PTR (UINT32, FunctionName)) == ACPI_PREFIX_LOWER)
+    if (*((UINT32 *) (uintptr_t) FunctionName) == ACPI_PREFIX_LOWER)
     {
         /* This is the case where the source has been 'linuxized' */
 

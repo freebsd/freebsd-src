@@ -452,11 +452,11 @@ AcpiRsDumpDescriptor (
         /* Strings */
 
         case ACPI_RSD_LITERAL:
-            AcpiRsOutString (Name, (char *) Table->Pointer);
+            AcpiRsOutString (Name, (char *) (uintptr_t) Table->Pointer);
             break;
 
         case ACPI_RSD_STRING:
-            AcpiRsOutString (Name, (char *) Target);
+            AcpiRsOutString (Name, (char *) (uintptr_t) Target);
             break;
 
         /* Data items, 8/16/32/64 bit */
@@ -480,13 +480,13 @@ AcpiRsDumpDescriptor (
         /* Flags: 1-bit and 2-bit flags supported */
 
         case ACPI_RSD_1BITFLAG:
-            AcpiRsOutString (Name, (char *)
-                ((const char **) Table->Pointer)[(*(UINT8 *) Target) & 0x01]);
+            AcpiRsOutString (Name, (char *) (uintptr_t)
+                ((const char **) (uintptr_t) Table->Pointer)[(*(UINT8 *) Target) & 0x01]);
             break;
 
         case ACPI_RSD_2BITFLAG:
-            AcpiRsOutString (Name, (char *)
-                ((const char **) Table->Pointer)[(*(UINT8 *) Target) & 0x03]);
+            AcpiRsOutString (Name, (char *) (uintptr_t)
+                ((const char **) (uintptr_t) Table->Pointer)[(*(UINT8 *) Target) & 0x03]);
             break;
 
         case ACPI_RSD_SHORTLIST:

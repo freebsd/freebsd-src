@@ -1738,7 +1738,7 @@ AcpiDbBusWalk (
 
     /* Exit if there is no _PRT under this device */
 
-    Status = AcpiGetHandle (Node, METHOD_NAME__PRT, &TempNode);
+    Status = AcpiGetHandle (Node, METHOD_NAME__PRT, (ACPI_HANDLE *) &TempNode);
     if (ACPI_FAILURE (Status))
     {
         return (AE_OK);
