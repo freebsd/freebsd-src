@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmutils - AML disassembler utilities
- *              $Revision: 10 $
+ *              $Revision: 1.19 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,8 +118,10 @@
 #include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/amlcode.h>
 #include <contrib/dev/acpica/acdisasm.h>
-#include <contrib/dev/acpica/acnamesp.h>
 
+#ifdef ACPI_ASL_COMPILER
+#include <contrib/dev/acpica/acnamesp.h>
+#endif
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -192,9 +194,9 @@ const char                      *AcpiGbl_IoDecode[2] =
 
 const char                      *AcpiGbl_WordDecode[4] =
 {
-    "WordMemory",
-    "WordIO",
-    "WordBusNumber",
+    "Memory",
+    "IO",
+    "BusNumber",
     "Unknown-resource-type"
 };
 
@@ -220,28 +222,6 @@ const char                      *AcpiGbl_DECDecode[2] =
 {
     "PosDecode",
     "SubDecode"
-};
-
-const char                      *AcpiGbl_RNGDecode[4] =
-{
-    "InvalidRanges",
-    "NonISAOnlyRanges",
-    "ISAOnlyRanges",
-    "EntireRange"
-};
-
-const char                      *AcpiGbl_MEMDecode[4] =
-{
-    "NonCacheable",
-    "Cacheable",
-    "WriteCombining",
-    "Prefetchable"
-};
-
-const char                      *AcpiGbl_RWDecode[2] =
-{
-    "ReadOnly",
-    "ReadWrite"
 };
 
 const char                      *AcpiGbl_IrqDecode[2] =
@@ -290,7 +270,60 @@ const char                      *AcpiGbl_SIZDecode[4] =
     "InvalidSize"
 };
 
+/* Type Specific Flags */
 
+const char                      *AcpiGbl_TTPDecode[2] =
+{
+    "TypeStatic",
+    "TypeTranslation"
+};
+
+const char                      *AcpiGbl_MTPDecode[4] =
+{
+    "AddressRangeMemory",
+    "AddressRangeReserved",
+    "AddressRangeACPI",
+    "AddressRangeNVS"
+};
+
+const char                      *AcpiGbl_MEMDecode[4] =
+{
+    "NonCacheable",
+    "Cacheable",
+    "WriteCombining",
+    "Prefetchable"
+};
+
+const char                      *AcpiGbl_RWDecode[2] =
+{
+    "ReadOnly",
+    "ReadWrite"
+};
+
+const char                      *AcpiGbl_TRSDecode[2] =
+{
+    "DenseTranslation",
+    "SparseTranslation"
+};
+
+const char                      *AcpiGbl_RNGDecode[4] =
+{
+    "InvalidRanges",
+    "NonISAOnlyRanges",
+    "ISAOnlyRanges",
+    "EntireRange"
+};
+
+const char                      *AcpiGbl_ConfigDecode[4] =
+{
+    "0 - Good Configuration",
+    "1 - Acceptable Configuration",
+    "2 - Suboptimal Configuration",
+    "3 - ***Invalid Configuration***",
+};
+
+
+#ifdef ACPI_ASL_COMPILER
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDmAddToExternalList
@@ -339,7 +372,7 @@ AcpiDmAddToExternalList (
         AcpiGbl_ExternalList = NewExternal;
     }
 }
-
+#endif
 
 /*******************************************************************************
  *
@@ -513,6 +546,5 @@ AcpiDmCommaIfFieldMember (
         AcpiOsPrintf (", ");
     }
 }
-
 
 #endif

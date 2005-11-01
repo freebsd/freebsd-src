@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompile - top level compile module
- *              $Revision: 73 $
+ *              $Revision: 1.88 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,10 +116,21 @@
  *****************************************************************************/
 
 #include <stdio.h>
-#include "aslcompiler.h"
+#include <time.h>
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcompile")
+
+/* Local prototypes */
+
+static void
+CmFlushSourceCode (
+    void);
+
+static ACPI_STATUS
+FlCheckForAscii (
+    ASL_FILE_INFO           *FileInfo);
 
 
 /*******************************************************************************
@@ -141,9 +152,8 @@ AslCompilerSignon (
     char                    *Prefix = "";
 
 
-    /*
-     * Set line prefix depending on the destination file type
-     */
+    /* Set line prefix depending on the destination file type */
+
     switch (FileId)
     {
     case ASL_FILE_ASM_SOURCE_OUTPUT:
@@ -176,15 +186,35 @@ AslCompilerSignon (
         break;
     }
 
-    /* Compiler signon with copyright */
-
+    /*
+     * Compiler signon with copyright
+     */
     FlPrintFile (FileId,
-        "%s\n%s%s\n%s%s version %X [%s]\n%s%s\n%sSupports ACPI Specification Revision 2.0c\n%s\n",
+        "%s\n%s%s\n%s",
         Prefix,
         Prefix, IntelAcpiCA,
-        Prefix, CompilerId, ACPI_CA_VERSION, __DATE__,
+        Prefix);
+
+    /* Running compiler or disassembler? */
+
+    if (Gbl_DisasmFlag)
+    {
+        FlPrintFile (FileId,
+            "%s", DisassemblerId);
+    }
+    else
+    {
+        FlPrintFile (FileId,
+            "%s", CompilerId);
+    }
+
+    /* Version, build date, copyright, compliance */
+
+    FlPrintFile (FileId,
+        " version %X [%s]\n%s%s\n%s%s\n%s\n",
+        (UINT32) ACPI_CA_VERSION, __DATE__,
         Prefix, CompilerCopyright,
-        Prefix,
+        Prefix, CompilerCompliance,
         Prefix);
 }
 
@@ -210,9 +240,8 @@ AslCompilerFileHeader (
     char                    *Prefix = "";
 
 
-    /*
-     * Set line prefix depending on the destination file type
-     */
+    /* Set line prefix depending on the destination file type */
+
     switch (FileId)
     {
     case ASL_FILE_ASM_SOURCE_OUTPUT:
@@ -281,8 +310,9 @@ AslCompilerFileHeader (
  *
  ******************************************************************************/
 
-void
-CmFlushSourceCode (void)
+static void
+CmFlushSourceCode (
+    void)
 {
     char                    Buffer;
 
@@ -302,13 +332,13 @@ CmFlushSourceCode (void)
  *
  * PARAMETERS:  FileInfo        - Points to an open input file
  *
- * RETURN:      Status (0 = OK)
+ * RETURN:      Status
  *
  * DESCRIPTION: Verify that the input file is entirely ASCII.
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 FlCheckForAscii (
     ASL_FILE_INFO           *FileInfo)
 {
@@ -327,25 +357,32 @@ FlCheckForAscii (
         {
             if (BadBytes < 10)
             {
-                AcpiOsPrintf ("Non-ASCII character: 0x%2.2X at offset 0x%X\n", Byte, Offset);
+                AcpiOsPrintf (
+                    "Non-ASCII character [0x%2.2X] found at file offset 0x%8.8X\n",
+                    Byte, Offset);
             }
             BadBytes++;
         }
         Offset++;
     }
 
+    /* Seek back to the beginning of the source file */
+
+    fseek (FileInfo->Handle, 0, SEEK_SET);
+
     /* Were there any non-ASCII characters in the file? */
 
     if (BadBytes)
     {
-        AcpiOsPrintf ("%d non-ASCII characters found in input file, appears to be binary\n", BadBytes);
-        AslError (ASL_ERROR, ASL_MSG_NON_ASCII, NULL, FileInfo->Filename);
+        AcpiOsPrintf (
+            "%d non-ASCII characters found in input file, could be a binary file\n",
+            BadBytes);
+        AslError (ASL_WARNING, ASL_MSG_NON_ASCII, NULL, FileInfo->Filename);
         return (AE_BAD_CHARACTER);
     }
 
-    /* File is OK, seek back to the beginning */
+    /* File is OK */
 
-    fseek (FileInfo->Handle, 0, SEEK_SET);
     return (AE_OK);
 }
 
@@ -363,14 +400,16 @@ FlCheckForAscii (
  ******************************************************************************/
 
 int
-CmDoCompile (void)
+CmDoCompile (
+    void)
 {
     ACPI_STATUS             Status;
-    UINT32                  i = 0;
+    UINT8                   FullCompile;
+    UINT8                   Event;
 
 
-    UtBeginEvent (12, "Total Compile time");
-    UtBeginEvent (i, "Initialize");
+    FullCompile = UtBeginEvent ("*** Total Compile time ***");
+    Event = UtBeginEvent ("Open input and output files");
 
     /* Open the required input and output files */
 
@@ -381,13 +420,19 @@ CmDoCompile (void)
         return -1;
     }
 
-    /* Ensure that the input file is 100% ASCII text */
+    /* Optional check for 100% ASCII source file */
 
-    Status = FlCheckForAscii (&Gbl_Files[ASL_FILE_INPUT]);
-    if (ACPI_FAILURE (Status))
+    if (Gbl_CheckForAscii)
     {
-        AePrintErrorLog (ASL_FILE_STDERR);
-        return -1;
+        /*
+         * NOTE: This code is optional because there can be "special" characters
+         * embedded in comments (such as the "copyright" symbol, 0xA9).
+         * Just emit a warning if there are non-ascii characters present.
+         */
+
+        /* Check if the input file is 100% ASCII text */
+
+        Status = FlCheckForAscii (&Gbl_Files[ASL_FILE_INPUT]);
     }
 
     Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
@@ -396,17 +441,17 @@ CmDoCompile (void)
         AePrintErrorLog (ASL_FILE_STDERR);
         return -1;
     }
-
-    UtEndEvent (i++);
+    UtEndEvent (Event);
 
     /* Build the parse tree */
 
-    UtBeginEvent (i, "Parse source code and build parse tree");
+    Event = UtBeginEvent ("Parse source code and build parse tree");
     AslCompilerparse();
-    UtEndEvent (i++);
+    UtEndEvent (Event);
 
     /* Flush out any remaining source after parse tree is complete */
 
+    Event = UtBeginEvent ("Flush source input");
     CmFlushSourceCode ();
 
     /* Did the parse tree get successfully constructed? */
@@ -418,44 +463,63 @@ CmDoCompile (void)
     }
 
     OpcGetIntegerWidth (RootNode);
+    UtEndEvent (Event);
 
     /* Pre-process parse tree for any operator transforms */
 
-    UtBeginEvent (i, "Generate AML opcodes");
+    Event = UtBeginEvent ("Parse tree transforms");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nParse tree transforms\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD, TrAmlTransformWalk, NULL, NULL);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+        TrAmlTransformWalk, NULL, NULL);
+    UtEndEvent (Event);
 
     /* Generate AML opcodes corresponding to the parse tokens */
 
+    Event = UtBeginEvent ("Generate AML opcodes");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nGenerating AML opcodes\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL, OpcAmlOpcodeWalk, NULL);
-    UtEndEvent (i++);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL,
+        OpcAmlOpcodeWalk, NULL);
+    UtEndEvent (Event);
 
     /*
      * Now that the input is parsed, we can open the AML output file.
      * Note: by default, the name of this file comes from the table descriptor
      * within the input file.
      */
+    Event = UtBeginEvent ("Open AML output file");
     Status = FlOpenAmlOutputFile (Gbl_OutputFilenamePrefix);
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);
         return -1;
     }
+    UtEndEvent (Event);
 
     /* Interpret and generate all compile-time constants */
 
-    UtBeginEvent (i, "Constant folding via AML interpreter");
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nInterpreting compile-time constant expressions\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD, OpcAmlConstantWalk, NULL, NULL);
-    UtEndEvent (i++);
+    Event = UtBeginEvent ("Constant folding via AML interpreter");
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "\nInterpreting compile-time constant expressions\n\n");
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+        OpcAmlConstantWalk, NULL, NULL);
+    UtEndEvent (Event);
+
+    /* Update AML opcodes if necessary, after constant folding */
+
+    Event = UtBeginEvent ("Updating AML opcodes after constant folding");
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "\nUpdating AML opcodes after constant folding\n\n");
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD,
+        NULL, OpcAmlOpcodeUpdateWalk, NULL);
+    UtEndEvent (Event);
 
     /* Calculate all AML package lengths */
 
-    UtBeginEvent (i, "Generate AML package lengths");
+    Event = UtBeginEvent ("Generate AML package lengths");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nGenerating Package lengths\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL, LnPackageLengthWalk, NULL);
-    UtEndEvent (i++);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL,
+        LnPackageLengthWalk, NULL);
+    UtEndEvent (Event);
 
     if (Gbl_ParseOnlyFlag)
     {
@@ -477,9 +541,9 @@ CmDoCompile (void)
 
     /* Namespace loading */
 
-    UtBeginEvent (i, "Create ACPI Namespace");
+    Event = UtBeginEvent ("Create ACPI Namespace");
     Status = LdLoadNamespace (RootNode);
-    UtEndEvent (i++);
+    UtEndEvent (Event);
     if (ACPI_FAILURE (Status))
     {
         return -1;
@@ -487,10 +551,9 @@ CmDoCompile (void)
 
     /* Namespace lookup */
 
-    UtBeginEvent (i, "Cross reference parse tree and Namespace");
+    AslGbl_NamespaceEvent = UtBeginEvent ("Cross reference parse tree and Namespace");
     Status = LkCrossReferenceNamespace ();
-    UtEndEvent (i++);
-    UtEndEvent (i++);
+    UtEndEvent (AslGbl_NamespaceEvent);
     if (ACPI_FAILURE (Status))
     {
         return -1;
@@ -502,64 +565,83 @@ CmDoCompile (void)
      *
      * part one - check control methods
      */
-    UtBeginEvent (i, "Analyze control method return types");
+    Event = UtBeginEvent ("Analyze control method return types");
     AnalysisWalkInfo.MethodStack = NULL;
 
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Method analysis\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, AnMethodAnalysisWalkBegin,
-                        AnMethodAnalysisWalkEnd, &AnalysisWalkInfo);
-    UtEndEvent (i++);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
+        AnMethodAnalysisWalkBegin,
+        AnMethodAnalysisWalkEnd, &AnalysisWalkInfo);
+    UtEndEvent (Event);
 
     /* Semantic error checking part two - typing of method returns */
 
-    UtBeginEvent (i, "Determine object types returned by methods");
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Method typing \n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, AnMethodTypingWalkBegin,
-                        AnMethodTypingWalkEnd, NULL);
-    UtEndEvent (i++);
+    Event = UtBeginEvent ("Determine object types returned by methods");
+    DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Method typing\n\n");
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
+        AnMethodTypingWalkBegin,
+        AnMethodTypingWalkEnd, NULL);
+    UtEndEvent (Event);
 
     /* Semantic error checking part three - operand type checking */
 
-    UtBeginEvent (i, "Analyze AML operand types");
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Operand type checking \n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, AnOperandTypecheckWalkBegin,
-                        AnOperandTypecheckWalkEnd, &AnalysisWalkInfo);
-    UtEndEvent (i++);
+    Event = UtBeginEvent ("Analyze AML operand types");
+    DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Operand type checking\n\n");
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
+        AnOperandTypecheckWalkBegin,
+        AnOperandTypecheckWalkEnd, &AnalysisWalkInfo);
+    UtEndEvent (Event);
 
     /* Semantic error checking part four - other miscellaneous checks */
 
-    UtBeginEvent (i, "Miscellaneous analysis");
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - miscellaneous \n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, AnOtherSemanticAnalysisWalkBegin,
-                        AnOtherSemanticAnalysisWalkEnd, &AnalysisWalkInfo);
-    UtEndEvent (i++);
+    Event = UtBeginEvent ("Miscellaneous analysis");
+    DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - miscellaneous\n\n");
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
+        AnOtherSemanticAnalysisWalkBegin,
+        AnOtherSemanticAnalysisWalkEnd, &AnalysisWalkInfo);
+    UtEndEvent (Event);
 
     /* Calculate all AML package lengths */
 
-    UtBeginEvent (i, "Finish AML package length generation");
+    Event = UtBeginEvent ("Finish AML package length generation");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nGenerating Package lengths\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL, LnInitLengthsWalk, NULL);
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL, LnPackageLengthWalk, NULL);
-    UtEndEvent (i++);
-
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL,
+        LnInitLengthsWalk, NULL);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD, NULL,
+        LnPackageLengthWalk, NULL);
+    UtEndEvent (Event);
 
     /* Code generation - emit the AML */
 
-    UtBeginEvent (i, "Generate AML code and write output files");
+    Event = UtBeginEvent ("Generate AML code and write output files");
     CgGenerateAmlOutput ();
-    UtEndEvent (i++);
+    UtEndEvent (Event);
 
-    UtBeginEvent (i, "Write optional output files");
+    Event = UtBeginEvent ("Write optional output files");
     CmDoOutputFiles ();
-    UtEndEvent (i++);
+    UtEndEvent (Event);
 
-    UtEndEvent (13);
+    UtEndEvent (FullCompile);
     CmCleanupAndExit ();
     return 0;
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    CmDoOutputFiles
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Create all "listing" type files
+ *
+ ******************************************************************************/
+
 void
-CmDoOutputFiles (void)
+CmDoOutputFiles (
+    void)
 {
 
     /* Create listings and hex files */
@@ -569,7 +651,51 @@ CmDoOutputFiles (void)
 
     /* Dump the namespace to the .nsp file if requested */
 
-    LsDisplayNamespace ();
+    (void) LsDisplayNamespace ();
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    CmDumpEvent
+ *
+ * PARAMETERS:  Event           - A compiler event struct
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Dump a compiler event struct
+ *
+ ******************************************************************************/
+
+static void
+CmDumpEvent (
+    ASL_EVENT_INFO          *Event)
+{
+    UINT32                  Delta;
+    UINT32                  USec;
+    UINT32                  MSec;
+
+    if (!Event->Valid)
+    {
+        return;
+    }
+
+    /* Delta will be in 100-nanosecond units */
+
+    Delta = (UINT32) (Event->EndTime - Event->StartTime);
+
+    USec = Delta / 10;
+    MSec = Delta / 10000;
+
+    /* Round milliseconds up */
+
+    if ((USec - (MSec * 1000)) >= 500)
+    {
+        MSec++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT, "%8u usec %8u msec - %s\n",
+        USec, MSec, Event->EventName);
 }
 
 
@@ -586,7 +712,8 @@ CmDoOutputFiles (void)
  ******************************************************************************/
 
 void
-CmCleanupAndExit (void)
+CmCleanupAndExit (
+    void)
 {
     UINT32                  i;
 
@@ -600,30 +727,19 @@ CmCleanupAndExit (void)
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT, "\n\nElapsed time for major events\n\n");
-    for (i = 0; i < 13; i++)
+    for (i = 0; i < AslGbl_NextEvent; i++)
     {
-        if (AslGbl_Events[i].Valid)
-        {
-            DbgPrint (ASL_DEBUG_OUTPUT, "%8lu ms - %s\n",
-                AslGbl_Events[i].EndTime -
-                AslGbl_Events[i].StartTime,
-                AslGbl_Events[i].EventName);
-        }
+        CmDumpEvent (&AslGbl_Events[i]);
     }
 
     if (Gbl_CompileTimesFlag)
     {
         printf ("\nElapsed time for major events\n\n");
-        for (i = 0; i < 13; i++)
+        for (i = 0; i < AslGbl_NextEvent; i++)
         {
-            if (AslGbl_Events[i].Valid)
-            {
-                printf ("%8lu ms : %s\n",
-                    AslGbl_Events[i].EndTime -
-                    AslGbl_Events[i].StartTime,
-                    AslGbl_Events[i].EventName);
-            }
+            CmDumpEvent (&AslGbl_Events[i]);
         }
+
         printf ("\nMiscellaneous compile statistics\n\n");
         printf ("%11u : %s\n", TotalParseNodes, "Parse nodes");
         printf ("%11u : %s\n", Gbl_NsLookupCount, "Namespace searches");
@@ -638,10 +754,12 @@ CmCleanupAndExit (void)
     if (Gbl_NsLookupCount)
     {
         DbgPrint (ASL_DEBUG_OUTPUT, "\n\nMiscellaneous compile statistics\n\n");
-        DbgPrint (ASL_DEBUG_OUTPUT, "%32s : %d\n", "Total Namespace searches", Gbl_NsLookupCount);
-        DbgPrint (ASL_DEBUG_OUTPUT, "%32s : %d\n", "Time per search",
-                        ((UINT32) (AslGbl_Events[7].EndTime - AslGbl_Events[7].StartTime) * 1000) /
-                        Gbl_NsLookupCount);
+        DbgPrint (ASL_DEBUG_OUTPUT, "%32s : %d\n", "Total Namespace searches",
+            Gbl_NsLookupCount);
+        DbgPrint (ASL_DEBUG_OUTPUT, "%32s : %d usec\n", "Time per search",
+            ((UINT32) (AslGbl_Events[AslGbl_NamespaceEvent].EndTime -
+                        AslGbl_Events[AslGbl_NamespaceEvent].StartTime) /
+                        10) / Gbl_NsLookupCount);
     }
 
     /* Close all open files */
@@ -672,6 +790,11 @@ CmCleanupAndExit (void)
     }
 
     UtDisplaySummary (ASL_FILE_STDOUT);
+
+    if (Gbl_ExceptionCount[ASL_ERROR] > 0)
+    {
+        exit (1);
+    }
     exit (0);
 }
 

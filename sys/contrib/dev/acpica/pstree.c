@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pstree - Parser op tree manipulation/traversal/search
- *              $Revision: 42 $
+ *              $Revision: 1.46 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,6 +124,14 @@
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("pstree")
 
+/* Local prototypes */
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+ACPI_PARSE_OBJECT *
+AcpiPsGetChild (
+    ACPI_PARSE_OBJECT       *op);
+#endif
+
 
 /*******************************************************************************
  *
@@ -132,7 +140,7 @@
  * PARAMETERS:  Op              - Get an argument for this op
  *              Argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object).  NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does not exist
  *
  * DESCRIPTION: Get the specified op's argument.
  *
@@ -233,7 +241,6 @@ AcpiPsAppendArg (
         return;
     }
 
-
     /* Append the argument to the linked argument list */
 
     if (Op->Common.Value.Arg)
@@ -247,14 +254,12 @@ AcpiPsAppendArg (
         }
         PrevArg->Common.Next = Arg;
     }
-
     else
     {
         /* No argument list, this will be the first argument */
 
         Op->Common.Value.Arg = Arg;
     }
-
 
     /* Set the parent in this arg and any args linked after it */
 
@@ -266,6 +271,89 @@ AcpiPsAppendArg (
 }
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiPsGetDepthNext
+ *
+ * PARAMETERS:  Origin          - Root of subtree to search
+ *              Op              - Last (previous) Op that was found
+ *
+ * RETURN:      Next Op found in the search.
+ *
+ * DESCRIPTION: Get next op in tree (walking the tree in depth-first order)
+ *              Return NULL when reaching "origin" or when walking up from root
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+AcpiPsGetDepthNext (
+    ACPI_PARSE_OBJECT       *Origin,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *Next = NULL;
+    ACPI_PARSE_OBJECT       *Parent;
+    ACPI_PARSE_OBJECT       *Arg;
+
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    if (!Op)
+    {
+        return (NULL);
+    }
+
+    /* Look for an argument or child */
+
+    Next = AcpiPsGetArg (Op, 0);
+    if (Next)
+    {
+        return (Next);
+    }
+
+    /* Look for a sibling */
+
+    Next = Op->Common.Next;
+    if (Next)
+    {
+        return (Next);
+    }
+
+    /* Look for a sibling of parent */
+
+    Parent = Op->Common.Parent;
+
+    while (Parent)
+    {
+        Arg = AcpiPsGetArg (Parent, 0);
+        while (Arg && (Arg != Origin) && (Arg != Op))
+        {
+            Arg = Arg->Common.Next;
+        }
+
+        if (Arg == Origin)
+        {
+            /* Reached parent of origin, end search */
+
+            return (NULL);
+        }
+
+        if (Parent->Common.Next)
+        {
+            /* Found sibling of parent */
+
+            return (Parent->Common.Next);
+        }
+
+        Op = Parent;
+        Parent = Parent->Common.Parent;
+    }
+
+    return (Next);
+}
+
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 /*******************************************************************************
  *
  * FUNCTION:    AcpiPsGetChild
@@ -332,87 +420,6 @@ AcpiPsGetChild (
 
     return (Child);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiPsGetDepthNext
- *
- * PARAMETERS:  Origin          - Root of subtree to search
- *              Op              - Last (previous) Op that was found
- *
- * RETURN:      Next Op found in the search.
- *
- * DESCRIPTION: Get next op in tree (walking the tree in depth-first order)
- *              Return NULL when reaching "origin" or when walking up from root
- *
- ******************************************************************************/
-
-ACPI_PARSE_OBJECT *
-AcpiPsGetDepthNext (
-    ACPI_PARSE_OBJECT       *Origin,
-    ACPI_PARSE_OBJECT       *Op)
-{
-    ACPI_PARSE_OBJECT       *Next = NULL;
-    ACPI_PARSE_OBJECT       *Parent;
-    ACPI_PARSE_OBJECT       *Arg;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    if (!Op)
-    {
-        return (NULL);
-    }
-
-    /* look for an argument or child */
-
-    Next = AcpiPsGetArg (Op, 0);
-    if (Next)
-    {
-        return (Next);
-    }
-
-    /* look for a sibling */
-
-    Next = Op->Common.Next;
-    if (Next)
-    {
-        return (Next);
-    }
-
-    /* look for a sibling of parent */
-
-    Parent = Op->Common.Parent;
-
-    while (Parent)
-    {
-        Arg = AcpiPsGetArg (Parent, 0);
-        while (Arg && (Arg != Origin) && (Arg != Op))
-        {
-            Arg = Arg->Common.Next;
-        }
-
-        if (Arg == Origin)
-        {
-            /* reached parent of origin, end search */
-
-            return (NULL);
-        }
-
-        if (Parent->Common.Next)
-        {
-            /* found sibling of parent */
-
-            return (Parent->Common.Next);
-        }
-
-        Op = Parent;
-        Parent = Parent->Common.Parent;
-    }
-
-    return (Next);
-}
+#endif
 
 

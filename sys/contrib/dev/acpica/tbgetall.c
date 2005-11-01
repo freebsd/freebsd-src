@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbgetall - Get all required ACPI tables
- *              $Revision: 9 $
+ *              $Revision: 1.13 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,6 +123,19 @@
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbgetall")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiTbGetPrimaryTable (
+    ACPI_POINTER            *Address,
+    ACPI_TABLE_DESC         *TableInfo);
+
+static ACPI_STATUS
+AcpiTbGetSecondaryTable (
+    ACPI_POINTER            *Address,
+    ACPI_STRING             Signature,
+    ACPI_TABLE_DESC         *TableInfo);
+
 
 /*******************************************************************************
  *
@@ -137,7 +150,7 @@
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiTbGetPrimaryTable (
     ACPI_POINTER            *Address,
     ACPI_TABLE_DESC         *TableInfo)
@@ -156,9 +169,8 @@ AcpiTbGetPrimaryTable (
         return_ACPI_STATUS (AE_OK);
     }
 
-    /*
-     * Get the header in order to get signature and table size
-     */
+    /* Get the header in order to get signature and table size */
+
     Status = AcpiTbGetTableHeader (Address, &Header);
     if (ACPI_FAILURE (Status))
     {
@@ -208,7 +220,7 @@ AcpiTbGetPrimaryTable (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiTbGetSecondaryTable (
     ACPI_POINTER            *Address,
     ACPI_STRING             Signature,
@@ -233,7 +245,8 @@ AcpiTbGetSecondaryTable (
 
     if (ACPI_STRNCMP (Header.Signature, Signature, ACPI_NAME_SIZE))
     {
-        ACPI_REPORT_ERROR (("Incorrect table signature - wanted [%s] found [%4.4s]\n",
+        ACPI_REPORT_ERROR ((
+            "Incorrect table signature - wanted [%s] found [%4.4s]\n",
             Signature, Header.Signature));
         return_ACPI_STATUS (AE_BAD_SIGNATURE);
     }
@@ -313,7 +326,8 @@ AcpiTbGetRequiredTables (
     {
         /* Get the table address from the common internal XSDT */
 
-        Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_XSDT->TableOffsetEntry[i]);
+        Address.Pointer.Value = ACPI_GET_ADDRESS (
+                                    AcpiGbl_XSDT->TableOffsetEntry[i]);
 
         /*
          * Get the tables needed by this subsystem (FADT and any SSDTs).
@@ -337,19 +351,19 @@ AcpiTbGetRequiredTables (
     }
 
     /*
-     * Convert the FADT to a common format.  This allows earlier revisions of the
-     * table to coexist with newer versions, using common access code.
+     * Convert the FADT to a common format.  This allows earlier revisions of
+     * the table to coexist with newer versions, using common access code.
      */
     Status = AcpiTbConvertTableFadt ();
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not convert FADT to internal common format\n"));
+        ACPI_REPORT_ERROR ((
+            "Could not convert FADT to internal common format\n"));
         return_ACPI_STATUS (Status);
     }
 
-    /*
-     * Get the FACS (Pointed to by the FADT)
-     */
+    /* Get the FACS (Pointed to by the FADT) */
+
     Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_FADT->XFirmwareCtrl);
 
     Status = AcpiTbGetSecondaryTable (&Address, FACS_SIG, &TableInfo);
@@ -370,9 +384,8 @@ AcpiTbGetRequiredTables (
         return_ACPI_STATUS (Status);
     }
 
-    /*
-     * Get/install the DSDT (Pointed to by the FADT)
-     */
+    /* Get/install the DSDT (Pointed to by the FADT) */
+
     Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_FADT->XDsdt);
 
     Status = AcpiTbGetSecondaryTable (&Address, DSDT_SIG, &TableInfo);

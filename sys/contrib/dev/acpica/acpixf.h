@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,10 +122,9 @@
 #include <contrib/dev/acpica/actbl.h>
 
 
- /*
+/*
  * Global interfaces
  */
-
 ACPI_STATUS
 AcpiInitializeSubsystem (
     void);
@@ -172,9 +171,8 @@ AcpiInstallInitializationHandler (
     UINT32                  Function);
 
 /*
- * ACPI Memory manager
+ * ACPI Memory managment
  */
-
 void *
 AcpiAllocate (
     UINT32                  Size);
@@ -191,7 +189,6 @@ AcpiFree (
 /*
  * ACPI table manipulation interfaces
  */
-
 ACPI_STATUS
 AcpiFindRootPointer (
     UINT32                  Flags,
@@ -232,7 +229,6 @@ AcpiGetFirmwareTable (
 /*
  * Namespace and name interfaces
  */
-
 ACPI_STATUS
 AcpiWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
@@ -278,11 +274,17 @@ AcpiGetData (
     ACPI_OBJECT_HANDLER     Handler,
     void                    **Data);
 
+ACPI_STATUS
+AcpiDebugTrace (
+    char                    *Name,
+    UINT32                  DebugLevel,
+    UINT32                  DebugLayer,
+    UINT32                  Flags);
+
 
 /*
  * Object manipulation and enumeration
  */
-
 ACPI_STATUS
 AcpiEvaluateObject (
     ACPI_HANDLE             Object,
@@ -324,7 +326,6 @@ AcpiGetParent (
 /*
  * Event handler interfaces
  */
-
 ACPI_STATUS
 AcpiInstallFixedEventHandler (
     UINT32                  AcpiEvent,
@@ -379,7 +380,6 @@ AcpiInstallExceptionHandler (
 /*
  * Event interfaces
  */
-
 ACPI_STATUS
 AcpiAcquireGlobalLock (
     UINT16                  Timeout,
@@ -450,7 +450,7 @@ AcpiInstallGpeBlock (
     ACPI_HANDLE             GpeDevice,
     ACPI_GENERIC_ADDRESS    *GpeBlockAddress,
     UINT32                  RegisterCount,
-    UINT32                  InterruptLevel);
+    UINT32                  InterruptNumber);
 
 ACPI_STATUS
 AcpiRemoveGpeBlock (
@@ -460,7 +460,6 @@ AcpiRemoveGpeBlock (
 /*
  * Resource interfaces
  */
-
 typedef
 ACPI_STATUS (*ACPI_WALK_RESOURCE_CALLBACK) (
     ACPI_RESOURCE           *Resource,
@@ -502,7 +501,6 @@ AcpiResourceToAddress64 (
 /*
  * Hardware (ACPI device) interfaces
  */
-
 ACPI_STATUS
 AcpiGetRegister (
     UINT32                  RegisterId,

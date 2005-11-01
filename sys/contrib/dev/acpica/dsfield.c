@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 74 $
+ *              $Revision: 1.78 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,13 +127,20 @@
 #define _COMPONENT          ACPI_DISPATCHER
         ACPI_MODULE_NAME    ("dsfield")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiDsGetFieldNames (
+    ACPI_CREATE_FIELD_INFO  *Info,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Arg);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDsCreateBufferField
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
- *              Operands            - List of operands for the opcode
+ * PARAMETERS:  Op                  - Current parse op (CreateXXField)
  *              WalkState           - Current state
  *
  * RETURN:      Status
@@ -144,7 +151,7 @@
  *              CreateWordFieldOp,
  *              CreateDWordFieldOp,
  *              CreateQWordFieldOp,
- *              CreateFieldOp       (all of which define fields in buffers)
+ *              CreateFieldOp       (all of which define a field in a buffer)
  *
  ******************************************************************************/
 
@@ -200,7 +207,8 @@ AcpiDsCreateBufferField (
         }
         else
         {
-            Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND;
+            Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
+                    ACPI_NS_ERROR_IF_FOUND;
         }
 
         /*
@@ -216,16 +224,16 @@ AcpiDsCreateBufferField (
         }
     }
 
-    /* We could put the returned object (Node) on the object stack for later, but
-     * for now, we will put it in the "op" object that the parser uses, so we
-     * can get it again at the end of this scope
+    /* We could put the returned object (Node) on the object stack for later,
+     * but for now, we will put it in the "op" object that the parser uses,
+     * so we can get it again at the end of this scope
      */
     Op->Common.Node = Node;
 
     /*
-     * If there is no object attached to the node, this node was just created and
-     * we need to create the field object.  Otherwise, this was a lookup of an
-     * existing node and we don't want to create the field object again.
+     * If there is no object attached to the node, this node was just created
+     * and we need to create the field object.  Otherwise, this was a lookup
+     * of an existing node and we don't want to create the field object again.
      */
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (ObjDesc)
@@ -290,7 +298,7 @@ Cleanup:
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiDsGetFieldNames (
     ACPI_CREATE_FIELD_INFO  *Info,
     ACPI_WALK_STATE         *WalkState,
@@ -326,7 +334,8 @@ AcpiDsGetFieldNames (
 
             if (Position > ACPI_UINT32_MAX)
             {
-                ACPI_REPORT_ERROR (("Bit offset within field too large (> 0xFFFFFFFF)\n"));
+                ACPI_REPORT_ERROR ((
+                    "Bit offset within field too large (> 0xFFFFFFFF)\n"));
                 return_ACPI_STATUS (AE_SUPPORT);
             }
 
@@ -338,12 +347,15 @@ AcpiDsGetFieldNames (
 
             /*
              * Get a new AccessType and AccessAttribute -- to be used for all
-             * field units that follow, until field end or another AccessAs keyword.
+             * field units that follow, until field end or another AccessAs
+             * keyword.
              *
-             * In FieldFlags, preserve the flag bits other than the ACCESS_TYPE bits
+             * In FieldFlags, preserve the flag bits other than the
+             * ACCESS_TYPE bits
              */
-            Info->FieldFlags = (UINT8) ((Info->FieldFlags & ~(AML_FIELD_ACCESS_TYPE_MASK)) |
-                                        ((UINT8) ((UINT32) Arg->Common.Value.Integer >> 8)));
+            Info->FieldFlags = (UINT8)
+                ((Info->FieldFlags & ~(AML_FIELD_ACCESS_TYPE_MASK)) |
+                ((UINT8) ((UINT32) Arg->Common.Value.Integer >> 8)));
 
             Info->Attribute = (UINT8) (Arg->Common.Value.Integer);
             break;
@@ -355,7 +367,8 @@ AcpiDsGetFieldNames (
 
             Status = AcpiNsLookup (WalkState->ScopeInfo,
                             (char *) &Arg->Named.Name,
-                            Info->FieldType, ACPI_IMODE_EXECUTE, ACPI_NS_DONT_OPEN_SCOPE,
+                            Info->FieldType, ACPI_IMODE_EXECUTE,
+                            ACPI_NS_DONT_OPEN_SCOPE,
                             WalkState, &Info->FieldNode);
             if (ACPI_FAILURE (Status))
             {
@@ -388,8 +401,9 @@ AcpiDsGetFieldNames (
 
             if (Position > ACPI_UINT32_MAX)
             {
-                ACPI_REPORT_ERROR (("Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n",
-                        (char *) &Info->FieldNode->Name));
+                ACPI_REPORT_ERROR ((
+                    "Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n",
+                    (char *) &Info->FieldNode->Name));
                 return_ACPI_STATUS (AE_SUPPORT);
             }
 
@@ -399,7 +413,8 @@ AcpiDsGetFieldNames (
 
         default:
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid opcode in field list: %X\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Invalid opcode in field list: %X\n",
                 Arg->Common.AmlOpcode));
             return_ACPI_STATUS (AE_AML_BAD_OPCODE);
         }
@@ -533,7 +548,8 @@ AcpiDsInitFieldObjects (
             Status = AcpiNsLookup (WalkState->ScopeInfo,
                             (char *) &Arg->Named.Name,
                             Type, ACPI_IMODE_LOAD_PASS1,
-                            ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND,
+                            ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
+                            ACPI_NS_ERROR_IF_FOUND,
                             WalkState, &Node);
             if (ACPI_FAILURE (Status))
             {

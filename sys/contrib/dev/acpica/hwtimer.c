@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface
- *              $Revision: 28 $
+ *              $Revision: 1.30 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -164,7 +164,7 @@ AcpiGetTimerResolution (
  *
  * PARAMETERS:  Ticks               - Where the timer value is returned
  *
- * RETURN:      Status and current ticks
+ * RETURN:      Status and current timer value (ticks)
  *
  * DESCRIPTION: Obtains current value of ACPI PM Timer (in ticks).
  *
