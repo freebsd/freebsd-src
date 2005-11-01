@@ -134,7 +134,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 
 	tmr->gen = atomic_fetchadd_int(&timer_gen, 1);
 	tmr->tn = create_timer_thread(attr);
-	if (tmr->tn == NULL) {
+	if (__predict_false(tmr->tn == NULL)) {
 		free(tmr);
 		errno = EAGAIN;
 		return (-1);
@@ -149,7 +149,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	ev.sigev_notify_thread_id = (lwpid_t)tmr->tn->thread->tid;
 	ev.sigev_value.sigval_int = tmr->gen;
 	ret = __sys_timer_create(clockid, &ev, &tmr->timerid);
-	if (ret != 0 || register_timer(tmr) != 0) {
+	if (__predict_false(ret != 0 || register_timer(tmr) != 0)) {
 		ret = errno;
 		release_timer_thread(tmr->tn);
 		free(tmr);
@@ -186,7 +186,7 @@ __timer_delete(timer_t timerid)
 		TIMERS_UNLOCK(curthread);
 		/*
 		 * Drop reference count of servicing thread,
-		 * may free the the thread.
+		 * may free the thread.
 		 */
 		release_timer_thread(tmr->tn);
 	} else
@@ -265,8 +265,11 @@ release_timer_thread(struct thread_node *tn)
 		_thr_send_sig(th, SIGTIMER);
 		pthread_join(th, NULL);
 		TAILQ_REMOVE(&timer_threads, tn, link);
-	}
+	} else
+		tn = NULL;
 	THREADS_UNLOCK(curthread);
+	if (tn != NULL)
+		free(tn);
 }
 
 /* Register a SIGEV_THREAD timer. */
@@ -303,6 +306,10 @@ register_timer(struct timer *tmr)
 	return (0);
 }
 
+/*
+ * This function is called if user callback calls
+ * pthread_exit() or pthread_cancel() for the thread.
+ */
 static void
 cleanup_thread(void *arg)
 {
@@ -333,7 +340,7 @@ service_loop(void *arg)
 	sigset_t set;
 
 	/*
-	 * service thread should not be killed by callback, if user
+	 * Service thread should not be killed by callback, if user
 	 * tries to do so, the thread will be restarted.
 	 */
 	setjmp(tn->jbuf);
@@ -361,6 +368,6 @@ service_loop(void *arg)
 		}
 		TIMERS_UNLOCK(curthread);
 	}
-	THR_CLEANUP_POP(curthread, 1);
+	THR_CLEANUP_POP(curthread, 0);
 	return (0);
 }
