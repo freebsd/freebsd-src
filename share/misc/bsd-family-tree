@@ -190,6 +190,7 @@ FreeBSD 5.2           |      |                 |                       |
  |   FreeBSD 5.4     10.4    |    |            |                       |
  |      |             |      |    |        OpenBSD 3.7                 |
  |      V             |      |    v            |                       |
+ |                    |      |             OpenBSD 3.8                 |
  |                    |      |                 |                       |
 FreeBSD 6 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -426,6 +427,7 @@ NetBSD 2.0.2		2005-04-14 [NBD] (security/critical release)
 Mac OS X 10.4		2005-04-29 [APL]
 FreeBSD 5.4		2005-05-09 [FBD]
 OpenBSD 3.7		2005-05-19 [OBD]
+OpenBSD 3.8		2005-11-01 [OBD]
 
 Bibliography
 ------------------------
