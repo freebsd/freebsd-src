@@ -285,7 +285,11 @@ ntoskrnl_libinit()
 	if (wq_queues == NULL)
 		return(ENOMEM);
 
+#ifdef NTOSKRNL_MULTIPLE_DPCS
 	bzero((char *)kq_queues, sizeof(kdpc_queue) * mp_ncpus);
+#else
+	bzero((char *)kq_queues, sizeof(kdpc_queue));
+#endif
 	bzero((char *)wq_queues, sizeof(kdpc_queue) * WORKITEM_THREADS);
 
 	/*
