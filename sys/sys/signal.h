@@ -109,7 +109,7 @@
 #define	SIGUSR2		31	/* user defined signal 2 */
 #endif
 #if __BSD_VISIBLE
-#define	SIGTHR		32	/* Thread interrupt. */
+#define	SIGTHR		32	/* reserved by thread library. */
 #endif
 
 #define	SIGRTMIN	65
