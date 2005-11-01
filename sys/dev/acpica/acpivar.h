@@ -154,7 +154,6 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_THERMAL		0x01000000
 #define	ACPI_TIMER		0x02000000
 #define	ACPI_OEM		0x04000000
-#define	ACPI_HPET		0x08000000
 
 /*
  * Constants for different interrupt models used with acpi_SetIntrModel().

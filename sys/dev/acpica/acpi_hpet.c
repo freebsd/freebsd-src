@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
 /* ACPI CA debugging */
-#define _COMPONENT	ACPI_HPET
+#define _COMPONENT	ACPI_TIMER
 ACPI_MODULE_NAME("HPET")
 
 struct acpi_hpet_softc {
