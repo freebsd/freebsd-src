@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2004
+.Dd November 1, 2005
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -404,6 +404,7 @@ and
 .Xr timed 8
 fails.
 .Sh SEE ALSO
+.Xr locale 1 ,
 .Xr gettimeofday 2 ,
 .Xr strftime 3 ,
 .Xr strptime 3 ,
@@ -419,6 +420,16 @@ The
 .Nm
 utility is expected to be compatible with
 .St -p1003.2 .
+The
+.Fl d ,
+.Fl f ,
+.Fl j ,
+.Fl n ,
+.Fl r ,
+.Fl t ,
+and
+.Fl v
+options are all extensions to the standard.
 .Sh HISTORY
 A
 .Nm
