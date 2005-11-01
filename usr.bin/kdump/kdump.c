@@ -81,7 +81,7 @@ void ktruser(int, unsigned char *);
 void usage(void);
 const char *ioctlname(u_long);
 
-int timestamp, decimal, fancy = 1, tail, maxdata;
+int timestamp, decimal, fancy = 1, tail, threads, maxdata;
 const char *tracefile = DEF_TRACEFILE;
 struct ktr_header ktr_header;
 
@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dElm:np:RTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dElm:np:HRTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;
@@ -120,6 +120,9 @@ main(int argc, char *argv[])
 			break;
 		case 'E':
 			timestamp = 3;	/* elapsed timestamp */
+			break;
+		case 'H':
+			threads = 1;
 			break;
 		case 'R':
 			timestamp = 2;	/* relative timestamp */
@@ -148,7 +151,13 @@ main(int argc, char *argv[])
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
 		if (ktr_header.ktr_type & KTR_DROP) {
 			ktr_header.ktr_type &= ~KTR_DROP;
-			if (!drop_logged) {
+			if (!drop_logged && threads) {
+				(void)printf("%6d %6d %-8.*s Events dropped.\n",
+				    ktr_header.ktr_pid, ktr_header.ktr_tid >
+				    0 ? ktr_header.ktr_tid : 0, MAXCOMLEN,
+				    ktr_header.ktr_comm);
+				drop_logged = 1;
+			} else if (!drop_logged) {
 				(void)printf("%6d %-8.*s Events dropped.\n",
 				    ktr_header.ktr_pid, MAXCOMLEN,
 				    ktr_header.ktr_comm);
@@ -251,7 +260,20 @@ dumpheader(struct ktr_header *kth)
 		type = unknown;
 	}
 
-	(void)printf("%6d %-8.*s ", kth->ktr_pid, MAXCOMLEN, kth->ktr_comm);
+	/*
+	 * The ktr_tid field was previously the ktr_buffer field, which held
+	 * the kernel pointer value for the buffer associated with data
+	 * following the record header.  It now holds a threadid, but only
+	 * for trace files after the change.  Older trace files still contain
+	 * kernel pointers.  Detect this and suppress the results by printing
+	 * negative tid's as 0.
+	 */
+	if (threads)
+		(void)printf("%6d %6d %-8.*s ", kth->ktr_pid, kth->ktr_tid >
+		    0 ? kth->ktr_tid : 0, MAXCOMLEN, kth->ktr_comm);
+	else
+		(void)printf("%6d %-8.*s ", kth->ktr_pid, MAXCOMLEN,
+		    kth->ktr_comm);
 	if (timestamp) {
 		if (timestamp == 3) {
 			if (prevtime.tv_sec == 0)
@@ -577,6 +599,6 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-    "usage: kdump [-dEnlRT] [-f trfile] [-m maxdata] [-p pid] [-t [cnisuw]]\n");
+   "usage: kdump [-dEnlHRT] [-f trfile] [-m maxdata] [-p pid] [-t [cnisuw]]\n");
 	exit(1);
 }
