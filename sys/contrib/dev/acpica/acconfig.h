@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -135,9 +135,9 @@
  *
  */
 
-/* Version string */
+/* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20041119
+#define ACPI_CA_VERSION                 0x20051021
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -151,11 +151,10 @@
 
 /* Maximum objects in the various object caches */
 
-#define ACPI_MAX_STATE_CACHE_DEPTH      64          /* State objects */
+#define ACPI_MAX_STATE_CACHE_DEPTH      96          /* State objects */
 #define ACPI_MAX_PARSE_CACHE_DEPTH      96          /* Parse tree objects */
-#define ACPI_MAX_EXTPARSE_CACHE_DEPTH   64          /* Parse tree objects */
-#define ACPI_MAX_OBJECT_CACHE_DEPTH     64          /* Interpreter operand objects */
-#define ACPI_MAX_WALK_CACHE_DEPTH       4           /* Objects for parse tree walks */
+#define ACPI_MAX_EXTPARSE_CACHE_DEPTH   96          /* Parse tree objects */
+#define ACPI_MAX_OBJECT_CACHE_DEPTH     96          /* Interpreter operand objects */
 
 /*
  * Should the subystem abort the loading of an ACPI table if the
@@ -172,7 +171,7 @@
 
 /* Version of ACPI supported */
 
-#define ACPI_CA_SUPPORT_LEVEL           2
+#define ACPI_CA_SUPPORT_LEVEL           3
 
 /* String size constants */
 
@@ -203,9 +202,8 @@
 #define ACPI_MAX_GPE_BLOCKS             2
 #define ACPI_GPE_REGISTER_WIDTH         8
 
-/*
- * Method info (in WALK_STATE), containing local variables and argumetns
- */
+/* Method info (in WALK_STATE), containing local variables and argumetns */
+
 #define ACPI_METHOD_NUM_LOCALS          8
 #define ACPI_METHOD_MAX_LOCAL           7
 
@@ -271,7 +269,7 @@
 
 /* Number of strings associated with the _OSI reserved method */
 
-#define ACPI_NUM_OSI_STRINGS            9
+#define ACPI_NUM_OSI_STRINGS            10
 
 
 /******************************************************************************

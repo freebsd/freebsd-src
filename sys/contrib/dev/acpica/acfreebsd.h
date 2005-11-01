@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -168,18 +168,6 @@
 
 /* Always use FreeBSD code over our local versions */
 #define ACPI_USE_SYSTEM_CLIBRARY
-
-/* FreeBSD doesn't have strupr, should be fixed. (move to libkern) */
-static __inline char *
-strupr(char *str)
-{
-    char *c = str;
-    while(*c) {
-    *c = toupper(*c);
-    c++;
-    }
-    return(str);
-}
 
 #ifdef _KERNEL
 /* Or strstr (used in debugging mode, also move to libkern) */
