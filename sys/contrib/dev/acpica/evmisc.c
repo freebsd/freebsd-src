@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evmisc - Miscellaneous event manager support functions
- *              $Revision: 79 $
+ *              $Revision: 1.86 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,6 +123,35 @@
         ACPI_MODULE_NAME    ("evmisc")
 
 
+#ifdef ACPI_DEBUG_OUTPUT
+static const char        *AcpiNotifyValueNames[] =
+{
+    "Bus Check",
+    "Device Check",
+    "Device Wake",
+    "Eject request",
+    "Device Check Light",
+    "Frequency Mismatch",
+    "Bus Mode Mismatch",
+    "Power Fault"
+};
+#endif
+
+/* Local prototypes */
+
+static void ACPI_SYSTEM_XFACE
+AcpiEvNotifyDispatch (
+    void                    *Context);
+
+static void ACPI_SYSTEM_XFACE
+AcpiEvGlobalLockThread (
+    void                    *Context);
+
+static UINT32
+AcpiEvGlobalLockHandler (
+    void                    *Context);
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiEvIsNotifyObject
@@ -172,20 +201,6 @@ AcpiEvIsNotifyObject (
  *
  ******************************************************************************/
 
-#ifdef ACPI_DEBUG_OUTPUT
-static const char        *AcpiNotifyValueNames[] =
-{
-    "Bus Check",
-    "Device Check",
-    "Device Wake",
-    "Eject request",
-    "Device Check Light",
-    "Frequency Mismatch",
-    "Bus Mode Mismatch",
-    "Power Fault"
-};
-#endif
-
 ACPI_STATUS
 AcpiEvQueueNotifyRequest (
     ACPI_NAMESPACE_NODE     *Node,
@@ -202,9 +217,10 @@ AcpiEvQueueNotifyRequest (
 
     /*
      * For value 3 (Ejection Request), some device method may need to be run.
-     * For value 2 (Device Wake) if _PRW exists, the _PS0 method may need to be run.
+     * For value 2 (Device Wake) if _PRW exists, the _PS0 method may need
+     *   to be run.
      * For value 0x80 (Status Change) on the power button or sleep button,
-     * initiate soft-off or sleep operation?
+     *   initiate soft-off or sleep operation?
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Dispatching Notify(%X) on node %p\n", NotifyValue, Node));
@@ -216,8 +232,9 @@ AcpiEvQueueNotifyRequest (
     }
     else
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Notify value: 0x%2.2X **Device Specific**\n",
-                NotifyValue));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Notify value: 0x%2.2X **Device Specific**\n",
+            NotifyValue));
     }
 
     /* Get the notify object attached to the NS Node */
@@ -294,7 +311,7 @@ AcpiEvQueueNotifyRequest (
  *
  * FUNCTION:    AcpiEvNotifyDispatch
  *
- * PARAMETERS:  Context         - To be passsed to the notify handler
+ * PARAMETERS:  Context         - To be passed to the notify handler
  *
  * RETURN:      None.
  *
@@ -303,7 +320,7 @@ AcpiEvQueueNotifyRequest (
  *
  ******************************************************************************/
 
-void ACPI_SYSTEM_XFACE
+static void ACPI_SYSTEM_XFACE
 AcpiEvNotifyDispatch (
     void                    *Context)
 {
@@ -318,7 +335,8 @@ AcpiEvNotifyDispatch (
 
     /*
      * We will invoke a global notify handler if installed.
-     * This is done _before_ we invoke the per-device handler attached to the device.
+     * This is done _before_ we invoke the per-device handler attached
+     * to the device.
      */
     if (NotifyInfo->Notify.Value <= ACPI_MAX_SYS_NOTIFY)
     {
@@ -345,7 +363,8 @@ AcpiEvNotifyDispatch (
 
     if (GlobalHandler)
     {
-        GlobalHandler (NotifyInfo->Notify.Node, NotifyInfo->Notify.Value, GlobalContext);
+        GlobalHandler (NotifyInfo->Notify.Node, NotifyInfo->Notify.Value,
+            GlobalContext);
     }
 
     /* Now invoke the per-device handler, if present */
@@ -353,8 +372,9 @@ AcpiEvNotifyDispatch (
     HandlerObj = NotifyInfo->Notify.HandlerObj;
     if (HandlerObj)
     {
-        HandlerObj->Notify.Handler (NotifyInfo->Notify.Node, NotifyInfo->Notify.Value,
-                        HandlerObj->Notify.Context);
+        HandlerObj->Notify.Handler (NotifyInfo->Notify.Node,
+            NotifyInfo->Notify.Value,
+            HandlerObj->Notify.Context);
     }
 
     /* All done with the info object */
@@ -464,7 +484,8 @@ AcpiEvGlobalLockHandler (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiEvInitGlobalLockHandler (void)
+AcpiEvInitGlobalLockHandler (
+    void)
 {
     ACPI_STATUS             Status;
 
@@ -474,7 +495,7 @@ AcpiEvInitGlobalLockHandler (void)
 
     AcpiGbl_GlobalLockPresent = TRUE;
     Status = AcpiInstallFixedEventHandler (ACPI_EVENT_GLOBAL,
-                                            AcpiEvGlobalLockHandler, NULL);
+                AcpiEvGlobalLockHandler, NULL);
 
     /*
      * If the global lock does not exist on this platform, the attempt
@@ -485,6 +506,9 @@ AcpiEvInitGlobalLockHandler (void)
      */
     if (Status == AE_NO_HARDWARE_RESPONSE)
     {
+        ACPI_REPORT_ERROR ((
+            "No response from Global Lock hardware, disabling lock\n"));
+
         AcpiGbl_GlobalLockPresent = FALSE;
         Status = AE_OK;
     }
@@ -529,8 +553,10 @@ AcpiEvAcquireGlobalLock (
 
     AcpiGbl_GlobalLockThreadCount++;
 
-    /* If we (OS side vs. BIOS side) have the hardware lock already, we are done */
-
+    /*
+     * If we (OS side vs. BIOS side) have the hardware lock already,
+     * we are done
+     */
     if (AcpiGbl_GlobalLockAcquired)
     {
         return_ACPI_STATUS (AE_OK);
@@ -578,7 +604,8 @@ AcpiEvAcquireGlobalLock (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiEvReleaseGlobalLock (void)
+AcpiEvReleaseGlobalLock (
+    void)
 {
     BOOLEAN                 Pending = FALSE;
     ACPI_STATUS             Status = AE_OK;
@@ -589,7 +616,8 @@ AcpiEvReleaseGlobalLock (void)
 
     if (!AcpiGbl_GlobalLockThreadCount)
     {
-        ACPI_REPORT_WARNING(("Cannot release HW Global Lock, it has not been acquired\n"));
+        ACPI_REPORT_WARNING((
+            "Cannot release HW Global Lock, it has not been acquired\n"));
         return_ACPI_STATUS (AE_NOT_ACQUIRED);
     }
 
@@ -616,7 +644,8 @@ AcpiEvReleaseGlobalLock (void)
      */
     if (Pending)
     {
-        Status = AcpiSetRegister (ACPI_BITREG_GLOBAL_LOCK_RELEASE, 1, ACPI_MTX_LOCK);
+        Status = AcpiSetRegister (ACPI_BITREG_GLOBAL_LOCK_RELEASE,
+                    1, ACPI_MTX_LOCK);
     }
 
     return_ACPI_STATUS (Status);
@@ -636,7 +665,8 @@ AcpiEvReleaseGlobalLock (void)
  ******************************************************************************/
 
 void
-AcpiEvTerminate (void)
+AcpiEvTerminate (
+    void)
 {
     ACPI_NATIVE_UINT        i;
     ACPI_STATUS             Status;
@@ -659,26 +689,28 @@ AcpiEvTerminate (void)
             Status = AcpiDisableEvent ((UINT32) i, 0);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable fixed event %d\n", (UINT32) i));
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                    "Could not disable fixed event %d\n", (UINT32) i));
             }
         }
 
         /* Disable all GPEs in all GPE blocks */
 
-        Status = AcpiEvWalkGpeList (AcpiHwDisableGpeBlock, ACPI_NOT_ISR);
+        Status = AcpiEvWalkGpeList (AcpiHwDisableGpeBlock);
 
         /* Remove SCI handler */
 
         Status = AcpiEvRemoveSciHandler ();
         if (ACPI_FAILURE(Status))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not remove SCI handler\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Could not remove SCI handler\n"));
         }
     }
 
     /* Deallocate all handler objects installed within GPE info structs */
 
-    Status = AcpiEvWalkGpeList (AcpiEvDeleteGpeHandlers, ACPI_NOT_ISR);
+    Status = AcpiEvWalkGpeList (AcpiEvDeleteGpeHandlers);
 
     /* Return to original mode if necessary */
 

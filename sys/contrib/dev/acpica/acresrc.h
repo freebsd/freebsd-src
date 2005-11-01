@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acresrc.h - Resource Manager function prototypes
- *       $Revision: 38 $
+ *       $Revision: 1.51 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,16 +118,153 @@
 #ifndef __ACRESRC_H__
 #define __ACRESRC_H__
 
+/* Need the AML resource descriptor structs */
+
+#include <contrib/dev/acpica/amlresrc.h>
+
 
 /*
- *  Function prototypes called from Acpi* APIs
+ * If possible, pack the following structures to byte alignment, since we
+ * don't care about performance for debug output
  */
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#pragma pack(1)
+#endif
 
+/*
+ * Individual entry for the resource conversion tables
+ */
+typedef const struct acpi_rsconvert_info
+{
+    UINT8                   Opcode;
+    UINT8                   ResourceOffset;
+    UINT8                   AmlOffset;
+    UINT8                   Value;
+
+} ACPI_RSCONVERT_INFO;
+
+/* Resource conversion opcodes */
+
+#define ACPI_RSC_INITGET                0
+#define ACPI_RSC_INITSET                1
+#define ACPI_RSC_FLAGINIT               2
+#define ACPI_RSC_1BITFLAG               3
+#define ACPI_RSC_2BITFLAG               4
+#define ACPI_RSC_COUNT                  5
+#define ACPI_RSC_COUNT16                6
+#define ACPI_RSC_LENGTH                 7
+#define ACPI_RSC_MOVE8                  8
+#define ACPI_RSC_MOVE16                 9
+#define ACPI_RSC_MOVE32                 10
+#define ACPI_RSC_MOVE64                 11
+#define ACPI_RSC_SET8                   12
+#define ACPI_RSC_DATA8                  13
+#define ACPI_RSC_ADDRESS                14
+#define ACPI_RSC_SOURCE                 15
+#define ACPI_RSC_SOURCEX                16
+#define ACPI_RSC_BITMASK                17
+#define ACPI_RSC_BITMASK16              18
+#define ACPI_RSC_EXIT_NE                19
+#define ACPI_RSC_EXIT_LE                20
+
+/* Resource Conversion sub-opcodes */
+
+#define ACPI_RSC_COMPARE_AML_LENGTH     0
+#define ACPI_RSC_COMPARE_VALUE          1
+
+#define ACPI_RSC_TABLE_SIZE(d)          (sizeof (d) / sizeof (ACPI_RSCONVERT_INFO))
+
+#define ACPI_RS_OFFSET(f)               (UINT8) ACPI_OFFSET (ACPI_RESOURCE,f)
+#define AML_OFFSET(f)                   (UINT8) ACPI_OFFSET (AML_RESOURCE,f)
+
+
+/*
+ * Resource dispatch and info tables
+ */
+typedef const struct acpi_resource_info
+{
+    UINT8                   LengthType;
+    UINT8                   MinimumAmlResourceLength;
+    UINT8                   MinimumInternalStructLength;
+
+} ACPI_RESOURCE_INFO;
+
+/* Types for LengthType above */
+
+#define ACPI_FIXED_LENGTH               0
+#define ACPI_VARIABLE_LENGTH            1
+#define ACPI_SMALL_VARIABLE_LENGTH      2
+
+typedef const struct acpi_rsdump_info
+{
+    UINT8                   Opcode;
+    UINT8                   Offset;
+    char                    *Name;
+    const void              *Pointer;
+
+} ACPI_RSDUMP_INFO;
+
+/* Values for the Opcode field above */
+
+#define ACPI_RSD_TITLE                  0
+#define ACPI_RSD_LITERAL                1
+#define ACPI_RSD_STRING                 2
+#define ACPI_RSD_UINT8                  3
+#define ACPI_RSD_UINT16                 4
+#define ACPI_RSD_UINT32                 5
+#define ACPI_RSD_UINT64                 6
+#define ACPI_RSD_1BITFLAG               7
+#define ACPI_RSD_2BITFLAG               8
+#define ACPI_RSD_SHORTLIST              9
+#define ACPI_RSD_LONGLIST               10
+#define ACPI_RSD_DWORDLIST              11
+#define ACPI_RSD_ADDRESS                12
+#define ACPI_RSD_SOURCE                 13
+
+/* restore default alignment */
+
+#pragma pack()
+
+
+/* Resource tables indexed by internal resource type */
+
+extern const UINT8              AcpiGbl_AmlResourceSizes[];
+extern ACPI_RSCONVERT_INFO      *AcpiGbl_SetResourceDispatch[];
+
+/* Resource tables indexed by raw AML resource descriptor type */
+
+extern ACPI_RESOURCE_INFO       AcpiGbl_SmResourceInfo[];
+extern ACPI_RESOURCE_INFO       AcpiGbl_LgResourceInfo[];
+extern ACPI_RSCONVERT_INFO      *AcpiGbl_SmGetResourceDispatch[];
+extern ACPI_RSCONVERT_INFO      *AcpiGbl_LgGetResourceDispatch[];
+
+
+/*
+ * rscreate
+ */
+ACPI_STATUS
+AcpiRsCreateResourceList (
+    ACPI_OPERAND_OBJECT     *AmlBuffer,
+    ACPI_BUFFER             *OutputBuffer);
+
+ACPI_STATUS
+AcpiRsCreateAmlResources (
+    ACPI_RESOURCE           *LinkedListBuffer,
+    ACPI_BUFFER             *OutputBuffer);
+
+ACPI_STATUS
+AcpiRsCreatePciRoutingTable (
+    ACPI_OPERAND_OBJECT     *PackageObject,
+    ACPI_BUFFER             *OutputBuffer);
+
+
+/*
+ * rsutils
+ */
 ACPI_STATUS
 AcpiRsGetPrtMethodData (
     ACPI_HANDLE             Handle,
     ACPI_BUFFER             *RetBuffer);
-
 
 ACPI_STATUS
 AcpiRsGetCrsMethodData (
@@ -150,99 +287,18 @@ AcpiRsSetSrsMethodData (
     ACPI_HANDLE             Handle,
     ACPI_BUFFER             *RetBuffer);
 
-ACPI_STATUS
-AcpiRsCreateResourceList (
-    ACPI_OPERAND_OBJECT     *ByteStreamBuffer,
-    ACPI_BUFFER             *OutputBuffer);
-
-ACPI_STATUS
-AcpiRsCreateByteStream (
-    ACPI_RESOURCE           *LinkedListBuffer,
-    ACPI_BUFFER             *OutputBuffer);
-
-ACPI_STATUS
-AcpiRsCreatePciRoutingTable (
-    ACPI_OPERAND_OBJECT     *PackageObject,
-    ACPI_BUFFER             *OutputBuffer);
-
 
 /*
- * Function prototypes called from AcpiRsCreate*
+ * rscalc
  */
-void
-AcpiRsDumpIrq (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpAddress16 (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpAddress32 (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpAddress64 (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpDma (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpIo (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpExtendedIrq (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpFixedIo (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpFixedMemory32 (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpMemory24 (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpMemory32 (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpStartDependFns (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpVendorSpecific (
-    ACPI_RESOURCE_DATA      *Data);
-
-void
-AcpiRsDumpResourceList (
-    ACPI_RESOURCE           *Resource);
-
-void
-AcpiRsDumpIrqList (
-    UINT8                   *RouteTable);
-
-ACPI_STATUS
-AcpiRsGetByteStreamStart (
-    UINT8                   *ByteStreamBuffer,
-    UINT8                   **ByteStreamStart,
-    UINT32                  *Size);
-
 ACPI_STATUS
 AcpiRsGetListLength (
-    UINT8                   *ByteStreamBuffer,
-    UINT32                  ByteStreamBufferLength,
+    UINT8                   *AmlBuffer,
+    UINT32                  AmlBufferLength,
     ACPI_SIZE               *SizeNeeded);
 
 ACPI_STATUS
-AcpiRsGetByteStreamLength (
+AcpiRsGetAmlLength (
     ACPI_RESOURCE           *LinkedListBuffer,
     ACPI_SIZE               *SizeNeeded);
 
@@ -252,214 +308,166 @@ AcpiRsGetPciRoutingTableLength (
     ACPI_SIZE               *BufferSizeNeeded);
 
 ACPI_STATUS
-AcpiRsByteStreamToList (
-    UINT8                   *ByteStreamBuffer,
-    UINT32                  ByteStreamBufferLength,
+AcpiRsConvertAmlToResources (
+    UINT8                   *AmlBuffer,
+    UINT32                  AmlBufferLength,
     UINT8                   *OutputBuffer);
 
 ACPI_STATUS
-AcpiRsListToByteStream (
-    ACPI_RESOURCE           *LinkedList,
-    ACPI_SIZE               ByteStreamSizeNeeded,
+AcpiRsConvertResourcesToAml (
+    ACPI_RESOURCE           *Resource,
+    ACPI_SIZE               AmlSizeNeeded,
     UINT8                   *OutputBuffer);
 
+
+/*
+ * rsaddr
+ */
+void
+AcpiRsSetAddressCommon (
+    AML_RESOURCE            *Aml,
+    ACPI_RESOURCE           *Resource);
+
+BOOLEAN
+AcpiRsGetAddressCommon (
+    ACPI_RESOURCE           *Resource,
+    AML_RESOURCE            *Aml);
+
+
+/*
+ * rsmisc
+ */
 ACPI_STATUS
-AcpiRsIoResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
+AcpiRsConvertAmlToResource (
+    ACPI_RESOURCE           *Resource,
+    AML_RESOURCE            *Aml,
+    ACPI_RSCONVERT_INFO     *Info);
 
 ACPI_STATUS
-AcpiRsFixedIoResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
+AcpiRsConvertResourceToAml (
+    ACPI_RESOURCE           *Resource,
+    AML_RESOURCE            *Aml,
+    ACPI_RSCONVERT_INFO     *Info);
 
-ACPI_STATUS
-AcpiRsIoStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
 
-ACPI_STATUS
-AcpiRsFixedIoStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsIrqResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsIrqStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsDmaResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsDmaStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsAddress16Resource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsAddress16Stream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsAddress32Resource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsAddress32Stream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsAddress64Resource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsAddress64Stream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsStartDependFnsResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsEndDependFnsResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsStartDependFnsStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsEndDependFnsStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsMemory24Resource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsMemory24Stream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsMemory32RangeResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsFixedMemory32Resource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsMemory32RangeStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsFixedMemory32Stream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsExtendedIrqResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsExtendedIrqStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsEndTagResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsEndTagStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
-
-ACPI_STATUS
-AcpiRsVendorResource (
-    UINT8                   *ByteStreamBuffer,
-    ACPI_SIZE               *BytesConsumed,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *StructureSize);
-
-ACPI_STATUS
-AcpiRsVendorStream (
-    ACPI_RESOURCE           *LinkedList,
-    UINT8                   **OutputBuffer,
-    ACPI_SIZE               *BytesConsumed);
+/*
+ * rsutils
+ */
+void
+AcpiRsMoveData (
+    void                    *Destination,
+    void                    *Source,
+    UINT16                  ItemCount,
+    UINT8                   MoveType);
 
 UINT8
-AcpiRsGetResourceType (
-    UINT8                   ResourceStartByte);
+AcpiRsDecodeBitmask (
+    UINT16                  Mask,
+    UINT8                   *List);
+
+UINT16
+AcpiRsEncodeBitmask (
+    UINT8                   *List,
+    UINT8                   Count);
+
+ACPI_RS_LENGTH
+AcpiRsGetResourceSource (
+    ACPI_RS_LENGTH          ResourceLength,
+    ACPI_RS_LENGTH          MinimumLength,
+    ACPI_RESOURCE_SOURCE    *ResourceSource,
+    AML_RESOURCE            *Aml,
+    char                    *StringPtr);
+
+ACPI_RSDESC_SIZE
+AcpiRsSetResourceSource (
+    AML_RESOURCE            *Aml,
+    ACPI_RS_LENGTH          MinimumLength,
+    ACPI_RESOURCE_SOURCE    *ResourceSource);
+
+void
+AcpiRsSetResourceHeader (
+    UINT8                   DescriptorType,
+    ACPI_RSDESC_SIZE        TotalLength,
+    AML_RESOURCE            *Aml);
+
+void
+AcpiRsSetResourceLength (
+    ACPI_RSDESC_SIZE        TotalLength,
+    AML_RESOURCE            *Aml);
+
+ACPI_RESOURCE_INFO *
+AcpiRsGetResourceInfo (
+    UINT8                   ResourceType);
+
+
+/*
+ * rsdump
+ */
+void
+AcpiRsDumpResourceList (
+    ACPI_RESOURCE           *Resource);
+
+void
+AcpiRsDumpIrqList (
+    UINT8                   *RouteTable);
+
+
+/*
+ * Resource conversion tables
+ */
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertDma[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertEndDpf[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertIo[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertFixedIo[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertEndTag[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertMemory24[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertGenericReg[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertMemory32[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertFixedMemory32[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertAddress32[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertAddress16[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertExtIrq[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertAddress64[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertExtAddress64[];
+
+/* These resources require separate get/set tables */
+
+extern ACPI_RSCONVERT_INFO      AcpiRsGetIrq[];
+extern ACPI_RSCONVERT_INFO      AcpiRsGetStartDpf[];
+extern ACPI_RSCONVERT_INFO      AcpiRsGetVendorSmall[];
+extern ACPI_RSCONVERT_INFO      AcpiRsGetVendorLarge[];
+
+extern ACPI_RSCONVERT_INFO      AcpiRsSetIrq[];
+extern ACPI_RSCONVERT_INFO      AcpiRsSetStartDpf[];
+extern ACPI_RSCONVERT_INFO      AcpiRsSetVendor[];
+
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+/*
+ * rsinfo
+ */
+extern ACPI_RSDUMP_INFO         *AcpiGbl_DumpResourceDispatch[];
+
+/*
+ * rsdump
+ */
+extern ACPI_RSDUMP_INFO         AcpiRsDumpIrq[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpDma[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpStartDpf[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpEndDpf[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpIo[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpFixedIo[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpVendor[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpEndTag[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpMemory24[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpMemory32[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpFixedMemory32[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpAddress16[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpAddress32[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpAddress64[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpExtAddress64[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpExtIrq[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpGenericReg[];
+#endif
 
 #endif  /* __ACRESRC_H__ */

@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 94 $
+ *              $Revision: 1.98 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,6 +123,12 @@
 #define _COMPONENT          ACPI_EVENTS
         ACPI_MODULE_NAME    ("evsci")
 
+/* Local prototypes */
+
+static UINT32 ACPI_SYSTEM_XFACE
+AcpiEvSciXruptHandler (
+    void                    *Context);
+
 
 /*******************************************************************************
  *
@@ -165,7 +171,7 @@ AcpiEvSciXruptHandler (
      */
     InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
-    return_VALUE (InterruptHandled);
+    return_UINT32 (InterruptHandled);
 }
 
 
@@ -203,7 +209,7 @@ AcpiEvGpeXruptHandler (
      */
     InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
-    return_VALUE (InterruptHandled);
+    return_UINT32 (InterruptHandled);
 }
 
 
@@ -220,7 +226,8 @@ AcpiEvGpeXruptHandler (
  ******************************************************************************/
 
 UINT32
-AcpiEvInstallSciHandler (void)
+AcpiEvInstallSciHandler (
+    void)
 {
     UINT32                  Status = AE_OK;
 
@@ -254,7 +261,8 @@ AcpiEvInstallSciHandler (void)
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiEvRemoveSciHandler (void)
+AcpiEvRemoveSciHandler (
+    void)
 {
     ACPI_STATUS             Status;
 

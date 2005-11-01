@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nswalk - Functions for walking the ACPI namespace
- *              $Revision: 37 $
+ *              $Revision: 1.39 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -131,7 +131,7 @@
  *
  * PARAMETERS:  Type                - Type of node to be searched for
  *              ParentNode          - Parent node whose children we are
- *                                     getting
+ *                                    getting
  *              ChildNode           - Previous child that was found.
  *                                    The NEXT child will be returned
  *

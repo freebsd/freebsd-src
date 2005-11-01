@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: adisasm - Application-level disassembler routines
- *              $Revision: 69 $
+ *              $Revision: 1.77 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -115,14 +115,14 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "acparser.h"
-#include "amlcode.h"
-#include "acdebug.h"
-#include "acdisasm.h"
-#include "acdispat.h"
-#include "acnamesp.h"
-#include "acapps.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/acdebug.h>
+#include <contrib/dev/acpica/acdisasm.h>
+#include <contrib/dev/acpica/acdispat.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acapps.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -136,7 +136,7 @@
 ACPI_PARSE_OBJECT       *AcpiGbl_ParsedNamespaceRoot;
 
 
-#ifndef _ACPI_ASL_COMPILER
+#ifndef ACPI_ASL_COMPILER
 BOOLEAN
 AcpiDsIsResultUsed (
     ACPI_PARSE_OBJECT       *Op,
@@ -154,11 +154,11 @@ AcpiDsRestartControlMethod (
     return (AE_OK);
 }
 
-ACPI_STATUS
+void
 AcpiDsTerminateControlMethod (
     ACPI_WALK_STATE         *WalkState)
 {
-    return (AE_OK);
+    return;
 }
 
 ACPI_STATUS
@@ -188,9 +188,10 @@ char                        FilenameBuf[20];
  *
  * FUNCTION:    AfGenerateFilename
  *
- * PARAMETERS:
+ * PARAMETERS:  Prefix      - prefix string
+ *              TableId     - The table ID
  *
- * RETURN:
+ * RETURN:      Pointer to the completed string
  *
  * DESCRIPTION: Build an output filename from an ACPI table ID string
  *
@@ -228,9 +229,11 @@ AdGenerateFilename (
  *
  * FUNCTION:    AfWriteBuffer
  *
- * PARAMETERS:
+ * PARAMETERS:  Filename        - name of file
+ *              Buffer          - data to write
+ *              Length          - length of data
  *
- * RETURN:
+ * RETURN:      Actual number of bytes written
  *
  * DESCRIPTION: Open a file and write out a single buffer
  *
@@ -263,9 +266,12 @@ AdWriteBuffer (
  *
  * FUNCTION:    AfWriteTable
  *
- * PARAMETERS:
+ * PARAMETERS:  Table       - pointer to the ACPI table
+ *              Length      - length of the table
+ *              TableName   - the table signature
+ *              OemTableID  - from the table header
  *
- * RETURN:
+ * RETURN:      None
  *
  * DESCRIPTION: Dump the loaded tables to a file (or files)
  *
@@ -378,6 +384,9 @@ FlGenerateFilename (
  *
  * PARAMETERS:  InputFilename       - The user-specified ASL source file to be
  *                                    compiled
+ *              OutDirectoryPath    - Where the directory path prefix is
+ *                                    returned
+ *              OutFilename         - Where the filename part is returned
  *
  * RETURN:      Status
  *
@@ -451,8 +460,11 @@ FlSplitInputPathname (
  *
  * FUNCTION:    AdAmlDisassemble
  *
- * PARAMETERS:  OutToFile       - TRUE if output should go to a file
- *              Filename        - AML input filename
+ * PARAMETERS:  Filename        - AML input filename
+ *              OutToFile       - TRUE if output should go to a file
+ *              Prefix          - Path prefix for output
+ *              OutFilename     - where the filename is returned
+ *              GetAllTables    - TRUE if all tables are desired
  *
  * RETURN:      Status
  *
@@ -608,7 +620,7 @@ AdCreateTableHeader (
     AcpiOsPrintf (" *\n * Disassembly of %s, %s */\n", Filename, ctime (&Timer));
 
     AcpiOsPrintf (
-        "DefinitionBlock (\"%4.4s.aml\", \"%4.4s\", %hd, \"%.6s\", \"%.8s\", %u)\n",
+        "DefinitionBlock (\"%4.4s.aml\", \"%4.4s\", %hd, \"%.6s\", \"%.8s\", 0x%8.8X)\n",
         Table->Signature, Table->Signature, Table->Revision,
         Table->OemId, Table->OemTableId, Table->OemRevision);
 }
@@ -619,6 +631,7 @@ AdCreateTableHeader (
  * FUNCTION:    AdDisplayTables
  *
  * PARAMETERS:  Filename            - Input file for the table
+ *              Table               - Pointer to the raw table
  *
  * RETURN:      Status
  *
@@ -718,6 +731,7 @@ AdDeferredParse (
     /* Parse the method */
 
     WalkState->ParseFlags &= ~ACPI_PARSE_DELETE_TREE;
+    WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
     Status = AcpiPsParseAml (WalkState);
 
     /*
@@ -750,12 +764,12 @@ AdDeferredParse (
         switch (Op->Common.AmlOpcode)
         {
         case AML_PACKAGE_OP:
-        case AML_VAR_PACKAGE_OP:
             ExtraOp = Op->Common.Value.Arg;
             ExtraOp = ExtraOp->Common.Next;
             Op->Common.Value.Arg = ExtraOp->Common.Value.Arg;
             break;
 
+        case AML_VAR_PACKAGE_OP:
         case AML_BUFFER_OP:
         default:
             ExtraOp = Op->Common.Value.Arg;
@@ -862,9 +876,10 @@ AdParseDeferredOps (
  *
  * FUNCTION:    AdGetLocalTables
  *
- * PARAMETERS:
+ * PARAMETERS:  Filename        - Not used
+ *              GetAllTables    - TRUE if all tables are desired
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Get the ACPI tables from either memory or a file
  *
@@ -982,7 +997,7 @@ AdGetLocalTables (
  *
  * FUNCTION:    AdParseTable
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Table           - Pointer to the raw table
  *
  * RETURN:      Status
  *
@@ -1038,6 +1053,7 @@ AdParseTable (
     }
 
     WalkState->ParseFlags &= ~ACPI_PARSE_DELETE_TREE;
+    WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
 
     Status = AcpiPsParseAml (WalkState);
     if (ACPI_FAILURE (Status))
@@ -1050,6 +1066,7 @@ AdParseTable (
     TableDesc.AmlStart = AmlStart;
     TableDesc.AmlLength = AmlLength;
     fprintf (stderr, "Pass 2 parse of [%4.4s]\n", (char *) Table->Signature);
+    WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
 
     Status = AcpiNsOneCompleteParse (2, &TableDesc);
     if (ACPI_FAILURE (Status))

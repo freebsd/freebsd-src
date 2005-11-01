@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 72 $
+ *       $Revision: 1.75 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,7 +121,6 @@
 /*
  * Exceptions returned by external ACPI interfaces
  */
-
 #define AE_CODE_ENVIRONMENTAL           0x0000
 #define AE_CODE_PROGRAMMER              0x1000
 #define AE_CODE_ACPI_TABLES             0x2000
@@ -169,8 +168,10 @@
 #define AE_ABORT_METHOD                 (ACPI_STATUS) (0x001C | AE_CODE_ENVIRONMENTAL)
 #define AE_SAME_HANDLER                 (ACPI_STATUS) (0x001D | AE_CODE_ENVIRONMENTAL)
 #define AE_WAKE_ONLY_GPE                (ACPI_STATUS) (0x001E | AE_CODE_ENVIRONMENTAL)
+#define AE_OWNER_ID_LIMIT               (ACPI_STATUS) (0x001F | AE_CODE_ENVIRONMENTAL)
 
-#define AE_CODE_ENV_MAX                 0x001E
+#define AE_CODE_ENV_MAX                 0x001F
+
 
 /*
  * Programmer exceptions
@@ -241,6 +242,7 @@
 
 #define AE_CODE_AML_MAX                 0x0021
 
+
 /*
  * Internal exceptions used for control
  */
@@ -260,6 +262,7 @@
 
 
 #ifdef DEFINE_ACPI_GLOBALS
+
 
 /*
  * String versions of the exception codes above
@@ -297,7 +300,8 @@ char const   *AcpiGbl_ExceptionNames_Env[] =
     "AE_LOGICAL_ADDRESS",
     "AE_ABORT_METHOD",
     "AE_SAME_HANDLER",
-    "AE_WAKE_ONLY_GPE"
+    "AE_WAKE_ONLY_GPE",
+    "AE_OWNER_ID_LIMIT"
 };
 
 char const   *AcpiGbl_ExceptionNames_Pgm[] =
@@ -376,6 +380,5 @@ char const   *AcpiGbl_ExceptionNames_Ctrl[] =
 };
 
 #endif /* ACPI GLOBALS */
-
 
 #endif /* __ACEXCEP_H__ */

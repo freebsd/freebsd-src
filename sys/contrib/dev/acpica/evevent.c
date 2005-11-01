@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evevent - Fixed Event handling and dispatch
- *              $Revision: 113 $
+ *              $Revision: 1.117 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -120,6 +120,16 @@
 #define _COMPONENT          ACPI_EVENTS
         ACPI_MODULE_NAME    ("evevent")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiEvFixedEventInitialize (
+    void);
+
+static UINT32
+AcpiEvFixedEventDispatch (
+    UINT32                  Event);
+
 
 /*******************************************************************************
  *
@@ -129,7 +139,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize global data structures for events.
+ * DESCRIPTION: Initialize global data structures for ACPI events (Fixed, GPE)
  *
  ******************************************************************************/
 
@@ -152,9 +162,9 @@ AcpiEvInitializeEvents (
     }
 
     /*
-     * Initialize the Fixed and General Purpose Events. This is
-     * done prior to enabling SCIs to prevent interrupts from
-     * occurring before handers are installed.
+     * Initialize the Fixed and General Purpose Events. This is done prior to
+     * enabling SCIs to prevent interrupts from occurring before the handlers are
+     * installed.
      */
     Status = AcpiEvFixedEventInitialize ();
     if (ACPI_FAILURE (Status))
@@ -239,7 +249,7 @@ AcpiEvInstallXruptHandlers (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiEvFixedEventInitialize (
     void)
 {
@@ -260,8 +270,9 @@ AcpiEvFixedEventInitialize (
 
         if (AcpiGbl_FixedEventInfo[i].EnableRegisterId != 0xFF)
         {
-            Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[i].EnableRegisterId,
-                                    0, ACPI_MTX_LOCK);
+            Status = AcpiSetRegister (
+                        AcpiGbl_FixedEventInfo[i].EnableRegisterId,
+                        0, ACPI_MTX_LOCK);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -281,7 +292,7 @@ AcpiEvFixedEventInitialize (
  *
  * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
  *
- * DESCRIPTION: Checks the PM status register for fixed events
+ * DESCRIPTION: Checks the PM status register for active fixed events
  *
  ******************************************************************************/
 
@@ -302,8 +313,10 @@ AcpiEvFixedEventDetect (
      * Read the fixed feature status and enable registers, as all the cases
      * depend on their values.  Ignore errors here.
      */
-    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS, &FixedStatus);
-    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_ENABLE, &FixedEnable);
+    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS,
+                &FixedStatus);
+    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_ENABLE,
+                &FixedEnable);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
         "Fixed Event Block: Enable %08X Status %08X\n",
@@ -342,7 +355,7 @@ AcpiEvFixedEventDetect (
  *
  ******************************************************************************/
 
-UINT32
+static UINT32
 AcpiEvFixedEventDispatch (
     UINT32                  Event)
 {

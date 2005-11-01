@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 28 $
+ *       $Revision: 1.37 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,7 +129,6 @@
  * Walk state - current state of a parse tree walk.  Used for both a leisurely stroll through
  * the tree (for whatever reason), and for control method execution.
  */
-
 #define ACPI_NEXT_OP_DOWNWARD       1
 #define ACPI_NEXT_OP_UPWARD         2
 
@@ -145,14 +144,13 @@ typedef struct acpi_walk_state
     UINT8                       WalkType;
     ACPI_OWNER_ID               OwnerId;                            /* Owner of objects created during the walk */
     BOOLEAN                     LastPredicate;                      /* Result of last predicate */
-    UINT8                       Reserved;                           /* For alignment */
     UINT8                       CurrentResult;                      /* */
     UINT8                       NextOpInfo;                         /* Info about NextOp */
     UINT8                       NumOperands;                        /* Stack pointer for Operands[] array */
     UINT8                       ReturnUsed;
     UINT16                      Opcode;                             /* Current AML opcode */
     UINT8                       ScopeDepth;
-    UINT8                       Reserved1;
+    UINT8                       PassNumber;                         /* Parse pass during table load */
     UINT32                      ArgCount;                           /* push for fixed or var args */
     UINT32                      AmlOffset;
     UINT32                      ArgTypes;
@@ -167,6 +165,7 @@ typedef struct acpi_walk_state
     ACPI_GENERIC_STATE          *ControlState;                      /* List of control states (nested IFs) */
     struct acpi_namespace_node  *DeferredNode;                      /* Used when executing deferred opcodes */
     struct acpi_gpe_event_info  *GpeEventInfo;                      /* Info for GPE (_Lxx/_Exx methods only */
+    union acpi_operand_object   *ImplicitReturnObj;
     struct acpi_namespace_node  LocalVariables[ACPI_METHOD_NUM_LOCALS];     /* Control method locals */
     struct acpi_namespace_node  *MethodCallNode;                    /* Called method Node*/
     ACPI_PARSE_OBJECT           *MethodCallOp;                      /* MethodCall Op if running a method */
@@ -230,15 +229,19 @@ typedef struct acpi_device_walk_info
 typedef struct acpi_walk_info
 {
     UINT32                  DebugLevel;
-    UINT32                  OwnerId;
+    UINT32                  Count;
+    ACPI_OWNER_ID           OwnerId;
     UINT8                   DisplayType;
 
 } ACPI_WALK_INFO;
 
 /* Display Types */
 
-#define ACPI_DISPLAY_SUMMARY    0
-#define ACPI_DISPLAY_OBJECTS    1
+#define ACPI_DISPLAY_SUMMARY    (UINT8) 0
+#define ACPI_DISPLAY_OBJECTS    (UINT8) 1
+#define ACPI_DISPLAY_MASK       (UINT8) 1
+
+#define ACPI_DISPLAY_SHORT      (UINT8) 2
 
 typedef struct acpi_get_devices_info
 {
@@ -286,8 +289,10 @@ typedef union acpi_aml_operands
 typedef struct acpi_parameter_info
 {
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_OPERAND_OBJECT     **Parameters;
     ACPI_OPERAND_OBJECT     *ReturnObject;
+    UINT8                   PassNumber;
     UINT8                   ParameterType;
     UINT8                   ReturnObjectType;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 12 $
+ *       $Revision: 1.25 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -136,6 +136,7 @@ extern ACPI_EXTERNAL_LIST       *AcpiGbl_ExternalList;
 extern const char               *AcpiGbl_IoDecode[2];
 extern const char               *AcpiGbl_WordDecode[4];
 extern const char               *AcpiGbl_ConsumeDecode[2];
+extern const char               *AcpiGbl_ConfigDecode[4];
 extern const char               *AcpiGbl_MinDecode[2];
 extern const char               *AcpiGbl_MaxDecode[2];
 extern const char               *AcpiGbl_DECDecode[2];
@@ -149,6 +150,10 @@ extern const char               *AcpiGbl_SHRDecode[2];
 extern const char               *AcpiGbl_TYPDecode[4];
 extern const char               *AcpiGbl_BMDecode[2];
 extern const char               *AcpiGbl_SIZDecode[4];
+extern const char               *AcpiGbl_TTPDecode[2];
+extern const char               *AcpiGbl_MTPDecode[4];
+extern const char               *AcpiGbl_TRSDecode[2];
+
 extern const char               *AcpiGbl_LockRule[ACPI_NUM_LOCK_RULES];
 extern const char               *AcpiGbl_AccessTypes[ACPI_NUM_ACCESS_TYPES];
 extern const char               *AcpiGbl_UpdateRules[ACPI_NUM_UPDATE_RULES];
@@ -159,6 +164,7 @@ typedef struct acpi_op_walk_info
 {
     UINT32                  Level;
     UINT32                  BitOffset;
+    ACPI_WALK_STATE         *WalkState;
 
 } ACPI_OP_WALK_INFO;
 
@@ -172,58 +178,16 @@ ACPI_STATUS (*ASL_WALK_CALLBACK) (
 /*
  * dmwalk
  */
-
-void
-AcpiDmWalkParseTree (
-    ACPI_PARSE_OBJECT       *Op,
-    ASL_WALK_CALLBACK       DescendingCallback,
-    ASL_WALK_CALLBACK       AscendingCallback,
-    void                    *Context);
-
-ACPI_STATUS
-AcpiDmDescendingOp (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    void                    *Context);
-
-ACPI_STATUS
-AcpiDmAscendingOp (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    void                    *Context);
-
-
-/*
- * dmopcode
- */
-
-void
-AcpiDmValidateName (
-    char                    *Name,
-    ACPI_PARSE_OBJECT       *Op);
-
-UINT32
-AcpiDmDumpName (
-    char                    *Name);
-
-void
-AcpiDmUnicode (
-    ACPI_PARSE_OBJECT       *Op);
-
 void
 AcpiDmDisassemble (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Origin,
     UINT32                  NumOpcodes);
 
-void
-AcpiDmNamestring (
-    char                    *Name);
 
-void
-AcpiDmDisplayPath (
-    ACPI_PARSE_OBJECT       *Op);
-
+/*
+ * dmopcode
+ */
 void
 AcpiDmDisassembleOneOp (
     ACPI_WALK_STATE         *WalkState,
@@ -235,16 +199,7 @@ AcpiDmDecodeInternalObject (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
 UINT32
-AcpiDmBlockType (
-    ACPI_PARSE_OBJECT       *Op);
-
-UINT32
 AcpiDmListType (
-    ACPI_PARSE_OBJECT       *Op);
-
-ACPI_STATUS
-AcpiPsDisplayObjectPathname (
-    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op);
 
 void
@@ -267,10 +222,6 @@ void
 AcpiDmMatchOp (
     ACPI_PARSE_OBJECT       *Op);
 
-void
-AcpiDmMatchKeyword (
-    ACPI_PARSE_OBJECT       *Op);
-
 BOOLEAN
 AcpiDmCommaIfListMember (
     ACPI_PARSE_OBJECT       *Op);
@@ -281,13 +232,25 @@ AcpiDmCommaIfFieldMember (
 
 
 /*
- * dmobject
+ * dmnames
  */
+UINT32
+AcpiDmDumpName (
+    char                    *Name);
+
+ACPI_STATUS
+AcpiPsDisplayObjectPathname (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op);
 
 void
-AcpiDmDecodeNode (
-    ACPI_NAMESPACE_NODE     *Node);
+AcpiDmNamestring (
+    char                    *Name);
 
+
+/*
+ * dmobject
+ */
 void
 AcpiDmDisplayInternalObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
@@ -311,9 +274,19 @@ AcpiDmDumpMethodInfo (
 /*
  * dmbuffer
  */
+void
+AcpiDmDisasmByteList (
+    UINT32                  Level,
+    UINT8                   *ByteData,
+    UINT32                  ByteCount);
 
 void
-AcpiIsEisaId (
+AcpiDmByteList (
+    ACPI_OP_WALK_INFO       *Info,
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+AcpiDmIsEisaId (
     ACPI_PARSE_OBJECT       *Op);
 
 void
@@ -332,26 +305,34 @@ AcpiDmIsStringBuffer (
 /*
  * dmresrc
  */
+void
+AcpiDmDumpInteger8 (
+    UINT8                   Value,
+    char                    *Name);
 
 void
-AcpiDmDisasmByteList (
-    UINT32                  Level,
-    UINT8                   *ByteData,
-    UINT32                  ByteCount);
+AcpiDmDumpInteger16 (
+    UINT16                  Value,
+    char                    *Name);
 
 void
-AcpiDmByteList (
-    ACPI_OP_WALK_INFO       *Info,
-    ACPI_PARSE_OBJECT       *Op);
+AcpiDmDumpInteger32 (
+    UINT32                  Value,
+    char                    *Name);
 
 void
-AcpiDmResourceDescriptor (
+AcpiDmDumpInteger64 (
+    UINT64                  Value,
+    char                    *Name);
+
+void
+AcpiDmResourceTemplate (
     ACPI_OP_WALK_INFO       *Info,
     UINT8                   *ByteData,
     UINT32                  ByteCount);
 
 BOOLEAN
-AcpiDmIsResourceDescriptor (
+AcpiDmIsResourceTemplate (
     ACPI_PARSE_OBJECT       *Op);
 
 void
@@ -366,70 +347,74 @@ void
 AcpiDmDecodeAttribute (
     UINT8                   Attribute);
 
+
 /*
  * dmresrcl
  */
-
-void
-AcpiDmIoFlags (
-        UINT8               Flags);
-
-void
-AcpiDmMemoryFlags (
-    UINT8                   Flags,
-    UINT8                   SpecificFlags);
-
 void
 AcpiDmWordDescriptor (
-    ASL_WORD_ADDRESS_DESC   *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmDwordDescriptor (
-    ASL_DWORD_ADDRESS_DESC  *Resource,
+    AML_RESOURCE            *Resource,
+    UINT32                  Length,
+    UINT32                  Level);
+
+void
+AcpiDmExtendedDescriptor (
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmQwordDescriptor (
-    ASL_QWORD_ADDRESS_DESC  *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmMemory24Descriptor (
-    ASL_MEMORY_24_DESC      *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmMemory32Descriptor (
-    ASL_MEMORY_32_DESC      *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
-AcpiDmFixedMem32Descriptor (
-    ASL_FIXED_MEMORY_32_DESC *Resource,
+AcpiDmFixedMemory32Descriptor (
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmGenericRegisterDescriptor (
-    ASL_GENERAL_REGISTER_DESC *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmInterruptDescriptor (
-    ASL_EXTENDED_XRUPT_DESC *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmVendorLargeDescriptor (
-    ASL_LARGE_VENDOR_DESC   *Resource,
+    AML_RESOURCE            *Resource,
+    UINT32                  Length,
+    UINT32                  Level);
+
+void
+AcpiDmVendorCommon (
+    char                    *Name,
+    UINT8                   *ByteData,
     UINT32                  Length,
     UINT32                  Level);
 
@@ -437,46 +422,45 @@ AcpiDmVendorLargeDescriptor (
 /*
  * dmresrcs
  */
-
 void
 AcpiDmIrqDescriptor (
-    ASL_IRQ_FORMAT_DESC     *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmDmaDescriptor (
-    ASL_DMA_FORMAT_DESC     *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmIoDescriptor (
-    ASL_IO_PORT_DESC        *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmFixedIoDescriptor (
-    ASL_FIXED_IO_PORT_DESC  *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmStartDependentDescriptor (
-    ASL_START_DEPENDENT_DESC *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmEndDependentDescriptor (
-    ASL_START_DEPENDENT_DESC *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
 void
 AcpiDmVendorSmallDescriptor (
-    ASL_SMALL_VENDOR_DESC   *Resource,
+    AML_RESOURCE            *Resource,
     UINT32                  Length,
     UINT32                  Level);
 
@@ -484,7 +468,6 @@ AcpiDmVendorSmallDescriptor (
 /*
  * dmutils
  */
-
 void
 AcpiDmAddToExternalList (
     char                    *Path);
