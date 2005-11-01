@@ -168,8 +168,8 @@ acpi_count_irq_resources(ACPI_RESOURCE *res, void *context)
 	struct link_count_request *req;
 
 	req = (struct link_count_request *)context;
-	switch (res->Id) {
-	case ACPI_RSTYPE_START_DPF:
+	switch (res->Type) {
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 		switch (req->in_dpf) {
 		case DPF_OUTSIDE:
 			/* We've started the first DPF. */
@@ -181,14 +181,14 @@ acpi_count_irq_resources(ACPI_RESOURCE *res, void *context)
 			break;
 		}
 		break;
-	case ACPI_RSTYPE_END_DPF:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 		/* We are finished with DPF parsing. */
 		KASSERT(req->in_dpf != DPF_OUTSIDE,
 		    ("%s: end dpf when not parsing a dpf", __func__));
 		req->in_dpf = DPF_OUTSIDE;
 		break;
-	case ACPI_RSTYPE_IRQ:
-	case ACPI_RSTYPE_EXT_IRQ:
+	case ACPI_RESOURCE_TYPE_IRQ:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		/*
 		 * Don't count resources if we are in a DPF set that we are
 		 * ignoring.
@@ -207,8 +207,8 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
-	switch (res->Id) {
-	case ACPI_RSTYPE_START_DPF:
+	switch (res->Type) {
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 		switch (req->in_dpf) {
 		case DPF_OUTSIDE:
 			/* We've started the first DPF. */
@@ -222,14 +222,14 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 			break;
 		}
 		break;
-	case ACPI_RSTYPE_END_DPF:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 		/* We are finished with DPF parsing. */
 		KASSERT(req->in_dpf != DPF_OUTSIDE,
 		    ("%s: end dpf when not parsing a dpf", __func__));
 		req->in_dpf = DPF_OUTSIDE;
 		break;
-	case ACPI_RSTYPE_IRQ:
-	case ACPI_RSTYPE_EXT_IRQ:
+	case ACPI_RESOURCE_TYPE_IRQ:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		KASSERT(req->link_index < req->sc->pl_num_links,
 		    ("%s: array boundary violation", __func__));
 		link = &req->sc->pl_links[req->link_index];
@@ -242,10 +242,10 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 		 * systems return multiple IRQs (which is nonsense for _CRS)
 		 * when the link hasn't been programmed.
 		 */
-		if (res->Id == ACPI_RSTYPE_IRQ) {
-			if (res->Data.Irq.NumberOfInterrupts == 1)
+		if (res->Type == ACPI_RESOURCE_TYPE_IRQ) {
+			if (res->Data.Irq.InterruptCount == 1)
 				link->l_irq = res->Data.Irq.Interrupts[0];
-		} else if (res->Data.ExtendedIrq.NumberOfInterrupts == 1)
+		} else if (res->Data.ExtendedIrq.InterruptCount == 1)
 			link->l_irq = res->Data.ExtendedIrq.Interrupts[0];
 
 		/*
@@ -268,13 +268,14 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 {
 	struct link_res_request *req;
 	struct link *link;
-	UINT32 *irqs;
-	int i;
+	UINT8 *irqs = NULL;
+	UINT32 *ext_irqs = NULL;
+	int i, is_ext_irq = 1;
 
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
-	switch (res->Id) {
-	case ACPI_RSTYPE_START_DPF:
+	switch (res->Type) {
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 		switch (req->in_dpf) {
 		case DPF_OUTSIDE:
 			/* We've started the first DPF. */
@@ -286,14 +287,16 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 			break;
 		}
 		break;
-	case ACPI_RSTYPE_END_DPF:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 		/* We are finished with DPF parsing. */
 		KASSERT(req->in_dpf != DPF_OUTSIDE,
 		    ("%s: end dpf when not parsing a dpf", __func__));
 		req->in_dpf = DPF_OUTSIDE;
 		break;
-	case ACPI_RSTYPE_IRQ:
-	case ACPI_RSTYPE_EXT_IRQ:
+	case ACPI_RESOURCE_TYPE_IRQ:
+		is_ext_irq = 0;
+		/* fall through */
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		/*
 		 * Don't parse resources if we are in a DPF set that we are
 		 * ignoring.
@@ -317,13 +320,13 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		 * _SRS.
 		 */
 		bcopy(res, &link->l_prs_template, sizeof(ACPI_RESOURCE));
-		if (res->Id == ACPI_RSTYPE_IRQ) {
-			link->l_num_irqs = res->Data.Irq.NumberOfInterrupts;
-			irqs = res->Data.Irq.Interrupts;
-		} else {
+		if (is_ext_irq) {
 			link->l_num_irqs =
-			    res->Data.ExtendedIrq.NumberOfInterrupts;
-			irqs = res->Data.ExtendedIrq.Interrupts;
+			    res->Data.ExtendedIrq.InterruptCount;
+			ext_irqs = res->Data.ExtendedIrq.Interrupts;
+		} else {
+			link->l_num_irqs = res->Data.Irq.InterruptCount;
+			irqs = res->Data.Irq.Interrupts;
 		}
 		if (link->l_num_irqs == 0)
 			break;
@@ -337,9 +340,15 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		link->l_irqs = malloc(sizeof(int) * link->l_num_irqs,
 		    M_PCI_LINK, M_WAITOK | M_ZERO);
 		for (i = 0; i < link->l_num_irqs; i++) {
-			link->l_irqs[i] = irqs[i];
-			if (irqs[i] >= NUM_ISA_INTERRUPTS)
-				link->l_isa_irq = FALSE;
+			if (is_ext_irq) {
+				link->l_irqs[i] = ext_irqs[i];
+				if (ext_irqs[i] >= NUM_ISA_INTERRUPTS)
+					link->l_isa_irq = FALSE;
+			} else {
+				link->l_irqs[i] = irqs[i];
+				if (irqs[i] >= NUM_ISA_INTERRUPTS)
+					link->l_isa_irq = FALSE;
+			}
 		}
 		break;
 	default:
@@ -669,8 +678,8 @@ acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 	resource = (ACPI_RESOURCE *)crsbuf.Pointer;
 	end = (ACPI_RESOURCE *)((char *)crsbuf.Pointer + crsbuf.Length);
 	for (;;) {
-		switch (resource->Id) {
-		case ACPI_RSTYPE_START_DPF:
+		switch (resource->Type) {
+		case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 			switch (in_dpf) {
 			case DPF_OUTSIDE:
 				/* We've started the first DPF. */
@@ -685,19 +694,19 @@ acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 			}
 			resptr = NULL;
 			break;
-		case ACPI_RSTYPE_END_DPF:
+		case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 			/* We are finished with DPF parsing. */
 			KASSERT(in_dpf != DPF_OUTSIDE,
 			    ("%s: end dpf when not parsing a dpf", __func__));
 			in_dpf = DPF_OUTSIDE;
 			resptr = NULL;
 			break;
-		case ACPI_RSTYPE_IRQ:
+		case ACPI_RESOURCE_TYPE_IRQ:
 			MPASS(i < sc->pl_num_links);
-			MPASS(link->l_prs_template.Id == ACPI_RSTYPE_IRQ);
+			MPASS(link->l_prs_template.Type == ACPI_RESOURCE_TYPE_IRQ);
 			newres = link->l_prs_template;
 			resptr = &newres;
-			resptr->Data.Irq.NumberOfInterrupts = 1;
+			resptr->Data.Irq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq)) {
 				KASSERT(link->l_irq < NUM_ISA_INTERRUPTS,
 		("%s: can't put non-ISA IRQ %d in legacy IRQ resource type",
@@ -708,12 +717,12 @@ acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 			link++;
 			i++;
 			break;
-		case ACPI_RSTYPE_EXT_IRQ:
+		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 			MPASS(i < sc->pl_num_links);
-			MPASS(link->l_prs_template.Id == ACPI_RSTYPE_EXT_IRQ);
+			MPASS(link->l_prs_template.Type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ);
 			newres = link->l_prs_template;
 			resptr = &newres;
-			resptr->Data.ExtendedIrq.NumberOfInterrupts = 1;
+			resptr->Data.ExtendedIrq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq))
 				resptr->Data.ExtendedIrq.Interrupts[0] =
 				    link->l_irq;
@@ -737,7 +746,7 @@ acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 				return (status);
 			}
 		}
-		if (resource->Id == ACPI_RSTYPE_END_TAG)
+		if (resource->Type == ACPI_RESOURCE_TYPE_END_TAG)
 			break;
 		resource = ACPI_NEXT_RESOURCE(resource);
 		if (resource >= end)
@@ -764,10 +773,10 @@ acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
 		/* Add a new IRQ resource from each link. */
 		link = &sc->pl_links[i];
 		newres = link->l_prs_template;
-		if (newres.Id == ACPI_RSTYPE_IRQ) {
+		if (newres.Type == ACPI_RESOURCE_TYPE_IRQ) {
 
 			/* Build an IRQ resource. */
-			newres.Data.Irq.NumberOfInterrupts = 1;
+			newres.Data.Irq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq)) {
 				KASSERT(link->l_irq < NUM_ISA_INTERRUPTS,
 		("%s: can't put non-ISA IRQ %d in legacy IRQ resource type",
@@ -778,7 +787,7 @@ acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
 		} else {
 
 			/* Build an ExtIRQ resuorce. */
-			newres.Data.ExtendedIrq.NumberOfInterrupts = 1;
+			newres.Data.ExtendedIrq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq))
 				newres.Data.ExtendedIrq.Interrupts[0] =
 				    link->l_irq;
@@ -835,11 +844,11 @@ acpi_pci_link_route_irqs(device_t dev)
 	resource = (ACPI_RESOURCE *)srsbuf.Pointer;
 	end = (ACPI_RESOURCE *)((char *)srsbuf.Pointer + srsbuf.Length);
 	for (;;) {
-		if (resource->Id == ACPI_RSTYPE_END_TAG)
+		if (resource->Type == ACPI_RESOURCE_TYPE_END_TAG)
 			break;
-		switch (resource->Id) {
-		case ACPI_RSTYPE_IRQ:
-		case ACPI_RSTYPE_EXT_IRQ:
+		switch (resource->Type) {
+		case ACPI_RESOURCE_TYPE_IRQ:
+		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 			MPASS(i < sc->pl_num_links);
 
 			/*

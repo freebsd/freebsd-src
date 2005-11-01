@@ -104,7 +104,8 @@ AcpiOsTableOverride (
 	    sprintf(fake_ssdt.AslCompilerId, "%.4s", "FBSD");
 	    fake_ssdt.AslCompilerRevision = htole32(1);
 	    fake_ssdt.no_op = htole32(0x005c0310); /* Scope(\) */
-	    fake_ssdt.Checksum -= AcpiTbChecksum(&fake_ssdt, sizeof(fake_ssdt));
+	    fake_ssdt.Checksum -= AcpiTbGenerateChecksum(&fake_ssdt,
+		sizeof(fake_ssdt));
 	}
 	*NewTable = (void *)&fake_ssdt;
     }
