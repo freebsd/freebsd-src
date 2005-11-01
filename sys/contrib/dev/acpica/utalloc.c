@@ -123,6 +123,7 @@
 
 /* Local prototypes */
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 static ACPI_DEBUG_MEM_BLOCK *
 AcpiUtFindAllocation (
     void                    *Allocation);
@@ -143,7 +144,6 @@ AcpiUtRemoveAllocation (
     char                    *Module,
     UINT32                  Line);
 
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 static ACPI_STATUS
 AcpiUtCreateList (
     char                    *ListName,
