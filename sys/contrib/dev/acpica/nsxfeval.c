@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfeval - Public interfaces to the ACPI subsystem
  *                         ACPI Object evaluation interfaces
- *              $Revision: 14 $
+ *              $Revision: 1.17 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -132,11 +132,11 @@
  * FUNCTION:    AcpiEvaluateObjectTyped
  *
  * PARAMETERS:  Handle              - Object handle (optional)
- *              *Pathname           - Object pathname (optional)
- *              **ExternalParams    - List of parameters to pass to method,
+ *              Pathname            - Object pathname (optional)
+ *              ExternalParams      - List of parameters to pass to method,
  *                                    terminated by NULL.  May be NULL
  *                                    if no parameters are being passed.
- *              *ReturnBuffer       - Where to put method's return value (if
+ *              ReturnBuffer        - Where to put method's return value (if
  *                                    any).  If NULL, no value is returned.
  *              ReturnType          - Expected type of return object
  *
@@ -404,7 +404,8 @@ AcpiEvaluateObject (
                 {
                     /* Validate/Allocate/Clear caller buffer */
 
-                    Status = AcpiUtInitializeBuffer (ReturnBuffer, BufferSpaceNeeded);
+                    Status = AcpiUtInitializeBuffer (ReturnBuffer,
+                                    BufferSpaceNeeded);
                     if (ACPI_FAILURE (Status))
                     {
                         /*
@@ -526,7 +527,8 @@ AcpiWalkNamespace (
         return_ACPI_STATUS (Status);
     }
 
-    Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth, ACPI_NS_WALK_UNLOCK,
+    Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth,
+                    ACPI_NS_WALK_UNLOCK,
                     UserFunction, Context, ReturnValue);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -640,7 +642,8 @@ AcpiNsGetDeviceCallback (
         }
     }
 
-    Status = Info->UserFunction (ObjHandle, NestingLevel, Info->Context, ReturnValue);
+    Status = Info->UserFunction (ObjHandle, NestingLevel, Info->Context,
+                ReturnValue);
     return (Status);
 }
 

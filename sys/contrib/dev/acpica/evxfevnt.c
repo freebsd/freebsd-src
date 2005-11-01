@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 79 $
+ *              $Revision: 1.82 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -138,7 +138,8 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiEnable (void)
+AcpiEnable (
+    void)
 {
     ACPI_STATUS             Status = AE_OK;
 
@@ -169,7 +170,8 @@ AcpiEnable (void)
             return_ACPI_STATUS (Status);
         }
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "Transition to ACPI mode successful\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
+            "Transition to ACPI mode successful\n"));
     }
 
     return_ACPI_STATUS (Status);
@@ -184,12 +186,13 @@ AcpiEnable (void)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Transfers the system into LEGACY mode.
+ * DESCRIPTION: Transfers the system into LEGACY (non-ACPI) mode.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiDisable (void)
+AcpiDisable (
+    void)
 {
     ACPI_STATUS             Status = AE_OK;
 
@@ -205,7 +208,8 @@ AcpiDisable (void)
 
     if (AcpiHwGetMode() == ACPI_SYS_MODE_LEGACY)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "System is already in legacy (non-ACPI) mode\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
+            "System is already in legacy (non-ACPI) mode\n"));
     }
     else
     {
@@ -215,7 +219,8 @@ AcpiDisable (void)
 
         if (ACPI_FAILURE (Status))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not exit ACPI mode to legacy mode"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Could not exit ACPI mode to legacy mode"));
             return_ACPI_STATUS (Status);
         }
 
@@ -299,7 +304,7 @@ AcpiEnableEvent (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable an ACPI event (general purpose)
+ * DESCRIPTION: Set the type of an individual GPE
  *
  ******************************************************************************/
 
@@ -623,7 +628,7 @@ UnlockAndExit:
  * FUNCTION:    AcpiGetEventStatus
  *
  * PARAMETERS:  Event           - The fixed event
- *              Event Status    - Where the current status of the event will
+ *              EventStatus     - Where the current status of the event will
  *                                be returned
  *
  * RETURN:      Status
@@ -671,7 +676,7 @@ AcpiGetEventStatus (
  * PARAMETERS:  GpeDevice       - Parent GPE Device
  *              GpeNumber       - GPE level within the GPE block
  *              Flags           - Called from an ISR or not
- *              Event Status    - Where the current status of the event will
+ *              EventStatus     - Where the current status of the event will
  *                                be returned
  *
  * RETURN:      Status
@@ -734,7 +739,7 @@ UnlockAndExit:
  * PARAMETERS:  GpeDevice           - Handle to the parent GPE Block Device
  *              GpeBlockAddress     - Address and SpaceID
  *              RegisterCount       - Number of GPE register pairs in the block
- *              InterruptLevel      - H/W interrupt for the block
+ *              InterruptNumber     - H/W interrupt for the block
  *
  * RETURN:      Status
  *
@@ -747,7 +752,7 @@ AcpiInstallGpeBlock (
     ACPI_HANDLE             GpeDevice,
     ACPI_GENERIC_ADDRESS    *GpeBlockAddress,
     UINT32                  RegisterCount,
-    UINT32                  InterruptLevel)
+    UINT32                  InterruptNumber)
 {
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *ObjDesc;
@@ -783,7 +788,7 @@ AcpiInstallGpeBlock (
      * is always zero
      */
     Status = AcpiEvCreateGpeBlock (Node, GpeBlockAddress, RegisterCount,
-                    0, InterruptLevel, &GpeBlock);
+                    0, InterruptNumber, &GpeBlock);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;

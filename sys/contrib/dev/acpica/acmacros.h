@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 154 $
+ *       $Revision: 1.165 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,6 +128,7 @@
 
 #define ACPI_SET_BIT(target,bit)        ((target) |= (bit))
 #define ACPI_CLEAR_BIT(target,bit)      ((target) &= ~(bit))
+#define ACPI_MIN(a,b)                   (((a)<(b))?(a):(b))
 
 
 #if ACPI_MACHINE_WIDTH == 16
@@ -276,7 +277,7 @@
 
 #define ACPI_BUFFER_INDEX(BufLen,BufOffset,ByteGran)  (BufOffset)
 
-#ifdef ACPI_MISALIGNED_TRANSFERS
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
 
 /* The hardware supports unaligned transfers, just do the little-endian move */
 
@@ -509,21 +510,22 @@
 #define ACPI_PARAM_LIST(pl)                 pl
 
 /*
- * Error reporting.  These versions add callers module and line#.  Since
- * _THIS_MODULE gets compiled out when ACPI_DEBUG_OUTPUT isn't defined, only
- * use it in debug mode.
+ * Error reporting.  These versions add callers module and line#.
+ *
+ * Since _AcpiModuleName gets compiled out when ACPI_DEBUG_OUTPUT
+ * isn't defined, only use it in debug mode.
  */
 #ifdef ACPI_DEBUG_OUTPUT
 
-#define ACPI_REPORT_INFO(fp)                {AcpiUtReportInfo(_THIS_MODULE,__LINE__,_COMPONENT); \
+#define ACPI_REPORT_INFO(fp)                {AcpiUtReportInfo(_AcpiModuleName,__LINE__,_COMPONENT); \
                                                 AcpiOsPrintf ACPI_PARAM_LIST(fp);}
-#define ACPI_REPORT_ERROR(fp)               {AcpiUtReportError(_THIS_MODULE,__LINE__,_COMPONENT); \
+#define ACPI_REPORT_ERROR(fp)               {AcpiUtReportError(_AcpiModuleName,__LINE__,_COMPONENT); \
                                                 AcpiOsPrintf ACPI_PARAM_LIST(fp);}
-#define ACPI_REPORT_WARNING(fp)             {AcpiUtReportWarning(_THIS_MODULE,__LINE__,_COMPONENT); \
+#define ACPI_REPORT_WARNING(fp)             {AcpiUtReportWarning(_AcpiModuleName,__LINE__,_COMPONENT); \
                                                 AcpiOsPrintf ACPI_PARAM_LIST(fp);}
-#define ACPI_REPORT_NSERROR(s,e)            AcpiNsReportError(_THIS_MODULE,__LINE__,_COMPONENT, s, e);
+#define ACPI_REPORT_NSERROR(s,e)            AcpiNsReportError(_AcpiModuleName,__LINE__,_COMPONENT, s, e);
 
-#define ACPI_REPORT_METHOD_ERROR(s,n,p,e)   AcpiNsReportMethodError(_THIS_MODULE,__LINE__,_COMPONENT, s, n, p, e);
+#define ACPI_REPORT_METHOD_ERROR(s,n,p,e)   AcpiNsReportMethodError(_AcpiModuleName,__LINE__,_COMPONENT, s, n, p, e);
 
 #else
 
@@ -552,36 +554,61 @@
  * Debug macros that are conditionally compiled
  */
 #ifdef ACPI_DEBUG_OUTPUT
-
-#define ACPI_MODULE_NAME(name)               static char ACPI_UNUSED_VAR *_THIS_MODULE = name;
+#define ACPI_MODULE_NAME(Name)          static char ACPI_UNUSED_VAR *_AcpiModuleName = Name;
 
 /*
- * Function entry tracing.
- * The first parameter should be the procedure name as a quoted string.  This is declared
- * as a local string ("_ProcName) so that it can be also used by the function exit macros below.
+ * Common parameters used for debug output functions:
+ * line number, function name, module(file) name, component ID
  */
-#define ACPI_FUNCTION_NAME(a)               ACPI_DEBUG_PRINT_INFO _DebugInfo; \
-                                                _DebugInfo.ComponentId = _COMPONENT; \
-                                                _DebugInfo.ProcName    = a; \
-                                                _DebugInfo.ModuleName  = _THIS_MODULE;
+#define ACPI_DEBUG_PARAMETERS           __LINE__, ACPI_GET_FUNCTION_NAME, _AcpiModuleName, _COMPONENT
 
-#define ACPI_FUNCTION_TRACE(a)              ACPI_FUNCTION_NAME(a) \
-                                                AcpiUtTrace(__LINE__,&_DebugInfo)
-#define ACPI_FUNCTION_TRACE_PTR(a,b)        ACPI_FUNCTION_NAME(a) \
-                                                AcpiUtTracePtr(__LINE__,&_DebugInfo,(void *)b)
-#define ACPI_FUNCTION_TRACE_U32(a,b)        ACPI_FUNCTION_NAME(a) \
-                                                AcpiUtTraceU32(__LINE__,&_DebugInfo,(UINT32)b)
-#define ACPI_FUNCTION_TRACE_STR(a,b)        ACPI_FUNCTION_NAME(a) \
-                                                AcpiUtTraceStr(__LINE__,&_DebugInfo,(char *)b)
+/*
+ * Function entry tracing
+ */
 
-#define ACPI_FUNCTION_ENTRY()               AcpiUtTrackStackPtr()
+/*
+ * If ACPI_GET_FUNCTION_NAME was not defined in the compiler-dependent header,
+ * define it now. This is the case where there the compiler does not support
+ * a __FUNCTION__ macro or equivalent. We save the function name on the
+ * local stack.
+ */
+#ifndef ACPI_GET_FUNCTION_NAME
+#define ACPI_GET_FUNCTION_NAME          _AcpiFunctionName
+/*
+ * The Name parameter should be the procedure name as a quoted string.
+ * This is declared as a local string ("MyFunctionName") so that it can
+ * be also used by the function exit macros below.
+ * Note: (const char) is used to be compatible with the debug interfaces
+ * and macros such as __FUNCTION__.
+ */
+#define ACPI_FUNCTION_NAME(Name)        const char *_AcpiFunctionName = Name;
+
+#else
+/* Compiler supports __FUNCTION__ (or equivalent) -- Ignore this macro */
+
+#define ACPI_FUNCTION_NAME(Name)
+#endif
+
+#define ACPI_FUNCTION_TRACE(a)          ACPI_FUNCTION_NAME(a) \
+                                            AcpiUtTrace(ACPI_DEBUG_PARAMETERS)
+#define ACPI_FUNCTION_TRACE_PTR(a,b)    ACPI_FUNCTION_NAME(a) \
+                                            AcpiUtTracePtr(ACPI_DEBUG_PARAMETERS,(void *)b)
+#define ACPI_FUNCTION_TRACE_U32(a,b)    ACPI_FUNCTION_NAME(a) \
+                                            AcpiUtTraceU32(ACPI_DEBUG_PARAMETERS,(UINT32)b)
+#define ACPI_FUNCTION_TRACE_STR(a,b)    ACPI_FUNCTION_NAME(a) \
+                                            AcpiUtTraceStr(ACPI_DEBUG_PARAMETERS,(char *)b)
+
+#define ACPI_FUNCTION_ENTRY()           AcpiUtTrackStackPtr()
 
 /*
  * Function exit tracing.
  * WARNING: These macros include a return statement.  This is usually considered
  * bad form, but having a separate exit macro is very ugly and difficult to maintain.
  * One of the FUNCTION_TRACE macros above must be used in conjunction with these macros
- * so that "_ProcName" is defined.
+ * so that "_AcpiFunctionName" is defined.
+ *
+ * Note: the DO_WHILE0 macro is used to prevent some compilers from complaining
+ * about these constructs.
  */
 #ifdef ACPI_USE_DO_WHILE_0
 #define ACPI_DO_WHILE0(a)               do a while(0)
@@ -589,10 +616,56 @@
 #define ACPI_DO_WHILE0(a)               a
 #endif
 
-#define return_VOID                     ACPI_DO_WHILE0 ({AcpiUtExit(__LINE__,&_DebugInfo);return;})
-#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({AcpiUtStatusExit(__LINE__,&_DebugInfo,(s));return((s));})
-#define return_VALUE(s)                 ACPI_DO_WHILE0 ({AcpiUtValueExit(__LINE__,&_DebugInfo,(ACPI_INTEGER)(s));return((s));})
-#define return_PTR(s)                   ACPI_DO_WHILE0 ({AcpiUtPtrExit(__LINE__,&_DebugInfo,(UINT8 *)(s));return((s));})
+#define return_VOID                     ACPI_DO_WHILE0 ({ \
+                                            AcpiUtExit (ACPI_DEBUG_PARAMETERS); \
+                                            return;})
+/*
+ * There are two versions of most of the return macros. The default version is
+ * safer, since it avoids side-effects by guaranteeing that the argument will
+ * not be evaluated twice.
+ *
+ * A less-safe version of the macros is provided for optional use if the
+ * compiler uses excessive CPU stack (for example, this may happen in the
+ * debug case if code optimzation is disabled.)
+ */
+#ifndef ACPI_SIMPLE_RETURN_MACROS
+
+#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
+                                            register ACPI_STATUS _s = (s); \
+                                            AcpiUtStatusExit (ACPI_DEBUG_PARAMETERS, _s); \
+                                            return (_s); })
+#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
+                                            register void *_s = (void *) (s); \
+                                            AcpiUtPtrExit (ACPI_DEBUG_PARAMETERS, (UINT8 *) _s); \
+                                            return (_s); })
+#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
+                                            register ACPI_INTEGER _s = (s); \
+                                            AcpiUtValueExit (ACPI_DEBUG_PARAMETERS, _s); \
+                                            return (_s); })
+#define return_UINT8(s)                 ACPI_DO_WHILE0 ({ \
+                                            register UINT8 _s = (UINT8) (s); \
+                                            AcpiUtValueExit (ACPI_DEBUG_PARAMETERS, (ACPI_INTEGER) _s); \
+                                            return (_s); })
+#define return_UINT32(s)                ACPI_DO_WHILE0 ({ \
+                                            register UINT32 _s = (UINT32) (s); \
+                                            AcpiUtValueExit (ACPI_DEBUG_PARAMETERS, (ACPI_INTEGER) _s); \
+                                            return (_s); })
+#else /* Use original less-safe macros */
+
+#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
+                                            AcpiUtStatusExit (ACPI_DEBUG_PARAMETERS, (s)); \
+                                            return((s)); })
+#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
+                                            AcpiUtPtrExit (ACPI_DEBUG_PARAMETERS, (UINT8 *) (s)); \
+                                            return((s)); })
+#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
+                                            AcpiUtValueExit (ACPI_DEBUG_PARAMETERS, (ACPI_INTEGER) (s)); \
+                                            return((s)); })
+#define return_UINT8(s)                 return_VALUE(s)
+#define return_UINT32(s)                return_VALUE(s)
+
+#endif /* ACPI_SIMPLE_RETURN_MACROS */
+
 
 /* Conditional execution */
 
@@ -607,11 +680,10 @@
 /* Stack and buffer dumping */
 
 #define ACPI_DUMP_STACK_ENTRY(a)        AcpiExDumpOperand((a),0)
-#define ACPI_DUMP_OPERANDS(a,b,c,d,e)   AcpiExDumpOperands(a,b,c,d,e,_THIS_MODULE,__LINE__)
+#define ACPI_DUMP_OPERANDS(a,b,c,d,e)   AcpiExDumpOperands(a,b,c,d,e,_AcpiModuleName,__LINE__)
 
 
 #define ACPI_DUMP_ENTRY(a,b)            AcpiNsDumpEntry (a,b)
-#define ACPI_DUMP_TABLES(a,b)           AcpiNsDumpTables(a,b)
 #define ACPI_DUMP_PATHNAME(a,b,c,d)     AcpiNsDumpPathname(a,b,c,d)
 #define ACPI_DUMP_RESOURCE_LIST(a)      AcpiRsDumpResourceList(a)
 #define ACPI_DUMP_BUFFER(a,b)           AcpiUtDumpBuffer((UINT8 *)a,b,DB_BYTE_DISPLAY,_COMPONENT)
@@ -644,8 +716,8 @@
  * This is the non-debug case -- make everything go away,
  * leaving no executable debug code!
  */
-#define ACPI_MODULE_NAME(name)
-#define _THIS_MODULE ""
+#define ACPI_MODULE_NAME(Name)
+#define _AcpiModuleName ""
 
 #define ACPI_DEBUG_EXEC(a)
 #define ACPI_NORMAL_EXEC(a)             a;
@@ -675,6 +747,8 @@
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
 #define return_VALUE(s)                 return(s)
+#define return_UINT8(s)                 return(s)
+#define return_UINT32(s)                return(s)
 #define return_PTR(s)                   return(s)
 
 #endif
@@ -722,19 +796,18 @@
 
 /* Memory allocation */
 
-#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocate((ACPI_SIZE)(a),_COMPONENT,_THIS_MODULE,__LINE__)
-#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocate((ACPI_SIZE)(a), _COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocate((ACPI_SIZE)(a),_COMPONENT,_AcpiModuleName,__LINE__)
+#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocate((ACPI_SIZE)(a), _COMPONENT,_AcpiModuleName,__LINE__)
 #define ACPI_MEM_FREE(a)                AcpiOsFree(a)
 #define ACPI_MEM_TRACKING(a)
-
 
 #else
 
 /* Memory allocation */
 
-#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocateAndTrack((ACPI_SIZE)(a),_COMPONENT,_THIS_MODULE,__LINE__)
-#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocateAndTrack((ACPI_SIZE)(a), _COMPONENT,_THIS_MODULE,__LINE__)
-#define ACPI_MEM_FREE(a)                AcpiUtFreeAndTrack(a,_COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocateAndTrack((ACPI_SIZE)(a),_COMPONENT,_AcpiModuleName,__LINE__)
+#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocateAndTrack((ACPI_SIZE)(a), _COMPONENT,_AcpiModuleName,__LINE__)
+#define ACPI_MEM_FREE(a)                AcpiUtFreeAndTrack(a,_COMPONENT,_AcpiModuleName,__LINE__)
 #define ACPI_MEM_TRACKING(a)            a
 
 #endif /* ACPI_DBG_TRACK_ALLOCATIONS */

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmath - Integer math support routines
- *              $Revision: 14 $
+ *              $Revision: 1.17 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -348,6 +348,8 @@ AcpiUtDivide (
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtShortDivide, AcpiUtDivide
+ *
+ * PARAMETERS:  See function headers above
  *
  * DESCRIPTION: Native versions of the UtDivide functions. Use these if either
  *              1) The target is a 64-bit platform and therefore 64-bit

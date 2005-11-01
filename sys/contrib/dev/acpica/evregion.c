@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 152 $
+ *              $Revision: 1.156 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -132,6 +132,22 @@ static UINT8        AcpiGbl_DefaultAddressSpaces[ACPI_NUM_DEFAULT_SPACES] = {
                             ACPI_ADR_SPACE_SYSTEM_IO,
                             ACPI_ADR_SPACE_PCI_CONFIG,
                             ACPI_ADR_SPACE_DATA_TABLE};
+
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiEvRegRun (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+static ACPI_STATUS
+AcpiEvInstallHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
 
 
 /*******************************************************************************
@@ -260,8 +276,8 @@ AcpiEvInitializeOpRegions (
  *
  * FUNCTION:    AcpiEvExecuteRegMethod
  *
- * PARAMETERS:  RegionObj           - Object structure
- *              Function            - Passed to _REG:  On (1) or Off (0)
+ * PARAMETERS:  RegionObj           - Region object
+ *              Function            - Passed to _REG: On (1) or Off (0)
  *
  * RETURN:      Status
  *
@@ -412,14 +428,16 @@ AcpiEvAddressSpaceDispatch (
         {
             /* No initialization routine, exit with error */
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No init routine for region(%p) [%s]\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "No init routine for region(%p) [%s]\n",
                 RegionObj, AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
             return_ACPI_STATUS (AE_NOT_EXIST);
         }
 
         /*
-         * We must exit the interpreter because the region setup will potentially
-         * execute control methods (e.g., _REG method for this region)
+         * We must exit the interpreter because the region
+         * setup will potentially execute control methods
+         * (e.g., _REG method for this region)
          */
         AcpiExExitInterpreter ();
 
@@ -730,7 +748,7 @@ AcpiEvAttachRegion (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiEvInstallHandler (
     ACPI_HANDLE             ObjHandle,
     UINT32                  Level,
@@ -973,7 +991,8 @@ AcpiEvInstallSpaceHandler (
                 {
                     /*
                      * It is (relatively) OK to attempt to install the SAME
-                     * handler twice. This can easily happen with PCI_Config space.
+                     * handler twice. This can easily happen
+                     * with PCI_Config space.
                      */
                     Status = AE_SAME_HANDLER;
                     goto UnlockAndExit;
@@ -1143,7 +1162,7 @@ AcpiEvExecuteRegMethods (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiEvRegRun (
     ACPI_HANDLE             ObjHandle,
     UINT32                  Level,
