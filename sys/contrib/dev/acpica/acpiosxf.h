@@ -12,7 +12,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -153,7 +153,6 @@ typedef struct acpi_signal_fatal_info
 /*
  * OSL Initialization and shutdown primitives
  */
-
 ACPI_STATUS
 AcpiOsInitialize (
     void);
@@ -166,7 +165,6 @@ AcpiOsTerminate (
 /*
  * ACPI Table interfaces
  */
-
 ACPI_STATUS
 AcpiOsGetRootPointer (
     UINT32                  Flags,
@@ -186,7 +184,6 @@ AcpiOsTableOverride (
 /*
  * Synchronization primitives
  */
-
 ACPI_STATUS
 AcpiOsCreateSemaphore (
     UINT32                  MaxUnits,
@@ -216,21 +213,19 @@ void
 AcpiOsDeleteLock (
     ACPI_HANDLE             Handle);
 
-void
+ACPI_NATIVE_UINT
 AcpiOsAcquireLock (
-    ACPI_HANDLE             Handle,
-    UINT32                  Flags);
+    ACPI_HANDLE             Handle);
 
 void
 AcpiOsReleaseLock (
     ACPI_HANDLE             Handle,
-    UINT32                  Flags);
+    ACPI_NATIVE_UINT        Flags);
 
 
 /*
  * Memory allocation and mapping
  */
-
 void *
 AcpiOsAllocate (
     ACPI_SIZE               Size);
@@ -257,9 +252,36 @@ AcpiOsGetPhysicalAddress (
 
 
 /*
+ * Memory/Object Cache
+ */
+ACPI_STATUS
+AcpiOsCreateCache (
+    char                    *CacheName,
+    UINT16                  ObjectSize,
+    UINT16                  MaxDepth,
+    ACPI_CACHE_T            **ReturnCache);
+
+ACPI_STATUS
+AcpiOsDeleteCache (
+    ACPI_CACHE_T            *Cache);
+
+ACPI_STATUS
+AcpiOsPurgeCache (
+    ACPI_CACHE_T            *Cache);
+
+void *
+AcpiOsAcquireObject (
+    ACPI_CACHE_T            *Cache);
+
+ACPI_STATUS
+AcpiOsReleaseObject (
+    ACPI_CACHE_T            *Cache,
+    void                    *Object);
+
+
+/*
  * Interrupt handlers
  */
-
 ACPI_STATUS
 AcpiOsInstallInterruptHandler (
     UINT32                  InterruptNumber,
@@ -275,7 +297,6 @@ AcpiOsRemoveInterruptHandler (
 /*
  * Threads and Scheduling
  */
-
 UINT32
 AcpiOsGetThreadId (
     void);
@@ -302,7 +323,6 @@ AcpiOsStall (
 /*
  * Platform and hardware-independent I/O interfaces
  */
-
 ACPI_STATUS
 AcpiOsReadPort (
     ACPI_IO_ADDRESS         Address,
@@ -319,7 +339,6 @@ AcpiOsWritePort (
 /*
  * Platform and hardware-independent physical memory interfaces
  */
-
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
@@ -338,7 +357,6 @@ AcpiOsWriteMemory (
  * Note: Can't use "Register" as a parameter, changed to "Reg" --
  * certain compilers complain.
  */
-
 ACPI_STATUS
 AcpiOsReadPciConfiguration (
     ACPI_PCI_ID             *PciId,
@@ -356,7 +374,6 @@ AcpiOsWritePciConfiguration (
 /*
  * Interim function needed for PCI IRQ routing
  */
-
 void
 AcpiOsDerivePciId(
     ACPI_HANDLE             Rhandle,
@@ -366,7 +383,6 @@ AcpiOsDerivePciId(
 /*
  * Miscellaneous
  */
-
 BOOLEAN
 AcpiOsReadable (
     void                    *Pointer,
@@ -389,7 +405,6 @@ AcpiOsSignal (
 /*
  * Debug print routines
  */
-
 void ACPI_INTERNAL_VAR_XFACE
 AcpiOsPrintf (
     const char              *Format,
@@ -408,7 +423,6 @@ AcpiOsRedirectOutput (
 /*
  * Debug input
  */
-
 UINT32
 AcpiOsGetLine (
     char                    *Buffer);
@@ -417,7 +431,6 @@ AcpiOsGetLine (
 /*
  * Directory manipulation
  */
-
 void *
 AcpiOsOpenDirectory (
     char                    *Pathname,
@@ -441,13 +454,11 @@ AcpiOsCloseDirectory (
 /*
  * Debug
  */
-
 void
 AcpiOsDbgAssert(
     void                    *FailedAssertion,
     void                    *FileName,
     UINT32                  LineNumber,
     char                    *Message);
-
 
 #endif /* __ACPIOSXF_H__ */

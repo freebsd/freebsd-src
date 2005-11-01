@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2005, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,6 +122,7 @@
  * We put them here because we don't want to duplicate them
  * in the rest of the source code again and again.
  */
+#include <contrib/dev/acpica/acnames.h>            /* Global ACPI names and strings */
 #include <contrib/dev/acpica/acconfig.h>           /* Configuration constants */
 #include <contrib/dev/acpica/acenv.h>     /* Target environment specific items */
 #include <contrib/dev/acpica/actypes.h>            /* Fundamental common data types */
