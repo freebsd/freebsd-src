@@ -389,6 +389,7 @@ init_private(void)
 	_thr_umtx_init(&_thr_event_lock);
 	_thr_spinlock_init();
 	_thr_list_init();
+	_thr_timer_init();
 
 	/*
 	 * Avoid reinitializing some things if they don't need to be,
