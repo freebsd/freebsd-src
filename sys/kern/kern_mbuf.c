@@ -78,9 +78,25 @@ __FBSDID("$FreeBSD$");
  *  [ Cluster Slabs ]                         |
  *        |                              [ Mbuf Slabs ]
  *         \____________(VM)_________________/
+ *
+ *
+ * Whenever a object is allocated with uma_zalloc() out of the
+ * one of the Zones its _ctor_ function is executed.  The same
+ * for any deallocation through uma_zfree() the _dror_ function
+ * is executed.
+ * 
+ * Caches are per-CPU and are filled from the Master Zone.
+ *
+ * Whenever a object is allocated from the underlying global
+ * memory pool it gets pre-initialized with the _zinit_ functions.
+ * When the Keg's are overfull objects get decomissioned with
+ * _zfini_ functions and free'd back to the global memory pool.
+ *
  */
 
-int nmbclusters;
+int nmbclusters;		/* limits number of mbuf clusters */
+int nmbjumbo9;			/* limits number of 9k jumbo clusters */
+int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 struct mbstat mbstat;
 
 static void
@@ -94,8 +110,13 @@ tunable_mbinit(void *dummy)
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
 
 SYSCTL_DECL(_kern_ipc);
+/* XXX: These should be tuneables. Can't change UMA limits on the fly. */
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbclusters, CTLFLAG_RW, &nmbclusters, 0,
     "Maximum number of mbuf clusters allowed");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo9, CTLFLAG_RW, &nmbjumbo9, 0,
+    "Maximum number of mbuf 9k jumbo clusters allowed");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo16, CTLFLAG_RW, &nmbjumbo16, 0,
+    "Maximum number of mbuf 16k jumbo clusters allowed");
 SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
     "Mbuf general information and statistics");
 
@@ -105,6 +126,9 @@ SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
 uma_zone_t	zone_mbuf;
 uma_zone_t	zone_clust;
 uma_zone_t	zone_pack;
+uma_zone_t	zone_jumbo9;
+uma_zone_t	zone_jumbo16;
+uma_zone_t	zone_ext_refcnt;
 
 /*
  * Local prototypes.
@@ -113,10 +137,10 @@ static int	mb_ctor_mbuf(void *, int, void *, int);
 static int	mb_ctor_clust(void *, int, void *, int);
 static int	mb_ctor_pack(void *, int, void *, int);
 static void	mb_dtor_mbuf(void *, int, void *);
-static void	mb_dtor_clust(void *, int, void *);	/* XXX */
-static void	mb_dtor_pack(void *, int, void *);	/* XXX */
-static int	mb_init_pack(void *, int, int);
-static void	mb_fini_pack(void *, int);
+static void	mb_dtor_clust(void *, int, void *);
+static void	mb_dtor_pack(void *, int, void *);
+static int	mb_zinit_pack(void *, int, int);
+static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
@@ -135,26 +159,58 @@ mbuf_init(void *dummy)
 	/*
 	 * Configure UMA zones for Mbufs, Clusters, and Packets.
 	 */
-	zone_mbuf = uma_zcreate(MBUF_MEM_NAME, MSIZE, mb_ctor_mbuf,
-	    mb_dtor_mbuf,
+	zone_mbuf = uma_zcreate(MBUF_MEM_NAME, MSIZE,
+	    mb_ctor_mbuf, mb_dtor_mbuf,
 #ifdef INVARIANTS
-	    trash_init, trash_fini, MSIZE - 1, UMA_ZONE_MAXBUCKET);
+	    trash_init, trash_fini,
 #else
-	    NULL, NULL, MSIZE - 1, UMA_ZONE_MAXBUCKET);
+	    NULL, NULL,
 #endif
+	    MSIZE - 1, UMA_ZONE_MAXBUCKET);
+
 	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
-	    mb_ctor_clust,
+	    mb_ctor_clust, mb_dtor_clust,
 #ifdef INVARIANTS
-	    mb_dtor_clust, trash_init, trash_fini, UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	    trash_init, trash_fini,
 #else
-	    mb_dtor_clust, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	    NULL, NULL,
 #endif
+	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 	if (nmbclusters > 0)
 		uma_zone_set_max(zone_clust, nmbclusters);
-	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
-	    mb_dtor_pack, mb_init_pack, mb_fini_pack, zone_mbuf);
 
-	/* uma_prealloc() goes here */
+	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
+	    mb_dtor_pack, mb_zinit_pack, mb_zfini_pack, zone_mbuf);
+
+	/* Make jumbo frame zone too. 9k and 16k. */
+	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
+	    mb_ctor_clust, mb_dtor_clust,
+#ifdef INVARIANTS
+	    trash_init, trash_fini,
+#else
+	    NULL, NULL,
+#endif
+	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	if (nmbjumbo9 > 0)
+		uma_zone_set_max(zone_jumbo9, nmbjumbo9);
+
+	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
+	    mb_ctor_clust, mb_dtor_clust,
+#ifdef INVARIANTS
+	    trash_init, trash_fini,
+#else
+	    NULL, NULL,
+#endif
+	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	if (nmbjumbo16 > 0)
+		uma_zone_set_max(zone_jumbo16, nmbjumbo16);
+
+	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
+	    NULL, NULL,
+	    NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+
+	/* uma_prealloc() goes here... */
 
 	/*
 	 * Hook event handler for low-memory situation, used to
@@ -189,7 +245,7 @@ mbuf_init(void *dummy)
  *
  * The 'arg' pointer points to a mb_args structure which
  * contains call-specific information required to support the
- * mbuf allocation API.
+ * mbuf allocation API.  See mbuf.h.
  */
 static int
 mb_ctor_mbuf(void *mem, int size, void *arg, int how)
@@ -210,14 +266,25 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 	flags = args->flags;
 	type = args->type;
 
-	m->m_type = type;
+	/*
+	 * The mbuf is initialized later.  The caller has the
+	 * responseability to setup any MAC labels too.
+	 */
+	if (type == MT_NOINIT)
+		return (0);
+
 	m->m_next = NULL;
 	m->m_nextpkt = NULL;
+	m->m_len = 0;
 	m->m_flags = flags;
+	m->m_type = type;
 	if (flags & M_PKTHDR) {
 		m->m_data = m->m_pktdat;
 		m->m_pkthdr.rcvif = NULL;
+		m->m_pkthdr.len = 0;
+		m->m_pkthdr.header = NULL;
 		m->m_pkthdr.csum_flags = 0;
+		m->m_pkthdr.csum_data = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -231,7 +298,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 }
 
 /*
- * The Mbuf master zone and Packet secondary zone destructor.
+ * The Mbuf master zone destructor.
  */
 static void
 mb_dtor_mbuf(void *mem, int size, void *arg)
@@ -241,12 +308,15 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 	m = (struct mbuf *)mem;
 	if ((m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
+	KASSERT((m->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
 }
 
-/* XXX Only because of stats */
+/*
+ * The Mbuf Packet zone destructor.
+ */
 static void
 mb_dtor_pack(void *mem, int size, void *arg)
 {
@@ -255,41 +325,81 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	m = (struct mbuf *)mem;
 	if ((m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
+
+	/* Make sure we've got a clean cluster back. */
+	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
+	KASSERT(m->m_ext.ext_buf != NULL, ("%s: ext_buf == NULL", __func__));
+	KASSERT(m->m_ext.ext_free == NULL, ("%s: ext_free != NULL", __func__));
+	KASSERT(m->m_ext.ext_args == NULL, ("%s: ext_args != NULL", __func__));
+	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
+	KASSERT(m->m_ext.ext_type == EXT_CLUSTER, ("%s: ext_type != EXT_CLUSTER", __func__));
+	KASSERT(*m->m_ext.ref_cnt == 1, ("%s: ref_cnt != 1", __func__));
 #ifdef INVARIANTS
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
 }
 
 /*
- * The Cluster zone constructor.
+ * The Cluster and Jumbo[9|16] zone constructor.
  *
  * Here the 'arg' pointer points to the Mbuf which we
- * are configuring cluster storage for.
+ * are configuring cluster storage for.  If 'arg' is
+ * empty we allocate just the cluster without setting
+ * the mbuf to it.  See mbuf.h.
  */
 static int
 mb_ctor_clust(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
+	u_int *refcnt;
+	int type = 0;
 
 #ifdef INVARIANTS
 	trash_ctor(mem, size, arg, how);
 #endif
 	m = (struct mbuf *)arg;
-	m->m_ext.ext_buf = (caddr_t)mem;
-	m->m_data = m->m_ext.ext_buf;
-	m->m_flags |= M_EXT;
-	m->m_ext.ext_free = NULL;
-	m->m_ext.ext_args = NULL;
-	m->m_ext.ext_size = MCLBYTES;
-	m->m_ext.ext_type = EXT_CLUSTER;
-	m->m_ext.ref_cnt = NULL;	/* Lazy counter assign. */
+	if (m != NULL) {
+		switch (size) {
+		case MCLBYTES:
+			type = EXT_CLUSTER;
+			break;
+		case MJUM9BYTES:
+			type = EXT_JUMBO9;
+			break;
+		case MJUM16BYTES:
+			type = EXT_JUMBO16;
+			break;
+		default:
+			panic("unknown cluster size");
+			break;
+		}
+		m->m_ext.ext_buf = (caddr_t)mem;
+		m->m_data = m->m_ext.ext_buf;
+		m->m_flags |= M_EXT;
+		m->m_ext.ext_free = NULL;
+		m->m_ext.ext_args = NULL;
+		m->m_ext.ext_size = size;
+		m->m_ext.ext_type = type;
+		m->m_ext.ref_cnt = uma_find_refcnt(zone_clust, mem);
+		*m->m_ext.ref_cnt = 1;
+	} else {
+		refcnt =  uma_find_refcnt(zone_clust, mem);
+		*refcnt = 1;
+	}
 	return (0);
 }
 
-/* XXX */
+/*
+ * The Mbuf Cluster zone destructor.
+ */
 static void
 mb_dtor_clust(void *mem, int size, void *arg)
 {
+	u_int *refcnt;
+
+	refcnt = uma_find_refcnt(zone_clust, mem);
+	KASSERT(*refcnt == 1, ("%s: refcnt incorrect %u", __func__, *refcnt));
+	*refcnt = 0;
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
@@ -297,15 +407,14 @@ mb_dtor_clust(void *mem, int size, void *arg)
 
 /*
  * The Packet secondary zone's init routine, executed on the
- * object's transition from keg slab to zone cache.
+ * object's transition from mbuf keg slab to zone cache.
  */
 static int
-mb_init_pack(void *mem, int size, int how)
+mb_zinit_pack(void *mem, int size, int how)
 {
 	struct mbuf *m;
 
-	m = (struct mbuf *)mem;
-	m->m_ext.ext_buf = NULL;
+	m = (struct mbuf *)mem;		/* m is virgin. */
 	uma_zalloc_arg(zone_clust, m, how);
 	if (m->m_ext.ext_buf == NULL)
 		return (ENOMEM);
@@ -320,7 +429,7 @@ mb_init_pack(void *mem, int size, int how)
  * object's transition from zone cache to keg slab.
  */
 static void
-mb_fini_pack(void *mem, int size)
+mb_zfini_pack(void *mem, int size)
 {
 	struct mbuf *m;
 
@@ -329,7 +438,6 @@ mb_fini_pack(void *mem, int size)
 	trash_fini(m->m_ext.ext_buf, MCLBYTES);
 #endif
 	uma_zfree_arg(zone_clust, m->m_ext.ext_buf, NULL);
-	m->m_ext.ext_buf = NULL;
 #ifdef INVARIANTS
 	trash_dtor(mem, size, NULL);
 #endif
@@ -357,20 +465,19 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 #ifdef INVARIANTS
 	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
 #endif
-	m->m_type = type;
 	m->m_next = NULL;
 	m->m_nextpkt = NULL;
 	m->m_data = m->m_ext.ext_buf;
-	m->m_flags = flags|M_EXT;
-	m->m_ext.ext_free = NULL;
-	m->m_ext.ext_args = NULL;
-	m->m_ext.ext_size = MCLBYTES;
-	m->m_ext.ext_type = EXT_PACKET;
-	m->m_ext.ref_cnt = NULL;	/* Lazy counter assign. */
+	m->m_len = 0;
+	m->m_flags = (flags | M_EXT);
+	m->m_type = type;
 
 	if (flags & M_PKTHDR) {
 		m->m_pkthdr.rcvif = NULL;
+		m->m_pkthdr.len = 0;
+		m->m_pkthdr.header = NULL;
 		m->m_pkthdr.csum_flags = 0;
+		m->m_pkthdr.csum_data = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -379,6 +486,8 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 			return (error);
 #endif
 	}
+	/* m_ext is already initialized. */
+
 	return (0);
 }
 
