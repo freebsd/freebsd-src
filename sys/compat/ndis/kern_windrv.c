@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/usbd_var.h>
 
-struct mtx drvdb_mtx;
+static struct mtx drvdb_mtx;
 static STAILQ_HEAD(drvdb, drvdb_ent) drvdb_head;
 
 static driver_object	fake_pci_driver; /* serves both PCI and cardbus */
@@ -680,10 +680,12 @@ ctxsw_utow(void)
 	if (t->tid_self != t)
 		x86_newldt(NULL);
 
+	x86_critical_enter();
 	t->tid_oldfs = x86_getfs();
 	t->tid_cpu = curthread->td_oncpu;
-
+	sched_pin();
 	x86_setfs(SEL_TO_FS(t->tid_selector));
+	x86_critical_exit();
 
 	/* Now entering Windows land, population: you. */
 
@@ -701,8 +703,11 @@ ctxsw_wtou(void)
 {
 	struct tid		*t;
 
+	x86_critical_enter();
 	t = x86_gettid();
 	x86_setfs(t->tid_oldfs);
+	sched_unpin();
+	x86_critical_exit();
 
 	/* Welcome back to UNIX land, we missed you. */
 

@@ -1914,9 +1914,6 @@ ndis_init(xsc)
 	/* Setup task offload. */
 	ndis_set_offload(sc);
 
-	/* Enable interrupts. */
-	ndis_enable_intr(sc);
-
 	if (sc->ndis_80211)
 		ndis_setstate_80211(sc);
 
