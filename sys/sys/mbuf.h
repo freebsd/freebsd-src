@@ -185,7 +185,8 @@ struct mbuf {
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
-#define	EXT_PACKET	3	/* came out of Packet zone */
+#define	EXT_JUMBO9	3	/* jumbo cluster 9216 bytes */
+#define	EXT_JUMBO16	4	/* jumbo cluster 16184 bytes */
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
@@ -242,6 +243,9 @@ struct mbuf {
 #define	MT_OOBDATA	15	/* expedited data  */
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
 
+#define	MT_NOINIT	255	/* Not a type but a flag to allocate
+				   a non-initialized mbuf */
+
 /*
  * General mbuf allocator statistics structure.
  */
@@ -295,53 +299,19 @@ struct mbstat {
 #define	MBUF_MEM_NAME		"mbuf"
 #define	MBUF_CLUSTER_MEM_NAME	"mbuf_cluster"
 #define	MBUF_PACKET_MEM_NAME	"mbuf_packet"
+#define	MBUF_JUMBO9_MEM_NAME	"mbuf_jumbo_9k"
+#define	MBUF_JUMBO16_MEM_NAME	"mbuf_jumbo_16k"
 #define	MBUF_TAG_MEM_NAME	"mbuf_tag"
+#define	MBUF_EXTREFCNT_MEM_NAME	"mbuf_ext_refcnt"
 
 #ifdef _KERNEL
-/*-
- * mbuf external reference count management macros.
- *
- * MEXT_IS_REF(m): true if (m) is not the only mbuf referencing
- *     the external buffer ext_buf.
- *
- * MEXT_REM_REF(m): remove reference to m_ext object.
- *
- * MEXT_ADD_REF(m): add reference to m_ext object already
- *     referred to by (m).  XXX Note that it is VERY important that you
- *     always set the second mbuf's m_ext.ref_cnt to point to the first
- *     one's (i.e., n->m_ext.ref_cnt = m->m_ext.ref_cnt) AFTER you run
- *     MEXT_ADD_REF(m).  This is because m might have a lazy initialized
- *     ref_cnt (NULL) before this is run and it will only be looked up
- *     from here.  We should make MEXT_ADD_REF() always take two mbufs
- *     as arguments so that it can take care of this itself.
- */
-#define	MEXT_IS_REF(m)	(((m)->m_ext.ref_cnt != NULL)			\
-    && (*((m)->m_ext.ref_cnt) > 1))
-
-#define	MEXT_REM_REF(m) do {						\
-	KASSERT((m)->m_ext.ref_cnt != NULL, ("m_ext refcnt lazy NULL")); \
-	KASSERT(*((m)->m_ext.ref_cnt) > 0, ("m_ext refcnt < 0"));	\
-	atomic_subtract_int((m)->m_ext.ref_cnt, 1);			\
-} while(0)
-
-#define	MEXT_ADD_REF(m)	do {						\
-	if ((m)->m_ext.ref_cnt == NULL) {				\
-		KASSERT((m)->m_ext.ext_type == EXT_CLUSTER ||		\
-		    (m)->m_ext.ext_type == EXT_PACKET,			\
-		    ("Unexpected mbuf type has lazy refcnt"));		\
-		(m)->m_ext.ref_cnt = (u_int *)uma_find_refcnt(		\
-		    zone_clust, (m)->m_ext.ext_buf);			\
-		*((m)->m_ext.ref_cnt) = 2;				\
-	} else								\
-		atomic_add_int((m)->m_ext.ref_cnt, 1);			\
-} while (0)
 
 #ifdef WITNESS
 #define MBUF_CHECKSLEEP(how) do {					\
 	if (how == M_WAITOK)						\
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,		\
 		    "Sleeping in \"%s\"", __func__);			\
-} while(0)
+} while (0)
 #else
 #define MBUF_CHECKSLEEP(how)
 #endif
@@ -355,6 +325,9 @@ struct mbstat {
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
+extern uma_zone_t	zone_jumbo9;
+extern uma_zone_t	zone_jumbo16;
+extern uma_zone_t	zone_ext_refcnt;
 
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
@@ -420,9 +393,6 @@ m_free(struct mbuf *m)
 {
 	struct mbuf *n = m->m_next;
 
-#ifdef INVARIANTS
-	m->m_flags |= M_FREELIST;
-#endif
 	if (m->m_flags & M_EXT)
 		mb_free_ext(m);
 	else
@@ -434,7 +404,8 @@ static __inline
 void
 m_clget(struct mbuf *m, int how)
 {
-
+	if (m->m_flags & M_EXT)
+		printf("%s: %p mbuf already has cluster\n", __func__, m);
 	m->m_ext.ext_buf = NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 }
@@ -463,8 +434,9 @@ m_chtype(struct mbuf *m, short new_type)
  * can be both the local data payload, or an external buffer area,
  * depending on whether M_EXT is set).
  */
-#define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (!((m)->m_flags  \
-			    & M_EXT) || !MEXT_IS_REF(m)))
+#define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) &&			\
+			 (!(((m)->m_flags & M_EXT)) ||			\
+			 (*((m)->m_ext.ref_cnt) == 1)) )		\
 
 /* Check if the supplied mbuf has a packet header, or else panic. */
 #define	M_ASSERTPKTHDR(m)						\
@@ -472,8 +444,9 @@ m_chtype(struct mbuf *m, short new_type)
 	    ("%s: no mbuf packet header!", __func__))
 
 /* Ensure that the supplied mbuf is a valid, non-free mbuf. */
+/* XXX: Broken at the moment.  Need some UMA magic to make it work again. */
 #define	M_ASSERTVALID(m)						\
-	KASSERT((((struct mbuf *)m)->m_flags & M_FREELIST) == 0,	\
+	KASSERT((((struct mbuf *)m)->m_flags & 0) == 0,			\
 	    ("%s: attempted use of a free mbuf!", __func__))
 
 /*

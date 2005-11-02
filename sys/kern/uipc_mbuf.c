@@ -86,11 +86,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 #endif
 
 /*
- * Malloc-type for external ext_buf ref counts.
- */
-static MALLOC_DEFINE(M_MBUF, "mbextcnt", "mbuf external ref counts");
-
-/*
  * Allocate a given length worth of mbufs and/or clusters (whatever fits
  * best) and return a pointer to the top of the allocated chain.  If an
  * existing mbuf chain is provided, then we will append the new chain
@@ -192,16 +187,10 @@ void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
     void (*freef)(void *, void *), void *args, int flags, int type)
 {
-	u_int *ref_cnt = NULL;
+	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
-	/* XXX Shouldn't be adding EXT_CLUSTER with this API */
-	if (type == EXT_CLUSTER)
-		ref_cnt = (u_int *)uma_find_refcnt(zone_clust,
-		    mb->m_ext.ext_buf);
-	else if (type == EXT_EXTREF)
-		ref_cnt = __DEVOLATILE(u_int *, mb->m_ext.ref_cnt);
-	mb->m_ext.ref_cnt = (ref_cnt == NULL) ?
-	    malloc(sizeof(u_int), M_MBUF, M_NOWAIT) : (u_int *)ref_cnt;
+	if (type != EXT_EXTREF)
+		mb->m_ext.ref_cnt = (u_int *)uma_zalloc(zone_ext_refcnt, M_NOWAIT);
 	if (mb->m_ext.ref_cnt != NULL) {
 		*(mb->m_ext.ref_cnt) = 1;
 		mb->m_flags |= (M_EXT | flags);
@@ -216,57 +205,83 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 
 /*
  * Non-directly-exported function to clean up after mbufs with M_EXT
- * storage attached to them if the reference count hits 0.
+ * storage attached to them if the reference count hits 1.
  */
 void
 mb_free_ext(struct mbuf *m)
 {
-	u_int cnt;
-	int dofree;
+	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
+	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
 
-	/* Account for lazy ref count assign. */
-	if (m->m_ext.ref_cnt == NULL)
-		dofree = 1;
-	else
-		dofree = 0;
-
-	/*
-	 * This is tricky.  We need to make sure to decrement the
-	 * refcount in a safe way but to also clean up if we're the
-	 * last reference.  This method seems to do it without race.
-	 */
-	while (dofree == 0) {
-		cnt = *(m->m_ext.ref_cnt);
-		if (atomic_cmpset_int(m->m_ext.ref_cnt, cnt, cnt - 1)) {
-			if (cnt == 1)
-				dofree = 1;
-			break;
-		}
-	}
-
-	if (dofree) {
-		/*
-		 * Do the free, should be safe.
-		 */
-		if (m->m_ext.ext_type == EXT_PACKET) {
+	/* Free attached storage if this mbuf is the only reference to it. */
+	if (*(m->m_ext.ref_cnt) == 1 ||
+	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 1) {
+		switch (m->m_ext.ext_type) {
+		case EXT_CLUSTER:
 			uma_zfree(zone_pack, m);
-			return;
-		} else if (m->m_ext.ext_type == EXT_CLUSTER) {
-			uma_zfree(zone_clust, m->m_ext.ext_buf);
-			m->m_ext.ext_buf = NULL;
-		} else {
+			return;		/* Job done. */
+			break;
+		case EXT_JUMBO9:
+			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
+			break;
+		case EXT_JUMBO16:
+			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
+			break;
+		case EXT_SFBUF:
+		case EXT_NET_DRV:
+		case EXT_MOD_TYPE:
+		case EXT_DISPOSABLE:
+			*(m->m_ext.ref_cnt) = 0;
+			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
+				m->m_ext.ref_cnt));
+			/* FALLTHROUGH */
+		case EXT_EXTREF:
+			KASSERT(m->m_ext.ext_free != NULL,
+				("%s: ext_free not set", __func__));
 			(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
 			    m->m_ext.ext_args);
-			if (m->m_ext.ext_type != EXT_EXTREF) {
-				if (m->m_ext.ref_cnt != NULL)
-					free(__DEVOLATILE(u_int *,
-					    m->m_ext.ref_cnt), M_MBUF);
-				m->m_ext.ref_cnt = NULL;
-			}
-			m->m_ext.ext_buf = NULL;
+			break;
+		default:
+			KASSERT(m->m_ext.ext_type == 0,
+				("%s: unknown ext_type", __func__));
 		}
 	}
+	/*
+	 * Free this mbuf back to the mbuf zone with all m_ext
+	 * information purged.
+	 */
+	m->m_ext.ext_buf = NULL;
+	m->m_ext.ext_free = NULL;
+	m->m_ext.ext_args = NULL;
+	m->m_ext.ref_cnt = NULL;
+	m->m_ext.ext_size = 0;
+	m->m_ext.ext_type = 0;
+	m->m_flags &= ~M_EXT;
 	uma_zfree(zone_mbuf, m);
+}
+
+/*
+ * Attach the the cluster from *m to *n, set up m_ext in *n
+ * and bump the refcount of the cluster.
+ */
+static void
+mb_dupcl(struct mbuf *n, struct mbuf *m)
+{
+	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
+	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
+	KASSERT((n->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
+
+	if (*(m->m_ext.ref_cnt) == 1)
+		*(m->m_ext.ref_cnt) += 1;
+	else
+		atomic_add_int(m->m_ext.ref_cnt, 1);
+	n->m_ext.ext_buf = m->m_ext.ext_buf;
+	n->m_ext.ext_free = m->m_ext.ext_free;
+	n->m_ext.ext_args = m->m_ext.ext_args;
+	n->m_ext.ext_size = m->m_ext.ext_size;
+	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
+	n->m_ext.ext_type = m->m_ext.ext_type;
+	n->m_flags |= M_EXT;
 }
 
 /*
@@ -533,10 +548,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		n->m_len = min(len, m->m_len - off);
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data + off;
-			n->m_ext = m->m_ext;
-			n->m_flags |= M_EXT;
-			MEXT_ADD_REF(m);
-			n->m_ext.ref_cnt = m->m_ext.ref_cnt;
+			mb_dupcl(n, m);
 		} else
 			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
 			    (u_int)n->m_len);
@@ -578,9 +590,9 @@ struct mbuf *
 m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
     int prep, int how)
 {
-	struct mbuf *mm, *x, *z;
+	struct mbuf *mm, *x, *z, *prev = NULL;
 	caddr_t p;
-	int i, mlen, nlen = 0;
+	int i, nlen = 0;
 	caddr_t buf[MLEN];
 
 	KASSERT(m != NULL && n != NULL, ("m_copymdata, no target or source"));
@@ -588,31 +600,34 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 	KASSERT(len >= 0, ("m_copymdata, negative len %d", len));
 	KASSERT(prep == 0 || prep == 1, ("m_copymdata, unknown direction %d", prep));
 
-	/* Make sure environment is sane. */
-	for (z = m; z != NULL; z = z->m_next) {
-		mlen += z->m_len;
-		if (!M_WRITABLE(z)) {
-			/* Make clusters writeable. */
-			if (z->m_flags & M_RDONLY)
-				return NULL;	/* Can't handle ext ref. */
-			x = m_getcl(how, MT_DATA, 0);
-			if (!x)
-				return NULL;
-			bcopy(z->m_ext.ext_buf, x->m_ext.ext_buf, x->m_ext.ext_size);
-			p = x->m_ext.ext_buf + (z->m_data - z->m_ext.ext_buf);
-			MEXT_REM_REF(z);	/* XXX */
-			z->m_data = p;
-			x->m_flags &= ~M_EXT;
-			(void)m_free(x);
+	mm = m;
+	if (!prep) {
+		while(mm->m_next) {
+			prev = mm;
+			mm = mm->m_next;
 		}
 	}
-	mm = prep ? m : z;
 	for (z = n; z != NULL; z = z->m_next)
 		nlen += z->m_len;
 	if (len == M_COPYALL)
 		len = nlen - off;
 	if (off + len > nlen || len < 1)
 		return NULL;
+
+	if (!M_WRITABLE(mm)) {
+		/* XXX: Use proper m_xxx function instead. */
+		x = m_getcl(how, MT_DATA, mm->m_flags);
+		if (x == NULL)
+			return NULL;
+		bcopy(mm->m_ext.ext_buf, x->m_ext.ext_buf, x->m_ext.ext_size);
+		p = x->m_ext.ext_buf + (mm->m_data - mm->m_ext.ext_buf);
+		x->m_data = p;
+		mm->m_next = NULL;
+		if (mm != m)
+			prev->m_next = x;
+		m_free(mm);
+		mm = x;
+	}
 
 	/*
 	 * Append/prepend the data.  Allocating mbufs as necessary.
@@ -726,10 +741,7 @@ m_copypacket(struct mbuf *m, int how)
 	n->m_len = m->m_len;
 	if (m->m_flags & M_EXT) {
 		n->m_data = m->m_data;
-		n->m_ext = m->m_ext;
-		n->m_flags |= M_EXT;
-		MEXT_ADD_REF(m);
-		n->m_ext.ref_cnt = m->m_ext.ref_cnt;
+		mb_dupcl(n, m);
 	} else {
 		n->m_data = n->m_pktdat + (m->m_data - m->m_pktdat );
 		bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
@@ -747,10 +759,7 @@ m_copypacket(struct mbuf *m, int how)
 		n->m_len = m->m_len;
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data;
-			n->m_ext = m->m_ext;
-			n->m_flags |= M_EXT;
-			MEXT_ADD_REF(m);
-			n->m_ext.ref_cnt = m->m_ext.ref_cnt;
+			mb_dupcl(n, m);
 		} else {
 			bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
 		}
@@ -1133,11 +1142,8 @@ m_split(struct mbuf *m0, int len0, int wait)
 	}
 extpacket:
 	if (m->m_flags & M_EXT) {
-		n->m_flags |= M_EXT;
-		n->m_ext = m->m_ext;
-		MEXT_ADD_REF(m);
-		n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 		n->m_data = m->m_data + len;
+		mb_dupcl(n, m);
 	} else {
 		bcopy(mtod(m, caddr_t) + len, mtod(n, caddr_t), remain);
 	}

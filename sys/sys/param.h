@@ -147,6 +147,9 @@
 
 #define MCLBYTES	(1 << MCLSHIFT)	/* size of an mbuf cluster */
 
+#define	MJUM9BYTES	(9 * 1024)	/* jumbo frame 9k */
+#define	MJUM16BYTES	(16 * 1024)	/* jumbo frame 16k */
+
 /*
  * Some macros for units conversion
  */
