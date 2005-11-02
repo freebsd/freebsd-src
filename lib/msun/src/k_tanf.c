@@ -47,9 +47,7 @@ __kernel_tanf(float x, float y, int iy)
 	ix = hx&0x7fffffff;	/* high word of |x| */
 	if(ix<0x31800000) {			/* x < 2**-28 */
 		if ((int) x == 0) {		/* generate inexact */
-			if ((ix | (iy + 1)) == 0)
-				return one / fabsf(x);
-			else {
+			{
 				if (iy == 1)
 					return x;
 				else {	/* compute -1 / (x+y) carefully */
