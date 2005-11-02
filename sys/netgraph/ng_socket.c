@@ -122,7 +122,8 @@ static ng_disconnect_t	ngs_disconnect;
 static int	ng_attach_data(struct socket *so);
 static int	ng_attach_cntl(struct socket *so);
 static int	ng_attach_common(struct socket *so, int type);
-static void	ng_detach_common(node_p node, hook_p hook, void *arg1, int which);
+static void	ng_detach_common(struct ngpcb *pcbp, int type);
+static void	ng_socket_free_priv(struct ngsock *priv);
 /*static int	ng_internalize(struct mbuf *m, struct thread *p); */
 
 static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
@@ -191,16 +192,7 @@ ngc_detach(struct socket *so)
 
 	if (pcbp == NULL)
 		return (EINVAL);
-
-	/*
-	 * If there is a node, then obtain netgraph locking first.
-	 */
-	if (pcbp->sockdata != NULL)
-		ng_send_fn1(pcbp->sockdata->node, NULL, &ng_detach_common,
-		    pcbp, NG_CONTROL, NG_WAITOK);
-	else
-		ng_detach_common(NULL, NULL, pcbp, NG_CONTROL);
-
+	ng_detach_common(pcbp, NG_CONTROL);
 	return (0);
 }
 
@@ -410,16 +402,7 @@ ngd_detach(struct socket *so)
 
 	if (pcbp == NULL)
 		return (EINVAL);
-
-	/*
-	 * If there is a node, then obtain netgraph locking first.
-	 */
-	if (pcbp->sockdata != NULL)
-		ng_send_fn1(pcbp->sockdata->node, NULL, &ng_detach_common,
-		    pcbp, NG_DATA, NG_WAITOK);
-	else
-		ng_detach_common(NULL, NULL, pcbp, NG_DATA);
-
+	ng_detach_common(pcbp, NG_DATA);
 	return (0);
 }
 
@@ -514,33 +497,40 @@ ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 {
 	struct ngpcb *pcbp;
 	struct sockaddr_ng *sg;
-	int sg_len, namelen, s;
+	int sg_len;
+	int error = 0;
 
 	/* Why isn't sg_data a `char[1]' ? :-( */
 	sg_len = sizeof(struct sockaddr_ng) - sizeof(sg->sg_data) + 1;
 
-	s = splnet();
 	pcbp = sotongpcb(so);
-	if ((pcbp == NULL) || (pcbp->sockdata == NULL)) {
-		splx(s);
+	if ((pcbp == NULL) || (pcbp->sockdata == NULL))
+		/* XXXGL: can this still happen? */
 		return (EINVAL);
+
+	mtx_lock(&pcbp->sockdata->mtx);
+	if (pcbp->sockdata->node != NULL) {
+		node_p node = pcbp->sockdata->node;
+		int namelen = 0;	/* silence compiler! */
+
+		if (NG_NODE_HAS_NAME(node))
+			sg_len += namelen = strlen(NG_NODE_NAME(node));
+
+		sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
+
+		if (NG_NODE_HAS_NAME(node))
+			bcopy(NG_NODE_NAME(node), sg->sg_data, namelen);
+
+		sg->sg_len = sg_len;
+		sg->sg_family = AF_NETGRAPH;
+		*addr = (struct sockaddr *)sg;
+		mtx_unlock(&pcbp->sockdata->mtx);
+	} else {
+		mtx_unlock(&pcbp->sockdata->mtx);
+		error = EINVAL;
 	}
 
-	namelen = 0;		/* silence compiler ! */
-	if ( NG_NODE_HAS_NAME(pcbp->sockdata->node))
-		sg_len += namelen = strlen(NG_NODE_NAME(pcbp->sockdata->node));
-
-	MALLOC(sg, struct sockaddr_ng *, sg_len, M_SONAME, M_WAITOK | M_ZERO);
-
-	if (NG_NODE_HAS_NAME(pcbp->sockdata->node))
-		bcopy(NG_NODE_NAME(pcbp->sockdata->node), sg->sg_data, namelen);
-	splx(s);
-
-	sg->sg_len = sg_len;
-	sg->sg_family = AF_NETGRAPH;
-	*addr = (struct sockaddr *)sg;
-
-	return (0);
+	return (error);
 }
 
 /*
@@ -552,37 +542,43 @@ ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 static int
 ng_attach_cntl(struct socket *so)
 {
-	struct ngsock *privdata;
+	struct ngsock *priv;
 	struct ngpcb *pcbp;
 	int error;
 
+	/* Allocate node private info */
+	MALLOC(priv, struct ngsock *,
+	    sizeof(*priv), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
+	if (priv == NULL)
+		return (ENOMEM);
+
 	/* Setup protocol control block */
-	if ((error = ng_attach_common(so, NG_CONTROL)) != 0)
+	if ((error = ng_attach_common(so, NG_CONTROL)) != 0) {
+		FREE(priv, M_NETGRAPH_SOCK);
 		return (error);
+	}
 	pcbp = sotongpcb(so);
 
-	/* Allocate node private info */
-	MALLOC(privdata, struct ngsock *,
-	    sizeof(*privdata), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
-	if (privdata == NULL) {
-		ng_detach_common(NULL, NULL, pcbp, NG_CONTROL);
-		return (ENOMEM);
-	}
+	/* Link the pcb the private data. */
+	priv->ctlsock = pcbp;
+	pcbp->sockdata = priv;
+	priv->refs++;
+
+	/* Initialize mutex. */
+	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
 
 	/* Make the generic node components */
-	if ((error = ng_make_node_common(&typestruct, &privdata->node)) != 0) {
-		FREE(privdata, M_NETGRAPH_SOCK);
-		ng_detach_common(NULL, NULL, pcbp, NG_CONTROL);
+	if ((error = ng_make_node_common(&typestruct, &priv->node)) != 0) {
+		FREE(priv, M_NETGRAPH_SOCK);
+		ng_detach_common(pcbp, NG_CONTROL);
 		return (error);
 	}
-	NG_NODE_SET_PRIVATE(privdata->node, privdata);
 
-	mtx_init(&privdata->mtx, "ng_socket", NULL, MTX_DEF);
+	/* Link the node and the private data. */
+	NG_NODE_SET_PRIVATE(priv->node, priv);
+	NG_NODE_REF(priv->node);
+	priv->refs++;
 
-	/* Link the pcb and the node private data */
-	privdata->ctlsock = pcbp;
-	pcbp->sockdata = privdata;
-	privdata->refs++;
 	return (0);
 }
 
@@ -631,15 +627,13 @@ ng_attach_common(struct socket *so, int type)
  * then shut down the entire node. Shared code for control and data sockets.
  */
 static void
-ng_detach_common(node_p node, hook_p hook, void *arg1, int which)
+ng_detach_common(struct ngpcb *pcbp, int which)
 {
-	struct ngpcb *pcbp = arg1;
+	struct ngsock *priv = pcbp->sockdata;
 
-	if (pcbp->sockdata) {
-		struct ngsock *priv;
+	if (priv != NULL) {
+		mtx_lock(&priv->mtx);
 
-		priv = pcbp->sockdata;
-		pcbp->sockdata = NULL;
 		switch (which) {
 		case NG_CONTROL:
 			priv->ctlsock = NULL;
@@ -650,15 +644,43 @@ ng_detach_common(node_p node, hook_p hook, void *arg1, int which)
 		default:
 			panic(__func__);
 		}
-		if ((--priv->refs == 0) && (priv->node != NULL))
-			ng_rmnode_self(priv->node);
+		pcbp->sockdata = NULL;
+
+		ng_socket_free_priv(priv);
 	}
+
 	pcbp->ng_socket->so_pcb = NULL;
-	pcbp->ng_socket = NULL;
 	mtx_lock(&ngsocketlist_mtx);
 	LIST_REMOVE(pcbp, socks);
 	mtx_unlock(&ngsocketlist_mtx);
 	FREE(pcbp, M_PCB);
+}
+
+/*
+ * Remove a reference from node private data.
+ */
+static void
+ng_socket_free_priv(struct ngsock *priv)
+{
+	mtx_assert(&priv->mtx, MA_OWNED);
+
+	priv->refs--;
+
+	if (priv->refs == 0) {
+		mtx_destroy(&priv->mtx);
+		FREE(priv, M_NETGRAPH_SOCK);
+		return;
+	}
+
+	if ((priv->refs == 1) && (priv->node != NULL)) {
+		node_p node = priv->node;
+
+		priv->node = NULL;
+		mtx_unlock(&priv->mtx);
+		NG_NODE_UNREF(node);
+		ng_rmnode_self(node);
+	} else
+		mtx_unlock(&priv->mtx);
 }
 
 #ifdef NOTYET
@@ -774,9 +796,11 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	 * Link the PCB and the private data struct. and note the extra
 	 * reference. Drop the extra reference on the node.
 	 */
+	mtx_lock(&priv->mtx);
 	priv->datasock = pcbp;
 	pcbp->sockdata = priv;
-	priv->refs++; /* XXX possible race if it's being freed */
+	priv->refs++;
+	mtx_unlock(&priv->mtx);
 	NG_FREE_ITEM(item);	/* drop the reference to the node */
 	return (0);
 }
@@ -1037,22 +1061,18 @@ ngs_shutdown(node_p node)
 	struct ngpcb *const dpcbp = priv->datasock;
 	struct ngpcb *const pcbp = priv->ctlsock;
 
-	if (dpcbp != NULL) {
+	if (dpcbp != NULL)
 		soisdisconnected(dpcbp->ng_socket);
-		dpcbp->sockdata = NULL;
-		priv->datasock = NULL;
-		priv->refs--;
-	}
-	if (pcbp != NULL) {
+
+	if (pcbp != NULL)
 		soisdisconnected(pcbp->ng_socket);
-		pcbp->sockdata = NULL;
-		priv->ctlsock = NULL;
-		priv->refs--;
-	}
+
+	mtx_lock(&priv->mtx);
+	priv->node = NULL;
 	NG_NODE_SET_PRIVATE(node, NULL);
+	ng_socket_free_priv(priv);
+
 	NG_NODE_UNREF(node);
-	mtx_destroy(&priv->mtx);
-	FREE(priv, M_NETGRAPH_SOCK);
 	return (0);
 }
 
