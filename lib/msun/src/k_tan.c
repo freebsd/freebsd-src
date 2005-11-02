@@ -85,9 +85,7 @@ __kernel_tan(double x, double y, int iy) {
 		if ((int) x == 0) {		/* generate inexact */
 			u_int32_t low;
 			GET_LOW_WORD(low,x);
-			if (((ix | low) | (iy + 1)) == 0)
-				return one / fabs(x);
-			else {
+			{
 				if (iy == 1)
 					return x;
 				else {	/* compute -1 / (x+y) carefully */
