@@ -71,6 +71,9 @@ MODULE_VERSION(netgraph, NG_ABI_VERSION);
 static LIST_HEAD(, ng_node) ng_nodelist;
 static struct mtx	ng_nodelist_mtx;
 
+/* Mutex to protect topology events. */
+static struct mtx	ng_topo_mtx;
+
 #ifdef	NETGRAPH_DEBUG
 static struct mtx		ngq_mtx;	/* protects the queue item list */
 
@@ -1044,14 +1047,25 @@ ng_findhook(node_p node, const char *name)
 void
 ng_destroy_hook(hook_p hook)
 {
-	hook_p peer = NG_HOOK_PEER(hook);
-	node_p node = NG_HOOK_NODE(hook);
+	hook_p peer;
+	node_p node;
 
 	if (hook == &ng_deadhook) {	/* better safe than sorry */
 		printf("ng_destroy_hook called on deadhook\n");
 		return;
 	}
-	hook->hk_flags |= HK_INVALID;		/* as soon as possible */
+
+	/*
+	 * Protect divorce process with mutex, to avoid races on
+	 * simultaneous disconnect.
+	 */
+	mtx_lock(&ng_topo_mtx);
+
+	hook->hk_flags |= HK_INVALID;
+
+	peer = NG_HOOK_PEER(hook);
+	node = NG_HOOK_NODE(hook);
+
 	if (peer && (peer != &ng_deadhook)) {
 		/*
 		 * Set the peer to point to ng_deadhook
@@ -1065,13 +1079,17 @@ ng_destroy_hook(hook_p hook)
 			 * If it's already divorced from a node,
 			 * just free it.
 			 */
-			/* nothing */
+			mtx_unlock(&ng_topo_mtx);
 		} else {
+			mtx_unlock(&ng_topo_mtx);
 			ng_rmhook_self(peer); 	/* Send it a surprise */
 		}
 		NG_HOOK_UNREF(peer);		/* account for peer link */
 		NG_HOOK_UNREF(hook);		/* account for peer link */
-	}
+	} else
+		mtx_unlock(&ng_topo_mtx);
+
+	mtx_assert(&ng_topo_mtx, MA_NOTOWNED);
 
 	/*
 	 * Remove the hook from the node's list to avoid possible recursion
@@ -1244,6 +1262,7 @@ ng_con_part3(node_p node, hook_p hook, void *arg1, int arg2)
 static void
 ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 {
+	hook_p peer;
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1301,9 +1320,22 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 			return ;
 		}
 	}
-	if (ng_send_fn(hook->hk_peer->hk_node, hook->hk_peer,
-			&ng_con_part3, arg1, arg2)) {
-		printf("failed in ng_con_part2(B)");
+
+	/*
+	 * Acquire topo mutex to avoid race with ng_destroy_hook().
+	 */
+	mtx_lock(&ng_topo_mtx);
+	peer = hook->hk_peer;
+	if (peer == &ng_deadhook) {
+		mtx_unlock(&ng_topo_mtx);
+		printf("failed in ng_con_part2(B)\n");
+		ng_destroy_hook(hook);
+		return ;
+	}
+	mtx_unlock(&ng_topo_mtx);
+
+	if (ng_send_fn(peer->hk_node, peer, &ng_con_part3, arg1, arg2)) {
+		printf("failed in ng_con_part2(C)\n");
 		ng_destroy_hook(hook);	/* also zaps peer */
 		return ;
 	}
@@ -1976,6 +2008,8 @@ ng_queue_rw(struct ng_queue * ngq, item_p  item, int rw)
 static __inline item_p
 ng_acquire_read(struct ng_queue *ngq, item_p item)
 {
+	KASSERT(ngq != &ng_deadnode.nd_input_queue,
+	    ("%s: working on deadnode", __func__));
 
 	/* ######### Hack alert ######### */
 	atomic_add_long(&ngq->q_flags, READER_INCREMENT);
@@ -2014,6 +2048,9 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 static __inline item_p
 ng_acquire_write(struct ng_queue *ngq, item_p item)
 {
+	KASSERT(ngq != &ng_deadnode.nd_input_queue,
+	    ("%s: working on deadnode", __func__));
+
 restart:
 	mtx_lock_spin(&(ngq->q_mtx));
 	/*
@@ -3012,6 +3049,8 @@ ngb_mod_event(module_t mod, int event, void *data)
 		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
 		    MTX_DEF);
 		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL,
+		    MTX_DEF);
+		mtx_init(&ng_topo_mtx, "netgraph topology mutex", NULL,
 		    MTX_DEF);
 #ifdef	NETGRAPH_DEBUG
 		mtx_init(&ngq_mtx, "netgraph item list mutex", NULL,
