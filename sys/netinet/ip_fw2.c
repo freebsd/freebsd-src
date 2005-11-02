@@ -1559,7 +1559,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	struct ip *ip;
 	struct tcphdr *tcp;
 
-	MGETHDR(m, M_DONTWAIT, MT_HEADER);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == 0)
 		return (NULL);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;

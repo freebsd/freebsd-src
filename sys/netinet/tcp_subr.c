@@ -446,7 +446,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		}
 	}
 	if (m == NULL) {
-		m = m_gethdr(M_DONTWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_DATA);
 		if (m == NULL)
 			return;
 		tlen = 0;
@@ -1794,7 +1794,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 
 	INP_LOCK_ASSERT(inp);
 
-	m = m_gethdr(M_DONTWAIT, MT_HEADER);
+	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_data += max_linkhdr;

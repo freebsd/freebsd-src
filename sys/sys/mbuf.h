@@ -221,7 +221,7 @@ struct mbuf {
  */
 #define	MT_NOTMBUF	0	/* USED INTERNALLY ONLY! Object is not mbuf */
 #define	MT_DATA		1	/* dynamic (data) allocation */
-#define	MT_HEADER	2	/* packet header */
+#define	MT_HEADER	MT_DATA	/* packet header, use M_PKTHDR instead */
 #if 0
 #define	MT_SOCKET	3	/* socket structure */
 #define	MT_PCB		4	/* protocol control block */

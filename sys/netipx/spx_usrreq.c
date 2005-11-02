@@ -813,7 +813,7 @@ spx_output(cb, m0)
 				m->m_next = m1;
 			}
 		}
-		m = m_gethdr(M_DONTWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			m_freem(m0);
 			return (ENOBUFS);
@@ -1026,7 +1026,7 @@ send:
 			spxstat.spxs_sndprobe++;
 		if (cb->s_flags & SF_ACKNOW)
 			spxstat.spxs_sndacks++;
-		m = m_gethdr(M_DONTWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_DATA);
 		if (m == NULL)
 			return (ENOBUFS);
 		/*
@@ -1373,7 +1373,7 @@ spx_attach(so, proto, td)
 	}
 	sb = &so->so_snd;
 
-	mm = m_getclr(M_DONTWAIT, MT_HEADER);
+	mm = m_getclr(M_DONTWAIT, MT_DATA);
 	if (mm == NULL) {
 		FREE(cb, M_PCB);
 		error = ENOBUFS;

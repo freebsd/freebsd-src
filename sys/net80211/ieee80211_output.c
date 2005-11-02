@@ -212,7 +212,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	struct mbuf *m;
 	struct ieee80211_frame *wh;
 
-	MGETHDR(m, M_NOWAIT, MT_HEADER);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		/* XXX debug msg */
 		ic->ic_stats.is_tx_nobuf++;

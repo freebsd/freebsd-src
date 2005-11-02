@@ -1900,7 +1900,7 @@ encap_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
      * new mbuf so we can modify it.  Try to fill the new
      * mbuf since if we don't the ethernet driver will.
      */
-    MGETHDR(mb_copy, M_DONTWAIT, MT_HEADER);
+    MGETHDR(mb_copy, M_DONTWAIT, MT_DATA);
     if (mb_copy == NULL)
 	return;
 #ifdef MAC
@@ -2715,7 +2715,7 @@ bw_upcalls_send(void)
      * Allocate a new mbuf, initialize it with the header and
      * the payload for the pending calls.
      */
-    MGETHDR(m, M_DONTWAIT, MT_HEADER);
+    MGETHDR(m, M_DONTWAIT, MT_DATA);
     if (m == NULL) {
 	log(LOG_WARNING, "bw_upcalls_send: cannot allocate mbuf\n");
 	return;
@@ -3055,7 +3055,7 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     /*
      * Add a new mbuf with an upcall header
      */
-    MGETHDR(mb_first, M_DONTWAIT, MT_HEADER);
+    MGETHDR(mb_first, M_DONTWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;
@@ -3115,7 +3115,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp,
     /*
      * Add a new mbuf with the encapsulating header
      */
-    MGETHDR(mb_first, M_DONTWAIT, MT_HEADER);
+    MGETHDR(mb_first, M_DONTWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;
