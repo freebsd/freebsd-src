@@ -462,7 +462,7 @@ igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 
 	IN_MULTI_LOCK_ASSERT();
 
-	MGETHDR(m, M_DONTWAIT, MT_HEADER);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 

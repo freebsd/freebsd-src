@@ -747,7 +747,7 @@ send:
 		m->m_len += hdrlen;
 		m->m_data -= hdrlen;
 #else
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
@@ -800,7 +800,7 @@ send:
 		else
 			tcpstat.tcps_sndwinup++;
 
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto out;

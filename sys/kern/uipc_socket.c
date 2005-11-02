@@ -1216,7 +1216,7 @@ dontblock:
 		} else if (type == MT_OOBDATA)
 			break;
 		else
-		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
+		    KASSERT(m->m_type == MT_DATA,
 			("m->m_type == %d", m->m_type));
 		so->so_rcv.sb_state &= ~SBS_RCVATMARK;
 		len = uio->uio_resid;
