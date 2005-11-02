@@ -323,6 +323,7 @@ int pmap_pagedaemon_waken;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
+static pv_entry_t pv_entry_reclaim(pmap_t locked_pmap);
 static void	alpha_protection_init(void);
 static void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
@@ -1321,6 +1322,54 @@ get_pv_entry(void)
 	return uma_zalloc(pvzone, M_NOWAIT);
 }
 
+/*
+ * Reclaim a pv entry by removing a mapping to an inactive page.
+ */
+static pv_entry_t
+pv_entry_reclaim(pmap_t locked_pmap)
+{
+	pmap_t pmap;
+	pt_entry_t *pte, tpte;
+	pv_entry_t pv;
+	vm_offset_t va;
+	vm_page_t m;
+
+	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(m, &vm_page_queues[PQ_INACTIVE].pl, pageq) {
+		if (m->hold_count || m->busy || (m->flags & PG_BUSY))
+			continue;
+		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+			va = pv->pv_va;
+			pmap = pv->pv_pmap;
+			if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
+				continue;
+			pmap->pm_stats.resident_count--;
+			pte = pmap_lev3pte(pmap, va);
+			tpte = *pte;
+			*pte = 0;
+			KASSERT((tpte & PG_W) == 0,
+			    ("pv_entry_reclaim: wired pte %#lx", tpte));
+			if ((tpte & PG_FOR) == 0)
+				vm_page_flag_set(m, PG_REFERENCED);
+			if ((tpte & PG_FOW) == 0) {
+				if (pmap_track_modified(va))
+					vm_page_dirty(m);
+			}
+			pmap_invalidate_page(pmap, va);
+			TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			if (TAILQ_EMPTY(&m->md.pv_list))
+				vm_page_flag_clear(m, PG_WRITEABLE);
+			m->md.pv_list_count--;
+			pmap_unuse_pt(pmap, va, pv->pv_ptem);
+			if (pmap != locked_pmap)
+				PMAP_UNLOCK(pmap);
+			return (pv);
+		}
+	}
+	panic("pv_entry_reclaim: increase vm.pmap.shpgperproc");
+}
 
 static int
 pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
@@ -1368,7 +1417,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 
 	pv = get_pv_entry();
 	if (pv == NULL)
-		panic("no pv entries: increase vm.pmap.shpgperproc");
+		pv = pv_entry_reclaim(pmap);
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
 	pv->pv_ptem = mpte;
