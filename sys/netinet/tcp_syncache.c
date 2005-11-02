@@ -1072,7 +1072,7 @@ syncache_respond(sc, m)
 	if (m)
 		m_freem(m);
 
-	m = m_gethdr(M_DONTWAIT, MT_HEADER);
+	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_data += max_linkhdr;

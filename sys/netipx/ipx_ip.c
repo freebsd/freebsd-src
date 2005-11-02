@@ -260,7 +260,7 @@ ipxipoutput(ifp, m, dst, rt)
 	/* following clause not necessary on vax */
 	if (3 & (intptr_t)m->m_data) {
 		/* force longword alignment of ip hdr */
-		struct mbuf *m0 = m_gethdr(MT_HEADER, M_DONTWAIT);
+		struct mbuf *m0 = m_gethdr(MT_DATA, M_DONTWAIT);
 		if (m0 == NULL) {
 			m_freem(m);
 			return (ENOBUFS);
