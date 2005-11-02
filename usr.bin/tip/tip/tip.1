@@ -221,14 +221,12 @@ system is processed by the shell.
 Fork a child process on the local system to perform special protocols
 such as
 .Tn XMODEM .
-The child program will be run with the following somewhat unusual
+The child program will be run with the following
 arrangement of file descriptors:
 .Bd -literal -offset indent
-0 <-> local tty in
-1 <-> local tty out
+0 <-> remote tty in
+1 <-> remote tty out
 2 <-> local tty out
-3 <-> remote tty in
-4 <-> remote tty out
 .Ed
 .It Ic ~#
 Send a
