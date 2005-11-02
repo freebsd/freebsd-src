@@ -354,13 +354,8 @@ _raise(int sig)
 
 	if (!_thr_isthreaded())
 		ret = kill(getpid(), sig);
-	else {
-		ret = pthread_kill(pthread_self(), sig);
-		if (ret != 0) {
-			errno = ret;
-			ret = -1;
-		}
-	}
+	else
+		ret = _thr_send_sig(_get_curthread(), sig);
 	return (ret);
 }
 
