@@ -93,7 +93,7 @@ CTASSERT(sizeof(struct ia32_sigframe4) == 408);
 #endif
 
 static register_t *ia32_copyout_strings(struct image_params *imgp);
-static void ia32_fixlimits(struct image_params *imgp);
+static void ia32_fixlimits(struct proc *p);
 
 extern struct sysent freebsd32_sysent[];
 
@@ -278,9 +278,8 @@ static u_long	ia32_maxvmem = IA32_MAXVMEM;
 SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxvmem, CTLFLAG_RW, &ia32_maxvmem, 0, "");
 
 static void
-ia32_fixlimits(struct image_params *imgp)
+ia32_fixlimits(struct proc *p)
 {
-	struct proc *p = imgp->proc;
 	struct plimit *oldlim, *newlim;
 
 	if (ia32_maxdsiz == 0 && ia32_maxssiz == 0 && ia32_maxvmem == 0)
