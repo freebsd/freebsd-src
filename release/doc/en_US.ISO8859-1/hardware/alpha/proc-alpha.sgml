@@ -1071,8 +1071,8 @@ cpu	EV4</programlisting>
       based host adapter (tested with a Tekram DC-390U2W). On the other hand 
       some no-name Symbios 53C985 board has been reported to work.
       Cards like the Tekram DC-390F (Symbios875 based) have been confirmed to 
-      work fine on the PC164. Unfortunately this seems to be dependent on the 
-      actual version of the chip/board.</para>
+      work fine on the PC164.  Symbios 53C896 has been confirmed to not 
+      work.</para>
 
       <para>Symbios 53C825[a] will also work as boot adapter. Diamond 
       FirePort, although based on Symbios chips, is not bootable by the 
@@ -1159,7 +1159,7 @@ cpu             EV5</programlisting>
       <para>Features:</para>
       <itemizedlist>
         <listitem>
-            <para>21064 or 21064A CPU at speeds of 166 up to 333 MHz</para>
+            <para>21064 or 21064A CPU at speeds of 100 up to 333 MHz</para>
         </listitem>
         <listitem>
           <para>DECchip 21071-AA core logic chip set</para>
