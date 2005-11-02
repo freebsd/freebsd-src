@@ -533,8 +533,7 @@ RtlUnicodeStringToAnsiString(dest, src, allocate)
 	uint8_t			allocate;
 {
 	if (dest == NULL || src == NULL)
-		return(NDIS_STATUS_FAILURE);
-
+		return(STATUS_INVALID_PARAMETER);
 
 	dest->as_len = src->us_len / 2;
 	if (dest->as_maxlen < dest->as_len)
@@ -565,7 +564,7 @@ RtlAnsiStringToUnicodeString(dest, src, allocate)
 	uint8_t			allocate;
 {
 	if (dest == NULL || src == NULL)
-		return(NDIS_STATUS_FAILURE);
+		return(STATUS_INVALID_PARAMETER);
 
 	if (allocate == TRUE) {
 		dest->us_buf = ExAllocatePoolWithTag(NonPagedPool,
@@ -3012,7 +3011,7 @@ RtlUnicodeStringToInteger(ustr, base, val)
 	ntoskrnl_unicode_to_ascii(uchr, astr, len);
 	*val = strtoul(abuf, NULL, base);
 
-	return(NDIS_STATUS_SUCCESS);
+	return(STATUS_SUCCESS);
 }
 
 void
@@ -3303,7 +3302,7 @@ ObReferenceObjectByHandle(handle, reqaccess, otype,
 
 	nr = malloc(sizeof(nt_objref), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (nr == NULL)
-		return(NDIS_STATUS_FAILURE);
+		return(STATUS_INSUFFICIENT_RESOURCES);
 
 	InitializeListHead((&nr->no_dh.dh_waitlisthead));
 	nr->no_obj = handle;
@@ -3314,7 +3313,7 @@ ObReferenceObjectByHandle(handle, reqaccess, otype,
 	TAILQ_INSERT_TAIL(&ntoskrnl_reflist, nr, link);
 	*object = nr;
 
-	return(NDIS_STATUS_SUCCESS);
+	return(STATUS_SUCCESS);
 }
 
 static void
@@ -3379,7 +3378,7 @@ PsCreateSystemThread(handle, reqaccess, objattrs, phandle,
 
 	tc = malloc(sizeof(thread_context), M_TEMP, M_NOWAIT);
 	if (tc == NULL)
-		return(NDIS_STATUS_FAILURE);
+		return(STATUS_INSUFFICIENT_RESOURCES);
 
 	tc->tc_thrctx = thrctx;
 	tc->tc_thrfunc = thrfunc;
@@ -3387,11 +3386,16 @@ PsCreateSystemThread(handle, reqaccess, objattrs, phandle,
 	sprintf(tname, "windows kthread %d", ntoskrnl_kth);
 	error = kthread_create(ntoskrnl_thrfunc, tc, &p,
 	    RFHIGHPID, NDIS_KSTACK_PAGES, tname);
-	*handle = p;
 
+	if (error) {
+		free(tc, M_TEMP);
+		return(STATUS_INSUFFICIENT_RESOURCES);
+	}
+
+	*handle = p;
 	ntoskrnl_kth++;
 
-	return(error);
+	return(STATUS_SUCCESS);
 }
 
 /*
