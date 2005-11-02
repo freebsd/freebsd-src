@@ -53,7 +53,7 @@ __kernel_tanf(float x, float y, int iy)
 				if (iy == 1)
 					return x;
 				else {	/* compute -1 / (x+y) carefully */
-					double a, t;
+					float a, t;
 
 					z = w = x + y;
 					GET_FLOAT_WORD(ix, z);
