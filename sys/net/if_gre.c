@@ -315,7 +315,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 			if ((m->m_data - msiz) < m->m_pktdat) {
 				/* need new mbuf */
-				MGETHDR(m0, M_DONTWAIT, MT_HEADER);
+				MGETHDR(m0, M_DONTWAIT, MT_DATA);
 				if (m0 == NULL) {
 					_IF_DROP(&ifp->if_snd);
 					m_freem(m);

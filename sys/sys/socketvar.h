@@ -297,8 +297,7 @@ struct xsocket {
 /* adjust counters in sb reflecting allocation of m */
 #define	sballoc(sb, m) { \
 	(sb)->sb_cc += (m)->m_len; \
-	if ((m)->m_type != MT_DATA && (m)->m_type != MT_HEADER && \
-	    (m)->m_type != MT_OOBDATA) \
+	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
 		(sb)->sb_ctl += (m)->m_len; \
 	(sb)->sb_mbcnt += MSIZE; \
 	if ((m)->m_flags & M_EXT) \
@@ -308,8 +307,7 @@ struct xsocket {
 /* adjust counters in sb reflecting freeing of m */
 #define	sbfree(sb, m) { \
 	(sb)->sb_cc -= (m)->m_len; \
-	if ((m)->m_type != MT_DATA && (m)->m_type != MT_HEADER && \
-	    (m)->m_type != MT_OOBDATA) \
+	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
 		(sb)->sb_ctl -= (m)->m_len; \
 	(sb)->sb_mbcnt -= MSIZE; \
 	if ((m)->m_flags & M_EXT) \

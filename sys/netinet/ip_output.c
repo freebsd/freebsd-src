@@ -941,7 +941,7 @@ smart_frag_failure:
 		struct mbuf *m;
 		int mhlen = sizeof (struct ip);
 
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			ipstat.ips_odropped++;
@@ -1067,7 +1067,7 @@ ip_insertoptions(m, opt, phlen)
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
-		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		MGETHDR(n, M_DONTWAIT, MT_DATA);
 		if (n == NULL) {
 			*phlen = 0;
 			return (m);
