@@ -30,7 +30,11 @@ tanf(float x)
 
     /* |x| ~< pi/4 */
 	ix &= 0x7fffffff;
-	if(ix <= 0x3f490fda) return __kernel_tanf(x,z,1);
+	if(ix <= 0x3f490fda) {
+	    if(ix<0x39800000)			/* |x| < 2**-12 */
+		if(((int)x)==0) return x;	/* generate inexact */
+	    return __kernel_tanf(x,z,1);
+	}
 
     /* tan(Inf or NaN) is NaN */
 	else if (ix>=0x7f800000) return x-x;		/* NaN */
