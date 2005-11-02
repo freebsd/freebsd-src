@@ -717,7 +717,11 @@ ndis_ptom(m0, p)
 
 	for (buf = priv->npp_head; buf != NULL; buf = buf->mdl_next) {
 		if (buf == priv->npp_head)
+#ifdef MT_HEADER
+			MGETHDR(m, M_DONTWAIT, MT_HEADER);
+#else
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
+#endif
 		else
 			MGET(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
@@ -1246,72 +1250,6 @@ ndis_init_nic(arg)
 	NDIS_LOCK(sc);
 	sc->ndis_block->nmb_devicectx = sc;
 	NDIS_UNLOCK(sc);
-
-	return(0);
-}
-
-void
-ndis_enable_intr(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-	ndis_handle		adapter;
-	ndis_enable_interrupts_handler	intrenbfunc;
-
-	sc = arg;
-	adapter = sc->ndis_block->nmb_miniportadapterctx;
-	intrenbfunc = sc->ndis_chars->nmc_enable_interrupts_func;
-	if (adapter == NULL || intrenbfunc == NULL)
-		return;
-	MSCALL1(intrenbfunc, adapter);
-
-	return;
-}
-
-void
-ndis_disable_intr(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-	ndis_handle		adapter;
-	ndis_disable_interrupts_handler	intrdisfunc;
-
-	sc = arg;
-	adapter = sc->ndis_block->nmb_miniportadapterctx;
-	intrdisfunc = sc->ndis_chars->nmc_disable_interrupts_func;
-	if (adapter == NULL || intrdisfunc == NULL)
-	    return;
-
-	MSCALL1(intrdisfunc, adapter);
-
-	return;
-}
-
-int
-ndis_isr(arg, ourintr, callhandler)
-	void			*arg;
-	int			*ourintr;
-	int			*callhandler;
-{
-	struct ndis_softc	*sc;
-	ndis_handle		adapter;
-	ndis_isr_handler	isrfunc;
-	uint8_t			accepted, queue;
-
-	if (arg == NULL || ourintr == NULL || callhandler == NULL)
-		return(EINVAL);
-
-	sc = arg;
-	adapter = sc->ndis_block->nmb_miniportadapterctx;
-	isrfunc = sc->ndis_chars->nmc_isr_func;
-
-	if (adapter == NULL || isrfunc == NULL)
-		return(ENXIO);
-
-	MSCALL3(isrfunc, &accepted, &queue, adapter);
-
-	*ourintr = accepted;
-	*callhandler = queue;
 
 	return(0);
 }
