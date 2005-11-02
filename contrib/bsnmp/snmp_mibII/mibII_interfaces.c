@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.15 2005/05/23 09:03:39 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.16 2005/11/02 12:07:40 brandt_h Exp $
  *
  * Interfaces group.
  */
@@ -280,8 +280,22 @@ op_ifentry(struct snmp_context *ctx, struct snmp_value *value,
 		break;
 
 	  case LEAF_ifOperStatus:
-		value->v.integer =
-		    (ifp->mib.ifmd_flags & IFF_RUNNING) ? 1 : 2;
+		/*
+		 * According to RFC 2863 the state should be Up if the
+		 * interface is ready to transmit packets. We takes this to
+		 * mean that the interface should be running and should have
+		 * a carrier. If it is running and has no carrier we interpret
+		 * this as 'waiting for an external event' (plugging in the
+		 * cable) and hence return 'dormant'.
+		 */
+		if (ifp->mib.ifmd_flags & IFF_RUNNING) {
+			if (ifp->mib.ifmd_data.ifi_link_state ==
+			    LINK_STATE_DOWN)
+				value->v.integer = 5;   /* state dormant */
+			else
+				value->v.integer = 1;   /* state up */
+		} else
+			value->v.integer = 2;   /* state down */
 		break;
 
 	  case LEAF_ifLastChange:
