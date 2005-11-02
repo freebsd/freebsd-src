@@ -908,7 +908,7 @@ exec_new_vmspace(imgp, sv)
 	 * sense for the 32 bit binary.
 	 */
 	if (sv->sv_fixlimits != NULL)
-		sv->sv_fixlimits(imgp);
+		sv->sv_fixlimits(p);
 
 	/*
 	 * Blow away entire process VM, if address space not shared,
