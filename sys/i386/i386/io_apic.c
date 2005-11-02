@@ -55,10 +55,10 @@ __FBSDID("$FreeBSD$");
 #define	IOAPIC_REDTBL_LO(i)	(IOAPIC_REDTBL + (i) * 2)
 #define	IOAPIC_REDTBL_HI(i)	(IOAPIC_REDTBL_LO(i) + 1)
 
-#define	VECTOR_EXTINT		252
-#define	VECTOR_NMI		253
-#define	VECTOR_SMI		254
-#define	VECTOR_DISABLED		255
+#define	IRQ_EXTINT		(NUM_IO_INTS + 1)
+#define	IRQ_NMI			(NUM_IO_INTS + 2)
+#define	IRQ_SMI			(NUM_IO_INTS + 3)
+#define	IRQ_DISABLED		(NUM_IO_INTS + 4)
 
 #define	DEST_NONE		-1
 
@@ -67,22 +67,18 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
 
 /*
- * New interrupt support code..
- *
- * XXX: we really should have the interrupt cookie passed up from new-bus
- * just be a int pin, and not map 1:1 to interrupt vector number but should
- * use INTR_TYPE_FOO to set priority bands for device classes and do all the
- * magic remapping of intpin to vector in here.  For now we just cheat as on
- * ia64 and map intpin X to vector NRSVIDT + X.  Note that we assume that the
- * first IO APIC has ISA interrupts on pins 1-15.  Not sure how you are
- * really supposed to figure out which IO APIC in a system with multiple IO
- * APIC's actually has the ISA interrupts routed to it.  As far as interrupt
- * pin numbers, we use the ACPI System Interrupt number model where each
- * IO APIC has a contiguous chunk of the System Interrupt address space.
+ * I/O APIC interrupt source driver.  Each pin is assigned an IRQ cookie
+ * as laid out in the ACPI System Interrupt number model where each I/O
+ * APIC has a contiguous chunk of the System Interrupt address space.
+ * We assume that IRQs 1 - 15 behave like ISA IRQs and that all other
+ * IRQs behave as PCI IRQs by default.  We also assume that the pin for
+ * IRQ 0 is actually an ExtINT pin.  The apic enumerators override the
+ * configuration of individual pins as indicated by their tables.
  */
 
 struct ioapic_intsrc {
 	struct intsrc io_intsrc;
+	u_int io_irq;
 	u_int io_intpin:8;
 	u_int io_vector:8;
 	u_int io_activehi:1;
@@ -106,7 +102,7 @@ struct ioapic {
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static const char *ioapic_bus_string(int bus_type);
-static void	ioapic_print_vector(struct ioapic_intsrc *intpin);
+static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
 static void	ioapic_enable_source(struct intsrc *isrc);
 static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
@@ -177,25 +173,25 @@ ioapic_bus_string(int bus_type)
 }
 
 static void
-ioapic_print_vector(struct ioapic_intsrc *intpin)
+ioapic_print_irq(struct ioapic_intsrc *intpin)
 {
 
-	switch (intpin->io_vector) {
-	case VECTOR_DISABLED:
+	switch (intpin->io_irq) {
+	case IRQ_DISABLED:
 		printf("disabled");
 		break;
-	case VECTOR_EXTINT:
+	case IRQ_EXTINT:
 		printf("ExtINT");
 		break;
-	case VECTOR_NMI:
+	case IRQ_NMI:
 		printf("NMI");
 		break;
-	case VECTOR_SMI:
+	case IRQ_SMI:
 		printf("SMI");
 		break;
 	default:
 		printf("%s IRQ %u", ioapic_bus_string(intpin->io_bus),
-		    intpin->io_vector);
+		    intpin->io_irq);
 	}
 }
 
@@ -258,14 +254,20 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
 	uint32_t low, high, value;
 
-	/* For disabled pins, just ensure that they are masked. */
-	if (intpin->io_vector == VECTOR_DISABLED) {
+	/*
+	 * If a pin is completely invalid or if it is valid but hasn't
+	 * been enabled yet, just ensure that the pin is masked.
+	 */
+	if (intpin->io_irq == IRQ_DISABLED || (intpin->io_irq < NUM_IO_INTS &&
+	    intpin->io_vector == 0)) {
+		mtx_lock_spin(&icu_lock);
 		low = ioapic_read(io->io_addr,
 		    IOAPIC_REDTBL_LO(intpin->io_intpin));
 		if ((low & IOART_INTMASK) == IOART_INTMCLR)
 			ioapic_write(io->io_addr,
 			    IOAPIC_REDTBL_LO(intpin->io_intpin),
 			    low | IOART_INTMSET);
+		mtx_unlock_spin(&icu_lock);
 		return;
 	}
 
@@ -290,24 +292,26 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 		low |= IOART_INTALO;
 	if (intpin->io_masked)
 		low |= IOART_INTMSET;
-	switch (intpin->io_vector) {
-	case VECTOR_EXTINT:
+	switch (intpin->io_irq) {
+	case IRQ_EXTINT:
 		KASSERT(intpin->io_edgetrigger,
 		    ("ExtINT not edge triggered"));
 		low |= IOART_DELEXINT;
 		break;
-	case VECTOR_NMI:
+	case IRQ_NMI:
 		KASSERT(intpin->io_edgetrigger,
 		    ("NMI not edge triggered"));
 		low |= IOART_DELNMI;
 		break;
-	case VECTOR_SMI:
+	case IRQ_SMI:
 		KASSERT(intpin->io_edgetrigger,
 		    ("SMI not edge triggered"));
 		low |= IOART_DELSMI;
 		break;
 	default:
-		low |= IOART_DELLOPRI | apic_irq_to_idt(intpin->io_vector);
+		KASSERT(intpin->io_vector != 0, ("No vector for IRQ %u",
+		    intpin->io_irq));
+		low |= IOART_DELLOPRI | intpin->io_vector;
 	}
 
 	/* Write the values to the APIC. */
@@ -333,7 +337,7 @@ ioapic_program_destination(struct ioapic_intsrc *intpin)
 	if (bootverbose) {
 		printf("ioapic%u: routing intpin %u (", io->io_id,
 		    intpin->io_intpin);
-		ioapic_print_vector(intpin);
+		ioapic_print_irq(intpin);
 		printf(") to cluster %u\n", intpin->io_dest);
 	}
 	ioapic_program_intpin(intpin);
@@ -364,10 +368,27 @@ static void
 ioapic_enable_intr(struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
+	struct ioapic *io = (struct ioapic *)isrc->is_pic;
 
 	if (intpin->io_dest == DEST_NONE) {
+		/*
+		 * Allocate an APIC vector for this interrupt pin.  Once
+		 * we have a vector we program the interrupt pin.  Note
+		 * that after we have booted ioapic_assign_cluster()
+		 * will program the interrupt pin again, but it doesn't
+		 * hurt to do that and trying to avoid that adds needless
+		 * complication.
+		 */
+		intpin->io_vector = apic_alloc_vector(intpin->io_irq);
+		if (bootverbose) {
+			printf("ioapic%u: routing intpin %u (", io->io_id,
+			    intpin->io_intpin);
+			ioapic_print_irq(intpin);
+			printf(") to vector %u\n", intpin->io_vector);
+		}
+		ioapic_program_intpin(intpin);
 		ioapic_assign_cluster(intpin);
-		lapic_enable_intr(intpin->io_vector);
+		apic_enable_vector(intpin->io_vector);
 	}
 }
 
@@ -377,7 +398,7 @@ ioapic_vector(struct intsrc *isrc)
 	struct ioapic_intsrc *pin;
 
 	pin = (struct ioapic_intsrc *)isrc;
-	return (pin->io_vector);
+	return (pin->io_irq);
 }
 
 static int
@@ -385,6 +406,8 @@ ioapic_source_pending(struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
+	if (intpin->io_vector == 0)
+		return 0;
 	return (lapic_intr_pending(intpin->io_vector));
 }
 
@@ -522,16 +545,16 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 	for (i = 0, intpin = io->io_pins; i < numintr; i++, intpin++) {
 		intpin->io_intsrc.is_pic = (struct pic *)io;
 		intpin->io_intpin = i;
-		intpin->io_vector = intbase + i;
+		intpin->io_irq = intbase + i;
 
 		/*
 		 * Assume that pin 0 on the first I/O APIC is an ExtINT pin.
 		 * Assume that pins 1-15 are ISA interrupts and that all
 		 * other pins are PCI interrupts.
 		 */
-		if (intpin->io_vector == 0)
+		if (intpin->io_irq == 0)
 			ioapic_set_extint(io, i);
-		else if (intpin->io_vector < IOAPIC_ISA_INTS) {
+		else if (intpin->io_irq < IOAPIC_ISA_INTS) {
 			intpin->io_bus = APIC_BUS_ISA;
 			intpin->io_activehi = 1;
 			intpin->io_edgetrigger = 1;
@@ -549,9 +572,9 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		 * logical IDs to CPU clusters when they are enabled.
 		 */
 		intpin->io_dest = DEST_NONE;
-		if (bootverbose && intpin->io_vector != VECTOR_DISABLED) {
+		if (bootverbose && intpin->io_irq != IRQ_DISABLED) {
 			printf("ioapic%u: intpin %d -> ",  io->io_id, i);
-			ioapic_print_vector(intpin);
+			ioapic_print_irq(intpin);
 			printf(" (%s, %s)\n", intpin->io_edgetrigger ?
 			    "edge" : "level", intpin->io_activehi ? "high" :
 			    "low");
@@ -572,7 +595,7 @@ ioapic_get_vector(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (-1);
-	return (io->io_pins[pin].io_vector);
+	return (io->io_pins[pin].io_irq);
 }
 
 int
@@ -583,9 +606,9 @@ ioapic_disable_pin(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector == VECTOR_DISABLED)
+	if (io->io_pins[pin].io_irq == IRQ_DISABLED)
 		return (EINVAL);
-	io->io_pins[pin].io_vector = VECTOR_DISABLED;
+	io->io_pins[pin].io_irq = IRQ_DISABLED;
 	if (bootverbose)
 		printf("ioapic%u: intpin %d disabled\n", io->io_id, pin);
 	return (0);
@@ -599,9 +622,9 @@ ioapic_remap_vector(void *cookie, u_int pin, int vector)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || vector < 0)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_vector = vector;
+	io->io_pins[pin].io_irq = vector;
 	if (bootverbose)
 		printf("ioapic%u: Routing IRQ %d -> intpin %d\n", io->io_id,
 		    vector, pin);
@@ -618,7 +641,7 @@ ioapic_set_bus(void *cookie, u_int pin, int bus_type)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = bus_type;
 	if (bootverbose)
@@ -635,12 +658,12 @@ ioapic_set_nmi(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector == VECTOR_NMI)
+	if (io->io_pins[pin].io_irq == IRQ_NMI)
 		return (0);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
-	io->io_pins[pin].io_vector = VECTOR_NMI;
+	io->io_pins[pin].io_irq = IRQ_NMI;
 	io->io_pins[pin].io_masked = 0;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
@@ -658,12 +681,12 @@ ioapic_set_smi(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector == VECTOR_SMI)
+	if (io->io_pins[pin].io_irq == IRQ_SMI)
 		return (0);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
-	io->io_pins[pin].io_vector = VECTOR_SMI;
+	io->io_pins[pin].io_irq = IRQ_SMI;
 	io->io_pins[pin].io_masked = 0;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
@@ -681,12 +704,12 @@ ioapic_set_extint(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector == VECTOR_EXTINT)
+	if (io->io_pins[pin].io_irq == IRQ_EXTINT)
 		return (0);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
-	io->io_pins[pin].io_vector = VECTOR_EXTINT;
+	io->io_pins[pin].io_irq = IRQ_EXTINT;
 	if (enable_extint)
 		io->io_pins[pin].io_masked = 0;
 	else
@@ -707,7 +730,7 @@ ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_activehi = (pol == INTR_POLARITY_HIGH);
 	if (bootverbose)
@@ -724,7 +747,7 @@ ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_edgetrigger = (trigger == INTR_TRIGGER_EDGE);
 	if (bootverbose)
@@ -755,18 +778,11 @@ ioapic_register(void *cookie)
 	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
 	    io->io_intbase + io->io_numintr - 1);
 	bsp_id = PCPU_GET(apic_id);
-	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
-		/*
-		 * Finish initializing the pins by programming the vectors
-		 * and delivery mode.
-		 */
-		if (pin->io_vector == VECTOR_DISABLED)
-			continue;
-		ioapic_program_intpin(pin);
-		if (pin->io_vector >= NUM_IO_INTS)
-			continue;
-		intr_register_source(&pin->io_intsrc);
-	}
+
+	/* Register valid pins as interrupt sources. */
+	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
+		if (pin->io_irq < NUM_IO_INTS)
+			intr_register_source(&pin->io_intsrc);
 }
 
 /*
