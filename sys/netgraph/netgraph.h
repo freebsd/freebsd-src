@@ -618,9 +618,13 @@ struct ng_item {
 #define NGQF_FN		0x02		/* the queue element is a function */
 #define NGQF_UNDEF	0x03		/* UNDEFINED */
 
-#define NGQF_RW		0x04		/* MASK for queue entry read/write */
-#define NGQF_READER	0x04		/* queued as a reader */
-#define NGQF_WRITER	0x00		/* queued as a writer */
+#define NGQF_RW		0x04		/* MASK for wanted queue mode */
+#define NGQF_READER	0x04		/* wants to be a reader */
+#define NGQF_WRITER	0x00		/* wants to be a writer */
+
+#define NGQF_QMODE	0x08		/* MASK for how it was queued */
+#define NGQF_QREADER	0x08		/* was queued as a reader */
+#define NGQF_QWRITER	0x00		/* was queued as a writer */
 
 /*
  * Get the mbuf (etc) out of an item.
@@ -805,6 +809,11 @@ _ngi_hook(item_p item, char *file, int line)
 		_NGI_HOOK(i) = NULL;					\
 	} while (0)
 
+#define NGI_SET_WRITER(i)	((i)->el_flags &= ~NGQF_QMODE)
+#define NGI_SET_READER(i)	((i)->el_flags |= NGQF_QREADER)
+
+#define NGI_QUEUED_READER(i)	((i)->el_flags & NGQF_QREADER)
+#define NGI_QUEUED_WRITER(i)	(((i)->el_flags & NGQF_QMODE) == NGQF_QWRITER)
 	
 /**********************************************************************
 * Data macros.  Send, manipulate and free.
