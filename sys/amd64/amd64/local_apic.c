@@ -36,10 +36,14 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/proc.h>
@@ -55,6 +59,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
+
+#ifdef DDB
+#include <sys/interrupt.h>
+#include <ddb/ddb.h>
+#endif
 
 /*
  * We can handle up to 60 APICs via our logical cluster IDs, but currently
@@ -72,6 +81,10 @@ CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 #define	LAPIC_TIMER_HZ_DIVIDER		2
 #define	LAPIC_TIMER_STATHZ_DIVIDER	15
 #define	LAPIC_TIMER_PROFHZ_DIVIDER	3
+
+/* Magic IRQ values for the timer and syscalls. */
+#define	IRQ_TIMER	(NUM_IO_INTS + 1)
+#define	IRQ_SYSCALL	(NUM_IO_INTS + 2)
 
 /*
  * Support for local APICs.  Local APICs manage interrupts on each
@@ -125,6 +138,9 @@ static inthand_t *ioint_handlers[] = {
 	IDTVEC(apic_isr6),	/* 192 - 223 */
 	IDTVEC(apic_isr7),	/* 224 - 255 */
 };
+
+/* Include IDT_SYSCALL to make indexing easier. */
+static u_int ioint_irqs[APIC_NUM_IOINTS + 1];
 
 static u_int32_t lapic_timer_divisors[] = { 
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
@@ -197,12 +213,14 @@ lapic_init(uintptr_t addr)
 
 	/* Perform basic initialization of the BSP's local APIC. */
 	lapic_enable();
+	ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
 
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
 
 	/* Local APIC timer interrupt. */
 	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYSIGT, SEL_KPL, 0);
+	ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] = IRQ_TIMER;
 
 	/* XXX: error/thermal interrupts */
 }
@@ -255,18 +273,6 @@ lapic_dump(const char* str)
 	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pcm: 0x%08x\n",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
 	    lapic->lvt_pcint);
-}
-
-void
-lapic_enable_intr(u_int irq)
-{
-	u_int vector;
-
-	vector = apic_irq_to_idt(irq);
-	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
-	KASSERT(ioint_handlers[vector / 32] != NULL,
-	    ("No ISR handler for IRQ %u", irq));
-	setidt(vector, ioint_handlers[vector / 32], SDT_SYSIGT, SEL_KPL,  0);
 }
 
 void
@@ -692,30 +698,102 @@ lapic_timer_enable_intr(void)
 	lapic->lvt_timer = value;
 }
 
-/* Translate between IDT vectors and IRQ vectors. */
+/* Request a free IDT vector to be used by the specified IRQ. */
 u_int
-apic_irq_to_idt(u_int irq)
+apic_alloc_vector(u_int irq)
 {
 	u_int vector;
 
 	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
-	vector = irq + APIC_IO_INTS;
-	if (vector >= IDT_SYSCALL)
-		vector++;
-	return (vector);
+
+	/*
+	 * Search for a free vector.  Currently we just use a very simple
+	 * algorithm to find the first free vector.
+	 */
+	mtx_lock_spin(&icu_lock);
+	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
+		if (ioint_irqs[vector] != 0)
+			continue;
+		ioint_irqs[vector] = irq;
+		mtx_unlock_spin(&icu_lock);
+		return (vector + APIC_IO_INTS);
+	}
+	mtx_unlock_spin(&icu_lock);
+	panic("Couldn't find an APIC vector for IRQ %u", irq);
 }
 
+void
+apic_enable_vector(u_int vector)
+{
+
+	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
+	KASSERT(ioint_handlers[vector / 32] != NULL,
+	    ("No ISR handler for vector %u", vector));
+	setidt(vector, ioint_handlers[vector / 32], SDT_SYSIGT, SEL_KPL, 0);
+}
+
+/* Release an APIC vector when it's no longer in use. */
+void
+apic_free_vector(u_int vector, u_int irq)
+{
+	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
+	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
+	    ("Vector %u does not map to an IRQ line", vector));
+	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
+	KASSERT(ioint_irqs[vector - APIC_IO_INTS] == irq, ("IRQ mismatch"));
+	mtx_lock_spin(&icu_lock);
+	ioint_irqs[vector - APIC_IO_INTS] = 0;
+	mtx_unlock_spin(&icu_lock);
+}
+
+/* Map an IDT vector (APIC) to an IRQ (interrupt source). */
 u_int
 apic_idt_to_irq(u_int vector)
 {
 
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
-	    vector <= APIC_IO_INTS + NUM_IO_INTS,
+	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
-	if (vector > IDT_SYSCALL)
-		vector--;
-	return (vector - APIC_IO_INTS);
+	return (ioint_irqs[vector - APIC_IO_INTS]);
 }
+
+#ifdef DDB
+/*
+ * Dump data about APIC IDT vector mappings.
+ */
+DB_SHOW_COMMAND(apic, db_show_apic)
+{
+	struct intsrc *isrc;
+	int quit, i, verbose;
+	u_int irq;
+
+	quit = 0;
+	if (strcmp(modif, "vv") == 0)
+		verbose = 2;
+	else if (strcmp(modif, "v") == 0)
+		verbose = 1;
+	else
+		verbose = 0;
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
+	for (i = 0; i < APIC_NUM_IOINTS + 1 && !quit; i++) {
+		irq = ioint_irqs[i];
+		if (irq != 0 && irq != IRQ_SYSCALL) {
+			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);
+			if (irq == IRQ_TIMER)
+				db_printf("lapic timer\n");
+			else if (irq < NUM_IO_INTS) {
+				isrc = intr_lookup_source(irq);
+				if (isrc == NULL || verbose == 0)
+					db_printf("IRQ %u\n", irq);
+				else
+					db_dump_intr_event(isrc->is_event,
+					    verbose == 2);
+			} else
+				db_printf("IRQ %u ???\n", irq);
+		}
+	}
+}
+#endif
 
 /*
  * APIC probing support code.  This includes code to manage enumerators.
