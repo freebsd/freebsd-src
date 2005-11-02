@@ -123,7 +123,7 @@ static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
-static void	linux32_fixlimits(struct image_params *imgp);
+static void	linux32_fixlimits(struct proc *p);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -955,9 +955,8 @@ SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
  * XXX copied from ia32_sysvec.c.
  */
 static void
-linux32_fixlimits(struct image_params *imgp)
+linux32_fixlimits(struct proc *p)
 {
-	struct proc *p = imgp->proc;
 	struct plimit *oldlim, *newlim;
 
 	if (linux32_maxdsiz == 0 && linux32_maxssiz == 0 &&

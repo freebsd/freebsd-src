@@ -655,6 +655,13 @@ kern_setrlimit(td, which, limp)
 			    addr, addr + size, prot, FALSE);
 		}
 	}
+
+	/*
+	 * The data size limit may need to be changed to a value
+	 * that makes sense for the 32 bit binary.
+	 */
+	if (p->p_sysent->sv_fixlimits != NULL)
+		p->p_sysent->sv_fixlimits(p);
 	return (0);
 }
 
