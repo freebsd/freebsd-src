@@ -45,27 +45,6 @@ __kernel_tanf(float x, float y, int iy)
 	int32_t ix,hx;
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;	/* high word of |x| */
-	if(ix<0x31800000) {			/* x < 2**-28 */
-		if ((int) x == 0) {		/* generate inexact */
-			{
-				if (iy == 1)
-					return x;
-				else {	/* compute -1 / (x+y) carefully */
-					float a, t;
-
-					z = w = x + y;
-					GET_FLOAT_WORD(ix, z);
-					SET_FLOAT_WORD(z, ix & 0xfffff000);
-					v = y - (z - x);
-					t = a = -one / w;
-					GET_FLOAT_WORD(ix, t);
-					SET_FLOAT_WORD(t, ix & 0xfffff000);
-					s = one + t * z;
-					return t + a * (s + t * v);
-				}
-			}
-		}
-	}
 	if(ix>=0x3f2ca140) { 			/* |x|>=0.6744 */
 	    if(hx<0) {x = -x; y = -y;}
 	    z = pio4-x;
