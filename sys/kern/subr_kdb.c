@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 
 #ifdef SMP
-#if defined (__i386__) || defined(__amd64__)
+#if defined (__i386__) || defined(__amd64__) || defined(__sparc64__) || defined(__alpha__)
 #define	HAVE_STOPPEDPCBS
 #include <machine/smp.h>
 #endif
