@@ -8,6 +8,7 @@
 %token	COMMA
 %token	CONFIG
 %token	CPU
+%token	NOCPU
 %token	DEVICE
 %token	NODEVICE
 %token	ENV
@@ -156,6 +157,17 @@ Config_spec:
 		memset(cp, 0, sizeof(*cp));
 		cp->cpu_name = $2;
 		SLIST_INSERT_HEAD(&cputype, cp, cpu_next);
+	      } |
+	NOCPU Save_id
+	      = {
+		struct cputype *cp, *cp2;
+		SLIST_FOREACH_SAFE(cp, &cputype, cpu_next, cp2) {
+			if (strcmp(cp->cpu_name, $2) != 0)
+				continue;
+			SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
+			free(cp);
+			break;
+		}
 	      } |
 	OPTIONS Opt_list
 		|
