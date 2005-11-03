@@ -1413,46 +1413,29 @@ void
 itimer_fire(struct itimer *it)
 {
 	struct proc *p = it->it_proc;
-	struct thread *td;
+	int ret;
 
 	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL ||
 	    it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
 		PROC_LOCK(p);
-		if (KSI_ONQ(&it->it_ksi)) {
-			it->it_overrun++;
-		} else {
-			if (it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
-				/* XXX
-				 * This is too slow if there are many threads,
-				 * why the world don't have a thread hash table,
-				 * sigh.
+		if (!KSI_ONQ(&it->it_ksi)) {
+			ret = psignal_event(p, &it->it_sigev, &it->it_ksi);
+			if (__predict_false(ret != 0)) {
+				it->it_overrun++;
+				/*
+				 * Broken userland code, thread went
+				 * away, disarm the timer.
 				 */
-				FOREACH_THREAD_IN_PROC(p, td) {
-					if (td->td_tid ==
-					    it->it_sigev.sigev_notify_thread_id)
-						break;
-				}
-				if (td != NULL)
-					tdsignal(td, it->it_ksi.ksi_signo,
-						&it->it_ksi, SIGTARGET_TD);
-				else {
-					/*
-					 * Broken userland code, thread went
-					 * away, disarm the timer.
-					 */
-#if 0
-					it->it_overrun++;
-#else
+				if (ret == ESRCH) {
 					ITIMER_LOCK(it);
 					timespecclear(&it->it_time.it_value);
 					timespecclear(&it->it_time.it_interval);
 					callout_stop(&it->it_callout);
 					ITIMER_UNLOCK(it);
-#endif
 				}
-			} else {
-				psignal_info(p, &it->it_ksi);
 			}
+		} else {
+			it->it_overrun++;
 		}
 		PROC_UNLOCK(p);
 	}
