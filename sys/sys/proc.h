@@ -941,6 +941,7 @@ void	thread_unthread(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 void	thread_user_enter(struct thread *td);
 void	thread_wait(struct proc *p);
+struct thread	*thread_find(struct proc *p, lwpid_t tid);
 void	thr_exit1(void);
 struct kse_upcall *upcall_alloc(void);
 void	upcall_free(struct kse_upcall *ku);
