@@ -2881,7 +2881,8 @@ loop:
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
 	}
-  	if (commit && vp->v_bufobj.bo_dirty.bv_cnt == 0)
+  	if (commit && vp->v_bufobj.bo_dirty.bv_cnt == 0 &&
+	    vp->v_bufobj.bo_numoutput == 0)
   		np->n_flag &= ~NMODIFIED;
 done:
 	if (bvec != NULL && bvec != bvec_on_stack)
