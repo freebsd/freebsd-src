@@ -158,7 +158,7 @@ DB_SHOW_COMMAND(allpcpu, db_show_cpu_all)
 	int id;
 
 	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
-	for (id = 0; id < mp_maxid; id++) {
+	for (id = 0; id <= mp_maxid; id++) {
 		pc = pcpu_find(id);
 		if (pc != NULL) {
 			show_pcpu(pc);
