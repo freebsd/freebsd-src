@@ -423,11 +423,13 @@ route_output(struct mbuf *m, struct socket *so)
 		RADIX_NODE_HEAD_LOCK(rnh);
 		rt = (struct rtentry *) rnh->rnh_lookup(info.rti_info[RTAX_DST],
 			info.rti_info[RTAX_NETMASK], rnh);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-		if (rt == NULL)		/* XXX looks bogus */
+		if (rt == NULL) {	/* XXX looks bogus */
+			RADIX_NODE_HEAD_UNLOCK(rnh);
 			senderr(ESRCH);
+		}
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 
 		/* 
 		 * Fix for PR: 82974
@@ -511,10 +513,10 @@ route_output(struct mbuf *m, struct socket *so)
 			    (info.rti_info[RTAX_IFA] != NULL &&
 			     !sa_equal(info.rti_info[RTAX_IFA],
 				       rt->rt_ifa->ifa_addr))) {
-				if ((error = rt_getifa(&info)) != 0) {
-					RT_UNLOCK(rt);
+				RT_UNLOCK(rt);
+				if ((error = rt_getifa(&info)) != 0)
 					senderr(error);
-				}
+				RT_LOCK(rt);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL &&
 			    (error = rt_setgate(rt, rt_key(rt),

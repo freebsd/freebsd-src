@@ -1013,6 +1013,36 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	}
 
 	/*
+	 * Cloning loop avoidance in case of bad configuration.
+	 */
+	if (rt->rt_flags & RTF_GATEWAY) {
+		struct rtentry *gwrt;
+
+		RT_UNLOCK(rt);		/* XXX workaround LOR */
+		gwrt = rtalloc1(gate, 1, 0);
+		if (gwrt == rt) {
+			RT_LOCK_ASSERT(rt);
+			RT_REMREF(rt);
+			return (EADDRINUSE); /* failure */
+		}
+		RT_LOCK(rt);
+		/*
+		 * If there is already a gwroute, then drop it. If we
+		 * are asked to replace route with itself, then do
+		 * not leak its refcounter.
+		 */
+		if (rt->rt_gwroute != NULL) {
+			if (rt->rt_gwroute == gwrt) {
+				RT_REMREF(rt->rt_gwroute);
+			} else
+				RTFREE(rt->rt_gwroute);
+		}
+
+		if ((rt->rt_gwroute = gwrt) != NULL)
+			RT_UNLOCK(rt->rt_gwroute);
+	}
+
+	/*
 	 * Prepare to store the gateway in rt->rt_gateway.
 	 * Both dst and gateway are stored one after the other in the same
 	 * malloc'd chunk. If we have room, we can reuse the old buffer,
@@ -1042,41 +1072,6 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	 * Copy the new gateway value into the memory chunk.
 	 */
 	bcopy(gate, rt->rt_gateway, glen);
-
-	/*
-	 * If there is already a gwroute, it's now almost definitly wrong
-	 * so drop it.
-	 */
-	if (rt->rt_gwroute != NULL) {
-		RTFREE(rt->rt_gwroute);
-		rt->rt_gwroute = NULL;
-	}
-	/*
-	 * Cloning loop avoidance:
-	 * In the presence of protocol-cloning and bad configuration,
-	 * it is possible to get stuck in bottomless mutual recursion
-	 * (rtrequest rt_setgate rtalloc1).  We avoid this by not allowing
-	 * protocol-cloning to operate for gateways (which is probably the
-	 * correct choice anyway), and avoid the resulting reference loops
-	 * by disallowing any route to run through itself as a gateway.
-	 * This is obviously mandatory when we get rt->rt_output().
-	 * XXX: After removal of PRCLONING this is probably not needed anymore.
-	 */
-	if (rt->rt_flags & RTF_GATEWAY) {
-		struct rtentry *gwrt;
-
-		RT_UNLOCK(rt);		/* XXX workaround LOR */
-		gwrt = rtalloc1(gate, 1, 0);
-		RT_LOCK(rt);
-		rt->rt_gwroute = gwrt;
-		if (rt->rt_gwroute == rt) {
-			RTFREE_LOCKED(rt->rt_gwroute);
-			rt->rt_gwroute = NULL;
-			return EDQUOT; /* failure */
-		}
-		if (rt->rt_gwroute != NULL)
-			RT_UNLOCK(rt->rt_gwroute);
-	}
 
 	/*
 	 * This isn't going to do anything useful for host routes, so
@@ -1259,51 +1254,52 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 	struct rtentry *rt0;
 	int error;
 
-	rt0 = *lrt0;
-	rt = rt0;
-	if (rt) {
-		/* NB: the locking here is tortuous... */
-		RT_LOCK(rt);
-		if ((rt->rt_flags & RTF_UP) == 0) {
-			RT_UNLOCK(rt);
-			rt = rtalloc1(dst, 1, 0UL);
-			if (rt != NULL) {
-				RT_REMREF(rt);
-				/* XXX what about if change? */
-			} else
-				senderr(EHOSTUNREACH);
-			rt0 = rt;
-		}
-		/* XXX BSD/OS checks dst->sa_family != AF_NS */
-		if (rt->rt_flags & RTF_GATEWAY) {
-			if (rt->rt_gwroute == NULL)
-				goto lookup;
-			rt = rt->rt_gwroute;
-			RT_LOCK(rt);		/* NB: gwroute */
-			if ((rt->rt_flags & RTF_UP) == 0) {
-				rtfree(rt);	/* unlock gwroute */
-				rt = rt0;
-			lookup:
-				RT_UNLOCK(rt0);
-				rt = rtalloc1(rt->rt_gateway, 1, 0UL);
-				RT_LOCK(rt0);
-				rt0->rt_gwroute = rt;
-				if (rt == NULL) {
-					RT_UNLOCK(rt0);
-					senderr(EHOSTUNREACH);
-				}
-			}
-			RT_UNLOCK(rt0);
-		}
-		/* XXX why are we inspecting rmx_expire? */
-		error = (rt->rt_flags & RTF_REJECT) &&
-			(rt->rt_rmx.rmx_expire == 0 ||
-				time_second < rt->rt_rmx.rmx_expire);
+	KASSERT(*lrt0 != NULL, ("rt_check"));
+	rt = rt0 = *lrt0;
+
+	/* NB: the locking here is tortuous... */
+	RT_LOCK(rt);
+	if ((rt->rt_flags & RTF_UP) == 0) {
 		RT_UNLOCK(rt);
-		if (error)
-			senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+		rt = rtalloc1(dst, 1, 0UL);
+		if (rt != NULL) {
+			RT_REMREF(rt);
+			/* XXX what about if change? */
+		} else
+			senderr(EHOSTUNREACH);
+		rt0 = rt;
 	}
-	*lrt = rt;		/* NB: return unlocked */
+	/* XXX BSD/OS checks dst->sa_family != AF_NS */
+	if (rt->rt_flags & RTF_GATEWAY) {
+		if (rt->rt_gwroute == NULL)
+			goto lookup;
+		rt = rt->rt_gwroute;
+		RT_LOCK(rt);		/* NB: gwroute */
+		if ((rt->rt_flags & RTF_UP) == 0) {
+			rtfree(rt);	/* unlock gwroute */
+			rt = rt0;
+		lookup:
+			RT_UNLOCK(rt0);
+			rt = rtalloc1(rt->rt_gateway, 1, 0UL);
+			RT_LOCK(rt0);
+			rt0->rt_gwroute = rt;
+			if (rt == NULL) {
+				RT_UNLOCK(rt0);
+				senderr(EHOSTUNREACH);
+			}
+		}
+		RT_UNLOCK(rt0);
+	}
+	/* XXX why are we inspecting rmx_expire? */
+	error = (rt->rt_flags & RTF_REJECT) &&
+		(rt->rt_rmx.rmx_expire == 0 ||
+			time_second < rt->rt_rmx.rmx_expire);
+	if (error) {
+		RT_UNLOCK(rt);
+		senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+	}
+
+	*lrt = rt;
 	*lrt0 = rt0;
 	return (0);
 bad:
