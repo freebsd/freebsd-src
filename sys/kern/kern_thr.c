@@ -310,10 +310,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 	p = td->td_proc;
 	error = 0;
 	PROC_LOCK(p);
-	FOREACH_THREAD_IN_PROC(p, ttd) {
-		if (ttd->td_tid == uap->id)
-			break;
-	}
+	ttd = thread_find(p, uap->id);
 	if (ttd == NULL) {
 		error = ESRCH;
 		goto out;
@@ -324,7 +321,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 		error = EINVAL;
 		goto out;
 	}
-	tdsignal(ttd, uap->sig, NULL, SIGTARGET_TD);
+	tdsignal(p, ttd, uap->sig, NULL);
 out:
 	PROC_UNLOCK(p);
 	return (error);
@@ -378,21 +375,20 @@ int
 thr_wake(struct thread *td, struct thr_wake_args *uap)
 	/* long id */
 {
+	struct proc *p;
 	struct thread *ttd;
 
-	PROC_LOCK(td->td_proc);
-	FOREACH_THREAD_IN_PROC(td->td_proc, ttd) {
-		if (ttd->td_tid == uap->id)
-			break;
-	}
+	p = td->td_proc;
+	PROC_LOCK(p);
+	ttd = thread_find(p, uap->id);
 	if (ttd == NULL) {
-		PROC_UNLOCK(td->td_proc);
+		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
 	mtx_lock_spin(&sched_lock);
 	ttd->td_flags |= TDF_THRWAKEUP;
 	mtx_unlock_spin(&sched_lock);
 	wakeup((void *)ttd);
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 	return (0);
 }

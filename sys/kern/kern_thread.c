@@ -1022,3 +1022,18 @@ thread_sleep_check(struct thread *td)
 	}
 	return (0);
 }
+
+struct thread *
+thread_find(struct proc *p, lwpid_t tid)
+{
+	struct thread *td;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_lock_spin(&sched_lock);
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (td->td_tid == tid)
+			break;
+	}
+	mtx_unlock_spin(&sched_lock);
+	return (td);
+}
