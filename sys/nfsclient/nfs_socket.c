@@ -1011,7 +1011,11 @@ tryagain:
 			nfs_sndunlock(rep);
 		}
 		mtx_lock(&nfs_reqq_mtx);
-		if (!error && (rep->r_flags & R_MUSTRESEND) == 0) {
+		/* 
+		 * nfs_timer() could've re-transmitted the request if we ended up
+		 * blocking on nfs_send() too long, so check for R_SENT here.
+		 */
+		if (!error && (rep->r_flags & (R_SENT | R_MUSTRESEND)) == 0) {
 			nmp->nm_sent += NFS_CWNDSCALE;
 			rep->r_flags |= R_SENT;
 		}
