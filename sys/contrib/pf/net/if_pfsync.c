@@ -336,6 +336,9 @@ pfsync_insert_net_state(struct pfsync_state *sp)
 	st->rule.ptr = r;
 	/* XXX get pointers to nat_rule and anchor */
 
+	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
+	r->states++;
+
 	/* fill in the rest of the state entry */
 	pf_state_host_ntoh(&sp->lan, &st->lan);
 	pf_state_host_ntoh(&sp->gwy, &st->gwy);
@@ -346,7 +349,7 @@ pfsync_insert_net_state(struct pfsync_state *sp)
 
 	bcopy(&sp->rt_addr, &st->rt_addr, sizeof(st->rt_addr));
 #ifdef __FreeBSD__
-	st->creation = ntohl(sp->creation) + time_second;
+	st->creation = time_second - ntohl(sp->creation);
 	st->expire = ntohl(sp->expire) + time_second;
 #else
 	st->creation = ntohl(sp->creation) + time.tv_sec;
@@ -367,6 +370,8 @@ pfsync_insert_net_state(struct pfsync_state *sp)
 
 	if (pf_insert_state(kif, st)) {
 		pfi_maybe_destroy(kif);
+		/* XXX when we have nat_rule/anchors, use STATE_DEC_COUNTERS */
+		r->states--;
 		pool_put(&pf_state_pl, st);
 		return (EINVAL);
 	}
