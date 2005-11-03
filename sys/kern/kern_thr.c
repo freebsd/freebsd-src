@@ -321,7 +321,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 		error = EINVAL;
 		goto out;
 	}
-	tdsignal(ttd, uap->sig, NULL, SIGTARGET_TD);
+	tdsignal(p, ttd, uap->sig, NULL);
 out:
 	PROC_UNLOCK(p);
 	return (error);
