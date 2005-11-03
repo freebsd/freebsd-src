@@ -162,11 +162,10 @@ Config_spec:
 	      = {
 		struct cputype *cp, *cp2;
 		SLIST_FOREACH_SAFE(cp, &cputype, cpu_next, cp2) {
-			if (strcmp(cp->cpu_name, $2) != 0)
-				continue;
-			SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
-			free(cp);
-			break;
+			if (eq(cp->cpu_name, $2)) {
+				SLIST_REMOVE(&cputype, cp, cputype, cpu_next);
+				free(cp);
+			}
 		}
 	      } |
 	OPTIONS Opt_list
