@@ -185,15 +185,16 @@ FreeBSD 5.2           |      |                 |                       |
  *---FreeBSD 5.3      |      |                 |                       |
  |      |             |      |             OpenBSD 3.6                 |
  |      |             |   NetBSD 2.0           |                       |
- |      |             |      |    |            |                 DragonFly 1.2.0
- |      |          Mac OS X  | NetBSD 2.0.2    |                       |
- |   FreeBSD 5.4     10.4    |    |            |                       |
- |      |             |      |    |        OpenBSD 3.7                 |
- |      V             |      |    v            |                       |
- |                    |      |                 |                       |
- *---FreeBSD 6.0      |      |             OpenBSD 3.8                 |
- |      |             |      |                 |                       |
- |      V             |      |                 |                       |
+ |      |             |      | |  |            |                 DragonFly 1.2.0
+ |      |          Mac OS X  | | NetBSD 2.0.2  |                       |
+ |   FreeBSD 5.4     10.4    | |  |            |                       |
+ |      |             |      | |  |        OpenBSD 3.7                 |
+ |      V             |      | | NetBSD 2.0.3  |                       |
+ |                    |      | |  |            |                       |
+ *---FreeBSD 6.0      |      | |  v        OpenBSD 3.8                 |
+ |      |             |      | |               |                       |
+ |      V             |      |  \              |                       |
+ |                    |      | NetBSD 2.1      |                       |
  |                    |      |                 |                       |
 FreeBSD 7 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -430,8 +431,10 @@ NetBSD 2.0.2		2005-04-14 [NBD] (security/critical release)
 Mac OS X 10.4		2005-04-29 [APL]
 FreeBSD 5.4		2005-05-09 [FBD]
 OpenBSD 3.7		2005-05-19 [OBD]
+NetBSD 2.0.3		2005-10-31 [NBD] (security/critical release)
 OpenBSD 3.8		2005-11-01 [OBD]
 FreeBSD 6.0		2005-11-01 [FBD]
+NetBSD 2.1		2005-11-02 [NBD]
 
 Bibliography
 ------------------------
