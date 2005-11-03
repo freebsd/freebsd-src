@@ -66,4 +66,5 @@ void csa_writeio(csa_res *resp, u_long offset, u_int32_t data);
 u_int32_t csa_readmem(csa_res *resp, u_long offset);
 void csa_writemem(csa_res *resp, u_long offset, u_int32_t data);
 
+void csa_resetdsp(csa_res *resp);
 #endif /* _CSA_VAR_H */
