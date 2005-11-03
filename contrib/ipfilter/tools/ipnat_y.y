@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipnat_y.y,v 1.2 2005/04/25 18:20:15 darrenr Exp $	*/
 
 %{
 #ifdef  __FreeBSD__

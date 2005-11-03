@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_sigsuspend.c,v 1.12 2002/06/28 13:28:41 deischen Exp $
  */
 #include <signal.h>
 #include <sys/param.h>

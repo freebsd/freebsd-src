@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/if_ral_pccard.c,v 1.2 2005/06/24 14:36:53 imp Exp $	*/
 
 /*-
  * Copyright (c) 2005
@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ral/if_ral_pccard.c,v 1.2 2005/06/24 14:36:53 imp Exp $");
 
 /*
  * CardBus front-end for the Ralink RT2500 driver.

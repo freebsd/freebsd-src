@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/powerpc/loader/conf.c,v 1.10 2004/01/04 23:21:18 obrien Exp $");
 
 #include <stand.h>
 #include "bootstrap.h"

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/rlphy.c,v 1.21 2005/01/06 01:42:56 imp Exp $");
 
 /*
  * driver for RealTek 8139 internal PHYs

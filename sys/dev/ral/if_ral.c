@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/if_ral.c,v 1.10.2.4 2005/10/09 04:15:59 delphij Exp $	*/
 
 /*-
  * Copyright (c) 2005
@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ral/if_ral.c,v 1.10.2.4 2005/10/09 04:15:59 delphij Exp $");
 
 /*-
  * Ralink Technology RT2500 chipset driver

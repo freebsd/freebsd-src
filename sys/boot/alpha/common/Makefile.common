@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/alpha/common/Makefile.common,v 1.20 2004/12/21 12:32:13 ru Exp $
 #
 # Common Alpha loader build rules
 

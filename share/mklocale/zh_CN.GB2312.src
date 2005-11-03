@@ -2,7 +2,7 @@
  * GB2312   first byte:   A1-FE
  *          second byte:  A1-FE
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/zh_CN.GB2312.src,v 1.1 2003/11/05 22:54:54 davidxu Exp $
  */
 
 ENCODING	"GB2312"

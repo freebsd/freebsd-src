@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/mii.c,v 1.26 2005/06/11 00:20:38 brooks Exp $");
 
 /*
  * MII bus layer, glues MII-capable network interface drivers to sharable

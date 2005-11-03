@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ppp-user,v 1.7 2004/12/15 12:39:28 brian Exp $
 #
 
 # PROVIDE: ppp-user

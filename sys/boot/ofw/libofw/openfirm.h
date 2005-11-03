@@ -54,7 +54,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/ofw/libofw/openfirm.h,v 1.10 2005/01/05 22:16:58 imp Exp $
  */
 #ifndef _OPENFIRM_H_
 #define	_OPENFIRM_H_

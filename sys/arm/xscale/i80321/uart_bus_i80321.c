@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/uart_bus_i80321.c,v 1.3 2005/01/05 21:58:49 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/pthread.h,v 1.36 2005/05/31 15:18:17 rodrigc Exp $
  */
 #ifndef _PTHREAD_H_
 #define _PTHREAD_H_

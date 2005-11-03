@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: rap.c,v 1.8 2001/02/24 15:56:05 bp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/smbfs/lib/smb/rap.c,v 1.4 2004/06/19 19:03:01 le Exp $
  *
  * This is very simple implementation of RAP protocol.
  */

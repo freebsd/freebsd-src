@@ -1,7 +1,7 @@
 /*-
  * This file is in the public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/pmc_mdep.h,v 1.2 2005/06/09 19:45:06 jkoshy Exp $
  */
 
 #ifndef _MACHINE_PMC_MDEP_H_

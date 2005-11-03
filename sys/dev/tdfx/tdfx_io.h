@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *   $FreeBSD$
+ *   $FreeBSD: src/sys/dev/tdfx/tdfx_io.h,v 1.4 2005/01/06 01:43:24 imp Exp $
  */
 
 /* This code originally came from <shocking@prth.pgs.com>

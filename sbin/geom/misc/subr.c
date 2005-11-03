@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/geom/misc/subr.c,v 1.3.8.1 2005/08/30 15:09:06 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/disk.h>

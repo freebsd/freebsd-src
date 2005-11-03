@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/elan-mmcr.c,v 1.31.2.1 2005/08/16 22:47:14 phk Exp $");
 
 #include "opt_cpu.h"
 #include <sys/param.h>

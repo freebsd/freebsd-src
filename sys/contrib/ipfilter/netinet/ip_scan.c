@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_scan.c,v 1.1.1.1 2005/04/25 18:15:35 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1995-2001 by Darren Reed.

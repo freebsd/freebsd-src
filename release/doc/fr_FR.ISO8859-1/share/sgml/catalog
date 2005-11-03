@@ -1,7 +1,7 @@
   -- FreeBSD SGML Public Identifiers --
   -- Language-specific --
 
-  -- $FreeBSD$ --
+  -- $FreeBSD: src/release/doc/fr_FR.ISO8859-1/share/sgml/catalog,v 1.1 2002/02/19 09:37:04 gioria Exp $ --
 
 PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
        "release.dsl"

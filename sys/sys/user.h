@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/user.h,v 1.66 2005/06/09 19:09:02 gad Exp $
  */
 
 #ifndef _SYS_USER_H_

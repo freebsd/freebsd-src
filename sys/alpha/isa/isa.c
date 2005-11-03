@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/isa/isa.c,v 1.36 2004/07/01 15:07:26 gallatin Exp $");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>

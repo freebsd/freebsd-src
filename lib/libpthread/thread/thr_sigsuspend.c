@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_sigsuspend.c,v 1.26 2004/12/19 23:23:43 deischen Exp $
  */
 #include <signal.h>
 #include <errno.h>

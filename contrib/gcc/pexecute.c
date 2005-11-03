@@ -18,7 +18,7 @@ License along with libiberty; see the file COPYING.LIB.  If not,
 write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/pexecute.c,v 1.4 2002/05/09 22:04:44 obrien Exp $ */
 
 /* This file exports two functions: pexecute and pwait.  */
 

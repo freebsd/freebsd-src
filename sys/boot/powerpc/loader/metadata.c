@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/powerpc/loader/metadata.c,v 1.5 2004/12/01 04:59:32 scottl Exp $");
 
 #include <stand.h>
 #include <sys/param.h>

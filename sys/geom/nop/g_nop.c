@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/nop/g_nop.c,v 1.11 2004/09/16 15:28:48 fjoe Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

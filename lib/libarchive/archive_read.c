@@ -33,7 +33,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read.c,v 1.15 2005/06/01 15:52:39 kientzle Exp $");
 
 #include <errno.h>
 #include <stdio.h>

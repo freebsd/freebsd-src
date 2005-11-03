@@ -31,7 +31,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em_hw.h,v 1.15.4.1 2005/10/22 22:07:20 glebius Exp $*/
 /* if_em_hw.h
  * Structures, enums, and macros for the MAC
  */

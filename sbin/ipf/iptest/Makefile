@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/iptest/Makefile,v 1.1 2005/04/25 18:55:52 darrenr Exp $
 
 .include <bsd.own.mk>
 

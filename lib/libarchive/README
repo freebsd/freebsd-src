@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libarchive/README,v 1.4 2005/02/12 23:09:44 kientzle Exp $
 
 libarchive: a library for reading and writing streaming archives
 

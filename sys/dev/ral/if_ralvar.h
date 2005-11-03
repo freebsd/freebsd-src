@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/if_ralvar.h,v 1.2 2005/06/10 16:49:13 brooks Exp $	*/
 
 /*-
  * Copyright (c) 2005

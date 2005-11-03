@@ -53,7 +53,7 @@
 #include "atm.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/atm/atm_show.c,v 1.10 2004/02/10 20:48:08 cperciva Exp $");
 #endif
 
 

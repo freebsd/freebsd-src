@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_irc_pxy.c,v 1.1.1.1 2005/04/25 18:15:19 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2000-2003 Darren Reed

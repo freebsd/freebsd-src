@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/random/hash.h,v 1.5 2004/04/09 15:47:09 markm Exp $
  */
 
 #define KEYSIZE		32		/* (in bytes) 32 bytes == 256 bits */

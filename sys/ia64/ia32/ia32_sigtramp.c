@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia32/ia32_sigtramp.c,v 1.1 2003/12/11 01:05:09 peter Exp $
  */
 
 char ia32_sigcode[] = {

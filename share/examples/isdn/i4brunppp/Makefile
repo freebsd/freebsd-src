@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/i4brunppp/Makefile,v 1.4 2004/09/26 09:25:03 ru Exp $
 
 PROG	 =	i4brunppp
 SRCS	 =	i4brunppp.c

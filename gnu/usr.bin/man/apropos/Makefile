@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/apropos/Makefile,v 1.16 2001/04/07 11:21:18 ru Exp $
 MAINTAINER= wosch
 
 SCRIPTS=apropos

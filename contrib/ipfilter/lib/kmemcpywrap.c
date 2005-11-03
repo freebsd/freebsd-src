@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/kmemcpywrap.c,v 1.2 2005/04/25 18:20:12 darrenr Exp $	*/
 
 #include "ipf.h"
 #include "kmem.h"

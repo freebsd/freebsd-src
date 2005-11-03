@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/gbk.c,v 1.12 2005/02/27 15:11:09 phantom Exp $");
 
 #include <sys/types.h>
 #include <errno.h>

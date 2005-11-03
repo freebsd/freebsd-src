@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.45 2005/05/19 21:33:48 mux Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

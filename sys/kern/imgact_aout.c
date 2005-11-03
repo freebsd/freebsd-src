@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/imgact_aout.c,v 1.99 2005/05/03 10:51:38 jeff Exp $");
 
 #include <sys/param.h>
 #include <sys/exec.h>

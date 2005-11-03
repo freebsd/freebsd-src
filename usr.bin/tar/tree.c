@@ -44,7 +44,7 @@
  * regular dir or via fchdir(2) for a symlink).
  */
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/tree.c,v 1.2 2005/05/08 06:25:15 kientzle Exp $");
 
 #include <sys/stat.h>
 #include <dirent.h>

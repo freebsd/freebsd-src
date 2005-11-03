@@ -44,7 +44,7 @@
 
 #include "opt_compat.h"
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/machdep.c,v 1.16 2005/04/04 21:53:52 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/proc.h>

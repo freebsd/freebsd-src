@@ -31,7 +31,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ed/if_ed_rtl80x9.c,v 1.1.2.1.2.1 2005/10/17 02:25:26 imp Exp $");
 
 #include "opt_ed.h"
 

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/sa/pdb.c,v 1.11 2005/02/10 12:43:16 delphij Exp $");
 
 #include <sys/types.h>
 #include <sys/acct.h>

@@ -63,7 +63,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getaddrinfo.c,v 1.69.2.1 2005/07/22 20:17:30 ume Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

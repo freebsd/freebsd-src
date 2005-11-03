@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/str.c,v 1.45 2005/05/23 13:27:52 harti Exp $");
 
 #include <ctype.h>
 #include <stdlib.h>

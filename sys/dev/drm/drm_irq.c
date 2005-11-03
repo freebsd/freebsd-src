@@ -26,7 +26,7 @@
  * Authors:
  *    Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_irq.c,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

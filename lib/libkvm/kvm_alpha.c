@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkvm/kvm_alpha.c,v 1.8 2005/07/02 05:49:29 scottl Exp $");
 
 #include <sys/param.h>
 #include <sys/user.h>

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pcf/pcfvar.h,v 1.3 2004/08/11 21:19:31 marius Exp $
  */
 
 #define IO_PCFSIZE	2

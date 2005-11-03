@@ -1,5 +1,5 @@
 # 	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/login/Makefile,v 1.48 2004/11/03 18:01:19 ru Exp $
 
 PROG=	login
 SRCS=	login.c login_fbtab.c

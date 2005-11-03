@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/dirhash.h,v 1.5 2005/01/07 02:29:26 imp Exp $
  */
 
 #ifndef _UFS_UFS_DIRHASH_H_

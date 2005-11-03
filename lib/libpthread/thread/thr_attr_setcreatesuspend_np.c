@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_attr_setcreatesuspend_np.c,v 1.8 2003/09/25 13:53:49 davidxu Exp $
  */
 #include <errno.h>
 #include <pthread.h>

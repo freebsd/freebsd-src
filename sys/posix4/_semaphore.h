@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/posix4/_semaphore.h,v 1.4 2005/01/07 02:29:19 imp Exp $
  */
 #ifndef __SEMAPHORE_H_
 #define __SEMAPHORE_H_

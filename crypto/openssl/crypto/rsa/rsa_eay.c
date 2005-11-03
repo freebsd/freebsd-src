@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssl/crypto/rsa/rsa_eay.c,v 1.13 2005/02/25 05:49:43 nectar Exp $ */
 
 #include <stdio.h>
 #include "cryptlib.h"

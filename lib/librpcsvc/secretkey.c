@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/librpcsvc/secretkey.c,v 1.3 2002/03/21 23:53:40 obrien Exp $");
 
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)secretkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";

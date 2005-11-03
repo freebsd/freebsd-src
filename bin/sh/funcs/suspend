@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)suspend	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
+# $FreeBSD: src/bin/sh/funcs/suspend,v 1.8 2005/01/10 08:39:26 imp Exp $
 
 suspend() {
 	local -

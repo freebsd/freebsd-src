@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_rman.c,v 1.43 2005/05/06 02:48:20 cperciva Exp $");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>

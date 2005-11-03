@@ -29,7 +29,7 @@
  *    Keith Whitwell <keith@tungstengraphics.com>
  *    Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128_irq.c,v 1.5 2005/04/16 03:44:44 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

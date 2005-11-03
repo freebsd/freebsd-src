@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kldxref/ef_nop.c,v 1.3 2004/08/28 19:31:10 iedowse Exp $
  */
 
 #include <sys/types.h>

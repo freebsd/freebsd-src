@@ -1,7 +1,7 @@
 #
 # PAE -- Generic kernel configuration file for FreeBSD/i386 PAE
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/PAE,v 1.16.2.1 2005/07/29 16:02:27 imura Exp $
 
 include GENERIC
 

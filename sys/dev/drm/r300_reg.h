@@ -24,7 +24,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************/
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r300_reg.h,v 1.1.2.1 2005/08/04 17:31:02 anholt Exp $
  */
 
 #ifndef _R300_REG_H

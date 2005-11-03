@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_exec.c,v 1.275.2.2 2005/10/09 17:28:12 ps Exp $");
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"

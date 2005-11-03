@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ifconfig/ifpfsync.c,v 1.3 2005/05/03 16:59:14 mlaier Exp $
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/printfraginfo.c,v 1.2 2005/04/25 18:20:12 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2004 by Darren Reed.

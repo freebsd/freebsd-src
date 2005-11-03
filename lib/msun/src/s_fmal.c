@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_fmal.c,v 1.2 2005/03/18 02:27:59 das Exp $");
 
 #include <fenv.h>
 #include <float.h>

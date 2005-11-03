@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_atm/Makefile,v 1.3 2005/05/25 12:04:44 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

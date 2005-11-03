@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/mirror/g_mirror.h,v 1.17 2005/04/19 21:47:25 pjd Exp $
  */
 
 #ifndef	_G_MIRROR_H_

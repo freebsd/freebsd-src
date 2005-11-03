@@ -1,6 +1,6 @@
 /* i915_drv.h -- Private header for the I915 driver -*- linux-c -*-
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/i915_drv.h,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 /**************************************************************************
  *

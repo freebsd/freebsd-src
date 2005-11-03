@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_domain.c,v 1.44.2.1 2005/09/20 09:16:10 glebius Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/arc/loader/Makefile,v 1.8 2004/12/21 08:47:12 ru Exp $
 
 BASE= 		loader
 PROG= 		${BASE}.exe

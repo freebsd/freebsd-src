@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fdc/fdc.c,v 1.307.2.1 2005/09/02 00:33:30 rodrigc Exp $");
 
 #include "opt_fdc.h"
 

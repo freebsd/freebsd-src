@@ -12,7 +12,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/entries.c,v 1.4 2004/04/15 01:41:05 peter Exp $
  */
 #include "cvs.h"
 #include "getline.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/_types.h,v 1.21 2005/03/22 01:19:17 das Exp $
  */
 
 #ifndef _SYS__TYPES_H_

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aac/aac_debug.c,v 1.20.2.1 2005/10/09 06:39:21 scottl Exp $");
 
 /*
  * Debugging support.

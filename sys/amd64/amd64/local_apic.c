@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/local_apic.c,v 1.17 2005/06/24 00:45:01 peter Exp $");
 
 #include "opt_hwpmc_hooks.h"
 

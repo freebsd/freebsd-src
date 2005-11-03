@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ath/ath_rate/sample/sample.c,v 1.8.2.1 2005/07/29 23:31:03 sam Exp $");
 
 /*
  * John Bicket's SampleRate control algorithm.

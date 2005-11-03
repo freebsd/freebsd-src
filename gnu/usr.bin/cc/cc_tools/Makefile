@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc_tools/Makefile,v 1.81 2005/06/03 04:21:04 kan Exp $
 
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk

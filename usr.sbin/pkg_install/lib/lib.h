@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/lib/lib.h,v 1.56 2005/06/14 15:05:43 krion Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

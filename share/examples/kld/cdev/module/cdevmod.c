@@ -65,7 +65,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/cdev/module/cdevmod.c,v 1.7 2004/08/30 09:49:58 pjd Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

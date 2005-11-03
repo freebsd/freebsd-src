@@ -61,7 +61,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/auxio/auxio.c,v 1.4 2005/07/10 10:33:00 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

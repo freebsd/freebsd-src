@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/finger/lprint.c,v 1.25 2004/03/14 06:43:34 jmallett Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

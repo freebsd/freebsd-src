@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/inet_pton.c,v 1.11.14.1 2005/07/29 16:10:35 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

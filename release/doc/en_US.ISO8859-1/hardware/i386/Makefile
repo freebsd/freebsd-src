@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/i386/Makefile,v 1.6 2004/08/03 22:12:44 simon Exp $
 RELN_ROOT?= ${.CURDIR}/../../..
 
 DOC?= article

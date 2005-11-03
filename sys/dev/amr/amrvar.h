@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *
- *      $FreeBSD$
+ *      $FreeBSD: src/sys/dev/amr/amrvar.h,v 1.26 2005/01/23 23:25:41 scottl Exp $
  */
 
 #if __FreeBSD_version >= 500005

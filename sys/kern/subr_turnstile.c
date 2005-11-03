@@ -59,7 +59,7 @@
 #include "opt_turnstile_profiling.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_turnstile.c,v 1.152.2.1 2005/10/09 03:25:37 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

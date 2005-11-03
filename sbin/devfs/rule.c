@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/devfs/rule.c,v 1.7 2005/02/27 17:22:36 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/conf.h>

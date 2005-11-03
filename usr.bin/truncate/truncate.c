@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$FreeBSD$";
+    "$FreeBSD: src/usr.bin/truncate/truncate.c,v 1.9 2005/05/21 09:55:08 ru Exp $";
 #endif
 
 #include <sys/stat.h>

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/jail,v 1.23.2.2 2005/08/16 08:43:06 pjd Exp $
 #
 
 # PROVIDE: jail

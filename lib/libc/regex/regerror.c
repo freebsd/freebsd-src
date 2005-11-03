@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)regerror.c	8.4 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/regex/regerror.c,v 1.9 2004/07/12 06:07:26 tjr Exp $");
 
 #include <sys/types.h>
 #include <stdio.h>

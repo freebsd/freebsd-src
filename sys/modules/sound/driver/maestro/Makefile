@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/maestro/Makefile,v 1.4 2005/01/26 16:29:07 imp Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/pci
 

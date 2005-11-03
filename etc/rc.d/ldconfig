@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: ldconfig,v 1.5 2002/03/22 04:33:58 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ldconfig,v 1.14 2005/01/16 08:34:30 obrien Exp $
 #
 
 # PROVIDE: ldconfig

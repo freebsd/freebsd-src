@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipmon.c,v 1.4 2005/05/24 21:25:32 cognet Exp $	*/
 
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.

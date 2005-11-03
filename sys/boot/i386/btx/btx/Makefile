@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btx/Makefile,v 1.19 2004/12/21 08:47:13 ru Exp $
 
 PROG=	btx
 INTERNALPROG=

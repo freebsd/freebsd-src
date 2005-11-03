@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_power.c,v 1.5 2004/01/02 18:24:13 njl Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

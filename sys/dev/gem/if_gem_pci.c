@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gem/if_gem_pci.c,v 1.19.2.1 2005/10/05 22:08:17 marius Exp $");
 
 /*
  * PCI bindings for Sun GEM ethernet controllers.

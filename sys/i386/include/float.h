@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)float.h	7.1 (Berkeley) 5/8/90
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/float.h,v 1.15 2005/01/06 22:18:15 imp Exp $
  */
 
 #ifndef _MACHINE_FLOAT_H_

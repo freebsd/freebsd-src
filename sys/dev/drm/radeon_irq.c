@@ -29,7 +29,7 @@
  *    Keith Whitwell <keith@tungstengraphics.com>
  *    Michel D�zer <michel@daenzer.net>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/radeon_irq.c,v 1.6 2005/04/16 03:44:44 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

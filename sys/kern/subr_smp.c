@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_smp.c,v 1.196 2005/06/30 03:38:10 peter Exp $");
 
 #include "opt_kdb.h"
 

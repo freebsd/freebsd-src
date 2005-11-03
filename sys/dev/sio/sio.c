@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sio/sio.c,v 1.459 2005/05/29 04:42:25 nyan Exp $");
 
 #include "opt_comconsole.h"
 #include "opt_compat.h"

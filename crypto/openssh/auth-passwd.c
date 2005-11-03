@@ -37,7 +37,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-passwd.c,v 1.34 2005/07/19 15:32:26 otto Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/auth-passwd.c,v 1.19.2.1 2005/09/11 16:50:33 des Exp $");
 
 #include "packet.h"
 #include "buffer.h"

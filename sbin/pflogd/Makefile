@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/pflogd/Makefile,v 1.3 2004/10/24 14:25:53 ru Exp $
 
 .PATH:	${.CURDIR}/../../contrib/pf/pflogd
 

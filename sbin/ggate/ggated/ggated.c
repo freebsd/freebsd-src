@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ggate/ggated/ggated.c,v 1.7 2005/07/10 21:10:20 pjd Exp $
  */
 
 #include <stdio.h>

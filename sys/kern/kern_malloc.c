@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_malloc.c,v 1.142.2.2 2005/07/30 06:14:57 pjd Exp $");
 
 #include "opt_vm.h"
 

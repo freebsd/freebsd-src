@@ -50,7 +50,7 @@ static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/rlogind/rlogind.c,v 1.44 2005/05/13 16:31:09 ume Exp $");
 
 /*
  * remote login server:

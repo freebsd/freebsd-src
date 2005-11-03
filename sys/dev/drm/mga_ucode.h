@@ -25,7 +25,7 @@
  * Kernel-based WARP engine management:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga_ucode.h,v 1.3 2005/04/16 03:44:44 anholt Exp $
  */
 
 /*

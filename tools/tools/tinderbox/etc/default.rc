@@ -1,7 +1,7 @@
 #
 # Tinderbox defaults
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/default.rc,v 1.9 2005/04/30 18:26:05 des Exp $
 #
 
 comment		= %%branch%% tinderbox

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/boot2/io.c,v 1.8 2005/05/10 12:02:14 nyan Exp $");
 
 #include "boot.h"
 #include <machine/cpufunc.h>

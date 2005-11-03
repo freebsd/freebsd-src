@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/efi/Makefile,v 1.26 2004/12/21 12:32:14 ru Exp $
 
 PROG=		loader.sym
 INTERNALPROG=

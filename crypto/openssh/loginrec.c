@@ -166,7 +166,7 @@
 #endif
 
 RCSID("$Id: loginrec.c,v 1.70 2005/07/17 07:26:44 djm Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/loginrec.c,v 1.9.2.1 2005/09/11 16:50:34 des Exp $");
 
 /**
  ** prototypes for helper functions in this file

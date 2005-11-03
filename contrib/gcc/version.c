@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/version.c,v 1.12 2005/06/03 03:52:25 kan Exp $ */
 #include "version.h"
 
 /* This is the string reported as the version number by all components

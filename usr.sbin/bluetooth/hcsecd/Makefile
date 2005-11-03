@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.8 2003/08/14 20:06:20 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/hcsecd/Makefile,v 1.4 2004/09/14 20:04:33 emax Exp $
 
 PROG=		hcsecd
 MAN=		hcsecd.8 hcsecd.conf.5

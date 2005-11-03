@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/acpica/madt.c,v 1.19 2005/04/14 17:59:57 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

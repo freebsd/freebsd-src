@@ -22,7 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sparc64/pci/ofw_pci_if.m,v 1.6 2005/01/07 02:29:22 imp Exp $
 
 #include <sys/bus.h>
 #include <machine/bus.h>

@@ -4,7 +4,7 @@
 
 #if (defined(LIBC_SCCS) || defined(LIBC_RCS)) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libstand/powerpc/_setjmp.S,v 1.3 2000/11/10 06:10:28 benno Exp $"
 #endif
 
 /*

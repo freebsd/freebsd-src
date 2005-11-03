@@ -72,7 +72,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/ufs.c,v 1.15 2004/09/04 14:54:01 iedowse Exp $");
 
 /*
  *	Stand-alone file reading package.

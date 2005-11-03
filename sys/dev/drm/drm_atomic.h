@@ -28,7 +28,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_atomic.h,v 1.1 2005/04/16 03:44:43 anholt Exp $
  */
 
 /* Many of these implementations are rather fake, but good enough. */

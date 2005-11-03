@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/cfg_var.h,v 1.3 2005/01/05 22:34:36 imp Exp $
  */
 
 #ifndef _CFG_VAR_H_

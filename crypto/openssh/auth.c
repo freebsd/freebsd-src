@@ -24,7 +24,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth.c,v 1.60 2005/06/17 02:44:32 djm Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/auth.c,v 1.17.2.1 2005/09/11 16:50:34 des Exp $");
 
 #ifdef HAVE_LOGIN_H
 #include <login.h>

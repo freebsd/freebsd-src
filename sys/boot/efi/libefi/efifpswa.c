@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/efi/libefi/efifpswa.c,v 1.2 2004/01/04 23:28:16 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

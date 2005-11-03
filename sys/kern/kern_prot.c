@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_prot.c,v 1.200 2005/04/18 13:36:56 rwatson Exp $");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

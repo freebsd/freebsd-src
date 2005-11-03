@@ -26,7 +26,7 @@
  *
  * Copyright (c) 2000 Andrew Miklic
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/tga/tga_pci.h,v 1.2 2005/01/06 01:43:25 imp Exp $
  */
 
 #ifndef _PCI_TGA_H_

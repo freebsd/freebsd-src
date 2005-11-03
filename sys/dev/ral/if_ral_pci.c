@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/if_ral_pci.c,v 1.1.2.1 2005/08/25 05:01:14 rwatson Exp $	*/
 
 /*-
  * Copyright (c) 2005
@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ral/if_ral_pci.c,v 1.1.2.1 2005/08/25 05:01:14 rwatson Exp $");
 
 /*
  * PCI front-end for the Ralink RT2500 driver.

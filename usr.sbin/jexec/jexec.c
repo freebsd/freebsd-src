@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/jexec/jexec.c,v 1.2 2003/07/04 19:14:27 bmilekic Exp $
  */
 
 #include <sys/param.h>

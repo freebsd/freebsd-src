@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/powerd,v 1.2 2005/02/27 07:11:47 njl Exp $
 #
 
 # PROVIDE: powerd

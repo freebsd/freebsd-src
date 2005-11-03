@@ -4,7 +4,7 @@
 \ ** submitted by Larry Hastings, larry@hastings.org
 \ **
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/fileaccess.fr,v 1.1 2002/04/09 17:45:27 dcs Exp $
 
 : r/o 1 ;
 : r/w 3 ; 

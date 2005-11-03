@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_ctl.h,v 1.5 2003/06/01 13:47:51 phk Exp $
  */
 
 #ifndef _GEOM_GEOM_CTL_H_

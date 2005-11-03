@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/osf1/imgact_osf1.c,v 1.23 2005/04/01 20:00:10 jhb Exp $");
 
 #include <sys/types.h>
 #include <sys/malloc.h>

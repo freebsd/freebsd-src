@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.7 2003/09/07 18:32:11 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/rfcomm_pppd/Makefile,v 1.2 2003/10/12 22:04:24 emax Exp $
 
 .PATH:	${.CURDIR}/../../../usr.bin/bluetooth/rfcomm_sppd
 

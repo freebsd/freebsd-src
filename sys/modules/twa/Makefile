@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/sys/modules/twa/Makefile,v 1.4 2005/04/12 22:07:11 vkashyap Exp $
 #
 
 #

@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iir/iir.c,v 1.13 2005/05/29 04:42:21 nyan Exp $");
 
 #define _IIR_C_
 

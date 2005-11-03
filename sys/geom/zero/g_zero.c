@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/zero/g_zero.c,v 1.1.2.1 2005/07/30 06:22:24 pjd Exp $
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/syntax/enl/test.t,v 1.1 2005/06/01 11:26:47 harti Exp $
 
 cd `dirname $0`
 . ../../common.sh

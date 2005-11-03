@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/recoverdisk/README,v 1.2 2005/02/07 11:26:53 obrien Exp $
 
 This is a small tool which will read an entire disk(partition) using
 1M blocks and optionally write the read data to a file or disk.

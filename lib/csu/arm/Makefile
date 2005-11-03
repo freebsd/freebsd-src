@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/arm/Makefile,v 1.1 2004/05/14 12:19:04 cognet Exp $
 
 .PATH: ${.CURDIR}/../common
 

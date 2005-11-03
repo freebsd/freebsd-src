@@ -31,7 +31,7 @@
  *
  * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12 2005/03/27 01:35:45 guy Exp $ (LBL)
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/tcpdump-stdinc.h,v 1.3 2005/07/11 04:14:02 sam Exp $
  */
 
 /*

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtree.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mtree/mtree.h,v 1.7 2005/03/29 11:44:17 tobez Exp $
  */
 
 #include <string.h>

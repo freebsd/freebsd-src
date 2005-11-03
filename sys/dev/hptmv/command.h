@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/command.h,v 1.2.2.1 2005/10/06 18:47:57 delphij Exp $
  */
 #ifndef _COMMAND_H_
 #define _COMMAND_H_

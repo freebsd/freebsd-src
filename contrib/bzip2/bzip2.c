@@ -99,7 +99,7 @@
       give any guarantee of the above statement.
 --*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bzip2/bzip2.c,v 1.2 2005/06/29 21:36:49 simon Exp $ */
 
 
 /*----------------------------------------------------*/

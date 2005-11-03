@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)tape.c	8.9 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/restore/tape.c,v 1.44 2005/05/29 15:57:00 charnier Exp $");
 
 #include <sys/param.h>
 #include <sys/file.h>

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_mount.c,v 1.196.2.1 2005/09/30 06:10:59 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/conf.h>

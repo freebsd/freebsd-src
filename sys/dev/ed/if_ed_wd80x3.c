@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ed/if_ed_wd80x3.c,v 1.4.2.1 2005/09/17 04:01:03 imp Exp $");
 
 #include "opt_ed.h"
 

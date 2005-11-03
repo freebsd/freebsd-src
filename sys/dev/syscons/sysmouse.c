@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/syscons/sysmouse.c,v 1.27 2005/02/27 21:16:11 phk Exp $");
 
 #include "opt_syscons.h"
 

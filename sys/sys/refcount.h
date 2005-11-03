@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/refcount.h,v 1.1.2.1 2005/10/06 18:13:19 jhb Exp $
  */
 
 #ifndef __SYS_REFCOUNT_H__

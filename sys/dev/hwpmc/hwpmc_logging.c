@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hwpmc/hwpmc_logging.c,v 1.3 2005/07/09 17:29:36 jkoshy Exp $");
 
 #include <sys/param.h>
 #include <sys/file.h>

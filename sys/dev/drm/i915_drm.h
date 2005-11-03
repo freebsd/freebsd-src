@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/drm/i915_drm.h,v 1.1 2005/04/16 03:44:44 anholt Exp $ */
 
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_

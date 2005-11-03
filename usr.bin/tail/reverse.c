@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tail/reverse.c,v 1.19 2005/03/20 22:08:52 iedowse Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

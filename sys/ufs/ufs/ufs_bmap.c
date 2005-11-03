@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_bmap.c,v 1.64 2005/01/07 02:29:26 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

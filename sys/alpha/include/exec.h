@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/exec.h,v 1.4 2005/02/19 21:16:48 ru Exp $
  */
 
 #ifndef	_MACHINE_EXEC_H_

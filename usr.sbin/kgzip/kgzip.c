@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/kgzip/kgzip.c,v 1.8 2003/06/11 21:37:19 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

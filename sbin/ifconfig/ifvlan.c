@@ -56,7 +56,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ifconfig/ifvlan.c,v 1.7.2.1 2005/10/06 15:01:56 yar Exp $";
 #endif
 static int			__tag = 0;
 static int			__have_tag = 0;

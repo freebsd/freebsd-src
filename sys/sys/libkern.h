@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/libkern.h,v 1.49.2.1 2005/08/16 08:10:59 pjd Exp $
  */
 
 #ifndef _SYS_LIBKERN_H_

@@ -1,4 +1,4 @@
-	# $FreeBSD$
+	# $FreeBSD: src/secure/lib/libcrypto/i386/sha1-586.s,v 1.2 2004/03/23 08:32:29 markm Exp $
 
 
 

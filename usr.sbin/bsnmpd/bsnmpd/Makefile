@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/bsnmpd/Makefile,v 1.11 2005/04/26 16:49:15 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

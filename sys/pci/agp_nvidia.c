@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/agp_nvidia.c,v 1.9 2005/04/02 01:10:09 obrien Exp $");
 
 /*
  * Written using information gleaned from the

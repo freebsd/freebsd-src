@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/namei.h,v 1.47 2005/04/27 09:00:47 jeff Exp $
  */
 
 #ifndef _SYS_NAMEI_H_

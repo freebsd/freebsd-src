@@ -88,7 +88,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/machdep.c,v 1.235 2005/04/04 21:53:51 jhb Exp $");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"

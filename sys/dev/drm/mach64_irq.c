@@ -33,7 +33,7 @@
  *    Eric Anholt <anholt@FreeBSD.org>
  *    Leif Delgass <ldelgass@retinalburn.net>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mach64_irq.c,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

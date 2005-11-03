@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/puc_ebus.c,v 1.5 2005/06/04 20:29:28 marius Exp $");
 
 #include "opt_puc.h"
 

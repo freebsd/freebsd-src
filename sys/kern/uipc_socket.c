@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_socket.c,v 1.242.2.3 2005/10/06 18:31:38 delphij Exp $");
 
 #include "opt_inet.h"
 #include "opt_mac.h"

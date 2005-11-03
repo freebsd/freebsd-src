@@ -49,7 +49,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/crypto/des/des_ecb.c,v 1.6 2004/06/14 00:38:54 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

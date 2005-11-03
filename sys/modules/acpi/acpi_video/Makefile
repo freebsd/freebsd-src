@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sys/modules/acpi/acpi_video/Makefile,v 1.4 2004/12/21 08:47:19 ru Exp $
 
 .PATH:	${.CURDIR}/../../../dev/acpica
 

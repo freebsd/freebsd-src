@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ar/if_arregs.h,v 1.10 2005/01/06 01:42:28 imp Exp $
  */
 #ifndef _IF_ARREGS_H_
 #define _IF_ARREGS_H_

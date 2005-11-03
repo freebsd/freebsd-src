@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hwpmc/hwpmc_mod.c,v 1.10.2.4 2005/08/26 19:49:32 jkoshy Exp $");
 
 #include <sys/param.h>
 #include <sys/eventhandler.h>

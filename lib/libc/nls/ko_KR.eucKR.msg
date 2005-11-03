@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/ko_KR.eucKR.msg,v 1.1 2005/03/07 13:57:24 phantom Exp $
 $
 $ Message catalog for ko_KR.eucKR locale
 $

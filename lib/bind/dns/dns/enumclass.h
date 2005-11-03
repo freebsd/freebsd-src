@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/dns/dns/enumclass.h,v 1.2 2005/03/17 08:39:12 dougb Exp $ */
 
 /*
  * Copyright (C) 2004-2005 Internet Systems Consortium, Inc. ("ISC")

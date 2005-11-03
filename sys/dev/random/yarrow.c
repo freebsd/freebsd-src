@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/random/yarrow.c,v 1.45 2005/03/11 15:42:50 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

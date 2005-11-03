@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libthr/pthread.map,v 1.3.2.1 2005/10/08 17:58:11 delphij Exp $
 LIBPTHREAD_1_0 {
 global:
 	___creat;

@@ -29,7 +29,7 @@
  *    Frank C. Earl <fearl@airmail.net>
  *    Leif Delgass <ldelgass@retinalburn.net>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mach64_drm.h,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 
 #ifndef __MACH64_DRM_H__

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fw_pfil.c,v 1.19 2005/04/18 18:35:05 brooks Exp $
  */
 
 #if !defined(KLD_MODULE)

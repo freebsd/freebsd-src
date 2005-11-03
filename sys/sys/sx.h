@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sx.h,v 1.21.2.1 2005/09/21 21:05:19 jhb Exp $
  */
 
 #ifndef	_SYS_SX_H_

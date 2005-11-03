@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/aic/Makefile,v 1.6 2004/05/26 00:53:00 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/aic
 

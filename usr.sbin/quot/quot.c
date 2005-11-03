@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/quot/quot.c,v 1.23 2005/04/09 14:59:10 stefanf Exp $");
 
 #include <sys/param.h>
 #include <sys/stdint.h>

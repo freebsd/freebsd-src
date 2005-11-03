@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in.c,v 1.85.2.3.2.1 2005/10/16 17:12:18 rwatson Exp $
  */
 
 #include "opt_carp.h"

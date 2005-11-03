@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libugidfw/ugidfw.c,v 1.10 2005/04/23 02:20:35 trhodes Exp $
  */
 #include <sys/param.h>
 #include <sys/errno.h>

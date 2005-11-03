@@ -1,6 +1,6 @@
 /* i915_dma.c -- DMA support for the I915 -*- linux-c -*-
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/i915_irq.c,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 /**************************************************************************
  *

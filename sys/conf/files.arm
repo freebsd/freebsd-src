@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/files.arm,v 1.8 2005/06/09 19:45:07 jkoshy Exp $
 arm/arm/autoconf.c	standard
 arm/arm/bcopy_page.S	standard
 arm/arm/bcopyinout.S		standard

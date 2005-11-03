@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/tinyware/login/Makefile,v 1.4 2004/12/21 12:49:24 ru Exp $
 
 .PATH: ${.CURDIR}/../../../../usr.bin/login
 

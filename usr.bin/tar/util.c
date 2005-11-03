@@ -25,7 +25,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.13 2005/04/17 19:46:50 kientzle Exp $");
 
 #include <sys/stat.h>
 #include <sys/types.h>  /* Linux doesn't define mode_t, etc. in sys/stat.h. */

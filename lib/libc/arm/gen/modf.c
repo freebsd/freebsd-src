@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/gen/modf.c,v 1.1 2004/05/14 12:04:30 cognet Exp $");
 
 #include <sys/types.h>
 #include <errno.h>

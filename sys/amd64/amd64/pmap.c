@@ -75,7 +75,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/pmap.c,v 1.516.4.1 2005/10/28 06:49:18 ade Exp $");
 
 /*
  *	Manages physical address maps.

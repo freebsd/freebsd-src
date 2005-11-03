@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pci/pci.c,v 1.292.2.4.2.1 2005/10/27 16:44:06 wpaul Exp $");
 
 #include "opt_bus.h"
 

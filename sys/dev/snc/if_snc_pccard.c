@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/snc/if_snc_pccard.c,v 1.8.2.1 2005/08/25 05:01:15 rwatson Exp $");
 
 /*
  *	National Semiconductor  DP8393X SONIC Driver

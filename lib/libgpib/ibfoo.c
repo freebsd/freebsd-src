@@ -25,7 +25,7 @@
  *
  * This file merely redirects to the file in <dev/ieee488/ugpib.h>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libgpib/ibfoo.c,v 1.6 2005/02/13 06:21:36 scottl Exp $
  */
 
 #include <stdio.h>

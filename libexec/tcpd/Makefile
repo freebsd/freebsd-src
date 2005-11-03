@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/tcpd/Makefile,v 1.4 2004/12/21 10:49:26 ru Exp $
 
 PROG=	tcpd
 MAN=	tcpd.8

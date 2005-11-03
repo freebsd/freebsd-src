@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/man4.i386/Makefile,v 1.178.2.1 2005/09/19 16:51:10 brueffer Exp $
 
 MAN=	acpi_asus.4 \
 	acpi_fujitsu.4 \

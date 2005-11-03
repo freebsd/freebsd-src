@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_mattr_kind_np.c,v 1.9 2005/01/08 17:16:43 hsu Exp $
  */
 #include <errno.h>
 #include <pthread.h>

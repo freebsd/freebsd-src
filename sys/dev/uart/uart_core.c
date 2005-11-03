@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/uart/uart_core.c,v 1.13 2005/03/02 11:30:14 marius Exp $");
 
 #ifndef KLD_MODULE
 #include "opt_comconsole.h"

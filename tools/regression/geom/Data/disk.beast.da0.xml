@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
+    $FreeBSD: src/tools/regression/geom/Data/disk.beast.da0.xml,v 1.1 2002/03/24 13:54:01 phk Exp $
     alpha BSD label from beast.freebsd.org
   </comment>
   <sectorsize>512</sectorsize>

@@ -1,5 +1,5 @@
 # Makefile for libpanel
-# $FreeBSD$
+# $FreeBSD: src/lib/libpanel/Makefile,v 1.9 2003/06/06 13:46:55 kuriyama Exp $
 
 NCURSES=${.CURDIR}/../../contrib/ncurses
 

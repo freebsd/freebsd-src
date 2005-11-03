@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tr/extern.h,v 1.9 2004/07/09 02:08:07 tjr Exp $
  */
 
 #include <limits.h>

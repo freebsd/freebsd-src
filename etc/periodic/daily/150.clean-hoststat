@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/150.clean-hoststat,v 1.8 2004/01/02 18:50:22 gshapiro Exp $
 #
 # Remove stale persistent host status files
 #

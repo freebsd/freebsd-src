@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/machine.h,v 1.7 2005/05/18 13:30:08 keramida Exp $
  */
 
 /*

@@ -30,7 +30,7 @@
  *    Leif Delgass <ldelgass@retinalburn.net>
  *    Jos�Fonseca <j_r_fonseca@yahoo.co.uk>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mach64_drv.h,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 
 #ifndef __MACH64_DRV_H__

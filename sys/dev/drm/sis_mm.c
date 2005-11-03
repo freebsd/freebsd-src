@@ -26,7 +26,7 @@
  * Authors:
  *    Sung-Ching Lin <sclin@sis.com.tw>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/sis_mm.c,v 1.7 2005/04/16 03:44:44 anholt Exp $
  */
 
 #if defined(__linux__) && defined(CONFIG_FB_SIS)

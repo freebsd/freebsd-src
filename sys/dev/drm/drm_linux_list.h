@@ -27,7 +27,7 @@
  * Authors:
  *    Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_linux_list.h,v 1.3 2005/04/16 03:44:44 anholt Exp $
  */
 
 struct list_head {

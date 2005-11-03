@@ -7,7 +7,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/spkr.c,v 1.69 2005/05/14 09:10:01 nyan Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

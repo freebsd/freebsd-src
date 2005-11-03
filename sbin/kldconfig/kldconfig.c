@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/kldconfig/kldconfig.c,v 1.7 2005/02/10 09:19:29 ru Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

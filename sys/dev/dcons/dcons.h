@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  * 
  * $Id: dcons.h,v 1.15 2003/10/23 15:05:31 simokawa Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/dcons/dcons.h,v 1.5 2005/01/06 01:42:34 imp Exp $
  */
 
 #if defined(_KERNEL) || defined(_BOOT)

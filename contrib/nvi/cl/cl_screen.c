@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/nvi/cl/cl_screen.c,v 1.2 2001/11/09 02:23:05 rwatson Exp $
  */
 
 #include "config.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/devfs/Makefile,v 1.4 2004/10/24 15:32:39 ru Exp $
 
 VOLUME=		papers
 DOC=		devfs

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/newgrp/Makefile,v 1.3 2004/11/03 18:01:20 ru Exp $
 
 PROG=	newgrp
 DPADD=	${LIBCRYPT} ${LIBUTIL}

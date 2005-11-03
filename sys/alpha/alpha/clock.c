@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/clock.c,v 1.39 2005/05/14 09:10:00 nyan Exp $");
 
 #include "opt_clock.h"
 

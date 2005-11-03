@@ -48,7 +48,7 @@
 #include <dev/sound/pcm/sound.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_rate.c,v 1.11 2005/01/06 01:43:21 imp Exp $");
 
 #endif /* _KERNEL */
 

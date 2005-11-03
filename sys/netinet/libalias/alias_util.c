@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/libalias/alias_util.c,v 1.18 2005/06/27 07:36:02 glebius Exp $");
 
 
 /*

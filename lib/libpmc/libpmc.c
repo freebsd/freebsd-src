@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpmc/libpmc.c,v 1.8 2005/07/03 16:33:21 jkoshy Exp $");
 
 #include <sys/types.h>
 #include <sys/module.h>

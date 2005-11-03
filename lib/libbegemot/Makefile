@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbegemot/Makefile,v 1.2.2.1 2005/07/22 17:29:03 kensmith Exp $
 
 LIBBEGEMOT_DIR=${.CURDIR}/../../contrib/libbegemot
 

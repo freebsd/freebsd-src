@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netkey/keydb.c,v 1.6 2005/01/07 01:45:48 imp Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

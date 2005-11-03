@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/geom_vfs.c,v 1.9 2005/02/19 11:44:56 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

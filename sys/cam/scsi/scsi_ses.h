@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/cam/scsi/scsi_ses.h,v 1.3 2005/01/05 22:34:35 imp Exp $ */
 /*-
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

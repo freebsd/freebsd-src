@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_lookup.c,v 1.1.1.1 2005/04/25 18:15:23 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2002-2003 by Darren Reed.

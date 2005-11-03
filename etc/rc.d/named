@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: named,v 1.10 2002/03/22 04:33:59 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/named,v 1.22 2005/05/23 12:25:33 pjd Exp $
 #
 
 # PROVIDE: named

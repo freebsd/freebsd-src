@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/thread/thr_printf.c,v 1.4 2004/02/10 20:42:33 cperciva Exp $");
 
 #include <stdarg.h>
 #include <string.h>

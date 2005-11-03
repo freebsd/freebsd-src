@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/central/central.c,v 1.8 2005/05/19 15:09:56 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

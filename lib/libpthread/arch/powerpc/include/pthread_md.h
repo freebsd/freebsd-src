@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/powerpc/include/pthread_md.h,v 1.3 2004/08/16 05:41:38 grehan Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/usb/FILES,v 1.7 2004/12/08 22:02:58 rsm Exp $
 
 A small roadmap of the USB files:
 

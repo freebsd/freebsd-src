@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/initrandom,v 1.5 2005/03/02 19:03:08 brooks Exp $
 #
 
 # PROVIDE: initrandom

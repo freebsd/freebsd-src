@@ -1,5 +1,5 @@
 /*	$NetBSD: ehcireg.h,v 1.17 2004/06/23 06:45:56 mycroft Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ehcireg.h,v 1.7 2005/01/06 01:43:27 imp Exp $	*/
 
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

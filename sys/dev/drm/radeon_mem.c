@@ -28,7 +28,7 @@
  * Authors:
  *    Keith Whitwell <keith@tungstengraphics.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/radeon_mem.c,v 1.7 2005/04/16 03:44:44 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

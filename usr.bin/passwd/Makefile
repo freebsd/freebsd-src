@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/passwd/Makefile,v 1.46 2004/12/29 08:16:39 ache Exp $
 
 PROG	 = passwd
 BINOWN	 = root

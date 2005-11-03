@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/basic/t1/test.t,v 1.2 2005/05/31 14:13:02 harti Exp $
 
 cd `dirname $0`
 . ../../common.sh

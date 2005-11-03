@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/nexusvar.h,v 1.2 2002/08/22 19:47:10 mux Exp $
  */
 
 #ifndef _MACHINE_NEXUSVAR_H_

@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/add/extract.c,v 1.43 2005/06/14 15:05:42 krion Exp $");
 
 #include <ctype.h>
 #include <err.h>

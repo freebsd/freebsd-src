@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_hash.c,v 1.9.2.1 2005/09/12 15:53:58 tegge Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

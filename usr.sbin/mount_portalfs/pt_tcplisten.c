@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mount_portalfs/pt_tcplisten.c,v 1.4 2004/08/07 04:27:50 imp Exp $");
 
 #include <stdio.h>
 #include <unistd.h>

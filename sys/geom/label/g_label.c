@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/label/g_label.c,v 1.13.2.2 2005/08/30 15:16:14 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

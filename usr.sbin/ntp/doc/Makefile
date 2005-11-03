@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/doc/Makefile,v 1.11 2005/05/25 16:30:43 sheldonh Exp $
 
 FILESDIR=	${SHAREDIR}/doc/ntp
 

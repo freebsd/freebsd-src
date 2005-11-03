@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/cpufreq_if.m,v 1.2 2005/02/18 00:23:36 njl Exp $
 #
 
 #include <sys/bus.h>

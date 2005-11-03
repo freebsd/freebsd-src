@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/i80321_mcu.c,v 1.2 2005/01/05 21:58:49 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

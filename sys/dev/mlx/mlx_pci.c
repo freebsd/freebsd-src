@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mlx/mlx_pci.c,v 1.23.2.1 2005/07/31 00:41:53 csjp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

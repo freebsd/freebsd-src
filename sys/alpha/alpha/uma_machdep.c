@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/uma_machdep.c,v 1.1 2004/06/11 19:55:56 alc Exp $");
 
 #include <sys/param.h>
 #include <sys/lock.h>

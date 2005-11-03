@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/loader/Makefile,v 1.38.4.1 2005/10/30 16:36:00 nyan Exp $
 
 PROG=		loader.sym
 INTERNALPROG=

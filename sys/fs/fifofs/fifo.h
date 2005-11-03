@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.6 (Berkeley) 5/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/fifofs/fifo.h,v 1.20 2005/01/06 18:10:38 imp Exp $
  */
 
 /*

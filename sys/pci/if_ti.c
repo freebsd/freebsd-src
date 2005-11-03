@@ -77,7 +77,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_ti.c,v 1.107.2.3 2005/10/09 04:11:19 delphij Exp $");
 
 #include "opt_ti.h"
 

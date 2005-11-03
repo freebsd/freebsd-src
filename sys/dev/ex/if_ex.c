@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ex/if_ex.c,v 1.56.2.3 2005/10/09 04:15:12 delphij Exp $");
 
 /*
  * Intel EtherExpress Pro/10, Pro/10+ Ethernet driver

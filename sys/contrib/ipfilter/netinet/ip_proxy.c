@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_proxy.c,v 1.25 2005/04/27 05:53:12 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1997-2003 by Darren Reed.

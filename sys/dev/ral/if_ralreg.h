@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/if_ralreg.h,v 1.1 2005/04/18 18:47:37 damien Exp $	*/
 
 /*-
  * Copyright (c) 2005

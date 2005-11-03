@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpi_support/acpi_fujitsu.c,v 1.2 2005/04/04 10:21:20 philip Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

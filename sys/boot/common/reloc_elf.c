@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/reloc_elf.c,v 1.1 2004/08/28 23:03:05 iedowse Exp $");
 
 #include <sys/types.h>
 #include <machine/elf.h>

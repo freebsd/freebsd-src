@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/_pthreadtypes.h,v 1.1 2005/05/31 15:18:17 rodrigc Exp $
  */
 
 #ifndef _SYS__PTHREADTYPES_H_

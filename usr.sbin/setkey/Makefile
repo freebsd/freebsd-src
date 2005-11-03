@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/setkey/Makefile,v 1.11 2003/11/05 09:47:54 ume Exp $
 
 PROG=	setkey
 MAN=	setkey.8

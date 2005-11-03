@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/arm/arm/pthread_md.c,v 1.4 2005/02/26 19:06:49 cognet Exp $");
 
 #include <sys/types.h>
 

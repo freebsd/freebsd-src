@@ -20,7 +20,7 @@
 
     ---------------------------------------------------------------------- */
 
-/*  $FreeBSD$ */
+/*  $FreeBSD: src/sys/dev/usb/rio500_usb.h,v 1.2 2005/01/06 01:43:28 imp Exp $ */
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/ioccom.h>

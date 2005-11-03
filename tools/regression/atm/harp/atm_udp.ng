@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/atm/harp/atm_udp.ng,v 1.1 2004/01/29 15:58:06 harti Exp $
 #
 err() {
 	echo "$*" >&2

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/nfs_lock.c,v 1.40.4.1 2005/10/27 18:35:19 glebius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

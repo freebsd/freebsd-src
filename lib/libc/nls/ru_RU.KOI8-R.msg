@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/ru_RU.KOI8-R.msg,v 1.1 2005/02/27 18:09:09 phantom Exp $
 $
 $ Message catalog for ru_RU.KOI8-R locale
 $

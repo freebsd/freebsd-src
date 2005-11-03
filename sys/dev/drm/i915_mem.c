@@ -1,6 +1,6 @@
 /* i915_mem.c -- Simple agp/fb memory manager for i915 -*- linux-c -*-
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/i915_mem.c,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 /**************************************************************************
  *

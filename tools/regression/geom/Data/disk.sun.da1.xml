@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$	
+    $FreeBSD: src/tools/regression/geom/Data/disk.sun.da1.xml,v 1.1 2002/03/17 18:53:45 phk Exp $	
     A Solaris 8 disklabel
   </comment>
   <sectorsize>512</sectorsize>

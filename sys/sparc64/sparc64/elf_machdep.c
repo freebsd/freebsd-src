@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: NetBSD: mdreloc.c,v 1.5 2001/04/25 12:24:51 kleink Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/elf_machdep.c,v 1.19 2004/08/11 02:35:06 marcel Exp $
  */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
  *
  * From:
  *	$Id: procfs_regs.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_fpregs.c,v 1.32 2005/06/30 07:49:21 peter Exp $
  */
 
 #include "opt_compat.h"

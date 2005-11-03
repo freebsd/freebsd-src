@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_kill.c,v 1.16 2003/06/28 09:55:02 davidxu Exp $
  */
 #include <errno.h>
 #include <signal.h>

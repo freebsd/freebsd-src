@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/jot/regress.t,v 1.1 2004/11/11 19:47:54 nik Exp $
 
 cd `dirname $0`
 

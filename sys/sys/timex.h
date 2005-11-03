@@ -45,7 +45,7 @@
  * 17 Sep 93    David L. Mills
  *      Created file
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/timex.h,v 1.18 2005/01/07 02:29:24 imp Exp $
  */
 /*
  * This header file defines the Network Time Protocol (NTP) interfaces

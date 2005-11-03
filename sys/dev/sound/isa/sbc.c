@@ -30,7 +30,7 @@
 
 #include <isa/isavar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/sbc.c,v 1.44 2005/01/06 01:43:17 imp Exp $");
 
 #define IO_MAX	3
 #define IRQ_MAX	1

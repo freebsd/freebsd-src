@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/bufbio/Makefile,v 1.5 2004/10/24 15:32:39 ru Exp $
 
 VOLUME=		papers
 DOC=		bio

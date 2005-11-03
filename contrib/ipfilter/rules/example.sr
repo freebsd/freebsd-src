@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/contrib/ipfilter/rules/example.sr,v 1.1.1.2 2005/04/25 17:31:25 darrenr Exp $
 #
 # log all inbound packet on le0 which has IP options present
 #

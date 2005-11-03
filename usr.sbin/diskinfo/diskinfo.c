@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/diskinfo/diskinfo.c,v 1.8 2005/01/11 10:53:09 ru Exp $
  */
 
 #include <stdio.h>

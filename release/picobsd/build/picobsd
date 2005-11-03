@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/picobsd,v 1.37 2004/12/21 12:21:26 ru Exp $
 #
 # The new PicoBSD build script. Invoked as
 #

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/wi/Makefile,v 1.17 2004/05/26 00:53:09 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/wi
 

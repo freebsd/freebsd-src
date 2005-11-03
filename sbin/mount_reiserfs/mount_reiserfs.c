@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount_reiserfs/mount_reiserfs.c,v 1.3 2005/06/10 09:51:42 delphij Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/net/res_send_private.h,v 1.1 2004/02/25 21:03:46 green Exp $ */
 
 /*
  * Copyright (c) 1985, 1989, 1993

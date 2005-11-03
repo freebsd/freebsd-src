@@ -29,11 +29,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/ciphy.c,v 1.2 2005/01/06 01:42:55 imp Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/ciphy.c,v 1.2 2005/01/06 01:42:55 imp Exp $");
 
 /*
  * Driver for the Cicada CS8201 10/100/1000 copper PHY.

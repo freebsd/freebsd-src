@@ -1,5 +1,5 @@
 # $Id: configure.ac,v 1.292 2005/08/31 16:59:49 tim Exp $
-# $FreeBSD$
+# $FreeBSD: src/crypto/openssh/configure.ac,v 1.11.2.1 2005/09/11 16:50:34 des Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #

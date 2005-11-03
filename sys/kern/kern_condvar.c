@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_condvar.c,v 1.52 2004/10/12 18:36:19 jhb Exp $");
 
 #include "opt_ktrace.h"
 

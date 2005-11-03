@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_pf/pf_snmp.c,v 1.5.2.1 2005/09/01 13:52:12 philip Exp $
  */
 
 #include <bsnmp/snmpmod.h>

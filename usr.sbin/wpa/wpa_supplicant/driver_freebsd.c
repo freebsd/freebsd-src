@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/wpa/wpa_supplicant/driver_freebsd.c,v 1.5.2.2 2005/09/03 17:45:54 sam Exp $
  */
 
 #include <stdlib.h>

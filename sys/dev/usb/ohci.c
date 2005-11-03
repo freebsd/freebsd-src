@@ -13,7 +13,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ohci.c,v 1.154 2005/05/29 04:42:27 nyan Exp $");
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

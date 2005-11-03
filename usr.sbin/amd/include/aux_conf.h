@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/amd/include/aux_conf.h,v 1.4 2004/07/06 14:06:58 mbr Exp $ */
 
 /*
  * aux_conf.h:

@@ -136,7 +136,7 @@
  *****************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/acpi_ec.c,v 1.65 2005/05/12 22:35:08 njl Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

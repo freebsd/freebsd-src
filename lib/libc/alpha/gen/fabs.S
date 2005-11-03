@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/fabs.S,v 1.3 2003/01/19 00:17:02 obrien Exp $");
 
 LEAF(fabs, 1)
 	cpys	fzero, fa0, fv0

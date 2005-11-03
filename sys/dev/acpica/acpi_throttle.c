@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/acpi_throttle.c,v 1.7 2005/04/10 20:04:30 njl Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

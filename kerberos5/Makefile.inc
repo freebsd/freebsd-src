@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/Makefile.inc,v 1.26 2005/06/10 06:12:51 des Exp $
 
 NO_LINT=
 

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/syscons/syscons.c,v 1.436.2.3 2005/10/05 21:48:02 marius Exp $");
 
 #include "opt_syscons.h"
 #include "opt_splash.h"

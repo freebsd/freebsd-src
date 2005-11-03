@@ -30,7 +30,7 @@
  * Authors:
  *    Nicolai Haehnle <prefect_@gmx.net>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r300_cmdbuf.c,v 1.2.2.1 2005/08/04 17:31:02 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

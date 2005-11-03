@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pci/pci_pci.c,v 1.37 2005/04/29 06:22:41 imp Exp $");
 
 /*
  * PCI:PCI bridge support.

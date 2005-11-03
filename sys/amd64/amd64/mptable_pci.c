@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/mptable_pci.c,v 1.2.8.1 2005/09/18 02:55:09 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

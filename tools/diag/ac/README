@@ -6,4 +6,4 @@ ac              check if the contributors article is in sync with the
 ent.sh          check for ordering/content problems in .ent files (authors.ent,
                 teams.ent, etc)
 
-$FreeBSD$
+$FreeBSD: src/tools/diag/ac/README,v 1.1 2002/02/06 17:49:13 phantom Exp $

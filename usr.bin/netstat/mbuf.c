@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/mbuf.c,v 1.42.8.1 2005/07/28 19:54:55 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

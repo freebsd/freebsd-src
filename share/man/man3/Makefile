@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man3/Makefile,v 1.36 2005/05/18 16:23:11 keramida Exp $
 
 MAN=		assert.3 \
 		bitstring.3 \

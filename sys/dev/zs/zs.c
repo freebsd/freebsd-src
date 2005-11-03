@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/zs/zs.c,v 1.30 2004/10/20 16:22:00 jhb Exp $");
 /*-
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.

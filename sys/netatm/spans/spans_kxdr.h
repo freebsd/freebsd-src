@@ -30,7 +30,7 @@
  *	from: @(#)types.h	2.3 88/08/15 4.0 RPCSRC
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatm/spans/spans_kxdr.h,v 1.3 2005/01/07 01:45:38 imp Exp $
  */
 
 #ifndef _SPANS_KXDR_H

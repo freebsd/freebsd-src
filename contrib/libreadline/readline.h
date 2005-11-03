@@ -20,7 +20,7 @@
    have a copy of the license, write to the Free Software Foundation,
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/readline.h,v 1.16 2004/10/18 07:25:32 ache Exp $ */
 #if !defined (_READLINE_H_)
 #define _READLINE_H_
 

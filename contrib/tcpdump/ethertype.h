@@ -20,7 +20,7 @@
  *
  *
  * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.24 2004/10/07 16:04:07 hannes Exp $ (LBL)
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/ethertype.h,v 1.9 2005/05/29 19:09:27 sam Exp $
  */
 
 /*

@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em.h,v 1.32.4.1 2005/10/22 22:07:20 glebius Exp $*/
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_

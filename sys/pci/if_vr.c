@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_vr.c,v 1.104.2.4 2005/10/09 04:11:20 delphij Exp $");
 
 /*
  * VIA Rhine fast ethernet PCI NIC driver

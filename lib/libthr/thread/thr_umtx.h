@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_umtx.h,v 1.1.2.1 2005/08/05 19:43:57 jhb Exp $
  */
 
 #ifndef _THR_FBSD_UMTX_H_

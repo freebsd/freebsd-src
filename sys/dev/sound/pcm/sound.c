@@ -32,7 +32,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/sound.c,v 1.93.4.1 2005/10/26 21:18:09 ariff Exp $");
 
 devclass_t pcm_devclass;
 

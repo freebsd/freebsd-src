@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/db_machdep.h,v 1.20 2005/01/06 22:18:15 imp Exp $
  */
 
 #ifndef _MACHINE_DB_MACHDEP_H_

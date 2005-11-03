@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/gdb_machdep.c,v 1.4 2005/01/05 20:17:20 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

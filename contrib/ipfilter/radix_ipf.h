@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/radix_ipf.h,v 1.2 2005/04/25 18:20:08 darrenr Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1993

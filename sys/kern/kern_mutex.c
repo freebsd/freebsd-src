@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_mutex.c,v 1.154.2.3 2005/10/09 04:30:31 delphij Exp $");
 
 #include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"

@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/setjmp.S,v 1.17 2003/11/14 03:21:22 jeff Exp $");
 
 #include "SYS.h"
 

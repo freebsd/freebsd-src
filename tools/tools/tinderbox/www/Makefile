@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/www/Makefile,v 1.6 2004/01/25 19:11:43 des Exp $
 
 CGI		 = index.cgi
 DATA		 = tb.css

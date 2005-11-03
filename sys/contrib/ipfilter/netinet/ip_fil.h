@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_fil.h,v 1.31 2005/04/26 17:58:05 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.
@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_fil.h,v 1.31 2005/04/26 17:58:05 darrenr Exp $
  * Id: ip_fil.h,v 2.170.2.18 2005/03/28 10:47:52 darrenr Exp
  */
 

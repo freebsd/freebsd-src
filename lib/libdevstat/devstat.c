@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libdevstat/devstat.c,v 1.28 2005/04/26 15:02:01 mux Exp $");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

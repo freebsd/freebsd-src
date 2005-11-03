@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libmemstat/Makefile,v 1.3.2.1 2005/07/24 14:49:49 rwatson Exp $
 
 WARNS?=		3
 LIB=		memstat

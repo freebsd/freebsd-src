@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/wpa_supplicant/common.h,v 1.2 2005/06/07 23:33:13 sam Exp $ */
 
 #ifndef COMMON_H
 #define COMMON_H

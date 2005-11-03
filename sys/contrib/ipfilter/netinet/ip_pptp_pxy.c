@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_pptp_pxy.c,v 1.1.1.1 2005/04/25 18:15:30 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2002-2003 by Darren Reed

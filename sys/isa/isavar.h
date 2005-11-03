@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/isavar.h,v 1.29 2005/04/13 03:26:24 mdodd Exp $
  */
 
 #ifndef _ISA_ISAVAR_H_

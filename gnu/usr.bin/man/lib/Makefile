@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/lib/Makefile,v 1.13 2004/10/24 15:32:29 ru Exp $
 
 LIB=	man
 INTERNALLIB=

@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/uart_bus_sa1110.c,v 1.3 2005/01/05 21:58:48 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

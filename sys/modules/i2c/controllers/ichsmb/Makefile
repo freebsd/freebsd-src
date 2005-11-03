@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/modules/i2c/controllers/ichsmb/Makefile,v 1.1 2005/06/05 11:55:29 takawata Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/ichsmb
 KMOD		= ichsmb

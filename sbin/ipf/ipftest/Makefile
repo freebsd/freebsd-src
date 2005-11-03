@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/ipftest/Makefile,v 1.3 2005/04/28 16:26:34 darrenr Exp $
 
 PROG=		ipftest
 SRCS=		ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \

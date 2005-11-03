@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_stack.c,v 1.10 2005/02/13 18:38:06 deischen Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>

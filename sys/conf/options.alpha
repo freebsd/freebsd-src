@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.alpha,v 1.43 2004/07/10 22:29:40 marcel Exp $
 # Options specific to the Alpha platform kernels
 
 EV5			opt_global.h

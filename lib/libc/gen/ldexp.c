@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/ldexp.c,v 1.1 2005/01/22 06:03:40 das Exp $");
 
 #include <sys/types.h>
 #include <machine/endian.h>

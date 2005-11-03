@@ -36,7 +36,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/vibes.c,v 1.19 2005/03/01 08:58:05 imp Exp $");
 
 /* ------------------------------------------------------------------------- */
 /* Constants */

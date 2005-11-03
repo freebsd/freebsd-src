@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/thread/thr_accept.c,v 1.2 2003/12/09 23:40:27 deischen Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

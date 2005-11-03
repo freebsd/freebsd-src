@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)char.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/char.h,v 1.4 2000/10/26 10:07:19 obrien Exp $
  */
 
 /*

@@ -33,7 +33,7 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mach64_dma.c,v 1.1 2005/04/16 03:44:44 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/gcc/FREEBSD-deletelist,v 1.5 2004/02/17 03:22:34 ache Exp $
 CVS
 .cvsignore
 ABOUT*NLS

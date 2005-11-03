@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/ofw_reboot.c,v 1.3 2005/01/05 22:16:58 imp Exp $");
 
 #include <stand.h>
 #include "openfirm.h"

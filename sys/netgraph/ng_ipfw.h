@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_ipfw.h,v 1.1 2005/02/05 12:06:33 glebius Exp $
  */
 
 #define NG_IPFW_NODE_TYPE    "ipfw"

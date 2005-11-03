@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/nsp/nsp.c,v 1.14 2005/05/29 04:42:24 nyan Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

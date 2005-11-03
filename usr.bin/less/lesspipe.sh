@@ -1,7 +1,7 @@
 #! /bin/sh
 # ex:ts=8
 
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/less/lesspipe.sh,v 1.2 2005/05/17 11:08:11 des Exp $
 
 case "$1" in
 	*.Z)

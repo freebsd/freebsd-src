@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/stripe/g_stripe.h,v 1.7.2.1 2005/08/30 15:14:40 pjd Exp $
  */
 
 #ifndef	_G_STRIPE_H_

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
- * $FreeBSD$
+ * $FreeBSD: src/sbin/init/pathnames.h,v 1.3 2004/04/09 19:58:30 markm Exp $
  */
 
 #include <paths.h>

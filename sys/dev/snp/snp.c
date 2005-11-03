@@ -15,7 +15,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/snp/snp.c,v 1.99.2.2 2005/09/23 23:22:22 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

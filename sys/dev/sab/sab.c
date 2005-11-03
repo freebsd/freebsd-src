@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sab/sab.c,v 1.39 2005/06/04 20:29:28 marius Exp $");
 
 /*
  * SAB82532 Dual UART driver

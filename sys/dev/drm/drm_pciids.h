@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_pciids.h,v 1.2.2.1 2005/08/04 17:31:02 anholt Exp $
  */
 
 /*

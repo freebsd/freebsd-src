@@ -31,10 +31,10 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/harp/if_harp.c,v 1.7 2005/06/10 16:49:09 brooks Exp $");
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/harp/if_harp.c,v 1.7 2005/06/10 16:49:09 brooks Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/uzip/g_uzip.c,v 1.4.2.1 2005/10/02 11:22:28 fjoe Exp $");
 
 #include <sys/param.h>
 #include <sys/bio.h>
