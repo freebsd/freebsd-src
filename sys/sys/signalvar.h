@@ -248,13 +248,6 @@ typedef struct sigqueue {
 
 #ifdef _KERNEL
 
-/*
- * Specifies the target of a signal.
- *	P - Doesn't matter which thread it gets delivered to.
- *	TD - Must be delivered to a specific thread.
- */
-typedef enum sigtarget_enum { SIGTARGET_P, SIGTARGET_TD } sigtarget_t;
-
 /* Return nonzero if process p has an unmasked pending signal. */
 #define	SIGPENDING(td)							\
 	(!SIGISEMPTY((td)->td_siglist) &&				\
@@ -326,7 +319,7 @@ void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
 void	postsig(int sig);
 void	psignal(struct proc *p, int sig);
-int	psignal_info(struct proc *p, ksiginfo_t *ksi);
+int	psignal_event(struct proc *p, struct sigevent *, ksiginfo_t *);
 struct sigacts *sigacts_alloc(void);
 void	sigacts_copy(struct sigacts *dest, struct sigacts *src);
 void	sigacts_free(struct sigacts *ps);
@@ -336,8 +329,8 @@ void	sigexit(struct thread *td, int signum) __dead2;
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
-int	tdsignal(struct thread *td, int sig, ksiginfo_t *ksi,
-		sigtarget_t target);
+int	tdsignal(struct proc *p, struct thread *td, int sig,
+	    ksiginfo_t *ksi);
 void	trapsignal(struct thread *td, ksiginfo_t *);
 int	ptracestop(struct thread *td, int sig);
 ksiginfo_t * ksiginfo_alloc(void);
