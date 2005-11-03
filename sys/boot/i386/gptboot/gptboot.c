@@ -67,7 +67,12 @@ __FBSDID("$FreeBSD$");
 /* 0x1f is reserved for log2(RB_BOOTINFO). */
 
 /* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
-#define RBX_MASK	0x2011ffff
+#define RBX_MASK	(OPT_SET(RBX_ASKNAME) | OPT_SET(RBX_SINGLE) | \
+			OPT_SET(RBX_DFLTROOT) | OPT_SET(RBX_KDB ) | \
+			OPT_SET(RBX_CONFIG) | OPT_SET(RBX_VERBOSE) | \
+			OPT_SET(RBX_SERIAL) | OPT_SET(RBX_CDROM) | \
+			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
+			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
@@ -89,7 +94,8 @@ __FBSDID("$FreeBSD$");
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
 
-#define OPT_CHECK(opt)	((opts >> (opt)) & 1)
+#define OPT_SET(opt)	(1 << (opt))
+#define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
 
 extern uint32_t _end;
 
@@ -413,7 +419,7 @@ parse()
 		    if (*(uint8_t *)PTOV(0x496) & 0x10) {
 			cp = "yes";
 		    } else {
-			opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
+			opts |= OPT_SET(RBX_DUAL) | OPT_SET(RBX_SERIAL);
 			cp = "no";
 		    }
 		    printf("Keyboard: %s\n", cp);
@@ -431,10 +437,10 @@ parse()
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
-		opts ^= 1 << flags[i];
+		opts ^= OPT_SET(flags[i]);
 	    }
-	    ioctrl = opts & 1 << RBX_DUAL ? (IO_SERIAL|IO_KEYBOARD) :
-		     opts & 1 << RBX_SERIAL ? IO_SERIAL : IO_KEYBOARD;
+	    ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
+		     OPT_CHECK(RBX_SERIAL) ? IO_SERIAL : IO_KEYBOARD;
 	    if (ioctrl & IO_SERIAL)
 	        sio_init(115200 / comspeed);
 	} else {
