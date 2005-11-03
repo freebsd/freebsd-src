@@ -1978,14 +1978,11 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	 */
 	item->el_flags |= NGQF_READER;
 	ng_queue_rw(ngq, item, NGQRW_R);
-
-	/*
-	 * Ok, so that's the item successfully queued for later. So now we
-	 * see if we can dequeue something to run instead.
-	 */
-	item = ng_dequeue(ngq);
+	if (CAN_GET_WORK(ngq->q_flags))
+		ng_setisr(ngq->q_node);
 	mtx_unlock_spin(&(ngq->q_mtx));
-	return (item);
+
+	return (NULL);
 }
 
 static __inline item_p
@@ -2014,14 +2011,11 @@ restart:
 	 */
 	item->el_flags &= ~NGQF_RW;
 	ng_queue_rw(ngq, item, NGQRW_W);
-
-	/*
-	 * Ok, so that's the item successfully queued for later. So now we
-	 * see if we can dequeue something to run instead.
-	 */
-	item = ng_dequeue(ngq);
+	if (CAN_GET_WORK(ngq->q_flags))
+		ng_setisr(ngq->q_node);
 	mtx_unlock_spin(&(ngq->q_mtx));
-	return (item);
+
+	return (NULL);
 }
 
 static __inline void
@@ -2268,58 +2262,11 @@ ng_snd_item(item_p item, int queue)
 		return (error);
 	}
 
-	/*
-	 * Now we've handled the packet we brought, (or a friend of it) let's
-	 * look for any other packets that may have been queued up. We hold
-	 * no locks, so if someone puts something in the queue after
-	 * we check that it is empty, it is their problem
-	 * to ensure it is processed. If we have the netisr thread cme in here
-	 * while we still say we have stuff to do, we may get a boost
-	 * in SMP systems. :-)
-	 */
-	for (;;) {
-		/*
-		 * dequeue acquires and adjusts the input_queue as it dequeues
-		 * packets. It acquires the rw lock as needed.
-		 */
-		mtx_lock_spin(&ngq->q_mtx);
-		item = ng_dequeue(ngq); /* fixes worklist too*/
-		if (!item) {
-			mtx_unlock_spin(&ngq->q_mtx);
-			return (error);
-		}
-		mtx_unlock_spin(&ngq->q_mtx);
+	mtx_lock_spin(&(ngq->q_mtx));
+	if (CAN_GET_WORK(ngq->q_flags))
+		ng_setisr(ngq->q_node);
+	mtx_unlock_spin(&(ngq->q_mtx));
 
-		/*
-		 * Take over the reference frm the item.
-		 * Hold it until the called function returns.
-		 */
-
-		NGI_GET_NODE(item, node); /* zaps stored node */
-
-		/*
-		 * We have the appropriate lock, so run the item.
-		 * When finished it will drop the lock accordingly
-		 */
-		ierror = ng_apply_item(node, item);
-
-		/*
-		 * only return an error if it was our initial
-		 * item.. (compat hack)
-		 */
-		if (oitem == item) {
-			error = ierror;
-		}
-
-		/*
-		 * If the node goes away when we remove the reference, 
-		 * whatever we just did caused it.. whatever we do, DO NOT
-		 * access the node again!
-		 */
-		if (NG_NODE_UNREF(node) == 0) {
-			break;
-		}
-	}
 	return (error);
 }
 
@@ -3285,17 +3232,20 @@ ng_worklist_remove(node_p node)
 static void
 ng_setisr(node_p node)
 {
-	mtx_lock_spin(&ng_worklist_mtx);
+
+	mtx_assert(&node->nd_input_queue.q_mtx, MA_OWNED);
+
 	if ((node->nd_flags & NGF_WORKQ) == 0) {
 		/*
 		 * If we are not already on the work queue,
 		 * then put us on.
 		 */
 		node->nd_flags |= NGF_WORKQ;
+		mtx_lock_spin(&ng_worklist_mtx);
 		TAILQ_INSERT_TAIL(&ng_worklist, node, nd_work);
+		mtx_unlock_spin(&ng_worklist_mtx);
 		NG_NODE_REF(node); /* XXX fafe in mutex? */
 	}
-	mtx_unlock_spin(&ng_worklist_mtx);
 	schednetisr(NETISR_NETGRAPH);
 }
 
