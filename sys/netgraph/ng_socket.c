@@ -203,6 +203,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	struct ng_mesg *msg;
 	struct mbuf *m0;
+	item_p item;
 	char *path = NULL;
 	int len, error = 0;
 
@@ -261,35 +262,6 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto release;
 	}
 
-#ifdef TRACE_MESSAGES
-	do {								
-		item_p item;						
-		if ((item = ng_package_msg(msg)) == NULL) {		
-			(msg) = NULL;				
-			(error) = ENOMEM;				
-printf("err=%d\n",error);
-			break;						
-		}							
-		if (((error) = ng_address_path((pcbp->sockdata->node), (item),		
-					(path), (NULL))) == 0) {	
-printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
-item->el_dest->nd_ID,
-msg->header.typecookie,
-msg->header.cmd,
-msg->header.cmdstr,
-msg->header.flags,
-msg->header.token,
-item->el_dest->nd_type->name); 
-			SAVE_LINE(item);			
-			(error) = ng_snd_item((item), 0);		
-		}							
-else {
-printf("errx=%d\n",error);
-}
-		(msg) = NULL;						
-	} while (0);
-
-#else
 	/*
 	 * Hack alert!
 	 * We look into the message and if it mkpeers a node of unknown type, we
@@ -304,12 +276,13 @@ printf("errx=%d\n",error);
 		if ((type = ng_findtype(mkp->type)) == NULL) {
 			char filename[NG_TYPESIZ + 3];
 			linker_file_t lf;
-			int error;
 
-			/* Not found, try to load it as a loadable module */
-			snprintf(filename, sizeof(filename), "ng_%s", mkp->type);
+			/* Not found, try to load it as a loadable module. */
+			snprintf(filename, sizeof(filename), "ng_%s",
+			    mkp->type);
 			mtx_lock(&Giant);
-			error = linker_load_module(NULL, filename, NULL, NULL, &lf);
+			error = linker_load_module(NULL, filename, NULL, NULL,
+			    &lf);
 			mtx_unlock(&Giant);
 			if (error != 0) {
 				FREE(msg, M_NETGRAPH_MSG);
@@ -317,7 +290,7 @@ printf("errx=%d\n",error);
 			}
 			lf->userrefs++;
 
-			/* Try again, as now the type should have linked itself in */
+			/* See if type has been loaded successfully. */
 			if ((type = ng_findtype(mkp->type)) == NULL) {
 				FREE(msg, M_NETGRAPH_MSG);
 				error =  ENXIO;
@@ -326,9 +299,34 @@ printf("errx=%d\n",error);
 		}
 	}
 
-	/* The callee will free the msg when done. The path is our business. */
-	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, 0);
+	if ((item = ng_package_msg(msg)) == NULL) {
+		error = ENOMEM;
+#ifdef TRACE_MESSAGES
+		printf("ng_package_msg: err=%d\n", error);
 #endif
+		goto release;
+	}
+	if ((error = ng_address_path((pcbp->sockdata->node), item,
+	    path, 0)) != 0) {
+#ifdef TRACE_MESSAGES
+		printf("ng_address_path: errx=%d\n", error);
+#endif
+		goto release;
+	}
+
+#ifdef TRACE_MESSAGES
+	printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
+		item->el_dest->nd_ID,
+		msg->header.typecookie,
+		msg->header.cmd,
+		msg->header.cmdstr,
+		msg->header.flags,
+		msg->header.token,
+		item->el_dest->nd_type->name);
+#endif
+	SAVE_LINE(item);
+	error = ng_snd_item(item, 0);
+
 release:
 	if (path != NULL)
 		FREE(path, M_NETGRAPH_PATH);
@@ -768,6 +766,7 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 	struct socket *const so = pcbp->ng_socket;
 	struct mbuf *mdata;
 	int msglen;
+	int error = 0;
 
 	/* Copy the message itself into an mbuf chain */
 	msglen = sizeof(struct ng_mesg) + msg->header.arglen;
@@ -787,10 +786,10 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 	    (struct sockaddr *) addr, mdata, NULL) == 0) {
 		TRAP_ERROR;
 		m_freem(mdata);
-		return (ENOBUFS);
+		error = so->so_error = ENOBUFS;
 	}
 	sorwakeup(so);
-	return (0);
+	return (error);
 }
 
 /*
@@ -858,15 +857,15 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-#ifdef TRACE_MESSAGES
-printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
-retaddr,
-msg->header.typecookie,
-msg->header.cmd,
-msg->header.cmdstr,
-msg->header.flags,
-msg->header.token);
 
+#ifdef TRACE_MESSAGES
+	printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
+		retaddr,
+		msg->header.typecookie,
+		msg->header.cmd,
+		msg->header.cmdstr,
+		msg->header.flags,
+		msg->header.token);
 #endif
 
 	if (msg->header.typecookie == NGM_SOCKET_COOKIE) {
