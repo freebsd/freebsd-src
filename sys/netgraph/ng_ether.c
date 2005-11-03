@@ -643,6 +643,15 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *ifp = priv->ifp;
 
+	/* Check length and pull off header */
+	if (m->m_pkthdr.len < sizeof(struct ether_header)) {
+		NG_FREE_M(m);
+		return (EINVAL);
+	}
+	if (m->m_len < sizeof(struct ether_header) &&
+	    (m = m_pullup(m, sizeof(struct ether_header))) == NULL)
+		return (ENOBUFS);
+
 	m->m_pkthdr.rcvif = ifp;
 
 	/* Pass the packet to the bridge, it may come back to us */
