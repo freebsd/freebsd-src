@@ -1157,7 +1157,7 @@ dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
 				panic("Unknown devtype %d", devtype);
 		}
 
-		if ((pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
+		if ((pdev != NULL) && (pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
 			*dev = pdev;
 			dev_ref(*dev);
 			return;
