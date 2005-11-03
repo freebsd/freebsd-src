@@ -96,9 +96,8 @@ static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
 static int	kern_sigtimedwait(struct thread *, sigset_t,
 			ksiginfo_t *, struct timespec *);
-static int	do_tdsignal(struct thread *, int, ksiginfo_t *, sigtarget_t);
+static int	do_tdsignal(struct proc *, struct thread *, int, ksiginfo_t *);
 static void	sigqueue_start(void);
-static int	psignal_common(struct proc *p, int sig, ksiginfo_t *ksi);
 
 static uma_zone_t	ksiginfo_zone = NULL;
 struct filterops sig_filtops =
@@ -1787,7 +1786,7 @@ sigqueue(struct thread *td, struct sigqueue_args *uap)
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		ksi.ksi_value.sigval_ptr = uap->value;
-		error = psignal_info(p, &ksi);
+		error = tdsignal(p, NULL, ksi.ksi_signo, &ksi);
 	}
 	PROC_UNLOCK(p);
 	return (error);
@@ -1922,7 +1921,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 		mtx_unlock(&ps->ps_mtx);
 		p->p_code = code;	/* XXX for core dump/debugger */
 		p->p_sig = sig;		/* XXX to verify code */
-		tdsignal(td, sig, ksi, SIGTARGET_TD);
+		tdsignal(p, td, sig, ksi);
 	}
 	PROC_UNLOCK(p);
 }
@@ -1972,53 +1971,44 @@ sigtd(struct proc *p, int sig, int prop)
 void
 psignal(struct proc *p, int sig)
 {
-	(void) psignal_common(p, sig, NULL);
+	(void) tdsignal(p, NULL, sig, NULL);
 }
 
 int
-psignal_info(struct proc *p, ksiginfo_t *ksi)
+psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
 {
-	return (psignal_common(p, ksi->ksi_signo, ksi));
-}
-
-static int
-psignal_common(struct proc *p, int sig, ksiginfo_t *ksi)
-{
-	struct thread *td;
-	int prop;
-
-	if (!_SIG_VALID(sig))
-		panic("psignal(): invalid signal");
+	struct thread *td = NULL;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	/*
-	 * IEEE Std 1003.1-2001: return success when killing a zombie.
-	 */
-	if (p->p_state == PRS_ZOMBIE)
-		return (0);
-	prop = sigprop(sig);
+
+	KASSERT(!KSI_ONQ(ksi), ("psignal_event: ksi on queue"));
 
 	/*
-	 * Find a thread to deliver the signal to.
+	 * ksi_code and other fields should be set before
+	 * calling this function.
 	 */
-	td = sigtd(p, sig, prop);
-
-	return (tdsignal(td, sig, ksi, SIGTARGET_P));
+	ksi->ksi_signo = sigev->sigev_signo;
+	ksi->ksi_value = sigev->sigev_value;
+	if (sigev->sigev_notify == SIGEV_THREAD_ID) {
+		td = thread_find(p, sigev->sigev_notify_thread_id);
+		if (td == NULL)
+			return (ESRCH);
+	}
+	return (tdsignal(p, td, ksi->ksi_signo, ksi));
 }
 
 /*
  * MPSAFE
  */
 int
-tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
+tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
 	sigset_t saved;
-	struct proc *p = td->td_proc;
 	int ret;
 
 	if (p->p_flag & P_SA)
 		saved = p->p_sigqueue.sq_signals;
-	ret = do_tdsignal(td, sig, ksi, target);
+	ret = do_tdsignal(p, td, sig, ksi);
 	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
 		if (!SIGSETEQ(saved, p->p_sigqueue.sq_signals)) {
 			/* pending set changed */
@@ -2030,9 +2020,8 @@ tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
 }
 
 static int
-do_tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
+do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
-	struct proc *p;
 	sig_t action;
 	sigqueue_t *sigqueue;
 	struct thread *td0;
@@ -2040,15 +2029,24 @@ do_tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
 	struct sigacts *ps;
 	int ret = 0;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
 	if (!_SIG_VALID(sig))
 		panic("do_tdsignal(): invalid signal");
 
-	p = td->td_proc;
+	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("do_tdsignal: ksi on queue"));
+
+	/*
+	 * IEEE Std 1003.1-2001: return success when killing a zombie.
+	 */
+	if (p->p_state == PRS_ZOMBIE) {
+		if (ksi && (ksi->ksi_flags & KSI_INS))
+			ksiginfo_tryfree(ksi);
+		return (ret);
+	}
+
 	ps = p->p_sigacts;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KNOTE_LOCKED(&p->p_klist, NOTE_SIGNAL | sig);
-
 	prop = sigprop(sig);
 
 	/*
@@ -2056,13 +2054,15 @@ do_tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
 	 * assign it to the process so that we can find it later in the first
 	 * thread that unblocks it.  Otherwise, assign it to this thread now.
 	 */
-	if (target == SIGTARGET_TD) {
-		sigqueue = &td->td_sigqueue;
-	} else {
-		if (!SIGISMEMBER(td->td_sigmask, sig))
-			sigqueue = &td->td_sigqueue;
-		else
+	if (td == NULL) {
+		td = sigtd(p, sig, prop);
+		if (SIGISMEMBER(td->td_sigmask, sig))
 			sigqueue = &p->p_sigqueue;
+		else
+			sigqueue = &td->td_sigqueue;
+	} else {
+		KASSERT(td->td_proc == p, ("invalid thread"));
+		sigqueue = &td->td_sigqueue;
 	}
 
 	/*
@@ -2077,6 +2077,8 @@ do_tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
 	if (SIGISMEMBER(ps->ps_sigignore, sig) ||
 	    (p->p_flag & P_WEXIT)) {
 		mtx_unlock(&ps->ps_mtx);
+		if (ksi && (ksi->ksi_flags & KSI_INS))
+			ksiginfo_tryfree(ksi);
 		return (ret);
 	}
 	if (SIGISMEMBER(td->td_sigmask, sig))
@@ -2098,8 +2100,11 @@ do_tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
 		 */
 		if ((prop & SA_TTYSTOP) &&
 		    (p->p_pgrp->pg_jobc == 0) &&
-		    (action == SIG_DFL))
-		        return (ret);
+		    (action == SIG_DFL)) {
+			if (ksi && (ksi->ksi_flags & KSI_INS))
+				ksiginfo_tryfree(ksi);
+			return (ret);
+		}
 		sigqueue_delete_proc(p, SIGCONT);
 		p->p_flag &= ~P_CONTINUED;
 	}
@@ -2107,7 +2112,7 @@ do_tdsignal(struct thread *td, int sig, ksiginfo_t *ksi, sigtarget_t target)
 	ret = sigqueue_add(sigqueue, sig, ksi);
 	if (ret != 0)
 		return (ret);
-	signotify(td);			/* uses schedlock */
+	signotify(td);
 	/*
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.

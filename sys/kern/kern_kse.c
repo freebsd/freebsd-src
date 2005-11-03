@@ -210,7 +210,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 			if (uap->data > 0) {
 				td2->td_flags &= ~TDF_INTERRUPT;
 				mtx_unlock_spin(&sched_lock);
-				tdsignal(td2, (int)uap->data, NULL, SIGTARGET_TD);
+				tdsignal(p, td2, (int)uap->data, NULL);
 			} else {
 				mtx_unlock_spin(&sched_lock);
 			}
