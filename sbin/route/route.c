@@ -768,10 +768,14 @@ newroute(argc, argv)
 				err = "entry in use";
 				break;
 			case ENOBUFS:
-				err = "routing table overflow";
+				err = "not enough memory";
 				break;
-			case EDQUOT: /* handle recursion avoidance in rt_setgate() */
+			case EADDRINUSE:
+				/* handle recursion avoidance in rt_setgate() */
 				err = "gateway uses the same route";
+				break;
+			case EEXIST:
+				err = "route already in table";
 				break;
 			default:
 				err = strerror(oerrno);
