@@ -1389,7 +1389,6 @@ pmap_remove_all(vm_page_t m)
 {
 	pmap_t oldpmap;
 	pv_entry_t pv;
-	int s;
 
 #if defined(DIAGNOSTIC)
 	/*
@@ -1400,9 +1399,7 @@ pmap_remove_all(vm_page_t m)
 		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%lx", VM_PAGE_TO_PHYS(m));
 	}
 #endif
-
-	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		struct ia64_lpte *pte;
 		pmap_t pmap = pv->pv_pmap;
@@ -1418,11 +1415,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_install(oldpmap);
 		PMAP_UNLOCK(pmap);
 	}
-
 	vm_page_flag_clear(m, PG_WRITEABLE);
-
-	splx(s);
-	return;
 }
 
 /*
@@ -1800,26 +1793,22 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
-	int s;
 
 	if (m->flags & PG_FICTITIOUS)
 		return FALSE;
 
-	s = splvm();
-
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			splx(s);
 			return TRUE;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	splx(s);
 	return (FALSE);
 }
 
