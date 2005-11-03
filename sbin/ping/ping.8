@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2002
+.Dd August 15, 2005
 .Dt PING 8
 .Os
 .Sh NAME
@@ -40,6 +40,9 @@ packets to network hosts
 .Nm
 .Op Fl AaDdfnoQqRrv
 .Op Fl c Ar count
+.Op Fl G Ar sweepmaxsize
+.Op Fl g Ar sweepminsize
+.Op Fl h Ar sweepincrsize
 .Op Fl i Ar wait
 .Op Fl l Ar preload
 .Op Fl M Cm mask | time
@@ -116,6 +119,10 @@ packets.
 If this option is not specified,
 .Nm
 will operate until interrupted.
+If this option is specified in conjunction with ping sweeps,
+each sweep will consist of
+.Ar count
+packets.
 .It Fl D
 Set the Don't Fragment bit.
 .It Fl d
@@ -138,6 +145,21 @@ Only the super-user may use this option.
 .Bf -emphasis
 This can be very hard on a network and should be used with caution.
 .Ef
+.It Fl G Ar sweepmaxsize
+Specify the maximum size of
+.Tn ICMP
+payload when sending sweeping pings.
+This option is required for ping sweeps. 
+.It Fl g Ar sweepminsize
+Specify the size of
+.Tn ICMP
+payload to start with when sending sweeping pings. 
+The default value is 0.
+.It Fl h Ar sweepincrsize
+Specify the number of bytes to increment the size of
+.Tn ICMP
+payload after
+each sweep when sending sweeping pings. The default value is 1.
 .It Fl I Ar iface
 Source multicast packets with the given interface address.
 This flag only applies if the ping destination is a multicast address.
@@ -270,6 +292,7 @@ with the 8 bytes of
 .Tn ICMP
 header data.
 Only the super-user may specify values more than default.
+This option cannot be used with ping sweeps.
 .It Fl T Ar ttl
 Set the IP Time To Live for multicasted packets.
 This flag only applies if the ping destination is a multicast address.
