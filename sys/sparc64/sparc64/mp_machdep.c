@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/tick.h>
 #include <machine/tlb.h>
@@ -99,6 +100,7 @@ static ih_func_t cpu_ipi_stop;
 struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
 struct	ipi_cache_args ipi_cache_args;
 struct	ipi_tlb_args ipi_tlb_args;
+struct	pcb stoppcbs[MAXCPU];
 
 struct	mtx ipi_mtx;
 
@@ -395,6 +397,7 @@ cpu_ipi_stop(struct trapframe *tf)
 {
 
 	CTR1(KTR_SMP, "cpu_ipi_stop: stopped %d", PCPU_GET(cpuid));
+	savectx(&stoppcbs[PCPU_GET(cpuid)]);
 	atomic_set_acq_int(&stopped_cpus, PCPU_GET(cpumask));
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {

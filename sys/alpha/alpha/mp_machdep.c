@@ -62,6 +62,7 @@ static volatile int aps_ready = 0;
 static struct mtx ap_boot_mtx;
 
 u_int64_t boot_cpu_id;
+struct pcb stoppcbs[MAXCPU];
 
 static void	release_aps(void *dummy);
 static int	smp_cpu_enabled(struct pcs *pcsp);
@@ -543,11 +544,12 @@ smp_handle_ipi(struct trapframe *frame)
 
 		case IPI_STOP:
 			CTR0(KTR_SMP, "IPI_STOP");
-			atomic_set_int(&stopped_cpus, cpumask);
+			savectx(&stoppcbs[PCPU_GET(cpuid)]);
+			atomic_set_acq_int(&stopped_cpus, cpumask);
 			while ((started_cpus & cpumask) == 0)
-				alpha_mb();
-			atomic_clear_int(&started_cpus, cpumask);
-			atomic_clear_int(&stopped_cpus, cpumask);
+				cpu_spinwait();
+			atomic_clear_rel_int(&started_cpus, cpumask);
+			atomic_clear_rel_int(&stopped_cpus, cpumask);
 			break;
 		}
 	}
