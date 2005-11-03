@@ -196,6 +196,7 @@ struct aiocblist {
 	struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
 	struct	knlist klist;		/* list of knotes */
 	struct	aiocb uaiocb;		/* Kernel I/O control block */
+	ksiginfo_t ksi;			/* Realtime signal info */
 };
 
 /* jobflags */
@@ -225,7 +226,8 @@ struct aio_liojob {
 	int	lioj_total_count;
 	struct	sigevent lioj_signal;	/* signal on all I/O done */
 	TAILQ_ENTRY(aio_liojob) lioj_list;
-        struct  knlist klist;		/* list of knotes */
+	struct  knlist klist;		/* list of knotes */
+	ksiginfo_t lioj_ksi;	/* Realtime signal info */
 };
 #define	LIOJ_SIGNAL		0x1	/* signal on all done (lio) */
 #define	LIOJ_SIGNAL_POSTED	0x2	/* signal has been posted */
@@ -454,6 +456,18 @@ aio_init_aioinfo(struct proc *p)
 		aio_newproc();
 }
 
+static int
+aio_sendsig(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (!KSI_ONQ(ksi)) {
+		ksi->ksi_code = SI_ASYNCIO;
+		ksi->ksi_flags |= KSI_EXT | KSI_INS;
+		return (psignal_event(p, sigev, ksi));
+	}
+	return (0);
+}
+
 /*
  * Free a job entry.  Wait for completion if it is currently active, but don't
  * delay forever.  If we delay, we return a flag that says that we have to
@@ -552,11 +566,17 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 	if (lj && (lj->lioj_buffer_count == 0) && (lj->lioj_queue_count == 0)) {
 		TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
+		PROC_LOCK(p);
+		sigqueue_take(&lj->lioj_ksi);
+		PROC_UNLOCK(p);
 		uma_zfree(aiolio_zone, lj);
 	}
 	aiocbe->jobstate = JOBST_NULL;
 	fdrop(aiocbe->fd_file, curthread);
 	crfree(aiocbe->cred);
+	PROC_LOCK(p);
+	sigqueue_take(&aiocbe->ksi);
+	PROC_UNLOCK(p);
 	uma_zfree(aiocb_zone, aiocbe);
 	return (0);
 }
@@ -828,9 +848,10 @@ aio_bio_done_notify( struct proc *userp, struct aiocblist *aiocbe, int type){
 			if ((lj->lioj_flags &
 			     (LIOJ_SIGNAL|LIOJ_SIGNAL_POSTED))
 			    == LIOJ_SIGNAL
-			    && lj->lioj_signal.sigev_notify == SIGEV_SIGNAL) {
+			    && (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL ||
+			        lj->lioj_signal.sigev_notify == SIGEV_THREAD_ID)) {
 				PROC_LOCK(userp);
-				psignal(userp, lj->lioj_signal.sigev_signo);
+				aio_sendsig(userp, &lj->lioj_signal, &lj->lioj_ksi);
 				PROC_UNLOCK(userp);
 				lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
 			}
@@ -843,9 +864,10 @@ aio_bio_done_notify( struct proc *userp, struct aiocblist *aiocbe, int type){
 		}
 	}
 
-	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL) {
+	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL ||
+	    aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_THREAD_ID) {
 		PROC_LOCK(userp);
-		psignal(userp, aiocbe->uaiocb.aio_sigevent.sigev_signo);
+		aio_sendsig(userp, &aiocbe->uaiocb.aio_sigevent, &aiocbe->ksi);
 		PROC_UNLOCK(userp);
 	}
 }
@@ -894,8 +916,10 @@ aio_daemon(void *uproc)
 	 * Get rid of our current filedescriptors.  AIOD's don't need any
 	 * filedescriptors, except as temporarily inherited from the client.
 	 */
+	mtx_lock(&Giant);
 	fdfree(td);
 
+	mtx_unlock(&Giant);
 	/* The daemon resides in its own pgrp. */
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		M_WAITOK | M_ZERO);
@@ -1377,11 +1401,14 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 		uma_zfree(aiocb_zone, aiocbe);
 		return (error);
 	}
-	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL &&
+	if ((aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL ||
+	     aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_THREAD_ID) &&
 		!_SIG_VALID(aiocbe->uaiocb.aio_sigevent.sigev_signo)) {
 		uma_zfree(aiocb_zone, aiocbe);
 		return (EINVAL);
 	}
+
+	ksiginfo_init(&aiocbe->ksi);
 
 	/* Save userspace address of the job info. */
 	aiocbe->uuaiocb = job;
@@ -1830,9 +1857,13 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 				cancelled++;
 /* XXX cancelled, knote? */
 				if (cbe->uaiocb.aio_sigevent.sigev_notify ==
-				    SIGEV_SIGNAL) {
+				    SIGEV_SIGNAL ||
+				    cbe->uaiocb.aio_sigevent.sigev_notify ==
+				    SIGEV_THREAD_ID) {
 					PROC_LOCK(cbe->userproc);
-					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
+					aio_sendsig(cbe->userproc,
+						&cbe->uaiocb.aio_sigevent,
+						&cbe->ksi);
 					PROC_UNLOCK(cbe->userproc);
 				}
 				if (uap->aiocbp)
@@ -2066,6 +2097,7 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 	lj->lioj_queue_finished_count = 0;
 	lj->lioj_total_count = nent;
 	knlist_init(&lj->klist, NULL, NULL, NULL, NULL);
+	ksiginfo_init(&lj->lioj_ksi);
 
 	kev.ident = 0;
 
