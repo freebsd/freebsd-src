@@ -514,12 +514,10 @@ AcpiRsGetListLength (
 
             case ACPI_RESOURCE_NAME_END_TAG:
                 /*
-                 * End Tag:
-                 * Terminate the loop now
+                 * End Tag: This is the normal exit, add size of EndTag
                  */
-                AmlBufferLength = BytesParsed;
-                break;
-
+                *SizeNeeded = BufferSize + ACPI_RS_SIZE_MIN;
+                return_ACPI_STATUS (AE_OK);
 
             default:
                 break;
