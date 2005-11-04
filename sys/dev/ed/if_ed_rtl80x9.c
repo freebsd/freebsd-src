@@ -80,6 +80,9 @@ ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 
 	if ((error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS)))
 		return (error);
+	
+	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
+	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
 
 	if (ed_nic_inb(sc, ED_P0_CR) & (ED_CR_PS0 | ED_CR_PS1))
 		ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
@@ -99,9 +102,6 @@ ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 	default:
 		return (ENXIO);
 	}
-
-	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
-	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
 
 	if ((error = ed_probe_Novell_generic(dev, flags)))
 		return (error);
