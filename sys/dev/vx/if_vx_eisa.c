@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 
@@ -159,6 +160,8 @@ vx_eisa_attach(device_t dev)
 
 bad_mtx:
 	mtx_destroy(&sc->vx_mtx);
+	ether_ifdetach(sc->vx_ifp);
+	if_free(sc->vx_ifp);
 bad:
 	if (io)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
