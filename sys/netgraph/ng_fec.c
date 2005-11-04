@@ -565,6 +565,9 @@ ng_fec_init(void *arg)
 		p->fec_ifstat = -1;
 	}
 
+	ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+
 	priv->fec_ch = timeout(ng_fec_tick, priv, hz);
 
 	return;
@@ -588,6 +591,8 @@ ng_fec_stop(struct ifnet *ifp)
 	}
 
 	untimeout(ng_fec_tick, priv, priv->fec_ch);
+
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }
@@ -713,8 +718,6 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					error = EINVAL;
 					break;
 				}
-				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
-				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 				ng_fec_init(priv);
 			}
 			/*
@@ -728,9 +731,7 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
-				    IFF_DRV_OACTIVE);
-			ng_fec_stop(ifp);
+				ng_fec_stop(ifp);
 		}
 		break;
 
@@ -1133,7 +1134,6 @@ ng_fec_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_mtu = NG_FEC_MTU_DEFAULT;
 	ifp->if_flags = (IFF_SIMPLEX|IFF_BROADCAST|IFF_MULTICAST);
-	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
 	ifp->if_baudrate = 100000000;		/* XXX */
