@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #define	TODO		printf("%s: not implemented!\n", __func__)
 
-static MALLOC_DEFINE(M_IOAPIC, "ioapic", "I/O APIC structures");
+static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
 
 /*
  * I/O APIC interrupt source driver.  Each pin is assigned an IRQ cookie
