@@ -104,7 +104,6 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_arp.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -345,8 +344,6 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 {
 	struct ng_fec_bundle	*b;
 	struct ifnet		*ifp, *bifp;
-	struct ifaddr		*ifa;
-	struct sockaddr_dl	*sdl;
 	struct ng_fec_portlist	*p, *new;
 
 	if (priv == NULL || iface == NULL)
@@ -415,14 +412,8 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	 * use its MAC address for the virtual interface (and,
 	 * by extension, all the other ports in the bundle).
 	 */
-	if (b->fec_ifcnt == 0) {
-		ifa = ifaddr_byindex(ifp->if_index);
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		bcopy(IFP2ENADDR(bifp),
-		    IFP2ENADDR(priv->ifp), ETHER_ADDR_LEN);
-		bcopy(IFP2ENADDR(bifp),
-		    LLADDR(sdl), ETHER_ADDR_LEN);
-	}
+	if (b->fec_ifcnt == 0)
+		if_setlladdr(ifp, IFP2ENADDR(bifp), ETHER_ADDR_LEN);
 
 	b->fec_btype = FEC_BTYPE_MAC;
 	new->fec_idx = b->fec_ifcnt;
@@ -433,10 +424,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	    (char *)&new->fec_mac, ETHER_ADDR_LEN);
 
 	/* Set up phony MAC address. */
-	ifa = ifaddr_byindex(bifp->if_index);
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	bcopy(IFP2ENADDR(priv->ifp), IFP2ENADDR(bifp), ETHER_ADDR_LEN);
-	bcopy(IFP2ENADDR(priv->ifp), LLADDR(sdl), ETHER_ADDR_LEN);
+	if_setlladdr(bifp, IFP2ENADDR(ifp), ETHER_ADDR_LEN);
 
 	/* Save original input vector */
 	new->fec_if_input = bifp->if_input;
@@ -461,8 +449,6 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 {
 	struct ng_fec_bundle	*b;
 	struct ifnet		*ifp, *bifp;
-	struct ifaddr		*ifa;
-	struct sockaddr_dl	*sdl;
 	struct ng_fec_portlist	*p;
 
 	if (priv == NULL || iface == NULL)
@@ -502,10 +488,7 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 	(*bifp->if_ioctl)(bifp, SIOCSIFFLAGS, NULL);
 
 	/* Restore MAC address. */
-	ifa = ifaddr_byindex(bifp->if_index);
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	bcopy((char *)&p->fec_mac, IFP2ENADDR(bifp), ETHER_ADDR_LEN);
-	bcopy((char *)&p->fec_mac, LLADDR(sdl), ETHER_ADDR_LEN);
+	if_setlladdr(bifp, (u_char *)&p->fec_mac, ETHER_ADDR_LEN);
 
 	/* Restore input vector */
 	bifp->if_input = p->fec_if_input;
