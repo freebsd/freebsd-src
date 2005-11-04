@@ -238,7 +238,7 @@ pci_cfgdisable(void)
 	switch (cfgmech) {
 	case CFGMECH_1:
 		outl(CONF1_ADDR_PORT, 0);
-                break;
+		break;
 	case CFGMECH_2:
 		outb(CONF2_ENABLE_PORT, 0);
 		outb(CONF2_FORWARD_PORT, 0);
