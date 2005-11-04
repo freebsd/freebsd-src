@@ -860,14 +860,14 @@ udp_output(inp, m, addr, control, td)
 		ipflags |= IP_ROUTETOIF;
 	if (inp->inp_socket->so_options & SO_BROADCAST)
 		ipflags |= IP_ALLOWBROADCAST;
-	if (inp->inp_flags & INP_ONESBCAST)
+	if (inp->inp_vflag & INP_ONESBCAST)
 		ipflags |= IP_SENDONES;
 
 	/*
 	 * Set up checksum and output datagram.
 	 */
 	if (udpcksum) {
-		if (inp->inp_flags & INP_ONESBCAST)
+		if (inp->inp_vflag & INP_ONESBCAST)
 			faddr.s_addr = INADDR_BROADCAST;
 		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,
 		    htons((u_short)len + sizeof(struct udphdr) + IPPROTO_UDP));
