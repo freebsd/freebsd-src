@@ -87,7 +87,7 @@ static int dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
  * Input a Neighbor Solicitation Message.
  *
  * Based on RFC 2461
- * Based on RFC 2462 (duplicated address detection)
+ * Based on RFC 2462 (duplicate address detection)
  */
 void
 nd6_ns_input(m, off, icmp6len)
@@ -133,7 +133,7 @@ nd6_ns_input(m, off, icmp6len)
 	}
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6)) {
-		/* dst has to be solicited node multicast address. */
+		/* dst has to be a solicited node multicast address. */
 		if (daddr6.s6_addr16[0] == IPV6_ADDR_INT16_MLL &&
 		    /* don't check ifindex portion */
 		    daddr6.s6_addr32[1] == 0 &&
@@ -280,7 +280,7 @@ nd6_ns_input(m, off, icmp6len)
 	if (tentative) {
 		/*
 		 * If source address is unspecified address, it is for
-		 * duplicated address detection.
+		 * duplicate address detection.
 		 *
 		 * If not, the packet is for addess resolution;
 		 * silently ignore it.
@@ -338,14 +338,14 @@ nd6_ns_input(m, off, icmp6len)
  *	- ND6 header source datalink address
  *
  * Based on RFC 2461
- * Based on RFC 2462 (duplicated address detection)
+ * Based on RFC 2462 (duplicate address detection)
  */
 void
 nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 	struct ifnet *ifp;
 	const struct in6_addr *daddr6, *taddr6;
 	struct llinfo_nd6 *ln;	/* for source address determination */
-	int dad;	/* duplicated address detection */
+	int dad;	/* duplicate address detection */
 {
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
@@ -436,6 +436,10 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 		struct in6_addr *hsrc = NULL;
 
 		if (ln && ln->ln_hold) {
+			/*
+			 * assuming every packet in ln_hold has the same IP
+			 * header
+			 */
 			hip6 = mtod(ln->ln_hold, struct ip6_hdr *);
 			/* XXX pullup? */
 			if (sizeof(*hip6) < ln->ln_hold->m_len)
@@ -537,7 +541,7 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
  * Neighbor advertisement input handling.
  *
  * Based on RFC 2461
- * Based on RFC 2462 (duplicated address detection)
+ * Based on RFC 2462 (duplicate address detection)
  *
  * the following items are not implemented yet:
  * - proxy advertisement delay rule (RFC2461 7.2.8, last paragraph, SHOULD)
@@ -1079,7 +1083,7 @@ nd6_dad_stoptimer(dp)
 }
 
 /*
- * Start Duplicated Address Detection (DAD) for specified interface address.
+ * Start Duplicate Address Detection (DAD) for specified interface address.
  */
 void
 nd6_dad_start(ifa, tick)
@@ -1266,33 +1270,8 @@ nd6_dad_timer(ifa)
 		}
 
 		if (dp->dad_ns_icount) {
-#if 0 /* heuristics */
-			/*
-			 * if
-			 * - we have sent many(?) DAD NS, and
-			 * - the number of NS we sent equals to the
-			 *   number of NS we've got, and
-			 * - we've got no NA
-			 * we may have a faulty network card/driver which
-			 * loops back multicasts to myself.
-			 */
-			if (3 < dp->dad_count
-			 && dp->dad_ns_icount == dp->dad_count
-			 && dp->dad_na_icount == 0) {
-				log(LOG_INFO, "DAD questionable for %s(%s): "
-				    "network card loops back multicast?\n",
-				    ip6_sprintf(&ia->ia_addr.sin6_addr),
-				    if_name(ifa->ifa_ifp));
-				/* XXX consider it a duplicate or not? */
-				/* duplicate++; */
-			} else {
-				/* We've seen NS, means DAD has failed. */
-				duplicate++;
-			}
-#else
 			/* We've seen NS, means DAD has failed. */
 			duplicate++;
-#endif
 		}
 
 		if (duplicate) {
@@ -1302,7 +1281,7 @@ nd6_dad_timer(ifa)
 		} else {
 			/*
 			 * We are done with DAD.  No NA came, no NS came.
-			 * duplicated address found.
+			 * No duplicate address found.
 			 */
 			ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 
@@ -1343,7 +1322,7 @@ nd6_dad_duplicated(ifa)
 	ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 	ia->ia6_flags |= IN6_IFF_DUPLICATED;
 
-	/* We are done with DAD, with duplicated address found. (failure) */
+	/* We are done with DAD, with duplicate address found. (failure) */
 	nd6_dad_stoptimer(dp);
 
 	log(LOG_ERR, "%s: DAD complete for %s - duplicate found\n",
