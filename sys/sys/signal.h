@@ -150,8 +150,8 @@ typedef	__sigset_t	sigset_t;
 #if __POSIX_VISIBLE >= 199309 || __XSI_VISIBLE >= 500
 union sigval {
 	/* Members as suggested by Annex C of POSIX 1003.1b. */
-	int	sigval_int;
-	void	*sigval_ptr;
+	int	sival_int;
+	void	*sival_ptr;
 };
 #endif
 
@@ -163,7 +163,7 @@ struct sigevent {
 	union {
 		__lwpid_t	_threadid;
 		struct {
-			void (*_function)(union sigval *);
+			void (*_function)(union sigval);
 			void *_attribute; /* pthread_attr_t * */
 		} _sigev_thread;
 	} _sigev_un;

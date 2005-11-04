@@ -47,7 +47,7 @@ struct thread_node {
 
 struct timer {
 	union sigval	value;
-	void		(*function)(union sigval *, int);
+	void		(*function)(union sigval, int);
 	int		timerid;
 	long		flags;
 	int		gen;
@@ -122,7 +122,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	 * Here we pass second parameter an overrun count, this is
 	 * not required by POSIX.
 	 */
-	tmr->function = (void (*)(union sigval *, int))
+	tmr->function = (void (*)(union sigval, int))
 		evp->sigev_notify_function;
 	tmr->flags = 0;
 	tmr->timerid = -1;
@@ -147,7 +147,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	ev.sigev_notify = SIGEV_THREAD_ID;
 	ev.sigev_signo = SIGTIMER;
 	ev.sigev_notify_thread_id = (lwpid_t)tmr->tn->thread->tid;
-	ev.sigev_value.sigval_int = tmr->gen;
+	ev.sigev_value.sival_int = tmr->gen;
 	ret = __sys_timer_create(clockid, &ev, &tmr->timerid);
 	if (__predict_false(ret != 0 || register_timer(tmr) != 0)) {
 		ret = errno;
@@ -355,11 +355,11 @@ service_loop(void *arg)
 		TIMERS_LOCK(curthread);
 		if (si.si_timerid >= 0 && si.si_timerid < timer_max &&
 		    (tmr = timer_list[si.si_timerid]) != NULL &&
-		    si.si_value.sigval_int == tmr->gen) {
+		    si.si_value.sival_int == tmr->gen) {
 			tmr->flags |= WORKING;
 			TIMERS_UNLOCK(curthread);
 			tn->curtmr = tmr;
-			tmr->function(&tmr->value, si.si_overrun);
+			tmr->function(tmr->value, si.si_overrun);
 			tn->curtmr = NULL;
 			TIMERS_LOCK(curthread);
 			tmr->flags &= ~WORKING;

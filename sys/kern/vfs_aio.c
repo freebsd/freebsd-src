@@ -1481,7 +1481,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT) {
 		kev.ident = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
-		kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sigval_ptr;
+		kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sival_ptr;
 	} else
 		goto no_kqueue;
 	if ((u_int)kev.ident >= fdp->fd_nfiles ||
@@ -2117,7 +2117,7 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 		if (lj->lioj_signal.sigev_notify == SIGEV_KEVENT) {
 			/* Assume only new style KEVENT */
 			kev.ident = lj->lioj_signal.sigev_notify_kqueue;
-			kev.udata = lj->lioj_signal.sigev_value.sigval_ptr;
+			kev.udata = lj->lioj_signal.sigev_value.sival_ptr;
 
 			if ((u_int)kev.ident >= p->p_fd->fd_nfiles ||
 			    (kq_fp = p->p_fd->fd_ofiles[kev.ident]) == NULL ||
