@@ -1336,6 +1336,9 @@ restart:
 				modname = mp->md_cval;
 				verinfo = mp->md_data;
 				mod = modlist_lookup2(modname, verinfo);
+				/* Don't count self-dependencies */
+				if (lf == mod->container)
+					continue;
 				mod->container->refs++;
 				error = linker_file_add_dependency(lf,
 				    mod->container);
