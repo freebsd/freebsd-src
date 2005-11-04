@@ -76,6 +76,7 @@
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <net/if_dl.h>
 #endif
@@ -268,8 +269,7 @@ carp_hmac_prepare(struct carp_softc *sc)
 	TAILQ_FOREACH(ifa, &SC2IFP(sc)->if_addrlist, ifa_list) {
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			in6 = ifatoia6(ifa)->ia_addr.sin6_addr;
-			if (IN6_IS_ADDR_LINKLOCAL(&in6))
-				in6.s6_addr16[1] = 0;
+			in6_clearscope(&in6);
 			SHA1Update(&sc->sc_sha1, (void *)&in6, sizeof(in6));
 		}
 	}
@@ -1541,7 +1541,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	struct in6_ifaddr *ia, *ia_if;
 	struct ip6_moptions *im6o = &sc->sc_im6o;
 	struct in6_multi_mship *imm;
-	struct sockaddr_in6 addr;
+	struct in6_addr in6;
 	int own, error;
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
@@ -1590,25 +1590,25 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		im6o->im6o_multicast_ifp = ifp;
 
 		/* join CARP multicast address */
-		bzero(&addr, sizeof(addr));
-		addr.sin6_family = AF_INET6;
-		addr.sin6_len = sizeof(addr);
-		addr.sin6_addr.s6_addr16[0] = htons(0xff02);
-		addr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
-		addr.sin6_addr.s6_addr8[15] = 0x12;
-		if ((imm = in6_joingroup(ifp, &addr.sin6_addr, &error)) == NULL)
+		bzero(&in6, sizeof(in6));
+		in6.s6_addr16[0] = htons(0xff02);
+		in6.s6_addr8[15] = 0x12;
+		if (in6_setscope(&in6, ifp, NULL) != 0)
+			goto cleanup;
+		if ((imm = in6_joingroup(ifp, &in6, &error)) == NULL)
 			goto cleanup;
 		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
 
 		/* join solicited multicast address */
-		bzero(&addr.sin6_addr, sizeof(addr.sin6_addr));
-		addr.sin6_addr.s6_addr16[0] = htons(0xff02);
-		addr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
-		addr.sin6_addr.s6_addr32[1] = 0;
-		addr.sin6_addr.s6_addr32[2] = htonl(1);
-		addr.sin6_addr.s6_addr32[3] = sin6->sin6_addr.s6_addr32[3];
-		addr.sin6_addr.s6_addr8[12] = 0xff;
-		if ((imm = in6_joingroup(ifp, &addr.sin6_addr, &error)) == NULL)
+		bzero(&in6, sizeof(in6));
+		in6.s6_addr16[0] = htons(0xff02);
+		in6.s6_addr32[1] = 0;
+		in6.s6_addr32[2] = htonl(1);
+		in6.s6_addr32[3] = sin6->sin6_addr.s6_addr32[3];
+		in6.s6_addr8[12] = 0xff;
+		if (in6_setscope(&in6, ifp, NULL) != 0)
+			goto cleanup;
+		if ((imm = in6_joingroup(ifp, &in6, &error)) == NULL)
 			goto cleanup;
 		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
 	}

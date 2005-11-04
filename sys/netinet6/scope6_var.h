@@ -51,6 +51,10 @@ void	scope6_setdefault __P((struct ifnet *));
 int	scope6_get_default __P((struct scope6_id *));
 u_int32_t scope6_in6_addrscope __P((struct in6_addr *));
 u_int32_t scope6_addr2default __P((struct in6_addr *));
+int	sa6_embedscope __P((struct sockaddr_in6 *, int));
+int	sa6_recoverscope __P((struct sockaddr_in6 *));
+int	in6_setscope __P((struct in6_addr *, struct ifnet *, u_int32_t *));
+int	in6_clearscope __P((struct in6_addr *));
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_SCOPE6_VAR_H_ */

@@ -82,6 +82,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/mld6_var.h>
 
@@ -101,9 +102,6 @@
 
 static struct ip6_pktopts ip6_opts;
 static int mld6_timers_are_running;
-/* XXX: These are necessary for KAME's link-local hack */
-static struct in6_addr mld6_all_nodes_linklocal = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
-static struct in6_addr mld6_all_routers_linklocal = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 
 static void mld6_sendpkt(struct in6_multi *, int, const struct in6_addr *);
 
@@ -134,6 +132,7 @@ void
 mld6_start_listening(in6m)
 	struct in6_multi *in6m;
 {
+	struct in6_addr all_in6;
 	int s = splnet();
 
 	/*
@@ -143,10 +142,15 @@ mld6_start_listening(in6m)
 	 * MLD messages are never sent for multicast addresses whose scope is 0
 	 * (reserved) or 1 (node-local).
 	 */
-	mld6_all_nodes_linklocal.s6_addr16[1] =
-		htons(in6m->in6m_ifp->if_index); /* XXX */
-	if (IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &mld6_all_nodes_linklocal) ||
-	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) < IPV6_ADDR_SCOPE_LINKLOCAL) {
+	all_in6 = in6addr_linklocal_allnodes;
+	if (in6_setscope(&all_in6, in6m->in6m_ifp, NULL)) {
+		/* XXX: this should not happen! */
+		in6m->in6m_timer = 0;
+		in6m->in6m_state = MLD_OTHERLISTENER;
+	}
+	if (IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &all_in6) ||
+	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) <
+	    IPV6_ADDR_SCOPE_LINKLOCAL) {
 		in6m->in6m_timer = 0;
 		in6m->in6m_state = MLD_OTHERLISTENER;
 	} else {
@@ -164,16 +168,24 @@ void
 mld6_stop_listening(in6m)
 	struct in6_multi *in6m;
 {
-	mld6_all_nodes_linklocal.s6_addr16[1] =
-		htons(in6m->in6m_ifp->if_index); /* XXX */
-	mld6_all_routers_linklocal.s6_addr16[1] =
-		htons(in6m->in6m_ifp->if_index); /* XXX: necessary when mrouting */
+	struct in6_addr allnode, allrouter;
 
+	allnode = in6addr_linklocal_allnodes;
+	if (in6_setscope(&allnode, in6m->in6m_ifp, NULL)) {
+		/* XXX: this should not happen! */
+		return;
+	}
+	allrouter = in6addr_linklocal_allrouters;
+	if (in6_setscope(&allrouter, in6m->in6m_ifp, NULL)) {
+		/* XXX impossible */
+		return;
+	}
 	if (in6m->in6m_state == MLD_IREPORTEDLAST &&
-	    (!IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &mld6_all_nodes_linklocal)) &&
-	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) > IPV6_ADDR_SCOPE_INTFACELOCAL)
-		mld6_sendpkt(in6m, MLD_LISTENER_DONE,
-			     &mld6_all_routers_linklocal);
+	    !IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &allnode) &&
+	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) >
+	    IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		mld6_sendpkt(in6m, MLD_LISTENER_DONE, &allrouter);
+	}
 }
 
 void
@@ -185,6 +197,7 @@ mld6_input(m, off)
 	struct mld_hdr *mldh;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct in6_multi *in6m;
+	struct in6_addr mld_addr, all_in6;
 	struct in6_ifaddr *ia;
 	struct ifmultiaddr *ifma;
 	int timer;		/* timer value in the MLD query header */
@@ -218,6 +231,16 @@ mld6_input(m, off)
 	}
 
 	/*
+	 * make a copy for local work (in6_setscope() may modify the 1st arg)
+	 */
+	mld_addr = mldh->mld_addr;
+	if (in6_setscope(&mld_addr, ifp, NULL)) {
+		/* XXX: this should not happen! */
+		m_free(m);
+		return;
+	}
+
+	/*
 	 * In the MLD6 specification, there are 3 states and a flag.
 	 *
 	 * In Non-Listener state, we simply don't have a membership record.
@@ -233,12 +256,15 @@ mld6_input(m, off)
 		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
 
-		if (!IN6_IS_ADDR_UNSPECIFIED(&mldh->mld_addr) &&
-		    !IN6_IS_ADDR_MULTICAST(&mldh->mld_addr))
+		if (!IN6_IS_ADDR_UNSPECIFIED(&mld_addr) &&
+		    !IN6_IS_ADDR_MULTICAST(&mld_addr))
 			break;	/* print error or log stat? */
-		if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
-			mldh->mld_addr.s6_addr16[1] =
-				htons(ifp->if_index); /* XXX */
+
+		all_in6 = in6addr_linklocal_allnodes;
+		if (in6_setscope(&all_in6, ifp, NULL)) {
+			/* XXX: this should not happen! */
+			break;
+		}
 
 		/*
 		 * - Start the timers in all of our membership records
@@ -263,8 +289,6 @@ mld6_input(m, off)
 		timer = ntohs(mldh->mld_maxdelay) * PR_FASTHZ / MLD_TIMER_SCALE;
 		if (timer == 0 && mldh->mld_maxdelay)
 			timer = 1;
-		mld6_all_nodes_linklocal.s6_addr16[1] =
-			htons(ifp->if_index); /* XXX */
 
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -272,16 +296,13 @@ mld6_input(m, off)
 				continue;
 			in6m = (struct in6_multi *)ifma->ifma_protospec;
 
-			if (IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr,
-					&mld6_all_nodes_linklocal) ||
+			if (IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &all_in6) ||
 			    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) <
 			    IPV6_ADDR_SCOPE_LINKLOCAL)
 				continue;
 
-			if (IN6_IS_ADDR_UNSPECIFIED(&mldh->mld_addr) ||
-			    IN6_ARE_ADDR_EQUAL(&mldh->mld_addr,
-						&in6m->in6m_addr))
-			{
+			if (IN6_IS_ADDR_UNSPECIFIED(&mld_addr) ||
+			    IN6_ARE_ADDR_EQUAL(&mld_addr, &in6m->in6m_addr)) {
 				if (timer == 0) {
 					/* send a report immediately */
 					mld6_sendpkt(in6m, MLD_LISTENER_REPORT,
@@ -298,9 +319,6 @@ mld6_input(m, off)
 			}
 		}
 		IF_ADDR_UNLOCK(ifp);
-
-		if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
-			mldh->mld_addr.s6_addr16[1] = 0; /* XXX */
 		break;
 
 	case MLD_LISTENER_REPORT:
@@ -316,24 +334,18 @@ mld6_input(m, off)
 		if (m->m_flags & M_LOOP) /* XXX: grotty flag, but efficient */
 			break;
 
-		if (!IN6_IS_ADDR_MULTICAST(&mldh->mld_addr))
+		if (!IN6_IS_ADDR_MULTICAST(&mld_addr))
 			break;
 
-		if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
-			mldh->mld_addr.s6_addr16[1] =
-				htons(ifp->if_index); /* XXX */
 		/*
 		 * If we belong to the group being reported, stop
 		 * our timer for that group.
 		 */
-		IN6_LOOKUP_MULTI(mldh->mld_addr, ifp, in6m);
+		IN6_LOOKUP_MULTI(mld_addr, ifp, in6m);
 		if (in6m) {
 			in6m->in6m_timer = 0; /* transit to idle state */
 			in6m->in6m_state = MLD_OTHERLISTENER; /* clear flag */
 		}
-
-		if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
-			mldh->mld_addr.s6_addr16[1] = 0; /* XXX */
 		break;
 	default:		/* this is impossible */
 		log(LOG_ERR, "mld6_input: illegal type(%d)", mldh->mld_type);
@@ -439,8 +451,7 @@ mld6_sendpkt(in6m, type, dst)
 	mldh->mld_maxdelay = 0;
 	mldh->mld_reserved = 0;
 	mldh->mld_addr = in6m->in6m_addr;
-	if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
-		mldh->mld_addr.s6_addr16[1] = 0; /* XXX */
+	in6_clearscope(&mldh->mld_addr); /* XXX */
 	mldh->mld_cksum = in6_cksum(mh, IPPROTO_ICMPV6, sizeof(struct ip6_hdr),
 				    sizeof(struct mld_hdr));
 

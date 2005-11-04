@@ -88,6 +88,9 @@
 
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#ifdef INET6
+#include <netinet6/scope6_var.h>
+#endif
 
 #include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
