@@ -164,8 +164,6 @@ RFC2711: IPv6 router alert option
 RFC2732: Format for Literal IPv6 Addresses in URL's
     * The spec is implemented in programs that handle URLs
       (like freebsd ftpio(3) and fetch(1), or netbsd ftp(1))
-RFC2766: Network Address Translation - Protocol Translation (NAT-PT)
-    * Section 4.2 is implemented by totd (see ports/totd, or pkgsrc/net/totd).
 RFC2874: DNS Extensions to Support IPv6 Address Aggregation and Renumbering
     * KAME/bsdi4 supports A6, DNAME and binary label to some extent.
     * KAME apps/bind8 repository has resolver library with partial A6, DNAME
@@ -183,6 +181,9 @@ RFC3056: Connection of IPv6 Domains via IPv4 Clouds
     * "stf" interface implements it.  Be sure to read
       draft-itojun-ipv6-transition-abuse-01.txt
       below before configuring it, there can be security issues.
+RFC3142: An IPv6-to-IPv4 transport relay translator
+    * FAITH tcp relay translator (faithd) implements this.  See 3.1 for more
+      details.
 RFC3152: Delegation of IP6.ARPA
     * libinet6 resolvers contained in the KAME snaps support to use
       the ip6.arpa domain (with the nibble format) for IPv6 reverse
@@ -198,6 +199,7 @@ RFC3493: Basic Socket Interface Extensions for IPv6
 	- supported but turned off by default on KAME/NetBSD and KAME/FreeBSD5,
 	- not supported on KAME/FreeBSD228, KAME/OpenBSD and KAME/BSDI3.
       see 1.12 in this document for details.
+    * The AI_ALL and AI_V4MAPPED flags are not supported.
 RFC3542: Advanced Sockets API for IPv6 (revised)
     * For supported library functions/kernel APIs, see sys/netinet6/ADVAPI.
     * Some of the updates in the draft are not implemented yet.  See
@@ -289,9 +291,9 @@ commands like "ndp -I de0" as root.  Note that the spec misuse the word
 To avoid possible DoS attacks and infinite loops, KAME stack will accept
 only 10 options on ND packet.  Therefore, if you have 20 prefix options
 attached to RA, only the first 10 prefixes will be recognized.
-If this troubles you, please contact KAME team and/or modify
+If this troubles you, please contact the KAME team and/or modify
 nd6_maxndopt in sys/netinet6/nd6.c.  If there are high demands we may
-provide sysctl knob for the variable.
+provide a sysctl knob for the variable.
 
 Proxy Neighbor Advertisement support is implemented in the kernel.
 For instance, you can configure it by using the following command:
@@ -345,7 +347,7 @@ turn on syslog output from the kernel on errors, by turning on sysctl MIB
 net.inet6.icmp6.nd6_debug.  nd6_debug can be turned on at bootstrap
 time, by defining ND6_DEBUG kernel compilation option (so you can
 debug behavior during bootstrap).  nd6_debug configuration should
-only be used for test/debug purposes - for production environment,
+only be used for test/debug purposes - for a production environment,
 nd6_debug must be set to 0.  If you leave it to 1, malicious parties
 can inject broken packet and fill up /var/log partition.
 
@@ -355,29 +357,29 @@ IPv6 uses scoped addresses.  It is therefore very important to
 specify the scope zone index (link index for a link-local address, or
 site index for a site-local address) with an IPv6 address.  Without a
 zone index, a scoped IPv6 address is ambiguous to the kernel, and
-the kernel would not be able to determine the outbound link for a
+the kernel would not be able to determine the outbound zone for a
 packet to the scoped address.  KAME code tries to address the issue in
 several ways.
 
-The entire architecture of scoped addresses is documented in
-draft-ietf-ipngwg-scoping-arch-xx.txt.  One non-trivial point of the
-architecture is that the link scope is (theoretically) larger than the
-interface scope.  That is, two different interfaces can belong to a
-same single link.  However, in a normal operation, we can assume that
-there is 1-to-1 relationship between links and interfaces.  In
-other words, we can usually put links and interfaces in the same scope
-type.  The current KAME implementation assumes the 1-to-1
-relationship.  In particular, we use interface names such as "ne1" as
-unique link identifiers.  This would be much more human-readable and
-intuitive than numeric identifiers, but please keep your mind on the
-theoretical difference between links and interfaces.
+The entire architecture of scoped addresses is documented in RFC4007.
+One non-trivial point of the architecture is that the link scope is
+(theoretically) larger than the interface scope.  That is, two
+different interfaces can belong to a same single link.  However, in a
+normal operation, we can assume that there is 1-to-1 relationship
+between links and interfaces.  In other words, we can usually put
+links and interfaces in the same scope type.  The current KAME
+implementation assumes the 1-to-1 relationship.  In particular, we use
+interface names such as "ne1" as unique link identifiers.  This would
+be much more human-readable and intuitive than numeric identifiers,
+but please keep your mind on the theoretical difference between links
+and interfaces.
 
 Site-local addresses are very vaguely defined in the specs, and both
 the specification and the KAME code need tons of improvements to
 enable its actual use.  For example, it is still very unclear how we
 define a site, or how we resolve host names in a site.  There is work
 underway to define behavior of routers at site border, but, we have
-almost no code for site boundary node support (both forwarding nor
+almost no code for site boundary node support (neither forwarding nor
 routing) and we bet almost noone has.  We recommend, at this moment,
 you to use global addresses for experiments - there are way too many
 pitfalls if you use site-local addresses.
@@ -396,6 +398,127 @@ eqauls to the interface index by the assumption of our
 implementation).  The embedded index enables us to identify IPv6
 link-local addresses over multiple links effectively and with only a
 little code change.
+
+The use of the internal format must be limited inside the kernel.  In
+particular, addresses sent by an application should not contain the
+embedded index (except via some very special APIs such as routing
+sockets).  Instead, the index should be specified in the sin6_scope_id
+field of a sockaddr_in6 structure.  Obviously, packets sent to or
+received from must not contain the embedded index either, since the
+index is meaningful only within the sending/receiving node.
+
+In order to deal with the differences, several kernel routines are
+provided.  These are available by including <netinet6/scope_var.h>.
+Typically, the following functions will be most generally used:
+
+- int sa6_embedscope(struct sockaddr_in6 *sa6, int defaultok);
+  Embed sa6->sin6_scope_id into sa6->sin6_addr.  If sin6_scope_id is
+  0, defaultok is non-0, and the default zone ID (see RFC4007) is
+  configured, the default ID will be used instead of the value of the
+  sin6_scope_id field.  On success, sa6->sin6_scope_id will be reset
+  to 0.
+
+  This function returns 0 on success, or a non-0 error code otherwise.
+ 
+- int sa6_recoverscope(struct sockaddr_in6 *sa6);
+  Extract embedded zone ID in sa6->sin6_addr and set
+  sa6->sin6_scope_id to that ID.  The embedded ID will be cleared with
+  0.
+
+  This function returns 0 on success, or a non-0 error code otherwise.
+
+- int in6_clearscope(struct in6_addr *in6);
+  Reset the embedded zone ID in 'in6' to 0.  This function never fails, and
+  returns 0 if the original address is intact or non 0 if the address is
+  modified.  The return value doesn't matter in most cases; currently, the
+  only point where we care about the return value is ip6_input() for checking
+  whether the source or destination addresses of the incoming packet is in
+  the embedded form.
+
+- int in6_setscope(struct in6_addr *in6, struct ifnet *ifp,
+                   u_int32_t *zoneidp);
+  Embed zone ID determined by the address scope type for 'in6' and the
+  interface 'ifp' into 'in6'.  If zoneidp is non NULL, *zoneidp will
+  also have the zone ID.
+
+  This function returns 0 on success, or a non-0 error code otherwise.
+
+The typical usage of these functions is as follows:
+
+sa6_embedscope() will be used at the socket or transport layer to
+convert a sockaddr_in6 structure passed by an application into the
+kernel-internal form.  In this usage, the second argument is often the
+'ip6_use_defzone' global variable.
+
+sa6_recoverscope() will also be used at the socket or transport layer
+to convert an in6_addr structure with the embedded zone ID into a
+sockaddr_in6 structure with the corresponding ID in the sin6_scope_id
+field (and without the embedded ID in sin6_addr).
+
+in6_clearscope() will be used just before sending a packet to the wire
+to remove the embedded ID.  In general, this must be done at the last
+stage of an output path, since otherwise the address would lose the ID
+and could be ambiguous with regard to scope.
+
+in6_setscope() will be used when the kernel receives a packet from the
+wire to construct the kernel internal form for each address field in
+the packet (typical examples are the source and destination addresses
+of the packet).  In the typical usage, the third argument 'zoneidp'
+will be NULL.  A non-NULL value will be used when the validity of the
+zone ID must be checked, e.g., when forwarding a packet to another
+link (see ip6_forward() for this usage).
+
+An application, when sending a packet, is basically assumed to specify
+the appropriate scope zone of the destination address by the
+sin6_scope_id field (this might be done transparently from the
+application with getaddrinfo() and the extended textual format - see
+below), or at least the default scope zone(s) must be configured as a
+last resort.  In some cases, however, an application could specify an
+ambiguous address with regard to scope, expecting it is disambiguated
+in the kernel by some other means.  A typical usage is to specify the
+outgoing interface through another API, which can disambiguate the
+unspecified scope zone.  Such a usage is not recommended, but the
+kernel implements some trick to deal with even this case.
+
+A rough sketch of the trick can be summarized as the following
+sequence.
+
+   sa6_embedscope(dst, ip6_use_defzone);
+   in6_selectsrc(dst, ..., &ifp, ...);
+   in6_setscope(&dst->sin6_addr, ifp, NULL);
+
+sa6_embedscope() first tries to convert sin6_scope_id (or the default
+zone ID) into the kernel-internal form.  This can fail with an
+ambiguous destination, but it still tries to get the outgoing
+interface (ifp) in the attempt of determining the source address of
+the outgoing packet using in6_selectsrc().  If the interface is
+detected, and the scope zone was originally ambiguous, in6_setscope()
+can finally determine the appropriate ID with the address itself and
+the interface, and construct the kernel-internal form.  See, for
+example, comments in udp6_output() for more concrete example.
+
+In any case, kernel routines except ones in netinet6/scope6.c MUST NOT
+directly refer to the embedded form.  They MUST use the above
+interface functions.  In particular, kernel routines MUST NOT have the
+following code fragment:
+
+	/* This is a bad practice.  Don't do this */
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+		sin6->sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+
+This is bad for several reasons.  First, address ambiguity is not
+specific to link-local addresses (any non-global multicast addresses
+are inherently ambiguous, and this is particularly true for
+interface-local addresses).  Secondly, this is vulnerable to future
+changes of the embedded form (the embedded position may change, or the
+zone ID may not actually be the interface index).  Only scope6.c
+routines should know the details.
+
+The above code fragment should thus actually be as follows:
+
+	/* This is correct. */
+	in6_setscope(&sin6->sin6_addr, ifp, NULL);
+	(and catch errors if possible and necessary)
 
 1.3.2 Interaction with API
 
@@ -461,11 +584,11 @@ use these APIs have to be prepared about differences in kernels
 anyway.
 
 getaddrinfo(3) and getnameinfo(3) support an extended numeric IPv6
-syntax, as documented in draft-ietf-ipv6-scoping-arch-xx.txt.  You can
-specify the outgoing link, by using the name of the outgoing interface
-as the link, like "fe80::1%ne0" (again, note that we assume there is
-1-to-1 relationship between links and interfaces.)  This way you will
-be able to specify a link-local scoped address without much trouble.
+syntax, as documented in RFC4007.  You can specify the outgoing link,
+by using the name of the outgoing interface as the link, like
+"fe80::1%ne0" (again, note that we assume there is 1-to-1 relationship
+between links and interfaces.)  This way you will be able to specify a
+link-local scoped address without much trouble.
 
 Other APIs like inet_pton(3) and inet_ntop(3) are inherently
 unfriendly with scoped addresses, since they are unable to annotate
@@ -550,7 +673,7 @@ not forward the packets.  net.inet6.ip6.forwarding defines whether this
 node is a router or a host (router if it is 1, host if it is 0).
 
 It is NOT recommended to change net.inet6.ip6.forwarding while the node
-is in operation.   IPv6 specification defines behavior for "host" and "router"
+is in operation.  IPv6 specification defines behavior for "host" and "router"
 quite differently, and switching from one to another can cause serious
 troubles.  It is recommended to configure the variable at bootstrap time only.
 
@@ -737,7 +860,7 @@ If KAME kernel receives an IPv6 packet, it checks the frame length of
 the packet and compares it to the length specified in the payload
 length field of the IPv6 header or in the value of the Jumbo Payload
 option, if any.  If the former is shorter than the latter, KAME kernel
-discards the packet and increments the statistics. You can see the
+discards the packet and increments the statistics.  You can see the
 statistics as output of netstat command with `-s -p ip6' option:
 	% netstat -s -p ip6
 	ip6:
@@ -789,7 +912,7 @@ In addition to this, we restrict the number of extension headers
 (including the IPv6 header) in each incoming packet, in order to
 prevent a DoS attack that tries to send packets with a massive number
 of extension headers.  The upper limit can be configured by the sysctl
-value net.inet6.ip6.hdrnestlimit. In particular, if the value is 0,
+value net.inet6.ip6.hdrnestlimit.  In particular, if the value is 0,
 the node will allow an arbitrary number of headers. As of writing this
 document, the default value is 50.
 
@@ -822,7 +945,7 @@ is sane or not.  Comments are welcome.
 1.10 Applications
 
 For userland programming, we support IPv6 socket API as specified in
-RFC2553, RFC2292 and upcoming internet drafts.
+RFC2553/3493, RFC3542 and upcoming internet drafts.
 
 TCP/UDP over IPv6 is available and quite stable.  You can enjoy "telnet",
 "ftp", "rlogin", "rsh", "ssh", etc.  These applications are protocol
@@ -922,7 +1045,7 @@ KAME/FreeBSD3x	configurable		supported
 KAME/FreeBSD4x	configurable		supported
 		default: enabled
 KAME/NetBSD	configurable		supported
-		default: disabled 
+		default: disabled
 KAME/BSDI4	enabled			supported
 KAME/OpenBSD	not supported		not supported
 
