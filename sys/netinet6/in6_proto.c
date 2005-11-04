@@ -307,6 +307,7 @@ int	ip6_gif_hlim = 0;
 int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
 int	ip6_rr_prune = 5;	/* router renumbering prefix
 				 * walk list every 5 sec. */
+int	ip6_mcast_pmtu = 0;	/* enable pMTU discovery for multicast? */
 int	ip6_v6only = 1;
 
 int	ip6_keepfaith = 0;
@@ -450,6 +451,8 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE,
 	use_defaultzone, CTLFLAG_RW, &ip6_use_defzone,		0,"");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS,
 	maxfrags, CTLFLAG_RW,		&ip6_maxfrags,	0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU,
+	mcast_pmtu, CTLFLAG_RW, 	&ip6_mcast_pmtu,	0, "");
 #ifdef IPSTEALTH
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
 	&ip6stealth, 0, "");
