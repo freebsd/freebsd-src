@@ -355,6 +355,13 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	b = &priv->fec_bundle;
 	ifp = priv->ifp;
 
+	/* Only allow reconfiguration if not running. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		printf("fec%d: can't add new iface; bundle is running\n",
+		    priv->unit);
+		return (EINVAL);
+	}
+
 	/* Find the interface */
 	bifp = ifunit(iface);
 	if (bifp == NULL) {
@@ -443,6 +450,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 
 	/* Add to the queue */
 	new->fec_if = bifp;
+	new->fec_ifstat = -1;
 	TAILQ_INSERT_TAIL(&b->ng_fec_ports, new, fec_list);
 
 	return(0);
@@ -462,6 +470,13 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 
 	b = &priv->fec_bundle;
 	ifp = priv->ifp;
+
+	/* Only allow reconfiguration if not running. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		printf("fec%d: can't remove iface; bundle is running\n",
+		    priv->unit);
+		return (EINVAL);
+	}
 
 	/* Find the interface */
 	bifp = ifunit(iface);
@@ -548,7 +563,7 @@ ng_fec_init(void *arg)
 	ifp = priv->ifp;
 	b = &priv->fec_bundle;
 
-	if (b->fec_ifcnt == 1 || b->fec_ifcnt == 3) {
+	if (b->fec_ifcnt != 2 && b->fec_ifcnt != FEC_BUNDLESIZ) {
 		printf("fec%d: invalid bundle "
 		    "size: %d\n", priv->unit,
 		    b->fec_ifcnt);
@@ -666,7 +681,7 @@ static void ng_fec_ifmedia_sts(struct ifnet *ifp,
 
 	ifmr->ifm_status = IFM_AVALID;
 	TAILQ_FOREACH(p, &b->ng_fec_ports, fec_list) {
-		if (p->fec_ifstat) {
+		if (p->fec_ifstat == 1) {
 			ifmr->ifm_status |= IFM_ACTIVE;
 			break;
 		}
@@ -711,7 +726,8 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifr->ifr_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				/* Sanity. */
-				if (b->fec_ifcnt == 1 || b->fec_ifcnt == 3) {
+				if (b->fec_ifcnt != 2 &&
+				    b->fec_ifcnt != FEC_BUNDLESIZ) {
 					printf("fec%d: invalid bundle "
 					    "size: %d\n", priv->unit,
 					    b->fec_ifcnt);
