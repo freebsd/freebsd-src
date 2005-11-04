@@ -60,6 +60,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
 
@@ -112,7 +113,8 @@ ip6_forward(m, srcrt)
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
-	u_int32_t srczone, dstzone;
+	u_int32_t inzone, outzone;
+	struct in6_addr src_in6, dst_in6;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
@@ -408,21 +410,29 @@ ip6_forward(m, srcrt)
 #endif
 
 	/*
-	 * Scope check: if a packet can't be delivered to its destination
-	 * for the reason that the destination is beyond the scope of the
-	 * source address, discard the packet and return an icmp6 destination
-	 * unreachable error with Code 2 (beyond scope of source address).
-	 * [draft-ietf-ipngwg-icmp-v3-02.txt, Section 3.1]
+	 * Source scope check: if a packet can't be delivered to its
+	 * destination for the reason that the destination is beyond the scope
+	 * of the source address, discard the packet and return an icmp6
+	 * destination unreachable error with Code 2 (beyond scope of source
+	 * address).  We use a local copy of ip6_src, since in6_setscope()
+	 * will possibly modify its first argument.
+	 * [draft-ietf-ipngwg-icmp-v3-04.txt, Section 3.1]
 	 */
-	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_src, &srczone) ||
-	    in6_addr2zoneid(rt->rt_ifp, &ip6->ip6_src, &dstzone)) {
+	src_in6 = ip6->ip6_src;
+	if (in6_setscope(&src_in6, rt->rt_ifp, &outzone)) {
 		/* XXX: this should not happen */
 		ip6stat.ip6s_cantforward++;
 		ip6stat.ip6s_badscope++;
 		m_freem(m);
 		return;
 	}
-	if (srczone != dstzone
+	if (in6_setscope(&src_in6, m->m_pkthdr.rcvif, &inzone)) {
+		ip6stat.ip6s_cantforward++;
+		ip6stat.ip6s_badscope++;
+		m_freem(m);
+		return;
+	}
+	if (inzone != outzone
 #ifdef IPSEC
 	    && !ipsecrt
 #endif
@@ -444,6 +454,23 @@ ip6_forward(m, srcrt)
 		if (mcopy)
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
 				    ICMP6_DST_UNREACH_BEYONDSCOPE, 0);
+		m_freem(m);
+		return;
+	}
+
+	/*
+	 * Destination scope check: if a packet is going to break the scope
+	 * zone of packet's destination address, discard it.  This case should
+	 * usually be prevented by appropriately-configured routing table, but
+	 * we need an explicit check because we may mistakenly forward the
+	 * packet to a different zone by (e.g.) a default route.
+	 */
+	dst_in6 = ip6->ip6_dst;
+	if (in6_setscope(&dst_in6, m->m_pkthdr.rcvif, &inzone) != 0 ||
+	    in6_setscope(&dst_in6, rt->rt_ifp, &outzone) != 0 ||
+	    inzone != outzone) {
+		ip6stat.ip6s_cantforward++;
+		ip6stat.ip6s_badscope++;
 		m_freem(m);
 		return;
 	}

@@ -45,6 +45,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 
 #include <netinet/icmp6.h>
 
@@ -143,6 +144,7 @@ ip6_rthdr0(m, ip6, rh0)
 {
 	int addrs, index;
 	struct in6_addr *nextaddr, tmpaddr;
+	struct in6_ifaddr *ifa;
 
 	if (rh0->ip6r0_segleft == 0)
 		return (0);
@@ -197,15 +199,24 @@ ip6_rthdr0(m, ip6, rh0)
 	}
 
 	/*
+	 * Determine the scope zone of the next hop, based on the interface
+	 * of the current hop. [RFC4007, Section 9]
+	 * Then disambiguate the scope zone for the next hop (if necessary).
+	 */
+	if ((ifa = ip6_getdstifaddr(m)) == NULL)
+		goto bad;
+	if (in6_setscope(nextaddr, ifa->ia_ifp, NULL) != 0) {
+		ip6stat.ip6s_badscope++;
+		goto bad;
+	}
+
+	/*
 	 * Swap the IPv6 destination address and nextaddr. Forward the packet.
 	 */
 	tmpaddr = *nextaddr;
 	*nextaddr = ip6->ip6_dst;
-	if (IN6_IS_ADDR_LINKLOCAL(nextaddr))
-		nextaddr->s6_addr16[1] = 0;
+	in6_clearscope(nextaddr); /* XXX */
 	ip6->ip6_dst = tmpaddr;
-	if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst))
-		ip6->ip6_dst.s6_addr16[1] = htons(m->m_pkthdr.rcvif->if_index);
 
 #ifdef COMPAT_RFC1883
 	if (rh0->ip6r0_slmap[index / 8] & (1 << (7 - (index % 8))))
@@ -217,4 +228,8 @@ ip6_rthdr0(m, ip6, rh0)
 #endif
 
 	return (-1);			/* m would be freed in ip6_forward() */
+
+  bad:
+	m_freem(m);
+	return (-1);
 }

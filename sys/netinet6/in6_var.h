@@ -613,11 +613,6 @@ void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
 struct inpcb;
-int in6_embedscope __P((struct in6_addr *, const struct sockaddr_in6 *,
-	struct inpcb *, struct ifnet **));
-int in6_recoverscope __P((struct sockaddr_in6 *, const struct in6_addr *,
-	struct ifnet *));
-void in6_clearscope __P((struct in6_addr *));
 int in6_src_ioctl __P((u_long, caddr_t));
 #endif /* _KERNEL */
 
