@@ -229,7 +229,8 @@ product AIRONET PC4800		0x0007 Aironet PC4800 Wireless LAN Adapter
 product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
 
 /* AirVast */
-product AIRVAST WN_100          0x7300 AirVast WN-100 
+product AIRVAST WN_100B         0x0001 AirVast WN-100 (alt)
+product AIRVAST WN_100          0x7300 AirVast WN-100
 
 /* Allied Telesis K.K. */
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
@@ -272,6 +273,7 @@ product	BUFFALO	LPC3_CLX	0x0301	BUFFALO LPC3-CLX Ethernet Adapter
 product BUFFALO LPC4_TX		0x0303	BUFFALO LPC4-TX Fast Ethernet
 product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
 product BUFFALO LPC_CF_CLT	0x0307	BUFFALO LPC-CF-CLT
+product BUFFALO LPC4_CLX	0x0309	BUFFALO LPC4-CLX
 product	BUFFALO	LPC3_CLT	0x030a	BUFFALO LPC3-CLT Ethernet Adapter
 product BUFFALO WLI_CF_S11G	0x030b	BUFFALO AirStation 11Mbps CF WLAN
 
@@ -312,6 +314,7 @@ product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
 product ELSA XI300_IEEE		0x0002 XI300 Wireless LAN
 product ELSA XI800_IEEE		0x0004 XI800 CF Wireless LAN
 product ELSA XI325_IEEE		0x0005 XI325 Wireless LAN
+product ELSA XI330_IEEE		0x0010 XI330 Wireless LAN
 product ELSA WIFI_FLASH		0x0101 802.11b plus 128MB Flash
 
 /* EMTAC */
@@ -332,6 +335,9 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 
 /* Gemplus */
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
+
+/* GlobalVillage */
+product GLOBALVILLAGE LANMODEM	0x0105 GlobalVillage Ethernet + Modem
 
 /* Grey Cell Systems, Ltd */
 product GREY_CELL TDK3000	0x3341 TDK 3000/3400/5670 Fast Ethernet/Modem
@@ -460,11 +466,11 @@ product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
 product OLICOM OC3232		0x3232 GoCard Token Ring 16/4/Modem 336
 
 /* Ositech Products */
-product OSITECH JACK_144	0x0001 Ositech Jack of ??? 14.4
-product OSITECH JACK_288	0x0002 Ositech Jack of ??? 28.8
-product OSITECH JACK_336	0x0007 Ositech Jack of ??? 33.6
-product OSITECH TRUMP_SOD	0x0008 Ositech Seven of Diamonds Ethernet Card
-product OSITECH TRUMP_JOH	0x000a Ositech Jack of Hearts
+product OSITECH JACK_144	0x0001 Jack of Diamonds Ethernet/Modem 14.4
+product OSITECH JACK_288	0x0002 Jack of Diamonds Ethernet/Modem 28.8
+product OSITECH JACK_336	0x0007 Jack of Diamonds Ethernet/Modem 33.6
+product OSITECH TRUMP_SOD	0x0008 Seven of Diamonds Ethernet Card
+product OSITECH TRUMP_JOH	0x000a Jack of Hearts Ethernet/Modem
 
 /* Panasonic Products */
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
@@ -655,8 +661,9 @@ product ALLIEDTELESIS WR211PCM	{ "Allied&spTelesis&spK.K.", "WR211PCM", NULL, NU
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
-product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton Systems Inc. CFLT10N Ethernet
-product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
+product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton CFLT10N
+product BILLIONTON LNA100B	{ "Billionton", "LNA-100B", NULL, NULL } Billionton LNA-100B
+product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton LNT-10TN
 product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
 product COREGA ETHER_PCC_T	{ "corega&spK.K.", "corega&spEther&spPCC-T", NULL, NULL } Corega Ether PCC-T
 product COREGA ETHER_PCC_TD	{ "corega&spK.K.", "corega&spEther&spPCC-TD", NULL, NULL } Corega Ether PCC-TD
@@ -670,7 +677,6 @@ product COREGA WIRELESS_LAN_PCCA_11	{ "corega&spK.K.", "Wireless&spLAN&spPCCA-11
 product COREGA WIRELESS_LAN_PCCB_11	{ "corega_K.K.", "Wireless_LAN_PCCB-11", NULL, NULL } Corega Wireless LAN PCCB-11
 product COREGA WIRELESS_LAN_PCCL_11    { "corega", "WL&spPCCL-11", NULL, NULL } Corega Wireless LAN PCCL-11
 
-product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
 product DLINK DE660		{ "D-Link", "DE-660", NULL, NULL } D-Link DE-660
 product DLINK DE660PLUS		{ "D-Link", "DE-660+", NULL, NULL } D-Link DE-660+
 product DLINK DWL650H		{ "D-Link&spCorporation", "D-Link&spDWL-650H&sp11Mbps&spWLAN&spAdapter", NULL, NULL } D-Link DWL-650H
@@ -711,6 +717,7 @@ product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NU
 product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
 product OEM2 ETHERNET		{ "PCMCIA", "Ethernet", NULL, NULL } NE2000 PC Card
+product OEM2 FAST_ETHERNET	{ "PCMCIA", "FAST&spETHERNET&spCARD", NULL, NULL } NE2000 PC Card
 product OEM2 NE2000		{ "NE2000&spCompatible&spPC&spCard", "PCMCIA", NULL, NULL } Generic NE2000 PC Card
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
