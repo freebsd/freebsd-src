@@ -215,9 +215,11 @@ mb_free_ext(struct mbuf *m)
 
 	/* Free attached storage if this mbuf is the only reference to it. */
 	if (*(m->m_ext.ref_cnt) == 1 ||
-	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 1) {
+	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 0) {
 		switch (m->m_ext.ext_type) {
-		case EXT_CLUSTER:
+		case EXT_CLUSTER:	/* The packet zone is special. */
+			if (*(m->m_ext.ref_cnt) == 0)
+				*(m->m_ext.ref_cnt) = 1;
 			uma_zfree(zone_pack, m);
 			return;		/* Job done. */
 			break;
