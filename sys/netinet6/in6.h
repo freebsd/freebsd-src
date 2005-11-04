@@ -593,10 +593,14 @@ struct ip6_mtuinfo {
 #define IPV6CTL_USE_DEFAULTZONE	39	/* use default scope zone */
 
 #define IPV6CTL_MAXFRAGS	41	/* max fragments */
+#if 0
+#define IPV6CTL_IFQ		42	/* ip6intrq node */
+#define IPV6CTL_ISATAPRTR	43	/* isatap router */
+#endif
+#define IPV6CTL_MCAST_PMTU	44	/* enable pMTU discovery for multicast? */
 
 /* New entries should be added here from current IPV6CTL_MAXID value. */
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
-/* 42-44 is already used in KAME */
 #define IPV6CTL_STEALTH		45
 #define IPV6CTL_MAXID		46
 #endif /* __BSD_VISIBLE */
