@@ -1184,7 +1184,7 @@ devfs_init_rulesets()
 }
 
 # devfs_set_ruleset ruleset [dir]
-#	Sets the default ruleset of dir to ruleset. The ruleset arguement
+#	Sets the default ruleset of dir to ruleset. The ruleset argument
 #	must be a ruleset name as specified in devfs.rules(5) file.
 #	Returns non-zero if it could not set it successfully.
 #
