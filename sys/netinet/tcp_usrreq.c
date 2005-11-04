@@ -65,6 +65,7 @@
 #include <netinet/ip_var.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
@@ -920,6 +921,7 @@ tcp6_connect(tp, nam, td)
 	 * Cannot simply call in_pcbconnect, because there might be an
 	 * earlier incarnation of this same connection still in
 	 * TIME_WAIT state, creating an ADDRINUSE error.
+	 * in6_pcbladdr() also handles scope zone IDs.
 	 */
 	error = in6_pcbladdr(inp, nam, &addr6);
 	if (error)

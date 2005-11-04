@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif /* INET6 */
 
 #ifdef INET
@@ -934,7 +935,9 @@ key_allocsa(family, src, dst, proto, spi)
 	struct secasvar *sav, *match;
 	u_int stateidx, state, tmpidx, matchidx;
 	struct sockaddr_in sin;
+#ifdef INET6
 	struct sockaddr_in6 sin6;
+#endif
 	int s;
 	const u_int *saorder_state_valid;
 	int arraysize;
@@ -954,6 +957,15 @@ key_allocsa(family, src, dst, proto, spi)
 		saorder_state_valid = saorder_state_valid_prefer_new;
 		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
 	}
+
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+#ifdef INET6
+	bzero(&sin6, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_len = sizeof(sin6);
+#endif
 
 	/*
 	 * searching SAD.
@@ -991,31 +1003,23 @@ key_allocsa(family, src, dst, proto, spi)
 		/* check src address */
 		switch (family) {
 		case AF_INET:
-			bzero(&sin, sizeof(sin));
-			sin.sin_family = AF_INET;
-			sin.sin_len = sizeof(sin);
-			bcopy(src, &sin.sin_addr,
-			    sizeof(sin.sin_addr));
+			bcopy(src, &sin.sin_addr, sizeof(sin.sin_addr));
 			if (key_sockaddrcmp((struct sockaddr*)&sin,
 			    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
 				continue;
 
 			break;
+#ifdef INET6
 		case AF_INET6:
-			bzero(&sin6, sizeof(sin6));
-			sin6.sin6_family = AF_INET6;
-			sin6.sin6_len = sizeof(sin6);
 			bcopy(src, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
-			if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)) {
-				/* kame fake scopeid */
-				sin6.sin6_scope_id =
-				    ntohs(sin6.sin6_addr.s6_addr16[1]);
-				sin6.sin6_addr.s6_addr16[1] = 0;
-			}
+			sin6.sin6_scope_id = 0;
+			if (sa6_recoverscope(&sin6))
+				continue;
 			if (key_sockaddrcmp((struct sockaddr *)&sin6,
 			    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
 				continue;
 			break;
+#endif
 		default:
 			ipseclog((LOG_DEBUG, "key_allocsa: "
 			    "unknown address family=%d.\n",
@@ -1027,31 +1031,23 @@ key_allocsa(family, src, dst, proto, spi)
 		/* check dst address */
 		switch (family) {
 		case AF_INET:
-			bzero(&sin, sizeof(sin));
-			sin.sin_family = AF_INET;
-			sin.sin_len = sizeof(sin);
-			bcopy(dst, &sin.sin_addr,
-			    sizeof(sin.sin_addr));
+			bcopy(dst, &sin.sin_addr, sizeof(sin.sin_addr));
 			if (key_sockaddrcmp((struct sockaddr*)&sin,
 			    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
 				continue;
 
 			break;
+#ifdef INET6
 		case AF_INET6:
-			bzero(&sin6, sizeof(sin6));
-			sin6.sin6_family = AF_INET6;
-			sin6.sin6_len = sizeof(sin6);
 			bcopy(dst, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
-			if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)) {
-				/* kame fake scopeid */
-				sin6.sin6_scope_id =
-				    ntohs(sin6.sin6_addr.s6_addr16[1]);
-				sin6.sin6_addr.s6_addr16[1] = 0;
-			}
+			sin6.sin6_scope_id = 0;
+			if (sa6_recoverscope(&sin6))
+				continue;
 			if (key_sockaddrcmp((struct sockaddr *)&sin6,
 			    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
 				continue;
 			break;
+#endif
 		default:
 			ipseclog((LOG_DEBUG, "key_allocsa: "
 			    "unknown address family=%d.\n", family));
@@ -3974,6 +3970,9 @@ key_ismyaddr6(sin6)
 {
 	struct in6_ifaddr *ia;
 	struct in6_multi *in6m;
+
+	if (sa6_embedscope(sin6, 0) != 0)
+		return 0;
 
 	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
@@ -6899,6 +6898,9 @@ key_parse(m, so)
 	u_int orglen;
 	int error;
 	int target;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
 
 	/* sanity check */
 	if (m == NULL || so == NULL)
@@ -7087,6 +7089,19 @@ key_parse(m, so)
 				error = EINVAL;
 				goto senderror;
 			}
+#ifdef INET6
+			/*
+			 * Check validity of the scope zone ID of the
+			 * addresses, and embed the zone ID into the address
+			 * if necessary.
+			 */
+			sin6 = (struct sockaddr_in6 *)PFKEY_ADDR_SADDR(src0);
+			if ((error = sa6_embedscope(sin6, 0)) != 0)
+				goto senderror;
+			sin6 = (struct sockaddr_in6 *)PFKEY_ADDR_SADDR(dst0);
+			if ((error = sa6_embedscope(sin6, 0)) != 0)
+				goto senderror;
+#endif
 			break;
 		default:
 			ipseclog((LOG_DEBUG,

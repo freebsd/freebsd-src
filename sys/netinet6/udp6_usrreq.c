@@ -99,6 +99,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/udp6_var.h>
+#include <netinet6/scope6_var.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -472,6 +473,10 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
+	if ((error = sa6_embedscope(&addrs[0], ip6_use_defzone)) != 0 ||
+	    (error = sa6_embedscope(&addrs[1], ip6_use_defzone)) != 0) {
+		return (error);
+	}
 	s = splnet();
 	inp = in6_pcblookup_hash(&udbinfo, &addrs[1].sin6_addr,
 				 addrs[1].sin6_port,

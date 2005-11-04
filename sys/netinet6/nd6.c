@@ -63,6 +63,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
 
@@ -444,19 +445,14 @@ nd6_timer(ignored_arg)
 			} else {
 				struct mbuf *m = ln->ln_hold;
 				if (m) {
-					if (rt->rt_ifp) {
-						/*
-						 * Fake rcvif to make ICMP error
-						 * more helpful in diagnosing
-						 * for the receiver.
-						 * XXX: should we consider
-						 * older rcvif?
-						 */
-						m->m_pkthdr.rcvif = rt->rt_ifp;
-					}
-					icmp6_error(m, ICMP6_DST_UNREACH,
-						    ICMP6_DST_UNREACH_ADDR, 0);
+					/*
+					 * assuming every packet in ln_hold has
+					 * the same IP header
+					 */
 					ln->ln_hold = NULL;
+					icmp6_error2(m, ICMP6_DST_UNREACH,
+						     ICMP6_DST_UNREACH_ADDR, 0,
+						     rt->rt_ifp);
 				}
 				next = nd6_free(rt);
 			}
@@ -869,13 +865,26 @@ nd6_is_new_addr_neighbor(addr, ifp)
 
 	/*
 	 * A link-local address is always a neighbor.
-	 * XXX: we should use the sin6_scope_id field rather than the embedded
-	 * interface index.
 	 * XXX: a link does not necessarily specify a single interface.
 	 */
-	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr) &&
-	    ntohs(*(u_int16_t *)&addr->sin6_addr.s6_addr[2]) == ifp->if_index)
-		return (1);
+	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr)) {
+		struct sockaddr_in6 sin6_copy;
+		u_int32_t zone;
+
+		/*
+		 * We need sin6_copy since sa6_recoverscope() may modify the
+		 * content (XXX).
+		 */
+		sin6_copy = *addr;
+		if (sa6_recoverscope(&sin6_copy))
+			return (0); /* XXX: should be impossible */
+		if (in6_setscope(&sin6_copy.sin6_addr, ifp, &zone))
+			return (0);
+		if (sin6_copy.sin6_scope_id == zone)
+			return (1);
+		else
+			return (0);
+	}
 
 	/*
 	 * If the address matches one of our addresses,
@@ -1282,11 +1291,11 @@ nd6_rtrequest(req, rt, info)
 
 				llsol = SIN6(rt_key(rt))->sin6_addr;
 				llsol.s6_addr16[0] = htons(0xff02);
-				llsol.s6_addr16[1] = htons(ifp->if_index);
 				llsol.s6_addr32[1] = 0;
 				llsol.s6_addr32[2] = htonl(1);
 				llsol.s6_addr8[12] = 0xff;
-
+				if (in6_setscope(&llsol, ifp, NULL))
+					break;
 				if (!in6_addmulti(&llsol, ifp, &error)) {
 					nd6log((LOG_ERR, "%s: failed to join "
 					    "%s (errno=%d)\n", if_name(ifp),
@@ -1307,14 +1316,15 @@ nd6_rtrequest(req, rt, info)
 
 			llsol = SIN6(rt_key(rt))->sin6_addr;
 			llsol.s6_addr16[0] = htons(0xff02);
-			llsol.s6_addr16[1] = htons(ifp->if_index);
 			llsol.s6_addr32[1] = 0;
 			llsol.s6_addr32[2] = htonl(1);
 			llsol.s6_addr8[12] = 0xff;
-
-			IN6_LOOKUP_MULTI(llsol, ifp, in6m);
-			if (in6m)
-				in6_delmulti(in6m);
+			if (in6_setscope(&llsol, ifp, NULL) == 0) {
+				IN6_LOOKUP_MULTI(llsol, ifp, in6m);
+				if (in6m)
+					in6_delmulti(in6m);
+			} else
+				; /* XXX: should not happen. bark here? */
 		}
 		nd6_inuse--;
 		ln->ln_next->ln_prev = ln->ln_prev;
@@ -1386,8 +1396,7 @@ nd6_ioctl(cmd, data, ifp)
 			struct nd_pfxrouter *pfr;
 			int j;
 
-			(void)in6_embedscope(&oprl->prefix[i].prefix,
-			    &pr->ndpr_prefix, NULL, NULL);
+			oprl->prefix[i].prefix = pr->ndpr_prefix.sin6_addr;
 			oprl->prefix[i].raflags = pr->ndpr_raf;
 			oprl->prefix[i].prefixlen = pr->ndpr_plen;
 			oprl->prefix[i].vltime = pr->ndpr_vltime;
@@ -1501,17 +1510,8 @@ nd6_ioctl(cmd, data, ifp)
 		struct llinfo_nd6 *ln;
 		struct in6_addr nb_addr = nbi->addr; /* make local for safety */
 
-		/*
-		 * XXX: KAME specific hack for scoped addresses
-		 *      XXXX: for other scopes than link-local?
-		 */
-		if (IN6_IS_ADDR_LINKLOCAL(&nbi->addr) ||
-		    IN6_IS_ADDR_MC_LINKLOCAL(&nbi->addr)) {
-			u_int16_t *idp = (u_int16_t *)&nb_addr.s6_addr[2];
-
-			if (*idp == 0)
-				*idp = htons(ifp->if_index);
-		}
+		if ((error = in6_setscope(&nb_addr, ifp, NULL)) != 0)
+			return (error);
 
 		s = splnet();
 		if ((rt = nd6_lookup(&nb_addr, 0, ifp)) == NULL) {
@@ -2130,12 +2130,13 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 			bzero(d, sizeof(*d));
 			d->rtaddr.sin6_family = AF_INET6;
 			d->rtaddr.sin6_len = sizeof(d->rtaddr);
-			if (in6_recoverscope(&d->rtaddr, &dr->rtaddr,
-			    dr->ifp) != 0)
+			d->rtaddr.sin6_addr = dr->rtaddr;
+			if (sa6_recoverscope(&d->rtaddr)) {
 				log(LOG_ERR,
-				    "scope error in "
-				    "default router list (%s)\n",
-				    ip6_sprintf(&dr->rtaddr));
+				    "scope error in router list (%s)\n",
+				    ip6_sprintf(&d->rtaddr.sin6_addr));
+				/* XXX: press on... */
+			}
 			d->flags = dr->flags;
 			d->rtlifetime = dr->rtlifetime;
 			d->expire = dr->expire;
@@ -2177,11 +2178,12 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			sin6 = (struct sockaddr_in6 *)(p + 1);
 
 			p->prefix = pr->ndpr_prefix;
-			if (in6_recoverscope(&p->prefix,
-			    &p->prefix.sin6_addr, pr->ndpr_ifp) != 0)
+			if (sa6_recoverscope(&p->prefix)) {
 				log(LOG_ERR,
 				    "scope error in prefix list (%s)\n",
 				    ip6_sprintf(&p->prefix.sin6_addr));
+				/* XXX: press on... */
+			}
 			p->raflags = pr->ndpr_raf;
 			p->prefixlen = pr->ndpr_plen;
 			p->vltime = pr->ndpr_vltime;
@@ -2202,12 +2204,13 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 				bzero(s6, sizeof(*s6));
 				s6->sin6_family = AF_INET6;
 				s6->sin6_len = sizeof(*sin6);
-				if (in6_recoverscope(s6, &pfr->router->rtaddr,
-				    pfr->router->ifp) != 0)
+				s6->sin6_addr = pfr->router->rtaddr;
+				if (sa6_recoverscope(s6)) {
 					log(LOG_ERR,
 					    "scope error in "
 					    "prefix list (%s)\n",
 					    ip6_sprintf(&pfr->router->rtaddr));
+				}
 				advrtrs++;
 			}
 			p->advrtrs = advrtrs;

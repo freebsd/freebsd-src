@@ -446,6 +446,8 @@ SYSCTL_STRUCT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats, CTLFLAG_RD,
 	&rip6stat, rip6stat, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR,
 	prefer_tempaddr, CTLFLAG_RW, &ip6_prefer_tempaddr,	0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE,
+	use_defaultzone, CTLFLAG_RW, &ip6_use_defzone,		0,"");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS,
 	maxfrags, CTLFLAG_RW,		&ip6_maxfrags,	0, "");
 #ifdef IPSTEALTH
