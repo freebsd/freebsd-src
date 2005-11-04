@@ -487,8 +487,7 @@ AcpiRsGetListLength (
                  * Get the number of bits set in the IRQ word
                  */
                 ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
-                ExtraStructBytes = (AcpiRsCountSetBits (Temp16) *
-                                        sizeof (UINT32));
+                ExtraStructBytes = AcpiRsCountSetBits (Temp16);
                 break;
 
 
@@ -497,9 +496,7 @@ AcpiRsGetListLength (
                  * DMA Resource:
                  * Get the number of bits set in the DMA channels byte
                  */
-                ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
-                ExtraStructBytes = (AcpiRsCountSetBits (Temp16) *
-                                        sizeof (UINT32));
+                ExtraStructBytes = AcpiRsCountSetBits (*Buffer);
                 break;
 
 
@@ -596,7 +593,7 @@ AcpiRsGetListLength (
         /* Update the required buffer size for the internal descriptor structs */
 
         Temp16 = (UINT16) (ResourceInfo->MinimumInternalStructLength +  ExtraStructBytes);
-        BufferSize += (UINT32) ACPI_ALIGN_RESOURCE_SIZE (Temp16);
+        BufferSize += (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (Temp16);
 
         /*
          * Update byte count and point to the next resource within the stream
