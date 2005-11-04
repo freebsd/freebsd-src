@@ -298,8 +298,6 @@ in_control(so, cmd, data, ifp, td)
 			 * while we're modifying it.
 			 */
 			s = splnet();
-			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
-
 			ifa = &ia->ia_ifa;
 			IFA_LOCK_INIT(ifa);
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
@@ -315,6 +313,8 @@ in_control(so, cmd, data, ifp, td)
 				ia->ia_broadaddr.sin_family = AF_INET;
 			}
 			ia->ia_ifp = ifp;
+
+			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
 			splx(s);
 			iaIsNew = 1;
 		}
@@ -781,7 +781,7 @@ in_addprefix(target, flags)
 	int flags;
 {
 	struct in_ifaddr *ia;
-	struct in_addr prefix, mask, p;
+	struct in_addr prefix, mask, p, m;
 	int error;
 
 	if ((flags & RTF_HOST) != 0)
@@ -793,15 +793,20 @@ in_addprefix(target, flags)
 	}
 
 	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
-		if (rtinitflags(ia))
-			p = ia->ia_dstaddr.sin_addr;
-		else {
+		if (rtinitflags(ia)) {
 			p = ia->ia_addr.sin_addr;
-			p.s_addr &= ia->ia_sockmask.sin_addr.s_addr;
-		}
 
-		if (prefix.s_addr != p.s_addr)
-			continue;
+			if (prefix.s_addr != p.s_addr)
+				continue;
+		} else {
+			p = ia->ia_addr.sin_addr;
+			m = ia->ia_sockmask.sin_addr;
+			p.s_addr &= m.s_addr;
+
+			if (prefix.s_addr != p.s_addr ||
+			    mask.s_addr != m.s_addr)
+				continue;
+		}
 
 		/*
 		 * If we got a matching prefix route inserted by other
