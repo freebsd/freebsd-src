@@ -81,7 +81,9 @@ vx_pci_shutdown(device_t dev)
 	struct vx_softc *sc;
 
 	sc = device_get_softc(dev);
-	vxstop(sc);
+	VX_LOCK(sc);
+	vx_stop(sc);
+	VX_UNLOCK(sc);
 }
 
 static int
@@ -131,8 +133,8 @@ vx_pci_attach(device_t dev)
 	if (sc->vx_res == NULL)
 		goto bad;
 
-	sc->bst = rman_get_bustag(sc->vx_res);
-	sc->bsh = rman_get_bushandle(sc->vx_res);
+	sc->vx_bst = rman_get_bustag(sc->vx_res);
+	sc->vx_bsh = rman_get_bushandle(sc->vx_res);
 
 	rid = 0;
 	sc->vx_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -141,27 +143,30 @@ vx_pci_attach(device_t dev)
 	if (sc->vx_irq == NULL)
 		goto bad;
 
-	if (bus_setup_intr(dev, sc->vx_irq, INTR_TYPE_NET,
-	    vxintr, sc, &sc->vx_intrhand))
+	if (vx_attach(dev) == 0)
 		goto bad;
 
-	if (vxattach(dev) == 0)
-		goto bad;
+	if (bus_setup_intr(dev, sc->vx_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    vx_intr, sc, &sc->vx_intrhand))
+		goto bad_mtx;
 
 	/* defect check for 3C590 */
 	if ((pci_read_config(dev, PCIR_DEVVENDOR, 4) >> 16) == 0x5900) {
 		GO_WINDOW(0);
-		if (vxbusyeeprom(sc))
-			goto bad;
+		if (vx_busy_eeprom(sc))
+			goto bad_mtx;
 		CSR_WRITE_2(sc, VX_W0_EEPROM_COMMAND,
 		    EEPROM_CMD_RD | EEPROM_SOFTINFO2);
-		if (vxbusyeeprom(sc))
-			goto bad;
+		if (vx_busy_eeprom(sc))
+			goto bad_mtx;
 		if (!(CSR_READ_2(sc, VX_W0_EEPROM_DATA) & NO_RX_OVN_ANOMALY))
-			printf("Warning! Defective early revision adapter!\n");
+			device_printf(dev,
+			    "Warning! Defective early revision adapter!\n");
 	}
 	return (0);
 
+bad_mtx:
+	mtx_destroy(&sc->vx_mtx);
 bad:
 	if (sc->vx_intrhand != NULL)
 		bus_teardown_intr(dev, sc->vx_irq, sc->vx_intrhand);
