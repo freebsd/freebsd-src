@@ -1785,7 +1785,7 @@ sigqueue(struct thread *td, struct sigqueue_args *uap)
 		ksi.ksi_code = SI_QUEUE;
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
-		ksi.ksi_value.sigval_ptr = uap->value;
+		ksi.ksi_value.sival_ptr = uap->value;
 		error = tdsignal(p, NULL, ksi.ksi_signo, &ksi);
 	}
 	PROC_UNLOCK(p);
