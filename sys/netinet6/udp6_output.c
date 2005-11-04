@@ -141,7 +141,7 @@ udp6_output(in6p, m, addr6, control, td)
 		priv = 1;
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
-		    in6p->in6p_outputopts, priv, 0, IPPROTO_UDP)) != 0)
+		    in6p->in6p_outputopts, priv, IPPROTO_UDP)) != 0)
 			goto release;
 		optp = &opt;
 	} else
