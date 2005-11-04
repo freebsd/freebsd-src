@@ -114,7 +114,6 @@ vx_eisa_attach(device_t dev)
 	struct resource *eisa_io = 0;
 	struct resource *irq = 0;
 	int rid;
-	void *ih;
 
 	/*
          * The addresses are sorted in increasing order
@@ -136,8 +135,8 @@ vx_eisa_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->vx_res = io;
-	sc->bst = rman_get_bustag(io);
-	sc->bsh = rman_get_bushandle(io);
+	sc->vx_bst = rman_get_bustag(io);
+	sc->vx_bsh = rman_get_bushandle(io);
 
 	rid = 0;
 	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
@@ -149,15 +148,17 @@ vx_eisa_attach(device_t dev)
 
 	/* Now the registers are availible through the lower ioport */
 
-	vxattach(dev);
-
-	if (bus_setup_intr(dev, irq, INTR_TYPE_NET, vxintr, sc, &ih))
+	if (vx_attach(dev) == 0)
 		goto bad;
 
-	sc->vx_intrhand = ih;
+	if (bus_setup_intr(dev, irq, INTR_TYPE_NET | INTR_MPSAFE, vx_intr, sc,
+		&sc->vx_intrhand))
+		goto bad_mtx;
 
-	return 0;
+	return (0);
 
+bad_mtx:
+	mtx_destroy(&sc->vx_mtx);
 bad:
 	if (io)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
@@ -165,7 +166,7 @@ bad:
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
 	if (irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-	return -1;
+	return (ENXIO);
 }
 
 static device_method_t vx_eisa_methods[] = {
