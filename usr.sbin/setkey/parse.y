@@ -1053,7 +1053,7 @@ setkeymsg_add(type, satype, srcs, dsts)
 		m_lt.sadb_lifetime_usetime = 0;
 
 		memcpy(buf + l, &m_lt, slen);
-		l += len;
+		l += slen;
 	}
 
 	/* set lifetime for SOFT */
@@ -1069,7 +1069,7 @@ setkeymsg_add(type, satype, srcs, dsts)
 		m_lt.sadb_lifetime_usetime = 0;
 
 		memcpy(buf + l, &m_lt, slen);
-		l += len;
+		l += slen;
 	}
 
 	len = sizeof(struct sadb_sa);
