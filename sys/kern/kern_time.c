@@ -1028,7 +1028,7 @@ kern_timer_create(struct thread *td, clockid_t clock_id,
 			it->it_sigev.sigev_signo = SIGPROF;
 			break;
 		}
-		it->it_sigev.sigev_value.sigval_int = id;
+		it->it_sigev.sigev_value.sival_int = id;
 	}
 
 	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL ||
