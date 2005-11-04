@@ -534,7 +534,7 @@ struct	in6_multistep {
 /*
  * Macros for looking up the in6_multi record for a given IP6 multicast
  * address on a given interface. If no matching record is found, "in6m"
- * returns NLL.
+ * returns NULL.
  */
 
 #define IN6_LOOKUP_MULTI(addr, ifp, in6m)			\
