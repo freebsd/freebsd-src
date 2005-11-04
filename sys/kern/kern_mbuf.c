@@ -395,11 +395,10 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 static void
 mb_dtor_clust(void *mem, int size, void *arg)
 {
-	u_int *refcnt;
 
-	refcnt = uma_find_refcnt(zone_clust, mem);
-	KASSERT(*refcnt == 1, ("%s: refcnt incorrect %u", __func__, *refcnt));
-	*refcnt = 0;
+	KASSERT(*(uma_find_refcnt(zone_clust, mem)) <= 1,
+		("%s: refcnt incorrect %u", __func__,
+		 *(uma_find_refcnt(zone_clust, mem))) );
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
