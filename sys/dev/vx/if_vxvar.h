@@ -35,42 +35,45 @@
  * Ethernet software status per interface.
  */
 struct vx_softc {
-	struct ifnet *ifp;
-	int unit;			/* unit number                   */
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
+	struct ifnet *vx_ifp;
+	bus_space_tag_t vx_bst;
+	bus_space_handle_t vx_bsh;
 	void *vx_intrhand;
 	struct resource *vx_irq;
 	struct resource *vx_res;
 #define MAX_MBS  8			/* # of mbufs we keep around	 */
-	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
-	int next_mb;			/* Which mbuf to use next. 	 */
-	int last_mb;			/* Last mbuf.			 */
+	struct mbuf *vx_mb[MAX_MBS];	/* spare mbuf storage.		 */
+	int vx_next_mb;			/* Which mbuf to use next. 	 */
+	int vx_last_mb;			/* Last mbuf.			 */
 	char vx_connectors;		/* Connectors on this card.	 */
 	char vx_connector;		/* Connector to use.		 */
-	short tx_start_thresh;		/* Current TX_start_thresh.	 */
-	int tx_succ_ok;			/* # packets sent in sequence	 */
+	short vx_tx_start_thresh;	/* Current TX_start_thresh.	 */
+	int vx_tx_succ_ok;		/* # packets sent in sequence	 */
 					/* w/o underrun			 */
-	struct callout_handle ch;	/* Callout handle for timeouts  */
-	int buffill_pending;
+	struct callout vx_callout;	/* Callout for timeouts		 */
+	struct mtx vx_mtx;
+	int vx_buffill_pending;
 };
 
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->bst, sc->bsh, reg, val)
+	bus_space_write_4(sc->vx_bst, sc->vx_bsh, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->bst, sc->bsh, reg, val)
+	bus_space_write_2(sc->vx_bst, sc->vx_bsh, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->bst, sc->bsh, reg, val)
+	bus_space_write_1(sc->vx_bst, sc->vx_bsh, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->bst, sc->bsh, reg)
+	bus_space_read_4(sc->vx_bst, sc->vx_bsh, reg)
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->bst, sc->bsh, reg)
+	bus_space_read_2(sc->vx_bst, sc->vx_bsh, reg)
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->bst, sc->bsh, reg)
+	bus_space_read_1(sc->vx_bst, sc->vx_bsh, reg)
 
-extern void vxfree(struct vx_softc *);
-extern int vxattach(device_t);
-extern void vxstop(struct vx_softc *);
-extern void vxintr(void *);
-extern int vxbusyeeprom(struct vx_softc *);
+#define	VX_LOCK(sc)		mtx_lock(&(sc)->vx_mtx)
+#define	VX_UNLOCK(sc)		mtx_unlock(&(sc)->vx_mtx)
+#define	VX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->vx_mtx, MA_OWNED)
+
+int	vx_attach(device_t);
+void	vx_stop(struct vx_softc *);
+void	vx_intr(void *);
+int	vx_busy_eeprom(struct vx_softc *);
