@@ -752,7 +752,7 @@ siginfo_to_ia32siginfo(siginfo_t *src, struct ia32_siginfo *dst)
 	dst->si_uid = src->si_uid;
 	dst->si_status = src->si_status;
 	dst->si_addr = dst->si_addr;
-	dst->si_value.sigval_int = src->si_value.sigval_int;
+	dst->si_value.sigval_int = src->si_value.sival_int;
 	dst->si_band = src->si_band;
 	dst->__spare__[0] = src->si_trapno;
 }
