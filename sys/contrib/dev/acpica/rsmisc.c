@@ -329,7 +329,7 @@ AcpiRsConvertAmlToResource (
             ItemCount = AcpiRsDecodeBitmask (*((UINT8 *) Source), Destination);
             if (ItemCount)
             {
-                Resource->Length += Resource->Length + (ItemCount - 1);
+                Resource->Length += (ItemCount - 1);
             }
 
             Target = ((char *) Resource) + Info->Value;
@@ -346,7 +346,7 @@ AcpiRsConvertAmlToResource (
             ItemCount = AcpiRsDecodeBitmask (Temp16, Destination);
             if (ItemCount)
             {
-                Resource->Length = Resource->Length + (ItemCount - 1);
+                Resource->Length += (ItemCount - 1);
             }
 
             Target = ((char *) Resource) + Info->Value;
