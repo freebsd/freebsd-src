@@ -93,6 +93,7 @@ ed_isa_probe_Novell(device_t dev)
 static int
 ed_isa_probe(device_t dev)
 {
+	struct ed_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
 	int error = 0;
 
@@ -114,6 +115,13 @@ ed_isa_probe(device_t dev)
 		goto end;
 	ed_release_resources(dev);
 
+	error = ed_probe_RTL80x9(dev, 0, flags);
+	if (error == 0) {
+		ed_Novell_read_mac(sc);
+		goto end;
+	}
+	ed_release_resources(dev);
+	
 #ifdef ED_3C503
 	error = ed_probe_3Com(dev, 0, flags);
 	if (error == 0)
