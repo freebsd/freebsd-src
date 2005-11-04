@@ -152,8 +152,6 @@ __FBSDID("$FreeBSD$");
 #define PMAP_DIAGNOSTIC
 #endif
 
-#define MINPV 2048
-
 #if !defined(PMAP_DIAGNOSTIC)
 #define PMAP_INLINE __inline
 #else
@@ -567,30 +565,25 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
-
-	/*
-	 * init the pv free list
-	 */
-	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_prealloc(pvzone, MINPV);
-}
-
-/*
- * Initialize the address space (zone) for the pv_entries.  Set a
- * high water mark so that the system can recover from excessive
- * numbers of pv entries.
- */
-void
-pmap_init2()
-{
 	int shpgperproc = PMAP_SHPGPERPROC;
 
+	/*
+	 * Initialize the address space (zone) for the pv entries.  Set a
+	 * high water mark so that the system can recover from excessive
+	 * numbers of pv entries.
+	 */
+	pvzone = uma_zcreate("PV ENTRY", sizeof(struct pv_entry), NULL, NULL, 
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
+	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+}
+
+void
+pmap_init2()
+{
 }
 
 
@@ -1442,8 +1435,7 @@ static pv_entry_t
 get_pv_entry(void)
 {
 	pv_entry_count++;
-	if (pv_entry_high_water &&
-		(pv_entry_count > pv_entry_high_water) &&
+	if ((pv_entry_count > pv_entry_high_water) &&
 		(pmap_pagedaemon_waken == 0)) {
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
