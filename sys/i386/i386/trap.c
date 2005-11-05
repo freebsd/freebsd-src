@@ -185,6 +185,7 @@ trap(frame)
 	PCPU_LAZY_INC(cnt.v_trap);
 	type = frame.tf_trapno;
 
+#ifdef SMP
 #ifdef STOP_NMI
 	/* Handler for NMI IPIs used for stopping CPUs. */
 	if (type == T_NMI) {
@@ -192,6 +193,7 @@ trap(frame)
 	                   goto out;
 	}
 #endif /* STOP_NMI */
+#endif /* SMP */
 
 #ifdef KDB
 	if (kdb_active) {
