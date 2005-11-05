@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 /*
@@ -116,6 +116,7 @@ static int		 cpu_quirks;	/* Indicate any hardware bugs. */
 /* Runtime state. */
 static int		 cpu_cx_count;	/* Number of valid states */
 static int		 cpu_non_c3;	/* Index of lowest non-C3 state. */
+static int		 cpu_short_slp;	/* Count of < 1us sleeps. */
 static u_int		 cpu_cx_stats[MAX_CX_STATES];/* Cx usage history. */
 
 /* Values for sysctl. */
@@ -599,7 +600,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    acpi_PkgInt32(pkg, 2, &cx_ptr->trans_lat) != 0 ||
 	    acpi_PkgInt32(pkg, 3, &cx_ptr->power) != 0) {
 
-	    device_printf(sc->cpu_dev, "Skipping invalid Cx state package\n");
+	    device_printf(sc->cpu_dev, "skipping invalid Cx state package\n");
 	    continue;
 	}
 
@@ -779,12 +780,32 @@ acpi_cpu_idle()
      * the length of our last sleep.
      */
     cx_next_idx = cpu_cx_lowest;
-    if (sc->cpu_prev_sleep < 100)
+    if (sc->cpu_prev_sleep < 100) {
+	/*
+	 * If we sleep too short all the time, this system may not implement
+	 * C2/3 correctly (i.e. reads return immediately).  In this case,
+	 * back off and use the next higher level.
+	 */
+	if (sc->cpu_prev_sleep <= 1) {
+	    cpu_short_slp++;
+	    if (cpu_short_slp == 1000 && cpu_cx_lowest != 0) {
+		if (cpu_non_c3 == cpu_cx_lowest && cpu_non_c3 != 0)
+		    cpu_non_c3--;
+		cpu_cx_lowest--;
+		cpu_short_slp = 0;
+		device_printf(sc->cpu_dev,
+		    "too many short sleeps, backing off to C%d\n",
+		    cpu_cx_lowest + 1);
+	    }
+	} else
+	    cpu_short_slp = 0;
+
 	for (i = cpu_cx_lowest; i >= 0; i--)
 	    if (sc->cpu_cx_states[i].trans_lat <= sc->cpu_prev_sleep) {
 		cx_next_idx = i;
 		break;
 	    }
+    }
 
     /*
      * Check for bus master activity.  If there was activity, clear
@@ -855,11 +876,11 @@ acpi_cpu_idle()
 	AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
 	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 0, ACPI_MTX_DO_NOT_LOCK);
     }
+    ACPI_ENABLE_IRQS();
 
     /* Find the actual time asleep in microseconds, minus overhead. */
     end_time = acpi_TimerDelta(end_time, start_time);
     sc->cpu_prev_sleep = PM_USEC(end_time) - cx_next->trans_lat;
-    ACPI_ENABLE_IRQS();
 }
 
 /*
