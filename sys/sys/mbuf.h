@@ -187,6 +187,7 @@ struct mbuf {
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
 #define	EXT_JUMBO9	3	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	4	/* jumbo cluster 16184 bytes */
+#define	EXT_PACKET	5	/* mbuf+cluster from packet zone */
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
