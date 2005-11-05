@@ -105,6 +105,16 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
+    <para>(2005/11/5)
+      Distribution of 6.0-RELEASE contains <filename>CHECKSUM.MD5</filename>
+      and <filename>CHECKSUM.SHA256</filename> files for protecting
+      the integrity of data.  However, these files in 6.0-RELEASE erroneously
+      include checksums for the checksum files themselves.
+      Although the checksums look like wrong, they can be safely ignored
+      because a checksum for the checksum file never corresponds
+      to one in the file.  This problem will be fixed in the next
+      releases.</para>
+
     <para>(2005/11/5, &os;/amd64 specific)
       The &man.pmcstat.8; utility cannot yet handle 32-bit
       executables when converting &man.hwpmc.4; log
