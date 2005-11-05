@@ -105,6 +105,49 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
+    <para>(2005/11/5, &os;/amd64 specific)
+      The &man.pmcstat.8; utility cannot yet handle 32-bit
+      executables when converting &man.hwpmc.4; log
+      files to &man.gprof.1; format.</para>
+
+    <para>(2005/11/5, &os;/powerpc specific)
+      The following panic may occur at boot-time on some older
+      PowerMac G4 systems:</para>
+
+<screen>...
+KDB: current backend: ddb
+panic: Assertion curthread != NULL failed at
+/usr/src/sys/kern/kern_mutex.c:268
+KDB: enter panic</screen>
+
+    <para>This is a known problem with no workaround, and will be fixed in the
+      next release.</para>
+
+    <para>(2005/11/5)
+      Changes of on-disk format of <filename>/usr/share/locale/*/LC_*</filename>
+      files in 6.0-RELEASE prevent third-party software which uses
+      &man.setlocale.3; for its localization from working after
+      a 5.x system upgraded.  The software includes ones installed
+      into the 5.x system by using &os; Ports Collection and so on.
+      To solve this problem, perform one of the following:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Install misc/compat5x package into the upgraded 6.0 system.
+	  This package installs a library <filename>lib/compat/libc.so.5</filename>
+	  which makes the software complied in a 5.x system use
+	  the old locale files to keep compatibility.
+	  Note that you need to remove <filename>/lib/libc.so.5</filename>
+	  after upgrading.</para>
+
+	<para>This package is available only for Tier-1 platforms.</para>
+      </listitem>
+
+      <listitem>
+	<para>Recompile the software on the 6.0 system.</para>
+      </listitem>
+    </itemizedlist>
+
     <para>(2005/10/3)
       At boot time the &os;/sparc64 GENERIC kernel may
       output the following messages when the machine has
