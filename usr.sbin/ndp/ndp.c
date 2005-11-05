@@ -142,7 +142,6 @@ void ifinfo __P((char *, int, char **));
 void rtrlist __P((void));
 void plist __P((void));
 void pfx_flush __P((void));
-void rtrlist __P((void));
 void rtr_flush __P((void));
 void harmonize_rtr __P((void));
 #ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
@@ -1047,6 +1046,8 @@ ifinfo(ifname, argc, argv)
 				printf("\nRandom ID:      ");
 				rbuf = ND.randomid;
 				break;
+			default:
+				errx(1, "impossible case for tempaddr display");
 			}
 			for (j = 0; j < 8; j++)
 				printf("%02x", rbuf[j]);
@@ -1094,6 +1095,8 @@ rtrlist()
 		err(1, "sysctl(ICMPV6CTL_ND6_DRLIST)");
 		/*NOTREACHED*/
 	}
+	if (l == 0)
+		return;
 	buf = malloc(l);
 	if (!buf) {
 		err(1, "malloc");
