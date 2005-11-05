@@ -143,8 +143,9 @@ device		sc
 
 device		mcclock		# MC146818 real time clock device
 
-# Serial (COM) ports (required)
+# Serial (COM) ports
 device		sio		# 8250, 16[45]50 based serial ports
+device		uart		# Generic UART driver
 
 # Parallel port
 device		ppc
@@ -155,7 +156,7 @@ device		ppi		# Parallel port interface device
 
 # If you've got a "dumb" serial or parallel PCI card that is
 # supported by the puc(4) glue driver, uncomment the following
-# line to enable it (connects to the sio and/or ppc drivers):
+# line to enable it (connects to sio, uart and/or ppc drivers):
 #device		puc
 
 # PCI Ethernet NICs.
