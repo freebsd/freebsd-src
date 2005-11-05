@@ -1426,6 +1426,7 @@ nd6_ioctl(cmd, data, ifp)
 
 		break;
 	case OSIOCGIFINFO_IN6:
+#define ND	ndi->ndi
 		/* XXX: old ndp(8) assumes a positive value for linkmtu. */
 		bzero(&ndi->ndi, sizeof(ndi->ndi));
 		ndi->ndi.linkmtu = IN6_LINKMTU(ifp);
@@ -1441,9 +1442,38 @@ nd6_ioctl(cmd, data, ifp)
 		ndi->ndi = *ND_IFINFO(ifp);
 		ndi->ndi.linkmtu = IN6_LINKMTU(ifp);
 		break;
+	case SIOCSIFINFO_IN6:
+		/*
+		 * used to change host variables from userland.
+		 * intented for a use on router to reflect RA configurations.
+		 */
+		/* 0 means 'unspecified' */
+		if (ND.linkmtu != 0) {
+			if (ND.linkmtu < IPV6_MMTU ||
+			    ND.linkmtu > IN6_LINKMTU(ifp)) {
+				error = EINVAL;
+				break;
+			}
+			ND_IFINFO(ifp)->linkmtu = ND.linkmtu;
+		}
+
+		if (ND.basereachable != 0) {
+			int obasereachable = ND_IFINFO(ifp)->basereachable;
+
+			ND_IFINFO(ifp)->basereachable = ND.basereachable;
+			if (ND.basereachable != obasereachable)
+				ND_IFINFO(ifp)->reachable =
+				    ND_COMPUTE_RTIME(ND.basereachable);
+		}
+		if (ND.retrans != 0)
+			ND_IFINFO(ifp)->retrans = ND.retrans;
+		if (ND.chlim != 0)
+			ND_IFINFO(ifp)->chlim = ND.chlim;
+		/* FALLTHROUGH */
 	case SIOCSIFINFO_FLAGS:
 		ND_IFINFO(ifp)->flags = ndi->ndi.flags;
 		break;
+#undef ND
 	case SIOCSNDFLUSH_IN6:	/* XXX: the ioctl name is confusing... */
 		/* flush default router list */
 		/*

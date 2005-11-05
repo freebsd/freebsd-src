@@ -63,7 +63,7 @@
 .Op Fl nt
 .Fl i
 .Ar interface
-.Op Ar flags ...
+.Op Ar expressions ...
 .Nm
 .Op Fl nt
 .Fl I Op Ar interface | Li delete
@@ -153,19 +153,20 @@ The
 will be used as the default.
 .It Fl I Li delete
 The current default interface will be deleted from the kernel.
-.It Fl i Ar interface Op Ar flags ...
+.It Fl i Ar interface Op Ar expressions ...
 View ND information for the specified interface.
 If additional arguments
-.Ar flags
+.Ar expressions
 are given,
 .Nm
-sets or clears the specified flags for the interface.
-Each flag should be separated by white spaces or tab characters.
-Possible flags are as follows.
-All of the flags can begin with the
+sets or clears the flags or variables for the interface as specified in
+the expression.
+Each expression should be separated by white spaces or tab characters.
+Possible expressions are as follows.
+Some of the expressions can begin with the
 special character
 .Ql - ,
-which means the flag should be cleared.
+which means the flag specified in the expression should be cleared.
 Note that you need
 .Fl -
 before
@@ -209,6 +210,18 @@ a certain failure of Duplicate Address Detection.
 While the flag can be set or cleared by hand with the
 .Nm
 command, it is not generally advisable to modify this flag manually.
+.It Xo
+.Ic basereachable=(number)
+.Xc
+Specify the BaseReachbleTimer on the interface in millisecond.
+.It Xo
+.Ic retrans=(number)
+.Xc
+Specify the RetransTimer on the interface in millisecond.
+.It Xo
+.Ic curhlim=(number)
+.Xc
+Specify the Cur Hop Limit on the interface.
 .El
 .It Fl n
 Do not try to resolve numeric addresses to hostnames.
