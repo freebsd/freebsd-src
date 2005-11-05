@@ -846,7 +846,7 @@ isa_irq_pending(void)
 }
 #endif
 
-#define PHYSMAP_SIZE	(2 * 8)
+#define PHYSMAP_SIZE	(2 * 20)
 
 u_int basemem;
 
