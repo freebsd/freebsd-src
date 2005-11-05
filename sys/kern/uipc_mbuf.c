@@ -217,11 +217,13 @@ mb_free_ext(struct mbuf *m)
 	if (*(m->m_ext.ref_cnt) == 1 ||
 	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 0) {
 		switch (m->m_ext.ext_type) {
-		case EXT_CLUSTER:	/* The packet zone is special. */
+		case EXT_PACKET:	/* The packet zone is special. */
 			if (*(m->m_ext.ref_cnt) == 0)
 				*(m->m_ext.ref_cnt) = 1;
 			uma_zfree(zone_pack, m);
 			return;		/* Job done. */
+		case EXT_CLUSTER:
+			uma_zfree(zone_clust, m->m_ext.ext_buf);
 			break;
 		case EXT_JUMBO9:
 			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
