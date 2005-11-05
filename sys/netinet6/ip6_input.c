@@ -278,6 +278,12 @@ ip6_input(m)
 #undef M2MMAX
 	}
 
+	/* drop the packet if IPv6 operation is disabled on the IF */
+	if ((ND_IFINFO(m->m_pkthdr.rcvif)->flags & ND6_IFF_IFDISABLED)) {
+		m_freem(m);
+		return;
+	}
+
 	in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_receive);
 	ip6stat.ip6s_total++;
 
