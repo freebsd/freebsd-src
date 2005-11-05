@@ -421,7 +421,7 @@ bad:
 USB_DETACH(ubser)
 {
 	USB_DETACH_START(ubser, sc);
-	int i, s;
+	int i;
 	struct ubser_port *pp;
 
 	DPRINTF(("ubser_detach: sc=%p\n", sc));
@@ -448,12 +448,10 @@ USB_DETACH(ubser)
 		sc->sc_port = NULL;
 	}
 
-	s = splusb();
 	if (--sc->sc_refcnt >= 0) {
 		/* Wait for processes to go away. */
 		usb_detach_wait(USBDEV(sc->sc_dev));
 	}
-	splx(s);
 
 	return (0);
 }
@@ -525,7 +523,6 @@ ubserstart(struct tty *tp)
 	struct ubser_port *pp;
 	struct cblock *cbp;
 	usbd_status err;
-	int s;
 	u_char *data;
 	int cnt;
 	uint8_t serial;
@@ -538,12 +535,10 @@ ubserstart(struct tty *tp)
 	if (sc->sc_dying)
 		return;
 
-	s = spltty();
-
 	if (ISSET(tp->t_state, TS_BUSY | TS_TIMEOUT | TS_TTSTOP)) {
 		ttwwakeup(tp);
 		DPRINTF(("ubserstart: stopped\n"));
-		goto out;
+		return;
 	}
 
 	if (tp->t_outq.c_cc <= tp->t_olowat) {
@@ -558,7 +553,7 @@ ubserstart(struct tty *tp)
 				CLR(tp->t_state, TS_SO_OCOMPLETE);
 				wakeup(TSA_OCOMPLETE(tp));
 			}
-			goto out;
+			return;
 		}
 	}
 
@@ -569,7 +564,7 @@ ubserstart(struct tty *tp)
 
 	if (cnt == 0) {
 		DPRINTF(("ubserstart: cnt == 0\n"));
-		goto out;
+		return;
 	}
 
 	SET(tp->t_state, TS_BUSY);
@@ -593,16 +588,12 @@ ubserstart(struct tty *tp)
 		printf("ubserstart: err=%s\n", usbd_errstr(err));
 
 	ttwwakeup(tp);
-
-    out:
-	splx(s);
 }
 
 Static void
 ubserstop(struct tty *tp, int flag)
 {
 	struct ubser_softc *sc;
-	int s;
 
 	sc = tp->t_sc;
 
@@ -610,13 +601,11 @@ ubserstop(struct tty *tp, int flag)
 
 	if (flag & FWRITE) {
 		DPRINTF(("ubserstop: write\n"));
-		s = spltty();
 		if (ISSET(tp->t_state, TS_BUSY)) {
 			/* XXX do what? */
 			if (!ISSET(tp->t_state, TS_TTSTOP))
 				SET(tp->t_state, TS_FLUSH);
 		}
-		splx(s);
 	}
 
 	DPRINTF(("ubserstop: done\n"));
@@ -629,7 +618,6 @@ ubserwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	struct ubser_softc *sc;
 	struct ubser_port *pp;
 	u_int32_t cc;
-	int s;
 
 	tp = (struct tty *)p;
 	pp = tp->t_sc;
@@ -660,21 +648,17 @@ ubserwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	/* convert from USB bytes to tty bytes */
 	cc -= sc->sc_opkthdrlen;
 
-	s = spltty();
 	CLR(tp->t_state, TS_BUSY);
 	if (ISSET(tp->t_state, TS_FLUSH))
 		CLR(tp->t_state, TS_FLUSH);
 	else
 		ndflush(&tp->t_outq, cc);
 	ttyld_start(tp);
-	splx(s);
 
 	return;
 
-  error:
-	s = spltty();
+error:
 	CLR(tp->t_state, TS_BUSY);
-	splx(s);
 	return;
 }
 
@@ -712,16 +696,22 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	u_int32_t cc;
 	u_char *cp;
 	int lostcc;
-	int s;
+
+	if (status == USBD_IOERROR) {
+		printf("%s: ubserreadcb: %s - restarting\n",
+		    USBDEVNAME(sc->sc_dev), usbd_errstr(status));
+		goto resubmit;
+	}
 
 	DPRINTF(("ubserreadcb: status = %d\n", status));
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		printf("%s: ubserreadcb: %s\n",
-		    USBDEVNAME(sc->sc_dev), usbd_errstr(status));
+		if (status != USBD_CANCELLED) {
+			printf("%s: ubserreadcb: %s\n",
+			    USBDEVNAME(sc->sc_dev), usbd_errstr(status));
+		}
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
-		/* XXX we should restart after some delay. */
 		return;
 	}
 
@@ -751,7 +741,6 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	if (!(tp->t_state & TS_ISOPEN))	/* drop data for unused serials */
 		goto resubmit;
 
-	s = spltty();
 	if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
 		if (tp->t_rawq.c_cc + cc > tp->t_ihiwat
 		    && (tp->t_iflag & IXOFF)
@@ -784,9 +773,8 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			cp++;
 		}
 	}
-	splx(s);
 
-    resubmit:
+resubmit:
 	err = ubserstartread(sc);
 	if (err) {
 		printf("%s: read start failed\n", USBDEVNAME(sc->sc_dev));
