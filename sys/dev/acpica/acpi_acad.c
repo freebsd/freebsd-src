@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/power.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 #include <isa/isavar.h>
@@ -66,6 +66,7 @@ static int	acpi_acad_attach(device_t);
 static int	acpi_acad_ioctl(u_long, caddr_t, void *);
 static int	acpi_acad_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_acad_init_acline(void *arg);
+static void	acpi_acad_ac_only(void *arg);
 
 static device_method_t acpi_acad_methods[] = {
     /* Device interface */
@@ -86,6 +87,8 @@ DRIVER_MODULE(acpi_acad, acpi, acpi_acad_driver, acpi_acad_devclass, 0, 0);
 MODULE_DEPEND(acpi_acad, acpi, 1, 1, 1);
 
 ACPI_SERIAL_DECL(acad, "ACPI AC adapter");
+
+SYSINIT(acad, SI_SUB_KTHREAD_IDLE, SI_ORDER_FIRST, acpi_acad_ac_only, NULL);
 
 static void
 acpi_acad_get_status(void *context)
@@ -242,6 +245,19 @@ acpi_acad_init_acline(void *arg)
 
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		"acline initialization done, tried %d times\n", retry + 1);
+}
+
+/*
+ * If no AC line devices detected after boot, create an "online" event
+ * so that userland code can adjust power settings accordingly.  The default
+ * power profile is "performance" so we don't need to repeat that here.
+ */
+static void
+acpi_acad_ac_only(void __unused *arg)
+{
+
+    if (devclass_get_count(acpi_acad_devclass) == 0)
+	acpi_UserNotify("ACAD", ACPI_ROOT_OBJECT, 1);
 }
 
 /*
