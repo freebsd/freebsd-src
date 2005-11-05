@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/sysctl.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
@@ -52,6 +52,8 @@ static struct	sysctl_oid	*acpi_battery_sysctl_tree;
 ACPI_SERIAL_DECL(battery, "ACPI generic battery");
 
 static void acpi_reset_battinfo(struct acpi_battinfo *info);
+static void acpi_battery_clean_str(char *str, int len);
+static device_t acpi_battery_find_dev(u_int logical_unit);
 static int acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg);
 static int acpi_battery_sysctl(SYSCTL_HANDLER_ARGS);
 static int acpi_battery_units_sysctl(SYSCTL_HANDLER_ARGS);
@@ -99,8 +101,8 @@ acpi_battery_get_info_expire(void)
 int
 acpi_battery_bst_valid(struct acpi_bst *bst)
 {
-    if (bst->state >= ACPI_BATT_STAT_MAX || bst->cap == 0xffffffff ||
-	bst->volt == 0xffffffff)
+    if (bst->state >= ACPI_BATT_STAT_MAX || bst->cap == ACPI_BATT_UNKNOWN ||
+	bst->volt == ACPI_BATT_UNKNOWN)
 	return (FALSE);
     else
 	return (TRUE);
@@ -129,13 +131,13 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
     struct acpi_battinfo *bi;
 
     /*
-     * Get the battery devclass and number of devices.  If there are none
-     * or error, return immediately.
+     * Get the battery devclass and max unit for battery devices.  If there
+     * are none or error, return immediately.
      */
     batt_dc = devclass_find("battery");
     if (batt_dc == NULL)
 	return (ENXIO);
-    devcount = devclass_get_count(batt_dc);
+    devcount = devclass_get_maxunit(batt_dc);
     if (devcount == 0)
 	return (ENXIO);
 
@@ -155,23 +157,27 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
     dev_idx = -1;
     batt_stat = valid_rate = valid_units = 0;
     for (i = 0; i < devcount; i++) {
-	/* Find the device.  If it disappeared, the user can try again. */
-	batt_dev = devclass_get_device(batt_dc, i);
-	if (batt_dev == NULL) {
-	    error = ENOMEM;
-	    goto out;
-	}
-
 	/* Default info for every battery is "not present". */
 	acpi_reset_battinfo(&bi[i]);
+
+	/*
+	 * Find the device.  Since devcount is in terms of max units, this
+	 * may be a sparse array so skip devices that aren't present.
+	 */
+	batt_dev = devclass_get_device(batt_dc, i);
+	if (batt_dev == NULL)
+	    continue;
 
 	/* If examining a specific battery and this is it, record its index. */
 	if (dev != NULL && dev == batt_dev)
 	    dev_idx = i;
 
-	/* Be sure we can get various info from the battery. */
-	if (!acpi_BatteryIsPresent(batt_dev) ||
-	    ACPI_BATT_GET_STATUS(batt_dev, &bst[i]) != 0 ||
+	/*
+	 * Be sure we can get various info from the battery.  Note that we
+	 * can't check acpi_BatteryIsPresent() because smart batteries only
+	 * return that the device is present.
+	 */
+	if (ACPI_BATT_GET_STATUS(batt_dev, &bst[i]) != 0 ||
 	    ACPI_BATT_GET_INFO(batt_dev, bif) != 0)
 	    continue;
 
@@ -180,11 +186,28 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	    !acpi_battery_bif_valid(bif))
 	    continue;
 
-	/* Record state and calculate percent capacity remaining. */
+	/*
+	 * Record current state.  If both charging and discharging are set,
+	 * ignore the charging flag.
+	 */
 	valid_units++;
+	if ((bst[i].state & ACPI_BATT_STAT_DISCHARG) != 0)
+	    bst[i].state &= ~ACPI_BATT_STAT_CHARGING;
 	batt_stat |= bst[i].state;
 	bi[i].state = bst[i].state;
-	bi[i].cap = 100 * bst[i].cap / bif->lfcap;
+
+	/*
+	 * If the battery info is in terms of mA, convert to mW by
+	 * multiplying by the design voltage.
+	 */
+	if (bif->units == ACPI_BIF_UNITS_MA) {
+	    bst[i].rate = (bst[i].rate * bif->dvol) / 1000;
+	    bst[i].cap = (bst[i].cap * bif->dvol) / 1000;
+	    bif->lfcap = (bif->lfcap * bif->dvol) / 1000;
+	}
+
+	/* Calculate percent capacity remaining. */
+	bi[i].cap = (100 * bst[i].cap) / bif->lfcap;
 
 	/*
 	 * Some laptops report the "design-capacity" instead of the
@@ -202,12 +225,13 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	 * Therefore, we sum the bst.rate for batteries in the discharging
 	 * state and use the sum to calculate the total remaining time.
 	 */
-	if (bst[i].rate > 0 && (bst[i].state & ACPI_BATT_STAT_DISCHARG))
+	if (bst[i].rate != ACPI_BATT_UNKNOWN &&
+	    (bst[i].state & ACPI_BATT_STAT_DISCHARG) != 0)
 	    valid_rate += bst[i].rate;
     }
 
     /* If the caller asked for a device but we didn't find it, error. */
-    if (dev != NULL && dev_idx < 0) {
+    if (dev != NULL && dev_idx == -1) {
 	error = ENXIO;
 	goto out;
     }
@@ -221,7 +245,7 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	 * time remaining for this battery until we go offline.
 	 */
 	if (valid_rate > 0)
-	    bi[i].min = 60 * bst[i].cap / valid_rate;
+	    bi[i].min = (60 * bst[i].cap) / valid_rate;
 	else
 	    bi[i].min = 0;
 	total_min += bi[i].min;
@@ -278,6 +302,50 @@ acpi_reset_battinfo(struct acpi_battinfo *info)
     info->rate = -1;
 }
 
+/* Make string printable, removing invalid chars. */
+static void
+acpi_battery_clean_str(char *str, int len)
+{
+    int i;
+
+    for (i = 0; i < len && *str != '\0'; i++, str++) {
+	if (!isprint(*str))
+	    *str = '?';
+    }
+
+    /* NUL-terminate the string if we reached the end. */
+    if (i == len)
+	*str = '\0';
+}
+
+/*
+ * The battery interface deals with devices and methods but userland
+ * expects a logical unit number.  Convert a logical unit to a device_t.
+ */
+static device_t
+acpi_battery_find_dev(u_int logical_unit)
+{
+    int found_unit, i, maxunit;
+    device_t dev;
+    devclass_t batt_dc;
+
+    dev = NULL;
+    found_unit = 0;
+    batt_dc = devclass_find("battery");
+    maxunit = devclass_get_maxunit(batt_dc);
+    for (i = 0; i < maxunit; i++) {
+	dev = devclass_get_device(batt_dc, i);
+	if (dev == NULL)
+	    continue;
+	if (logical_unit == found_unit)
+	    break;
+	found_unit++;
+	dev = NULL;
+    }
+
+    return (dev);
+}
+
 static int
 acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 {
@@ -285,13 +353,17 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
     int error, unit;
     device_t dev;
 
+    /* For commands that use the ioctl_arg struct, validate it first. */
     error = ENXIO;
-    ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
-    unit = ioctl_arg->unit;
-    if (unit != ACPI_BATTERY_ALL_UNITS)
-	dev = devclass_get_device(devclass_find("battery"), unit);
-    else
-	dev = NULL;
+    unit = 0;
+    dev = NULL;
+    ioctl_arg = NULL;
+    if (IOCPARM_LEN(cmd) == sizeof(*ioctl_arg)) {
+	ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
+	unit = ioctl_arg->unit;
+	if (unit != ACPI_BATTERY_ALL_UNITS)
+	    dev = acpi_battery_find_dev(unit);
+    }
 
     /*
      * No security check required: information retrieval only.  If
@@ -302,16 +374,36 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 	*(int *)addr = acpi_battery_get_units();
 	break;
     case ACPIIO_BATT_GET_BATTINFO:
-	if (dev != NULL || unit == ACPI_BATTERY_ALL_UNITS)
+	if (dev != NULL || unit == ACPI_BATTERY_ALL_UNITS) {
+	    bzero(&ioctl_arg->battinfo, sizeof(ioctl_arg->battinfo));
 	    error = acpi_battery_get_battinfo(dev, &ioctl_arg->battinfo);
+	}
 	break;
     case ACPIIO_BATT_GET_BIF:
-	if (dev != NULL)
+	if (dev != NULL) {
+	    bzero(&ioctl_arg->bif, sizeof(ioctl_arg->bif));
 	    error = ACPI_BATT_GET_INFO(dev, &ioctl_arg->bif);
+
+	    /*
+	     * Remove invalid characters.  Perhaps this should be done
+	     * within a convenience function so all callers get the
+	     * benefit.
+	     */
+	    acpi_battery_clean_str(ioctl_arg->bif.model,
+		sizeof(ioctl_arg->bif.model));
+	    acpi_battery_clean_str(ioctl_arg->bif.serial,
+		sizeof(ioctl_arg->bif.serial));
+	    acpi_battery_clean_str(ioctl_arg->bif.type,
+		sizeof(ioctl_arg->bif.type));
+	    acpi_battery_clean_str(ioctl_arg->bif.oeminfo,
+		sizeof(ioctl_arg->bif.oeminfo));
+	}
 	break;
     case ACPIIO_BATT_GET_BST:
-	if (dev != NULL)
+	if (dev != NULL) {
+	    bzero(&ioctl_arg->bst, sizeof(ioctl_arg->bst));
 	    error = ACPI_BATT_GET_STATUS(dev, &ioctl_arg->bst);
+	}
 	break;
     default:
 	error = EINVAL;
