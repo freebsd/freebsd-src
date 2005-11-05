@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/cpu.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -41,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/power.h>
+
+#include "cpufreq_if.h"
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
@@ -92,7 +95,7 @@ struct acpi_tz_softc {
 #define TZ_THFLAG_NONE		0
 #define TZ_THFLAG_PSV		(1<<0)
 #define TZ_THFLAG_HOT		(1<<2)
-#define TZ_THFLAG_CRT		(1<<3)    
+#define TZ_THFLAG_CRT		(1<<3)
     int				tz_flags;
 #define TZ_FLAG_NO_SCP		(1<<0)		/*No _SCP method*/
 #define TZ_FLAG_GETPROFILE	(1<<1)		/*Get power_profile in timeout*/
@@ -106,7 +109,17 @@ struct acpi_tz_softc {
 
     struct acpi_tz_zone 	tz_zone;	/*Thermal zone parameters*/
     int				tz_validchecks;
+
+    /* passive cooling */
+    struct proc			*tz_cooling_proc;
+    int				tz_cooling_proc_running;
+    int				tz_cooling_enabled;
+    int				tz_cooling_active;
+    int				tz_cooling_updated;
+    int				tz_cooling_saved_freq;
 };
+
+#define CPUFREQ_MAX_LEVELS	64 /* XXX cpufreq should export this */
 
 static int	acpi_tz_probe(device_t dev);
 static int	acpi_tz_attach(device_t dev);
@@ -118,12 +131,15 @@ static void	acpi_tz_getparam(struct acpi_tz_softc *sc, char *node,
 				 int *data);
 static void	acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what);
 static int	acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_tz_cooling_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify,
 				       void *context);
 static void	acpi_tz_signal(struct acpi_tz_softc *sc, int flags);
 static void	acpi_tz_timeout(struct acpi_tz_softc *sc, int flags);
 static void	acpi_tz_power_profile(void *arg);
 static void	acpi_tz_thread(void *arg);
+static int	acpi_tz_cooling_is_available(struct acpi_tz_softc *sc);
+static int	acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc);
 
 static device_method_t acpi_tz_methods[] = {
     /* Device interface */
@@ -158,7 +174,7 @@ static int
 acpi_tz_probe(device_t dev)
 {
     int		result;
-    
+
     if (acpi_get_type(dev) == ACPI_TYPE_THERMAL && !acpi_disabled("thermal")) {
 	device_set_desc(dev, "Thermal Zone");
 	result = -10;
@@ -183,6 +199,21 @@ acpi_tz_attach(device_t dev)
     sc->tz_requested = TZ_ACTIVE_NONE;
     sc->tz_active = TZ_ACTIVE_NONE;
     sc->tz_thflags = TZ_THFLAG_NONE;
+    sc->tz_cooling_proc = NULL;
+    sc->tz_cooling_proc_running = FALSE;
+    sc->tz_cooling_active = FALSE;
+    sc->tz_cooling_updated = FALSE;
+
+    /*
+     * Always attempt to enable passive cooling for tz0.  Users can enable
+     * it for other zones manually for now.
+     *
+     * XXX We need to test if multiple zones conflict with each other
+     * since cpufreq currently sets all CPUs to the given frequency whereas
+     * it's possible for different thermal zones to specify independent
+     * settings for multiple CPUs.
+     */
+    sc->tz_cooling_enabled = (device_get_unit(dev) == 0);
 
     /*
      * Parse the current state of the thermal zone and build control
@@ -195,7 +226,7 @@ acpi_tz_attach(device_t dev)
     /*
      * Register for any Notify events sent to this zone.
      */
-    AcpiInstallNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY, 
+    AcpiInstallNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY,
 			     acpi_tz_notify_handler, sc);
 
     /*
@@ -231,7 +262,10 @@ acpi_tz_attach(device_t dev)
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, 0, acpi_tz_active_sysctl, "I", "");
-    
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "passive_cooling", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, 0, acpi_tz_cooling_sysctl, "I", "");
+
     SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		   OID_AUTO, "thermal_flags", CTLFLAG_RD,
 		   &sc->tz_thflags, 0, "thermal zone flags");
@@ -249,8 +283,8 @@ acpi_tz_attach(device_t dev)
 		      sizeof(sc->tz_zone.ac), "IK", "");
 
     /*
-     * Create our thread; we only need one, it will service all of the
-     * thermal zones.  Register our power profile event handler.
+     * Create thread to service all of the thermal zones.  Register
+     * our power profile event handler.
      */
     sc->tz_event = EVENTHANDLER_REGISTER(power_profile_change,
 	acpi_tz_power_profile, sc, 0);
@@ -261,6 +295,18 @@ acpi_tz_attach(device_t dev)
 	    device_printf(sc->tz_dev, "could not create thread - %d", error);
 	    goto out;
 	}
+    }
+
+    /* Create a thread to handle passive cooling for each zone if enabled. */
+    if (sc->tz_cooling_enabled) {
+	if (acpi_tz_cooling_is_available(sc)) {
+	    error = acpi_tz_cooling_thread_start(sc);
+	    if (error != 0) {
+		sc->tz_cooling_enabled = FALSE;
+		goto out;
+	    }
+	} else
+	    sc->tz_cooling_enabled = FALSE;
     }
 
     /*
@@ -292,7 +338,7 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     ACPI_OBJECT	*obj;
     int		i;
     char	nbuf[8];
-    
+
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* Erase any existing state. */
@@ -301,7 +347,14 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
 	    AcpiOsFree(sc->tz_zone.al[i].Pointer);
     if (sc->tz_zone.psl.Pointer != NULL)
 	AcpiOsFree(sc->tz_zone.psl.Pointer);
-    bzero(&sc->tz_zone, sizeof(sc->tz_zone));
+
+    /*
+     * XXX: We initialize only ACPI_BUFFER to avoid race condition
+     * with passive cooling thread which refers psv, tc1, tc2 and tsp.
+     */
+    bzero(sc->tz_zone.ac, sizeof(sc->tz_zone.ac));
+    bzero(sc->tz_zone.al, sizeof(sc->tz_zone.al));
+    bzero(&sc->tz_zone.psl, sizeof(sc->tz_zone.psl));
 
     /* Evaluate thermal zone parameters. */
     for (i = 0; i < TZ_NUMLEVELS; i++) {
@@ -362,6 +415,28 @@ acpi_tz_aclevel_string(int active)
 }
 
 /*
+ * Get the current temperature.
+ */
+static int
+acpi_tz_get_temperature(struct acpi_tz_softc *sc)
+{
+    int		temp;
+    ACPI_STATUS	status;
+
+    status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
+    if (ACPI_FAILURE(status)) {
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "error fetching current temperature -- %s\n",
+	     AcpiFormatException(status));
+	return (FALSE);
+    }
+
+    ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
+    sc->tz_temperature = temp;
+    return (TRUE);
+}
+
+/*
  * Evaluate the condition of a thermal zone, take appropriate actions.
  */
 static void
@@ -372,24 +447,17 @@ acpi_tz_monitor(void *Context)
     int		temp;
     int		i;
     int		newactive, newflags;
-    ACPI_STATUS	status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = (struct acpi_tz_softc *)Context;
 
     /* Get the current temperature. */
-    status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
-    if (ACPI_FAILURE(status)) {
-	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
-	    "error fetching current temperature -- %s\n",
-	     AcpiFormatException(status));
+    if (!acpi_tz_get_temperature(sc)) {
 	/* XXX disable zone? go to max cooling? */
 	return_VOID;
     }
-
-    ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
-    sc->tz_temperature = temp;
+    temp = sc->tz_temperature;
 
     /*
      * Work out what we ought to be doing right now.
@@ -487,7 +555,7 @@ acpi_tz_monitor(void *Context)
 }
 
 /*
- * Given an object, verify that it's a reference to a device of some sort, 
+ * Given an object, verify that it's a reference to a device of some sort,
  * and try to switch it off.
  */
 static void
@@ -511,7 +579,7 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 }
 
 /*
- * Given an object, verify that it's a reference to a device of some sort, 
+ * Given an object, verify that it's a reference to a device of some sort,
  * and try to switch it on.
  *
  * XXX replication of off/on function code is bad.
@@ -522,7 +590,7 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
     ACPI_HANDLE			cooler;
     ACPI_STATUS			status;
-    
+
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     cooler = acpi_GetReference(NULL, obj);
@@ -559,7 +627,7 @@ acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
 			 acpi_name(sc->tz_handle), node, *data));
     }
 
-    return_VOID;    
+    return_VOID;
 }
 
 /*
@@ -578,7 +646,7 @@ acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what)
 
 /*
  * Respond to a sysctl on the active state node.
- */    
+ */
 static int
 acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -600,6 +668,34 @@ acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS)
     sc->tz_requested = active;
     acpi_tz_signal(sc, 0);
     return (0);
+}
+
+static int
+acpi_tz_cooling_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    struct acpi_tz_softc *sc;
+    int enabled, error;
+
+    sc = (struct acpi_tz_softc *)oidp->oid_arg1;
+    enabled = sc->tz_cooling_enabled;
+    error = sysctl_handle_int(oidp, &enabled, 0, req);
+
+    /* Error or no new value */
+    if (error != 0 || req->newptr == NULL)
+	return (error);
+    if (enabled != TRUE && enabled != FALSE)
+	return (EINVAL);
+
+    if (enabled) {
+	if (acpi_tz_cooling_is_available(sc))
+	    error = acpi_tz_cooling_thread_start(sc);
+	else
+	    error = ENODEV;
+	if (error)
+	    enabled = FALSE;
+    }
+    sc->tz_cooling_enabled = enabled;
+    return (error);
 }
 
 static void
@@ -692,7 +788,7 @@ acpi_tz_power_profile(void *arg)
     if ((sc->tz_flags & TZ_FLAG_NO_SCP) == 0) {
 
 	/* Call _SCP to set the new profile */
-	status = acpi_SetInteger(sc->tz_handle, "_SCP", 
+	status = acpi_SetInteger(sc->tz_handle, "_SCP",
 	    (state == POWER_PROFILE_PERFORMANCE) ? 0 : 1);
 	if (ACPI_FAILURE(status)) {
 	    if (status != AE_NOT_FOUND)
@@ -767,4 +863,222 @@ acpi_tz_thread(void *arg)
 	else
 	    ACPI_UNLOCK(thermal);
     }
+}
+
+static int
+acpi_tz_cpufreq_restore(struct acpi_tz_softc *sc)
+{
+    device_t dev;
+    int error;
+
+    if (!sc->tz_cooling_updated)
+	return (0);
+    if ((dev = devclass_get_device(devclass_find("cpufreq"), 0)) == NULL)
+	return (ENXIO);
+    ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	"temperature %d.%dC: resuming previous clock speed (%d MHz)\n",
+	TZ_KELVTOC(sc->tz_temperature), sc->tz_cooling_saved_freq);
+    error = CPUFREQ_SET(dev, NULL, CPUFREQ_PRIO_KERN);
+    if (error == 0)
+	sc->tz_cooling_updated = FALSE;
+    return (error);
+}
+
+static int
+acpi_tz_cpufreq_update(struct acpi_tz_softc *sc, int req)
+{
+    device_t dev;
+    struct cf_level *levels;
+    int num_levels, error, freq, desired_freq, perf, i;
+
+    levels = malloc(CPUFREQ_MAX_LEVELS * sizeof(*levels), M_TEMP, M_NOWAIT);
+    if (levels == NULL)
+	return (ENOMEM);
+
+    /*
+     * Find the main device, cpufreq0.  We don't yet support independent
+     * CPU frequency control on SMP.
+     */
+    if ((dev = devclass_get_device(devclass_find("cpufreq"), 0)) == NULL) {
+	error = ENXIO;
+	goto out;
+    }
+
+    /* Get the current frequency. */
+    error = CPUFREQ_GET(dev, &levels[0]);
+    if (error)
+	goto out;
+    freq = levels[0].total_set.freq;
+
+    /* Get the current available frequency levels. */
+    num_levels = CPUFREQ_MAX_LEVELS;
+    error = CPUFREQ_LEVELS(dev, levels, &num_levels);
+    if (error) {
+	if (error == E2BIG)
+	    printf("cpufreq: need to increase CPUFREQ_MAX_LEVELS\n");
+	goto out;
+    }
+
+    /* Calculate the desired frequency as a percent of the max frequency. */
+    perf = 100 * freq / levels[0].total_set.freq - req;
+    if (perf < 0)
+	perf = 0;
+    else if (perf > 100)
+	perf = 100;
+    desired_freq = levels[0].total_set.freq * perf / 100;
+
+    if (desired_freq < freq) {
+	/* Find the closest available frequency, rounding down. */
+	for (i = 0; i < num_levels; i++)
+	    if (levels[i].total_set.freq <= desired_freq)
+		break;
+
+	/* If we didn't find a relevant setting, use the lowest. */
+	if (i == num_levels)
+	    i--;
+    } else {
+	/* If we didn't decrease frequency yet, don't increase it. */
+	if (!sc->tz_cooling_updated) {
+	    sc->tz_cooling_active = FALSE;
+	    goto out;
+	}
+
+	/* Use saved cpu frequency as maximum value. */
+	if (desired_freq > sc->tz_cooling_saved_freq)
+	    desired_freq = sc->tz_cooling_saved_freq;
+
+	/* Find the closest available frequency, rounding up. */
+	for (i = num_levels - 1; i >= 0; i--)
+	    if (levels[i].total_set.freq >= desired_freq)
+		break;
+
+	/* If we didn't find a relevant setting, use the highest. */
+	if (i == -1)
+	    i++;
+
+	/* If we're going to the highest frequency, restore the old setting. */
+	if (i == 0 || desired_freq == sc->tz_cooling_saved_freq) {
+	    error = acpi_tz_cpufreq_restore(sc);
+	    if (error == 0)
+		sc->tz_cooling_active = FALSE;
+	    goto out;
+	}
+    }
+
+    /* If we are going to a new frequency, activate it. */
+    if (levels[i].total_set.freq != freq) {
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "temperature %d.%dC: %screasing clock speed "
+	    "from %d MHz to %d MHz\n",
+	    TZ_KELVTOC(sc->tz_temperature),
+	    (freq > levels[i].total_set.freq) ? "de" : "in",
+	    freq, levels[i].total_set.freq);
+	error = CPUFREQ_SET(dev, &levels[i], CPUFREQ_PRIO_KERN);
+	if (error == 0 && !sc->tz_cooling_updated) {
+	    sc->tz_cooling_saved_freq = freq;
+	    sc->tz_cooling_updated = TRUE;
+	}
+    }
+
+out:
+    if (levels)
+	free(levels, M_TEMP);
+    return (error);
+}
+
+/*
+ * Passive cooling thread; monitors current temperature according to the
+ * cooling interval and calculates whether to scale back CPU frequency.
+ */
+static void
+acpi_tz_cooling_thread(void *arg)
+{
+    struct acpi_tz_softc *sc;
+    int error, perf, curr_temp, prev_temp;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    sc = (struct acpi_tz_softc *)arg;
+
+    prev_temp = sc->tz_temperature;
+    while (sc->tz_cooling_enabled) {
+	if (sc->tz_cooling_active)
+	    (void)acpi_tz_get_temperature(sc);
+	curr_temp = sc->tz_temperature;
+	if (curr_temp >= sc->tz_zone.psv)
+	    sc->tz_cooling_active = TRUE;
+	if (sc->tz_cooling_active) {
+	    perf = sc->tz_zone.tc1 * (curr_temp - prev_temp) +
+		   sc->tz_zone.tc2 * (curr_temp - sc->tz_zone.psv);
+	    perf /= 10;
+
+	    if (perf != 0) {
+		error = acpi_tz_cpufreq_update(sc, perf);
+
+		/*
+		 * If error and not simply a higher priority setting was
+		 * active, disable cooling.
+		 */
+		if (error != 0 && error != EPERM) {
+		    device_printf(sc->tz_dev,
+			"failed to set new freq, disabling passive cooling\n");
+		    sc->tz_cooling_enabled = FALSE;
+		}
+	    }
+	}
+	prev_temp = curr_temp;
+	tsleep(&sc->tz_cooling_proc, PZERO, "cooling",
+	    hz * sc->tz_zone.tsp / 10);
+    }
+    if (sc->tz_cooling_active) {
+	acpi_tz_cpufreq_restore(sc);
+	sc->tz_cooling_active = FALSE;
+    }
+    sc->tz_cooling_proc = NULL;
+    ACPI_LOCK(thermal);
+    sc->tz_cooling_proc_running = FALSE;
+    ACPI_UNLOCK(thermal);
+    kthread_exit(0);
+}
+
+/*
+ * TODO: We ignore _PSL (list of cooling devices) since cpufreq enumerates
+ * all CPUs for us.  However, it's possible in the future _PSL will
+ * reference non-CPU devices so we may want to support it then.
+ */
+static int
+acpi_tz_cooling_is_available(struct acpi_tz_softc *sc)
+{
+    return (sc->tz_zone.tc1 != -1 && sc->tz_zone.tc2 != -1 &&
+	sc->tz_zone.tsp != -1 && sc->tz_zone.tsp != 0 &&
+	sc->tz_zone.psv != -1);
+}
+
+static int
+acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
+{
+    int error;
+    char name[16];
+
+    ACPI_LOCK(thermal);
+    if (sc->tz_cooling_proc_running) {
+	ACPI_UNLOCK(thermal);
+	return (0);
+    }
+    sc->tz_cooling_proc_running = TRUE;
+    ACPI_UNLOCK(thermal);
+    error = 0;
+    if (sc->tz_cooling_proc == NULL) {
+	snprintf(name, sizeof(name), "acpi_cooling%d",
+	    device_get_unit(sc->tz_dev));
+	error = kthread_create(acpi_tz_cooling_thread, sc,
+	    &sc->tz_cooling_proc, RFHIGHPID, 0, name);
+	if (error != 0) {
+	    device_printf(sc->tz_dev, "could not create thread - %d", error);
+	    ACPI_LOCK(thermal);
+	    sc->tz_cooling_proc_running = FALSE;
+	    ACPI_UNLOCK(thermal);
+	}
+    }
+    return (error);
 }
