@@ -1272,6 +1272,15 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, DEFAULT_RCLK * 128 },
 	    },
 	},
+	{	/* "VScom 200Li" 00=14D2 02=8028 uart@20 uart@+8 */
+	    "VScom 200Li",
+	    {	0x14d2,	0x8028,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x20, 0x00, DEFAULT_RCLK },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x08, DEFAULT_RCLK },
+	    },
+	},
 
 	{ 0 }
 };
