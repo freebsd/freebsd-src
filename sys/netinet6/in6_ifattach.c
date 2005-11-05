@@ -75,7 +75,6 @@ extern struct inpcbinfo ripcbinfo;
 
 static int get_rand_ifid __P((struct ifnet *, struct in6_addr *));
 static int generate_tmp_ifid __P((u_int8_t *, const u_int8_t *, u_int8_t *));
-static int get_hw_ifid __P((struct ifnet *, struct in6_addr *));
 static int get_ifid __P((struct ifnet *, struct ifnet *, struct in6_addr *));
 static int in6_ifattach_linklocal __P((struct ifnet *, struct ifnet *));
 static int in6_ifattach_loopback __P((struct ifnet *));
@@ -217,8 +216,8 @@ generate_tmp_ifid(seed0, seed1, ret)
  * Get interface identifier for the specified interface.
  * XXX assumes single sockaddr_dl (AF_LINK address) per an interface
  */
-static int
-get_hw_ifid(ifp, in6)
+int
+in6_get_hw_ifid(ifp, in6)
 	struct ifnet *ifp;
 	struct in6_addr *in6;	/* upper 64bits are preserved */
 {
@@ -359,14 +358,14 @@ get_ifid(ifp0, altifp, in6)
 	struct ifnet *ifp;
 
 	/* first, try to get it from the interface itself */
-	if (get_hw_ifid(ifp0, in6) == 0) {
+	if (in6_get_hw_ifid(ifp0, in6) == 0) {
 		nd6log((LOG_DEBUG, "%s: got interface identifier from itself\n",
 		    if_name(ifp0)));
 		goto success;
 	}
 
 	/* try secondary EUI64 source. this basically is for ATM PVC */
-	if (altifp && get_hw_ifid(altifp, in6) == 0) {
+	if (altifp && in6_get_hw_ifid(altifp, in6) == 0) {
 		nd6log((LOG_DEBUG, "%s: got interface identifier from %s\n",
 		    if_name(ifp0), if_name(altifp)));
 		goto success;
@@ -377,7 +376,7 @@ get_ifid(ifp0, altifp, in6)
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
 		if (ifp == ifp0)
 			continue;
-		if (get_hw_ifid(ifp, in6) != 0)
+		if (in6_get_hw_ifid(ifp, in6) != 0)
 			continue;
 
 		/*

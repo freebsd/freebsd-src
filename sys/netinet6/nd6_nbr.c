@@ -57,6 +57,7 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet6/in6_var.h>
+#include <netinet6/in6_ifattach.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -1306,6 +1307,7 @@ nd6_dad_duplicated(ifa)
 	struct ifaddr *ifa;
 {
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
+	struct ifnet *ifp;
 	struct dadq *dp;
 
 	dp = nd6_dad_find(ifa);
@@ -1325,10 +1327,45 @@ nd6_dad_duplicated(ifa)
 	/* We are done with DAD, with duplicate address found. (failure) */
 	nd6_dad_stoptimer(dp);
 
+	ifp = ifa->ifa_ifp;
 	log(LOG_ERR, "%s: DAD complete for %s - duplicate found\n",
-	    if_name(ifa->ifa_ifp), ip6_sprintf(&ia->ia_addr.sin6_addr));
+	    if_name(ifp), ip6_sprintf(&ia->ia_addr.sin6_addr));
 	log(LOG_ERR, "%s: manual intervention required\n",
-	    if_name(ifa->ifa_ifp));
+	    if_name(ifp));
+
+	/*
+	 * If the address is a link-local address formed from an interface
+	 * identifier based on the hardware address which is supposed to be
+	 * uniquely assigned (e.g., EUI-64 for an Ethernet interface), IP
+	 * operation on the interface SHOULD be disabled.
+	 * [rfc2462bis-03 Section 5.4.5]
+	 */
+	if (IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr)) {
+		struct in6_addr in6;
+
+		/*
+		 * To avoid over-reaction, we only apply this logic when we are
+		 * very sure that hardware addresses are supposed to be unique.
+		 */
+		switch (ifp->if_type) {
+		case IFT_ETHER:
+		case IFT_FDDI:
+		case IFT_ATM:
+		case IFT_IEEE1394:
+#ifdef IFT_IEEE80211
+		case IFT_IEEE80211:
+#endif
+			in6 = ia->ia_addr.sin6_addr;
+			if (in6_get_hw_ifid(ifp, &in6) == 0 &&
+			    IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr, &in6)) {
+				ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
+				log(LOG_ERR, "%s: possible hardware address "
+				    "duplication detected, disable IPv6\n",
+				    if_name(ifp));
+			}
+			break;
+		}
+	}
 
 	TAILQ_REMOVE(&dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
