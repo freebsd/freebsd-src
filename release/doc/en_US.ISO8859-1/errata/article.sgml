@@ -106,6 +106,11 @@
     <title>Known Problems and Solutions</title>
 
     <para>(2005/11/5)
+      The &os; 6.0-RELEASE Release Notes wrongly states the version number
+      of OpenSSH and IPFilter integrated into &os; as 4.1p1 and 4.1.18.
+      The correct versions are 4.2p1 and 4.1.8 respectively.</para>
+
+    <para>(2005/11/5)
       Distribution of 6.0-RELEASE contains <filename>CHECKSUM.MD5</filename>
       and <filename>CHECKSUM.SHA256</filename> files for protecting
       the integrity of data.  However, these files in 6.0-RELEASE erroneously
