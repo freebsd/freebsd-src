@@ -965,6 +965,7 @@ ifinfo(ifname, argc, argv)
 				newflags |= (f);\
 		}\
 	} while (0)
+		SETFLAG("disabled", ND6_IFF_IFDISABLED);
 		SETFLAG("nud", ND6_IFF_PERFORMNUD);
 #ifdef ND6_IFF_ACCEPT_RTADV
 		SETFLAG("accept_rtadv", ND6_IFF_ACCEPT_RTADV);
@@ -1021,6 +1022,10 @@ ifinfo(ifname, argc, argv)
 #endif
 	if (ND.flags) {
 		printf("\nFlags: ");
+#ifdef ND6_IFF_IFDISABLED
+		if ((ND.flags & ND6_IFF_IFDISABLED))
+			printf("disabled ");
+#endif
 		if ((ND.flags & ND6_IFF_PERFORMNUD))
 			printf("nud ");
 #ifdef ND6_IFF_ACCEPT_RTADV
