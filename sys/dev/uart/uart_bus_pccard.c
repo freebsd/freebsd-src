@@ -69,19 +69,20 @@ static driver_t uart_pccard_driver = {
 static int
 uart_pccard_match(device_t dev)
 {
-	int		error = 0;
-	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+	int error;
+	uint32_t fcn;
 
+	fcn = PCCARD_FUNCTION_UNSPEC;
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
 		return (error);
 	/*
 	 * If a serial card, we are likely the right driver.  However,
-	 * some serial cards are better servered by other drivers, so
+	 * some serial cards are better serviced by other drivers, so
 	 * allow other drivers to claim it, if they want.
 	 */
 	if (fcn == PCCARD_FUNCTION_SERIAL)
-		return (-100);
+		return (BUS_PROBE_GENERIC);
 
 	return(ENXIO);
 }
