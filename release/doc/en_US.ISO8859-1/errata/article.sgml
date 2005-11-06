@@ -105,6 +105,12 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
+    <para>(2005/11/6)
+      The &os; 6.0-RELEASE Release Notes wrongly states
+      a kernel option related to &man.ipfw.8; as
+      <literal>IPFIRWALL_FORWARD</literal>.
+      The correct option keyword is <literal>IPFIREWALL_FORWARD</literal>.</para>
+
     <para>(2005/11/5)
       The &os; 6.0-RELEASE Release Notes wrongly states the version number
       of OpenSSH and IPFilter integrated into &os; as 4.1p1 and 4.1.18.
