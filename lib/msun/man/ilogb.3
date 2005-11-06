@@ -32,13 +32,15 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2005
+.Dd Nov 6, 2005
 .Dt ILOGB 3
 .Os
 .Sh NAME
 .Nm ilogb ,
 .Nm ilogbf ,
-.Nm ilogbl
+.Nm ilogbl ,
+.Nm logb ,
+.Nm logbf
 .Nd extract exponent
 .Sh LIBRARY
 .Lb libm
@@ -50,24 +52,40 @@
 .Fn ilogbf "float x"
 .Ft int
 .Fn ilogbl "long double x"
+.Ft double
+.Fn logb "double x"
+.Ft float
+.Fn logbf "float x"
 .Sh DESCRIPTION
 .Fn ilogb ,
 .Fn ilogbf
 and
 .Fn ilogbl
 return
-.Fa x Ns 's exponent,
+.Fa x Ns 's exponent
 in integer format.
 .Fn ilogb \*(Pm\*(If
 returns
 .Dv INT_MAX ,
 .Fn ilogb \*(Pm\*(Na
 returns
-.Dv FP_ILOGBNAN
+.Dv FP_ILOGBNAN ,
 and
 .Fn ilogb 0
 returns
 .Dv FP_ILOGB0 .
+.Pp
+.Fn logb x
+and
+.Fn logbf x
+return
+.Fa x Ns 's exponent
+in floating\-point format with the same precision as
+.Fa x .
+.Fn logb \*(Pm\*(If
+returns +\*(If, and
+.Fn logb 0
+returns -\*(If with a division by zero exception.
 .Sh SEE ALSO
 .Xr frexp 3 ,
 .Xr ieee 3 ,
@@ -77,19 +95,33 @@ returns
 The
 .Fn ilogb ,
 .Fn ilogbf ,
+.Fn ilogbl ,
+.Fn logb
 and
-.Fn ilogbl
+.Fn logbf
 routines conform to
 .St -isoC-99 .
-They provide functionality similar to the Logb function recommended by
+.Fn logb
+and
+.Fn logbf
+implement the logb function recommended by
 .St -ieee754 .
 .Sh HISTORY
 The
+.Fn logb
+function appeared in
+.Bx 4.3 .
+The
 .Fn ilogb
-and
+function appeared in
+.Fx 1.1.5 .
+The
 .Fn ilogbf
-functions appeared in
-.Bx 4.3
 and
-.Fx 2.0 ,
-respectively.
+.Fn logbf
+functions appeared in
+.Fx 2.0 .
+The
+.Fn ilogbl
+function appeared in
+.Fx 5.4 .
