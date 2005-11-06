@@ -244,6 +244,7 @@ cpu_startup(void *dummy)
 	cpu_setup("");
 	identify_arm_cpu();
 	thread0.td_frame = (struct trapframe *)pcb->un_32.pcb32_sp - 1;
+	pmap_postinit();
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
