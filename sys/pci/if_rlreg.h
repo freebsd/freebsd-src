@@ -812,17 +812,32 @@ struct rl_softc {
 /*
  * Corega FEther CB-TXD device ID
  */
-#define COREGA_DEVICEID_FETHERCBTXD			0xa117
+#define COREGA_DEVICEID_FETHERCBTXD		0xa117
 
 /*
  * Corega FEtherII CB-TXD device ID
  */
-#define COREGA_DEVICEID_FETHERIICBTXD			0xa11e
+#define COREGA_DEVICEID_FETHERIICBTXD		0xa11e
 
 /*
  * Corega CG-LAPCIGT device ID
  */
 #define COREGA_DEVICEID_CGLAPCIGT		0xc107
+
+/*
+ * Linksys vendor ID
+ */
+#define LINKSYS_VENDORID			0x1737
+
+/*
+ * Linksys EG1032 device ID
+ */
+#define LINKSYS_DEVICEID_EG1032			0x1032
+
+/*
+ * Linksys EG1032 rev 3 sub-device ID
+ */
+#define LINKSYS_SUBDEVICE_EG1032_REV3		0x0024
 
 /*
  * Peppercon vendor ID

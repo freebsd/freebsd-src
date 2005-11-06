@@ -177,6 +177,8 @@ static struct rl_type re_devs[] = {
 		"RealTek 8110S Single-chip Gigabit Ethernet" },
 	{ COREGA_VENDORID, COREGA_DEVICEID_CGLAPCIGT, RL_HWREV_8169S,
 		"Corega CG-LAPCIGT (RTL8169S) Gigabit Ethernet" },
+	{ LINKSYS_VENDORID, LINKSYS_DEVICEID_EG1032, RL_HWREV_8169S,
+		"Linksys EG1032 (RTL8169S) Gigabit Ethernet" },
 	{ 0, 0, 0, NULL }
 };
 
@@ -826,6 +828,17 @@ re_probe(dev)
 	while (t->rl_name != NULL) {
 		if ((pci_get_vendor(dev) == t->rl_vid) &&
 		    (pci_get_device(dev) == t->rl_did)) {
+			/*
+			 * Only attach to rev. 3 of the Linksys EG1032 adapter.
+			 * Rev. 2 i supported by sk(4).
+			 */
+			if ((t->rl_vid == LINKSYS_VENDORID) &&
+				(t->rl_did == LINKSYS_DEVICEID_EG1032) &&
+				(pci_get_subdevice(dev) !=
+				LINKSYS_SUBDEVICE_EG1032_REV3)) {
+				t++;
+				continue;
+			}
 
 			/*
 			 * Temporarily map the I/O space
