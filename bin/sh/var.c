@@ -445,7 +445,7 @@ environment(void)
  */
 
 #ifdef mkinit
-MKINIT void shprocvar();
+MKINIT void shprocvar(void);
 
 SHELLPROC {
 	shprocvar();
@@ -541,9 +541,11 @@ exportcmd(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (values && argc != 0)
+		error("-p requires no arguments");
 	listsetvar(cmdenviron);
 	if (argc != 0) {
-		while ((name = *argptr++) != NULL) {
+		while ((name = *argv++) != NULL) {
 			if ((p = strchr(name, '=')) != NULL) {
 				p++;
 			} else {

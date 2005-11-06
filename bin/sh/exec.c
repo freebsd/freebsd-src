@@ -555,7 +555,7 @@ clearcmdentry(int firstchange)
  */
 
 #ifdef mkinit
-MKINIT void deletefuncs();
+MKINIT void deletefuncs(void);
 
 SHELLPROC {
 	deletefuncs();
@@ -705,11 +705,12 @@ unsetfunc(char *name)
 }
 
 /*
- * Locate and print what a word is...
+ * Shared code for the following builtin commands:
+ *    type, command -v, command -V
  */
 
 int
-typecmd(int argc, char **argv)
+typecmd_impl(int argc, char **argv, int cmd)
 {
 	struct cmdentry entry;
 	struct tblentry *cmdp;
@@ -720,20 +721,28 @@ typecmd(int argc, char **argv)
 	extern char *const parsekwd[];
 
 	for (i = 1; i < argc; i++) {
-		out1str(argv[i]);
+		if (cmd != TYPECMD_SMALLV)
+			out1str(argv[i]);
+
 		/* First look at the keywords */
 		for (pp = (char **)parsekwd; *pp; pp++)
 			if (**pp == *argv[i] && equal(*pp, argv[i]))
 				break;
 
 		if (*pp) {
-			out1str(" is a shell keyword\n");
+			if (cmd == TYPECMD_SMALLV)
+				out1fmt("%s\n", argv[i]);
+			else
+				out1str(" is a shell keyword\n");
 			continue;
 		}
 
 		/* Then look at the aliases */
 		if ((ap = lookupalias(argv[i], 1)) != NULL) {
-			out1fmt(" is an alias for %s\n", ap->val);
+			if (cmd == TYPECMD_SMALLV)
+				out1fmt("alias %s='%s'\n", argv[i], ap->val);
+			else
+				out1fmt(" is an alias for %s\n", ap->val);
 			continue;
 		}
 
@@ -756,29 +765,55 @@ typecmd(int argc, char **argv)
 					name = padvance(&path, argv[i]);
 					stunalloc(name);
 				} while (--j >= 0);
-				out1fmt(" is%s %s\n",
-				    cmdp ? " a tracked alias for" : "", name);
+				if (cmd == TYPECMD_SMALLV)
+					out1fmt("%s\n", name);
+				else
+					out1fmt(" is%s %s\n",
+					    (cmdp && cmd == TYPECMD_TYPE) ?
+						" a tracked alias for" : "",
+					    name);
 			} else {
-				if (access(argv[i], X_OK) == 0)
-					out1fmt(" is %s\n", argv[i]);
+				if (access(argv[i], X_OK) == 0) {
+					if (cmd == TYPECMD_SMALLV)
+						out1fmt("%s\n", argv[i]);
+					else
+						out1fmt(" is %s\n", argv[i]);
+				}
 				else
 					out1fmt(": %s\n", strerror(errno));
 			}
 			break;
 		}
 		case CMDFUNCTION:
-			out1str(" is a shell function\n");
+			if (cmd == TYPECMD_SMALLV)
+				out1fmt("%s\n", argv[i]);
+			else
+				out1str(" is a shell function\n");
 			break;
 
 		case CMDBUILTIN:
-			out1str(" is a shell builtin\n");
+			if (cmd == TYPECMD_SMALLV)
+				out1fmt("%s\n", argv[i]);
+			else
+				out1str(" is a shell builtin\n");
 			break;
 
 		default:
-			out1str(": not found\n");
+			if (cmd != TYPECMD_SMALLV)
+				out1str(": not found\n");
 			error |= 127;
 			break;
 		}
 	}
 	return error;
+}
+
+/*
+ * Locate and print what a word is...
+ */
+
+int
+typecmd(int argc, char **argv)
+{
+	return typecmd_impl(argc, argv, TYPECMD_TYPE);
 }
