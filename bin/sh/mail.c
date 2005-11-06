@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "shell.h"
 #include "exec.h"	/* defines padvance() */
+#include "mail.h"
 #include "var.h"
 #include "output.h"
 #include "memalloc.h"

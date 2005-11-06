@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -96,12 +97,6 @@ STATIC int startlinno;		/* line # where last token started */
 
 /* XXX When 'noaliases' is set to one, no alias expansion takes place. */
 static int noaliases = 0;
-
-#define GDB_HACK 1 /* avoid local declarations which gdb can't handle */
-#ifdef GDB_HACK
-static const char argvars[5] = {CTLVAR, VSNORMAL|VSQUOTE, '@', '=', '\0'};
-static const char types[] = "}-+?=";
-#endif
 
 
 STATIC union node *list(int);
@@ -383,13 +378,12 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			if (lasttoken != TNL && lasttoken != TSEMI)
 				synexpect(-1);
 		} else {
-#ifndef GDB_HACK
-			static const char argvars[5] = {CTLVAR, VSNORMAL|VSQUOTE,
-								   '@', '=', '\0'};
-#endif
+			static char argvars[5] = {
+				CTLVAR, VSNORMAL|VSQUOTE, '@', '=', '\0'
+			};
 			n2 = (union node *)stalloc(sizeof (struct narg));
 			n2->type = NARG;
-			n2->narg.text = (char *)argvars;
+			n2->narg.text = argvars;
 			n2->narg.backquote = NULL;
 			n2->narg.next = NULL;
 			n1->nfor.args = n2;
@@ -1185,13 +1179,12 @@ parsesub: {
 	int typeloc;
 	int flags;
 	char *p;
-#ifndef GDB_HACK
 	static const char types[] = "}-+?=";
-#endif
        int bracketed_name = 0; /* used to handle ${[0-9]*} variables */
 
 	c = pgetc();
-	if (c != '(' && c != '{' && !is_name(c) && !is_special(c)) {
+	if (c != '(' && c != '{' && (is_eof(c) || !is_name(c)) &&
+	    !is_special(c)) {
 		USTPUTC('$', out);
 		pungetc();
 	} else if (c == '(') {	/* $(command) or $((arith)) */
@@ -1218,11 +1211,11 @@ parsesub: {
 			else
 				subtype = 0;
 		}
-		if (is_name(c)) {
+		if (!is_eof(c) && is_name(c)) {
 			do {
 				STPUTC(c, out);
 				c = pgetc();
-			} while (is_in_name(c));
+			} while (!is_eof(c) && is_in_name(c));
 		} else if (is_digit(c)) {
 			if (bracketed_name) {
 				do {
@@ -1599,7 +1592,7 @@ getprompt(void *unused __unused)
 				 */
 			case 'h':
 			case 'H':
-				ps[i] == '\0';
+				ps[i] = '\0';
 				gethostname(&ps[i], PROMPTLEN - i);
 				/* Skip to end of hostname. */
 				trim = (*fmt == 'h') ? '.' : '\0';
@@ -1615,7 +1608,7 @@ getprompt(void *unused __unused)
 				 */
 			case 'W':
 			case 'w':
-				ps[i] == '\0';
+				ps[i] = '\0';
 				getcwd(&ps[i], PROMPTLEN - i);
 				if (*fmt == 'W') {
 					/* Final path component only. */

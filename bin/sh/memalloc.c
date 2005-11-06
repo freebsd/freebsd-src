@@ -57,7 +57,10 @@ ckmalloc(int nbytes)
 {
 	pointer p;
 
-	if ((p = malloc(nbytes)) == NULL)
+	INTOFF;
+	p = malloc(nbytes);
+	INTON;
+	if (p == NULL)
 		error("Out of space");
 	return p;
 }
@@ -70,9 +73,20 @@ ckmalloc(int nbytes)
 pointer
 ckrealloc(pointer p, int nbytes)
 {
-	if ((p = realloc(p, nbytes)) == NULL)
+	INTOFF;
+	p = realloc(p, nbytes);
+	INTON;
+	if (p == NULL)
 		error("Out of space");
 	return p;
+}
+
+void
+ckfree(pointer p)
+{
+	INTOFF;
+	free(p);
+	INTON;
 }
 
 

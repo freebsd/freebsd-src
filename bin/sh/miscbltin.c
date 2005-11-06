@@ -64,6 +64,10 @@ __FBSDID("$FreeBSD$");
 
 #undef eflag
 
+int readcmd(int, char **);
+int umaskcmd(int, char **);
+int ulimitcmd(int, char **);
+
 /*
  * The read builtin.  The -r option causes backslashes to be treated like
  * ordinary characters.
@@ -188,13 +192,7 @@ readcmd(int argc __unused, char **argv __unused)
 			continue;
 		}
 		startword = 0;
-		if (backslash && c == '\\') {
-			if (read(STDIN_FILENO, &c, 1) != 1) {
-				status = 1;
-				break;
-			}
-			STPUTC(c, p);
-		} else if (ap[1] != NULL && strchr(ifs, c) != NULL) {
+		if (ap[1] != NULL && strchr(ifs, c) != NULL) {
 			STACKSTRNUL(p);
 			setvar(*ap, stackblock(), 0);
 			ap++;
@@ -270,18 +268,20 @@ umaskcmd(int argc __unused, char **argv)
 			mask = 0;
 			do {
 				if (*ap >= '8' || *ap < '0')
-					error("Illegal number: %s", argv[1]);
+					error("Illegal number: %s", *argptr);
 				mask = (mask << 3) + (*ap - '0');
 			} while (*++ap != '\0');
 			umask(mask);
 		} else {
 			void *set;
+			INTOFF;
 			if ((set = setmode (ap)) == 0)
 				error("Illegal number: %s", ap);
 
 			mask = getmode (set, ~mask & 0777);
 			umask(~mask & 0777);
 			free(set);
+			INTON;
 		}
 	}
 	return 0;
