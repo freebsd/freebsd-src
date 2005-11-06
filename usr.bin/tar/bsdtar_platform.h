@@ -40,6 +40,7 @@
 #else
 
 #ifdef __FreeBSD__
+#include <sys/param.h>  /* __FreeBSD_version */
 /* A default configuration for FreeBSD, used if there is no config.h. */
 #define	PACKAGE_NAME "bsdtar"
 
