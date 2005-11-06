@@ -58,9 +58,9 @@ cat <<\!
 !
 awk '/^[^#]/ {if(('$havejobs' || $2 != "-j") && ('$havehist' || $2 != "-h")) \
     print $0}' builtins.def | sed 's/-[hj]//' > $temp
-awk '{	printf "int %s();\n", $1}' $temp
+awk '{	printf "int %s(int, char **);\n", $1}' $temp
 echo '
-int (*const builtinfunc[])() = {'
+int (*const builtinfunc[])(int, char **) = {'
 awk '/^[^#]/ {	printf "\t%s,\n", $1}' $temp
 echo '};
 
@@ -87,6 +87,6 @@ struct builtincmd {
       int code;
 };
 
-extern int (*const builtinfunc[])();
+extern int (*const builtinfunc[])(int, char **);
 extern const struct builtincmd builtincmd[];'
 rm -f $temp

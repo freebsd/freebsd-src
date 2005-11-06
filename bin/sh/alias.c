@@ -144,7 +144,7 @@ unalias(char *name)
 }
 
 #ifdef mkinit
-MKINIT void rmaliases();
+MKINIT void rmaliases(void);
 
 SHELLPROC {
 	rmaliases();
@@ -242,7 +242,7 @@ unaliascmd(int argc __unused, char **argv __unused)
 		}
 	}
 	for (i = 0; *argptr; argptr++)
-		i = unalias(*argptr);
+		i |= unalias(*argptr);
 
 	return (i);
 }

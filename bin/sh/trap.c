@@ -382,7 +382,7 @@ onsig(int signo)
 	 */
 	if (Tflag &&
 	    trap[signo] != NULL && 
-	    ! trap[signo][0] == '\0' &&
+	    ! (trap[signo][0] == '\0') &&
 	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
 		breakwaitcmd = 1;
 
