@@ -1914,9 +1914,6 @@ ndis_init(xsc)
 	/* Setup task offload. */
 	ndis_set_offload(sc);
 
-	/* Enable interrupts. */
-	ndis_enable_intr(sc);
-
 	if (sc->ndis_80211)
 		ndis_setstate_80211(sc);
 
@@ -2548,10 +2545,9 @@ ndis_getstate_80211(sc)
 	struct ndis_softc	*sc;
 {
 	struct ieee80211com	*ic;
-	ndis_80211_ssid		ssid;
-	ndis_80211_config	config;
 	ndis_wlan_bssid_ex	*bs;
 	int			rval, len, i = 0;
+	int			chan;
 	uint32_t		arg;
 	struct ifnet		*ifp;
 
@@ -2588,18 +2584,14 @@ ndis_getstate_80211(sc)
 			break;
 		}
 		IEEE80211_ADDR_COPY(ic->ic_bss->ni_bssid, bs->nwbx_macaddr);
-		free(bs, M_TEMP);
 	} else
 		return;
 
-	len = sizeof(ssid);
-	bzero((char *)&ssid, len);
-	rval = ndis_get_info(sc, OID_802_11_SSID, &ssid, &len);
+	/* Get SSID from current association info. */
 
-	if (rval)
-		device_printf (sc->ndis_dev, "get ssid failed: %d\n", rval);
-	bcopy(ssid.ns_ssid, ic->ic_bss->ni_essid, ssid.ns_ssidlen);
-	ic->ic_bss->ni_esslen = ssid.ns_ssidlen;
+	bcopy(bs->nwbx_ssid.ns_ssid, ic->ic_bss->ni_essid,
+	    bs->nwbx_ssid.ns_ssidlen);
+	ic->ic_bss->ni_esslen = bs->nwbx_ssid.ns_ssidlen;
 
 	len = sizeof(arg);
 	rval = ndis_get_info(sc, OID_GEN_LINK_SPEED, &arg, &len);
@@ -2645,28 +2637,70 @@ ndis_getstate_80211(sc)
 			ic->ic_flags |= IEEE80211_F_PMGTON;
 	}
 
-	len = sizeof(config);
-	bzero((char *)&config, len);
-	config.nc_length = len;
-	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
-	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len);   
-	if (rval == 0) { 
-		int chan;
+	/*
+	 * Use the current association information to reflect
+	 * what channel we're on.
+	 */
 
-		chan = ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0);
-		if (chan < 0 || chan >= IEEE80211_CHAN_MAX) {
-			if (ifp->if_flags & IFF_DEBUG)
-				device_printf(sc->ndis_dev, "current channel "
-				    "(%uMHz) out of bounds\n", 
-				    config.nc_dsconfig / 1000);
-			ic->ic_bss->ni_chan = &ic->ic_channels[1];
-		} else
-			ic->ic_bss->ni_chan = &ic->ic_channels[chan];
-	} else
-		device_printf(sc->ndis_dev, "couldn't retrieve "
-		    "channel info: %d\n", rval);
+	chan = ieee80211_mhz2ieee(bs->nwbx_config.nc_dsconfig / 1000, 0);
+	if (chan < 0 || chan >= IEEE80211_CHAN_MAX) {
+		if (ifp->if_flags & IFF_DEBUG)
+			device_printf(sc->ndis_dev, "current channel "
+			    "(%uMHz) out of bounds\n", 
+			    bs->nwbx_config.nc_dsconfig / 1000);
+		chan = 1;
+	}
 
-/*
+	ic->ic_bss->ni_chan = &ic->ic_channels[chan];
+	ic->ic_des_chan = &ic->ic_channels[chan];
+	ic->ic_ibss_chan = &ic->ic_channels[chan];
+#if __FreeBSD_version >= 600007
+	ic->ic_curchan = &ic->ic_channels[chan];
+#endif
+
+	free(bs, M_TEMP);
+
+	/*
+	 * Determine current authentication mode. Note: authmode
+	 * reporting isn't supported prior to FreeBSD 6.x.
+	 */
+
+#if __FreeBSD_version >= 600007
+	len = sizeof(arg);
+	rval = ndis_get_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &len);
+	if (rval)
+		device_printf (sc->ndis_dev,
+		    "get authmode status failed: %d\n", rval);
+	else {
+		ic->ic_flags &= ~IEEE80211_F_WPA;
+		switch(arg) {
+		case NDIS_80211_AUTHMODE_OPEN:
+			ic->ic_bss->ni_authmode = IEEE80211_AUTH_OPEN;
+			break;
+		case NDIS_80211_AUTHMODE_SHARED:
+			ic->ic_bss->ni_authmode = IEEE80211_AUTH_SHARED;
+			break;
+		case NDIS_80211_AUTHMODE_AUTO:
+			ic->ic_bss->ni_authmode = IEEE80211_AUTH_AUTO;
+			break;
+		case NDIS_80211_AUTHMODE_WPA:
+		case NDIS_80211_AUTHMODE_WPAPSK:
+		case NDIS_80211_AUTHMODE_WPANONE:
+			ic->ic_bss->ni_authmode = IEEE80211_AUTH_WPA;
+			ic->ic_flags |= IEEE80211_F_WPA1;
+			break;
+		case NDIS_80211_AUTHMODE_WPA2:
+		case NDIS_80211_AUTHMODE_WPA2PSK:
+			ic->ic_bss->ni_authmode = IEEE80211_AUTH_WPA;
+			ic->ic_flags |= IEEE80211_F_WPA2;
+			break;
+		default:
+			ic->ic_bss->ni_authmode = IEEE80211_AUTH_NONE;
+			break;
+		}
+	}
+#endif
+
 	len = sizeof(arg);
 	rval = ndis_get_info(sc, OID_802_11_WEP_STATUS, &arg, &len);
 
@@ -2674,11 +2708,19 @@ ndis_getstate_80211(sc)
 		device_printf (sc->ndis_dev,
 		    "get wep status failed: %d\n", rval);
 
+#if __FreeBSD_version < 600007
 	if (arg == NDIS_80211_WEPSTAT_ENABLED)
 		ic->ic_flags |= IEEE80211_F_WEPON;
 	else
 		ic->ic_flags &= ~IEEE80211_F_WEPON;
-*/
+#else
+	if (arg == NDIS_80211_WEPSTAT_ENABLED)
+		ic->ic_flags |= IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC;
+	else
+		ic->ic_flags &= ~(IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC);
+		
+#endif
+
 	return;
 }
 

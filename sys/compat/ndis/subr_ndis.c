@@ -1064,16 +1064,20 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
-	error = pe_get_message((vm_offset_t)drv->dro_driverstart,
-	    code, &str, &i, &flags);
-	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE &&
-	    ifp->if_flags & IFF_DEBUG) {
-		RtlInitUnicodeString(&us, (uint16_t *)str);
-		if (RtlUnicodeStringToAnsiString(&as, &us, TRUE))
-			return;
-		str = as.as_buf;
-	} else
-		str = NULL;
+	if (ifp->if_flags & IFF_DEBUG) {
+		error = pe_get_message((vm_offset_t)drv->dro_driverstart,
+		    code, &str, &i, &flags);
+		if (error == 0) {
+			if (flags & MESSAGE_RESOURCE_UNICODE) {
+				RtlInitUnicodeString(&us, (uint16_t *)str);
+				if (RtlUnicodeStringToAnsiString(&as,
+				    &us, TRUE) == STATUS_SUCCESS)
+					str = as.as_buf;
+				else
+					str = NULL;
+			}
+		}
+	}
 
 	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
@@ -2335,9 +2339,11 @@ ndis_intr(arg)
 		return;
 
 	if (sc->ndis_block->nmb_interrupt->ni_isrreq == TRUE)
-		ndis_isr(sc, &is_our_intr, &call_isr);
+		MSCALL3(intr->ni_isrfunc, &is_our_intr, &call_isr,
+		    sc->ndis_block->nmb_miniportadapterctx);
 	else {
-		ndis_disable_intr(sc);
+		MSCALL1(sc->ndis_chars->nmc_disable_interrupts_func,
+		    sc->ndis_block->nmb_miniportadapterctx);
 		call_isr = 1;
 	}
  
@@ -2365,11 +2371,12 @@ ndis_intrhand(dpc, intr, sysarg1, sysarg2)
         if (NDIS_SERIALIZED(sc->ndis_block))
                 KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
 
-        MSCALL1(intr->ni_isrfunc, adapter);
+        MSCALL1(intr->ni_dpcfunc, adapter);
 
         /* If there's a MiniportEnableInterrupt() routine, call it. */
 
-        ndis_enable_intr(sc);
+	if (sc->ndis_chars->nmc_enable_interrupts_func != NULL)
+		MSCALL1(sc->ndis_chars->nmc_enable_interrupts_func, adapter);
 
         if (NDIS_SERIALIZED(sc->ndis_block))
                 KeReleaseSpinLockFromDpcLevel(&block->nmb_lock);
@@ -2417,8 +2424,8 @@ NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	intr->ni_isrreq = reqisr;
 	intr->ni_shared = shared;
 	intr->ni_dpccnt = 0;
-	intr->ni_isrfunc = ch->nmc_interrupt_func;
-	intr->ni_dpcfunc = ch->nmc_isr_func;
+	intr->ni_isrfunc = ch->nmc_isr_func;
+	intr->ni_dpcfunc = ch->nmc_interrupt_func;
 
         KeInitializeEvent(&intr->ni_dpcevt, EVENT_TYPE_NOTIFY, TRUE);
         KeInitializeDpc(&intr->ni_dpc,
