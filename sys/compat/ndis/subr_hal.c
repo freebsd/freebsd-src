@@ -78,6 +78,8 @@ static void READ_PORT_BUFFER_USHORT(uint16_t *,
 static void READ_PORT_BUFFER_UCHAR(uint8_t *,
 	uint8_t *, uint32_t);
 static uint64_t KeQueryPerformanceCounter(uint64_t *);
+static void _KeLowerIrql(uint8_t);
+static uint8_t KeRaiseIrqlToDpcLevel(void);
 static void dummy (void);
 
 #define NDIS_MAXCPUS 64
@@ -370,10 +372,6 @@ KfAcquireSpinLock(lock)
 {
 	uint8_t			oldirql;
 
-	/* I am so going to hell for this. */
-	if (KeGetCurrentIrql() > DISPATCH_LEVEL)
-		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
-
 	KeRaiseIrql(DISPATCH_LEVEL, &oldirql);
 	KeAcquireSpinLockAtDpcLevel(lock);
 
@@ -416,13 +414,16 @@ KfRaiseIrql(irql)
 	uint8_t			oldirql;
 
 	oldirql = KeGetCurrentIrql();
-	if (irql < oldirql)
+
+	/* I am so going to hell for this. */
+	if (oldirql > irql)
 		panic("IRQL_NOT_LESS_THAN");
 
 	if (oldirql != DISPATCH_LEVEL) {
 		sched_pin();
 		mtx_lock(&disp_lock[curthread->td_oncpu]);
 	}
+/*printf("RAISE IRQL: %d %d\n", irql, oldirql);*/
 
 	return(oldirql);
 }
@@ -440,6 +441,23 @@ KfLowerIrql(oldirql)
 	mtx_unlock(&disp_lock[curthread->td_oncpu]);
 	sched_unpin();
 
+	return;
+}
+
+static uint8_t
+KeRaiseIrqlToDpcLevel(void)
+{
+	uint8_t			irql;
+
+	KeRaiseIrql(DISPATCH_LEVEL, &irql);
+	return(irql);
+}
+
+static void
+_KeLowerIrql(oldirql)
+	uint8_t			oldirql;
+{
+	KeLowerIrql(oldirql);
 	return;
 }
 
@@ -469,6 +487,9 @@ image_patch_table hal_functbl[] = {
 	IMPORT_SFUNC(KeQueryPerformanceCounter, 1),
 	IMPORT_FFUNC(KfLowerIrql, 1),
 	IMPORT_FFUNC(KfRaiseIrql, 1),
+	IMPORT_SFUNC(KeRaiseIrqlToDpcLevel, 0),
+#undef KeLowerIrql
+	IMPORT_SFUNC_MAP(KeLowerIrql, _KeLowerIrql, 1),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
