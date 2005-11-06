@@ -1313,29 +1313,15 @@ gdc_blank_display(video_adapter_t *adp, int mode)
 	/* FALLTHROUGH */
 
     case V_DISPLAY_BLANK:
-	if (epson_machine_id == 0x20) {
-	    outb(0x43f, 0x42);
-	    outb(0xc17, inb(0xc17) & ~0x08);	/* turn off side light */
-	    outb(0xc16, inb(0xc16) & ~0x02);	/* turn off back light */
-	    outb(0x43f, 0x40);
-	} else {
-	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
-		;
-	    outb(TEXT_GDC + 8, 0x0e);		/* DISP off */
-	}
+	while (!(inb(TEXT_GDC) & 0x20))		/* V-SYNC wait */
+	    ;
+	outb(TEXT_GDC + 8, 0x0e);		/* DISP off */
 	break;
 
     case V_DISPLAY_ON:
-	if (epson_machine_id == 0x20) {
-	    outb(0x43f, 0x42);
-	    outb(0xc17, inb(0xc17) | 0x08);
-	    outb(0xc16, inb(0xc16) | 0x02);
-	    outb(0x43f, 0x40);
-	} else {
-	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
-		;
-	    outb(TEXT_GDC + 8, 0x0f);		/* DISP on */
-	}
+	while (!(inb(TEXT_GDC) & 0x20))		/* V-SYNC wait */
+	    ;
+	outb(TEXT_GDC + 8, 0x0f);		/* DISP on */
 	if (standby) {
 	    outb(0x09a2, 0x00);			/* V/H-SYNC unmask */
 	    standby = 0;
