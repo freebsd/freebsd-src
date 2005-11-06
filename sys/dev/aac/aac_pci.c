@@ -195,27 +195,35 @@ struct aac_ident
 	{0, 0, 0, 0, 0, 0, 0}
 };
 
+static struct aac_ident *
+aac_find_ident(device_t dev)
+{
+	struct aac_ident *m;
+
+	for (m = aac_identifiers; m->vendor != 0; m++) {
+		if ((m->vendor == pci_get_vendor(dev)) &&
+		    (m->device == pci_get_device(dev)) &&
+		    (m->subvendor == pci_get_subvendor(dev)) &&
+		    (m->subdevice == pci_get_subdevice(dev)))
+		return (m);
+	}
+
+	return (NULL);
+}
+
 /*
  * Determine whether this is one of our supported adapters.
  */
 static int
 aac_pci_probe(device_t dev)
 {
-	struct aac_ident *m;
+	struct aac_ident *id;
 
 	debug_called(1);
 
-	for (m = aac_identifiers; m->vendor != 0; m++) {
-		if ((m->vendor == pci_get_vendor(dev)) &&
-		    (m->device == pci_get_device(dev)) &&
-		    ((m->subvendor == 0) || (m->subvendor ==
-					     pci_get_subvendor(dev))) &&
-		    ((m->subdevice == 0) || ((m->subdevice ==
-					      pci_get_subdevice(dev))))) {
-		
-			device_set_desc(dev, m->desc);
-			return(BUS_PROBE_DEFAULT);
-		}
+	if ((id = aac_find_ident(dev)) != NULL) {
+		device_set_desc(dev, id->desc);
+		return(BUS_PROBE_DEFAULT);
 	}
 	return(ENXIO);
 }
@@ -227,7 +235,8 @@ static int
 aac_pci_attach(device_t dev)
 {
 	struct aac_softc *sc;
-	int i, error;
+	struct aac_ident *id;
+	int error;
 	u_int32_t command;
 
 	debug_called(1);
@@ -301,46 +310,34 @@ aac_pci_attach(device_t dev)
 	 * Detect the hardware interface version, set up the bus interface
 	 * indirection.
 	 */
-	for (i = 0; aac_identifiers[i].vendor != 0; i++) {
-		if ((aac_identifiers[i].vendor == pci_get_vendor(dev)) &&
-		    (aac_identifiers[i].device == pci_get_device(dev)) &&
-		    (aac_identifiers[i].subvendor == pci_get_subvendor(dev)) &&
-		    (aac_identifiers[i].subdevice == pci_get_subdevice(dev))) {
-			sc->aac_hwif = aac_identifiers[i].hwif;
-			switch(sc->aac_hwif) {
-			case AAC_HWIF_I960RX:
-				debug(2, "set hardware up for i960Rx");
-				sc->aac_if = aac_rx_interface;
-				break;
-			case AAC_HWIF_STRONGARM:
-				debug(2, "set hardware up for StrongARM");
-				sc->aac_if = aac_sa_interface;
-				break;
-			case AAC_HWIF_FALCON:
-				debug(2, "set hardware up for Falcon/PPC");
-				sc->aac_if = aac_fa_interface;
-				break;
-			case AAC_HWIF_RKT:
-				debug(2, "set hardware up for Rocket/MIPS");
-				sc->aac_if = aac_rkt_interface;
-				break;
-			default:
-				sc->aac_hwif = AAC_HWIF_UNKNOWN;
-				break;
-			}
-
-			/* Set up quirks */
-			sc->flags = aac_identifiers[i].quirks;
-
-			break;
-		}
-	}
-	if (sc->aac_hwif == AAC_HWIF_UNKNOWN) {
+	id = aac_find_ident(dev);
+	sc->aac_hwif = id->hwif;
+	switch(sc->aac_hwif) {
+	case AAC_HWIF_I960RX:
+		debug(2, "set hardware up for i960Rx");
+		sc->aac_if = aac_rx_interface;
+		break;
+	case AAC_HWIF_STRONGARM:
+		debug(2, "set hardware up for StrongARM");
+		sc->aac_if = aac_sa_interface;
+		break;
+	case AAC_HWIF_FALCON:
+		debug(2, "set hardware up for Falcon/PPC");
+		sc->aac_if = aac_fa_interface;
+		break;
+	case AAC_HWIF_RKT:
+		debug(2, "set hardware up for Rocket/MIPS");
+		sc->aac_if = aac_rkt_interface;
+		break;
+	default:
+		sc->aac_hwif = AAC_HWIF_UNKNOWN;
 		device_printf(sc->aac_dev, "unknown hardware type\n");
 		error = ENXIO;
 		goto out;
 	}
 
+	/* Set up quirks */
+	sc->flags = id->quirks;
 
 	/*
 	 * Do bus-independent initialisation.
@@ -413,4 +410,3 @@ aacch_detach(device_t dev)
 
 	return (0);
 }
-
