@@ -274,101 +274,74 @@ extern void	amrd_intr(void *data);
 static __inline void
 amr_enqueue_bio(struct amr_softc *sc, struct bio *bio)
 {
-    int		s;
 
-    s = splbio();
     bioq_insert_tail(&sc->amr_bioq, bio);
-    splx(s);
 }
 
 static __inline struct bio *
 amr_dequeue_bio(struct amr_softc *sc)
 {
     struct bio	*bio;
-    int		s;
 
-    s = splbio();
     if ((bio = bioq_first(&sc->amr_bioq)) != NULL)
 	bioq_remove(&sc->amr_bioq, bio);
-    splx(s);
     return(bio);
 }
 
 static __inline void
 amr_enqueue_ready(struct amr_command *ac)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_TAIL(&ac->ac_sc->amr_ready, ac, ac_link);
-    splx(s);
 }
 
 static __inline void
 amr_requeue_ready(struct amr_command *ac)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_HEAD(&ac->ac_sc->amr_ready, ac, ac_link);
-    splx(s);
 }
 
 static __inline struct amr_command *
 amr_dequeue_ready(struct amr_softc *sc)
 {
     struct amr_command	*ac;
-    int			s;
 
-    s = splbio();
     if ((ac = TAILQ_FIRST(&sc->amr_ready)) != NULL)
 	TAILQ_REMOVE(&sc->amr_ready, ac, ac_link);
-    splx(s);
     return(ac);
 }
 
 static __inline void
 amr_enqueue_completed(struct amr_command *ac)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_TAIL(&ac->ac_sc->amr_completed, ac, ac_link);
-    splx(s);
 }
 
 static __inline struct amr_command *
 amr_dequeue_completed(struct amr_softc *sc)
 {
     struct amr_command	*ac;
-    int			s;
 
-    s = splbio();
     if ((ac = TAILQ_FIRST(&sc->amr_completed)) != NULL)
 	TAILQ_REMOVE(&sc->amr_completed, ac, ac_link);
-    splx(s);
     return(ac);
 }
 
 static __inline void
 amr_enqueue_free(struct amr_command *ac)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_TAIL(&ac->ac_sc->amr_freecmds, ac, ac_link);
-    splx(s);
 }
 
 static __inline struct amr_command *
 amr_dequeue_free(struct amr_softc *sc)
 {
     struct amr_command	*ac;
-    int			s;
 
-    s = splbio();
     if ((ac = TAILQ_FIRST(&sc->amr_freecmds)) != NULL)
 	TAILQ_REMOVE(&sc->amr_freecmds, ac, ac_link);
-    splx(s);
     return(ac);
 }

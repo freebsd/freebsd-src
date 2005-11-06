@@ -1038,11 +1038,10 @@ static int
 amr_quartz_poll_command(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
-    int			s, error;
+    int			error;
 
     debug_called(2);
 
-    s = splbio();
     error = 0;
 
     /* now we have a slot, we can map the command (unmapped in amr_complete) */
@@ -1055,7 +1054,6 @@ amr_quartz_poll_command(struct amr_command *ac)
 	error = amr_quartz_poll_command1(sc, ac);
     }
 
-    splx(s);
     return (error);
 }
 
@@ -1389,7 +1387,7 @@ amr_start(struct amr_command *ac)
 static int
 amr_start1(struct amr_softc *sc, struct amr_command *ac)
 {
-    int			done, s, i;
+    int			done, i;
 
     /* mark the new mailbox we are going to copy in as busy */
     ac->ac_mailbox.mb_busy = 1;
@@ -1413,7 +1411,6 @@ amr_start1(struct amr_softc *sc, struct amr_command *ac)
      */
     debug(4, "wait for mailbox");
     for (i = 10000, done = 0; (i > 0) && !done; i--) {
-	s = splbio();
 	
 	/* is the mailbox free? */
 	if (sc->amr_mailbox->mb_busy == 0) {
@@ -1428,7 +1425,6 @@ amr_start1(struct amr_softc *sc, struct amr_command *ac)
 	    /* this is somewhat ugly */
 	    DELAY(100);
 	}
-	splx(s);	/* drop spl to allow completion interrupts */
     }
 
     /*
@@ -1613,16 +1609,14 @@ amr_alloccmd_cluster(struct amr_softc *sc)
 {
     struct amr_command_cluster	*acc;
     struct amr_command		*ac;
-    int				s, i, nextslot;
+    int				i, nextslot;
 
     if (sc->amr_nextslot > sc->amr_maxio)
 	return;
     acc = malloc(AMR_CMD_CLUSTERSIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
     if (acc != NULL) {
-	s = splbio();
 	nextslot = sc->amr_nextslot;
 	TAILQ_INSERT_TAIL(&sc->amr_cmd_clusters, acc, acc_link);
-	splx(s);
 	for (i = 0; i < AMR_CMD_CLUSTERCOUNT; i++) {
 	    ac = &acc->acc_command[i];
 	    ac->ac_sc = sc;
@@ -1689,14 +1683,13 @@ amr_std_submit_command(struct amr_softc *sc)
 static int
 amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 {
-    int		s, worked;
+    int		worked;
     u_int32_t	outd;
     u_int8_t	nstatus;
 
     debug_called(3);
 
     worked = 0;
-    s = splbio();
 
     /* work waiting for us? */
     if ((outd = AMR_QGET_ODB(sc)) == AMR_QODB_READY) {
@@ -1732,20 +1725,18 @@ amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 	worked = 1;			/* got some work */
     }
 
-    splx(s);
     return(worked);
 }
 
 static int
 amr_std_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 {
-    int		s, worked;
+    int		worked;
     u_int8_t	istat;
 
     debug_called(3);
 
     worked = 0;
-    s = splbio();
 
     /* check for valid interrupt status */
     istat = AMR_SGET_ISTAT(sc);
@@ -1759,7 +1750,6 @@ amr_std_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 	worked = 1;
     }
 
-    splx(s);
     return(worked);
 }
 
