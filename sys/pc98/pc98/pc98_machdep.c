@@ -69,9 +69,9 @@ init_epson_memwin(void)
 {
 	/* Disable 15MB-16MB caching. */
 	switch (epson_machine_id) {
-	case 0x34:	/* PC486HX */
-	case 0x35:	/* PC486HG */
-	case 0x3B:	/* PC486HA */
+	case EPSON_PC486_HX:
+	case EPSON_PC486_HG:
+	case EPSON_PC486_HA:
 		/* Cache control start. */
 		outb(0x43f, 0x42);
 		outw(0xc40, 0x0033);
@@ -92,12 +92,12 @@ init_epson_memwin(void)
 		outb(0x43f, 0x40);
 		break;
 
-	case 0x2B:	/* PC486GR/GF */
-	case 0x30:	/* PC486P */
-	case 0x31:	/* PC486GRSuper */
-	case 0x32:	/* PC486GR+ */
-	case 0x37:	/* PC486SE */
-	case 0x38:	/* PC486SR */
+	case EPSON_PC486_GR:
+	case EPSON_PC486_P:
+	case EPSON_PC486_GR_SUPER:
+	case EPSON_PC486_GR_PLUS:
+	case EPSON_PC486_SE:
+	case EPSON_PC486_SR:
 		/* Disable 0xF00000-0xFFFFFF. */
 		outb(0x43f, 0x42);
 		outb(0x467, 0xe0);
