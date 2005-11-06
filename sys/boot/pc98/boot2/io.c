@@ -354,7 +354,6 @@ void machine_check(void)
 	int	ret;
 	int	i;
 	int	data = 0;
-	u_char epson_machine_id = *(unsigned char *)V(0xA1624);
 	
 	/* PC98_SYSTEM_PARAMETER(0x501) */
 	ret = ((*(unsigned char*)V(0xA1501)) & 0x08) >> 3;
@@ -390,18 +389,8 @@ void machine_check(void)
 		} else {
 			ret |= M_NOT_H98;
 		}
-	} else {
+	} else
 		ret |= M_NOT_H98;
-		switch (epson_machine_id) {
-		case 0x20:	/* note A */
-		case 0x22:	/* note W */
-		case 0x27:	/* note AE */
-		case 0x2a:	/* note WR */
-			ret |= M_NOTE;
-			break;
-		default:
-			    break;
-		}
-	}
+
 	(*(unsigned long *)V(0xA1620)) = ret;
 }
