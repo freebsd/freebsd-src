@@ -370,3 +370,11 @@ ENTRY(x86_setfs)
 ENTRY(x86_gettid)
 	mov	%fs:12,%eax
 	ret
+
+ENTRY(x86_critical_enter)
+	cli
+	ret
+
+ENTRY(x86_critical_exit)
+	sti
+	ret
