@@ -945,9 +945,6 @@ sioprobe(dev, xrid, rclk, noprobe)
 		     */
 		    result = 0;
 		}
-		if (epson_machine_id==0x20) {	/* XXX */
-		    result = 0;
-		}
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		if (result) {
 			device_set_softc(dev, NULL);
@@ -4129,6 +4126,7 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 {
 	int	cfcr=0;
 	int	previnterrupt;
+	int	tmp;
 	u_int	count;
 
 	if (pc98_ttspeedtab(com, speed, &count) != 0)
@@ -4165,11 +4163,9 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 	else
 		cfcr |= MOD8251_CLKX16;
 
-	if (epson_machine_id != 0x20) {	/* XXX */
-		int	tmp;
-		while (!((tmp = inb(com->sts_port)) & STS8251_TxEMP))
-			;
-	}
+	while (!((tmp = inb(com->sts_port)) & STS8251_TxEMP))
+		;
+
 	/* set baud rate from ospeed */
 	pc98_set_baud_rate( com, count );
 
