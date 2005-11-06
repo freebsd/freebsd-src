@@ -889,6 +889,13 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0))
 				goto reversal;
 			/*
+			 * If we are locking Giant and this is a non-sleepable
+			 * lock, then treat it as a reversal.
+			 */
+			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0 &&
+			    lock == &Giant.mtx_object)
+				goto reversal;
+			/*
 			 * Check the lock order hierarchy for a reveresal.
 			 */
 			if (!isitmydescendant(w, w1))
@@ -922,7 +929,16 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			/*
 			 * Ok, yell about it.
 			 */
-			printf("lock order reversal\n");
+			if (((lock->lo_flags & LO_SLEEPABLE) != 0 &&
+			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0))
+				printf(
+		"lock order reversal: (sleepable after non-sleepable)\n");
+			else if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0
+			    && lock == &Giant.mtx_object)
+				printf(
+		"lock order reversal: (Giant after non-sleepable)\n");
+			else
+				printf("lock order reversal:\n");
 			/*
 			 * Try to locate an earlier lock with
 			 * witness w in our list.
