@@ -465,6 +465,14 @@ vlan_ifinit(void *foo)
 
 }
 
+/*
+ * The if_start method for vlan(4) interface. It doesn't
+ * raises the IFF_DRV_OACTIVE flag, since it is called
+ * only from IFQ_HANDOFF() macro in ether_output_frame().
+ * If the interface queue is full, and vlan_start() is
+ * not called, the queue would never get emptied and
+ * interface would stall forever.
+ */
 static void
 vlan_start(struct ifnet *ifp)
 {
@@ -477,7 +485,6 @@ vlan_start(struct ifnet *ifp)
 	ifv = ifp->if_softc;
 	p = ifv->ifv_p;
 
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
@@ -561,7 +568,6 @@ vlan_start(struct ifnet *ifp)
 		else
 			ifp->if_oerrors++;
 	}
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
