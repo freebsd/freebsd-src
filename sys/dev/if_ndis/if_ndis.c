@@ -2506,12 +2506,11 @@ ndis_get_assoc(sc, assoc)
 		device_printf(sc->ndis_dev, "failed to get bssid\n");
 		return(ENOENT);
 	}
-	len = 0;
+
+	len = 4;
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
-	if (error != ENOSPC) {
-		device_printf(sc->ndis_dev, "bssid_list failed\n");
-		return (error);
-	}
+	if (error != ENOSPC)
+		len = 65536;
 
 	bl = malloc(len, M_TEMP, M_NOWAIT|M_ZERO);
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
@@ -2978,7 +2977,7 @@ ndis_wi_ioctl_get(ifp, command, data)
 		len = 0;
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
 		if (error != ENOSPC)
-			break;
+			len = 65536;	
 		bl = malloc(len, M_DEVBUF, M_NOWAIT|M_ZERO);
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
 		if (error) {
@@ -3097,7 +3096,7 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 		len = 0;
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
 		if (error != ENOSPC)
-			break;
+			len = 65536;	
 		bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
 		if (error) {
