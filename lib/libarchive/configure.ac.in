@@ -79,7 +79,7 @@ AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([acl_create_entry acl_init acl_set_fd acl_set_fd_np acl_set_file])
 AC_CHECK_FUNCS([chflags fchdir fchflags fchmod fchown futimes])
 AC_CHECK_FUNCS([lchflags lchmod lchown lutimes memmove])
-AC_CHECK_FUNCS([memset mkdir mkfifo strchr strdup strerror strrchr])
+AC_CHECK_FUNCS([memset mkdir mkfifo strchr strdup strerror strrchr timegm])
 
 # MacOS has an acl.h that isn't POSIX.  It can be detected by
 # checking for ACL_USER

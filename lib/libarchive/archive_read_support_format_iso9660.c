@@ -179,6 +179,7 @@ static int	archive_read_format_iso9660_read_header(struct archive *,
 		    struct archive_entry *);
 static const char *build_pathname(struct archive_string *, struct file_info *);
 static void	dump_isodirrec(FILE *, const struct iso9660_directory_record *);
+static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const void *);
 static time_t	isodate7(const void *);
 static int	isPVD(struct iso9660 *, const char *);
@@ -950,6 +951,7 @@ isodate7(const void *p)
 	struct tm tm;
 	const unsigned char *v = (const unsigned char *)p;
 	int offset;
+	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = v[0];
 	tm.tm_mon = v[1] - 1;
 	tm.tm_mday = v[2];
@@ -962,7 +964,7 @@ isodate7(const void *p)
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
 	}
-	return (timegm(&tm));
+	return (time_from_tm(&tm));
 }
 
 static time_t
@@ -971,6 +973,7 @@ isodate17(const void *p)
 	struct tm tm;
 	const unsigned char *v = (const unsigned char *)p;
 	int offset;
+	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
 	    + (v[2] - '0') * 10 + (v[3] - '0')
 	    - 1900;
@@ -985,7 +988,44 @@ isodate17(const void *p)
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
 	}
-	return (timegm(&tm));
+	return (time_from_tm(&tm));
+}
+
+/*
+ * timegm() converts a struct tm to a time_t, except it isn't standard,
+ * so I provide my own function here that (ideally) is just a wrapper
+ * for timegm().
+ */
+static time_t
+time_from_tm(struct tm *t)
+{
+#if HAVE_TIMEGM
+	return (timegm(t));
+#else
+	/*
+	 * Unfortunately, timegm() isn't standard.  The standard
+	 * mktime() function is a close match, except that it uses
+	 * local timezone instead of GMT.  Close enough for now.
+	 * Note that it is not possible to emulate timegm() using
+	 * standard interfaces:
+	 *   * ANSI C90 does not even guarantee that time_t is
+	 *     an arithmetic type, so time adjustments can only be
+	 *     done by manipulating struct tm elements.  You cannot
+	 *     portably calculate time_t values.
+	 *   * POSIX does promise that time_t is an arithmetic type
+	 *     measured in seconds, so you can do time_t calculations
+	 *     while remaining POSIX-compliant.
+	 *   * Neither ANSI nor POSIX provides an easy way to measure
+	 *     the timezone offset, so you can't adjust mktime() to
+	 *     work like timegm().
+	 *   * POSIX does not promise that the epoch begins in 1970,
+	 *     so you can't write a portable timegm() function from
+	 *     scratch.
+	 */
+	time_t result = mktime(t);
+	/* TODO: Find a way to improve this approximation to timegm(). */
+	return result;
+#endif
 }
 
 static const char *
