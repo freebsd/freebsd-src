@@ -509,6 +509,8 @@ void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
 
 extern char *_tmppt;
 
+void	pmap_postinit(void);
+
 #ifdef ARM_USE_SMALL_ALLOC
 void	arm_add_smallalloc_pages(void *, void *, int, int);
 void 	arm_busy_pages(void);
