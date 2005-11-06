@@ -227,6 +227,10 @@ static ndis_status ObReferenceObjectByHandle(ndis_handle,
 	uint32_t, void *, uint8_t, void **, void **);
 static void ObfDereferenceObject(void *);
 static uint32_t ZwClose(ndis_handle);
+static uint32_t WmiQueryTraceInformation(uint32_t, void *, uint32_t,
+	uint32_t, void *);
+static uint32_t WmiTraceMessage(uint64_t, uint32_t, void *, uint16_t, ...);
+static uint32_t IoWMIRegistrationControl(device_object *, uint32_t);
 static void *ntoskrnl_memset(void *, int, size_t);
 static char *ntoskrnl_strstr(char *, char *);
 static int ntoskrnl_toupper(int);
@@ -3336,6 +3340,32 @@ ZwClose(handle)
 	return(STATUS_SUCCESS);
 }
 
+static uint32_t
+WmiQueryTraceInformation(traceclass, traceinfo, infolen, reqlen, buf)
+	uint32_t		traceclass;
+	void			*traceinfo;
+	uint32_t		infolen;
+	uint32_t		reqlen;
+	void			*buf;
+{
+	return(STATUS_NOT_FOUND);
+}
+
+static uint32_t
+WmiTraceMessage(uint64_t loghandle, uint32_t messageflags,
+	void *guid, uint16_t messagenum, ...)
+{
+	return(STATUS_SUCCESS);
+}
+
+static uint32_t
+IoWMIRegistrationControl(dobj, action)
+	device_object		*dobj;
+	uint32_t		action;
+{
+	return(STATUS_SUCCESS);
+}
+
 /*
  * This is here just in case the thread returns without calling
  * PsTerminateSystemThread().
@@ -4215,6 +4245,9 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(ZwClose, 1),
 	IMPORT_SFUNC(PsCreateSystemThread, 7),
 	IMPORT_SFUNC(PsTerminateSystemThread, 1),
+	IMPORT_SFUNC(IoWMIRegistrationControl, 2),
+	IMPORT_SFUNC(WmiQueryTraceInformation, 5),
+	IMPORT_CFUNC(WmiTraceMessage, 0),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
