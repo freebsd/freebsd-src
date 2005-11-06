@@ -2539,6 +2539,8 @@ ttyinfo(struct tty *tp)
 	const char *stateprefix, *state;
 	long rss;
 	int load, pctcpu;
+	pid_t pid;
+	char comm[MAXCOMLEN + 1];
 
 	if (ttycheckoutq(tp,0) == 0)
 		return;
@@ -2561,9 +2563,9 @@ ttyinfo(struct tty *tp)
 		tp->t_rocount = 0;
 		return;
 	}
-	sx_slock(&proctree_lock);
-	if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == NULL) {
-		sx_sunlock(&proctree_lock);
+	PGRP_LOCK(tp->t_pgrp);
+	if (LIST_EMPTY(&tp->t_pgrp->pg_members)) {
+		PGRP_UNLOCK(tp->t_pgrp);
 		ttyprintf(tp, "empty foreground process group\n");
 		tp->t_rocount = 0;
 		return;
@@ -2577,8 +2579,9 @@ ttyinfo(struct tty *tp)
 	 * copy of the state, but may increase interrupt latency
 	 * too much.
 	 */
+	pick = NULL;
 	mtx_lock_spin(&sched_lock);
-	for (pick = NULL; p != NULL; p = LIST_NEXT(p, p_pglist))
+	LIST_FOREACH(p, &tp->t_pgrp->pg_members, p_pglist)
 		if (proc_compare(pick, p))
 			pick = p;
 
@@ -2588,7 +2591,7 @@ ttyinfo(struct tty *tp)
 #else
 	if (td == NULL) {
 		mtx_unlock_spin(&sched_lock);
-		sx_sunlock(&proctree_lock);
+		PGRP_UNLOCK(tp->t_pgrp);
 		ttyprintf(tp, "foreground process without thread\n");
 		tp->t_rocount = 0;
 		return;
@@ -2621,18 +2624,20 @@ ttyinfo(struct tty *tp)
 		rss = pgtok(vmspace_resident_count(pick->p_vmspace));
 	mtx_unlock_spin(&sched_lock);
 	PROC_LOCK(pick);
+	PGRP_UNLOCK(tp->t_pgrp);
 	calcru(pick, &utime, &stime);
+	pid = pick->p_pid;
+	bcopy(pick->p_comm, comm, sizeof(comm));
 	PROC_UNLOCK(pick);
 
 	/* Print command, pid, state, utime, stime, %cpu, and rss. */
 	ttyprintf(tp,
 	    " cmd: %s %d [%s%s] %ld.%02ldu %ld.%02lds %d%% %ldk\n",
-	    pick->p_comm, pick->p_pid, stateprefix, state,
+	    comm, pid, stateprefix, state,
 	    (long)utime.tv_sec, utime.tv_usec / 10000,
 	    (long)stime.tv_sec, stime.tv_usec / 10000,
 	    pctcpu / 100, rss);
 	tp->t_rocount = 0;
-	sx_sunlock(&proctree_lock);
 }
 
 /*
