@@ -94,33 +94,24 @@ static void		amr_cam_complete_extcdb(struct amr_command *ac);
 static __inline void
 amr_enqueue_ccb(struct amr_softc *sc, union ccb *ccb)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_TAIL(&sc->amr_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
-    splx(s);
 }
 
 static __inline void
 amr_requeue_ccb(struct amr_softc *sc, union ccb *ccb)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_HEAD(&sc->amr_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
-    splx(s);
 }
 
 static __inline union ccb *
 amr_dequeue_ccb(struct amr_softc *sc)
 {
     union ccb	*ccb;
-    int		s;
 
-    s = splbio();
     if ((ccb = (union ccb *)TAILQ_FIRST(&sc->amr_cam_ccbq)) != NULL)
 	TAILQ_REMOVE(&sc->amr_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
-    splx(s);
     return(ccb);
 }
 

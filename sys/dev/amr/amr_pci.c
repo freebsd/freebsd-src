@@ -344,7 +344,7 @@ static int
 amr_pci_shutdown(device_t dev)
 {
     struct amr_softc	*sc = device_get_softc(dev);
-    int			i,error,s;
+    int			i,error;
 
     debug_called(1);
 
@@ -356,7 +356,6 @@ amr_pci_shutdown(device_t dev)
     device_printf(sc->amr_dev, "flushing cache...");
     printf("%s\n", amr_flush(sc) ? "failed" : "done");
 
-    s = splbio();
     error = 0;
 
     /* delete all our child devices */
@@ -371,7 +370,6 @@ amr_pci_shutdown(device_t dev)
     /* XXX disable interrupts? */
 
 shutdown_out:
-    splx(s);
     return(error);
 }
 
