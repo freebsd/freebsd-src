@@ -53,7 +53,7 @@ ibcs2_compat()
 	fi
 }
 
-_arch=`${SYSCTL_N} hw.machine`
+_arch=`${SYSCTL_N} hw.machine_arch`
 echo -n "Initial $_arch initialization:"
 case $_arch in
 i386)
