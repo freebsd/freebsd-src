@@ -547,7 +547,7 @@ main(int argc, char **argv)
 		only_mode(bsdtar, buff, "cxt");
 	}
 	if (bsdtar->create_format != NULL)
-		only_mode(bsdtar, "-F", "c");
+		only_mode(bsdtar, "--format", "c");
 	if (bsdtar->symlink_mode != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->symlink_mode;
