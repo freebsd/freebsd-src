@@ -398,11 +398,6 @@ int	pmap_needs_pte_sync;
  */
 #define	PV_BEEN_REFD(f)   (((f) & PVF_REF) != 0)
 
-/*
- * Data for the pv entry allocation mechanism
- */
-#define MINPV	2048
-
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
@@ -1949,6 +1944,7 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
+	int shpgperproc = PMAP_SHPGPERPROC;
 
 	PDEBUG(1, printf("pmap_init: phys_start = %08x\n"));
 
@@ -1957,11 +1953,23 @@ pmap_init(void)
 	 */
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_prealloc(pvzone, MINPV);
 	/*
 	 * Now it is safe to enable pv_table recording.
 	 */
 	PDEBUG(1, printf("pmap_init: done!\n"));
+
+	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
+	
+	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
+	pv_entry_high_water = 9 * (pv_entry_max / 10);
+	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
+
+	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+	uma_zone_set_obj(l2zone, &l2zone_obj, pv_entry_max);
 
 }
 
@@ -2190,15 +2198,14 @@ out:
 	return (rv);
 }
 
-/*
- * Initialize the address space (zone) for the pv_entries.  Set a
- * high water mark so that the system can recover from excessive
- * numbers of pv entries.
- */
 void
-pmap_init2()
+pmap_init2(void)
 {
-	int shpgperproc = PMAP_SHPGPERPROC;
+}
+
+void
+pmap_postinit(void)
+{
 	struct l2_bucket *l2b;
 	struct l1_ttable *l1;
 	pd_entry_t *pl1pt;
@@ -2206,21 +2213,6 @@ pmap_init2()
 	vm_offset_t va, eva;
 	u_int loop, needed;
 	
-	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	
-	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
-	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_prealloc(l2zone, 4096);
-	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_prealloc(l2table_zone, 1024);
-
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
-	uma_zone_set_obj(l2zone, &l2zone_obj, pv_entry_max);
-
 	needed = (maxproc / PMAP_DOMAINS) + ((maxproc % PMAP_DOMAINS) ? 1 : 0);
 	needed -= 1;
 	l1 = malloc(sizeof(*l1) * needed, M_VMPMAP, M_WAITOK);
@@ -3787,8 +3779,7 @@ pmap_get_pv_entry(void)
 	pv_entry_t ret_value;
 	
 	pv_entry_count++;
-	if (pv_entry_high_water &&
-	    (pv_entry_count > pv_entry_high_water) &&
+	if ((pv_entry_count > pv_entry_high_water) &&
 	    (pmap_pagedaemon_waken == 0)) {
 	    	pmap_pagedaemon_waken = 1;
 	    	wakeup (&vm_pages_needed);
