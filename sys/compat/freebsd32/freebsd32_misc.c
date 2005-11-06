@@ -1033,7 +1033,7 @@ freebsd32_recvmsg(td, uap)
 			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
 
 		if (error == 0)
-			error = freebsd32_copyoutiov(iov, iov->iov_len,
+			error = freebsd32_copyoutiov(iov, m32.msg_iovlen,
 			    (struct iovec32 *)(uintptr_t)m32.msg_iov, EMSGSIZE);
 	}
 	free(iov, M_IOV);
