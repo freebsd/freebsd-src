@@ -1,5 +1,7 @@
 /*	$NetBSD: puc.c,v 1.7 2000/07/29 17:43:38 jlam Exp $	*/
+#ifndef PUC_FASTINTR
 #define PUC_FASTINTR
+#endif
 
 /*-
  * Copyright (c) 2002 JF Hay.  All rights reserved.
