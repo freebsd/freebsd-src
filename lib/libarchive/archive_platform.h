@@ -93,6 +93,7 @@
 #define	HAVE_SYS_TIME_H 1
 #define	HAVE_SYS_TYPES_H 1
 #define	HAVE_SYS_WAIT_H 1
+#define	HAVE_TIMEGM 1
 #define	HAVE_UNISTD_H 1
 #define	HAVE_WCHAR_H 1
 #define	HAVE_ZLIB_H 1
