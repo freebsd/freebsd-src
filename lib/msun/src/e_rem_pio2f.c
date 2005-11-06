@@ -55,6 +55,7 @@ zero =  0.00000000000000000000e+00, /* 0x00000000, 0x00000000 */
 half =  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
 two24 =  1.67772160000000000000e+07, /* 0x41700000, 0x00000000 */
 invpio2 =  6.36619772367581382433e-01, /* 0x3FE45F30, 0x6DC9C883 */
+pio2    =  1.57079632679489655700e+00, /* 0x3FF921FB, 0x54442d18 */
 pio2_1  =  1.57079632673412561417e+00, /* 0x3FF921FB, 0x54400000 */
 pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 
@@ -71,16 +72,45 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 	/* 33+53 bit pi is good enough for special and medium size cases */
 	if(ix<0x4016cbe4) {  /* |x| < 3pi/4, special case with n=+-1 */
 	    if(hx>0) { 
-		z = x - pio2_1;
-		y[0] = z - pio2_1t;
-		y[1] = (z-y[0])-pio2_1t;
-		return 1;
-	    } else {	/* negative x */
-		z = x + pio2_1;
-		y[0] = z + pio2_1t;
-		y[1] = (z-y[0])+pio2_1t;
-		return -1;
+		z = x - pio2;
+		n = 1;
+	    } else {
+		z = x + pio2;
+		n = 3;
 	    }
+	    y[0] = z;
+	    y[1] = z - y[0];
+	    return n;
+	}
+	if(ix<0x407b53d1) {  /* |x| < 5*pi/4, special case with n=+-2 */
+	    if(hx>0)
+		z = x - 2*pio2;
+	    else
+		z = x + 2*pio2;
+	    y[0] = z;
+	    y[1] = z - y[0];
+	    return 2;
+	}
+	if(ix<0x40afeddf) {  /* |x| < 7*pi/4, special case with n=+-3 */
+	    if(hx>0) { 
+		z = x - 3*pio2;
+		n = 3;
+	    } else {
+		z = x + 3*pio2;
+		n = 1;
+	    }
+	    y[0] = z;
+	    y[1] = z - y[0];
+	    return n;
+	}
+	if(ix<0x40e231d6) {  /* |x| < 9*pi/4, special case with n=+-4 */
+	    if(hx>0)
+		z = x - 4*pio2;
+	    else
+		z = x + 4*pio2;
+	    y[0] = z;
+	    y[1] = z - y[0];
+	    return 0;
 	}
 	if(ix<=0x49490f80) { /* |x| ~<= 2^19*(pi/2), medium size */
 	    t  = fabsf(x);
