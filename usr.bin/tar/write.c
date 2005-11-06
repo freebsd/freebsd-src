@@ -299,7 +299,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	if (archive_read_open_fd(a, bsdtar->fd,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
 		DEFAULT_BYTES_PER_BLOCK) != ARCHIVE_OK) {
-		bsdtar_errc(bsdtar, 1, archive_errno(a),
+		bsdtar_errc(bsdtar, 1, 0,
 		    "Can't open %s: %s", bsdtar->filename,
 		    archive_error_string(a));
 	}
