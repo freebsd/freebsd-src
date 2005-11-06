@@ -28,7 +28,7 @@
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include "/sys/dev/aac/aac_ioctl.h"
+#include <sys/aac_ioctl.h>
 
 __FBSDID("$FreeBSD$");
 
