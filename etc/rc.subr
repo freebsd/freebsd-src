@@ -267,7 +267,7 @@ _find_processes()
 		_procnamebn=${_procname##*/}
 		_fp_args='_arg0 _argv'
 		_fp_match='case "$_arg0" in
-		    $_procname|$_procnamebn|${_procnamebn}:|"(${_procnamebn})")'
+		    $_procname|$_procnamebn|${_procnamebn}:|"(${_procnamebn})"|"[${_procnamebn}]")'
 	fi
 
 	_proccheck='
