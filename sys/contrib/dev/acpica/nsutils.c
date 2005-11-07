@@ -117,10 +117,10 @@
 
 #define __NSUTILS_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "amlcode.h"
-#include "actables.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/actables.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsutils")

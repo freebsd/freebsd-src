@@ -205,7 +205,7 @@
 #include "acdos16.h"
 
 #elif defined(__FreeBSD__)
-#include "acfreebsd.h"
+#include <contrib/dev/acpica/acfreebsd.h>
 
 #elif defined(__NetBSD__)
 #include "acnetbsd.h"

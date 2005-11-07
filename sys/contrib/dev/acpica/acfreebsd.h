@@ -120,7 +120,7 @@
 
 /* FreeBSD uses GCC */
 
-#include "acgcc.h"
+#include <contrib/dev/acpica/acgcc.h>
 #include <sys/types.h>
 #include <machine/acpica_machdep.h>
 

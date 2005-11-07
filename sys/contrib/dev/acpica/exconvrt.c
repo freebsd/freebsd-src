@@ -117,9 +117,9 @@
 
 #define __EXCONVRT_C__
 
-#include "acpi.h"
-#include "acinterp.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acinterp.h>
+#include <contrib/dev/acpica/amlcode.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

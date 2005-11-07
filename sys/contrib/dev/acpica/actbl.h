@@ -415,8 +415,8 @@ typedef struct acpi_table_support
 /*
  * Get the ACPI version-specific tables
  */
-#include "actbl1.h"   /* Acpi 1.0 table definitions */
-#include "actbl2.h"   /* Acpi 2.0 table definitions */
+#include <contrib/dev/acpica/actbl1.h>   /* Acpi 1.0 table definitions */
+#include <contrib/dev/acpica/actbl2.h>   /* Acpi 2.0 table definitions */
 
 
 #pragma pack(1)
