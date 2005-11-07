@@ -1332,7 +1332,7 @@ struct ndis_packet_pool {
 typedef struct ndis_packet_pool ndis_packet_pool;
 
 /* mbuf ext type for NDIS */
-#define EXT_NDIS		0x999
+#define EXT_NDIS		EXT_NET_DRV
 
 /* mtx type for NDIS */
 #define MTX_NDIS_LOCK "NDIS lock"
