@@ -96,6 +96,13 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
     if (entry->Source == NULL || entry->Source[0] == '\0')
 	return;
 
+    /*
+     * In practice, we only see SourceIndex's of 0 out in the wild.
+     * When indices != 0 have been found, they've been bugs in the ASL.
+     */
+    if (entry->SourceIndex != 0)
+	return;
+
     /* Lookup the associated handle and device. */
     pcib = (device_t)arg;
     if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, entry->Source, &handle)))
@@ -236,8 +243,12 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * If source is empty/NULL, the source index is a global IRQ number
      * and it's hard-wired so we're done.
+     *
+     * XXX: If the source index is non-zero, ignore the source device and
+     * assume that this is a hard-wired entry.
      */
-    if (prt->Source == NULL || prt->Source[0] == '\0') {
+    if (prt->Source == NULL || prt->Source[0] == '\0' ||
+	prt->SourceIndex != 0) {
 	if (bootverbose)
 	    device_printf(pcib, "slot %d INT%c hardwired to IRQ %d\n",
 		pci_get_slot(dev), 'A' + pin, prt->SourceIndex);
