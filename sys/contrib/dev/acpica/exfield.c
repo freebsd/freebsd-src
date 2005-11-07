@@ -117,9 +117,9 @@
 
 #define __EXFIELD_C__
 
-#include "acpi.h"
-#include "acdispat.h"
-#include "acinterp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acdispat.h>
+#include <contrib/dev/acpica/acinterp.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

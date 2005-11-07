@@ -117,11 +117,11 @@
 
 #define __EXOPARG2_C__
 
-#include "acpi.h"
-#include "acparser.h"
-#include "acinterp.h"
-#include "acevents.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/acinterp.h>
+#include <contrib/dev/acpica/acevents.h>
+#include <contrib/dev/acpica/amlcode.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

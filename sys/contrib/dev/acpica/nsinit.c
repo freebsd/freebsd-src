@@ -117,10 +117,10 @@
 
 #define __NSXFINIT_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acdispat.h"
-#include "acinterp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acdispat.h>
+#include <contrib/dev/acpica/acinterp.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsinit")

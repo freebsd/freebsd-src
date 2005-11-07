@@ -115,7 +115,7 @@
  *
  *****************************************************************************/
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 #define _COMPONENT          ACPI_HARDWARE
         ACPI_MODULE_NAME    ("hwsleep")
