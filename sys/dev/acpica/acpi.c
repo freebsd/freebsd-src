@@ -1497,13 +1497,13 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
     ret = 0;
     if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02")) {
 	*order = 1;
-	ret = 1;
+	ret = 0;
     } else if (acpi_MatchHid(handle, "PNP0C09")) {
 	*order = 2;
-	ret = 1;
+	ret = 0;
     } else if (acpi_MatchHid(handle, "PNP0C0F")) {
 	*order = 3;
-	ret = 1;
+	ret = 0;
     }
 
     return (ret);
