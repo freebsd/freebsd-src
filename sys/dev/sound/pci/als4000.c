@@ -591,33 +591,22 @@ static int
 alsmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
-	u_int32_t i, l, r, mask;
+	u_int32_t i, l, r;
 
 	for (i = l = r = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (src & (1 << i)) {
-			l |= amt[i].iselect;
-			r |= amt[i].iselect << 1;
+			if (amt[i].iselect == 1) {	/* microphone */
+				l |= amt[i].iselect;
+				r |= amt[i].iselect;
+			} else {
+				l |= amt[i].iselect;
+				r |= amt[i].iselect >> 1;
+			}
 		}
 	}
 
-	/* ALS mixer is really an SB16 mixer */
-
-	mask = 0;
-	
-	if (src & SOUND_MASK_MIC)
-		mask |= 0x01;
-		
-	if (src & SOUND_MASK_CD)
-		mask |= 0x06;
-		
-	if (src & SOUND_MASK_LINE)
-		mask |= 0x18;
-		
-	if (src & SOUND_MASK_SYNTH)
-		mask |= 0x60;
-		
-	als_mix_wr(sc, SB16_IMASK_L, l|mask);
-	als_mix_wr(sc, SB16_IMASK_R, r|mask);
+	als_mix_wr(sc, SB16_IMASK_L, l);
+	als_mix_wr(sc, SB16_IMASK_R, r);
 	return src;
 }
 
