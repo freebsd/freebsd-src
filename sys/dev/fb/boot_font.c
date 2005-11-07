@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/pc/vesa.h>
 #include <machine/resource.h>
-#include <machine/rpb.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>
