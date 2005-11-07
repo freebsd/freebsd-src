@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/linker.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/actables.h>
 
 #undef _COMPONENT

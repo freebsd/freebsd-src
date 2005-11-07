@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 #include <sys/sysctl.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 static u_long amd64_acpi_root;
 
