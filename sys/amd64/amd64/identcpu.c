@@ -284,6 +284,15 @@ printcpuinfo(void)
 				);
 			}
 
+			if (cpu_feature & CPUID_HTT && strcmp(cpu_vendor,
+			    "AuthenticAMD") == 0) {
+				cpu_feature &= ~CPUID_HTT;
+				if (bootverbose)
+	    				printf("\n    HTT bit cleared - FreeBSD"
+					    " does not have licenseing issues"
+					    " requiring it.\n");
+			}
+
 			/*
 			 * If this CPU supports hyperthreading then mention
 			 * the number of logical CPU's it contains.
