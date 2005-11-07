@@ -37,8 +37,8 @@ SRCS+=		acl.c adb.c byaddr.c \
 CFLAGS+=	-I${SRCDIR}/include/dst -I${SRCDIR}/include -I${SRCDIR}
 CFLAGS+=	-I${.CURDIR}
 
-DPADD=		${CRYPTO_DPADD} ${PTHREAD_DPADD}
-LDADD=		${CRYPTO_LDADD} ${PTHREAD_LDADD}
+DPADD=		${CRYPTO_DPADD}
+LDADD=		${CRYPTO_LDADD}
 
 .if defined(WITH_BIND_LIBS)
 DNSINCS=	${SRCDIR}/include/dns/acl.h \
