@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #define UMA_DEBUG_ALLOC_1 1
 */
 
+#include "opt_ddb.h"
 #include "opt_param.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -85,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_dbg.h>
 
 #include <machine/vmparam.h>
+
+#include <ddb/ddb.h>
 
 /*
  * This is the zone and keg from which all zones are spawned.  The idea is that
@@ -3052,3 +3056,35 @@ out:
 	free(buffer, M_TEMP);
 	return (error);
 }
+
+#ifdef DDB
+DB_SHOW_COMMAND(uma, db_show_uma)
+{
+	u_int64_t allocs, frees;
+	uma_bucket_t bucket;
+	uma_keg_t kz;
+	uma_zone_t z;
+	int cachefree;
+
+	db_printf("%18s %12s %12s %12s %8s\n", "Zone", "Allocs", "Frees",
+	    "Used", "Cache");
+	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
+			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
+				allocs = z->uz_allocs;
+				frees = z->uz_frees;
+				cachefree = 0;
+			} else
+				uma_zone_sumstat(z, &cachefree, &allocs,
+				    &frees);
+			if (!((kz->uk_flags & UMA_ZONE_SECONDARY) &&
+			    (LIST_FIRST(&kz->uk_zones) != z)))
+				cachefree += kz->uk_free;
+			LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link)
+				cachefree += bucket->ub_cnt;
+			db_printf("%18s %12llu %12llu %12llu %8d\n", z->uz_name,
+			    allocs, frees, allocs - frees, cachefree);
+		}
+	}
+}
+#endif
