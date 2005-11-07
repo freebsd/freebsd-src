@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 #include "opt_acpi.h"
 #include <sys/kernel.h>

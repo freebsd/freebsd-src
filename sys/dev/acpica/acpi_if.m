@@ -28,7 +28,7 @@
 
 #include <sys/bus.h>
 #include <sys/types.h>
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 
 INTERFACE acpi;
 
