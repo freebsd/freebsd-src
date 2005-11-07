@@ -14,9 +14,6 @@ SRCS=		log.c namedconf.c parser.c version.c
 
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
 
-DPADD=		${PTHREAD_DPADD}
-LDADD=		${PTHREAD_LDADD}
-
 .if defined(WITH_BIND_LIBS)
 INCS=		${SRCDIR}/include/isccfg/cfg.h \
 		${SRCDIR}/include/isccfg/grammar.h \

@@ -24,9 +24,6 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR}
 
-DPADD=		${PTHREAD_DPADD}
-LDADD=		${PTHREAD_LDADD}
-
 .if defined(WITH_BIND_LIBS)
 MAN=		lwres.3 lwres_buffer.3 lwres_config.3 lwres_context.3 \
 		lwres_gabn.3 lwres_gai_strerror.3 lwres_getaddrinfo.3 \
