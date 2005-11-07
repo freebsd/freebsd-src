@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #include <ddb/db_output.h>
 
-#include "acpi.h"
-#include "acdebug.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acdebug.h>
 #include <dev/acpica/acpivar.h>
 
 UINT32
