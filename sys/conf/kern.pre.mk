@@ -48,11 +48,8 @@ NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} -I- ${INCLMAGIC} -I. -I$S
 
-# This hack lets us use the Intel ACPICA code without spamming a new
-# include path into 100+ source files.
-INCLUDES+= -I$S/contrib/dev/acpica
-
-# ... and the same for altq
+# This hack lets us use the OpenBSD altq code without spamming a new
+# include path into contrib'ed source files.
 INCLUDES+= -I$S/contrib/altq
 
 # ... and the same for ipfilter

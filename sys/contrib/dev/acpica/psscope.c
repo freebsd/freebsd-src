@@ -115,8 +115,8 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "acparser.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acparser.h>
 
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("psscope")

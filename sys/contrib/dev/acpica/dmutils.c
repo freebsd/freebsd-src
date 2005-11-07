@@ -115,10 +115,10 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "amlcode.h"
-#include "acdisasm.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/acdisasm.h>
+#include <contrib/dev/acpica/acnamesp.h>
 
 
 #ifdef ACPI_DISASSEMBLER

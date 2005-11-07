@@ -116,10 +116,10 @@
 
 #define __RSCALC_C__
 
-#include "acpi.h"
-#include "acresrc.h"
-#include "amlcode.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acresrc.h>
+#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/acnamesp.h>
 
 #define _COMPONENT          ACPI_RESOURCES
         ACPI_MODULE_NAME    ("rscalc")

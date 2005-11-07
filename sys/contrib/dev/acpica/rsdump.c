@@ -117,8 +117,8 @@
 
 #define __RSDUMP_C__
 
-#include "acpi.h"
-#include "acresrc.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acresrc.h>
 
 #define _COMPONENT          ACPI_RESOURCES
         ACPI_MODULE_NAME    ("rsdump")

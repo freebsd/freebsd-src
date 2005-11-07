@@ -116,10 +116,10 @@
 
 #define __NSPARSE_C__
 
-#include "acpi.h"
-#include "acnamesp.h"
-#include "acparser.h"
-#include "acdispat.h"
+#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/acdispat.h>
 
 
 #define _COMPONENT          ACPI_NAMESPACE
