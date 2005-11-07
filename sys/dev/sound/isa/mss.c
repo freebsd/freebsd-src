@@ -807,7 +807,7 @@ mss_intr(void *arg)
 	    		served |= 0x20;
 			mss_unlock(mss);
 	    		chn_intr(mss->rch.channel);
-			mss_unlock(mss);
+			mss_lock(mss);
 		}
 		/* now ack the interrupt */
 		if (FULL_DUPLEX(mss)) ad_write(mss, 24, ~c); /* ack selectively */
