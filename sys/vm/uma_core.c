@@ -3082,7 +3082,7 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 				cachefree += kz->uk_free;
 			LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link)
 				cachefree += bucket->ub_cnt;
-			db_printf("%18s %12llu %12llu %12llu %8d\n", z->uz_name,
+			db_printf("%18s %12ju %12ju %12ju %8d\n", z->uz_name,
 			    allocs, frees, allocs - frees, cachefree);
 		}
 	}
