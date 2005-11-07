@@ -7,7 +7,7 @@
  * libs or param.h/osreldate.
  *
  * It is the version number of the protocol between config(8) and the
- * sys/conf/* Makefiles (the kernel build system).
+ * sys/conf/ Makefiles (the kernel build system).
  *
  * It is now also used to trap certain problems that the syntax parser cannot
  * detect.
