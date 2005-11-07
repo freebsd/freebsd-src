@@ -168,7 +168,6 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 
     /* Fetch the device's current resources. */
     buf.Length = ACPI_ALLOCATE_BUFFER;
-    buf.Pointer = NULL;
     if (ACPI_FAILURE((status = AcpiGetCurrentResources(handle, &buf)))) {
 	if (status != AE_NOT_FOUND)
 	    printf("can't fetch resources for %s - %s\n",
