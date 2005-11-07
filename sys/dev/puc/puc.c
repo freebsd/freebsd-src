@@ -1,7 +1,4 @@
 /*	$NetBSD: puc.c,v 1.7 2000/07/29 17:43:38 jlam Exp $	*/
-#ifndef PUC_FASTINTR
-#define PUC_FASTINTR
-#endif
 
 /*-
  * Copyright (c) 2002 JF Hay.  All rights reserved.
@@ -85,6 +82,11 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_puc.h"
+
+#ifndef PUC_FASTINTR
+#define PUC_FASTINTR
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
