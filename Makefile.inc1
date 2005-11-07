@@ -481,6 +481,18 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 SPECIAL_INSTALLCHECKS=
 
 #
+# Require DESTDIR to be set if installing for a different architecture.
+#
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
+SPECIAL_INSTALLCHECKS+=	installcheck_DESTDIR
+installcheck_DESTDIR:
+.if !defined(DESTDIR) || empty(DESTDIR)
+	@echo "ERROR: Please set DESTDIR!"; \
+	false
+.endif
+.endif
+
+#
 # installcheck
 #
 # Checks to be sure system is ready for installworld
