@@ -544,8 +544,7 @@ ufs_extattr_stop(struct mount *mp, struct thread *td)
 		goto unlock;
 	}
 
-	while (LIST_FIRST(&ump->um_extattr.uepm_list) != NULL) {
-		uele = LIST_FIRST(&ump->um_extattr.uepm_list);
+	while ((uele = LIST_FIRST(&ump->um_extattr.uepm_list)) != NULL) {
 		ufs_extattr_disable(ump, uele->uele_attrnamespace,
 		    uele->uele_attrname, td);
 	}
