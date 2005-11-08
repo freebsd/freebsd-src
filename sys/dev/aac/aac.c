@@ -3428,6 +3428,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	device_t child;
 	int i, found, error;
 
+	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
 	c_cmd = (struct aac_ctcfg *)&fib->data[0];
 	bzero(c_cmd, sizeof(struct aac_ctcfg));
@@ -3442,6 +3443,7 @@ aac_get_bus_info(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "Error %d sending "
 		    "VM_ContainerConfig command\n", error);
 		aac_release_sync_fib(sc);
+		mtx_unlock(&sc->aac_io_lock);
 		return;
 	}
 
@@ -3450,6 +3452,7 @@ aac_get_bus_info(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "VM_ContainerConfig returned 0x%x\n",
 		    c_resp->Status);
 		aac_release_sync_fib(sc);
+		mtx_unlock(&sc->aac_io_lock);
 		return;
 	}
 
@@ -3470,6 +3473,7 @@ aac_get_bus_info(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "Error %d sending VMIoctl command\n",
 		    error);
 		aac_release_sync_fib(sc);
+		mtx_unlock(&sc->aac_io_lock);
 		return;
 	}
 
@@ -3478,11 +3482,13 @@ aac_get_bus_info(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "VM_Ioctl returned %d\n",
 		    vmi_resp->Status);
 		aac_release_sync_fib(sc);
+		mtx_unlock(&sc->aac_io_lock);
 		return;
 	}
 
 	bcopy(&vmi_resp->BusInf, &businfo, sizeof(struct aac_getbusinf));
 	aac_release_sync_fib(sc);
+	mtx_unlock(&sc->aac_io_lock);
 
 	found = 0;
 	for (i = 0; i < businfo.BusCount; i++) {
