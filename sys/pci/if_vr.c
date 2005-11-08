@@ -592,7 +592,7 @@ vr_reset(struct vr_softc *sc)
 {
 	register int	i;
 
-	/*VR_LOCK_ASSERT(sc);*/ /* XXX: Called during detach w/o lock. */
+	/*VR_LOCK_ASSERT(sc);*/ /* XXX: Called during attach w/o lock. */
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_RESET);
 
@@ -603,11 +603,10 @@ vr_reset(struct vr_softc *sc)
 	}
 	if (i == VR_TIMEOUT) {
 		if (sc->vr_revid < REV_ID_VT3065_A)
-			printf("vr%d: reset never completed!\n", sc->vr_unit);
+			if_printf(sc->vr_ifp, "reset never completed!\n");
 		else {
 			/* Use newer force reset command */
-			printf("vr%d: Using force reset command.\n",
-			    sc->vr_unit);
+			if_printf(sc->vr_ifp, "Using force reset command.\n");
 			VR_SETBIT(sc, VR_MISC_CR1, VR_MISCCR1_FORSRST);
 		}
 	}
@@ -656,6 +655,8 @@ vr_attach(dev)
 
 	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->vr_stat_callout, &sc->vr_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -666,7 +667,7 @@ vr_attach(dev)
 	sc->vr_res = bus_alloc_resource_any(dev, VR_RES, &rid, RF_ACTIVE);
 
 	if (sc->vr_res == NULL) {
-		printf("vr%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -680,10 +681,34 @@ vr_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->vr_irq == NULL) {
-		printf("vr%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
+
+	/* Allocate ifnet structure. */
+	ifp = sc->vr_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(dev, "can not if_alloc()\n");
+		error = ENOSPC;
+		goto fail;
+	}
+	ifp->if_softc = sc;
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_ioctl = vr_ioctl;
+	ifp->if_start = vr_start;
+	ifp->if_watchdog = vr_watchdog;
+	ifp->if_init = vr_init;
+	ifp->if_baudrate = 10000000;
+	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_LIST_CNT - 1);
+	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
+	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	/*
 	 * Windows may put the chip in suspend mode when it
@@ -715,51 +740,22 @@ vr_attach(dev)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		eaddr[i] = CSR_READ_1(sc, VR_PAR0 + i);
 
-	sc->vr_unit = unit;
-
 	sc->vr_ldata = contigmalloc(sizeof(struct vr_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT | M_ZERO, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->vr_ldata == NULL) {
-		printf("vr%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
-
-	bzero(sc->vr_ldata, sizeof(struct vr_list_data));
-
-	ifp = sc->vr_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		printf("vr%d: can not if_alloc()\n", unit);
-		error = ENOSPC;
-		goto fail;
-	}
-	ifp->if_softc = sc;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = vr_ioctl;
-	ifp->if_start = vr_start;
-	ifp->if_watchdog = vr_watchdog;
-	ifp->if_init = vr_init;
-	ifp->if_baudrate = 10000000;
-	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_LIST_CNT - 1);
-	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capenable = ifp->if_capabilities;
-#ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
-#endif
 
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->vr_miibus,
 	    vr_ifmedia_upd, vr_ifmedia_sts)) {
-		printf("vr%d: MII without any phy!\n", sc->vr_unit);
+		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
 	}
-
-	callout_handle_init(&sc->vr_stat_ch);
 
 	/* Call MI attach routine. */
 	ether_ifattach(ifp, eaddr);
@@ -771,7 +767,7 @@ vr_attach(dev)
 	    vr_intr, sc, &sc->vr_intrhand);
 
 	if (error) {
-		printf("vr%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		goto fail;
 	}
@@ -803,16 +799,14 @@ vr_detach(device_t dev)
 		ether_poll_deregister(ifp);
 #endif
 
-	VR_LOCK(sc);
-
-	sc->suspended = 1;
-
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
-		vr_stop(sc);
-		VR_UNLOCK(sc);		/* XXX: Avoid recursive acquire. */
-		ether_ifdetach(ifp);
 		VR_LOCK(sc);
+		sc->suspended = 1;
+		vr_stop(sc);
+		VR_UNLOCK(sc);
+		callout_drain(&sc->vr_stat_callout);
+		ether_ifdetach(ifp);
 	}
 	if (ifp)
 		if_free(ifp);
@@ -830,7 +824,6 @@ vr_detach(device_t dev)
 	if (sc->vr_ldata)
 		contigfree(sc->vr_ldata, sizeof(struct vr_list_data), M_DEVBUF);
 
-	VR_UNLOCK(sc);
 	mtx_destroy(&sc->vr_mtx);
 
 	return (0);
@@ -980,8 +973,7 @@ vr_rxeof(struct vr_softc *sc)
 		 */
 		if (rxstat & VR_RXSTAT_RXERR) {
 			ifp->if_ierrors++;
-			printf("vr%d: rx error (%02x):", sc->vr_unit,
-			    rxstat & 0x000000ff);
+			if_printf(ifp, "rx error (%02x):", rxstat & 0x000000ff);
 			if (rxstat & VR_RXSTAT_CRCERR)
 				printf(" crc error");
 			if (rxstat & VR_RXSTAT_FRAMEALIGNERR)
@@ -1050,7 +1042,7 @@ vr_rxeoc(struct vr_softc *sc)
 	}
 
 	if (!i) {
-		printf("vr%d: rx shutdown error!\n", sc->vr_unit);
+		if_printf(ifp, "rx shutdown error!\n");
 		sc->vr_flags |= VR_F_RESTART;
 		return;
 	}
@@ -1092,8 +1084,7 @@ vr_txeof(struct vr_softc *sc)
 			     i--)
 				;	/* Wait for chip to shutdown */
 			if (!i) {
-				printf("vr%d: tx shutdown timeout\n",
-				    sc->vr_unit);
+				if_printf(ifp, "tx shutdown timeout\n");
 				sc->vr_flags |= VR_F_RESTART;
 				break;
 			}
@@ -1133,10 +1124,10 @@ vr_tick(void *xsc)
 	struct vr_softc		*sc = xsc;
 	struct mii_data		*mii;
 
-	VR_LOCK(sc);
+	VR_LOCK_ASSERT(sc);
 
 	if (sc->vr_flags & VR_F_RESTART) {
-		printf("vr%d: restarting\n", sc->vr_unit);
+		if_printf(sc->vr_ifp, "restarting\n");
 		vr_stop(sc);
 		vr_reset(sc);
 		vr_init_locked(sc);
@@ -1145,9 +1136,7 @@ vr_tick(void *xsc)
 
 	mii = device_get_softc(sc->vr_miibus);
 	mii_tick(mii);
-	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
-
-	VR_UNLOCK(sc);
+	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1190,14 +1179,13 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			return;
 
 		if (status & VR_ISR_RX_DROPPED) {
-			printf("vr%d: rx packet lost\n", sc->vr_unit);
+			if_printf(ifp, "rx packet lost\n");
 			ifp->if_ierrors++;
 		}
 
 		if ((status & VR_ISR_RX_ERR) || (status & VR_ISR_RX_NOBUF) ||
 		    (status & VR_ISR_RX_NOBUF) || (status & VR_ISR_RX_OFLOW)) {
-			printf("vr%d: receive error (%04x)",
-			       sc->vr_unit, status);
+			if_printf(ifp, "receive error (%04x)", status);
 			if (status & VR_ISR_RX_NOBUF)
 				printf(" no buffers");
 			if (status & VR_ISR_RX_OFLOW)
@@ -1273,14 +1261,13 @@ vr_intr(void *arg)
 			vr_rxeof(sc);
 
 		if (status & VR_ISR_RX_DROPPED) {
-			printf("vr%d: rx packet lost\n", sc->vr_unit);
+			if_printf(ifp, "rx packet lost\n");
 			ifp->if_ierrors++;
 		}
 
 		if ((status & VR_ISR_RX_ERR) || (status & VR_ISR_RX_NOBUF) ||
 		    (status & VR_ISR_RX_NOBUF) || (status & VR_ISR_RX_OFLOW)) {
-			printf("vr%d: receive error (%04x)",
-			       sc->vr_unit, status);
+			if_printf(ifp, "receive error (%04x)", status);
 			if (status & VR_ISR_RX_NOBUF)
 				printf(" no buffers");
 			if (status & VR_ISR_RX_OFLOW)
@@ -1482,8 +1469,8 @@ vr_init_locked(struct vr_softc *sc)
 
 	/* Init circular RX list. */
 	if (vr_list_rx_init(sc) == ENOBUFS) {
-		printf(
-"vr%d: initialization failed: no memory for rx buffers\n", sc->vr_unit);
+		if_printf(ifp,
+		    "initialization failed: no memory for rx buffers\n");
 		vr_stop(sc);
 		return;
 	}
@@ -1539,7 +1526,7 @@ vr_init_locked(struct vr_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
+	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
 }
 
 /*
@@ -1648,7 +1635,7 @@ vr_watchdog(struct ifnet *ifp)
 	VR_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("vr%d: watchdog timeout\n", sc->vr_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	vr_stop(sc);
 	vr_reset(sc);
@@ -1675,7 +1662,7 @@ vr_stop(struct vr_softc *sc)
 	ifp = sc->vr_ifp;
 	ifp->if_timer = 0;
 
-	untimeout(vr_tick, sc, sc->vr_stat_ch);
+	callout_stop(&sc->vr_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_STOP);
