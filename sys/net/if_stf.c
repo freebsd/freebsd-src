@@ -138,19 +138,14 @@ struct stf_softc {
 	} __sc_ro46;
 #define sc_ro	__sc_ro46.__sc_ro4
 	const struct encaptab *encap_cookie;
-	LIST_ENTRY(stf_softc) sc_list;	/* all stf's are linked */
 };
 #define STF2IFP(sc)	((sc)->sc_ifp)
 
 /*
- * All mutable global variables in if_stf.c are protected by stf_mtx.
  * XXXRW: Note that mutable fields in the softc are not currently locked:
  * in particular, sc_ro needs to be protected from concurrent entrance
  * of stf_output().
  */
-static struct mtx stf_mtx;
-static LIST_HEAD(, stf_softc) stf_softc_list;
-
 static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
 static const int ip_stf_ttl = 40;
 
@@ -246,9 +241,6 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-	mtx_lock(&stf_mtx);
-	LIST_INSERT_HEAD(&stf_softc_list, sc, sc_list);
-	mtx_unlock(&stf_mtx);
 	return (0);
 }
 
@@ -257,10 +249,6 @@ stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct stf_softc *sc = ifp->if_softc;
 	int err;
-
-	mtx_lock(&stf_mtx);
-	LIST_REMOVE(sc, sc_list);
-	mtx_unlock(&stf_mtx);
 
 	err = encap_detach(sc->encap_cookie);
 	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
@@ -280,26 +268,13 @@ stfmodevent(mod, type, data)
 	int type;
 	void *data;
 {
-	struct stf_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
-		mtx_init(&stf_mtx, "stf_mtx", NULL, MTX_DEF);
-		LIST_INIT(&stf_softc_list);
 		if_clone_attach(&stf_cloner);
-
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&stf_cloner);
-
-		mtx_lock(&stf_mtx);
-		while ((sc = LIST_FIRST(&stf_softc_list)) != NULL) {
-			mtx_unlock(&stf_mtx);
-			stf_clone_destroy(&stf_cloner, STF2IFP(sc));
-			mtx_lock(&stf_mtx);
-		}
-		mtx_unlock(&stf_mtx);
-		mtx_destroy(&stf_mtx);
 		break;
 	default:
 		return (EOPNOTSUPP);

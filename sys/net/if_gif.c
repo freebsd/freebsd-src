@@ -225,7 +225,6 @@ gifmodevent(mod, type, data)
 	int type;
 	void *data;
 {
-	struct gif_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
@@ -240,14 +239,6 @@ gifmodevent(mod, type, data)
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&gif_cloner);
-
-		mtx_lock(&gif_mtx);
-		while ((sc = LIST_FIRST(&gif_softc_list)) != NULL) {
-			mtx_unlock(&gif_mtx);
-			ifc_simple_destroy(&gif_cloner, GIF2IFP(sc));
-			mtx_lock(&gif_mtx);
-		}
-		mtx_unlock(&gif_mtx);
 		mtx_destroy(&gif_mtx);
 #ifdef INET6
 		ip6_gif_hlim = 0;

@@ -170,8 +170,6 @@ __FBSDID("$FreeBSD$");
 #define	BRIDGE_RTABLE_PRUNE_PERIOD	(5 * 60)
 #endif
 
-static struct mtx bridge_list_mtx;
-
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
 uma_zone_t bridge_rtnode_zone;
@@ -339,8 +337,6 @@ const int bridge_control_table_size =
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-LIST_HEAD(, bridge_softc) bridge_list;
-
 IFC_SIMPLE_DECLARE(bridge, 0);
 
 static int
@@ -349,12 +345,10 @@ bridge_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		mtx_init(&bridge_list_mtx, "if_bridge list", NULL, MTX_DEF);
 		if_clone_attach(&bridge_cloner);
 		bridge_rtnode_zone = uma_zcreate("bridge_rtnode",
 		    sizeof(struct bridge_rtnode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
-		LIST_INIT(&bridge_list);
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
@@ -363,16 +357,12 @@ bridge_modevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&bridge_cloner);
-		while (!LIST_EMPTY(&bridge_list))
-			ifc_simple_destroy(&bridge_cloner,
-			    LIST_FIRST(&bridge_list)->sc_ifp);
 		uma_zdestroy(bridge_rtnode_zone);
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
 		bridge_detach_p = NULL;
 		bstp_linkstate_p = NULL;
-		mtx_destroy(&bridge_list_mtx);
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -482,10 +472,6 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
 
-	mtx_lock(&bridge_list_mtx);
-	LIST_INSERT_HEAD(&bridge_list, sc, sc_list);
-	mtx_unlock(&bridge_list_mtx);
-
 	return (0);
 }
 
@@ -512,10 +498,6 @@ bridge_clone_destroy(struct ifnet *ifp)
 
 	callout_drain(&sc->sc_brcallout);
 	callout_drain(&sc->sc_bstpcallout);
-
-	mtx_lock(&bridge_list_mtx);
-	LIST_REMOVE(sc, sc_list);
-	mtx_unlock(&bridge_list_mtx);
 
 	ether_ifdetach(ifp);
 	if_free_type(ifp, IFT_ETHER);

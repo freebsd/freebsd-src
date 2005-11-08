@@ -2143,9 +2143,6 @@ carp_modevent(module_t mod, int type, void *data)
 
 	case MOD_UNLOAD:
 		if_clone_detach(&carp_cloner);
-		while (!LIST_EMPTY(&carpif_list))
-			ifc_simple_destroy(&carp_cloner,
-			    SC2IFP(LIST_FIRST(&carpif_list)));
 		mtx_destroy(&carp_mtx);
 		break;
 

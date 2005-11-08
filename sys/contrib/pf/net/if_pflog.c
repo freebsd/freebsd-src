@@ -369,9 +369,6 @@ pflog_modevent(module_t mod, int type, void *data)
 
 	case MOD_UNLOAD:
 		if_clone_detach(&pflog_cloner);
-		while (!LIST_EMPTY(&pflog_list))
-			ifc_simple_destroy(&pflog_cloner,
-			    SCP2IFP(LIST_FIRST(&pflog_list)));
 		break;
 
 	default:

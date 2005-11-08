@@ -774,7 +774,6 @@ gre_in_cksum(u_int16_t *p, u_int len)
 static int
 gremodevent(module_t mod, int type, void *data)
 {
-	struct gre_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
@@ -782,14 +781,6 @@ gremodevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&gre_cloner);
-
-		mtx_lock(&gre_mtx);
-		while ((sc = LIST_FIRST(&gre_softc_list)) != NULL) {
-			mtx_unlock(&gre_mtx);
-			ifc_simple_destroy(&gre_cloner, GRE2IFP(sc));
-			mtx_lock(&gre_mtx);
-		}
-		mtx_unlock(&gre_mtx);
 		mtx_destroy(&gre_mtx);
 		break;
 	default:
