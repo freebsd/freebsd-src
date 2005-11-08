@@ -214,10 +214,15 @@ sigqueue_start(void)
 }
 
 ksiginfo_t *
-ksiginfo_alloc(void)
+ksiginfo_alloc(int wait)
 {
+	int flags;
+
+	flags = M_ZERO;
+	if (! wait)
+		flags |= M_NOWAIT;
 	if (ksiginfo_zone != NULL)
-		return ((ksiginfo_t *)uma_zalloc(ksiginfo_zone, M_NOWAIT | M_ZERO));
+		return ((ksiginfo_t *)uma_zalloc(ksiginfo_zone, flags));
 	return (NULL);
 }
 
@@ -291,7 +296,7 @@ sigqueue_take(ksiginfo_t *ksi)
 	struct proc	*p;
 	sigqueue_t	*sq;
 
-	if ((sq = ksi->ksi_sigq) == NULL)
+	if (ksi == NULL || (sq = ksi->ksi_sigq) == NULL)
 		return;
 
 	p = sq->sq_proc;
@@ -331,10 +336,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 	if (__predict_false(ksiginfo_zone == NULL))
 		goto out_set_bit;
 	
-	if (p != NULL && p->p_pendingcnt > max_pending_per_proc) {
+	if (p != NULL && p->p_pendingcnt >= max_pending_per_proc) {
 		signal_overflow++;
 		ret = EAGAIN;
-	} else if ((ksi = ksiginfo_alloc()) == NULL) {
+	} else if ((ksi = ksiginfo_alloc(0)) == NULL) {
 		signal_alloc_fail++;
 		ret = EAGAIN;
 	} else {
@@ -2106,7 +2111,12 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			return (ret);
 		}
 		sigqueue_delete_proc(p, SIGCONT);
-		p->p_flag &= ~P_CONTINUED;
+		if (p->p_flag & P_CONTINUED) {
+			p->p_flag &= ~P_CONTINUED;
+			PROC_LOCK(p->p_pptr);
+			sigqueue_take(p->p_ksi);
+			PROC_UNLOCK(p->p_pptr);
+		}
 	}
 
 	ret = sigqueue_add(sigqueue, sig, ksi);
@@ -2174,7 +2184,10 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * Otherwise, process goes back to sleep state.
 			 */
 			p->p_flag &= ~P_STOPPED_SIG;
-			p->p_flag |= P_CONTINUED;
+			if (p->p_numthreads == p->p_suspcount) {
+				p->p_flag |= P_CONTINUED;
+				childproc_continued(p);
+			}
 			if (action == SIG_DFL) {
 				sigqueue_delete(sigqueue, sig);
 			} else if (action == SIG_CATCH) {
@@ -2249,12 +2262,19 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				    (td0->td_flags & TDF_SINTR) &&
 				    !TD_IS_SUSPENDED(td0)) {
 					thread_suspend_one(td0);
-				} else if (td != td0) {
+				} else {
 					td0->td_flags |= TDF_ASTPENDING;
 				}
 			}
-			thread_stopped(p);
 			if (p->p_numthreads == p->p_suspcount) {
+				/*
+				 * only thread sending signal to another
+				 * process can reach here, if thread is sending
+				 * signal to its process, because thread does
+				 * not suspend itself here, p_numthreads
+				 * should never be equal to p_suspcount.
+				 */
+				thread_stopped(p);
 				mtx_unlock_spin(&sched_lock);
 				sigqueue_delete_proc(p, p->p_xstat);
 			} else
@@ -2646,7 +2666,9 @@ thread_stopped(struct proc *p)
 		mtx_lock(&ps->ps_mtx);
 		if ((ps->ps_flag & PS_NOCLDSTOP) == 0) {
 			mtx_unlock(&ps->ps_mtx);
-			psignal(p->p_pptr, SIGCHLD);
+			childproc_stopped(p,
+				(p->p_flag & P_TRACED) ?
+					CLD_TRAPPED : CLD_STOPPED);
 		} else
 			mtx_unlock(&ps->ps_mtx);
 		PROC_UNLOCK(p->p_pptr);
@@ -2824,6 +2846,61 @@ sigexit(td, sig)
 		PROC_UNLOCK(p);
 	exit1(td, W_EXITCODE(0, sig));
 	/* NOTREACHED */
+}
+
+/*
+ * Send queued SIGCHLD to parent when child process is stopped
+ * or exited.
+ */
+void
+childproc_stopped(struct proc *p, int reason)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(p->p_pptr, MA_OWNED);
+
+	if (p->p_ksi != NULL) {
+		p->p_ksi->ksi_signo  = SIGCHLD;
+		p->p_ksi->ksi_code   = reason;
+		p->p_ksi->ksi_status = p->p_xstat;
+		p->p_ksi->ksi_pid    = p->p_pid;
+		p->p_ksi->ksi_uid    = p->p_ucred->cr_ruid;
+		if (KSI_ONQ(p->p_ksi))
+			return;
+	}
+	tdsignal(p->p_pptr, NULL, SIGCHLD, p->p_ksi);
+}
+
+void
+childproc_continued(struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(p->p_pptr, MA_NOTOWNED);
+
+	PROC_LOCK(p->p_pptr);
+	if (p->p_ksi != NULL) {
+		p->p_ksi->ksi_signo  = SIGCHLD;
+		p->p_ksi->ksi_code   = CLD_CONTINUED; 
+		p->p_ksi->ksi_status = SIGCONT;
+		p->p_ksi->ksi_pid    = p->p_pid;
+		p->p_ksi->ksi_uid    = p->p_ucred->cr_ruid;
+		if (KSI_ONQ(p->p_ksi))
+			return;
+	}
+	tdsignal(p->p_pptr, NULL, SIGCHLD, p->p_ksi);
+	PROC_UNLOCK(p->p_pptr);
+}
+
+void
+childproc_exited(struct proc *p)
+{
+	int reason;
+
+	reason = CLD_EXITED;
+	if (WCOREDUMP(p->p_xstat))
+		reason = CLD_DUMPED;
+	else if (WIFSIGNALED(p->p_xstat))
+		reason = CLD_KILLED;	
+	childproc_stopped(p, reason);
 }
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};

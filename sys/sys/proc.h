@@ -544,6 +544,7 @@ struct proc {
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 	struct mtx	p_mtx;		/* (n) Lock for this struct. */
+	struct ksiginfo *p_ksi;	/* Locked by parent proc lock */
 	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
 #define p_siglist	p_sigqueue.sq_signals
 
@@ -930,6 +931,9 @@ int	thread_sleep_check(struct thread *td);
 void	thread_stash(struct thread *td);
 int	thread_statclock(int user);
 void	thread_stopped(struct proc *p);
+void	childproc_stopped(struct proc *child, int reason);
+void	childproc_continued(struct proc *child);
+void	childproc_exited(struct proc *child);
 int	thread_suspend_check(int how);
 void	thread_suspend_one(struct thread *td);
 struct thread *thread_switchout(struct thread *td, int flags,
