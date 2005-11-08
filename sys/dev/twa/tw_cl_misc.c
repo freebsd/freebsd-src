@@ -64,9 +64,9 @@ TW_INT8	*tw_cli_severity_string_table[] = {
 /*
  * Function name:	tw_cli_drain_complete_queue
  * Description:		This function gets called during a controller reset.
- *			It errors back to CAM, all those requests that are
- *			in the complete queue, at the time of the reset.  Any
- *			CL internal requests will be simply freed.
+ *			It errors back to the OS Layer, all those requests that
+ *			are in the complete queue, at the time of the reset.
+ *			Any CL internal requests will be simply freed.
  *
  * Input:		ctlr	-- ptr to CL internal ctlr context
  * Output:		None
@@ -116,8 +116,9 @@ tw_cli_drain_complete_queue(struct tw_cli_ctlr_context *ctlr)
 /*
  * Function name:	tw_cli_drain_busy_queue
  * Description:		This function gets called during a controller reset.
- *			It errors back to CAM, all those requests that were
- *			pending with the firmware, at the time of the reset.
+ *			It errors back to the OS Layer, all those requests that
+ *			were pending with the firmware, at the time of the
+ *			reset.
  *
  * Input:		ctlr	-- ptr to CL internal ctlr context
  * Output:		None
@@ -166,8 +167,8 @@ tw_cli_drain_busy_queue(struct tw_cli_ctlr_context *ctlr)
 /*
  * Function name:	tw_cli_drain_pending_queue
  * Description:		This function gets called during a controller reset.
- *			It errors back to CAM, all those requests that were
- *			in the pending queue, at the time of the reset.
+ *			It errors back to the OS Layer, all those requests that
+ *			were in the pending queue, at the time of the reset.
  *
  * Input:		ctlr	-- ptr to CL internal ctlr context
  * Output:		None
@@ -243,6 +244,49 @@ tw_cli_drain_response_queue(struct tw_cli_ctlr_context *ctlr)
 			return(TW_OSL_ESUCCESS); /* no more response queue entries */
 
 		resp = TW_CLI_READ_RESPONSE_QUEUE(ctlr->ctlr_handle);
+	}
+}
+
+
+
+/*
+ * Function name:	tw_cli_find_response
+ * Description:		Find a particular response in the ctlr response queue.
+ *
+ * Input:		ctlr	-- ptr to per ctlr structure
+ *			req_id	-- request id of the response to look for
+ * Output:		None
+ * Return value:	0	-- success
+ *			non-zero-- failure
+ */
+TW_INT32
+tw_cli_find_response(struct tw_cli_ctlr_context *ctlr, TW_INT32 req_id)
+{
+	TW_UINT32	resp;
+	TW_INT32	resp_id;
+	TW_UINT32	status_reg;
+
+	tw_cli_dbg_printf(4, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
+
+	for (;;) {
+		status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr->ctlr_handle);
+
+		if (tw_cli_check_ctlr_state(ctlr, status_reg))
+			return(TW_OSL_EGENFAILURE);
+
+		if (status_reg & TWA_STATUS_RESPONSE_QUEUE_EMPTY)
+			return(TW_OSL_ENOTTY); /* no more response queue entries */
+
+		if (ctlr->device_id == TW_CL_DEVICE_ID_9K) {
+			resp = TW_CLI_READ_RESPONSE_QUEUE(ctlr->ctlr_handle);
+			resp_id = GET_RESP_ID(resp);
+		} else {
+			resp = TW_CLI_READ_LARGE_RESPONSE_QUEUE(
+				ctlr->ctlr_handle);
+			resp_id = GET_LARGE_RESP_ID(resp);
+		}
+		if (resp_id == req_id)
+			return(TW_OSL_ESUCCESS); /* found the req_id */
 	}
 }
 
@@ -479,6 +523,7 @@ tw_cl_create_event(struct tw_cl_ctlr_handle *ctlr_handle,
 	struct tw_cli_ctlr_context	*ctlr = ctlr_handle->cl_ctlr_ctxt;
 	struct tw_cl_event_packet	event_pkt;
 	struct tw_cl_event_packet	*event;
+	TW_UINT32			aen_head;
 	va_list				ap;
 
 	tw_cli_dbg_printf(8, ctlr_handle, tw_osl_cur_func(), "entered");
@@ -487,19 +532,25 @@ tw_cl_create_event(struct tw_cl_ctlr_handle *ctlr_handle,
 		/* Protect access to ctlr->aen_head. */
 		tw_osl_get_lock(ctlr_handle, ctlr->gen_lock);
 
+		aen_head = ctlr->aen_head;
+		ctlr->aen_head = (aen_head + 1) % ctlr->max_aens_supported;
+
 		/* Queue the event. */
-		event = &(ctlr->aen_queue[ctlr->aen_head]);
+		event = &(ctlr->aen_queue[aen_head]);
 		tw_osl_memzero(event->parameter_data,
 			sizeof(event->parameter_data));
 
 		if (event->retrieved == TW_CL_AEN_NOT_RETRIEVED)
 			ctlr->aen_q_overflow = TW_CL_TRUE;
 		event->sequence_id = ++(ctlr->aen_cur_seq_id);
-		if ((ctlr->aen_head + 1) == ctlr->max_aens_supported) {
+		if ((aen_head + 1) == ctlr->max_aens_supported) {
 			tw_cli_dbg_printf(4, ctlr->ctlr_handle,
 				tw_osl_cur_func(), "AEN queue wrapped");
 			ctlr->aen_q_wrapped = TW_CL_TRUE;
 		}
+
+		/* Free access to ctlr->aen_head. */
+		tw_osl_free_lock(ctlr_handle, ctlr->gen_lock);
 	} else {
 		event = &event_pkt;
 		tw_osl_memzero(event, sizeof(struct tw_cl_event_packet));
@@ -533,12 +584,6 @@ tw_cl_create_event(struct tw_cl_ctlr_handle *ctlr_handle,
 		event->parameter_len,
 		event->parameter_data);
 
-	if ((ctlr) && (queue_event)) {
-		ctlr->aen_head =
-			(ctlr->aen_head + 1) % ctlr->max_aens_supported;
-		/* Free access to ctlr->aen_head. */
-		tw_osl_free_lock(ctlr_handle, ctlr->gen_lock);
-	}
 	tw_osl_notify_event(ctlr_handle, event);
 }
 
@@ -568,10 +613,9 @@ tw_cli_get_request(struct tw_cli_ctlr_context *ctlr
 #ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
 
 	if (req_pkt) {
-		if (ctlr->num_free_req_ids == 0) {
-			DbgPrint("Out of req_ids!!\n");
+		if (ctlr->num_free_req_ids == 0)
 			return(TW_CL_NULL);
-		}
+
 		ctlr->num_free_req_ids--;
 		req = (struct tw_cli_req_context *)(req_pkt->non_dma_mem);
 		req->ctlr = ctlr;
@@ -673,7 +717,8 @@ tw_cli_notify_ctlr_info(struct tw_cli_ctlr_context *ctlr)
 {
 	TW_INT8		fw_ver[16];
 	TW_INT8		bios_ver[16];
-	TW_INT32	error[2];
+	TW_INT8		ctlr_model[16];
+	TW_INT32	error[3];
 	TW_UINT8	num_ports = 0;
 
 	tw_cli_dbg_printf(5, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
@@ -688,12 +733,15 @@ tw_cli_notify_ctlr_info(struct tw_cli_ctlr_context *ctlr)
 			TWA_PARAM_VERSION_FW, fw_ver, 16, TW_CL_NULL);
 	error[1] = tw_cli_get_param(ctlr, TWA_PARAM_VERSION_TABLE,
 			TWA_PARAM_VERSION_BIOS, bios_ver, 16, TW_CL_NULL);
+	error[2] = tw_cli_get_param(ctlr, TWA_PARAM_VERSION_TABLE,
+			TWA_PARAM_CTLR_MODEL, ctlr_model, 16, TW_CL_NULL);
 
 	tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 		TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 		0x1300, 0x3, TW_CL_SEVERITY_INFO_STRING,
 		"Controller details:",
-		"%d ports, Firmware %.16s, BIOS %.16s",
+		"Model %.16s, %d ports, Firmware %.16s, BIOS %.16s",
+		error[2]?(TW_INT8 *)TW_CL_NULL:ctlr_model,
 		num_ports,
 		error[0]?(TW_INT8 *)TW_CL_NULL:fw_ver,
 		error[1]?(TW_INT8 *)TW_CL_NULL:bios_ver);
@@ -726,15 +774,19 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		TW_INT8	desc[200];
 
 		tw_osl_memzero(desc, 200);
-		tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
-			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
-			0x1301, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-			"Missing expected status bit(s)",
-			"status reg = 0x%x; Missing bits: %s",
-			status_reg,
-			tw_cli_describe_bits (~status_reg &
-				TWA_STATUS_EXPECTED_BITS, desc));
-		error = TW_OSL_EGENFAILURE;
+		if ((status_reg & TWA_STATUS_MICROCONTROLLER_READY) ||
+			(!(ctlr->state &
+			TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS))) {
+			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
+				0x1301, 0x1, TW_CL_SEVERITY_ERROR_STRING,
+				"Missing expected status bit(s)",
+				"status reg = 0x%x; Missing bits: %s",
+				status_reg,
+				tw_cli_describe_bits (~status_reg &
+					TWA_STATUS_EXPECTED_BITS, desc));
+			error = TW_OSL_EGENFAILURE;
+		}
 	}
 
 	/* Check if any error bits are set. */
@@ -802,18 +854,6 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 				TWA_CONTROL_CLEAR_QUEUE_ERROR);
 		}
 
-		if (status_reg & TWA_STATUS_SBUF_WRITE_ERROR) {
-			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
-				0x1306, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-				"SBUF write error: clearing... ",
-				"status reg = 0x%x %s",
-				status_reg,
-				tw_cli_describe_bits(status_reg, desc));
-			TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
-				TWA_CONTROL_CLEAR_SBUF_WRITE_ERROR);
-		}
-
 		if (status_reg & TWA_STATUS_MICROCONTROLLER_ERROR) {
 			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
@@ -844,8 +884,6 @@ tw_cli_describe_bits(TW_UINT32 reg, TW_INT8 *str)
 {
 	tw_osl_strcpy(str, "[");
 
-	if (reg	& TWA_STATUS_SBUF_WRITE_ERROR)
-		tw_osl_strcpy(str, "SBUF_WR_ERR,");
 	if (reg & TWA_STATUS_COMMAND_QUEUE_EMPTY)
 		tw_osl_strcpy(&str[tw_osl_strlen(str)], "CMD_Q_EMPTY,");
 	if (reg & TWA_STATUS_MICROCONTROLLER_READY)

@@ -73,6 +73,15 @@ struct tw_cl_compatibility_packet {
 					driver is compatible with */
 	TW_UINT16	working_build;	/* build # of the firmware that the
 					driver is compatible with */
+	TW_UINT16	driver_srl_high;/* highest driver supported srl */
+	TW_UINT16	driver_branch_high;/* highest driver supported branch */
+	TW_UINT16	driver_build_high;/* highest driver supported build */
+	TW_UINT16	driver_srl_low;/* lowest driver supported srl */
+	TW_UINT16	driver_branch_low;/* lowest driver supported branch */
+	TW_UINT16	driver_build_low;/* lowest driver supported build */
+	TW_UINT16	fw_on_ctlr_srl;	/* srl of running firmware */
+	TW_UINT16	fw_on_ctlr_branch;/* branch # of running firmware */
+	TW_UINT16	fw_on_ctlr_build;/* build # of running firmware */
 };
 
 
