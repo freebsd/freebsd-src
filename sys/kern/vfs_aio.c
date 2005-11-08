@@ -2320,7 +2320,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
-		return (EAGAIN);
+		aio_init_aioinfo(p);
 
 	for (;;) {
 		PROC_LOCK(p);
