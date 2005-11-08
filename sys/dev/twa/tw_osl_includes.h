@@ -72,7 +72,6 @@
 
 #include <dev/twa/tw_osl_share.h>
 #include <dev/twa/tw_cl_share.h>
-#include <dev/twa/tw_osl.h>
 #include <dev/twa/tw_osl_externs.h>
 
 

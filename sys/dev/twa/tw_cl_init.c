@@ -61,9 +61,85 @@
 TW_INT32
 tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id)
 {
-	if ((vendor_id == TW_CL_VENDOR_ID) && (device_id == TW_CL_DEVICE_ID_9K))
+	if ((vendor_id == TW_CL_VENDOR_ID) &&
+		((device_id == TW_CL_DEVICE_ID_9K) ||
+		(device_id == TW_CL_DEVICE_ID_9K_X)))
 		return(TW_CL_TRUE);
 	return(TW_CL_FALSE);
+}
+
+
+
+/*
+ * Function name:	tw_cl_get_pci_bar_info
+ * Description:		Returns PCI BAR info.
+ *
+ * Input:		device_id -- device id of the controller
+ *			bar_type -- type of PCI BAR in question
+ * Output:		bar_num -- PCI BAR number corresponding to bar_type
+ *			bar0_offset -- byte offset from BAR 0 (0x10 in
+ *					PCI config space)
+ *			bar_size -- size, in bytes, of the BAR in question
+ * Return value:	0 -- success
+ *			non-zero -- failure
+ */
+TW_INT32
+tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
+	TW_INT32 *bar_num, TW_INT32 *bar0_offset, TW_INT32 *bar_size)
+{
+	TW_INT32	error = TW_OSL_ESUCCESS;
+
+	switch(device_id) {
+	case TW_CL_DEVICE_ID_9K:
+		switch(bar_type) {
+		case TW_CL_BAR_TYPE_IO:
+			*bar_num = 0;
+			*bar0_offset = 0;
+			*bar_size = 4;
+			break;
+
+		case TW_CL_BAR_TYPE_MEM:
+			*bar_num = 1;
+			*bar0_offset = 0x4;
+			*bar_size = 8;
+			break;
+
+		case TW_CL_BAR_TYPE_SBUF:
+			*bar_num = 2;
+			*bar0_offset = 0xC;
+			*bar_size = 8;
+			break;
+		}
+		break;
+
+	case TW_CL_DEVICE_ID_9K_X:
+		switch(bar_type) {
+		case TW_CL_BAR_TYPE_IO:
+			*bar_num = 2;
+			*bar0_offset = 0x10;
+			*bar_size = 4;
+			break;
+
+		case TW_CL_BAR_TYPE_MEM:
+			*bar_num = 1;
+			*bar0_offset = 0x8;
+			*bar_size = 8;
+			break;
+
+		case TW_CL_BAR_TYPE_SBUF:
+			*bar_num = 0;
+			*bar0_offset = 0;
+			*bar_size = 8;
+			break;
+		}
+		break;
+
+	default:
+		error = TW_OSL_ENOTTY;
+		break;
+	}
+
+	return(error);
 }
 
 
@@ -74,6 +150,7 @@ tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id)
  *			controller, given the controller type (in 'flags').
  * Input:		ctlr_handle -- controller handle
  *			flags -- more info passed by the OS Layer
+ *			device_id -- device id of the controller
  *			max_simult_reqs -- maximum # of simultaneous
  *					requests that the OS Layer expects
  *					the Common Layer to support
@@ -98,8 +175,8 @@ tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id)
  */
 TW_INT32
 tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_UINT32 flags, TW_INT32 max_simult_reqs, TW_INT32 max_aens,
-	TW_UINT32 *alignment, TW_UINT32 *sg_size_factor,
+	TW_UINT32 flags, TW_INT32 device_id, TW_INT32 max_simult_reqs,
+	TW_INT32 max_aens, TW_UINT32 *alignment, TW_UINT32 *sg_size_factor,
 	TW_UINT32 *non_dma_mem_size, TW_UINT32 *dma_mem_size
 #ifdef TW_OSL_FLASH_FIRMWARE
 	, TW_UINT32 *flash_dma_mem_size
@@ -112,6 +189,9 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 #endif /* TW_OSL_N0N_DMA_MEM_ALLOC_PER_REQUEST */
 	)
 {
+	if (device_id == 0)
+		device_id = TW_CL_DEVICE_ID_9K;
+
 	if (max_simult_reqs > TW_CL_MAX_SIMULTANEOUS_REQUESTS) {
 		tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
@@ -123,8 +203,8 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 		return(TW_OSL_EBIG);
 	}
 
-	*alignment = TWA_ALIGNMENT;
-	*sg_size_factor = TWA_SG_ELEMENT_SIZE_FACTOR;
+	*alignment = TWA_ALIGNMENT(device_id);
+	*sg_size_factor = TWA_SG_ELEMENT_SIZE_FACTOR(device_id);
 
 	/*
 	 * Total non-DMA memory needed is the sum total of memory needed for
@@ -171,8 +251,9 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 	/* Memory needed to hold the firmware image while flashing. */
 	*flash_dma_mem_size =
 		((tw_cli_fw_img_size / TW_CLI_NUM_FW_IMAGE_CHUNKS) +
-		(TWA_SG_ELEMENT_SIZE_FACTOR - 1)) &
-		~(TWA_SG_ELEMENT_SIZE_FACTOR - 1);
+		511) & ~511;
+/*		(TWA_SG_ELEMENT_SIZE_FACTOR(device_id) - 1)) &
+		~(TWA_SG_ELEMENT_SIZE_FACTOR(device_id) - 1); */
 
 #endif /* TW_OSL_FLASH_FIRMWARE */
 
@@ -187,6 +268,7 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
  *
  * Input:		ctlr_handle -- controller handle
  *			flags -- more info passed by the OS Layer
+ *			device_id -- device id of the controller
  *			max_simult_reqs -- maximum # of simultaneous requests
  *					that the OS Layer expects the Common
  *					Layer to support
@@ -203,8 +285,8 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
  */
 TW_INT32
 tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
-	TW_INT32 max_simult_reqs, TW_INT32 max_aens, TW_VOID *non_dma_mem,
-	TW_VOID *dma_mem, TW_UINT64 dma_mem_phys
+	TW_INT32 device_id, TW_INT32 max_simult_reqs, TW_INT32 max_aens,
+	TW_VOID *non_dma_mem, TW_VOID *dma_mem, TW_UINT64 dma_mem_phys
 #ifdef TW_OSL_FLASH_FIRMWARE
 	, TW_VOID *flash_dma_mem,
 	TW_UINT64 flash_dma_mem_phys
@@ -280,9 +362,12 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	ctlr_handle->cl_ctlr_ctxt = ctlr;
 	ctlr->ctlr_handle = ctlr_handle;
 
+	ctlr->device_id = (TW_UINT32)device_id;
+	ctlr->arch_id = TWA_ARCH_ID(device_id);
+	ctlr->flags = flags;
+	ctlr->sg_size_factor = TWA_SG_ELEMENT_SIZE_FACTOR(device_id);
 	ctlr->max_simult_reqs = max_simult_reqs + 1;
 	ctlr->max_aens_supported = max_aens;
-	ctlr->flags = flags;
 
 #ifdef TW_OSL_FLASH_FIRMWARE
 	ctlr->flash_dma_mem = flash_dma_mem;
@@ -302,18 +387,20 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	tw_osl_init_lock(ctlr_handle, "tw_cl_io_lock", ctlr->io_lock);
 	/*
 	 * If 64 bit cmd pkt addresses are used, we will need to serialize
-	 * writes to the hardware (across registers), since existing hardware
-	 * will get confused if, for example, we wrote the low 32 bits of the
-	 * cmd pkt address, followed by a response interrupt mask to the
+	 * writes to the hardware (across registers), since existing (G66)
+	 * hardware will get confused if, for example, we wrote the low 32 bits
+	 * of the cmd pkt address, followed by a response interrupt mask to the
 	 * control register, followed by the high 32 bits of the cmd pkt
 	 * address.  It will then interpret the value written to the control
 	 * register as the low cmd pkt address.  So, for this case, we will
-	 * only use one lock (io_lock) by making io_lock & intr_lock one and
-	 * the same.
+	 * make a note that we will need to synchronize control register writes
+	 * with command register writes.
 	 */
-	if (ctlr->flags & TW_CL_64BIT_ADDRESSES)
+	if ((ctlr->flags & TW_CL_64BIT_ADDRESSES) &&
+		(ctlr->device_id == TW_CL_DEVICE_ID_9K)) {
+		ctlr->state |= TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED;
 		ctlr->intr_lock = ctlr->io_lock;
-	else {
+	} else {
 		ctlr->intr_lock = &(ctlr->intr_lock_handle);
 		tw_osl_init_lock(ctlr_handle, "tw_cl_intr_lock",
 			ctlr->intr_lock);
@@ -481,11 +568,14 @@ tw_cli_flash_firmware(struct tw_cli_ctlr_context *ctlr)
 	
 	/*
 	 * Determine amount of memory needed to hold a chunk of the
-	 * firmware image.
+	 * firmware image.  As yet, the Download_Firmware command does not
+	 * support SG elements that are ctlr->sg_size_factor multiples.  It
+	 * requires them to be 512-byte multiples.
 	 */
 	fw_img_chunk_size = ((tw_cli_fw_img_size / TW_CLI_NUM_FW_IMAGE_CHUNKS) +
-		(TWA_SG_ELEMENT_SIZE_FACTOR - 1)) &
-		~(TWA_SG_ELEMENT_SIZE_FACTOR - 1);
+		511) & ~511;
+/*		(ctlr->sg_size_factor - 1)) &
+		~(ctlr->sg_size_factor - 1); */
 
 	/* Calculate the actual number of chunks needed. */
 	num_chunks = (tw_cli_fw_img_size / fw_img_chunk_size) +
@@ -528,9 +618,9 @@ tw_cli_flash_firmware(struct tw_cli_ctlr_context *ctlr)
 		/*
 		 * The next line will effect only the last chunk.
 		 */
-		req->length = (this_chunk_size +
-			(TWA_SG_ELEMENT_SIZE_FACTOR - 1)) &
-			~(TWA_SG_ELEMENT_SIZE_FACTOR - 1);
+		req->length = (this_chunk_size + 511) & ~511;
+/*			(ctlr->sg_size_factor - 1)) &
+			~(ctlr->sg_size_factor - 1); */
 
 		if (ctlr->flags & TW_CL_64BIT_ADDRESSES) {
 			((struct tw_cl_sg_desc64 *)(cmd->sgl))[0].address =
@@ -659,6 +749,12 @@ tw_cli_hard_reset(struct tw_cli_ctlr_context *ctlr)
 	req->data = TW_CL_NULL;
 	req->length = 0;
 
+	tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
+		TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
+		0x1017, 0x3, TW_CL_SEVERITY_INFO_STRING,
+		"Issuing hard (commanded) reset to the controller...",
+		" ");
+
 	error = tw_cli_submit_and_poll_request(req,
 		TW_CLI_REQUEST_TIMEOUT_PERIOD);
 	if (error) {
@@ -680,6 +776,36 @@ tw_cli_hard_reset(struct tw_cli_ctlr_context *ctlr)
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 			0x1008, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 			"Hard reset request failed",
+			"error = %d", error);
+	}
+
+	if (ctlr->device_id == TW_CL_DEVICE_ID_9K_X) {
+		/*
+		 * There's a hardware bug in the G133 ASIC, which can lead to
+		 * PCI parity errors and hangs, if the host accesses any
+		 * registers when the firmware is resetting the hardware, as
+		 * part of a hard/soft reset.  The window of time when the
+		 * problem can occur is about 10 ms.  Here, we will handshake
+		 * with the firmware to find out when the firmware is pulling
+		 * down the hardware reset pin, and wait for about 500 ms to
+		 * make sure we don't access any hardware registers (for
+		 * polling) during that window.
+		 */
+		ctlr->state |= TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
+		while (tw_cli_find_response(ctlr,
+			TWA_RESET_PHASE1_NOTIFICATION_RESPONSE) != TW_OSL_ESUCCESS)
+			tw_osl_delay(10);
+		tw_osl_delay(TWA_RESET_PHASE1_WAIT_TIME_MS * 1000);
+		ctlr->state &= ~TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
+	}
+
+	/* Wait for the MC_RDY bit to get set. */
+	if ((error = tw_cli_poll_status(ctlr, TWA_STATUS_MICROCONTROLLER_READY,
+			TW_CLI_RESET_TIMEOUT_PERIOD))) {
+		tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
+			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
+			0x1018, 0x1, TW_CL_SEVERITY_ERROR_STRING,
+			"Micro-ctlr not ready following hard reset",
 			"error = %d", error);
 	}
 
@@ -748,10 +874,12 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 	if ((error = tw_cli_init_connection(ctlr,
 			(TW_UINT16)(ctlr->max_simult_reqs),
 			TWA_EXTENDED_INIT_CONNECT, TWA_CURRENT_FW_SRL,
-			TWA_9000_ARCH_ID, TWA_CURRENT_FW_BRANCH,
-			TWA_CURRENT_FW_BUILD, &fw_on_ctlr_srl,
-			&fw_on_ctlr_arch_id, &fw_on_ctlr_branch,
-			&fw_on_ctlr_build, &init_connect_result))) {
+			(TW_UINT16)(ctlr->arch_id),
+			TWA_CURRENT_FW_BRANCH(ctlr->arch_id),
+			TWA_CURRENT_FW_BUILD(ctlr->arch_id),
+			&fw_on_ctlr_srl, &fw_on_ctlr_arch_id,
+			&fw_on_ctlr_branch, &fw_on_ctlr_build,
+			&init_connect_result))) {
 		tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 			0x100B, 0x2, TW_CL_SEVERITY_WARNING_STRING,
@@ -825,8 +953,10 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 			/* Yes, we can.  Make note of the operating mode. */
 			if (init_connect_result & TWA_CTLR_FW_SAME_OR_NEWER) {
 				ctlr->working_srl = TWA_CURRENT_FW_SRL;
-				ctlr->working_branch = TWA_CURRENT_FW_BRANCH;
-				ctlr->working_build = TWA_CURRENT_FW_BUILD;
+				ctlr->working_branch =
+					TWA_CURRENT_FW_BRANCH(ctlr->arch_id);
+				ctlr->working_build =
+					TWA_CURRENT_FW_BUILD(ctlr->arch_id);
 			} else {
 				ctlr->working_srl = fw_on_ctlr_srl;
 				ctlr->working_branch = fw_on_ctlr_branch;
@@ -847,7 +977,8 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 			if ((error = tw_cli_init_connection(ctlr,
 					(TW_UINT16)(ctlr->max_simult_reqs),
 					TWA_EXTENDED_INIT_CONNECT,
-					TWA_BASE_FW_SRL, TWA_9000_ARCH_ID,
+					TWA_BASE_FW_SRL,
+					(TW_UINT16)(ctlr->arch_id),
 					TWA_BASE_FW_BRANCH, TWA_BASE_FW_BUILD,
 					&fw_on_ctlr_srl, &fw_on_ctlr_arch_id,
 					&fw_on_ctlr_branch, &fw_on_ctlr_build,
@@ -901,6 +1032,9 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 			ctlr->working_build = TWA_BASE_FW_BUILD;
 			ctlr->operating_mode = TWA_BASE_MODE;
 		}
+		ctlr->fw_on_ctlr_srl = fw_on_ctlr_srl;
+		ctlr->fw_on_ctlr_branch = fw_on_ctlr_branch;
+		ctlr->fw_on_ctlr_build = fw_on_ctlr_build;
 	}
 
 	/* Drain the AEN queue */
