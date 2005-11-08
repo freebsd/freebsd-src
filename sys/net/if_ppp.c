@@ -263,7 +263,6 @@ ppp_clone_destroy(struct ifnet *ifp)
 static int
 ppp_modevent(module_t mod, int type, void *data) 
 {
-	struct ppp_softc *sc;
 
 	switch (type) { 
 	case MOD_LOAD: 
@@ -285,13 +284,6 @@ ppp_modevent(module_t mod, int type, void *data)
 		netisr_unregister(NETISR_PPP);
 
 		if_clone_detach(&ppp_cloner);
-
-		PPP_LIST_LOCK();
-		while ((sc = LIST_FIRST(&ppp_softc_list)) != NULL) {
-			PPP_LIST_UNLOCK();
-			ifc_simple_destroy(&ppp_cloner, PPP2IFP(sc));
-			PPP_LIST_LOCK();
-		}
 		PPP_LIST_LOCK_DESTROY();
 		break; 
 	default:

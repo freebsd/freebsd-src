@@ -180,6 +180,7 @@ struct ifnet {
 	struct	task if_starttask;	/* task for IFF_NEEDSGIANT */
 	struct	task if_linktask;	/* task for link change events */
 	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
+	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 };
 
 typedef void if_init_f_t(void *);

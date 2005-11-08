@@ -66,6 +66,7 @@ struct if_clone {
 
 	long ifc_refcnt;		/* (i) Refrence count. */
 	struct mtx ifc_mtx;		/* Muted to protect members. */
+	LIST_HEAD(, ifnet) ifc_iflist;	/* (i) List of cloned interfaces */
 };
 
 void	if_clone_init(void);
