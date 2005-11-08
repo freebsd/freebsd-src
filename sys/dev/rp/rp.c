@@ -838,23 +838,42 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 
 	for (i = 0 ; i < rp_num_ports[unit] ; i++) {
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i,
-					  UID_ROOT, GID_WHEEL, 0666, "ttyR%c",
-					  i <= 9 ? '0' + i : 'a' + i - 10);
+					  UID_ROOT, GID_WHEEL, 0666, "ttyR%u%c",
+					  unit, i <= 9 ? '0' + i : 'a' + i - 10);
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0x20,
-					  UID_ROOT, GID_WHEEL, 0666, "ttyiR%c",
-					  i <= 9 ? '0' + i : 'a' + i - 10);
+					  UID_ROOT, GID_WHEEL, 0666, "ttyiR%u%c",
+					  unit, i <= 9 ? '0' + i : 'a' + i - 10);
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0x40,
-					  UID_ROOT, GID_WHEEL, 0666, "ttylR%c",
-					  i <= 9 ? '0' + i : 'a' + i - 10);
+					  UID_ROOT, GID_WHEEL, 0666, "ttylR%u%c",
+					  unit, i <= 9 ? '0' + i : 'a' + i - 10);
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0x80,
-					  UID_ROOT, GID_WHEEL, 0666, "cuaR%c",
-					  i <= 9 ? '0' + i : 'a' + i - 10);
+					  UID_ROOT, GID_WHEEL, 0666, "cuaR%u%c",
+					  unit, i <= 9 ? '0' + i : 'a' + i - 10);
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0xa0,
-					  UID_ROOT, GID_WHEEL, 0666, "cuaiR%c",
-					  i <= 9 ? '0' + i : 'a' + i - 10);
+					  UID_ROOT, GID_WHEEL, 0666, "cuaiR%u%c",
+					  unit, i <= 9 ? '0' + i : 'a' + i - 10);
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i | 0xc0,
-					  UID_ROOT, GID_WHEEL, 0666, "cualR%c",
-					  i <= 9 ? '0' + i : 'a' + i - 10);
+					  UID_ROOT, GID_WHEEL, 0666, "cualR%u%c",
+					  unit, i <= 9 ? '0' + i : 'a' + i - 10);
+	}
+
+	/* Aliases for compat. */
+	if (unit == 0) {
+		dev_nodes = ctlp->dev_nodes;
+		for (i = 0 ; i < rp_num_ports[unit] ; i++) {
+			make_dev_alias(*(dev_nodes++), "ttyR%c",
+				       i <= 9 ? '0' + i : 'a' + i - 10);
+			make_dev_alias(*(dev_nodes++), "ttyiR%c",
+				       i <= 9 ? '0' + i : 'a' + i - 10);
+			make_dev_alias(*(dev_nodes++), "ttylR%c",
+				       i <= 9 ? '0' + i : 'a' + i - 10);
+			make_dev_alias(*(dev_nodes++), "cuaR%c",
+				       i <= 9 ? '0' + i : 'a' + i - 10);
+			make_dev_alias(*(dev_nodes++), "cuaiR%c",
+				       i <= 9 ? '0' + i : 'a' + i - 10);
+			make_dev_alias(*(dev_nodes++), "cualR%c",
+				       i <= 9 ? '0' + i : 'a' + i - 10);
+		}
 	}
 
 	port = 0;
