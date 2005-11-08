@@ -1019,6 +1019,12 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, c_linker_sym_t* sym)
     unsigned long hash;
     int i;
 
+    /* If we don't have a hash, bail. */
+    if (ef->buckets == NULL || ef->nbuckets == 0) {
+	printf("link_elf_lookup_symbol: missing symbol hash table\n");
+	return ENOENT;
+    }
+
     /* First, search hashed global symbols */
     hash = elf_hash(name);
     symnum = ef->buckets[hash % ef->nbuckets];
