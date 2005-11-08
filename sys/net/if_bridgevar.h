@@ -264,7 +264,6 @@ struct bridge_rtnode {
  */
 struct bridge_softc {
 	struct ifnet		*sc_ifp;	/* make this an interface */
-	LIST_ENTRY(bridge_softc) sc_list;
 	struct mtx		sc_mtx;
 	struct cv		sc_cv;
 	uint64_t		sc_designated_root;

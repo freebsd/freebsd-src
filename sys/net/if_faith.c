@@ -84,7 +84,6 @@
 
 struct faith_softc {
 	struct ifnet *sc_ifp;
-	LIST_ENTRY(faith_softc) sc_list;
 };
 
 static int faithioctl(struct ifnet *, u_long, caddr_t);
@@ -97,9 +96,7 @@ static int faithprefix(struct in6_addr *);
 
 static int faithmodevent(module_t, int, void *);
 
-static struct mtx faith_mtx;
 static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
-static LIST_HEAD(, faith_softc) faith_softc_list;
 
 static int	faith_clone_create(struct if_clone *, int);
 static void	faith_clone_destroy(struct ifnet *);
@@ -114,12 +111,9 @@ faithmodevent(mod, type, data)
 	int type;
 	void *data;
 {
-	struct faith_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
-		mtx_init(&faith_mtx, "faith_mtx", NULL, MTX_DEF);
-		LIST_INIT(&faith_softc_list);
 		if_clone_attach(&faith_cloner);
 
 #ifdef INET6
@@ -133,15 +127,6 @@ faithmodevent(mod, type, data)
 #endif
 
 		if_clone_detach(&faith_cloner);
-
-		mtx_lock(&faith_mtx);
-		while ((sc = LIST_FIRST(&faith_softc_list)) != NULL) {
-			mtx_unlock(&faith_mtx);
-			ifc_simple_destroy(&faith_cloner, sc->sc_ifp);
-			mtx_lock(&faith_mtx);
-		}
-		mtx_unlock(&faith_mtx);
-		mtx_destroy(&faith_mtx);
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -186,9 +171,6 @@ faith_clone_create(ifc, unit)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-	mtx_lock(&faith_mtx);
-	LIST_INSERT_HEAD(&faith_softc_list, sc, sc_list);
-	mtx_unlock(&faith_mtx);
 	return (0);
 }
 
@@ -197,10 +179,6 @@ faith_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
 	struct faith_softc *sc = ifp->if_softc;
-
-	mtx_lock(&faith_mtx);
-	LIST_REMOVE(sc, sc_list);
-	mtx_unlock(&faith_mtx);
 
 	bpfdetach(ifp);
 	if_detach(ifp);

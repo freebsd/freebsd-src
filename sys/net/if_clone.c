@@ -49,7 +49,9 @@
 #include <net/radix.h>
 #include <net/route.h>
 
-static void		if_clone_free(struct if_clone *ifc);
+static void	if_clone_free(struct if_clone *ifc);
+static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len);
+static int	if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp);
 
 static struct mtx	if_cloners_mtx;
 static int		if_cloners_count;
@@ -100,6 +102,11 @@ LIST_HEAD(, if_clone)	if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 		}							\
 	} while (0)
 
+#define IFC_IFLIST_INSERT(_ifc, _ifp)					\
+	LIST_INSERT_HEAD(&_ifc->ifc_iflist, _ifp, if_clones)
+#define IFC_IFLIST_REMOVE(_ifc, _ifp)					\
+	LIST_REMOVE(_ifp, if_clones)
+
 static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
 void
@@ -109,16 +116,12 @@ if_clone_init(void)
 }
 
 /*
- * Create a clone network interface.
+ * Lookup and create a clone network interface.
  */
 int
 if_clone_create(char *name, size_t len)
 {
-	int err;
 	struct if_clone *ifc;
-
-	if (ifunit(name) != NULL)
-		return (EEXIST);
 
 	/* Try to find an applicable cloner for this request */
 	IF_CLONERS_LOCK();
@@ -132,17 +135,42 @@ if_clone_create(char *name, size_t len)
 	if (ifc == NULL)
 		return (EINVAL);
 
+	return (if_clone_createif(ifc, name, len));
+}
+
+/*
+ * Create a clone network interface.
+ */
+static int
+if_clone_createif(struct if_clone *ifc, char *name, size_t len)
+{
+	int err;
+	struct ifnet *ifp;
+
+	if (ifunit(name) != NULL)
+		return (EEXIST);
+
 	err = (*ifc->ifc_create)(ifc, name, len);
+	
+	if (!err) {
+		ifp = ifunit(name);
+		if (ifp == NULL)
+			panic("%s: lookup failed for %s", __func__, name);
+
+		IF_CLONE_LOCK(ifc);
+		IFC_IFLIST_INSERT(ifc, ifp);
+		IF_CLONE_UNLOCK(ifc);
+	}
+
 	return (err);
 }
 
 /*
- * Destroy a clone network interface.
+ * Lookup and destroy a clone network interface.
  */
 int
 if_clone_destroy(const char *name)
 {
-	int err;
 	struct if_clone *ifc;
 	struct ifnet *ifp;
 
@@ -160,6 +188,21 @@ if_clone_destroy(const char *name)
 	IF_CLONERS_UNLOCK();
 	if (ifc == NULL)
 		return (EINVAL);
+
+	return (if_clone_destroyif(ifc, ifp));
+}
+
+/*
+ * Destroy a clone network interface.
+ */
+static int
+if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
+{
+	int err;
+
+	IF_CLONE_LOCK(ifc);
+	IFC_IFLIST_REMOVE(ifc, ifp);
+	IF_CLONE_UNLOCK(ifc);
 
 	if (ifc->ifc_destroy == NULL) {
 		err = EOPNOTSUPP;
@@ -197,6 +240,8 @@ if_clone_attach(struct if_clone *ifc)
 	if_cloners_count++;
 	IF_CLONERS_UNLOCK();
 
+	LIST_INIT(&ifc->ifc_iflist);
+
 	if (ifc->ifc_attach != NULL)
 		(*ifc->ifc_attach)(ifc);
 	EVENTHANDLER_INVOKE(if_clone_event, ifc);
@@ -219,6 +264,10 @@ if_clone_detach(struct if_clone *ifc)
 	if (ifc->ifc_attach == ifc_simple_attach)
 		ifcs->ifcs_minifs = 0;
 
+	/* destroy all interfaces for this cloner */
+	while (!LIST_EMPTY(&ifc->ifc_iflist))
+		if_clone_destroyif(ifc, LIST_FIRST(&ifc->ifc_iflist));
+	
 	IF_CLONE_REMREF(ifc);
 }
 
@@ -229,6 +278,9 @@ if_clone_free(struct if_clone *ifc)
 		KASSERT(ifc->ifc_units[bytoff] == 0x00,
 		    ("ifc_units[%d] is not empty", bytoff));
 	}
+
+	KASSERT(LIST_EMPTY(&ifc->ifc_iflist),
+	    ("%s: ifc_iflist not empty", __func__));
 
 	IF_CLONE_LOCK_DESTROY(ifc);
 	free(ifc->ifc_units, M_CLONE);
@@ -401,7 +453,7 @@ ifc_simple_attach(struct if_clone *ifc)
 
 	for (unit = 0; unit < ifcs->ifcs_minifs; unit++) {
 		snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, unit);
-		err = (*ifc->ifc_create)(ifc, name, IFNAMSIZ);
+		err = if_clone_createif(ifc, name, IFNAMSIZ);
 		KASSERT(err == 0,
 		    ("%s: failed to create required interface %s",
 		    __func__, name));
