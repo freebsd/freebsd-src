@@ -63,7 +63,6 @@
 
 struct disc_softc {
 	struct ifnet *sc_ifp;	/* must be first */
-	LIST_ENTRY(disc_softc) sc_list;
 };
 
 static int	discoutput(struct ifnet *, struct mbuf *,
@@ -73,9 +72,7 @@ static int	discioctl(struct ifnet *, u_long, caddr_t);
 static int	disc_clone_create(struct if_clone *, int);
 static void	disc_clone_destroy(struct ifnet *);
 
-static struct mtx disc_mtx;
 static MALLOC_DEFINE(M_DISC, DISCNAME, "Discard interface");
-static LIST_HEAD(, disc_softc) disc_softc_list;
 
 IFC_SIMPLE_DECLARE(disc, 0);
 
@@ -103,9 +100,6 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_snd.ifq_maxlen = 20;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-	mtx_lock(&disc_mtx);
-	LIST_INSERT_HEAD(&disc_softc_list, sc, sc_list);
-	mtx_unlock(&disc_mtx);
 
 	return (0);
 }
@@ -116,9 +110,6 @@ disc_clone_destroy(struct ifnet *ifp)
 	struct disc_softc	*sc;
 
 	sc = ifp->if_softc;
-	mtx_lock(&disc_mtx);
-	LIST_REMOVE(sc, sc_list);
-	mtx_unlock(&disc_mtx);
 
 	bpfdetach(ifp);
 	if_detach(ifp);
@@ -130,25 +121,13 @@ disc_clone_destroy(struct ifnet *ifp)
 static int
 disc_modevent(module_t mod, int type, void *data)
 {
-	struct disc_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
-		mtx_init(&disc_mtx, "disc_mtx", NULL, MTX_DEF);
-		LIST_INIT(&disc_softc_list);
 		if_clone_attach(&disc_cloner);
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&disc_cloner);
-
-		mtx_lock(&disc_mtx);
-		while ((sc = LIST_FIRST(&disc_softc_list)) != NULL) {
-			mtx_unlock(&disc_mtx);
-			ifc_simple_destroy(&disc_cloner, sc->sc_ifp);
-			mtx_lock(&disc_mtx);
-		}
-		mtx_unlock(&disc_mtx);
-		mtx_destroy(&disc_mtx);
 		break;
 	default:
 		return (EOPNOTSUPP);

@@ -1851,9 +1851,6 @@ pfsync_modevent(module_t mod, int type, void *data)
 
 	case MOD_UNLOAD:
 		if_clone_detach(&pfsync_cloner);
-		while (!LIST_EMPTY(&pfsync_list))
-			ifc_simple_destroy(&pfsync_cloner, 
-			    SCP2IFP(LIST_FIRST(&pfsync_list)));
 		break;
 
 	default:
