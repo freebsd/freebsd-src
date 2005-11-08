@@ -826,7 +826,8 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 			rp->rp_cts = (ChanStatus & CTS_ACT) != 0;
 			line = (unit << 5) | (aiop << 3) | chan;
 			rp_table(line) = rp;
-			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "R%r", port);
+			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "R%r%r", unit,
+			    port);
 		}
 	}
 
