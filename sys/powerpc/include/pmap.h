@@ -94,18 +94,20 @@ void		*pmap_mapdev(vm_offset_t, vm_size_t);
 void		pmap_unmapdev(vm_offset_t, vm_size_t);
 void		pmap_deactivate(struct thread *);
 vm_offset_t	pmap_kextract(vm_offset_t);
-
-int		pmap_pte_spill(vm_offset_t);
-
 int		pmap_dev_direct_mapped(vm_offset_t, vm_size_t);
+
+boolean_t	pmap_mmu_install(char *name, int prio);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
 
-extern	vm_offset_t phys_avail[];
+#define PHYS_AVAIL_SZ	128
+extern	vm_offset_t phys_avail[PHYS_AVAIL_SZ];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 
 extern	vm_offset_t msgbuf_phys;
+
+extern	int pmap_bootstrapped;
 
 #endif
 
