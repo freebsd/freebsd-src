@@ -232,6 +232,7 @@ retry:
 	 */
 	mtx_lock(&Giant);	/* XXX: not sure if needed */
 	funsetownlst(&p->p_sigiolst);
+	mtx_unlock(&Giant);	
 
 	/*
 	 * If this process has an nlminfo data area (for lockd), release it
@@ -244,7 +245,6 @@ retry:
 	 * This may block!
 	 */
 	fdfree(td);
-	mtx_unlock(&Giant);	
 
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to

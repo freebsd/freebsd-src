@@ -803,10 +803,8 @@ aio_daemon(void *uproc)
 	 * Get rid of our current filedescriptors.  AIOD's don't need any
 	 * filedescriptors, except as temporarily inherited from the client.
 	 */
-	mtx_lock(&Giant);
 	fdfree(td);
 
-	mtx_unlock(&Giant);
 	/* The daemon resides in its own pgrp. */
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		M_WAITOK | M_ZERO);

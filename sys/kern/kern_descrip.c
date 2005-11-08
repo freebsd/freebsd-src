@@ -1525,10 +1525,10 @@ fdfree(struct thread *td)
 {
 	struct filedesc *fdp;
 	struct file **fpp;
-	int i;
+	int i, locked;
 	struct filedesc_to_leader *fdtol;
 	struct file *fp;
-	struct vnode *vp;
+	struct vnode *cdir, *jdir, *rdir, *vp;
 	struct flock lf;
 
 	/* Certain daemons might not have file descriptors. */
@@ -1559,13 +1559,14 @@ fdfree(struct thread *td)
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
 				vp = fp->f_vnode;
-				VFS_ASSERT_GIANT(vp->v_mount);
+				locked = VFS_LOCK_GIANT(vp->v_mount);
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)td->td_proc->
 						   p_leader,
 						   F_UNLCK,
 						   &lf,
 						   F_POSIX);
+				VFS_UNLOCK_GIANT(locked);
 				FILEDESC_LOCK(fdp);
 				fdrop(fp, td);
 				fpp = fdp->fd_ofiles + i;
@@ -1635,17 +1636,29 @@ fdfree(struct thread *td)
 
 	fdp->fd_nfiles = 0;
 
-	if (fdp->fd_cdir)
-		vrele(fdp->fd_cdir);
+	cdir = fdp->fd_cdir;
 	fdp->fd_cdir = NULL;
-	if (fdp->fd_rdir)
-		vrele(fdp->fd_rdir);
+	rdir = fdp->fd_rdir;
 	fdp->fd_rdir = NULL;
-	if (fdp->fd_jdir)
-		vrele(fdp->fd_jdir);
+	jdir = fdp->fd_jdir;
 	fdp->fd_jdir = NULL;
-
 	FILEDESC_UNLOCK(fdp);
+
+	if (cdir) {
+		locked = VFS_LOCK_GIANT(cdir->v_mount);
+		vrele(cdir);
+		VFS_UNLOCK_GIANT(locked);
+	}
+	if (rdir) {
+		locked = VFS_LOCK_GIANT(rdir->v_mount);
+		vrele(rdir);
+		VFS_UNLOCK_GIANT(locked);
+	}
+	if (jdir) {
+		locked = VFS_LOCK_GIANT(jdir->v_mount);
+		vrele(jdir);
+		VFS_UNLOCK_GIANT(locked);
+	}
 
 	fddrop(fdp);
 }
