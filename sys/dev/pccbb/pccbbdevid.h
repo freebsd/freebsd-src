@@ -30,12 +30,12 @@
 #define	PCIC_ID_CLPD6832	0x11101013ul
 #define	PCIC_ID_CLPD6833	0x11131013ul
 #define	PCIC_ID_CLPD6834	0x11121013ul
-#define PCIC_ID_ENE_CB710	0x14111524ul
-#define PCIC_ID_ENE_CB720	0x14211524ul	/* ??? */
-#define PCIC_ID_ENE_CB1211	0x12111524ul	/* ??? */
-#define PCIC_ID_ENE_CB1225	0x12251524ul	/* ??? */
-#define PCIC_ID_ENE_CB1410	0x14101524ul
-#define PCIC_ID_ENE_CB1420	0x14201524ul
+#define	PCIC_ID_ENE_CB710	0x14111524ul
+#define	PCIC_ID_ENE_CB720	0x14211524ul	/* ??? */
+#define	PCIC_ID_ENE_CB1211	0x12111524ul	/* ??? */
+#define	PCIC_ID_ENE_CB1225	0x12251524ul	/* ??? */
+#define	PCIC_ID_ENE_CB1410	0x14101524ul
+#define	PCIC_ID_ENE_CB1420	0x14201524ul
 #define	PCIC_ID_INTEL_82092AA_0	0x12218086ul	/* 16bit I/O */
 #define	PCIC_ID_INTEL_82092AA_1	0x12228086ul	/* 16bit I/O */
 #define	PCIC_ID_OMEGA_82C094	0x1221119bul	/* 16bit I/O */
@@ -47,12 +47,12 @@
 #define	PCIC_ID_OZ6912		0x69721217ul	/* Also 6972 */
 #define	PCIC_ID_OZ6922		0x69251217ul
 #define	PCIC_ID_OZ6933		0x69331217ul
-#define PCIC_ID_OZ711EC1	0x71121217ul	/* O2Micro 711EC1/M1 */
-#define PCIC_ID_OZ711E1		0x71131217ul	/* O2Micro 711E1 */
+#define	PCIC_ID_OZ711EC1	0x71121217ul	/* O2Micro 711EC1/M1 */
+#define	PCIC_ID_OZ711E1		0x71131217ul	/* O2Micro 711E1 */
 #define	PCIC_ID_OZ711M1		0x71141217ul	/* O2Micro 711M1 */
-#define PCIC_ID_OZ711E2		0x71e21217ul
-#define PCIC_ID_OZ711M2		0x72121217ul
-#define PCIC_ID_OZ711M3		0x72231217ul
+#define	PCIC_ID_OZ711E2		0x71e21217ul
+#define	PCIC_ID_OZ711M2		0x72121217ul
+#define	PCIC_ID_OZ711M3		0x72231217ul
 #define	PCIC_ID_RICOH_RL5C465	0x04651180ul
 #define	PCIC_ID_RICOH_RL5C466	0x04661180ul
 #define	PCIC_ID_RICOH_RL5C475	0x04751180ul
@@ -78,25 +78,25 @@
 #define	PCIC_ID_TI1421		0xac53104cul	/* never sold */
 #define	PCIC_ID_TI1450		0xac1b104cul
 #define	PCIC_ID_TI1451		0xac52104cul
-#define PCIC_ID_TI1510		0xac56104cul
-#define PCIC_ID_TI1515		0xac58104cul
-#define PCIC_ID_TI1520		0xac55104cul
-#define PCIC_ID_TI1530		0xac57104cul
-#define PCIC_ID_TI1620		0xac54104cul
+#define	PCIC_ID_TI1510		0xac56104cul
+#define	PCIC_ID_TI1515		0xac58104cul
+#define	PCIC_ID_TI1520		0xac55104cul
+#define	PCIC_ID_TI1530		0xac57104cul
+#define	PCIC_ID_TI1620		0xac54104cul
 #define	PCIC_ID_TI4410		0xac41104cul
 #define	PCIC_ID_TI4450		0xac40104cul
 #define	PCIC_ID_TI4451		0xac42104cul
-#define PCIC_ID_TI4510		0xac44104cul
-#define PCIC_ID_TI4520		0xac46104cul
-#define PCIC_ID_TI6411		0x8031104cul	/* PCI[67]x[12]1 */
-#define PCIC_ID_TI6420		0xac8d104cul	/* PCI[67]x20 Smartcard dis */
-#define PCIC_ID_TI6420SC	0xac8e104cul	/* PCI[67]x20 Smartcard en */
-#define PCIC_ID_TI7410		0xac49104cul
-#define PCIC_ID_TI7510		0xac47104cul
-#define PCIC_ID_TI7610		0xac48104cul
-#define PCIC_ID_TI7610M		0xac4a104cul
-#define PCIC_ID_TI7610SD	0xac4b104cul
-#define PCIC_ID_TI7610MS	0xac4c104cul
+#define	PCIC_ID_TI4510		0xac44104cul
+#define	PCIC_ID_TI4520		0xac46104cul
+#define	PCIC_ID_TI6411		0x8031104cul	/* PCI[67]x[12]1 */
+#define	PCIC_ID_TI6420		0xac8d104cul	/* PCI[67]x20 Smartcard dis */
+#define	PCIC_ID_TI6420SC	0xac8e104cul	/* PCI[67]x20 Smartcard en */
+#define	PCIC_ID_TI7410		0xac49104cul
+#define	PCIC_ID_TI7510		0xac47104cul
+#define	PCIC_ID_TI7610		0xac48104cul
+#define	PCIC_ID_TI7610M		0xac4a104cul
+#define	PCIC_ID_TI7610SD	0xac4b104cul
+#define	PCIC_ID_TI7610MS	0xac4c104cul
 #define	PCIC_ID_TOPIC95		0x06031179ul
 #define	PCIC_ID_TOPIC95B	0x060a1179ul
 #define	PCIC_ID_TOPIC97		0x060f1179ul
