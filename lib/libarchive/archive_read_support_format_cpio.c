@@ -317,9 +317,6 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_newc_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
-	a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
-
 	/* Read fixed-size portion of header. */
 	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_newc_header));
 	if (bytes < sizeof(struct cpio_newc_header))
@@ -328,6 +325,17 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 
 	/* Parse out hex fields into struct stat. */
 	header = h;
+
+	if (memcmp(header->c_magic, "070701", 6) == 0) {
+		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
+		a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
+	} else if (memcmp(header->c_magic, "070702", 6) == 0) {
+		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
+		a->archive_format_name = "ASCII cpio (SVR4 with CRC)";
+	} else {
+		/* TODO: Abort here? */
+	}
+
 	st->st_ino = atol16(header->c_ino, sizeof(header->c_ino));
 	st->st_mode = atol16(header->c_mode, sizeof(header->c_mode));
 	st->st_uid = atol16(header->c_uid, sizeof(header->c_uid));
@@ -360,7 +368,7 @@ header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_odc_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive_format_name = "POSIX octet-oriented cpio";
 
 	/* Read fixed-size portion of header. */
@@ -404,7 +412,7 @@ header_bin_le(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
 	a->archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
@@ -441,7 +449,7 @@ header_bin_be(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
 	a->archive_format_name = "cpio (big-endian binary)";
 
 	/* Read fixed-size portion of header. */
