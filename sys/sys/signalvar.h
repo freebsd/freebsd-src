@@ -333,7 +333,7 @@ int	tdsignal(struct proc *p, struct thread *td, int sig,
 	    ksiginfo_t *ksi);
 void	trapsignal(struct thread *td, ksiginfo_t *);
 int	ptracestop(struct thread *td, int sig);
-ksiginfo_t * ksiginfo_alloc(void);
+ksiginfo_t * ksiginfo_alloc(int);
 void	ksiginfo_free(ksiginfo_t *);
 void	sigqueue_init(struct sigqueue *queue, struct proc *p);
 void	sigqueue_flush(struct sigqueue *queue);
