@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -41,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+#ifdef DEV_ISA
+#include <isa/isavar.h>
+#include <isa/isa_common.h>
+#endif
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -371,6 +377,12 @@ viapm_pro_attach(device_t dev)
 	VIAPM_OUTB(SMBHCTRL, VIAPM_INB(SMBHCTRL) | SMBHCTRL_ENABLE);
 #endif
 
+#ifdef DEV_ISA
+	/* If this device is a PCI-ISA bridge, then attach an ISA bus. */
+	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
+	    (pci_get_subclass(dev) == PCIS_BRIDGE_ISA))
+		isab_attach(dev);
+#endif
 	return 0;
 
 error:
@@ -882,6 +894,15 @@ static device_method_t viapm_methods[] = {
 	DEVMETHOD(iicbb_getsda,		viabb_getsda),
 	DEVMETHOD(iicbb_reset,		viabb_reset),
 
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
 	{ 0, 0 }
 };
 
@@ -909,6 +930,15 @@ static device_method_t viapropm_methods[] = {
 	DEVMETHOD(smbus_bwrite,		viasmb_bwrite),
 	DEVMETHOD(smbus_bread,		viasmb_bread),
 	
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
 	{ 0, 0 }
 };
 
@@ -922,7 +952,14 @@ DRIVER_MODULE(viapm, pci, viapm_driver, viapm_devclass, 0, 0);
 DRIVER_MODULE(viapropm, pci, viapropm_driver, viapropm_devclass, 0, 0);
 
 MODULE_DEPEND(viapm, pci, 1, 1, 1);
-MODULE_DEPEND(viaprom, pci, 1, 1, 1);
+MODULE_DEPEND(viapropm, pci, 1, 1, 1);
 MODULE_DEPEND(viapm, iicbb, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 MODULE_DEPEND(viapropm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(viapm, 1);
+
+#ifdef DEV_ISA
+DRIVER_MODULE(isa, viapm, isa_driver, isa_devclass, 0, 0);
+DRIVER_MODULE(isa, viapropm, isa_driver, isa_devclass, 0, 0);
+MODULE_DEPEND(viapm, isa, 1, 1, 1);
+MODULE_DEPEND(viapropm, isa, 1, 1, 1);
+#endif
