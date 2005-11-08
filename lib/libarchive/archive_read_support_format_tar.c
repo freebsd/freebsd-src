@@ -28,6 +28,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#else
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
+#endif
 #include <errno.h>
 #include <stddef.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
