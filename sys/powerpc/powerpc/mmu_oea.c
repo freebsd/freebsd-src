@@ -129,7 +129,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
-#include <vm/vm.h> 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
@@ -148,8 +148,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/pte.h>
 #include <machine/sr.h>
+#include <machine/mmuvar.h>
 
-#define	PMAP_DEBUG
+#include "mmu_if.h"
+
+#define	MOEA_DEBUG
 
 #define TODO	panic("%s: not implemented", __func__);
 
@@ -180,7 +183,7 @@ __FBSDID("$FreeBSD$");
 #define	PVO_PTEGIDX_SET(pvo, i)	\
 	((void)((pvo)->pvo_vaddr |= (i)|PVO_PTEGIDX_VALID))
 
-#define	PMAP_PVO_CHECK(pvo)
+#define	MOEA_PVO_CHECK(pvo)
 
 struct ofw_map {
 	vm_offset_t	om_va;
@@ -189,132 +192,200 @@ struct ofw_map {
 	u_int		om_mode;
 };
 
-int	pmap_bootstrapped = 0;
-
-/*
- * Virtual and physical address of message buffer.
- */
-struct		msgbuf *msgbufp;
-vm_offset_t	msgbuf_phys;
-
-int pmap_pagedaemon_waken;
-
 /*
  * Map of physical memory regions.
  */
-vm_offset_t	phys_avail[128];
-u_int		phys_avail_count;
 static struct	mem_region *regions;
 static struct	mem_region *pregions;
+u_int           phys_avail_count;
 int		regions_sz, pregions_sz;
 static struct	ofw_map *translations;
 
-/*
- * First and last available kernel virtual addresses.
- */
-vm_offset_t virtual_avail;
-vm_offset_t virtual_end;
-vm_offset_t kernel_vm_end;
-
-/*
- * Kernel pmap.
- */
-struct pmap kernel_pmap_store;
 extern struct pmap ofw_pmap;
+
+
 
 /*
  * Lock for the pteg and pvo tables.
  */
-struct mtx	pmap_table_mutex;
+struct mtx	moea_table_mutex;
 
 /*
  * PTEG data.
  */
-static struct	pteg *pmap_pteg_table;
-u_int		pmap_pteg_count;
-u_int		pmap_pteg_mask;
+static struct	pteg *moea_pteg_table;
+u_int		moea_pteg_count;
+u_int		moea_pteg_mask;
 
 /*
  * PVO data.
  */
-struct	pvo_head *pmap_pvo_table;		/* pvo entries by pteg index */
-struct	pvo_head pmap_pvo_kunmanaged =
-    LIST_HEAD_INITIALIZER(pmap_pvo_kunmanaged);	/* list of unmanaged pages */
-struct	pvo_head pmap_pvo_unmanaged =
-    LIST_HEAD_INITIALIZER(pmap_pvo_unmanaged);	/* list of unmanaged pages */
+struct	pvo_head *moea_pvo_table;		/* pvo entries by pteg index */
+struct	pvo_head moea_pvo_kunmanaged =
+    LIST_HEAD_INITIALIZER(moea_pvo_kunmanaged);	/* list of unmanaged pages */
+struct	pvo_head moea_pvo_unmanaged =
+    LIST_HEAD_INITIALIZER(moea_pvo_unmanaged);	/* list of unmanaged pages */
 
-uma_zone_t	pmap_upvo_zone;	/* zone for pvo entries for unmanaged pages */
-uma_zone_t	pmap_mpvo_zone;	/* zone for pvo entries for managed pages */
+uma_zone_t	moea_upvo_zone;	/* zone for pvo entries for unmanaged pages */
+uma_zone_t	moea_mpvo_zone;	/* zone for pvo entries for managed pages */
 
 #define	BPVO_POOL_SIZE	32768
-static struct	pvo_entry *pmap_bpvo_pool;
-static int	pmap_bpvo_pool_index = 0;
+static struct	pvo_entry *moea_bpvo_pool;
+static int	moea_bpvo_pool_index = 0;
 
 #define	VSID_NBPW	(sizeof(u_int32_t) * 8)
-static u_int	pmap_vsid_bitmap[NPMAPS / VSID_NBPW];
+static u_int	moea_vsid_bitmap[NPMAPS / VSID_NBPW];
 
-static boolean_t pmap_initialized = FALSE;
+static boolean_t moea_initialized = FALSE;
 
 /*
  * Statistics.
  */
-u_int	pmap_pte_valid = 0;
-u_int	pmap_pte_overflow = 0;
-u_int	pmap_pte_replacements = 0;
-u_int	pmap_pvo_entries = 0;
-u_int	pmap_pvo_enter_calls = 0;
-u_int	pmap_pvo_remove_calls = 0;
-u_int	pmap_pte_spills = 0;
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pte_valid, CTLFLAG_RD, &pmap_pte_valid,
+u_int	moea_pte_valid = 0;
+u_int	moea_pte_overflow = 0;
+u_int	moea_pte_replacements = 0;
+u_int	moea_pvo_entries = 0;
+u_int	moea_pvo_enter_calls = 0;
+u_int	moea_pvo_remove_calls = 0;
+u_int	moea_pte_spills = 0;
+SYSCTL_INT(_machdep, OID_AUTO, moea_pte_valid, CTLFLAG_RD, &moea_pte_valid,
     0, "");
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pte_overflow, CTLFLAG_RD,
-    &pmap_pte_overflow, 0, "");
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pte_replacements, CTLFLAG_RD,
-    &pmap_pte_replacements, 0, "");
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pvo_entries, CTLFLAG_RD, &pmap_pvo_entries,
+SYSCTL_INT(_machdep, OID_AUTO, moea_pte_overflow, CTLFLAG_RD,
+    &moea_pte_overflow, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, moea_pte_replacements, CTLFLAG_RD,
+    &moea_pte_replacements, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, moea_pvo_entries, CTLFLAG_RD, &moea_pvo_entries,
     0, "");
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pvo_enter_calls, CTLFLAG_RD,
-    &pmap_pvo_enter_calls, 0, "");
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pvo_remove_calls, CTLFLAG_RD,
-    &pmap_pvo_remove_calls, 0, "");
-SYSCTL_INT(_machdep, OID_AUTO, pmap_pte_spills, CTLFLAG_RD,
-    &pmap_pte_spills, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, moea_pvo_enter_calls, CTLFLAG_RD,
+    &moea_pvo_enter_calls, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, moea_pvo_remove_calls, CTLFLAG_RD,
+    &moea_pvo_remove_calls, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, moea_pte_spills, CTLFLAG_RD,
+    &moea_pte_spills, 0, "");
 
-struct	pvo_entry *pmap_pvo_zeropage;
+struct	pvo_entry *moea_pvo_zeropage;
 
-vm_offset_t	pmap_rkva_start = VM_MIN_KERNEL_ADDRESS;
-u_int		pmap_rkva_count = 4;
+vm_offset_t	moea_rkva_start = VM_MIN_KERNEL_ADDRESS;
+u_int		moea_rkva_count = 4;
 
 /*
- * Allocate physical memory for use in pmap_bootstrap.
+ * Allocate physical memory for use in moea_bootstrap.
  */
-static vm_offset_t	pmap_bootstrap_alloc(vm_size_t, u_int);
+static vm_offset_t	moea_bootstrap_alloc(vm_size_t, u_int);
 
 /*
  * PTE calls.
  */
-static int		pmap_pte_insert(u_int, struct pte *);
+static int		moea_pte_insert(u_int, struct pte *);
 
 /*
  * PVO calls.
  */
-static int	pmap_pvo_enter(pmap_t, uma_zone_t, struct pvo_head *,
+static int	moea_pvo_enter(pmap_t, uma_zone_t, struct pvo_head *,
 		    vm_offset_t, vm_offset_t, u_int, int);
-static void	pmap_pvo_remove(struct pvo_entry *, int);
-static struct	pvo_entry *pmap_pvo_find_va(pmap_t, vm_offset_t, int *);
-static struct	pte *pmap_pvo_to_pte(const struct pvo_entry *, int);
+static void	moea_pvo_remove(struct pvo_entry *, int);
+static struct	pvo_entry *moea_pvo_find_va(pmap_t, vm_offset_t, int *);
+static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
 
 /*
  * Utility routines.
  */
-static struct		pvo_entry *pmap_rkva_alloc(void);
-static void		pmap_pa_map(struct pvo_entry *, vm_offset_t,
+static struct		pvo_entry *moea_rkva_alloc(mmu_t);
+static void		moea_pa_map(struct pvo_entry *, vm_offset_t,
 			    struct pte *, int *);
-static void		pmap_pa_unmap(struct pvo_entry *, struct pte *, int *);
-static void		pmap_syncicache(vm_offset_t, vm_size_t);
-static boolean_t	pmap_query_bit(vm_page_t, int);
-static u_int		pmap_clear_bit(vm_page_t, int, int *);
+static void		moea_pa_unmap(struct pvo_entry *, struct pte *, int *);
+static void		moea_syncicache(vm_offset_t, vm_size_t);
+static boolean_t	moea_query_bit(vm_page_t, int);
+static u_int		moea_clear_bit(vm_page_t, int, int *);
+static void		moea_kremove(mmu_t, vm_offset_t);
 static void		tlbia(void);
+int		moea_pte_spill(vm_offset_t);
+
+/*
+ * Kernel MMU interface
+ */
+void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
+void moea_clear_modify(mmu_t, vm_page_t);
+void moea_clear_reference(mmu_t, vm_page_t);
+void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
+void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
+vm_page_t moea_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
+    vm_page_t);
+vm_paddr_t moea_extract(mmu_t, pmap_t, vm_offset_t);
+vm_page_t moea_extract_and_hold(mmu_t, pmap_t, vm_offset_t, vm_prot_t);
+void moea_init(mmu_t);
+boolean_t moea_is_modified(mmu_t, vm_page_t);
+boolean_t moea_ts_referenced(mmu_t, vm_page_t);
+vm_offset_t moea_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
+boolean_t moea_page_exists_quick(mmu_t, pmap_t, vm_page_t);
+void moea_page_protect(mmu_t, vm_page_t, vm_prot_t);
+void moea_pinit(mmu_t, pmap_t);
+void moea_pinit0(mmu_t, pmap_t);
+void moea_protect(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
+void moea_qenter(mmu_t, vm_offset_t, vm_page_t *, int);
+void moea_qremove(mmu_t, vm_offset_t, int);
+void moea_release(mmu_t, pmap_t);
+void moea_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
+void moea_remove_all(mmu_t, vm_page_t);
+void moea_zero_page(mmu_t, vm_page_t);
+void moea_zero_page_area(mmu_t, vm_page_t, int, int);
+void moea_zero_page_idle(mmu_t, vm_page_t);
+void moea_activate(mmu_t, struct thread *);
+void moea_deactivate(mmu_t, struct thread *);
+void moea_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
+void *moea_mapdev(mmu_t, vm_offset_t, vm_size_t);
+void moea_unmapdev(mmu_t, vm_offset_t, vm_size_t);
+vm_offset_t moea_kextract(mmu_t, vm_offset_t);
+void moea_kenter(mmu_t, vm_offset_t, vm_offset_t);
+boolean_t moea_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
+
+static mmu_method_t moea_methods[] = {
+	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
+	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
+	MMUMETHOD(mmu_clear_reference,	moea_clear_reference),
+	MMUMETHOD(mmu_copy_page,	moea_copy_page),
+	MMUMETHOD(mmu_enter,		moea_enter),
+	MMUMETHOD(mmu_enter_quick,	moea_enter_quick),
+	MMUMETHOD(mmu_extract,		moea_extract),
+	MMUMETHOD(mmu_extract_and_hold,	moea_extract_and_hold),
+	MMUMETHOD(mmu_init,		moea_init),
+	MMUMETHOD(mmu_is_modified,	moea_is_modified),
+	MMUMETHOD(mmu_ts_referenced,	moea_ts_referenced),
+	MMUMETHOD(mmu_map,     		moea_map),
+	MMUMETHOD(mmu_page_exists_quick,moea_page_exists_quick),
+	MMUMETHOD(mmu_page_protect,    	moea_page_protect),
+	MMUMETHOD(mmu_pinit,		moea_pinit),
+	MMUMETHOD(mmu_pinit0,		moea_pinit0),
+	MMUMETHOD(mmu_protect,		moea_protect),
+	MMUMETHOD(mmu_qenter,		moea_qenter),
+	MMUMETHOD(mmu_qremove,		moea_qremove),
+	MMUMETHOD(mmu_release,		moea_release),
+	MMUMETHOD(mmu_remove,		moea_remove),
+	MMUMETHOD(mmu_remove_all,      	moea_remove_all),
+	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
+	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
+	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
+	MMUMETHOD(mmu_activate,		moea_activate),
+	MMUMETHOD(mmu_deactivate,      	moea_deactivate),
+
+	/* Internal interfaces */
+	MMUMETHOD(mmu_bootstrap,       	moea_bootstrap),
+	MMUMETHOD(mmu_mapdev,		moea_mapdev),
+	MMUMETHOD(mmu_unmapdev,		moea_unmapdev),
+	MMUMETHOD(mmu_kextract,		moea_kextract),
+	MMUMETHOD(mmu_kenter,		moea_kenter),
+	MMUMETHOD(mmu_dev_direct_mapped,moea_dev_direct_mapped),
+
+	{ 0, 0 }
+};
+
+static mmu_def_t oea_mmu = {
+	MMU_TYPE_OEA,
+	moea_methods,
+	0
+};
+MMU_DEF(oea_mmu);
+
 
 static __inline int
 va_to_sr(u_int *sr, vm_offset_t va)
@@ -329,7 +400,7 @@ va_to_pteg(u_int sr, vm_offset_t addr)
 
 	hash = (sr & SR_VSID_MASK) ^ (((u_int)addr & ADDR_PIDX) >>
 	    ADDR_PIDX_SHFT);
-	return (hash & pmap_pteg_mask);
+	return (hash & moea_pteg_mask);
 }
 
 static __inline struct pvo_head *
@@ -343,7 +414,7 @@ pa_to_pvoh(vm_offset_t pa, vm_page_t *pg_p)
 		*pg_p = pg;
 
 	if (pg == NULL)
-		return (&pmap_pvo_unmanaged);
+		return (&moea_pvo_unmanaged);
 
 	return (&pg->md.mdpg_pvoh);
 }
@@ -356,28 +427,28 @@ vm_page_to_pvoh(vm_page_t m)
 }
 
 static __inline void
-pmap_attr_clear(vm_page_t m, int ptebit)
+moea_attr_clear(vm_page_t m, int ptebit)
 {
 
 	m->md.mdpg_attrs &= ~ptebit;
 }
 
 static __inline int
-pmap_attr_fetch(vm_page_t m)
+moea_attr_fetch(vm_page_t m)
 {
 
 	return (m->md.mdpg_attrs);
 }
 
 static __inline void
-pmap_attr_save(vm_page_t m, int ptebit)
+moea_attr_save(vm_page_t m, int ptebit)
 {
 
 	m->md.mdpg_attrs |= ptebit;
 }
 
 static __inline int
-pmap_pte_compare(const struct pte *pt, const struct pte *pvo_pt)
+moea_pte_compare(const struct pte *pt, const struct pte *pvo_pt)
 {
 	if (pt->pte_hi == pvo_pt->pte_hi)
 		return (1);
@@ -386,7 +457,7 @@ pmap_pte_compare(const struct pte *pt, const struct pte *pvo_pt)
 }
 
 static __inline int
-pmap_pte_match(struct pte *pt, u_int sr, vm_offset_t va, int which)
+moea_pte_match(struct pte *pt, u_int sr, vm_offset_t va, int which)
 {
 	return (pt->pte_hi & ~PTE_VALID) ==
 	    (((sr & SR_VSID_MASK) << PTE_VSID_SHFT) |
@@ -394,7 +465,7 @@ pmap_pte_match(struct pte *pt, u_int sr, vm_offset_t va, int which)
 }
 
 static __inline void
-pmap_pte_create(struct pte *pt, u_int sr, vm_offset_t va, u_int pte_lo)
+moea_pte_create(struct pte *pt, u_int sr, vm_offset_t va, u_int pte_lo)
 {
 	/*
 	 * Construct a PTE.  Default to IMB initially.  Valid bit only gets
@@ -408,14 +479,14 @@ pmap_pte_create(struct pte *pt, u_int sr, vm_offset_t va, u_int pte_lo)
 }
 
 static __inline void
-pmap_pte_synch(struct pte *pt, struct pte *pvo_pt)
+moea_pte_synch(struct pte *pt, struct pte *pvo_pt)
 {
 
 	pvo_pt->pte_lo |= pt->pte_lo & (PTE_REF | PTE_CHG);
 }
 
 static __inline void
-pmap_pte_clear(struct pte *pt, vm_offset_t va, int ptebit)
+moea_pte_clear(struct pte *pt, vm_offset_t va, int ptebit)
 {
 
 	/*
@@ -429,7 +500,7 @@ pmap_pte_clear(struct pte *pt, vm_offset_t va, int ptebit)
 }
 
 static __inline void
-pmap_pte_set(struct pte *pt, struct pte *pvo_pt)
+moea_pte_set(struct pte *pt, struct pte *pvo_pt)
 {
 
 	pvo_pt->pte_hi |= PTE_VALID;
@@ -443,11 +514,11 @@ pmap_pte_set(struct pte *pt, struct pte *pvo_pt)
 	EIEIO();
 	pt->pte_hi = pvo_pt->pte_hi;
 	SYNC();
-	pmap_pte_valid++;
+	moea_pte_valid++;
 }
 
 static __inline void
-pmap_pte_unset(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
+moea_pte_unset(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 {
 
 	pvo_pt->pte_hi &= ~PTE_VALID;
@@ -471,19 +542,19 @@ pmap_pte_unset(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 	/*
 	 * Save the reg & chg bits.
 	 */
-	pmap_pte_synch(pt, pvo_pt);
-	pmap_pte_valid--;
+	moea_pte_synch(pt, pvo_pt);
+	moea_pte_valid--;
 }
 
 static __inline void
-pmap_pte_change(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
+moea_pte_change(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 {
 
 	/*
 	 * Invalidate the PTE
 	 */
-	pmap_pte_unset(pt, pvo_pt, va);
-	pmap_pte_set(pt, pvo_pt);
+	moea_pte_unset(pt, pvo_pt, va);
+	moea_pte_set(pt, pvo_pt);
 }
 
 /*
@@ -525,7 +596,7 @@ om_cmp(const void *a, const void *b)
 }
 
 void
-pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
+moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 {
 	ihandle_t	mmui;
 	phandle_t	chosen, mmu;
@@ -569,7 +640,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
 	batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
-	__asm ("sync; isync; \n"
+	__asm (".balign 32; \n"
 	       "mtibatu 0,%0; mtibatl 0,%1; isync; \n"
 	       "mtdbatu 0,%0; mtdbatl 0,%1; isync"
 	    :: "r"(batu), "r"(batl));
@@ -597,7 +668,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
-	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
+	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
 
 	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
 	for (i = 0; i < pregions_sz; i++) {
@@ -619,7 +690,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		end = pregions[i].mr_start + pregions[i].mr_size;
 		do {
                         u_int n = pa >> ADDR_SR_SHFT;
-			
+
 			battable[n].batl = BATL(pa, BAT_M, BAT_PP_RW);
 			battable[n].batu = BATU(pa, BAT_BL_256M, BAT_Vs);
 			pa += SEGMENT_LENGTH;
@@ -627,7 +698,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	}
 
 	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
-		panic("pmap_bootstrap: phys_avail too small");
+		panic("moea_bootstrap: phys_avail too small");
 	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
 	phys_avail_count = 0;
 	physsz = 0;
@@ -659,72 +730,72 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Allocate PTEG table.
 	 */
 #ifdef PTEGCOUNT
-	pmap_pteg_count = PTEGCOUNT;
+	moea_pteg_count = PTEGCOUNT;
 #else
-	pmap_pteg_count = 0x1000;
+	moea_pteg_count = 0x1000;
 
-	while (pmap_pteg_count < physmem)
-		pmap_pteg_count <<= 1;
+	while (moea_pteg_count < physmem)
+		moea_pteg_count <<= 1;
 
-	pmap_pteg_count >>= 1;
+	moea_pteg_count >>= 1;
 #endif /* PTEGCOUNT */
 
-	size = pmap_pteg_count * sizeof(struct pteg);
-	CTR2(KTR_PMAP, "pmap_bootstrap: %d PTEGs, %d bytes", pmap_pteg_count,
+	size = moea_pteg_count * sizeof(struct pteg);
+	CTR2(KTR_PMAP, "moea_bootstrap: %d PTEGs, %d bytes", moea_pteg_count,
 	    size);
-	pmap_pteg_table = (struct pteg *)pmap_bootstrap_alloc(size, size);
-	CTR1(KTR_PMAP, "pmap_bootstrap: PTEG table at %p", pmap_pteg_table);
-	bzero((void *)pmap_pteg_table, pmap_pteg_count * sizeof(struct pteg));
-	pmap_pteg_mask = pmap_pteg_count - 1;
+	moea_pteg_table = (struct pteg *)moea_bootstrap_alloc(size, size);
+	CTR1(KTR_PMAP, "moea_bootstrap: PTEG table at %p", moea_pteg_table);
+	bzero((void *)moea_pteg_table, moea_pteg_count * sizeof(struct pteg));
+	moea_pteg_mask = moea_pteg_count - 1;
 
 	/*
 	 * Allocate pv/overflow lists.
 	 */
-	size = sizeof(struct pvo_head) * pmap_pteg_count;
-	pmap_pvo_table = (struct pvo_head *)pmap_bootstrap_alloc(size,
+	size = sizeof(struct pvo_head) * moea_pteg_count;
+	moea_pvo_table = (struct pvo_head *)moea_bootstrap_alloc(size,
 	    PAGE_SIZE);
-	CTR1(KTR_PMAP, "pmap_bootstrap: PVO table at %p", pmap_pvo_table);
-	for (i = 0; i < pmap_pteg_count; i++)
-		LIST_INIT(&pmap_pvo_table[i]);
+	CTR1(KTR_PMAP, "moea_bootstrap: PVO table at %p", moea_pvo_table);
+	for (i = 0; i < moea_pteg_count; i++)
+		LIST_INIT(&moea_pvo_table[i]);
 
 	/*
 	 * Initialize the lock that synchronizes access to the pteg and pvo
 	 * tables.
 	 */
-	mtx_init(&pmap_table_mutex, "pmap table", NULL, MTX_DEF);
+	mtx_init(&moea_table_mutex, "pmap table", NULL, MTX_DEF);
 
 	/*
 	 * Allocate the message buffer.
 	 */
-	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE, 0);
+	msgbuf_phys = moea_bootstrap_alloc(MSGBUF_SIZE, 0);
 
 	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
-	pmap_bpvo_pool = (struct pvo_entry *)pmap_bootstrap_alloc(
+	moea_bpvo_pool = (struct pvo_entry *)moea_bootstrap_alloc(
 		BPVO_POOL_SIZE*sizeof(struct pvo_entry), 0);
-	pmap_bpvo_pool_index = 0;
+	moea_bpvo_pool_index = 0;
 
 	/*
 	 * Make sure kernel vsid is allocated as well as VSID 0.
 	 */
-	pmap_vsid_bitmap[(KERNEL_VSIDBITS & (NPMAPS - 1)) / VSID_NBPW]
+	moea_vsid_bitmap[(KERNEL_VSIDBITS & (NPMAPS - 1)) / VSID_NBPW]
 		|= 1 << (KERNEL_VSIDBITS % VSID_NBPW);
-	pmap_vsid_bitmap[0] |= 1;
+	moea_vsid_bitmap[0] |= 1;
 
 	/*
 	 * Set up the Open Firmware pmap and add it's mappings.
 	 */
-	pmap_pinit(&ofw_pmap);
+	moea_pinit(mmup, &ofw_pmap);
 	ofw_pmap.pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
 	ofw_pmap.pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	if ((chosen = OF_finddevice("/chosen")) == -1)
-		panic("pmap_bootstrap: can't find /chosen");
+		panic("moea_bootstrap: can't find /chosen");
 	OF_getprop(chosen, "mmu", &mmui, 4);
 	if ((mmu = OF_instance_to_package(mmui)) == -1)
-		panic("pmap_bootstrap: can't get mmu package");
+		panic("moea_bootstrap: can't get mmu package");
 	if ((sz = OF_getproplen(mmu, "translations")) == -1)
-		panic("pmap_bootstrap: can't get ofw translation count");
+		panic("moea_bootstrap: can't get ofw translation count");
 	translations = NULL;
 	for (i = 0; phys_avail[i] != 0; i += 2) {
 		if (phys_avail[i + 1] >= sz) {
@@ -733,11 +804,11 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		}
 	}
 	if (translations == NULL)
-		panic("pmap_bootstrap: no space to copy translations");
+		panic("moea_bootstrap: no space to copy translations");
 	bzero(translations, sz);
 	if (OF_getprop(mmu, "translations", translations, sz) == -1)
-		panic("pmap_bootstrap: can't get ofw translations");
-	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
+		panic("moea_bootstrap: can't get ofw translations");
+	CTR0(KTR_PMAP, "moea_bootstrap: translations");
 	sz /= sizeof(*translations);
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 	for (i = 0, ofw_mappings = 0; i < sz; i++) {
@@ -757,7 +828,8 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
-			pmap_enter(&ofw_pmap, translations[i].om_va + off, &m,
+			moea_enter(mmup, &ofw_pmap,
+				   translations[i].om_va + off, &m,
 				   VM_PROT_ALL, 1);
 			ofw_mappings++;
 		}
@@ -781,16 +853,16 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Allocate a kernel stack with a guard page for thread0 and map it
 	 * into the kernel page map.
 	 */
-	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, 0);
+	pa = moea_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, 0);
 	kstack0_phys = pa;
 	kstack0 = virtual_avail + (KSTACK_GUARD_PAGES * PAGE_SIZE);
-	CTR2(KTR_PMAP, "pmap_bootstrap: kstack0 at %#x (%#x)", kstack0_phys,
+	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", kstack0_phys,
 	    kstack0);
 	virtual_avail += (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE;
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
-		pmap_kenter(va, pa);
+		moea_kenter(mmup, va, pa);
 		TLBIE(va);
 	}
 
@@ -818,7 +890,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	__asm __volatile ("mtsr %0,%1"
 	    :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
 	__asm __volatile ("sync; mtsdr1 %0; isync"
-	    :: "r"((u_int)pmap_pteg_table | (pmap_pteg_mask >> 10)));
+	    :: "r"((u_int)moea_pteg_table | (moea_pteg_mask >> 10)));
 	tlbia();
 
 	pmap_bootstrapped++;
@@ -829,7 +901,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
  * space can be accessed in any way.
  */
 void
-pmap_activate(struct thread *td)
+moea_activate(mmu_t mmu, struct thread *td)
 {
 	pmap_t	pm, pmr;
 
@@ -839,7 +911,7 @@ pmap_activate(struct thread *td)
 	 */
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if ((pmr = (pmap_t)pmap_kextract((vm_offset_t)pm)) == NULL)
+	if ((pmr = (pmap_t)moea_kextract(mmu, (vm_offset_t)pm)) == NULL)
 		pmr = pm;
 
 	pm->pm_active |= PCPU_GET(cpumask);
@@ -847,7 +919,7 @@ pmap_activate(struct thread *td)
 }
 
 void
-pmap_deactivate(struct thread *td)
+moea_deactivate(mmu_t mmu, struct thread *td)
 {
 	pmap_t	pm;
 
@@ -856,20 +928,13 @@ pmap_deactivate(struct thread *td)
 	PCPU_SET(curpmap, NULL);
 }
 
-vm_offset_t
-pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
-{
-
-	return (va);
-}
-
 void
-pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
+moea_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
 {
 	struct	pvo_entry *pvo;
 
 	PMAP_LOCK(pm);
-	pvo = pmap_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+	pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
 
 	if (pvo != NULL) {
 		if (wired) {
@@ -886,18 +951,7 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 }
 
 void
-pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
-	  vm_size_t len, vm_offset_t src_addr)
-{
-
-	/*
-	 * This is not needed as it's mainly an optimisation.
-	 * It may want to be implemented later though.
-	 */
-}
-
-void
-pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
+moea_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 {
 	vm_offset_t	dst;
 	vm_offset_t	src;
@@ -912,59 +966,59 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
  * Zero a page of physical memory by temporarily mapping it into the tlb.
  */
 void
-pmap_zero_page(vm_page_t m)
+moea_zero_page(mmu_t mmu, vm_page_t m)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 	caddr_t va;
 
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
-	} else if (pmap_initialized) {
-		if (pmap_pvo_zeropage == NULL)
-			pmap_pvo_zeropage = pmap_rkva_alloc();
-		pmap_pa_map(pmap_pvo_zeropage, pa, NULL, NULL);
-		va = (caddr_t)PVO_VADDR(pmap_pvo_zeropage);
+	} else if (moea_initialized) {
+		if (moea_pvo_zeropage == NULL)
+			moea_pvo_zeropage = moea_rkva_alloc(mmu);
+		moea_pa_map(moea_pvo_zeropage, pa, NULL, NULL);
+		va = (caddr_t)PVO_VADDR(moea_pvo_zeropage);
 	} else {
-		panic("pmap_zero_page: can't zero pa %#x", pa);
+		panic("moea_zero_page: can't zero pa %#x", pa);
 	}
 
 	bzero(va, PAGE_SIZE);
 
 	if (pa >= SEGMENT_LENGTH)
-		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
+		moea_pa_unmap(moea_pvo_zeropage, NULL, NULL);
 }
 
 void
-pmap_zero_page_area(vm_page_t m, int off, int size)
+moea_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 	caddr_t va;
 
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
-	} else if (pmap_initialized) {
-		if (pmap_pvo_zeropage == NULL)
-			pmap_pvo_zeropage = pmap_rkva_alloc();
-		pmap_pa_map(pmap_pvo_zeropage, pa, NULL, NULL);
-		va = (caddr_t)PVO_VADDR(pmap_pvo_zeropage);
+	} else if (moea_initialized) {
+		if (moea_pvo_zeropage == NULL)
+			moea_pvo_zeropage = moea_rkva_alloc(mmu);
+		moea_pa_map(moea_pvo_zeropage, pa, NULL, NULL);
+		va = (caddr_t)PVO_VADDR(moea_pvo_zeropage);
 	} else {
-		panic("pmap_zero_page: can't zero pa %#x", pa);
+		panic("moea_zero_page: can't zero pa %#x", pa);
 	}
 
 	bzero(va + off, size);
 
 	if (pa >= SEGMENT_LENGTH)
-		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
+		moea_pa_unmap(moea_pvo_zeropage, NULL, NULL);
 }
 
 void
-pmap_zero_page_idle(vm_page_t m)
+moea_zero_page_idle(mmu_t mmu, vm_page_t m)
 {
 
-	/* XXX this is called outside of Giant, is pmap_zero_page safe? */
+	/* XXX this is called outside of Giant, is moea_zero_page safe? */
 	/* XXX maybe have a dedicated mapping for this to avoid the problem? */
 	mtx_lock(&Giant);
-	pmap_zero_page(m);
+	moea_zero_page(mmu, m);
 	mtx_unlock(&Giant);
 }
 
@@ -974,7 +1028,7 @@ pmap_zero_page_idle(vm_page_t m)
  * will be wired down.
  */
 void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
 	struct		pvo_head *pvo_head;
@@ -983,16 +1037,16 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int		pte_lo, pvo_flags, was_exec, i;
 	int		error;
 
-	if (!pmap_initialized) {
-		pvo_head = &pmap_pvo_kunmanaged;
-		zone = pmap_upvo_zone;
+	if (!moea_initialized) {
+		pvo_head = &moea_pvo_kunmanaged;
+		zone = moea_upvo_zone;
 		pvo_flags = 0;
 		pg = NULL;
 		was_exec = PTE_EXEC;
 	} else {
 		pvo_head = vm_page_to_pvoh(m);
 		pg = m;
-		zone = pmap_mpvo_zone;
+		zone = moea_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
 		was_exec = 0;
 	}
@@ -1002,7 +1056,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS)
-		pvo_head = &pmap_pvo_kunmanaged;
+		pvo_head = &moea_pvo_kunmanaged;
 
 	/*
 	 * If this is a managed page, and it's the first reference to the page,
@@ -1010,9 +1064,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if ((pg != NULL) && ((m->flags & PG_FICTITIOUS) == 0)) {
 		if (LIST_EMPTY(pvo_head)) {
-			pmap_attr_clear(pg, PTE_EXEC);
+			moea_attr_clear(pg, PTE_EXEC);
 		} else {
-			was_exec = pmap_attr_fetch(pg) & PTE_EXEC;
+			was_exec = moea_attr_fetch(pg) & PTE_EXEC;
 		}
 	}
 
@@ -1044,7 +1098,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		pvo_flags |= PVO_FAKE;
 
-	error = pmap_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
+	error = moea_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
 	    pte_lo, pvo_flags);
 
 	/*
@@ -1057,28 +1111,29 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		/*
 		 * Flush the real memory from the cache.
 		 */
-		pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
+		moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 		if (pg != NULL)
-			pmap_attr_save(pg, PTE_EXEC);
+			moea_attr_save(pg, PTE_EXEC);
 	}
 	if (pmap_bootstrapped)
 		vm_page_unlock_queues();
 
 	/* XXX syncicache always until problems are sorted */
-	pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
+	moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 	PMAP_UNLOCK(pmap);
 }
 
 vm_page_t
-pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    vm_page_t mpte)
+moea_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
+    vm_prot_t prot, vm_page_t mpte)
 {
 
 	vm_page_busy(m);
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(m->object);
 	mtx_lock(&Giant);
-	pmap_enter(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+	moea_enter(mmu, pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
+	    FALSE);
 	mtx_unlock(&Giant);
 	VM_OBJECT_LOCK(m->object);
 	vm_page_lock_queues();
@@ -1087,13 +1142,13 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 }
 
 vm_paddr_t
-pmap_extract(pmap_t pm, vm_offset_t va)
+moea_extract(mmu_t mmu, pmap_t pm, vm_offset_t va)
 {
 	struct	pvo_entry *pvo;
 	vm_paddr_t pa;
 
 	PMAP_LOCK(pm);
-	pvo = pmap_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+	pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
 	if (pvo == NULL)
 		pa = 0;
 	else
@@ -1108,7 +1163,7 @@ pmap_extract(pmap_t pm, vm_offset_t va)
  * protection.
  */
 vm_page_t
-pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
+moea_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	struct	pvo_entry *pvo;
 	vm_page_t m;
@@ -1117,7 +1172,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	mtx_lock(&Giant);
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	pvo = pmap_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
+	pvo = moea_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
 	if (pvo != NULL && (pvo->pvo_pte.pte_hi & PTE_VALID) &&
 	    ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
@@ -1130,87 +1185,51 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return (m);
 }
 
-/*
- * Grow the number of kernel page table entries.  Unneeded.
- */
 void
-pmap_growkernel(vm_offset_t addr)
-{
-}
-
-/*
- *	Initialize a vm_page's machine-dependent fields.
- */
-void
-pmap_page_init(vm_page_t m)
-{
-}
-
-void
-pmap_init(void)
+moea_init(mmu_t mmu)
 {
 
-	CTR0(KTR_PMAP, "pmap_init");
+	CTR0(KTR_PMAP, "moea_init");
 
-	pmap_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
+	moea_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	pmap_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
+	moea_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	pmap_initialized = TRUE;
-}
-
-void
-pmap_init2(void)
-{
-
-	CTR0(KTR_PMAP, "pmap_init2");
+	moea_initialized = TRUE;
 }
 
 boolean_t
-pmap_is_modified(vm_page_t m)
+moea_is_modified(mmu_t mmu, vm_page_t m)
 {
 
 	if ((m->flags & (PG_FICTITIOUS |PG_UNMANAGED)) != 0)
 		return (FALSE);
 
-	return (pmap_query_bit(m, PTE_CHG));
-}
-
-/*
- *	pmap_is_prefaultable:
- *
- *	Return whether or not the specified virtual address is elgible
- *	for prefault.
- */
-boolean_t
-pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
-{
-
-	return (FALSE);
+	return (moea_query_bit(m, PTE_CHG));
 }
 
 void
-pmap_clear_reference(vm_page_t m)
+moea_clear_reference(mmu_t mmu, vm_page_t m)
 {
 
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return;
-	pmap_clear_bit(m, PTE_REF, NULL);
+	moea_clear_bit(m, PTE_REF, NULL);
 }
 
 void
-pmap_clear_modify(vm_page_t m)
+moea_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return;
-	pmap_clear_bit(m, PTE_CHG, NULL);
+	moea_clear_bit(m, PTE_CHG, NULL);
 }
 
 /*
- *	pmap_ts_referenced:
+ *	moea_ts_referenced:
  *
  *	Return a count of reference bits for a page, clearing those bits.
  *	It is not necessary for every reference bit to be cleared, but it
@@ -1221,15 +1240,15 @@ pmap_clear_modify(vm_page_t m)
  *	should be tested and standardized at some point in the future for
  *	optimal aging of shared pages.
  */
-int
-pmap_ts_referenced(vm_page_t m)
+boolean_t
+moea_ts_referenced(mmu_t mmu, vm_page_t m)
 {
 	int count;
 
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (0);
 
-	count = pmap_clear_bit(m, PTE_REF, NULL);
+	count = moea_clear_bit(m, PTE_REF, NULL);
 
 	return (count);
 }
@@ -1238,7 +1257,7 @@ pmap_ts_referenced(vm_page_t m)
  * Map a wired page into kernel virtual address space.
  */
 void
-pmap_kenter(vm_offset_t va, vm_offset_t pa)
+moea_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 {
 	u_int		pte_lo;
 	int		error;	
@@ -1246,7 +1265,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 
 #if 0
 	if (va < VM_MIN_KERNEL_ADDRESS)
-		panic("pmap_kenter: attempt to enter non-kernel address %#x",
+		panic("moea_kenter: attempt to enter non-kernel address %#x",
 		    va);
 #endif
 
@@ -1260,18 +1279,18 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	}	
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_pvo_enter(kernel_pmap, pmap_upvo_zone,
-	    &pmap_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
+	error = moea_pvo_enter(kernel_pmap, moea_upvo_zone,
+	    &moea_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
 
 	if (error != 0 && error != ENOENT)
-		panic("pmap_kenter: failed to enter va %#x pa %#x: %d", va,
+		panic("moea_kenter: failed to enter va %#x pa %#x: %d", va,
 		    pa, error);
 
 	/*
 	 * Flush the real memory from the instruction cache.
 	 */
 	if ((pte_lo & (PTE_I | PTE_G)) == 0) {
-		pmap_syncicache(pa, PAGE_SIZE);
+		moea_syncicache(pa, PAGE_SIZE);
 	}
 	PMAP_UNLOCK(kernel_pmap);
 }
@@ -1281,7 +1300,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
  * address.
  */
 vm_offset_t
-pmap_kextract(vm_offset_t va)
+moea_kextract(mmu_t mmu, vm_offset_t va)
 {
 	struct		pvo_entry *pvo;
 	vm_paddr_t pa;
@@ -1296,8 +1315,8 @@ pmap_kextract(vm_offset_t va)
 #endif
 
 	PMAP_LOCK(kernel_pmap);
-	pvo = pmap_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
-	KASSERT(pvo != NULL, ("pmap_kextract: no addr found"));
+	pvo = moea_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
+	KASSERT(pvo != NULL, ("moea_kextract: no addr found"));
 	pa = (pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
 	PMAP_UNLOCK(kernel_pmap);
 	return (pa);
@@ -1307,10 +1326,10 @@ pmap_kextract(vm_offset_t va)
  * Remove a wired page from kernel virtual address space.
  */
 void
-pmap_kremove(vm_offset_t va)
+moea_kremove(mmu_t mmu, vm_offset_t va)
 {
 
-	pmap_remove(kernel_pmap, va, va + PAGE_SIZE);
+	moea_remove(mmu, kernel_pmap, va, va + PAGE_SIZE);
 }
 
 /*
@@ -1323,42 +1342,24 @@ pmap_kremove(vm_offset_t va)
  * first usable address after the mapped region.
  */
 vm_offset_t
-pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
+moea_map(mmu_t mmu, vm_offset_t *virt, vm_offset_t pa_start,
+    vm_offset_t pa_end, int prot)
 {
 	vm_offset_t	sva, va;
 
 	sva = *virt;
 	va = sva;
 	for (; pa_start < pa_end; pa_start += PAGE_SIZE, va += PAGE_SIZE)
-		pmap_kenter(va, pa_start);
+		moea_kenter(mmu, va, pa_start);
 	*virt = va;
 	return (sva);
-}
-
-int
-pmap_mincore(pmap_t pmap, vm_offset_t addr)
-{
-	TODO;
-	return (0);
-}
-
-void
-pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
-		    vm_pindex_t pindex, vm_size_t size)
-{
-
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
-	    ("pmap_object_init_pt: non-device object"));
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_object_init_pt: non current pmap"));
 }
 
 /*
  * Lower the permission for all mappings to a given page.
  */
 void
-pmap_page_protect(vm_page_t m, vm_prot_t prot)
+moea_page_protect(mmu_t mmu, vm_page_t m, vm_prot_t prot)
 {
 	struct	pvo_head *pvo_head;
 	struct	pvo_entry *pvo, *next_pvo;
@@ -1377,7 +1378,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	pvo_head = vm_page_to_pvoh(m);
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
 
@@ -1385,7 +1386,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 		 * Downgrading to no mapping at all, we just remove the entry.
 		 */
 		if ((prot & VM_PROT_READ) == 0) {
-			pmap_pvo_remove(pvo, -1);
+			moea_pvo_remove(pvo, -1);
 			PMAP_UNLOCK(pmap);
 			continue;
 		}
@@ -1403,7 +1404,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 		 */
 		if ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_BR) {
 			PMAP_UNLOCK(pmap);
-			PMAP_PVO_CHECK(pvo);
+			MOEA_PVO_CHECK(pvo);
 			continue;
 		}
 
@@ -1411,13 +1412,13 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 		 * Grab the PTE before we diddle the bits so pvo_to_pte can
 		 * verify the pte contents are as expected.
 		 */
-		pt = pmap_pvo_to_pte(pvo, -1);
+		pt = moea_pvo_to_pte(pvo, -1);
 		pvo->pvo_pte.pte_lo &= ~PTE_PP;
 		pvo->pvo_pte.pte_lo |= PTE_BR;
 		if (pt != NULL)
-			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			moea_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 		PMAP_UNLOCK(pmap);
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
 	}
 
 	/*
@@ -1435,12 +1436,12 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
  * subset of pmaps for proper page aging.
  */
 boolean_t
-pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
+moea_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 {
         int loops;
 	struct pvo_entry *pvo;
 
-        if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+        if (!moea_initialized || (m->flags & PG_FICTITIOUS))
                 return FALSE;
 
 	loops = 0;
@@ -1454,15 +1455,15 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	return (FALSE);
 }
 
-static u_int	pmap_vsidcontext;
+static u_int	moea_vsidcontext;
 
 void
-pmap_pinit(pmap_t pmap)
+moea_pinit(mmu_t mmu, pmap_t pmap)
 {
 	int	i, mask;
 	u_int	entropy;
 
-	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("pmap_pinit: virt pmap"));
+	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	PMAP_LOCK_INIT(pmap);
 
 	entropy = 0;
@@ -1481,41 +1482,41 @@ pmap_pinit(pmap_t pmap)
 		 * less often.  (Note that the prime casues gcc to do shifts
 		 * instead of a multiply.)
 		 */
-		pmap_vsidcontext = (pmap_vsidcontext * 0x1105) + entropy;
-		hash = pmap_vsidcontext & (NPMAPS - 1);
+		moea_vsidcontext = (moea_vsidcontext * 0x1105) + entropy;
+		hash = moea_vsidcontext & (NPMAPS - 1);
 		if (hash == 0)		/* 0 is special, avoid it */
 			continue;
 		n = hash >> 5;
 		mask = 1 << (hash & (VSID_NBPW - 1));
-		hash = (pmap_vsidcontext & 0xfffff);
-		if (pmap_vsid_bitmap[n] & mask) {	/* collision? */
+		hash = (moea_vsidcontext & 0xfffff);
+		if (moea_vsid_bitmap[n] & mask) {	/* collision? */
 			/* anything free in this bucket? */
-			if (pmap_vsid_bitmap[n] == 0xffffffff) {
-				entropy = (pmap_vsidcontext >> 20);
+			if (moea_vsid_bitmap[n] == 0xffffffff) {
+				entropy = (moea_vsidcontext >> 20);
 				continue;
 			}
-			i = ffs(~pmap_vsid_bitmap[i]) - 1;
+			i = ffs(~moea_vsid_bitmap[i]) - 1;
 			mask = 1 << i;
 			hash &= 0xfffff & ~(VSID_NBPW - 1);
 			hash |= i;
 		}
-		pmap_vsid_bitmap[n] |= mask;
+		moea_vsid_bitmap[n] |= mask;
 		for (i = 0; i < 16; i++)
 			pmap->pm_sr[i] = VSID_MAKE(i, hash);
 		return;
 	}
 
-	panic("pmap_pinit: out of segments");
+	panic("moea_pinit: out of segments");
 }
 
 /*
  * Initialize the pmap associated with process 0.
  */
 void
-pmap_pinit0(pmap_t pm)
+moea_pinit0(mmu_t mmu, pmap_t pm)
 {
 
-	pmap_pinit(pm);
+	moea_pinit(mmu, pm);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
 
@@ -1523,22 +1524,23 @@ pmap_pinit0(pmap_t pm)
  * Set the physical protection on the specified range of this map as requested.
  */
 void
-pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
+moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
+    vm_prot_t prot)
 {
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 	int	pteidx;
 
-	CTR4(KTR_PMAP, "pmap_protect: pm=%p sva=%#x eva=%#x prot=%#x", pm, sva,
+	CTR4(KTR_PMAP, "moea_protect: pm=%p sva=%#x eva=%#x prot=%#x", pm, sva,
 	    eva, prot);
 
 
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_protect: non current pmap"));
+	    ("moea_protect: non current pmap"));
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		mtx_lock(&Giant);
-		pmap_remove(pm, sva, eva);
+		moea_remove(mmu, pm, sva, eva);
 		mtx_unlock(&Giant);
 		return;
 	}
@@ -1547,7 +1549,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
+		pvo = moea_pvo_find_va(pm, sva, &pteidx);
 		if (pvo == NULL)
 			continue;
 
@@ -1558,7 +1560,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 * Grab the PTE pointer before we diddle with the cached PTE
 		 * copy.
 		 */
-		pt = pmap_pvo_to_pte(pvo, pteidx);
+		pt = moea_pvo_to_pte(pvo, pteidx);
 		/*
 		 * Change the protection of the page.
 		 */
@@ -1569,7 +1571,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 * If the PVO is in the page table, update that pte as well.
 		 */
 		if (pt != NULL)
-			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			moea_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
@@ -1582,13 +1584,13 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  * references recorded.  Existing mappings in the region are overwritten.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
+moea_qenter(mmu_t mmu, vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
 
 	va = sva;
 	while (count-- > 0) {
-		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
+		moea_kenter(mmu, va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
 		m++;
 	}
@@ -1596,22 +1598,22 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 
 /*
  * Remove page mappings from kernel virtual address space.  Intended for
- * temporary mappings entered by pmap_qenter.
+ * temporary mappings entered by moea_qenter.
  */
 void
-pmap_qremove(vm_offset_t sva, int count)
+moea_qremove(mmu_t mmu, vm_offset_t sva, int count)
 {
 	vm_offset_t va;
 
 	va = sva;
 	while (count-- > 0) {
-		pmap_kremove(va);
+		moea_kremove(mmu, va);
 		va += PAGE_SIZE;
 	}
 }
 
 void
-pmap_release(pmap_t pmap)
+moea_release(mmu_t mmu, pmap_t pmap)
 {
         int idx, mask;
         
@@ -1619,12 +1621,12 @@ pmap_release(pmap_t pmap)
 	 * Free segment register's VSID
 	 */
         if (pmap->pm_sr[0] == 0)
-                panic("pmap_release");
+                panic("moea_release");
 
         idx = VSID_TO_HASH(pmap->pm_sr[0]) & (NPMAPS-1);
         mask = 1 << (idx % VSID_NBPW);
         idx /= VSID_NBPW;
-        pmap_vsid_bitmap[idx] &= ~mask;
+        moea_vsid_bitmap[idx] &= ~mask;
 	PMAP_LOCK_DESTROY(pmap);
 }
 
@@ -1632,7 +1634,7 @@ pmap_release(pmap_t pmap)
  * Remove the given range of addresses from the specified map.
  */
 void
-pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
+moea_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
 	struct	pvo_entry *pvo;
 	int	pteidx;
@@ -1640,9 +1642,9 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
+		pvo = moea_pvo_find_va(pm, sva, &pteidx);
 		if (pvo != NULL) {
-			pmap_pvo_remove(pvo, pteidx);
+			moea_pvo_remove(pvo, pteidx);
 		}
 	}
 	PMAP_UNLOCK(pm);
@@ -1650,11 +1652,11 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 }
 
 /*
- * Remove physical page from all pmaps in which it resides. pmap_pvo_remove()
+ * Remove physical page from all pmaps in which it resides. moea_pvo_remove()
  * will reflect changes in pte's back to the vm_page.
  */
 void
-pmap_remove_all(vm_page_t m)
+moea_remove_all(mmu_t mmu, vm_page_t m)
 {
 	struct  pvo_head *pvo_head;
 	struct	pvo_entry *pvo, *next_pvo;
@@ -1666,32 +1668,22 @@ pmap_remove_all(vm_page_t m)
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
-		pmap_pvo_remove(pvo, -1);
+		moea_pvo_remove(pvo, -1);
 		PMAP_UNLOCK(pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 /*
- * Remove all pages from specified address space, this aids process exit
- * speeds.  This is much faster than pmap_remove in the case of running down
- * an entire address space.  Only works for the current pmap.
- */
-void
-pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
-{
-}
-
-/*
  * Allocate a physical page of memory directly from the phys_avail map.
- * Can only be called from pmap_bootstrap before avail start and end are
+ * Can only be called from moea_bootstrap before avail start and end are
  * calculated.
  */
 static vm_offset_t
-pmap_bootstrap_alloc(vm_size_t size, u_int align)
+moea_bootstrap_alloc(vm_size_t size, u_int align)
 {
 	vm_offset_t	s, e;
 	int		i, j;
@@ -1725,7 +1717,7 @@ pmap_bootstrap_alloc(vm_size_t size, u_int align)
 
 		return (s);
 	}
-	panic("pmap_bootstrap_alloc: could not allocate memory");
+	panic("moea_bootstrap_alloc: could not allocate memory");
 }
 
 /*
@@ -1733,39 +1725,39 @@ pmap_bootstrap_alloc(vm_size_t size, u_int align)
  * Used by pmap functions that operate on physical pages.
  */
 static struct pvo_entry *
-pmap_rkva_alloc(void)
+moea_rkva_alloc(mmu_t mmu)
 {
 	struct		pvo_entry *pvo;
 	struct		pte *pt;
 	vm_offset_t	kva;
 	int		pteidx;
 
-	if (pmap_rkva_count == 0)
-		panic("pmap_rkva_alloc: no more reserved KVAs");
+	if (moea_rkva_count == 0)
+		panic("moea_rkva_alloc: no more reserved KVAs");
 
-	kva = pmap_rkva_start + (PAGE_SIZE * --pmap_rkva_count);
-	pmap_kenter(kva, 0);
+	kva = moea_rkva_start + (PAGE_SIZE * --moea_rkva_count);
+	moea_kenter(mmu, kva, 0);
 
-	pvo = pmap_pvo_find_va(kernel_pmap, kva, &pteidx);
+	pvo = moea_pvo_find_va(kernel_pmap, kva, &pteidx);
 
 	if (pvo == NULL)
-		panic("pmap_kva_alloc: pmap_pvo_find_va failed");
+		panic("moea_kva_alloc: moea_pvo_find_va failed");
 
-	pt = pmap_pvo_to_pte(pvo, pteidx);
+	pt = moea_pvo_to_pte(pvo, pteidx);
 
 	if (pt == NULL)
-		panic("pmap_kva_alloc: pmap_pvo_to_pte failed");
+		panic("moea_kva_alloc: moea_pvo_to_pte failed");
 
-	pmap_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+	moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 	PVO_PTEGIDX_CLR(pvo);
 
-	pmap_pte_overflow++;
+	moea_pte_overflow++;
 
 	return (pvo);
 }
 
 static void
-pmap_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
+moea_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
     int *depth_p)
 {
 	struct	pte *pt;
@@ -1776,12 +1768,12 @@ pmap_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
 	 * slot.
 	 */
 	if (saved_pt != NULL) {
-		pt = pmap_pvo_to_pte(pvo, -1);
+		pt = moea_pvo_to_pte(pvo, -1);
 
 		if (pt != NULL) {
-			pmap_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 			PVO_PTEGIDX_CLR(pvo);
-			pmap_pte_overflow++;
+			moea_pte_overflow++;
 		}
 
 		*saved_pt = pvo->pvo_pte;
@@ -1791,24 +1783,24 @@ pmap_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
 
 	pvo->pvo_pte.pte_lo |= pa;
 
-	if (!pmap_pte_spill(pvo->pvo_vaddr))
-		panic("pmap_pa_map: could not spill pvo %p", pvo);
+	if (!moea_pte_spill(pvo->pvo_vaddr))
+		panic("moea_pa_map: could not spill pvo %p", pvo);
 
 	if (depth_p != NULL)
 		(*depth_p)++;
 }
 
 static void
-pmap_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
+moea_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
 {
 	struct	pte *pt;
 
-	pt = pmap_pvo_to_pte(pvo, -1);
+	pt = moea_pvo_to_pte(pvo, -1);
 
 	if (pt != NULL) {
-		pmap_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+		moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 		PVO_PTEGIDX_CLR(pvo);
-		pmap_pte_overflow++;
+		moea_pte_overflow++;
 	}
 
 	pvo->pvo_pte.pte_lo &= ~PTE_RPGN;
@@ -1818,17 +1810,17 @@ pmap_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
 	 */
 	if (saved_pt != NULL && (saved_pt->pte_lo & PTE_RPGN) != 0) {
 		if (depth_p != NULL && --(*depth_p) == 0)
-			panic("pmap_pa_unmap: restoring but depth == 0");
+			panic("moea_pa_unmap: restoring but depth == 0");
 
 		pvo->pvo_pte = *saved_pt;
 
-		if (!pmap_pte_spill(pvo->pvo_vaddr))
-			panic("pmap_pa_unmap: could not spill pvo %p", pvo);
+		if (!moea_pte_spill(pvo->pvo_vaddr))
+			panic("moea_pa_unmap: could not spill pvo %p", pvo);
 	}
 }
 
 static void
-pmap_syncicache(vm_offset_t pa, vm_size_t len)
+moea_syncicache(vm_offset_t pa, vm_size_t len)
 {
 	__syncicache((void *)pa, len);
 }
@@ -1848,7 +1840,7 @@ tlbia(void)
 }
 
 static int
-pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
+moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
     vm_offset_t va, vm_offset_t pa, u_int pte_lo, int flags)
 {
 	struct	pvo_entry *pvo;
@@ -1858,7 +1850,7 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	int	i;
 	int     bootstrap;
 
-	pmap_pvo_enter_calls++;
+	moea_pvo_enter_calls++;
 	first = 0;
 	bootstrap = 0;
 
@@ -1873,16 +1865,16 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * Remove any existing mapping for this page.  Reuse the pvo entry if
 	 * there is a mapping.
 	 */
-	mtx_lock(&pmap_table_mutex);
-	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
+	mtx_lock(&moea_table_mutex);
+	LIST_FOREACH(pvo, &moea_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if ((pvo->pvo_pte.pte_lo & PTE_RPGN) == pa &&
 			    (pvo->pvo_pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
-				mtx_unlock(&pmap_table_mutex);
+				mtx_unlock(&moea_table_mutex);
 				return (0);
 			}
-			pmap_pvo_remove(pvo, -1);
+			moea_pvo_remove(pvo, -1);
 			break;
 		}
 	}
@@ -1890,41 +1882,41 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	/*
 	 * If we aren't overwriting a mapping, try to allocate.
 	 */
-	if (pmap_initialized) {
+	if (moea_initialized) {
 		pvo = uma_zalloc(zone, M_NOWAIT);
 	} else {
-		if (pmap_bpvo_pool_index >= BPVO_POOL_SIZE) {
-			panic("pmap_enter: bpvo pool exhausted, %d, %d, %d",
-			      pmap_bpvo_pool_index, BPVO_POOL_SIZE, 
+		if (moea_bpvo_pool_index >= BPVO_POOL_SIZE) {
+			panic("moea_enter: bpvo pool exhausted, %d, %d, %d",
+			      moea_bpvo_pool_index, BPVO_POOL_SIZE, 
 			      BPVO_POOL_SIZE * sizeof(struct pvo_entry));
 		}
-		pvo = &pmap_bpvo_pool[pmap_bpvo_pool_index];
-		pmap_bpvo_pool_index++;
+		pvo = &moea_bpvo_pool[moea_bpvo_pool_index];
+		moea_bpvo_pool_index++;
 		bootstrap = 1;
 	}
 
 	if (pvo == NULL) {
-		mtx_unlock(&pmap_table_mutex);
+		mtx_unlock(&moea_table_mutex);
 		return (ENOMEM);
 	}
 
-	pmap_pvo_entries++;
+	moea_pvo_entries++;
 	pvo->pvo_vaddr = va;
 	pvo->pvo_pmap = pm;
-	LIST_INSERT_HEAD(&pmap_pvo_table[ptegidx], pvo, pvo_olink);
+	LIST_INSERT_HEAD(&moea_pvo_table[ptegidx], pvo, pvo_olink);
 	pvo->pvo_vaddr &= ~ADDR_POFF;
 	if (flags & VM_PROT_EXECUTE)
 		pvo->pvo_vaddr |= PVO_EXECUTABLE;
 	if (flags & PVO_WIRED)
 		pvo->pvo_vaddr |= PVO_WIRED;
-	if (pvo_head != &pmap_pvo_kunmanaged)
+	if (pvo_head != &moea_pvo_kunmanaged)
 		pvo->pvo_vaddr |= PVO_MANAGED;
 	if (bootstrap)
 		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
 	if (flags & PVO_FAKE)
 		pvo->pvo_vaddr |= PVO_FAKE;
 
-	pmap_pte_create(&pvo->pvo_pte, sr, va, pa | pte_lo);
+	moea_pte_create(&pvo->pvo_pte, sr, va, pa | pte_lo);
 
 	/*
 	 * Remember if the list was empty and therefore will be the first
@@ -1941,20 +1933,20 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	/*
 	 * We hope this succeeds but it isn't required.
 	 */
-	i = pmap_pte_insert(ptegidx, &pvo->pvo_pte);
+	i = moea_pte_insert(ptegidx, &pvo->pvo_pte);
 	if (i >= 0) {
 		PVO_PTEGIDX_SET(pvo, i);
 	} else {
-		panic("pmap_pvo_enter: overflow");
-		pmap_pte_overflow++;
+		panic("moea_pvo_enter: overflow");
+		moea_pte_overflow++;
 	}
-	mtx_unlock(&pmap_table_mutex);
+	mtx_unlock(&moea_table_mutex);
 
 	return (first ? ENOENT : 0);
 }
 
 static void
-pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
+moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 {
 	struct	pte *pt;
 
@@ -1962,12 +1954,12 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * If there is an active pte entry, we need to deactivate it (and
 	 * save the ref & cfg bits).
 	 */
-	pt = pmap_pvo_to_pte(pvo, pteidx);
+	pt = moea_pvo_to_pte(pvo, pteidx);
 	if (pt != NULL) {
-		pmap_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+		moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 		PVO_PTEGIDX_CLR(pvo);
 	} else {
-		pmap_pte_overflow--;
+		moea_pte_overflow--;
 	}
 
 	/*
@@ -1985,7 +1977,7 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
 		if (pg != NULL) {
-			pmap_attr_save(pg, pvo->pvo_pte.pte_lo &
+			moea_attr_save(pg, pvo->pvo_pte.pte_lo &
 			    (PTE_REF | PTE_CHG));
 		}
 	}
@@ -2001,14 +1993,14 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 */
 	LIST_REMOVE(pvo, pvo_olink);
 	if (!(pvo->pvo_vaddr & PVO_BOOTSTRAP))
-		uma_zfree(pvo->pvo_vaddr & PVO_MANAGED ? pmap_mpvo_zone :
-		    pmap_upvo_zone, pvo);
-	pmap_pvo_entries--;
-	pmap_pvo_remove_calls++;
+		uma_zfree(pvo->pvo_vaddr & PVO_MANAGED ? moea_mpvo_zone :
+		    moea_upvo_zone, pvo);
+	moea_pvo_entries--;
+	moea_pvo_remove_calls++;
 }
 
 static __inline int
-pmap_pvo_pte_index(const struct pvo_entry *pvo, int ptegidx)
+moea_pvo_pte_index(const struct pvo_entry *pvo, int ptegidx)
 {
 	int	pteidx;
 
@@ -2019,13 +2011,13 @@ pmap_pvo_pte_index(const struct pvo_entry *pvo, int ptegidx)
 	 */
 	pteidx = ptegidx * 8 + PVO_PTEGIDX_GET(pvo);
 	if (pvo->pvo_pte.pte_hi & PTE_HID)
-		pteidx ^= pmap_pteg_mask * 8;
+		pteidx ^= moea_pteg_mask * 8;
 
 	return (pteidx);
 }
 
 static struct pvo_entry *
-pmap_pvo_find_va(pmap_t pm, vm_offset_t va, int *pteidx_p)
+moea_pvo_find_va(pmap_t pm, vm_offset_t va, int *pteidx_p)
 {
 	struct	pvo_entry *pvo;
 	int	ptegidx;
@@ -2035,21 +2027,21 @@ pmap_pvo_find_va(pmap_t pm, vm_offset_t va, int *pteidx_p)
 	sr = va_to_sr(pm->pm_sr, va);
 	ptegidx = va_to_pteg(sr, va);
 
-	mtx_lock(&pmap_table_mutex);
-	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
+	mtx_lock(&moea_table_mutex);
+	LIST_FOREACH(pvo, &moea_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if (pteidx_p)
-				*pteidx_p = pmap_pvo_pte_index(pvo, ptegidx);
+				*pteidx_p = moea_pvo_pte_index(pvo, ptegidx);
 			break;
 		}
 	}
-	mtx_unlock(&pmap_table_mutex);
+	mtx_unlock(&moea_table_mutex);
 
 	return (pvo);
 }
 
 static struct pte *
-pmap_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
+moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 {
 	struct	pte *pt;
 
@@ -2062,39 +2054,39 @@ pmap_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 
 		sr = va_to_sr(pvo->pvo_pmap->pm_sr, pvo->pvo_vaddr);
 		ptegidx = va_to_pteg(sr, pvo->pvo_vaddr);
-		pteidx = pmap_pvo_pte_index(pvo, ptegidx);
+		pteidx = moea_pvo_pte_index(pvo, ptegidx);
 	}
 
-	pt = &pmap_pteg_table[pteidx >> 3].pt[pteidx & 7];
+	pt = &moea_pteg_table[pteidx >> 3].pt[pteidx & 7];
 
 	if ((pvo->pvo_pte.pte_hi & PTE_VALID) && !PVO_PTEGIDX_ISSET(pvo)) {
-		panic("pmap_pvo_to_pte: pvo %p has valid pte in pvo but no "
+		panic("moea_pvo_to_pte: pvo %p has valid pte in pvo but no "
 		    "valid pte index", pvo);
 	}
 
 	if ((pvo->pvo_pte.pte_hi & PTE_VALID) == 0 && PVO_PTEGIDX_ISSET(pvo)) {
-		panic("pmap_pvo_to_pte: pvo %p has valid pte index in pvo "
+		panic("moea_pvo_to_pte: pvo %p has valid pte index in pvo "
 		    "pvo but no valid pte", pvo);
 	}
 
 	if ((pt->pte_hi ^ (pvo->pvo_pte.pte_hi & ~PTE_VALID)) == PTE_VALID) {
 		if ((pvo->pvo_pte.pte_hi & PTE_VALID) == 0) {
-			panic("pmap_pvo_to_pte: pvo %p has valid pte in "
-			    "pmap_pteg_table %p but invalid in pvo", pvo, pt);
+			panic("moea_pvo_to_pte: pvo %p has valid pte in "
+			    "moea_pteg_table %p but invalid in pvo", pvo, pt);
 		}
 
 		if (((pt->pte_lo ^ pvo->pvo_pte.pte_lo) & ~(PTE_CHG|PTE_REF))
 		    != 0) {
-			panic("pmap_pvo_to_pte: pvo %p pte does not match "
-			    "pte %p in pmap_pteg_table", pvo, pt);
+			panic("moea_pvo_to_pte: pvo %p pte does not match "
+			    "pte %p in moea_pteg_table", pvo, pt);
 		}
 
 		return (pt);
 	}
 
 	if (pvo->pvo_pte.pte_hi & PTE_VALID) {
-		panic("pmap_pvo_to_pte: pvo %p has invalid pte %p in "
-		    "pmap_pteg_table but valid in pvo", pvo, pt);
+		panic("moea_pvo_to_pte: pvo %p has invalid pte %p in "
+		    "moea_pteg_table but valid in pvo", pvo, pt);
 	}
 
 	return (NULL);
@@ -2104,7 +2096,7 @@ pmap_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
  * XXX: THIS STUFF SHOULD BE IN pte.c?
  */
 int
-pmap_pte_spill(vm_offset_t addr)
+moea_pte_spill(vm_offset_t addr)
 {
 	struct	pvo_entry *source_pvo, *victim_pvo;
 	struct	pvo_entry *pvo;
@@ -2113,7 +2105,7 @@ pmap_pte_spill(vm_offset_t addr)
 	struct	pteg *pteg;
 	struct	pte *pt;
 
-	pmap_pte_spills++;
+	moea_pte_spills++;
 
 	sr = mfsrin(addr);
 	ptegidx = va_to_pteg(sr, addr);
@@ -2122,33 +2114,33 @@ pmap_pte_spill(vm_offset_t addr)
 	 * Have to substitute some entry.  Use the primary hash for this.
 	 * Use low bits of timebase as random generator.
 	 */
-	pteg = &pmap_pteg_table[ptegidx];
-	mtx_lock(&pmap_table_mutex);
+	pteg = &moea_pteg_table[ptegidx];
+	mtx_lock(&moea_table_mutex);
 	__asm __volatile("mftb %0" : "=r"(i));
 	i &= 7;
 	pt = &pteg->pt[i];
 
 	source_pvo = NULL;
 	victim_pvo = NULL;
-	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
+	LIST_FOREACH(pvo, &moea_pvo_table[ptegidx], pvo_olink) {
 		/*
 		 * We need to find a pvo entry for this address.
 		 */
-		PMAP_PVO_CHECK(pvo);
+		MOEA_PVO_CHECK(pvo);
 		if (source_pvo == NULL &&
-		    pmap_pte_match(&pvo->pvo_pte, sr, addr,
+		    moea_pte_match(&pvo->pvo_pte, sr, addr,
 		    pvo->pvo_pte.pte_hi & PTE_HID)) {
 			/*
 			 * Now found an entry to be spilled into the pteg.
 			 * The PTE is now valid, so we know it's active.
 			 */
-			j = pmap_pte_insert(ptegidx, &pvo->pvo_pte);
+			j = moea_pte_insert(ptegidx, &pvo->pvo_pte);
 
 			if (j >= 0) {
 				PVO_PTEGIDX_SET(pvo, j);
-				pmap_pte_overflow--;
-				PMAP_PVO_CHECK(pvo);
-				mtx_unlock(&pmap_table_mutex);
+				moea_pte_overflow--;
+				MOEA_PVO_CHECK(pvo);
+				mtx_unlock(&moea_table_mutex);
 				return (1);
 			}
 
@@ -2163,7 +2155,7 @@ pmap_pte_spill(vm_offset_t addr)
 		 * so save the R & C bits of the PTE.
 		 */
 		if ((pt->pte_hi & PTE_HID) == 0 && victim_pvo == NULL &&
-		    pmap_pte_compare(pt, &pvo->pvo_pte)) {
+		    moea_pte_compare(pt, &pvo->pvo_pte)) {
 			victim_pvo = pvo;
 			if (source_pvo != NULL)
 				break;
@@ -2171,34 +2163,34 @@ pmap_pte_spill(vm_offset_t addr)
 	}
 
 	if (source_pvo == NULL) {
-		mtx_unlock(&pmap_table_mutex);
+		mtx_unlock(&moea_table_mutex);
 		return (0);
 	}
 
 	if (victim_pvo == NULL) {
 		if ((pt->pte_hi & PTE_HID) == 0)
-			panic("pmap_pte_spill: victim p-pte (%p) has no pvo"
+			panic("moea_pte_spill: victim p-pte (%p) has no pvo"
 			    "entry", pt);
 
 		/*
 		 * If this is a secondary PTE, we need to search it's primary
 		 * pvo bucket for the matching PVO.
 		 */
-		LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx ^ pmap_pteg_mask],
+		LIST_FOREACH(pvo, &moea_pvo_table[ptegidx ^ moea_pteg_mask],
 		    pvo_olink) {
-			PMAP_PVO_CHECK(pvo);
+			MOEA_PVO_CHECK(pvo);
 			/*
 			 * We also need the pvo entry of the victim we are
 			 * replacing so save the R & C bits of the PTE.
 			 */
-			if (pmap_pte_compare(pt, &pvo->pvo_pte)) {
+			if (moea_pte_compare(pt, &pvo->pvo_pte)) {
 				victim_pvo = pvo;
 				break;
 			}
 		}
 
 		if (victim_pvo == NULL)
-			panic("pmap_pte_spill: victim s-pte (%p) has no pvo"
+			panic("moea_pte_spill: victim s-pte (%p) has no pvo"
 			    "entry", pt);
 	}
 
@@ -2209,22 +2201,22 @@ pmap_pte_spill(vm_offset_t addr)
 	 */
 	source_pvo->pvo_pte.pte_hi &= ~PTE_HID;
 
-	pmap_pte_unset(pt, &victim_pvo->pvo_pte, victim_pvo->pvo_vaddr);
-	pmap_pte_set(pt, &source_pvo->pvo_pte);
+	moea_pte_unset(pt, &victim_pvo->pvo_pte, victim_pvo->pvo_vaddr);
+	moea_pte_set(pt, &source_pvo->pvo_pte);
 
 	PVO_PTEGIDX_CLR(victim_pvo);
 	PVO_PTEGIDX_SET(source_pvo, i);
-	pmap_pte_replacements++;
+	moea_pte_replacements++;
 
-	PMAP_PVO_CHECK(victim_pvo);
-	PMAP_PVO_CHECK(source_pvo);
+	MOEA_PVO_CHECK(victim_pvo);
+	MOEA_PVO_CHECK(source_pvo);
 
-	mtx_unlock(&pmap_table_mutex);
+	mtx_unlock(&moea_table_mutex);
 	return (1);
 }
 
 static int
-pmap_pte_insert(u_int ptegidx, struct pte *pvo_pt)
+moea_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 {
 	struct	pte *pt;
 	int	i;
@@ -2232,10 +2224,10 @@ pmap_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 	/*
 	 * First try primary hash.
 	 */
-	for (pt = pmap_pteg_table[ptegidx].pt, i = 0; i < 8; i++, pt++) {
+	for (pt = moea_pteg_table[ptegidx].pt, i = 0; i < 8; i++, pt++) {
 		if ((pt->pte_hi & PTE_VALID) == 0) {
 			pvo_pt->pte_hi &= ~PTE_HID;
-			pmap_pte_set(pt, pvo_pt);
+			moea_pte_set(pt, pvo_pt);
 			return (i);
 		}
 	}
@@ -2243,41 +2235,41 @@ pmap_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 	/*
 	 * Now try secondary hash.
 	 */
-	ptegidx ^= pmap_pteg_mask;
+	ptegidx ^= moea_pteg_mask;
 	ptegidx++;
-	for (pt = pmap_pteg_table[ptegidx].pt, i = 0; i < 8; i++, pt++) {
+	for (pt = moea_pteg_table[ptegidx].pt, i = 0; i < 8; i++, pt++) {
 		if ((pt->pte_hi & PTE_VALID) == 0) {
 			pvo_pt->pte_hi |= PTE_HID;
-			pmap_pte_set(pt, pvo_pt);
+			moea_pte_set(pt, pvo_pt);
 			return (i);
 		}
 	}
 
-	panic("pmap_pte_insert: overflow");
+	panic("moea_pte_insert: overflow");
 	return (-1);
 }
 
 static boolean_t
-pmap_query_bit(vm_page_t m, int ptebit)
+moea_query_bit(vm_page_t m, int ptebit)
 {
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 
 #if 0
-	if (pmap_attr_fetch(m) & ptebit)
+	if (moea_attr_fetch(m) & ptebit)
 		return (TRUE);
 #endif
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if we saved the bit off.  If so, cache it and return
 		 * success.
 		 */
 		if (pvo->pvo_pte.pte_lo & ptebit) {
-			pmap_attr_save(m, ptebit);
-			PMAP_PVO_CHECK(pvo);	/* sanity check */
+			moea_attr_save(m, ptebit);
+			MOEA_PVO_CHECK(pvo);	/* sanity check */
 			return (TRUE);
 		}
 	}
@@ -2289,19 +2281,19 @@ pmap_query_bit(vm_page_t m, int ptebit)
 	 */
 	SYNC();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if this pvo has a valid PTE.  if so, fetch the
 		 * REF/CHG bits from the valid PTE.  If the appropriate
 		 * ptebit is set, cache it and return success.
 		 */
-		pt = pmap_pvo_to_pte(pvo, -1);
+		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
-			pmap_pte_synch(pt, &pvo->pvo_pte);
+			moea_pte_synch(pt, &pvo->pvo_pte);
 			if (pvo->pvo_pte.pte_lo & ptebit) {
-				pmap_attr_save(m, ptebit);
-				PMAP_PVO_CHECK(pvo);	/* sanity check */
+				moea_attr_save(m, ptebit);
+				MOEA_PVO_CHECK(pvo);	/* sanity check */
 				return (TRUE);
 			}
 		}
@@ -2311,7 +2303,7 @@ pmap_query_bit(vm_page_t m, int ptebit)
 }
 
 static u_int
-pmap_clear_bit(vm_page_t m, int ptebit, int *origbit)
+moea_clear_bit(vm_page_t m, int ptebit, int *origbit)
 {
 	u_int	count;
 	struct	pvo_entry *pvo;
@@ -2321,8 +2313,8 @@ pmap_clear_bit(vm_page_t m, int ptebit, int *origbit)
 	/*
 	 * Clear the cached value.
 	 */
-	rv = pmap_attr_fetch(m);
-	pmap_attr_clear(m, ptebit);
+	rv = moea_attr_fetch(m);
+	moea_attr_clear(m, ptebit);
 
 	/*
 	 * Sync so that any pending REF/CHG bits are flushed to the PTEs (so
@@ -2339,18 +2331,18 @@ pmap_clear_bit(vm_page_t m, int ptebit, int *origbit)
 	 */
 	count = 0;
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
-		pt = pmap_pvo_to_pte(pvo, -1);
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
+		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
-			pmap_pte_synch(pt, &pvo->pvo_pte);
+			moea_pte_synch(pt, &pvo->pvo_pte);
 			if (pvo->pvo_pte.pte_lo & ptebit) {
 				count++;
-				pmap_pte_clear(pt, PVO_VADDR(pvo), ptebit);
+				moea_pte_clear(pt, PVO_VADDR(pvo), ptebit);
 			}
 		}
 		rv |= pvo->pvo_pte.pte_lo;
 		pvo->pvo_pte.pte_lo &= ~ptebit;
-		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		MOEA_PVO_CHECK(pvo);	/* sanity check */
 	}
 
 	if (origbit != NULL) {
@@ -2364,7 +2356,7 @@ pmap_clear_bit(vm_page_t m, int ptebit, int *origbit)
  * Return true if the physical range is encompassed by the battable[idx]
  */
 static int
-pmap_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
+moea_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 {
 	u_int prot;
 	u_int32_t start;
@@ -2400,8 +2392,8 @@ pmap_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 	return (0);
 }
 
-int
-pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
+boolean_t
+moea_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 {
 	int i;
 
@@ -2411,7 +2403,7 @@ pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
 	 */
 
 	for(i = 0; i < 16; i++)
-		if (pmap_bat_mapped(i, pa, size) == 0)
+		if (moea_bat_mapped(i, pa, size) == 0)
 			return (0);
 
 	return (EFAULT);
@@ -2424,7 +2416,7 @@ pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
  * NOT real memory.
  */
 void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
+moea_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 {
 	vm_offset_t va, tmpva, ppa, offset;
 	int i;
@@ -2441,16 +2433,16 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	 * for regions that overlap 256M BAT segments.
 	 */
 	for (i = 0; i < 16; i++) {
-		if (pmap_bat_mapped(i, pa, size) == 0)
+		if (moea_bat_mapped(i, pa, size) == 0)
 			return ((void *) pa);
 	}
 
 	va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
+		panic("moea_mapdev: Couldn't alloc kernel virtual memory");
 
 	for (tmpva = va; size > 0;) {
-		pmap_kenter(tmpva, ppa);
+		moea_kenter(mmu, tmpva, ppa);
 		TLBIE(tmpva); /* XXX or should it be invalidate-all ? */
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
@@ -2461,7 +2453,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 }
 
 void
-pmap_unmapdev(vm_offset_t va, vm_size_t size)
+moea_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t base, offset;
 
