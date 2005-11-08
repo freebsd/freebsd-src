@@ -81,9 +81,40 @@ pkg_perform(char **pkgs)
 	suf = "tar";
 
     if (InstalledPkg != NULL) {
-    	if (!Recursive)
-	    return (create_from_installed(InstalledPkg, pkg, suf));
-	return (create_from_installed_recursive(pkg, suf));
+	char *pkgglob[] = { InstalledPkg, NULL };
+	char **matched, **pkgs;
+	int i, error;
+
+	pkgs = pkgglob;
+	if (MatchType != MATCH_EXACT) {
+		matched = matchinstalled(MatchType, pkgs, &error);
+		if (!error && matched != NULL)
+			pkgs = matched;
+		else if (MatchType != MATCH_GLOB)
+	    		errx(1, "no packages match pattern");
+	}
+	/*
+	 * Is there is only one installed package matching the pattern,
+	 * we need to respect the optional pkg-filename parameter.  If,
+	 * however, the pattern matches several packages, this parameter
+	 * makes no sense and is ignored.
+	 */
+	if (pkgs[1] == NULL) {
+	    if (pkg == InstalledPkg)
+		pkg = *pkgs;
+	    InstalledPkg = *pkgs;
+	    if (!Recursive)
+		return (create_from_installed(InstalledPkg, pkg, suf));
+	    return (create_from_installed_recursive(pkg, suf));
+	}
+	for (i = 0; pkgs[i] != NULL; i++) {
+	    InstalledPkg = pkg = pkgs[i];
+	    if (!Recursive)
+		create_from_installed(pkg, pkg, suf);
+	    else
+	        create_from_installed_recursive(pkg, suf);
+	}
+	return TRUE;
     }
 
     get_dash_string(&Comment);
