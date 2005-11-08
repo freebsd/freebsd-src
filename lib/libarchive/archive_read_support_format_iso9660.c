@@ -302,10 +302,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 
 	iso9660 = *(a->pformat_data);
 
-	if (iso9660->seenRockridge) {
-		a->archive_format = ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
-		a->archive_format_name = "ISO9660 with Rockridge extensions";
-	} else {
+	if (!a->archive_format) {
 		a->archive_format = ARCHIVE_FORMAT_ISO9660;
 		a->archive_format_name = "ISO9660";
 	}
@@ -402,6 +399,12 @@ archive_read_format_iso9660_read_header(struct archive *a,
 					continue;
 				child = parse_file_info(iso9660, file, dr);
 				add_entry(iso9660, child);
+				if (iso9660->seenRockridge) {
+					a->archive_format =
+					    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
+					a->archive_format_name =
+					    "ISO9660 with Rockridge extensions";
+				}
 			}
 		}
 	}
