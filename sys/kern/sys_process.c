@@ -673,8 +673,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* security check done above */
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
-		if (p->p_pptr != td->td_proc)
+		if (p->p_pptr != td->td_proc) {
+			PROC_LOCK(p->p_pptr);
+			sigqueue_take(p->p_ksi);
+			PROC_UNLOCK(p->p_pptr);
 			proc_reparent(p, td->td_proc);
+		}
 		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
@@ -765,6 +769,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				struct proc *pp;
 
+				PROC_LOCK(p->p_pptr);
+				sigqueue_take(p->p_ksi);
+				PROC_UNLOCK(p->p_pptr);
+
 				PROC_UNLOCK(p);
 				pp = pfind(p->p_oppid);
 				if (pp == NULL)
@@ -780,6 +788,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			p->p_oppid = 0;
 
 			/* should we send SIGCHLD? */
+			/* childproc_continued(p); */
 		}
 
 	sendsig:
