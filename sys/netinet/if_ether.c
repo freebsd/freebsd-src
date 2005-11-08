@@ -79,14 +79,11 @@ SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 /* timer values */
 static int arpt_prune = (5*60*1); /* walk list every 5 minutes */
 static int arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
-static int arpt_down = 20;	/* once declared down, don't send for 20 sec */
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, prune_intvl, CTLFLAG_RW,
 	   &arpt_prune, 0, "");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW, 
 	   &arpt_keep, 0, "");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, host_down_time, CTLFLAG_RW,
-	   &arpt_down, 0, "");
 
 #define	rt_expire rt_rmx.rmx_expire
 
@@ -95,8 +92,7 @@ struct llinfo_arp {
 	struct	rtentry *la_rt;
 	struct	mbuf *la_hold;	/* last packet until resolved/timeout */
 	u_short	la_preempt;	/* countdown for pre-expiry arps */
-	u_short	la_asked;	/* #times we QUERIED following expiration */
-#define la_timer la_rt->rt_rmx.rmx_expire /* deletion time in seconds */
+	u_short	la_asked;	/* # requests sent */
 };
 
 static	LIST_HEAD(, llinfo_arp) llinfo_arp;
@@ -150,7 +146,6 @@ arptimer(void * __unused unused)
 			if (rt->rt_refcnt > 1) {
 				sdl->sdl_alen = 0;
 				la->la_preempt = la->la_asked = 0;
-				rt->rt_flags &= ~RTF_REJECT;
 				RT_UNLOCK(rt);
 				continue;
 			}
@@ -448,8 +443,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 
 		/*
 		 * If entry has an expiry time and it is approaching,
-		 * see if we need to send an ARP request within this
-		 * arpt_down interval.
+		 * send an ARP request.
 		 */
 		if ((rt->rt_expire != 0) &&
 		    (time_uptime + la->la_preempt > rt->rt_expire)) {
@@ -485,29 +479,33 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	if (la->la_hold)
 		m_freem(la->la_hold);
 	la->la_hold = m;
-	if (rt->rt_expire) {
-		rt->rt_flags &= ~RTF_REJECT;
-		if (la->la_asked == 0 || rt->rt_expire != time_uptime) {
-			rt->rt_expire = time_uptime;
-			if (la->la_asked++ < arp_maxtries) {
-				struct in_addr sin =
-				    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
 
-				RT_UNLOCK(rt);
-				arprequest(ifp, &sin, &SIN(dst)->sin_addr,
-				    IF_LLADDR(ifp));
-				return (EWOULDBLOCK);
-			} else {
-				rt->rt_flags |= RTF_REJECT;
-				rt->rt_expire += arpt_down;
-				la->la_asked = 0;
-				la->la_preempt = arp_maxtries;
-			}
+	KASSERT(rt->rt_expire > 0, ("sending ARP request for static entry"));
 
-		}
-	}
-	RT_UNLOCK(rt);
-	return (EWOULDBLOCK);
+	/*
+	 * Return EWOULDBLOCK if we have tried less than arp_maxtries. It
+	 * will be masked by ether_output(). Return EHOSTDOWN/EHOSTUNREACH
+	 * if we have already sent arp_maxtries ARP requests. Retransmit the
+	 * ARP request, but not faster than one request per second.
+	 */
+	if (la->la_asked < arp_maxtries)
+		error = EWOULDBLOCK;	/* First request. */
+	else
+		error = (rt == rt0) ? EHOSTDOWN : EHOSTUNREACH;
+
+	if (la->la_asked++ == 0 || rt->rt_expire != time_uptime) {
+		struct in_addr sin =
+		    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
+
+		rt->rt_expire = time_uptime;
+		RT_UNLOCK(rt);
+
+		arprequest(ifp, &sin, &SIN(dst)->sin_addr,
+		    IF_LLADDR(ifp));
+	} else
+		RT_UNLOCK(rt);
+
+	return (error);
 }
 
 /*
@@ -786,7 +784,6 @@ match:
 	}
 	if (rt->rt_expire)
 		rt->rt_expire = time_uptime + arpt_keep;
-	rt->rt_flags &= ~RTF_REJECT;
 	la->la_asked = 0;
 	la->la_preempt = arp_maxtries;
 	hold = la->la_hold;
