@@ -460,13 +460,12 @@ struct vr_softc {
 	void			*vr_intrhand;
 	device_t		vr_miibus;
 	struct vr_type		*vr_info;	/* Rhine adapter info */
-	u_int8_t		vr_unit;	/* interface number */
 	u_int8_t		vr_type;
 	u_int8_t		vr_revid;	/* Rhine chip revision */
 	u_int8_t                vr_flags;       /* See VR_F_* below */
 	struct vr_list_data	*vr_ldata;
 	struct vr_chain_data	vr_cdata;
-	struct callout_handle	vr_stat_ch;
+	struct callout		vr_stat_callout;
 	struct mtx		vr_mtx;
 	int			suspended;	/* if 1, sleeping/detaching */
 #ifdef DEVICE_POLLING
