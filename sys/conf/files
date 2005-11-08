@@ -937,8 +937,10 @@ dev/twa/tw_cl_io.c		optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twa/tw_cl_misc.c		optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_osl_cam.c		optional twa
-dev/twa/tw_osl_freebsd.c	optional twa
+dev/twa/tw_osl_cam.c		optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
+dev/twa/tw_osl_freebsd.c	optional twa \
+	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tx/if_tx.c			optional tx
