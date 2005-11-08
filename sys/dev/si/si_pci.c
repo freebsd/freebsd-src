@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/si/sireg.h>
 #include <dev/si/sivar.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 static int
