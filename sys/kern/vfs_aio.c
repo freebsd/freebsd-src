@@ -189,7 +189,7 @@ struct aiocblist {
 	int	inputcharge;
 	int	outputcharge;
 	struct	buf *bp;		/* Buffer pointer */
-	struct	proc *userproc;		/* User process */ /* Not td! */
+	struct	proc *userproc;		/* User process */
 	struct  ucred *cred;		/* Active credential when created */
 	struct	file *fd_file;		/* Pointer to file structure */
 	struct	aio_liojob *lio;	/* Optional lio job */
@@ -401,6 +401,9 @@ aio_unload(void)
 	 * XXX: no unloads by default, it's too dangerous.
 	 * perhaps we could do it if locked out callers and then
 	 * did an aio_proc_rundown() on each process.
+	 *
+	 * jhb: aio_proc_rundown() needs to run on curproc though,
+	 * so I don't think that would fly.
 	 */
 	if (!unloadable)
 		return (EOPNOTSUPP);
@@ -413,6 +416,7 @@ aio_unload(void)
 	aio_swake = NULL;
 	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	EVENTHANDLER_DEREGISTER(process_exec, exec_tag);
+	mtx_destroy(&aio_freeproc_mtx);
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
 	p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
 	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, -1);
@@ -486,6 +490,8 @@ aio_free_entry(struct aiocblist *aiocbe)
 		panic("aio_free_entry: freeing already free job");
 
 	p = aiocbe->userproc;
+	KASSERT(curthread->td_proc == p,
+	    ("%s: called for non-curproc", __func__));
 	ki = p->p_aioinfo;
 	lj = aiocbe->lio;
 	if (ki == NULL)
@@ -523,15 +529,30 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 
 	/* aiocbe is going away, we need to destroy any knotes */
-	/* XXXKSE Note the thread here is used to eventually find the
-	 * owning process again, but it is also used to do a fo_close
-	 * and that requires the thread. (but does it require the
-	 * OWNING thread? (or maybe the running thread?)
-	 * There is a semantic problem here...
+
+	/*
+	 * The thread argument here is used to find the owning process
+	 * and is also passed to fo_close() which may pass it to various
+	 * places such as devsw close() routines.  Because of that, we
+	 * need a thread pointer from the process owning the job that is
+	 * persistent and won't disappear out from under us or move to
+	 * another process.
+	 *
+	 * Currently, all the callers of this function call it to remove
+	 * an aiocblist from the current process' job list either via a
+	 * syscall or due to the current process calling exit() or
+	 * execve().  Thus, we know that p == curproc.  We also know that
+	 * curthread can't exit since we are curthread.
+	 *
+	 * Therefore, we use curthread as the thread to pass to
+	 * knlist_delete().  This does mean that it is possible for the
+	 * thread pointer at close time to differ from the thread pointer
+	 * at open time, but this is already true of file descriptors in
+	 * a multithreaded process.
 	 */
 	if (lj)
-		knlist_delete(&lj->klist, FIRST_THREAD_IN_PROC(p), 0); /* XXXKSE */
-	knlist_delete(&aiocbe->klist, FIRST_THREAD_IN_PROC(p), 0); /* XXXKSE */
+		knlist_delete(&lj->klist, curthread, 0);
+	knlist_delete(&aiocbe->klist, curthread, 0);
 
 	if ((ki->kaio_flags & KAIO_WAKEUP) || ((ki->kaio_flags & KAIO_RUNDOWN)
 	    && ((ki->kaio_buffer_count == 0) && (ki->kaio_queue_count == 0)))) {
@@ -594,6 +615,8 @@ aio_proc_rundown(void *arg, struct proc *p)
 	struct file *fp;
 	struct socket *so;
 
+	KASSERT(curthread->td_proc == p,
+	    ("%s: called on non-curproc", __func__));
 	ki = p->p_aioinfo;
 	if (ki == NULL)
 		return;
@@ -612,9 +635,7 @@ aio_proc_rundown(void *arg, struct proc *p)
 	 * queues so they are cleaned up with any others.
 	 */
 	s = splnet();
-	for (aiocbe = TAILQ_FIRST(&ki->kaio_sockqueue); aiocbe; aiocbe =
-	    aiocbn) {
-		aiocbn = TAILQ_NEXT(aiocbe, plist);
+	TAILQ_FOREACH_SAFE(aiocbe, &ki->kaio_sockqueue, plist, aiocbn) {
 		fp = aiocbe->fd_file;
 		if (fp != NULL) {
 			so = fp->f_data;
@@ -635,16 +656,13 @@ aio_proc_rundown(void *arg, struct proc *p)
 	splx(s);
 
 restart1:
-	for (aiocbe = TAILQ_FIRST(&ki->kaio_jobdone); aiocbe; aiocbe = aiocbn) {
-		aiocbn = TAILQ_NEXT(aiocbe, plist);
+	TAILQ_FOREACH_SAFE(aiocbe, &ki->kaio_jobdone, plist, aiocbn) {
 		if (aio_free_entry(aiocbe))
 			goto restart1;
 	}
 
 restart2:
-	for (aiocbe = TAILQ_FIRST(&ki->kaio_jobqueue); aiocbe; aiocbe =
-	    aiocbn) {
-		aiocbn = TAILQ_NEXT(aiocbe, plist);
+	TAILQ_FOREACH_SAFE(aiocbe, &ki->kaio_jobqueue, plist, aiocbn) {
 		if (aio_free_entry(aiocbe))
 			goto restart2;
 	}
@@ -665,8 +683,7 @@ restart3:
 
 restart4:
 	s = splbio();
-	for (aiocbe = TAILQ_FIRST(&ki->kaio_bufdone); aiocbe; aiocbe = aiocbn) {
-		aiocbn = TAILQ_NEXT(aiocbe, plist);
+	TAILQ_FOREACH_SAFE(aiocbe, &ki->kaio_bufdone, plist, aiocbn) {
 		if (aio_free_entry(aiocbe)) {
 			splx(s);
 			goto restart4;
@@ -684,8 +701,7 @@ restart4:
 	    TAILQ_FIRST(&ki->kaio_bufdone) != NULL)
 		goto restart1;
 
-	for (lj = TAILQ_FIRST(&ki->kaio_liojoblist); lj; lj = ljn) {
-		ljn = TAILQ_NEXT(lj, lioj_list);
+	TAILQ_FOREACH_SAFE(lj, &ki->kaio_liojoblist, lioj_list, ljn) {
 		if ((lj->lioj_buffer_count == 0) && (lj->lioj_queue_count ==
 		    0)) {
 			TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
@@ -718,8 +734,7 @@ aio_selectjob(struct aiothreadlist *aiop)
 	struct proc *userp;
 
 	s = splnet();
-	for (aiocbe = TAILQ_FIRST(&aio_jobs); aiocbe; aiocbe =
-	    TAILQ_NEXT(aiocbe, list)) {
+	TAILQ_FOREACH(aiocbe, &aio_jobs, list) {
 		userp = aiocbe->userproc;
 		ki = userp->p_aioinfo;
 
@@ -1328,8 +1343,7 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 		SOCKBUF_UNLOCK(&so->so_rcv);
 	}
 
-	for (cb = TAILQ_FIRST(&so->so_aiojobq); cb; cb = cbn) {
-		cbn = TAILQ_NEXT(cb, list);
+	TAILQ_FOREACH_SAFE(cb, &so->so_aiojobq, list, cbn) {
 		if (opcode == cb->uaiocb.aio_lio_opcode) {
 			p = cb->userproc;
 			ki = p->p_aioinfo;
@@ -1345,7 +1359,7 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 
 	while (wakecount--) {
 		mtx_lock(&aio_freeproc_mtx);
-		if ((aiop = TAILQ_FIRST(&aio_freeproc)) != 0) {
+		if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
 			wakeup(aiop->aiothread);
@@ -1363,7 +1377,6 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 	int type, int oldsigev)
 {
 	struct proc *p = td->td_proc;
-	struct filedesc *fdp;
 	struct file *fp;
 	unsigned int fd;
 	struct socket *so;
@@ -1418,34 +1431,25 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 		aiocbe->uaiocb.aio_lio_opcode = type;
 	opcode = aiocbe->uaiocb.aio_lio_opcode;
 
-	/* Get the fd info for process. */
-	fdp = p->p_fd;
-
-	/*
-	 * Range check file descriptor.
-	 */
-	FILEDESC_LOCK(fdp);
+	/* Fetch the file object for the specified file descriptor. */
 	fd = aiocbe->uaiocb.aio_fildes;
-	if (fd >= fdp->fd_nfiles) {
-		FILEDESC_UNLOCK(fdp);
+	switch (opcode) {
+	case LIO_WRITE:
+		error = fget_write(td, fd, &fp);
+		break;
+	case LIO_READ:
+		error = fget_read(td, fd, &fp);
+		break;
+	default:
+		error = fget(td, fd, &fp);
+	}
+	if (error) {
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
 		return (EBADF);
 	}
-
-	fp = aiocbe->fd_file = fdp->fd_ofiles[fd];
-	if ((fp == NULL) ||
-	    ((opcode == LIO_WRITE) && ((fp->f_flag & FWRITE) == 0)) ||
-	    ((opcode == LIO_READ) && ((fp->f_flag & FREAD) == 0))) {
-		FILEDESC_UNLOCK(fdp);
-		uma_zfree(aiocb_zone, aiocbe);
-		if (type == 0)
-			suword(&job->_aiocb_private.error, EBADF);
-		return (EBADF);
-	}
-	fhold(fp);
-	FILEDESC_UNLOCK(fdp);
+	aiocbe->fd_file = fp;
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
 		error = EINVAL;
@@ -1484,9 +1488,11 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 		kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sival_ptr;
 	} else
 		goto no_kqueue;
-	if ((u_int)kev.ident >= fdp->fd_nfiles ||
-	    (kq_fp = fdp->fd_ofiles[kev.ident]) == NULL ||
-	    (kq_fp->f_type != DTYPE_KQUEUE)) {
+	error = fget(td, (u_int)kev.ident, &kq_fp);
+	if (error)
+		goto aqueue_fail;
+	if (kq_fp->f_type != DTYPE_KQUEUE) {
+		fdrop(kq_fp, td);
 		error = EBADF;
 		goto aqueue_fail;
 	}
@@ -1496,6 +1502,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
 	kev.data = (intptr_t)aiocbe;
 	error = kqueue_register(kq, &kev, td, 1);
+	fdrop(kq_fp, td);
 aqueue_fail:
 	if (error) {
 		fdrop(fp, td);
@@ -1591,13 +1598,11 @@ retryproc:
 	    ki->kaio_maxactive_count)) {
 		num_aio_resv_start++;
 		mtx_unlock(&aio_freeproc_mtx);
-		if ((error = aio_newproc()) == 0) {
-			mtx_lock(&aio_freeproc_mtx);
-			num_aio_resv_start--;
-			goto retryproc;
-		}
+		error = aio_newproc();
 		mtx_lock(&aio_freeproc_mtx);
 		num_aio_resv_start--;
+		if (error)
+			goto retryproc;
 	}
 	mtx_unlock(&aio_freeproc_mtx);
 done:
@@ -1657,8 +1662,7 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 
 	s = splbio();
 	/* aio_physwakeup */
-	for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb; cb = ncb) {
-		ncb = TAILQ_NEXT(cb, plist);
+	TAILQ_FOREACH_SAFE(cb, &ki->kaio_bufdone, plist, ncb) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo)
 		    == jobref) {
 			break;
@@ -1766,8 +1770,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		}
 
 		s = splbio();
-		for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb; cb =
-		    TAILQ_NEXT(cb, plist)) {
+		TAILQ_FOREACH(cb, &ki->kaio_bufdone, plist) {
 			for (i = 0; i < njoblist; i++) {
 				if (((intptr_t)
 				    cb->uaiocb._aiocb_private.kernelinfo) ==
@@ -1814,7 +1817,6 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct kaioinfo *ki;
 	struct aiocblist *cbe, *cbn;
 	struct file *fp;
-	struct filedesc *fdp;
 	struct socket *so;
 	struct proc *po;
 	int s,error;
@@ -1822,15 +1824,16 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	int notcancelled=0;
 	struct vnode *vp;
 
-	fdp = p->p_fd;
-	if ((u_int)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	/* Lookup file object. */
+	error = fget(td, (u_int)uap->fd, &fp);
+	if (error)
+		return (error);
 
 	if (fp->f_type == DTYPE_VNODE) {
 		vp = fp->f_vnode;
 
 		if (vn_isdisk(vp,&error)) {
+			fdrop(fp, td);
 			td->td_retval[0] = AIO_NOTCANCELED;
 			return (0);
 		}
@@ -1839,8 +1842,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 
 		s = splnet();
 
-		for (cbe = TAILQ_FIRST(&so->so_aiojobq); cbe; cbe = cbn) {
-			cbn = TAILQ_NEXT(cbe, list);
+		TAILQ_FOREACH_SAFE(cbe, &so->so_aiojobq, list, cbn) {
 			if ((uap->aiocbp == NULL) ||
 				(uap->aiocbp == cbe->uuaiocb) ) {
 				po = cbe->userproc;
@@ -1873,17 +1875,17 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		splx(s);
 
 		if ((cancelled) && (uap->aiocbp)) {
+			fdrop(fp, td);
 			td->td_retval[0] = AIO_CANCELED;
 			return (0);
 		}
 	}
-	ki=p->p_aioinfo;
+	ki = p->p_aioinfo;
 	if (ki == NULL)
 		goto done;
 	s = splnet();
 
-	for (cbe = TAILQ_FIRST(&ki->kaio_jobqueue); cbe; cbe = cbn) {
-		cbn = TAILQ_NEXT(cbe, plist);
+	TAILQ_FOREACH_SAFE(cbe, &ki->kaio_jobqueue, plist, cbn) {
 
 		if ((uap->fd == cbe->uaiocb.aio_fildes) &&
 		    ((uap->aiocbp == NULL ) ||
@@ -1903,6 +1905,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	}
 	splx(s);
 done:
+	fdrop(fp, td);
 	if (notcancelled) {
 		td->td_retval[0] = AIO_NOTCANCELED;
 		return (0);
@@ -1950,8 +1953,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 
 	s = splnet();
 
-	for (cb = TAILQ_FIRST(&ki->kaio_jobqueue); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_jobqueue, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
@@ -1961,8 +1963,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		}
 	}
 
-	for (cb = TAILQ_FIRST(&ki->kaio_sockqueue); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_sockqueue, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
@@ -1974,8 +1975,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	splx(s);
 
 	s = splbio();
-	for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_bufdone, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
@@ -1985,8 +1985,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		}
 	}
 
-	for (cb = TAILQ_FIRST(&ki->kaio_bufqueue); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_bufqueue, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
@@ -2119,9 +2118,13 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 			kev.ident = lj->lioj_signal.sigev_notify_kqueue;
 			kev.udata = lj->lioj_signal.sigev_value.sival_ptr;
 
-			if ((u_int)kev.ident >= p->p_fd->fd_nfiles ||
-			    (kq_fp = p->p_fd->fd_ofiles[kev.ident]) == NULL ||
-			    (kq_fp->f_type != DTYPE_KQUEUE)) {
+			error = fget(td, (u_int)kev.ident, &kq_fp);
+			if (error) {
+				uma_zfree(aiolio_zone, lj);
+				return (error);
+			}
+			if (kq_fp->f_type != DTYPE_KQUEUE) {
+				fdrop(kq_fp, td);
 				uma_zfree(aiolio_zone, lj);
 				return (EBADF);
 			}
@@ -2131,6 +2134,7 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 			kev.ident = (uintptr_t)lj; /* something unique */
 			kev.data = (intptr_t)lj;
 			error = kqueue_register(kq, &kev, td, 1);
+			fdrop(kq_fp, td);
 			if (error) {
 				uma_zfree(aiolio_zone, lj);
 				return (error);
