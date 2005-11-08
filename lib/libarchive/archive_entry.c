@@ -29,6 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#else
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
+#endif
 #ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>	/* for Linux file flags */
 #endif
