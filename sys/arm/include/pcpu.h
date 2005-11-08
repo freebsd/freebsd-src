@@ -32,7 +32,6 @@
 
 #ifdef _KERNEL
 
-#include <machine/asmacros.h>
 #include <machine/frame.h>
 
 #define	ALT_STACK_SIZE	128
