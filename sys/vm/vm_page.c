@@ -1651,6 +1651,7 @@ vm_page_cowfault(vm_page_t m)
 	pindex = m->pindex;
 
  retry_alloc:
+	pmap_remove_all(m);
 	vm_page_remove(m);
 	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 	if (mnew == NULL) {
