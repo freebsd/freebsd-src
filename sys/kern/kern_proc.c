@@ -165,6 +165,8 @@ proc_dtor(void *mem, int size, void *arg)
 	 */
 	if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
 		vm_thread_dispose_altkstack(td);
+	if (p->p_ksi != NULL)
+		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
 }
 
 /*
@@ -204,6 +206,8 @@ proc_fini(void *mem, int size)
 	ksegrp_free(FIRST_KSEGRP_IN_PROC(p));
 	thread_free(FIRST_THREAD_IN_PROC(p));
 	mtx_destroy(&p->p_mtx);
+	if (p->p_ksi != NULL)
+		ksiginfo_free(p->p_ksi);
 #else
 	panic("proc reclaimed");
 #endif

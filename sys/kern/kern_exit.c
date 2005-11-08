@@ -173,6 +173,11 @@ retry:
 	}
 
 	p->p_flag |= P_WEXIT;
+
+	PROC_LOCK(p->p_pptr);
+	sigqueue_take(p->p_ksi);
+	PROC_UNLOCK(p->p_pptr);
+
 	PROC_UNLOCK(p);
 
 	/* Are we a task leader? */
@@ -480,8 +485,12 @@ retry:
 
 	if (p->p_pptr == initproc)
 		psignal(p->p_pptr, SIGCHLD);
-	else if (p->p_sigparent != 0)
-		psignal(p->p_pptr, p->p_sigparent);
+	else if (p->p_sigparent != 0) {
+		if (p->p_sigparent == SIGCHLD)
+			childproc_exited(p);
+		else	/* LINUX thread */
+			psignal(p->p_pptr, p->p_sigparent);
+	}
 	PROC_UNLOCK(p->p_pptr);
 
 	/*
@@ -659,6 +668,10 @@ loop:
 				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
 			}
 
+			PROC_LOCK(q);
+			sigqueue_take(p->p_ksi);
+			PROC_UNLOCK(q);
+
 			/*
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
@@ -669,7 +682,7 @@ loop:
 				p->p_oppid = 0;
 				proc_reparent(p, t);
 				PROC_UNLOCK(p);
-				psignal(t, SIGCHLD);
+				tdsignal(t, NULL, SIGCHLD, p->p_ksi);
 				wakeup(t);
 				PROC_UNLOCK(t);
 				sx_xunlock(&proctree_lock);
@@ -751,6 +764,11 @@ loop:
 			if (status)
 				*status = W_STOPCODE(p->p_xstat);
 			PROC_UNLOCK(p);
+
+			PROC_LOCK(q);
+			sigqueue_take(p->p_ksi);
+			PROC_UNLOCK(q);
+
 			return (0);
 		}
 		mtx_unlock_spin(&sched_lock);
@@ -759,6 +777,10 @@ loop:
 			td->td_retval[0] = p->p_pid;
 			p->p_flag &= ~P_CONTINUED;
 			PROC_UNLOCK(p);
+
+			PROC_LOCK(q);
+			sigqueue_take(p->p_ksi);
+			PROC_UNLOCK(q);
 
 			if (status)
 				*status = SIGCONT;
