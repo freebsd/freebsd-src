@@ -157,7 +157,7 @@ struct archive {
 		int	(*read_data_skip)(struct archive *);
 		int	(*cleanup)(struct archive *);
 		void	 *format_data;	/* Format-specific data for readers. */
-	}	formats[4];
+	}	formats[8];
 	struct archive_format_descriptor	*format; /* Active format. */
 
 	/*
