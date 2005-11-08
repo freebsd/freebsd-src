@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/mmuvar.h>
 #include <machine/pcb.h>
 #include <machine/powerpc.h>
 #include <machine/reg.h>
@@ -317,6 +318,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 
 	kdb_init();
 
+	kobj_machdep_init();
+
 	/*
 	 * XXX: Initialize the interrupt tables.
 	 *      Disable translation in case the vector area
@@ -358,6 +361,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * Initialise virtual memory.
 	 */
+	pmap_mmu_install(MMU_TYPE_OEA, 0);		/* XXX temporary */
 	pmap_bootstrap(startkernel, endkernel);
 
 	/*
