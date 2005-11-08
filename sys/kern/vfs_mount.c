@@ -1184,6 +1184,27 @@ devfs_fixup(struct thread *td)
 }
 
 /*
+ * Report errors during filesystem mounting. 
+ */
+void
+vfs_mount_error(struct mount *mp, const char *fmt, ...)
+{
+	struct vfsoptlist *moptlist = mp->mnt_optnew;
+	va_list ap;
+	int error, len;
+	char *errmsg;
+
+	error = vfs_getopt(moptlist, "errmsg", (void **)&errmsg, &len);
+	if (error || errmsg == NULL || len <= 0) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	vsnprintf(errmsg, (size_t)len, fmt, ap);
+	va_end(ap);
+}
+
+/*
  * Find and mount the root filesystem
  */
 void
