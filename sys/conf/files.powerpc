@@ -45,12 +45,14 @@ powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/locore.S	standard	no-obj
 powerpc/powerpc/machdep.c	standard
+powerpc/powerpc/mmu_if.m	standard
+powerpc/powerpc/mmu_oea.c	standard
 powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/ofwmagic.S	standard
 powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
-powerpc/powerpc/pmap.c		standard
+powerpc/powerpc/pmap_dispatch.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode.S	standard
