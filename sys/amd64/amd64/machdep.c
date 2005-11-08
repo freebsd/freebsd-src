@@ -578,10 +578,12 @@ exec_setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 	
+	critical_enter();
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
+	critical_exit();
 	load_ds(_udatasel);
 	load_es(_udatasel);
 	load_fs(_udatasel);
