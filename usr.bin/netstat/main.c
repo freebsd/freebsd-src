@@ -318,11 +318,11 @@ main(int argc, char *argv[])
 #ifdef INET6
 			else if (strcmp(optarg, "inet6") == 0)
 				af = AF_INET6;
-#endif /*INET6*/
-#ifdef INET6
+#endif
+#ifdef IPSEC
 			else if (strcmp(optarg, "pfkey") == 0)
 				af = PF_KEY;
-#endif /*INET6*/
+#endif
 			else if (strcmp(optarg, "unix") == 0)
 				af = AF_UNIX;
 			else if (strcmp(optarg, "atalk") == 0)
