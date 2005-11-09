@@ -2894,11 +2894,12 @@ void
 childproc_exited(struct proc *p)
 {
 	int reason;
+	int status = p->p_xstat; /* convert to int */
 
 	reason = CLD_EXITED;
-	if (WCOREDUMP(p->p_xstat))
+	if (WCOREDUMP(status))
 		reason = CLD_DUMPED;
-	else if (WIFSIGNALED(p->p_xstat))
+	else if (WIFSIGNALED(status))
 		reason = CLD_KILLED;	
 	childproc_stopped(p, reason);
 }
