@@ -140,56 +140,39 @@ static struct pr_usrreqs	ng_btsocket_rfcomm_usrreqs = {
 
 static struct protosw		ng_btsocket_protosw[] = {
 {
-	SOCK_RAW,			/* protocol type */
-	&ng_btsocket_domain,		/* backpointer to domain */
-	BLUETOOTH_PROTO_HCI,		/* protocol */
-	PR_ATOMIC | PR_ADDR,		/* flags */
-	NULL, NULL, NULL,		/* input, output, ctlinput */
-	ng_btsocket_hci_raw_ctloutput,	/* ctloutput */
-	NULL,				/* ousrreq() */
-	ng_btsocket_hci_raw_init,	/* init */ 
-	NULL, NULL, NULL,		/* fasttimeo, slowtimo, drain */
-	&ng_btsocket_hci_raw_usrreqs,	/* usrreq table (above) */
-	/* { NULL } */			/* pfh (protocol filter head?) */
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&ng_btsocket_domain,
+	.pr_protocol =		BLUETOOTH_PROTO_HCI,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_ctloutput =		ng_btsocket_hci_raw_ctloutput,
+	.pr_init =		ng_btsocket_hci_raw_init,
+	.pr_usrreqs =		&ng_btsocket_hci_raw_usrreqs,
 },
 {
-	SOCK_RAW,			/* protocol type */
-	&ng_btsocket_domain,		/* backpointer to domain */
-	BLUETOOTH_PROTO_L2CAP,		/* protocol */
-	PR_ATOMIC | PR_ADDR,		/* flags */
-	NULL, NULL, NULL,		/* input, output, ctlinput */
-	NULL,				/* ctloutput */
-	NULL,				/* ousrreq() */
-	ng_btsocket_l2cap_raw_init,	/* init */
-	NULL, NULL, NULL,		/* fasttimeo, slowtimo, drain */
-	&ng_btsocket_l2cap_raw_usrreqs,	/* usrreq table (above) */
-	/* { NULL } */			/* pfh (protocol filter head?) */
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&ng_btsocket_domain,
+	.pr_protocol =		BLUETOOTH_PROTO_L2CAP,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_init =		ng_btsocket_l2cap_raw_init,
+	.pr_usrreqs =		&ng_btsocket_l2cap_raw_usrreqs,
 },
 {
-	SOCK_SEQPACKET,			/* protocol type */
-	&ng_btsocket_domain,		/* backpointer to domain */
-	BLUETOOTH_PROTO_L2CAP,		/* protocol */
-	PR_ATOMIC | PR_CONNREQUIRED,	/* flags */
-	NULL, NULL, NULL,		/* input, output, ctlinput */
-	ng_btsocket_l2cap_ctloutput,	/* ctloutput */
-	NULL,				/* ousrreq() */
-	ng_btsocket_l2cap_init,		/* init */
-	NULL, NULL, NULL,		/* fasttimeo, slowtimo, drain */
-	&ng_btsocket_l2cap_usrreqs,	/* usrreq table (above) */
-	/* { NULL } */			/* pfh (protocol filter head?) */
+	.pr_type =		SOCK_SEQPACKET,
+	.pr_domain =		&ng_btsocket_domain,
+	.pr_protocol =		BLUETOOTH_PROTO_L2CAP,
+	.pr_flags =		PR_ATOMIC|PR_CONNREQUIRED,
+	.pr_ctloutput =		ng_btsocket_l2cap_ctloutput,
+	.pr_init =		ng_btsocket_l2cap_init,
+	.pr_usrreqs =		&ng_btsocket_l2cap_usrreqs,
 },
 {
-	SOCK_STREAM,			/* protocol type */
-	&ng_btsocket_domain,		/* backpointer to domain */
-	BLUETOOTH_PROTO_RFCOMM,		/* protocol */
-	PR_CONNREQUIRED,		/* flags */
-	NULL, NULL, NULL,		/* input, output, ctlinput */
-	ng_btsocket_rfcomm_ctloutput,	/* ctloutput */
-	NULL,				/* ousrreq() */
-	ng_btsocket_rfcomm_init,	/* init */
-	NULL, NULL, NULL,		/* fasttimeo, slowtimo, drain */
-	&ng_btsocket_rfcomm_usrreqs,	/* usrreq table (above) */
-	/* { NULL } */			/* pfh (protocol filter head?) */
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&ng_btsocket_domain,
+	.pr_protocol =		BLUETOOTH_PROTO_RFCOMM,
+	.pr_flags =		PR_CONNREQUIRED,
+	.pr_ctloutput =		ng_btsocket_rfcomm_ctloutput,
+	.pr_init =		ng_btsocket_rfcomm_init,
+	.pr_usrreqs =		&ng_btsocket_rfcomm_usrreqs,
 }
 };
 #define ng_btsocket_protosw_size \
@@ -202,17 +185,10 @@ static struct protosw		ng_btsocket_protosw[] = {
  */
 
 struct domain			ng_btsocket_domain = {
-	AF_BLUETOOTH,			/* family */
-	"bluetooth",			/* domain name */
-	NULL,				/* init() */
-	NULL,				/* externalize() */
-	NULL,				/* dispose() */
-	ng_btsocket_protosw,		/* protosw entry */
-	ng_btsocket_protosw_end,	/* end of protosw entries */
-	NULL,				/* next domain in list */
-	NULL,				/* rtattach() */
-	0,				/* arg to rtattach in bits */
-	0				/* maxrtkey */
+	.dom_family =		AF_BLUETOOTH,
+	.dom_name =		"bluetooth",
+	.dom_protosw =		ng_btsocket_protosw,
+	.dom_protoswNPROTOSW =	ng_btsocket_protosw_end
 };
 
 /* 
