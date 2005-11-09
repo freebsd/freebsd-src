@@ -1130,42 +1130,27 @@ static struct pr_usrreqs ngd_usrreqs = {
 extern struct domain ngdomain;		/* stop compiler warnings */
 
 static struct protosw ngsw[] = {
-	{
-		SOCK_DGRAM,		/* protocol type */
-		&ngdomain,		/* backpointer to domain */
-		NG_CONTROL,
-		PR_ATOMIC | PR_ADDR /* | PR_RIGHTS */,	/* flags */
-		0, 0, 0, 0,		/* input, output, ctlinput, ctloutput */
-		NULL,			/* ousrreq */
-		0, 0, 0, 0,		/* init, fasttimeo, slowtimo, drain */
-		&ngc_usrreqs,		/* usrreq table (above) */
-		/*{NULL}*/		/* pffh (protocol filter head?) */
-	},
-	{
-		SOCK_DGRAM,		/* protocol type */
-		&ngdomain,		/* backpointer to domain */
-		NG_DATA,
-		PR_ATOMIC | PR_ADDR,	/* flags */
-		0, 0, 0, 0,		/* input, output, ctlinput, ctloutput */
-		NULL,			/* ousrreq() */
-		0, 0, 0, 0,		/* init, fasttimeo, slowtimo, drain */
-		&ngd_usrreqs,		/* usrreq table (above) */
-		/*{NULL}*/		/* pffh (protocol filter head?) */
-	}
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&ngdomain,
+	.pr_protocol =		NG_CONTROL,
+	.pr_flags =		PR_ATOMIC | PR_ADDR /* | PR_RIGHTS */,
+	.pr_usrreqs =		&ngc_usrreqs
+},
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&ngdomain,
+	.pr_protocol =		NG_DATA,
+	.pr_flags =		PR_ATOMIC | PR_ADDR,
+	.pr_usrreqs =		&ngd_usrreqs
+}
 };
 
 struct domain ngdomain = {
-	AF_NETGRAPH,
-	"netgraph",
-	NULL,					/* init() */
-	NULL,					/* externalise() */
-	NULL,					/* dispose() */
-	ngsw,					/* protosw entry */
-	&ngsw[sizeof(ngsw) / sizeof(ngsw[0])], 	/* Number of protosw entries */
-	NULL,					/* next domain in list */
-	NULL,					/* rtattach() */
-	0,					/* arg to rtattach in bits */
-	0					/* maxrtkey */
+	.dom_family =		AF_NETGRAPH,
+	.dom_name =		"netgraph",
+	.dom_protosw =		ngsw,
+	.dom_protoswNPROTOSW =	&ngsw[sizeof(ngsw) / sizeof(ngsw[0])]
 };
 
 /*
