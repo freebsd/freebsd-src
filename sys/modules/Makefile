@@ -494,6 +494,7 @@ _smbfs=		smbfs
 
 .if ${MACHINE_ARCH} == "sparc64"
 _auxio=		auxio
+_em=		em
 _gem=		gem
 _i2c=		i2c
 _sound=		sound
