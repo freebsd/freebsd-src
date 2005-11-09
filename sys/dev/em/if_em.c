@@ -187,7 +187,7 @@ static void em_print_debug_info(struct adapter *);
 static int  em_is_valid_ether_addr(u_int8_t *);
 static int  em_sysctl_stats(SYSCTL_HANDLER_ARGS);
 static int  em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
-static u_int32_t em_fill_descriptors (u_int64_t address, 
+static u_int32_t em_fill_descriptors (bus_addr_t address, 
 				      u_int32_t length, 
 				      PDESC_ARRAY desc_array);
 static int  em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
@@ -663,6 +663,17 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
+#ifndef __NO_STRICT_ALIGNMENT
+		if (ifr->ifr_mtu > ETHERMTU) {
+			/*
+			 * XXX
+			 * Due to the limitation of DMA engine, it needs fix-up
+			 * code for strict alignment architectures. Disable
+			 * jumbo frame until we have better solutions.
+			 */
+			error = EINVAL;
+		} else
+#endif
 		if (ifr->ifr_mtu > MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN || \
 			/* 82573 does not support jumbo frames */
 			(adapter->hw.mac_type == em_82573 && ifr->ifr_mtu > ETHERMTU) ) {
@@ -1158,7 +1169,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         u_int32_t       txd_upper;
         u_int32_t       txd_lower, txd_used = 0, txd_saved = 0;
         int             i, j, error;
-        u_int64_t       address;
 
 	struct mbuf	*m_head;
 
@@ -1268,15 +1278,12 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         for (j = 0; j < nsegs; j++) {
 		/* If adapter is 82544 and on PCIX bus */
 		if(adapter->pcix_82544) {
-			array_elements = 0;
-			address = htole64(segs[j].ds_addr);
 			/* 
 			 * Check the Address and Length combination and 
 			 * split the data accordingly 
 			 */
-                        array_elements = em_fill_descriptors(address,
-							     htole32(segs[j].ds_len),
-							     &desc_array);
+                        array_elements = em_fill_descriptors(segs[j].ds_addr,
+			    segs[j].ds_len, &desc_array);
 			for (counter = 0; counter < array_elements; counter++) {
                                 if (txd_used == adapter->num_tx_desc_avail) {
                                          adapter->next_avail_tx_desc = txd_saved;
@@ -1740,10 +1747,10 @@ em_identify_hardware(struct adapter * adapter)
 static int
 em_allocate_pci_resources(struct adapter * adapter)
 {
-	int             i, val, rid;
+	int             val, rid;
 	device_t        dev = adapter->dev;
 
-	rid = EM_MMBA;
+	rid = PCIR_BAR(0);
 	adapter->res_memory = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 						     &rid, RF_ACTIVE);
 	if (!(adapter->res_memory)) {
@@ -1760,16 +1767,21 @@ em_allocate_pci_resources(struct adapter * adapter)
 
 	if (adapter->hw.mac_type > em_82543) {
 		/* Figure our where our IO BAR is ? */
-		rid = EM_MMBA;
-		for (i = 0; i < 5; i++) {
+		for (rid = PCIR_BAR(0); rid < PCIR_CIS;) {
 			val = pci_read_config(dev, rid, 4);
-			if (val & 0x00000001) {
+			if (E1000_BAR_TYPE(val) == E1000_BAR_TYPE_IO) {
 				adapter->io_rid = rid;
 				break;
 			}
 			rid += 4;
+			/* check for 64bit BAR */
+			if (E1000_BAR_MEM_TYPE(val) == E1000_BAR_MEM_TYPE_64BIT)
+				rid += 4;
 		}
-
+		if (rid >= PCIR_CIS) {
+			printf("em%d: Unable to locate IO BAR\n", adapter->unit);
+			return (ENXIO);
+		}
 		adapter->res_ioport = bus_alloc_resource_any(dev, 
 							     SYS_RES_IOPORT,
 							     &adapter->io_rid,
@@ -1779,9 +1791,11 @@ em_allocate_pci_resources(struct adapter * adapter)
 			       adapter->unit);
 			return(ENXIO);  
 		}
-
-		adapter->hw.io_base =
-		rman_get_start(adapter->res_ioport);
+		adapter->hw.io_base = 0;
+		adapter->osdep.io_bus_space_tag =
+		    rman_get_bustag(adapter->res_ioport);
+		adapter->osdep.io_bus_space_handle =
+		    rman_get_bushandle(adapter->res_ioport);
 	}
 
 	rid = 0x0;
@@ -1819,7 +1833,7 @@ em_free_pci_resources(struct adapter * adapter)
 				     adapter->res_interrupt);
 	}
 	if (adapter->res_memory != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, EM_MMBA, 
+		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), 
 				     adapter->res_memory);
 	}
 
@@ -2068,12 +2082,13 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
                 goto fail_2;
         }
 
+	dma->dma_paddr = 0;
         r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
                             size,
                             em_dmamap_cb,
                             &dma->dma_paddr,
                             mapflags | BUS_DMA_NOWAIT);
-        if (r != 0) {
+        if (r != 0 || dma->dma_paddr == 0) {
                 printf("em%d: em_dma_malloc: bus_dmamap_load failed; "
                         "error %u\n", adapter->unit, r);
                 goto fail_3;
@@ -2475,10 +2490,11 @@ em_get_buf(int i, struct adapter *adapter,
          * Using memory from the mbuf cluster pool, invoke the
          * bus_dma machinery to arrange the memory mapping.
          */
+	paddr = 0;
         error = bus_dmamap_load(adapter->rxtag, rx_buffer->map,
                                 mtod(mp, void *), mp->m_len,
                                 em_dmamap_cb, &paddr, 0);
-        if (error) {
+        if (error || paddr == 0) {
                 m_free(mp);
                 return(error);
         }
@@ -2750,7 +2766,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 		    (count != 0) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		struct mbuf *m = NULL;
-		
+
 		mp = adapter->rx_buffer_area[i].m_head;
 		bus_dmamap_sync(adapter->rxtag, adapter->rx_buffer_area[i].map,
 				BUS_DMASYNC_POSTREAD);
@@ -2837,10 +2853,10 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
                                 em_receive_checksum(adapter, current_desc,
                                                     adapter->fmp);
                                 if (current_desc->status & E1000_RXD_STAT_VP)
-                                        VLAN_INPUT_TAG(ifp, adapter->fmp,
-                                                       (current_desc->special &
-							E1000_RXD_SPC_VLAN_MASK),
-						       adapter->fmp = NULL);
+					VLAN_INPUT_TAG(ifp, adapter->fmp,
+					    (le16toh(current_desc->special) &
+					    E1000_RXD_SPC_VLAN_MASK),
+					    adapter->fmp = NULL);
 
 				m = adapter->fmp;
 				adapter->fmp = NULL;
@@ -3025,19 +3041,6 @@ em_pci_clear_mwi(struct em_hw *hw)
         return;
 }
 
-uint32_t 
-em_io_read(struct em_hw *hw, unsigned long port)
-{
-	return(inl(port));
-}
-
-void 
-em_io_write(struct em_hw *hw, unsigned long port, uint32_t value)
-{
-	outl(port, value);
-	return;
-}
-
 /*********************************************************************
 * 82544 Coexistence issue workaround.
 *    There are 2 issues.
@@ -3057,7 +3060,7 @@ em_io_write(struct em_hw *hw, unsigned long port, uint32_t value)
 *
 *** *********************************************************************/
 static u_int32_t
-em_fill_descriptors (u_int64_t address,
+em_fill_descriptors (bus_addr_t address,
                               u_int32_t length,
                               PDESC_ARRAY desc_array)
 {

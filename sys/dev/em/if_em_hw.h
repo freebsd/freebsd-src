@@ -425,9 +425,7 @@ void em_pci_clear_mwi(struct em_hw *hw);
 void em_read_pci_cfg(struct em_hw *hw, uint32_t reg, uint16_t * value);
 void em_write_pci_cfg(struct em_hw *hw, uint32_t reg, uint16_t * value);
 /* Port I/O is only supported on 82544 and newer */
-uint32_t em_io_read(struct em_hw *hw, unsigned long port);
 uint32_t em_read_reg_io(struct em_hw *hw, uint32_t offset);
-void em_io_write(struct em_hw *hw, unsigned long port, uint32_t value);
 void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 int32_t em_config_dsp_after_link_change(struct em_hw *hw, boolean_t link_up);
 int32_t em_set_d3_lplu_state(struct em_hw *hw, boolean_t active);
@@ -444,6 +442,15 @@ int32_t em_get_hw_eeprom_semaphore(struct em_hw *hw);
 void em_put_hw_eeprom_semaphore(struct em_hw *hw);
 int32_t em_commit_shadow_ram(struct em_hw *hw);
 uint8_t em_arc_subsystem_valid(struct em_hw *hw);
+
+#define E1000_BAR_TYPE(v)		((v) & E1000_BAR_TYPE_MASK)
+#define E1000_BAR_TYPE_MASK		0x00000001
+#define E1000_BAR_TYPE_MEM		0x00000000
+#define E1000_BAR_TYPE_IO		0x00000001
+#define E1000_BAR_MEM_TYPE(v)		((v) & E1000_BAR_MEM_TYPE_MASK)
+#define E1000_BAR_MEM_TYPE_MASK		0x00000006
+#define E1000_BAR_MEM_TYPE_32BIT	0x00000000
+#define E1000_BAR_MEM_TYPE_64BIT	0x00000004
 
 #define E1000_READ_REG_IO(a, reg) \
     em_read_reg_io((a), E1000_##reg)
