@@ -163,3 +163,6 @@ ASR_COMPAT		opt_asr.h
 # Debugging
 STOP_NMI		opt_cpu.h
 NPX_DEBUG		opt_npx.h
+
+# XBOX support in the kernel
+XBOX			opt_xbox.h
