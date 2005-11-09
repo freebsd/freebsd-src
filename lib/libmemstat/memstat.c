@@ -53,6 +53,12 @@ memstat_strerror(int error)
 		return ("Too many CPUs");
 	case MEMSTAT_ERROR_DATAERROR:
 		return ("Data format error");
+	case MEMSTAT_ERROR_KVM:
+		return ("KVM error");
+	case MEMSTAT_ERROR_KVM_NOSYMBOL:
+		return ("KVM unable to find symbol");
+	case MEMSTAT_ERROR_KVM_SHORTREAD:
+		return ("KVM short read");
 	case MEMSTAT_ERROR_UNDEFINED:
 	default:
 		return ("Unknown error");
