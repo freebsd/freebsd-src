@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 07, 2005
+.Dd October 10, 2005
 .Dt ALTQ 4
 .Os
 .Sh NAME
@@ -146,9 +146,10 @@ and thus all encapsulated drivers.
 .Pp
 The
 .Xr tun 4
-pseudo driver also does support
-.Nm
-and includes the required modifications.
+and
+.Xr ng_iface 4
+pseudo drivers also do support
+.Nm .
 .Sh SEE ALSO
 .Xr pf 4 ,
 .Xr pf.conf 5 ,
