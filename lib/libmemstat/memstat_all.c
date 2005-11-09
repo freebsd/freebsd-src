@@ -50,10 +50,8 @@ int
 memstat_kvm_all(struct memory_type_list *mtlp, void *kvm_handle)
 {
 
-#if NOTYET
 	if (memstat_kvm_malloc(mtlp, kvm_handle) < 0)
 		return (-1);
-#endif
 	if (memstat_kvm_uma(mtlp, kvm_handle) < 0)
 		return (-1);
 	return (0);
