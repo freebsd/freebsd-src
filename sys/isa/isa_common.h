@@ -81,3 +81,5 @@ extern int isa_teardown_intr(device_t bus, device_t child,
 			     struct resource *r, void *cookie);
 #endif
 
+extern driver_t isa_driver;
+extern devclass_t isa_devclass;

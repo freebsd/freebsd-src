@@ -59,7 +59,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 
@@ -157,3 +159,8 @@ isa_teardown_intr(device_t bus, device_t child, struct resource *r,
 {
 	return (BUS_TEARDOWN_INTR(device_get_parent(bus), child, r, cookie));
 }
+
+/*
+ * On this platform, isa can also attach to the legacy bus.
+ */
+DRIVER_MODULE(isa, legacy, isa_driver, isa_devclass, 0, 0);

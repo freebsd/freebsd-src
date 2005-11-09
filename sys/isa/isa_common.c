@@ -81,7 +81,6 @@ static int	isa_print_child(device_t bus, device_t dev);
 
 static MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
 
-static devclass_t isa_devclass;
 static int isa_running;
 
 /*
@@ -1102,20 +1101,20 @@ static device_method_t isa_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t isa_driver = {
+driver_t isa_driver = {
 	"isa",
 	isa_methods,
 	1,			/* no softc */
 };
 
+devclass_t isa_devclass;
+
 /*
- * ISA can be attached to a PCI-ISA bridge or directly to the legacy device.
+ * ISA can be attached to a PCI-ISA bridge, or other locations on some
+ * platforms.
  */
 DRIVER_MODULE(isa, isab, isa_driver, isa_devclass, 0, 0);
 DRIVER_MODULE(isa, eisab, isa_driver, isa_devclass, 0, 0);
-#if defined(__i386__) || defined(__amd64__)
-DRIVER_MODULE(isa, legacy, isa_driver, isa_devclass, 0, 0);
-#endif
 MODULE_VERSION(isa, 1);
 
 /*
