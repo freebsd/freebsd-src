@@ -527,7 +527,6 @@ hint.cx.0.irq="15"
 hint.cx.0.drq="7"
 #options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
 device		ed
-#options 	ED_NO_MIIBUS		# Disable ed miibus support
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
