@@ -134,9 +134,7 @@
  * family domain. This means the AF_NETGRAPH entry in ifp->if_afdata
  * should be unused, so we can use to hold our node context.
  */
-#define IFP2NG(ifp)  (struct ng_node *)(ifp->if_afdata[AF_NETGRAPH])
-#define IFP2NG_SET(ifp, val)  ifp->if_afdata[AF_NETGRAPH] = (val);
-#define FEC_INC(x, y)	(x) = (x + 1) % y
+#define	IFP2NG(ifp)	((ifp)->if_afdata[AF_NETGRAPH])
 
 /*
  * Current fast etherchannel implementations use either 2 or 4
@@ -404,7 +402,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 		return(ENOMEM);
 
 	IF_AFDATA_LOCK(bifp);
-	bifp->if_afdata[AF_NETGRAPH] = priv->node;
+	IFP2NG(bifp) = priv->node;
 	IF_AFDATA_UNLOCK(bifp);
 
 	/*
@@ -495,7 +493,7 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 
 	/* Remove our node context pointer. */
 	IF_AFDATA_LOCK(bifp);
-	bifp->if_afdata[AF_NETGRAPH] = NULL;
+	IFP2NG(bifp) = NULL;
 	IF_AFDATA_UNLOCK(bifp);
 
 	/* Delete port */
