@@ -198,7 +198,6 @@ struct mtx pmap_ridmutex;
  */
 static uma_zone_t pvzone;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
-int pmap_pagedaemon_waken;
 
 /*
  * Data for allocating PTEs for user processes.
@@ -232,11 +231,15 @@ static int pmap_vhpt_population(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_machdep_vhpt, OID_AUTO, population, CTLTYPE_INT | CTLFLAG_RD,
     NULL, 0, pmap_vhpt_population, "I", "");
 
+static struct ia64_lpte *pmap_find_vhpt(vm_offset_t va);
+
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
-static pv_entry_t get_pv_entry(void);
+static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 
 static pmap_t	pmap_install(pmap_t);
 static void	pmap_invalidate_all(pmap_t pmap);
+static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
+		    vm_offset_t va, pv_entry_t pv, int freepte);
 
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
@@ -807,19 +810,69 @@ free_pv_entry(pv_entry_t pv)
 /*
  * get a new pv_entry, allocating a block from the system
  * when needed.
- * the memory allocation is performed bypassing the malloc code
- * because of the possibility of allocations at interrupt time.
  */
 static pv_entry_t
-get_pv_entry(void)
+get_pv_entry(pmap_t locked_pmap)
 {
-	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-		(pmap_pagedaemon_waken == 0)) {
-		pmap_pagedaemon_waken = 1;
-		wakeup (&vm_pages_needed);
+	static const struct timeval printinterval = { 60, 0 };
+	static struct timeval lastprint;
+	struct vpgqueues *vpq;
+	struct ia64_lpte *pte;
+	pmap_t oldpmap, pmap;
+	pv_entry_t allocated_pv, next_pv, pv;
+	vm_offset_t va;
+	vm_page_t m;
+
+	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	allocated_pv = uma_zalloc(pvzone, M_NOWAIT);
+	if (allocated_pv != NULL) {
+		pv_entry_count++;
+		if (pv_entry_count > pv_entry_high_water)
+			pagedaemon_wakeup();
+		else
+			return (allocated_pv);
 	}
-	return uma_zalloc(pvzone, M_NOWAIT);
+
+	/*
+	 * Reclaim pv entries: At first, destroy mappings to inactive
+	 * pages.  After that, if a pv entry is still needed, destroy
+	 * mappings to active pages.
+	 */
+	if (ratecheck(&lastprint, &printinterval))
+		printf("Approaching the limit on PV entries, "
+		    "increase the vm.pmap.shpgperproc tunable.\n");
+	vpq = &vm_page_queues[PQ_INACTIVE];
+retry:
+	TAILQ_FOREACH(m, &vpq->pl, pageq) {
+		if (m->hold_count || m->busy || (m->flags & PG_BUSY))
+			continue;
+		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
+			va = pv->pv_va;
+			pmap = pv->pv_pmap;
+			if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
+				continue;
+			oldpmap = pmap_install(pmap);
+			pte = pmap_find_vhpt(va);
+			KASSERT(pte != NULL, ("pte"));
+			pmap_remove_pte(pmap, pte, va, pv, 1);
+			pmap_install(oldpmap);
+			if (pmap != locked_pmap)
+				PMAP_UNLOCK(pmap);
+			if (allocated_pv == NULL)
+				allocated_pv = pv;
+			else
+				free_pv_entry(pv);
+		}
+	}
+	if (allocated_pv == NULL) {
+		if (vpq == &vm_page_queues[PQ_INACTIVE]) {
+			vpq = &vm_page_queues[PQ_ACTIVE];
+			goto retry;
+		}
+		panic("get_pv_entry: increase the vm.pmap.shpgperproc tunable");
+	}
+	return (allocated_pv);
 }
 
 /*
@@ -959,9 +1012,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pv_entry_t pv;
 
-	pv = get_pv_entry();
-	if (pv == NULL)
-		panic("no pv entries: increase vm.pmap.shpgperproc");
+	pv = get_pv_entry(pmap);
 	pv->pv_pmap = pmap;
 	pv->pv_va = va;
 

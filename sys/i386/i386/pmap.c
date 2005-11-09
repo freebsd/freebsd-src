@@ -208,7 +208,6 @@ static uma_zone_t pdptzone;
 static uma_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
-int pmap_pagedaemon_waken;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -255,8 +254,7 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 static struct mtx PMAP2mutex;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
-static pv_entry_t get_pv_entry(void);
-static pv_entry_t pv_entry_reclaim(pmap_t locked_pmap);
+static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 static void	pmap_clear_ptes(vm_page_t m, int bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
@@ -1442,40 +1440,45 @@ free_pv_entry(pv_entry_t pv)
 /*
  * get a new pv_entry, allocating a block from the system
  * when needed.
- * the memory allocation is performed bypassing the malloc code
- * because of the possibility of allocations at interrupt time.
  */
 static pv_entry_t
-get_pv_entry(void)
+get_pv_entry(pmap_t locked_pmap)
 {
-	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-		(pmap_pagedaemon_waken == 0)) {
-		pmap_pagedaemon_waken = 1;
-		wakeup (&vm_pages_needed);
-	}
-	return uma_zalloc(pvzone, M_NOWAIT);
-}
-
-/*
- * Reclaim a pv entry by removing a mapping to an inactive page.
- */
-static pv_entry_t
-pv_entry_reclaim(pmap_t locked_pmap)
-{
+	static const struct timeval printinterval = { 60, 0 };
+	static struct timeval lastprint;
+	struct vpgqueues *vpq;
 	pmap_t pmap;
 	pt_entry_t *pte, tpte;
-	pv_entry_t pv;
+	pv_entry_t allocated_pv, next_pv, pv;
 	vm_offset_t va;
 	vm_page_t m;
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	allocated_pv = uma_zalloc(pvzone, M_NOWAIT);
+	if (allocated_pv != NULL) {
+		pv_entry_count++;
+		if (pv_entry_count > pv_entry_high_water)
+			pagedaemon_wakeup();
+		else
+			return (allocated_pv);
+	}
+
+	/*
+	 * Reclaim pv entries: At first, destroy mappings to inactive
+	 * pages.  After that, if a pv entry is still needed, destroy
+	 * mappings to active pages.
+	 */
+	if (ratecheck(&lastprint, &printinterval))
+		printf("Approaching the limit on PV entries, "
+		    "increase the vm.pmap.shpgperproc tunable.\n");
+	vpq = &vm_page_queues[PQ_INACTIVE];
+retry:
 	sched_pin();
-	TAILQ_FOREACH(m, &vm_page_queues[PQ_INACTIVE].pl, pageq) {
+	TAILQ_FOREACH(m, &vpq->pl, pageq) {
 		if (m->hold_count || m->busy || (m->flags & PG_BUSY))
 			continue;
-		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
 			va = pv->pv_va;
 			pmap = pv->pv_pmap;
 			if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
@@ -1484,13 +1487,12 @@ pv_entry_reclaim(pmap_t locked_pmap)
 			pte = pmap_pte_quick(pmap, va);
 			tpte = pte_load_clear(pte);
 			KASSERT((tpte & PG_W) == 0,
-			    ("pv_entry_reclaim: wired pte %#jx",
-			    (uintmax_t)tpte));
+			    ("get_pv_entry: wired pte %#jx", (uintmax_t)tpte));
 			if (tpte & PG_A)
 				vm_page_flag_set(m, PG_REFERENCED);
 			if (tpte & PG_M) {
 				KASSERT((tpte & PG_RW),
-	("pv_entry_reclaim: modified page not writable: va: %#x, pte: %#jx",
+	("get_pv_entry: modified page not writable: va: %#x, pte: %#jx",
 				    va, (uintmax_t)tpte));
 				if (pmap_track_modified(va))
 					vm_page_dirty(m);
@@ -1504,12 +1506,21 @@ pv_entry_reclaim(pmap_t locked_pmap)
 			pmap_unuse_pt(pmap, va);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
-			sched_unpin();
-			return (pv);
+			if (allocated_pv == NULL)
+				allocated_pv = pv;
+			else
+				free_pv_entry(pv);
 		}
 	}
 	sched_unpin();
-	panic("pv_entry_reclaim: increase vm.pmap.shpgperproc");
+	if (allocated_pv == NULL) {
+		if (vpq == &vm_page_queues[PQ_INACTIVE]) {
+			vpq = &vm_page_queues[PQ_ACTIVE];
+			goto retry;
+		}
+		panic("get_pv_entry: increase the vm.pmap.shpgperproc tunable");
+	}
+	return (allocated_pv);
 }
 
 static void
@@ -1548,11 +1559,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pv_entry_t pv;
 
-	pv = get_pv_entry();
-	if (pv == NULL) {
-		pv_entry_count--;
-		pv = pv_entry_reclaim(pmap);
-	}
+	pv = get_pv_entry(pmap);
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
 

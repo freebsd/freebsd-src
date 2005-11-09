@@ -90,8 +90,6 @@ struct thread;
  */
 extern vm_offset_t kernel_vm_end;
 
-extern	int	 pmap_pagedaemon_waken;
-
 void		 pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
 void		 pmap_clear_modify(vm_page_t m);
 void		 pmap_clear_reference(vm_page_t m);
