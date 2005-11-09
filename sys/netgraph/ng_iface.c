@@ -123,6 +123,8 @@ static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
 			struct sockaddr *dst, struct rtentry *rt0);
 static void	ng_iface_bpftap(struct ifnet *ifp,
 			struct mbuf *m, sa_family_t family);
+static int	ng_iface_send(struct ifnet *ifp, struct mbuf *m,
+			sa_family_t sa);
 #ifdef DEBUG
 static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
@@ -351,10 +353,8 @@ static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 		struct sockaddr *dst, struct rtentry *rt0)
 {
-	const priv_p priv = (priv_p) ifp->if_softc;
-	const iffam_p iffam = get_iffam_from_af(dst->sa_family);
-	int len, error = 0;
-	u_int32_t af;
+	uint32_t af;
+	int error;
 
 	/* Check interface flags */
 	if (!((ifp->if_flags & IFF_UP) &&
@@ -372,36 +372,42 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	/* Berkeley packet filter */
 	ng_iface_bpftap(ifp, m, dst->sa_family);
 
-	/* Check address family to determine hook (if known) */
-	if (iffam == NULL) {
-		m_freem(m);
-		log(LOG_WARNING, "%s: can't handle af%d\n",
-		       ifp->if_xname, (int)dst->sa_family);
-		return (EAFNOSUPPORT);
-	}
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		M_PREPEND(m, sizeof(sa_family_t), M_DONTWAIT);
+		if (m == NULL) {
+			IFQ_LOCK(&ifp->if_snd);
+			IFQ_INC_DROPS(&ifp->if_snd);
+			IFQ_UNLOCK(&ifp->if_snd);
+			ifp->if_oerrors++;
+			return (ENOBUFS);
+		}
+		*(sa_family_t *)m->m_data = dst->sa_family;
+		IFQ_HANDOFF(ifp, m, error);
+	} else
+		error = ng_iface_send(ifp, m, dst->sa_family);
 
-	/* Copy length before the mbuf gets invalidated */
-	len = m->m_pkthdr.len;
-
-	/* Send packet; if hook is not connected, mbuf will get freed. */
-	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
-
-	/* Update stats */
-	if (error == 0) {
-		ifp->if_obytes += len;
-		ifp->if_opackets++;
-	}
 	return (error);
 }
 
 /*
- * This routine should never be called
+ * Start method is used only when ALTQ is enabled.
  */
-
 static void
 ng_iface_start(struct ifnet *ifp)
 {
-	if_printf(ifp, "%s called?", __func__);
+	struct mbuf *m;
+	sa_family_t sa;
+
+	KASSERT(ALTQ_IS_ENABLED(&ifp->if_snd), ("%s without ALTQ", __func__));
+
+	for(;;) {
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL)
+			break;
+		sa = *mtod(m, sa_family_t *);
+		m_adj(m, sizeof(sa_family_t));
+		ng_iface_send(ifp, m, sa);
+	}
 }
 
 /*
@@ -416,6 +422,42 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 		int32_t family4 = (int32_t)family;
 		bpf_mtap2(ifp->if_bpf, &family4, sizeof(family4), m);
 	}
+}
+
+/*
+ * This routine does actual delivery of the packet into the
+ * netgraph(4). It is called from ng_iface_start() and
+ * ng_iface_output().
+ */
+static int
+ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
+{
+	const priv_p priv = (priv_p) ifp->if_softc;
+	const iffam_p iffam = get_iffam_from_af(sa);
+	int error;
+	int len;
+
+	/* Check address family to determine hook (if known) */
+	if (iffam == NULL) {
+		m_freem(m);
+		log(LOG_WARNING, "%s: can't handle af%d\n", ifp->if_xname, sa);
+		return (EAFNOSUPPORT);
+	}
+
+	/* Copy length before the mbuf gets invalidated. */
+	len = m->m_pkthdr.len;
+
+	/* Send packet. If hook is not connected,
+	   mbuf will get freed. */
+	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
+
+	/* Update stats. */
+	if (error == 0) {
+		ifp->if_obytes += len;
+		ifp->if_opackets++;
+	}
+
+	return (error);
 }
 
 #ifdef DEBUG
@@ -493,13 +535,15 @@ ng_iface_constructor(node_p node)
 	ifp->if_start = ng_iface_start;
 	ifp->if_ioctl = ng_iface_ioctl;
 	ifp->if_watchdog = NULL;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_mtu = NG_IFACE_MTU_DEFAULT;
 	ifp->if_flags = (IFF_SIMPLEX|IFF_POINTOPOINT|IFF_NOARP|IFF_MULTICAST);
 	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
 	ifp->if_baudrate = 64000;		/* XXX */
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Give this node the same name as the interface (if possible) */
 	if (ng_name_node(node, ifp->if_xname) != 0)
