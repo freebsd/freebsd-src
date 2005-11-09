@@ -41,30 +41,24 @@ static struct domain	atalkdomain;
 static struct protosw	atalksw[] = {
     {
 	/* Identifiers */
-	SOCK_DGRAM,	&atalkdomain,	ATPROTO_DDP,	PR_ATOMIC|PR_ADDR,
-	/*
-	 * protocol-protocol interface.
-	 * fields are pr_input, pr_output, pr_ctlinput, and pr_ctloutput.
-	 * pr_input can be called from the udp protocol stack for iptalk
-	 * packets bound for a local socket.
-	 * pr_output can be used by higher level appletalk protocols, should
-	 * they be included in the kernel.
-	 */
-	0,		ddp_output,	0,		0,
-	/* socket-protocol interface. deprecated */
-	NULL,
-	/* utility routines. */
-	ddp_init,	0,		0,		0,
-	&ddp_usrreqs
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&atalkdomain,
+	.pr_protocol =		ATPROTO_DDP,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_output =		ddp_output,
+	.pr_init =		ddp_init,
+	.pr_usrreqs =		&ddp_usrreqs
     },
 };
 
 static struct domain	atalkdomain = {
-    AF_APPLETALK,	"appletalk",	0,	0,	0,
-    atalksw, &atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
-    0, rn_inithead,
-    8 * (u_long) &((struct sockaddr_at *) 0)->sat_addr,
-    sizeof(struct sockaddr_at)
+	.dom_family =		AF_APPLETALK,
+	.dom_name =		"appletalk",
+	.dom_protosw =		atalksw,
+	.dom_protoswNPROTOSW =	&atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
+	.dom_rtattach =		rn_inithead,
+	.dom_rtoffset =		offsetof(struct sockaddr_at, sat_addr) << 3,
+	.dom_maxrtkey =		sizeof(struct sockaddr_at)
 };
 
 DOMAIN_SET(atalk);

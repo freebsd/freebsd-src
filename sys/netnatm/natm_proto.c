@@ -57,30 +57,36 @@ static	void natm_init(void);
 static struct domain natmdomain;
 
 static struct protosw natmsw[] = {
-{ SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL5, PR_CONNREQUIRED,
-  0,	0,	0,	0,
-  0,
-  0,	0,	0,	0,	
-        &natm_usrreqs
+{
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&natmdomain,
+	.pr_protocol =		PROTO_NATMAAL5,
+	.pr_flags =		PR_CONNREQUIRED,
+	.pr_usrreqs =		&natm_usrreqs
 },
-{ SOCK_DGRAM,	&natmdomain,	PROTO_NATMAAL5,	PR_CONNREQUIRED | PR_ATOMIC,
-  0,	0,	0,	0,
-  0,
-  0,	0,	0,	0,	
-        &natm_usrreqs
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&natmdomain,
+	.pr_protocol =		PROTO_NATMAAL5,
+	.pr_flags =		PR_CONNREQUIRED|PR_ATOMIC,
+	.pr_usrreqs =		&natm_usrreqs
 },
-{ SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL0, PR_CONNREQUIRED,
-  0,	0,	0,	0,
-  0,
-  0,	0,	0,	0,	
-        &natm_usrreqs
+{
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&natmdomain,
+	.pr_protocol =		PROTO_NATMAAL0,
+	.pr_flags =		PR_CONNREQUIRED,
+	.pr_usrreqs =		&natm_usrreqs
 },
 };
 
-static struct domain natmdomain =
-    { AF_NATM, "natm", natm_init, 0, 0, 
-      natmsw, &natmsw[sizeof(natmsw)/sizeof(natmsw[0])], 0,
-      0, 0, 0};
+static struct domain natmdomain = {
+	.dom_family =		AF_NATM,
+	.dom_name =		"natm",
+	.dom_init =		natm_init,
+	.dom_protosw =		natmsw,
+	.dom_protoswNPROTOSW =	&natmsw[sizeof(natmsw)/sizeof(natmsw[0])],
+};
 
 static int natmqmaxlen = 1000 /* IFQ_MAXLEN */;	/* max # of packets on queue */
 static struct ifqueue natmintrq;

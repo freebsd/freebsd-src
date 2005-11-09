@@ -150,12 +150,15 @@ static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
 static const int ip_stf_ttl = 40;
 
 extern  struct domain inetdomain;
-struct protosw in_stf_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
-  in_stf_input,	(pr_output_t*)rip_output, 0,	rip_ctloutput,
-  0,
-  0,            0,              0,              0,
-  &rip_usrreqs
+struct protosw in_stf_protosw = {
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_IPV6,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		in_stf_input,
+	.pr_output =		(pr_output_t *)rip_output,
+	.pr_ctloutput =		rip_ctloutput,
+	.pr_usrreqs =		&rip_usrreqs
 };
 
 static char *stfnames[] = {"stf0", "stf", "6to4", NULL};
