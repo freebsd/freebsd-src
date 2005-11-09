@@ -42,7 +42,7 @@ static struct task	 power_pm_task;
 static void
 power_pm_deferred_fn(void *arg, int pending)
 {
-	int state = (int)arg;
+	int state = (intptr_t)arg;
 
 	power_pm_fn(POWER_CMD_SUSPEND, power_pm_arg, state);
 }
@@ -83,7 +83,7 @@ power_pm_suspend(int state)
 	    state != POWER_SLEEP_STATE_SUSPEND &&
 	    state != POWER_SLEEP_STATE_HIBERNATE)
 		return;
-	power_pm_task.ta_context = (void *)state;
+	power_pm_task.ta_context = (void *)(intptr_t)state;
 	taskqueue_enqueue(taskqueue_swi, &power_pm_task);
 }
 
