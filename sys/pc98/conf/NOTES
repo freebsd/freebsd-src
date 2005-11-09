@@ -374,7 +374,6 @@ hint.mse.0.irq="13"
 device		ar
 device		cp
 device		ed
-#options 	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
