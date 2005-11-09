@@ -796,7 +796,7 @@ em_watchdog(struct ifnet *ifp)
 		printf("em%d: watchdog timeout -- resetting\n", adapter->unit);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ifp->if_oerrors++;
+	adapter->watchdog_events++;
 
 	em_init_locked(adapter);
 	EM_UNLOCK(adapter);
@@ -1019,7 +1019,7 @@ em_intr(void *arg)
 		}
 
 		if (reg_icr & E1000_ICR_RXO) {
-			log(LOG_WARNING, "%s: RX overrun\n", ifp->if_xname);
+			adapter->rx_overruns++;
 			wantinit = 1;
 		}
 	}
@@ -3193,7 +3193,8 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.mpc + adapter->stats.cexterr;
 
 	/* Tx Errors */
-	ifp->if_oerrors = adapter->stats.ecol + adapter->stats.latecol;
+	ifp->if_oerrors = adapter->stats.ecol + adapter->stats.latecol +
+	    adapter->watchdog_events;
 
 }
 
@@ -3272,6 +3273,9 @@ em_print_hw_stats(struct adapter *adapter)
                (long long)adapter->stats.algnerrc);
         printf("em%d: Carrier extension errors = %lld\n", unit,
                (long long)adapter->stats.cexterr);
+	printf("em%d: RX overruns = %ld\n", unit, adapter->rx_overruns);
+	printf("em%d: watchdog timeouts = %ld\n", unit,
+		adapter->watchdog_events);
 
         printf("em%d: XON Rcvd = %lld\n", unit,
                (long long)adapter->stats.xonrxc);

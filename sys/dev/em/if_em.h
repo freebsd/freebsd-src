@@ -48,7 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -387,6 +386,8 @@ struct adapter {
 	unsigned long   no_tx_desc_avail2;
 	unsigned long   no_tx_map_avail;
         unsigned long   no_tx_dma_setup;
+	unsigned long	watchdog_events;
+	unsigned long	rx_overruns;
 
 	/* Used in for 82547 10Mb Half workaround */
 	#define EM_PBA_BYTES_SHIFT	0xA
