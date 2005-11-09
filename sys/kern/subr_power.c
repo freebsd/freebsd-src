@@ -32,10 +32,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 
 #include <sys/power.h>
+#include <sys/taskqueue.h>
 
 static u_int		 power_pm_type	= POWER_PM_TYPE_NONE;
 static power_pm_fn_t	 power_pm_fn	= NULL;
 static void		*power_pm_arg	= NULL;
+static struct task	 power_pm_task;
+
+static void
+power_pm_deferred_fn(void *arg, int pending)
+{
+	int state = (int)arg;
+
+	power_pm_fn(POWER_CMD_SUSPEND, power_pm_arg, state);
+}
 
 int
 power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg)
@@ -48,6 +58,7 @@ power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg)
 		power_pm_fn	= pm_fn;
 		power_pm_arg	= pm_arg;
 		error = 0;
+		TASK_INIT(&power_pm_task, 0, power_pm_deferred_fn, NULL);
 	} else {
 		error = ENXIO;
 	}
@@ -72,8 +83,8 @@ power_pm_suspend(int state)
 	    state != POWER_SLEEP_STATE_SUSPEND &&
 	    state != POWER_SLEEP_STATE_HIBERNATE)
 		return;
-
-	power_pm_fn(POWER_CMD_SUSPEND, power_pm_arg, state);
+	power_pm_task.ta_context = (void *)state;
+	taskqueue_enqueue(taskqueue_swi, &power_pm_task);
 }
 
 /*
