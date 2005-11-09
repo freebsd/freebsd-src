@@ -72,6 +72,9 @@
 #define	MEMSTAT_ERROR_PERMISSION	3	/* Permission denied. */
 #define	MEMSTAT_ERROR_TOOMANYCPUS	4	/* Too many CPUs. */
 #define	MEMSTAT_ERROR_DATAERROR		5	/* Error in stat data. */
+#define	MEMSTAT_ERROR_KVM		6	/* See kvm_geterr() for err. */
+#define	MEMSTAT_ERROR_KVM_NOSYMBOL	7	/* Symbol not available. */
+#define	MEMSTAT_ERROR_KVM_SHORTREAD	8	/* Short kvm_read return. */
 
 /*
  * Forward declare struct memory_type, which holds per-type properties and
@@ -111,6 +114,12 @@ int	memstat_mtl_geterror(struct memory_type_list *list);
 int	memstat_sysctl_all(struct memory_type_list *list, int flags);
 int	memstat_sysctl_malloc(struct memory_type_list *list, int flags);
 int	memstat_sysctl_uma(struct memory_type_list *list, int flags);
+
+/*
+ * Functions to retrieve data from a kernel core (or /dev/kmem).
+ */
+int	memstat_kvm_all(struct memory_type_list *list, void *kvm_handle);
+int	memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle);
 
 /*
  * Accessor methods for struct memory_type.
