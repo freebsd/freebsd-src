@@ -585,11 +585,15 @@ SYSCTL_NODE(_net, PF_KEY, key, CTLFLAG_RW, 0, "Key Family");
 extern struct domain keydomain;
 
 struct protosw keysw[] = {
-{ SOCK_RAW,	&keydomain,	PF_KEY_V2,	PR_ATOMIC|PR_ADDR,
-  0,		(pr_output_t *)key_output,	raw_ctlinput, 0,
-  0,
-  raw_init,	0,		0,		0,
-  &key_usrreqs
+{
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&keydomain,
+	.pr_protocol =		PF_KEY_V2,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_output =		(pr_output_t *)key_output,
+	.pr_ctlinput =		raw_ctlinput,
+	.pr_init =		raw_init,
+	.pr_usrreqs =		&key_usrreqs
 }
 };
 
@@ -600,8 +604,12 @@ key_init0(void)
 	key_init();
 }
 
-struct domain keydomain =
-    { PF_KEY, "key", key_init0, 0, 0,
-      keysw, &keysw[sizeof(keysw)/sizeof(keysw[0])] };
+struct domain keydomain = {
+	.dom_family =		PF_KEY,
+	.dom_name =		"key",
+	.dom_init =		key_init0,
+	.dom_protosw =		keysw,
+	.dom_protoswNPROTOSW =	&keysw[sizeof(keysw)/sizeof(keysw[0])]
+};
 
 DOMAIN_SET(key);

@@ -54,65 +54,43 @@ __FBSDID("$FreeBSD$");
 NET_NEEDS_GIANT("netatm");
 
 struct protosw atmsw[] = {
-{	SOCK_DGRAM,				/* ioctl()-only */
-	&atmdomain,
-	0,
-	0,
-	0,			/* pr_input */
-	0,			/* pr_output */
-	0,			/* pr_ctlinput */
-	0,			/* pr_ctloutput */
-	0,			/* pr_ousrreq */
-	0,			/* pr_init */
-	0,			/* pr_fasttimo */
-	0,			/* pr_slowtimo */
-	0,			/* pr_drain */
-	&atm_dgram_usrreqs,	/* pr_usrreqs */
+{
+	.pr_type =		SOCK_DGRAM,		/* ioctl()-only */
+	.pr_domain =		&atmdomain,
+	.pr_usrreqs =		&atm_dgram_usrreqs
 },
 
-{	SOCK_SEQPACKET,				/* AAL-5 */
-	&atmdomain,
-	ATM_PROTO_AAL5,
-	PR_ATOMIC|PR_CONNREQUIRED,
-	0,			/* pr_input */
-	0,			/* pr_output */
-	0,			/* pr_ctlinput */
-	atm_aal5_ctloutput,	/* pr_ctloutput */
-	0,			/* pr_ousrreq */
-	0,			/* pr_init */
-	0,			/* pr_fasttimo */
-	0,			/* pr_slowtimo */
-	0,			/* pr_drain */
-	&atm_aal5_usrreqs,	/* pr_usrreqs */
+{
+	.pr_type =		SOCK_SEQPACKET,		/* AAL-5 */
+	.pr_domain =		&atmdomain,
+	.pr_protocol =		ATM_PROTO_AAL5,
+	.pr_flags =		PR_ATOMIC|PR_CONNREQUIRED,
+	.pr_ctloutput =		atm_aal5_ctloutput,
+	.pr_usrreqs =		&atm_aal5_usrreqs
 },
 
 #ifdef XXX
-{	SOCK_SEQPACKET,				/* SSCOP */
-	&atmdomain,
-	ATM_PROTO_SSCOP,
-	PR_ATOMIC|PR_CONNREQUIRED|PR_WANTRCVD,
-	x,			/* pr_input */
-	x,			/* pr_output */
-	x,			/* pr_ctlinput */
-	x,			/* pr_ctloutput */
-	0,			/* pr_ousrreq */
-	0,			/* pr_init */
-	0,			/* pr_fasttimo */
-	0,			/* pr_slowtimo */
-	x,			/* pr_drain */
-	x,			/* pr_usrreqs */
+{
+	.pr_type =		SOCK_SEQPACKET,		/* SSCOP */
+	.pr_domain =		&atmdomain,
+	.pr_protocol =		ATM_PROTO_SSCOP,
+	.pr_flags =		PR_ATOMIC|PR_CONNREQUIRED|PR_WANTRCVD,
+	.pr_input =		x,
+	.pr_output =		x,
+	.pr_ctlinput =		x,
+	.pr_ctloutput =		x,
+	.pr_drain =		x,
+	.pr_usrreqs =		x
 },
 #endif
 };
 
 struct domain atmdomain = {
-	AF_ATM,
-	"atm",
-	atm_initialize,
-	0,
-	0, 
-	atmsw,
-	&atmsw[sizeof(atmsw) / sizeof(atmsw[0])]
+	.dom_family =		AF_ATM,
+	.dom_name =		"atm",
+	.dom_init =		atm_initialize,
+	.dom_protosw =		atmsw,
+	.dom_protoswNPROTOSW =	&atmsw[sizeof(atmsw) / sizeof(atmsw[0])]
 };
 
 DOMAIN_SET(atm);
