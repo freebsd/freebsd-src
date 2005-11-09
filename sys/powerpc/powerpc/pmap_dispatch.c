@@ -75,7 +75,6 @@ vm_offset_t phys_avail[PHYS_AVAIL_SZ];
 vm_offset_t virtual_avail;
 vm_offset_t virtual_end;
 
-int pmap_pagedaemon_waken;
 int pmap_bootstrapped;
 
 void
