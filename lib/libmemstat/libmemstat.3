@@ -375,7 +375,7 @@ The string representation of the error may be retrieved using
 .Fn memstat_strerror .
 Possible error values are:
 .Pp
-.Bl -tag -width "MEMSTAT_ERROR_TOOMANYCPUS" -compact -offset wee
+.Bl -tag -width "MEMSTAT_ERROR_KVM_SHORTREAD" -compact -offset wee
 .It Dv MEMSTAT_ERROR_UNDEFINED
 Undefined error.  Occurs if
 .Fn memstat_mtl_geterror
@@ -407,6 +407,24 @@ Returned if
 .Nm
 is unable to interpret statistics data returned by the data source, even
 though there does not appear to be a version problem.
+.It Dv MEMSTAT_ERROR_KVM
+Returned if
+.Nm
+experiences an error while using
+.Xr kvm 3
+interfaces to query statistics data.
+Use
+.Xr kvm_geterr 3
+to retrieve the error.
+.It Dv MEMSTAT_ERROR_KVM_NOSYMBOL
+Returned if
+.Nm
+is unable to read a required symbol from the kernel being operated on.
+.It Dv MEMSTAT_ERROR_KVM_SHORTREAD
+Returned if
+.Nm
+attempts to read data from a live memory image or kernel core dump and
+insufficient data is returned.
 .El
 .Pp
 Finally, functions returning data from a
@@ -453,7 +471,7 @@ monitoring library, along with the library, were written by
 .Sh BUGS
 There are memory allocators in the kernel, such as the VM page allocator
 and sf_buf allocator, which are not currently supported by
-.Nm.
+.Nm
 .Pp
 Once a memory type is present on a memory type list, it will not be removed
 even if the kernel no longer presents information on the type via its
