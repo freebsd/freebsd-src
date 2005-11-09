@@ -1740,8 +1740,9 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
 	    start, end, count, flags);
 	if (res == NULL) {
-		device_printf(child, "%#lx bytes of rid %#x res %d failed.\n",
-		    count, *rid, type);
+		device_printf(child,
+		    "%#lx bytes of rid %#x res %d failed (%#lx, %#lx).\n",
+		    count, *rid, type, start, end);
 		goto out;
 	}
 	resource_list_add(rl, type, *rid, start, end, count);
