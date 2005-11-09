@@ -151,10 +151,10 @@ static kvm_t   *kd;
 static void	cpustats(void);
 static void	devstats(void);
 static void	doforkst(void);
-static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
 static void	dovmstat(unsigned int, int);
+static void	domemstat_malloc(void);
 static void	domemstat_zone(void);
 static void	kread(int, void *, size_t);
 static void	kreado(int, void *, size_t, size_t);
@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 	if (todo & FORKSTAT)
 		doforkst();
 	if (todo & MEMSTAT)
-		domem();
+		domemstat_malloc();
 	if (todo & ZMEMSTAT)
 		domemstat_zone();
 	if (todo & SUMSTAT)
@@ -902,17 +902,29 @@ domemstat_malloc(void)
 {
 	struct memory_type_list *mtlp;
 	struct memory_type *mtp;
-	int first, i;
+	int error, first, i;
 
 	mtlp = memstat_mtl_alloc();
 	if (mtlp == NULL) {
 		warn("memstat_mtl_alloc");
 		return;
 	}
-	if (memstat_sysctl_malloc(mtlp, 0) < 0) {
-		warnx("memstat_sysctl_malloc: %s",
-		    memstat_strerror(memstat_mtl_geterror(mtlp)));
-		return;
+	if (kd == NULL) {
+		if (memstat_sysctl_malloc(mtlp, 0) < 0) {
+			warnx("memstat_sysctl_malloc: %s",
+			    memstat_strerror(memstat_mtl_geterror(mtlp)));
+			return;
+		}
+	} else {
+		if (memstat_kvm_malloc(mtlp, kd) < 0) {
+			error = memstat_mtl_geterror(mtlp);
+			if (error == MEMSTAT_ERROR_KVM)
+				warnx("memstat_kvm_malloc: %s",
+				    kvm_geterr(kd));
+			else
+				warnx("memstat_kvm_malloc: %s",
+				    memstat_strerror(error));
+		}
 	}
 	printf("%13s %5s %6s %7s %8s  Size(s)\n", "Type", "InUse", "MemUse",
 	    "HighUse", "Requests");
@@ -982,95 +994,6 @@ domemstat_zone(void)
 	}
 	memstat_mtl_free(mtlp);
 	printf("\n");
-}
-
-/*
- * domem() replicates the kernel implementation of kern.malloc by inspecting
- * kernel data structures, which is appropriate for use on a core dump.
- * domem() must identify the set of malloc types, walk the list, and coalesce
- * per-CPU state to report.  It relies on direct access to internal kernel
- * data structures that have a fragile (and intentionally unexposed) ABI.
- * This logic should not be used by live monitoring tools, which should
- * instead rely solely on the sysctl interface.
- */
-static void
-domem(void)
-{
-	struct malloc_type_stats mts_local, *mts;
-	struct malloc_type_internal mti;
-	struct malloc_type type;
-	int i;
-	
-	if (kd == NULL) {
-		domemstat_malloc();
-		return;
-	}
-	kread(X_KMEMSTATS, &type.ks_next, sizeof(type.ks_next));
-	(void)printf("\n        Type  InUse MemUse HighUse Requests"
-	    "  Size(s)\n");
-	do { 
-		/* XXX this should be exported in sys/malloc.h */
-		struct {
-			int kz_size;
-			char *kz_name;
-			/* uma_zone_t */ void *kz_zone;
-		} kz;
-		size_t kmemzonenum;
-		char *str;
-		int first;
-
-		if (kvm_read(kd, (u_long)type.ks_next, &type, sizeof(type)) !=
-		    sizeof(type))
-			errx(1, "%s: %p: %s", __func__, type.ks_next,
-			    kvm_geterr(kd));
-		if (kvm_read(kd, (u_long)type.ks_handle, &mti, sizeof(mti)) !=
-		    sizeof(mti))
-			errx(1, "%s: %p: %s", __func__, type.ks_handle,
-			    kvm_geterr(kd));
-
-		bzero(&mts_local, sizeof(mts_local));
-		for (i = 0; i < MAXCPU; i++) {
-			mts = &mti.mti_stats[i];
-			mts_local.mts_memalloced += mts->mts_memalloced;
-			mts_local.mts_memfreed += mts->mts_memfreed;
-			mts_local.mts_numallocs += mts->mts_numallocs;
-			mts_local.mts_numfrees += mts->mts_numfrees;
-			mts_local.mts_size |= mts->mts_size;
-		}
-		if (mts_local.mts_numallocs == 0)
-			continue;
-
-		/*
-		 * Unlike in kern_malloc.c, we don't mask inter-CPU races, as			 * vmstat on a core is likely for debugging purposes.
-		 */
-
-		str = kgetstr(type.ks_shortdesc);
-		(void)printf("%13s%6lu%6luK       -%9llu",
-		    str,
-		    mts_local.mts_numallocs - mts_local.mts_numfrees,
-		    ((mts_local.mts_memalloced - mts_local.mts_memfreed) +
-		    1023) / 1024,
-		    mts_local.mts_numallocs);
-		free(str);
-		for (kmemzonenum = 0, first = 1; ; kmemzonenum++) {
-			kreado(X_KMEMZONES, &kz, sizeof(kz),
-			    kmemzonenum * sizeof(kz));
-			if (kz.kz_name == NULL) {
-				(void)printf("\n");
-				break;
-			}
-			if (!(mts_local.mts_size & (1 << kmemzonenum)))
-				continue;
-			if (first)
-				(void)printf("  ");
-			else
-				(void)printf(",");
-			first = 0;
-			str = kgetstr(kz.kz_name);
-			(void)printf("%s", str);
-			free(str);
-		}
-	} while (type.ks_next != NULL);
 }
 
 /*
