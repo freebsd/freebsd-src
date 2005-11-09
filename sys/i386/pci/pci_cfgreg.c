@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_xbox.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -48,6 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <machine/pmap.h>
+
+#ifdef XBOX
+#include <machine/xbox.h>
+#endif
 
 #define PRVERB(a) do {							\
 	if (bootverbose)						\
@@ -206,6 +212,39 @@ static int
 pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 {
 	int dataport = 0;
+
+#ifdef XBOX
+	if (arch_i386_is_xbox) {
+		/*
+		 * The Xbox MCPX chipset is a derivative of the nForce 1
+		 * chipset. It almost has the same bus layout; some devices
+		 * cannot be used, because they have been removed.
+		 */
+
+		/*
+		 * Devices 00:00.1 and 00:00.2 used to be memory controllers on
+		 * the nForce chipset, but on the Xbox, using them will lockup
+		 * the chipset.
+		 */
+		if (bus == 0 && slot == 0 && (func == 1 || func == 2))
+			return dataport;
+		
+		/*
+		 * Bus 1 only contains a VGA controller at 01:00.0. When you try
+		 * to probe beyond that device, you only get garbage, which
+		 * could cause lockups.
+		 */
+		if (bus == 1 && (slot != 0 || func != 0))
+			return dataport;
+		
+		/*
+		 * Bus 2 used to contain the AGP controller, but the Xbox MCPX
+		 * doesn't have one. Probing it can cause lockups.
+		 */
+		if (bus >= 2)
+			return dataport;
+	}
+#endif
 
 	if (bus <= PCI_BUSMAX
 	    && slot < devmax

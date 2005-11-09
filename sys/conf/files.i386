@@ -462,3 +462,7 @@ pci/agp_intel.c			optional agp
 pci/agp_nvidia.c		optional agp
 pci/agp_sis.c			optional agp
 pci/agp_via.c			optional agp
+i386/xbox/xbox.c		optional	xbox
+i386/xbox/xboxfb.c		optional	xboxfb
+dev/fb/boot_font.c		optional	xboxfb
+i386/xbox/pic16l.s		optional	xbox

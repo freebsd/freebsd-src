@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_clock.h"
 #include "opt_isa.h"
 #include "opt_mca.h"
+#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -88,6 +89,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_MCA
 #include <i386/bios/mca_machdep.h>
+#endif
+
+#ifdef XBOX
+#include <machine/xbox.h>
 #endif
 
 /*
@@ -522,6 +527,11 @@ calibrate_clocks(void)
 	return (tot_count);
 
 fail:
+#ifdef XBOX
+	if (arch_i386_is_xbox)
+		timer_freq = 1125000; /* gives ~733.34MHz CPU clock */
+#endif
+
 	if (bootverbose)
 	        printf("failed, using default i8254 clock of %u Hz\n",
 		       timer_freq);
