@@ -797,6 +797,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
 	off_t off, oldoff;
+	int *tmp_ncookies = NULL;
 
 	if (ap->a_vp->v_type != VDIR)
 		return (ENOTDIR);
@@ -804,6 +805,21 @@ devfs_readdir(struct vop_readdir_args *ap)
 	uio = ap->a_uio;
 	if (uio->uio_offset < 0)
 		return (EINVAL);
+
+	/*
+	 * XXX: This is a temporary hack to get around this filesystem not
+	 * supporting cookies. We store the location of the ncookies pointer
+	 * in a temporary variable before calling vfs_subr.c:vfs_read_dirent()
+	 * and set the number of cookies to 0. We then set the pointer to
+	 * NULL so that vfs_read_dirent doesn't try to call realloc() on 
+	 * ap->a_cookies. Later in this function, we restore the ap->a_ncookies
+	 * pointer to its original location before returning to the caller.
+	 */
+	if (ap->a_ncookies != NULL) {
+		tmp_ncookies = ap->a_ncookies;
+		*ap->a_ncookies = 0;
+		ap->a_ncookies = NULL;
+	}
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
@@ -833,6 +849,14 @@ devfs_readdir(struct vop_readdir_args *ap)
 	}
 	sx_xunlock(&dmp->dm_lock);
 	uio->uio_offset = off;
+
+	/*
+	 * Restore ap->a_ncookies if it wasn't originally NULL in the first
+	 * place.
+	 */
+	if (tmp_ncookies != NULL)
+		ap->a_ncookies = tmp_ncookies;
+
 	return (error);
 }
 
