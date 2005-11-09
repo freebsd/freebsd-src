@@ -155,7 +155,7 @@ static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
 static void	dovmstat(unsigned int, int);
-static void	dozmem(void);
+static void	domemstat_zone(void);
 static void	kread(int, void *, size_t);
 static void	kreado(int, void *, size_t, size_t);
 static char    *kgetstr(const char *);
@@ -302,7 +302,7 @@ main(int argc, char *argv[])
 	if (todo & MEMSTAT)
 		domem();
 	if (todo & ZMEMSTAT)
-		dozmem();
+		domemstat_zone();
 	if (todo & SUMSTAT)
 		dosum();
 #ifdef notyet
@@ -945,16 +945,29 @@ domemstat_zone(void)
 	struct memory_type_list *mtlp;
 	struct memory_type *mtp;
 	char name[MEMTYPE_MAXNAME + 1];
+	int error;
 
 	mtlp = memstat_mtl_alloc();
 	if (mtlp == NULL) {
 		warn("memstat_mtl_alloc");
 		return;
 	}
-	if (memstat_sysctl_uma(mtlp, 0) < 0) {
-		warnx("memstat_sysctl_uma: %s",
-		    memstat_strerror(memstat_mtl_geterror(mtlp)));
-		return;
+	if (kd == NULL) {
+		if (memstat_sysctl_uma(mtlp, 0) < 0) {
+			warnx("memstat_sysctl_uma: %s",
+			    memstat_strerror(memstat_mtl_geterror(mtlp)));
+			return;
+		}
+	} else {
+		if (memstat_kvm_uma(mtlp, kd) < 0) {
+			error = memstat_mtl_geterror(mtlp);
+			if (error == MEMSTAT_ERROR_KVM)
+				warnx("memstat_kvm_uma: %s",
+				    kvm_geterr(kd));
+			else
+				warnx("memstat_kvm_uma: %s",
+				    memstat_strerror(error));
+		}
 	}
 	printf("%-15s %-8s %-9s %-7s %-5s %-8s\n\n", "ITEM", "SIZE", "LIMIT",
 	    "USED", "FREE", "REQUESTS");
@@ -1058,14 +1071,6 @@ domem(void)
 			free(str);
 		}
 	} while (type.ks_next != NULL);
-}
-
-static void
-dozmem(void)
-{
-	if (kd != NULL)
-		errx(1, "not implemented");
-	domemstat_zone();
 }
 
 /*
