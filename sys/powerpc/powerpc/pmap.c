@@ -197,8 +197,6 @@ int	pmap_bootstrapped = 0;
 struct		msgbuf *msgbufp;
 vm_offset_t	msgbuf_phys;
 
-int pmap_pagedaemon_waken;
-
 /*
  * Map of physical memory regions.
  */

@@ -113,7 +113,6 @@ __FBSDID("$FreeBSD$");
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
 static int vm_pageout_clean(vm_page_t);
-static void vm_pageout_pmap_collect(void);
 static void vm_pageout_scan(int pass);
 
 struct proc *pageproc;
@@ -667,35 +666,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 #endif		/* !defined(NO_SWAPPING) */
 
 /*
- * This routine is very drastic, but can save the system
- * in a pinch.
- */
-static void
-vm_pageout_pmap_collect(void)
-{
-	int i;
-	vm_page_t m;
-	static int warningdone;
-
-	if (pmap_pagedaemon_waken == 0)
-		return;
-	if (warningdone < 5) {
-		printf("collecting pv entries -- suggest increasing PMAP_SHPGPERPROC\n");
-		warningdone++;
-	}
-	vm_page_lock_queues();
-	for (i = 0; i < vm_page_array_size; i++) {
-		m = &vm_page_array[i];
-		if (m->wire_count || m->hold_count || m->busy ||
-		    (m->flags & (PG_BUSY | PG_UNMANAGED)))
-			continue;
-		pmap_remove_all(m);
-	}
-	vm_page_unlock_queues();
-	pmap_pagedaemon_waken = 0;
-}
-	
-/*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
 static void
@@ -723,10 +693,6 @@ vm_pageout_scan(int pass)
 	 * We do this explicitly after the caches have been drained above.
 	 */
 	uma_reclaim();
-	/*
-	 * Do whatever cleanup that the pmap code can.
-	 */
-	vm_pageout_pmap_collect();
 
 	addl_page_shortage_init = atomic_readandclear_int(&vm_pageout_deficit);
 

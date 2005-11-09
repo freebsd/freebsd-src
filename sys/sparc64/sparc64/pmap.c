@@ -114,8 +114,6 @@
 struct msgbuf *msgbufp;
 vm_paddr_t msgbuf_phys;
 
-int pmap_pagedaemon_waken;
-
 /*
  * Map of physical memory reagions.
  */
