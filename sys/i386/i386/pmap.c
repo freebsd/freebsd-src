@@ -106,7 +106,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
+#ifndef PC98 
 #include "opt_xbox.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
