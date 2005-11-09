@@ -84,7 +84,7 @@ power_pm_suspend(int state)
 	    state != POWER_SLEEP_STATE_HIBERNATE)
 		return;
 	power_pm_task.ta_context = (void *)(intptr_t)state;
-	taskqueue_enqueue(taskqueue_swi, &power_pm_task);
+	taskqueue_enqueue(taskqueue_thread, &power_pm_task);
 }
 
 /*
