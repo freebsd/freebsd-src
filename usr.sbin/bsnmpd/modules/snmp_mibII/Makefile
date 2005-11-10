@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB=${.CURDIR}/../../../../contrib/bsnmp
+CONTRIB= ${.CURDIR}/../../../../contrib/bsnmp
 .PATH: ${CONTRIB}/snmp_mibII
 
 MOD=	mibII
@@ -13,7 +13,9 @@ XSYM=	ipAddrTable ifTable ifRcvAddressEntry ifMIB ipMIB tcpMIB udpMIB	\
 	ipForward ifIndex linkDown linkUp
 MAN=	snmp_mibII.3
 
+CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd
+
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
 
-.include <bsd.lib.mk>
+.include <bsd.snmpmod.mk>
