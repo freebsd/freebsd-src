@@ -45,11 +45,9 @@
  * values.
  */
 #if __BSD_VISIBLE
-#define	_W_INT(w)	(*(int *)&(w))	/* Convert union wait to int. */
 #define	WCOREFLAG	0200
-#else
-#define	_W_INT(i)	(i)
 #endif
+#define	_W_INT(i)	(i)
 
 #define	_WSTATUS(x)	(_W_INT(x) & 0177)
 #define	_WSTOPPED	0177		/* _WSTATUS if process is stopped */
