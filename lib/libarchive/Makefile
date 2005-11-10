@@ -6,6 +6,8 @@
 # autoconf/automake-generated build system--on the other system.
 
 LIB=	archive
+DPADD=	${LIBBZ2} ${LIBZ}
+LDADD=	-lbz2 -lz
 
 # Versioning <sigh>.  There are three distinct sets of version
 # numbers:

@@ -6,6 +6,8 @@ CONTRDIR=	${.CURDIR}/../../contrib/file
 
 LIB=	magic
 SHLIB_MAJOR=	2
+DPADD=	${LIBZ}
+LDADD=	-lz
 MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c compress.c fsmagic.c funcs.c \
