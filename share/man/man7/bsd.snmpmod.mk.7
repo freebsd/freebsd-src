@@ -28,8 +28,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2005
-.Dt BSD.SNMPMOD.MK 5
+.Dd November 10, 2005
+.Dt BSD.SNMPMOD.MK 7
 .Os
 .Sh NAME
 .Nm bsd.snmpmod.mk
@@ -50,7 +50,7 @@ to actually build the shared library.
 The following
 .Xr make 1
 variables control the special functions:
-.Bl -tag -width 'EXTRAMIBDEFS'
+.Bl -tag -width ".Va EXTRAMIBDEFS"
 .It Va MOD
 The short name of the module.
 The name of the shared library will be
@@ -69,16 +69,18 @@ A list of symbols to be extracted from the MIB definition files by
 .Xr gensnmptree 1 .
 This is optional.
 .It Va DEFS
-A list of MIB definition files to be installed. This is optional.
+A list of MIB definition files to be installed.
+This is optional.
 .It Va BMIBS
-A list of textual MIBs to be installed. This is optional.
+A list of textual MIBs to be installed.
+This is optional.
 .El
 .Pp
 Three file are automatically created from the MIB definition files and
 the
 .Va XSYM
 variable:
-.Bl -tag -width 'EXTRAMIBDEFS'
+.Bl -tag -width ".Va EXTRAMIBDEFS"
 .It Pa ${MOD}_tree.c
 This contains a table with the tree implemented by the module.
 It is automatically included into the
