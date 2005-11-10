@@ -36,6 +36,7 @@ bsd.port.post.mk	- building ports
 bsd.port.pre.mk		- building ports
 bsd.port.subdir.mk	- targets for building subdirectories for ports
 bsd.prog.mk		- building programs from source files
+bsd.snmpmod.mk		- building modules for the SNMP daemon bsnmpd
 bsd.subdir.mk		- targets for building subdirectories
 bsd.sys.mk		- common settings used for building FreeBSD sources
 sys.mk			- default rules for all makes
