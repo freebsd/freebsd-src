@@ -6,6 +6,9 @@ LIB=		ncp
 
 SHLIB_MAJOR=	2
 
+DPADD=		${LIBIPX}
+LDADD=		-lipx
+
 NO_MAN=
 
 SRCS=	ncpl_subr.c ncpl_bind.c ncpl_queue.c ncpl_file.c ncpl_misc.c \

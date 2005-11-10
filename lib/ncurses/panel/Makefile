@@ -7,6 +7,8 @@ NCURSES=${.CURDIR}/../../contrib/ncurses
 .PATH:  ${NCURSES}/man
 
 LIB=    panel
+DPADD=	${LIBNCURSES}
+LDADD=	-lncurses
 AWK?=	awk
 
 SRCS=	ncurses_def.h \
