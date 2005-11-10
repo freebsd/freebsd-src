@@ -824,8 +824,10 @@ nfs_lookup(struct vop_lookup_args *ap)
 	nfsm_strtom(cnp->cn_nameptr, len, NFS_MAXNAMLEN);
 	nfsm_request(dvp, NFSPROC_LOOKUP, cnp->cn_thread, cnp->cn_cred);
 	if (error) {
-		nfsm_postop_attr(dvp, attrflag);
-		m_freem(mrep);
+		if (v3) {
+			nfsm_postop_attr(dvp, attrflag);
+			m_freem(mrep);
+		}
 		goto nfsmout;
 	}
 	nfsm_getfh(fhp, fhsize, v3);
