@@ -2527,13 +2527,14 @@ DB_SHOW_COMMAND(files, db_show_files)
 	struct file *fp;
 	struct proc *p;
 
-	db_printf("%8s %4s %8s %8s %4s %5s %8s %5s %12s\n", "File",
-	    "Type", "Data", "Flag", "GCFl", "Count", "Vnode", "FPID", "FCmd");
+	db_printf("%8s %4s %8s %8s %4s %5s %6s %8s %5s %12s\n", "File",
+	    "Type", "Data", "Flag", "GCFl", "Count", "MCount", "Vnode",
+	    "FPID", "FCmd");
 	LIST_FOREACH(fp, &filehead, f_list) {
 		p = file_to_first_proc(fp);
-		db_printf("%8p %4s %8p %08x %04x %5d %8p %5d %12s\n", fp,
+		db_printf("%8p %4s %8p %08x %04x %5d %6d %8p %5d %12s\n", fp,
 		    file_type_to_name(fp->f_type), fp->f_data, fp->f_flag,
-		    fp->f_gcflag, fp->f_count, fp->f_vnode,
+		    fp->f_gcflag, fp->f_count, fp->f_msgcount, fp->f_vnode,
 		    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
 	}
 }
