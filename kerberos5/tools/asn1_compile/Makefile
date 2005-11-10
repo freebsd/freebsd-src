@@ -31,13 +31,13 @@ CLEANFILES= print_version.h roken.h
 print_version.h: ../make-print-version/make-print-version
 	../make-print-version/make-print-version ${.TARGET}
 
-../make-print-version/make-print-version:
+../make-print-version/make-print-version: .PHONY
 	cd ${.CURDIR}/../make-print-version && ${MAKE}
 
 roken.h: ../make-roken/make-roken
 	../make-roken/make-roken > ${.TARGET}
 
-../make-roken/make-roken:
+../make-roken/make-roken: .PHONY
 	cd ${.CURDIR}/../make-roken && ${MAKE}
 
 .include <bsd.prog.mk>
