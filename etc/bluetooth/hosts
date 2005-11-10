@@ -7,5 +7,4 @@
 #
 # BD_ADDR               Name [ alias0 alias1 ... ]
 
-ff:ff:ff:00:00:00	localhost local		# Magic sdpd address
-
+# 00:11:22:33:44:55	phone
