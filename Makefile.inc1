@@ -977,8 +977,8 @@ _prebuild_libs+=	kerberos5/lib/libroken
 _generic_libs+=	kerberos5/lib
 .endif
 
-_prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
-		lib/libkvm lib/libmd \
+_prebuild_libs+= lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
+		lib/libipx lib/libkiconv lib/libkvm lib/libmd \
 		lib/libncurses lib/libnetgraph lib/libopie lib/libpam \
 		lib/libradius \
 		lib/libsbuf lib/libtacplus lib/libutil \
@@ -991,8 +991,7 @@ _generic_libs+=	lib
 .if !defined(NO_CRYPT)
 .if !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
-lib/libradius__L: secure/lib/libssl__L
-secure/lib/libssl__L: secure/lib/libcrypto__L
+lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
 .if !defined(NO_OPENSSH)
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
