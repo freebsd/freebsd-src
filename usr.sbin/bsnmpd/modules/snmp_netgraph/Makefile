@@ -2,8 +2,6 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB=${.CURDIR}/../../../../contrib/bsnmp
-
 MOD=	netgraph
 SRCS=	snmp_netgraph.c
 XSYM=	begemotNg
@@ -16,4 +14,4 @@ INCS=	snmp_${MOD}.h
 DPADD=	${LIBNETGRAPH}
 LDADD=	-lnetgraph
 
-.include <bsd.lib.mk>
+.include <bsd.snmpmod.mk>
