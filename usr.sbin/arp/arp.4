@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2004
+.Dd November 10, 2005
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -55,9 +55,10 @@ ARP will queue at most one packet while waiting for a response to a
 mapping request;
 only the most recently ``transmitted'' packet is kept.
 If the target host does not respond after several requests,
-the host is considered to be down for a short period (normally 20 seconds),
-allowing an error to be returned to transmission attempts during this
-interval.
+the host is considered to be down allowing an error to be returned to
+transmission attempts.
+Further demand for this mapping causes ARP request retransmissions, that
+are ratelimited to one packet per second.
 The error is
 .Er EHOSTDOWN
 for a non-responding destination host, and
@@ -75,11 +76,6 @@ causing routes to individual hosts on that network to be created on
 demand.
 These routes time out periodically (normally 20 minutes after validated;
 entries are not validated when not in use).
-An entry for a host which is not responding is a
-.Dq reject
-route (one with the
-.Li RTF_REJECT
-flag set).
 .Pp
 ARP entries may be added, deleted or changed with the
 .Xr arp 8
@@ -115,6 +111,27 @@ It may be enabled by setting the
 MIB variable
 .Va net.link.ether.inet.proxyall
 to 1.
+.Sh MIB Variables
+The ARP protocol implements a number of configrable variables in
+.Va net.link.ether.inet
+branch
+of the
+.Xr sysctl 3
+MIB.
+.Bl -tag
+.It Dv prune_intvl
+How frequently the ARP cache is cleaned from expired entries.
+.It Dv max_age
+How long an ARP entry is hold in cache until it needs to be refreshed.
+.It Dv maxtries
+Number of retransmits before host is considered down and error is returned.
+.It Dv useloopback
+If an ARP entry is added for local address, force the traffic to go through
+the loopback interface. If set to 0 the traffic will be enforced to go
+through the hardware.
+.It Dv proxyall
+Enables ARP proxying for all hosts on net.
+.El
 .Sh DIAGNOSTICS
 .Em "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d!" :
 ARP has discovered another host on the local network which responds to
@@ -122,12 +139,12 @@ mapping requests for its own Internet address with a different Ethernet
 address, generally indicating that two hosts are attempting to use the
 same Internet address.
 .Pp
-.Em "arp: ether address is broadcast for IP address %d.%d.%d.%d!" :
+.Em "arp: link address is broadcast for IP address %d.%d.%d.%d!" :
 ARP requested information for a host, and received an answer indicating
 that the host's ethernet address is the ethernet broadcast address.
 This indicates a misconfigured or broken device.
 .Pp
-.Em "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x" :
+.Em "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x on %s" :
 ARP had a cached value for the ethernet address of the referenced host,
 but received a reply indicating that the host is at a new address.
 This can happen normally when host hardware addresses change,
