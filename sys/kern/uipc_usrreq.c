@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
@@ -112,6 +113,14 @@ static struct mtx unp_mtx;
 #define	UNP_LOCK_ASSERT()	mtx_assert(&unp_mtx, MA_OWNED)
 #define	UNP_UNLOCK_ASSERT()	mtx_assert(&unp_mtx, MA_NOTOWNED)
 
+/*
+ * Garbage collection of cyclic file descriptor/socket references occurs
+ * asynchronously in a taskqueue context in order to avoid recursion and
+ * reentrance in the UNIX domain socket, file descriptor, and socket layer
+ * code.  See unp_gc() for a full description.
+ */
+static struct task	unp_gc_task;
+
 static int     unp_attach(struct socket *);
 static void    unp_detach(struct unpcb *);
 static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
@@ -120,7 +129,7 @@ static int     unp_connect2(struct socket *so, struct socket *so2, int);
 static void    unp_disconnect(struct unpcb *);
 static void    unp_shutdown(struct unpcb *);
 static void    unp_drop(struct unpcb *, int);
-static void    unp_gc(void);
+static void    unp_gc(__unused void *, int);
 static void    unp_scan(struct mbuf *, void (*)(struct file *));
 static void    unp_mark(struct file *);
 static void    unp_discard(struct file *);
@@ -773,6 +782,7 @@ static void
 unp_detach(struct unpcb *unp)
 {
 	struct vnode *vp;
+	int local_unp_rights;
 
 	UNP_LOCK_ASSERT();
 
@@ -795,19 +805,8 @@ unp_detach(struct unpcb *unp)
 	}
 	soisdisconnected(unp->unp_socket);
 	unp->unp_socket->so_pcb = NULL;
-	if (unp_rights) {
-		/*
-		 * Normally the receive buffer is flushed later,
-		 * in sofree, but if our receive buffer holds references
-		 * to descriptors that are now garbage, we will dispose
-		 * of those descriptor references after the garbage collector
-		 * gets them (resulting in a "panic: closef: count < 0").
-		 */
-		sorflush(unp->unp_socket);
-		unp_gc();	/* Will unlock UNP. */
-	} else
-		UNP_UNLOCK();
-	UNP_UNLOCK_ASSERT();
+	local_unp_rights = unp_rights;
+	UNP_UNLOCK();
 	if (unp->unp_addr != NULL)
 		FREE(unp->unp_addr, M_SONAME);
 	uma_zfree(unp_zone, unp);
@@ -816,6 +815,8 @@ unp_detach(struct unpcb *unp)
 		vrele(vp);
 		mtx_unlock(&Giant);
 	}
+	if (local_unp_rights)
+		taskqueue_enqueue(taskqueue_thread, &unp_gc_task);
 }
 
 static int
@@ -1395,7 +1396,7 @@ unp_init(void)
 	uma_zone_set_max(unp_zone, nmbclusters);
 	LIST_INIT(&unp_dhead);
 	LIST_INIT(&unp_shead);
-
+	TASK_INIT(&unp_gc_task, 0, unp_gc, NULL);
 	UNP_LOCK_INIT();
 }
 
@@ -1581,14 +1582,20 @@ unp_addsockcred(struct thread *td, struct mbuf *control)
 }
 
 /*
- * unp_defer is thread-local during garbage collection, and does not require
- * explicit synchronization.  unp_gcing prevents other threads from entering
- * garbage collection, and perhaps should be an sx lock instead.
+ * unp_defer indicates whether additional work has been defered for a future
+ * pass through unp_gc().  It is thread local and does not require explicit
+ * synchronization.
  */
-static int	unp_defer, unp_gcing;
+static int	unp_defer;
+
+static int unp_taskcount;
+SYSCTL_INT(_net_local, OID_AUTO, taskcount, CTLFLAG_RD, &unp_taskcount, 0, "");
+
+static int unp_recycled;
+SYSCTL_INT(_net_local, OID_AUTO, recycled, CTLFLAG_RD, &unp_recycled, 0, "");
 
 static void
-unp_gc(void)
+unp_gc(__unused void *arg, int pending)
 {
 	struct file *fp, *nextfp;
 	struct socket *so;
@@ -1597,15 +1604,8 @@ unp_gc(void)
 	int nfiles_snap;
 	int nfiles_slack = 20;
 
-	UNP_LOCK_ASSERT();
-
-	if (unp_gcing) {
-		UNP_UNLOCK();
-		return;
-	}
-	unp_gcing = 1;
+	unp_taskcount++;
 	unp_defer = 0;
-	UNP_UNLOCK();
 	/*
 	 * before going through all this, set all FDs to
 	 * be NOT defered and NOT externally accessible
@@ -1618,9 +1618,16 @@ unp_gc(void)
 		LIST_FOREACH(fp, &filehead, f_list) {
 			FILE_LOCK(fp);
 			/*
-			 * If the file is not open, skip it
+			 * If the file is not open, skip it -- could be a
+			 * file in the process of being opened, or in the
+			 * process of being closed.  If the file is
+			 * "closing", it may have been marked for deferred
+			 * consideration.  Clear the flag now if so.
 			 */
 			if (fp->f_count == 0) {
+				if (fp->f_gcflag & FDEFER)
+					unp_defer--;
+				fp->f_gcflag &= ~(FMARK|FDEFER);
 				FILE_UNLOCK(fp);
 				continue;
 			}
@@ -1670,22 +1677,6 @@ unp_gc(void)
 			if (so->so_proto->pr_domain != &localdomain ||
 			    (so->so_proto->pr_flags&PR_RIGHTS) == 0)
 				continue;
-#ifdef notdef
-			if (so->so_rcv.sb_flags & SB_LOCK) {
-				/*
-				 * This is problematical; it's not clear
-				 * we need to wait for the sockbuf to be
-				 * unlocked (on a uniprocessor, at least),
-				 * and it's also not clear what to do
-				 * if sbwait returns an error due to receipt
-				 * of a signal.  If sbwait does return
-				 * an error, we'll go into an infinite
-				 * loop.  Delete all of this for now.
-				 */
-				(void) sbwait(&so->so_rcv);
-				goto restart;
-			}
-#endif
 			/*
 			 * So, Ok, it's one of our sockets and it IS externally
 			 * accessible (or was defered). Now we look
@@ -1700,6 +1691,9 @@ unp_gc(void)
 	} while (unp_defer);
 	sx_sunlock(&filelist_lock);
 	/*
+	 * XXXRW: The following comments need updating for a post-SMPng and
+	 * deferred unp_gc() world, but are still generally accurate.
+	 *
 	 * We grab an extra reference to each of the file table entries
 	 * that are not otherwise accessible and then free the rights
 	 * that are stored in messages on them.
@@ -1711,7 +1705,7 @@ unp_gc(void)
 	 * times -- consider the case of sockets A and B that contain
 	 * references to each other.  On a last close of some other socket,
 	 * we trigger a gc since the number of outstanding rights (unp_rights)
-	 * is non-zero.  If during the sweep phase the gc code un_discards,
+	 * is non-zero.  If during the sweep phase the gc code unp_discards,
 	 * we end up doing a (full) closef on the descriptor.  A closef on A
 	 * results in the following chain.  Closef calls soo_close, which
 	 * calls soclose.   Soclose calls first (through the switch
@@ -1788,12 +1782,11 @@ again:
 			FILE_UNLOCK(tfp);
 		}
 	}
-	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
+	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
 		closef(*fpp, (struct thread *) NULL);
+		unp_recycled++;
+	}
 	free(extra_ref, M_TEMP);
-	unp_gcing = 0;
-
-	UNP_UNLOCK_ASSERT();
 }
 
 void
@@ -1884,9 +1877,11 @@ unp_mark(struct file *fp)
 static void
 unp_discard(struct file *fp)
 {
+	UNP_LOCK();
 	FILE_LOCK(fp);
 	fp->f_msgcount--;
 	unp_rights--;
 	FILE_UNLOCK(fp);
+	UNP_UNLOCK();
 	(void) closef(fp, (struct thread *)NULL);
 }
