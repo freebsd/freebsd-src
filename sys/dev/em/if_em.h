@@ -77,7 +77,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /* Tunables */
 
 /*
- * EM_MAX_TXD: Maximum number of Transmit Descriptors
+ * EM_TXD: Maximum number of Transmit Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
  * Default Value: 256
@@ -85,10 +85,11 @@ POSSIBILITY OF SUCH DAMAGE.
  *   Increasing this value allows the driver to queue more transmits. Each
  *   descriptor is 16 bytes.
  */
-#define EM_MAX_TXD                      256
+#define EM_TXD		256
+#define EM_TXD_82544	4096
 
 /*
- * EM_MAX_RXD - Maximum number of receive Descriptors
+ * EM_RXD - Maximum number of receive Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
  * Default Value: 256
@@ -98,7 +99,8 @@ POSSIBILITY OF SUCH DAMAGE.
  *   descriptor. The maximum MTU size is 16110.
  *
  */
-#define EM_MAX_RXD                      256
+#define EM_RXD		256
+#define EM_RXD_82544	4096
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -173,7 +175,7 @@ POSSIBILITY OF SUCH DAMAGE.
  * This parameter controls when the driver calls the routine to reclaim
  * transmit descriptors.
  */
-#define EM_TX_CLEANUP_THRESHOLD         EM_MAX_TXD / 8
+#define EM_TX_CLEANUP_THRESHOLD		(adapter->num_tx_desc / 8)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.

@@ -359,8 +359,13 @@ em_attach(device_t dev)
 	}
       
 	/* Parameters (to be read from user) */   
-        adapter->num_tx_desc = EM_MAX_TXD;
-        adapter->num_rx_desc = EM_MAX_RXD;
+	if (adapter->hw.mac_type >= em_82544) {
+        	adapter->num_tx_desc = EM_TXD_82544;
+        	adapter->num_rx_desc = EM_RXD_82544;
+	} else {
+        	adapter->num_tx_desc = EM_TXD;
+        	adapter->num_rx_desc = EM_RXD;
+	}
         adapter->hw.autoneg = DO_AUTO_NEG;
         adapter->hw.wait_autoneg_complete = WAIT_FOR_AUTO_NEG_DEFAULT;
         adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
