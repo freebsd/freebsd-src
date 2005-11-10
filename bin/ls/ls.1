@@ -40,7 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRSTWZabcdfghiklmnopqrstuwx1
+.Op Fl ABCFGHILPRSTWZabcdfghiklmnopqrstuwx1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -73,6 +73,8 @@ List all entries except for
 and
 .Pa .. .
 Always set for the super-user.
+.Fl I
+cancel this option.
 .It Fl B
 Force printing of non-printable characters (as defined by
 .Xr ctype 3
@@ -117,6 +119,12 @@ none of the
 or
 .Fl l
 options are specified.
+.It Fl I
+This option cancels the
+.Fl A
+option. Usually used by super-user when
+.Fl A
+is not necessary.
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
