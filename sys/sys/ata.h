@@ -228,11 +228,13 @@ struct ata_params {
 #define ATA_READ48                      0x24    /* read 48bit LBA */
 #define ATA_READ_DMA48                  0x25    /* read DMA 48bit LBA */
 #define ATA_READ_DMA_QUEUED48           0x26    /* read DMA QUEUED 48bit LBA */
+#define ATA_READ_NATIVE_MAX_ADDDRESS48  0x27    /* read native max addr 48bit */
 #define ATA_READ_MUL48                  0x29    /* read multi 48bit LBA */
 #define ATA_WRITE                       0x30    /* write */
 #define ATA_WRITE48                     0x34    /* write 48bit LBA */
 #define ATA_WRITE_DMA48                 0x35    /* write DMA 48bit LBA */
 #define ATA_WRITE_DMA_QUEUED48          0x36    /* write DMA QUEUED 48bit LBA*/
+#define ATA_SET_MAX_ADDRESS48           0x37    /* set max address 48bit */
 #define ATA_WRITE_MUL48                 0x39    /* write multi 48bit LBA */
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
