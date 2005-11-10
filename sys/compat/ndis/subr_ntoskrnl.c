@@ -205,6 +205,8 @@ static void *MmMapLockedPagesSpecifyCache(mdl *,
 static void MmUnmapLockedPages(void *, mdl *);
 static uint8_t MmIsAddressValid(void *);
 static device_t ntoskrnl_finddev(device_t, uint64_t, struct resource **);
+static void RtlZeroMemory(void *, size_t);
+static void RtlCopyMemory(void *, const void *, size_t);
 static size_t RtlCompareMemory(const void *, const void *, size_t);
 static ndis_status RtlUnicodeStringToInteger(unicode_string *,
 	uint32_t, uint32_t *);
@@ -2899,6 +2901,25 @@ ExQueueWorkItem(w, qtype)
 	return;
 }
 
+static void
+RtlZeroMemory(dst, len)
+	void			*dst;
+	size_t			len;
+{
+	bzero(dst, len);
+	return;
+}
+
+static void
+RtlCopyMemory(dst, src, len)
+	void			*dst;
+	const void		*src;
+	size_t			len;
+{
+	bcopy(src, dst, len);
+	return;
+}
+
 static size_t
 RtlCompareMemory(s1, s2, len)
 	const void		*s1;
@@ -4089,6 +4110,8 @@ dummy()
 
 
 image_patch_table ntoskrnl_functbl[] = {
+	IMPORT_SFUNC(RtlZeroMemory, 2),
+	IMPORT_SFUNC(RtlCopyMemory, 3),
 	IMPORT_SFUNC(RtlCompareMemory, 3),
 	IMPORT_SFUNC(RtlEqualUnicodeString, 3),
 	IMPORT_SFUNC(RtlCopyUnicodeString, 2),
