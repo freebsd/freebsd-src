@@ -119,17 +119,16 @@ of the
 .Xr sysctl 3
 MIB.
 .Bl -tag
-.It Dv prune_intvl
+.It Va prune_intvl
 How frequently the ARP cache is cleaned from expired entries.
-.It Dv max_age
-How long an ARP entry is hold in cache until it needs to be refreshed.
-.It Dv maxtries
+.It Va max_age
+How long an ARP entry is held in the cache until it needs to be refreshed.
+.It Va maxtries
 Number of retransmits before host is considered down and error is returned.
-.It Dv useloopback
+.It Va useloopback
 If an ARP entry is added for local address, force the traffic to go through
-the loopback interface. If set to 0 the traffic will be enforced to go
-through the hardware.
-.It Dv proxyall
+the loopback interface.
+.It Va proxyall
 Enables ARP proxying for all hosts on net.
 .El
 .Sh DIAGNOSTICS
