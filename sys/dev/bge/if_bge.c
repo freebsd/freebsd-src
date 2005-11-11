@@ -1562,9 +1562,9 @@ bge_blockinit(sc)
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
-	    IFP2ENADDR(sc->bge_ifp)[0] + IFP2ENADDR(sc->bge_ifp)[1] +
-	    IFP2ENADDR(sc->bge_ifp)[2] + IFP2ENADDR(sc->bge_ifp)[3] +
-	    IFP2ENADDR(sc->bge_ifp)[4] + IFP2ENADDR(sc->bge_ifp)[5] +
+	    IF_LLADDR(sc->bge_ifp)[0] + IF_LLADDR(sc->bge_ifp)[1] +
+	    IF_LLADDR(sc->bge_ifp)[2] + IF_LLADDR(sc->bge_ifp)[3] +
+	    IF_LLADDR(sc->bge_ifp)[4] + IF_LLADDR(sc->bge_ifp)[5] +
 	    BGE_TX_BACKOFF_SEED_MASK);
 
 	/* Set inter-packet gap */
@@ -3430,7 +3430,7 @@ bge_init_locked(sc)
 	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 
 	/* Load our MAC address. */
-	m = (u_int16_t *)&IFP2ENADDR(sc->bge_ifp)[0];
+	m = (u_int16_t *)IF_LLADDR(sc->bge_ifp);
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_LO, htons(m[0]));
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_HI, (htons(m[1]) << 16) | htons(m[2]));
 

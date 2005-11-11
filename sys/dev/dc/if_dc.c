@@ -1126,9 +1126,9 @@ dc_setfilt_21143(struct dc_softc *sc)
 	}
 
 	/* Set our MAC address */
-	sp[39] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[0]);
-	sp[40] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[1]);
-	sp[41] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[2]);
+	sp[39] = DC_SP_MAC(((u_int16_t *)IF_LLADDR(sc->dc_ifp))[0]);
+	sp[40] = DC_SP_MAC(((u_int16_t *)IF_LLADDR(sc->dc_ifp))[1]);
+	sp[41] = DC_SP_MAC(((u_int16_t *)IF_LLADDR(sc->dc_ifp))[2]);
 
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
@@ -1155,8 +1155,8 @@ dc_setfilt_admtek(struct dc_softc *sc)
 	ifp = sc->dc_ifp;
 
 	/* Init our MAC address. */
-	CSR_WRITE_4(sc, DC_AL_PAR0, *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[0]));
-	CSR_WRITE_4(sc, DC_AL_PAR1, *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[4]));
+	CSR_WRITE_4(sc, DC_AL_PAR0, *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[0]));
+	CSR_WRITE_4(sc, DC_AL_PAR1, *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[4]));
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1215,10 +1215,10 @@ dc_setfilt_asix(struct dc_softc *sc)
 	/* Init our MAC address */
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR0);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA,
-	    *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[0]));
+	    *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[0]));
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR1);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA,
-	    *(u_int32_t *)(&IFP2ENADDR(sc->dc_ifp)[4]));
+	    *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[4]));
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1324,9 +1324,9 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	}
 
 	/* Set our MAC address */
-	sp[0] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[0]);
-	sp[1] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[1]);
-	sp[2] = DC_SP_MAC(((u_int16_t *)IFP2ENADDR(sc->dc_ifp))[2]);
+	sp[0] = DC_SP_MAC(((u_int16_t *)IF_LLADDR(sc->dc_ifp))[0]);
+	sp[1] = DC_SP_MAC(((u_int16_t *)IF_LLADDR(sc->dc_ifp))[1]);
+	sp[2] = DC_SP_MAC(((u_int16_t *)IF_LLADDR(sc->dc_ifp))[2]);
 
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);

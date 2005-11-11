@@ -125,7 +125,7 @@ struct ifnet {
 		 * addresses which store the link-level address and the name
 		 * of the interface.
 		 * However, access to the AF_LINK address through this
-		 * field is deprecated. Use ifaddr_byindex() instead.
+		 * field is deprecated. Use if_addr or ifaddr_byindex() instead.
 		 */
 	struct	knlist if_klist;	/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
@@ -158,7 +158,7 @@ struct ifnet {
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
-	void	*if_spare1;		/* spare pointer 1 */
+	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	void	*if_spare2;		/* spare pointer 2 */
 	void	*if_spare3;		/* spare pointer 3 */
 	int	if_drv_flags;		/* driver-managed status flags */
@@ -605,7 +605,6 @@ extern	struct mtx ifnet_lock;
 
 struct ifindex_entry {
 	struct	ifnet *ife_ifnet;
-	struct	ifaddr *ife_ifnet_addr;
 	struct cdev *ife_dev;
 };
 
@@ -615,7 +614,7 @@ struct ifindex_entry {
  * link-level ifaddr for the interface. You are not supposed to use
  * it to traverse the list of addresses associated to the interface.
  */
-#define ifaddr_byindex(idx)	ifindex_table[(idx)].ife_ifnet_addr
+#define ifaddr_byindex(idx)	ifnet_byindex(idx)->if_addr
 #define ifdev_byindex(idx)	ifindex_table[(idx)].ife_dev
 
 extern	struct ifnethead ifnet;
@@ -658,7 +657,7 @@ void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
 void	if_deregister_com_alloc(u_char type);
 
 #define IF_LLADDR(ifp)							\
-    LLADDR((struct sockaddr_dl *) ifaddr_byindex((ifp)->if_index)->ifa_addr)
+    LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
 
 #ifdef DEVICE_POLLING
 enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };

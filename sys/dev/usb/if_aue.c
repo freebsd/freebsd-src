@@ -1159,7 +1159,7 @@ aue_init(void *xsc)
 
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		aue_csr_write_1(sc, AUE_PAR0 + i, IFP2ENADDR(sc->aue_ifp)[i]);
+		aue_csr_write_1(sc, AUE_PAR0 + i, IF_LLADDR(sc->aue_ifp)[i]);
 
 	 /* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)

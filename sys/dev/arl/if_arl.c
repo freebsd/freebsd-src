@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
@@ -989,7 +989,7 @@ arl_read(sc, buf, len)
 		 * This test does not support multicasts.
 		 */
 		if ((ifp->if_flags & IFF_PROMISC)
-		   && bcmp(eh->ether_dhost, IFP2ENADDR(sc->arl_ifp),
+		   && bcmp(eh->ether_dhost, IF_LLADDR(sc->arl_ifp),
 			   sizeof(eh->ether_dhost)) != 0
 		   && bcmp(eh->ether_dhost, BROADCASTADDR,
 			   sizeof(eh->ether_dhost)) != 0)

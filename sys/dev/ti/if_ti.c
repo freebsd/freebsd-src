@@ -2862,7 +2862,7 @@ static void ti_init2(sc)
 	TI_DO_CMD(TI_CMD_UPDATE_GENCOM, 0, 0);
 
 	/* Load our MAC address. */
-	m = (u_int16_t *)&IFP2ENADDR(sc->ti_ifp)[0];
+	m = (u_int16_t *)IF_LLADDR(sc->ti_ifp);
 	CSR_WRITE_4(sc, TI_GCR_PAR0, htons(m[0]));
 	CSR_WRITE_4(sc, TI_GCR_PAR1, (htons(m[1]) << 16) | htons(m[2]));
 	TI_DO_CMD(TI_CMD_SET_MAC_ADDR, 0, 0);

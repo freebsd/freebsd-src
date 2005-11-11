@@ -1598,7 +1598,7 @@ wb_init_locked(sc)
 
 	/* Init our MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, WB_NODE0 + i, IFP2ENADDR(sc->wb_ifp)[i]);
+		CSR_WRITE_1(sc, WB_NODE0 + i, IF_LLADDR(sc->wb_ifp)[i]);
 	}
 
 	/* Init circular RX list. */

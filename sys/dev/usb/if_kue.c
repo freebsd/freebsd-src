@@ -809,7 +809,7 @@ kue_init(void *xsc)
 
 	/* Set MAC address */
 	kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SET_MAC,
-	    0, IFP2ENADDR(sc->kue_ifp), ETHER_ADDR_LEN);
+	    0, IF_LLADDR(sc->kue_ifp), ETHER_ADDR_LEN);
 
 	sc->kue_rxfilt = KUE_RXFILT_UNICAST|KUE_RXFILT_BROADCAST;
 

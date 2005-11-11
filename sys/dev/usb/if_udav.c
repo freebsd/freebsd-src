@@ -852,7 +852,7 @@ udav_init(void *xsc)
 #if defined(__NetBSD__)
 	eaddr = LLADDR(ifp->if_sadl);
 #elif defined(__FreeBSD__)
-	eaddr = IFP2ENADDR(ifp);
+	eaddr = IF_LLADDR(ifp);
 #endif
 	udav_csr_write(sc, UDAV_PAR, eaddr, ETHER_ADDR_LEN);
 

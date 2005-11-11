@@ -41,7 +41,7 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/iso88025.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -489,7 +489,7 @@ oltr_init(void * xsc)
 	/*
 	 * Open the adapter
 	 */
-	rc = TRlldOpen(sc->TRlldAdapter, IFP2ENADDR(sc->ifp), sc->GroupAddress,
+	rc = TRlldOpen(sc->TRlldAdapter, IF_LLADDR(sc->ifp), sc->GroupAddress,
 		sc->FunctionalAddress, 1552, sc->AdapterMode);
 	switch(rc) {
 		case TRLLD_OPEN_OK:

@@ -1245,8 +1245,8 @@ lge_init(xsc)
 	mii = device_get_softc(sc->lge_miibus);
 
 	/* Set MAC address */
-	CSR_WRITE_4(sc, LGE_PAR0, *(u_int32_t *)(&IFP2ENADDR(sc->lge_ifp)[0]));
-	CSR_WRITE_4(sc, LGE_PAR1, *(u_int32_t *)(&IFP2ENADDR(sc->lge_ifp)[4]));
+	CSR_WRITE_4(sc, LGE_PAR0, *(u_int32_t *)(&IF_LLADDR(sc->lge_ifp)[0]));
+	CSR_WRITE_4(sc, LGE_PAR1, *(u_int32_t *)(&IF_LLADDR(sc->lge_ifp)[4]));
 
 	/* Init circular RX list. */
 	if (lge_list_rx_init(sc) == ENOBUFS) {

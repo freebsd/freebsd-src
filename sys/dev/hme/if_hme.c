@@ -729,7 +729,7 @@ hme_init_locked(struct hme_softc *sc)
 	HME_MAC_WRITE_4(sc, HME_MACI_TXSIZE, HME_MAX_FRAMESIZE);
 
 	/* Load station MAC address */
-	ea = IFP2ENADDR(sc->sc_ifp);
+	ea = IF_LLADDR(sc->sc_ifp);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR0, (ea[0] << 8) | ea[1]);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR1, (ea[2] << 8) | ea[3]);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR2, (ea[4] << 8) | ea[5]);

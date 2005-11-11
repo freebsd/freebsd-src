@@ -1092,7 +1092,7 @@ rue_init(void *xsc)
 	rue_reset(sc);
 
 	/* Set MAC address */
-	rue_write_mem(sc, RUE_IDR0, IFP2ENADDR(sc->rue_ifp),
+	rue_write_mem(sc, RUE_IDR0, IF_LLADDR(sc->rue_ifp),
 	    ETHER_ADDR_LEN);
 
 	/* Init TX ring. */

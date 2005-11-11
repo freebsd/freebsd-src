@@ -60,7 +60,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/route.h>
 #include <net/if_types.h>
 
@@ -386,7 +386,7 @@ tapopen(dev, flag, mode, td)
 		return (EBUSY);
 	}
 
-	bcopy(IFP2ENADDR(tp->tap_ifp), tp->ether_addr, sizeof(tp->ether_addr));
+	bcopy(IF_LLADDR(tp->tap_ifp), tp->ether_addr, sizeof(tp->ether_addr));
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
 	ifp = tp->tap_ifp;

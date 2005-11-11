@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/ethernet.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
@@ -1737,7 +1738,7 @@ an_setdef(struct an_softc *sc, struct an_req *areq)
 	case AN_RID_GENCONFIG:
 		cfg = (struct an_ltv_genconfig *)areq;
 
-		bcopy((char *)&cfg->an_macaddr, IFP2ENADDR(sc->an_ifp),
+		bcopy((char *)&cfg->an_macaddr, IF_LLADDR(sc->an_ifp),
 		    ETHER_ADDR_LEN);
 
 		bcopy((char *)cfg, (char *)&sc->an_config,
@@ -2494,7 +2495,7 @@ an_init(void *xsc)
 	}
 
 	/* Set our MAC address. */
-	bcopy((char *)IFP2ENADDR(sc->an_ifp),
+	bcopy((char *)IF_LLADDR(sc->an_ifp),
 	    (char *)&sc->an_config.an_macaddr, ETHER_ADDR_LEN);
 
 	if (ifp->if_flags & IFF_BROADCAST)

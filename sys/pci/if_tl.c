@@ -1525,7 +1525,7 @@ tl_intvec_rxeof(xsc, type)
 		 */
 		eh = mtod(m, struct ether_header *);
 		/*if (ifp->if_flags & IFF_PROMISC && */
-		if (!bcmp(eh->ether_shost, IFP2ENADDR(sc->tl_ifp),
+		if (!bcmp(eh->ether_shost, IF_LLADDR(sc->tl_ifp),
 		 					ETHER_ADDR_LEN)) {
 				m_freem(m);
 				continue;
@@ -2091,7 +2091,7 @@ tl_init_locked(sc)
 	tl_dio_write16(sc, TL_MAXRX, MCLBYTES);
 
 	/* Init our MAC address */
-	tl_setfilt(sc, (caddr_t)IFP2ENADDR(sc->tl_ifp), 0);
+	tl_setfilt(sc, IF_LLADDR(sc->tl_ifp), 0);
 
 	/* Init multicast filter, if needed. */
 	tl_setmulti(sc);

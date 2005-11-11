@@ -2580,11 +2580,11 @@ sk_init_xmac(sc_if)
 
 	/* Set station address */
 	SK_XM_WRITE_2(sc_if, XM_PAR0,
-	    *(u_int16_t *)(&IFP2ENADDR(sc_if->sk_ifp)[0]));
+	    *(u_int16_t *)(&IF_LLADDR(sc_if->sk_ifp)[0]));
 	SK_XM_WRITE_2(sc_if, XM_PAR1,
-	    *(u_int16_t *)(&IFP2ENADDR(sc_if->sk_ifp)[2]));
+	    *(u_int16_t *)(&IF_LLADDR(sc_if->sk_ifp)[2]));
 	SK_XM_WRITE_2(sc_if, XM_PAR2,
-	    *(u_int16_t *)(&IFP2ENADDR(sc_if->sk_ifp)[4]));
+	    *(u_int16_t *)(&IF_LLADDR(sc_if->sk_ifp)[4]));
 	SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_USE_STATION);
 
 	if (ifp->if_flags & IFF_BROADCAST) {
@@ -2755,8 +2755,8 @@ sk_init_yukon(sc_if)
 	for (i = 0; i < 3; i++) {
 		/* Write Source Address 1 (unicast filter) */
 		SK_YU_WRITE_2(sc_if, YUKON_SAL1 + i * 4, 
-			      IFP2ENADDR(sc_if->sk_ifp)[i * 2] |
-			      IFP2ENADDR(sc_if->sk_ifp)[i * 2 + 1] << 8);
+			      IF_LLADDR(sc_if->sk_ifp)[i * 2] |
+			      IF_LLADDR(sc_if->sk_ifp)[i * 2 + 1] << 8);
 	}
 
 	for (i = 0; i < 3; i++) {

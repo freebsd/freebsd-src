@@ -1869,23 +1869,23 @@ sis_initl(struct sis_softc *sc)
 	if (sc->sis_type == SIS_TYPE_83815) {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[0]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[1]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[2]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[2]);
 	} else {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[0]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[1]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[2]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[2]);
 	}
 
 	/* Init circular TX/RX lists. */

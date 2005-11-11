@@ -1668,13 +1668,13 @@ nge_init_locked(sc)
 	/* Set MAC address */
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR0);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)IFP2ENADDR(sc->nge_ifp))[0]);
+	    ((u_int16_t *)IF_LLADDR(sc->nge_ifp))[0]);
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR1);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)IFP2ENADDR(sc->nge_ifp))[1]);
+	    ((u_int16_t *)IF_LLADDR(sc->nge_ifp))[1]);
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR2);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)IFP2ENADDR(sc->nge_ifp))[2]);
+	    ((u_int16_t *)IF_LLADDR(sc->nge_ifp))[2]);
 
 	/* Init circular RX list. */
 	if (nge_list_rx_init(sc) == ENOBUFS) {

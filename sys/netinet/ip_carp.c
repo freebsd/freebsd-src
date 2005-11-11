@@ -1049,8 +1049,8 @@ carp_send_arp(struct carp_softc *sc)
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 
-/*		arprequest(sc->sc_carpdev, &in, &in, IFP2ENADDR(sc->sc_ifp)); */
-		arp_ifinit2(sc->sc_carpdev, ifa, IFP2ENADDR(sc->sc_ifp));
+/*		arprequest(sc->sc_carpdev, &in, &in, IF_LLADDR(sc->sc_ifp)); */
+		arp_ifinit2(sc->sc_carpdev, ifa, IF_LLADDR(sc->sc_ifp));
 
 		DELAY(1000);	/* XXX */
 	}
@@ -1145,7 +1145,7 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 						if (count == index) {
 							if (vh->sc_state ==
 							    MASTER) {
-								*enaddr = IFP2ENADDR(vh->sc_ifp);
+								*enaddr = IF_LLADDR(vh->sc_ifp);
 								CARP_UNLOCK(cif);
 								return (1);
 							} else {
@@ -1163,7 +1163,7 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 			if ((SC2IFP(vh)->if_flags & IFF_UP) &&
 			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
 			    ia->ia_ifp == SC2IFP(vh)) {
-				*enaddr = IFP2ENADDR(vh->sc_ifp);
+				*enaddr = IF_LLADDR(vh->sc_ifp);
 				CARP_UNLOCK(cif);
 				return (1);
 			}
@@ -1219,14 +1219,14 @@ carp_macmatch6(void *v, struct mbuf *m, const struct in6_addr *taddr)
 				if (mtag == NULL) {
 					/* better a bit than nothing */
 					CARP_UNLOCK(cif);
-					return (IFP2ENADDR(sc->sc_ifp));
+					return (IF_LLADDR(sc->sc_ifp));
 				}
 				bcopy(&ifp, (caddr_t)(mtag + 1),
 				    sizeof(struct ifnet *));
 				m_tag_prepend(m, mtag);
 
 				CARP_UNLOCK(cif);
-				return (IFP2ENADDR(sc->sc_ifp));
+				return (IF_LLADDR(sc->sc_ifp));
 			}
 		}
 	}
@@ -1251,7 +1251,7 @@ carp_forus(void *v, void *dhost)
 		if ((SC2IFP(vh)->if_flags & IFF_UP) &&
 		    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
 		    vh->sc_state == MASTER &&
-		    !bcmp(dhost, IFP2ENADDR(vh->sc_ifp), ETHER_ADDR_LEN)) {
+		    !bcmp(dhost, IF_LLADDR(vh->sc_ifp), ETHER_ADDR_LEN)) {
 		    	CARP_UNLOCK(cif);
 			return (SC2IFP(vh));
 		}
@@ -1863,12 +1863,12 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 						return EEXIST;
 			}
 			sc->sc_vhid = carpr.carpr_vhid;
-			IFP2ENADDR(sc->sc_ifp)[0] = 0;
-			IFP2ENADDR(sc->sc_ifp)[1] = 0;
-			IFP2ENADDR(sc->sc_ifp)[2] = 0x5e;
-			IFP2ENADDR(sc->sc_ifp)[3] = 0;
-			IFP2ENADDR(sc->sc_ifp)[4] = 1;
-			IFP2ENADDR(sc->sc_ifp)[5] = sc->sc_vhid;
+			IF_LLADDR(sc->sc_ifp)[0] = 0;
+			IF_LLADDR(sc->sc_ifp)[1] = 0;
+			IF_LLADDR(sc->sc_ifp)[2] = 0x5e;
+			IF_LLADDR(sc->sc_ifp)[3] = 0;
+			IF_LLADDR(sc->sc_ifp)[4] = 1;
+			IF_LLADDR(sc->sc_ifp)[5] = sc->sc_vhid;
 			error--;
 		}
 		if (carpr.carpr_advbase > 0 || carpr.carpr_advskew > 0) {
