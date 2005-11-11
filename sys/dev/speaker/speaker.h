@@ -7,8 +7,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_SPEAKER_H_
-#define	_MACHINE_SPEAKER_H_
+#ifndef	_DEV_SPEAKER_SPEAKER_H_
+#define	_DEV_SPEAKER_SPEAKER_H_
 
 #include <sys/ioccom.h>
 
@@ -26,4 +26,4 @@ typedef struct
  * see the spkr(4) man page for details.
  */
 
-#endif /* !_MACHINE_SPEAKER_H_ */
+#endif /* !_DEV_SPEAKER_SPEAKER_H_ */
