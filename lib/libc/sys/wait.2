@@ -233,6 +233,16 @@ depending on the options in effect for the signal;
 see
 .Xr intro 2 ,
 System call restart.
+.Pp
+The implementation queues one SIGCHLD signal for each child process whose
+status has changed, if wait() or waitpid() returns because the status of
+a child process is available, the pending SIGCHLD signal associated with
+the process ID of the child process will be discarded.
+Any other pending SIGCHLD signals remain pending.
+.Pp
+If SIGCHLD is blocked, if wait() or waitpid() return because the
+status of a child process is available, the pending SIGCHLD signal will be
+cleared unless another status of the child process is available.
 .Sh RETURN VALUES
 If
 .Fn wait
