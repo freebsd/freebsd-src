@@ -187,7 +187,7 @@ parse_entry(struct mod_metadata *md, const char *cval,
 		printf("  module %s\n", cval);
 		break;
 	default:
-		warnx("unknown metdata record %d in file %s", md->md_type, kldname);
+		warnx("unknown metadata record %d in file %s", md->md_type, kldname);
 	}
 	if (!error)
 		record_end();
@@ -343,6 +343,9 @@ main(int argc, char *argv[])
 			reccnt = 0;
 		}
 		if (p->fts_info != FTS_F)
+			continue;
+		if (p->fts_namelen >= 8 &&
+		    strcmp(p->fts_name + p->fts_namelen - 8, ".symbols") == 0)
 			continue;
 		read_kld(p->fts_path, p->fts_name);
 	}
