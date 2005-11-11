@@ -226,7 +226,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-	"usage: ldconfig [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n");
+	"usage: ldconfig [-32] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n");
 	exit(1);
 }
 	
