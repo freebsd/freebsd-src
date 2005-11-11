@@ -39,17 +39,31 @@
  * Page Table Entries
  */
 #ifndef	LOCORE
-#include <sys/queue.h>
 
+/* 32-bit PTE */
 struct pte {
-	u_int pte_hi;
-	u_int pte_lo;
+	u_int32_t pte_hi;
+	u_int32_t pte_lo;
 };
 
 struct pteg {
 	struct	pte pt[8];
 };
+
+/* 64-bit (long) PTE */
+struct lpte {
+	u_int64_t pte_hi;
+	u_int64_t pte_lo;
+};
+
+struct lpteg {
+	struct lpte pt[8];
+};
+
 #endif	/* LOCORE */
+
+/* 32-bit PTE definitions */
+
 /* High word: */
 #define	PTE_VALID	0x80000000
 #define	PTE_VSID_SHFT	7
@@ -74,8 +88,38 @@ struct pteg {
 
 #define	PTE_EXEC	0x00000200	/* pseudo bit in attrs; page is exec */
 
+/* 64-bit PTE definitions */
+
+/* High quadword: */
+#define LPTE_VSID_SHIFT		12
+#define LPTE_API		0x0000000000000F80ULL
+#define LPTE_BIG		0x0000000000000004ULL	/* 4kb/16Mb page */
+#define LPTE_HID		0x0000000000000002ULL
+#define LPTE_VALID		0x0000000000000001ULL
+
+/* Low quadword: */
+#define EXTEND_PTE(x)	UINT64_C(x)	/* make constants 64-bit */
+#define	LPTE_RPGN	0xfffffffffffff000ULL
+#define	LPTE_REF	EXTEND_PTE( PTE_REF )
+#define	LPTE_CHG	EXTEND_PTE( PTE_CHG )
+#define	LPTE_WIMG	EXTEND_PTE( PTE_WIMG )
+#define	LPTE_W		EXTEND_PTE( PTE_W )
+#define	LPTE_I		EXTEND_PTE( PTE_I )
+#define	LPTE_M		EXTEND_PTE( PTE_M )
+#define	LPTE_G		EXTEND_PTE( PTE_G )
+#define	LPTE_NOEXEC	0x0000000000000004ULL
+#define	LPTE_PP		EXTEND_PTE( PTE_PP )
+
+#define	LPTE_SO		EXTEND_PTE( PTE_SO )	/* Super. Only */
+#define	LPTE_SW		EXTEND_PTE( PTE_SW )	/* Super. Write-Only */
+#define	LPTE_BW		EXTEND_PTE( PTE_BW )	/* Supervisor */
+#define	LPTE_BR		EXTEND_PTE( PTE_BR )	/* Both Read Only */
+#define	LPTE_RW		LPTE_BW
+#define	LPTE_RO		LPTE_BR
+
 #ifndef	LOCORE
 typedef	struct pte pte_t;
+typedef	struct lpte lpte_t;
 #endif	/* LOCORE */
 
 /*
@@ -86,13 +130,6 @@ typedef	struct pte pte_t;
 #define	ADDR_PIDX_SHFT	12
 #define	ADDR_API_SHFT	22
 #define	ADDR_POFF	0x00000fff
-
-#ifndef	LOCORE
-#ifdef	_KERNEL
-extern pte_t *ptable;
-extern int ptab_cnt;
-#endif	/* _KERNEL */
-#endif	/* LOCORE */
 
 /*
  * Bits in DSISR:
