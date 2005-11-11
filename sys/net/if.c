@@ -59,7 +59,6 @@
 #include <machine/stdarg.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -2101,19 +2100,12 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	if (len != sdl->sdl_alen)	/* don't allow length to change */
 		return (EINVAL);
 	switch (ifp->if_type) {
-	case IFT_ETHER:			/* these types use struct arpcom */
+	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
-		bcopy(lladdr, IFP2ENADDR(ifp), len);
-		/*
-		 * XXX We also need to store the lladdr in LLADDR(sdl),
-		 * which is done below. This is a pain because we must
-		 * remember to keep the info in sync.
-		 */
-		/* FALLTHROUGH */
 	case IFT_ARCNET:
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;

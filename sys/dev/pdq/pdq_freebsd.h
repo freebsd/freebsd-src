@@ -260,7 +260,7 @@ pdq_state_t	pdq_stop (pdq_t *pdq);
  * OS dependent functions provided by
  * pdq_ifsubr.c or pdq.c to the bus front ends
  */
-void		pdq_ifattach (pdq_softc_t *);
+void		pdq_ifattach (pdq_softc_t *, const pdq_uint8_t *);
 void		pdq_ifdetach (pdq_softc_t *);
 void		pdq_free (device_t);
 int		pdq_interrupt (pdq_t *pdq);

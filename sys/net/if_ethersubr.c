@@ -846,7 +846,7 @@ ether_sprintf(const u_char *ap)
  * Perform common duties while attaching to interface list
  */
 void
-ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
+ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 {
 	int i;
 	struct ifaddr *ifa;
@@ -868,13 +868,8 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy(llc, LLADDR(sdl), ifp->if_addrlen);
-	/*
-	 * XXX: This doesn't belong here; we do it until
-	 * XXX:  all drivers are cleaned up
-	 */
-	if (llc != IFP2ENADDR(ifp))
-		bcopy(llc, IFP2ENADDR(ifp), ifp->if_addrlen);
+	bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
+	IFP2ENADDR(ifp) = LLADDR(sdl);
 
 	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
@@ -882,10 +877,10 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 
 	/* Announce Ethernet MAC address if non-zero. */
 	for (i = 0; i < ifp->if_addrlen; i++)
-		if (llc[i] != 0)
+		if (lla[i] != 0)
 			break; 
 	if (i != ifp->if_addrlen)
-		if_printf(ifp, "Ethernet address: %6D\n", llc, ":");
+		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
 	if (debug_mpsafenet && (ifp->if_flags & IFF_NEEDSGIANT) != 0)
 		if_printf(ifp, "if_start running deferred for Giant\n");
 }
