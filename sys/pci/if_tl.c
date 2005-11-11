@@ -2091,7 +2091,7 @@ tl_init_locked(sc)
 	tl_dio_write16(sc, TL_MAXRX, MCLBYTES);
 
 	/* Init our MAC address */
-	tl_setfilt(sc, (caddr_t)&IFP2ENADDR(sc->tl_ifp), 0);
+	tl_setfilt(sc, (caddr_t)IFP2ENADDR(sc->tl_ifp), 0);
 
 	/* Init multicast filter, if needed. */
 	tl_setmulti(sc);

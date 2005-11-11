@@ -2087,8 +2087,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cb_ias->cb_status = 0;
 	cb_ias->cb_command = htole16(FXP_CB_COMMAND_IAS | FXP_CB_COMMAND_EL);
 	cb_ias->link_addr = 0xffffffff;
-	bcopy(IFP2ENADDR(sc->ifp), cb_ias->macaddr,
-	    sizeof(IFP2ENADDR(sc->ifp)));
+	bcopy(IFP2ENADDR(sc->ifp), cb_ias->macaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Start the IAS (Individual Address Setup) command/DMA.
