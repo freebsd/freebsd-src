@@ -360,8 +360,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
     ea = mtod(m, struct ether_aarp *);
 
     /* Check to see if from my hardware address */
-    if (!bcmp((caddr_t)ea->aarp_sha, IFP2ENADDR(ifp),
-	    sizeof(IFP2ENADDR(ifp)))) {
+    if (!bcmp((caddr_t)ea->aarp_sha, IFP2ENADDR(ifp), ETHER_ADDR_LEN)) {
 	m_freem(m);
 	return;
     }

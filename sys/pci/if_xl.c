@@ -857,9 +857,9 @@ xl_testpacket(struct xl_softc *sc)
 	if (m == NULL)
 		return;
 
-	bcopy(&IFP2ENADDR(sc->xl_ifp),
+	bcopy(IFP2ENADDR(sc->xl_ifp),
 		mtod(m, struct ether_header *)->ether_dhost, ETHER_ADDR_LEN);
-	bcopy(&IFP2ENADDR(sc->xl_ifp),
+	bcopy(IFP2ENADDR(sc->xl_ifp),
 		mtod(m, struct ether_header *)->ether_shost, ETHER_ADDR_LEN);
 	mtod(m, struct ether_header *)->ether_type = htons(3);
 	mtod(m, unsigned char *)[14] = 0;
