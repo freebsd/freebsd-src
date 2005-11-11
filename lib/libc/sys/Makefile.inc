@@ -81,6 +81,7 @@ MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	sigreturn.2 sigstack.2 sigsuspend.2 sigwait.2 sigwaitinfo.2 \
 	socket.2 socketpair.2 stat.2 statfs.2 \
 	swapon.2 symlink.2 sync.2 sysarch.2 syscall.2 \
+	timer_create.2 timer_delete.2 timer_settime.2 \
 	truncate.2 umask.2 undelete.2 \
 	unlink.2 utimes.2 utrace.2 uuidgen.2 vfork.2 wait.2 write.2
 .if !defined(NO_P1003_1B)
@@ -139,6 +140,7 @@ MLINKS+=stat.2 fstat.2 stat.2 lstat.2
 MLINKS+=statfs.2 fstatfs.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=swapon.2 swapoff.2
+MLINKS+=timer_settime.2 timer_gettime.2 timer_settime.2 timer_getoverrun.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=utimes.2 futimes.2 utimes.2 lutimes.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
