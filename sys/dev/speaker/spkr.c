@@ -20,9 +20,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <isa/isavar.h>
 #include <machine/clock.h>
-#include <machine/speaker.h>
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
+#include <dev/speaker/speaker.h>
 
 static	d_open_t	spkropen;
 static	d_close_t	spkrclose;

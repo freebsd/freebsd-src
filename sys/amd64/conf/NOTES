@@ -107,6 +107,9 @@ options 	CLK_USE_I8254_CALIBRATION
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
 
+device		speaker		#Play IBM BASIC-style noises out your speaker
+hint.speaker.0.at="isa"
+hint.speaker.0.port="0x61"
 device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
 
 
