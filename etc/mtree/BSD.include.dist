@@ -58,6 +58,8 @@
         ..
         smbus
         ..
+        speaker
+        ..
         usb
         ..
         utopia
