@@ -569,7 +569,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
 	batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
-        __asm ("sync; isync; \n"
+        __asm (".balign 32; \n"
 	       "mtibatu 0,%0; mtibatl 0,%1; isync; \n"
 	       "mtdbatu 0,%0; mtdbatl 0,%1; isync"
 	    :: "r"(batu), "r"(batl));
