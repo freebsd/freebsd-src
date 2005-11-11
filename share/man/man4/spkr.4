@@ -1,8 +1,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 1993
-.Dt SPKR 4 i386
+.Dd November 10, 2005
+.Dt SPKR 4
 .Os
 .Sh NAME
 .Nm speaker ,
@@ -10,7 +10,7 @@
 .Nd console speaker device driver
 .Sh SYNOPSIS
 .Cd device speaker
-.In machine/speaker.h
+.In dev/speaker/speaker.h
 .Sh DESCRIPTION
 The speaker device driver allows applications to control the PC console
 speaker on an
@@ -47,7 +47,7 @@ on a speaker file descriptor to control the
 speaker driver directly; definitions for the
 .Xr ioctl 2
 interface are in
-.In machine/speaker.h .
+.In dev/speaker/speaker.h .
 The
 .Li tone_t
 structure used in these calls has two fields,
