@@ -59,10 +59,48 @@ __FBSDID("$FreeBSD$");
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 static struct mem_region OFfree[OFMEM_REGIONS + 3];
 
-extern long	ofmsr;
+extern register_t ofmsr[5];
+extern struct   pcpu __pcpu[MAXCPU];
 extern struct	pmap ofw_pmap;
 extern int	pmap_bootstrapped;
 static int	(*ofwcall)(void *);
+
+/*
+ * Saved SPRG0-3 from OpenFirmware. Will be restored prior to the callback.
+ */
+register_t	ofw_sprg0_save;
+
+static __inline void
+ofw_sprg_prepare(void)
+{
+	/*
+	 * Assume that interrupt are disabled at this point, or
+	 * SPRG1-3 could be trashed
+	 */
+	__asm __volatile("mfsprg0 %0\n\t"
+			 "mtsprg0 %1\n\t"
+	    		 "mtsprg1 %2\n\t"
+	    		 "mtsprg2 %3\n\t"
+			 "mtsprg3 %4\n\t"
+			 : "=&r"(ofw_sprg0_save)
+			 : "r"(ofmsr[1]),
+			 "r"(ofmsr[2]),
+			 "r"(ofmsr[3]),
+			 "r"(ofmsr[4]));
+}
+
+static __inline void
+ofw_sprg_restore(void)
+{
+	/*
+	 * Note that SPRG1-3 contents are irrelevant. They are scratch
+	 * registers used in the early portion of trap handling when
+	 * interrupts are disabled.
+	 *
+	 * PCPU data cannot be used until this routine is called !
+	 */
+	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
+}
 
 /*
  * Memory region utilities: determine if two regions overlap,
@@ -173,8 +211,10 @@ openfirmware(void *args)
 		"mtmsr  %1\n\t"
 		"isync\n"
 		: "=r" (oldmsr)
-		: "r" (ofmsr)
+		: "r" (ofmsr[0])
 	);
+
+	ofw_sprg_prepare();
 
 	if (pmap_bootstrapped) {
 		/*
@@ -192,8 +232,8 @@ openfirmware(void *args)
 				 "mtdbatu 3, %0" : : "r" (0));
 		isync();
 	}
-	
-	result = ofwcall(args);
+
+       	result = ofwcall(args);
 
 	if (pmap_bootstrapped) {
 		/*
@@ -206,6 +246,8 @@ openfirmware(void *args)
 			isync();
 		}
 	}
+
+	ofw_sprg_restore();
 
 	__asm(	"\t"
 		"mtmsr  %0\n\t"
