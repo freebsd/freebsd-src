@@ -173,7 +173,6 @@ oltr_attach(device_t dev)
 	ifp->if_ioctl	= oltr_ioctl;
 	ifp->if_flags	= IFF_BROADCAST | IFF_NEEDSGIANT;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	bcopy(sc->config.macaddress, IFP2ENADDR(sc->ifp), sizeof(sc->config.macaddress));
 
 	/*
 	 * Do ifmedia setup.
@@ -203,7 +202,7 @@ oltr_attach(device_t dev)
 	 * Attach the interface
 	 */
 
-	iso88025_ifattach(ifp, ISO88025_BPF_SUPPORTED);
+	iso88025_ifattach(ifp, sc->config.macaddress, ISO88025_BPF_SUPPORTED);
 
 	return(0);
 }
