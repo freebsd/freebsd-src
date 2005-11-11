@@ -873,7 +873,7 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 
 
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, 0);
-	bfe_cam_write(sc, IFP2ENADDR(sc->bfe_ifp), i++);
+	bfe_cam_write(sc, IF_LLADDR(sc->bfe_ifp), i++);
 
 	if (ifp->if_flags & IFF_ALLMULTI)
 		val |= BFE_RXCONF_ALLMULTI;

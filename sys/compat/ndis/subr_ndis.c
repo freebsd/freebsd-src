@@ -1407,15 +1407,15 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-#ifdef IFP2ENADDR
-	if (bcmp(IFP2ENADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
+#ifdef IF_LLADDR
+	if (bcmp(IF_LLADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
 #else
 	if (bcmp(sc->arpcom.ac_enaddr, empty, ETHER_ADDR_LEN) == 0)
 #endif
 		*status = NDIS_STATUS_FAILURE;
 	else {
-#ifdef IFP2ENADDR
-		*addr = IFP2ENADDR(sc->ifp);
+#ifdef IF_LLADDR
+		*addr = IF_LLADDR(sc->ifp);
 #else
 		*addr = sc->arpcom.ac_enaddr;
 #endif

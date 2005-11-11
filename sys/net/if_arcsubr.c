@@ -649,7 +649,7 @@ arc_ifattach(ifp, lla)
 #if __FreeBSD_version < 500000
 	ifa = ifnet_addrs[ifp->if_index - 1];
 #else
-	ifa = ifaddr_byindex(ifp->if_index);
+	ifa = ifp->if_addr;
 #endif
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;

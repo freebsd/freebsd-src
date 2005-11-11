@@ -102,8 +102,8 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -411,18 +411,18 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	 * by extension, all the other ports in the bundle).
 	 */
 	if (b->fec_ifcnt == 0)
-		if_setlladdr(ifp, IFP2ENADDR(bifp), ETHER_ADDR_LEN);
+		if_setlladdr(ifp, IF_LLADDR(bifp), ETHER_ADDR_LEN);
 
 	b->fec_btype = FEC_BTYPE_MAC;
 	new->fec_idx = b->fec_ifcnt;
 	b->fec_ifcnt++;
 
 	/* Save the real MAC address. */
-	bcopy(IFP2ENADDR(bifp),
+	bcopy(IF_LLADDR(bifp),
 	    (char *)&new->fec_mac, ETHER_ADDR_LEN);
 
 	/* Set up phony MAC address. */
-	if_setlladdr(bifp, IFP2ENADDR(ifp), ETHER_ADDR_LEN);
+	if_setlladdr(bifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
 	/* Save original input vector */
 	new->fec_if_input = bifp->if_input;
@@ -1143,7 +1143,7 @@ ng_fec_constructor(node_p node)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
 
 	/* Attach the interface */
-	ether_ifattach(ifp, IFP2ENADDR(priv->ifp));
+	ether_ifattach(ifp, IF_LLADDR(priv->ifp));
 	callout_handle_init(&priv->fec_ch);
 
 	/* Override output method with our own */

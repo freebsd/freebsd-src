@@ -444,7 +444,7 @@ route_output(struct mbuf *m, struct socket *so)
 				ifp = rt->rt_ifp;
 				if (ifp) {
 					info.rti_info[RTAX_IFP] =
-					    ifaddr_byindex(ifp->if_index)->ifa_addr;
+					    ifp->if_addr->ifa_addr;
 					if (jailed(so->so_cred)) {
 						bzero(&jail, sizeof(jail));
 						jail.sin_family = PF_INET;
@@ -873,8 +873,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 			int ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
 
 			info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
-			info.rti_info[RTAX_IFP] =
-			    ifaddr_byindex(ifp->if_index)->ifa_addr;
+			info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 			if ((m = rt_msg1(ncmd, &info)) == NULL)
@@ -924,8 +923,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_IFA] = ifma->ifma_addr;
-	info.rti_info[RTAX_IFP] =
-	    ifp ? ifaddr_byindex(ifp->if_index)->ifa_addr : NULL;
+	info.rti_info[RTAX_IFP] = ifp ? ifp->if_addr->ifa_addr : NULL;
 	/*
 	 * If a link-layer address is present, present it as a ``gateway''
 	 * (similarly to how ARP entries, e.g., are presented).
@@ -1058,8 +1056,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 	info.rti_info[RTAX_GENMASK] = rt->rt_genmask;
 	if (rt->rt_ifp) {
-		info.rti_info[RTAX_IFP] =
-		    ifaddr_byindex(rt->rt_ifp->if_index)->ifa_addr;
+		info.rti_info[RTAX_IFP] = rt->rt_ifp->if_addr->ifa_addr;
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
 			info.rti_info[RTAX_BRD] = rt->rt_ifa->ifa_dstaddr;
@@ -1093,7 +1090,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		ifa = ifaddr_byindex(ifp->if_index);
+		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
 		info.rti_info[RTAX_IFP] = NULL;
@@ -1154,7 +1151,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		ifa = ifaddr_byindex(ifp->if_index);
+		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {

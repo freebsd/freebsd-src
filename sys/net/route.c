@@ -188,7 +188,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 			info.rti_info[RTAX_GATEWAY] = newrt->rt_gateway;
 			if (newrt->rt_ifp != NULL) {
 				info.rti_info[RTAX_IFP] =
-				    ifaddr_byindex(newrt->rt_ifp->if_index)->ifa_addr;
+				    newrt->rt_ifp->if_addr->ifa_addr;
 				info.rti_info[RTAX_IFA] = newrt->rt_ifa->ifa_addr;
 			}
 			rt_missmsg(RTM_ADD, &info, newrt->rt_flags, 0);

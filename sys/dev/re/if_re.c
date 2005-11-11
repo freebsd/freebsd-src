@@ -2120,9 +2120,9 @@ re_init_locked(sc)
 	 */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
 	CSR_WRITE_STREAM_4(sc, RL_IDR0,
-	    *(u_int32_t *)(&IFP2ENADDR(sc->rl_ifp)[0]));
+	    *(u_int32_t *)(&IF_LLADDR(sc->rl_ifp)[0]));
 	CSR_WRITE_STREAM_4(sc, RL_IDR4,
-	    *(u_int32_t *)(&IFP2ENADDR(sc->rl_ifp)[4]));
+	    *(u_int32_t *)(&IF_LLADDR(sc->rl_ifp)[4]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/*

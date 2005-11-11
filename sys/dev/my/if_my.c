@@ -1154,7 +1154,7 @@ my_rxeof(struct my_softc * sc)
 		if (ifp->if_bpf) {
 			BPF_MTAP(ifp, m);
 			if (ifp->if_flags & IFF_PROMISC &&
-			    (bcmp(eh->ether_dhost, IFP2ENADDR(sc->my_ifp),
+			    (bcmp(eh->ether_dhost, IF_LLADDR(sc->my_ifp),
 				ETHER_ADDR_LEN) &&
 			     (eh->ether_dhost[0] & 1) == 0)) {
 				m_freem(m);

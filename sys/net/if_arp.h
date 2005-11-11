@@ -103,11 +103,9 @@ struct arpreq {
  */
 struct	arpcom {
 	struct 	ifnet *ac_ifp;		/* network-visible interface */
-	u_char	*_ac_enaddr;		/* ethernet hardware address */
 	void	*ac_netgraph;		/* ng_ether(4) netgraph node info */
 };
 #define IFP2AC(ifp) ((struct arpcom *)(ifp->if_l2com))
-#define IFP2ENADDR(ifp) (IFP2AC(ifp)->_ac_enaddr)
 #define AC2IFP(ac) ((ac)->ac_ifp)
 
 #endif

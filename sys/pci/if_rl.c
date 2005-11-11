@@ -1511,9 +1511,9 @@ rl_init_locked(struct rl_softc *sc)
 	 */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
 	CSR_WRITE_STREAM_4(sc, RL_IDR0,
-	    *(uint32_t *)(&IFP2ENADDR(sc->rl_ifp)[0]));
+	    *(uint32_t *)(&IF_LLADDR(sc->rl_ifp)[0]));
 	CSR_WRITE_STREAM_4(sc, RL_IDR4,
-	    *(uint32_t *)(&IFP2ENADDR(sc->rl_ifp)[4]));
+	    *(uint32_t *)(&IF_LLADDR(sc->rl_ifp)[4]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/* Init the RX buffer pointer register. */

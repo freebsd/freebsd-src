@@ -643,7 +643,7 @@ nve_init(void *xsc)
 		goto fail;
 	}
 	/* Set the MAC address */
-	sc->hwapi->pfnSetNodeAddress(sc->hwapi->pADCX, IFP2ENADDR(sc->ifp));
+	sc->hwapi->pfnSetNodeAddress(sc->hwapi->pADCX, IF_LLADDR(sc->ifp));
 	sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
 	sc->hwapi->pfnStart(sc->hwapi->pADCX);
 

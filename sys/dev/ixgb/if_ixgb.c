@@ -665,7 +665,7 @@ ixgb_init_locked(struct adapter *adapter)
 	ixgb_stop(adapter);
 
 	/* Get the latest mac address, User can use a LAA */
-	bcopy(IFP2ENADDR(adapter->ifp), adapter->hw.curr_mac_addr,
+	bcopy(IF_LLADDR(adapter->ifp), adapter->hw.curr_mac_addr,
 	      IXGB_ETH_LENGTH_OF_ADDRESS);
 
 	/* Initialize the hardware */

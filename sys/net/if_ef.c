@@ -126,8 +126,6 @@ static int
 ef_attach(struct efnet *sc)
 {
 	struct ifnet *ifp = sc->ef_ifp;
-	struct ifaddr *ifa2;
-	struct sockaddr_dl *sdl2;
 
 	ifp->if_start = ef_start;
 	ifp->if_watchdog = NULL;
@@ -137,9 +135,7 @@ ef_attach(struct efnet *sc)
 	/*
 	 * Attach the interface
 	 */
-	ifa2 = ifaddr_byindex(sc->ef_pifp->if_index);
-	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
-	ether_ifattach(ifp, LLADDR(sdl2));
+	ether_ifattach(ifp, IF_LLADDR(sc->ef_pifp));
 
 	ifp->if_resolvemulti = 0;
 	ifp->if_type = IFT_XETHER;

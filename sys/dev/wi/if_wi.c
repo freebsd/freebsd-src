@@ -656,8 +656,6 @@ wi_init(void *arg)
 	struct wi_joinreq join;
 	int i;
 	int error = 0, wasenabled;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
@@ -717,9 +715,7 @@ wi_init(void *arg)
 		ieee80211_chan2ieee(ic, ic->ic_ibss_chan));
 	wi_write_ssid(sc, WI_RID_OWN_SSID, ic->ic_des_essid, ic->ic_des_esslen);
 
-	ifa = ifaddr_byindex(ifp->if_index);
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, LLADDR(sdl));
+	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 	wi_write_rid(sc, WI_RID_MAC_NODE, ic->ic_myaddr, IEEE80211_ADDR_LEN);
 
 	if (ic->ic_caps & IEEE80211_C_PMGT)

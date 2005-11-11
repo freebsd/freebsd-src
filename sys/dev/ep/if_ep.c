@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
@@ -406,7 +406,7 @@ epinit_locked(struct ep_softc *sc)
 
 	GO_WINDOW(sc, 2);
 	/* Reload the ether_addr. */
-	ep_setup_station(sc, IFP2ENADDR(sc->ifp));
+	ep_setup_station(sc, IF_LLADDR(sc->ifp));
 
 	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);

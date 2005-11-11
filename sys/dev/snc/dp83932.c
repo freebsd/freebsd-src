@@ -670,7 +670,7 @@ camprogram(sc)
 	ifp = sc->sc_ifp;
 
 	/* Always load our own address first. */
-	camentry (sc, mcount, IFP2ENADDR(sc->sc_ifp));
+	camentry (sc, mcount, IF_LLADDR(sc->sc_ifp));
 	mcount++;
 
 	/* Assume we won't need allmulti bit. */

@@ -860,7 +860,7 @@ cue_init(void *xsc)
 
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		cue_csr_write_1(sc, CUE_PAR0 - i, IFP2ENADDR(sc->cue_ifp)[i]);
+		cue_csr_write_1(sc, CUE_PAR0 - i, IF_LLADDR(sc->cue_ifp)[i]);
 
 	/* Enable RX logic. */
 	cue_csr_write_1(sc, CUE_ETHCTL, CUE_ETHCTL_RX_ON|CUE_ETHCTL_MCAST_ON);

@@ -461,7 +461,7 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			bcopy(IFP2ENADDR(priv->ifp),
+			bcopy(IF_LLADDR(priv->ifp),
 			    resp->data, ETHER_ADDR_LEN);
 			break;
 		case NGM_ETHER_SET_ENADDR:
@@ -624,7 +624,7 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m)
 			return (ENOBUFS);
 
 		/* Overwrite source MAC address */
-		bcopy(IFP2ENADDR(ifp),
+		bcopy(IF_LLADDR(ifp),
 		    mtod(m, struct ether_header *)->ether_shost,
 		    ETHER_ADDR_LEN);
 	}

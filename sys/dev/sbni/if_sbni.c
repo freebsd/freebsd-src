@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/ethernet.h>
-#include <net/if_arp.h>
 #include <net/bpf.h>
 #include <net/if_types.h>
 
@@ -1094,7 +1094,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * SBNI specific ioctl
 		 */
 	case SIOCGHWFLAGS:	/* get flags */
-		bcopy((caddr_t)IFP2ENADDR(sc->ifp)+3, (caddr_t) &flags, 3);
+		bcopy((caddr_t)IF_LLADDR(sc->ifp)+3, (caddr_t) &flags, 3);
 		flags.rxl = sc->cur_rxl_index;
 		flags.rate = sc->csr1.rate;
 		flags.fixed_rxl = (sc->delta_rxl == 0);
@@ -1125,7 +1125,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		sc->csr1.rate = flags.fixed_rate ? flags.rate : DEFAULT_RATE;
 		if (flags.mac_addr)
 			bcopy((caddr_t) &flags,
-			      (caddr_t) IFP2ENADDR(sc->ifp)+3, 3);
+			      (caddr_t) IF_LLADDR(sc->ifp)+3, 3);
 
 		/* Don't be afraid... */
 		sbni_outb(sc, CSR1, *(char*)(&sc->csr1) | PR_RES);

@@ -1293,9 +1293,9 @@ epic_init(xsc)
 	CSR_WRITE_4(sc, PTCDAR, sc->tx_addr);
 
 	/* Put node address to EPIC. */
-	CSR_WRITE_4(sc, LAN0, ((u_int16_t *)IFP2ENADDR(sc->ifp))[0]);
-	CSR_WRITE_4(sc, LAN1, ((u_int16_t *)IFP2ENADDR(sc->ifp))[1]);
-	CSR_WRITE_4(sc, LAN2, ((u_int16_t *)IFP2ENADDR(sc->ifp))[2]);
+	CSR_WRITE_4(sc, LAN0, ((u_int16_t *)IF_LLADDR(sc->ifp))[0]);
+	CSR_WRITE_4(sc, LAN1, ((u_int16_t *)IF_LLADDR(sc->ifp))[1]);
+	CSR_WRITE_4(sc, LAN2, ((u_int16_t *)IF_LLADDR(sc->ifp))[2]);
 
 	/* Set tx mode, includeing transmit threshold. */
 	epic_set_tx_mode(sc);

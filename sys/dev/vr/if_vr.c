@@ -1446,7 +1446,7 @@ vr_init_locked(struct vr_softc *sc)
 
 	/* Set our station address. */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VR_PAR0 + i, IFP2ENADDR(sc->vr_ifp)[i]);
+		CSR_WRITE_1(sc, VR_PAR0 + i, IF_LLADDR(sc->vr_ifp)[i]);
 
 	/* Set DMA size. */
 	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_DMA_LENGTH);

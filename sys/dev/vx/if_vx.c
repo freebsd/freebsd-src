@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 
 #include <net/ethernet.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 
 #include <machine/bus.h>
@@ -232,7 +232,7 @@ vx_init_locked(struct vx_softc *sc)
 	GO_WINDOW(2);
 
 	for (i = 0; i < 6; i++)	/* Reload the ether_addr. */
-		CSR_WRITE_1(sc, VX_W2_ADDR_0 + i, IFP2ENADDR(sc->vx_ifp)[i]);
+		CSR_WRITE_1(sc, VX_W2_ADDR_0 + i, IF_LLADDR(sc->vx_ifp)[i]);
 
 	CSR_WRITE_2(sc, VX_COMMAND, RX_RESET);
 	VX_BUSY_WAIT;
@@ -756,7 +756,7 @@ again:
 
 	if (!(ifp->if_flags & IFF_PROMISC)
 	    && (eh->ether_dhost[0] & 1) == 0	/* !mcast and !bcast */
-	    && bcmp(eh->ether_dhost, IFP2ENADDR(sc->vx_ifp),
+	    && bcmp(eh->ether_dhost, IF_LLADDR(sc->vx_ifp),
 	    ETHER_ADDR_LEN) != 0) {
 		m_freem(m);
 		return;

@@ -1969,7 +1969,7 @@ vge_init(xsc)
 
 	/* Set our station address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VGE_PAR0 + i, IFP2ENADDR(sc->vge_ifp)[i]);
+		CSR_WRITE_1(sc, VGE_PAR0 + i, IF_LLADDR(sc->vge_ifp)[i]);
 
 	/*
 	 * Set receive FIFO threshold. Also allow transmission and

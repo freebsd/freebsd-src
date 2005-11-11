@@ -1171,11 +1171,11 @@ pcn_init_locked(sc)
 
 	/* Set MAC address */
 	pcn_csr_write(sc, PCN_CSR_PAR0,
-	    ((u_int16_t *)IFP2ENADDR(sc->pcn_ifp))[0]);
+	    ((u_int16_t *)IF_LLADDR(sc->pcn_ifp))[0]);
 	pcn_csr_write(sc, PCN_CSR_PAR1,
-	    ((u_int16_t *)IFP2ENADDR(sc->pcn_ifp))[1]);
+	    ((u_int16_t *)IF_LLADDR(sc->pcn_ifp))[1]);
 	pcn_csr_write(sc, PCN_CSR_PAR2,
-	    ((u_int16_t *)IFP2ENADDR(sc->pcn_ifp))[2]);
+	    ((u_int16_t *)IF_LLADDR(sc->pcn_ifp))[2]);
 
 	/* Init circular RX list. */
 	if (pcn_list_rx_init(sc) == ENOBUFS) {

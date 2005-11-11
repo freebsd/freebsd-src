@@ -1043,7 +1043,7 @@ fe_init (void * xsc)
 	DELAY(200);
 
 	/* Feed the station address.  */
-	fe_outblk(sc, FE_DLCR8, IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN);
+	fe_outblk(sc, FE_DLCR8, IF_LLADDR(sc->ifp), ETHER_ADDR_LEN);
 
 	/* Clear multicast address filter to receive nothing.  */
 	fe_outb(sc, FE_DLCR7,

@@ -766,7 +766,7 @@ firewire_ifattach(struct ifnet *ifp, struct fw_hwaddr *llc)
 	ifp->if_resolvemulti = firewire_resolvemulti;
 	ifp->if_broadcastaddr = (u_char *) &firewire_broadcastaddr;
 
-	ifa = ifaddr_byindex(ifp->if_index);
+	ifa = ifp->if_addr;
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_IEEE1394;
