@@ -1046,7 +1046,7 @@ gem_init_regs(sc)
 {
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
-	const u_char *laddr = IFP2ENADDR(sc->sc_ifp);
+	const u_char *laddr = IF_LLADDR(sc->sc_ifp);
 	u_int32_t v;
 
 	/* These regs are not cleared on reset */

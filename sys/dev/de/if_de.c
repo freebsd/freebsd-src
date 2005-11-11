@@ -260,8 +260,8 @@ tulip_txprobe(tulip_softc_t * const sc)
     /*
      * Construct a LLC TEST message which will point to ourselves.
      */
-    bcopy(IFP2ENADDR(sc->tulip_ifp), mtod(m, struct ether_header *)->ether_dhost, 6);
-    bcopy(IFP2ENADDR(sc->tulip_ifp), mtod(m, struct ether_header *)->ether_shost, 6);
+    bcopy(IF_LLADDR(sc->tulip_ifp), mtod(m, struct ether_header *)->ether_dhost, 6);
+    bcopy(IF_LLADDR(sc->tulip_ifp), mtod(m, struct ether_header *)->ether_shost, 6);
     mtod(m, struct ether_header *)->ether_type = htons(3);
     mtod(m, unsigned char *)[14] = 0;
     mtod(m, unsigned char *)[15] = 0;
@@ -3081,12 +3081,12 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	    hash = tulip_mchash(ifp->if_broadcastaddr);
 	    sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    if (sc->tulip_flags & TULIP_WANTHASHONLY) {
-		hash = tulip_mchash(IFP2ENADDR(ifp));
+		hash = tulip_mchash(IF_LLADDR(ifp));
 		sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    } else {
-		sp[39] = TULIP_SP_MAC(((u_int16_t *)IFP2ENADDR(ifp))[0]); 
-		sp[40] = TULIP_SP_MAC(((u_int16_t *)IFP2ENADDR(ifp))[1]); 
-		sp[41] = TULIP_SP_MAC(((u_int16_t *)IFP2ENADDR(ifp))[2]);
+		sp[39] = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[0]); 
+		sp[40] = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[1]); 
+		sp[41] = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[2]);
 	    }
 	}
     }
@@ -3118,9 +3118,9 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	 * Pad the rest with our hardware address
 	 */
 	for (; idx < 16; idx++) {
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IFP2ENADDR(ifp))[0]); 
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IFP2ENADDR(ifp))[1]); 
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IFP2ENADDR(ifp))[2]);
+	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[0]); 
+	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[1]); 
+	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[2]);
 	}
     }
     IF_ADDR_UNLOCK(ifp);

@@ -1179,12 +1179,12 @@ txp_init_locked(sc)
 	    NULL, NULL, NULL, 1);
 
 	/* Set station address. */
-	((u_int8_t *)&p1)[1] = IFP2ENADDR(sc->sc_ifp)[0];
-	((u_int8_t *)&p1)[0] = IFP2ENADDR(sc->sc_ifp)[1];
-	((u_int8_t *)&p2)[3] = IFP2ENADDR(sc->sc_ifp)[2];
-	((u_int8_t *)&p2)[2] = IFP2ENADDR(sc->sc_ifp)[3];
-	((u_int8_t *)&p2)[1] = IFP2ENADDR(sc->sc_ifp)[4];
-	((u_int8_t *)&p2)[0] = IFP2ENADDR(sc->sc_ifp)[5];
+	((u_int8_t *)&p1)[1] = IF_LLADDR(sc->sc_ifp)[0];
+	((u_int8_t *)&p1)[0] = IF_LLADDR(sc->sc_ifp)[1];
+	((u_int8_t *)&p2)[3] = IF_LLADDR(sc->sc_ifp)[2];
+	((u_int8_t *)&p2)[2] = IF_LLADDR(sc->sc_ifp)[3];
+	((u_int8_t *)&p2)[1] = IF_LLADDR(sc->sc_ifp)[4];
+	((u_int8_t *)&p2)[0] = IF_LLADDR(sc->sc_ifp)[5];
 	txp_command(sc, TXP_CMD_STATION_ADDRESS_WRITE, p1, p2, 0,
 	    NULL, NULL, NULL, 1);
 

@@ -1305,7 +1305,7 @@ ste_init_locked(sc)
 
 	/* Init our MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, STE_PAR0 + i, IFP2ENADDR(sc->ste_ifp)[i]);
+		CSR_WRITE_1(sc, STE_PAR0 + i, IF_LLADDR(sc->ste_ifp)[i]);
 	}
 
 	/* Init RX list */

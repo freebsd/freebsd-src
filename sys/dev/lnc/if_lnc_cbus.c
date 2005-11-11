@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 
 #include <isa/isavar.h>
 
@@ -261,9 +261,9 @@ lnc_isa_attach(device_t dev)
 	 *
 	 *       Contec uses 00 80 4c ?? ?? ??
 	 */ 
-	if (IFP2ENADDR(sc->ifp)[0] == (u_char)0x00 &&
-	    IFP2ENADDR(sc->ifp)[1] == (u_char)0x80 &&
-	    IFP2ENADDR(sc->ifp)[2] == (u_char)0x4c) {
+	if (IF_LLADDR(sc->ifp)[0] == (u_char)0x00 &&
+	    IF_LLADDR(sc->ifp)[1] == (u_char)0x80 &&
+	    IF_LLADDR(sc->ifp)[2] == (u_char)0x4c) {
 		lnc_outw(sc->rap, MSRDA);
 		lnc_outw(CNET98S_IDP, 0x0006);
 		lnc_outw(sc->rap, MSWRA);

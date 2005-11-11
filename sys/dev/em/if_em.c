@@ -863,7 +863,7 @@ em_init_locked(struct adapter * adapter)
 	E1000_WRITE_REG(&adapter->hw, PBA, pba);
 	
 	/* Get the latest mac address, User can use a LAA */
-        bcopy(IFP2ENADDR(adapter->ifp), adapter->hw.mac_addr,
+        bcopy(IF_LLADDR(adapter->ifp), adapter->hw.mac_addr,
               ETHER_ADDR_LEN);
 
 	/* Initialize the hardware */

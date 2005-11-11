@@ -1230,7 +1230,7 @@ ray_init_auth_send(struct ray_softc *sc, u_int8_t *dst, int sequence)
 	    IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_AUTH,
 	    IEEE80211_FC1_DIR_NODS,
 	    dst,
-	    IFP2ENADDR(sc->ifp),
+	    IF_LLADDR(sc->ifp),
 	    sc->sc_c.np_bss_id);
 
 	/* Add algorithm number */

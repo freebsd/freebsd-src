@@ -63,6 +63,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 
 #include <netinet/in.h>
 #undef s_net
@@ -196,7 +197,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
     ea->aarp_hln = sizeof(ea->aarp_sha);
     ea->aarp_pln = sizeof(ea->aarp_spu);
     ea->aarp_op = htons(AARPOP_REQUEST);
-    bcopy(IFP2ENADDR(ifp), (caddr_t)ea->aarp_sha,
+    bcopy(IF_LLADDR(ifp), (caddr_t)ea->aarp_sha,
 	    sizeof(ea->aarp_sha));
 
     /*
@@ -360,7 +361,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
     ea = mtod(m, struct ether_aarp *);
 
     /* Check to see if from my hardware address */
-    if (!bcmp((caddr_t)ea->aarp_sha, IFP2ENADDR(ifp), ETHER_ADDR_LEN)) {
+    if (!bcmp((caddr_t)ea->aarp_sha, IF_LLADDR(ifp), ETHER_ADDR_LEN)) {
 	m_freem(m);
 	return;
     }
@@ -483,7 +484,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 
     bcopy((caddr_t)ea->aarp_sha, (caddr_t)ea->aarp_tha,
 	    sizeof(ea->aarp_sha));
-    bcopy(IFP2ENADDR(ifp), (caddr_t)ea->aarp_sha,
+    bcopy(IF_LLADDR(ifp), (caddr_t)ea->aarp_sha,
 	    sizeof(ea->aarp_sha));
 
     /* XXX */
@@ -629,7 +630,7 @@ aarpprobe(void *arg)
     ea->aarp_hln = sizeof(ea->aarp_sha);
     ea->aarp_pln = sizeof(ea->aarp_spu);
     ea->aarp_op = htons(AARPOP_PROBE);
-    bcopy(IFP2ENADDR(ifp), (caddr_t)ea->aarp_sha,
+    bcopy(IF_LLADDR(ifp), (caddr_t)ea->aarp_sha,
 	    sizeof(ea->aarp_sha));
 
     eh = (struct ether_header *)sa.sa_data;

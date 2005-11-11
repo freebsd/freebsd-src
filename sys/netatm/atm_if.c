@@ -561,7 +561,7 @@ atm_physif_ioctl(code, data, arg)
 			 * Set macaddr in <Link> address
 			 */
 			ifp->if_addrlen = 6;
-			ifa = ifaddr_byindex(ifp->if_index);
+			ifa = ifp->if_addr;
 			if ( ifa ) {
 				sdl = (struct sockaddr_dl *)
 					ifa->ifa_addr;

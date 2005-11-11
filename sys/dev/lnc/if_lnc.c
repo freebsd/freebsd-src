@@ -583,7 +583,7 @@ lnc_rint(struct lnc_softc *sc)
 				 * drop it if it is from myself.
 				*/
 				if (bcmp(eh->ether_shost,
-				      IFP2ENADDR(sc->ifp), ETHER_ADDR_LEN) == 0) {
+				      IF_LLADDR(sc->ifp), ETHER_ADDR_LEN) == 0) {
 				    m_freem(head);
 				} else {
 				    (*ifp->if_input)(ifp, head);
@@ -1008,7 +1008,7 @@ lnc_init(xsc)
 	sc->init_block->mode = sc->nic.mode;
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->init_block->padr[i] = IFP2ENADDR(sc->ifp)[i];
+		sc->init_block->padr[i] = IF_LLADDR(sc->ifp)[i];
 
 	lnc_setladrf(sc);
 

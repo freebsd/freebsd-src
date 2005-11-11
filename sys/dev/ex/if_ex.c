@@ -308,7 +308,7 @@ ex_init(void *xsc)
 		CSR_WRITE_1(sc, EEPROM_REG, temp_reg & ~Trnoff_Enable);
 	}
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, I_ADDR_REG0 + i, IFP2ENADDR(sc->ifp)[i]);
+		CSR_WRITE_1(sc, I_ADDR_REG0 + i, IF_LLADDR(sc->ifp)[i]);
 	}
 	/*
 	 * - Setup transmit chaining and discard bad received frames.
@@ -892,7 +892,7 @@ ex_setmulti(struct ex_softc *sc)
 		/* Program our MAC address as well */
 		/* XXX: Is this necessary?  The Linux driver does this
 		 * but the NetBSD driver does not */
-		addr = (uint16_t*)(IFP2ENADDR(sc->ifp));
+		addr = (uint16_t*)IF_LLADDR(sc->ifp);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);

@@ -1245,7 +1245,7 @@ wi_setdef(sc, wreq)
 
 	switch(wreq->wi_type) {
 	case WI_RID_MAC_NODE:
-		bcopy((char *)&wreq->wi_val, (char *)IFP2ENADDR(sc->ifp),
+		bcopy(&wreq->wi_val, IF_LLADDR(sc->ifp),
 		   ETHER_ADDR_LEN);
 		break;
 	case WI_RID_PORTTYPE:
@@ -1749,8 +1749,8 @@ wi_init(xsc)
 	/* Set our MAC address. */
 	mac.wi_len = 4;
 	mac.wi_type = WI_RID_MAC_NODE;
-	bcopy((char *)IFP2ENADDR(sc->ifp),
-	   (char *)&mac.wi_mac_addr, ETHER_ADDR_LEN);
+	bcopy(IF_LLADDR(sc->ifp),
+	   &mac.wi_mac_addr, ETHER_ADDR_LEN);
 	wi_write_record(sc, (struct wi_ltv_gen *)&mac);
 
 	/*

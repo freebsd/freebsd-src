@@ -1673,7 +1673,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	eh = mtod(m, struct ether_header *);
 
-	if (memcmp(eh->ether_dhost, IFP2ENADDR(bifp),
+	if (memcmp(eh->ether_dhost, IF_LLADDR(bifp),
 	    ETHER_ADDR_LEN) == 0) {
 		/*
 		 * If the packet is for us, set the packets source as the

@@ -479,7 +479,7 @@ if_attach(struct ifnet *ifp)
 	sdl->sdl_nlen = namelen;
 	sdl->sdl_index = ifp->if_index;
 	sdl->sdl_type = ifp->if_type;
-	ifaddr_byindex(ifp->if_index) = ifa;
+	ifp->if_addr = ifa;
 	ifa->ifa_ifp = ifp;
 	ifa->ifa_rtrequest = link_rtrequest;
 	ifa->ifa_addr = (struct sockaddr *)sdl;
@@ -598,7 +598,7 @@ if_purgeaddrs(struct ifnet *ifp)
 
 /*
  * Detach an interface, removing it from the
- * list of "active" interfaces and freeing the struct ifnet.
+ * list of "active" interfaces.
  *
  * XXXRW: There are some significant questions about event ordering, and
  * how to prevent things from starting to use the interface during detach.
@@ -653,10 +653,10 @@ if_detach(struct ifnet *ifp)
 	in6_ifdetach(ifp);
 #endif
 	/*
-	 * Remove address from ifindex_table[] and maybe decrement if_index.
+	 * Remove link ifaddr pointer and maybe decrement if_index.
 	 * Clean up all addresses.
 	 */
-	ifaddr_byindex(ifp->if_index) = NULL;
+	ifp->if_addr = NULL;
 	destroy_dev(ifdev_byindex(ifp->if_index));
 	ifdev_byindex(ifp->if_index) = NULL;
 
@@ -1326,7 +1326,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		    ifp->if_xname, new_name);
 
 		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
-		ifa = ifaddr_byindex(ifp->if_index);
+		ifa = ifp->if_addr;
 		IFA_LOCK(ifa);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		namelen = strlen(new_name);
@@ -2091,7 +2091,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 
-	ifa = ifaddr_byindex(ifp->if_index);
+	ifa = ifp->if_addr;
 	if (ifa == NULL)
 		return (EINVAL);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;

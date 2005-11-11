@@ -854,7 +854,7 @@ axe_init(void *xsc)
 
 #ifdef notdef
 	/* Set MAC address */
-	axe_mac(sc, IFP2ENADDR(sc->axe_ifp), 1);
+	axe_mac(sc, IF_LLADDR(sc->axe_ifp), 1);
 #endif
 
 	/* Enable RX logic. */
