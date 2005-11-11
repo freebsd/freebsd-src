@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
  
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -2463,10 +2463,10 @@ ieee80211_ioctl(struct ieee80211com *ic, u_long cmd, caddr_t data)
 
 			if (ipx_nullhost(*ina))
 				ina->x_host = *(union ipx_host *)
-				    IFP2ENADDR(ifp);
+				    IF_LLADDR(ifp);
 			else
 				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) IFP2ENADDR(ifp),
+				      (caddr_t) IF_LLADDR(ifp),
 				      ETHER_ADDR_LEN);
 			/* fall thru... */
 		}

@@ -857,9 +857,9 @@ xl_testpacket(struct xl_softc *sc)
 	if (m == NULL)
 		return;
 
-	bcopy(IFP2ENADDR(sc->xl_ifp),
+	bcopy(IF_LLADDR(sc->xl_ifp),
 		mtod(m, struct ether_header *)->ether_dhost, ETHER_ADDR_LEN);
-	bcopy(IFP2ENADDR(sc->xl_ifp),
+	bcopy(IF_LLADDR(sc->xl_ifp),
 		mtod(m, struct ether_header *)->ether_shost, ETHER_ADDR_LEN);
 	mtod(m, struct ether_header *)->ether_type = htons(3);
 	mtod(m, unsigned char *)[14] = 0;
@@ -2807,7 +2807,7 @@ xl_init_locked(struct xl_softc *sc)
 	XL_SEL_WIN(2);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		CSR_WRITE_1(sc, XL_W2_STATION_ADDR_LO + i,
-				IFP2ENADDR(sc->xl_ifp)[i]);
+				IF_LLADDR(sc->xl_ifp)[i]);
 	}
 
 	/* Clear the station mask. */

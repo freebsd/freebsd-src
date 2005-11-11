@@ -373,7 +373,7 @@ xe_init(void *xscp) {
   /* Put MAC address in first 'individual address' register */
   XE_SELECT_PAGE(0x50);
   for (i = 0; i < 6; i++)
-    XE_OUTB(0x08 + i, IFP2ENADDR(scp->ifp)[scp->mohawk ? 5 - i : i]);
+    XE_OUTB(0x08 + i, IF_LLADDR(scp->ifp)[scp->mohawk ? 5 - i : i]);
 
   /* Set up multicast addresses */
   xe_set_multicast(scp);
@@ -1309,7 +1309,7 @@ xe_set_multicast(struct xe_softc *scp) {
   else if (count < 10) {
     /* Full in any unused Individual Addresses with our MAC address */
     for (i = count + 1; i < 10; i++)
-      xe_set_addr(scp, (u_int8_t *)(IFP2ENADDR(scp->ifp)), i);
+      xe_set_addr(scp, IF_LLADDR(scp->ifp), i);
     /* Enable Individual Address matching only */
     XE_SELECT_PAGE(0x42);
     XE_OUTB(XE_SWC1, (XE_INB(XE_SWC1) & ~XE_SWC1_ALLMULTI) | XE_SWC1_IA_ENABLE);

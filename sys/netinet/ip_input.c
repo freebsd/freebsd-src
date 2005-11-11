@@ -2037,8 +2037,7 @@ ip_savecontrol(inp, mp, ip, m)
 
 		if (((ifp = m->m_pkthdr.rcvif)) 
 		&& ( ifp->if_index && (ifp->if_index <= if_index))) {
-			sdp = (struct sockaddr_dl *)
-			    (ifaddr_byindex(ifp->if_index)->ifa_addr);
+			sdp = (struct sockaddr_dl *)ifp->if_addr->ifa_addr;
 			/*
 			 * Change our mind and don't try copy.
 			 */

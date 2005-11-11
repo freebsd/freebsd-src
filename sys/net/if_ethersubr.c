@@ -282,7 +282,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		(void)memcpy(eh->ether_shost, esrc,
 			sizeof(eh->ether_shost));
 	else
-		(void)memcpy(eh->ether_shost, IFP2ENADDR(ifp),
+		(void)memcpy(eh->ether_shost, IF_LLADDR(ifp),
 			sizeof(eh->ether_shost));
 
        /*
@@ -629,7 +629,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		/*
 		 * XXX: Okay, we need to call carp_forus() and - if it is for
 		 * us jump over code that does the normal check
-		 * "IFP2ENADDR(ifp) == ether_dhost". The check sequence is a bit
+		 * "IF_LLADDR(ifp) == ether_dhost". The check sequence is a bit
 		 * different from OpenBSD, so we jump over as few code as
 		 * possible, to catch _all_ sanity checks. This needs
 		 * evaluation, to see if the carp ether_dhost values break any
@@ -653,7 +653,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		if ((ifp->if_flags & IFF_PROMISC) != 0
 		    && !ETHER_IS_MULTICAST(eh->ether_dhost)
 		    && bcmp(eh->ether_dhost,
-		      IFP2ENADDR(ifp), ETHER_ADDR_LEN) != 0
+		      IF_LLADDR(ifp), ETHER_ADDR_LEN) != 0
 		    && (ifp->if_flags & IFF_PPROMISC) == 0) {
 			    m_freem(m);
 			    return;
@@ -863,13 +863,12 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 		ifp->if_baudrate = IF_Mbps(10);		/* just a default */
 	ifp->if_broadcastaddr = etherbroadcastaddr;
 
-	ifa = ifaddr_byindex(ifp->if_index);
+	ifa = ifp->if_addr;
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
-	IFP2ENADDR(ifp) = LLADDR(sdl);
 
 	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
@@ -1016,10 +1015,10 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 			if (ipx_nullhost(*ina))
 				ina->x_host =
 				    *(union ipx_host *)
-				    IFP2ENADDR(ifp);
+				    IF_LLADDR(ifp);
 			else {
 				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) IFP2ENADDR(ifp),
+				      (caddr_t) IF_LLADDR(ifp),
 				      ETHER_ADDR_LEN);
 			}
 
@@ -1041,7 +1040,7 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IFP2ENADDR(ifp),
+			bcopy(IF_LLADDR(ifp),
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;

@@ -1239,9 +1239,9 @@ sf_init_locked(sc)
 		    (i + sizeof(u_int32_t)), 0);
 
 	/* Init our MAC address */
-	csr_write_4(sc, SF_PAR0, *(u_int32_t *)(&IFP2ENADDR(sc->sf_ifp)[0]));
-	csr_write_4(sc, SF_PAR1, *(u_int32_t *)(&IFP2ENADDR(sc->sf_ifp)[4]));
-	sf_setperf(sc, 0, (caddr_t)&IFP2ENADDR(sc->sf_ifp));
+	csr_write_4(sc, SF_PAR0, *(u_int32_t *)(&IF_LLADDR(sc->sf_ifp)[0]));
+	csr_write_4(sc, SF_PAR1, *(u_int32_t *)(&IF_LLADDR(sc->sf_ifp)[4]));
+	sf_setperf(sc, 0, IF_LLADDR(sc->sf_ifp));
 
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
 		if_printf(sc->sf_ifp,

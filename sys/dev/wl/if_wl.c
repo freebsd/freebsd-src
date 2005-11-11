@@ -1192,7 +1192,7 @@ wlread(struct wl_softc *sc, u_short fd_p)
 #endif
 	&&
 	(eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-	bcmp(eh->ether_dhost, IFP2ENADDR(sc->ifp),
+	bcmp(eh->ether_dhost, IF_LLADDR(sc->ifp),
 	     sizeof(eh->ether_dhost)) != 0 ) {
       m_freem(m);
       return 1;
@@ -2142,7 +2142,7 @@ wlconfig(struct wl_softc *sc)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_IASETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 6);
-    outsw(PIOP1(base), IFP2ENADDR(sc->ifp), WAVELAN_ADDR_SIZE/2);
+    outsw(PIOP1(base), IF_LLADDR(sc->ifp), WAVELAN_ADDR_SIZE/2);
 
     if (wlcmd(sc, "config()-address") == 0)
 	return(0);

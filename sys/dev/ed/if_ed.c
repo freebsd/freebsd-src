@@ -551,7 +551,7 @@ ed_init_locked(struct ed_softc *sc)
 	 * Copy out our station address
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		ed_nic_outb(sc, ED_P1_PAR(i), IFP2ENADDR(sc->ifp)[i]);
+		ed_nic_outb(sc, ED_P1_PAR(i), IF_LLADDR(sc->ifp)[i]);
 
 	/*
 	 * Set Current Page pointer to next_packet (initialized above)
