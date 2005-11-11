@@ -64,7 +64,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #ifdef SPEAKER
-#include <machine/speaker.h>
+#include <dev/speaker/speaker.h>
 #endif
 
 struct morsetab {
