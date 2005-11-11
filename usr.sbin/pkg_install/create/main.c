@@ -16,8 +16,9 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNORhjvyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
+static char Options[] = "EGYNORhjvxyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
 
+match_t	MatchType	= MATCH_GLOB;
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
 char	*Desc		= NULL;
@@ -55,6 +56,18 @@ main(int argc, char **argv)
 	switch(ch) {
 	case 'v':
 	    Verbose = TRUE;
+	    break;
+
+	case 'x':
+	    MatchType = MATCH_REGEX;
+	    break;
+
+	case 'E':
+	    MatchType = MATCH_EREGEX;
+	    break;
+
+	case 'G':
+	    MatchType = MATCH_EXACT;
 	    break;
 
 	case 'N':
@@ -216,6 +229,6 @@ usage()
 "                  [-D displayfile] [-m mtreefile] [-o origin] ",
 "                  [-s srcdir] [-S basedir] ",
 "                  -c comment -d description -f packlist pkg-filename",
-"       pkg_create [-YNhvyzR] -b pkg-name [pkg-filename]");
+"       pkg_create [-EGYNhvxyzR] -b pkg-name [pkg-filename]");
     exit(1);
 }

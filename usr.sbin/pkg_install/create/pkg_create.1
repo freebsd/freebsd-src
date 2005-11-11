@@ -23,7 +23,7 @@
 .\" [jkh] Took John's changes back and made some additional extensions for
 .\" better integration with FreeBSD's new ports collection.
 .\"
-.Dd June 29, 2004
+.Dd November 8, 2005
 .Dt PKG_CREATE 1
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@
 .Fl f Ar packlist
 .Ar pkg-filename
 .Nm
-.Op Fl YNRhvy
+.Op Fl EGYNRhvxy
 .Fl b Ar pkg-name
 .Op Ar pkg-filename
 .Sh DESCRIPTION
@@ -341,6 +341,15 @@ also create package files for all packages required by
 Resulting archive(s) will be created in the current directory
 and named using name of the respective package with appropriate
 extraction suffix applied.
+.It Fl x
+Use basic regular expressions for
+.Ar pkg-name .
+.It Fl E
+Use extended (modern) regular expressions for
+.Ar pkg-name .
+.It Fl G
+Use exact matching for
+.Ar pkg-name .
 .El
 .Sh PACKING LIST DETAILS
 The
