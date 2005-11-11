@@ -1309,7 +1309,7 @@ xe_set_multicast(struct xe_softc *scp) {
   else if (count < 10) {
     /* Full in any unused Individual Addresses with our MAC address */
     for (i = count + 1; i < 10; i++)
-      xe_set_addr(scp, (u_int8_t *)(&IFP2ENADDR(scp->ifp)), i);
+      xe_set_addr(scp, (u_int8_t *)(IFP2ENADDR(scp->ifp)), i);
     /* Enable Individual Address matching only */
     XE_SELECT_PAGE(0x42);
     XE_OUTB(XE_SWC1, (XE_INB(XE_SWC1) & ~XE_SWC1_ALLMULTI) | XE_SWC1_IA_ENABLE);

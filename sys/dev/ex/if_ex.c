@@ -892,7 +892,7 @@ ex_setmulti(struct ex_softc *sc)
 		/* Program our MAC address as well */
 		/* XXX: Is this necessary?  The Linux driver does this
 		 * but the NetBSD driver does not */
-		addr = (uint16_t*)(&IFP2ENADDR(sc->ifp));
+		addr = (uint16_t*)(IFP2ENADDR(sc->ifp));
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		CSR_WRITE_2(sc, IO_PORT_REG, *addr++);

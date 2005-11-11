@@ -1192,7 +1192,7 @@ wlread(struct wl_softc *sc, u_short fd_p)
 #endif
 	&&
 	(eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-	bcmp(eh->ether_dhost, &IFP2ENADDR(sc->ifp),
+	bcmp(eh->ether_dhost, IFP2ENADDR(sc->ifp),
 	     sizeof(eh->ether_dhost)) != 0 ) {
       m_freem(m);
       return 1;
