@@ -663,9 +663,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 static int
 vlan_config(struct ifvlan *ifv, struct ifnet *p)
 {
-	struct ifaddr *ifa1, *ifa2;
 	struct ifnet *ifp;
-	struct sockaddr_dl *sdl1, *sdl2;
 
 	VLAN_LOCK_ASSERT();
 
@@ -741,14 +739,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	 * Set up our ``Ethernet address'' to reflect the underlying
 	 * physical interface's.
 	 */
-	ifa1 = ifaddr_byindex(ifp->if_index);
-	ifa2 = ifaddr_byindex(p->if_index);
-	sdl1 = (struct sockaddr_dl *)ifa1->ifa_addr;
-	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
-	sdl1->sdl_type = IFT_ETHER;
-	sdl1->sdl_alen = ETHER_ADDR_LEN;
-	bcopy(LLADDR(sdl2), LLADDR(sdl1), ETHER_ADDR_LEN);
-	bcopy(LLADDR(sdl2), IFP2ENADDR(ifp), ETHER_ADDR_LEN);
+	bcopy(IF_LLADDR(p), IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
 	/*
 	 * Configure multicast addresses that may already be
@@ -762,8 +753,6 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 static int
 vlan_unconfig(struct ifnet *ifp)
 {
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	struct ifnet *p;
@@ -812,12 +801,7 @@ vlan_unconfig(struct ifnet *ifp)
 	ifv->ifv_ifp->if_link_state = LINK_STATE_UNKNOWN;
 
 	/* Clear our MAC address. */
-	ifa = ifaddr_byindex(ifv->ifv_ifp->if_index);
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = ETHER_ADDR_LEN;
-	bzero(LLADDR(sdl), ETHER_ADDR_LEN);
-	bzero(IFP2ENADDR(ifv->ifv_ifp), ETHER_ADDR_LEN);
+	bzero(IF_LLADDR(ifv->ifv_ifp), ETHER_ADDR_LEN);
 
 	return (0);
 }

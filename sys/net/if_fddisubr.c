@@ -556,8 +556,9 @@ dropanyway:
  * Perform common duties while attaching to interface list
  */
 void
-fddi_ifattach(ifp, bpf)
+fddi_ifattach(ifp, lla, bpf)
 	struct ifnet *ifp;
+	const u_int8_t *lla;
 	int bpf;
 {
 	struct ifaddr *ifa;
@@ -587,7 +588,8 @@ fddi_ifattach(ifp, bpf)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy(IFP2ENADDR(ifp), LLADDR(sdl), ifp->if_addrlen);
+	bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
+	IFP2ENADDR(ifp) = LLADDR(sdl);
 
 	if (bpf)
 		bpfattach(ifp, DLT_FDDI, FDDI_HDR_LEN);

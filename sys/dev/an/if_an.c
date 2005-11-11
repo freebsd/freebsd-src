@@ -113,7 +113,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
 
@@ -1726,8 +1725,6 @@ an_alloc_nicmem(struct an_softc *sc, int len, int *id)
 static void
 an_setdef(struct an_softc *sc, struct an_req *areq)
 {
-	struct sockaddr_dl	*sdl;
-	struct ifaddr		*ifa;
 	struct ifnet		*ifp;
 	struct an_ltv_genconfig	*cfg;
 	struct an_ltv_ssidlist_new	*ssid;
@@ -1740,11 +1737,8 @@ an_setdef(struct an_softc *sc, struct an_req *areq)
 	case AN_RID_GENCONFIG:
 		cfg = (struct an_ltv_genconfig *)areq;
 
-		ifa = ifaddr_byindex(ifp->if_index);
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		bcopy((char *)&cfg->an_macaddr, IFP2ENADDR(sc->an_ifp),
 		    ETHER_ADDR_LEN);
-		bcopy((char *)&cfg->an_macaddr, LLADDR(sdl), ETHER_ADDR_LEN);
 
 		bcopy((char *)cfg, (char *)&sc->an_config,
 			sizeof(struct an_ltv_genconfig));

@@ -410,7 +410,7 @@ pdq_ifioctl(
 #endif
 
 void
-pdq_ifattach(pdq_softc_t *sc)
+pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc)
 {
     struct ifnet *ifp;
 
@@ -441,7 +441,7 @@ pdq_ifattach(pdq_softc_t *sc)
     }
 #endif
   
-    fddi_ifattach(ifp, FDDI_BPF_SUPPORTED);
+    fddi_ifattach(ifp, llc, FDDI_BPF_SUPPORTED);
 }
 
 void

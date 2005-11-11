@@ -97,7 +97,7 @@ struct fddi_header {
 #define	FDDI_BPF_UNSUPPORTED	0
 #define	FDDI_BPF_SUPPORTED	1
 
-void	fddi_ifattach(struct ifnet *, int);
+void	fddi_ifattach(struct ifnet *, const u_int8_t *, int);
 void	fddi_ifdetach(struct ifnet *, int);
 int	fddi_ioctl(struct ifnet *, int, caddr_t);
 

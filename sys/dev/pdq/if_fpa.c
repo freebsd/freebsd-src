@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h> 
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h> 
 #include <net/fddi.h>
 
@@ -166,9 +165,7 @@ pdq_pci_attach(device_t dev)
 	goto bad;
     }
 
-    bcopy((caddr_t) sc->sc_pdq->pdq_hwaddr.lanaddr_bytes,
-	  (caddr_t) IFP2ENADDR(sc->ifp), FDDI_ADDR_LEN);
-    pdq_ifattach(sc);
+    pdq_ifattach(sc, sc->sc_pdq->pdq_hwaddr.lanaddr_bytes);
 
     return (0);
 bad:

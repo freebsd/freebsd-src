@@ -91,7 +91,7 @@ static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
  * Perform common duties while attaching to interface list
  */
 void
-iso88025_ifattach(struct ifnet *ifp, int bpf)
+iso88025_ifattach(struct ifnet *ifp, const u_int8_t *lla, int bpf)
 {
     struct ifaddr *ifa;
     struct sockaddr_dl *sdl;
@@ -123,7 +123,8 @@ iso88025_ifattach(struct ifnet *ifp, int bpf)
     sdl = (struct sockaddr_dl *)ifa->ifa_addr;
     sdl->sdl_type = IFT_ISO88025;
     sdl->sdl_alen = ifp->if_addrlen;
-    bcopy(IFP2ENADDR(ifp), LLADDR(sdl), ifp->if_addrlen);
+    bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
+    IFP2ENADDR(ifp) = LLADDR(sdl);
 
     if (bpf)
         bpfattach(ifp, DLT_IEEE802, ISO88025_HDR_LEN);
