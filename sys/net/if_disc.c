@@ -93,6 +93,7 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = DSMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
+	ifp->if_drv_flags = IFF_DRV_RUNNING;
 	ifp->if_ioctl = discioctl;
 	ifp->if_output = discoutput;
 	ifp->if_hdrlen = 0;
