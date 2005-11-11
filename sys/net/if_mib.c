@@ -80,10 +80,10 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		return EINVAL;
 
 	if (name[0] <= 0 || name[0] > if_index ||
-	    ifaddr_byindex(name[0]) == NULL)
+	    ifnet_byindex(name[0]) == NULL)
 		return ENOENT;
 
-	ifp = ifaddr_byindex(name[0])->ifa_ifp;
+	ifp = ifnet_byindex(name[0]);
 
 	switch(name[1]) {
 	default:
