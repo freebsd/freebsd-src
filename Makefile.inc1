@@ -484,11 +484,13 @@ SPECIAL_INSTALLCHECKS=
 # Require DESTDIR to be set if installing for a different architecture.
 #
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
+.if !make(distributeworld)
 SPECIAL_INSTALLCHECKS+=	installcheck_DESTDIR
 installcheck_DESTDIR:
 .if !defined(DESTDIR) || empty(DESTDIR)
 	@echo "ERROR: Please set DESTDIR!"; \
 	false
+.endif
 .endif
 .endif
 
