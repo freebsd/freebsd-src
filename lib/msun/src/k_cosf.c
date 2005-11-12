@@ -21,12 +21,12 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-/* Range of maximum relative error in polynomial: ~[-1.15e-10, 1.169e-10]. */
+/* |cos(x) - c(x)| < 2**-33.1 (~[-9.39e-11, 1.083e-10]). */
 static const float
 one =  1.0,
-C1  =  0xaaaaa5.0p-28,	/*  0.04166664555668830871582031250 */
-C2  = -0xb60615.0p-33,	/* -0.001388731063343584537506103516 */
-C3  =  0xccf47d.0p-39;	/*  0.00002443254288664320483803749084 */
+C1  =  0xaaaaa5.0p-28,		/*  0.041666645557 */
+C2  = -0xb60615.0p-33,		/* -0.0013887310633 */
+C3  =  0xccf47d.0p-39;		/*  0.000024432542887 */
 
 float
 __kernel_cosf(float x, float y)
