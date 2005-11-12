@@ -297,6 +297,11 @@ pkg_do(char *pkg)
 	    char path[FILENAME_MAX], *cp = NULL;
 
 	    if (!Fake) {
+		char prefixArg[2 + MAXPATHLEN]; /* "-P" + Prefix */
+		if (PrefixRecursive) {
+		    strlcpy(prefixArg, "-P", sizeof(prefixArg));
+		    strlcat(prefixArg, Prefix, sizeof(prefixArg));
+		}
 		if (!isURL(pkg) && !getenv("PKG_ADD_BASE")) {
 		    const char *ext;
 
@@ -315,7 +320,7 @@ pkg_do(char *pkg)
 		    if (cp) {
 			if (Verbose)
 			    printf("Loading it from %s.\n", cp);
-			if (vsystem("%s %s'%s'", PkgAddCmd, Verbose ? "-v " : "", cp)) {
+			if (vsystem("%s %s %s '%s'", PkgAddCmd, Verbose ? "-v " : "", PrefixRecursive ? prefixArg : "", cp)) {
 			    warnx("autoload of dependency '%s' failed%s",
 				cp, Force ? " (proceeding anyway)" : "!");
 			    if (!Force)
@@ -338,7 +343,7 @@ pkg_do(char *pkg)
 			if (!Force)
 			    ++code;
 		    }
-		    else if (vsystem("(pwd; /bin/cat +CONTENTS) | %s %s-S", PkgAddCmd, Verbose ? "-v " : "")) {
+		    else if (vsystem("(pwd; /bin/cat +CONTENTS) | %s %s %s -S", PkgAddCmd, Verbose ? "-v" : "", PrefixRecursive ? prefixArg : "")) {
 			warnx("pkg_add of dependency '%s' failed%s",
 				p->name, Force ? " (proceeding anyway)" : "!");
 			if (!Force)
