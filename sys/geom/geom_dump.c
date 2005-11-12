@@ -145,11 +145,10 @@ g_conftxt(void *p, int flag)
 	KASSERT(flag != EV_CANCEL, ("g_conftxt was cancelled"));
 	sb = p;
 	g_topology_assert();
-	LIST_FOREACH(mp, &g_classes, class)
-		if (!strcmp(mp->name, "DISK"))
-			break;
-	if (mp != NULL)
-		g_conftxt_class(sb, mp);
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (!strcmp(mp->name, "DISK") || !strcmp(mp->name, "MD"))
+			g_conftxt_class(sb, mp);
+	}
 	sbuf_finish(sb);
 }
 
