@@ -32,7 +32,6 @@ chomp $srcdir;
 my $cmd = "/tmp/gctl-$$";
 my $out = "$cmd.out";
 my $disk = "/tmp/disk-$$";
-my $unit = "";
 
 my %steps = (
     "000" => "gctl",
@@ -40,22 +39,23 @@ my %steps = (
     "010" => "gctl verb=create",
     "011" => "gctl verb=create provider=bogus",
     "020" => "mdcfg create pristine",
-    "021" => "gctl verb=create provider=md%unit% entries=-1",
-    "022" => "gctl verb=create provider=md%unit% entries=128",
-    "023" => "gctl verb=create provider=md%unit%",
+    "021" => "gctl verb=create provider=%dev% entries=-1",
+    "022" => "gctl verb=create provider=%dev% entries=128",
+    "023" => "gctl verb=create provider=%dev%",
     "024" => "conf",
     "030" => "gctl verb=add",
     "031" => "gctl verb=add geom=bogus",
-    "032" => "gctl verb=add geom=md%unit%",
-    "033" => "gctl verb=add geom=md%unit% type=bogus",
-    "034" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace",
-    "035" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=1",
-    "036" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=34",
-    "037" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=12345678",
-    "038" => "gctl verb=add geom=md%unit% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=546",
+    "032" => "gctl verb=add geom=%dev%",
+    "033" => "gctl verb=add geom=%dev% type=bogus",
+    "034" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace",
+    "035" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=1",
+    "036" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34",
+    "037" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=12345678",
+    "038" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=546",
+    "039" => "conf",
     "100" => "mdcfg destroy",
     "110" => "mdcfg create corrupted",
-    "111" => "gctl verb=add geom=md%unit%",
+    "111" => "gctl verb=add geom=%dev%",
     "120" => "mdcfg destroy",
 );
 
@@ -67,7 +67,7 @@ my %result = (
     "020" => "",
     "021" => "FAIL 22 entries -1",
     "022" => "PASS",
-    "023" => "FAIL 17 geom 'md%unit%'",
+    "023" => "FAIL 17 geom '%dev%'",
     "024" => "",
     "030" => "FAIL 87 geom",
     "031" => "FAIL 22 geom 'bogus'",
@@ -78,9 +78,10 @@ my %result = (
     "036" => "FAIL 87 end",
     "037" => "FAIL 22 end 12345678",
     "038" => "PASS",
+    "039" => "",
     "100" => "",
     "110" => "",
-    "111" => "FAIL 6 geom 'md%unit%'",
+    "111" => "FAIL 6 geom '%dev%'",
     "120" => "",
 );
 
@@ -107,15 +108,17 @@ $count = keys (%steps);
 print "1..$count\n";
 
 my $nr = 1;
+my $dev = "n/a";
 foreach my $key (sort keys %steps) {
     my ($action, $args) = split(/ /, $steps{$key}, 2);
+    my $res = $result{$key};
     $args = "" if (not defined $args);
+    $args =~ s/%dev%/$dev/g;
+    $res =~ s/%dev%/$dev/g;
+
     if ($action =~ "gctl") {
-	$args =~ s/%unit%/$unit/g;
 	system("$cmd $verbose $args | tee $out 2>&1");
 	$st = `tail -1 $out`;
-	my $res = $result{$key};
-	$res =~ s/%unit%/$unit/g;
 	if ($st =~ "^$res") {
 	    print "ok $nr \# gctl($key)\n";
 	} else {
@@ -128,17 +131,17 @@ foreach my $key (sort keys %steps) {
 	    if ($args =~ "corrupted") {
 		system("gpt create -p $disk");
 	    }
-	    $unit = `mdconfig -a -t vnode -f $disk`;
-	    chomp $unit;
-	    $unit =~ s/md//g;
+	    $dev = `mdconfig -a -t vnode -f $disk`;
+	    chomp $dev;
 	} elsif ($args =~ "destroy") {
-	    system("mdconfig -d -u $unit");
+	    $dev =~ s/md/-u /g;
+	    system("mdconfig -d $dev");
 	    unlink $disk;
-	    $unit = "";
+	    $dev = "n/a";
 	}
 	print "ok $nr \# mdcfg($key)\n";
     } elsif ($action =~ "conf") {
-	`sysctl -b kern.geom.confxml 2>&1`;
+	system("sysctl -b kern.geom.conftxt | grep -a $dev");
 	print "ok $nr \# conf($key)\n";
     }
     $nr += 1;
