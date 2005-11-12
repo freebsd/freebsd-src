@@ -21,13 +21,13 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-/* Range of maximum relative error in polynomial: ~[-1.61e-10, 1.621e-10]. */
+/* |sin(x)/x - s(x)| < 2**-32.5 (~[-1.57e-10, 1.572e-10]). */
 static const float
 half = 0.5,
-S1  = -0xaaaaab.0p-26,	/* -0.1666666716337203979492187500 */
-S2  =  0x8888ba.0p-30,	/*  0.008333379402756690979003906250 */
-S3  = -0xd02cb0.0p-36,	/* -0.0001985307317227125167846679687 */
-S4  =  0xbe18ff.0p-42;	/*  0.000002832675590980215929448604584 */
+S1  = -0xaaaaab.0p-26,		/* -0.16666667163 */
+S2  =  0x8888bb.0p-30,		/*  0.0083333803341 */
+S3  = -0xd02de1.0p-36,		/* -0.00019853517006 */
+S4  =  0xbe6dbe.0p-42;		/*  0.0000028376084629 */
 
 float
 __kernel_sinf(float x, float y, int iy)
