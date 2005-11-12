@@ -18,18 +18,18 @@ static char rcsid[] = "$FreeBSD$";
 
 #include "math.h"
 #include "math_private.h"
+
 static const float
-one   =  1.0000000000e+00, /* 0x3f800000 */
 pio4  =  7.8539812565e-01, /* 0x3f490fda */
 pio4lo=  3.7748947079e-08, /* 0x33222168 */
-/* Bounds for tan(x)/x - t(x): ~[-1.73e-09, 1.724e-09]. */
+/* |tan(x)/x - t(x)| < 2**-29.2 (~[-1.73e-09, 1.724e-09]). */
 T[] =  {
-  0xaaaaa3.0p-25,	/* 0.33333310485 */
-  0x888b06.0p-26,	/* 0.13334283238 */
-  0xdc84c8.0p-28,	/* 0.053837567568 */
-  0xb9d8f1.0p-29,	/* 0.022686453536 */
-  0xcfe632.0p-31,	/* 0.0063445800915 */
-  0xeaf97e.0p-31,	/* 0.0071708550677 */
+  0xaaaaa3.0p-25,		/* 0.33333310485 */
+  0x888b06.0p-26,		/* 0.13334283238 */
+  0xdc84c8.0p-28,		/* 0.053837567568 */
+  0xb9d8f1.0p-29,		/* 0.022686453536 */
+  0xcfe632.0p-31,		/* 0.0063445800915 */
+  0xeaf97e.0p-31,		/* 0.0071708550677 */
 };
 
 float
@@ -37,9 +37,10 @@ __kernel_tanf(float x, float y, int iy)
 {
 	float z,r,v,w,s;
 	int32_t ix,hx;
+
 	GET_FLOAT_WORD(hx,x);
-	ix = hx&0x7fffffff;	/* high word of |x| */
-	if(ix>=0x3f2ca140) { 			/* |x|>=0.6744 */
+	ix = hx&0x7fffffff;
+	if(ix>=0x3f2ca140) { 			/* |x|>=0.67434 */
 	    if(hx<0) {x = -x; y = -y;}
 	    z = pio4-x;
 	    w = pio4lo-y;
