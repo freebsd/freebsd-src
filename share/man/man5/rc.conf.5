@@ -317,7 +317,7 @@ this variable should be set to an empty string.
 .It Va ipv6_enable
 .Pq Vt bool
 Enable support for IPv6 networking.
-Note that this requires that the kernel have been compiled with
+Note that this requires that the kernel has been compiled with
 .Cd "options INET6" .
 .It Va nisdomainname
 .Pq Vt str
@@ -344,7 +344,7 @@ manpage for a description of the command line options available.
 .Pq Vt bool
 Set to
 .Dq Li YES
-to start the dhcp client in background.
+to start the DHCP client in background.
 This can cause trouble with applications depending on
 a working network, but it will provide a faster startup
 in many cases.
@@ -2895,7 +2895,7 @@ The names specified in this list will be used to
 identify settings common to an instance of a jail.
 Assuming that the jail in question was named
 .Li vjail ,
-you would have the following dependant variables:
+you would have the following dependent variables:
 .Bd -literal
 jail_vjail_hostname="jail.example.com"
 jail_vjail_ip="192.168.1.100"
@@ -2930,7 +2930,7 @@ If set to
 .Dq Li NO ,
 unaligned access warnings will not be printed.
 (alpha)
-.\" ----- isdn settings ---------------------------------
+.\" ----- ISDN settings ---------------------------------
 .It Va isdn_enable
 .Pq Vt bool
 Set to
