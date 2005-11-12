@@ -1096,15 +1096,14 @@ delete-old-files:
                         && rm ${RM_I} "${DESTDIR}/${file}"))
 .endfor
 # Remove catpages without corresponding manpages.
-	@for dir in ${DESTDIR}/usr/share/man/cat*; do \
-		for catpage in $${dir}/*; do \
-			manpage=$$(echo $${catpage} \
-				| sed 's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:') \
-			check_empty=$$(echo $${catpage} \
-				| sed 's:.*\*:empty:'); \
-			[ "$${check_empty}" != "empty" -a ! -e "$${manpage}" ] \
-				&& rm ${RM_I} $${catpage} || true; \
-		done; \
+	@3<&0; \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
+	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
+	while read catpage; do \
+		read manpage; \
+		if [ ! -e "$${manpage}" ]; then \
+			rm ${RM_I} $${catpage} <&3 ; \
+	        fi; \
 	done
 	@echo ">>> Old files removed"
 
@@ -1114,15 +1113,13 @@ check-old-files:
 	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
 .endfor
 # Check for catpages without corresponding manpages.
-	@for dir in ${DESTDIR}/usr/share/man/cat*; do \
-		for catpage in $${dir}/*; do \
-			manpage=$$(echo $${catpage} \
-				| sed 's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:'); \
-			check_empty=$$(echo $${catpage} \
-				| sed 's:.*\*:empty:'); \
-			[ "$${check_empty}" != "empty" -a ! -e "$${manpage}" ] \
-				&& echo $${catpage} || true; \
-		done; \
+	@find ${DESTDIR}/usr/share/man/cat* ! -type d | \
+	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
+	while read catpage; do \
+		read manpage; \
+		if [ ! -e "$${manpage}" ]; then \
+			echo $${catpage} ; \
+	        fi; \
 	done
 
 delete-old-libs:
