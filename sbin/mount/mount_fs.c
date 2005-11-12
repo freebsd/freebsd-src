@@ -1,6 +1,9 @@
-/*-
- * Copyright (c) 1993, 1994
+/*
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software donated to Berkeley by
+ * Jan-Simon Pendry.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -29,105 +36,100 @@
 
 #ifndef lint
 static const char copyright[] =
-"@(#) Copyright (c) 1993, 1994\n\
+"@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
+static char sccsid[] = "@(#)mount_fs.c	8.6 (Berkeley) 4/26/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+	"$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/mount.h>
 
 #include <err.h>
-#include <errno.h>
+#include <getopt.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-
-#include <ufs/ufs/ufsmount.h>
 
 #include "extern.h"
 #include "mntopts.h"
 
-static void ufs_usage(void);
-
-static struct mntopt mopts[] = {
+struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	MOPT_ASYNC,
-	MOPT_FORCE,
-	MOPT_SYNC,
-	MOPT_UPDATE,
-	MOPT_SNAPSHOT,
 	MOPT_END
 };
 
-int
-mount_ufs(int argc, char *argv[])
+static void
+usage(void)
 {
-	struct ufs_args args;
-	int ch, mntflags;
-	char *fs_name;
+	(void)fprintf(stderr,
+		"usage: mount [-t fstype] [-o options] target_fs mount_point\n");
+	exit(1);
+}
 
-	mntflags = 0;
+int
+mount_fs(const char *vfstype, int argc, char *argv[])
+{
+	struct iovec *iov;
+	int iovlen;
+	int mntflags = 0;
+	int ch;
+	char *dev, *dir, mntpath[MAXPATHLEN];
+	char fstype[32];
+	char *p, *val;
+	int ret;
+
+	strncpy(fstype, vfstype, sizeof(fstype));
+
+	getmnt_silent = 1;
+	iov = NULL;
+	iovlen = 0;
+
 	optind = optreset = 1;		/* Reset for parse of new argv. */
-	while ((ch = getopt(argc, argv, "o:")) != -1)
-		switch (ch) {
+	while ((ch = getopt(argc, argv, "o:")) != -1) {
+		switch(ch) {
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
+			p = strchr(optarg, '=');
+			val = NULL;
+			if (p != NULL) {
+				*p = '\0';
+				val = p + 1;
+			}
+			build_iovec(&iov, &iovlen, optarg, val, -1);
 			break;
 		case '?':
 		default:
-			ufs_usage();
+			usage();
 		}
+	}
+
 	argc -= optind;
 	argv += optind;
-
 	if (argc != 2)
-		ufs_usage();
+		usage();
 
-        args.fspec = argv[0];		/* The name of the device file. */
-	fs_name = argv[1];		/* The mount point. */
+	dev = argv[0];
+	dir = argv[1];
 
-#define DEFAULT_ROOTUID	-2
-	args.export.ex_root = DEFAULT_ROOTUID;
-	if (mntflags & MNT_RDONLY)
-		args.export.ex_flags = MNT_EXRDONLY;
-	else
-		args.export.ex_flags = 0;
+	(void)checkpath(dir, mntpath);
+	(void)rmslashes(dev, dev);
 
-	if (mount("ufs", fs_name, mntflags, &args) < 0) {
-		switch (errno) {
-		case EMFILE:
-			warnx("%s on %s: mount table full",
-				args.fspec, fs_name);
-			break;
-		case EINVAL:
-			if (mntflags & MNT_UPDATE)
-				warnx(
-		"%s on %s: specified device does not match mounted device",
-					args.fspec, fs_name);
-			else
-				warnx("%s on %s: incorrect super block",
-					args.fspec, fs_name);
-			break;
-		default:
-			warn("%s", args.fspec);
-			break;
-		}
-		return (1);
-	}
-	return (0);
-}
+	build_iovec(&iov, &iovlen, "fstype", fstype, -1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, -1);
+	build_iovec(&iov, &iovlen, "from", dev, -1);
+	
+	ret = nmount(iov, iovlen, mntflags);
+	if (ret < 0)
+		err(1, "%s", dev);
 
-static void
-ufs_usage()
-{
-	(void)fprintf(stderr, "usage: mount_ufs [-o options] special node\n");
-	exit(1);
+	return (ret);
 }

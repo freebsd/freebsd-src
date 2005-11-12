@@ -74,7 +74,7 @@ struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
-void	mangle(char *, int *, const char **);
+void	mangle(char *, int *, char **);
 char   *update_options(char *, char *, int);
 int	mountfs(const char *, const char *, const char *,
 			int, const char *, const char *);
@@ -119,6 +119,67 @@ remountable_fs_names[] = {
 	"ufs", "ffs", "ext2fs",
 	0
 };
+
+static int
+use_mountprog(const char *vfstype)
+{
+	/* XXX: We need to get away from implementing external mount
+	 *      programs for every filesystem, and move towards having
+	 *	each filesystem properly implement the nmount() system call.
+	 */
+	unsigned int i;
+	const char *fs[] = {
+	"mfs", "msdosfs", "nfs", "nfs4", "ntfs",
+	"nwfs", "nullfs", "portalfs", "reiserfs", "smbfs", "udf", "umapfs",
+	"unionfs",
+	NULL
+	};
+
+	for (i=0; fs[i] != NULL; ++i) {
+		if (strcmp(vfstype, fs[i]) == 0)
+			return 1;
+	}
+	
+	return 0;
+}
+
+static int
+exec_mountprog(const char *name, const char *execname,
+	char *const argv[])
+{
+	pid_t pid;
+	int status;
+
+	switch (pid = fork()) {
+	case -1:				/* Error. */
+		warn("fork");
+		exit (1);
+	case 0:					/* Child. */
+		/* Go find an executable. */
+		execvP(execname, _PATH_SYSPATH, argv);
+		if (errno == ENOENT) {
+			warn("exec %s not found in %s", execname,
+			    _PATH_SYSPATH);
+		}
+		exit(1);
+	default:				/* Parent. */
+		if (waitpid(pid, &status, 0) < 0) {
+			warn("waitpid");
+			return (1);
+		}
+
+		if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) != 0)
+				return (WEXITSTATUS(status));
+		} else if (WIFSIGNALED(status)) {
+			warnx("%s: %s", name, sys_siglist[WTERMSIG(status)]);
+			return (1);
+		}
+		break;
+	}
+
+	return (0);
+}
 
 int
 main(int argc, char *argv[])
@@ -383,10 +444,9 @@ int
 mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	const char *options, const char *mntopts)
 {
-	const char *argv[100];
+	char *argv[100];
 	struct statfs sf;
-	pid_t pid;
-	int argc, i, status;
+	int argc, i, ret;
 	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
 
 #if __GNUC__
@@ -435,8 +495,8 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	argc = 0;
 	argv[argc++] = execname;
 	mangle(optbuf, &argc, argv);
-	argv[argc++] = spec;
-	argv[argc++] = name;
+	argv[argc++] = strdup(spec);
+	argv[argc++] = strdup(name);
 	argv[argc] = NULL;
 
 	if (debug) {
@@ -447,50 +507,25 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 		return (0);
 	}
 
-	switch (pid = fork()) {
-	case -1:				/* Error. */
-		warn("fork");
-		free(optbuf);
-		return (1);
-	case 0:					/* Child. */
-		if (strcmp(vfstype, "ufs") == 0)
-			exit(mount_ufs(argc, (char * const *) argv));
+	if (strcmp(vfstype, "ufs")==0) {
+		ret = mount_ufs(argc, argv);
+	} else if (use_mountprog(vfstype)) {
+		ret = exec_mountprog(name, execname, argv);
+	} else {
+		ret = mount_fs(vfstype, argc, argv); 
+	}
 
-		/* Go find an executable. */
-		execvP(execname, _PATH_SYSPATH, (char * const *)argv);
-		if (errno == ENOENT) {
-			warn("exec mount_%s not found in %s", vfstype,
-			    _PATH_SYSPATH);
-		}
-		exit(1);
-		/* NOTREACHED */
-	default:				/* Parent. */
-		free(optbuf);
+	free(optbuf);
 
-		if (waitpid(pid, &status, 0) < 0) {
-			warn("waitpid");
+	if (verbose) {
+		if (statfs(name, &sf) < 0) {
+			warn("statfs %s", name);
 			return (1);
 		}
-
-		if (WIFEXITED(status)) {
-			if (WEXITSTATUS(status) != 0)
-				return (WEXITSTATUS(status));
-		} else if (WIFSIGNALED(status)) {
-			warnx("%s: %s", name, sys_siglist[WTERMSIG(status)]);
-			return (1);
-		}
-
-		if (verbose) {
-			if (statfs(name, &sf) < 0) {
-				warn("statfs %s", name);
-				return (1);
-			}
-			if (fstab_style)
-				putfsent(&sf);
-			else
-				prmount(&sf);
-		}
-		break;
+		if (fstab_style)
+			putfsent(&sf);
+		else
+			prmount(&sf);
 	}
 
 	return (0);
@@ -583,7 +618,7 @@ void
 mangle(options, argcp, argv)
 	char *options;
 	int *argcp;
-	const char **argv;
+	char **argv;
 {
 	char *p, *s;
 	int argc;
@@ -599,7 +634,7 @@ mangle(options, argcp, argv)
 					argv[argc++] = p+1;
 				}
 			} else if (strcmp(p, "rw") != 0) {
-				argv[argc++] = "-o";
+				argv[argc++] = strdup("-o");
 				argv[argc++] = p;
 			}
 		}
