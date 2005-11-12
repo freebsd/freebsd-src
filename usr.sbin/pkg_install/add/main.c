@@ -27,9 +27,10 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRfnrp:SMt:C:";
+static char Options[] = "hvIRfnrp:P:SMt:C:";
 
 char	*Prefix		= NULL;
+Boolean	PrefixRecursive	= FALSE;
 char	*Chroot		= NULL;
 Boolean	NoInstall	= FALSE;
 Boolean	NoRecord	= FALSE;
@@ -110,6 +111,12 @@ main(int argc, char **argv)
 
 	case 'p':
 	    Prefix = optarg;
+	    PrefixRecursive = FALSE;
+	    break;
+
+	case 'P':
+	    Prefix = optarg;
+	    PrefixRecursive = TRUE;
 	    break;
 
 	case 'I':
@@ -310,7 +317,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-	"usage: pkg_add [-vInrfRMS] [-t template] [-p prefix] [-C chrootdir]",
+	"usage: pkg_add [-vInrfRMS] [-t template] [-p prefix] [-P prefix] [-C chrootdir]",
 	"               pkg-name [pkg-name ...]");
     exit(1);
 }
