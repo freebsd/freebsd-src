@@ -2503,12 +2503,13 @@ issignal(td)
 				SIGADDSET(td->td_sigmask, sig);
 
 			if (sig != newsig) {
+				ksiginfo_t ksi;
 				/*
 				 * clear old signal.
 				 * XXX shrug off debugger, it causes siginfo to
 				 * be thrown away.
 				 */
-				sigqueue_delete(&td->td_sigqueue, sig);
+				sigqueue_get(&td->td_sigqueue, sig, &ksi);
 
 				/*
 				 * If parent wants us to take the signal,
