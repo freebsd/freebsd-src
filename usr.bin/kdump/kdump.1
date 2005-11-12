@@ -40,7 +40,7 @@
 .Nd display kernel trace data
 .Sh SYNOPSIS
 .Nm
-.Op Fl dEnlHRT
+.Op Fl dEnlHRsT
 .Op Fl f Ar trfile
 .Op Fl m Ar maxdata
 .Op Fl p Ar pid
@@ -96,6 +96,8 @@ This may be useful when there are multiple processes recorded in the
 same trace file.
 .It Fl R
 Display relative timestamps (time since previous entry).
+.It Fl s
+Suppress display of I/O data.
 .It Fl T
 Display absolute timestamps for each entry (seconds since epoch).
 .It Fl t Ar cnisuw
