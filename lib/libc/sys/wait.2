@@ -133,7 +133,7 @@ If
 is non-zero, a summary of the resources used by the terminated
 process and all its
 children is returned (this information is currently not available
-for stopped processes).
+for stopped or continued processes).
 .Pp
 When the
 .Dv WNOHANG
@@ -249,7 +249,7 @@ is available.
 .Sh RETURN VALUES
 If
 .Fn wait
-returns due to a stopped
+returns due to a stopped, continued, 
 or terminated child process, the process ID of the child
 is returned to the calling process.
 Otherwise, a value of -1
@@ -262,7 +262,7 @@ If
 .Fn wait3 ,
 or
 .Fn waitpid
-returns due to a stopped
+returns due to a stopped, continued,
 or terminated child process, the process ID of the child
 is returned to the calling process.
 If there are no children not previously awaited,
@@ -273,7 +273,7 @@ set to
 Otherwise, if
 .Dv WNOHANG
 is specified and there are
-no stopped or exited children,
+no stopped, continued or exited children,
 0 is returned.
 If an error is detected or a caught signal aborts the call,
 a value of -1
