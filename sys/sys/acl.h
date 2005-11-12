@@ -35,6 +35,10 @@
 #ifndef _SYS_ACL_H_
 #define	_SYS_ACL_H_
 
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <vm/uma.h>
+
 /*
  * POSIX.1e ACL types and related constants.
  */
@@ -112,6 +116,8 @@ typedef struct acl_t_struct *acl_t;
 
 #ifdef _KERNEL
 
+extern uma_zone_t	acl_zone;
+
 /*
  * POSIX.1e ACLs are capable of expressing the read, write, and execute
  * bits of the POSIX mode field.  We provide two masks: one that defines
@@ -120,13 +126,6 @@ typedef struct acl_t_struct *acl_t;
  */
 #define	ACL_OVERRIDE_MASK	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define	ACL_PRESERVE_MASK	(~ACL_OVERRIDE_MASK)
-
-/*
- * Storage for ACLs and support structures.
- */
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_ACL);
-#endif
 
 /*
  * File system independent code to move back and forth between POSIX mode
