@@ -578,7 +578,7 @@ ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 		}
 
 		/* If it's not opened for read the set up a reader. */
-		if (!(flags & FREAD)) {
+		if (!(flag & FREAD)) {
 			DPRINTF(("ulpt_open: start read callout\n"));
 			usb_callout_init(sc->sc_read_callout);
 			usb_callout(sc->sc_read_callout, hz/5, ulpt_tick, sc);
