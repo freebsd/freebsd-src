@@ -261,9 +261,9 @@ lnc_isa_attach(device_t dev)
 	 *
 	 *       Contec uses 00 80 4c ?? ?? ??
 	 */ 
-	if (IF_LLADDR(sc->ifp)[0] == (u_char)0x00 &&
-	    IF_LLADDR(sc->ifp)[1] == (u_char)0x80 &&
-	    IF_LLADDR(sc->ifp)[2] == (u_char)0x4c) {
+	if (IF_LLADDR(sc->ifp)[0] == 0x00 &&
+	    IF_LLADDR(sc->ifp)[1] == 0x80 &&
+	    IF_LLADDR(sc->ifp)[2] == 0x4c) {
 		lnc_outw(sc->rap, MSRDA);
 		lnc_outw(CNET98S_IDP, 0x0006);
 		lnc_outw(sc->rap, MSWRA);
