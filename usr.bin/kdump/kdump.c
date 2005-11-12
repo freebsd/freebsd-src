@@ -81,7 +81,7 @@ void ktruser(int, unsigned char *);
 void usage(void);
 const char *ioctlname(u_long);
 
-int timestamp, decimal, fancy = 1, tail, threads, maxdata;
+int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata;
 const char *tracefile = DEF_TRACEFILE;
 struct ktr_header ktr_header;
 
@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dElm:np:HRTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dElm:np:HRsTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;
@@ -117,6 +117,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pid = atoi(optarg);
+			break;
+		case 's':
+			suppressdata = 1;
 			break;
 		case 'E':
 			timestamp = 3;	/* elapsed timestamp */
@@ -538,6 +541,8 @@ ktrgenio(struct ktr_genio *ktr, int len)
 	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
 		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
 		datalen == 1 ? "" : "s");
+	if (suppressdata)
+		return;
 	if (maxdata && datalen > maxdata)
 		datalen = maxdata;
 
@@ -599,6 +604,6 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-   "usage: kdump [-dEnlHRT] [-f trfile] [-m maxdata] [-p pid] [-t [cnisuw]]\n");
+  "usage: kdump [-dEnlHRsT] [-f trfile] [-m maxdata] [-p pid] [-t [cnisuw]]\n");
 	exit(1);
 }
