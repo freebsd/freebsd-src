@@ -365,6 +365,7 @@ nmount(td, uap)
 	unsigned int i;
 	int error;
 	u_int iovcnt;
+	const char *name;
 
 	/* Kick out MNT_ROOTFS early as it is legal internally */
 	if (uap->flags & MNT_ROOTFS)
@@ -392,12 +393,11 @@ nmount(td, uap)
 	error = vfs_donmount(td, uap->flags, auio);
 
 	/* copyout the errmsg */
-	for (i = 0; (error != 0) && (i < iovcnt); i += 2) {
-		const char *name = (const char *)auio->uio_iov[i].iov_base;
-		if (!strcmp(name, "errmsg")) {
-			copyout(auio->uio_iov[i+1].iov_base,
-			    uap->iovp[i+1].iov_base, uap->iovp[i+1].iov_len);
-			
+	for (i = 0; error != 0 && i < iovcnt; i += 2) {
+		name = (const char *)auio->uio_iov[i].iov_base;
+		if (strcmp(name, "errmsg") == 0) {
+			copyout(auio->uio_iov[i + 1].iov_base,
+			    uap->iovp[i + 1].iov_base, uap->iovp[i + 1].iov_len);
 			break;
 		}
 	}
@@ -476,14 +476,15 @@ static int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
-	struct iovec *iov_errmsg = NULL;
+	struct iovec *iov_errmsg;
 	char *fstype, *fspath;
-	int error, fstypelen, fspathlen;
-	int i;
+	int error, fstypelen, fspathlen, i;
+
+	iov_errmsg = NULL;
 
 	for (i = 0; i < fsoptions->uio_iovcnt; i += 2) {
-		if (!strcmp((char *)fsoptions->uio_iov[i].iov_base, "errmsg"))
-			iov_errmsg = &fsoptions->uio_iov[i+1];
+		if (strcmp((char *)fsoptions->uio_iov[i].iov_base, "errmsg") == 0)
+			iov_errmsg = &fsoptions->uio_iov[i + 1];
 	}
 
 	error = vfs_buildopts(fsoptions, &optlist);
@@ -499,7 +500,7 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	error = vfs_getopt(optlist, "fstype", (void **)&fstype, &fstypelen);
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
-		if (iov_errmsg)
+		if (iov_errmsg != NULL)
 			strncpy((char *)iov_errmsg->iov_base, "Invalid fstype",
 			    iov_errmsg->iov_len);
 		goto bail;
@@ -528,18 +529,18 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	error = vfs_domount(td, fstype, fspath, fsflags, optlist);
 	mtx_unlock(&Giant);
 bail:
-	if (error && iov_errmsg != NULL) {
-		/* save the errmsg */
+	if (error != 0 && iov_errmsg != NULL) {
+		/* Save the errmsg so we can return it to userspace. */
 		char *errmsg;
 		int len, ret;
 		ret = vfs_getopt(optlist, "errmsg", (void **)&errmsg, &len);  
-		if(ret == 0 && len > 0) 
+		if (ret == 0 && len > 0) 
 			strncpy((char *)iov_errmsg->iov_base, errmsg,
 			    iov_errmsg->iov_len);
 		
 	}
 	
-	if (error)
+	if (error != 0)
 		vfs_freeopts(optlist);
 	return (error);
 }
