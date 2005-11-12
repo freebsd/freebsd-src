@@ -1,5 +1,4 @@
 /*-
- * Copyright (c) 1994 Christopher G. Demetriou
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -7,6 +6,9 @@
  * to the University of California by American Telephone and Telegraph
  * Co. or Unix System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
+ *
+ * Copyright (c) 1994 Christopher G. Demetriou
+ * Copyright (c) 2005 Robert N. M. Watson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/syslog.h>
 #include <sys/kernel.h>
+#include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/namei.h>
@@ -89,16 +92,16 @@ static struct	callout acctwatch_callout;
 
 /*
  * Accounting vnode pointer, saved vnode pointer, and flags for each.
+ * acct_sx protects against changes to the active vnode and credentials
+ * while accounting records are being committed to disk.
  */
-static struct	vnode *acctp;
-static struct	ucred *acctcred;
-static int	acctflags;
-static struct	vnode *savacctp;
-static struct	ucred *savacctcred;
-static int	savacctflags;
+static int		 acct_suspended;
+static struct vnode	*acct_vp;
+static struct ucred	*acct_cred;
+static int		 acct_flags;
+static struct sx	 acct_sx;
 
-static struct mtx	acct_mtx;
-MTX_SYSINIT(acct, &acct_mtx, "accounting", MTX_DEF);
+SX_SYSINIT(acct, &acct_sx, "acct_sx");
 
 /*
  * Values associated with enabling and disabling accounting
@@ -115,6 +118,9 @@ static int acctchkfreq = 15;	/* frequency (in seconds) to check space */
 SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
 	&acctchkfreq, 0, "frequency for checking the free space");
 
+SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
+	"Accounting suspended or not");
+
 /*
  * Accounting system call.  Written based on the specification and
  * previous implementation done by Mark Tinguely.
@@ -122,11 +128,7 @@ SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
  * MPSAFE
  */
 int
-acct(td, uap)
-	struct thread *td;
-	struct acct_args /* {
-		char *path;
-	} */ *uap;
+acct(struct thread *td, struct acct_args *uap)
 {
 	struct nameidata nd;
 	int error, flags;
@@ -136,77 +138,82 @@ acct(td, uap)
 	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
-
 	/*
 	 * If accounting is to be started to a file, open that file for
-	 * appending and make sure it's a 'normal'.
+	 * appending and make sure it's a 'normal'.  While we could
+	 * conditionally acquire Giant here, we're actually interacting with
+	 * vnodes from possibly two file systems, making the logic a bit
+	 * complicated.  For now, use Giant unconditionally. 
 	 */
+	mtx_lock(&Giant);
 	if (uap->path != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, -1);
 		if (error)
-			goto done2;
+			goto done;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
 		error = mac_check_system_acct(td->td_ucred, nd.ni_vp);
 		if (error) {
 			VOP_UNLOCK(nd.ni_vp, 0, td);
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
-			goto done2;
+			goto done;
 		}
 #endif
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
 			error = EACCES;
-			goto done2;
+			goto done;
 		}
 #ifdef MAC
 	} else {
 		error = mac_check_system_acct(td->td_ucred, NULL);
 		if (error)
-			goto done2;
+			goto done;
 #endif
 	}
 
-	mtx_lock(&acct_mtx);
+	/*
+	 * Disallow concurrent access to the accounting vnode while we swap
+	 * it out, in order to prevent access after close.
+	 */
+	sx_xlock(&acct_sx);
 
 	/*
 	 * If accounting was previously enabled, kill the old space-watcher,
-	 * close the file, and (if no new file was specified, leave).
-	 *
-	 * XXX arr: should not hold lock over vnode operation.
+	 * close the file, and (if no new file was specified, leave).  Reset
+	 * the suspended state regardless of whether accounting remains
+	 * enabled.
 	 */
-	if (acctp != NULLVP || savacctp != NULLVP) {
+	acct_suspended = 0;
+	if (acct_vp != NULL) {
 		callout_stop(&acctwatch_callout);
-		error = vn_close((acctp != NULLVP ? acctp : savacctp),
-		    (acctp != NULLVP ? acctflags : savacctflags),
-		    (acctcred != NOCRED ? acctcred : savacctcred), td);
-		acctp = savacctp = NULLVP;
-		crfree(acctcred != NOCRED ? acctcred : savacctcred);
-		acctcred = savacctcred = NOCRED;
+		error = vn_close(acct_vp, acct_flags, acct_cred, td);
+		crfree(acct_cred);
+		acct_vp = NULL;
+		acct_cred = NULL;
+		acct_flags = 0;
 		log(LOG_NOTICE, "Accounting disabled\n");
 	}
 	if (uap->path == NULL) {
-		mtx_unlock(&acct_mtx);
-		goto done2;
+		sx_xunlock(&acct_sx);
+		goto done;
 	}
 
 	/*
 	 * Save the new accounting file vnode, and schedule the new
 	 * free space watcher.
 	 */
-	acctp = nd.ni_vp;
-	acctcred = crhold(td->td_ucred);
-	acctflags = flags;
-	callout_init(&acctwatch_callout, 0);
-	mtx_unlock(&acct_mtx);
+	acct_vp = nd.ni_vp;
+	acct_cred = crhold(td->td_ucred);
+	acct_flags = flags;
+	callout_init(&acctwatch_callout, CALLOUT_MPSAFE);
+	sx_xunlock(&acct_sx);
 	log(LOG_NOTICE, "Accounting enabled\n");
 	acctwatch(NULL);
-
-done2:
+done:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -218,35 +225,31 @@ done2:
  * "acct.h" header file.)
  */
 int
-acct_process(td)
-	struct thread *td;
+acct_process(struct thread *td)
 {
 	struct acct acct;
 	struct timeval ut, st, tmp;
 	struct plimit *newlim, *oldlim;
 	struct proc *p;
 	struct rusage *r;
-	struct ucred *uc;
-	struct vnode *vp;
-	int t, ret;
+	int t, ret, vfslocked;
 
 	/*
 	 * Lockless check of accounting condition before doing the hard
 	 * work.
 	 */
-	if (acctp == NULLVP)
+	if (acct_vp == NULL || acct_suspended)
 		return (0);
 
-	mtx_lock(&acct_mtx);
+	sx_slock(&acct_sx);
 
 	/*
 	 * If accounting isn't enabled, don't bother.  Have to check again
 	 * once we own the lock in case we raced with disabling of accounting
 	 * by another thread.
 	 */
-	vp = acctp;
-	if (vp == NULLVP) {
-		mtx_unlock(&acct_mtx);
+	if (acct_vp == NULL || acct_suspended) {
+		sx_sunlock(&acct_sx);
 		return (0);
 	}
 
@@ -303,13 +306,6 @@ acct_process(td)
 	PROC_UNLOCK(p);
 
 	/*
-	 * Finish doing things that require acct_mtx, and release acct_mtx.
-	 */
-	uc = crhold(acctcred);
-	vref(vp);
-	mtx_unlock(&acct_mtx);
-
-	/*
 	 * Eliminate any file size rlimit.
 	 */
 	newlim = lim_alloc();
@@ -324,12 +320,13 @@ acct_process(td)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	VOP_LEASE(vp, td, uc, LEASE_WRITE);
-	ret = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, NOCRED,
+	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
+	VOP_LEASE(acct_vp, td, acct_cred, LEASE_WRITE);
+	ret = vn_rdwr(UIO_WRITE, acct_vp, (caddr_t)&acct, sizeof (acct),
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, acct_cred, NOCRED,
 	    (int *)0, td);
-	vrele(vp);
-	crfree(uc);
+	VFS_UNLOCK_GIANT(vfslocked);
+	sx_sunlock(&acct_sx);
 	return (ret);
 }
 
@@ -344,8 +341,7 @@ acct_process(td)
 #define	MAXFRACT	((1 << MANTSIZE) - 1)	/* Maximum fractional value. */
 
 static comp_t
-encode_comp_t(s, us)
-	u_long s, us;
+encode_comp_t(u_long s, u_long us)
 {
 	int exp, rnd;
 
@@ -380,58 +376,47 @@ encode_comp_t(s, us)
  */
 /* ARGSUSED */
 static void
-acctwatch(a)
-	void *a;
+acctwatch(void *a)
 {
 	struct statfs sb;
+	int vfslocked;
 
-	mtx_lock(&acct_mtx);
-
+	sx_xlock(&acct_sx);
+	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
+	if (acct_vp->v_type == VBAD) {
+		(void) vn_close(acct_vp, acct_flags, acct_cred, NULL);
+		VFS_UNLOCK_GIANT(vfslocked);
+		crfree(acct_cred);
+		acct_vp = NULL;
+		acct_cred = NULL;
+		acct_flags = 0;
+		sx_xunlock(&acct_sx);
+		log(LOG_NOTICE, "Accounting disabled\n");
+		return;
+	}
 	/*
-	 * XXX arr: need to fix the issue of holding acct_mtx over
-	 * the below vnode operations.
+	 * Stopping here is better than continuing, maybe it will be VBAD
+	 * next time around.
 	 */
-	if (savacctp != NULLVP) {
-		if (savacctp->v_type == VBAD) {
-			(void) vn_close(savacctp, savacctflags, savacctcred,
-			    NULL);
-			savacctp = NULLVP;
-			savacctcred = NOCRED;
-			mtx_unlock(&acct_mtx);
-			return;
-		}
-		(void)VFS_STATFS(savacctp->v_mount, &sb, curthread);
-		if (sb.f_bavail > acctresume * sb.f_blocks / 100) {
-			acctp = savacctp;
-			acctcred = savacctcred;
-			acctflags = savacctflags;
-			savacctp = NULLVP;
-			savacctcred = NOCRED;
+	if (VFS_STATFS(acct_vp->v_mount, &sb, curthread) < 0) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		sx_xunlock(&acct_sx);
+		return;
+	}
+	VFS_UNLOCK_GIANT(vfslocked);
+	if (acct_suspended) {
+		if (sb.f_bavail > (int64_t)(acctresume * sb.f_blocks /
+		    100)) {
+			acct_suspended = 0;
 			log(LOG_NOTICE, "Accounting resumed\n");
 		}
 	} else {
-		if (acctp == NULLVP) {
-			mtx_unlock(&acct_mtx);
-			return;
-		}
-		if (acctp->v_type == VBAD) {
-			(void) vn_close(acctp, acctflags, acctcred, NULL);
-			acctp = NULLVP;
-			crfree(acctcred);
-			acctcred = NOCRED;
-			mtx_unlock(&acct_mtx);
-			return;
-		}
-		(void)VFS_STATFS(acctp->v_mount, &sb, curthread);
-		if (sb.f_bavail <= acctsuspend * sb.f_blocks / 100) {
-			savacctp = acctp;
-			savacctflags = acctflags;
-			savacctcred = acctcred;
-			acctp = NULLVP;
-			acctcred = NOCRED;
+		if (sb.f_bavail <= (int64_t)(acctsuspend * sb.f_blocks /
+		    100)) {
+			acct_suspended = 1;
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
 	}
 	callout_reset(&acctwatch_callout, acctchkfreq * hz, acctwatch, NULL);
-	mtx_unlock(&acct_mtx);
+	sx_xunlock(&acct_sx);
 }
