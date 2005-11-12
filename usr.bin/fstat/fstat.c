@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <fs/devfs/devfs.h>
+#include <fs/devfs/devfs_int.h>
 #undef _KERNEL
 #include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>
@@ -885,11 +886,12 @@ bad:
 dev_t
 dev2udev(struct cdev *dev)
 {
+	struct cdev_priv priv;
 	struct cdev si;
 
-	if (KVM_READ(dev, &si, sizeof si)) {
-		/* XXX: FIXME! */
-		return 0;
+	if (KVM_READ(dev, &si, sizeof si) &&
+	    KVM_READ(si.si_priv, &priv, sizeof priv)) {
+		return ((dev_t)priv.cdp_inode);
 	} else {
 		dprintf(stderr, "can't convert cdev *%p to a dev_t\n", dev);
 		return -1;
