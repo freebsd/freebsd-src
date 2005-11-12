@@ -97,8 +97,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 #define	FUNC_EXP(name)		__CONCAT(name, _exp)
 
 #define	STUB_FUNC(name, idx, ret)				\
-	static ret FUNC_EXP(name)(void) __used;		\
-	static ret FUNC_INT(name)(void) __used;		\
+	static ret FUNC_EXP(name)(void) __used;			\
+	static ret FUNC_INT(name)(void) __used;			\
 	WEAK_REF(FUNC_EXP(name), name);				\
 	WEAK_REF(FUNC_INT(name), __CONCAT(_, name));		\
 	typedef ret (*FUNC_TYPE(name))(void);			\
@@ -176,7 +176,7 @@ STUB_FUNC1(pthread_cond_broadcast, PJT_COND_BROADCAST, int, void *)
 STUB_FUNC1(pthread_cond_destroy, PJT_COND_DESTROY, int, void *)
 STUB_FUNC2(pthread_cond_init,	PJT_COND_INIT, int, void *, void *)
 STUB_FUNC1(pthread_cond_signal,	PJT_COND_SIGNAL, int, void *)
-STUB_FUNC1(pthread_cond_wait,	PJT_COND_WAIT, int, void *)
+STUB_FUNC2(pthread_cond_wait,	PJT_COND_WAIT, int, void *, void *)
 STUB_FUNC1(pthread_getspecific,	PJT_GETSPECIFIC, void *, pthread_key_t)
 STUB_FUNC2(pthread_key_create,	PJT_KEY_CREATE, int, void *, void *)
 STUB_FUNC1(pthread_key_delete,	PJT_KEY_DELETE, int, pthread_key_t)
