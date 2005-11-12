@@ -3874,6 +3874,10 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 	}
 	if (ap->a_ncookies == NULL)
 		return (0);
+
+	KASSERT(ap->a_cookies,
+	    ("NULL ap->a_cookies value with non-NULL ap->a_ncookies!"));
+
 	*ap->a_cookies = realloc(*ap->a_cookies,
 	    (*ap->a_ncookies + 1) * sizeof(u_long), M_TEMP, M_WAITOK | M_ZERO);
 	(*ap->a_cookies)[*ap->a_ncookies] = off;
