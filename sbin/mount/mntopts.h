@@ -95,4 +95,5 @@ void getmntopts(const char *, const struct mntopt *, int *, int *);
 void rmslashes(char *, char *);
 void checkpath(const char *, char resolved_path[]);
 extern int getmnt_silent;
-void build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, int len);
+void build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, size_t len);
+void build_iovec_argf(struct iovec **iov, int *iovlen, const char *name, const char *fmt, ...);

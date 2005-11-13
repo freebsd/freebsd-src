@@ -36,11 +36,15 @@ static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -134,7 +138,8 @@ checkpath(const char *path, char *resolved)
 }
 
 void
-build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, int len)
+build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val,
+	    size_t len)
 {
 	int i;
 
@@ -150,8 +155,25 @@ build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, int le
 	(*iov)[i].iov_len = strlen(name) + 1;
 	i++;
 	(*iov)[i].iov_base = val;
-	if (len < 0)
+	if (len == (size_t)-1)
 		len = strlen(val) + 1;
-	(*iov)[i].iov_len = len;
+	(*iov)[i].iov_len = (int)len;
 	*iovlen = ++i;
+}
+
+/*
+ * This function is needed for compatibility with parameters
+ * which used to use the mount_argf() command for the old mount() syscall.
+ */
+void
+build_iovec_argf(struct iovec **iov, int *iovlen, const char *name,
+    const char *fmt, ...)
+{
+	va_list ap;
+	char val[255] = { 0 };
+
+	va_start(ap, fmt);
+	vsnprintf(val, sizeof(val), fmt, ap);  
+	va_end(ap);
+	build_iovec(iov, iovlen, name, strdup(val), (size_t)-1);
 }
