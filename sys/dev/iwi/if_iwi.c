@@ -1158,7 +1158,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct mbuf *m;
+	struct mbuf *mnew, *m;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	int error;
@@ -1169,10 +1169,48 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	if (le16toh(frame->len) < sizeof (struct ieee80211_frame))
 		return;
 
+	/*
+	 * Try to allocate a new mbuf for this ring element and load it before
+	 * processing the current mbuf. If the ring element cannot be loaded,
+	 * drop the received packet and reuse the old mbuf. In the unlikely
+	 * case that the old mbuf can't be reloaded either, explicitly panic.
+	 */
+	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (mnew == NULL) {
+		ifp->if_ierrors++;
+		return;
+	}
+
 	bus_dmamap_unload(sc->rxq.data_dmat, data->map);
 
-	/* finalize mbuf */
+	error = bus_dmamap_load(sc->rxq.data_dmat, data->map,
+	    mtod(mnew, void *), MCLBYTES, iwi_dma_map_addr, &data->physaddr,
+	    0);
+	if (error != 0) {
+		m_freem(mnew);
+
+		/* try to reload the old mbuf */
+		error = bus_dmamap_load(sc->rxq.data_dmat, data->map,
+		    mtod(data->m, void *), MCLBYTES, iwi_dma_map_addr,
+		    &data->physaddr, 0);
+		if (error != 0) {
+			/* very unlikely that it will fail... */
+			panic("%s: could not load old rx mbuf",
+			    device_get_name(sc->sc_dev));
+		}
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/*
+	 * New mbuf successfully loaded, update Rx ring and continue
+	 * processing.
+	 */
 	m = data->m;
+	data->m = mnew;
+	CSR_WRITE_4(sc, data->reg, data->physaddr);
+
+	/* finalize mbuf */
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = sizeof (struct iwi_hdr) +
 	    sizeof (struct iwi_frame) + le16toh(frame->len);
@@ -1205,24 +1243,6 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
-
-	data->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (data->m == NULL) {
-		device_printf(sc->sc_dev, "could not allocate rx mbuf\n");
-		return;
-	}
-
-	error = bus_dmamap_load(sc->rxq.data_dmat, data->map,
-	    mtod(data->m, void *), MCLBYTES, iwi_dma_map_addr, &data->physaddr,
-	    0);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not load rx buf DMA map\n");
-		m_freem(data->m);
-		data->m = NULL;
-		return;
-	}
-
-	CSR_WRITE_4(sc, data->reg, data->physaddr);
 }
 
 static void
