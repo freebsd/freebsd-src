@@ -18,6 +18,7 @@ SUBDIR=	alias \
 	biff \
 	${_bluetooth} \
 	brandelf \
+	bsdiff \
 	bzip2 \
 	bzip2recover \
 	${_c89} \
