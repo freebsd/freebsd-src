@@ -540,8 +540,6 @@ count_spaces(int current, char *buffer)
     return (cur);
 }
 
-int	found_err;
-
 void
 diag4(int level, const char *msg, int a, int b)
 {
