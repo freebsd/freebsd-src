@@ -159,7 +159,7 @@ static ST_HPT_DPC DpcQueue[MAX_DPC];
 static int DpcQueue_First=0;
 static int DpcQueue_Last = 0;
 
-char DRIVER_VERSION[] = "v1.12 (" __DATE__ " " __TIME__ ")";
+char DRIVER_VERSION[] = "v1.12";
 
 #if (__FreeBSD_version >= 500000)
 static struct mtx driver_lock;
