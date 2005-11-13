@@ -42,8 +42,6 @@ static const char rcsid[] =
 #include <sys/linker.h>
 #include <sys/module.h>
 
-#include <fs/msdosfs/msdosfsmount.h>
-
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
@@ -59,20 +57,11 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-#define TRANSITION_PERIOD_HACK
-
-/*
- * XXX - no way to specify "foo=<bar>"-type options; that's what we'd
- * want for "-u", "-g", "-m", "-M", "-L", "-D", and "-W".
- */
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_FORCE,
 	MOPT_SYNC,
 	MOPT_UPDATE,
-	{ "shortnames", 0, MSDOSFSMNT_SHORTNAME, 1 },
-	{ "longnames", 0, MSDOSFSMNT_LONGNAME, 1 },
-	{ "nowin95", 0, MSDOSFSMNT_NOWIN95, 1 },
 	MOPT_END
 };
 
@@ -80,101 +69,101 @@ static gid_t	a_gid(char *);
 static uid_t	a_uid(char *);
 static mode_t	a_mask(char *);
 static void	usage(void) __dead2;
-static int	set_charset(struct msdosfs_args *);
+static int	set_charset(struct iovec *iov, int *iovlen, const char *, const char *);
 
 int
 main(int argc, char **argv)
 {
-	struct msdosfs_args args;
+        struct iovec *iov = NULL;
+        int iovlen = 0;
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask, set_dirmask;
+	int optflags = 0;
 	char *dev, *dir, mntpath[MAXPATHLEN], *csp;
+	char fstype[] = "msdosfs";
+	char *cs_dos = NULL;
+	char *cs_local = NULL;
+	mode_t mask = 0, dirmask = 0;
+	uid_t uid = 0;
+	gid_t gid = 0;
+	getmnt_silent = 1;
 
 	mntflags = set_gid = set_uid = set_mask = set_dirmask = 0;
-	(void)memset(&args, '\0', sizeof(args));
-	args.magic = MSDOSFS_ARGSMAGIC;
 
-	args.cs_win = NULL;
-	args.cs_dos = NULL;
-	args.cs_local = NULL;
-#ifdef TRANSITION_PERIOD_HACK
-	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:W:")) != -1) {
-#else
 	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:")) != -1) {
-#endif
 		switch (c) {
 		case 's':
-			args.flags |= MSDOSFSMNT_SHORTNAME;
+			build_iovec(&iov, &iovlen, "shortnames", NULL, (size_t)-1);
 			break;
 		case 'l':
-			args.flags |= MSDOSFSMNT_LONGNAME;
+			build_iovec(&iov, &iovlen, "longnames", NULL, (size_t)-1);
 			break;
 		case '9':
-			args.flags |= MSDOSFSMNT_NOWIN95;
+			build_iovec_argf(&iov, &iovlen, "nowin95", NULL, (size_t)-1);
 			break;
 		case 'u':
-			args.uid = a_uid(optarg);
+			uid = a_uid(optarg);
 			set_uid = 1;
 			break;
 		case 'g':
-			args.gid = a_gid(optarg);
+			gid = a_gid(optarg);
 			set_gid = 1;
 			break;
 		case 'm':
-			args.mask = a_mask(optarg);
+			mask = a_mask(optarg);
 			set_mask = 1;
 			break;
 		case 'M':
-			args.dirmask = a_mask(optarg);
+			dirmask = a_mask(optarg);
 			set_dirmask = 1;
 			break;
-		case 'L':
+		case 'L': {
+			const char *quirk = NULL;
 			if (setlocale(LC_CTYPE, optarg) == NULL)
 				err(EX_CONFIG, "%s", optarg);
 			csp = strchr(optarg,'.');
 			if (!csp)
 				err(EX_CONFIG, "%s", optarg);
-			args.cs_local = malloc(ICONV_CSNMAXLEN);
-			if (args.cs_local == NULL)
-				err(EX_OSERR, "malloc()");
-			strncpy(args.cs_local,
-			    kiconv_quirkcs(csp + 1, KICONV_VENDOR_MICSFT),
-			    ICONV_CSNMAXLEN);
+			quirk = kiconv_quirkcs(csp + 1, KICONV_VENDOR_MICSFT);
+			build_iovec_argf(&iov, &iovlen, "cs_local", quirk);
+			}
 			break;
 		case 'D':
-			args.cs_dos = malloc(ICONV_CSNMAXLEN);
-			if (args.cs_dos == NULL)
-				err(EX_OSERR, "malloc()");
-			strncpy(args.cs_dos, optarg, ICONV_CSNMAXLEN);
+			cs_dos = strdup(optarg);
+			build_iovec_argf(&iov, &iovlen, "cs_dos", cs_dos, (size_t)-1);
 			break;
-		case 'o':
-			getmntopts(optarg, mopts, &mntflags, &args.flags);
+		case 'o': {
+			char *p = NULL;
+			char *val = strdup("");
+			getmntopts(optarg, mopts, &mntflags, &optflags);
+                        p = strchr(optarg, '=');
+                        if (p != NULL) {
+				free(val);
+				*p = '\0';
+				val = p + 1;
+			}
+			build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
+			}
 			break;
-#ifdef TRANSITION_PERIOD_HACK
 		case 'W':
-			args.cs_local = malloc(ICONV_CSNMAXLEN);
-			if (args.cs_local == NULL)
-				err(EX_OSERR, "malloc()");
-			args.cs_dos = malloc(ICONV_CSNMAXLEN);
-			if (args.cs_dos == NULL)
-				err(EX_OSERR, "malloc()");
 			if (strcmp(optarg, "iso22dos") == 0) {
-				strcpy(args.cs_local, "ISO8859-2");
-				strcpy(args.cs_dos, "CP852");
+				cs_local = strdup("ISO8859-2");
+				cs_dos = strdup("CP852");
 			} else if (strcmp(optarg, "iso72dos") == 0) {
-				strcpy(args.cs_local, "ISO8859-7");
-				strcpy(args.cs_dos, "CP737");
+				cs_local = strdup("ISO8859-7");
+				cs_dos = strdup("CP737");
 			} else if (strcmp(optarg, "koi2dos") == 0) {
-				strcpy(args.cs_local, "KOI8-R");
-				strcpy(args.cs_dos, "CP866");
+				cs_local = strdup("KOI8-R");
+				cs_dos = strdup("CP866");
 			} else if (strcmp(optarg, "koi8u2dos") == 0) {
-				strcpy(args.cs_local, "KOI8-U");
-				strcpy(args.cs_dos, "CP866");
+				cs_local = strdup("KOI8-U");
+				cs_dos = strdup("CP866");
 			} else {
 				err(EX_NOINPUT, "%s", optarg);
 			}
+			build_iovec(&iov, &iovlen, "cs_local", cs_local, (size_t)-1);
+			build_iovec(&iov, &iovlen, "cs_dos", cs_dos, (size_t)-1);
 			break;
-#endif /* TRANSITION_PERIOD_HACK */
 		case '?':
 		default:
 			usage();
@@ -186,28 +175,26 @@ main(int argc, char **argv)
 		usage();
 
 	if (set_mask && !set_dirmask) {
-		args.dirmask = args.mask;
+		dirmask = mask;
 		set_dirmask = 1;
 	}
 	else if (set_dirmask && !set_mask) {
-		args.mask = args.dirmask;
+		mask = dirmask;
 		set_mask = 1;
 	}
 
 	dev = argv[optind];
 	dir = argv[optind + 1];
 
-	if (args.cs_local) {
-		if (set_charset(&args) == -1)
+	if (cs_local != NULL) {
+		if (set_charset(iov, &iovlen, cs_local, cs_dos) == -1)
 			err(EX_OSERR, "msdosfs_iconv");
-		args.flags |= MSDOSFSMNT_KICONV;
-	} else if (args.cs_dos) {
-		if ((args.cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
-			err(EX_OSERR, "malloc()");
-		strcpy(args.cs_local, "ISO8859-1");
-		if (set_charset(&args) == -1)
+		build_iovec_argf(&iov, &iovlen, "kiconv", "");
+	} else if (cs_dos != NULL) {
+		build_iovec_argf(&iov, &iovlen, "cs_local", "ISO8859-1");
+		if (set_charset(iov, &iovlen, "ISO8859-1", cs_dos) == -1)
 			err(EX_OSERR, "msdosfs_iconv");
-		args.flags |= MSDOSFSMNT_KICONV;
+		build_iovec_argf(&iov, &iovlen, "kiconv", "");
 	}
 
 	/*
@@ -217,27 +204,29 @@ main(int argc, char **argv)
 	(void)checkpath(dir, mntpath);
 	(void)rmslashes(dev, dev);
 
-	args.fspec = dev;
-	args.export.ex_root = -2;	/* unchecked anyway on DOS fs */
-	if (mntflags & MNT_RDONLY)
-		args.export.ex_flags = MNT_EXRDONLY;
-	else
-		args.export.ex_flags = 0;
 	if (!set_gid || !set_uid || !set_mask) {
 		if (stat(mntpath, &sb) == -1)
 			err(EX_OSERR, "stat %s", mntpath);
 
 		if (!set_uid)
-			args.uid = sb.st_uid;
+			uid = sb.st_uid;
 		if (!set_gid)
-			args.gid = sb.st_gid;
+			gid = sb.st_gid;
 		if (!set_mask)
-			args.mask = args.dirmask =
+			mask = dirmask =
 				sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-	if (mount("msdosfs", mntpath, mntflags, &args) < 0)
-		err(EX_OSERR, "%s", dev);
+	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
+	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
+	build_iovec_argf(&iov, &iovlen, "uid", "%d", uid);
+	build_iovec_argf(&iov, &iovlen, "gid", "%u", gid);
+	build_iovec_argf(&iov, &iovlen, "mask", "%u", mask);
+	build_iovec_argf(&iov, &iovlen, "dirmask", "%u", dirmask);
+
+	if (nmount(iov, iovlen, mntflags) < 0)
+		err(1, "%s", dev);
 
 	exit (0);
 }
@@ -303,22 +292,15 @@ a_mask(s)
 void
 usage()
 {
-#ifdef TRANSITION_PERIOD_HACK
 	fprintf(stderr, "%s\n%s\n%s\n",
 	"usage: mount_msdosfs [-9ls] [-D DOS_codepage] [-g gid] [-L locale]",
 	"                     [-M mask] [-m mask] [-o options] [-u uid]",
 	"		      [-W table] special node");
-#else
-	fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: mount_msdosfs [-9ls] [-D DOS_codepage] [-g gid] [-L locale]",
-	"                     [-M mask] [-m mask] [-o options] [-u uid]",
-	"		      special node");
-#endif
 	exit(EX_USAGE);
 }
 
 int
-set_charset(struct msdosfs_args *args)
+set_charset(struct iovec *iov, int *iovlen, const char *cs_local, const char *cs_dos)
 {
 	int error;
 
@@ -328,21 +310,17 @@ set_charset(struct msdosfs_args *args)
 			return (-1);
 		}
 
-	if ((args->cs_win = malloc(ICONV_CSNMAXLEN)) == NULL)
-		return (-1);
-	strncpy(args->cs_win, ENCODING_UNICODE, ICONV_CSNMAXLEN);
-	error = kiconv_add_xlat16_cspairs(args->cs_win, args->cs_local);
+        build_iovec_argf(&iov, iovlen, "cs_win", ENCODING_UNICODE);
+	error = kiconv_add_xlat16_cspairs(ENCODING_UNICODE, cs_local);
 	if (error)
 		return (-1);
-	if (args->cs_dos) {
-		error = kiconv_add_xlat16_cspairs(args->cs_dos, args->cs_local);
+	if (cs_dos != NULL) {
+		error = kiconv_add_xlat16_cspairs(cs_dos, cs_local);
 		if (error)
 			return (-1);
 	} else {
-		if ((args->cs_dos = malloc(ICONV_CSNMAXLEN)) == NULL)
-			return (-1);
-		strcpy(args->cs_dos, args->cs_local);
-		error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_local,
+		build_iovec_argf(&iov, iovlen, "cs_dos", cs_local);
+		error = kiconv_add_xlat16_cspair(cs_local, cs_local,
 				KICONV_FROM_UPPER | KICONV_LOWER);
 		if (error)
 			return (-1);
