@@ -49,15 +49,12 @@ struct ua_info {
 	device_t sc_dev;
 	u_int32_t bufsz;
 	struct ua_chinfo pch, rch;
+#define FORMAT_NUM	32
+	u_int32_t ua_playfmt[FORMAT_NUM*2+1]; /* FORMAT_NUM format * (stereo or mono) + endptr */
+	u_int32_t ua_recfmt[FORMAT_NUM*2+1]; /* FORMAT_NUM format * (stereo or mono) + endptr */
+	struct pcmchan_caps ua_playcaps;
+	struct pcmchan_caps ua_reccaps;
 };
-
-static u_int32_t ua_playfmt[8*2+1]; /* 8 format * (stereo or mono) + endptr */
-
-static struct pcmchan_caps ua_playcaps = {8000, 48000, ua_playfmt, 0};
-
-static u_int32_t ua_recfmt[8*2+1]; /* 8 format * (stereo or mono) + endptr */
-
-static struct pcmchan_caps ua_reccaps = {8000, 48000, ua_recfmt, 0};
 
 #define UAUDIO_DEFAULT_BUFSZ		16*1024
 
@@ -76,23 +73,9 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->dir = dir;
 
 	pa_dev = device_get_parent(sc->sc_dev);
-     	/* Create ua_playfmt[] & ua_recfmt[] */
-	uaudio_query_formats(pa_dev, (u_int32_t *)&ua_playfmt, (u_int32_t *)&ua_recfmt);
-	if (dir == PCMDIR_PLAY) {
-		if (ua_playfmt[0] == 0) {
-			printf("play channel supported format list invalid\n");
-			return NULL;
-		}
-	} else {
-		if (ua_recfmt[0] == 0) {
-			printf("record channel supported format list invalid\n");
-			return NULL;
-		}
-
-	}
 
 	ch->buf = malloc(sc->bufsz, M_DEVBUF, M_NOWAIT);
-        if (ch->buf == NULL)
+	if (ch->buf == NULL)
 		return NULL;
 	if (sndbuf_setup(b, ch->buf, sc->bufsz) != 0) {
 		free(ch->buf, M_DEVBUF);
@@ -133,6 +116,9 @@ ua_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	struct ua_chinfo *ch = data;
 
+	/*
+	 * At this point, no need to query as we shouldn't select an unsorted format
+	 */
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
 	uaudio_chan_set_param_format(pa_dev, format, ch->dir);
@@ -144,15 +130,15 @@ ua_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 static int
 ua_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
+	struct ua_chinfo *ch;
 	device_t pa_dev;
-	struct ua_info *ua;
+	int bestspeed;
 
-	struct ua_chinfo *ch = data;
-	ch->spd = speed;
+	ch = data;
+	pa_dev = device_get_parent(ch->parent->sc_dev);
 
-	ua = ch->parent;
-	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_speed(pa_dev, speed, ch->dir);
+	if ((bestspeed = uaudio_chan_set_param_speed(pa_dev, speed, ch->dir)))
+		ch->spd = bestspeed;
 
 	return ch->spd;
 }
@@ -224,9 +210,10 @@ ua_chan_getptr(kobj_t obj, void *data)
 static struct pcmchan_caps *
 ua_chan_getcaps(kobj_t obj, void *data)
 {
-	struct ua_chinfo *ch = data;
+	struct ua_chinfo *ch;
 
-	return (ch->dir == PCMDIR_PLAY) ? &ua_playcaps : & ua_reccaps;
+	ch = data;
+	return (ch->dir == PCMDIR_PLAY) ? &(ch->parent->ua_playcaps) : &(ch->parent->ua_reccaps);
 }
 
 static kobj_method_t ua_chan_methods[] = {
@@ -327,42 +314,63 @@ ua_attach(device_t dev)
 {
 	struct ua_info *ua;
 	char status[SND_STATUSLEN];
+	device_t pa_dev;
+	u_int32_t nplay, nrec;
+	int i;
 
-	ua = (struct ua_info *)malloc(sizeof *ua, M_DEVBUF, M_NOWAIT);
-	if (!ua)
+	ua = (struct ua_info *)malloc(sizeof *ua, M_DEVBUF, M_ZERO | M_NOWAIT);
+	if (ua == NULL)
 		return ENXIO;
-	bzero(ua, sizeof *ua);
 
 	ua->sc_dev = dev;
+
+	pa_dev = device_get_parent(dev);
 
 	ua->bufsz = pcm_getbuffersize(dev, 4096, UAUDIO_DEFAULT_BUFSZ, 65536);
 	if (bootverbose)
 		device_printf(dev, "using a default buffer size of %jd\n", (intmax_t)ua->bufsz);
 
 	if (mixer_init(dev, &ua_mixer_class, ua)) {
-		return(ENXIO);
+		goto bad;
 	}
 
 	snprintf(status, SND_STATUSLEN, "at ? %s", PCM_KLDSTRING(snd_uaudio));
 
+	ua->ua_playcaps.fmtlist = ua->ua_playfmt;
+	ua->ua_reccaps.fmtlist = ua->ua_recfmt;
+	nplay = uaudio_query_formats(pa_dev, PCMDIR_PLAY, FORMAT_NUM * 2, &ua->ua_playcaps);
+	nrec = uaudio_query_formats(pa_dev, PCMDIR_REC, FORMAT_NUM * 2, &ua->ua_reccaps);
+
+	if (nplay > 1)
+		nplay = 1;
+	if (nrec > 1)
+		nrec = 1;
+
 #ifndef NO_RECORDING
-	if (pcm_register(dev, ua, 1, 1)) {
+	if (pcm_register(dev, ua, nplay, nrec)) {
 #else
-	if (pcm_register(dev, ua, 1, 0)) {
+	if (pcm_register(dev, ua, nplay, 0)) {
 #endif
-		return(ENXIO);
+		goto bad;
 	}
 
 	sndstat_unregister(dev);
 	uaudio_sndstat_register(dev);
 
-	pcm_addchan(dev, PCMDIR_PLAY, &ua_chan_class, ua);
+	for (i = 0; i < nplay; i++) {
+		pcm_addchan(dev, PCMDIR_PLAY, &ua_chan_class, ua);
+	}
 #ifndef NO_RECORDING
-	pcm_addchan(dev, PCMDIR_REC, &ua_chan_class, ua);
+	for (i = 0; i < nrec; i++) {
+		pcm_addchan(dev, PCMDIR_REC, &ua_chan_class, ua);
+	}
 #endif
 	pcm_setstatus(dev, status);
 
 	return 0;
+
+bad:	free(ua, M_DEVBUF);
+	return ENXIO;
 }
 
 static int
