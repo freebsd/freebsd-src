@@ -1317,7 +1317,7 @@ ral_decryption_intr(struct ral_softc *sc)
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct ral_node *rn;
-	struct mbuf *m;
+	struct mbuf *mnew, *m;
 	int hw, error;
 
 	/* retrieve last decriptor index processed by cipher engine */
@@ -1345,12 +1345,51 @@ ral_decryption_intr(struct ral_softc *sc)
 			goto skip;
 		}
 
+		/*
+		 * Try to allocate a new mbuf for this ring element and load it
+		 * before processing the current mbuf. If the ring element
+		 * cannot be loaded, drop the received packet and reuse the old
+		 * mbuf. In the unlikely case that the old mbuf can't be
+		 * reloaded either, explicitly panic.
+		 */
+		mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (mnew == NULL) {
+			ifp->if_ierrors++;
+			goto skip;
+		}
+
 		bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->rxq.data_dmat, data->map);
 
-		/* finalize mbuf */
+		error = bus_dmamap_load(sc->rxq.data_dmat, data->map,
+		    mtod(mnew, void *), MCLBYTES, ral_dma_map_addr, &physaddr,
+		    0);
+		if (error != 0) {
+			m_freem(mnew);
+
+			/* try to reload the old mbuf */
+			error = bus_dmamap_load(sc->rxq.data_dmat, data->map,
+			    mtod(data->m, void *), MCLBYTES, ral_dma_map_addr,
+			    &physaddr, 0);
+			if (error != 0) {
+				/* very unlikely that it will fail... */
+				panic("%s: could not load old rx mbuf",
+				    device_get_name(sc->sc_dev));
+			}
+			ifp->if_ierrors++;
+			goto skip;
+		}
+
+		/*
+	 	 * New mbuf successfully loaded, update Rx ring and continue
+		 * processing.
+		 */
 		m = data->m;
+		data->m = mnew;
+		desc->physaddr = htole32(physaddr);
+
+		/* finalize mbuf */
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
@@ -1389,25 +1428,6 @@ ral_decryption_intr(struct ral_softc *sc)
 		/* node is no longer needed */
 		ieee80211_free_node(ni);
 
-		data->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (data->m == NULL) {
-			device_printf(sc->sc_dev,
-			    "could not allocate rx mbuf\n");
-			break;
-		}
-
-		error = bus_dmamap_load(sc->rxq.data_dmat, data->map,
-		    mtod(data->m, void *), MCLBYTES, ral_dma_map_addr,
-		    &physaddr, 0);
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "could not load rx buf DMA map\n");
-			m_freem(data->m);
-			data->m = NULL;
-			break;
-		}
-
-		desc->physaddr = htole32(physaddr);
 skip:		desc->flags = htole32(RAL_RX_BUSY);
 
 		DPRINTFN(15, ("decryption done idx=%u\n", sc->rxq.cur_decrypt));
