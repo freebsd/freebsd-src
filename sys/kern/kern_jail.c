@@ -106,7 +106,7 @@ jail(struct thread *td, struct jail_args *uap)
 	struct prison *pr, *tpr;
 	struct jail j;
 	struct jail_attach_args jaa;
-	int error, tryprid;
+	int vfslocked, error, tryprid;
 
 	error = copyin(uap->jail, &j, sizeof(j));
 	if (error)
@@ -120,17 +120,16 @@ jail(struct thread *td, struct jail_args *uap)
 	error = copyinstr(j.path, &pr->pr_path, sizeof(pr->pr_path), 0);
 	if (error)
 		goto e_killmtx;
-	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, pr->pr_path, td);
+	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKLEAF, UIO_SYSSPACE,
+	    pr->pr_path, td);
 	error = namei(&nd);
-	if (error) {
-		mtx_unlock(&Giant);
+	if (error)
 		goto e_killmtx;
-	}
+	vfslocked = NDHASGIANT(&nd);
 	pr->pr_root = nd.ni_vp;
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof(pr->pr_host), 0);
 	if (error)
 		goto e_dropvnref;
@@ -174,9 +173,9 @@ e_dropprref:
 	prisoncount--;
 	mtx_unlock(&allprison_mtx);
 e_dropvnref:
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 e_killmtx:
 	mtx_destroy(&pr->pr_mtx);
 	FREE(pr, M_PRISON);
@@ -196,7 +195,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	struct proc *p;
 	struct ucred *newcred, *oldcred;
 	struct prison *pr;
-	int error;
+	int vfslocked, error;
 	
 	/*
 	 * XXX: Note that there is a slight race here if two threads
@@ -221,7 +220,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	mtx_unlock(&pr->pr_mtx);
 	mtx_unlock(&allprison_mtx);
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vn_lock(pr->pr_root, LK_EXCLUSIVE | LK_RETRY, td);
 	if ((error = change_dir(pr->pr_root, td)) != 0)
 		goto e_unlock;
@@ -231,7 +230,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 #endif
 	VOP_UNLOCK(pr->pr_root, 0, td);
 	change_root(pr->pr_root, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	newcred = crget();
 	PROC_LOCK(p);
@@ -245,7 +244,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	return (0);
 e_unlock:
 	VOP_UNLOCK(pr->pr_root, 0, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
 	mtx_unlock(&pr->pr_mtx);
@@ -295,12 +294,13 @@ static void
 prison_complete(void *context, int pending)
 {
 	struct prison *pr;
+	int vfslocked;
 
 	pr = (struct prison *)context;
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	mtx_destroy(&pr->pr_mtx);
 	if (pr->pr_linux != NULL)
@@ -530,7 +530,6 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	struct prison *pr;
 	int count, error;
 
-	mtx_assert(&Giant, MA_OWNED);
 	if (jailed(req->td->td_ucred))
 		return (0);
 retry:
