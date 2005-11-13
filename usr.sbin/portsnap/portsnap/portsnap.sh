@@ -81,6 +81,7 @@ init_params() {
 	DDSTATS=""
 	INDEXONLY=""
 	SERVERNAME=""
+	REFUSE=""
 }
 
 # Parse the command line
@@ -173,6 +174,8 @@ default_conffile() {
 # Read {KEYPRINT, SERVERNAME, WORKDIR, PORTSDIR} from the configuration
 # file if they haven't already been set.  If the configuration
 # file doesn't exist, do nothing.
+# Also read REFUSE (which cannot be set via the command line) if it is
+# present in the configuration file.
 parse_conffile() {
 	if [ -r "${CONFFILE}" ]; then
 		for X in KEYPRINT WORKDIR PORTSDIR SERVERNAME; do
@@ -182,6 +185,13 @@ parse_conffile() {
 				    cut -f 2- -d '=' | tail -1`
 			fi
 		done
+
+		if grep -qE "^REFUSE[[:space:]]" ${CONFFILE}; then
+			REFUSE="^(`
+				grep -E "^REFUSE[[:space:]]" "${CONFFILE}" |
+				    cut -c 7- | xargs echo | tr ' ' '|'
+				`)"
+		fi
 	fi
 }
 
@@ -305,6 +315,12 @@ update_check_params() {
 #
 # We also ignore the Port field, since we are always going to use port 80.
 fetch_pick_server() {
+# Check that host(1) exists (i.e., that the system wasn't built with the
+# NO_BIND flag set) and don't try to find a mirror if it doesn't exist.
+	if ! which -s host; then
+		return
+	fi
+
 	echo -n "Looking up ${SERVERNAME} mirrors..."
 
 # Issue the SRV query and pull out the Priority, Weight, and Target fields.
@@ -418,7 +434,7 @@ fetch_snapshot_tagsanity() {
 	if [ `date "+%s"` -gt `expr ${SNAPSHOTDATE} + 31536000` ]; then
 		echo "Snapshot appears to be more than a year old!"
 		echo "(Is the system clock correct?)"
-		echo "Cowarly refusing to proceed any further."
+		echo "Cowardly refusing to proceed any further."
 		return 1
 	fi
 	if [ `date "+%s"` -lt `expr ${SNAPSHOTDATE} - 86400` ]; then
@@ -668,6 +684,21 @@ fetch_update() {
 	    cut -f 2 -d '|'`.gz > INDEX.new
 	fetch_index_sanity || return 1
 
+# If we have decided to refuse certain updates, construct a hybrid index which
+# is equal to the old index for parts of the tree which we don't want to
+# update, and equal to the new index for parts of the tree which gets updates.
+# This means that we should always have a "complete snapshot" of the ports
+# tree -- with the caveat that it isn't actually a snapshot.
+	if [ ! -z "${REFUSE}" ]; then
+		echo "Refusing to download updates for ${REFUSE}"	\
+		    >${QUIETREDIR}
+
+		grep -Ev "${REFUSE}" INDEX.new > INDEX.tmp
+		grep -E "${REFUSE}" INDEX |
+		    sort -m -k 1,1 -t '|' - INDEX.tmp > INDEX.new
+		rm -f INDEX.tmp
+	fi
+
 # Generate a list of wanted ports patches
 	join -t '|' -o 1.2,2.2 INDEX INDEX.new |
 	    fetch_make_patchlist > patchlist
@@ -761,14 +792,34 @@ extract_indices() {
 	echo "done."
 }
 
-# Create .portsnap.INDEX
+# Create .portsnap.INDEX; if we are REFUSEing to touch certain directories,
+# merge the values from any exiting .portsnap.INDEX file.
 extract_metadata() {
-	sort ${WORKDIR}/INDEX > ${PORTSDIR}/.portsnap.INDEX
+	if [ -z "${REFUSE}" ]; then
+		sort ${WORKDIR}/INDEX > ${PORTSDIR}/.portsnap.INDEX
+	elif [ -f ${PORTSDIR}/.portsnap.INDEX ]; then
+		grep -E "${REFUSE}" ${PORTSDIR}/.portsnap.INDEX	\
+		    > ${PORTSDIR}/.portsnap.INDEX.tmp
+		grep -vE "${REFUSE}" ${WORKDIR}/INDEX | sort |
+		    sort -m - ${PORTSDIR}/.portsnap.INDEX.tmp	\
+		    > ${PORTSDIR}/.portsnap.INDEX
+		rm -f ${PORTSDIR}/.portsnap.INDEX.tmp
+	else
+		grep -vE "${REFUSE}" ${WORKDIR}/INDEX | sort \
+		    > ${PORTSDIR}/.portsnap.INDEX
+	fi
 }
 
 # Do the actual work involved in "extract"
 extract_run() {
-	if ! grep "^${EXTRACTPATH}" ${WORKDIR}/INDEX | while read LINE; do
+	if !
+		if ! [ -z "${EXTRACTPATH}" ]; then
+			grep "^${EXTRACTPATH}" ${WORKDIR}/INDEX
+		elif ! [ -z "${REFUSE}" ]; then
+			grep -vE "${REFUSE}" ${WORKDIR}/INDEX
+		else
+			cat ${WORKDIR}/INDEX
+		fi | while read LINE; do
 		FILE=`echo ${LINE} | cut -f 1 -d '|'`
 		HASH=`echo ${LINE} | cut -f 2 -d '|'`
 		echo ${PORTSDIR}/${FILE}
@@ -813,14 +864,29 @@ update_run() {
 		return 0
 	fi
 
+# If we are REFUSEing to touch certain directories, don't remove files
+# from those directories (even if they are out of date)
 	echo -n "Removing old files and directories... "
-	sort ${WORKDIR}/INDEX | comm -23 ${PORTSDIR}/.portsnap.INDEX - |
-	    cut -f 1 -d '|' | lam -s "${PORTSDIR}/" - | xargs rm -rf
+	if ! [ -z "${REFUSE}" ]; then 
+		sort ${WORKDIR}/INDEX |
+		    comm -23 ${PORTSDIR}/.portsnap.INDEX - | cut -f 1 -d '|' |
+		    grep -vE "${REFUSE}" |
+		    lam -s "${PORTSDIR}/" - | xargs rm -rf
+	else
+		sort ${WORKDIR}/INDEX |
+		    comm -23 ${PORTSDIR}/.portsnap.INDEX - | cut -f 1 -d '|' |
+		    lam -s "${PORTSDIR}/" - | xargs rm -rf
+	fi
 	echo "done."
 
 # Install new files
 	echo "Extracting new files:"
-	if ! sort ${WORKDIR}/INDEX |
+	if !
+		if ! [ -z "${REFUSE}" ]; then
+			grep -vE "${REFUSE}" ${WORKDIR}/INDEX | sort
+		else
+			sort ${WORKDIR}/INDEX
+		fi |
 	    comm -13 ${PORTSDIR}/.portsnap.INDEX - |
 	    while read LINE; do
 		FILE=`echo ${LINE} | cut -f 1 -d '|'`
