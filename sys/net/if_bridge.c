@@ -1825,9 +1825,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 #endif
 	    )) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
-			return;
+			goto out;
 		if (m == NULL)
-			return;
+			goto out;
 	}
 
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
@@ -1882,6 +1882,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	if (used == 0)
 		m_freem(m);
 
+out:
 	BRIDGE_UNREF(sc);
 }
 
