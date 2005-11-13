@@ -1871,10 +1871,10 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		    || inet6_pfil_hook.ph_busy_count >= 0
 #endif
 		    )) {
-			if (bridge_pfil(&m, NULL, dst_if, PFIL_OUT) != 0)
-				return;
-			if (m == NULL)
-				return;
+			if (bridge_pfil(&mc, NULL, dst_if, PFIL_OUT) != 0)
+				continue;
+			if (mc == NULL)
+				continue;
 		}
 
 		bridge_enqueue(sc, dst_if, mc);
