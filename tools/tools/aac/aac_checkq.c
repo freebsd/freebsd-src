@@ -23,18 +23,20 @@
  * SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <errno.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include "/sys/dev/aac/aac_ioctl.h"
+#include <sys/aac_ioctl.h>
 
-__FBSDID("$FreeBSD$");
+#include <errno.h>
+#include <stdio.h>
 
 /*
  * Simple program to print out the queue stats on the given queue index.
- * See /sys/dev/aac/aac_ioctl.h for the definitions of each queue index.
+ * See /sys/sys/aac_ioctl.h for the definitions of each queue index.
  */
 
 void
