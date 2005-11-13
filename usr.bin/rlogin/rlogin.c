@@ -136,7 +136,8 @@ main(int argc, char *argv[])
 	speed_t ospeed;
 	struct sockaddr_storage ss;
 	socklen_t sslen;
-	int i, len, len2;
+	size_t len, len2;
+	int i;
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
