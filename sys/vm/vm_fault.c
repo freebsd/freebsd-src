@@ -1007,7 +1007,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			vm_page_lock_queues();
 			if ((m->queue - m->pc) == PQ_CACHE)
 				vm_page_deactivate(m);
-			mpte = pmap_enter_quick(pmap, addr, m, mpte);
+			mpte = pmap_enter_quick(pmap, addr, m,
+			    entry->protection, mpte);
 			vm_page_unlock_queues();
 		}
 		VM_OBJECT_UNLOCK(lobject);
