@@ -193,6 +193,21 @@ This is much more efficient than
 the files on the portsnap server, since the vast majority
 of files are not needed by any particular client.
 .El
+.Sh PRIVACY NOTICE
+As an unavoidable part of its operation, a machine running
+.Nm
+will make its public IP address and the list of files it fetches 
+available to the server from which it fetches updates.
+Using these it may be possible to recognize a machine over an extended 
+period of time, determine when it is updated, and identify which 
+portions of the FreeBSD ports tree, if any, are being ignored using 
+"REFUSE" directives in
+.Pa portsnap.conf .
+In addition, the FreeBSD release level is transmitted to the server.
+.Pp
+Statistical data generated from information collected in this manner 
+may be published, but only in aggregate and after anonymizing the
+individual systems.
 .Sh FILES
 .Bl -tag -width "/etc/portsnap.conf"
 .It /etc/portsnap.conf
