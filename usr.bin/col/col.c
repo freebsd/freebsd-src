@@ -397,7 +397,7 @@ void
 flush_line(LINE *l)
 {
 	CHAR *c, *endc;
-	int i, nchars, last_col, this_col;
+	int j, nchars, last_col, this_col;
 
 	last_col = 0;
 	nchars = l->l_line_len;
@@ -493,7 +493,7 @@ flush_line(LINE *l)
 			}
 			PUTC(c->c_char);
 			if ((c + 1) < endc)
-				for (i = 0; i < c->c_width; i++)
+				for (j = 0; j < c->c_width; j++)
 					PUTC('\b');
 			if (++c >= endc)
 				break;
