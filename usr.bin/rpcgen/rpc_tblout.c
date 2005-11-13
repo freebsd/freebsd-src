@@ -64,12 +64,11 @@ static char null_entry[] = "\n\t(char *(*)())0,\n\
 
 static char tbl_nproc[] = "int %s_nproc =\n\tsizeof(%s_table)/sizeof(%s_table[0]);\n\n";
 
-extern int nullproc( proc_list * );
 static void write_table( definition * );
-static void printit( char *, char * );
+static void printit(const  char *, const char *);
 
 void
-write_tables()
+write_tables(void)
 {
 	list *l;
 	definition *def;
@@ -84,8 +83,7 @@ write_tables()
 }
 
 static void
-write_table(def)
-	definition *def;
+write_table(definition *def)
 {
 	version_list *vp;
 	proc_list *proc;
@@ -149,9 +147,7 @@ write_table(def)
 }
 
 static void
-printit(prefix, type)
-	char *prefix;
-	char *type;
+printit(const char *prefix, const char *type)
 {
 	int len;
 	int tabs;

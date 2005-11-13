@@ -119,7 +119,7 @@ typedef enum tok_kind tok_kind;
  */
 struct token {
 	tok_kind kind;
-	char *str;
+	const char *str;
 };
 typedef struct token token;
 
