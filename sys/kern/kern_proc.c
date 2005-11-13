@@ -156,6 +156,7 @@ proc_dtor(void *mem, int size, void *arg)
 	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
         kg = FIRST_KSEGRP_IN_PROC(p);
 	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
+	KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
 #endif
 
 	/* Dispose of an alternate kstack, if it exists.
