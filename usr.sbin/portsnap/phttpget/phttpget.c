@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,8 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static const char *	env_HTTP_PROXY;
+static char *		env_HTTP_PROXY_AUTH;
 static const char *	env_HTTP_USER_AGENT;
 static const char *	proxyport;
+static char *		proxyauth;
 
 static struct timeval	timo = { 15, 0};
 
@@ -57,13 +60,73 @@ usage(void)
 	exit(EX_USAGE);
 }
 
+/*
+ * Base64 encode a string; the string returned, if non-NULL, is
+ * allocated using malloc() and must be freed by the caller.
+ */
+static char *
+b64enc(const char *ptext)
+{
+	static const char base64[] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	    "abcdefghijklmnopqrstuvwxyz"
+	    "0123456789+/";
+	const char *pt;
+	char *ctext, *pc;
+	size_t ptlen, ctlen;
+	uint32_t t;
+	unsigned int j;
+
+	/*
+	 * Encoded length is 4 characters per 3-byte block or partial
+	 * block of plaintext, plus one byte for the terminating NUL
+	 */
+	ptlen = strlen(ptext);
+	if (ptlen > ((SIZE_MAX - 1) / 4) * 3 - 2)
+		return NULL;	/* Possible integer overflow */
+	ctlen = 4 * ((ptlen + 2) / 3) + 1;
+	if ((ctext = malloc(ctlen)) == NULL)
+		return NULL;
+	ctext[ctlen - 1] = 0;
+
+	/*
+	 * Scan through ptext, reading up to 3 bytes from ptext and
+	 * writing 4 bytes to ctext, until we run out of input.
+	 */
+	for (pt = ptext, pc = ctext; ptlen; ptlen -= 3, pc += 4) {
+		/* Read 3 bytes */
+		for (t = j = 0; j < 3; j++) {
+			t <<= 8;
+			if (j < ptlen)
+				t += *pt++;
+		}
+
+		/* Write 4 bytes */
+		for (j = 0; j < 4; j++) {
+			if (j <= ptlen + 1)
+				pc[j] = base64[(t >> 18) & 0x3f];
+			else
+				pc[j] = '=';
+			t <<= 6;
+		}
+
+		/* If we're done, exit the loop */
+		if (ptlen <= 3)
+			break;
+	}
+
+	return (ctext);
+}
+
 static void
 readenv(void)
 {
-	char * p;
+	char *proxy_auth_userpass, *proxy_auth_userpass64, *p;
+	char *proxy_auth_user = NULL;
+	char *proxy_auth_pass = NULL;
 
 	env_HTTP_PROXY = getenv("HTTP_PROXY");
-	if (env_HTTP_PROXY) {
+	if (env_HTTP_PROXY != NULL) {
 		if (strncmp(env_HTTP_PROXY, "http://", 7) == 0)
 			env_HTTP_PROXY += 7;
 		p = strchr(env_HTTP_PROXY, '/');
@@ -76,6 +139,41 @@ readenv(void)
 		} else
 			proxyport = "3128";
 	}
+
+	env_HTTP_PROXY_AUTH = getenv("HTTP_PROXY_AUTH");
+	if ((env_HTTP_PROXY != NULL) &&
+	    (env_HTTP_PROXY_AUTH != NULL) &&
+	    (strncasecmp(env_HTTP_PROXY_AUTH, "basic:" , 6) == 0)) {
+		/* Ignore authentication scheme */
+		(void) strsep(&env_HTTP_PROXY_AUTH, ":");
+
+		/* Ignore realm */
+		(void) strsep(&env_HTTP_PROXY_AUTH, ":");
+
+		/* Obtain username and password */
+		proxy_auth_user = strsep(&env_HTTP_PROXY_AUTH, ":");
+		proxy_auth_pass = strsep(&env_HTTP_PROXY_AUTH, ":");
+	}
+
+	if ((proxy_auth_user != NULL) && (proxy_auth_pass != NULL)) {
+		asprintf(&proxy_auth_userpass, "%s:%s",
+		    proxy_auth_user, proxy_auth_pass);
+		if (proxy_auth_userpass == NULL)
+			err(1, "asprintf");
+
+		proxy_auth_userpass64 = b64enc(proxy_auth_userpass);
+		if (proxy_auth_userpass64 == NULL)
+			err(1, "malloc");
+
+		asprintf(&proxyauth, "Proxy-Authorization: Basic %s\r\n",
+		    proxy_auth_userpass64);
+		if (proxyauth == NULL)
+			err(1, "asprintf");
+
+		free(proxy_auth_userpass);
+		free(proxy_auth_userpass64);
+	} else
+		proxyauth = NULL;
 
 	env_HTTP_USER_AGENT = getenv("HTTP_USER_AGENT");
 	if (env_HTTP_USER_AGENT == NULL)
@@ -92,10 +190,12 @@ makerequest(char ** buf, char * path, char * server, int connclose)
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
+	    "%s"
 	    "\r\n",
 	    env_HTTP_PROXY ? "http://" : "",
 	    env_HTTP_PROXY ? server : "",
 	    path, server, env_HTTP_USER_AGENT,
+	    proxyauth ? proxyauth : "",
 	    connclose ? "Connection: Close\r\n" : "");
 	if (buflen == -1)
 		err(1, "asprintf");
