@@ -239,6 +239,7 @@ struct uaudio_softc {
 #define HAS_MULAW	0x10
 #define UA_NOFRAC	0x20		/* don't do sample rate adjustment */
 #define HAS_24		0x40
+#define HAS_32		0x80
 	int		sc_mode;	/* play/record capability */
 	struct mixerctl *sc_ctls;	/* mixer controls */
 	int		sc_nctls;	/* # of mixer controls */
@@ -2050,7 +2051,7 @@ uaudio_process_as(struct uaudio_softc *sc, const char *buf, int *offsp,
 	format = UGETW(asid->wFormatTag);
 	chan = asf1d->bNrChannels;
 	prec = asf1d->bBitResolution;
-	if (prec != 8 && prec != 16 && prec != 24) {
+	if (prec != 8 && prec != 16 && prec != 24 && prec != 32) {
 		printf("%s: ignored setting with precision %d\n",
 		       USBDEVNAME(sc->sc_dev), prec);
 		return USBD_NORMAL_COMPLETION;
@@ -2063,6 +2064,8 @@ uaudio_process_as(struct uaudio_softc *sc, const char *buf, int *offsp,
 			sc->sc_altflags |= HAS_16;
 		} else if (prec == 24) {
 			sc->sc_altflags |= HAS_24;
+		} else if (prec == 32) {
+			sc->sc_altflags |= HAS_32;
 		}
 		enc = AUDIO_ENCODING_SLINEAR_LE;
 		format_str = "pcm";
@@ -3742,7 +3745,7 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 	if ((sc->sc_playchan.pipe != NULL) || (sc->sc_recchan.pipe != NULL))
 		return (-1);
 
-	switch(ch->format & 0x0000FFFF) {
+	switch(ch->format & 0x000FFFFF) {
 	case AFMT_U8:
 		enc = AUDIO_ENCODING_ULINEAR_LE;
 		ch->precision = 8;
@@ -3774,6 +3777,38 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 	case AFMT_U16_BE:
 		enc = AUDIO_ENCODING_ULINEAR_BE;
 		ch->precision = 16;
+		break;
+	case AFMT_S24_LE:
+		enc = AUDIO_ENCODING_SLINEAR_LE;
+		ch->precision = 24;
+		break;
+	case AFMT_S24_BE:
+		enc = AUDIO_ENCODING_SLINEAR_BE;
+		ch->precision = 24;
+		break;
+	case AFMT_U24_LE:
+		enc = AUDIO_ENCODING_ULINEAR_LE;
+		ch->precision = 24;
+		break;
+	case AFMT_U24_BE:
+		enc = AUDIO_ENCODING_ULINEAR_BE;
+		ch->precision = 24;
+		break;
+	case AFMT_S32_LE:
+		enc = AUDIO_ENCODING_SLINEAR_LE;
+		ch->precision = 32;
+		break;
+	case AFMT_S32_BE:
+		enc = AUDIO_ENCODING_SLINEAR_BE;
+		ch->precision = 32;
+		break;
+	case AFMT_U32_LE:
+		enc = AUDIO_ENCODING_ULINEAR_LE;
+		ch->precision = 32;
+		break;
+	case AFMT_U32_BE:
+		enc = AUDIO_ENCODING_ULINEAR_BE;
+		ch->precision = 32;
 		break;
 	default:
 		enc = 0;
@@ -3857,83 +3892,135 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 	return (0);
 }
 
-void
-uaudio_query_formats(device_t dev, u_int32_t *pfmt, u_int32_t *rfmt)
-{
-	int i, pn=0, rn=0;
-	int prec, dir;
-	u_int32_t fmt;
-	struct uaudio_softc *sc;
+struct uaudio_conversion {
+	uint8_t uaudio_fmt;
+	uint8_t uaudio_prec;
+	uint32_t freebsd_fmt;
+};
 
-	const struct usb_audio_streaming_type1_descriptor *a1d;
+const struct uaudio_conversion const accepted_conversion[] = {
+	{AUDIO_ENCODING_ULINEAR_LE, 8, AFMT_U8},
+	{AUDIO_ENCODING_ULINEAR_LE, 16, AFMT_U16_LE},
+	{AUDIO_ENCODING_ULINEAR_LE, 24, AFMT_U24_LE},
+	{AUDIO_ENCODING_ULINEAR_LE, 32, AFMT_U32_LE},
+	{AUDIO_ENCODING_ULINEAR_BE, 16, AFMT_U16_BE},
+	{AUDIO_ENCODING_ULINEAR_BE, 24, AFMT_U24_BE},
+	{AUDIO_ENCODING_ULINEAR_BE, 32, AFMT_U32_BE},
+	{AUDIO_ENCODING_SLINEAR_LE, 8, AFMT_S8},
+	{AUDIO_ENCODING_SLINEAR_LE, 16, AFMT_S16_LE},
+	{AUDIO_ENCODING_SLINEAR_LE, 24, AFMT_S24_LE},
+	{AUDIO_ENCODING_SLINEAR_LE, 24, AFMT_S32_LE},
+	{AUDIO_ENCODING_SLINEAR_BE, 16, AFMT_S16_BE},
+	{AUDIO_ENCODING_SLINEAR_BE, 24, AFMT_S24_BE},
+	{AUDIO_ENCODING_SLINEAR_BE, 24, AFMT_S32_BE},
+	{AUDIO_ENCODING_ALAW, 8, AFMT_A_LAW},
+	{AUDIO_ENCODING_ULAW, 8, AFMT_MU_LAW},
+	{0,0,0}
+};
+
+unsigned
+uaudio_query_formats(device_t dev, int reqdir, unsigned maxfmt, struct pcmchan_caps *cap)
+{
+	struct uaudio_softc *sc;
+	const struct usb_audio_streaming_type1_descriptor *asf1d;
+	const struct uaudio_conversion *iterator;
+	unsigned fmtcount, foundcount;
+	u_int32_t fmt;
+	uint8_t format, numchan, subframesize, prec, dir, iscontinuous;
+	int freq, freq_min, freq_max;
+	char *numchannel_descr;
+	char freq_descr[64];
+	int i,r;
 
 	sc = device_get_softc(dev);
+	if (sc == NULL)
+		return 0;
+
+	cap->minspeed = cap->maxspeed = 0;
+	foundcount = fmtcount = 0;
 
 	for (i = 0; i < sc->sc_nalts; i++) {
-		fmt = 0;
-		a1d = sc->sc_alts[i].asf1desc;
-		prec = a1d->bBitResolution;	/* precision */
+		dir = UE_GET_DIR(sc->sc_alts[i].edesc->bEndpointAddress);
 
-		switch (sc->sc_alts[i].encoding) {
-		case AUDIO_ENCODING_ULINEAR_LE:
-			if (prec == 8) {
-				fmt = AFMT_U8;
-			} else if (prec == 16) {
-				fmt = AFMT_U16_LE;
-			}
-			break;
-		case AUDIO_ENCODING_SLINEAR_LE:
-			if (prec == 8) {
-				fmt = AFMT_S8;
-			} else if (prec == 16) {
-				fmt = AFMT_S16_LE;
-			}
-			break;
-		case AUDIO_ENCODING_ULINEAR_BE:
-			if (prec == 16) {
-				fmt = AFMT_U16_BE;
-			}
-			break;
-		case AUDIO_ENCODING_SLINEAR_BE:
-			if (prec == 16) {
-				fmt = AFMT_S16_BE;
-			}
-			break;
-		case AUDIO_ENCODING_ALAW:
-			if (prec == 8) {
-				fmt = AFMT_A_LAW;
-			}
-			break;
-		case AUDIO_ENCODING_ULAW:
-			if (prec == 8) {
-				fmt = AFMT_MU_LAW;
-			}
-			break;
+		if ((dir == UE_DIR_OUT) != (reqdir == PCMDIR_PLAY))
+			continue;
+
+		asf1d = sc->sc_alts[i].asf1desc;
+		format = sc->sc_alts[i].encoding;
+
+		numchan = asf1d->bNrChannels;
+		subframesize = asf1d->bSubFrameSize;
+		prec = asf1d->bBitResolution;	/* precision */
+		iscontinuous = asf1d->bSamFreqType == UA_SAMP_CONTNUOUS;
+
+		if (iscontinuous)
+			snprintf(freq_descr, sizeof(freq_descr), "continous min %d max %d", UA_SAMP_LO(asf1d), UA_SAMP_HI(asf1d));
+		else
+			snprintf(freq_descr, sizeof(freq_descr), "fixed frequency (%d listed formats)", asf1d->bSamFreqType);
+
+		if (numchan == 1)
+			numchannel_descr = " (mono)";
+		else if (numchan == 2)
+			numchannel_descr = " (stereo)";
+		else
+			numchannel_descr = "";
+
+		if (bootverbose) {
+			device_printf(dev, "uaudio_query_formats: found a native %s channel%s %s %dbit %dbytes/subframe X %d channels = %d bytes per sample\n",
+					(dir==UE_DIR_OUT)?"playback":"record",
+					numchannel_descr, freq_descr,
+					prec, subframesize, numchan, subframesize*numchan);
 		}
+		/*
+		 * Now start rejecting the ones that don't map to FreeBSD
+		 */
 
-		if (fmt != 0) {
-			if (a1d->bNrChannels == 2) {	/* stereo/mono */
-				fmt |= AFMT_STEREO;
-			} else if (a1d->bNrChannels != 1) {
-				fmt = 0;
+		if (numchan != 1 && numchan != 2)
+			continue;
+
+		for (iterator = accepted_conversion ; iterator->uaudio_fmt != 0 ; iterator++)
+			if (iterator->uaudio_fmt == format && iterator->uaudio_prec == prec)
+				break;
+
+		if (iterator->uaudio_fmt == 0)
+			continue;
+
+		fmt = iterator->freebsd_fmt;
+
+		if (numchan == 2)
+			fmt |= AFMT_STEREO;
+
+		foundcount++;
+
+		if (fmtcount >= maxfmt)
+			continue;
+
+		cap->fmtlist[fmtcount++] = fmt;
+
+		if (iscontinuous) {
+			freq_min = UA_SAMP_LO(asf1d);
+			freq_max = UA_SAMP_HI(asf1d);
+
+			if (cap->minspeed == 0 || freq_min < cap->minspeed)
+				cap->minspeed = freq_min;
+			if (cap->maxspeed == 0)
+				cap->maxspeed = cap->minspeed;
+			if (freq_max > cap->maxspeed)
+				cap->maxspeed = freq_max;
+		} else {
+			for (r = 0; r < asf1d->bSamFreqType; r++) {
+				freq = UA_GETSAMP(asf1d, r);
+				if (cap->minspeed == 0 || freq < cap->minspeed)
+					cap->minspeed = freq;
+				if (cap->maxspeed == 0)
+					cap->maxspeed = cap->minspeed;
+				if (freq > cap->maxspeed)
+					cap->maxspeed = freq;
 			}
 		}
-
-		if (fmt != 0) {
-			dir= UE_GET_DIR(sc->sc_alts[i].edesc->bEndpointAddress);
-			if (dir == UE_DIR_OUT) {
-				pfmt[pn++] = fmt;
-			} else if (dir == UE_DIR_IN) {
-				rfmt[rn++] = fmt;
-			}
-		}
-
-		if ((pn > 8*2) || (rn > 8*2))
-			break;
 	}
-	pfmt[pn] = 0;
-	rfmt[rn] = 0;
-	return;
+	cap->fmtlist[fmtcount] = 0;
+	return foundcount;
 }
 
 void
@@ -3982,25 +4069,81 @@ uaudio_chan_set_param_blocksize(device_t dev, u_int32_t blocksize, int dir)
 	return;
 }
 
-void
-uaudio_chan_set_param_speed(device_t dev, u_int32_t speed, int dir)
+int
+uaudio_chan_set_param_speed(device_t dev, u_int32_t speed, int reqdir)
 {
+	const struct uaudio_conversion *iterator;
 	struct uaudio_softc *sc;
 	struct chan *ch;
+	int i, r, score, hiscore, bestspeed;
 
 	sc = device_get_softc(dev);
 #ifndef NO_RECORDING
-	if (dir == PCMDIR_PLAY)
+	if (reqdir == PCMDIR_PLAY)
 		ch = &sc->sc_playchan;
 	else
 		ch = &sc->sc_recchan;
 #else
 	ch = &sc->sc_playchan;
 #endif
+	/*
+	 * We are successful if we find an endpoint that matches our selected format and it
+	 * supports the requested speed.
+	 */
+	hiscore = 0;
+	bestspeed = 1;
+	for (i = 0; i < sc->sc_nalts; i++) {
+		int dir = UE_GET_DIR(sc->sc_alts[i].edesc->bEndpointAddress);
+		int format = sc->sc_alts[i].encoding;
+		const struct usb_audio_streaming_type1_descriptor *asf1d = sc->sc_alts[i].asf1desc;
+		int iscontinuous = asf1d->bSamFreqType == UA_SAMP_CONTNUOUS;
 
-	ch->sample_rate = speed;
+		if ((dir == UE_DIR_OUT) != (reqdir == PCMDIR_PLAY))
+			continue;
 
-	return;
+		for (iterator = accepted_conversion ; iterator->uaudio_fmt != 0 ; iterator++)
+			if (iterator->uaudio_fmt != format || iterator->freebsd_fmt != (ch->format&0xfffffff))
+				continue;
+			if (iscontinuous) {
+				if (speed >= UA_SAMP_LO(asf1d) && speed <= UA_SAMP_HI(asf1d)) {
+					ch->sample_rate = speed;
+					return speed;
+				} else if (speed < UA_SAMP_LO(asf1d)) {
+					score = 0xfff * speed / UA_SAMP_LO(asf1d);
+					if (score > hiscore) {
+						bestspeed = UA_SAMP_LO(asf1d);
+						hiscore = score;
+					}
+				} else if (speed < UA_SAMP_HI(asf1d)) {
+					score = 0xfff * UA_SAMP_HI(asf1d) / speed;
+					if (score > hiscore) {
+						bestspeed = UA_SAMP_HI(asf1d);
+						hiscore = score;
+					}
+				}
+				continue;
+			}
+			for (r = 0; r < asf1d->bSamFreqType; r++) {
+				if (speed == UA_GETSAMP(asf1d, r)) {
+					ch->sample_rate = speed;
+					return speed;
+				}
+				if (speed > UA_GETSAMP(asf1d, r))
+					score = 0xfff * UA_GETSAMP(asf1d, r) / speed;
+				else
+					score = 0xfff * speed / UA_GETSAMP(asf1d, r);
+				if (score > hiscore) { 
+					bestspeed = UA_GETSAMP(asf1d, r);
+					hiscore = score;
+				}
+			}
+	}
+	if (bestspeed != 1) {
+		ch->sample_rate = bestspeed;
+		return bestspeed;
+	}
+
+	return 0;
 }
 
 int
