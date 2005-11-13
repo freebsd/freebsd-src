@@ -70,8 +70,6 @@ const char *out_name = "Standard Output";	/* will always point to name
 						 * of output file */
 char        bakfile[MAXPATHLEN] = "";
 
-extern int  found_err;	/* flag set in diagN() on error */
-
 int
 main(int argc, char **argv)
 {
