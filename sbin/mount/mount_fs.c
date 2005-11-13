@@ -104,7 +104,7 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 				*p = '\0';
 				val = p + 1;
 			}
-			build_iovec(&iov, &iovlen, optarg, val, -1);
+			build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
 			break;
 		case '?':
 		default:
@@ -123,9 +123,9 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	(void)checkpath(dir, mntpath);
 	(void)rmslashes(dev, dev);
 
-	build_iovec(&iov, &iovlen, "fstype", fstype, -1);
-	build_iovec(&iov, &iovlen, "fspath", mntpath, -1);
-	build_iovec(&iov, &iovlen, "from", dev, -1);
+	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
+	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
 	
 	ret = nmount(iov, iovlen, mntflags);
 	if (ret < 0)
