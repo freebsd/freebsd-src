@@ -328,7 +328,7 @@ bucket_alloc(int entries, int bflags)
 
 	/*
 	 * This is to stop us from allocating per cpu buckets while we're
-	 * running out of UMA_BOOT_PAGES.  Otherwise, we would exhaust the
+	 * running out of vm.boot_pages.  Otherwise, we would exhaust the
 	 * boot pages.  This also prevents us from allocating buckets in
 	 * low memory situations.
 	 */
@@ -925,7 +925,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 	}
 	mtx_unlock(&uma_boot_pages_mtx);
 	if (booted == 0)
-		panic("UMA: Increase UMA_BOOT_PAGES");
+		panic("UMA: Increase vm.boot_pages");
 	/*
 	 * Now that we've booted reset these users to their real allocator.
 	 */
@@ -1503,7 +1503,7 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 /* Public functions */
 /* See uma.h */
 void
-uma_startup(void *bootmem)
+uma_startup(void *bootmem, int boot_pages)
 {
 	struct uma_zctor_args args;
 	uma_slab_t slab;
@@ -1603,7 +1603,7 @@ uma_startup(void *bootmem)
 #ifdef UMA_DEBUG
 	printf("Filling boot free list.\n");
 #endif
-	for (i = 0; i < UMA_BOOT_PAGES; i++) {
+	for (i = 0; i < boot_pages; i++) {
 		slab = (uma_slab_t)((u_int8_t *)bootmem + (i * UMA_SLAB_SIZE));
 		slab->us_data = (u_int8_t *)slab;
 		slab->us_flags = UMA_SLAB_BOOT;
