@@ -272,6 +272,7 @@ fork1(td, flags, pages, procp)
 	mac_init_proc(newproc);
 #endif
 	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
+	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */
 	sx_slock(&proctree_lock);

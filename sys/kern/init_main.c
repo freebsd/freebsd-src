@@ -369,6 +369,7 @@ proc0_init(void *dummy __unused)
 	p->p_sflag = PS_INMEM;
 	p->p_state = PRS_NORMAL;
 	knlist_init(&p->p_klist, &p->p_mtx, NULL, NULL, NULL);
+	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_state = TDS_RUNNING;
 	kg->kg_pri_class = PRI_TIMESHARE;
