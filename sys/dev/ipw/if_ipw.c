@@ -1010,21 +1010,61 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct mbuf *m;
+	struct mbuf *mnew, *m;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	bus_addr_t physaddr;
 	int error;
 
+	DPRINTFN(5, ("received frame len=%u, rssi=%u\n", le32toh(status->len),
+	    status->rssi));
+
 	if (le32toh(status->len) < sizeof (struct ieee80211_frame_min) ||
 	    le32toh(status->len) > MCLBYTES)
 		return;
 
+	/*
+	 * Try to allocate a new mbuf for this ring element and load it before
+	 * processing the current mbuf. If the ring element cannot be loaded,
+	 * drop the received packet and reuse the old mbuf. In the unlikely
+	 * case that the old mbuf can't be reloaded either, explicitly panic.
+	 */
+	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (mnew == NULL) {
+		ifp->if_ierrors++;
+		return;
+	}
+
 	bus_dmamap_sync(sc->rxbuf_dmat, sbuf->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->rxbuf_dmat, sbuf->map);
 
-	/* finalize mbuf */
+	error = bus_dmamap_load(sc->rxbuf_dmat, sbuf->map, mtod(mnew, void *),
+	    MCLBYTES, ipw_dma_map_addr, &physaddr, 0);
+	if (error != 0) {
+		m_freem(mnew);
+
+		/* try to reload the old mbuf */
+		error = bus_dmamap_load(sc->rxbuf_dmat, sbuf->map,
+		    mtod(sbuf->m, void *), MCLBYTES, ipw_dma_map_addr,
+		    &physaddr, 0);
+		if (error != 0) {
+			/* very unlikely that it will fail... */
+			panic("%s: could not load old rx mbuf",
+			    device_get_name(sc->sc_dev));
+		}
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/*
+	 * New mbuf successfully loaded, update Rx ring and continue
+	 * processing.
+	 */
 	m = sbuf->m;
+	sbuf->m = mnew;
+	sbd->bd->physaddr = htole32(physaddr);
+
+	/* finalize mbuf */
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = le32toh(status->len);
 
@@ -1050,28 +1090,6 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
-
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL) {
-		device_printf(sc->sc_dev, "could not allocate rx mbuf\n");
-		sbuf->m = NULL;
-		return;
-	}
-
-	error = bus_dmamap_load(sc->rxbuf_dmat, sbuf->map, mtod(m, void *),
-	    MCLBYTES, ipw_dma_map_addr, &physaddr, 0);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not map rx DMA memory\n");
-		m_freem(m);
-		sbuf->m = NULL;
-		return;
-	}
-
-	sbuf->m = m;
-	sbd->bd->physaddr = htole32(physaddr);
-
-	DPRINTFN(5, ("received frame len=%u, rssi=%u\n", le32toh(status->len),
-	    status->rssi));
 
 	bus_dmamap_sync(sc->rbd_dmat, sc->rbd_map, BUS_DMASYNC_PREWRITE);
 }
