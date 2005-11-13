@@ -110,6 +110,7 @@
 #endif
 #if __BSD_VISIBLE
 #define	SIGTHR		32	/* reserved by thread library. */
+#define	SIGLWP		SIGTHR
 #endif
 
 #define	SIGRTMIN	65
