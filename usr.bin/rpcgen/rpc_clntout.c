@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "rpc_scan.h"
 #include "rpc_util.h"
 
-extern void pdeclaration( char *, declaration *, int, char * );
-void printarglist( proc_list *, char *, char *, char *);
 static void write_program( definition * );
 static void printbody( proc_list * );
 
@@ -60,7 +58,7 @@ static char RESULT[] = "clnt_res";
 
 
 void
-write_stubs()
+write_stubs(void)
 {
 	list *l;
 	definition *def;
@@ -78,8 +76,7 @@ write_stubs()
 }
 
 static void
-write_program(def)
-	definition *def;
+write_program(definition *def)
 {
 	version_list *vp;
 	proc_list *proc;
@@ -114,10 +111,9 @@ write_program(def)
 
 /* sample addargname = "clnt"; sample addargtype = "CLIENT * " */
 
-void printarglist(proc, result, addargname, addargtype)
-	proc_list *proc;
-	char *result;
-	char* addargname, * addargtype;
+void
+printarglist(proc_list *proc, const char *result, const char *addargname,
+    const char *addargtype)
 {
 
 	decl_list *l;
@@ -161,9 +157,8 @@ void printarglist(proc, result, addargname, addargtype)
 
 
 
-static char *
-ampr(type)
-	char *type;
+static const char *
+ampr(const char *type)
 {
 	if (isvectordef(type, REL_ALIAS)) {
 		return ("");
@@ -173,8 +168,7 @@ ampr(type)
 }
 
 static void
-printbody(proc)
-	proc_list *proc;
+printbody(proc_list *proc)
 {
 	decl_list *l;
 	bool_t args2 = (proc->arg_num > 1);
