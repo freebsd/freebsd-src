@@ -68,6 +68,15 @@ struct ktr_header {
 #define	KTRCHECK(td, type)	((td)->td_proc->p_traceflag & (1 << type))
 #define KTRPOINT(td, type)						\
 	(KTRCHECK((td), (type)) && !((td)->td_pflags & TDP_INKTRACE))
+#define	KTRCHECKDRAIN(td)	(!(STAILQ_EMPTY(&(td)->td_proc->p_ktr)))
+#define	KTRUSERRET(td) do {						\
+	if (KTRCHECKDRAIN(td))						\
+		ktruserret(td);						\
+} while (0)
+#define	KTRPROCEXIT(td) do {						\
+	if (KTRCHECKDRAIN(td))						\
+		ktrprocexit(td);					\
+} while (0)
 
 /*
  * ktrace record types
@@ -174,6 +183,8 @@ void	ktrpsig(int, sig_t, sigset_t *, int);
 void	ktrgenio(int, enum uio_rw, struct uio *, int);
 void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysret(int, int, register_t);
+void	ktrprocexit(struct thread *);
+void	ktruserret(struct thread *);
 
 #else
 

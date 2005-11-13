@@ -94,6 +94,10 @@ userret(td, frame, oticks)
 	PROC_UNLOCK(p);
 #endif
 
+#ifdef KTRACE
+	KTRUSERRET(td);
+#endif
+
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to
 	 * stop before we return to userland

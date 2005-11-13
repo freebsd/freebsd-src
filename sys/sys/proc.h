@@ -608,6 +608,7 @@ struct proc {
 	void		*p_emuldata;	/* (c) Emulator state data. */
 	struct label	*p_label;	/* (*) Proc (not subject) MAC label. */
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
+	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 };
 
 #define	p_session	p_pgrp->pg_session

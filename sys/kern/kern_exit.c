@@ -366,8 +366,10 @@ retry:
 	(void)acct_process(td);
 #ifdef KTRACE
 	/*
-	 * release trace file
+	 * Drain any pending records on the thread and release the trace
+	 * file.  It might be better if drain-and-clear were atomic.
 	 */
+	ktrprocexit(td);
 	PROC_LOCK(p);
 	mtx_lock(&ktrace_mtx);
 	p->p_traceflag = 0;	/* don't trace the vrele() */
