@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct commands {
-	char *c_name;
+	const char *c_name;
 	int c_code;
 	int c_ronly;
 	int c_flags;
@@ -119,7 +119,7 @@ struct commands {
 };
 
 const char *getblksiz(int);
-void printreg(const char *, u_int, char *);
+void printreg(const char *, u_int, const char *);
 void status(struct mtget *);
 void usage(void);
 void st_status (struct mtget *);
@@ -127,19 +127,17 @@ int stringtodens (const char *s);
 const char *denstostring (int d);
 int denstobp(int d, int bpi);
 u_int32_t stringtocomp(const char *s);
-const char * comptostring(u_int32_t comp);
+const char *comptostring(u_int32_t comp);
 void warn_eof(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register struct commands *comp;
+	struct commands *comp;
 	struct mtget mt_status;
 	struct mtop mt_com;
 	int ch, len, mtfd;
-	char *p, *tape;
+	const char *p, *tape;
 
 	if ((tape = getenv("TAPE")) == NULL)
 		tape = DEFTAPE;
@@ -197,9 +195,12 @@ main(argc, argv)
 					errx(1, "%s: unknown compression",
 					     *argv);
 				p = "";
-			} else
+			} else {
+				char *q;
 				/* allow for hex numbers; useful for density */
-				mt_com.mt_count = strtol(*argv, &p, 0);
+				mt_com.mt_count = strtol(*argv, &q, 0);
+				p = q;
+			}
 			if ((mt_com.mt_count <=
 			    ((comp->c_flags & ZERO_ALLOWED)? -1: 0)
 			    && ((comp->c_flags & IS_COMP) == 0)
@@ -308,9 +309,9 @@ main(argc, argv)
 
 struct tape_desc {
 	short	t_type;		/* type of magtape device */
-	char	*t_name;	/* printing name */
-	char	*t_dsbits;	/* "drive status" register */
-	char	*t_erbits;	/* "error" register */
+	const char *t_name;	/* printing name */
+	const char *t_dsbits;	/* "drive status" register */
+	const char *t_erbits;	/* "error" register */
 } tapes[] = {
 	{ MT_ISAR,	"SCSI tape drive", 0,		0 },
 	{ 0, NULL, 0, 0 }
@@ -320,10 +321,9 @@ struct tape_desc {
  * Interpret the status buffer returned
  */
 void
-status(bp)
-	register struct mtget *bp;
+status(struct mtget *bp)
 {
-	register struct tape_desc *mt;
+	struct tape_desc *mt;
 
 	for (mt = tapes;; mt++) {
 		if (mt->t_type == 0) {
@@ -349,13 +349,10 @@ status(bp)
  * Print a register a la the %b format of the kernel's printf.
  */
 void
-printreg(s, v, bits)
-	const char *s;
-	register u_int v;
-	register char *bits;
+printreg(const char *s, u_int v, const char *bits)
 {
-	register int i, any = 0;
-	register char c;
+	int i, any = 0;
+	char c;
 
 	if (bits && *bits == 8)
 		printf("%s=%o", s, v);
@@ -382,7 +379,7 @@ printreg(s, v, bits)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: mt [-f device] command [count]\n");
 	exit(1);
