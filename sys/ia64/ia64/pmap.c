@@ -850,7 +850,10 @@ retry:
 		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
 			va = pv->pv_va;
 			pmap = pv->pv_pmap;
-			if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
+			/* Avoid deadlock and lock recursion. */
+			if (pmap > locked_pmap)
+				PMAP_LOCK(pmap);
+			else if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
 				continue;
 			oldpmap = pmap_install(pmap);
 			pte = pmap_find_vhpt(va);
