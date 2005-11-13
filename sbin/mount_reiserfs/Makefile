@@ -7,6 +7,7 @@ MAN  = mount_reiserfs.8
 # mount_reiserfs needs mntopts.h and getmntopts.c from src/sbin/mount/
 MOUNT  ?= ${.CURDIR}/../mount
 CFLAGS += -I${MOUNT}
+WARNS ?= 6
 
 .PATH: ${MOUNT}
 
