@@ -846,7 +846,7 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct ural_rx_desc *desc;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
-	struct mbuf *m;
+	struct mbuf *mnew, *m;
 	int len;
 
 	if (status != USBD_NORMAL_COMPLETION) {
@@ -880,8 +880,17 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		goto skip;
 	}
 
-	/* finalize mbuf */
+	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (mnew == NULL) {
+		ifp->if_ierrors++;
+		goto skip;
+	}
+
 	m = data->m;
+	data->m = mnew;
+	data->buf = mtod(data->m, uint8_t *);
+
+	/* finalize mbuf */
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = (le32toh(desc->flags) >> 16) & 0xfff;
 	m->m_flags |= M_HASFCS; /* hardware appends FCS */
@@ -894,15 +903,6 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
-
-	data->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (data->m == NULL) {
-		printf("%s: could not allocate rx mbuf\n",
-		    USBDEVNAME(sc->sc_dev));
-		return;
-	}
-
-	data->buf = mtod(data->m, uint8_t *);
 
 	DPRINTFN(15, ("rx done\n"));
 
