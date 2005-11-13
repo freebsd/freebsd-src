@@ -1375,7 +1375,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	vm_page_t p, mpte;
 	boolean_t are_queues_locked;
 
-	if ((prot & VM_PROT_READ) == 0 || object == NULL)
+	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
 	if (object->type == OBJT_DEVICE) {
@@ -1433,7 +1433,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			if ((p->queue - p->pc) == PQ_CACHE)
 				vm_page_deactivate(p);
 			mpte = pmap_enter_quick(map->pmap,
-				addr + ptoa(tmpidx), p, mpte);
+			    addr + ptoa(tmpidx), p, prot, mpte);
 		}
 	}
 	if (are_queues_locked)
