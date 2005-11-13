@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
  * Driver for the Adaptec 'FSA' family of PCI/SCSI RAID adapters.
  */
 #define AAC_DRIVER_VERSION		0x02000000
-#define AAC_DRIVER_BUILD_DATE		__DATE__ " " __TIME__
 #define AAC_DRIVERNAME			"aac"
 
 #include "opt_aac.h"
@@ -149,7 +148,7 @@ struct aac_interface aac_sa_interface = {
 	NULL, NULL, NULL
 };
 
-/* i960Rx interface */	
+/* i960Rx interface */
 static int	aac_rx_get_fwstatus(struct aac_softc *sc);
 static void	aac_rx_qnotify(struct aac_softc *sc, int qbit);
 static int	aac_rx_get_istatus(struct aac_softc *sc);
@@ -176,7 +175,7 @@ struct aac_interface aac_rx_interface = {
 	aac_rx_set_outb_queue
 };
 
-/* Rocket/MIPS interface */	
+/* Rocket/MIPS interface */
 static int	aac_rkt_get_fwstatus(struct aac_softc *sc);
 static void	aac_rkt_qnotify(struct aac_softc *sc, int qbit);
 static int	aac_rkt_get_istatus(struct aac_softc *sc);
@@ -292,7 +291,7 @@ aac_attach(struct aac_softc *sc)
 	if ((error = aac_init(sc)) != 0)
 		return(error);
 
-	/* 
+	/*
 	 * Allocate and connect our interrupt.
 	 */
 	sc->aac_irq_rid = 0;
@@ -326,7 +325,7 @@ aac_attach(struct aac_softc *sc)
 		}
 	}
 
-	/* 
+	/*
 	 * Print a little information about the controller.
 	 */
 	aac_describe_controller(sc);
@@ -455,7 +454,7 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 	struct aac_container *co;
 	device_t child;
 
-	/* 
+	/*
 	 * Check container volume type for validity.  Note that many of
 	 * the possible types may never show up.
 	 */
@@ -464,11 +463,11 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 		       M_NOWAIT | M_ZERO);
 		if (co == NULL)
 			panic("Out of memory?!\n");
-		debug(1, "id %x  name '%.16s'  size %u  type %d", 
+		debug(1, "id %x  name '%.16s'  size %u  type %d",
 		      mir->MntTable[0].ObjectId,
 		      mir->MntTable[0].FileSystemName,
 		      mir->MntTable[0].Capacity, mir->MntTable[0].VolType);
-	
+
 		if ((child = device_add_child(sc->aac_dev, "aacd", -1)) == NULL)
 			device_printf(sc->aac_dev, "device_add_child failed\n");
 		else
@@ -617,7 +616,7 @@ aac_shutdown(device_t dev)
 
 	sc->aac_state |= AAC_STATE_SUSPEND;
 
-	/* 
+	/*
 	 * Send a Container shutdown followed by a HostShutdown FIB to the
 	 * controller to convince it that we don't want to talk to it anymore.
 	 * We've been closed and all I/O completed already
@@ -674,7 +673,7 @@ aac_suspend(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->aac_state |= AAC_STATE_SUSPEND;
-	
+
 	AAC_MASK_INTERRUPTS(sc);
 	return(0);
 }
@@ -848,13 +847,13 @@ aac_startio(struct aac_softc *sc)
 			break;
 
 		/*
-		 * Try to get a command that's been put off for lack of 
+		 * Try to get a command that's been put off for lack of
 		 * resources
 		 */
 		cm = aac_dequeue_ready(sc);
 
 		/*
-		 * Try to build a command off the bio queue (ignore error 
+		 * Try to build a command off the bio queue (ignore error
 		 * return)
 		 */
 		if (cm == NULL)
@@ -942,11 +941,11 @@ aac_command_thread(struct aac_softc *sc)
 			continue;
 		for (;;) {
 			if (aac_dequeue_fib(sc, AAC_HOST_NORM_CMD_QUEUE,
-					   &fib_size, &fib)) 
+					   &fib_size, &fib))
 				break;
-	
+
 			AAC_PRINT_FIB(sc, fib);
-	
+
 			switch (fib->Header.Command) {
 			case AifRequest:
 				aac_handle_aif(sc, fib);
@@ -1093,10 +1092,10 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 	/* build the FIB */
 	fib = cm->cm_fib;
 	fib->Header.Size = sizeof(struct aac_fib_header);
-	fib->Header.XferState =  
-		AAC_FIBSTATE_HOSTOWNED   | 
-		AAC_FIBSTATE_INITIALISED | 
-		AAC_FIBSTATE_EMPTY	 | 
+	fib->Header.XferState =
+		AAC_FIBSTATE_HOSTOWNED   |
+		AAC_FIBSTATE_INITIALISED |
+		AAC_FIBSTATE_EMPTY	 |
 		AAC_FIBSTATE_FROMHOST	 |
 		AAC_FIBSTATE_REXPECTED   |
 		AAC_FIBSTATE_NORM	 |
@@ -1298,7 +1297,7 @@ aac_release_command(struct aac_command *cm)
 	cm->cm_fib->Header.Flags = 0;
 	cm->cm_fib->Header.SenderSize = cm->cm_sc->aac_max_fib_size;
 
-	/* 
+	/*
 	 * These are duplicated in aac_start to cover the case where an
 	 * intermediate stage may have destroyed them.  They're left
 	 * initialised here for debugging purposes only.
@@ -1341,7 +1340,7 @@ aac_alloc_commands(struct aac_softc *sc)
 	struct aac_fibmap *fm;
 	uint64_t fibphys;
 	int i, error;
- 
+
 	debug_called(2);
 
 	if (sc->total_fibs + sc->aac_max_fibs_alloc > sc->aac_max_fibs)
@@ -1361,7 +1360,7 @@ aac_alloc_commands(struct aac_softc *sc)
 	}
 
 	/* Ignore errors since this doesn't bounce */
-	(void)bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs, 
+	(void)bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs,
 			      sc->aac_max_fibs_alloc * sc->aac_max_fib_size,
 			      aac_map_command_helper, &fibphys, 0);
 
@@ -1390,7 +1389,7 @@ aac_alloc_commands(struct aac_softc *sc)
 		debug(1, "total_fibs= %d\n", sc->total_fibs);
 		mtx_unlock(&sc->aac_io_lock);
 		return (0);
-	} 
+	}
 
 	mtx_unlock(&sc->aac_io_lock);
 	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
@@ -1485,7 +1484,7 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	/* Fix up the address values in the FIB.  Use the command array index
 	 * instead of a pointer since these fields are only 32 bits.  Shift
-	 * the SenderFibAddress over to make room for the fast response bit 
+	 * the SenderFibAddress over to make room for the fast response bit
 	 * and for the AIF bit
 	 */
 	cm->cm_fib->Header.SenderFibAddress = (cm->cm_index << 2);
@@ -1637,17 +1636,17 @@ aac_check_firmware(struct aac_softc *sc)
 	}
 
 	/* Check for broken hardware that does a lower number of commands */
-	sc->aac_max_fibs = (sc->flags & AAC_FLAGS_256FIBS ? 256:512); 
+	sc->aac_max_fibs = (sc->flags & AAC_FLAGS_256FIBS ? 256:512);
 
 	/* Remap mem. resource, if required */
-	if ((sc->flags & AAC_FLAGS_NEW_COMM) && 
+	if ((sc->flags & AAC_FLAGS_NEW_COMM) &&
 		atu_size > rman_get_size(sc->aac_regs_resource)) {
 		bus_release_resource(
 			sc->aac_dev, SYS_RES_MEMORY,
 			sc->aac_regs_rid, sc->aac_regs_resource);
 		sc->aac_regs_resource = bus_alloc_resource(
 			sc->aac_dev, SYS_RES_MEMORY, &sc->aac_regs_rid,
-			0ul, ~0ul, atu_size, RF_ACTIVE); 
+			0ul, ~0ul, atu_size, RF_ACTIVE);
 		if (sc->aac_regs_resource == NULL) {
 			sc->aac_regs_resource = bus_alloc_resource_any(
 				sc->aac_dev, SYS_RES_MEMORY,
@@ -1689,7 +1688,7 @@ aac_check_firmware(struct aac_softc *sc)
 	if (sc->aac_max_fib_size > PAGE_SIZE)
 		sc->aac_max_fib_size = PAGE_SIZE;
 	sc->aac_max_fibs_alloc = PAGE_SIZE / sc->aac_max_fib_size;
-    
+
 	return (0);
 }
 
@@ -1823,7 +1822,7 @@ aac_init(struct aac_softc *sc)
 	}
 	if (sc->total_fibs == 0)
 		goto out;
-	
+
 	/*
 	 * Fill in the init structure.  This tells the adapter about the
 	 * physical location of various important shared data structures.
@@ -1846,7 +1845,7 @@ aac_init(struct aac_softc *sc)
 				  offsetof(struct aac_common, ac_printf);
 	ip->PrintfBufferSize = AAC_PRINTF_BUFSIZE;
 
-	/* 
+	/*
 	 * The adapter assumes that pages are 4K in size, except on some
  	 * broken firmware versions that do the page->byte conversion twice,
 	 * therefore 'assuming' that this value is in 16MB units (2^24).
@@ -1875,13 +1874,13 @@ aac_init(struct aac_softc *sc)
 	 * adapter, which is only told about the base of the queue index fields.
 	 *
 	 * The initial values of the indices are assumed to inform the adapter
-	 * of the sizes of the respective queues, and theoretically it could 
+	 * of the sizes of the respective queues, and theoretically it could
 	 * work out the entire layout of the queue structures from this.  We
 	 * take the easy route and just lay this area out like everyone else
 	 * does.
 	 *
-	 * The Linux driver uses a much more complex scheme whereby several 
-	 * header records are kept for each queue.  We use a couple of generic 
+	 * The Linux driver uses a much more complex scheme whereby several
+	 * header records are kept for each queue.  We use a couple of generic
 	 * list manipulation functions which 'know' the size of each list by
 	 * virtue of a table.
 	 */
@@ -1957,7 +1956,7 @@ aac_init(struct aac_softc *sc)
 	/*
 	 * Give the init structure to the controller.
 	 */
-	if (aac_sync_command(sc, AAC_MONKER_INITSTRUCT, 
+	if (aac_sync_command(sc, AAC_MONKER_INITSTRUCT,
 			     sc->aac_common_busaddr +
 			     offsetof(struct aac_common, ac_init), 0, 0, 0,
 			     NULL)) {
@@ -2018,7 +2017,7 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
 }
 
 int
-aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate, 
+aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 		 struct aac_fib *fib, u_int16_t datasize)
 {
 	debug_called(3);
@@ -2094,7 +2093,7 @@ aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 
 	debug_called(3);
 
-	fib_size = cm->cm_fib->Header.Size; 
+	fib_size = cm->cm_fib->Header.Size;
 	fib_addr = cm->cm_fib->Header.ReceiverFibAddress;
 
 	/* get the producer/consumer indices */
@@ -2245,7 +2244,7 @@ aac_enqueue_response(struct aac_softc *sc, int queue, struct aac_fib *fib)
 	debug_called(1);
 
 	/* Tell the adapter where the FIB is */
-	fib_size = fib->Header.Size; 
+	fib_size = fib->Header.Size;
 	fib_addr = fib->Header.SenderFibAddress;
 	fib->Header.ReceiverFibAddress = fib_addr;
 
@@ -2678,8 +2677,8 @@ aac_rkt_send_command(struct aac_softc *sc, struct aac_command *cm)
 	return 0;
 }
 
-/* 
- * New comm. interface: get, set outbound queue index 
+/*
+ * New comm. interface: get, set outbound queue index
  */
 static int
 aac_rx_get_outb_queue(struct aac_softc *sc)
@@ -2740,7 +2739,7 @@ aac_describe_controller(struct aac_softc *sc)
 	}
 
 	/* save the kernel revision structure for later use */
-	info = (struct aac_adapter_info *)&fib->data[0];   
+	info = (struct aac_adapter_info *)&fib->data[0];
 	sc->aac_revision = info->KernelRevision;
 
 	device_printf(sc->aac_dev, "Adaptec Raid Controller %d.%d.%d-%d\n",
@@ -2751,9 +2750,9 @@ aac_describe_controller(struct aac_softc *sc)
 
 	if (bootverbose) {
 		device_printf(sc->aac_dev, "%s %dMHz, %dMB memory "
-		    "(%dMB cache, %dMB execution), %s\n", 
+		    "(%dMB cache, %dMB execution), %s\n",
 		    aac_describe_code(aac_cpu_variant, info->CpuVariant),
-		    info->ClockSpeed, info->TotalMem / (1024 * 1024), 
+		    info->ClockSpeed, info->TotalMem / (1024 * 1024),
 		    info->BufferMem / (1024 * 1024),
 		    info->ExecutionMem / (1024 * 1024),
 		    aac_describe_code(aac_battery_platform,
@@ -2874,7 +2873,7 @@ aac_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			break;
 		}
 	break;
-	
+
 	case FSACTL_SENDFIB:
 		arg = *(caddr_t*)arg;
 	case FSACTL_LNX_SENDFIB:
@@ -2899,7 +2898,7 @@ aac_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		 *
 		 * The Linux code hands the driver a pointer into kernel space,
 		 * and then trusts it when the caller hands it back.  Aiee!
-		 * Here, we give it the proc pointer of the per-adapter aif 
+		 * Here, we give it the proc pointer of the per-adapter aif
 		 * thread. It's only used as a sanity check in other calls.
 		 */
 		cookie = (uint32_t)(uintptr_t)sc->aifthread;
@@ -2932,7 +2931,7 @@ aac_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	case FSACTL_LNX_DELETE_DISK:
 		/*
 		 * We don't trust the underland to tell us when to delete a
-		 * container, rather we rely on an AIF coming from the 
+		 * container, rather we rely on an AIF coming from the
 		 * controller
 		 */
 		error = 0;
@@ -3102,7 +3101,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 		case AifEnAddContainer:
 		case AifEnDeleteContainer:
 			/*
-			 * A container was added or deleted, but the message 
+			 * A container was added or deleted, but the message
 			 * doesn't tell us anything else!  Re-enumerate the
 			 * containers and sort things out.
 			 */
@@ -3139,7 +3138,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				    (mir->MntTable[0].VolType != CT_NONE)) {
 					found = 0;
 					TAILQ_FOREACH(co,
-						      &sc->aac_container_tqh, 
+						      &sc->aac_container_tqh,
 						      co_link) {
 						if (co->co_mntobj.ObjectId ==
 						    mir->MntTable[0].ObjectId) {
@@ -3205,7 +3204,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				mtx_unlock(&Giant);
 				mtx_lock(&sc->aac_io_lock);
 			}
-	
+
 			break;
 
 		default:
@@ -3509,7 +3508,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			    "device_add_child failed for passthrough bus %d\n",
 			    i);
 			free(caminf, M_AACBUF);
-			break;		
+			break;
 		}
 
 		caminf->TargetsPerBus = businfo.TargetsPerBus;
