@@ -350,14 +350,14 @@ iwi_attach(device_t dev)
 
 	/* read MAC address from EEPROM */
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 0);
-	ic->ic_myaddr[0] = val >> 8;
-	ic->ic_myaddr[1] = val & 0xff;
+	ic->ic_myaddr[0] = val & 0xff;
+	ic->ic_myaddr[1] = val >> 8;
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 1);
-	ic->ic_myaddr[2] = val >> 8;
-	ic->ic_myaddr[3] = val & 0xff;
+	ic->ic_myaddr[2] = val & 0xff;
+	ic->ic_myaddr[3] = val >> 8;
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 2);
-	ic->ic_myaddr[4] = val >> 8;
-	ic->ic_myaddr[5] = val & 0xff;
+	ic->ic_myaddr[4] = val & 0xff;
+	ic->ic_myaddr[5] = val >> 8;
 
 	if (pci_get_device(dev) >= 0x4223) {
 		/* set supported .11a rates (2915ABG only) */
@@ -1112,7 +1112,7 @@ iwi_read_prom_word(struct iwi_softc *sc, uint8_t addr)
 	IWI_EEPROM_CTL(sc, 0);
 	IWI_EEPROM_CTL(sc, IWI_EEPROM_C);
 
-	return be16toh(val);
+	return val;
 }
 
 /*
@@ -1637,14 +1637,14 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	desc->nseg = htole32(nsegs);
 	for (i = 0; i < nsegs; i++) {
 		desc->seg_addr[i] = htole32(segs[i].ds_addr);
-		desc->seg_len[i]  = htole32(segs[i].ds_len);
+		desc->seg_len[i]  = htole16(segs[i].ds_len);
 	}
 
 	bus_dmamap_sync(txq->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(txq->desc_dmat, txq->desc_map, BUS_DMASYNC_PREWRITE);
 
 	DPRINTFN(5, ("sending data frame txq=%u idx=%u len=%u nseg=%u\n",
-	    ac, txq->cur, desc->len, desc->nseg));
+	    ac, txq->cur, le16toh(desc->len), nsegs));
 
 	txq->queued++;
 	txq->cur = (txq->cur + 1) % IWI_TX_RING_COUNT;
@@ -1920,7 +1920,7 @@ iwi_load_ucode(struct iwi_softc *sc, void *uc, int size)
 
 	/* write microcode into adapter memory */
 	for (w = uc; size > 0; w++, size -= 2)
-		MEM_WRITE_2(sc, 0x200010, *w);
+		MEM_WRITE_2(sc, 0x200010, htole16(*w));
 
 	MEM_WRITE_1(sc, 0x200000, 0x00);
 	MEM_WRITE_1(sc, 0x200000, 0x80);
