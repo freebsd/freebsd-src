@@ -120,8 +120,8 @@ static struct uuid g_gpt_unused = GPT_ENT_TYPE_UNUSED;
 static void g_gpt_wither(struct g_geom *, int);
 
 static struct g_provider *
-g_gpt_ctl_add(struct gctl_req *req, struct g_geom *gp, struct uuid *type,
-    uint64_t start, uint64_t end)
+g_gpt_ctl_add(struct gctl_req *req, const char *flags, struct g_geom *gp,
+    struct uuid *type, uint64_t start, uint64_t end)
 {
 	struct g_provider *pp;
 	struct g_gpt_softc *softc;
@@ -184,7 +184,7 @@ g_gpt_ctl_add(struct gctl_req *req, struct g_geom *gp, struct uuid *type,
 }
 
 static struct g_geom *
-g_gpt_ctl_create(struct gctl_req *req, struct g_class *mp,
+g_gpt_ctl_create(struct gctl_req *req, const char *flags, struct g_class *mp,
     struct g_provider *pp, uint32_t entries)
 {
 	struct uuid uuid;
@@ -279,6 +279,16 @@ fail:
 	g_gpt_wither(gp, error);
 	gctl_error(req, "%d geom '%s'", error, pp->name);
 	return (NULL);
+}
+
+static void
+g_gpt_ctl_destroy(struct gctl_req *req, const char *flags, struct g_geom *gp)
+{
+}
+
+static void
+g_gpt_ctl_recover(struct gctl_req *req, const char *flags, struct g_geom *gp)
+{
 }
 
 static int
@@ -559,6 +569,7 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_gpt_softc *softc;
+	const char *flags;
 	char const *s;
 	uint64_t start, end;
 	long entries;
@@ -567,37 +578,122 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
 	g_topology_assert();
 
+	/*
+	 * All verbs take an optional flags parameter. The flags parameter
+	 * is a string with each letter an independent flag. Each verb has
+	 * it's own set of valid flags and the meaning of the flags is
+	 * specific to the verb. Typically the presence of a letter (=flag)
+	 * in the string means true and the absence means false.
+	 */
+	s = gctl_get_asciiparam(req, "flags");
+	flags = (s == NULL) ? "" : s;
+
+	/*
+	 * Only the create verb takes a provider parameter. Make this a
+	 * special case so that more code sharing is possible for the
+	 * common case.
+	 */
+	if (!strcmp(verb, "create")) {
+		/*
+		 * Create a GPT on a pristine disk-like provider.
+		 *	Required parameters/attributes:
+		 *		provider
+		 *	Optional parameters/attributes:
+		 *		entries
+		 */
+		s = gctl_get_asciiparam(req, "provider");
+		if (s == NULL) {
+			gctl_error(req, "%d provider", ENOATTR);
+			return;
+		}
+		pp = g_provider_by_name(s);
+		if (pp == NULL) {
+			gctl_error(req, "%d provider '%s'", EINVAL, s);
+			return;
+		}
+		/* Check that there isn't already a GPT on the provider. */
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (!strcmp(s, gp->name)) {
+				gctl_error(req, "%d geom '%s'", EEXIST, s);
+				return;
+                        }
+		}
+		s = gctl_get_asciiparam(req, "entries");
+		if (s != NULL) {
+			entries = strtol(s, (char **)(uintptr_t)&s, 0);
+			if (entries < 128 || *s != '\0') {
+				gctl_error(req, "%d entries %ld", EINVAL,
+				    entries);
+				return;
+			}
+		} else
+			entries = 128;	/* Documented mininum */
+		gp = g_gpt_ctl_create(req, flags, mp, pp, entries);
+		return;
+	}
+
+	/*
+	 * All but the create verb, which is handled above, operate on an
+	 * existing GPT geom. The geom parameter is non-optional, so get
+	 * it here first.
+	 */
+	s = gctl_get_asciiparam(req, "geom");
+	if (s == NULL) {
+		gctl_error(req, "%d geom", ENOATTR);
+		return;
+	}
+	/* Get the GPT geom with the given name. */
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (!strcmp(s, gp->name))
+			break;
+	}
+	if (gp == NULL) {
+		gctl_error(req, "%d geom '%s'", EINVAL, s);
+		return;
+	}
+	softc = gp->softc;
+
+	/*
+	 * Now handle the verbs that can operate on a downgraded or
+	 * partially corrupted GPT. In particular these are the verbs
+	 * that don't deal with the table entries. We implement the
+	 * policy that all table entry related requests require a
+	 * valid GPT.
+	 */
+	if (!strcmp(verb, "destroy")) {
+		/*
+		 * Destroy a GPT completely.
+		 */
+		g_gpt_ctl_destroy(req, flags, gp);
+		return;
+	} else if (!strcmp(verb, "recover")) {
+		/*
+		 * Recover a downgraded GPT.
+		 */
+		g_gpt_ctl_recover(req, flags, gp);
+		return;
+	}
+
+	/*
+	 * Check that the GPT is complete and valid before we make changes
+	 * to the table entries.
+	 */
+	if (softc->state[GPT_HDR_PRIMARY] != GPT_HDR_OK ||
+	    softc->state[GPT_HDR_SECONDARY] != GPT_HDR_OK) {
+		gctl_error(req, "%d geom '%s'", ENXIO, s);
+		return;
+	}
+
 	if (!strcmp(verb, "add")) {
 		/*
 		 * Add a partition entry to a GPT.
 		 *	Required parameters/attributes:
-		 *		geom
 		 *		type
 		 *		start
 		 *		end
 		 *	Optional parameters/attributes:
 		 *		label
 		 */
-		s = gctl_get_asciiparam(req, "geom");
-		if (s == NULL) {
-			gctl_error(req, "%d geom", ENOATTR);
-			return;
-		}
-		/* Get the GPT geom with the given name. */
-		LIST_FOREACH(gp, &mp->geom, geom) {
-			if (!strcmp(s, gp->name))
-				break;
-		}
-		if (gp == NULL) {
-			gctl_error(req, "%d geom '%s'", EINVAL, s);
-			return;
-		}
-		softc = gp->softc;
-		if (softc->state[GPT_HDR_PRIMARY] != GPT_HDR_OK ||
-		    softc->state[GPT_HDR_SECONDARY] != GPT_HDR_OK) {
-			gctl_error(req, "%d geom '%s'", ENXIO, s);
-			return;
-		}
 		s = gctl_get_asciiparam(req, "type");
 		if (s == NULL) {
 			gctl_error(req, "%d type", ENOATTR);
@@ -634,53 +730,17 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			    (intmax_t)end);
 			return;
 		}
-		pp = g_gpt_ctl_add(req, gp, &type, start, end);
-	} else if (!strcmp(verb, "create")) {
-		/*
-		 * Create a GPT on a pristine disk-like provider.
-		 *	Required parameters/attributes:
-		 *		provider
-		 *	Optional parameters/attributes:
-		 *		entries
-		 */
-		s = gctl_get_asciiparam(req, "provider");
-		if (s == NULL) {
-			gctl_error(req, "%d provider", ENOATTR);
-			return;
-		}
-		pp = g_provider_by_name(s);
-		if (pp == NULL) {
-			gctl_error(req, "%d provider '%s'", EINVAL, s);
-			return;
-		}
-		/* Check that there isn't already a GPT on the provider. */
-		LIST_FOREACH(gp, &mp->geom, geom) {
-			if (!strcmp(s, gp->name)) {
-				gctl_error(req, "%d geom '%s'", EEXIST, s);
-				return;
-                        }
-		}
-		s = gctl_get_asciiparam(req, "entries");
-		if (s != NULL) {
-			entries = strtol(s, (char **)(uintptr_t)&s, 0);
-			if (entries < 128 || *s != '\0') {
-				gctl_error(req, "%d entries %ld", EINVAL,
-				    entries);
-				return;
-			}
-		} else
-			entries = 128;	/* Documented mininum */
-		gp = g_gpt_ctl_create(req, mp, pp, entries);
-	} else if (!strcmp(verb, "destroy")) {
-		/* Destroy a GPT completely. */
+		pp = g_gpt_ctl_add(req, flags, gp, &type, start, end);
+		return;
 	} else if (!strcmp(verb, "modify")) {
 		/* Modify a partition entry. */
-	} else if (!strcmp(verb, "recover")) {
-		/* Recover a downgraded GPT. */
+		return;
 	} else if (!strcmp(verb, "remove")) {
 		/* Remove a partition entry from a GPT. */
-	} else
-		gctl_error(req, "%d verb '%s'", EINVAL, verb);
+		return;
+	}
+
+	gctl_error(req, "%d verb '%s'", EINVAL, verb);
 }
 
 static int
