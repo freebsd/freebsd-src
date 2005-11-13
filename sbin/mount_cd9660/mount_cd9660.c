@@ -52,7 +52,6 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <sys/../isofs/cd9660/cd9660_mount.h>
 #include <sys/module.h>
 #include <sys/iconv.h>
 #include <sys/linker.h>
@@ -72,61 +71,66 @@ static const char rcsid[] =
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_UPDATE,
-	{ "extatt", 0, ISOFSMNT_EXTATT, 1 },
-	{ "gens", 0, ISOFSMNT_GENS, 1 },
-	{ "rrip", 1, ISOFSMNT_NORRIP, 1 },
-	{ "joliet", 1, ISOFSMNT_NOJOLIET, 1 },
-	{ "strictjoliet", 1, ISOFSMNT_BROKENJOLIET, 1 },
 	MOPT_END
 };
 
-int	get_ssector(const char *dev);
-int	set_charset(struct iso_args *, const char *);
+static int	get_ssector(const char *dev);
+static int	set_charset(struct iovec *, int *iovlen, const char *);
 void	usage(void);
 
 int
 main(int argc, char **argv)
 {
-	struct iso_args args;
+	struct iovec *iov;
+	int iovlen;
 	int ch, mntflags, opts;
-	char *dev, *dir, mntpath[MAXPATHLEN];
+	char *dev, *dir, *p, *val, mntpath[MAXPATHLEN];
 	int verbose;
+	int ssector;		/* starting sector, 0 for 1st session */
+	char fstype[] = "cd9660";
 
+	iov = NULL;
+	iovlen = 0;
 	mntflags = opts = verbose = 0;
-	memset(&args, 0, sizeof args);
-	args.ssector = -1;
-	args.cs_disk = NULL;
-	args.cs_local = NULL;
+	ssector = -1;
+
 	while ((ch = getopt(argc, argv, "begjo:rs:vC:")) != -1)
 		switch (ch) {
 		case 'b':
-			opts |= ISOFSMNT_BROKENJOLIET;
+			build_iovec(&iov, &iovlen, "brokenjoliet", NULL, (size_t)-1);
 			break;
 		case 'e':
-			opts |= ISOFSMNT_EXTATT;
+			build_iovec(&iov, &iovlen, "extatt", NULL, (size_t)-1);
 			break;
 		case 'g':
-			opts |= ISOFSMNT_GENS;
+			build_iovec(&iov, &iovlen, "gens", NULL, (size_t)-1);
 			break;
 		case 'j':
-			opts |= ISOFSMNT_NOJOLIET;
+			build_iovec(&iov, &iovlen, "nojoliet", NULL, (size_t)-1);
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, &opts);
+			p = strchr(optarg, '=');
+			val = NULL;
+			if (p != NULL) {
+				*p = '\0';
+				val = p + 1;
+			}
+			build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
 			break;
 		case 'r':
-			opts |= ISOFSMNT_NORRIP;
+			build_iovec(&iov, &iovlen, "norrip", NULL, (size_t)-1);
 			break;
 		case 's':
-			args.ssector = atoi(optarg);
+			ssector = atoi(optarg);
 			break;
 		case 'v':
 			verbose++;
 			break;
 		case 'C':
-			if (set_charset(&args, optarg) == -1)
+			if (set_charset(iov, &iovlen, optarg) == -1)
 				err(EX_OSERR, "cd9660_iconv");
-			opts |= ISOFSMNT_KICONV;
+			build_iovec(&iov, &iovlen, "kiconv", NULL, (size_t)-1);
 			break;
 		case '?':
 		default:
@@ -148,17 +152,7 @@ main(int argc, char **argv)
 	(void)checkpath(dir, mntpath);
 	(void)rmslashes(dev, dev);
 
-#define DEFAULT_ROOTUID	-2
-	/*
-	 * ISO 9660 file systems are not writeable.
-	 */
-	mntflags |= MNT_RDONLY;
-	args.export.ex_flags = MNT_EXRDONLY;
-	args.fspec = dev;
-	args.export.ex_root = DEFAULT_ROOTUID;
-	args.flags = opts;
-
-	if (args.ssector == -1) {
+	if (ssector == -1) {
 		/*
 		 * The start of the session has not been specified on
 		 * the command line.  If we can successfully read the
@@ -169,17 +163,22 @@ main(int argc, char **argv)
 		 * has specified -s <ssector> above, we don't get here
 		 * and leave the user's will.
 		 */
-		if ((args.ssector = get_ssector(dev)) == -1) {
+		if ((ssector = get_ssector(dev)) == -1) {
 			if (verbose)
 				printf("could not determine starting sector, "
 				       "using very first session\n");
-			args.ssector = 0;
+			ssector = 0;
 		} else if (verbose)
-			printf("using starting sector %d\n", args.ssector);
+			printf("using starting sector %d\n", ssector);
 	}
+	mntflags |= MNT_RDONLY;
+	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
+	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
+	build_iovec(&iov, &iovlen, "ssector", &ssector, sizeof ssector);
 
-	if (mount("cd9660", mntpath, mntflags, &args) < 0)
-		err(1, "%s", args.fspec);
+	if (nmount(iov, iovlen, mntflags) < 0)
+		err(1, "%s", dev);
 	exit(0);
 }
 
@@ -192,7 +191,7 @@ usage(void)
 	exit(EX_USAGE);
 }
 
-int
+static int
 get_ssector(const char *dev)
 {
 	struct ioc_toc_header h;
@@ -234,10 +233,15 @@ get_ssector(const char *dev)
 	return ntohl(toc_buffer[i].addr.lba);
 }
 
-int
-set_charset(struct iso_args *args, const char *localcs)
+static int
+set_charset(struct iovec *iov, int *iovlen, const char *localcs)
 {
 	int error;
+	char *cs_disk;	/* disk charset for Joliet cs conversion */
+	char *cs_local;	/* local charset for Joliet cs conversion */
+
+	cs_disk = NULL;
+	cs_local = NULL;
 
 	if (modfind("cd9660_iconv") < 0)
 		if (kldload("cd9660_iconv") < 0 || modfind("cd9660_iconv") < 0) {
@@ -245,16 +249,19 @@ set_charset(struct iso_args *args, const char *localcs)
 			return (-1);
 		}
 
-	if ((args->cs_disk = malloc(ICONV_CSNMAXLEN)) == NULL)
+	if ((cs_disk = malloc(ICONV_CSNMAXLEN)) == NULL)
 		return (-1);
-	if ((args->cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
+	if ((cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
 		return (-1);
-	strncpy(args->cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
-	strncpy(args->cs_local, kiconv_quirkcs(localcs, KICONV_VENDOR_MICSFT),
+	strncpy(cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
+	strncpy(cs_local, kiconv_quirkcs(localcs, KICONV_VENDOR_MICSFT),
 	    ICONV_CSNMAXLEN);
-	error = kiconv_add_xlat16_cspairs(args->cs_disk, args->cs_local);
+	error = kiconv_add_xlat16_cspairs(cs_disk, cs_local);
 	if (error)
 		return (-1);
+	
+	build_iovec(&iov, iovlen, "cs_disk", cs_disk, (size_t)-1);
+	build_iovec(&iov, iovlen, "cs_local", cs_local, (size_t)-1);
 
 	return (0);
 }
