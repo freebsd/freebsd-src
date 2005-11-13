@@ -44,13 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include "rpc/types.h"
-#include "rpc_scan.h"
 #include "rpc_parse.h"
+#include "rpc_scan.h"
 #include "rpc_util.h"
 
 #define ARGNAME "arg"
 
-extern char *make_argname( char *, char * );
 static void isdefined( definition * );
 static void def_struct( definition * );
 static void def_program( definition * );
@@ -60,14 +59,14 @@ static void def_union( definition * );
 static void def_typedef( definition * );
 static void get_declaration( declaration *, defkind );
 static void get_prog_declaration( declaration *, defkind, int );
-static void get_type( char **, char **, defkind );
-static void unsigned_dec( char ** );
+static void get_type(const char **, const char **, defkind);
+static void unsigned_dec(const char ** );
 
 /*
  * return the next definition you see
  */
 definition *
-get_definition()
+get_definition(void)
 {
 	definition *defp;
 	token tok;
@@ -104,15 +103,13 @@ get_definition()
 }
 
 static void
-isdefined(defp)
-	definition *defp;
+isdefined(definition *defp)
 {
 	STOREVAL(&defined, defp);
 }
 
 static void
-def_struct(defp)
-	definition *defp;
+def_struct(definition *defp)
 {
 	token tok;
 	declaration dec;
@@ -139,8 +136,7 @@ def_struct(defp)
 }
 
 static void
-def_program(defp)
-	definition *defp;
+def_program(definition *defp)
 {
 	token tok;
 	declaration dec;
@@ -246,8 +242,7 @@ def_program(defp)
 
 
 static void
-def_enum(defp)
-	definition *defp;
+def_enum(definition *defp)
 {
 	token tok;
 	enumval_list *elist;
@@ -276,8 +271,7 @@ def_enum(defp)
 }
 
 static void
-def_const(defp)
-	definition *defp;
+def_const(definition *defp)
 {
 	token tok;
 
@@ -290,8 +284,7 @@ def_const(defp)
 }
 
 static void
-def_union(defp)
-	definition *defp;
+def_union(definition *defp)
 {
 	token tok;
 	declaration dec;
@@ -360,7 +353,7 @@ def_union(defp)
 	}
 }
 
-static char* reserved_words[] =
+static const char *reserved_words[] =
 {
 	"array",
 	"bytes",
@@ -377,7 +370,7 @@ static char* reserved_words[] =
 	NULL
 	};
 
-static char* reserved_types[] =
+static const char *reserved_types[] =
 {
 	"opaque",
 	"string",
@@ -389,9 +382,7 @@ static char* reserved_types[] =
  * xdr routines that would conflict with internal XDR routines.
  */
 static void
-check_type_name(name, new_type)
-int new_type;
-char* name;
+check_type_name(const char *name, int new_type)
 {
 	int i;
 	char tmp[100];
@@ -419,8 +410,7 @@ char* name;
 
 
 static void
-def_typedef(defp)
-	definition *defp;
+def_typedef(definition *defp)
 {
 	declaration dec;
 
@@ -435,9 +425,7 @@ def_typedef(defp)
 }
 
 static void
-get_declaration(dec, dkind)
-	declaration *dec;
-	defkind dkind;
+get_declaration(declaration *dec, defkind dkind)
 {
 	token tok;
 
@@ -488,10 +476,7 @@ get_declaration(dec, dkind)
 
 
 static void
-get_prog_declaration(dec, dkind, num)
-	declaration *dec;
-	defkind dkind;
-	int num;  /* arg number */
+get_prog_declaration(declaration *dec, defkind dkind, int num)
 {
 	token tok;
 	char name[10];		/* argument name */
@@ -562,10 +547,7 @@ get_prog_declaration(dec, dkind, num)
 
 
 static void
-get_type(prefixp, typep, dkind)
-	char **prefixp;
-	char **typep;
-	defkind dkind;
+get_type(const char **prefixp, const char **typep, defkind dkind)
 {
 	token tok;
 
@@ -620,8 +602,7 @@ get_type(prefixp, typep, dkind)
 }
 
 static void
-unsigned_dec(typep)
-	char **typep;
+unsigned_dec(const char **typep)
 {
 	token tok;
 

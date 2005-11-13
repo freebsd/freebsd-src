@@ -63,8 +63,7 @@ static void emit_single_in_line( int, declaration *, int, relation );
  * Emit the C-routine for the given definition
  */
 void
-emit(def)
-	definition *def;
+emit(definition *def)
 {
 	if (def->def_kind == DEF_CONST) {
 		return;
@@ -105,9 +104,7 @@ emit(def)
 }
 
 static int
-findtype(def, type)
-	definition *def;
-	char *type;
+findtype(definition *def, const char *type)
 {
 
 	if (def->def_kind == DEF_PROGRAM || def->def_kind == DEF_CONST) {
@@ -118,8 +115,7 @@ findtype(def, type)
 }
 
 static int
-undefined(type)
-	char *type;
+undefined(const char *type)
 {
 	definition *def;
 
@@ -129,9 +125,7 @@ undefined(type)
 
 
 static void
-print_generic_header(procname, pointerp)
-    char* procname;
-    int pointerp;
+print_generic_header(const char *procname, int pointerp)
 {
 	f_print(fout, "\n");
 	f_print(fout, "bool_t\n");
@@ -144,8 +138,7 @@ print_generic_header(procname, pointerp)
 }
 
 static void
-print_header(def)
-	definition *def;
+print_header(definition *def)
 {
 	print_generic_header(def->def_name,
 			    def->def_kind != DEF_TYPEDEF ||
@@ -160,14 +153,13 @@ print_header(def)
 }
 
 static void
-print_prog_header(plist)
-	proc_list *plist;
+print_prog_header(proc_list *plist)
 {
 	print_generic_header(plist->args.argname, 1);
 }
 
 static void
-print_trailer()
+print_trailer(void)
 {
 	f_print(fout, "\treturn (TRUE);\n");
 	f_print(fout, "}\n");
@@ -175,26 +167,20 @@ print_trailer()
 
 
 static void
-print_ifopen(indent, name)
-	int indent;
-	char *name;
+print_ifopen(int indent, const char *name)
 {
 	tabify(fout, indent);
 	f_print(fout, "if (!xdr_%s(xdrs", name);
 }
 
 static void
-print_ifarg(arg)
-	char *arg;
+print_ifarg(const char *arg)
 {
 	f_print(fout, ", %s", arg);
 }
 
 static void
-print_ifsizeof(indent, prefix, type)
-	int indent;
-	char *prefix;
-	char *type;
+print_ifsizeof(int indent, const char *prefix, const char *type)
 {
 	if (indent) {
 		f_print(fout, ",\n");
@@ -214,8 +200,7 @@ print_ifsizeof(indent, prefix, type)
 }
 
 static void
-print_ifclose(indent)
-	int indent;
+print_ifclose(int indent)
 {
 	f_print(fout, "))\n");
 	tabify(fout, indent);
@@ -223,16 +208,10 @@ print_ifclose(indent)
 }
 
 static void
-print_ifstat(indent, prefix, type, rel, amax, objname, name)
-	int indent;
-	char *prefix;
-	char *type;
-	relation rel;
-	char *amax;
-	char *objname;
-	char *name;
+print_ifstat(int indent, const char *prefix, const char *type, relation rel,
+    const char *amax, const char *objname, const char *name)
 {
-	char *alt = NULL;
+	const char *alt = NULL;
 
 	switch (rel) {
 	case REL_POINTER:
@@ -300,8 +279,7 @@ print_ifstat(indent, prefix, type, rel, amax, objname, name)
 
 /* ARGSUSED */
 static void
-emit_enum(def)
-	definition *def;
+emit_enum(definition *def __unused)
 {
 	print_ifopen(1, "enum");
 	print_ifarg("(enum_t *)objp");
@@ -309,8 +287,7 @@ emit_enum(def)
 }
 
 static void
-emit_program(def)
-	definition *def;
+emit_program(definition *def)
 {
 	decl_list *dl;
 	version_list *vlist;
@@ -330,15 +307,14 @@ emit_program(def)
 
 
 static void
-emit_union(def)
-	definition *def;
+emit_union(definition *def)
 {
 	declaration *dflt;
 	case_list *cl;
 	declaration *cs;
 	char *object;
-	char *vecformat = "objp->%s_u.%s";
-	char *format = "&objp->%s_u.%s";
+	const char *vecformat = "objp->%s_u.%s";
+	const char *format = "&objp->%s_u.%s";
 
 	print_stat(1, &def->def.un.enum_decl);
 	f_print(fout, "\tswitch (objp->%s) {\n", def->def.un.enum_decl.name);
@@ -395,15 +371,14 @@ emit_union(def)
 }
 
 static void
-inline_struct(def, flag)
-definition *def;
-int flag;
+inline_struct(definition *def, int flag)
 {
 	decl_list *dl;
 	int i, size;
 	decl_list *cur, *psav;
 	bas_type *ptr;
-	char *sizestr, *plus;
+	char *sizestr;
+	const char *plus;
 	char ptemp[256];
 	int indent = 1;
 
@@ -554,8 +529,7 @@ int flag;
 }
 
 static void
-emit_struct(def)
-	definition *def;
+emit_struct(definition *def)
 {
 	decl_list *dl;
 	int j, size, flag;
@@ -624,25 +598,22 @@ emit_struct(def)
 }
 
 static void
-emit_typedef(def)
-	definition *def;
+emit_typedef(definition *def)
 {
-	char *prefix = def->def.ty.old_prefix;
-	char *type = def->def.ty.old_type;
-	char *amax = def->def.ty.array_max;
+	const char *prefix = def->def.ty.old_prefix;
+	const char *type = def->def.ty.old_type;
+	const char *amax = def->def.ty.array_max;
 	relation rel = def->def.ty.rel;
 
 	print_ifstat(1, prefix, type, rel, amax, "objp", def->def_name);
 }
 
 static void
-print_stat(indent, dec)
-	int indent;
-	declaration *dec;
+print_stat(int indent, declaration *dec)
 {
-	char *prefix = dec->prefix;
-	char *type = dec->type;
-	char *amax = dec->array_max;
+	const char *prefix = dec->prefix;
+	const char *type = dec->type;
+	const char *amax = dec->array_max;
 	relation rel = dec->rel;
 	char name[256];
 
@@ -655,13 +626,10 @@ print_stat(indent, dec)
 }
 
 
-char *upcase ();
+char *upcase(const char *);
 
 static void
-emit_inline(indent, decl, flag)
-int indent;
-declaration *decl;
-int flag;
+emit_inline(int indent, declaration *decl, int flag)
 {
 	switch (decl->rel) {
 	case  REL_ALIAS :
@@ -689,14 +657,9 @@ int flag;
 }
 
 static void
-emit_single_in_line(indent, decl, flag, rel)
-int indent;
-declaration *decl;
-int flag;
-relation rel;
+emit_single_in_line(int indent, declaration *decl, int flag, relation rel)
 {
 	char *upp_case;
-	int freed = 0;
 
 	tabify(fout, indent);
 	if (flag == PUT)
@@ -713,15 +676,13 @@ relation rel;
 	if (strcmp(upp_case, "INT") == 0)
 	{
 		free(upp_case);
-		freed = 1;
-		upp_case = "LONG";
+		upp_case = strdup("LONG");
 	}
 
 	if (strcmp(upp_case, "U_INT") == 0)
 	{
 		free(upp_case);
-		freed = 1;
-		upp_case = "U_LONG";
+		upp_case = strdup("U_LONG");
 	}
 	if (flag == PUT)
 		if (rel == REL_ALIAS)
@@ -732,12 +693,11 @@ relation rel;
 
 	else
 		f_print(fout, "%s(buf);\n", upp_case);
-	if (!freed)
-		free(upp_case);
+	free(upp_case);
 }
 
-char *upcase(str)
-char *str;
+char *
+upcase(const char *str)
 {
 	char *ptr, *hptr;
 
