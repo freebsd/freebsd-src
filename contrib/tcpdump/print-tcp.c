@@ -799,7 +799,7 @@ tcp_verify_signature(const struct ip *ip, const struct tcphdr *tp,
 	MD5_Update(&ctx, tcpmd5secret, strlen(tcpmd5secret));
 	MD5_Final(sig, &ctx);
 
-	if (memcmp(rcvsig, sig, 16))
+	if (memcmp(rcvsig, sig, 16) == 0)
 		return (SIGNATURE_VALID);
 	else
 		return (SIGNATURE_INVALID);
