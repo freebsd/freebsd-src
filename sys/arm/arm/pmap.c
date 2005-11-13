@@ -3536,19 +3536,19 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
  * 2. Not wired.
  * 3. Read access.
  * 4. No page table pages.
- * 6. Page IS managed.
  * but is *MUCH* faster than pmap_enter...
  */
 
 vm_page_t
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    vm_page_t mpte)
 {
 
 	vm_page_busy(m);
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(m->object);
 	mtx_lock(&Giant);
-	pmap_enter(pmap, va, m, VM_PROT_READ|VM_PROT_EXECUTE, FALSE);
+	pmap_enter(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 	pmap_idcache_wbinv_all(pmap);
 	mtx_unlock(&Giant);
 	VM_OBJECT_LOCK(m->object);
