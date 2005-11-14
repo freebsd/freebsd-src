@@ -216,6 +216,23 @@ options 	NPX_DEBUG	# enable npx debugging
 #
 options 	PERFMON
 
+#
+# XBOX causes the kernel to be bootable on the Microsoft XBox console system.
+# The resulting kernel will auto-detect whether it is being booted on a XBox,
+# so kernels compiled with this option will also work on an ordinary PC.
+# This option require I686_CPU.
+#
+# xboxfb includes support for the XBox frame buffer device. It is fully USB-
+# keyboard aware, and will only be used if an xbox is detected. This option
+# (obviously) requires XBOX support in your kernel.
+#
+# NOTE: xboxfb currently conflicts with syscons(4); if you have an XBOX and
+# include both in your kernel; you will not get any video output. Ordinary
+# PC's do not suffer from this.
+#
+options		XBOX
+device		xboxfb
+
 
 #####################################################################
 # NETWORKING OPTIONS
