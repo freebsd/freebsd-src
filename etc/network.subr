@@ -198,6 +198,64 @@ wpaif()
 	return 1
 }
 
+# ipv4_up if
+#  add IPv4 addresses to the interface $if 
+ipv4_up()
+{
+	_if=$1
+	ifalias_up ${_if}
+	ipv4_addrs_common ${_if} alias
+}
+
+# ipv4_down if
+#  remove IPv4 addresses from the interface $if
+ipv4_down()
+{
+	_if=$1
+	ifalias_down ${_if}
+	ipv4_addrs_common ${_if} -alias
+}
+
+# ipv4_addrs_common if action
+#   Evaluate the ifconfig_if_ipv4 arguments for interface $if
+#   and use $action to add or remove IPv4 addresses from $if.
+ipv4_addrs_common()
+{  
+	_ret=1
+	_if=$1
+	_action=$2
+    
+	# get ipv4-addresses
+	eval cidr_addr=\${ipv4_addrs_${_if}}
+    
+	for _cidr in ${cidr_addr}; do
+		_ipaddr=${_cidr%%/*}
+		_netmask="/"${_cidr##*/}
+		_range=${_ipaddr##*.}
+		_ipnet=${_ipaddr%.*}
+		_iplow=${_range%-*}
+		_iphigh=${_range#*-}
+
+		# clear netmask when removing aliases
+		if [ "${_action}" = "-alias" ]; then
+			_netmask=""
+		fi
+        
+		_ipcount=${_iplow}
+		while [ "${_ipcount}" -le "${_iphigh}" ]; do
+			eval "ifconfig ${_if} ${_action} ${_ipnet}.${_ipcount}${_netmask}"
+			_ipcount=$((${_ipcount}+1))
+			_ret=0
+
+			# only the first ipaddr in a subnet need the real netmask
+			if [ "${_action}" != "-alias" ]; then
+				_netmask="/32"
+			fi
+		done
+	done
+	return $_ret
+}
+
 # ifalias_up if
 #	Configure aliases for network interface $if.
 #	It returns 0 if at least one alias was configured or
