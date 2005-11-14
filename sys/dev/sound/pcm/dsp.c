@@ -811,6 +811,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 			u_int32_t fragln = (*arg_i) & 0x0000ffff;
 			u_int32_t maxfrags = ((*arg_i) & 0xffff0000) >> 16;
 			u_int32_t fragsz;
+			u_int32_t r_maxfrags, r_fragsz;
 
 			RANGE(fragln, 4, 16);
 			fragsz = 1 << fragln;
@@ -826,9 +827,12 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		    	if (rdch) {
 				CHN_LOCK(rdch);
 				ret = chn_setblocksize(rdch, maxfrags, fragsz);
-				maxfrags = sndbuf_getblkcnt(rdch->bufsoft);
-				fragsz = sndbuf_getblksz(rdch->bufsoft);
+				r_maxfrags = sndbuf_getblkcnt(rdch->bufsoft);
+				r_fragsz = sndbuf_getblksz(rdch->bufsoft);
 				CHN_UNLOCK(rdch);
+			} else {
+				r_maxfrags = maxfrags;
+				r_fragsz = fragsz;
 			}
 		    	if (wrch && ret == 0) {
 				CHN_LOCK(wrch);
@@ -836,6 +840,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
  				maxfrags = sndbuf_getblkcnt(wrch->bufsoft);
 				fragsz = sndbuf_getblksz(wrch->bufsoft);
 				CHN_UNLOCK(wrch);
+			} else { /* use whatever came from the read channel */
+				maxfrags = r_maxfrags;
+				fragsz = r_fragsz;
 			}
 
 			fragln = 0;
