@@ -946,9 +946,26 @@ Such keywords are removed before passing the value to
 .Xr ifconfig 8
 while the order of the other arguments is preserved.
 .Pp
-It is also possible to add IP alias entries here in cases where
-multiple IP addresses registered against a single interface
-are desired.
+One can configure more than one IPv4 address with the
+.Va ipv4_addrs_ Ns Aq Ar interface
+variable.
+One or more IP addresses must be provided in Classless Inter-Domain
+Routing (CIDR) address notation, whose last byte can be a range like
+192.168.0.5-23/24.
+In this case the address 192.168.0.5 will be configured with the
+netmask /24 and the addresses 192.168.0.6 to 192.168.0.23 with
+the non-conflicting netmask /32 as explained in the ifconfig(8)
+alias section.
+With the interface in question being
+.Li ed0,
+an example could look like:
+.Bd -literal
+ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"
+.Ed
+.Pp
+It is also possible to add IP alias entries using
+.Xr ifconfig 8
+syntax.
 Assuming that the interface in question was
 .Li ed0 ,
 it might look
@@ -979,6 +996,9 @@ be added since the search would
 stop with the missing
 .Dq Li alias3
 entry.
+Due to this difficult to manage behavior, the
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+form is deprecated.
 .Pp
 If the
 .Pa /etc/start_if. Ns Aq Ar interface
