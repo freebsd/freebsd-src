@@ -111,7 +111,7 @@ static void checkfiles(const char *, const char *);
 #define	ARGLISTLEN	20
 #define	FIXEDARGS	2
 
-static const char *arglist[ARGLISTLEN];
+static char *arglist[ARGLISTLEN];
 static int argcount = FIXEDARGS;
 
 
@@ -931,7 +931,7 @@ addarg(const char *cp)
 		crash();
 		/*NOTREACHED*/
 	}
-	arglist[argcount++] = cp;
+	arglist[argcount++] = strdup(cp);
 
 }
 
@@ -943,7 +943,7 @@ putarg(int place, const char *cp)
 		crash();
 		/*NOTREACHED*/
 	}
-	arglist[place] = cp;
+	arglist[place] = strdup(cp);
 }
 
 /*
