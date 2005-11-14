@@ -172,13 +172,11 @@ If the specified patch file does not exist, the
 command will fail gracefully.
 .It Cm world
 Build the world.
-.It Cm generic
-Build a GENERIC kernel.
 .It Cm lint
 Build a LINT kernel if available.
 In
 .Fx
-5, the
+5 and newer, the
 .Pa LINT
 configuration file will first be generated from the corresponding
 .Pa NOTES
@@ -190,6 +188,18 @@ nor
 exist in the kernel configuration directory, the
 .Cm lint
 command will fail gracefully.
+.It Cm kernel: Ns Ar CONF
+Build the
+.Ar CONF
+kernel.
+If a file named
+.Ar CONF
+does not exist in the kernel configuration directory, this command
+will fail gracefully.
+.It Cm generic
+Equivalent to
+.Cm kernel: Ns Ar GENERIC ,
+for backward compatibility.
 .It Cm release
 Build a release by following the procedure described in
 .Xr release 7 .

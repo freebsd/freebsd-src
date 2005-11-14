@@ -65,10 +65,10 @@ my %cmds = (
     'update'	=> 0,
     'patch'	=> 0,
     'world'	=> 0,
-    'generic'	=> 0,
     'lint'	=> 0,
     'release'	=> 0,
 );
+my %kernels;
 
 sub message(@) {
 
@@ -375,6 +375,16 @@ MAIN:{
 	    $userenv{$1} = $2;
 	    next;
 	}
+	if ($cmd =~ m/^kernel:(\w+)$/) {
+	    $kernels{$1} = 1;
+	    next;
+	}
+	# backward compatibility
+	# note that LINT is special, GENERIC is not
+	if ($cmd eq 'generic') {
+	    $kernels{'GENERIC'} = 1;
+	    next;
+	}
 	if (!exists($cmds{$cmd})) {
 	    error("unrecognized command: '$cmd'");
 	}
@@ -527,7 +537,7 @@ MAIN:{
     );
 
     # Kernel-specific variables
-    if ($cmds{'generic'} || $cmds{'lint'} || $cmds{'release'}) {
+    if (%kernels || $cmds{'lint'} || $cmds{'release'}) {
 	# None at the moment
     }
 
@@ -565,7 +575,7 @@ MAIN:{
     if (!exists($ENV{'CFLAGS'})) {
 	$ENV{'CFLAGS'} = "-O -pipe";
     }
-    if ($cmds{'generic'} || $cmds{'lint'} || $cmds{'release'}) {
+    if (%kernels || $cmds{'lint'} || $cmds{'release'}) {
 	if (!exists($ENV{'COPTFLAGS'})) {
 	    $ENV{'COPTFLAGS'} = "-O -pipe";
 	}
@@ -584,19 +594,11 @@ MAIN:{
 	cd("$sandbox/src");
 	make('buildworld')
 	    or error("failed to build world");
-    } elsif ($cmds{'generic'} || $cmds{'lint'}) {
+    } elsif (%kernels || $cmds{'lint'}) {
 	logstage("building kernel toolchain (CFLAGS=$ENV{'CFLAGS'})");
 	cd("$sandbox/src");
 	make('kernel-toolchain')
 	    or error("failed to build kernel toolchain");
-    }
-
-    # Build GENERIC if requested
-    if ($cmds{'generic'}) {
-	logstage("building generic kernel (COPTFLAGS=$ENV{'COPTFLAGS'})");
-	cd("$sandbox/src");
-	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=GENERIC')
-	    or error("failed to build generic kernel");
     }
 
     # Build LINT if requested
@@ -617,6 +619,18 @@ MAIN:{
 	cd("$sandbox/src");
 	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=LINT')
 	    or error("failed to build lint kernel");
+    }
+
+    # Build additional kernels
+    foreach my $kernel (sort(keys(%kernels))) {
+	if (! -f "$sandbox/src/sys/$machine/conf/$kernel") {
+	    warning("no kernel config for $kernel");
+	    next;
+	}
+	logstage("building $kernel kernel (COPTFLAGS=$ENV{'COPTFLAGS'})");
+	cd("$sandbox/src");
+	spawn('/usr/bin/make', 'buildkernel', "KERNCONF=$kernel")
+	    or error("failed to build $kernel kernel");
     }
 
     # Build a release if requested
