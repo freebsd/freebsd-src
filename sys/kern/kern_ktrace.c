@@ -261,20 +261,21 @@ ktr_getrequest(int type)
 	int pm;
 
 	ktrace_enter(td);	/* XXX: In caller instead? */
+	mtx_lock(&ktrace_mtx);
 	if (!KTRCHECK(td, type)) {
+		mtx_unlock(&ktrace_mtx);
 		ktrace_exit(td);
 		return (NULL);
 	}
-	mtx_lock(&ktrace_mtx);
 	req = STAILQ_FIRST(&ktr_free);
 	if (req != NULL) {
 		STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
-		mtx_unlock(&ktrace_mtx);
 		req->ktr_header.ktr_type = type;
 		if (p->p_traceflag & KTRFAC_DROP) {
 			req->ktr_header.ktr_type |= KTR_DROP;
 			p->p_traceflag &= ~KTRFAC_DROP;
 		}
+		mtx_unlock(&ktrace_mtx);
 		microtime(&req->ktr_header.ktr_time);
 		req->ktr_header.ktr_pid = p->p_pid;
 		req->ktr_header.ktr_tid = td->td_tid;
