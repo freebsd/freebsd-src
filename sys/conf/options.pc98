@@ -105,3 +105,7 @@ DEV_NPX			opt_npx.h
 # Debugging
 STOP_NMI		opt_cpu.h
 NPX_DEBUG		opt_npx.h
+
+# FreeBSD/i386 supports xbox and is shred with pc98 so we need to define dummy
+# opt_xbox.h
+NO_XBOX			opt_xbox.h
