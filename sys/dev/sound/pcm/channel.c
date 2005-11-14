@@ -1065,12 +1065,50 @@ chn_setformat(struct pcm_channel *c, u_int32_t fmt)
 	return r;
 }
 
+/*
+ * given a bufsz value, round it to a power of 2 in the min-max range
+ * XXX only works if min and max are powers of 2
+ */
+static int
+round_bufsz(int bufsz, int min, int max)
+{
+	int tmp = min * 2;
+
+	KASSERT( min & (min-1) == 0, ("min %d must be power of 2\n", min));
+	KASSERT( max & (max-1) == 0, ("max %d must be power of 2\n", max));
+	while (tmp <= bufsz)
+		tmp <<= 1;
+	tmp >>= 1;
+	if (tmp > max)
+		tmp = max;
+	return tmp;
+}
+
+/*
+ * set the channel's blocksize both for soft and hard buffers.
+ *
+ * blksz should be a power of 2 between 2**4 and 2**16 -- it is useful
+ * that it has the same value for both bufsoft and bufhard.
+ * blksz == -1 computes values according to a target irq rate.
+ * blksz == 0 reuses previous values if available, otherwise
+ * behaves as for -1
+ *
+ * blkcnt is set by the user, between 2 and (2**17)/blksz for bufsoft,
+ * but should be a power of 2 for bufhard to simplify life to low
+ * level drivers.
+ * Note, for the rec channel a large blkcnt is ok,
+ * but for the play channel we want blksz as small as possible to keep
+ * the delay small, because routines in the write path always try to
+ * keep bufhard full.
+ *
+ * Unless we have good reason to, use the values suggested by the caller.
+ */
 int
 chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 {
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
-	int irqhz, tmp, ret, maxsize, reqblksz, tmpblksz;
+	int irqhz, ret, maxsz, maxsize, reqblksz;
 
 	CHN_LOCKASSERT(c);
 	if (!CANCHANGE(c) || (c->flags & CHN_F_MAPPED)) {
@@ -1084,27 +1122,30 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 
 	ret = 0;
 	DEB(printf("%s(%d, %d)\n", __func__, blkcnt, blksz));
-	if (blksz == 0 || blksz == -1) {
-		if (blksz == -1)
+	if (blksz == 0 || blksz == -1) { /* let the driver choose values */
+		if (blksz == -1)	/* delete previous values */
 			c->flags &= ~CHN_F_HAS_SIZE;
-		if (!(c->flags & CHN_F_HAS_SIZE)) {
-			blksz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / chn_targetirqrate;
-	      		tmp = 32;
-			while (tmp <= blksz)
-				tmp <<= 1;
-			tmp >>= 1;
-			blksz = tmp;
+		if (!(c->flags & CHN_F_HAS_SIZE)) { /* no previous value */
+			/*
+			 * compute a base blksz according to the target irq
+			 * rate, then round to a suitable power of 2
+			 * in the range 16.. 2^17/2.
+			 * Finally compute a suitable blkcnt.
+			 */
+			blksz = round_bufsz( (sndbuf_getbps(bs) *
+				sndbuf_getspd(bs)) / chn_targetirqrate,
+				16, CHN_2NDBUFMAXSIZE / 2);
 			blkcnt = CHN_2NDBUFMAXSIZE / blksz;
-
-			RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
- 			RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
-			DEB(printf("%s: defaulting to (%d, %d)\n", __func__, blkcnt, blksz));
-		} else {
+		} else { /* use previously defined value */
 			blkcnt = sndbuf_getblkcnt(bs);
 			blksz = sndbuf_getblksz(bs);
-			DEB(printf("%s: updating (%d, %d)\n", __func__, blkcnt, blksz));
 		}
 	} else {
+		/*
+		 * use supplied values if reasonable. Note that here we
+		 * might have blksz which is not a power of 2 if the
+		 * ioctl() to compute it allows such values.
+		 */
 		ret = EINVAL;
 		if ((blksz < 16) || (blkcnt < 2) || (blkcnt * blksz > CHN_2NDBUFMAXSIZE))
 			goto out;
@@ -1119,25 +1160,23 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 		reqblksz -= reqblksz % sndbuf_getbps(bs);
 
 	/* adjust for different hw format/speed */
+	/*
+	 * Now compute the approx irq rate for the given (soft) blksz,
+	 * reduce to the acceptable range and compute a corresponding blksz
+	 * for the hard buffer. Then set the channel's blocksize and
+	 * corresponding hardbuf value. The number of blocks used should
+	 * be set by the device-specific routine. In fact, even the
+	 * call to sndbuf_setblksz() should not be here! XXX
+	 */
+
 	irqhz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / blksz;
-	DEB(printf("%s: soft bps %d, spd %d, irqhz == %d\n", __func__, sndbuf_getbps(bs), sndbuf_getspd(bs), irqhz));
 	RANGE(irqhz, 16, 512);
 
-	tmpblksz = (sndbuf_getbps(b) * sndbuf_getspd(b)) / irqhz;
-
-	/* round down to 2^x */
-	blksz = 32;
-	while (blksz <= tmpblksz)
-		blksz <<= 1;
-	blksz >>= 1;
-
-	/* round down to fit hw buffer size */
-	if (sndbuf_getmaxsize(b) > 0)
-		RANGE(blksz, 16, sndbuf_getmaxsize(b) / 2);
-	else
-		/* virtual channels don't appear to allocate bufhard */
-		RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
-	DEB(printf("%s: hard blksz requested %d (maxsize %d), ", __func__, blksz, sndbuf_getmaxsize(b)));
+	maxsz = sndbuf_getmaxsize(b);
+	if (maxsz == 0) /* virtual channels don't appear to allocate bufhard */
+		maxsz = CHN_2NDBUFMAXSIZE;
+	blksz = round_bufsz( (sndbuf_getbps(b) * sndbuf_getspd(b)) / irqhz,
+			16, maxsz / 2);
 
 	/* Increase the size of bufsoft if before increasing bufhard. */
 	maxsize = sndbuf_getsize(b);
@@ -1167,9 +1206,6 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 		if (ret)
 			goto out1;
 	}
-
-	irqhz = (sndbuf_getbps(b) * sndbuf_getspd(b)) / sndbuf_getblksz(b);
-	DEB(printf("got %d, irqhz == %d\n", sndbuf_getblksz(b), irqhz));
 
 	chn_resetbuf(c);
 out1:
