@@ -59,6 +59,7 @@
 #include <net/iso88025.h>
 #include <net/if.h>
 #include <net/if_clone.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
 
@@ -78,7 +79,6 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
-#include <net/if_dl.h>
 #endif
 
 #include <crypto/sha1.h>
