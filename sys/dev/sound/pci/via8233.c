@@ -712,7 +712,7 @@ via_intr(void *p)
 	/* Poll playback channels */
 	snd_mtxlock(via->lock);
 	for (i = 0; i < NDXSCHANS + NMSGDCHANS; i++) {
-		if (via->pch[i].rbase == 0)
+		if (via->pch[i].channel == NULL)
 			continue;
 		stat = via->pch[i].rbase + VIA_RP_STATUS;
 		if (via_rd(via, stat, 1) & SGD_STATUS_INTR) {
@@ -725,7 +725,7 @@ via_intr(void *p)
 
 	/* Poll record channels */
 	for (i = 0; i < NWRCHANS; i++) {
-		if (via->rch[i].rbase == 0)
+		if (via->rch[i].channel == NULL)
 			continue;
 		stat = via->rch[i].rbase + VIA_RP_STATUS;
 		if (via_rd(via, stat, 1) & SGD_STATUS_INTR) {
