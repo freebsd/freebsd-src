@@ -284,6 +284,7 @@ valid_type(int type)
 	case IFT_ISO88024:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 		return (1);
 	default:
 		return (0);
@@ -541,7 +542,8 @@ print_entry(struct sockaddr_dl *sdl,
 	printf("%s (%s) at ", host, inet_ntoa(addr->sin_addr));
 	if (sdl->sdl_alen) {
 		if ((sdl->sdl_type == IFT_ETHER ||
-		    sdl->sdl_type == IFT_L2VLAN) &&
+		    sdl->sdl_type == IFT_L2VLAN ||
+		    sdl->sdl_type == IFT_BRIDGE) &&
 		    sdl->sdl_alen == ETHER_ADDR_LEN)
 			printf("%s", ether_ntoa((struct ether_addr *)LLADDR(sdl)));
 		else {
@@ -592,6 +594,9 @@ print_entry(struct sockaddr_dl *sdl,
 	case IFT_IEEE1394:
                 printf(" [firewire]");
                 break;
+	case IFT_BRIDGE:
+		printf(" [bridge]");
+		break;
 	default:
 		break;
         }
