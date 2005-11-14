@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2005 Ariff Abdullah 
- *        <skywizard@MyBSD.org.my> All rights reserved.
+ * Copyright (c) 2005 Ariff Abdullah <ariff@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
