@@ -105,11 +105,7 @@ event_proc::event_proc() : _prio(-1)
 
 event_proc::~event_proc()
 {
-	vector<eps *>::const_iterator i;
-
-	for (i = _epsvec.begin(); i != _epsvec.end(); i++)
-		delete *i;
-	_epsvec.clear();
+	delete_and_clear(_epsvec);
 }
 
 void
