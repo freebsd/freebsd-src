@@ -143,8 +143,8 @@ sub readconf($) {
 	$line .= $_;
 	if (length($line) && $line !~ s/\\$/ /) {
 	    die("$fn: syntax error on line $n\n")
-		unless ($line =~ m/^(\w+)\s*=\s*(.*)$/);
-	    my ($key, $val) = (uc($1), $2);
+		unless ($line =~ m/^(\w+)\s*([+]?=)\s*(.*)$/);
+	    my ($key, $op, $val) = (uc($1), $2, $3);
 	    $val = ''
 		unless defined($val);
 	    die("$fn: unknown keyword on line $n\n")
@@ -154,10 +154,22 @@ sub readconf($) {
 		foreach (@a) {
 		    s/^\'([^\']*)\'$/$1/;
 		}
-		$CONFIG{$key} = \@a;
+		if ($op eq '=') {
+		    $CONFIG{$key} = \@a;
+		} elsif ($op eq '+=') {
+		    push(@{$CONFIG{$key}}, @a);
+		} else {
+		    die("can't happen\n");
+		}
 	    } else {
 		$val =~ s/^\'([^\']*)\'$/$1/;
-		$CONFIG{$key} = $val;
+		if ($op eq '=') {
+		    $CONFIG{$key} = $val;
+		} elsif ($op eq '+=') {
+		    die("$fn: invalid operator on line $n\n");
+		} else {
+		    die("can't happen\n");
+		}
 	    }
 	    $line = "";
 	}
