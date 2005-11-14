@@ -47,9 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_npx.h"
 #include "opt_reset.h"
 #include "opt_cpu.h"
-#ifndef PC98 
 #include "opt_xbox.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
