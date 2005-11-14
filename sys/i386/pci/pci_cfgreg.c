@@ -30,9 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef PC98
 #include "opt_xbox.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
