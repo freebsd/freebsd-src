@@ -1410,7 +1410,8 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 #ifdef IFP2ENADDR
 	if (bcmp(IFP2ENADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
 #elif __FreeBSD_version >= 700000
-	if (bcmp(IF_LLADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
+	if (sc->ifp->if_addr == NULL ||
+	    bcmp(IF_LLADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
 #else
 	if (bcmp(sc->arpcom.ac_enaddr, empty, ETHER_ADDR_LEN) == 0)
 #endif
