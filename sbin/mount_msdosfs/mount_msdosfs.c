@@ -74,8 +74,8 @@ static int	set_charset(struct iovec *iov, int *iovlen, const char *, const char 
 int
 main(int argc, char **argv)
 {
-        struct iovec *iov = NULL;
-        int iovlen = 0;
+	struct iovec *iov = NULL;
+	int iovlen = 0;
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask, set_dirmask;
 	int optflags = 0;
@@ -136,8 +136,8 @@ main(int argc, char **argv)
 			char *p = NULL;
 			char *val = strdup("");
 			getmntopts(optarg, mopts, &mntflags, &optflags);
-                        p = strchr(optarg, '=');
-                        if (p != NULL) {
+			p = strchr(optarg, '=');
+			if (p != NULL) {
 				free(val);
 				*p = '\0';
 				val = p + 1;
@@ -310,7 +310,7 @@ set_charset(struct iovec *iov, int *iovlen, const char *cs_local, const char *cs
 			return (-1);
 		}
 
-        build_iovec_argf(&iov, iovlen, "cs_win", ENCODING_UNICODE);
+	build_iovec_argf(&iov, iovlen, "cs_win", ENCODING_UNICODE);
 	error = kiconv_add_xlat16_cspairs(ENCODING_UNICODE, cs_local);
 	if (error)
 		return (-1);
