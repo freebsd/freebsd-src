@@ -931,7 +931,10 @@ addarg(const char *cp)
 		crash();
 		/*NOTREACHED*/
 	}
-	arglist[argcount++] = strdup(cp);
+	if (cp != NULL)
+		arglist[argcount++] = xstrdup(cp);
+	else
+		arglist[argcount++] = NULL;
 
 }
 
@@ -943,7 +946,10 @@ putarg(int place, const char *cp)
 		crash();
 		/*NOTREACHED*/
 	}
-	arglist[place] = strdup(cp);
+	if (cp != NULL)
+		arglist[place] = xstrdup(cp);
+	else
+		arglist[place] = NULL;
 }
 
 /*
