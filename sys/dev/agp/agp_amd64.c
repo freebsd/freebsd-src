@@ -64,6 +64,10 @@ static int agp_amd64_nvidia_match(uint16_t);
 static void agp_amd64_nvidia_init(device_t);
 static int agp_amd64_nvidia_set_aperture(device_t, uint32_t);
 
+static int agp_amd64_via_match(void);
+static void agp_amd64_via_init(device_t);
+static int agp_amd64_via_set_aperture(device_t, uint32_t);
+
 MALLOC_DECLARE(M_AGP);
 
 #define	AMD64_MAX_MCTRL		8
@@ -75,6 +79,7 @@ struct agp_amd64_softc {
 	uint32_t		apbase;
 	int			mctrl[AMD64_MAX_MCTRL];
 	int			n_mctrl;
+	int			via_agp;
 };
 
 static const char*
@@ -110,8 +115,6 @@ agp_amd64_match(device_t dev)
 		return ("VIA K8T800Pro host to PCI bridge");
 	case 0x31881106:
 		return ("VIA 8385 host to PCI bridge");
-	case 0xb1881106:
-		return ("VIA 838X host to PCI bridge");
 	};
 
 	return NULL;
@@ -128,6 +131,20 @@ agp_amd64_nvidia_match(uint16_t devid)
 		return ENXIO;
 
 	return 0;
+}
+
+static int
+agp_amd64_via_match(void)
+{
+	/* XXX Some VIA bridge requires secondary AGP bridge at 0:1:0. */
+	if (pci_cfgregread(0, 1, 0, PCIR_CLASS, 1) != PCIC_BRIDGE ||
+	    pci_cfgregread(0, 1, 0, PCIR_SUBCLASS, 1) != PCIS_BRIDGE_PCI ||
+	    pci_cfgregread(0, 1, 0, PCIR_VENDOR, 2) != 0x1106 ||
+	    pci_cfgregread(0, 1, 0, PCIR_DEVICE, 2) != 0xb188 ||
+	    (pci_cfgregread(0, 1, 0, AGP_VIA_AGPSEL, 1) & 2))
+		return 0;
+
+	return 1;
 }
 
 static int
@@ -178,20 +195,6 @@ agp_amd64_attach(device_t dev)
 
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
 
-	switch (pci_get_vendor(dev)) {
-	case 0x10b9:	/* ULi */
-		agp_amd64_uli_init(dev);
-		if (agp_amd64_uli_set_aperture(dev, sc->initial_aperture))
-			return ENXIO;
-		break;
-
-	case 0x10de:	/* nVidia */
-		agp_amd64_nvidia_init(dev);
-		if (agp_amd64_nvidia_set_aperture(dev, sc->initial_aperture))
-			return ENXIO;
-		break;
-	}
-
 	for (;;) {
 		gatt = agp_alloc_gatt(dev);
 		if (gatt)
@@ -207,6 +210,30 @@ agp_amd64_attach(device_t dev)
 		}
 	}
 	sc->gatt = gatt;
+
+	switch (pci_get_vendor(dev)) {
+	case 0x10b9:	/* ULi */
+		agp_amd64_uli_init(dev);
+		if (agp_amd64_uli_set_aperture(dev, sc->initial_aperture))
+			return ENXIO;
+		break;
+
+	case 0x10de:	/* nVidia */
+		agp_amd64_nvidia_init(dev);
+		if (agp_amd64_nvidia_set_aperture(dev, sc->initial_aperture))
+			return ENXIO;
+		break;
+
+	case 0x1106:	/* VIA */
+		sc->via_agp = agp_amd64_via_match();
+		if (sc->via_agp) {
+			agp_amd64_via_init(dev);
+			if (agp_amd64_via_set_aperture(dev,
+			    sc->initial_aperture))
+				return ENXIO;
+		}
+		break;
+	}
 
 	/* Install the gatt and enable aperture. */
 	for (i = 0; i < sc->n_mctrl; i++) {
@@ -298,6 +325,11 @@ agp_amd64_set_aperture(device_t dev, uint32_t aperture)
 
 	case 0x10de:	/* nVidia */
 		return (agp_amd64_nvidia_set_aperture(dev, aperture));
+		break;
+
+	case 0x1106:	/* VIA */
+		if (sc->via_agp)
+			return (agp_amd64_via_set_aperture(dev, aperture));
 		break;
 	}
 
@@ -423,6 +455,30 @@ agp_amd64_nvidia_set_aperture(device_t dev, uint32_t aperture)
 	    sc->apbase + aperture - 1, 4);
 	pci_cfgregwrite(0, 11, 0, AGP_AMD64_NVIDIA_1_APLIMIT2,
 	    sc->apbase + aperture - 1, 4);
+
+	return 0;
+}
+
+static void
+agp_amd64_via_init(device_t dev)
+{
+	struct agp_amd64_softc *sc = device_get_softc(dev);
+
+	agp_amd64_apbase_fixup(dev);
+	pci_cfgregwrite(0, 1, 0, AGP3_VIA_ATTBASE, sc->gatt->ag_physical, 4);
+	pci_cfgregwrite(0, 1, 0, AGP3_VIA_GARTCTRL,
+	    pci_cfgregread(0, 1, 0, AGP3_VIA_ATTBASE, 4) | 0x180, 4);
+}
+
+static int
+agp_amd64_via_set_aperture(device_t dev, uint32_t aperture)
+{
+	uint32_t apsize;
+
+	apsize = ((aperture - 1) >> 20) ^ 0xff;
+	if ((((apsize ^ 0xff) << 20) | ((1 << 20) - 1)) + 1 != aperture)
+		return EINVAL;
+	pci_cfgregwrite(0, 1, 0, AGP3_VIA_APSIZE, apsize, 1);
 
 	return 0;
 }
