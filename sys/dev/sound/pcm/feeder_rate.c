@@ -1,7 +1,7 @@
 /*-
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
- * Copyright (c) 2003 Orion Hodson <orion@freebsd.org>
- * Copyright (c) 2005 Ariff Abdullah <skywizard@MyBSD.org.my>
+ * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
+ * Copyright (c) 2003 Orion Hodson <orion@FreeBSD.org>
+ * Copyright (c) 2005 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
