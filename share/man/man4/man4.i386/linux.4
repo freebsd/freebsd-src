@@ -108,6 +108,10 @@ regardless of whether the
 .Nm
 module is statically linked into the kernel
 or loaded as a module.
+.Ed
+.Pp
+Some linux scripts want to execute /lib/ld-linux.so.2. In order to do this,
+you should turn the kern.elf32.can_exec_dyn sysctl(8) variable to 1.
 .Sh FILES
 .Bl -tag -width /compat/linux/proc -compact
 .It Pa /compat/linux
