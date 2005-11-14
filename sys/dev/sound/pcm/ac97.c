@@ -84,10 +84,8 @@ static const struct ac97mixtable_entry ac97mixtable_default[32] = {
 	[SOUND_MIXER_LINE]	= { AC97_MIX_LINE, 	5, 0, 1, 1, 5, 0, 1 },
 	[SOUND_MIXER_PHONEIN]	= { AC97_MIX_PHONE, 	5, 0, 0, 1, 8, 0, 0 },
 	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 1, 1 },
-#if 0
 	/* use igain for the mic 20dB boost */
 	[SOUND_MIXER_IGAIN] 	= { -AC97_MIX_MIC, 	1, 6, 0, 0, 0, 1, 1 },
-#endif
 	[SOUND_MIXER_CD]	= { AC97_MIX_CD, 	5, 0, 1, 1, 2, 0, 1 },
 	[SOUND_MIXER_LINE1]	= { AC97_MIX_AUX, 	5, 0, 1, 1, 4, 0, 0 },
 	[SOUND_MIXER_VIDEO]	= { AC97_MIX_VIDEO, 	5, 0, 1, 1, 3, 0, 0 },
@@ -168,6 +166,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x434d4983, 0x00, 0, "CMI9761",	0 },
 	{ 0x43585421, 0x00, 0, "HSD11246",	0 },
 	{ 0x43585428, 0x07, 0, "CX20468",	0 },
+	{ 0x43585430, 0x00, 0, "CX20468-21",	0 },
 	{ 0x44543000, 0x00, 0, "DT0398",	0 },
 	{ 0x454d4323, 0x00, 0, "EM28023",	0 },
 	{ 0x454d4328, 0x00, 0, "EM28028",	0 },
@@ -210,6 +209,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x54524e03, 0x07, 0, "TLV320AIC27",	0 },
 	{ 0x54584e20, 0x00, 0, "TLC320AD90",	0 },
 	{ 0x56494161, 0x00, 0, "VIA1612A",      0 },
+	{ 0x56494170, 0x00, 0, "VIA1617A",      0 },
 	{ 0x574d4c00, 0x00, 0, "WM9701A",	0 },
 	{ 0x574d4c03, 0x00, 0, "WM9703/4/7/8",	0 },
 	{ 0x574d4c04, 0x00, 0, "WM9704Q",	0 },
