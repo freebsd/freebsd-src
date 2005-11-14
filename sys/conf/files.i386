@@ -457,6 +457,7 @@ libkern/umoddi3.c		standard
 pci/agp_ali.c			optional agp
 pci/agp_amd.c			optional agp
 pci/agp_amd64.c			optional agp
+pci/agp_ati.c			optional agp
 pci/agp_i810.c			optional agp
 pci/agp_intel.c			optional agp
 pci/agp_nvidia.c		optional agp
