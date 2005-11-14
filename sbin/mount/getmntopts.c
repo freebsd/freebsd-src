@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/uio.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -155,8 +154,12 @@ build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val,
 	(*iov)[i].iov_len = strlen(name) + 1;
 	i++;
 	(*iov)[i].iov_base = val;
-	if (len == (size_t)-1)
-		len = strlen(val) + 1;
+	if (len == (size_t)-1) {
+		if (val != NULL)
+			len = strlen(val) + 1;
+		else
+			len = 0;
+	}
 	(*iov)[i].iov_len = (int)len;
 	*iovlen = ++i;
 }
