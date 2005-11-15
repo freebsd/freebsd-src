@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1994, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 1994, 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
      Written by Francisco Andrés Verdú <pandres@dragonet.es> with many ideas
      taken from the other groff drivers.
 
@@ -18,16 +19,13 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 /*
 TODO
 
  - Add X command to include bitmaps
 */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 
 #include "driver.h"
 #include "lbp.h"
@@ -92,21 +90,6 @@ private:
   int paperlength;	// custom paper size
   int paperwidth;
 };
-
-//   Compatibility section.
-//
-//   Here we define some functions not present in some of the targets
-//   platforms
-#ifndef HAVE_STRSEP
-// Solaris 8 doesn't have the strsep function
-static char *strsep(char **pcadena, const char *delim)
-{
-  char *p;
-  p = strtok(*pcadena, delim);
-  *pcadena = strtok(NULL, delim);
-  return p;
-}
-#endif
 
 lbp_font::lbp_font(const char *nm)
 : font(nm)
@@ -231,7 +214,7 @@ inline void lbp_printer::set_line_thickness(int size,const environment *env)
       /*  fprintf(stderr, "thickness: %d == %d, size %d, %d \n",
         size, line_thickness, env->size,req_linethickness); */
    return;
-}; // lbp_printer::set_line_thickness
+} // lbp_printer::set_line_thickness
 
 void lbp_printer::begin_page(int)
 {
@@ -294,10 +277,10 @@ char *lbp_printer::font_name(const lbp_font *f, const int siz)
   return bfont_name;
 }
 
-void lbp_printer::set_char(int index, font *f, const environment *env,
+void lbp_printer::set_char(int idx, font *f, const environment *env,
 			   int w, const char *)
 {
-  int code = f->get_code(index);
+  int code = f->get_code(idx);
   unsigned char ch = code & 0xff;
   unsigned short symbol_set = code >> 8;
   if (f != cur_font) {
@@ -441,9 +424,9 @@ void lbp_printer::draw(int code, int *p, int np, const environment *env)
       if (np != 1 && np != 2) {
 	error("0 or 1 argument required for thickness");
 	break;
-      };
+      }
     set_line_thickness(p[0],env);
-    };
+    }
     break;
   case 'l':	// Line
     if (np != 2) {
@@ -663,11 +646,14 @@ int main(int argc, char **argv)
   int c = 0;
   int option_index = 0;
   while (c >= 0) {
-    c = getopt_long (argc, argv, "F:p:lvo:c:hw:",
+    c = getopt_long (argc, argv, "c:F:hI:lo:p:vw:",
 		     long_options, &option_index);
     switch (c) {
     case 'F':
       font::command_line_font_dir(optarg);
+      break;
+    case 'I':
+      // ignore include path arguments
       break;
     case 'p':
       {
@@ -694,7 +680,7 @@ int main(int argc, char **argv)
 	  orientation = 1;
 	else
 	  error("unknown orientation '%1'", optarg);
-      };
+      }
       break;
     case 'c':
       {

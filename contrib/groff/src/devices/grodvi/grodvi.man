@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -17,6 +17,8 @@ translations approved by the Free Software Foundation instead of in
 the original English.
 ..
 .
+.do nr grodvi_C \n[.C]
+.cp 0
 .
 .ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
 .el .ds tx TeX
@@ -117,7 +119,7 @@ may not contain a newline.
 .
 .LP
 For inclusion of EPS image files,
-.B grodvi
+.B \-Tdvi
 loads
 .B pspic.tmac
 automatically, providing the
@@ -424,6 +426,8 @@ and widths of rules be rounded.
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@),
 .BR groff_tmac (@MAN5EXT@)
+.
+.cp \n[grodvi_C]
 .
 .\" Local Variables:
 .\" mode: nroff

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2002, 2003, 2004
      Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "pic.h"
 #include "ptable.h"
@@ -1329,21 +1329,23 @@ void do_undef()
 class for_input : public input {
   char *var;
   char *body;
+  double from;
   double to;
   int by_is_multiplicative;
   double by;
   const char *p;
   int done_newline;
 public:
-  for_input(char *, double, int, double, char *);
+  for_input(char *, double, double, int, double, char *);
   ~for_input();
   int get();
   int peek();
 };
 
-for_input::for_input(char *vr, double t, int bim, double b, char *bd)
-: var(vr), body(bd), to(t), by_is_multiplicative(bim), by(b), p(body),
-  done_newline(0)
+for_input::for_input(char *vr, double f, double t,
+		     int bim, double b, char *bd)
+: var(vr), body(bd), from(f), to(t), by_is_multiplicative(bim), by(b),
+  p(body), done_newline(0)
 {
 }
 
@@ -1374,7 +1376,8 @@ int for_input::get()
     else
       val += by;
     define_variable(var, val);
-    if (val > to) {
+    if ((from <= to && val > to)
+	|| (from >= to && val < to)) {
       p = 0;
       return EOF;
     }
@@ -1399,7 +1402,8 @@ int for_input::peek()
       return EOF;
   }
   else {
-    if (val + by > to)
+    if ((from <= to && val + by > to)
+	|| (from >= to && val + by < to))
       return EOF;
   }
   if (*body == '\0')
@@ -1411,8 +1415,12 @@ void do_for(char *var, double from, double to, int by_is_multiplicative,
 	    double by, char *body)
 {
   define_variable(var, from);
-  if (from <= to)
-    input_stack::push(new for_input(var, to, by_is_multiplicative, by, body));
+  if ((by_is_multiplicative && by <= 0)
+      || (by > 0 && from > to)
+      || (by < 0 && from < to))
+    return;
+  input_stack::push(new for_input(var, from, to,
+				  by_is_multiplicative, by, body));
 }
 
 

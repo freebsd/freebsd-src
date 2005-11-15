@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 #
 # eqn2graph -- compile EQN equation descriptions to bitmap images
 #
@@ -32,7 +32,7 @@
 #
 # Thus, we pass -U to groff(1), and everything else to convert(1).
 #
-# $Id: eqn2graph.sh,v 1.2 2002/07/17 04:55:46 wlemb Exp $
+# $Id: eqn2graph.sh,v 1.5 2005/05/18 07:03:06 wl Exp $
 #
 groff_opts=""
 convert_opts=""
@@ -58,17 +58,34 @@ do
     shift
 done
 
+# create temporary directory
+tmp=
+for d in "$GROFF_TMPDIR" "$TMPDIR" "$TMP" "$TEMP" /tmp; do
+    test -z "$d" && continue
+
+    tmp=`(umask 077 && mktemp -d -q "$d/eqn2graph-XXXXXX") 2> /dev/null` \
+    && test -n "$tmp" && test -d "$tmp" \
+    && break
+
+    tmp=$d/eqn2graph$$-$RANDOM
+    (umask 077 && mkdir $tmp) 2> /dev/null && break
+done;
+if test -z "$tmp"; then
+    echo "$0: cannot create temporary directory" >&2
+    { (exit 1); exit 1; }
+fi
+
+trap 'exit_status=$?; rm -rf $tmp && exit $exit_status' 0 2 15 
+
 # Here goes:
 # 1. Add .EQ/.EN.
 # 2. Process through eqn(1) to emit troff markup.
 # 3. Process through groff(1) to emit Postscript.
 # 4. Use convert(1) to crop the Postscript and turn it into a bitmap.
-tmp=/usr/tmp/eqn2graph-$$
-trap "rm ${tmp}.*" 0 2 15 
 read equation
-(echo ".EQ"; echo 'delim $$'; echo ".EN"; echo '$'"${equation}"'$') | \
-	groff -e $groff_opts -Tps >${tmp}.ps \
-	&& convert -crop 0x0 $convert_opts ${tmp}.ps ${tmp}.${format} \
-	&& cat ${tmp}.${format}
+(echo ".EQ"; echo 'delim $$'; echo ".EN"; echo '$'"$equation"'$') | \
+	groff -e $groff_opts -Tps -P-pletter > $tmp/eqn2graph.ps \
+	&& convert -trim -crop 0x0 $convert_opts $tmp/eqn2graph.ps $tmp/eqn2graph.$format \
+	&& cat $tmp/eqn2graph.$format
 
 # End

@@ -12,7 +12,7 @@ afmtodit: afmtodit.pl
 	else \
 	  sed -e "s|@VERSION@|$(version)$(revision)|" \
               -e "s|@FONTDIR@|$(fontdir)|" \
-              $(srcdir)/afmtodit.pl afmtodit; \
+              $(srcdir)/afmtodit.pl >afmtodit; \
 	fi
 	chmod +x afmtodit
 

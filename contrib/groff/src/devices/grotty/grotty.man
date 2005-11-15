@@ -1,6 +1,6 @@
 .ig
 $FreeBSD$
-Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -18,6 +18,8 @@ translations approved by the Free Software Foundation instead of in
 the original English.
 ..
 .
+.do nr grotty_C \n[.C]
+.cp 0
 .
 .TH GROTTY @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
@@ -428,6 +430,8 @@ cell, affecting all subsequent operations.
 .BR more (1),
 .BR man (1),
 .BR less (1)
+.
+.cp \n[grotty_C]
 .
 .\" Local Variables:
 .\" mode: nroff

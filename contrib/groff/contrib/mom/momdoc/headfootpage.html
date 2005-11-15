@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
@@ -10,10 +11,11 @@
 <a href="rectoverso.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="docelement.html#TOP">Prev</a>&nbsp;&nbsp;
 <a href="toc.html">Back to Table of Contents</a>
+<p>
 
 <a name="TOP"></a>
 <a name="HEADFOOTPAGE">
-	<h2 align="center"><u>DOCUMENT HEADERS, FOOTERS, AND PAGINATION</u></h2>
+	<h1 align="center"><u>PAGE HEADERS, FOOTERS, AND PAGINATION</u></h1>
 </a>
 
 <ul>
@@ -24,7 +26,7 @@
 	<li><a href="#DESCRIPTION_GENERAL">General description of headers/footers</a>
 	<li><a href="#HEADER_STYLE">Default specs for headers/footers</a>
 	<li><a href="#VERTICAL_SPACING">Vertical placement and spacing of headers/footers</a>
-	<li><a href="#HEADFOOT_MANAGEMENT">Managing headers/footers</a>
+	<li><a href="#HEADFOOT_MANAGEMENT">Managing headers/footers</a> -- see also <a href="#HEADFOOT_TOC">Control macros for headers/footers</a>
 	<ul>
 		<li><a href="#HEADERS">HEADERS</a> -- on or off
 		<li><a href="#FOOTERS">FOOTERS</a> -- on or off
@@ -35,9 +37,13 @@
 			<li><a href="#HDRFTR_RECTOVERSO">HEADER_RECTO, HEADER_VERSO</a>
 		</ul>
 	</ul>
+	<a name="HEADFOOT_TOC"></a>
 	<li><a href="#HEADFOOT_CONTROL">Control macros for headers/footers</a>
 	<ul>
 		<li><a href="#HDRFTR_STRINGS">Header/footer strings</a>
+		<ul>
+			<li><a href="#RESERVED_STRINGS">Using mom's &quot;reserved&quot; strings in header/footer definitions</a>
+		</ul>
 		<li><a href="#HDRFTR_STYLE">Header/footer style</a>
 		<ul>
 			<li><a href="#HDRFTR_STYLE_GLOBAL">Global style control</a>
@@ -52,6 +58,7 @@
 		<ul>
 			<li><a href="#HDRFTR_RULE">HEADER_RULE</a> -- on or off
 			<li><a href="#HDRFTR_RULE_GAP">HEADER_RULE_GAP</a> -- distance of rule from header/footer
+			<li><a href="#HDRFTR_RULE_COLOR">HEADER_RULE_COLOR</a> -- colour of the header/footer rule
 		</ul>
 	</ul>
 	<li><a href="#PAGINATION">Pagination</a>
@@ -64,7 +71,6 @@
 	<h2><u>Introduction</u></h2>
 </a>
 
-<p>
 <a href="definitions.html#TERMS_HEADER">Headers</a>
 and
 <a href="definitions.html#TERMS_FOOTER">footers</a>,
@@ -110,16 +116,17 @@ correspondingly dense at this point.
 above or below running text is technically a kind of header/footer,
 <strong>mom</strong> and this documentation treat it as a
 separate page element.
+<p>
 
 <a name="DESCRIPTION_GENERAL"><h3><u>General description of headers/footers</u></h3></a>
 <p>
-Headers comprise three distinct parts: a left part, a center part,
+Headers comprise three distinct parts: a left part, a centre part,
 and a right part.  Each part contains text (a &quot;string&quot;)
 that identifies some aspect of the document as a whole.
 <p>
 The left part (&quot;header left&quot;) lines up with the document's
-left margin.  The center part (&quot;header center&quot;) is
-centered on the document's line length.  The right part (&quot;header
+left margin.  The centre part (&quot;header centre&quot;) is
+centred on the document's line length.  The right part (&quot;header
 right&quot;) lines up with the document's right margin.  Not all parts
 need contain a string, and if you don't want headers at all, you can
 turn them off completely.
@@ -134,7 +141,7 @@ to the document type selected with
 <a href="docprocessing.html#DOCTYPE">DOCTYPE</a>.
 You can, however, supply whatever strings you like -- including page
 numbers -- to go in any part of headers.  What's more, you can set the
-family, font, size and capitalisation style (caps or caps/lower-case)
+family, font, size and capitalization style (caps or caps/lower-case)
 for each header part individually.
 <p>
 By default, <strong>mom</strong> prints a horizontal rule beneath
@@ -143,11 +150,12 @@ footers, the rule is <em>above</em> running text.  You can increase
 or decrease the space between the header and the rule if you like (with
 <a href="#HDRFTR_RULE_GAP">HEADER_RULE_GAP</a>),
 or remove it completely.
+<p>
 
 <a name="HEADER_STYLE"><h3><u>Default specs for headers/footers</u></h3></a>
 <p>
 <strong>Mom</strong> makes small type adjustments to each part of
-the header (left, center, right) to achieve an aesthetically
+the header (left, centre, right) to achieve an aesthetically
 pleasing result.  The defaults are listed below.  (The strings
 <strong>mom</strong> puts by default in each part are explained in
 <a href="docprocessing.html#DOCTYPE">DOCTYPE</a>.)
@@ -161,6 +169,7 @@ TYPE SPEC    HEADER LEFT         HEADER CENTER       HEADER RIGHT
 ---------    -----------         -------------       ------------
 Family       document default    document default    document default
 Font         roman               italic              roman
+Colour       (black)             (black)             (black)
 All caps     no                  no                  yes
 Size*        -.5 (points)        -.5 (points)        -2 (points)
             (-2 if all caps)    (-2 if all caps)    (-.5 if not all caps)
@@ -175,7 +184,9 @@ up, <strong>mom</strong> has a special macro,
 that removes all type adjustments to headers.  The straightforward
 type specs for paragraphs are used instead, providing a simple
 reference point for any alterations you want to make to the family,
-font, size and capitalisation style of any header part.
+font, size and capitalization style of any header part.
+<p>
+
 <a name="VERTICAL_SPACING"><h3><u>Vertical placement and spacing of headers/footers</u></h3></a>
 <p>
 As explained in the section on
@@ -184,7 +195,7 @@ the top and bottom margins of a <strong>mom</strong> document
 are the vertical start and end positions of
 <a href="definitions.html#TERMS_RUNNING">running text</a>,
 not the vertical positions of headers or footers, which, by definition,
-appear in the margin <em>above</em> (or below) running text.
+appear in the margins <em>above</em> (or below) running text.
 <p>
 The vertical placement of headers
 is controlled by the macro
@@ -208,7 +219,10 @@ running text at whatever top margin you gave.
 <strong>FOOTER_GAP</strong> and
 <a href="typesetting.html#B_MARGIN">B_MARGIN</a>
 work similarly, except they determine where running text
-<em>ends</em> on the page.
+<em>ends</em> on the page.  (See
+<a href="#FOOTER_MARGIN">FOOTER MARGIN AND BOTTOM MARGIN -- VERY IMPORTANT!</a>
+for a warning about possible conflicts between the footer margin
+and the bottom margin.)
 <p>
 Confused?  <strong>Mom</strong> apologizes.  It's really quite
 simple.  By default, <strong>mom</strong> sets headers 4-1/2
@@ -238,7 +252,7 @@ or the bottom of the page, is managed exactly as if the
 page numbers were headers (or footers), and are controlled
 by the same macros.  See
 <a href="#PAGINATION">Pagination control</a>.
-<br>
+<p>
 <hr>
 
 <!========================================================================>
@@ -272,14 +286,14 @@ automatically turned off.  Equally, if footers are on, headers
 you'd prefer footers in a document, you need only invoke
 <a href="#FOOTERS">FOOTERS</a>;
 there's no need to turn headers off first.
-<br>
+<p>
 
 <!---HEADERS--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HEADERS"></a>
-Macro: <strong>HEADERS</strong> <var>toggle</var>
+<nobr>Macro: <strong>HEADERS</strong> toggle</nobr>
 
 <p>
 <a href="definitions.html#TERMS_HEADER">Page headers</a>
@@ -311,14 +325,14 @@ Explicitly invoking footers moves page numbering to the
 top of the page, where its placement and spacing are the same as
 for headers.  (I.e. the top margin of running text remains 7.5
 picas.)
-<br>
+<p>
 
 <!---FOOTERS--->
 
 <hr width="66%" align="left">
 <p>
 <a name="FOOTERS"></a>
-Macro: <strong>FOOTERS</strong> <var>toggle</var>
+<nobr>Macro: <strong>FOOTERS</strong> toggle</nobr>
 
 <p>
 <a href="definitions.html#TERMS_FOOTER">Page footers</a>
@@ -342,14 +356,14 @@ page of a document, nor on first pages after
 <a href="rectoverso.html#COLLATE">COLLATE</a>.
 If you don't want this behaviour, you can change it with
 <a href="#PAGENUM_ON_FIRST_PAGE">PAGENUM_ON_FIRST_PAGE</a>.
-<br>
+<p>
 
 <!---FOOTER_ON_FIRST_PAGE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="FOOTER_ON_FIRST_PAGE"></a>
-Macro: <strong>FOOTER_ON_FIRST_PAGE</strong> <var>toggle</var>
+<nobr>Macro: <strong>FOOTER_ON_FIRST_PAGE</strong> toggle</nobr>
 
 <p>
 If you invoke
@@ -357,9 +371,9 @@ If you invoke
 <strong>mom</strong>, by default, does not print a footer on the
 first page of the document.  (The
 <a href="definitions.html">docheader</a>
-on page makes it redundant.)  However, should you wish a footer on
+on page 1 makes it redundant.)  However, should you wish a footer on
 page 1, invoke <strong>FOOTER_ON_FIRST_PAGE</strong> without any argument.
-<br>
+<p>
 <hr>
 
 <!---USERDEF_HDRFTR--->
@@ -377,8 +391,8 @@ information contained in the headers/footers split over two pages,
 as is often the case with recto/verso documents.
 <p>
 Say, for example, you want recto page headers to contain a document's
-author, centered, and verso page headers to contain the document's
-title, also centered, like this:
+author, centred, and verso page headers to contain the document's
+title, also centred, like this:
 <p>
 <pre>
 	+------------------------+   +------------------------+     
@@ -403,17 +417,17 @@ With <strong>mom</strong>'s standard 3-part headers, this isn't
 possible, even when
 <a href="rectoverso.html#RECTO_VERSO">RECTO_VERSO</a>
 is enabled.  <strong>RECTO_VERSO</strong> switches the left and
-right parts of headers on alternate pages, but the center
+right parts of headers on alternate pages, but the centre
 part remains unchanged.
 <p>
-Anytime you need distinctly different headers on alternate
+Any time you need distinctly different headers on alternate
 pages, <strong>mom</strong> has macros that let you manually
 design and determine what goes into headers on recto pages, and
 what goes into headers on verso pages.  The macros are
 <a href="#HDRFTR_RECTO">HEADER_RECTO</a>
 and
 <a href="#HDRFTR_VERSO">HEADER_VERSO</a>.
-Both allow you to state whether the header is flush left, centered,
+Both allow you to state whether the header is flush left, centred,
 or flush right, and both take a single
 <a href="definitions.html#TERMS_STRINGARGUMENT">string argument</a>
 with which, by combining text and
@@ -421,18 +435,19 @@ with which, by combining text and
 you can make the headers come out just about any way you want.
 Use of the <strong>\*[PAGE#]</strong> escape is permitted in the
 string argument (see
-<a href="#PAGE_NUMBER_INCL">Including the page number in header-left, -center or -right</a>),
-and <strong>mom</strong> provides a special mechanism whereby
-it's possible to &quot;pad&quot; it as well.
-<br>
+<a href="#PAGE_NUMBER_INCL">Including the page number in header-left, -centre or -right</a>),
+and as an added bonus, <strong>mom</strong> provides a special
+mechanism whereby it's possible to &quot;pad&quot; the string as well.
+<p>
 
 <!---HDRFTR_RECTOVERSO--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HDRFTR_RECTOVERSO"></a>
-Macro: <strong>HEADER_RECTO</strong> <var>LEFT | CENTER | RIGHT &quot;&lt;header recto string&gt;&quot;</var>
-Macro: <strong>HEADER_VERSO</strong> <var>LEFT | CENTER | RIGHT &quot;&lt;header verso string&gt;&quot;</var>
+<nobr>Macro: <strong>HEADER_RECTO</strong> LEFT | CENTER | RIGHT &quot;&lt;header recto string&gt;&quot;</nobr>
+<br>
+<nobr>Macro: <strong>HEADER_VERSO</strong> LEFT | CENTER | RIGHT &quot;&lt;header verso string&gt;&quot;</nobr>
 <br>
 
 <p>
@@ -451,7 +466,10 @@ place of <strong>LEFT, CENTER</strong> and
 surrounded by double-quotes, containing what you want in the
 header.  <strong>HEADER_RECTO</strong> disables <strong>mom</strong>'s
 normal 3-part headers, therefore anything you want in the
-headers must be entered by hand in the string.
+headers must be entered by hand in the string, including colours
+(via the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+<a href="color.html#COLOR_INLINE">\*[&lt;colorname&gt;]</a>).
 <p>
 By default, <strong>HEADER_RECTO</strong> is set at the same
 size, and in the same family and font, as paragraph text.  The
@@ -471,9 +489,9 @@ inline escapes.
 <p>
 To include the current page number in the string, use the
 <strong>\*[PAGE#]</strong> inline.
+<br>
 
-<h3><u>Padding the HEADER_RECTO/HEADER_VERSO string</u></h3>
-<p>
+<h3><u>*Padding the HEADER_RECTO/HEADER_VERSO string</u></h3>
 You can &quot;pad&quot; the header-recto string, a convenience you'll
 appreciate in circumstances such as the following.
 <p>
@@ -504,7 +522,9 @@ point in the string where you want an equalized amount of whitespace
 inserted.  (If you're unsure what padding is, see
 <a href="goodies.html#PAD">Insert space into lines</a>.)
 Note that if you're padding the string, it doesn't matter what
-quad direction you give <strong>HEADER_RECTO</strong>.
+quad direction you give <strong>HEADER_RECTO</strong> since
+padding, by its nature, justifies text to the left and right
+margins.
 <p>
 The situation depicted above is accomplished like this:
 <p>
@@ -517,6 +537,16 @@ Note that <strong>mom</strong> does not interpret the <kbd>#</kbd>
 in <strong>\*[PAGE#]</strong> as a padding marker (i.e. as a place
 to insert whitespace).
 <p>
+Also, notice that the argument <strong>LEFT</strong> is used in both
+cases.  When padding a header, it doesn't matter whether you use
+LEFT, CENTER or RIGHT as the argument.
+<p>
+Furthermore, should you need a user-defined header of
+the sort provided by <strong>HEADER_RECTO</strong> and
+<strong>HEADER_VERSO</strong> but aren't actually printing
+recto/verso, you can use <strong>HEADER_RECTO</strong> to design the
+header that appears at the top of every page.
+<p>
 <strong>IMPORTANT:</strong> The
 <a href="goodies.html#PAD_MARKER">PAD_MARKER</a>
 macro, which changes the default pad marker (<kbd>#</kbd>) used by
@@ -524,20 +554,20 @@ macro, which changes the default pad marker (<kbd>#</kbd>) used by
 has no effect on the pad marker used in the
 <strong>HEADER_RECTO</strong> string.  If you absolutely must
 have a literal pound sign in your <strong>HEADER_RECTO</strong>
-string, use the escape sequence <kbd>\N'35'</kbd> where you want
-the pound sign to go.
-<br>
+string, use the escape sequence for the pound sign
+(<kbd>\[sh]</kbd>) where you want the pound sign to go.
+<p>
 <hr>
 
 <a name="HEADFOOT_CONTROL">
 	<h2><u>Control macros for headers/footers</u></h2>
 </a>
-<p>
 Virtually every part of headers (see the paragraph on how
 <a href="#HEADERFOOTER">&quot;headers&quot; means &quot;footers&quot;</a>
 in the
 <a href="#HEADFOOTPAGE_INTRO">introduction to headers/footers</a>)
 can be designed to your own specifications.
+<p>
 
 <a name="INDEX_REFERENCE">
 	<h3><u>Header/footer control macros</u></h3>
@@ -548,23 +578,28 @@ can be designed to your own specifications.
 	<ul>
 		<li><a href="#HDRFTR_LEFT">HEADER_LEFT</a>
 		<li><a href="#HDRFTR_CENTER">HEADER_CENTER</a>
+		<ul>
+			<li><a href="#HDRFTR_CENTER_PAD">HEADER_CENTER_PAD</a> -- stick some space left of right of the centre string
+		</ul>
 		<li><a href="#HDRFTR_RIGHT">HEADER_RIGHT</a>
-		<li><a href="#PAGE_NUMBER_SYMBOL">Replacing header left, center or right with the page number</a>
-		<li><a href="#PAGE_NUMBER_INCL">Including the  page number in header left, center or right</a>
+		<li><a href="#PAGE_NUMBER_SYMBOL">Replacing header left, centre or right with the page number</a>
+		<li><a href="#PAGE_NUMBER_INCL">Including the  page number in header left, centre or right</a>
 	</ul>
 	<li><a href="#HDRFTR_STYLE"><strong>STYLE</strong></a>
 	<ul>
 		<li><a href="#HDRFTR_STYLE_GLOBAL"><strong>Global changes</strong></a>
 		<li><a href="#HDRFTR_GLOBAL_FAMILY">HEADER_FAMILY</a>&nbsp;-- family for entire header
 		<li><a href="#HDRFTR_GLOBAL_SIZE">HEADER_SIZE</a>&nbsp;&nbsp;&nbsp;-- size for entire header
-		<li><a href="HDRFTR_PLAIN">HDRFTR_PLAIN</a>&nbsp;&nbsp;-- disable default adjustments to header parts
+		<li><a href="#HDRFTR_PLAIN">HEADER_PLAIN</a>&nbsp;&nbsp;-- disable default adjustments to header parts
+		<li><a href="#HDRFTR_COLOR">HEADER_COLOR</a>&nbsp;&nbsp;-- colourize the header
 	</ul>
 	<ul>
 		<li><a href="#HDRFTR_STYLE_PART"><strong>Part-by-part changes</strong></a>
-		<li><a href="#_FAMILY">_FAMILY</a>&nbsp;-- left, center or right family
-		<li><a href="#_FONT">_FONT</a>&nbsp;&nbsp;&nbsp;-- left, center or right font
-		<li><a href="#_SIZE">_SIZE</a>&nbsp;&nbsp;&nbsp;-- left, center or right size
-		<li><a href="#_CAPS">_CAPS</a>&nbsp;&nbsp;&nbsp;-- left, center or right all caps
+		<li><a href="#_FAMILY">_FAMILY</a>&nbsp;-- left, centre or right family
+		<li><a href="#_FONT">_FONT</a>&nbsp;&nbsp;&nbsp;-- left, centre or right font
+		<li><a href="#_SIZE">_SIZE</a>&nbsp;&nbsp;&nbsp;-- left, centre or right size
+		<li><a href="#_CAPS">_CAPS</a>&nbsp;&nbsp;&nbsp;-- left, centre or right all caps
+		<li><a href="#_COLOR">_COLOR</a>&nbsp;&nbsp;-- left, centre or right colour
 	</ul>
 	<li><a href="#HDRFTR_VERTICAL"><strong>VERTICAL PLACEMENT AND SPACING</strong></a>
 	<ul>
@@ -575,6 +610,7 @@ can be designed to your own specifications.
 	<ul>
 		<li><a href="#HDRFTR_RULE">HEADER_RULE</a>
 		<li><a href="#HDRFTR_RULE_GAP">HEADER_RULE_GAP</a>
+		<li><a href="#HDRFTR_RULE_COLOR">HEADER_RULE_COLOR</a>
 	</ul>
 </ul>
 
@@ -584,20 +620,20 @@ can be designed to your own specifications.
 <a name="HDRFTR_STRINGS"><h3><u>Header/footer strings</u></h3></a>
 <p>
 <a name="HDRFTR_LEFT">
-	Macro: <strong>HEADER_LEFT</strong> <var>&quot;&lt;text of header left&gt;&quot; | #</var>
+	<nobr>Macro: <strong>HEADER_LEFT</strong> &quot;&lt;text of header left&gt;&quot; | #</nobr>
 </a>
 <br>
 <a name="HDRFTR_CENTER">
-	Macro: <strong>HEADER_CENTER</strong> <var>&quot;&lt;text of header center&gt;&quot; | #</var>
+	<nobr>Macro: <strong>HEADER_CENTER</strong> &quot;&lt;text of header centre&gt;&quot; | #</nobr>
 </a>
 <br>
 <a name="HDRFTR_RIGHT">
-	Macro: <strong>HEADER_RIGHT</strong> <var>&quot;&lt;text of header right&gt;&quot; | #</var>
+	<nobr>Macro: <strong>HEADER_RIGHT</strong> &quot;&lt;text of header right&gt;&quot; | #</nobr>
 </a>
 
 <p>
-To change the text (the &quot;string&quot;) of the left, center,
-or right part of headers, invoke the appopriate macro above with
+To change the text (the &quot;string&quot;) of the left, centre,
+or right part of headers, invoke the appropriate macro above with
 the string you want.  For example, <strong>mom</strong>, by default,
 prints the document's author in the header-left position.  If your
 document has, say, two authors, and you want both their names to
@@ -614,11 +650,155 @@ they must be enclosed in double-quotes.
 <p>
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to change the strings in footers.
+
+<a name="HDRFTR_CENTER_PAD"><h3><u>*Padding the header/footer centre string</u></h3></a>
+<p>
+<nobr>Macro: <strong>HEADER_CENTER_PAD</strong> LEFT | RIGHT &lt;amount of space by which to pad centre string left or right&gt;</nobr>
 <br>
+<em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
+<p>
+By default, <strong>mom</strong> centres the header centre string
+literally on the line length in effect for page headers.  In some
+cases, notably when the header left or header right strings are
+particularly long, the effect isn't pretty.  The offendingly long
+header left or right crowds, or even overprints, the header centre.
+That's where <strong>HEADER_CENTER_PAD</strong> comes in.  With a
+bit of experimentation (yes, you have to preview the document), you
+can use <strong>HEADER_CENTER_PAD</strong> to move the header
+centre string left or right until it looks acceptably centred
+between the two other strings.
+<p>
+For example, say your document is an outline for a novel called "By
+the Shores of Lake Attica."  You've told <strong>mom</strong>
+you want
+<p>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="docprocessing.html#DOCTYPE">DOCTYPE</a>
+<halign="center">
+<strong>NAMED</strong> "Outline"
+<p>
+but when you preview your work, you see that "Outline", in the
+centre of the page header, is uncomfortably close to the title,
+which is to the right of it.  By invoking
+<p>
+<pre>
+	.HEADER_CENTER_PAD RIGHT 3P
+</pre>
+
+you can scoot the word "Outline" over three
+<a href="definitions.html#TERMS_PICASPOINTS">picas</a>
+to the left (the padding's added to the right of the string)
+so that your head looks nicely spaced out.  Invoking
+<strong>HEADER_CENTER_PAD</strong> with the <strong>LEFT</strong>
+argument obviously puts the padding on the left side of the string.
+<p>
+Most reassuring of all is that if you use
+<strong>HEADER_CENTER_PAD</strong> conjunction with
+<a href="rectoverso.html#RECTO_VERSO">RECTO_VERSO</a>,
+<strong>mom</strong> will pad the centre string appropriately left
+OR right, depending on which page you're on, without you having to
+tell her to do so.
+<p>
+
+<hr width="66%" align="left">
+<p>
+<a name="RESERVED_STRINGS"><h3><u>Using mom's &quot;reserved&quot; strings in header/footer definitions</u></h3></a>
+<p>
+As pointed out in the author's note in the introduction to
+headers/footers, headers and footers are something you don't
+normally have to worry much about.  <strong>Mom</strong> usually
+knows what to do.
+<p>
+However, situations do arise where you need to manipulate what goes
+in the header/footer strings, setting and resetting them as you go
+along.  A case where you might want to do this would be if you want
+to output endnotes at the end of each document in a series of
+<a href="rectoverso.html#COLLATE">collated</a>
+documents, and you want the word "Endnotes" to go in the header
+centre position of the endnotes, but want, say, the
+<a href="docprocessing.html#TITLE">TITLE</a>
+to go back into the centre position for the next output document.
+<p>
+In scenarios like the above, <strong>mom</strong> has a number of
+&quot;reserved&quot; strings that you can plug into the
+<strong>HEADER_LEFT, _CENTER</strong> and <strong>_RIGHT</strong>
+macros.  They are:
+<p>
+<pre>
+	\*[$TITLE]          -- the argument passed to .TITLE
+	\*[$DOCTITLE]       -- the argument passed to .DOCTITLE
+	\*[$AUTHOR_1]       -- the first argument passed to .AUTHOR
+	\*[$CHAPTER_STRING] -- the argument passed to .CHAPTER_STRING,
+	                       if invoked, otherwise, "Chapter"
+	\*[$CHAPTER]        -- the argument (typically a number) passed
+	                       to .CHAPTER
+	\*[$CHAPTER_TITLE]  -- the argument passed to .CHAPTER_TITLE
+</pre>
+
+Returning to the scenario above, first, you'd define a centre
+string for the endnotes page:
+<p>
+<pre>
+	.HEADER_CENTER "Endnotes"
+</pre>
+
+Then, you'd output the endnotes:
+<p>
+<pre>
+	.ENDNOTES
+</pre>
+
+Then, you'd prepare <strong>mom</strong> for the next document:
+<p>
+<pre>
+	.COLLATE
+	.TITLE "New Doc Title"
+	.AUTHOR "Josephine Blough"
+</pre>
+
+Then, you'd redefine the header centre string using the reserved
+string \*[$TITLE], like this:
+<p>
+<pre>
+	.HEADER_CENTER "\*[$TITLE]"
+</pre>
+
+And last, you'd do:
+<p>
+<pre>
+	.START
+</pre>
+
+Voilà!  Any argument you pass to <strong>TITLE</strong> from here
+on in (say, for subsequent documents) is back in the header centre
+position.  Here's the whole routine again:
+<p>
+<pre>
+	.HEADER_CENTER "Endnotes"
+	.ENDNOTES
+	.COLLATE
+	.TITLE         "New Doc Title"
+	.AUTHOR        "Josephine Blough"
+	.HEADER_CENTER "\*[$TITLE]"
+	.START
+</pre>
+
+If need be, you can concatenate the strings, as in the following
+example.
+<p>
+<pre>
+	.HEADER_CENTER "\*[$CHAPTER_STRING] \*[$CHAPTER]"
+</pre>
+
+which, assuming a <strong>.CHAPTER_STRING</strong> of
+&quot;Chapter&quot; and a <strong>.CHAPTER</strong> of
+&quot;2&quot;, would put &quot;Chapter 2&quot; in the header centre
+position.
+<p>
 
 <a name="PAGE_NUMBER_SYMBOL">
-	<h3><u>Replacing header-left, -center or -right with the page number</u></h3>
+	<h3><u>*Replacing header-left, -CENTER or -right with the page number</u></h3>
 </a>
+<p>
 If you would like to have the current page number to appear 
 header-left, -center, or -right <em>instead</em> of a text
 string, invoke the appropriate macro, above, with the single
@@ -630,12 +810,14 @@ double-quotes.  For example,
 	.HEADER_CENTER #
 </pre> 
 
-will print the current page number in the center part of
+will print the current page number in the CENTER part of
 headers.
+<p>
 
 <a name="PAGE_NUMBER_INCL">
-	<h3><u>Including the page number in header-left, -center or -right</u></h3>
+	<h3><u>*Including the page number in header-left, -CENTER or -right</u></h3>
 </a>
+<p>
 If you would like to <em>include</em> the current page number in
 the string you pass to <strong>HEADER_LEFT, _CENTER,</strong> or
 <strong>_RIGHT</strong>, use the special
@@ -653,7 +835,7 @@ invoke <strong>HEADER_RIGHT</strong> as follows:
 Header-right of page two will read &quot;page 2 of 10&quot;,
 header-right of page three will read &quot;page 3 of 10&quot;,
 and so on.
-<br>
+<p>
 <hr>
 
 <!---HDRFTR_STYLE--->
@@ -674,12 +856,13 @@ Please note that <strong>HEADER_FAMILY</strong> and
 	<li><a href="#HDRFTR_GLOBAL_FAMILY">HEADER_FAMILY</a>
 	<li><a href="#HDRFTR_GLOBAL_SIZE">HEADER_SIZE</a>
 	<li><a href="#HDRFTR_PLAIN">HEADER_PLAIN</a>
+	<li><a href="#HDRFTR_COLOR">HEADER_COLOR</a>
 </ul>
 
 <hr width="33%" align="left">
 <p>
 <a name="HDRFTR_GLOBAL_FAMILY">
-	Macro: <strong>HEADER_FAMILY</strong> <var>&lt;family&gt;</var>
+	<nobr>Macro: <strong>HEADER_FAMILY</strong> &lt;family&gt;</nobr>
 </a>
 
 <p>
@@ -693,12 +876,12 @@ typesetting macro
 <p>
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to change the footer family.
-<br>
+<p>
 
 <hr width="33%" align="left">
 <p>
 <a name="HDRFTR_GLOBAL_SIZE">
-	Macro: <strong>HEADER_SIZE</strong> <var>&lt;+|-number of points&gt;</var>
+	<nobr>Macro: <strong>HEADER_SIZE</strong> &lt;+|-number of points&gt;</nobr>
 	<br>
 	<em>*Argument is relative to the point size of type in paragraphs</em>
 </a>
@@ -740,7 +923,7 @@ You'll most likely require this when the
 <a href="docprocessing.html#COPYSTYLE">COPYSTYLE</a>
 is <strong>DRAFT</strong>, since portions of the header may overprint
 if, say, the title of your document is very long.
-<br>
+<p>
 
 <hr width="33%" align="left">
 <p>
@@ -762,7 +945,33 @@ and point size as she uses in paragraphs.
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to disable <strong>mom</strong>'s
 default behaviour for the various elements of footer style.
-<br>
+<p>
+
+<hr width="33%" align="left">
+<p>
+<a name="HDRFTR_COLOR">
+	<nobr>Macro: <strong>HEADER_COLOR</strong> &lt;colorname&gt;</nobr>
+</a>
+
+<p>
+If you want your headers in a colour different from the document
+default (usually black), invoke <strong>HEADER_COLOR</strong> with
+the name of a colour pre-defined (or &quot;initialized&quot;) with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+<p>
+<strong>HEADER_COLOR</strong> will set all the parts of the header
+AND the header rule in the colour you give it as an argument.  If
+you wish finer control over colour in headers, you can use
+<a href="#_COLOR">HEADER_&lt;POSITION&gt;_COLOR</a>
+to colourize each part of the header separately, as well as
+<a href="#HDRFTR_RULE_COLOR">HEADER_RULE_COLOR</a>
+to change the colour of the header rule.
+<p>
+<strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
+with <strong>FOOTER_</strong> to colourize footers.
+<p>
 
 <hr width="66%" align="left">
 <p>
@@ -777,12 +986,13 @@ or <strong>RIGHT</strong> as appropriate.
 	<li><a href="#_FONT">HEADER_&lt;POSITION&gt;_FONT</a>
 	<li><a href="#_SIZE">HEADER_&lt;POSITION&gt;_SIZE</a>
 	<li><a href="#_CAPS">HEADER_&lt;POSITION&gt;_CAPS</a>
+	<li><a href="#_COLOR">HEADER_&lt;POSITION&gt;_COLOR</a>
 </ul>
 
 <hr width="33%" align="left">
 <p>
 <a name="_FAMILY">
-	Macro: <strong>HEADER_&lt;POSITION&gt;_FAMILY</strong> <var>&lt;family&gt;</var>
+	<nobr>Macro: <strong>HEADER_&lt;POSITION&gt;_FAMILY</strong> &lt;family&gt;</nobr>
 </a>
 <p>
 Use <strong>HEADER_&lt;POSITION&gt;_FAMILY</strong> to change the
@@ -794,12 +1004,12 @@ for an explanation of how control macros ending in
 <p>
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to change a footer part's family.
-<br>
+<p>
 
 <hr width="33%" align="left">
 <p>
 <a name="_FONT">
-	Macro: <strong>HEADER_&lt;POSITION&gt;_FONT</strong> <var>&lt;font&gt;</var>
+	<nobr>Macro: <strong>HEADER_&lt;POSITION&gt;_FONT</strong> &lt;font&gt;</nobr>
 </a>
 <p>
 Use <strong>HEADER_&lt;POSITION&gt;_FONT</strong> to change the
@@ -811,12 +1021,12 @@ for an explanation of how control macros ending in
 <p>
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to change a footer part's font.
-<br>
+<p>
 
 <hr width="33%" align="left">
 <p>
 <a name="_SIZE">
-	Macro: <strong>HEADER_&lt;POSITION&gt;_SIZE</strong> <var>&lt;+|-number of points&gt;</var>
+	<nobr>Macro: <strong>HEADER_&lt;POSITION&gt;_SIZE</strong> &lt;+|-number of points&gt;</nobr>
 </a>
 <p>
 Use <strong>HEADER_&lt;POSITION&gt;_SIZE</strong> to change the size of any
@@ -828,12 +1038,12 @@ for an explanation of how control macros ending in
 <p>
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to change a footer part's size.
-<br>
+<p>
 
 <hr width="33%" align="left">
 <p>
 <a name="_CAPS">
-	Macro: <strong>HEADER_&lt;POSITION&gt;_CAPS</strong> <var>toggle</var>
+	<nobr>Macro: <strong>HEADER_&lt;POSITION&gt;_CAPS</strong> toggle</nobr>
 </a>
 <p>
 <strong>HEADER_&lt;POSITION&gt;_CAPS</strong> is a
@@ -853,7 +1063,50 @@ QUIT, END, X...</strong>).
 <strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
 with <strong>FOOTER_</strong> to change a footer part's
 capitalization style.
-<br>
+
+<p>
+<hr width="33%" align="left">
+<p>
+<a name="_COLOR">
+	<nobr>Macro: <strong>HEADER_&lt;POSITION&gt;_COLOR</strong> &lt;colorname&gt;</nobr>
+</a>
+<p>
+<strong>HEADER_&lt;POSITION&gt;_COLOR</strong> allows you to set a
+colour for each of the three possible parts of a page header
+separately.  For example, say you want the right part of the header
+(by default, the document title) in red, this is how you'd get it:
+<p>
+<pre>
+	.HEADER_RIGHT_COLOR red
+</pre>
+
+The other parts of the header will be in the default header colour
+(usually black, but that can be changed with
+<a href="#HDRFTR_COLOR">HEADER_COLOR</a>).
+<p>
+Remember that you have to define (or &quot;initialize&quot;) a
+colour with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>
+before you can use the colour.
+<p>
+If you create a
+<a href="#USERDEF_HDRFTR">user-defined header</a>
+with
+<a href="#HDRFTR_RECTO">HEADER_RECTO</a>
+or
+<a href="#HDRFTR_VERSO">HEADER_VERSO</a>,
+and you want various elements within the header to be colourized,
+embed the colours in the string passed to <strong>HEADER_RECTO</strong>
+or <strong>HEADER_VERSO</strong> with the
+<a href="color.html#COLOR_INLINE">\*[&lt;colorname&gt;]</a>
+<a href="definitions.html#TERMS_INLINES">inline escape</a>.
+<p>
+<strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
+with <strong>FOOTER_</strong> to set the colours for the various
+elements of footers.
+<p>
 <hr>
 
 <!---HDRFTR_VERTICAL--->
@@ -867,14 +1120,14 @@ See
 <a href="#VERTICAL_SPACING">Vertical placement and spacing of headers/footers</a>
 for an explanation of how <strong>mom</strong> deals with
 headers, footers, and top/bottom page margins.
-<br>
+<p>
 
 <!---HDRFTR_MARGIN--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HDRFTR_MARGIN"></a>
-Macro: <strong>HEADER_MARGIN</strong> <var>&lt;distance to baseline of header&gt;</var>
+<nobr>Macro: <strong>HEADER_MARGIN</strong> &lt;distance to baseline of header&gt;</nobr>
 <br>
 <em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
 
@@ -902,11 +1155,60 @@ edge of the page to the baseline of type in footers.
 <p>
 <strong>Mom</strong>'s default footer margin is 3 
 <a href="definitions.html#TERMS_PICASPOINTS">picas</a>.
+
+<a name="FOOTER_MARGIN"></a>
 <p>
-<strong>NOTE:</strong> <strong>Mom</strong> uses
-<strong>HEADER_MARGIN</strong> and
+<strong>FOOTER MARGIN AND BOTTOM MARGIN -- VERY IMPORTANT!</strong> 
+<p>
+<strong>Mom</strong> requires a footer margin for proper operation,
+hence she sets one, even if you don't.  (As stated above, her default
+footer margin is 3-picas).
+<p>
+If you set a bottom margin for your document (with
+<a href="typesetting.html#B_MARGIN">B_MARGIN</a>,
+prior to
+<a href="docprocessing.html#START">START</a>)
+and the margin's too close to <strong>mom</strong>'s default
+footer margin (or a footer margin you set yourself
+with <strong>FOOTER_MARGIN</strong>), <strong>mom</strong> will
+not print your footers; additionally, she'll give you a warning
+and some advice on standard error.  When this happens, you must
+reset either <strong>B_MARGIN</strong> or
+<strong>FOOTER_MARGIN</strong> so there's an adequate amount of
+space for <strong>mom</strong> to print the bottom line of running
+text and the footer.
+<p>
+If you see the warning even when footers and/or bottom-of-page page
+numbering are disabled, set a nominal footer margin of 0 prior to
+<a href="docprocessing.html#START">START</a>,
+as in these examples.
+<p>
+<strong>Example 1</strong>
+<p>
+<pre>
+	&lt;reference macros, etc&gt;
+	.PAGINATION    OFF
+	.B_MARGIN      .25i
+	.FOOTER_MARGIN O
+	.START
+</pre>
+
+<strong>Example 2</strong>
+<p>
+<pre>
+	&lt;reference macros, etc&gt;
+	.HEADERS       OFF
+	.PAGENUM_POS   TOP RIGHT
+	.B_MARGIN      .25i
+	.FOOTER_MARGIN O
+	.START
+</pre>
+
+<h3>A note on header/footer margins and page numbering</h3>
+<strong>Mom</strong> uses HEADER_MARGIN</strong> and
 <strong>FOOTER_MARGIN</strong> to establish the baseline
-position of page numbers in addition to headers and footers.
+position of page numbers in addition to the baseline position of
+headers and footers.
 <p>
 By default, page numbers appear at the bottom of the page, therefore
 if you want the default position (bottom), but want to change the
@@ -918,14 +1220,14 @@ there with
 <a href="#PAGENUM_POS">PAGENUM_POS</a>,
 you'd use <strong>HEADER_MARGIN</strong> to change their
 baseline placement.
-<br>
+<p>
 
 <!---HDRFTR_GAP--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HDRFTR_GAP"></a>
-Macro: <strong>HEADER_GAP</strong> <var>&lt;distance from header to start of running text&gt;</var>
+<nobr>Macro: <strong>HEADER_GAP</strong> &lt;distance from header to start of running text&gt;</nobr>
 <br>
 <em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
 
@@ -950,7 +1252,7 @@ top margin.
 <p>
 <strong>Mom</strong>'s default header gap is 3
 <a href="definitions.html#TERMS_PICASPOINTS">picas</a>,
-but if you want a different gap, say, 2 centimeters, do
+but if you want a different gap, say, 2 centimetres, do
 <p>
 <pre>
 	.HEADER_GAP 2c
@@ -987,7 +1289,7 @@ the last line of running text and a bottom page number, use
 <strong>FOOTER_GAP</strong>.  If page numbers are at the top of the
 page, change the gap between the number and the first line of running
 text with <strong>HEADER_GAP</strong>.
-<br>
+<p>
 <hr>
 
 <!---HDRFTR_SEPARATOR--->
@@ -1010,14 +1312,14 @@ footer), you can alter its placement.
 <ul>
 	<li><a href="#HDRFTR_RULE">HEADER_RULE</a> -- on or off
 	<li><a href="#HDRFTR_RULE_GAP">HEADER_RULE_GAP</a> -- distance of rule from header
-</ul
+</ul>
 
 <!---HDRFTR_RULE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HDRFTR_RULE"></a>
-Macro: <strong>HEADER_RULE</strong> <var>toggle</var>
+<nobr>Macro: <strong>HEADER_RULE</strong> toggle</nobr>
 
 <p>
 By default, <strong>mom</strong> prints a header separator rule
@@ -1036,14 +1338,14 @@ without any argument.
 with <strong>FOOTER_</strong> to enable/disable the printing of
 the footer separator rule.  (Most likely, if you're using
 <a href="#FOOTERS">FOOTERS</a>, you'll want it off.)
-<br>
+<p>
 
 <!---HDRFTR_RULE_GAP--->
 
 <hr width="66%" align="left">
 <p>
 <a name="HDRFTR_RULE_GAP"></a>
-Macro: <strong>HEADER_RULE_GAP</strong> <var>distance of rule beneath header</var>
+<nobr>Macro: <strong>HEADER_RULE_GAP</strong> distance of rule beneath header</nobr>
 <br>
 <em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
 
@@ -1057,7 +1359,7 @@ required, and decimal fractions are allowed.  Please note that
 (i.e. <strong>HEADER_RULE_GAP</strong> is NOT added to
 <strong>HEADER_GAP</strong> when <strong>mom</strong> calculates
 the space between headers and the start of
-<a href="definitions.html#TERMS_RUNNING">running text</a>.
+<a href="definitions.html#TERMS_RUNNING">running text</a>).
 <p>
 By default, the header rule gap is 4
 <a href="definitions.html#TERMS_PICASPOINTS">points</a>.
@@ -1087,7 +1389,34 @@ footer or <strong>mom</strong> may not get the rule gap right.
 Inline changes to the size of type in
 <strong>FOOTER_RECTO</strong> and <strong>FOOTER_VERSO</strong>
 should always be negative (smaller) than the default.
-<br>
+<p>
+
+<!---HDRFTR_RULE_COLOR--->
+
+<hr width="66%" align="left">
+<p>
+<a name="HDRFTR_RULE_COLOR"></a>
+<nobr>Macro: <strong>HEADER_RULE_COLOR</strong> &lt;colorname&gt;</nobr>
+
+<p>
+If you wish to change the colour of the header rule, invoke
+<strong>HEADER_RULE_COLOR</strong> with the name of a colour
+pre-defined (or &quot;initialized&quot;) with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+<p>
+Please note that <strong>HEADER_RULE_COLOR</strong> overrides the
+colour set with
+<a href="#HDRFTR_COLOR">HDRFTR_COLOR</a>,
+so that it's possible to have the heads entirely in, say, blue (set
+with <strong>HEADER_COLOR</strong>), and the header rule in, say,
+red.
+<p>
+<strong>NOTE:</strong> Replace <strong>HEADER_</strong>, above,
+with <strong>FOOTER_</strong> to change the colour of the footer
+rule.
+<p>
 <hr>
 
 <a name="PAGINATION">
@@ -1096,11 +1425,11 @@ should always be negative (smaller) than the default.
 
 <p>
 By default, <strong>mom</strong> paginates documents.  Page numbers
-appear in the bottom margin of the page, centered between two hyphens.
+appear in the bottom margin of the page, centred between two hyphens.
 As with all elements of <strong>mom</strong>'s document processing,
 most aspects of pagination style can be altered to suit your taste
 with control macros.
-<br>
+<p>
 
 <a name="INDEX_PAGINATION">
 	<h3><u>Pagination macros list</u></h3>
@@ -1114,14 +1443,14 @@ with control macros.
 	<li><a href="#DRAFT_WITH_PAGENUMBER">DRAFT_WITH_PAGENUMBER</a> -- attach draft/revision information to page numbers
 	<li><a href="#PAGINATE_CONTROL">Control macros</a>
 </ul>
-<br>
+<p>
 
 <!---PAGINATE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="PAGINATE"></a>
-Macro: <strong>PAGINATE</strong> <var>toggle</var>
+<nobr>Macro: <strong>PAGINATE</strong> toggle</nobr>
 <br>
 Alias: <strong>PAGINATION</strong>
 
@@ -1137,14 +1466,14 @@ NO, QUIT, END, X...</strong>), e.g.
 
 To (re)start pagination, invoke <strong>PAGINATE</strong>
 without any argument.
-<br>
+<p>
 
 <!---PAGENUMBER--->
 
 <hr width="66%" align="left">
 <p>
 <a name="PAGENUMBER"></a>
-Macro: <strong>PAGENUMBER</strong> <var>&lt;number&gt;</var>
+<nobr>Macro: <strong>PAGENUMBER</strong> &lt;number&gt;</nobr>
 
 <p>
 As is to be expected, pagination of documents begins at page 1.
@@ -1157,34 +1486,34 @@ number on the first page of a document, invoke
 any time to tell <strong>mom</strong> what number you want a
 page to have.  Subsequent page numbers will, of course, be
 incremented by 1 from that number.
-<br>
+<p>
 
 <!---PAGENUM_STYLE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="PAGENUM_STYLE"></a>
-Macro: <strong>PAGENUM_STYLE</strong> <var>DIGIT | ROMAN | roman | ALPHA | alpha</var>
+<nobr>Macro: <strong>PAGENUM_STYLE</strong> DIGIT | ROMAN | roman | ALPHA | alpha</nobr>
 
 <p>
 <strong>PAGENUM_STYLE</strong> lets you tell
 <strong>mom</strong> what kind of page numbering you want.
 <p>
 <table valign="baseline" summary="pagenumstyle">
-<tr><td>DIGIT<td align="center" width="15">=<td>arabic digits (1, 2, 3...)
+<tr><td>DIGIT<td align="center" width="15">=<td>Arabic digits (1, 2, 3...)
 <tr><td>ROMAN<td align="center" width="15">=<td>upper case roman numerals (I, II, III...)
 <tr><td>roman<td align="center" width="15">=<td>lower case roman numerals (i, ii, iii...)
 <tr><td>ALPHA<td align="center" width="15">=<td>upper case letters (A, B, C...)
 <tr><td>alpha<td align="center" width="15">=<td>lower case letters (a, b, c...)</td></tr>
 </table>
-<br>
+<p>
 
 <!---PAGENUM_ON_FIRST_PAGE--->
 
 <hr width="66%" align="left">
 <p>
 <a name="PAGENUM_ON_FIRST_PAGE"></a>
-Macro: <strong>PAGENUM_ON_FIRST_PAGE</strong> <var>toggle</var>
+<nobr>Macro: <strong>PAGENUM_ON_FIRST_PAGE</strong> toggle</nobr>
 
 <p>
 This macro applies only if you've enabled
@@ -1207,7 +1536,7 @@ page of a document, but do want one on pages that appear after
 <a href="docprocessing.html#START">START</a>
 of the document, then invoke it either just before or after your
 first <strong>COLLATE</strong>.
-<br>
+<p>
 
 <!---DRAFT_WITH_PAGENUMBER--->
 
@@ -1219,7 +1548,7 @@ Macro: <strong>DRAFT_WITH_PAGENUMBER</strong>
 <p>
 Sometimes, in
 <a href="docprocessing.html#COPYSTYLE">COPYSTYLE DRAFT</a>,
-the center part of page headers gets overcrowded because of the draft
+the CENTER part of page headers gets overcrowded because of the draft
 and revision information that go there by default.
 <strong>DRAFT_WITH_PAGENUMBER</strong> is one way to 
 fix the problem.
@@ -1236,7 +1565,7 @@ See the note in
 <a href="docprocessing.html#COPYSTYLE">COPYSTYLE DRAFT</a>
 for other ways of dealing with crowded page headers when formatting
 draft-style copy.
-<br>
+<p>
 <hr>
 
 <!---PAGINATE_CONTROL--->
@@ -1244,12 +1573,12 @@ draft-style copy.
 <a name="PAGINATE_CONTROL"><h3><u>Pagination control macros</u></h3></a>
 
 <ol>
-	<li><a href="#PAGINATE_GENERAL">Family/font/size</a>
+	<li><a href="#PAGINATE_GENERAL">Family/font/size/colour</a>
 	<li><a href="#PAGENUM_POS">Page number position (vertical and horizontal)</a>
 	<li><a href="#PAGENUM_HYPHENS">Enclose page numbers with hyphens (on or off)</a>
 </ol>
 <br>
-<a name="PAGINATE_GENERAL"><h3><u>1. Page number family/font/size</u></h3></a>
+<a name="PAGINATE_GENERAL"><h3><u>1. Page number family/font/size/colour</u></h3></a>
 <p>
 See
 <a href="#CONTROL_MACRO_ARGS">Arguments to the control macros</a>.
@@ -1258,11 +1587,12 @@ See
 .PAGENUM_FAMILY default = prevailing document family; default is Times Roman
 .PAGENUM_FONT   default = roman
 .PAGENUM_SIZE   default = 0 (i.e. same size as paragraph text)
+.PAGENUM_COLOR  default= black
 </pre>
 
 <a name="PAGENUM_POS"><h3><u>2. Page number position</u></h3></a>
 <p>
-Macro: <strong>PAGENUM_POS</strong> <var>TOP | BOTTOM&nbsp;&nbsp;LEFT | CENTER | RIGHT</var>
+<nobr>Macro: <strong>PAGENUM_POS</strong> TOP | BOTTOM&nbsp;&nbsp;LEFT | CENTER | RIGHT</nobr>
 
 <p>
 Use <strong>PAGENUM_POS</strong> to change the default position of
@@ -1275,14 +1605,15 @@ For example, if you turn both
 and
 <a href="definitions.html#TERMS_FOOTER">footers</a> 
 off (with <code>.HEADERS OFF</code> and <code>.FOOTERS
-OFF</code)) and you want <strong>mom</strong> to number your
+OFF</code>) and you want <strong>mom</strong> to number your
 pages at the top right position, enter
 <p>
 <pre>
 	.PAGENUM_POS TOP RIGHT
 </pre>
 
-<a name="#PAGENUM_HYPHENS"><h3><u>3. Enclose page numbers with hyphens (on or off)</u></h3></a>
+<a name="PAGENUM_HYPHENS"><h3><u>3. Enclose page numbers with hyphens (on or off)</u></h3></a>
+<p>
 By default, <strong>mom</strong> encloses page numbers between hyphens.
 If you don't want this behaviour, invoke the macro
 <strong>PAGENUM_HYPHENS</strong> with any argument (<strong>OFF, QUIT, END, X...</strong>),
@@ -1294,8 +1625,8 @@ like this:
 
 If, for some reason, you want to turn page number hyphens back
 on, invoke the macro without an argument.
-
 <p>
+
 <hr>
 <a href="rectoverso.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="docelement.html#TOP">Prev</a>&nbsp;&nbsp;

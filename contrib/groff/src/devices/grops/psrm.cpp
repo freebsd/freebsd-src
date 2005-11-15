@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "driver.h"
 #include "stringclass.h"
@@ -347,7 +347,7 @@ void resource_manager::supply_resource(resource *r, int rank, FILE *outfp,
   r->flags |= resource::BUSY;
   if (rank > r->rank)
     r->rank = rank;
-  char *path;
+  char *path = 0;		// pacify compiler
   FILE *fp = 0;
   if (r->filename != 0) {
     if (r->type == RESOURCE_FONT) {
@@ -360,7 +360,7 @@ void resource_manager::supply_resource(resource *r, int rank, FILE *outfp,
     }
     else {
       errno = 0;
-      fp = fopen(r->filename, "r");
+      fp = include_search_path.open_file_cautious(r->filename);
       if (!fp) {
 	error("can't open `%1': %2", r->filename, strerror(errno));
 	a_delete r->filename;

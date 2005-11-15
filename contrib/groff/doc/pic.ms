@@ -10,7 +10,7 @@
 .\" This document was written for free use and redistribution by
 .\" Eric S. Raymond <esr@thyrsus.com> in August 1995.
 .\"
-.\"	$Id: pic.ms,v 1.23 2003/04/27 00:07:43 wlemb Exp $	
+.\"	$Id: pic.ms,v 1.29 2005/04/27 20:52:34 wl Exp $	
 .\"
 .\" Set a proper TeX and LaTeX
 .ie t \{\
@@ -47,6 +47,7 @@ the Free Software Foundation for use with \fIgroff\/\fP(1).
 .
 .NH 1
 Introduction to PIC
+.
 .NH 2
 Why PIC?
 .PP
@@ -63,6 +64,7 @@ Free Software Foundation for use with their \fIgroff\/\fP(1)
 implementation of \fBtroff\fP.  Because both implementations are
 widely available in source form for free, they are good bets for
 writing very portable documentation.
+.
 .NH 2
 PIC Versions
 .PP
@@ -91,6 +93,7 @@ and \fB.PE\fP markers, and passes through everything else.  The normal
 definitions of \fB.PS\fP and \fB.PE\fP in the \fIms\fP macro package
 and elsewhere have also the side-effect of centering the \fBpic\fP output
 on the page.
+.
 .NH 2
 PIC Error Messages
 .PP
@@ -315,6 +318,7 @@ possible to set a global style variable \fBscale\fP that changes the
 unit.  Setting \fBscale = 2.54\fP will effectively change the internal
 unit to centimeters (all other size variable values will be scaled
 correspondingly).
+.
 .NH 2
 Default Sizes of Objects
 .PP
@@ -341,6 +345,7 @@ _
 .PP
 The simplest way to think about these defaults is that they make the
 other basic objects fit snugly into a default-sized box.
+.
 .NH 2
 Objects Do Not Stretch!
 .PP
@@ -355,6 +360,7 @@ box "this text is far too long for a default box"
 .CE "1: Boxes do not automatically resize"
 .LP
 which is probably not the effect you want.
+.
 .NH 2
 Resizing Boxes
 .PP
@@ -369,6 +375,7 @@ box width 3 "this text is far too long for a default box"
 This modifier takes a dimension in inches.  There is also a \[lq]height\[rq]
 modifier that will change a box's height.  The \fBwidth\fP keyword may
 be abbreviated to \fBwid\fP; the \fBheight\fP keyword to \fBht\fP.
+.
 .NH 2
 Resizing Other Object Types
 .PP
@@ -403,6 +410,7 @@ move;
 .PP
 Observe that because an arc is defined as a quarter circle, increasing
 the radius also increases the size of the arc's bounding box.
+.
 .NH 2
 The `same' Keyword
 .PP
@@ -425,11 +433,11 @@ gives you
 box; box wid 1 ht 1; box same; box
 .PE
 .CE "5: The \fBsame\fP keyword"
-
 .
 .
 .NH 1
 Generalized Lines and Splines
+.
 .NH 2
 Diagonal Lines
 .PP
@@ -467,6 +475,7 @@ gridarrow(2);
 undef gridarrow
 .PE
 .CE "1: Diagonal arrows (dotted boxes show the implied 0.5-inch grid)"
+.
 .NH 2
 Multi-Segment Line Objects
 .PP
@@ -480,6 +489,7 @@ define zigzag { $1 right 1 then down .5 left 1 then right 1 }
 zigzag(line); 
 .PE
 .CE "2: \fBline right 1 then down .5 left 1 then right 1\fP"
+.
 .NH 2
 Spline Objects
 .PP
@@ -526,6 +536,7 @@ section.
 .
 .NH 1
 Decorating Objects
+.
 .NH 2
 Dashed Objects
 .PP
@@ -549,6 +560,7 @@ move;
 box dashed 0.2 "0.2";
 .PE
 .CE "1: Dashed objects"
+.
 .NH 2
 Dotted Objects
 .PP
@@ -570,6 +582,7 @@ move;
 box dotted 0.2 "0.2";
 .PE
 .CE "2: Dotted objects"
+.
 .NH 2
 Rounding Box Corners
 .PP
@@ -591,6 +604,7 @@ box rad 0.25 "rad 0.25";
 .PP
 Radius values higher than half the minimum box dimension are silently
 truncated to that value.
+.
 .NH 2
 Arrowheads
 .PP
@@ -617,6 +631,7 @@ paper says a value of\~7 will make solid arrowheads.  GNU \fBgpic\fP
 defaults to solid arrowheads and an \fBarrowhead\fP value of\~1; a
 value of\~0 will produce open arrowheads.  Note that solid arrowheads are
 always filled with the current outline color.
+.
 .NH 2
 Line Thickness
 .PP
@@ -643,6 +658,7 @@ lines is not affected by the value of the
 variable, nor by any width or height given in the
 .B .PS
 line.
+.
 .NH 2
 Invisible Objects
 .PP
@@ -650,6 +666,7 @@ The modifier \fBinvis[ible]\fP makes an object entirely invisible.  This
 used to be useful for positioning text in an invisible object that is
 properly joined to neighboring ones.  Newer DWB versions and GNU
 \fBpic\fP treat stand-alone text in exactly this way.
+.
 .NH 2
 Filled Objects
 .PP
@@ -677,6 +694,7 @@ has been filled, so that the text will not be obscured by the filling.
 The closed-object modifier \fBsolid\fP is equivalent to \fBfill\fP
 with the darkest fill value (DWB \fBpic\fP had this capability but
 mentioned it only in a reference section).  
+.
 .NH 2
 Colored Objects
 .PP
@@ -839,6 +857,7 @@ The most natural way to name locations in \fBpic\fP is relative to
 objects.  In order to do this, you have to be able you have to be able
 to name objects.  The \fBpic\fP language has rich facilities for this
 that try to emulate the syntax of English.
+.
 .NH 2
 Naming Objects By Order Of Drawing
 .PP
@@ -877,6 +896,7 @@ for i = 1 to 4 do {
 .DE
 .R
 .KE
+.
 .NH 2
 Naming Objects With Labels
 .PP
@@ -929,11 +949,12 @@ concerned; where you can use one, any of the others that would make
 semantic sense are allowed.
 .PP
 The special label \fBHere\fR always refers to the current position.
+.
 .NH 2
 Absolute Coordinates
 .PP
 The simplest is absolute coordinates in inches; \fBpic\fP uses a
-Cartesian system with (0, 0) at the lower left corner of the virtual
+Cartesian system with (0,0) at the lower left corner of the virtual
 drawing surface for each picture (that is, X increases to the right
 and Y increases upwards).  An absolute location may always be written in the
 conventional form as two comma-separated numbers surrounded by
@@ -946,6 +967,14 @@ to make picture descriptions difficult to understand and modify.
 Instead, there are quite a number of ways to specify locations
 relative to \fBpic\fP objects and previous locations.
 .PP
+Another possibility of surprise is the fact that \fBpic\fP crops the
+picture to the smallest bounding box before writing it out.  For
+example, if you have a picture consisting of a small box with its lower
+left corner at (2,2) and another small box with its upper right corner
+at (5,5), the width and height of the image are both 3\~units and
+not\~5.  To get the origin at (0,0) included, simply add an invisible
+object to the picture, positioning the object's left corner at (0,0).
+.
 .NH 2
 Locations Relative to Objects
 .PP
@@ -1038,6 +1067,7 @@ critical(spline right 1 then up right then left then left 1);
 .PE
 .CE "2: Special points on open objects"
 .PP
+.
 .NH 2
 Ways of Composing Positions
 .PP
@@ -1115,6 +1145,7 @@ dot(last box .sw); "\fB(A,B)\fP is here" rjust at last circle + (-0.1, -0.1);
 dot(last box .nw); "A" ljust at last circle + (-0.1, 0.1)
 .PE
 .CE "5: Using (\fIx\fP, \fIy\fP) composition"
+.
 .NH 2
 Using Locations
 .PP
@@ -1184,6 +1215,7 @@ move from last [].e 1.5
 ]
 .PE
 .CE "7: Using the \fBwith\fP modifier for attachments"
+.
 .NH 2
 The `chop' Modifier
 .PP
@@ -1233,6 +1265,7 @@ Object Groups
 .PP
 There are two different ways to group objects in \fBpic\fP; \fIbrace
 grouping\fP and \fIblock composites\fP.
+.
 .NH 2
 Brace Grouping
 .PP
@@ -1240,6 +1273,7 @@ The simpler method is simply to group a set of objects within curly
 bracket or brace characters.  On exit from this grouping, the current
 position and direction are restored to their value when the opening
 brace was encountered.
+.
 .NH 2
 Block Composites
 .PP
@@ -1572,7 +1606,7 @@ define jumperblock {
 
     # Use {} to avoid changing position from last box draw.
     # This is necessary so move in any direction will work as expected
-    {"Jumpers in state $1$2$3$4$5$6" at last box .s + (0, -0.2);}
+    {"Jumpers in state $1$2$3$4$5$6" at last box .s + (0,-0.2);}
 }
 
 # Sample macro invocations.
@@ -1618,7 +1652,7 @@ define jumperblock {
 
     # Use {} to avoid changing position from last box draw.
     # This is necessary so move in any direction will work as expected
-    {"Jumpers in state $1$2$3$4$5$6" at last box .s + (0, -0.2);}
+    {"Jumpers in state $1$2$3$4$5$6" at last box .s + (0,-0.2);}
 }
 
 # Sample macro invocations
@@ -1655,6 +1689,7 @@ Import/Export Commands
 .PP
 Commands that import or export data between \fBpic\fR and its
 environment are described here.
+.
 .NH 2
 File and Table Insertion
 .PP
@@ -1696,7 +1731,7 @@ Accordingly, the command
 .RS
 .KS
 .IP
-.ft CW
+.CW
 .nf
 \&.PS
 copy thru % circle at ($1,$2) % until "END"
@@ -1715,7 +1750,7 @@ is equivalent to
 .RS
 .KS
 .IP
-.ft CW
+.CW
 .nf
 \&.PS
 circle at (1,2)
@@ -1727,12 +1762,14 @@ box
 .fi
 .KE
 .RE
+.
 .NH 2
 Debug Messages
 .PP
 The command \fBprint\fR accepts any number of arguments, concatenates
 their output forms, and writes the result to standard error.  Each
 argument must be an expression, a position, or a text string.
+.
 .NH 2
 Escape to Post-Processor
 .PP
@@ -1750,6 +1787,28 @@ This has a similar effect to a line beginning with
 or
 \fB\e\fR\|,
 but allows the values of variables to be passed through.
+.LP
+For example,
+.KS
+.DS
+.CW
+.nf
+\&.PS
+x = 14
+command ".ds string x is " x "."
+\&.PE
+\e*[string]
+.DE
+.R
+.KE
+.LP
+prints
+.DS
+.CW
+x is 14.
+.R
+.DE
+.
 .NH 2
 Executing Shell Commands
 .PP
@@ -1774,7 +1833,7 @@ example,
 .KS
 .DS
 .CW
-pi = atan2(0, -1);
+pi = atan2(0,-1);
 for i = 0 to 2 * pi by 0.1 do {
     "-" at (i/2, 0);
     "." at (i/2, sin(i)/2);
@@ -1787,7 +1846,7 @@ for i = 0 to 2 * pi by 0.1 do {
 which yields this:
 .KS
 .PS
-pi = atan2(0, -1);
+pi = atan2(0,-1);
 for i = 0 to 2 * pi by 0.1 do {
     "-" at (i/2, 0);
     "." at (i/2, sin(i)/2);
@@ -1827,6 +1886,16 @@ then
 .I variable
 will instead be multiplied by
 \fIexpr3\fR.
+The value of
+.I expr3
+can be negative for the additive case;
+.I variable
+is then tested whether it is greater than or equal to
+\fIexpr2\fR.
+For the multiplicative case,
+.I expr3
+must be greater than zero.
+If the constraints aren't met, the loop isn't executed.
 .I X
 can be any character not occurring in
 \fIbody\fR; or the two \fIX\/\fPs may be paired braces (as in the
@@ -1874,6 +1943,7 @@ Interface To [gt]roff
 The output of \fBpic\fP is \fB[gt]roff\fP drawing commands.  The GNU
 \fIgpic\/\fP(1) command warns that it relies on drawing extensions
 present in \fIgroff\/\fP(1) that are not present in \fItroff\/\fP(1).
+.
 .NH 2
 Scaling Arguments
 .PP
@@ -1887,6 +1957,7 @@ scaled by the same proportion.
 GNU \fBgpic\fP is less general; it will accept a single width to scale
 to, or a zero width and a maximum height to scale to.  With
 two non-zero arguments, it will scale to the maximum height.
+.
 .NH 2
 How Scaling is Handled
 .PP
@@ -1937,6 +2008,9 @@ The invocation
 .LP
 causes the contents of \fIfile\fP to replace the \fB.PS\fP line.  This
 feature is deprecated; use `\fBcopy\fP \fIfile\fR' instead).
+.
+.NH 2
+PIC and [gt]roff commands
 .PP
 By default, input lines that begin with a period are passed to the
 postprocessor, embedded at the corresponding point in the output.
@@ -1947,6 +2021,9 @@ Point sizes and font changes are also safe within text strings, as
 long as they are undone before the end of string.
 .PP
 The state of \fB[gt]roff\fP's fill mode is preserved across pictures.
+.
+.NH 2
+PIC and EQN
 .PP
 The Kernighan paper notes that there is a subtle problem with
 complicated equations inside \fBpic\fR pictures; they come out wrong if
@@ -1973,6 +2050,16 @@ box "@space 0 {H( omega )} over {1 - H( omega )}@"
 arrow
 .PE
 .CE "1: Equations within pictures"
+.
+.NH 2
+Absolute Positioning of Pictures
+.PP
+A \fBpic\fP picture is positioned vertically by troff at the current
+position.  The topmost position possible on a page is not the paper edge
+but a position which is one baseline lower so that the first row of glyphs
+is visible.  To make a picture really start at the paper edge you have
+to make the baseline-to-baseline distance zero, this is, you must set the
+vertical spacing to\~0 (using \fB.vs\fP) before starting the picture.
 .
 .
 .NH 1
@@ -2031,7 +2118,7 @@ are passed through transparently; a
 .B %
 is added to the end of the line to avoid unwanted spaces.
 You can safely use this feature to change fonts or to
-change the value of \fB\ebaselineskip\fR.
+change the value of \fB\ebaselineskip\fP.
 Anything else may well produce undesirable results; use at your own risk.
 Lines beginning with a period are not given any special treatment.
 .PP
@@ -2056,6 +2143,12 @@ figname = bar;
 .DE
 .R
 .KE
+.LP
+Use this feature sparsingly and only if really needed:
+A different name means a new box register in \*[tx], and the maximum number
+of box registers is only 256.
+Also be careful not to use a predefined \*[tx] or \*[lx] macro name as
+an argument to \fBfigname\fP since this inevitably causes an error.
 .
 .
 .NH 1
@@ -2217,7 +2310,7 @@ arrow from Top.D.end to Anchor.ne
     box "HTML";
 
     # Nonexistence caption
-    box dashed wid 1 at B + (2, 0) "These tools" "don't yet exist";
+    box dashed wid 1 at B + (2,0) "These tools" "don't yet exist";
     line chop 0 chop 0.1 dashed from last box .nw to A.e ->;
     line chop 0 chop 0.1 dashed from last box .w  to B.e ->;
     line chop 0 chop 0.1 dashed from last box .sw to C.e ->;
@@ -2285,7 +2378,7 @@ arrow from Top.D.end to Anchor.ne
     box "HTML";
 
     # Nonexistence caption
-    box dashed wid 1 at B + (2, 0) "These tools" "don't yet exist";
+    box dashed wid 1 at B + (2,0) "These tools" "don't yet exist";
     line chop 0 chop 0.1 dashed from last box .nw to A.e ->;
     line chop 0 chop 0.1 dashed from last box .w  to B.e ->;
     line chop 0 chop 0.1 dashed from last box .sw to C.e ->;
@@ -2300,6 +2393,7 @@ arrow from Top.D.end to Anchor.ne
 PIC Reference
 .PP
 This is an annotated grammar of \fBpic\fP.
+.
 .NH 2
 Lexical Items
 .PP
@@ -2354,6 +2448,7 @@ The name of a file.  This has the same semantics as \s[-1]TEXT\s[0].
 .IP \s[-1]MACRONAME\s[0]
 Either \s[-1]VARIABLE\s[0] or \s[-1]LABEL\s[0].
 .RE
+.
 .NH 2
 Semi-Formal Grammar
 .PP
@@ -2593,6 +2688,7 @@ ways to specify positions:
 <position> ::=
   <position-not-place>
   <place>
+  ( <position> )
 .R
 .DE
 .DS

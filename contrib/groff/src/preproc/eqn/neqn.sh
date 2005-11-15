@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 # Provision of this shell script should not be taken to imply that use of
 # GNU eqn with groff -Tascii|-Tlatin1|-Tkoi8-r|-Tutf8|-Tcp1047 is supported.
 # $FreeBSD$
@@ -17,8 +17,8 @@ case "${LC_ALL-${LC_CTYPE-${LANG}}}" in
     T=ascii ;;
 esac
 
-: ${GROFF_BIN_PATH=@BINDIR@}
-PATH=$GROFF_BIN_PATH@SEP@$PATH
+@GROFF_BIN_PATH_SETUP@
+PATH="$GROFF_RUNTIME$PATH"
 export PATH
 exec @g@eqn -T${T} ${1+"$@"}
 

@@ -1,11 +1,11 @@
 .ig
 ditroff.man
 
-Last update: 4 Jan 2002
+Last update: 2 Jul 2004
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
 maintained by Werner Lemberg <wl@gnu.org>
 
@@ -85,7 +85,9 @@ today.
 In order to distinguish it from Osanna's original mono-device version,
 it was called
 .I ditroff
-.RI ( d\/ evice\~ i\/ ndependent\~ troff\/ )
+(\c
+.IR d\/ evice\~ i\/ ndependent\~ troff\/\c
+)
 on some systems, though this naming isn't mentioned in the classical
 documentation.
 .
@@ -169,7 +171,7 @@ multi-devicing.
 .SH "AUTHORS"
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
