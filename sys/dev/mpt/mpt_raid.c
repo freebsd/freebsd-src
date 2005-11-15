@@ -1226,6 +1226,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 	size_t len;
 	int rv;
 	int i;
+	u_int nonopt_volumes;
 
 	if (mpt->ioc_page2 == NULL || mpt->ioc_page3 == NULL)
 		return;
@@ -1303,6 +1304,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 		mpt_vol->flags |= MPT_RVF_ACTIVE;
 	}
 
+	nonopt_volumes = 0;
 	for (i = 0; i < mpt->ioc_page2->MaxVolumes; i++) {
 		struct mpt_raid_volume *mpt_vol;
 		uint64_t total;
@@ -1328,6 +1330,10 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 			mpt_announce_vol(mpt, mpt_vol);
 			mpt_vol->flags |= MPT_RVF_ANNOUNCED;
 		}
+
+		if (vol_pg->VolumeStatus.State !=
+		    MPI_RAIDVOL0_STATUS_STATE_OPTIMAL)
+			nonopt_volumes++;
 
 		if ((mpt_vol->flags & MPT_RVF_UP2DATE) != 0)
 			continue;
@@ -1436,6 +1442,8 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 		}
 		mpt_prtc(mpt, " )\n");
 	}
+
+	mpt->raid_nonopt_volumes = nonopt_volumes;
 }
 
 static void
@@ -1671,4 +1679,8 @@ mpt_raid_sysctl_attach(struct mpt_softc *mpt)
 			"vol_resync_rate", CTLTYPE_INT | CTLFLAG_RW, mpt, 0,
 			mpt_raid_sysctl_vol_resync_rate, "I",
 			"volume resync priority (0 == NC, 1 - 255)");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+			"nonoptimal_volumes", CTLFLAG_RD,
+			&mpt->raid_nonopt_volumes, 0,
+			"number of nonoptimal volumes");
 }
