@@ -100,8 +100,6 @@ ENTRY(cpu_switch)
 	movq	%r13,PCB_R13(%r8)
 	movq	%r14,PCB_R14(%r8)
 	movq	%r15,PCB_R15(%r8)
-	pushfq					/* PSL */
-	popq	PCB_RFLAGS(%r8)
 
 	testl	$PCB_32BIT,PCB_FLAGS(%r8)
 	jz	1f				/* no, skip over */
@@ -218,8 +216,6 @@ sw1:
 	movq	PCB_R15(%r8),%r15
 	movq	PCB_RIP(%r8),%rax
 	movq	%rax,(%rsp)
-	pushq	PCB_RFLAGS(%r8)
-	popfq
 
 	movq	%r8, PCPU(CURPCB)
 	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
@@ -269,8 +265,6 @@ ENTRY(savectx)
 	movq	%r13,PCB_R13(%rcx)
 	movq	%r14,PCB_R14(%rcx)
 	movq	%r15,PCB_R15(%rcx)
-	pushfq
-	popq	PCB_RFLAGS(%rcx)
 
 	/*
 	 * If fpcurthread == NULL, then the fpu h/w state is irrelevant and the

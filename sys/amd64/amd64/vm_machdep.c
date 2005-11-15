@@ -154,7 +154,6 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_rsp = (register_t)td2->td_frame - sizeof(void *);
 	pcb2->pcb_rbx = (register_t)td2;		/* fork_trampoline argument */
 	pcb2->pcb_rip = (register_t)fork_trampoline;
-	pcb2->pcb_rflags = td2->td_frame->tf_rflags & ~PSL_I; /* ints disabled */
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
@@ -289,12 +288,10 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_rsp = (register_t)td->td_frame - sizeof(void *);	/* trampoline arg */
 	pcb2->pcb_rbx = (register_t)td;			    /* trampoline arg */
 	pcb2->pcb_rip = (register_t)fork_trampoline;
-	pcb2->pcb_rflags = PSL_KERNEL; /* ints disabled */
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
-	 * pcb2->pcb_rflags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
 	 * pcb2->pcb_[fg]sbase: cloned above
 	 */
