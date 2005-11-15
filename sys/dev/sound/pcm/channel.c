@@ -1074,8 +1074,8 @@ round_bufsz(int bufsz, int min, int max)
 {
 	int tmp = min * 2;
 
-	KASSERT( min & (min-1) == 0, ("min %d must be power of 2\n", min));
-	KASSERT( max & (max-1) == 0, ("max %d must be power of 2\n", max));
+	KASSERT((min & (min-1)) == 0, ("min %d must be power of 2\n", min));
+	KASSERT((max & (max-1)) == 0, ("max %d must be power of 2\n", max));
 	while (tmp <= bufsz)
 		tmp <<= 1;
 	tmp >>= 1;
