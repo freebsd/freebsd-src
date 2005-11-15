@@ -376,7 +376,7 @@ struct wb_softc {
 	caddr_t			wb_ldata_ptr;
 	struct wb_list_data	*wb_ldata;
 	struct wb_chain_data	wb_cdata;
-	struct callout_handle	wb_stat_ch;
+	struct callout		wb_stat_callout;
 	struct mtx		wb_mtx;
 };
 
