@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 # Emulate nroff with groff.
 # $FreeBSD$
 
@@ -6,33 +6,34 @@ prog="$0"
 # Default device.
 # First try the "locale charmap" command, because it's most reliable.
 # On systems where it doesn't exist, look at the environment variables.
-case "`locale charmap 2>/dev/null`" in
+case "`exec 2>/dev/null ; locale charmap`" in
+  UTF-8)
+    T=-Tutf8 ;;
   ISO*8859-1 | ISO*8859-15)
     T=-Tlatin1 ;;
   KOI8-R)
     T=-Tkoi8-r ;;
-  UTF-8)
-    T=-Tutf8 ;;
   IBM-1047)
     T=-Tcp1047 ;;
   *)
     case "${LC_ALL-${LC_CTYPE-${LANG}}}" in
-      iso_8859_1 | *.ISO*8859-1 | *.ISO*8859-15)
+      *.UTF-8)
+        T=-Tutf8 ;;
+      iso_8859_1 | *.ISO-8859-1 | *.ISO8859-1 | \
+      iso_8859_15 | *.ISO-8859-15 | *.ISO8859-15)
         T=-Tlatin1 ;;
       *.KOI8-R)
         T=-Tkoi8-r ;;
-      *.UTF-8)
-        T=-Tutf8 ;;
       *.IBM-1047)
         T=-Tcp1047 ;;
       *)
         case "$LESSCHARSET" in
+          utf-8)
+            T=-Tutf8 ;;
           latin1)
             T=-Tlatin1 ;;
           koi8-r)
             T=-Tkoi8-r ;;
-          utf-8)
-            T=-Tutf8 ;;
           cp1047)
             T=-Tcp1047 ;;
           *)
@@ -54,10 +55,10 @@ for i
     -[eq] | -s*)
       # ignore these options
       ;;
-    -[dmrnoT])
+    -[dMmrnoT])
       echo "$prog: option $1 requires an argument" >&2
       exit 1 ;;
-    -[iptSUC] | -[dmrno]*)
+    -[iptSUC] | -[dMmrno]*)
       opts="$opts $1" ;;
     -Tascii | -Tlatin1 | -Tkoi8-r | -Tutf8 | -Tcp1047)
       T=$1 ;;
@@ -65,14 +66,17 @@ for i
       # ignore other devices
       ;;
     -u*)
-      # Solaris 2.2 `man' uses -u0; ignore it,
+      # Solaris 2.2 through at least Solaris 9 `man' invokes
+      # `nroff -u0 ... | col -x'.  Ignore the -u0,
       # since `less' and `more' can use the emboldening info.
-      ;;
+      # However, disable SGR, since Solaris `col' mishandles it.
+      opts="$opts -P-c" ;;
     -v | --version)
       echo "GNU nroff (groff) version @VERSION@"
       exit 0 ;;
     --help)
-      echo "usage: nroff [-CchipStUv] [-dCS] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
+      echo "usage: nroff [-CchipStUv] [-dCS] [-MDIR] [-mNAME] [-nNUM] [-oLIST]"
+      echo "             [-rCN] [-Tname] [FILE...]"
       exit 0 ;;
     --)
       shift
@@ -88,11 +92,15 @@ for i
   shift
 done
 
+# Set up the `GROFF_BIN_PATH' variable
+# to be exported in the current `GROFF_RUNTIME' environment.
+
+@GROFF_BIN_PATH_SETUP@
+export GROFF_BIN_PATH
+
 # This shell script is intended for use with man, so warnings are
 # probably not wanted.  Also load nroff-style character definitions.
 
-: ${GROFF_BIN_PATH=@BINDIR@}
-export GROFF_BIN_PATH
-PATH=$GROFF_BIN_PATH@SEP@$PATH groff -mtty-char $T $opts ${1+"$@"}
+PATH="$GROFF_RUNTIME$PATH" groff -mtty-char $T $opts ${1+"$@"}
 
 # eof

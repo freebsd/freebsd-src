@@ -1,3 +1,240 @@
+Release 1.3
+-----------
+
+Added line numbering capabilities, with controls.
+
+Footnotes and endnotes can now be referenced by line number.
+
+Added ability to adjust vertical position of the title that appears
+on the first endnotes page.
+
+Footnotes can run on when being referenced by line number.
+
+Footnotes now have a post-footnote spacing option, for adding
+a little space between footnotes.
+
+Extended LIST so it accepts alpha, ROMAN and roman enumerators.
+
+Added margin notes capability.
+
+Added refer support.
+
+Added bibliography page support.
+
+Added QUOTE_AUTOLEAD and BLOCKQUOTE_AUTOLEAD, so user can have
+quotes and blockquotes leaded differently from running text.
+
+Change: the input line immediately after FOOTNOTE OFF must be
+entered as a literal continuation of the line prior to FOOTNOTE,
+including any initial spaces or punctuation marks.  This allows
+for hassle-free placing of footnote markers in running text either
+before or after punctuation marks.
+
+Release 1.2-f
+-------------
+
+Added ADD_SPACE, to permit users to insert space at the top of
+running text (after the first page) when using the docprocessing
+macros.
+
+Releases 1.2-a and 1.2-b
+------------------------
+
+My personal email address has changed.  1.2-a and -b have been
+updated to reflect that.  Additionally, I made some small changes
+to the documentation.
+
+Release 1.2
+-----------
+
+As of 1.2, the recommended version of groff to use with mom has
+been bumped up from groff, 1.18 to groff, 1.19.2.  Although mom will
+continue to work with groff, 1.18, her handling of .FAM(ILY) and .FT
+is now slightly different, therefore users of groff 1.18 may have to
+update documents created with mom so that every .FAM(ILY) request is
+followed by a .FT request before any text is input, otherwise mom
+will set the text after .FAM(ILY) in Courier (until she encounters a
+.FT request).  People running groff, >= 1.19.2 don't have to worry
+about this, but I recommend that, regardless of which version you're
+running, you have a look at the document entries for FAMILY and FT
+in order to see how mom will be handling .FAMILY and .FT from now
+on.
+
+When used with groff >=1.19.2, mom now emits warnings if a style
+hasn't been registered, or if a font style doesn't exist in the
+current family.  Invalid .FAM(ILY) calls now use a "fallback" font"
+(although no warning is issued).  The fallback is user-settable.
+
+Mom's macro file, om.tmac, now sets up a fairly extensive list of
+font "styles," thus expanding the range of arguments that can be
+passed to .FT (formerly, just R, I, B and BI, unless users had
+already rolled their own solution to the problem of extensive type
+families containing fonts like condensed, demibold, black, light, etc).
+Users are advised to read the documentation sections on FAM(ILY),
+FT and FALLBACK_FONT, as well as the new appendix section, "Adding
+PostScript fonts to groff", for information on using mom's style
+extensions (and how to disable them, should they conflict with a
+user's present groff site-font/devps setup).
+
+A new macro, FALLBACK_FONT, has been added.  It controls not only
+the fallback font for invalid .FAMILY calls, but also whether mom
+aborts on invalid .FT calls after issuing a warning, or continues
+processing using the fallback.
+
+Release 1.1.9
+-------------
+
+Added the (optional) generation of cover pages and document cover
+pages, plus a full suite of control macros for all cover page
+elements.
+
+Added new reference macros that apply to covers: COVERTITLE,
+DOC_COVERTITLE, COPYRIGHT and MISC.
+
+The need for TRAP OFF/TRAP to deal with ELs and TNs that fall at
+the bottom page has been obsoleted.  However, both EL and TN, when
+invoked in any "nofill" mode (LEFT, RIGHT, CENTER, or the L | R | C
+arguments to TAB_SET or ST when no QUAD argument is given), must now
+have the input line preceding the EL or TN terminated by \c.  Fill
+modes do not have this requirement, i.e. no \c is required.
+
+Footnotes that occur inside quotes, blockquotes and epigraphs now
+work just like regular footnotes, with no user intervention
+required.  This obsoletes the macro BREAK_QUOTE.
+
+Removed all aliases that used the word COLOUR.  Users must use
+COLOR wherever COLOR is needed.  COLOUR, as a replacement/alias, is
+no longer supported.
+
+NEWPAGE, which used to be an alias of .bp, is now its own macro.
+
+Release 1.1.8
+-------------
+
+Added text color support.  Users can now define or initialize a color,
+and afterwards change text color with an inline of the form
+\*[<colorname>], or with the macro .COLOR.  In document processing,
+the docelement tag control macros have been expanded to include
+_COLOR, e.g. .HEAD_COLOR <predefined colorname> will colorize
+heads, PAGENUM_COLOR <predefined colorname) will colorize page
+numbering, etc.
+
+Adjusted vertical placement of hyphens around page numbering when
+PAGENUM_STYLE is DIGIT, ROMAN or ALPHA so that the hyphens appear
+properly centered on the page numbering character.
+
+Changed tab handling in document processing so that tab structures
+are preserved from page to page and column to column.
+
+Release 1.1.7-a
+---------------
+
+Increased the flexibility of SMARTQUOTES so that they handle quoting
+styles by language, entered as a 2-digit language code argument to
+SMARTQUOTES.  See docs.
+
+Re-wrote the DOCTYPE LETTER macros so that DATE, TO and FROM can be
+entered in any order the user wishes, with output that matches
+input.  (Should have done this in the first place.)
+
+Release 1.1.7
+-------------
+
+Finally got around to writing "list" macros.  See the docs.
+
+Added German-style lowered double quotes and two styles of
+guillemets to SMARTQUOTES.
+
+Added macro SIZE, intended to be called inline as \*[SIZE <n>].
+This brings mom's inline size change syntax into line with her other
+inlines.  \*S[<n>] can still be used for the same thing.
+
+The file elvis_syntax (for elvis prior to 2.2h) is no longer being
+maintained.  It was getting messy and long in the tooth.  The
+official elvis syntax file is elvis_syntax.new, which works for
+2.2h of elvis (and higher, one hopes).  elvis users are encouraged
+to update to 2.2h or higher.
+
+Release 1.1.6-e
+---------------
+
+Extended handling of draft and revision numbers and strings in
+headers/footers for increased flexibility.  It's possible now to
+have just about any combo of DRAFT_STRING, DRAFT, REVISION_STRING
+and REVISION, and have them come out in headers/footers as one
+intuitively expects/wants.
+
+Also added a new set of syntax highlighting rules for the vi clone,
+elvis.  Version 2-2h-beta of elvis finally made possible the
+highlighting of \*[...] inline escapes, whether or not they're
+separated from surrounding text by spaces.  This is a terrific
+improvement in elvis, and makes for greatly improved readability of
+mom files.
+
+Release 1.1.6-b - 1.1.6d
+------------------------
+
+Trivial changes to documentation and some cleanups of the main
+om.tmac file, including:
+
+Added a .bp after .if \\n[#START]=1 in FOOTER.  Without it,
+in document processing mode, documents that use *none* of the
+docprocessing tags (yes, there are times when users want to do
+this) ignored the footer trap.
+
+Changed register #DOCHEADER_LEAD_ADJ to string
+$DOCHEADER_LEAD_ADJ.  This means that .DOCHEADER_LEAD no longer
+requires a unit of measure; points is assumed.
+
+Release 1.1.6-b
+---------------
+
+Added a SHIM macro that calculates and moves to the next "legal"
+baseline during document processing (useful if user starts playing
+around with spacing/leading on a page and needs to get the leading
+back on track).
+
+Fixed handling of DOCHEADER OFF <distance> so that the first line of
+running text falls on a "legal" baseline when <distance> is given.
+
+Release 1.1.6-a
+---------------
+
+Problem with groff 1.19.1 fixed by Werner (.return handled arguments
+incorrectly).
+
+Fixed handling of page numbering style restoration in endnotes, so
+that (collated) docs have the correct page numbering style when the
+style has been changed for endnotes (with ENDNOTES_PAGENUM_STYLE).
+
+DOC_TITLE has been made for use exclusively with DOCTYPE DEFAULT.
+
+Fixed handling of headers/footers with respect to endnotes.  Now,
+when either headers or footers are on, mom picks up the correct
+page header/footer on the last page prior to ENDNOTES, gets the
+pageheaders correct for endnotes pages *including the last one*, and
+picks up correct page headers/footers for the subsequent docs after
+COLLATE.
+
+
+Release 1.1.6
+-------------
+
+BAD NEWS: mom appears to be crippled in some areas when run with
+groff 1.19.1.  Pending a solution, mom must be run with groff 1.18
+
+***NEW***
+
+Added TOC capabilities.
+
+Extended range of endnotes control macros.  See the documentation
+on endnotes control macros.
+
+Added a new DOC_TITLE macro, to deal with collated documents that
+have an overall title, while each doc has its own separate doc
+title (from TITLE).
+
+
 Release 1.1.5
 -------------
 

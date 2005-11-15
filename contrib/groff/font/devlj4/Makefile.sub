@@ -1,7 +1,8 @@
 DEV=lj4
-LJ4RES=600
+LJ4RES=1200
 LJ4PRINT=$(PSPRINT)
 DEVFILES=DESC \
+  AB ABI AI AR \
   ALBB ALBR \
   AOB AOI AOR \
   CB CBI CI CR \
@@ -9,10 +10,17 @@ DEVFILES=DESC \
   LGB LGI LGR \
   OB OBI OI OR \
   TB TBI TI TR \
+  TNRB TNRBI TNRI TNRR \
   UB UBI UI UR \
   UCB UCBI UCI UCR \
   CLARENDON CORONET MARIGOLD S \
-  generate/Makefile generate/text.map generate/special.map
+  SYMBOL WINGDINGS \
+  generate/Makefile \
+  generate/special.map \
+  generate/symbol.map \
+  generate/text.map \
+  generate/wingdings.map \
+  generate/special.awk
 
 CLEANADD=DESC
 

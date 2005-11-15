@@ -80,8 +80,16 @@
 .  hcode \\$1\\$4
 ..
 .
-.ps-achar \['C] \' C c
-.ps-achar \['c] \' c c
+.ps-achar \['C]     \'    C c
+.ps-achar \['c]     \'    c c
+.ps-achar "\[G ab]" \[ab] G g
+.ps-achar "\[g ab]" \[ab] g g
+.ps-achar "\[I .]"  \[a.] I i
+.
+.fchar \[S ,] \o'S\[ac]'
+.hcode \[S ,]s
+.fchar \[s ,] \o's\[ac]'
+.hcode \[s ,]s
 .
 .de ps-frac
 .  schar \[\\$1\\$2] \

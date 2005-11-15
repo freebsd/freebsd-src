@@ -1,21 +1,25 @@
+As of version 1.2, the items on this TODO list will only be dealt
+with if users request they be implemented.
+
+UNDERLINING
+-----------
+Explore "the ultimative underline macro" for possible inclusion
+into mom.
+
+NUMBERED HEADS, SUBHEADS and PARAHEADS
+--------------------------------------
+Macros to set numbering style (roman, arabic, alpha, etc)?
+
+FOOTNOTES
+---------
+In columnar docs, maybe give user the choice of gathering all
+footnotes at the bottom of the last column?
+
 CONTROL MACROS -- _INDENT
 --------------
 Let user be able to enter decimal fractions as the argument to _INDENT
 control macros, or, instead, let user be able to enter absolute
 values with a unit of measure in addition to current behaviour,
 which is relative.
-
-LISTS
------
-Possbility of indented, nested lists, html-style.  Options for numbered,
-alpha-ed, bulleted, dashed.  Again, not sure how useful these would be
-for mom's target users.  As things stand now, it's easy enough to
-set up lists with string tabs or hanging indents.
-
-BIBLIOGRAPHY
-------------
-Thinking about macros to *assist* in user-written bibliographies (i.e.
-not biblios that get generated automatically at the ends of docs).  Style
-considerations are a nightmare, though.
 
 ------------------------------------------------------------------------

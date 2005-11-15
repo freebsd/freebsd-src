@@ -1,9 +1,8 @@
 # $FreeBSD$
 
 PROG_CXX=	troff
-SRCS=		dictionary.cpp div.cpp env.cpp glyphuni.cpp input.cpp \
-		majorminor.cpp node.cpp number.cpp reg.cpp symbol.cpp \
-		unicode.cpp uniglyph.cpp uniuni.cpp
+SRCS=		dictionary.cpp div.cpp env.cpp input.cpp \
+		majorminor.cpp mtsm.cpp node.cpp number.cpp reg.cpp
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
 CLEANFILES=	majorminor.cpp ${MAN}

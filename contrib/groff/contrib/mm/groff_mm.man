@@ -1,5 +1,5 @@
 .\"
-.\" $Id: groff_mm.man,v 2.9 2003/03/19 22:05:11 wlemb Exp $
+.\" $Id: groff_mm.man,v 2.13 2004/07/03 12:46:56 wlemb Exp $
 .\"
 .de T2
 .if t .ne 2v
@@ -7,12 +7,14 @@
 \\$1
 .sp -1
 ..
+.
 .de T3
 .if t .ne 2v
 .ti -.5i
 \fB\\$1\fP
 .br
 ..
+.
 .TH GROFF_MM @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
 groff_mm \- groff mm macros
@@ -612,7 +614,7 @@ See \fBINITR\fP.
 .TP
 .B "H level [heading-text [heading-suffix]]"
 Numbered section heading.
-Section headers can have a level between 1 and 7, level 1 is the
+Section headers can have a level between 1 and 14, level 1 is the
 top level.
 The text is given in \fIheading-text\fP, and must be
 surrounded by double quotes if it contains spaces.
@@ -679,8 +681,8 @@ is centerered.
 The font of each heading level is controlled by string \fBHF\fP.
 It contains a fontnumber or fontname for each level.
 Default
-is \fB2\ 2\ 2\ 2\ 2\ 2\ 2\fP (all headings in italic).
-Could also be written as \fBI\ I\ I\ I\ I\ I\ I\fP.
+is \fB2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\ 2\fP (all headings in italic).
+Could also be written as \fBI\ I\ I\ I\ I\ I\ I\ I\ I\ I\ I\ I\ I\ I\fP.
 Note that some other implementations use \fB3\ 3\ 2\ 2\ 2\ 2\ 2\fP as the
 default value.
 All omitted values are presumed to be a 1.
@@ -690,7 +692,7 @@ All omitted values are presumed to be a 1.
 String \fBHP\fP controls the pointsize of each heading, in the
 same way as \fBHF\fP controls the font.
 A value of 0 selects the default point size.
-Default value is \fB0\ 0\ 0\ 0\ 0\ 0\ 0\fP.
+Default value is \fB0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\ 0\fP.
 Beware that only the
 point size changes, not the vertical size.
 That can be controlled by the user specified macro \fBHX\fP and/or
@@ -698,7 +700,7 @@ That can be controlled by the user specified macro \fBHX\fP and/or
 .sp
 \fBHeading counters\fP
 .br
-Seven number registers, named \fBH1\fP thru \fBH7\fP contains
+Fourteen number registers, named \fBH1\fP thru \fBH14\fP contains
 the counter for each heading level.
 The values are printed using arabic numerals, this can be changed
 with the macro \fBHM\fP (see below).
@@ -771,7 +773,7 @@ Resets to the default if called without argument.
 Hyphenation can be turned off by setting number
 register \fBHy\fP to 0 in the beginning of the file.
 .TP
-.B "HM [arg1 [arg2 [... [arg7]]]]"
+.B "HM [arg1 [arg2 [... [arg14]]]]"
 Heading mark style.
 Controls the type of marking for printing of the heading counters.
 Default is 1 for all levels.
@@ -1276,7 +1278,7 @@ the header in letters or other special texts.
 This macro must be used before any text to inhibit the pageheader
 on the first page.
 .TP
-.B PIC [-L] [-C] [-R] [-I n] filename [width [height]]
+.B "PIC [-L] [-C] [-R] [-I n] filename [width [height]]"
 \fBPIC\fP includes a Postscript file in the document.
 The macro depends on \fBmmroff\fP and \fBINITR\fP.
 \fB-L\fP, \fB-C\fP, \fB-R\fP and \fB-I n\fP adjusts the picture
@@ -1803,7 +1805,7 @@ No output will occur if \fBAph\fP is zero, but there will always
 be an appendix-entry in the 'List of contents'.
 .TP
 .B Cl
-Contents level [0:7], contents saved if heading level <= Cl, default 2.
+Contents level [0:14], contents saved if heading level <= Cl, default 2.
 .TP
 .B Cp
 Eject page between LIST OF XXXX if Cp == 0, default 0.
@@ -1850,10 +1852,10 @@ just before the page break.
 Useful in user defined header macros.
 .TP
 .B Hb
-Heading break level [0:7], default\ 2.
+Heading break level [0:14], default\ 2.
 .TP
 .B Hc
-Heading centering level, [0:7].
+Heading centering level, [0:14].
 Default\ 0.
 .TP
 .B Hi
@@ -1885,7 +1887,7 @@ is less than or equal to \fBHps\fP.
 Value is in units, normally\ 1.
 .TP
 .B Hs
-Heading space level [0:7], default\ 2.
+Heading space level [0:14], default\ 2.
 .TP
 .B Hss
 This is the number of lines that follows \fB.H\fP when the heading-level
@@ -1902,7 +1904,7 @@ Heading numbering type, default 0.
 Unnumbered heading level, default 2.
 .TP
 .B Hy
-Hyphenation in body, default 1.
+Hyphenation in body, default 0.
 .br
 0\ ->\ no hyphenation
 .br

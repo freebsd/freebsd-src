@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2004
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,21 +17,24 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 
 // diversions
 
 #include "troff.h"
-#include "symbol.h"
 #include "dictionary.h"
 #include "hvunits.h"
+#include "stringclass.h"
+#include "mtsm.h"
 #include "env.h"
 #include "request.h"
 #include "node.h"
 #include "token.h"
 #include "div.h"
 #include "reg.h"
+
+#include "nonposix.h"
 
 int exit_started = 0;		// the exit process has started
 int done_end_macro = 0;		// the end macro (if any) has finished
@@ -50,7 +53,9 @@ static vunits needed_space;
 
 diversion::diversion(symbol s) 
 : prev(0), nm(s), vertical_position(V0), high_water_mark(V0),
-  no_space_mode(0), marked_place(V0)
+  any_chars_added(0), no_space_mode(0), needs_push(0), saved_seen_break(0),
+  saved_seen_space(0), saved_seen_eol(0), saved_suppress_next_eol(0),
+  marked_place(V0)
 {
 }
 
@@ -96,6 +101,10 @@ void do_divert(int append, int boxing)
   symbol nm = get_name();
   if (nm.is_null()) {
     if (curdiv->prev) {
+      curenv->seen_break = curdiv->saved_seen_break;
+      curenv->seen_space = curdiv->saved_seen_space;
+      curenv->seen_eol = curdiv->saved_seen_eol;
+      curenv->suppress_next_eol = curdiv->saved_suppress_next_eol;
       if (boxing) {
 	curenv->line = curdiv->saved_line;
 	curenv->width_total = curdiv->saved_width_total;
@@ -115,6 +124,13 @@ void do_divert(int append, int boxing)
     macro_diversion *md = new macro_diversion(nm, append);
     md->prev = curdiv;
     curdiv = md;
+    curdiv->saved_seen_break = curenv->seen_break;
+    curdiv->saved_seen_space = curenv->seen_space;
+    curdiv->saved_seen_eol = curenv->seen_eol;
+    curdiv->saved_suppress_next_eol = curenv->suppress_next_eol;
+    curenv->seen_break = 0;
+    curenv->seen_space = 0;
+    curenv->seen_eol = 0;
     if (boxing) {
       curdiv->saved_line = curenv->line;
       curdiv->saved_width_total = curenv->width_total;
@@ -201,7 +217,7 @@ macro_diversion::macro_diversion(symbol s, int append)
   // We can now catch the situation described above by comparing
   // the length of the charlist in the macro_header with the length
   // stored in the macro. When we detect this, we copy the contents.
-  mac = new macro;
+  mac = new macro(1);
   if (append) {
     request_or_macro *rm 
       = (request_or_macro *)request_dictionary.lookup(s);
@@ -256,9 +272,8 @@ void macro_diversion::output(node *nd, int retain_size,
     nd->set_vertical_size(&v);
     node *temp = nd;
     nd = nd->next;
-    if (temp->interpret(mac)) {
+    if (temp->interpret(mac))
       delete temp;
-    }
     else {
 #if 1
       temp->freeze_space();
@@ -444,6 +459,9 @@ void top_level_diversion::space(vunits n, int forced)
   vunits next_trap_pos;
   trap *next_trap = find_next_trap(&next_trap_pos);
   vunits y = vertical_position + n;
+  if (curenv->get_vertical_spacing().to_units())
+    curenv->seen_space += n.to_units()
+			  / curenv->get_vertical_spacing().to_units();
   if (vertical_position_traps_flag && next_trap != 0 && y >= next_trap_pos) {
     vertical_position = next_trap_pos;
     nl_reg_contents = vertical_position.to_units();
@@ -467,7 +485,7 @@ trap::trap(symbol s, vunits n, trap *p)
 {
 }
 
-void top_level_diversion::add_trap(symbol nm, vunits pos)
+void top_level_diversion::add_trap(symbol nam, vunits pos)
 {
   trap *first_free_slot = 0;
   trap **p;
@@ -477,22 +495,22 @@ void top_level_diversion::add_trap(symbol nm, vunits pos)
 	first_free_slot = *p;
     }
     else if ((*p)->position == pos) {
-      (*p)->nm = nm;
+      (*p)->nm = nam;
       return;
     }
   }
   if (first_free_slot) {
-    first_free_slot->nm = nm;
+    first_free_slot->nm = nam;
     first_free_slot->position = pos;
   }
   else
-    *p = new trap(nm, pos, 0);
+    *p = new trap(nam, pos, 0);
 }  
 
-void top_level_diversion::remove_trap(symbol nm)
+void top_level_diversion::remove_trap(symbol nam)
 {
   for (trap *p = page_trap_list; p; p = p->next)
-    if (p->nm == nm) {
+    if (p->nm == nam) {
       p->nm = NULL_SYMBOL;
       return;
     }
@@ -507,10 +525,10 @@ void top_level_diversion::remove_trap_at(vunits pos)
     }
 }
       
-void top_level_diversion::change_trap(symbol nm, vunits pos)
+void top_level_diversion::change_trap(symbol nam, vunits pos)
 {
   for (trap *p = page_trap_list; p; p = p->next)
-    if (p->nm == nm) {
+    if (p->nm == nam) {
       p->position = pos;
       return;
     }
@@ -543,6 +561,7 @@ void cleanup_and_exit(int exit_code)
     the_output->trailer(topdiv->get_page_length());
     delete the_output;
   }
+  FLUSH_INPUT_PIPE(STDIN_FILENO);
   exit(exit_code);
 }
 
@@ -637,7 +656,7 @@ void page_offset()
     n = topdiv->prev_page_offset;
   topdiv->prev_page_offset = topdiv->page_offset;
   topdiv->page_offset = n;
-  curenv->add_html_tag(0, ".po", n.to_units());
+  topdiv->modified_tag.incl(MTSM_PO);
   skip_line();
 }
 
@@ -667,7 +686,7 @@ void when_request()
 void begin_page()
 {
   int got_arg = 0;
-  int n;
+  int n = 0;		/* pacify compiler */
   if (has_arg() && get_integer(&n, topdiv->get_page_number()))
     got_arg = 1;
   while (!tok.newline() && !tok.eof())
@@ -730,11 +749,11 @@ void restore_spacing()
   skip_line();
 }
 
-/* It is necessary to generate a break before before reading the argument,
-because otherwise arguments using | will be wrong. But if we just
+/* It is necessary to generate a break before reading the argument,
+because otherwise arguments using | will be wrong.  But if we just
 generate a break as usual, then the line forced out may spring a trap
 and thus push a macro onto the input stack before we have had a chance
-to read the argument to the sp request. We resolve this dilemma by
+to read the argument to the sp request.  We resolve this dilemma by
 setting, before generating the break, a flag which will postpone the
 actual pushing of the macro associated with the trap sprung by the
 outputting of the line forced out by the break till after we have read
@@ -756,17 +775,15 @@ void space_request()
   else
     // The line might have had line spacing that was truncated.
     truncated_space += n;
-  curenv->add_html_tag(1, ".sp", n.to_units());
+  
   tok.next();
 }
 
 void blank_line()
 {
   curenv->do_break();
-  if (!trap_sprung_flag && !curdiv->no_space_mode) {
+  if (!trap_sprung_flag && !curdiv->no_space_mode)
     curdiv->space(curenv->get_vertical_spacing());
-    curenv->add_html_tag(1, ".sp", 1);
-  }
   else
     truncated_space += curenv->get_vertical_spacing();
 }
@@ -830,7 +847,6 @@ void flush_output()
     curenv->do_break();
   if (the_output)
     the_output->flush();
-  curenv->add_html_tag(1, ".fl");
   tok.next();
 }
 

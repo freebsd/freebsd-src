@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 2001 Free Software Foundation, Inc.
+/* Copyright (C) 2001, 2004 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +16,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 
 /* special character codes */
@@ -54,8 +54,11 @@ const int LAST_PAGE_EJECTOR = 0205;
 const int ESCAPE_RIGHT_PARENTHESIS = 0206;
 const int ESCAPE_TILDE = 0207;
 const int ESCAPE_COLON = 0210;
-const int COMPATIBLE_SAVE = 0211;
-const int COMPATIBLE_RESTORE = 0212;
+const int PUSH_GROFF_MODE = 0211;
+const int PUSH_COMP_MODE = 0212;
+const int POP_GROFFCOMP_MODE = 0213;
+const int BEGIN_QUOTE = 0214;
+const int END_QUOTE = 0215;
 
 #else /* IS_EBCDIC_HOST */
 
@@ -90,7 +93,13 @@ const int LAST_PAGE_EJECTOR = 065;
 const int ESCAPE_RIGHT_PARENTHESIS = 066;
 const int ESCAPE_TILDE = 067;
 const int ESCAPE_COLON = 070;
-const int COMPATIBLE_SAVE = 071;
-const int COMPATIBLE_RESTORE = 072;
+const int PUSH_GROFF_MODE = 071;
+const int PUSH_COMP_MODE = 072;
+const int POP_GROFFCOMP_MODE = 073;
+const int BEGIN_QUOTE = 074;
+const int END_QUOTE = 075;
 
 #endif /* IS_EBCDIC_HOST */
+
+extern void do_glyph_color(symbol);
+extern void do_fill_color(symbol);

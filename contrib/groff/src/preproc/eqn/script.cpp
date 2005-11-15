@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002, 2004
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "eqn.h"
 #include "pbox.h"
@@ -103,20 +104,20 @@ int script_box::compute_metrics(int style)
   else {
     // sup != 0
     // 18c
-    int p;
+    int pos;
     if (style == DISPLAY_STYLE)
-      p = sup1;
+      pos = sup1;
     else if (style & 1)		// not cramped
-      p = sup2;
+      pos = sup2;
     else
-      p = sup3;
+      pos = sup3;
     printf(".nr " SUP_RAISE_FORMAT " \\n[" SUP_RAISE_FORMAT
 	   "]>?%dM>?(\\n[" DEPTH_FORMAT "]+(%dM/4))\n",
-	   uid, uid, p, sup->uid, x_height);
+	   uid, uid, pos, sup->uid, x_height);
     // 18d
     if (sub != 0) {
       printf(".nr " SUB_LOWER_FORMAT " \\n[" SUB_LOWER_FORMAT "]>?%dM\n",
-	   uid, uid, sub2);
+	     uid, uid, sub2);
       // 18e
       printf(".nr " TEMP_REG " \\n[" DEPTH_FORMAT "]-\\n["
 	     SUP_RAISE_FORMAT "]+\\n[" HEIGHT_FORMAT "]-\\n["

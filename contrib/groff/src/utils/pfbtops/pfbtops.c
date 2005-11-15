@@ -1,4 +1,4 @@
-/* Copyright (C) 1992, 2001, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 1992, 2001, 2003, 2004, 2005 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -15,7 +15,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 /* This translates ps fonts in .pfb format to ASCII ps files. */
 
@@ -25,8 +25,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
 #include <limits.h>
+
+#define __GETOPT_PREFIX groff_
+#include <getopt.h>
 
 #include "nonposix.h"
 
@@ -35,10 +37,11 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define MAX_LINE_LENGTH 78
 #define HEX_DIGITS "0123456789abcdef"
 
+extern const char *Version_string;
+
 static char *program_name;
 
-static void error(s)
-     char *s;
+static void error(const char *s)
 {
   fprintf(stderr, "%s: %s\n", program_name, s);
   exit(2);
@@ -51,7 +54,7 @@ static void usage(FILE *stream)
 
 static void get_text(int n)
 {
-  int c, c1;
+  int c = 0, c1;
   int in_string = 0;
   int is_comment = 0;
   int count = 0;
@@ -67,19 +70,27 @@ static void get_text(int n)
     else if (c == '\\' && in_string) {
       count++;
       putchar(c);
+      if (n-- == 0)
+	break;
       c = getchar();
       /* don't split octal character representations */
       if (c >= '0' && c <= '7') {
 	count++;
 	putchar(c);
+	if (n-- == 0)
+	  break;
 	c = getchar();
 	if (c >= '0' && c <= '7') {
 	  count++;
 	  putchar(c);
+	  if (n-- == 0)
+	    break;
 	  c = getchar();
 	  if (c >= '0' && c <= '7') {
 	    count++;
 	    putchar(c);
+	    if (n-- == 0)
+	      break;
 	    c = getchar();
 	  }
 	}
@@ -88,9 +99,13 @@ static void get_text(int n)
     if (c == EOF)
       error("end of file in text packet");
     else if (c == '\r') {
+      if (n-- == 0)
+	break;
       c1 = getchar();
-      if (c1 != '\n')
+      if (c1 != '\n') {
 	ungetc(c1, stdin);
+	n++;
+      }
       c = '\n';
     }
     if (c == '\n') {
@@ -112,6 +127,8 @@ static void get_text(int n)
 	/* split at the next whitespace character */
 	while (c != ' ' && c != '\t' && c != '\f') {
 	  putchar(c);
+	  if (n-- == 0)
+	    break;  
 	  c = getchar();
 	}
 	count = 0;
@@ -146,12 +163,9 @@ static void get_binary(int n)
   putchar('\n');
 }
 
-int main(argc, argv)
-     int argc;
-     char **argv;
+int main(int argc, char **argv)
 {
   int opt;
-  extern int optind;
   static const struct option long_options[] = {
     { "help", no_argument, 0, CHAR_MAX + 1 },
     { "version", no_argument, 0, 'v' },
@@ -163,12 +177,9 @@ int main(argc, argv)
   while ((opt = getopt_long(argc, argv, "v", long_options, NULL)) != EOF) {
     switch (opt) {
     case 'v':
-      {
-	extern const char *Version_string;
-	printf("GNU pfbtops (groff) version %s\n", Version_string);
-	exit(0);
-	break;
-      }
+      printf("GNU pfbtops (groff) version %s\n", Version_string);
+      exit(0);
+      break;
     case CHAR_MAX + 1: /* --help */
       usage(stdout);
       exit(0);

@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1994-2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -140,6 +140,7 @@ Macros for use with
 .SH BUGS
 Small dots.
 .SH "SEE ALSO"
+.BR lj4_font (@MAN5EXT@),
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR groff_out (@MAN5EXT@),

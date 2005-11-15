@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2004, 2005
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,11 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
+
+void do_divert(int append, int boxing);
+void end_diversions();
+void page_offset();
 
 class diversion {
   friend void do_divert(int append, int boxing);
@@ -34,7 +38,14 @@ protected:
   vunits vertical_position;
   vunits high_water_mark;
 public:
+  int any_chars_added;
   int no_space_mode;
+  int needs_push;
+  int saved_seen_break;
+  int saved_seen_space;
+  int saved_seen_eol;
+  int saved_suppress_next_eol;
+  state_set modified_tag;
   vunits marked_place;
   diversion(symbol s = NULL_SYMBOL);
   virtual ~diversion();
@@ -54,6 +65,7 @@ public:
   virtual void set_diversion_trap(symbol, vunits) = 0;
   virtual void clear_diversion_trap() = 0;
   virtual void copy_file(const char *filename) = 0;
+  virtual int is_diversion() = 0;
 };
 
 class macro;
@@ -78,6 +90,7 @@ public:
   void set_diversion_trap(symbol, vunits);
   void clear_diversion_trap();
   void copy_file(const char *filename);
+  int is_diversion() { return 1; }
 };
 
 struct trap {
@@ -87,7 +100,7 @@ struct trap {
   trap(symbol, vunits, trap *);
 };
 
-struct output_file;
+class output_file;
 
 class top_level_diversion : public diversion {
   int page_number;
@@ -134,6 +147,7 @@ public:
   void set_diversion_trap(symbol, vunits);
   void clear_diversion_trap();
   void set_last_page() { last_page_count = page_count; }
+  int is_diversion() { return 0; }
 };
 
 extern top_level_diversion *topdiv;
@@ -154,6 +168,5 @@ void continue_page_eject();
 void handle_first_page_transition();
 void blank_line();
 void begin_page();
-void end_diversions();
 
 extern void cleanup_and_exit(int);

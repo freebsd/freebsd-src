@@ -4,9 +4,12 @@ DISTCLEANFILES=\
   config.cache \
   stamp-h \
   Makefile \
-  src/xditview/Imakefile \
-  $(srcdir)/src/xditview/gxditview._man \
-  src/include/config.h
+  test-groff \
+  src/include/config.h \
+  site.exp \
+  site.bak \
+  groff.sum \
+  groff.log
 CLEANADD=Makefile.cfg conftest*
 
 distfiles: configure
@@ -26,3 +29,7 @@ $(srcdir)/stamp-h.in: configure.ac aclocal.m4
 config.h: stamp-h
 stamp-h: config.hin config.status
 	$(SHELL) config.status
+
+# Always create the site-font directory as a guide to the user.
+install_data:
+	-test -d $(localfontdir) || $(mkinstalldirs) $(localfontdir)

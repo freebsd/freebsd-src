@@ -3,11 +3,12 @@
 .ds RE \\$2
 ..
 .\"
-.\" $Id: m.tmac,v 2.18 2003/04/02 04:44:59 jhaegg Exp $
-.@revision $Revision: 2.18 $
+.\" $Id: m.tmac,v 2.26 2005/05/26 06:28:38 wl Exp $
+.@revision $Revision: 2.26 $
 .ig
 
-Copyright (C) 1991-2000 Free Software Foundation, Inc.
+Copyright (C) 1991-2000, 2001, 2002, 2003, 2004, 2005
+  Free Software Foundation, Inc.
 mgm is written by Jörgen Hägg <jh@axis.com>
 
 mgm is free software; you can redistribute it and/or modify it under
@@ -36,8 +37,9 @@ Index		array!index
 .do if d PH .nx
 .if \n(.C .ab The groff mm macros do not work in compatibility mode.
 .if (\n[.warn] == 65543) .warn
+.mso devtag.tmac
 .\" ######## init #######
-.\"	Contents level [0:7], contents saved if heading level <= Cl
+.\"	Contents level [0:14], contents saved if heading level <= Cl
 .nr Cl 2
 .\"	Eject page between LIST OF XXXX if Cp == 0
 .nr Cp 0
@@ -66,20 +68,27 @@ Index		array!index
 .nr H5 0 1
 .nr H6 0 1
 .nr H7 0 1
-.\"	Heading break level [0:7]
+.nr H8 0 1
+.nr H9 0 1
+.nr H10 0 1
+.nr H11 0 1
+.nr H12 0 1
+.nr H13 0 1
+.nr H14 0 1
+.\"	Heading break level [0:14]
 .nr Hb 2
-.\"	heading centering level, [0:7]
+.\"	heading centering level, [0:14]
 .nr Hc 0
 .\"	header format
-.ds HF 2 2 2 2 2 2 2
+.ds HF 2 2 2 2 2 2 2 2 2 2 2 2 2 2
 .\"	heading temp. indent [0:2]
 .\"	0 -> 0 indent, left margin
 .\"	1 -> indent to right , like .P 1
 .\"	2 -> indent to line up with text part of preceding heading
 .nr Hi 1
 .\"	header pointsize
-.ds HP 0 0 0 0 0 0 0
-.\"	heading space level [0:7]
+.ds HP 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+.\"	heading space level [0:14]
 .nr Hs 2
 .\"	heading numbering type
 .\"	0 -> multiple (1.1.1 ...)
@@ -637,15 +646,21 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .if !'\\*[misc*b]'C' \{\
 .	ie '\\*[misc*b]'P' .vs \\n[misc*S-vs]u
 .	el \{\
-.		ie '\\*[misc*b]'D' .vs \\n[.ps]u+2p
+.		ie '\\*[misc*b]'D' .vs \\n[.ps]s+2p
 .		el .vs \\*[misc*b]
 .		if \\n[D]>2 .tm S: .vs \\*[misc*b]
 .	\}
 .\}
 .nr @ps \\n[.ps]
+.nr @psu \\n[.ps]s
 .nr @vs \\n[.v]
+.nr @vsp \\n[.v]u/1p
+.nr @res 1i
 .\"
-.if \\n[D]>1 .tm S(\\$*): ma:\\*[misc*a], mb:\\*[misc*b] => ps:\\n[@ps]u, vs:\\n[@vs]u
+.if \\n[D]>1 \{\
+.	tmc "S(\\$*): ma:\\*[misc*a], mb:\\*[misc*b]
+.	tm1 " => ps:\\n[.s]p (\\n[@psu]u), vs:\\n[@vsp]p (\\n[@vs]u) (res:\\n[@res])
+.\}
 .nr misc*S-ps \\n[misc*S-ps1]
 .nr misc*S-vs \\n[misc*S-vs1]
 .nr misc*S-ps1 \\n[@ps]
@@ -930,7 +945,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"
 .\"	clear lower counters
 .nr hd*i 1 1
-.while \\n+[hd*i]<8 .if \\n[hd*level]<\\n[hd*i] .nr H\\n[hd*i] 0 1
+.while \\n+[hd*i]<15 .if \\n[hd*level]<\\n[hd*i] .nr H\\n[hd*i] 0 1
 .\"
 .\" save last text for use in TP
 .if \\n[hd*level]=1 .ds H1txt \\$2\\$3
@@ -962,7 +977,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .if \\n[hd*level]>1 .as hd*mark \\n[H2]
 .\"
 .nr hd*i 2 1
-.while \\n+[hd*i]<8 .if \\n[hd*level]>(\\n[hd*i]-1) .as hd*mark .\\n[H\\n[hd*i]]
+.while \\n+[hd*i]<15 .if \\n[hd*level]>(\\n[hd*i]-1) .as hd*mark .\\n[H\\n[hd*i]]
 .if \\n[Ht] .ds hd*mark \\n[H\\n[hd*level]].
 .\"
 .\" special case, no dot after level one heading if not H1dot true
@@ -1025,6 +1040,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"---------- user macro HY ------------- 
 .\"	user macro to reset indents
 .if d HY .HY \\n[hd*level] \\n[hd*arg1] "\\$2\\$3"
+.DEVTAG-NH \\n[hd*level]              \" HTML: mark beginning of heading
 .\"-------------------------------------- 
 .nr hd*mark-size \w@\\*[hd*mark]@
 .if (\\n[hd*level]<=\\n[Hc])&\\n[hd*htype] .ce\" center if level<=Hc
@@ -1072,11 +1088,12 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .nr hd*last-pos \\n[nl]
 .nr hd*last-hsize \\n[.k]
 .nr par@ind-flag 0
+.DEVTAG-EO-H  \" HTML: end of heading
 ..
 .\"--------
 .de HM
 .nr hd*i 0 1
-.while \\n+[hd*i]<8 .af H\\n[hd*i] \\$[\\n[hd*i]] 1
+.while \\n+[hd*i]<15 .af H\\n[hd*i] \\$[\\n[hd*i]] 1
 ..
 .\"----------------------
 .\" set page-nr, called from header 
@@ -1134,9 +1151,12 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .if \\n[D]>2 .tm pg*last-pos \\n[@pl]u-(\\n[pg*block-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]u+\\n[pg*extra-footer-size]u) = \\n[pg*last-pos]
 ..
 .de pg@enable-trap
+.\" Disable in HTML mode
+.if !'\*[.T]'html' \{\
 .wh \\n[pg*foot-trap]u pg@footer
 .if \\n[D]>2 .tm pg@enable-trap .t=\\n[.t] nl=\\n[nl]
 .if \\n[D]>2 .ptr
+.\}
 ..
 .de pg@disable-trap
 .ch pg@footer
@@ -1185,7 +1205,12 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"------------------------------------------------------------
 .\" HEADER
 .de pg@header
+.\" Disable in HTML mode
+.if !'\*[.T]'html' \{\
 .if \\n[D]>1 .tm Page# \\n[%] (\\n[.F]:\\n[c.])
+.\" check if Hy has been changed
+.ie \\n[Hy] 'hy 14
+.el 'nh
 .if \\n[Idxf] \{\
 .tl '<pagenr\ \\n[%]>'''
 .\}
@@ -1241,6 +1266,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\}
 .if \\n[pg*top-enabled]<0 .nr pg*top-enabled 1
 .nr hd*cur-bline \\n[nl]	\" .H needs to know if output has occured
+.\}
 ..
 .\"---------------------------------------------------------
 .\" FOOTER
@@ -2426,8 +2452,8 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\" .toc@read-Ci lev1 lev2 lev3 lev4 ... lev7
 .de toc@read-Ci
 .nr toc*i 0 1
-.while \\n+[toc*i]<8 \{\
-.	nr toc*hl!\\n[toc*i] \\$\\n[toc*i]
+.while \\n+[toc*i]<15 \{\
+.	nr toc*hl!\\n[toc*i] \\$[\\n[toc*i]]
 .\}
 ..
 .\"-----------
@@ -2883,7 +2909,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\}
 .\"	clear lower counters
 .nr app*i 1 1
-.while \\n+[app*i]<8 .nr H\\n[app*i] 0 1
+.while \\n+[app*i]<15 .nr H\\n[app*i] 0 1
 ..
 .\"------------
 .de app@index

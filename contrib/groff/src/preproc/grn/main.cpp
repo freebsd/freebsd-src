@@ -90,7 +90,7 @@ extern void HGPrintElt(ELT *element, int baseline);
 extern ELT *DBInit();
 extern ELT *DBRead(register FILE *file);
 extern POINT *PTInit();
-extern POINT *PTMakePoint(float x, float y, POINT **pplist);
+extern POINT *PTMakePoint(double x, double y, POINT **pplist);
 
 
 #define SUN_SCALEFACTOR 0.70
@@ -125,7 +125,7 @@ int lastyline;			/* A line's vertical position is NOT the  */
 /* `default' command and are reset each time the    */
 /* start of a picture (.GS) is found.               */
 
-char *deffont[] =
+const char *deffont[] =
 {"R", "I", "B", "S"};
 int defsize[] =
 {10, 16, 24, 36};
@@ -160,7 +160,7 @@ int style[STYLES] =
 double scale = 1.0;		/* no scaling, default */
 int defpoint = 0;		/* flag for pointsize scaling */
 char *defstipple = (char *) 0;
-enum {
+enum E {
   OUTLINE, FILL, BOTH
 } polyfill;
 
@@ -214,7 +214,7 @@ int compatibility_flag = FALSE;	/* TRUE if in compatibility mode */
 
 
 void getres();
-char *doinput(FILE *fp);
+int doinput(FILE *fp);
 void conv(register FILE *fp, int baseline);
 void savestate();
 int has_polygon(register ELT *elist);
@@ -317,7 +317,7 @@ main(int argc,
     } else
       fp = stdin;
 
-    while (doinput(fp) != NULL) {
+    while (doinput(fp)) {
       if (*c1 == '.' && *c2 == 'G' && *c3 == 'S') {
 	if (compatibility_flag ||
 	    *c4 == '\n' || *c4 == ' ' || *c4 == '\0')
@@ -328,6 +328,8 @@ main(int argc,
 	fputs(inputline, stdout);
     }
   }
+
+  return 0;
 }
 
 
@@ -389,7 +391,7 @@ getres()
 
 
 /*----------------------------------------------------------------------------*
- | Routine:	char  * doinput (file_pointer)
+ | Routine:	int  doinput (file_pointer)
  |
  | Results:	A line of input is read into `inputline'.
  |
@@ -399,16 +401,14 @@ getres()
  |		updating `linenum'.
  *----------------------------------------------------------------------------*/
 
-char *
+int
 doinput(FILE *fp)
 {
-  char *k;
-
-  if ((k = fgets(inputline, MAXINLINE, fp)) == NULL)
-    return k;
+  if (fgets(inputline, MAXINLINE, fp) == NULL)
+    return 0;
   if (strchr(inputline, '\n'))	/* ++ only if it's a complete line */
     linenum++;
-  return (char *) !NULL;
+  return 1;
 }
 
 
@@ -430,7 +430,7 @@ initpic()
     thick[i] = defthick[i];
   }
   for (i = 0; i < FONTS; i++) {		/* font name defaults */
-    tfont[i] = deffont[i];
+    tfont[i] = (char *)deffont[i];
   }
   for (i = 0; i < SIZES; i++) {		/* font size defaults */
     tsize[i] = defsize[i];
@@ -488,7 +488,7 @@ conv(register FILE *fp,
   strcpy(GScommand, inputline);	/* save `.GS' line for later */
 
   do {
-    done = (doinput(fp) == NULL);	/* test for EOF */
+    done = !doinput(fp);		/* test for EOF */
     flyback = (*c3 == 'F');		/* and .GE or .GF */
     compat = (compatibility_flag ||
 	      *c4 == '\n' || *c4 == ' ' || *c4 == '\0');
@@ -518,7 +518,7 @@ conv(register FILE *fp,
 
       if (stipple == (char *) NULL)	/* if user forgot stipple    */
 	if (has_polygon(PICTURE))	/* and picture has a polygon */
-	  stipple = DEFSTIPPLE;		/* then set the default      */
+	  stipple = (char *)DEFSTIPPLE;		/* then set the default      */
 
       if ((temp = bottompoint - toppoint) < 0.1)
 	temp = 0.1;
@@ -686,8 +686,8 @@ savestate()
  *----------------------------------------------------------------------------*/
 
 void
-savebounds(float x,
-	   float y)
+savebounds(double x,
+	   double y)
 {
   if (x < leftpoint)
     leftpoint = x;
@@ -781,17 +781,17 @@ interpret(char *line)
 
   case 'l':			/* l */
     if (isdigit(str1[1])) {	/* set stipple index */
-      int index = atoi(str1 + 1), val;
+      int idx = atoi(str1 + 1), val;
 
-      if (index < 0 || index > NSTIPPLES) {
-	error("bad stipple number %1 at line %2", index, linenum);
+      if (idx < 0 || idx > NSTIPPLES) {
+	error("bad stipple number %1 at line %2", idx, linenum);
 	break;
       }
       if (!defstipple_index)
 	defstipple_index = other_stipple_index;
       val = atoi(str2);
       if (val >= 0 && val < 256)
-	stipple_index[index] = val;
+	stipple_index[idx] = val;
       else
 	error("bad stipple index value at line %1", linenum);
       break;

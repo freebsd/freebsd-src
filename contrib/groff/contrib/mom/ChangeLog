@@ -1,3 +1,396 @@
+*Thu Aug 11 2005
+
+o Makefile.sub (HTMLDOCFILES): Add `refer.html'
+
+*Mon Jun 20 2005
+
+o Makefile.sub (HTMLDOCFILES_, EXAMPLEFILES_, PROCESSEDEXAMPLEFILES_): New
+  variables.
+  (install_data): Install files in `mom' subdirectories.
+  Make it work actually.
+  (uninstall_sub): Updated.
+
+*Thu Jun 16 2005
+
+o Makefile.sub (install_data, uninstall_sub): Use $(exampledir) for example
+files.  Reported by Keith Marshall.
+
+*Mon May 16 2005
+
+o Update groff_mom.man.
+
+*Thu May 12 2005
+
+o Added margin notes capability
+
+o Added mom-specific refer support; refer calls can be embedded in
+  running text, sent to footnotes or endnotes, or collected for
+  output on a bibliography page; also added mom-specific refer
+  control macros
+
+o Added bibliography page capability, with full suite of control
+  macros
+
+o Added referencing of footnotes and endnotes by line number
+
+o Added capability to have footnotes run on when footnotes are
+  being referenced by line number
+
+o Added a post footnote space option, in case users want a little
+  space between their footnotes
+
+o Added ENDNOTE_MARKER_STYLE, so user can choose between endnotes
+  identified by a numerical marker in the text, or by line number
+
+o Added control macros to accommodate differing needs for endnotes
+  identified by line number
+
+o Added ENDNOTE_TITLE_SPACE, so user can control starting position
+  of the endnotes page title
+
+o Extended LIST so that it accepts lowercase alpha, uppercase roman
+  numeral and lowercase roman numeral enumerators; also added a
+  "prefix" argument (which comes *after* the separator argument)
+
+o Changed RESET_LIST so that it can reset a list to any number,
+  letter, or roman numeral, instead of just 1, a, A, I and i
+
+o Change to handling of footnote/endnote markers in text; input
+  lines before FOOTNOTE still require \c, but input line after
+  FOOTNOTE OFF must be entered as a literal continuation of the
+  line before FOOTNOTE, including any required word space or
+  punctuation (this so users can get the footnote marker in text
+  either before or after the punctuation without hassle)
+
+o Added QUOTE_AUTOLEAD and BLOCKQUOTE_AUTOLEAD, so user can have
+  quotes and blockquotes leaded differently from running text
+
+o Reworked QUOTE and BLOCKQUOTE to accommodate _AUTOLEAD control;
+  spacing above and below quotes is equalized *on a per quote
+  basis* (not completely happy with this, but at least it gives
+  users some flexibility in designing (block)quotes)
+
+*Fri Mar 18 2005
+
+o Added mom.vim to /examples
+
+*Thu Jan 20 2005
+
+o Added \*[TB+] and \*[B] to give inline functionality of .TN and
+  .EL, respectively.
+
+o Added SECTION and SECTION_CHAR as aliases of LINEBREAK and
+  LINEBREAK_CHAR
+
+o Added a NOBREAK option to PAD, so when PAD is called, it's possible
+  to instruct mom not to advance on the page.
+
+*Wed Jan 19 2005
+
+o New macro, ADD_SPACE, so that extra space can be added at the
+  top of a new page in document processing; the .ns call in HEADER
+  was making additional space impossible
+
+o Reworked handling of ALD/SPACE/SP and LS when they're used at
+  the tops of pages during pure (i.e. non-docprocessing)
+  typesetting.  First lines were still wandering.  Should also be
+  more intuitive: ALD after LS advances the specified distance from
+  the top baseline; LS after ALD doesn't change the position of the
+  first baseline (i.e. merely sets the lead for the text that
+  follows).
+
+*Tue Dec 14 2004
+
+o Fixed a small problem with spacing under quotes when paragraph
+  spacing is turned on.
+
+*Fri Dec 10 2004
+
+o Put all calls in VFP_CHECK inside their own environment.  Without
+  the .ev call, the trap invoked VFP_CHECK was chopping off the
+  first word of the last line before footnotes.
+
+*Dec 6 2004
+
+o Small fixes to elvis_syntax.new (dealing with strings, \{\ and \}
+
+o Changed
+    .    ie \\n[#START] \{\
+    .       if \\n[#DOC_HEADER]=0 \{ . \}
+    .    \}
+  in HEAD to
+    .    ie \\n[#START] \{\
+    .       if \\n[#DOC_HEADER]=0 \{ .RLD 1v \}
+    .    \}
+  so that HEADs at the start of docs with no docheaders falls on
+  the correct baseline.
+
+*Dec 3 2004
+
+o Removed spurious parens from if ( \\n[#TRAP_DISTANCE] < \\n[#DOC_LEAD]*2 )
+  in SUBHEAD.
+
+*Oct 14 2004
+
+o Reworked the LL macro so that the argument can take a prepended +
+  or - sign (i.e. the argument is relative to the current line
+  length).
+
+*Oct 13 2004
+
+o Added an .if \\n(.n=0 if to the ie clause in LS that controls how mom
+  responds to initial LS invocation at page top if T_MARGIN has
+  been set.  Now, if there's text on the "top" baseline, LS behaves
+  as expected when invoked afterwards.
+
+*Oct 11 2004
+
+o Added an ie !r#DOCS clause to the processing of "top baseline"
+  ALDs.  ALD is used extensively (internally) in the document
+  processing macros, and does not need to check--indeed, should not
+  check--for top baseline placement prior to execution.
+
+*Sep 29 2004
+
+o Additions to elvis_syntax.new
+
+*Sep 12 2004
+
+o Small fixes to the documentation.
+
+*Aug 21 2004
+
+o Removed superfluous second arguments from strings UP, DOWN, FWD
+  and BCK
+
+*Aug 8 2004
+
+o Version changed from the 1.1.x series to 1.2.  All of the
+  features I originally wanted mom to have originally have been
+  implemented, and appear to be stable.
+
+o Major overhaul to the setting of page traps and the handling of
+  footnotes, both "normal" footnotes and footnotes that occur
+  inside QUOTE, BLOCKQUOTE and EPIGRAPH.
+
+o Addtion of font "styles" to om.tmac, plus changes to the FAMILY
+  and FT macros to manage them.  New section in the doc appendices
+  on adding fonts and managing the new font styles.
+
+o Mom now uses a "fallback font" whenever there's an illegal call
+  to FAMILY.
+
+o RW and EW now affect only the font in effect.  A change of family
+  or font disables them.
+
+o BR_AT_LINE_KERN now properly does a .brp (spread and break) when
+  used in justified text.
+
+o NEWPAGE, which used to be an alias for .bp, has been moved into
+  its own macro, in order to make it more responsive to some unusal
+  situations.
+
+o Some changes to elvis_syn.new, including that the file extensions
+  recognized by elvis now include both .mom and .tmac.  This makes
+  om.tmac much easier to read.
+
+*Jul 6 2004
+
+o FT and FAM(ILY) reworked to take advantage of if S, if F and
+  \n[.sty] additions to groff (1.19.2).  Warnings are emitted if a
+  style hasn't been registered, or if a font style doesn't exist in
+  the current family.  Invalid .FAM(ILY) calls now use a "fallback"
+  font" (although no warning is issued); fallback is user-settable
+
+o New macro, FALLBACK_FONT.  Not only controls the fallback font
+  for invalid family calls, but also controls whether mom aborts on
+  invalid .FT calls after issuing a warning.
+
+o RW/EW now affect only the current font (or font style)
+
+o BR_AT_LINE_KERN now (properly) does a break-and-spread when text
+  is justified.
+
+o Fairly extensive list of .sty's added to om.tmac.  Hopefully,
+  this will make life easier for users wishing to add new fonts
+  and/or entire new families to their groff site-font/devps
+  directory.
+
+*Jun 6 2004
+
+o Altered kerning slightly for footnote markers in text.  Daggers
+  and double-daggers were getting a bit jammed 
+
+*Fri Jun 4 2004
+
+o Makefile.sub (HTMLDOCFILES, EXAMPLEFILES, PROCESSEDEXAMPLEFILES): Updated.
+
+*Thu Jun 3 2004
+
+o Rewrote the routines dealing with _FAMILY, _FONT, _SIZE, _COLOR
+  and _QUAD.  A single macro for each checks for the calling alias
+  (e.g. TITLE_FAMILY in _FAMILY), and performs the appropriate
+  action.
+
+o All "COLOUR" aliases of "COLOR", no matter where, have been
+  removed.
+
+o Added cover and doc cover page generation.
+
+o Added reference macros COVERTITLE, DOC_COVERTITLE, MISC and
+  COPYRIGHT (for use with covers only)
+
+o Fixed EL and TN so they don't spring page traps; in nofill modes
+  the preceding input line must be terminated by \c.
+
+o Added #T_MARGIN_LEAD_ADJ to DO_B_MARGIN, DO_T_MARGIN and NEWPAGE
+  to ensure accurate placement of first lines on new pages when
+  docprocessing is not taking place.
+
+o Made NEWPAGE it's own macro; formerly just an alias of .bp.
+
+o Made BREAKQUOTE obsolete; rewrote sections of footnote handling,
+  including adding support macros to deal with processing of
+  footnotes that were started inside quotes, blockquotes and
+  epigraphs.
+
+o Added a TERMINATE .em to docprocessing (except letters) to ensure
+  that deferred footnotes print on the last page of a doc.
+
+
+*Mar 15 2004
+
+o Added color support
+
+o Adjusted vertical placement of hyphens around page numbering
+  so that they are better centered on the height of the page
+  number.
+
+o Re-wrote portions of the document processing macros so that tabs
+  behave in a consistent and intuitive manner.  Tab structures are
+  now properly preserved from page to page and column to column.
+
+*Feb 20 2004
+
+o Rewrote the macros associated with DOCTYPE LETTER so that the
+  user can enter DATE, TO and FROM in any order s/he likes.  For
+  backward compatibility, if the older, fixed order (DATE-TO-FROM)
+  is used, the date goes flush right with two linespaces after
+  it, while the other fields go flush left with a single linespace
+  separating them.
+
+o Fixed handling of DOCHEADER OFF <distance> when <distance> fell
+  short of the top margin of running text (the change is actually
+  in the SHIM macro, which is called by DOCHEADER).
+
+o Added a selection of iso 639 two-letter language codes as
+  optional arguments to SMARTQUOTES, so that the use can enter
+  her/his language code to get language specific quoting styles
+
+o Changed the way the strings for \*[ST<n>], \*[ST<n>X], \*[FU<n>]
+  and \*[BU<n>] are read.  Formerly, they were entered literally.
+  Now they're entered as an array.
+
+*Jan 24 2004
+
+o Added lists and associated macros.  Mom now does (nested) lists.
+
+o Added German-style lowered double quotes and two styles of
+  guillemets to SMARTQUOTES.
+
+o Added macro SIZE, intended to be called inline as \*[SIZE <n>].
+  This is to bring mom's inline size change syntax into line with
+  her other inlines.
+
+o Added ESC_CHAR as an alias of .ec
+
+o Added doc entries for lists.
+
+o Updated SMARTQUOTES entry in docs.
+
+o Updated reserved words in docs.
+
+o Fixed a few more typos in docs.
+
+*Tue Oct 21 2003
+
+o Changed \n[#DRAFT] and \n[#REVISION] to strings \*[$DRAFT] and
+  \*[$REVISION], allowing for the possibility of blank entries that
+  don't mess up headers/footers with zeros if user doesn't want any
+  numbers.
+
+o Extended handling of draft and revision numbers and strings in
+  headers/footers for increased flexibility.  It's possible now to
+  have just about any combo of DRAFT_STRING, DRAFT, REVISION_STRING
+  and REVISION, and have them come out in headers/footers as one
+  intuitively expects/wants.
+
+*Fri Jul 25 2003
+
+o Added a .bp after .if \\n[#START]=1 in FOOTER.  Without it,
+  in document processing mode, documents that use *none* of the
+  docprocessing tags (yes, there are times when users want to do
+  this) ignored the footer trap.
+
+*Fri Jun 6 2003
+
+o Changed register #DOCHEADER_LEAD_ADJ to string
+
+*Wed May 21 2003
+
+o DOC_TITLE changed to be used exclusively with DOCTYPE DEFAULT
+
+o Fixed problem with restoration of previous doc pagenum
+  style when endnotes use a different pagenum style (set with
+  ENDNOTES_PAGENUM_STYLE)
+
+o Fixed handling of headers/footers with respect to endnotes.  Now,
+  when either headers or footers are on, mom picks up the correct
+  page header/footer on the last page prior to ENDNOTES, gets the
+  pageheaders correct for endnotes pages *including the last one*,
+  and picks up correct page headers/footers for the subsequent docs
+  after COLLATE
+
+*Sat May 17 2003
+
+o Added TOC (finally) and a nearly complete set of associated
+  control macros
+
+o Added new control macros to endnotes:
+
+  ENDNOTES_STRING_CAPS       - capitalize the endnotes string
+  ENDNOTES_NO_COLUMNS        - allows docs in columns and endnotes not
+  ENDNOTES_PAGENUM_STYLE     - set page numbering style for endnotes
+  ENDNOTES_FIRST_PAGENUMBER  - set first pagenumber for endnotes
+  ENDNOTES_ALLOWS_HEADERS    - page headers on endnotes pages off or on
+  ENDNOTES_NO_FIRST_PAGENUM  - allows non-printing first page number when page footers are being used instead of headers
+  ENDNOTES_SINGLE_SPACE      - for TYPEWRITE, if doc double-spaced
+  SUSPEND/RESTORE_PAGINATION - turns page numbering off for endnotes
+
+o Added an ADJUST option to ENDNOTE_LEAD
+
+o Added DOC_TITLE (like TITLE, but sets document-wide title for collated docs)
+
+o Added HDRFTR_CENTER_PAD, to allow adjustments to placement of
+  HDRFTR_CENTER_STRING
+
+o Added BLANKPAGE macro, to output blank pages (silently numbered)
+
+o Extensive changes to DEFAULTS, START, COLLATE, HEAD, SUBHEAD and
+  PARAHEAD because of new TOC and extended flexibility of ENDNOTES
+  page design
+
+o Fixed DOCHEADER OFF (distance), FINIS
+
+-----------------------------------------------------------------------
+
+*Sat Feb 22 2003
+
+o (Re)-fixed handling of post epigraph spacing after #START for
+  TYPEWRITE double-spaced.
+
+------------------------------------------------------------------------
+
 *Sun Feb 16 2003
 
 o Added James Ramsey's proposed CHAPTER_TITLE macro, along with his
@@ -57,6 +450,8 @@ o Changed handling of inline horizontal and vertical movements.
   The older forms \*[FP#] and \*[BP#] still work (horizontals), as do
   \*[ALD#] and \*[RLD#] (verticals).
 
+------------------------------------------------------------------------
+
 *Mon Aug 19 2002
 
 o Fixed ENDNOTES so footnotes output properly when ENDNOTES is called
@@ -71,15 +466,6 @@ o Added .nf to top of PAD, with a test beforehand for current fill
   mode.  If fill mode was on, it's restored after PAD completes
   processing.  Updated reserved.html to include number register
   #FILL_MODE.
-
-*Mon Jul 29 2002
-
-o Makefile.sub (FFLAG, TFLAG): Add paths to source directories.
-
-*Wed Jul 24 2002
-
-o Makefile.sub (groff_bin_path): Don't use ' \+' but '  *' for sed.
-  (GROFF): Set GROFF_COMMAND_PREFIX to empty value.
 
 *Fri Jul 12 2002
 
@@ -111,10 +497,6 @@ o Fixed the character translations for UNDERLINE so they work properly
 o Expanded docprocessing.html entry "Special Note on Chapters".  Tidied
   up html a bit.
 
-*Tue Jun 18 2002
-
-o examples/macros.mom: Fix path to penguin.ps.
-
 *Sat Jun 15 2002
 
 o Small fix to PAD to make the use of inlines within the pad string
@@ -123,17 +505,17 @@ o Small fix to PAD to make the use of inlines within the pad string
 o Added \*[RULE] ( = \l'\n(.lu' ) so that full measure rules (either to
   full line length or within tabs) are easier to set.
 
-*Sat Jun  8 2002
+*Sat Jun 8 2002
 
 o Macro .PS renamed to .PT_SIZE.  Alias .TS removed.
 
-o .tr bits in .CAPS rewritten in the form .tr é\['E].
+o .tr bits in .CAPS rewritten in the form .tr é\[`E].
 
-o General cleanup of docs to reflect changes.
+o General cleanup of docs to reflect changes
 
-o Small changes/additions to `elvis_syntax'.
+o Small changes/additions to elvis_syn
 
-*Thu Jun  6 2002
+*Thu Jun 6 2002
 
 o In DOCTYPE, in .if '\\$1'LETTER', added .FOOTER_RIGHT_SIZE +0.
   Without it, the suite page was printing at the default

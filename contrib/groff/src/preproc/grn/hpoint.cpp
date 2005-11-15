@@ -24,26 +24,26 @@ PTInit()
  * into the pointlist.
  */
 POINT *
-PTMakePoint(float x,
-	    float y,
+PTMakePoint(double x,
+	    double y,
 	    POINT **pplist)
 {
-  register POINT *point;
+  register POINT *pt;
 
-  if (Nullpoint(point = *pplist)) {	/* empty list */
+  if (Nullpoint(pt = *pplist)) {	/* empty list */
     *pplist = (POINT *) malloc(sizeof(POINT));
-    point = *pplist;
+    pt = *pplist;
   } else {
-    while (!Nullpoint(point->nextpt))
-      point = point->nextpt;
-    point->nextpt = (POINT *) malloc(sizeof(POINT));
-    point = point->nextpt;
+    while (!Nullpoint(pt->nextpt))
+      pt = pt->nextpt;
+    pt->nextpt = (POINT *) malloc(sizeof(POINT));
+    pt = pt->nextpt;
   }
 
-  point->x = x;
-  point->y = y;
-  point->nextpt = PTInit();
-  return (point);
+  pt->x = x;
+  pt->y = y;
+  pt->nextpt = PTInit();
+  return (pt);
 }				/* end PTMakePoint */
 
 /* EOF */
