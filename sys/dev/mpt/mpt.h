@@ -450,6 +450,7 @@ struct mpt_softc {
 	u_int			raid_resync_rate;
 	u_int			raid_mwce_setting;
 	u_int			raid_queue_depth;
+	u_int			raid_nonopt_volumes;
 	struct proc	       *raid_thread;
 	struct callout		raid_timer;
 
