@@ -2083,4 +2083,81 @@ ural_stop(void *priv)
 	ural_free_tx_list(sc);
 }
 
+/*-
+ * Naive implementation of the Adaptive Multi Rate Retry algorithm:
+ *     "IEEE 802.11 Rate Adaptation: A Practical Approach"
+ *     Mathieu Lacage, Hossein Manshaei, Thierry Turletti
+ *     INRIA Sophia - Projet Planete
+ *     http://www-sop.inria.fr/rapports/sophia/RR-5208.html
+ *
+ * This algorithm is particularly well suited for ural since it does not
+ * require per-frame retry statistics.  Note however that since we do not
+ * have per-frame statistics, we cannot do per-node rate adaptation.
+ */
+
+#define URAL_AMRR_MIN_SUCCESS_THRESHOLD	 1
+#define URAL_AMRR_MAX_SUCCESS_THRESHOLD	10
+
+#define is_success(amrr)	\
+	((amrr)->retrycnt < (amrr)->txcnt / 10)
+#define is_failure(amrr)	\
+	((amrr)->retrycnt > (amrr)->txcnt / 3)
+#define is_enough(amrr)		\
+	((amrr)->txcnt > 10)
+#define is_min_rate(ni)		\
+	((ni)->ni_txrate == 0)
+#define is_max_rate(ni)		\
+	((ni)->ni_txrate == (ni)->ni_rates.rs_nrates - 1)
+#define increase_rate(ni)	\
+	((ni)->ni_txrate++)
+#define decrease_rate(ni)	\
+	((ni)->ni_txrate--)
+#define reset_cnt(amrr)		\
+	do { (amrr)->txcnt = (amrr)->retrycnt = 0; } while (0)
+
+Static void ural_ratectl(void *) __unused;
+
+Static void
+ural_ratectl(void *priv)
+{
+	struct ural_softc *sc = (struct ural_softc *)priv;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_node *ni = ic->ic_bss;
+	struct ural_amrr *amrr = &sc->amrr;
+	int need_change = 0;
+
+	if (is_success(amrr) && is_enough(amrr)) {
+		amrr->success++;
+		if (amrr->success >= amrr->success_threshold &&
+		    !is_max_rate(ni)) {
+			amrr->recovery = 1;
+			amrr->success = 0;
+			increase_rate(ni);
+			need_change = 1;
+		} else {
+			amrr->recovery = 0;
+		}
+	}  else if (is_failure(amrr)) {
+		amrr->success = 0;
+		if (!is_min_rate(ni)) {
+			if (amrr->recovery) {
+				amrr->success_threshold *= 2;
+				if (amrr->success_threshold >
+				    URAL_AMRR_MAX_SUCCESS_THRESHOLD)
+					amrr->success_threshold =
+					    URAL_AMRR_MAX_SUCCESS_THRESHOLD;
+			} else {
+				amrr->success_threshold =
+				    URAL_AMRR_MIN_SUCCESS_THRESHOLD;
+			}
+			decrease_rate(ni);
+			need_change = 1;
+		}
+		amrr->recovery = 0;	/* original paper was incorrect */
+	}
+
+	if (is_enough(amrr) || need_change)
+		reset_cnt(amrr);
+}
+
 DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, usbd_driver_load, 0);
