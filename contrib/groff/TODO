@@ -1,11 +1,5 @@
 Unicode input:
-  Implementing \U'xxxx' to access Unicode characters directly.
-
-  Making groff 16bit input-clean.
-
-Separating input and output encodings (similar to LaTeX).
-
-Better selection of paper sizes with -Tps.
+  Making groff 21bit input-clean.
 
 Make -Tlj4 work with -X.
 

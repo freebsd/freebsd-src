@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "driver.h"
 #include "nonposix.h"
@@ -340,12 +340,12 @@ void dvi_printer::set_color(color *col)
   do_special(buf);
 }
 
-void dvi_printer::set_char(int index, font *f, const environment *env,
+void dvi_printer::set_char(int idx, font *f, const environment *env,
 			   int w, const char *)
 {
   if (*env->col != cur_color)
     set_color(env->col);
-  int code = f->get_code(index);
+  int code = f->get_code(idx);
   if (env->size != cur_point_size || f != cur_font) {
     cur_font = f;
     cur_point_size = env->size;
@@ -384,7 +384,7 @@ void dvi_printer::set_char(int index, font *f, const environment *env,
   }
   possibly_begin_line();
   end_h = env->hpos + w;
-  cur_h += scale(f->get_width(index, UNITWIDTH)/MULTIPLIER,
+  cur_h += scale(f->get_width(idx, UNITWIDTH)/MULTIPLIER,
 		 cur_point_size*RES_7227);
   if (cur_h > max_h)
     max_h = cur_h;
@@ -709,24 +709,26 @@ void draw_dvi_printer::draw(int code, int *p, int np, const environment *env)
     fill_flag = 1;
     // fall through
   case 'c':
-    // troff adds an extra argument to C
-    if (np != 1 && !(code == 'C' && np == 2)) {
-      error("1 argument required for circle");
+    {
+      // troff adds an extra argument to C
+      if (np != 1 && !(code == 'C' && np == 2)) {
+	error("1 argument required for circle");
+	break;
+      }
+      moveto(env->hpos+p[0]/2, env->vpos);
+      if (fill_flag)
+	fill_next(env);
+      else
+	set_line_thickness(env);
+      int rad;
+      rad = milliinches(p[0]/2);
+      sprintf(buf, "%s 0 0 %d %d 0 6.28319",
+	      (fill_flag ? "ia" : "ar"),
+	      rad,
+	      rad);
+      do_special(buf);
       break;
     }
-    moveto(env->hpos+p[0]/2, env->vpos);
-    if (fill_flag)
-      fill_next(env);
-    else
-      set_line_thickness(env);
-    int rad;
-    rad = milliinches(p[0]/2);
-    sprintf(buf, "%s 0 0 %d %d 0 6.28319",
-	    (fill_flag ? "ia" : "ar"),
-	    rad,
-	    rad);
-    do_special(buf);
-    break;
   case 'l':
     if (np != 2) {
       error("2 arguments required for line");
@@ -820,11 +822,11 @@ void draw_dvi_printer::draw(int code, int *p, int np, const environment *env)
       if (adjust_arc_center(p, c)) {
 	int rad = milliinches(int(sqrt(c[0]*c[0] + c[1]*c[1]) + .5));
 	moveto(env->hpos + int(c[0]), env->vpos + int(c[1]));
-	sprintf(buf, "ar 0 0 %d %d %f %f",
-		rad,
-		rad,
-		atan2(p[1] + p[3] - c[1], p[0] + p[2] - c[0]),
-		atan2(-c[1], -c[0]));
+	double start = atan2(p[1] + p[3] - c[1], p[0] + p[2] - c[0]);
+	double end = atan2(-c[1], -c[0]);
+	if (end - start < 0)
+	  start -= 2 * 3.14159265358;
+	sprintf(buf, "ar 0 0 %d %d %f %f", rad, rad, start, end);
 	do_special(buf);
       }
       else {
@@ -915,7 +917,7 @@ int main(int argc, char **argv)
     { "version", no_argument, 0, 'v' },
     { NULL, 0, 0, 0 }
   };
-  while ((c = getopt_long(argc, argv, "dF:lp:vw:", long_options, NULL))
+  while ((c = getopt_long(argc, argv, "dF:I:lp:vw:", long_options, NULL))
 	 != EOF)
     switch(c) {
     case 'd':
@@ -926,6 +928,9 @@ int main(int argc, char **argv)
       break;
     case 'F':
       font::command_line_font_dir(optarg);
+      break;
+    case 'I':
+      // ignore include search path
       break;
     case 'p':
       if (!font::scan_papersize(optarg, 0,

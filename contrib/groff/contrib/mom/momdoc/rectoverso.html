@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
@@ -10,14 +11,12 @@
 <a href="cover.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="headfootpage.html#TOP">Prev</a>&nbsp;&nbsp;
 <a href="toc.html">Back to Table of Contents</a>
+<p>
 
 <a name="TOP"></a>
+<a name="INDEX_RECTOVERSO"></a>
 <a name="RECTOVERSO">
-	<h2 align="center"><u>RECTO/VERSO PRINTING and COLLATING</u></h2>
-</a>
-
-<a name="INDEX_RECTOVERSO">
-	<h3><u>Recto/verso and collating</u></h3>
+	<h1 align="center"><u>RECTO/VERSO PRINTING and COLLATING</u></h1>
 </a>
 
 <ul>
@@ -57,7 +56,7 @@ of the following aspects of alternating page layout:
 		if user-defined, single string recto/verso headers
 		or footers are used in place of the default 3-part
 		headers or footers
-	<li>switching the page number position (if page numbers are not centered)
+	<li>switching the page number position (if page numbers are not centred)
 </ul>
 <p>
 It is beyond the scope of this documentation to cover the different
@@ -74,8 +73,7 @@ appropriately, put them back in your printer, and have
 work from the command line, check out the man pages for
 <strong>pstops</strong> and <strong>psbook</strong>.  There are other
 programs out there as well to help with two-sided printing.
-<br>
-
+<p>
 
 <a name="RECTOVERSO_LIST">
 	<h3><u>Recto/verso macros list</u></h3>
@@ -85,6 +83,7 @@ programs out there as well to help with two-sided printing.
 	<li><a href="#RECTO_VERSO">RECTO_VERSO</a>
 	<li><a href="#SWITCH_HDRFTR">SWITCH_HEADERS (also FOOTERS)</a>
 </ul>
+<p>
 
 <hr>
 <!---RECTO_VERSO--->
@@ -92,7 +91,6 @@ programs out there as well to help with two-sided printing.
 <a name="RECTO_VERSO">
 	<h3><u>Recto/verso printing</u></h3>
 </a>
-<br>
 Macro: <strong>RECTO_VERSO</strong>
 
 <p>
@@ -122,11 +120,11 @@ and
 (before or after <strong>START</strong>).
 <p>
 Equally, recto/verso only switches the page number position if page
-numbers aren't centered, which means you have to set the page
+numbers aren't centred, which means you have to set the page
 number position with
 <a href="headfootpage.html#PAGENUM_POS">PAGENUM_POS</a>
 (before or after <strong>START</strong>).
-<br>
+<p>
 
 <!---SWITCH_HDRFTR--->
 
@@ -134,7 +132,6 @@ number position with
 <a name="SWITCH_HDRFTR">
 	<h3><u>Switch header left part/right part</u></h3>
 </a>
-<br>
 Macro: <strong>SWITCH_HEADERS</strong>
 
 <p>
@@ -144,7 +141,7 @@ string (by default, the document title).  If you don't like
 <strong>mom</strong>'s default placement of author and title, use
 <strong>SWITCH_HEADERS</strong> to reverse it.
 <p>
-<strong>SWITCH_HEADERS</strong> can also be useful in conjuction
+<strong>SWITCH_HEADERS</strong> can also be useful in conjunction
 with
 <a href="#RECTO_VERSO">RECTO_VERSO</a>.
 The assumption of <strong>RECTO_VERSO</strong> is that the first
@@ -160,7 +157,7 @@ respect to headers) will come out as you want.
 <p>
 <strong>NOTE:</strong> Replace <strong>_HEADERS</strong>, above,
 with <strong>_FOOTERS</strong> if your document uses footers.
-<br>
+<p>
 <hr>
 
 <!=====================================================================>
@@ -205,15 +202,14 @@ files, chances are the <strong>PRINTSTYLE</strong>'s already there.
 <ol>
 	<li>Do not collate documents of differing
 		<strong>PRINTSTYLES</strong> (i.e. don't try to
-		collate a TYPESET document and TYPEWRITE document --
-		why would you want to do that anyway?)
+		collate a TYPESET document and TYPEWRITE document).
 	<li>Use <strong>DOC_FAMILY</strong> instead of
 		<strong>FAMILY</strong> if, for some reason, you want
 		to change the family of all the document elements after
 		<strong>COLLATE</strong>.  <strong>FAMILY</strong>, by
 		itself, will change the family of paragraph text only.
 </ol>
-<br>
+<p>
 
 <!---COLLATE--->
 
@@ -221,7 +217,7 @@ files, chances are the <strong>PRINTSTYLE</strong>'s already there.
 <a name="COLLATE">
 	<h3><u>Collate document files</u></h3>
 </a>
-<br>
+
 Macro: <strong>COLLATE</strong>
 
 <p>
@@ -239,14 +235,14 @@ that require their own titles, looks like this:
 <p>
 <pre>
 	.COLLATE
-	.CHAPTER_STRING "Geek Fatigue: Symptoms and Causes"
+	.CHAPTER_TITLE "Geek Fatigue: Symptoms and Causes"
 	.START
 </pre>
 
 <strong>NOTE:</strong> See the
 <a href="#CAUTION">two words of caution</a>,
 above.
-<br>
+<p>
 
 <hr>
 <a href="cover.html#TOP">Next</a>&nbsp;&nbsp;

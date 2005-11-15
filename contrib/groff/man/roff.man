@@ -1,11 +1,11 @@
 .ig
 roff.man
 
-Last update: 3 Apr 2003
+Last update: 1 Jun 2004
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
 maintained by Werner Lemberg <wl@gnu.org>
 
@@ -22,6 +22,9 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .\" Setup
 .\" --------------------------------------------------------------------
+.
+.do nr roff_C \n[.C]
+.cp 0
 .
 .mso www.tmac
 .
@@ -470,7 +473,7 @@ Labs tried to launch a rescue project with their
 operating system.
 .
 It is freely available for non-commercial use, even the source code,
-but has a proprietary license that empedes the free development.
+but has a proprietary license that impedes the free development.
 .
 This concept is outdated, so Plan\~9 was not accepted as a platform to
 bundle the main-stream development.
@@ -520,7 +523,7 @@ When you read a system manual page (man page) roff is working in the
 background.
 .
 Roff documents can be viewed with a native viewer called
-.BR xditview (1x),
+.BR \%xditview (1x),
 a standard program of the X window distribution, see
 .BR X (7x).
 .
@@ -1166,7 +1169,7 @@ provides the free roff implementation groff, the actual standard roff.
 .\" --------------------------------------------------------------------
 .
 Many classical
-.troff
+.B troff
 documents are still available on-line.
 .
 The two main manuals of the troff language are
@@ -1244,7 +1247,7 @@ might be a good starting point.
 .SH AUTHORS
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
@@ -1264,6 +1267,7 @@ It was written by
 it is maintained by
 .MTO wl@gnu.org "Werner Lemberg".
 .
+.cp \n[roff_C]
 .
 .\" --------------------------------------------------------------------
 .\" Emacs setup

@@ -1,7 +1,5 @@
 Support multiple line-spacing.
 
-Improve the device independence of the character definitions.
-
 If we have footnotes in the abstract in RP format, then the footnote
 will appear on the cover sheet, which it should, but also on the first
 page, which it should not.

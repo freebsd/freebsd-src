@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2003, 2004
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "table.h"
 
@@ -30,7 +30,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 const int DEFAULT_COLUMN_SEPARATION = 3;
 
 #define DELIMITER_CHAR "\\[tbl]"
-#define PREFIX "3"
 #define SEPARATION_FACTOR_REG PREFIX "sep"
 #define BOTTOM_REG PREFIX "bot"
 #define RESET_MACRO_NAME PREFIX "init"
@@ -63,6 +62,8 @@ const int DEFAULT_COLUMN_SEPARATION = 3;
 
 // this must be one character
 #define COMPATIBLE_REG PREFIX "c"
+
+#define LEADER_REG PREFIX LEADER
 
 #define BLOCK_WIDTH_PREFIX PREFIX "tbw"
 #define BLOCK_DIVERSION_PREFIX PREFIX "tbd"
@@ -128,14 +129,14 @@ void prints(const string &s)
 
 struct horizontal_span {
   horizontal_span *next;
-  short start_col;
-  short end_col;
+  int start_col;
+  int end_col;
   horizontal_span(int, int, horizontal_span *);
 };
 
-struct single_line_entry;
-struct double_line_entry;
-struct simple_entry;
+class single_line_entry;
+class double_line_entry;
+class simple_entry;
 
 class table_entry {
 friend class table;
@@ -145,8 +146,8 @@ friend class table;
 protected:
   int start_row;
   int end_row;
-  short start_col;
-  short end_col;
+  int start_col;
+  int end_col;
   const entry_modifier *mod;
 public:
   void set_location();
@@ -687,8 +688,8 @@ void block_entry::do_divert(int alphabetic, int ncols, const string *mw,
   if (alphabetic)
     prints("-2n");
   prints("\n");
-  set_modifier(mod);
   prints(".cp \\n(" COMPATIBLE_REG "\n");
+  set_modifier(mod);
   set_location();
   prints(contents);
   prints(".br\n.di\n.cp 0\n");
@@ -965,6 +966,8 @@ void set_modifier(const entry_modifier *m)
       prints('-');
     printfs("%1\n", as_string(m->vertical_spacing.val));
   }
+  if (!m->macro.empty())
+    printfs(".%1\n", m->macro);
 }
 
 void set_inline_modifier(const entry_modifier *m)
@@ -1088,7 +1091,7 @@ struct vertical_rule {
   vertical_rule *next;
   int start_row;
   int end_row;
-  short col;
+  int col;
   char is_double;
   string top_adjust;
   string bot_adjust;
@@ -1693,6 +1696,8 @@ void table::init_output()
     prints(".nr " LINESIZE_REG " \\n[.s]\n");
   if (!(flags & CENTER))
     prints(".nr " SAVED_CENTER_REG " \\n[.ce]\n");
+  if (compatible_flag)
+    prints(".ds " LEADER_REG " \\a\n");
   prints(".de " RESET_MACRO_NAME "\n"
 	 ".ft \\n[.f]\n"
 	 ".ps \\n[.s]\n"
@@ -2602,8 +2607,14 @@ void table::do_row(int r)
 	if (e) {
 	  if (e->end_row == r && e->start_row == i) {
 	    simple_entry *simple = e->to_simple_entry();
-	    if (simple)
+	    if (simple) {
+	      if (e->end_row != e->start_row) {
+		prints('\n');
+		simple->position_vertically();
+		prints("\\&");
+	      }
 	      simple->simple_print(0);
+	    }
 	  }
 	  c = e->end_col;
 	}

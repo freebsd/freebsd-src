@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2004 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -16,7 +16,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 // piles and matrices
 
 #include "eqn.h"
@@ -114,13 +114,13 @@ void pile_box::debug_print()
 int matrix_box::compute_metrics(int style)
 {
   int i, j;
-  int maxlen = 0;
+  int max_len = 0;
   int space = 0;
   for (i = 0; i < len; i++) {
     for (j = 0; j < p[i]->len; j++)
       p[i]->p[j]->compute_metrics(style);
-    if (p[i]->len > maxlen)
-      maxlen = p[i]->len;
+    if (p[i]->len > max_len)
+      max_len = p[i]->len;
     if (p[i]->space > space)
       space = p[i]->space;
   }
@@ -145,7 +145,7 @@ int matrix_box::compute_metrics(int style)
   printf("/\\n(.V+(\\n(.V/2)*\\n(.V\n");
   printf(".nr " SUP_RAISE_FORMAT " \\n[" BASELINE_SEP_FORMAT "]*%d/2"
 	 "+%dM\n",
-	 uid, uid, maxlen-1, axis_height - shift_down);
+	 uid, uid, max_len-1, axis_height - shift_down);
   printf(".nr " HEIGHT_FORMAT " 0\\n[" SUP_RAISE_FORMAT "]+(0",
 	 uid, uid);
   for (i = 0; i < len; i++)
@@ -153,10 +153,10 @@ int matrix_box::compute_metrics(int style)
   printf(")>?0\n");
   printf(".nr " DEPTH_FORMAT " \\n[" BASELINE_SEP_FORMAT "]*%d-\\n["
 	 SUP_RAISE_FORMAT "]+(0",
-	 uid, uid, maxlen-1, uid);
+	 uid, uid, max_len-1, uid);
   for (i = 0; i < len; i++)
-    if (p[i]->len == maxlen)
-      printf(">?\\n[" DEPTH_FORMAT "]", p[i]->p[maxlen-1]->uid);
+    if (p[i]->len == max_len)
+      printf(">?\\n[" DEPTH_FORMAT "]", p[i]->p[max_len-1]->uid);
   printf(")>?0\n");
   return FOUND_NOTHING;
 }

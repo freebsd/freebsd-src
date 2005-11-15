@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000, 2002 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2002, 2003 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 #
 # This file is part of groff.
@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License along
 # with groff; see the file COPYING.  If not, write to the Free Software
-# Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # This is set up so you can do
 #   make -f generate/Makefile
@@ -188,7 +188,8 @@ ZD:
 	`$(AFMNAME) $(afmdir)/ZapfDingbats.afm` $(srcdir)/dingbats.map $@
 
 SS: $(srcdir)/symbolsl.afm
-	$(AFMTODIT) -s $(IFLAG) $(srcdir)/symbolsl.afm $(srcdir)/lgreekmap $@
+	$(AFMTODIT) -s -x $(IFLAG) \
+	$(srcdir)/symbolsl.afm $(srcdir)/lgreekmap $@
 
 S: symbol.afm
 	$(AFMTODIT) -s $(RFLAG) symbol.afm symbolmap $@

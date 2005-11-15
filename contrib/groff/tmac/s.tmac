@@ -3,7 +3,7 @@
 
 s.tmac
 
-Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003, 2004
   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -21,7 +21,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
 ..
 .if !\n(.g .ab These ms macros require groff.
 .if \n(.C \
@@ -31,7 +31,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .if (\n[.warn] == 65543) .warn
 .\" See if already loaded.
 .if r GS .nx
+.mso devtag.tmac
 .nr GS 1
+.nr need_eo_h 0
+.nr need_eo_tl 0
 .de @error
 .tm \\n(.F:\\n(.c: macro error: \\$*
 ..
@@ -50,7 +53,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .de @nop
 ..
 .de @init
-.nr PO \\n(.o
+.if !rPO .nr PO \\n(.o
 .\" a non-empty environment
 .ev ne
 \c
@@ -160,6 +163,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .de RP
 .nr cov*rp-format 1
 .if \\n[.$] .if '\\$1'no' .nr cov*rp-no 1
+.if rPO .po \\n(POu
 .pn 0
 ..
 .de TL
@@ -168,14 +172,14 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .rn @AB AB
 .rn @AU AU
 .rn @AI AI
-.if !'\*(.T'html' .di cov*tl-div
+.di cov*tl-div
 .par@reset
 .ft B
 .ps +2
 .vs +3p
 .ll (u;\\n[LL]*5/6)
 .nr cov*n-au 0
-.HTML-TAG ".tl"
+.DEVTAG-TL
 ..
 .de @AU
 .par@reset
@@ -187,10 +191,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .di cov*au-div!\\n[cov*n-au]
 .nf
 .ft I
-.ps \\n[PS]
+.ie (\\n[PS] >= 1000) \
+.	ps (\\n[PS]z / 1000u)
+.el \
+.	ps \\n[PS]
 ..
 .de @AI
-.if !'\*(.T'html' .par@reset
+.par@reset
 .if !'\\n(.z'' \{\
 .	br
 .	di
@@ -200,7 +207,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	di cov*ai-div!\\n[cov*n-au]
 .	nf
 .	ft R
-.	ps \\n[PS]
+.	ie (\\n[PS] >= 1000) \
+.		ps (\\n[PS]z / 1000u)
+.	el \
+.		ps \\n[PS]
 .\}
 ..
 .de LP
@@ -253,10 +263,18 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	di
 .\}
 .cov*ab-init
-.if !'\*(.T'html' .di cov*ab-div
+.ie '\*(.T'html' \{\
+.	cov*tl-au-print
+.	als cov*tl-au-print @nop
+.\}
+.el .di cov*ab-div
 .par@ab-indent
 .par@reset
 .if !'\\$1'no' \{\
+.       if '\*(.T'html'  \{\
+.              nf
+.              sp
+.       \}
 .	ft I
 .	ce 1
 \\*[ABSTRACT]
@@ -317,7 +335,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .sp 3
 .if d cov*ab-div \{\
 .  if !'\*(.T'html'  .	nf
-.	cov*ab-div
+.       cov*ab-div
 .\}
 .sp 3
 .par@reset
@@ -363,11 +381,15 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .rs
 .sp 3
 .ce 9999
-.if d cov*tl-div .cov*tl-div
+.if d cov*tl-div \{\
+.    cov*tl-div
+.    DEVTAG-EO-TL
+.\}
 .nr cov*i 1
 .nr cov*sp 1v
 .while \\n[cov*i]<=\\n[cov*n-au] \{\
-.	sp \\n[cov*sp]u
+.       ie '\*(.T'html' .br
+.	el .sp \\n[cov*sp]u
 .	cov*au-div!\\n[cov*i]
 .	ie d cov*ai-div!\\n[cov*i] \{\
 .		sp .5v	
@@ -479,7 +501,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .		nr pg*gutw \\n[LL]-(\\n[pg@ncols]*\\n[pg@colw])/(\\n[pg@ncols]-1)
 .	el .nr pg*gutw 0
 .\}
-.HTML-TAG ".mc \\n[pg@ncols] \\n[pg@colw] \\n[pg*gutw]"
+.DEVTAG ".mc \\n[pg@ncols] \\n[pg@colw] \\n[pg*gutw]"
 .mk pg*col-top
 .ns
 .nr pg*col-num 0
@@ -498,7 +520,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .nr PN \\n%
 .nr pg*col-num 0
 .nr pg@fn-bottom-margin 0
-.nr pg*saved-po \\n[PO]
 .po \\n[PO]u
 .ev h
 .par@reset
@@ -535,12 +556,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 ..
 .de pg*end-col
 'sp |\\n[pg*col-top]u
-.po (u;\\n[pg*saved-po]+(\\n[pg@colw]+\\n[pg*gutw]*\\n[pg*col-num]))
+.po (u;\\n[PO]+(\\n[pg@colw]+\\n[pg*gutw]*\\n[pg*col-num]))
 .\"po +(u;\\n[pg@colw]+\\n[pg*gutw])
 .pg*start-col
 ..
 .de pg*end-page
-.po \\n[pg*saved-po]u
+.po \\n[PO]u
 .\" Make sure we don't exit if there are still floats or footnotes left-over.
 .ie \\n[kp@head]<\\n[kp@tail]:\\n[fn@have-overflow] \{\
 .	\" Switching environments ensures that we don't get an unnecessary
@@ -996,10 +1017,23 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .\" don't set LT so that it can be defaulted from LL
 .ie rLT .lt \\n[LT]u
 .el .lt \\n[LL]u
-.ps \\n[PS]
+.ie (\\n[PS] >= 1000) \
+.	ps (\\n[PS]z / 1000u)
+.el \
+.	ps \\n[PS]
 .\" don't set VS so that it can be defaulted from PS
-.ie rVS .par*vs \\n[VS]
-.el .par*vs \\n[PS]+2
+.ie rVS \{\
+.	ie (\\n[VS] >= 1000) \
+.		par*vs "(\\n[VS]p / 1000u)"
+.	el \
+.		par*vs \\n[VS]
+.\}
+.el \{\
+.	ie (\\n[PS] >= 1000) \
+.		par*vs "((\\n[PS]p / 1000u) + 2p)"
+.	el \
+.		par*vs "(\\n[PS] + 2)"
+.\}
 .if dFAM .fam \\*[FAM]
 .if !rHY .nr HY 14
 .hy \\n[HY]
@@ -1031,16 +1065,37 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .de par@init
 .if !rLT .nr LT \\n[LL]
 .if !rFL .nr FL \\n[LL]*5/6
-.if !rVS .nr VS \\n[PS]+2
+.if !rVS \{\
+.	ie (\\n[PS] >= 1000) \
+.		nr VS (\\n[PS] + 2000)
+.	el \
+.		nr VS (\\n[PS] + 2)
+.\}
 .if !rDI .nr DI .5i
-.if !rFPS .nr FPS \\n[PS]-2
-.if !rFVS .nr FVS \\n[FPS]+2
+.if !rFPS \{\
+.	ie (\\n[PS] >= 1000) \
+.		nr FPS (\\n[PS] - 2000)
+.	el \
+.		nr FPS (\\n[PS] - 2)
+.\}
+.if !rFVS \{\
+.	ie (\\n[FPS] >= 1000) \
+.		nr FVS (\\n[FPS] + 2000)
+.	el \
+.		nr FVS (\\n[FPS] + 2)
+.\}
 .\" don't change environment 0
 .ev h
-.ps \\n[PS]
+.ie (\\n[PS] >= 1000) \
+.	ps (\\n[PS]z / 1000u)
+.el \
+.	ps \\n[PS]
 .if !rQI .nr QI 5n
 .if !rPI .nr PI 5n
-.par*vs \\n[VS]
+.ie (\\n[VS] >= 1000) \
+.	par*vs "(\\n[VS]p / 1000u)"
+.el \
+.	par*vs \\n[VS]
 .if !rPD .nr PD .3v>?\n(.V
 .if !rDD .nr DD .5v>?\n(.V
 .if !rFI .nr FI 2n
@@ -1083,6 +1138,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .\" par@reset
 .de par@reset
 .br
+.if \\n[need_eo_tl]>0 .DEVTAG-EO-TL
+.nr need_eo_tl 0
+.if \\n[need_eo_h]>0 .DEVTAG-EO-H
+.nr need_eo_h 0
 .ce 0
 .rj 0
 .ul 0
@@ -1098,8 +1157,14 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .in (u;\\n[\\n[.ev]:li]+\\n[\\n[.ev]:pli])
 .ft 1
 .fam \\*[FAM]
-.ps \\n[\\n[.ev]:PS]
-.par*vs \\n[\\n[.ev]:VS]
+.ie (\\n[\\n[.ev]:PS] >= 1000) \
+.	ps (\\n[\\n[.ev]:PS]z / 1000u)
+.el \
+.	ps \\n[\\n[.ev]:PS]
+.ie (\\n[\\n[.ev]:VS] >= 1000) \
+.	par*vs "(\\n[\\n[.ev]:VS]p / 1000u)"
+.el \
+.	par*vs \\n[\\n[.ev]:VS]
 .ls 1
 .TA
 .hy \\n[HY]
@@ -1113,13 +1178,18 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .de TA
 .ta T 5n
 ..
+.\" \n[PORPHANS] sets number of initial lines of any paragraph,
+.\" which must be kept together, without any included page break.
+.\" Initialise to reproduce original behaviour; user may adjust it.
+.if !rPORPHANS .nr PORPHANS 1
+.
 .de par*start
 .ds@auto-end
 .nr \\n[.ev]:pli \\$1
 .nr \\n[.ev]:pri \\$2
 .par@reset
 .sp \\n[\\n[.ev]:PD]u
-.ne 1v+\\n(.Vu
+.ne \\n[PORPHANS]v+\\n(.Vu
 ..
 .de par@finish
 .nr \\n[.ev]:pli 0
@@ -1156,33 +1226,15 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	di
 .	chop par*label
 .	ti -\\n[\\n[.ev]:ai]u
-.	ie \\n[dl]+1n<=\\n[\\n[.ev]:ai] \\*[par*label]\h'|\\n[\\n[.ev]:ai]u'\c
-.	el \{\
-\\*[par*label]
-.		br
-.	\}
-.	rm par*label
-.\}
-..
-.de @IP-html
-.if \\n[.$]>1 .nr \\n[.ev]:ai (n;\\$2)
-.par*start \\n[\\n[.ev]:ai] 0
-.if !'\\$1'' \{\
-.	\" Divert the label so as to freeze any spaces.
-.	di par*label
-.	par*push-tag-env
-\&\\$1
-.	par*pop-tag-env
-.	di
-.	chop par*label
-.	ti -\\n[\\n[.ev]:ai]u
 .	ie \\n[dl]+1n<=\\n[\\n[.ev]:ai] \{\
-.		HTML-TAG-NS ".col 1"
-\\$1\h'|\\n[\\n[.ev]:ai]u'\c
-.		HTML-TAG-NS ".col 2"
+.		DEVTAG-COL 1
+\\*[par*label]\h'|\\n[\\n[.ev]:ai]u'\c
+.		DEVTAG-COL 2
 .       \}
 .	el \{\
-\\$1
+.		DEVTAG-COL 1
+\\*[par*label]
+.		DEVTAG-COL-NEXT 2
 .		br
 .	\}
 .	rm par*label
@@ -1320,13 +1372,40 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .\}
 .el \!.par*box-draw \\$1 \\$2
 ..
-.de @SH
+.\" \n[HORPHANS] sets how many lines of the following paragraph must be
+.\" kept together, with a preceding section header.  Initialise it,
+.\" to reproduce original behaviour; user may change it.
+.if !rHORPHANS .nr HORPHANS 1
+.
+.\" \n[GROWPS] and \n[PSINCR] cause auto-increment of header point size.
+.\" Initialise them, so they have no effect, unless explicitly set by the user.
+.if !rGROWPS .nr GROWPS 0
+.if !rPSINCR .nr PSINCR 1p
+.
+.de SH-NO-TAG
 .par@finish
-.\" Keep together the heading and the first two lines of the next paragraph.
-.ne 3v+\\n[\\n[.ev]:PD]u+\\n(.Vu
+.\" Keep the heading and the first few lines of the next paragraph together.
+.\" (\n[HORPHANS] defines "first few" -- default = 1; user may redefine it).
+.nr sh*minvs \\n[HORPHANS]v
+.if \\n[sh*psincr]<0 .nr sh*psincr 0
+.ie \\n(VS<1000 .par*vs \\n(VSp+\\n[sh*psincr]u
+.el .par*vs \\n(VSp/1000u+\\n[sh*psincr]u
+.ne 2v+\\n[sh*minvs]u+\\n[\\n[.ev]:PD]u+\\n(.Vu
+.\" Adjust point size for heading text, as specified by \n[GROWPS] and \n[PSINCR].
+.ie \\n(PS<1000 .ps \\n(PS+\\n[sh*psincr]u
+.el .ps \\n(PSz/1000u+\\n[sh*psincr]u
 .sp 1
 .ft B
-.HTML-TAG ".SH 1"
+..
+.de @SH
+.\" Standard ms implementation does not expect an argument,
+.\" but allow ".SH n" to make heading point size match ".NH n",
+.\" for same "n", when \n[GROWPS] and \n[PSINCR] are set.
+.  nr sh*psincr 0
+.  if 0\\$1>0 .nr sh*psincr (\\n[GROWPS]-0\\$1)*\\n[PSINCR]
+.  SH-NO-TAG
+.  DEVTAG-SH 1
+.  if '\*(.T'html' .nr need_eo_h 1
 ..
 .\" TL, AU, and AI are aliased to these in cov*ab-init.
 .de par@TL
@@ -1336,7 +1415,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .ps +2
 .vs +3p
 .ce 9999
-.HTML-TAG ".tl"
+.DEVTAG-TL
+.nr need_eo_tl 1
 ..
 .de par@AU
 .par@finish
@@ -1351,7 +1431,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 ..
 .\" In paragraph macros.
 .de NL
-.ps \\n[\\n[.ev]:PS]
+.ie (\\n[\\n[.ev]:PS] >= 1000) \
+.	ps (\\n[\\n[.ev]:PS]z / 1000u)
+.el \
+.	ps \\n[\\n[.ev]:PS]
 ..
 .de SM
 .ps -2
@@ -1449,7 +1532,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .nr nh*hl 0
 .\" numbered heading
 .de @NH
-.HTML-TAG ".NH \\$1"
 .ie '\\$1'S' \{\
 .	shift
 .	nr nh*hl 0
@@ -1484,14 +1566,19 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	\}
 .	nr H\\n[nh*hl] +1
 .\}
-.ds SN
-.nr nh*i 0
+.ds SN-NO-DOT \\n(H1
+.nr nh*i 1
 .while \\n[nh*i]<\\n[nh*hl] \{\
 .	nr nh*i +1
-.	as SN \\n[H\\n[nh*i]].
+.	as SN-NO-DOT .\\n[H\\n[nh*i]]
 .\}
-.SH
-\\*[SN]
+.ds SN-DOT \\*[SN-NO-DOT].
+.if !dSN .als SN SN-DOT
+.nr sh*psincr (\\n[GROWPS]-\\n[nh*hl])*\\n[PSINCR]
+.SH-NO-TAG
+.DEVTAG-NH "\\$1"
+.  if '\*(.T'html' .nr need_eo_h 1
+\\*[SN-DOT]
 ..
 .\" ****************************
 .\" ******** module toc ********
@@ -1528,7 +1615,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	ev
 .	di
 .\}
-.el .@error XS without XE
+.el .@error XE without XS
 ..
 .de toc*end-entry
 \\a\\t\\*[toc*num]
@@ -1539,7 +1626,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .1C
 .if !'\\$1'no' \{\
 .	ce 1
-.	ps \\n[PS]+2
+.	ie (\\n[PS] >= 1000) \
+.		ps ((\\n[PS]z / 1000u) + 2z)
+.	el \
+.		ps \\n[PS]+2
 .	ft B
 \\*[TOC]
 .	ft
@@ -1586,7 +1676,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .   HTML-IMAGE-INLINE
 .\}
 .if \\n[eqn*type]=2 .HTML-IMAGE
-.if !'\*(.T'html' .nf
+.nf
 ..
 .de @div-end!eqn*div
 .@EN
@@ -1600,7 +1690,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	nr eqn*have-num 0
 .	if !'\\*[eqn*num]'' .nr eqn*have-num 1
 .	ie \\n[dl]:\\n[eqn*have-num] \{\
-.               if !'\*(.T'html' .sp \\n[DD]u
+.               sp \\n[DD]u
 .		par@reset
 .		ds eqn*tabs \\n[.tabs]
 .		nf
@@ -1627,7 +1717,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .			ta (u;\\n[.l]-\\n[.i])R
 \t\\*[eqn*num]
 .		\}
-.               if !'\*(.T'html' .sp \\n[DD]u
+.\".               if !'\*(.T'html' .sp \\n[DD]u
+.               sp \\n[DD]u
 .		ta \\*[eqn*tabs]
 .	\}
 .	el \{
@@ -1659,7 +1750,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 ..
 .de @TS
 .sp \\n[DD]u
-.\" .if !'\*(.T'html' .sp \\n[DD]u
 .if '\\$1'H' .di tbl*header-div
 .HTML-IMAGE
 ..
@@ -1862,6 +1952,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .ref*field A ,
 .if r [A .nr ref*suppress-period \\n([A
 ..
+.de ref*add-V
+.ref*field V "" \fB \fR
+..
+.de ref*add-N
+.ref*field N \z( "" ")"
+..
 .de ref*add-dflt
 .ref*field \\$1 ,
 ..
@@ -1977,8 +2073,4 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .   \}
 ..
 .par@load-init
-.if '\*(.T'html' \{\
-.  rm @IP
-.  als @IP @IP-html
-.\}
 .\" Make sure that no blank lines creep in at the end of this file.

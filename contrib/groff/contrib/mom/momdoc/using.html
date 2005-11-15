@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
@@ -10,7 +11,7 @@
 <a href="typesetting.html#TOP">Next</a>&nbsp;&nbsp;
 <a href="definitions.html#TOP">Prev</a>&nbsp;&nbsp;
 <a href="toc.html">Back to Table of Contents</a>
-
+<p>
 <a name="TOP"></a>
 <a name="USING">
 	<h1 align="center"><u>USING MOM</u></h1>
@@ -23,7 +24,7 @@
 <a href="#USING_INVOKING">Invoking groff</a>
 <br>
 <a href="#USING_PREVIEWING">Previewing documents</a>
-<br>
+<p>
 <hr>
 <h2><a name="USING_INTRO"><u>Introduction</u></a></h2>
 
@@ -46,11 +47,11 @@ macro, explained below.  After <strong>START</strong>,
 <strong>mom</strong> determines the appearance of text following
 the markup tags automatically, although you, the user, can easily
 change how <strong>mom</strong> interprets the tags.  This gives you
-nearly complete control over the look and feel of your documents.
-In addition, the typesetting macros, in combination with document
-processing, let you meet all sorts of typesetting needs that just
-can't be covered by &quot;one macro fits all&quot; markup tags.
-
+nearly complete control over document design.  In addition, the
+typesetting macros, in combination with document processing, let you
+meet all sorts of typesetting needs that just can't be covered by
+&quot;one macro fits all&quot; markup tags.
+<p>
 <a name="USING_MACROS">
 	<h2><u>How to input mom's macros</u></h2>
 </a>
@@ -67,9 +68,9 @@ following apply.
 		rules for <strong>mom</strong>'s macros and
 		<a href="definitions.html#TERMS_INLINES">inline escapes</a>.
 		I use the vi clone called elvis, and find it a pure
-		joy in this regard.  Simply colorizing macros and
+		joy in this regard.  Simply colourizing macros and
 		inlines to half-intensity can be enough to make text stand
-		out clearly from formattting commands.
+		out clearly from formatting commands.
 	<li>All <strong>mom</strong>'s macros begin with a period
 		(dot) and must be entered in upper case (capital)
 		letters.
@@ -120,12 +121,12 @@ Consider the following, which is a template for starting the
 chapter of a book.
 <p>
 <pre>
-	.TITLE   "My Pulizter Novel"
+	.TITLE   "My Pulitzer Novel"
 	.AUTHOR  "Joe Blow"
 	.CHAPTER  1
 	\#
 	.DOCTYPE    CHAPTER
-	.PRINTSTYPE TYPESET
+	.PRINTSTYLE TYPESET
 	\#
 	.FAM     P
 	.PT_SIZE 10
@@ -171,7 +172,7 @@ option along with the other options you require.  Theoretically, you
 only need <code>-U</code> with <code>.open, .opena, .pso, .sy,</code>
 and <code>.pi</code>, however reality seems, at times, to dictate
 otherwise.
-
+<p>
 <a name="USING_PREVIEWING">
 	<h2><u>How to preview documents</u></h2>
 </a>
@@ -184,7 +185,7 @@ Groff itself comes with a quick and dirty previewer called
 gxditview. Invoke it with
 <p>
 <pre>
-	groff -X -mom &lt;filename&gt;
+	groff -X -mom filename
 </pre>
 
 It's not particularly pretty, doesn't have many navigation
@@ -200,18 +201,24 @@ doesn't gobble up system resources.
 <p>
 A surer way to preview documents is with <strong>gv</strong>
 (ghostview).  This involves processing documents with groff,
-directing the output to a temporary (PostScript) file, then opening
-the temporary file in <strong>gv</strong>.  While that may sound
-like a lot of work, I've set up my editor (elvis) to do it for me.
-Whenever I'm working on a document that needs previewing/checking,
-I fire up <strong>gv</strong> with the &quot;Watch File&quot;
-option turned on.  To look at the file, I tell elvis to process
-it (with groff) and send it to a temporary file (<kbd>groff
--mom filename &gt; filename.ps</kbd>), then open the file inside
-<strong>gv</strong>.  Ever after, when I want to look at any changes
-I make, I simply tell elvis to work his magic again.  The Watch File
-option in <strong>gv</strong> registers that the file has changed,
-and automatically loads the new version.  Voilà! -- instant previewing.
+and directing the output to a PostScript file, like this,
+<p>
+<pre>
+	groff -mom filename &gt; filename.ps
+</pre>
+then opening .ps file in <strong>gv</strong>.
+<p>
+While that may sound like a lot of work, I've set up my editor
+(elvis) to do it for me.  Whenever I'm working on a document that
+needs previewing/checking, I fire up <strong>gv</strong> with the
+&quot;Watch File&quot; option turned on.  To look at the file, I
+tell elvis to process it (with groff) and send it to a temporary
+file (<kbd>groff -mom filename &gt; filename.ps</kbd>), then open
+the file inside <strong>gv</strong>.  Ever after, when I want to
+look at any changes I make, I simply tell elvis to work his magic
+again.  The Watch File option in <strong>gv</strong> registers that
+the file has changed, and automatically loads the new version.
+Voilà! --instant previewing.
 
 <p>
 <hr>

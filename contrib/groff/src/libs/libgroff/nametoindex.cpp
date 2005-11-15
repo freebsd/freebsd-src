@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -17,7 +17,7 @@ for more details.
 
 You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "lib.h"
 
@@ -107,9 +107,9 @@ int font::name_to_index(const char *s)
     return indexer.ascii_char_index(s[0]);
   /* char128 and \200 are synonyms */
   if (s[0] == 'c' && s[1] == 'h' && s[2] == 'a' && s[3] == 'r') {
-    char *res;
-    long n = strtol(s + 4, &res, 10);
-    if (res != s + 4 && *res == '\0' && n >= 0 && n < 256)
+    char *val;
+    long n = strtol(s + 4, &val, 10);
+    if (val != s + 4 && *val == '\0' && n >= 0 && n < 256)
       return indexer.ascii_char_index((unsigned char)n);
   }
   return indexer.named_char_index(s);
