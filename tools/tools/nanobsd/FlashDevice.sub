@@ -108,6 +108,19 @@ sub_FlashDevice () {
 			;;
 		esac
 		;;
+	[Ss][Ii][Ll][Ii][Cc][Oo][Nn][Ss][Yy][Ss][Tt][Ee][Mm][Ss])
+		case $2 in
+		4096|4G)
+			NANO_MEDIASIZE=`expr 4224761856 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown SiliconSystems Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
 	*)
 		echo "Unknown Flash manufacturer"
 		exit 2
