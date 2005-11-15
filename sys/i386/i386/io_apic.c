@@ -74,6 +74,10 @@ static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
  * IRQs behave as PCI IRQs by default.  We also assume that the pin for
  * IRQ 0 is actually an ExtINT pin.  The apic enumerators override the
  * configuration of individual pins as indicated by their tables.
+ *
+ * Documentation for the I/O APIC: "82093AA I/O Advanced Programmable
+ * Interrupt Controller (IOAPIC)", May 1996, Intel Corp.
+ * ftp://download.intel.com/design/chipsets/datashts/29056601.pdf
  */
 
 struct ioapic_intsrc {
