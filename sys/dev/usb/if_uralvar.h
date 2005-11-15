@@ -67,6 +67,14 @@ struct ural_rx_data {
 	struct mbuf		*m;
 };
 
+struct ural_amrr {
+	int	txcnt;
+	int	retrycnt;
+	int	success;
+	int	success_threshold;
+	int	recovery;
+};
+
 struct ural_softc {
 	struct ifnet			*sc_ifp;
 	struct ieee80211com		sc_ic;
@@ -87,6 +95,8 @@ struct ural_softc {
 
 	enum ieee80211_state		sc_state;
 	struct usb_task			sc_task;
+
+	struct ural_amrr		amrr;
 
 	struct ural_rx_data		rx_data[RAL_RX_LIST_COUNT];
 	struct ural_tx_data		tx_data[RAL_TX_LIST_COUNT];
