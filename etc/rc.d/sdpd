@@ -11,12 +11,20 @@
 . /etc/rc.subr
 
 name="sdpd"
+command="/usr/sbin/${name}"
+rcvar=`set_rcvar`
+start_cmd="sdpd_start"
+
+sdpd_start()
+{
+	kldload ng_btsocket > /dev/null 2>&1
+	${command} ${command_args}
+}
+
+load_rc_config $name
 control="${sdpd_control:-/var/run/sdp}"
 group="${sdpd_group:-nobody}"
 user="${sdpd_user:-nobody}"
-command="/usr/sbin/${name}"
 command_args="-c ${control} -g ${group} -u ${user}"
-rcvar=`set_rcvar`
 
-load_rc_config $name
 run_rc_command "$1"
