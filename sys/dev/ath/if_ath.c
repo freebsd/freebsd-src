@@ -3114,13 +3114,6 @@ static int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
 {
-#define	CTS_DURATION \
-	ath_hal_computetxtime(ah, rt, IEEE80211_ACK_LEN, cix, AH_TRUE)
-#define	updateCTSForBursting(_ah, _ds, _txq) \
-	ath_hal_updateCTSForBursting(_ah, _ds, \
-	    _txq->axq_linkbuf != NULL ? _txq->axq_linkbuf->bf_desc : NULL, \
-	    _txq->axq_lastdsWithCTS, _txq->axq_gatingds, \
-	    txopLimit, CTS_DURATION)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3535,39 +3528,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * pass it on to the hardware.
 	 */
 	ATH_TXQ_LOCK(txq);
-	if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) {
-		u_int32_t txopLimit = IEEE80211_TXOP_TO_US(
-			cap->cap_wmeParams[pri].wmep_txopLimit);
-		/*
-		 * When bursting, potentially extend the CTS duration
-		 * of a previously queued frame to cover this frame
-		 * and not exceed the txopLimit.  If that can be done
-		 * then disable RTS/CTS on this frame since it's now
-		 * covered (burst extension).  Otherwise we must terminate
-		 * the burst before this frame goes out so as not to
-		 * violate the WME parameters.  All this is complicated
-		 * as we need to update the state of packets on the
-		 * (live) hardware queue.  The logic is buried in the hal
-		 * because it's highly chip-specific.
-		 */
-		if (txopLimit != 0) {
-			sc->sc_stats.ast_tx_ctsburst++;
-			if (updateCTSForBursting(ah, ds0, txq) == 0) {
-				/*
-				 * This frame was not covered by RTS/CTS from
-				 * the previous frame in the burst; update the
-				 * descriptor pointers so this frame is now
-				 * treated as the last frame for extending a
-				 * burst.
-				 */
-				txq->axq_lastdsWithCTS = ds0;
-				/* set gating Desc to final desc */
-				txq->axq_gatingds =
-					(struct ath_desc *)txq->axq_link;
-			} else
-				sc->sc_stats.ast_tx_ctsext++;
-		}
-	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 	if (txq->axq_link == NULL) {
 		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
@@ -3592,8 +3552,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	ATH_TXQ_UNLOCK(txq);
 
 	return 0;
-#undef updateCTSForBursting
-#undef CTS_DURATION
 }
 
 /*
@@ -3635,10 +3593,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
-		if (ds0 == txq->axq_lastdsWithCTS)
-			txq->axq_lastdsWithCTS = NULL;
-		if (ds == txq->axq_gatingds)
-			txq->axq_gatingds = NULL;
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
 		ATH_TXQ_UNLOCK(txq);
 
