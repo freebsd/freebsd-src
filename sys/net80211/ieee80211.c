@@ -233,33 +233,48 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 /*
  * Convert MHz frequency to IEEE channel number.
  */
-u_int
+int
 ieee80211_mhz2ieee(u_int freq, u_int flags)
 {
+#define IS_CHAN_IN_PUBLIC_SAFETY_BAND(_c) ((_c) > 4940 && (_c) < 4990)
 	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
 		if (freq == 2484)
 			return 14;
 		if (freq < 2484)
-			return (freq - 2407) / 5;
+			return ((int) freq - 2407) / 5;
 		else
 			return 15 + ((freq - 2512) / 20);
 	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
-		return (freq - 5000) / 5;
+		if (IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq))
+			return ((freq * 10) +
+				(((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
+		if (freq <= 5000)
+			return (freq - 4000) / 5;
+		else
+			return (freq - 5000) / 5;
 	} else {				/* either, guess */
 		if (freq == 2484)
 			return 14;
 		if (freq < 2484)
-			return (freq - 2407) / 5;
-		if (freq < 5000)
-			return 15 + ((freq - 2512) / 20);
+			return ((int) freq - 2407) / 5;
+		if (freq < 5000) {
+			if (IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq))
+				return ((freq * 10) +
+					(((freq % 5) == 2) ? 5 : 0) - 49400)/5;
+			else if (freq > 4900)
+				return (freq - 4000) / 5;
+			else
+				return 15 + ((freq - 2512) / 20);
+		}
 		return (freq - 5000) / 5;
 	}
+#undef IS_CHAN_IN_PUBLIC_SAFETY_BAND
 }
 
 /*
  * Convert channel to IEEE channel number.
  */
-u_int
+int
 ieee80211_chan2ieee(struct ieee80211com *ic, struct ieee80211_channel *c)
 {
 	if (ic->ic_channels <= c && c <= &ic->ic_channels[IEEE80211_CHAN_MAX])
