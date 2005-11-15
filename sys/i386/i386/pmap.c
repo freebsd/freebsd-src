@@ -5,6 +5,8 @@
  * All rights reserved.
  * Copyright (c) 1994 David Greenman
  * All rights reserved.
+ * Copyright (c) 2005 Alan L. Cox <alc@cs.rice.edu>
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -104,7 +106,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -256,7 +257,7 @@ static void	pmap_clear_ptes(vm_page_t m, int bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
-static int pmap_remove_entry(struct pmap *pmap, vm_page_t m,
+static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 					vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
@@ -1200,6 +1201,7 @@ retry:
 	if (ptepa & PG_PS) {
 		pmap->pm_pdir[ptepindex] = 0;
 		ptepa = 0;
+		pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 		pmap_invalidate_all(kernel_pmap);
 	}
 
@@ -1471,11 +1473,10 @@ get_pv_entry(void)
 }
 
 
-static int
+static void
 pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 {
 	pv_entry_t pv;
-	int rtval;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
@@ -1490,20 +1491,13 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 				break;
 		}
 	}
-
-	rtval = 0;
-	if (pv) {
-		rtval = pmap_unuse_pt(pmap, va);
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_WRITEABLE);
-
-		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
-		free_pv_entry(pv);
-	}
-			
-	return rtval;
+	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
+	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+	m->md.pv_list_count--;
+	if (TAILQ_EMPTY(&m->md.pv_list))
+		vm_page_flag_clear(m, PG_WRITEABLE);
+	TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+	free_pv_entry(pv);
 }
 
 /*
@@ -1564,10 +1558,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
-		return pmap_remove_entry(pmap, m, va);
-	} else {
-		return pmap_unuse_pt(pmap, va);
+		pmap_remove_entry(pmap, m, va);
 	}
+	return (pmap_unuse_pt(pmap, va));
 }
 
 /*
@@ -1790,7 +1783,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 */
 		if ((ptpaddr & PG_PS) != 0) {
 			pmap->pm_pdir[pdirindex] &= ~(PG_M|PG_RW);
-			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 			anychanged = 1;
 			continue;
 		}
@@ -1865,6 +1857,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte, om;
+	boolean_t invlva;
 
 	va &= PG_FRAME;
 #ifdef PMAP_DIAGNOSTIC
@@ -1938,14 +1931,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		else if (!wired && (origpte & PG_W))
 			pmap->pm_stats.wired_count--;
 
-#if defined(PMAP_DIAGNOSTIC)
-		if (pmap_nw_modified((pt_entry_t) origpte)) {
-			printf(
-	"pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x\n",
-			    va, origpte);
-		}
-#endif
-
 		/*
 		 * Remove extra pte reference
 		 */
@@ -1967,23 +1952,23 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * handle validating new mapping.
 	 */
 	if (opa) {
-		int err;
 		if (origpte & PG_W)
 			pmap->pm_stats.wired_count--;
 		if (origpte & PG_MANAGED) {
 			om = PHYS_TO_VM_PAGE(opa);
-			err = pmap_remove_entry(pmap, om, va);
-		} else
-			err = pmap_unuse_pt(pmap, va);
-		if (err)
-			panic("pmap_enter: pte vanished, va: 0x%x", va);
+			pmap_remove_entry(pmap, om, va);
+		}
+		if (mpte != NULL) {
+			mpte->wire_count--;
+			KASSERT(mpte->wire_count > 0,
+			    ("pmap_enter: missing reference to page table page,"
+			     " va: 0x%x", va));
+		}
 	} else
 		pmap->pm_stats.resident_count++;
 
 	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
+	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
@@ -2015,17 +2000,29 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		if (origpte & PG_MANAGED) {
+		if (origpte & PG_V) {
+			invlva = FALSE;
 			origpte = pte_load_store(pte, newpte | PG_A);
-			if ((origpte & PG_M) && pmap_track_modified(va))
-				vm_page_dirty(om);
-			if (origpte & PG_A)
-				vm_page_flag_set(om, PG_REFERENCED);
+			if (origpte & PG_A) {
+				if (origpte & PG_MANAGED)
+					vm_page_flag_set(om, PG_REFERENCED);
+				if (opa != VM_PAGE_TO_PHYS(m))
+					invlva = TRUE;
+			}
+			if (origpte & PG_M) {
+				KASSERT((origpte & PG_RW),
+				    ("pmap_enter: modified page not writable:"
+				     " va: 0x%x, pte: 0x%x", va, origpte));
+				if ((origpte & PG_MANAGED) &&
+				    pmap_track_modified(va))
+					vm_page_dirty(om);
+				if ((prot & VM_PROT_WRITE) == 0)
+					invlva = TRUE;
+			}
+			if (invlva)
+				pmap_invalidate_page(pmap, va);
 		} else
 			pte_store(pte, newpte | PG_A);
-		if (origpte) {
-			pmap_invalidate_page(pmap, va);
-		}
 	}
 	sched_unpin();
 	vm_page_unlock_queues();
@@ -2645,12 +2642,6 @@ pmap_is_modified(vm_page_t m)
 		 */
 		if (!pmap_track_modified(pv->pv_va))
 			continue;
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%x\n", pv->pv_va);
-			continue;
-		}
-#endif
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		rv = (*pte & PG_M) != 0;
@@ -2713,13 +2704,6 @@ pmap_clear_ptes(vm_page_t m, int bit)
 			if (!pmap_track_modified(pv->pv_va))
 				continue;
 		}
-
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%x\n", pv->pv_va);
-			continue;
-		}
-#endif
 
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
