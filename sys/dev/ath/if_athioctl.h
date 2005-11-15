@@ -75,8 +75,8 @@ struct ath_stats {
 	u_int32_t	ast_tx_shortpre;/* tx frames with short preamble */
 	u_int32_t	ast_tx_altrate;	/* tx frames with alternate rate */
 	u_int32_t	ast_tx_protect;	/* tx frames with protection */
-	u_int32_t	ast_tx_ctsburst;/* tx frames with cts and bursting */
-	u_int32_t	ast_tx_ctsext;	/* tx frames with cts extension */
+	u_int32_t	ast_unused1;
+	u_int32_t	ast_unused2;
 	u_int32_t	ast_rx_nombuf;	/* rx setup failed 'cuz no mbuf */
 	u_int32_t	ast_rx_busdma;	/* rx setup failed for dma resrcs */
 	u_int32_t	ast_rx_orn;	/* rx failed 'cuz of desc overrun */
