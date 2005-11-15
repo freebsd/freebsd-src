@@ -62,6 +62,7 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 		case 9: return (&kdb_frame->tf_r9);
 		case 10: return (&kdb_frame->tf_r10);
 		case 11: return (&kdb_frame->tf_r11);
+		case 17: return (&kdb_frame->tf_rflags);
 		case 18: return (&kdb_frame->tf_cs);
 		case 19: return (&kdb_frame->tf_ss);
 		}
@@ -75,7 +76,6 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	case 14: return (&kdb_thrctx->pcb_r14);
 	case 15: return (&kdb_thrctx->pcb_r15);
 	case 16: return (&kdb_thrctx->pcb_rip);
-	case 17: return (&kdb_thrctx->pcb_rflags);
 	}
 	return (NULL);
 }
