@@ -710,6 +710,11 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
         for (x = 0; x < ni->ni_rates.rs_nrates; x++) {
 		sn->rates[x].rate = ni->ni_rates.rs_rates[x] & IEEE80211_RATE_VAL;
 		sn->rates[x].rix = sc->sc_rixmap[sn->rates[x].rate];
+		if (sn->rates[x].rix == 0xff) {
+			DPRINTF(sc, "%s: ignore bogus rix at %d\n",
+				__func__, x);
+			continue;
+		}
 		sn->rates[x].rateCode = rt->info[sn->rates[x].rix].rateCode;
 		sn->rates[x].shortPreambleRateCode = 
 			rt->info[sn->rates[x].rix].rateCode | 
