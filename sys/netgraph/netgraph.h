@@ -191,91 +191,91 @@ _ng_hook_ref(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_REF(hook);
-} 
+}
 
 static __inline char *
 _ng_hook_name(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	return (_NG_HOOK_NAME(hook));
-} 
+}
 
 static __inline void
 _ng_hook_unref(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_UNREF(hook);
-} 
+}
 
 static __inline void
 _ng_hook_set_private(hook_p hook, void *val, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_SET_PRIVATE(hook, val);
-} 
+}
 
 static __inline void
 _ng_hook_set_rcvmsg(hook_p hook, ng_rcvmsg_t *val, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_SET_RCVMSG(hook, val);
-} 
+}
 
 static __inline void
 _ng_hook_set_rcvdata(hook_p hook, ng_rcvdata_t *val, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_SET_RCVDATA(hook, val);
-} 
+}
 
 static __inline void *
 _ng_hook_private(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	return (_NG_HOOK_PRIVATE(hook));
-} 
+}
 
 static __inline int
 _ng_hook_not_valid(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	return (_NG_HOOK_NOT_VALID(hook));
-} 
+}
 
 static __inline int
 _ng_hook_is_valid(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	return (_NG_HOOK_IS_VALID(hook));
-} 
+}
 
 static __inline node_p
 _ng_hook_node(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	return (_NG_HOOK_NODE(hook));
-} 
+}
 
 static __inline hook_p
 _ng_hook_peer(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	return (_NG_HOOK_PEER(hook));
-} 
+}
 
 static __inline void
 _ng_hook_force_writer(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_FORCE_WRITER(hook);
-} 
+}
 
 static __inline void
 _ng_hook_force_queue(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_FORCE_QUEUE(hook);
-} 
+}
 
 
 #define	NG_HOOK_REF(hook)		_ng_hook_ref(hook, _NN_)
@@ -316,12 +316,12 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
  * Structure of a node
  * including the eembedded queue structure.
  *
- * The structure for queueing Netgraph request items 
+ * The structure for queueing Netgraph request items
  * embedded in the node structure
  */
 struct ng_queue {
-	u_long          q_flags;
-	struct mtx      q_mtx;
+	u_long		q_flags;
+	struct mtx	q_mtx;
 	item_p queue;
 	item_p *last;
 	struct ng_node *q_node;		/* find the front of the node.. */
@@ -425,7 +425,7 @@ static __inline hook_p _ng_node_foreach_hook(node_p node,
 			ng_fn_eachhook *fn, void *arg, char *file, int line);
 static __inline void _ng_node_revive(node_p node, char *file, int line);
 
-static __inline void  
+static __inline void
 _chknode(node_p node, char *file, int line)
 {
 	if (node->nd_magic != ND_MAGIC) {
@@ -443,7 +443,7 @@ _ng_node_name(node_p node, char *file, int line)
 	return(_NG_NODE_NAME(node));
 }
 
-static __inline int 
+static __inline int
 _ng_node_has_name(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
@@ -457,7 +457,7 @@ _ng_node_id(node_p node, char *file, int line)
 	return(_NG_NODE_ID(node));
 }
 
-static __inline void 
+static __inline void
 _ng_node_ref(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
@@ -674,49 +674,49 @@ static __inline node_p		_ngi_node(item_p item, char *file, int line);
 static __inline hook_p		_ngi_hook(item_p item, char *file, int line);
 
 static __inline void
-_ngi_check(item_p item, char *file, int line) 
+_ngi_check(item_p item, char *file, int line)
 {
 	(item)->lastline = line;
 	(item)->lastfile = file;
 }
 
 static __inline struct mbuf **
-_ngi_m(item_p item, char *file, int line) 
+_ngi_m(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_M(item));
 }
 
 static __inline struct ng_mesg **
-_ngi_msg(item_p item, char *file, int line) 
+_ngi_msg(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_MSG(item));
 }
 
 static __inline ng_ID_t *
-_ngi_retaddr(item_p item, char *file, int line) 
+_ngi_retaddr(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_RETADDR(item));
 }
 
 static __inline ng_item_fn **
-_ngi_fn(item_p item, char *file, int line) 
+_ngi_fn(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_FN(item));
 }
 
 static __inline void **
-_ngi_arg1(item_p item, char *file, int line) 
+_ngi_arg1(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_ARG1(item));
 }
 
 static __inline int *
-_ngi_arg2(item_p item, char *file, int line) 
+_ngi_arg2(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_ARG2(item));
@@ -974,7 +974,7 @@ _ngi_hook(item_p item, char *file, int line)
 /***********************************************************************
  ******** Structures Definitions and Macros for defining a node  *******
  ***********************************************************************
- * 
+ *
  * Here we define the structures needed to actually define a new node
  * type.
  */
@@ -1055,7 +1055,7 @@ MODULE_DEPEND(ng_##typename, netgraph,	NG_ABI_VERSION,			\
 	NETGRAPH_INIT_ORDERED(tn, tp, SI_SUB_PSEUDO, SI_ORDER_ANY)
 
 /* Special malloc() type for netgraph structs and ctrl messages */
-/* Only these two types should be visible to nodes */ 
+/* Only these two types should be visible to nodes */
 MALLOC_DECLARE(M_NETGRAPH);
 MALLOC_DECLARE(M_NETGRAPH_MSG);
 
@@ -1067,7 +1067,7 @@ SYSCTL_DECL(_net_graph);
 
 /*
  * Methods that the nodes can use.
- * Many of these methods should usually NOT be used directly but via 
+ * Many of these methods should usually NOT be used directly but via
  * Macros above.
  */
 int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
