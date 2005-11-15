@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 18, 2005
+.Dd November 15, 2005
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -207,11 +207,18 @@ If set to
 .Dq YES ,
 the vesa module will be loaded, enabling bitmaps above VGA resolution to
 be displayed.
-.It Va loader_color
-.Pq Dq NO
+.It Va beastie_disable
 If set to
 .Dq YES ,
-will load the splash screen colors.
+the beastie boot menu will be skipped.
+.It Va loader_logo Pq Dq Li fbsdbw
+Selects a desired logo in the beastie boot menu.
+Possible values are:
+.Dq Li fbsdbw ,
+.Dq Li beastiebw ,
+.Dq Li beastie ,
+and
+.Dq Li none .
 .El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
