@@ -54,7 +54,7 @@
 struct ng_ksocket_sockopt {
 	int32_t		level;		/* second arg of [gs]etsockopt() */
 	int32_t		name;		/* third arg of [gs]etsockopt() */
-	u_char		value[0];	/* fourth arg of [gs]etsockopt() */
+	u_char		value[];	/* fourth arg of [gs]etsockopt() */
 };
 
 /* Max length socket option we can return via NGM_KSOCKET_GETOPT
