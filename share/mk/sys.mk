@@ -107,13 +107,6 @@ YFLAGS		?=
 YFLAGS		?=	-d
 .endif
 
-# FreeBSD/i386 has traditionally been built with a version of make
-# which knows MACHINE, but not MACHINE_ARCH. When building on other
-# architectures, assume that the version of make being used has an
-# explicit MACHINE_ARCH setting and treat a missing MACHINE_ARCH
-# as an i386 architecture.
-MACHINE_ARCH	?=	i386
-
 .if defined(%POSIX)
 
 # Posix 1003.2 mandated rules
