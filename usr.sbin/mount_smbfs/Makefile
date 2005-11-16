@@ -18,5 +18,6 @@ DPADD=	${LIBSMB} ${LIBKICONV}
 NO_SHARED?=	NO
 
 .PATH:	${CONTRIBDIR}/mount_smbfs
+.PATH:  ${MOUNTDIR}
 
 .include <bsd.prog.mk>
