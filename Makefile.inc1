@@ -236,14 +236,8 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNO_MAN -DNO_NLS -DNO_INFO -DNO_HTML \
-		CC="${CC} ${LIB32CC}" \
-		CXX="${CXX} ${LIB32CXX}" \
-		OBJC="${OBJC} ${LIB32OBJC}" \
-		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="${AS} --32" \
-		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
+		-DNO_BIND -DNO_MAN -DNO_NLS -DNO_INFO -DNO_HTML
+LIB32IMAKE=	${LIB32MAKE:NINSTALL=*}
 .endif
 
 # install stage
@@ -280,6 +274,9 @@ _worldtmp:
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
+.if ${TARGET_ARCH} == "amd64"
+	rm -rf ${LIB32TMP}
+.endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 	# XXX - These two can depend on any header file.
@@ -338,6 +335,9 @@ _cleanobj:
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
+.if ${TARGET_ARCH} == "amd64"
+	rm -rf ${OBJTREE}/lib32
+.endif
 .endif
 _obj:
 	@echo
@@ -397,6 +397,7 @@ build32:
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
+	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 .for _t in obj depend all
@@ -441,12 +442,12 @@ distribute32 install32:
 .else
 	mkdir -p ${DESTDIR}/usr/lib32			# XXX add to mtree
 .endif
-	cd ${.CURDIR}/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
-	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if !defined(NO_CRYPT)
-	cd ${.CURDIR}/secure/lib; ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32MAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 
 
@@ -478,6 +479,20 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 # Use this to add checks to installworld/installkernel targets.
 #
 SPECIAL_INSTALLCHECKS=
+
+#
+# Require DESTDIR to be set if installing for a different architecture.
+#
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
+.if !make(distributeworld)
+SPECIAL_INSTALLCHECKS+=	installcheck_DESTDIR
+installcheck_DESTDIR:
+.if !defined(DESTDIR) || empty(DESTDIR)
+	@echo "ERROR: Please set DESTDIR!"; \
+	false
+.endif
+.endif
+.endif
 
 #
 # installcheck
@@ -558,8 +573,8 @@ redistribute:
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 DISTRIBUTION=lib32
 .endif
 
-distribution:
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} distribution
+distrib-dirs distribution:
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -776,7 +791,7 @@ _strfile=	games/fortune/strfile
 
 .if !defined(NO_CXX)
 _gperf=		gnu/usr.bin/gperf
-.if ${BOOTSTRAPPING} < 500113
+.if ${BOOTSTRAPPING} < 600101
 _groff=		gnu/usr.bin/groff
 .else
 _groff=		gnu/usr.bin/groff/tmac
