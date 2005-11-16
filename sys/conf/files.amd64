@@ -173,6 +173,7 @@ dev/ppc/ppc.c			optional	ppc
 dev/ppc/ppc_puc.c		optional	ppc puc
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
+dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc

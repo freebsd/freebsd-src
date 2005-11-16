@@ -300,6 +300,7 @@ MAN=	aac.4 \
 	snd_vibes.4 \
 	snp.4 \
 	spic.4 \
+	${_spkr.4} \
 	splash.4 \
 	sppp.4 \
 	ste.4 \
@@ -459,6 +460,7 @@ MLINKS+=sk.4 if_sk.4
 MLINKS+=sl.4 if_sl.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=sn.4 if_sn.4
+MLINKS+=${_spkr.4} ${_speaker.4}
 MLINKS+=splash.4 screensaver.4
 MLINKS+=ste.4 if_ste.4
 MLINKS+=stf.4 if_stf.4
@@ -482,8 +484,10 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-_nve.4=		nve.4
 _if_nve.4=	if_nve.4
+_nve.4=		nve.4
+_spkr.4=	spkr.4
+_speaker.4=	speaker.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
