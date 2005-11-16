@@ -129,9 +129,7 @@ the listing will be of the relevant subdirectory.)
 .Ar filename
 .Sm on
 .Op Fl aCcDdghmnPprsv
-.Sm off
-.Op Fl S Ar speed
-.Sm on
+.Op Fl S Ns Ar speed
 .Xc
 Specify boot file and flags.
 .Bl -tag -width indent
@@ -192,9 +190,7 @@ Defaults to
 .Pa /boot/kernel/kernel .
 Symbolic links are not supported (hard links are).
 .It Xo Op Fl aCcDdghmnPprsv
-.Sm off
-.Op Fl S Ar speed
-.Sm on
+.Op Fl S Ns Ar speed
 .Xc
 Boot flags:
 .Pp
@@ -270,10 +266,7 @@ boot into single-user mode; if the console is marked as
 (see
 .Xr ttys 5 ) ,
 the root password must be entered.
-.It Xo Sm off
-.Fl S Ar speed
-.Sm on
-.Xc
+.It Fl S Ns Ar speed
 set the speed of the serial console to
 .Ar speed .
 The default is 9600 unless it has been overridden by setting
