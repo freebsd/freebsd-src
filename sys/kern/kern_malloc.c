@@ -271,10 +271,9 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 
 #ifdef INVARIANTS
 	/*
-	 * To make sure that WAITOK or NOWAIT is set, but not more than
-	 * one, and check against the API botches that are common.
+	 * Check that exactly one of M_WAITOK or M_NOWAIT is specified.
 	 */
-	indx = flags & (M_WAITOK | M_NOWAIT | M_DONTWAIT | M_TRYWAIT);
+	indx = flags & (M_WAITOK | M_NOWAIT);
 	if (indx != M_NOWAIT && indx != M_WAITOK) {
 		static	struct timeval lasterr;
 		static	int curerr, once;
