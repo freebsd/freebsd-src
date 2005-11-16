@@ -270,7 +270,7 @@ parsepath(struct pathhead *pathq, char *path, int uniq)
 	
 	while ((p = strsep(&path, ";")) != NULL)
 		if (!uniq) {
-			if (((pe = malloc(sizeof(pe))) == NULL) ||
+			if (((pe = malloc(sizeof(*pe))) == NULL) ||
 			    ((pe->path = strdup(p)) == NULL)) {
 				errno = ENOMEM;
 				err(1, "allocating path element");
