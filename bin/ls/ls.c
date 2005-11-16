@@ -110,8 +110,7 @@ int termwidth = 80;		/* default terminal width */
 static int f_kblocks;		/* print size in kilobytes */
 static int f_listdir;		/* list actual directory, not contents */
 static int f_listdot;		/* list files beginning with . */
-static int f_nolistdot;		/* don't list files beginning with . */
-static int f_forcelistdot;	/* force list files beginning with . */
+static int f_noautodot;		/* do not automatically enable -A for root */
        int f_longform;		/* long listing format */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
@@ -241,13 +240,12 @@ main(int argc, char *argv[])
 			break;
 		case 'a':
 			fts_options |= FTS_SEEDOT;
-			f_forcelistdot = 1;
-			break;
+			/* FALLTHROUGH */
 		case 'A':
 			f_listdot = 1;
 			break;
 		case 'I':
-			f_nolistdot = 1;
+			f_noautodot = 1;
 			break;
 		/* The -d option turns off the -R option. */
 		case 'd':
@@ -328,8 +326,8 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	/* Root is -A automatically. */
-	if (!getuid() && !f_nolistdot)
+	/* Root is -A automatically unless -I. */
+	if (!f_listdot && getuid() == (uid_t)0 && !f_noautodot)
 		f_listdot = 1;
 
 	/* Enabling of colours is conditional on the environment. */
@@ -496,8 +494,7 @@ traverse(int argc, char *argv[], int options)
 			break;
 		case FTS_D:
 			if (p->fts_level != FTS_ROOTLEVEL &&
-			    p->fts_name[0] == '.' && ((!f_listdot ||
-			    f_nolistdot) && !f_forcelistdot))
+			    p->fts_name[0] == '.' && !f_listdot)
 				break;
 
 			/*
@@ -657,8 +654,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 			}
 		} else {
 			/* Only display dot file if -a/-A set. */
-			if (cur->fts_name[0] == '.' && ((!f_listdot ||
-			    f_nolistdot) && !f_forcelistdot)) {
+			if (cur->fts_name[0] == '.' && !f_listdot) {
 				cur->fts_number = NO_PRINT;
 				continue;
 			}
