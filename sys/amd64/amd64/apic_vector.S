@@ -297,11 +297,10 @@ IDTVEC(cpustop)
 	test	%eax, %eax
 	jnz	2f
 
-	xorq	%rax, %rax
-	lock
-	xchgq	cpustop_restartfunc, %rax
+	movq	cpustop_restartfunc, %rax
 	testq	%rax, %rax
 	jz	2f
+	movq	$0, cpustop_restartfunc	/* One-shot */
 
 	call	*%rax
 2:
