@@ -130,7 +130,7 @@ struct ng_bridge_host {
 /* Structure returned by NGM_BRIDGE_GET_TABLE */
 struct ng_bridge_host_ary {
 	u_int32_t		numHosts;
-	struct ng_bridge_host	hosts[0];
+	struct ng_bridge_host	hosts[];
 };
 
 /* Keep this in sync with the above structure definition */
