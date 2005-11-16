@@ -506,7 +506,7 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 	mtx_unlock_spin(&icu_lock);
 
 	/* If it's version register doesn't seem to work, punt. */
-	if (value == 0xffffff) {
+	if (value == 0xffffffff) {
 		pmap_unmapdev((vm_offset_t)apic, IOAPIC_MEM_REGION);
 		return (NULL);
 	}
