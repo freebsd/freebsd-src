@@ -719,7 +719,7 @@ release.8:
 .endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cp ${.CURDIR}/../etc/master.passwd ${RD}/mfsfd/etc/master.passwd
-	pwd_mkdb -d ${RD}/mfsfd/etc -p ${RD}/mfsfd/etc/master.passwd
+	cp ${RD}/trees/base/etc/*pwd.db ${RD}/mfsfd/etc/
 	( for F in defaults/rc.conf netconfig protocols ; do \
 		sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
 		${RD}/trees/base/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
