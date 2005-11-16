@@ -920,11 +920,14 @@ mroute_encap_input(struct mbuf *m, int off)
 
 extern struct domain inetdomain;
 static struct protosw mroute_encap_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
-  mroute_encap_input,	0,	0,		rip_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
+{
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_IPV4,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		mroute_encap_input,
+	.pr_ctloutput =		rip_ctloutput,
+	.pr_usrreqs =		&rip_usrreqs
 };
 
 /*
