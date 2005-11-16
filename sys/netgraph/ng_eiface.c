@@ -40,7 +40,6 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 
@@ -418,27 +417,12 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_EIFACE_SET:
 		    {
-			struct ether_addr *eaddr;
-			struct ifaddr *ifa;
-			struct sockaddr_dl *sdl;
-
-			if (msg->header.arglen != sizeof(struct ether_addr)) {
+			if (msg->header.arglen != ETHER_ADDR_LEN) {
 				error = EINVAL;
 				break;
 			}
-			eaddr = (struct ether_addr *)(msg->data);
-			bcopy(eaddr, IFP2ENADDR(priv->ifp),
-			    ETHER_ADDR_LEN);
-
-			/* And put it in the ifaddr list */
-			TAILQ_FOREACH(ifa, &(ifp->if_addrhead), ifa_link) {
-				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-				if (sdl->sdl_type == IFT_ETHER) {
-					bcopy(IFP2ENADDR(ifp),
-						LLADDR(sdl), ifp->if_addrlen);
-					break;
-				}
-			}
+			error = if_setlladdr(priv->ifp,
+			    (u_char *)msg->data, ETHER_ADDR_LEN);
 			break;
 		    }
 
