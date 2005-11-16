@@ -770,8 +770,9 @@ $command $rc_flags $command_args"
 			fi
 			_rc_restart_done=true
 
-			( $0 ${_rc_prefix}stop $rc_extra_args )
-			$0 ${_rc_prefix}start $rc_extra_args
+			# run stop in a subshell to keep variables for start
+			( run_rc_command ${_rc_prefix}stop $rc_extra_args )
+			run_rc_command ${_rc_prefix}start $rc_extra_args
 
 			if [ -n "$_postcmd" ]; then
 				eval $_postcmd $rc_extra_args
