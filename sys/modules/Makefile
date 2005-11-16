@@ -28,8 +28,8 @@ SUBDIR=	${_3dfx} \
 	ath \
 	${_ath_hal} \
 	ath_rate_amrr \
-	ath_rate_sample \
 	ath_rate_onoe \
+	ath_rate_sample \
 	aue \
 	${_auxio} \
 	${_awi} \
@@ -153,9 +153,9 @@ SUBDIR=	${_3dfx} \
 	mlx \
 	${_mly} \
 	mpt \
-	${_mse} \
 	msdosfs \
 	msdosfs_iconv \
+	${_mse} \
 	my \
 	${_ncp} \
 	${_ncv} \
@@ -164,12 +164,12 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfsserver \
 	nge \
-	${_nve} \
 	nmdm \
 	${_nsp} \
 	ntfs \
 	ntfs_iconv \
 	nullfs \
+	${_nve} \
 	${_nwfs} \
 	${_oltr} \
 	${_osf1} \
@@ -375,8 +375,8 @@ _xe=		xe
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
-_arl=		arl
 _arcmsr=	arcmsr
+_arl=		arl
 _asr=		asr
 _bios=		bios
 _ciss=		ciss
