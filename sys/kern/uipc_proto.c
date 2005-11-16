@@ -48,29 +48,35 @@ __FBSDID("$FreeBSD$");
  */
 
 static struct protosw localsw[] = {
-{ SOCK_STREAM,	&localdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
-  0,		0,		0,		&uipc_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &uipc_usrreqs
+{
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&localdomain,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
+	.pr_ctloutput =		&uipc_ctloutput,
+	.pr_usrreqs =		&uipc_usrreqs
 },
-{ SOCK_DGRAM,	&localdomain,	0,		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
-  0,		0,		0,		0,
-  0,
-  0,		0,		0,		0,
-  &uipc_usrreqs
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&localdomain,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
+	.pr_usrreqs =		&uipc_usrreqs
 },
-{ 0,		0,		0,		0,
-  0,		0,		raw_ctlinput,	0,
-  0,
-  raw_init,	0,		0,		0,
-  &raw_usrreqs
+{
+	.pr_ctlinput =		raw_ctlinput,
+	.pr_init =		raw_init,
+	.pr_usrreqs =		&raw_usrreqs
 }
 };
 
-struct domain localdomain =
-    { AF_LOCAL, "local", unp_init, unp_externalize, unp_dispose,
-      localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
+struct domain localdomain = {
+	.dom_family =		AF_LOCAL,
+	.dom_name =		"local",
+	.dom_init =		unp_init,
+	.dom_externalize =	unp_externalize,
+	.dom_dispose =		unp_dispose,
+	.dom_protosw =		localsw,
+	.dom_protoswNPROTOSW =	&localsw[sizeof(localsw)/sizeof(localsw[0])]
+};
 DOMAIN_SET(local);
 
 SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW, 0, "Local domain");

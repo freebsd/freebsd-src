@@ -1238,16 +1238,22 @@ SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
 extern struct domain routedomain;		/* or at least forward */
 
 static struct protosw routesw[] = {
-{ SOCK_RAW,	&routedomain,	0,		PR_ATOMIC|PR_ADDR,
-  0,		route_output,	raw_ctlinput,	0,
-  0,
-  raw_init,	0,		0,		0,
-  &route_usrreqs
+{
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&routedomain,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_output =		route_output,
+	.pr_ctlinput =		raw_ctlinput,
+	.pr_init =		raw_init,
+	.pr_usrreqs =		&route_usrreqs
 }
 };
 
-static struct domain routedomain =
-    { PF_ROUTE, "route", 0, 0, 0,
-      routesw, &routesw[sizeof(routesw)/sizeof(routesw[0])] };
+static struct domain routedomain = {
+	.dom_family =		PF_ROUTE,
+	.dom_name =		 "route",
+	.dom_protosw =		routesw,
+	.dom_protoswNPROTOSW =	&routesw[sizeof(routesw)/sizeof(routesw[0])]
+};
 
 DOMAIN_SET(route);

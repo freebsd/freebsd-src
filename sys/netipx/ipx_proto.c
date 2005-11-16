@@ -61,42 +61,59 @@ static	struct pr_usrreqs nousrreqs;
  */
 
 static struct protosw ipxsw[] = {
-{ 0,		&ipxdomain,	0,		0,
-  0,		0,		0,		0,
-  0,
-  ipx_init,	0,		0,		0,
-  &nousrreqs
+{
+	.pr_domain =		&ipxdomain,
+	.pr_init =		ipx_init,
+	.pr_usrreqs =		&nousrreqs
 },
-{ SOCK_DGRAM,	&ipxdomain,	0,		PR_ATOMIC|PR_ADDR,
-  0,		0,		ipx_ctlinput,	ipx_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &ipx_usrreqs
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&ipxdomain,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_ctlinput =		ipx_ctlinput,
+	.pr_ctloutput =		ipx_ctloutput,
+	.pr_usrreqs =		&ipx_usrreqs
 },
-{ SOCK_STREAM,	&ipxdomain,	IPXPROTO_SPX,	PR_CONNREQUIRED|PR_WANTRCVD,
-  0,		0,		spx_ctlinput,	spx_ctloutput,
-  0,
-  spx_init,	spx_fasttimo,	spx_slowtimo,	0,
-  &spx_usrreqs
+{
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&ipxdomain,
+	.pr_protocol =		IPXPROTO_SPX,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
+	.pr_ctlinput =		spx_ctlinput,
+	.pr_ctloutput =		spx_ctloutput,
+	.pr_init =		spx_init,
+	.pr_fasttimo =		spx_fasttimo,
+	.pr_slowtimo =		spx_slowtimo,
+	.pr_usrreqs =		&spx_usrreqs
 },
-{ SOCK_SEQPACKET,&ipxdomain,	IPXPROTO_SPX,	PR_CONNREQUIRED|PR_WANTRCVD|PR_ATOMIC,
-  0,		0,		spx_ctlinput,	spx_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &spx_usrreq_sps
+{
+	.pr_type =		SOCK_SEQPACKET,
+	.pr_domain =		&ipxdomain,
+	.pr_protocol =		IPXPROTO_SPX,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_ATOMIC,
+	.pr_ctlinput =		spx_ctlinput,
+	.pr_ctloutput =		spx_ctloutput,
+	.pr_usrreqs =		&spx_usrreq_sps
 },
-{ SOCK_RAW,	&ipxdomain,	IPXPROTO_RAW,	PR_ATOMIC|PR_ADDR,
-  0,		0,		0,		ipx_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &ripx_usrreqs
+{
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&ipxdomain,
+	.pr_protocol =		IPXPROTO_RAW,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_ctloutput =		ipx_ctloutput,
+	.pr_usrreqs =		&ripx_usrreqs
 },
 };
 
-static struct	domain ipxdomain =
-    { AF_IPX, "network systems", 0, 0, 0,
-      ipxsw, &ipxsw[sizeof(ipxsw)/sizeof(ipxsw[0])], 0,
-      rn_inithead, 16, sizeof(struct sockaddr_ipx)};
+static struct	domain ipxdomain = {
+	.dom_family =		AF_IPX,
+	.dom_name =		"network systems",
+	.dom_protosw =		ipxsw,
+	.dom_protoswNPROTOSW =	&ipxsw[sizeof(ipxsw)/sizeof(ipxsw[0])],
+	.dom_rtattach =		rn_inithead,
+	.dom_rtoffset =		16,
+	.dom_maxrtkey =		sizeof(struct sockaddr_ipx)
+};
 
 DOMAIN_SET(ipx);
 SYSCTL_NODE(_net,	PF_IPX,		ipx,	CTLFLAG_RW, 0,
