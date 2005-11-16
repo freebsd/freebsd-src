@@ -104,7 +104,6 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_arp.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -135,9 +134,7 @@
  * family domain. This means the AF_NETGRAPH entry in ifp->if_afdata
  * should be unused, so we can use to hold our node context.
  */
-#define IFP2NG(ifp)  (struct ng_node *)(ifp->if_afdata[AF_NETGRAPH])
-#define IFP2NG_SET(ifp, val)  ifp->if_afdata[AF_NETGRAPH] = (val);
-#define FEC_INC(x, y)	(x) = (x + 1) % y
+#define	IFP2NG(ifp)	((ifp)->if_afdata[AF_NETGRAPH])
 
 /*
  * Current fast etherchannel implementations use either 2 or 4
@@ -345,8 +342,6 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 {
 	struct ng_fec_bundle	*b;
 	struct ifnet		*ifp, *bifp;
-	struct ifaddr		*ifa;
-	struct sockaddr_dl	*sdl;
 	struct ng_fec_portlist	*p, *new;
 
 	if (priv == NULL || iface == NULL)
@@ -354,6 +349,13 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 
 	b = &priv->fec_bundle;
 	ifp = priv->ifp;
+
+	/* Only allow reconfiguration if not running. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		printf("fec%d: can't add new iface; bundle is running\n",
+		    priv->unit);
+		return (EINVAL);
+	}
 
 	/* Find the interface */
 	bifp = ifunit(iface);
@@ -400,7 +402,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 		return(ENOMEM);
 
 	IF_AFDATA_LOCK(bifp);
-	bifp->if_afdata[AF_NETGRAPH] = priv->node;
+	IFP2NG(bifp) = priv->node;
 	IF_AFDATA_UNLOCK(bifp);
 
 	/*
@@ -408,14 +410,8 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	 * use its MAC address for the virtual interface (and,
 	 * by extension, all the other ports in the bundle).
 	 */
-	if (b->fec_ifcnt == 0) {
-		ifa = ifaddr_byindex(ifp->if_index);
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		bcopy(IFP2ENADDR(bifp),
-		    IFP2ENADDR(priv->ifp), ETHER_ADDR_LEN);
-		bcopy(IFP2ENADDR(bifp),
-		    LLADDR(sdl), ETHER_ADDR_LEN);
-	}
+	if (b->fec_ifcnt == 0)
+		if_setlladdr(ifp, IFP2ENADDR(bifp), ETHER_ADDR_LEN);
 
 	b->fec_btype = FEC_BTYPE_MAC;
 	new->fec_idx = b->fec_ifcnt;
@@ -426,10 +422,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	    (char *)&new->fec_mac, ETHER_ADDR_LEN);
 
 	/* Set up phony MAC address. */
-	ifa = ifaddr_byindex(bifp->if_index);
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	bcopy(IFP2ENADDR(priv->ifp), IFP2ENADDR(bifp), ETHER_ADDR_LEN);
-	bcopy(IFP2ENADDR(priv->ifp), LLADDR(sdl), ETHER_ADDR_LEN);
+	if_setlladdr(bifp, IFP2ENADDR(ifp), ETHER_ADDR_LEN);
 
 	/* Save original input vector */
 	new->fec_if_input = bifp->if_input;
@@ -443,6 +436,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 
 	/* Add to the queue */
 	new->fec_if = bifp;
+	new->fec_ifstat = -1;
 	TAILQ_INSERT_TAIL(&b->ng_fec_ports, new, fec_list);
 
 	return(0);
@@ -453,8 +447,6 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 {
 	struct ng_fec_bundle	*b;
 	struct ifnet		*ifp, *bifp;
-	struct ifaddr		*ifa;
-	struct sockaddr_dl	*sdl;
 	struct ng_fec_portlist	*p;
 
 	if (priv == NULL || iface == NULL)
@@ -462,6 +454,13 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 
 	b = &priv->fec_bundle;
 	ifp = priv->ifp;
+
+	/* Only allow reconfiguration if not running. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		printf("fec%d: can't remove iface; bundle is running\n",
+		    priv->unit);
+		return (EINVAL);
+	}
 
 	/* Find the interface */
 	bifp = ifunit(iface);
@@ -487,17 +486,14 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 	(*bifp->if_ioctl)(bifp, SIOCSIFFLAGS, NULL);
 
 	/* Restore MAC address. */
-	ifa = ifaddr_byindex(bifp->if_index);
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	bcopy((char *)&p->fec_mac, IFP2ENADDR(bifp), ETHER_ADDR_LEN);
-	bcopy((char *)&p->fec_mac, LLADDR(sdl), ETHER_ADDR_LEN);
+	if_setlladdr(bifp, (u_char *)&p->fec_mac, ETHER_ADDR_LEN);
 
 	/* Restore input vector */
 	bifp->if_input = p->fec_if_input;
 
 	/* Remove our node context pointer. */
 	IF_AFDATA_LOCK(bifp);
-	bifp->if_afdata[AF_NETGRAPH] = NULL;
+	IFP2NG(bifp) = NULL;
 	IF_AFDATA_UNLOCK(bifp);
 
 	/* Delete port */
@@ -548,7 +544,7 @@ ng_fec_init(void *arg)
 	ifp = priv->ifp;
 	b = &priv->fec_bundle;
 
-	if (b->fec_ifcnt == 1 || b->fec_ifcnt == 3) {
+	if (b->fec_ifcnt != 2 && b->fec_ifcnt != FEC_BUNDLESIZ) {
 		printf("fec%d: invalid bundle "
 		    "size: %d\n", priv->unit,
 		    b->fec_ifcnt);
@@ -564,6 +560,9 @@ ng_fec_init(void *arg)
 		/* mark iface as up and let the monitor check it */
 		p->fec_ifstat = -1;
 	}
+
+	ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	priv->fec_ch = timeout(ng_fec_tick, priv, hz);
 
@@ -588,6 +587,8 @@ ng_fec_stop(struct ifnet *ifp)
 	}
 
 	untimeout(ng_fec_tick, priv, priv->fec_ch);
+
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	return;
 }
@@ -661,7 +662,7 @@ static void ng_fec_ifmedia_sts(struct ifnet *ifp,
 
 	ifmr->ifm_status = IFM_AVALID;
 	TAILQ_FOREACH(p, &b->ng_fec_ports, fec_list) {
-		if (p->fec_ifstat) {
+		if (p->fec_ifstat == 1) {
 			ifmr->ifm_status |= IFM_ACTIVE;
 			break;
 		}
@@ -706,15 +707,14 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifr->ifr_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				/* Sanity. */
-				if (b->fec_ifcnt == 1 || b->fec_ifcnt == 3) {
+				if (b->fec_ifcnt != 2 &&
+				    b->fec_ifcnt != FEC_BUNDLESIZ) {
 					printf("fec%d: invalid bundle "
 					    "size: %d\n", priv->unit,
 					    b->fec_ifcnt);
 					error = EINVAL;
 					break;
 				}
-				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
-				ifp->if_drv_flags |= IFF_DRV_RUNNING;
 				ng_fec_init(priv);
 			}
 			/*
@@ -728,9 +728,7 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
-				    IFF_DRV_OACTIVE);
-			ng_fec_stop(ifp);
+				ng_fec_stop(ifp);
 		}
 		break;
 
@@ -1133,7 +1131,6 @@ ng_fec_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_mtu = NG_FEC_MTU_DEFAULT;
 	ifp->if_flags = (IFF_SIMPLEX|IFF_BROADCAST|IFF_MULTICAST);
-	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
 	ifp->if_baudrate = 100000000;		/* XXX */
