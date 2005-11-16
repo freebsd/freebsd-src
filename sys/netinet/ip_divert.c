@@ -649,11 +649,14 @@ struct pr_usrreqs div_usrreqs = {
 };
 
 struct protosw div_protosw = {
-  SOCK_RAW,	NULL,		IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
-  div_input,	NULL,		div_ctlinput,	ip_ctloutput,
-  NULL,
-  div_init,	NULL,		NULL,		NULL,
-  &div_usrreqs
+	.pr_type =		SOCK_RAW,
+	.pr_protocol =		IPPROTO_DIVERT,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		div_input,
+	.pr_ctlinput =		div_ctlinput,
+	.pr_ctloutput =		ip_ctloutput,
+	.pr_init =		div_init,
+	.pr_usrreqs =		&div_usrreqs
 };
 
 static int
