@@ -459,10 +459,10 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 
 		show_stat("lu", 5, collisions, link_layer);
 		if (tflag)
-			show_stat("d", 3, timer, link_layer);
+			show_stat("d", 4, timer, link_layer);
 
 		if (dflag)
-			show_stat("d", 3, drops, link_layer);
+			show_stat("d", 4, drops, link_layer);
 
 		putchar('\n');
 		if (aflag && ifaddrfound) {
