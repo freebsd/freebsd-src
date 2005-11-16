@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../contrib/tcp_wrappers
+
 PROG=	tcpd
 MAN=	tcpd.8
 CSTD?=	c89
@@ -15,5 +17,3 @@ DPADD=	${LIBWRAP}
 LDADD=	-lwrap
 
 .include <bsd.prog.mk>
-
-.PATH:	${.CURDIR}/../../contrib/tcp_wrappers
