@@ -450,6 +450,7 @@ _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
+_speaker=	speaker
 _sppp=		sppp
 _twa=		twa
 .endif
