@@ -1,4 +1,4 @@
-/*	$NetBSD: pkill.c,v 1.8 2005/03/02 15:31:44 abs Exp $	*/
+/*	$NetBSD: pkill.c,v 1.16 2005/10/10 22:13:20 kleink Exp $	*/
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
@@ -94,51 +94,48 @@ struct list {
 
 SLIST_HEAD(listhead, list);
 
-struct kinfo_proc	*plist;
-char	*selected;
-const char	*delim = "\n";
-int	nproc;
-int	pgrep;
-int	signum = SIGTERM;
-int	newest;
-int	oldest;
-int	interactive;
-int	inverse;
-int	longfmt;
-int	matchargs;
-int	fullmatch;
-int	kthreads;
-int	cflags = REG_EXTENDED;
-kvm_t	*kd;
-pid_t	mypid;
+static struct kinfo_proc *plist;
+static char	*selected;
+static const char *delim = "\n";
+static int	nproc;
+static int	pgrep;
+static int	signum = SIGTERM;
+static int	newest;
+static int	oldest;
+static int	interactive;
+static int	inverse;
+static int	longfmt;
+static int	matchargs;
+static int	fullmatch;
+static int	kthreads;
+static int	cflags = REG_EXTENDED;
+static kvm_t	*kd;
+static pid_t	mypid;
 
-struct listhead euidlist = SLIST_HEAD_INITIALIZER(list);
-struct listhead ruidlist = SLIST_HEAD_INITIALIZER(list);
-struct listhead rgidlist = SLIST_HEAD_INITIALIZER(list);
-struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
-struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
-struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
-struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
-struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead euidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
 
-int	main(int, char **);
-void	usage(void);
-void	killact(struct kinfo_proc *);
-void	grepact(struct kinfo_proc *);
-void	makelist(struct listhead *, enum listtype, char *);
-int	takepid(const char *, int);
+static void	usage(void) __attribute__((__noreturn__));
+static int	killact(const struct kinfo_proc *);
+static int	grepact(const struct kinfo_proc *);
+static void	makelist(struct listhead *, enum listtype, char *);
+static int	takepid(const char *, int);
 
 int
 main(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind;
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
 	int debug_opt;
 	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
-	void (*action)(struct kinfo_proc *);
+	int (*action)(const struct kinfo_proc *);
 	struct kinfo_proc *kp;
 	struct list *li;
 	struct timeval best_tval;
@@ -284,12 +281,14 @@ main(int argc, char **argv)
 	if (!criteria)
 		usage();
 	if (newest && oldest)
-		errx(STATUS_ERROR, "-n and -o are mutually exclusive");
+		errx(STATUS_ERROR, "Options -n and -o are mutually exclusive");
 	if (pidfile != NULL)
 		pidfromfile = takepid(pidfile, pidfilelock);
 	else {
-		if (pidfilelock)
-			errx(STATUS_ERROR, "-L doesn't make sense without -F");
+		if (pidfilelock) {
+			errx(STATUS_ERROR,
+			    "Option -L doesn't make sense without -F");
+		}
 		pidfromfile = -1;
 	}
 
@@ -300,22 +299,26 @@ main(int argc, char **argv)
 	 */
 	kd = kvm_openfiles(execf, coref, NULL, O_RDONLY, buf);
 	if (kd == NULL)
-		errx(STATUS_ERROR, "kvm_openfiles(): %s", buf);
+		errx(STATUS_ERROR, "Cannot open kernel files (%s)", buf);
 
 	/*
 	 * Use KERN_PROC_PROC instead of KERN_PROC_ALL, since we
 	 * just want processes and not individual kernel threads.
 	 */
 	plist = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nproc);
-	if (plist == NULL)
-		errx(STATUS_ERROR, "kvm_getprocs() failed");
+	if (plist == NULL) {
+		errx(STATUS_ERROR, "Cannot get process list (%s)",
+		    kvm_geterr(kd));
+	}
 
 	/*
 	 * Allocate memory which will be used to keep track of the
 	 * selection.
 	 */
-	if ((selected = malloc(nproc)) == NULL)
-		errx(STATUS_ERROR, "memory allocation failure");
+	if ((selected = malloc(nproc)) == NULL) {
+		err(STATUS_ERROR, "Cannot allocate memory for %d processes",
+		    nproc);
+	}
 	memset(selected, 0, nproc);
 
 	/*
@@ -324,7 +327,9 @@ main(int argc, char **argv)
 	for (; *argv != NULL; argv++) {
 		if ((rv = regcomp(&reg, *argv, cflags)) != 0) {
 			regerror(rv, &reg, buf, sizeof(buf));
-			errx(STATUS_BADUSAGE, "bad expression: %s", buf);
+			errx(STATUS_BADUSAGE,
+			    "Cannot compile regular expression `%s' (%s)",
+			    *argv, buf);
 		}
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
@@ -360,7 +365,9 @@ main(int argc, char **argv)
 					selected[i] = 1;
 			} else if (rv != REG_NOMATCH) {
 				regerror(rv, &reg, buf, sizeof(buf));
-				errx(STATUS_ERROR, "regexec(): %s", buf);
+				errx(STATUS_ERROR,
+				    "Regular expression evaluation error (%s)",
+				    buf);
 			}
 			if (debug_opt > 1) {
 				const char *rv_res = "NoMatch";
@@ -502,14 +509,13 @@ main(int argc, char **argv)
 				continue;
 		} else if (!inverse)
 			continue;
-		rv = 1;
-		(*action)(kp);
+		rv |= (*action)(kp);
 	}
 
 	exit(rv ? STATUS_MATCH : STATUS_NOMATCH);
 }
 
-void
+static void
 usage(void)
 {
 	const char *ustr;
@@ -525,11 +531,11 @@ usage(void)
 		"             [-t tty] [-u euid] pattern ...\n", getprogname(),
 		ustr);
 
-	exit(STATUS_ERROR);
+	exit(STATUS_BADUSAGE);
 }
 
 static void
-show_process(struct kinfo_proc *kp)
+show_process(const struct kinfo_proc *kp)
 {
 	char **argv;
 
@@ -547,8 +553,8 @@ show_process(struct kinfo_proc *kp)
 		printf("%d", (int)kp->ki_pid);
 }
 
-void
-killact(struct kinfo_proc *kp)
+static int
+killact(const struct kinfo_proc *kp)
 {
 	int ch, first;
 
@@ -564,44 +570,63 @@ killact(struct kinfo_proc *kp)
 		while (ch != '\n' && ch != EOF)
 			ch = getchar();
 		if (first != 'y' && first != 'Y')
-			return;
+			return (1);
 	}
-	if (kill(kp->ki_pid, signum) == -1)
-		err(STATUS_ERROR, "signalling pid %d", (int)kp->ki_pid);
+	if (kill(kp->ki_pid, signum) == -1) {
+		/* 
+		 * Check for ESRCH, which indicates that the process
+		 * disappeared between us matching it and us
+		 * signalling it; don't issue a warning about it.
+		 */
+		if (errno != ESRCH)
+			warn("signalling pid %d", (int)kp->ki_pid);
+		/*
+		 * Return 0 to indicate that the process should not be
+		 * considered a match, since we didn't actually get to
+		 * signal it.
+		 */
+		return (0);
+	}
+	return (1);
 }
 
-void
-grepact(struct kinfo_proc *kp)
+static int
+grepact(const struct kinfo_proc *kp)
 {
 
 	show_process(kp);
 	printf("%s", delim);
+	return (1);
 }
 
-void
+static void
 makelist(struct listhead *head, enum listtype type, char *src)
 {
 	struct list *li;
 	struct passwd *pw;
 	struct group *gr;
 	struct stat st;
-	const char *cp;
-	char *sp, *p, buf[MAXPATHLEN];
+	const char *cp, *prefix;
+	char *sp, *ep, buf[MAXPATHLEN];
 	int empty;
 
 	empty = 1;
+	prefix = _PATH_DEV;
 
 	while ((sp = strsep(&src, ",")) != NULL) {
 		if (*sp == '\0')
 			usage();
 
-		if ((li = malloc(sizeof(*li))) == NULL)
-			errx(STATUS_ERROR, "memory allocation failure");
+		if ((li = malloc(sizeof(*li))) == NULL) {
+			err(STATUS_ERROR, "Cannot allocate %zu bytes",
+			    sizeof(*li));
+		}
+
 		SLIST_INSERT_HEAD(head, li, li_chain);
 		empty = 0;
 
-		li->li_number = (uid_t)strtol(sp, &p, 0);
-		if (*p == '\0') {
+		li->li_number = (uid_t)strtol(sp, &ep, 0);
+		if (*ep == '\0') {
 			switch (type) {
 			case LT_PGRP:
 				if (li->li_number == 0)
@@ -613,6 +638,7 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				break;
 			case LT_TTY:
 				usage();
+				/* NOTREACHED */
 			default:
 				break;
 			}
@@ -622,54 +648,51 @@ makelist(struct listhead *head, enum listtype type, char *src)
 		switch (type) {
 		case LT_USER:
 			if ((pw = getpwnam(sp)) == NULL)
-				errx(STATUS_BADUSAGE, "unknown user `%s'",
-				    sp);
+				errx(STATUS_BADUSAGE, "Unknown user `%s'", sp);
 			li->li_number = pw->pw_uid;
 			break;
 		case LT_GROUP:
 			if ((gr = getgrnam(sp)) == NULL)
-				errx(STATUS_BADUSAGE, "unknown group `%s'",
-				    sp);
+				errx(STATUS_BADUSAGE, "Unknown group `%s'", sp);
 			li->li_number = gr->gr_gid;
 			break;
 		case LT_TTY:
 			if (strcmp(sp, "-") == 0) {
 				li->li_number = -1;
 				break;
-			} else if (strcmp(sp, "co") == 0)
+			} else if (strcmp(sp, "co") == 0) {
 				cp = "console";
-			else if (strncmp(sp, "tty", 3) == 0)
+			} else {
 				cp = sp;
-			else
-				cp = NULL;
+				if (strncmp(sp, "tty", 3) != 0)
+					prefix = _PATH_TTY;
+			}
 
-			if (cp == NULL)
-				snprintf(buf, sizeof(buf), "/dev/tty%s", sp);
-			else
-				snprintf(buf, sizeof(buf), "/dev/%s", cp);
+			snprintf(buf, sizeof(buf), "%s%s", prefix, cp);
 
-			if (stat(buf, &st) < 0) {
-				if (errno == ENOENT)
+			if (stat(buf, &st) == -1) {
+				if (errno == ENOENT) {
 					errx(STATUS_BADUSAGE,
-					    "no such tty: `%s'", sp);
-				err(STATUS_ERROR, "stat(%s)", sp);
+					    "No such tty: `%s'", sp);
+				}
+				err(STATUS_ERROR, "Cannot access `%s'", sp);
 			}
 
 			if ((st.st_mode & S_IFCHR) == 0)
-				errx(STATUS_BADUSAGE, "not a tty: `%s'", sp);
+				errx(STATUS_BADUSAGE, "Not a tty: `%s'", sp);
 
 			li->li_number = st.st_rdev;
 			break;
 		default:
 			usage();
-		};
+		}
 	}
 
 	if (empty)
 		usage();
 }
 
-int
+static int
 takepid(const char *pidfile, int pidfilelock)
 {
 	char *endp, line[BUFSIZ];
@@ -678,7 +701,7 @@ takepid(const char *pidfile, int pidfilelock)
 
 	fh = fopen(pidfile, "r");
 	if (fh == NULL)
-		err(STATUS_ERROR, "can't open pid file `%s'", pidfile);
+		err(STATUS_ERROR, "Cannot open pidfile `%s'", pidfile);
 
 	if (pidfilelock) {
 		/*
@@ -687,11 +710,11 @@ takepid(const char *pidfile, int pidfilelock)
 		 */
 		if (flock(fileno(fh), LOCK_EX | LOCK_NB) == 0) {
 			(void)fclose(fh);
-			errx(STATUS_ERROR, "file '%s' can be locked", pidfile);
+			errx(STATUS_ERROR, "File '%s' can be locked", pidfile);
 		} else {
 			if (errno != EWOULDBLOCK) {
 				errx(STATUS_ERROR,
-				    "error while locking file '%s'", pidfile);
+				    "Error while locking file '%s'", pidfile);
 			}
 		}
 	}
@@ -699,17 +722,17 @@ takepid(const char *pidfile, int pidfilelock)
 	if (fgets(line, sizeof(line), fh) == NULL) {
 		if (feof(fh)) {
 			(void)fclose(fh);
-			errx(STATUS_ERROR, "pid file `%s' is empty", pidfile);
+			errx(STATUS_ERROR, "Pidfile `%s' is empty", pidfile);
 		}
 		(void)fclose(fh);
-		err(STATUS_ERROR, "can't read from pid file `%s'", pidfile);
+		err(STATUS_ERROR, "Cannot read from pid file `%s'", pidfile);
 	}
 	(void)fclose(fh);
 
 	rval = strtol(line, &endp, 10);
 	if (*endp != '\0' && !isspace((unsigned char)*endp))
-		errx(STATUS_ERROR, "invalid pid in file `%s'", pidfile);
+		errx(STATUS_ERROR, "Invalid pid in file `%s'", pidfile);
 	else if (rval < MIN_PID || rval > MAX_PID)
-		errx(STATUS_ERROR, "invalid pid in file `%s'", pidfile);
+		errx(STATUS_ERROR, "Invalid pid in file `%s'", pidfile);
 	return (rval);
 }
