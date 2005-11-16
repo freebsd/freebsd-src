@@ -197,7 +197,7 @@ set80211authmode(const char *val, int d, int s, const struct afswtch *rafp)
 	} else if (strcasecmp(val, "wpa") == 0) {
 		mode = IEEE80211_AUTH_WPA;
 	} else {
-		err(1, "unknown authmode");
+		errx(1, "unknown authmode");
 	}
 
 	set80211(s, IEEE80211_IOC_AUTHMODE, mode, 0, NULL);
@@ -219,7 +219,7 @@ set80211powersavemode(const char *val, int d, int s, const struct afswtch *rafp)
 	} else if (strcasecmp(val, "psp-cam") == 0) {
 		mode = IEEE80211_POWERSAVE_PSP_CAM;
 	} else {
-		err(1, "unknown powersavemode");
+		errx(1, "unknown powersavemode");
 	}
 
 	set80211(s, IEEE80211_IOC_POWERSAVE, mode, 0, NULL);
@@ -254,7 +254,7 @@ set80211wepmode(const char *val, int d, int s, const struct afswtch *rafp)
 	} else if (strcasecmp(val, "mixed") == 0) {
 		mode = IEEE80211_WEP_MIXED;
 	} else {
-		err(1, "unknown wep mode");
+		errx(1, "unknown wep mode");
 	}
 
 	set80211(s, IEEE80211_IOC_WEP, mode, 0, NULL);
@@ -360,7 +360,7 @@ set80211protmode(const char *val, int d, int s, const struct afswtch *rafp)
 	} else if (strcasecmp(val, "rtscts") == 0) {
 		mode = IEEE80211_PROTMODE_RTSCTS;
 	} else {
-		err(1, "unknown protection mode");
+		errx(1, "unknown protection mode");
 	}
 
 	set80211(s, IEEE80211_IOC_PROTMODE, mode, 0, NULL);
@@ -388,7 +388,7 @@ set80211roaming(const char *val, int d, int s, const struct afswtch *rafp)
 	} else if (strcasecmp(val, "manual") == 0) {
 		mode = IEEE80211_ROAMING_MANUAL;
 	} else {
-		err(1, "unknown roaming mode");
+		errx(1, "unknown roaming mode");
 	}
 	set80211(s, IEEE80211_IOC_ROAMING, mode, 0, NULL);
 }
