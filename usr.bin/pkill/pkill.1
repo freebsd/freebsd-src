@@ -60,7 +60,7 @@
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl Lfinovx
+.Op Fl ILfinovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -95,6 +95,8 @@ file.
 Restrict matches to processes with a real group ID in the comma-separated
 list
 .Ar gid .
+.It Fl I
+Request confirmation before attempting to kill each process.
 .It Fl L
 The
 .Ar pidfile
