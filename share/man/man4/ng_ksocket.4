@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2004
+.Dd October 28, 2005
 .Dt NG_KSOCKET 4
 .Os
 .Sh NAME
@@ -133,7 +133,21 @@ The
 .Vt "struct sockaddr"
 destination address parameter should be supplied as an argument.
 .It Dv NGM_KSOCKET_ACCEPT
-Currently unimplemented.
+Equivalent to the
+.Xr accept 2
+system call on a non-blocking socket.
+If there is a pending connection on the queue,
+a new socket and a corresponding cloned node are created.
+Returned are the cloned node's ID and a peer name (as
+.Vt "struct sockaddr" ) .
+If there are no pending connections,
+this control message returns nothing,
+and a connected node will receive the above message asynchronously,
+when a connection is established.
+.Pp
+A cloned node supports a single hook with an arbitrary name.
+If not connected, a node disappears when its parent node is destroyed.
+Once connected, it becomes an independent node.
 .It Dv NGM_KSOCKET_GETNAME
 Equivalent to the
 .Xr getsockname 2
