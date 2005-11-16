@@ -138,7 +138,7 @@ smbfs_cmount(struct mntarg *ma, void * data, int flags, struct thread *td)
 static const char *smbfs_opts[] = {
 	"dev", "soft", "intr", "strong", "have_nls", "long",
 	"mountpoint", "rootpath", "uid", "gid", "file_mode", "dir_mode",
-	"caseopt", NULL
+	"caseopt", "errmsg", NULL
 };
 
 static int
@@ -155,15 +155,20 @@ smbfs_mount(struct mount *mp, struct thread *td)
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return EOPNOTSUPP;
 
-	if (vfs_filteropt(mp->mnt_optnew, smbfs_opts))
+	if (vfs_filteropt(mp->mnt_optnew, smbfs_opts)) {
+		vfs_mount_error(mp, "%s", "Invalid option");
 		return (EINVAL);
+	}
 
 	smb_makescred(&scred, td, td->td_ucred);
-	if (1 != vfs_scanopt(mp->mnt_optnew, "dev", "%d", &v))
+	if (1 != vfs_scanopt(mp->mnt_optnew, "dev", "%d", &v)) {
+		vfs_mount_error(mp, "No dev option");
 		return (EINVAL);
+	}
 	error = smb_dev2share(v, SMBM_EXEC, &scred, &ssp);
 	if (error) {
 		printf("invalid device handle %d (%d)\n", v, error);
+		vfs_mount_error(mp, "invalid device handle %d (%d)\n", v, error);
 		return error;
 	}
 	vcp = SSTOVC(ssp);
@@ -177,8 +182,9 @@ smbfs_mount(struct mount *mp, struct thread *td)
 	    M_WAITOK|M_USE_RESERVE);
 #endif
         if (smp == NULL) {
-                printf("could not alloc smbmount\n");
-                error = ENOMEM;
+		printf("could not alloc smbmount\n");
+		vfs_mount_error(mp, "could not alloc smbmount", v, error);
+		error = ENOMEM;
 		goto bad;
         }
 	bzero(smp, sizeof(*smp));
@@ -191,28 +197,33 @@ smbfs_mount(struct mount *mp, struct thread *td)
 	smp->sm_root = NULL;
 	if (1 != vfs_scanopt(mp->mnt_optnew,
 	    "caseopt", "%d", &smp->sm_caseopt)) {
+		vfs_mount_error(mp, "Invalid caseopt");
 		error = EINVAL;
 		goto bad;
 	}
 	if (1 != vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v)) {
+		vfs_mount_error(mp, "Invalid uid");
 		error = EINVAL;
 		goto bad;
 	}
 	smp->sm_uid = v;
 
 	if (1 != vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v)) {
+		vfs_mount_error(mp, "Invalid gid");
 		error = EINVAL;
 		goto bad;
 	}
 	smp->sm_gid = v;
 
 	if (1 != vfs_scanopt(mp->mnt_optnew, "file_mode", "%d", &v)) {
+		vfs_mount_error(mp, "Invalid file_mode");
 		error = EINVAL;
 		goto bad;
 	}
 	smp->sm_file_mode = (v & (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFREG;
 
 	if (1 != vfs_scanopt(mp->mnt_optnew, "dir_mode", "%d", &v)) {
+		vfs_mount_error(mp, "Invalid dir_mode");
 		error = EINVAL;
 		goto bad;
 	}
@@ -240,8 +251,10 @@ smbfs_mount(struct mount *mp, struct thread *td)
 	}
 	vfs_getnewfsid(mp);
 	error = smbfs_root(mp, LK_EXCLUSIVE, &vp, td);
-	if (error)
+	if (error) {
+		vfs_mount_error(mp, "smbfs_root error: %d", error);
 		goto bad;
+	}
 	VOP_UNLOCK(vp, 0, td);
 	SMBVDEBUG("root.v_usecount = %d\n", vrefcnt(vp));
 
@@ -324,6 +337,7 @@ smbfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 
 	if (smp == NULL) {
 		SMBERROR("smp == NULL (bug in umount)\n");
+		vfs_mount_error(mp, "smp == NULL (bug in umount)");
 		return EINVAL;
 	}
 	if (smp->sm_root) {
@@ -394,8 +408,10 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	struct smb_cred scred;
 	int error = 0;
 
-	if (np == NULL)
+	if (np == NULL) {
+		vfs_mount_error(mp, "np == NULL");
 		return EINVAL;
+	}
 	
 	sbp->f_iosize = SSTOVC(ssp)->vc_txmax;		/* optimal transfer block size */
 	smb_makescred(&scred, td, td->td_ucred);
