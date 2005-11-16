@@ -91,9 +91,9 @@ SUBDIR=	ac \
 	mtest \
 	mtree \
 	${_named} \
-	${_named.reload} \
 	${_named-checkconf} \
 	${_named-checkzone} \
+	${_named.reload} \
 	${_ndiscvt} \
 	ndp \
 	newsyslog \
@@ -175,8 +175,8 @@ SUBDIR=	ac \
 	watch \
 	watchdogd \
 	wicontrol \
-	wpa \
 	${_wlconfig} \
+	wpa \
 	${_ypbind} \
 	${_yp_mkdb} \
 	${_yppoll} \
@@ -201,9 +201,9 @@ _dnssec-signzone=	dnssec-signzone
 .endif
 .if !defined(NO_BIND_NAMED)
 _named=			named
-_named.reload=		named.reload
 _named-checkconf=	named-checkconf
 _named-checkzone=	named-checkzone
+_named.reload=		named.reload
 _rndc=			rndc
 _rndc-confgen=		rndc-confgen
 .endif
