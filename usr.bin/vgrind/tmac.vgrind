@@ -58,9 +58,11 @@
 ..
 'de FN
 \f2\s14\h'\\n(.lu-\w'\\$1'u'\\$1\fP\s0\h'|0u'\c
+.if r x .if \\nx .if d =F .tm \\$1 \\*(=F \\n%
 'ds =f \&...\\$1
 ..
 'de FC
+.if r x .if \\nx .if d =F .tm \\$1 \\*(=F \\n%
 'ds =f \&...\\$1
 ..
 'de -F
