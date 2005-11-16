@@ -29,11 +29,7 @@ modules-${target}:
 
 # Handle out of tree ports 
 .if !defined(NO_MODULES) && defined(PORTS_MODULES)
-.for _dir in ${.CURDIR}/../../..
-.if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir}
-.endif
-.endfor
+SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
 PORTSMODULESENV=SYSDIR=${SYSDIR}
 .for __target in all install reinstall clean
 ${__target}: ports-${__target}
