@@ -83,7 +83,7 @@ struct rusage {
 /*
  * Resource limits
  */
-#define	RLIMIT_CPU	0		/* cpu time in milliseconds */
+#define	RLIMIT_CPU	0		/* maximum cpu time in seconds */
 #define	RLIMIT_FSIZE	1		/* maximum file size */
 #define	RLIMIT_DATA	2		/* data size */
 #define	RLIMIT_STACK	3		/* stack size */
