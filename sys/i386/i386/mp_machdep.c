@@ -1311,7 +1311,6 @@ ipi_nmi_handler()
 {
 	int cpu = PCPU_GET(cpuid);
 	int cpumask = PCPU_GET(cpumask);
-	void (*restartfunc)(void);
 
 	if (!(ipi_nmi_pending & cpumask))
 		return 1;
@@ -1330,10 +1329,10 @@ ipi_nmi_handler()
 	atomic_clear_int(&started_cpus, cpumask);
 	atomic_clear_int(&stopped_cpus, cpumask);
 
-	restartfunc = (void (*)(void))atomic_readandclear_int(
-		(u_int *)&cpustop_restartfunc);
-	if (restartfunc != NULL)
-		restartfunc();
+	if (cpu == 0 && cpustop_restartfunc != NULL) {
+		cpustop_restartfunc();
+		cpustop_restartfunc = NULL;
+	}
 
 	return 0;
 }
