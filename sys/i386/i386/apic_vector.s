@@ -340,11 +340,10 @@ IDTVEC(cpustop)
 	test	%eax, %eax
 	jnz	2f
 
-	xorl	%eax, %eax
-	lock
-	xchgl	CNAME(cpustop_restartfunc), %eax
+	movl	CNAME(cpustop_restartfunc), %eax
 	test	%eax, %eax
 	jz	2f
+	movl	$0, CNAME(cpustop_restartfunc)	/* One-shot */
 
 	call	*%eax
 2:
