@@ -626,7 +626,16 @@ mangle(options, argcp, argv)
 	argc = *argcp;
 	for (s = options; (p = strsep(&s, ",")) != NULL;)
 		if (*p != '\0') {
-			if (*p == '-') {
+			if (strcmp(p, "noauto") == 0) {
+				/*
+				 * Do not pass noauto option to nmount().
+				 * or external mount program.  noauto is
+				 * only used to prevent mounting a filesystem
+				 * when 'mount -a' is specified, and is
+				 * not a real mount option.
+				 */
+				continue;
+			} else if (*p == '-') {
 				argv[argc++] = p;
 				p = strchr(p, '=');
 				if (p != NULL) {
