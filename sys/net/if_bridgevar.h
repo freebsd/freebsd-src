@@ -76,6 +76,7 @@
 
 #include <sys/callout.h>
 #include <sys/queue.h>
+#include <sys/condvar.h>
 
 /*
  * Commands used in the SIOCSDRVSPEC ioctl.  Note the lookup of the
@@ -335,23 +336,34 @@ struct bridge_softc {
 	(_sc)->sc_iflist_xcnt--;		\
 } while (0)
 
+#define BRIDGE_INPUT(_ifp, _m)		do {    	\
+	KASSERT(bridge_input_p != NULL,			\
+	    ("%s: if_bridge not loaded!", __func__));	\
+	_m = (*bridge_input_p)(_ifp, _m);		\
+	if (_m != NULL)					\
+		_ifp = _m->m_pkthdr.rcvif;		\
+} while (0)
+
+#define BRIDGE_OUTPUT(_ifp, _m, _err)	do {    		\
+	KASSERT(bridge_output_p != NULL,			\
+	    ("%s: if_bridge not loaded!", __func__));		\
+	_err = (*bridge_output_p)(_ifp, _m, NULL, NULL);	\
+} while (0)
+
 extern const uint8_t bstp_etheraddr[];
 
-void	bridge_ifdetach(struct ifnet *);
+void	bridge_enqueue(struct bridge_softc *, struct ifnet *, struct mbuf *);
 void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
-int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-	    struct rtentry *);
-void	bridge_dummynet(struct mbuf *, struct ifnet *);
-struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
-
-extern	void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
+extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
+extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
+		struct sockaddr *, struct rtentry *);
+extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
+extern	void (*bridge_detach_p)(struct ifnet *);
 
 void	bstp_initialization(struct bridge_softc *);
-void	bstp_linkstate(struct ifnet *, int);
 void	bstp_stop(struct bridge_softc *);
 struct mbuf *bstp_input(struct ifnet *, struct mbuf *);
 
-void	bridge_enqueue(struct bridge_softc *, struct ifnet *, struct mbuf *);
 
 #endif /* _KERNEL */

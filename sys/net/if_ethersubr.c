@@ -61,6 +61,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/bridge.h>
+#include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 
 #if defined(INET) || defined(INET6)
@@ -114,10 +115,12 @@ bdg_forward_t *bdg_forward_ptr;
 bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc;
 
+/* if_bridge(4) support */
 struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
 int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
 		struct sockaddr *, struct rtentry *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
+void	(*bridge_detach_p)(struct ifnet *ifp);
 
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -292,9 +295,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	* Bridges require special output handling.
 	*/
 	if (ifp->if_bridge) {
-		KASSERT(bridge_output_p != NULL,
-		    ("ether_output: if_bridge not loaded!"));
-		return ((*bridge_output_p)(ifp, m, NULL, NULL));
+		BRIDGE_OUTPUT(ifp, m, error);
+		return (error);
 	}
 
 	/*
@@ -599,30 +601,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	* process it locally.
 	*/
 	if (ifp->if_bridge) {
-		KASSERT(bridge_input_p != NULL,("ether_input: if_bridge not loaded!"));
-
-		/* Mark the packet as broadcast or multicast. This is also set
-		 * further down the code in ether_demux() but since the bridge
-		 * input routine rarely returns a mbuf for further processing,
-		 * it is an acceptable duplication.
-		 */
-		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-			if (bcmp(etherbroadcastaddr, eh->ether_dhost,
-				sizeof(etherbroadcastaddr)) == 0)
-				m->m_flags |= M_BCAST;
-			else
-				m->m_flags |= M_MCAST;
-		}
-	
-		m = (*bridge_input_p)(ifp, m);
+		BRIDGE_INPUT(ifp, m);
 		if (m == NULL)
 			return;
-		/*
-		* Bridge has determined that the packet is for us.
-		* Update our interface pointer -- we may have had
-		* to "bridge" the packet locally.
-		*/
-		ifp = m->m_pkthdr.rcvif;
 	}
 
 	/* Check for bridging mode */
@@ -976,6 +957,13 @@ ether_ifdetach(struct ifnet *ifp)
 {
 	if (ng_ether_detach_p != NULL)
 		(*ng_ether_detach_p)(ifp);
+
+	if (ifp->if_bridge) {
+		KASSERT(bridge_detach_p != NULL,
+		    ("bridge_detach_p is NULL"));
+		(*bridge_detach_p)(ifp);
+	}
+
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if (BDG_LOADED)
