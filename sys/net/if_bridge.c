@@ -176,76 +176,79 @@ int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
 uma_zone_t bridge_rtnode_zone;
 
-int	bridge_clone_create(struct if_clone *, int);
-void	bridge_clone_destroy(struct ifnet *);
+static int	bridge_clone_create(struct if_clone *, int);
+static void	bridge_clone_destroy(struct ifnet *);
 
-int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
-void	bridge_ifdetach(struct ifnet *);
+static int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
+static void	bridge_ifdetach(struct ifnet *);
 static void	bridge_init(void *);
-void	bridge_dummynet(struct mbuf *, struct ifnet *);
-void	bridge_stop(struct ifnet *, int);
-void	bridge_start(struct ifnet *);
-struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
-int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-	    struct rtentry *);
+static void	bridge_dummynet(struct mbuf *, struct ifnet *);
+static void	bridge_stop(struct ifnet *, int);
+static void	bridge_start(struct ifnet *);
+static struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
+static int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct rtentry *);
 
-void	bridge_forward(struct bridge_softc *, struct mbuf *m);
+static void	bridge_forward(struct bridge_softc *, struct mbuf *m);
 
-void	bridge_timer(void *);
+static void	bridge_timer(void *);
 
-void	bridge_broadcast(struct bridge_softc *, struct ifnet *, struct mbuf *,
-	    int);
+static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
+		    struct mbuf *, int);
 
-int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
-	    struct ifnet *, int, uint8_t);
-struct ifnet *bridge_rtlookup(struct bridge_softc *, const uint8_t *);
-void	bridge_rttrim(struct bridge_softc *);
-void	bridge_rtage(struct bridge_softc *);
-void	bridge_rtflush(struct bridge_softc *, int);
-int	bridge_rtdaddr(struct bridge_softc *, const uint8_t *);
+static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
+		    struct ifnet *, int, uint8_t);
+static struct ifnet *bridge_rtlookup(struct bridge_softc *, const uint8_t *);
+static void	bridge_rttrim(struct bridge_softc *);
+static void	bridge_rtage(struct bridge_softc *);
+static void	bridge_rtflush(struct bridge_softc *, int);
+static int	bridge_rtdaddr(struct bridge_softc *, const uint8_t *);
 
-int	bridge_rtable_init(struct bridge_softc *);
-void	bridge_rtable_fini(struct bridge_softc *);
+static int	bridge_rtable_init(struct bridge_softc *);
+static void	bridge_rtable_fini(struct bridge_softc *);
 
-struct bridge_rtnode *bridge_rtnode_lookup(struct bridge_softc *,
-	    const uint8_t *);
-int	bridge_rtnode_insert(struct bridge_softc *, struct bridge_rtnode *);
-void	bridge_rtnode_destroy(struct bridge_softc *, struct bridge_rtnode *);
+static struct bridge_rtnode *bridge_rtnode_lookup(struct bridge_softc *,
+		    const uint8_t *);
+static int	bridge_rtnode_insert(struct bridge_softc *,
+		    struct bridge_rtnode *);
+static void	bridge_rtnode_destroy(struct bridge_softc *,
+		    struct bridge_rtnode *);
 
-struct bridge_iflist *bridge_lookup_member(struct bridge_softc *,
-	    const char *name);
-struct bridge_iflist *bridge_lookup_member_if(struct bridge_softc *,
-	    struct ifnet *ifp);
-void	bridge_delete_member(struct bridge_softc *, struct bridge_iflist *,
-	    int);
+static struct bridge_iflist *bridge_lookup_member(struct bridge_softc *,
+		    const char *name);
+static struct bridge_iflist *bridge_lookup_member_if(struct bridge_softc *,
+		    struct ifnet *ifp);
+static void	bridge_delete_member(struct bridge_softc *,
+		    struct bridge_iflist *, int);
 
-int	bridge_ioctl_add(struct bridge_softc *, void *);
-int	bridge_ioctl_del(struct bridge_softc *, void *);
-int	bridge_ioctl_gifflags(struct bridge_softc *, void *);
-int	bridge_ioctl_sifflags(struct bridge_softc *, void *);
-int	bridge_ioctl_scache(struct bridge_softc *, void *);
-int	bridge_ioctl_gcache(struct bridge_softc *, void *);
-int	bridge_ioctl_gifs(struct bridge_softc *, void *);
-int	bridge_ioctl_rts(struct bridge_softc *, void *);
-int	bridge_ioctl_saddr(struct bridge_softc *, void *);
-int	bridge_ioctl_sto(struct bridge_softc *, void *);
-int	bridge_ioctl_gto(struct bridge_softc *, void *);
-int	bridge_ioctl_daddr(struct bridge_softc *, void *);
-int	bridge_ioctl_flush(struct bridge_softc *, void *);
-int	bridge_ioctl_gpri(struct bridge_softc *, void *);
-int	bridge_ioctl_spri(struct bridge_softc *, void *);
-int	bridge_ioctl_ght(struct bridge_softc *, void *);
-int	bridge_ioctl_sht(struct bridge_softc *, void *);
-int	bridge_ioctl_gfd(struct bridge_softc *, void *);
-int	bridge_ioctl_sfd(struct bridge_softc *, void *);
-int	bridge_ioctl_gma(struct bridge_softc *, void *);
-int	bridge_ioctl_sma(struct bridge_softc *, void *);
-int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
-int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
-static int bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *, int);
-static int bridge_ip_checkbasic(struct mbuf **mp);
+static int	bridge_ioctl_add(struct bridge_softc *, void *);
+static int	bridge_ioctl_del(struct bridge_softc *, void *);
+static int	bridge_ioctl_gifflags(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifflags(struct bridge_softc *, void *);
+static int	bridge_ioctl_scache(struct bridge_softc *, void *);
+static int	bridge_ioctl_gcache(struct bridge_softc *, void *);
+static int	bridge_ioctl_gifs(struct bridge_softc *, void *);
+static int	bridge_ioctl_rts(struct bridge_softc *, void *);
+static int	bridge_ioctl_saddr(struct bridge_softc *, void *);
+static int	bridge_ioctl_sto(struct bridge_softc *, void *);
+static int	bridge_ioctl_gto(struct bridge_softc *, void *);
+static int	bridge_ioctl_daddr(struct bridge_softc *, void *);
+static int	bridge_ioctl_flush(struct bridge_softc *, void *);
+static int	bridge_ioctl_gpri(struct bridge_softc *, void *);
+static int	bridge_ioctl_spri(struct bridge_softc *, void *);
+static int	bridge_ioctl_ght(struct bridge_softc *, void *);
+static int	bridge_ioctl_sht(struct bridge_softc *, void *);
+static int	bridge_ioctl_gfd(struct bridge_softc *, void *);
+static int	bridge_ioctl_sfd(struct bridge_softc *, void *);
+static int	bridge_ioctl_gma(struct bridge_softc *, void *);
+static int	bridge_ioctl_sma(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
+static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
+		    int);
+static int	bridge_ip_checkbasic(struct mbuf **mp);
 # ifdef INET6
-static int bridge_ip6_checkbasic(struct mbuf **mp);
+static int	bridge_ip6_checkbasic(struct mbuf **mp);
 # endif /* INET6 */
 
 SYSCTL_DECL(_net_link);
@@ -419,7 +422,7 @@ SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw, CTLTYPE_INT|CTLFLAG_RW,
  *
  *	Create a new bridge instance.
  */
-int
+static int
 bridge_clone_create(struct if_clone *ifc, int unit)
 {
 	struct bridge_softc *sc;
@@ -490,7 +493,7 @@ bridge_clone_create(struct if_clone *ifc, int unit)
  *
  *	Destroy a bridge instance.
  */
-void
+static void
 bridge_clone_destroy(struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_softc;
@@ -528,7 +531,7 @@ bridge_clone_destroy(struct ifnet *ifp)
  *
  *	Handle a control request from the operator.
  */
-int
+static int
 bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct bridge_softc *sc = ifp->if_softc;
@@ -643,7 +646,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  *
  *	Lookup a bridge member interface.
  */
-struct bridge_iflist *
+static struct bridge_iflist *
 bridge_lookup_member(struct bridge_softc *sc, const char *name)
 {
 	struct bridge_iflist *bif;
@@ -665,7 +668,7 @@ bridge_lookup_member(struct bridge_softc *sc, const char *name)
  *
  *	Lookup a bridge member interface by ifnet*.
  */
-struct bridge_iflist *
+static struct bridge_iflist *
 bridge_lookup_member_if(struct bridge_softc *sc, struct ifnet *member_ifp)
 {
 	struct bridge_iflist *bif;
@@ -685,7 +688,7 @@ bridge_lookup_member_if(struct bridge_softc *sc, struct ifnet *member_ifp)
  *
  *	Delete the specified member interface.
  */
-void
+static void
 bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
     int gone)
 {
@@ -724,7 +727,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		bstp_initialization(sc);
 }
 
-int
+static int
 bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -798,7 +801,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	return (error);
 }
 
-int
+static int
 bridge_ioctl_del(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -815,7 +818,7 @@ bridge_ioctl_del(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -836,7 +839,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -868,7 +871,7 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_scache(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -881,7 +884,7 @@ bridge_ioctl_scache(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gcache(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -893,7 +896,7 @@ bridge_ioctl_gcache(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 {
 	struct ifbifconf *bifc = arg;
@@ -936,7 +939,7 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 	return (error);
 }
 
-int
+static int
 bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 {
 	struct ifbaconf *bac = arg;
@@ -977,7 +980,7 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 	return (error);
 }
 
-int
+static int
 bridge_ioctl_saddr(struct bridge_softc *sc, void *arg)
 {
 	struct ifbareq *req = arg;
@@ -996,7 +999,7 @@ bridge_ioctl_saddr(struct bridge_softc *sc, void *arg)
 	return (error);
 }
 
-int
+static int
 bridge_ioctl_sto(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1008,7 +1011,7 @@ bridge_ioctl_sto(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gto(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1020,7 +1023,7 @@ bridge_ioctl_gto(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_daddr(struct bridge_softc *sc, void *arg)
 {
 	struct ifbareq *req = arg;
@@ -1030,7 +1033,7 @@ bridge_ioctl_daddr(struct bridge_softc *sc, void *arg)
 	return (bridge_rtdaddr(sc, req->ifba_dst));
 }
 
-int
+static int
 bridge_ioctl_flush(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -1042,7 +1045,7 @@ bridge_ioctl_flush(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gpri(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1054,7 +1057,7 @@ bridge_ioctl_gpri(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_spri(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1069,7 +1072,7 @@ bridge_ioctl_spri(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_ght(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1081,7 +1084,7 @@ bridge_ioctl_ght(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_sht(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1098,7 +1101,7 @@ bridge_ioctl_sht(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gfd(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1110,7 +1113,7 @@ bridge_ioctl_gfd(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_sfd(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1127,7 +1130,7 @@ bridge_ioctl_sfd(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_gma(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1139,7 +1142,7 @@ bridge_ioctl_gma(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_sma(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
@@ -1156,7 +1159,7 @@ bridge_ioctl_sma(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_sifprio(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -1176,7 +1179,7 @@ bridge_ioctl_sifprio(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
-int
+static int
 bridge_ioctl_sifcost(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
@@ -1202,7 +1205,7 @@ bridge_ioctl_sifcost(struct bridge_softc *sc, void *arg)
  *	Detach an interface from a bridge.  Called when a member
  *	interface is detaching.
  */
-void
+static void
 bridge_ifdetach(struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
@@ -1248,7 +1251,7 @@ bridge_init(void *xsc)
  *
  *	Stop the bridge interface.
  */
-void
+static void
 bridge_stop(struct ifnet *ifp, int disable)
 {
 	struct bridge_softc *sc = ifp->if_softc;
@@ -1312,7 +1315,7 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
  *
  *	The mbuf has the Ethernet header already attached.
  */
-void
+static void
 bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 {
 	struct bridge_softc *sc;
@@ -1353,7 +1356,7 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
  *	The mbuf has the Ethernet header already attached.  We must
  *	enqueue or free the mbuf before returning.
  */
-int
+static int
 bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
     struct rtentry *rt)
 {
@@ -1462,7 +1465,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
  *	Start output on a bridge.
  *
  */
-void
+static void
 bridge_start(struct ifnet *ifp)
 {
 	struct bridge_softc *sc;
@@ -1506,7 +1509,7 @@ bridge_start(struct ifnet *ifp)
  *
  *	NOTE: Releases the lock on return.
  */
-void
+static void
 bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 {
 	struct bridge_iflist *bif;
@@ -1664,7 +1667,7 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
  *	Receive input from a member interface.  Queue the packet for
  *	bridging if it is not for us.
  */
-struct mbuf *
+static struct mbuf *
 bridge_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
@@ -1816,7 +1819,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
  *
  *	NOTE: Releases the lock on return.
  */
-void
+static void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
     struct mbuf *m, int runfilt)
 {
@@ -1839,9 +1842,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 #endif
 	    )) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
-			return;
+			goto out;
 		if (m == NULL)
-			return;
+			goto out;
 	}
 
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
@@ -1885,10 +1888,10 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		    || inet6_pfil_hook.ph_busy_count >= 0
 #endif
 		    )) {
-			if (bridge_pfil(&m, NULL, dst_if, PFIL_OUT) != 0)
-				return;
-			if (m == NULL)
-				return;
+			if (bridge_pfil(&mc, NULL, dst_if, PFIL_OUT) != 0)
+				continue;
+			if (mc == NULL)
+				continue;
 		}
 
 		bridge_enqueue(sc, dst_if, mc);
@@ -1896,6 +1899,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	if (used == 0)
 		m_freem(m);
 
+out:
 	BRIDGE_UNREF(sc);
 }
 
@@ -1904,7 +1908,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
  *
  *	Add a bridge routing entry.
  */
-int
+static int
 bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
     struct ifnet *dst_if, int setflags, uint8_t flags)
 {
@@ -1957,7 +1961,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
  *
  *	Lookup the destination interface for an address.
  */
-struct ifnet *
+static struct ifnet *
 bridge_rtlookup(struct bridge_softc *sc, const uint8_t *addr)
 {
 	struct bridge_rtnode *brt;
@@ -1977,7 +1981,7 @@ bridge_rtlookup(struct bridge_softc *sc, const uint8_t *addr)
  *	of routing entries less than or equal to the
  *	maximum number.
  */
-void
+static void
 bridge_rttrim(struct bridge_softc *sc)
 {
 	struct bridge_rtnode *brt, *nbrt;
@@ -2008,7 +2012,7 @@ bridge_rttrim(struct bridge_softc *sc)
  *
  *	Aging timer for the bridge.
  */
-void
+static void
 bridge_timer(void *arg)
 {
 	struct bridge_softc *sc = arg;
@@ -2027,7 +2031,7 @@ bridge_timer(void *arg)
  *
  *	Perform an aging cycle.
  */
-void
+static void
 bridge_rtage(struct bridge_softc *sc)
 {
 	struct bridge_rtnode *brt, *nbrt;
@@ -2051,7 +2055,7 @@ bridge_rtage(struct bridge_softc *sc)
  *
  *	Remove all dynamic addresses from the bridge.
  */
-void
+static void
 bridge_rtflush(struct bridge_softc *sc, int full)
 {
 	struct bridge_rtnode *brt, *nbrt;
@@ -2070,7 +2074,7 @@ bridge_rtflush(struct bridge_softc *sc, int full)
  *
  *	Remove an address from the table.
  */
-int
+static int
 bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr)
 {
 	struct bridge_rtnode *brt;
@@ -2109,7 +2113,7 @@ bridge_rtdelete(struct bridge_softc *sc, struct ifnet *ifp, int full)
  *
  *	Initialize the route table for this bridge.
  */
-int
+static int
 bridge_rtable_init(struct bridge_softc *sc)
 {
 	int i;
@@ -2134,7 +2138,7 @@ bridge_rtable_init(struct bridge_softc *sc)
  *
  *	Deconstruct the route table for this bridge.
  */
-void
+static void
 bridge_rtable_fini(struct bridge_softc *sc)
 {
 
@@ -2182,7 +2186,7 @@ bridge_rthash(struct bridge_softc *sc, const uint8_t *addr)
  *
  *	Look up a bridge route node for the specified destination.
  */
-struct bridge_rtnode *
+static struct bridge_rtnode *
 bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr)
 {
 	struct bridge_rtnode *brt;
@@ -2209,7 +2213,7 @@ bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr)
  *	Insert the specified bridge node into the route table.  We
  *	assume the entry is not already in the table.
  */
-int
+static int
 bridge_rtnode_insert(struct bridge_softc *sc, struct bridge_rtnode *brt)
 {
 	struct bridge_rtnode *lbrt;
@@ -2257,7 +2261,7 @@ bridge_rtnode_insert(struct bridge_softc *sc, struct bridge_rtnode *brt)
  *
  *	Destroy a bridge rtnode.
  */
-void
+static void
 bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 {
 	BRIDGE_LOCK_ASSERT(sc);
