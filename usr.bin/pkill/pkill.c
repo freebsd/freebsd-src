@@ -2,6 +2,7 @@
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
+ * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -101,6 +102,7 @@ int	pgrep;
 int	signum = SIGTERM;
 int	newest;
 int	oldest;
+int	interactive;
 int	inverse;
 int	longfmt;
 int	matchargs;
@@ -180,7 +182,7 @@ main(int argc, char **argv)
 	pidfilelock = 0;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:LM:N:P:SU:d:fg:ij:lnos:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:d:fg:ij:lnos:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -192,6 +194,11 @@ main(int argc, char **argv)
 		case 'G':
 			makelist(&rgidlist, LT_GROUP, optarg);
 			criteria = 1;
+			break;
+		case 'I':
+			if (pgrep)
+				usage();
+			interactive = 1;
 			break;
 		case 'L':
 			pidfilelock = 1;
@@ -510,7 +517,7 @@ usage(void)
 	if (pgrep)
 		ustr = "[-LSfilnovx] [-d delim]";
 	else
-		ustr = "[-signal] [-Lfinovx]";
+		ustr = "[-signal] [-ILfinovx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
@@ -521,20 +528,12 @@ usage(void)
 	exit(STATUS_ERROR);
 }
 
-void
-killact(struct kinfo_proc *kp)
-{
-
-	if (kill(kp->ki_pid, signum) == -1)
-		err(STATUS_ERROR, "signalling pid %d", (int)kp->ki_pid);
-}
-
-void
-grepact(struct kinfo_proc *kp)
+static void
+show_process(struct kinfo_proc *kp)
 {
 	char **argv;
 
-	if (longfmt && matchargs &&
+	if ((longfmt || !pgrep) && matchargs &&
 	    (argv = kvm_getargv(kd, kp, 0)) != NULL) {
 		printf("%d ", (int)kp->ki_pid);
 		for (; *argv != NULL; argv++) {
@@ -542,11 +541,40 @@ grepact(struct kinfo_proc *kp)
 			if (argv[1] != NULL)
 				putchar(' ');
 		}
-	} else if (longfmt)
+	} else if (longfmt || !pgrep)
 		printf("%d %s", (int)kp->ki_pid, kp->ki_comm);
 	else
 		printf("%d", (int)kp->ki_pid);
+}
 
+void
+killact(struct kinfo_proc *kp)
+{
+	int ch, first;
+
+	if (interactive) {
+		/*
+		 * Be careful, ask before killing.
+		 */
+		printf("kill ");
+		show_process(kp);
+		printf("? ");
+		fflush(stdout);
+		first = ch = getchar();
+		while (ch != '\n' && ch != EOF)
+			ch = getchar();
+		if (first != 'y' && first != 'Y')
+			return;
+	}
+	if (kill(kp->ki_pid, signum) == -1)
+		err(STATUS_ERROR, "signalling pid %d", (int)kp->ki_pid);
+}
+
+void
+grepact(struct kinfo_proc *kp)
+{
+
+	show_process(kp);
 	printf("%s", delim);
 }
 
