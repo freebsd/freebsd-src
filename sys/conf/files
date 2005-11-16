@@ -1615,7 +1615,6 @@ netinet/libalias/alias_nbt.c	optional libalias
 netinet/libalias/alias_pptp.c	optional libalias
 netinet/libalias/alias_proxy.c	optional libalias
 netinet/libalias/alias_skinny.c	optional libalias
-netinet/libalias/alias_skinny.c	optional libalias
 netinet/libalias/alias_smedia.c	optional libalias
 netinet/libalias/alias_util.c	optional libalias
 netinet6/ah_aesxcbcmac.c	optional ipsec
