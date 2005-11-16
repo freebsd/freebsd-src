@@ -91,8 +91,8 @@ main(int argc, char *argv[])
 	iov = NULL;
 	iovlen = 0;
 	dev = 0;
-	uid = -1;
-	gid = -1;
+	uid = (uid_t)-1;
+	gid = (gid_t)-1;
 	caseopt = 0;
 	file_mode = 0;
 	dir_mode = 0;
@@ -125,7 +125,6 @@ main(int argc, char *argv[])
 		exit(1);
 
 	mntflags = error = 0;
-	uid = gid = -1;
 
 	caseopt = SMB_CS_NONE;
 
@@ -231,9 +230,9 @@ main(int argc, char *argv[])
 	if (smb_getextattr(mount_point, &einfo) == 0)
 		errx(EX_OSERR, "can't mount on %s twice", mount_point);
 */
-	if (uid == (size_t)-1)
+	if (uid == (uid_t)-1)
 		uid = st.st_uid;
-	if (gid == (size_t)-1)
+	if (gid == (gid_t)-1)
 		gid = st.st_gid;
 	if (file_mode == 0 )
 		file_mode = st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
