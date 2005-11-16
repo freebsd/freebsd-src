@@ -44,7 +44,6 @@ MAN=	acpi_asus.4 \
 	scd.4 \
 	smapi.4 \
 	snc.4 \
-	spkr.4 \
 	sr.4 \
 	streams.4 \
 	svr4.4 \
@@ -58,7 +57,6 @@ MLINKS+=ndis.4 if_ndis.4
 MLINKS+=oltr.4 if_oltr.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
-MLINKS+=spkr.4 speaker.4
 
 MANSUBDIR=/i386
 
