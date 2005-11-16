@@ -637,6 +637,7 @@ in6_delmulti(in6m)
 		 * No remaining claims to this record; let MLD6 know
 		 * that we are leaving the multicast group.
 		 */
+		mld_stoptimer(in6m);
 		mld6_stop_listening(in6m);
 		ifma->ifma_protospec = NULL;
 		LIST_REMOVE(in6m, in6m_entry);
