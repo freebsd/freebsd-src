@@ -1880,9 +1880,13 @@ closef(struct file *fp, struct thread *td)
 	 * a flag in the unlock to free ONLY locks obeying POSIX
 	 * semantics, and not to free BSD-style file locks.
 	 * If the descriptor was in a message, POSIX-style locks
-	 * aren't passed with the descriptor.
+	 * aren't passed with the descriptor, and the thread pointer
+	 * will be NULL.  Callers should be careful only to pass a
+	 * NULL thread pointer when there really is no owning
+	 * context that might have locks, or the locks will be
+	 * leaked.
 	 */
-	if (fp->f_type == DTYPE_VNODE) {
+	if (fp->f_type == DTYPE_VNODE && td != NULL) {
 		int vfslocked;
 
 		vp = fp->f_vnode;
