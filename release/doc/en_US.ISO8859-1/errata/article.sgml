@@ -106,6 +106,17 @@
     <title>Known Problems and Solutions</title>
 
     <para>(2005/11/16)
+      Using &man.if.bridge.4; in combination with a packet filter
+      such as &man.ipfw.4; and &man.pf.4; can prevent the network
+      stack from working and/or lead to a system panic after
+      a certain period of time.
+      This is because it allocates &man.mbuf.9; buffers for network
+      packets and never releases a part of them, so eventually
+      all of the buffer memory will be exhausted.
+      This problem has been fixed in the HEAD and the RELENG_6
+      branch after 10:17:15 2005/11/16 UTC.</para>
+
+    <para>(2005/11/16)
       When an &man.ipfw.4; <literal>divert</literal> rule
       is specified with the protocol keyword <literal>ip</literal>
       or <literal>all</literal>,
