@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-# oldcard -- specialized use for debugging only.
-# owi -- totally unsupported for debugging only.
-
 SUBDIR=	${_3dfx} \
 	${_aac} \
 	accf_data \
