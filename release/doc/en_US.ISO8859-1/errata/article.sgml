@@ -105,6 +105,18 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
+    <para>(2005/11/16)
+      When an &man.ipfw.4; <literal>divert</literal> rule
+      is specified with the protocol keyword <literal>ip</literal>
+      or <literal>all</literal>,
+      IPv6 packets are silently discarded at that rule
+      since the &man.divert.4; socket does not support IPv6.
+      This can be a problem especially for an IPv4 and IPv6 dual-stack host
+      with &man.natd.8; enabled.
+      To avoid this problem, use an IPv4 specific divert rule such
+      as <literal>divert natd ipv4</literal>
+      instead of <literal>divert natd all</literal>.</para>
+
     <para>(2005/11/6)
       The &os; 6.0-RELEASE Release Notes wrongly states
       a kernel option related to &man.ipfw.8; as
