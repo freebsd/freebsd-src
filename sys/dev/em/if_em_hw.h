@@ -717,6 +717,13 @@ struct em_tx_desc {
     } upper;
 };
 
+/*
+ * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
+ * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
+ * also optimize cache line size effect. H/W supports up to cache line size 128.
+ */
+#define E1000_DBA_ALIGN		128
+
 /* Transmit Descriptor bit definitions */
 #define E1000_TXD_DTYP_D     0x00100000 /* Data Descriptor */
 #define E1000_TXD_DTYP_C     0x00000000 /* Context Descriptor */
