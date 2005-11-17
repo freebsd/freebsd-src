@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -68,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
+
+#include <ddb/ddb.h>
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "file desc to leader",
@@ -2465,6 +2468,77 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
+
+#ifdef DDB
+/*
+ * For the purposes of debugging, generate a human-readable string for the
+ * file type.
+ */
+static const char *
+file_type_to_name(short type)
+{
+
+	switch (type) {
+	case 0:
+		return ("zero");
+	case DTYPE_VNODE:
+		return ("vnod");
+	case DTYPE_SOCKET:
+		return ("sock");
+	case DTYPE_PIPE:
+		return ("pipe");
+	case DTYPE_FIFO:
+		return ("fifo");
+	case DTYPE_CRYPTO:
+		return ("crpt");
+	default:
+		return ("unkn");
+	}
+}
+
+/*
+ * For the purposes of debugging, identify a process (if any, perhaps one of
+ * many) that references the passed file in its file descriptor array. Return
+ * NULL if none.
+ */
+static struct proc *
+file_to_first_proc(struct file *fp)
+{
+	struct filedesc *fdp;
+	struct proc *p;
+	int n;
+
+	LIST_FOREACH(p, &allproc, p_list) {
+		if (p->p_state == PRS_NEW)
+			continue;
+		fdp = p->p_fd;
+		if (fdp == NULL)
+			continue;
+		for (n = 0; n < fdp->fd_nfiles; n++) {
+			if (fp == fdp->fd_ofiles[n])
+				return (p);
+		}
+	}
+	return (NULL);
+}
+
+DB_SHOW_COMMAND(files, db_show_files)
+{
+	struct file *fp;
+	struct proc *p;
+
+	db_printf("%8s %4s %8s %8s %4s %5s %6s %8s %5s %12s\n", "File",
+	    "Type", "Data", "Flag", "GCFl", "Count", "MCount", "Vnode",
+	    "FPID", "FCmd");
+	LIST_FOREACH(fp, &filehead, f_list) {
+		p = file_to_first_proc(fp);
+		db_printf("%8p %4s %8p %08x %04x %5d %6d %8p %5d %12s\n", fp,
+		    file_type_to_name(fp->f_type), fp->f_data, fp->f_flag,
+		    fp->f_gcflag, fp->f_count, fp->f_msgcount, fp->f_vnode,
+		    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
+	}
+}
+#endif
 
 SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
     &maxfilesperproc, 0, "Maximum files allowed open per process");
