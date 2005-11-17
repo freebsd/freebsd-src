@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2000
+.Dd November 11, 2005
 .Dt SIGWAIT 2
 .Os
 .Sh NAME
@@ -63,7 +63,8 @@ If more than one thread is using
 .Fn sigwait
 to wait for the same signal, no more than one of these threads will return from
 .Fn sigwait
-with the signal number. If more than a single thread is blocked in
+with the signal number.
+If more than a single thread is blocked in
 .Fn sigwait
 for a signal when that signal is generated for the process, it is unspecified
 which of the waiting threads returns from
@@ -72,8 +73,13 @@ If the signal is generated for a specific thread, as by
 .Fn pthread_kill ,
 only that thread will return.
 .Pp
-Should any of the multiple pending signals in the range SIGRTMIN to SIGRTMAX be
-selected, it will be the lowest numbered one. The selection order between realtime
+Should any of the multiple pending signals in the range
+.Dv SIGRTMIN
+to
+.Dv SIGRTMAX
+be
+selected, it will be the lowest numbered one.
+The selection order between realtime
 and non-realtime signals, or between multiple pending non-realtime signals,
 is unspecified.
 .Sh RETURN VALUES
@@ -98,12 +104,12 @@ Any arguments point outside the allocated address space or there is a
 memory protection fault.
 .El
 .Sh SEE ALSO
-.Xr sigtimedwait 2 ,
-.Xr sigwaitinfo 2 ,
-.Xr sigqueue 2 ,
 .Xr sigaction 2 ,
 .Xr sigpending 2 ,
+.Xr sigqueue 2 ,
 .Xr sigsuspend 2 ,
+.Xr sigtimedwait 2 ,
+.Xr sigwaitinfo 2 ,
 .Xr pause 3 ,
 .Xr pthread_sigmask 3
 .Sh STANDARDS

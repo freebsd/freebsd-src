@@ -191,7 +191,7 @@ information please see
 The function
 .Fn pmc_init
 initializes the
-.Xr pmc 3
+.Nm pmc
 library.
 This function must be called first, before any of the other
 functions in the library.
@@ -435,7 +435,7 @@ events.
 Event name aliases are CPU architecture independent names for commonly
 used events.
 The following aliases are known to this version of the
-.Xr pmc 3
+.Nm pmc
 library:
 .Bl -tag -width indent
 .It Li branches
@@ -3265,7 +3265,7 @@ is returned and the global variable
 is set to indicate the error.
 .Sh COMPATIBILITY
 The interface between the
-.Xr pmc 3
+.Nm pmc
 library and the
 .Xr hwpmc 4
 driver is intended to be private to the implementation and may
@@ -3273,11 +3273,11 @@ change.
 In order to ease forward compatibility with future versions of the
 .Xr hwpmc 4
 driver, applications are urged to dynamically link with the
-.Xr pmc 3
+.Nm pmc
 library.
 .Pp
 The
-.Xr pmc 3
+.Nm pmc
 API is
 .Ud
 .Sh ERRORS
@@ -3295,7 +3295,7 @@ An unknown CPU type was encountered during initialization.
 The version number of the
 .Xr hwpmc 4
 kernel module did not match that compiled into the
-.Xr pmc 3
+.Nm pmc
 library.
 .El
 .Pp
@@ -3323,7 +3323,7 @@ may fail with the following error:
 .Bl -tag -width Er
 .It Bq Er ENXIO
 The
-.Xr pmc 3
+.Nm pmc
 has not been initialized.
 .El
 .Pp
@@ -3335,7 +3335,7 @@ may fail with the following errors:
 The argument passed in was out of range.
 .It Bq Er ENXIO
 The
-.Xr pmc 3
+.Nm pmc
 library has not been initialized.
 .El
 .Pp
@@ -3346,7 +3346,7 @@ may fail with the following errors, in addition to those returned by
 .Bl -tag -width Er
 .It Bq Er ENXIO
 The
-.Xr pmc 3
+.Nm pmc
 library is not yet initialized.
 .El
 .Pp
@@ -3403,7 +3403,7 @@ driver.
 .Xr pmcstat 8
 .Sh HISTORY
 The
-.Xr pmc 3
+.Nm pmc
 library first appeared in
 .Fx 6.0 .
 .Sh BUGS

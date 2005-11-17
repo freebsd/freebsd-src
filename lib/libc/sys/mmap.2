@@ -123,12 +123,15 @@ If
 is specified,
 .Fa addr
 must be a multiple of the pagesize.
-If a MAP_FIXED request is successful, the mapping established by
+If a
+.Dv MAP_FIXED
+request is successful, the mapping established by
 .Fn mmap
 replaces any previous mappings for the process' pages in the range from
 .Fa addr
 to
-.Fa addr +
+.Fa addr
++
 .Fa len .
 Use of this option is discouraged.
 .It Dv MAP_HASSEMAPHORE

@@ -32,7 +32,7 @@
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd November 12, 2005
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -234,25 +234,33 @@ see
 .Xr intro 2 ,
 System call restart.
 .Pp
-The implementation queues one SIGCHLD signal for each child process whose
+The implementation queues one
+.Dv SIGCHLD
+signal for each child process whose
 status has changed, if
 .Fn wait
 returns because the status of a child process is available, the pending
 SIGCHLD signal associated with the process ID of the child process will
-be discarded. Any other pending SIGCHLD signals remain pending.
+be discarded.
+Any other pending
+.Dv SIGCHLD
+signals remain pending.
 .Pp
-If SIGCHLD is blocked,
+If
+.Dv SIGCHLD
+is blocked,
 .Fn wait
 returns because the status of a child process is available, the pending
-SIGCHLD signal will be cleared unless another status of the child process
+.Dv SIGCHLD
+signal will be cleared unless another status of the child process
 is available.
 .Sh RETURN VALUES
 If
 .Fn wait
-returns due to a stopped, continued, 
+returns due to a stopped, continued,
 or terminated child process, the process ID of the child
 is returned to the calling process.
-Otherwise, a value of -1
+Otherwise, a value of \-1
 is returned and
 .Va errno
 is set to indicate the error.
