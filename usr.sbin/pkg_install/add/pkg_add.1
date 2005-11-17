@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2004
+.Dd November 12, 2005
 .Dt PKG_ADD 1
 .Os
 .Sh NAME
@@ -26,6 +26,7 @@
 .Op Fl vInfrRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
+.Op Fl P Ar prefix
 .Op Fl C Ar chrootdir
 .Ar pkg-name Op Ar pkg-name ...
 .Sh DESCRIPTION
@@ -127,7 +128,29 @@ modes (see the
 .Fl M
 and
 .Fl S
-options).
+options). If the
+.Fl p
+flag appears after any
+.Fl P
+flag on the command line, it overrides it's effect, causing
+.Nm
+not to use the given
+.Ar prefix
+recursively.
+.It Fl P Ar prefix
+Does the same as the
+.Fl p
+option, except that the given
+.Ar prefix
+is also used recursively for the dependency packages, if any. If the
+.Fl P
+flag appears after any
+.Fl p
+flag on the command line, it overrides it's effect, causing
+.Nm
+to use the given
+.Ar prefix
+recursively.
 .It Fl t Ar template
 Use
 .Ar template
@@ -358,9 +381,10 @@ where
 .Pa prefix
 is either the prefix specified with the
 .Fl p
-flag or, if no
-.Fl p
-flag was specified, the name of the first directory named by a
+or
+.Fl P
+flag or,
+if neither flag was specified, the name of the first directory named by a
 .Cm @cwd
 directive within this package.
 .It
@@ -421,12 +445,16 @@ All the scripts are called with the environment variable
 .Ev PKG_PREFIX
 set to the installation prefix (see the
 .Fl p
-option above).
+and
+.Fl P
+options above).
 This allows a package author to write a script
 that reliably performs some action on the directory where the package
 is installed, even if the user might change it with the
 .Fl p
-flag to
+or
+.Fl P
+flags to
 .Cm pkg_add .
 .Sh ENVIRONMENT
 The value of the
