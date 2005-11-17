@@ -108,7 +108,10 @@
 .Ft void
 .Fn tok_reset "Tokenizer *t"
 .Ft int
-.Fn tok_line "Tokenizer *t" "const LineInfo *li" "int *argc" "const char **argv[]" "int *cursorc" "int *cursoro"
+.Fo tok_line
+.Fa "Tokenizer *t" "const LineInfo *li" "int *argc" "const char **argv[]"
+.Fa "int *cursorc" "int *cursoro"
+.Fc
 .Ft int
 .Fn tok_str "Tokenizer *t" "const char *str" "int *argc" "const char **argv[]"
 .Sh DESCRIPTION
@@ -192,7 +195,7 @@ to execute builtin
 .Nm
 commands.
 If the command is prefixed with
-.Dq prog :
+.Dq prog:
 then
 .Fn el_parse
 will only execute the command if
@@ -396,7 +399,8 @@ This function is called internally by
 and
 .Fn el_getc .
 The builtin function can be set or restored with the special function
-name ``EL_BUILTIN_GETCFN''.
+name
+.Dv EL_BUILTIN_GETCFN .
 .It Dv EL_CLIENTDATA , Fa "void *data"
 Register
 .Fa data
@@ -438,7 +442,8 @@ above).
 Return non-zero if editing is enabled.
 .It Dv EL_GETCFN, Fa "int (**f)(EditLine *, char *)"
 Return a pointer to the function that read characters, which is equal to
-``EL_BUILTIN_GETCFN'' in the case of the default builtin function.
+.Dv EL_BUILTIN_GETCFN
+in the case of the default builtin function.
 .It Dv EL_CLIENTDATA , Fa "void **data"
 Retrieve
 .Fa data
@@ -649,7 +654,7 @@ The caller is responsible for free'ing the string in the returned
 .Pp
 The
 .Fn history
-function returns \*[Gt]= 0 if the operation
+function returns \*[Ge] 0 if the operation
 .Fa op
 succeeds.
 Otherwise, \-1 is returned and
@@ -720,14 +725,12 @@ and
 .Aq newline .
 A positive exit code indicates that another line should be read
 and tokenization attempted again.
-.
 .It Fn tok_str
 A simpler form of
 .Fn tok_line ;
 .Fa str
 is a NUL terminated string to tokenize.
 .El
-.
 .\"XXX.Sh EXAMPLES
 .\"XXX: provide some examples
 .Sh SEE ALSO
