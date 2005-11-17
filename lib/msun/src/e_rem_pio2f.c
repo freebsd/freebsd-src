@@ -1,6 +1,6 @@
 /* e_rem_pio2f.c -- float version of e_rem_pio2.c
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
- * Conversion to not use float except for the arg by Bruce Evans.
+ * Debugged and optimized by Bruce D. Evans.
  */
 
 /*
@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 /* __ieee754_rem_pio2f(x,y)
  *
  * return the remainder of x rem pi/2 in y[0]+y[1]
- * use __kernel_rem_pio2f()
+ * use double precision internally
+ * use __kernel_rem_pio2() for large x
  */
 
 #include "math.h"
@@ -46,6 +47,10 @@ static const int32_t two_over_pi[] = {
 
 /*
  * invpio2:  53 bits of 2/pi
+ * e1pio2:   1*pi/2 rounded to 53 bits
+ * e2pio2:   2*pi/2 rounded to 53 bits
+ * e3pio2:   3*pi/2 rounded to 53 bits
+ * e4pio2:   4*pi/2 rounded to 53 bits
  * pio2_1:   first  33 bit of pi/2
  * pio2_1t:  pi/2 - pio2_1
  */
@@ -55,7 +60,10 @@ zero =  0.00000000000000000000e+00, /* 0x00000000, 0x00000000 */
 half =  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
 two24 =  1.67772160000000000000e+07, /* 0x41700000, 0x00000000 */
 invpio2 =  6.36619772367581382433e-01, /* 0x3FE45F30, 0x6DC9C883 */
-pio2    =  1.57079632679489655700e+00, /* 0x3FF921FB, 0x54442d18 */
+e1pio2  =  1*M_PI_2,                   /* 0x3FF921FB, 0x54442D18 */
+e2pio2  =  2*M_PI_2,                   /* 0x400921FB, 0x54442D18 */
+e3pio2  =  3*M_PI_2,                   /* 0x4012D97C, 0x7F3321D2 */
+e4pio2  =  4*M_PI_2,                   /* 0x401921FB, 0x54442D18 */
 pio2_1  =  1.57079632673412561417e+00, /* 0x3FF921FB, 0x54400000 */
 pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 
@@ -67,52 +75,55 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
-	if(ix<=0x3f490fd8)   /* |x| ~<= pi/4 , no need for reduction */
+	if(ix<=0x3f490fda)   		/* |x| ~<= pi/4, reduction is null */
 	    {y[0] = x; y[1] = 0; return 0;}
-	/* 33+53 bit pi is good enough for special and medium size cases */
-	if(ix<0x4016cbe4) {  /* |x| < 3pi/4, special case with n=+-1 */
-	    if(hx>0) { 
-		z = x - pio2;
-		n = 1;
+    /* 53 bit pi is good enough for special cases */
+	if(ix<=0x407b53d1) {		/* |x| ~<= 5*pi/4 */
+	    if(ix<=0x4016cbe3) {	/* |x| ~<= 3*pi/4 */
+		if(hx>0) { 
+		    z = x - e1pio2;
+		    n = 1;
+		} else {
+		    z = x + e1pio2;
+		    n = 3;
+		}
+		y[0] = z;
+		y[1] = z - y[0];
+		return n;
 	    } else {
-		z = x + pio2;
-		n = 3;
+		if(hx>0)
+		    z = x - e2pio2;
+		else
+		    z = x + e2pio2;
+		y[0] = z;
+		y[1] = z - y[0];
+		return 2;
 	    }
-	    y[0] = z;
-	    y[1] = z - y[0];
-	    return n;
 	}
-	if(ix<0x407b53d1) {  /* |x| < 5*pi/4, special case with n=+-2 */
-	    if(hx>0)
-		z = x - 2*pio2;
-	    else
-		z = x + 2*pio2;
-	    y[0] = z;
-	    y[1] = z - y[0];
-	    return 2;
-	}
-	if(ix<0x40afeddf) {  /* |x| < 7*pi/4, special case with n=+-3 */
-	    if(hx>0) { 
-		z = x - 3*pio2;
-		n = 3;
+	if(ix<=0x40e231d5) {		/* |x| ~<= 9*pi/4*/
+	    if(ix<=0x40afeddf) {	/* |x| ~<= 7*pi/4 */
+		if(hx>0) { 
+		    z = x - e3pio2;
+		    n = 3;
+		} else {
+		    z = x + e3pio2;
+		    n = 1;
+		}
+		y[0] = z;
+		y[1] = z - y[0];
+		return n;
 	    } else {
-		z = x + 3*pio2;
-		n = 1;
+		if(hx>0)
+		    z = x - e4pio2;
+		else
+		    z = x + e4pio2;
+		y[0] = z;
+		y[1] = z - y[0];
+		return 0;
 	    }
-	    y[0] = z;
-	    y[1] = z - y[0];
-	    return n;
 	}
-	if(ix<0x40e231d6) {  /* |x| < 9*pi/4, special case with n=+-4 */
-	    if(hx>0)
-		z = x - 4*pio2;
-	    else
-		z = x + 4*pio2;
-	    y[0] = z;
-	    y[1] = z - y[0];
-	    return 0;
-	}
-	if(ix<=0x49490f80) { /* |x| ~<= 2^19*(pi/2), medium size */
+    /* 33+53 bit pi is good enough for medium size */
+	if(ix<=0x49490f80) {		/* |x| ~<= 2^19*(pi/2), medium size */
 	    t  = fabsf(x);
 	    n  = (int32_t) (t*invpio2+half);
 	    fn = (double)n;
