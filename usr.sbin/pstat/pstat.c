@@ -526,7 +526,7 @@ print_swap(struct kvm_swap *ksw)
 	++nswdev;
 	if (totalflag == 0)
 		print_swap_line(ksw->ksw_devname, ksw->ksw_total,
-		    ksw->ksw_used, ksw->ksw_total,
+		    ksw->ksw_used, ksw->ksw_total - ksw->ksw_used,
 		    (ksw->ksw_used * 100.0) / ksw->ksw_total);
 }
 
