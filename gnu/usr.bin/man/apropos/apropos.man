@@ -48,7 +48,7 @@ See
 .It Ev PAGER
 Command used to page the output.
 The default is
-.Ic more -s .
+.Nm more Fl s .
 .El
 .Sh EXIT STATUS
 The
