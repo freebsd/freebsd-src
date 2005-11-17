@@ -339,7 +339,7 @@ printcpuinfo(void)
 				cpu_feature &= ~CPUID_HTT;
 				if (bootverbose)
 	    				printf("\nHTT bit cleared - FreeBSD"
-					    " does not have licenseing issues"
+					    " does not have licensing issues"
 					    " requiring it.\n");
 			}
 
