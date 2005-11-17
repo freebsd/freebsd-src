@@ -312,7 +312,7 @@ lapic_setup(void)
 
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
-	snprintf(buf, sizeof(buf), "lapic%d: timer", lapic_id());
+	snprintf(buf, sizeof(buf), "cpu%d: timer", lapic_id());
 	intrcnt_add(buf, &la->la_timer_count);
 	if (PCPU_GET(cpuid) != 0) {
 		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
