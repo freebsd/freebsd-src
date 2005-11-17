@@ -26,6 +26,7 @@
 typedef enum { NORMAL, MASTER, SLAVE } add_mode_t;
 
 extern char	*Prefix;
+extern Boolean	PrefixRecursive;
 extern Boolean	NoInstall;
 extern Boolean	NoRecord;
 extern char	*Mode;
