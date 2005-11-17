@@ -49,11 +49,13 @@ CFLAGS += -mno-apcs-frame
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
 
 .if ${DDB_ENABLED} != ""
-SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}\"" >opt_kernname.h ; \
+SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}.tmp\"" \
+	>opt_kernname.h ;\
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
-	--strip-symbol '$$t' ${KERNEL_KO} ;\
+	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp;\
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm \
-	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp
+	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp;\
+	rm ${KERNEL_KO}.tmp
 .endif
 
 %BEFORE_DEPEND
