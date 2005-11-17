@@ -231,11 +231,15 @@ static int em_tx_int_delay_dflt = E1000_TICKS_TO_USECS(EM_TIDV);
 static int em_rx_int_delay_dflt = E1000_TICKS_TO_USECS(EM_RDTR);
 static int em_tx_abs_int_delay_dflt = E1000_TICKS_TO_USECS(EM_TADV);
 static int em_rx_abs_int_delay_dflt = E1000_TICKS_TO_USECS(EM_RADV);
+static int em_rxd = EM_DEFAULT_RXD;
+static int em_txd = EM_DEFAULT_TXD;
 
 TUNABLE_INT("hw.em.tx_int_delay", &em_tx_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_int_delay", &em_rx_int_delay_dflt);
 TUNABLE_INT("hw.em.tx_abs_int_delay", &em_tx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
+TUNABLE_INT("hw.em.rxd", &em_rxd);
+TUNABLE_INT("hw.em.txd", &em_txd);
 
 /*********************************************************************
  *  Device identification routine
@@ -357,15 +361,31 @@ em_attach(device_t dev)
 		    E1000_REG_OFFSET(&adapter->hw, TADV),
 		    em_tx_abs_int_delay_dflt);
 	}
-      
-	/* Parameters (to be read from user) */   
-	if (adapter->hw.mac_type >= em_82544) {
-        	adapter->num_tx_desc = EM_TXD_82544;
-        	adapter->num_rx_desc = EM_RXD_82544;
-	} else {
-        	adapter->num_tx_desc = EM_TXD;
-        	adapter->num_rx_desc = EM_RXD;
-	}
+
+	/*
+	 * Validate number of transmit and receive descriptors. It
+	 * must not exceed hardware maximum, and must be multiple
+	 * of E1000_DBA_ALIGN.
+	 */
+	if (((em_txd * sizeof(struct em_tx_desc)) % E1000_DBA_ALIGN) != 0 ||
+	    (adapter->hw.mac_type >= em_82544 && em_txd > EM_MAX_TXD) ||
+	    (adapter->hw.mac_type < em_82544 && em_txd > EM_MAX_TXD_82543) ||
+	    (em_txd < EM_MIN_TXD)) {
+		printf("em%d: Using %d TX descriptors instead of %d!\n",
+		    adapter->unit, EM_DEFAULT_TXD, em_txd);
+		adapter->num_tx_desc = EM_DEFAULT_TXD;
+	} else
+		adapter->num_tx_desc = em_txd;
+	if (((em_rxd * sizeof(struct em_rx_desc)) % E1000_DBA_ALIGN) != 0 ||
+	    (adapter->hw.mac_type >= em_82544 && em_rxd > EM_MAX_RXD) ||
+	    (adapter->hw.mac_type < em_82544 && em_rxd > EM_MAX_RXD_82543) ||
+	    (em_rxd < EM_MIN_RXD)) {
+		printf("em%d: Using %d RX descriptors instead of %d!\n",
+		    adapter->unit, EM_DEFAULT_RXD, em_rxd);
+		adapter->num_rx_desc = EM_DEFAULT_RXD;
+	} else
+		adapter->num_rx_desc = em_rxd;
+
         adapter->hw.autoneg = DO_AUTO_NEG;
         adapter->hw.wait_autoneg_complete = WAIT_FOR_AUTO_NEG_DEFAULT;
         adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;

@@ -85,8 +85,10 @@ POSSIBILITY OF SUCH DAMAGE.
  *   Increasing this value allows the driver to queue more transmits. Each
  *   descriptor is 16 bytes.
  */
-#define EM_TXD		256
-#define EM_TXD_82544	4096
+#define EM_MIN_TXD		80
+#define EM_MAX_TXD_82543	256
+#define EM_MAX_TXD		4096
+#define EM_DEFAULT_TXD		EM_MAX_TXD_82543
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -99,8 +101,10 @@ POSSIBILITY OF SUCH DAMAGE.
  *   descriptor. The maximum MTU size is 16110.
  *
  */
-#define EM_RXD		256
-#define EM_RXD_82544	4096
+#define EM_MIN_RXD		80
+#define EM_MAX_RXD_82543	256
+#define EM_MAX_RXD		4096
+#define EM_DEFAULT_RXD		EM_MAX_RXD_82543
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
