@@ -23,17 +23,16 @@ static char rcsid[] = "$FreeBSD$";
 float
 cosf(float x)
 {
-	float y[2],z=0.0;
+	float y[2];
 	int32_t n,ix;
 
 	GET_FLOAT_WORD(ix,x);
-
-    /* |x| ~< pi/4 */
 	ix &= 0x7fffffff;
-	if(ix <= 0x3f490fd8) {
-	    if(ix<0x39800000)			/* if x < 2**-12 */
-		if(((int)x)==0) return 1.0;	/* generate inexact */
-	    return __kernel_cosf(x,z);
+
+	if(ix <= 0x3f490fda) {		/* |x| ~<= pi/4 */
+	    if(ix<0x39800000)		/* |x| < 2**-12 */
+		if(((int)x)==0) return 1.0;	/* 1 with inexact if x != 0 */
+	    return __kernel_cosf(x,0.0);
 	}
 
     /* cos(Inf or NaN) is NaN */
