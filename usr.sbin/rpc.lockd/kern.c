@@ -231,12 +231,17 @@ set_auth(cl, xucred)
 	CLIENT *cl;
 	struct xucred *xucred;
 {
+	int ngroups;
+
+	ngroups = xucred->cr_ngroups - 1;
+	if (ngroups > NGRPS)
+		ngroups = NGRPS;
         if (cl->cl_auth != NULL)
                 cl->cl_auth->ah_ops->ah_destroy(cl->cl_auth);
         cl->cl_auth = authunix_create(hostname,
                         xucred->cr_uid,
                         xucred->cr_groups[0],
-                        xucred->cr_ngroups - 1,
+                        ngroups,
                         &xucred->cr_groups[1]);
 }
 
