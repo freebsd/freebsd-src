@@ -705,7 +705,7 @@ makeentry(buf, len, id, string)
  * Add a prefix to the list of specified interface and reconstruct
  * the outgoing packet.
  * The prefix must not be in the list.
- * XXX: other parameters of the prefix (e.g. lifetime) shoule be
+ * XXX: other parameters of the prefix (e.g. lifetime) should be
  * able to be specified.
  */
 static void
