@@ -23,26 +23,25 @@ static char rcsid[] = "$FreeBSD$";
 float
 tanf(float x)
 {
-	float y[2],z=0.0;
+	float y[2];
 	int32_t n, ix;
 
 	GET_FLOAT_WORD(ix,x);
-
-    /* |x| ~< pi/4 */
 	ix &= 0x7fffffff;
-	if(ix <= 0x3f490fda) {
-	    if(ix<0x39800000)			/* |x| < 2**-12 */
-		if(((int)x)==0) return x;	/* generate inexact */
-	    return __kernel_tanf(x,z,1);
+
+	if(ix <= 0x3f490fda) {		/* |x| ~<= pi/4 */
+	    if(ix<0x39800000)		/* |x| < 2**-12 */
+		if(((int)x)==0) return x;	/* x with inexact if x != 0 */
+	    return __kernel_tanf(x,0.0,1);
 	}
 
     /* tan(Inf or NaN) is NaN */
-	else if (ix>=0x7f800000) return x-x;		/* NaN */
+	else if (ix>=0x7f800000) return x-x;
 
     /* argument reduction needed */
 	else {
 	    n = __ieee754_rem_pio2f(x,y);
-	    return __kernel_tanf(y[0],y[1],1-((n&1)<<1)); /*   1 -- n even
-							      -1 -- n odd */
+	    /* integer parameter: 1 -- n even; -1 -- n odd */
+	    return __kernel_tanf(y[0],y[1],1-((n&1)<<1));
 	}
 }
