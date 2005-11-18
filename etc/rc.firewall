@@ -121,7 +121,7 @@ case ${firewall_type} in
 	case ${natd_enable} in
 	[Yy][Ee][Ss])
 		if [ -n "${natd_interface}" ]; then
-			${fwcmd} add 50 divert natd all from any to any via ${natd_interface}
+			${fwcmd} add 50 divert natd ip4 from any to any via ${natd_interface}
 		fi
 		;;
 	esac
