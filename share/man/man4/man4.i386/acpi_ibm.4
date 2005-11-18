@@ -135,7 +135,7 @@ Access IBM Button
 .Ss Xr led 4 Ss Interface
 The
 .Nm
-driver provides an
+driver provides a
 .Xr led 4
 interface for the Thinklight.
 The Thinklight can be made to blink by writing
@@ -307,6 +307,13 @@ UltraBay battery
 .Pp
 Defaults for these sysctls can be set in
 .Xr sysctl.conf 5 .
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/thinklight"
+.It Pa /dev/led/thinklight
+Thinklight
+.Xr led 4
+device node
+.El
 .Sh EXAMPLES
 The following can be added to
 .Xr devd.conf 5
@@ -396,13 +403,6 @@ then
 fi
 exit 0
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /dev/led/thinklight"
-.It Pa /dev/led/thinklight
-Thinklight
-.Xr led 4
-device node
-.El
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr sysctl.conf 5 ,

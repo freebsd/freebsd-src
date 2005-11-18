@@ -58,8 +58,8 @@ if_ath_load="YES"
 The
 .Nm
 driver provides support for wireless network adapters based on
-the Atheros AR5210, AR5211, and AR5212 programming api's.
-These api's are used by a wide variety of chips; all chips with
+the Atheros AR5210, AR5211, and AR5212 programming APIs.
+These APIs are used by a wide variety of chips; all chips with
 a PCI and/or CardBus interface are supported.
 Chip-specific support is provided by the Atheros Hardware Access Layer
 (HAL), that is packaged separately.
@@ -213,7 +213,6 @@ Create a host-based wireless bridge to fxp0:
 .Bd -literal -offset indent
 ifconfig ath0 inet up ssid my_ap media DS/11Mbps mediaopt hostap
 sysctl net.inet.ip.check_interface=0
-kldload if_bridge.ko
 ifconfig bridge0 create
 ifconfig bridge0 addm ath0 addm fxp0
 .Ed

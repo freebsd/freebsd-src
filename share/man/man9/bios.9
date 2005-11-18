@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 1997
+.Dd August 9, 2005
 .Dt BIOS 9
 .Os
 .Sh NAME
@@ -98,29 +98,39 @@ Searches a given BIOS memory range for one or more strings,
 and composes a printable concatenation of those found.
 The routine expects a structure describing the BIOS address
 .Fa range
-(within 0xe0000 - 0xfffff), and a { NULL, 0, 0 } -terminated array of
-.Fa bios_oem_signature
+(within
+.Li 0xe0000
+-
+.Li 0xfffff ) ,
+and a {
+.Dv NULL , Li 0 , 0
+} -terminated array of
+.Vt bios_oem_signature
 structures which define the
-.Fa anchor
+.Va anchor
 string, an
-.Fa offset
+.Va offset
 from the beginning of the match (which may be negative), and
-.Fa totlen
+.Va totlen
 number of bytes to be collected from BIOS memory starting at that offset.
 Unmatched anchors are ignored, whereas matches are copied from BIOS memory
 starting at their corresponding
-.Fa offset
+.Vt offset
 with unprintable characters being replaced with space, and consecutive spaces
-being suppressed. This composed string is stored in
+being suppressed.
+This composed string is stored in
 .Fa buffer
 up to the given
 .Fa maxlen
-bytes (including trailing '\\0', and any trailing space surpressed).
-If an error is encountered, i.e. trying to read out of said BIOS range,
+bytes (including trailing
+.Ql \e0 ,
+and any trailing space surpressed).
+If an error is encountered, i.e.\& trying to read out of said BIOS range,
 other invalid input, or
 .Fa buffer
 overflow, a negative integer is returned, otherwise the
-length of the composed string is returned. In particular, a return
+length of the composed string is returned.
+In particular, a return
 value of 0 means that none of the given anchor strings were found in
 the specified BIOS memory range.
 .It Fn BIOS_VADDRTOPADDR

@@ -237,7 +237,7 @@ utility when the memory file system for
 .Pa /tmp
 is created.
 The default is
-.Dq Li -S -M ,
+.Dq Li "-S -M" ,
 which inhibits the use of softupdates on
 .Pa /tmp
 to waste as little space as possible
@@ -269,7 +269,7 @@ utility when the memory file system for
 .Pa /var
 is created.
 The default is
-.Dq Li -S -M ,
+.Dq Li "-S -M" ,
 which inhibits the use of softupdates on
 .Pa /var
 to waste as little space as possible
@@ -923,8 +923,8 @@ Refer to
 for more information.
 .It Va network_interfaces
 .Pq Vt str
-Set to the list of network interfaces to configure on this host or 
-.Dq Li "AUTO"
+Set to the list of network interfaces to configure on this host or
+.Dq Li AUTO
 (the default) for all current interfaces.
 For example, if the only active network devices in the system
 are the loopback device
@@ -954,10 +954,11 @@ Routing (CIDR) address notation, whose last byte can be a range like
 192.168.0.5-23/24.
 In this case the address 192.168.0.5 will be configured with the
 netmask /24 and the addresses 192.168.0.6 to 192.168.0.23 with
-the non-conflicting netmask /32 as explained in the ifconfig(8)
+the non-conflicting netmask /32 as explained in the
+.Xr ifconfig 8
 alias section.
 With the interface in question being
-.Li ed0,
+.Li ed0 ,
 an example could look like:
 .Bd -literal
 ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"
@@ -1014,14 +1015,14 @@ variables.
 If the
 .Va ifconfig_ Ns Aq Ar interface
 contains the keyword
-.Dq Li "NOAUTO"
+.Dq Li NOAUTO
 then the interface will not be configured
 at boot or by
 .Pa /etc/pccard_ether
 when
 .Va network_interfaces
 is set to
-.Dq Li "AUTO" .
+.Dq Li AUTO .
 .Pp
 It is possible to bring up an interface with DHCP by adding
 .Dq Li DHCP
@@ -1252,7 +1253,7 @@ Default flags to use by
 .Xr geli 8
 when configuring disk encryption.
 Flags can be configured for every device separately by defining
-.Va geli_<device>_flags
+.Va geli_ Ns Ao Ar device Ac Ns Va _flags
 variable.
 .It Va geli_autodetach
 .Pq Vt str
@@ -1261,14 +1262,14 @@ file systems are mounted.
 Default is
 .Dq Li YES .
 This can be changed for every device separately by defining
-.Va geli_<device>_autodetach
+.Va geli_ Ns Ao Ar device Ac Ns Va _autodetach
 variable.
 .It Va geli_swap_flags
 Options passed to the
 .Xr geli 8
 utility when encrypted GEOM providers for swap partitions are created.
 The default is
-.Dq Li -a aes -l 256 -s 4096 -d .
+.Dq Li "-a aes -l 256 -s 4096 -d" .
 .It Va root_rw_mount
 .Pq Vt bool
 Set to
@@ -3246,7 +3247,8 @@ This is configured via
 .Xr sysctl 8
 variable
 .Va kern.init_shutdown_timeout
-and defaults to 120 seconds. Setting the value of
+and defaults to 120 seconds.
+Setting the value of
 .Va rcshutdown_timeout
 to more than 120 seconds will have no effect until the
 .Xr sysctl 8
