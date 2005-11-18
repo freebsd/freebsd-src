@@ -412,14 +412,15 @@ The format of
 .Nm
 rules is the following:
 .Bd -ragged -offset indent
+.Bk -words
 .Op Ar rule_number
 .Op Cm set Ar set_number
 .Op Cm prob Ar match_probability
-.br
-.Ar "   " action
+.Ar action
 .Op Cm log Op Cm logamount Ar number
 .Op Cm altq Ar queue
 .Ar body
+.Ek
 .Ed
 .Pp
 where the body of the rule specifies which information is used
@@ -2438,9 +2439,9 @@ the sleep terminates thus restoring the previous situation.
 .Xr cpp 1 ,
 .Xr m4 1 ,
 .Xr altq 4 ,
-.Xr if_bridge 4 ,
 .Xr divert 4 ,
 .Xr dummynet 4 ,
+.Xr if_bridge 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
 .Xr ng_ipfw 4 ,

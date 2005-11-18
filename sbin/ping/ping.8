@@ -149,17 +149,18 @@ This can be very hard on a network and should be used with caution.
 Specify the maximum size of
 .Tn ICMP
 payload when sending sweeping pings.
-This option is required for ping sweeps. 
+This option is required for ping sweeps.
 .It Fl g Ar sweepminsize
 Specify the size of
 .Tn ICMP
-payload to start with when sending sweeping pings. 
+payload to start with when sending sweeping pings.
 The default value is 0.
 .It Fl h Ar sweepincrsize
 Specify the number of bytes to increment the size of
 .Tn ICMP
 payload after
-each sweep when sending sweeping pings. The default value is 1.
+each sweep when sending sweeping pings.
+The default value is 1.
 .It Fl I Ar iface
 Source multicast packets with the given interface address.
 This flag only applies if the ping destination is a multicast address.
