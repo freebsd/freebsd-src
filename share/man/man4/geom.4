@@ -39,22 +39,31 @@
 .Dt GEOM 4
 .Sh NAME
 .Nm GEOM
-.Nd modular disk I/O request transformation framework.
+.Nd "modular disk I/O request transformation framework"
 .Sh DESCRIPTION
-The GEOM framework provides an infrastructure in which "classes"
+The
+.Nm
+framework provides an infrastructure in which
+.Dq classes
 can perform transformations on disk I/O requests on their path from
 the upper kernel to the device drivers and back.
 .Pp
-Transformations in a GEOM context range from the simple geometric
+Transformations in a
+.Nm
+context range from the simple geometric
 displacement performed in typical disk partitioning modules over RAID
 algorithms and device multipath resolution to full blown cryptographic
 protection of the stored data.
 .Pp
-Compared to traditional "volume management", GEOM differs from most
+Compared to traditional
+.Dq "volume management" ,
+.Nm
+differs from most
 and in some cases all previous implementations in the following ways:
 .Bl -bullet
 .It
-GEOM is extensible.
+.Nm
+is extensible.
 It is trivially simple to write a new class
 of transformation and it will not be given stepchild treatment.
 If
@@ -62,10 +71,11 @@ someone for some reason wanted to mount IBM MVS diskpacks, a class
 recognizing and configuring their VTOC information would be a trivial
 matter.
 .It
-GEOM is topologically agnostic.
+.Nm
+is topologically agnostic.
 Most volume management implementations
 have very strict notions of how classes can fit together, very often
-one fixed hierarchy is provided for instance subdisk - plex -
+one fixed hierarchy is provided, for instance, subdisk - plex -
 volume.
 .El
 .Pp
@@ -74,34 +84,56 @@ than existing transformations.
 .Pp
 Fixed hierarchies are bad because they make it impossible to express
 the intent efficiently.
-In the fixed hierarchy above it is not possible to mirror two
+In the fixed hierarchy above, it is not possible to mirror two
 physical disks and then partition the mirror into subdisks, instead
 one is forced to make subdisks on the physical volumes and to mirror
-these two and two resulting in a much more complex configuration.
-GEOM on the other hand does not care in which order things are done,
+these two and two, resulting in a much more complex configuration.
+.Nm
+on the other hand does not care in which order things are done,
 the only restriction is that cycles in the graph will not be allowed.
-.Pp
-.Sh "TERMINOLOGY and TOPOLOGY"
-GEOM is quite object oriented and consequently the terminology
+.Sh "TERMINOLOGY AND TOPOLOGY"
+.Nm
+is quite object oriented and consequently the terminology
 borrows a lot of context and semantics from the OO vocabulary:
 .Pp
-A "class", represented by the data structure g_class implements one
+A
+.Dq class ,
+represented by the data structure
+.Vt g_class
+implements one
 particular kind of transformation.
 Typical examples are MBR disk
 partition, BSD disklabel, and RAID5 classes.
 .Pp
-An instance of a class is called a "geom" and represented by the
-data structure "g_geom".
-In a typical i386 FreeBSD system, there
+An instance of a class is called a
+.Dq geom
+and represented by the data structure
+.Vt g_geom .
+In a typical i386
+.Fx
+system, there
 will be one geom of class MBR for each disk.
 .Pp
-A "provider", represented by the data structure "g_provider", is
-the front gate at which a geom offers service.
-A provider is "a disk-like thing which appears in /dev" - a logical
+A
+.Dq provider ,
+represented by the data structure
+.Vt g_provider ,
+is the front gate at which a geom offers service.
+A provider is
+.Do
+a disk-like thing which appears in
+.Pa /dev
+.Dc - a logical
 disk in other words.
-All providers have three main properties: name, sectorsize and size.
+All providers have three main properties:
+.Dq name ,
+.Dq sectorsize
+and
+.Dq size .
 .Pp
-A "consumer" is the backdoor through which a geom connects to another
+A
+.Dq consumer
+is the backdoor through which a geom connects to another
 geom provider and through which I/O requests are sent.
 .Pp
 The topological relationship between these entities are as follows:
@@ -126,7 +158,7 @@ This rank number is
 assigned as follows:
 .Bl -enum
 .It
-A geom with no attached consumers has rank=1
+A geom with no attached consumers has rank=1.
 .It
 A geom with attached consumers has a rank one higher than the
 highest rank of the geoms of the providers its consumers are
@@ -137,46 +169,52 @@ In addition to the straightforward attach, which attaches a consumer
 to a provider, and detach, which breaks the bond, a number of special
 topological maneuvers exists to facilitate configuration and to
 improve the overall flexibility.
-.Pp
-.Em TASTING
+.Bl -inset
+.It Em TASTING
 is a process that happens whenever a new class or new provider
-is created and it provides the class a chance to automatically configure an
-instance on providers, which it recognize as its own.
+is created, and it provides the class a chance to automatically configure an
+instance on providers, which it recognizes as its own.
 A typical example is the MBR disk-partition class which will look for
-the MBR table in the first sector and if found and validated it will
+the MBR table in the first sector and, if found and validated, will
 instantiate a geom to multiplex according to the contents of the MBR.
 .Pp
 A new class will be offered to all existing providers in turn and a new
 provider will be offered to all classes in turn.
 .Pp
 Exactly what a class does to recognize if it should accept the offered
-provider is not defined by GEOM, but the sensible set of options are:
+provider is not defined by
+.Nm ,
+but the sensible set of options are:
 .Bl -bullet
 .It
 Examine specific data structures on the disk.
 .It
-Examine properties like sectorsize or mediasize for the provider.
+Examine properties like
+.Dq sectorsize
+or
+.Dq mediasize
+for the provider.
 .It
 Examine the rank number of the provider's geom.
 .It
 Examine the method name of the provider's geom.
 .El
-.Pp
-.Em ORPHANIZATION
+.It Em ORPHANIZATION
 is the process by which a provider is removed while
 it potentially is still being used.
 .Pp
 When a geom orphans a provider, all future I/O requests will
-"bounce" on the provider with an error code set by the geom.
+.Dq bounce
+on the provider with an error code set by the geom.
 Any
 consumers attached to the provider will receive notification about
 the orphanization when the eventloop gets around to it, and they
 can take appropriate action at that time.
 .Pp
 A geom which came into being as a result of a normal taste operation
-should selfdestruct unless it has a way to keep functioning lacking
+should self-destruct unless it has a way to keep functioning lacking
 the orphaned provider.
-Geoms like diskslicers should therefore selfdestruct whereas
+Geoms like diskslicers should therefore self-destruct whereas
 RAID5 or mirror geoms will be able to continue, as long as they do
 not loose quorum.
 .Pp
@@ -185,7 +223,8 @@ immediate change in the topology: any attached consumers are still
 attached, any opened paths are still open, any outstanding I/O
 requests are still outstanding.
 .Pp
-The typical scenario is
+The typical scenario is:
+.Pp
 .Bl -bullet -offset indent -compact
 .It
 A device driver detects a disk has departed and orphans the provider for it.
@@ -200,11 +239,13 @@ relevant pieces of the tree has heard the bad news.
 Eventually the buck stops when it reaches geom_dev at the top
 of the stack.
 .It
-Geom_dev will call destroy_dev(9) to stop any more request from
+Geom_dev will call
+.Xr destroy_dev 9
+to stop any more request from
 coming in.
 It will sleep until all (if any) outstanding I/O requests have
 been returned.
-It will explicitly close (ie: zero the access counts), a change
+It will explicitly close (i.e.: zero the access counts), a change
 which will propagate all the way down through the mesh.
 It will then detach and destroy its geom.
 .It
@@ -221,26 +262,41 @@ flexibility and robustness in handling disappearing devices.
 The one absolutely crucial detail to be aware is that if the
 device driver does not return all I/O requests, the tree will
 not unravel.
-.Pp
-.Em SPOILING
+.It Em SPOILING
 is a special case of orphanization used to protect
 against stale metadata.
 It is probably easiest to understand spoiling by going through
 an example.
 .Pp
-Imagine a disk, "da0" on top of which a MBR geom provides
-"da0s1" and "da0s2" and on top of "da0s1" a BSD geom provides
-"da0s1a" through "da0s1e", both the MBR and BSD geoms have
+Imagine a disk,
+.Pa da0
+on top of which an MBR geom provides
+.Pa da0s1
+and
+.Pa da0s2 ,
+and on top of
+.Pa da0s1
+a BSD geom provides
+.Pa da0s1a
+through
+.Pa da0s1e ,
+both the MBR and BSD geoms have
 autoconfigured based on data structures on the disk media.
-Now imagine the case where "da0" is opened for writing and those
-data structures are modified or overwritten: Now the geoms would
+Now imagine the case where
+.Pa da0
+is opened for writing and those
+data structures are modified or overwritten: now the geoms would
 be operating on stale metadata unless some notification system
 can inform them otherwise.
 .Pp
-To avoid this situation, when the open of "da0" for write happens,
+To avoid this situation, when the open of
+.Pa da0
+for write happens,
 all attached consumers are told about this, and geoms like
-MBR and BSD will selfdestruct as a result.
-When "da0" is closed again, it will be offered for tasting again
+MBR and BSD will self-destruct as a result.
+When
+.Pa da0
+is closed again, it will be offered for tasting again
 and if the data structures for MBR and BSD are still there, new
 geoms will instantiate themselves anew.
 .Pp
@@ -248,9 +304,13 @@ Now for the fine print:
 .Pp
 If any of the paths through the MBR or BSD module were open, they
 would have opened downwards with an exclusive bit rendering it
-impossible to open "da0" for writing in that case and conversely
+impossible to open
+.Pa da0
+for writing in that case and conversely
 the requested exclusive bit would render it impossible to open a
-path through the MBR geom while "da0" is open for writing.
+path through the MBR geom while
+.Pa da0
+is open for writing.
 .Pp
 From this it also follows that changing the size of open geoms can
 only be done with their cooperation.
@@ -258,8 +318,7 @@ only be done with their cooperation.
 Finally: the spoiling only happens when the write count goes from
 zero to non-zero and the retasting only when the write count goes
 from non-zero to zero.
-.Pp
-.Em INSERT/DELETE
+.It Em INSERT/DELETE
 are a very special operation which allows a new geom
 to be instantiated between a consumer and a provider attached to
 each other and to remove it again.
@@ -277,8 +336,7 @@ We have now in essence moved a mounted file system from one
 disk to another while it was being used.
 At this point the mirror geom can be deleted from the path
 again, it has served its purpose.
-.Pp
-.Em CONFIGURE
+.It Em CONFIGURE
 is the process where the administrator issues instructions
 for a particular class to instantiate itself.
 There are multiple
@@ -287,24 +345,33 @@ specified with a level of override forcing for instance a BSD
 disklabel module to attach to a provider which was not found palatable
 during the TASTE operation.
 .Pp
-Finally IO is the reason we even do this: it concerns itself with
+Finally I/O is the reason we even do this: it concerns itself with
 sending I/O requests through the graph.
-.Pp
-.Em "I/O REQUESTS
-represented by struct bio, originate at a consumer,
+.It Em "I/O REQUESTS"
+represented by
+.Vt "struct bio" ,
+originate at a consumer,
 are scheduled on its attached provider, and when processed, returned
 to the consumer.
-It is important to realize that the struct bio which
-enters through the provider of a particular geom does not "come
-out on the other side".
+It is important to realize that the
+.Vt "struct bio"
+which enters through the provider of a particular geom does not
+.Do
+come out on the other side
+.Dc .
 Even simple transformations like MBR and BSD will clone the
-struct bio, modify the clone, and schedule the clone on their
+.Vt "struct bio" ,
+modify the clone, and schedule the clone on their
 own consumer.
-Note that cloning the struct bio does not involve cloning the
-actual data area specified in the IO request.
+Note that cloning the
+.Vt "struct bio"
+does not involve cloning the
+actual data area specified in the I/O request.
 .Pp
-In total four different IO requests exist in GEOM: read, write,
-delete, and get attribute.
+In total, four different I/O requests exist in
+.Nm :
+read, write, delete, and
+.Dq "get attribute".
 .Pp
 Read and write are self explanatory.
 .Pp
@@ -320,24 +387,32 @@ It is important to recognize that a delete indication is not a
 request and consequently there is no guarantee that the data actually
 will be erased or made unavailable unless guaranteed by specific
 geoms in the graph.
-If "secure delete" semantics are required, a
+If
+.Dq "secure delete"
+semantics are required, a
 geom should be pushed which converts delete indications into (a
 sequence of) write requests.
 .Pp
-Get attribute supports inspection and manipulation
+.Dq "Get attribute"
+supports inspection and manipulation
 of out-of-band attributes on a particular provider or path.
-Attributes are named by ascii strings and they will be discussed in
+Attributes are named by
+.Tn ASCII
+strings and they will be discussed in
 a separate section below.
+.El
 .Pp
-(stay tuned while the author rests his brain and fingers: more to come.)
+(Stay tuned while the author rests his brain and fingers: more to come.)
 .Sh DIAGNOSTICS
-Several flags are provided for tracing GEOM operations and unlocking
+Several flags are provided for tracing
+.Nm
+operations and unlocking
 protection mechanisms via the
 .Va kern.geom.debugflags
 sysctl.
 All of these flags are off by default, and great care should be taken in
 turning them on.
-.Bl -tag -width FAIL
+.Bl -tag -width indent
 .It 0x01 Pq Dv G_T_TOPOLOGY
 Provide tracing of topology change events.
 .It 0x02 Pq Dv G_T_BIO
@@ -358,14 +433,23 @@ This appears to be unused at this time.
 Dump contents of gctl requests.
 .El
 .Sh HISTORY
-This software was developed for the FreeBSD Project by Poul-Henning Kamp
+This software was developed for the
+.Fx
+Project by
+.An Poul-Henning Kamp
 and NAI Labs, the Security Research Division of Network Associates, Inc.\&
-under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the
 DARPA CHATS research program.
 .Pp
-The first precursor for GEOM was a gruesome hack to Minix 1.2 and was
+The first precursor for
+.Nm
+was a gruesome hack to Minix 1.2 and was
 never distributed.
 An earlier attempt to implement a less general scheme
-in FreeBSD never succeeded.
+in
+.Fx
+never succeeded.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org

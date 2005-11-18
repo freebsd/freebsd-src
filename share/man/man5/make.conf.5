@@ -865,7 +865,11 @@ Build
 with support for the IEEE 802.1X protocol and with
 support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
 protocols (usable only via 802.1X).
-This option is ignored if NO_CRYPTO or NO_OPENSSL are configured.
+This option is ignored if
+.Va NO_CRYPT
+or
+.Va NO_OPENSSL
+are set.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
@@ -883,7 +887,7 @@ This option is ignored if NO_CRYPTO or NO_OPENSSL are configured.
 .Xr environ 7 ,
 .Xr ports 7 ,
 .Xr lpd 8 ,
-.Xr sendmail 8
+.Xr sendmail 8 ,
 .Xr wpa_supplicant 8
 .Sh HISTORY
 The

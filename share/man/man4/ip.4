@@ -117,7 +117,7 @@ setsockopt(s, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 may be used to set the minimum acceptable TTL a packet must have when
 received on a socket.
 All packets with a lower TTL are silently dropped.
-This option is only really useful when set to 255 preventing packets
+This option is only really useful when set to 255, preventing packets
 from outside the directly connected networks reaching local listeners
 on sockets.
 .Pp
@@ -125,15 +125,19 @@ on sockets.
 may be used to set the Don't Fragment flag on IP packets.
 Currently this option is respected only on
 .Xr udp 4
-and Raw
+and raw
 .Xr ip 4
-sockets, unless the IP_HDRINCL option has been set.
+sockets, unless the
+.Dv IP_HDRINCL
+option has been set.
 On
 .Xr tcp 4
-sockets the Don't Fragment flag is controlled by the Path
+sockets, the Don't Fragment flag is controlled by the Path
 MTU Discovery option.
 Sending a packet larger than the MTU size of the egress interface,
-determined by the destination address, returns an EMSGSIZE error.
+determined by the destination address, returns an
+.Er EMSGSIZE
+error.
 .Pp
 If the
 .Dv IP_RECVDSTADDR

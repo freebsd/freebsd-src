@@ -39,7 +39,7 @@
 .Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following lines in your
+place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device em"
@@ -175,7 +175,7 @@ Intel PRO/1000 XT Server Adapter (82544)
 Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
-.Pa /boot/loader.conf .
+.Xr loader.conf 5 .
 .Bl -tag -width indent
 .It Va hw.em.rxd
 Number of receive descriptors allocated by the driver.
