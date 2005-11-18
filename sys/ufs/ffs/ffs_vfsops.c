@@ -116,7 +116,9 @@ static struct buf_ops ffs_ops = {
 	.bop_sync =	bufsync,
 };
 
-static const char *ffs_opts[] = { "from", "export", NULL };
+static const char *ffs_opts[] = { "acls", "async", "errmsg", "export",
+    "force", "from", "multilabel", "noasync", "noatime",
+    "noclusterr", "noclusterw", "snapshot", "update", NULL };
 
 static int
 ffs_mount(struct mount *mp, struct thread *td)
@@ -147,6 +149,36 @@ ffs_mount(struct mount *mp, struct thread *td)
 	fspec = vfs_getopts(mp->mnt_optnew, "from", &error);
 	if (error)
 		return (error);
+
+	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_ACLS;
+
+	if (vfs_getopt(mp->mnt_optnew, "async", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_ASYNC;
+
+	if (vfs_getopt(mp->mnt_optnew, "force", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_FORCE;
+
+	if (vfs_getopt(mp->mnt_optnew, "multilabel", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_MULTILABEL;
+
+	if (vfs_getopt(mp->mnt_optnew, "noasync", NULL, NULL) == 0)
+		mp->mnt_flag &= ~MNT_ASYNC;
+
+	if (vfs_getopt(mp->mnt_optnew, "noatime", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_NOATIME;
+
+	if (vfs_getopt(mp->mnt_optnew, "noclusterr", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_NOCLUSTERR;
+
+	if (vfs_getopt(mp->mnt_optnew, "noclusterw", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_NOCLUSTERW;
+
+	if (vfs_getopt(mp->mnt_optnew, "snapshot", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_SNAPSHOT;
+
+	if (vfs_getopt(mp->mnt_optnew, "update", NULL, NULL) == 0)
+		mp->mnt_flag |= MNT_UPDATE;
 
 	/*
 	 * If updating, check whether changing from read-only to
