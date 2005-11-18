@@ -773,6 +773,12 @@ passout:
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
 			m = m_fragment(m, M_DONTWAIT, mbuf_frag_size);
 #endif
+		/*
+		 * Reset layer specific mbuf flags
+		 * to avoid confusing lower layers.
+		 */
+		m->m_flags &= ~(M_PROTOFLAGS);
+
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
@@ -815,7 +821,12 @@ passout:
 				ia->ia_ifa.if_opackets++;
 				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
 			}
-			
+			/*
+			 * Reset layer specific mbuf flags
+			 * to avoid confusing upper layers.
+			 */
+			m->m_flags &= ~(M_PROTOFLAGS);
+
 			error = (*ifp->if_output)(ifp, m,
 			    (struct sockaddr *)dst, ro->ro_rt);
 		} else
