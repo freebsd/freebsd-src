@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a Ar suffix_length
-.Op Fl b Ar byte_count[k|m]
+.Op Fl b Ar byte_count Ns Op Cm k Ns | Ns Cm m
 .Op Fl l Ar line_count
 .Op Fl p Ar pattern
 .Op Ar file Op Ar name
@@ -65,17 +65,17 @@ The options are as follows:
 Use
 .Ar suffix_length
 letters to form the suffix of the file name.
-.It Fl b Ar byte_count[k|m]
+.It Fl b Ar byte_count Ns Op Cm k Ns | Ns Cm m
 Create smaller files
 .Ar byte_count
 bytes in length.
 If
-.Dq Li k
+.Cm k
 is appended to the number, the file is split into
 .Ar byte_count
 kilobyte pieces.
 If
-.Dq Li m
+.Cm m
 is appended to the number, the file is split into
 .Ar byte_count
 megabyte pieces.
