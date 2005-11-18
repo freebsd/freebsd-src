@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 1993
+.Dd November 11, 2005
 .Dt LDCONFIG 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd configure the shared library cache
 .Sh SYNOPSIS
 .Nm
+.Op Fl 32
 .Op Fl aout | Fl elf
 .Op Fl Rimrsv
 .Op Fl f Ar hints_file
@@ -103,6 +104,9 @@ utility is typically run as part of the boot sequence.
 The following options are recognized by
 .Nm :
 .Bl -tag -width indent
+.It Fl 32
+On 64-bit systems that support running 32-bit binaries,
+generate hints for 32-bit shared libraries.
 .It Fl aout
 Generate the hints for a.out format shared libraries.
 .It Fl elf
