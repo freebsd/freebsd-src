@@ -1678,6 +1678,7 @@ netinet/ip_fw_pfil.c		optional ipfirewall
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
 netinet/ip_mroute.c		optional mrouting
+netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/raw_ip.c		optional inet
 netinet/tcp_debug.c		optional tcpdebug

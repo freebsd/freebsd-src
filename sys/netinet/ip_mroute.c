@@ -90,6 +90,7 @@
 #include <netinet/ip_encap.h>
 #include <netinet/ip_mroute.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_options.h>
 #ifdef PIM
 #include <netinet/pim.h>
 #include <netinet/pim_var.h>
