@@ -81,7 +81,7 @@ static const char *msdosfs_opts[] = {
 	"from",
 	"export",
 	"uid", "gid", "mask", "dirmask",
-	"shortname", "longname", "win95",
+	"shortname", "shortnames", "longname", "longnames", "win95",
 	"kiconv", "cs_win", "cs_dos", "cs_local",
 	NULL
 };
@@ -163,7 +163,11 @@ update_mp(mp, td)
 		pmp->pm_dirmask = v & ALLPERMS;
 	vfs_flagopt(mp->mnt_optnew, "shortname",
 	    &pmp->pm_flags, MSDOSFSMNT_SHORTNAME);
+	vfs_flagopt(mp->mnt_optnew, "shortnames",
+	    &pmp->pm_flags, MSDOSFSMNT_SHORTNAME);
 	vfs_flagopt(mp->mnt_optnew, "longname",
+	    &pmp->pm_flags, MSDOSFSMNT_LONGNAME);
+	vfs_flagopt(mp->mnt_optnew, "longnames",
 	    &pmp->pm_flags, MSDOSFSMNT_LONGNAME);
 	vfs_flagopt(mp->mnt_optnew, "kiconv",
 	    &pmp->pm_flags, MSDOSFSMNT_KICONV);
