@@ -32,13 +32,13 @@
 .Nm pidfile_write ,
 .Nm pidfile_close ,
 .Nm pidfile_remove
-.Nd library for PID files handling
+.Nd "library for PID files handling"
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
 .In sys/param.h
 .In libutil.h
-.Ft struct pidfh *
+.Ft "struct pidfh *"
 .Fn pidfile_open "const char *path" "mode_t mode" "pid_t *pidptr"
 .Ft int
 .Fn pidfile_write "struct pidfh *pfh"
@@ -48,54 +48,63 @@
 .Fn pidfile_remove "struct pidfh *pfh"
 .Sh DESCRIPTION
 The
-.Nm libpidfile
-library provides functions for daemons to handle file with PID.
+.Nm pidfile
+family of functions allows daemons to handle PID files.
 It uses
 .Xr flock 2
-to lock pidfile and detect already running daemons.
+to lock a pidfile and detect already running daemons.
 .Pp
 The
 .Fn pidfile_open
-function opens (or creates) a file specified by
+function opens (or creates) a file specified by the
 .Fa path
-argument and locks it with
+argument and locks it with the
 .Xr flock 2
-syscall.
-If file can not be locked, PID of already running daemon is returned in
+system call.
+If a file can not be locked, a PID of an already running daemon is returned in
+the
 .Fa pidptr
-argument (if it is not NULL).
-The function doesn't write process' PID into the file here, so it can be
-used before fork()ing and exit with proper error message when needed.
-If
+argument (if it is not
+.Dv NULL ) .
+The function does not write process' PID into the file here, so it can be
+used before
+.Fn fork Ns ing
+and exit with a proper error message when needed.
+If the
 .Fa path
-argument is NULL,
-.Pa /var/run/<progname>.pid
+argument is
+.Dv NULL ,
+.Pa /var/run/ Ns Ao Va progname Ac Ns Pa .pid
 file will be used.
 .Pp
 The
 .Fn pidfile_write
-function write process' PID into previously opened file.
+function writes process' PID into a previously opened file.
 .Pp
 The
 .Fn pidfile_close
-function closes pidfile.
-It should be used after daemon fork()s to start a child process.
+function closes a pidfile.
+It should be used after daemon
+.Fn fork Ns s
+to start a child process.
 .Pp
 The
 .Fn pidfile_remove
-function closes and removes pidfile.
+function closes and removes a pidfile.
 .Sh RETURN VALUES
 The
 .Fn pidfile_open
-function return a valid pointer to a pidfh structure on success or
+function returns a valid pointer to a
+.Vt pidfh
+structure on success, or
 .Dv NULL
 if an error occurs.
-If an error does occur,
+If an error occurs,
 .Va errno
 will be set.
 .Rv -std pidfile_write pidfile_close pidfile_remove
 .Sh EXAMPLES
-The following example shows in which order those functions should be used.
+The following example shows in which order these functions should be used.
 .Bd -literal
 struct pidfh *pfh;
 pid_t otherpid, childpid;
@@ -142,7 +151,7 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EEXIST
-Some process already holds the lock on the given pidfile, which means,
+Some process already holds the lock on the given pidfile, meaning that a
 daemon is already running.
 .It Bq Er ENAMETOOLONG
 Specified pidfile's name is too long.
@@ -158,15 +167,16 @@ function may also fail and set
 for any errors specified for the
 .Xr fstat 2 ,
 .Xr open 2 ,
+and
 .Xr read 2
-routines.
+calls.
 .Pp
 The
 .Fn pidfile_write
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EDOOFUS
-Inproper function use.
+Improper function use.
 Probably called before
 .Fn pidfile_open .
 .El
@@ -178,24 +188,26 @@ function may also fail and set
 for any errors specified for the
 .Xr fstat 2 ,
 .Xr ftruncate 2 ,
+and
 .Xr write 2
-routines.
+calls.
 .Pp
 The
 .Fn pidfile_close
 function may fail and set
 .Va errno
 for any errors specified for the
-.Xr close 2 ,
+.Xr close 2
+and
 .Xr fstat 2
-routines.
+calls.
 .Pp
 The
 .Fn pidfile_remove
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EDOOFUS
-Inproper function use.
+Improper function use.
 Probably called not from the process which made
 .Fn pidfile_write .
 .El
@@ -209,9 +221,9 @@ for any errors specified for the
 .Xr flock 2 ,
 .Xr fstat 2 ,
 .Xr write 2 ,
+and
 .Xr unlink 2
-routines.
-.Pp
+calls.
 .Sh SEE ALSO
 .Xr flock 2 ,
 .Xr open 2 ,
@@ -219,7 +231,7 @@ routines.
 .Sh AUTHORS
 .An -nosplit
 The
-.Xr pidfile 3
+.Nm pidfile
 functionality is based on ideas from
 .An John-Mark Gurney Aq jmg@FreeBSD.org .
 .Pp
