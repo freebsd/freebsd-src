@@ -66,19 +66,6 @@ struct ipq {
 #endif /* _KERNEL */
 
 /*
- * Structure stored in mbuf in inpcb.ip_options
- * and passed to ip_output when ip options are in use.
- * The actual length of the options (including ipopt_dst)
- * is in m_len.
- */
-#define MAX_IPOPTLEN	40
-
-struct ipoption {
-	struct	in_addr ipopt_dst;	/* first-hop dst if source routed */
-	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
-};
-
-/*
  * Structure attached to inpcb.ip_moptions and
  * passed to ip_output when IP multicast options are in use.
  */
@@ -151,7 +138,6 @@ extern struct	ipstat	ipstat;
 extern u_short	ip_id;				/* ip packet ctr, for ids */
 extern int	ip_defttl;			/* default IP ttl */
 extern int	ipforwarding;			/* ip forwarding */
-extern int	ip_doopts;			/* process or ignore IP options */
 #ifdef IPSTEALTH
 extern int	ipstealth;			/* stealth forwarding */
 #endif
@@ -169,6 +155,7 @@ void	 ip_fini(void *xtp);
 int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
 void	 ip_freemoptions(struct ip_moptions *);
+void	 ip_forward(struct mbuf *m, int srcrt);
 void	 ip_init(void);
 extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 			  struct ip_moptions *);
@@ -184,9 +171,6 @@ struct in_ifaddr *
 void	 ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
 		struct mbuf *);
 void	 ip_slowtimo(void);
-struct mbuf *
-	 ip_srcroute(struct mbuf *);
-void	 ip_stripoptions(struct mbuf *, struct mbuf *);
 u_int16_t	ip_randomid(void);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);

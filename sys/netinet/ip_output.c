@@ -57,6 +57,7 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_options.h>
 
 #include <machine/in_cksum.h>
 
@@ -92,16 +93,11 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
 
-static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
 static struct ifnet *ip_multicast_if(struct in_addr *, int *);
 static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 static int	ip_getmoptions(struct inpcb *, struct sockopt *);
-static int	ip_pcbopts(struct inpcb *, int, struct mbuf *);
 static int	ip_setmoptions(struct inpcb *, struct sockopt *);
-static struct ip_moptions	*ip_findmoptions(struct inpcb *inp);
-
-int	ip_optcopy(struct ip *, struct ip *);
 
 
 extern	struct protosw inetsw[];
@@ -1053,109 +1049,6 @@ in_delayed_cksum(struct mbuf *m)
 }
 
 /*
- * Insert IP options into preformed packet.
- * Adjust IP destination as required for IP source routing,
- * as indicated by a non-zero in_addr at the start of the options.
- *
- * XXX This routine assumes that the packet has no options in place.
- */
-static struct mbuf *
-ip_insertoptions(m, opt, phlen)
-	register struct mbuf *m;
-	struct mbuf *opt;
-	int *phlen;
-{
-	register struct ipoption *p = mtod(opt, struct ipoption *);
-	struct mbuf *n;
-	register struct ip *ip = mtod(m, struct ip *);
-	unsigned optlen;
-
-	optlen = opt->m_len - sizeof(p->ipopt_dst);
-	if (optlen + ip->ip_len > IP_MAXPACKET) {
-		*phlen = 0;
-		return (m);		/* XXX should fail */
-	}
-	if (p->ipopt_dst.s_addr)
-		ip->ip_dst = p->ipopt_dst;
-	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
-		if (n == NULL) {
-			*phlen = 0;
-			return (m);
-		}
-		M_MOVE_PKTHDR(n, m);
-		n->m_pkthdr.rcvif = NULL;
-#ifdef MAC
-		mac_copy_mbuf(m, n);
-#endif
-		n->m_pkthdr.len += optlen;
-		m->m_len -= sizeof(struct ip);
-		m->m_data += sizeof(struct ip);
-		n->m_next = m;
-		m = n;
-		m->m_len = optlen + sizeof(struct ip);
-		m->m_data += max_linkhdr;
-		bcopy(ip, mtod(m, void *), sizeof(struct ip));
-	} else {
-		m->m_data -= optlen;
-		m->m_len += optlen;
-		m->m_pkthdr.len += optlen;
-		bcopy(ip, mtod(m, void *), sizeof(struct ip));
-	}
-	ip = mtod(m, struct ip *);
-	bcopy(p->ipopt_list, ip + 1, optlen);
-	*phlen = sizeof(struct ip) + optlen;
-	ip->ip_v = IPVERSION;
-	ip->ip_hl = *phlen >> 2;
-	ip->ip_len += optlen;
-	return (m);
-}
-
-/*
- * Copy options from ip to jp,
- * omitting those not copied during fragmentation.
- */
-int
-ip_optcopy(ip, jp)
-	struct ip *ip, *jp;
-{
-	register u_char *cp, *dp;
-	int opt, optlen, cnt;
-
-	cp = (u_char *)(ip + 1);
-	dp = (u_char *)(jp + 1);
-	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
-	for (; cnt > 0; cnt -= optlen, cp += optlen) {
-		opt = cp[0];
-		if (opt == IPOPT_EOL)
-			break;
-		if (opt == IPOPT_NOP) {
-			/* Preserve for IP mcast tunnel's LSRR alignment. */
-			*dp++ = IPOPT_NOP;
-			optlen = 1;
-			continue;
-		}
-
-		KASSERT(cnt >= IPOPT_OLEN + sizeof(*cp),
-		    ("ip_optcopy: malformed ipv4 option"));
-		optlen = cp[IPOPT_OLEN];
-		KASSERT(optlen >= IPOPT_OLEN + sizeof(*cp) && optlen <= cnt,
-		    ("ip_optcopy: malformed ipv4 option"));
-
-		/* bogus lengths should have been caught by ip_dooptions */
-		if (optlen > cnt)
-			optlen = cnt;
-		if (IPOPT_COPIED(opt)) {
-			bcopy(cp, dp, optlen);
-			dp += optlen;
-		}
-	}
-	for (optlen = dp - (u_char *)(jp+1); optlen & 0x3; optlen++)
-		*dp++ = IPOPT_EOL;
-	return (optlen);
-}
-
-/*
  * IP socket option processing.
  */
 int
@@ -1462,110 +1355,6 @@ ip_ctloutput(so, sopt)
 		break;
 	}
 	return (error);
-}
-
-/*
- * Set up IP options in pcb for insertion in output packets.
- * Store in mbuf with pointer in pcbopt, adding pseudo-option
- * with destination address if source routed.
- */
-static int
-ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
-{
-	register int cnt, optlen;
-	register u_char *cp;
-	struct mbuf **pcbopt;
-	u_char opt;
-
-	INP_LOCK_ASSERT(inp);
-
-	pcbopt = &inp->inp_options;
-
-	/* turn off any old options */
-	if (*pcbopt)
-		(void)m_free(*pcbopt);
-	*pcbopt = 0;
-	if (m == NULL || m->m_len == 0) {
-		/*
-		 * Only turning off any previous options.
-		 */
-		if (m != NULL)
-			(void)m_free(m);
-		return (0);
-	}
-
-	if (m->m_len % sizeof(int32_t))
-		goto bad;
-	/*
-	 * IP first-hop destination address will be stored before
-	 * actual options; move other options back
-	 * and clear it when none present.
-	 */
-	if (m->m_data + m->m_len + sizeof(struct in_addr) >= &m->m_dat[MLEN])
-		goto bad;
-	cnt = m->m_len;
-	m->m_len += sizeof(struct in_addr);
-	cp = mtod(m, u_char *) + sizeof(struct in_addr);
-	bcopy(mtod(m, void *), cp, (unsigned)cnt);
-	bzero(mtod(m, void *), sizeof(struct in_addr));
-
-	for (; cnt > 0; cnt -= optlen, cp += optlen) {
-		opt = cp[IPOPT_OPTVAL];
-		if (opt == IPOPT_EOL)
-			break;
-		if (opt == IPOPT_NOP)
-			optlen = 1;
-		else {
-			if (cnt < IPOPT_OLEN + sizeof(*cp))
-				goto bad;
-			optlen = cp[IPOPT_OLEN];
-			if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
-				goto bad;
-		}
-		switch (opt) {
-
-		default:
-			break;
-
-		case IPOPT_LSRR:
-		case IPOPT_SSRR:
-			/*
-			 * user process specifies route as:
-			 *	->A->B->C->D
-			 * D must be our final destination (but we can't
-			 * check that since we may not have connected yet).
-			 * A is first hop destination, which doesn't appear in
-			 * actual IP option, but is stored before the options.
-			 */
-			if (optlen < IPOPT_MINOFF - 1 + sizeof(struct in_addr))
-				goto bad;
-			m->m_len -= sizeof(struct in_addr);
-			cnt -= sizeof(struct in_addr);
-			optlen -= sizeof(struct in_addr);
-			cp[IPOPT_OLEN] = optlen;
-			/*
-			 * Move first hop before start of options.
-			 */
-			bcopy((caddr_t)&cp[IPOPT_OFFSET+1], mtod(m, caddr_t),
-			    sizeof(struct in_addr));
-			/*
-			 * Then copy rest of options back
-			 * to close up the deleted entry.
-			 */
-			bcopy((&cp[IPOPT_OFFSET+1] + sizeof(struct in_addr)),
-			    &cp[IPOPT_OFFSET+1],
-			    (unsigned)cnt - (IPOPT_MINOFF - 1));
-			break;
-		}
-	}
-	if (m->m_len > MAX_IPOPTLEN + sizeof(struct in_addr))
-		goto bad;
-	*pcbopt = m;
-	return (0);
-
-bad:
-	(void)m_free(m);
-	return (EINVAL);
 }
 
 /*
