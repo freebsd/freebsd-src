@@ -110,6 +110,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "res_config.h"
 
 #ifndef _PATH_HOSTS
 #define	_PATH_HOSTS	"/etc/hosts"
