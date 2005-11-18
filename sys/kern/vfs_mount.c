@@ -516,6 +516,15 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	}
 
 	/*
+	 * We need to see if we have the "update" option
+	 * before we call vfs_domount(), since vfs_domount() has special
+	 * logic based on MNT_UPDATE.  This is very important
+	 * when we want to update the root filesystem.
+	 */ 
+	if (vfs_getopt(optlist, "update", NULL, NULL) == 0)
+		fsflags |= MNT_UPDATE;
+
+	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
