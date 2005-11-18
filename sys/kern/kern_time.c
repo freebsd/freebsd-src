@@ -224,6 +224,7 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		TIMEVAL_TO_TIMESPEC(&user, ats);
 		break;
 	case CLOCK_MONOTONIC:
+	case CLOCK_UPTIME:
 		nanouptime(ats);
 		break;
 	default:
@@ -307,6 +308,7 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 	switch (clock_id) {
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
+	case CLOCK_UPTIME:
 		/*
 		 * Round up the result of the division cheaply by adding 1.
 		 * Rounding up is especially important if rounding down
