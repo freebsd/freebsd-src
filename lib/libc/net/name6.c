@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 #include "netdb_private.h"
+#include "res_config.h"
 
 #ifndef _PATH_HOSTS
 #define	_PATH_HOSTS	"/etc/hosts"
