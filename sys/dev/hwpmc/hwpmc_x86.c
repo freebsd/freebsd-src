@@ -82,7 +82,7 @@ pmc_intel_initialize(void)
 		case 0x7: case 0x8: case 0xA: case 0xB:
 			cputype = PMC_CPU_INTEL_PIII;
 			break;
-		case 0x9: case 0xD:
+		case 0x9: case 0xD: case 0xE:
 			cputype = PMC_CPU_INTEL_PM;
 			break;
 		}
