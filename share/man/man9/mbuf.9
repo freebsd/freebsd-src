@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2005
+.Dd November 18, 2005
 .Dt MBUF 9
 .Os
 .\"
@@ -51,14 +51,10 @@
 .Fa "int type"
 .Fc
 .Fn MEXTFREE "struct mbuf *mbuf"
-.Fn MEXT_ADD_REF "struct mbuf *mbuf"
-.Fn MEXT_REM_REF "struct mbuf *mbuf"
 .Fn MFREE "struct mbuf *mbuf" "struct mbuf *successor"
 .\"
 .Ss Mbuf utility macros
 .Fn mtod "struct mbuf *mbuf" "type"
-.Ft int
-.Fn MEXT_IS_REF "struct mbuf *mbuf"
 .Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
 .Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
 .Ft int
@@ -300,18 +296,6 @@ buffer,
 .Pp
 The allocation and management of the reference counter is handled by the
 subsystem.
-The developer can check whether the reference count for the
-external storage of a given
-.Vt mbuf
-is greater than 1 with the
-.Dv MEXT_IS_REF
-macro.
-Similarly, the developer can directly add and remove references,
-if absolutely necessary, with the use of the
-.Dv MEXT_ADD_REF
-and
-.Dv MEXT_REM_REF
-macros.
 .Pp
 The system also supplies a default type of external storage buffer called an
 .Vt mbuf cluster .
