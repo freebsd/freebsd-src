@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005 David Xu <davidxu@freebsd.org>
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,12 +27,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 11, 2000
+.Dd September 11, 2000
 .Dt TIMER_DELETE 2
 .Os
 .Sh NAME
 .Nm timer_delete
-.Nd delete a per-process timer (REALTIME)
+.Nd "delete a per-process timer (REALTIME)"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -42,31 +42,34 @@
 .Sh DESCRIPTION
 The
 .Fn timer_delete
+system call
 deletes the specified timer,
 .Fa timerid ,
 previously created by the
-.Fn timer_create
-function. If the timer is armed when
+.Xr timer_create 2
+system call.
+If the timer is armed when
 .Fn timer_delete
 is called, the behavior is as if the timer is automatically disarmed before
-removal. Pending signals for the deleted timer is cleared.
+removal.
+Pending signals for the deleted timer are cleared.
 .Sh RETURN VALUES
-If successful, the
-.Fn timer_delete
-function shall return a value of zero. Otherwise, the function shall return
-a value of -1 and set errno to indicate the error.
+.Rv -std
 .Sh ERRORS
 The
 .Fn timer_delete
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The timer ID specified by timerid is not a valid timer ID.
+The timer ID specified by
+.Fa timerid
+is not a valid timer ID.
 .El
 .Sh SEE ALSO
 .Xr timer_create 2
 .Sh STANDARDS
 The
 .Fn timer_delete
-function conforms to
+system call conforms to
 .St -p1003.1-96 .
