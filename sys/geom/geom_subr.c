@@ -734,11 +734,12 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	if (!error) {
 		/*
 		 * If we open first write, spoil any partner consumers.
-		 * If we close last write, trigger re-taste.
+		 * If we close last write and provider is not errored,
+		 * trigger re-taste.
 		 */
 		if (pp->acw == 0 && dcw != 0)
 			g_spoil(pp, cp);
-		else if (pp->acw != 0 && pp->acw == -dcw && 
+		else if (pp->acw != 0 && pp->acw == -dcw && pp->error == 0 &&
 		    !(pp->geom->flags & G_GEOM_WITHER))
 			g_post_event(g_new_provider_event, pp, M_WAITOK, 
 			    pp, NULL);
