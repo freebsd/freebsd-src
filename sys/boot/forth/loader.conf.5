@@ -165,13 +165,12 @@ a bitmap will be loaded to be displayed on screen while booting.
 Name of the bitmap to be loaded.
 Any other name can be used.
 .It Va comconsole_speed
-.Po Dq 9600
+.Dq ( 9600
 or the value of the
 .Va BOOT_COMCONSOLE_SPEED
 variable when
 .Xr loader 8
-was compiled
-.Pc .
+was compiled).
 Sets the speed of the serial console.
 If the previous boot loader stage specified that a serial console
 is in use then the default speed is determined from the current

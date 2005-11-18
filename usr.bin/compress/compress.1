@@ -65,11 +65,11 @@ utility reduces the size of files using adaptive Lempel-Ziv coding.
 Each
 .Ar file
 is renamed to the same name plus the extension
-.Dq .Z .
+.Pa .Z .
 A
 .Ar file
 argument with a
-.Dq .Z
+.Pa .Z
 extension will be ignored except it will cause an
 error exit after other arguments are processed.
 If compression would not reduce the size of a
@@ -80,13 +80,13 @@ The
 .Nm uncompress
 utility restores compressed files to their original form, renaming the
 files by deleting the
-.Dq .Z
+.Pa .Z
 extensions.
 A file specification need not include the file's
-.Dq .Z
+.Pa .Z
 extension.
 If a file's name in its file system does not have a
-.Dq .Z
+.Pa .Z
 extension, it will not be uncompressed and it will cause
 an error exit after other arguments are processed.
 .Pp
@@ -218,13 +218,12 @@ The
 command appeared in
 .Bx 4.3 .
 .Sh BUGS
-.Pp
 Some of these might be considered otherwise-undocumented features.
 .Pp
 .Nm compress :
 If the utility does not compress a file because doing so would not
-reduce it size, and a file of the same name except with an
-.Dq .Z
+reduce its size, and a file of the same name except with an
+.Pa .Z
 extension exists, the named file is not really ignored as stated above;
 it causes a prompt to confirm the overwriting of the file with the extension.
 If the operation is confirmed, that file is deleted.
@@ -233,7 +232,7 @@ If the operation is confirmed, that file is deleted.
 If an empty file is compressed (using
 .Fl f ) ,
 the resulting
-.Dq .Z
+.Pa .Z
 file is also empty.
 That seems right, but if
 .Nm uncompress
@@ -250,9 +249,9 @@ If the specified file does not exist, but a similarly-named one with (for
 or without (for
 .Nm uncompress )
 a
-.Dq .Z
+.Pa .Z
 extension does exist, the utility will waste the user's time by not
 immediately emitting an error message about the missing file and
 continuing.
 Instead, it first asks for confirmation to overwrite
-the existing file and then doesn't overwrite it.
+the existing file and then does not overwrite it.

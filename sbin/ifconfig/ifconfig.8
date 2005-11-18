@@ -285,15 +285,15 @@ of the interface to
 .Ar type .
 Some interfaces support the mutually exclusive use of one of several
 different physical media connectors.
-For example, a 10Mb/s Ethernet
+For example, a 10Mbit/s Ethernet
 interface might support the use of either
 .Tn AUI
 or twisted pair connectors.
 Setting the media type to
-.Dq Li 10base5/AUI
+.Cm 10base5/AUI
 would change the currently active connector to the AUI port.
 Setting it to
-.Dq Li 10baseT/UTP
+.Cm 10baseT/UTP
 would activate twisted pair.
 Refer to the interfaces' driver
 specific documentation or man page for a complete list of the
@@ -316,11 +316,11 @@ operating mode on the interface to
 .Ar mode .
 For IEEE 802.11 wireless interfaces that support multiple operating modes
 this directive is used to select between 802.11a
-.Pq Dq Li 11a ,
+.Pq Cm 11a ,
 802.11b
-.Pq Dq Li 11b ,
+.Pq Cm 11b ,
 and 802.11g
-.Pq Dq Li 11g
+.Pq Cm 11g
 operating modes.
 .It Cm name Ar name
 Set the interface name to
@@ -534,19 +534,17 @@ Set the desired authentication mode in infrastructure mode.
 Not all adaptors support all modes.
 The set of
 valid modes is
-.Dq Li none ,
-.Dq Li open ,
-.Dq Li shared
+.Cm none , open , shared
 (shared key),
-.Dq Li 8021x
+.Cm 8021x
 (IEEE 802.1x),
 and
-.Dq Li wpa
+.Cm wpa
 (IEEE WPA/WPA2/802.11i).
 The
-.Dq Li 8021x
+.Cm 8021x
 and
-.Dq Li wpa
+.Cm wpa
 modes are only useful when using an authentication service
 (a supplicant for client operation or an authenticator when
 operating as an access point).
@@ -563,10 +561,9 @@ Specify the MAC address of the access point to use when operating
 as a station in a BSS network.
 This overrides any automatic selection done by the system.
 To disable a previously selected access point, supply
-.Dq Li any ,
-.Dq Li none ,
+.Cm any , none ,
 or
-.Dq Li -
+.Cm -
 for the address.
 This option is useful when more than one access points have the same SSID.
 Another name for the
@@ -589,10 +586,10 @@ Channels range from 1 to 255, but the exact selection available
 depends on the region your adaptor was manufactured for.
 Setting
 the channel to
-.Dq Li 0 ,
-.Dq Li any ,
+.Li 0 ,
+.Cm any ,
 or
-.Dq Li -
+.Cm -
 will give you the default for your adaptor.
 Some
 adaptors ignore this setting unless you are in ad-hoc mode.
@@ -607,7 +604,7 @@ The
 .Ar period
 specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
-By default DTIM is 1 (i.e. DTIM occurs at each beacon).
+By default DTIM is 1 (i.e., DTIM occurs at each beacon).
 .It Cm fragthreshold Ar length
 Set the threshold for which transmitted frames are broken into fragments.
 The
@@ -616,66 +613,66 @@ argument is the frame size in bytes and must be in the range 256 to 2346.
 Setting
 .Ar length
 to
-.Dq Li 2346 ,
-.Dq Li any ,
+.Li 2346 ,
+.Cm any ,
 or
-.Dq Li -
+.Cm -
 disables transmit fragmentation.
 Not all adaptors honor the fragmentation threshold.
 .It Cm hidessid
 When operating as an access point, do not broadcast the SSID
 in beacon frames or respond to probe request frames unless
-they are directed to the ap (i.e. they include the ap's SSID).
+they are directed to the ap (i.e., they include the ap's SSID).
 By default, the SSID is included in beacon frames and
 undirected probe request frames are answered.
 To re-enable the broadcast of the SSID etc., use
 .Fl hidessid .
-.It Cm list Cm active
+.It Cm list active
 Display the list of channels available for use taking into account
 any restrictions set with the
-.Dq Li chanlist
+.Cm chanlist
 and
-.Dq Li channel
+.Cm channel
 directives.
-.It Cm list Cm caps
+.It Cm list caps
 Display the adaptor's capabilities, including the operating
 modes supported.
-.It Cm list Cm chan
+.It Cm list chan
 Display the list of channels available for use.
-.Dq Li list freq
+.Cm list freq
 is another way of requesting this information.
-.It Cm list Cm mac
+.It Cm list mac
 Display the current MAC Access Control List state.
 Each address is prefixed with a character that indicates the
 current policy applied to it:
-.Dq Li +
+.Ql +
 indicates the address is allowed access,
-.Dq Li -
+.Ql -
 indicates the address is denied access,
-.Dq Li *
+.Ql *
 indicates the address is present but the current policy open
-(so the acl is not consulted).
-.It Cm list Cm scan
+(so the ACL is not consulted).
+.It Cm list scan
 Display the access points and/or ad-hoc neighbors
 located in the vicinity.
 This information may be updated automatically by the adaptor
 and/or with a
-.Dq Li scan
+.Cm scan
 request.
-.Dq Li list ap
+.Cm list ap
 is another way of requesting this information.
-.It Cm list Cm sta
+.It Cm list sta
 When operating as an access point display the stations that are
 currently associated.
 When operating in ad-hoc mode display stations identified as
 neighbors in the IBSS.
-.It Cm list Cm wme
+.It Cm list wme
 Display the current parameters to use when operating in WME mode.
 When WME mode is enabled for an adaptor this information will be
 displayed with the regular status; this command is mostly useful
 for examining parameters when WME mode is disabled.
 See the description of the
-.Dq Li wme
+.Cm wme
 directive for information on the various parameters.
 .It Cm powersave
 Enable powersave operation.
@@ -697,11 +694,10 @@ For interfaces operating in 802.11g, use the specified
 .Ar technique
 for protecting OFDM frames in a mixed 11b/11g network.
 The set of valid techniques is
-.Dq Li off ,
-.Dq Li cts
+.Cm off , cts
 (CTS to self),
 and
-.Dq Li rtscts
+.Cm rtscts
 (RTS/CTS).
 Technique names are case insensitive.
 .It Cm pureg
@@ -717,11 +713,11 @@ is broken.
 The
 .Ar mode
 argument may be one of
-.Dq Li device
+.Cm device
 (leave it to the hardware device to decide),
-.Dq Li auto
+.Cm auto
 (handle either in the device or the operating system\[em]as appropriate),
-.Dq Li manual
+.Cm manual
 (do nothing until explicitly instructed).
 By default, the device is left to handle this if it is
 capable; otherwise, the operating system will automatically
@@ -740,10 +736,10 @@ is the frame size in bytes and must be in the range 1 to 2346.
 Setting
 .Ar length
 to
-.Dq Li 2346 ,
-.Dq Li any ,
+.Li 2346 ,
+.Cm any ,
 or
-.Dq Li -
+.Cm -
 disables transmission of RTS frames.
 Not all adaptors support setting the RTS threshold.
 .It Cm ssid Ar ssid
@@ -788,7 +784,7 @@ Indicates that the network is using a short slot time.
 .El
 .Pp
 The
-.Dq Li list scan
+.Cm list scan
 request can be used to show recent scan results without
 initiating a new scan.
 .It Cm stationname Ar name
@@ -813,21 +809,20 @@ Not all adaptors support changing the transmit power.
 Set the desired WEP mode.
 Not all adaptors support all modes.
 The set of valid modes is
-.Dq Li off ,
-.Dq Li on ,
+.Cm off , on ,
 and
-.Dq Li mixed .
+.Cm mixed .
 The
-.Dq Li mixed
+.Cm mixed
 mode explicitly tells the adaptor to allow association with access
 points which allow both encrypted and unencrypted traffic.
 On these adaptors,
-.Dq Li on
+.Cm on
 means that the access point must only allow encrypted connections.
 On other adaptors,
-.Dq Li on
+.Cm on
 is generally another name for
-.Dq Li mixed .
+.Cm mixed .
 Modes are case insensitive.
 .It Cm weptxkey Ar index
 Set the WEP key to be used for transmission.
@@ -871,22 +866,30 @@ The latter are received from the access point and may not be changed
 (at the station).
 The following Access Categories are recognized:
 .Pp
-.Bl -tag -width AC_BK -compact
+.Bl -tag -width ".Cm AC_BK" -compact
 .It Cm AC_BE
-(or BE) best effort delivery,
+(or
+.Cm BE )
+best effort delivery,
 .It Cm AC_BK
-(or BK) background traffic,
+(or
+.Cm BK )
+background traffic,
 .It Cm AC_VI
-(or VI) video traffic,
+(or
+.Cm VI )
+video traffic,
 .It Cm AC_VO
-(or VO) voice traffic.
+(or
+.Cm VO )
+voice traffic.
 .El
 .Pp
 AC parameters are case-insensitive.
 Traffic classification is done in the operating system using the
 vlan priority associated with data frames or the
 ToS (Type of Service) indication in IP-encapsulated frames.
-If neither information is present traffic is assigned to the
+If neither information is present, traffic is assigned to the
 Best Effort (BE) category.
 .Bl -tag -width indent
 .It Cm ack Ar ac

@@ -58,7 +58,9 @@ The
 .Fl f
 option's
 .Ar tapename
-overrides the TAPE environment variable described below.
+overrides the
+.Ev TAPE
+environment variable described below.
 .Pp
 The available commands are listed below.
 Only as many
@@ -68,7 +70,7 @@ need be specified.
 The following commands optionally take a
 .Ar count ,
 which defaults to 1.
-.Bl -tag -width "erase"
+.Bl -tag -width ".Cm erase"
 .It Cm weof
 Write
 .Ar count
@@ -112,7 +114,7 @@ The tape will be at its beginning upon completion.
 .Pp
 The following commands ignore
 .Ar count .
-.Bl -tag -width "geteotmodel"
+.Bl -tag -width ".Cm geteotmodel"
 .It Cm rdhpos
 Read the hardware block position.
 The block
@@ -171,7 +173,7 @@ typically after an EOF mark where another file may be written.
 .Pp
 The following commands require an
 .Ar argument .
-.Bl -tag -width "seteotmodel"
+.Bl -tag -width ".Cm seteotmodel"
 .It Cm sethpos
 Set the hardware block position.
 The
@@ -260,7 +262,7 @@ The density codes are:
 .Bd -literal -offset 3n
 0x0    default for device
 0xE    reserved for ECMA
-.Dl ""
+
 Value  Width        Tracks    Density         Code Type Reference   Note
         mm    in              bpmm       bpi
 0x01   12.7  (0.5)    9         32     (800)  NRZI  R   X3.22-1983   2
@@ -309,11 +311,11 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x49   12.7  (0.5)  448      7,598  (193,000) PRML  C   SDLTapeI(160) 6,8
 .Ed
 .Bd -literal -offset 3n
-Code Description                                   Type Description
-----------------                                   ----------------
-NRZI    Non return to zero, change on ones         R Reel-to-reel
-GCR     Group code recording                       C Cartridge
-PE      Phase encoded                              CS Cassette
+Code    Description                                Type Description
+----    --------------------------------------     ---- -----------
+NRZI    Non return to zero, change on ones         R    Reel-to-reel
+GCR     Group code recording                       C    Cartridge
+PE      Phase encoded                              CS   Cassette
 IMFM    Inverted modified frequency modulation
 MFM     Modified frequency modulation
 DDS     DAT data storage
@@ -334,7 +336,7 @@ NOTES
    8 physical tracks each.
 .Ed
 .Sh ENVIRONMENT
-.Bl -tag -width TAPE
+.Bl -tag -width ".Ev TAPE"
 .It Ev TAPE
 This is the pathname of the tape drive.
 The default (if the variable is unset, but not if it is null) is
@@ -344,14 +346,13 @@ It may be overridden with the
 option.
 .El
 .Sh FILES
-.Bl -tag -width /dev/*sa[0-9]*xx -compact
+.Bl -tag -width ".Pa /dev/*sa[0-9]*" -compact
 .It Pa /dev/*wt*
 QIC-02/QIC-36 magnetic tape interface
 .It Pa /dev/*sa[0-9]*
 SCSI magnetic tape interface
 .El
 .Sh DIAGNOSTICS
-.Pp
 The exit status will be 0 when the drive operations were successful,
 2 when the drive operations were unsuccessful, and 1 for other
 problems like an unrecognized command or a missing drive device.
