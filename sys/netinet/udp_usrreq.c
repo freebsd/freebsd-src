@@ -68,6 +68,7 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_options.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
 #endif
