@@ -100,8 +100,7 @@
  * _REMOVE			+	+	+	+
  *
  */
-#define	QUEUE_MACRO_DEBUG 0
-#if QUEUE_MACRO_DEBUG
+#ifdef QUEUE_MACRO_DEBUG
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
 	char * lastfile;
@@ -199,6 +198,7 @@ struct {								\
 		SLIST_NEXT(curelm, field) =				\
 		    SLIST_NEXT(SLIST_NEXT(curelm, field), field);	\
 	}								\
+	TRASHIT((elm)->field.sle_next);					\
 } while (0)
 
 #define	SLIST_REMOVE_HEAD(head, field) do {				\
@@ -291,6 +291,7 @@ struct {								\
 		     STAILQ_NEXT(STAILQ_NEXT(curelm, field), field)) == NULL)\
 			(head)->stqh_last = &STAILQ_NEXT((curelm), field);\
 	}								\
+	TRASHIT((elm)->field.stqe_next);				\
 } while (0)
 
 #define	STAILQ_REMOVE_HEAD(head, field) do {				\
@@ -325,6 +326,31 @@ struct {								\
  * List functions.
  */
 
+#if defined(INVARIANTS) || defined(QUEUE_MACRO_DEBUG)
+#define	QMD_LIST_CHECK_HEAD(head, field) do {				\
+	if (LIST_FIRST((head)) != NULL &&				\
+	    LIST_FIRST((head))->field.le_prev !=			\
+	     &LIST_FIRST((head)))					\
+		panic("Bad list head %p first->prev != head", (head));	\
+} while (0)
+
+#define	QMD_LIST_CHECK_NEXT(elm, field) do {				\
+	if (LIST_NEXT((elm), field) != NULL &&				\
+	    LIST_NEXT((elm), field)->field.le_prev !=			\
+	     &((elm)->field.le_next))					\
+	     	panic("Bad link elm %p next->prev != elm", (elm));	\
+} while (0)
+
+#define	QMD_LIST_CHECK_PREV(elm, field) do {				\
+	if (*(elm)->field.le_prev != (elm))				\
+		panic("Bad link elm %p prev->next != elm", (elm));	\
+} while (0)
+#else
+#define	QMD_LIST_CHECK_HEAD(head, field)
+#define	QMD_LIST_CHECK_NEXT(elm, field)
+#define	QMD_LIST_CHECK_PREV(elm, field)
+#endif /* defined(INVARIANTS) || defined(QUEUE_MACRO_DEBUG) */
+
 #define	LIST_EMPTY(head)	((head)->lh_first == NULL)
 
 #define	LIST_FIRST(head)	((head)->lh_first)
@@ -344,6 +370,7 @@ struct {								\
 } while (0)
 
 #define	LIST_INSERT_AFTER(listelm, elm, field) do {			\
+	QMD_LIST_CHECK_NEXT(listelm, field);				\
 	if ((LIST_NEXT((elm), field) = LIST_NEXT((listelm), field)) != NULL)\
 		LIST_NEXT((listelm), field)->field.le_prev =		\
 		    &LIST_NEXT((elm), field);				\
@@ -352,6 +379,7 @@ struct {								\
 } while (0)
 
 #define	LIST_INSERT_BEFORE(listelm, elm, field) do {			\
+	QMD_LIST_CHECK_PREV(listelm, field);				\
 	(elm)->field.le_prev = (listelm)->field.le_prev;		\
 	LIST_NEXT((elm), field) = (listelm);				\
 	*(listelm)->field.le_prev = (elm);				\
@@ -359,6 +387,7 @@ struct {								\
 } while (0)
 
 #define	LIST_INSERT_HEAD(head, elm, field) do {				\
+	QMD_LIST_CHECK_HEAD((head), field);				\
 	if ((LIST_NEXT((elm), field) = LIST_FIRST((head))) != NULL)	\
 		LIST_FIRST((head))->field.le_prev = &LIST_NEXT((elm), field);\
 	LIST_FIRST((head)) = (elm);					\
@@ -368,10 +397,14 @@ struct {								\
 #define	LIST_NEXT(elm, field)	((elm)->field.le_next)
 
 #define	LIST_REMOVE(elm, field) do {					\
+	QMD_LIST_CHECK_NEXT(elm, field);				\
+	QMD_LIST_CHECK_PREV(elm, field);				\
 	if (LIST_NEXT((elm), field) != NULL)				\
 		LIST_NEXT((elm), field)->field.le_prev = 		\
 		    (elm)->field.le_prev;				\
 	*(elm)->field.le_prev = LIST_NEXT((elm), field);		\
+	TRASHIT((elm)->field.le_next);					\
+	TRASHIT((elm)->field.le_prev);					\
 } while (0)
 
 /*
