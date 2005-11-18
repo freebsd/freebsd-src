@@ -84,7 +84,7 @@ and release.
 .It Cm installworld
 Install everything built by
 .Cm buildworld .
-.It Cm kernel-toolchain                                                        
+.It Cm kernel-toolchain
 Rebuild the tools needed for kernel compilation.
 Use this if you did not do a buildworld first.
 .It Cm buildkernel
@@ -100,7 +100,9 @@ followed by
 .Cm installkernel
 .It Cm delete-old
 Delete obsolete base system files and directories interactively.
-When -DBATCH_DELETE_OLD_FILES is specified at the command line,
+When
+.Li -DBATCH_DELETE_OLD_FILES
+is specified at the command line,
 the delete operation will be non-interactive.
 The variables
 .Va DESTDIR , TARGET_ARCH
@@ -111,7 +113,9 @@ should be set as with
 .It Cm delete-old-libs
 Delete obsolete base system libraries interactively.
 This should only be used if no 3rd party software uses the libraries anymore.
-When -DBATCH_DELETE_OLD_FILES is specified at the command line,
+When
+.Li -DBATCH_DELETE_OLD_FILES
+is specified at the command line,
 the delete operation will be non-interactive.
 The variables
 .Va DESTDIR , TARGET_ARCH
