@@ -60,13 +60,15 @@ _b_trunc(volatile double *_dp)
 	SET_LOW_WORD(*_dp, _lw & 0xf8000000);
 }
 
+struct Double {
+	double	a;
+	double	b;
+};
+
 /*
  * Functions internal to the math package, yet not static.
  */
-extern double	__exp__E();
-
-struct Double {double a, b;};
-double __exp__D(double, double);
+double	__exp__D(double, double);
 struct Double __log__D(double);
 
 #endif /* !_MATHIMPL_H_ */
