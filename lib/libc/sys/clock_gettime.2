@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2004
+.Dd November 18, 2005
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -65,6 +65,8 @@ The
 argument
 can be one of four values: CLOCK_REALTIME for time that increments as
 a wall clock should, CLOCK_MONOTONIC which increments in SI seconds,
+CLOCK_UPTIME which starts at zero when the kernel boots and increments
+monotonically in SI seconds while the machine is running,
 CLOCK_VIRTUAL for time that increments only when
 the CPU is running in user mode on behalf of the calling process, or
 CLOCK_PROF for time that increments when the CPU is running in user or
