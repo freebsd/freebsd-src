@@ -24,21 +24,23 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-\" $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd August 24, 2005
 .Dt MEMMEM 3
 .Os
 .Sh NAME
 .Nm memmem
-.Nd locate a byte substring in a byte string
+.Nd "locate a byte substring in a byte string"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft void *
-.Fn memmem "const char *big" "size_t big_len" \
-"const char *little" "size_t little_len"
+.Ft "void *"
+.Fo memmem
+.Fa "const char *big" "size_t big_len"
+.Fa "const char *little" "size_t little_len"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn memmem
@@ -77,8 +79,8 @@ The
 .Fn memmem
 function first appeared in
 .Fx 6.0 .
-.Sh AUTHOR
-Pascal Gloor <pascal.gloor@spale.com>
+.Sh AUTHORS
+.An Pascal Gloor Aq pascal.gloor@spale.com
 .Sh BUGS
 This function was broken in Linux libc up to and including version 5.0.9
 and in GNU libc prior to version 2.1.
