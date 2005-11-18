@@ -27,33 +27,39 @@
 .\"
 .Dd May 18, 2003
 .Dt BSPATCH 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm bspatch
-.Nd apply a patch built with bsdiff(1)
+.Nd apply a patch built with
+.Xr bsdiff 1
 .Sh SYNOPSIS
 .Nm
-.Ao Ar oldfile Ac Ao Ar newfile Ac Ao Ar patchfile Ac
+.Ar oldfile newfile patchfile
 .Sh DESCRIPTION
+The
 .Nm
+utility
 generates
-.Ao Ar newfile Ac
+.Ar newfile
 from
-.Ao Ar oldfile Ac
+.Ar oldfile
 and
-.Ao Ar patchfile Ac
+.Ar patchfile
 where
-.Ao Ar patchfile Ac
-is a binary patch built by bsdiff(1).
+.Ar patchfile
+is a binary patch built by
+.Xr bsdiff 1 .
 .Pp
+The
 .Nm
-uses memory equal to the size of 
-.Ao Ar oldfile Ac
-plus the size of 
-.Ao Ar newfile Ac ,
+utility
+uses memory equal to the size of
+.Ar oldfile
+plus the size of
+.Ar newfile ,
 but can tolerate a very small working set without a dramatic loss
 of performance.
 .Sh SEE ALSO
 .Xr bsdiff 1
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@freebsd.org
+.An Colin Percival Aq cperciva@FreeBSD.org
