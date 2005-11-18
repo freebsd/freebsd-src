@@ -736,6 +736,9 @@ post_stats:
 		m->m_flags &= ~M_HASFCS;
 	}
 
+	/* Reset layer specific mbuf flags to avoid confusing upper layers. */
+	m->m_flags &= ~(M_PROTOFLAGS);
+
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
