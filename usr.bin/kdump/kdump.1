@@ -32,7 +32,7 @@
 .\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2005
+.Dd November 12, 2005
 .Dt KDUMP 1
 .Os
 .Sh NAME
@@ -65,8 +65,8 @@ Display elapsed timestamps (time since beginning of trace).
 Display the specified file instead of
 .Pa ktrace.out .
 .It Fl H
-List the thread id (tid) of the thread with each trace record, if available.
-If no thread id is available, 0 will be printed.
+List the thread ID (tid) of the thread with each trace record, if available.
+If no thread ID is available, 0 will be printed.
 .It Fl l
 Loop reading the trace file, once the end-of-file is reached, waiting for
 more data.
@@ -129,7 +129,7 @@ The second field is the name of the program being traced.
 The third field is the operation that the kernel performed
 on behalf of the process.
 If thread IDs are being printed, then an additional thread ID column will be
-added to the output between the PId field and program name field.
+added to the output between the PID field and program name field.
 .Pp
 In the first line above, the kernel executes the
 .Xr writev 2

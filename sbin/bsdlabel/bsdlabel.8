@@ -31,7 +31,7 @@
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2003
+.Dd September 17, 2005
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -109,12 +109,9 @@ argument forces
 .Nm
 to use a layout suitable for a different architecture.
 Current valid values are
-.Ar i386 ,
-.Ar amd64 ,
-.Ar ia64 ,
-.Ar pc98 ,
+.Cm i386 , amd64 , ia64 , pc98 ,
 and
-.Ar alpha .
+.Cm alpha .
 If this option is omitted,
 .Nm
 will use a layout suitable for the current machine.
