@@ -202,6 +202,11 @@ struct mbuf {
 			    M_VLANTAG)
 
 /*
+ * Flags to purge when crossing layers.
+ */
+#define	M_PROTOFLAGS	(M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5)
+
+/*
  * Flags indicating hw checksum support and sw checksum requirements.
  */
 #define	CSUM_IP			0x0001		/* will csum IP */
