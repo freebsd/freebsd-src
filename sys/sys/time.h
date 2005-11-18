@@ -238,6 +238,7 @@ struct clockinfo {
 #define CLOCK_VIRTUAL	1
 #define CLOCK_PROF	2
 #define CLOCK_MONOTONIC	4
+#define CLOCK_UPTIME	5
 #endif
 
 #ifndef TIMER_ABSTIME
