@@ -50,49 +50,7 @@
 .\"
 .Dd October 3, 2005
 .Dt LMC 4
-.Os \" sets \*(oS or \*[operating-system]
-.
-.\" substring works differently before minor version 19
-.ie (\n(.y < 19) .nr ssfix 1
-.el .nr ssfix 0
-.
-.ie "\*[operating-system]"" .ds aa \*(oS
-.el .ds aa \*[operating-system]
-.substring aa (0+\n[ssfix]) (6+\n[ssfix])
-.ie "\*(aa"FreeBSD" .nr fbsd 1
-.el .nr fbsd 0
-.
-.ie "\*[operating-system]"" .ds aa \*(oS
-.el .ds aa \*[operating-system]
-.substring aa (0+\n[ssfix]) (5+\n[ssfix])
-.ie "\*(aa"NetBSD" .nr nbsd 1
-.el .nr nbsd 0
-.
-.ie "\*[operating-system]"" .ds aa \*(oS
-.el .ds aa \*[operating-system]
-.substring aa (0+\n[ssfix]) (7+\n[ssfix])
-.ie "\*(aa"OpenBSD" .nr obsd 1
-.el .nr obsd 0
-.
-.ie "\*[operating-system]"" .ds aa \*(oS
-.el .ds aa \*[operating-system]
-.substring aa (0+\n[ssfix]) (4+\n[ssfix])
-.ie "\*(aa"BSDI" .nr bsdi 1
-.el .nr bsdi 0
-.
-.ie "\*[operating-system]"" .ds aa \*(oS
-.el .ds aa \*[operating-system]
-.ie "\*(aa"BSD" .nr linux 1
-.el .nr linux 0
-.
-.\" if no operating system matched, select all OSs
-.if !(\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi] : \n[linux]) \{\
-.nr fbsd  1
-.nr nbsd  1
-.nr obsd  1
-.nr bsdi  1
-.nr linux 1 \}
-.
+.Os
 .\"
 .Sh NAME
 .\"
@@ -105,12 +63,7 @@ wide-area network interface cards.
 .\"
 .Sh SYNOPSIS
 .\"
-.if \n[fbsd] \{\
-.Cd "device lmc" \}
-.if (\n[nbsd] : \n[obsd] : \n[bsdi]) \{\
-.Cd "lmc* at pci?" \}
-.if \n[linux] \{\
-.Cd "CONFIG_LANMEDIA=m" \}
+.Cd "device lmc"
 .\"
 .Sh DESCRIPTION
 .\"
@@ -179,7 +132,6 @@ They typically encapsulate packets in HDLC frames and deal with
 higher-level issues like protocol multiplexing and security.
 This driver is compatible with several line protocol packages:
 .Bl -tag -width "Generic HDLC"
-.if (\n[fbsd] : \n[nbsd]) \{\
 .It Sy "Netgraph"
 .Xr Netgraph 4
 implements many basic packet-handling functions as kernel loadable modules.
@@ -190,23 +142,10 @@ Packets are sent and received through this interface if the driver's
 hook is connected, otherwise the ifnet interface (SPPP and RawIP) is used.
 ASCII configuration control messages are
 .Em not
-currently supported. \}
-.if (\n[fbsd]) \{\
+currently supported.
 .It Sy "SPPP"
 .Xr sppp 4
-implements Synchronous-PPP, Frame-Relay and Cisco-HDLC in the kernel. \}
-.if (\n[nbsd] : \n[obsd]) \{\
-.It Sy "SPPP"
-.Xr sppp 4
-implements Synchronous-PPP and Cisco-HDLC in the kernel. \}
-.if \n[bsdi] \{\
-.It Sy "P2P"
-.Xr p2p 4
-implements Synchronous-PPP, Frame-Relay and Cisco-HDLC in the kernel. \}
-.if \n[linux] \{\
-.It Sy "Generic HDLC"
-implements Synchronous-PPP, Frame-Relay, Cisco-HDLC,
-Ether-in-HDLC, and IP-in-HDLC (aka RAWIP) in the kernel. \}
+implements Synchronous-PPP, Frame-Relay and Cisco-HDLC in the kernel.
 .It Sy "RawIP"
 This null line protocol, built into the driver, sends and receives
 raw IPv4 and IPv6 packets in HDLC frames (aka IP-in-HDLC) with
@@ -225,51 +164,21 @@ In normal operation only a few arguments are needed:
 .Bl -inset -offset 4n -compact
 .It Sy "-X\0\0"
 selects the external
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) SPPP
-.if \n[bsdi] P2P
-.if \n[linux] Generic-HDLC
+SPPP
 line protocol package.
 .It Sy "-x\0\0"
 selects the built-in RawIP line protocol package.
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
 .It Sy "-Z\0\0"
 selects PPP line protocol.
 .It Sy "-z\0\0"
 selects Cisco-HDLC line protocol.
 .It Sy "-F\0\0"
-selects Frame-Relay line protocol.\}
+selects Frame-Relay line protocol.
 .El
 .Pp
 .Ic "lmcconfig lmc0"
 .br
 displays interface configuration and status.
-.if \n[obsd] \{\
-.Pp
-Some configuration options are available through
-.Ic "ifconfig"
-as well as
-.Ic "lmcconfig" .
-.Pp
-.Ic "ifconfig lmc0 media e1 timeslot all
-.br
-selects E1 format using all 32 timeslots.
-.br
-.Ic "ifconfig -m lmc0"
-.br
-lists the available media options.
-.Pp
-.Ic "ifconfig lmc0 -mediaopt hdlc-crc16"
-.br
-deselects 16-bit CRCs, thereby selecting 32-bit CRCs.
-.br
-.Ic "ifconfig lmc0 mediaopt loopback"
-.br
-loops the interface transmitter to the receiver for testing.
-Some cards have up to six loopback paths through the hardware.
-.Ic "ifconfig"
-selects a simple loopback present in every card type, but
-.Ic "lmcconfig"
-can select them all.\}
 .Pp
 .Ic "lmcconfig lmc0 -D"
 .br
@@ -285,7 +194,6 @@ written to file
 .Em Caution :
 when things go very wrong, a torrent of debugging messages
 can swamp the console and bring a machine to its knees.
-.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
 .\"
 .Ss Patching Ethernet Drivers
 .\"
@@ -302,63 +210,21 @@ Finally, one can patch the Ethernet drivers to ignore
 .Nm
 cards.
 In any case, you must make a custom kernel.
-.if \n[fbsd] \{\
-Chapter 9 of the FreeBSD Handbook \}
-.if \n[nbsd] \{\
-Chapter 6 of the NetBSD Guide \}
-.if \n[obsd] \{\
-Chapter 5 of the OpenBSD FAQ \}
-.if \n[bsdi] \{\
-"Rebuilding the Kernel" in the BSD/OS Administrator's Guide \}
+Chapter 9 of the FreeBSD Handbook
 explains how to configure and build custom kernels.
 .Pp
 To patch an Ethernet device driver:
-.if \n[fbsd] \{\
 .br
 add this line to
 .Ic "tulip_pci_probe()"
 in
-.Ic "sys/pci/if_de.c" : \}
-.if (\n[nbsd] : \n[obsd]) \{\
+.Ic "sys/pci/if_de.c" :
 .br
-add this line to
-.Ic "tulip_pci_probe()"
-in
-.Ic "/sys/dev/pci/if_de.c" :
-.br
-add this line to
-.Ic "dc_pci_match()   "
-in
-.Ic "/sys/dev/pci/if_dc_pci.c" :
-.if \n[nbsd] \{\
-.br
-add this line to
-.Ic "tlp_pci_match()  "
-in
-.Ic "/sys/dev/pci/if_tlp_pci.c" : \} \}
-.if \n[bsdi] \{\
-.br
-add this line to
-.Ic "tulip_pci_match()"
-in
-.Ic "/sys/i386/pci/if_de.c" : \}
-.br
-.if \n[fbsd] \{\
 .Ic "if (pci_get_subvendor(dev)==0x1376)"
 .br
 .Ic "   return ENXIO;"
 .br
-This driver should already be patched. \}
-.if (\n[nbsd] : \n[obsd]) \{\
-.Ic "if ((pci_conf_read(pa->pa_pc, pa->pa_tag, 0x2C) & 0xFFFF)==0x1376)"
-.br
-.Ic "	return 0;"
-.br \}
-.if \n[bsdi] \{\
-.Ic "if ((pci_inl(pa, 0x2C) & 0xFFFF)==0x1376)"
-.br
-.Ic "	return 0;"
-.br \}
+This driver should already be patched.
 Make sure you patch the correct routine: many Ethernet drivers
 contain probe/match routines for several operating systems inside
 .Ic "#ifdefs" .
@@ -366,39 +232,9 @@ contain probe/match routines for several operating systems inside
 .Ic "/var/log/messages"
 should contain a boot message like this:
 .br
-.if \n[fbsd] \{\
 .Ic "freebsd-4: pci0: <unknown card> (vendor=0x1011, dev=0x0009) at 18.0 irq 9"
 .br
-.Ic "freebsd-5: pci0: <network, ethernet> at device 18.0 (no driver attached)" \}
-.if \n[nbsd] \{\
-.Ic "vendor 0x1011 product 0x0009 (ethernet network, revision 0x22)
-.br
-.Ic "at pci0 dev 18 function 0 not configured" \}
-.if \n[obsd] \{\
-.Ic "DEC 21140 rev 0x22 at pci0 dev 18 function 0 not configured" \}
-.if \n[bsdi] \{\
-.Ic "lmc0 at pci0 iobase 0xe880 irq 10 maddr 0xfebeff00-0xfebeff7f" \}
-.if (\n[nbsd] : \n[obsd] : \n[bsdi]) \{\
-.Pp
-If the boot message looks like this:
-.br
-.if \n[obsd] \{\
-.Ic "de1 at pci0 dev 18 function 0 DEC 21140 rev 0x22:"
-.br
-.Ic "de1: can't read ENET ROM (why=-4) (76130600000 ..."
-.br
-.Ic "de1: 21140A [10-100Mb/s] pass 2.2 address unknown"
-.br \}
-.if \n[nbsd] \{\
-.Ic "tlp0 at pci0 dev 18 function 0: DECchip 21140A Ethernet, pass 2.2"
-.br
-.Ic "tlp0: sorry, unable to handle your board"
-.br \}
-.if \n[bsdi] \{\
-.Ic "stray interrupt on irq 9"
-.br \}
-then the Ethernet driver needs patching. \} \}
-.if \n[fbsd] \{\
+.Ic "freebsd-5: pci0: <network, ethernet> at device 18.0 (no driver attached)"
 .\"
 .Ss FreeBSD Configuration
 .\"
@@ -446,8 +282,7 @@ The driver can send and receive raw IP packets even if neither
 SPPP nor Netgraph are configured into the kernel.
 Netgraph and SPPP can both be enabled; netgraph will be used if the
 .Em "rawdata"
-hook is connected. \}
-.if \n[fbsd] \{\
+hook is connected.
 .\"
 .Ss FreeBSD Kernel Loadable Modules ("KLD" mechanism)
 .\"
@@ -517,8 +352,7 @@ To load this module at boot time, add
 .br
 to
 .Ic "/boot/loader.conf"; see
-.Xr loader.conf 5 . \}
-.if \n[fbsd] \{\
+.Xr loader.conf 5 .
 .\"
 .Ss FreeBSD Operation
 .\"
@@ -594,362 +428,9 @@ Activate a RAWIP link using Netgraph with:
 .br
 If the driver is kldunloaded and then kldloaded, reconnect hooks by:
 .br
-.Ic "ngctl connect lmc0: ng0: rawdata inet" \}
-.if (\n[nbsd] : \n[obsd]) \{\
+.Ic "ngctl connect lmc0: ng0: rawdata inet"
 .\"
-.if \n[nbsd] .Ss NetBSD Configuration
-.if \n[obsd] .Ss OpenBSD Configuration
 .\"
-Put the source files in
-.Ic "/sys/dev/pci/" .
-.Pp
-Add the following lines to
-.Ic "/sys/dev/pci/files.pci" :
-.br
-.Ic "device   lmc: ifnet, sppp"
-.if \n[obsd] .Ic ", ifmedia"
-.br
-.Ic "attach   lmc at pci"
-.br
-.Ic "file     dev/pci/if_lmc.c   lmc"
-.br
-Put them near other
-.Ic "dev/pci/if_*.c"
-entries.
-.Pp
-In file
-.Ic "/sys/conf/files" ,
-append
-.Ic "needs-count"
-to the end of this line:
-.br
-.Ic "file   net/if_spppsubr.c   sppp   needs-count"
-.Pp
-To wire this driver into your kernel,
-add the following line to
-.Ic "/sys/arch/ARCH/conf/YOURKERNEL" :
-.br
-.Ic "lmc* at pci?   # LMC/SBE WAN cards"
-.br
-Put this line near lines for other network devices.
-To load the driver into a running kernel, see LKM below.
-.Pp
-To wire SPPP into your kernel:
-.br
-.Ic "pseudo-device sppp   1   # wired into the kernel"
-.br
-The driver can send and receive raw IP packets even if
-SPPP is not configured into the kernel. \}
-.if (\n[nbsd] : \n[obsd]) \{\
-.\"
-.if \n[nbsd] .Ss NetBSD Loadable Kernel Modules ("LKM" mechanism)
-.if \n[obsd] .Ss OpenBSD Loadable Kernel Modules ("LKM" mechanism)
-.\"
-Add the following line to
-.Ic "/sys/arch/ARCH/conf/YOURKERNEL" :
-.br
-.Ic "options   LKM   # loadable kernel modules"
-.Pp
-Install symbolic links from the kernel compilation directory
-to the source directory:
-.br
-.Ic "ln -s /sys/dev/pci/if_lmc.c"
-.br
-.Ic "ln -s /sys/dev/pci/if_lmc.h"
-.Pp
-While standing in
-.Ic "/sys/arch/ARCH/compile/YOURKENEL" :
-.br
-.Ic "make if_lmc.o"
-compiles the driver module.
-.br
-.Ic "modload if_lmc.o"
-loads the driver and starts it.
-.Pp
-while standing anywhere (as root):
-.br
-.Ic "modunload -n if_lmc.o"
-stops the driver and unloads it.
-.br
-.Ic "modstat"
-displays status of loaded modules.
-.Pp
-When the driver module is loaded, if you get a message like this:
-.br
-.Ic lmc1: bus_space_map failed; error 35
-.br
-then the Ethernet device driver needs patching.
-.Pp
-.Ic "securelevel"
-must be 0 to load modules; see
-.Xr init 8 .
-.br
-One way is to include in
-.Ic "/sys/arch/ARCH/conf/YOURKERNEL" :
-.br
-.Ic "options INSECURE	# disable kernel security levels"
-.if \n[obsd] \{\
-.Pp
-LKM only works for PCI bus 0 on an i386 machine. \} \}
-.\"
-.if \n[nbsd] .Ss NetBSD Operation
-.if \n[obsd] .Ss OpenBSD Operation
-.\"
-.if (\n[nbsd] : \n[obsd]) \{\
-Activate a PPP link using SPPP with:
-.br
-.Ic "lmcconfig lmc0 -XYZ"
-.br
-.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
-.Pp
-Activate a Cisco-HDLC link using SPPP with:
-.br
-.Ic "lmcconfig lmc0 -XYz"
-.br
-.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
-.Pp
-Activate a RAWIP link with:
-.br
-.Ic "lmcconfig lmc0 -x"
-.br
-.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2" \}
-.if \n[bsdi] \{\
-.\"
-.Ss BSD/OS Configuration
-.\"
-Put the source files in
-.Ic "/sys/i386/pci/" .
-.Pp
-Add the following lines to
-.Ic "/sys/i386/conf/files.i386" :
-.br
-.Ic "device	lmc at pci: pcisubr, p2p"
-.br
-.Ic "file		i386/pci/if_lmc.c	lmc	device-driver"
-.br
-Put them near other
-.Ic "i386/pci/if_*.c entries" .
-.Pp
-Add the following lines to
-.Ic "/sys/i386/conf/YOURKERNEL" :
-.br
-.Ic "lmc*		at pci?	# LMC/SBE WAN cards"
-.br
-Put the above line before any Ethernet devices.
-.br
-.Ic "options	PPP		# include PPP code"
-.br
-.Ic "options	FR		# include Frame-Relay code"
-.br
-.Ic "options	CISCO_HDLC	# include Cisco-HDLC code"
-.br \}
-.if \n[bsdi] \{\
-.\"
-.Ss BSD/OS Operation
-.\"
-To activate a PPP link, create file
-.Ic "/etc/ppp.sys"
-containing:
-.br
-.Ic "Plmc0:	:device=lmc0:\e"
-.br
-.Ic "		:local-addr=10.0.0.1:\e"
-.br
-.Ic "		:remote-addr=10.0.0.2:\e"
-.br
-.Ic "		:immediate:dialout:direct:\e"
-.br
-.Ic "		:-pfc:-acfc:-tcpc:"
-.br
-Then run
-.Xr ppp 8 :
-.Ic "ppp -bd Plmc0" .
-.br
-Add
-.Ic "-X debug-all"
-to watch protocol events happen.
-.Pp
-Activate a Cisco-HDLC link by setting LINKTYPE with ifconfig:
-.br
-.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2 linktype chdlc"
-.Pp
-Activate a Fame-Relay link with:
-.br
-.Ic "ifconfig lmc0 linktype fr"
-.br
-By default the port is a DTE; add the next line to make it a DCE:
-.br
-.Ic "frconfig lmc0 type dce"
-.br
-.Ic "frconfig lmc0 lmi ansi"
-.br
-.Ic "frconfig lmc0 dlci 500 10.0.0.2"
-.br
-.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
-.Pp
-Activate a RAWIP link with:
-.br
-.Ic "ifconfig lmc0 down -remove"
-.br
-.Ic "lmcconfig lmc0 -x"
-.br
-.Ic "ifconfig lmc0 10.0.0.1 10.0.0.2"
-.br \}
-.if \n[linux] \{\
-.\"
-.Ss Linux Configuration
-.\"
-The source files are in
-.Ic "/usr/src/linux/drivers/net/wan/lmc/" .
-.Pp
-Configure the driver and line protocol into your kernel with
-.Ic make menuconfig ,
-navigating through the menus, select this device driver and the
-generic HDLC layer as loadable kernel modules or wired into the kernel:
-.br
-.Ic "Device Drivers --->"
-.br
-.Ic "Networking Support --->"
-.br
-.Ic "Wan interfaces --->"
-.br
-.Ic "<M> SBE Inc. LMC1000/1200/5200/5245 support"
-.br
-.Ic "<M> Generic HDLC layer"
-.br
-.Ic "<M>\|"
-configures code as a module and
-.Ic "<*>"
-wires it into the kernel.
-.Pp
-Selecting the Generic HDLC layer selects all available protocols.
-Raw, Cisco and Frame-Relay are in the generic-hdlc module;
-PPP is a separate module.
-.br
-.Ic "[*]  Raw HDLC support"
-.br
-.Ic "[*]  Raw HDLC Ethernet device support"
-.br
-.Ic "[*]  Cisco HDLC support"
-.br
-.Ic "[*]  Frame Relay support"
-.br
-.Ic "[*]  Synchronous Point-to-Point Protocol (PPP) support"
-.br
-.Ic "[*]\|"
-includes support for a protocol and
-.Ic "[\0]"
-excludes it.
-.Pp
-The driver can send and receive raw IP packets even if
-Generic-HDLC is not configured into the kernel.
-The device name will be 
-.Ic "hdlc<n>"
-if the generic HDLC code is used, or
-.Ic "lmc<n>"
-otherwise. \}
-.if \n[linux] \{\
-.\"
-.Ss Linux Loadable Kernel Modules
-.\"
-If configured as above, the kernel will recognize an LMC/SBE card
-when it boots and load this driver and the Generic-HDLC code.
-Messages similar to the following will appear in /var/log/messages:
-.br
-.Ic "Cronyx Ltd, Synchronous PPP and CISCO HDLC (c) 1994"
-.br
-.Ic "Linux port (c) 1998 Building Number Three Ltd & Jan 'Yenya' Kasprzak."
-.br
-.Ic "HDLC support module revision 1.16"
-.br
-.Ic "hdlc0: <SBE/LMC T3 Card> io 0xe880/9 mem 0xfebeff00/25"
-.Ic "rom 0xfeb40000/14 irq 11 pci 0000:00:13.0"
-.br
-The driver registers itself under the name
-.Ic "hdlc<n>"
-rather than
-.Ic "lmc<n>"
-because the generic-HDLC code requires it.
-.Pp
-When the card and line protocol are configured these messages will appear:
-.br
-.Ic "hdlc0: PCI rev 2.2, MII rev 3.5,
-.Ic "IEEE addr 00:60:99:00:13:c4, TXC03401 rev B"
-.br
-.Ic "hdlc0: Driver rev 2004.6.17, Options IO_CSR LITTLE_END"
-.br
-.Ic "hdlc0: protocol up"
-.Pp
-While standing in /usr/src/linux/drivers/net/wan/lmc:
-.br
-.Ic "make -C /usr/src/linux SUBDIRS=/usr/src/linux/drivers/net/wan/lmc \e"
-.br
-.Ic "  modules modules-install "
-compiles and installs the driver.
-.br
-.Ic "modprobe if_lmc "
-loads the module into the kernel.
-.br
-.Ic "modprobe -r if_lmc "
-removes the module from the kernel.
-.br
-.Ic "lsmod "
-displays status of loaded modules.
-.br \}
-.if \n[linux] \{\
-.\"
-.Ss Linux Operation
-.\"
-The program
-.Ic "sethdlc"
-configures the generic-HDLC code.
-.br
-.Ic "sethdlc hdlc0 (or pvc0 for frame relay)"
-.br
-displays the current settings of a given device.
-Note that
-.Ic "sethdlc"
-must be run before
-.Ic "ifconfig" .
-.Ic "Sethdlc"
-and the generic-hdlc kernel code are documented in
-.Ic "/usr/src/linux/Documentation/networking/generic-hdlc.txt"
-and at
-.Ic "http://hq.pm.waw.pl/hdlc" 
-.Pp
-Activate a PPP link with:
-.br
-.Ic "sethdlc hdlc0 ppp"
-.br
-.Ic "ifconfig hdlc0 10.0.0.1 pointopoint 10.0.0.2"
-.Pp
-Activate a Cisco-HDLC link with:
-.br
-.Ic "sethdlc hdlc0 cisco"
-.br
-.Ic "ifconfig hdlc0 10.0.0.1 pointopoint 10.0.0.2"
-.Pp
-Activate a Frame-Relay DTE link with:
-.br
-.Ic "sethdlc hdlc0 fr lmi ansi [dce]"
-.br
-.Ic "sethdlc hdlc0 create 500"
-.br
-.Ic "ifconfig hdlc0 up"
-.br
-.Ic "ifconfig pvc0 10.0.0.1 pointopoint 10.0.0.2"
-.br
-This is
-.Em "ONE"
-possible Frame Relay configuration; there are many.
-Adding "dce" after "ansi" configures it as a DCE (switch).
-.Pp
-Activate a RAWIP link with:
-.br
-.Ic "sethdlc hdlc0 hdlc"
-.br
-.Ic "ifconfig hdlc0 10.0.0.1 pointopoint 10.0.0.2"
-.br \}
 .\"
 .Sh TESTING
 .\"
@@ -959,10 +440,6 @@ Testing with loopbacks requires only one card.
 Packets can be looped back at many points: in the PCI chip,
 in the modem chips, through a loopback plug, in the
 local external equipment, or at the far end of a circuit.
-.if \n[linux] \{\
-Testing with loopbacks does not work on Linux because the
-kernel detects that an outgoing packet is destined for "self"
-and loops it back without ever giving it to the hardware. \}
 .Pp
 Activate the card with ifconfig:
 .br
@@ -1119,17 +596,10 @@ This can be changed with
 .br
 .Ic "ifconfig lmc0 mtu 2000" .
 .br
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
 SPPP enforces an MTU of (128..far-end-MRU) for PPP
-and 1500 bytes for Cisco-HDLC. \}
-.if \n[bsdi] \{\
-P2P enforces an MTU of 1500 bytes for PPP and Cisco-HDLC
-and 4000 bytes for Frame Relay. \}
-.if \n[linux] \{\
-Generic-HDLC enforces an MTU range of (68..1500) bytes. \}
+and 1500 bytes for Cisco-HDLC.
 RAWIP sets the default MTU to 4032 bytes,
 but it can be changed to anything.
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
 .\"
 .Ss ALTQ - Alternate Output Queue Disciplines
 .\"
@@ -1180,8 +650,7 @@ containing:
 .br
 .Ic "filter lmc0 c 10.0.0.1 0 10.0.0.2 12347 6"
 .br
-.Ed \}
-.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
+.Ed
 .\"
 .Ss BPF - Berkeley Packet Filter
 .\"
@@ -1218,8 +687,7 @@ The output from tcpdump should look like this:
 .Ic "03:54:35.981423 10.0.0.1 > 10.0.0.2: icmp: echo reply"
 .br
 Line protocol control packets will appear among the 
-ping packets occasionally. \}
-.if (\n[fbsd] : \n[linux]) \{\
+ping packets occasionally.
 .\"
 .Ss Device Polling
 .\"
@@ -1227,17 +695,6 @@ A T3 receiver can generate over 100K interrupts per second,
 This can cause a system to "live-lock": spend all of its
 time servicing interrupts.
 Linux and FreeBSD have polling mechanisms to prevent live-lock.
-.if \n[linux] \{\
-.Pp
-Linux's mechanism disables a card's interrupt when it interrupts,
-calls the card's interrupt service routine with kernel interrupts
-enabled, and then reenables the card's interrupt.
-The driver is permitted to process a limited number of packets each
-time it is called by the kernel.
-Card interrupts are left disabled if more packets arrive than are
-permitted to be processed, which in extreme cases will result in
-packets being dropped in hardware at no cost to software. \}
-.if \n[fbsd] \{\
 .Pp
 FreeBSD's mechanism permanently disables interrupts from the card
 and instead the card's interrupt service routine is called each
@@ -1256,7 +713,7 @@ The kernel must be built with polling enabled:
 .br
 .Ic "options DEVICE_POLLING"
 .br
-.Ic "options HZ=1000" \} \}
+.Ic "options HZ=1000"
 .\"
 .Ss SNMP: Simple Network Management Protocol
 .\"
@@ -1274,8 +731,7 @@ information sufficient for an SNMP Agent to create MIBs for:
 An SNMP Agent is a user program, not a kernel function.
 Agents can retrieve configuration and status information
 by using
-.if \n[fbsd] \{\
-Netgraph control messages or \}
+Netgraph control messages or
 .Xr ioctl 2
 system calls.
 User programs should poll
@@ -1421,43 +877,23 @@ Thus, cable length does not affect data/clock timing.
 .\"
 .Xr tcpdump 1 ,
 .Xr ioctl 2 ,
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
-.Xr altq 4 , \}
-.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
-.Xr bpf 4 , \}
-.if \n[fbsd] \{\
+.Xr altq 4 ,
+.Xr bpf 4 ,
 .Xr kld 4 ,
 .Xr loader.conf 5 ,
-.Xr netgraph 4 , \}
-.if \n[bsdi] \{\
-.Xr p2p 4 , \}
-.if \n[fbsd] \{\
-.Xr polling 4 , \}
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
+.Xr netgraph 4 ,
+.Xr polling 4 ,
 .Xr sppp 4 ,
-.Xr altqd 8 , \}
-.if \n[bsdi] \{\
-.Xr frconfig 8 , \}
+.Xr altqd 8 ,
 .Xr ifconfig 8 ,
-.if (\n[fbsd] : \n[nbsd] : \n[obsd]) \{\
-.Xr init 8 , \}
-.if (\n[nbsd] : \n[obsd]) \{\
-.Xr lkm 8 , \}
-.if \n[fbsd] \{\
+.Xr init 8 ,
 .Xr mpd 8 ,
-.Xr ngctl 8 , \}
+.Xr ngctl 8 ,
 .Xr ping 8 ,
-.if \n[bsdi] \{\
-.Xr ppp 8 , \}
 .Xr lmcconfig 8 ,
-.if (\n[fbsd] : \n[nbsd] : \n[obsd] : \n[bsdi]) \{\
-.Xr ifnet 9 . \}
-.if \n[fbsd] \{\
+.Xr ifnet 9 .
 .Pp
-.Pa /usr/ports/net/mpd . \}
-.if \n[linux] \{\
-.Pp
-.Pa http://hq.pm.waw.pl/hdlc . \}
+.Pa /usr/ports/net/mpd .
 .Pp
 .Pa http://www.sbei.com .
 .\"
