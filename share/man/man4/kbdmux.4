@@ -3,19 +3,21 @@
 .\"
 .Dd July 12, 2005
 .Os
-.Dt kbdmux 4
+.Dt KBDMUX 4
 .Sh NAME
 .Nm kbdmux
-.Nd keyboard multiplexer
+.Nd "keyboard multiplexer"
 .Sh SYNOPSIS
-.Cd device kbdmux
+.Cd "device kbdmux"
 .Sh DESCRIPTION
 The
 .Nm
 keyboard driver provides support for basic keyboard multiplexing.
 It is built around the idea of a
-.Dq super keyboard .
+.Dq "super keyboard" .
+The
 .Nm
+driver
 acts as a master keyboard consuming input from all slave keyboards attached to
 it.
 .Pp
