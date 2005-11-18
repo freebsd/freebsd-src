@@ -33,7 +33,7 @@
 .Sh NAME
 .Nm VFS_LOCK_GIANT ,
 .Nm VFS_UNLOCK_GIANT
-.Nd "Conditionally lock and unlock Giant around entry into VFS"
+.Nd "conditionally lock and unlock Giant around entry into VFS"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -44,16 +44,18 @@
 .Sh DESCRIPTION
 .Fn VFS_LOCK_GIANT
 will conditionally acquire the
-.Dv Giant
+.Va Giant
 lock if the file system referenced by
 .Fa mp
-is marked as MPSAFE or not, returning a flag indicating whether Giant was
+is marked as MPSAFE or not, returning a flag indicating whether
+.Va Giant
+was
 set, which may later be passed to
 .Fn VFS_UNLOCK_GIANT .
 The value of
 .Fa mp
 will typically be derived from the mount pointer in a
-.Xr vnode
+.Vt vnode
 on which a VFS operation will be performed.
 .Pp
 .Fn VFS_UNLOCK_GIANT
@@ -63,7 +65,7 @@ lock if the passed
 .Fa vfslocked
 argument is non-zero.
 It is expected that the argument will be derived from the return values of
-.Vn VFS_LOCK_GIANT
+.Fn VFS_LOCK_GIANT
 or
 .Xr NDHASGIANT 9 .
 .Sh RETURN VALUES
@@ -76,6 +78,7 @@ was acquired.
 .Xr NDHASGIANT 9 ,
 .Xr vnode 9
 .Sh AUTHORS
+.An -nosplit
 MPSAFE VFS support for
 .Fx
 was implemented by
@@ -84,7 +87,6 @@ was implemented by
 This manual page was written by
 .An Robert Watson .
 .Sh BUGS
-.Pp
 Non-MPSAFE file systems exist, requiring callers conditional locking and
 unlocking of
 .Va Giant .
