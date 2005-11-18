@@ -78,11 +78,11 @@ The
 .Nm
 utility manipulates the address mapping table
 used by the Neighbor Discovery Protocol (NDP).
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Dump the currently existing NDP entries.
 The following information will be printed:
-.Bl -tag -width NeighborXX
+.Bl -tag -width "Neighbor"
 .It Neighbor
 IPv6 address of the neighbor.
 .It Linklayer Address
@@ -173,8 +173,7 @@ before
 .Fl foo
 in this case.
 .\"
-.Pp
-.Bl -tag -width Ds -compact
+.Bl -tag -width indent
 .It Ic nud
 Turn on or off NUD (Neighbor Unreachability Detection) on the
 interface.
@@ -197,9 +196,7 @@ For more details about the entire algorithm of source address
 selection, see the
 .Pa IMPLEMENTATION
 file supplied with the KAME kit.
-.It Xo
-.Ic disabled
-.Xc
+.It Ic disabled
 Disable IPv6 operation on the interface.
 When disabled, the interface discards any IPv6 packets
 received on or being sent to the interface.
@@ -210,17 +207,11 @@ a certain failure of Duplicate Address Detection.
 While the flag can be set or cleared by hand with the
 .Nm
 command, it is not generally advisable to modify this flag manually.
-.It Xo
-.Ic basereachable=(number)
-.Xc
+.It Ic basereachable Ns Li = Ns Pq Ar number
 Specify the BaseReachbleTimer on the interface in millisecond.
-.It Xo
-.Ic retrans=(number)
-.Xc
+.It Ic retrans Ns Li = Ns Pq Ar number
 Specify the RetransTimer on the interface in millisecond.
-.It Xo
-.Ic curhlim=(number)
-.Xc
+.It Ic curhlim Ns Li = Ns Pq Ar number
 Specify the Cur Hop Limit on the interface.
 .El
 .It Fl n

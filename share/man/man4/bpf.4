@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 1996
+.Dd August 23, 2005
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -258,8 +258,13 @@ for an explanation of the filter language.
 .It Dv BIOCSETWF
 .Pq Li "struct bpf_program"
 Sets the write filter program used by the kernel to control what type of
-packets can be written to the interface. See the BIOCSETF command for more
-information on the bpf filter program.
+packets can be written to the interface.
+See the
+.Dv BIOCSETF
+command for more
+information on the
+.Nm
+filter program.
 .It Dv BIOCVERSION
 .Pq Li "struct bpf_version"
 Returns the major and minor version numbers of the filter language currently
@@ -307,7 +312,10 @@ Set to one to see packets originating locally and remotely on the interface.
 This flag is initialized to one by
 default.
 .It Dv BIOCLOCK
-Set the locked flag on the bpf descriptor. This prevents the execution of
+Set the locked flag on the
+.Nm
+descriptor.
+This prevents the execution of
 ioctl commands which could change the underlying operating parameters of
 the device.
 .El
