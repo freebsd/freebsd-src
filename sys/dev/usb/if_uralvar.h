@@ -90,6 +90,8 @@ struct ural_softc {
 	uint32_t			asic_rev;
 	uint8_t				rf_rev;
 
+	usbd_xfer_handle		amrr_xfer;
+
 	usbd_pipe_handle		sc_rx_pipeh;
 	usbd_pipe_handle		sc_tx_pipeh;
 
@@ -107,9 +109,11 @@ struct ural_softc {
 	struct mtx			sc_mtx;
 
 	struct callout			scan_ch;
+	struct callout			amrr_ch;
 
 	int				sc_tx_timer;
 
+	uint16_t			sta[11];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[14];
 
