@@ -34,14 +34,6 @@
 #ifndef _NETINET_IP_OPTIONS_H_
 #define	_NETINET_IP_OPTIONS_H_
 
-/*
- * Structure stored in mbuf in inpcb.ip_options
- * and passed to ip_output when ip options are in use.
- * The actual length of the options (including ipopt_dst)
- * is in m_len.
- */
-#define MAX_IPOPTLEN    40
-
 struct ipoptrt {
         struct  in_addr dst;                    /* final destination */
         char    nop;                            /* one NOP to align */
@@ -53,11 +45,6 @@ struct ipopt_tag {
 	struct	m_tag tag;			/* m_tag */
 	int	ip_nhops;
 	struct	ipoptrt ip_srcrt;
-};
-
-struct ipoption {
-	struct	in_addr ipopt_dst;	/* first-hop dst if source routed */
-	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
 extern	int	ip_doopts;		/* process or ignore IP options */
