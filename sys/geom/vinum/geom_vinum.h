@@ -33,6 +33,7 @@
 
 /* geom_vinum_drive.c */
 void	gv_config_new_drive(struct gv_drive *);
+void	gv_drive_modify(struct gv_drive *);
 void	gv_save_config_all(struct gv_softc *);
 void	gv_save_config(struct g_consumer *, struct gv_drive *,
 	    struct gv_softc *);
@@ -48,8 +49,16 @@ void	gv_ls(struct g_geom *, struct gctl_req *, struct sbuf *);
 void	gv_lv(struct g_geom *, struct gctl_req *, struct sbuf *);
 void	gv_list(struct g_geom *, struct gctl_req *);
 
+/* geom_vinum_move.c */
+void	gv_move(struct g_geom *, struct gctl_req *);
+
+/* geom_vinum_rename.c */
+void	gv_rename(struct g_geom *, struct gctl_req *);
+
 /* geom_vinum_rm.c */
 void	gv_remove(struct g_geom *, struct gctl_req *);
+int	gv_rm_sd(struct gv_softc *sc, struct gctl_req *req,
+	    struct gv_sd *s, int flags);
 
 /* geom_vinum_state.c */
 int	gv_sdstatemap(struct gv_plex *);
