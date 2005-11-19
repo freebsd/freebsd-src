@@ -1,6 +1,10 @@
 /*
- *  Copyright (c) 2004 Lukas Ertl
+ *  Copyright (c) 2004 Lukas Ertl, 2005 Chris Jones
  *  All rights reserved.
+ * 
+ * Portions of this software were developed for the FreeBSD Project 
+ * by Chris Jones thanks to the support of Google's Summer of Code 
+ * program and mentoring by Lukas Ertl. 
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,8 +57,10 @@
 void	gvinum_create(int, char **);
 void	gvinum_help(void);
 void	gvinum_list(int, char **);
+void	gvinum_move(int, char **);
 void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
+void	gvinum_rename(int, char **);
 void	gvinum_rm(int, char **);
 void	gvinum_saveconfig(void);
 void	gvinum_setstate(int, char **);
@@ -320,75 +326,40 @@ void
 gvinum_help(void)
 {
 	printf("COMMANDS\n"
-	    "attach plex volume [rename]\n"
-	    "attach subdisk plex [offset] [rename]\n"
-	    "        Attach a plex to a volume, or a subdisk to a plex.\n"
-	    "checkparity plex [-f] [-v]\n"
-	    "        Check the parity blocks of a RAID-4 or RAID-5 plex.\n"
-	    "concat [-f] [-n name] [-v] drives\n"
-	    "        Create a concatenated volume from the specified drives.\n"
-	    "create [-f] description-file\n"
-	    "        Create a volume as described in description-file.\n"
-	    "detach [-f] [plex | subdisk]\n"
-	    "        Detach a plex or subdisk from the volume or plex to"
-	    "which it is\n"
-	    "        attached.\n"
-	    "dumpconfig [drive ...]\n"
-	    "        List the configuration information stored on the"
-	    " specified\n"
-	    "        drives, or all drives in the system if no drive names"
-	    " are speci-\n"
-	    "        fied.\n"
-	    "info [-v] [-V]\n"
-	    "        List information about volume manager state.\n"
-	    "init [-S size] [-w] plex | subdisk\n"
-	    "        Initialize the contents of a subdisk or all the subdisks"
-	    " of a\n"
-	    "        plex to all zeros.\n"
-	    "label volume\n"
-	    "        Create a volume label.\n"
-	    "l | list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	    "checkparity [-f] plex\n"
+	    "        Check the parity blocks of a RAID-5 plex.\n"
+	    "create description-file\n"
+	    "        Create as per description-file or open editor.\n"
+	    "l | list [-r] [-v] [-V] [volume | plex | subdisk]\n"
 	    "        List information about specified objects.\n"
-	    "ld [-r] [-s] [-v] [-V] [volume]\n"
+	    "ld [-r] [-v] [-V] [volume]\n"
 	    "        List information about drives.\n"
-	    "ls [-r] [-s] [-v] [-V] [subdisk]\n"
+	    "ls [-r] [-v] [-V] [subdisk]\n"
 	    "        List information about subdisks.\n"
-	    "lp [-r] [-s] [-v] [-V] [plex]\n"
+	    "lp [-r] [-v] [-V] [plex]\n"
 	    "        List information about plexes.\n"
-	    "lv [-r] [-s] [-v] [-V] [volume]\n"
+	    "lv [-r] [-v] [-V] [volume]\n"
 	    "        List information about volumes.\n"
-	    "mirror [-f] [-n name] [-s] [-v] drives\n"
-	    "        Create a mirrored volume from the specified drives.\n"
 	    "move | mv -f drive object ...\n"
 	    "        Move the object(s) to the specified drive.\n"
-	    "printconfig [file]\n"
-	    "        Write a copy of the current configuration to file.\n"
 	    "quit    Exit the vinum program when running in interactive mode."
 	    "  Nor-\n"
 	    "        mally this would be done by entering the EOF character.\n"
 	    "rename [-r] [drive | subdisk | plex | volume] newname\n"
 	    "        Change the name of the specified object.\n"
-	    "rebuildparity plex [-f] [-v] [-V]\n"
-	    "        Rebuild the parity blocks of a RAID-4 or RAID-5 plex.\n"
-	    "resetconfig\n"
-	    "        Reset the complete vinum configuration.\n"
-	    "rm [-f] [-r] volume | plex | subdisk\n"
+	    "rebuildparity plex [-f]\n"
+	    "        Rebuild the parity blocks of a RAID-5 plex.\n"
+	    "rm [-r] volume | plex | subdisk | drive\n"
 	    "        Remove an object.\n"
 	    "saveconfig\n"
 	    "        Save vinum configuration to disk after configuration"
 	    " failures.\n"
-	    "setstate state [volume | plex | subdisk | drive]\n"
+	    "setstate [-f] state [volume | plex | subdisk | drive]\n"
 	    "        Set state without influencing other objects, for"
 	    " diagnostic pur-\n"
 	    "        poses only.\n"
-	    "start [-i interval] [-S size] [-w] volume | plex | subdisk\n"
+	    "start [-S size] volume | plex | subdisk\n"
 	    "        Allow the system to access the objects.\n"
-	    "stop [-f] [volume | plex | subdisk]\n"
-	    "        Terminate access to the objects, or stop vinum if no"
-	    " parameters\n"
-	    "        are specified.\n"
-	    "stripe [-f] [-n name] [-v] drives\n"
-	    "        Create a striped volume from the specified drives.\n"
 	);
 
 	return;
@@ -514,6 +485,61 @@ gvinum_list(int argc, char **argv)
 	return;
 }
 
+/* Note that move is currently of form '[-r] target object [...]' */
+void
+gvinum_move(int argc, char **argv)
+{
+	struct gctl_req *req;
+	const char *errstr;
+	char buf[20];
+	int flags, i, j;
+
+	flags = 0;
+	if (argc) {
+		optreset = 1;
+		optind = 1;
+		while ((j = getopt(argc, argv, "f")) != -1) {
+			switch (j) {
+			case 'f':
+				flags |= GV_FLAG_F;
+				break;
+			case '?':
+			default:
+				return;
+			}
+		}
+		argc -= optind;
+		argv += optind;
+	}
+
+	switch (argc) {
+		case 0:
+			warnx("no destination or object(s) to move specified");
+			return;
+		case 1:
+			warnx("no object(s) to move specified");
+			return;
+		default:
+			break;
+	}
+
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "move");
+	gctl_ro_param(req, "argc", sizeof(int), &argc);
+	gctl_ro_param(req, "flags", sizeof(int), &flags);
+	gctl_ro_param(req, "destination", -1, argv[0]);
+	for (i = 1; i < argc; i++) {
+		snprintf(buf, sizeof(buf), "argv%d", i);
+		gctl_ro_param(req, buf, -1, argv[i]);
+	}
+	errstr = gctl_issue(req); 
+	if (errstr != NULL)
+		warnx("can't move object(s):  %s", errstr);
+	gctl_free(req);
+	return;
+}
+
 void
 gvinum_printconfig(int argc, char **argv)
 {
@@ -601,6 +627,59 @@ gvinum_parityop(int argc, char **argv, int rebuild)
 		else
 			printf("%s has correct parity\n", argv[0]);
 	}
+}
+
+void
+gvinum_rename(int argc, char **argv)
+{
+	struct gctl_req *req;
+	const char *errstr;
+	int flags, j;
+
+	flags = 0;
+
+	if (argc) {
+		optreset = 1;
+		optind = 1;
+		while ((j = getopt(argc, argv, "r")) != -1) {
+			switch (j) {
+			case 'r':
+				flags |= GV_FLAG_R;
+				break;
+			case '?':
+			default:
+				return;
+			}
+		}
+		argc -= optind;
+		argv += optind;
+	}
+
+	switch (argc) {
+		case 0:
+			warnx("no object to rename specified");
+			return;
+		case 1:
+			warnx("no new name specified");
+			return;
+		case 2:
+			break;
+		default:
+			warnx("more than one new name specified");
+			return;
+	}
+
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "rename");
+	gctl_ro_param(req, "flags", sizeof(int), &flags);
+	gctl_ro_param(req, "object", -1, argv[0]);
+	gctl_ro_param(req, "newname", -1, argv[1]);
+	errstr = gctl_issue(req); 
+	if (errstr != NULL)
+		warnx("can't rename object:  %s", errstr);
+	gctl_free(req);
+	return;
 }
 
 void
@@ -759,8 +838,14 @@ parseline(int argc, char **argv)
 		gvinum_list(argc, argv);
 	else if (!strcmp(argv[0], "lv"))
 		gvinum_list(argc, argv);
+	else if (!strcmp(argv[0], "move"))
+		gvinum_move(argc, argv);
+	else if (!strcmp(argv[0], "mv"))
+		gvinum_move(argc, argv);
 	else if (!strcmp(argv[0], "printconfig"))
 		gvinum_printconfig(argc, argv);
+	else if (!strcmp(argv[0], "rename"))
+		gvinum_rename(argc, argv);
 	else if (!strcmp(argv[0], "rm"))
 		gvinum_rm(argc, argv);
 	else if (!strcmp(argv[0], "saveconfig"))
