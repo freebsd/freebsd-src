@@ -317,6 +317,7 @@ to use when doing a
 This defaults to
 .Pa /usr/share/examples/cvsup/doc\-supfile .
 .El
+.Ss "BUILDING THE KERNEL"
 .Pp
 The following list provides a name and short description for variables
 that are only used doing a kernel build:
@@ -411,6 +412,7 @@ during
 .Pq Vt bool
 Set to not build modules with the kernel.
 .El
+.Ss "BUILDING THE WORLD"
 .Pp
 The following list provides a name and short description for variables
 that are used during the world build:
@@ -833,11 +835,24 @@ levels to a lower one.
 and above is known to trigger known optimizer bugs at various
 times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
+.It Va ENABLE_WPA_SUPPLICANT_EAPOL
+.Pq Vt str
+Build
+.Xr wpa_supplicant 8
+with support for the IEEE 802.1X protocol and with
+support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
+protocols (usable only via 802.1X).
+This option is ignored if
+.Va NO_CRYPT
+or
+.Va NO_OPENSSL
+are set.
 .El
+.Ss "BUILDING DOCUMENTATION"
 .Pp
 The following list provides a name and short description for variables
 that are used when building documentation.
-.Bl -tag -width Ar
+.Bl -tag -width ".Va PRINTERDEVICE"
 .It Va DISTDIR
 .Pq Vt str
 Where distfiles are kept.
@@ -858,18 +873,6 @@ for simple printers, or
 .Dq Li ps
 for postscript or graphics printers with a ghostscript
 filter, or both.
-.It Va ENABLE_WPA_SUPPLICANT_EAPOL
-.Pq Vt str
-Build
-.Xr wpa_supplicant 8
-with support for the IEEE 802.1X protocol and with
-support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
-protocols (usable only via 802.1X).
-This option is ignored if
-.Va NO_CRYPT
-or
-.Va NO_OPENSSL
-are set.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
