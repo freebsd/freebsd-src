@@ -244,7 +244,9 @@ _libinstall:
 
 .include <bsd.nls.mk>
 .include <bsd.files.mk>
+.if !defined(NO_INCS)
 .include <bsd.incs.mk>
+.endif
 .include <bsd.links.mk>
 
 .if !defined(NO_MAN)
