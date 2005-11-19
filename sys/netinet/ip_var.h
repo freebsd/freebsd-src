@@ -66,6 +66,19 @@ struct ipq {
 #endif /* _KERNEL */
 
 /*
+ * Structure stored in mbuf in inpcb.ip_options
+ * and passed to ip_output when ip options are in use.
+ * The actual length of the options (including ipopt_dst)
+ * is in m_len.
+ */
+#define MAX_IPOPTLEN	40
+
+struct ipoption {
+	struct	in_addr ipopt_dst;	/* first-hop dst if source routed */
+	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
+};
+
+/*
  * Structure attached to inpcb.ip_moptions and
  * passed to ip_output when IP multicast options are in use.
  */
