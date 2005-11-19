@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 static void	gv_drive_dead(void *, int);
 static void	gv_drive_worker(void *);
-void	gv_drive_modify(struct gv_drive *);
 
 void
 gv_config_new_drive(struct gv_drive *d)
