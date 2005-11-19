@@ -27,15 +27,6 @@
  * SUCH DAMAGE.
  */
 
-struct iwi_firmware {
-	void	*boot;
-	int	boot_size;
-	void	*ucode;
-	int	ucode_size;
-	void	*main;
-	int	main_size;
-};
-
 struct iwi_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
 	uint8_t		wr_flags;
@@ -127,12 +118,9 @@ struct iwi_softc {
 	struct mtx		sc_mtx;
 	struct unrhdr		*sc_unr;
 
-	struct iwi_firmware	fw;
 	uint32_t		flags;
-#define IWI_FLAG_FW_CACHED	(1 << 0)
-#define IWI_FLAG_FW_INITED	(1 << 1)
-#define IWI_FLAG_FW_WARNED	(1 << 2)
-#define IWI_FLAG_SCANNING	(1 << 3)
+#define IWI_FLAG_FW_INITED	(1 << 0)
+#define IWI_FLAG_SCANNING	(1 << 1)
 
 	struct iwi_cmd_ring	cmdq;
 	struct iwi_tx_ring	txq[WME_NUM_AC];
@@ -168,9 +156,6 @@ struct iwi_softc {
 #define sc_txtap	sc_txtapu.th
 	int			sc_txtap_len;
 };
-
-#define SIOCSLOADFW	 _IOW('i', 137, struct ifreq)
-#define SIOCSKILLFW	 _IOW('i', 138, struct ifreq)
 
 #define IWI_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
 #define IWI_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
