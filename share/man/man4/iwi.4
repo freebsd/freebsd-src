@@ -63,10 +63,7 @@ For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
 This driver requires firmware to be loaded before it will work.
-You need to obtain
-.Xr iwicontrol 8
-from the IWI web page listed below to accomplish loading the firmware
-before
+You need to install the net/iwi-firmware port before
 .Xr ifconfig 8
 will work.
 .Sh EXAMPLES
@@ -95,12 +92,6 @@ ifconfig iwi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 .It "iwi%d: device timeout"
 The driver will reset the hardware.
 This should not happen.
-.It "iwi%d: Please load firmware"
-The required firmware has not been loaded into the card, and therefore
-the card cannot operate.
-Load the firmware with
-.Xr iwicontrol 8
-before proceeding.
 .El
 .Sh SEE ALSO
 .Xr an 4 ,
@@ -109,9 +100,7 @@ before proceeding.
 .Xr pci 4 ,
 .Xr wi 4 ,
 .Xr wlan 4 ,
-.Xr ifconfig 8 ,
-.Xr iwicontrol 8 ,
-.Xr wicontrol 8
+.Xr ifconfig 8
 .Rs
 .%T The IWI Web Page
 .%O http://damien.bergamini.free.fr/ipw/
