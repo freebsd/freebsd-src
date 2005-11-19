@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 #define DPRINTF(x)	do { if (uraldebug > 0) logprintf x; } while (0)
 #define DPRINTFN(n, x)	do { if (uraldebug >= (n)) logprintf x; } while (0)
-int uraldebug = 2;
+int uraldebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
 SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &uraldebug, 0,
     "ural debug level");
@@ -1207,7 +1207,6 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	/* XXX should do automatic rate adaptation */
 	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE)
 		rate = ic->ic_bss->ni_rates.rs_rates[ic->ic_fixed_rate];
 	else
@@ -2093,6 +2092,11 @@ ural_stop(void *priv)
 	ural_write(sc, RAL_MAC_CSR1, RAL_RESET_ASIC | RAL_RESET_BBP);
 	ural_write(sc, RAL_MAC_CSR1, 0);
 
+	if (sc->amrr_xfer != NULL) {
+		usbd_free_xfer(sc->amrr_xfer);
+		sc->amrr_xfer = NULL;
+	}
+
 	if (sc->sc_rx_pipeh != NULL) {
 		usbd_abort_pipe(sc->sc_rx_pipeh);
 		usbd_close_pipe(sc->sc_rx_pipeh);
@@ -2107,9 +2111,6 @@ ural_stop(void *priv)
 
 	ural_free_rx_list(sc);
 	ural_free_tx_list(sc);
-
-	if (sc->amrr_xfer != NULL)
-		usbd_free_xfer(sc->amrr_xfer);
 }
 
 Static void
@@ -2145,16 +2146,18 @@ ural_amrr_timeout(void *arg)
 
 	s = splusb();
 
-	/* asynchronously read STA registers (cleared by read) */
-
+	/*
+	 * Asynchronously read statistic registers (cleared by read).
+	 */
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RAL_READ_MULTI_MAC;
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, RAL_STA_CSR0);
-	USETW(req.wLength, 22);
+	USETW(req.wLength, sizeof sc->sta);
 
 	usbd_setup_default_xfer(sc->amrr_xfer, sc->sc_udev, sc,
-	    USBD_DEFAULT_TIMEOUT, &req, sc->sta, 22, 0, ural_amrr_update);
+	    USBD_DEFAULT_TIMEOUT, &req, sc->sta, sizeof sc->sta, 0,
+	    ural_amrr_update);
 	(void)usbd_transfer(sc->amrr_xfer);
 
 	splx(s);
@@ -2172,7 +2175,7 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 	amrr->retrycnt =
 	    sc->sta[7] +	/* TX one-retry ok count */
-	    sc->sta[8] +	/* TX more-retry ok count  */
+	    sc->sta[8] +	/* TX more-retry ok count */
 	    sc->sta[8];		/* TX retry-fail count */
 
 	amrr->txcnt =
