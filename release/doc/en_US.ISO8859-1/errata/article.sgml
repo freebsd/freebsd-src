@@ -105,6 +105,20 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
+    <para>(2005/11/19)
+      Although the &os; 6.0-RELEASE Release Notes states that
+      &man.ipfw.4; subsystem now supports IPv6,
+      the combination of the <filename>GENERIC</filename> kernel
+      and a kernel module <filename>ipfw.ko</filename>
+      does not support the <literal>ip6</literal> protocol keyword
+      for packet filtering rule.  This is because the kernel option
+      <literal>INET6</literal> in the kernel configuration file
+      is not recognized when the <filename>ipfw.ko</filename>
+      is built.  To enable IPv6 support of &man.ipfw.4;, rebuild
+      the kernel with kernel options <literal>INET6</literal>
+      and <literal>IPFIREWALL</literal> instead of
+      using the <filename>ipfw.ko</filename> module.</para>
+
     <para>(2005/11/16)
       Using &man.if.bridge.4; in combination with a packet filter
       such as &man.ipfw.4; and &man.pf.4; can prevent the network
@@ -116,14 +130,16 @@
       This problem has been fixed in the HEAD and the RELENG_6
       branch after 10:17:15 2005/11/16 UTC.</para>
 
-    <para>(2005/11/16)
+    <para>(2005/11/16, updated on 2005/11/19)
       When an &man.ipfw.4; <literal>divert</literal> rule
       is specified with the protocol keyword <literal>ip</literal>
       or <literal>all</literal>,
       IPv6 packets are silently discarded at that rule
       since the &man.divert.4; socket does not support IPv6.
       This can be a problem especially for an IPv4 and IPv6 dual-stack host
-      with &man.natd.8; enabled.
+      with &man.natd.8; enabled.  <emphasis role="bold">Note that
+	the kernel module <filename>ipfw.ko</filename> does not
+	have this problem because it does not support IPv6.</emphasis>
       To avoid this problem, use an IPv4 specific divert rule such
       as <literal>divert natd ipv4</literal>
       instead of <literal>divert natd all</literal>.</para>
