@@ -1379,8 +1379,9 @@ vfs_mountroot(void)
 static int
 vfs_mountroot_try(const char *mountfrom)
 {
-        struct mount	*mp;
+	struct mount	*mp;
 	char		*vfsname, *path;
+	time_t		timebase;
 	int		error;
 	char		patt[32];
 
@@ -1423,12 +1424,16 @@ vfs_mountroot_try(const char *mountfrom)
 		 * the time stamp found to check and/or initialize the RTC.
 		 * Typically devfs has no time stamp and the only other FS
 		 * is the actual / FS.
+		 * Call inittodr() only once and pass it the largest of the
+		 * timestamps we encounter.
 		 */
+		timebase = 0;
 		do {
-			if (mp->mnt_time != 0)
-				inittodr(mp->mnt_time);
+			if (mp->mnt_time > timebase)
+				timebase = mp->mnt_time;
 			mp = TAILQ_NEXT(mp, mnt_list);
 		} while (mp != NULL);
+		inittodr(timebase);
 
 		devfs_fixup(curthread);
 	}
