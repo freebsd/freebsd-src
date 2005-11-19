@@ -221,7 +221,7 @@ int main (int argc, char *argv[])
 		fprintf (stderr, "Unable to create thread, errno %d.\n", errno);
 		exit (1);
 	}
-#if defined(_LIBC_R)
+#if defined(_LIBC_R_)
 	pthread_set_name_np (suspender_tid, "sigsuspender");
 #endif
 
