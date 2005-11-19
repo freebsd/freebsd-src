@@ -43,8 +43,6 @@ static int	gv_rm_drive(struct gv_softc *, struct gctl_req *,
 		    struct gv_drive *, int);
 static int	gv_rm_plex(struct gv_softc *, struct gctl_req *,
 		    struct gv_plex *, int);
-static int	gv_rm_sd(struct gv_softc *, struct gctl_req *, struct gv_sd *,
-		    int);
 static int	gv_rm_vol(struct gv_softc *, struct gctl_req *,
 		    struct gv_volume *, int);
 
@@ -240,7 +238,7 @@ gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int fla
 }
 
 /* Remove a subdisk. */
-static int
+int
 gv_rm_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, int flags)
 {
 	struct g_provider *pp;
