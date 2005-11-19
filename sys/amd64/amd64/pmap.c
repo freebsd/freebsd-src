@@ -7,6 +7,8 @@
  * All rights reserved.
  * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
+ * Copyright (c) 2005 Alan L. Cox <alc@cs.rice.edu>
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -104,7 +106,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_msgbuf.h"
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -206,11 +207,12 @@ static void	pmap_clear_ptes(vm_page_t m, long bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
 		vm_offset_t sva, pd_entry_t ptepde);
-static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
-static int pmap_remove_entry(struct pmap *pmap, vm_page_t m,
-		vm_offset_t va, pd_entry_t ptepde);
+static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde);
+static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
+		vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
+static vm_page_t pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags);
@@ -289,16 +291,34 @@ pmap_pml4e(pmap_t pmap, vm_offset_t va)
 
 /* Return a pointer to the PDP slot that corresponds to a VA */
 static __inline pdp_entry_t *
+pmap_pml4e_to_pdpe(pml4_entry_t *pml4e, vm_offset_t va)
+{
+	pdp_entry_t *pdpe;
+
+	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(*pml4e & PG_FRAME);
+	return (&pdpe[pmap_pdpe_index(va)]);
+}
+
+/* Return a pointer to the PDP slot that corresponds to a VA */
+static __inline pdp_entry_t *
 pmap_pdpe(pmap_t pmap, vm_offset_t va)
 {
 	pml4_entry_t *pml4e;
-	pdp_entry_t *pdpe;
 
 	pml4e = pmap_pml4e(pmap, va);
 	if (pml4e == NULL || (*pml4e & PG_V) == 0)
 		return NULL;
-	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(*pml4e & PG_FRAME);
-	return (&pdpe[pmap_pdpe_index(va)]);
+	return (pmap_pml4e_to_pdpe(pml4e, va));
+}
+
+/* Return a pointer to the PD slot that corresponds to a VA */
+static __inline pd_entry_t *
+pmap_pdpe_to_pde(pdp_entry_t *pdpe, vm_offset_t va)
+{
+	pd_entry_t *pde;
+
+	pde = (pd_entry_t *)PHYS_TO_DMAP(*pdpe & PG_FRAME);
+	return (&pde[pmap_pde_index(va)]);
 }
 
 /* Return a pointer to the PD slot that corresponds to a VA */
@@ -306,13 +326,11 @@ static __inline pd_entry_t *
 pmap_pde(pmap_t pmap, vm_offset_t va)
 {
 	pdp_entry_t *pdpe;
-	pd_entry_t *pde;
 
 	pdpe = pmap_pdpe(pmap, va);
 	if (pdpe == NULL || (*pdpe & PG_V) == 0)
 		 return NULL;
-	pde = (pd_entry_t *)PHYS_TO_DMAP(*pdpe & PG_FRAME);
-	return (&pde[pmap_pde_index(va)]);
+	return (pmap_pdpe_to_pde(pdpe, va));
 }
 
 /* Return a pointer to the PT slot that corresponds to a VA */
@@ -787,7 +805,9 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		pde = *pdep;
 		if (pde) {
 			if ((pde & PG_PS) != 0) {
-				rtval = (pde & ~PDRMASK) | (va & PDRMASK);
+				KASSERT((pde & PG_FRAME & PDRMASK) == 0,
+				    ("pmap_extract: bad pde"));
+				rtval = (pde & PG_FRAME) | (va & PDRMASK);
 				PMAP_UNLOCK(pmap);
 				return rtval;
 			}
@@ -820,7 +840,9 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	if (pdep != NULL && (pde = *pdep)) {
 		if (pde & PG_PS) {
 			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
-				m = PHYS_TO_VM_PAGE((pde & ~PDRMASK) |
+				KASSERT((pde & PG_FRAME & PDRMASK) == 0,
+				    ("pmap_extract_and_hold: bad pde"));
+				m = PHYS_TO_VM_PAGE((pde & PG_FRAME) |
 				    (va & PDRMASK));
 				vm_page_hold(m);
 			}
@@ -1223,6 +1245,33 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 }
 
 static vm_page_t
+pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags)
+{
+	vm_pindex_t pdpindex, ptepindex;
+	pdp_entry_t *pdpe;
+	vm_page_t pdpg;
+
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
+	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
+	    ("pmap_allocpde: flags is neither M_NOWAIT nor M_WAITOK"));
+retry:
+	pdpe = pmap_pdpe(pmap, va);
+	if (pdpe != NULL && (*pdpe & PG_V) != 0) {
+		/* Add a reference to the pd page. */
+		pdpg = PHYS_TO_VM_PAGE(*pdpe & PG_FRAME);
+		pdpg->wire_count++;
+	} else {
+		/* Allocate a pd page. */
+		ptepindex = pmap_pde_pindex(va);
+		pdpindex = ptepindex >> NPDPEPGSHIFT;
+		pdpg = _pmap_allocpte(pmap, NUPDE + pdpindex, flags);
+		if (pdpg == NULL && (flags & M_WAITOK))
+			goto retry;
+	}
+	return (pdpg);
+}
+
+static vm_page_t
 pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
 {
 	vm_pindex_t ptepindex;
@@ -1250,6 +1299,8 @@ retry:
 	if (pd != 0 && (*pd & (PG_PS | PG_V)) == (PG_PS | PG_V)) {
 		*pd = 0;
 		pd = 0;
+		pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
+		pmap_unuse_pt(pmap, va, *pmap_pdpe(pmap, va));
 		pmap_invalidate_all(kernel_pmap);
 	}
 
@@ -1420,11 +1471,10 @@ get_pv_entry(void)
 }
 
 
-static int
-pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pd_entry_t ptepde)
+static void
+pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 {
 	pv_entry_t pv;
-	int rtval;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
@@ -1439,20 +1489,13 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pd_entry_t ptepde)
 				break;
 		}
 	}
-
-	rtval = 0;
-	if (pv) {
-		rtval = pmap_unuse_pt(pmap, va, ptepde);
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_WRITEABLE);
-
-		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
-		free_pv_entry(pv);
-	}
-			
-	return rtval;
+	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
+	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+	m->md.pv_list_count--;
+	if (TAILQ_EMPTY(&m->md.pv_list))
+		vm_page_flag_clear(m, PG_WRITEABLE);
+	TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+	free_pv_entry(pv);
 }
 
 /*
@@ -1512,26 +1555,26 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, pd_entry_t ptepde)
 		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
-		return pmap_remove_entry(pmap, m, va, ptepde);
-	} else {
-		return pmap_unuse_pt(pmap, va, ptepde);
+		pmap_remove_entry(pmap, m, va);
 	}
+	return (pmap_unuse_pt(pmap, va, ptepde));
 }
 
 /*
  * Remove a single page from a process address space
  */
 static void
-pmap_remove_page(pmap_t pmap, vm_offset_t va)
+pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde)
 {
-	pd_entry_t ptepde;
 	pt_entry_t *pte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	pte = pmap_pte_pde(pmap, va, &ptepde);
-	if (pte == NULL || (*pte & PG_V) == 0)
+	if ((*pde & PG_V) == 0)
 		return;
-	pmap_remove_pte(pmap, pte, va, ptepde);
+	pte = pmap_pde_to_pte(pde, va);
+	if ((*pte & PG_V) == 0)
+		return;
+	pmap_remove_pte(pmap, pte, va, *pde);
 	pmap_invalidate_page(pmap, va);
 }
 
@@ -1570,7 +1613,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (sva + PAGE_SIZE == eva) {
 		pde = pmap_pde(pmap, sva);
 		if (pde && (*pde & PG_PS) == 0) {
-			pmap_remove_page(pmap, sva);
+			pmap_remove_page(pmap, sva, pde);
 			goto out;
 		}
 	}
@@ -1581,13 +1624,13 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			break;
 
 		pml4e = pmap_pml4e(pmap, sva);
-		if (pml4e == 0) {
+		if ((*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			continue;
 		}
 
-		pdpe = pmap_pdpe(pmap, sva);
-		if (pdpe == 0) {
+		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
+		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
 			continue;
 		}
@@ -1597,9 +1640,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		 */
 		va_next = (sva + NBPDR) & ~PDRMASK;
 
-		pde = pmap_pde(pmap, sva);
-		if (pde == 0)
-			continue;
+		pde = pmap_pdpe_to_pde(pdpe, sva);
 		ptpaddr = *pde;
 
 		/*
@@ -1614,6 +1655,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if ((ptpaddr & PG_PS) != 0) {
 			*pde = 0;
 			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
+			pmap_unuse_pt(pmap, sva, *pdpe);
 			anyvalid = 1;
 			continue;
 		}
@@ -1736,22 +1778,20 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	for (; sva < eva; sva = va_next) {
 
 		pml4e = pmap_pml4e(pmap, sva);
-		if (pml4e == 0) {
+		if ((*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			continue;
 		}
 
-		pdpe = pmap_pdpe(pmap, sva);
-		if (pdpe == 0) {
+		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
+		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
 			continue;
 		}
 
 		va_next = (sva + NBPDR) & ~PDRMASK;
 
-		pde = pmap_pde(pmap, sva);
-		if (pde == NULL)
-			continue;
+		pde = pmap_pdpe_to_pde(pdpe, sva);
 		ptpaddr = *pde;
 
 		/*
@@ -1765,7 +1805,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 */
 		if ((ptpaddr & PG_PS) != 0) {
 			*pde &= ~(PG_M|PG_RW);
-			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 			anychanged = 1;
 			continue;
 		}
@@ -1833,9 +1872,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_paddr_t pa;
 	register pt_entry_t *pte;
 	vm_paddr_t opa;
-	pd_entry_t ptepde;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte, om;
+	boolean_t invlva;
 
 	va = trunc_page(va);
 #ifdef PMAP_DIAGNOSTIC
@@ -1868,7 +1907,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte_pde(pmap, va, &ptepde);
+	pte = pmap_pte(pmap, va);
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -1899,14 +1938,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		else if (!wired && (origpte & PG_W))
 			pmap->pm_stats.wired_count--;
 
-#if defined(PMAP_DIAGNOSTIC)
-		if (pmap_nw_modified((pt_entry_t) origpte)) {
-			printf(
-	"pmap_enter: modified page not writable: va: 0x%lx, pte: 0x%lx\n",
-			    va, origpte);
-		}
-#endif
-
 		/*
 		 * Remove extra pte reference
 		 */
@@ -1928,23 +1959,23 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * handle validating new mapping.
 	 */
 	if (opa) {
-		int err;
 		if (origpte & PG_W)
 			pmap->pm_stats.wired_count--;
 		if (origpte & PG_MANAGED) {
 			om = PHYS_TO_VM_PAGE(opa);
-			err = pmap_remove_entry(pmap, om, va, ptepde);
-		} else
-			err = pmap_unuse_pt(pmap, va, ptepde);
-		if (err)
-			panic("pmap_enter: pte vanished, va: 0x%lx", va);
+			pmap_remove_entry(pmap, om, va);
+		}
+		if (mpte != NULL) {
+			mpte->wire_count--;
+			KASSERT(mpte->wire_count > 0,
+			    ("pmap_enter: missing reference to page table page,"
+			     " va: 0x%lx", va));
+		}
 	} else
 		pmap->pm_stats.resident_count++;
 
 	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
+	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
@@ -1978,17 +2009,30 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		if (origpte & PG_MANAGED) {
+		if (origpte & PG_V) {
+			invlva = FALSE;
 			origpte = pte_load_store(pte, newpte | PG_A);
-			if ((origpte & PG_M) && pmap_track_modified(va))
-				vm_page_dirty(om);
-			if (origpte & PG_A)
-				vm_page_flag_set(om, PG_REFERENCED);
+			if (origpte & PG_A) {
+				if (origpte & PG_MANAGED)
+					vm_page_flag_set(om, PG_REFERENCED);
+				if (opa != VM_PAGE_TO_PHYS(m) || ((origpte &
+				    PG_NX) == 0 && (newpte & PG_NX)))
+					invlva = TRUE;
+			}
+			if (origpte & PG_M) {
+				KASSERT((origpte & PG_RW),
+				    ("pmap_enter: modified page not writable:"
+				     " va: 0x%lx, pte: 0x%lx", va, origpte));
+				if ((origpte & PG_MANAGED) &&
+				    pmap_track_modified(va))
+					vm_page_dirty(om);
+				if ((newpte & PG_RW) == 0)
+					invlva = TRUE;
+			}
+			if (invlva)
+				pmap_invalidate_page(pmap, va);
 		} else
 			pte_store(pte, newpte | PG_A);
-		if (origpte) {
-			pmap_invalidate_page(pmap, va);
-		}
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
@@ -2134,15 +2178,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
 		    vm_size_t size)
 {
-	vm_page_t p;
+	vm_offset_t va;
+	vm_page_t p, pdpg;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_DEVICE,
 	    ("pmap_object_init_pt: non-device object"));
 	if (((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
-		int i;
 		vm_page_t m[1];
-		int npdes;
 		pd_entry_t ptepa, *pde;
 
 		PMAP_LOCK(pmap);
@@ -2182,12 +2225,35 @@ retry:
 		p->valid = VM_PAGE_BITS_ALL;
 
 		PMAP_LOCK(pmap);
-		pmap->pm_stats.resident_count += size >> PAGE_SHIFT;
-		npdes = size >> PDRSHIFT;
-		for(i = 0; i < npdes; i++) {
-			pde_store(pde, ptepa | PG_U | PG_RW | PG_V | PG_PS);
+		for (va = addr; va < addr + size; va += NBPDR) {
+			while ((pdpg =
+			    pmap_allocpde(pmap, va, M_NOWAIT)) == NULL) {
+				PMAP_UNLOCK(pmap);
+				vm_page_lock_queues();
+				vm_page_busy(p);
+				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_LOCK(object);
+				vm_page_lock_queues();
+				vm_page_wakeup(p);
+				vm_page_unlock_queues();
+				PMAP_LOCK(pmap);
+			}
+			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));
+			pde = &pde[pmap_pde_index(va)];
+			if ((*pde & PG_V) == 0) {
+				pde_store(pde, ptepa | PG_PS | PG_M | PG_A |
+				    PG_U | PG_RW | PG_V);
+				pmap->pm_stats.resident_count +=
+				    NBPDR / PAGE_SIZE;
+			} else {
+				pdpg->wire_count--;
+				KASSERT(pdpg->wire_count > 0,
+				    ("pmap_object_init_pt: missing reference "
+				     "to page directory page, va: 0x%lx", va));
+			}
 			ptepa += NBPDR;
-			pde++;
 		}
 		pmap_invalidate_all(pmap);
 out:
@@ -2261,7 +2327,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	}
 	for (addr = src_addr; addr < end_addr; addr = va_next) {
 		pt_entry_t *src_pte, *dst_pte;
-		vm_page_t dstmpte, srcmpte;
+		vm_page_t dstmpde, dstmpte, srcmpte;
 		pml4_entry_t *pml4e;
 		pdp_entry_t *pdpe;
 		pd_entry_t srcptepaddr, *pde;
@@ -2279,41 +2345,37 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			break;
 		
 		pml4e = pmap_pml4e(src_pmap, addr);
-		if (pml4e == 0) {
+		if ((*pml4e & PG_V) == 0) {
 			va_next = (addr + NBPML4) & ~PML4MASK;
 			continue;
 		}
 
-		pdpe = pmap_pdpe(src_pmap, addr);
-		if (pdpe == 0) {
+		pdpe = pmap_pml4e_to_pdpe(pml4e, addr);
+		if ((*pdpe & PG_V) == 0) {
 			va_next = (addr + NBPDP) & ~PDPMASK;
 			continue;
 		}
 
 		va_next = (addr + NBPDR) & ~PDRMASK;
 
-		pde = pmap_pde(src_pmap, addr);
-		if (pde)
-			srcptepaddr = *pde;
-		else
-			continue;
+		pde = pmap_pdpe_to_pde(pdpe, addr);
+		srcptepaddr = *pde;
 		if (srcptepaddr == 0)
 			continue;
 			
 		if (srcptepaddr & PG_PS) {
-			pde = pmap_pde(dst_pmap, addr);
-			if (pde == 0) {
-				/*
-				 * XXX should do an allocpte here to
-				 * instantiate the pde
-				 */
-				continue;
-			}
+			dstmpde = pmap_allocpde(dst_pmap, addr, M_NOWAIT);
+			if (dstmpde == NULL)
+				break;
+			pde = (pd_entry_t *)
+			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpde));
+			pde = &pde[pmap_pde_index(addr)];
 			if (*pde == 0) {
 				*pde = srcptepaddr;
 				dst_pmap->pm_stats.resident_count +=
 				    NBPDR / PAGE_SIZE;
-			}
+			} else
+				pmap_unwire_pte_hold(dst_pmap, addr, dstmpde);
 			continue;
 		}
 
@@ -2571,12 +2633,6 @@ pmap_is_modified(vm_page_t m)
 		 */
 		if (!pmap_track_modified(pv->pv_va))
 			continue;
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%lx\n", pv->pv_va);
-			continue;
-		}
-#endif
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		rv = (*pte & PG_M) != 0;
@@ -2637,13 +2693,6 @@ pmap_clear_ptes(vm_page_t m, long bit)
 			if (!pmap_track_modified(pv->pv_va))
 				continue;
 		}
-
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%lx\n", pv->pv_va);
-			continue;
-		}
-#endif
 
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
