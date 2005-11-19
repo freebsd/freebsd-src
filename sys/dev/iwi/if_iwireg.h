@@ -127,6 +127,12 @@
 #define IWI_RATE_OFDM48	1
 #define IWI_RATE_OFDM54	3
 
+/* firmware binary image header */
+struct iwi_firmware_hdr {
+	uint32_t	version;
+	uint32_t	mode;
+} __packed;
+
 struct iwi_hdr {
 	uint8_t	type;
 #define IWI_HDR_TYPE_DATA	0

@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
+#include <sys/mount.h>
+#include <sys/namei.h>
+#include <sys/vnode.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -139,16 +143,15 @@ static void	iwi_watchdog(struct ifnet *);
 static int	iwi_ioctl(struct ifnet *, u_long, caddr_t);
 static void	iwi_stop_master(struct iwi_softc *);
 static int	iwi_reset(struct iwi_softc *);
-static int	iwi_load_ucode(struct iwi_softc *, void *, int);
-static int	iwi_load_firmware(struct iwi_softc *, void *, int);
-static int	iwi_cache_firmware(struct iwi_softc *, void *);
-static void	iwi_free_firmware(struct iwi_softc *);
+static int	iwi_load_ucode(struct iwi_softc *, const char *);
+static int	iwi_load_firmware(struct iwi_softc *, const char *);
 static int	iwi_config(struct iwi_softc *);
 static int	iwi_set_chan(struct iwi_softc *, struct ieee80211_channel *);
 static int	iwi_scan(struct iwi_softc *);
 static int	iwi_auth_and_assoc(struct iwi_softc *);
 static void	iwi_init(void *);
 static void	iwi_stop(void *);
+static int	iwi_read_firmware(const char *, caddr_t *, size_t *);
 static int	iwi_sysctl_stats(SYSCTL_HANDLER_ARGS);
 static int	iwi_sysctl_radio(SYSCTL_HANDLER_ARGS);
 
@@ -467,8 +470,6 @@ iwi_detach(device_t dev)
 	struct ifnet *ifp = ic->ic_ifp;
 
 	iwi_stop(sc);
-
-	iwi_free_firmware(sc);
 
 	if (ifp != NULL) {
 		bpfdetach(ifp);
@@ -1764,7 +1765,6 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifreq *ifr;
 	int error = 0;
 
 	IWI_LOCK(sc);
@@ -1778,25 +1778,6 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				iwi_stop(sc);
 		}
-		break;
-
-	case SIOCSLOADFW:
-		/* only super-user can do that! */
-		if ((error = suser(curthread)) != 0)
-			break;
-
-		ifr = (struct ifreq *)data;
-		error = iwi_cache_firmware(sc, ifr->ifr_data);
-		break;
-
-	case SIOCSKILLFW:
-		/* only super-user can do that! */
-		if ((error = suser(curthread)) != 0)
-			break;
-
-		ifp->if_flags &= ~IFF_UP;
-		iwi_stop(sc);
-		iwi_free_firmware(sc);
 		break;
 
 	default:
@@ -1882,11 +1863,28 @@ iwi_reset(struct iwi_softc *sc)
 }
 
 static int
-iwi_load_ucode(struct iwi_softc *sc, void *uc, int size)
+iwi_load_ucode(struct iwi_softc *sc, const char *name)
 {
 	uint32_t tmp;
 	uint16_t *w;
-	int ntries, i;
+	char *uc;
+	int i, size, ntries, error;
+
+	IWI_UNLOCK(sc);
+	error = iwi_read_firmware(name, &uc, &size);
+	IWI_LOCK(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not read ucode image\n");
+		goto fail1;
+	}
+
+	if (size < sizeof (struct iwi_firmware_hdr)) {
+		error = EINVAL;
+		goto fail2;
+	}
+
+	uc += sizeof (struct iwi_firmware_hdr);
+	size -= sizeof (struct iwi_firmware_hdr);
 
 	CSR_WRITE_4(sc, IWI_CSR_RST, CSR_READ_4(sc, IWI_CSR_RST) |
 	    IWI_RST_STOP_MASTER);
@@ -1897,7 +1895,8 @@ iwi_load_ucode(struct iwi_softc *sc, void *uc, int size)
 	}
 	if (ntries == 5) {
 		device_printf(sc->sc_dev, "timeout waiting for master\n");
-		return EIO;
+		error = EIO;
+		goto fail2;
 	}
 
 	MEM_WRITE_4(sc, 0x3000e0, 0x80000000);
@@ -1919,7 +1918,7 @@ iwi_load_ucode(struct iwi_softc *sc, void *uc, int size)
 	DELAY(1000);
 
 	/* write microcode into adapter memory */
-	for (w = uc; size > 0; w++, size -= 2)
+	for (w = (uint16_t *)uc; size > 0; w++, size -= 2)
 		MEM_WRITE_2(sc, 0x200010, htole16(*w));
 
 	MEM_WRITE_1(sc, 0x200000, 0x00);
@@ -1934,7 +1933,8 @@ iwi_load_ucode(struct iwi_softc *sc, void *uc, int size)
 	if (ntries == 100) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for ucode to initialize\n");
-		return EIO;
+		error = EIO;
+		goto fail2;
 	}
 
 	/* read the answer or the firmware will not initialize properly */
@@ -1943,22 +1943,42 @@ iwi_load_ucode(struct iwi_softc *sc, void *uc, int size)
 
 	MEM_WRITE_1(sc, 0x200000, 0x00);
 
-	return 0;
+fail2:	free(uc, M_DEVBUF);
+fail1:
+	return error;
 }
 
 /* macro to handle unaligned little endian data in firmware image */
 #define GETLE32(p) ((p)[0] | (p)[1] << 8 | (p)[2] << 16 | (p)[3] << 24)
 
 static int
-iwi_load_firmware(struct iwi_softc *sc, void *fw, int size)
+iwi_load_firmware(struct iwi_softc *sc, const char *name)
 {
 	bus_dma_tag_t dmat;
 	bus_dmamap_t map;
 	bus_addr_t physaddr;
 	void *virtaddr;
+	char *fw;
 	u_char *p, *end;
 	uint32_t sentinel, ctl, src, dst, sum, len, mlen, tmp;
-	int ntries, error = 0;
+	int size, ntries, error;
+
+	/* read firmware image from filesystem */
+	IWI_UNLOCK(sc);
+	error = iwi_read_firmware(name, &fw, &size);
+	IWI_LOCK(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not read firmware image\n");
+		goto fail1;
+	}
+
+	if (size < sizeof (struct iwi_firmware_hdr)) {
+		error = EINVAL;
+		goto fail2;
+	}
+
+	fw += sizeof (struct iwi_firmware_hdr);
+	size -= sizeof (struct iwi_firmware_hdr);
 
 	/* allocate DMA memory for mapping firmware image */
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
@@ -1966,21 +1986,21 @@ iwi_load_firmware(struct iwi_softc *sc, void *fw, int size)
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not create firmware DMA tag\n");
-		goto fail1;
+		goto fail2;
 	}
 
 	error = bus_dmamem_alloc(dmat, &virtaddr, BUS_DMA_NOWAIT, &map);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not allocate firmware DMA memory\n");
-		goto fail2;
+		goto fail3;
 	}
 
 	error = bus_dmamap_load(dmat, map, virtaddr, size, iwi_dma_map_addr,
 	    &physaddr, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not load firmware DMA map\n");
-		goto fail3;
+		goto fail4;
 	}
 
 	/* copy firmware image to DMA memory */
@@ -2036,7 +2056,7 @@ iwi_load_firmware(struct iwi_softc *sc, void *fw, int size)
 	/* tell the adapter to start processing command blocks */
 	MEM_WRITE_4(sc, 0x3000a4, 0x540100);
 
-	/* wait until the adapter reach the sentinel */
+	/* wait until the adapter reaches the sentinel */
 	for (ntries = 0; ntries < 400; ntries++) {
 		if (MEM_READ_4(sc, 0x3000d0) >= sentinel)
 			break;
@@ -2046,13 +2066,13 @@ iwi_load_firmware(struct iwi_softc *sc, void *fw, int size)
 		device_printf(sc->sc_dev,
 		    "timeout processing command blocks\n");
 		error = EIO;
-		goto fail4;
+		goto fail5;
 	}
 
 	/* we're done with command blocks processing */
 	MEM_WRITE_4(sc, 0x3000a4, 0x540c00);
 
-	/* allow interrupts so we know when the firmware is inited */
+	/* allow interrupts so we know when the firmware is ready */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, IWI_INTR_MASK);
 
 	/* tell the adapter to initialize the firmware */
@@ -2065,94 +2085,15 @@ iwi_load_firmware(struct iwi_softc *sc, void *fw, int size)
 	if ((error = msleep(sc, &sc->sc_mtx, 0, "iwiinit", hz)) != 0) {
 		device_printf(sc->sc_dev, "timeout waiting for firmware "
 		    "initialization to complete\n");
-		goto fail4;
 	}
 
-fail4:	bus_dmamap_sync(dmat, map, BUS_DMASYNC_POSTWRITE);
+fail5:	bus_dmamap_sync(dmat, map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(dmat, map);
-fail3:	bus_dmamem_free(dmat, virtaddr, map);
-fail2:	bus_dma_tag_destroy(dmat);
+fail4:	bus_dmamem_free(dmat, virtaddr, map);
+fail3:	bus_dma_tag_destroy(dmat);
+fail2:	free(fw, M_DEVBUF);
 fail1:
 	return error;
-}
-
-/*
- * Store firmware into kernel memory so we can download it when we need to,
- * e.g when the adapter wakes up from suspend mode.
- */
-static int
-iwi_cache_firmware(struct iwi_softc *sc, void *data)
-{
-	struct iwi_firmware *kfw = &sc->fw;
-	struct iwi_firmware ufw;
-	int error;
-
-	iwi_free_firmware(sc);
-
-	IWI_UNLOCK(sc);
-
-	if ((error = copyin(data, &ufw, sizeof ufw)) != 0)
-		goto fail1;
-
-	kfw->boot_size  = ufw.boot_size;
-	kfw->ucode_size = ufw.ucode_size;
-	kfw->main_size  = ufw.main_size;
-
-	kfw->boot = malloc(kfw->boot_size, M_DEVBUF, M_NOWAIT);
-	if (kfw->boot == NULL) {
-		error = ENOMEM;
-		goto fail1;
-	}
-
-	kfw->ucode = malloc(kfw->ucode_size, M_DEVBUF, M_NOWAIT);
-	if (kfw->ucode == NULL) {
-		error = ENOMEM;
-		goto fail2;
-	}
-
-	kfw->main = malloc(kfw->main_size, M_DEVBUF, M_NOWAIT);
-	if (kfw->main == NULL) {
-		error = ENOMEM;
-		goto fail3;
-	}
-
-	if ((error = copyin(ufw.boot, kfw->boot, kfw->boot_size)) != 0)
-		goto fail4;
-
-	if ((error = copyin(ufw.ucode, kfw->ucode, kfw->ucode_size)) != 0)
-		goto fail4;
-
-	if ((error = copyin(ufw.main, kfw->main, kfw->main_size)) != 0)
-		goto fail4;
-
-	DPRINTF(("Firmware cached: boot %u, ucode %u, main %u\n",
-	    kfw->boot_size, kfw->ucode_size, kfw->main_size));
-
-	IWI_LOCK(sc);
-
-	sc->flags |= IWI_FLAG_FW_CACHED;
-
-	return 0;
-
-fail4:	free(kfw->boot, M_DEVBUF);
-fail3:	free(kfw->ucode, M_DEVBUF);
-fail2:	free(kfw->main, M_DEVBUF);
-fail1:	IWI_LOCK(sc);
-
-	return error;
-}
-
-static void
-iwi_free_firmware(struct iwi_softc *sc)
-{
-	if (!(sc->flags & IWI_FLAG_FW_CACHED))
-		return;
-
-	free(sc->fw.boot, M_DEVBUF);
-	free(sc->fw.ucode, M_DEVBUF);
-	free(sc->fw.main, M_DEVBUF);
-
-	sc->flags &= ~IWI_FLAG_FW_CACHED;
 }
 
 static int
@@ -2477,18 +2418,9 @@ iwi_init(void *priv)
 	struct iwi_softc *sc = priv;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct iwi_firmware *fw = &sc->fw;
 	struct iwi_rx_data *data;
+	const char *uc, *fw;
 	int i;
-
-	/* exit immediately if firmware has not been ioctl'd */
-	if (!(sc->flags & IWI_FLAG_FW_CACHED)) {
-		if (!(sc->flags & IWI_FLAG_FW_WARNED))
-			device_printf(sc->sc_dev, "Please load firmware\n");
-		sc->flags |= IWI_FLAG_FW_WARNED;
-		ifp->if_flags &= ~IFF_UP;
-		return;
-	}
 
 	iwi_stop(sc);
 
@@ -2497,12 +2429,33 @@ iwi_init(void *priv)
 		goto fail;
 	}
 
-	if (iwi_load_firmware(sc, fw->boot, fw->boot_size) != 0) {
+	switch (ic->ic_opmode) {
+	case IEEE80211_M_STA:
+		uc = "iwi-ucode-bss";
+		fw = "iwi-bss";
+		break;
+
+	case IEEE80211_M_IBSS:
+		uc = "iwi-ucode-ibss";
+		fw = "iwi-ibss";
+		break;
+
+	case IEEE80211_M_MONITOR:
+		uc = "iwi-ucode-monitor";
+		fw = "iwi-monitor";
+		break;
+
+	default:
+		uc = fw = NULL;	/* should not get there */
+		break;
+	}
+
+	if (iwi_load_firmware(sc, "iwi-boot") != 0) {
 		device_printf(sc->sc_dev, "could not load boot firmware\n");
 		goto fail;
 	}
 
-	if (iwi_load_ucode(sc, fw->ucode, fw->ucode_size) != 0) {
+	if (iwi_load_ucode(sc, uc) != 0) {
 		device_printf(sc->sc_dev, "could not load microcode\n");
 		goto fail;
 	}
@@ -2536,7 +2489,7 @@ iwi_init(void *priv)
 
 	CSR_WRITE_4(sc, IWI_CSR_RX_WIDX, sc->rxq.count - 1);
 
-	if (iwi_load_firmware(sc, fw->main, fw->main_size) != 0) {
+	if (iwi_load_firmware(sc, fw) != 0) {
 		device_printf(sc->sc_dev, "could not load main firmware\n");
 		goto fail;
 	}
@@ -2587,6 +2540,74 @@ iwi_stop(void *priv)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
+}
+
+/*
+ * Read firmware image from the filesystem and load it into kernel memory.
+ * Must be called from a process context.
+ */
+static int
+iwi_read_firmware(const char *name, caddr_t *bufp, size_t *len)
+{
+	char path[64];
+	struct thread *td = curthread;
+	struct nameidata nd;
+	struct vattr va;
+	struct iovec iov;
+	struct uio uio;
+	caddr_t buf;
+	int vfslocked, error;
+
+	snprintf(path, sizeof path, "/etc/firmware/%s.fw", name);
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE, path,
+	    td);
+	if ((error = namei(&nd)) != 0)
+		goto fail1;
+
+	vfslocked = NDHASGIANT(&nd);
+
+	if ((error = VOP_GETATTR(nd.ni_vp, &va, td->td_ucred, td)) != 0)
+		goto fail2;
+
+	/* limit firmware size to 256KB */
+	if (va.va_size > 256 * 1024) {
+		error = E2BIG;
+		goto fail2;
+	}
+
+	if ((buf = malloc(va.va_size, M_DEVBUF, M_NOWAIT)) == NULL) {
+		error = ENOMEM;
+		goto fail2;
+	}
+
+	/* read the whole image at once */
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	iov.iov_base = buf;
+	iov.iov_len = va.va_size;
+	uio.uio_offset = 0;
+	uio.uio_resid = va.va_size;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = td;
+
+	if ((error = VOP_READ(nd.ni_vp, &uio, 0, NOCRED)) != 0)
+		goto fail3;
+
+	*bufp = buf;
+	*len = va.va_size;
+
+	vput(nd.ni_vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+
+	return 0;
+
+fail3:	free(buf, M_DEVBUF);
+fail2:	vput(nd.ni_vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+fail1:
+	return error;
 }
 
 static int
