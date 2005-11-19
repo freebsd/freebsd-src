@@ -382,10 +382,6 @@ save_rte(m, option, dst)
 		return;
 
 	olen = option[IPOPT_OLEN];
-#ifdef DIAGNOSTIC
-	if (ipprintfs)
-		printf("save_rte: olen %d\n", olen);
-#endif
 	if (olen > sizeof(opts->ip_srcrt) - (1 + sizeof(dst))) {
 		m_tag_free((struct m_tag *)opts);
 		return;
@@ -424,20 +420,12 @@ ip_srcroute(m0)
 	/* length is (nhops+1)*sizeof(addr) + sizeof(nop + srcrt header) */
 	m->m_len = opts->ip_nhops * sizeof(struct in_addr) +
 	    sizeof(struct in_addr) + OPTSIZ;
-#ifdef DIAGNOSTIC
-	if (ipprintfs)
-		printf("ip_srcroute: nhops %d mlen %d", opts->ip_nhops, m->m_len);
-#endif
 
 	/*
 	 * First save first hop for return route
 	 */
 	p = &(opts->ip_srcrt.route[opts->ip_nhops - 1]);
 	*(mtod(m, struct in_addr *)) = *p--;
-#ifdef DIAGNOSTIC
-	if (ipprintfs)
-		printf(" hops %lx", (u_long)ntohl(mtod(m, struct in_addr *)->s_addr));
-#endif
 
 	/*
 	 * Copy option fields and padding (nop) to mbuf.
@@ -454,20 +442,12 @@ ip_srcroute(m0)
 	 * reversing the path (pointers are now aligned).
 	 */
 	while (p >= opts->ip_srcrt.route) {
-#ifdef DIAGNOSTIC
-		if (ipprintfs)
-			printf(" %lx", (u_long)ntohl(q->s_addr));
-#endif
 		*q++ = *p--;
 	}
 	/*
 	 * Last hop goes to final destination.
 	 */
 	*q = opts->ip_srcrt.dst;
-#ifdef DIAGNOSTIC
-	if (ipprintfs)
-		printf(" %lx\n", (u_long)ntohl(q->s_addr));
-#endif
 	m_tag_delete(m0, (struct m_tag *)opts);
 	return (m);
 }
