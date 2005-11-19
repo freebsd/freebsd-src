@@ -145,10 +145,6 @@ static int	ip_checkinterface = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
     &ip_checkinterface, 0, "Verify packet arrives on correct interface");
 
-#ifdef DIAGNOSTIC
-static int	ipprintfs = 0;
-#endif
-
 struct pfil_head inet_pfil_hook;	/* Packet filter hooks */
 
 static struct	ifqueue ipintrq;
@@ -1267,14 +1263,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct in_addr dest;
 	int error, type = 0, code = 0, mtu = 0;
 
-#ifdef DIAGNOSTIC
-	if (ipprintfs)
-		printf("forward: src %lx dst %lx ttl %x\n",
-		    (u_long)ip->ip_src.s_addr, (u_long)ip->ip_dst.s_addr,
-		    ip->ip_ttl);
-#endif
-
-
 	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
@@ -1375,10 +1363,6 @@ ip_forward(struct mbuf *m, int srcrt)
 				/* Router requirements says to only send host redirects */
 				type = ICMP_REDIRECT;
 				code = ICMP_REDIRECT_HOST;
-#ifdef DIAGNOSTIC
-				if (ipprintfs)
-					printf("redirect (%d) to %lx\n", code, (u_long)dest.s_addr);
-#endif
 			}
 		}
 		if (rt)
