@@ -106,6 +106,7 @@ fe_pccard_probe(device_t dev)
 			return (error);
 		if (fcn != PCCARD_FUNCTION_NETWORK)
 			return (ENXIO);
+		return (0);
         }
         return (ENXIO);
 }
