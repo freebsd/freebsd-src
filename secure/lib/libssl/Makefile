@@ -17,10 +17,8 @@ SRCS=	bio_ssl.c s23_clnt.c s23_lib.c s23_meth.c s23_pkt.c s23_srvr.c \
 	ssl_err.c ssl_err2.c ssl_lib.c ssl_rsa.c ssl_sess.c ssl_stat.c \
 	ssl_txt.c t1_clnt.c t1_enc.c t1_lib.c t1_meth.c t1_srvr.c
 
-.if !defined(NO_TOOLCHAIN)
 INCS=	kssl.h ssl.h ssl2.h ssl23.h ssl3.h tls1.h
 INCSDIR=${INCLUDEDIR}/openssl
-.endif
 
 DPADD=	${LIBCRYPTO}
 LDADD=	-lcrypto
