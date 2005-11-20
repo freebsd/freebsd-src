@@ -101,8 +101,7 @@ void	pfkey_stats(u_long, const char *, int);
 
 void	bdg_stats(u_long, const char *, int);
 
-void	mbpr(u_long, u_long, u_long, u_long, u_long, u_long,
-	      u_long, u_long, u_long, u_long, u_long);
+void	mbpr(void *, u_long);
 
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
