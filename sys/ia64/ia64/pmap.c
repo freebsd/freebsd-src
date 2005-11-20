@@ -537,11 +537,6 @@ pmap_init(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
 }
 
-void
-pmap_init2()
-{
-}
-
 
 /***************************************************
  * Manipulate TLBs for a pmap
