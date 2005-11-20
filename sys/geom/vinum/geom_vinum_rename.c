@@ -155,29 +155,48 @@ static int
 gv_rename_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, char *newname, int flags)
 {
 	struct gv_sd *s;
-	char plexnumber[GV_MAXPLEXNAME], *pplexnumber;
-	char oldplexname[GV_MAXPLEXNAME], *poldplexname;
+	char *plexnum, *plexnump, *oldplex, *oldplexp;
+	char *newsd, *oldsd, *oldsdp;
 	int err;
-
-	pplexnumber = plexnumber;
-	poldplexname = oldplexname;
 
 	g_topology_assert();
 	KASSERT(p != NULL, ("gv_rename_plex: NULL p"));
+
+	err = 0;
 
 	if (gv_object_type(sc, newname) != -1) {
 		gctl_error(req, "plex name '%s' already in use", newname);
 		return (-1);
 	}
 
-	strncpy(oldplexname, p->name, GV_MAXPLEXNAME);
-	strsep(&poldplexname, ".");
-	strncpy(plexnumber, p->name, GV_MAXPLEXNAME);
-	strsep(&pplexnumber, ".");
-	if (strcmp(poldplexname, pplexnumber)) {
+	/* Needed for sanity checking. */
+	plexnum = g_malloc(GV_MAXPLEXNAME, M_WAITOK | M_ZERO);
+	strncpy(plexnum, newname, GV_MAXPLEXNAME);
+	plexnump = plexnum;
+
+	oldplex = g_malloc(GV_MAXPLEXNAME, M_WAITOK | M_ZERO);
+	strncpy(oldplex, p->name, GV_MAXPLEXNAME);
+	oldplexp = oldplex;
+
+	/*
+	 * Locate the plex number part of the plex names.
+	 *
+	 * XXX: can we be sure that the current plex name has the format
+	 * 'foo.pX'?
+	 */
+	strsep(&oldplexp, ".");
+	strsep(&plexnump, ".");
+	if (plexnump == NULL || *plexnump == '\0') {
+		gctl_error(req, "proposed plex name '%s' is not a valid plex "
+		    "name", newname);
+		err = -1;
+		goto failure;
+	}
+	if (strcmp(oldplexp, plexnump)) {
 		gctl_error(req, "current and proposed plex numbers (%s, %s) "
-		    "do not match", pplexnumber, poldplexname);
-		return (-1);
+		    "do not match", plexnump, oldplexp);
+		err = -1;
+		goto failure;
 	}
 
 	strncpy(p->name, newname, GV_MAXPLEXNAME);
@@ -188,21 +207,30 @@ gv_rename_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, cha
 	LIST_FOREACH(s, &p->subdisks, in_plex) {
 		strncpy(s->plex, p->name, GV_MAXPLEXNAME); 
 		if (flags && GV_FLAG_R) {
-			char newsdname[GV_MAXSDNAME];
-			char oldsdname[GV_MAXSDNAME];
-			char *poldsdname = oldsdname;
-			strncpy(oldsdname, s->name, GV_MAXSDNAME);
-			strsep(&poldsdname, ".");
-			strsep(&poldsdname, ".");
-			snprintf(newsdname, GV_MAXSDNAME, "%s.%s", p->name,
-			    poldsdname);
-			err = gv_rename_sd(sc, req, s, newsdname, flags);
+			newsd = g_malloc(GV_MAXSDNAME, M_WAITOK | M_ZERO);
+			oldsd = g_malloc(GV_MAXSDNAME, M_WAITOK | M_ZERO);
+			oldsdp = oldsd;
+			strncpy(oldsd, s->name, GV_MAXSDNAME);
+			/*
+			 * XXX: can we be sure that the current sd name has the
+			 * format 'foo.pX.sY'?
+			 */
+			strsep(&oldsdp, ".");
+			strsep(&oldsdp, ".");
+			snprintf(newsd, GV_MAXSDNAME, "%s.%s", p->name, oldsdp);
+			err = gv_rename_sd(sc, req, s, newsd, flags);
+			g_free(newsd);
+			g_free(oldsd);
 			if (err)
-				return (err);
+				goto failure;
 		}
 	}
 
-	return (0);
+failure:
+	g_free(plexnum);
+	g_free(oldplex);
+
+	return (err);
 }
 
 /*
@@ -213,43 +241,73 @@ gv_rename_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, cha
 static int 
 gv_rename_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, char * newname, int flags)  
 {
-        char newsdnumber[GV_MAXSDNAME], *pnewsdnumber;
-	char oldsdnumber[GV_MAXSDNAME], *poldsdnumber;
-
-	pnewsdnumber = newsdnumber;
-	poldsdnumber = oldsdnumber;
+	char *new, *newp, *old, *oldp;
+	int err;
 
 	g_topology_assert();
 	KASSERT(s != NULL, ("gv_rename_sd: NULL s"));
+
+	err = 0;
 
 	if (gv_object_type(sc, newname) != -1) {
 		gctl_error(req, "subdisk name %s already in use", newname);
 		return (-1);
 	}
 
-	strncpy(oldsdnumber, s->name, GV_MAXSDNAME);
-	strsep(&poldsdnumber, ".");
-	strsep(&poldsdnumber, ".");
-	strncpy(newsdnumber, newname, GV_MAXSDNAME);
-	strsep(&pnewsdnumber, ".");
-	strsep(&pnewsdnumber, ".");
-	if (strcmp(pnewsdnumber, poldsdnumber)) {
+	/* Needed for sanity checking. */
+	new = g_malloc(GV_MAXSDNAME, M_WAITOK | M_ZERO);
+	strncpy(new, newname, GV_MAXSDNAME);
+	newp = new;
+
+	old = g_malloc(GV_MAXSDNAME, M_WAITOK | M_ZERO);
+	strncpy(old, s->name, GV_MAXSDNAME);
+	oldp = old;
+
+	/*
+	 * Locate the sd number part of the sd names.
+	 *
+	 * XXX: can we be sure that the current sd name has the format
+	 * 'foo.pX.sY'?
+	 */
+	strsep(&oldp, ".");
+	strsep(&oldp, ".");
+	strsep(&newp, ".");
+	if (newp == NULL || *newp == '\0') {
+		gctl_error(req, "proposed sd name '%s' is not a valid sd name",
+		    newname);
+		err = -1;
+		goto fail;
+	}
+	strsep(&newp, ".");
+	if (newp == NULL || *newp == '\0') {
+		gctl_error(req, "proposed sd name '%s' is not a valid sd name",
+		    newname);
+		err = -1;
+		goto fail;
+	}
+	if (strcmp(newp, oldp)) {
 		gctl_error(req, "current and proposed sd numbers (%s, %s) do "
-		    "not match", poldsdnumber, pnewsdnumber);
-		return (-1);
+		    "not match", oldp, newp);
+		err = -1;
+		goto fail;
 	}
 
 	strncpy(s->name, newname, GV_MAXSDNAME);
 
 	/* XXX: can we rename providers here? */
 
-	return (0);
+fail:
+	g_free(new);
+	g_free(old);
+
+	return (err);
 }
 
 static int 
 gv_rename_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, char *newname, int flags)
 {
 	struct gv_plex *p;
+	char *new, *old, *oldp;
 	int err;
 
 	g_topology_assert();
@@ -267,16 +325,21 @@ gv_rename_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, ch
 	LIST_FOREACH(p, &v->plexes, in_volume) {
 		strncpy(p->volume, v->name, GV_MAXVOLNAME);
 		if (flags && GV_FLAG_R) {
-			char newplexname[GV_MAXPLEXNAME];
-			char oldplexname[GV_MAXPLEXNAME];
-			char *poldplexname = oldplexname;
-			strncpy(oldplexname, p->name, GV_MAXPLEXNAME);
-			strsep(&poldplexname, ".");
-			snprintf(newplexname, GV_MAXPLEXNAME, "%s.%s",
-			    v->name, poldplexname);
-			err = gv_rename_plex(sc, req, p, newplexname, flags);
+			new = g_malloc(GV_MAXPLEXNAME, M_WAITOK | M_ZERO);
+			old = g_malloc(GV_MAXPLEXNAME, M_WAITOK | M_ZERO);
+			oldp = old;
+			strncpy(old, p->name, GV_MAXPLEXNAME);
+			/*
+			 * XXX: can we be sure that the current plex name has
+			 * the format 'foo.pX'?
+			 */
+			strsep(&oldp, ".");
+			snprintf(new, GV_MAXPLEXNAME, "%s.%s", v->name, oldp);
+			err = gv_rename_plex(sc, req, p, new, flags);
+			g_free(new);
+			g_free(old);
 			if (err)
-				return err;
+				return (err);
 		}
 	}
        
