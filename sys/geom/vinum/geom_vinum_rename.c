@@ -5,7 +5,7 @@
  * This software was developed for the FreeBSD Project by Chris Jones
  * thanks to the support of Google's Summer of Code program and
  * mentoring by Lukas Ertl.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -128,7 +128,7 @@ gv_rename(struct g_geom *gp, struct gctl_req *req)
 	gv_save_config_all(sc);
 }
 
-static int 
+static int
 gv_rename_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, char *newname, int flags)
 {
 	struct gv_sd *s;
@@ -205,7 +205,7 @@ gv_rename_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, cha
 
 	/* Fix up references and potentially rename subdisks. */
 	LIST_FOREACH(s, &p->subdisks, in_plex) {
-		strncpy(s->plex, p->name, GV_MAXPLEXNAME); 
+		strncpy(s->plex, p->name, GV_MAXPLEXNAME);
 		if (flags && GV_FLAG_R) {
 			newsd = g_malloc(GV_MAXSDNAME, M_WAITOK | M_ZERO);
 			oldsd = g_malloc(GV_MAXSDNAME, M_WAITOK | M_ZERO);
@@ -238,8 +238,8 @@ failure:
  * since there are no structures below a subdisk.  Similarly, we don't have to
  * clean up any references elsewhere to the subdisk's name.
  */
-static int 
-gv_rename_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, char * newname, int flags)  
+static int
+gv_rename_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *s, char * newname, int flags)
 {
 	char *new, *newp, *old, *oldp;
 	int err;
@@ -303,7 +303,7 @@ fail:
 	return (err);
 }
 
-static int 
+static int
 gv_rename_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, char *newname, int flags)
 {
 	struct gv_plex *p;
@@ -342,6 +342,6 @@ gv_rename_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, ch
 				return (err);
 		}
 	}
-       
+
 	return (0);
 }
