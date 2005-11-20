@@ -2560,7 +2560,7 @@ iwi_read_firmware(const char *name, caddr_t *bufp, size_t *len)
 	caddr_t buf;
 	int vfslocked, error;
 
-	snprintf(path, sizeof path, "/etc/firmware/%s.fw", name);
+	snprintf(path, sizeof path, "/boot/firmware/%s.fw", name);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE, path,
 	    td);
