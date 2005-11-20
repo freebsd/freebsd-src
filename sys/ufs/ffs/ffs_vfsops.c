@@ -181,6 +181,13 @@ ffs_mount(struct mount *mp, struct thread *td)
 	if (vfs_getopt(mp->mnt_optnew, "update", NULL, NULL) == 0)
 		mp->mnt_flag |= MNT_UPDATE;
 
+	export.ex_root = -2; /* DEFAULT_ROOTID */
+
+	if (mp->mnt_flag & MNT_RDONLY)
+		export.ex_flags = MNT_EXRDONLY;
+	else
+		export.ex_flags = 0;
+
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
@@ -325,7 +332,12 @@ ffs_mount(struct mount *mp, struct thread *td)
 		/*
 		 * If not updating name, process export requests.
 		 */
-		error = vfs_copyopt(mp->mnt_optnew, "export", &export, sizeof export);
+		error = 0;
+		if (vfs_getopt(mp->mnt_optnew, "export", NULL, NULL) == 0) { 
+			error = vfs_copyopt(mp->mnt_optnew, "export",
+			    &export, sizeof export);
+		}
+
 		if (error == 0 && export.ex_flags != 0)
 			return (vfs_export(mp, &export));
 		/*
