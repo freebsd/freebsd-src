@@ -275,7 +275,7 @@ static uint8_t NdisSystemProcessorCount(void);
 static void NdisMIndicateStatusComplete(ndis_handle);
 static void NdisMIndicateStatus(ndis_handle, ndis_status,
         void *, uint32_t);
-static void ndis_intr(void *);
+static uint8_t ndis_intr(kinterrupt *, void *);
 static void ndis_intrhand(kdpc *, ndis_miniport_interrupt *, void *, void *);
 static funcptr ndis_findwrap(funcptr);
 static void NdisCopyFromPacketToPacket(ndis_packet *,
@@ -2326,22 +2326,21 @@ NdisMPciAssignResources(adapter, slot, list)
 	return (NDIS_STATUS_SUCCESS);
 }
 
-static void  
-ndis_intr(arg)
+static uint8_t
+ndis_intr(iobj, arg)
+	kinterrupt		*iobj;
         void                    *arg;
 {
 	struct ndis_softc	*sc;
-	struct ifnet		*ifp;
-	int			is_our_intr = 0;
+	uint8_t			is_our_intr = FALSE;
 	int			call_isr = 0;
 	ndis_miniport_interrupt	*intr;
 
 	sc = arg;
-	ifp = sc->ifp;
 	intr = sc->ndis_block->nmb_interrupt;
 
 	if (intr == NULL || sc->ndis_block->nmb_miniportadapterctx == NULL)
-		return;
+		return(FALSE);
 
 	if (sc->ndis_block->nmb_interrupt->ni_isrreq == TRUE)
 		MSCALL3(intr->ni_isrfunc, &is_our_intr, &call_isr,
@@ -2352,10 +2351,10 @@ ndis_intr(arg)
 		call_isr = 1;
 	}
  
-	if ((is_our_intr || call_isr))
+	if (call_isr)
 		IoRequestDpc(sc->ndis_block->nmb_deviceobj, NULL, sc);
 
-	return;
+	return(is_our_intr);
 }
 
 static void
@@ -3517,7 +3516,7 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisMRegisterUnloadHandler, 2),
 	IMPORT_SFUNC(ndis_timercall, 4),
 	IMPORT_SFUNC(ndis_asyncmem_complete, 2),
-	IMPORT_SFUNC(ndis_intr, 1),
+	IMPORT_SFUNC(ndis_intr, 2),
 	IMPORT_SFUNC(ndis_intrhand, 4),
 
 	/*

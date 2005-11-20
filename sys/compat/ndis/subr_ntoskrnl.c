@@ -1204,13 +1204,16 @@ ntoskrnl_intr(arg)
 {
 	kinterrupt		*iobj;
 	uint8_t			irql;
+	uint8_t			claimed;
 	list_entry		*l;
 
 	KeAcquireSpinLock(&ntoskrnl_intlock, &irql);
 	l = ntoskrnl_intlist.nle_flink;
 	while (l != &ntoskrnl_intlist) {
 		iobj = CONTAINING_RECORD(l, kinterrupt, ki_list);
-		MSCALL1(iobj->ki_svcfunc, iobj->ki_svcctx);
+		claimed = MSCALL2(iobj->ki_svcfunc, iobj, iobj->ki_svcctx);
+		if (claimed == TRUE)
+			break;
 		l = l->nle_flink;
 	}
 	KeReleaseSpinLock(&ntoskrnl_intlock, irql);
