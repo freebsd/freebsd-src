@@ -438,19 +438,9 @@ main(int argc, char *argv[])
 	if (mflag) {
 		if (memf != NULL) {
 			if (kread(0, 0, 0) == 0)
-				mbpr(nl[N_MBSTAT].n_value,
-				    nl[N_MBTYPES].n_value,
-				    nl[N_NMBCLUSTERS].n_value,
-				    nl[N_NMBUFS].n_value,
-				    nl[N_MBHI].n_value,
-				    nl[N_CLHI].n_value,
-				    nl[N_MBLO].n_value,
-				    nl[N_CLLO].n_value,
-				    nl[N_NCPUS].n_value,
-				    nl[N_PAGESZ].n_value,
-				    nl[N_MBPSTAT].n_value);
+				mbpr(kvmd, nl[N_MBSTAT].n_value);
 		} else
-			mbpr(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+			mbpr(NULL, 0);
 		exit(0);
 	}
 #if 0
