@@ -1868,7 +1868,8 @@ iwi_load_ucode(struct iwi_softc *sc, const char *name)
 	uint32_t tmp;
 	uint16_t *w;
 	char *uc;
-	int i, size, ntries, error;
+	size_t size;
+	int i, ntries, error;
 
 	IWI_UNLOCK(sc);
 	error = iwi_read_firmware(name, &uc, &size);
@@ -1961,7 +1962,8 @@ iwi_load_firmware(struct iwi_softc *sc, const char *name)
 	char *fw;
 	u_char *p, *end;
 	uint32_t sentinel, ctl, src, dst, sum, len, mlen, tmp;
-	int size, ntries, error;
+	size_t size;
+	int ntries, error;
 
 	/* read firmware image from filesystem */
 	IWI_UNLOCK(sc);
