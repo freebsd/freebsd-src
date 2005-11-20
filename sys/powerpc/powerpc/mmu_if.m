@@ -67,11 +67,6 @@ CODE {
 		return;
 	}
 
-	static void mmu_null_init2(mmu_t mmu)
-	{
-		return;
-	}
-
 	static boolean_t mmu_null_is_prefaultable(mmu_t mmu, pmap_t pmap,
 	    vm_offset_t va)
 	{
@@ -287,15 +282,6 @@ METHOD void growkernel {
 METHOD void init {
 	mmu_t		_mmu;
 } DEFAULT mmu_null_init;
-
-
-/**
- * @brief Called from vm_init2/proc0_init, so can be used as a last-chance
- * init before process scheduling starts. This routine is optional.
- */
-METHOD void init2 {
-	mmu_t		_mmu;
-} DEFAULT mmu_null_init2;
 
 
 /**

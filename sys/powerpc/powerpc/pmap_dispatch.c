@@ -146,12 +146,6 @@ pmap_init(void)
 	MMU_INIT(mmu_obj);
 }
 
-void
-pmap_init2(void)
-{
-	MMU_INIT2(mmu_obj);
-}
-
 boolean_t
 pmap_is_modified(vm_page_t m)
 {

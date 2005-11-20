@@ -583,11 +583,6 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 }
 
-void
-pmap_init2()
-{
-}
-
 
 /***************************************************
  * Manipulate TLBs for a pmap
