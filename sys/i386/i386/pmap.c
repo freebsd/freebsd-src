@@ -504,11 +504,6 @@ pmap_init(void)
 #endif
 }
 
-void
-pmap_init2()
-{
-}
-
 
 /***************************************************
  * Low level helper routines.....

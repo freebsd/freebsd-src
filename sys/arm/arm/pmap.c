@@ -2199,11 +2199,6 @@ out:
 }
 
 void
-pmap_init2(void)
-{
-}
-
-void
 pmap_postinit(void)
 {
 	struct l2_bucket *l2b;
