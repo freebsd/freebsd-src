@@ -579,11 +579,6 @@ pmap_init(void)
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
 
-void
-pmap_init2()
-{
-}
-
 
 /***************************************************
  * Low level helper routines.....

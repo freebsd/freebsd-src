@@ -589,16 +589,6 @@ pmap_init(void)
 }
 
 /*
- * Initialize the address space (zone) for the pv_entries.  Set a
- * high water mark so that the system can recover from excessive
- * numbers of pv entries.
- */
-void
-pmap_init2(void)
-{
-}
-
-/*
  * Extract the physical page address associated with the given
  * map/virtual_address pair.
  */
