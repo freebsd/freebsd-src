@@ -36,7 +36,7 @@ __kernel_tandf(double x, int iy)
 float
 tanf(float x)
 {
-	float y[2],z=0.0;
+	float y[2];
 	int32_t n, hx, ix;
 
 	GET_FLOAT_WORD(hx,x);
@@ -45,7 +45,7 @@ tanf(float x)
 	if(ix <= 0x3f490fda) {		/* |x| ~<= pi/4 */
 	    if(ix<0x39800000)		/* |x| < 2**-12 */
 		if(((int)x)==0) return x;	/* x with inexact if x != 0 */
-	    return __kernel_tanf(x,z,1);
+	    return __kernel_tanf(x,0.0,1);
 	}
 	if(ix<=0x407b53d1) {		/* |x| ~<= 5*pi/4 */
 	    if(ix<=0x4016cbe3)		/* |x| ~<= 3pi/4 */
