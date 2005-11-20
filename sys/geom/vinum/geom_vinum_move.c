@@ -1,11 +1,11 @@
 /*-
  *  Copyright (c) 2005 Chris Jones
  *  All rights reserved.
- * 
- * This software was developed for the FreeBSD Project by Chris Jones   
- * thanks to the support of Google's Summer of Code program and         
- * mentoring by Lukas Ertl. 
- * 
+ *
+ * This software was developed for the FreeBSD Project by Chris Jones
+ * thanks to the support of Google's Summer of Code program and
+ * mentoring by Lukas Ertl.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -90,7 +90,7 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 			return;
 		}
 		err = gv_move_sd(sc, req, s, destination, *flags);
-		if (err) 
+		if (err)
 			return;
 	}
 
@@ -106,10 +106,10 @@ gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char 
 	struct gv_plex *p;
 	struct g_consumer *cp;
 	char errstr[ERRBUFSIZ];
-        int err;
+	int err;
 
-        g_topology_assert();
-        KASSERT(cursd != NULL, ("gv_move_sd: NULL cursd")); 
+	g_topology_assert();
+	KASSERT(cursd != NULL, ("gv_move_sd: NULL cursd"));
 
 	cp = cursd->consumer;
 
@@ -161,7 +161,7 @@ gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char 
 	 */
 	newsd = g_malloc(sizeof(struct gv_sd), M_WAITOK | M_ZERO);
 	newsd->plex_offset = cursd->plex_offset;
-	newsd->size = cursd->size; 
+	newsd->size = cursd->size;
 	newsd->drive_offset = -1;
 	strncpy(newsd->name, cursd->name, GV_MAXSDNAME);
 	strncpy(newsd->drive, destination, GV_MAXDRIVENAME);
