@@ -1,11 +1,11 @@
 /*
  *  Copyright (c) 2004 Lukas Ertl, 2005 Chris Jones
  *  All rights reserved.
- * 
- * Portions of this software were developed for the FreeBSD Project 
- * by Chris Jones thanks to the support of Google's Summer of Code 
- * program and mentoring by Lukas Ertl. 
- * 
+ *
+ * Portions of this software were developed for the FreeBSD Project
+ * by Chris Jones thanks to the support of Google's Summer of Code
+ * program and mentoring by Lukas Ertl.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -533,7 +533,7 @@ gvinum_move(int argc, char **argv)
 		snprintf(buf, sizeof(buf), "argv%d", i);
 		gctl_ro_param(req, buf, -1, argv[i]);
 	}
-	errstr = gctl_issue(req); 
+	errstr = gctl_issue(req);
 	if (errstr != NULL)
 		warnx("can't move object(s):  %s", errstr);
 	gctl_free(req);
@@ -675,7 +675,7 @@ gvinum_rename(int argc, char **argv)
 	gctl_ro_param(req, "flags", sizeof(int), &flags);
 	gctl_ro_param(req, "object", -1, argv[0]);
 	gctl_ro_param(req, "newname", -1, argv[1]);
-	errstr = gctl_issue(req); 
+	errstr = gctl_issue(req);
 	if (errstr != NULL)
 		warnx("can't rename object:  %s", errstr);
 	gctl_free(req);
