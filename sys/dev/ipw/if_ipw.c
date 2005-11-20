@@ -1293,7 +1293,7 @@ ipw_cmd(struct ipw_softc *sc, uint32_t type, void *data, uint32_t len)
 	sc->cmd.subtype = 0;
 	sc->cmd.len = htole32(len);
 	sc->cmd.seq = 0;
-	bcopy(data, sc->cmd.data, len);
+	memcpy(sc->cmd.data, data, len);
 
 	sbd->type = IPW_SBD_TYPE_COMMAND;
 	sbd->bd->physaddr = htole32(physaddr);
@@ -1961,7 +1961,7 @@ ipw_config(struct ipw_softc *sc)
 			return error;
 	}
 
-	bzero(&security, sizeof security);
+	memset(&security, 0, sizeof security);
 	security.authmode = (ic->ic_bss->ni_authmode == IEEE80211_AUTH_SHARED) ?
 	    IPW_AUTH_SHARED : IPW_AUTH_OPEN;
 	security.ciphers = htole32(IPW_CIPHER_NONE);
@@ -1979,8 +1979,8 @@ ipw_config(struct ipw_softc *sc)
 
 			wepkey.idx = i;
 			wepkey.len = k->wk_keylen;
-			bzero(wepkey.key, sizeof wepkey.key);
-			bcopy(k->wk_key, wepkey.key, k->wk_keylen);
+			memset(wepkey.key, 0, sizeof wepkey.key);
+			memcpy(wepkey.key, k->wk_key, k->wk_keylen);
 			DPRINTF(("Setting wep key index %u len %u\n",
 			    wepkey.idx, wepkey.len));
 			error = ipw_cmd(sc, IPW_CMD_SET_WEP_KEY, &wepkey,
@@ -2006,7 +2006,7 @@ ipw_config(struct ipw_softc *sc)
 #if 0
 	struct ipw_wpa_ie ie;
 
-	bzero(&ie, sizeof ie);
+	memset(&ie, 0, sizeof ie);
 	ie.len = htole32(sizeof (struct ieee80211_ie_wpa));
 	DPRINTF(("Setting wpa ie\n"));
 	error = ipw_cmd(sc, IPW_CMD_SET_WPA_IE, &ie, sizeof ie);
@@ -2145,7 +2145,7 @@ ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	uint32_t i, size, buf[256];
 
 	if (!(sc->flags & IPW_FLAG_FW_INITED)) {
-		bzero(buf, sizeof buf);
+		memset(buf, 0, sizeof buf);
 		return SYSCTL_OUT(req, buf, sizeof buf);
 	}
 
