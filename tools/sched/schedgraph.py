@@ -815,6 +815,7 @@ class KTRFile:
 		self.sources = []
 		self.ticks = {}
 		self.load = {}
+		self.crit = {}
 
 		self.parse(file)
 		self.fixup()
@@ -830,6 +831,7 @@ class KTRFile:
 
 		ktrhdr = "\s+\d+\s+(\d+)\s+(\d+)\s+"
 		tdname = "(\S+)\(([^)]*)\)"
+		crittdname = "(\S+)\s+\(\d+,\s+([^)]*)\)"
 
 		ktrstr = "mi_switch: " + tdname
 		ktrstr += " prio (\d+) inhibit (\d+) wmesg (\S+) lock (\S+)"
@@ -868,6 +870,9 @@ class KTRFile:
 		cpuload_re = re.compile(ktrhdr + "load: (\d+)")
 		loadglobal_re = re.compile(ktrhdr + "global load: (\d+)")
 
+		ktrstr = "critical_\S+ by thread " + crittdname + " to (\d+)"
+		critsec_re = re.compile(ktrhdr + ktrstr)
+
 		parsers = [[cpuload_re, self.cpuload],
 			   [loadglobal_re, self.loadglobal],
 			   [switchin_re, self.switchin],
@@ -879,6 +884,7 @@ class KTRFile:
 			   [sched_rem_re, self.sched_rem],
 			   [sched_exit_re, self.sched_exit],
 			   [sched_clock_re, self.sched_clock],
+			   [critsec_re, self.critsec],
 			   [idled_re, self.idled]]
 
 		for line in ifp.readlines():
@@ -1023,6 +1029,18 @@ class KTRFile:
 			self.load[cpu] = load
 			self.sources.insert(0, load)
 		Count(load, cpu, timestamp, count)
+
+	def critsec(self, cpu, timestamp, td, pcomm, to):
+		if (self.checkstamp(timestamp) == 0):
+			return
+		cpu = int(cpu)
+		try:
+			crit = self.crit[cpu]
+		except:
+			crit = Counter("Critical Section")
+			self.crit[cpu] = crit
+			self.sources.insert(0, crit)
+		Count(crit, cpu, timestamp, to)
 
 	def findtd(self, td, pcomm):
 		for thread in self.threads:
