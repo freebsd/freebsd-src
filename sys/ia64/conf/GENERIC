@@ -56,7 +56,6 @@ options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 
 # Various "busses"
-device 		acpi		# ACPI support (mandatory)
 device		firewire	# FireWire bus code
 device		miibus		# MII bus support (Ethernet)
 device		pci		# PCI bus support
@@ -141,7 +140,6 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		gif		# IPv6 and IPv4 tunneling
 device		loop		# Network loopback
 device		md		# Memory "disks"
-device		mem		# Memory and kernel memory devices
 device		pty		# Pseudo-ttys (telnet etc)
 device		puc		# Multi I/O cards and multi-channel UARTs
 device		random		# Entropy device
