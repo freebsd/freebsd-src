@@ -335,7 +335,12 @@ extern int pmap_needs_pte_sync;
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
+#if defined(CPU_ARM9) && !defined(ARM9_CACHE_WRITE_THROUGH)
+#define PMAP_NEEDS_PTE_SYNC	1
+#define PMAP_INCLUDE_PTE_SYNC
+#else
 #define	PMAP_NEEDS_PTE_SYNC	0
+#endif
 #endif
 
 /*
