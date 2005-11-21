@@ -438,8 +438,8 @@ em_attach(device_t dev)
 	/* Initialize eeprom parameters */
         em_init_eeprom_params(&adapter->hw);
 
-	tsize = EM_ROUNDUP(adapter->num_tx_desc *
-			   sizeof(struct em_tx_desc), 4096);
+	tsize = roundup2(adapter->num_tx_desc * sizeof(struct em_tx_desc),
+	    E1000_DBA_ALIGN);
 
 	/* Allocate Transmit Descriptor ring */
         if (em_dma_malloc(adapter, tsize, &adapter->txdma, BUS_DMA_NOWAIT)) {
@@ -450,8 +450,8 @@ em_attach(device_t dev)
         }
         adapter->tx_desc_base = (struct em_tx_desc *) adapter->txdma.dma_vaddr;
 
-	rsize = EM_ROUNDUP(adapter->num_rx_desc *
-			   sizeof(struct em_rx_desc), 4096);
+	rsize = roundup2(adapter->num_rx_desc * sizeof(struct em_rx_desc),
+	    E1000_DBA_ALIGN);
 
 	/* Allocate Receive Descriptor ring */  
         if (em_dma_malloc(adapter, rsize, &adapter->rxdma, BUS_DMA_NOWAIT)) {
@@ -1193,7 +1193,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 {
         u_int32_t       txd_upper;
         u_int32_t       txd_lower, txd_used = 0, txd_saved = 0;
-        int             i, j, error;
+        int             i, j, error = 0;
 
 	struct mbuf	*m_head;
 
@@ -1203,9 +1203,8 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	u_int32_t               counter;
         struct m_tag    *mtag;
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
-	bus_dmamap_t		map;
 	int			nsegs;
-        struct em_buffer   *tx_buffer = NULL;
+        struct em_buffer   *tx_buffer;
         struct em_tx_desc *current_tx_desc = NULL;
         struct ifnet   *ifp = adapter->ifp;
 
@@ -1226,23 +1225,19 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         /*
          * Map the packet for DMA.
          */
-        if (bus_dmamap_create(adapter->txtag, BUS_DMA_NOWAIT, &map)) {
-                adapter->no_tx_map_avail++;
-                return (ENOMEM);
-        }
-        error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, m_head, segs,
-					&nsegs, BUS_DMA_NOWAIT);
+	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
+	error = bus_dmamap_load_mbuf_sg(adapter->txtag, tx_buffer->map, m_head,
+	    segs, &nsegs, BUS_DMA_NOWAIT);
         if (error != 0) {
                 adapter->no_tx_dma_setup++;
-                bus_dmamap_destroy(adapter->txtag, map);
                 return (error);
         }
         KASSERT(nsegs != 0, ("em_encap: empty packet"));
 
         if (nsegs > adapter->num_tx_desc_avail) {
                 adapter->no_tx_desc_avail2++;
-                bus_dmamap_destroy(adapter->txtag, map);
-                return (ENOBUFS);
+		error = ENOBUFS;
+		goto encap_fail;
         }
 
 
@@ -1269,21 +1264,21 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		m_head = m_pullup(m_head, sizeof(eh));
 		if (m_head == NULL) {
 			*m_headp = NULL;
-                	bus_dmamap_destroy(adapter->txtag, map);
-			return (ENOBUFS);
+			error = ENOBUFS;
+			goto encap_fail;
 		}
 		eh = *mtod(m_head, struct ether_header *);
 		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
 		if (m_head == NULL) {
 			*m_headp = NULL;
-                	bus_dmamap_destroy(adapter->txtag, map);
-			return (ENOBUFS);
+			error = ENOBUFS;
+			goto encap_fail;
 		}
 		m_head = m_pullup(m_head, sizeof(*evl));
 		if (m_head == NULL) {
 			*m_headp = NULL;
-                	bus_dmamap_destroy(adapter->txtag, map);
-			return (ENOBUFS);
+			error = ENOBUFS;
+			goto encap_fail;
 		}
 		evl = mtod(m_head, struct ether_vlan_header *);
 		bcopy(&eh, evl, sizeof(*evl));
@@ -1310,11 +1305,11 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
                         array_elements = em_fill_descriptors(segs[j].ds_addr,
 			    segs[j].ds_len, &desc_array);
 			for (counter = 0; counter < array_elements; counter++) {
-                                if (txd_used == adapter->num_tx_desc_avail) {
-                                         adapter->next_avail_tx_desc = txd_saved;
-                                          adapter->no_tx_desc_avail2++;
-					  bus_dmamap_destroy(adapter->txtag, map);
-                                          return (ENOBUFS);
+				if (txd_used == adapter->num_tx_desc_avail) {
+					adapter->next_avail_tx_desc = txd_saved;
+					adapter->no_tx_desc_avail2++;
+					error = ENOBUFS;
+					goto encap_fail;
                                 }
                                 tx_buffer = &adapter->tx_buffer_area[i];
                                 current_tx_desc = &adapter->tx_desc_base[i];
@@ -1363,8 +1358,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         }
 
         tx_buffer->m_head = m_head;
-        tx_buffer->map = map;
-        bus_dmamap_sync(adapter->txtag, map, BUS_DMASYNC_PREWRITE);
+        bus_dmamap_sync(adapter->txtag, tx_buffer->map, BUS_DMASYNC_PREWRITE);
 
         /*
          * Last Descriptor of Packet needs End Of Packet (EOP)
@@ -1388,6 +1382,10 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         }
 
         return(0);
+
+encap_fail:
+	bus_dmamap_unload(adapter->txtag, tx_buffer->map);
+	return (error);
 }
 
 /*********************************************************************
@@ -1449,7 +1447,7 @@ em_82547_fifo_workaround(struct adapter *adapter, int len)
 {	
 	int fifo_space, fifo_pkt_len;
 
-	fifo_pkt_len = EM_ROUNDUP(len + EM_FIFO_HDR, EM_FIFO_HDR);
+	fifo_pkt_len = roundup2(len + EM_FIFO_HDR, EM_FIFO_HDR);
 
 	if (adapter->link_duplex == HALF_DUPLEX) {
 		fifo_space = adapter->tx_fifo_size - adapter->tx_fifo_head;
@@ -1470,7 +1468,7 @@ em_82547_fifo_workaround(struct adapter *adapter, int len)
 static void
 em_82547_update_fifo_head(struct adapter *adapter, int len)
 {
-	int fifo_pkt_len = EM_ROUNDUP(len + EM_FIFO_HDR, EM_FIFO_HDR);
+	int fifo_pkt_len = roundup2(len + EM_FIFO_HDR, EM_FIFO_HDR);
 	
 	/* tx_fifo_head is always 16 byte aligned */
 	adapter->tx_fifo_head += fifo_pkt_len;
@@ -2070,8 +2068,7 @@ em_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 { 
         if (error)
                 return;
-        *(bus_addr_t*) arg = segs->ds_addr;
-        return;
+        *(bus_addr_t *) arg = segs[0].ds_addr;
 }
 
 static int
@@ -2080,8 +2077,8 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
 {
         int r;
          
-        r = bus_dma_tag_create(NULL,                    /* parent */
-                               PAGE_SIZE, 0,            /* alignment, bounds */
+	r = bus_dma_tag_create(NULL,                    /* parent */
+                               E1000_DBA_ALIGN, 0,      /* alignment, bounds */
                                BUS_SPACE_MAXADDR,       /* lowaddr */
                                BUS_SPACE_MAXADDR,       /* highaddr */
                                NULL, NULL,              /* filter, filterarg */
@@ -2135,9 +2132,17 @@ fail_0:
 static void
 em_dma_free(struct adapter *adapter, struct em_dma_alloc *dma)
 {
-        bus_dmamap_unload(dma->dma_tag, dma->dma_map);
-        bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
+	if (dma->dma_tag == NULL)
+		return;
+	if (dma->dma_map != NULL) {
+		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
+		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
+		dma->dma_map = NULL;
+	}
         bus_dma_tag_destroy(dma->dma_tag);
+	dma->dma_tag = NULL;
 }
 
 
@@ -2173,30 +2178,45 @@ em_allocate_transmit_structures(struct adapter * adapter)
 static int
 em_setup_transmit_structures(struct adapter * adapter)
 {
+	struct em_buffer *tx_buffer;
+	bus_size_t size;
+	int error, i;
+
         /*
          * Setup DMA descriptor areas.
          */
-        if (bus_dma_tag_create(NULL,                    /* parent */
+	size = roundup2(adapter->hw.max_frame_size, MCLBYTES);
+	if ((error = bus_dma_tag_create(NULL,           /* parent */
                                1, 0,                    /* alignment, bounds */
                                BUS_SPACE_MAXADDR,       /* lowaddr */ 
                                BUS_SPACE_MAXADDR,       /* highaddr */
                                NULL, NULL,              /* filter, filterarg */
-                               MCLBYTES * 8,            /* maxsize */
+                               size,                    /* maxsize */
                                EM_MAX_SCATTER,          /* nsegments */
-                               MCLBYTES * 8,            /* maxsegsize */
-                               BUS_DMA_ALLOCNOW,        /* flags */ 
+                               size,                    /* maxsegsize */
+                               0,                       /* flags */ 
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
-                               &adapter->txtag)) {
-                printf("em%d: Unable to allocate TX DMA tag\n", adapter->unit);
-                return (ENOMEM);
+                               &adapter->txtag)) != 0) {
+		printf("em%d: Unable to allocate TX DMA tag\n", adapter->unit);
+		goto fail;
         }
 
-        if (em_allocate_transmit_structures(adapter))
-                return (ENOMEM);
+        if ((error = em_allocate_transmit_structures(adapter)) != 0)
+		goto fail;
 
         bzero((void *) adapter->tx_desc_base,
               (sizeof(struct em_tx_desc)) * adapter->num_tx_desc);
+	tx_buffer = adapter->tx_buffer_area;
+	for (i = 0; i < adapter->num_tx_desc; i++) {
+		error = bus_dmamap_create(adapter->txtag, 0, &tx_buffer->map);
+		if (error != 0) {
+			printf("em%d: Unable to create TX DMA map\n",
+			    adapter->unit);
+			goto fail;
+		}
+		tx_buffer++;
+	}
 
         adapter->next_avail_tx_desc = 0;
         adapter->oldest_used_tx_desc = 0;
@@ -2206,8 +2226,14 @@ em_setup_transmit_structures(struct adapter * adapter)
 
         /* Set checksum context */
         adapter->active_checksum_context = OFFLOAD_NONE;
+	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
         return (0);
+
+fail:
+	em_free_transmit_structures(adapter);
+	return (error);
 }
 
 /*********************************************************************
@@ -2301,11 +2327,20 @@ em_free_transmit_structures(struct adapter * adapter)
                 tx_buffer = adapter->tx_buffer_area;
                 for (i = 0; i < adapter->num_tx_desc; i++, tx_buffer++) {
                         if (tx_buffer->m_head != NULL) {
-                                bus_dmamap_unload(adapter->txtag, tx_buffer->map);
-                                bus_dmamap_destroy(adapter->txtag, tx_buffer->map);
+				bus_dmamap_sync(adapter->txtag, tx_buffer->map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(adapter->txtag,
+				    tx_buffer->map);
                                 m_freem(tx_buffer->m_head);
-                        }
-                        tx_buffer->m_head = NULL;
+				tx_buffer->m_head = NULL;
+                        } else if (tx_buffer->map != NULL)
+				bus_dmamap_unload(adapter->txtag,
+				    tx_buffer->map);
+			if (tx_buffer->map != NULL) {
+				bus_dmamap_destroy(adapter->txtag,
+				    tx_buffer->map);
+				tx_buffer->map = NULL;
+			}
                 }
         }
         if (adapter->tx_buffer_area != NULL) {
@@ -2440,8 +2475,9 @@ em_clean_transmit_interrupts(struct adapter * adapter)
 
                 if (tx_buffer->m_head) {
 			ifp->if_opackets++;
-                        bus_dmamap_unload(adapter->txtag, tx_buffer->map);
-                        bus_dmamap_destroy(adapter->txtag, tx_buffer->map);
+			bus_dmamap_sync(adapter->txtag, tx_buffer->map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->txtag, tx_buffer->map);
 
                         m_freem(tx_buffer->m_head);
                         tx_buffer->m_head = NULL;
@@ -2484,11 +2520,11 @@ static int
 em_get_buf(int i, struct adapter *adapter,
            struct mbuf *nmp)
 {
-        register struct mbuf    *mp = nmp;
+        struct mbuf    *mp = nmp;
         struct em_buffer *rx_buffer;
         struct ifnet   *ifp;
-        bus_addr_t paddr;
-        int error;
+	bus_dma_segment_t segs[1];
+	int error, nsegs;
 
         ifp = adapter->ifp;
 
@@ -2515,18 +2551,17 @@ em_get_buf(int i, struct adapter *adapter,
          * Using memory from the mbuf cluster pool, invoke the
          * bus_dma machinery to arrange the memory mapping.
          */
-	paddr = 0;
-        error = bus_dmamap_load(adapter->rxtag, rx_buffer->map,
-                                mtod(mp, void *), mp->m_len,
-                                em_dmamap_cb, &paddr, 0);
-        if (error || paddr == 0) {
+        error = bus_dmamap_load_mbuf_sg(adapter->rxtag, rx_buffer->map,
+	    mp, segs, &nsegs, 0);
+        if (error != 0) {
                 m_free(mp);
                 return(error);
         }
+	/* If nsegs is wrong then the stack is corrupt */
+	KASSERT(nsegs == 1, ("Too many segments returned!"));
         rx_buffer->m_head = mp;
-        adapter->rx_desc_base[i].buffer_addr = htole64(paddr);
-        bus_dmamap_sync(adapter->rxtag, rx_buffer->map, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
+        adapter->rx_desc_base[i].buffer_addr = htole64(segs[0].ds_addr);
+        bus_dmamap_sync(adapter->rxtag, rx_buffer->map, BUS_DMASYNC_PREREAD);
 
         return(0);
 }
@@ -2573,7 +2608,7 @@ em_allocate_receive_structures(struct adapter * adapter)
                 printf("em%d: em_allocate_receive_structures: "
                         "bus_dma_tag_create failed; error %u\n",
                        adapter->unit, error);
-                goto fail_0;
+                goto fail;
         }
 
         rx_buffer = adapter->rx_buffer_area;
@@ -2584,29 +2619,22 @@ em_allocate_receive_structures(struct adapter * adapter)
                         printf("em%d: em_allocate_receive_structures: "
                                 "bus_dmamap_create failed; error %u\n",
                                 adapter->unit, error);
-                        goto fail_1;
+                        goto fail;
                 }
         }
 
         for (i = 0; i < adapter->num_rx_desc; i++) {
                 error = em_get_buf(i, adapter, NULL);
-                if (error != 0) {
-                        adapter->rx_buffer_area[i].m_head = NULL;
-                        adapter->rx_desc_base[i].buffer_addr = 0;
-                        return(error);
-                }
+		if (error != 0)
+			goto fail;
         }
         bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
             BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
         return(0);
 
-fail_1:
-        bus_dma_tag_destroy(adapter->rxtag);
-fail_0:
-        adapter->rxtag = NULL;
-        free(adapter->rx_buffer_area, M_DEVBUF);
-        adapter->rx_buffer_area = NULL;
+fail:
+	em_free_receive_structures(adapter);
         return (error);
 }
 
@@ -2732,13 +2760,21 @@ em_free_receive_structures(struct adapter *adapter)
         if (adapter->rx_buffer_area != NULL) {
                 rx_buffer = adapter->rx_buffer_area;
                 for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
+			if (rx_buffer->m_head != NULL) {
+				bus_dmamap_sync(adapter->rxtag, rx_buffer->map,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(adapter->rxtag,
+				    rx_buffer->map);
+				m_freem(rx_buffer->m_head);
+				rx_buffer->m_head = NULL;
+			} else if (rx_buffer->map != NULL)
+				bus_dmamap_unload(adapter->rxtag,
+				    rx_buffer->map);
                         if (rx_buffer->map != NULL) {
-                                bus_dmamap_unload(adapter->rxtag, rx_buffer->map);
-                                bus_dmamap_destroy(adapter->rxtag, rx_buffer->map);
-                        }
-                        if (rx_buffer->m_head != NULL)
-                                m_freem(rx_buffer->m_head);
-                        rx_buffer->m_head = NULL;
+				bus_dmamap_destroy(adapter->rxtag,
+				    rx_buffer->map);
+				rx_buffer->map = NULL;
+			}
                 }
         }
         if (adapter->rx_buffer_area != NULL) {
@@ -2794,7 +2830,9 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 
 		mp = adapter->rx_buffer_area[i].m_head;
 		bus_dmamap_sync(adapter->rxtag, adapter->rx_buffer_area[i].map,
-				BUS_DMASYNC_POSTREAD);
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(adapter->rxtag,
+		    adapter->rx_buffer_area[i].map);
 
 		accept_frame = 1;
 		prev_len_adj = 0;
