@@ -56,7 +56,7 @@ struct mbuf *nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz);
 struct mbuf *nfsm_rpchead(struct ucred *cr, int nmflag, int procid,
 			  int auth_type, int auth_len,
 			  struct mbuf *mrest, int mrest_len,
-			  struct mbuf **mbp, u_int32_t *xidp);
+			  struct mbuf **mbp, u_int32_t **xidpp);
 
 #define	M_HASCL(m)	((m)->m_flags & M_EXT)
 #define	NFSMINOFF(m) \
