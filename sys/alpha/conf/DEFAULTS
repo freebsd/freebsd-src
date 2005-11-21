@@ -1,0 +1,10 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/alpha
+#
+# $FreeBSD$
+
+# Not yet, this would break all existing configs
+#machine		alpha
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
