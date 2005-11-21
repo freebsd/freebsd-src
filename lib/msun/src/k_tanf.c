@@ -63,19 +63,5 @@ __kernel_tanf(float x, float y, int iy)
 	    return (float)(1-((hx>>30)&2))*(v-(float)2.0*(x-(w*w/(w+v)-r)));
 	}
 	if(iy==1) return w;
-	else {		/* if allow error up to 2 ulp,
-			   simply return -1.0/(x+r) here */
-     /*  compute -1.0/(x+r) accurately */
-	    float a,t;
-	    int32_t i;
-	    z  = w;
-	    GET_FLOAT_WORD(i,z);
-	    SET_FLOAT_WORD(z,i&0xfffff000);
-	    v  = r-(z - x); 	/* z+v = r+x */
-	    t = a  = -(float)1.0/w;	/* a = -1.0/w */
-	    GET_FLOAT_WORD(i,t);
-	    SET_FLOAT_WORD(t,i&0xfffff000);
-	    s  = (float)1.0+t*z;
-	    return t+a*(s+t*v);
-	}
+	else return -1.0/((double)x+r);
 }
