@@ -165,6 +165,8 @@ struct sc_info {
 	int use_intrhook;
 	uint16_t vendor;
 	uint16_t devid;
+	uint32_t flags;
+#define IGNORE_PCR	0x01
 	struct mtx *ich_lock;
 };
 
@@ -222,7 +224,10 @@ ich_waitcd(void *devinfo)
 		data = ich_rd(sc, ICH_REG_ACC_SEMA, 1);
 		if ((data & 0x01) == 0)
 			return 0;
+		DELAY(1);
 	}
+	if ((sc->flags & IGNORE_PCR) != 0)
+		return (0);
 	device_printf(sc->dev, "CODEC semaphore timeout\n");
 	return ETIMEDOUT;
 }
@@ -684,7 +689,8 @@ ich_init(struct sc_info *sc)
 		    sc->devid == INTEL_82801DB || sc->devid == INTEL_82801EB ||
 		    sc->devid == INTEL_6300ESB || sc->devid == INTEL_82801FB ||
 		    sc->devid == INTEL_82801GB)) {
-			return ENXIO;
+			sc->flags |= IGNORE_PCR;
+			device_printf(sc->dev, "primary codec not ready!\n");
 		}
 	}
 
@@ -759,28 +765,25 @@ ich_pci_attach(device_t dev)
 	}
 
 	/*
+	 * Enable bus master. On ich4/5 this may prevent the detection of
+	 * the primary codec becoming ready in ich_init().
+	 */
+	pci_enable_busmaster(dev);
+
+	/*
 	 * By default, ich4 has NAMBAR and NABMBAR i/o spaces as
 	 * read-only.  Need to enable "legacy support", by poking into
 	 * pci config space.  The driver should use MMBAR and MBBAR,
 	 * but doing so will mess things up here.  ich4 has enough new
 	 * features it warrants it's own driver. 
 	 */
-	if (vendor == INTEL_VENDORID && devid == INTEL_82801DB) {
-		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
-	}
-
-	/*
-	 * Enable bus master. On ich4/5 this may prevent the detection of
-	 * the primary codec becoming ready in ich_init().
-	 */
-	pci_enable_busmaster(dev);
-
-	if (vendor == INTEL_VENDORID && (devid == INTEL_82801EB ||
-	    devid == INTEL_6300ESB || devid == INTEL_82801FB ||
-	    devid == INTEL_82801GB)) {
+	if (vendor == INTEL_VENDORID && (devid == INTEL_82801DB ||
+	    devid == INTEL_82801EB || devid == INTEL_6300ESB ||
+	    devid == INTEL_82801FB || devid == INTEL_82801GB)) {
 		sc->nambarid = PCIR_MMBAR;
 		sc->nabmbarid = PCIR_MBBAR;
 		sc->regtype = SYS_RES_MEMORY;
+		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
 	} else {
 		sc->nambarid = PCIR_NAMBAR;
 		sc->nabmbarid = PCIR_NABMBAR;
