@@ -507,9 +507,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 		return (0);
 	}
 
-	if (strcmp(vfstype, "ufs")==0) {
-		ret = mount_ufs(argc, argv);
-	} else if (use_mountprog(vfstype)) {
+	if (use_mountprog(vfstype)) {
 		ret = exec_mountprog(name, execname, argv);
 	} else {
 		ret = mount_fs(vfstype, argc, argv); 
