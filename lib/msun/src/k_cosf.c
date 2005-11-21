@@ -14,8 +14,10 @@
  * ====================================================
  */
 
+#ifndef INLINE_KERNEL_COSF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
+#endif
 #endif
 
 #include "math.h"
@@ -28,6 +30,9 @@ C1  =  0xaaaaa5.0p-28,		/*  0.041666645557 */
 C2  = -0xb60615.0p-33,		/* -0.0013887310633 */
 C3  =  0xccf47d.0p-39;		/*  0.000024432542887 */
 
+#ifdef INLINE_KERNEL_COSF
+extern inline
+#endif
 float
 __kernel_cosf(float x, float y)
 {

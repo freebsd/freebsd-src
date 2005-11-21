@@ -18,7 +18,11 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "math.h"
+#define	INLINE_KERNEL_COSF
+#define	INLINE_KERNEL_SINF
 #include "math_private.h"
+#include "k_cosf.c"
+#include "k_sinf.c"
 
 /* Small multiples of pi/2 rounded to double precision. */
 static const double
