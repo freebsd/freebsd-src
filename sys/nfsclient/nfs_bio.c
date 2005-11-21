@@ -1605,7 +1605,7 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		 * bp in this case is not an NFS cache block so we should
 		 * be safe. XXX
 		 */
-    		if (error == EINTR || error == EIO
+    		if (error == EINTR || error == EIO || error == ETIMEDOUT
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 
