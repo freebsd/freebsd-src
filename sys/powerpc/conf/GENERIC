@@ -129,6 +129,7 @@ device		usb		# USB Bus (required)
 device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
+options         KBD_INSTALL_CDEV # install a CDEV entry in /dev
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da0
 device		ums		# Mouse
