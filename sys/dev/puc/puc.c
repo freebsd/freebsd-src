@@ -83,10 +83,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_puc.h"
 
-#ifndef PUC_FASTINTR
-#define PUC_FASTINTR
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

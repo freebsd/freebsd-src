@@ -12,3 +12,5 @@ device		isa
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
 device		io		# I/O device
+
+options 	PUC_FASTINTR
