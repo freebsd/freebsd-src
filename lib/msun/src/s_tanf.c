@@ -18,7 +18,9 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "math.h"
+#define	INLINE_KERNEL_TANF
 #include "math_private.h"
+#include "k_tanf.c"
 
 /* Small multiples of pi/2 rounded to double precision. */
 static const double

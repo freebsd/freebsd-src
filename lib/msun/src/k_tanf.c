@@ -12,8 +12,10 @@
  * ====================================================
  */
 
+#ifndef INLINE_KERNEL_TANF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
+#endif
 #endif
 
 #include "math.h"
@@ -32,6 +34,9 @@ T[] =  {
   0xeaf97e.0p-31,		/* 0.0071708550677 */
 };
 
+#ifdef INLINE_KERNEL_TANF
+extern inline
+#endif
 float
 __kernel_tanf(float x, float y, int iy)
 {
