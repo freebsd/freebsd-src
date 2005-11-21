@@ -837,9 +837,9 @@ static const struct {
  * endian case, just shift them left 16.
  */
 #if BYTE_ORDER == BIG_ENDIAN
-#define	TULIP_SP_MAC(x)		((x) << 16)
+#define	TULIP_SP_MAC(ptr)	(be16dec(ptr) << 16)
 #else
-#define	TULIP_SP_MAC(x)		(x)
+#define	TULIP_SP_MAC(ptr)	(le16dec(ptr))
 #endif
 
 /*
