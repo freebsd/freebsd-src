@@ -608,7 +608,19 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 {
 	struct link *link;
 	uint8_t bios_irq;
+	uintptr_t bus;
 
+	/*
+	 * Look up the PCI bus for the specified PCI bridge device.  Note
+	 * that the PCI bridge device might not have any children yet.
+	 * However, looking up its bus number doesn't require a valid child
+	 * device, so we just pass NULL.
+	 */
+	if (BUS_READ_IVAR(pcib, NULL, PCIB_IVAR_BUS, &bus) != 0) {
+		device_printf(pcib, "Unable to read PCI bus number");
+		panic("this is bad");
+	}
+		
 	/* Bump the reference count. */
 	ACPI_SERIAL_BEGIN(pci_link);
 	link = acpi_pci_link_lookup(dev, index);
@@ -619,7 +631,7 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 		pci_link_interrupt_weights[link->l_irq]++;
 
 	/* Try to find a BIOS IRQ setting from any matching devices. */
-	bios_irq = acpi_pci_link_search_irq(pcib_get_bus(pcib), slot, pin);
+	bios_irq = acpi_pci_link_search_irq(bus, slot, pin);
 	if (!PCI_INTERRUPT_VALID(bios_irq)) {
 		ACPI_SERIAL_END(pci_link);
 		return;
@@ -628,7 +640,7 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	/* Validate the BIOS IRQ. */
 	if (!link_valid_irq(link, bios_irq)) {
 		device_printf(dev, "BIOS IRQ %u for %d.%d.INT%c is invalid\n",
-		    bios_irq, pcib_get_bus(pcib), slot, pin + 'A');
+		    bios_irq, (int)bus, slot, pin + 'A');
 	} else if (!PCI_INTERRUPT_VALID(link->l_bios_irq)) {
 		link->l_bios_irq = bios_irq;
 		if (bios_irq < NUM_ISA_INTERRUPTS)
@@ -641,7 +653,7 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	} else if (bios_irq != link->l_bios_irq)
 		device_printf(dev,
 	    "BIOS IRQ %u for %d.%d.INT%c does not match previous BIOS IRQ %u\n",
-		    bios_irq, pcib_get_bus(pcib), slot, pin + 'A',
+		    bios_irq, (int)bus, slot, pin + 'A',
 		    link->l_bios_irq);
 	ACPI_SERIAL_END(pci_link);
 }
