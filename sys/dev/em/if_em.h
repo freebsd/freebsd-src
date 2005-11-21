@@ -84,6 +84,9 @@ POSSIBILITY OF SUCH DAMAGE.
  *   This value is the number of transmit descriptors allocated by the driver.
  *   Increasing this value allows the driver to queue more transmits. Each
  *   descriptor is 16 bytes.
+ *   Since TDLEN should be multiple of 128bytes, the number of transmit
+ *   desscriptors should meet the following condition.
+ *      (num_tx_desc * sizeof(struct em_tx_desc)) % 128 == 0
  */
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD_82543	256
@@ -99,7 +102,9 @@ POSSIBILITY OF SUCH DAMAGE.
  *   Increasing this value allows the driver to buffer more incoming packets.
  *   Each descriptor is 16 bytes.  A receive buffer is also allocated for each
  *   descriptor. The maximum MTU size is 16110.
- *
+ *   Since TDLEN should be multiple of 128bytes, the number of transmit
+ *   desscriptors should meet the following condition.
+ *      (num_tx_desc * sizeof(struct em_tx_desc)) % 128 == 0
  */
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD_82543	256
@@ -215,8 +220,6 @@ POSSIBILITY OF SUCH DAMAGE.
                                          ADVERTISE_1000_FULL)
 
 #define EM_VENDOR_ID                    0x8086
-#define EM_MMBA                         0x0010 /* Mem base address */
-#define EM_ROUNDUP(size, unit) (((size) + (unit) - 1) & ~((unit) - 1))
 
 #define EM_JUMBO_PBA                    0x00000028
 #define EM_DEFAULT_PBA                  0x00000030
