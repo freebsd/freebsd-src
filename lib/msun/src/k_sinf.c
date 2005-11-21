@@ -14,8 +14,10 @@
  * ====================================================
  */
 
+#ifndef INLINE_KERNEL_SINF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
+#endif
 #endif
 
 #include "math.h"
@@ -29,6 +31,9 @@ S2  =  0x8888bb.0p-30,		/*  0.0083333803341 */
 S3  = -0xd02de1.0p-36,		/* -0.00019853517006 */
 S4  =  0xbe6dbe.0p-42;		/*  0.0000028376084629 */
 
+#ifdef INLINE_KERNEL_SINF
+extern inline
+#endif
 float
 __kernel_sinf(float x, float y, int iy)
 {
