@@ -2564,7 +2564,6 @@ nfs_strategy(struct vop_strategy_args *ap)
 	struct buf *bp = ap->a_bp;
 	struct ucred *cr;
 	struct thread *td;
-	int error = 0;
 
 	KASSERT(!(bp->b_flags & B_DONE), ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
 	KASSERT(BUF_REFCNT(bp) > 0, ("nfs_strategy: buffer %p not locked", bp));
@@ -2585,9 +2584,9 @@ nfs_strategy(struct vop_strategy_args *ap)
 	 * otherwise just do it ourselves.
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 ||
-		nfs_asyncio(VFSTONFS(ap->a_vp->v_mount), bp, NOCRED, td))
-		error = nfs_doio(ap->a_vp, bp, cr, td);
-	return (error);
+	    nfs_asyncio(VFSTONFS(ap->a_vp->v_mount), bp, NOCRED, td))
+		(void)nfs_doio(ap->a_vp, bp, cr, td);
+	return (0);
 }
 
 /*
