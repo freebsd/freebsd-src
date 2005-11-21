@@ -66,9 +66,7 @@ int	subdir(const char *, const char *);
 static void	usage(void) __dead2;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct iovec iov[6];
 	int ch, mntflags;
@@ -99,15 +97,15 @@ main(argc, argv)
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
-	iov[0].iov_base = "fstype";
+	iov[0].iov_base = strdup("fstype");
 	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = "nullfs";
+	iov[1].iov_base = strdup("nullfs");
 	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
-	iov[2].iov_base = "fspath";
+	iov[2].iov_base = strdup("fspath");
 	iov[2].iov_len = sizeof("fspath");
 	iov[3].iov_base = source;
 	iov[3].iov_len = strlen(source) + 1;
-	iov[4].iov_base = "target";
+	iov[4].iov_base = strdup("target");
 	iov[4].iov_len = sizeof("target");
 	iov[5].iov_base = target;
 	iov[5].iov_len = strlen(target) + 1;
