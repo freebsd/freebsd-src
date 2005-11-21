@@ -36,17 +36,19 @@
 .In sys/types.h
 .In memstat.h
 .Ss General Functions
-.Ft const char *
+.Ft "const char *"
 .Fn memstat_strerror "int error"
 .Ss Memory Type List Management Functions
-.Ft struct memory_type_list *
+.Ft "struct memory_type_list *"
 .Fn memstat_mtl_alloc "void"
-.Ft struct memory_type *
+.Ft "struct memory_type *"
 .Fn memstat_mtl_first "struct memory_type_list *list"
-.Ft struct memory_type *
+.Ft "struct memory_type *"
 .Fn memstat_mtl_next "struct memory_type *mtp"
-.Ft struct memory_type *
-.Fn memstat_mtl_find "struct memory_type_list *list" "int allocator" "const char *name"
+.Ft "struct memory_type *"
+.Fo memstat_mtl_find
+.Fa "struct memory_type_list *list" "int allocator" "const char *name"
+.Fc
 .Ft void
 .Fn memstat_mtl_free "struct memory_type_list *list"
 .Ft int
@@ -65,7 +67,7 @@
 .Ft int
 .Fn memstat_sysctl_uma "struct memory_type_list *list" "int flags"
 .Ss Memory Type Accessor Methods
-.Ft const char *
+.Ft "const char *"
 .Fn memstat_get_name "const struct memory_type *mtp"
 .Ft int
 .Fn memstat_get_allocator "const struct memory_type *mtp"
@@ -93,14 +95,18 @@
 .Fn memstat_get_free "const struct memory_type *mtp"
 .Ft uint64_t
 .Fn memstat_get_failures "const struct memory_type *mtp"
-.Ft void *
+.Ft "void *"
 .Fn memstat_get_caller_pointer "const struct memory_type *mtp" "int index"
 .Ft void
-.Fn memstat_set_caller_pointer "struct memory_type *mtp" "int index" "void *value"
+.Fo memstat_set_caller_pointer
+.Fa "struct memory_type *mtp" "int index" "void *value"
+.Fc
 .Ft uint64_t
 .Fn memstat_get_caller_uint64 "const struct memory_type *mtp" "int index"
 .Ft void
-.Fn memstat_set_caller_uint64 "struct memory_type *mtp" "int index" "uint64_t value"
+.Fo memstat_set_caller_uint64
+.Fa "struct memory_type *mtp" "int index" "uint64_t value"
+.Fc
 .Ft uint64_t
 .Fn memstat_get_zonefree "const struct memory_type *mtp"
 .Ft uint64_t
@@ -115,14 +121,22 @@
 .Fn memstat_get_percpu_numfrees "const struct memory_type *mtp" "int cpu"
 .Ft uint64_t
 .Fn memstat_get_percpu_sizemask "const struct memory_type *mtp" "int cpu"
-.Ft void *
-.Fn memstat_get_percpu_caller_pointer "const struct memory_type *mtp" "int cpu" "int index"
+.Ft "void *"
+.Fo memstat_get_percpu_caller_pointer
+.Fa "const struct memory_type *mtp" "int cpu" "int index"
+.Fc
 .Ft void
-.Fn memstat_set_percpu_caller_pointer "struct memory_type *mtp" "int cpu" "int index" "void *value"
+.Fo memstat_set_percpu_caller_pointer
+.Fa "struct memory_type *mtp" "int cpu" "int index" "void *value"
+.Fc
 .Ft uint64_t
-.Fn memstat_get_percpu_caller_uint64 "const struct memory_type *mtp" "int cpu" "int index"
+.Fo memstat_get_percpu_caller_uint64
+.Fa "const struct memory_type *mtp" "int cpu" "int index"
+.Fc
 .Ft void
-.Fn memstat_set_percpu_caller_uint64 "struct memory_type *mtp" "int cpu" "int index" "uint64_t value"
+.Fo memstat_set_percpu_caller_uint64
+.Fa "struct memory_type *mtp" "int cpu" "int index" "uint64_t value"
+.Fc
 .Ft uint64_t
 .Fn memstat_get_percpu_free "const struct memory_type *mtp" "int cpu"
 .Sh DESCRIPTION
@@ -137,14 +151,14 @@ incrementally updating statistics for long-term monitoring.
 .Pp
 .Nm
 describes each memory type using a
-.Vt struct memory_type ,
+.Vt "struct memory_type" ,
 an opaque memory type accessed by the application using accessor functions
 in the library.
 .Nm
 returns and updates chains of
-.Vt struct memory_type
+.Vt "struct memory_type"
 via a
-.Vt struct memory_type_list ,
+.Vt "struct memory_type_list" ,
 which will be allocated by calling
 .Fn memstat_mtl_alloc ,
 and freed on completion using
@@ -168,11 +182,11 @@ and converted to a user-readable string using
 .Pp
 Freeing the list will free all memory type data in the list, and so
 invalidates any outstanding pointers to entries in the list.
-.Vt struct memory_type
+.Vt "struct memory_type"
 entries in the list may be iterated over using
 .Fn memstat_mtl_first
 and
-.fn memstat_mtl_next ,
+.Fn memstat_mtl_next ,
 which respectively return the first entry in a list, and the next entry in a
 list.
 .Fn memstat_mtl_find ,
@@ -183,9 +197,9 @@ A series of accessor methods is provided to access fields of the structure,
 including retrieving statistics and properties, as well as setting of caller
 owned fields.
 Direct application access to the data structure fields is not supported.
-.Ss Library memory_type Fields
+.Ss Library Vt memory_type Ss Fields
 Each
-.Vt struct memory_type
+.Vt "struct memory_type"
 holds a description of the memory type, including its name and the allocator
 it is managed by, as well as current statistics on use.
 Some statistics are directly measured, others are derived from directly
@@ -195,8 +209,8 @@ such as the number of allocation and free operations; other measurements,
 such as the quantity of free items in per-CPU caches, or administrative
 limit on the number of allocations, is available only for specific
 allocators.
-.Ss Caller memory_type Fields
-.Vt struct memory_type
+.Ss Caller Vt memory_type Ss Fields
+.Vt "struct memory_type"
 includes fields to allow the application to store data, in the form of
 pointers and 64-bit integers, with memory types.
 For example, the application author might make use of one of the caller
@@ -204,7 +218,7 @@ pointers to reference a more complex data structure tracking long-term
 behavior of the memory type, or a window system object that is used to
 render the state of the memory type.
 General and per-CPU storage is provided with each
-.Vt struct memory_type
+.Vt "struct memory_type"
 in the form of an array of pointers and integers.
 The array entries are accessed via the
 .Fa index
@@ -212,16 +226,16 @@ argument to the get and set accessor methods.
 Possible values of
 .Fa index
 range between
-.Dv 0
+0
 and
 .Dv MEMSTAT_MAXCALLER .
 .Pp
 Caller-owned fields are initialized to
-.Dv 0
+0
 or
 .Dv NULL
 when a new
-.Vt struct memory_type
+.Vt "struct memory_type"
 is allocated and attached to a memory type list; these fields retain their
 values across queries that update library-owned fields.
 .Ss Allocator Types
@@ -249,9 +263,8 @@ permittible from
 .Ss Access Method List
 The following accessor methods are defined, of which some will be valid for
 a given memory type:
-.Pp
-.Bl -tag -width "memstat_get_name" -compact -offset wee
-.It memstat_get_name
+.Bl -tag -width indent
+.It Fn memstat_get_name
 Return a pointer to the name of the memory type.
 Memory for the name is owned by
 .Nm
@@ -260,81 +273,81 @@ and will be valid through a call to
 Note that names will be unique with respect to a single allocator, but that
 the same name might be used by different memory types owned by different
 memory allocators.
-.It memstat_get_allocator
+.It Fn memstat_get_allocator
 Return an integer identifier for the memory allocator that owns the memory
 type.
-.It memstat_get_countlimit
+.It Fn memstat_get_countlimit
 If the memory type has an administrative limit on the number of simultaneous
 allocations, return it.
-.It memstat_get_byteslimit
+.It Fn memstat_get_byteslimit
 If the memory type has an administrative limit on the number of bytes of
 memory that may be simultaenously allocated for the memory type, return it.
-.It memstat_get_sizemask
+.It Fn memstat_get_sizemask
 If the memory type supports variable allocation sizes, return a bitmask of
 sizes allocated for the memory type.
-.It memstat_get_size
+.It Fn memstat_get_size
 If the memory type supports a fixed allocation size, return that size.
-.It memstat_get_memalloced
+.It Fn memstat_get_memalloced
 Return the total number of bytes allocated for the memory type over its
 lifetime.
-.It memstat_get_memfreed
+.It Fn memstat_get_memfreed
 Return the total number of bytes freed for the memory type over its lifetime.
-.It memstat_get_numallocs
+.It Fn memstat_get_numallocs
 Return the total number of allocations for the memory type over its lifetime.
-.It memstat_get_numfrees
+.It Fn memstat_get_numfrees
 Return the total number of frees for the memory type over its lifetime.
-.It memstat_get_bytes
+.It Fn memstat_get_bytes
 Return the current number of bytes allocated to the memory type.
-.It memstat_get_count
+.It Fn memstat_get_count
 Return the current number of allocations for the memory type.
-.It memstat_get_free
+.It Fn memstat_get_free
 If the memory allocator supports a cache, return the number of items in the
 cache.
-.It memstat_get_failures
+.It Fn memstat_get_failures
 If the memory allocator and type permit allocation failures, return the
 number of allocation failures measured.
-.It memstat_get_caller_pointer
+.It Fn memstat_get_caller_pointer
 Return a caller-owned pointer for the memory type.
-.It memstat_set_caller_pointer
+.It Fn memstat_set_caller_pointer
 Set a caller-owned pointer for the memory type.
-.It memstat_get_caller_uint64
+.It Fn memstat_get_caller_uint64
 Return a caller-owned integer for the memory type.
-.It memstat_set_caller_uint64
+.It Fn memstat_set_caller_uint64
 Set a caller-owned integer for the memory type.
-.It memstat_get_zonefree
+.It Fn memstat_get_zonefree
 If the memory allocator supports a multi-level allocation structure, return
 the number of cached items in the zone.
 These items will be in a fully constructed state available for immediate
 use.
-.It memstat_get_kegfree
+.It Fn memstat_get_kegfree
 If the memory allocator supports a multi-level allocation structure, return
 the number of cached items in the keg.
 These items may be in a partially constructed state, and may require further
 processing before they can be made available for use.
-.It memstat_get_percpu_memalloced
+.It Fn memstat_get_percpu_memalloced
 If the memory allocator supports per-CPU statistics, return the number of
 bytes of memory allocated for the memory type on the CPU over its lifetime.
-.It memstat_get_percpu_memfreed
+.It Fn memstat_get_percpu_memfreed
 If the memory allocator supports per-CPU statistics, return the number of
 bytes of memory freed from the memory type on the CPU over its lifetime.
-.It memstat_get_percpu_numallocs
+.It Fn memstat_get_percpu_numallocs
 If the memory allocator supports per-CPU statistics, return the number of
 allocations for the memory type on the CPU over its lifetime.
-.It memstat_get_percpu_numfrees
+.It Fn memstat_get_percpu_numfrees
 If the memory allocator supports per-CPU statistics, return the number of
 frees for the memory type on the CPU over its lifetime.
-.It memstat_get_percpu_sizemask
+.It Fn memstat_get_percpu_sizemask
 If the memory allocator supports variable size memory allocation and per-CPU
 statistics, return the size bitmask for the memory type on the CPU.
-.It memstat_get_percpu_caller_pointer
+.It Fn memstat_get_percpu_caller_pointer
 Return a caller-owned per-CPU pointer for the memory type.
-.It memstat_set_percpu_caller_pointer
+.It Fn memstat_set_percpu_caller_pointer
 Set a caller-owned per-CPU pointer for the memory type.
-.It memstat_get_percpu_caller_uint64
+.It Fn memstat_get_percpu_caller_uint64
 Return a caller-owned per-CPU integer for the memory type.
-.It memsttat_set_percpu_caller_uint64
+.It Fn memsttat_set_percpu_caller_uint64
 Set a caller-owned per-CPU integer for the memory type.
-.It memstat_get_percpu_free
+.It Fn memstat_get_percpu_free
 If the memory allocator supports a per-CPU cache, return the number of free
 items in the per-CPU cache of the designated CPU.
 .El
@@ -343,7 +356,7 @@ items in the per-CPU cache of the designated CPU.
 functions fall into three categories: functions returning a pointer to an
 object, functions returning an integer return value, and functions
 implementing accessor methods returning data from a
-.Vt struct memory_type .
+.Vt "struct memory_type" .
 .Pp
 Functions returning a pointer to an object will generally return
 .Dv NULL
@@ -352,7 +365,7 @@ on failure.
 will return an error value via
 .Va errno ,
 which will consist of the value
-.Dv ENOMEM .
+.Er ENOMEM .
 Functions
 .Fn memstat_mtl_first ,
 .Fn memstat_mtl_next ,
@@ -363,10 +376,10 @@ will return
 when there is no entry or match in the list; however, this is not considered
 a failure mode and no error value is available.
 .Pp
-Functions returning a integer success valuye will return
-.Dv 0
+Functions returning an integer success value will return
+0
 on success, or
-.Dv -1
+\-1
 on failure.
 If a failure is returned, the list error access method,
 .Fn memstat_mtl_geterror ,
@@ -374,14 +387,15 @@ may be used to retrieve the error state.
 The string representation of the error may be retrieved using
 .Fn memstat_strerror .
 Possible error values are:
-.Pp
-.Bl -tag -width "MEMSTAT_ERROR_KVM_SHORTREAD" -compact -offset wee
+.Bl -tag -width ".Dv MEMSTAT_ERROR_KVM_SHORTREAD"
 .It Dv MEMSTAT_ERROR_UNDEFINED
-Undefined error.  Occurs if
+Undefined error.
+Occurs if
 .Fn memstat_mtl_geterror
 is called on a list before an error associated with the list has occurred.
 .It Dv MEMSTAT_ERROR_NOMEMORY
-Insufficient memory.  Occurs if library calls to
+Insufficient memory.
+Occurs if library calls to
 .Xr malloc 3
 fail, or if a system call to retrieve kernel statistics fails with
 .Er ENOMEM .
@@ -395,9 +409,9 @@ be reconciled.
 Returned if a statistics source returns
 .Va errno
 values of
-.Dv EACCES
+.Er EACCES
 or
-.Dv EPERM .
+.Er EPERM .
 .It Dv MEMSTAT_ERROR_TOOMANYCPUS
 Returned if the compile-time limit on the number of CPUs in
 .Nm
@@ -428,7 +442,7 @@ insufficient data is returned.
 .El
 .Pp
 Finally, functions returning data from a
-.Dt struct memory_type
+.Vt "struct memory_type"
 pointer are not permitted to fail, and directly return either a statistic
 or pointer to a string.
 .Sh EXAMPLES
@@ -454,24 +468,26 @@ if (mtp == NULL)
 mbuf_count = memstat_get_count(mtp);
 memstat_mtl_free(mtlp);
 
-printf("mbufs: %llu\\n", (unsigned long long)mbuf_count);
+printf("mbufs: %llu\en", (unsigned long long)mbuf_count);
 .Ed
 .Sh SEE ALSO
 .Xr malloc 9 ,
 .Xr uma 9
 .Sh HISTORY
 The
-.Nm libmemstat
+.Nm
 library appeared in
 .Fx 6.0 .
 .Sh AUTHORS
 The kernel memory allocator changes necessary to support a general purpose
 monitoring library, along with the library, were written by
-.An Robert Watson Aq rwatson@FreeBSD.org
+.An Robert Watson Aq rwatson@FreeBSD.org .
 .Sh BUGS
 There are memory allocators in the kernel, such as the VM page allocator
-and sf_buf allocator, which are not currently supported by
-.Nm
+and
+.Nm sf_buf
+allocator, which are not currently supported by
+.Nm .
 .Pp
 Once a memory type is present on a memory type list, it will not be removed
 even if the kernel no longer presents information on the type via its
