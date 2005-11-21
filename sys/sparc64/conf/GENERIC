@@ -186,7 +186,6 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP

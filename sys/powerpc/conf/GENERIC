@@ -104,7 +104,6 @@ device 		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
