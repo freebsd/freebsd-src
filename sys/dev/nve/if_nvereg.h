@@ -117,9 +117,8 @@ struct nve_softc {
 		
 	device_t miibus;
 	device_t dev;
-	struct callout_handle stat_ch;
+	struct callout stat_callout;
 
-	u_int32_t unit;
 	void *sc_ih;
 	bus_space_tag_t sc_st;
 	bus_space_handle_t sc_sh;
@@ -140,13 +139,11 @@ struct nve_softc {
 	u_int32_t pending_rxs;
 	u_int32_t pending_txs;
 
-	u_int32_t flags;
-	u_int32_t miicfg;
 	struct mtx mtx;
 	struct mtx osmtx;
 
 	/* Stuff for dealing with the NVIDIA OS API */
-	struct callout_handle ostimer;
+	struct callout ostimer;
 	PTIMER_FUNC ostimer_func;
 	void *ostimer_params;
 	int linkup;
@@ -167,6 +164,7 @@ struct nve_type {
 
 #define NVE_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
 #define NVE_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
+#define NVE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 #define NVE_OSLOCK(_sc)		mtx_lock_spin(&(_sc)->osmtx)
 #define NVE_OSUNLOCK(_sc)	mtx_unlock_spin(&(_sc)->osmtx)
 
