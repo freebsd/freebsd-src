@@ -232,7 +232,7 @@ i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi
 i386/acpica/acpi_wakeup.c	optional acpi
 acpi_wakecode.h			optional acpi			\
-	dependency 	"$S/i386/acpica/acpi_wakecode.S"		\
+	dependency 	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
 	compile-with	"${MAKE} -f $S/i386/acpica/Makefile MAKESRCPATH=$S/i386/acpica"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
