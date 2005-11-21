@@ -3084,9 +3084,9 @@ tulip_addr_filter(tulip_softc_t * const sc)
 		hash = tulip_mchash(IF_LLADDR(ifp));
 		sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    } else {
-		sp[39] = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[0]); 
-		sp[40] = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[1]); 
-		sp[41] = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[2]);
+		sp[39] = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 0); 
+		sp[40] = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 1); 
+		sp[41] = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 2);
 	    }
 	}
     }
@@ -3101,26 +3101,32 @@ tulip_addr_filter(tulip_softc_t * const sc)
 		    if (ifma->ifma_addr->sa_family != AF_LINK)
 			    continue;
 		    addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-		    *sp++ = TULIP_SP_MAC(((u_int16_t *)addrp)[0]); 
-		    *sp++ = TULIP_SP_MAC(((u_int16_t *)addrp)[1]); 
-		    *sp++ = TULIP_SP_MAC(((u_int16_t *)addrp)[2]);
+		    *sp++ = TULIP_SP_MAC((u_int16_t *)addrp + 0); 
+		    *sp++ = TULIP_SP_MAC((u_int16_t *)addrp + 1); 
+		    *sp++ = TULIP_SP_MAC((u_int16_t *)addrp + 2);
 		    idx++;
 	    }
 	    /*
 	     * Add the broadcast address.
 	     */
 	    idx++;
-	    *sp++ = TULIP_SP_MAC(0xFFFF);
-	    *sp++ = TULIP_SP_MAC(0xFFFF);
-	    *sp++ = TULIP_SP_MAC(0xFFFF);
+#if BYTE_ORDER == BIG_ENDIAN
+	    *sp++ = 0xFFFF << 16;
+	    *sp++ = 0xFFFF << 16;
+	    *sp++ = 0xFFFF << 16;
+#else
+	    *sp++ = 0xFFFF;
+	    *sp++ = 0xFFFF;
+	    *sp++ = 0xFFFF;
+#endif
 	}
 	/*
 	 * Pad the rest with our hardware address
 	 */
 	for (; idx < 16; idx++) {
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[0]); 
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[1]); 
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)IF_LLADDR(ifp))[2]);
+	    *sp++ = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 0); 
+	    *sp++ = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 1); 
+	    *sp++ = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 2);
 	}
     }
     IF_ADDR_UNLOCK(ifp);
@@ -3235,7 +3241,6 @@ tulip_reset(tulip_softc_t * const sc)
 
     sc->tulip_flags &= ~(TULIP_DOINGSETUP|TULIP_WANTSETUP|TULIP_INRESET
 			 |TULIP_RXACT);
-    tulip_addr_filter(sc);
 }
 
 
@@ -3259,6 +3264,7 @@ tulip_init_locked(tulip_softc_t * const sc)
 	    CTR0(KTR_TULIP, "tulip_init_locked: up but not running, reset chip");
 	    tulip_reset(sc);
 	}
+	tulip_addr_filter(sc);
 	sc->tulip_ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	if (sc->tulip_ifp->if_flags & IFF_PROMISC) {
 	    sc->tulip_flags |= TULIP_PROMISC;
@@ -3295,6 +3301,7 @@ tulip_init_locked(tulip_softc_t * const sc)
 	CTR0(KTR_TULIP, "tulip_init_locked: not up, reset chip");
 	sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	tulip_reset(sc);
+	tulip_addr_filter(sc);
     }
 }
 
@@ -4224,7 +4231,6 @@ tulip_ifioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
     switch (cmd) {
 	case SIOCSIFFLAGS: {
 	    TULIP_LOCK(sc);
-	    tulip_addr_filter(sc); /* reinit multicast filter */
 	    tulip_init_locked(sc);
 	    TULIP_UNLOCK(sc);
 	    break;
@@ -4242,25 +4248,11 @@ tulip_ifioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
 	     * Update multicast listeners
 	     */
 	    TULIP_LOCK(sc);
-	    tulip_addr_filter(sc);		/* reset multicast filtering */
 	    tulip_init_locked(sc);
 	    TULIP_UNLOCK(sc);
 	    error = 0;
 	    break;
 	}
-
-	case SIOCSIFMTU:
-	    /*
-	     * Set the interface MTU.
-	     */
-	    TULIP_LOCK(sc);
-	    if (ifr->ifr_mtu > ETHERMTU) {
-		error = EINVAL;
-		break;
-	    }
-	    ifp->if_mtu = ifr->ifr_mtu;
-	    TULIP_UNLOCK(sc);
-	    break;
 
 #ifdef SIOCGADDRROM
 	case SIOCGADDRROM: {
