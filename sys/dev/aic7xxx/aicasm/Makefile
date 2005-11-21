@@ -20,7 +20,7 @@ LDADD=	-ll
 # Don't rely on the kernel's .depend file
 .ifdef MAKESRCPATH
 .PATH: ${MAKESRCPATH}
-DEPENDFILE=
+DEPENDFILE=	.depend_aicasm
 .endif
 
 .if ${CC} == "icc"
