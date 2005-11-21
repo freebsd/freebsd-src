@@ -523,6 +523,17 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	return (error);
 }
 
+static __inline int
+nfs_cantrecvmore(struct socket *so)
+{
+	int ret;
+	
+	SOCKBUF_LOCK(&so->so_rcv);
+	ret = (so->so_rcv.sb_state & SBS_CANTRCVMORE);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	return ret;
+}
+
 int
 nfs_reply(struct nfsreq *rep)
 {
@@ -552,7 +563,7 @@ tryagain:
 		}
 		so = rep->r_nmp->nm_so;
 		mtx_lock(&rep->r_nmp->nm_nfstcpstate.mtx);
-		if (!so || 
+		if (!so || nfs_cantrecvmore(so) ||
 		    (rep->r_nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT)) {
 			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
 			error = nfs_reconnect(rep);
