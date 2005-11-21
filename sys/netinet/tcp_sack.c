@@ -448,11 +448,26 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		 * way of hole splitting in the while-loop below.
 		 */
 		temp = tcp_sackhole_insert(tp, tp->snd_fack,sblkp->start,NULL);
-		if (temp == NULL)
-			return;
-		tp->snd_fack = sblkp->end;
-		/* Go to the previous sack block. */
-		sblkp--;
+		if (temp != NULL) {
+			tp->snd_fack = sblkp->end;
+			/* Go to the previous sack block. */
+			sblkp--;
+		} else {
+			/* 
+			 * We failed to add a new hole based on the current 
+			 * sack block.  Skip over all the sack blocks that 
+			 * fall completely to the right of snd_fack and proceed
+			 * to trim the scoreboard based on the remaining sack
+			 * blocks. This also trims the scoreboard for th_ack 
+			 * (which is sack_blocks[0]).
+			 */
+			while (sblkp >= sack_blocks && 
+			       SEQ_LT(tp->snd_fack, sblkp->start))
+				sblkp--;
+			if (sblkp >= sack_blocks && 
+			    SEQ_LT(tp->snd_fack, sblkp->end))
+				tp->snd_fack = sblkp->end;
+		}
 	} else if (SEQ_LT(tp->snd_fack, sblkp->end))
 		/* fack is advanced. */
 		tp->snd_fack = sblkp->end;
@@ -463,7 +478,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	 * Since the incoming sack blocks are sorted, we can process them
 	 * making one sweep of the scoreboard.
 	 */
-	while (sblkp - sack_blocks >= 0 && cur != NULL) {
+	while (sblkp >= sack_blocks  && cur != NULL) {
 		if (SEQ_GEQ(sblkp->start, cur->end)) {
 			/*
 			 * SACKs data beyond the current hole.
