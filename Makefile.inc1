@@ -252,6 +252,7 @@ IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 # kernel stage
 KMAKEENV=	${WMAKEENV}
+KMAKE=		${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME}
 
 #
 # buildworld
@@ -652,15 +653,13 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} ${CLEANDIR}
+	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} obj
+	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} obj
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
@@ -681,15 +680,13 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3.1: making dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} depend -DNO_MODULES_OBJ
+	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} depend -DNO_MODULES_OBJ
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3.2: building everything"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} all -DNO_MODULES_OBJ
+	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} all -DNO_MODULES_OBJ
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
