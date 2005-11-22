@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -68,11 +69,12 @@ static device_method_t fhc_nexus_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
         /* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_compat,	fhc_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	fhc_get_model),
-	DEVMETHOD(ofw_bus_get_name,	fhc_get_name),
-	DEVMETHOD(ofw_bus_get_node,	fhc_get_node),
-	DEVMETHOD(ofw_bus_get_type,	fhc_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo,	fhc_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	{ NULL, NULL }
 };

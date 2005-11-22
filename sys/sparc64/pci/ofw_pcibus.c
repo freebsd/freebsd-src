@@ -25,9 +25,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
 
@@ -39,6 +40,7 @@
 #include <sys/pciio.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/openfirm.h>
 
@@ -64,11 +66,7 @@ static void ofw_pcibus_setup_device(device_t, u_int, u_int, u_int);
 static device_probe_t ofw_pcibus_probe;
 static device_attach_t ofw_pcibus_attach;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
-static ofw_bus_get_compat_t ofw_pcibus_get_compat;
-static ofw_bus_get_model_t ofw_pcibus_get_model;
-static ofw_bus_get_name_t ofw_pcibus_get_name;
-static ofw_bus_get_node_t ofw_pcibus_get_node;
-static ofw_bus_get_type_t ofw_pcibus_get_type;
+static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
 
 static device_method_t ofw_pcibus_methods[] = {
 	/* Device interface */
@@ -110,22 +108,19 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_compat,	ofw_pcibus_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_pcibus_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_pcibus_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_pcibus_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_pcibus_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo,	ofw_pcibus_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	{ 0, 0 }
 };
 
 struct ofw_pcibus_devinfo {
 	struct pci_devinfo	opd_dinfo;
-	char			*opd_compat;
-	char			*opd_model;
-	char			*opd_name;
-	char			*opd_type;
-	phandle_t		opd_node;
+	struct ofw_bus_devinfo	opd_obdinfo;
 };
 
 struct ofw_pcibus_softc {
@@ -209,7 +204,6 @@ ofw_pcibus_attach(device_t dev)
 	struct ofw_pci_register pcir;
 	struct ofw_pcibus_devinfo *dinfo;
 	phandle_t node, child;
-	char *cname;
 	u_int slot, busno, func;
 
 	/*
@@ -222,31 +216,21 @@ ofw_pcibus_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if ((OF_getprop_alloc(child, "name", 1, (void **)&cname)) == -1)
+		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
 			continue;
-
-		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1) {
-			device_printf(dev, "<%s>: incomplete\n", cname);
-			free(cname, M_OFWPROP);
-			continue;
-		}
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
 		ofw_pcibus_setup_device(pcib, busno, slot, func);
 		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
 		    busno, slot, func, sizeof(*dinfo));
-		if (dinfo != NULL) {
-			dinfo->opd_name = cname;
-			dinfo->opd_node = child;
-			OF_getprop_alloc(child, "compatible", 1,
-			    (void **)&dinfo->opd_compat);
-			OF_getprop_alloc(child, "device_type", 1,
-			    (void **)&dinfo->opd_type);
-			OF_getprop_alloc(child, "model", 1,
-			    (void **)&dinfo->opd_model);
-			pci_add_child(dev, (struct pci_devinfo *)dinfo);
-		} else
-			free(cname, M_OFWPROP);
+		if (dinfo == NULL)
+			continue;
+		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
+		    0) {
+			pci_freecfg((struct pci_devinfo *)dinfo);
+			continue;
+		}
+		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 	}
 
 	return (bus_generic_attach(dev));
@@ -255,15 +239,14 @@ ofw_pcibus_attach(device_t dev)
 static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
-	struct ofw_pcibus_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->opd_dinfo.cfg;
 	ofw_pci_intr_t intr;
 	int isz;
 
-	isz = OF_getprop(dinfo->opd_node, "interrupts", &intr, sizeof(intr));
+	isz = OF_getprop(ofw_bus_get_node(child), "interrupts", &intr,
+	    sizeof(intr));
 	if (isz != sizeof(intr)) {
 		/* No property; our best guess is the intpin. */
-		intr = cfg->intpin;
+		intr = pci_get_intpin(child);
 	} else if (intr >= 255) {
 		/*
 		 * A fully specified interrupt (including IGN), as present on
@@ -283,47 +266,11 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr));
 }
 
-static const char *
-ofw_pcibus_get_compat(device_t bus, device_t dev)
-{
-	struct ofw_pcibus_devinfo *dinfo;
- 
-	dinfo = device_get_ivars(dev);
-	return (dinfo->opd_compat);
-}
- 
-static const char *
-ofw_pcibus_get_model(device_t bus, device_t dev)
+static const struct ofw_bus_devinfo *
+ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 {
 	struct ofw_pcibus_devinfo *dinfo;
 
 	dinfo = device_get_ivars(dev);
-	return (dinfo->opd_model);
-}
-
-static const char *
-ofw_pcibus_get_name(device_t bus, device_t dev)
-{
-	struct ofw_pcibus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->opd_name);
-}
-
-static phandle_t
-ofw_pcibus_get_node(device_t bus, device_t dev)
-{
-	struct ofw_pcibus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->opd_node);
-}
-
-static const char *
-ofw_pcibus_get_type(device_t bus, device_t dev)
-{
-	struct ofw_pcibus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->opd_type);
+	return (&dinfo->opd_obdinfo);
 }

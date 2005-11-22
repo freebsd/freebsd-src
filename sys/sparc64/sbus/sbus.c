@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -136,13 +137,9 @@ __FBSDID("$FreeBSD$");
 struct sbus_devinfo {
 	int			sdi_burstsz;
 	int			sdi_clockfreq;
-	char			*sdi_compat;	/* PROM compatible */
-	char			*sdi_model;	/* PROM model */
-	char			*sdi_name;	/* PROM name */
-	phandle_t		sdi_node;	/* PROM node */
 	int			sdi_slot;
-	char			*sdi_type;	/* PROM device_type */
 
+	struct ofw_bus_devinfo	sdi_obdinfo;
 	struct resource_list	sdi_rl;
 };
 
@@ -206,20 +203,17 @@ static bus_alloc_resource_t sbus_alloc_resource;
 static bus_release_resource_t sbus_release_resource;
 static bus_activate_resource_t sbus_activate_resource;
 static bus_deactivate_resource_t sbus_deactivate_resource;
-static ofw_bus_get_compat_t sbus_get_compat;
-static ofw_bus_get_model_t sbus_get_model;
-static ofw_bus_get_name_t sbus_get_name;
-static ofw_bus_get_node_t sbus_get_node;
-static ofw_bus_get_type_t sbus_get_type;
+static ofw_bus_get_devinfo_t sbus_get_devinfo;
 
 static int sbus_inlist(const char *, const char **);
-static struct sbus_devinfo * sbus_setup_dinfo(struct sbus_softc *sc,
-    phandle_t node, char *name);
-static void sbus_destroy_dinfo(struct sbus_devinfo *dinfo);
+static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
+    phandle_t);
+static void sbus_destroy_dinfo(struct sbus_devinfo *);
 static void sbus_intr_stub(void *);
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
 static void sbus_overtemp(void *);
 static void sbus_pwrfail(void *);
+static int sbus_print_res(struct sbus_devinfo *);
 
 static device_method_t sbus_methods[] = {
 	/* Device interface */
@@ -240,11 +234,12 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_compat,	sbus_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	sbus_get_model),
-	DEVMETHOD(ofw_bus_get_name,	sbus_get_name),
-	DEVMETHOD(ofw_bus_get_node,	sbus_get_node),
-	DEVMETHOD(ofw_bus_get_type,	sbus_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo,	sbus_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	{ 0, 0 }
 };
@@ -305,7 +300,7 @@ sbus_attach(device_t dev)
 	device_t cdev;
 	bus_addr_t phys;
 	bus_size_t size;
-	char *name, *cname;
+	char *name;
 	phandle_t child, node;
 	u_int64_t mr;
 	int intr, clock, rid, vec, i;
@@ -456,14 +451,8 @@ sbus_attach(device_t dev)
 	 * and then configuring each device.
 	 */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if ((OF_getprop_alloc(child, "name", 1, (void **)&cname)) == -1)
+		if ((sdi = sbus_setup_dinfo(dev, sc, child)) == NULL)
 			continue;
-
-		if ((sdi = sbus_setup_dinfo(sc, child, cname)) == NULL) {
-			device_printf(dev, "<%s>: incomplete\n", cname);
-			free(cname, M_OFWPROP);
-			continue;
-		}
 		/*
 		 * For devices where there are variants that are actually
 		 * split into two SBus devices (as opposed to the first
@@ -476,17 +465,22 @@ sbus_attach(device_t dev)
 		 * drivers which generally is more hackish.
 		 */
 		cdev = device_add_child_ordered(dev, (OF_child(child) == 0 &&
-		    sbus_inlist(cname, sbus_order_first)) ? SBUS_ORDER_FIRST :
-		    SBUS_ORDER_NORMAL, NULL, -1);
-		if (cdev == NULL)
-			panic("%s: device_add_child_ordered failed", __func__);
+		    sbus_inlist(sdi->sdi_obdinfo.obd_name, sbus_order_first)) ?
+		    SBUS_ORDER_FIRST : SBUS_ORDER_NORMAL, NULL, -1);
+		if (cdev == NULL) {
+			device_printf(dev,
+			    "<%s>: device_add_child_ordered failed\n",
+			    sdi->sdi_obdinfo.obd_name);
+			sbus_destroy_dinfo(sdi);
+			continue;
+		}
 		device_set_ivars(cdev, sdi);
 	}
 	return (bus_generic_attach(dev));
 }
 
 static struct sbus_devinfo *
-sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
+sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 {
 	struct sbus_devinfo *sdi;
 	struct sbus_regs *reg;
@@ -494,21 +488,19 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 	int i, nreg, nintr, slot, rslot;
 
 	sdi = malloc(sizeof(*sdi), M_DEVBUF, M_ZERO | M_WAITOK);
-	if (sdi == NULL)
+	if (ofw_bus_gen_setup_devinfo(&sdi->sdi_obdinfo, node) != 0) {
+		free(sdi, M_DEVBUF);
 		return (NULL);
+	}
 	resource_list_init(&sdi->sdi_rl);
-	sdi->sdi_name = name;
-	sdi->sdi_node = node;
-	OF_getprop_alloc(node, "compatible", 1, (void **)&sdi->sdi_compat);
-	OF_getprop_alloc(node, "device_type", 1, (void **)&sdi->sdi_type);
-	OF_getprop_alloc(node, "model", 1, (void **)&sdi->sdi_model);
 	slot = -1;
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
-		if (sdi->sdi_type == NULL ||
-		    strcmp(sdi->sdi_type, "hierarchical") != 0) {
-			sbus_destroy_dinfo(sdi);
-			return (NULL);
+		if (sdi->sdi_obdinfo.obd_type == NULL ||
+		    strcmp(sdi->sdi_obdinfo.obd_type, "hierarchical") != 0) {
+			device_printf(dev, "<%s>: incomplete\n",
+			    sdi->sdi_obdinfo.obd_name);
+			goto fail;
 		}
 	} else {
 		for (i = 0; i < nreg; i++) {
@@ -518,8 +510,12 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 				base = SBUS_ABS_TO_OFFSET(base);
 			} else
 				rslot = reg[i].sbr_slot;
-			if (slot != -1 && slot != rslot)
-				panic("%s: multiple slots", __func__);
+			if (slot != -1 && slot != rslot) {
+				device_printf(dev, "<%s>: multiple slots\n",
+				    sdi->sdi_obdinfo.obd_name);
+				free(reg, M_OFWPROP);
+				goto fail;
+			}
 			slot = rslot;
 
 			resource_list_add(&sdi->sdi_rl, SYS_RES_MEMORY, i,
@@ -560,35 +556,28 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 		sdi->sdi_clockfreq = sc->sc_clockfreq;
 
 	return (sdi);
+
+fail:
+	sbus_destroy_dinfo(sdi);
+	return (NULL);
 }
 
-/* Free everything except sdi_name, which is handled separately. */
 static void
 sbus_destroy_dinfo(struct sbus_devinfo *dinfo)
 {
 
 	resource_list_free(&dinfo->sdi_rl);
-	if (dinfo->sdi_compat != NULL)
-		free(dinfo->sdi_compat, M_OFWPROP);
-	if (dinfo->sdi_model != NULL)
-		free(dinfo->sdi_model, M_OFWPROP);
-	if (dinfo->sdi_type != NULL)
-		free(dinfo->sdi_type, M_OFWPROP);
+	ofw_bus_gen_destroy_devinfo(&dinfo->sdi_obdinfo);
 	free(dinfo, M_DEVBUF);
 }
 
 static int
 sbus_print_child(device_t dev, device_t child)
 {
-	struct sbus_devinfo *dinfo;
-	struct resource_list *rl;
 	int rv;
 
-	dinfo = device_get_ivars(child);
-	rl = &dinfo->sdi_rl;
 	rv = bus_print_child_header(dev, child);
-	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += sbus_print_res(device_get_ivars(child));
 	rv += bus_print_child_footer(dev, child);
 	return (rv);
 }
@@ -596,16 +585,13 @@ sbus_print_child(device_t dev, device_t child)
 static void
 sbus_probe_nomatch(device_t dev, device_t child)
 {
-	struct sbus_devinfo *dinfo;
-	struct resource_list *rl;
+	const char *type;
 
-	dinfo = device_get_ivars(child);
-	rl = &dinfo->sdi_rl;
-	device_printf(dev, "<%s>", dinfo->sdi_name);
-	resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	device_printf(dev, "<%s>", ofw_bus_get_name(child));
+	sbus_print_res(device_get_ivars(child));
+	type = ofw_bus_get_type(child);
 	printf(" type %s (no driver attached)\n",
-	    dinfo->sdi_type != NULL ? dinfo->sdi_type : "unknown");
+	    type != NULL ? type : "unknown");
 }
 
 static int
@@ -732,8 +718,8 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 }
 
 static int
-sbus_teardown_intr(device_t dev, device_t child,
-    struct resource *vec, void *cookie)
+sbus_teardown_intr(device_t dev, device_t child, struct resource *vec,
+    void *cookie)
 {
 	struct sbus_clr *scl;
 	int error;
@@ -885,6 +871,15 @@ sbus_release_resource(device_t bus, device_t child, int type, int rid,
 	return (0);
 }
 
+static const struct ofw_bus_devinfo *
+sbus_get_devinfo(device_t bus, device_t child)
+{
+	struct sbus_devinfo *sdi;
+
+	sdi = device_get_ivars(child);
+	return (&sdi->sdi_obdinfo);
+}
+
 /*
  * Handle an overtemp situation.
  *
@@ -926,47 +921,15 @@ sbus_alloc_bustag(struct sbus_softc *sc)
 	return (sbt);
 }
 
-static const char *
-sbus_get_compat(device_t bus, device_t dev)
+static int
+sbus_print_res(struct sbus_devinfo *sdi)
 {
-	struct sbus_devinfo *dinfo;
+	int rv;
 
-	dinfo = device_get_ivars(dev);
-	return (dinfo->sdi_compat);
-}
-
-static const char *
-sbus_get_model(device_t bus, device_t dev)
-{
-	struct sbus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->sdi_model);
-}
-
-static const char *
-sbus_get_name(device_t bus, device_t dev)
-{
-	struct sbus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->sdi_name);
-}
-
-static phandle_t
-sbus_get_node(device_t bus, device_t dev)
-{
-	struct sbus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->sdi_node);
-}
-
-static const char *
-sbus_get_type(device_t bus, device_t dev)
-{
-	struct sbus_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->sdi_type);
+	rv = 0;
+	rv += resource_list_print_type(&sdi->sdi_rl, "mem", SYS_RES_MEMORY,
+	    "%#lx");
+	rv += resource_list_print_type(&sdi->sdi_rl, "irq", SYS_RES_IRQ,
+	    "%ld");
+	return (rv);
 }
