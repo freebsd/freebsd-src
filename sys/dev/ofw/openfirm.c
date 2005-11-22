@@ -70,12 +70,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_OFWPROP, "openfirm", "Open Firmware properties");
 
-static ihandle_t stdin;
 static ihandle_t stdout;
-
-char	*OF_buf;
-
-void	ofbcopy(const void *, void *, size_t);
 
 /* Initialiaser */
 
@@ -87,7 +82,6 @@ OF_init(int (*openfirm)(void *))
 	set_openfirm_callback(openfirm);
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		OF_exit();
-	OF_getprop(chosen, "stdin", &stdin, sizeof(stdin));
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
 }
 
@@ -820,16 +814,3 @@ OF_chain(void *virt, u_int size,
 	entry(0, 0, openfirmware, arg, len);
 }
 #endif
-
-void
-ofbcopy(const void *src, void *dst, size_t len)
-{
-	const char *sp = src;
-	char *dp = dst;
-
-	if (src == dst)
-		return;
-
-	while (len-- > 0)
-		*dp++ = *sp++;
-}
