@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2005
+.Dd November 17, 2005
 .Dt HPTMV 4
 .Os
 .Sh NAME
@@ -54,6 +54,13 @@ The
 .Nm
 driver only works on the i386 and amd64 platforms as it requires a binary
 blob object from the manufacturer which they only supply for these platforms.
+The
+.Nm
+driver
+.Em does not
+work on i386 with
+.Xr pae 4
+enabled.
 .Sh SEE ALSO
 .Xr kld 4 ,
 .Xr kldload 8 ,
