@@ -76,6 +76,7 @@ crypto/des/des_enc.c		optional	netsmbcrypto
 
 dev/ofw/openfirm.c		standard
 dev/ofw/ofw_bus_if.m		standard
+dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		standard
 dev/ofw/ofw_disk.c		optional	ofwd
 
