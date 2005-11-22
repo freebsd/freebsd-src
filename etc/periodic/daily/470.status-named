@@ -31,24 +31,22 @@ case "$daily_status_named_enable" in
 
 	start=`date -v-1d '+%b %e'`
 	rc=$(catmsgs |
-	    fgrep '^'"$start"'.*named\[[[:digit:]]\+\]: denied [AI]XFR from \[.*\]\.[[:digit:]]\+ for' | \
-	    sed -e 's/.*: denied [AI]XFR from \[\(.*\)\]\.[[:digit:]]* for "\(.*\)".*$/\2 from \1/'
+	    fgrep -E ".*named\[[[:digit:]]+\]: transfer of .*failed .*: REFUSED" |
+	    sed -e "s/.*transfer of \'\(.*\)\/IN\' from \(.*\)#[0-9]*: .*/\1 from \2/" |
 	    sort -f | uniq -ic | (
 		usedns=0
-		if [ X"${daily_status_named_usedns}" != X"" ]; then
-			case $daily_status_named_usedns in
-			[yY][eE][sS])   usedns=1 ;;
-			esac
-		fi
+		case "$daily_status_named_usedns" in
+		'') ;;
+		[yY][eE][sS]) usedns=1 ;;
+		esac
 
 		while read line ;do
 			ipaddr=`echo "$line" | sed -e 's/^.*from //'`
 			if [ $usedns -eq 1 ]; then
 				name=`host "${ipaddr}" 2>/dev/null | \
-				   grep 'domain name pointer' | \
-				   sed -e 's/^.* //'`
+				   sed 's/.*domain name pointer \(.*\)\./\1/'`
 			fi
-			if [ X"${name}" != X"" ]; then
+			if [ -n "${name}" ]; then
 				echo "${line} (${name})"
 			else
 				echo "${line}"
