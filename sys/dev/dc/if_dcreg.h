@@ -473,9 +473,9 @@ struct dc_desc {
     (uintptr_t)(sc->dc_ldata->dc_tx_list + i) - (uintptr_t)sc->dc_ldata)
 
 #if BYTE_ORDER == BIG_ENDIAN
-#define DC_SP_MAC(x)		((x) << 16)
+#define DC_SP_MAC(ptr)		(be16dec(ptr) << 16)
 #else
-#define DC_SP_MAC(x)		(x)
+#define DC_SP_MAC(ptr)		(le16dec(ptr))
 #endif
 
 struct dc_list_data {
