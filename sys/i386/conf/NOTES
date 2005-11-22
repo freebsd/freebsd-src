@@ -57,6 +57,8 @@ options 	MP_WATCHDOG
 # Debugging options.
 #
 options		STOP_NMI		# Stop CPUS using NMI instead of IPI
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
 
 
 
