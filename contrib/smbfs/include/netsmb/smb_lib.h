@@ -112,6 +112,7 @@ struct smb_ctx {
 	struct nb_ctx *	ct_nb;
 	struct smbioc_ossn	ct_ssn;
 	struct smbioc_oshare	ct_sh;
+	long		ct_smbtcpport;
 };
 
 #define	SMBCF_NOPWD		0x0001	/* don't ask for a password */
@@ -178,6 +179,8 @@ void smb_ctx_done(struct smb_ctx *);
 int  smb_ctx_parseunc(struct smb_ctx *, const char *, int, const char **);
 int  smb_ctx_setcharset(struct smb_ctx *, const char *);
 int  smb_ctx_setserver(struct smb_ctx *, const char *);
+int  smb_ctx_setnbport(struct smb_ctx *, int);
+int  smb_ctx_setsmbport(struct smb_ctx *, int);
 int  smb_ctx_setuser(struct smb_ctx *, const char *);
 int  smb_ctx_setshare(struct smb_ctx *, const char *, int);
 int  smb_ctx_setscope(struct smb_ctx *, const char *);

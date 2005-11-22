@@ -45,6 +45,8 @@
 #include <netipx/ipx.h>
 #endif
 
+#define	NMB_TCP_PORT	137
+
 #define	NBPROTO_TCPSSN	1		/* NETBIOS session over TCP */
 #define	NBPROTO_IPXSSN	11		/* NETBIOS over IPX */
 
