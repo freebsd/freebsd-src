@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
 #include "opt_sched.h"
+#include "opt_smp.h"
 
 #if !defined(lint)
 #if !defined(SMP)
@@ -75,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS */
 #include <machine/specialreg.h>
 #include <machine/privatespace.h>
 
