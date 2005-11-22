@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/ofw_bus.h>
 #include <machine/ofw_upa.h>
 #include <machine/resource.h>
+#include <machine/ver.h>
 
 #include <sys/rman.h>
 
@@ -95,7 +96,7 @@ static void psycho_wakeup(void *);
 #endif
 
 /* IOMMU support */
-static void psycho_iommu_init(struct psycho_softc *, int);
+static void psycho_iommu_init(struct psycho_softc *, int, uint32_t);
 
 /*
  * Methods
@@ -282,13 +283,15 @@ psycho_attach(device_t dev)
 	struct psycho_softc *sc;
 	struct psycho_softc *osc = NULL;
 	struct psycho_softc *asc;
+	struct upa_ranges *range;
 	struct upa_regs *reg;
 	const struct psycho_desc *desc;
 	phandle_t node;
 	uint64_t csr;
+	uint32_t dvmabase;
 	u_long mlen;
 	int psycho_br[2];
-	int n, i, nreg, rid;
+	int n, i, nrange, nreg, rid;
 #ifdef PSYCHO_DEBUG
 	bus_addr_t map, clr;
 	uint64_t mr;
@@ -300,7 +303,6 @@ psycho_attach(device_t dev)
 
 	sc->sc_node = node;
 	sc->sc_dev = dev;
-	sc->sc_dmatag = nexus_get_dmatag(dev);
 	sc->sc_mode = desc->pd_mode;
 
 	/*
@@ -391,9 +393,9 @@ psycho_attach(device_t dev)
 		csr = PCICTL_READ8(sc, PCR_TAS);
 		if (csr == 0)
 			panic("%s: Sabre TAS not initialized.", __func__);
-		sc->sc_dvmabase = (ffs(csr) - 1) << PCITAS_ADDR_SHIFT;
+		dvmabase = (ffs(csr) - 1) << PCITAS_ADDR_SHIFT;
 	} else
-		sc->sc_dvmabase = -1;
+		dvmabase = -1;
 
 	/* Initialize memory and I/O rmans. */
 	sc->sc_pci_io_rman.rm_type = RMAN_ARRAY;
@@ -407,30 +409,27 @@ psycho_attach(device_t dev)
 	    rman_manage_region(&sc->sc_pci_mem_rman, 0, PSYCHO_MEM_SIZE) != 0)
 		panic("%s: failed to set up memory rman", __func__);
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges", sizeof(*sc->sc_range),
-	    (void **)&sc->sc_range);
-	if (sc->sc_nrange == -1)
-		panic("%s: could not get Psycho ranges", __func__);
+	nrange = OF_getprop_alloc(node, "ranges", sizeof(*range),
+	    (void **)&range);
+	/*
+	 * Make sure that the expected ranges are present. The PCI_CS_MEM64
+	 * one is not currently used though.
+	 */
+	if (nrange != PSYCHO_NRANGE)
+		panic("%s: unsupported number of ranges", __func__);
 	/*
 	 * Find the addresses of the various bus spaces.
 	 * There should not be multiple ones of one kind.
 	 * The physical start addresses of the ranges are the configuration,
 	 * memory and I/O handles.
 	 */
-	for (n = 0; n < sc->sc_nrange; n++) {
-		i = UPA_RANGE_CS(&sc->sc_range[n]);
+	for (n = 0; n < PSYCHO_NRANGE; n++) {
+		i = UPA_RANGE_CS(&range[n]);
 		if (sc->sc_pci_bh[i] != 0)
 			panic("%s: duplicate range for space %d", __func__, i);
-		sc->sc_pci_bh[i] = UPA_RANGE_PHYS(&sc->sc_range[n]);
+		sc->sc_pci_bh[i] = UPA_RANGE_PHYS(&range[n]);
 	}
-	/*
-	 * Check that all needed handles are present. The PCI_CS_MEM64 one is
-	 * not currently used.
-	 */
-	for (n = 0; n < 3; n++) {
-		if (sc->sc_pci_bh[n] == 0)
-			panic("%s: range %d missing", __func__, n);
-	}
+	free(range, M_OFWPROP);
 
 	/* Register the softc, this is needed for paired Psychos. */
 	SLIST_INSERT_HEAD(&psycho_softcs, sc, sc_link);
@@ -495,7 +494,7 @@ psycho_attach(device_t dev)
 		sc->sc_is->is_sb[1] = 0;
 		if (OF_getproplen(node, "no-streaming-cache") < 0)
 			sc->sc_is->is_sb[0] = sc->sc_pcictl + PCR_STRBUF;
-		psycho_iommu_init(sc, 3);
+		psycho_iommu_init(sc, 3, dvmabase);
 	} else {
 		/* Just copy IOMMU state, config tag and address */
 		sc->sc_is = osc->sc_is;
@@ -508,7 +507,7 @@ psycho_attach(device_t dev)
 	sc->sc_pci_memt = psycho_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
 	sc->sc_pci_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
 	sc->sc_pci_cfgt = psycho_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
-	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff,
+	if (bus_dma_tag_create(nexus_get_dmatag(dev), 8, 1, 0, 0x3ffffffff,
 	    NULL, NULL, 0x3ffffffff, 0xff, 0xffffffff, 0, NULL, NULL,
 	    &sc->sc_pci_dmat) != 0)
 		panic("%s: bus_dma_tag_create failed", __func__);
@@ -568,6 +567,13 @@ psycho_attach(device_t dev)
 	    sc->sc_pci_secbus, 1);
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
+	/*
+	 * Workaround for incorrect interrupt map entries on E250.
+	 */
+	if (strcmp(sparc64_model, "SUNW,Ultra-250") == 0 &&
+	    sc->sc_pci_iinfo.opi_imapmsk != NULL)
+		*(ofw_pci_intr_t *)(&sc->sc_pci_iinfo.opi_imapmsk[
+		    sc->sc_pci_iinfo.opi_addrc]) = INTMAP_INO_MASK;
 
 	device_add_child(dev, "pci", sc->sc_pci_secbus);
 	return (bus_generic_attach(dev));
@@ -732,7 +738,7 @@ psycho_wakeup(void *arg)
 #endif /* PSYCHO_MAP_WAKEUP */
 
 static void
-psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
+psycho_iommu_init(struct psycho_softc *sc, int tsbsize, uint32_t dvmabase)
 {
 	char *name;
 	struct iommu_state *is = sc->sc_is;
@@ -753,7 +759,7 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
 		panic("%s: could not malloc iommu name", __func__);
 	snprintf(name, 32, "%s dvma", device_get_nameunit(sc->sc_dev));
 
-	iommu_init(name, is, tsbsize, sc->sc_dvmabase, 0);
+	iommu_init(name, is, tsbsize, dvmabase, 0);
 }
 
 static int

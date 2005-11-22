@@ -47,7 +47,6 @@ struct psycho_softc {
 	/* Our tags (from parent) */
 	bus_space_tag_t			sc_bustag;
 	bus_space_handle_t		sc_bushandle;
-	bus_dma_tag_t			sc_dmatag;
 
 	bus_addr_t			sc_pcictl;
 
@@ -60,16 +59,12 @@ struct psycho_softc {
 	int				sc_half;
 
 	struct iommu_state		*sc_is;
-	uint32_t			sc_dvmabase;
 
 	struct resource			*sc_mem_res;
 	struct resource			*sc_irq_res[PSYCHO_NINTR];
 	void				*sc_ihand[PSYCHO_NINTR];
 
 	struct ofw_bus_iinfo		sc_pci_iinfo;
-
-	struct upa_ranges		*sc_range;
-	int				sc_nrange;
 
 	/* Tags for PCI access */
 	bus_space_tag_t			sc_pci_cfgt;
