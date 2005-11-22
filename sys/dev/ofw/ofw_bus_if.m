@@ -1,6 +1,6 @@
 #-
 # Copyright (c) 2001, 2003 by Thomas Moestl <tmm@FreeBSD.org>
-# Copyright (c) 2004 by Marius Strobl <marius@FreeBSD.org>
+# Copyright (c) 2004, 2005 by Marius Strobl <marius@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,19 +25,44 @@
 #
 # $FreeBSD$
 
+# Interface for retrieving the package handle and a subset, namely
+# 'compatible', 'device_type', 'model' and 'name', of the standard
+# properties of a device on an Open Firmware assisted bus for use
+# in device drivers. The rest of the standard properties, 'address',
+# 'interrupts', 'reg' and 'status', are not covered by this interface
+# as they are expected to be only of interest in the respective bus
+# driver.
+
 #include <sys/bus.h>
-#include <machine/bus.h>
 
 #include <dev/ofw/openfirm.h>
 
 INTERFACE ofw_bus;
 
+HEADER {
+	struct ofw_bus_devinfo {
+		phandle_t	obd_node;
+		char		*obd_compat;
+		char		*obd_model;
+		char		*obd_name;
+		char		*obd_type;
+	};
+};
+
 CODE {
+	static ofw_bus_get_devinfo_t ofw_bus_default_get_devinfo;
 	static ofw_bus_get_compat_t ofw_bus_default_get_compat;
 	static ofw_bus_get_model_t ofw_bus_default_get_model;
 	static ofw_bus_get_name_t ofw_bus_default_get_name;
 	static ofw_bus_get_node_t ofw_bus_default_get_node;
 	static ofw_bus_get_type_t ofw_bus_default_get_type;
+
+	static const struct ofw_bus_devinfo *
+	ofw_bus_default_get_devinfo(device_t bus, device_t dev)
+	{
+
+		return (NULL);
+	}
 
 	static const char *
 	ofw_bus_default_get_compat(device_t bus, device_t dev)
@@ -74,6 +99,15 @@ CODE {
 		return (NULL);
 	}
 };
+
+# Get the ofw_bus_devinfo struct for the device dev on the bus. Used for bus
+# drivers which use the generic methods in ofw_bus_subr.c to implement the
+# reset of this interface. The default method will return NULL, which means
+# there is no such struct associated with the device.
+METHOD const struct ofw_bus_devinfo * get_devinfo {
+	device_t bus;
+	device_t dev;
+} DEFAULT ofw_bus_default_get_devinfo;
 
 # Get the alternate firmware name for the device dev on the bus. The default
 # method will return NULL, which means the device doesn't have such a property.

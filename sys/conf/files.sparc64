@@ -42,6 +42,7 @@ dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/ofw/ofw_bus_if.m		standard
+dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
