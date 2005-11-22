@@ -477,16 +477,18 @@ toolchain: ${TOOLCHAIN_TGTS}
 kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 
 #
-# Use this to add checks to installworld/installkernel targets.
+# installcheck
 #
-SPECIAL_INSTALLCHECKS=
+# Checks to be sure system is ready for installworld/installkernel.
+#
+installcheck:
 
 #
 # Require DESTDIR to be set if installing for a different architecture.
 #
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
 .if !make(distributeworld)
-SPECIAL_INSTALLCHECKS+=	installcheck_DESTDIR
+installcheck: installcheck_DESTDIR
 installcheck_DESTDIR:
 .if !defined(DESTDIR) || empty(DESTDIR)
 	@echo "ERROR: Please set DESTDIR!"; \
@@ -496,9 +498,7 @@ installcheck_DESTDIR:
 .endif
 
 #
-# installcheck
-#
-# Checks to be sure system is ready for installworld
+# Check for missing UIDs/GIDs.
 #
 CHECK_UIDS=
 CHECK_GIDS=
@@ -510,7 +510,8 @@ CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
-installcheck: ${SPECIAL_INSTALLCHECKS}
+installcheck: installcheck_UGID
+installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
@@ -551,7 +552,7 @@ distributeworld installworld: installcheck
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall: ${SPECIAL_INSTALLCHECKS}
+reinstall: installcheck
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
@@ -698,7 +699,7 @@ buildkernel:
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel installkernel.debug \
-reinstallkernel reinstallkernel.debug: ${SPECIAL_INSTALLCHECKS}
+reinstallkernel reinstallkernel.debug: installcheck
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
