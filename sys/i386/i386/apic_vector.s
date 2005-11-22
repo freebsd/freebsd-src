@@ -36,9 +36,10 @@
  * as well as IPI handlers.
  */
 
+#include "opt_smp.h"
+
 #include <machine/asmacros.h>
 #include <machine/apicreg.h>
-#include <machine/smptests.h>
 
 #include "assym.s"
 
