@@ -63,6 +63,8 @@ struct nb_ctx {
 	char *		nb_nsname;	/* name server */
 	struct sockaddr_in	nb_ns;	/* ip addr of name server */
 	struct sockaddr_in	nb_lastns;
+	long		nb_nmbtcpport;	/* default: NMB_TCP_PORT = 137 */
+	long		nb_smbtcpport;	/* default: SMB_TCP_PORT = 139 */
 };
 
 /*
@@ -128,7 +130,7 @@ int  nb_snballoc(int namelen, struct sockaddr_nb **);
 void nb_snbfree(struct sockaddr*);
 int  nb_sockaddr(struct sockaddr *, struct nb_name *, struct sockaddr_nb **);
 
-int  nb_resolvehost_in(const char *, struct sockaddr **);
+int  nb_resolvehost_in(const char *, struct sockaddr **, long);
 int  nbns_resolvename(const char *, struct nb_ctx *, struct sockaddr **);
 int  nb_getlocalname(char *name);
 int  nb_enum_if(struct nb_ifdesc **, int);
