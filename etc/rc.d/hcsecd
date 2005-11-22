@@ -14,12 +14,20 @@ name="hcsecd"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 rcvar=`set_rcvar`
-start_cmd="hcsecd_start"
+start_precmd="hcsecd_prestart"
 
-hcsecd_start()
+hcsecd_prestart()
 {
-	kldload ng_btsocket > /dev/null 2>&1
-	${command} ${command_args}
+	if ! kldstat -q -m ng_btsocket > /dev/null 2>&1 ; then
+		if kldload ng_btsocket > /dev/null 2>&1 ; then
+			info 'ng_btsocket module loaded'
+		else
+			warn 'ng_btsocket module failed to load'
+			return 1
+		fi
+	fi
+
+	return 0
 }
 
 load_rc_config $name
