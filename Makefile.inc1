@@ -552,7 +552,7 @@ distributeworld installworld: installcheck
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall: installcheck
+reinstall:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
