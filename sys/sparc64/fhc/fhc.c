@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/led/led.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -57,16 +58,13 @@ struct fhc_clr {
 };
 
 struct fhc_devinfo {
-	char			*fdi_compat;
-	char			*fdi_model;
-	char			*fdi_name;
-	char			*fdi_type;
-	phandle_t		fdi_node;
+	struct ofw_bus_devinfo	fdi_obdinfo;
 	struct resource_list	fdi_rl;
 };
 
 static void fhc_intr_stub(void *);
 static void fhc_led_func(void *, int);
+static int fhc_print_res(struct fhc_devinfo *);
 
 int
 fhc_probe(device_t dev)
@@ -84,8 +82,6 @@ fhc_attach(device_t dev)
 	struct fhc_softc *sc;
 	phandle_t child;
 	phandle_t node;
-	bus_addr_t size;
-	bus_addr_t off;
 	device_t cdev;
 	uint32_t ctrl;
 	uint32_t *intr;
@@ -139,48 +135,47 @@ fhc_attach(device_t dev)
 	}
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if ((OF_getprop_alloc(child, "name", 1, (void **)&name)) == -1)
+		fdi = malloc(sizeof(*fdi), M_DEVBUF, M_WAITOK | M_ZERO);
+		if (ofw_bus_gen_setup_devinfo(&fdi->fdi_obdinfo, child) != 0) {
+			free(fdi, M_DEVBUF);
 			continue;
+		}
+		nreg = OF_getprop_alloc(child, "reg", sizeof(*reg),
+		    (void **)&reg);
+		if (nreg == -1) {
+			device_printf(dev, "<%s>: incomplete\n",
+			    fdi->fdi_obdinfo.obd_name);
+			ofw_bus_gen_destroy_devinfo(&fdi->fdi_obdinfo);
+			free(fdi, M_DEVBUF);
+			continue;
+		}
+		resource_list_init(&fdi->fdi_rl);
+		for (i = 0; i < nreg; i++)
+			resource_list_add(&fdi->fdi_rl, SYS_RES_MEMORY, i,
+			    reg[i].sbr_offset, reg[i].sbr_offset +
+			    reg[i].sbr_size, reg[i].sbr_size);
+		free(reg, M_OFWPROP);
+		nintr = OF_getprop_alloc(child, "interrupts", sizeof(*intr),
+		    (void **)&intr);
+		if (nintr != -1) {
+			for (i = 0; i < nintr; i++) {
+				iv = INTINO(intr[i]) |
+				    (sc->sc_ign << INTMAP_IGN_SHIFT);
+				resource_list_add(&fdi->fdi_rl, SYS_RES_IRQ, i,
+				    iv, iv, 1);
+			}
+			free(intr, M_OFWPROP);
+		}
 		cdev = device_add_child(dev, NULL, -1);
-		if (cdev != NULL) {
-			fdi = malloc(sizeof(*fdi), M_DEVBUF, M_WAITOK | M_ZERO);
-			if (fdi == NULL)
-				continue;
-			fdi->fdi_name = name;
-			fdi->fdi_node = child;
-			OF_getprop_alloc(child, "compatible", 1,
-			    (void **)&fdi->fdi_compat);
-			OF_getprop_alloc(child, "device_type", 1,
-			    (void **)&fdi->fdi_type);
-			OF_getprop_alloc(child, "model", 1,
-			    (void **)&fdi->fdi_model);
-			resource_list_init(&fdi->fdi_rl);
-			nreg = OF_getprop_alloc(child, "reg", sizeof(*reg),
-			    (void **)&reg);
-			if (nreg != -1) {
-				for (i = 0; i < nreg; i++) {
-					off = reg[i].sbr_offset;
-					size = reg[i].sbr_size;
-					resource_list_add(&fdi->fdi_rl,
-					    SYS_RES_MEMORY, i, off, off + size,
-					    size);
-				}
-				free(reg, M_OFWPROP);
-			}
-			nintr = OF_getprop_alloc(child, "interrupts",
-			    sizeof(*intr), (void **)&intr);
-			if (nintr != -1) {
-				for (i = 0; i < nintr; i++) {
-					iv = INTINO(intr[i]) |
-					    (sc->sc_ign << INTMAP_IGN_SHIFT);
-					resource_list_add(&fdi->fdi_rl,
-					    SYS_RES_IRQ, i, iv, iv, 1);
-				}
-				free(intr, M_OFWPROP);
-			}
-			device_set_ivars(cdev, fdi);
-		} else
-			free(name, M_OFWPROP);
+		if (cdev == NULL) {
+			device_printf(dev, "<%s>: device_add_child failed\n",
+			    fdi->fdi_obdinfo.obd_name);
+			resource_list_free(&fdi->fdi_rl);
+			ofw_bus_gen_destroy_devinfo(&fdi->fdi_obdinfo);
+			free(fdi, M_DEVBUF);
+			continue;
+		}
+		device_set_ivars(cdev, fdi);
 	}
 
 	return (bus_generic_attach(dev));
@@ -189,14 +184,10 @@ fhc_attach(device_t dev)
 int
 fhc_print_child(device_t dev, device_t child)
 {
-	struct fhc_devinfo *fdi;
 	int rv;
 
-	fdi = device_get_ivars(child);
 	rv = bus_print_child_header(dev, child);
-	rv += resource_list_print_type(&fdi->fdi_rl, "mem",
-	    SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += fhc_print_res(device_get_ivars(child));
 	rv += bus_print_child_footer(dev, child);
 	return (rv);
 }
@@ -204,14 +195,13 @@ fhc_print_child(device_t dev, device_t child)
 void
 fhc_probe_nomatch(device_t dev, device_t child)
 {
-	struct fhc_devinfo *fdi;
+	const char *type;
 
-	fdi = device_get_ivars(child);
-	device_printf(dev, "<%s>", fdi->fdi_name);
-	resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY, "%#lx");
-	resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	device_printf(dev, "<%s>", ofw_bus_get_name(child));
+	fhc_print_res(device_get_ivars(child));
+	type = ofw_bus_get_type(child);
 	printf(" type %s (no driver attached)\n",
-	    fdi->fdi_type != NULL ? fdi->fdi_type : "unknown");
+	    type != NULL ? type : "unknown");
 }
 
 int
@@ -365,6 +355,15 @@ fhc_get_resource_list(device_t bus, device_t child)
 	return (&fdi->fdi_rl);
 }
 
+const struct ofw_bus_devinfo *
+fhc_get_devinfo(device_t bus, device_t child)
+{
+	struct fhc_devinfo *fdi;
+
+	fdi = device_get_ivars(child);
+	return (&fdi->fdi_obdinfo);
+}
+
 static void
 fhc_led_func(void *arg, int onoff)
 {
@@ -386,47 +385,14 @@ fhc_led_func(void *arg, int onoff)
 	    FHC_CTRL);
 }
 
-const char *
-fhc_get_compat(device_t bus, device_t dev)
-{   
-	struct fhc_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->fdi_compat);
-}
-
-const char *
-fhc_get_model(device_t bus, device_t dev)
+static int
+fhc_print_res(struct fhc_devinfo *fdi)
 {
-	struct fhc_devinfo *dinfo;
+	int rv;
 
-	dinfo = device_get_ivars(dev);
-	return (dinfo->fdi_model);
-}
-
-const char *
-fhc_get_name(device_t bus, device_t dev)
-{
-	struct fhc_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->fdi_name);
-}
-
-phandle_t
-fhc_get_node(device_t bus, device_t dev)
-{
-	struct fhc_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->fdi_node);
-}
-
-const char *
-fhc_get_type(device_t bus, device_t dev)
-{
-	struct fhc_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->fdi_type);
+	rv = 0;
+	rv += resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY,
+	    "%#lx");
+	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	return (rv);
 }
