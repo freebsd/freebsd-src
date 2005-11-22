@@ -1852,13 +1852,15 @@ re_intr(arg)
 		if ((status & RL_INTRS_CPLUS) == 0)
 			break;
 
-		if ((status & RL_ISR_RX_OK) ||
-		    (status & RL_ISR_RX_ERR))
+		if (((status & RL_ISR_RX_OK) ||
+		    (status & RL_ISR_RX_ERR)) &&
+		    ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_rxeof(sc);
 
-		if ((status & RL_ISR_TIMEOUT_EXPIRED) ||
+		if (((status & RL_ISR_TIMEOUT_EXPIRED) ||
 		    (status & RL_ISR_TX_ERR) ||
-		    (status & RL_ISR_TX_DESC_UNAVAIL))
+		    (status & RL_ISR_TX_DESC_UNAVAIL)) &&
+		    ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_txeof(sc);
 
 		if (status & RL_ISR_SYSTEM_ERR) {
