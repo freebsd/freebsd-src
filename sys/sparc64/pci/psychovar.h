@@ -44,15 +44,14 @@ struct psycho_softc {
 	/* Interrupt Group Number for this device */
 	int				sc_ign;
 
-	/* Our tags (from parent). */
+	/* Our tags (from parent) */
 	bus_space_tag_t			sc_bustag;
 	bus_space_handle_t		sc_bushandle;
 	bus_dma_tag_t			sc_dmatag;
 
 	bus_addr_t			sc_pcictl;
 
-	int				sc_clockfreq;
-	phandle_t			sc_node;	/* Firmware node. */
+	phandle_t			sc_node;	/* Firmware node */
 	int				sc_mode;
 #define	PSYCHO_MODE_SABRE	1
 #define	PSYCHO_MODE_PSYCHO	2
@@ -61,32 +60,32 @@ struct psycho_softc {
 	int				sc_half;
 
 	struct iommu_state		*sc_is;
-	u_int32_t			sc_dvmabase;
+	uint32_t			sc_dvmabase;
 
 	struct resource			*sc_mem_res;
-	struct resource			*sc_irq_res[6];
-	void				*sc_ihand[6];
+	struct resource			*sc_irq_res[PSYCHO_NINTR];
+	void				*sc_ihand[PSYCHO_NINTR];
 
-	struct ofw_bus_iinfo		sc_iinfo;
+	struct ofw_bus_iinfo		sc_pci_iinfo;
 
 	struct upa_ranges		*sc_range;
 	int				sc_nrange;
 
-	/* Tags for PCI access. */
-	bus_space_tag_t			sc_cfgt;
-	bus_space_tag_t			sc_memt;
-	bus_space_tag_t			sc_iot;
-	bus_dma_tag_t			sc_dmat;
+	/* Tags for PCI access */
+	bus_space_tag_t			sc_pci_cfgt;
+	bus_space_tag_t			sc_pci_memt;
+	bus_space_tag_t			sc_pci_iot;
+	bus_dma_tag_t			sc_pci_dmat;
 
-	bus_space_handle_t		sc_bh[4];
+	bus_space_handle_t		sc_pci_bh[PSYCHO_NRANGE];
 
-	u_int				sc_secbus;
-	u_int				sc_subbus;
+	u_int				sc_pci_secbus;
+	u_int				sc_pci_subbus;
 
-	struct rman			sc_mem_rman;
-	struct rman			sc_io_rman;
+	struct rman			sc_pci_mem_rman;
+	struct rman			sc_pci_io_rman;
 
 	SLIST_ENTRY(psycho_softc)	sc_link;
 };
 
-#endif /* _SPARC64_PCI_PSYCHOVAR_H_ */
+#endif /* !_SPARC64_PCI_PSYCHOVAR_H_ */

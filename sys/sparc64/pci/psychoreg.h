@@ -36,7 +36,7 @@
 
 /*
  * Sun4u PCI definitions.  Here's where we deal w/the machine
- * dependencies of psycho and the PCI controller on the UltraIIi.
+ * dependencies of Psycho and the PCI controller on the UltraIIi.
  *
  * All PCI registers are bit-swapped, however they are not byte-swapped.
  * This means that they must be accessed using little-endian access modes,
@@ -45,8 +45,11 @@
  * PSYCHO implements two PCI buses, A and B.
  */
 
+#define	PSYCHO_NINTR		6
+#define	PSYCHO_NRANGE		4
+
 /*
- * psycho register offsets.
+ * Psycho register offsets
  *
  * NB: FFB0 and FFB1 intr map regs also appear at 0x6000 and 0x8000
  * respectively.
@@ -61,7 +64,7 @@
 #define	PSR_CE_AFA		0x0048	/* Correctable Error AFAR */
 #define	PSR_PM_CTL		0x0100	/* Performance monitor control reg */
 #define	PSR_PM_COUNT		0x0108	/* Performance monitor counter reg */
-#define	PSR_IOMMU		0x0200	/* IOMMU registers. */
+#define	PSR_IOMMU		0x0200	/* IOMMU registers */
 #define	PSR_PCIA0_INT_MAP	0x0c00	/* PCI bus a slot 0 irq map reg */
 #define	PSR_PCIA1_INT_MAP	0x0c08	/* PCI bus a slot 1 irq map reg */
 #define	PSR_PCIA2_INT_MAP	0x0c10	/* PCI bus a slot 2 irq map reg (IIi) */
@@ -123,8 +126,8 @@
 #define	PSR_TC0			0x1c00	/* timer/counter 0 */
 #define	PSR_TC1			0x1c10	/* timer/counter 1 */
 #define	PSR_DMA_WRITE_SYNC	0x1c20	/* PCI DMA write sync register (IIi) */
-#define	PSR_PCICTL0		0x2000	/* PCICTL registers for 1st psycho. */
-#define	PSR_PCICTL1		0x4000	/* PCICTL registers for 2nd psycho. */
+#define	PSR_PCICTL0		0x2000	/* PCICTL registers for 1st Psycho */
+#define	PSR_PCICTL1		0x4000	/* PCICTL registers for 2nd Psycho */
 #define	PSR_DMA_SCB_DIAG0	0xa000	/* DMA scoreboard diag reg 0 */
 #define	PSR_DMA_SCB_DIAG1	0xa008	/* DMA scoreboard diag reg 1 */
 #define	PSR_IOMMU_SVADIAG	0xa400	/* IOMMU virtual addr diag reg */
@@ -156,13 +159,13 @@
  * two separate PCI bridges.  It uses the same PCI configuration
  * space, though the configuration header for each PCI bus is
  * located differently due to the SUNW,simba PCI busses being
- * function 0 and function 1 of the APB, whereas the psycho's are
+ * function 0 and function 1 of the APB, whereas the Psycho's are
  * each their own PCI device.  The I/O and memory spaces are each
  * split into 8 equally sized areas (8x2MB blocks for I/O space,
  * and 8x512MB blocks for memory space).  These are allocated in to
  * either PCI A or PCI B, or neither in the APB's `I/O Address Map
  * Register A/B' (0xde) and `Memory Address Map Register A/B' (0xdf)
- * registers of each simba.  We must ensure that both of the
+ * registers of each Simba.  We must ensure that both of the
  * following are correct (the prom should do this for us):
  *
  *    (PCI A Memory Address Map) & (PCI B Memory Address Map) == 0
@@ -194,7 +197,7 @@
 #define PSYCHO_CSR_IAP		2	/* invert UPA address parity */
 #define PSYCHO_CSR_MODE		1	/* UPA/PCI handshake */
 
-/* Offsets into the PSR_PCICTL* register block. */
+/* Offsets into the PSR_PCICTL* register block */
 #define	PCR_CS			0x0000	/* PCI control/status register */
 #define	PCR_AFS			0x0010	/* PCI AFSR register */
 #define	PCR_AFA			0x0018	/* PCI AFAR register */
@@ -202,7 +205,7 @@
 #define	PCR_TAS			0x0028	/* PCI target address space reg (IIi) */
 #define	PCR_STRBUF		0x0800	/* IOMMU streaming buffer registers. */
 
-/* Device space defines. */
+/* Device space defines */
 #define	PSYCHO_CONF_SIZE	0x1000000
 #define	PSYCHO_CONF_BUS_SHIFT	16
 #define	PSYCHO_CONF_DEV_SHIFT	11
@@ -220,7 +223,7 @@
 /* what the bits mean! */
 
 /* PCI [a|b] control/status register */
-/* note that the sabre only has one set of PCI control/status registers */
+/* note that the Sabre only has one set of PCI control/status registers */
 #define	PCICTL_MRLM	0x0000001000000000	/* Memory Read Line/Multiple */
 #define	PCICTL_SERR	0x0000000400000000	/* SERR asserted; W1C */
 #define	PCICTL_ARB_PARK	0x0000000000200000	/* PCI arbitration parking */
@@ -232,38 +235,38 @@
 #define	PCICTL_6ENABLE	0x000000000000003f	/* enable 6 PCI slots */
 
 /* Uncorrectable error asynchronous fault status registers */
-#define	UEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction. */
-#define	UEAFSR_P_DTE	(1UL << 56)	/* Pri. DVMA translation error. */
-#define	UEAFSR_S_DTE	(1UL << 57)	/* Sec. DVMA translation error. */
-#define	UEAFSR_S_DWR	(1UL << 58)	/* Sec. error during DVMA write. */
-#define	UEAFSR_S_DRD	(1UL << 59)	/* Sec. error during DVMA read. */
-#define	UEAFSR_S_PIO	(1UL << 60)	/* Sec. error during PIO access. */
-#define	UEAFSR_P_DWR	(1UL << 61)	/* Pri. error during DVMA write. */
-#define	UEAFSR_P_DRD	(1UL << 62)	/* Pri. error during DVMA read. */
-#define	UEAFSR_P_PIO	(1UL << 63)	/* Pri. error during PIO access. */
+#define	UEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction */
+#define	UEAFSR_P_DTE	(1UL << 56)	/* Pri. DVMA translation error */
+#define	UEAFSR_S_DTE	(1UL << 57)	/* Sec. DVMA translation error */
+#define	UEAFSR_S_DWR	(1UL << 58)	/* Sec. error during DVMA write */
+#define	UEAFSR_S_DRD	(1UL << 59)	/* Sec. error during DVMA read */
+#define	UEAFSR_S_PIO	(1UL << 60)	/* Sec. error during PIO access */
+#define	UEAFSR_P_DWR	(1UL << 61)	/* Pri. error during DVMA write */
+#define	UEAFSR_P_DRD	(1UL << 62)	/* Pri. error during DVMA read */
+#define	UEAFSR_P_PIO	(1UL << 63)	/* Pri. error during PIO access */
 
 /* Correctable error asynchronous fault status registers */
-#define	CEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction. */
-#define	CEAFSR_S_DWR	(1UL << 58)	/* Sec. error caused by DVMA write. */
-#define	CEAFSR_S_DRD	(1UL << 59)	/* Sec. error caused by DVMA read. */
-#define	CEAFSR_S_PIO	(1UL << 60)	/* Sec. error caused by PIO access. */
-#define	CEAFSR_P_DWR	(1UL << 61)	/* Pri. error caused by DVMA write. */
-#define	CEAFSR_P_DRD	(1UL << 62)	/* Pri. error caused by DVMA read. */
-#define	CEAFSR_P_PIO	(1UL << 63)	/* Pri. error caused by PIO access. */
+#define	CEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction */
+#define	CEAFSR_S_DWR	(1UL << 58)	/* Sec. error caused by DVMA write */
+#define	CEAFSR_S_DRD	(1UL << 59)	/* Sec. error caused by DVMA read */
+#define	CEAFSR_S_PIO	(1UL << 60)	/* Sec. error caused by PIO access */
+#define	CEAFSR_P_DWR	(1UL << 61)	/* Pri. error caused by DVMA write */
+#define	CEAFSR_P_DRD	(1UL << 62)	/* Pri. error caused by DVMA read */
+#define	CEAFSR_P_PIO	(1UL << 63)	/* Pri. error caused by PIO access */
 
 #define	CEAFSR_ERRMASK							\
 	(CEAFSR_P_PIO | CEAFSR_P_DRD | CEAFSR_P_DWR |			\
 	 CEAFSR_S_PIO | CEAFSR_S_DRD | CEAFSR_S_DWR)
 
-/* Definitions for the target address space register. */
+/* Definitions for the target address space register */
 #define	PCITAS_ADDR_SHIFT	29
 
-/* Definitions for the psycho configuration space */
-#define	PCS_DEVICE	0		/* Device number of psycho CS entry */
-#define	PCS_FUNC	0		/* Function number of psycho CS entry */
+/* Definitions for the Psycho configuration space */
+#define	PCS_DEVICE	0		/* Device number of Psycho CS entry */
+#define	PCS_FUNC	0		/* Function number of Psycho CS entry */
 
 /* Non-Standard registers in the configration space */
 #define	PCSR_SECBUS	0x40		/* Secondary bus number register */
 #define	PCSR_SUBBUS	0x41		/* Subordinate bus number register */
 
-#endif /* _SPARC64_PCI_PSYCHOREG_H_ */
+#endif /* !_SPARC64_PCI_PSYCHOREG_H_ */
