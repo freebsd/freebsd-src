@@ -325,9 +325,9 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
     struct vm_map *map)
 {
 	struct vm_map_entry *vme;
-	int result;
+	int vfslocked, result;
 	vm_prot_t revokeperms;
-	vm_object_t object;
+	vm_object_t backing_object, object;
 	vm_ooffset_t offset;
 	struct vnode *vp;
 
@@ -354,10 +354,14 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		object = vme->object.vm_object;
 		if (object == NULL)
 			continue;
-		while (object->backing_object != NULL) {
-			object = object->backing_object;
+		VM_OBJECT_LOCK(object);
+		while ((backing_object = object->backing_object) != NULL) {
+			VM_OBJECT_LOCK(backing_object);
 			offset += object->backing_object_offset;
+			VM_OBJECT_UNLOCK(object);
+			object = backing_object;
 		}
+		VM_OBJECT_UNLOCK(object);
 		/*
 		 * At the moment, vm_maps and objects aren't considered
 		 * by the MAC system, so only things with backing by a
@@ -366,6 +370,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		if (object->type != OBJT_VNODE)
 			continue;
 		vp = (struct vnode *)object->handle;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		result = vme->max_protection;
 		mac_check_vnode_mmap_downgrade(cred, vp, &result);
@@ -375,8 +380,10 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		 * now but a policy needs to get removed.
 		 */
 		revokeperms = vme->max_protection & ~result;
-		if (!revokeperms)
+		if (!revokeperms) {
+			VFS_UNLOCK_GIANT(vfslocked);
 			continue;
+		}
 		printf("pid %ld: revoking %s perms from %#lx:%ld "
 		    "(max %s/cur %s)\n", (long)td->td_proc->p_pid,
 		    prot2str(revokeperms), (u_long)vme->start,
@@ -436,6 +443,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 			vm_map_simplify_entry(map, vme);
 		}
 		vm_map_lock_downgrade(map);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	vm_map_unlock_read(map);
 }
