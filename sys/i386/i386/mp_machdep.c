@@ -126,28 +126,8 @@ __FBSDID("$FreeBSD$");
 
 #endif				/* CHECK_POINTS */
 
-/*
- * Values to send to the POST hardware.
- */
-#define MP_BOOTADDRESS_POST	0x10
-#define MP_PROBE_POST		0x11
-#define MPTABLE_PASS1_POST	0x12
-
-#define MP_START_POST		0x13
-#define MP_ENABLE_POST		0x14
-#define MPTABLE_PASS2_POST	0x15
-
-#define START_ALL_APS_POST	0x16
-#define INSTALL_AP_TRAMP_POST	0x17
-#define START_AP_POST		0x18
-
-#define MP_ANNOUNCE_POST	0x19
-
 /* lock region used by kernel profiling */
 int	mcount_lock;
-
-/** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
-int	current_postcode;
 
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
@@ -302,7 +282,6 @@ mp_topology(void)
 u_int
 mp_bootaddress(u_int basemem)
 {
-	POSTCODE(MP_BOOTADDRESS_POST);
 
 	boot_address = trunc_page(basemem);	/* round down to 4k boundary */
 	if ((basemem - boot_address) < bootMP_size)
@@ -384,8 +363,6 @@ cpu_mp_start(void)
 {
 	int i;
 	u_int threads_per_cache, p[4];
-
-	POSTCODE(MP_START_POST);
 
 	/* Initialize the logical ID to APIC ID table. */
 	for (i = 0; i < MAXCPU; i++) {
@@ -488,8 +465,6 @@ void
 cpu_mp_announce(void)
 {
 	int i, x;
-
-	POSTCODE(MP_ANNOUNCE_POST);
 
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
@@ -715,8 +690,6 @@ start_all_aps(void)
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i, pg;
 
-	POSTCODE(START_ALL_APS_POST);
-
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* install the AP 1st level boot code */
@@ -860,8 +833,6 @@ install_ap_tramp(void)
 	u_int16_t *dst16;
 	u_int32_t *dst32;
 
-	POSTCODE(INSTALL_AP_TRAMP_POST);
-
 	KASSERT (size <= PAGE_SIZE,
 	    ("'size' do not fit into PAGE_SIZE, as expected."));
 	pmap_kenter(va, boot_address);
@@ -911,8 +882,6 @@ start_ap(int apic_id)
 {
 	int vector, ms;
 	int cpus;
-
-	POSTCODE(START_AP_POST);
 
 	/* calculate the vector */
 	vector = (boot_address >> 12) & 0xff;

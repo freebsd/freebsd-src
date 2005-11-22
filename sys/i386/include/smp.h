@@ -19,20 +19,6 @@
 
 #ifndef LOCORE
 
-/*
- * For sending values to POST displays.
- * XXX FIXME: where does this really belong, isa.h/isa.c perhaps?
- */
-extern int current_postcode;  /** XXX currently in mp_machdep.c */
-#define POSTCODE(X)	current_postcode = (X), \
-			outb(0x80, current_postcode)
-#define POSTCODE_LO(X)	current_postcode &= 0xf0, \
-			current_postcode |= ((X) & 0x0f), \
-			outb(0x80, current_postcode)
-#define POSTCODE_HI(X)	current_postcode &= 0x0f, \
-			current_postcode |= (((X) << 4) & 0xf0), \
-			outb(0x80, current_postcode)
-
 #include <sys/bus.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
