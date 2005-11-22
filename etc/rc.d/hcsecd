@@ -18,7 +18,7 @@ start_precmd="hcsecd_prestart"
 
 hcsecd_prestart()
 {
-	if ! kldstat -q -m ng_btsocket > /dev/null 2>&1 ; then
+	if ! kldstat -q -m ng_btsocket ; then
 		if kldload ng_btsocket > /dev/null 2>&1 ; then
 			info 'ng_btsocket module loaded'
 		else
