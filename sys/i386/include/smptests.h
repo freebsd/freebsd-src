@@ -33,16 +33,4 @@
  * Various 'tests in progress' and configuration parameters.
  */
 
-/*
- * TLB counters.
- *
-#define COUNT_XINVLTLB_HITS
- */
-
-/*
- * Per-CPU IPI interrupt counters.
- *
-#define	COUNT_IPIS
- */
-
 #endif /* _MACHINE_SMPTESTS_H_ */
