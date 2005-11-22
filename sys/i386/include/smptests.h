@@ -34,12 +34,6 @@
  */
 
 /*
- * Send CPUSTOP IPI for stop/restart of other CPUs on DDB break.
-#define VERBOSE_CPUSTOP_ON_DDBBREAK
- */
-#define CPUSTOP_ON_DDBBREAK
-
-/*
  * TLB counters.
  *
 #define COUNT_XINVLTLB_HITS
