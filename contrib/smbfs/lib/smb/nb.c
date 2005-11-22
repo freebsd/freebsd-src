@@ -57,6 +57,9 @@ nb_ctx_create(struct nb_ctx **ctxpp)
 	if (ctx == NULL)
 		return ENOMEM;
 	bzero(ctx, sizeof(struct nb_ctx));
+	ctx->nb_nmbtcpport = NMB_TCP_PORT;
+	ctx->nb_smbtcpport = SMB_TCP_PORT;
+
 	*ctxpp = ctx;
 	return 0;
 }
@@ -111,7 +114,7 @@ nb_ctx_resolve(struct nb_ctx *ctx)
 	if (ctx->nb_nsname == NULL) {
 		ctx->nb_ns.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 	} else {
-		error = nb_resolvehost_in(ctx->nb_nsname, &sap);
+		error = nb_resolvehost_in(ctx->nb_nsname, &sap, ctx->nb_smbtcpport);
 		if (error) {
 			smb_error("can't resolve %s", error, ctx->nb_nsname);
 			return error;
@@ -123,7 +126,7 @@ nb_ctx_resolve(struct nb_ctx *ctx)
 		bcopy(sap, &ctx->nb_ns, sizeof(ctx->nb_ns));
 		free(sap);
 	}
-	ctx->nb_ns.sin_port = htons(137);
+	ctx->nb_ns.sin_port = htons(ctx->nb_nmbtcpport);
 	ctx->nb_ns.sin_family = AF_INET;
 	ctx->nb_ns.sin_len = sizeof(ctx->nb_ns);
 	ctx->nb_flags |= NBCF_RESOLVED;
