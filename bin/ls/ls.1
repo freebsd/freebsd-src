@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2005
+.Dd November 16, 2005
 .Dt LS 1
 .Os
 .Sh NAME
@@ -72,9 +72,9 @@ List all entries except for
 .Pa \&.
 and
 .Pa .. .
-Always set for the super-user.
+Automatically set for the super-user unless
 .Fl I
-cancel this option.
+is specified.
 .It Fl B
 Force printing of non-printable characters (as defined by
 .Xr ctype 3
@@ -120,11 +120,9 @@ or
 .Fl l
 options are specified.
 .It Fl I
-This option cancels the
+Prevent
 .Fl A
-option. Usually used by super-user when
-.Fl A
-is not necessary.
+from being automatically set for the super-user.
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
