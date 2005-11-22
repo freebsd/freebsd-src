@@ -54,10 +54,6 @@ bus_teardown_intr_t fhc_teardown_intr;
 bus_alloc_resource_t fhc_alloc_resource;
 bus_get_resource_list_t fhc_get_resource_list;
 
-ofw_bus_get_compat_t fhc_get_compat;
-ofw_bus_get_model_t fhc_get_model;
-ofw_bus_get_name_t fhc_get_name;
-ofw_bus_get_node_t fhc_get_node;
-ofw_bus_get_type_t fhc_get_type;
+ofw_bus_get_devinfo_t fhc_get_devinfo;
 
 #endif /* !_SPARC64_FHC_FHCVAR_H_ */
