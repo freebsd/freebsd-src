@@ -133,12 +133,15 @@ static void lge_txeof(struct lge_softc *);
 static void lge_intr(void *);
 static void lge_tick(void *);
 static void lge_start(struct ifnet *);
+static void lge_start_locked(struct ifnet *);
 static int lge_ioctl(struct ifnet *, u_long, caddr_t);
 static void lge_init(void *);
+static void lge_init_locked(struct lge_softc *);
 static void lge_stop(struct lge_softc *);
 static void lge_watchdog(struct ifnet *);
 static void lge_shutdown(device_t);
 static int lge_ifmedia_upd(struct ifnet *);
+static void lge_ifmedia_upd_locked(struct ifnet *);
 static void lge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static void lge_eeprom_getword(struct lge_softc *, int, u_int16_t *);
@@ -375,6 +378,7 @@ lge_setmulti(sc)
 	u_int32_t		h = 0, hashes[2] = { 0, 0 };
 
 	ifp = sc->lge_ifp;
+	LGE_LOCK_ASSERT(sc);
 
 	/* Make sure multicast hash table is enabled. */
 	CSR_WRITE_4(sc, LGE_MODE1, LGE_MODE1_SETRST_CTL1|LGE_MODE1_RX_MCAST);
@@ -463,15 +467,15 @@ static int
 lge_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct lge_softc	*sc;
 	struct ifnet		*ifp = NULL;
 	int			error = 0, rid;
 
-	s = splimp();
-
 	sc = device_get_softc(dev);
+	mtx_init(&sc->lge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
+	callout_init_mtx(&sc->lge_stat_callout, &sc->lge_mtx, 0);
 
 	/*
 	 * Map control/status registers.
@@ -501,14 +505,6 @@ lge_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->lge_irq, INTR_TYPE_NET,
-	    lge_intr, sc, &sc->lge_intrhand);
-
-	if (error) {
-		device_printf(dev, "couldn't set up irq\n");
-		goto fail;
-	}
-
 	/* Reset the adapter. */
 	lge_reset(sc);
 
@@ -519,17 +515,14 @@ lge_attach(dev)
 	lge_read_eeprom(sc, (caddr_t)&eaddr[2], LGE_EE_NODEADDR_1, 1, 0);
 	lge_read_eeprom(sc, (caddr_t)&eaddr[4], LGE_EE_NODEADDR_2, 1, 0);
 
-	callout_handle_init(&sc->lge_stat_ch);
-
 	sc->lge_ldata = contigmalloc(sizeof(struct lge_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT | M_ZERO, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->lge_ldata == NULL) {
 		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
-	bzero(sc->lge_ldata, sizeof(struct lge_list_data));
 
 	/* Try to allocate memory for jumbo buffers. */
 	if (lge_alloc_jumbo_mem(sc)) {
@@ -548,8 +541,7 @@ lge_attach(dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = lge_ioctl;
 	ifp->if_start = lge_start;
 	ifp->if_watchdog = lge_watchdog;
@@ -579,6 +571,15 @@ lge_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
+
+	error = bus_setup_intr(dev, sc->lge_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    lge_intr, sc, &sc->lge_intrhand);
+
+	if (error) {
+		ether_ifdetach(ifp);
+		device_printf(dev, "couldn't set up irq\n");
+		goto fail;
+	}
 	return (0);
 
 fail:
@@ -587,13 +588,11 @@ fail:
 		    sizeof(struct lge_list_data), M_DEVBUF);
 	if (ifp)
 		if_free(ifp);
-	if (sc->lge_intrhand)
-		bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
 	if (sc->lge_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
 	if (sc->lge_res)
 		bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
-	splx(s);
+	mtx_destroy(&sc->lge_mtx);
 	return(error);
 }
 
@@ -603,15 +602,15 @@ lge_detach(dev)
 {
 	struct lge_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = sc->lge_ifp;
 
+	LGE_LOCK(sc);
 	lge_reset(sc);
 	lge_stop(sc);
+	LGE_UNLOCK(sc);
+	callout_drain(&sc->lge_stat_callout);
 	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
@@ -624,8 +623,7 @@ lge_detach(dev)
 	contigfree(sc->lge_ldata, sizeof(struct lge_list_data), M_DEVBUF);
 	if_free(ifp);
 	lge_free_jumbo_mem(sc);
-
-	splx(s);
+	mtx_destroy(&sc->lge_mtx);
 
 	return(0);
 }
@@ -956,7 +954,9 @@ lge_rxeof(sc, cnt)
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 
+		LGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		LGE_LOCK(sc);
 	}
 
 	sc->lge_cdata.lge_rx_cons = i;
@@ -972,7 +972,7 @@ lge_rxeoc(sc)
 
 	ifp = sc->lge_ifp;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	lge_init(sc);
+	lge_init_locked(sc);
 	return;
 }
 
@@ -1031,12 +1031,10 @@ lge_tick(xsc)
 	struct lge_softc	*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
 	ifp = sc->lge_ifp;
+	LGE_LOCK_ASSERT(sc);
 
 	CSR_WRITE_4(sc, LGE_STATSIDX, LGE_STATS_SINGLE_COLL_PKTS);
 	ifp->if_collisions += CSR_READ_4(sc, LGE_STATSVAL);
@@ -1054,13 +1052,11 @@ lge_tick(xsc)
 			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T))
 				if_printf(ifp, "gigabit link up\n");
 			if (ifp->if_snd.ifq_head != NULL)
-				lge_start(ifp);
+				lge_start_locked(ifp);
 		}
 	}
 
-	sc->lge_stat_ch = timeout(lge_tick, sc, hz);
-
-	splx(s);
+	callout_reset(&sc->lge_stat_callout, hz, lge_tick, sc);
 
 	return;
 }
@@ -1075,10 +1071,12 @@ lge_intr(arg)
 
 	sc = arg;
 	ifp = sc->lge_ifp;
+	LGE_LOCK(sc);
 
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		lge_stop(sc);
+		LGE_UNLOCK(sc);
 		return;
 	}
 
@@ -1104,7 +1102,7 @@ lge_intr(arg)
 
 		if (status & LGE_ISR_PHY_INTR) {
 			sc->lge_link = 0;
-			untimeout(lge_tick, sc, sc->lge_stat_ch);
+			callout_stop(&sc->lge_stat_callout);
 			lge_tick(sc);
 		}
 	}
@@ -1113,8 +1111,9 @@ lge_intr(arg)
 	CSR_WRITE_4(sc, LGE_IMR, LGE_IMR_SETRST_CTL0|LGE_IMR_INTR_ENB);
 
 	if (ifp->if_snd.ifq_head != NULL)
-		lge_start(ifp);
+		lge_start_locked(ifp);
 
+	LGE_UNLOCK(sc);
 	return;
 }
 
@@ -1178,6 +1177,18 @@ lge_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct lge_softc	*sc;
+
+	sc = ifp->if_softc;
+	LGE_LOCK(sc);
+	lge_start_locked(ifp);
+	LGE_UNLOCK(sc);
+}
+
+static void
+lge_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct lge_softc	*sc;
 	struct mbuf		*m_head = NULL;
 	u_int32_t		idx;
 
@@ -1227,14 +1238,22 @@ lge_init(xsc)
 	void			*xsc;
 {
 	struct lge_softc	*sc = xsc;
+
+	LGE_LOCK(sc);
+	lge_init_locked(sc);
+	LGE_UNLOCK(sc);
+}
+
+static void
+lge_init_locked(sc)
+	struct lge_softc	*sc;
+{
 	struct ifnet		*ifp = sc->lge_ifp;
 	struct mii_data		*mii;
-	int			s;
 
+	LGE_LOCK_ASSERT(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
-
-	s = splimp();
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1253,7 +1272,6 @@ lge_init(xsc)
 		if_printf(ifp, "initialization failed: no "
 		    "memory for rx buffers\n");
 		lge_stop(sc);
-		(void)splx(s);
 		return;
 	}
 
@@ -1345,14 +1363,12 @@ lge_init(xsc)
 	CSR_WRITE_4(sc, LGE_IMR, LGE_IMR_SETRST_CTL0|
 	    LGE_IMR_SETRST_CTL1|LGE_IMR_INTR_ENB|LGE_INTRS);
 
-	lge_ifmedia_upd(ifp);
+	lge_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	(void)splx(s);
-
-	sc->lge_stat_ch = timeout(lge_tick, sc, hz);
+	callout_reset(&sc->lge_stat_callout, hz, lge_tick, sc);
 
 	return;
 }
@@ -1365,10 +1381,25 @@ lge_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct lge_softc	*sc;
+
+	sc = ifp->if_softc;
+	LGE_LOCK(sc);
+	lge_ifmedia_upd_locked(ifp);
+	LGE_UNLOCK(sc);
+
+	return(0);
+}
+
+static void
+lge_ifmedia_upd_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct lge_softc	*sc;
 	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
 
+	LGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->lge_miibus);
 	sc->lge_link = 0;
 	if (mii->mii_instance) {
@@ -1378,8 +1409,6 @@ lge_ifmedia_upd(ifp)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
-
-	return(0);
 }
 
 /*
@@ -1395,8 +1424,10 @@ lge_ifmedia_sts(ifp, ifmr)
 
 	sc = ifp->if_softc;
 
+	LGE_LOCK(sc);
 	mii = device_get_softc(sc->lge_miibus);
 	mii_pollstat(mii);
+	LGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 
@@ -1412,18 +1443,19 @@ lge_ioctl(ifp, command, data)
 	struct lge_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
-
-	s = splimp();
+	int			error = 0;
 
 	switch(command) {
 	case SIOCSIFMTU:
+		LGE_LOCK(sc);
 		if (ifr->ifr_mtu > LGE_JUMBO_MTU)
 			error = EINVAL;
 		else
 			ifp->if_mtu = ifr->ifr_mtu;
+		LGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
+		LGE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -1438,18 +1470,21 @@ lge_ioctl(ifp, command, data)
 				    LGE_MODE1_RX_PROMISC);
 			} else {
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-				lge_init(sc);
+				lge_init_locked(sc);
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				lge_stop(sc);
 		}
 		sc->lge_if_flags = ifp->if_flags;
+		LGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		LGE_LOCK(sc);
 		lge_setmulti(sc);
+		LGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -1462,8 +1497,6 @@ lge_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
-
 	return(error);
 }
 
@@ -1475,16 +1508,18 @@ lge_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	LGE_LOCK(sc);
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
 	lge_stop(sc);
 	lge_reset(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	lge_init(sc);
+	lge_init_locked(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
-		lge_start(ifp);
+		lge_start_locked(ifp);
+	LGE_UNLOCK(sc);
 
 	return;
 }
@@ -1500,9 +1535,10 @@ lge_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	LGE_LOCK_ASSERT(sc);
 	ifp = sc->lge_ifp;
 	ifp->if_timer = 0;
-	untimeout(lge_tick, sc, sc->lge_stat_ch);
+	callout_stop(&sc->lge_stat_callout);
 	CSR_WRITE_4(sc, LGE_IMR, LGE_IMR_INTR_ENB);
 
 	/* Disable receiver and transmitter. */
@@ -1551,8 +1587,10 @@ lge_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	LGE_LOCK(sc);
 	lge_reset(sc);
 	lge_stop(sc);
+	LGE_UNLOCK(sc);
 
 	return;
 }
