@@ -83,6 +83,7 @@ static int	vfs_donmount(struct thread *td, int fsflags,
 		    struct uio *fsoptions);
 static void	free_mntarg(struct mntarg *ma);
 static void	vfs_mount_destroy(struct mount *, struct thread *);
+static int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -365,7 +366,6 @@ nmount(td, uap)
 	unsigned int i;
 	int error;
 	u_int iovcnt;
-	const char *name;
 
 	/* Kick out MNT_ROOTFS early as it is legal internally */
 	if (uap->flags & MNT_ROOTFS)
@@ -391,16 +391,6 @@ nmount(td, uap)
 		iov++;
 	}
 	error = vfs_donmount(td, uap->flags, auio);
-
-	/* copyout the errmsg */
-	for (i = 0; error != 0 && i < iovcnt; i += 2) {
-		name = (const char *)auio->uio_iov[i].iov_base;
-		if (strcmp(name, "errmsg") == 0) {
-			copyout(auio->uio_iov[i + 1].iov_base,
-			    uap->iovp[i + 1].iov_base, uap->iovp[i + 1].iov_len);
-			break;
-		}
-	}
 
 	free(auio, M_IOV);
 	return (error);
@@ -476,20 +466,20 @@ static int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
-	struct iovec *iov_errmsg;
-	char *fstype, *fspath;
-	int error, fstypelen, fspathlen, i;
+	char *fstype, *fspath, *errmsg;
+	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
 
-	iov_errmsg = NULL;
-
-	for (i = 0; i < fsoptions->uio_iovcnt; i += 2) {
-		if (strcmp((char *)fsoptions->uio_iov[i].iov_base, "errmsg") == 0)
-			iov_errmsg = &fsoptions->uio_iov[i + 1];
-	}
+	errmsg_len = 0;
+	errmsg_pos = -1;
 
 	error = vfs_buildopts(fsoptions, &optlist);
 	if (error)
 		return (error);
+
+	if (vfs_getopt(optlist, "errmsg", (void **)&errmsg, &errmsg_len) == 0) 
+		errmsg_pos = vfs_getopt_pos(optlist, "errmsg");
+	else
+		errmsg_len = 0;
 
 	/*
 	 * We need these two options before the others,
@@ -500,18 +490,16 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	error = vfs_getopt(optlist, "fstype", (void **)&fstype, &fstypelen);
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
-		if (iov_errmsg != NULL)
-			strncpy((char *)iov_errmsg->iov_base, "Invalid fstype",
-			    iov_errmsg->iov_len);
+		if (errmsg != NULL)
+			strncpy(errmsg, "Invalid fstype", errmsg_len);
 		goto bail;
 	}
 	fspathlen = 0;
 	error = vfs_getopt(optlist, "fspath", (void **)&fspath, &fspathlen);
 	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
-		if (iov_errmsg != NULL)
-			strncpy((char *)iov_errmsg->iov_base, "Invalid fspath",
-			    iov_errmsg->iov_len);
+		if (errmsg != NULL)
+			strncpy(errmsg, "Invalid fspath", errmsg_len);
 		goto bail;
 	}
 
@@ -580,17 +568,21 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	error = vfs_domount(td, fstype, fspath, fsflags, optlist);
 	mtx_unlock(&Giant);
 bail:
-	if (error != 0 && iov_errmsg != NULL) {
-		/* Save the errmsg so we can return it to userspace. */
-		char *errmsg;
-		int len, ret;
-		ret = vfs_getopt(optlist, "errmsg", (void **)&errmsg, &len);  
-		if (ret == 0 && len > 0) 
-			strncpy((char *)iov_errmsg->iov_base, errmsg,
-			    iov_errmsg->iov_len);
-		
+	/* copyout the errmsg */
+	if (errmsg_pos != -1 && ((2 * errmsg_pos + 1) < fsoptions->uio_iovcnt)
+	    && errmsg_len > 0 && errmsg != NULL) {
+		if (fsoptions->uio_segflg == UIO_SYSSPACE) {
+			strncpy(fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
+			    errmsg, 
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
+		} else {
+			copystr(errmsg,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len,
+			    NULL);
+		} 
 	}
-	
+
 	if (error != 0)
 		vfs_freeopts(optlist);
 	return (error);
@@ -1541,6 +1533,24 @@ vfs_getopt(opts, name, buf, len)
 		}
 	}
 	return (ENOENT);
+}
+
+static int
+vfs_getopt_pos(struct vfsoptlist *opts, const char *name)
+{
+	struct vfsopt *opt;
+	int i;
+
+	if (opts == NULL)
+		return (-1);
+
+	i = 0;
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) == 0)
+			return (i);
+		++i;
+	}
+	return (-1);
 }
 
 char *
