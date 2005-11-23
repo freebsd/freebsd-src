@@ -535,7 +535,8 @@ struct lge_softc {
 	int			lge_if_flags;
 	struct lge_list_data	*lge_ldata;
 	struct lge_ring_data	lge_cdata;
-	struct callout_handle	lge_stat_ch;
+	struct callout		lge_stat_callout;
+	struct mtx		lge_mtx;
 	SLIST_HEAD(__lge_jfreehead, lge_jpool_entry)	lge_jfree_listhead;
 	SLIST_HEAD(__lge_jinusehead, lge_jpool_entry)	lge_jinuse_listhead;
 };
@@ -560,6 +561,10 @@ struct lge_softc {
 
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->lge_btag, sc->lge_bhandle, reg)
+
+#define	LGE_LOCK(sc)		mtx_lock(&(sc)->lge_mtx)
+#define	LGE_UNLOCK(sc)		mtx_unlock(&(sc)->lge_mtx)
+#define	LGE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->lge_mtx, MA_OWNED)
 
 #define LGE_TIMEOUT		1000
 #define LGE_RXLEN		1536
