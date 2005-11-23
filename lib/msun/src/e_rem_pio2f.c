@@ -61,9 +61,10 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 
 	int32_t __ieee754_rem_pio2f(float x, float *y)
 {
-	double z,w,t,r,fn;
-	double tx[3],ty[2];
-	int32_t e0,i,nx,n,ix,hx;
+	double w,t,r,fn;
+	double tx[1],ty[2];
+	float z;
+	int32_t e0,n,ix,hx;
 
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
@@ -85,20 +86,11 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 	if(ix>=0x7f800000) {		/* x is inf or NaN */
 	    y[0]=y[1]=x-x; return 0;
 	}
-    /* set z = scalbn(|x|,ilogb(x)-23) */
-	z = x;
-	GET_HIGH_WORD(hx,z);
-	ix = hx&0x7fffffff;
-	e0 	= (ix>>20)-1046;	/* e0 = ilogb(z)-23; */
-	SET_HIGH_WORD(z, ix - ((int32_t)(e0<<20)));
-	for(i=0;i<2;i++) {
-		tx[i] = (double)((int32_t)(z));
-		z     = (z-tx[i])*two24;
-	}
-	tx[2] = z;
-	nx = 3;
-	while(tx[nx-1]==zero) nx--;	/* skip zero term */
-	n  =  __kernel_rem_pio2(tx,ty,e0,nx,1,two_over_pi);
+    /* set z = scalbn(|x|,ilogb(|x|)-23) */
+	e0 = (ix>>23)-150;		/* e0 = ilogb(|x|)-23; */
+	SET_FLOAT_WORD(z, ix - ((int32_t)(e0<<23)));
+	tx[0] = z;
+	n  =  __kernel_rem_pio2(tx,ty,e0,1,1,two_over_pi);
 	y[0] = ty[0];
 	y[1] = ty[0] - y[0];
 	if(hx<0) {y[0] = -y[0]; y[1] = -y[1]; return -n;}
