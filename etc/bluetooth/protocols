@@ -3,7 +3,8 @@
 #
 # Bluetooth Protocol/Service Multiplexor (PSM) names and numbers
 #
-# See also http://www.bluetoothsig.org/assigned-numbers/
+# See also
+# https://www.bluetooth.org/foundry/assignnumb/document/assigned_numbers
 #
 # Protocol       PSM Alias         Reference
 
