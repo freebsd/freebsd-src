@@ -59,7 +59,9 @@
 .Ft const char *
 .Va _malloc_options ;
 .Ft void
-.Fn \*(lp*_malloc_message\*(rp "char *p1" "char *p2" "char *p3" "char *p4"
+.Fo \*(lp*_malloc_message\*(rp
+.Fa "const char *p1" "const char *p2" "const char *p3" "const char *p4"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn malloc
