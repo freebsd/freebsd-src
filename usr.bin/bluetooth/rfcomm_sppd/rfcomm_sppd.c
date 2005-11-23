@@ -31,6 +31,7 @@
 
 #include <sys/stat.h>
 #include <bluetooth.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -70,12 +71,14 @@ main(int argc, char *argv[])
 	struct sigaction	 sa;
 	struct sockaddr_rfcomm	 ra;
 	bdaddr_t		 addr;
-	int			 n, background, channel, s, amaster, aslave, fd;
+	int			 n, background, channel, service,
+				 s, amaster, aslave, fd;
 	fd_set			 rfd;
-	char			*tty = NULL, buf[SPPD_BUFFER_SIZE];
+	char			*tty = NULL, *ep = NULL, buf[SPPD_BUFFER_SIZE];
 
 	memcpy(&addr, NG_HCI_BDADDR_ANY, sizeof(addr));
 	background = channel = 0;
+	service = SDP_SERVICE_CLASS_SERIAL_PORT;
 
 	/* Parse command line options */
 	while ((n = getopt(argc, argv, "a:bc:t:h")) != -1) {
@@ -92,7 +95,28 @@ main(int argc, char *argv[])
 			break;
 
 		case 'c': /* RFCOMM channel */
-			channel = atoi(optarg);
+			channel = strtoul(optarg, &ep, 10);
+			if (*ep != '\0') {
+				channel = 0;
+				switch (tolower(optarg[0])) {
+				case 'd': /* DialUp Networking */
+					service = SDP_SERVICE_CLASS_DIALUP_NETWORKING;
+					break;
+
+				case 'f': /* Fax */
+					service = SDP_SERVICE_CLASS_FAX;
+					break;
+
+				case 's': /* Serial Port */
+					service = SDP_SERVICE_CLASS_SERIAL_PORT;
+					break;
+
+				default:
+					errx(1, "Unknown service name: %s",
+						optarg);
+					/* NOT REACHED */
+				}
+			}
 			break;
 
 		case 'b': /* Run in background */
@@ -138,9 +162,9 @@ main(int argc, char *argv[])
 		err(1, "Could not sigaction(SIGCHLD)");
 
 	/* Check channel, if was not set then obtain it via SDP */
-	if (channel == 0)
+	if (channel == 0 && service != 0)
 		if (rfcomm_channel_lookup(NULL, &addr,
-			    SDP_SERVICE_CLASS_SERIAL_PORT, &channel, &n) != 0)
+			    service, &channel, &n) != 0)
 			errc(1, n, "Could not obtain RFCOMM channel");
 	if (channel <= 0 || channel > 30)
 		errx(1, "Invalid RFCOMM channel number %d", channel);
