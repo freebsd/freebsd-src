@@ -326,7 +326,7 @@ struct {								\
  * List functions.
  */
 
-#if defined(INVARIANTS) || defined(QUEUE_MACRO_DEBUG)
+#if (defined(_KERNEL) && defined(INVARIANTS)) || defined(QUEUE_MACRO_DEBUG)
 #define	QMD_LIST_CHECK_HEAD(head, field) do {				\
 	if (LIST_FIRST((head)) != NULL &&				\
 	    LIST_FIRST((head))->field.le_prev !=			\
@@ -349,7 +349,7 @@ struct {								\
 #define	QMD_LIST_CHECK_HEAD(head, field)
 #define	QMD_LIST_CHECK_NEXT(elm, field)
 #define	QMD_LIST_CHECK_PREV(elm, field)
-#endif /* defined(INVARIANTS) || defined(QUEUE_MACRO_DEBUG) */
+#endif /* (_KERNEL && INVARIANTS) || QUEUE_MACRO_DEBUG */
 
 #define	LIST_EMPTY(head)	((head)->lh_first == NULL)
 
