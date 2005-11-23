@@ -44,10 +44,10 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/gmon.h
-.Ft int
+.Ft void
 .Fn moncontrol "int mode"
-.Ft int
-.Fn monstartup "u_long *lowpc" "u_long *highpc"
+.Ft void
+.Fn monstartup "u_long lowpc" "u_long highpc"
 .Sh DESCRIPTION
 An executable program compiled using the
 .Fl pg
