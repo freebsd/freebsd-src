@@ -3,17 +3,19 @@
 
 AUTO_EOI_1		opt_auto_eoi.h
 BROKEN_KEYBOARD_RESET	opt_reset.h
+COUNT_XINVLTLB_HITS	opt_smp.h
+COUNT_IPIS		opt_smp.h
 DISABLE_PG_G		opt_pmap.h
 DISABLE_PSE		opt_pmap.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 MAXMEM
 MPTABLE_FORCE_HTT
+MP_WATCHDOG		opt_mp_watchdog.h
 PERFMON
 PMAP_SHPGPERPROC	opt_pmap.h
 POWERFAIL_NMI		opt_trap.h
 PPC_DEBUG		opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
-MP_WATCHDOG		opt_mp_watchdog.h
 
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static filesystems
@@ -103,8 +105,8 @@ DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
 
 # Debugging
-STOP_NMI		opt_cpu.h
 NPX_DEBUG		opt_npx.h
+STOP_NMI		opt_cpu.h
 
 # FreeBSD/i386 supports xbox and is shared with pc98 so we need to define
 # dummy opt_xbox.h
