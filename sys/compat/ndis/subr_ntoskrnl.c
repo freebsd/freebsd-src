@@ -234,6 +234,7 @@ static uint32_t WmiQueryTraceInformation(uint32_t, void *, uint32_t,
 static uint32_t WmiTraceMessage(uint64_t, uint32_t, void *, uint16_t, ...);
 static uint32_t IoWMIRegistrationControl(device_object *, uint32_t);
 static void *ntoskrnl_memset(void *, int, size_t);
+static void *ntoskrnl_memmove(void *, void *, size_t);
 static char *ntoskrnl_strstr(char *, char *);
 static int ntoskrnl_toupper(int);
 static int ntoskrnl_tolower(int);
@@ -421,6 +422,16 @@ ntoskrnl_memset(buf, ch, size)
 	size_t			size;
 {
 	return(memset(buf, ch, size));
+}
+
+static void *
+ntoskrnl_memmove(dst, src, size)
+	void			*src;
+	void			*dst;
+	size_t			size;
+{
+	bcopy(src, dst, size);
+	return(dst);
 }
 
 static char *
@@ -4142,7 +4153,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_CFUNC_MAP(strstr, ntoskrnl_strstr, 0),
 	IMPORT_CFUNC_MAP(strchr, index, 0),
 	IMPORT_CFUNC(memcpy, 0),
-	IMPORT_CFUNC_MAP(memmove, ntoskrnl_memset, 0),
+	IMPORT_CFUNC_MAP(memmove, ntoskrnl_memmove, 0),
 	IMPORT_CFUNC_MAP(memset, ntoskrnl_memset, 0),
 	IMPORT_SFUNC(IoAllocateDriverObjectExtension, 4),
 	IMPORT_SFUNC(IoGetDriverObjectExtension, 2),
