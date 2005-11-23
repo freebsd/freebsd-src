@@ -1703,12 +1703,11 @@ ral_setup_tx_desc(struct ral_softc *sc, struct ral_tx_desc *desc,
 		 * Long PLCP LENGTH field.
 		 * From IEEE Std 802.11b-1999, pp. 16.
 		 */
-		plcp_length = (8 * len * 2) / rate;
-		remainder = (8 * len * 2) % rate;
-		if (remainder != 0) {
-			if (rate == 22 && (rate - remainder) / 16 != 0)
+		plcp_length = (16 * len + rate - 1) / rate;
+		if (rate == 22) {
+			remainder = (16 * len) % 22;
+			if (remainder != 0 && remainder < 7)
 				desc->plcp_service |= RAL_PLCP_LENGEXT;
-			plcp_length++;
 		}
 		desc->plcp_length = htole16(plcp_length);
 	}
