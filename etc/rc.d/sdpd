@@ -17,7 +17,7 @@ start_precmd="sdpd_prestart"
 
 sdpd_prestart()
 {
-	if ! kldstat -q -m ng_btsocket ; then
+	if ! kldstat -m ng_btsocket > /dev/null 2>&1 ; then
 		if kldload ng_btsocket > /dev/null 2>&1 ; then
 			info 'ng_btsocket module loaded'
 		else

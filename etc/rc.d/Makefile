@@ -4,13 +4,14 @@
 FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
 	apm apmd archdep atm1 atm2 atm3 \
-	bgfsck bootparams bsnmpd \
+	bgfsck bluetooth bootparams bsnmpd \
 	ccd cleanvar cleartmp cron \
 	devd devfs dhclient \
 	dmesg dumpon \
 	early.sh \
 	fsck \
 	gbde gbde_swap \
+	hcsecd \
 	hostname \
 	ike \
 	inetd initdiskless initrandom \
@@ -30,7 +31,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	quota \
 	random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
-	savecore securelevel sendmail \
+	savecore sdpd securelevel sendmail \
 	serial sppp sshd swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
