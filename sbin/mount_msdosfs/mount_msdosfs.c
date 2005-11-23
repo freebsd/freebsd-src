@@ -90,7 +90,7 @@ main(int argc, char **argv)
 
 	mntflags = set_gid = set_uid = set_mask = set_dirmask = 0;
 
-	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:")) != -1) {
+	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:W:")) != -1) {
 		switch (c) {
 		case 's':
 			build_iovec(&iov, &iovlen, "shortnames", NULL, (size_t)-1);
@@ -99,7 +99,7 @@ main(int argc, char **argv)
 			build_iovec(&iov, &iovlen, "longnames", NULL, (size_t)-1);
 			break;
 		case '9':
-			build_iovec_argf(&iov, &iovlen, "nowin95", NULL, (size_t)-1);
+			build_iovec_argf(&iov, &iovlen, "nowin95", "", (size_t)-1);
 			break;
 		case 'u':
 			uid = a_uid(optarg);
