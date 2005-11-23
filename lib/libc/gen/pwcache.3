@@ -32,7 +32,7 @@
 .\"     @(#)pwcache.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd Dd March 22, 2002
 .Dt PWCACHE 3
 .Os
 .Sh NAME
@@ -43,10 +43,10 @@
 .Sh SYNOPSIS
 .In pwd.h
 .Ft const char *
-.Fn user_from_uid "unsigned long uid" "int nouser"
+.Fn user_from_uid "uid_t uid" "int nouser"
 .In grp.h
 .Ft const char *
-.Fn group_from_gid "unsigned long gid" "int nogroup"
+.Fn group_from_gid "gid_t gid" "int nogroup"
 .Sh DESCRIPTION
 The
 .Fn user_from_uid
