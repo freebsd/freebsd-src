@@ -62,7 +62,7 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 	int32_t __ieee754_rem_pio2f(float x, float *y)
 {
 	double z,w,t,r,fn;
-	double tx[3];
+	double tx[3],ty[2];
 	int32_t e0,i,nx,n,ix,hx;
 
 	GET_FLOAT_WORD(hx,x);
@@ -98,9 +98,9 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 	tx[2] = z;
 	nx = 3;
 	while(tx[nx-1]==zero) nx--;	/* skip zero term */
-	n  =  __kernel_rem_pio2(tx,&z,e0,nx,1,two_over_pi);
-	y[0] = z;
-	y[1] = z - y[0];
+	n  =  __kernel_rem_pio2(tx,ty,e0,nx,1,two_over_pi);
+	y[0] = ty[0];
+	y[1] = ty[0] - y[0];
 	if(hx<0) {y[0] = -y[0]; y[1] = -y[1]; return -n;}
 	return n;
 }
