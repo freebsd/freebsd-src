@@ -35,7 +35,7 @@
 .\"	@(#)getcap.3	8.4 (Berkeley) 5/13/94
 .\" $FreeBSD$
 .\"
-.Dd May 13, 1994
+.Dd March 22, 2002
 .Dt GETCAP 3
 .Os
 .Sh NAME
@@ -55,19 +55,19 @@
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft int
-.Fn cgetent "char **buf" "char **db_array" "char *name"
+.Fn cgetent "char **buf" "char **db_array" "const char *name"
 .Ft int
-.Fn cgetset "char *ent"
+.Fn cgetset "const char *ent"
 .Ft int
-.Fn cgetmatch "char *buf" "char *name"
+.Fn cgetmatch "const char *buf" "const char *name"
 .Ft char *
-.Fn cgetcap "char *buf" "char *cap" "int type"
+.Fn cgetcap "char *buf" "const char *cap" "int type"
 .Ft int
-.Fn cgetnum "char *buf" "char *cap" "long *num"
+.Fn cgetnum "char *buf" "const char *cap" "long *num"
 .Ft int
-.Fn cgetstr "char *buf" "char *cap" "char **str"
+.Fn cgetstr "char *buf" "const char *cap" "char **str"
 .Ft int
-.Fn cgetustr "char *buf" "char *cap" "char **str"
+.Fn cgetustr "char *buf" "const char *cap" "char **str"
 .Ft int
 .Fn cgetfirst "char **buf" "char **db_array"
 .Ft int
