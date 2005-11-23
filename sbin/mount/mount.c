@@ -633,6 +633,10 @@ mangle(options, argcp, argv)
 				 * not a real mount option.
 				 */
 				continue;
+			} else if (strcmp(p, "userquota") == 0) {
+				continue;
+			} else if (strcmp(p, "groupquota") == 0) {
+				continue;
 			} else if (*p == '-') {
 				argv[argc++] = p;
 				p = strchr(p, '=');
