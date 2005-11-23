@@ -40,7 +40,7 @@ handles
 .Ft "CLIENT *"
 .Fn clnt_create_vers "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "const char *nettype"
 .Ft "CLIENT *"
-.Fn clnt_create_vers_timed "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "char *nettype" "const struct timeval *timeout"
+.Fn clnt_create_vers_timed "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "const char *nettype" "const struct timeval *timeout"
 .Ft void
 .Fn clnt_destroy "CLIENT *clnt"
 .Ft "CLIENT *"
@@ -52,7 +52,7 @@ handles
 .Ft "CLIENT *"
 .Fn clnt_raw_create "const rpcprog_t prognum" "const rpcvers_t versnum"
 .Ft "CLIENT *"
-.Fn clnt_tli_create "const int fildes" "const struct netconfig *netconf" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
+.Fn clnt_tli_create "const int fildes" "const struct netconfig *netconf" "struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
 .Ft "CLIENT *"
 .Fn clnt_tp_create "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
 .Ft "CLIENT *"
