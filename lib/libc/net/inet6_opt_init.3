@@ -58,7 +58,7 @@
 .Ft "int"
 .Fn inet6_opt_find "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t type" "socklen_t *lenp" "void **databufp"
 .Ft "int"
-.Fn inet6_opt_get_val "void *databuf" "socklen_t offset" "void *val" "socklen_t vallen"
+.Fn inet6_opt_get_val "void *databuf" "int offset" "void *val" "socklen_t vallen"
 .\"
 .Sh DESCRIPTION
 Building and parsing the Hop-by-Hop and Destination options is
