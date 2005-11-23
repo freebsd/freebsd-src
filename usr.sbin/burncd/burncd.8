@@ -35,7 +35,7 @@
 .Nd control the ATAPI CD-R/RW driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl delmnpqtv
+.Op Fl deFlmnpqtv
 .Op Fl f Ar device
 .Op Fl s Ar speed
 .Op Ar command
@@ -51,7 +51,7 @@ Available options and operands:
 .It Fl d
 burn the CD-R/RW in DAO (disk at once) mode.
 .It Fl e
-eject the media when done.
+eject the medium when done.
 .It Fl f Ar device
 set the device to use for the burning process.
 .It Fl F
@@ -85,13 +85,18 @@ may be one of:
 .It Cm msinfo
 Show the first LBA of the last track on the media
 and the next writeable address on the media for use with the
-.Xr mkisofs 8 Ns 's
+.Xr mkisofs 8 Ns 's Pq Pa ports/sysutils/cdrtools
 .Fl C
 switch when adding additional data to ISO file systems with extra sessions.
 .It Cm blank
 Blank a CD-RW medium.
 This uses the fast blanking method, so data are not physically overwritten,
 only those areas that make the media appear blank for further usage are erased.
+.It Cm eject
+Eject the medium when done.
+This is equivalent to the
+.Fl e
+option.
 .It Cm erase
 Erase a CD-RW medium.
 This erases the entire media.
@@ -106,9 +111,6 @@ in an ordinary CD drive.
 The driver defaults to creating singlesession media (see
 .Fl m
 option).
-Should be the last command to
-.Nm
-as the program exits when this has been done.
 Ignored in DAO mode (see
 .Fl d
 option).
@@ -153,6 +155,15 @@ quietly zero padded to fit the blocksize requirement.
 The conventional filename
 .Fl
 refers to stdin, and can only be used once.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev CDROM"
+.It Ev CDROM
+The CD device to use if one is not specified with the
+.Fl f
+flag.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/acd0"
 .It Pa /dev/acd0
@@ -193,17 +204,6 @@ as part of the
 .Pa sysutils/cdrtools
 port, is commonly used to create ISO9660 file system images
 from a given directory tree.
-.Sh ENVIRONMENT
-The following environment variables affect the execution of
-.Nm :
-.Bl -tag -width ".Ev CDROM"
-.It Ev CDROM
-The CD device to use if one is not specified with the
-.Fl f
-flag.
-.El
-.Sh BUGS
-Probably, please report when found.
 .Sh HISTORY
 The
 .Nm
@@ -216,3 +216,5 @@ utility and this manpage was contributed by
 .An S\(/oren Schmidt ,
 Denmark
 .Aq sos@FreeBSD.org .
+.Sh BUGS
+Probably, please report when found.
