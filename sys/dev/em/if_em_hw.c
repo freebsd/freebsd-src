@@ -91,15 +91,14 @@ uint16_t em_igp_cable_length_table[IGP01E1000_AGC_LENGTH_TABLE_SIZE] =
 
 static const
 uint16_t em_igp_2_cable_length_table[IGP02E1000_AGC_LENGTH_TABLE_SIZE] =
-    { 8, 13, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43,
-      22, 24, 27, 30, 32, 35, 37, 40, 42, 44, 47, 49, 51, 54, 56, 58,
-      32, 35, 38, 41, 44, 47, 50, 53, 55, 58, 61, 63, 66, 69, 71, 74,
-      43, 47, 51, 54, 58, 61, 64, 67, 71, 74, 77, 80, 82, 85, 88, 90,
-      57, 62, 66, 70, 74, 77, 81, 85, 88, 91, 94, 97, 100, 103, 106, 108,
-      73, 78, 82, 87, 91, 95, 98, 102, 105, 109, 112, 114, 117, 119, 122, 124,
-      91, 96, 101, 105, 109, 113, 116, 119, 122, 125, 127, 128, 128, 128, 128, 128,
-      108, 113, 117, 121, 124, 127, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128};
-
+      { 0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21,
+	0, 0, 0, 3, 6, 10, 13, 16, 19, 23, 26, 29, 32, 35, 38, 41,
+	6, 10, 14, 18, 22, 26, 30, 33, 37, 41, 44, 48, 51, 54, 58, 61,
+	21, 26, 31, 35, 40, 44, 49, 53, 57, 61, 65, 68, 72, 75, 79, 82,
+	40, 45, 51, 56, 61, 66, 70, 75, 79, 83, 87, 91, 94, 98, 101, 104,
+	60, 66, 72, 77, 82, 87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121,
+	83, 89, 95, 100, 105, 109, 113, 116, 119, 122, 124,
+	104, 109, 114, 118, 121, 124};
 
 /******************************************************************************
  * Set the phy type member in the hw struct.
@@ -315,8 +314,19 @@ em_set_mac_type(struct em_hw *hw)
     case E1000_DEV_ID_82547GI:
         hw->mac_type = em_82547_rev_2;
         break;
+    case E1000_DEV_ID_82571EB_COPPER:
+    case E1000_DEV_ID_82571EB_FIBER:
+    case E1000_DEV_ID_82571EB_SERDES:
+	hw->mac_type = em_82571;
+	break;
+    case E1000_DEV_ID_82572EI_COPPER:
+    case E1000_DEV_ID_82572EI_FIBER:
+    case E1000_DEV_ID_82572EI_SERDES:
+	hw->mac_type = em_82572;
+	break;
     case E1000_DEV_ID_82573E:
     case E1000_DEV_ID_82573E_IAMT:
+    case E1000_DEV_ID_82573L:
         hw->mac_type = em_82573;
         break;
     default:
@@ -325,6 +335,8 @@ em_set_mac_type(struct em_hw *hw)
     }
 
     switch(hw->mac_type) {
+    case em_82571:
+    case em_82572:
     case em_82573:
         hw->eeprom_semaphore_present = TRUE;
         /* fall through */
@@ -333,9 +345,8 @@ em_set_mac_type(struct em_hw *hw)
     case em_82541_rev_2:
     case em_82547_rev_2:
         hw->asf_firmware_present = TRUE;
-        break;
     default:
-        break;
+	break;
     }
 
     return E1000_SUCCESS;
@@ -361,21 +372,31 @@ em_set_media_type(struct em_hw *hw)
     switch (hw->device_id) {
     case E1000_DEV_ID_82545GM_SERDES:
     case E1000_DEV_ID_82546GB_SERDES:
+    case E1000_DEV_ID_82571EB_SERDES:
+    case E1000_DEV_ID_82572EI_SERDES:
         hw->media_type = em_media_type_internal_serdes;
         break;
     default:
-        if(hw->mac_type >= em_82543) {
-            status = E1000_READ_REG(hw, STATUS);
-            if(status & E1000_STATUS_TBIMODE) {
-                hw->media_type = em_media_type_fiber;
-                /* tbi_compatibility not valid on fiber */
-                hw->tbi_compatibility_en = FALSE;
-            } else {
-                hw->media_type = em_media_type_copper;
-            }
-        } else {
-            /* This is an 82542 (fiber only) */
-            hw->media_type = em_media_type_fiber;
+	switch (hw->mac_type) {
+	case em_82542_rev2_0:
+	case em_82542_rev2_1:
+		hw->media_type = em_media_type_fiber;
+		break;
+	case em_82573:
+		/*
+		 * The STATUS_TBIMODE bit is reserved or reused for
+		 * this device.
+		 */
+		hw->media_type = em_media_type_copper;
+		break;
+	default:
+		status = E1000_READ_REG(hw, STATUS);
+		if (status & E1000_STATUS_TBIMODE) {
+			hw->media_type = em_media_type_fiber;
+			/* tbi_compatibility not valid on fiber */
+			hw->tbi_compatibility_en = FALSE;
+		} else
+			hw->media_type = em_media_type_copper;
         }
     }
 }
@@ -519,19 +540,23 @@ em_reset_hw(struct em_hw *hw)
             /* Wait for EEPROM reload */
             msec_delay(20);
             break;
-        case em_82573:
-            usec_delay(10);
-            ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
-            ctrl_ext |= E1000_CTRL_EXT_EE_RST;
-            E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-            E1000_WRITE_FLUSH(hw);
-            /* fall through */
-            ret_val = em_get_auto_rd_done(hw);
-            if(ret_val)
-                /* We don't want to continue accessing MAC registers. */
-                return ret_val;
-            break;
-        default:
+	case em_82573:
+		if (em_is_onboard_nvm_eeprom(hw) == FALSE) {
+			usec_delay(10);
+			ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+			ctrl_ext |= E1000_CTRL_EXT_EE_RST;
+			E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+			E1000_WRITE_FLUSH(hw);
+		}
+		/* fall through */
+	case em_82571:
+	case em_82572:
+		ret_val = em_get_auto_rd_done(hw);
+		if(ret_val)
+			/* We don't want to continue accessing MAC registers. */
+			return ret_val;
+		break;
+	default:
             /* Wait for EEPROM reload (it happens automatically) */
             msec_delay(5);
             break;
@@ -683,12 +708,14 @@ em_init_hw(struct em_hw *hw)
     if(hw->mac_type > em_82544) {
         ctrl = E1000_READ_REG(hw, TXDCTL);
         ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
-        switch (hw->mac_type) {
-        default:
-            break;
+	switch (hw->mac_type) {
+	case em_82571:
+        case em_82572:
+		ctrl |= (1 << 22);
         case em_82573:
-            ctrl |= E1000_TXDCTL_COUNT_DESC;
-            break;
+		ctrl |= E1000_TXDCTL_COUNT_DESC;
+        default:
+		break;
         }
         E1000_WRITE_REG(hw, TXDCTL, ctrl);
     }
@@ -697,6 +724,23 @@ em_init_hw(struct em_hw *hw)
         em_enable_tx_pkt_filtering(hw); 
     }
 
+    switch (hw->mac_type) {
+    case em_82571:
+    case em_82572:
+	ctrl = E1000_READ_REG(hw, TXDCTL1);
+	ctrl &= ~E1000_TXDCTL_WTHRESH;
+	ctrl |= E1000_TXDCTL_COUNT_DESC | E1000_TXDCTL_FULL_TX_DESC_WB;
+	ctrl |= (1 << 22);
+	E1000_WRITE_REG(hw, TXDCTL1, ctrl);
+    default:
+	break;
+    }
+
+    if (hw->mac_type == em_82573) {
+	uint32_t gcr = E1000_READ_REG(hw, GCR);
+	gcr |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
+	E1000_WRITE_REG(hw, GCR, gcr);
+    }
 
     /* Clear all of the statistics registers (clear on read).  It is
      * important that we do this after we have tried to establish link
@@ -768,6 +812,11 @@ em_setup_link(struct em_hw *hw)
 
     DEBUGFUNC("em_setup_link");
 
+    /* In the case of the phy reset being blocked, we already have a link.
+     * We do not have to set it up again. */
+    if (em_check_phy_reset_block(hw))
+	return E1000_SUCCESS;
+
     /* Read and store word 0x0F of the EEPROM. This word contains bits
      * that determine the hardware's default PAUSE (flow control) mode,
      * a bit that determines whether the HW defaults to enabling or
@@ -776,19 +825,27 @@ em_setup_link(struct em_hw *hw)
      * control setting, then the variable hw->fc will
      * be initialized based on a value in the EEPROM.
      */
-    if(em_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG, 1, &eeprom_data)) {
-        DEBUGOUT("EEPROM Read Error\n");
-        return -E1000_ERR_EEPROM;
-    }
+    if (hw->fc == em_fc_default) {
+	switch (hw->mac_type) {
+	case em_82573:
+		hw->fc = em_fc_full;
+		break;
+	default:
+		ret_val = em_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG,
+		    1, &eeprom_data);
+		if (ret_val) {
+			DEBUGOUT("EEPROM Read Error\n");
+			return -E1000_ERR_EEPROM;
+		}
 
-    if(hw->fc == em_fc_default) {
-        if((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) == 0)
-            hw->fc = em_fc_none;
-        else if((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) ==
-                EEPROM_WORD0F_ASM_DIR)
-            hw->fc = em_fc_tx_pause;
-        else
-            hw->fc = em_fc_full;
+		if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) == 0)
+			hw->fc = em_fc_none;
+		else if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) ==
+		    EEPROM_WORD0F_ASM_DIR)
+			hw->fc = em_fc_tx_pause;
+		else
+			hw->fc = em_fc_full;
+	}
     }
 
     /* We want to save off the original Flow Control configuration just
@@ -880,6 +937,14 @@ em_setup_fiber_serdes_link(struct em_hw *hw)
     int32_t ret_val;
 
     DEBUGFUNC("em_setup_fiber_serdes_link");
+
+    /* On 82571 and 82572 Fiber connections, SerDes loopback mode persists
+     * until explicitly turned off or a power cycle is performed.  A read to
+     * the register does not indicate its status.  Therefore, we ensure
+     * loopback mode is disabled during initialization.
+     */
+    if (hw->mac_type == em_82571 || hw->mac_type == em_82572)
+	E1000_WRITE_REG(hw, SCTL, E1000_DISABLE_SERDES_LOOPBACK);
 
     /* On adapters with a MAC newer than 82544, SW Defineable pin 1 will be
      * set when the optics detect a signal. On older adapters, it will be
@@ -2884,15 +2949,22 @@ em_phy_hw_reset(struct em_hw *hw)
     DEBUGOUT("Resetting Phy...\n");
 
     if(hw->mac_type > em_82543) {
-        /* Read the device control register and assert the E1000_CTRL_PHY_RST
-         * bit. Then, take it out of reset.
-         */
-        ctrl = E1000_READ_REG(hw, CTRL);
-        E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
-        E1000_WRITE_FLUSH(hw);
-        msec_delay(10);
-        E1000_WRITE_REG(hw, CTRL, ctrl);
-        E1000_WRITE_FLUSH(hw);
+	/*
+	 * Read the device control register and assert the E1000_CTRL_PHY_RST
+	 * bit. Then, take it out of reset.
+	 * For pre-em_82571 hardware, we delay for 10ms between the assert 
+	 * and deassert.  For em_82571 hardware and later, we instead delay
+	 * for 10ms after the deassertion.
+	 */
+	ctrl = E1000_READ_REG(hw, CTRL);
+	E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
+	E1000_WRITE_FLUSH(hw);
+	if (hw->mac_type < em_82571)
+		msec_delay(10);
+	E1000_WRITE_REG(hw, CTRL, ctrl);
+	E1000_WRITE_FLUSH(hw);
+	if (hw->mac_type >= em_82571)
+		msec_delay(10);
     } else {
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
          * bit to put the PHY into reset. Then, take it out of reset.
@@ -2946,6 +3018,8 @@ em_phy_reset(struct em_hw *hw)
 
     switch (hw->mac_type) {
     case em_82541_rev_2:
+    case em_82571:
+    case em_82572:
         ret_val = em_phy_hw_reset(hw);
         if(ret_val)
             return ret_val;
@@ -2983,6 +3057,15 @@ em_detect_gig_phy(struct em_hw *hw)
     boolean_t match = FALSE;
 
     DEBUGFUNC("em_detect_gig_phy");
+
+    /* The 82571 firmware may still be configuring the PHY.  In this
+     * case, we cannot access the PHY until the configuration is done.  So
+     * we explicitly set the PHY values. */
+    if(hw->mac_type == em_82571 || hw->mac_type == em_82572) {
+	hw->phy_id = IGP01E1000_I_PHY_ID;
+	hw->phy_type = em_phy_igp_2;
+	return E1000_SUCCESS;
+    }
 
     /* Read the PHY ID Registers to identify which PHY is onboard. */
     ret_val = em_read_phy_reg(hw, PHY_ID1, &phy_id_high);
@@ -3337,6 +3420,21 @@ em_init_eeprom_params(struct em_hw *hw)
         eeprom->use_eerd = FALSE;
         eeprom->use_eewr = FALSE;
         break;
+    case em_82571:
+    case em_82572:
+	eeprom->type = em_eeprom_spi;
+	eeprom->opcode_bits = 8;
+	eeprom->delay_usec = 1;
+	if (eecd & E1000_EECD_ADDR_BITS) {
+		eeprom->page_size = 32;
+		eeprom->address_bits = 16;
+	} else {
+		eeprom->page_size = 8;
+		eeprom->address_bits = 8;
+	}
+	eeprom->use_eerd = FALSE;
+	eeprom->use_eewr = FALSE;
+	break;
     case em_82573:
         eeprom->type = em_eeprom_spi;
         eeprom->opcode_bits = 8;
@@ -3561,6 +3659,7 @@ em_acquire_eeprom(struct em_hw *hw)
             eecd &= ~E1000_EECD_REQ;
             E1000_WRITE_REG(hw, EECD, eecd);
             DEBUGOUT("Could not acquire EEPROM grant\n");
+	    em_put_hw_eeprom_semaphore(hw);
             return -E1000_ERR_EEPROM;
         }
     }
@@ -4067,7 +4166,7 @@ em_write_eeprom(struct em_hw *hw,
         return -E1000_ERR_EEPROM;
     }
 
-    /* 82573 reads only through eerd */
+    /* 82573 writes only through eewr */
     if(eeprom->use_eewr == TRUE)
         return em_write_eeprom_eewr(hw, offset, words, data);
 
@@ -4356,9 +4455,15 @@ em_read_mac_addr(struct em_hw * hw)
         hw->perm_mac_addr[i] = (uint8_t) (eeprom_data & 0x00FF);
         hw->perm_mac_addr[i+1] = (uint8_t) (eeprom_data >> 8);
     }
-    if(((hw->mac_type == em_82546) || (hw->mac_type == em_82546_rev_3)) &&
-       (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1))
-            hw->perm_mac_addr[5] ^= 0x01;
+    switch (hw->mac_type) {
+    case em_82546:
+    case em_82546_rev_3:
+    case em_82571:
+	if(E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
+		hw->perm_mac_addr[5] ^= 0x01;
+    default:
+	break;
+    }
 
     for(i = 0; i < NODE_ADDRESS_SIZE; i++)
         hw->mac_addr[i] = hw->perm_mac_addr[i];
@@ -4388,6 +4493,12 @@ em_init_rx_addrs(struct em_hw *hw)
     em_rar_set(hw, hw->mac_addr, 0);
 
     rar_num = E1000_RAR_ENTRIES;
+
+    /* Reserve a spot for the Locally Administered Address to work around
+     * an 82571 issue in which a reset on one port will reload the MAC on
+     * the other port. */
+    if ((hw->mac_type == em_82571) && (hw->laa_is_present == TRUE))
+	rar_num -= 1;
     /* Zero out the other 15 receive addresses. */
     DEBUGOUT("Clearing RAR[1-15]\n");
     for(i = 1; i < rar_num; i++) {
@@ -4430,6 +4541,12 @@ em_mc_addr_list_update(struct em_hw *hw,
     /* Clear RAR[1-15] */
     DEBUGOUT(" Clearing RAR[1-15]\n");
     num_rar_entry = E1000_RAR_ENTRIES;
+    /* Reserve a spot for the Locally Administered Address to work around
+     * an 82571 issue in which a reset on one port will reload the MAC on
+     * the other port. */
+    if ((hw->mac_type == em_82571) && (hw->laa_is_present == TRUE))
+	num_rar_entry -= 1;
+
     for(i = rar_used_count; i < num_rar_entry; i++) {
         E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
         E1000_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
@@ -5154,9 +5271,15 @@ em_get_bus_info(struct em_hw *hw)
         hw->bus_speed = em_bus_speed_unknown;
         hw->bus_width = em_bus_width_unknown;
         break;
+    case em_82572:
     case em_82573:
         hw->bus_type = em_bus_type_pci_express;
         hw->bus_speed = em_bus_speed_2500;
+	hw->bus_width = em_bus_width_pciex_1;
+	break;
+    case em_82571:
+	hw->bus_type = em_bus_type_pci_express;
+	hw->bus_speed = em_bus_speed_2500;
         hw->bus_width = em_bus_width_pciex_4;
         break;
     default:
@@ -5253,6 +5376,7 @@ em_get_cable_length(struct em_hw *hw,
     int32_t ret_val;
     uint16_t agc_value = 0;
     uint16_t cur_agc, min_agc = IGP01E1000_AGC_LENGTH_TABLE_SIZE;
+    uint16_t max_agc = 0;
     uint16_t i, phy_data;
     uint16_t cable_length;
 
@@ -5341,6 +5465,51 @@ em_get_cable_length(struct em_hw *hw,
                        IGP01E1000_AGC_RANGE) : 0;
         *max_length = em_igp_cable_length_table[agc_value] +
                       IGP01E1000_AGC_RANGE;
+    } else if (hw->phy_type == em_phy_igp_2) {
+		uint16_t agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] =
+		   {IGP02E1000_PHY_AGC_A,
+		    IGP02E1000_PHY_AGC_B,
+		    IGP02E1000_PHY_AGC_C,
+		    IGP02E1000_PHY_AGC_D};
+
+		/* Read the AGC registers for all channels */
+		for (i = 0; i < IGP02E1000_PHY_CHANNEL_NUM; i++) {
+			ret_val = em_read_phy_reg(hw, agc_reg_array[i],
+			    &phy_data);
+			if (ret_val)
+				return ret_val;
+
+			/*
+			 * Getting bits 15:9, which represent the combination
+			 * of course and fine gain values. The result is a
+			 * number that can be put into the lookup table to
+			 * obtain the approximate cable length.
+			 */
+			cur_agc = (phy_data >> IGP02E1000_AGC_LENGTH_SHIFT) &
+			    IGP02E1000_AGC_LENGTH_MASK;
+
+			/* Remove min & max AGC values from calculation. */
+			if (em_igp_2_cable_length_table[min_agc] >
+			    em_igp_2_cable_length_table[cur_agc])
+				min_agc = cur_agc;
+			if (em_igp_2_cable_length_table[max_agc] <
+			    em_igp_2_cable_length_table[cur_agc])
+				max_agc = cur_agc;
+
+			agc_value += em_igp_2_cable_length_table[cur_agc];
+		}
+
+		agc_value -= (em_igp_2_cable_length_table[min_agc] +
+		    em_igp_2_cable_length_table[max_agc]);
+		agc_value /= (IGP02E1000_PHY_CHANNEL_NUM - 2);
+
+		/*
+		 * Calculate cable length with the error range
+		 * of +/- 10 meters.
+		 */
+		*min_length = ((agc_value - IGP02E1000_AGC_RANGE) > 0) ?
+		     (agc_value - IGP02E1000_AGC_RANGE) : 0;
+		*max_length = agc_value + IGP02E1000_AGC_RANGE;
     }
 
     return E1000_SUCCESS;
@@ -6465,10 +6634,9 @@ em_get_auto_rd_done(struct em_hw *hw)
     DEBUGFUNC("em_get_auto_rd_done");
 
     switch (hw->mac_type) {
-    default:
-        msec_delay(5);
-        break;
     case em_82573:
+    case em_82571:
+    case em_82572:
         while(timeout) {
             if (E1000_READ_REG(hw, EECD) & E1000_EECD_AUTO_RD) break;
             else msec_delay(1);
@@ -6480,7 +6648,15 @@ em_get_auto_rd_done(struct em_hw *hw)
             return -E1000_ERR_RESET;
         }
         break;
+    default:
+        msec_delay(5);
     }
+
+    /* PHY configuration from NVM just starts after EECD_AUTO_RD sets to high.
+     * Need to wait for PHY configuration completion before accessing NVM
+     * and PHY. */
+    if (hw->mac_type == em_82573)
+	msec_delay(25);
 
     return E1000_SUCCESS;
 }
@@ -6497,12 +6673,32 @@ em_get_auto_rd_done(struct em_hw *hw)
 int32_t
 em_get_phy_cfg_done(struct em_hw *hw)
 {
-    DEBUGFUNC("em_get_phy_cfg_done");
+	int32_t timeout = PHY_CFG_TIMEOUT;
+	uint32_t cfg_mask = E1000_EEPROM_CFG_DONE;
 
-    /* Simply wait for 10ms */
-    msec_delay(10);
+	DEBUGFUNC("em_get_phy_cfg_done");
 
-    return E1000_SUCCESS;
+	switch (hw->mac_type) {
+	case em_82571:
+	case em_82572:
+		while (timeout) {
+			if (E1000_READ_REG(hw, EEMNGCTL) & cfg_mask)
+				break;
+			else
+				msec_delay(1);
+			timeout--;
+		}
+
+		if (!timeout) {
+			DEBUGOUT("MNG configuration cycle has not completed.\n");
+			return -E1000_ERR_RESET;
+		}
+		break;
+	default:
+		msec_delay(10);
+	}
+
+	return E1000_SUCCESS;
 }
 
 /***************************************************************************
@@ -6572,8 +6768,7 @@ em_put_hw_eeprom_semaphore(struct em_hw *hw)
         return;
 
     swsm = E1000_READ_REG(hw, SWSM);
-    /* Release both semaphores. */
-    swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
+    swsm &= ~(E1000_SWSM_SWESMBI);
     E1000_WRITE_REG(hw, SWSM, swsm);
 }
 
@@ -6592,7 +6787,7 @@ int32_t
 em_check_phy_reset_block(struct em_hw *hw)
 {
     uint32_t manc = 0;
-    if(hw->mac_type > em_82547_rev_2)
+    if (hw->mac_type > em_82547_rev_2)
         manc = E1000_READ_REG(hw, MANC);
     return (manc & E1000_MANC_BLK_PHY_RST_ON_IDE) ?
 	    E1000_BLK_PHY_RESET : E1000_SUCCESS;
@@ -6609,6 +6804,8 @@ em_arc_subsystem_valid(struct em_hw *hw)
      * if this is the case.  We read FWSM to determine the manageability mode.
      */
     switch (hw->mac_type) {
+    case em_82571:
+    case em_82572:
     case em_82573:
         fwsm = E1000_READ_REG(hw, FWSM);
         if((fwsm & E1000_FWSM_MODE_MASK) != 0)
