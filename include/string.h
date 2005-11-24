@@ -89,7 +89,7 @@ size_t	 strlcpy(char *, const char *, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
-void	 strmode(mode_t, char *);
+void	 strmode(int, char *);
 #endif
 char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
