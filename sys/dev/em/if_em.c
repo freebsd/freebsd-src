@@ -48,7 +48,7 @@ int             em_display_debug_stats = 0;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "2.1.7";
+char em_driver_version[] = "Version - 3.2.18";
 
 
 /*********************************************************************
@@ -107,8 +107,17 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, E1000_DEV_ID_82547EI_MOBILE,      PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, E1000_DEV_ID_82547GI,             PCI_ANY_ID, PCI_ANY_ID, 0},
 
+	{ 0x8086, E1000_DEV_ID_82571EB_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82571EB_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82571EB_SERDES,      PCI_ANY_ID, PCI_ANY_ID, 0},
+
+	{ 0x8086, E1000_DEV_ID_82572EI_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82572EI_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82572EI_SERDES,      PCI_ANY_ID, PCI_ANY_ID, 0},
+
         { 0x8086, E1000_DEV_ID_82573E,              PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, E1000_DEV_ID_82573E_IAMT,         PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82573L,              PCI_ANY_ID, PCI_ANY_ID, 0},
 
         /* required last entry */
         { 0, 0, 0, 0, 0}
@@ -281,7 +290,7 @@ em_probe(device_t dev)
 
 		    ((pci_subdevice_id == ent->subdevice_id) ||
 		     (ent->subdevice_id == PCI_ANY_ID))) {
-			sprintf(adapter_name, "%s, Version - %s", 
+			sprintf(adapter_name, "%s %s", 
 				em_strings[ent->index], 
 				em_driver_version);
 			device_set_desc_copy(dev, adapter_name);
@@ -392,16 +401,6 @@ em_attach(device_t dev)
         adapter->hw.tbi_compatibility_en = TRUE;
         adapter->rx_buffer_len = EM_RXBUFFER_2048;
                         
-	/*
-         * These parameters control the automatic generation(Tx) and
-         * response(Rx) to Ethernet PAUSE frames.
-         */
-        adapter->hw.fc_high_water = FC_DEFAULT_HI_THRESH;
-        adapter->hw.fc_low_water  = FC_DEFAULT_LO_THRESH;
-        adapter->hw.fc_pause_time = FC_DEFAULT_TX_TIMER;
-        adapter->hw.fc_send_xon   = TRUE;
-        adapter->hw.fc = em_fc_full;
-
 	adapter->hw.phy_init_script = 1;
 	adapter->hw.phy_reset_disable = FALSE;
 
@@ -674,9 +673,9 @@ em_start(struct ifnet *ifp)
 static int
 em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	int             mask, reinit, error = 0;
 	struct ifreq   *ifr = (struct ifreq *) data;
 	struct adapter * adapter = ifp->if_softc;
+	int error = 0;
 
 	if (adapter->in_detach) return(error);
 
@@ -687,9 +686,9 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
-		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
+	    {
 #ifndef __NO_STRICT_ALIGNMENT
-		if (ifr->ifr_mtu > ETHERMTU) {
+		if (ifr->ifr_mtu > ETHERMTU)
 			/*
 			 * XXX
 			 * Due to the limitation of DMA engine, it needs fix-up
@@ -697,21 +696,38 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 * jumbo frame until we have better solutions.
 			 */
 			error = EINVAL;
-		} else
-#endif
-		if (ifr->ifr_mtu > MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN || \
-			/* 82573 does not support jumbo frames */
-			(adapter->hw.mac_type == em_82573 && ifr->ifr_mtu > ETHERMTU) ) {
-			error = EINVAL;
-		} else {
-			EM_LOCK(adapter);
-			ifp->if_mtu = ifr->ifr_mtu;
-			adapter->hw.max_frame_size = 
-			ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-			em_init_locked(adapter);
-			EM_UNLOCK(adapter);
+#else
+		int max_frame_size;
+
+		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
+
+		switch (adapter->hw.mac_type) {
+		case em_82571:
+		case em_82572:
+			max_frame_size = 10500;
+			break;
+		case em_82573:
+			/* 82573 does not support jumbo frames. */
+			max_frame_size = ETHER_MAX_LEN;
+			break;
+		default:
+			max_frame_size = MAX_JUMBO_FRAME_SIZE;
 		}
+		if (ifr->ifr_mtu > max_frame_size - ETHER_HDR_LEN -
+		    ETHER_CRC_LEN) {
+			error = EINVAL;
+			break;
+		}
+
+		EM_LOCK(adapter);
+		ifp->if_mtu = ifr->ifr_mtu;
+		adapter->hw.max_frame_size = 
+		ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+		em_init_locked(adapter);
+		EM_UNLOCK(adapter);
+#endif
 		break;
+	    }
 	case SIOCSIFFLAGS:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		EM_LOCK(adapter);
@@ -752,6 +768,9 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &adapter->media, command);
 		break;
 	case SIOCSIFCAP:
+	    {
+		int mask, reinit;
+
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		reinit = 0;
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
@@ -786,6 +805,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			em_init(adapter);
 		break;
+	    }
 	default:
 		IOCTL_DEBUGOUT1("ioctl received: UNKNOWN (0x%x)", (int)command);
 		error = EINVAL;
@@ -852,33 +872,38 @@ em_init_locked(struct adapter * adapter)
 
 	em_stop(adapter);
 
-	/* Packet Buffer Allocation (PBA)
+	/*
+	 * Packet Buffer Allocation (PBA)
 	 * Writing PBA sets the receive portion of the buffer
 	 * the remainder is used for the transmit buffer.
-	 *
-	 * Devices before the 82547 had a Packet Buffer of 64K.
-	 *   Default allocation: PBA=48K for Rx, leaving 16K for Tx.
-	 * After the 82547 the buffer was reduced to 40K.
-	 *   Default allocation: PBA=30K for Rx, leaving 10K for Tx.
-	 *   Note: default does not leave enough room for Jumbo Frame >10k.
 	 */
-	if(adapter->hw.mac_type < em_82547) {
-		/* Total FIFO is 64K */
-		if(adapter->rx_buffer_len > EM_RXBUFFER_8192)
-			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
-		else
-			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
-	} else {
-		/* Total FIFO is 40K */
-		if(adapter->hw.max_frame_size > EM_RXBUFFER_8192) {
+	switch (adapter->hw.mac_type) {
+	case em_82547:
+	case em_82547_rev_2: /* 82547: Total Packet Buffer is 40K */
+		if (adapter->hw.max_frame_size > EM_RXBUFFER_8192)
 			pba = E1000_PBA_22K; /* 22K for Rx, 18K for Tx */
-		} else {
-		        pba = E1000_PBA_30K; /* 30K for Rx, 10K for Tx */
-		}
+		else
+			pba = E1000_PBA_30K; /* 30K for Rx, 10K for Tx */
 		adapter->tx_fifo_head = 0;
 		adapter->tx_head_addr = pba << EM_TX_HEAD_ADDR_SHIFT;
 		adapter->tx_fifo_size = (E1000_PBA_40K - pba) << EM_PBA_BYTES_SHIFT;
+		break;
+	case em_82571: /* 82571: Total Packet Buffer is 48K */
+	case em_82572: /* 82572: Total Packet Buffer is 48K */
+			pba = E1000_PBA_32K; /* 32K for Rx, 16K for Tx */
+		break;
+	case em_82573: /* 82573: Total Packet Buffer is 32K */
+		/* Jumbo frames not supported */
+			pba = E1000_PBA_12K; /* 12K for Rx, 20K for Tx */
+		break;
+	default:
+		/* Devices before 82547 had a Packet Buffer of 64K.   */
+		if(adapter->hw.max_frame_size > EM_RXBUFFER_8192)
+			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
+		else
+			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
 	}
+
 	INIT_DEBUGOUT1("em_init: pba=%dK",pba);
 	E1000_WRITE_REG(&adapter->hw, PBA, pba);
 	
@@ -1878,6 +1903,8 @@ em_free_pci_resources(struct adapter * adapter)
 static int
 em_hardware_init(struct adapter * adapter)
 {
+	uint16_t rx_buffer_size;
+
         INIT_DEBUGOUT("em_hardware_init: begin");
 	/* Issue a global reset */
 	em_reset_hw(&adapter->hw);
@@ -1897,6 +1924,28 @@ em_hardware_init(struct adapter * adapter)
 		       adapter->unit);
 		return(EIO);
 	}
+
+	/*
+	 * These parameters control the automatic generation (Tx) and 
+	 * response (Rx) to Ethernet PAUSE frames.
+	 * - High water mark should allow for at least two frames to be
+	 *   received after sending an XOFF.
+	 * - Low water mark works best when it is very near the high water mark.
+	 *   This allows the receiver to restart by sending XON when it has drained
+	 *   a bit.  Here we use an arbitary value of 1500 which will restart after
+	 *   one full frame is pulled from the buffer.  There could be several smaller
+	 *   frames in the buffer and if so they will not trigger the XON until their
+	 *   total number reduces the buffer by 1500.
+	 * - The pause time is fairly large at 1000 x 512ns = 512 usec.
+	 */
+	rx_buffer_size = ((E1000_READ_REG(&adapter->hw, PBA) & 0xffff) << 10 );
+
+	adapter->hw.fc_high_water = rx_buffer_size -
+	    roundup2(adapter->hw.max_frame_size, 1024);
+	adapter->hw.fc_low_water = adapter->hw.fc_high_water - 1500;
+	adapter->hw.fc_pause_time = 0x1000;
+	adapter->hw.fc_send_xon = TRUE;
+	adapter->hw.fc = em_fc_full;
 
 	if (em_init_hw(&adapter->hw) < 0) {
 		printf("em%d: Hardware Initialization Failed",
@@ -2292,7 +2341,7 @@ em_initialize_transmit_unit(struct adapter * adapter)
 	/* Program the Transmit Control Register */
 	reg_tctl = E1000_TCTL_PSP | E1000_TCTL_EN |
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
-	if (adapter->hw.mac_type >= em_82573)
+	if (adapter->hw.mac_type >= em_82571)
 		reg_tctl |= E1000_TCTL_MULR;
 	if (adapter->link_duplex == 1) {
 		reg_tctl |= E1000_FDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
@@ -3272,40 +3321,45 @@ em_update_stats_counters(struct adapter *adapter)
 static void
 em_print_debug_info(struct adapter *adapter)
 {
-        int unit = adapter->unit;
+	int unit = adapter->unit;
 	uint8_t *hw_addr = adapter->hw.hw_addr;
  
 	printf("em%d: Adapter hardware address = %p \n", unit, hw_addr);
-	printf("em%d:CTRL  = 0x%x\n", unit, 
-		E1000_READ_REG(&adapter->hw, CTRL)); 
-	printf("em%d:RCTL  = 0x%x PS=(0x8402)\n", unit, 
-		E1000_READ_REG(&adapter->hw, RCTL)); 
-	printf("em%d:tx_int_delay = %d, tx_abs_int_delay = %d\n", unit, 
-              E1000_READ_REG(&adapter->hw, TIDV),
-	      E1000_READ_REG(&adapter->hw, TADV));
-	printf("em%d:rx_int_delay = %d, rx_abs_int_delay = %d\n", unit, 
-              E1000_READ_REG(&adapter->hw, RDTR),
-	      E1000_READ_REG(&adapter->hw, RADV));
-        printf("em%d: fifo workaround = %lld, fifo_reset = %lld\n", unit,
-               (long long)adapter->tx_fifo_wrk_cnt, 
-               (long long)adapter->tx_fifo_reset_cnt);
-        printf("em%d: hw tdh = %d, hw tdt = %d\n", unit,
-               E1000_READ_REG(&adapter->hw, TDH),
-               E1000_READ_REG(&adapter->hw, TDT));
-        printf("em%d: Num Tx descriptors avail = %d\n", unit,
-               adapter->num_tx_desc_avail);
-        printf("em%d: Tx Descriptors not avail1 = %ld\n", unit,
-               adapter->no_tx_desc_avail1);
-        printf("em%d: Tx Descriptors not avail2 = %ld\n", unit,
-               adapter->no_tx_desc_avail2);
-        printf("em%d: Std mbuf failed = %ld\n", unit,
-               adapter->mbuf_alloc_failed);
-        printf("em%d: Std mbuf cluster failed = %ld\n", unit,
-               adapter->mbuf_cluster_failed);
-        printf("em%d: Driver dropped packets = %ld\n", unit,
-               adapter->dropped_pkts);
+	printf("em%d: CTRL = 0x%x RCTL = 0x%x \n", unit, 
+	    E1000_READ_REG(&adapter->hw, CTRL),
+	    E1000_READ_REG(&adapter->hw, RCTL)); 
+	printf("em%d: Packet buffer = Tx=%dk Rx=%dk \n", unit, 
+	    ((E1000_READ_REG(&adapter->hw, PBA) & 0xffff0000) >> 16),\
+	    (E1000_READ_REG(&adapter->hw, PBA) & 0xffff) );
+	printf("em%d: Flow control watermarks high = %d low = %d\n", unit, 
+	    adapter->hw.fc_high_water,
+	    adapter->hw.fc_low_water);
+	printf("em%d: tx_int_delay = %d, tx_abs_int_delay = %d\n", unit, 
+	    E1000_READ_REG(&adapter->hw, TIDV),
+	    E1000_READ_REG(&adapter->hw, TADV));
+	printf("em%d: rx_int_delay = %d, rx_abs_int_delay = %d\n", unit, 
+	    E1000_READ_REG(&adapter->hw, RDTR),
+	    E1000_READ_REG(&adapter->hw, RADV));
+	printf("em%d: fifo workaround = %lld, fifo_reset_count = %lld\n",
+	    unit, (long long)adapter->tx_fifo_wrk_cnt, 
+	    (long long)adapter->tx_fifo_reset_cnt);
+	printf("em%d: hw tdh = %d, hw tdt = %d\n", unit,
+	    E1000_READ_REG(&adapter->hw, TDH),
+	    E1000_READ_REG(&adapter->hw, TDT));
+	printf("em%d: Num Tx descriptors avail = %d\n", unit,
+	    adapter->num_tx_desc_avail);
+	printf("em%d: Tx Descriptors not avail1 = %ld\n", unit,
+	    adapter->no_tx_desc_avail1);
+	printf("em%d: Tx Descriptors not avail2 = %ld\n", unit,
+	    adapter->no_tx_desc_avail2);
+	printf("em%d: Std mbuf failed = %ld\n", unit,
+	    adapter->mbuf_alloc_failed);
+	printf("em%d: Std mbuf cluster failed = %ld\n", unit,
+	    adapter->mbuf_cluster_failed);
+	printf("em%d: Driver dropped packets = %ld\n", unit,
+	    adapter->dropped_pkts);
 
-        return;
+	return;
 }
 
 static void
