@@ -116,10 +116,10 @@ static struct buf_ops ffs_ops = {
 	.bop_sync =	bufsync,
 };
 
-static const char *ffs_opts[] = { "acls", "async", "errmsg", "export",
-    "force", "from", "multilabel", "noasync", "noatime", "noclusterr",
-    "noclusterw", "noexec", "nosuid", "nosymfollow", "snapshot", "sync",
-    "suiddir", "update", "union", NULL };
+static const char *ffs_opts[] = { "acls", "async", "atime", "clusterr",
+    "clusterw", "exec", "errmsg", "export", "force", "from", "multilabel", 
+    "snapshot", "suid", "suiddir", "symfollow", "sync",
+    "update", "union", NULL };
 
 static int
 ffs_mount(struct mount *mp, struct thread *td)
