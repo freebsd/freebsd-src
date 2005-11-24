@@ -106,7 +106,7 @@ for set/unset hook functions.
 .Xc
 .It Xo
 .Ft int
-.Fn setenv "const char *name" "char *value" "int overwrite"
+.Fn setenv "const char *name" "const char *value" "int overwrite"
 .Xc
 .It Xo
 .Ft int
@@ -127,7 +127,7 @@ Looks up a variable in the environment and returns its entire
 data structure.
 .It Xo
 .Ft int
-.Fn env_setenv "const char *name" "int flags" "char *value" "ev_sethook_t sethook" "ev_unsethook_t unsethook"
+.Fn env_setenv "const char *name" "int flags" "const void *value" "ev_sethook_t sethook" "ev_unsethook_t unsethook"
 .Xc
 .Pp
 Creates a new or sets an existing environment variable called
@@ -215,7 +215,7 @@ Read characters from the console into
 All of the standard cautions apply to this function.
 .It Xo
 .Ft void
-.Fn ngets "char *buf" "size_t size"
+.Fn ngets "char *buf" "int size"
 .Xc
 .Pp
 Read at most
@@ -448,7 +448,7 @@ lines to be displayed before pausing.
 Closes the pager.
 .It Xo
 .Ft int
-.Fn pager_output "char *lines"
+.Fn pager_output "const char *lines"
 .Xc
 .Pp
 Sends the lines in the
@@ -464,7 +464,7 @@ function will return zero when all of the lines have been output, or nonzero
 if the display was paused and the user elected to quit.
 .It Xo
 .Ft int
-.Fn pager_file "char *fname"
+.Fn pager_file "const char *fname"
 .Xc
 .Pp
 Attempts to open and display the file
@@ -554,7 +554,7 @@ and
 and thus by many other functions for debugging and informational output.
 .It Xo
 .Ft int
-.Fn devopen "struct open_file *of" "const char *name" "char **file"
+.Fn devopen "struct open_file *of" "const char *name" "const char **file"
 .Xc
 .Pp
 Open the appropriate device for the file named in
