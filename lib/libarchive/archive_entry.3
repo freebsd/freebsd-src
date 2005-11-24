@@ -99,15 +99,15 @@
 .Fn archive_entry_acl_next "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const char **name"
 .Ft int
 .Fn archive_entry_acl_next_w "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const wchar_t **name"
-.Ft void
-.Fn archive_entry_acl_reset "struct archive_entry *"
+.Ft int
+.Fn archive_entry_acl_reset "struct archive_entry *" "int want_type"
 .Ft const wchar_t *
 .Fn archive_entry_acl_text_w "struct archive_entry *" "int flags"
 .Ft time_t
 .Fn archive_entry_atime "struct archive_entry *"
 .Ft long
 .Fn archive_entry_atime_nsec "struct archive_entry *"
-.Ft void
+.Ft "struct archive_entry *"
 .Fn archive_entry_clear "struct archive_entry *"
 .Ft struct archive_entry *
 .Fn archive_entry_clone "struct archive_entry *"
@@ -122,7 +122,7 @@
 .Ft void
 .Fn archive_entry_copy_pathname_w "struct archive_entry *" "const wchar_t *"
 .Ft void
-.Fn archive_entry_copy_stat "struct archive_entry *" "struct stat *"
+.Fn archive_entry_copy_stat "struct archive_entry *" "const struct stat *"
 .Ft void
 .Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
 .Ft void
