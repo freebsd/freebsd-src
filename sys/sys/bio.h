@@ -59,7 +59,7 @@ struct bio {
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
-	long	bio_resid;		/* Remaining I/0 in bytes. */
+	long	bio_resid;		/* Remaining I/O in bytes. */
 	void	(*bio_done)(struct bio *);
 	void	*bio_driver1;		/* Private use by the provider. */
 	void	*bio_driver2;		/* Private use by the provider. */
