@@ -36,6 +36,14 @@ __FBSDID("$FreeBSD$");
 extern char kernel_start[];
 extern char kernel_end[];
 
+void __start(void);
+
+void
+_start(void)
+{
+	__start();
+}
+
 static __inline void *
 memcpy(void *dst, const void *src, int len)
 {
@@ -168,8 +176,10 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 			    phdr[i].p_filesz);
 	}
 	/* Now grab the symbol tables. */
-	*(Elf_Addr *)curaddr = ssym - curaddr + KERNVIRTADDR;
-	*((Elf_Addr *)curaddr + 1) = lastaddr - curaddr + KERNVIRTADDR;
+	*(Elf_Addr *)curaddr = MAGIC_TRAMP_NUMBER;
+	*((Elf_Addr *)curaddr + 1) = ssym - curaddr + KERNVIRTADDR;
+	*((Elf_Addr *)curaddr + 2) = lastaddr - curaddr + KERNVIRTADDR;
+
 	/* Jump to the entry point. */
 	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
 	__asm __volatile(".globl func_end\n"
@@ -179,7 +189,7 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 
 extern char func_end[];
 
-int _start(void)
+void __start(void)
 {
 	void *curaddr;
 
@@ -194,5 +204,5 @@ int _start(void)
 	((void (*)())dst)((unsigned int)&kernel_start, 
 			  (unsigned int)&kernel_end, (unsigned int)curaddr,
 			  dst + (unsigned int)&func_end - 
-			  (unsigned int)(&load_kernel),1);
+			  (unsigned int)(&load_kernel), 1);
 }
