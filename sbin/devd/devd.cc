@@ -83,6 +83,8 @@ int dflag;
 int nflag;
 int romeo_must_die = 0;
 
+static const char *configfile = CF;
+
 static void event_loop(void);
 static void usage(void);
 
@@ -353,7 +355,7 @@ config::parse(void)
 {
 	vector<string>::const_iterator i;
 
-	parse_one_file(CF);
+	parse_one_file(configfile);
 	for (i = _dir_list.begin(); i != _dir_list.end(); i++)
 		parse_files_in_dir((*i).c_str());
 	sort_vector(_attach_list);
@@ -908,13 +910,16 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "Ddn")) != -1) {
+	while ((ch = getopt(argc, argv, "Ddf:n")) != -1) {
 		switch (ch) {
 		case 'D':
 			Dflag++;
 			break;
 		case 'd':
 			dflag++;
+			break;
+		case 'f':
+			configfile = optarg;
 			break;
 		case 'n':
 			nflag++;
