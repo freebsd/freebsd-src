@@ -38,23 +38,17 @@ extern inline
 float
 __kernel_tandf(double x, int iy)
 {
-	double z,r,v,w,s;
-	int32_t ix,hx;
+	double z,r,w,s;
 
-	GET_FLOAT_WORD(hx,x);
-	ix = hx&0x7fffffff;
 	z	=  x*x;
 	w 	=  z*z;
     /* Break x^5*(T[1]+x^2*T[2]+...) into
      *	  x^5*(T[1]+x^4*T[3]+x^8*T[5]) +
      *	  x^5*(x^2*(T[2]+x^4*T[4]))
      */
-	r = T[1]+w*(T[3]+w*T[5]);
-	v = z*(T[2]+w*T[4]);
+	r = T[1]+w*(T[3]+w*T[5]) + z*(T[2]+w*T[4]);
 	s = z*x;
-	r = z*s*(r+v);
-	r += T[0]*s;
-	w = x+r;
-	if(iy==1) return w;
-	else return -1.0/w;
+	r = (x+s*T[0])+(s*z)*r;
+	if(iy==1) return r;
+	else return -1.0/r;
 }
