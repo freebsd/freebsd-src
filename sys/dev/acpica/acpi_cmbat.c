@@ -66,7 +66,6 @@ struct acpi_cmbat_softc {
 
     struct acpi_bif bif;
     struct acpi_bst bst;
-    struct timespec bif_lastupdated;
     struct timespec bst_lastupdated;
 };
 
@@ -80,8 +79,8 @@ static void		acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify,
 			    void *context);
 static int		acpi_cmbat_info_expired(struct timespec *lastupdated);
 static void		acpi_cmbat_info_updated(struct timespec *lastupdated);
-static void		acpi_cmbat_get_bst(device_t dev);
-static void		acpi_cmbat_get_bif(device_t dev);
+static void		acpi_cmbat_get_bst(void *arg);
+static void		acpi_cmbat_get_bif(void *arg);
 static int		acpi_cmbat_bst(device_t dev, struct acpi_bst *bstp);
 static int		acpi_cmbat_bif(device_t dev, struct acpi_bif *bifp);
 static void		acpi_cmbat_init_battery(void *arg);
@@ -134,7 +133,6 @@ acpi_cmbat_attach(device_t dev)
     handle = acpi_get_handle(dev);
     sc->dev = dev;
 
-    timespecclear(&sc->bif_lastupdated);
     timespecclear(&sc->bst_lastupdated);
 
     error = acpi_battery_register(dev);
@@ -180,20 +178,22 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     dev = (device_t)context;
     sc = device_get_softc(dev);
 
-    /*
-     * Clear the appropriate last updated time.  The next call to retrieve
-     * the battery status will get the new value for us.  We don't need to
-     * acquire a lock since we are only clearing the time stamp and since
-     * calling _BST/_BIF can trigger a notify, we could deadlock also.
-     */
     switch (notify) {
     case ACPI_NOTIFY_DEVICE_CHECK:
     case ACPI_BATTERY_BST_CHANGE:
+	/*
+	 * Clear the last updated time.  The next call to retrieve the
+	 * battery status will get the new value for us.
+	 */
 	timespecclear(&sc->bst_lastupdated);
 	break;
     case ACPI_NOTIFY_BUS_CHECK:
     case ACPI_BATTERY_BIF_CHANGE:
-	timespecclear(&sc->bif_lastupdated);
+	/*
+	 * Queue a callback to get the current battery info from thread
+	 * context.  It's not safe to block in a notify handler.
+	 */
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
 	break;
     }
 
@@ -229,16 +229,18 @@ acpi_cmbat_info_updated(struct timespec *lastupdated)
 }
 
 static void
-acpi_cmbat_get_bst(device_t dev)
+acpi_cmbat_get_bst(void *arg)
 {
     struct acpi_cmbat_softc *sc;
     ACPI_STATUS	as;
     ACPI_OBJECT	*res;
     ACPI_HANDLE	h;
     ACPI_BUFFER	bst_buffer;
+    device_t dev;
 
     ACPI_SERIAL_ASSERT(cmbat);
 
+    dev = arg;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
     bst_buffer.Pointer = NULL;
@@ -287,23 +289,22 @@ end:
 }
 
 static void
-acpi_cmbat_get_bif(device_t dev)
+acpi_cmbat_get_bif(void *arg)
 {
     struct acpi_cmbat_softc *sc;
     ACPI_STATUS	as;
     ACPI_OBJECT	*res;
     ACPI_HANDLE	h;
     ACPI_BUFFER	bif_buffer;
+    device_t dev;
 
     ACPI_SERIAL_ASSERT(cmbat);
 
+    dev = arg;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
     bif_buffer.Pointer = NULL;
     bif_buffer.Length = ACPI_ALLOCATE_BUFFER;
-
-    if (!acpi_cmbat_info_expired(&sc->bif_lastupdated))
-	goto end;
 
     as = AcpiEvaluateObject(h, "_BIF", NULL, &bif_buffer);
     if (ACPI_FAILURE(as)) {
@@ -346,7 +347,6 @@ acpi_cmbat_get_bif(device_t dev)
 	goto end;
     if (acpi_PkgStr(res, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN) != 0)
 	goto end;
-    acpi_cmbat_info_updated(&sc->bif_lastupdated);
 
 end:
     if (bif_buffer.Pointer != NULL)
@@ -360,8 +360,13 @@ acpi_cmbat_bif(device_t dev, struct acpi_bif *bifp)
 
     sc = device_get_softc(dev);
 
+    /*
+     * Just copy the data.  The only value that should change is the
+     * last-full capacity, so we only update when we get a notify that says
+     * the info has changed.  Many systems apparently take a long time to
+     * process a _BIF call so we avoid it if possible.
+     */
     ACPI_SERIAL_BEGIN(cmbat);
-    acpi_cmbat_get_bif(dev);
     bifp->units = sc->bif.units;
     bifp->dcap = sc->bif.dcap;
     bifp->lfcap = sc->bif.lfcap;
@@ -422,11 +427,18 @@ acpi_cmbat_init_battery(void *arg)
 	if (!acpi_BatteryIsPresent(dev))
 	    continue;
 
+	/*
+	 * Only query the battery if this is the first try or the specific
+	 * type of info is still invalid.
+	 */
 	ACPI_SERIAL_BEGIN(cmbat);
-	timespecclear(&sc->bst_lastupdated);
-	timespecclear(&sc->bif_lastupdated);
-	acpi_cmbat_get_bst(dev);
-	acpi_cmbat_get_bif(dev);
+	if (retry == 0 || !acpi_battery_bst_valid(&sc->bst)) {
+	    timespecclear(&sc->bst_lastupdated);
+	    acpi_cmbat_get_bst(dev);
+	}
+	if (retry == 0 || !acpi_battery_bif_valid(&sc->bif))
+	    acpi_cmbat_get_bif(dev);
+
 	valid = acpi_battery_bst_valid(&sc->bst) &&
 	    acpi_battery_bif_valid(&sc->bif);
 	ACPI_SERIAL_END(cmbat);
