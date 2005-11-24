@@ -1219,6 +1219,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         u_int32_t       txd_upper;
         u_int32_t       txd_lower, txd_used = 0, txd_saved = 0;
         int             i, j, error = 0;
+	bus_dmamap_t	map;
 
 	struct mbuf	*m_head;
 
@@ -1253,6 +1254,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
 	error = bus_dmamap_load_mbuf_sg(adapter->txtag, tx_buffer->map, m_head,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
+	map = tx_buffer->map;
         if (error != 0) {
                 adapter->no_tx_dma_setup++;
                 return (error);
@@ -1383,7 +1385,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         }
 
         tx_buffer->m_head = m_head;
-        bus_dmamap_sync(adapter->txtag, tx_buffer->map, BUS_DMASYNC_PREWRITE);
+        bus_dmamap_sync(adapter->txtag, map, BUS_DMASYNC_PREWRITE);
 
         /*
          * Last Descriptor of Packet needs End Of Packet (EOP)
