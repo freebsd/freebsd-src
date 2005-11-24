@@ -30,7 +30,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 14, 2003
-.Dt snmp_netgraph 3
+.Dt SNMP_NETGRAPH 3
 .Os
 .Sh NAME
 .Nm snmp_netgraph ,
@@ -90,15 +90,15 @@
 .Ft int
 .Fn ng_output "const char *path" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
 .Ft int
-.Fn ng_output_node "const char *node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen" "
+.Fn ng_output_node "const char *node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
 .Ft int
-.Fn ng_output_id "ng_ID_t node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen" "
+.Fn ng_output_id "ng_ID_t node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
 .Ft struct ng_mesg *
 .Fn ng_dialog "const char *path" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
 .Ft struct ng_mesg *
-.Fn ng_dialog_node "const char *node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen" "
+.Fn ng_dialog_node "const char *node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
 .Ft struct ng_mesg *
-.Fn ng_dialog_id "ng_ID_t id" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen" "
+.Fn ng_dialog_id "ng_ID_t id" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
 .Ft int
 .Fn ng_send_data "const char *hook" "const void *sndbuf" "size_t sndlen"
 .Ft ng_ID_t
@@ -120,15 +120,15 @@
 .Ft int
 .Fn ng_shutdown_id "ng_ID_t id"
 .Ft ng_ID_t
-.Fn ng_next_node_id "ng_ID_t node, const char *type, const char *hook);
+.Fn ng_next_node_id "ng_ID_t node" "const char *type" "const char *hook"
 .Ft ng_ID_t
 .Fn ng_node_id "const char *path"
 .Ft ng_ID_t
 .Fn ng_node_id_node "const char *node"
 .Ft ng_ID_t
-.Fn ng_node_name "ng_ID_t id, char *name"
+.Fn ng_node_name "ng_ID_t id" "char *name"
 .Ft ng_ID_t
-.Fn ng_node_type "ng_ID_t id, char *type"
+.Fn ng_node_type "ng_ID_t id" "char *type"
 .Ft int
 .Fn ng_peer_hook_id "ng_ID_t id" "const char *hook" "char *peerhook"
 .Sh DESCRIPTION
