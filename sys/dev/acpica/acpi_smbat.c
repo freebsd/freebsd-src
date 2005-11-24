@@ -371,11 +371,11 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 	sc->bst.volt = val;
 
 	acpi_smbat_info_updated(&sc->bst_lastupdated);
-
 	error = 0;
 
 out:
-	memcpy(bst, &sc->bst, sizeof(sc->bst));
+	if (error == 0)
+		memcpy(bst, &sc->bst, sizeof(sc->bst));
 	ACPI_SERIAL_END(smbat);
 	return (error);
 }
@@ -445,13 +445,14 @@ acpi_smbat_get_bif(device_t dev, struct acpi_bif *bif)
 	    sc->bif.oeminfo, sizeof(sc->bif.oeminfo)))
 		goto out;
 
-	acpi_smbat_info_updated(&sc->bif_lastupdated);
-
 	/* XXX check if device was replugged during read? */
+
+	acpi_smbat_info_updated(&sc->bif_lastupdated);
 	error = 0;
 
 out:
-	memcpy(bif, &sc->bif, sizeof(sc->bif));
+	if (error == 0)
+		memcpy(bif, &sc->bif, sizeof(sc->bif));
 	ACPI_SERIAL_END(smbat);
 	return (error);
 }
