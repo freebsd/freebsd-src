@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2002
+.Dd July 12, 2004
 .Dt KSE 2
 .Os
 .Sh NAME
@@ -53,9 +53,9 @@
 .Ft int
 .Fn kse_release "struct timespec *timeout"
 .Ft int
-.Fn kse_switchin "mcontext_t *mcp" "long val" "long *loc"
+.Fn kse_switchin "struct kse_thr_mailbox *tmbx" "int flags"
 .Ft int
-.Fn kse_thr_interrupt "struct kse_thr_mailbox *tmbx"
+.Fn kse_thr_interrupt "struct kse_thr_mailbox *tmbx" "int cmd" "long data"
 .Ft int
 .Fn kse_wakeup "struct kse_mailbox *mbx"
 .Sh DESCRIPTION
