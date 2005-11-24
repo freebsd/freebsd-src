@@ -79,11 +79,11 @@
 .Ft int
 .Fn Collapse_Chunk "struct disk *disk" "struct chunk *chunk"
 .Ft int
-.Fn Create_Chunk "struct disk *disk" "daddr_t offset" "daddr_t size" "chunk_e type" "int subtype" "u_long flags"
+.Fn Create_Chunk "struct disk *disk" "daddr_t offset" "daddr_t size" "chunk_e type" "int subtype" "u_long flags" "const char *sname"
 .Ft void
 .Fn All_FreeBSD "struct disk *d" "int force_all"
 .Ft char *
-.Fn CheckRules "struct disk *"
+.Fn CheckRules "const struct disk *"
 .Ft char **
 .Fn Disk_Names "void"
 .Ft void
@@ -91,19 +91,19 @@
 .Ft int
 .Fn Set_Boot_Blocks "struct disk *d" "const u_char *boot1" "const u_char *boot2"
 .Ft int
-.Fn Write_Disk "struct disk *d"
+.Fn Write_Disk "const struct disk *d"
 .Ft int
 .Fn Cyl_Aligned "struct disk *d" "daddr_t offset"
 .Ft daddr_t
-.Fn Next_Cyl_Aligned "struct disk *d" "daddr_t offset"
+.Fn Next_Cyl_Aligned "const struct disk *d" "daddr_t offset"
 .Ft daddr_t
-.Fn Prev_Cyl_Aligned "struct disk *d" "daddr_t offset"
+.Fn Prev_Cyl_Aligned "const struct disk *d" "daddr_t offset"
 .Ft int
-.Fn Track_Aligned "struct disk *d" "daddr_t offset"
+.Fn Track_Aligned "const struct disk *d" "daddr_t offset"
 .Ft daddr_t
-.Fn Next_Track_Aligned "struct disk *d" "daddr_t offset"
+.Fn Next_Track_Aligned "const struct disk *d" "daddr_t offset"
 .Ft daddr_t
-.Fn Prev_Track_Aligned "struct disk *d" "daddr_t offset"
+.Fn Prev_Track_Aligned "const struct disk *d" "daddr_t offset"
 .Ft struct chunk *
 .Fn Create_Chunk_DWIM "struct disk *d" "struct chunk *parent" "daddr_t size" "chunk_e type" "int subtype" "u_long flags"
 .Ft int
