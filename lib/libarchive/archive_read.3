@@ -81,7 +81,7 @@
 .Ft int
 .Fn archive_read_support_format_zip "struct archive *"
 .Ft int
-.Fn archive_read_open "struct archive *" "void *client_data" "archive_open_archive_callback *" "archive_read_archive_callback *" "archive_close_archive_callback *"
+.Fn archive_read_open "struct archive *" "void *client_data" "archive_open_callback *" "archive_read_callback *" "archive_close_callback *"
 .Ft int
 .Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
 .Ft int
@@ -95,7 +95,7 @@
 .Ft int
 .Fn archive_read_data_skip "struct archive *"
 .Ft int
-.Fn archive_read_data_into_buffer "struct archive *" "void *" "size_t len"
+.Fn archive_read_data_into_buffer "struct archive *" "void *" "ssize_t len"
 .Ft int
 .Fn archive_read_data_into_fd "struct archive *" "int fd"
 .Ft int
