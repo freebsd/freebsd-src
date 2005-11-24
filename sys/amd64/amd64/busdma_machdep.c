@@ -978,7 +978,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "total_bpages", CTLFLAG_RD, &bz->total_bpages, 0,
-	    "Totoal bounce pages");
+	    "Total bounce pages");
 	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "free_bpages", CTLFLAG_RD, &bz->free_bpages, 0,
