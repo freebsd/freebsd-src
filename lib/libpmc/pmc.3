@@ -68,7 +68,7 @@
 .Fa "const char *eventspecifier"
 .Fa "enum pmc_mode mode"
 .Fa "uint32_t flags"
-.Fa "uint32_t cpu"
+.Fa "int cpu"
 .Fa "pmc_id_t *pmcid"
 .Fc
 .Ft int
@@ -82,9 +82,9 @@
 .Ft int
 .Fn pmc_detach "pmc_id_t pmcid" "pid_t pid"
 .Ft int
-.Fn pmc_disable "uint32_t cpu" "int pmc"
+.Fn pmc_disable "int cpu" "int pmc"
 .Ft int
-.Fn pmc_enable "uint32_t cpu" "int pmc"
+.Fn pmc_enable "int cpu" "int pmc"
 .Ft int
 .Fo pmc_event_names_of_class
 .Fa "enum pmc_class cl"
@@ -116,9 +116,9 @@
 .Ft int
 .Fn pmc_ncpu void
 .Ft int
-.Fn pmc_npmc "uint32_t cpu"
+.Fn pmc_npmc "int cpu"
 .Ft int
-.Fn pmc_pmcinfo "uint32_t cpu" "struct pmc_pmcinfo **pmc_info"
+.Fn pmc_pmcinfo "int cpu" "struct pmc_pmcinfo **pmc_info"
 .Ft int
 .Fn pmc_read "pmc_id_t pmc" "pmc_value_t *value"
 .Ft int
