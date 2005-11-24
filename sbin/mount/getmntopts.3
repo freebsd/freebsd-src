@@ -37,7 +37,10 @@
 .Sh SYNOPSIS
 .Fd #include \&"mntopts.h"
 .Ft void
-.Fn getmntopts "char *options" "struct mntopt *mopts" "int *flagp" "int *altflagp"
+.Fo getmntopts
+.Fa "const char *options" "const struct mntopt *mopts"
+.Fa "int *flagp" "int *altflagp"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn getmntopts
