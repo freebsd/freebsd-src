@@ -343,7 +343,7 @@ int
 sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
-		const __ucontext *sigcntxp;
+		const struct __ucontext *sigcntxp;
 	} */ *uap;
 {
 	ucontext_t uc;
