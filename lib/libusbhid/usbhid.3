@@ -65,20 +65,20 @@
 .Fn hid_report_size "report_desc_t d" "hid_kind_t k" "int id"
 .Ft int
 .Fn hid_locate "report_desc_t d" "u_int usage" "hid_kind_t k" "hid_item_t *h" "int id"
-.Ft "char *"
+.Ft "const char *"
 .Fn hid_usage_page "int i"
-.Ft "char *"
+.Ft "const char *"
 .Fn hid_usage_in_page "u_int u"
 .Ft int
 .Fn hid_parse_usage_page "const char *"
-.Ft "char *"
+.Ft int
 .Fn hid_parse_usage_in_page "const char *"
 .Ft void
-.Fn hid_init "char *file"
+.Fn hid_init "const char *file"
 .Ft int
-.Fn hid_get_data "void *data" "hid_item_t *h"
+.Fn hid_get_data "const void *data" "const hid_item_t *h"
 .Ft void
-.Fn hid_set_data "void *data" "hid_item_t *h" "u_int data"
+.Fn hid_set_data "void *buf" "const hid_item_t *h" "int data"
 .Sh DESCRIPTION
 The
 .Nm
