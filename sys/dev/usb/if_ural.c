@@ -527,6 +527,11 @@ USB_DETACH(ural)
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->amrr_ch);
 
+	if (sc->amrr_xfer != NULL) {
+		usbd_free_xfer(sc->amrr_xfer);
+		sc->amrr_xfer = NULL;
+	}
+
 	if (sc->sc_rx_pipeh != NULL) {
 		usbd_abort_pipe(sc->sc_rx_pipeh);
 		usbd_close_pipe(sc->sc_rx_pipeh);
@@ -876,7 +881,7 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &len, NULL);
 
-	if (len < RAL_RX_DESC_SIZE) {
+	if (len < RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
 		printf("%s: xfer too short %d\n", USBDEVNAME(sc->sc_dev), len);
 		ifp->if_ierrors++;
 		goto skip;
@@ -1036,7 +1041,7 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 	 */
 	desc->plcp_service = 4;
 
-	len += 4; /* account for FCS */
+	len += IEEE80211_CRC_LEN;
 	if (RAL_RATE_IS_OFDM(rate)) {
 		/*
 		 * PLCP length field (LENGTH).
@@ -1172,8 +1177,15 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	m_copydata(m0, 0, m0->m_pkthdr.len, data->buf + RAL_TX_DESC_SIZE);
 	ural_setup_tx_desc(sc, desc, flags, m0->m_pkthdr.len, rate);
 
-	/* xfer length needs to be a multiple of two! */
+	/* align end on a 2-bytes boundary */
 	xferlen = (RAL_TX_DESC_SIZE + m0->m_pkthdr.len + 1) & ~1;
+
+	/*
+	 * No space left in the last URB to store the extra 2 bytes, force
+	 * sending of another URB.
+	 */
+	if ((xferlen % 64) == 0)
+		xferlen += 2;
 
 	DPRINTFN(10, ("sending mgt frame len=%u rate=%u xfer len=%u\n",
 	    m0->m_pkthdr.len, rate, xferlen));
@@ -1254,8 +1266,15 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	m_copydata(m0, 0, m0->m_pkthdr.len, data->buf + RAL_TX_DESC_SIZE);
 	ural_setup_tx_desc(sc, desc, flags, m0->m_pkthdr.len, rate);
 
-	/* xfer length needs to be a multiple of two! */
+	/* align end on a 2-bytes boundary */
 	xferlen = (RAL_TX_DESC_SIZE + m0->m_pkthdr.len + 1) & ~1;
+
+	/*
+	 * No space left in the last URB to store the extra 2 bytes, force
+	 * sending of another URB.
+	 */
+	if ((xferlen % 64) == 0)
+		xferlen += 2;
 
 	DPRINTFN(10, ("sending data frame len=%u rate=%u xfer len=%u\n",
 	    m0->m_pkthdr.len, rate, xferlen));
@@ -1487,7 +1506,6 @@ ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 	if (error != 0) {
 		printf("%s: could not read MAC register: %s\n",
 		    USBDEVNAME(sc->sc_dev), usbd_errstr(error));
-		return;
 	}
 }
 
