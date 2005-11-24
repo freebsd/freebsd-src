@@ -1,6 +1,3 @@
-.\"
-.\" $FreeBSD$
-.\"
 .\" Copyright (c) 2003 David Boggs. (boggs@boggs.palo-alto.ca.us)
 .\" All rights reserved.
 .\"
@@ -43,43 +40,34 @@
 .\" this program; if not, write to the Free Software Foundation, Inc., 59 
 .\" Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
-.\" I forget these things:
-.\" groff -Tascii -mdoc lmcconfig.8 > lmcconfig.txt
-.\" groff -Tps    -mdoc lmcconfig.8 > lmcconfig.ps
-.\" groff -Thtml  -mdoc lmcconfig.8 > lmcconfig.html (buggy)
+.\" $FreeBSD$
 .\"
-.Dd June 2005
+.Dd October 3, 2005
 .Dt LMCCONFIG 8
 .Os
-.Sp
 .Sh NAME
-.Sp
 .Nm lmcconfig
 .Nd configuration program for
 .Tn SBE
 (formerly
 .Tn LMC )
-wide-area network interface cards.
-.Sp
+wide-area network interface cards
 .Sh SYNOPSIS
-.Sp
 .Nm
 .Ar interface
 .Op Fl abBcCdDeEfhLmMpPrsStTuwxXyYzZ?
-.br
 .Nm
 .Ar interface
 .Fl 1
 .Op Fl aABceEfFgiIlLpPstTuUxX
-.br
 .Nm
 .Ar interface
 .Fl 3
 .Op Fl aABcefFlLsSv
-.Sp
 .Sh DESCRIPTION
-.Sp
+The
 .Nm
+utility
 is the configuration program for the
 .Xr lmc 4
 wide-area network device driver.
@@ -88,13 +76,15 @@ and it displays status, such as that of integrated modems,
 that are beyond the scope of
 .Xr ifconfig 8 .
 .Pp
+The
 .Nm
+utility
 displays the interface status when no parameters are specified;
 see example below.
 For this case only, if no
 .Ar interface
 is specified, it defaults to
-.Ic lmc0 .
+.Dq Li lmc0 .
 .Pp
 Only the super-user may modify the configuration of a network interface.
 .Pp
@@ -102,11 +92,11 @@ The following options are available:
 .Bl -tag -width indent
 .It Ar interface
 This is the name of the interface; the default is
-.Cm lmc0 .
+.Dq Li lmc0 .
 If
 .Xr netgraph 4
 is present and the interface name ends with a colon
-then netgraph control messages are used,
+then Netgraph control messages are used,
 otherwise the
 .Xr ifnet 9
 kernel interface and socket
@@ -117,14 +107,13 @@ All parameters after this apply to the T1E1 card.
 .It Fl 3
 All parameters after this apply to the T3 card.
 .El
-.Sp
 .Ss Commands for all cards
-.Sp
 The following parameters apply to more then one card type.
 .Bl -tag -width indent
 .It Fl a Ar number
 Set Transmitter clock source to
 .Ar number .
+.Pp
 .Bl -column "1" "External connector" "T1E1, HSSIc" -offset 2m -compact
 .It "1" Ta "TxClk from modem"   Ta "T1E1, HSSI"  Ta "default"
 .It "2" Ta "Internal source"    Ta "T1E1, HSSI"
@@ -146,23 +135,23 @@ the card if the value is 4.
 .Pp
 TxClk source is not applicable to other card types.
 .It Fl b
-Read BIOS rom.
+Read BIOS ROM.
 Print the first 256 locations.
-The BIOS rom is not used and not present on some cards.
+The BIOS ROM is not used and not present on some cards.
 .It Fl B
-Write BIOS rom.
+Write BIOS ROM.
 Write the first 256 locations with an address pattern.
 .It Fl c
-Use HDLC's 16-bit CRC polynomial: X^16+X^12+X^5+1 (default)
-.Bd -ragged -compact
+Use HDLC's 16-bit CRC polynomial: X^16+X^12+X^5+1 (default).
 .It Fl C
 Use HDLC's 32-bit CRC polynomial:
 X^32+X^26+X^23+X^22+X^16+X^12+X^11+X^10+X^8+X^7+X^5+X^4+X^2+X+1
-.Ed
 .It Fl d
-Clear the driver-level debug flag.  Non-critical log messages are suppressed.
+Clear the driver-level debug flag.
+Non-critical log messages are suppressed.
 .It Fl D
-Set the driver-level debug flag.  The driver generates more log messages.
+Set the driver-level debug flag.
+The driver generates more log messages.
 The driver also generates more log messages if the interface-level debug
 flag is set by
 .Xr ifconfig 8 .
@@ -184,15 +173,18 @@ The nearest frequency that the synthesizer can generate will be used.
 Only SSI cards and a few rare CompactPCI/HSSI cards have synthesizers.
 .It Fl F
 Set SPPP line protocol to Frame-Relay.
-Only works for FreeBSD-5.4 and later.
-Not applicable to Linux, NetBSD, OpenBSD. or BSD/OS.
+Only works for
+.Fx 5.4
+and later.
 .It Fl h
 Print help (usage message).
 .It Fl i
-Set interface name (eg. 'lmc0').
+Set interface name (e.g.\&
+.Dq Li lmc0 ) .
 .It Fl L Ar number
 Set loopback mode to
 .Ar number .
+.Pp
 .Bl -column "99" "payload" "inward thru drvrs/rcvrsxxx" "HSSI, SSI" -offset 1m -compact 
 .It  "1" Ta "none"    Ta "default"
 .It  "2" Ta "payload" Ta "outward thru framer"     Ta "T1E1. T3"
@@ -231,7 +223,8 @@ The PCI subsystem vendor and device IDs are kept here.
 Write Tulip SROM.
 Initializes the Tulip SROM to card type
 .Ar number .
-.Bl -tag -width 1m -offset 1m -compact
+.Pp
+.Bl -column "9" -offset 1m -compact
 .It 3 Ta HSSI
 .It 4 Ta T3
 .It 5 Ta SSI
@@ -240,6 +233,7 @@ Initializes the Tulip SROM to card type
 .It 8 Ta SDSL
 .It 0 Ta auto-set from MII PHYID
 .El
+.Pp
 If
 .Ar number
 is zero, then the card type is computed from the gate array
@@ -248,7 +242,9 @@ microcode version field in the MII PHYID register.
 if the SROM is incorrect, the card will be unusable!
 This command is
 .Em so
-dangerous that lmcconfig must be edited and recompiled to enable it.
+dangerous that
+.Nm
+must be edited and recompiled to enable it.
 .It Fl t
 Read Tulip CSRs.
 Print the 16 32-bit control and status registers.
@@ -256,9 +252,11 @@ Print the 16 32-bit control and status registers.
 Write Tulip CSR.
 Write
 .Ar data
-into csr number
+into CSR number
 .Ar addr .
-Note that addr is a CSR number (0-15) not a byte offset into CSR space.
+Note that
+.Ar addr
+is a CSR number (0-15) not a byte offset into CSR space.
 .It Fl u
 Reset event counters to zero.
 The driver counts events like packets in and out, errors, discards, etc.
@@ -269,51 +267,45 @@ Not needed during normal operation; just for testing.
 .It Fl v
 Set verbose mode: print more stuff.
 .It Fl V
-Print the card configuration -- see the EXAMPLES section.
+Print the card configuration \[em] see the
+.Sx EXAMPLES
+section.
 .It Fl w
-Load gate array from on-board rom.
+Load gate array from on-board ROM.
 Not needed during normal operation; just for testing.
 .It Fl W Ar filename
 Load gate array microcode from
 .Ar filename .
 .It Fl x
-Select RAWIP mode -- bypass line protocol code.
+Select RAWIP mode \[em] bypass line protocol code.
 .It Fl X
 Select line protocol code rather than RAWIP mode.
 .It Fl y
 Disable SPPP keep-alive packets,
-Only works for FreeBSD, NetBSD and OpenBSD.
-Not applicable to Linux or BSD/OS.
 .It Fl Y
 Enable SPPP keep-alive packets.
-Only works for FreeBSD, NetBSD and OpenBSD.
-Not applicable to Linux or BSD/OS.
 .It Fl z
 Set SPPP line protocol to Cisco-HDLC.
-Only works for FreeBSD, NetBSD and OpenBSD.
-Not applicable to Linux or BSD/OS.
 .It Fl Z
 Set SPPP line protocol to PPP.
-Only works for FreeBSD, NetBSD and OpenBSD.
-Not applicable to Linux or BSD/OS.
-.It Fl ?
+.It Fl ?\&
 Print help (usage message).
 .El
-.Sp
 .Ss Commands for T1E1 cards
-.Sp
 The following parameters apply to the T1E1 card type:
 .Bl -tag -width indent
-.It Fl a Ar y|a|b
+.It Fl a Sm Cm y | a | b Sm
 Stop sending alarm signal.
+.Pp
 .Bl -column "y" "Yellow Alarm" "unframed all ones; aka AIS" -offset 1m -compact
 .It "y" Ta "Yellow Alarm" Ta "varies with framing"
 .It "a" Ta "Red Alarm"    Ta "unframed all ones; aka AIS"
 .It "b" Ta "Blue Alarm"   Ta "unframed all ones"
 .El
+.Pp
 Red alarm, also known as AIS (Alarm Indication Signal),
 and Blue alarm are identical in T1.
-.It Fl A Ar y|a|b
+.It Fl A Sm Cm y | a | b Sm
 Start sending alarm signal (see table above).
 .It Fl B Ar number
 Send a Bit Oriented Protocol (BOP) message with code
@@ -326,11 +318,14 @@ meters (default: 10 meters).
 This is used to set receiver sensitivity
 and transmitter line build-out.
 .It Fl d
-Print the status of the on-board DSU/CSU -- see the EXAMPLES section.
+Print the status of the on-board DSU/CSU \[em] see the
+.Sx EXAMPLES
+section.
 .It Fl e Ar number
 Set the framing format to
 .Ar number :
-.Bl -tag -width 1m -offset 1m -compact
+.Pp
+.Bl -column "99" -offset 1m -compact
 .It  9 Ta T1-SF/AMI
 .It 27 Ta T1-ESF/B8ZS (default)
 .It  0 Ta E1-FAS
@@ -341,7 +336,9 @@ Set the framing format to
 .El
 .It Fl E Ar number
 Enable 64Kb time slots (TSs) for the T1E1 card.
+The
 .Ar number
+argument
 is a 32-bit hex number (default 0xFFFFFFFF).
 The LSB is TS0 and the MSB is TS31.
 TS0 and TS25-31 are ignored in T1 mode.
@@ -358,6 +355,7 @@ into register
 .It Fl g Ar number
 Set receiver gain range to
 .Ar number :
+.Pp
 .Bl -column "0x00" "Medium" "auto-set based on cable length (default)" -offset 1m -compact 
 .It "0x24" Ta "Short"  Ta "0 to 20 dB of equalized gain"
 .It "0x2C" Ta "Medium" Ta "0 to 30 dB of equalized gain"
@@ -365,6 +363,7 @@ Set receiver gain range to
 .It "0x3F" Ta "Extend" Ta "0 to 64 dB of equalized gain (wide open)"
 .It "0xFF" Ta "Auto"   Ta "auto-set based on cable length (default)"
 .El
+.Pp
 This sets the level at which
 .Em Loss-Of-Signal
 is declared.
@@ -393,13 +392,16 @@ Send a
 .Em payload loopback activate
 BOP message (T1-ESF only).
 .It Fl s
-Print the status of the on-board DSU/CSU -- see the EXAMPLES section.
+Print the status of the on-board DSU/CSU \[em] see the
+.Sx EXAMPLES
+section.
 .It Fl t
 Stop sending test pattern.
 .It Fl T Ar number
 Start sending test pattern
 .Ar number :
-.Bl -tag -width 1m -offset 1m -compact
+.Pp
+.Bl -column "99" -offset 1m -compact
 .It  0 Ta unframed X^11+X^9+1
 .It  1 Ta unframed X^15+X^14+1
 .It  2 Ta unframed X^20+X^17+1
@@ -420,7 +422,8 @@ Start sending test pattern
 .It Fl u Ar number
 Set transmit pulse shape to
 .Ar number :
-.Bl -tag -width 1m -offset 1m -compact
+.Pp
+.Bl -column "99" -offset 1m -compact
 .It   0 Ta T1 DSX 0 to 40 meters
 .It   2 Ta T1 DSX 40 to 80 meters
 .It   4 Ta T1 DSX 80 to 120 meters
@@ -434,6 +437,7 @@ Set transmit pulse shape to
 .It Fl U Ar number
 Set transmit line build-out to
 .Ar number :
+.Pp
 .Bl -column "255" "22.5 dB" "FCC option A" -offset 1m -compact
 .It "  0" Ta "0 dB"    Ta "FCC option A"
 .It " 16" Ta "7.5 dB"  Ta "FCC option B"
@@ -441,6 +445,7 @@ Set transmit line build-out to
 .It " 48" Ta "22.5 dB" Ta "final span"
 .It "255" Ta "auto-set based on cable length (default)"
 .El
+.Pp
 This is only applicable if the pulse shape is T1-CSU.
 .It Fl v
 Set verbose mode: print more stuff.
@@ -449,20 +454,19 @@ Disable transmitter outputs.
 .It Fl X
 Enable transmitter outputs.
 .El
-.Sp
 .Ss Commands for T3 cards
-.Sp
 The following parameters apply to the T3 card type:
 .Bl -tag -width indent
-.It Fl a Ar y|a|b|i
+.It Fl a Sm Cm y | a | b | i Sm
 Stop sending alarm signal.
+.Pp
 .Bl -column "y" "Yellow Alarm" "framed 1010... aka AIS" -offset 1m -compact
 .It "y" Ta "Yellow Alarm" Ta "X-bits set to 0"
 .It "a" Ta "Red Alarm"    Ta "framed 1010... aka AIS"
 .It "b" Ta "Blue Alarm"   Ta "unframed all-ones"
 .It "i" Ta "Idle signal"  Ta "framed 11001100..."
 .El
-.It Fl A Ar y|a|b|i
+.It Fl A Sm Cm y | a | b | i Sm
 Start sending alarm signal (see table above).
 .It Fl B Ar number
 Send a BOP (Bit Oriented Protocol) message with code
@@ -475,11 +479,14 @@ meters (default: 10 meters).
 This is used to set receiver sensitivity
 and transmitter line build-out.
 .It Fl d
-Print the status of the on-board T3 DSU -- see the EXAMPLES section.
+Print the status of the on-board T3 DSU \[em] see the
+.Sx EXAMPLES
+section.
 .It Fl e Ar number
 Set the framing format to
 .Ar number :
-.Bl -tag -width 1m -offset 1m -compact
+.Pp
+.Bl -column "100" -offset 1m -compact
 .It 100 Ta T3-C-bit parity
 .It 101 Ta T3-M13 format
 .El
@@ -501,11 +508,14 @@ Send a
 .Em line loopback activate
 BOP message.
 .It Fl s
-Print the status of the on-board T3 DSU -- see the EXAMPLES section.
+Print the status of the on-board T3 DSU \[em] see the
+.Sx EXAMPLES
+section.
 .It Fl S Ar number
 Set payload scrambler polynominal to
 .Ar number :
-.Bl -tag -width 1m -offset 1m -compact
+.Pp
+.Bl -column "9" -offset 1m -compact
 .It 1 Ta payload scrambler disabled
 .It 2 Ta X^43+1: DigitalLink and Kentrox
 .It 3 Ta X^20+X^17+1 w/28ZS: Larscom
@@ -519,110 +529,112 @@ Set transmit frequency offset to
 Some T3 cards can offset the transmitter frequency from 44.736 MHz.
 .Ar Number
 is in the range (0..4095); 2048 is zero offset; step size is about 3 Hz.
-.Ar Number
+A
+.Ar number
 is written to a Digital-Analog Converter (DAC) which connects
 to a Voltage Controlled Crystal Oscillator (VCXO).
 .El
-.Sp
 .Ss Event Counters
-.Sp
 The device driver counts many interesting events such as
 packets in and out, errors and discards.
 The table below lists the event counters and describes what they count.
-.Bl -tag -width "underruns"
-.It ibytes
+.Bl -tag -width ".Va underruns"
+.It Va ibytes
 Bytes received in packets with good ending status.
-.It obytes
+.It Va obytes
 Bytes transmitted.
-.It ipackets
+.It Va ipackets
 Packets received with good ending status.
-.It opackets
+.It Va opackets
 Packets transmitted.
-.It ierrors
+.It Va ierrors
 Packets received with bad ending status.
-.It oerrors
+.It Va oerrors
 Packets transmitted with bad ending status.
-.It idiscards
+.It Va idiscards
 Packets received but discarded because
 the input queue was full or the interface was down.
-.It odiscards
+.It Va odiscards
 Packets presented for transmission but discarded because
 the output queue was full or the interface was down.
-.It txdma
+.It Va txdma
 Packets presented for transmission but queued and retried later
 because no DMA descriptors were available.
 This can happen during normal operation and is not an indication of trouble.
-.It fifo-overrun
+.It Va fifo-overrun
 Packets that started to arrive, but were aborted because
 the card was unable to DMA data to memory fast enough
 to prevent the receiver fifo from overflowing.
-.It fifo-underrun
+.It Va fifo-underrun
 Packets that started to transmit but were aborted because
 the card was unable to DMA data from the memory fast enough
 to prevent the transmitter fifo from underflowing.
 When this happens, the transmitter threshold is increased,
 so that more bytes are required to be in the fifo
 before the transmitter is started.
-.It missed
+.It Va missed
 Packets that are missed because the receiver is stopped.
-.It overruns
+.It Va overruns
 Packets that are missed because the receiver
 had no DMA descriptors available.
-.It fdl_pkts
+.It Va fdl_pkts
 Packets received on the T1 Facility Data Link.
-.It crc-errs
+.It Va crc-errs
 Cyclic Redundancy Checksum errors detected by the CRC-6 in
 T1 Extended SuperFrames (ESF) or the CRC-4 in E1 frames.
-.It lcv-errs
+.It Va lcv-errs
 Line Coding Violation errors:
 Alternate Mark Inversion (AMI) errors for T1-SF,
 Bipolar 8-Zero Substitution (B8ZS) errors for T1-ESF, or
 High Density Bipolar with 3-Zero Substitution (HDB3) errors for E1 or
 Bipolar 3-Zero Substitution (B3ZS) errors for T3.
-.It frm-errs
+.It Va frm-errs
 T1 or T3 bit errors in the frame alignment signal.
-.It febe-errs
+.It Va febe-errs
 Far End Block Errors:
 T1 or T3 bit errors detected by the device at the far end of the link.
-.It par-errs
+.It Va par-errs
 T3 bit errors detected by the hop-by-hop parity mechanism.
-.It cpar-errs
+.It Va cpar-errs
 T3 bit errors detected by the end-to-end parity mechanism.
-.It mfrm-errs
+.It Va mfrm-errs
 T3 bit errors in the multi-frame alignment signal.
 .El
-.Sp
 .Ss Transmit Speed
-.Sp
 The hardware counts transmit clocks divided by 2048.
-The software computes "Tx speed" from this (see examples below).
+The software computes
+.Dq "Tx speed"
+from this (see
+.Sx EXAMPLES
+below).
 The transmit clock is the bit rate of the circuit divided by two if the
 circuit is idle and divided by four if the circuit is carrying a packet.
 So an idle circuit reports a Tx speed equal to its bit rate,
 and a busy circuit reports a Tx speed equal to half its bit rate.
 .Pp
-This "bit rate" does not include circuit-level overhead bits
+This
+.Dq "bit rate"
+does not include circuit-level overhead bits
 (such as T1 or T3 frame bits) but does include HDLC stuff bits.
 An idle T1 circuit with a raw bit rate of 1544000 and a
-bit-rate-minus-overhead of 1536000 will report a "Tx speed"
+bit-rate-minus-overhead of 1536000 will report a
+.Dq "Tx speed"
 of ((1536000 bitand 4095) plus or minus 4096).
 Sometimes it will even get the correct answer of 1536000, and
 if the link is fully loaded it will report about 768000 bits/sec.
 .Pp
-It's not a perfect bit rate meter (the circuit must be idle),
+It is not a perfect bit rate meter (the circuit must be idle),
 but it is a useful circuit utilization meter if you know the
-circuit bit rate and do some arithmetic.  Software recalculates
+circuit bit rate and do some arithmetic.
+Software recalculates
 Tx speed once a second; the measurement period has some jitter.
-.Sp
 .Sh EXAMPLES
-.Sp
-.Bd -unfilled -compact
-When lmc0 is a T1E1 card,
-.br
-.Ic lmcconfig lmc0
+When
+.Dq Li lmc0
+is a T1E1 card,
+.Dq Li lmcconfig lmc0
 generates the following output:
-.Ed
-.Bd -literal -offset 2m -compact
+.Bd -literal -offset 2m
 Card name:		lmc0
 Card type:		SBE/LMC T1E1 card
 Link status:		Up
@@ -645,13 +657,13 @@ TX bytes:               1732169
 TX packets:             20526
 Rx fdl pkts:            5443
 .Ed
-.Bd -unfilled
-When lmc0 is a T1E1 card,
-.br
-.Ic lmcconfig lmc0 -1 -d
+.Pp
+When
+.Dq Li lmc0
+is a T1E1 card,
+.Dq Li "lmcconfig lmc0 -1 -d"
 generates the following output:
-.Ed
-.Bd -literal -offset 2m -compact
+.Bd -literal -offset 2m
 Format-Frame/Code:	T1-ESF/B8ZS
 TimeSlot [31-0]:	0x01FFFFFE
 Tx Clk src:		Internal source
@@ -691,26 +703,21 @@ ANSI Far-end performance reports:
  SEQ=3 CRC=0 SE=0 FE=0 LV=0 SL=0 LB=0
  SEQ=2 CRC=0 SE=0 FE=0 LV=0 SL=0 LB=0
 .Ed
-.Sp
 .Sh DIAGNOSTICS
-.Sp
 Messages indicating the specified interface does not exist, or
 the user is not privileged and tried to alter an interface's configuration.
-.Sp
 .Sh SEE ALSO
-.Sp
 .Xr ioctl 2 ,
-.Xr netgraph 4 ,
 .Xr lmc 4 ,
+.Xr netgraph 4 ,
 .Xr ifconfig 8 ,
-.Xr ifnet 9 .
+.Xr ifnet 9
 .Pp
-.Pa http://www.sbei.com .
-.Sp
+.Pa http://www.sbei.com/
 .Sh HISTORY
-.Sp
-This is a total rewrite of the program lmcctl by Andrew Stanley-Jones.
-.Sp
-.Sh AUTHOR
-.Sp
-.An "David Boggs" Aq boggs@boggs.palo-alto.ca.us .
+This is a total rewrite of the program
+.Nm lmcctl
+by
+.An "Andrew Stanley-Jones" .
+.Sh AUTHORS
+.An "David Boggs" Aq boggs@boggs.palo-alto.ca.us
