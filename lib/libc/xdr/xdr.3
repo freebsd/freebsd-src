@@ -211,7 +211,7 @@ This routine returns one if it succeeds, zero otherwise.
 .Ft void
 .Xc
 .It Xo
-.Fn xdr_free "xdrproc_t proc" "char *objp"
+.Fn xdr_free "xdrproc_t proc" "void *objp"
 .Xc
 .Pp
 Generic freeing routine.
@@ -397,7 +397,7 @@ linked lists.
 .Fa "XDR *xdrs"
 .Fa "u_int sendsize"
 .Fa "u_int recvsize"
-.Fa "char *handle"
+.Fa "void *handle"
 .Fa "int \*(lp*readit\*(rp\*(lp\*(rp"
 .Fa "int \*(lp*writeit\*(rp\*(lp\*(rp"
 .Fc
