@@ -233,16 +233,16 @@ initarm(void *arg, void *arg2)
 	fake_preload[i++] = sizeof(uint32_t);
 	fake_preload[i++] = (uint32_t)&end - KERNBASE - 0x00200000;
 #ifdef DDB
-	if (*(uint32_t *)KERNVIRTADDR != 0) {
+	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
 		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
 		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)KERNVIRTADDR;
+		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
 		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_ESYM;
 		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
-		lastaddr = *(uint32_t *)(KERNVIRTADDR + 4);
+		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 8);
+		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
 		zend = lastaddr;
-		zstart = *(uint32_t *)KERNVIRTADDR;
+		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
 		ksym_start = zstart;
 		ksym_end = zend;
 	} else
