@@ -21,16 +21,15 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+/* |tan(x)/x - t(x)| < 2**-25.5 (~[-2e-08, 2e-08]). */
 static const double
-pio4 = M_PI_4,
-/* |tan(x)/x - t(x)| < 2**-29.1 (~[-1.72e-09, 1.719e-09]). */
 T[] =  {
-  0x1555545f8b54d0.0p-54,	/* 0.333333104424423432022 */
-  0x111160cdc2c9af.0p-55,	/* 0.133342838734802765499 */
-  0x1b9097e5693cd0.0p-57,	/* 0.0538375346701457369036 */
-  0x173b2333895b6f.0p-58,	/* 0.0226865291791357691353 */
-  0x19fcb197e825ab.0p-60,	/* 0.00634450313965243938713 */
-  0x1d5f3701b44a27.0p-60,	/* 0.00717088210082520490646 */
+  0x15554d3418c99f.0p-54,	/* 0.333331395030791399758 */
+  0x1112fd38999f72.0p-55,	/* 0.133392002712976742718 */
+  0x1b54c91d865afe.0p-57,	/* 0.0533812378445670393523 */
+  0x191df3908c33ce.0p-58,	/* 0.0245283181166547278873 */
+  0x185dadfcecf44e.0p-61,	/* 0.00297435743359967304927 */
+  0x1362b9bf971bcd.0p-59,	/* 0.00946564784943673166728 */
 };
 
 #ifdef INLINE_KERNEL_TANF
@@ -44,10 +43,6 @@ __kernel_tandf(double x, int iy)
 
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
-	if(ix>=0x3f2ca140) { 			/* |x|>=0.67434 */
-	    if(hx<0) {x = -x;}
-	    x = pio4-x;
-	}
 	z	=  x*x;
 	w 	=  z*z;
     /* Break x^5*(T[1]+x^2*T[2]+...) into
@@ -60,10 +55,6 @@ __kernel_tandf(double x, int iy)
 	r = z*s*(r+v);
 	r += T[0]*s;
 	w = x+r;
-	if(ix>=0x3f2ca140) {
-	    v = (double)iy;
-	    return (double)(1-((hx>>30)&2))*(v-2.0*(x-(w*w/(w+v)-r)));
-	}
 	if(iy==1) return w;
 	else return -1.0/w;
 }
