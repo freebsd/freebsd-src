@@ -44,11 +44,18 @@ __FBSDID("$FreeBSD$");
 struct acpi_smbat_softc {
 	uint8_t		sb_base_addr;
 	device_t	ec_dev;
+
+	struct acpi_bif	bif;
+	struct acpi_bst	bst;
+	struct timespec	bif_lastupdated;
+	struct timespec	bst_lastupdated;
 };
 
 static int	acpi_smbat_probe(device_t dev);
 static int	acpi_smbat_attach(device_t dev);
 static int	acpi_smbat_shutdown(device_t dev);
+static int	acpi_smbat_info_expired(struct timespec *lastupdated);
+static void	acpi_smbat_info_updated(struct timespec *lastupdated);
 static int	acpi_smbat_get_bif(device_t dev, struct acpi_bif *bif);
 static int	acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst);
 
@@ -114,6 +121,9 @@ acpi_smbat_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	timespecclear(&sc->bif_lastupdated);
+	timespecclear(&sc->bst_lastupdated);
+
 	if (acpi_battery_register(dev) != 0) {
 		device_printf(dev, "cannot register battery\n");
 		return (ENXIO);
@@ -129,6 +139,34 @@ acpi_smbat_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	acpi_battery_remove(dev);
 	return (0);
+}
+
+static int
+acpi_smbat_info_expired(struct timespec *lastupdated)
+{
+	struct timespec	curtime;
+
+	ACPI_SERIAL_ASSERT(smbat);
+
+	if (lastupdated == NULL)
+		return (TRUE);
+	if (!timespecisset(lastupdated))
+		return (TRUE);
+
+	getnanotime(&curtime);
+	timespecsub(&curtime, lastupdated);
+	return (curtime.tv_sec < 0 ||
+	    curtime.tv_sec > acpi_battery_get_info_expire());
+}
+
+static void
+acpi_smbat_info_updated(struct timespec *lastupdated)
+{
+
+	ACPI_SERIAL_ASSERT(smbat);
+
+	if (lastupdated != NULL)
+		getnanotime(lastupdated);
 }
 
 static int
@@ -284,6 +322,11 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 	error = ENXIO;
 	sc = device_get_softc(dev);
 
+	if (!acpi_smbat_info_expired(&sc->bst_lastupdated)) {
+		error = 0;
+		goto out;
+	}
+
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_MODE, &val))
 		goto out;
 	if (val & SMBATT_BM_CAPACITY_MODE) {
@@ -299,7 +342,7 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 		goto out;
 
 	if (val & SMBATT_BS_DISCHARGING) {
-		bst->state |= ACPI_BATT_STAT_DISCHARG;
+		sc->bst.state |= ACPI_BATT_STAT_DISCHARG;
 
 		/*
 		 * If the rate is negative, it is discharging.  Otherwise,
@@ -308,27 +351,31 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 		if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_AT_RATE, &val))
 			goto out;
 		if (val < 0)
-			bst->rate = (-val) * factor;
+			sc->bst.rate = (-val) * factor;
 		else
-			bst->rate = -1;
+			sc->bst.rate = -1;
 	} else {
-		bst->state |= ACPI_BATT_STAT_CHARGING;
-		bst->rate = -1;
+		sc->bst.state |= ACPI_BATT_STAT_CHARGING;
+		sc->bst.rate = -1;
 	}
 
 	if (val & SMBATT_BS_REMAINING_CAPACITY_ALARM)
-		bst->state |= ACPI_BATT_STAT_CRITICAL;
+		sc->bst.state |= ACPI_BATT_STAT_CRITICAL;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_REMAINING_CAPACITY, &val))
 		goto out;
-	bst->cap = val * factor;
+	sc->bst.cap = val * factor;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_VOLTAGE, &val))
 		goto out;
-	bst->volt = val;
+	sc->bst.volt = val;
+
+	acpi_smbat_info_updated(&sc->bst_lastupdated);
 	error = 0;
 
 out:
+	if (error == 0)
+		memcpy(bst, &sc->bst, sizeof(sc->bst));
 	ACPI_SERIAL_END(smbat);
 	return (error);
 }
@@ -348,55 +395,64 @@ acpi_smbat_get_bif(device_t dev, struct acpi_bif *bif)
 	error = ENXIO;
 	sc = device_get_softc(dev);
 
+	if (!acpi_smbat_info_expired(&sc->bif_lastupdated)) {
+		error = 0;
+		goto out;
+	}
+
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_MODE, &val))
 		goto out;
 	if (val & SMBATT_BM_CAPACITY_MODE) {
 		factor = 10;
-		bif->units = ACPI_BIF_UNITS_MW;
+		sc->bif.units = ACPI_BIF_UNITS_MW;
 	} else {
 		factor = 1;
-		bif->units = ACPI_BIF_UNITS_MA;
+		sc->bif.units = ACPI_BIF_UNITS_MA;
 	}
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_DESIGN_CAPACITY, &val))
 		goto out;
-	bif->dcap = val * factor;
+	sc->bif.dcap = val * factor;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_FULL_CHARGE_CAPACITY, &val))
 		goto out;
-	bif->lfcap = val * factor;
-	bif->btech = 1;		/* secondary (rechargeable) */
+	sc->bif.lfcap = val * factor;
+	sc->bif.btech = 1;		/* secondary (rechargeable) */
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_DESIGN_VOLTAGE, &val))
 		goto out;
-	bif->dvol = val;
+	sc->bif.dvol = val;
 
-	bif->wcap = bif->dcap / 10;
-	bif->lcap = bif->dcap / 10;
+	sc->bif.wcap = sc->bif.dcap / 10;
+	sc->bif.lcap = sc->bif.dcap / 10;
 
-	bif->gra1 = factor;	/* not supported */
-	bif->gra2 = factor;	/* not supported */
+	sc->bif.gra1 = factor;	/* not supported */
+	sc->bif.gra2 = factor;	/* not supported */
 
 	if (acpi_smbus_read_multi_1(sc, addr, SMBATT_CMD_DEVICE_NAME,
-	    bif->model, sizeof(bif->model)))
+	    sc->bif.model, sizeof(sc->bif.model)))
 		goto out;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_SERIAL_NUMBER, &val))
 		goto out;
-	snprintf(bif->serial, sizeof(bif->serial), "0x%04x", val);
+	snprintf(sc->bif.serial, sizeof(sc->bif.serial), "0x%04x", val);
 
 	if (acpi_smbus_read_multi_1(sc, addr, SMBATT_CMD_DEVICE_CHEMISTRY,
-	    bif->type, sizeof(bif->type)))
+	    sc->bif.type, sizeof(sc->bif.type)))
 		goto out;
 
 	if (acpi_smbus_read_multi_1(sc, addr, SMBATT_CMD_MANUFACTURER_DATA,
-	    bif->oeminfo, sizeof(bif->oeminfo)))
+	    sc->bif.oeminfo, sizeof(sc->bif.oeminfo)))
 		goto out;
 
 	/* XXX check if device was replugged during read? */
+
+	acpi_smbat_info_updated(&sc->bif_lastupdated);
 	error = 0;
 
 out:
+	if (error == 0)
+		memcpy(bif, &sc->bif, sizeof(sc->bif));
 	ACPI_SERIAL_END(smbat);
 	return (error);
 }
