@@ -836,7 +836,7 @@ can route packets to the machine in question.
 .Ed
 .Pp
 .Ft int
-.Fn LibAliasCheckNewLink void
+.Fn LibAliasCheckNewLink "struct libalias *"
 .Bd -ragged -offset indent
 This function returns a non-zero value when a new aliasing link is created.
 In circumstances where incoming traffic is being sequentially sent to
