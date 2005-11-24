@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/malloc.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
@@ -200,16 +201,22 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 {
 	int err;
 
-	IF_CLONE_LOCK(ifc);
-	IFC_IFLIST_REMOVE(ifc, ifp);
-	IF_CLONE_UNLOCK(ifc);
-
 	if (ifc->ifc_destroy == NULL) {
 		err = EOPNOTSUPP;
 		goto done;
 	}
 
+	IF_CLONE_LOCK(ifc);
+	IFC_IFLIST_REMOVE(ifc, ifp);
+	IF_CLONE_UNLOCK(ifc);
+
 	err =  (*ifc->ifc_destroy)(ifc, ifp);
+
+	if (err != 0) {
+		IF_CLONE_LOCK(ifc);
+		IFC_IFLIST_INSERT(ifc, ifp);
+		IF_CLONE_UNLOCK(ifc);
+	}
 
 done:
 	return (err);
@@ -349,16 +356,24 @@ int
 ifc_name2unit(const char *name, int *unit)
 {
 	const char	*cp;
+	int		cutoff = INT_MAX / 10;
+	int		cutlim = INT_MAX % 10;
 
 	for (cp = name; *cp != '\0' && (*cp < '0' || *cp > '9'); cp++);
 	if (*cp == '\0') {
 		*unit = -1;
+	} else if (cp[0] == '0' && cp[1] != '\0') {
+		/* Disallow leading zeroes. */
+		return (EINVAL);
 	} else {
 		for (*unit = 0; *cp != '\0'; cp++) {
 			if (*cp < '0' || *cp > '9') {
 				/* Bogus unit number. */
 				return (EINVAL);
 			}
+			if (*unit > cutoff ||
+			    (*unit == cutoff && *cp - '0' > cutlim))
+				return (EINVAL);
 			*unit = (*unit * 10) + (*cp - '0');
 		}
 	}
@@ -447,7 +462,7 @@ ifc_simple_attach(struct if_clone *ifc)
 	struct ifc_simple_data *ifcs = ifc->ifc_data;
 
 	KASSERT(ifcs->ifcs_minifs - 1 <= ifc->ifc_maxunit,
-	    ("%s: %s requested more units then allowed (%d > %d)",
+	    ("%s: %s requested more units than allowed (%d > %d)",
 	    __func__, ifc->ifc_name, ifcs->ifcs_minifs,
 	    ifc->ifc_maxunit + 1));
 
