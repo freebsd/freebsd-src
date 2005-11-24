@@ -101,21 +101,15 @@ acpi_battery_get_info_expire(void)
 int
 acpi_battery_bst_valid(struct acpi_bst *bst)
 {
-    if (bst->state >= ACPI_BATT_STAT_MAX || bst->cap == ACPI_BATT_UNKNOWN ||
-	bst->volt == ACPI_BATT_UNKNOWN)
-	return (FALSE);
-    else
-	return (TRUE);
+    return (bst->state < ACPI_BATT_STAT_MAX && bst->cap != ACPI_BATT_UNKNOWN &&
+	bst->volt != ACPI_BATT_UNKNOWN);
 }
 
 /* Check _BIF results for validity. */
 int
 acpi_battery_bif_valid(struct acpi_bif *bif)
 {
-    if (bif->lfcap == 0)
-	return (FALSE);
-    else
-	return (TRUE);
+    return (bif->lfcap != 0);
 }
 
 /* Get info about one or all batteries. */
