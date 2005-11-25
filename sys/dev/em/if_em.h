@@ -39,23 +39,27 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
-#include <sys/malloc.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/mbuf.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#include <net/bpf.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
@@ -65,35 +69,32 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/clock.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <sys/endian.h>
-#include <sys/proc.h>
 
 #include <dev/em/if_em_hw.h>
 
 /* Tunables */
 
 /*
- * EM_MAX_TXD: Maximum number of Transmit Descriptors
+ * EM_TXD: Maximum number of Transmit Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
  * Default Value: 256
  *   This value is the number of transmit descriptors allocated by the driver.
  *   Increasing this value allows the driver to queue more transmits. Each
  *   descriptor is 16 bytes.
+ *   Since TDLEN should be multiple of 128bytes, the number of transmit
+ *   desscriptors should meet the following condition.
+ *      (num_tx_desc * sizeof(struct em_tx_desc)) % 128 == 0
  */
-#define EM_MAX_TXD                      256
+#define EM_MIN_TXD		80
+#define EM_MAX_TXD_82543	256
+#define EM_MAX_TXD		4096
+#define EM_DEFAULT_TXD		EM_MAX_TXD_82543
 
 /*
- * EM_MAX_RXD - Maximum number of receive Descriptors
+ * EM_RXD - Maximum number of receive Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
  * Default Value: 256
@@ -101,9 +102,14 @@ POSSIBILITY OF SUCH DAMAGE.
  *   Increasing this value allows the driver to buffer more incoming packets.
  *   Each descriptor is 16 bytes.  A receive buffer is also allocated for each
  *   descriptor. The maximum MTU size is 16110.
- *
+ *   Since TDLEN should be multiple of 128bytes, the number of transmit
+ *   desscriptors should meet the following condition.
+ *      (num_tx_desc * sizeof(struct em_tx_desc)) % 128 == 0
  */
-#define EM_MAX_RXD                      256
+#define EM_MIN_RXD		80
+#define EM_MAX_RXD_82543	256
+#define EM_MAX_RXD		4096
+#define EM_DEFAULT_RXD		EM_MAX_RXD_82543
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -178,7 +184,7 @@ POSSIBILITY OF SUCH DAMAGE.
  * This parameter controls when the driver calls the routine to reclaim
  * transmit descriptors.
  */
-#define EM_TX_CLEANUP_THRESHOLD         EM_MAX_TXD / 8
+#define EM_TX_CLEANUP_THRESHOLD		(adapter->num_tx_desc / 8)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
@@ -214,8 +220,6 @@ POSSIBILITY OF SUCH DAMAGE.
                                          ADVERTISE_1000_FULL)
 
 #define EM_VENDOR_ID                    0x8086
-#define EM_MMBA                         0x0010 /* Mem base address */
-#define EM_ROUNDUP(size, unit) (((size) + (unit) - 1) & ~((unit) - 1))
 
 #define EM_JUMBO_PBA                    0x00000028
 #define EM_DEFAULT_PBA                  0x00000030
@@ -391,6 +395,8 @@ struct adapter {
 	unsigned long   no_tx_desc_avail2;
 	unsigned long   no_tx_map_avail;
         unsigned long   no_tx_dma_setup;
+	unsigned long	watchdog_events;
+	unsigned long	rx_overruns;
 
 	/* Used in for 82547 10Mb Half workaround */
 	#define EM_PBA_BYTES_SHIFT	0xA

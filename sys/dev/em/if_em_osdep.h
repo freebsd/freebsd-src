@@ -37,27 +37,19 @@ POSSIBILITY OF SUCH DAMAGE.
 #define _FREEBSD_OS_H_
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/mbuf.h>
+#include <sys/malloc.h>
+#include <sys/socket.h>
+
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/clock.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-
-#define ASSERT(x) if(!(x)) panic("EM: x")
-
-/* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
 #define msec_delay(x) DELAY(1000*(x))
 /* TODO: Should we be paranoid about delaying in interrupt context? */
@@ -88,6 +80,8 @@ struct em_osdep
 {
 	bus_space_tag_t    mem_bus_space_tag;
 	bus_space_handle_t mem_bus_space_handle;
+	bus_space_tag_t    io_bus_space_tag;
+	bus_space_handle_t io_bus_space_handle;
 	struct device     *dev;
 };
 
@@ -138,6 +132,15 @@ struct em_osdep
 
 #define E1000_WRITE_REG_ARRAY_DWORD(hw, reg, index, value) \
     E1000_WRITE_OFFSET(hw, E1000_REG_OFFSET(hw, reg) + ((index) << 2), value)
+
+#define em_io_read(hw, port)						\
+    bus_space_read_4(((struct em_osdep *)(hw)->back)->io_bus_space_tag, \
+	((struct em_osdep *)(hw)->back)->io_bus_space_handle, (port))
+
+#define em_io_write(hw, port, value)					 \
+    bus_space_write_4(((struct em_osdep *)(hw)->back)->io_bus_space_tag, \
+	((struct em_osdep *)(hw)->back)->io_bus_space_handle, (port),	 \
+	(value))
 
 #endif  /* _FREEBSD_OS_H_ */
 
