@@ -68,6 +68,7 @@ static struct cdevsw ata_cdevsw = {
 static void ata_interrupt(void *);
 static void ata_boot_attach(void);
 static device_t ata_add_child(device_t, struct ata_device *, int);
+static int ata_getparam(struct ata_device *, int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
@@ -511,6 +512,7 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 	return error;
    
     case IOCATAGPARM:
+	ata_getparam(atadev, 0);
 	bcopy(&atadev->param, params, sizeof(struct ata_params));
 	return 0;
 	
@@ -572,9 +574,9 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 }
 
 static int
-ata_getparam(device_t parent, struct ata_device *atadev)
+ata_getparam(struct ata_device *atadev, int init)
 {
-    struct ata_channel *ch = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
     struct ata_request *request;
     u_int8_t command = 0;
     int error = ENOMEM, retries = 2;
@@ -631,8 +633,7 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 	bpack(atacap->revision, atacap->revision, sizeof(atacap->revision));
 	btrim(atacap->serial, sizeof(atacap->serial));
 	bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
-	sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
-	device_set_desc_copy(atadev->dev, buffer);
+
 	if (bootverbose)
 	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
 		   ch->unit, atadev->unit == ATA_MASTER ? "master":"slave",
@@ -641,17 +642,21 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 		   ata_mode2str(ata_umode(atacap)),
 		   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
 
-	if (atadev->param.config & ATA_PROTO_ATAPI) {
-	    if (atapi_dma && ch->dma &&
-		(atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
-		ata_umode(&atadev->param) >= ATA_UDMA2)
-		atadev->mode = ATA_DMA_MAX;
-	}
-	else {
-	    if (ata_dma && ch->dma &&
-		(ata_umode(&atadev->param) > 0 ||
-		 ata_wmode(&atadev->param) > 0))
-		atadev->mode = ATA_DMA_MAX;
+	if (init) {
+	    sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
+	    device_set_desc_copy(atadev->dev, buffer);
+	    if (atadev->param.config & ATA_PROTO_ATAPI) {
+		if (atapi_dma && ch->dma &&
+		    (atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
+		    ata_umode(&atadev->param) >= ATA_UDMA2)
+		    atadev->mode = ATA_DMA_MAX;
+	    }
+	    else {
+		if (ata_dma && ch->dma &&
+		    (ata_umode(&atadev->param) > 0 ||
+		     ata_wmode(&atadev->param) > 0))
+		    atadev->mode = ATA_DMA_MAX;
+	    }
 	}
     }
     else {
@@ -704,11 +709,11 @@ ata_identify(device_t dev)
 	slave = NULL;
     }
 
-    if (slave && ata_getparam(dev, slave)) {
+    if (slave && ata_getparam(slave, 1)) {
 	device_delete_child(dev, slave_child);
 	free(slave, M_ATA);
     }
-    if (master && ata_getparam(dev, master)) {
+    if (master && ata_getparam(master, 1)) {
 	device_delete_child(dev, master_child);
 	free(master, M_ATA);
     }
@@ -807,6 +812,12 @@ ata_modify_if_48bit(struct ata_request *request)
 	    break;
 	case ATA_FLUSHCACHE:
 	    request->u.ata.command = ATA_FLUSHCACHE48;
+	    break;
+	case ATA_READ_NATIVE_MAX_ADDDRESS:
+	    request->u.ata.command = ATA_READ_NATIVE_MAX_ADDDRESS48;
+	    break;
+	case ATA_SET_MAX_ADDRESS:
+	    request->u.ata.command = ATA_SET_MAX_ADDRESS48;
 	    break;
 	default:
 	    return;

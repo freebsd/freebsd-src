@@ -298,7 +298,7 @@
 #define ATA_INTR_FLAGS                  (INTR_MPSAFE|INTR_TYPE_BIO|INTR_ENTROPY)
 #define ATA_OP_CONTINUES                0
 #define ATA_OP_FINISHED                 1
-#define ATA_MAX_28BIT_LBA               268435455
+#define ATA_MAX_28BIT_LBA               268435455UL
 
 /* ATAPI request sense structure */
 struct atapi_sense {
