@@ -75,7 +75,7 @@ struct mntopt mopts[] = {
 };
 
 static int	get_ssector(const char *dev);
-static int	set_charset(struct iovec *, int *iovlen, const char *);
+static int	set_charset(struct iovec **, int *iovlen, const char *);
 void	usage(void);
 
 int
@@ -128,7 +128,7 @@ main(int argc, char **argv)
 			verbose++;
 			break;
 		case 'C':
-			if (set_charset(iov, &iovlen, optarg) == -1)
+			if (set_charset(&iov, &iovlen, optarg) == -1)
 				err(EX_OSERR, "cd9660_iconv");
 			build_iovec(&iov, &iovlen, "kiconv", NULL, (size_t)-1);
 			break;
@@ -234,7 +234,7 @@ get_ssector(const char *dev)
 }
 
 static int
-set_charset(struct iovec *iov, int *iovlen, const char *localcs)
+set_charset(struct iovec **iov, int *iovlen, const char *localcs)
 {
 	int error;
 	char *cs_disk;	/* disk charset for Joliet cs conversion */
@@ -260,8 +260,8 @@ set_charset(struct iovec *iov, int *iovlen, const char *localcs)
 	if (error)
 		return (-1);
 	
-	build_iovec(&iov, iovlen, "cs_disk", cs_disk, (size_t)-1);
-	build_iovec(&iov, iovlen, "cs_local", cs_local, (size_t)-1);
+	build_iovec(iov, iovlen, "cs_disk", cs_disk, (size_t)-1);
+	build_iovec(iov, iovlen, "cs_local", cs_local, (size_t)-1);
 
 	return (0);
 }
