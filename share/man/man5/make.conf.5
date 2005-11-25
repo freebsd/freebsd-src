@@ -178,18 +178,6 @@ Refer to
 for a list of recognized
 .Va CPUTYPE
 options.
-.It Va NO_CPU_CFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va CFLAGS
-during compile time.
-.It Va NO_CPU_COPTFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va COPTFLAGS
-during compile time.
 .It Va CVS_UPDATE
 .Pq Vt bool
 Set this to use
@@ -209,6 +197,14 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
+.It Va DOCSUPFILE
+.Pq Vt str
+The documentation
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/doc\-supfile .
 .It Va INSTALL
 .Pq Vt str
 the default install command.
@@ -244,6 +240,18 @@ Set this to
 to cause
 .Xr mtree 8
 to follow symlinks.
+.It Va NO_CPU_CFLAGS
+.Pq Vt str
+Setting this variable will prevent CPU specific compiler flags
+from being automatically added to
+.Va CFLAGS
+during compile time.
+.It Va NO_CPU_COPTFLAGS
+.Pq Vt str
+Setting this variable will prevent CPU specific compiler flags
+from being automatically added to
+.Va COPTFLAGS
+during compile time.
 .It Va NO_DOCUPDATE
 .Pq Vt bool
 Set this to not update the doc tree during
@@ -252,29 +260,19 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va SUP_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr cvsup 1
-to update your ports with
+.It Va PORTSSUPFILE
+.Pq Vt str
+The ports
+.Ar supfile
+to use when doing a
 .Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/ports\-supfile .
 .It Va SUP
 .Pq Vt str
 The location of the
 .Xr cvsup 1
 command for
-.Dq Li "make update" .
-.It Va SUPFLAGS
-.Pq Vt str
-The flag for the
-.Xr sup 1
-command when doing
-.Dq Li "make update" .
-This defaults to
-.Op Fl g L Ar 2 .
-.It Va SUPHOST
-.Pq Vt str
-The hostname of the sup server to use when doing
 .Dq Li "make update" .
 .It Va SUPFILE
 .Pq Vt str
@@ -300,36 +298,30 @@ to use when doing a
 .Dq Li "make update" .
 This defaults to
 .Pa /usr/share/examples/cvsup/secure\-supfile .
-.It Va PORTSSUPFILE
+.It Va SUPFLAGS
 .Pq Vt str
-The ports
-.Ar supfile
-to use when doing a
+The flag for the
+.Xr sup 1
+command when doing
 .Dq Li "make update" .
 This defaults to
-.Pa /usr/share/examples/cvsup/ports\-supfile .
-.It Va DOCSUPFILE
+.Op Fl g L Ar 2 .
+.It Va SUPHOST
 .Pq Vt str
-The documentation
-.Ar supfile
-to use when doing a
+The hostname of the sup server to use when doing
 .Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/doc\-supfile .
+.It Va SUP_UPDATE
+.Pq Vt bool
+Set this to use
+.Xr cvsup 1
+to update your ports with
+.Dq Li "make update" .
 .El
 .Ss "BUILDING THE KERNEL"
 .Pp
 The following list provides a name and short description for variables
 that are only used doing a kernel build:
 .Bl -tag -width Ar
-.It Va BOOT_COMCONSOLE_PORT
-.Pq Vt str
-The port address to use for the console if the boot blocks have
-been configured to use a serial console instead of the keyboard/video card.
-.It Va BOOT_COMCONSOLE_SPEED
-.Pq Vt int
-The baud rate to use for the console if the boot blocks have
-been configured to use a serial console instead of the keyboard/video card.
 .It Va BOOTWAIT
 .Pq Vt int
 Controls the amount of time the kernel waits for a console keypress
@@ -338,6 +330,14 @@ The value is approximately milliseconds.
 Keypresses are accepted by the BIOS before booting from disk,
 making it possible to give custom boot parameters even when this is
 set to 0.
+.It Va BOOT_COMCONSOLE_PORT
+.Pq Vt str
+The port address to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
+.It Va BOOT_COMCONSOLE_SPEED
+.Pq Vt int
+The baud rate to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
 .It Va COPTFLAGS
 .Pq Vt str
 Controls the compiler settings when building the
@@ -383,19 +383,6 @@ rather than load the server's kernel.
 .It Va MODULES_OVERRIDE
 .Pq Vt str
 Set to a list of modules to build instead of all of them.
-.It Va WITHOUT_MODULES
-.Pq Vt str
-Set to a list of modules to exclude from the build.
-This provides a
-somewhat easier way to exclude modules you are certain you will never
-need than specifying
-.Va MODULES_OVERRIDE .
-This is applied
-.Em after
-.Va MODULES_OVERRIDE .
-.It Va PORTS_MODULES
-Set this to the list of ports you wish to rebuild every time the kernel
-is built.
 .It Va NO_KERNELCONFIG
 .Pq Vt bool
 Set this to skip running
@@ -411,29 +398,25 @@ during
 .It Va NO_MODULES
 .Pq Vt bool
 Set to not build modules with the kernel.
+.It Va PORTS_MODULES
+Set this to the list of ports you wish to rebuild every time the kernel
+is built.
+.It Va WITHOUT_MODULES
+.Pq Vt str
+Set to a list of modules to exclude from the build.
+This provides a
+somewhat easier way to exclude modules you are certain you will never
+need than specifying
+.Va MODULES_OVERRIDE .
+This is applied
+.Em after
+.Va MODULES_OVERRIDE .
 .El
 .Ss "BUILDING THE WORLD"
 .Pp
 The following list provides a name and short description for variables
 that are used during the world build:
 .Bl -tag -width Ar
-.It Va MAKE_IDEA
-.Pq Vt bool
-Set to build the IDEA encryption code.
-This code is patented in the USA and many European countries.
-It is
-.Em "YOUR RESPONSIBILITY"
-to determine if you can legally use IDEA.
-.It Va NO_DYNAMICROOT
-.Pq Vt bool
-Set this if you do not want to link
-.Pa /bin
-and
-.Pa /sbin
-dynamically.
-.It Va NO_KERBEROS
-.Pq Vt bool
-Set this if you do not want to build Kerberos 5 (KTH Heimdal).
 .It Va ENABLE_SUID_K5SU
 .Pq Vt bool
 Set this if you wish to use the ksu utility.
@@ -452,192 +435,42 @@ will not be able to change users' groups.
 Set this to install
 .Xr ssh 1
 with the set-user-ID bit turned on.
+.It Va ENABLE_WPA_SUPPLICANT_EAPOL
+.Pq Vt str
+Build
+.Xr wpa_supplicant 8
+with support for the IEEE 802.1X protocol and with
+support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
+protocols (usable only via 802.1X).
+This option is ignored if
+.Va NO_CRYPT
+or
+.Va NO_OPENSSL
+are set.
+.It Va MAKE_IDEA
+.Pq Vt bool
+Set to build the IDEA encryption code.
+This code is patented in the USA and many European countries.
+It is
+.Em "YOUR RESPONSIBILITY"
+to determine if you can legally use IDEA.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
-.It Va NO_BLUETOOTH
-.Pq Vt bool
-Set to not build Bluetooth related kernel modules, programs and libraries.
-.It Va NO_BOOT
-.Pq Vt bool
-Set to not build the boot blocks and loader.
-.It Va NO_CVS
-.Pq Vt bool
-Set to not build CVS.
-.It Va NO_CXX
-.Pq Vt bool
-Set to not build
-.Xr g++ 1
-and related libraries.
-.It Va NO_DICT
-.Pq Vt bool
-Set to not build the Webster dictionary files.
-.It Va NO_FORTRAN
-.Pq Vt bool
-Set to not build
-.Xr g77 1
-and related libraries.
-.It Va NO_GDB
-.Pq Vt bool
-Set to not build
-.Xr gdb 1 .
-.It Va NO_GPIB
-.Pq Vt bool
-Set to not build GPIB bus support.
-.It Va NO_I4B
-.Pq Vt bool
-Set to not build isdn4bsd package.
-.It Va NO_IPFILTER
-.Pq Vt bool
-Set to not build IP Filter package.
-.It Va NO_PF
-.Pq Vt bool
-Set to not build PF firewall package.
-.It Va NO_AUTHPF
-.Pq Vt bool
-Set to not build
-.Xr authpf 8 .
-.It Va NO_TOOLCHAIN
-.Pq Vt bool
-Set to not build
-programs used for program development,
-compilers, debuggers etc.
-.It Va NO_INET6
-.Pq Vt bool
-Set to not build
-programs and libraries related to IPv6 networking.
-.It Va NO_ATM
-.Pq Vt bool
-Set to not build
-programs and libraries related to ATM networking.
-.It Va NO_USB
-.Pq Vt bool
-Set to not build
-.Xr usbd 8
-and related programs.
-.It Va NO_LPR
-.Pq Vt bool
-Set to not build
-.Xr lpr 1
-and related programs.
 .It Va NO_ACPI
 .Pq Vt bool
 Set to not build
 .Xr acpiconf 8 ,
 .Xr acpidump 8
 and related programs.
-.It Va NO_MAILWRAPPER
-.Pq Vt bool
-Set to not build the
-.Xr mailwrapper 8
-MTA selector.
-.It Va NO_MAN
-.Pq Vt bool
-Set to not build manual pages.
-.It Va NO_NETCAT
+.It Va NO_ATM
 .Pq Vt bool
 Set to not build
-.Xr nc 1
-utility.
-.It Va NO_NIS
+programs and libraries related to ATM networking.
+.It Va NO_AUTHPF
 .Pq Vt bool
 Set to not build
-.Xr NIS 8
-support and related programs.
-If set, you might need to adopt your
-.Xr nsswitch.conf 5
-and remove
-.Sq nis
-entries.
-.It Va NO_OBJC
-.Pq Vt bool
-Set to not build Objective C support.
-.It Va NO_OPENSSH
-.Pq Vt bool
-Set to not build OpenSSH.
-.It Va NO_OPENSSL
-.Pq Vt bool
-Set to not build OpenSSL (implies
-.Va NO_KERBEROS
-and
-.Va NO_OPENSSH ) .
-.It Va NO_SENDMAIL
-.Pq Vt bool
-Set to not build
-.Xr sendmail 8
-and related programs.
-.It Va NO_SHAREDOCS
-.Pq Vt bool
-Set to not build the
-.Bx 4.4
-legacy docs.
-.It Va NO_TCSH
-.Pq Vt bool
-Set to not build and install
-.Pa /bin/csh
-(which is
-.Xr tcsh 1 ) .
-.It Va NO_CLEAN
-.Pq Vt bool
-Set this to disable cleaning during
-.Dq Li "make buildworld" .
-This should not be set unless you know what you are doing.
-.It Va NO_CLEANDIR
-.Pq Vt bool
-Set this to run
-.Dq Li "${MAKE} clean"
-instead of
-.Dq Li "${MAKE} cleandir" .
-.It Va NO_CRYPT
-.Pq Vt bool
-Set to not build any crypto code.
-.It Va NO_GAMES
-.Pq Vt bool
-Set to not build games.
-.It Va NO_INFO
-.Pq Vt bool
-Set to not make or install
-.Xr info 5
-files.
-.It Va NO_LIBC_R
-.Pq Vt bool
-Set to not build
-.Nm libc_r
-(reentrant version of
-.Nm libc ) .
-.It Va NO_LIBPTHREAD
-.Pq Vt bool
-Set to not build the
-.Nm libpthread
-(M:N threading)
-library.
-.It Va NO_LIBTHR
-.Pq Vt bool
-Set to not build the
-.Nm libthr
-(1:1 threading)
-library.
-.It Va NO_MANCOMPRESS
-.Pq Vt bool
-Set to install manual pages uncompressed.
-.It Va NO_PROFILE
-.Pq Vt bool
-Set to avoid compiling profiled libraries.
-.It Va NO_SHARE
-.Pq Vt bool
-Set to not build in the
-.Pa share
-subdir.
-.It Va NO_SHARED
-.Pq Vt bool
-Set to not build
-.Pa /bin
-and
-.Pa /sbin
-statically linked, this can be bad.
-If set, every utility that uses
-.Pa bsd.prog.mk
-will be linked statically.
+.Xr authpf 8 .
 .It Va NO_BIND
 .Pq Vt bool
 Setting this variable will prevent any part of BIND from being built,
@@ -686,9 +519,194 @@ Set to avoid building or installing the BIND userland utilities,
 .Xr nslookup 1 ,
 and
 .Xr nsupdate 8 .
-.It Va WITH_BIND_LIBS
+.It Va NO_BLUETOOTH
 .Pq Vt bool
-Set to install BIND libraries and include files.
+Set to not build Bluetooth related kernel modules, programs and libraries.
+.It Va NO_BOOT
+.Pq Vt bool
+Set to not build the boot blocks and loader.
+.It Va NO_CLEAN
+.Pq Vt bool
+Set this to disable cleaning during
+.Dq Li "make buildworld" .
+This should not be set unless you know what you are doing.
+.It Va NO_CLEANDIR
+.Pq Vt bool
+Set this to run
+.Dq Li "${MAKE} clean"
+instead of
+.Dq Li "${MAKE} cleandir" .
+.It Va NO_CRYPT
+.Pq Vt bool
+Set to not build any crypto code.
+.It Va NO_CVS
+.Pq Vt bool
+Set to not build CVS.
+.It Va NO_CXX
+.Pq Vt bool
+Set to not build
+.Xr g++ 1
+and related libraries.
+.It Va NO_DICT
+.Pq Vt bool
+Set to not build the Webster dictionary files.
+.It Va NO_DYNAMICROOT
+.Pq Vt bool
+Set this if you do not want to link
+.Pa /bin
+and
+.Pa /sbin
+dynamically.
+.It Va NO_FORTRAN
+.Pq Vt bool
+Set to not build
+.Xr g77 1
+and related libraries.
+.It Va NO_GAMES
+.Pq Vt bool
+Set to not build games.
+.It Va NO_GDB
+.Pq Vt bool
+Set to not build
+.Xr gdb 1 .
+.It Va NO_GPIB
+.Pq Vt bool
+Set to not build GPIB bus support.
+.It Va NO_I4B
+.Pq Vt bool
+Set to not build isdn4bsd package.
+.It Va NO_INET6
+.Pq Vt bool
+Set to not build
+programs and libraries related to IPv6 networking.
+.It Va NO_INFO
+.Pq Vt bool
+Set to not make or install
+.Xr info 5
+files.
+.It Va NO_IPFILTER
+.Pq Vt bool
+Set to not build IP Filter package.
+.It Va NO_KERBEROS
+.Pq Vt bool
+Set this if you do not want to build Kerberos 5 (KTH Heimdal).
+.It Va NO_LIBC_R
+.Pq Vt bool
+Set to not build
+.Nm libc_r
+(reentrant version of
+.Nm libc ) .
+.It Va NO_LIBPTHREAD
+.Pq Vt bool
+Set to not build the
+.Nm libpthread
+(M:N threading)
+library.
+.It Va NO_LIBTHR
+.Pq Vt bool
+Set to not build the
+.Nm libthr
+(1:1 threading)
+library.
+.It Va NO_LPR
+.Pq Vt bool
+Set to not build
+.Xr lpr 1
+and related programs.
+.It Va NO_MAILWRAPPER
+.Pq Vt bool
+Set to not build the
+.Xr mailwrapper 8
+MTA selector.
+.It Va NO_MAN
+.Pq Vt bool
+Set to not build manual pages.
+.It Va NO_MANCOMPRESS
+.Pq Vt bool
+Set to install manual pages uncompressed.
+.It Va NO_NETCAT
+.Pq Vt bool
+Set to not build
+.Xr nc 1
+utility.
+.It Va NO_NIS
+.Pq Vt bool
+Set to not build
+.Xr NIS 8
+support and related programs.
+If set, you might need to adopt your
+.Xr nsswitch.conf 5
+and remove
+.Sq nis
+entries.
+.It Va NO_OBJC
+.Pq Vt bool
+Set to not build Objective C support.
+.It Va NO_OPENSSH
+.Pq Vt bool
+Set to not build OpenSSH.
+.It Va NO_OPENSSL
+.Pq Vt bool
+Set to not build OpenSSL (implies
+.Va NO_KERBEROS
+and
+.Va NO_OPENSSH ) .
+.It Va NO_PF
+.Pq Vt bool
+Set to not build PF firewall package.
+.It Va NO_PROFILE
+.Pq Vt bool
+Set to avoid compiling profiled libraries.
+.It Va NO_RCMDS
+.Pq Vt bool
+Disable building of the
+.Tn BSD
+r-commands.
+This includes
+.Xr rlogin 1 ,
+.Xr rsh 1 ,
+etc.
+.It Va NO_SENDMAIL
+.Pq Vt bool
+Set to not build
+.Xr sendmail 8
+and related programs.
+.It Va NO_SHARE
+.Pq Vt bool
+Set to not build in the
+.Pa share
+subdir.
+.It Va NO_SHARED
+.Pq Vt bool
+Set to not build
+.Pa /bin
+and
+.Pa /sbin
+statically linked, this can be bad.
+If set, every utility that uses
+.Pa bsd.prog.mk
+will be linked statically.
+.It Va NO_SHAREDOCS
+.Pq Vt bool
+Set to not build the
+.Bx 4.4
+legacy docs.
+.It Va NO_TCSH
+.Pq Vt bool
+Set to not build and install
+.Pa /bin/csh
+(which is
+.Xr tcsh 1 ) .
+.It Va NO_TOOLCHAIN
+.Pq Vt bool
+Set to not build
+programs used for program development,
+compilers, debuggers etc.
+.It Va NO_USB
+.Pq Vt bool
+Set to not build
+.Xr usbd 8
+and related programs.
 .It Va PPP_NO_NAT
 .Pq Vt bool
 Build
@@ -709,15 +727,69 @@ without support for RADIUS.
 Set to disable the installation of
 .Xr ppp 8
 as a set-user-ID root program.
-.It Va NO_RCMDS
-.Pq Vt bool
-Disable building of the
-.Tn BSD
-r-commands.
-This includes
-.Xr rlogin 1 ,
-.Xr rsh 1 ,
-etc.
+.It Va SENDMAIL_ADDITIONAL_MC
+.Pq Vt str
+Additional
+.Pa .mc
+files which should be built into
+.Pa .cf
+files at build time.
+The value should include the full path to the
+.Pa .mc
+file(s), e.g.,
+.Pa /etc/mail/foo.mc
+.Pa /etc/mail/bar.mc .
+.It Va SENDMAIL_CFLAGS
+.Pq Vt str
+Flags to pass to the compile command when building
+.Xr sendmail 8 .
+The
+.Va SENDMAIL_*
+flags can be used to provide SASL support with setting such as:
+.Bd -literal -offset indent
+SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
+SENDMAIL_LDFLAGS=-L/usr/local/lib
+SENDMAIL_LDADD=-lsasl
+.Ed
+.It Va SENDMAIL_CF_DIR
+.Pq Vt str
+Override the default location for the
+.Xr m4 1
+configuration files used to build a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_DPADD
+.Pq Vt str
+Extra dependencies to add when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDADD
+.Pq Vt str
+Flags to add to the end of the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDFLAGS
+.Pq Vt str
+Flags to pass to the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_M4_FLAGS
+.Pq Vt str
+Flags passed to
+.Xr m4 1
+when building a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_MAP_PERMS
+.Pq Vt str
+Mode to use when generating alias and map database files using
+.Pa /etc/mail/Makefile .
+The default value is 0640.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default
@@ -732,6 +804,16 @@ Use with caution as a make install will overwrite any existing
 Note that
 .Va SENDMAIL_CF
 is now deprecated.
+.It Va SENDMAIL_SET_USER_ID
+.Pq Vt bool
+If set, install
+.Xr sendmail 8
+as a set-user-ID root binary instead of a set-group-ID binary
+and do not install
+.Pa /etc/mail/submit.{cf,mc} .
+Use of this flag is not recommended and the alternative advice in
+.Pa /etc/mail/README
+should be followed instead if at all possible.
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
 The default
@@ -744,79 +826,6 @@ file, e.g.,
 .Pa /etc/mail/mysubmit.mc .
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/submit.cf .
-.It Va SENDMAIL_ADDITIONAL_MC
-.Pq Vt str
-Additional
-.Pa .mc
-files which should be built into
-.Pa .cf
-files at build time.
-The value should include the full path to the
-.Pa .mc
-file(s), e.g.,
-.Pa /etc/mail/foo.mc
-.Pa /etc/mail/bar.mc .
-.It Va SENDMAIL_CF_DIR
-.Pq Vt str
-Override the default location for the
-.Xr m4 1
-configuration files used to build a
-.Pa .cf
-file from a
-.Pa .mc
-file.
-.It Va SENDMAIL_M4_FLAGS
-.Pq Vt str
-Flags passed to
-.Xr m4 1
-when building a
-.Pa .cf
-file from a
-.Pa .mc
-file.
-.It Va SENDMAIL_CFLAGS
-.Pq Vt str
-Flags to pass to the compile command when building
-.Xr sendmail 8 .
-The
-.Va SENDMAIL_*
-flags can be used to provide SASL support with setting such as:
-.Bd -literal -offset indent
-SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
-SENDMAIL_LDFLAGS=-L/usr/local/lib
-SENDMAIL_LDADD=-lsasl
-.Ed
-.It Va SENDMAIL_LDFLAGS
-.Pq Vt str
-Flags to pass to the
-.Xr ld 1
-command when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_LDADD
-.Pq Vt str
-Flags to add to the end of the
-.Xr ld 1
-command when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_DPADD
-.Pq Vt str
-Extra dependencies to add when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_SET_USER_ID
-.Pq Vt bool
-If set, install
-.Xr sendmail 8
-as a set-user-ID root binary instead of a set-group-ID binary
-and do not install
-.Pa /etc/mail/submit.{cf,mc} .
-Use of this flag is not recommended and the alternative advice in
-.Pa /etc/mail/README
-should be followed instead if at all possible.
-.It Va SENDMAIL_MAP_PERMS
-.Pq Vt str
-Mode to use when generating alias and map database files using
-.Pa /etc/mail/Makefile .
-The default value is 0640.
 .It Va TOP_TABLE_SIZE
 .Pq Vt int
 .Xr top 1
@@ -835,18 +844,9 @@ levels to a lower one.
 and above is known to trigger known optimizer bugs at various
 times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
-.It Va ENABLE_WPA_SUPPLICANT_EAPOL
-.Pq Vt str
-Build
-.Xr wpa_supplicant 8
-with support for the IEEE 802.1X protocol and with
-support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
-protocols (usable only via 802.1X).
-This option is ignored if
-.Va NO_CRYPT
-or
-.Va NO_OPENSSL
-are set.
+.It Va WITH_BIND_LIBS
+.Pq Vt bool
+Set to install BIND libraries and include files.
 .El
 .Ss "BUILDING DOCUMENTATION"
 .Pp
