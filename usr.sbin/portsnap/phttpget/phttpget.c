@@ -223,7 +223,8 @@ readln(int sd, char * resbuf, int * resbuflen, int * resbufpos)
 
 		/* Read more data into the buffer */
 		len = recv(sd, resbuf + *resbuflen, BUFSIZ - *resbuflen, 0);
-		if ((len == -1) && (errno != EINTR))
+		if ((len == 0) ||
+		    ((len == -1) && (errno != EINTR)))
 			return -1;
 
 		if (len != -1)
