@@ -50,23 +50,10 @@ static const char rcsid[] =
 void
 headers(void)
 {
-	struct file_list *fl;
 	struct device *dp;
-	int match;
 	int errors;
 
 	errors = 0;
-	STAILQ_FOREACH(fl, &ftab, f_next) {
-		if (fl->f_needs != 0) {
-			match = 0;
-			STAILQ_FOREACH(dp, &dtab, d_next) {
-				if (eq(dp->d_name, fl->f_needs)) {
-					match++;
-					dp->d_done |= DEVDONE;
-				}
-			}
-		}
-	}
 	STAILQ_FOREACH(dp, &dtab, d_next) {
 		if (!(dp->d_done & DEVDONE)) {
 			warnx("Error: device \"%s\" is unknown",

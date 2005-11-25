@@ -46,7 +46,6 @@ struct file_list {
 	char	*f_compilewith;		/* special make rule if present */
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
-	char	*f_needs;
 	char	*f_warn;		/* warning message */
 };
 
@@ -59,7 +58,6 @@ struct files_name {
  * Types.
  */
 #define NORMAL		1
-#define	INVISIBLE	2
 #define	PROFILING	3
 #define NODEPEND	4
 #define LOCAL		5
@@ -72,7 +70,6 @@ struct files_name {
 #define NO_IMPLCT_RULE	1
 #define NO_OBJ		2
 #define BEFORE_DEPEND	4
-#define ISDUP		8
 #define NOWERROR	16
 
 struct device {
