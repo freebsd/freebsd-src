@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2005
+.Dd November 15, 2005
 .Dt BGE 4
 .Os
 .Sh NAME
 .Nm bge
-.Nd "Broadcom BCM570x/5714/5721/5750/5751/5789 PCI Gigabit Ethernet adapter driver"
+.Nd "Broadcom BCM570x/5714/5721/5750/5751/5752/5789 PCI Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device bge"
@@ -44,7 +44,8 @@
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM570x,
-5714, 5721, 5750, 5751 and 5789 families of Gigabit Ethernet controller chips.
+5714, 5721, 5750, 5751, 5752 and 5789 families of Gigabit Ethernet
+controller chips.
 .Pp
 All of these NICs are capable of 10, 100 and 1000Mbps speeds over CAT5
 copper cable, except for the SysKonnect SK-9D41 which supports only
@@ -171,6 +172,8 @@ Dell PowerEdge 2550 integrated BCM5700 NIC (10/100/1000baseTX)
 Dell PowerEdge 2650 integrated BCM5703 NIC (10/100/1000baseTX)
 .It
 IBM x235 server integrated BCM5703x NIC (10/100/1000baseTX)
+.It
+HP Compaq dc7600 integrated BCM5752 NIC (10/100/1000baseTX)
 .It
 HP ProLiant NC7760 embedded Gigabit NIC (10/100/1000baseTX)
 .It
