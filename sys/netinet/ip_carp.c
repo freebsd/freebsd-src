@@ -1162,7 +1162,8 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 		TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
 			if ((SC2IFP(vh)->if_flags & IFF_UP) &&
 			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
-			    ia->ia_ifp == SC2IFP(vh)) {
+			    ia->ia_ifp == SC2IFP(vh) &&
+			    vh->sc_state == MASTER) {
 				*enaddr = IFP2ENADDR(vh->sc_ifp);
 				CARP_UNLOCK(cif);
 				return (1);
@@ -1187,7 +1188,8 @@ carp_iamatch6(void *v, struct in6_addr *taddr)
 			if (IN6_ARE_ADDR_EQUAL(taddr,
 			    &ifatoia6(ifa)->ia_addr.sin6_addr) &&
  			    (SC2IFP(vh)->if_flags & IFF_UP) &&
-			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING)) {
+			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
+			    vh->sc_state == MASTER) {
 			    	CARP_UNLOCK(cif);
 				return (ifa);
 			}
