@@ -411,6 +411,7 @@ printport(PORT * p)
 /*
  * Algorithm:
  * 1. Suck in all the data, splitting into fields.
+ * 1a. If there are no ports, there is no INDEX.
  * 2. Sort the ports according to port directory.
  * 3. Using a binary search, translate each dependency from a
  * port directory name into a pointer to a port.
@@ -468,6 +469,12 @@ main(int argc, char *argv[])
 	/* Close the describes file */
 	if (fclose(f) != 0)
 		err(1, "fclose(%s)", argv[1]);
+
+	/*
+	 * 1a. If there are no ports, there is no INDEX.
+	 */
+	if (pplen == 0)
+		return 0;
 
 	/*
 	 * 2. Sort the ports according to port directory.
