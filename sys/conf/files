@@ -10,12 +10,12 @@ acpi_quirks.h			optional acpi				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
 aicasm				optional ahc				   \
-	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
+	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
 	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm* y.tab.h"
 aicasm				optional ahd				   \
-	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
+	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
 	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm* y.tab.h"
@@ -488,10 +488,10 @@ dev/ata/atapi-cam.c		optional atapicam
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
-dev/ath/ath_rate/amrr/amrr.c 	optional ath_rate_amrr
-dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe \
+dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr
+dev/ath/ath_rate/onoe/onoe.c	optional ath_rate_onoe \
 	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
-dev/ath/ath_rate/sample/sample.c 	optional ath_rate_sample \
+dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/contrib/dev/ath/freebsd"
@@ -829,7 +829,7 @@ dev/rp/rp_isa.c			optional rp isa
 dev/rp/rp_pci.c			optional rp pci
 dev/sab/sab.c			optional sab ebus
 dev/safe/safe.c			optional safe
-dev/sbsh/if_sbsh.c      	optional sbsh
+dev/sbsh/if_sbsh.c		optional sbsh
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/si/si.c			optional si
@@ -872,7 +872,7 @@ dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci \
 dev/sound/pci/es137x.c		optional snd_es137x pci
 dev/sound/pci/fm801.c		optional snd_fm801 pci
 dev/sound/pci/ich.c		optional snd_ich pci
-dev/sound/pci/maestro.c 	optional snd_maestro pci
+dev/sound/pci/maestro.c		optional snd_maestro pci
 dev/sound/pci/maestro3.c	optional snd_maestro3 pci \
 	warning "kernel contains GPL contaminated maestro3 headers"
 dev/sound/pci/neomagic.c	optional snd_neomagic pci
@@ -1526,19 +1526,19 @@ netatm/spans/spans_proto.c	optional atm_spans atm_core
 netatm/spans/spans_subr.c	optional atm_spans atm_core
 netatm/spans/spans_util.c	optional atm_spans atm_core
 spans_xdr.h			optional atm_spans atm_core	\
-        before-depend						\
-        dependency      "$S/netatm/spans/spans_xdr.x"		\
-        compile-with    "rpcgen -h -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.h" \
-        clean           "spans_xdr.h"				\
-        no-obj no-implicit-rule
+	before-depend						\
+	dependency	"$S/netatm/spans/spans_xdr.x"		\
+	compile-with	"rpcgen -h -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.h" \
+	clean		"spans_xdr.h"				\
+	no-obj no-implicit-rule
 spans_xdr.c			optional atm_spans atm_core	\
-        before-depend						\
-        dependency      "$S/netatm/spans/spans_xdr.x"		\
-        compile-with    "rpcgen -c -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.c" \
-        clean           "spans_xdr.c"				\
-        no-obj no-implicit-rule local
+	before-depend						\
+	dependency	"$S/netatm/spans/spans_xdr.x"		\
+	compile-with	"rpcgen -c -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.c" \
+	clean		"spans_xdr.c"				\
+	no-obj no-implicit-rule local
 spans_xdr.o			optional atm_spans atm_core	\
-        dependency      "$S/netatm/spans/spans_xdr.x"		\
+	dependency	"$S/netatm/spans/spans_xdr.x"		\
 	compile-with	"${NORMAL_C}"				\
 	no-implicit-rule local
 netatm/uni/q2110_sigaa.c	optional atm_uni atm_core
