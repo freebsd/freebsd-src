@@ -169,6 +169,8 @@ static struct bge_type bge_devs[] = {
 		"Broadcom BCM5751 Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5751M,
 		"Broadcom BCM5751M Gigabit Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5752,
+		"Broadcom BCM5752 Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5782,
 		"Broadcom BCM5782 Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5788,
@@ -2303,10 +2305,11 @@ bge_attach(dev)
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
 	/*
-	 * Treat the 5714 like the 5750 until we have more info
+	 * Treat the 5714 and the 5752 like the 5750 until we have more info
 	 * on this chip.
 	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5714)
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5714 || 
+            sc->bge_asicrev == BGE_ASICREV_BCM5752)
 		sc->bge_asicrev = BGE_ASICREV_BCM5750;
 
 	/*
