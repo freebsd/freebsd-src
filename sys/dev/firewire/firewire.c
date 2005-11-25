@@ -1324,6 +1324,7 @@ fw_bus_explore(struct firewire_comm *fc )
 	uint32_t addr;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
+	union fw_self_id *fwsid;
 
 	if(fc->status != FWBUSEXPLORE)
 		return;
@@ -1336,7 +1337,8 @@ loop:
 
 	/* check link */
 	/* XXX we need to check phy_id first */
-	if (!fw_find_self_id(fc, fc->ongonode)->p0.link_active) {
+	fwsid = fw_find_self_id(fc, fc->ongonode);
+	if (!fwsid || !fwsid->p0.link_active) {
 		if (firewire_debug)
 			printf("node%d: link down\n", fc->ongonode);
 		fc->ongonode++;
