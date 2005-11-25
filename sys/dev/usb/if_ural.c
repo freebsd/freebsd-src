@@ -2141,7 +2141,7 @@ ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 
 	amrr->success = 0;
 	amrr->recovery = 0;
-	amrr->success_threshold = 0;
+	amrr->success_threshold = 1;
 	amrr->txcnt = amrr->retrycnt = 0;
 
 	/* set rate to some reasonable initial value */
