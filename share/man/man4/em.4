@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd November 17, 2005
 .Dt EM 4
 .Os
 .Sh NAME
@@ -172,6 +172,42 @@ Intel PRO/1000 T Server Adapter (82543)
 Intel PRO/1000 XF Server Adapter (82544)
 .It
 Intel PRO/1000 XT Server Adapter (82544)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Pa /boot/loader.conf .
+.Bl -tag -width indent
+.It Va hw.em.rxd
+Number of receive descriptors allocated by the driver.
+The default value is 256.
+The 82542 and 82543-based adapters can handle up to 256 descriptors,
+while others can have up to 4096.
+.It Va hw.em.txd
+Number of transmit descriptors allocated by the driver.
+The default value is 256.
+The 82542 and 82543-based adapters can handle up to 256 descriptors,
+while others can have up to 4096.
+.It Va hw.em.rx_int_delay
+This value delays the generation of receive interrupts in units of
+1.024 microseconds.
+The default value is 0, since adapters may hang with this feature
+being enabled.
+.It Va hw.em.rx_abs_int_delay
+If
+.Va hw.em.rx_int_delay
+is non-zero, this tunable limits the maximum delay in which a receive
+interrupt is generated.
+.It Va hw.em.tx_int_delay
+This value delays the generation of transmit interrupts in units of
+1.024 microseconds.
+The default value is 64.
+.It Va hw.em.tx_abs_int_delay
+If
+.Va hw.em.tx_int_delay
+is non-zero, this tunable limits the maximum delay in which a transmit
+interrupt is generated.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
