@@ -453,9 +453,13 @@ USB_ATTACH(ural)
 	ic->ic_state = IEEE80211_S_INIT;
 
 	/* set device capabilities */
-	ic->ic_caps = IEEE80211_C_MONITOR | IEEE80211_C_IBSS |
-	    IEEE80211_C_HOSTAP | IEEE80211_C_SHPREAMBLE | IEEE80211_C_SHSLOT |
-	    IEEE80211_C_PMGT | IEEE80211_C_TXPMGT | IEEE80211_C_WPA;
+	ic->ic_caps =
+	    IEEE80211_C_IBSS |		/* IBSS mode supported */
+	    IEEE80211_C_MONITOR |	/* monitor mode supported */
+	    IEEE80211_C_HOSTAP |	/* HostAp mode supported */
+	    IEEE80211_C_TXPMGT |	/* tx power management */
+	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
+	    IEEE80211_C_WPA;		/* 802.11i */
 
 	if (sc->rf_rev == RAL_RF_5222) {
 		/* set supported .11a rates */
@@ -690,7 +694,7 @@ ural_media_change(struct ifnet *ifp)
 		return error;
 	}
 
-	if ((ifp->if_flags & IFF_UP)  &&
+	if ((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		ural_init(sc);
 
@@ -914,7 +918,19 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	/* finalize mbuf */
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = (le32toh(desc->flags) >> 16) & 0xfff;
-	m->m_flags |= M_HASFCS; /* hardware appends FCS */
+	m->m_flags |= M_HASFCS;	/* h/w leaves FCS */
+
+	if (sc->sc_drvbpf != NULL) {
+		struct ural_rx_radiotap_header *tap = &sc->sc_rxtap;
+
+		tap->wr_flags = 0;   
+		tap->wr_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
+		tap->wr_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wr_antenna = sc->rx_ant;
+		tap->wr_antsignal = desc->rssi;
+
+		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_rxtap_len, m);
+	}
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
@@ -989,7 +1005,6 @@ ural_txtime(int len, int rate, uint32_t flags)
 		else
 			txtime += 144 + 48;
 	}
-
 	return txtime;
 }
 
@@ -1043,25 +1058,20 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 
 	len += IEEE80211_CRC_LEN;
 	if (RAL_RATE_IS_OFDM(rate)) {
-		/*
-		 * PLCP length field (LENGTH).
-		 * From IEEE Std 802.11a-1999, pp. 14.
-		 */
+		/* IEEE Std 802.11a-1999, pp. 14 */
 		plcp_length = len & 0xfff;
-		desc->plcp_length = htole16((plcp_length >> 6) << 8 |
-		    (plcp_length & 0x3f));
+		desc->plcp_length_hi = plcp_length >> 6;
+		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
-		/*
-		 * Long PLCP LENGTH field.
-		 * From IEEE Std 802.11b-1999, pp. 16.
-		 */
+		/* IEEE Std 802.11b-1999, pp. 16 */
 		plcp_length = (16 * len + rate - 1) / rate;
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
 			if (remainder != 0 && remainder < 7)
 				desc->plcp_service |= RAL_PLCP_LENGEXT;
 		}
-		desc->plcp_length = htole16(plcp_length);
+		desc->plcp_length_hi = plcp_length >> 8;
+		desc->plcp_length_lo = plcp_length & 0xff;
 	}
 
 	desc->plcp_signal = ural_plcp_signal(rate);
