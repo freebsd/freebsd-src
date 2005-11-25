@@ -69,7 +69,7 @@ static gid_t	a_gid(char *);
 static uid_t	a_uid(char *);
 static mode_t	a_mask(char *);
 static void	usage(void) __dead2;
-static int	set_charset(struct iovec *iov, int *iovlen, const char *, const char *);
+static int	set_charset(struct iovec **iov, int *iovlen, const char *, const char *);
 
 int
 main(int argc, char **argv)
@@ -187,12 +187,12 @@ main(int argc, char **argv)
 	dir = argv[optind + 1];
 
 	if (cs_local != NULL) {
-		if (set_charset(iov, &iovlen, cs_local, cs_dos) == -1)
+		if (set_charset(&iov, &iovlen, cs_local, cs_dos) == -1)
 			err(EX_OSERR, "msdosfs_iconv");
 		build_iovec_argf(&iov, &iovlen, "kiconv", "");
 	} else if (cs_dos != NULL) {
 		build_iovec_argf(&iov, &iovlen, "cs_local", "ISO8859-1");
-		if (set_charset(iov, &iovlen, "ISO8859-1", cs_dos) == -1)
+		if (set_charset(&iov, &iovlen, "ISO8859-1", cs_dos) == -1)
 			err(EX_OSERR, "msdosfs_iconv");
 		build_iovec_argf(&iov, &iovlen, "kiconv", "");
 	}
@@ -300,7 +300,7 @@ usage()
 }
 
 int
-set_charset(struct iovec *iov, int *iovlen, const char *cs_local, const char *cs_dos)
+set_charset(struct iovec **iov, int *iovlen, const char *cs_local, const char *cs_dos)
 {
 	int error;
 
@@ -310,7 +310,7 @@ set_charset(struct iovec *iov, int *iovlen, const char *cs_local, const char *cs
 			return (-1);
 		}
 
-	build_iovec_argf(&iov, iovlen, "cs_win", ENCODING_UNICODE);
+	build_iovec_argf(iov, iovlen, "cs_win", ENCODING_UNICODE);
 	error = kiconv_add_xlat16_cspairs(ENCODING_UNICODE, cs_local);
 	if (error)
 		return (-1);
@@ -319,7 +319,7 @@ set_charset(struct iovec *iov, int *iovlen, const char *cs_local, const char *cs
 		if (error)
 			return (-1);
 	} else {
-		build_iovec_argf(&iov, iovlen, "cs_dos", cs_local);
+		build_iovec_argf(iov, iovlen, "cs_dos", cs_local);
 		error = kiconv_add_xlat16_cspair(cs_local, cs_local,
 				KICONV_FROM_UPPER | KICONV_LOWER);
 		if (error)
