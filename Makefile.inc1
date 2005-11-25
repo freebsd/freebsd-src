@@ -705,12 +705,6 @@ reinstallkernel reinstallkernel.debug: installcheck
 	false
 .endif
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Making hierarchy"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; \
-	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 hierarchy
-	@echo
-	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
