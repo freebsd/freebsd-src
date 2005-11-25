@@ -890,7 +890,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 nfsmout:
 	if (error) {
 		if (newvp != NULLVP) {
-			vrele(newvp);
+			vput(newvp);
 			*vpp = NULLVP;
 		}
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
