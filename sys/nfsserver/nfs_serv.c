@@ -2092,6 +2092,8 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	tl = nfsm_dissect_nonblock(u_int32_t *, NFSX_UNSIGNED);
 	vtyp = nfsv3tov_type(*tl);
 	if (vtyp != VCHR && vtyp != VBLK && vtyp != VSOCK && vtyp != VFIFO) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		error = NFSERR_BADTYPE;
 		goto out;
 	}
@@ -2108,6 +2110,8 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * Iff doesn't exist, create it.
 	 */
 	if (nd.ni_vp) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		error = EEXIST;
 		goto out;
 	}
