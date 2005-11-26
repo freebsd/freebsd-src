@@ -140,7 +140,7 @@ arptimer(void * __unused unused)
 		struct rtentry *rt = la->la_rt;
 
 		RT_LOCK(rt);
-		if (rt->rt_expire && rt->rt_expire <= time_second) {
+		if (rt->rt_expire && rt->rt_expire <= time_uptime) {
 			struct sockaddr_dl *sdl = SDL(rt->rt_gateway);
 
 			KASSERT(sdl->sdl_family == AF_LINK, ("sdl_family %d",
@@ -208,7 +208,7 @@ arp_rtrequest(req, rt, info)
 			gate = rt->rt_gateway;
 			SDL(gate)->sdl_type = rt->rt_ifp->if_type;
 			SDL(gate)->sdl_index = rt->rt_ifp->if_index;
-			rt->rt_expire = time_second;
+			rt->rt_expire = time_uptime;
 			break;
 		}
 		/* Announce a new entry if requested. */
@@ -438,7 +438,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 * Check the address family and length is valid, the address
 	 * is resolved; otherwise, try to resolve.
 	 */
-	if ((rt->rt_expire == 0 || rt->rt_expire > time_second) &&
+	if ((rt->rt_expire == 0 || rt->rt_expire > time_uptime) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
 
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
@@ -448,7 +448,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		 * send an ARP request.
 		 */
 		if ((rt->rt_expire != 0) &&
-		    (time_second + la->la_preempt > rt->rt_expire)) {
+		    (time_uptime + la->la_preempt > rt->rt_expire)) {
 			struct in_addr sin = 
 			    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
 
