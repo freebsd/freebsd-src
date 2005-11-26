@@ -149,6 +149,7 @@ SUBDIR=	${_3dfx} \
 	mlx \
 	${_mly} \
 	mpt \
+	mqueue \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
