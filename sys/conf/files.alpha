@@ -47,7 +47,6 @@ alpha/alpha/db_disasm.c		optional	ddb
 alpha/alpha/db_interface.c	optional	ddb
 alpha/alpha/db_trace.c		optional	ddb
 alpha/alpha/dec_1000a.c		optional	dec_1000a
-alpha/alpha/dec_1000a.c		optional	dec_1000a
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
 alpha/alpha/dec_2100_a500.c	optional	dec_2100_a500
 alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
