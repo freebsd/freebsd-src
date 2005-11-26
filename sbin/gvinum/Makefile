@@ -2,7 +2,7 @@
 
 PROG=	gvinum
 SRCS=	gvinum.c gvinum.h geom_vinum_share.c
-NO_MAN=	# not yet
+MAN=	gvinum.8
 
 CFLAGS+=	-I${.CURDIR}/../../sys
 

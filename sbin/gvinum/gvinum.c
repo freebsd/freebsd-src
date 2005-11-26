@@ -1,7 +1,11 @@
 /*
- *  Copyright (c) 2004 Lukas Ertl
+ *  Copyright (c) 2004 Lukas Ertl, 2005 Chris Jones
  *  All rights reserved.
- * 
+ *
+ * Portions of this software were developed for the FreeBSD Project
+ * by Chris Jones thanks to the support of Google's Summer of Code
+ * program and mentoring by Lukas Ertl.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -10,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -50,13 +54,13 @@
 
 #include "gvinum.h"
 
-void	gvinum_cancelinit(int, char **);
 void	gvinum_create(int, char **);
 void	gvinum_help(void);
-void	gvinum_init(int, char **);
 void	gvinum_list(int, char **);
+void	gvinum_move(int, char **);
 void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
+void	gvinum_rename(int, char **);
 void	gvinum_rm(int, char **);
 void	gvinum_saveconfig(void);
 void	gvinum_setstate(int, char **);
@@ -104,41 +108,6 @@ main(int argc, char **argv)
 		}
 	}
 	exit(0);
-}
-
-void
-gvinum_cancelinit(int argc, char **argv)
-{
-	struct gctl_req *req;
-	int i;
-	const char *errstr;
-	char buf[20];
-
-	if (argc == 1)
-		return;
-
-	argc--;
-	argv++;
-
-	req = gctl_get_handle();
-	gctl_ro_param(req, "class", -1, "VINUM");
-	gctl_ro_param(req, "verb", -1, "cancelinit");
-	gctl_ro_param(req, "argc", sizeof(int), &argc);
-	if (argc) {
-		for (i = 0; i < argc; i++) {
-			snprintf(buf, sizeof(buf), "argv%d", i);
-			gctl_ro_param(req, buf, -1, argv[i]);
-		}
-	}
-	errstr = gctl_issue(req);
-	if (errstr != NULL) {
-		warnx("can't init: %s", errstr);
-		gctl_free(req);
-		return;
-	}
-
-	gctl_free(req);
-	gvinum_list(0, NULL);
 }
 
 void
@@ -220,121 +189,119 @@ gvinum_create(int argc, char **argv)
 		strncpy(original, buf, sizeof(buf));
 
 		tokens = gv_tokenize(buf, token, GV_MAXARGS);
+		if (tokens <= 0) {
+			line++;
+			continue;
+		}
 
-		if (tokens > 0) {
-			/* Volume definition. */
-			if (!strcmp(token[0], "volume")) {
-				v = gv_new_volume(tokens, token);
-				if (v == NULL) {
-					warnx("line %d: invalid volume "
-					    "definition", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					/* Reset plex count for this volume. */
-					plex_in_volume = 0;
-
-					/*
-					 * Set default volume name for
-					 * following plex definitions.
-					 */
-					strncpy(volume, v->name,
-					    sizeof(volume));
-
-					snprintf(buf1, sizeof(buf1), "volume%d",
-					    volumes);
-					gctl_ro_param(req, buf1, sizeof(*v), v);
-					volumes++;
-				}
-
-			/* Plex definition. */
-			} else if (!strcmp(token[0], "plex")) {
-				p = gv_new_plex(tokens, token);
-				if (p == NULL) {
-					warnx("line %d: invalid plex "
-					    "definition", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					/* Reset subdisk count for this plex. */
-					sd_in_plex = 0;
-
-					/* Default name. */
-					if (strlen(p->name) == 0) {
-						snprintf(p->name,
-						    GV_MAXPLEXNAME,
-						    "%s.p%d", volume,
-						    plex_in_volume++);
-					}
-
-					/* Default volume. */
-					if (strlen(p->volume) == 0) {
-						snprintf(p->volume,
-						    GV_MAXVOLNAME, "%s",
-						    volume);
-					}
-
-					/*
-					 * Set default plex name for following
-					 * subdisk definitions.
-					 */
-					strncpy(plex, p->name, GV_MAXPLEXNAME);
-
-					snprintf(buf1, sizeof(buf1), "plex%d",
-					    plexes);
-					gctl_ro_param(req, buf1, sizeof(*p), p);
-					plexes++;
-				}
-
-			/* Subdisk definition. */
-			} else if (!strcmp(token[0], "sd")) {
-				s = gv_new_sd(tokens, token);
-				if (s == NULL) {
-					warnx("line %d: invalid subdisk "
-					    "definition:", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					/* Default name. */
-					if (strlen(s->name) == 0) {
-						snprintf(s->name, GV_MAXSDNAME,
-						    "%s.s%d", plex,
-						    sd_in_plex++);
-					}
-
-					/* Default plex. */
-					if (strlen(s->plex) == 0) {
-						snprintf(s->plex,
-						    GV_MAXPLEXNAME, "%s", plex);
-					}
-			
-					snprintf(buf1, sizeof(buf1), "sd%d",
-					    subdisks);
-					gctl_ro_param(req, buf1, sizeof(*s), s);
-					subdisks++;
-				}
-
-			/* Subdisk definition. */
-			} else if (!strcmp(token[0], "drive")) {
-				d = gv_new_drive(tokens, token);
-				if (d == NULL) {
-					warnx("line %d: invalid drive "
-					    "definition:", line);
-					warnx("line %d: '%s'", line, original);
-					errors++;
-				} else {
-					snprintf(buf1, sizeof(buf1), "drive%d",
-					    drives);
-					gctl_ro_param(req, buf1, sizeof(*d), d);
-					drives++;
-				}
-
-			/* Everything else is bogus. */
-			} else {
-				warnx("line %d: invalid definition:", line);
+		/* Volume definition. */
+		if (!strcmp(token[0], "volume")) {
+			v = gv_new_volume(tokens, token);
+			if (v == NULL) {
+				warnx("line %d: invalid volume definition",
+				    line);
 				warnx("line %d: '%s'", line, original);
 				errors++;
+				line++;
+				continue;
 			}
+
+			/* Reset plex count for this volume. */
+			plex_in_volume = 0;
+
+			/*
+			 * Set default volume name for following plex
+			 * definitions.
+			 */
+			strncpy(volume, v->name, sizeof(volume));
+
+			snprintf(buf1, sizeof(buf1), "volume%d", volumes);
+			gctl_ro_param(req, buf1, sizeof(*v), v);
+			volumes++;
+
+		/* Plex definition. */
+		} else if (!strcmp(token[0], "plex")) {
+			p = gv_new_plex(tokens, token);
+			if (p == NULL) {
+				warnx("line %d: invalid plex definition", line);
+				warnx("line %d: '%s'", line, original);
+				errors++;
+				line++;
+				continue;
+			}
+
+			/* Reset subdisk count for this plex. */
+			sd_in_plex = 0;
+
+			/* Default name. */
+			if (strlen(p->name) == 0) {
+				snprintf(p->name, GV_MAXPLEXNAME, "%s.p%d",
+				    volume, plex_in_volume++);
+			}
+
+			/* Default volume. */
+			if (strlen(p->volume) == 0) {
+				snprintf(p->volume, GV_MAXVOLNAME, "%s",
+				    volume);
+			}
+
+			/*
+			 * Set default plex name for following subdisk
+			 * definitions.
+			 */
+			strncpy(plex, p->name, GV_MAXPLEXNAME);
+
+			snprintf(buf1, sizeof(buf1), "plex%d", plexes);
+			gctl_ro_param(req, buf1, sizeof(*p), p);
+			plexes++;
+
+		/* Subdisk definition. */
+		} else if (!strcmp(token[0], "sd")) {
+			s = gv_new_sd(tokens, token);
+			if (s == NULL) {
+				warnx("line %d: invalid subdisk "
+				    "definition:", line);
+				warnx("line %d: '%s'", line, original);
+				errors++;
+				line++;
+				continue;
+			}
+
+			/* Default name. */
+			if (strlen(s->name) == 0) {
+				snprintf(s->name, GV_MAXSDNAME, "%s.s%d",
+				    plex, sd_in_plex++);
+			}
+
+			/* Default plex. */
+			if (strlen(s->plex) == 0)
+				snprintf(s->plex, GV_MAXPLEXNAME, "%s", plex);
+
+			snprintf(buf1, sizeof(buf1), "sd%d", subdisks);
+			gctl_ro_param(req, buf1, sizeof(*s), s);
+			subdisks++;
+
+		/* Subdisk definition. */
+		} else if (!strcmp(token[0], "drive")) {
+			d = gv_new_drive(tokens, token);
+			if (d == NULL) {
+				warnx("line %d: invalid drive definition:",
+				    line);
+				warnx("line %d: '%s'", line, original);
+				errors++;
+				line++;
+				continue;
+			}
+
+			snprintf(buf1, sizeof(buf1), "drive%d", drives);
+			gctl_ro_param(req, buf1, sizeof(*d), d);
+			drives++;
+
+		/* Everything else is bogus. */
+		} else {
+			warnx("line %d: invalid definition:", line);
+			warnx("line %d: '%s'", line, original);
+			errors++;
 		}
 		line++;
 	}
@@ -359,127 +326,43 @@ void
 gvinum_help(void)
 {
 	printf("COMMANDS\n"
-	    "attach plex volume [rename]\n"
-	    "attach subdisk plex [offset] [rename]\n"
-	    "        Attach a plex to a volume, or a subdisk to a plex.\n"
-	    "checkparity plex [-f] [-v]\n"
-	    "        Check the parity blocks of a RAID-4 or RAID-5 plex.\n"
-	    "concat [-f] [-n name] [-v] drives\n"
-	    "        Create a concatenated volume from the specified drives.\n"
-	    "create [-f] description-file\n"
-	    "        Create a volume as described in description-file.\n"
-	    "detach [-f] [plex | subdisk]\n"
-	    "        Detach a plex or subdisk from the volume or plex to"
-	    "which it is\n"
-	    "        attached.\n"
-	    "dumpconfig [drive ...]\n"
-	    "        List the configuration information stored on the"
-	    " specified\n"
-	    "        drives, or all drives in the system if no drive names"
-	    " are speci-\n"
-	    "        fied.\n"
-	    "info [-v] [-V]\n"
-	    "        List information about volume manager state.\n"
-	    "init [-S size] [-w] plex | subdisk\n"
-	    "        Initialize the contents of a subdisk or all the subdisks"
-	    " of a\n"
-	    "        plex to all zeros.\n"
-	    "label volume\n"
-	    "        Create a volume label.\n"
-	    "l | list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	    "checkparity [-f] plex\n"
+	    "        Check the parity blocks of a RAID-5 plex.\n"
+	    "create description-file\n"
+	    "        Create as per description-file or open editor.\n"
+	    "l | list [-r] [-v] [-V] [volume | plex | subdisk]\n"
 	    "        List information about specified objects.\n"
-	    "ld [-r] [-s] [-v] [-V] [volume]\n"
+	    "ld [-r] [-v] [-V] [volume]\n"
 	    "        List information about drives.\n"
-	    "ls [-r] [-s] [-v] [-V] [subdisk]\n"
+	    "ls [-r] [-v] [-V] [subdisk]\n"
 	    "        List information about subdisks.\n"
-	    "lp [-r] [-s] [-v] [-V] [plex]\n"
+	    "lp [-r] [-v] [-V] [plex]\n"
 	    "        List information about plexes.\n"
-	    "lv [-r] [-s] [-v] [-V] [volume]\n"
+	    "lv [-r] [-v] [-V] [volume]\n"
 	    "        List information about volumes.\n"
-	    "mirror [-f] [-n name] [-s] [-v] drives\n"
-	    "        Create a mirrored volume from the specified drives.\n"
 	    "move | mv -f drive object ...\n"
 	    "        Move the object(s) to the specified drive.\n"
-	    "printconfig [file]\n"
-	    "        Write a copy of the current configuration to file.\n"
 	    "quit    Exit the vinum program when running in interactive mode."
 	    "  Nor-\n"
 	    "        mally this would be done by entering the EOF character.\n"
 	    "rename [-r] [drive | subdisk | plex | volume] newname\n"
 	    "        Change the name of the specified object.\n"
-	    "rebuildparity plex [-f] [-v] [-V]\n"
-	    "        Rebuild the parity blocks of a RAID-4 or RAID-5 plex.\n"
-	    "resetconfig\n"
-	    "        Reset the complete vinum configuration.\n"
-	    "rm [-f] [-r] volume | plex | subdisk\n"
+	    "rebuildparity plex [-f]\n"
+	    "        Rebuild the parity blocks of a RAID-5 plex.\n"
+	    "rm [-r] volume | plex | subdisk | drive\n"
 	    "        Remove an object.\n"
 	    "saveconfig\n"
 	    "        Save vinum configuration to disk after configuration"
 	    " failures.\n"
-	    "setstate state [volume | plex | subdisk | drive]\n"
+	    "setstate [-f] state [volume | plex | subdisk | drive]\n"
 	    "        Set state without influencing other objects, for"
 	    " diagnostic pur-\n"
 	    "        poses only.\n"
-	    "start [-i interval] [-S size] [-w] volume | plex | subdisk\n"
+	    "start [-S size] volume | plex | subdisk\n"
 	    "        Allow the system to access the objects.\n"
-	    "stop [-f] [volume | plex | subdisk]\n"
-	    "        Terminate access to the objects, or stop vinum if no"
-	    " parameters\n"
-	    "        are specified.\n"
-	    "stripe [-f] [-n name] [-v] drives\n"
-	    "        Create a striped volume from the specified drives.\n"
 	);
 
 	return;
-}
-
-void
-gvinum_init(int argc, char **argv)
-{
-	struct gctl_req *req;
-	int i, initsize, j;
-	const char *errstr;
-	char buf[20];
-
-	initsize = 0;
-	optreset = 1;
-	optind = 1;
-	while ((j = getopt(argc, argv, "S")) != -1) {
-		switch (j) {
-		case 'S':
-			initsize = atoi(optarg);
-			break;
-		case '?':
-		default:
-			return;
-		}
-	}
-	argc -= optind;
-	argv += optind;
-
-	if (!initsize)
-		initsize = 512;
-
-	req = gctl_get_handle();
-	gctl_ro_param(req, "class", -1, "VINUM");
-	gctl_ro_param(req, "verb", -1, "init");
-	gctl_ro_param(req, "argc", sizeof(int), &argc);
-	gctl_ro_param(req, "initsize", sizeof(int), &initsize);
-	if (argc) {
-		for (i = 0; i < argc; i++) {
-			snprintf(buf, sizeof(buf), "argv%d", i);
-			gctl_ro_param(req, buf, -1, argv[i]);
-		}
-	}
-	errstr = gctl_issue(req);
-	if (errstr != NULL) {
-		warnx("can't init: %s", errstr);
-		gctl_free(req);
-		return;
-	}
-
-	gctl_free(req);
-	gvinum_list(0, NULL);
 }
 
 void
@@ -602,6 +485,61 @@ gvinum_list(int argc, char **argv)
 	return;
 }
 
+/* Note that move is currently of form '[-r] target object [...]' */
+void
+gvinum_move(int argc, char **argv)
+{
+	struct gctl_req *req;
+	const char *errstr;
+	char buf[20];
+	int flags, i, j;
+
+	flags = 0;
+	if (argc) {
+		optreset = 1;
+		optind = 1;
+		while ((j = getopt(argc, argv, "f")) != -1) {
+			switch (j) {
+			case 'f':
+				flags |= GV_FLAG_F;
+				break;
+			case '?':
+			default:
+				return;
+			}
+		}
+		argc -= optind;
+		argv += optind;
+	}
+
+	switch (argc) {
+		case 0:
+			warnx("no destination or object(s) to move specified");
+			return;
+		case 1:
+			warnx("no object(s) to move specified");
+			return;
+		default:
+			break;
+	}
+
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "move");
+	gctl_ro_param(req, "argc", sizeof(int), &argc);
+	gctl_ro_param(req, "flags", sizeof(int), &flags);
+	gctl_ro_param(req, "destination", -1, argv[0]);
+	for (i = 1; i < argc; i++) {
+		snprintf(buf, sizeof(buf), "argv%d", i);
+		gctl_ro_param(req, buf, -1, argv[i]);
+	}
+	errstr = gctl_issue(req);
+	if (errstr != NULL)
+		warnx("can't move object(s):  %s", errstr);
+	gctl_free(req);
+	return;
+}
+
 void
 gvinum_printconfig(int argc, char **argv)
 {
@@ -689,6 +627,59 @@ gvinum_parityop(int argc, char **argv, int rebuild)
 		else
 			printf("%s has correct parity\n", argv[0]);
 	}
+}
+
+void
+gvinum_rename(int argc, char **argv)
+{
+	struct gctl_req *req;
+	const char *errstr;
+	int flags, j;
+
+	flags = 0;
+
+	if (argc) {
+		optreset = 1;
+		optind = 1;
+		while ((j = getopt(argc, argv, "r")) != -1) {
+			switch (j) {
+			case 'r':
+				flags |= GV_FLAG_R;
+				break;
+			case '?':
+			default:
+				return;
+			}
+		}
+		argc -= optind;
+		argv += optind;
+	}
+
+	switch (argc) {
+		case 0:
+			warnx("no object to rename specified");
+			return;
+		case 1:
+			warnx("no new name specified");
+			return;
+		case 2:
+			break;
+		default:
+			warnx("more than one new name specified");
+			return;
+	}
+
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "rename");
+	gctl_ro_param(req, "flags", sizeof(int), &flags);
+	gctl_ro_param(req, "object", -1, argv[0]);
+	gctl_ro_param(req, "newname", -1, argv[1]);
+	errstr = gctl_issue(req);
+	if (errstr != NULL)
+		warnx("can't rename object:  %s", errstr);
+	gctl_free(req);
+	return;
 }
 
 void
@@ -831,16 +822,12 @@ parseline(int argc, char **argv)
 	if (argc <= 0)
 		return;
 
-	if (!strcmp(argv[0], "cancelinit"))
-		gvinum_cancelinit(argc, argv);
-	else if (!strcmp(argv[0], "create"))
+	if (!strcmp(argv[0], "create"))
 		gvinum_create(argc, argv);
 	else if (!strcmp(argv[0], "exit") || !strcmp(argv[0], "quit"))
 		exit(0);
 	else if (!strcmp(argv[0], "help"))
 		gvinum_help();
-	else if (!strcmp(argv[0], "init"))
-		gvinum_init(argc, argv);
 	else if (!strcmp(argv[0], "list") || !strcmp(argv[0], "l"))
 		gvinum_list(argc, argv);
 	else if (!strcmp(argv[0], "ld"))
@@ -851,8 +838,14 @@ parseline(int argc, char **argv)
 		gvinum_list(argc, argv);
 	else if (!strcmp(argv[0], "lv"))
 		gvinum_list(argc, argv);
+	else if (!strcmp(argv[0], "move"))
+		gvinum_move(argc, argv);
+	else if (!strcmp(argv[0], "mv"))
+		gvinum_move(argc, argv);
 	else if (!strcmp(argv[0], "printconfig"))
 		gvinum_printconfig(argc, argv);
+	else if (!strcmp(argv[0], "rename"))
+		gvinum_rename(argc, argv);
 	else if (!strcmp(argv[0], "rm"))
 		gvinum_rm(argc, argv);
 	else if (!strcmp(argv[0], "saveconfig"))
