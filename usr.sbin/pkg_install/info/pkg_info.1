@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2004
+.Dd November 23, 2005
 .Dt PKG_INFO 1
 .Os
 .Sh NAME
@@ -239,6 +239,9 @@ is used.
 If both are unset, the builtin defaults are used.
 .It Ev PKG_DBDIR
 Specifies an alternative location for the installed package database.
+.It Ev PKG_PATH
+Specifies an alternative package location, if a given package cannot be
+found.
 .El
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact
