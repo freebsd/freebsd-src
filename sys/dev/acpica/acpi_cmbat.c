@@ -80,6 +80,7 @@ static void		acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify,
 static int		acpi_cmbat_info_expired(struct timespec *lastupdated);
 static void		acpi_cmbat_info_updated(struct timespec *lastupdated);
 static void		acpi_cmbat_get_bst(void *arg);
+static void		acpi_cmbat_get_bif_task(void *arg);
 static void		acpi_cmbat_get_bif(void *arg);
 static int		acpi_cmbat_bst(device_t dev, struct acpi_bst *bstp);
 static int		acpi_cmbat_bif(device_t dev, struct acpi_bif *bifp);
@@ -193,7 +194,7 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	 * Queue a callback to get the current battery info from thread
 	 * context.  It's not safe to block in a notify handler.
 	 */
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif_task, dev);
 	break;
     }
 
@@ -286,6 +287,16 @@ acpi_cmbat_get_bst(void *arg)
 end:
     if (bst_buffer.Pointer != NULL)
 	AcpiOsFree(bst_buffer.Pointer);
+}
+
+/* XXX There should be a cleaner way to do this locking. */
+static void
+acpi_cmbat_get_bif_task(void *arg)
+{
+
+    ACPI_SERIAL_BEGIN(cmbat);
+    acpi_cmbat_get_bif(arg);
+    ACPI_SERIAL_END(cmbat);
 }
 
 static void
