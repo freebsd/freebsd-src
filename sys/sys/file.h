@@ -58,6 +58,7 @@ struct socket;
 #define	DTYPE_FIFO	4	/* fifo (named pipe) */
 #define	DTYPE_KQUEUE	5	/* event queue */
 #define	DTYPE_CRYPTO	6	/* crypto */
+#define	DTYPE_MQUEUE	7	/* posix message queue */
 
 #ifdef _KERNEL
 
