@@ -105,6 +105,34 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
+    <para>(2005/11/26)
+      On 6.0-RELEASE, the following &man.ipfw.4; rule is interpreted
+      in a different way from the previous releases:</para>
+
+    <programlisting>allow ipv6 from 192.168.0.2 to me</programlisting>
+
+    <para>When &man.ipfw.4; does not support IPv6 (see the next
+      entry for the details), &man.ipfw.8; accepts this rule and
+      this blocks an IPv6 packet encapsulated in an IPv4 packet
+      (IPv6-over-IPv4 tunneling, protocol number 41) whose
+      source address is <literal>192.168.0.2</literal>.
+      When it supports IPv6, on the other hand, this means a rule
+      to allow an IPv6 packet from <literal>192.168.0.2</literal>,
+      and actually &man.ipfw.8; rejects this rule because the
+      syntax is incorrect (<quote>an IPv6 packet from an IPv4 address</quote>
+      never happens).  Unfortunately there is no simple workaround
+      for this problem.</para>
+
+    <para>The &man.ipfw.4; IPv6 support still has rough edges
+      and there are other problems due to incompatibility between
+      the two.  As a workaround for them, you can use a combination
+      of IPv4-only &man.ipfw.4; and &man.ip6fw.8;, which is almost
+      compatible with the prior releases, instead of &man.ipfw.4;
+      with IPv6 support.
+      To disable IPv6 support of &man.ipfw.4;, use
+      the <filename>ipfw.ko</filename> kernel module and
+      do not use the kernel option <literal>IPFIREWALL</literal>.</para>
+
     <para>(2005/11/19)
       Although the &os; 6.0-RELEASE Release Notes states that
       &man.ipfw.4; subsystem now supports IPv6,
