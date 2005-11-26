@@ -259,7 +259,7 @@ sonewconn(head, connstatus)
 		while (head->so_incqlen > head->so_qlimit) {
 			struct socket *sp;
 			sp = TAILQ_FIRST(&head->so_incomp);
-			TAILQ_REMOVE(&so->so_incomp, sp, so_list);
+			TAILQ_REMOVE(&head->so_incomp, sp, so_list);
 			head->so_incqlen--;
 			sp->so_qstate &= ~SQ_INCOMP;
 			sp->so_head = NULL;
