@@ -417,6 +417,18 @@ disk_destroy(struct disk *dp)
 	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
 }
 
+void
+disk_gone(struct disk *dp)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL)
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_orphan_provider(pp, ENXIO);
+}
+
 static void
 g_kern_disks(void *p, int flag __unused)
 {

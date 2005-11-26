@@ -765,6 +765,7 @@ daoninvalidate(struct cam_periph *periph)
 
 	SLIST_REMOVE(&softc_list, softc, da_softc, links);
 
+	disk_gone(softc->disk);
 	xpt_print_path(periph->path);
 	printf("lost device\n");
 }

@@ -93,6 +93,7 @@ struct disk {
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
 void disk_destroy(struct disk *disk);
+void disk_gone(struct disk *disk);
 
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION		DISK_VERSION_00

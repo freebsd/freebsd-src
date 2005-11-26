@@ -407,6 +407,7 @@ cdoninvalidate(struct cam_periph *periph)
 	 && (softc->pinfo.index != CAM_UNQUEUED_INDEX))
 		camq_remove(&softc->changer->devq, softc->pinfo.index);
 
+	disk_gone(softc->disk);
 	xpt_print_path(periph->path);
 	printf("lost device\n");
 }
