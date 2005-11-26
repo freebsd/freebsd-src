@@ -249,6 +249,11 @@ typedef	__timer_t	timer_t;
 #define	_TIMER_T_DECLARED
 #endif
 
+#ifndef _MQD_T_DECLARED
+typedef	__mqd_t	mqd_t;
+#define	_MQD_T_DECLARED
+#endif
+
 typedef	__u_register_t	u_register_t;
 
 #ifndef _UID_T_DECLARED
