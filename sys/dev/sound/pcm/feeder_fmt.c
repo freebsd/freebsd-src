@@ -629,6 +629,93 @@ static kobj_method_t feeder_monotostereo16_methods[] = {
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_monotostereo16, 0, NULL);
+
+static int
+feed_monotostereo24(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int i, j, k = FEEDER_FEED(f->source, c, b, count >> 1, source);
+	uint8_t l, m, n;
+
+	if (k < 3) {
+		FMT_TRACE("%s: Not enough data (Got: %d bytes)\n",
+				__func__, k);
+		return 0;
+	}
+	FMT_TEST(k % 3, "%s: Bytes not 24bit aligned.\n", __func__);
+	FMT_ALIGNBYTE(k -= k % 3);
+	i = k;
+	j = k << 1;
+	while (i > 0) {
+		l = b[--i];
+		m = b[--i];
+		n = b[--i];
+		b[--j] = l;
+		b[--j] = m;
+		b[--j] = n;
+		b[--j] = l;
+		b[--j] = m;
+		b[--j] = n;
+	}
+	return k << 1;
+}
+static struct pcm_feederdesc feeder_monotostereo24_desc[] = {
+	{FEEDER_FMT, AFMT_U24_LE, AFMT_U24_LE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S24_LE, AFMT_S24_LE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_U24_BE, AFMT_U24_BE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S24_BE, AFMT_S24_BE|AFMT_STEREO, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_monotostereo24_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_monotostereo24),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_monotostereo24, 0, NULL);
+
+static int
+feed_monotostereo32(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int i, j, k = FEEDER_FEED(f->source, c, b, count >> 1, source);
+	uint8_t l, m, n, o;
+
+	if (k < 4) {
+		FMT_TRACE("%s: Not enough data (Got: %d bytes)\n",
+				__func__, k);
+		return 0;
+	}
+	FMT_TEST(k & 3, "%s: Bytes not 32bit aligned.\n", __func__);
+	FMT_ALIGNBYTE(k &= ~3);
+	i = k;
+	j = k << 1;
+	while (i > 0) {
+		l = b[--i];
+		m = b[--i];
+		n = b[--i];
+		o = b[--i];
+		b[--j] = l;
+		b[--j] = m;
+		b[--j] = n;
+		b[--j] = o;
+		b[--j] = l;
+		b[--j] = m;
+		b[--j] = n;
+		b[--j] = o;
+	}
+	return k << 1;
+}
+static struct pcm_feederdesc feeder_monotostereo32_desc[] = {
+	{FEEDER_FMT, AFMT_U32_LE, AFMT_U32_LE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S32_LE, AFMT_S32_LE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_U32_BE, AFMT_U32_BE|AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S32_BE, AFMT_S32_BE|AFMT_STEREO, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_monotostereo32_methods[] = {
+	KOBJMETHOD(feeder_feed, feed_monotostereo32),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_monotostereo32, 0, NULL);
 /*
  * Channel conversion (mono -> stereo) end
  */
@@ -712,6 +799,89 @@ static kobj_method_t feeder_stereotomono16_methods[] = {
 	{0, 0}
 };
 FEEDER_DECLARE(feeder_stereotomono16, 0, NULL);
+
+static int
+feed_stereotomono24(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int i, j, k;
+	uint8_t *src = (uint8_t *)f->data;
+
+	k = count << 1;
+	k = FEEDER_FEED(f->source, c, src, min(k, FEEDBUF24SZ), source);
+	if (k < 6) {
+		FMT_TRACE("%s: Not enough data (Got: %d bytes)\n",
+				__func__, k);
+		return 0;
+	}
+	FMT_TEST(k % 6, "%s: Bytes not 24bit (stereo) aligned.\n", __func__);
+	FMT_ALIGNBYTE(k -= k % 6);
+	i = k >> 1;
+	j = i;
+	while (i > 0) {
+		k -= 3;
+		b[--i] = src[--k];
+		b[--i] = src[--k];
+		b[--i] = src[--k];
+	}
+	return j;
+}
+static struct pcm_feederdesc feeder_stereotomono24_desc[] = {
+	{FEEDER_FMT, AFMT_U24_LE|AFMT_STEREO, AFMT_U24_LE, 0},
+	{FEEDER_FMT, AFMT_S24_LE|AFMT_STEREO, AFMT_S24_LE, 0},
+	{FEEDER_FMT, AFMT_U24_BE|AFMT_STEREO, AFMT_U24_BE, 0},
+	{FEEDER_FMT, AFMT_S24_BE|AFMT_STEREO, AFMT_S24_BE, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_stereotomono24_methods[] = {
+	KOBJMETHOD(feeder_init,	feed_common_init),
+	KOBJMETHOD(feeder_free,	feed_common_free),
+	KOBJMETHOD(feeder_feed,	feed_stereotomono24),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_stereotomono24, 0, NULL);
+
+static int
+feed_stereotomono32(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+			uint32_t count, void *source)
+{
+	int i, j, k;
+	uint8_t *src = (uint8_t *)f->data;
+
+	k = count << 1;
+	k = FEEDER_FEED(f->source, c, src, min(k, FEEDBUFSZ), source);
+	if (k < 8) {
+		FMT_TRACE("%s: Not enough data (Got: %d bytes)\n",
+				__func__, k);
+		return 0;
+	}
+	FMT_TEST(k & 7, "%s: Bytes not 32bit (stereo) aligned.\n", __func__);
+	FMT_ALIGNBYTE(k &= ~7);
+	i = k >> 1;
+	j = i;
+	while (i > 0) {
+		k -= 4;
+		b[--i] = src[--k];
+		b[--i] = src[--k];
+		b[--i] = src[--k];
+		b[--i] = src[--k];
+	}
+	return j;
+}
+static struct pcm_feederdesc feeder_stereotomono32_desc[] = {
+	{FEEDER_FMT, AFMT_U32_LE|AFMT_STEREO, AFMT_U32_LE, 0},
+	{FEEDER_FMT, AFMT_S32_LE|AFMT_STEREO, AFMT_S32_LE, 0},
+	{FEEDER_FMT, AFMT_U32_BE|AFMT_STEREO, AFMT_U32_BE, 0},
+	{FEEDER_FMT, AFMT_S32_BE|AFMT_STEREO, AFMT_S32_BE, 0},
+	{0, 0, 0, 0},
+};
+static kobj_method_t feeder_stereotomono32_methods[] = {
+	KOBJMETHOD(feeder_init,	feed_common_init),
+	KOBJMETHOD(feeder_free,	feed_common_free),
+	KOBJMETHOD(feeder_feed,	feed_stereotomono32),
+	{0, 0}
+};
+FEEDER_DECLARE(feeder_stereotomono32, 0, NULL);
 /*
  * Channel conversion (stereo -> mono) end
  */
