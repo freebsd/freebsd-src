@@ -89,8 +89,6 @@ bf_enc.o			optional crypto		\
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
 	no-implicit-rule
 crypto/des/arch/i386/des_enc.S	optional crypto
-crypto/des/des_ecb.c		optional crypto
-crypto/des/des_setkey.c		optional crypto
 dev/aic/aic_cbus.c		optional aic isa
 dev/ar/if_ar.c			optional ar
 dev/ar/if_ar_pci.c		optional ar pci
