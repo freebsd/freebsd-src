@@ -58,6 +58,7 @@ typedef	__uint8_t	__sa_family_t;
 typedef	__uint32_t	__socklen_t;
 typedef	long		__suseconds_t;	/* microseconds (signed) */
 typedef	__int32_t	__timer_t;	/* timer_gettime()... */
+typedef	__int32_t	__mqd_t;	/* mq_open()... */
 typedef	__uint32_t	__uid_t;
 typedef	unsigned int	__useconds_t;	/* microseconds (unsigned) */
 
