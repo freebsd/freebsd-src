@@ -472,12 +472,22 @@
 257	AUE_NULL	NOSTD	{ int lio_listio(int mode, \
 				    struct aiocb * const *acb_list, \
 				    int nent, struct sigevent *sig); }
-258	AUE_NULL	UNIMPL	nosys
-259	AUE_NULL	UNIMPL	nosys
-260	AUE_NULL	UNIMPL	nosys
-261	AUE_NULL	UNIMPL	nosys
-262	AUE_NULL	UNIMPL	nosys
-263	AUE_NULL	UNIMPL	nosys
+258	AUE_NULL	MNOSTD	{ int mq_open(const char *path, int flags, \
+				    mode_t mode, const struct mq_attr *attr); }
+259	AUE_NULL	MNOSTD	{ int mq_setattr(mqd_t mqd,		\
+				    const struct mq_attr *attr,		\
+				    struct mq_attr *oattr); }
+260	AUE_NULL	MNOSTD	{ int mq_timedreceive(mqd_t mqd,	\
+				    char *msg_ptr, size_t msg_len,	\
+				    unsigned *msg_prio,			\
+				    const struct timespec *abs_timeout); }
+261	AUE_NULL	MNOSTD  { int mq_timedsend(mqd_t mqd,		\
+				    const char *msg_ptr, size_t msg_len,\
+				    unsigned msg_prio,			\
+				    const struct timespec *abs_timeout);}
+262	AUE_NULL	MNOSTD	{ int mq_notify(mqd_t mqd,		\
+				    const struct sigevent *sigev); }
+263	AUE_NULL	MNOSTD	{ int mq_unlink(const char *path); }
 264	AUE_NULL	UNIMPL	nosys
 265	AUE_NULL	UNIMPL	nosys
 266	AUE_NULL	UNIMPL	nosys
