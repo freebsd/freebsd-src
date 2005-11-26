@@ -85,6 +85,13 @@ __FBSDID("$FreeBSD$");
 #define AMR_DEFINE_TABLES
 #include <dev/amr/amr_tables.h>
 
+/*
+ * The CAM interface appears to be completely broken.  Disable it.
+ */
+#ifndef AMR_ENABLE_CAM
+#define AMR_ENABLE_CAM 0
+#endif
+
 static d_open_t         amr_open;
 static d_close_t        amr_close;
 static d_ioctl_t        amr_ioctl;
@@ -225,12 +232,14 @@ amr_attach(struct amr_softc *sc)
 
     debug(2, "controller query complete");
 
+#if AMR_ENABLE_CAM != 0
     /*
      * Attach our 'real' SCSI channels to CAM.
      */
     if (amr_cam_attach(sc))
 	return(ENXIO);
     debug(2, "CAM attach done");
+#endif
 
     /*
      * Create the control device.
@@ -327,8 +336,10 @@ amr_free(struct amr_softc *sc)
 {
     struct amr_command_cluster	*acc;
 
+#if AMR_ENABLE_CAM != 0
     /* detach from CAM */
     amr_cam_detach(sc); 
+#endif
 
     /* cancel status timeout */
     untimeout(amr_periodic, sc, sc->amr_timeout);
@@ -855,9 +866,11 @@ amr_startio(struct amr_softc *sc)
 	if (ac == NULL)
 	    (void)amr_bio_command(sc, &ac);
 
+#if AMR_ENABLE_CAM != 0
 	/* if that failed, build a command from a ccb */
 	if (ac == NULL)
 	    (void)amr_cam_command(sc, &ac);
+#endif
 
 	/* if we don't have anything to do, give up */
 	if (ac == NULL)
