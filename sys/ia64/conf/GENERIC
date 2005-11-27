@@ -20,7 +20,6 @@
 #
 # $FreeBSD$
 
-machine		ia64
 cpu		ITANIUM
 ident		GENERIC
 

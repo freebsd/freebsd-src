@@ -20,7 +20,6 @@
 #
 # $FreeBSD$
 
-machine		alpha
 cpu		EV4
 cpu		EV5
 ident		GENERIC

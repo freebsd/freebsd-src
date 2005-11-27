@@ -3,12 +3,6 @@
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.
 
-# directive: machine
-# This directive is mandatory.  It defines the architecture to be configured
-# for. It can only be ia64 at this time.
-#
-machine		ia64
-
 # directive: cpu
 # You must specify at least one CPU (the one you intend to run on). Deleting
 # the support for CPUs you don't need to use may make parts of the system run

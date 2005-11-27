@@ -3,8 +3,7 @@
 #
 # $FreeBSD$
 
-# Not yet, this would break all existing configs
-#machine		alpha
+machine		alpha
 
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
