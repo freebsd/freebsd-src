@@ -297,7 +297,7 @@ read_file(char *fname)
 	struct device *dp;
 	struct opt *op;
 	char *wd, *this, *compilewith, *depends, *clean, *warning;
-	int nreqs, devfound, std, filetype,
+	int compile, match, nreqs, devfound, std, filetype,
 	    imp_rule, no_obj, before_depend, mandatory, nowerror;
 
 	fp = fopen(fname, "r");
@@ -306,7 +306,7 @@ read_file(char *fname)
 next:
 	/*
 	 * filename    [ standard | mandatory | optional ]
-	 *	[ dev* | profiling-routine ] [ no-obj ]
+	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
 	 *	[ clean "file-list"] [ warning "text warning" ]
@@ -332,6 +332,8 @@ next:
 		exit(1);
 	}
 	tp = fl_lookup(this);
+	compile = 0;
+	match = 1;
 	nreqs = 0;
 	compilewith = 0;
 	depends = 0;
@@ -360,9 +362,21 @@ next:
 nextparam:
 	next_word(fp, wd);
 	if (wd == 0) {
-		if (tp != NULL)
-			goto next;
-		goto doneparam;
+		compile += match;
+		if (compile && tp == NULL)
+			goto doneparam;
+		goto next;
+	}
+	if (eq(wd, "|")) {
+		if (nreqs == 0) {
+			printf("%s: syntax error describing %s\n",
+			    fname, this);
+			exit(1);
+		}
+		compile += match;
+		match = 1;
+		nreqs = 0;
+		goto nextparam;
 	}
 	if (eq(wd, "no-obj")) {
 		no_obj++;
@@ -446,8 +460,6 @@ nextparam:
 		}
 	if (devfound)
 		goto nextparam;
-	if (tp != NULL)
-		goto skip;
 	if (mandatory) {
 		printf("%s: mandatory device \"%s\" not found\n",
 		       fname, wd);
@@ -461,10 +473,8 @@ nextparam:
 	SLIST_FOREACH(op, &opt, op_next)
 		if (op->op_value == 0 && opteq(op->op_name, wd))
 			goto nextparam;
-skip:
-	while ((wd = get_word(fp)) != 0)
-		;
-	goto next;
+	match = 0;
+	goto nextparam;
 
 doneparam:
 	if (std == 0 && nreqs == 0) {

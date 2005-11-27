@@ -9,12 +9,7 @@ acpi_quirks.h			optional acpi				   \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
-aicasm				optional ahc				   \
-	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
-	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
-	no-obj no-implicit-rule						   \
-	clean		"aicasm* y.tab.h"
-aicasm				optional ahd				   \
+aicasm				optional ahc | ahd			   \
 	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
 	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
@@ -89,14 +84,8 @@ cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
 cam/scsi/scsi_da.c		optional da
-cam/scsi/scsi_low.c		optional ct
-cam/scsi/scsi_low.c		optional ncv
-cam/scsi/scsi_low.c		optional nsp
-cam/scsi/scsi_low.c		optional stg
-cam/scsi/scsi_low_pisa.c	optional ct
-cam/scsi/scsi_low_pisa.c	optional ncv
-cam/scsi/scsi_low_pisa.c	optional nsp
-cam/scsi/scsi_low_pisa.c	optional stg
+cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
+cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
@@ -344,33 +333,17 @@ contrib/pf/net/pf_osfp.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
-crypto/blowfish/bf_skey.c	optional crypto
-crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
-crypto/des/des_ecb.c		optional crypto
-crypto/des/des_ecb.c		optional ipsec ipsec_esp
-crypto/des/des_ecb.c		optional netsmbcrypto
-crypto/des/des_setkey.c		optional crypto
-crypto/des/des_setkey.c		optional ipsec ipsec_esp
-crypto/des/des_setkey.c		optional netsmbcrypto
+crypto/blowfish/bf_skey.c	optional crypto | ipsec ipsec_esp
+crypto/des/des_ecb.c		optional crypto | ipsec ipsec_esp | netsmbcrypto
+crypto/des/des_setkey.c		optional crypto | ipsec ipsec_esp | netsmbcrypto
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
-crypto/rijndael/rijndael-alg-fst.c optional crypto
-crypto/rijndael/rijndael-alg-fst.c optional geom_bde
-crypto/rijndael/rijndael-alg-fst.c optional ipsec
-crypto/rijndael/rijndael-alg-fst.c optional random
-crypto/rijndael/rijndael-alg-fst.c optional wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional geom_bde
-crypto/rijndael/rijndael-api-fst.c optional random
-crypto/rijndael/rijndael-api.c	optional crypto
-crypto/rijndael/rijndael-api.c	optional ipsec
-crypto/rijndael/rijndael-api.c	optional wlan_ccmp
-crypto/sha1.c			optional carp
-crypto/sha1.c			optional netgraph_mppc_encryption
-crypto/sha1.c			optional crypto
-crypto/sha1.c			optional ipsec
-crypto/sha2/sha2.c		optional crypto
-crypto/sha2/sha2.c		optional geom_bde
-crypto/sha2/sha2.c		optional ipsec
-crypto/sha2/sha2.c		optional random
+crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
+					 ipsec | random | wlan_ccmp
+crypto/rijndael/rijndael-api-fst.c optional geom_bde | random
+crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
+crypto/sha1.c			optional carp | crypto | ipsec | \
+					 netgraph_mppc_encryption
+crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random
 ddb/db_access.c			optional	ddb
 ddb/db_break.c			optional	ddb
 ddb/db_command.c		optional	ddb
@@ -661,12 +634,10 @@ dev/ida/ida_eisa.c		optional ida eisa
 dev/ida/ida_pci.c		optional ida pci
 dev/ie/if_ie.c			optional ie isa nowerror
 dev/ie/if_ie_isa.c		optional ie isa
-dev/ieee488/ibfoo.c		optional pcii 
-dev/ieee488/ibfoo.c		optional tnt4882
-dev/ieee488/pcii.c		optional pcii 
+dev/ieee488/ibfoo.c		optional pcii | tnt4882
+dev/ieee488/pcii.c		optional pcii
 dev/ieee488/tnt4882.c		optional tnt4882
-dev/ieee488/upd7210.c		optional pcii
-dev/ieee488/upd7210.c		optional tnt4882
+dev/ieee488/upd7210.c		optional pcii | tnt4882
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
 dev/iicbus/iicbb.c		optional iicbb
@@ -782,10 +753,8 @@ dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
 dev/pdq/if_fea.c		optional fea eisa
 dev/pdq/if_fpa.c		optional fpa pci
-dev/pdq/pdq.c			optional fea eisa nowerror
-dev/pdq/pdq.c			optional fpa pci nowerror
-dev/pdq/pdq_ifsubr.c		optional fea eisa nowerror
-dev/pdq/pdq_ifsubr.c		optional fpa pci nowerror
+dev/pdq/pdq.c			optional nowerror fea eisa | fpa pci
+dev/pdq/pdq_ifsubr.c		optional nowerror fea eisa | fpa pci
 dev/ppbus/if_plip.c		optional plip
 dev/ppbus/immio.c		optional vpo
 dev/ppbus/lpbb.c		optional lpbb
@@ -807,8 +776,7 @@ dev/puc/puc.c			optional puc
 dev/puc/puc_ebus.c		optional puc ebus
 dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
-dev/puc/puc_sbus.c		optional puc fhc
-dev/puc/puc_sbus.c		optional puc sbus
+dev/puc/puc_sbus.c		optional puc fhc | puc sbus
 dev/puc/pucdata.c		optional puc pci
 dev/ral/if_ral.c		optional ral
 dev/ral/if_ralrate.c		optional ral
@@ -1113,8 +1081,7 @@ geom/geom_aes.c			optional geom_aes
 geom/geom_apple.c		optional geom_apple
 geom/geom_bsd.c			optional geom_bsd
 geom/geom_bsd_enc.c		optional geom_bsd
-geom/geom_ccd.c			optional ccd
-geom/geom_ccd.c			optional geom_ccd
+geom/geom_ccd.c			optional ccd | geom_ccd
 geom/geom_ctl.c			standard
 geom/geom_dev.c			standard
 geom/geom_disk.c		standard
@@ -1178,11 +1145,10 @@ i4b/driver/i4b_trace.c		optional i4btrc
 i4b/driver/i4b_rbch.c		optional i4brbch
 i4b/driver/i4b_tel.c		optional i4btel
 i4b/driver/i4b_ipr.c		optional i4bipr
-net/slcompress.c		optional i4bipr
+net/slcompress.c		optional i4bipr | i4bisppp
 i4b/driver/i4b_ctl.c		optional i4bctl
 i4b/driver/i4b_ing.c		optional i4bing
 i4b/driver/i4b_isppp.c		optional i4bisppp
-net/slcompress.c		optional i4bisppp
 #
 # isdn4bsd CAPI driver
 #
@@ -1428,8 +1394,7 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 net/bpf.c			standard
-net/bpf_filter.c		optional bpf
-net/bpf_filter.c		optional netgraph_bpf
+net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bridgestp.c			optional if_bridge
 net/bsd_comp.c			optional ppp_bsdcomp
 net/if.c			standard
@@ -1451,10 +1416,8 @@ net/if_media.c			standard
 net/if_mib.c			standard
 net/if_ppp.c			optional ppp
 net/if_sl.c			optional sl
-net/if_spppfr.c			optional sppp
-net/if_spppfr.c			optional i4bisppp
-net/if_spppsubr.c		optional sppp
-net/if_spppsubr.c		optional i4bisppp
+net/if_spppfr.c			optional i4bisppp | sppp
+net/if_spppsubr.c		optional i4bisppp | sppp
 net/if_stf.c			optional stf
 net/if_tun.c			optional tun
 net/if_tap.c			optional tap
@@ -1462,21 +1425,15 @@ net/if_vlan.c			optional vlan
 net/netisr.c			standard
 net/ppp_deflate.c		optional ppp_deflate
 net/ppp_tty.c			optional ppp
-net/pfil.c			optional ether
-net/pfil.c			optional inet
+net/pfil.c			optional ether | inet
 net/radix.c			standard
 net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/rtsock.c			standard
-net/slcompress.c		optional netgraph_vjc
-net/slcompress.c		optional ppp
-net/slcompress.c		optional sl
-net/slcompress.c		optional sppp
-net/zlib.c			optional ppp_deflate
-net/zlib.c			optional ipsec
-net/zlib.c			optional crypto
-net/zlib.c			optional geom_uzip
+net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp
+net/zlib.c			optional crypto | geom_uzip | ipsec | \
+					 ppp_deflate
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan_acl
 net80211/ieee80211_crypto.c	optional wlan
@@ -1637,8 +1594,8 @@ netgraph/ng_ipfw.c		optional netgraph_ipfw
 netgraph/ng_ksocket.c		optional netgraph_ksocket
 netgraph/ng_l2tp.c		optional netgraph_l2tp
 netgraph/ng_lmi.c		optional netgraph_lmi
-netgraph/ng_mppc.c		optional netgraph_mppc_compression
-netgraph/ng_mppc.c		optional netgraph_mppc_encryption
+netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
+					 netgraph_mppc_encryption
 netgraph/ng_nat.c		optional netgraph_nat
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
@@ -1669,10 +1626,8 @@ netinet/in_proto.c		optional inet \
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional ipdivert
 netinet/ip_dummynet.c		optional dummynet
-netinet/ip_ecn.c		optional inet
-netinet/ip_ecn.c		optional inet6
-netinet/ip_encap.c		optional inet
-netinet/ip_encap.c		optional inet6
+netinet/ip_ecn.c		optional inet | inet6
+netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
 netinet/ip_fw2.c		optional ipfirewall
 netinet/ip_fw_pfil.c		optional ipfirewall
@@ -1789,8 +1744,7 @@ netsmb/smb_smb.c		optional netsmb
 netsmb/smb_subr.c		optional netsmb
 netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
-nfs/nfs_common.c		optional nfsclient
-nfs/nfs_common.c		optional nfsserver
+nfs/nfs_common.c		optional nfsclient | nfsserver
 nfs4client/nfs4_dev.c		optional nfsclient
 nfs4client/nfs4_idmap.c		optional nfsclient
 nfs4client/nfs4_socket.c	optional nfsclient
@@ -1816,22 +1770,19 @@ nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
 # crypto support
-opencrypto/cast.c		optional crypto
-opencrypto/cast.c		optional ipsec ipsec_esp
+opencrypto/cast.c		optional crypto | ipsec ipsec_esp
 opencrypto/criov.c		optional crypto
 opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/deflate.c		optional crypto
-opencrypto/rmd160.c		optional crypto
-opencrypto/rmd160.c		optional ipsec
+opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
 pci/agp.c			optional agp pci
 pci/agp_if.m			optional agp pci
 pci/alpm.c			optional alpm pci
-pci/amdpm.c			optional amdpm pci
-pci/amdpm.c			optional nfpm pci
+pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/if_de.c			optional de pci
 pci/if_mn.c			optional mn pci
 pci/if_pcn.c			optional pcn pci

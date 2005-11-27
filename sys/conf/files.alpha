@@ -95,45 +95,30 @@ alpha/linux/linux_sysvec.c	optional	compat_linux
 alpha/mcbus/mcbus.c		optional	dec_kn300
 alpha/mcbus/mcmem.c		optional	dec_kn300
 alpha/mcbus/mcpcia.c		optional	dec_kn300
-alpha/osf1/imgact_osf1.c	optional	compat_linux
-alpha/osf1/imgact_osf1.c	optional	compat_osf1
-alpha/osf1/osf1_ioctl.c		optional	compat_linux
-alpha/osf1/osf1_ioctl.c		optional	compat_osf1
-alpha/osf1/osf1_misc.c		optional	compat_linux
-alpha/osf1/osf1_misc.c		optional	compat_osf1
-alpha/osf1/osf1_mount.c		optional	compat_linux
-alpha/osf1/osf1_mount.c		optional	compat_osf1
-alpha/osf1/osf1_signal.c	optional	compat_linux
-alpha/osf1/osf1_signal.c	optional	compat_osf1
-alpha/osf1/osf1_sysent.c	optional	compat_linux
-alpha/osf1/osf1_sysent.c	optional	compat_osf1
-alpha/osf1/osf1_sysvec.c	optional	compat_linux
-alpha/osf1/osf1_sysvec.c	optional	compat_osf1
+alpha/osf1/imgact_osf1.c	optional	compat_linux | compat_osf1
+alpha/osf1/osf1_ioctl.c		optional	compat_linux | compat_osf1
+alpha/osf1/osf1_misc.c		optional	compat_linux | compat_osf1
+alpha/osf1/osf1_mount.c		optional	compat_linux | compat_osf1
+alpha/osf1/osf1_signal.c	optional	compat_linux | compat_osf1
+alpha/osf1/osf1_sysent.c	optional	compat_linux | compat_osf1
+alpha/osf1/osf1_sysvec.c	optional	compat_linux | compat_osf1
 alpha/pci/alphapci_if.m		optional	pci
-alpha/pci/apecs.c		optional	dec_2100_a50
-alpha/pci/apecs.c		optional	dec_eb64plus
-alpha/pci/apecs.c		optional	dec_1000a
-alpha/pci/apecs_pci.c		optional	dec_2100_a50
-alpha/pci/apecs_pci.c		optional	dec_eb64plus
-alpha/pci/apecs_pci.c		optional	dec_1000a
+alpha/pci/apecs.c		optional	dec_1000a | dec_2100_a50 | \
+						dec_eb64plus
+alpha/pci/apecs_pci.c		optional	dec_1000a | dec_2100_a50 | \
+						dec_eb64plus
 alpha/pci/bwx.c			optional	pci
-alpha/pci/cia.c			optional	dec_eb164
-alpha/pci/cia.c			optional	dec_kn20aa
-alpha/pci/cia.c			optional	dec_st550
-alpha/pci/cia.c			optional	dec_1000a
-alpha/pci/cia_pci.c		optional	dec_eb164
-alpha/pci/cia_pci.c		optional	dec_kn20aa
-alpha/pci/cia_pci.c		optional	dec_st550
-alpha/pci/cia_pci.c		optional	dec_1000a
+alpha/pci/cia.c			optional	dec_1000a | dec_eb164 | \
+						dec_kn20aa | dec_st550
+alpha/pci/cia_pci.c		optional	dec_1000a | dec_eb164 | \
+						dec_kn20aa | dec_st550
 alpha/pci/irongate.c		optional	api_up1000
 alpha/pci/irongate_pci.c	optional	api_up1000
 alpha/pci/lca.c			optional	dec_axppci_33
 alpha/pci/lca_pci.c		optional	dec_axppci_33
-alpha/pci/pci_eb164_intr.s	optional	dec_eb164
-alpha/pci/pci_eb164_intr.s	optional	dec_kn20aa
-alpha/pci/pci_eb164_intr.s	optional	dec_st550
-alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50
-alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
+alpha/pci/pci_eb164_intr.s	optional	dec_eb164 | dec_kn20aa | \
+						dec_st550
+alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50 | dec_eb64plus
 alpha/pci/pcibus.c		optional	pci
 alpha/pci/swiz.c		optional	pci
 alpha/pci/t2.c			optional	dec_2100_a500
@@ -159,11 +144,9 @@ compat/linux/linux_socket.c	optional	compat_linux
 compat/linux/linux_sysctl.c	optional	compat_linux
 compat/linux/linux_stats.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
-crypto/blowfish/bf_enc.c	optional	crypto
-crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto
-crypto/des/des_enc.c		optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	netsmbcrypto
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
+crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
+						netsmbcrypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -179,16 +162,13 @@ dev/ed/if_ed_isa.c		optional	ed isa
 dev/ed/if_ed_wd80x3.c		optional	ed isa
 dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional	ed isa ed_sic
-dev/fb/fb.c			optional	fb
-dev/fb/fb.c			optional	vga
+dev/fb/fb.c			optional	fb | tga | vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/hwpmc/hwpmc_alpha.c		optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd
-dev/kbd/kbd.c			optional	sc
-dev/kbd/kbd.c			optional	ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/ppc/ppc.c			optional        ppc
 dev/ppc/ppc_puc.c		optional	ppc puc
 dev/sio/sio.c			optional	sio
@@ -219,7 +199,6 @@ libkern/flsl.c			standard
 dev/fb/tga.c			optional	tga
 dev/fb/boot_font.c		optional	tga
 dev/tga/tga_pci.c		optional	tga
-dev/fb/fb.c			optional	tga
 dev/fb/gfb.c			optional	tga
 dev/gfb/gfb_pci.c		optional	tga
 pci/agp_amd.c			optional	agp
