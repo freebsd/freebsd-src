@@ -273,7 +273,6 @@ i386/i386/mptable.c		optional apic
 i386/i386/mptable_pci.c		optional apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional perfmon
-i386/i386/perfmon.c		optional perfmon	profiling-routine
 i386/i386/pmap.c		standard
 i386/i386/ptrace_machdep.c	standard
 i386/i386/support.s		standard
