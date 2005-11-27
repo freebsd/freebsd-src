@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2005
+.Dd November 27, 2005
 .Dt ATARAID 4
 .Os
 .Sh NAME
@@ -123,6 +123,9 @@ ATA RAID device nodes
 .Sh SEE ALSO
 .Xr ata 4 ,
 .Xr atacontrol 8
+.Sh CAVEATS
+RAID5 is not supported at this time.
+Code exists, but it neither uses nor maintains parity information. 
 .Sh AUTHORS
 .An -nosplit
 The
