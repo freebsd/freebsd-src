@@ -3,12 +3,6 @@
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.
 
-# This directive is mandatory.  It defines the architecture to be
-# configured for.  In this case, this kernel is for a machine using
-# Alpha processors.
-#
-machine		alpha
-
 
 #####################################################################
 # CPU OPTIONS

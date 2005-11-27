@@ -2,7 +2,6 @@
 # XBOX -- kernel for an XBOX
 #
 # $FreeBSD$
-machine		i386
 cpu		I686_CPU		# Celeron
 ident		XBOX
 

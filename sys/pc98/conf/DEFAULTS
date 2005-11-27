@@ -3,8 +3,7 @@
 #
 # $FreeBSD$
 
-# Not yet, this would break all existing configs
-#machine		pc98 i386
+machine		pc98 i386
 options 	PC98
 
 # Bus support.

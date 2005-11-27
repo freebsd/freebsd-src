@@ -8,13 +8,6 @@
 #
 
 #
-# This directive is mandatory; it defines the architecture to be
-# configured for; in this case, the 386 family based IBM-PC and
-# compatibles.
-#
-machine		i386
-
-#
 # We want LINT to cover profiling as well.
 profile         2
 

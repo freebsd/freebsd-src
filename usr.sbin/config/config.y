@@ -136,7 +136,7 @@ Spec:
 Config_spec:
 	ARCH Save_id
 	    = {
-		if (machinename != NULL)
+		if (machinename != NULL && !eq($2, machinename))
 		    errx(1, "%s:%d: only one machine directive is allowed",
 			yyfile, yyline);
 		machinename = $2;
@@ -144,7 +144,8 @@ Config_spec:
 	      } |
 	ARCH Save_id Save_id
 	    = {
-		if (machinename != NULL)
+		if (machinename != NULL &&
+		    !(eq($2, machinename) && eq($3, machinearch)))
 		    errx(1, "%s:%d: only one machine directive is allowed",
 			yyfile, yyline);
 		machinename = $2;

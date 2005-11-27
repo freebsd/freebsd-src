@@ -3,8 +3,7 @@
 #
 # $FreeBSD$
 
-# Not yet, this would break all existing configs
-#machine		amd64
+machine		amd64
 
 # Bus support.
 device		isa
