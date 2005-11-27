@@ -621,12 +621,9 @@ export_send(priv_p priv, item_p item)
 	getnanotime(&ts);
 	header->unix_secs  = htonl(ts.tv_sec);
 	header->unix_nsecs = htonl(ts.tv_nsec);
+	header->flow_seq = htonl(atomic_fetchadd_32(&priv->flow_seq,
+	    header->count));
 	header->count = htons(header->count);
-	header->flow_seq = htonl(atomic_load_acq_32(&priv->flow_seq));
-
-	/* Flow sequence contains number of first record, so it
-	   is updated after being put in header. */
-	atomic_add_32(&priv->flow_seq, header->count);
 
 	if (priv->export != NULL)
 		/* Should also NET_LOCK_GIANT(). */
