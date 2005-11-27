@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		amd64
 cpu		HAMMER
 ident		GENERIC
 

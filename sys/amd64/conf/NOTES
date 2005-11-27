@@ -8,12 +8,6 @@
 #
 
 #
-# This directive is mandatory; it defines the architecture to be
-# configured for; in this case, the AMD64 family based machines.
-#
-machine		amd64
-
-#
 # We want LINT to cover profiling as well.
 profile         2
 

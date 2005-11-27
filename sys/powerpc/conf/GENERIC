@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		powerpc
 cpu		OEA
 ident		GENERIC
 
