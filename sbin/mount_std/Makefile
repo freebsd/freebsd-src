@@ -18,7 +18,7 @@ WARNS?=	0
 LINKS=	${BINDIR}/mount_std ${BINDIR}/mount_devfs \
 	${BINDIR}/mount_std ${BINDIR}/mount_fdescfs \
 	${BINDIR}/mount_std ${BINDIR}/mount_linprocfs \
-	${BINDIR}/mount_std ${BINDIR}/mount_procfs \
-	${BINDIR}/mount_std ${BINDIR}/mount_mqueue
+	${BINDIR}/mount_std ${BINDIR}/mount_mqueuefs \
+	${BINDIR}/mount_std ${BINDIR}/mount_procfs
 
 .include <bsd.prog.mk>
