@@ -3,8 +3,7 @@
 #
 # $FreeBSD$
 
-# Not yet, this would break all existing configs
-#machine		ia64
+machine		ia64
 
 # Bus support.
 device 		acpi		# ACPI support

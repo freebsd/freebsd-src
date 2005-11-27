@@ -7,12 +7,6 @@
 # $FreeBSD$
 #
 
-#
-# This directive is mandatory; it defines the architecture to be
-# configured for; in this case, the 386 family based PC-98 and
-# compatibles.
-#
-machine		pc98 i386
 options 	PC98
 
 #
