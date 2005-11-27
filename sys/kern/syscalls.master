@@ -472,22 +472,12 @@
 257	AUE_NULL	NOSTD	{ int lio_listio(int mode, \
 				    struct aiocb * const *acb_list, \
 				    int nent, struct sigevent *sig); }
-258	AUE_NULL	MNOSTD	{ int mq_open(const char *path, int flags, \
-				    mode_t mode, const struct mq_attr *attr); }
-259	AUE_NULL	MNOSTD	{ int mq_setattr(mqd_t mqd,		\
-				    const struct mq_attr *attr,		\
-				    struct mq_attr *oattr); }
-260	AUE_NULL	MNOSTD	{ int mq_timedreceive(mqd_t mqd,	\
-				    char *msg_ptr, size_t msg_len,	\
-				    unsigned *msg_prio,			\
-				    const struct timespec *abs_timeout); }
-261	AUE_NULL	MNOSTD  { int mq_timedsend(mqd_t mqd,		\
-				    const char *msg_ptr, size_t msg_len,\
-				    unsigned msg_prio,			\
-				    const struct timespec *abs_timeout);}
-262	AUE_NULL	MNOSTD	{ int mq_notify(mqd_t mqd,		\
-				    const struct sigevent *sigev); }
-263	AUE_NULL	MNOSTD	{ int mq_unlink(const char *path); }
+258	AUE_NULL	UNIMPL	nosys
+259	AUE_NULL	UNIMPL	nosys
+260	AUE_NULL	UNIMPL	nosys
+261	AUE_NULL	UNIMPL	nosys
+262	AUE_NULL	UNIMPL	nosys
+263	AUE_NULL	UNIMPL	nosys
 264	AUE_NULL	UNIMPL	nosys
 265	AUE_NULL	UNIMPL	nosys
 266	AUE_NULL	UNIMPL	nosys
@@ -810,5 +800,21 @@
 455	AUE_NULL	MSTD	{ int thr_new(struct thr_param *param, \
 				    int param_size); }
 456	AUE_NULL	MSTD	{ int sigqueue(pid_t pid, int signum, void *value); }
+457	AUE_NULL	MNOSTD	{ int mq_open(const char *path, int flags, \
+				    mode_t mode, const struct mq_attr *attr); }
+458	AUE_NULL	MNOSTD	{ int mq_setattr(mqd_t mqd,		\
+				    const struct mq_attr *attr,		\
+				    struct mq_attr *oattr); }
+459	AUE_NULL	MNOSTD	{ int mq_timedreceive(mqd_t mqd,	\
+				    char *msg_ptr, size_t msg_len,	\
+				    unsigned *msg_prio,			\
+				    const struct timespec *abs_timeout); }
+460	AUE_NULL	MNOSTD  { int mq_timedsend(mqd_t mqd,		\
+				    const char *msg_ptr, size_t msg_len,\
+				    unsigned msg_prio,			\
+				    const struct timespec *abs_timeout);}
+461	AUE_NULL	MNOSTD	{ int mq_notify(mqd_t mqd,		\
+				    const struct sigevent *sigev); }
+462	AUE_NULL	MNOSTD	{ int mq_unlink(const char *path); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
