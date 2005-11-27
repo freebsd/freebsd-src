@@ -1,6 +1,6 @@
 /*
  * 6 digits of version.  The most significant are branch indicators
- * (eg: RELENG_2_2 = 22, -current presently = 60 etc). The least
+ * (eg: RELENG_2_2 = 22, -current presently = 70 etc).  The least
  * significant digits are incremented as needed.
  *
  * DO NOT CASUALLY BUMP THIS NUMBER!  The rules are not the same as shared
@@ -27,7 +27,7 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	600003
+#define	CONFIGVERS	700000
 
 /*
  * Examples of when there should NOT be a bump:
