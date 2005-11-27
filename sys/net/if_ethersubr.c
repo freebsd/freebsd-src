@@ -414,6 +414,7 @@ no_bridge:
 		save_eh = *eh;
 		m_adj(m, ETHER_HDR_LEN);
 		if (ether_ipfw_chk(&m, ifp, &rule, eh, 0) == 0) {
+			splx(s);
 			if (m) {
 				m_freem(m);
 				return EACCES;	/* pkt dropped */
@@ -427,8 +428,10 @@ no_bridge:
 			m->m_pkthdr.len += ETHER_HDR_LEN ;
 		} else {
 			M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-			if (m == NULL) /* nope... */
+			if (m == NULL) { /* nope... */
+				splx(s);
 				return ENOBUFS;
+			}
 			bcopy(&save_eh, mtod(m, struct ether_header *),
 			    ETHER_HDR_LEN);
 		}
