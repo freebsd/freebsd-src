@@ -11,19 +11,19 @@
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "5.4-RELEASE">
+<!ENTITY release.prev "6.0-RELEASE">
 
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
      edge. -->
-<!ENTITY release.prev.stable "5.4-RELEASE">
+<!ENTITY release.prev.stable "6.0-RELEASE">
 
 <!-- The previous historical release.  Used only to tell what was
      the cutoff point for "historic" release notes. -->
-<!ENTITY release.prev.historic "5.4-RELEASE">
+<!ENTITY release.prev.historic "6.0-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "6.0-RELEASE">
+<!ENTITY release.next "6.1-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "6-STABLE">
