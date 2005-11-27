@@ -1838,6 +1838,7 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 	fdp = td->td_proc->p_fd;
 	flags = FFLAGS(uap->flags);
 	cmode = (((uap->mode & ~fdp->fd_cmask) & ALLPERMS) & ~S_ISTXT);
+	mq = NULL;
 	if ((flags & O_CREAT) && (uap->attr != NULL)) {
 		error = copyin(uap->attr, &attr, sizeof(attr));
 		if (error)
@@ -1863,7 +1864,6 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 	if (len < 2  || path[0] != '/' || index(path + 1, '/') != NULL)
 		return (EINVAL);
 
-	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd);
 	if (error)
 		return (error);
