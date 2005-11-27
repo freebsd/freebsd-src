@@ -122,17 +122,11 @@ contrib/dev/oltr/if_oltr_pci.c	optional oltr pci
 contrib/dev/oltr/trlldbm.c	optional oltr
 contrib/dev/oltr/trlldhm.c	optional oltr
 contrib/dev/oltr/trlldmac.c	optional oltr
-bf_enc.o			optional ipsec ipsec_esp		\
-	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
-	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
+bf_enc.o			optional crypto | ipsec ipsec_esp	\
+	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
+	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
-crypto/des/arch/i386/des_enc.S	optional ipsec ipsec_esp
-crypto/des/arch/i386/des_enc.S	optional netsmbcrypto
-bf_enc.o			optional crypto		\
-	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
-	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
-	no-implicit-rule
-crypto/des/arch/i386/des_enc.S	optional crypto
+crypto/des/arch/i386/des_enc.S	optional crypto | ipsec ipsec_esp | netsmbcrypto
 crypto/via/padlock.c		optional padlock
 dev/advansys/adv_isa.c		optional adv isa
 dev/aic/aic_isa.c		optional aic isa
@@ -162,8 +156,7 @@ dev/ed/if_ed_isa.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
-dev/fb/fb.c			optional fb
-dev/fb/fb.c			optional vga
+dev/fb/fb.c			optional fb | vga
 dev/fb/splash.c			optional splash
 dev/fb/vga.c			optional vga
 dev/fdc/fdc.c			optional fdc
@@ -184,14 +177,10 @@ dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
-dev/if_ndis/if_ndis_pci.c	optional ndis cardbus
-dev/if_ndis/if_ndis_pci.c	optional ndis pci
+dev/if_ndis/if_ndis_pci.c	optional ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional ndis usb
 dev/io/iodev.c			optional io
-dev/kbd/kbd.c			optional atkbd
-dev/kbd/kbd.c			optional sc
-dev/kbd/kbd.c			optional ukbd
-dev/kbd/kbd.c			optional vt
+dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/lnc/if_lnc_isa.c		optional lnc isa
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
@@ -257,8 +246,7 @@ i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
 i386/i386/db_trace.c		optional ddb
 i386/i386/dump_machdep.c	standard
-i386/i386/elan-mmcr.c		optional cpu_elan
-i386/i386/elan-mmcr.c		optional cpu_soekris
+i386/i386/elan-mmcr.c		optional cpu_elan | cpu_soekris
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional gdb
@@ -319,8 +307,7 @@ i386/isa/atpic.c		standard
 #i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		standard
 i386/isa/elcr.c			standard
-i386/isa/elink.c		optional ep
-i386/isa/elink.c		optional ie
+i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa
 i386/isa/isa_dma.c		optional isa
 i386/isa/nmi.c			standard
@@ -353,22 +340,11 @@ i386/svr4/svr4_machdep.c	optional compat_svr4
 #
 # isdn4bsd, needed for isic | iwic | ifpi | ifpi2 | ihfc | ifpnp | itjc
 #
-i4b/layer1/i4b_hdlc.c		optional itjc
-i4b/layer1/i4b_hdlc.c		optional ihfc
-i4b/layer1/i4b_l1dmux.c		optional isic
-i4b/layer1/i4b_l1lib.c		optional isic
-i4b/layer1/i4b_l1dmux.c		optional iwic
-i4b/layer1/i4b_l1lib.c		optional iwic
-i4b/layer1/i4b_l1dmux.c		optional ifpi
-i4b/layer1/i4b_l1lib.c		optional ifpi
-i4b/layer1/i4b_l1dmux.c		optional ifpi2
-i4b/layer1/i4b_l1lib.c		optional ifpi2
-i4b/layer1/i4b_l1dmux.c		optional ihfc
-i4b/layer1/i4b_l1lib.c		optional ihfc
-i4b/layer1/i4b_l1dmux.c		optional ifpnp
-i4b/layer1/i4b_l1lib.c		optional ifpnp
-i4b/layer1/i4b_l1dmux.c		optional itjc
-i4b/layer1/i4b_l1lib.c		optional itjc
+i4b/layer1/i4b_hdlc.c		optional ihfc | itjc
+i4b/layer1/i4b_l1dmux.c		optional ifpi | ifpi2 | ifpnp | \
+					 ihfc | isic | itjc | iwic
+i4b/layer1/i4b_l1lib.c		optional ifpi | ifpi2 | ifpnp | \
+					 ihfc | isic | itjc | iwic
 #
 # isdn4bsd, isic
 #

@@ -128,11 +128,9 @@ amd64/isa/isa_dma.c		standard
 amd64/isa/nmi.c			standard
 amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
-crypto/blowfish/bf_enc.c	optional	crypto
-crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto
-crypto/des/des_enc.c		optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	netsmbcrypto
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
+crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
+						netsmbcrypto
 dev/acpica/acpi_if.m		standard
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -147,15 +145,13 @@ dev/ed/if_ed_isa.c		optional	ed isa
 dev/ed/if_ed_wd80x3.c		optional	ed isa
 dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional	ed isa ed_sic
-dev/fb/fb.c			optional	fb
-dev/fb/fb.c			optional	vga
+dev/fb/fb.c			optional	fb | vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/ichwd/ichwd.c		optional	ichwd
 dev/if_ndis/if_ndis.c		optional	ndis
 dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
-dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus
-dev/if_ndis/if_ndis_pci.c	optional	ndis pci
+dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional	ndis usb
 dev/io/iodev.c			optional	io
 dev/fdc/fdc.c			optional	fdc
@@ -170,9 +166,7 @@ dev/hptmv/ioctl.c		optional	hptmv
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd
-dev/kbd/kbd.c			optional	sc
-dev/kbd/kbd.c			optional	ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/mem/memutil.c		optional	mem
 dev/nve/if_nve.c		optional	nve pci
 dev/ppc/ppc.c			optional	ppc
