@@ -78,17 +78,11 @@ contrib/dev/oltr/if_oltr_pci.c	optional oltr pci
 contrib/dev/oltr/trlldbm.c	optional oltr
 contrib/dev/oltr/trlldhm.c	optional oltr
 contrib/dev/oltr/trlldmac.c	optional oltr
-bf_enc.o			optional ipsec ipsec_esp		\
-	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
-	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
+bf_enc.o			optional crypto | ipsec ipsec_esp	\
+	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
+	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
-crypto/des/arch/i386/des_enc.S	optional ipsec ipsec_esp
-crypto/des/arch/i386/des_enc.S	optional netsmbcrypto
-bf_enc.o			optional crypto		\
-	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
-	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
-	no-implicit-rule
-crypto/des/arch/i386/des_enc.S	optional crypto
+crypto/des/arch/i386/des_enc.S	optional crypto | ipsec ipsec_esp | netsmbcrypto
 dev/aic/aic_cbus.c		optional aic isa
 dev/ar/if_ar.c			optional ar
 dev/ar/if_ar_pci.c		optional ar pci
@@ -99,8 +93,7 @@ dev/ct/ct.c			optional ct
 dev/ct/ct_isa.c			optional ct isa
 dev/ed/if_ed_cbus.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
-dev/fb/fb.c			optional fb
-dev/fb/fb.c			optional gdc
+dev/fb/fb.c			optional fb | gdc
 dev/fb/splash.c			optional splash
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
@@ -109,9 +102,7 @@ dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
-dev/kbd/kbd.c			optional pckbd
-dev/kbd/kbd.c			optional sc
-dev/kbd/kbd.c			optional ukbd
+dev/kbd/kbd.c			optional pckbd | sc | ukbd
 dev/lnc/if_lnc_cbus.c		optional lnc isa
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
@@ -205,8 +196,7 @@ i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/isa/atpic.c		standard
 #i386/isa/atpic_vector.s		standard
-i386/isa/elink.c		optional ep
-i386/isa/elink.c		optional ie
+i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
@@ -229,22 +219,11 @@ i386/svr4/svr4_machdep.c	optional compat_svr4
 #
 # isdn4bsd, needed for isic | iwic | ifpi | ifpi2 | ihfc | ifpnp | itjc
 #
-i4b/layer1/i4b_hdlc.c		optional itjc
-i4b/layer1/i4b_hdlc.c		optional ihfc
-i4b/layer1/i4b_l1dmux.c		optional isic
-i4b/layer1/i4b_l1lib.c		optional isic
-i4b/layer1/i4b_l1dmux.c		optional iwic
-i4b/layer1/i4b_l1lib.c		optional iwic
-i4b/layer1/i4b_l1dmux.c		optional ifpi
-i4b/layer1/i4b_l1lib.c		optional ifpi
-i4b/layer1/i4b_l1dmux.c		optional ifpi2
-i4b/layer1/i4b_l1lib.c		optional ifpi2
-i4b/layer1/i4b_l1dmux.c		optional ihfc
-i4b/layer1/i4b_l1lib.c		optional ihfc
-i4b/layer1/i4b_l1dmux.c		optional ifpnp
-i4b/layer1/i4b_l1lib.c		optional ifpnp
-i4b/layer1/i4b_l1dmux.c		optional itjc
-i4b/layer1/i4b_l1lib.c		optional itjc
+i4b/layer1/i4b_hdlc.c		optional ihfc | itjc
+i4b/layer1/i4b_l1dmux.c		optional ifpi | ifpi2 | ifpnp | \
+					 ihfc | isic | itjc | iwic
+i4b/layer1/i4b_l1lib.c		optional ifpi | ifpi2 | ifpnp | \
+					 ihfc | isic | itjc | iwic
 #
 # isdn4bsd, isic
 #

@@ -42,11 +42,9 @@ contrib/ia64/libuwx/src/uwx_swap.c		standard
 contrib/ia64/libuwx/src/uwx_trace.c		standard
 contrib/ia64/libuwx/src/uwx_uinfo.c		standard
 contrib/ia64/libuwx/src/uwx_utable.c		standard
-crypto/blowfish/bf_enc.c	optional	crypto
-crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto
-crypto/des/des_enc.c		optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	netsmbcrypto
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
+crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
+						netsmbcrypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -55,14 +53,11 @@ dev/atkbdc/atkbdc.c		optional	atkbdc
 dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
 dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
-dev/fb/fb.c			optional	fb
-dev/fb/fb.c			optional	vga
+dev/fb/fb.c			optional	fb | vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd
-dev/kbd/kbd.c			optional	sc
-dev/kbd/kbd.c			optional	ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/ppc/ppc.c			optional	ppc isa
 dev/ppc/ppc_puc.c		optional	ppc puc
 dev/syscons/schistory.c		optional	sc
