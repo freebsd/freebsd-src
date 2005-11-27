@@ -57,7 +57,6 @@ typedef struct ohci_soft_td {
 	u_int16_t flags;
 #define OHCI_CALL_DONE	0x0001
 #define OHCI_ADD_LEN	0x0002
-#define OHCI_TD_HANDLED	0x0004		/* signal process_done has seen it */
 } ohci_soft_td_t;
 #define OHCI_STD_SIZE ((sizeof (struct ohci_soft_td) + OHCI_TD_ALIGN - 1) / OHCI_TD_ALIGN * OHCI_TD_ALIGN)
 #define OHCI_STD_CHUNK (PAGE_SIZE / OHCI_STD_SIZE)
