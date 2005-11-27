@@ -2354,5 +2354,5 @@ SYSCALL_MODULE_HELPER(mq_timedreceive);
 SYSCALL_MODULE_HELPER(mq_notify);
 SYSCALL_MODULE_HELPER(mq_unlink);
 
-VFS_SET(mqfs_vfsops, mqueue, VFCF_SYNTHETIC);
-MODULE_VERSION(mqueue, 1);
+VFS_SET(mqfs_vfsops, mqueuefs, VFCF_SYNTHETIC);
+MODULE_VERSION(mqueuefs, 1);
