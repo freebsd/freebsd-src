@@ -96,7 +96,7 @@ ata_begin_transaction(struct ata_request *request)
 
 	    /* issue command */
 	    if (ch->hw.command(request)) {
-		device_printf(request->dev, "error issueing %s command\n",
+		device_printf(request->dev, "error issuing %s command\n",
 			   ata_cmd2str(request));
 		request->result = EIO;
 		goto begin_finished;
@@ -139,7 +139,7 @@ ata_begin_transaction(struct ata_request *request)
 
 	/* issue command */
 	if (ch->hw.command(request)) {
-	    device_printf(request->dev, "error issueing %s command\n",
+	    device_printf(request->dev, "error issuing %s command\n",
 		       ata_cmd2str(request));
 	    request->result = EIO;
 	    goto begin_finished;
