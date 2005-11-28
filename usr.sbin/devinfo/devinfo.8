@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2002
+.Dd Nov 28, 2005
 .Os
 .Dt DEVINFO 8
 .Sh NAME
@@ -35,7 +35,9 @@
 .Nd print information about system device configuration
 .Sh SYNOPSIS
 .Nm
-.Op Fl ruv
+.Op Fl rv
+.Nm
+.Op Fl u
 .Sh DESCRIPTION
 The
 .Nm
@@ -67,6 +69,8 @@ Without this flag, only those devices that have attached are reported.
 .Xr iostat 8 ,
 .Xr pciconf 8 ,
 .Xr pnpinfo 8 ,
-.Xr vmstat 8
+.Xr vmstat 8 ,
+.Xr devclass 9 ,
+.Xr device 9
 .Sh AUTHORS
 .An Mike Smith Aq msmith@FreeBSD.org
