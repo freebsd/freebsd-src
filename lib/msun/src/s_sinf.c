@@ -53,7 +53,7 @@ sinf(float x)
 		else
 		    return -__kernel_cosdf(x + s1pio2);
 	    } else
-		return -__kernel_sindf(x + (hx > 0 ? -s2pio2 : s2pio2));
+		return __kernel_sindf((hx > 0 ? s2pio2 : -s2pio2) - x);
 	}
 	if(ix<=0x40e231d5) {		/* |x| ~<= 9*pi/4 */
 	    if(ix<=0x40afeddf) {	/* |x| ~<= 7*pi/4 */
@@ -74,7 +74,7 @@ sinf(float x)
 	    switch(n&3) {
 		case 0: return  __kernel_sindf((double)y[0]+y[1]);
 		case 1: return  __kernel_cosdf((double)y[0]+y[1]);
-		case 2: return -__kernel_sindf((double)y[0]+y[1]);
+		case 2: return  __kernel_sindf(-(double)y[0]-y[1]);
 		default:
 			return -__kernel_cosdf((double)y[0]+y[1]);
 	    }
