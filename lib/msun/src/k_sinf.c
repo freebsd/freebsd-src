@@ -14,7 +14,7 @@
  * ====================================================
  */
 
-#ifndef INLINE_KERNEL_SINF
+#ifndef INLINE_KERNEL_SINDF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
 #endif
@@ -23,25 +23,23 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-/* |sin(x)/x - s(x)| < 2**-32.5 (~[-1.57e-10, 1.572e-10]). */
-static const float
-half = 0.5,
-S1  = -0xaaaaab.0p-26,		/* -0.16666667163 */
-S2  =  0x8888bb.0p-30,		/*  0.0083333803341 */
-S3  = -0xd02de1.0p-36,		/* -0.00019853517006 */
-S4  =  0xbe6dbe.0p-42;		/*  0.0000028376084629 */
+/* |sin(x)/x - s(x)| < 2**-37.5 (~[-4.89e-12, 4.824e-12]). */
+static const double
+S1 = -0x15555554cbac77.0p-55,	/* -0.166666666416265235595 */
+S2 =  0x111110896efbb2.0p-59,	/*  0.0083333293858894631756 */
+S3 = -0x1a00f9e2cae774.0p-65,	/* -0.000198393348360966317347 */
+S4 =  0x16cd878c3b46a7.0p-71;	/*  0.0000027183114939898219064 */
 
-#ifdef INLINE_KERNEL_SINF
+#ifdef INLINE_KERNEL_SINDF
 extern inline
 #endif
 float
-__kernel_sinf(float x, float y, int iy)
+__kernel_sindf(double x)
 {
-	float z,r,v;
+	double z,r,v;
 
 	z	=  x*x;
 	v	=  z*x;
 	r	=  S2+z*(S3+z*S4);
-	if(iy==0) return x+v*(S1+z*r);
-	else      return x-((z*(half*y-v*r)-y)-v*S1);
+	return x+v*(S1+z*r);
 }

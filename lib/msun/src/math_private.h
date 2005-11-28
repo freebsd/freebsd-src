@@ -264,8 +264,8 @@ int	__kernel_rem_pio2(double*,double*,int,int,int,const int*);
 
 /* float versions of fdlibm kernel functions */
 int	__ieee754_rem_pio2f(float,float*);
-float	__kernel_sinf(float,float,int);
-float	__kernel_cosf(float,float);
+float	__kernel_sindf(double);
+float	__kernel_cosdf(double);
 float	__kernel_tandf(double,int);
 int	__kernel_rem_pio2f(float*,float*,int,int,int,const int*);
 
