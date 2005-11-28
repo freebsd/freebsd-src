@@ -27,7 +27,7 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	700000
+#define	CONFIGVERS	600004
 
 /*
  * Examples of when there should NOT be a bump:
