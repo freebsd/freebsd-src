@@ -77,6 +77,7 @@ static int ata_raid_nvidia_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native);
 static int ata_raid_promise_write_meta(struct ar_softc *rdp);
 static int ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_sis_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp);
 static struct ata_request *ata_raid_init_request(struct ar_softc *rdp, struct bio *bio);
 static int ata_raid_send_request(struct ata_request *request);
@@ -97,6 +98,7 @@ static void ata_raid_lsiv3_print_meta(struct lsiv3_raid_conf *meta);
 static void ata_raid_nvidia_print_meta(struct nvidia_raid_conf *meta);
 static void ata_raid_promise_print_meta(struct promise_raid_conf *meta);
 static void ata_raid_sii_print_meta(struct sii_raid_conf *meta);
+static void ata_raid_sis_print_meta(struct sis_raid_conf *meta);
 static void ata_raid_via_print_meta(struct via_raid_conf *meta);
 
 /* internal vars */   
@@ -244,13 +246,13 @@ ata_raid_strategy(struct bio *bp)
 	 count -= chunk, blkno += chunk, data += (chunk * DEV_BSIZE)) {
 
 	switch (rdp->type) {
-	case AR_T_JBOD:
 	case AR_T_RAID1:
 	    drv = 0;
 	    lba = blkno;
 	    chunk = count;
 	    break;
 	
+	case AR_T_JBOD:
 	case AR_T_SPAN:
 	    drv = 0;
 	    lba = blkno;
@@ -1231,6 +1233,11 @@ ata_raid_read_metadata(device_t subdisk)
 		return 0;
 	    break;
 
+	case ATA_SIS_ID:
+	    if (ata_raid_sis_read_meta(subdisk, ata_raid_arrays))
+		return 0;
+	    break;
+
 	case ATA_VIA_ID:
 	    if (ata_raid_via_read_meta(subdisk, ata_raid_arrays))
 		return 0;
@@ -1294,6 +1301,9 @@ ata_raid_write_metadata(struct ar_softc *rdp)
 
     case AR_F_SII_RAID:
 	return ata_raid_sii_write_meta(rdp);
+
+    case AR_F_SIS_RAID:
+	return ata_raid_sis_write_meta(rdp);
 
     case AR_F_VIA_RAID:
 	return ata_raid_via_write_meta(rdp);
@@ -2952,6 +2962,126 @@ sii_out:
     return retval;
 }
 
+/* Silicon Integrated Systems Metadata */
+static int
+ata_raid_sis_read_meta(device_t dev, struct ar_softc **raidp)
+{
+    struct ata_raid_subdisk *ars = device_get_softc(dev);
+    device_t parent = device_get_parent(dev);
+    struct sis_raid_conf *meta;
+    struct ar_softc *raid = NULL;
+    int array, disk_number, drive, retval = 0;
+
+    if (!(meta = (struct sis_raid_conf *)
+	  malloc(sizeof(struct sis_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, SIS_LBA(parent),
+		    meta, sizeof(struct sis_raid_conf), ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent,
+			  "Silicon Integrated Systems read metadata failed\n");
+    }
+
+    /* check for SiS magic */
+    if (meta->magic != SIS_MAGIC) {
+	if (testing || bootverbose)
+	    device_printf(parent,
+			  "Silicon Integrated Systems check1 failed\n");
+	goto sis_out;
+    }
+
+    if (testing || bootverbose)
+	ata_raid_sis_print_meta(meta);
+
+    /* now convert SiS meta into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!raidp[array]) {
+	    raidp[array] = 
+		(struct ar_softc *)malloc(sizeof(struct ar_softc), M_AR,
+					  M_NOWAIT | M_ZERO);
+	    if (!raidp[array]) {
+		device_printf(parent, "failed to allocate metadata storage\n");
+		goto sis_out;
+	    }
+	}
+
+	raid = raidp[array];
+	if (raid->format && (raid->format != AR_F_SIS_RAID))
+	    continue;
+
+	if ((raid->format == AR_F_SIS_RAID) &&
+	    ((raid->magic_0 != meta->controller_pci_id) ||
+	     (raid->magic_1 != meta->timestamp))) {
+	    continue;
+	}
+
+	switch (meta->type_total_disks & SIS_T_MASK) {
+	case SIS_T_JBOD:
+	    raid->type = AR_T_JBOD;
+	    raid->width = (meta->type_total_disks & SIS_D_MASK);
+	    raid->total_sectors += SIS_LBA(parent);
+	    break;
+
+	case SIS_T_RAID0:
+	    raid->type = AR_T_RAID0;
+	    raid->width = (meta->type_total_disks & SIS_D_MASK);
+	    if (!raid->total_sectors || 
+		(raid->total_sectors > (raid->width * SIS_LBA(parent))))
+		raid->total_sectors = raid->width * SIS_LBA(parent);
+	    break;
+
+	case SIS_T_RAID1:
+	    raid->type = AR_T_RAID1;
+	    raid->width = 1;
+	    if (!raid->total_sectors || (raid->total_sectors > SIS_LBA(parent)))
+		raid->total_sectors = SIS_LBA(parent);
+	    break;
+
+	default:
+	    device_printf(parent, "Silicon Integrated Systems "
+			  "unknown RAID type 0x%08x\n", meta->magic);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    goto sis_out;
+	}
+	raid->magic_0 = meta->controller_pci_id;
+	raid->magic_1 = meta->timestamp;
+	raid->format = AR_F_SIS_RAID;
+	raid->generation = 0;
+	raid->interleave = meta->stripe_sectors;
+	raid->total_disks = (meta->type_total_disks & SIS_D_MASK);
+	raid->heads = 255;
+	raid->sectors = 63;
+	raid->cylinders = raid->total_sectors / (63 * 255);
+	raid->offset_sectors = 0;
+	raid->rebuild_lba = 0;
+	raid->lun = array;
+	if (((meta->disks & SIS_D_MASTER) >> 4) == meta->disk_number)
+	    disk_number = 0;
+	else 
+	    disk_number = 1;
+
+	for (drive = 0; drive < raid->total_disks; drive++) {
+	    raid->disks[drive].sectors = raid->total_sectors/raid->width;
+	    if (drive == disk_number) {
+		raid->disks[disk_number].dev = parent;
+		raid->disks[disk_number].flags =
+		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
+		ars->raid = raid;
+		ars->disk_number = disk_number;
+	    }
+	}
+	retval = 1;
+	break;
+    }
+
+sis_out:
+    free(meta, M_AR);
+    return retval;
+}
+
+
 /* VIA Tech V-RAID Metadata */
 static int
 ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
@@ -3313,6 +3443,7 @@ ata_raid_format(struct ar_softc *rdp)
     case AR_F_NVIDIA_RAID:      return "nVidia MediaShield";
     case AR_F_PROMISE_RAID:     return "Promise Fasttrak";
     case AR_F_SII_RAID:         return "Silicon Image Medley";
+    case AR_F_SIS_RAID:         return "Silicon Integrated Systems";
     case AR_F_VIA_RAID:         return "VIA Tech V-RAID";
     default:                    return "UNKNOWN";
     }
@@ -3950,6 +4081,41 @@ ata_raid_sii_print_meta(struct sii_raid_conf *meta)
     printf("name                <%.16s>\n", meta->name);
     printf("checksum_0          0x%04x\n", meta->checksum_0);
     printf("checksum_1          0x%04x\n", meta->checksum_1);
+    printf("=================================================\n");
+}
+
+static char *
+ata_raid_sis_type(int type)
+{
+    static char buffer[16];
+
+    switch (type) {
+    case SIS_T_JBOD:    return "JBOD";
+    case SIS_T_RAID0:   return "RAID0";
+    case SIS_T_RAID1:   return "RAID1";
+    default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
+			return buffer;
+    }
+}
+
+static void
+ata_raid_sis_print_meta(struct sis_raid_conf *meta)
+{
+    printf("**** ATA Silicon Integrated Systems Metadata ****\n");
+    printf("magic               0x%04x\n", meta->magic);
+    printf("disks               0x%02x\n", meta->disks);
+    printf("type                %s\n",
+	   ata_raid_sis_type(meta->type_total_disks & SIS_T_MASK));
+    printf("total_disks         %u\n", meta->type_total_disks & SIS_D_MASK);
+    printf("dummy_0             0x%08x\n", meta->dummy_0);
+    printf("controller_pci_id   0x%08x\n", meta->controller_pci_id);
+    printf("stripe_sectors      %u\n", meta->stripe_sectors);
+    printf("dummy_1             0x%04x\n", meta->dummy_1);
+    printf("timestamp           0x%08x\n", meta->timestamp);
+    printf("model               %.40s\n", meta->model);
+    printf("disk_number         %u\n", meta->disk_number);
+    printf("dummy_2             0x%02x 0x%02x 0x%02x\n",
+	   meta->dummy_2[0], meta->dummy_2[1], meta->dummy_2[2]);
     printf("=================================================\n");
 }
 

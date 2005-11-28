@@ -3931,17 +3931,18 @@ ata_sis_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    int offset = ch->unit << ((ctlr->chip->chipid == ATA_SIS182) ? 5 : 6);
 
     /* setup the usual register normal pci style */
     if (ata_pci_allocate(dev))
 	return ENXIO;
 
     ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
-    ch->r_io[ATA_SSTATUS].offset = (ch->unit << 4);
+    ch->r_io[ATA_SSTATUS].offset = 0x00 + offset;
     ch->r_io[ATA_SERROR].res = ctlr->r_res2;
-    ch->r_io[ATA_SERROR].offset = 0x04 + (ch->unit << 4);
+    ch->r_io[ATA_SERROR].offset = 0x04 + offset;
     ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
-    ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << 4);
+    ch->r_io[ATA_SCONTROL].offset = 0x08 + offset;
     ch->flags |= ATA_NO_SLAVE;
 
     /* XXX SOS PHY hotplug handling missing in SiS chip ?? */
