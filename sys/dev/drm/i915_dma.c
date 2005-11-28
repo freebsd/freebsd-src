@@ -1,18 +1,38 @@
 /* i915_dma.c -- DMA support for the I915 -*- linux-c -*-
- *
- * $FreeBSD$
  */
-/**************************************************************************
- *
+/*-
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
- *
- **************************************************************************/
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * 
+ */
 
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
-#include "i915_drv.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "dev/drm/drmP.h"
+#include "dev/drm/drm.h"
+#include "dev/drm/i915_drm.h"
+#include "dev/drm/i915_drv.h"
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
@@ -77,9 +97,8 @@ static int i915_dma_cleanup(drm_device_t * dev)
 			drm_core_ioremapfree(&dev_priv->ring.map, dev);
 		}
 
-		if (dev_priv->hw_status_page) {
-			drm_pci_free(dev, PAGE_SIZE, dev_priv->hw_status_page,
-				     dev_priv->dma_status_page);
+		if (dev_priv->status_page_dmah) {
+			drm_pci_free(dev, dev_priv->status_page_dmah);
 			/* Need to rewrite hardware status page */
 			I915_WRITE(0x02080, 0x1ffff000);
 		}
@@ -156,15 +175,18 @@ static int i915_initialize(drm_device_t * dev,
 	dev_priv->allow_batchbuffer = 1;
 
 	/* Program Hardware Status Page */
-	dev_priv->hw_status_page = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 
-	    0xffffffff, &dev_priv->dma_status_page);
+	dev_priv->status_page_dmah = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 
+	    0xffffffff);
 
-	if (!dev_priv->hw_status_page) {
+	if (!dev_priv->status_page_dmah) {
 		dev->dev_private = (void *)dev_priv;
 		i915_dma_cleanup(dev);
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return DRM_ERR(ENOMEM);
 	}
+	dev_priv->hw_status_page = dev_priv->status_page_dmah->vaddr;
+	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
+	
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	DRM_DEBUG("hw status page @ %p\n", dev_priv->hw_status_page);
 
@@ -690,7 +712,19 @@ static int i915_setparam(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-void i915_driver_pretakedown(drm_device_t * dev)
+int i915_driver_load(drm_device_t *dev, unsigned long flags)
+{
+	/* i915 has 4 more counters */
+	dev->counters += 4;
+	dev->types[6] = _DRM_STAT_IRQ;
+	dev->types[7] = _DRM_STAT_PRIMARY;
+	dev->types[8] = _DRM_STAT_SECONDARY;
+	dev->types[9] = _DRM_STAT_DMA;
+
+	return 0;
+}
+
+void i915_driver_lastclose(drm_device_t * dev)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
@@ -699,7 +733,7 @@ void i915_driver_pretakedown(drm_device_t * dev)
 	i915_dma_cleanup(dev);
 }
 
-void i915_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void i915_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
@@ -711,18 +745,34 @@ void i915_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 }
 
 drm_ioctl_desc_t i915_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_I915_INIT)] = {i915_dma_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_FLUSH)] = {i915_flush_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_FLIP)] = {i915_flip_bufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_BATCHBUFFER)] = {i915_batchbuffer, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_IRQ_EMIT)] = {i915_irq_emit, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_IRQ_WAIT)] = {i915_irq_wait, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_GETPARAM)] = {i915_getparam, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_SETPARAM)] = {i915_setparam, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, 1, 0}
+	[DRM_IOCTL_NR(DRM_I915_INIT)] = {i915_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I915_FLUSH)] = {i915_flush_ioctl, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_FLIP)] = {i915_flip_bufs, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_BATCHBUFFER)] = {i915_batchbuffer, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_IRQ_EMIT)] = {i915_irq_emit, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_IRQ_WAIT)] = {i915_irq_wait, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_GETPARAM)] = {i915_getparam, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_SETPARAM)] = {i915_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, DRM_AUTH}
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);
+
+/**
+ * Determine if the device really is AGP or not.
+ *
+ * All Intel graphics chipsets are treated as AGP, even if they are really
+ * PCI-e.
+ *
+ * \param dev   The device to be tested.
+ *
+ * \returns
+ * A value of 1 is always retured to indictate every i9x5 is AGP.
+ */
+int i915_driver_device_is_agp(drm_device_t * dev)
+{
+	return 1;
+}

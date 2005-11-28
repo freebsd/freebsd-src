@@ -1,7 +1,6 @@
 /*
  * $FreeBSD$
  */
-
 /*
    This file is auto-generated from the drm_pciids.txt in the DRM CVS
    Please contact dri-devel@lists.sf.net to add new cards to this list
@@ -50,6 +49,7 @@
 	{0x1002, 0x4E50, CHIP_RV350|CHIP_IS_MOBILITY, "ATI Radeon RV300 Mobility 9600 M10"}, \
 	{0x1002, 0x4E51, CHIP_RV350|CHIP_IS_MOBILITY, "ATI Radeon RV350 Mobility 9600 M10 NQ"}, \
 	{0x1002, 0x4E54, CHIP_RV350|CHIP_IS_MOBILITY, "ATI Radeon FireGL T2 128"}, \
+	{0x1002, 0x4E56, CHIP_RV350|CHIP_IS_MOBILITY, "ATI Radeon FireGL Mobility T2e"}, \
 	{0x1002, 0x5144, CHIP_R100|CHIP_SINGLE_CRTC, "ATI Radeon QD R100"}, \
 	{0x1002, 0x5145, CHIP_R100|CHIP_SINGLE_CRTC, "ATI Radeon QE R100"}, \
 	{0x1002, 0x5146, CHIP_R100|CHIP_SINGLE_CRTC, "ATI Radeon QF R100"}, \
@@ -66,12 +66,14 @@
 	{0x1002, 0x5158, CHIP_RV200, "ATI Radeon QX RV200 7500"}, \
 	{0x1002, 0x5159, CHIP_RV100, "ATI Radeon QY RV100 7000/VE"}, \
 	{0x1002, 0x515A, CHIP_RV100, "ATI Radeon QZ RV100 7000/VE"}, \
+	{0x1002, 0x515E, CHIP_RV100, "ATI ES1000 RN50"}, \
 	{0x1002, 0x5168, CHIP_R200, "ATI Radeon Qh R200"}, \
 	{0x1002, 0x5169, CHIP_R200, "ATI Radeon Qi R200"}, \
 	{0x1002, 0x516A, CHIP_R200, "ATI Radeon Qj R200"}, \
 	{0x1002, 0x516B, CHIP_R200, "ATI Radeon Qk R200"}, \
 	{0x1002, 0x516C, CHIP_R200, "ATI Radeon Ql R200"}, \
 	{0x1002, 0x5460, CHIP_RV350, "ATI Radeon X300"}, \
+	{0x1002, 0x554F, CHIP_R350, "ATI Radeon X800"}, \
 	{0x1002, 0x5834, CHIP_RS300|CHIP_IS_IGP, "ATI Radeon RS300 IGP"}, \
 	{0x1002, 0x5835, CHIP_RS300|CHIP_IS_IGP|CHIP_IS_MOBILITY, "ATI Radeon RS300 Mobility IGP"}, \
 	{0x1002, 0x5836, CHIP_RS300|CHIP_IS_IGP, "ATI Radeon RS300 IGP"}, \
@@ -85,10 +87,12 @@
 	{0x1002, 0x5969, CHIP_RV100, "ATI ES1000 RN50"}, \
 	{0x1002, 0x596A, CHIP_RV280, "ATI Radeon RV280 9200"}, \
 	{0x1002, 0x596B, CHIP_RV280, "ATI Radeon RV280 9200"}, \
+	{0x1002, 0x5b60, CHIP_RV350, "ATI Radeon RV370 X300SE"}, \
 	{0x1002, 0x5c61, CHIP_RV280|CHIP_IS_MOBILITY, "ATI Radeon RV280 Mobility"}, \
 	{0x1002, 0x5c62, CHIP_RV280, "ATI Radeon RV280"}, \
 	{0x1002, 0x5c63, CHIP_RV280|CHIP_IS_MOBILITY, "ATI Radeon RV280 Mobility"}, \
 	{0x1002, 0x5c64, CHIP_RV280, "ATI Radeon RV280"}, \
+	{0x1002, 0x5d4d, CHIP_R350, "ATI Radeon R480"}, \
 	{0, 0, 0, NULL}
 
 #define r128_PCI_IDS \
@@ -132,9 +136,10 @@
 	{0, 0, 0, NULL}
 
 #define mga_PCI_IDS \
-	{0x102b, 0x0521, 0, "Matrox G200 (AGP)"}, \
-	{0x102b, 0x0525, 0, "Matrox G400/G450 (AGP)"}, \
-	{0x102b, 0x2527, 0, "Matrox G550 (AGP)"}, \
+	{0x102b, 0x0520, MGA_CARD_TYPE_G200, "Matrox G200 (PCI)"}, \
+	{0x102b, 0x0521, MGA_CARD_TYPE_G200, "Matrox G200 (AGP)"}, \
+	{0x102b, 0x0525, MGA_CARD_TYPE_G400, "Matrox G400/G450 (AGP)"}, \
+	{0x102b, 0x2527, MGA_CARD_TYPE_G550, "Matrox G550 (AGP)"}, \
 	{0, 0, 0, NULL}
 
 #define mach64_PCI_IDS \
@@ -178,10 +183,10 @@
 
 #define viadrv_PCI_IDS \
 	{0x1106, 0x3022, 0, "VIA CLE266 3022"}, \
-	{0x1106, 0x3118, 0, "VIA CN400"}, \
+	{0x1106, 0x3118, VIA_PRO_GROUP_A, "VIA CN400 / PM8X0"}, \
 	{0x1106, 0x3122, 0, "VIA CLE266"}, \
 	{0x1106, 0x7205, 0, "VIA KM400"}, \
-	{0x1106, 0x7204, 0, "VIA K8M800"}, \
+	{0x1106, 0x3108, 0, "VIA K8M800"}, \
 	{0, 0, 0, NULL}
 
 #define i810_PCI_IDS \
@@ -237,6 +242,194 @@
 	{0x8086, 0x3582, 0, "Intel i852GM/i855GM GMCH"}, \
 	{0x8086, 0x2572, 0, "Intel i865G GMCH"}, \
 	{0x8086, 0x2582, 0, "Intel i915G"}, \
-	{0x8086, 0x2982, 0, "Intel i915GM"}, \
+	{0x8086, 0x2592, 0, "Intel i915GM"}, \
+	{0x8086, 0x2772, 0, "Intel i945G"}, \
 	{0, 0, 0, NULL}
 
+#define imagine_PCI_IDS \
+	{0x105d, 0x2309, IMAGINE_128, "Imagine 128"}, \
+	{0x105d, 0x2339, IMAGINE_128_2, "Imagine 128-II"}, \
+	{0x105d, 0x493d, IMAGINE_T2R, "Ticket to Ride"}, \
+	{0x105d, 0x5348, IMAGINE_REV4, "Revolution IV"}, \
+	{0, 0, 0, NULL}
+
+#define nv_PCI_IDS \
+	{0x10DE, 0x0020, NV04, "NVidia RIVA TNT"}, \
+	{0x10DE, 0x0028, NV04, "NVidia RIVA TNT2"}, \
+	{0x10DE, 0x002A, NV04, "NVidia Unknown TNT2"}, \
+	{0x10DE, 0x002C, NV04, "NVidia Vanta"}, \
+	{0x10DE, 0x0029, NV04, "NVidia RIVA TNT2 Ultra"}, \
+	{0x10DE, 0x002D, NV04, "NVidia RIVA TNT2 Model 64"}, \
+	{0x10DE, 0x00A0, NV04, "NVidia Aladdin TNT2"}, \
+	{0x10DE, 0x0100, NV10, "NVidia GeForce 256"}, \
+	{0x10DE, 0x0101, NV10, "NVidia GeForce DDR"}, \
+	{0x10DE, 0x0103, NV10, "NVidia Quadro"}, \
+	{0x10DE, 0x0110, NV10, "NVidia GeForce2 MX/MX 400"}, \
+	{0x10DE, 0x0111, NV10, "NVidia GeForce2 MX 100/200"}, \
+	{0x10DE, 0x0112, NV10, "NVidia GeForce2 Go"}, \
+	{0x10DE, 0x0113, NV10, "NVidia Quadro2 MXR/EX/Go"}, \
+	{0x10DE, 0x0150, NV10, "NVidia GeForce2 GTS"}, \
+	{0x10DE, 0x0151, NV10, "NVidia GeForce2 Ti"}, \
+	{0x10DE, 0x0152, NV10, "NVidia GeForce2 Ultra"}, \
+	{0x10DE, 0x0153, NV10, "NVidia Quadro2 Pro"}, \
+	{0x10DE, 0x0170, NV10, "NVidia GeForce4 MX 460"}, \
+	{0x10DE, 0x0171, NV10, "NVidia GeForce4 MX 440"}, \
+	{0x10DE, 0x0172, NV10, "NVidia GeForce4 MX 420"}, \
+	{0x10DE, 0x0173, NV10, "NVidia GeForce4 MX 440-SE"}, \
+	{0x10DE, 0x0174, NV10, "NVidia GeForce4 440 Go"}, \
+	{0x10DE, 0x0175, NV10, "NVidia GeForce4 420 Go"}, \
+	{0x10DE, 0x0176, NV10, "NVidia GeForce4 420 Go 32M"}, \
+	{0x10DE, 0x0177, NV10, "NVidia GeForce4 460 Go"}, \
+	{0x10DE, 0x0178, NV10, "NVidia Quadro4 550 XGL"}, \
+	{0x10DE, 0x0179, NV10, "NVidia GeForce4"}, \
+	{0x10DE, 0x017A, NV10, "NVidia Quadro4 NVS"}, \
+	{0x10DE, 0x017C, NV10, "NVidia Quadro4 500 GoGL"}, \
+	{0x10DE, 0x017D, NV10, "NVidia GeForce4 410 Go 16M"}, \
+	{0x10DE, 0x0181, NV10, "NVidia GeForce4 MX 440 with AGP8X"}, \
+	{0x10DE, 0x0182, NV10, "NVidia GeForce4 MX 440SE with AGP8X"}, \
+	{0x10DE, 0x0183, NV10, "NVidia GeForce4 MX 420 with AGP8X"}, \
+	{0x10DE, 0x0185, NV10, "NVidia GeForce4 MX 4000"}, \
+	{0x10DE, 0x0186, NV10, "NVidia GeForce4 448 Go"}, \
+	{0x10DE, 0x0187, NV10, "NVidia GeForce4 488 Go"}, \
+	{0x10DE, 0x0188, NV10, "NVidia Quadro4 580 XGL"}, \
+	{0x10DE, 0x0189, NV10, "NVidia GeForce4 MX with AGP8X (Mac)"}, \
+	{0x10DE, 0x018A, NV10, "NVidia Quadro4 280 NVS"}, \
+	{0x10DE, 0x018B, NV10, "NVidia Quadro4 380 XGL"}, \
+	{0x10DE, 0x018C, NV10, "NVidia Quadro NVS 50 PCI"}, \
+	{0x10DE, 0x018D, NV10, "NVidia GeForce4 448 Go"}, \
+	{0x10DE, 0x01A0, NV10, "NVidia GeForce2 Integrated GPU"}, \
+	{0x10DE, 0x01F0, NV10, "NVidia GeForce4 MX Integrated GPU"}, \
+	{0x10DE, 0x0200, NV20, "NVidia GeForce3"}, \
+	{0x10DE, 0x0201, NV20, "NVidia GeForce3 Ti 200"}, \
+	{0x10DE, 0x0202, NV20, "NVidia GeForce3 Ti 500"}, \
+	{0x10DE, 0x0203, NV20, "NVidia Quadro DCC"}, \
+	{0x10DE, 0x0250, NV20, "NVidia GeForce4 Ti 4600"}, \
+	{0x10DE, 0x0251, NV20, "NVidia GeForce4 Ti 4400"}, \
+	{0x10DE, 0x0252, NV20, "NVidia 0x0252"}, \
+	{0x10DE, 0x0253, NV20, "NVidia GeForce4 Ti 4200"}, \
+	{0x10DE, 0x0258, NV20, "NVidia Quadro4 900 XGL"}, \
+	{0x10DE, 0x0259, NV20, "NVidia Quadro4 750 XGL"}, \
+	{0x10DE, 0x025B, NV20, "NVidia Quadro4 700 XGL"}, \
+	{0x10DE, 0x0280, NV20, "NVidia GeForce4 Ti 4800"}, \
+	{0x10DE, 0x0281, NV20, "NVidia GeForce4 Ti 4200 with AGP8X"}, \
+	{0x10DE, 0x0282, NV20, "NVidia GeForce4 Ti 4800 SE"}, \
+	{0x10DE, 0x0286, NV20, "NVidia GeForce4 4200 Go"}, \
+	{0x10DE, 0x028C, NV20, "NVidia Quadro4 700 GoGL"}, \
+	{0x10DE, 0x0288, NV20, "NVidia Quadro4 980 XGL"}, \
+	{0x10DE, 0x0289, NV20, "NVidia Quadro4 780 XGL"}, \
+	{0x10DE, 0x0301, NV30, "NVidia GeForce FX 5800 Ultra"}, \
+	{0x10DE, 0x0302, NV30, "NVidia GeForce FX 5800"}, \
+	{0x10DE, 0x0308, NV30, "NVidia Quadro FX 2000"}, \
+	{0x10DE, 0x0309, NV30, "NVidia Quadro FX 1000"}, \
+	{0x10DE, 0x0311, NV30, "NVidia GeForce FX 5600 Ultra"}, \
+	{0x10DE, 0x0312, NV30, "NVidia GeForce FX 5600"}, \
+	{0x10DE, 0x0313, NV30, "NVidia 0x0313"},}, \
+	{0x10DE, 0x0314, NV30, "NVidia GeForce FX 5600SE"}, \
+	{0x10DE, 0x0316, NV30, "NVidia 0x0316"}, \
+	{0x10DE, 0x0317, NV30, "NVidia 0x0317"}, \
+	{0x10DE, 0x031A, NV30, "NVidia GeForce FX Go5600"}, \
+	{0x10DE, 0x031B, NV30, "NVidia GeForce FX Go5650"}, \
+	{0x10DE, 0x031C, NV30, "NVidia Quadro FX Go700"}, \
+	{0x10DE, 0x031D, NV30, "NVidia 0x031D"}, \
+	{0x10DE, 0x031E, NV30, "NVidia 0x031E"}, \
+	{0x10DE, 0x031F, NV30, "NVidia 0x031F"}, \
+	{0x10DE, 0x0320, NV30, "NVidia GeForce FX 5200"}, \
+	{0x10DE, 0x0321, NV30, "NVidia GeForce FX 5200 Ultra"}, \
+	{0x10DE, 0x0322, NV30, "NVidia GeForce FX 5200"}, \
+	{0x10DE, 0x0323, NV30, "NVidia GeForce FX 5200SE"}, \
+	{0x10DE, 0x0324, NV30, "NVidia GeForce FX Go5200"}, \
+	{0x10DE, 0x0325, NV30, "NVidia GeForce FX Go5250"}, \
+	{0x10DE, 0x0326, NV30, "NVidia GeForce FX 5500"}, \
+	{0x10DE, 0x0327, NV30, "NVidia GeForce FX 5100"}, \
+	{0x10DE, 0x0328, NV30, "NVidia GeForce FX Go5200 32M/64M"}, \
+	{0x10DE, 0x0329, NV30, "NVidia GeForce FX 5200 (Mac)"}, \
+	{0x10DE, 0x032A, NV30, "NVidia Quadro NVS 280 PCI"}, \
+	{0x10DE, 0x032B, NV30, "NVidia Quadro FX 500/600 PCI"}, \
+	{0x10DE, 0x032C, NV30, "NVidia GeForce FX Go53xx Series"}, \
+	{0x10DE, 0x032D, NV30, "NVidia GeForce FX Go5100"}, \
+	{0x10DE, 0x032F, NV30, "NVidia 0x032F"}, \
+	{0x10DE, 0x0330, NV30, "NVidia GeForce FX 5900 Ultra"}, \
+	{0x10DE, 0x0331, NV30, "NVidia GeForce FX 5900"}, \
+	{0x10DE, 0x0332, NV30, "NVidia GeForce FX 5900XT"}, \
+	{0x10DE, 0x0333, NV30, "NVidia GeForce FX 5950 Ultra"}, \
+	{0x10DE, 0x033F, NV30, "NVidia Quadro FX 700"}, \
+	{0x10DE, 0x0334, NV30, "NVidia GeForce FX 5900ZT"}, \
+	{0x10DE, 0x0338, NV30, "NVidia Quadro FX 3000"}, \
+	{0x10DE, 0x0341, NV30, "NVidia GeForce FX 5700 Ultra"}, \
+	{0x10DE, 0x0342, NV30, "NVidia GeForce FX 5700"}, \
+	{0x10DE, 0x0343, NV30, "NVidia GeForce FX 5700LE"}, \
+	{0x10DE, 0x0344, NV30, "NVidia GeForce FX 5700VE"}, \
+	{0x10DE, 0x0345, NV30, "NVidia 0x0345"}, \
+	{0x10DE, 0x0347, NV30, "NVidia GeForce FX Go5700"}, \
+	{0x10DE, 0x0348, NV30, "NVidia GeForce FX Go5700"}, \
+	{0x10DE, 0x0349, NV30, "NVidia 0x0349"}, \
+	{0x10DE, 0x034B, NV30, "NVidia 0x034B"}, \
+	{0x10DE, 0x034C, NV30, "NVidia Quadro FX Go1000"}, \
+	{0x10DE, 0x034E, NV30, "NVidia Quadro FX 1100"}, \
+	{0x10DE, 0x034F, NV30, "NVidia 0x034F"}, \
+	{0x10DE, 0x0040, NV40, "NVidia GeForce 6800 Ultra"}, \
+	{0x10DE, 0x0041, NV40, "NVidia GeForce 6800"}, \
+	{0x10DE, 0x0042, NV40, "NVidia GeForce 6800 LE"}, \
+	{0x10DE, 0x0043, NV40, "NVidia 0x0043"}, \
+	{0x10DE, 0x0045, NV40, "NVidia GeForce 6800 GT"}, \
+	{0x10DE, 0x0046, NV40, "NVidia GeForce 6800 GT"}, \
+	{0x10DE, 0x0049, NV40, "NVidia 0x0049"}, \
+	{0x10DE, 0x004E, NV40, "NVidia Quadro FX 4000"}, \
+	{0x10DE, 0x00C0, NV40, "NVidia 0x00C0"}, \
+	{0x10DE, 0x00C1, NV40, "NVidia GeForce 6800"}, \
+	{0x10DE, 0x00C2, NV40, "NVidia GeForce 6800 LE"}, \
+	{0x10DE, 0x00C8, NV40, "NVidia GeForce Go 6800"}, \
+	{0x10DE, 0x00C9, NV40, "NVidia GeForce Go 6800 Ultra"}, \
+	{0x10DE, 0x00CC, NV40, "NVidia Quadro FX Go1400"}, \
+	{0x10DE, 0x00CD, NV40, "NVidia Quadro FX 3450/4000 SDI"}, \
+	{0x10DE, 0x00CE, NV40, "NVidia Quadro FX 1400"}, \
+	{0x10de, 0x00f0, NV40, "Nvidia GeForce 6600 GT"}, \
+	{0x10de, 0x00f1, NV40, "Nvidia GeForce 6600 GT"}, \
+	{0x10DE, 0x0140, NV40, "NVidia GeForce 6600 GT"}, \
+	{0x10DE, 0x0141, NV40, "NVidia GeForce 6600"}, \
+	{0x10DE, 0x0142, NV40, "NVidia GeForce 6600 LE"}, \
+	{0x10DE, 0x0143, NV40, "NVidia 0x0143"}, \
+	{0x10DE, 0x0144, NV40, "NVidia GeForce Go 6600"}, \
+	{0x10DE, 0x0145, NV40, "NVidia GeForce 6610 XL"}, \
+	{0x10DE, 0x0146, NV40, "NVidia GeForce Go 6600 TE/6200 TE"}, \
+	{0x10DE, 0x0147, NV40, "NVidia GeForce 6700 XL"}, \
+	{0x10DE, 0x0148, NV40, "NVidia GeForce Go 6600"}, \
+	{0x10DE, 0x0149, NV40, "NVidia GeForce Go 6600 GT"}, \
+	{0x10DE, 0x014B, NV40, "NVidia 0x014B"}, \
+	{0x10DE, 0x014C, NV40, "NVidia 0x014C"}, \
+	{0x10DE, 0x014D, NV40, "NVidia 0x014D"}, \
+	{0x10DE, 0x014E, NV40, "NVidia Quadro FX 540"}, \
+	{0x10DE, 0x014F, NV40, "NVidia GeForce 6200"}, \
+	{0x10DE, 0x0160, NV40, "NVidia 0x0160"}, \
+	{0x10DE, 0x0161, NV40, "NVidia GeForce 6200 TurboCache(TM)"}, \
+	{0x10DE, 0x0162, NV40, "NVidia GeForce 6200SE TurboCache(TM)"}, \
+	{0x10DE, 0x0163, NV40, "NVidia 0x0163"}, \
+	{0x10DE, 0x0164, NV40, "NVidia GeForce Go 6200"}, \
+	{0x10DE, 0x0165, NV40, "NVidia Quadro NVS 285"}, \
+	{0x10DE, 0x0166, NV40, "NVidia GeForce Go 6400"}, \
+	{0x10DE, 0x0167, NV40, "NVidia GeForce Go 6200"}, \
+	{0x10DE, 0x0168, NV40, "NVidia GeForce Go 6400"}, \
+	{0x10DE, 0x0169, NV40, "NVidia 0x0169"}, \
+	{0x10DE, 0x016B, NV40, "NVidia 0x016B"}, \
+	{0x10DE, 0x016C, NV40, "NVidia 0x016C"}, \
+	{0x10DE, 0x016D, NV40, "NVidia 0x016D"}, \
+	{0x10DE, 0x016E, NV40, "NVidia 0x016E"}, \
+	{0x10DE, 0x0210, NV40, "NVidia 0x0210"}, \
+	{0x10DE, 0x0211, NV40, "NVidia GeForce 6800"}, \
+	{0x10DE, 0x0212, NV40, "NVidia GeForce 6800 LE"}, \
+	{0x10DE, 0x0215, NV40, "NVidia GeForce 6800 GT"}, \
+	{0x10DE, 0x0220, NV40, "NVidia 0x0220"}, \
+	{0x10DE, 0x0221, NV40, "NVidia GeForce 6200"}, \
+	{0x10DE, 0x0222, NV40, "NVidia 0x0222"}, \
+	{0x10DE, 0x0228, NV40, "NVidia 0x0228"}, \
+	{0x10DE, 0x0090, NV40, "NVidia 0x0090"}, \
+	{0x10DE, 0x0091, NV40, "NVidia GeForce 7800 GTX"}, \
+	{0x10DE, 0x0092, NV40, "NVidia 0x0092"}, \
+	{0x10DE, 0x0093, NV40, "NVidia 0x0093"}, \
+	{0x10DE, 0x0094, NV40, "NVidia 0x0094"}, \
+	{0x10DE, 0x0098, NV40, "NVidia 0x0098"}, \
+	{0x10DE, 0x0099, NV40, "NVidia GeForce Go 7800 GTX"}, \
+	{0x10DE, 0x009C, NV40, "NVidia 0x009C"}, \
+	{0x10DE, 0x009D, NV40, "NVidia Quadro FX 4500"}, \
+	{0x10DE, 0x009E, NV40, "NVidia 0x009E"}, \
+	{0, 0, 0, NULL}

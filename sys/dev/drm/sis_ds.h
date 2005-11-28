@@ -1,5 +1,6 @@
 /* sis_ds.h -- Private header for Direct Rendering Manager -*- linux-c -*-
- * Created: Mon Jan  4 10:05:05 1999 by sclin@sis.com.tw */
+ * Created: Mon Jan  4 10:05:05 1999 by sclin@sis.com.tw
+ */
 /*-
  * Copyright 2000 Silicon Integrated Systems Corp, Inc., HsinChu, Taiwan.
  * All rights reserved.
@@ -26,8 +27,10 @@
  * Authors:
  *    Sung-Ching Lin <sclin@sis.com.tw>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __SIS_DS_H__
 #define __SIS_DS_H__

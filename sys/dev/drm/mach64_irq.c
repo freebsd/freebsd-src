@@ -1,6 +1,7 @@
 /* mach64_irq.c -- IRQ handling for ATI Mach64 -*- linux-c -*-
  * Created: Tue Feb 25, 2003 by Leif Delgass, based on radeon_irq.c/r128_irq.c
- *
+ */
+/*-
  * Copyright (C) The Weather Channel, Inc.  2002.
  * Copyright 2003 Leif Delgass
  * All Rights Reserved.
@@ -32,9 +33,10 @@
  *    Keith Whitwell <keith@tungstengraphics.com>
  *    Eric Anholt <anholt@FreeBSD.org>
  *    Leif Delgass <ldelgass@retinalburn.net>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

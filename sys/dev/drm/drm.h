@@ -31,9 +31,10 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /**
  * \mainpage
@@ -64,8 +65,16 @@
 #define __user
 #endif
 
+#ifdef __GNUC__
+# define DEPRECATED  __attribute__ ((deprecated))
+#else
+# define DEPRECATED
+#endif
+
 #if defined(__linux__)
+#if defined(__KERNEL__)
 #include <linux/config.h>
+#endif
 #include <asm/ioctl.h>		/* For _IO* macros */
 #define DRM_IOCTL_NR(n)		_IOC_NR(n)
 #define DRM_IOC_VOID		_IOC_NONE
@@ -73,7 +82,7 @@
 #define DRM_IOC_WRITE		_IOC_WRITE
 #define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
 #define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 #if defined(__FreeBSD__) && defined(IN_MODULE)
 /* Prevent name collision when including sys/ioccom.h */
 #undef ioctl
@@ -127,7 +136,11 @@
 #define _DRM_LOCK_IS_CONT(lock)	   ((lock) & _DRM_LOCK_CONT)
 #define _DRM_LOCKING_CONTEXT(lock) ((lock) & ~(_DRM_LOCK_HELD|_DRM_LOCK_CONT))
 
+#if defined(__linux__)
+typedef unsigned int drm_handle_t;
+#else
 typedef unsigned long drm_handle_t;	/**< To mapped regions */
+#endif
 typedef unsigned int drm_context_t;	/**< GLXContext handle */
 typedef unsigned int drm_drawable_t;
 typedef unsigned int drm_magic_t;	/**< Magic for authentication */
@@ -439,7 +452,11 @@ typedef struct drm_buf_pub {
  */
 typedef struct drm_buf_map {
 	int count;		/**< Length of the buffer list */
+#if defined(__cplusplus)
+	void __user *c_virtual;
+#else
 	void __user *virtual;		/**< Mmap'd area in user-virtual */
+#endif
 	drm_buf_pub_t __user *list;	/**< Buffer information */
 } drm_buf_map_t;
 

@@ -1,6 +1,6 @@
 /* sis_mm.c -- Private header for Direct Rendering Manager -*- linux-c -*-
- * Created: Mon Jan  4 10:05:05 1999 by sclin@sis.com.tw */
-/*-
+ * Created: Mon Jan  4 10:05:05 1999 by sclin@sis.com.tw
+ *
  * Copyright 2000 Silicon Integrated Systems Corp, Inc., HsinChu, Taiwan.
  * All rights reserved.
  *
@@ -26,8 +26,10 @@
  * Authors:
  *    Sung-Ching Lin <sclin@sis.com.tw>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #if defined(__linux__) && defined(CONFIG_FB_SIS)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
@@ -408,12 +410,12 @@ int sis_final_context(struct drm_device *dev, int context)
 }
 
 drm_ioctl_desc_t sis_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)] = {sis_fb_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)] = {sis_fb_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)] = {sis_ioctl_agp_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = {sis_ioctl_agp_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)] = {sis_ioctl_agp_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)] = {sis_fb_init, 1, 1}
+	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)] = {sis_fb_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)] = {sis_fb_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)] = {sis_ioctl_agp_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = {sis_ioctl_agp_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)] = {sis_ioctl_agp_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)] = {sis_fb_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY}
 };
 
 int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);

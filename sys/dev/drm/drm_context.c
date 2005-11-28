@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -229,14 +231,17 @@ int drm_context_switch_complete(drm_device_t *dev, int new)
 int drm_resctx(DRM_IOCTL_ARGS)
 {
 	drm_ctx_res_t res;
+	drm_ctx_t ctx;
 	int i;
 
 	DRM_COPY_FROM_USER_IOCTL( res, (drm_ctx_res_t *)data, sizeof(res) );
 
 	if ( res.count >= DRM_RESERVED_CONTEXTS ) {
+		bzero(&ctx, sizeof(ctx));
 		for ( i = 0 ; i < DRM_RESERVED_CONTEXTS ; i++ ) {
+			ctx.handle = i;
 			if ( DRM_COPY_TO_USER( &res.contexts[i],
-					   &i, sizeof(i) ) )
+					   &ctx, sizeof(ctx) ) )
 				return DRM_ERR(EFAULT);
 		}
 	}
@@ -266,9 +271,9 @@ int drm_addctx(DRM_IOCTL_ARGS)
 		return DRM_ERR(ENOMEM);
 	}
 
-	if (dev->context_ctor && ctx.handle != DRM_KERNEL_CONTEXT) {
+	if (dev->driver.context_ctor && ctx.handle != DRM_KERNEL_CONTEXT) {
 		DRM_LOCK();
-		dev->context_ctor(dev, ctx.handle);
+		dev->driver.context_ctor(dev, ctx.handle);
 		DRM_UNLOCK();
 	}
 
@@ -330,9 +335,9 @@ int drm_rmctx(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG( "%d\n", ctx.handle );
 	if ( ctx.handle != DRM_KERNEL_CONTEXT ) {
-		if (dev->context_dtor) {
+		if (dev->driver.context_dtor) {
 			DRM_LOCK();
-			dev->context_dtor(dev, ctx.handle);
+			dev->driver.context_dtor(dev, ctx.handle);
 			DRM_UNLOCK();
 		}
 

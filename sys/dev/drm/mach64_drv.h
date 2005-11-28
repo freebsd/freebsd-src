@@ -1,6 +1,7 @@
 /* mach64_drv.h -- Private header for mach64 driver -*- linux-c -*-
  * Created: Fri Nov 24 22:07:58 2000 by gareth@valinux.com
- *
+ */
+/*-
  * Copyright 2000 Gareth Hughes
  * Copyright 2002 Frank C. Earl
  * Copyright 2002-2003 Leif Delgass
@@ -29,9 +30,10 @@
  *    Frank C. Earl <fearl@airmail.net>
  *    Leif Delgass <ldelgass@retinalburn.net>
  *    Jos�Fonseca <j_r_fonseca@yahoo.co.uk>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __MACH64_DRV_H__
 #define __MACH64_DRV_H__
@@ -62,7 +64,7 @@ typedef struct drm_mach64_freelist {
 } drm_mach64_freelist_t;
 
 typedef struct drm_mach64_descriptor_ring {
-	dma_addr_t handle;	/* handle (bus address) of ring returned by pci_alloc_consistent() */
+	drm_dma_handle_t *dmah;	/* Handle to pci dma memory */
 	void *start;		/* write pointer (cpu address) to start of descriptor ring */
 	u32 start_addr;		/* bus address of beginning of descriptor ring */
 	int size;		/* size of ring in bytes */
@@ -110,13 +112,16 @@ typedef struct drm_mach64_private {
 	drm_local_map_t *agp_textures;
 } drm_mach64_private_t;
 
+extern drm_ioctl_desc_t mach64_ioctls[];
+extern int mach64_max_ioctl;
+
 				/* mach64_dma.c */
 extern int mach64_dma_init(DRM_IOCTL_ARGS);
 extern int mach64_dma_idle(DRM_IOCTL_ARGS);
 extern int mach64_dma_flush(DRM_IOCTL_ARGS);
 extern int mach64_engine_reset(DRM_IOCTL_ARGS);
 extern int mach64_dma_buffers(DRM_IOCTL_ARGS);
-extern void mach64_driver_pretakedown(drm_device_t * dev);
+extern void mach64_driver_lastclose(drm_device_t * dev);
 
 extern int mach64_init_freelist(drm_device_t * dev);
 extern void mach64_destroy_freelist(drm_device_t * dev);
