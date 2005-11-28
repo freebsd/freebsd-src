@@ -575,6 +575,21 @@ sodisconnect(so)
 	return (error);
 }
 
+#ifdef ZERO_COPY_SOCKETS
+struct so_zerocopy_stats{
+	int size_ok;
+	int align_ok;
+	int found_ifp;
+};
+struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
+#include <netinet/in.h>
+#include <net/route.h>
+#include <netinet/in_pcb.h>
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#endif /*ZERO_COPY_SOCKETS*/
+
 /*
  * sosend_copyin() accepts a uio and prepares an mbuf chain holding part or
  * all of the data referenced by the uio.  If desired, it uses zero-copy.
@@ -720,21 +735,6 @@ out:
  * must check for short counts if EINTR/ERESTART are returned.
  * Data and control buffers are freed on return.
  */
-
-#ifdef ZERO_COPY_SOCKETS
-struct so_zerocopy_stats{
-	int size_ok;
-	int align_ok;
-	int found_ifp;
-};
-struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
-#include <netinet/in.h>
-#include <net/route.h>
-#include <netinet/in_pcb.h>
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
-#endif /*ZERO_COPY_SOCKETS*/
 
 int
 sosend(so, addr, uio, top, control, flags, td)
