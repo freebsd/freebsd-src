@@ -1,5 +1,5 @@
-/* radeon_drm.h -- Public header for the radeon driver -*- linux-c -*- */
-/*-
+/* radeon_drm.h -- Public header for the radeon driver -*- linux-c -*-
+ *
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Fremont, California.
  * Copyright 2002 Tungsten Graphics, Inc., Cedar Park, Texas.
@@ -28,9 +28,10 @@
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *    Keith Whitwell <keith@tungstengraphics.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __RADEON_DRM_H__
 #define __RADEON_DRM_H__
@@ -154,7 +155,16 @@
 #define RADEON_EMIT_PP_CUBIC_FACES_2                82
 #define RADEON_EMIT_PP_CUBIC_OFFSETS_T2             83
 #define R200_EMIT_PP_TRI_PERF_CNTL                  84
-#define RADEON_MAX_STATE_PACKETS                    85
+#define R200_EMIT_PP_AFS_0                          85
+#define R200_EMIT_PP_AFS_1                          86
+#define R200_EMIT_ATF_TFACTOR                       87
+#define R200_EMIT_PP_TXCTLALL_0                     88
+#define R200_EMIT_PP_TXCTLALL_1                     89
+#define R200_EMIT_PP_TXCTLALL_2                     90
+#define R200_EMIT_PP_TXCTLALL_3                     91
+#define R200_EMIT_PP_TXCTLALL_4                     92
+#define R200_EMIT_PP_TXCTLALL_5                     93
+#define RADEON_MAX_STATE_PACKETS                    94
 
 /* Commands understood by cmd_buffer ioctl.  More can be added but
  * obviously these can't be removed or changed:
@@ -494,7 +504,7 @@ typedef struct drm_radeon_init {
 		RADEON_INIT_R300_CP = 0x04
 	} func;
 	unsigned long sarea_priv_offset;
-	int is_pci;		/* not used, driver asks hardware */
+	int is_pci; /* for overriding only */
 	int cp_mode;
 	int gart_size;
 	int ring_size;
@@ -506,8 +516,8 @@ typedef struct drm_radeon_init {
 	unsigned int depth_bpp;
 	unsigned int depth_offset, depth_pitch;
 
-	unsigned long fb_offset;
-	unsigned long mmio_offset;
+	unsigned long fb_offset DEPRECATED;	/* deprecated, driver asks hardware */
+	unsigned long mmio_offset DEPRECATED;	/* deprecated, driver asks hardware */
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
@@ -683,6 +693,7 @@ typedef struct drm_radeon_setparam {
 
 #define RADEON_SETPARAM_FB_LOCATION    1	/* determined framebuffer location */
 #define RADEON_SETPARAM_SWITCH_TILING  2	/* enable/disable color tiling */
+#define RADEON_SETPARAM_PCIGART_LOCATION 3      /* PCI Gart Location */
 
 /* 1.14: Clients can allocate/free a surface
  */

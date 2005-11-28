@@ -24,8 +24,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/sis_drm.h"
@@ -37,27 +39,24 @@ static drm_pci_id_list_t sis_pciidlist[] = {
 	sis_PCI_IDS
 };
 
-extern drm_ioctl_desc_t sis_ioctls[];
-extern int sis_max_ioctl;
-
 static void sis_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = 1; /* No dev_priv */
-	dev->context_ctor = sis_init_context;
-	dev->context_dtor = sis_final_context;
+	dev->driver.buf_priv_size	= 1; /* No dev_priv */
+	dev->driver.context_ctor	= sis_init_context;
+	dev->driver.context_dtor	= sis_final_context;
 
-	dev->driver_ioctls = sis_ioctls;
-	dev->max_driver_ioctl = sis_max_ioctl;
+	dev->driver.ioctls		= sis_ioctls;
+	dev->driver.max_ioctl		= sis_max_ioctl;
 
-	dev->driver_name = DRIVER_NAME;
-	dev->driver_desc = DRIVER_DESC;
-	dev->driver_date = DRIVER_DATE;
-	dev->driver_major = DRIVER_MAJOR;
-	dev->driver_minor = DRIVER_MINOR;
-	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+	dev->driver.name		= DRIVER_NAME;
+	dev->driver.desc		= DRIVER_DESC;
+	dev->driver.date		= DRIVER_DATE;
+	dev->driver.major		= DRIVER_MAJOR;
+	dev->driver.minor		= DRIVER_MINOR;
+	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
 
-	dev->use_agp = 1;
-	dev->use_mtrr = 1;
+	dev->driver.use_agp		= 1;
+	dev->driver.use_mtrr		= 1;
 }
 
 #ifdef __FreeBSD__
@@ -97,5 +96,10 @@ DRIVER_MODULE(sisdrm, pci, sis_driver, drm_devclass, 0, 0);
 MODULE_DEPEND(sisdrm, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
+#ifdef _LKM
 CFDRIVER_DECL(sis, DV_TTY, NULL);
+#else
+CFATTACH_DECL(sis, sizeof(drm_device_t), drm_probe, drm_attach, drm_detach,
+    drm_activate);
+#endif
 #endif

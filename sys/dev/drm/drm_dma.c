@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -63,12 +65,9 @@ void drm_dma_takedown(drm_device_t *dev)
 				  dma->bufs[i].buf_count,
 				  dma->bufs[i].seg_count);
 			for (j = 0; j < dma->bufs[i].seg_count; j++) {
-				drm_pci_free(dev, dma->bufs[i].buf_size,
-				    (void *)dma->bufs[i].seglist[j],
-				    dma->bufs[i].seglist_bus[j]);
+				drm_pci_free(dev, dma->bufs[i].seglist[j]);
 			}
 			free(dma->bufs[i].seglist, M_DRM);
-			free(dma->bufs[i].seglist_bus, M_DRM);
 		}
 
 	   	if (dma->bufs[i].buf_count) {
@@ -125,8 +124,8 @@ int drm_dma(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
-	if (dev->dma_ioctl) {
-		return dev->dma_ioctl(kdev, cmd, data, flags, p, filp);
+	if (dev->driver.dma_ioctl) {
+		return dev->driver.dma_ioctl(kdev, cmd, data, flags, p, filp);
 	} else {
 		DRM_DEBUG("DMA ioctl on driver with no dma handler\n");
 		return EINVAL;

@@ -23,9 +23,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
-/*
- * $FreeBSD$
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef _R300_REG_H
 #define _R300_REG_H

@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -114,7 +116,7 @@ drm_mtrr_add(unsigned long offset, size_t size, int flags)
 }
 
 int
-drm_mtrr_del(unsigned long offset, size_t size, int flags)
+drm_mtrr_del(int __unused handle, unsigned long offset, size_t size, int flags)
 {
 	int act;
 	struct mem_range_desc mrdesc;
