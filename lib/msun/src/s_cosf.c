@@ -1,5 +1,6 @@
 /* s_cosf.c -- float version of s_cos.c.
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
  */
 
 /*
@@ -45,14 +46,14 @@ cosf(float x)
 		if(((int)x)==0) return 1.0;	/* 1 with inexact if x != 0 */
 	    return __kernel_cosdf(x);
 	}
-	if(ix<=0x407b53d1) {		/* |x| <= ~5*pi/4 */
-	    if(ix<=0x4016cbe3)		/* |x| <= ~3pi/4 */
+	if(ix<=0x407b53d1) {		/* |x| ~<= 5*pi/4 */
+	    if(ix<=0x4016cbe3)		/* |x| ~<= 3pi/4 */
 		return -__kernel_sindf(x - c1pio2);
 	    else
 		return -__kernel_cosdf(x - c2pio2);
 	}
-	if(ix<=0x40e231d5) {		/* |x| <= ~9*pi/4 */
-	    if(ix<=0x40afeddf)		/* |x| <= ~7*pi/4 */
+	if(ix<=0x40e231d5) {		/* |x| ~<= 9*pi/4 */
+	    if(ix<=0x40afeddf)		/* |x| ~<= 7*pi/4 */
 		return __kernel_sindf(x - c3pio2);
 	    else
 		return __kernel_cosdf(x - c4pio2);
