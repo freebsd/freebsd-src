@@ -1,5 +1,6 @@
 /* s_tanf.c -- float version of s_tan.c.
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
  */
 
 /*
@@ -18,7 +19,7 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "math.h"
-#define	INLINE_KERNEL_TANF
+#define	INLINE_KERNEL_TANDF
 #include "math_private.h"
 #include "k_tanf.c"
 

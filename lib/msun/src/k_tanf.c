@@ -1,5 +1,6 @@
 /* k_tanf.c -- float version of k_tan.c
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
  */
 
 /*
@@ -12,7 +13,7 @@
  * ====================================================
  */
 
-#ifndef INLINE_KERNEL_TANF
+#ifndef INLINE_KERNEL_TANDF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
 #endif
@@ -32,7 +33,7 @@ T[] =  {
   0x1362b9bf971bcd.0p-59,	/* 0.00946564784943673166728 */
 };
 
-#ifdef INLINE_KERNEL_TANF
+#ifdef INLINE_KERNEL_TANDF
 extern inline
 #endif
 float
@@ -46,7 +47,7 @@ __kernel_tandf(double x, int iy)
      *	  x^5*(T[1]+x^4*T[3]+x^8*T[5]) +
      *	  x^5*(x^2*(T[2]+x^4*T[4]))
      */
-	r = T[1]+w*(T[3]+w*T[5]) + z*(T[2]+w*T[4]);
+	r = (T[1]+w*(T[3]+w*T[5])) + z*(T[2]+w*T[4]);
 	s = z*x;
 	r = (x+s*T[0])+(s*z)*r;
 	if(iy==1) return r;
