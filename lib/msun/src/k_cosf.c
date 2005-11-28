@@ -14,7 +14,7 @@
  * ====================================================
  */
 
-#ifndef INLINE_KERNEL_COSF
+#ifndef INLINE_KERNEL_COSDF
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
 #endif
@@ -23,24 +23,23 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-/* |cos(x) - c(x)| < 2**-33.1 (~[-9.39e-11, 1.083e-10]). */
-static const float
+/* |cos(x) - c(x)| < 2**-34.1 (~[-5.37e-11, 5.295e-11]). */
+static const double
 one =  1.0,
-C1  =  0xaaaaa5.0p-28,		/*  0.041666645557 */
-C2  = -0xb60615.0p-33,		/* -0.0013887310633 */
-C3  =  0xccf47d.0p-39;		/*  0.000024432542887 */
+C0  = -0x1ffffffd0c5e81.0p-54,	/* -0.499999997251031003120 */
+C1  =  0x155553e1053a42.0p-57,	/*  0.0416666233237390631894 */
+C2  = -0x16c087e80f1e27.0p-62,	/* -0.00138867637746099294692 */
+C3  =  0x199342e0ee5069.0p-68;	/*  0.0000243904487962774090654 */
 
-#ifdef INLINE_KERNEL_COSF
+#ifdef INLINE_KERNEL_COSDF
 extern inline
 #endif
 float
-__kernel_cosf(float x, float y)
+__kernel_cosdf(double x)
 {
-	float hz,z,r,w;
+	double z,r;
 
 	z  = x*x;
 	r  = z*(C1+z*(C2+z*C3));
-	hz = (float)0.5*z;
-	w  = one-hz;
-	return w + (((one-w)-hz) + (z*r-x*y));
+	return (one+z*C0) + z*r;
 }
