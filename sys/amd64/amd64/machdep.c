@@ -124,7 +124,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
+#include <dev/ic/i8259.h>
 #include <amd64/isa/icu.h>
+#include <machine/apicvar.h>
 
 #include <isa/isareg.h>
 #include <isa/rtc.h>
@@ -1143,14 +1145,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	u_int64_t msr;
 	char *env;
 
-#ifdef DEV_ISA
-	/* Preemptively mask the atpics and leave them shut down */
-	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
-#else
-#error "have you forgotten the isa device?";
-#endif
-
 	thread0.td_kstack = physfree + KERNBASE;
 	bzero((void *)thread0.td_kstack, KSTACK_PAGES * PAGE_SIZE);
 	physfree += KSTACK_PAGES * PAGE_SIZE;
@@ -1249,9 +1243,35 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	cninit();
 
+#ifdef DEV_ISA
 #ifdef DEV_ATPIC
 	elcr_probe();
 	atpic_startup();
+#else
+	/* Reset and mask the atpics and leave them shut down. */
+	outb(IO_ICU1, ICW1_RESET | ICW1_IC4);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, IDT_IO_INTS);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 1 << 2);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU1, OCW3_SEL | OCW3_RR);
+
+	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, IDT_IO_INTS + 8);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 2);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU2, OCW3_SEL | OCW3_RR);
+
+	/*
+	 * Point the ICU spurious interrupt vectors at the APIC spurious
+	 * interrupt handler.
+	 */
+	setidt(IDT_IO_INTS + 7, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_IO_INTS + 15, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
+#endif
+#else
+#error "have you forgotten the isa device?";
 #endif
 
 	kdb_init();
