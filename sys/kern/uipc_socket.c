@@ -575,7 +575,134 @@ sodisconnect(so)
 	return (error);
 }
 
+/*
+ * sosend_copyin() accepts a uio and prepares an mbuf chain holding part or
+ * all of the data referenced by the uio.  If desired, it uses zero-copy.
+ * *space will be updated to reflect data copied in.
+ *
+ * NB: If atomic I/O is requested, the caller must already have checked that
+ * space can hold resid bytes.
+ *
+ * NB: In the event of an error, the caller may need to free the partial
+ * chain pointed to by *mpp.  The contents of both *uio and *space may be
+ * modified even in the case of an error.
+ */
+static int
+sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
+    int flags)
+{
+	struct mbuf *m, **mp, *top;
+	long len, resid;
+	int error;
+#ifdef ZERO_COPY_SOCKETS
+	int cow_send;
+#endif
+
+	*retmp = top = NULL;
+	mp = &top;
+	len = 0;
+	resid = uio->uio_resid;
+	error = 0;
+	do {
+#ifdef ZERO_COPY_SOCKETS
+		cow_send = 0;
+#endif /* ZERO_COPY_SOCKETS */
+		if (resid >= MINCLSIZE) {
+#ifdef ZERO_COPY_SOCKETS
+			if (top == NULL) {
+				MGETHDR(m, M_TRYWAIT, MT_DATA);
+				if (m == NULL) {
+					error = ENOBUFS;
+					goto out;
+				}
+				m->m_pkthdr.len = 0;
+				m->m_pkthdr.rcvif = NULL; 
+			} else {
+				MGET(m, M_TRYWAIT, MT_DATA);
+				if (m == NULL) {
+					error = ENOBUFS;
+					goto out;
+				}
+			}
+			if (so_zero_copy_send &&
+			    resid>=PAGE_SIZE &&
+			    *space>=PAGE_SIZE &&
+			    uio->uio_iov->iov_len>=PAGE_SIZE) {
+				so_zerocp_stats.size_ok++;
+				so_zerocp_stats.align_ok++;
+				cow_send = socow_setup(m, uio);
+				len = cow_send;
+			}
+			if (!cow_send) {
+				MCLGET(m, M_TRYWAIT);
+				if ((m->m_flags & M_EXT) == 0) {
+					m_free(m);
+					m = NULL;
+				} else {
+					len = min(min(MCLBYTES, resid),
+					    *space);
+				}
+			}
+#else /* ZERO_COPY_SOCKETS */
+			if (top == NULL) {
+				m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+				m->m_pkthdr.len = 0;
+				m->m_pkthdr.rcvif = NULL;
+			} else
+				m = m_getcl(M_TRYWAIT, MT_DATA, 0);
+			len = min(min(MCLBYTES, resid), *space);
+#endif /* ZERO_COPY_SOCKETS */
+		} else {
+			if (top == NULL) {
+				m = m_gethdr(M_TRYWAIT, MT_DATA);
+				m->m_pkthdr.len = 0;
+				m->m_pkthdr.rcvif = NULL;
+
+				len = min(min(MHLEN, resid), *space);
+				/*
+				 * For datagram protocols, leave room
+				 * for protocol headers in first mbuf.
+				 */
+				if (atomic && m && len < MHLEN)
+					MH_ALIGN(m, len);
+			} else {
+				m = m_get(M_TRYWAIT, MT_DATA);
+				len = min(min(MLEN, resid), *space);
+			}
+		}
+		if (m == NULL) {
+			error = ENOBUFS;
+			goto out;
+		}
+
+		*space -= len;
+#ifdef ZERO_COPY_SOCKETS
+		if (cow_send)
+			error = 0;
+		else
+#endif /* ZERO_COPY_SOCKETS */
+		error = uiomove(mtod(m, void *), (int)len, uio);
+		resid = uio->uio_resid;
+		m->m_len = len;
+		*mp = m;
+		top->m_pkthdr.len += len;
+		if (error)
+			goto out;
+		mp = &m->m_next;
+		if (resid <= 0) {
+			if (flags & MSG_EOR)
+				top->m_flags |= M_EOR;
+			break;
+		}
+	} while (*space > 0 && atomic);
+out:
+	*retmp = top;
+	return (error);
+}
+
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
+#define	snderr(errno)	{ error = (errno); goto out; }
+
 /*
  * Send on a socket.
  * If send must go all at once and message is larger than
@@ -619,14 +746,9 @@ sosend(so, addr, uio, top, control, flags, td)
 	int flags;
 	struct thread *td;
 {
-	struct mbuf **mp;
-	struct mbuf *m;
-	long space, len = 0, resid;
+	long space, resid;
 	int clen = 0, error, dontroute;
 	int atomic = sosendallatonce(so) || top;
-#ifdef ZERO_COPY_SOCKETS
-	int cow_send;
-#endif /* ZERO_COPY_SOCKETS */
 
 	if (uio != NULL)
 		resid = uio->uio_resid;
@@ -654,7 +776,6 @@ sosend(so, addr, uio, top, control, flags, td)
 		td->td_proc->p_stats->p_ru.ru_msgsnd++;
 	if (control != NULL)
 		clen = control->m_len;
-#define	snderr(errno)	{ error = (errno); goto release; }
 
 	SOCKBUF_LOCK(&so->so_snd);
 restart:
@@ -704,153 +825,61 @@ restart:
 			goto restart;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
-		mp = &top;
 		space -= clen;
 		do {
-		    if (uio == NULL) {
-			/*
-			 * Data is prepackaged in "top".
-			 */
-			resid = 0;
-			if (flags & MSG_EOR)
-				top->m_flags |= M_EOR;
-		    } else do {
-#ifdef ZERO_COPY_SOCKETS
-			cow_send = 0;
-#endif /* ZERO_COPY_SOCKETS */
-			if (resid >= MINCLSIZE) {
-#ifdef ZERO_COPY_SOCKETS
-				if (top == NULL) {
-					MGETHDR(m, M_TRYWAIT, MT_DATA);
-					if (m == NULL) {
-						error = ENOBUFS;
-						SOCKBUF_LOCK(&so->so_snd);
-						goto release;
-					}
-					m->m_pkthdr.len = 0;
-					m->m_pkthdr.rcvif = NULL; 
-				} else {
-					MGET(m, M_TRYWAIT, MT_DATA);
-					if (m == NULL) {
-						error = ENOBUFS;
-						SOCKBUF_LOCK(&so->so_snd);
-						goto release;
-					}
-				}
-				if (so_zero_copy_send &&
-				    resid>=PAGE_SIZE &&
-				    space>=PAGE_SIZE &&
-				    uio->uio_iov->iov_len>=PAGE_SIZE) {
-					so_zerocp_stats.size_ok++;
-					so_zerocp_stats.align_ok++;
-					cow_send = socow_setup(m, uio);
-					len = cow_send;
-				}
-				if (!cow_send) {
-					MCLGET(m, M_TRYWAIT);
-					if ((m->m_flags & M_EXT) == 0) {
-						m_free(m);
-						m = NULL;
-					} else {
-						len = min(min(MCLBYTES, resid), space);
-					}
-				}
-#else /* ZERO_COPY_SOCKETS */
-				if (top == NULL) {
-					m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
-					m->m_pkthdr.len = 0;
-					m->m_pkthdr.rcvif = NULL;
-				} else
-					m = m_getcl(M_TRYWAIT, MT_DATA, 0);
-				len = min(min(MCLBYTES, resid), space);
-#endif /* ZERO_COPY_SOCKETS */
-			} else {
-				if (top == NULL) {
-					m = m_gethdr(M_TRYWAIT, MT_DATA);
-					m->m_pkthdr.len = 0;
-					m->m_pkthdr.rcvif = NULL;
-
-					len = min(min(MHLEN, resid), space);
-					/*
-					 * For datagram protocols, leave room
-					 * for protocol headers in first mbuf.
-					 */
-					if (atomic && m && len < MHLEN)
-						MH_ALIGN(m, len);
-				} else {
-					m = m_get(M_TRYWAIT, MT_DATA);
-					len = min(min(MLEN, resid), space);
-				}
-			}
-			if (m == NULL) {
-				error = ENOBUFS;
-				SOCKBUF_LOCK(&so->so_snd);
-				goto release;
-			}
-
-			space -= len;
-#ifdef ZERO_COPY_SOCKETS
-			if (cow_send)
-				error = 0;
-			else
-#endif /* ZERO_COPY_SOCKETS */
-			error = uiomove(mtod(m, void *), (int)len, uio);
-			resid = uio->uio_resid;
-			m->m_len = len;
-			*mp = m;
-			top->m_pkthdr.len += len;
-			if (error) {
-				SOCKBUF_LOCK(&so->so_snd);
-				goto release;
-			}
-			mp = &m->m_next;
-			if (resid <= 0) {
+			if (uio == NULL) {
+				resid = 0;
 				if (flags & MSG_EOR)
 					top->m_flags |= M_EOR;
-				break;
+			} else {
+				error = sosend_copyin(uio, &top, atomic,
+				    &space, flags);
+				if (error != 0) {
+					SOCKBUF_LOCK(&so->so_snd);
+					goto release;
+				}
+				resid = uio->uio_resid;
 			}
-		    } while (space > 0 && atomic);
-		    if (dontroute) {
-			    SOCK_LOCK(so);
-			    so->so_options |= SO_DONTROUTE;
-			    SOCK_UNLOCK(so);
-		    }
-		    /*
-		     * XXX all the SBS_CANTSENDMORE checks previously
-		     * done could be out of date.  We could have recieved
-		     * a reset packet in an interrupt or maybe we slept
-		     * while doing page faults in uiomove() etc. We could
-		     * probably recheck again inside the locking protection
-		     * here, but there are probably other places that this
-		     * also happens.  We must rethink this.
-		     */
-		    error = (*so->so_proto->pr_usrreqs->pru_send)(so,
-			(flags & MSG_OOB) ? PRUS_OOB :
+			if (dontroute) {
+				SOCK_LOCK(so);
+				so->so_options |= SO_DONTROUTE;
+				SOCK_UNLOCK(so);
+			}
+			/*
+			 * XXX all the SBS_CANTSENDMORE checks previously
+			 * done could be out of date.  We could have recieved
+			 * a reset packet in an interrupt or maybe we slept
+			 * while doing page faults in uiomove() etc. We could
+			 * probably recheck again inside the locking protection
+			 * here, but there are probably other places that this
+			 * also happens.  We must rethink this.
+			 */
+			error = (*so->so_proto->pr_usrreqs->pru_send)(so,
+			    (flags & MSG_OOB) ? PRUS_OOB :
 			/*
 			 * If the user set MSG_EOF, the protocol
 			 * understands this flag and nothing left to
 			 * send then use PRU_SEND_EOF instead of PRU_SEND.
 			 */
-			((flags & MSG_EOF) &&
-			 (so->so_proto->pr_flags & PR_IMPLOPCL) &&
-			 (resid <= 0)) ?
+			    ((flags & MSG_EOF) &&
+			     (so->so_proto->pr_flags & PR_IMPLOPCL) &&
+			     (resid <= 0)) ?
 				PRUS_EOF :
 			/* If there is more to send set PRUS_MORETOCOME */
-			(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
-			top, addr, control, td);
-		    if (dontroute) {
-			    SOCK_LOCK(so);
-			    so->so_options &= ~SO_DONTROUTE;
-			    SOCK_UNLOCK(so);
-		    }
-		    clen = 0;
-		    control = NULL;
-		    top = NULL;
-		    mp = &top;
-		    if (error) {
-			SOCKBUF_LOCK(&so->so_snd);
-			goto release;
-		    }
+			    (resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
+			    top, addr, control, td);
+			if (dontroute) {
+				SOCK_LOCK(so);
+				so->so_options &= ~SO_DONTROUTE;
+				SOCK_UNLOCK(so);
+			}
+			clen = 0;
+			control = NULL;
+			top = NULL;
+			if (error) {
+				SOCKBUF_LOCK(&so->so_snd);
+				goto release;
+			}
 		} while (resid && space > 0);
 		SOCKBUF_LOCK(&so->so_snd);
 	} while (resid);
