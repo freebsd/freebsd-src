@@ -719,6 +719,7 @@ rtc_restore(void)
 	writertc(RTC_STATUSB, RTCSB_24HR);
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, rtc_statusb);
+	rtcin(RTC_INTR);
 }
 
 /*
@@ -977,6 +978,7 @@ resettodr()
 
 	/* Reenable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, rtc_statusb);
+	rtcin(RTC_INTR);
 }
 
 
@@ -1062,6 +1064,7 @@ cpu_initclocks()
 #endif /* APIC_IO */
 
 	writertc(RTC_STATUSB, rtc_statusb);
+	rtcin(RTC_INTR);
 
 #ifdef APIC_IO
 	if (apic_8254_trial) {
