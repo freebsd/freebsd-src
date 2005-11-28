@@ -665,6 +665,8 @@
 
     &hwlist.snd.als4000;
 
+    &hwlist.snd.atiixp;
+
     &hwlist.snd.audiocs;
 
     &hwlist.snd.cmi;
