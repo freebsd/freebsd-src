@@ -39,17 +39,29 @@ extern inline
 float
 __kernel_tandf(double x, int iy)
 {
-	double z,r,w,s;
+	double z,r,w,s,t,u;
 
 	z	=  x*x;
-	w 	=  z*z;
-    /* Break x^5*(T[1]+x^2*T[2]+...) into
-     *	  x^5*(T[1]+x^4*T[3]+x^8*T[5]) +
-     *	  x^5*(x^2*(T[2]+x^4*T[4]))
-     */
-	r = (T[1]+w*(T[3]+w*T[5])) + z*(T[2]+w*T[4]);
+	/*
+	 * Split up the polynomial into small independent terms to give
+	 * opportunities for parallel evaluation.  The chosen splitting is
+	 * micro-optimized for Athlons (XP, X64).  It costs 2 multiplications
+	 * relative to Horner's method on sequential machines.
+	 *
+	 * We add the small terms from lowest degree up for efficiency on
+	 * non-sequential machines (the lowest degree terms tend to be ready
+	 * earlier).  Apart from this, we don't care about order of
+	 * operations, and don't need to to care since we have precision to
+	 * spare.  However, the chosen splitting is good for accuracy too,
+	 * and would give results as accurate as Horner's method if the
+	 * small terms were added from highest degree down.
+	 */
+	r = T[4]+z*T[5];
+	t = T[2]+z*T[3];
+	w = z*z;
 	s = z*x;
-	r = (x+s*T[0])+(s*z)*r;
+	u = T[0]+z*T[1];
+	r = (x+s*u)+(s*w)*(t+w*r);
 	if(iy==1) return r;
 	else return -1.0/r;
 }
