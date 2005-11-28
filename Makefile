@@ -269,7 +269,8 @@ universe_prologue:
 .for arch in ${target:C/:.*$//}
 .for mach in ${target:C/^.*://}
 KERNCONFS!=	cd ${.CURDIR}/sys/${mach}/conf && \
-		find [A-Z]*[A-Z] -type f -maxdepth 0
+		find [A-Z]*[A-Z] -type f -maxdepth 0 \
+		! -name DEFAULTS ! -name NOTES
 KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
 universe: universe_${mach}
 .ORDER: universe_prologue universe_${mach} universe_epilogue
