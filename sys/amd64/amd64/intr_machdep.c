@@ -190,6 +190,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
+		return;
 	}
 
 	/*
