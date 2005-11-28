@@ -48,7 +48,7 @@ cosf(float x)
 	}
 	if(ix<=0x407b53d1) {		/* |x| ~<= 5*pi/4 */
 	    if(ix<=0x4016cbe3)		/* |x| ~<= 3pi/4 */
-		return -__kernel_sindf(x - c1pio2);
+		return __kernel_sindf(c1pio2 - x);
 	    else
 		return -__kernel_cosdf(x - c2pio2);
 	}
@@ -67,7 +67,7 @@ cosf(float x)
 	    n = __ieee754_rem_pio2f(x,y);
 	    switch(n&3) {
 		case 0: return  __kernel_cosdf((double)y[0]+y[1]);
-		case 1: return -__kernel_sindf((double)y[0]+y[1]);
+		case 1: return  __kernel_sindf(-(double)y[0]-y[1]);
 		case 2: return -__kernel_cosdf((double)y[0]+y[1]);
 		default:
 		        return  __kernel_sindf((double)y[0]+y[1]);
