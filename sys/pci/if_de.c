@@ -4249,19 +4249,6 @@ tulip_ifioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
 	    break;
 	}
 
-	case SIOCSIFMTU:
-	    /*
-	     * Set the interface MTU.
-	     */
-	    TULIP_LOCK(sc);
-	    if (ifr->ifr_mtu > ETHERMTU) {
-		error = EINVAL;
-		break;
-	    }
-	    ifp->if_mtu = ifr->ifr_mtu;
-	    TULIP_UNLOCK(sc);
-	    break;
-
 #ifdef SIOCGADDRROM
 	case SIOCGADDRROM: {
 	    error = copyout(sc->tulip_rombuf, ifr->ifr_data, sizeof(sc->tulip_rombuf));
