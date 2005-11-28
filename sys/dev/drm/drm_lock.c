@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -113,7 +115,7 @@ int drm_lock(DRM_IOCTL_ARGS)
         DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
 	    lock.context, DRM_CURRENTPID, dev->lock.hw_lock->lock, lock.flags);
 
-        if (dev->use_dma_queue && lock.context < 0)
+        if (dev->driver.use_dma_queue && lock.context < 0)
                 return EINVAL;
 
 	DRM_LOCK();
@@ -144,8 +146,9 @@ int drm_lock(DRM_IOCTL_ARGS)
 
 	/* XXX: Add signal blocking here */
 
-	if (dev->dma_quiescent != NULL && (lock.flags & _DRM_LOCK_QUIESCENT))
-		dev->dma_quiescent(dev);
+	if (dev->driver.dma_quiescent != NULL &&
+	    (lock.flags & _DRM_LOCK_QUIESCENT))
+		dev->driver.dma_quiescent(dev);
 
 	return 0;
 }

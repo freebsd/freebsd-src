@@ -23,8 +23,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef _SIS_DRV_H_
 #define _SIS_DRV_H_
@@ -49,5 +51,8 @@ typedef struct drm_sis_private {
 
 extern int sis_init_context(drm_device_t * dev, int context);
 extern int sis_final_context(drm_device_t * dev, int context);
+
+extern drm_ioctl_desc_t sis_ioctls[];
+extern int sis_max_ioctl;
 
 #endif

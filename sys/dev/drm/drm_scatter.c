@@ -27,8 +27,10 @@
  *   Gareth Hughes <gareth@valinux.com>
  *   Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -36,7 +38,7 @@
 
 void drm_sg_cleanup(drm_sg_mem_t *entry)
 {
-	free(entry->virtual, M_DRM);
+	free((void *)entry->handle, M_DRM);
 	free(entry->busaddr, M_DRM);
 	free(entry, M_DRM);
 }
@@ -47,6 +49,7 @@ int drm_sg_alloc(DRM_IOCTL_ARGS)
 	drm_scatter_gather_t request;
 	drm_sg_mem_t *entry;
 	unsigned long pages;
+	int i;
 
 	DRM_DEBUG( "%s\n", __FUNCTION__ );
 
@@ -72,16 +75,18 @@ int drm_sg_alloc(DRM_IOCTL_ARGS)
 		return ENOMEM;
 	}
 
-	entry->virtual = malloc(pages << PAGE_SHIFT, M_DRM, M_WAITOK | M_ZERO);
-	if ( !entry->virtual ) {
+	entry->handle = (long)malloc(pages << PAGE_SHIFT, M_DRM,
+	    M_WAITOK | M_ZERO);
+	if (entry->handle == 0) {
 		drm_sg_cleanup(entry);
 		return ENOMEM;
 	}
 
-	entry->handle = (unsigned long)entry->virtual;
+	for (i = 0; i < pages; i++) {
+		entry->busaddr[i] = vtophys(entry->handle + i * PAGE_SIZE);
+	}
 
 	DRM_DEBUG( "sg alloc handle  = %08lx\n", entry->handle );
-	DRM_DEBUG( "sg alloc virtual = %p\n", entry->virtual );
 
 	request.handle = entry->handle;
 
@@ -118,7 +123,7 @@ int drm_sg_free(DRM_IOCTL_ARGS)
 	if ( !entry || entry->handle != request.handle )
 		return EINVAL;
 
-	DRM_DEBUG( "sg free virtual  = %p\n", entry->virtual );
+	DRM_DEBUG( "sg free virtual  = 0x%lx\n", entry->handle );
 
 	drm_sg_cleanup(entry);
 
