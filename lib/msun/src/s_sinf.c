@@ -1,5 +1,6 @@
 /* s_sinf.c -- float version of s_sin.c.
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
  */
 
 /*
@@ -45,8 +46,8 @@ sinf(float x)
 		if(((int)x)==0) return x;	/* x with inexact if x != 0 */
 	    return __kernel_sindf(x);
 	}
-	if(ix<=0x407b53d1) {		/* |x| <= ~5*pi/4 */
-	    if(ix<=0x4016cbe3) {	/* |x| <= ~3pi/4 */
+	if(ix<=0x407b53d1) {		/* |x| ~<= 5*pi/4 */
+	    if(ix<=0x4016cbe3) {	/* |x| ~<= 3pi/4 */
 		if(hx>0)
 		    return __kernel_cosdf(x - s1pio2);
 		else
@@ -54,8 +55,8 @@ sinf(float x)
 	    } else
 		return -__kernel_sindf(x + (hx > 0 ? -s2pio2 : s2pio2));
 	}
-	if(ix<=0x40e231d5) {		/* |x| <= ~9*pi/4 */
-	    if(ix<=0x40afeddf) {	/* |x| <= ~7*pi/4 */
+	if(ix<=0x40e231d5) {		/* |x| ~<= 9*pi/4 */
+	    if(ix<=0x40afeddf) {	/* |x| ~<= 7*pi/4 */
 		if(hx>0)
 		    return -__kernel_cosdf(x - s3pio2);
 		else
