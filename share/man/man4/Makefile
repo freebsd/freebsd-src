@@ -278,6 +278,7 @@ MAN=	aac.4 \
 	sn.4 \
 	snd_ad1816.4 \
 	snd_als4000.4 \
+	snd_atiixp.4 \
 	snd_cmi.4 \
 	snd_cs4281.4 \
 	snd_csa.4 \
