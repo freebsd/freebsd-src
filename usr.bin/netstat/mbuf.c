@@ -87,14 +87,12 @@ mbpr(void *kvmd, u_long mbaddr)
 	 * and some malloc(9).
 	 */
 	if (live) {
-		printf("live\n");
 		if (memstat_sysctl_all(mtlp, 0) < 0) {
 			warnx("memstat_sysctl_all: %s",
 			    memstat_strerror(memstat_mtl_geterror(mtlp)));
 			goto out;
 		}
 	} else {
-		printf("kvm\n");
 		if (memstat_kvm_all(mtlp, kvmd) < 0) {
 			error = memstat_mtl_geterror(mtlp);
 			if (error == MEMSTAT_ERROR_KVM)
