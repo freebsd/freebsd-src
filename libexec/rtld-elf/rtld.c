@@ -1968,7 +1968,7 @@ fill_search_info(const char *dir, size_t dirlen, void *param)
 
     if (arg->request == RTLD_DI_SERINFOSIZE) {
 	arg->serinfo->dls_cnt ++;
-	arg->serinfo->dls_size += dirlen + 1;
+	arg->serinfo->dls_size += sizeof(Dl_serpath) + dirlen + 1;
     } else {
 	struct dl_serpath *s_entry;
 
