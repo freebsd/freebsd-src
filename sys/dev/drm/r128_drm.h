@@ -1,5 +1,6 @@
 /* r128_drm.h -- Public header for the r128 driver -*- linux-c -*-
- * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com */
+ * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com
+ */
 /*-
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -27,9 +28,10 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *    Kevin E. Martin <martin@valinux.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __R128_DRM_H__
 #define __R128_DRM_H__
@@ -215,7 +217,7 @@ typedef struct drm_r128_sarea {
 #define DRM_IOCTL_R128_INDIRECT   DRM_IOWR(DRM_COMMAND_BASE + DRM_R128_INDIRECT, drm_r128_indirect_t)
 #define DRM_IOCTL_R128_FULLSCREEN DRM_IOW( DRM_COMMAND_BASE + DRM_R128_FULLSCREEN, drm_r128_fullscreen_t)
 #define DRM_IOCTL_R128_CLEAR2     DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CLEAR2, drm_r128_clear2_t)
-#define DRM_IOCTL_R128_GETPARAM   DRM_IOW( DRM_COMMAND_BASE + DRM_R128_GETPARAM, drm_r128_getparam_t)
+#define DRM_IOCTL_R128_GETPARAM   DRM_IOWR( DRM_COMMAND_BASE + DRM_R128_GETPARAM, drm_r128_getparam_t)
 #define DRM_IOCTL_R128_FLIP       DRM_IO(  DRM_COMMAND_BASE + DRM_R128_FLIP)
 
 typedef struct drm_r128_init {

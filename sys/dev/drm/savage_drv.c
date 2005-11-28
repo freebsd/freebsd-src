@@ -24,46 +24,46 @@
  *
  * Authors:
  *    Eric Anholt <anholt@FreeBSD.org>
- *
- * $FreeBSD$
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "savage_drm.h"
-#include "savage_drv.h"
-#include "drm_pciids.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "dev/drm/drmP.h"
+#include "dev/drm/drm.h"
+#include "dev/drm/savage_drm.h"
+#include "dev/drm/savage_drv.h"
+#include "dev/drm/drm_pciids.h"
 
 /* drv_PCI_IDs comes from drm_pciids.h, generated from drm_pciids.txt. */
 static drm_pci_id_list_t savage_pciidlist[] = {
 	savage_PCI_IDS
 };
 
-extern drm_ioctl_desc_t savage_ioctls[];
-extern int savage_max_ioctl;
-
 static void savage_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = sizeof(drm_savage_buf_priv_t);
-	dev->preinit = savage_preinit;
-	dev->postcleanup = savage_postcleanup;
-	dev->reclaim_buffers = savage_reclaim_buffers;
-	dev->dma_ioctl = savage_bci_buffers;
+	dev->driver.buf_priv_size	= sizeof(drm_savage_buf_priv_t);
+	dev->driver.load		= savage_driver_load;
+	dev->driver.firstopen		= savage_driver_firstopen;
+	dev->driver.lastclose		= savage_driver_lastclose;
+	dev->driver.unload		= savage_driver_unload;
+	dev->driver.reclaim_buffers_locked = savage_reclaim_buffers;
+	dev->driver.dma_ioctl		= savage_bci_buffers;
 
-	dev->driver_ioctls = savage_ioctls;
-	dev->max_driver_ioctl = savage_max_ioctl;
+	dev->driver.ioctls		= savage_ioctls;
+	dev->driver.max_ioctl		= savage_max_ioctl;
 
-	dev->driver_name = DRIVER_NAME;
-	dev->driver_desc = DRIVER_DESC;
-	dev->driver_date = DRIVER_DATE;
-	dev->driver_major = DRIVER_MAJOR;
-	dev->driver_minor = DRIVER_MINOR;
-	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+	dev->driver.name		= DRIVER_NAME;
+	dev->driver.desc		= DRIVER_DESC;
+	dev->driver.date		= DRIVER_DATE;
+	dev->driver.major		= DRIVER_MAJOR;
+	dev->driver.minor		= DRIVER_MINOR;
+	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
 
-	dev->use_agp = 1;
-	dev->use_mtrr = 1;
-	dev->use_pci_dma = 1;
-	dev->use_dma = 1;
+	dev->driver.use_agp		= 1;
+	dev->driver.use_mtrr		= 1;
+	dev->driver.use_pci_dma		= 1;
+	dev->driver.use_dma		= 1;
 }
 
 #ifdef __FreeBSD__

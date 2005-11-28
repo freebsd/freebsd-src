@@ -6,6 +6,7 @@ SUBDIR = \
 	mga \
 	r128 \
 	radeon \
+	savage \
 	sis \
 	tdfx
 

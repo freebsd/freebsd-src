@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -43,39 +45,75 @@ static drm_pci_id_list_t mga_pciidlist[] = {
 	mga_PCI_IDS
 };
 
-extern drm_ioctl_desc_t mga_ioctls[];
-extern int mga_max_ioctl;
+/**
+ * Determine if the device really is AGP or not.
+ *
+ * In addition to the usual tests performed by \c drm_device_is_agp, this
+ * function detects PCI G450 cards that appear to the system exactly like
+ * AGP G450 cards.
+ *
+ * \param dev   The device to be tested.
+ *
+ * \returns
+ * If the device is a PCI G450, zero is returned.  Otherwise non-zero is
+ * returned.
+ *
+ * \bug
+ * This function needs to be filled in!  The implementation in
+ * linux-core/mga_drv.c shows what needs to be done.
+ */
+static int mga_driver_device_is_agp(drm_device_t * dev)
+{
+	/* There are PCI versions of the G450.  These cards have the
+	 * same PCI ID as the AGP G450, but have an additional PCI-to-PCI
+	 * bridge chip.  We detect these cards, which are not currently
+	 * supported by this driver, by looking at the device ID of the
+	 * bus the "card" is on.  If vendor is 0x3388 (Hint Corp) and the
+	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
+	 * device.
+	 */
+	if (pci_get_device(dev->device) == 0x0525 &&
+	    pci_get_vendor(device_get_parent(dev->device)) == 0x3388 &&
+	    pci_get_device(device_get_parent(dev->device)) == 0x0021)
+		return 0;
+	else
+		return 2;
+}
 
 static void mga_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = sizeof(drm_mga_buf_priv_t);
-	/* XXX dev->prerelease = mga_driver_prerelease; */
-	dev->pretakedown = mga_driver_pretakedown;
-	dev->vblank_wait = mga_driver_vblank_wait;
-	dev->irq_preinstall = mga_driver_irq_preinstall;
-	dev->irq_postinstall = mga_driver_irq_postinstall;
-	dev->irq_uninstall = mga_driver_irq_uninstall;
-	dev->irq_handler = mga_driver_irq_handler;
-	dev->dma_ioctl = mga_dma_buffers;
-	dev->dma_quiescent = mga_driver_dma_quiescent;
+	dev->driver.buf_priv_size	= sizeof(drm_mga_buf_priv_t);
+	dev->driver.load		= mga_driver_load;
+	dev->driver.unload		= mga_driver_unload;
+	dev->driver.lastclose		= mga_driver_lastclose;
+	dev->driver.vblank_wait		= mga_driver_vblank_wait;
+	dev->driver.irq_preinstall	= mga_driver_irq_preinstall;
+	dev->driver.irq_postinstall	= mga_driver_irq_postinstall;
+	dev->driver.irq_uninstall	= mga_driver_irq_uninstall;
+	dev->driver.irq_handler		= mga_driver_irq_handler;
+	dev->driver.dma_ioctl		= mga_dma_buffers;
+	dev->driver.dma_quiescent	= mga_driver_dma_quiescent;
+	dev->driver.device_is_agp	= mga_driver_device_is_agp;
 
-	dev->driver_ioctls = mga_ioctls;
-	dev->max_driver_ioctl = mga_max_ioctl;
+	dev->driver.ioctls		= mga_ioctls;
+	dev->driver.max_ioctl		= mga_max_ioctl;
 
-	dev->driver_name = DRIVER_NAME;
-	dev->driver_desc = DRIVER_DESC;
-	dev->driver_date = DRIVER_DATE;
-	dev->driver_major = DRIVER_MAJOR;
-	dev->driver_minor = DRIVER_MINOR;
-	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+	dev->driver.name		= DRIVER_NAME;
+	dev->driver.desc		= DRIVER_DESC;
+	dev->driver.date		= DRIVER_DATE;
+	dev->driver.major		= DRIVER_MAJOR;
+	dev->driver.minor		= DRIVER_MINOR;
+	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
 
-	dev->use_agp = 1;
-	dev->require_agp = 1;
-	dev->use_mtrr = 1;
-	dev->use_dma = 1;
-	dev->use_irq = 1;
-	dev->use_vbl_irq = 1;
+	dev->driver.use_agp		= 1;
+	dev->driver.require_agp		= 1;
+	dev->driver.use_mtrr		= 1;
+	dev->driver.use_dma		= 1;
+	dev->driver.use_irq		= 1;
+	dev->driver.use_vbl_irq		= 1;
 }
+
+
 
 #ifdef __FreeBSD__
 static int
@@ -114,5 +152,10 @@ DRIVER_MODULE(mga, pci, mga_driver, drm_devclass, 0, 0);
 MODULE_DEPEND(mga, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
+#ifdef _LKM
 CFDRIVER_DECL(mga, DV_TTY, NULL);
+#else
+CFATTACH_DECL(mga, sizeof(drm_device_t), drm_probe, drm_attach, drm_detach,
+    drm_activate);
+#endif
 #endif

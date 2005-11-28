@@ -556,6 +556,9 @@ dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
 dev/drm/radeon_mem.c		optional radeondrm
 dev/drm/radeon_state.c		optional radeondrm
+dev/drm/savage_bci.c		optional savagedrm
+dev/drm/savage_drv.c		optional savagedrm
+dev/drm/savage_state.c		optional savagedrm
 dev/drm/sis_drv.c		optional sisdrm
 dev/drm/sis_ds.c		optional sisdrm
 dev/drm/sis_mm.c		optional sisdrm

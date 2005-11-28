@@ -19,9 +19,10 @@
  * ERIC ANHOLT BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -129,7 +130,7 @@ static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 	int retcode;
 	int hasunique = 0;
 
-	DRM_SYSCTL_PRINT("%s 0x%x", dev->driver_name, dev2udev(dev->devnode));
+	DRM_SYSCTL_PRINT("%s 0x%x", dev->driver.name, dev2udev(dev->devnode));
 	
 	DRM_LOCK();
 	if (dev->unique) {
