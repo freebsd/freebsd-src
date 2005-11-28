@@ -95,7 +95,7 @@ static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 void dblfault_handler(void);
 
-#define MAX_TRAP_MSG		28
+#define MAX_TRAP_MSG		30
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -126,6 +126,8 @@ static char *trap_msg[] = {
 	"segment not present fault",		/* 26 T_SEGNPFLT */
 	"stack fault",				/* 27 T_STKFLT */
 	"machine check trap",			/* 28 T_MCHK */
+	"SIMD floating-point exception",	/* 29 T_XMMFLT */
+	"reserved (unknown) fault",		/* 30 T_RESERVED */
 };
 
 #ifdef KDB
@@ -574,15 +576,18 @@ trap_fatal(frame, eva)
 	int code, type, ss;
 	long esp;
 	struct soft_segment_descriptor softseg;
+	char *msg;
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
 	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)], &softseg);
 
 	if (type <= MAX_TRAP_MSG)
-		printf("\n\nFatal trap %d: %s while in %s mode\n",
-			type, trap_msg[type],
-			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
+		msg = trap_msg[type];
+	else
+		msg = "UNKNOWN";
+	printf("\n\nFatal trap %d: %s while in %s mode\n", type, msg,
+	    ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));

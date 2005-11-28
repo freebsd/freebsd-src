@@ -108,7 +108,7 @@ void dblfault_handler(void);
 
 extern inthand_t IDTVEC(lcall_syscall);
 
-#define MAX_TRAP_MSG		28
+#define MAX_TRAP_MSG		30
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -139,6 +139,8 @@ static char *trap_msg[] = {
 	"segment not present fault",		/* 26 T_SEGNPFLT */
 	"stack fault",				/* 27 T_STKFLT */
 	"machine check trap",			/* 28 T_MCHK */
+	"SIMD floating-point exception",	/* 29 T_XMMFLT */
+	"reserved (unknown) fault",		/* 30 T_RESERVED */
 };
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -749,16 +751,19 @@ trap_fatal(frame, eva)
 {
 	int code, type, ss, esp;
 	struct soft_segment_descriptor softseg;
+	char *msg;
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
 	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)].sd, &softseg);
 
 	if (type <= MAX_TRAP_MSG)
-		printf("\n\nFatal trap %d: %s while in %s mode\n",
-			type, trap_msg[type],
-        		frame->tf_eflags & PSL_VM ? "vm86" :
-			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
+		msg = trap_msg[type];
+	else
+		msg = "UNKNOWN";
+	printf("\n\nFatal trap %d: %s while in %s mode\n", type, msg,
+	    frame->tf_eflags & PSL_VM ? "vm86" :
+	    ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
