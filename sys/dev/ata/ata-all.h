@@ -331,6 +331,7 @@ struct ata_composite {
     u_int32_t           wr_depend;              /* write depends on subdisks */
     u_int32_t           wr_done;                /* done write subdisks */
     struct ata_request  *request[32];           /* size must match maps above */
+    u_int32_t		residual;		/* bytes still to transfer */
     caddr_t             data_1;     
     caddr_t             data_2;     
 };
