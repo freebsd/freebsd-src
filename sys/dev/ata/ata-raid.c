@@ -405,6 +405,7 @@ ata_raid_strategy(struct bio *bp)
 				mtx_init(&composite->lock,
 					 "ATA PseudoRAID rebuild lock",
 					 NULL, MTX_DEF);
+				composite->residual = request->bytecount;
 				composite->rd_needed |= (1 << drv);
 				composite->wr_depend |= (1 << drv);
 				composite->wr_needed |= (1 << this);
@@ -463,6 +464,7 @@ ata_raid_strategy(struct bio *bp)
 				mtx_init(&composite->lock,
 					 "ATA PseudoRAID mirror lock",
 					 NULL, MTX_DEF);
+				composite->residual = request->bytecount;
 				composite->wr_needed |= (1 << drv);
 				composite->wr_needed |= (1 << this);
 				composite->request[drv] = request;
@@ -557,7 +559,7 @@ ata_raid_done(struct ata_request *request)
 	}
 	else {
 	    bp->bio_resid -= request->donecount;
-	    if (bp->bio_resid == 0)
+	    if (!bp->bio_resid)
 		finished = 1;
 	}
 	break;
@@ -602,7 +604,8 @@ ata_raid_done(struct ata_request *request)
 			/* good data, update how far we've gotten */
 			else {
 			    bp->bio_resid -= request->donecount;
-			    if (bp->bio_resid == 0) {
+			    composite->residual -= request->donecount;
+			    if (!composite->residual) {
 				if (composite->wr_done & (1 << mirror))
 				    finished = 1;
 			    }
@@ -616,7 +619,7 @@ ata_raid_done(struct ata_request *request)
 				printf("DOH! rebuild failed\n"); /* XXX SOS */
 				rdp->rebuild_lba = blk;
 			    }
-			    if (bp->bio_resid == 0)
+			    if (!composite->residual)
 				finished = 1;
 			}
 		    }
@@ -633,7 +636,7 @@ ata_raid_done(struct ata_request *request)
 		/* we have good data */
 		else {
 		    bp->bio_resid -= request->donecount;
-		    if (bp->bio_resid == 0)
+		    if (!bp->bio_resid)
 			finished = 1;
 		}
 	    }
@@ -653,10 +656,14 @@ ata_raid_done(struct ata_request *request)
 			    }
 			    bp->bio_resid -=
 				composite->request[mirror]->donecount;
+			    composite->residual -=
+				composite->request[mirror]->donecount;
 			}
-			else
+			else {
 			    bp->bio_resid -= request->donecount;
-			if (bp->bio_resid == 0)
+			    composite->residual -= request->donecount;
+			}
+			if (!composite->residual)
 			    finished = 1;
 		    }
 		    mtx_unlock(&composite->lock);
@@ -664,7 +671,7 @@ ata_raid_done(struct ata_request *request)
 		/* no mirror we are done */
 		else {
 		    bp->bio_resid -= request->donecount;
-		    if (bp->bio_resid == 0)
+		    if (!bp->bio_resid)
 			finished = 1;
 		}
 	    }
@@ -693,7 +700,7 @@ ata_raid_done(struct ata_request *request)
 	else {
 	    // did we have an XOR game going ??
 	    bp->bio_resid -= request->donecount;
-	    if (bp->bio_resid == 0)
+	    if (!bp->bio_resid)
 		finished = 1;
 	}
 	break;
@@ -718,7 +725,8 @@ ata_raid_done(struct ata_request *request)
 	    rdp->status &= ~AR_S_REBUILDING;
 	    ata_raid_config_changed(rdp, 1);
 	}
-	biodone(bp);
+	if (!bp->bio_resid)
+	    biodone(bp);
     }
 		 
     if (composite) {
