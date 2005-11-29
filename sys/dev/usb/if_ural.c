@@ -113,6 +113,7 @@ Static void		ural_next_scan(void *);
 Static void		ural_task(void *);
 Static int		ural_newstate(struct ieee80211com *,
 			    enum ieee80211_state, int);
+Static int		ural_rxrate(struct ural_rx_desc *);
 Static void		ural_txeof(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status);
 Static void		ural_rxeof(usbd_xfer_handle, usbd_private_handle,
@@ -825,6 +826,37 @@ ural_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 #define RAL_CTS_SIZE	14	/* 10 + 4(FCS) */
 #define RAL_SIFS	10
 
+/*
+ * This function is only used by the Rx radiotap code.
+ */
+Static int
+ural_rxrate(struct ural_rx_desc *desc)
+{
+	if (le32toh(desc->flags) & RAL_RX_OFDM) {
+		/* reverse function of ural_plcp_signal */
+		switch (desc->rate) {
+		case 0xb:	return 12;
+		case 0xf:	return 18;
+		case 0xa:	return 24;
+		case 0xe:	return 36;
+		case 0x9:	return 48;
+		case 0xd:	return 72;
+		case 0x8:	return 96;
+		case 0xc:	return 108;
+		}
+	} else {
+		if (desc->rate == 10)
+			return 2;
+		if (desc->rate == 20)
+			return 4;
+		if (desc->rate == 55)
+			return 11;
+		if (desc->rate == 110)
+			return 22;
+	}
+	return 2;	/* should not get there */
+}
+
 Static void
 ural_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
@@ -924,6 +956,7 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		struct ural_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;   
+		tap->wr_rate = ural_rxrate(desc);
 		tap->wr_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
 		tap->wr_antenna = sc->rx_ant;
@@ -1094,7 +1127,7 @@ ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	uint8_t *buf;
 	int xferlen, rate;
 
-	rate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 4;
+	rate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 2;
 
 	xfer = usbd_alloc_xfer(sc->sc_udev);
 	if (xfer == NULL)
@@ -1151,7 +1184,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data = &sc->tx_data[0];
 	desc = (struct ural_tx_desc *)data->buf;
 
-	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 4;
+	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 2;
 
 	data->m = m0;
 	data->ni = ni;
@@ -2140,6 +2173,9 @@ ural_stop(void *priv)
 	ural_free_tx_list(sc);
 }
 
+#define URAL_AMRR_MIN_SUCCESS_THRESHOLD	 1
+#define URAL_AMRR_MAX_SUCCESS_THRESHOLD	10
+
 Static void
 ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 {
@@ -2151,8 +2187,8 @@ ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 
 	amrr->success = 0;
 	amrr->recovery = 0;
-	amrr->success_threshold = 1;
 	amrr->txcnt = amrr->retrycnt = 0;
+	amrr->success_threshold = URAL_AMRR_MIN_SUCCESS_THRESHOLD;
 
 	/* set rate to some reasonable initial value */
 	for (i = ni->ni_rates.rs_nrates - 1;
@@ -2226,10 +2262,6 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
  * not provide per-frame stats, we can't do per-node rate adaptation and
  * thus automatic rate adaptation is only enabled in STA operating mode.
  */
-
-#define URAL_AMRR_MIN_SUCCESS_THRESHOLD	 1
-#define URAL_AMRR_MAX_SUCCESS_THRESHOLD	10
-
 #define is_success(amrr)	\
 	((amrr)->retrycnt < (amrr)->txcnt / 10)
 #define is_failure(amrr)	\
