@@ -176,10 +176,11 @@ struct ural_tx_desc {
 struct ural_rx_desc {
 	uint32_t	flags;
 #define RAL_RX_CRC_ERROR	(1 << 5)
+#define RAL_RX_OFDM		(1 << 6)
 #define RAL_RX_PHY_ERROR	(1 << 7)
 
-	uint8_t		rate;
 	uint8_t		rssi;
+	uint8_t		rate;
 	uint16_t	reserved;
 
 	uint32_t	iv;
