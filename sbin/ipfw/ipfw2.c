@@ -1109,7 +1109,7 @@ print_ip6(ipfw_insn_ip6 *cmd, char const *s)
                return;
        }
        if (cmd->o.opcode == O_IP6) {
-               printf(" ipv6");
+               printf(" ip6");
                return;
        }
 
@@ -1178,7 +1178,7 @@ print_icmp6types(ipfw_insn_u32 *cmd)
        int i, j;
        char sep= ' ';
 
-       printf(" ipv6 icmp6types");
+       printf(" ip6 icmp6types");
        for (i = 0; i < 7; i++)
                for (j=0; j < 32; ++j) {
                        if ( (cmd->d[i] & (1 << (j))) == 0)
@@ -1897,11 +1897,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_IP6:
-				printf(" ipv6");
+				printf(" ip6");
 				break;
 
 			case O_IP4:
-				printf(" ipv4");
+				printf(" ip4");
 				break;
 
 			case O_ICMP6TYPE:
@@ -3590,30 +3590,63 @@ add_mactype(ipfw_insn *cmd, int ac, char *av)
 }
 
 static ipfw_insn *
-add_proto(ipfw_insn *cmd, char *av, u_char *proto)
+add_proto0(ipfw_insn *cmd, char *av, u_char *protop)
 {
 	struct protoent *pe;
+	char *ep;
+	int proto;
 
-	*proto = IPPROTO_IP;
+	proto = strtol(av, &ep, 0);
+	if (*ep != '\0' || proto < 0) {
+		if ((pe = getprotobyname(av)) == NULL)
+			return NULL;
+		proto = pe->p_proto;
+	}
+
+	fill_cmd(cmd, O_PROTO, 0, proto);
+	*protop = proto;
+	return cmd;
+}
+
+static ipfw_insn *
+add_proto(ipfw_insn *cmd, char *av, u_char *protop)
+{
+	u_char proto = IPPROTO_IP;
 
 	if (_substrcmp(av, "all") == 0)
+		; /* do not set O_IP4 nor O_IP6 */
+	else if (strcmp(av, "ip4") == 0)
+		/* explicit "just IPv4" rule */
+		fill_cmd(cmd, O_IP4, 0, 0);
+	else if (strcmp(av, "ip6") == 0) {
+		/* explicit "just IPv6" rule */
+		proto = IPPROTO_IPV6;
+		fill_cmd(cmd, O_IP6, 0, 0);
+	} else
+		return add_proto0(cmd, av, protop);
+
+	*protop = proto;
+	return cmd;
+}
+
+static ipfw_insn *
+add_proto_compat(ipfw_insn *cmd, char *av, u_char *protop)
+{
+	u_char proto = IPPROTO_IP;
+
+	if (_substrcmp(av, "all") == 0 || strcmp(av, "ip") == 0)
 		; /* do not set O_IP4 nor O_IP6 */
 	else if (strcmp(av, "ipv4") == 0 || strcmp(av, "ip4") == 0)
 		/* explicit "just IPv4" rule */
 		fill_cmd(cmd, O_IP4, 0, 0);
 	else if (strcmp(av, "ipv6") == 0 || strcmp(av, "ip6") == 0) {
 		/* explicit "just IPv6" rule */
-		*proto = IPPROTO_IPV6;
+		proto = IPPROTO_IPV6;
 		fill_cmd(cmd, O_IP6, 0, 0);
-	} else if ((*proto = atoi(av)) > 0)
-		; /* all done! */
-	else if ((pe = getprotobyname(av)) != NULL)
-		*proto = pe->p_proto;
-	else
-		return NULL;
-	if (*proto != IPPROTO_IP && *proto != IPPROTO_IPV6)
-		fill_cmd(cmd, O_PROTO, 0, *proto);
+	} else
+		return add_proto0(cmd, av, protop);
 
+	*protop = proto;
 	return cmd;
 }
 
@@ -4056,7 +4089,7 @@ add(int ac, char *av[])
     OR_START(get_proto);
 	NOT_BLOCK;
 	NEED1("missing protocol");
-	if (add_proto(cmd, *av, &proto)) {
+	if (add_proto_compat(cmd, *av, &proto)) {
 		av++; ac--;
 		if (F_LEN(cmd) != 0) {
 			prev = cmd;
