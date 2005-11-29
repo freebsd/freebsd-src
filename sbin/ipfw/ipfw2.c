@@ -2163,7 +2163,7 @@ list_pipes(void *data, uint nbytes, int ac, char *av[])
 		char buf[30];
 		char prefix[80];
 
-		if (p->next != (struct dn_pipe *)DN_IS_PIPE)
+		if (p->next.sle_next != (struct dn_pipe *)DN_IS_PIPE)
 			break;	/* done with pipes, now queues */
 
 		/*
@@ -2202,7 +2202,7 @@ list_pipes(void *data, uint nbytes, int ac, char *av[])
 	for (fs = next; nbytes >= sizeof *fs; fs = next) {
 		char prefix[80];
 
-		if (fs->next != (struct dn_flow_set *)DN_IS_QUEUE)
+		if (fs->next.sle_next != (struct dn_flow_set *)DN_IS_QUEUE)
 			break;
 		l = sizeof(*fs) + fs->rq_elements * sizeof(*q);
 		next = (char *)fs + l;
