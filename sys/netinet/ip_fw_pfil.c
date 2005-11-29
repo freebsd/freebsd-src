@@ -30,11 +30,11 @@
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
-#include "opt_inet6.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
 #endif /* KLD_MODULE */
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
