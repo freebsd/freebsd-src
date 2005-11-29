@@ -136,8 +136,8 @@ nfs_setup_diskless(void)
 			    (sdl = ((struct sockaddr_dl *)ifa->ifa_addr))) {
 				if ((sdl->sdl_type == ourdl.sdl_type) &&
 				    (sdl->sdl_alen == ourdl.sdl_alen) &&
-				    !bcmp(sdl->sdl_data + sdl->sdl_nlen,
-					  ourdl.sdl_data + ourdl.sdl_nlen, 
+				    !bcmp(LLADDR(sdl),
+					  LLADDR(&ourdl),
 					  sdl->sdl_alen)) {
 				    IFNET_RUNLOCK();
 				    goto match_done;
