@@ -3834,7 +3834,7 @@ add(int ac, char *av[])
 
 	case TOK_QUEUE:
 	case TOK_PIPE:
-		action->len = F_INSN_SIZE(ipfw_insn_pipe);
+		action->len = F_INSN_SIZE(ipfw_insn);
 	case TOK_SKIPTO:
 		if (i == TOK_QUEUE)
 			action->opcode = O_QUEUE;
