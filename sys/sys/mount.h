@@ -182,7 +182,6 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 #define	MNT_SYNCHRONOUS	0x00000002	/* filesystem written synchronously */
 #define	MNT_NOEXEC	0x00000004	/* can't exec from filesystem */
 #define	MNT_NOSUID	0x00000008	/* don't honor setuid bits on fs */
-#define	MNT_NODEV	0		/* Deprecated option */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* filesystem written asynchronously */
 #define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
