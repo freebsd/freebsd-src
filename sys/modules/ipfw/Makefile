@@ -17,16 +17,10 @@ CFLAGS+= -DIPFIREWALL
 #
 
 .if !defined(KERNBUILDDIR)
-.if defined(NO_INET6)
-opt_inet6.h:
-	cat /dev/null > ${.TARGET}
-.else
+.if !defined(NO_INET6)
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
 .endif
-
-opt_ipsec.h:
-	cat /dev/null > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
