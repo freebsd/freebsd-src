@@ -267,13 +267,6 @@ Set to
 if you want the
 .Pa /etc/mail/aliases
 file backed up and modifications to be displayed in your daily output.
-.It Va daily_backup_distfile_enable
-.Pq Vt bool
-Set to
-.Dq YES
-if you want the
-.Pa /etc/Distfile
-file backed up and modifications to be displayed in your daily output.
 .It Va daily_calendar_enable
 .Pq Vt bool
 Set to
@@ -316,16 +309,6 @@ is set to
 .Dq YES .
 The default is
 .Fl q .
-.It Va daily_distfile_enable
-.Pq Vt bool
-Set to
-.Dq YES
-if you want to run
-.Xr rdist 1
-daily.
-The
-.Pa /etc/Distfile
-file must also exist.
 .It Va daily_news_expire_enable
 .Pq Vt bool
 Set to
@@ -745,7 +728,6 @@ is shared or distributed.
 .Xr netstat 1 ,
 .Xr nice 1 ,
 .Xr pkg_version 1 ,
-.Xr rdist 1 ,
 .Xr rc.conf 5 ,
 .Xr ac 8 ,
 .Xr chkgrp 8 ,
