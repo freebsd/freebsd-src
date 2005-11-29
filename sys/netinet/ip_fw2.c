@@ -3169,34 +3169,6 @@ flush_rule_ptrs(struct ip_fw_chain *chain)
 }
 
 /*
- * When pipes/queues are deleted, clear the "pipe_ptr" pointer to a given
- * pipe/queue, or to all of them (match == NULL).
- */
-void
-flush_pipe_ptrs(struct dn_flow_set *match)
-{
-	struct ip_fw *rule;
-
-	IPFW_WLOCK(&layer3_chain);
-	for (rule = layer3_chain.rules; rule; rule = rule->next) {
-		ipfw_insn_pipe *cmd = (ipfw_insn_pipe *)ACTION_PTR(rule);
-
-		if (cmd->o.opcode != O_PIPE && cmd->o.opcode != O_QUEUE)
-			continue;
-		/*
-		 * XXX Use bcmp/bzero to handle pipe_ptr to overcome
-		 * possible alignment problems on 64-bit architectures.
-		 * This code is seldom used so we do not worry too
-		 * much about efficiency.
-		 */
-		if (match == NULL ||
-		    !bcmp(&cmd->pipe_ptr, &match, sizeof(match)) )
-			bzero(&cmd->pipe_ptr, sizeof(cmd->pipe_ptr));
-	}
-	IPFW_WUNLOCK(&layer3_chain);
-}
-
-/*
  * Add a new rule to the list. Copy the rule into a malloc'ed area, then
  * possibly create a rule number and add the rule to the list.
  * Update the rule_number in the input struct so the caller knows it as well.
@@ -3685,7 +3657,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_PIPE:
 		case O_QUEUE:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_pipe))
+			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			goto check_action;
 

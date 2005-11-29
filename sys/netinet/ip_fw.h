@@ -271,19 +271,6 @@ typedef struct	_ipfw_insn_if {
 } ipfw_insn_if;
 
 /*
- * This is used for pipe and queue actions, which need to store
- * a single pointer (which can have different size on different
- * architectures.
- * Note that, because of previous instructions, pipe_ptr might
- * be unaligned in the overall structure, so it needs to be
- * manipulated with care.
- */
-typedef struct	_ipfw_insn_pipe {
-	ipfw_insn	o;
-	void		*pipe_ptr;	/* XXX */
-} ipfw_insn_pipe;
-
-/*
  * This is used for storing an altq queue id number.
  */
 typedef struct _ipfw_insn_altq {
@@ -545,8 +532,6 @@ int ipfw_chk(struct ip_fw_args *);
 
 int ipfw_init(void);
 void ipfw_destroy(void);
-
-void flush_pipe_ptrs(struct dn_flow_set *match); /* used by dummynet */
 
 typedef int ip_fw_ctl_t(struct sockopt *);
 extern ip_fw_ctl_t *ip_fw_ctl_ptr;
