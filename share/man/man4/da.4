@@ -52,39 +52,6 @@ adapter must also be separately configured into the system
 before a
 .Tn SCSI
 direct access device can be configured.
-.Sh PARTITIONING
-The
-.Nm
-driver allows the disk to have two levels of partitioning.
-One layer, called the
-.Dq slice layer ,
-is used to separate the
-.Fx
-areas of the disk from areas used by other operating systems.
-The second layer is the native
-.Bx 4.4
-partitioning scheme,
-.Xr disklabel 5 ,
-which is used to subdivide the
-.Fx
-slices into areas for individual file systems and swap spaces.
-For more information, see
-.Xr fdisk 8
-and
-.Xr disklabel 8 ,
-respectively.
-.Pp
-If an uninitialized disk is opened, the slice table will be
-initialized with a fictitious
-.Fx
-slice spanning the entire disk.
-Similarly, if an uninitialized
-(or
-.No non- Ns Fx )
-slice is opened, its disklabel will be initialized with parameters returned
-by the drive and a single
-.Sq Li c
-partition encompassing the entire slice.
 .Sh CACHE EFFECTS
 Many direct access devices are equipped with read and/or write caches.
 Parameters affecting the device's cache are stored in mode page 8,
@@ -159,44 +126,6 @@ device; data structures are dynamically allocated as disks are found
 on the
 .Tn SCSI
 bus.
-.Sh IOCTLS
-The following
-.Xr ioctl 2
-calls apply to
-.Tn SCSI
-disks as well as to other disks.
-They are defined in the header file
-.In sys/disklabel.h .
-.Pp
-.Bl -tag -width DIOCSDINFO
-.It Dv DIOCSBAD
-Usually used to set up a bad-block mapping system on the disk.
-.Tn SCSI
-drives incorporate their own bad-block mapping so this command is not
-implemented.
-.It Dv DIOCGDINFO
-Read, from the kernel, the in-core copy of the disklabel for the
-drive.
-This may be a fictitious disklabel if the drive has never
-been initialized, in which case it will contain information read
-from the
-.Tn SCSI
-inquiry commands.
-.It Dv DIOCSDINFO
-Give the driver a new disklabel to use.
-The driver
-.Em will not
-write the new
-disklabel to the disk.
-.It Dv DIOCWLABEL
-Enable or disable the driver's software
-write protect of the disklabel on the disk.
-.It Dv DIOCWDINFO
-Give the driver a new disklabel to use.
-The driver
-.Em will
-write the new disklabel to the disk.
-.El
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
@@ -259,49 +188,16 @@ a replacement device, all accesses to the device will be discarded until
 the last file descriptor referencing the old device is closed.
 During this period, all new open attempts will be rejected.
 .Sh FILES
-.Bl -tag -width /dev/rsdXXXXX -compact
-.Sm off
-.It Pa /dev/da Ar u Pa s Ar n
-.Sm on
-raw mode
-.Tn SCSI
-disk unit
-.Ar u ,
-slice
-.Ar n ,
-accessed as an unpartitioned device
-.It Pa /dev/da Ns Ar u Ns Ar p
-raw mode
-.Tn SCSI
-disk unit
-.Ar u ,
-first
-.Fx
-slice, partition
-.Ar p
-.Sm off
-.It Xo
-.Pa /dev/da
-.Ar u
-.Pa s
-.Ar n
-.Ar p
-.Xc
-.Sm on
-raw mode
-.Tn SCSI
-disk unit
-.Ar u ,
-.Ar n Ns th
-slice, partition
-.Ar p
+.Bl -tag -width /dev/da* -compact
+.It Pa /dev/da*
+SCSI disk device nodes
 .El
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
 .Xr ad 4 ,
-.Xr disklabel 5 ,
-.Xr disklabel 8 ,
+.Xr geom 4 ,
+.Xr bsdlabel 8 ,
 .Xr fdisk 8
 .Sh HISTORY
 The
@@ -318,5 +214,3 @@ device driver written and ported from
 2.5
 by
 .An Julian Elischer .
-Support for slices was written by
-.An Bruce Evans .
