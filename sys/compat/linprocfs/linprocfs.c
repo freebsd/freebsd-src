@@ -395,7 +395,6 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		ADD_OPTION(MNT_SYNCHRONOUS,	"sync");
 		ADD_OPTION(MNT_NOEXEC,		"noexec");
 		ADD_OPTION(MNT_NOSUID,		"nosuid");
-		ADD_OPTION(MNT_NODEV,		"nodev");
 		ADD_OPTION(MNT_UNION,		"union");
 		ADD_OPTION(MNT_ASYNC,		"async");
 		ADD_OPTION(MNT_SUIDDIR,		"suiddir");
