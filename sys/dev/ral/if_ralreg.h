@@ -217,7 +217,8 @@ struct ral_tx_desc {
 	uint8_t		plcp_service;
 #define RAL_PLCP_LENGEXT	0x80
 
-	uint16_t	plcp_length;
+	uint8_t		plcp_length_lo;
+	uint8_t		plcp_length_hi;
 	uint32_t	iv;
 	uint32_t	eiv;
 	uint8_t		key[IEEE80211_KEYBUF_SIZE];

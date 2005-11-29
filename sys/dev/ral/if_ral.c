@@ -413,9 +413,14 @@ ral_attach(device_t dev)
 	ic->ic_state = IEEE80211_S_INIT;
 
 	/* set device capabilities */
-	ic->ic_caps = IEEE80211_C_MONITOR | IEEE80211_C_IBSS |
-	    IEEE80211_C_HOSTAP | IEEE80211_C_SHPREAMBLE | IEEE80211_C_SHSLOT |
-	    IEEE80211_C_PMGT | IEEE80211_C_TXPMGT | IEEE80211_C_WPA;
+	ic->ic_caps =
+	    IEEE80211_C_IBSS |		/* IBSS mode supported */
+	    IEEE80211_C_MONITOR |	/* monitor mode supported */
+	    IEEE80211_C_HOSTAP |	/* HostAp mode supported */
+	    IEEE80211_C_TXPMGT |	/* tx power management */
+	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
+	    IEEE80211_C_SHSLOT |	/* short slot time supported */
+	    IEEE80211_C_WPA;		/* 802.11i */
 
 	if (sc->rf_rev == RAL_RF_5222) {
 		/* set supported .11a rates */
@@ -1691,25 +1696,20 @@ ral_setup_tx_desc(struct ral_softc *sc, struct ral_tx_desc *desc,
 
 	len += 4; /* account for FCS */
 	if (RAL_RATE_IS_OFDM(rate)) {
-		/*
-		 * PLCP length field (LENGTH).
-		 * From IEEE Std 802.11a-1999, pp. 14.
-		 */
+		/* IEEE Std 802.11a-1999, pp. 14 */
 		plcp_length = len & 0xfff;
-		desc->plcp_length = htole16((plcp_length >> 6) << 8 |
-		    (plcp_length & 0x3f));
+		desc->plcp_length_hi = plcp_length >> 6;
+		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
-		/*
-		 * Long PLCP LENGTH field.
-		 * From IEEE Std 802.11b-1999, pp. 16.
-		 */
+		/* IEEE Std 802.11b-1999, pp. 16 */
 		plcp_length = (16 * len + rate - 1) / rate;
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
 			if (remainder != 0 && remainder < 7)
 				desc->plcp_service |= RAL_PLCP_LENGEXT;
 		}
-		desc->plcp_length = htole16(plcp_length);
+		desc->plcp_length_hi = plcp_length >> 8;
+		desc->plcp_length_lo = plcp_length & 0xff;
 	}
 
 	desc->plcp_signal = ral_plcp_signal(rate);
@@ -1729,7 +1729,7 @@ ral_tx_bcn(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc = &sc->bcnq.desc[sc->bcnq.cur];
 	data = &sc->bcnq.data[sc->bcnq.cur];
 
-	rate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 4;
+	rate = IEEE80211_IS_CHAN_5GHZ(ni->ni_chan) ? 12 : 2;
 
 	error = bus_dmamap_load_mbuf_sg(sc->bcnq.data_dmat, data->map, m0,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
@@ -1785,7 +1785,7 @@ ral_tx_mgt(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc = &sc->prioq.desc[sc->prioq.cur];
 	data = &sc->prioq.data[sc->prioq.cur];
 
-	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 4;
+	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 2;
 
 	error = bus_dmamap_load_mbuf_sg(sc->prioq.data_dmat, data->map, m0,
 	    segs, &nsegs, 0);
@@ -2177,7 +2177,7 @@ ral_reset(struct ifnet *ifp)
 	if (ic->ic_opmode != IEEE80211_M_MONITOR)
 		return ENETRESET;
 
-	ral_set_chan(sc, ic->ic_ibss_chan);
+	ral_set_chan(sc, ic->ic_curchan);
 
 	return 0;
 }
