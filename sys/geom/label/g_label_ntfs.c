@@ -74,6 +74,9 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 		goto done;
 
 	filerecp = g_read_data(cp, voloff, recsize, &error);
+	if (filerecp == NULL)
+		goto done;
+
 	fr = (struct filerec *)filerecp;
 
 	if(fr->fr_fixup.fh_magic != NTFS_FILEMAGIC){
