@@ -99,20 +99,6 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-# Add a -I path to standard headers like <stddef.h>.  Use a relative
-# path to src/include if possible.  If the @ symlink hasn't been built
-# yet, then we can't tell if the relative path exists.  Add both the
-# potential relative path and an absolute path in that case.
-.if exists(@)
-.if exists(@/../include)
-CFLAGS+=	-I@/../include
-.else
-CFLAGS+=	-I${DESTDIR}/usr/include
-.endif
-.else # !@
-CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
-.endif # @
-
 .if ${CC} != "icc"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 .endif
