@@ -716,7 +716,7 @@ out:
 }
 
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
-#define	snderr(errno)	{ error = (errno); goto out; }
+#define	snderr(errno)	{ error = (errno); goto release; }
 
 /*
  * Send on a socket.
