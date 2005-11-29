@@ -29,7 +29,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <dev/ips/ipsreg.h>
 #include <dev/ips/ips.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 static int ips_pci_free(ips_softc_t *sc);
 static void ips_intrhook(void *arg);
