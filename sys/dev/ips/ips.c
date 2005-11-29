@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <dev/ips/ipsreg.h>
 #include <dev/ips/ips.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -440,7 +441,7 @@ int ips_morpheus_reinit(ips_softc_t *sc, int force)
 	device_printf(sc->dev, "resetting adapter, this may take up to 5 minutes\n");
 	ips_write_4(sc, MORPHEUS_REG_IDR, 0x80000000);
 	DELAY(5000000);
-	pci_read_config(sc->dev, 0, 4);
+	ips_read_4(sc, MORPHEUS_REG_OIMR);
 
 	tmp = ips_read_4(sc, MORPHEUS_REG_OISR);
 	for(i = 0; i < 45 && !(tmp & MORPHEUS_BIT_POST1); i++){
