@@ -50,14 +50,13 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	struct filerec *fr;
 	char		mftrecsz;
 	int		recsize;
-	int		error;
 	int		j;
 	off_t		voloff;
 	g_topology_assert_not();
 	pp = cp->provider;
 	label[0] = '\0';
 	
-	bf = (struct bootfile *)g_read_data(cp, 0, pp->sectorsize, &error);
+	bf = (struct bootfile *)g_read_data(cp, 0, pp->sectorsize, NULL);
 
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0) {
 		goto done;
@@ -73,7 +72,7 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	if(voloff % pp->sectorsize != 0)
 		goto done;
 
-	filerecp = g_read_data(cp, voloff, recsize, &error);
+	filerecp = g_read_data(cp, voloff, recsize, NULL);
 	if (filerecp == NULL)
 		goto done;
 
