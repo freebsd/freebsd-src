@@ -96,6 +96,7 @@ main(int argc, char **argv)
 	int ch, len;
 	char *p;
 	char xxx[MAXPATHLEN];
+	FILE *fp;
 
 	while ((ch = getopt(argc, argv, "d:gpV")) != -1)
 		switch (ch) {
@@ -125,6 +126,10 @@ main(int argc, char **argv)
 		usage();
 
 	PREFIX = *argv;
+	fp = fopen(PREFIX, "r");
+	if (fp == NULL)
+		err(2, "%s", PREFIX);
+	fclose(fp);
 	if (freopen("DEFAULTS", "r", stdin) != NULL) {
 		found_defaults = 1;
 		yyfile = "DEFAULTS";
