@@ -475,31 +475,20 @@ static short dayyr[12] = {
  * and the time of year clock (if any) provides the rest.
  */
 void
-inittodr(base)
-	time_t base;
+inittodr(time_t base)
 {
-	register int days, yr;
 	struct clocktime ct;
-	time_t deltat;
-	int badbase, clock_compat_osf1;
-	int s;
 	struct timespec ts;
-
-	if (base < 5*SECYR) {
-		printf("WARNING: preposterous time in filesystem");
-		/* read the system clock anyway */
-		base = 6*SECYR + 186*SECDAY + SECDAY/2;
-		badbase = 1;
-	} else
-		badbase = 0;
+	int clock_compat_osf1, todr_unreliable;
+	int days, yr;
 
 	if (getenv_int("clock_compat_osf1", &clock_compat_osf1)) {
 		if (clock_compat_osf1)
 			clock_year_offset = UNIX_YEAR_OFFSET;
 	}
 
+	todr_unreliable = 0;
 	CLOCK_GET(clockdev, base, &ct);
-	clockinitted = 1;
 
 #ifdef DEBUG
 	printf("readclock: %d/%d/%d/%d/%d/%d\n", ct.year, ct.mon, ct.day,
@@ -508,7 +497,7 @@ inittodr(base)
 	ct.year += clock_year_offset;
 	if (ct.year < 70)
 		ct.year += 100;
-	
+
 	/* simple sanity checks */
 	if (ct.year < 70 || ct.mon < 1 || ct.mon > 12 || ct.day < 1 ||
 	    ct.day > 31 || ct.hour > 23 || ct.min > 59 || ct.sec > 59) {
@@ -516,48 +505,47 @@ inittodr(base)
 		 * Believe the time in the filesystem for lack of
 		 * anything better, resetting the TODR.
 		 */
-		s = splclock();
 		ts.tv_sec = base;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-		splx(s);
-		if (!badbase) {
-			printf("WARNING: preposterous clock chip time\n");
-			resettodr();
-		}
-		goto bad;
+		printf("WARNING: preposterous real-time clock");
+		todr_unreliable = 1;
+	} else {
+		days = 0;
+		for (yr = 70; yr < ct.year; yr++)
+			days += LEAPYEAR(yr) ? 366 : 365;
+		days += dayyr[ct.mon - 1] + ct.day - 1;
+		if (LEAPYEAR(yr) && ct.mon > 2)
+			days++;
+		/* now have days since Jan 1, 1970; the rest is easy... */
+		ts.tv_sec = days * SECDAY + ct.hour * SECHOUR +
+		    ct.min * SECMIN + ct.sec;
+		if (wall_cmos_clock)
+			ts.tv_sec += adjkerntz;
+		/*
+		 * The time base comes from a saved time, whereas the real-
+		 * time clock is supposed to represent the current time.
+		 * It is logically not possible for a saved time to be
+		 * larger than the current time, so if that happens, assume
+		 * the real-time clock is off. Warn when the real-time
+		 * clock is off by two or more days.
+		 */
+		if (ts.tv_sec < base) {
+			ts.tv_sec = base;
+			days = (base - ts.tv_sec) / (60L * 60L * 24L);
+			if (days >= 2) {
+				printf("WARNING: real-time clock lost %d days",
+				    days);
+				todr_unreliable = 1;
+			}
+		} 
 	}
-	days = 0;
-	for (yr = 70; yr < ct.year; yr++)
-		days += LEAPYEAR(yr) ? 366 : 365;
-	days += dayyr[ct.mon - 1] + ct.day - 1;
-	if (LEAPYEAR(yr) && ct.mon > 2)
-		days++;
-	/* now have days since Jan 1, 1970; the rest is easy... */
-	s = splclock();
-	ts.tv_sec = 
-	    days * SECDAY + ct.hour * SECHOUR + ct.min * SECMIN + ct.sec;
-	if (wall_cmos_clock)
-	    ts.tv_sec += adjkerntz;
 	ts.tv_nsec = 0;
 	tc_setclock(&ts);
-	splx(s);
+	clockinitted = 1;
 
-	if (!badbase) {
-		/*
-		 * See if we gained/lost two or more days;
-		 * if so, assume something is amiss.
-		 */
-		deltat = ts.tv_sec - base;
-		if (deltat < 0)
-			deltat = -deltat;
-		if (deltat < 2 * SECDAY)
-			return;
-		printf("WARNING: clock %s %d days",
-		    ts.tv_sec < base ? "lost" : "gained", deltat / SECDAY);
+	if (todr_unreliable) {
+		printf(" -- CHECK AND RESET THE DATE!\n");
+		resettodr();
 	}
-bad:
-	printf(" -- CHECK AND RESET THE DATE!\n");
 }
 
 /*
