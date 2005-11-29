@@ -115,8 +115,11 @@ agp_intel_match(device_t dev)
 	case 0x25788086:
 		return ("Intel 82875P host to AGP bridge");
 
-	case 0x25608086: /* i845G */
+	case 0x25608086:
 		return ("Intel 82845G host to AGP bridge");
+
+	case 0x35808086:
+		return ("Intel 82855GM host to AGP bridge");
 	};
 
 	return NULL;
@@ -215,6 +218,7 @@ agp_intel_attach(device_t dev)
 
 	case 0x1a308086: /* i845 */
 	case 0x33408086: /* i855 */
+	case 0x35808086: /* i855GM */
 	case 0x255d8086: /* E7205 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
@@ -289,6 +293,7 @@ agp_intel_detach(device_t dev)
 	case 0x1a308086: /* i845 */
 	case 0x25608086: /* i845G */
 	case 0x33408086: /* i855 */
+	case 0x35808086: /* i855GM */
 	case 0x255d8086: /* E7205 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
