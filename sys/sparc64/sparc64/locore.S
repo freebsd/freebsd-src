@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/pstate.h>
-#include <machine/upa.h>
 
 #include "assym.s"
 
