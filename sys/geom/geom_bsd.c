@@ -204,9 +204,8 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 	 * We need to read entire aligned sectors, and we assume that the
 	 * disklabel does not span sectors, so one sector is enough.
 	 */
-	error = 0;
 	secoff = offset % secsize;
-	buf = g_read_data(cp, offset - secoff, secsize, &error);
+	buf = g_read_data(cp, offset - secoff, secsize, NULL);
 	if (buf == NULL)
 		return (ENOENT);
 
