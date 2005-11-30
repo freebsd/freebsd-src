@@ -36,10 +36,12 @@ extern inline
 float
 __kernel_sindf(double x)
 {
-	double z,r,v;
+	double r, s, w, z;
 
-	z	=  x*x;
-	v	=  z*x;
-	r	=  S2+z*(S3+z*S4);
-	return x+v*(S1+z*r);
+	/* Try to optimize for parallel evaluation as in k_tanf.c. */
+	z = x*x;
+	w = z*z;
+	r = S3+z*S4;
+	s = z*x;
+	return (x + s*(S1+z*S2)) + s*w*r;
 }
