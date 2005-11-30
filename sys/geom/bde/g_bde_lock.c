@@ -405,7 +405,7 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 	AES_init(&ci);
 	AES_makekey(&ki, DIR_DECRYPT, 256, sc->sha2 + 16);
 	AES_decrypt(&ci, &ki, q, q, G_BDE_LOCKSIZE);
-	
+
 	/* Decode the byte-sequence */
 	i = g_bde_decode_lock(sc, gl, q);
 	q = NULL;
