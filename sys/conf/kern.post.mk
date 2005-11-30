@@ -112,7 +112,7 @@ kernel-clean:
 	    linterrs makelinks tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
-	    ${CLEAN}
+	    ${CLEAN} ${_ILINKS}
 
 lint: ${LNFILES}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} 2>&1 | \
@@ -141,9 +141,10 @@ ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
-.depend: assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
-	    ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
-	    ${MFILES:T:S/.m$/.h/}
+SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
+	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
+	${MFILES:T:S/.m$/.h/}
+.depend: ${SRCS}
 	rm -f .newdep
 	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
@@ -151,6 +152,28 @@ kernel-depend: .depend
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
+
+_ILINKS= machine
+.if ${MACHINE} != ${MACHINE_ARCH}
+_ILINKS+= ${MACHINE_ARCH}
+.endif
+
+# Ensure that the link exists without depending on it when it exists.
+.for _link in ${_ILINKS}
+.if !exists(${.OBJDIR}/${_link})
+${SRCS}: ${_link}
+.endif
+.endfor
+
+${_ILINKS}:
+	@case ${.TARGET} in \
+	machine) \
+		path=${S}/${MACHINE}/include ;; \
+	${MACHINE_ARCH}) \
+		path=${S}/${MACHINE_ARCH}/include ;; \
+	esac ; \
+	${ECHO} ${.TARGET} "->" $$path ; \
+	ln -s $$path ${.TARGET}
 
 kernel-cleandepend:
 	rm -f .depend
