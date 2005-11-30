@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/tsb.h>
 #include <machine/tstate.h>
-#include <machine/upa.h>
 #include <machine/utrap.h>
 
 ASSYM(KERNBASE, KERNBASE);
