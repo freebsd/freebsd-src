@@ -159,6 +159,7 @@ acpi_pci_link_probe(device_t dev)
 		device_set_desc_copy(dev, descr);
 	} else
 		device_set_desc(dev, "ACPI PCI Link");
+	device_quiet(dev);
 	return (0);
 }
 
@@ -609,7 +610,7 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	 */
 	if (BUS_READ_IVAR(pcib, NULL, PCIB_IVAR_BUS, &bus) != 0) {
 		device_printf(pcib, "Unable to read PCI bus number");
-		panic("this is bad");
+		panic("PCI bridge without a bus number");
 	}
 		
 	/* Bump the reference count. */
@@ -620,6 +621,26 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	link->l_references++;
 	if (link->l_routed)
 		pci_link_interrupt_weights[link->l_irq]++;
+
+	/*
+	 * The BIOS only routes interrupts via ISA IRQs using the ATPICs
+	 * (8259As).  Thus, if this link is routed via an ISA IRQ, go
+	 * look to see if the BIOS routed an IRQ for this link at the
+	 * indicated (bus, slot, pin).  If so, we prefer that IRQ for
+	 * this link and add that IRQ to our list of known-good IRQs.
+	 * This provides a good work-around for link devices whose _CRS
+	 * method is either broken or bogus.  We only use the value
+	 * returned by _CRS if we can't find a valid IRQ via this method
+	 * in fact.
+	 *
+	 * If this link is not routed via an ISA IRQ (because we are using
+	 * APIC for example), then don't bother looking up the BIOS IRQ
+	 * as if we find one it won't be valid anyway.
+	 */
+	if (!link->l_isa_irq) {
+		ACPI_SERIAL_END(pci_link);
+		return;
+	}
 
 	/* Try to find a BIOS IRQ setting from any matching devices. */
 	bios_irq = acpi_pci_link_search_irq(bus, slot, pin);
