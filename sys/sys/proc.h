@@ -158,6 +158,7 @@ struct sleepqueue;
 struct td_sched;
 struct trapframe;
 struct turnstile;
+struct mqueue_notifier;
 
 /*
  * Here we define the three structures used for process information.
@@ -609,6 +610,7 @@ struct proc {
 	struct label	*p_label;	/* (*) Proc (not subject) MAC label. */
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
+	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 };
 
 #define	p_session	p_pgrp->pg_session
