@@ -2246,7 +2246,7 @@ match_var(const char str[], const char var[])
 				   str[0] == CLOSE_BRACE) {
 				len = str - (start + 2);
 
-				if (var[len] == '\0' && strncmp(var, start + 2, len) == 0) {
+				if (strncmp(var, start + 2, len) == 0 && var[len] == '\0') {
 					return (0);	/* match */
 				} else {
 					/*

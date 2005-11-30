@@ -298,8 +298,10 @@ ReadMakefile(const char p[])
 		name = Path_FindFile(fname, &parseIncPath);
 		if (!name)
 			name = Path_FindFile(fname, &sysIncPath);
-		if (!name || !(stream = fopen(name, "r")))
+		if (!name || !(stream = fopen(name, "r"))) {
+			free(fname);
 			return (FALSE);
+		}
 		MAKEFILE = fname = name;
 		/*
 		 * set the MAKEFILE variable desired by System V fans -- the
@@ -310,8 +312,8 @@ found:
 		if (setMAKEFILE)
 			Var_SetGlobal("MAKEFILE", MAKEFILE);
 		Parse_File(fname, stream);
-		fclose(stream);
 	}
+	free(fname);
 	return (TRUE);
 }
 
