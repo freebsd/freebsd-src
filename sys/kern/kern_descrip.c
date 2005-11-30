@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mqueue.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -134,6 +135,7 @@ struct filelist filehead;	/* head of list of open files */
 int openfiles;			/* actual number of open files */
 struct sx filelist_lock;	/* sx to protect filelist */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
+void	(*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 
 /* A mutex to protect the association between a proc and filedesc. */
 static struct mtx	fdesc_mtx;
@@ -713,6 +715,8 @@ do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retv
 	 */
 	if (delfp != NULL) {
 		knote_fdclose(td, new);
+		if (delfp->f_type == DTYPE_MQUEUE)
+			mq_fdclose(td, new, delfp);
 		FILEDESC_UNLOCK(fdp);
 		(void) closef(delfp, td);
 		if (holdleaders) {
@@ -1002,6 +1006,8 @@ close(td, uap)
 	 * for the new fd.
 	 */
 	knote_fdclose(td, fd);
+	if (fp->f_type == DTYPE_MQUEUE)
+		mq_fdclose(td, fd, fp);
 	FILEDESC_UNLOCK(fdp);
 
 	error = closef(fp, td);
@@ -1766,7 +1772,8 @@ fdcloseexec(struct thread *td)
 	 */
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		if (fdp->fd_ofiles[i] != NULL &&
-		    (fdp->fd_ofileflags[i] & UF_EXCLOSE)) {
+		    (fdp->fd_ofiles[i]->f_type == DTYPE_MQUEUE ||
+		    (fdp->fd_ofileflags[i] & UF_EXCLOSE))) {
 			struct file *fp;
 
 			knote_fdclose(td, i);
@@ -1778,6 +1785,8 @@ fdcloseexec(struct thread *td)
 			fdp->fd_ofiles[i] = NULL;
 			fdp->fd_ofileflags[i] = 0;
 			fdunused(fdp, i);
+			if (fp->f_type == DTYPE_MQUEUE)
+				mq_fdclose(td, i, fp);
 			FILEDESC_UNLOCK(fdp);
 			(void) closef(fp, td);
 			FILEDESC_LOCK(fdp);

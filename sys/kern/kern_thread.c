@@ -293,6 +293,7 @@ proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td)
 	}
 	else
 		p->p_ksi = NULL;
+	LIST_INIT(&p->p_mqnotifier);
 	p->p_numksegrps = 0;
 	p->p_numthreads = 0;
 
