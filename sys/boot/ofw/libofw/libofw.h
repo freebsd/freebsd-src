@@ -31,7 +31,7 @@
 struct ofw_devdesc {
 	struct devsw	*d_dev;
 	int		d_type;
-	phandle_t	d_handle;
+	ihandle_t	d_handle;
 	char		d_path[256];
 };
 
