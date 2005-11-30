@@ -108,7 +108,6 @@ clkbrd_attach(device_t dev)
 	uint8_t r;
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct clkbrd_softc));
 	sc->sc_dev = dev;
 
 	for (i = CLKBRD_CF; i <= CLKBRD_CLKVER; i++) {

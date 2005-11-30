@@ -147,7 +147,6 @@ rtc_attach(device_t dev)
 	int error, rid, rtype;
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct mc146818_softc));
 
 	mtx_init(&sc->sc_mtx, "rtc_mtx", NULL, MTX_SPIN);
 
