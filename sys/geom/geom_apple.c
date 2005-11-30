@@ -166,7 +166,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			break;
 
 		buf = g_read_data(cp, 0, sectorsize, &error);
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 
 		/*
@@ -188,7 +188,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		 * Read in the first partition map
 		 */
 		buf = g_read_data(cp, sectorsize, sectorsize,  &error);
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 
 		/*
@@ -206,7 +206,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	       
 		buf = g_read_data(cp, 2 * sectorsize, 
 		    (NAPMPART - 1) * sectorsize,  &error);
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 
 		for (i = 1; i < NAPMPART; i++) {

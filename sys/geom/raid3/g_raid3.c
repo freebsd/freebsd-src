@@ -2571,7 +2571,7 @@ g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md)
 	    &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (error != 0) {
+	if (buf == NULL) {
 		G_RAID3_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    cp->provider->name, error);
 		if (buf != NULL)

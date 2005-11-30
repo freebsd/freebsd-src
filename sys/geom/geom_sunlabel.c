@@ -278,7 +278,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		g_topology_unlock();
 		buf = g_read_data(cp, 0, ms->sectorsize, &error);
 		g_topology_lock();
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 
 		/*
