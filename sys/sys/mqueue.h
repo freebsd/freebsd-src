@@ -37,4 +37,9 @@ struct mq_attr {
 	long    __reserved[4];  /* Ignored for input, zeroed for output */
 };
 
+#ifdef _KERNEL
+struct thread;
+struct file;
+extern void	(*mq_fdclose)(struct thread *td, int fd, struct file *fp);
+#endif
 #endif
