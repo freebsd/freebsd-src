@@ -96,6 +96,8 @@ static struct pfq_table pfq_table;
 static time_t pfq_table_age;
 static int pfq_table_count;
 
+static int altq_enabled = 0;
+
 #define PFQ_TABLE_MAXAGE	5
 
 /* Forward declarations */
@@ -106,6 +108,8 @@ static int pft_refresh(void);
 static struct pfi_entry * pfi_table_find(u_int idx);
 static struct pfq_entry * pfq_table_find(u_int idx);
 static struct pft_entry * pft_table_find(u_int idx);
+
+static int altq_is_enabled(int pfdevice);
 
 int
 pf_status(struct snmp_context __unused *ctx, struct snmp_value *val,
@@ -781,6 +785,10 @@ pf_altq(struct snmp_context __unused *ctx, struct snmp_value *val,
 {
 	asn_subid_t	which = val->var.subs[sub - 1];
 
+	if (!altq_enabled) {
+	   return (SNMP_ERR_NOERROR);
+	}
+
 	if (op == SNMP_OP_SET)
 		return (SNMP_ERR_NOT_WRITEABLE);
 
@@ -811,6 +819,10 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 {
 	asn_subid_t	which = val->var.subs[sub - 1];
 	struct pfq_entry *e = NULL;
+
+	if (!altq_enabled) {
+	   return (SNMP_ERR_NOERROR);
+	}
 
 	switch (op) {
 		case SNMP_OP_SET:
@@ -1119,6 +1131,29 @@ err2:
 }
 
 /*
+ * check whether altq support is enabled in kernel
+ */
+
+static int
+altq_is_enabled(int pfdev)
+{
+        struct pfioc_altq pa;
+
+	errno = 0;
+        if (ioctl(pfdev, DIOCGETALTQS, &pa)) {
+                if (errno == ENODEV) {
+			syslog(LOG_INFO, "No ALTQ support in kernel\n"
+			    "ALTQ related functions disabled\n");
+                        return (0);
+                } else  
+                        syslog(LOG_ERR, "DIOCGETALTQS returned an error: %s",
+			    strerror(errno));
+			return (-1);
+        }
+        return (1);
+}
+
+/*
  * Implement the bsnmpd module interface
  */
 static int
@@ -1132,13 +1167,21 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 		return (-1);
 	}
 
+	if ((altq_enabled = altq_is_enabled(dev)) == -1) {
+		syslog(LOG_ERR, "pf_init(): altq test failed");
+		return (-1);
+	}
+	
 	/* Prepare internal state */
 	TAILQ_INIT(&pfi_table);
 	TAILQ_INIT(&pfq_table);
 	TAILQ_INIT(&pft_table);
 
 	pfi_refresh();
-	pfq_refresh();
+	if (altq_enabled) {
+		pfq_refresh();
+	}
+
 	pfs_refresh();
 	pft_refresh();
 
@@ -1186,7 +1229,9 @@ static void
 pf_dump(void)
 {
 	pfi_refresh();
-	pfq_refresh();
+	if (altq_enabled) {
+		pfq_refresh();
+	}
 	pft_refresh();
 
 	syslog(LOG_ERR, "Dump: pfi_table_age = %jd",
