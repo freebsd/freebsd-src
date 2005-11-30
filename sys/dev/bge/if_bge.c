@@ -937,8 +937,10 @@ bge_newbuf_std(sc, i, m)
 	    sc->bge_cdata.bge_rx_std_dmamap[i], mtod(m_new, void *),
 	    m_new->m_len, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
 	if (error || ctx.bge_maxsegs == 0) {
-		if (m == NULL)
+		if (m == NULL) {
+			sc->bge_cdata.bge_rx_std_chain[i] = NULL;
 			m_freem(m_new);
+		}
 		return(ENOMEM);
 	}
 	r->bge_addr.bge_addr_lo = htole32(BGE_ADDR_LO(ctx.bge_busaddr));
@@ -1009,8 +1011,10 @@ bge_newbuf_jumbo(sc, i, m)
 	    sc->bge_cdata.bge_rx_jumbo_dmamap[i], mtod(m_new, void *),
 	    m_new->m_len, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
 	if (error || ctx.bge_maxsegs == 0) {
-		if (m == NULL)
+		if (m == NULL) {
+			sc->bge_cdata.bge_rx_jumbo_chain[i] = NULL;
 			m_freem(m_new);
+		}
 		return(ENOMEM);
 	}
 	r->bge_addr.bge_addr_lo = htole32(BGE_ADDR_LO(ctx.bge_busaddr));
