@@ -81,11 +81,18 @@ utility will attempt to resolve the name via
 Detach from the controlling terminal, i.e., run in background.
 .It Fl c Ar channel
 This option specifies RFCOMM channel to connect to.
-The channel must provide Serial Port service.
+RFCOMM channel could either be a number between 1 and 30 or a service name.
+Supported service names are:
+.Cm DUN
+(for DialUp Networking service),
+.Cm FAX
+(for Fax service) and
+.Cm SP
+(for Serial Port service).
 If channel was not specified then
 .Nm
-utility will try to obtain RFCOMM channel via Service Discovery Protocol from
-the server.
+utility will try to obtain RFCOMM channel for Serial Port service via Service
+Discovery Protocol from the server.
 .It Fl h
 Display usage message and exit.
 .It Fl t Ar tty
