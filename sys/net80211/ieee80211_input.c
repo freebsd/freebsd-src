@@ -1923,7 +1923,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				 */
 				ieee80211_set_shortslottime(ic,
 					ic->ic_curmode == IEEE80211_MODE_11A ||
-					(ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME));
+					(scan.capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME));
 				ni->ni_capinfo = scan.capinfo;
 				/* XXX statistic */
 			}
