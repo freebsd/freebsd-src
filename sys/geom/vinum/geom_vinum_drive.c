@@ -452,7 +452,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/* Now check if the provided slice is a valid vinum drive. */
 	do {
-		vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, &error);
+		vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, NULL);
 		if (vhdr == NULL)
 			break;
 		if (vhdr->magic != GV_MAGIC) {
@@ -461,8 +461,8 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		}
 
 		/* A valid vinum drive, let's parse the on-disk information. */
-		buf = g_read_data(cp, GV_CFG_OFFSET, GV_CFG_LEN, &error);
-		if (buf == NULL || error != 0) {
+		buf = g_read_data(cp, GV_CFG_OFFSET, GV_CFG_LEN, NULL);
+		if (buf == NULL) {
 			g_free(vhdr);
 			break;
 		}

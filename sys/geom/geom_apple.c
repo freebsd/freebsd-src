@@ -145,7 +145,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, i;
+	int i;
 	struct g_apple_softc *ms;
 	struct apm_partition *apm;
 	u_int sectorsize;
@@ -165,7 +165,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (sectorsize != 512)
 			break;
 
-		buf = g_read_data(cp, 0, sectorsize, &error);
+		buf = g_read_data(cp, 0, sectorsize, NULL);
 		if (buf == NULL)
 			break;
 
@@ -187,7 +187,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		/*
 		 * Read in the first partition map
 		 */
-		buf = g_read_data(cp, sectorsize, sectorsize,  &error);
+		buf = g_read_data(cp, sectorsize, sectorsize,  NULL);
 		if (buf == NULL)
 			break;
 
@@ -205,7 +205,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		ms->am_mapcnt0 = apm->am_mapcnt;
 	       
 		buf = g_read_data(cp, 2 * sectorsize, 
-		    (NAPMPART - 1) * sectorsize,  &error);
+		    (NAPMPART - 1) * sectorsize,  NULL);
 		if (buf == NULL)
 			break;
 
