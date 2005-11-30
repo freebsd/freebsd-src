@@ -120,7 +120,6 @@ ofw_alloc_heap(unsigned int size)
 {
 	phandle_t	memoryp;
 	struct		ofw_reg available;
-	void		*base;
 
 	memoryp = OF_instance_to_package(memory);
 	OF_getprop(memoryp, "available", &available, sizeof(available));
