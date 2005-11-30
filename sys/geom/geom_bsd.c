@@ -207,7 +207,7 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 	error = 0;
 	secoff = offset % secsize;
 	buf = g_read_data(cp, offset - secoff, secsize, &error);
-	if (buf == NULL || error != 0)
+	if (buf == NULL)
 		return (ENOENT);
 
 	/* Decode into our native format. */
@@ -248,7 +248,7 @@ g_bsd_writelabel(struct g_geom *gp, u_char *bootcode)
 	secoff = ms->labeloffset % secsize;
 	if (bootcode == NULL) {
 		buf = g_read_data(cp, ms->labeloffset - secoff, secsize, &error);
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			return (error);
 		bcopy(ms->label, buf + secoff, sizeof(ms->label));
 	} else {

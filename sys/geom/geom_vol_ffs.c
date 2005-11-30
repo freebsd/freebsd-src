@@ -100,7 +100,7 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 		fs = (struct fs *) g_read_data(cp, superblock,
 			SBLOCKSIZE, &error);
-		if (fs == NULL || error != 0)
+		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */
 		if (fs->fs_magic == FS_UFS1_MAGIC) {

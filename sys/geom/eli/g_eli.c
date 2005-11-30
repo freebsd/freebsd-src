@@ -576,7 +576,7 @@ g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
 	    &error);
 	g_topology_lock();
-	if (error != 0)
+	if (buf == NULL)
 		goto end;
 	eli_metadata_decode(buf, md);
 end:

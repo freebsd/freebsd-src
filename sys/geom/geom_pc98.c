@@ -289,7 +289,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		if (sectorsize % 512 != 0)
 			break;
 		buf = g_read_data(cp, 0, 8192, &error);
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 		ms->fwsectors = fwsectors;
 		ms->fwheads = fwheads;
