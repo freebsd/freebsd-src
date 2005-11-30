@@ -70,8 +70,10 @@ MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	kldunload.2 kqueue.2 kse.2 ktrace.2 link.2 lio_listio.2 listen.2 \
 	lseek.2 \
 	madvise.2 mincore.2 minherit.2 mkdir.2 mkfifo.2 mknod.2 mlock.2 \
-	mlockall.2 mmap.2 modfind.2 modnext.2 modstat.2 mount.2 \
-	mprotect.2 msync.2 munmap.2 nanosleep.2 ntp_adjtime.2 ntp_gettime.2 \
+	mlockall.2 mmap.2 modfind.2 modnext.2 modstat.2 mount.2 mprotect.2 \
+	mq_close.2 mq_getattr.2 mq_notify.2 mq_open.2 mq_receive.2 mq_send.2 \
+	mq_setattr.2 \
+	msync.2 munmap.2 nanosleep.2 ntp_adjtime.2 ntp_gettime.2 \
 	nfssvc.2 open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2 select.2 semctl.2 semget.2 semop.2 send.2 sendfile.2 \
