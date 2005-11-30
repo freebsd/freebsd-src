@@ -3023,6 +3023,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
     struct ifmultiaddr *ifma;
     struct ifnet *ifp;
     u_char *addrp;
+    u_char eaddr[ETHER_ADDR_LEN];
     int multicnt;
 
     TULIP_LOCK_ASSERT(sc);
@@ -3038,6 +3039,10 @@ tulip_addr_filter(tulip_softc_t * const sc)
     multicnt = 0;
     ifp = sc->tulip_ifp;      
     IF_ADDR_LOCK(ifp);
+
+    /* Copy MAC address on stack to align. */
+    bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
+
     TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 	    if (ifma->ifma_addr->sa_family == AF_LINK)
@@ -3081,12 +3086,12 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	    hash = tulip_mchash(ifp->if_broadcastaddr);
 	    sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    if (sc->tulip_flags & TULIP_WANTHASHONLY) {
-		hash = tulip_mchash(IF_LLADDR(ifp));
+		hash = tulip_mchash(eaddr);
 		sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    } else {
-		sp[39] = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 0); 
-		sp[40] = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 1); 
-		sp[41] = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 2);
+		sp[39] = TULIP_SP_MAC(((u_int16_t *)eaddr)[0]); 
+		sp[40] = TULIP_SP_MAC(((u_int16_t *)eaddr)[1]); 
+		sp[41] = TULIP_SP_MAC(((u_int16_t *)eaddr)[2]);
 	    }
 	}
     }
@@ -3101,32 +3106,26 @@ tulip_addr_filter(tulip_softc_t * const sc)
 		    if (ifma->ifma_addr->sa_family != AF_LINK)
 			    continue;
 		    addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-		    *sp++ = TULIP_SP_MAC((u_int16_t *)addrp + 0); 
-		    *sp++ = TULIP_SP_MAC((u_int16_t *)addrp + 1); 
-		    *sp++ = TULIP_SP_MAC((u_int16_t *)addrp + 2);
+		    *sp++ = TULIP_SP_MAC(((u_int16_t *)addrp)[0]); 
+		    *sp++ = TULIP_SP_MAC(((u_int16_t *)addrp)[1]); 
+		    *sp++ = TULIP_SP_MAC(((u_int16_t *)addrp)[2]);
 		    idx++;
 	    }
 	    /*
 	     * Add the broadcast address.
 	     */
 	    idx++;
-#if BYTE_ORDER == BIG_ENDIAN
-	    *sp++ = 0xFFFF << 16;
-	    *sp++ = 0xFFFF << 16;
-	    *sp++ = 0xFFFF << 16;
-#else
-	    *sp++ = 0xFFFF;
-	    *sp++ = 0xFFFF;
-	    *sp++ = 0xFFFF;
-#endif
+	    *sp++ = TULIP_SP_MAC(0xFFFF);
+	    *sp++ = TULIP_SP_MAC(0xFFFF);
+	    *sp++ = TULIP_SP_MAC(0xFFFF);
 	}
 	/*
 	 * Pad the rest with our hardware address
 	 */
 	for (; idx < 16; idx++) {
-	    *sp++ = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 0); 
-	    *sp++ = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 1); 
-	    *sp++ = TULIP_SP_MAC((u_int16_t *)IF_LLADDR(ifp) + 2);
+	    *sp++ = TULIP_SP_MAC(((u_int16_t *)eaddr)[0]); 
+	    *sp++ = TULIP_SP_MAC(((u_int16_t *)eaddr)[1]); 
+	    *sp++ = TULIP_SP_MAC(((u_int16_t *)eaddr)[2]);
 	}
     }
     IF_ADDR_UNLOCK(ifp);
