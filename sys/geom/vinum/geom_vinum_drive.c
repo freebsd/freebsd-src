@@ -453,7 +453,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/* Now check if the provided slice is a valid vinum drive. */
 	do {
 		vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, &error);
-		if (vhdr == NULL || error != 0)
+		if (vhdr == NULL)
 			break;
 		if (vhdr->magic != GV_MAGIC) {
 			g_free(vhdr);

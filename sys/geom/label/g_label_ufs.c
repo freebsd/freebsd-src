@@ -72,7 +72,7 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 
 		fs = (struct fs *)g_read_data(cp, superblock, SBLOCKSIZE,
 		    &error);
-		if (fs == NULL || error != 0)
+		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */
 		if (fs->fs_magic == FS_UFS1_MAGIC) {

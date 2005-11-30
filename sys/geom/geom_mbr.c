@@ -284,7 +284,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			break;
 		ms->sectorsize = sectorsize;
 		buf = g_read_data(cp, 0, sectorsize, &error);
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 
 		/*
@@ -454,7 +454,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			break;
 		for (;;) {
 			buf = g_read_data(cp, off, sectorsize, &error);
-			if (buf == NULL || error != 0)
+			if (buf == NULL)
 				break;
 			if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa) {
 				g_free(buf);
