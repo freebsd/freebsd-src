@@ -100,6 +100,7 @@ struct hme_ring {
 	/* Descriptors */
 	struct hme_rxdesc	rb_rxdesc[HME_NRXDESC];
 	struct hme_txdesc	rb_txdesc[HME_NTXQ];
+	bus_dma_segment_t	rb_txsegs[HME_NTXQ];
 
 	struct	hme_txdq	rb_txfreeq;
 	struct	hme_txdq	rb_txbusyq;
