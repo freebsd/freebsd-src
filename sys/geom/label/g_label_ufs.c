@@ -46,7 +46,7 @@ static void
 g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
-	int error, sb, superblock;
+	int sb, superblock;
 	struct fs *fs;
 
 	g_topology_assert_not();
@@ -71,7 +71,7 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 			continue;
 
 		fs = (struct fs *)g_read_data(cp, superblock, SBLOCKSIZE,
-		    &error);
+		    NULL);
 		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */

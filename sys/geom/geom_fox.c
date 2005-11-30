@@ -371,7 +371,7 @@ g_fox_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	do {
 		sectorsize = cp->provider->sectorsize;
 		g_topology_unlock();
-		buf = g_read_data(cp, 0, sectorsize, &error);
+		buf = g_read_data(cp, 0, sectorsize, NULL);
 		g_topology_lock();
 		if (buf == NULL)
 			break;
