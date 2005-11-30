@@ -37,9 +37,11 @@ extern inline
 float
 __kernel_cosdf(double x)
 {
-	double z,r;
+	double r, w, z;
 
-	z  = x*x;
-	r  = z*(C1+z*(C2+z*C3));
-	return (one+z*C0) + z*r;
+	/* Try to optimize for parallel evaluation as in k_tanf.c. */
+	z = x*x;
+	w = z*z;
+	r = C2+z*C3;
+	return ((one+z*C0) + w*C1) + (w*z)*r;
 }
