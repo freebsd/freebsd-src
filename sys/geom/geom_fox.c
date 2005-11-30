@@ -373,7 +373,7 @@ g_fox_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		g_topology_unlock();
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		g_topology_lock();
-		if (buf == NULL || error != 0)
+		if (buf == NULL)
 			break;
 		if (memcmp(buf, FOX_MAGIC, strlen(FOX_MAGIC)))
 			break;

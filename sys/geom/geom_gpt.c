@@ -300,7 +300,7 @@ g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 	uint16_t magic;
 
 	buf = g_read_data(cp, 0L, cp->provider->sectorsize, error);
-	if (*error != 0)
+	if (buf == NULL)
 		return (0);
 
 	pmbr = 0;
@@ -826,14 +826,14 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	 * there's a GPT, including whether recovery is appropriate.
 	 */
 	buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
-	if (error != 0)
+	if (buf == NULL)
 		goto fail;
 	g_gpt_load_hdr(softc, pp, GPT_HDR_PRIMARY, buf);
 	g_free(buf);
 
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
 	    &error);
-	if (error != 0)
+	if (buf == NULL)
 		goto fail;
 	g_gpt_load_hdr(softc, pp, GPT_HDR_SECONDARY, buf);
 	g_free(buf);
@@ -915,7 +915,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	ofs = hdr->hdr_lba_table * pp->sectorsize;
 	buf = g_read_data(cp, ofs, nbytes, &error);
-	if (error != 0)
+	if (buf == NULL)
 		goto fail;
 
 	/*
@@ -934,7 +934,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		hdr = softc->hdr + GPT_HDR_SECONDARY;
 		ofs = hdr->hdr_lba_table * pp->sectorsize;
 		buf = g_read_data(cp, ofs, nbytes, &error);
-		if (error != 0)
+		if (buf == NULL)
 			goto fail;
 
 		if (!g_gpt_tbl_ok(hdr, buf)) {
