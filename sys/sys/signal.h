@@ -114,7 +114,7 @@
 #endif
 
 #define	SIGRTMIN	65
-#define	SIGRTMAX	128
+#define	SIGRTMAX	126
 
 #define	SIG_DFL		((__sighandler_t *)0)
 #define	SIG_IGN		((__sighandler_t *)1)
