@@ -299,7 +299,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			break;
 		sectorsize = cp->provider->sectorsize;
 		mediasize = cp->provider->mediasize;
-		buf = g_read_data(cp, 0, sectorsize, &error);
+		buf = g_read_data(cp, 0, sectorsize, NULL);
 		if (buf == NULL) {
 			break;
 		}
