@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/dirent.h>
 #include <sys/event.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/file.h>
@@ -143,17 +144,19 @@ struct mqfs_node {
 #define	VTON(vp)	(((struct mqfs_vdata *)((vp)->v_data))->mv_node)
 #define VTOMQ(vp) 	((struct mqueue *)(VTON(vp)->mn_data))
 #define	VFSTOMQFS(m)	((struct mqfs_info *)((m)->mnt_data))
-#define	FPTOMQ(fp)	(((struct mqueue_user *) 		\
-				(fp)->f_data)->mu_node->mn_data)
+#define	FPTOMQ(fp)	((struct mqueue *)(((struct mqfs_node *) \
+				(fp)->f_data)->mn_data))
+
 TAILQ_HEAD(msgq, mqueue_msg);
 
 struct mqueue;
-struct mqueue_user
-{
-	struct sigevent	mu_sigev;
-	struct ksiginfo	mu_ksi;
-	struct mqfs_node	*mu_node;
-	struct proc	*mu_proc;
+
+struct mqueue_notifier {
+	LIST_ENTRY(mqueue_notifier)	nt_link;
+	struct sigevent			nt_sigev;
+	ksiginfo_t			nt_ksi;
+	struct proc			*nt_proc;
+	int				nt_fd;
 };
 
 struct mqueue {
@@ -168,7 +171,7 @@ struct mqueue {
 	int		mq_senders;
 	struct selinfo	mq_rsel;
 	struct selinfo	mq_wsel;
-	struct mqueue_user	*mq_notifier;
+	struct mqueue_notifier	*mq_notifier;
 };
 
 #define	MQ_RSEL		0x01
@@ -202,12 +205,14 @@ SYSCTL_INT(_kern_mqueue, OID_AUTO, curmq, CTLFLAG_RW,
 static int	unloadable = 0;
 static MALLOC_DEFINE(M_MQUEUEDATA, "mqdata", "mqueue data");
 
+static eventhandler_tag exit_tag;
+
 /* Only one instance per-system */
 static struct mqfs_info		mqfs_data;
 static uma_zone_t		mqnode_zone;
 static uma_zone_t		mqueue_zone;
 static uma_zone_t		mvdata_zone;
-static uma_zone_t		mquser_zone;
+static uma_zone_t		mqnoti_zone;
 static struct vop_vector	mqfs_vnodeops;
 static struct fileops		mqueueops;
 
@@ -244,8 +249,12 @@ static int	_mqueue_send(struct mqueue *mq, struct mqueue_msg *msg,
 static int	_mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg,
 			int timo);
 static void	mqueue_send_notification(struct mqueue *mq);
+static void	mqueue_fdclose(struct thread *td, int fd, struct file *fp);
+static void	mq_proc_exit(void *arg, struct proc *p);
 
-/* kqueue filters */
+/*
+ * kqueue filters
+ */
 static void	filt_mqdetach(struct knote *kn);
 static int	filt_mqread(struct knote *kn, long hint);
 static int	filt_mqwrite(struct knote *kn, long hint);
@@ -278,17 +287,12 @@ mqfs_fileno_uninit(struct mqfs_info *mi)
 	up = mi->mi_unrhdr;
 	mi->mi_unrhdr = NULL;
 	delete_unrhdr(up);
-
-	uma_zdestroy(mqnode_zone);
-	uma_zdestroy(mqueue_zone);
-	uma_zdestroy(mvdata_zone);
-	uma_zdestroy(mquser_zone);
 }
 
 /*
  * Allocate a file number
  */
-void
+static void
 mqfs_fileno_alloc(struct mqfs_info *mi, struct mqfs_node *mn)
 {
 	/* make sure our parent has a file number */
@@ -329,7 +333,7 @@ mqfs_fileno_alloc(struct mqfs_info *mi, struct mqfs_node *mn)
 /*
  * Release a file number
  */
-void
+static void
 mqfs_fileno_free(struct mqfs_info *mi, struct mqfs_node *mn)
 {
 	switch (mn->mn_type) {
@@ -441,7 +445,7 @@ mqfs_fixup_dir(struct mqfs_node *parent)
 /*
  * Create a directory
  */
-struct mqfs_node *
+static struct mqfs_node *
 mqfs_create_dir(struct mqfs_node *parent, const char *name, int namelen)
 {
 	struct mqfs_node *dir;
@@ -462,12 +466,28 @@ mqfs_create_dir(struct mqfs_node *parent, const char *name, int namelen)
 
 	return (dir);
 }
+
+/*
+ * Create a symlink
+ */
+static struct mqfs_node *
+mqfs_create_link(struct mqfs_node *parent, const char *name, int namelen)
+{
+	struct mqfs_node *node;
+
+	node = mqfs_create_file(parent, name, namelen);
+	if (node == NULL)
+		return (NULL);
+	node->mn_type = mqfstype_symlink;
+	return (node);
+}
+
 #endif
 
 /*
  * Create a file
  */
-struct mqfs_node *
+static struct mqfs_node *
 mqfs_create_file(struct mqfs_node *parent, const char *name, int namelen)
 {
 	struct mqfs_node *node;
@@ -485,24 +505,9 @@ mqfs_create_file(struct mqfs_node *parent, const char *name, int namelen)
 }
 
 /*
- * Create a symlink
- */
-struct mqfs_node *
-mqfs_create_link(struct mqfs_node *parent, const char *name, int namelen)
-{
-	struct mqfs_node *node;
-
-	node = mqfs_create_file(parent, name, namelen);
-	if (node == NULL)
-		return (NULL);
-	node->mn_type = mqfstype_symlink;
-	return (node);
-}
-
-/*
  * Destroy a node or a tree of nodes
  */
-int
+static int
 mqfs_destroy(struct mqfs_node *node)
 {
 	struct mqfs_node *parent;
@@ -614,7 +619,7 @@ mqfs_init(struct vfsconf *vfc)
 	mvdata_zone = uma_zcreate("mvdata",
 		sizeof(struct mqfs_vdata), NULL, NULL, NULL,
 		NULL, UMA_ALIGN_PTR, 0);
-	mquser_zone = uma_zcreate("mquser", sizeof(struct mqueue_user),
+	mqnoti_zone = uma_zcreate("mqnotifier", sizeof(struct mqueue_notifier),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mi = &mqfs_data;
 	sx_init(&mi->mi_lock, "mqfs lock");
@@ -631,6 +636,9 @@ mqfs_init(struct vfsconf *vfc)
 	mqfs_fileno_init(mi);
 	mqfs_fileno_alloc(mi, root);
 	mqfs_fixup_dir(root);
+	exit_tag = EVENTHANDLER_REGISTER(process_exit, mq_proc_exit, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	mq_fdclose = mqueue_fdclose;
 	return (0);
 }
 
@@ -644,11 +652,16 @@ mqfs_uninit(struct vfsconf *vfc)
 
 	if (!unloadable)
 		return (EOPNOTSUPP);
+	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	mi = &mqfs_data;
 	mqfs_destroy(mi->mi_root);
 	mi->mi_root = NULL;
 	mqfs_fileno_uninit(mi);
 	sx_destroy(&mi->mi_lock);
+	uma_zdestroy(mqnode_zone);
+	uma_zdestroy(mqueue_zone);
+	uma_zdestroy(mvdata_zone);
+	uma_zdestroy(mqnoti_zone);
 	return (0);
 }
 
@@ -667,7 +680,7 @@ do_recycle(void *context, int pending __unused)
 /*
  * Allocate a vnode
  */
-int
+static int
 mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 {
 	struct mqfs_vdata *vd;
@@ -1527,7 +1540,7 @@ mqueue_savemsg(struct mqueue_msg *msg, char *msg_ptr, int *msg_prio)
 
 	error = copyout(((char *)msg) + sizeof(*msg), msg_ptr,
 		msg->msg_size);
-	if (error == 0)
+	if (error == 0 && msg_prio != NULL)
 		error = copyout(&msg->msg_prio, msg_prio, sizeof(int));
 	return (error);
 }
@@ -1676,14 +1689,16 @@ _mqueue_send(struct mqueue *mq, struct mqueue_msg *msg, int timo)
 static void
 mqueue_send_notification(struct mqueue *mq)
 {
-	struct mqueue_user *mu;
+	struct mqueue_notifier *nt;
+	struct proc *p;
 
 	mtx_assert(&mq->mq_mutex, MA_OWNED);
-	mu = mq->mq_notifier;
-	PROC_LOCK(mu->mu_proc);
-	if (!KSI_ONQ(&mu->mu_ksi))
-		psignal_event(mu->mu_proc, &mu->mu_sigev, &mu->mu_ksi);
-	PROC_UNLOCK(mu->mu_proc);
+	nt = mq->mq_notifier;
+	p = nt->nt_proc;
+	PROC_LOCK(p);
+	if (!KSI_ONQ(&nt->nt_ksi))
+		psignal_event(p, &nt->nt_sigev, &nt->nt_ksi);
+	PROC_UNLOCK(p);
 	mq->mq_notifier = NULL;
 }
 
@@ -1805,16 +1820,58 @@ _mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg, int timo)
 	return (error);
 }
 
-static __inline struct mqueue_user *
-mquser_alloc(void)
+static __inline struct mqueue_notifier *
+notifier_alloc(void)
 {
-	return (uma_zalloc(mquser_zone, M_WAITOK | M_ZERO));
+	return (uma_zalloc(mqnoti_zone, M_WAITOK | M_ZERO));
 }
 
 static __inline void
-mquser_free(struct mqueue_user *p)
+notifier_free(struct mqueue_notifier *p)
 {
-	uma_zfree(mquser_zone, p);
+	uma_zfree(mqnoti_zone, p);
+}
+
+static struct mqueue_notifier *
+notifier_search(struct proc *p, int fd)
+{
+	struct mqueue_notifier *nt;
+
+	LIST_FOREACH(nt, &p->p_mqnotifier, nt_link) {
+		if (nt->nt_fd == fd)
+			break;
+	}
+	return (nt);
+}
+
+static void
+notifier_insert(struct proc *p, struct mqueue_notifier *nt)
+{
+	LIST_INSERT_HEAD(&p->p_mqnotifier, nt, nt_link);
+}
+
+static void
+notifier_delete(struct proc *p, struct mqueue_notifier *nt)
+{
+	LIST_REMOVE(nt, nt_link);
+	notifier_free(nt);
+}
+
+static void
+notifier_remove(struct proc *p, struct mqueue *mq, int fd)
+{
+	struct mqueue_notifier *nt;
+
+	mtx_assert(&mq->mq_mutex, MA_OWNED);
+	PROC_LOCK(p);
+	nt = notifier_search(p, fd);
+	if (nt != NULL) {
+		if (mq->mq_notifier == nt)
+			mq->mq_notifier = NULL;
+		sigqueue_take(&nt->nt_ksi);
+		notifier_delete(p, nt);
+	}
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -1823,12 +1880,11 @@ mquser_free(struct mqueue_user *p)
 int
 mq_open(struct thread *td, struct mq_open_args *uap)
 {
-	char path[MQFS_NAMELEN+1];
+	char path[MQFS_NAMELEN + 1];
 	struct mq_attr attr, *pattr;
 	struct mqfs_node *pn;
 	struct filedesc *fdp;
 	struct file *fp;
-	struct mqueue_user *mu;
 	struct mqueue *mq;
 	int fd, error, len, flags, cmode;
 
@@ -1853,7 +1909,7 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 
 	error = copyinstr(uap->path, path, MQFS_NAMELEN + 1, NULL);
         if (error)
-                return (error);
+		return (error);
 
 	/*
 	 * The first character of name must be a slash  (/) character
@@ -1875,13 +1931,15 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 			error = ENOENT;
 		} else {
 			mq = mqueue_alloc(pattr);
-			if (mq != NULL)
+			if (mq == NULL) {
+				error = ENFILE;
+			} else {
 				pn = mqfs_create_file(mqfs_data.mi_root,
 				         path + 1, len - 1);
-			if (pn == NULL) {
-				if (mq != NULL)
+				if (pn == NULL) {
+					error = ENOSPC;
 					mqueue_free(mq);
-				error = ENOSPC;
+				}
 			}
 		}
 
@@ -1919,17 +1977,11 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 	mqnode_addref(pn);
 	sx_xunlock(&mqfs_data.mi_lock);
 
-	mu = mquser_alloc();
-	mu->mu_node = pn;
-	ksiginfo_init(&mu->mu_ksi);
-	mu->mu_ksi.ksi_flags |= KSI_INS | KSI_EXT;
-	mu->mu_ksi.ksi_code = SI_MESGQ;
-	mu->mu_proc = td->td_proc;
 	FILE_LOCK(fp);
 	fp->f_flag = (flags & (FREAD | FWRITE | O_NONBLOCK));
 	fp->f_type = DTYPE_MQUEUE;
 	fp->f_ops = &mqueueops;
-	fp->f_data = mu;
+	fp->f_data = pn;
 	FILE_UNLOCK(fp);
 
 	FILEDESC_LOCK_FAST(fdp);
@@ -1978,7 +2030,6 @@ static int
 _getmq(struct thread *td, int fd, _fgetf func,
        struct file **fpp, struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	struct mqueue_user *mu;
 	struct mqfs_node *pn;
 	int error;
 
@@ -1989,8 +2040,7 @@ _getmq(struct thread *td, int fd, _fgetf func,
 		fdrop(*fpp, td);
 		return (EBADF);
 	}
-	mu = (*fpp)->f_data;
-	pn = mu->mu_node;
+	pn = (*fpp)->f_data;
 	if (ppn)
 		*ppn = pn;
 	if (pmq)
@@ -2104,11 +2154,15 @@ int
 mq_notify(struct thread *td, struct mq_notify_args *uap)
 {
 	struct sigevent ev;
-	struct mqueue_user *mu;
+	struct filedesc *fdp;
+	struct proc *p;
 	struct mqueue *mq;
 	struct file *fp;
+	struct mqueue_notifier *nt, *newnt = NULL;
 	int error;
 
+	p = td->td_proc;
+	fdp = td->td_proc->p_fd;
 	if (uap->sigev) {
 		error = copyin(uap->sigev, &ev, sizeof(ev));
 		if (error)
@@ -2124,35 +2178,117 @@ mq_notify(struct thread *td, struct mq_notify_args *uap)
 	error = getmq(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
-	mu = fp->f_data;
+again:
+	FILEDESC_LOCK_FAST(fdp);
+	if (fget_locked(fdp, uap->mqd) != fp) {
+		FILEDESC_UNLOCK_FAST(fdp);
+		error = EBADF;
+		goto out;
+	}
 	mtx_lock(&mq->mq_mutex);
+	FILEDESC_UNLOCK_FAST(fdp);
 	if (uap->sigev != NULL) {
 		if (mq->mq_notifier != NULL) {
 			error = EBUSY;
 		} else {
-			PROC_LOCK(td->td_proc);
-			sigqueue_take(&mu->mu_ksi);
-			PROC_UNLOCK(td->td_proc);
-			mq->mq_notifier = mu;
-			mu->mu_sigev = ev;
+			PROC_LOCK(p);
+			nt = notifier_search(p, uap->mqd);
+			if (nt == NULL) {
+				if (newnt == NULL) {
+					PROC_UNLOCK(p);
+					mtx_unlock(&mq->mq_mutex);
+					newnt = notifier_alloc();
+					goto again;
+				}
+			}
+
+			if (nt != NULL) {
+				sigqueue_take(&nt->nt_ksi);
+				if (newnt != NULL) {
+					notifier_free(newnt);
+					newnt = NULL;
+				}
+			} else {
+				nt = newnt;
+				newnt = NULL;
+				ksiginfo_init(&nt->nt_ksi);
+				nt->nt_ksi.ksi_flags |= KSI_INS | KSI_EXT;
+				nt->nt_ksi.ksi_code = SI_MESGQ;
+				nt->nt_proc = p;
+				nt->nt_fd = uap->mqd;
+				notifier_insert(p, nt);
+			}
+			nt->nt_sigev = ev;
+			mq->mq_notifier = nt;
+			PROC_UNLOCK(p);
 			/*
-			 * if there is no receivers and message queue is not
-			 * empty, we should send notification as soon as
-			 * possible.
+			 * if there is no receivers and message queue
+			 * is not empty, we should send notification
+			 * as soon as possible.
 			 */
 			if (mq->mq_receivers == 0 &&
 			    !TAILQ_EMPTY(&mq->mq_msgq))
 				mqueue_send_notification(mq);
 		}
 	} else {
-		if (mq->mq_notifier == mu)
-			mq->mq_notifier = NULL;
-		else
-			error = EPERM;
+		notifier_remove(p, mq, uap->mqd);
 	}
 	mtx_unlock(&mq->mq_mutex);
+
+out:
 	fdrop(fp, td);
+	if (newnt != NULL)
+		notifier_free(newnt);
 	return (error);
+}
+
+static void
+mqueue_fdclose(struct thread *td, int fd, struct file *fp)
+{
+	struct filedesc *fdp;
+	struct mqueue *mq;
+ 
+	fdp = td->td_proc->p_fd;
+	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	if (fp->f_ops == &mqueueops) {
+		mq = FPTOMQ(fp);
+		mtx_lock(&mq->mq_mutex);
+		notifier_remove(td->td_proc, mq, fd);
+
+		/* have to wakeup thread in same process */
+		if (mq->mq_flags & MQ_RSEL) {
+			mq->mq_flags &= ~MQ_RSEL;
+			selwakeuppri(&mq->mq_rsel, PSOCK);
+		}
+		if (mq->mq_flags & MQ_WSEL) {
+			mq->mq_flags &= ~MQ_WSEL;
+			selwakeuppri(&mq->mq_wsel, PSOCK);
+		}
+		mtx_unlock(&mq->mq_mutex);
+	}
+}
+
+static void
+mq_proc_exit(void *arg __unused, struct proc *p)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+	struct mqueue *mq;
+	int i;
+
+	fdp = p->p_fd;
+	FILEDESC_LOCK_FAST(fdp);
+	for (i = 0; i < fdp->fd_nfiles; ++i) {
+		fp = fget_locked(fdp, i);
+		if (fp != NULL && fp->f_ops == &mqueueops) {
+			mq = FPTOMQ(fp);
+			mtx_lock(&mq->mq_mutex);
+			notifier_remove(p, FPTOMQ(fp), i);
+			mtx_unlock(&mq->mq_mutex);
+		}
+	}
+	FILEDESC_UNLOCK_FAST(fdp);
+	KASSERT(LIST_EMPTY(&p->p_mqnotifier), ("mq notifiers left"));
 }
 
 static int
@@ -2207,38 +2343,16 @@ mqf_poll(struct file *fp, int events, struct ucred *active_cred,
 static int
 mqf_close(struct file *fp, struct thread *td)
 {
-	struct mqueue_user *mu;
 	struct mqfs_node *pn;
-	struct mqueue *mq;
 
 	FILE_LOCK(fp);
 	fp->f_ops = &badfileops;
 	FILE_UNLOCK(fp);
-	mu = fp->f_data;
+	pn = fp->f_data;
 	fp->f_data = NULL;
-	pn = mu->mu_node;
-	mq = pn->mn_data;
-	mtx_lock(&mq->mq_mutex);
-	if (mq->mq_notifier == mu) {
-		PROC_LOCK(td->td_proc);
-		sigqueue_take(&mu->mu_ksi);
-		PROC_UNLOCK(td->td_proc);
-		mq->mq_notifier = NULL; 
-	}
-	/* have to wakeup thread in same process */
-	if (mq->mq_flags & MQ_RSEL) {
-		mq->mq_flags &= ~MQ_RSEL;
-		selwakeuppri(&mq->mq_rsel, PSOCK);
-	}
-	if (mq->mq_flags & MQ_WSEL) {
-		mq->mq_flags &= ~MQ_WSEL;
-		selwakeuppri(&mq->mq_wsel, PSOCK);
-	}
-	mtx_unlock(&mq->mq_mutex);
 	sx_xlock(&mqfs_data.mi_lock);
 	mqnode_release(pn);
 	sx_xunlock(&mqfs_data.mi_lock);
-	mquser_free(mu);
 	return (0);
 }
 
@@ -2246,8 +2360,7 @@ static int
 mqf_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	struct thread *td)
 {
-	struct mqueue_user *mu = fp->f_data;
-	struct mqfs_node *pn = mu->mu_node;
+	struct mqfs_node *pn = fp->f_data;
 
 	bzero(st, sizeof *st);
 	st->st_atimespec = pn->mn_atime;
