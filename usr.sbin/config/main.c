@@ -153,8 +153,7 @@ main(int argc, char **argv)
 	if (stat(p, &buf)) {
 		if (mkdir(p, 0777))
 			err(2, "%s", p);
-	}
-	else if ((buf.st_mode & S_IFMT) != S_IFDIR)
+	} else if (!S_ISDIR(buf.st_mode))
 		errx(2, "%s isn't a directory", p);
 
 	STAILQ_INIT(&dtab);
@@ -470,7 +469,7 @@ cleanheaders(char *p)
 			continue;
 		/* Check if it is a target file */
 		for (hl = htab; hl != NULL; hl = hl->h_next) {
-			if (strcmp(dp->d_name, hl->h_name) == 0) {
+			if (eq(dp->d_name, hl->h_name)) {
 				break;
 			}
 		}
@@ -499,7 +498,7 @@ remember(const char *file)
 		return;
 	}
 	for (hl = htab; hl != NULL; hl = hl->h_next) {
-		if (strcmp(s, hl->h_name) == 0) {
+		if (eq(s, hl->h_name)) {
 			free(s);
 			return;
 		}
