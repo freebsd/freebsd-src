@@ -121,7 +121,9 @@ functions.
 The function
 .Fn callout_handle_init
 can be used to initialize a handle to a state which will cause
-any calls to untimeout with that handle to return with no side
+any calls to
+.Fn untimeout
+with that handle to return with no side
 effects.
 .Pp
 Assigning a callout handle the value of
@@ -153,7 +155,9 @@ or assigned the value of
 .Fn CALLOUT_HANDLE_INITIALIZER "&handle"
 before being passed to
 .Fn untimeout .
-The behavior of calling untimeout without a previously initialized handle
+The behavior of calling
+.Fn untimeout
+with an uninitialized handle
 is undefined.
 The
 .Fn untimeout
