@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#include <posix4/posix4.h>
 #include <machine/cpu.h>
 
 #if defined (__alpha__) && !defined(COMPAT_43)
@@ -211,6 +212,9 @@ sigqueue_start(void)
 	ksiginfo_zone = uma_zcreate("ksiginfo", sizeof(ksiginfo_t),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_prealloc(ksiginfo_zone, preallocate_siginfo);
+	p31b_setcfg(CTL_P1003_1B_REALTIME_SIGNALS, _POSIX_REALTIME_SIGNALS);
+	p31b_setcfg(CTL_P1003_1B_RTSIG_MAX, SIGRTMAX - SIGRTMIN + 1);
+	p31b_setcfg(CTL_P1003_1B_SIGQUEUE_MAX, max_pending_per_proc);
 }
 
 ksiginfo_t *
