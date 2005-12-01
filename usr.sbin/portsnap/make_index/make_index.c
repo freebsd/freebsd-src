@@ -67,7 +67,7 @@ static DEP * makelist(char * str, size_t * n);
 static PORT * portify(char * line);
 static int portcompare(char * a, char * b);
 static void heapifyports(PORT **pp, size_t size, size_t pos);
-static PORT * findport(PORT ** pp, size_t st, size_t en, char * name);
+static PORT * findport(PORT ** pp, size_t st, size_t en, char * name, char * from);
 static void translateport(PORT ** pp, size_t pplen, PORT * p);
 static DEP * recurse_one(DEP * d, size_t * nd);
 static void recurse(PORT * p);
@@ -232,13 +232,13 @@ top:
 
 /* Translate a port directory name into a (PORT *), and free the name */
 static PORT *
-findport(PORT ** pp, size_t st, size_t en, char * name)
+findport(PORT ** pp, size_t st, size_t en, char * name, char * from)
 {
 	size_t mid;
 	int r;
 
 	if (st == en)
-		errx(1, "Unresolved dependency: %s", name);
+		errx(1, "%s: no entry for %s", from, name);
 
 	mid = (st + en) / 2;
 	r = portcompare(pp[mid]->portdir, name);
@@ -247,9 +247,9 @@ findport(PORT ** pp, size_t st, size_t en, char * name)
 		free(name);
 		return pp[mid];
 	} else if (r < 0)
-		return findport(pp, mid + 1, en, name);
+		return findport(pp, mid + 1, en, name, from);
 	else
-		return findport(pp, st, mid, name);
+		return findport(pp, st, mid, name, from);
 }
 
 /* Translate all depends from names into PORT *s */
@@ -259,15 +259,15 @@ translateport(PORT ** pp, size_t pplen, PORT * p)
 	size_t i;
 
 	for (i = 0; i < p->n_edep; i++)
-		p->edep[i].p = findport(pp, 0, pplen, p->edep[i].name);
+		p->edep[i].p = findport(pp, 0, pplen, p->edep[i].name, p->portdir);
 	for (i = 0; i < p->n_pdep; i++)
-		p->pdep[i].p = findport(pp, 0, pplen, p->pdep[i].name);
+		p->pdep[i].p = findport(pp, 0, pplen, p->pdep[i].name, p->portdir);
 	for (i = 0; i < p->n_fdep; i++)
-		p->fdep[i].p = findport(pp, 0, pplen, p->fdep[i].name);
+		p->fdep[i].p = findport(pp, 0, pplen, p->fdep[i].name, p->portdir);
 	for (i = 0; i < p->n_bdep; i++)
-		p->bdep[i].p = findport(pp, 0, pplen, p->bdep[i].name);
+		p->bdep[i].p = findport(pp, 0, pplen, p->bdep[i].name, p->portdir);
 	for (i = 0; i < p->n_rdep; i++)
-		p->rdep[i].p = findport(pp, 0, pplen, p->rdep[i].name);
+		p->rdep[i].p = findport(pp, 0, pplen, p->rdep[i].name, p->portdir);
 }
 
 /* Recurse on one specific depends list */
