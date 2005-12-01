@@ -138,7 +138,8 @@ the data to be written completes.
 .Dv O_SYNC
 is a synonym for
 .Dv O_FSYNC
-required by POSIX.
+required by
+.Tn POSIX .
 .Pp
 If
 .Dv O_NOFOLLOW
@@ -172,9 +173,12 @@ may be used to ensure the OS does not assign this file as the
 controlling terminal when it opens a tty device.
 This is the default on
 .Fx ,
-but is present for POSIX 1003.1 compatibility.
+but is present for
+.Tn POSIX 
+compatibility.
+The
 .Fn open 
-will not assign controlling terminals on
+system call will not assign controlling terminals on
 .Fx .
 .Pp
 If successful,
