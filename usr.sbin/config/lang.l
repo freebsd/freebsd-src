@@ -62,6 +62,7 @@ struct kt {
 } key_words[] = {
 	{ "config",	CONFIG },
 	{ "cpu",	CPU },
+	{ "nocpu",	NOCPU },
 	{ "device",	DEVICE },
 	{ "devices",	DEVICE },
 	{ "nodevice",	NODEVICE },
@@ -72,6 +73,7 @@ struct kt {
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
 	{ "makeoptions", MAKEOPTIONS },
 	{ "nomakeoption", NOMAKEOPTION },
+	{ "nomakeoptions", NOMAKEOPTION },
 	{ "maxusers",	MAXUSERS },
 	{ "profile",	PROFILE },
 	{ "option",	OPTIONS },
