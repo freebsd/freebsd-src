@@ -126,6 +126,7 @@ main(int argc, char **argv)
 				err(EX_CONFIG, "%s", optarg);
 			quirk = kiconv_quirkcs(csp + 1, KICONV_VENDOR_MICSFT);
 			build_iovec_argf(&iov, &iovlen, "cs_local", quirk);
+			cs_local = strdup(quirk);
 			}
 			break;
 		case 'D':
