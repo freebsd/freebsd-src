@@ -1687,10 +1687,10 @@ usage()
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload] [-M mask | time]",
-"            [-m ttl]" SECOPT " [-p pattern] [-S src_addr] [-s packetsize]",
-"            [-t timeout] [-z tos] [-G sweepmaxsize ] [-g sweepminsize ]",
-"            [-h sweepincrsize ] host", 
+"usage: ping [-AaDdfnoQqRrv] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
+"            [-h sweepincrsize] [-i wait] [-l preload] [-M mask | time] [-m ttl]",
+"           " SECOPT " [-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
+"            [-z tos] host",
 "       ping [-AaDdfLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
 "            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
 "            [-s packetsize] [-T ttl] [-t timeout] [-z tos] mcast-group");
