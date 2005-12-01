@@ -880,7 +880,7 @@ get_worklist(char **files)
 		fname = "<stdin>";
 	}
 	if (!f)
-		err(1, "%s", conf);
+		err(1, "%s", fname);
 
 	parse_file(f, fname, &worklist, &globlist, &defconf);
 	(void) fclose(f);
