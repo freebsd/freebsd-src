@@ -3023,7 +3023,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
     struct ifmultiaddr *ifma;
     struct ifnet *ifp;
     u_char *addrp;
-    u_char eaddr[ETHER_ADDR_LEN];
+    u_int16_t eaddr[ETHER_ADDR_LEN/2];
     int multicnt;
 
     TULIP_LOCK_ASSERT(sc);
@@ -3086,12 +3086,12 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	    hash = tulip_mchash(ifp->if_broadcastaddr);
 	    sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    if (sc->tulip_flags & TULIP_WANTHASHONLY) {
-		hash = tulip_mchash(eaddr);
+		hash = tulip_mchash((caddr_t)eaddr);
 		sp[hash >> 4] |= htole32(1 << (hash & 0xF));
 	    } else {
-		sp[39] = TULIP_SP_MAC(((u_int16_t *)eaddr)[0]); 
-		sp[40] = TULIP_SP_MAC(((u_int16_t *)eaddr)[1]); 
-		sp[41] = TULIP_SP_MAC(((u_int16_t *)eaddr)[2]);
+		sp[39] = TULIP_SP_MAC(eaddr[0]); 
+		sp[40] = TULIP_SP_MAC(eaddr[1]); 
+		sp[41] = TULIP_SP_MAC(eaddr[2]);
 	    }
 	}
     }
@@ -3123,9 +3123,9 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	 * Pad the rest with our hardware address
 	 */
 	for (; idx < 16; idx++) {
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)eaddr)[0]); 
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)eaddr)[1]); 
-	    *sp++ = TULIP_SP_MAC(((u_int16_t *)eaddr)[2]);
+	    *sp++ = TULIP_SP_MAC(eaddr[0]); 
+	    *sp++ = TULIP_SP_MAC(eaddr[1]); 
+	    *sp++ = TULIP_SP_MAC(eaddr[2]);
 	}
     }
     IF_ADDR_UNLOCK(ifp);
