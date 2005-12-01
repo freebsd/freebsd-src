@@ -24,22 +24,35 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2005
+.Dd December 1, 2005
 .Dt SND_MSS 4
 .Os
 .Sh NAME
 .Nm snd_mss
 .Nd "Microsoft Sound System ISA PnP/non-PnP bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_mss"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_mss_load="YES"
+.Ed
 .Pp
 Non-PnP cards require the following lines in
-.Pa /boot/device.hints :
-.Cd hint.pcm.0.at="isa"
-.Cd hint.pcm.0.irq="10"
-.Cd hint.pcm.0.drq="1"
-.Cd hint.pcm.0.flags="0x0"
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.pcm.0.at="isa"
+hint.pcm.0.irq="10"
+hint.pcm.0.drq="1"
+hint.pcm.0.flags="0x0"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
