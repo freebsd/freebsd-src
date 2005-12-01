@@ -470,7 +470,7 @@ buildworld: ${WMAKE_TGTS}
 
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} sh || true
+	@cd ${.CURDIR} && env ${WMAKEENV} ${SHELL} || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
