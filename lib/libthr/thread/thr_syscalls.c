@@ -160,7 +160,6 @@ __connect(int fd, const struct sockaddr *name, socklen_t namelen)
 	int oldcancel;
 	int ret;
 
-	curthread = _get_curthread();
 	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_connect(fd, name, namelen);
 	_thr_cancel_leave(curthread, oldcancel);
@@ -354,13 +353,8 @@ _raise(int sig)
 
 	if (!_thr_isthreaded())
 		ret = kill(getpid(), sig);
-	else {
-		ret = pthread_kill(pthread_self(), sig);
-		if (ret != 0) {
-			errno = ret;
-			ret = -1;
-		}
-	}
+	else
+		ret = _thr_send_sig(_get_curthread(), sig);
 	return (ret);
 }
 
