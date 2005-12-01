@@ -236,14 +236,14 @@ Main_ParseWarn(const char *arg, int iscmd)
 static Boolean
 ReadMakefile(const char p[])
 {
-	char *fname;			/* makefile to read */
+	char *fname, *fnamesave;	/* makefile to read */
 	FILE *stream;
 	char *name, path[MAXPATHLEN];
 	char *MAKEFILE;
 	int setMAKEFILE;
 
 	/* XXX - remove this once constification is done */
-	fname = estrdup(p);
+	fnamesave = fname = estrdup(p);
 
 	if (!strcmp(fname, "-")) {
 		Parse_File("(stdin)", stdin);
@@ -299,7 +299,7 @@ ReadMakefile(const char p[])
 		if (!name)
 			name = Path_FindFile(fname, &sysIncPath);
 		if (!name || !(stream = fopen(name, "r"))) {
-			free(fname);
+			free(fnamesave);
 			return (FALSE);
 		}
 		MAKEFILE = fname = name;
@@ -313,7 +313,7 @@ found:
 			Var_SetGlobal("MAKEFILE", MAKEFILE);
 		Parse_File(fname, stream);
 	}
-	free(fname);
+	free(fnamesave);
 	return (TRUE);
 }
 
