@@ -86,7 +86,9 @@ O_SHLOCK	atomically obtain a shared lock
 O_EXLOCK	atomically obtain an exclusive lock
 O_DIRECT	eliminate or reduce cache effects
 O_FSYNC		synchronous writes
+O_SYNC		synchronous writes
 O_NOFOLLOW	do not follow symlinks
+O_NOCTTY	don't assign controlling terminal
 .Ed
 .Pp
 Opening a file with
@@ -133,6 +135,11 @@ the kernel will not cache written data
 and all writes on the descriptor will not return until
 the data to be written completes.
 .Pp
+.Dv O_SYNC
+is a synonym for
+.Dv O_FSYNC
+required by POSIX.
+.Pp
 If
 .Dv O_NOFOLLOW
 is used in the mask and the target file passed to
@@ -159,6 +166,16 @@ The system will attempt to avoid caching the data you read or write.
 If it cannot avoid caching the data,
 it will minimize the impact the data has on the cache.
 Use of this flag can drastically reduce performance if not used with care.
+.Pp
+.Dv O_NOCTTY
+may be used to ensure the OS does not assign this file as the
+controlling terminal when it opens a tty device.
+This is the default on
+.Fx ,
+but is present for POSIX 1003.1 compatibility.
+.Fn open 
+will not assign controlling terminals on
+.Fx .
 .Pp
 If successful,
 .Fn open
