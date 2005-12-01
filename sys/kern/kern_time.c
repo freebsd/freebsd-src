@@ -44,12 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timers.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
+
+#include <posix4/posix4.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -883,6 +886,9 @@ itimer_start(void)
 		NULL, NULL, itimer_init, itimer_fini, UMA_ALIGN_PTR, 0);
 	register_posix_clock(CLOCK_REALTIME,  &rt_clock);
 	register_posix_clock(CLOCK_MONOTONIC, &rt_clock);
+	p31b_setcfg(CTL_P1003_1B_TIMERS, 200112L);
+	p31b_setcfg(CTL_P1003_1B_DELAYTIMER_MAX, INT_MAX);
+	p31b_setcfg(CTL_P1003_1B_TIMER_MAX, TIMER_MAX);
 }
 
 int
@@ -1408,7 +1414,10 @@ realtimer_expire(void *arg)
 			timespecadd(&it->it_time.it_value,
 				    &it->it_time.it_interval);
 			while (timespeccmp(&cts, &it->it_time.it_value, >=)) {
-				it->it_overrun++;
+				if (it->it_overrun < INT_MAX)
+					it->it_overrun++;
+				else
+					it->it_ksi.ksi_errno = ERANGE;
 				timespecadd(&it->it_time.it_value,
 					    &it->it_time.it_interval);
 			}
@@ -1445,6 +1454,7 @@ itimer_fire(struct itimer *it)
 	    it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
 		PROC_LOCK(p);
 		if (!KSI_ONQ(&it->it_ksi)) {
+			it->it_ksi.ksi_errno = 0;
 			ret = psignal_event(p, &it->it_sigev, &it->it_ksi);
 			if (__predict_false(ret != 0)) {
 				it->it_overrun++;
@@ -1461,7 +1471,10 @@ itimer_fire(struct itimer *it)
 				}
 			}
 		} else {
-			it->it_overrun++;
+			if (it->it_overrun < INT_MAX)
+				it->it_overrun++;
+			else
+				it->it_ksi.ksi_errno = ERANGE;
 		}
 		PROC_UNLOCK(p);
 	}
