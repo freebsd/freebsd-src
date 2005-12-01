@@ -497,6 +497,7 @@ _gem=		gem
 
 .if ${MACHINE_ARCH} == "sparc64"
 _auxio=		auxio
+_em=		em
 _gem=		gem
 _sound=		sound
 .endif
