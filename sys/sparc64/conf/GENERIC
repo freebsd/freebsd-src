@@ -146,7 +146,7 @@ device		puc		# Multi-channel uarts
  
 # PCI Ethernet NICs.
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
-#device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
+device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
 #device		ixgb		# Intel PRO/10GbE Ethernet Card
 #device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 #device		txp		# 3Com 3cR990 (``Typhoon'')
