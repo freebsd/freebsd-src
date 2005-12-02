@@ -32,7 +32,7 @@
 
 struct mntopt {
 	const char *m_option;	/* option name */
-	int m_inverse;		/* if a negative option, e.g. "dev" */
+	int m_inverse;		/* if a negative option, e.g. "atime" */
 	int m_flag;		/* bit to set, e.g. MNT_RDONLY */
 	int m_altloc;		/* 1 => set bit in altflags */
 };
