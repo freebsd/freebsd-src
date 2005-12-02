@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#include <stdlib.h>
 
 #include <osreldate.h>
 
@@ -49,10 +50,14 @@ getosreldate(void)
 	size_t size;
 	int value;
 
+	char *temp;
+
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_OSRELDATE;
 	size = sizeof value;
 	if (sysctl(mib, 2, &value, &size, NULL, 0) == -1)
 		return (-1);
+	if ((temp = getenv("OSVERSION")))
+		value = atoi(temp);
 	return (value);
 }
