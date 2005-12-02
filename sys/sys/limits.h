@@ -93,4 +93,8 @@
 #define	WORD_BIT	__WORD_BIT
 #endif
 
+#if __POSIX_VISIBLE
+#define	MQ_PRIO_MAX	64
+#endif
+
 #endif /* !_SYS_LIMITS_H_ */
