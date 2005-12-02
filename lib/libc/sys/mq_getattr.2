@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 The
 .Fn mq_getattr
-syscall obtains status information and attributes of the message queue and
+system call obtains status information and attributes of the message queue and
 the open message queue description associated with the message queue
 descriptor.
 .Pp
@@ -78,13 +78,13 @@ The number of messages currently on the queue.
 .Sh RETURN VALUES
 Upon successful completion, the
 .Fn mq_getattr
-syscall returns zero. Otherwise, the syscall returns -1 and set
+system call returns zero. Otherwise, the system call returns -1 and set
 .Va errno
 to indicate the error.
 .Sh ERRORS
 The
 .Fn mq_getattr
-syscall call
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
