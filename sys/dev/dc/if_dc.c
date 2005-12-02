@@ -1078,6 +1078,7 @@ dc_mchash_be(const uint8_t *addr)
 static void
 dc_setfilt_21143(struct dc_softc *sc)
 {
+	uint16_t eaddr[(ETHER_ADDR_LEN+1)/2];
 	struct dc_desc *sframe;
 	u_int32_t h, *sp;
 	struct ifmultiaddr *ifma;
@@ -1125,10 +1126,11 @@ dc_setfilt_21143(struct dc_softc *sc)
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
-	/* Set our MAC address */
-	sp[39] = DC_SP_MAC((u_int16_t *)IF_LLADDR(sc->dc_ifp) + 0);
-	sp[40] = DC_SP_MAC((u_int16_t *)IF_LLADDR(sc->dc_ifp) + 1);
-	sp[41] = DC_SP_MAC((u_int16_t *)IF_LLADDR(sc->dc_ifp) + 2);
+	/* Set our MAC address. */
+	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	sp[39] = DC_SP_MAC(eaddr[0]);
+	sp[40] = DC_SP_MAC(eaddr[1]);
+	sp[41] = DC_SP_MAC(eaddr[2]);
 
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
@@ -1147,6 +1149,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 static void
 dc_setfilt_admtek(struct dc_softc *sc)
 {
+	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	int h = 0;
@@ -1155,8 +1158,9 @@ dc_setfilt_admtek(struct dc_softc *sc)
 	ifp = sc->dc_ifp;
 
 	/* Init our MAC address. */
-	CSR_WRITE_4(sc, DC_AL_PAR0, *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[0]));
-	CSR_WRITE_4(sc, DC_AL_PAR1, *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[4]));
+	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	CSR_WRITE_4(sc, DC_AL_PAR0, eaddr[0]);
+	CSR_WRITE_4(sc, DC_AL_PAR1, eaddr[1]);
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1205,6 +1209,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 static void
 dc_setfilt_asix(struct dc_softc *sc)
 {
+	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	int h = 0;
@@ -1212,13 +1217,12 @@ dc_setfilt_asix(struct dc_softc *sc)
 
 	ifp = sc->dc_ifp;
 
-	/* Init our MAC address */
+	/* Init our MAC address. */
+	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR0);
-	CSR_WRITE_4(sc, DC_AX_FILTDATA,
-	    *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[0]));
+	CSR_WRITE_4(sc, DC_AX_FILTDATA, eaddr[0]);
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR1);
-	CSR_WRITE_4(sc, DC_AX_FILTDATA,
-	    *(u_int32_t *)(&IF_LLADDR(sc->dc_ifp)[4]));
+	CSR_WRITE_4(sc, DC_AX_FILTDATA, eaddr[1]);
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1275,6 +1279,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 static void
 dc_setfilt_xircom(struct dc_softc *sc)
 {
+	uint16_t eaddr[(ETHER_ADDR_LEN+1)/2];
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct dc_desc *sframe;
@@ -1323,10 +1328,11 @@ dc_setfilt_xircom(struct dc_softc *sc)
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
-	/* Set our MAC address */
-	sp[0] = DC_SP_MAC((u_int16_t *)IF_LLADDR(sc->dc_ifp) + 0);
-	sp[1] = DC_SP_MAC((u_int16_t *)IF_LLADDR(sc->dc_ifp) + 1);
-	sp[2] = DC_SP_MAC((u_int16_t *)IF_LLADDR(sc->dc_ifp) + 2);
+	/* Set our MAC address. */
+	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	sp[0] = DC_SP_MAC(eaddr[0]);
+	sp[1] = DC_SP_MAC(eaddr[1]);
+	sp[2] = DC_SP_MAC(eaddr[2]);
 
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
@@ -1832,7 +1838,7 @@ static int
 dc_attach(device_t dev)
 {
 	int tmp = 0;
-	u_char eaddr[ETHER_ADDR_LEN];
+	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
 	u_int32_t command;
 	struct dc_softc *sc;
 	struct ifnet *ifp;
@@ -2054,16 +2060,20 @@ dc_attach(device_t dev)
 		dc_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 1);
 		break;
 	case DC_TYPE_DM9102:
+#ifdef __sparc64__
+		for (i = 0; i < (ETHER_ADDR_LEN+3)/4; i++)
+			eaddr[i] = 0;
+#endif
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
 #ifdef __sparc64__
 		/*
 		 * If this is an onboard dc(4) the station address read from
 		 * the EEPROM is all zero and we have to get it from the fcode.
 		 */
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
+		for (i = 0; i < (ETHER_ADDR_LEN+3)/4; i++)
 			if (eaddr[i] != 0x00)
 				break;
-		if (i >= ETHER_ADDR_LEN)
+		if (i >= (ETHER_ADDR_LEN+3)/4)
 			OF_getetheraddr(dev, eaddr);
 #endif
 		break;
@@ -2073,8 +2083,8 @@ dc_attach(device_t dev)
 		break;
 	case DC_TYPE_AL981:
 	case DC_TYPE_AN985:
-		*(u_int32_t *)(&eaddr[0]) = CSR_READ_4(sc, DC_AL_PAR0);
-		*(u_int16_t *)(&eaddr[4]) = CSR_READ_4(sc, DC_AL_PAR1);
+		eaddr[0] = CSR_READ_4(sc, DC_AL_PAR0);
+		eaddr[1] = CSR_READ_4(sc, DC_AL_PAR1);
 		break;
 	case DC_TYPE_CONEXANT:
 		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr,
@@ -2305,7 +2315,7 @@ dc_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(ifp, (caddr_t)eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | INTR_MPSAFE,
