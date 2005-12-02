@@ -23,7 +23,7 @@ root_start()
 	[Nn][Oo] | '')
 		;;
 	*)
-		if ! mount -u -o rw /; then
+		if ! mount -uw /; then
 			echo 'Mounting root filesystem rw failed, startup aborted'
 			/bin/kill -QUIT $$
 		fi
