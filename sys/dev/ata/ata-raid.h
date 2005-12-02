@@ -281,7 +281,7 @@ struct hptv3_raid_conf {
 
 /* Intel MatrixRAID Metadata */
 #define INTEL_LBA(dev) \
-	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 2)
+	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 3)
 
 struct intel_raid_conf {
     u_int8_t            intel_id[24];
@@ -332,6 +332,7 @@ struct intel_raid_mapping {
     u_int8_t            type;
 #define INTEL_T_RAID0           0x00
 #define INTEL_T_RAID1           0x01
+#define INTEL_T_RAID5           0x05
 
     u_int8_t            total_disks;
     u_int8_t            dummy_2[3];

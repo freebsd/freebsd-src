@@ -307,6 +307,7 @@ struct ata_connect_task {
 #define ATA_VIA6421             0x32491106
 
 /* chipset setup related defines */
+#define AHCI		1
 #define ATPOLD          1
 
 #define ALIOLD          0x01
