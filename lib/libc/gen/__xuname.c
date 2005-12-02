@@ -71,6 +71,8 @@ __xuname(int namesize, void *namebuf)
 			rval = -1;
 	}
 	name->sysname[sizeof(name->sysname) - 1] = '\0';
+	if ((p = getenv("UNAME_s")))
+		strncpy(name->sysname, p, sizeof(name->sysname));
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_HOSTNAME;
@@ -95,6 +97,8 @@ __xuname(int namesize, void *namebuf)
 			rval = -1;
 	}
 	name->release[sizeof(name->release) - 1] = '\0';
+	if ((p = getenv("UNAME_r")))
+		strncpy(name->release, p, sizeof(name->release));
 
 	/* The version may have newlines in it, turn them into spaces. */
 	mib[0] = CTL_KERN;
@@ -116,6 +120,8 @@ __xuname(int namesize, void *namebuf)
 				*p = '\0';
 		}
 	}
+	if ((p = getenv("UNAME_v")))
+		strncpy(name->version, p, sizeof(name->version));
 
 	mib[0] = CTL_HW;
 	mib[1] = HW_MACHINE;
@@ -128,5 +134,7 @@ __xuname(int namesize, void *namebuf)
 			rval = -1;
 	}
 	name->machine[sizeof(name->machine) - 1] = '\0';
+	if ((p = getenv("UNAME_m")))
+		strncpy(name->machine, p, sizeof(name->machine));
 	return (rval);
 }
