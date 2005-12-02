@@ -1050,7 +1050,10 @@ em_intr(void *arg)
 
 	for (;;) {
 		reg_icr = E1000_READ_REG(&adapter->hw, ICR);
-		if (reg_icr == 0)
+		if (adapter->hw.mac_type >= em_82571 &&
+		    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
+			break;
+		else if (reg_icr == 0)
 			break;
 
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
