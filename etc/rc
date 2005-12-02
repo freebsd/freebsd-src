@@ -53,7 +53,7 @@ export HOME PATH
 . /etc/rc.subr
 
 # Note: the system configuration files are loaded as part of
-# the RCNG system (rc.d/rcconf.sh).  Do not load them here as it may
+# the rc.d system (rc.d/rcconf.sh).  Do not load them here as it may
 # interfere with diskless booting.
 #
 if [ "$1" = autoboot ]; then
@@ -72,9 +72,41 @@ fi
 
 skip="-s nostart"
 [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ] && skip="$skip -s nojail"
+
+# Do a first pass to get everything up to mountcritremote so that
+# we can do a second pass that includes $local_startup directories
+#
 files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`
 
 for _rc_elem in ${files}; do
+	run_rc_script ${_rc_elem} ${_boot}
+
+	case "$_rc_elem" in
+	*/mountcritremote)	break ;;
+	esac
+done
+
+unset files local_rc
+
+# Now that disks are mounted, for each dir in $local_startup
+# search for init scripts that use the new rc.d semantics.
+#
+case ${local_startup} in
+[Nn][Oo] | '') ;;
+*)	find_local_scripts_new ;;
+esac
+
+files=`rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null`
+_skip_early=1
+for _rc_elem in ${files}; do
+	case "$_skip_early" in
+	1)	case "$_rc_elem" in
+		*/mountcritremote)	_skip_early=0 ;;
+		esac
+		continue
+		;;
+	esac
+
 	run_rc_script ${_rc_elem} ${_boot}
 done
 
