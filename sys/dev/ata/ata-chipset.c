@@ -211,7 +211,6 @@ ata_generic_setmode(device_t dev, int mode)
 static void
 ata_sata_setmode(device_t dev, int mode)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
     /*
@@ -224,7 +223,8 @@ ata_sata_setmode(device_t dev, int mode)
 	atadev->param.satacapabilities != 0xffff) {
 	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
 			    ata_limit_mode(dev, mode, ATA_UDMA6)))
-	    atadev->mode = ctlr->chip->max_dma;
+	    /* XXX SOS we should query SATA STATUS for the speed */
+	    atadev->mode = ATA_SA150;
     }
     else {
 	mode = ata_limit_mode(dev, mode, ATA_UDMA5);
@@ -1545,36 +1545,36 @@ ata_intel_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_I82371FB,    0, 0, 0x00, ATA_WDMA2, "Intel PIIX" },
-     { ATA_I82371SB,    0, 0, 0x00, ATA_WDMA2, "Intel PIIX3" },
-     { ATA_I82371AB,    0, 0, 0x00, ATA_UDMA2, "Intel PIIX4" },
-     { ATA_I82443MX,    0, 0, 0x00, ATA_UDMA2, "Intel PIIX4" },
-     { ATA_I82451NX,    0, 0, 0x00, ATA_UDMA2, "Intel PIIX4" },
-     { ATA_I82801AB,    0, 0, 0x00, ATA_UDMA2, "Intel ICH0" },
-     { ATA_I82801AA,    0, 0, 0x00, ATA_UDMA4, "Intel ICH" },
-     { ATA_I82372FB,    0, 0, 0x00, ATA_UDMA4, "Intel ICH" },
-     { ATA_I82801BA,    0, 0, 0x00, ATA_UDMA5, "Intel ICH2" },
-     { ATA_I82801BA_1,  0, 0, 0x00, ATA_UDMA5, "Intel ICH2" },
-     { ATA_I82801CA,    0, 0, 0x00, ATA_UDMA5, "Intel ICH3" },
-     { ATA_I82801CA_1,  0, 0, 0x00, ATA_UDMA5, "Intel ICH3" },
-     { ATA_I82801DB,    0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
-     { ATA_I82801DB_1,  0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
-     { ATA_I82801EB,    0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
-     { ATA_I82801EB_S1, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
-     { ATA_I82801EB_R1, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
-     { ATA_I6300ESB,    0, 0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
-     { ATA_I6300ESB_S1, 0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
-     { ATA_I6300ESB_R1, 0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
-     { ATA_I82801FB,    0, 0, 0x00, ATA_UDMA5, "Intel ICH6" },
-     { ATA_I82801FB_S1, 0, 0, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801FB_R1, 0, 0, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801FB_M,  0, 0, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801GB,    0, 0, 0x00, ATA_UDMA5, "Intel ICH7" },
-     { ATA_I82801GB_S1, 0, 0, 0x00, ATA_SA150, "Intel ICH7" },
-     { ATA_I82801GB_R1, 0, 0, 0x00, ATA_SA150, "Intel ICH7" },
-     { ATA_I82801GB_M,  0, 0, 0x00, ATA_SA150, "Intel ICH7" },
-     { ATA_I82801GB_AH, 0, 0, 0x00, ATA_SA150, "Intel ICH7" },
-     { ATA_I31244,	0, 0, 0x00, ATA_SA150, "Intel 31244" },
+    {{ ATA_I82371FB,    0,    0, 0x00, ATA_WDMA2, "Intel PIIX" },
+     { ATA_I82371SB,    0,    0, 0x00, ATA_WDMA2, "Intel PIIX3" },
+     { ATA_I82371AB,    0,    0, 0x00, ATA_UDMA2, "Intel PIIX4" },
+     { ATA_I82443MX,    0,    0, 0x00, ATA_UDMA2, "Intel PIIX4" },
+     { ATA_I82451NX,    0,    0, 0x00, ATA_UDMA2, "Intel PIIX4" },
+     { ATA_I82801AB,    0,    0, 0x00, ATA_UDMA2, "Intel ICH0" },
+     { ATA_I82801AA,    0,    0, 0x00, ATA_UDMA4, "Intel ICH" },
+     { ATA_I82372FB,    0,    0, 0x00, ATA_UDMA4, "Intel ICH" },
+     { ATA_I82801BA,    0,    0, 0x00, ATA_UDMA5, "Intel ICH2" },
+     { ATA_I82801BA_1,  0,    0, 0x00, ATA_UDMA5, "Intel ICH2" },
+     { ATA_I82801CA,    0,    0, 0x00, ATA_UDMA5, "Intel ICH3" },
+     { ATA_I82801CA_1,  0,    0, 0x00, ATA_UDMA5, "Intel ICH3" },
+     { ATA_I82801DB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH4" },
+     { ATA_I82801DB_1,  0,    0, 0x00, ATA_UDMA5, "Intel ICH4" },
+     { ATA_I82801EB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH5" },
+     { ATA_I82801EB_S1, 0,    0, 0x00, ATA_SA150, "Intel ICH5" },
+     { ATA_I82801EB_R1, 0,    0, 0x00, ATA_SA150, "Intel ICH5" },
+     { ATA_I6300ESB,    0,    0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
+     { ATA_I6300ESB_S1, 0,    0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I6300ESB_R1, 0,    0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I82801FB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH6" },
+     { ATA_I82801FB_S1, 0, AHCI, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FB_R1, 0, AHCI, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FB_M,  0, AHCI, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801GB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH7" },
+     { ATA_I82801GB_S1, 0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
+     { ATA_I82801GB_R1, 0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
+     { ATA_I82801GB_M,  0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
+     { ATA_I82801GB_AH, 0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
+     { ATA_I31244,	0,    0, 0x00, ATA_SA150, "Intel 31244" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1642,40 +1642,54 @@ ata_intel_chipinit(device_t dev)
 
     /* SATA parts can be either compat or AHCI */
     else {
-	/* if we have BAR(5) as a memory resource we should use AHCI mode */
-	ctlr->r_type2 = SYS_RES_MEMORY;
-	ctlr->r_rid2 = PCIR_BAR(5);
-	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						   &ctlr->r_rid2, RF_ACTIVE))) {
-	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
-		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
-				ata_ahci_intr, ctlr, &ctlr->handle)) {
-		device_printf(dev, "unable to setup interrupt\n");
-		return ENXIO;
+	/* force all ports active "the legacy way" */
+	pci_write_config(dev, 0x92, pci_read_config(dev, 0x92, 2) | 0x0f,2);
+
+	ctlr->reset = ata_intel_reset;
+
+	/* if we have AHCI capability and BAR(5) as a memory resource */
+	if (ctlr->chip->cfg1 == AHCI) {
+	    ctlr->r_type2 = SYS_RES_MEMORY;
+	    ctlr->r_rid2 = PCIR_BAR(5);
+	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						       &ctlr->r_rid2,
+						       RF_ACTIVE))) {
+		/* is AHCI or RAID mode enabled in BIOS ? */
+		if (pci_read_config(dev, 0x90, 1) & 0xc0) {
+		    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
+			bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+					ata_ahci_intr, ctlr, &ctlr->handle)) {
+			device_printf(dev, "unable to setup interrupt\n");
+			return ENXIO;
+		    }
+
+		    /* enable AHCI mode */
+		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
+
+		    /* get the number of HW channels */
+		    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) &
+				      ATA_AHCI_NPMASK) + 1;
+
+		    /* enable AHCI interrupts */
+		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+			     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) |
+			     ATA_AHCI_GHC_IE);
+		    ctlr->reset = ata_ahci_reset;
+		    ctlr->dmainit = ata_ahci_dmainit;
+		    ctlr->allocate = ata_ahci_allocate;
+		}
+#if 0
+		else {
+		    /* enable SATA registers in compat mode */
+		    pci_write_config(dev, 0x94,
+				     pci_read_config(dev, 0x94, 4) | 1 << 9, 4);
+		}
+#endif
 	    }
-
-	    /* force all ports active "the legacy way" */
-	    pci_write_config(dev, 0x92, pci_read_config(dev, 0x92, 2) | 0x0f,2);
-
-	    /* enable AHCI mode */
-	    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
-
-	    /* get the number of HW channels */
-	    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) &
-			      ATA_AHCI_NPMASK) + 1;
-
-	    /* enable AHCI interrupts */
-	    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
-
-	    ctlr->reset = ata_ahci_reset;
-	    ctlr->dmainit = ata_ahci_dmainit;
-	    ctlr->allocate = ata_ahci_allocate;
-	}
-	else {
-	    ctlr->reset = ata_intel_reset;
 	}
 	ctlr->setmode = ata_sata_setmode;
+
+	/* enable PCI interrupt */
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     }
@@ -1845,10 +1859,8 @@ ata_intel_reset(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int mask, timeout;
 
-    /* ICH6 has 4 SATA ports as master/slave on 2 channels so deal with pairs */
-    if (ctlr->chip->chipid == ATA_I82801FB_S1 ||
-	ctlr->chip->chipid == ATA_I82801FB_R1 ||
-	ctlr->chip->chipid == ATA_I82801FB_M) {
+    /* ICH6 & ICH7 in compat mode has 4 SATA ports as master/slave on 2 ch's */
+    if (ctlr->chip->cfg1) {
 	mask = (0x0005 << ch->unit);
     }
     else {
@@ -1857,7 +1869,7 @@ ata_intel_reset(device_t dev)
 	    mask = 0x0003;
 	else {
 	    mask = (0x0001 << ch->unit);
-	    /* XXX SOS should be in intel_allocate when we grow it */
+	    /* XXX SOS should be in intel_allocate if we grow it */
 	    ch->flags |= ATA_NO_SLAVE;
 	}
     }
@@ -2177,8 +2189,8 @@ ata_nvidia_ident(device_t dev)
      { ATA_NFORCE3_MCP_S1, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
      { ATA_NFORCE3_MCP_S2, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
      { ATA_NFORCE4,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce4" },
-     { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
-     { ATA_NFORCE4_S2,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
+     { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA300, "nVidia nForce4" },
+     { ATA_NFORCE4_S2,  0, 0,         NV4OFF, ATA_SA300, "nVidia nForce4" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 

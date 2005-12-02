@@ -1830,20 +1830,25 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
     struct ata_raid_subdisk *ars = device_get_softc(dev);
     device_t parent = device_get_parent(dev);
     struct intel_raid_conf *meta;
+    struct intel_raid_mapping *map;
     struct ar_softc *raid = NULL;
     u_int32_t checksum, *ptr;
-    int array, count, disk, retval = 0;
+    int array, count, disk, volume = 1, retval = 0;
+    char *tmp;
 
     if (!(meta = (struct intel_raid_conf *)
-	  malloc(1024, M_AR, M_NOWAIT | M_ZERO)))
+	  malloc(1536, M_AR, M_NOWAIT | M_ZERO)))
 	return ENOMEM;
 
-    if (ata_raid_rw(parent, INTEL_LBA(parent),
-		    meta, 1024, ATA_R_READ)) {
+    if (ata_raid_rw(parent, INTEL_LBA(parent), meta, 1024, ATA_R_READ)) {
 	if (testing || bootverbose)
 	    device_printf(parent, "Intel read metadata failed\n");
 	goto intel_out;
     }
+    tmp = (char *)meta;
+    bcopy(tmp, tmp+1024, 512);
+    bcopy(tmp+512, tmp, 1024);
+    bzero(tmp+1024, 512);
 
     /* check if this is a Intel RAID struct */
     if (strncmp(meta->intel_id, INTEL_MAGIC, strlen(INTEL_MAGIC))) {
@@ -1851,22 +1856,22 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
 	    device_printf(parent, "Intel check1 failed\n");
 	goto intel_out;
     }
+
     for (checksum = 0, ptr = (u_int32_t *)meta, count = 0;
 	 count < (meta->config_size / sizeof(u_int32_t)); count++) {
 	checksum += *ptr++;
     }
-
-/* XXX SOS needs to be fixed */
-device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
-
+    checksum -= meta->checksum;
     if (checksum != meta->checksum) {  
 	if (testing || bootverbose)
 	    device_printf(parent, "Intel check2 failed\n");          
-	//goto intel_out;
+	goto intel_out;
     }
 
     if (testing || bootverbose)
 	ata_raid_intel_print_meta(meta);
+
+    map = (struct intel_raid_mapping *)&meta->disk[meta->total_disks];
 
     /* now convert Intel metadata into our generic form */
     for (array = 0; array < MAX_ARRAYS; array++) {
@@ -1889,13 +1894,9 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 
 	/*
 	 * update our knowledge about the array config based on generation
-	 * we only grap the first volume description (yet) since the
-	 * BIOS'n I have access to puts crap into the following ones
+	 * NOTE: there can be multiple volumes on a disk set
 	 */
 	if (!meta->generation || meta->generation > raid->generation) {
-	    struct intel_raid_mapping *map = 
-		(struct intel_raid_mapping *)&meta->disk[meta->total_disks];
-
 	    switch (map->type) {
 	    case INTEL_T_RAID0:
 		raid->type = AR_T_RAID0;
@@ -1903,8 +1904,16 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 		break;
 
 	    case INTEL_T_RAID1:
-		raid->type = AR_T_RAID1;
+		if (map->total_disks == 4)
+		    raid->type = AR_T_RAID01;
+		else
+		    raid->type = AR_T_RAID1;
 		raid->width = map->total_disks / 2;
+		break;
+
+	    case INTEL_T_RAID5:
+		raid->type = AR_T_RAID5;
+		raid->width = map->total_disks;
 		break;
 
 	    default:
@@ -1976,8 +1985,15 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 		}
 	    }
 	}
-	if (retval)
+	if (retval) {
+	    if (volume < meta->total_volumes) {
+		map = (struct intel_raid_mapping *)
+		      &map->disk_idx[map->total_disks];
+		volume++;
+		continue;
+	    }
 	    break;
+	}
     }
 
 intel_out:
@@ -3724,6 +3740,7 @@ ata_raid_intel_type(int type)
     switch (type) {
     case INTEL_T_RAID0: return "RAID0";
     case INTEL_T_RAID1: return "RAID1";
+    case INTEL_T_RAID5: return "RAID5";
     default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
 			return buffer;
     }
@@ -3767,7 +3784,7 @@ ata_raid_intel_print_meta(struct intel_raid_conf *meta)
 	for (i = 0; i < map->total_disks; i++ ) {
 	    printf("    disk %d at disk_idx 0x%08x\n", i, map->disk_idx[i]);
 	}
-	map = (struct intel_raid_mapping *)&map->disk_idx[i];
+    	map = (struct intel_raid_mapping *)&map->disk_idx[map->total_disks];
     }
     printf("=================================================\n");
 }
