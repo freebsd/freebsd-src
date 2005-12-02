@@ -150,7 +150,10 @@ is
 .Dv NULL ,
 the message queue is created with implementation-defined default message
 queue attributes. If attr is non-NULL and the calling process has the
-appropriate privilege on name, the message queue mq_maxmsg and mq_msgsize
+appropriate privilege on name, the message queue
+.Va mq_maxmsg
+and
+.Va mq_msgsize
 attributes will be set to the values of the corresponding members in the
 .Vt mq_attr
 structure referred to by
