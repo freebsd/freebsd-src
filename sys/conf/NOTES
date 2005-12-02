@@ -966,6 +966,8 @@ options 	_KPOSIX_PRIORITY_SCHEDULING
 # user should be ready to assist in debugging if problems arise.
 options 	P1003_1B_SEMAPHORES
 
+# POSIX message queue
+options 	P1003_1B_MQUEUE
 
 #####################################################################
 # SECURITY POLICY PARAMETERS
