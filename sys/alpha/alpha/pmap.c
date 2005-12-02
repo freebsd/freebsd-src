@@ -1941,11 +1941,12 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pmap->pm_stats.resident_count++;
 
 	/*
-	 * Now validate mapping with RO protection
+	 * Validate the mapping with limited access, read and/or execute but
+	 * not write.
 	 */
-	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | PG_KRE | PG_URE | managed;
+	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | pte_prot(pmap,
+	    prot & (VM_PROT_READ | VM_PROT_EXECUTE)) | managed;
 out:
-	alpha_pal_imb();			/* XXX overkill? */
 	PMAP_UNLOCK(pmap);
 	return mpte;
 }
