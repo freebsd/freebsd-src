@@ -29,6 +29,7 @@
 
 # PROVIDE: tmp
 # REQUIRE: mountcritlocal
+# BEFORE:  mountcritremote
 
 . /etc/rc.subr
 
