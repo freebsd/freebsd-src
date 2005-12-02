@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 The
 .Fn mq_close
-syscall removes the association between the message queue descriptor, 
+system call removes the association between the message queue descriptor, 
 .Fa mqdes ,
 and its message queue. The results of using this message queue descriptor
 after successful return from this
@@ -59,7 +59,7 @@ another process to attach for notification.
 .Sh RETURN VALUES
 Upon successful completion, the
 .Fn mq_close
-syscall returns a value of zero; otherwise, the syscall returns a
+system call returns a value of zero; otherwise, the system call returns a
 value of -1 and set
 .Va errno
 to indicate the error.
