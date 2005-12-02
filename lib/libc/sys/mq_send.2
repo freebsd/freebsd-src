@@ -55,7 +55,7 @@
 .Sh DESCRIPTION
 The
 .Fn mq_send
-syscall adds the message pointed to by the argument
+system call adds the message pointed to by the argument
 .Fa msg_ptr
 to the message queue specified by
 .Fa mqdes .
@@ -111,18 +111,18 @@ will return an error.
 .Pp
 The
 .Fn mq_timedsend
-syscall will add a message to the message queue specified by
+system call will add a message to the message queue specified by
 .Fa mqdes
 in the manner defined for the
 .Fn mq_send
-syscall. However, if the specified message queue is full and
+system call. However, if the specified message queue is full and
 .Dv O_NONBLOCK
 is not set in the message queue description associated with
 .Fa mqdes ,
 the wait for sufficient room in the queue will be terminated when
 the specified timeout expires. If
 .Dv O_NONBLOCK
-is set in the message queue description, this syscall is
+is set in the message queue description, this system call is
 equivalent to
 .Fn mq_send .
 .Pp
@@ -141,8 +141,8 @@ Upon successful completion, the
 .Fn mq_send
 and
 .Fn mq_timedsend
-syscalls return a value of zero. Otherwise, no message will be
-enqueued, the syscalls returns -1, and
+system calls return a value of zero. Otherwise, no message will be
+enqueued, the system calls return -1, and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
