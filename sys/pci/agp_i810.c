@@ -65,10 +65,12 @@ MALLOC_DECLARE(M_AGP);
 #define READ1(off)	bus_space_read_1(sc->bst, sc->bsh, off)
 #define READ4(off)	bus_space_read_4(sc->bst, sc->bsh, off)
 #define WRITE4(off,v)	bus_space_write_4(sc->bst, sc->bsh, off, v)
+#define WRITEGTT(off,v)	bus_space_write_4(sc->gtt_bst, sc->gtt_bsh, off, v)
 
 #define CHIP_I810 0	/* i810/i815 */
 #define CHIP_I830 1	/* 830M/845G */
 #define CHIP_I855 2	/* 852GM/855GM/865G */
+#define CHIP_I915 3	/* 915G/915GM */
 
 struct agp_i810_softc {
 	struct agp_softc agp;
@@ -78,9 +80,14 @@ struct agp_i810_softc {
 	u_int32_t dcache_size;		/* i810 only */
 	u_int32_t stolen;		/* number of i830/845 gtt entries for stolen memory */
 	device_t bdev;			/* bridge device */
+
 	struct resource *regs;		/* memory mapped GC registers */
 	bus_space_tag_t bst;		/* bus_space tag */
 	bus_space_handle_t bsh;		/* bus_space handle */
+
+	struct resource *gtt;		/* memory mapped GATT entries */
+	bus_space_tag_t gtt_bst;	/* bus_space tag */
+	bus_space_handle_t gtt_bsh;	/* bus_space handle */
 };
 
 static const char*
@@ -129,6 +136,12 @@ agp_i810_match(device_t dev)
 
 	case 0x25728086:
 		return ("Intel 82865G (865G GMCH) SVGA controller");
+
+	case 0x25828086:
+		return ("Intel 82915G (915G GMCH) SVGA controller");
+
+	case 0x25928086:
+		return ("Intel 82915GM (915GM GMCH) SVGA controller");
 	};
 
 	return NULL;
@@ -160,6 +173,8 @@ agp_i810_find_bridge(device_t dev)
 	case 0x25628086:
 	case 0x35828086:
 	case 0x25728086:
+	case 0x25828086:
+	case 0x25928086:
 		devid -= 0x20000;
 		break;
 	};
@@ -230,6 +245,18 @@ agp_i810_probe(device_t dev)
 			}
 			break;
 
+			/* i915 */
+		case 0x25828086:
+		case 0x25928086:
+			gcc1 = pci_read_config(bdev, AGP_I915_DEVEN, 4);
+			if ((gcc1 & AGP_I915_DEVEN_D2F0) ==
+			    AGP_I915_DEVEN_D2F0_DISABLED) {
+				if (bootverbose)
+					printf("I915: disabled, not probing\n");
+				return ENXIO;
+			}
+			break;
+
 		default:
 			return ENXIO;
 		}
@@ -272,18 +299,40 @@ agp_i810_attach(device_t dev)
 	case 0x25728086:
 		sc->chiptype = CHIP_I855;
 		break;
+	case 0x25828086:
+	case 0x25928086:
+		sc->chiptype = CHIP_I915;
+		break;
 	};
 
 	/* Same for i810 and i830 */
-	rid = AGP_I810_MMADR;
+	if (sc->chiptype == CHIP_I915)
+		rid = AGP_I915_MMADR;
+	else
+		rid = AGP_I810_MMADR;
+
 	sc->regs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 					  RF_ACTIVE);
 	if (!sc->regs) {
 		agp_generic_detach(dev);
-		return ENOMEM;
+		return ENODEV;
 	}
 	sc->bst = rman_get_bustag(sc->regs);
 	sc->bsh = rman_get_bushandle(sc->regs);
+
+	if (sc->chiptype == CHIP_I915) {
+		rid = AGP_I915_GTTADR;
+		sc->gtt = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+						 RF_ACTIVE);
+		if (!sc->gtt) {
+			bus_release_resource(dev, SYS_RES_MEMORY,
+					     AGP_I810_MMADR, sc->regs);
+			agp_generic_detach(dev);
+			return ENODEV;
+		}
+		sc->gtt_bst = rman_get_bustag(sc->gtt);
+		sc->gtt_bsh = rman_get_bushandle(sc->gtt);
+	}
 
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
 
@@ -350,26 +399,40 @@ agp_i810_attach(device_t dev)
 		WRITE4(AGP_I810_PGTBL_CTL, pgtblctl);
 
 		gatt->ag_physical = pgtblctl & ~1;
-	} else {	/* CHIP_I855 */
-		/* The i855 automatically initializes the 128k gatt on boot. */
-		unsigned int gcc1, pgtblctl;
-		
+	} else if (sc->chiptype == CHIP_I855 || sc->chiptype == CHIP_I915) {	/* CHIP_I855 */
+		unsigned int gcc1, pgtblctl, stolen;
+
+		/* Stolen memory is set up at the beginning of the aperture by
+		 * the BIOS, consisting of the GATT followed by 4kb for the BIOS
+		 * display.
+		 */
+		if (sc->chiptype == CHIP_I855)
+			stolen = 132;
+		else
+			stolen = 260;
+
 		gcc1 = pci_read_config(sc->bdev, AGP_I855_GCC1, 1);
 		switch (gcc1 & AGP_I855_GCC1_GMS) {
 			case AGP_I855_GCC1_GMS_STOLEN_1M:
-				sc->stolen = (1024 - 132) * 1024 / 4096;
+				sc->stolen = (1024 - stolen) * 1024 / 4096;
 				break;
 			case AGP_I855_GCC1_GMS_STOLEN_4M: 
-				sc->stolen = (4096 - 132) * 1024 / 4096;
+				sc->stolen = (4096 - stolen) * 1024 / 4096;
 				break;
 			case AGP_I855_GCC1_GMS_STOLEN_8M: 
-				sc->stolen = (8192 - 132) * 1024 / 4096;
+				sc->stolen = (8192 - stolen) * 1024 / 4096;
 				break;
 			case AGP_I855_GCC1_GMS_STOLEN_16M: 
-				sc->stolen = (16384 - 132) * 1024 / 4096;
+				sc->stolen = (16384 - stolen) * 1024 / 4096;
 				break;
 			case AGP_I855_GCC1_GMS_STOLEN_32M: 
-				sc->stolen = (32768 - 132) * 1024 / 4096;
+				sc->stolen = (32768 - stolen) * 1024 / 4096;
+				break;
+			case AGP_I915_GCC1_GMS_STOLEN_48M: 
+				sc->stolen = (49152 - stolen) * 1024 / 4096;
+				break;
+			case AGP_I915_GCC1_GMS_STOLEN_64M: 
+				sc->stolen = (65536 - stolen) * 1024 / 4096;
 				break;
 			default:
 				sc->stolen = 0;
@@ -425,8 +488,15 @@ agp_i810_detach(device_t dev)
 	}
 	free(sc->gatt, M_AGP);
 
-	bus_release_resource(dev, SYS_RES_MEMORY,
-			     AGP_I810_MMADR, sc->regs);
+	if (sc->chiptype == CHIP_I915) {
+		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I915_GTTADR,
+				     sc->gtt);
+		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I915_MMADR,
+				     sc->regs);
+	} else {
+		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I810_MMADR,
+				     sc->regs);
+	}
 
 	child = device_find_child( dev, "drmsub", 0 );
 	if (child)
@@ -439,34 +509,46 @@ static u_int32_t
 agp_i810_get_aperture(device_t dev)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
+	uint32_t temp;
+	u_int16_t miscc;
 
-	if ( sc->chiptype == CHIP_I810 ) {
-		u_int16_t miscc;
+	switch (sc->chiptype) {
+	case CHIP_I810:
 		miscc = pci_read_config(sc->bdev, AGP_I810_MISCC, 2);
 		if ((miscc & AGP_I810_MISCC_WINSIZE) == AGP_I810_MISCC_WINSIZE_32)
 			return 32 * 1024 * 1024;
 		else
 			return 64 * 1024 * 1024;
-	} else if ( sc->chiptype == CHIP_I830 ) {
-		unsigned int gcc1;
-
-		gcc1 = pci_read_config(sc->bdev, AGP_I830_GCC1, 2);
-		if ((gcc1 & AGP_I830_GCC1_GMASIZE) == AGP_I830_GCC1_GMASIZE_64)
+	case CHIP_I830:
+		temp = pci_read_config(sc->bdev, AGP_I830_GCC1, 2);
+		if ((temp & AGP_I830_GCC1_GMASIZE) == AGP_I830_GCC1_GMASIZE_64)
 			return 64 * 1024 * 1024;
 		else
 			return 128 * 1024 * 1024;
-	} else { /* CHIP_I855 */
+	case CHIP_I855:
 		return 128 * 1024 * 1024;
+	case CHIP_I915:
+		temp = pci_read_config(dev, AGP_I915_MSAC, 1);
+		if ((temp & AGP_I915_MSAC_GMASIZE) ==
+		    AGP_I915_MSAC_GMASIZE_128) {
+			return 128 * 1024 * 1024;
+		} else {
+			return 256 * 1024 * 1024;
+		}
 	}
+
+	return 0;
 }
 
 static int
 agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
-	u_int16_t miscc;
+	u_int16_t miscc, gcc1;
+	u_int32_t temp;
 
-	if ( sc->chiptype == CHIP_I810 ) {
+	switch (sc->chiptype) {
+	case CHIP_I810:
 		/*
 		 * Double check for sanity.
 		 */
@@ -474,7 +556,7 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 			device_printf(dev, "bad aperture size %d\n", aperture);
 			return EINVAL;
 		}
-	
+
 		miscc = pci_read_config(sc->bdev, AGP_I810_MISCC, 2);
 		miscc &= ~AGP_I810_MISCC_WINSIZE;
 		if (aperture == 32 * 1024 * 1024)
@@ -483,10 +565,10 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 			miscc |= AGP_I810_MISCC_WINSIZE_64;
 	
 		pci_write_config(sc->bdev, AGP_I810_MISCC, miscc, 2);
-	} else if ( sc->chiptype == CHIP_I830 ) {
-		unsigned int gcc1;
-
-		if (aperture != 64 * 1024 * 1024 && aperture != 128 * 1024 * 1024) {
+		break;
+	case CHIP_I830:
+		if (aperture != 64 * 1024 * 1024 &&
+		    aperture != 128 * 1024 * 1024) {
 			device_printf(dev, "bad aperture size %d\n", aperture);
 			return EINVAL;
 		}
@@ -498,11 +580,31 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 			gcc1 |= AGP_I830_GCC1_GMASIZE_128;
 
 		pci_write_config(sc->bdev, AGP_I830_GCC1, gcc1, 2);
-	} else {	/* CHIP_I855 */
+		break;
+	case CHIP_I855:
 		if (aperture != 128 * 1024 * 1024) {
 			device_printf(dev, "bad aperture size %d\n", aperture);
 			return EINVAL;
 		}
+		break;
+	case CHIP_I915:
+		temp = pci_read_config(dev, AGP_I915_MSAC, 1);
+		temp &= ~AGP_I915_MSAC_GMASIZE;
+
+		switch (aperture) {
+		case 128 * 1024 * 1024:
+			temp |= AGP_I915_MSAC_GMASIZE_128;
+			break;
+		case 256 * 1024 * 1024:
+			temp |= AGP_I915_MSAC_GMASIZE_256;
+			break;
+		default:
+			device_printf(dev, "bad aperture size %d\n", aperture);
+			return EINVAL;
+		}
+
+		pci_write_config(dev, AGP_I915_MSAC, temp, 1);
+		break;
 	}
 
 	return 0;
@@ -525,7 +627,12 @@ agp_i810_bind_page(device_t dev, int offset, vm_offset_t physical)
 		}
 	}
 
-	WRITE4(AGP_I810_GTT + (offset >> AGP_PAGE_SHIFT) * 4, physical | 1);
+	if (sc->chiptype == CHIP_I915) {
+		WRITEGTT((offset >> AGP_PAGE_SHIFT) * 4, physical | 1);
+	} else {
+		WRITE4(AGP_I810_GTT + (offset >> AGP_PAGE_SHIFT) * 4, physical | 1);
+	}
+
 	return 0;
 }
 
@@ -544,7 +651,12 @@ agp_i810_unbind_page(device_t dev, int offset)
 		}
 	}
 
-	WRITE4(AGP_I810_GTT + (offset >> AGP_PAGE_SHIFT) * 4, 0);
+	if (sc->chiptype == CHIP_I915) {
+		WRITEGTT((offset >> AGP_PAGE_SHIFT) * 4, 0);
+	} else {
+		WRITE4(AGP_I810_GTT + (offset >> AGP_PAGE_SHIFT) * 4, 0);
+	}
+	
 	return 0;
 }
 
