@@ -103,12 +103,12 @@ typedef	__useconds_t	useconds_t;
  * the POSIX standard; however, if the relevant sysconf() function
  * returns -1, the functions may be stubbed out.
  */
-#define	_POSIX_BARRIERS			-1
+#define	_POSIX_BARRIERS			200112L
 #define	_POSIX_READER_WRITER_LOCKS	200112L
 #define	_POSIX_REGEXP			1
 #define	_POSIX_SHELL			1
 #define	_POSIX_SPAWN			-1
-#define	_POSIX_SPIN_LOCKS		-1
+#define	_POSIX_SPIN_LOCKS		200112L
 #define	_POSIX_THREAD_ATTR_STACKADDR	200112L
 #define	_POSIX_THREAD_ATTR_STACKSIZE	200112L
 #define	_POSIX_THREAD_CPUTIME		-1
