@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2004
+.Dd November 26, 2005
 .Dt WLAN 4
 .Os
 .Sh NAME
@@ -42,10 +42,15 @@ this layer fills in.
 The
 .Nm
 is required for the
-.Xr wi 4 ,
-.Xr an 4
+.Xr an 4 ,
+.Xr ath 4 ,
+.Xr awi 4 ,
+.Xr ipw 4 ,
+.Xr iwi 4 ,
+.Xr ral 4 ,
+.Xr ural 4 ,
 and
-.Xr ath 4
+.Xr wi 4
 drivers, with other drivers to follow.
 .Pp
 The
@@ -116,7 +121,11 @@ was used to be compatible with
 .Xr an 4 ,
 .Xr ath 4 ,
 .Xr awi 4 ,
+.Xr ipw 4 ,
+.Xr iwi 4 ,
 .Xr netintro 4 ,
+.Xr ral 4 ,
+.Xr ural 4 ,
 .Xr wi 4 ,
 .Xr wlan_acl 4 ,
 .Xr wlan_ccmp 4 ,
