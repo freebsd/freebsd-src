@@ -1569,6 +1569,8 @@ mqueue_send(struct mqueue *mq, const char *msg_ptr,
 	struct timeval tv;
 	int error;
 
+	if (msg_prio >= MQ_PRIO_MAX)
+		return (EINVAL);
 	if (msg_len > mq->mq_msgsize)
 		return (EMSGSIZE);
 	msg = mqueue_loadmsg(msg_ptr, msg_len, msg_prio);
@@ -1608,7 +1610,7 @@ mqueue_send(struct mqueue *mq, const char *msg_ptr,
 	}
 	for (;;) {
 		ts2 = ets;
-		getnanouptime(&ts);
+		getnanotime(&ts);
 		timespecsub(&ts2, &ts);
 		if (ts2.tv_sec < 0 || (ts2.tv_sec == 0 && ts2.tv_nsec <= 0)) {
 			error = ETIMEDOUT;
@@ -1639,7 +1641,6 @@ _mqueue_send(struct mqueue *mq, struct mqueue_msg *msg, int timo)
 	while (mq->mq_curmsgs >= mq->mq_maxmsg && error == 0) {
 		if (timo < 0) {
 			mtx_unlock(&mq->mq_mutex);
-			mqueue_freemsg(msg);
 			return (EAGAIN);
 		}
 		mq->mq_senders++;
@@ -1754,7 +1755,7 @@ mqueue_receive(struct mqueue *mq, char *msg_ptr,
 
 	for (;;) {
 		ts2 = ets;
-		getnanouptime(&ts);
+		getnanotime(&ts);
 		timespecsub(&ts2, &ts);
 		if (ts2.tv_sec < 0 || (ts2.tv_sec == 0 && ts2.tv_nsec <= 0)) {
 			error = ETIMEDOUT;
