@@ -1355,4 +1355,42 @@ geli_make_list()
 	echo ${devices2}
 }
 
+# Find scripts in local_startup directories that use the old syntax
+#
+find_local_scripts_old () {
+	zlist=''
+	slist=''
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for file in ${dir}/[0-9]*.sh; do
+				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
+				    continue
+				zlist="$zlist $file"
+			done
+			for file in ${dir}/[^0-9]*.sh; do
+				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
+				    continue
+				slist="$slist $file"
+			done
+		fi
+	done
+}
+
+find_local_scripts_new () {
+	local_rc=''
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for file in `grep -l '^# PROVIDE:' ${dir}/*`; do
+				case "$file" in
+				*.sample) ;;
+				*)	if [ -x "$file" ]; then
+						local_rc="${local_rc} ${file}"
+					fi
+					;;
+				esac
+			done
+		fi
+	done
+}
+
 fi
