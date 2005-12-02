@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/event.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
-#include <sys/filedesc.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -69,18 +69,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysproto.h>
 #include <sys/stat.h>
-#include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysent.h>
 #include <sys/sx.h>
-#include <sys/sysctl.h>
-#include <sys/sysctl.h>
-#include <sys/vnode.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
+#include <posix4/posix4.h>
 
 /*
  * Limits and constants
@@ -639,6 +637,7 @@ mqfs_init(struct vfsconf *vfc)
 	exit_tag = EVENTHANDLER_REGISTER(process_exit, mq_proc_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	mq_fdclose = mqueue_fdclose;
+	p31b_setcfg(CTL_P1003_1B_MESSAGE_PASSING, _POSIX_MESSAGE_PASSING);
 	return (0);
 }
 
