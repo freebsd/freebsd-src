@@ -4,6 +4,7 @@
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	a.out.5 \
+	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
 	bluetooth.protocols.5 \
 	config.5 \
