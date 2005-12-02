@@ -55,14 +55,14 @@
 .Sh DESCRIPTION
 The
 .Fn mq_receive
-syscall receives oldest of the highest priority message(s) from the
+system call receives oldest of the highest priority message(s) from the
 message queue specified by
 .Fa mqdes .
 If the size of the buffer in bytes, specified by the
 .Fa msg_len
 argument, is less than the
 .Fa mq_msgsize
-attribute of the message queue, the syscall will fail and return an
+attribute of the message queue, the system call will fail and return an
 error. Otherwise, the selected message will be removed from the queue
 and copied to the buffer pointed to by the
 .Fa msg_ptr
@@ -100,19 +100,19 @@ will return an error.
 .Pp
 The
 .Fn mq_timedreceive
-syscall will receive the oldest of the highest priority messages from the
+system call will receive the oldest of the highest priority messages from the
 message queue specified by
 .Fa mqdes
 as described for the
 .Fn mq_receive
-syscall. However, if
+system call. However, if
 .Dv O_NONBLOCK
 was not specified when the message queue was opened via the
 .Fn mq_open
-syscall, and no message exists on the queue to satisfy the receive, the wait
+system call, and no message exists on the queue to satisfy the receive, the wait
 for such a message will be terminated when the specified timeout expires. If
 .Dv O_NONBLOCK
-is set, this syscall is equivalent to
+is set, this system call is equivalent to
 .Fn mq_receive .
 .Pp
 The timeout expires when the absolute time specified by
@@ -131,9 +131,9 @@ Upon successful completion, the
 .Fn mq_receive
 and
 .Fn mq_timedreceive
-syscalls return the length of the selected message in bytes and the
+system calls return the length of the selected message in bytes and the
 message is removed from the queue. Otherwise, no message is removed
-from the queue, the syscalls returns a value of -1, and set
+from the queue, the system call return a value of -1, and set
 .Va errno
 to indicate the error.
 .Sh ERRORS

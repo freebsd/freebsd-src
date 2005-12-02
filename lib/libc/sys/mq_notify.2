@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 If the argument notification is not
 .Dv NULL ,
-this syscall will register the calling process to be notified of message
+this system call will register the calling process to be notified of message
 arrival at an empty message queue associated with the specified message
 queue descriptor, 
 .Fa mqdes.
@@ -72,14 +72,14 @@ notification will be sent.
 .Sh RETURN VALUES
 Upon successful completion, the
 .Fn mq_notify
-syscall returns a value of zero; otherwise, the function returns a value
+system call returns a value of zero; otherwise, the function returns a value
 of -1 and set
 .Va errno
 to indicate the error.
 .Sh ERRORS
 The
 .Fn mq_notify
-syscall call
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
