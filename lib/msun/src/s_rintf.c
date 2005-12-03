@@ -40,6 +40,8 @@ rintf(float x)
 		if((i0&0x7fffffff)==0) return x;
 	        w = TWO23[sx]+x;
 	        t =  w-TWO23[sx];
+		GET_FLOAT_WORD(i0,t);
+		SET_FLOAT_WORD(t,(i0&0x7fffffff)|(sx<<31));
 	        return t;
 	    }
 	    w = TWO23[sx]+x;
