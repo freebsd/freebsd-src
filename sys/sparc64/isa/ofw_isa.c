@@ -27,9 +27,10 @@
  * SUCH DAMAGE.
  *
  *	from: NetBSD: ebus.c,v 1.26 2001/09/10 16:27:53 eeh Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Helper functions which can be used in both ISA and EBus code.
@@ -72,7 +73,7 @@ ofw_isa_range_map(struct isa_ranges *range, int nrange, u_long *start,
     u_long *end, int *which)
 {
 	struct isa_ranges *r;
-	u_int64_t offs, cstart, cend;
+	uint64_t offs, cstart, cend;
 	int i;
 
 	for (i = 0; i < nrange; i++) {
@@ -102,7 +103,7 @@ ofw_isa_route_intr(device_t bridge, phandle_t node, struct ofw_bus_iinfo *ii,
     ofw_isa_intr_t intr)
 {
 	struct isa_regs reg;
-	u_int8_t maskbuf[sizeof(reg) + sizeof(intr)];
+	uint8_t maskbuf[sizeof(reg) + sizeof(intr)];
 	device_t pbridge;
 	ofw_isa_intr_t mintr;
 
