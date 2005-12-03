@@ -104,7 +104,7 @@ static driver_t i915_driver = {
 };
 
 extern devclass_t drm_devclass;
-DRIVER_MODULE(i915, pci, i915_driver, drm_devclass, 0, 0);
+DRIVER_MODULE(i915, agp, i915_driver, drm_devclass, 0, 0);
 MODULE_DEPEND(i915, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)

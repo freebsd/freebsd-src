@@ -467,6 +467,7 @@ device		cpufreq
 
 # Direct Rendering modules for 3D acceleration.
 device		drm		# DRM core module required by DRM drivers
+device		i915drm		# Intel i830 through i915
 device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
 device		mgadrm		# AGP Matrox G200, G400, G450, G550
 device		r128drm		# ATI Rage 128
