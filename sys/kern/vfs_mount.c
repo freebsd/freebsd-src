@@ -130,6 +130,7 @@ static const char *global_opts[] = {
 	"fstype",
 	"fspath",
 	"ro",
+	"rw",
 	"suid",
 	"exec",
 	NULL
@@ -541,6 +542,15 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 
 	if (vfs_getopt(optlist, "nosymfollow", NULL, NULL) == 0)
 		fsflags |= MNT_NOSYMFOLLOW;
+
+	if (vfs_getopt(optlist, "noro", NULL, NULL) == 0)
+		fsflags &= ~MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "ro", NULL, NULL) == 0)
+		fsflags |= MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "rw", NULL, NULL) == 0)
+		fsflags &= ~MNT_RDONLY;
 
 	if (vfs_getopt(optlist, "snapshot", NULL, NULL) == 0)
 		fsflags |= MNT_SNAPSHOT;
