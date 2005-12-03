@@ -644,7 +644,7 @@ mangle(options, argcp, argv)
 					*p = '\0';
 					argv[argc++] = p+1;
 				}
-			} else if (strcmp(p, "rw") != 0) {
+			} else {
 				argv[argc++] = strdup("-o");
 				argv[argc++] = p;
 			}
