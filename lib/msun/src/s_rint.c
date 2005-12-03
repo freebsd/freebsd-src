@@ -65,7 +65,16 @@ rint(double x)
 		if(((i0&i)|i1)==0) return x; /* x is integral */
 		i>>=1;
 		if(((i0&i)|i1)!=0) {
+		    /*
+		     * Some bit is set after the 0.5 bit.  To avoid the
+		     * possibility of errors from double rounding in
+		     * w = TWO52[sx]+x, adjust the 0.25 bit to a lower
+		     * guard bit.  We do this for all j0<=51.  The
+		     * adjustment is trickiest for j0==18 and j0==19
+		     * since then it spans the word boundary.
+		     */
 		    if(j0==19) i1 = 0x40000000; else
+		    if(j0==18) i1 = 0x80000000; else
 		    i0 = (i0&(~i))|((0x20000)>>j0);
 		}
 	    }
