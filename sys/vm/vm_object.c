@@ -156,7 +156,6 @@ static long object_bypasses;
 static int next_index;
 
 static uma_zone_t obj_zone;
-#define VM_OBJECTS_INIT 256
 
 static int vm_object_zinit(void *mem, int size, int flags);
 
@@ -262,7 +261,6 @@ vm_object_init(void)
 	    NULL,
 #endif
 	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
-	uma_prealloc(obj_zone, VM_OBJECTS_INIT);
 }
 
 void
