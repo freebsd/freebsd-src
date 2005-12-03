@@ -252,9 +252,11 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	if (bootverbose)
 	    device_printf(pcib, "slot %d INT%c hardwired to IRQ %d\n",
 		pci_get_slot(dev), 'A' + pin, prt->SourceIndex);
-	if (prt->SourceIndex)
+	if (prt->SourceIndex) {
 	    interrupt = prt->SourceIndex;
-	else
+	    BUS_CONFIG_INTR(dev, interrupt, INTR_TRIGGER_LEVEL,
+		INTR_POLARITY_LOW);
+	} else
 	    device_printf(pcib, "error: invalid hard-wired IRQ of 0\n");
 	goto out;
     }
