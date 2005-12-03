@@ -53,7 +53,6 @@ struct central_devinfo {
 };
 
 struct central_softc {
-	phandle_t		sc_node;
 	int			sc_nrange;
 	struct sbus_ranges	*sc_ranges;
 };
@@ -131,7 +130,6 @@ central_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	node = nexus_get_node(dev);
-	sc->sc_node = node;
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
