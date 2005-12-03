@@ -287,7 +287,7 @@ psycho_attach(device_t dev)
 	struct psycho_softc *sc;
 	struct psycho_softc *osc = NULL;
 	struct psycho_softc *asc;
-	struct upa_ranges *range;
+	struct ofw_pci_ranges *range;
 	struct upa_regs *reg;
 	const struct psycho_desc *desc;
 	phandle_t node;
@@ -417,7 +417,7 @@ psycho_attach(device_t dev)
 	nrange = OF_getprop_alloc(node, "ranges", sizeof(*range),
 	    (void **)&range);
 	/*
-	 * Make sure that the expected ranges are present. The PCI_CS_MEM64
+	 * Make sure that the expected ranges are present. The OFW_PCI_CS_MEM64
 	 * one is not currently used though.
 	 */
 	if (nrange != PSYCHO_NRANGE)
@@ -429,10 +429,10 @@ psycho_attach(device_t dev)
 	 * memory and I/O handles.
 	 */
 	for (n = 0; n < PSYCHO_NRANGE; n++) {
-		i = UPA_RANGE_CS(&range[n]);
+		i = OFW_PCI_RANGE_CS(&range[n]);
 		if (sc->sc_pci_bh[i] != 0)
 			panic("%s: duplicate range for space %d", __func__, i);
-		sc->sc_pci_bh[i] = UPA_RANGE_PHYS(&range[n]);
+		sc->sc_pci_bh[i] = OFW_PCI_RANGE_PHYS(&range[n]);
 	}
 	free(range, M_OFWPROP);
 
@@ -806,7 +806,7 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	sc = device_get_softc(dev);
 	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
-	bh = sc->sc_pci_bh[PCI_CS_CONFIG];
+	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
 	switch (width) {
 	case 1:
 		i = bus_space_peek_1(sc->sc_pci_cfgt, bh, offset, &byte);
@@ -844,7 +844,7 @@ psycho_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	sc = device_get_softc(dev);
 	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
-	bh = sc->sc_pci_bh[PCI_CS_CONFIG];
+	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
 	switch (width) {
 	case 1:
 		bus_space_write_1(sc->sc_pci_cfgt, bh, offset, val);
@@ -1040,12 +1040,12 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_pci_mem_rman;
 		bt = sc->sc_pci_memt;
-		bh = sc->sc_pci_bh[PCI_CS_MEM32];
+		bh = sc->sc_pci_bh[OFW_PCI_CS_MEM32];
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_pci_io_rman;
 		bt = sc->sc_pci_iot;
-		bh = sc->sc_pci_bh[PCI_CS_IO];
+		bh = sc->sc_pci_bh[OFW_PCI_CS_IO];
 		break;
 	default:
 		return (NULL);
@@ -1150,10 +1150,10 @@ psycho_get_bus_handle(device_t dev, int type, bus_space_handle_t childhdl,
 	switch (type) {
 	case SYS_RES_IOPORT:
 		*tag = sc->sc_pci_iot;
-		return (sc->sc_pci_bh[PCI_CS_IO] + childhdl);
+		return (sc->sc_pci_bh[OFW_PCI_CS_IO] + childhdl);
 	case SYS_RES_MEMORY:
 		*tag = sc->sc_pci_memt;
-		return (sc->sc_pci_bh[PCI_CS_MEM32] + childhdl);
+		return (sc->sc_pci_bh[OFW_PCI_CS_MEM32] + childhdl);
 	default:
 		panic("%s: illegal space (%d)\n", __func__, type);
 	}
