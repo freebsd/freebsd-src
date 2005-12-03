@@ -57,9 +57,9 @@ ofw_isa_range_restype(struct isa_ranges *range)
 	int ps = ISA_RANGE_PS(range);
 
 	switch (ps) {
-	case PCI_CS_IO:
+	case OFW_PCI_CS_IO:
 		return (SYS_RES_IOPORT);
-	case PCI_CS_MEM32:
+	case OFW_PCI_CS_MEM32:
 		return (SYS_RES_MEMORY);
 	default:
 		panic("ofw_isa_range_restype: illegal space %x", ps);
