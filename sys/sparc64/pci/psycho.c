@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
+#include <sys/reboot.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
@@ -88,9 +89,9 @@ static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
 /* Interrupt handlers */
 static void psycho_ue(void *);
 static void psycho_ce(void *);
-static void psycho_bus_a(void *);
-static void psycho_bus_b(void *);
+static void psycho_pci_bus(void *);
 static void psycho_powerfail(void *);
+static void psycho_overtemp(void *);
 #ifdef PSYCHO_MAP_WAKEUP
 static void psycho_wakeup(void *);
 #endif
@@ -439,6 +440,14 @@ psycho_attach(device_t dev)
 	SLIST_INSERT_HEAD(&psycho_softcs, sc, sc_link);
 
 	/*
+	 * Register a PCI bus error interrupt handler according to which
+	 * half this is. Hummingbird/Sabre don't have a PCI bus B error
+	 * interrupt but they are also only used for PCI bus A.
+	 */
+	psycho_set_intr(sc, 0, dev, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
+	    PSR_PCIBERR_INT_MAP, INTR_FAST, psycho_pci_bus);
+
+	/*
 	 * If we're a Hummingbird/Sabre or the first of a pair of Psycho's to
 	 * arrive here, start up the IOMMU.
 	 */
@@ -452,12 +461,10 @@ psycho_attach(device_t dev)
 		 * XXX Not all controllers have these, but installing them
 		 * is better than trying to sort through this mess.
 		 */
-		psycho_set_intr(sc, 0, dev, PSR_UE_INT_MAP, INTR_FAST,
+		psycho_set_intr(sc, 1, dev, PSR_UE_INT_MAP, INTR_FAST,
 		    psycho_ue);
-		psycho_set_intr(sc, 1, dev, PSR_CE_INT_MAP, 0, psycho_ce);
-		psycho_set_intr(sc, 2, dev, PSR_PCIAERR_INT_MAP, INTR_FAST,
-		    psycho_bus_a);
-		psycho_set_intr(sc, 4, dev, PSR_POWER_INT_MAP,
+		psycho_set_intr(sc, 2, dev, PSR_CE_INT_MAP, 0, psycho_ce);
+		psycho_set_intr(sc, 3, dev, PSR_POWER_INT_MAP,
 		    PSYCHO_PWRFAIL_INT_FLAGS, psycho_powerfail);
 		/* Psycho-specific initialization */
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
@@ -465,8 +472,13 @@ psycho_attach(device_t dev)
 			 * Hummingbirds/Sabres do not have the following two
 			 * interrupts.
 			 */
-			psycho_set_intr(sc, 3, dev, PSR_PCIBERR_INT_MAP,
-			    INTR_FAST, psycho_bus_b);
+
+			/*
+			 * The spare hardware interrupt is used for the
+			 * over-temperature interrupt.
+			 */
+			psycho_set_intr(sc, 4, dev, PSR_SPARE_INT_MAP,
+			    INTR_FAST, psycho_overtemp);
 #ifdef PSYCHO_MAP_WAKEUP
 			/*
 			 * psycho_wakeup() doesn't do anything useful right
@@ -597,6 +609,7 @@ psycho_set_intr(struct psycho_softc *sc, int index, device_t dev,
 	int rid, vec;
 	uint64_t mr;
 
+	rid = index;
 	mr = PSYCHO_READ8(sc, map);
 	vec = INTVEC(mr);
 	sc->sc_irq_res[index] = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
@@ -698,27 +711,16 @@ psycho_ce(void *arg)
 }
 
 static void
-psycho_bus_a(void *arg)
+psycho_pci_bus(void *arg)
 {
 	struct psycho_softc *sc = arg;
 	uint64_t afar, afsr;
 
-	afar = PSYCHO_READ8(sc, PSR_PCICTL0 + PCR_AFA);
-	afsr = PSYCHO_READ8(sc, PSR_PCICTL0 + PCR_AFS);
-	panic("%s: PCI bus A error AFAR %#lx AFSR %#lx",
-	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
-}
-
-static void
-psycho_bus_b(void *arg)
-{
-	struct psycho_softc *sc = arg;
-	uint64_t afar, afsr;
-
-	afar = PSYCHO_READ8(sc, PSR_PCICTL1 + PCR_AFA);
-	afsr = PSYCHO_READ8(sc, PSR_PCICTL1 + PCR_AFS);
-	panic("%s: PCI bus B error AFAR %#lx AFSR %#lx",
-	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
+	afar = PCICTL_READ8(sc, PCR_AFA);
+	afsr = PCICTL_READ8(sc, PCR_AFS);
+	panic("%s: PCI bus %c error AFAR %#lx AFSR %#lx",
+	    device_get_name(sc->sc_dev), 'A' + sc->sc_half, (u_long)afar,
+	    (u_long)afsr);
 }
 
 static void
@@ -734,6 +736,14 @@ psycho_powerfail(void *arg)
 	printf("Power Failure Detected: Shutting down NOW.\n");
 	shutdown_nice(0);
 #endif
+}
+
+static void
+psycho_overtemp(void *arg)
+{
+
+	printf("DANGER: OVER TEMPERATURE detected.\nShutting down NOW.\n");
+	shutdown_nice(RB_POWEROFF);
 }
 
 #ifdef PSYCHO_MAP_WAKEUP
