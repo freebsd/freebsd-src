@@ -33,8 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Support for `Psycho' and `Psycho+' UPA to PCI bridge and
- * UltraSPARC IIi and IIe `Sabre' PCI controllers
+ * Support for `Hummingbird' (UltraSPARC IIe), `Psycho' and `Psycho+'
+ * (UltraSPARC II) and `Sabre' (UltraSPARC IIi) UPA to PCI bridges.
  */
 
 #include "opt_ofw_pci.h"
@@ -188,6 +188,9 @@ struct psycho_clr {
  * the IIi.  The APB let's the IIi handle two independednt PCI buses, and
  * appears as two "Simba"'s underneath the Sabre.
  *
+ * "Hummingbird" is the UltraSPARC IIe onboard UPA to PCI bridge. It's
+ * basically the same as Sabre but without an APB underneath it.
+ *
  * "Psycho" and "Psycho+" are dual UPA to PCI bridges.  They sit on the UPA bus
  * and manage two PCI buses.  "Psycho" has two 64-bit 33MHz buses, while
  * "Psycho+" controls both a 64-bit 33Mhz and a 64-bit 66Mhz PCI bus.  You
@@ -222,8 +225,8 @@ struct psycho_desc {
 
 static const struct psycho_desc psycho_compats[] = {
 	{ "pci108e,8000", PSYCHO_MODE_PSYCHO,	"Psycho compatible" },
-	{ "pci108e,a000", PSYCHO_MODE_SABRE,	"Sabre (US-IIi) compatible" },
-	{ "pci108e,a001", PSYCHO_MODE_SABRE,	"Sabre (US-IIe) compatible" },
+	{ "pci108e,a000", PSYCHO_MODE_SABRE,	"Sabre compatible" },
+	{ "pci108e,a001", PSYCHO_MODE_SABRE,	"Hummingbird compatible" },
 	{ NULL,		  0,			NULL }
 };
 
@@ -373,7 +376,7 @@ psycho_attach(device_t dev)
 		sc->sc_bushandle = osc->sc_bushandle;
 	}
 	csr = PSYCHO_READ8(sc, PSR_CS);
-	sc->sc_ign = 0x7c0; /* APB IGN is always 0x7c */
+	sc->sc_ign = 0x7c0; /* Hummingbird/Sabre IGN is always 0x1f. */
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO)
 		sc->sc_ign = PSYCHO_GCSR_IGN(csr) << INTMAP_IGN_SHIFT;
 
@@ -392,7 +395,8 @@ psycho_attach(device_t dev)
 		/* Use the PROM preset for now. */
 		csr = PCICTL_READ8(sc, PCR_TAS);
 		if (csr == 0)
-			panic("%s: Sabre TAS not initialized.", __func__);
+			panic("%s: Hummingbird/Sabre TAS not initialized.",
+			    __func__);
 		dvmabase = (ffs(csr) - 1) << PCITAS_ADDR_SHIFT;
 	} else
 		dvmabase = -1;
@@ -435,8 +439,8 @@ psycho_attach(device_t dev)
 	SLIST_INSERT_HEAD(&psycho_softcs, sc, sc_link);
 
 	/*
-	 * If we're a Sabre or the first of a pair of Psycho's to arrive here,
-	 * start up the IOMMU.
+	 * If we're a Hummingbird/Sabre or the first of a pair of Psycho's to
+	 * arrive here, start up the IOMMU.
 	 */
 	if (osc == NULL) {
 		/*
@@ -458,7 +462,8 @@ psycho_attach(device_t dev)
 		/* Psycho-specific initialization */
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
 			/*
-			 * Sabres do not have the following two interrupts.
+			 * Hummingbirds/Sabres do not have the following two
+			 * interrupts.
 			 */
 			psycho_set_intr(sc, 3, dev, PSR_PCIBERR_INT_MAP,
 			    INTR_FAST, psycho_bus_b);
@@ -496,7 +501,7 @@ psycho_attach(device_t dev)
 			sc->sc_is->is_sb[0] = sc->sc_pcictl + PCR_STRBUF;
 		psycho_iommu_init(sc, 3, dvmabase);
 	} else {
-		/* Just copy IOMMU state, config tag and address */
+		/* Just copy IOMMU state, config tag and address. */
 		sc->sc_is = osc->sc_is;
 		if (OF_getproplen(node, "no-streaming-cache") < 0)
 			sc->sc_is->is_sb[1] = sc->sc_pcictl + PCR_STRBUF;
@@ -558,8 +563,8 @@ psycho_attach(device_t dev)
 	 * NOTE: for the Psycho, the second write changes the bus number the
 	 * Psycho itself uses for it's configuration space, so these
 	 * writes must be kept in this order!
-	 * The Sabre always uses bus 0, but there only can be one Sabre per
-	 * machine.
+	 * The Hummingbird/Sabre always uses bus 0, but there only can be one
+	 * Hummingbird/Sabre per machine.
 	 */
 	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC, PCSR_SUBBUS,
 	    sc->sc_pci_subbus, 1);
@@ -568,7 +573,13 @@ psycho_attach(device_t dev)
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
 	/*
-	 * Workaround for incorrect interrupt map entries on E250.
+	 * On E250 the interrupt map entry for the EBus bridge is wrong,
+	 * causing incorrect interrupts to be assigned to some devices on
+	 * the EBus. Work around it by changing our copy of the interrupt
+	 * map mask to do perform a full comparison of the INO. That way
+	 * the interrupt map entry for the EBus bridge won't match at all
+	 * and the INOs specified in the "interrupts" properties of the
+	 * EBus devices will be used directly instead.
 	 */
 	if (strcmp(sparc64_model, "SUNW,Ultra-250") == 0 &&
 	    sc->sc_pci_iinfo.opi_imapmsk != NULL)
@@ -607,7 +618,7 @@ psycho_find_intrmap(struct psycho_softc *sc, int ino, bus_addr_t *intrmapptr,
 	int found;
 
 	found = 0;
-	/* Hunt thru obio first */
+	/* Hunt thru OBIO first. */
 	diag = PSYCHO_READ8(sc, PSR_OBIO_INT_DIAG);
 	for (intrmap = PSR_SCSI_INT_MAP, intrclr = PSR_SCSI_INT_CLR;
 	     intrmap <= PSR_SERIAL_INT_MAP; intrmap += 8, intrclr += 8,
@@ -622,7 +633,7 @@ psycho_find_intrmap(struct psycho_softc *sc, int ino, bus_addr_t *intrmapptr,
 
 	if (!found) {
 		diag = PSYCHO_READ8(sc, PSR_PCI_INT_DIAG);
-		/* Now do PCI interrupts */
+		/* Now do PCI interrupts. */
 		for (intrmap = PSR_PCIA0_INT_MAP, intrclr = PSR_PCIA0_INT_CLR;
 		     intrmap <= PSR_PCIB3_INT_MAP; intrmap += 8, intrclr += 32,
 		     diag >>= 8) {
