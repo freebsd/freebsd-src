@@ -45,7 +45,7 @@
 .Fa "unsigned msg_prio"
 .Fc
 .Ft int
-.Fo mq_timesend
+.Fo mq_timedsend
 .Fa "mqd_t mqdes"
 .Fa "const char *msg_ptr"
 .Fa "size_t msg_len"
@@ -59,14 +59,14 @@ system call adds the message pointed to by the argument
 .Fa msg_ptr
 to the message queue specified by
 .Fa mqdes .
-The 
+The
 .Fa msg_len
 argument specifies the length of the message, in bytes, pointed to by
 .Fa msg_ptr .
 The value of
 .Fa msg_len
 should be less than or equal to the
-.Fa mq_msgsize
+.Va mq_msgsize
 attribute of the message queue, or
 .Fn mq_send
 will fail.
@@ -76,7 +76,8 @@ If the specified message queue is not full,
 will behave as if the message is inserted into the message queue at
 the position indicated by the
 .Fa msg_prio
-argument. A message with a larger numeric value of
+argument.
+A message with a larger numeric value of
 .Fa msg_prio
 will be inserted before messages with lower values of
 .Fa msg_prio .
@@ -96,12 +97,15 @@ is not set in the message queue description associated with
 will block until space becomes available to enqueue the
 message, or until
 .Fn mq_send
-is interrupted by a signal. If more than one thread is
+is interrupted by a signal.
+If more than one thread is
 waiting to send when space becomes available in the message queue and
 the Priority Scheduling option is supported, then the thread of the
 highest priority that has been waiting the longest will be unblocked
-to send its message. Otherwise, it is unspecified which waiting thread
-is unblocked. If the specified message queue is full and
+to send its message.
+Otherwise, it is unspecified which waiting thread
+is unblocked.
+If the specified message queue is full and
 .Dv O_NONBLOCK
 is set in the message queue description associated with
 .Fa mqdes ,
@@ -115,12 +119,14 @@ system call will add a message to the message queue specified by
 .Fa mqdes
 in the manner defined for the
 .Fn mq_send
-system call. However, if the specified message queue is full and
+system call.
+However, if the specified message queue is full and
 .Dv O_NONBLOCK
 is not set in the message queue description associated with
 .Fa mqdes ,
 the wait for sufficient room in the queue will be terminated when
-the specified timeout expires. If
+the specified timeout expires.
+If
 .Dv O_NONBLOCK
 is set in the message queue description, this system call is
 equivalent to
@@ -129,20 +135,24 @@ equivalent to
 The timeout will expire when the absolute time specified by
 .Fa abs_timeout
 passes, as measured by the clock on which timeouts are based (that is,
-when the value of that clock equals or exceeds 
+when the value of that clock equals or exceeds
 .Fa abs_timeout ) ,
 or if the absolute time specified by
 .Fa abs_timeout
 has already been passed at the time of the call.
 .Pp
-The timeout is based on the CLOCK_REALTIME clock.
+The timeout is based on the
+.Dv CLOCK_REALTIME
+clock.
 .Sh RETURN VALUES
 Upon successful completion, the
 .Fn mq_send
 and
 .Fn mq_timedsend
-system calls return a value of zero. Otherwise, no message will be
-enqueued, the system calls return -1, and
+system calls return a value of zero.
+Otherwise, no message will be
+enqueued, the system calls return \-1, and
+the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
@@ -167,7 +177,7 @@ argument is not a valid message queue descriptor open for writing.
 A signal interrupted the call to
 .Fn mq_send
 or
-.Fn mq_timedsend. 
+.Fn mq_timedsend .
 .It Bq Er EINVAL
 The value of
 .Fa msg_prio
@@ -191,14 +201,16 @@ expired before the message could be added to the queue.
 .Xr mq_open 2 ,
 .Xr mq_receive 2 ,
 .Xr mq_setattr 2 ,
-.Xr mq_timereceive 2
+.Xr mq_timedreceive 2
 .Sh STANDARDS
 The
 .Fn mq_send
 and
-.Fn mq_timesend
+.Fn mq_timedsend
 system calls conform to
 .St -p1003.1-2004 .
 .Sh HISTORY
-Support for POSIX message queue first appeared in
+Support for
+.Tn POSIX
+message queues first appeared in
 .Fx 7.0 .
