@@ -49,14 +49,10 @@ struct macio_reg {
  * Per macio device structure.
  */
 struct macio_devinfo {
-	char	  *mdi_compat;
-	char	  *mdi_model;
-	char	  *mdi_name;
-	phandle_t  mdi_node;
-	char	  *mdi_type;
 	int        mdi_interrupts[5];
 	int	   mdi_ninterrupts;
 	int        mdi_base;
+	struct ofw_bus_devinfo mdi_obdinfo;
 	struct resource_list mdi_resources;
 };
 
