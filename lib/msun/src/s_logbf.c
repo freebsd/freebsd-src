@@ -20,6 +20,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+static const float
+two25 = 3.355443200e+07;		/* 0x4c000000 */
+
 float
 logbf(float x)
 {
@@ -28,8 +31,11 @@ logbf(float x)
 	ix &= 0x7fffffff;			/* high |x| */
 	if(ix==0) return (float)-1.0/fabsf(x);
 	if(ix>=0x7f800000) return x*x;
-	if((ix>>=23)==0) 			/* IEEE 754 logb */
-		return -126.0;
-	else
-		return (float) (ix-127);
+	if(ix<0x00800000) {
+		x *= two25;		 /* convert subnormal x to normal */
+		GET_FLOAT_WORD(ix,x);
+		ix &= 0x7fffffff;
+		return (float) ((ix>>23)-127-25);
+	} else
+		return (float) ((ix>>23)-127);
 }
