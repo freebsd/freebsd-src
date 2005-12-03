@@ -21,6 +21,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20051202:
+	Scripts in the local_startup directories (as defined in
+	/etc/defaults/rc.conf) that have the new rc.d semantics will
+	now be run as part of the base system rcorder. If there are
+	errors or problems with one of these local scripts, it could
+	cause boot problems. If you encounter such problems, boot in
+	single user mode, remove that script from the */rc.d directory.
+	Please report the problem to the port's maintainer, and the
+	freebsd-ports@freebsd.org mailing list.
+
 20051129:
 	The nodev mount option was deprecated in RELENG_6 (where it
 	was a no-op), and is now unsupported.  If you have nodev or dev listed
