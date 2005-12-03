@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 29, 2005
-.Dt MQ_SEND 2
+.Dt MQ_RECEIVE 2
 .Os
 .Sh NAME
 .Nm mq_receive , mq_timedreceive
@@ -45,7 +45,7 @@
 .Fa "unsigned *msg_prio"
 .Fc
 .Ft ssize_t
-.Fo mq_timereceive
+.Fo mq_timedreceive
 .Fa "mqd_t mqdes"
 .Fa "char *msg_ptr"
 .Fa "size_t msg_len"
@@ -61,14 +61,15 @@ message queue specified by
 If the size of the buffer in bytes, specified by the
 .Fa msg_len
 argument, is less than the
-.Fa mq_msgsize
+.Va mq_msgsize
 attribute of the message queue, the system call will fail and return an
-error. Otherwise, the selected message will be removed from the queue
+error.
+Otherwise, the selected message will be removed from the queue
 and copied to the buffer pointed to by the
 .Fa msg_ptr
 argument.
 .Pp
-If the value of 
+If the value of
 .Fa msg_len
 is greater than
 .Brq Dv SSIZE_MAX ,
@@ -76,7 +77,9 @@ the result is implementation-defined.
 .Pp
 If the argument
 .Fa msg_prio
-is not NULL, the priority of the selected message will be stored in the
+is not
+.Dv NULL ,
+the priority of the selected message will be stored in the
 location referenced by
 .Fa msg_prio .
 If the specified message queue is empty and
@@ -86,14 +89,17 @@ is not set in the message queue description associated with
 .Fn mq_receive
 will block until a message is enqueued on the message queue or until
 .Fn mq_receive
-is interrupted by a signal. If more than one thread is waiting to receive
+is interrupted by a signal.
+If more than one thread is waiting to receive
 a message when a message arrives at an empty queue and the Priority
 Scheduling option is supported, then the thread of highest priority that
 has been waiting the longest will be selected to receive the message.
 Otherwise, it is unspecified which waiting thread receives the message.
 If the specified message queue is empty and
 .Dv O_NONBLOCK
-is set in the message queue description associated with mqdes, no message
+is set in the message queue description associated with
+.Fa mqdes ,
+no message
 will be removed from the queue, and
 .Fn mq_receive
 will return an error.
@@ -105,12 +111,14 @@ message queue specified by
 .Fa mqdes
 as described for the
 .Fn mq_receive
-system call. However, if
+system call.
+However, if
 .Dv O_NONBLOCK
 was not specified when the message queue was opened via the
 .Fn mq_open
 system call, and no message exists on the queue to satisfy the receive, the wait
-for such a message will be terminated when the specified timeout expires. If
+for such a message will be terminated when the specified timeout expires.
+If
 .Dv O_NONBLOCK
 is set, this system call is equivalent to
 .Fn mq_receive .
@@ -124,18 +132,21 @@ or if the absolute time specified by
 .Fa abs_timeout
 has already been passed at the time of the call.
 .Pp
-The timeout is based on the CLOCK_REALTIME clock.
-.Pp
+The timeout is based on the
+.Dv CLOCK_REALTIME
+clock.
 .Sh RETURN VALUES
 Upon successful completion, the
 .Fn mq_receive
 and
 .Fn mq_timedreceive
 system calls return the length of the selected message in bytes and the
-message is removed from the queue. Otherwise, no message is removed
-from the queue, the system call return a value of -1, and set
+message is removed from the queue.
+Otherwise, no message is removed
+from the queue, the system call returns a value of \-1,
+and the global variable
 .Va errno
-to indicate the error.
+is set to indicate the error.
 .Sh ERRORS
 The
 .Fn mq_receive
@@ -177,14 +188,16 @@ on the queue before the specified timeout expired.
 .Sh SEE ALSO
 .Xr mq_open 2 ,
 .Xr mq_send 2 ,
-.Xr mq_timesend 2
+.Xr mq_timedsend 2
 .Sh STANDARDS
 The
 .Fn mq_receive
 and
-.Fn mq_timereceive
+.Fn mq_timedreceive
 system calls conform to
 .St -p1003.1-2004 .
 .Sh HISTORY
-Support for POSIX message queue first appeared in
+Support for
+.Tn POSIX
+message queues first appeared in
 .Fx 7.0 .

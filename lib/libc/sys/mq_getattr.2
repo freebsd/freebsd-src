@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 29, 2005
-.Dt MQ_CLOSE 2
+.Dt MQ_GETATTR 2
 .Os
 .Sh NAME
 .Nm mq_getattr
@@ -52,35 +52,33 @@ argument specifies a message queue descriptor.
 .Pp
 The results are returned in the
 .Vt mq_attr
-structure referenced by the mqstat argument.
+structure referenced by the
+.Fa mqstat
+argument.
 .Pp
 Upon return, the following members will have the values associated with the
 open message queue description as set when the message queue was opened and
 as modified by subsequent
 .Fn mq_setattr
 calls:
-.Va mq_flags.
+.Va mq_flags .
 .Pp
 The following attributes of the message queue will be returned as set at
 message queue creation:
-.Va mq_maxmsg ,
-.Va mq_msgsize .
+.Va mq_maxmsg , mq_msgsize .
 .Pp
 Upon return, the following members within the
 .Vt mq_attr
-structure referenced by the mqstat argument will be set to the current state
+structure referenced by the
+.Fa mqstat
+argument will be set to the current state
 of the message queue:
-.Pp
-.Bl -tag -width Er
+.Bl -tag -width ".Va mq_flags"
 .It Va mq_flags
-The number of messages currently on the queue. 
+The number of messages currently on the queue.
 .El
 .Sh RETURN VALUES
-Upon successful completion, the
-.Fn mq_getattr
-system call returns zero. Otherwise, the system call returns -1 and set
-.Va errno
-to indicate the error.
+.Rv -std
 .Sh ERRORS
 The
 .Fn mq_getattr
@@ -96,12 +94,14 @@ argument is not a valid message queue descriptor.
 .Xr mq_open 2 ,
 .Xr mq_send 2 ,
 .Xr mq_setattr 2 ,
-.Xr mq_timedsend 2 ,
+.Xr mq_timedsend 2
 .Sh STANDARDS
 The
 .Fn mq_getattr
-system call conform to
+system call conforms to
 .St -p1003.1-2004 .
 .Sh HISTORY
-Support for POSIX message queue first appeared in
+Support for
+.Tn POSIX
+message queues first appeared in
 .Fx 7.0 .
