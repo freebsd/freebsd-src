@@ -56,9 +56,8 @@ structure will be set to the specified values upon successful completion of
 .Fn mq_setattr :
 .Bl -tag -width ".Va mq_flags"
 .It Va mq_flags
-The value of this member is the bitwise-logical OR of zero or more of
-.Dv O_NONBLOCK
-and any implementation-defined flags.
+The value of this member is zero or
+.Dv O_NONBLOCK .
 .El
 .Pp
 The values of the
