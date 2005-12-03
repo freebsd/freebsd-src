@@ -29,9 +29,10 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/dev/pci/pci_pci.c,v 1.3 2000/12/13
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
 
@@ -115,8 +116,9 @@ ofw_pcib_probe(device_t dev)
 static int
 ofw_pcib_attach(device_t dev)
 {
-	struct ofw_pcib_gen_softc *sc = device_get_softc(dev);
+	struct ofw_pcib_gen_softc *sc;
 
+	sc = device_get_softc(dev);
 	ofw_pcib_gen_setup(dev);
 	pcib_attach_common(dev);
 	device_add_child(dev, "pci", sc->ops_pcib_sc.secbus);
