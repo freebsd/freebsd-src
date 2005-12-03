@@ -222,8 +222,11 @@
 
 /* what the bits mean! */
 
-/* PCI [a|b] control/status register */
-/* note that the Sabre only has one set of PCI control/status registers */
+/*
+ * PCI [a|b] control/status register
+ * Note that the Hummingbird/Sabre only has one set of PCI control/status
+ * registers.
+ */
 #define	PCICTL_MRLM	0x0000001000000000	/* Memory Read Line/Multiple */
 #define	PCICTL_SERR	0x0000000400000000	/* SERR asserted; W1C */
 #define	PCICTL_ARB_PARK	0x0000000000200000	/* PCI arbitration parking */
