@@ -52,27 +52,17 @@ descriptor is used by other functions to refer to that message queue.
 The
 .Fa name
 argument points to a string naming a message queue.
-It is unspecified
-whether the name appears in the file system and is visible to other functions
-that take pathnames as arguments.
 The
 .Fa name
-argument conforms to the construction rules for a pathname.
-If
+argument should conform to the construction rules for a pathname.
+The
 .Fa name
-begins with the slash character, then processes calling
+should begin with a slash character. Processes calling
 .Fn mq_open
 with the same value of
 .Fa name
 refers to the same message queue object, as long as that name has not been
 removed.
-If
-.Fa name
-does not begin with the slash character, the effect is implementation-defined.
-The interpretation of slash characters other than the leading slash character
-in
-.Fa name
-is implementation-defined.
 If the
 .Fa name
 argument is not the name of an existing message queue and creation is not
