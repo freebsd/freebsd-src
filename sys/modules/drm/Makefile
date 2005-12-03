@@ -2,6 +2,7 @@
 
 SUBDIR = \
 	drm \
+	i915 \
 	mach64 \
 	mga \
 	r128 \

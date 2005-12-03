@@ -93,6 +93,7 @@
 	{0x1002, 0x5c63, CHIP_RV280|CHIP_IS_MOBILITY, "ATI Radeon RV280 Mobility"}, \
 	{0x1002, 0x5c64, CHIP_RV280, "ATI Radeon RV280"}, \
 	{0x1002, 0x5d4d, CHIP_R350, "ATI Radeon R480"}, \
+	{0x1002, 0x5e4b, CHIP_R420, "ATI Radeon RV410 X700PRO"}, \
 	{0, 0, 0, NULL}
 
 #define r128_PCI_IDS \

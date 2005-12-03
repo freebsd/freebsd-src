@@ -153,9 +153,14 @@ int drm_probe(device_t dev, drm_pci_id_list_t *idlist)
 {
 	drm_pci_id_list_t *id_entry;
 	int vendor, device;
+	device_t realdev;
 
-	vendor = pci_get_vendor(dev);
-	device = pci_get_device(dev);
+	if (!strcmp(device_get_name(dev), "drmsub"))
+		realdev = device_get_parent(dev);
+	else
+		realdev = dev;
+	vendor = pci_get_vendor(realdev);
+	device = pci_get_device(realdev);
 
 	id_entry = drm_find_description(vendor, device, idlist);
 	if (id_entry != NULL) {
@@ -190,8 +195,8 @@ int drm_attach(device_t nbdev, drm_pci_id_list_t *idlist)
 	mtx_init(&dev->dev_lock, "drm device", NULL, MTX_DEF);
 #endif
 
-	id_entry = drm_find_description(pci_get_vendor(nbdev),
-	    pci_get_device(nbdev), idlist);
+	id_entry = drm_find_description(pci_get_vendor(dev->device),
+	    pci_get_device(dev->device), idlist);
 	dev->id_entry = id_entry;
 
 	return drm_load(dev);
