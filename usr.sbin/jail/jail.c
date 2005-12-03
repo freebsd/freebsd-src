@@ -54,18 +54,24 @@ main(int argc, char **argv)
 	struct passwd *pwd = NULL;
 	struct in_addr in;
 	gid_t groups[NGROUPS];
-	int ch, i, iflag, lflag, ngroups, uflag, Uflag;
-	char path[PATH_MAX], *username;
+	int ch, i, iflag, Jflag, lflag, ngroups, uflag, Uflag;
+	char path[PATH_MAX], *username, *JidFile;
 	static char *cleanenv;
 	const char *shell, *p = NULL;
+	FILE *fp;
 
-	iflag = lflag = uflag = Uflag = 0;
-	username = cleanenv = NULL;
+	iflag = Jflag = lflag = uflag = Uflag = 0;
+	username = JidFile = cleanenv = NULL;
+	fp = NULL;
 
-	while ((ch = getopt(argc, argv, "ilu:U:")) != -1) {
+	while ((ch = getopt(argc, argv, "ilu:U:J:")) != -1) {
 		switch (ch) {
 		case 'i':
 			iflag = 1;
+			break;
+		case 'J':
+			JidFile = optarg;
+			Jflag = 1;
 			break;
 		case 'u':
 			username = optarg;
@@ -103,12 +109,26 @@ main(int argc, char **argv)
 	if (inet_aton(argv[2], &in) == 0)
 		errx(1, "Could not make sense of ip-number: %s", argv[2]);
 	j.ip_number = ntohl(in.s_addr);
+	if (Jflag) {
+		fp = fopen(JidFile, "w");
+		if (fp == NULL)
+			errx(1, "Could not create JidFile: %s", JidFile);
+	}
 	i = jail(&j);
 	if (i == -1)
 		err(1, "jail");
 	if (iflag) {
 		printf("%d\n", i);
 		fflush(stdout);
+	}
+	if (Jflag) {
+		if (fp != NULL) {
+			fprintf(fp, "%d\t%s\t%s\t%s\t%s\n",
+			    i, j.path, j.hostname, argv[2], argv[3]);
+			(void)fclose(fp);
+		} else {
+			errx(1, "Could not write JidFile: %s", JidFile);
+		}
 	}
 	if (username != NULL) {
 		if (Uflag)
@@ -149,7 +169,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s%s\n",
-	     "usage: jail [-i] [-l -u username | -U username]",
+	     "usage: jail [-i] [-J jid_file] [-l -u username | -U username]",
 	     " path hostname ip-number command ...");
 	exit(1);
 }
