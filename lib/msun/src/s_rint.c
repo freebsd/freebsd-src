@@ -27,13 +27,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-/*
- * TWO23 is long double instead of double to avoid a bug in gcc.  Without
- * this, gcc thinks that TWO23[sx]+x and w-TWO23[sx] already have double
- * precision and doesn't clip them to double precision when they are
- * assigned and returned.
- */
-static const long double
+static const double
 TWO52[2]={
   4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
  -4.50359962737049600000e+15, /* 0xC3300000, 0x00000000 */
@@ -88,6 +82,6 @@ rint(double x)
 	    if((i1&i)!=0) i1 = (i1&(~i))|((0x40000000)>>(j0-20));
 	}
 	INSERT_WORDS(x,i0,i1);
-	w = TWO52[sx]+x;
+	*(volatile double *)&w = TWO52[sx]+x;	/* clip any extra precision */
 	return w-TWO52[sx];
 }
