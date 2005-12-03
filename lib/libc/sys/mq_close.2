@@ -42,9 +42,10 @@
 .Sh DESCRIPTION
 The
 .Fn mq_close
-system call removes the association between the message queue descriptor, 
+system call removes the association between the message queue descriptor,
 .Fa mqdes ,
-and its message queue. The results of using this message queue descriptor
+and its message queue.
+The results of using this message queue descriptor
 after successful return from this
 .Fn mq_close ,
 and until the return of this message queue descriptor from a subsequent
@@ -57,12 +58,7 @@ message queue via this
 this attachment will be removed, and the message queue is available for
 another process to attach for notification.
 .Sh RETURN VALUES
-Upon successful completion, the
-.Fn mq_close
-system call returns a value of zero; otherwise, the system call returns a
-value of -1 and set
-.Va errno
-to indicate the error.
+.Rv -std
 .Sh ERRORS
 The
 .Fn mq_close
@@ -80,8 +76,10 @@ argument is not a valid message queue descriptor.
 .Sh STANDARDS
 The
 .Fn mq_close
-system call conform to
+system call conforms to
 .St -p1003.1-2004 .
 .Sh HISTORY
-Support for POSIX message queue first appeared in
+Support for
+.Tn POSIX
+message queues first appeared in
 .Fx 7.0 .
