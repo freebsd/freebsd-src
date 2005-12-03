@@ -122,7 +122,7 @@ _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} \
 .error CPUTYPE global should be set with ?=.
 .endif
 .if make(buildworld)
-BUILD_ARCH!=	uname -m
+BUILD_ARCH!=	uname -p
 .if ${MACHINE_ARCH} != ${BUILD_ARCH}
 .error To cross-build, set TARGET_ARCH.
 .endif

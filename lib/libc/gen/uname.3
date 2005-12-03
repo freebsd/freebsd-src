@@ -32,7 +32,7 @@
 .\"	@(#)uname.3	8.1 (Berkeley) 1/4/94
 .\" $FreeBSD$
 .\"
-.Dd January 4, 1994
+.Dd December 2, 2005
 .Dt UNAME 3
 .Os
 .Sh NAME
@@ -72,6 +72,33 @@ Machine hardware platform.
 .El
 .Sh RETURN VALUES
 .Rv -std uname
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev UNAME_s"
+.It Ev UNAME_s
+If the environment variable
+.Ev UNAME_s
+is set, it will override the
+.Va sysname
+member.
+.It Ev UNAME_r
+If the environment variable
+.Ev UNAME_r
+is set, it will override the
+.Va release
+member.
+.It Ev UNAME_v
+If the environment variable
+.Ev UNAME_v
+is set, it will override the
+.Va version
+member.
+.It Ev UNAME_m
+If the environment variable
+.Ev UNAME_m
+is set, it will override the
+.Va machine
+member.
+.El
 .Sh ERRORS
 The
 .Fn uname

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2003
+.Dd December 2, 2005
 .Dt GETOSRELDATE 3
 .Os
 .Sh NAME
@@ -55,6 +55,15 @@ returns the value requested;
 otherwise the value \-1 is returned and the global variable
 .Va errno
 is set to indicate the error.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev OSVERSION"
+.It Ev OSVERSION
+If the environment variable
+.Ev OSVERSION
+is set, it will override the
+.Fn getosreldate
+return value.
+.El
 .Sh EXAMPLES
 An example can be found in
 .Pa /usr/share/examples/FreeBSD_version .
