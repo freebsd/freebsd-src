@@ -200,11 +200,13 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 static int
 ofw_pcibus_attach(device_t dev)
 {
-	device_t pcib = device_get_parent(dev);
+	device_t pcib;
 	struct ofw_pci_register pcir;
 	struct ofw_pcibus_devinfo *dinfo;
 	phandle_t node, child;
 	u_int slot, busno, func;
+
+	pcib = device_get_parent(dev);
 
 	/*
 	 * Ask the bridge for the bus number - in some cases, we need to
