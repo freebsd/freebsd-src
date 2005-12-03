@@ -49,7 +49,6 @@ scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.
 tinderbox	Sample script for nightly test builds.
-upgrade         Scripts used for upgrading an installed system.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
 whereintheworld	Summarizes "make world" output.
