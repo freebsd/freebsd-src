@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 29, 2005
-.Dt MQ_CLOSE 2
+.Dt MQ_SETATTR 2
 .Os
 .Sh NAME
 .Nm mq_setattr
@@ -54,8 +54,7 @@ in the
 .Vt mq_attr
 structure will be set to the specified values upon successful completion of
 .Fn mq_setattr :
-.Pp
-.Bl -tag -width Er
+.Bl -tag -width ".Va mq_flags"
 .It Va mq_flags
 The value of this member is the bitwise-logical OR of zero or more of
 .Dv O_NONBLOCK
@@ -63,11 +62,10 @@ and any implementation-defined flags.
 .El
 .Pp
 The values of the
-.Va mq_maxmsg ,
-.Va mq_msgsize ,
+.Va mq_maxmsg , mq_msgsize ,
 and
 .Va mq_curmsgs
-embers of the
+members of the
 .Vt mq_attr
 structure are ignored by
 .Fn mq_setattr .
@@ -76,7 +74,7 @@ Upon successful completion, the function returns a value of zero and the
 attributes of the message queue will have been changed as specified.
 .Pp
 Otherwise, the message queue attributes are unchanged, and the function
-returns a value of -1 and set 
+returns a value of \-1 and sets the global variable
 .Va errno
 to indicate the error.
 .Sh ERRORS
@@ -93,12 +91,14 @@ argument is not a valid message queue descriptor.
 .Sh SEE ALSO
 .Xr mq_open 2 ,
 .Xr mq_send 2 ,
-.Xr mq_timedsend 2 ,
+.Xr mq_timedsend 2
 .Sh STANDARDS
 The
 .Fn mq_setattr
-system call conform to
+system call conforms to
 .St -p1003.1-2004 .
 .Sh HISTORY
-Support for POSIX message queue first appeared in
+Support for
+.Tn POSIX
+message queues first appeared in
 .Fx 7.0 .
