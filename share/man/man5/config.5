@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2004
+.Dd December 3, 2005
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -86,8 +86,9 @@ Directives are processed in order of appearance with subsequent
 directive lines overriding the effect of prior ones.
 .Pp
 The list of keywords and their meanings are as follows:
-.Bl -tag -width indent
+.Bl -tag -width indent -compact
 .\" -------- CPU --------
+.Pp
 .It Ic cpu Ar cputype
 Specify the CPU this kernel will run on.
 There can be more than one
@@ -97,6 +98,7 @@ The allowed list of CPU names is architecture specific and is
 defined in the file
 .Pa sys/conf/options. Ns Aq Ar arch .
 .\" -------- DEVICE --------
+.Pp
 .It Ic device Ar name Op , Ar name Op ...
 .It Ic devices Ar name Op , Ar name Op ...
 Configures the specified devices
@@ -109,6 +111,7 @@ Devices that are specific to architecture
 are defined in the file
 .Pa sys/conf/files. Ns Aq Ar arch .
 .\" -------- ENV --------
+.Pp
 .It Ic env Ar filename
 Specifies a filename containing a kernel environment definition.
 The kernel normally uses an environment prepared for it at boot time
@@ -121,11 +124,13 @@ This directive is useful for setting kernel tunables in
 embedded environments that do not start from
 .Xr loader 8 .
 .\" -------- FILES --------
+.Pp
 .It Ic files Ar filename
 Specifies a file containing a list of files specific to that kernel
 configuration file (a la
 .Pa files. Ns Aq Ar arch ) .
 .\" -------- HINTS --------
+.Pp
 .It Ic hints Ar filename
 Specifies a file to load a static device configuration specification
 from.
@@ -142,6 +147,7 @@ The file
 must conform to the syntax specified by
 .Xr device.hints 5 .
 .\" -------- IDENT --------
+.Pp
 .It Ic ident Ar name
 Set the kernel name to
 .Ar name .
@@ -149,6 +155,7 @@ At least one
 .Ic ident
 directive is required.
 .\" -------- INCLUDE --------
+.Pp
 .It Ic include Ar filename
 Read subsequent text from file
 .Ar filename
@@ -156,6 +163,7 @@ and return to the current file after
 .Ar filename
 is successfully processed.
 .\" -------- MACHINE --------
+.Pp
 .It Ic machine Ar arch
 Specifies the architecture of the machine the kernel is being
 compiled for.
@@ -184,6 +192,8 @@ A kernel configuration file may have only one
 .Ic machine
 directive.
 .\" -------- MAKEOPTION --------
+.Pp
+.It Ic makeoption Ar options
 .It Ic makeoptions Ar options
 Add
 .Ar options
@@ -212,6 +222,7 @@ makeoptions MYMAKEOPTION="foobar"
 makeoptions MYNULLMAKEOPTION
 .Ed
 .\" -------- MAXUSERS --------
+.Pp
 .It Ic maxusers Ar number
 This optional directive is used to configure the size
 of some kernel data structures.
@@ -228,7 +239,17 @@ As explained in
 .Xr tuning 7 ,
 this tunable can also be set at boot time using
 .Xr loader 8 .
+.\" -------- NOCPU --------
+.Pp
+.It Ic nocpu Ar cputype
+Remove the specified CPU
+from the list of previously selected CPUs.
+This directive can be used to cancel the effect of
+.Ic cpu
+directives in files included using
+.Ic include .
 .\" -------- NODEVICE --------
+.Pp
 .It Ic nodevice Ar name Op , Ar name Op ...
 .It Ic nodevices Ar name Op , Ar name Op ...
 Remove the specified devices
@@ -240,7 +261,9 @@ or
 directives in files included using
 .Ic include .
 .\" -------- NOMAKEOPTION --------
+.Pp
 .It Ic nomakeoption Ar name
+.It Ic nomakeoptions Ar name
 Removes previously defined
 .Xr make 1
 option
@@ -251,6 +274,7 @@ This directive can be used to cancel the effects of
 directives in files included using
 .Ic include .
 .\" -------- NOOPTION --------
+.Pp
 .It Ic nooption Ar name Op , Ar name Op ...
 .It Ic nooptions Ar name Op , Ar name Op ...
 Remove the specified kernel options
@@ -262,6 +286,7 @@ or
 directives in files included using
 .Ic include .
 .\" -------- OPTIONS --------
+.Pp
 .It Ic option Ar optionspec Op , Ar optionspec Op ...
 .It Ic options Ar optionspec Op , Ar optionspec Op ...
 Add compile time kernel options to the kernel build.
@@ -281,6 +306,7 @@ Options specific to architecture
 are specified in the file
 .Pa sys/conf/options. Ns Aq Ar arch .
 .\" -------- PROFILE --------
+.Pp
 .It Ic profile Ar number
 Enables kernel profiling if
 .Ar number
@@ -298,6 +324,7 @@ option to
 The following kernel configuration directives are obsolete.
 .Bl -tag -width indent
 .\" -------- CONFIG --------
+.Pp
 .It Ic config
 This directive was used to specify the device to be used for the root
 file system.
