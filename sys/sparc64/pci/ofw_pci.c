@@ -27,9 +27,10 @@
  * SUCH DAMAGE.
  *
  *	from: NetBSD: psycho.c,v 1.35 2001/09/10 16:17:06 eeh Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
 
@@ -44,18 +45,18 @@
 
 #include <sparc64/pci/ofw_pci.h>
 
-static u_int8_t pci_bus_cnt;
+static uint8_t pci_bus_cnt;
 static phandle_t *pci_bus_map;
 static int pci_bus_map_sz;
 
 #define	PCI_BUS_MAP_INC	10
 
-u_int8_t
+uint8_t
 ofw_pci_alloc_busno(phandle_t node)
 {
 	phandle_t *om;
 	int osz;
-	u_int8_t n;
+	uint8_t n;
 
 	n = pci_bus_cnt++;
 	/* Establish a mapping between bus numbers and device nodes. */
