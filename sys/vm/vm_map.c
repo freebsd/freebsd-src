@@ -166,7 +166,6 @@ vm_map_startup(void)
 	uma_prealloc(kmapentzone, MAX_KMAPENT);
 	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_prealloc(mapentzone, MAX_MAPENT);
 }
 
 static void

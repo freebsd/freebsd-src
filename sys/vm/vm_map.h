@@ -296,7 +296,6 @@ long vmspace_wired_count(struct vmspace *vmspace);
 /* XXX: number of kernel maps and entries to statically allocate */
 #define MAX_KMAP	10
 #define	MAX_KMAPENT	128
-#define	MAX_MAPENT	128
 
 /*
  * Copy-on-write flags for vm_map operations
