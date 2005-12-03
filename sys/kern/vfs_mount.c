@@ -129,6 +129,7 @@ struct vnode	*rootvnode;
 static const char *global_opts[] = {
 	"fstype",
 	"fspath",
+	"rdonly",
 	"ro",
 	"rw",
 	"suid",
@@ -547,6 +548,9 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		fsflags &= ~MNT_RDONLY;
 
 	if (vfs_getopt(optlist, "ro", NULL, NULL) == 0)
+		fsflags |= MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "rdonly", NULL, NULL) == 0)
 		fsflags |= MNT_RDONLY;
 
 	if (vfs_getopt(optlist, "rw", NULL, NULL) == 0)
