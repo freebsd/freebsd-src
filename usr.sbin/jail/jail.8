@@ -42,6 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl i
+.Op Fl J Ar jid_file
 .Op Fl l u Ar username | Fl U Ar username
 .Ar path hostname ip-number command ...
 .Sh DESCRIPTION
@@ -53,6 +54,9 @@ The options are as follows:
 .Bl -tag -width ".Fl u Ar username"
 .It Fl i
 Output the jail identifier of the newly created jail.
+.It Fl J Ar jid_file
+Write a JidFile, like a PidFile, containing jailid, path, hostname, ip and
+command used to start the jail.
 .It Fl l
 Run program in the clean environment.
 The environment is discarded except for
