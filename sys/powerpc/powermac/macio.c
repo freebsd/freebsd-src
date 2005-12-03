@@ -48,6 +48,7 @@
 #include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <powerpc/powermac/maciovar.h>
@@ -80,11 +81,7 @@ static int  macio_deactivate_resource(device_t, device_t, int, int,
 static int  macio_release_resource(device_t, device_t, int, int,
 				   struct resource *);
 static struct resource_list *macio_get_resource_list (device_t, device_t);
-static ofw_bus_get_compat_t macio_get_compat;
-static ofw_bus_get_model_t macio_get_model;
-static ofw_bus_get_name_t macio_get_name;
-static ofw_bus_get_node_t macio_get_node;
-static ofw_bus_get_type_t macio_get_type;
+static ofw_bus_get_devinfo_t macio_get_devinfo;
 
 /*
  * Bus interface definition
@@ -111,11 +108,12 @@ static device_method_t macio_methods[] = {
         DEVMETHOD(bus_get_resource_list, macio_get_resource_list),	
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_compat,	macio_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	macio_get_model),
-	DEVMETHOD(ofw_bus_get_name,	macio_get_name),
-	DEVMETHOD(ofw_bus_get_node,	macio_get_node),
-	DEVMETHOD(ofw_bus_get_type,	macio_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo,	macio_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	{ 0, 0 }
 };
@@ -256,7 +254,6 @@ macio_attach(device_t dev)
 	phandle_t  subchild;
         device_t cdev;
         u_int reg[3];
-	char *name;
 	int quirks;
 
 	sc = device_get_softc(dev);
@@ -286,43 +283,36 @@ macio_attach(device_t dev)
 	 * Iterate through the sub-devices
 	 */
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		OF_getprop_alloc(child, "name", 1, (void **)&name);
-
-		quirks = macio_get_quirks(name);
-		if ((quirks & MACIO_QUIRK_IGNORE) != 0) {
-			free(name, M_OFWPROP);
+		dinfo = malloc(sizeof(*dinfo), M_MACIO, M_WAITOK | M_ZERO);
+		if (ofw_bus_gen_setup_devinfo(&dinfo->mdi_obdinfo, child) !=
+		    0) {
+			free(dinfo, M_MACIO);
 			continue;
 		}
-
-		cdev = device_add_child(dev, NULL, -1);
-		if (cdev != NULL) {
-			dinfo = malloc(sizeof(*dinfo), M_MACIO, M_WAITOK);
-			memset(dinfo, 0, sizeof(*dinfo));
-			resource_list_init(&dinfo->mdi_resources);
-			dinfo->mdi_node = child;
-			dinfo->mdi_name = name;
-			OF_getprop_alloc(child, "compatible", 1,
-			    (void **)&dinfo->mdi_compat);
-			OF_getprop_alloc(child, "device_type", 1,
-			    (void **)&dinfo->mdi_type);
-			OF_getprop_alloc(child, "model", 1,
-			    (void **)&dinfo->mdi_model);
-			dinfo->mdi_ninterrupts = 0;
-			macio_add_intr(child, dinfo);
-			macio_add_reg(child, dinfo);
-
-
-			if ((quirks & MACIO_QUIRK_CHILD_HAS_INTR) != 0) {
-				for (subchild = OF_child(child); subchild != 0;
-				    subchild = OF_peer(subchild)) {
-					macio_add_intr(subchild, dinfo);
-				}
-			}
-
-			device_set_ivars(cdev, dinfo);
-		} else {
-			free(name, M_OFWPROP);
+		quirks = macio_get_quirks(dinfo->mdi_obdinfo.obd_name);
+		if ((quirks & MACIO_QUIRK_IGNORE) != 0) {
+			ofw_bus_gen_destroy_devinfo(&dinfo->mdi_obdinfo);
+			free(dinfo, M_MACIO);
+			continue;
 		}
+		resource_list_init(&dinfo->mdi_resources);
+		dinfo->mdi_ninterrupts = 0;
+		macio_add_intr(child, dinfo);
+		macio_add_reg(child, dinfo);
+		if ((quirks & MACIO_QUIRK_CHILD_HAS_INTR) != 0)
+			for (subchild = OF_child(child); subchild != 0;
+			    subchild = OF_peer(subchild))
+				macio_add_intr(subchild, dinfo);
+		cdev = device_add_child(dev, NULL, -1);
+		if (cdev == NULL) {
+			device_printf(dev, "<%s>: device_add_child failed\n",
+			    dinfo->mdi_obdinfo.obd_name);
+			resource_list_free(&dinfo->mdi_resources);
+			ofw_bus_gen_destroy_devinfo(&dinfo->mdi_obdinfo);
+			free(dinfo, M_MACIO);
+			continue;
+		}
+		device_set_ivars(cdev, dinfo);
 	}
 
 	return (bus_generic_attach(dev));
@@ -535,56 +525,17 @@ macio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 static struct resource_list *
 macio_get_resource_list (device_t dev, device_t child)
 {
-	struct macio_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list *rl = &dinfo->mdi_resources;
+	struct macio_devinfo *dinfo;
 
-	if (!rl)
-		return (NULL);
-
-	return (rl);
+	dinfo = device_get_ivars(child);
+	return (&dinfo->mdi_resources);
 }
 
-const char *
-macio_get_compat(device_t bus, device_t dev)
+static const struct ofw_bus_devinfo *
+macio_get_devinfo(device_t dev, device_t child)
 {
 	struct macio_devinfo *dinfo;
 
-	dinfo = device_get_ivars(dev);
-	return (dinfo->mdi_compat);
-}
-
-const char *
-macio_get_model(device_t bus, device_t dev)
-{
-	struct macio_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->mdi_model);
-}
-
-const char *
-macio_get_name(device_t bus, device_t dev)
-{
-	struct macio_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->mdi_name);
-}
-
-static phandle_t
-macio_get_node(device_t bus, device_t dev)
-{
-	struct macio_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->mdi_node);
-}
-
-const char *
-macio_get_type(device_t bus, device_t dev)
-{
-	struct macio_devinfo *dinfo;
-
-	dinfo = device_get_ivars(dev);
-	return (dinfo->mdi_type);
+	dinfo = device_get_ivars(child);
+	return (&dinfo->mdi_obdinfo);
 }
