@@ -71,6 +71,7 @@ struct kt {
 	{ "hints",	HINTS },
 	{ "ident",	IDENT },
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
+	{ "makeoption",	MAKEOPTIONS },
 	{ "makeoptions", MAKEOPTIONS },
 	{ "nomakeoption", NOMAKEOPTION },
 	{ "nomakeoptions", NOMAKEOPTION },
