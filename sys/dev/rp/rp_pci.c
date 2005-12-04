@@ -104,7 +104,7 @@ static devclass_t rp_devclass;
 
 static int rp_pciprobe(device_t dev);
 static int rp_pciattach(device_t dev);
-#if notdef
+#ifdef notdef
 static int rp_pcidetach(device_t dev);
 static int rp_pcishutdown(device_t dev);
 #endif /* notdef */
@@ -306,7 +306,7 @@ sPCIInitController( CONTROLLER_t *CtlP,
       			CtlP->AiopNumChan[i] = 8;
 			break;
 		default:
-#if notdef
+#ifdef notdef
       			CtlP->AiopNumChan[i] = 8;
 #else
       			CtlP->AiopNumChan[i] = sReadAiopNumChan(CtlP, i);

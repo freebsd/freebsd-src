@@ -259,7 +259,7 @@ void ext2_free_inode (struct inode * inode)
 	unlock_super (DEVVP(inode));
 }
 
-#if linux
+#ifdef linux
 /*
  * This function increments the inode version number
  *

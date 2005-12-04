@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/device.h>
 #endif
 
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 #include <sys/rnd.h>
 #endif
 
@@ -465,7 +465,7 @@ USB_ATTACH(udav)
 	ether_ifattach(ifp, eaddr);
 #endif
 
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 	rnd_attach_source(&sc->rnd_source, devname, RND_TYPE_NET, 0);
 #endif
 
@@ -529,7 +529,7 @@ USB_DETACH(udav)
 #endif
 		udav_stop(GET_IFP(sc), 1);
 
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 	rnd_detach_source(&sc->rnd_source);
 #endif
 #if defined(__NetBSD__)

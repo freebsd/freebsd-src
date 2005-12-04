@@ -68,6 +68,6 @@ struct rp_port {
 };
 
 /* Actually not used */
-#if notdef
+#ifdef notdef
 extern struct termios deftermios;
 #endif /* notdef */

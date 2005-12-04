@@ -704,7 +704,7 @@ USB_ATTACH(ubt)
 		goto bad;
 	}
 
-#if __broken__ /* XXX FIXME */
+#if 0 /* XXX FIXME */
 	/* Isoc-in */
 	error = usbd_open_pipe(sc->sc_iface1, sc->sc_isoc_in_ep,
 			USBD_EXCLUSIVE_USE, &sc->sc_isoc_in_pipe);
@@ -724,7 +724,7 @@ USB_ATTACH(ubt)
 			error);
 		goto bad;
 	}
-#endif /* __broken__ */
+#endif
 
 	/* Create Netgraph node */
 	if (ng_make_node_common(&typestruct, &sc->sc_node) != 0) {
@@ -1906,7 +1906,7 @@ ng_ubt_connect(hook_p hook)
 		goto fail;
 	}
 
-#if __broken__ /* XXX FIXME */
+#if 0 /* XXX FIXME */
 	/* Start isoc-in transfer */
 	status = ubt_isoc_in_start(sc);
 	if (status != USBD_NORMAL_COMPLETION) {
@@ -1916,7 +1916,7 @@ ng_ubt_connect(hook_p hook)
 			status);
 		goto fail;
 	}
-#endif /* __broken__ */
+#endif
 
 	return (0);
 fail:
@@ -2167,13 +2167,13 @@ ng_ubt_rcvdata(hook_p hook, item_p item)
 		b = UBT_ACL_XMIT;
 		break;
 
-#if __broken__ /* XXX FIXME */
+#if 0 /* XXX FIXME */
 	case NG_HCI_SCO_DATA_PKT:
 		f = ubt_isoc_out_start;
 		q = &sc->sc_scoq;
 		b = UBT_SCO_XMIT;
 		break;
-#endif /* __broken__ */
+#endif
 
 	default:
 		NG_UBT_ERR(

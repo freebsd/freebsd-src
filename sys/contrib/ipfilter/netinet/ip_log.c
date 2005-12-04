@@ -62,7 +62,9 @@ struct file;
 # endif
 #endif /* _KERNEL */
 #if !SOLARIS && !defined(__hpux) && !defined(linux)
-# if (NetBSD > 199609) || (OpenBSD > 199603) || (__FreeBSD_version >= 300000)
+# if (defined(NetBSD) && NetBSD > 199609) || \
+     (defined(OpenBSD) && OpenBSD > 199603) || \
+     (__FreeBSD_version >= 300000)
 #  include <sys/dirent.h>
 # else
 #  include <sys/dir.h>
