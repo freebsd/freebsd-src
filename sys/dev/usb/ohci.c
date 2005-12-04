@@ -524,7 +524,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 	tdflags = htole32(
 	    (rd ? OHCI_TD_IN : OHCI_TD_OUT) |
 	    (flags & USBD_SHORT_XFER_OK ? OHCI_TD_R : 0) |
-	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY | OHCI_TD_NOINTR);
+	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY | OHCI_TD_SET_DI(6));
 
 	for (;;) {
 		next = ohci_alloc_std(sc);
@@ -1355,7 +1355,7 @@ ohci_softintr(void *v)
 {
 	ohci_softc_t *sc = v;
 	ohci_soft_itd_t *sitd, *sidone, *sitdnext;
-	ohci_soft_td_t  *std,  *sdone,  *stdnext;
+	ohci_soft_td_t  *std,  *sdone,  *stdnext, *p, *n;
 	usbd_xfer_handle xfer;
 	struct ohci_pipe *opipe;
 	int len, cc, s;
@@ -1386,14 +1386,11 @@ ohci_softintr(void *v)
 		stdnext = std->dnext;
 		DPRINTFN(10, ("ohci_process_done: std=%p xfer=%p hcpriv=%p\n",
 				std, xfer, (xfer ? xfer->hcpriv : NULL)));
-		if (xfer == NULL || (std->flags & OHCI_TD_HANDLED)) {
+		if (xfer == NULL) {
 			/*
 			 * xfer == NULL: There seems to be no xfer associated
 			 * with this TD. It is tailp that happened to end up on
 			 * the done queue.
-			 * flags & OHCI_TD_HANDLED: The TD has already been
-			 * handled by process_done and should not be done again.
-			 * Shouldn't happen, but some chips are broken(?).
 			 */
 			continue;
 		}
@@ -1404,9 +1401,6 @@ ohci_softintr(void *v)
 			/* Handled by abort routine. */
 			continue;
 		}
-		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
-		usb_rem_task(OXFER(xfer)->xfer.pipe->device,
-		    &OXFER(xfer)->abort_task);
 
 		len = std->len;
 		if (std->td.td_cbp != 0)
@@ -1418,38 +1412,32 @@ ohci_softintr(void *v)
 			xfer->actlen += len;
 
 		cc = OHCI_TD_GET_CC(le32toh(std->td.td_flags));
-		if (cc == OHCI_CC_NO_ERROR) {
-			if (std->flags & OHCI_CALL_DONE) {
-				xfer->status = USBD_NORMAL_COMPLETION;
-				s = splusb();
-				usb_transfer_complete(xfer);
-				splx(s);
-			}
-			ohci_free_std(sc, std);
-		} else {
+		if (cc != OHCI_CC_NO_ERROR) {
 			/*
 			 * Endpoint is halted.  First unlink all the TDs
 			 * belonging to the failed transfer, and then restart
 			 * the endpoint.
 			 */
-			ohci_soft_td_t *p, *n;
 			opipe = (struct ohci_pipe *)xfer->pipe;
 
 			DPRINTFN(15,("ohci_process_done: error cc=%d (%s)\n",
 			  OHCI_TD_GET_CC(le32toh(std->td.td_flags)),
 			  ohci_cc_strs[OHCI_TD_GET_CC(le32toh(std->td.td_flags))]));
+			usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
+			usb_rem_task(OXFER(xfer)->xfer.pipe->device,
+			    &OXFER(xfer)->abort_task);
 
-
-			/* Mark all the TDs in the done queue for the current
-			 * xfer as handled
-			 */
-			for (p = stdnext; p; p = p->dnext) {
-				if (p->xfer == xfer)
-					p->flags |= OHCI_TD_HANDLED;
+			/* Remove all this xfer's TDs from the done queue. */
+			for (p = std; p->dnext != NULL; p = p->dnext) {
+				if (p->dnext->xfer != xfer)
+					continue;
+				p->dnext = p->dnext->dnext;
 			}
+			/* The next TD may have been removed. */
+			stdnext = std->dnext;
 
-			/* remove TDs */
-			for (p = std; p->xfer == xfer; p = n) {
+			/* Remove all TDs belonging to this xfer. */
+			for (p = xfer->hcpriv; p->xfer == xfer; p = n) {
 				n = p->nexttd;
 				ohci_free_std(sc, p);
 			}
@@ -1465,7 +1453,27 @@ ohci_softintr(void *v)
 			s = splusb();
 			usb_transfer_complete(xfer);
 			splx(s);
+			continue;
 		}
+		/*
+		 * Skip intermediate TDs. They remain linked from
+		 * xfer->hcpriv and we free them when the transfer completes.
+		 */
+		if ((std->flags & OHCI_CALL_DONE) == 0)
+			continue;
+
+		/* Normal transfer completion */
+		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
+		usb_rem_task(OXFER(xfer)->xfer.pipe->device,
+		    &OXFER(xfer)->abort_task);
+		for (p = xfer->hcpriv; p->xfer == xfer; p = n) {
+			n = p->nexttd;
+			ohci_free_std(sc, p);
+		}
+		xfer->status = USBD_NORMAL_COMPLETION;
+		s = splusb();
+		usb_transfer_complete(xfer);
+		splx(s);
 	}
 
 #ifdef USB_DEBUG
@@ -1779,7 +1787,7 @@ ohci_device_request(usbd_xfer_handle xfer)
 	memcpy(KERNADDR(&opipe->u.ctl.reqdma, 0), req, sizeof *req);
 
 	setup->td.td_flags = htole32(OHCI_TD_SETUP | OHCI_TD_NOCC |
-				     OHCI_TD_TOGGLE_0 | OHCI_TD_NOINTR);
+				     OHCI_TD_TOGGLE_0 | OHCI_TD_SET_DI(6));
 	setup->td.td_cbp = htole32(DMAADDR(&opipe->u.ctl.reqdma, 0));
 	setup->nexttd = next;
 	setup->td.td_nexttd = htole32(next->physaddr);
