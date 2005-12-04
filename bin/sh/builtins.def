@@ -48,10 +48,8 @@
 
 bltincmd	builtin
 commandcmd	command
-#alloccmd	alloc
 bgcmd -j	bg
 breakcmd	break continue
-#catfcmd	catf
 cdcmd		cd chdir
 dotcmd		.
 echocmd		echo
@@ -68,9 +66,7 @@ getoptscmd	getopts
 hashcmd		hash
 jobidcmd	jobid
 jobscmd		jobs
-#linecmd		line
 localcmd	local
-#nlechocmd	nlecho
 #printfcmd	printf
 pwdcmd		pwd
 readcmd		read
@@ -86,7 +82,6 @@ umaskcmd	umask
 unaliascmd	unalias
 unsetcmd	unset
 waitcmd		wait
-#foocmd		foo
 aliascmd	alias
 ulimitcmd	ulimit
 testcmd		test [
