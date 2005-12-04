@@ -2060,10 +2060,6 @@ dc_attach(device_t dev)
 		dc_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 1);
 		break;
 	case DC_TYPE_DM9102:
-#ifdef __sparc64__
-		for (i = 0; i < (ETHER_ADDR_LEN+3)/4; i++)
-			eaddr[i] = 0;
-#endif
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
 #ifdef __sparc64__
 		/*
@@ -2071,10 +2067,10 @@ dc_attach(device_t dev)
 		 * the EEPROM is all zero and we have to get it from the fcode.
 		 */
 		for (i = 0; i < (ETHER_ADDR_LEN+3)/4; i++)
-			if (eaddr[i] != 0x00)
+			if (eaddr[i] != 0)
 				break;
 		if (i >= (ETHER_ADDR_LEN+3)/4)
-			OF_getetheraddr(dev, eaddr);
+			OF_getetheraddr(dev, (caddr_t)&eaddr);
 #endif
 		break;
 	case DC_TYPE_21143:
