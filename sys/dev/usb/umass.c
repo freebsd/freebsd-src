@@ -314,6 +314,8 @@ struct umass_devdescr_t {
 #	define NO_INQUIRY		0x0400
 	/* Device cannot handle INQUIRY EVPD, return CHECK CONDITION */
 #	define NO_INQUIRY_EVPD		0x0800
+	/* Pad all RBC requests to 12 bytes. */
+#	define RBC_PAD_TO_12		0x1000
 };
 
 Static struct umass_devdescr_t umass_devdescrs[] = {
@@ -434,6 +436,10 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	{ USB_VENDOR_SIIG, USB_PRODUCT_SIIG_WINTERREADER, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  IGNORE_RESIDUE
+	},
+	{ USB_VENDOR_SONY, USB_PRODUCT_SONY_DSC, 0x0500,
+	  UMASS_PROTO_RBC | UMASS_PROTO_CBI,
+	  RBC_PAD_TO_12
 	},
 	{ USB_VENDOR_SONY, USB_PRODUCT_SONY_DSC, RID_WILDCARD,
 	  UMASS_PROTO_RBC | UMASS_PROTO_CBI,
@@ -2907,8 +2913,14 @@ umass_rbc_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	  * appears to support those as well */
 	case REQUEST_SENSE:
 	case PREVENT_ALLOW:
-		*rcmd = cmd;		/* We don't need to copy it */
-		*rcmdlen = cmdlen;
+		if ((sc->quirks & RBC_PAD_TO_12) && cmdlen < 12) {
+			*rcmdlen = 12;
+			bcopy(cmd, *rcmd, cmdlen);
+			bzero(*rcmd + cmdlen, 12 - cmdlen);
+		} else {
+			*rcmd = cmd;		/* We don't need to copy it */
+			*rcmdlen = cmdlen;
+		}
 		return 1;
 	/* All other commands are not legal in RBC */
 	default:
