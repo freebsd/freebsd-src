@@ -1077,6 +1077,8 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 	struct ieee80211com *ic = nt->nt_ic;
 	struct ieee80211_node *ni;
 
+	IEEE80211_DPRINTF(nt->nt_ic, IEEE80211_MSG_NODE,
+	    "%s: mac<%s>\n", __func__, ether_sprintf(macaddr));
 	ni = ieee80211_dup_bss(nt, macaddr);
 	if (ni != NULL) {
 		/* XXX no rate negotiation; just dup */
@@ -1218,6 +1220,34 @@ ieee80211_add_scan(struct ieee80211com *ic,
 #undef ISPROBE
 }
 
+void
+ieee80211_init_neighbor(struct ieee80211_node *ni,
+	const struct ieee80211_frame *wh,
+	const struct ieee80211_scanparams *sp)
+{
+
+	IEEE80211_DPRINTF(ni->ni_ic, IEEE80211_MSG_NODE,
+	    "%s: %p<%s>\n", __func__, ni, ether_sprintf(ni->ni_macaddr));
+	ni->ni_esslen = sp->ssid[1];
+	memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
+	IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
+	memcpy(ni->ni_tstamp.data, sp->tstamp, sizeof(ni->ni_tstamp));
+	ni->ni_intval = sp->bintval;
+	ni->ni_capinfo = sp->capinfo;
+	ni->ni_chan = ni->ni_ic->ic_curchan;
+	ni->ni_fhdwell = sp->fhdwell;
+	ni->ni_fhindex = sp->fhindex;
+	ni->ni_erp = sp->erp;
+	ni->ni_timoff = sp->timoff;
+	if (sp->wme != NULL)
+		ieee80211_saveie(&ni->ni_wme_ie, sp->wme);
+	if (sp->wpa != NULL)
+		ieee80211_saveie(&ni->ni_wpa_ie, sp->wpa);
+
+	/* NB: must be after ni_chan is setup */
+	ieee80211_setup_rates(ni, sp->rates, sp->xrates, IEEE80211_F_DOSORT);
+}
+
 /*
  * Do node discovery in adhoc mode on receipt of a beacon
  * or probe response frame.  Note that for the driver's
@@ -1231,27 +1261,11 @@ ieee80211_add_neighbor(struct ieee80211com *ic,
 {
 	struct ieee80211_node *ni;
 
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
+	    "%s: mac<%s>\n", __func__, ether_sprintf(wh->i_addr2));
 	ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);/* XXX alloc_node? */
 	if (ni != NULL) {
-		ni->ni_esslen = sp->ssid[1];
-		memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
-		IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
-		memcpy(ni->ni_tstamp.data, sp->tstamp, sizeof(ni->ni_tstamp));
-		ni->ni_intval = sp->bintval;
-		ni->ni_capinfo = sp->capinfo;
-		ni->ni_chan = ic->ic_bss->ni_chan;
-		ni->ni_fhdwell = sp->fhdwell;
-		ni->ni_fhindex = sp->fhindex;
-		ni->ni_erp = sp->erp;
-		ni->ni_timoff = sp->timoff;
-		if (sp->wme != NULL)
-			ieee80211_saveie(&ni->ni_wme_ie, sp->wme);
-		if (sp->wpa != NULL)
-			ieee80211_saveie(&ni->ni_wpa_ie, sp->wpa);
-
-		/* NB: must be after ni_chan is setup */
-		ieee80211_setup_rates(ni, sp->rates, sp->xrates, IEEE80211_F_DOSORT);
-
+		ieee80211_init_neighbor(ni, wh, sp);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
