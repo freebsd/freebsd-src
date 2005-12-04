@@ -28,7 +28,7 @@
 #ifndef __INCmvOsBsdh
 #define __INCmvOsBsdh
 
-#if DBG
+#ifdef DBG
 #define MV_DEBUG_LOG
 #endif
 
@@ -131,7 +131,7 @@ int mvLogMsg(MV_U8, MV_CHAR_PTR, ...);
 /*************************************************************************
  * Debug support
  *************************************************************************/
-#if DEBUG
+#ifdef DEBUG
 #define HPT_ASSERT(x) do { if (!(x)) { \
 						printf("ASSERT fail at %s line %d", __FILE__, __LINE__); \
 						while (1); \

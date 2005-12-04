@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_vga.h"
 #include "opt_fb.h"
+#ifndef FB_DEBUG
+#define	FB_DEBUG	0
+#endif
 #include "opt_syscons.h"	/* should be removed in the future, XXX */
 
 #include <sys/param.h>
@@ -170,7 +173,7 @@ vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *pad
 #ifdef SLOW_VGA
 #undef SLOW_VGA
 #undef VGA_SLOW_IOACCESS
-#define VGA_SLOW_IOACCESS	1
+#define VGA_SLOW_IOACCESS
 #endif
 
 /* architecture dependent option */
@@ -1047,7 +1050,7 @@ probe_adapters(void)
     fb_init_struct(&biosadapter[V_ADP_SECONDARY], ...);
 #endif
 
-#if notyet
+#ifdef notyet
     /*
      * We cannot have two video adapter of the same type; there must be
      * only one of color or mono adapter, or one each of them.
@@ -1700,7 +1703,7 @@ set_font_mode(video_adapter_t *adp, u_char *buf)
     inb(adp->va_crtc_addr + 6);			/* reset flip-flop */
     outb(ATC, 0x20);				/* enable palette */
 
-#if VGA_SLOW_IOACCESS
+#ifdef VGA_SLOW_IOACCESS
 #ifdef VGA_ALT_SEQACCESS
     outb(TSIDX, 0x00); outb(TSREG, 0x01);
 #endif
@@ -1742,7 +1745,7 @@ set_normal_mode(video_adapter_t *adp, u_char *buf)
     inb(adp->va_crtc_addr + 6);			/* reset flip-flop */
     outb(ATC, 0x20);				/* enable palette */
 
-#if VGA_SLOW_IOACCESS
+#ifdef VGA_SLOW_IOACCESS
 #ifdef VGA_ALT_SEQACCESS
     outb(TSIDX, 0x00); outb(TSREG, 0x01);
 #endif
@@ -2219,7 +2222,7 @@ vga_load_state(video_adapter_t *adp, void *p)
     inb(crtc_addr + 6);				/* reset flip-flop */
     outb(ATC, 0x20);				/* enable palette */
 
-#if notyet /* a temporary workaround for kernel panic, XXX */
+#ifdef notyet /* a temporary workaround for kernel panic, XXX */
 #ifndef VGA_NO_BIOS
     if (adp->va_unit == V_ADP_PRIMARY) {
 	writeb(BIOS_PADDRTOVADDR(0x44a), buf[0]);	/* COLS */

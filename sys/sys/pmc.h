@@ -894,7 +894,7 @@ extern struct pmc_mdep *md;
 /* driver statistics */
 extern struct pmc_op_getdriverstats pmc_stats;
 
-#if	DEBUG
+#if	defined(DEBUG) && DEBUG
 
 /* debug flags, major flag groups */
 struct pmc_debugflags {

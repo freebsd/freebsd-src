@@ -1815,7 +1815,7 @@ ntfs_readattr(
 	return (error);
 }
 
-#if UNUSED_CODE
+#if 0
 int
 ntfs_parserun(
 	      cn_t * cn,
@@ -1905,7 +1905,7 @@ ntfs_procfixups(
 	return (0);
 }
 
-#if UNUSED_CODE
+#if 0
 int
 ntfs_runtocn(
 	     cn_t * cn,	
