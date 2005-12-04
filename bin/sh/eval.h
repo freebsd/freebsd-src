@@ -56,6 +56,7 @@ int returncmd(int, char **);
 int falsecmd(int, char **);
 int truecmd(int, char **);
 int execcmd(int, char **);
+int timescmd(int, char **);
 int commandcmd(int, char **);
 
 /* in_function returns nonzero if we are currently evaluating a function */
