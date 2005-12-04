@@ -104,14 +104,14 @@
 #include <net/netisr.h>
 #include <net/bpf.h>
 
-#if INET
+#ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #endif
 
-#if IPX
+#ifdef IPX
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #endif
@@ -193,10 +193,10 @@ extern struct compressor ppp_bsd_compress;
 extern struct compressor ppp_deflate, ppp_deflate_draft;
 
 static struct compressor *ppp_compressors[8] = {
-#if DO_BSD_COMPRESS && defined(PPP_BSDCOMP)
+#if defined(PPP_BSDCOMP)
     &ppp_bsd_compress,
 #endif
-#if DO_DEFLATE && defined(PPP_DEFLATE)
+#if defined(PPP_DEFLATE)
     &ppp_deflate,
     &ppp_deflate_draft,
 #endif

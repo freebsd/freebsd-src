@@ -41,7 +41,7 @@
 #define MOUSE_READSTATE		_IOWR('M', 8, mousedata_t)
 #define MOUSE_READDATA		_IOWR('M', 9, mousedata_t)
 
-#if notyet
+#ifdef notyet
 #define MOUSE_SETRESOLUTION	_IOW('M', 10, int)
 #define MOUSE_SETSCALING	_IOW('M', 11, int)
 #define MOUSE_SETRATE		_IOW('M', 12, int)

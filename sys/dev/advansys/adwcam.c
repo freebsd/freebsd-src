@@ -1290,7 +1290,7 @@ adw_intr(void *arg)
 			 * Handle RDMA failure by resetting the
 			 * SCSI Bus and chip.
 			 */
-#if XXX
+#if 0 /* XXX */
 			AdvResetChipAndSB(adv_dvc_varp);
 #endif
 			break;

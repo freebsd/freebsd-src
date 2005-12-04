@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 
 #include <machine/clock.h>
-#if __sparc64__ || __powerpc__
+#if defined(__sparc64__) || defined(__powerpc__)
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
@@ -538,7 +538,7 @@ scclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	    DPRINTF(5, ("reset WAIT_REL, "));
 	if (finish_vt_acq(scp) == 0)		/* force acknowledge */
 	    DPRINTF(5, ("reset WAIT_ACQ, "));
-#if not_yet_done
+#ifdef not_yet_done
 	if (scp == &main_console) {
 	    scp->pid = 0;
 	    scp->proc = NULL;

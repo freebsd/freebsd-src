@@ -57,7 +57,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
 #define DEBUGFUNC(F)        DEBUGOUT(F);
-#if DBG
+#ifdef DBG
 	#define DEBUGOUT(S)         printf(S "\n")
 	#define DEBUGOUT1(S,A)      printf(S "\n",A)
 	#define DEBUGOUT2(S,A,B)    printf(S "\n",A,B)

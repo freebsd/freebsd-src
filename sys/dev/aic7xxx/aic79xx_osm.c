@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #define ccb_scb_ptr spriv_ptr0
 
-#if UNUSED
+#if 0
 static void	ahd_dump_targcmd(struct target_cmd *cmd);
 #endif
 static int	ahd_modevent(module_t mod, int type, void *data);
@@ -1489,7 +1489,7 @@ ahd_detach(device_t dev)
 	return (0);
 }
 
-#if UNUSED
+#if 0
 static void
 ahd_dump_targcmd(struct target_cmd *cmd)
 {

@@ -288,7 +288,7 @@ adv_pci_attach(device_t dev)
 	adv->max_dma_count = ADV_PCI_MAX_DMA_COUNT;
 	adv->max_dma_addr = ADV_PCI_MAX_DMA_ADDR;
 
-#if CC_DISABLE_PCI_PARITY_INT
+#if defined(CC_DISABLE_PCI_PARITY_INT) && CC_DISABLE_PCI_PARITY_INT
 	{
 		u_int16_t config_msw;
 

@@ -81,7 +81,7 @@ bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 	lss->__bits[1] = bss->__bits[1];
 	for (b = 1; b <= LINUX_SIGTBLSZ; b++) {
 		if (SIGISMEMBER(*bss, b)) {
-#if __alpha__
+#ifdef __alpha__
 			l = _SIG_IDX(b);
 #else
 			l = bsd_to_linux_signal[_SIG_IDX(b)];

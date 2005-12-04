@@ -118,7 +118,7 @@
 #define AHD_NSEG (roundup(btoc(MAXPHYS) + 1, 16))
 
 /* This driver supports target mode */
-#if NOT_YET
+#ifdef NOT_YET
 #define AHD_TARGET_MODE 1
 #endif
 

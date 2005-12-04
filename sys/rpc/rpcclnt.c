@@ -409,7 +409,7 @@ rpcclnt_connect(rpc, td)
 		if (error)
 			goto bad;
 
-#if __OpenBSD__
+#ifdef __OpenBSD__
 		MGET(m, M_TRYWAIT, MT_SONAME);
 		sin = mtod(m, struct sockaddr_in *);
 		sin->sin_len = m->m_len = sizeof(struct sockaddr_in);
@@ -428,7 +428,7 @@ rpcclnt_connect(rpc, td)
 		if (error)
 			goto bad;
 
-#if __OpenBSD__
+#ifdef __OpenBSD__
 		MGET(mopt, M_TRYWAIT, MT_SOOPTS);
 		mopt->m_len = sizeof(int);
 		ip = mtod(mopt, int *);
@@ -1388,7 +1388,7 @@ rpcclnt_timer(arg)
 	struct thread  *td = curthread;
 #endif
 
-#if __OpenBSD__
+#ifdef __OpenBSD__
 	s = splsoftnet();
 #else
 	s = splnet();

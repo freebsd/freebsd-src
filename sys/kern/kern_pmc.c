@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #include <sys/smp.h>
 
-#if	HWPMC_HOOKS
+#ifdef	HWPMC_HOOKS
 #define	PMC_KERNEL_VERSION	PMC_VERSION
 #else
 #define	PMC_KERNEL_VERSION	0
