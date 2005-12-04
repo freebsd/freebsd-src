@@ -1519,7 +1519,7 @@ slhci_transaction(struct slhci_softc *sc, usbd_pipe_handle pipe,
 	sl11write(sc, SL11_ISR, 0xff);
 
 	DPRINTF(D_XFER, ("t=%d i=%x ", SLHCI_TIMEOUT - timeout, isr));
-#if SLHCI_DEBUG
+#ifdef SLHCI_DEBUG
 	bitmask_snprintf(result,
 		"\20\x8STALL\7NAK\6OV\5SETUP\4DATA1\3TIMEOUT\2ERR\1ACK",
 		str, sizeof(str));
@@ -1535,7 +1535,7 @@ slhci_transaction(struct slhci_softc *sc, usbd_pipe_handle pipe,
 	/* Read buffer if PID_IN */
 	if (pid == SL11_PID_IN && len > 0) {
 		sl11read_region(sc, buf, 0x40, len);
-#if SLHCI_DEBUG
+#ifdef SLHCI_DEBUG
 		for (i = 0; i < len; i++)
 			DPRINTF(D_XFER, ("%02X ", buf[i]));
 #endif

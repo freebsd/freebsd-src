@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.
  *
@@ -1108,7 +1106,7 @@ typedef	struct	ipftune	{
 #if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
     (defined(NetBSD1_2) && NetBSD1_2 > 1) || \
     (defined(__FreeBSD__) && (__FreeBSD_version >= 500043))
-# if (NetBSD >= 199905)
+# if defined(NetBSD) && (NetBSD >= 199905)
 #  define PFIL_HOOKS
 # endif
 # ifdef PFIL_HOOKS
@@ -1180,9 +1178,11 @@ extern	void	ipfilter_sgi_intfsync __P((void));
 #   ifdef	IPFILTER_LKM
 extern	int	iplidentify __P((char *));
 #   endif
-#   if (_BSDI_VERSION >= 199510) || (__FreeBSD_version >= 220000) || \
+#   if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199510) || \
+      (__FreeBSD_version >= 220000) || \
       (NetBSD >= 199511) || defined(__OpenBSD__)
-#    if defined(__NetBSD__) || (_BSDI_VERSION >= 199701) || \
+#    if defined(__NetBSD__) || \
+       (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199701) || \
        defined(__OpenBSD__) || (__FreeBSD_version >= 300000)
 #     if (__FreeBSD_version >= 500024)
 #      if (__FreeBSD_version >= 502116)

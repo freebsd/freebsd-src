@@ -4955,7 +4955,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	if (ifa && si)
 	{
 		int error;
-#if __NetBSD_Version__ >= 103080000
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 103080000
 		struct sockaddr_in new_sin = *si;
 
 		new_sin.sin_addr.s_addr = htonl(src);

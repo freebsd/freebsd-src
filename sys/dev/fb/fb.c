@@ -304,7 +304,7 @@ vid_configure(int flags)
 
 #ifdef FB_INSTALL_CDEV
 
-#if experimental
+#if 0 /* experimental */
 
 static devclass_t	fb_devclass;
 
@@ -348,12 +348,12 @@ fbattach(device_t dev)
 	return 0;
 }
 
-#endif /* experimental */
+#endif
 
 #define FB_UNIT(dev)	minor(dev)
 #define FB_MKMINOR(unit) (u)
 
-#if experimental
+#if 0 /* experimental */
 static d_open_t		fbopen;
 static d_close_t	fbclose;
 static d_read_t		fbread;

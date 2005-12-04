@@ -725,7 +725,7 @@ hpfs_open(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-#if HPFS_DEBUG
+#ifdef HPFS_DEBUG
 	register struct vnode *vp = ap->a_vp;
 	register struct hpfsnode *hp = VTOHP(vp);
 
@@ -754,7 +754,7 @@ hpfs_close(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-#if HPFS_DEBUG
+#ifdef HPFS_DEBUG
 	register struct vnode *vp = ap->a_vp;
 	register struct hpfsnode *hp = VTOHP(vp);
 
