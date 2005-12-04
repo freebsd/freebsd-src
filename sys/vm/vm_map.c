@@ -296,10 +296,8 @@ vmspace_dofree(struct vmspace *vm)
 	 * Delete all of the mappings and pages they hold, then call
 	 * the pmap module to reclaim anything left.
 	 */
-	vm_map_lock(&vm->vm_map);
-	(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
+	(void)vm_map_remove(&vm->vm_map, vm->vm_map.min_offset,
 	    vm->vm_map.max_offset);
-	vm_map_unlock(&vm->vm_map);
 
 	uma_zfree(vmspace_zone, vm);
 }
