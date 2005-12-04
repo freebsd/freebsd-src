@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 static int      MY_USEIOSPACE = 1;
 
-#if (MY_USEIOSPACE)
+#ifdef MY_USEIOSPACE
 #define MY_RES                  SYS_RES_IOPORT
 #define MY_RID                  MY_PCI_LOIO
 #else

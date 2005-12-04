@@ -194,7 +194,7 @@ struct udav_softc {
 	struct lock		sc_mii_lock;
 	int			sc_link;
 #define	sc_media udav_mii.mii_media
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 	rndsource_element_t	rnd_source;
 #endif
 	struct ue_cdata		sc_cdata;

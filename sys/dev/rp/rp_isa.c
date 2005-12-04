@@ -242,7 +242,7 @@ rp_attach(device_t dev)
 
 	ctlp = device_get_softc(dev);
 
-#if notdef
+#ifdef notdef
 	num_aiops = sInitController(ctlp,
 				rp_controller,
 				MAX_AIOPS_PER_BOARD, 0,

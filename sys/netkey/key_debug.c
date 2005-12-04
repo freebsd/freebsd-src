@@ -680,7 +680,7 @@ kdebug_secasv(sav)
 	if (sav->lft_s != NULL)
 		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_s);
 
-#if notyet
+#ifdef notyet
 	/* XXX: misc[123] ? */
 #endif
 

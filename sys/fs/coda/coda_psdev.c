@@ -570,7 +570,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 					       error, i);
 #endif
 
-#if notyet
+#ifdef notyet
 					tempset = td->td_siglist;
 					SIGSETNAND(tempset, td->td_sigmask);
 					printf("coda_call: siglist = %p, sigmask = %p, mask %p\n",

@@ -200,7 +200,7 @@ Static	void uplcom_rts(struct uplcom_softc *, int);
 Static	void uplcom_break(struct uplcom_softc *, int);
 Static	void uplcom_set_line_state(struct uplcom_softc *);
 Static	void uplcom_get_status(void *, int, u_char *, u_char *);
-#if TODO
+#if 0 /* TODO */
 Static	int  uplcom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 #endif
 Static	int  uplcom_param(void *, int, struct termios *);
@@ -988,7 +988,7 @@ uplcom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 		*msr = sc->sc_msr;
 }
 
-#if TODO
+#if 0 /* TODO */
 Static int
 uplcom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
 	     usb_proc_ptr p)

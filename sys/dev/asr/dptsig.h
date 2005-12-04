@@ -76,7 +76,7 @@ typedef unsigned long sigLONG;
 #endif	/* aix */
 #endif
 /* For the Macintosh */
-#if STRUCTALIGNMENTSUPPORTED
+#ifdef STRUCTALIGNMENTSUPPORTED
 #pragma options align=mac68k
 #endif
 
@@ -458,7 +458,7 @@ typedef struct dpt_sig_Packed {
 #endif	/* aix */
 #endif
 /* For the Macintosh */
-#if STRUCTALIGNMENTSUPPORTED
+#ifdef STRUCTALIGNMENTSUPPORTED
 #pragma options align=reset
 #endif
 

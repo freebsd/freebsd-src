@@ -2958,7 +2958,7 @@ ncr53c9x_timeout(void *arg)
 	    sc->sc_phase, sc->sc_prevphase,
 	    (long)sc->sc_dleft, sc->sc_msgpriq, sc->sc_msgout,
 	    NCRDMA_ISACTIVE(sc) ? "DMA active" : "");
-#if NCR53C9X_DEBUG > 1
+#if defined(NCR53C9X_DEBUG) && NCR53C9X_DEBUG > 1
 	printf("TRACE: %s.", ecb->trace);
 #endif
 
