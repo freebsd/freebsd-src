@@ -2884,7 +2884,7 @@ mouse_ext_command(KBDC kbdc, int command)
     return TRUE;
 }
 
-#if notyet
+#ifdef notyet
 /* Logitech MouseMan Cordless II */
 static int
 enable_lcordless(struct psm_softc *sc)

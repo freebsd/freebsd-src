@@ -589,7 +589,7 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 }
 
 #else
-#if	LOCKING_WORKED_AS_IT_SHOULD
+#ifdef	LOCKING_WORKED_AS_IT_SHOULD
 #error "Shouldn't Be Here!"
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\

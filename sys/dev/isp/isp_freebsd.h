@@ -66,7 +66,7 @@
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
  */
-#if	_MACHINE_ARCH == sparc64
+#ifdef __sparc64__
 #define	ISP_SBUS_SUPPORTED	1
 #else
 #define	ISP_SBUS_SUPPORTED	0

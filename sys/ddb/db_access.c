@@ -49,6 +49,10 @@ static unsigned db_extend[] = {	/* table for sign-extending */
 	0xFF800000U
 };
 
+#ifndef BYTE_MSF
+#define	BYTE_MSF	0
+#endif
+
 db_expr_t
 db_get_value(addr, size, is_signed)
 	db_addr_t	addr;
