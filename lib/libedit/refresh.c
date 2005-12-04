@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: refresh.c,v 1.26 2003/08/07 16:44:33 agc Exp $
+ *	$NetBSD: refresh.c,v 1.27 2005/11/09 22:11:10 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -54,6 +54,7 @@ private void	re_update_line(EditLine *, char *, char *, int);
 private void	re_insert (EditLine *, char *, int, int, char *, int);
 private void	re_delete(EditLine *, char *, int, int, int);
 private void	re_fastputc(EditLine *, int);
+private void	re_clear_eol(EditLine *, int, int, int);
 private void	re__strncopy(char *, char *, size_t);
 private void	re__copy_and_pad(char *, const char *, size_t);
 
@@ -345,7 +346,7 @@ re_insert(EditLine *el __unused,
 	ELRE_DEBUG(1,
 	    (__F, "re_insert() starting: %d at %d max %d, d == \"%s\"\n",
 	    num, dat, dlen, d));
-	ELRE_DEBUG(1, (__F, "s == \"%s\"n", s));
+	ELRE_DEBUG(1, (__F, "s == \"%s\"\n", s));
 
 	/* open up the space for num chars */
 	if (num > 0) {
@@ -358,7 +359,7 @@ re_insert(EditLine *el __unused,
 	ELRE_DEBUG(1, (__F,
 		"re_insert() after insert: %d at %d max %d, d == \"%s\"\n",
 		num, dat, dlen, d));
-	ELRE_DEBUG(1, (__F, "s == \"%s\"n", s));
+	ELRE_DEBUG(1, (__F, "s == \"%s\"\n", s));
 
 	/* copy the characters */
 	for (a = d + dat; (a < d + dlen) && (num > 0); num--)
@@ -367,7 +368,7 @@ re_insert(EditLine *el __unused,
 	ELRE_DEBUG(1,
 	    (__F, "re_insert() after copy: %d at %d max %d, %s == \"%s\"\n",
 	    num, dat, dlen, d, s));
-	ELRE_DEBUG(1, (__F, "s == \"%s\"n", s));
+	ELRE_DEBUG(1, (__F, "s == \"%s\"\n", s));
 }
 
 
@@ -416,6 +417,32 @@ re__strncopy(char *a, char *b, size_t n)
 		*a++ = *b++;
 }
 
+/* re_clear_eol():
+ *	Find the number of characters we need to clear till the end of line
+ *	in order to make sure that we have cleared the previous contents of
+ *	the line. fx and sx is the number of characters inserted or deleted
+ *	int the first or second diff, diff is the difference between the
+ * 	number of characters between the new and old line.
+ */
+private void
+re_clear_eol(EditLine *el, int fx, int sx, int diff)
+{
+
+	ELRE_DEBUG(1, (__F, "re_clear_eol sx %d, fx %d, diff %d\n",
+	    sx, fx, diff));
+
+	if (fx < 0)
+		fx = -fx;
+	if (sx < 0)
+		sx = -sx;
+	if (fx > diff)
+		diff = fx;
+	if (sx > diff)
+		diff = sx;
+
+	ELRE_DEBUG(1, (__F, "re_clear_eol %d\n", diff));
+	term_clear_EOL(el, diff);
+}
 
 /*****************************************************************
     re_update_line() is based on finding the middle difference of each line
@@ -631,7 +658,7 @@ re_update_line(EditLine *el, char *old, char *new, int i)
 	fx = (nsb - nfd) - (osb - ofd);
 	sx = (nls - nse) - (ols - ose);
 
-	ELRE_DEBUG(1, (__F, "\n"));
+	ELRE_DEBUG(1, (__F, "fx %d, sx %d\n", fx, sx));
 	ELRE_DEBUG(1, (__F, "ofd %d, osb %d, ose %d, ols %d, oe %d\n",
 		ofd - old, osb - old, ose - old, ols - old, oe - old));
 	ELRE_DEBUG(1, (__F, "nfd %d, nsb %d, nse %d, nls %d, ne %d\n",
@@ -780,9 +807,7 @@ re_update_line(EditLine *el, char *old, char *new, int i)
 		         * write (nsb-nfd) chars of new starting at nfd
 		         */
 			term_overwrite(el, nfd, (nsb - nfd));
-			ELRE_DEBUG(1, (__F,
-			    "cleareol %d\n", (oe - old) - (ne - new)));
-			term_clear_EOL(el, (oe - old) - (ne - new));
+			re_clear_eol(el, fx, sx, (oe - old) - (ne - new));
 			/*
 		         * Done
 		         */
@@ -823,10 +848,7 @@ re_update_line(EditLine *el, char *old, char *new, int i)
 			ELRE_DEBUG(1, (__F,
 			    "but with nothing left to save\r\n"));
 			term_overwrite(el, nse, (nls - nse));
-			ELRE_DEBUG(1, (__F,
-			    "cleareol %d\n", (oe - old) - (ne - new)));
-			if ((oe - old) - (ne - new) != 0)
-				term_clear_EOL(el, (oe - old) - (ne - new));
+			re_clear_eol(el, fx, sx, (oe - old) - (ne - new));
 		}
 	}
 	/*
