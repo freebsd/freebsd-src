@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2005
+.Dd December 4, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1952,6 +1952,11 @@ A shift sets the value of $1 to the value of $2,
 the value of $2 to the value of $3, and so on,
 decreasing the value of $# by one.
 If there are zero positional parameters, shifting does not do anything.
+.It Ic times
+Print the amount of time spent executing the shell and its children.
+The first output line shows the user and system times for the shell
+itself, the second one contains the user and system times for the
+children.
 .It Ic trap Oo Ar action Oc Ar signal ...
 Cause the shell to parse and execute
 .Ar action
