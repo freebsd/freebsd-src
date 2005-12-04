@@ -159,6 +159,7 @@ typedef struct {
 int	debug = 0;
 int	nodaemon = FALSE;
 int	background = FALSE;
+int	paused = FALSE;
 int	identify = ID_NONE;
 int	extioctl = FALSE;
 char	*pidfile = "/var/run/moused.pid";
@@ -496,6 +497,7 @@ static struct drift_xy  drift_previous={0,0}; /* steps in previous drift_time */
 static void	moused(void);
 static void	hup(int sig);
 static void	cleanup(int sig);
+static void	pause_mouse(int sig);
 static void	usage(void);
 static void	log_or_warn(int log_pri, int errnum, const char *fmt, ...)
 		    __printflike(3, 4);
@@ -833,6 +835,7 @@ main(int argc, char *argv[])
 	    signal(SIGINT , cleanup);
 	    signal(SIGQUIT, cleanup);
 	    signal(SIGTERM, cleanup);
+	    signal(SIGUSR1, pause_mouse);
 	    for (i = 0; i < retry; ++i) {
 		if (i > 0)
 		    sleep(2);
@@ -1195,7 +1198,8 @@ moused(void)
 		    mouse.u.data.y = action2.dy * rodent.accely;
 		    mouse.u.data.z = action2.dz;
 		    if (debug < 2)
-			ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+			if (!paused)
+				ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 		}
 	    } else {
 		mouse.operation = MOUSE_ACTION;
@@ -1204,7 +1208,8 @@ moused(void)
 		mouse.u.data.y = action2.dy * rodent.accely;
 		mouse.u.data.z = action2.dz;
 		if (debug < 2)
-		    ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+		    if (!paused)
+			ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 	    }
 
 	    /*
@@ -1226,7 +1231,8 @@ moused(void)
 		    mouse.u.data.buttons = action2.button;
 		    mouse.u.data.x = mouse.u.data.y = mouse.u.data.z = 0;
 		    if (debug < 2)
-			ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+			if (!paused)
+			    ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 		}
 	    }
 	}
@@ -1246,6 +1252,12 @@ cleanup(int sig)
     if (rodent.rtype == MOUSE_PROTO_X10MOUSEREM)
 	unlink(_PATH_MOUSEREMOTE);
     exit(0);
+}
+
+static void
+pause_mouse(int sig)
+{
+    paused = !paused;
 }
 
 /**
@@ -2536,7 +2548,8 @@ r_click(mousestatus_t *act)
 	    mouse.operation = MOUSE_BUTTON_EVENT;
 	    mouse.u.event.id = button;
 	    if (debug < 2)
-		ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+		if (!paused)
+		    ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 	    debug("button %d  count %d", i + 1, mouse.u.event.value);
 	}
 	button <<= 1;

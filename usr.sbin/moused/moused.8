@@ -89,9 +89,15 @@ data to the device so that the user program will see it.
 .Pp
 If the mouse daemon receives the signal
 .Dv SIGHUP ,
-it will reopen the mouse port and reinitialize itself.
-Useful if
+it will reopen the mouse port and reinitialize itself. Useful if
 the mouse is attached/detached while the system is suspended.
+.Pp
+If the mouse daemon receives the signal
+.Dv SIGUSR1 ,
+it will stop passing mouse events. Sending the signal
+.Dv SIGUSR1 
+again will resume passing mouse events. Useful if your typing on a laptop is
+interrupted by accidentally touching the mouse pad.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -703,6 +709,19 @@ This will effectively swap the left and right buttons.
 .Pp
 Report negative Z axis movement (i.e., mouse wheel) as the button 4 pressed
 and positive Z axis movement (i.e., mouse wheel) as the button 5 pressed.
+.Pp
+If you add
+.Pp
+.Dl ALL ALL = NOPASSWD: /usr/bin/killall -USR1 moused
+.Pp
+to your
+.Pa /usr/local/etc/sudoers
+file, and bind
+.Pp
+.Dl killall -USR1 moused
+.Pp
+to a key in your window manager, you can suspend mouse events on your laptop if
+you keep brushing over the mouse pad while typing.
 .Sh CAVEATS
 The
 .Nm
