@@ -1015,8 +1015,17 @@ struct path {
 
 #define	pos_in_item(path)	((path)->pos_in_item)
 
+#ifdef __amd64__
+/* To workaround a bug in gcc. He generates a call to memset() which
+ * is a inline function; this causes a compile time error. */
+#define	INITIALIZE_PATH(var)						\
+    struct path var;							\
+    bzero(&var, sizeof(var));						\
+    var.path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
+#else
 #define	INITIALIZE_PATH(var)						\
     struct path var = { ILLEGAL_PATH_ELEMENT_OFFSET, }
+#endif
 
 /* Get path element by path and path position. */
 #define	PATH_OFFSET_PELEMENT(p_s_path, n_offset)			\
