@@ -62,7 +62,7 @@ log1pf(float x)
 	if (hx >= 0x7f800000) return x+x;
 	if(k!=0) {
 	    if(hx<0x5a000000) {
-		u  = (float)1.0+x;
+		*(volatile float *)&u = (float)1.0+x;
 		GET_FLOAT_WORD(hu,u);
 	        k  = (hu>>23)-127;
 		/* correction term */
