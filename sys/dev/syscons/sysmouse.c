@@ -211,7 +211,7 @@ smioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		splx(s);
 		return 0;
 
-#if notyet
+#ifdef notyet
 	case MOUSE_GETVARS:	/* get internal mouse variables */
 	case MOUSE_SETVARS:	/* set internal mouse variables */
 		return ENODEV;

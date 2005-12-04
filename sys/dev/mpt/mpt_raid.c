@@ -99,7 +99,7 @@ static void mpt_terminate_raid_thread(struct mpt_softc *mpt);
 static void mpt_raid_thread(void *arg);
 static timeout_t mpt_raid_timer;
 static timeout_t mpt_raid_quiesce_timeout;
-#if UNUSED
+#if 0
 static void mpt_enable_vol(struct mpt_softc *mpt,
 			   struct mpt_raid_volume *mpt_vol, int enable);
 #endif
@@ -482,7 +482,7 @@ mpt_raid_reply_handler(struct mpt_softc *mpt, request_t *req,
 	free_req = TRUE;
 	if (reply_frame != NULL)
 		free_req = mpt_raid_reply_frame_handler(mpt, req, reply_frame);
-#if NOTYET
+#ifdef NOTYET
 	else if (req->ccb != NULL) {
 		/* Complete Quiesce CCB with error... */
 	}
@@ -769,7 +769,7 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, u_int *tgt)
 	return (-1);
 }
 
-#if UNUSED
+#if 0
 static void
 mpt_enable_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 	       int enable)

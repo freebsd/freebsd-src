@@ -434,7 +434,7 @@ ntfs_open(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-#if NTFS_DEBUG
+#ifdef NTFS_DEBUG
 	register struct vnode *vp = ap->a_vp;
 	register struct ntnode *ip = VTONT(vp);
 
@@ -465,7 +465,7 @@ ntfs_close(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-#if NTFS_DEBUG
+#ifdef NTFS_DEBUG
 	register struct vnode *vp = ap->a_vp;
 	register struct ntnode *ip = VTONT(vp);
 

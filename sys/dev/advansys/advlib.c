@@ -238,7 +238,7 @@ static void	 adv_toggle_irq_act(struct adv_softc *adv);
 /* Chip Control */
 static int	 adv_host_req_chip_halt(struct adv_softc *adv);
 static void	 adv_set_chip_ih(struct adv_softc *adv, u_int16_t ins_code);
-#if UNUSED
+#if 0
 static u_int8_t  adv_get_chip_scsi_ctrl(struct adv_softc *adv);
 #endif
 
@@ -514,7 +514,7 @@ adv_get_eeprom_config(struct adv_softc *adv, struct
 	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
 		*wbuf = adv_read_eeprom_16(adv, s_addr);
 		sum += *wbuf;
-#if ADV_DEBUG_EEPROM
+#ifdef ADV_DEBUG_EEPROM
 		printf("Addr 0x%x: 0x%04x\n", s_addr, *wbuf);
 #endif
 	}
@@ -1615,7 +1615,7 @@ adv_set_chip_ih(struct adv_softc *adv, u_int16_t ins_code)
 	adv_set_bank(adv, 0);
 }
 
-#if UNUSED
+#if 0
 static u_int8_t
 adv_get_chip_scsi_ctrl(struct adv_softc *adv)
 {
@@ -1826,12 +1826,12 @@ adv_put_ready_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 		      (u_int16_t *) &scsiq->q1.cntl,
 		      ((sizeof(scsiq->q1) + sizeof(scsiq->q2)) / 2) - 1);
 
-#if CC_WRITE_IO_COUNT
+#ifdef CC_WRITE_IO_COUNT
 	adv_write_lram_16(adv, q_addr + ADV_SCSIQ_W_REQ_COUNT,
 			  adv->req_count);
 #endif
 
-#if CC_CLEAR_DMA_REMAIN
+#ifdef CC_CLEAR_DMA_REMAIN
 
 	adv_write_lram_32(adv, q_addr + ADV_SCSIQ_DW_REMAIN_XFER_ADDR, 0);
 	adv_write_lram_32(adv, q_addr + ADV_SCSIQ_DW_REMAIN_XFER_CNT, 0);

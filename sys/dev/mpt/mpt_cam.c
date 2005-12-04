@@ -320,7 +320,7 @@ mpt_timeout(void *arg)
 	request_t	 *req;
 
 	ccb = (union ccb *)arg;
-#if NOTYET
+#ifdef NOTYET
 	mpt = mpt_find_softc(mpt);
 	if (mpt == NULL)
 		return;

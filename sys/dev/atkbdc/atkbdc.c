@@ -211,7 +211,7 @@ atkbdc_configure(void)
 	port0 = IO_KBD;
 	resource_int_value("atkbdc", 0, "port", &port0);
 	port1 = IO_KBD + KBD_STATUS_PORT;
-#if notyet
+#ifdef notyet
 	bus_space_map(tag, port0, IO_KBDSIZE, 0, &h0);
 	bus_space_map(tag, port1, IO_KBDSIZE, 0, &h1);
 #else

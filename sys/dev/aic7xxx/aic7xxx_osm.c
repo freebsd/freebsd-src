@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 devclass_t ahc_devclass;
 
-#if UNUSED
+#if 0
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
 #endif
 static int	ahc_modevent(module_t mod, int type, void *data);
@@ -1665,7 +1665,7 @@ ahc_detach(device_t dev)
 	return (0);
 }
 
-#if UNUSED
+#if 0
 static void
 ahc_dump_targcmd(struct target_cmd *cmd)
 {

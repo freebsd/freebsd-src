@@ -21,7 +21,7 @@
 #define KDMKTONE	_IO('K', 8 /*, int */)
 
 /* see console.h for the definitions of the following ioctls */
-#if notdef
+#ifdef notdef
 #define KDGETMODE	_IOR('K', 9, int)
 #define KDSETMODE	_IO('K', 10 /*, int */)
 #define KDSBORDER	_IO('K', 13 /*, int */)
@@ -75,7 +75,7 @@ typedef struct keyboard_info keyboard_info_t;
 #define KBRELKBD	_IOW('K', 69, keyboard_info_t)	/* release keyboard */
 
 /* see console.h for the definition of the following ioctl */
-#if notdef
+#ifdef notdef
 #define KDRASTER	_IOW('K', 100, scr_size_t)
 #endif
 
@@ -216,7 +216,7 @@ typedef struct fkeyarg	fkeyarg_t;
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
 #define SETFKEY		_IOWR('k', 1, fkeyarg_t)
-#if notdef		/* see console.h */
+#ifdef notdef		/* see console.h */
 #define GIO_SCRNMAP	_IOR('k', 2, scrmap_t)
 #define PIO_SCRNMAP	_IOW('k', 3, scrmap_t)
 #endif

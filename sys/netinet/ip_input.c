@@ -695,7 +695,7 @@ ours:
 		goto bad;
 	}
 #endif
-#if FAST_IPSEC
+#ifdef FAST_IPSEC
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer

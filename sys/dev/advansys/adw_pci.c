@@ -107,7 +107,7 @@ struct adw_pci_identity adw_pci_ident_table[] =
 		&adw_asc38C0800_mcode_data,
 		&adw_asc38C0800_default_eeprom
 	},
-#if NOTYET
+#ifdef NOTYET
 	/* XXX Disabled until I have hardware to test with */
 	/* asc38C1600 based controllers */
 	{

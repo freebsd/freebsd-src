@@ -233,7 +233,7 @@ loop:
 #endif
 #endif
 	if (0) {} /* just to compile */
-#if DBGUG
+#ifdef DEBUG
 	else if (length>=9 && strncmp(buffer, "dbglevel ", 9)==0) {
 	    	buffer+=9;
 		length-=9;
