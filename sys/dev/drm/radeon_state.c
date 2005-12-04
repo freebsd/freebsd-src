@@ -2937,7 +2937,7 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 	case RADEON_PARAM_STATUS_HANDLE:
 		value = dev_priv->ring_rptr_offset;
 		break;
-	case RADEON_PARAM_SAREA_HANDLE:
+#ifndef __LP64__
 		/*
 		 * This ioctl() doesn't work on 64-bit platforms because hw_lock is a
 		 * pointer which can't fit into an int-sized variable.  According to
@@ -2947,11 +2947,11 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 		 * so backwards-compatibility for the embedded platforms can be
 		 * maintained.  --davidm 4-Feb-2004.
 		 */
-		if (sizeof(long) * 8 == 64)
-			return DRM_ERR(EINVAL);
+	case RADEON_PARAM_SAREA_HANDLE:
 		/* The lock is the first dword in the sarea. */
 		value = (long)dev->lock.hw_lock;
 		break;
+#endif
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
 		break;
