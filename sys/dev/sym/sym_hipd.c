@@ -111,10 +111,6 @@ typedef u_int8_t  u8;
 typedef u_int16_t u16;
 typedef	u_int32_t u32;
 
-#ifndef	BITS_PER_LONG
-#define	BITS_PER_LONG	(sizeof(long) * 8)
-#endif
-
 /*
  *  From 'cam.error_recovery_diffs.20010313.context' patch.
  */
@@ -2645,12 +2641,12 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	/*
 	 *  64 bit addressing  (895A/896/1010) ?
 	 */
-	if (np->features & FE_DAC) {
-		if (BITS_PER_LONG > 32)
-			np->rv_ccntl1	|= (XTIMOD | EXTIBMV);
-		else
-			np->rv_ccntl1	|= (DDAC);
-	}
+	if (np->features & FE_DAC)
+#ifdef __LP64__
+		np->rv_ccntl1	|= (XTIMOD | EXTIBMV);
+#else
+		np->rv_ccntl1	|= (DDAC);
+#endif
 
 	/*
 	 *  Phase mismatch handled by SCRIPTS (895A/896/1010) ?
@@ -8906,8 +8902,9 @@ sym_pci_attach(device_t dev)
 		if (np->features & FE_RAM8K) {
 			np->ram_ws = 8192;
 			np->scriptb_ba = np->scripta_ba + 4096;
-	if (BITS_PER_LONG > 32)
+#ifdef __LP64__
 			np->scr_ram_seg = cpu_to_scr(np->scripta_ba >> 32);
+#endif
 		}
 		else
 			np->ram_ws = 4096;
