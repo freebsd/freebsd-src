@@ -106,7 +106,7 @@ log1p(double x)
 	ax = hx&0x7fffffff;
 
 	k = 1;
-	if (hx < 0x3FDA827A) {			/* x < 0.41422  */
+	if (hx < 0x3FDA827A) {			/* 1+x < sqrt(2)+ */
 	    if(ax>=0x3ff00000) {		/* x <= -1.0 */
 		if(x==-1.0) return -two54/zero; /* log1p(-1)=+inf */
 		else return (x-x)/(x-x);	/* log1p(x<-1)=NaN */
@@ -118,8 +118,8 @@ log1p(double x)
 		else
 		    return x - x*x*0.5;
 	    }
-	    if(hx>0||hx<=((int32_t)0xbfd2bec3)) {
-		k=0;f=x;hu=1;}	/* -0.2929<x<0.41422 */
+	    if(hx>0||hx<=((int32_t)0xbfd2bec4)) {
+		k=0;f=x;hu=1;}		/* sqrt(2)/2- <= 1+x < sqrt(2)+ */
 	}
 	if (hx >= 0x7ff00000) return x+x;
 	if(k!=0) {
@@ -136,7 +136,14 @@ log1p(double x)
 		c  = 0;
 	    }
 	    hu &= 0x000fffff;
-	    if(hu<0x6a09e) {
+	    /*
+	     * The approximation to sqrt(2) used in thresholds is not
+	     * critical.  However, the ones used above must give less
+	     * strict bounds than the one here so that the k==0 case is
+	     * never reached from here, since here we have committed to
+	     * using the correction term but don't use it if k==0.
+	     */
+	    if(hu<0x6a09e) {			/* u ~< sqrt(2) */
 	        SET_HIGH_WORD(u,hu|0x3ff00000);	/* normalize u */
 	    } else {
 	        k += 1;
