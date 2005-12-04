@@ -43,7 +43,7 @@
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
-.Op Fl V Op Fl U Ar distance
+.Op Fl VH Op Fl U Ar distance
 .Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
@@ -52,6 +52,7 @@
 .Op Fl t Ar mousetype
 .Op Fl l Ar level
 .Op Fl 3 Op Fl E Ar timeout
+.Op Fl T Ar distance Ns Op , Ns Ar time Ns Op , Ns Ar after
 .Fl p Ar port
 .Pp
 .Nm
@@ -128,6 +129,19 @@ simultaneously.
 The default timeout is 100 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
+.It Fl H
+Enable
+.Dq Horizontal Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as
+horizontal scrolling.
+Use the
+.Fl U
+option to set the distance the mouse must move before the scrolling mode is
+activated.
+This option may be used with or without the
+.Fl V
+option.
 .It Fl I Ar file
 Write the process id of the
 .Nm
@@ -159,6 +173,16 @@ mode.
 .It Fl S Ar baudrate
 Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
+.It Fl T Ar distance Ns Op , Ns Ar time Ns Op , Ns Ar after
+Terminate drift.
+Use this option if mouse pointer slowly wanders when mouse is not moved.
+Movements up to
+.Ar distance
+(for example 4) pixels (X+Y) in
+.Ar time
+msec (default 500) are ignored, except during
+.Ar after
+msec (default 4000) since last real mouse movement.
 .It Fl V
 Enable
 .Dq Virtual Scrolling .
