@@ -264,7 +264,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 				return error;
 		}
 		if (ioflag & IO_APPEND) {
-#if notyet
+#ifdef notyet
 			/*
 			 * File size can be changed by another client
 			 */

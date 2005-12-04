@@ -52,7 +52,8 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if (_BSDI_VERSION >= 199802) || (__FreeBSD_version >= 400000)
+#if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199802) || \
+    (__FreeBSD_version >= 400000)
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
@@ -510,7 +511,8 @@ fr_authioctlloop:
 # else /* MENTAT */
 #  ifdef linux
 #  else
-#   if (_BSDI_VERSION >= 199802) || defined(__OpenBSD__) || \
+#   if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199802) || \
+       (defined(__OpenBSD__)) || \
        (defined(__sgi) && (IRIX >= 60500) || \
        (defined(__FreeBSD__) && (__FreeBSD_version >= 470102)))
 			error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL,

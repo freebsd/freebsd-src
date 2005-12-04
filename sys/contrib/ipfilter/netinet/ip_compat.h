@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.
  *
@@ -37,7 +35,7 @@
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 #endif
-#if SOLARIS2 >= 8
+#if defined(SOLARIS2) && SOLARIS2 >= 8
 # ifndef	USE_INET6
 #  define	USE_INET6
 # endif
@@ -142,7 +140,7 @@ struct file;
 # include	<sys/ioccom.h>
 # include	<sys/sysmacros.h>
 # include	<sys/kmem.h>
-# if SOLARIS2 >= 10
+# if defined(SOLARIS2) && SOLARIS2 >= 10
 #  include	<sys/procset.h>
 #  include	<sys/proc.h>
 #  include	<sys/devops.h>
@@ -156,7 +154,7 @@ struct file;
 #  undef	RES_INIT
 # endif /* _KERNEL */
 
-# if SOLARIS2 >= 8
+# if defined(SOLARIS2) && SOLARIS2 >= 8
 #  include <netinet/ip6.h>
 #  include <netinet/icmp6.h>
 # endif
@@ -177,7 +175,7 @@ struct file;
 # ifndef	KERNEL
 #  undef	_KERNEL
 # endif
-# if SOLARIS2 >= 8
+# if defined(SOLARIS2) && SOLARIS2 >= 8
 #  define SNPRINTF	snprintf
 
 #  include <inet/ip_if.h>
@@ -192,7 +190,7 @@ struct ip6_ext {
 };
 # endif /* SOLARIS2 >= 8 */
 
-# if SOLARIS2 >= 6
+# if defined(SOLARIS2) && SOLARIS2 >= 6
 #  include <sys/atomic.h>
 typedef	uint32_t	u_32_t;
 # else
@@ -205,7 +203,7 @@ typedef unsigned int	u_32_t;
 #  define	KMUTEX_T		kmutex_t
 #  include "qif.h"
 #  include "pfil.h"
-#  if SOLARIS2 >= 6
+#  if defined(SOLARIS2) && SOLARIS2 >= 6
 #   if SOLARIS2 == 6
 #    define	ATOMIC_INCL(x)		atomic_add_long((uint32_t*)&(x), 1)
 #    define	ATOMIC_DECL(x)		atomic_add_long((uint32_t*)&(x), -1)
@@ -278,7 +276,7 @@ extern	void	*get_unit __P((char *, int));
 typedef mblk_t mb_t;
 # endif /* _KERNEL */
 
-# if (SOLARIS2 >= 7)
+# if defined(SOLARIS2) && (SOLARIS2 >= 7)
 #  ifdef lint
 #   define ALIGN32(ptr)    (ptr ? 0L : 0L)
 #   define ALIGN16(ptr)    (ptr ? 0L : 0L)
@@ -288,7 +286,7 @@ typedef mblk_t mb_t;
 #  endif
 # endif
 
-# if SOLARIS2 < 6
+# if defined(SOLARIS2) && SOLARIS2 < 6
 typedef	struct uio	uio_t;
 # endif
 typedef	int		ioctlcmd_t;
@@ -1222,7 +1220,10 @@ typedef u_int32_t 	u_32_t;
  * For BSD kernels, if bpf is in the kernel, enable ipfilter to use bpf in
  * filter rules.
  */
-#if !defined(IPFILTER_BPF) && ((NBPF > 0) || (NBPFILTER > 0) || (DEV_BPF >0))
+#if !defined(IPFILTER_BPF) && \
+    ((defined(NBPF) && NBPF > 0) || \
+    (defined(NBPFILTER) && NBPFILTER > 0) || \
+    (defined(DEV_BPF) && DEV_BPF >0))
 # define IPFILTER_BPF
 #endif
 

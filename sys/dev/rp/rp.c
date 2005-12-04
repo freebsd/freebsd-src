@@ -813,7 +813,7 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 
 			rp->rp_intmask = RXF_TRIG | TXFIFO_MT | SRC_INT |
 				DELTA_CD | DELTA_CTS | DELTA_DSR;
-#if notdef
+#ifdef notdef
 			ChanStatus = sGetChanStatus(&rp->rp_channel);
 #endif /* notdef */
 			if(sInitChan(ctlp, &rp->rp_channel, aiop, chan) == 0) {

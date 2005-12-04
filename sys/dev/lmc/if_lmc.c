@@ -71,7 +71,7 @@
  *
  * Send bug reports and improvements to <boggs@boggs.palo-alto.ca.us>.
  */
-#if __FreeBSD__
+#ifdef __FreeBSD__
 # include <sys/param.h>	/* OS version */
 # define  IFNET 1
 # include "opt_inet.h"	/* INET */
@@ -139,7 +139,7 @@
 # include <dev/lmc/if_lmc.h>
 #endif /*__FreeBSD__*/
 
-#if __NetBSD__
+#ifdef __NetBSD__
 # include <sys/param.h>	/* OS version */
 # define  IFNET 1
 # include "opt_inet.h"	/* INET6, INET */
@@ -188,7 +188,7 @@
 # include "if_lmc.h"
 #endif /*__NetBSD__*/
 
-#if __OpenBSD__
+#ifdef __OpenBSD__
 # include <sys/param.h>	/* OS version */
 # define  IFNET 1
 /* -DINET  is passed on the compiler command line */
@@ -236,7 +236,7 @@
 # include "if_lmc.h"
 #endif /*__OpenBSD__*/
 
-#if __bsdi__
+#ifdef __bsdi__
 # include <sys/param.h>	/* OS version */
 # define  IFNET 1
 /* -DINET  is passed on the compiler command line */
@@ -286,7 +286,7 @@
 # include "if_lmc.h"
 #endif /*__bsdi__*/
 
-#if __linux__
+#ifdef __linux__
 # include <linux/config.h>
 # if (CONFIG_HDLC || CONFIG_HDLC_MODULE)
 #  define GEN_HDLC 1
@@ -2477,8 +2477,8 @@ struct card t1_card =
 
 #if IFNET
 
-# if ((__FreeBSD__ && (__FreeBSD_version < 500000)) ||\
-        __NetBSD__ || __OpenBSD__ || __bsdi__)
+# if ((defined(__FreeBSD__) && (__FreeBSD_version < 500000)) ||\
+        defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__))
 static void
 netisr_dispatch(int isr, struct mbuf *mbuf)
   {
@@ -2580,7 +2580,7 @@ mbuf_dequeue(struct desc_ring *ring)
   return m;
   }
 
-# if __FreeBSD__
+# ifdef __FreeBSD__
 static void /* *** FreeBSD ONLY *** Callout from bus_dmamap_load() */
 fbsd_dmamap_load(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
   {
@@ -2607,7 +2607,7 @@ create_ring(softc_t *sc, struct desc_ring *ring, int num_descs)
     return EINVAL;
     }
 
-#if __FreeBSD__
+#ifdef __FreeBSD__
 
   /* Create a DMA tag for descriptors and buffers. */
   if ((error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
@@ -2648,7 +2648,7 @@ create_ring(softc_t *sc, struct desc_ring *ring, int num_descs)
       return error;
       }
 
-#elif (__NetBSD__ || __OpenBSD__)
+#elif (defined(__NetBSD__) || defined(__OpenBSD__))
 
   /* Use the DMA tag passed to attach() for descriptors and buffers. */
   ring->tag = sc->pa_dmat;
@@ -2697,7 +2697,7 @@ create_ring(softc_t *sc, struct desc_ring *ring, int num_descs)
       return error;
       }
 
-#elif __bsdi__
+#elif defined(__bsdi__)
 
   /* Allocate wired physical memory for DMA descriptor array. */
   if ((ring->first = malloc(size_descs, M_DEVBUF, M_NOWAIT)) == NULL)
@@ -2751,7 +2751,7 @@ destroy_ring(softc_t *sc, struct desc_ring *ring)
     if (ring->read++ == ring->last) ring->read = ring->first;
     }
 
-#if __FreeBSD__
+#ifdef __FreeBSD__
 
   /* Free the dmamaps of all DMA descriptors. */
   for (desc=ring->first; desc!=ring->last+1; desc++)
@@ -2768,7 +2768,7 @@ destroy_ring(softc_t *sc, struct desc_ring *ring)
   if (ring->tag != NULL)
     bus_dma_tag_destroy(ring->tag);
 
-#elif (__NetBSD__ || __OpenBSD__)
+#elif (defined(__NetBSD__) || defined(__OpenBSD__))
 
   /* Free the dmamaps of all DMA descriptors. */
   for (desc=ring->first; desc!=ring->last+1; desc++)
@@ -2788,7 +2788,7 @@ destroy_ring(softc_t *sc, struct desc_ring *ring)
   if (ring->segs[0].ds_addr != 0)
     bus_dmamem_free(ring->tag, ring->segs, ring->nsegs);
 
-#elif __bsdi__
+#elif defined(__bsdi__)
 
   /* Free kernel memory for DMA descriptor array. */
   if (ring->first != NULL)
@@ -2807,7 +2807,7 @@ rxintr_cleanup(softc_t *sc)
   struct mbuf *new_mbuf;
   int pkt_len, desc_len;
 
-#if (__FreeBSD__ && DEVICE_POLLING)
+#if (defined(__FreeBSD__) && DEVICE_POLLING)
   /* Input packet flow control (livelock prevention): */
   /* Give pkts to higher levels only if quota is > 0. */
   if (sc->quota <= 0) return 0;
@@ -2923,7 +2923,7 @@ rxintr_cleanup(softc_t *sc)
     sc->ifp->if_ipackets++;
     LMC_BPF_MTAP(first_mbuf);
 #endif
-#if (__FreeBSD__ && DEVICE_POLLING)
+#if (defined(__FreeBSD__) && DEVICE_POLLING)
     sc->quota--;
 #endif
 
@@ -3039,11 +3039,11 @@ rxintr_setup(softc_t *sc)
   DMA_SYNC(desc->map, desc_len, BUS_DMASYNC_PREREAD);
 
   /* Set up the DMA descriptor. */
-#if __FreeBSD__
+#ifdef __FreeBSD__
   desc->address1 = ring->segs[0].ds_addr;
-#elif (__NetBSD__ || __OpenBSD__)
+#elif (defined(__NetBSD__) || defined(__OpenBSD__))
   desc->address1 = desc->map->dm_segs[0].ds_addr;
-#elif __bsdi__
+#elif defined(__bsdi__)
   desc->address1 = vtophys(m->m_data); /* Relax! BSD/OS only. */
 #endif
   desc->length1  = desc_len>>1;
@@ -3167,12 +3167,12 @@ txintr_setup_mbuf(softc_t *sc, struct mbuf *m)
       /* Prevent wild fetches if mapping fails (nsegs==0). */
       desc->length1  = desc->length2  = 0;
       desc->address1 = desc->address2 = 0;
-#if (__FreeBSD__ || __NetBSD__ || __OpenBSD__)
+#if (defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__))
         {
-# if __FreeBSD__
+# ifdef __FreeBSD__
         bus_dma_segment_t *segs = ring->segs;
         int nsegs = ring->nsegs;
-# elif (__NetBSD__ || __OpenBSD__)
+# elif (defined(__NetBSD__) || defined(__OpenBSD__))
         bus_dma_segment_t *segs = desc->map->dm_segs;
         int nsegs = desc->map->dm_nsegs;
 # endif
@@ -3187,7 +3187,7 @@ txintr_setup_mbuf(softc_t *sc, struct mbuf *m)
           desc->length2  = segs[1].ds_len;
           }
         }
-#elif __bsdi__
+#elif defined(__bsdi__)
       desc->address1 = vtophys(data); /* Relax! BSD/OS only. */
       desc->length1  = desc_len;
 #endif
@@ -3284,7 +3284,7 @@ txintr_setup(softc_t *sc)
 
 #endif /* BSD */
 
-#if __linux__
+#ifdef __linux__
 /* NOTE: this is the LINUX version of the interrupt/DMA code, */
 
 /* Singly-linked tail-queues hold sk_buffs with active DMA.
@@ -3947,7 +3947,7 @@ user_interrupt(softc_t *sc, int check_status)
 
 #if BSD
 
-# if (__FreeBSD__ && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && DEVICE_POLLING)
 
 /* Service the card from the kernel idle loop without interrupts. */
 static void
@@ -3986,7 +3986,7 @@ bsd_interrupt(void *arg)
   if ((READ_CSR(TLP_STATUS) & TLP_INT_TXRX) == 0)
     return IRQ_NONE;
 
-# if (__FreeBSD__ && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && DEVICE_POLLING)
   if (sc->ifp->if_capenable & IFCAP_POLLING)
     return IRQ_NONE;
 
@@ -4066,10 +4066,10 @@ p2p_mdmctl(struct p2pcom *p2p, int flag)
 static void
 sppp_tls(struct sppp *sppp)
   {
-# if __FreeBSD__
+# ifdef __FreeBSD__
   if (!(sppp->pp_mode  & IFF_LINK2) &&
       !(sppp->pp_flags & PP_FR))
-# elif __NetBSD__ || __OpenBSD__
+# elif defined(__NetBSD__) || defined(__OpenBSD__)
   if (!(sppp->pp_flags & PP_CISCO))
 # endif
     sppp->pp_up(sppp);
@@ -4079,10 +4079,10 @@ sppp_tls(struct sppp *sppp)
 static void
 sppp_tlf(struct sppp *sppp)
   {
-# if __FreeBSD__
+# ifdef __FreeBSD__
   if (!(sppp->pp_mode  & IFF_LINK2) &&
       !(sppp->pp_flags & PP_FR))
-# elif __NetBSD__ || __OpenBSD__
+# elif defined(__NetBSD__) || defined(__OpenBSD__)
   if (!(sppp->pp_flags & PP_CISCO))
 # endif
     sppp->pp_down(sppp);
@@ -4178,9 +4178,9 @@ config_proto(softc_t *sc, struct config *config)
            (config->line_prot == PROT_PPP))
       {
       LMC_BPF_DETACH;
-# if (__NetBSD__ || __OpenBSD__)
+# if (defined(__NetBSD__) || defined(__OpenBSD__))
       sc->sppp->pp_flags &= ~PP_CISCO;
-# elif __FreeBSD__
+# elif defined(__FreeBSD__)
       sc->ifp->if_flags  &= ~IFF_LINK2;
       sc->sppp->pp_flags &= ~PP_FR;
 # endif
@@ -4197,9 +4197,9 @@ config_proto(softc_t *sc, struct config *config)
            (config->line_prot == PROT_C_HDLC))
       {
       LMC_BPF_DETACH;
-# if (__NetBSD__ || __OpenBSD__)
+# if (defined(__NetBSD__) || defined(__OpenBSD__))
       sc->sppp->pp_flags |=  PP_CISCO;
-# elif __FreeBSD__
+# elif defined(__FreeBSD__)
       sc->ifp->if_flags  |=  IFF_LINK2;
       sc->sppp->pp_flags &= ~PP_FR;
 # endif
@@ -4212,9 +4212,9 @@ config_proto(softc_t *sc, struct config *config)
            (config->line_prot == PROT_FRM_RLY))
       {
       LMC_BPF_DETACH;
-# if (__NetBSD__ || __OpenBSD__)
+# if (defined(__NetBSD__) || defined(__OpenBSD__))
       sc->sppp->pp_flags &= ~PP_CISCO;
-# elif __FreeBSD__
+# elif defined(__FreeBSD__)
       sc->ifp->if_flags  &= ~IFF_LINK2;
       sc->sppp->pp_flags |= PP_FR;
 # endif
@@ -4464,7 +4464,7 @@ raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
   switch (cmd)
     {
-# if (__FreeBSD__ && DEVICE_POLLING)  /* XXX necessary? */
+# if (defined(__FreeBSD__) && DEVICE_POLLING)  /* XXX necessary? */
     case SIOCSIFCAP:
 # endif
     case SIOCSIFDSTADDR:
@@ -4493,7 +4493,7 @@ static int
 ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
   {
   softc_t *sc = IFP2SC(ifp);
-# if __OpenBSD__
+# ifdef __OpenBSD__
   struct ifreq *ifr = (struct ifreq *) data;
 # endif
   int error = 0;
@@ -4509,7 +4509,7 @@ ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     case LMCIOCTL:
       error = core_ioctl(sc, cmd, data);
       break;
-# if __OpenBSD__
+# ifdef __OpenBSD__
     /* Catch the IOCTLs used by ifconfig. */
     case SIOCSIFMEDIA:
       if ((error = CHECK_CAP)) break;
@@ -4687,11 +4687,11 @@ ifnet_watchdog(struct ifnet *ifp)
 
     /* Notice change in line protocol. */
     sc->status.line_pkg = PKG_SPPP;
-#  if __FreeBSD__
+#  ifdef __FreeBSD__
     if (sc->sppp->pp_flags & PP_FR)
       sc->status.line_prot = PROT_FRM_RLY;
     else if (sc->ifp->if_flags  & IFF_LINK2)
-#  elif (__NetBSD__ || __OpenBSD__)
+#  elif (defined(__NetBSD__) || defined(__OpenBSD__))
     if (sc->sppp->pp_flags & PP_CISCO)
 #  endif
       sc->status.line_prot = PROT_C_HDLC;
@@ -4714,7 +4714,7 @@ ifnet_watchdog(struct ifnet *ifp)
   ifp->if_oerrors  = cntrs->oerrors;
   ifp->if_iqdrops  = cntrs->idiscards;
 
-# if ((__FreeBSD_version >= 500000) || __OpenBSD__ || __NetBSD__)
+# if ((__FreeBSD_version >= 500000) || defined(__OpenBSD__) || defined(__NetBSD__))
   if (sc->status.oper_status == STATUS_UP)
     ifp->if_link_state = LINK_STATE_UP;
   else
@@ -4725,7 +4725,7 @@ ifnet_watchdog(struct ifnet *ifp)
   ifp->if_timer = 1;
   }
 
-# if __OpenBSD__
+# ifdef __OpenBSD__
 
 /* Callback from ifmedia. */
 static int
@@ -4815,7 +4815,7 @@ setup_ifnet(struct ifnet *ifp)
   ifp->if_mtu      = MAX_DESC_LEN;	/* sppp & p2p change this */
   ifp->if_type     = IFT_PTPSERIAL;	/* p2p changes this */
 
-# if (__FreeBSD__ && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && DEVICE_POLLING)
   ifp->if_capabilities |= IFCAP_POLLING;
 # if (__FreeBSD_version < 500000)
   ifp->if_capenable    |= IFCAP_POLLING;
@@ -4823,18 +4823,18 @@ setup_ifnet(struct ifnet *ifp)
 # endif
 
   /* Every OS does it differently! */
-# if (__FreeBSD__ && (__FreeBSD_version < 502000))
+# if (defined(__FreeBSD__) && (__FreeBSD_version < 502000))
   (const char *)ifp->if_name = device_get_name(sc->dev);
   ifp->if_unit  = device_get_unit(sc->dev);
 # elif (__FreeBSD_version >= 502000)
   ifp->if_dname = device_get_name(sc->dev);
   ifp->if_dunit = device_get_unit(sc->dev);
   strlcpy(ifp->if_xname, device_get_nameunit(sc->dev), IFNAMSIZ);
-# elif __NetBSD__
+# elif defined(__NetBSD__)
   strcpy(ifp->if_xname, sc->dev.dv_xname);
 # elif __OpenBSD__
   bcopy(sc->dev.dv_xname, ifp->if_xname, IFNAMSIZ);
-# elif __bsdi__
+# elif defined(__bsdi__)
   ifp->if_name  = sc->dev.dv_cfdata->cf_driver->cd_name;
   ifp->if_unit  = sc->dev.dv_unit;
 # endif
@@ -4872,14 +4872,15 @@ ifnet_attach(softc_t *sc)
   /* Attach to the ifnet kernel interface. */
   if_attach(sc->ifp);
 
-# if ((__NetBSD_Version__ >= 106000000) || (OpenBSD >= 200211))
+# if ((defined(__NetBSD__) && __NetBSD_Version__ >= 106000000) || \
+     (defined(__OpenBSD__) && OpenBSD >= 200211))
   if_alloc_sadl(sc->ifp);
 # endif
 
   /* Attach Berkeley Packet Filter. */
   LMC_BPF_ATTACH(DLT_RAW, 0);
 
-# if __OpenBSD__
+# ifdef __OpenBSD__
   /* Initialize ifmedia mechanism. */
   ifmedia_init(&sc->ifm, IFM_OMASK | IFM_GMASK | IFM_IMASK,
    ifmedia_change, ifmedia_status);
@@ -4911,11 +4912,11 @@ ifnet_attach(softc_t *sc)
 static void
 ifnet_detach(softc_t *sc)
   {
-# if __OpenBSD__
+# ifdef __OpenBSD__
   ifmedia_delete_instance(&sc->ifm, IFM_INST_ANY);
 # endif
 
-# if (__FreeBSD__ && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && DEVICE_POLLING)
   if (sc->ifp->if_capenable & IFCAP_POLLING)
     ether_poll_deregister(sc->ifp);
 # endif
@@ -4923,7 +4924,8 @@ ifnet_detach(softc_t *sc)
   /* Detach Berkeley Packet Filter. */
   LMC_BPF_DETACH;
 
-# if ((__NetBSD_Version__ >= 106000000) || (OpenBSD >= 200211))
+# if ((defined(__NetBSD__) && __NetBSD_Version__ >= 106000000) || \
+     (defined(__OpenBSD__) && OpenBSD >= 200211))
   if_free_sadl(sc->ifp);
 # endif
 
@@ -5210,7 +5212,7 @@ struct ng_type ng_type =
   .findhook	= NULL,
   .connect	= ng_connect,
   .rcvdata	= ng_rcvdata,
-# if (__FreeBSD__ && (__FreeBSD_version < 500000))
+# if (defined(__FreeBSD__) && (__FreeBSD_version < 500000))
   .rcvdataq	= ng_rcvdata,
 # endif
   .disconnect	= ng_disconnect,
@@ -5570,7 +5572,7 @@ detach_card(softc_t *sc)
 
 /* This is the I/O configuration interface for FreeBSD */
 
-#if __FreeBSD__
+#ifdef __FreeBSD__
 
 static int
 fbsd_probe(device_t dev)
@@ -5753,7 +5755,7 @@ MODULE_DEPEND(if_lmc, sppp, 1, 1, 1);
 
 /* This is the I/O configuration interface for NetBSD. */
 
-#if __NetBSD__
+#ifdef __NetBSD__
 
 static int
 nbsd_match(struct device *parent, struct cfdata *match, void *aux)
@@ -6045,7 +6047,7 @@ int if_lmc_lkmentry(struct lkm_table *lkmtp, int cmd, int ver)
 
 /* This is the I/O configuration interface for OpenBSD. */
 
-#if __OpenBSD__
+#ifdef __OpenBSD__
 
 static int
 obsd_match(struct device *parent, void *match, void *aux)
@@ -6295,7 +6297,7 @@ int if_lmc_lkmentry(struct lkm_table *lkmtp, int cmd, int ver)
 
 /* This is the I/O configuration interface for BSD/OS. */
 
-#if __bsdi__
+#ifdef __bsdi__
 
 static int
 bsdi_match(pci_devaddr_t *pa)
@@ -6412,7 +6414,7 @@ struct cfdriver lmccd =
   };
 #endif  /* __bsdi__ */
 
-#if __linux__
+#ifdef __linux__
 
 /* The kernel calls this procedure when an interrupt happens. */
 static irqreturn_t

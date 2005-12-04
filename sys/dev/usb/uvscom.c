@@ -203,7 +203,7 @@ Static	void uvscom_break(struct uvscom_softc *, int);
 
 Static	void uvscom_set(void *, int, int, int);
 Static	void uvscom_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
-#if TODO
+#if 0 /* TODO */
 Static	int  uvscom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 #endif
 Static	int  uvscom_param(void *, int, struct termios *);
@@ -935,7 +935,7 @@ uvscom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 		*msr = sc->sc_msr;
 }
 
-#if TODO
+#if 0 /* TODO */
 Static int
 uvscom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
 	     usb_proc_ptr p)

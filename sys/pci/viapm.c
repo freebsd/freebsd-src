@@ -340,7 +340,7 @@ viapm_pro_attach(device_t dev)
 	viapm->st = rman_get_bustag(viapm->iores);
 	viapm->sh = rman_get_bushandle(viapm->iores);
 
-#if notyet
+#ifdef notyet
 	/* force irq 9 */
 	l = pci_read_config(dev, VIAPM_PRO_SMBCTRL, 1);
 	pci_write_config(dev, VIAPM_PRO_SMBCTRL, l | 0x80, 1);
@@ -377,7 +377,7 @@ viapm_pro_attach(device_t dev)
 	l = pci_read_config(dev, VIAPM_PRO_SMBCTRL, 1);
 	pci_write_config(dev, VIAPM_PRO_SMBCTRL, l | 1, 1);
 
-#if notyet
+#ifdef notyet
 	/* enable interrupts */
 	VIAPM_OUTB(SMBHCTRL, VIAPM_INB(SMBHCTRL) | SMBHCTRL_ENABLE);
 #endif
@@ -393,7 +393,7 @@ viapm_pro_attach(device_t dev)
 error:
 	if (viapm->iores)
 		bus_release_resource(dev, SYS_RES_IOPORT, viapm->iorid, viapm->iores);
-#if notyet
+#ifdef notyet
 	if (viapm->irqres)
 		bus_release_resource(dev, SYS_RES_IRQ, viapm->irqrid, viapm->irqres);
 #endif
@@ -464,7 +464,7 @@ viapm_pro_detach(device_t dev)
 				viapm->iorid, viapm->iores)))
 		return (error);
 
-#if notyet
+#ifdef notyet
 	if ((error = bus_release_resource(dev, SYS_RES_IRQ,
 					viapm->irqrid, viapm->irqres))
 		return (error);
