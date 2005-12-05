@@ -1586,7 +1586,6 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 static NV_SINT32
 nve_oslinkchg(PNV_VOID ctx, NV_SINT32 enabled)
 {
-	struct nve_softc *sc = (struct nve_softc *)ctx;
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_oslinkchg\n");
 
