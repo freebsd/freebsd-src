@@ -59,12 +59,6 @@
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
-#ifdef LOCORE
-#define	PCPU(member)	%fs:PC_ ## member
-#define	PCPU_ADDR(member, reg)	movl %fs:PC_PRVSPACE,reg; \
-			addl $PC_ ## member,reg
-#endif
-
 #ifdef GPROF
 /*
  * __mcount is like [.]mcount except that doesn't require its caller to set
@@ -136,12 +130,47 @@
 
 #ifdef LOCORE
 /*
- * Convenience macros for declaring interrupt entry points and trap
- * stubs.
+ * Convenience macro for declaring interrupt entry points.
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
-#define	TRAP(a)		pushl $(a) ; jmp alltraps
+
+/*
+ * Macros to create and destroy a trap frame.
+ */
+#define	PUSH_FRAME							\
+	pushl	$0 ;		/* dummy error code */			\
+	pushl	$0 ;		/* dummy trap type */			\
+	pushal ;		/* 8 ints */				\
+	pushl	%ds ;		/* save data and extra segments ... */	\
+	pushl	%es ;							\
+	pushl	%fs
+	
+#define	POP_FRAME							\
+	popl	%fs ;							\
+	popl	%es ;							\
+	popl	%ds ;							\
+	popal ;								\
+	addl	$4+4,%esp
+
+/*
+ * Access per-CPU data.
+ */
+#define	PCPU(member)	%fs:PC_ ## member
+
+#define	PCPU_ADDR(member, reg)						\
+	movl %fs:PC_PRVSPACE, reg ;					\
+	addl $PC_ ## member, reg
+
+/*
+ * Setup the kernel segment registers.
+ */
+#define	SET_KERNEL_SREGS						\
+	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
+	movl	%eax, %ds ;						\
+	movl	%eax, %es ;						\
+	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
+	movl	%eax, %fs
 
 #endif /* LOCORE */
 
