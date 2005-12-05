@@ -188,7 +188,7 @@ SYSCTL_NODE(_kern, OID_AUTO, mqueue, CTLFLAG_RW, 0,
 static int	default_maxmsg  = 10;
 static int	default_msgsize = 1024;
 
-static int	maxmsg = 20;
+static int	maxmsg = 100;
 SYSCTL_INT(_kern_mqueue, OID_AUTO, maxmsg, CTLFLAG_RW,
     &maxmsg, 0, "Default maximum messages in queue");
 static int	maxmsgsize = 16384;
@@ -2168,7 +2168,8 @@ mq_notify(struct thread *td, struct mq_notify_args *uap)
 		if (error)
 			return (error);
 		if (ev.sigev_notify != SIGEV_SIGNAL &&
-		    ev.sigev_notify != SIGEV_THREAD_ID)
+		    ev.sigev_notify != SIGEV_THREAD_ID &&
+		    ev.sigev_notify != SIGEV_NONE)
 			return (EINVAL);
 		if ((ev.sigev_notify == SIGEV_SIGNAL ||
 		     ev.sigev_notify == SIGEV_THREAD_ID) &&
@@ -2190,7 +2191,7 @@ again:
 	if (uap->sigev != NULL) {
 		if (mq->mq_notifier != NULL) {
 			error = EBUSY;
-		} else {
+		} else if (ev.sigev_notify != SIGEV_NONE) {
 			PROC_LOCK(p);
 			nt = notifier_search(p, uap->mqd);
 			if (nt == NULL) {
