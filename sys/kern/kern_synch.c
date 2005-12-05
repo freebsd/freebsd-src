@@ -320,10 +320,10 @@ mi_switch(int flags, struct thread *newtd)
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.  If
-	 * over max, arrange to kill the process in ast().
+	 * it reaches the max, arrange to kill the process in ast().
 	 */
 	if (p->p_cpulimit != RLIM_INFINITY &&
-	    p->p_rux.rux_runtime.sec > p->p_cpulimit) {
+	    p->p_rux.rux_runtime.sec >= p->p_cpulimit) {
 		p->p_sflag |= PS_XCPU;
 		td->td_flags |= TDF_ASTPENDING;
 	}
