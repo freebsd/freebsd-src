@@ -104,9 +104,7 @@ IDTVEC(timerint)
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
 
-	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	lapic_handle_timer
-	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	MEXITCOUNT
 	jmp	doreti
 
@@ -249,9 +247,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 	
 	FAKE_MCOUNT(TF_EIP(%esp))
 
-	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	ipi_bitmap_handler
-	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	MEXITCOUNT
 	jmp	doreti
 

@@ -608,13 +608,13 @@ lapic_eoi(void)
 }
 
 void
-lapic_handle_intr(struct intrframe frame)
+lapic_handle_intr(int vector, struct trapframe frame)
 {
 	struct intsrc *isrc;
 
-	if (frame.if_vec == -1)
+	if (vector == -1)
 		panic("Couldn't get vector from ISR!");
-	isrc = intr_lookup_source(apic_idt_to_irq(frame.if_vec));
+	isrc = intr_lookup_source(apic_idt_to_irq(vector));
 	intr_execute_handlers(isrc, &frame);
 }
 

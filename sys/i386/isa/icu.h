@@ -47,7 +47,7 @@
 #define	ICU_IMR_OFFSET	1
 #endif
 
-void	atpic_handle_intr(struct intrframe iframe);
+void	atpic_handle_intr(u_int vector, struct trapframe frame);
 void	atpic_startup(void);
 
 #endif /* !_I386_ISA_ICU_H_ */

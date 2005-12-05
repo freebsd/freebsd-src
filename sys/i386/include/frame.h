@@ -97,36 +97,9 @@ struct trapframe_vm86 {
 	int	tf_vm86_gs;
 };
 
-/* Interrupt stack frame */
-
-struct intrframe {
-	int	if_vec;
-	int	if_fs;
-	int	if_es;
-	int	if_ds;
-	int	if_edi;
-	int	if_esi;
-	int	if_ebp;
-	int	:32;
-	int	if_ebx;
-	int	if_edx;
-	int	if_ecx;
-	int	if_eax;
-	int	:32;		/* for compat with trap frame - trapno */
-	int	:32;		/* for compat with trap frame - err */
-	/* below portion defined in 386 hardware */
-	int	if_eip;
-	int	if_cs;
-	int	if_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	if_esp;
-	int	if_ss;
-};
-
-/* frame of clock (same as interrupt frame) */
+/* frame of clock (same as trap frame) */
 
 struct clockframe {
-	int	cf_vec;
 	int	cf_fs;
 	int	cf_es;
 	int	cf_ds;
@@ -148,8 +121,5 @@ struct clockframe {
 	int	cf_esp;
 	int	cf_ss;
 };
-
-#define	CLOCK_TO_TRAPFRAME(frame) ((struct trapframe *)&(frame)->cf_fs)
-#define	INTR_TO_TRAPFRAME(frame) ((struct trapframe *)&(frame)->if_fs)
 
 #endif /* _MACHINE_FRAME_H_ */
