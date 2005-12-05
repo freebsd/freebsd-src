@@ -30,22 +30,24 @@
 
 /* misc defines */
 #define MAX_ARRAYS      16
+#define MAX_VOLUMES     4
 #define MAX_DISKS       16
 #define AR_PROXIMITY    2048    /* how many sectors is "close" */
 
 #define ATA_MAGIC       "FreeBSD ATA driver RAID "
 
 struct ata_raid_subdisk {
-    struct ar_softc     *raid;
-    int                 disk_number;
+    struct ar_softc     *raid[MAX_VOLUMES];
+    int                 disk_number[MAX_VOLUMES];
 };
 
 /*  ATA PseudoRAID Metadata */
 struct ar_softc {
-    int                 lun;            /* logical unit number of this RAID */
-    u_int8_t            name[32];       /* name of array if any */
-    u_int64_t           magic_0;        /* magic for this array */
-    u_int64_t           magic_1;        /* magic for this array */
+    int                 lun;
+    u_int8_t            name[32];
+    int			volume;
+    u_int64_t           magic_0;
+    u_int64_t           magic_1;
     int                 type;
 #define AR_T_JBOD               0x0001
 #define AR_T_SPAN               0x0002
@@ -77,14 +79,14 @@ struct ar_softc {
 #define AR_F_VIA_RAID           0x1000
 #define AR_F_FORMAT_MASK        0x1fff
 
-    u_int               generation;     /* generation of this array */
+    u_int               generation;
     u_int64_t           total_sectors;
     u_int64_t           offset_sectors; /* offset from start of disk */
     u_int16_t           heads;
     u_int16_t           sectors;
     u_int32_t           cylinders;
     u_int               width;          /* array width in disks */
-    u_int               interleave;     /* interleave in blocks */
+    u_int               interleave;     /* interleave in sectors */
     u_int               total_disks;    /* number of disks in this array */
     struct ar_disk {
 	device_t        dev;
@@ -288,6 +290,10 @@ struct intel_raid_conf {
 #define INTEL_MAGIC             "Intel Raid ISM Cfg Sig. "
 
     u_int8_t            version[6];
+#define INTEL_VERSION_1100      "1.1.00"
+#define INTEL_VERSION_1201      "1.2.01"
+#define INTEL_VERSION_1202      "1.2.02"
+
     u_int8_t            dummy_0[2];
     u_int32_t           checksum;
     u_int32_t           config_size;
@@ -318,7 +324,7 @@ struct intel_raid_mapping {
     u_int64_t           total_sectors __packed;
     u_int32_t           state;
     u_int32_t           reserved;
-    u_int32_t           filler_1[20];
+    u_int32_t           filler_0[20];
     u_int32_t           offset;
     u_int32_t           disk_sectors;
     u_int32_t           stripe_count;
@@ -335,8 +341,8 @@ struct intel_raid_mapping {
 #define INTEL_T_RAID5           0x05
 
     u_int8_t            total_disks;
-    u_int8_t            dummy_2[3];
-    u_int32_t           filler_2[7];
+    u_int8_t            magic[3];
+    u_int32_t           filler_1[7];
     u_int32_t           disk_idx[1];
 } __packed;
 
