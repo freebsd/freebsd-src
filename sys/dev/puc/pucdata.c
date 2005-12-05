@@ -884,7 +884,8 @@ const struct puc_device_description puc_devices[] = {
 	    {	0x1415,	0x950b,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0	},
 	    {
-		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		/* { PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ }, */
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, 33000000 / 2},
 	    },
 	},
 
