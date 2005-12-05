@@ -44,24 +44,6 @@
 #include "assym.s"
 
 /*
- * Macros to create and destroy a trap frame.
- */
-#define PUSH_FRAME							\
-	pushl	$0 ;		/* dummy error code */			\
-	pushl	$0 ;		/* dummy trap type */			\
-	pushal ;		/* 8 ints */				\
-	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es ;							\
-	pushl	%fs
-
-#define POP_FRAME							\
-	popl	%fs ;							\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp
-
-/*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
  * in the ISR.  The handler determines the highest bit set in the ISR,
@@ -73,11 +55,7 @@
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
-	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	movl	%eax, %ds ;						\
-	movl	%eax, %es ;						\
-	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
-	movl	%eax, %fs ;						\
+	SET_KERNEL_SREGS ;						\
 	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
@@ -123,11 +101,7 @@ IDTVEC(spuriousint)
 	SUPERALIGN_TEXT
 IDTVEC(timerint)
 	PUSH_FRAME
-	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	$KPSEL, %eax
-	movl	%eax, %fs
+	SET_KERNEL_SREGS
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -271,13 +245,8 @@ IDTVEC(invlrng)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(ipi_intr_bitmap_handler)	
-	
 	PUSH_FRAME
-	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	$KPSEL, %eax
-	movl	%eax, %fs
+	SET_KERNEL_SREGS
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -300,20 +269,8 @@ IDTVEC(ipi_intr_bitmap_handler)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(cpustop)
-	pushl	%ebp
-	movl	%esp, %ebp
-	pushl	%eax
-	pushl	%ecx
-	pushl	%edx
-	pushl	%ds			/* save current data segment */
-	pushl	%es
-	pushl	%fs
-
-	movl	$KDSEL, %eax
-	movl	%eax, %ds		/* use KERNEL data segment */
-	movl	%eax, %es
-	movl	$KPSEL, %eax
-	movl	%eax, %fs
+	PUSH_FRAME
+	SET_KERNEL_SREGS
 
 	movl	lapic, %eax
 	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
@@ -348,14 +305,7 @@ IDTVEC(cpustop)
 
 	call	*%eax
 2:
-	popl	%fs
-	popl	%es
-	popl	%ds			/* restore previous data segment */
-	popl	%edx
-	popl	%ecx
-	popl	%eax
-	movl	%ebp, %esp
-	popl	%ebp
+	POP_FRAME
 	iret
 
 /*
@@ -367,11 +317,7 @@ IDTVEC(cpustop)
 	SUPERALIGN_TEXT
 IDTVEC(rendezvous)
 	PUSH_FRAME
-	movl	$KDSEL, %eax
-	movl	%eax, %ds		/* use KERNEL data segment */
-	movl	%eax, %es
-	movl	$KPSEL, %eax
-	movl	%eax, %fs
+	SET_KERNEL_SREGS
 
 #ifdef COUNT_IPIS
 	movl	PCPU(CPUID), %eax
@@ -392,11 +338,7 @@ IDTVEC(rendezvous)
 	SUPERALIGN_TEXT
 IDTVEC(lazypmap)
 	PUSH_FRAME
-	movl	$KDSEL, %eax
-	movl	%eax, %ds		/* use KERNEL data segment */
-	movl	%eax, %es
-	movl	$KPSEL, %eax
-	movl	%eax, %fs
+	SET_KERNEL_SREGS
 
 #ifdef COUNT_IPIS
 	movl	PCPU(CPUID), %eax
@@ -405,7 +347,7 @@ IDTVEC(lazypmap)
 #endif
 	call	pmap_lazyfix_action
 
-	movl	lapic, %eax	
+	movl	lapic, %eax
 	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
 	POP_FRAME
 	iret

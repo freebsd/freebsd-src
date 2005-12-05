@@ -47,17 +47,8 @@
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
-	pushl	$0 ;		/* dummy error code */			\
-	pushl	$0 ;		/* dummy trap type */			\
-	pushal ;		/* 8 ints */				\
-	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es ;							\
-	pushl	%fs ;							\
-	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	movl	%eax, %ds ;						\
-	movl	%eax, %es ;						\
-	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
-	movl	%eax, %fs ;						\
+	PUSH_FRAME ;							\
+	SET_KERNEL_SREGS ;						\
 ;									\
 	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
 	pushl	$irq_num; 	/* pass the IRQ */			\
