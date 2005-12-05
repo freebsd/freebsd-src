@@ -2064,12 +2064,9 @@ dc_attach(device_t dev)
 #ifdef __sparc64__
 		/*
 		 * If this is an onboard dc(4) the station address read from
-		 * the EEPROM is all zero and we have to get it from the fcode.
+		 * the EEPROM is all zero and we have to get it from the FCode.
 		 */
-		for (i = 0; i < (ETHER_ADDR_LEN+3)/4; i++)
-			if (eaddr[i] != 0)
-				break;
-		if (i >= (ETHER_ADDR_LEN+3)/4)
+		if (eaddr[0] == 0 && (eaddr[1] & ~0xffff) == 0)
 			OF_getetheraddr(dev, (caddr_t)&eaddr);
 #endif
 		break;
