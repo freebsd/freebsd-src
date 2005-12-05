@@ -103,6 +103,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+/* Easier to stay with the old names. */
+#define	lo_list		lo_witness_data.lod_list
+#define	lo_witness	lo_witness_data.lod_witness
+
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
@@ -430,19 +434,11 @@ static int blessed_count =
 #endif
 
 /*
- * List of all locks in the system.
+ * List of locks initialized prior to witness being initialized whose
+ * enrollment is currently deferred.
  */
-TAILQ_HEAD(, lock_object) all_locks = TAILQ_HEAD_INITIALIZER(all_locks);
-
-static struct mtx all_mtx = {
-	{ &lock_class_mtx_sleep,	/* mtx_object.lo_class */
-	  "All locks list",		/* mtx_object.lo_name */
-	  "All locks list",		/* mtx_object.lo_type */
-	  LO_INITIALIZED,		/* mtx_object.lo_flags */
-	  { NULL, NULL },		/* mtx_object.lo_list */
-	  NULL },			/* mtx_object.lo_witness */
-	MTX_UNOWNED, 0			/* mtx_lock, mtx_recurse */
-};
+STAILQ_HEAD(, lock_object) pending_locks =
+    STAILQ_HEAD_INITIALIZER(pending_locks);
 
 /*
  * This global is set to 0 once it becomes safe to use the witness code.
@@ -456,13 +452,9 @@ static int witness_cold = 1;
 static int witness_spin_warn = 0;
 
 /*
- * Global variables for book keeping.
- */
-static int lock_cur_cnt;
-static int lock_max_cnt;
-
-/*
- * The WITNESS-enabled diagnostic code.
+ * The WITNESS-enabled diagnostic code.  Note that the witness code does
+ * assume that the early boot is single-threaded at least until after this
+ * routine is completed.
  */
 static void
 witness_initialize(void *dummy __unused)
@@ -480,7 +472,6 @@ witness_initialize(void *dummy __unused)
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
-	TAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
 	mtx_init(&w_mtx, "witness lock", NULL, MTX_SPIN | MTX_QUIET |
 	    MTX_NOWITNESS);
 	for (i = 0; i < WITNESS_COUNT; i++)
@@ -509,15 +500,14 @@ witness_initialize(void *dummy __unused)
 	witness_spin_warn = 1;
 
 	/* Iterate through all locks and add them to witness. */
-	mtx_lock(&all_mtx);
-	TAILQ_FOREACH(lock, &all_locks, lo_list) {
-		if (lock->lo_flags & LO_WITNESS)
-			lock->lo_witness = enroll(lock->lo_type,
-			    lock->lo_class);
-		else
-			lock->lo_witness = NULL;
+	while (!STAILQ_EMPTY(&pending_locks)) {
+		lock = STAILQ_FIRST(&pending_locks);
+		STAILQ_REMOVE_HEAD(&pending_locks, lo_list);
+		KASSERT(lock->lo_flags & LO_WITNESS,
+		    ("%s: lock %s is on pending list but not LO_WITNESS",
+		    __func__, lock->lo_name));
+		lock->lo_witness = enroll(lock->lo_type, lock->lo_class);
 	}
-	mtx_unlock(&all_mtx);
 
 	/* Mark the witness code as being ready for use. */
 	witness_cold = 0;
@@ -551,6 +541,7 @@ witness_init(struct lock_object *lock)
 {
 	struct lock_class *class;
 
+	/* Various sanity checks. */
 	class = lock->lo_class;
 	if (lock->lo_flags & LO_INITIALIZED)
 		panic("%s: lock (%s) %s is already initialized", __func__,
@@ -568,18 +559,22 @@ witness_init(struct lock_object *lock)
 		panic("%s: lock (%s) %s can not be upgradable", __func__,
 		    class->lc_name, lock->lo_name);
 
-	mtx_lock(&all_mtx);
-	TAILQ_INSERT_TAIL(&all_locks, lock, lo_list);
+	/*
+	 * If we shouldn't watch this lock, then just clear lo_witness.
+	 * Otherwise, if witness_cold is set, then it is too early to
+	 * enroll this lock, so defer it to witness_initialize() by adding
+	 * it to the pending_locks list.  If it is not too early, then enroll
+	 * the lock now.
+	 */
 	lock->lo_flags |= LO_INITIALIZED;
-	lock_cur_cnt++;
-	if (lock_cur_cnt > lock_max_cnt)
-		lock_max_cnt = lock_cur_cnt;
-	mtx_unlock(&all_mtx);
-	if (!witness_cold && witness_watch != 0 && panicstr == NULL &&
-	    (lock->lo_flags & LO_WITNESS) != 0)
-		lock->lo_witness = enroll(lock->lo_type, class);
-	else
+	if (witness_watch == 0 || panicstr != NULL ||
+	    (lock->lo_flags & LO_WITNESS) == 0)
 		lock->lo_witness = NULL;
+	else if (witness_cold) {
+		STAILQ_INSERT_TAIL(&pending_locks, lock, lo_list);
+		lock->lo_flags |= LO_ENROLLPEND;
+	} else
+		lock->lo_witness = enroll(lock->lo_type, class);
 }
 
 void
@@ -595,8 +590,9 @@ witness_destroy(struct lock_object *lock)
 		    lock->lo_class->lc_name, lock->lo_name);
 
 	/* XXX: need to verify that no one holds the lock */
-	w = lock->lo_witness;
-	if (w != NULL) {
+	if ((lock->lo_flags & (LO_WITNESS | LO_ENROLLPEND)) == LO_WITNESS &&
+	    lock->lo_witness != NULL) {
+		w = lock->lo_witness;
 		mtx_lock_spin(&w_mtx);
 		MPASS(w->w_refcount > 0);
 		w->w_refcount--;
@@ -609,11 +605,15 @@ witness_destroy(struct lock_object *lock)
 			mtx_unlock_spin(&w_mtx);
 	}
 
-	mtx_lock(&all_mtx);
-	lock_cur_cnt--;
-	TAILQ_REMOVE(&all_locks, lock, lo_list);
+	/*
+	 * If this lock is destroyed before witness is up and running,
+	 * remove it from the pending list.
+	 */
+	if (lock->lo_flags & LO_ENROLLPEND) {
+		STAILQ_REMOVE(&pending_locks, lock, lock_object, lo_list);
+		lock->lo_flags &= ~LO_ENROLLPEND;
+	}
 	lock->lo_flags &= ~LO_INITIALIZED;
-	mtx_unlock(&all_mtx);
 }
 
 #ifdef DDB
