@@ -28,21 +28,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/elf32.h>
 #include <sys/param.h>
+#include <sys/inflate.h>
 #include <machine/elf.h>
 #include <stdlib.h>
 
 #include "opt_global.h"
+#include "opt_kernname.h"
 
 extern char kernel_start[];
 extern char kernel_end[];
 
 void __start(void);
 
-void
-_start(void)
-{
-	__start();
-}
+#define GZ_HEAD	0xa
 
 static __inline void *
 memcpy(void *dst, const void *src, int len)
@@ -50,34 +48,145 @@ memcpy(void *dst, const void *src, int len)
 	const char *s = src;
     	char *d = dst;
 	
-	while (len--) {
-		*d++ = *s++;
+	while (len) {
+		if (len >= 4 && !((vm_offset_t)d & 3) && !((vm_offset_t)s & 3)) {
+			*(uint32_t *)d = *(uint32_t *)s;
+			s += 4;
+			d += 4;
+			len -= 4;
+		} else {
+			*d++ = *s++;
+			len--;
+		}
 	}
 	return (dst);
 }
 
 static __inline void
-bzero(char *addr, int count)
+bzero(void *addr, int count)
 {
+	char *tmp = (char *)addr;
+
 	while (count > 0) {
-		*addr = 0;
-		addr++;
-		count--;
+		if (count >= 4 && !((vm_offset_t)tmp & 3)) {
+			*(uint32_t *)tmp = 0;
+			tmp += 4;
+			count -= 4;
+		} else {
+			*tmp = 0;
+			tmp++;
+			count--;
+		}
 	}
 }
 
+void
+_start(void)
+{
+	__start();
+}
+
+#ifdef KZIP
+static  unsigned char *orig_input, *i_input, *i_output;
+
+
+static u_int memcnt;		/* Memory allocated: blocks */
+static size_t memtot;		/* Memory allocated: bytes */
+/*
+ * Library functions required by inflate().
+ */
+
+#define MEMSIZ 0x8000
+
+/*
+ * Allocate memory block.
+ */
+unsigned char *
+kzipmalloc(int size)
+{
+	void *ptr;
+	static u_char mem[MEMSIZ];
+
+	if (memtot + size > MEMSIZ)
+		return NULL;
+	ptr = mem + memtot;
+	memtot += size;
+	memcnt++;
+	return ptr;
+}
+
+/*
+ * Free allocated memory block.
+ */
+void
+kzipfree(void *ptr)
+{
+	memcnt--;
+	if (!memcnt)
+		memtot = 0;
+}
+
+void
+putstr(char *dummy)
+{
+}
+
+static int
+input(void *dummy)
+{
+	if ((size_t)(i_input - orig_input) >= KERNSIZE) {
+		return (GZ_EOF);
+	}
+	return *i_input++;
+}
+
+static int
+output(void *dummy, unsigned char *ptr, unsigned long len)
+{
+
+	memcpy(i_output, ptr, len);
+	i_output += len;
+	return (0);
+}
+
+static void *
+inflate_kernel(void *kernel, void *startaddr)
+{
+	struct inflate infl;
+	char slide[GZ_WSIZE];
+
+	orig_input = kernel;
+	i_input = (char *)kernel + GZ_HEAD;
+	if (((char *)kernel)[3] & 0x18) {
+		while (*i_input)
+			i_input++;
+		i_input++;
+	}
+	i_output = startaddr;
+	bzero(&infl, sizeof(infl));
+	infl.gz_input = input;
+	infl.gz_output = output;
+	infl.gz_slide = slide;
+	inflate(&infl);
+	return ((char *)(((vm_offset_t)i_output & ~3) + 4));
+}
+
+#endif
+
+
 void *
-load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigned int func_end, int d)
+load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end, 
+    int d)
 {
 	Elf32_Ehdr *eh;
 	Elf32_Phdr phdr[512] /* XXX */, *php;
 	Elf32_Shdr *shdr;
 	int i,j;
 	void *entry_point;
-	int symtabindex;
-	int symstrindex;
+	int symtabindex = -1;
+	int symstrindex = -1;
 	vm_offset_t lastaddr = 0;
-	Elf_Addr ssym, esym;
+	Elf_Addr ssym = 0, esym = 0;
 	Elf_Dyn *dp;
 	
 	eh = (Elf32_Ehdr *)kstart;
@@ -93,11 +202,10 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 			    curaddr + phdr[i].p_memsz;
 	}
 	
-	/* Now grab the symbol tables. */
+	/* Save the symbol tables, as there're about to be scratched. */
 	lastaddr = roundup(lastaddr, sizeof(long));
 	if (eh->e_shnum * eh->e_shentsize != 0 &&
 	    eh->e_shoff != 0) {
-		symtabindex = symstrindex = -1;
 		shdr = (Elf_Shdr *)(kstart + eh->e_shoff);
 		for (i = 0; i < eh->e_shnum; i++) {
 			if (shdr[i].sh_type == SHT_SYMTAB) {
@@ -132,29 +240,15 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 				    shdr[symtabindex].sh_size),
 				    (void *)(shdr[symstrindex].sh_offset +
 				    kstart), shdr[symstrindex].sh_size);
-				*(Elf_Size *)lastaddr = 
-				    shdr[symtabindex].sh_size;
+			} else {
+				lastaddr += shdr[symtabindex].sh_size;
+				lastaddr = roundup(lastaddr,
+				    sizeof(shdr[symtabindex].sh_size));
+				lastaddr += sizeof(shdr[symstrindex].sh_size);
+				lastaddr += shdr[symstrindex].sh_size;
+				lastaddr = roundup(lastaddr, 
+				    sizeof(shdr[symstrindex].sh_size));
 			}
-			lastaddr += sizeof(shdr[symtabindex].sh_size);
-			if (d)
-				memcpy((void*)lastaddr,
-				    (void *)func_end,
- 				    shdr[symtabindex].sh_size);
-			lastaddr += shdr[symtabindex].sh_size;
-			lastaddr = roundup(lastaddr,
-			    sizeof(shdr[symtabindex].sh_size));
-			if (d)
-				*(Elf_Size *)lastaddr =
-				    shdr[symstrindex].sh_size;
-			lastaddr += sizeof(shdr[symstrindex].sh_size);
-			if (d)
-				memcpy((void*)lastaddr,
-				    (void*)(func_end +
-					    shdr[symtabindex].sh_size),
-				    shdr[symstrindex].sh_size);
-			lastaddr += shdr[symstrindex].sh_size;
-			lastaddr = roundup(lastaddr, 
-			    sizeof(shdr[symstrindex].sh_size));
 			
 		}
 	}
@@ -164,9 +258,9 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 	j = eh->e_phnum;
 	for (i = 0; i < j; i++) {
 		volatile char c;
-		if (phdr[i].p_type != PT_LOAD) {
+
+		if (phdr[i].p_type != PT_LOAD)
 			continue;
-		}
 		memcpy((void *)(phdr[i].p_vaddr - KERNVIRTADDR + curaddr),
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
 		/* Clean space from oversized segments, eg: bss. */
@@ -176,10 +270,31 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 			    phdr[i].p_filesz);
 	}
 	/* Now grab the symbol tables. */
-	*(Elf_Addr *)curaddr = MAGIC_TRAMP_NUMBER;
-	*((Elf_Addr *)curaddr + 1) = ssym - curaddr + KERNVIRTADDR;
-	*((Elf_Addr *)curaddr + 2) = lastaddr - curaddr + KERNVIRTADDR;
-
+	if (symtabindex >= 0 && symstrindex >= 0) {
+		*(Elf_Size *)lastaddr = 
+		    shdr[symtabindex].sh_size;
+		lastaddr += sizeof(shdr[symtabindex].sh_size);
+		memcpy((void*)lastaddr,
+		    (void *)func_end,
+		    shdr[symtabindex].sh_size);
+		lastaddr += shdr[symtabindex].sh_size;
+		lastaddr = roundup(lastaddr,
+		    sizeof(shdr[symtabindex].sh_size));
+		*(Elf_Size *)lastaddr =
+		    shdr[symstrindex].sh_size;
+		lastaddr += sizeof(shdr[symstrindex].sh_size);
+		memcpy((void*)lastaddr,
+		    (void*)(func_end +
+			    shdr[symtabindex].sh_size),
+		    shdr[symstrindex].sh_size);
+		lastaddr += shdr[symstrindex].sh_size;
+		lastaddr = roundup(lastaddr, 
+   		    sizeof(shdr[symstrindex].sh_size));
+		*(Elf_Addr *)curaddr = MAGIC_TRAMP_NUMBER;
+		*((Elf_Addr *)curaddr + 1) = ssym - curaddr + KERNVIRTADDR;
+		*((Elf_Addr *)curaddr + 2) = lastaddr - curaddr + KERNVIRTADDR;
+	} else
+		*(Elf_Addr *)curaddr = 0;
 	/* Jump to the entry point. */
 	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
 	__asm __volatile(".globl func_end\n"
@@ -189,20 +304,30 @@ load_kernel(unsigned int kstart, unsigned int kend, unsigned int curaddr,unsigne
 
 extern char func_end[];
 
+extern void *_end;
 void __start(void)
 {
 	void *curaddr;
+	void *dst;
+	char *kernel = (char *)&kernel_start;
 
 	__asm __volatile("mov %0, pc"  :
 	    "=r" (curaddr));
 	curaddr = (void*)((unsigned int)curaddr & 0xfff00000);
-	void *dst = 4 + load_kernel((unsigned int)&kernel_start, 
-	    (unsigned int)&kernel_end, (unsigned int)curaddr, 
+#ifdef KZIP
+	if (*kernel == 0x1f && kernel[1] == 0x8b) {
+		/* Gzipped kernel */
+		dst = inflate_kernel(kernel, &_end);
+		kernel = (char *)&_end;
+	} else
+#endif
+		dst = 4 + load_kernel((unsigned int)&kernel_start, 
+	    (unsigned int)curaddr, 
 	    (unsigned int)&func_end, 0);
 	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end - 
 	    (unsigned int)&load_kernel);
-	((void (*)())dst)((unsigned int)&kernel_start, 
-			  (unsigned int)&kernel_end, (unsigned int)curaddr,
-			  dst + (unsigned int)&func_end - 
+	((void (*)())dst)((unsigned int)kernel, 
+			  (unsigned int)curaddr,
+			  dst + (unsigned int)(&func_end) - 
 			  (unsigned int)(&load_kernel), 1);
 }

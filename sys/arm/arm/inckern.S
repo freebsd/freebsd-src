@@ -32,4 +32,3 @@ kernel_start:
 .incbin KERNNAME
 .globl kernel_end;
 kernel_end:
-.space 0x10000

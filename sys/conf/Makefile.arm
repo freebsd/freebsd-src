@@ -44,6 +44,7 @@ SYSTEM_LD += -EB
 
 .if !defined(DEBUG)
 CFLAGS += -mno-apcs-frame
+STRIP_FLAGS = -S
 .endif
 
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
@@ -58,10 +59,10 @@ SYSTEM_LD_TAIL +=; cat ldscript.$M| \
 		${OBJCOPY} -S -O binary ${FULLKERNEL}.noheader \
 		${KERNEL_KO}.bin; \
 		rm ${FULLKERNEL}.noheader
-.if ${DDB_ENABLED} != ""
+.if ${DDB_ENABLED} != "" || defined(BUILD_ELF_TRAMPOLINE)
 SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}.tmp\"" \
 	>opt_kernname.h ;\
-	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
+	${OBJCOPY} ${STRIP_FLAGS} --strip-symbol '$$d' --strip-symbol '$$a' \
 	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp;\
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm \
 	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp;\
@@ -70,8 +71,20 @@ SYSTEM_LD_TAIL += ;echo "\#define KERNNAME \"${KERNEL_KO}.tmp\"" \
 	${KERNEL_KO}.tramp.noheader; \
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 	${KERNEL_KO}.tramp.bin; \
-	rm ${KERNEL_KO}.tmp ${KERNEL_KO}.tramp.noheader; \
-
+	gzip -9 ${KERNEL_KO}.tmp; \
+	echo "\#define KERNNAME \"${KERNEL_KO}.tmp.gz\"" \
+	>opt_kernname.h ;\
+	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
+	echo "\#define KERNSIZE $$st_size" >>opt_kernname.h;\
+	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm \
+	-DKZIP $S/$M/$M/elf_trampoline.c $S/kern/inflate.c $S/$M/$M/inckern.S \
+	-o ${KERNEL_KO}.gz.tramp;\
+	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.arm.noheader \
+	-DKZIP $S/$M/$M/elf_trampoline.c $S/kern/inflate.c $S/$M/$M/inckern.S \
+	-o ${KERNEL_KO}.tramp.noheader; \
+	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
+	${KERNEL_KO}.gz.tramp.bin; \
+	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h;
 .endif
 
 CLEANFILES +=	ldscript.$M ldscript.$M.noheader ${KERNEL_KO}.bin \
