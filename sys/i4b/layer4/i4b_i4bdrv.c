@@ -441,7 +441,7 @@ i4bioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 					break;
 #endif
 
-#if NIBC > 0
+#if defined(NIBC) && NIBC > 0
 				case BDRV_IBC:
 					dlt = ibc_ret_linktab(mdrsp->driver_unit);
 					break;

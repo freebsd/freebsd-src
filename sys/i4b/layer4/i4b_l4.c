@@ -645,7 +645,7 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
-#if NIBC > 0
+#if defined(NIBC) && NIBC > 0
 		case BDRV_IBC:
 			cd->dlt = ibc_ret_linktab(cd->driver_unit);
 			break;
@@ -699,7 +699,7 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
-#if NIBC > 0
+#if defined(NIBC) && NIBC > 0
 		case BDRV_IBC:
 			ibc_set_linktab(cd->driver_unit, cd->ilt);
 			break;

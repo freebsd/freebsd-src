@@ -765,7 +765,7 @@ ext2_direnter(ip, dvp, cnp)
 	int     DIRBLKSIZ = ip->i_e2fs->s_blocksize;
 
 
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & SAVENAME) == 0)
 		panic("direnter: missing name");
 #endif

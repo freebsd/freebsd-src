@@ -226,7 +226,7 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 		/* We can relay only on local information about file size,
 		 * because until file is closed NetWare will not return
 		 * the correct size. */
-#if notyet
+#ifdef notyet
 			nwfs_attr_cacheremove(vp);
 			error = VOP_GETATTR(vp, &vattr, cred, td);
 			if (error) return (error);

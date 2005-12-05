@@ -123,7 +123,7 @@ ie_isa_3C507_identify (driver_t *driver, device_t parent)
 	     port += IE_3C507_IOSIZE) {
 
 		if (ie_3C507_port_check(port)) {
-#if DEBUG 
+#ifdef DEBUG 
 			if (bootverbose) {
 				device_printf(parent,
 					"(if_ie) (3C507) not found at port %#x\n",
@@ -339,7 +339,7 @@ ie_isa_ee16_identify (driver_t *driver, device_t parent)
 		port = ports[i];
 
 		if (ie_ee16_port_check(port)) {
-#if DEBUG
+#ifdef DEBUG
 			if (bootverbose) {
 				device_printf(parent,
 					"if_ie: (EE16) not found at port %#x\n",

@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmc_mdep.h>
 #include <machine/specialreg.h>
 
-#if	DEBUG
+#ifdef	DEBUG
 enum pmc_class	amd_pmc_class;
 #endif
 
@@ -291,7 +291,7 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 		return 0;
 	}
 
-#if	DEBUG
+#ifdef	DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -338,7 +338,7 @@ amd_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;
 
-#if	DEBUG
+#ifdef	DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -474,7 +474,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return 0;
 	}
 
-#if	DEBUG
+#ifdef	DEBUG
 	KASSERT(pd->pd_class == amd_pmc_class,
 	    ("[amd,%d] Unknown PMC class (%d)", __LINE__, pd->pd_class));
 #endif
@@ -536,7 +536,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 static int
 amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-#if	DEBUG
+#ifdef	DEBUG
 	const struct amd_descr *pd;
 #endif
 	struct pmc_hw *phw;
@@ -553,7 +553,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[amd,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-#if 	DEBUG
+#ifdef	DEBUG
 	pd = &amd_pmcdesc[ri];
 	if (pd->pm_descr.pd_class == amd_pmc_class)
 		KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
@@ -593,7 +593,7 @@ amd_start_pmc(int cpu, int ri)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;	/* TSCs are always running */
 
-#if	DEBUG
+#ifdef	DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -641,7 +641,7 @@ amd_stop_pmc(int cpu, int ri)
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;
 
-#if	DEBUG
+#ifdef	DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -890,7 +890,7 @@ amd_cleanup(int cpu)
 	if ((pcs = pmc_pcpu[cpu]) == NULL)
 		return 0;
 
-#if	DEBUG
+#ifdef	DEBUG
 	/* check the TSC */
 	KASSERT(pcs->pc_hwpmcs[0]->phw_pmc == NULL,
 	    ("[amd,%d] CPU%d,PMC0 still in use", __LINE__, cpu));
@@ -948,7 +948,7 @@ pmc_amd_initialize(void)
 		return NULL;
 	}
 
-#if	DEBUG
+#ifdef	DEBUG
 	amd_pmc_class = class;
 #endif
 
