@@ -56,6 +56,21 @@ If the calling process or any other process has already
 registered for notification of message arrival at the specified message
 queue, subsequent attempts to register for that message queue will fail.
 .Pp
+The
+.Fa notification
+argument points to a
+.Vt sigevent
+structure that defines how the calling process will be notified.
+If notification->sigev_notify is
+.Dv SIGEV_NONE ,
+then no signal will be posted, but the error status and the return status
+for the operation will be set appropriately.
+If notification->sigev_notify is SIGEV_SIGNAL, then the signal specified
+in notification->sigev_signo will be sent to the process.
+The signal will be queued to the process and the value specified in
+notification->sigev_value will be the si_value component of the generated
+signal.
+.Pp
 If
 .Fa notification
 is
