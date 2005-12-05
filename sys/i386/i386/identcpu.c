@@ -81,7 +81,7 @@ static void print_transmeta_info(void);
 int	cpu_class;
 u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
-char machine[] = "i386";
+char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
     machine, 0, "Machine class");
 
