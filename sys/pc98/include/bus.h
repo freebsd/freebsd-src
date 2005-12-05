@@ -565,7 +565,7 @@ bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
 		__asm __volatile("" : : : "memory");
 }
 
-#if BUS_SPACE_NO_LEGACY
+#ifdef BUS_SPACE_NO_LEGACY
 #undef inb
 #undef outb
 #define inb(a) compiler_error

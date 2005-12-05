@@ -192,7 +192,7 @@ GDB_DBGPORT(dcons, dcons_dbg_probe, dcons_dbg_init, dcons_dbg_term,
 extern struct gdb_dbgport *gdb_cur;
 #endif
 
-#if (KDB || DDB) && ALT_BREAK_TO_DEBUGGER
+#if (defined(KDB) || defined(DDB)) && defined(ALT_BREAK_TO_DEBUGGER)
 static int
 dcons_check_break(struct dcons_softc *dc, int c)
 {
@@ -549,7 +549,7 @@ ok:
 	dcons_buf = dg.buf;
 
 #if __FreeBSD_version < 502122
-#if DDB && DCONS_FORCE_GDB
+#if defined(DDB) && DCONS_FORCE_GDB
 #if CONS_NODEV
 	gdbconsdev.cn_arg = (void *)&sc[DCONS_GDB];
 #if __FreeBSD_version >= 501109
@@ -678,7 +678,7 @@ dcons_modevent(module_t mode, int type, void *data)
 		printf("dcons: unload\n");
 		callout_stop(&dcons_callout);
 #if __FreeBSD_version < 502122
-#if DDB && DCONS_FORCE_GDB
+#if defined(DDB) && DCONS_FORCE_GDB
 #if CONS_NODEV
 		gdb_arg = NULL;
 #else

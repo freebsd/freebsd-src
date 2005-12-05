@@ -138,7 +138,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	oip = VTOI(ovp);
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 		if (length != 0)
 			panic("ext2_truncate: partial truncate of symlink");
 #endif
@@ -318,7 +318,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		}
 	}
 done:
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	for (level = SINGLE; level <= TRIPLE; level++)
 		if (newblks[NDADDR + level] != oip->i_ib[level])
 			panic("itrunc1");

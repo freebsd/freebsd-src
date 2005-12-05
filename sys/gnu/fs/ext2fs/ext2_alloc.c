@@ -102,7 +102,7 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	
 	*bnp = 0;
 	fs = ip->i_e2fs;
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	if ((u_int)size > fs->s_blocksize || blkoff(fs, size) != 0) {
 		vn_printf(ip->i_devvp, "bsize = %lu, size = %d, fs = %s\n",
 		    fs->s_blocksize, size, fs->fs_fsmnt);
@@ -225,7 +225,7 @@ return ENOSPC;
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
 	end_lbn = start_lbn + len - 1;
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	for (i = 1; i < len; i++)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ext2_reallocblks: non-cluster");
@@ -266,7 +266,7 @@ return ENOSPC;
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
 			panic("ext2_reallocblk: start == end");
 #endif
@@ -292,7 +292,7 @@ return ENOSPC;
 	for (bap = &sbap[soff], i = 0; i < len; i++, blkno += fs->s_frags_per_block) {
 		if (i == ssize)
 			bap = ebap;
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 		if (buflist->bs_children[i]->b_blkno != fsbtodb(fs, *bap))
 			panic("ext2_reallocblks: alloc mismatch");
 #endif

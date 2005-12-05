@@ -463,7 +463,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			sc_term_up_scroll(scp, 1, sc->scr_map[0x20],
 					  tcp->cur_attr, 0, 0);
 			break;
-#if notyet
+#ifdef notyet
 		case 'Q':
 			tcp->esc = 4;
 			return;
@@ -892,7 +892,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			splx(i);
 			break;
 		}
-#if notyet
+#ifdef notyet
 	} else if (tcp->esc == 4) {	/* seen ESC Q */
 		/* to be filled */
 #endif

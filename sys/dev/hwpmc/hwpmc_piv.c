@@ -757,7 +757,7 @@ p4_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 
 	if (ri == 0) {	/* TSC */
-#if	DEBUG
+#ifdef	DEBUG
 		pc  = (struct p4_cpu *) pmc_pcpu[cpu];
 		phw = pc->pc_hwpmcs[ri];
 		pm  = phw->phw_pmc;
@@ -840,7 +840,7 @@ p4_write_pmc(int cpu, int ri, pmc_value_t v)
 	 * timekeeping and other system functions.
 	 */
 	if (ri == 0) {
-#if	DEBUG
+#ifdef	DEBUG
 		pc  = (struct p4_cpu *) pmc_pcpu[cpu];
 		phw = pc->pc_hwpmcs[ri];
 		pm  = phw->phw_pmc;
