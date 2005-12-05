@@ -115,6 +115,9 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
+	if (td2->td_altkstack)
+		pmap_use_minicache(td2->td_altkstack, td2->td_altkstack_pages *
+		    PAGE_SIZE);
 #endif
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -405,14 +408,15 @@ arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
 }
 
 static void *
-arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
+arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable, 
+    int flags)
 {
 	void *ret;
 	vm_page_t page_array = NULL;
 	    
 	*pglist = (void *)kmem_malloc(kmem_map, (0x100000 / PAGE_SIZE) *
-	    sizeof(struct arm_small_page), M_WAITOK);
-	if (alloc_curaddr < 0xf0000000) {/* XXX */
+	    sizeof(struct arm_small_page), flags);
+	if (*pglist && alloc_curaddr < 0xf0000000) {/* XXX */
 		mtx_lock(&Giant);
 		page_array = vm_page_alloc_contig(0x100000 / PAGE_SIZE,
 		    0, 0xffffffff, 0x100000, 0);
@@ -430,8 +434,10 @@ arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
 		pmap_kenter_section((vm_offset_t)ret, pa
 		    , pagetable);
 	} else {
-		kmem_free(kmem_map, (vm_offset_t)*pglist, 
-		    (0x100000 / PAGE_SIZE) * sizeof(struct arm_small_page));
+		if (*pglist)
+			kmem_free(kmem_map, (vm_offset_t)*pglist, 
+			    (0x100000 / PAGE_SIZE) *
+			    sizeof(struct arm_small_page));
 		*pglist = NULL;
 		ret = (void *)kmem_malloc(kmem_map, bytes, M_WAITOK);
 	}
@@ -446,6 +452,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	TAILQ_HEAD(,arm_small_page) *head;
 	static int in_alloc;
 	static int in_sleep;
+	int should_wakeup = 0;
 	
 	*flags = UMA_SLAB_PRIV;
 	/*
@@ -474,15 +481,13 @@ retry:
 		if (wait & M_WAITOK)
 			in_alloc = 1;
 		mtx_unlock(&smallalloc_mtx);
-		if (!(wait & M_WAITOK)) {
-			*flags = UMA_SLAB_KMEM;
-			ret = (void *)kmem_malloc(kmem_map, bytes, wait);
-			return (ret);
-		}
 		/* Try to alloc 1MB of contiguous memory. */
 		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
-		    SECTION_PT : SECTION_CACHE);
+		    SECTION_PT : SECTION_CACHE, wait);
 		mtx_lock(&smallalloc_mtx);
+		in_alloc = 0;
+		if (in_sleep)
+			should_wakeup = 1;
 		if (sp) {
 			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
 			    i++) {
@@ -502,8 +507,7 @@ retry:
 		TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
 		ret = sp->addr;
 	}
-	in_alloc = 0;
-	if (in_sleep)
+	if (should_wakeup)
 		wakeup(&in_alloc);
 	mtx_unlock(&smallalloc_mtx);
 	if ((wait & M_ZERO))
