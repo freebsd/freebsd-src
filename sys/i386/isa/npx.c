@@ -263,11 +263,11 @@ npx_probe(dev)
 	irq_rid = 0;
 	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, irq_num,
 	    irq_num, 1, RF_ACTIVE);
-	if (irq_res == NULL)
-		panic("npx: can't get IRQ");
-	if (bus_setup_intr(dev, irq_res, INTR_TYPE_MISC | INTR_FAST, npx_intr,
-	    NULL, &irq_cookie) != 0)
-		panic("npx: can't create intr");
+	if (irq_res != NULL) {
+		if (bus_setup_intr(dev, irq_res, INTR_TYPE_MISC | INTR_FAST,
+			npx_intr, NULL, &irq_cookie) != 0)
+			panic("npx: can't create intr");
+	}
 
 	/*
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
@@ -384,8 +384,10 @@ npx_probe(dev)
 	/* FALLTHROUGH */
 no_irq13:
 	idt[IDT_MF] = save_idt_npxtrap;
-	bus_teardown_intr(dev, irq_res, irq_cookie);
-	bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+	if (irq_res != NULL) {
+		bus_teardown_intr(dev, irq_res, irq_cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+	}
 	bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid, ioport_res);
 	return (0);
 }
