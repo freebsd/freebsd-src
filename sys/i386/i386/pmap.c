@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
+#include "opt_smp.h"
 #include "opt_xbox.h"
 
 #include <sys/param.h>
@@ -1224,6 +1225,9 @@ pmap_lazyfix_action(void)
 {
 	u_int mymask = PCPU_GET(cpumask);
 
+#ifdef COUNT_IPIS
+	*ipi_lazypmap_counts[PCPU_GET(cpuid)]++;
+#endif
 	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
 	atomic_clear_int(lazymask, mymask);

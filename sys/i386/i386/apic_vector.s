@@ -102,10 +102,6 @@ IDTVEC(spuriousint)
 IDTVEC(timerint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
-
-	movl	lapic, %edx
-	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
-	
 	FAKE_MCOUNT(TF_EIP(%esp))
 
 	pushl	$0		/* XXX convert trapframe to clockframe */
@@ -260,11 +256,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 	jmp	doreti
 
 /*
- * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
- *
- *  - Signals its receipt.
- *  - Waits for permission to restart.
- *  - Signals its restart.
+ * Executed by a CPU when it receives an IPI_STOP from another CPU.
  */
 	.text
 	SUPERALIGN_TEXT
@@ -275,36 +267,8 @@ IDTVEC(cpustop)
 	movl	lapic, %eax
 	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
 
-	movl	PCPU(CPUID), %eax
-	imull	$PCB_SIZE, %eax
-	leal	CNAME(stoppcbs)(%eax), %eax
-	pushl	%eax
-	call	CNAME(savectx)		/* Save process context */
-	addl	$4, %esp
-		
-	movl	PCPU(CPUID), %eax
+	call	cpustop_handler
 
-	lock
-	btsl	%eax, CNAME(stopped_cpus) /* stopped_cpus |= (1<<id) */
-1:
-	btl	%eax, CNAME(started_cpus) /* while (!(started_cpus & (1<<id))) */
-	jnc	1b
-
-	lock
-	btrl	%eax, CNAME(started_cpus) /* started_cpus &= ~(1<<id) */
-	lock
-	btrl	%eax, CNAME(stopped_cpus) /* stopped_cpus &= ~(1<<id) */
-
-	test	%eax, %eax
-	jnz	2f
-
-	movl	CNAME(cpustop_restartfunc), %eax
-	test	%eax, %eax
-	jz	2f
-	movl	$0, CNAME(cpustop_restartfunc)	/* One-shot */
-
-	call	*%eax
-2:
 	POP_FRAME
 	iret
 
@@ -340,11 +304,6 @@ IDTVEC(lazypmap)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 
-#ifdef COUNT_IPIS
-	movl	PCPU(CPUID), %eax
-	movl	ipi_lazypmap_counts(,%eax,4), %eax
-	incl	(%eax)
-#endif
 	call	pmap_lazyfix_action
 
 	movl	lapic, %eax
