@@ -140,7 +140,6 @@ struct nve_softc {
 	u_int32_t pending_txs;
 
 	struct mtx mtx;
-	struct mtx osmtx;
 
 	/* Stuff for dealing with the NVIDIA OS API */
 	struct callout ostimer;
@@ -165,8 +164,6 @@ struct nve_type {
 #define NVE_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
 #define NVE_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
 #define NVE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
-#define NVE_OSLOCK(_sc)		mtx_lock_spin(&(_sc)->osmtx)
-#define NVE_OSUNLOCK(_sc)	mtx_unlock_spin(&(_sc)->osmtx)
 
 #define IF_Kbps(x) ((x) * 1000)			/* kilobits/sec. */
 #define IF_Mbps(x) (IF_Kbps((x) * 1000))	/* megabits/sec. */
