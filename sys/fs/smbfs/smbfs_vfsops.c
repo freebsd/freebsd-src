@@ -230,9 +230,7 @@ smbfs_mount(struct mount *mp, struct thread *td)
 	smp->sm_dir_mode  = (v & (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
 
 	vfs_flagopt(mp->mnt_optnew,
-	    "long", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
-
-	smp->sm_flags ^= SMBFS_MOUNT_NO_LONG;
+	    "nolong", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
 
 /*	simple_lock_init(&smp->sm_npslock);*/
 	pc = mp->mnt_stat.f_mntfromname;
