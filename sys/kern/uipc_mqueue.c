@@ -1694,11 +1694,13 @@ mqueue_send_notification(struct mqueue *mq)
 
 	mtx_assert(&mq->mq_mutex, MA_OWNED);
 	nt = mq->mq_notifier;
-	p = nt->nt_proc;
-	PROC_LOCK(p);
-	if (!KSI_ONQ(&nt->nt_ksi))
-		psignal_event(p, &nt->nt_sigev, &nt->nt_ksi);
-	PROC_UNLOCK(p);
+	if (nt->nt_sigev.sigev_notify != SIGEV_NONE) {
+		p = nt->nt_proc;
+		PROC_LOCK(p);
+		if (!KSI_ONQ(&nt->nt_ksi))
+			psignal_event(p, &nt->nt_sigev, &nt->nt_ksi);
+		PROC_UNLOCK(p);
+	}
 	mq->mq_notifier = NULL;
 }
 
@@ -2191,7 +2193,7 @@ again:
 	if (uap->sigev != NULL) {
 		if (mq->mq_notifier != NULL) {
 			error = EBUSY;
-		} else if (ev.sigev_notify != SIGEV_NONE) {
+		} else {
 			PROC_LOCK(p);
 			nt = notifier_search(p, uap->mqd);
 			if (nt == NULL) {
