@@ -74,6 +74,8 @@
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
+#define	TRAP(a)		pushl $(a) ; jmp alltraps
+
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
@@ -129,11 +131,7 @@ alltraps:
 	pushl	%es
 	pushl	%fs
 alltraps_with_regs_pushed:
-	movl	$KDSEL,%eax
-	movl	%eax,%ds
-	movl	%eax,%es
-	movl	$KPSEL,%eax
-	movl	%eax,%fs
+	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
 	call	trap
@@ -166,11 +164,7 @@ IDTVEC(lcall_syscall)
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-	movl	$KDSEL,%eax		/* switch to kernel segments */
-	movl	%eax,%ds
-	movl	%eax,%es
-	movl	$KPSEL,%eax
-	movl	%eax,%fs
+	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
 	call	syscall
 	MEXITCOUNT
@@ -191,11 +185,7 @@ IDTVEC(int0x80_syscall)
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-	movl	$KDSEL,%eax		/* switch to kernel segments */
-	movl	%eax,%ds
-	movl	%eax,%es
-	movl	$KPSEL,%eax
-	movl	%eax,%fs
+	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
 	call	syscall
 	MEXITCOUNT
