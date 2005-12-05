@@ -107,7 +107,7 @@ struct intsrc {
 	u_int is_index;
 };
 
-struct intrframe;
+struct trapframe;
 
 extern struct mtx icu_lock;
 extern int elcr_found;
@@ -121,7 +121,7 @@ int	intr_add_handler(const char *name, int vector, driver_intr_t handler,
     void *arg, enum intr_type flags, void **cookiep);
 int	intr_config_intr(int vector, enum intr_trigger trig,
     enum intr_polarity pol);
-void	intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe);
+void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 struct intsrc *intr_lookup_source(int vector);
 int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
