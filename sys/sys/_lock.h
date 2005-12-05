@@ -36,8 +36,10 @@ struct lock_object {
 	const	char *lo_name;		/* Individual lock name. */
 	const	char *lo_type;		/* General lock type. */
 	u_int	lo_flags;
-	TAILQ_ENTRY(lock_object) lo_list; /* List of all locks in system. */
-	struct	witness *lo_witness;
+	union {				/* Data for witness. */
+		STAILQ_ENTRY(lock_object) lod_list;
+		struct	witness *lod_witness;
+	} lo_witness_data;
 };
 
 #endif /* !_SYS__LOCK_H_ */
