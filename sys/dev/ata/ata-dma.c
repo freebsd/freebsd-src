@@ -115,7 +115,7 @@ ata_dmaalloc(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, ch->dma->max_iosize,
 			   ATA_DMA_ENTRIES, ch->dma->segsize,
-			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->data_tag))
+			   0, NULL, NULL, &ch->dma->data_tag))
 	goto error;
 
     if (bus_dmamem_alloc(ch->dma->sg_tag, (void **)&ch->dma->sg, 0,
@@ -223,31 +223,33 @@ ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir,
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dmasetprd_args cba;
+    int error;
 
     if (ch->dma->flags & ATA_DMA_LOADED) {
 	device_printf(dev, "FAILURE - already active DMA on this device\n");
-	return -1;
+	return EIO;
     }
     if (!count) {
 	device_printf(dev, "FAILURE - zero length DMA transfer attempted\n");
-	return -1;
+	return EIO;
     }
     if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
 	(count & (ch->dma->alignment - 1))) {
 	device_printf(dev, "FAILURE - non aligned DMA transfer attempted\n");
-	return -1;
+	return EIO;
     }
     if (count > ch->dma->max_iosize) {
 	device_printf(dev, "FAILURE - oversized DMA transfer attempt %d > %d\n",
 		      count, ch->dma->max_iosize);
-	return -1;
+	return EIO;
     }
 
     cba.dmatab = addr;
 
-    if (bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map, data, count,
-			ch->dma->setprd, &cba, 0) || cba.error)
-	return -1;
+    if ((error = bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map,
+				 data, count, ch->dma->setprd, &cba,
+				 BUS_DMA_NOWAIT)) || (error = cba.error))
+	return error;
 
     *entries = cba.nsegs;
 

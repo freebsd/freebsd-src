@@ -73,7 +73,7 @@ ata_begin_transaction(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_device *atadev = device_get_softc(request->dev);
-    int dummy;
+    int dummy, error;
 
     ATA_DEBUG_RQ(request, "begin transaction");
 
@@ -130,10 +130,11 @@ ata_begin_transaction(struct ata_request *request)
     /* ATA DMA data transfer commands */
     case ATA_R_DMA:
 	/* check sanity, setup SG list and DMA engine */
-	if (ch->dma->load(ch->dev, request->data, request->bytecount,
-			  request->flags & ATA_R_READ, ch->dma->sg, &dummy)) {
+	if ((error = ch->dma->load(ch->dev, request->data, request->bytecount,
+				   request->flags & ATA_R_READ, ch->dma->sg, 
+				   &dummy))) {
 	    device_printf(request->dev, "setting up DMA failed\n");
-	    request->result = EIO;
+	    request->result = error;
 	    goto begin_finished;
 	}
 
@@ -184,10 +185,11 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* check sanity, setup SG list and DMA engine */
-	if (ch->dma->load(ch->dev, request->data, request->bytecount,
-			  request->flags & ATA_R_READ, ch->dma->sg, &dummy)) {
+	if ((error = ch->dma->load(ch->dev, request->data, request->bytecount,
+				   request->flags & ATA_R_READ, ch->dma->sg,
+				   &dummy))) {
 	    device_printf(request->dev, "setting up DMA failed\n");
-	    request->result = EIO;
+	    request->result = error;
 	    goto begin_finished;
 	}
 
