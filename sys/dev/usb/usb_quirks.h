@@ -54,6 +54,7 @@ struct usbd_quirks {
 #define UQ_AU_INP_ASYNC	0x0800	/* input is async despite claim of adaptive */
 #define UQ_ASSUME_CM_OVER_DATA 0x1000 /* modem device breaks on cm over data */
 #define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
+#define UQ_BROKEN_IPOD	0x4000	/* iPod has something broken */
 };
 
 extern const struct usbd_quirks usbd_no_quirk;
