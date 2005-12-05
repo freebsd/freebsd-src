@@ -315,8 +315,7 @@ nve_attach(device_t dev)
 
 	/* Allocate mutex */
 	mtx_init(&sc->mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
-	mtx_init(&sc->osmtx, device_get_nameunit(dev), NULL, MTX_SPIN);
+	    MTX_DEF);
 	callout_init_mtx(&sc->stat_callout, &sc->mtx, 0);
 
 	sc->dev = dev;
@@ -603,7 +602,6 @@ nve_detach(device_t dev)
 	if (ifp)
 		if_free(ifp);
 	mtx_destroy(&sc->mtx);
-	mtx_destroy(&sc->osmtx);
 
 	DEBUGOUT(NVE_DEBUG_DEINIT, "nve: nve_detach - exit\n");
 
@@ -1589,16 +1587,8 @@ static NV_SINT32
 nve_oslinkchg(PNV_VOID ctx, NV_SINT32 enabled)
 {
 	struct nve_softc *sc = (struct nve_softc *)ctx;
-	struct ifnet *ifp;
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_oslinkchg\n");
-
-	ifp = sc->ifp;
-
-	if (enabled)
-		ifp->if_flags |= IFF_UP;
-	else
-		ifp->if_flags &= ~IFF_UP;
 
 	return (1);
 }
@@ -1720,8 +1710,6 @@ nve_oslockacquire(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 
 	DEBUGOUT(NVE_DEBUG_LOCK, "nve: nve_oslockacquire\n");
 
-	NVE_OSLOCK((struct nve_softc *)lock);
-
 	return (1);
 }
 
@@ -1731,8 +1719,6 @@ nve_oslockrelease(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 {
 
 	DEBUGOUT(NVE_DEBUG_LOCK, "nve: nve_oslockrelease\n");
-
-	NVE_OSUNLOCK((struct nve_softc *)lock);
 
 	return (1);
 }
