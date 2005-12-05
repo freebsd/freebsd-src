@@ -1642,7 +1642,7 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 		else
 			tie->tim_count--;
 		/* update state for buffered multicast frames on DTIM */
-		if (mcast && (tie->tim_count == 1 || tie->tim_period == 1))
+		if (mcast && tie->tim_count == 0)
 			tie->tim_bitctl |= 1;
 		else
 			tie->tim_bitctl &= ~1;
