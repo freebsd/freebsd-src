@@ -61,15 +61,13 @@ __FBSDID("$FreeBSD$");
  *			the .MFLAGS target.
  */
 
-#ifndef MACHINE
-#include <sys/utsname.h>
-#endif
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
@@ -717,13 +715,14 @@ main(int argc, char **argv)
 #endif
 
 	/*
-	 * PC-98 kernel sets the `i386' string to the utsname.machine and
-	 * it cannot be distinguished from IBM-PC by uname(3).  Therefore,
-	 * we check machine.ispc98 and adjust the machine variable before
-	 * using usname(3) below.
-	 * NOTE: machdep.ispc98 was defined on 1998/8/31. At that time,
-	 * __FreeBSD_version was defined as 300003. So, this check can
-	 * safely be done with any kernel with version > 300003.
+	 * FreeBSD/pc98 kernel used to set the utsname.machine to
+	 * "i386", and MACHINE was defined as "i386", so it could
+	 * not be distinguished from FreeBSD/i386.  Therefore, we
+	 * had to check machine.ispc98 and adjust the MACHINE
+	 * variable.
+	 * NOTE: The code is still here to be able to compile new
+	 * make binary on old FreeBSD/pc98 systems, and have the
+	 * MACHINE variable set properly.
 	 */
 	if ((machine = getenv("MACHINE")) == NULL) {
 		int	ispc98;
@@ -741,19 +740,15 @@ main(int argc, char **argv)
 	 * so we can share an executable for similar machines.
 	 * (i.e. m68k: amiga hp300, mac68k, sun3, ...)
 	 *
-	 * Note that while MACHINE is decided at run-time,
-	 * MACHINE_ARCH is always known at compile time.
+	 * Note that both MACHINE and MACHINE_ARCH are decided at
+	 * run-time.
 	 */
 	if (machine == NULL) {
-#ifdef MACHINE
-		machine = MACHINE;
-#else
 		static struct utsname utsname;
 
 		if (uname(&utsname) == -1)
 			err(2, "uname");
 		machine = utsname.machine;
-#endif
 	}
 
 	if ((machine_arch = getenv("MACHINE_ARCH")) == NULL) {

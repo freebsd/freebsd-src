@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/utsname.h>
 
 #include <ctype.h>
 #include <dirent.h>
@@ -65,7 +66,7 @@ static int force;		/* -f flag: force overwriting all cat pages */
 static int rm_junk;		/* -r flag: remove garbage pages */
 static char *locale;		/* user's locale if -L is used */
 static char *lang_locale;	/* short form of locale */
-static const char *machine;
+static const char *machine, *machine_arch;
 static int exit_code;		/* exit code to use when finished */
 
 /*
@@ -634,7 +635,7 @@ process_mandir(char *dir_name, char *section)
 		process_section(dir_name, section);
 	} else {
 		struct dirent **entries;
-		char *machine_dir;
+		char *machine_dir, *arch_dir;
 		int nsections;
 		int i;
 
@@ -651,6 +652,13 @@ process_mandir(char *dir_name, char *section)
 			if (test_path(machine_dir, NULL) & TEST_DIR)
 				process_section(dir_name, machine_dir);
 			free(machine_dir);
+			if (strcmp(machine_arch, machine) != 0) {
+				asprintf(&arch_dir, "%s/%s", entries[i]->d_name,
+				    machine_arch);
+				if (test_path(arch_dir, NULL) & TEST_DIR)
+					process_section(dir_name, arch_dir);
+				free(arch_dir);
+			}
 			free(entries[i]);
 		}
 		free(entries);
@@ -791,8 +799,16 @@ main(int argc, char **argv)
 	signal(SIGQUIT, trap_signal);
 	signal(SIGTERM, trap_signal);
 
-	if ((machine = getenv("MACHINE")) == NULL)
-		machine = MACHINE;
+	if ((machine = getenv("MACHINE")) == NULL) {
+		static struct utsname utsname;
+
+		if (uname(&utsname) == -1)
+			err(1, "uname");
+		machine = utsname.machine;
+	}
+
+	if ((machine_arch = getenv("MACHINE_ARCH")) == NULL)
+		machine_arch = MACHINE_ARCH;
 
 	if (optind == argc) {
 		const char *manpath = getenv("MANPATH");

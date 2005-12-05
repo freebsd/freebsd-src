@@ -14,7 +14,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 1991
+.Dd December 3, 2005
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -23,7 +23,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfhkotw
-.Op Fl m Ar machine
+.Op Fl m Ar arch Ns Op : Ns Ar machine
 .Op Fl p Ar string
 .Op Fl M Ar path
 .Op Fl P Ar pager
@@ -103,20 +103,40 @@ Print a help message and exit.
 .It Fl k
 Equivalent to
 .Nm apropos .
-.It Fl m Ar machine
-As some manual pages are intended only for specific architectures,
+.It Fl m Ar arch Ns Op : Ns Ar machine
+As some manual pages are intended only for specific
+architectures and machine types,
 .Nm
 searches any subdirectories,
-with the same name as the current architecture,
+with the same name as the current machine type and architecture,
 in every directory which it searches.
-Machine specific areas are checked before general areas.
+Machine specific areas are checked before architecture specific areas,
+and architecture specific areas are checked before general areas.
+For example, for
+.Dq Li i386:pc98 ,
+the following subdirectories will be searched for section 8
+manpages, in order:
+.Pa man8/pc98, man8/i386 ,
+and
+.Pa man8 .
+.Pp
 The current machine type may be overridden using this option
 or by setting the environment variable
 .Ev MACHINE
+to the name of a specific machine.
+The current architecture may be overridden using this option
+or by setting the environment variable
+.Ev MACHINE_ARCH
 to the name of a specific architecture.
 This option overrides the
 .Ev MACHINE
-environment variable.
+and
+.Ev MACHINE_ARCH
+environment variables.
+A
+.Ar machine
+component, if omitted, defaults to
+.Ar arch .
 .It Fl o
 Look for original, non-localized manpages only.
 .Pp
@@ -201,7 +221,7 @@ Do not actually display the man pages, but do print the location(s) of
 the files that would be formatted or displayed.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width MANROFFSEQ
+.Bl -tag -width ".Ev MACHINE_ARCH"
 .It Ev LC_ALL , LC_CTYPE , LANG
 These variables specify the preferred language for manual pages.
 (See the
@@ -212,6 +232,11 @@ If
 .Ev MACHINE
 is set, its value is used to override the current machine type
 when searching machine specific subdirectories.
+.It Ev MACHINE_ARCH
+If
+.Ev MACHINE_ARCH
+is set, its value is used to override the current architecture
+when searching architecture specific subdirectories.
 .It Ev MANPATH
 If
 .Ev MANPATH
