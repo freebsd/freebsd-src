@@ -150,44 +150,6 @@ typedef	u_int32_t u32;
 #endif
 
 /*
- *  Portable but silly implemented byte order primitives.
- *  We define the primitives we need, since FreeBSD doesn't 
- *  seem to have them yet.
- */
-#if	BYTE_ORDER == BIG_ENDIAN
-
-#define __revb16(x) (	(((u16)(x) & (u16)0x00ffU) << 8) | \
-			(((u16)(x) & (u16)0xff00U) >> 8) 	)
-#define __revb32(x) (	(((u32)(x) & 0x000000ffU) << 24) | \
-			(((u32)(x) & 0x0000ff00U) <<  8) | \
-			(((u32)(x) & 0x00ff0000U) >>  8) | \
-			(((u32)(x) & 0xff000000U) >> 24)	)
-
-#define __htole16(v)	__revb16(v)
-#define __htole32(v)	__revb32(v)
-#define __le16toh(v)	__htole16(v)
-#define __le32toh(v)	__htole32(v)
-
-static __inline u16	_htole16(u16 v) { return __htole16(v); }
-static __inline u32	_htole32(u32 v) { return __htole32(v); }
-#define _le16toh	_htole16
-#define _le32toh	_htole32
-
-#else	/* LITTLE ENDIAN */
-
-#define __htole16(v)	(v)
-#define __htole32(v)	(v)
-#define __le16toh(v)	(v)
-#define __le32toh(v)	(v)
-
-#define _htole16(v)	(v)
-#define _htole32(v)	(v)
-#define _le16toh(v)	(v)
-#define _le32toh(v)	(v)
-
-#endif	/* BYTE_ORDER */
-
-/*
  *  A la VMS/CAM-3 queue management.
  */
 
@@ -920,16 +882,10 @@ struct sym_nvram {
 
 /*
  *  Some provision for support for BIG ENDIAN CPU.
- *  Btw, FreeBSD does not seem to be ready yet for big endian.
  */
 
-#if	BYTE_ORDER == BIG_ENDIAN
-#define cpu_to_scr(dw)	_htole32(dw)
-#define scr_to_cpu(dw)	_le32toh(dw)
-#else
-#define cpu_to_scr(dw)	(dw)
-#define scr_to_cpu(dw)	(dw)
-#endif
+#define cpu_to_scr(dw)	htole32(dw)
+#define scr_to_cpu(dw)	le32toh(dw)
 
 /*
  *  Access to the chip IO registers and on-chip RAM.
