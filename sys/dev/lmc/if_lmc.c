@@ -2807,7 +2807,7 @@ rxintr_cleanup(softc_t *sc)
   struct mbuf *new_mbuf;
   int pkt_len, desc_len;
 
-#if (defined(__FreeBSD__) && DEVICE_POLLING)
+#if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
   /* Input packet flow control (livelock prevention): */
   /* Give pkts to higher levels only if quota is > 0. */
   if (sc->quota <= 0) return 0;
@@ -2923,7 +2923,7 @@ rxintr_cleanup(softc_t *sc)
     sc->ifp->if_ipackets++;
     LMC_BPF_MTAP(first_mbuf);
 #endif
-#if (defined(__FreeBSD__) && DEVICE_POLLING)
+#if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
     sc->quota--;
 #endif
 
@@ -3947,7 +3947,7 @@ user_interrupt(softc_t *sc, int check_status)
 
 #if BSD
 
-# if (defined(__FreeBSD__) && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
 
 /* Service the card from the kernel idle loop without interrupts. */
 static void
@@ -3986,7 +3986,7 @@ bsd_interrupt(void *arg)
   if ((READ_CSR(TLP_STATUS) & TLP_INT_TXRX) == 0)
     return IRQ_NONE;
 
-# if (defined(__FreeBSD__) && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
   if (sc->ifp->if_capenable & IFCAP_POLLING)
     return IRQ_NONE;
 
@@ -4464,7 +4464,7 @@ raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
   switch (cmd)
     {
-# if (defined(__FreeBSD__) && DEVICE_POLLING)  /* XXX necessary? */
+# if (defined(__FreeBSD__) && defined(DEVICE_POLLING))  /* XXX necessary? */
     case SIOCSIFCAP:
 # endif
     case SIOCSIFDSTADDR:
@@ -4815,7 +4815,7 @@ setup_ifnet(struct ifnet *ifp)
   ifp->if_mtu      = MAX_DESC_LEN;	/* sppp & p2p change this */
   ifp->if_type     = IFT_PTPSERIAL;	/* p2p changes this */
 
-# if (defined(__FreeBSD__) && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
   ifp->if_capabilities |= IFCAP_POLLING;
 # if (__FreeBSD_version < 500000)
   ifp->if_capenable    |= IFCAP_POLLING;
@@ -4916,7 +4916,7 @@ ifnet_detach(softc_t *sc)
   ifmedia_delete_instance(&sc->ifm, IFM_INST_ANY);
 # endif
 
-# if (defined(__FreeBSD__) && DEVICE_POLLING)
+# if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
   if (sc->ifp->if_capenable & IFCAP_POLLING)
     ether_poll_deregister(sc->ifp);
 # endif
