@@ -159,7 +159,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	pref = 0;
 	if ((error = ext2_getlbns(vp, bn, indirs, &num)) != 0)
 		return(error);
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	if (num < 1)
 		panic ("ext2_balloc: ext2_getlbns returned indirect block");
 #endif

@@ -321,7 +321,7 @@ gem_attach(sc)
 	/* Attach the interface. */
 	ether_ifattach(ifp, sc->sc_enaddr);
 
-#if notyet
+#ifdef notyet
 	/*
 	 * Add a suspend hook to make sure we come back up after a
 	 * resume.

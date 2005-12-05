@@ -30,7 +30,11 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
+#ifdef DEV_PFLOG
 #define	NPFLOG DEV_PFLOG
+#else
+#define	NPFLOG 0
+#endif
 #else
 #include "pflog.h"
 #endif

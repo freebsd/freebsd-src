@@ -161,7 +161,7 @@ i4b_T202_stop(l2_softc_t *l2sc)
 /*---------------------------------------------------------------------------*
  *	Q.921 timer T203 timeout function
  *---------------------------------------------------------------------------*/
-#if I4B_T203_ACTIVE
+#if defined(I4B_T203_ACTIVE) && I4B_T203_ACTIVE
 static void
 i4b_T203_timeout(l2_softc_t *l2sc)
 {
@@ -176,7 +176,7 @@ i4b_T203_timeout(l2_softc_t *l2sc)
 void
 i4b_T203_start(l2_softc_t *l2sc)
 {
-#if I4B_T203_ACTIVE
+#if defined(I4B_T203_ACTIVE) && I4B_T203_ACTIVE
 	if (l2sc->T203 == TIMER_ACTIVE)
 		return;
 		
@@ -193,7 +193,7 @@ i4b_T203_start(l2_softc_t *l2sc)
 void
 i4b_T203_stop(l2_softc_t *l2sc)
 {
-#if I4B_T203_ACTIVE
+#if defined(I4B_T203_ACTIVE) && I4B_T203_ACTIVE
 	CRIT_VAR;
 	CRIT_BEG;
 	if(l2sc->T203 != TIMER_IDLE)
@@ -212,7 +212,7 @@ i4b_T203_stop(l2_softc_t *l2sc)
 void
 i4b_T203_restart(l2_softc_t *l2sc)
 {
-#if I4B_T203_ACTIVE
+#if defined(I4B_T203_ACTIVE) && I4B_T203_ACTIVE
 	CRIT_VAR;
 	CRIT_BEG;
 

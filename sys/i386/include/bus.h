@@ -1084,7 +1084,7 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 #endif
 }
 
-#if BUS_SPACE_NO_LEGACY
+#ifdef BUS_SPACE_NO_LEGACY
 #undef inb
 #undef outb
 #define inb(a) compiler_error

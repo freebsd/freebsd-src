@@ -46,8 +46,19 @@
 #elif __FreeBSD__ >= 5
 #include "opt_bpf.h"
 #include "opt_pf.h"
+
+#ifdef DEV_BPF
 #define	NBPFILTER	DEV_BPF
+#else
+#define	NBPFILTER	0
+#endif
+
+#ifdef DEV_PFLOG
 #define	NPFLOG		DEV_PFLOG
+#else
+#define	NPFLOG		0
+#endif
+
 #endif
 
 #include <sys/param.h>

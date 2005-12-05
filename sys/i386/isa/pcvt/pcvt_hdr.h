@@ -109,12 +109,9 @@
 #if !(PCVT_SLOW_INTERRUPT)
 # define PCVT_DISABLE_INTR()	disable_intr()
 # define PCVT_ENABLE_INTR()	enable_intr()
-# undef PCVT_SLOW_INTERRUPT
 #else
 # define PCVT_DISABLE_INTR()	s = spltty()
 # define PCVT_ENABLE_INTR()	splx(s)
-# undef PCVT_SLOW_INTERRUPT
-# define PCVT_SLOW_INTERRUPT 1
 #endif
 
 #ifdef XSERVER
