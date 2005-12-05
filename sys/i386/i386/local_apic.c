@@ -623,6 +623,10 @@ lapic_handle_timer(struct clockframe frame)
 {
 	struct lapic *la;
 
+	/* Send EOI first thing. */
+	lapic_eoi();
+
+	/* Look up our local APIC structure for the tick counters. */
 	la = &lapics[PCPU_GET(apic_id)];
 	(*la->la_timer_count)++;
 	critical_enter();
