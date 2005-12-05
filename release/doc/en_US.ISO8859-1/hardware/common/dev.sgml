@@ -597,8 +597,9 @@
     &hwlist.sr;
 
     <para arch="i386,amd64">Specialix SI/XIO/SX multiport serial cards, with both the
-    older SIHOST2.x and the new <quote>enhanced</quote> (transputer
-    based, aka JET) host cards (ISA, EISA and PCI are supported)
+    older SIHOST2.x and the <quote>enhanced</quote> (transputer
+    based, aka JET) host cards (ISA, EISA and PCI) are supported.
+    Note that the newer SX+ PCI cards are not currently supported.
     (&man.si.4; driver)</para>
 
     <para arch="pc98">Internel serial interfaces (&man.sio.4; driver)
