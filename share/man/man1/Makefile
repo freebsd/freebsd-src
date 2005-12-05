@@ -74,6 +74,7 @@ MLINKS=	builtin.1 alias.1 \
 	builtin.1 suspend.1 \
 	builtin.1 switch.1 \
 	builtin.1 telltc.1 \
+	builtin.1 times.1 \
 	builtin.1 then.1 \
 	builtin.1 trap.1 \
 	builtin.1 type.1 \
