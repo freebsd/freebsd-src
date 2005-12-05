@@ -75,17 +75,18 @@ properties_read(int fd)
     char hold_v[PROPERTY_MAX_VALUE + 1];
     char buf[BUFSIZ * 4];
     int bp, n, v, max;
-    enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state;
+    enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state, last_state;
     int ch = 0, blevel = 0;
 
     n = v = bp = max = 0;
     head = ptr = NULL;
-    state = LOOK;
+    state = last_state = LOOK;
     while (state != STOP) {
 	if (state != COMMIT) {
-	    if (bp == max)
+	    if (bp == max) {
+		last_state = state;
 		state = FILL;
-	    else
+	    } else
 		ch = buf[bp++];
 	}
 	switch(state) {
@@ -96,13 +97,19 @@ properties_read(int fd)
 	    }
 	    if (max == 0) {
 		state = STOP;
-		break;
 	    } else {
-		state = LOOK;
+		/*
+		 * Restore the state from before the fill (which will be
+		 * initialised to LOOK for the first FILL). This ensures that
+		 * if we were part-way through eg., a VALUE state, when the
+		 * buffer ran out, that the previous operation will be allowed
+		 * to complete.
+		 */
+		state = last_state;
 		ch = buf[0];
-		bp = 1;
+		bp = 0;
 	    }
-	    /* FALLTHROUGH deliberately since we already have a character and state == LOOK */
+	    continue;
 
 	case LOOK:
 	    if (isspace((unsigned char)ch))
