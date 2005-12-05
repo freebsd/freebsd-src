@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd August 31, 2005
+.Dd December 5, 2005
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -184,7 +184,12 @@ all restrictions necessary for a successful DMA operation, some conversion
 almost always required when presenting segment information to the device.
 .It Vt bus_dmamap_t
 A machine-dependent opaque type describing an individual mapping.
-Multiple DMA maps can be associated with one DMA tag.
+One map is used for each memory allocation that will be loaded.
+Maps can be reused once they have been unloaded.
+Multiple maps can be associated with one DMA tag.
+While the value of the map may evaluate to NULL on some platforms under
+certain conditions, it should never be assumed that it will be NULL in all
+cases.
 .It Vt bus_dmamap_callback_t
 Client specified callback for receiving mapping information resulting from
 the load of a
@@ -401,12 +406,16 @@ Are as follows:
 .Bl -tag -width "BUS_DMA_ALLOCNOW" -compact
 .It Dv BUS_DMA_ALLOCNOW
 Pre-allocate enough resources to handle at least one map load operation on
-this tag without blocking.
+this tag.
 If sufficient resources are not available,
 .Er ENOMEM
 is returned.
-This should not be used for tags that will not be directly associated with
-a map.
+This should not be used for tags that only describe buffers that will be
+allocated with
+.Fn bus_dmamem_alloc .
+Also, due to resource sharing with other tags, this flag does not guarantee
+that resources will be allocated or reserved exclusively for this tag.
+It should be treated only as a minor optimization.
 .El
 .It Fa lockfunc
 Optional lock manipulation function (may be NULL) to be called when busdma
@@ -481,7 +490,8 @@ Creates a mapping in device visible address space of
 bytes of
 .Fa buf ,
 associated with the DMA map
-.Fa map.
+.Fa map .
+This call will always return immediately and will not block for any reason.
 Arguments are as follows:
 .Bl -tag -width buflen -compact
 .It Fa dmat
@@ -496,10 +506,20 @@ mapped into device visible address space.
 The size of the buffer.
 .It Fa callback Fa callback_arg
 The callback function, and its argument.
+This function is called once sufficient mapping resources are available for
+the DMA operation.
+If resources are temporarily unavailable, this function will be deferred until
+later, but the load operation will still return immediately to the caller.
+Thus, callers should not assume that the callback will be called before the
+load returns, and code should be structured appropriately to handle this.
+See below for specific flags and error codes that control this behavior.
 .It Fa flags
-The value of this argument is currently undefined, and should be
-specified as
-.Ql 0 .
+Are as follows:
+.Bl -tag -width BUS_DMA_NOWAIT -compact
+.It Er BUS_DMA_NOWAIT
+The load should not be deferred in case of insufficient mapping resources,
+and instead should return immediately with an appropriate error.
+.El
 .El
 .Pp
 Return values to the caller are as follows:
@@ -513,9 +533,14 @@ The callback will be called as soon as resources are available.
 Callbacks are serviced in FIFO order.
 To ensure that ordering is guaranteed, all subsequent load requests will also
 be deferred until all callbacks have been processed.
+.It Er ENOMEM
+The load request has failed due to insufficient resources, and the caller
+specifically used the
+.Fa BUS_DMA_NOWAIT
+flag.
 .It Er EINVAL
 The load request was invalid.
-The callback has not, and will not be called.
+The callback has been called and has been provided the same error.
 This error value may indicate that
 .Fa dmat ,
 .Fa map ,
@@ -523,7 +548,7 @@ This error value may indicate that
 or
 .Fa callback
 were invalid, or
-.Fa buslen
+.Fa buflen
 was larger than the
 .Fa maxsize
 argument used to create the dma tag
@@ -555,12 +580,16 @@ A
 .Vt bus_size_t
 argument is also passed to the callback routine, which
 contains the mbuf chain's packet header length.
+The
+.Fa BUS_DMA_NOWAIT
+flag is implied, thus no callback deferral will happen.
 .Pp
 Mbuf chains are assumed to be in kernel virtual address space.
 .Pp
-Returns
+Beside the error values listed for
+.Fn bus_dmamap_load ,
 .Er EINVAL
-if the size of the mbuf chain exceeds the maximum limit of the
+will be returned if the size of the mbuf chain exceeds the maximum limit of the
 DMA tag.
 .It Fn bus_dmamap_load_mbuf_sg "dmat" "map" "mbuf" "segs" "nsegs" "flags"
 This is just like
@@ -587,6 +616,11 @@ argument is also passed to the callback routine, which contains the size of
 .Fa uio ,
 i.e.
 .Fa uio->uio_resid .
+The
+.Fa BUS_DMA_NOWAIT
+flag is implied, thus no callback deferral will happen.
+Returns the same errors as
+.Fn bus_dmamap_load .
 .Pp
 If
 .Fa uio->uio_segflg
