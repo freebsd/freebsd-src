@@ -1011,6 +1011,9 @@ acpi_pci_link_route_interrupt(device_t dev, int index)
 {
 	struct link *link;
 
+	if (acpi_disabled("pci_link"))
+		return (PCI_INVALID_IRQ);
+
 	ACPI_SERIAL_BEGIN(pci_link);
 	link = acpi_pci_link_lookup(dev, index);
 	if (link == NULL)
