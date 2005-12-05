@@ -832,10 +832,10 @@ run_rc_script()
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
 	case "$_file" in
-	*.sh)				# run in current shell
+	/etc/rc.d/*.sh)			# run in current shell
 		set $_arg; . $_file
 		;;
-	*[~#]|*.OLD|*.orig|*,v)		# scratch file; skip
+	*[~#]|*.OLD|*.bak|*.orig|*,v)	# scratch file; skip
 		warn "Ignoring scratch file $_file"
 		;;
 	*)				# run in subshell
