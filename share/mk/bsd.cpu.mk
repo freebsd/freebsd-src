@@ -150,7 +150,9 @@ MACHINE_CPU = i486 i386
 MACHINE_CPU = i386
 .  endif
 . elif ${MACHINE_ARCH} == "alpha"
-.  if ${CPUTYPE} == "ev6"
+.  if ${CPUTYPE} == "ev67"
+MACHINE_CPU = ev67 ev6 ev56 pca56 ev5 ev45 ev4
+.  elif ${CPUTYPE} == "ev6"
 MACHINE_CPU = ev6 ev56 pca56 ev5 ev45 ev4
 .  elif ${CPUTYPE} == "pca56"
 MACHINE_CPU = pca56 ev56 ev5 ev45 ev4
