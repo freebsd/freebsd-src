@@ -64,13 +64,6 @@
 #define _ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
 #endif
 
-#ifndef _MACHINE
-#define	_MACHINE	alpha
-#endif
-#ifndef _MACHINE_ARCH
-#define	_MACHINE_ARCH	alpha
-#endif
-
 #ifndef _NO_NAMESPACE_POLLUTION
 
 #ifndef _MACHINE_PARAM_H_
