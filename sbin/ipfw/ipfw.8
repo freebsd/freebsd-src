@@ -843,6 +843,19 @@ Matches any packet.
 .El
 .Pp
 The
+.Cm ip
+and
+.Cm ipv6
+in
+.Cm proto
+option will be treated as inner protocol.
+And, the
+.Cm ipv4
+is not available in
+.Cm proto
+option.
+.Pp
+The
 .Cm { Ar protocol Cm or ... }
 format (an
 .Em or-block )
