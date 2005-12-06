@@ -111,3 +111,6 @@ STOP_NMI		opt_cpu.h
 # FreeBSD/i386 supports xbox and is shared with pc98 so we need to define
 # dummy opt_xbox.h
 NO_XBOX			opt_xbox.h
+
+# BPF just-in-time compiler
+BPF_JITTER		opt_bpf.h
