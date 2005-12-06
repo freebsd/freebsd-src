@@ -75,7 +75,8 @@ then the signal specified in
 .Fa notification->sigev_signo
 will be sent to the process.
 The signal will be queued to the process and the value specified in
-notification->sigev_value will be the
+.Fa notification->sigev_value
+will be the
 .Va si_value
 component of the generated signal.
 .Pp
