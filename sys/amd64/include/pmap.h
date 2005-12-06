@@ -46,7 +46,7 @@
 #define	_MACHINE_PMAP_H_
 
 /*
- * Page-directory and page-table entires follow this format, with a few
+ * Page-directory and page-table entries follow this format, with a few
  * of the fields not present here and there, depending on a lot of things.
  */
 				/* ---- Intel Nomenclature ---- */
@@ -171,14 +171,12 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 #ifdef _KERNEL
 /*
  * virtual address to page table entry and
- * to physical address. Likewise for alternate address space.
+ * to physical address.
  * Note: these work recursively, thus vtopte of a pte will give
  * the corresponding pde that in turn maps it.
  */
 pt_entry_t *vtopte(vm_offset_t);
-vm_paddr_t pmap_kextract(vm_offset_t);
-
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
@@ -291,6 +289,7 @@ extern vm_offset_t virtual_end;
 void	pmap_bootstrap(vm_paddr_t *);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
+vm_paddr_t pmap_kextract(vm_offset_t);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
