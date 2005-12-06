@@ -126,6 +126,7 @@ extern pt_entry_t PTlev1pte;	/* pte that maps lev1 page table */
  */
 #define	vtopte(va)	(PTmap + (alpha_btop(va) \
 				  & ((1 << 3*ALPHA_PTSHIFT)-1)))
+#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 /*
  *	Routine:	pmap_kextract
@@ -144,8 +145,6 @@ pmap_kextract(vm_offset_t va)
 			| (va & PAGE_MASK);
 	return pa;
 }
-
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 static __inline vm_offset_t
 alpha_XXX_dmamap(vm_offset_t va)

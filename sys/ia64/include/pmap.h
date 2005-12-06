@@ -58,7 +58,7 @@
 #endif
 #define MAXKPT		(PAGE_SIZE/sizeof(vm_offset_t))
 
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 #endif /* _KERNEL */
 
