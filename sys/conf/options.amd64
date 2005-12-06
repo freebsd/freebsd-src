@@ -58,3 +58,6 @@ DEV_ATPIC		opt_atpic.h
 
 # Debugging
 STOP_NMI		opt_cpu.h
+
+# BPF just-in-time compiler
+BPF_JITTER		opt_bpf.h
