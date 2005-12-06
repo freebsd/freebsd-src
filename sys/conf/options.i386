@@ -168,3 +168,6 @@ STOP_NMI		opt_cpu.h
 
 # XBOX support in the kernel
 XBOX			opt_xbox.h
+
+# BPF just-in-time compiler
+BPF_JITTER		opt_bpf.h

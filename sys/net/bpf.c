@@ -65,6 +65,9 @@
 
 #include <net/if.h>
 #include <net/bpf.h>
+#ifdef BPF_JITTER
+#include <net/bpf_jitter.h>
+#endif
 #include <net/bpfdesc.h>
 
 #include <netinet/in.h>
@@ -126,6 +129,12 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
     &bpf_maxinsns, 0, "Maximum bpf program instructions");
 SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
+#ifdef BPF_JITTER
+SYSCTL_NODE(_net_bpf, OID_AUTO, jitter, CTLFLAG_RW, 0, "bpf jitter sysctl");
+static int bpf_jitter_enable = 1;
+SYSCTL_INT(_net_bpf_jitter, OID_AUTO, enable, CTLFLAG_RW,
+    &bpf_jitter_enable, 0, "bpf JIT compiler");
+#endif
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -1017,13 +1026,22 @@ bpf_setf(d, fp, cmd)
 {
 	struct bpf_insn *fcode, *old;
 	u_int wfilter, flen, size;
+#if BPF_JITTER
+	bpf_jit_filter *ofunc;
+#endif
 
 	if (cmd == BIOCSETWF) {
 		old = d->bd_wfilter;
 		wfilter = 1;
+#if BPF_JITTER
+		ofunc = NULL;
+#endif
 	} else {
 		wfilter = 0;
 		old = d->bd_rfilter;
+#if BPF_JITTER
+		ofunc = d->bd_bfilter;
+#endif
 	}
 	if (fp->bf_insns == NULL) {
 		if (fp->bf_len != 0)
@@ -1031,12 +1049,20 @@ bpf_setf(d, fp, cmd)
 		BPFD_LOCK(d);
 		if (wfilter)
 			d->bd_wfilter = NULL;
-		else
+		else {
 			d->bd_rfilter = NULL;
+#if BPF_JITTER
+			d->bd_bfilter = NULL;
+#endif
+		}
 		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
+#if BPF_JITTER
+		if (ofunc != NULL)
+			bpf_destroy_jit_filter(ofunc);
+#endif
 		return (0);
 	}
 	flen = fp->bf_len;
@@ -1050,12 +1076,20 @@ bpf_setf(d, fp, cmd)
 		BPFD_LOCK(d);
 		if (wfilter)
 			d->bd_wfilter = fcode;
-		else
+		else {
 			d->bd_rfilter = fcode;
+#if BPF_JITTER
+			d->bd_bfilter = bpf_jitter(fcode, flen);
+#endif
+		}
 		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
+#if BPF_JITTER
+		if (ofunc != NULL)
+			bpf_destroy_jit_filter(ofunc);
+#endif
 
 		return (0);
 	}
@@ -1255,6 +1289,11 @@ bpf_tap(bp, pkt, pktlen)
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		BPFD_LOCK(d);
 		++d->bd_rcount;
+#ifdef BPF_JITTER
+		if (bpf_jitter_enable != 0 && d->bd_bfilter != NULL)
+			slen = (*(d->bd_bfilter->func))(pkt, pktlen, pktlen);
+		else
+#endif
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
 		if (slen != 0) {
 			d->bd_fcount++;
@@ -1321,6 +1360,14 @@ bpf_mtap(bp, m)
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
+#ifdef BPF_JITTER
+		/* XXX We cannot handle multiple mbufs. */
+		if (bpf_jitter_enable != 0 && d->bd_bfilter != NULL &&
+		    m->m_next == NULL)
+			slen = (*(d->bd_bfilter->func))(mtod(m, u_char *),
+			    pktlen, pktlen);
+		else
+#endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
 		if (slen != 0) {
 			d->bd_fcount++;
@@ -1506,8 +1553,12 @@ bpf_freed(d)
 		if (d->bd_fbuf != NULL)
 			free(d->bd_fbuf, M_BPF);
 	}
-	if (d->bd_rfilter)
+	if (d->bd_rfilter) {
 		free((caddr_t)d->bd_rfilter, M_BPF);
+#ifdef BPF_JITTER
+		bpf_destroy_jit_filter(d->bd_bfilter);
+#endif
+	}
 	if (d->bd_wfilter)
 		free((caddr_t)d->bd_wfilter, M_BPF);
 	mtx_destroy(&d->bd_mtx);
