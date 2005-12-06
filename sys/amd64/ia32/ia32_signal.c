@@ -754,5 +754,7 @@ siginfo_to_ia32siginfo(siginfo_t *src, struct ia32_siginfo *dst)
 	dst->si_addr = dst->si_addr;
 	dst->si_value.sigval_int = src->si_value.sival_int;
 	dst->si_band = src->si_band;
-	dst->__spare__[0] = src->si_trapno;
+	dst->si_trapno = src->si_trapno;
+	dst->si_timerid = src->si_timerid;
+	dst->si_overrun = src->si_overrun;
 }
