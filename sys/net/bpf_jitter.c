@@ -53,13 +53,13 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 
 	/* Allocate the filter structure */
 	filter = (struct bpf_jit_filter *)malloc(sizeof(struct bpf_jit_filter),
-	    M_BPFJIT, M_WAITOK);
+	    M_BPFJIT, M_NOWAIT);
 	if (filter == NULL)
 		return NULL;
 
 	/* Allocate the filter's memory */
 	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int),
-	    M_BPFJIT, M_WAITOK);
+	    M_BPFJIT, M_NOWAIT);
 	if (filter->mem == NULL) {
 		free(filter, M_BPFJIT);
 		return NULL;

@@ -105,7 +105,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 	/* Allocate the reference table for the jumps */
 	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int),
-	    M_BPFJIT, M_WAITOK);
+	    M_BPFJIT, M_NOWAIT);
 	if (stream.refs == NULL)
 		return NULL;
 
@@ -479,7 +479,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 		if (pass == 2)
 			break;
 
-		stream.ibuf = (char *)malloc(stream.cur_ip, M_BPFJIT, M_WAITOK);
+		stream.ibuf = (char *)malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL) {
 			free(stream.refs, M_BPFJIT);
 			return NULL;
