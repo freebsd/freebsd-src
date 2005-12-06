@@ -910,13 +910,13 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 	    if (!cold)
 		retval = tsleep(&sc->ec_csrvalue, PZERO, "ecpoll", slp_ival);
 	    else
-		AcpiOsStall(hz * 1000); // XXX too big
+		AcpiOsStall(10000);
 	}
     }
 
     /* Calculate new delay and log it. */
     if (slp_ival > 0)
-	period += i * (hz * 1000);
+	period += i * 10000;
     CTR2(KTR_ACPI, "ec got event %#x after %d us", EcStatus, period);
 
     return (Status);
