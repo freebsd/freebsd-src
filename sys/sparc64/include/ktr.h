@@ -32,6 +32,8 @@
 #ifndef _MACHINE_KTR_H_
 #define _MACHINE_KTR_H_
 
+#include <sys/ktr.h>
+
 #include <machine/upa.h>
 
 #ifndef LOCORE
