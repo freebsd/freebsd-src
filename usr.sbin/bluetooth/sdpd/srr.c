@@ -65,7 +65,8 @@ server_prepare_service_register_response(server_p srv, int32_t fd)
 	 * bdaddr	- BD_ADDR 6 bytes
 	 */
 
-	if (!srv->fdidx[fd].control || req_end - req < 8)
+	if (!srv->fdidx[fd].control ||
+	    !srv->fdidx[fd].priv || req_end - req < 8)
 		return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
 
 	/* Get ServiceClass UUID */

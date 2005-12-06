@@ -41,7 +41,8 @@ struct fd_idx
 	unsigned	 valid    : 1;	/* descriptor is valid */
 	unsigned	 server   : 1;	/* descriptor is listening */
 	unsigned	 control  : 1;	/* descriptor is a control socket */
-	unsigned	 reserved : 2;
+	unsigned	 priv     : 1;	/* descriptor is privileged */
+	unsigned	 reserved : 1;
 	unsigned	 rsp_cs   : 11; /* response continuation state */
 	uint16_t	 rsp_size;	/* response size */
 	uint16_t	 rsp_limit;	/* response limit */

@@ -58,7 +58,8 @@ server_prepare_service_unregister_response(server_p srv, int32_t fd)
 	 * value32	- uuid 4 bytes
 	 */
 
-	if (!srv->fdidx[fd].control || req_end - req < 4)
+	if (!srv->fdidx[fd].control ||
+	    !srv->fdidx[fd].priv || req_end - req < 4)
 		return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
 
 	/* Get handle */
