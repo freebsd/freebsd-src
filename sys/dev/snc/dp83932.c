@@ -70,7 +70,7 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/errno.h>
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 #include <sys/rnd.h>
 #endif
 
@@ -202,7 +202,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 
 	ether_ifattach(ifp, myea);
 
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 	rnd_attach_source(&sc->rnd_source, device_get_nameunit(sc->sc_dev),
 	    RND_TYPE_NET, 0);
 #endif
@@ -890,7 +890,7 @@ sncintr(arg)
 		}
 		sncstart(sc->sc_ifp);
 
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 		if (isr)
 			rnd_add_uint32(&sc->rnd_source, isr);
 #endif
