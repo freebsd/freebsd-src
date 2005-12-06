@@ -97,7 +97,7 @@ void	pmap_map_tsb(void);
 
 void	pmap_clear_write(vm_page_t m);
 
-#define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
+#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)

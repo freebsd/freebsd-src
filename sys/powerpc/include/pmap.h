@@ -98,7 +98,7 @@ int		pmap_dev_direct_mapped(vm_offset_t, vm_size_t);
 
 boolean_t	pmap_mmu_install(char *name, int prio);
 
-#define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
+#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 #define PHYS_AVAIL_SZ	128
 extern	vm_offset_t phys_avail[PHYS_AVAIL_SZ];

@@ -45,7 +45,7 @@
 #define	_MACHINE_PMAP_H_
 
 /*
- * Page-directory and page-table entires follow this format, with a few
+ * Page-directory and page-table entries follow this format, with a few
  * of the fields not present here and there, depending on a lot of things.
  */
 				/* ---- Intel Nomenclature ---- */
@@ -177,11 +177,12 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 #ifdef _KERNEL
 /*
  * virtual address to page table entry and
- * to physical address. Likewise for alternate address space.
+ * to physical address.
  * Note: these work recursively, thus vtopte of a pte will give
  * the corresponding pde that in turn maps it.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
+#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 /*
  *	Routine:	pmap_kextract
@@ -202,8 +203,6 @@ pmap_kextract(vm_offset_t va)
 	}
 	return pa;
 }
-
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 #ifdef PAE
 
