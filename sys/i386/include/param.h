@@ -49,13 +49,6 @@
 #define _ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 #endif
 
-#ifndef _MACHINE
-#define	_MACHINE	i386
-#endif
-#ifndef _MACHINE_ARCH
-#define	_MACHINE_ARCH	i386
-#endif
-
 #ifndef _NO_NAMESPACE_POLLUTION
 
 #ifndef _MACHINE_PARAM_H_
