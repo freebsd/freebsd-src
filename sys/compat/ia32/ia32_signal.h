@@ -155,8 +155,25 @@ struct ia32_siginfo {
 	int			si_status;	/* exit value */
 	u_int32_t		si_addr;	/* faulting instruction */
 	union ia32_sigval	si_value;	/* signal value */
-	int32_t			si_band;	/* band event for SIGPOLL */
-	int			__spare__[7];	/* gimme some slack */
+	union	{
+		struct {
+			int	_trapno;/* machine specific trap code */
+		} _fault;
+		struct {
+			int	_timerid;
+			int	_overrun;
+		} _timer;
+		struct {
+			int	_mqd;
+		} _mesgq;
+		struct {
+			int	_band;		/* band event for SIGPOLL */
+		} _poll;			/* was this ever used ? */
+		struct {
+			int	__spare1__;
+			int	__spare2__[7];
+		} __spare__;
+	} _reason;
 };
 
 #ifdef COMPAT_FREEBSD4
