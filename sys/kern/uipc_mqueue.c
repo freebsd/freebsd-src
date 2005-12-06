@@ -154,7 +154,6 @@ struct mqueue_notifier {
 	struct sigevent			nt_sigev;
 	ksiginfo_t			nt_ksi;
 	struct proc			*nt_proc;
-	int				nt_fd;
 };
 
 struct mqueue {
@@ -548,7 +547,7 @@ mqfs_mount(struct mount *mp, struct thread *td)
 
 	mp->mnt_data = &mqfs_data;
 	mp->mnt_flag |= MNT_LOCAL;
-	/* mp->mnt_kern_flag |= MNTK_MPSAFE; */
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	vfs_getnewfsid(mp);
 
 	sbp = &mp->mnt_stat;
@@ -1840,7 +1839,7 @@ notifier_search(struct proc *p, int fd)
 	struct mqueue_notifier *nt;
 
 	LIST_FOREACH(nt, &p->p_mqnotifier, nt_link) {
-		if (nt->nt_fd == fd)
+		if (nt->nt_ksi.ksi_mqd == fd)
 			break;
 	}
 	return (nt);
@@ -2218,7 +2217,7 @@ again:
 				nt->nt_ksi.ksi_flags |= KSI_INS | KSI_EXT;
 				nt->nt_ksi.ksi_code = SI_MESGQ;
 				nt->nt_proc = p;
-				nt->nt_fd = uap->mqd;
+				nt->nt_ksi.ksi_mqd = uap->mqd;
 				notifier_insert(p, nt);
 			}
 			nt->nt_sigev = ev;
