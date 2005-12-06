@@ -926,8 +926,7 @@ fd_probe(device_t dev)
 /*
  * XXX I think using __i386__ is wrong here since we actually want to probe
  * for the machine type, not the CPU type (so non-PC arch's like the PC98 will
- * fail the probe).  However, for whatever reason, testing for _MACHINE_ARCH
- * == i386 breaks the test on FreeBSD/Alpha.
+ * fail the probe).
  */
 #ifdef __i386__
 	if (fd->type == FDT_NONE && (fd->fdu == 0 || fd->fdu == 1)) {
