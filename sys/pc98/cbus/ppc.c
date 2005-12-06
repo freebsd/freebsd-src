@@ -1554,7 +1554,7 @@ ppcintr(void *arg)
 	ctr = r_ctr(ppc);
 	ecr = r_ecr(ppc);
 
-#if PPC_DEBUG > 1
+#if defined(PPC_DEBUG) && PPC_DEBUG > 1
 		printf("![%x/%x/%x]", ctr, ecr, str);
 #endif
 
