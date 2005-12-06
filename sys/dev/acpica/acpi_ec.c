@@ -706,6 +706,7 @@ EcGpeQueryHandler(void *Context)
      */
     EcStatus = EC_GET_CSR(sc);
     if ((EcStatus & EC_EVENT_SCI) == 0) {
+	CTR1(KTR_ACPI, "ec event was not SCI, status %#x", EcStatus);
 	sc->ec_csrvalue = EcStatus;
 	wakeup(&sc->ec_csrvalue);
 	EcUnlock(sc);
@@ -728,6 +729,7 @@ EcGpeQueryHandler(void *Context)
     EcUnlock(sc);
 
     /* Ignore the value for "no outstanding event". (13.3.5) */
+    CTR2(KTR_ACPI, "ec query ok,%s running _Q%02x", Data ? "" : " not", Data);
     if (Data == 0)
 	goto re_enable;
 
@@ -858,7 +860,6 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
     EC_STATUS	EcStatus;
     ACPI_STATUS	Status;
     int		count, i, period, retval, slp_ival;
-    static int	EcDbgMaxDelay;
 
     ACPI_SERIAL_ASSERT(ec);
     Status = AE_NO_HARDWARE_RESPONSE;
@@ -909,18 +910,14 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 	    if (!cold)
 		retval = tsleep(&sc->ec_csrvalue, PZERO, "ecpoll", slp_ival);
 	    else
-		AcpiOsStall(10000);
+		AcpiOsStall(hz * 1000); // XXX too big
 	}
     }
 
-    /* Calculate new delay and print it if it exceeds the max. */
+    /* Calculate new delay and log it. */
     if (slp_ival > 0)
-	period += i * 10000;
-    if (period > EcDbgMaxDelay) {
-	EcDbgMaxDelay = period;
-	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "info: new max delay is %d us\n", period);
-    }
+	period += i * (hz * 1000);
+    CTR2(KTR_ACPI, "ec got event %#x after %d us", EcStatus, period);
 
     return (Status);
 }    
@@ -967,6 +964,7 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     ACPI_STATUS	Status;
 
     ACPI_SERIAL_ASSERT(ec);
+    CTR1(KTR_ACPI, "ec read from %#x", Address);
 
 #ifdef notyet
     /* If we can't start burst mode, continue anyway. */
@@ -1004,6 +1002,7 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     ACPI_STATUS	Status;
 
     ACPI_SERIAL_ASSERT(ec);
+    CTR2(KTR_ACPI, "ec write to %#x, data %#x", Address, *Data);
 
 #ifdef notyet
     /* If we can't start burst mode, continue anyway. */
