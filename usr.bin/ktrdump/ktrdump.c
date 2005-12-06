@@ -253,7 +253,7 @@ main(int ac, char **av)
 			if (rflag) {
 				if (tlast == -1)
 					tlast = tnow;
-				fprintf(out, "%16ju ", tlast - tnow);
+				fprintf(out, "%16ju ", tnow - tlast);
 				tlast = tnow;
 			} else
 				fprintf(out, "%16ju ", tnow);
