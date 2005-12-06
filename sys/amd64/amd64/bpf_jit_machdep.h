@@ -431,7 +431,7 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 /* xor edx,edx */
 #define ZERO_EDX() do {							\
 	emitm(&stream, 0x31, 1);					\
-	emitm(&stream, 0xc9, 1);					\
+	emitm(&stream, 0xd2, 1);					\
 } while (0)
 
 #endif	/* _BPF_JIT_MACHDEP_H_ */
