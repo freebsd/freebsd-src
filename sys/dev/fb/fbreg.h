@@ -43,14 +43,14 @@
 #define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
 void generic_bcopy(const void *s, void *d, size_t c);
 void generic_bzero(void *d, size_t c);
-#elif __amd64__
+#elif defined(__amd64__)
 #define bcopy_io(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
 #define bcopy_toio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
 #define bcopy_fromio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
 #define bzero_io(d, c)		bzero((void *)(d), (c))
 #define fill_io(p, d, c)	fill((p), (void *)(d), (c))
 #define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
-#elif __ia64__
+#elif defined(__ia64__)
 #include <machine/bus.h>
 #define	bcopy_fromio(s, d, c)	\
 	bus_space_read_region_1(IA64_BUS_SPACE_MEM, s, 0, (void*)(d), c)
@@ -75,7 +75,7 @@ fillw(int val, uint16_t *buf, size_t size)
 	while (size--)
 		*buf++ = val;
 }
-#elif __powerpc__
+#elif defined(__powerpc__)
 
 #define bcopy_io(s, d, c)	ofwfb_bcopy((void *)(s), (void *)(d), (c))
 #define bcopy_toio(s, d, c)	ofwfb_bcopy((void *)(s), (void *)(d), (c))

@@ -144,7 +144,7 @@ struct scb_platform_data {
 };
 
 /***************************** Core Includes **********************************/
-#if AHD_REG_PRETTY_PRINT
+#ifdef AHD_REG_PRETTY_PRINT
 #define AIC_DEBUG_REGISTERS 1
 #else
 #define AIC_DEBUG_REGISTERS 0

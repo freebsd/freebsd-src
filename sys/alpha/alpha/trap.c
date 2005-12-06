@@ -656,7 +656,7 @@ syscall(code, framep)
 	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A2] = 0;
-#if notdef				/* can't happen, ever. */
+#ifdef notdef				/* can't happen, ever. */
 	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0)
 		panic("syscall");
 #endif
