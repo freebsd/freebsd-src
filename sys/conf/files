@@ -1401,6 +1401,7 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 net/bpf.c			standard
+net/bpf_jitter.c		optional bpf bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bridgestp.c			optional if_bridge
 net/bsd_comp.c			optional ppp_bsdcomp

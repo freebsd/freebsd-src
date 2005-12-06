@@ -82,6 +82,7 @@ amd64/amd64/amd64_mem.c		optional	mem
 amd64/amd64/atomic.c		standard
 amd64/amd64/autoconf.c		standard
 amd64/amd64/bios.c		standard
+amd64/amd64/bpf_jit_machdep.c	optional	bpf bpf_jitter
 amd64/amd64/busdma_machdep.c	standard
 amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
