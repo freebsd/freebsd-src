@@ -36,10 +36,11 @@
 #include "acpi_if.h"
 #include "bus_if.h"
 #include <sys/eventhandler.h>
-#include <sys/sysctl.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -421,6 +422,9 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* Default number of task queue threads to start. */
 #define ACPI_MAX_THREADS	3
+
+/* Use the device logging level for ktr(4). */
+#define	KTR_ACPI		KTR_DEV
 
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */
