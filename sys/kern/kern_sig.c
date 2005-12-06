@@ -2888,8 +2888,10 @@ childproc_continued(struct proc *p)
 		p->p_ksi->ksi_status = SIGCONT;
 		p->p_ksi->ksi_pid    = p->p_pid;
 		p->p_ksi->ksi_uid    = p->p_ucred->cr_ruid;
-		if (KSI_ONQ(p->p_ksi))
+		if (KSI_ONQ(p->p_ksi)) {
+			PROC_UNLOCK(p->p_pptr);
 			return;
+		}
 	}
 	tdsignal(p->p_pptr, NULL, SIGCHLD, p->p_ksi);
 	PROC_UNLOCK(p->p_pptr);
