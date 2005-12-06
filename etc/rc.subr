@@ -598,12 +598,12 @@ run_rc_command()
 		start)
 			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
 				echo "${name} already running? (pid=$rc_pid)."
-				exit 1
+				return 1
 			fi
 
 			if [ ! -x ${_chroot}${command} ]; then
 				info "run_rc_command: cannot run ($command)."
-				return 0
+				return 1
 			fi
 
 					# check for required variables,
@@ -681,14 +681,14 @@ $command $rc_flags $command_args"
 
 		stop)
 			if [ -z "$rc_pid" ]; then
-				[ -n "$rc_fast" ] && exit 0
+				[ -n "$rc_fast" ] && return 0
 				if [ -n "$pidfile" ]; then
 					echo \
 				    "${name} not running? (check $pidfile)."
 				else
 					echo "${name} not running?"
 				fi
-				exit 1
+				return 1
 			fi
 
 					# if the precmd failed and force
@@ -733,7 +733,7 @@ $command $rc_flags $command_args"
 				else
 					echo "${name} not running?"
 				fi
-				exit 1
+				return 1
 			fi
 			echo "Reloading ${name} config files."
 			if [ -n "$_precmd" ]; then
@@ -807,7 +807,7 @@ $command $rc_flags $command_args"
 
 	echo 1>&2 "$0: unknown directive '$rc_arg'."
 	rc_usage $_keywords
-	exit 1
+	# not reached
 }
 
 #
