@@ -226,7 +226,7 @@ typedef struct snc_softc {
 	void	*sc_sh;		/* shutdownhook cookie */
 	int	gone;
 
-#if NRND > 0
+#if defined(NRND) && NRND > 0
 	rndsource_element_t	rnd_source;
 #endif
 } snc_softc_t;
