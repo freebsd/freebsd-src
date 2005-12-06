@@ -86,9 +86,14 @@
 #define KTR_CT8		0x80000000
 
 /* Trace classes to compile in */
+#ifdef KTR
 #ifndef KTR_COMPILE
 #define	KTR_COMPILE	(KTR_ALL)
 #endif
+#else	/* !KTR */
+#undef KTR_COMPILE
+#define KTR_COMPILE 0
+#endif	/* KTR */
 
 /* Trace classes that can not be used with KTR_ALQ */
 #define	KTR_ALQ_MASK	(KTR_WITNESS)
@@ -121,7 +126,6 @@ extern int ktr_verbose;
 extern volatile int ktr_idx;
 extern struct ktr_entry ktr_buf[];
 
-#endif /* !LOCORE */
 #ifdef KTR
 
 void	ktr_tracepoint(u_int mask, const char *file, int line,
@@ -141,8 +145,6 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define	CTR4(m, format, p1, p2, p3, p4)	CTR6(m, format, p1, p2, p3, p4, 0, 0)
 #define	CTR5(m, format, p1, p2, p3, p4, p5)	CTR6(m, format, p1, p2, p3, p4, p5, 0)
 #else	/* KTR */
-#undef KTR_COMPILE
-#define KTR_COMPILE 0
 #define	CTR0(m, d)
 #define	CTR1(m, d, p1)
 #define	CTR2(m, d, p1, p2)
@@ -183,5 +185,7 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define	ITR5(d, p1, p2, p3, p4, p5)
 #define	ITR6(d, p1, p2, p3, p4, p5, p6)
 #endif
+
+#endif /* !LOCORE */
 
 #endif /* !_SYS_KTR_H_ */
