@@ -56,12 +56,6 @@
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
-#ifndef	_MACHINE
-#define	_MACHINE	"arm"
-#endif
-#ifndef _MACHINE_ARCH
-#define	_MACHINE_ARCH	"arm"
-#endif
 
 #ifndef _NO_NAMESPACE_POLLUTION
 
