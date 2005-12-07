@@ -1,8 +1,10 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
-base=`basename $0`
+. `dirname $0`/conf.sh
+
+echo "1..4"
+
 us0=45
 us1=`expr $us0 + 1`
 us2=`expr $us0 + 2`
@@ -18,36 +20,36 @@ mdconfig -a -t malloc -s $nblocks2 -u $us1 || exit 1
 mdconfig -a -t malloc -s $nblocks2 -u $us2 || exit 1
 
 gshsec label $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
-sleep 1
+devwait
 
 dd if=${src} of=/dev/shsec/${name} count=$nblocks1 >/dev/null 2>&1
 
 dd if=/dev/shsec/${name} of=${dst} count=$nblocks1 >/dev/null 2>&1
 if [ `md5 -q ${src}` != `md5 -q ${dst}` ]; then
-	echo "FAIL"
+	echo "not ok 1"
 else
-	echo "PASS"
+	echo "ok 1"
 fi
 
 dd if=/dev/md${us0} of=${dst} count=$nblocks1 >/dev/null 2>&1
 if [ `md5 -q ${src}` = `md5 -q ${dst}` ]; then
-	echo "FAIL"
+	echo "not ok 2"
 else
-	echo "PASS"
+	echo "ok 2"
 fi
 
 dd if=/dev/md${us1} of=${dst} count=$nblocks1 >/dev/null 2>&1
 if [ `md5 -q ${src}` = `md5 -q ${dst}` ]; then
-	echo "FAIL"
+	echo "not ok 3"
 else
-	echo "PASS"
+	echo "ok 3"
 fi
 
 dd if=/dev/md${us2} of=${dst} count=$nblocks1 >/dev/null 2>&1
 if [ `md5 -q ${src}` = `md5 -q ${dst}` ]; then
-	echo "FAIL"
+	echo "not ok 4"
 else
-	echo "PASS"
+	echo "ok 4"
 fi
 
 gshsec stop $name
