@@ -450,7 +450,7 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
 	ifp->if_output = bridge_output;
 	ifp->if_start = bridge_start;
