@@ -7,9 +7,13 @@ us0=45
 us1=`expr $us0 + 1`
 us2=`expr $us0 + 2`
 
+echo "1..1"
+
 mdconfig -a -t malloc -s 1M -u $us0 || exit 1
 mdconfig -a -t malloc -s 2M -u $us1 || exit 1
 mdconfig -a -t malloc -s 3M -u $us2 || exit 1
+
+kldstat -q -m g_mirror || gmirror load || exit 1
 
 gmirror label $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
 sleep 1
@@ -19,9 +23,9 @@ sleep 1
 size=`diskinfo /dev/mirror/${name} | awk '{print $3}'`
 
 if [ $size -eq 1048064 ]; then
-	echo "PASS"
+	echo "ok 1"
 else
-	echo "FAIL"
+	echo "not ok 1"
 fi
 
 gmirror remove $name md${us0}
