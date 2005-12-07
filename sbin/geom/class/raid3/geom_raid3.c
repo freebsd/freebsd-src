@@ -119,7 +119,7 @@ raid3_main(struct gctl_req *req, unsigned flags)
 	if ((flags & G_FLAG_VERBOSE) != 0)
 		verbose = 1;
 
-	name = gctl_get_asciiparam(req, "verb");
+	name = gctl_get_ascii(req, "verb");
 	if (name == NULL) {
 		gctl_error(req, "No '%s' argument.", "verb");
 		return;
@@ -140,71 +140,45 @@ raid3_label(struct gctl_req *req)
 	struct g_raid3_metadata md;
 	u_char sector[512];
 	const char *str;
-	char param[16];
-	int *hardcode, *nargs, *noautosync, *round_robin, *verify;
-	int error, i;
 	unsigned sectorsize, ssize;
 	off_t mediasize, msize;
+	int error, i, nargs, hardcode, noautosync, round_robin, verify;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 4) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 4) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	if (bitcount32(*nargs - 2) != 1) {
+	if (bitcount32(nargs - 2) != 1) {
 		gctl_error(req, "Invalid number of components.");
 		return;
 	}
 
 	strlcpy(md.md_magic, G_RAID3_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_RAID3_VERSION;
-	str = gctl_get_asciiparam(req, "arg0");
-	if (str == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	str = gctl_get_ascii(req, "arg0");
 	strlcpy(md.md_name, str, sizeof(md.md_name));
 	md.md_id = arc4random();
-	md.md_all = *nargs - 1;
+	md.md_all = nargs - 1;
 	md.md_mflags = 0;
 	md.md_dflags = 0;
 	md.md_genid = 0;
 	md.md_syncid = 1;
 	md.md_sync_offset = 0;
-	noautosync = gctl_get_paraml(req, "noautosync", sizeof(*noautosync));
-	if (noautosync == NULL) {
-		gctl_error(req, "No '%s' argument.", "noautosync");
-		return;
-	}
-	if (*noautosync)
+	noautosync = gctl_get_int(req, "noautosync");
+	if (noautosync)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
-	round_robin = gctl_get_paraml(req, "round_robin", sizeof(*round_robin));
-	if (round_robin == NULL) {
-		gctl_error(req, "No '%s' argument.", "round_robin");
-		return;
-	}
-	if (*round_robin)
+	round_robin = gctl_get_int(req, "round_robin");
+	if (round_robin)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
-	verify = gctl_get_paraml(req, "verify", sizeof(*verify));
-	if (verify == NULL) {
-		gctl_error(req, "No '%s' argument.", "verify");
-		return;
-	}
-	if (*verify)
+	verify = gctl_get_int(req, "verify");
+	if (verify)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_VERIFY;
-	if (*round_robin && *verify) {
+	if (round_robin && verify) {
 		gctl_error(req, "Both '%c' and '%c' options given.", 'r', 'w');
 		return;
 	}
-	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
-	if (hardcode == NULL) {
-		gctl_error(req, "No '%s' argument.", "hardcode");
-		return;
-	}
+	hardcode = gctl_get_int(req, "hardcode");
 
 	/*
 	 * Calculate sectorsize by finding least common multiple from
@@ -212,10 +186,8 @@ raid3_label(struct gctl_req *req)
 	 */
 	mediasize = 0;
 	sectorsize = 0;
-	for (i = 1; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		str = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		str = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(str);
 		ssize = g_get_sectorsize(str);
 		if (msize == 0 || ssize == 0) {
@@ -231,16 +203,14 @@ raid3_label(struct gctl_req *req)
 		else
 			sectorsize = g_lcm(sectorsize, ssize);
 	}
-	md.md_mediasize = mediasize * (*nargs - 2);
-	md.md_sectorsize = sectorsize * (*nargs - 2);
+	md.md_mediasize = mediasize * (nargs - 2);
+	md.md_sectorsize = sectorsize * (nargs - 2);
 
 	/*
 	 * Clear last sector first, to spoil all components if device exists.
 	 */
-	for (i = 1; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		str = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		str = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(str, NULL);
 		if (error != 0) {
 			gctl_error(req, "Can't store metadata on %s: %s.", str,
@@ -252,10 +222,8 @@ raid3_label(struct gctl_req *req)
 	/*
 	 * Ok, store metadata (use disk number as priority).
 	 */
-	for (i = 1; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		str = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		str = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(str);
 		ssize = g_get_sectorsize(str);
 		if (mediasize < msize - ssize) {
@@ -266,14 +234,14 @@ raid3_label(struct gctl_req *req)
 
 		md.md_no = i - 1;
 		md.md_provsize = msize;
-		if (!*hardcode)
+		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
 			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 				str += strlen(_PATH_DEV);
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
 		}
-		if (*verify && md.md_no == md.md_all - 1) {
+		if (verify && md.md_no == md.md_all - 1) {
 			/*
 			 * In "verify" mode, force synchronization of parity
 			 * component on start.
@@ -297,23 +265,16 @@ static void
 raid3_clear(struct gctl_req *req)
 {
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(name, G_RAID3_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
@@ -331,23 +292,16 @@ raid3_dump(struct gctl_req *req)
 {
 	struct g_raid3_metadata md, tmpmd;
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_read(name, (u_char *)&tmpmd, sizeof(tmpmd),
 		    G_RAID3_MAGIC);
 		if (error != 0) {

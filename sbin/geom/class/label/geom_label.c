@@ -89,7 +89,7 @@ label_main(struct gctl_req *req, unsigned flags)
 	if ((flags & G_FLAG_VERBOSE) != 0)
 		verbose = 1;
 
-	name = gctl_get_asciiparam(req, "verb");
+	name = gctl_get_ascii(req, "verb");
 	if (name == NULL) {
 		gctl_error(req, "No '%s' argument.", "verb");
 		return;
@@ -110,14 +110,10 @@ label_label(struct gctl_req *req)
 	struct g_label_metadata md;
 	const char *name, *label;
 	u_char sector[512];
-	int *nargs, error;
+	int error, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 2) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 2) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
@@ -125,11 +121,7 @@ label_label(struct gctl_req *req)
 	/*
 	 * Clear last sector first to spoil all components if device exists.
 	 */
-	name = gctl_get_asciiparam(req, "arg1");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 1);
-		return;
-	}
+	name = gctl_get_ascii(req, "arg1");
 	error = g_metadata_clear(name, NULL);
 	if (error != 0) {
 		gctl_error(req, "Can't store metadata on %s: %s.", name,
@@ -139,11 +131,7 @@ label_label(struct gctl_req *req)
 
 	strlcpy(md.md_magic, G_LABEL_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_LABEL_VERSION;
-	label = gctl_get_asciiparam(req, "arg0");
-	if (label == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	label = gctl_get_ascii(req, "arg0");
 	strlcpy(md.md_label, label, sizeof(md.md_label));
 	md.md_provsize = g_get_mediasize(name);
 	if (md.md_provsize == 0) {
@@ -170,24 +158,16 @@ static void
 label_clear(struct gctl_req *req)
 {
 	const char *name;
-	char param[16];
-	unsigned i;
-	int *nargs, error;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < (unsigned)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(name, G_LABEL_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
@@ -214,23 +194,16 @@ label_dump(struct gctl_req *req)
 {
 	struct g_label_metadata md, tmpmd;
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_read(name, (u_char *)&tmpmd, sizeof(tmpmd),
 		    G_LABEL_MAGIC);
 		if (error != 0) {

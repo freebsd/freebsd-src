@@ -28,6 +28,8 @@
 
 #ifndef _SUBR_H_
 #define	_SUBR_H_
+#include <stdint.h>
+
 unsigned g_lcm(unsigned a, unsigned b);
 uint32_t bitcount32(uint32_t x);
 
@@ -40,7 +42,7 @@ int g_metadata_store(const char *name, u_char *md, size_t size);
 int g_metadata_clear(const char *name, const char *magic);
 
 void gctl_error(struct gctl_req *req, const char *error, ...);
-void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
-char const *gctl_get_asciiparam(struct gctl_req *req, const char *param);
-void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
+int gctl_get_int(struct gctl_req *req, const char *pfmt, ...);
+intmax_t gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...);
+const char *gctl_get_ascii(struct gctl_req *req, const char *pfmt, ...);
 #endif	/* !_SUBR_H_ */
