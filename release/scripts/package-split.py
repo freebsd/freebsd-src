@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#ports !/usr/local/bin/python
 #
 # This script generates a master INDEX file for the CD images built by the
 # FreeBSD release engineers.  Each disc is given a list of desired packages.
@@ -87,7 +87,6 @@ def disc2_packages():
             'shells/zsh',
             'security/freebsd-update',
             'security/sudo',
-            'sysutils/portsnap',
             'sysutils/portupgrade',
             'www/links',
             'www/lynx',
