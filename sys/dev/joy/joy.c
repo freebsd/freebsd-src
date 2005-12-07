@@ -104,13 +104,13 @@ joy_attach(device_t dev)
 
 	joy->rid = 0;
 	joy->res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &joy->rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE|RF_SHAREABLE);
 	if (joy->res == NULL)
 		return ENXIO;
 	joy->bt = rman_get_bustag(joy->res);
 	joy->port = rman_get_bushandle(joy->res);
 	joy->timeout[0] = joy->timeout[1] = 0;
-	joy->d = make_dev(&joy_cdevsw, 0, 0, 0, 0600, "joy%d", unit);
+	joy->d = make_dev(&joy_cdevsw, unit, 0, 0, 0600, "joy%d", unit);
 	return (0);
 }
 
@@ -167,6 +167,12 @@ joyread(struct cdev *dev, struct uio *uio, int flag)
 #else
 	disable_intr ();
 #endif
+	nanotime(&t);
+	end.tv_sec = 0;
+	end.tv_nsec = joy->timeout[joypart(dev)] * 1000;
+	timespecadd(&end, &t);
+	for (; timespeccmp(&t, &end, <) && (bus_space_read_1(bt, port, 0) & 0x0f); nanotime(&t))
+		;	/* nothing */
 	bus_space_write_1 (bt, port, 0, 0xff);
 	nanotime(&start);
 	end.tv_sec = 0;
