@@ -1,4 +1,4 @@
-#ports !/usr/local/bin/python
+#!/usr/local/bin/python
 #
 # This script generates a master INDEX file for the CD images built by the
 # FreeBSD release engineers.  Each disc is given a list of desired packages.
