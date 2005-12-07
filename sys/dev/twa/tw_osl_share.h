@@ -48,12 +48,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
+#include <sys/bus.h>
+#include <sys/taskqueue.h>
+
+#include <machine/bus.h>
+#include <machine/clock.h>
 #include <machine/endian.h>
 #include <machine/stdarg.h>
 
-#include "tw_osl_types.h"
+#include <dev/pci/pcivar.h>
+
+#include <dev/twa/tw_osl_types.h>
 #include "opt_twa.h"
 
 
@@ -65,7 +74,11 @@
 #define TW_OSL_FLASH_FIRMWARE
 #endif
 
-#define TW_OSL_DRIVER_VERSION_STRING	"3.60.00.017"
+#ifdef TWA_ENCLOSURE_SUPPORT
+#define TW_OSL_ENCLOSURE_SUPPORT
+#endif
+
+#define TW_OSL_DRIVER_VERSION_STRING	"3.60.02.012"
 
 #define	TW_OSL_CAN_SLEEP
 
@@ -98,36 +111,6 @@ extern TW_INT32		TW_OSL_DEBUG_LEVEL_FOR_CL;
 #define TW_OSL_EBIG		EFBIG		/* request too big */
 #define TW_OSL_EWOULDBLOCK	EWOULDBLOCK	/* sleep timed out */
 #define TW_OSL_ERESTART		ERESTART /* sleep terminated by a signal */
-
-
-#define tw_osl_breakpoint()		breakpoint
-
-#define tw_osl_cur_func()		__func__
-
-/*
- * Submit any requests previously returned with TW_OSL_EBUSY.
- * We don't use it as of now.
- */
-#define tw_osl_ctlr_ready(ctlr_handle)
-
-#define tw_osl_destroy_lock(ctlr_handle, lock)	\
-	mtx_destroy(lock)
-
-#define tw_osl_free_lock(ctlr_handle, lock)	\
-	mtx_unlock_spin(lock)
-
-#define tw_osl_get_lock(ctlr_handle, lock)	\
-	mtx_lock_spin(lock)
-
-#define tw_osl_init_lock(ctlr_handle, lock_name, lock)	\
-	mtx_init(lock, lock_name, NULL, MTX_SPIN)
-
-#define tw_osl_memcpy(dest, src, size)	bcopy(src, dest, size)
-#define tw_osl_memzero			bzero
-#define tw_osl_sprintf			sprintf
-#define tw_osl_strcpy			strcpy
-#define tw_osl_strlen			strlen
-#define tw_osl_vsprintf			vsprintf
 
 
 
