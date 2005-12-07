@@ -36,6 +36,8 @@
 
 MALLOC_DECLARE(M_BPFJIT);
 
+extern int bpf_jitter_enable;
+
 /*
  * Prototype of a filtering function created by the jitter.
  *

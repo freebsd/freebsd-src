@@ -4,6 +4,6 @@
 .PATH: ${.CURDIR}/../../../net
 
 KMOD=	ng_bpf
-SRCS= 	ng_bpf.c bpf_filter.c
+SRCS=	opt_bpf.h ng_bpf.c bpf_filter.c
 
 .include <bsd.kmod.mk>

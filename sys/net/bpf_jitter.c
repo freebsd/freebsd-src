@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/sysctl.h>
 
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
@@ -45,6 +46,11 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_BPFJIT, "BPF_JIT", "BPF JIT compiler");
 
 bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
+
+SYSCTL_NODE(_net, OID_AUTO, bpf_jitter, CTLFLAG_RW, 0, "BPF JIT compiler");
+int bpf_jitter_enable = 1;
+SYSCTL_INT(_net_bpf_jitter, OID_AUTO, enable, CTLFLAG_RW,
+    &bpf_jitter_enable, 0, "enable BPF JIT compiler");
 
 bpf_jit_filter *
 bpf_jitter(struct bpf_insn *fp, int nins)
