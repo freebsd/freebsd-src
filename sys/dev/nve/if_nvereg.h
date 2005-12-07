@@ -51,7 +51,7 @@
 
 #define	TX_RING_SIZE	64
 #define	RX_RING_SIZE	64
-#define	NV_MAX_FRAGS	63
+#define	NV_MAX_FRAGS	32	// match adapter.h:ADAPTER_WRITE_DATA.sElement[]
 
 #define	FCS_LEN 4
 
