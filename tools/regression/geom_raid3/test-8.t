@@ -1,8 +1,10 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
-base=`basename $0`
+. `dirname $0`/conf.sh
+
+echo "1..1"
+
 us0=45
 us1=`expr $us0 + 1`
 us2=`expr $us0 + 2`
@@ -18,15 +20,23 @@ mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us0 || exit 1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us1 || exit 1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us2 || exit 1
 
-graid3 label -w $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
+graid3 label $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
+devwait
 
+#
+# Writing without DATA component and rebuild of DATA component.
+#
+graid3 remove -n 1 $name
+dd if=/dev/zero of=/dev/md${us1} bs=512 count=`expr $nblocks1 + 1` >/dev/null 2>&1
 dd if=${src} of=/dev/raid3/${name} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
+graid3 insert -n 1 $name md${us1}
+sleep 1
 
 dd if=/dev/raid3/${name} of=${dst} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 if [ `md5 -q ${src}` != `md5 -q ${dst}` ]; then
-	echo "FAIL"
+	echo "not ok 1"
 else
-	echo "PASS"
+	echo "ok 1"
 fi
 
 graid3 stop $name
