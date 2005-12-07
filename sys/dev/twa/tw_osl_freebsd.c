@@ -42,17 +42,17 @@
  */
 
 
-#include "tw_osl_includes.h"
-#include "tw_cl_fwif.h"
-#include "tw_cl_ioctl.h"
-#include "tw_osl_ioctl.h"
+#include <dev/twa/tw_osl_includes.h>
+#include <dev/twa/tw_cl_fwif.h>
+#include <dev/twa/tw_cl_ioctl.h>
+#include <dev/twa/tw_osl_ioctl.h>
 
 #ifdef TW_OSL_DEBUG
 TW_INT32	TW_DEBUG_LEVEL_FOR_OSL = TW_OSL_DEBUG;
 TW_INT32	TW_OSL_DEBUG_LEVEL_FOR_CL = TW_OSL_DEBUG;
 #endif /* TW_OSL_DEBUG */
 
-MALLOC_DEFINE(TW_OSLI_MALLOC_CLASS, "twa commands", "twa commands");
+MALLOC_DEFINE(TW_OSLI_MALLOC_CLASS, "twa_commands", "twa commands");
 
 
 static	d_open_t		twa_open;
@@ -175,7 +175,9 @@ static TW_INT32	twa_detach(device_t dev);
 static TW_INT32	twa_shutdown(device_t dev);
 static TW_VOID	twa_busdma_lock(TW_VOID *lock_arg, bus_dma_lock_op_t op);
 static TW_VOID	twa_pci_intr(TW_VOID *arg);
+#ifdef TW_OSLI_DEFERRED_INTR_USED
 static TW_VOID	twa_deferred_intr(TW_VOID *context, TW_INT32 pending);
+#endif /* TW_OSLI_DEFERRED_INTR_USED */
 
 static TW_INT32	tw_osli_alloc_mem(struct twa_softc *sc);
 static TW_VOID	tw_osli_free_resources(struct twa_softc *sc);
@@ -257,6 +259,9 @@ twa_attach(device_t dev)
 {
 	struct twa_softc	*sc = device_get_softc(dev);
 	TW_UINT32		command;
+	TW_INT32		bar_num;
+	TW_INT32		bar0_offset;
+	TW_INT32		bar_size;
 	TW_INT32		error;
 
 	tw_osli_dbg_dprintf(3, sc, "entered");
@@ -265,6 +270,7 @@ twa_attach(device_t dev)
 
 	/* Initialize the softc structure. */
 	sc->bus_dev = dev;
+	sc->device_id = pci_get_device(dev);
 
 	/* Initialize the mutexes right here. */
 	sc->io_lock = &(sc->io_lock_handle);
@@ -307,8 +313,19 @@ twa_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, command, 2);
 
 	/* Allocate the PCI register window. */
-	sc->reg_res_id = PCIR_BARS;
-	if ((sc->reg_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+	if ((error = tw_cl_get_pci_bar_info(sc->device_id, TW_CL_BAR_TYPE_MEM,
+		&bar_num, &bar0_offset, &bar_size))) {
+		tw_osli_printf(sc, "error = %d",
+			TW_CL_SEVERITY_ERROR_STRING,
+			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
+			0x201F,
+			"Can't get PCI BAR info",
+			error);
+		tw_osli_free_resources(sc);
+		return(error);
+	}
+	sc->reg_res_id = PCIR_BARS + bar0_offset;
+	if ((sc->reg_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 				&(sc->reg_res_id), 0, ~0, 1, RF_ACTIVE))
 				== NULL) {
 		tw_osli_printf(sc, "error = %d",
@@ -338,8 +355,11 @@ twa_attach(device_t dev)
 		return(ENXIO);
 	}
 	if ((error = bus_setup_intr(sc->bus_dev, sc->irq_res,
-			((mp_ncpus > 1) ? (INTR_MPSAFE | INTR_FAST) : 0) |
-			INTR_TYPE_CAM,
+			((mp_ncpus > 1) ? (INTR_MPSAFE
+#ifdef TW_OSLI_DEFERRED_INTR_USED
+			| INTR_FAST
+#endif /* TW_OSLI_DEFERRED_INTR_USED */
+			) : 0) | INTR_TYPE_CAM,
 			twa_pci_intr, sc, &sc->intr_handle))) {
 		tw_osli_printf(sc, "error = %d",
 			TW_CL_SEVERITY_ERROR_STRING,
@@ -351,7 +371,9 @@ twa_attach(device_t dev)
 		return(error);
 	}
 
+#ifdef TW_OSLI_DEFERRED_INTR_USED
 	TASK_INIT(&sc->deferred_intr_callback, 0, twa_deferred_intr, sc);
+#endif /* TW_OSLI_DEFERRED_INTR_USED */
 
 	if ((error = tw_osli_alloc_mem(sc))) {
 		tw_osli_printf(sc, "error = %d",
@@ -365,7 +387,7 @@ twa_attach(device_t dev)
 	}
 
 	/* Initialize the Common Layer for this controller. */
-	if ((error = tw_cl_init_ctlr(&sc->ctlr_handle, sc->flags,
+	if ((error = tw_cl_init_ctlr(&sc->ctlr_handle, sc->flags, sc->device_id,
 			TW_OSLI_MAX_NUM_IOS, TW_OSLI_MAX_NUM_AENS,
 			sc->non_dma_mem, sc->dma_mem,
 			sc->dma_mem_phys
@@ -454,12 +476,15 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 #ifdef TW_OSL_FLASH_FIRMWARE
 	sc->flags |= TW_CL_FLASH_FIRMWARE; 
 #endif /* TW_OSL_FLASH_FIRMWARE */
+#ifdef TW_OSLI_DEFERRED_INTR_USED
+	sc->flags |= TW_CL_DEFERRED_INTR_USED; 
+#endif /* TW_OSLI_DEFERRED_INTR_USED */
 
 	max_sg_elements = (sizeof(bus_addr_t) == 8) ?
 		TW_CL_MAX_64BIT_SG_ELEMENTS : TW_CL_MAX_32BIT_SG_ELEMENTS;
 
 	if ((error = tw_cl_get_mem_requirements(&sc->ctlr_handle, sc->flags,
-			TW_OSLI_MAX_NUM_IOS,  TW_OSLI_MAX_NUM_AENS,
+			sc->device_id, TW_OSLI_MAX_NUM_IOS,  TW_OSLI_MAX_NUM_AENS,
 			&(sc->alignment), &(sc->sg_size_factor),
 			&non_dma_mem_size, &dma_mem_size
 #ifdef TW_OSL_FLASH_FIRMWARE
@@ -757,9 +782,10 @@ tw_osli_free_resources(struct twa_softc *sc)
 					"dmamap_destroy(dma) returned %d",
 					error);
 
-	if ((error = bus_dmamap_destroy(sc->ioctl_tag, sc->ioctl_map)))
-		tw_osli_dbg_dprintf(1, sc,
-			"dmamap_destroy(ioctl) returned %d", error);
+	if ((sc->ioctl_tag) && (sc->ioctl_map))
+		if ((error = bus_dmamap_destroy(sc->ioctl_tag, sc->ioctl_map)))
+			tw_osli_dbg_dprintf(1, sc,
+				"dmamap_destroy(ioctl) returned %d", error);
 
 	/* Free all memory allocated so far. */
 	if (sc->req_ctxt_buf)
@@ -827,7 +853,7 @@ tw_osli_free_resources(struct twa_softc *sc)
 	/* Release the register window mapping. */
 	if (sc->reg_res != NULL)
 		if ((error = bus_release_resource(sc->bus_dev,
-				SYS_RES_IOPORT, sc->reg_res_id, sc->reg_res)))
+				SYS_RES_MEMORY, sc->reg_res_id, sc->reg_res)))
 			tw_osli_dbg_dprintf(1, sc,
 				"release_resource(io) returned %d", error);
 
@@ -965,11 +991,17 @@ twa_pci_intr(TW_VOID *arg)
 
 	tw_osli_dbg_dprintf(10, sc, "entered");
 	if (tw_cl_interrupt(&(sc->ctlr_handle)))
+#ifdef TW_OSLI_DEFERRED_INTR_USED
 		taskqueue_enqueue_fast(taskqueue_fast,
 			&(sc->deferred_intr_callback));
+#else /* TW_OSLI_DEFERRED_INTR_USED */
+		tw_cl_deferred_interrupt(&(sc->ctlr_handle));
+#endif /* TW_OSLI_DEFERRED_INTR_USED */
 }
 
 
+
+#ifdef TW_OSLI_DEFERRED_INTR_USED
 
 /*
  * Function name:	twa_deferred_intr
@@ -989,6 +1021,8 @@ twa_deferred_intr(TW_VOID *context, TW_INT32 pending)
 
 	tw_cl_deferred_interrupt(&(sc->ctlr_handle));
 }
+
+#endif /* TW_OSLI_DEFERRED_INTR_USED */
 
 
 
@@ -1733,251 +1767,3 @@ twa_reset_stats(TW_VOID)
 }
 
 #endif /* TW_OSL_DEBUG */
-
-
-
-#ifdef TW_OSL_DEBUG
-
-/*
- * Function name:	tw_osl_dbg_printf
- * Description:		Prints passed info (prefixed by ctlr name)to syslog
- *
- * Input:		ctlr_handle -- controller handle
- *			fmt -- format string for the arguments to follow
- *			... -- variable number of arguments, to be printed
- *				based on the fmt string
- * Output:		None
- * Return value:	Number of bytes printed
- */
-TW_INT32
-tw_osl_dbg_printf(struct tw_cl_ctlr_handle *ctlr_handle,
-	const TW_INT8 *fmt, ...)
-{
-	va_list		args;
-	TW_INT32	bytes_printed;
-
-	bytes_printed = device_print_prettyname(((struct twa_softc *)
-				(ctlr_handle->osl_ctlr_ctxt))->bus_dev);
-	va_start(args, fmt);
-	bytes_printed += vprintf(fmt, args);
-	va_end(args);
-	return(bytes_printed);
-}
-
-#endif /* TW_OSL_DEBUG */
-
-
-
-/*
- * Function name:	tw_osl_notify_event
- * Description:		Prints passed event info (prefixed by ctlr name)
- *			to syslog
- *
- * Input:		ctlr_handle -- controller handle
- *			event -- ptr to a packet describing the event/error
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_osl_notify_event(struct tw_cl_ctlr_handle *ctlr_handle,
-	struct tw_cl_event_packet *event)
-{
-	struct twa_softc	*sc =
-		(struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt);
-
-	twa_printf(sc, "%s: (0x%02X: 0x%04X): %s: %s\n",
-		event->severity_str,
-		event->event_src,
-		event->aen_code,
-		event->parameter_data +
-			strlen(event->parameter_data) + 1,
-		event->parameter_data);
-}
-
-
-
-/*
- * Function name:	tw_osl_read_reg
- * Description:		Reads a register on the controller
- *
- * Input:		ctlr_handle -- controller handle
- *			offset -- offset from Base Address
- *			size -- # of bytes to read
- * Output:		None
- * Return value:	Value read
- */
-TW_UINT32
-tw_osl_read_reg(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_INT32 offset, TW_INT32 size)
-{
-	bus_space_tag_t		bus_tag =
-		((struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt))->bus_tag;
-	bus_space_handle_t	bus_handle =
-		((struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt))->bus_handle;
-
-	if (size == 4)
-		return((TW_UINT32)bus_space_read_4(bus_tag, bus_handle,
-			offset));
-	else if (size == 2)
-		return((TW_UINT32)bus_space_read_2(bus_tag, bus_handle,
-			offset));
-	else
-		return((TW_UINT32)bus_space_read_1(bus_tag, bus_handle,
-			offset));
-}
-
-
-
-/*
- * Function name:	tw_osl_write_reg
- * Description:		Writes to a register on the controller
- *
- * Input:		ctlr_handle -- controller handle
- *			offset -- offset from Base Address
- *			value -- value to write
- *			size -- # of bytes to write
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_osl_write_reg(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_INT32 offset, TW_INT32 value, TW_INT32 size)
-{
-	bus_space_tag_t		bus_tag =
-		((struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt))->bus_tag;
-	bus_space_handle_t	bus_handle =
-		((struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt))->bus_handle;
-
-	if (size == 4)
-		bus_space_write_4(bus_tag, bus_handle, offset, value);
-	else if (size == 2)
-		bus_space_write_2(bus_tag, bus_handle, offset, (TW_INT16)value);
-	else
-		bus_space_write_1(bus_tag, bus_handle, offset, (TW_INT8)value);
-}
-
-
-#ifdef TW_OSL_PCI_CONFIG_ACCESSIBLE
-
-/*
- * Function name:	tw_osl_read_pci_config
- * Description:		Reads from the PCI config space.
- *
- * Input:		sc	-- ptr to per ctlr structure
- *			offset	-- register offset
- *			size	-- # of bytes to be read
- * Output:		None
- * Return value:	Value read
- */
-TW_UINT32
-tw_osl_read_pci_config(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_INT32 offset, TW_INT32 size)
-{
-	struct twa_softc	*sc =
-		(struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt);
-
-	tw_osli_dbg_dprintf(1, sc, "entered");
-	return(pci_read_config(sc->bus_dev, offset, size));
-}
-
-/*
- * Function name:	tw_osl_write_pci_config
- * Description:		Writes to the PCI config space.
- *
- * Input:		sc	-- ptr to per ctlr structure
- *			offset	-- register offset
- *			value	-- value to write
- *			size	-- # of bytes to be written
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_osl_write_pci_config(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_INT32 offset, TW_INT32 value, TW_INT32 size)
-{
-	struct twa_softc	*sc =
-		(struct twa_softc *)(ctlr_handle->osl_ctlr_ctxt);
-
-	tw_osli_dbg_dprintf(1, sc, "entered");
-	pci_write_config(sc->bus_dev, offset/*PCIR_STATUS*/, value, size);
-}
-
-#endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
-
-
-
-/*
- * Function name:	tw_osl_get_local_time
- * Description:		Gets the local time
- *
- * Input:		None
- * Output:		None
- * Return value:	local time
- */
-TW_TIME
-tw_osl_get_local_time()
-{
-	return(time_second - (tz_minuteswest * 60) -
-		(wall_cmos_clock ? adjkerntz : 0));
-}
-
-
-
-/*
- * Function name:	tw_osl_delay
- * Description:		Spin for the specified time
- *
- * Input:		usecs -- micro-seconds to spin
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_osl_delay(TW_INT32 usecs)
-{
-	DELAY(usecs);
-}
-
-
-
-#ifdef TW_OSL_CAN_SLEEP
-
-/*
- * Function name:	tw_osl_sleep
- * Description:		Sleep for the specified time, or until woken up
- *
- * Input:		ctlr_handle -- controller handle
- *			sleep_handle -- handle to sleep on
- *			timeout -- time period (in ms) to sleep
- * Output:		None
- * Return value:	0 -- successfully woken up
- *			EWOULDBLOCK -- time out
- *			ERESTART -- woken up by a signal
- */
-TW_INT32
-tw_osl_sleep(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_SLEEP_HANDLE *sleep_handle, TW_INT32 timeout)
-{
-	return(tsleep((TW_VOID *)sleep_handle, PRIBIO, NULL, timeout));
-}
-
-
-
-/*
- * Function name:	tw_osl_wakeup
- * Description:		Wake up a sleeping process
- *
- * Input:		ctlr_handle -- controller handle
- *			sleep_handle -- handle of sleeping process to be
-					woken up
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_osl_wakeup(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_SLEEP_HANDLE *sleep_handle)
-{
-	wakeup_one(sleep_handle);
-}
-
-#endif /* TW_OSL_CAN_SLEEP */
-

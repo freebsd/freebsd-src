@@ -46,16 +46,27 @@
  */
 
 
-#define TW_CL_VERSION_STRING		"1.00.00.007"
+#define TW_CL_VERSION_STRING		"1.00.01.011"
 
 #define TW_CL_NULL			((TW_VOID *)0)
 #define TW_CL_TRUE			1
 #define TW_CL_FALSE			0
 
 #define TW_CL_VENDOR_ID			0x13C1	/* 3ware vendor id */
-#define TW_CL_DEVICE_ID_9K		0x1002	/* 9000 series device id */
+#define TW_CL_DEVICE_ID_9K		0x1002	/* 9000 PCI series device id */
+#define TW_CL_DEVICE_ID_9K_X		0x1003	/* 9000 PCI-X series device id */
 
+#define TW_CL_BAR_TYPE_IO		1	/* I/O base address */
+#define TW_CL_BAR_TYPE_MEM		2	/* memory base address */
+#define TW_CL_BAR_TYPE_SBUF		3	/* SBUF base address */
+
+#ifdef TW_OSL_ENCLOSURE_SUPPORT
+#define TW_CL_MAX_NUM_UNITS		65	/* max # of units we support
+						-- enclosure target id is 64 */
+#else /* TW_OSL_ENCLOSURE_SUPPORT */
 #define TW_CL_MAX_NUM_UNITS		16	/* max # of units we support */
+#endif /* TW_OSL_ENCLOSURE_SUPPORT */
+
 #define TW_CL_MAX_NUM_LUNS		16	/* max # of LUN's we support */
 #define TW_CL_MAX_IO_SIZE		0x20000	/* 128K */
 
@@ -76,6 +87,7 @@
 #define TW_CL_START_CTLR_ONLY	(1<<2) /* Start ctlr only */
 #define TW_CL_STOP_CTLR_ONLY	(1<<3) /* Stop ctlr only */
 #define TW_CL_FLASH_FIRMWARE	(1<<4) /* Flash firmware */
+#define TW_CL_DEFERRED_INTR_USED (1<<5) /* OS Layer uses deferred intr */
 
 /* Possible error values from the Common Layer. */
 #define TW_CL_ERR_REQ_SUCCESS			0
@@ -331,6 +343,12 @@ struct tw_cl_sg_desc64 {
 
 
 
+#ifndef TW_BUILDING_API
+
+#include "tw_osl_inline.h"
+
+
+
 /*
  * The following are extern declarations of OS Layer defined functions called
  * by the Common Layer.  If any function has been defined as a macro in
@@ -340,6 +358,13 @@ struct tw_cl_sg_desc64 {
 #ifndef tw_osl_breakpoint
 /* Allows setting breakpoints in the CL code for debugging purposes. */
 extern TW_VOID	tw_osl_breakpoint(TW_VOID);
+#endif
+
+
+#ifndef tw_osl_ctlr_busy
+/* Called when CL is too busy to accept new requests. */
+extern TW_VOID	tw_osl_ctlr_busy(struct tw_cl_ctlr_handle *ctlr_handle,
+	struct tw_cl_req_handle *req_handle);
 #endif
 
 
@@ -472,6 +497,44 @@ extern TW_INT32	tw_osl_strlen(TW_VOID *str);
 #endif
 
 
+#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
+
+#ifndef tw_osl_sync_io_block
+/* Block new I/O requests from being sent by the OS Layer. */
+extern TW_VOID	tw_osl_sync_io_block(struct tw_cl_ctlr_handle *ctlr_handle,
+	TW_SYNC_HANDLE *sync_handle);
+#endif
+
+
+#ifndef tw_osl_sync_io_unblock
+/* Allow new I/O requests from the OS Layer. */
+extern TW_VOID	tw_osl_sync_io_unblock(struct tw_cl_ctlr_handle *ctlr_handle,
+	TW_SYNC_HANDLE *sync_handle);
+#endif
+
+
+#ifndef tw_osl_sync_isr_block
+/* Block the ISR from being called by the OS Layer. */
+extern TW_VOID	tw_osl_sync_isr_block(struct tw_cl_ctlr_handle *ctlr_handle,
+	TW_SYNC_HANDLE *sync_handle);
+#endif
+
+
+#ifndef tw_osl_sync_isr_unblock
+/* Allow calls to the ISR from the OS Layer. */
+extern TW_VOID	tw_osl_sync_isr_unblock(struct tw_cl_ctlr_handle *ctlr_handle,
+	TW_SYNC_HANDLE *sync_handle);
+#endif
+
+#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
+
+
+#ifndef tw_osl_vsprintf
+/* Standard vsprintf. */
+extern TW_INT32	tw_osl_vsprintf(TW_INT8 *dest, const TW_INT8 *fmt, va_list ap);
+#endif
+
+
 #ifdef TW_OSL_CAN_SLEEP
 #ifndef tw_osl_wakeup
 /* Wake up a thread sleeping by a call to tw_osl_sleep. */
@@ -525,7 +588,7 @@ extern TW_INT32	tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 /* Find out how much memory CL needs. */
 extern TW_INT32	tw_cl_get_mem_requirements(
 	struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
-	TW_INT32 max_simult_reqs, TW_INT32 max_aens,
+	TW_INT32 device_id, TW_INT32 max_simult_reqs, TW_INT32 max_aens,
 	TW_UINT32 *alignment, TW_UINT32 *sg_size_factor,
 	TW_UINT32 *non_dma_mem_size, TW_UINT32 *dma_mem_size
 #ifdef TW_OSL_FLASH_FIRMWARE
@@ -540,10 +603,16 @@ extern TW_INT32	tw_cl_get_mem_requirements(
 	);
 
 
+/* Return PCI BAR info. */
+extern TW_INT32 tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
+	TW_INT32 *bar_num, TW_INT32 *bar0_offset, TW_INT32 *bar_size);
+
+
 /* Initialize Common Layer for a given controller. */
 extern TW_INT32	tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_UINT32 flags, TW_INT32 max_simult_reqs, TW_INT32 max_aens,
-	TW_VOID *non_dma_mem, TW_VOID *dma_mem, TW_UINT64 dma_mem_phys
+	TW_UINT32 flags, TW_INT32 device_id, TW_INT32 max_simult_reqs,
+	TW_INT32 max_aens, TW_VOID *non_dma_mem, TW_VOID *dma_mem,
+	TW_UINT64 dma_mem_phys
 #ifdef TW_OSL_FLASH_FIRMWARE
 	, TW_VOID *flash_dma_mem, TW_UINT64 flash_dma_mem_phys
 #endif /* TW_OSL_FLASH_FIRMWARE */
@@ -587,5 +656,7 @@ extern TW_INT32	tw_cl_shutdown_ctlr(struct tw_cl_ctlr_handle *ctlr_handle,
 extern TW_INT32	tw_cl_start_io(struct tw_cl_ctlr_handle *ctlr_handle,
 	struct tw_cl_req_packet *req_pkt, struct tw_cl_req_handle *req_handle);
 
+
+#endif /* TW_BUILDING_API */
 
 #endif /* TW_CL_SHARE_H */

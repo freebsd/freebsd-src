@@ -66,6 +66,10 @@
 #define TW_CLI_CTLR_STATE_GET_MORE_AENS		(1<<3)
 /* Controller is being reset. */
 #define	TW_CLI_CTLR_STATE_RESET_IN_PROGRESS	(1<<4)
+/* G133 controller is in 'phase 1' of being reset. */
+#define TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS	(1<<5)
+/* G66 register write access bug needs to be worked around. */
+#define TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED	(1<<6)
 
 /* Possible values of ctlr->ioctl_lock.lock. */
 #define TW_CLI_LOCK_FREE		0x0	/* lock is free */
@@ -157,8 +161,12 @@ struct tw_cli_ctlr_context {
 
 	TW_UINT64		cmd_pkt_phys;	/* phys addr of cmd_pkt_buf */
 
+	TW_UINT32		device_id;	/* controller device id */
+	TW_UINT32		arch_id;	/* controller architecture id */
 	TW_UINT32		state;		/* controller state */
 	TW_UINT32		flags;		/* controller settings */
+	TW_UINT32		sg_size_factor;	/* SG element size should be a
+							multiple of this */
 
 	/* Request queues and arrays. */
 	struct tw_cl_link	req_q_head[TW_CLI_Q_COUNT];
@@ -191,6 +199,11 @@ struct tw_cli_ctlr_context {
 					that the driver is compatible with */
 	TW_UINT16		working_build;	/* build # of the firmware
 					that the driver is compatible with */
+	TW_UINT16		fw_on_ctlr_srl;	/* srl of running firmware */
+	TW_UINT16		fw_on_ctlr_branch;/* branch # of running
+							firmware */
+	TW_UINT16		fw_on_ctlr_build;/* build # of running
+							firmware */
 	TW_UINT32		operating_mode; /* base mode/current mode */
 
 	TW_INT32		host_intr_pending;/* host intr processing
@@ -309,11 +322,34 @@ tw_cli_req_q_insert_tail(struct tw_cli_req_context *req, TW_UINT8 q_type)
 		return;
 	if ((q_type == TW_CLI_FREE_Q) &&
 		(!(req->flags & TW_CLI_REQ_FLAGS_INTERNAL))) {
+		TW_SYNC_HANDLE		sync_handle;
+
+		tw_osl_get_lock(ctlr->ctlr_handle, ctlr->gen_lock);
+		if (req->state == TW_CLI_REQ_STATE_COMPLETE) {
+			if (ctlr->flags & TW_CL_DEFERRED_INTR_USED)
+				tw_osl_sync_io_block(ctlr->ctlr_handle,
+					&sync_handle);
+		} else {
+			if (!(ctlr->flags & TW_CL_DEFERRED_INTR_USED))
+				tw_osl_sync_isr_block(ctlr->ctlr_handle,
+					&sync_handle);
+		}
 		ctlr->free_req_ids[ctlr->free_req_tail] = req->request_id;
 		ctlr->busy_reqs[req->request_id] = TW_CL_NULL;
 		ctlr->free_req_tail = (ctlr->free_req_tail + 1) %
 			(ctlr->max_simult_reqs - 1);
 		ctlr->num_free_req_ids++;
+
+		if (req->state == TW_CLI_REQ_STATE_COMPLETE) {
+			if (ctlr->flags & TW_CL_DEFERRED_INTR_USED)
+				tw_osl_sync_io_unblock(ctlr->ctlr_handle,
+					&sync_handle);
+		} else {
+			if (!(ctlr->flags & TW_CL_DEFERRED_INTR_USED))
+				tw_osl_sync_isr_unblock(ctlr->ctlr_handle,
+					&sync_handle);
+		}
+		tw_osl_free_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 		return;
 	}
 #endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */

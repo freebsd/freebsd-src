@@ -78,6 +78,7 @@ tw_cl_start_io(struct tw_cl_ctlr_handle *ctlr_handle,
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
 			"I/O during reset: returning busy. Ctlr state = 0x%x",
 			ctlr->state);
+		tw_osl_ctlr_busy(ctlr_handle, req_handle);
 		return(TW_OSL_EBUSY);
 	}
 
@@ -101,6 +102,7 @@ tw_cl_start_io(struct tw_cl_ctlr_handle *ctlr_handle,
 		)) == TW_CL_NULL) {
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
 			"Out of request context packets: returning busy");
+		tw_osl_ctlr_busy(ctlr_handle, req_handle);
 		return(TW_OSL_EBUSY);
 	}
 
@@ -178,16 +180,30 @@ TW_INT32
 tw_cli_submit_cmd(struct tw_cli_req_context *req)
 {
 	struct tw_cli_ctlr_context	*ctlr = req->ctlr;
+	struct tw_cl_ctlr_handle	*ctlr_handle = ctlr->ctlr_handle;
 	TW_UINT32			status_reg;
 	TW_INT32			error;
+	TW_UINT8			notify_osl_of_ctlr_busy = TW_CL_FALSE;
+#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
+	TW_SYNC_HANDLE			sync_handle;
+#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
-	tw_cli_dbg_printf(10, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
+	tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/* Serialize access to the controller cmd queue. */
-	tw_osl_get_lock(ctlr->ctlr_handle, ctlr->io_lock);
+	tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
+#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
+	if (req->flags & TW_CLI_REQ_FLAGS_EXTERNAL) {
+		if (!(ctlr->flags & TW_CL_DEFERRED_INTR_USED))
+			tw_osl_sync_isr_block(ctlr_handle, &sync_handle);
+	} else {
+		if (ctlr->flags & TW_CL_DEFERRED_INTR_USED)
+			tw_osl_sync_io_block(ctlr_handle, &sync_handle);
+	}
+#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 
 	/* Check to see if we can post a command. */
-	status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr->ctlr_handle);
+	status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr_handle);
 	if ((error = tw_cli_check_ctlr_state(ctlr, status_reg)))
 		goto out;
 
@@ -195,7 +211,7 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 		struct tw_cl_req_packet	*req_pkt =
 			(struct tw_cl_req_packet *)(req->orig_req);
 
-		tw_cli_dbg_printf(7, ctlr->ctlr_handle, tw_osl_cur_func(),
+		tw_cli_dbg_printf(7, ctlr_handle, tw_osl_cur_func(),
 			"Cmd queue full");
 
 		if ((req->flags & TW_CLI_REQ_FLAGS_INTERNAL)
@@ -205,7 +221,7 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 #endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 			) {
 			if (req->state != TW_CLI_REQ_STATE_PENDING) {
-				tw_cli_dbg_printf(2, ctlr->ctlr_handle,
+				tw_cli_dbg_printf(2, ctlr_handle,
 					tw_osl_cur_func(),
 					"pending internal/ioctl request");
 				req->state = TW_CLI_REQ_STATE_PENDING;
@@ -213,14 +229,12 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 				error = 0;
 			} else
 				error = TW_OSL_EBUSY;
-		} else
+		} else {
+			notify_osl_of_ctlr_busy = TW_CL_TRUE;
 			error = TW_OSL_EBUSY;
-
-		/* Unmask command interrupt. */
-		TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
-			TWA_CONTROL_UNMASK_COMMAND_INTERRUPT);
+		}
 	} else {
-		tw_cli_dbg_printf(10, ctlr->ctlr_handle, tw_osl_cur_func(),
+		tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(),
 			"Submitting command");
 
 		/*
@@ -230,13 +244,42 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 		 */
 		req->state = TW_CLI_REQ_STATE_BUSY;
 		tw_cli_req_q_insert_tail(req, TW_CLI_BUSY_Q);
-		TW_CLI_WRITE_COMMAND_QUEUE(ctlr->ctlr_handle,
+		TW_CLI_WRITE_COMMAND_QUEUE(ctlr_handle,
 			req->cmd_pkt_phys +
 			sizeof(struct tw_cl_command_header));
 	}
 
 out:
-	tw_osl_free_lock(ctlr->ctlr_handle, ctlr->io_lock);
+#ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
+	if (req->flags & TW_CLI_REQ_FLAGS_EXTERNAL) {
+		if (!(ctlr->flags & TW_CL_DEFERRED_INTR_USED))
+			tw_osl_sync_isr_unblock(ctlr_handle, &sync_handle);
+	} else {
+		if (ctlr->flags & TW_CL_DEFERRED_INTR_USED)
+			tw_osl_sync_io_unblock(ctlr_handle, &sync_handle);
+	}
+#endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
+	tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
+
+	if (status_reg & TWA_STATUS_COMMAND_QUEUE_FULL) {
+		if (notify_osl_of_ctlr_busy)
+			tw_osl_ctlr_busy(ctlr_handle, req->req_handle);
+
+		/*
+		 * Synchronize access between writes to command and control
+		 * registers in 64-bit environments, on G66.
+		 */
+		if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
+			tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
+
+		/* Unmask command interrupt. */
+		TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
+			TWA_CONTROL_UNMASK_COMMAND_INTERRUPT);
+
+		if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
+			tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
+	}
+
 	return(error);
 }
 
@@ -276,6 +319,7 @@ tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 			"Passthru request during reset: returning busy. "
 			"Ctlr state = 0x%x",
 			ctlr->state);
+		tw_osl_ctlr_busy(ctlr_handle, req_handle);
 		return(TW_OSL_EBUSY);
 	}
 
@@ -286,6 +330,7 @@ tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 		)) == TW_CL_NULL) {
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
 			"Out of request context packets: returning busy");
+		tw_osl_ctlr_busy(ctlr_handle, req_handle);
 		return(TW_OSL_EBUSY);
 	}
 
@@ -673,6 +718,17 @@ tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle, TW_INT32 cmd, TW_VOID *buf)
 		comp_pkt.working_srl = ctlr->working_srl;
 		comp_pkt.working_branch = ctlr->working_branch;
 		comp_pkt.working_build = ctlr->working_build;
+		comp_pkt.driver_srl_high = TWA_CURRENT_FW_SRL;
+		comp_pkt.driver_branch_high =
+			TWA_CURRENT_FW_BRANCH(ctlr->arch_id);
+		comp_pkt.driver_build_high =
+			TWA_CURRENT_FW_BUILD(ctlr->arch_id);
+		comp_pkt.driver_srl_low = TWA_BASE_FW_SRL;
+		comp_pkt.driver_branch_low = TWA_BASE_FW_BRANCH;
+		comp_pkt.driver_build_high = TWA_BASE_FW_BUILD;
+		comp_pkt.fw_on_ctlr_srl = ctlr->fw_on_ctlr_srl;
+		comp_pkt.fw_on_ctlr_branch = ctlr->fw_on_ctlr_branch;
+		comp_pkt.fw_on_ctlr_build = ctlr->fw_on_ctlr_build;
 		user_buf->driver_pkt.status = 0;
 
 		/* Copy compatibility information to user space. */
@@ -1175,6 +1231,26 @@ tw_cli_soft_reset(struct tw_cli_ctlr_context *ctlr)
 	tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
 
 	TW_CLI_SOFT_RESET(ctlr_handle);
+
+	if (ctlr->device_id == TW_CL_DEVICE_ID_9K_X) {
+		/*
+		 * There's a hardware bug in the G133 ASIC, which can lead to
+		 * PCI parity errors and hangs, if the host accesses any
+		 * registers when the firmware is resetting the hardware, as
+		 * part of a hard/soft reset.  The window of time when the
+		 * problem can occur is about 10 ms.  Here, we will handshake
+		 * with the firmware to find out when the firmware is pulling
+		 * down the hardware reset pin, and wait for about 500 ms to
+		 * make sure we don't access any hardware registers (for
+		 * polling) during that window.
+		 */
+		ctlr->state |= TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
+		while (tw_cli_find_response(ctlr,
+			TWA_RESET_PHASE1_NOTIFICATION_RESPONSE) != TW_OSL_ESUCCESS)
+			tw_osl_delay(10);
+		tw_osl_delay(TWA_RESET_PHASE1_WAIT_TIME_MS * 1000);
+		ctlr->state &= ~TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
+	}
 
 	if ((error = tw_cli_poll_status(ctlr,
 			TWA_STATUS_MICROCONTROLLER_READY |
