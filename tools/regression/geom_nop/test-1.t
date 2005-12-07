@@ -1,11 +1,11 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
-base=`basename $0`
-us=45
+. `dirname $0`/conf.sh
 
 echo "1..1"
+
+us=45
 
 mdconfig -a -t malloc -s 1M -u $us || exit 1
 
