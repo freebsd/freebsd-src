@@ -1,8 +1,10 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
-base=`basename $0`
+. `dirname $0`/conf.sh
+
+echo "1..5"
+
 balance="load"
 us0=45
 us1=`expr $us0 + 1`
@@ -13,18 +15,14 @@ nblocks2=`expr $nblocks1 / \( $ddbs / 512 \)`
 src=`mktemp /tmp/$base.XXXXXX` || exit 1
 dst=`mktemp /tmp/$base.XXXXXX` || exit 1
 
-echo "1..5"
-
 dd if=/dev/random of=${src} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us0 || exit 1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us1 || exit 1
 mdconfig -a -t malloc -s `expr $nblocks1 + 1` -u $us2 || exit 1
 
-kldstat -q -m g_mirror || gmirror load || exit 1
-
 gmirror label -b $balance $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
-sleep 1
+devwait
 
 dd if=${src} of=/dev/mirror/${name} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 
