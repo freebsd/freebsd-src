@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2005 by David E. O'Brien <obrien@FreeBSD.org>.
  * Copyright (c) 2003,2004 by Quinton Dolan <q@onthenet.com.au>. 
  * All rights reserved.
@@ -26,7 +26,6 @@
  * 
  * $Id: if_nv.c,v 1.19 2004/08/12 14:00:05 q Exp $
  */
-
 /*
  * NVIDIA nForce MCP Networking Adapter driver
  * 
@@ -70,7 +69,6 @@
  * Written by Quinton Dolan <q@onthenet.com.au> 
  * Portions based on existing FreeBSD network drivers. 
  * NVIDIA API usage derived from distributed NVIDIA NVNET driver source files.
- * 
  */
 
 #include <sys/cdefs.h>
@@ -112,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 /* Include NVIDIA Linux driver header files */
+#include <contrib/dev/nve/nvenet_version.h>
 #define	linux
 #include <contrib/dev/nve/basetype.h>
 #include <contrib/dev/nve/phy.h>
@@ -308,6 +307,9 @@ nve_attach(device_t dev)
 	OS_API			*osapi;
 	ADAPTER_OPEN_PARAMS	OpenParams;
 	int			error = 0, i, rid;
+
+	if (bootverbose)
+		device_printf(dev, "nvenetlib.o version %s\n", DRIVER_VERSION);
 
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_attach - entry\n");
 
