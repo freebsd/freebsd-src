@@ -129,12 +129,6 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
     &bpf_maxinsns, 0, "Maximum bpf program instructions");
 SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
-#ifdef BPF_JITTER
-SYSCTL_NODE(_net_bpf, OID_AUTO, jitter, CTLFLAG_RW, 0, "bpf jitter sysctl");
-static int bpf_jitter_enable = 1;
-SYSCTL_INT(_net_bpf_jitter, OID_AUTO, enable, CTLFLAG_RW,
-    &bpf_jitter_enable, 0, "bpf JIT compiler");
-#endif
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
