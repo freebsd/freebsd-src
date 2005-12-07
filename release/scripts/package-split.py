@@ -87,7 +87,6 @@ def disc2_packages():
             'shells/zsh',
             'security/freebsd-update',
             'security/sudo',
-            'sysutils/portsnap',
             'sysutils/portupgrade',
             'www/links',
             'www/lynx',
