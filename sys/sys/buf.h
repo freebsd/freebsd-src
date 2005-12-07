@@ -135,6 +135,10 @@ struct buf {
 	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
 	struct	workhead b_dep;		/* (D) List of filesystem dependencies. */
+	void	*b_fsprivate1;
+	void	*b_fsprivate2;
+	void	*b_fsprivate3;
+	int	b_pin_count;
 };
 
 #define b_object	b_bufobj->bo_object
@@ -214,7 +218,7 @@ struct buf {
 #define	B_01000000	0x01000000	/* Available flag. */
 #define	B_02000000	0x02000000	/* Available flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
-#define	B_08000000	0x08000000	/* Available flag. */
+#define B_MANAGED	0x08000000	/* Managed by FS. */
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
@@ -486,6 +490,7 @@ int	buf_dirty_count_severe(void);
 void	bremfree(struct buf *);
 void	bremfreef(struct buf *);	/* XXX Force bremfree, only for nfs. */
 int	bread(struct vnode *, daddr_t, int, struct ucred *, struct buf **);
+void	breada(struct vnode *, daddr_t *, int *, int, struct ucred *);
 int	breadn(struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **);
 void	bdwrite(struct buf *);
@@ -504,6 +509,7 @@ struct buf *geteblk(int);
 int	bufwait(struct buf *);
 int	bufwrite(struct buf *);
 void	bufdone(struct buf *);
+void	bufdone_finish(struct buf *);
 
 int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **);
@@ -527,6 +533,9 @@ void	reassignbuf(struct buf *);
 struct	buf *trypbuf(int *);
 void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);
+void	bpin(struct buf *);
+void	bunpin(struct buf *);
+void 	bunpin_wait(struct buf *);
 
 #endif /* _KERNEL */
 
