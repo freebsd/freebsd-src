@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_STRIPE_VERSION;
 
-static intmax_t stripesize = 4096;
+static intmax_t default_stripesize = 4096;
 
 static void stripe_main(struct gctl_req *req, unsigned flags);
 static void stripe_clear(struct gctl_req *req);
@@ -59,7 +59,7 @@ struct g_command class_commands[] = {
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 's', "stripesize", &stripesize, G_TYPE_NUMBER },
+		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    "[-hv] [-s stripesize] name prov prov ..."
@@ -77,7 +77,7 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, stripe_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
-		{ 's', "stripesize", &stripesize, G_TYPE_NUMBER },
+		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    "[-hv] [-s stripesize] name prov prov ..."
@@ -102,7 +102,7 @@ stripe_main(struct gctl_req *req, unsigned flags)
 	if ((flags & G_FLAG_VERBOSE) != 0)
 		verbose = 1;
 
-	name = gctl_get_asciiparam(req, "verb");
+	name = gctl_get_ascii(req, "verb");
 	if (name == NULL) {
 		gctl_error(req, "No '%s' argument.", "verb");
 		return;
@@ -121,38 +121,27 @@ static void
 stripe_label(struct gctl_req *req)
 {
 	struct g_stripe_metadata md;
-	intmax_t *stripesizep;
+	intmax_t stripesize;
 	off_t compsize, msize;
 	u_char sector[512];
-	unsigned i, ssize, secsize;
+	unsigned ssize, secsize;
 	const char *name;
-	char param[16];
-	int *hardcode, *nargs, error;
+	int error, i, nargs, hardcode;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs <= 2) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 3) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
-	if (hardcode == NULL) {
-		gctl_error(req, "No '%s' argument.", "hardcode");
-		return;
-	}
+	hardcode = gctl_get_int(req, "hardcode");
 
 	/*
 	 * Clear last sector first to spoil all components if device exists.
 	 */
 	compsize = 0;
 	secsize = 0;
-	for (i = 1; i < (unsigned)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(name);
 		ssize = g_get_sectorsize(name);
 		if (msize == 0 || ssize == 0) {
@@ -178,33 +167,23 @@ stripe_label(struct gctl_req *req)
 
 	strlcpy(md.md_magic, G_STRIPE_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_STRIPE_VERSION;
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	name = gctl_get_ascii(req, "arg0");
 	strlcpy(md.md_name, name, sizeof(md.md_name));
 	md.md_id = arc4random();
-	md.md_all = *nargs - 1;
-	stripesizep = gctl_get_paraml(req, "stripesize", sizeof(*stripesizep));
-	if (stripesizep == NULL) {
-		gctl_error(req, "No '%s' argument.", "stripesize");
-		return;
-	}
-	if ((*stripesizep % secsize) != 0) {
+	md.md_all = nargs - 1;
+	stripesize = gctl_get_intmax(req, "stripesize");
+	if ((stripesize % secsize) != 0) {
 		gctl_error(req, "Stripesize should be multiple of %u.",
 		    secsize);
 		return;
 	}
-	md.md_stripesize = *stripesizep;
+	md.md_stripesize = stripesize;
 
 	/*
 	 * Ok, store metadata.
 	 */
-	for (i = 1; i < (unsigned)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(name);
 		ssize = g_get_sectorsize(name);
 		if (compsize < msize - ssize) {
@@ -215,7 +194,7 @@ stripe_label(struct gctl_req *req)
 
 		md.md_no = i - 1;
 		md.md_provsize = msize;
-		if (!*hardcode)
+		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
 			if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
@@ -239,24 +218,16 @@ static void
 stripe_clear(struct gctl_req *req)
 {
 	const char *name;
-	char param[16];
-	unsigned i;
-	int *nargs, error;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < (unsigned)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(name, G_STRIPE_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
@@ -288,23 +259,16 @@ stripe_dump(struct gctl_req *req)
 {
 	struct g_stripe_metadata md, tmpmd;
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_read(name, (u_char *)&tmpmd, sizeof(tmpmd),
 		    G_STRIPE_MAGIC);
 		if (error != 0) {
