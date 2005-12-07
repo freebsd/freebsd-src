@@ -1,8 +1,10 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
-base=`basename $0`
+. `dirname $0`/conf.sh
+
+echo "1..1"
+
 us=45
 tsize=3
 src=`mktemp /tmp/$base.XXXXXX` || exit 1
@@ -15,14 +17,15 @@ mdconfig -a -t malloc -s 2M -u `expr $us + 1` || exit 1
 mdconfig -a -t malloc -s 3M -u `expr $us + 2` || exit 1
 
 gstripe create -s 8192 $name /dev/md${us} /dev/md`expr $us + 1` /dev/md`expr $us + 2` || exit 1
+devwait
 
 dd if=${src} of=/dev/stripe/${name} bs=1m count=$tsize >/dev/null 2>&1
 dd if=/dev/stripe/${name} of=${dst} bs=1m count=$tsize >/dev/null 2>&1
 
 if [ `md5 -q ${src}` != `md5 -q ${dst}` ]; then
-	echo "FAIL"
+	echo "not ok 1"
 else
-	echo "PASS"
+	echo "ok 1"
 fi
 
 gstripe destroy $name
