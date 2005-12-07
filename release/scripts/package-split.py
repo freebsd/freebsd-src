@@ -70,7 +70,6 @@ def disc2_packages():
             'mail/popd',
             'mail/xfmail',
             'mail/postfix',
-            'misc/bsdiff',
             'net/cvsup',
             'net/cvsup-without-gui',
             'net/rsync',
