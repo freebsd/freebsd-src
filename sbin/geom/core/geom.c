@@ -705,7 +705,8 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	struct gmesh mesh;
 	struct gclass *classp;
 	struct ggeom *gp;
-	int error, *nargs;
+	const char *name;
+	int error, i, nargs;
 
 	error = geom_gettree(&mesh);
 	if (error != 0) {
@@ -718,22 +719,10 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 		fprintf(stderr, "Class %s not found.\n", gclass_name);
 		return;
 	}
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		geom_deletetree(&mesh);
-		return;
-	}
-	if (*nargs > 0) {
-		int i;
-
-		for (i = 0; i < *nargs; i++) {
-			const char *name;
-			char param[16];
-
-			snprintf(param, sizeof(param), "arg%d", i);
-			name = gctl_get_asciiparam(req, param);
-			assert(name != NULL);
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs > 0) {
+		for (i = 0; i < nargs; i++) {
+			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp != NULL)
 				list_one_geom(gp);
@@ -853,8 +842,9 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 	struct gmesh mesh;
 	struct gclass *classp;
 	struct ggeom *gp;
+	const char *name;
 	int name_len, status_len;
-	int error, *nargs, *script;
+	int error, i, n, nargs, script;
 
 	error = geom_gettree(&mesh);
 	if (error != 0) {
@@ -866,28 +856,13 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		fprintf(stderr, "Class %s not found.\n", gclass_name);
 		goto end;
 	}
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		goto end;
-	}
-	script = gctl_get_paraml(req, "script", sizeof(*script));
-	if (script == NULL) {
-		gctl_error(req, "No '%s' argument.", "script");
-		goto end;
-	}
+	nargs = gctl_get_int(req, "nargs");
+	script = gctl_get_int(req, "script");
 	name_len = strlen("Name");
 	status_len = strlen("Status");
-	if (*nargs > 0) {
-		int i, n = 0;
-
-		for (i = 0; i < *nargs; i++) {
-			const char *name;
-			char param[16];
-
-			snprintf(param, sizeof(param), "arg%d", i);
-			name = gctl_get_asciiparam(req, param);
-			assert(name != NULL);
+	if (nargs > 0) {
+		for (i = 0, n = 0; i < nargs; i++) {
+			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp == NULL)
 				fprintf(stderr, "No such geom: %s.\n", name);
@@ -899,8 +874,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		if (n == 0)
 			goto end;
 	} else {
-		int n = 0;
-
+		n = 0;
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 			if (LIST_EMPTY(&gp->lg_provider))
 				continue;
@@ -910,23 +884,16 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		if (n == 0)
 			goto end;
 	}
-	if (!*script) {
+	if (!script) {
 		printf("%*s  %*s  %s\n", name_len, "Name", status_len, "Status",
 		    "Components");
 	}
-	if (*nargs > 0) {
-		int i;
-
-		for (i = 0; i < *nargs; i++) {
-			const char *name;
-			char param[16];
-
-			snprintf(param, sizeof(param), "arg%d", i);
-			name = gctl_get_asciiparam(req, param);
-			assert(name != NULL);
+	if (nargs > 0) {
+		for (i = 0; i < nargs; i++) {
+			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp != NULL) {
-				status_one_geom(gp, *script, name_len,
+				status_one_geom(gp, script, name_len,
 				    status_len);
 			}
 		}
@@ -934,7 +901,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 			if (LIST_EMPTY(&gp->lg_provider))
 				continue;
-			status_one_geom(gp, *script, name_len, status_len);
+			status_one_geom(gp, script, name_len, status_len);
 		}
 	}
 end:
