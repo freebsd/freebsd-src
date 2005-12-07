@@ -501,7 +501,9 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 {
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	struct ng_bpf_hookprog *hp;
+#ifdef BPF_JITTER
 	bpf_jit_filter *jit_prog;
+#endif
 	int size;
 
 	/* Check program for validity */
@@ -525,7 +527,7 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 #ifdef BPF_JITTER
 	if (hip->jit_prog != NULL)
 		bpf_destroy_jit_filter(hip->jit_prog);
-#endif
 	hip->jit_prog = jit_prog;
+#endif
 	return (0);
 }
