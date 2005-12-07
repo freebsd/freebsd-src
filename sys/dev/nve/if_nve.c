@@ -234,6 +234,10 @@ static struct nve_type nve_devs[] = {
 	"NVIDIA nForce MCP10 Networking Adapter"},
 	{NVIDIA_VENDORID, NFORCE_MCPNET11_DEVICEID,
 	"NVIDIA nForce MCP11 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET12_DEVICEID,
+	"NVIDIA nForce MCP12 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET13_DEVICEID,
+	"NVIDIA nForce MCP13 Networking Adapter"},
 	{0, 0, NULL}
 };
 
