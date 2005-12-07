@@ -267,6 +267,13 @@ COMMON ITEMS:
 	prefix all make commands with 'env -i '.  See the env(1) manual
 	page for more details.
 
+	When upgrading from one major version to another it is generally
+	best to upgrade to the latest code in the currently installed branch
+	first, then do an upgrade to the new branch. This is the best-tested
+	upgrade path, and has the highest probability of being successful.
+	Please try this approach before reporting problems with a major
+	version upgrade.
+
 	To build a kernel
 	-----------------
 	If you are updating from a prior version of FreeBSD (even one just
