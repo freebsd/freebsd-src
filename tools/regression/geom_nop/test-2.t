@@ -1,8 +1,8 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
-base=`basename $0`
+. `dirname $0`/conf.sh
+
 us=45
 src=`mktemp /tmp/$base.XXXXXX` || exit 1
 dst=`mktemp /tmp/$base.XXXXXX` || exit 1
