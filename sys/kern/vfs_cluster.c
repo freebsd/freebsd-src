@@ -770,6 +770,12 @@ cluster_wbuild(vp, size, start_lbn, len)
 			--len;
 			continue;
 		}
+		if (tbp->b_pin_count >  0) {
+			BUF_UNLOCK(tbp);
+			++start_lbn;
+			--len;
+			continue;
+		}
 		bremfree(tbp);
 		tbp->b_flags &= ~B_DONE;
 
@@ -873,6 +879,15 @@ cluster_wbuild(vp, size, start_lbn, len)
 					BUF_UNLOCK(tbp);
 					break;
 				}
+
+				/*
+				 * Do not pull in pinned buffers.
+				 */
+				if (tbp->b_pin_count > 0) {
+					BUF_UNLOCK(tbp);
+					break;
+				}
+
 				/*
 				 * Ok, it's passed all the tests,
 				 * so remove it from the free list

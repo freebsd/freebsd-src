@@ -237,6 +237,11 @@ static struct mtx nblock;
 static struct mtx bdonelock;
 
 /*
+ * Lock that protects against bwait()/bdone()/B_DONE races.
+ */
+static struct mtx bpinlock;
+
+/*
  * Definitions for the buffer free lists.
  */
 #define BUFFER_QUEUES	5	/* number of free buffer queues */
@@ -523,6 +528,7 @@ bufinit(void)
 	mtx_init(&nblock, "needsbuffer lock", NULL, MTX_DEF);
 	mtx_init(&bdlock, "buffer daemon lock", NULL, MTX_DEF);
 	mtx_init(&bdonelock, "bdone lock", NULL, MTX_DEF);
+	mtx_init(&bpinlock, "bpin lock", NULL, MTX_DEF);
 
 	/* next, make a null set of free lists */
 	for (i = 0; i < BUFFER_QUEUES; i++)
@@ -720,37 +726,16 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 }
 
 /*
- * Operates like bread, but also starts asynchronous I/O on
- * read-ahead blocks.  We must clear BIO_ERROR and B_INVAL prior
- * to initiating I/O . If B_CACHE is set, the buffer is valid 
- * and we do not have to do anything.
+ * Attempt to initiate asynchronous I/O on read-ahead blocks.  We must
+ * clear BIO_ERROR and B_INVAL prior to initiating I/O . If B_CACHE is set,
+ * the buffer is valid and we do not have to do anything.
  */
-int
-breadn(struct vnode * vp, daddr_t blkno, int size,
-    daddr_t * rablkno, int *rabsize,
-    int cnt, struct ucred * cred, struct buf **bpp)
+void
+breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
+    int cnt, struct ucred * cred)
 {
-	struct buf *bp, *rabp;
+	struct buf *rabp;
 	int i;
-	int rv = 0, readwait = 0;
-
-	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
-	*bpp = bp = getblk(vp, blkno, size, 0, 0, 0);
-
-	/* if not found in cache, do some I/O */
-	if ((bp->b_flags & B_CACHE) == 0) {
-		if (curthread != PCPU_GET(idlethread))
-			curthread->td_proc->p_stats->p_ru.ru_inblock++;
-		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~B_INVAL;
-		bp->b_ioflags &= ~BIO_ERROR;
-		if (bp->b_rcred == NOCRED && cred != NOCRED)
-			bp->b_rcred = crhold(cred);
-		vfs_busy_pages(bp, 0);
-		bp->b_iooffset = dbtob(bp->b_blkno);
-		bstrategy(bp);
-		++readwait;
-	}
 
 	for (i = 0; i < cnt; i++, rablkno++, rabsize++) {
 		if (inmem(vp, *rablkno))
@@ -774,6 +759,39 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			brelse(rabp);
 		}
 	}
+}
+
+/*
+ * Operates like bread, but also starts asynchronous I/O on
+ * read-ahead blocks.
+ */
+int
+breadn(struct vnode * vp, daddr_t blkno, int size,
+    daddr_t * rablkno, int *rabsize,
+    int cnt, struct ucred * cred, struct buf **bpp)
+{
+	struct buf *bp;
+	int rv = 0, readwait = 0;
+
+	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
+	*bpp = bp = getblk(vp, blkno, size, 0, 0, 0);
+
+	/* if not found in cache, do some I/O */
+	if ((bp->b_flags & B_CACHE) == 0) {
+		if (curthread != PCPU_GET(idlethread))
+			curthread->td_proc->p_stats->p_ru.ru_inblock++;
+		bp->b_iocmd = BIO_READ;
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
+		if (bp->b_rcred == NOCRED && cred != NOCRED)
+			bp->b_rcred = crhold(cred);
+		vfs_busy_pages(bp, 0);
+		bp->b_iooffset = dbtob(bp->b_blkno);
+		bstrategy(bp);
+		++readwait;
+	}
+
+	breada(vp, rablkno, rabsize, cnt, cred);
 
 	if (readwait) {
 		rv = bufwait(bp);
@@ -807,6 +825,10 @@ bufwrite(struct buf *bp)
 
 	if (BUF_REFCNT(bp) == 0)
 		panic("bufwrite: buffer is not busy???");
+
+	if (bp->b_pin_count > 0)
+		bunpin_wait(bp);
+
 	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
 	    ("FFS background buffer should not get here %p", bp));
 
@@ -1117,6 +1139,11 @@ brelse(struct buf *bp)
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
 
+	if (bp->b_flags & B_MANAGED) {
+		bqrelse(bp);
+		return;
+	}
+
 	if (bp->b_iocmd == BIO_WRITE &&
 	    (bp->b_ioflags & BIO_ERROR) &&
 	    !(bp->b_flags & B_INVAL)) {
@@ -1394,6 +1421,18 @@ bqrelse(struct buf *bp)
 		BUF_UNLOCK(bp);
 		return;
 	}
+
+	if (bp->b_flags & B_MANAGED) {
+		if (bp->b_flags & B_REMFREE) {
+			mtx_lock(&bqlock);
+			bremfreel(bp);
+			mtx_unlock(&bqlock);
+		}
+		bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+		BUF_UNLOCK(bp);
+		return;
+	}
+
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
 	if (bp->b_flags & B_REMFREE)
@@ -1821,6 +1860,10 @@ restart:
 		bp->b_npages = 0;
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
 		bp->b_bufobj = NULL;
+		bp->b_pin_count = 0;
+		bp->b_fsprivate1 = NULL;
+		bp->b_fsprivate2 = NULL;
+		bp->b_fsprivate3 = NULL;
 
 		LIST_INIT(&bp->b_dep);
 
@@ -2059,6 +2102,10 @@ flushbufqueues(int flushdeps)
 
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			continue;
+		if (bp->b_pin_count > 0) {
+			BUF_UNLOCK(bp);
+			continue;
+		}
 		BO_LOCK(bp->b_bufobj);
 		if ((bp->b_vflags & BV_BKGRDINPROG) != 0 ||
 		    (bp->b_flags & B_DELWRI) == 0) {
@@ -2393,6 +2440,19 @@ loop:
 			if ((bp->b_flags & B_VMIO) == 0 ||
 			    (size > bp->b_kvasize)) {
 				if (bp->b_flags & B_DELWRI) {
+					/*
+					 * If buffer is pinned and caller does
+					 * not want sleep  waiting for it to be
+					 * unpinned, bail out
+					 * */
+					if (bp->b_pin_count > 0) {
+						if (flags & GB_LOCK_NOWAIT) {
+							bqrelse(bp);
+							return (NULL);
+						} else {
+							bunpin_wait(bp);
+						}
+					}
 					bp->b_flags |= B_NOCACHE;
 					bwrite(bp);
 				} else {
@@ -3033,11 +3093,11 @@ bufdone(struct buf *bp)
 	struct bufobj *dropobj;
 	void    (*biodone)(struct buf *);
 
-
 	CTR3(KTR_BUF, "bufdone(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	dropobj = NULL;
 
-	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy %d", bp, BUF_REFCNT(bp)));
+	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy %d", bp,
+	    BUF_REFCNT(bp)));
 	KASSERT(!(bp->b_flags & B_DONE), ("biodone: bp %p already done", bp));
 
 	runningbufwakeup(bp);
@@ -3052,6 +3112,19 @@ bufdone(struct buf *bp)
 			bufobj_wdrop(dropobj);
 		return;
 	}
+
+	bufdone_finish(bp);
+
+	if (dropobj)
+		bufobj_wdrop(dropobj);
+}
+
+void
+bufdone_finish(struct buf *bp)
+{
+	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy %d", bp,
+	    BUF_REFCNT(bp)));
+
 	if (LIST_FIRST(&bp->b_dep) != NULL)
 		buf_complete(bp);
 
@@ -3117,7 +3190,8 @@ bufdone(struct buf *bp)
 				if (m == NULL)
 					panic("biodone: page disappeared!");
 				bp->b_pages[i] = m;
-				pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
+				pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
+				    bp->b_pages, bp->b_npages);
 			}
 #if defined(VFS_BIO_DEBUG)
 			if (OFF_TO_IDX(foff) != m->pindex) {
@@ -3184,8 +3258,6 @@ bufdone(struct buf *bp)
 			bqrelse(bp);
 	} else
 		bdone(bp);
-	if (dropobj)
-		bufobj_wdrop(dropobj);
 }
 
 /*
@@ -3739,6 +3811,32 @@ bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
 			break;
 	}
 	return (error);
+}
+
+void
+bpin(struct buf *bp)
+{
+	mtx_lock(&bpinlock);
+	bp->b_pin_count++;
+	mtx_unlock(&bpinlock);
+}
+
+void
+bunpin(struct buf *bp)
+{
+	mtx_lock(&bpinlock);
+	if (--bp->b_pin_count == 0)
+		wakeup(bp);
+	mtx_unlock(&bpinlock);
+}
+
+void
+bunpin_wait(struct buf *bp)
+{
+	mtx_lock(&bpinlock);
+	while (bp->b_pin_count > 0)
+		msleep(bp, &bpinlock, PRIBIO, "bwunpin", 0);
+	mtx_unlock(&bpinlock);
 }
 
 #include "opt_ddb.h"
