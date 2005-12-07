@@ -1,3 +1,4 @@
+# $FreeBSD$
 #
 # Copyright (c) 2004 Applied Micro Circuits Corporation.
 # All rights reserved.
@@ -23,8 +24,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
-#
 
 #
 # 3ware driver for 9000 series storage controllers.
@@ -41,23 +40,36 @@
 # the controller, if the firmware on the controller is older than the
 # one bundled, and needs to be upgraded.  The size of the driver will
 # increase significantly (to over 500kB) if this option is selected.
+# Typically, the firmware image bundled (in tw_cl_fwimg.c) corresponds
+# to the latest controller architecture as of the date of the release.
+# If the firmware for an earlier controller architecture needs to be
+# flashed, the (older) driver with the appropriate firmware image
+# bundled can be downloaded from the 3ware website, used to flash the
+# firmware, and then the newer driver can be switched to.  Alternatively,
+# the appropriate firmware image (tw_cl_fwimg.c) from the older driver can
+# be used to re-build the newer driver.  In this case, the branch
+# (TWA_CURRENT_FW_BRANCH_*) and build (TWA_CURRENT_FW_BUILD_*) numbers for
+# the bundled firmware need to be appropriately updated in tw_cl_fwif.h
+# before building the driver.
 #
 TWA_FLASH_FIRMWARE?=0
 
 KMOD = twa
-.PATH:	${.CURDIR}/../../dev/${KMOD}
-SRCS = tw_osl_freebsd.c tw_osl_cam.c \
+.PATH: ${.CURDIR}/../../dev/${KMOD}
+SRCS=  tw_osl_freebsd.c tw_osl_cam.c \
       tw_cl_init.c tw_cl_io.c tw_cl_intr.c tw_cl_misc.c \
       bus_if.h device_if.h pci_if.h opt_scsi.h opt_cam.h opt_twa.h
 
-CFLAGS += -I${.CURDIR}/../../dev/${KMOD}
+# Uncomment the following line to turn on Enclosure Services support.
+#CFLAGS+= -DTWA_ENCLOSURE_SUPPORT
+
+#CFLAGS+= -DTWA_DEBUG=0
+CFLAGS+= -I${.CURDIR}/../../dev/${KMOD}
 
 .if $(TWA_FLASH_FIRMWARE) != 0
-CFLAGS += -DTWA_FLASH_FIRMWARE
-SRCS += tw_cl_fwimg.c
+CFLAGS+= -DTWA_FLASH_FIRMWARE
+SRCS+= tw_cl_fwimg.c
 .endif
-
-#CFLAGS += -DTWA_DEBUG=0
 
 .include <bsd.kmod.mk>
 

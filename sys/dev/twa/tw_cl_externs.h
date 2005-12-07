@@ -179,6 +179,10 @@ extern TW_VOID	tw_cli_drain_pending_queue(struct tw_cli_ctlr_context *ctlr);
 /* Drain the controller response queue. */
 extern TW_INT32	tw_cli_drain_response_queue(struct tw_cli_ctlr_context *ctlr);
 
+/* Find a particular response in the controller response queue. */
+extern TW_INT32	tw_cli_find_response(struct tw_cli_ctlr_context *ctlr,
+	TW_INT32 req_id);
+
 /* Drain the controller AEN queue. */
 extern TW_INT32	tw_cli_drain_aen_queue(struct tw_cli_ctlr_context *ctlr);
 

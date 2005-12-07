@@ -39,7 +39,7 @@
  */
 
 
-#include "tw_osl_includes.h"
+#include <dev/twa/tw_osl_includes.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -205,6 +205,24 @@ tw_osli_cam_detach(struct twa_softc *sc)
 
 
 /*
+ * Function name:	tw_osli_complete_ccb
+ * Description:		Completes a ccb to CAM.
+ *
+ * Input:		ccb	-- ptr to CAM request
+ * Output:		None
+ * Return value:	None
+ */
+static __inline TW_VOID
+tw_osli_complete_ccb(union ccb *ccb)
+{
+	mtx_lock(&Giant);
+	xpt_done(ccb);
+	mtx_unlock(&Giant);
+}
+
+
+
+/*
  * Function name:	tw_osli_execute_scsi
  * Description:		Build a fw cmd, based on a CAM style ccb, and
  *			send it down.
@@ -232,14 +250,14 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 		tw_osli_dbg_dprintf(3, sc, "Invalid target. PTL = %x %x %x",
 			ccb_h->path_id, ccb_h->target_id, ccb_h->target_lun);
 		ccb_h->status |= CAM_TID_INVALID;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		return(1);
 	}
 	if (ccb_h->target_lun >= TW_CL_MAX_NUM_LUNS) {
 		tw_osli_dbg_dprintf(3, sc, "Invalid lun. PTL = %x %x %x",
 			ccb_h->path_id, ccb_h->target_id, ccb_h->target_lun);
 		ccb_h->status |= CAM_LUN_INVALID;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		return(1);
 	}
 
@@ -250,7 +268,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 			0x2105,
 			"Physical CDB address!");
 		ccb_h->status = CAM_REQ_CMP_ERR;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		return(1);
 	}
 
@@ -296,7 +314,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 					"I/O size too big",
 					csio->dxfer_len);
 				ccb_h->status = CAM_REQ_TOO_BIG;
-				xpt_done(ccb);
+				tw_osli_complete_ccb(ccb);
 				return(1);
 			}
 
@@ -311,7 +329,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 				0x2107,
 				"XPT_SCSI_IO: Got SGList");
 			ccb_h->status = CAM_REQ_CMP_ERR;
-			xpt_done(ccb);
+			tw_osli_complete_ccb(ccb);
 			return(1);
 		}
 	} else {
@@ -324,7 +342,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 		ccb_h->status = CAM_REQ_CMP_ERR;
 		ccb_h->status |= CAM_RELEASE_SIMQ;
 		ccb_h->status &= ~CAM_SIM_QUEUED;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		return(1);
 	}
 
@@ -370,7 +388,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 			 */
 			tw_osli_disallow_new_requests(sc);
 			ccb_h->status |= CAM_REQUEUE_REQ;
-			xpt_done(ccb);
+			tw_osli_complete_ccb(ccb);
 			break;
 		}
 		req->req_handle.osl_req_ctxt = req;
@@ -383,7 +401,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_ABORT:
 		tw_osli_dbg_dprintf(2, sc, "Abort request.");
 		ccb_h->status = CAM_UA_ABORT;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		break;
 
 	case XPT_RESET_BUS:
@@ -404,7 +422,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		else
 			ccb_h->status = CAM_REQ_CMP;
 
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		break;
 
 	case XPT_SET_TRAN_SETTINGS:
@@ -415,7 +433,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		 * to SCSI, and we are doing ATA.
 		 */
   		ccb_h->status = CAM_FUNC_NOTAVAIL;
-  		xpt_done(ccb);
+  		tw_osli_complete_ccb(ccb);
   		break;
 
 	case XPT_GET_TRAN_SETTINGS: 
@@ -426,14 +444,14 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		cts->valid = (CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID);
 		cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
 		ccb_h->status = CAM_REQ_CMP;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		break;
 	}
 
 	case XPT_CALC_GEOMETRY:
 		tw_osli_dbg_dprintf(3, sc, "XPT_CALC_GEOMETRY");
 		cam_calc_geometry(&ccb->ccg, 1/* extended */);
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		break;
 
 	case XPT_PATH_INQ:    /* Path inquiry -- get twa properties */
@@ -451,20 +469,20 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		path_inq->max_lun = TW_CL_MAX_NUM_LUNS - 1;
 		path_inq->unit_number = cam_sim_unit(sim);
 		path_inq->bus_id = cam_sim_bus(sim);
-		path_inq->initiator_id = 12;
+		path_inq->initiator_id = TW_CL_MAX_NUM_UNITS;
 		path_inq->base_transfer_speed = 100000;
 		strncpy(path_inq->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(path_inq->hba_vid, "3ware", HBA_IDLEN);
 		strncpy(path_inq->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		ccb_h->status = CAM_REQ_CMP;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		break;
 	}
 
 	default:
 		tw_osli_dbg_dprintf(3, sc, "func_code = %x", ccb_h->func_code);
 		ccb_h->status = CAM_REQ_INVALID;
-		xpt_done(ccb);
+		tw_osli_complete_ccb(ccb);
 		break;
 	}
 }
@@ -572,6 +590,9 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 
 	tw_osli_dbg_dprintf(3, sc, "entering");
 
+	/* If we get here before sc->sim is initialized, return an error. */
+	if (!(sc->sim))
+		return(ENXIO);
 	if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
 		return(ENOMEM);
 	bzero(ccb, sizeof(union ccb));
@@ -650,8 +671,29 @@ tw_osli_allow_new_requests(struct twa_softc *sc, TW_VOID *ccb)
 TW_VOID
 tw_osli_disallow_new_requests(struct twa_softc *sc)
 {
+	mtx_lock(&Giant);
 	xpt_freeze_simq(sc->sim, 1);
+	mtx_unlock(&Giant);
 	sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+}
+
+
+
+/*
+ * Function name:	tw_osl_ctlr_busy
+ * Description:		CL calls this function on cmd queue full or otherwise,
+ *			when it is too busy to accept new requests.
+ *
+ * Input:		ctlr_handle	-- ptr to controller handle
+ *			req_handle	-- ptr to request handle sent by OSL.
+ * Output:		None
+ * Return value:	None
+ */
+TW_VOID
+tw_osl_ctlr_busy(struct tw_cl_ctlr_handle *ctlr_handle,
+	struct tw_cl_req_handle *req_handle)
+{
+	tw_osli_disallow_new_requests(ctlr_handle->osl_ctlr_ctxt);
 }
 
 
@@ -724,12 +766,12 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 		/* This request never got submitted to the firmware. */
 		if (req->error_code == EBUSY) {
 			/*
-			 * Cmd queue is full, or common layer is out
-			 * of resources.  Freeze the simq to maintain
-			 * ccb ordering.  The next ccb that gets
+			 * Cmd queue is full, or the Common Layer is out of
+			 * resources.  The simq will already have been frozen
+			 * by CL's call to tw_osl_ctlr_busy, and this will
+			 * maintain ccb ordering.  The next ccb that gets
 			 * completed will unfreeze the simq.
 			 */
-			tw_osli_disallow_new_requests(req->ctlr);
 			ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		}
 		else if (req->error_code == EFBIG)
@@ -769,9 +811,7 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 	}
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-	mtx_lock(&Giant);
-	xpt_done(ccb);
-	mtx_unlock(&Giant);
+	tw_osli_complete_ccb(ccb);
 	if (! req->error_code)
 		 /* twa_action will free the request otherwise */
 		tw_osli_req_q_insert_tail(req, TW_OSLI_FREE_Q);
