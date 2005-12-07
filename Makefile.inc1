@@ -285,7 +285,7 @@ _worldtmp:
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-	# XXX - These two can depend on any header file.
+#	XXX - These two can depend on any header file.
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
@@ -897,23 +897,19 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if (${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386") && \
-    ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
-
-.if (!defined(NO_RESCUE) || defined(RELEASEDIR)) && \
-    ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if !defined(NO_RESCUE) || defined(RELEASEDIR)
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
-
-.if ${TARGET_ARCH} == "alpha" && ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} == "alpha"
 _elf2exe=	usr.sbin/elf2exe
 .endif
-
-.if ${TARGET_ARCH} == "i386" && ${TARGET_ARCH} != ${MACHINE_ARCH} && \
-    defined(RELEASEDIR)
+.if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
 _kgzip=		usr.sbin/kgzip
+.endif
 .endif
 
 cross-tools:
