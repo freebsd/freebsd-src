@@ -70,10 +70,9 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include "tw_osl_share.h"
-#include "tw_cl_share.h"
-#include "tw_osl.h"
-#include "tw_osl_externs.h"
+#include <dev/twa/tw_osl_share.h>
+#include <dev/twa/tw_cl_share.h>
+#include <dev/twa/tw_osl_externs.h>
 
 
 

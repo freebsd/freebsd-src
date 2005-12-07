@@ -39,7 +39,7 @@
  */
 
 
-#include "tw_osl_includes.h"
+#include <dev/twa/tw_osl_includes.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -120,6 +120,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	 * Register the bus.
 	 */
 	tw_osli_dbg_dprintf(3, sc, "Calling xpt_bus_register");
+	mtx_lock(&Giant);
 	if (xpt_bus_register(sc->sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(sc->sim, TRUE);
 		sc->sim = NULL; /* so cam_detach will not try to free it */
@@ -156,6 +157,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	csa.callback = twa_async;
 	csa.callback_arg = sc;
 	xpt_action((union ccb *)&csa);
+	mtx_unlock(&Giant);
 
 	tw_osli_dbg_dprintf(3, sc, "Calling tw_osli_request_bus_scan");
 	/*
@@ -449,7 +451,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		path_inq->max_lun = TW_CL_MAX_NUM_LUNS - 1;
 		path_inq->unit_number = cam_sim_unit(sim);
 		path_inq->bus_id = cam_sim_bus(sim);
-		path_inq->initiator_id = 12;
+		path_inq->initiator_id = TW_CL_MAX_NUM_UNITS;
 		path_inq->base_transfer_speed = 100000;
 		strncpy(path_inq->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(path_inq->hba_vid, "3ware", HBA_IDLEN);
@@ -570,6 +572,9 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 
 	tw_osli_dbg_dprintf(3, sc, "entering");
 
+	/* If we get here before sc->sim is initialized, return an error. */
+	if (!(sc->sim))
+		return(ENXIO);
 	if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
 		return(ENOMEM);
 	bzero(ccb, sizeof(union ccb));
@@ -648,8 +653,29 @@ tw_osli_allow_new_requests(struct twa_softc *sc, TW_VOID *ccb)
 TW_VOID
 tw_osli_disallow_new_requests(struct twa_softc *sc)
 {
+	mtx_lock(&Giant);
 	xpt_freeze_simq(sc->sim, 1);
+	mtx_unlock(&Giant);
 	sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+}
+
+
+
+/*
+ * Function name:	tw_osl_ctlr_busy
+ * Description:		CL calls this function on cmd queue full or otherwise,
+ *			when it is too busy to accept new requests.
+ *
+ * Input:		ctlr_handle	-- ptr to controller handle
+ *			req_handle	-- ptr to request handle sent by OSL.
+ * Output:		None
+ * Return value:	None
+ */
+TW_VOID
+tw_osl_ctlr_busy(struct tw_cl_ctlr_handle *ctlr_handle,
+	struct tw_cl_req_handle *req_handle)
+{
+	tw_osli_disallow_new_requests(ctlr_handle->osl_ctlr_ctxt);
 }
 
 
@@ -722,12 +748,12 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 		/* This request never got submitted to the firmware. */
 		if (req->error_code == EBUSY) {
 			/*
-			 * Cmd queue is full, or common layer is out
-			 * of resources.  Freeze the simq to maintain
-			 * ccb ordering.  The next ccb that gets
+			 * Cmd queue is full, or the Common Layer is out of
+			 * resources.  The simq will already have been frozen
+			 * by CL's call to tw_osl_ctlr_busy, and this will
+			 * maintain ccb ordering.  The next ccb that gets
 			 * completed will unfreeze the simq.
 			 */
-			tw_osli_disallow_new_requests(req->ctlr);
 			ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		}
 		else if (req->error_code == EFBIG)

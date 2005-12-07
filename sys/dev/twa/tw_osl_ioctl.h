@@ -46,8 +46,8 @@
 
 
 
-#include "tw_cl_fwif.h"
-#include "tw_cl_ioctl.h"
+#include <dev/twa/tw_cl_fwif.h>
+#include <dev/twa/tw_cl_ioctl.h>
 
 
 

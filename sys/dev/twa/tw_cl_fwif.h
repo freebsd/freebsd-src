@@ -52,10 +52,10 @@
 #define	TWA_RESPONSE_QUEUE_OFFSET		0xC
 #define	TWA_COMMAND_QUEUE_OFFSET_LOW		0x20
 #define	TWA_COMMAND_QUEUE_OFFSET_HIGH		0x24
+#define	TWA_LARGE_RESPONSE_QUEUE_OFFSET		0x30
 
 
 /* Control register bit definitions. */
-#define TWA_CONTROL_CLEAR_SBUF_WRITE_ERROR	0x00000008
 #define TWA_CONTROL_ISSUE_HOST_INTERRUPT	0x00000020
 #define TWA_CONTROL_DISABLE_INTERRUPTS		0x00000040
 #define TWA_CONTROL_ENABLE_INTERRUPTS		0x00000080
@@ -73,7 +73,6 @@
 
 /* Status register bit definitions. */
 #define TWA_STATUS_ROM_BIOS_IN_SBUF		0x00000002
-#define TWA_STATUS_SBUF_WRITE_ERROR		0x00000008
 #define TWA_STATUS_COMMAND_QUEUE_EMPTY		0x00001000
 #define TWA_STATUS_MICROCONTROLLER_READY	0x00002000
 #define TWA_STATUS_RESPONSE_QUEUE_EMPTY		0x00004000
@@ -98,6 +97,9 @@
 
 #define TWA_PCI_CONFIG_CLEAR_PARITY_ERROR	0xc100
 #define TWA_PCI_CONFIG_CLEAR_PCI_ABORT		0x2000
+
+#define TWA_RESET_PHASE1_NOTIFICATION_RESPONSE	0xFFFF
+#define TWA_RESET_PHASE1_WAIT_TIME_MS		500
 
 
 /* Command packet opcodes. */
@@ -132,7 +134,7 @@
 
 
 /* Misc defines. */
-#define TWA_BUNDLED_FW_VERSION_STRING	"2.06.00.009"
+#define TWA_BUNDLED_FW_VERSION_STRING	"3.02.00.004"
 #define TWA_SHUTDOWN_MESSAGE_CREDITS	0x001
 #define TWA_64BIT_SG_ADDRESSES		0x00000001
 #define TWA_EXTENDED_INIT_CONNECT	0x00000002
@@ -140,11 +142,14 @@
 #define TWA_BASE_FW_SRL			24
 #define TWA_BASE_FW_BRANCH		0
 #define TWA_BASE_FW_BUILD		1
-#define TWA_CURRENT_FW_SRL		28
-#define TWA_CURRENT_FW_BRANCH		4
-#define TWA_CURRENT_FW_BUILD		9
+#define TWA_CURRENT_FW_SRL		30
+#define TWA_CURRENT_FW_BRANCH_9K	4
+#define TWA_CURRENT_FW_BUILD_9K		8
+#define TWA_CURRENT_FW_BRANCH_9K_X	8
+#define TWA_CURRENT_FW_BUILD_9K_X	4
 #define TWA_MULTI_LUN_FW_SRL		28
-#define TWA_9000_ARCH_ID		0x5	/* 9000 series controllers */
+#define TWA_ARCH_ID_9K			0x5	/* 9000 PCI controllers */
+#define TWA_ARCH_ID_9K_X		0x6	/* 9000 PCI-X controllers */
 #define TWA_CTLR_FW_SAME_OR_NEWER	0x00000001
 #define TWA_CTLR_FW_COMPATIBLE		0x00000002
 #define TWA_BUNDLED_FW_SAFE_TO_FLASH	0x00000004
@@ -152,13 +157,24 @@
 #define TWA_SENSE_DATA_LENGTH		18
 
 
+#define TWA_ARCH_ID(device_id)						\
+	(((device_id) == TW_CL_DEVICE_ID_9K) ? TWA_ARCH_ID_9K :		\
+	TWA_ARCH_ID_9K_X)
+#define TWA_CURRENT_FW_BRANCH(arch_id)					\
+	(((arch_id) == TWA_ARCH_ID_9K) ? TWA_CURRENT_FW_BRANCH_9K :	\
+	TWA_CURRENT_FW_BRANCH_9K_X)
+#define TWA_CURRENT_FW_BUILD(arch_id)					\
+	(((arch_id) == TWA_ARCH_ID_9K) ? TWA_CURRENT_FW_BUILD_9K :	\
+	TWA_CURRENT_FW_BUILD_9K_X)
+
 /*
  * All SG addresses and DMA'able memory allocated by the OSL should be
  * TWA_ALIGNMENT bytes aligned, and have a size that is a multiple of
  * TWA_SG_ELEMENT_SIZE_FACTOR.
  */
-#define TWA_ALIGNMENT			0x4
-#define TWA_SG_ELEMENT_SIZE_FACTOR	512
+#define TWA_ALIGNMENT(device_id)			0x4
+#define TWA_SG_ELEMENT_SIZE_FACTOR(device_id)		\
+	(((device_id) == TW_CL_DEVICE_ID_9K) ? 512 : 4)
 
 
 /*
@@ -180,6 +196,7 @@
 #define TWA_PARAM_VERSION_TABLE		0x0402
 #define TWA_PARAM_VERSION_FW		3	/* firmware version [16] */
 #define TWA_PARAM_VERSION_BIOS		4	/* BIOSs version [16] */
+#define TWA_PARAM_CTLR_MODEL		8	/* Controller model [16] */
 
 #define TWA_PARAM_CONTROLLER_TABLE	0x0403
 #define TWA_PARAM_CONTROLLER_PORT_COUNT	3	/* number of ports [1] */
@@ -352,6 +369,10 @@ struct tw_cl_param_9k {
 	tw_osl_read_reg(ctlr_handle, TWA_RESPONSE_QUEUE_OFFSET, 4)
 
 
+#define TW_CLI_READ_LARGE_RESPONSE_QUEUE(ctlr_handle)			\
+	tw_osl_read_reg(ctlr_handle, TWA_LARGE_RESPONSE_QUEUE_OFFSET, 4)
+
+
 #define TW_CLI_SOFT_RESET(ctlr)					\
 	TW_CLI_WRITE_CONTROL_REGISTER(ctlr,			\
 		TWA_CONTROL_ISSUE_SOFT_RESET |			\
@@ -407,6 +428,12 @@ struct tw_cl_param_9k {
 
 #define GET_RESP_ID(undef2__resp_id__undef1)	\
 	((undef2__resp_id__undef1 >> 4) & 0xFF)	/* 20:8:4 */
+
+#define GET_RESP_ID_9K_X(undef2__resp_id)	\
+	((undef2__resp_id) & 0xFFF)		/* 20:12 */
+
+#define GET_LARGE_RESP_ID(misc__large_resp_id)	\
+	((misc__large_resp_id) & 0xFFFF)	/* 16:16 */
 
 #define GET_REQ_ID(lun_l4__req_id)	\
 	(lun_l4__req_id & 0xFFF)		/* 4:12 */

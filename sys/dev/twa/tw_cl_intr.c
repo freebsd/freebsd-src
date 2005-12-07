@@ -70,10 +70,11 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 	tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/*
-	 * Serialize access to this function so multiple threads don't try to
-	 * do the same thing (such as clearing interrupt bits).
+	 * Synchronize access between writes to command and control registers
+	 * in 64-bit environments, on G66.
 	 */
-	tw_osl_get_lock(ctlr_handle, ctlr->intr_lock);
+	if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
+		tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
 
 	/* Read the status register to determine the type of interrupt. */
 	status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr_handle);
@@ -114,7 +115,8 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 		rc |= TW_CL_TRUE; /* request for a deferred isr call */
 	}
 out:
-	tw_osl_free_lock(ctlr_handle, ctlr->intr_lock);
+	if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
+		tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
 
 	return(rc);
 }
@@ -319,10 +321,13 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 		tw_cli_req_q_remove_item(req, TW_CLI_BUSY_Q);
 		req->state = TW_CLI_REQ_STATE_COMPLETE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_COMPLETE_Q);
+
 #ifdef TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST
+		tw_osl_free_lock(ctlr->ctlr_handle, ctlr->intr_lock);
 		/* Call the CL internal callback, if there's one. */
 		if (req->tw_cli_callback)
 			req->tw_cli_callback(req);
+		tw_osl_get_lock(ctlr->ctlr_handle, ctlr->intr_lock);
 #endif /* TW_OSL_NON_DMA_MEM_ALLOC_PER_REQUEST */
 	}
 
