@@ -107,6 +107,10 @@ main(int argc, char *argv[])
 					service = SDP_SERVICE_CLASS_FAX;
 					break;
 
+				case 'l': /* LAN */
+					service = SDP_SERVICE_CLASS_LAN_ACCESS_USING_PPP;
+					break;
+
 				case 's': /* Serial Port */
 					service = SDP_SERVICE_CLASS_SERIAL_PORT;
 					break;
