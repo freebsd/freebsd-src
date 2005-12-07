@@ -41,7 +41,7 @@
 .Nd find filenames quickly
 .Sh SYNOPSIS
 .Nm
-.Op Fl Scims
+.Op Fl 0Scims
 .Op Fl l Ar limit
 .Op Fl d Ar database
 .Ar pattern ...
@@ -90,6 +90,11 @@ are stored in 2 bytes.
 .Pp
 The following options are available:
 .Bl -tag -width 10n
+.It Fl 0
+Print pathnames separated by an
+.Tn ASCII NUL
+character (character code 0) instead of default NL
+(newline, character code 10).
 .It Fl S
 Print some statistic about the database and exit.
 .It Fl c
