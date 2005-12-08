@@ -279,6 +279,7 @@ static void bge_poll_locked	(struct ifnet *ifp, enum poll_cmd cmd,
 #endif
 
 static void bge_reset		(struct bge_softc *);
+static void bge_link_upd	(struct bge_softc *);
 
 static device_method_t bge_methods[] = {
 	/* Device interface */
@@ -2964,11 +2965,19 @@ bge_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		bge_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
-		u_int32_t status;
+		uint32_t statusword;
 
-		status = CSR_READ_4(sc, BGE_MAC_STS);
-		if (status)
-			CSR_WRITE_4(sc, BGE_MAC_STS, status);
+		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+		    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTWRITE);
+
+	    	statusword = atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
+
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+		    statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
+			bge_link_upd(sc);
+
+		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+		    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREWRITE);
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -2979,13 +2988,13 @@ bge_intr(xsc)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
-	u_int32_t statusword;
-	u_int32_t status, mimode;
+	uint32_t statusword;
 
 	sc = xsc;
-	ifp = sc->bge_ifp;
 
 	BGE_LOCK(sc);
+
+	ifp = sc->bge_ifp;
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING) {
@@ -3009,71 +3018,9 @@ bge_intr(xsc)
 	/* Ack interrupt and stop others from occuring. */
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
 
-	/*
-	 * Process link state changes.
-	 * Grrr. The link status word in the status block does
-	 * not work correctly on the BCM5700 rev AX and BX chips,
-	 * according to all available information. Hence, we have
-	 * to enable MII interrupts in order to properly obtain
-	 * async link changes. Unfortunately, this also means that
-	 * we have to read the MAC status register to detect link
-	 * changes, thereby adding an additional register access to
-	 * the interrupt handler.
-	 */
-
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
-
-		status = CSR_READ_4(sc, BGE_MAC_STS);
-		if (status & BGE_MACSTAT_MI_INTERRUPT) {
-			sc->bge_link = 0;
-			callout_stop(&sc->bge_stat_ch);
-			bge_tick_locked(sc);
-			/* Clear the interrupt */
-			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
-			    BGE_EVTENB_MI_INTERRUPT);
-			bge_miibus_readreg(sc->bge_dev, 1, BRGPHY_MII_ISR);
-			bge_miibus_writereg(sc->bge_dev, 1, BRGPHY_MII_IMR,
-			    BRGPHY_INTRS);
-		}
-	} else {
-		if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED) {
-			/*
-			 * Sometimes PCS encoding errors are detected in
-			 * TBI mode (on fiber NICs), and for some reason
-			 * the chip will signal them as link changes.
-			 * If we get a link change event, but the 'PCS
-			 * encoding error' bit in the MAC status register
-			 * is set, don't bother doing a link check.
-			 * This avoids spurious "gigabit link up" messages
-			 * that sometimes appear on fiber NICs during
-			 * periods of heavy traffic. (There should be no
-			 * effect on copper NICs.)
-			 *
-			 * If we do have a copper NIC (bge_tbi == 0) then
-			 * check that the AUTOPOLL bit is set before
-			 * processing the event as a real link change.
-			 * Turning AUTOPOLL on and off in the MII read/write
-			 * functions will often trigger a link status
-			 * interrupt for no reason.
-			 */
-			status = CSR_READ_4(sc, BGE_MAC_STS);
-			mimode = CSR_READ_4(sc, BGE_MI_MODE);
-			if (!(status & (BGE_MACSTAT_PORT_DECODE_ERROR|
-			    BGE_MACSTAT_MI_COMPLETE)) && (!sc->bge_tbi &&
-			    (mimode & BGE_MIMODE_AUTOPOLL))) {
-				sc->bge_link = 0;
-				callout_stop(&sc->bge_stat_ch);
-				bge_tick_locked(sc);
-			}
-			/* Clear the interrupt */
-			CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
-			    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
-			    BGE_MACSTAT_LINK_CHANGED);
-
-			/* Force flush the status block cached by PCI bridge */
-			CSR_READ_4(sc, BGE_MBX_IRQ0_LO);
-		}
-	}
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+	    statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
+		bge_link_upd(sc);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer */
@@ -3105,55 +3052,52 @@ bge_tick_locked(sc)
 	struct bge_softc *sc;
 {
 	struct mii_data *mii = NULL;
-	struct ifmedia *ifm = NULL;
 	struct ifnet *ifp;
 
-	ifp = sc->bge_ifp;
-
 	BGE_LOCK_ASSERT(sc);
+
+	ifp = sc->bge_ifp;
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5750)
 		bge_stats_update_regs(sc);
 	else
 		bge_stats_update(sc);
-	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
-	if (sc->bge_link)
-		return;
 
 	if (sc->bge_tbi) {
-		ifm = &sc->bge_ifmedia;
-		if (CSR_READ_4(sc, BGE_MAC_STS) &
-		    BGE_MACSTAT_TBI_PCS_SYNCHED) {
+		if (!sc->bge_link) {
+			if (CSR_READ_4(sc, BGE_MAC_STS) &
+			    BGE_MACSTAT_TBI_PCS_SYNCHED) {
+				sc->bge_link++;
+				if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
+					BGE_CLRBIT(sc, BGE_MAC_MODE,
+					    BGE_MACMODE_TBI_SEND_CFGS);
+				CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
+				if (bootverbose)
+					printf("bge%d: gigabit link up\n",
+					    sc->bge_unit);
+				if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+					bge_start_locked(ifp);
+			}
+		}
+	}
+	else {
+		mii = device_get_softc(sc->bge_miibus);
+		mii_tick(mii);
+
+		if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->bge_link++;
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
-				BGE_CLRBIT(sc, BGE_MAC_MODE,
-				    BGE_MACMODE_TBI_SEND_CFGS);
-			CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
-			if (bootverbose)
-				printf("bge%d: gigabit link up\n",
-				    sc->bge_unit);
+			if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
+			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)&&
+			    bootverbose)
+				printf("bge%d: gigabit link up\n", sc->bge_unit);
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				bge_start_locked(ifp);
 		}
-		return;
 	}
 
-	mii = device_get_softc(sc->bge_miibus);
-	mii_tick(mii);
-
-	if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->bge_link++;
-		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) &&
-		    bootverbose)
-			printf("bge%d: gigabit link up\n", sc->bge_unit);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			bge_start_locked(ifp);
-	}
-
-	return;
+	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 }
 
 static void
@@ -3315,7 +3259,7 @@ bge_start_locked(ifp)
 
 	sc = ifp->if_softc;
 
-	if (!sc->bge_link && IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!sc->bge_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return;
 
 	prodidx = CSR_READ_4(sc, BGE_MBX_TX_HOST_PROD0_LO);
@@ -3942,3 +3886,69 @@ bge_resume(device_t dev)
 
 	return (0);
 }
+
+static void
+bge_link_upd(sc)
+	struct bge_softc *sc;
+{
+	uint32_t status;
+
+	BGE_LOCK_ASSERT(sc);
+	/*
+	 * Process link state changes.
+	 * Grrr. The link status word in the status block does
+	 * not work correctly on the BCM5700 rev AX and BX chips,
+	 * according to all available information. Hence, we have
+	 * to enable MII interrupts in order to properly obtain
+	 * async link changes. Unfortunately, this also means that
+	 * we have to read the MAC status register to detect link
+	 * changes, thereby adding an additional register access to
+	 * the interrupt handler.
+	 */
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
+		status = CSR_READ_4(sc, BGE_MAC_STS);
+		if (status & BGE_MACSTAT_MI_INTERRUPT) {
+			sc->bge_link = 0;
+			callout_stop(&sc->bge_stat_ch);
+			bge_tick_locked(sc);
+			/* Clear the interrupt */
+			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
+			    BGE_EVTENB_MI_INTERRUPT);
+			bge_miibus_readreg(sc->bge_dev, 1, BRGPHY_MII_ISR);
+			bge_miibus_writereg(sc->bge_dev, 1, BRGPHY_MII_IMR,
+			    BRGPHY_INTRS);
+		}
+		return;
+	} 
+
+	/*
+	 * Sometimes PCS encoding errors are detected in
+	 * TBI mode (on fiber NICs), and for some reason
+	 * the chip will signal them as link changes.
+	 * If we get a link change event, but the 'PCS
+	 * encoding error' bit in the MAC status register
+	 * is set, don't bother doing a link check.
+	 * This avoids spurious "gigabit link up" messages
+	 * that sometimes appear on fiber NICs during
+	 * periods of heavy traffic. (There should be no
+	 * effect on copper NICs.)
+	 */
+	if (sc->bge_tbi) status = CSR_READ_4(sc, BGE_MAC_STS);
+
+	if (!sc->bge_tbi || !(status & (BGE_MACSTAT_PORT_DECODE_ERROR |
+		    BGE_MACSTAT_MI_COMPLETE))) {
+		sc->bge_link = 0;
+		callout_stop(&sc->bge_stat_ch);
+		bge_tick_locked(sc);
+	}
+
+	/* Clear the interrupt */
+	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
+	    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
+	    BGE_MACSTAT_LINK_CHANGED);
+
+	/* Force flush the status block cached by PCI bridge */
+	CSR_READ_4(sc, BGE_MBX_IRQ0_LO);
+}
+
