@@ -187,7 +187,7 @@
 #define	FREEBSD32_SYS_mlock	203
 #define	FREEBSD32_SYS_munlock	204
 #define	FREEBSD32_SYS_undelete	205
-#define	FREEBSD32_SYS_futimes	206
+#define	FREEBSD32_SYS_freebsd32_futimes	206
 #define	FREEBSD32_SYS_getpgid	207
 #define	FREEBSD32_SYS_poll	209
 #define	FREEBSD32_SYS___semctl	220
