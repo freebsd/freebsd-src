@@ -1189,6 +1189,7 @@ static void
 devfs_first(void)
 {
 	struct thread *td = curthread;
+	struct vfsoptlist *opts;
 	struct vfsconf *vfsp;
 	struct mount *mp = NULL;
 	int error;
@@ -1207,6 +1208,10 @@ devfs_first(void)
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 	if (error)
 		return;
+
+	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
+	TAILQ_INIT(opts);
+	mp->mnt_opt = opts;
 
 	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
