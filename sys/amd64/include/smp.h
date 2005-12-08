@@ -46,6 +46,7 @@ inthand_t
 
 /* functions in mp_machdep.c */
 void	cpu_add(u_int apic_id, char boot_cpu);
+void	cpustop_handler(void);
 void	init_secondary(void);
 void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);

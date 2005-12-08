@@ -43,7 +43,7 @@
 
 #define	ICU_IMR_OFFSET	1
 
-void	atpic_handle_intr(void *cookie, struct intrframe iframe);
+void	atpic_handle_intr(u_int vector, struct trapframe frame);
 void	atpic_startup(void);
 
 #endif /* !_AMD64_ISA_ICU_H_ */

@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
-#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -607,14 +606,13 @@ lapic_eoi(void)
 }
 
 void
-lapic_handle_intr(void *cookie, struct intrframe frame)
+lapic_handle_intr(int vector, struct trapframe frame)
 {
 	struct intsrc *isrc;
-	int vec = (uintptr_t)cookie;
 
-	if (vec == -1)
+	if (vector == -1)
 		panic("Couldn't get vector from ISR!");
-	isrc = intr_lookup_source(apic_idt_to_irq(vec));
+	isrc = intr_lookup_source(apic_idt_to_irq(vector));
 	intr_execute_handlers(isrc, &frame);
 }
 
@@ -623,6 +621,10 @@ lapic_handle_timer(struct clockframe frame)
 {
 	struct lapic *la;
 
+	/* Send EOI first thing. */
+	lapic_eoi();
+
+	/* Look up our local APIC structure for the tick counters. */
 	la = &lapics[PCPU_GET(apic_id)];
 	(*la->la_timer_count)++;
 	critical_enter();
