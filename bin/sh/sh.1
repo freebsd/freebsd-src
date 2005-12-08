@@ -1509,10 +1509,9 @@ a shell keyword
 or
 an alias for
 . Ar value .
-.It Ic echo Oo Fl e | n Oc Op Ar string
-Print
-.Ar string
-to the standard output with a newline appended.
+.It Ic echo Oo Fl e | n Oc Op Ar string ...
+Print a space-separated list of the arguments to the standard output
+and append a newline character.
 .Bl -tag -width indent
 .It Fl n
 Suppress the output of the trailing newline.
