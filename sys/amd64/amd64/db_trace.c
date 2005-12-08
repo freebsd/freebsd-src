@@ -318,8 +318,11 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "nmi_calltrap") == 0)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
-		    strncmp(name, "Xatpic_fastintr", 15) == 0 ||
-		    strncmp(name, "Xapic_isr", 9) == 0)
+		    strncmp(name, "Xapic_isr", 9) == 0 ||
+		    strcmp(name, "Xtimerint") == 0 ||
+		    strcmp(name, "Xipi_intr_bitmap_handler") == 0 ||
+		    strcmp(name, "Xcpustop") == 0 ||
+		    strcmp(name, "Xrendezvous") == 0)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xfast_syscall") == 0)
 			frame_type = SYSCALL;

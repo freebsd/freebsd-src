@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -478,19 +477,18 @@ atpic_init(void *dummy __unused)
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
 
 void
-atpic_handle_intr(void *cookie, struct intrframe iframe)
+atpic_handle_intr(u_int vector, struct trapframe frame)
 {
 	struct intsrc *isrc;
-	int vec = (uintptr_t)cookie;
 
-	KASSERT(vec < NUM_ISA_IRQS, ("unknown int %d\n", vec));
-	isrc = &atintrs[vec].at_intsrc;
+	KASSERT(vector < NUM_ISA_IRQS, ("unknown int %u\n", vector));
+	isrc = &atintrs[vector].at_intsrc;
 
 	/*
 	 * If we don't have an event, see if this is a spurious
 	 * interrupt.
 	 */
-	if (isrc->is_event == NULL && (vec == 7 || vec == 15)) {
+	if (isrc->is_event == NULL && (vector == 7 || vector == 15)) {
 		int port, isr;
 
 		/*
@@ -506,7 +504,7 @@ atpic_handle_intr(void *cookie, struct intrframe iframe)
 		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
-	intr_execute_handlers(isrc, &iframe);
+	intr_execute_handlers(isrc, &frame);
 }
 
 #ifdef DEV_ISA

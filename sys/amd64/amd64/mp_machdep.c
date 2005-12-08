@@ -1068,15 +1068,29 @@ ipi_nmi_selected(u_int32_t cpus)
 }
 
 int
-ipi_nmi_handler()
+ipi_nmi_handler(void)
 {
-	int cpu = PCPU_GET(cpuid);
 	int cpumask = PCPU_GET(cpumask);
 
 	if (!(ipi_nmi_pending & cpumask))
 		return 1;
 
 	atomic_clear_int(&ipi_nmi_pending, cpumask);
+	cpustop_handler();
+	return 0;
+}
+     
+#endif /* STOP_NMI */
+
+/*
+ * Handle an IPI_STOP by saving our current context and spinning until we
+ * are resumed.
+ */
+void
+cpustop_handler(void)
+{
+	int cpu = PCPU_GET(cpuid);
+	int cpumask = PCPU_GET(cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1094,11 +1108,7 @@ ipi_nmi_handler()
 		cpustop_restartfunc();
 		cpustop_restartfunc = NULL;
 	}
-
-	return 0;
 }
-     
-#endif /* STOP_NMI */
 
 /*
  * This is called once the rest of the system is up and running and we're

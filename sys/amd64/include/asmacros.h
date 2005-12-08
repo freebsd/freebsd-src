@@ -59,12 +59,6 @@
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
-#ifdef LOCORE
-#define	PCPU(member)	%gs:PC_ ## member
-#define	PCPU_ADDR(member, reg)	movq %gs:PC_PRVSPACE,reg; \
-			addq $PC_ ## member,reg
-#endif
-
 #ifdef GPROF
 /*
  * __mcount is like [.]mcount except that doesn't require its caller to set
@@ -140,6 +134,60 @@
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
+
+/*
+ * Macros to create and destroy a trap frame.
+ */
+#define PUSH_FRAME							\
+	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* Yes, dont swapgs again */		\
+	swapgs ;							\
+1:	movq	%rdi,TF_RDI(%rsp) ;					\
+	movq	%rsi,TF_RSI(%rsp) ;					\
+	movq	%rdx,TF_RDX(%rsp) ;					\
+	movq	%rcx,TF_RCX(%rsp) ;					\
+	movq	%r8,TF_R8(%rsp) ;					\
+	movq	%r9,TF_R9(%rsp) ;					\
+	movq	%rax,TF_RAX(%rsp) ;					\
+	movq	%rbx,TF_RBX(%rsp) ;					\
+	movq	%rbp,TF_RBP(%rsp) ;					\
+	movq	%r10,TF_R10(%rsp) ;					\
+	movq	%r11,TF_R11(%rsp) ;					\
+	movq	%r12,TF_R12(%rsp) ;					\
+	movq	%r13,TF_R13(%rsp) ;					\
+	movq	%r14,TF_R14(%rsp) ;					\
+	movq	%r15,TF_R15(%rsp)
+
+#define POP_FRAME							\
+	movq	TF_RDI(%rsp),%rdi ;					\
+	movq	TF_RSI(%rsp),%rsi ;					\
+	movq	TF_RDX(%rsp),%rdx ;					\
+	movq	TF_RCX(%rsp),%rcx ;					\
+	movq	TF_R8(%rsp),%r8 ;					\
+	movq	TF_R9(%rsp),%r9 ;					\
+	movq	TF_RAX(%rsp),%rax ;					\
+	movq	TF_RBX(%rsp),%rbx ;					\
+	movq	TF_RBP(%rsp),%rbp ;					\
+	movq	TF_R10(%rsp),%r10 ;					\
+	movq	TF_R11(%rsp),%r11 ;					\
+	movq	TF_R12(%rsp),%r12 ;					\
+	movq	TF_R13(%rsp),%r13 ;					\
+	movq	TF_R14(%rsp),%r14 ;					\
+	movq	TF_R15(%rsp),%r15 ;					\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* keep kernel GS.base */		\
+	cli ;								\
+	swapgs ;							\
+1:	addq	$TF_RIP,%rsp	/* skip over tf_err, tf_trapno */
+
+/*
+ * Access per-CPU data.
+ */
+#define	PCPU(member)	%gs:PC_ ## member
+#define	PCPU_ADDR(member, reg)					\
+	movq %gs:PC_PRVSPACE, reg ;				\
+	addq $PC_ ## member, reg
 
 #endif /* LOCORE */
 
