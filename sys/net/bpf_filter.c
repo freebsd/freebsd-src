@@ -520,6 +520,9 @@ bpf_validate(f, len)
 	register int i;
 	register const struct bpf_insn *p;
 
+	if (len < 1)
+		return 0;
+
 	for (i = 0; i < len; ++i) {
 		/*
 		 * Check that that jumps are forward, and within
