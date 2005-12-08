@@ -225,6 +225,9 @@ mb_free_ext(struct mbuf *m)
 		case EXT_CLUSTER:
 			uma_zfree(zone_clust, m->m_ext.ext_buf);
 			break;
+		case EXT_JUMBO4:
+			uma_zfree(zone_jumbo4, m->m_ext.ext_buf);
+			break;
 		case EXT_JUMBO9:
 			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
 			break;

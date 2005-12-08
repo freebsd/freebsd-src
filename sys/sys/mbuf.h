@@ -185,9 +185,10 @@ struct mbuf {
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
-#define	EXT_JUMBO9	3	/* jumbo cluster 9216 bytes */
-#define	EXT_JUMBO16	4	/* jumbo cluster 16184 bytes */
-#define	EXT_PACKET	5	/* mbuf+cluster from packet zone */
+#define	EXT_JUMBO4	3	/* jumbo cluster 4096 bytes */
+#define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
+#define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
+#define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
@@ -305,6 +306,7 @@ struct mbstat {
 #define	MBUF_MEM_NAME		"mbuf"
 #define	MBUF_CLUSTER_MEM_NAME	"mbuf_cluster"
 #define	MBUF_PACKET_MEM_NAME	"mbuf_packet"
+#define	MBUF_JUMBO4_MEM_NAME	"mbuf_jumbo_4k"
 #define	MBUF_JUMBO9_MEM_NAME	"mbuf_jumbo_9k"
 #define	MBUF_JUMBO16_MEM_NAME	"mbuf_jumbo_16k"
 #define	MBUF_TAG_MEM_NAME	"mbuf_tag"
@@ -331,6 +333,7 @@ struct mbstat {
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
+extern uma_zone_t	zone_jumbo4;
 extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
@@ -338,9 +341,11 @@ extern uma_zone_t	zone_ext_refcnt;
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
 static __inline struct mbuf	*m_getcl(int how, short type, int flags);
+static __inline struct mbuf	*m_getjcl(int how, short type, int flags, int size);
 static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
 static __inline struct mbuf	*m_free(struct mbuf *m);
 static __inline void		 m_clget(struct mbuf *m, int how);
+static __inline void		*m_cljget(struct mbuf *m, int how, int size);
 static __inline void		 m_chtype(struct mbuf *m, short new_type);
 void				 mb_free_ext(struct mbuf *);
 
@@ -393,6 +398,47 @@ m_getcl(int how, short type, int flags)
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
+/*
+ * m_getjcl() returns an mbuf with a cluster of the specified size attached.
+ * For size it takes MCLBYTES, MJUM4BYTES, MJUM9BYTES, MJUM16BYTES.
+ */
+static __inline	/* XXX: This is rather large, should be real function maybe. */
+struct mbuf *
+m_getjcl(int how, short type, int flags, int size)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	args.flags = flags;
+	args.type = type;
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return NULL;
+
+	switch (size) {
+	case MCLBYTES:
+		zone = zone_clust;
+		break;
+	case MJUM4BYTES:
+		zone = zone_jumbo4;
+		break;
+	case MJUM9BYTES:
+		zone = zone_jumbo9;
+		break;
+	case MJUM16BYTES:
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("%s: m_getjcl: invalid cluster type", __func__);
+	}
+	n = uma_zalloc_arg(zone, m, how);
+	if (n == NULL)
+		uma_zfree(zone_mbuf, m);
+	return n;
+}
+
 static __inline
 struct mbuf *
 m_free(struct mbuf *m)
@@ -414,6 +460,45 @@ m_clget(struct mbuf *m, int how)
 		printf("%s: %p mbuf already has cluster\n", __func__, m);
 	m->m_ext.ext_buf = NULL;
 	uma_zalloc_arg(zone_clust, m, how);
+}
+
+/*
+ * m_cljget() is different from m_clget() as it can allocate clusters
+ * without attaching them to an mbuf.  In that case the return value
+ * is the pointer to the cluster of the requested size.  If an mbuf was
+ * specified, it gets the cluster attached to it and the return value
+ * can be safely ignored.
+ * For size it takes MCLBYTES, MJUM4BYTES, MJUM9BYTES, MJUM16BYTES.
+ */
+static __inline
+void *
+m_cljget(struct mbuf *m, int how, int size)
+{
+	uma_zone_t zone;
+
+	if (m && m->m_flags & M_EXT)
+		printf("%s: %p mbuf already has cluster\n", __func__, m);
+	if (m != NULL)
+		m->m_ext.ext_buf = NULL;
+
+	switch (size) {
+	case MCLBYTES:
+		zone = zone_clust;
+		break;
+	case MJUM4BYTES:
+		zone = zone_jumbo4;
+		break;
+	case MJUM9BYTES:
+		zone = zone_jumbo9;
+		break;
+	case MJUM16BYTES:
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("%s: m_getjcl: invalid cluster type", __func__);
+	}
+	
+	return (uma_zalloc_arg(zone, m, how));
 }
 
 static __inline
