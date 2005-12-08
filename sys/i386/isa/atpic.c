@@ -545,8 +545,7 @@ atpic_handle_intr(u_int vector, struct trapframe frame)
 {
 	struct intsrc *isrc;
 
-	KASSERT(vector < NUM_ISA_IRQS,
-	    ("unknown int %u\n", vector));
+	KASSERT(vector < NUM_ISA_IRQS, ("unknown int %u\n", vector));
 	isrc = &atintrs[vector].at_intsrc;
 
 	/*
