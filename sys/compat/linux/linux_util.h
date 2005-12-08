@@ -97,19 +97,17 @@ int linux_emul_convpath(struct thread *, char *, enum uio_seg, char **, int);
 int									\
 linux_ ## s(struct thread *td, struct linux_ ## s ## _args *args)	\
 {									\
-	return (unimplemented_syscall(td, #s));				\
+	static pid_t pid;						\
+									\
+	if (pid != td->td_proc->p_pid) {				\
+		linux_msg(td, "syscall %s not implemented", #s);	\
+		pid = td->td_proc->p_pid;				\
+	};								\
+	return (ENOSYS);						\
 }									\
 struct __hack
 
 void linux_msg(const struct thread *td, const char *fmt, ...)
 	__printflike(2, 3);
-
-static __inline int
-unimplemented_syscall(struct thread *td, const char *syscallname)
-{
-
-	linux_msg(td, "syscall %s not implemented", syscallname);
-	return (ENOSYS);
-}
 
 #endif /* !_LINUX_UTIL_H_ */
