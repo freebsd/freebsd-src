@@ -127,6 +127,7 @@ struct vnode	*rootvnode;
  * Global opts, taken by all filesystems
  */
 static const char *global_opts[] = {
+	"errmsg",
 	"fstype",
 	"fspath",
 	"rdonly",
