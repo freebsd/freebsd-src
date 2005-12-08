@@ -42,53 +42,6 @@
 #include "assym.s"
 
 /*
- * Macros to create and destroy a trap frame.
- */
-#define PUSH_FRAME							\
-	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
-	jz	1f ;		/* Yes, dont swapgs again */		\
-	swapgs ;							\
-1:	movq	%rdi,TF_RDI(%rsp) ;					\
-	movq	%rsi,TF_RSI(%rsp) ;					\
-	movq	%rdx,TF_RDX(%rsp) ;					\
-	movq	%rcx,TF_RCX(%rsp) ;					\
-	movq	%r8,TF_R8(%rsp) ;					\
-	movq	%r9,TF_R9(%rsp) ;					\
-	movq	%rax,TF_RAX(%rsp) ;					\
-	movq	%rbx,TF_RBX(%rsp) ;					\
-	movq	%rbp,TF_RBP(%rsp) ;					\
-	movq	%r10,TF_R10(%rsp) ;					\
-	movq	%r11,TF_R11(%rsp) ;					\
-	movq	%r12,TF_R12(%rsp) ;					\
-	movq	%r13,TF_R13(%rsp) ;					\
-	movq	%r14,TF_R14(%rsp) ;					\
-	movq	%r15,TF_R15(%rsp)
-
-#define POP_FRAME							\
-	movq	TF_RDI(%rsp),%rdi ;					\
-	movq	TF_RSI(%rsp),%rsi ;					\
-	movq	TF_RDX(%rsp),%rdx ;					\
-	movq	TF_RCX(%rsp),%rcx ;					\
-	movq	TF_R8(%rsp),%r8 ;					\
-	movq	TF_R9(%rsp),%r9 ;					\
-	movq	TF_RAX(%rsp),%rax ;					\
-	movq	TF_RBX(%rsp),%rbx ;					\
-	movq	TF_RBP(%rsp),%rbp ;					\
-	movq	TF_R10(%rsp),%r10 ;					\
-	movq	TF_R11(%rsp),%r11 ;					\
-	movq	TF_R12(%rsp),%r12 ;					\
-	movq	TF_R13(%rsp),%r13 ;					\
-	movq	TF_R14(%rsp),%r14 ;					\
-	movq	TF_R15(%rsp),%r15 ;					\
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
-	jz	1f ;		/* keep kernel GS.base */		\
-	cli ;								\
-	swapgs ;							\
-1:	addq	$TF_RIP,%rsp	/* skip over tf_err, tf_trapno */
-
-
-/*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
  * in the ISR.  The handler determines the highest bit set in the ISR,
@@ -107,7 +60,7 @@ IDTVEC(vec_name) ;							\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
 1: ;									\
-	movq	%rax, %rdi ;	/* pass the IRQ */			\
+	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	MEXITCOUNT ;							\
 	jmp	doreti ;						\
@@ -144,10 +97,6 @@ IDTVEC(spuriousint)
 	SUPERALIGN_TEXT
 IDTVEC(timerint)
 	PUSH_FRAME
-
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
-
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	call	lapic_handle_timer
@@ -227,8 +176,7 @@ IDTVEC(invlrng)
  */
 	.text
 	SUPERALIGN_TEXT
-IDTVEC(ipi_intr_bitmap_handler)	
-	
+IDTVEC(ipi_intr_bitmap_handler)		
 	PUSH_FRAME
 
 	movq	lapic, %rdx
@@ -237,27 +185,6 @@ IDTVEC(ipi_intr_bitmap_handler)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	call	ipi_bitmap_handler
-	MEXITCOUNT
-	jmp	doreti
-
-/*
- * Executed by a CPU when it receives an Xcpuast IPI from another CPU,
- *
- * The other CPU has already executed aston() or need_resched() on our
- * current process, so we simply need to ack the interrupt and return
- * via doreti to run ast().
- */
-
-	.text
-	SUPERALIGN_TEXT
-IDTVEC(cpuast)
-	PUSH_FRAME
-
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
-
-	FAKE_MCOUNT(TF_RIP(%rsp))
-
 	MEXITCOUNT
 	jmp	doreti
 
@@ -276,34 +203,8 @@ IDTVEC(cpustop)
 	movq	lapic, %rax
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 
-	movl	PCPU(CPUID), %eax
-	imull	$PCB_SIZE, %eax
-	leaq	stoppcbs(%rax), %rdi
-	call	savectx			/* Save process context */
-		
-	movl	PCPU(CPUID), %eax
+	call	cpustop_handler
 
-	lock
-	btsl	%eax, stopped_cpus	/* stopped_cpus |= (1<<id) */
-1:
-	btl	%eax, started_cpus	/* while (!(started_cpus & (1<<id))) */
-	jnc	1b
-
-	lock
-	btrl	%eax, started_cpus	/* started_cpus &= ~(1<<id) */
-	lock
-	btrl	%eax, stopped_cpus	/* stopped_cpus &= ~(1<<id) */
-
-	test	%eax, %eax
-	jnz	2f
-
-	movq	cpustop_restartfunc, %rax
-	testq	%rax, %rax
-	jz	2f
-	movq	$0, cpustop_restartfunc	/* One-shot */
-
-	call	*%rax
-2:
 	POP_FRAME
 	iretq
 
