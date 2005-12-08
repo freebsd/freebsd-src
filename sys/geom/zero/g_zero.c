@@ -42,9 +42,12 @@
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW, 0, "GEOM_ZERO stuff");
-static u_int g_zero_clear = 1;
-SYSCTL_UINT(_kern_geom_zero, OID_AUTO, clear, CTLFLAG_RW, &g_zero_clear, 0,
-    "Zero-fill bio_data.");
+static int g_zero_clear = 1;
+SYSCTL_INT(_kern_geom_zero, OID_AUTO, clear, CTLFLAG_RW, &g_zero_clear, 0,
+    "Clear read data buffer");
+static int g_zero_byte = 0;
+SYSCTL_INT(_kern_geom_zero, OID_AUTO, byte, CTLFLAG_RW, &g_zero_byte, 0,
+    "Byte (octet) value to clear the buffers with");
 
 static void
 g_zero_start(struct bio *bp)
@@ -54,7 +57,7 @@ g_zero_start(struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		if (g_zero_clear)
-			bzero(bp->bio_data, bp->bio_length);
+			memset(bp->bio_data, g_zero_byte, bp->bio_length);
 		/* FALLTHROUGH */
 	case BIO_DELETE:
 	case BIO_WRITE:
