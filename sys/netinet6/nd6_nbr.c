@@ -916,11 +916,11 @@ nd6_na_output(ifp, daddr6_0, taddr6, flags, tlladdr, sdl0)
 	ip6->ip6_hlim = 255;
 	if (IN6_IS_ADDR_UNSPECIFIED(&daddr6)) {
 		/* reply to DAD */
-		ip6->ip6_dst.s6_addr16[0] = IPV6_ADDR_INT16_MLL;
-		ip6->ip6_dst.s6_addr16[1] = 0;
-		ip6->ip6_dst.s6_addr32[1] = 0;
-		ip6->ip6_dst.s6_addr32[2] = 0;
-		ip6->ip6_dst.s6_addr32[3] = IPV6_ADDR_INT32_ONE;
+		daddr6.s6_addr16[0] = IPV6_ADDR_INT16_MLL;
+		daddr6.s6_addr16[1] = 0;
+		daddr6.s6_addr32[1] = 0;
+		daddr6.s6_addr32[2] = 0;
+		daddr6.s6_addr32[3] = IPV6_ADDR_INT32_ONE;
 		if (in6_setscope(&daddr6, ifp, NULL))
 			goto bad;
 
