@@ -235,7 +235,7 @@ uma_print_bucketlist(kvm_t *kvm, struct bucketlist *bucketlist,
 
 static void
 uma_print_cache(kvm_t *kvm, struct uma_cache *cache, const char *name,
-    int cpu, const char *spaces)
+    int cpu, const char *spaces, int *ub_cnt_add, int *ub_entries_add)
 {
 	struct uma_bucket ub;
 	int ret;
@@ -251,6 +251,10 @@ uma_print_cache(kvm_t *kvm, struct uma_cache *cache, const char *name,
 		printf("%s  uc_freebucket ", spaces);
 		uma_print_bucket(&ub, spaces);
 		printf(";\n");
+		if (ub_cnt_add != NULL)
+			*ub_cnt_add += ub.ub_cnt;
+		if (ub_entries_add != NULL)
+			*ub_entries_add += ub.ub_entries;
 	} else
 		printf("%s  uc_freebucket = NULL;\n", spaces);
 	if (cache->uc_allocbucket != NULL) {
@@ -260,6 +264,10 @@ uma_print_cache(kvm_t *kvm, struct uma_cache *cache, const char *name,
 		printf("%s  uc_allocbucket ", spaces);
 		uma_print_bucket(&ub, spaces);
 		printf(";\n");
+		if (ub_cnt_add != NULL)
+			*ub_cnt_add += ub.ub_cnt;
+		if (ub_entries_add != NULL)
+			*ub_entries_add += ub.ub_entries;
 	} else
 		printf("%s  uc_allocbucket = NULL;\n", spaces);
 	printf("%s};\n", spaces);
@@ -273,7 +281,7 @@ main(int argc, char *argv[])
 	struct uma_keg *kzp, kz;
 	struct uma_zone *uzp, *uzp_userspace;
 	kvm_t *kvm;
-	int all_cpus, cpu, mp_maxcpus, mp_maxid, ret;
+	int all_cpus, cpu, mp_maxcpus, mp_maxid, ret, ub_cnt, ub_entries;
 	size_t uzp_userspace_len;
 
 	if (argc != 1)
@@ -401,14 +409,18 @@ main(int argc, char *argv[])
 			    "    ");
 
 			if (!(kz.uk_flags & UMA_ZFLAG_INTERNAL)) {
-				for (cpu = 0; cpu < mp_maxid; cpu++) {
+				ub_cnt = ub_entries = 0;
+				for (cpu = 0; cpu <= mp_maxid; cpu++) {
 					/* if (CPU_ABSENT(cpu)) */
 					if ((all_cpus & (1 << cpu)) == 0)
 						continue;
 					uma_print_cache(kvm,
 					    &uzp_userspace->uz_cpu[cpu],
-					    "uc_cache", cpu, "    ");
+					    "uc_cache", cpu, "    ", &ub_cnt,
+					    &ub_entries);
 				}
+				printf("    // %d cache total cnt, %d total "
+				    "entries\n", ub_cnt, ub_entries);
 			}
 
 			printf("  };\n");
