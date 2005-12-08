@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -237,10 +236,6 @@ static int bge_read_eeprom	(struct bge_softc *, caddr_t, int, int);
 static void bge_setmulti	(struct bge_softc *);
 
 static void bge_handle_events	(struct bge_softc *);
-static int bge_alloc_jumbo_mem	(struct bge_softc *);
-static void bge_free_jumbo_mem	(struct bge_softc *);
-static void *bge_jalloc		(struct bge_softc *);
-static void bge_jfree		(void *, void *);
 static int bge_newbuf_std	(struct bge_softc *, int, struct mbuf *);
 static int bge_newbuf_jumbo	(struct bge_softc *, int, struct mbuf *);
 static int bge_init_rx_ring_std	(struct bge_softc *);
@@ -447,7 +442,6 @@ bge_dma_map_tx_desc(arg, segs, nseg, mapsize, error)
 
 	return;
 }
-
 
 #ifdef notdef
 static u_int8_t
@@ -747,156 +741,6 @@ bge_handle_events(sc)
 }
 
 /*
- * Memory management for jumbo frames.
- */
-
-static int
-bge_alloc_jumbo_mem(sc)
-	struct bge_softc		*sc;
-{
-	caddr_t			ptr;
-	register int		i, error;
-	struct bge_jpool_entry   *entry;
-
-	/* Create tag for jumbo buffer block */
-
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_JMEM, 1, BGE_JMEM, 0, NULL, NULL,
-	    &sc->bge_cdata.bge_jumbo_tag);
-
-	if (error) {
-		printf("bge%d: could not allocate jumbo dma tag\n",
-		    sc->bge_unit);
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for jumbo buffer block */
-
-	error = bus_dmamem_alloc(sc->bge_cdata.bge_jumbo_tag,
-	    (void **)&sc->bge_ldata.bge_jumbo_buf, BUS_DMA_NOWAIT,
-	    &sc->bge_cdata.bge_jumbo_map);
-
-	if (error)
-		return (ENOMEM);
-
-	SLIST_INIT(&sc->bge_jfree_listhead);
-	SLIST_INIT(&sc->bge_jinuse_listhead);
-
-	/*
-	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array.
-	 */
-	ptr = sc->bge_ldata.bge_jumbo_buf;
-	for (i = 0; i < BGE_JSLOTS; i++) {
-		sc->bge_cdata.bge_jslots[i] = ptr;
-		ptr += BGE_JLEN;
-		entry = malloc(sizeof(struct bge_jpool_entry),
-		    M_DEVBUF, M_NOWAIT);
-		if (entry == NULL) {
-			bge_free_jumbo_mem(sc);
-			sc->bge_ldata.bge_jumbo_buf = NULL;
-			printf("bge%d: no memory for jumbo "
-			    "buffer queue!\n", sc->bge_unit);
-			return(ENOBUFS);
-		}
-		entry->slot = i;
-		SLIST_INSERT_HEAD(&sc->bge_jfree_listhead,
-		    entry, jpool_entries);
-	}
-
-	return(0);
-}
-
-static void
-bge_free_jumbo_mem(sc)
-	struct bge_softc *sc;
-{
-	int i;
-	struct bge_jpool_entry *entry;
-
-	for (i = 0; i < BGE_JSLOTS; i++) {
-		entry = SLIST_FIRST(&sc->bge_jfree_listhead);
-		SLIST_REMOVE_HEAD(&sc->bge_jfree_listhead, jpool_entries);
-		free(entry, M_DEVBUF);
-	}
-
-	/* Destroy jumbo buffer block */
-
-	if (sc->bge_ldata.bge_rx_jumbo_ring)
-		bus_dmamem_free(sc->bge_cdata.bge_jumbo_tag,
-		    sc->bge_ldata.bge_jumbo_buf,
-		    sc->bge_cdata.bge_jumbo_map);
-
-	if (sc->bge_cdata.bge_rx_jumbo_ring_map)
-		bus_dmamap_destroy(sc->bge_cdata.bge_jumbo_tag,
-		    sc->bge_cdata.bge_jumbo_map);
-
-	if (sc->bge_cdata.bge_jumbo_tag)
-		bus_dma_tag_destroy(sc->bge_cdata.bge_jumbo_tag);
-
-	return;
-}
-
-/*
- * Allocate a jumbo buffer.
- */
-static void *
-bge_jalloc(sc)
-	struct bge_softc		*sc;
-{
-	struct bge_jpool_entry   *entry;
-
-	entry = SLIST_FIRST(&sc->bge_jfree_listhead);
-
-	if (entry == NULL) {
-		printf("bge%d: no free jumbo buffers\n", sc->bge_unit);
-		return(NULL);
-	}
-
-	SLIST_REMOVE_HEAD(&sc->bge_jfree_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->bge_jinuse_listhead, entry, jpool_entries);
-	return(sc->bge_cdata.bge_jslots[entry->slot]);
-}
-
-/*
- * Release a jumbo buffer.
- */
-static void
-bge_jfree(buf, args)
-	void *buf;
-	void *args;
-{
-	struct bge_jpool_entry *entry;
-	struct bge_softc *sc;
-	int i;
-
-	/* Extract the softc struct pointer. */
-	sc = (struct bge_softc *)args;
-
-	if (sc == NULL)
-		panic("bge_jfree: can't find softc pointer!");
-
-	/* calculate the slot this buffer belongs to */
-
-	i = ((vm_offset_t)buf
-	     - (vm_offset_t)sc->bge_ldata.bge_jumbo_buf) / BGE_JLEN;
-
-	if ((i < 0) || (i >= BGE_JSLOTS))
-		panic("bge_jfree: asked to free buffer that we don't manage!");
-
-	entry = SLIST_FIRST(&sc->bge_jinuse_listhead);
-	if (entry == NULL)
-		panic("bge_jfree: buffer not in use!");
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->bge_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->bge_jfree_listhead, entry, jpool_entries);
-
-	return;
-}
-
-
-/*
  * Intialize a standard receive ring descriptor.
  */
 static int
@@ -967,68 +811,66 @@ bge_newbuf_jumbo(sc, i, m)
 	int i;
 	struct mbuf *m;
 {
+	bus_dma_segment_t segs[BGE_NSEG_JUMBO];
+	struct bge_extrx_bd *r;
 	struct mbuf *m_new = NULL;
-	struct bge_rx_bd *r;
-	struct bge_dmamap_arg ctx;
+	int nsegs;
 	int error;
 
 	if (m == NULL) {
-		caddr_t			*buf = NULL;
-
-		/* Allocate the mbuf. */
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
-		/* Allocate the jumbo buffer */
-		buf = bge_jalloc(sc);
-		if (buf == NULL) {
+		m_cljget(m_new, M_DONTWAIT, MJUM9BYTES);
+		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			printf("bge%d: jumbo allocation failed "
-			    "-- packet dropped!\n", sc->bge_unit);
 			return(ENOBUFS);
 		}
-
-		/* Attach the buffer to the mbuf. */
-		m_new->m_data = (void *) buf;
-		m_new->m_len = m_new->m_pkthdr.len = BGE_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, BGE_JUMBO_FRAMELEN, bge_jfree,
-		    (struct bge_softc *)sc, 0, EXT_NET_DRV);
+		m_new->m_len = m_new->m_pkthdr.len = MJUM9BYTES;
 	} else {
 		m_new = m;
+		m_new->m_len = m_new->m_pkthdr.len = MJUM9BYTES;
 		m_new->m_data = m_new->m_ext.ext_buf;
-		m_new->m_ext.ext_size = BGE_JUMBO_FRAMELEN;
 	}
 
 	if (!sc->bge_rx_alignment_bug)
 		m_adj(m_new, ETHER_ALIGN);
-	/* Set up the descriptor. */
-	sc->bge_cdata.bge_rx_jumbo_chain[i] = m_new;
-	r = &sc->bge_ldata.bge_rx_jumbo_ring[i];
-	ctx.bge_maxsegs = 1;
-	ctx.sc = sc;
-	error = bus_dmamap_load(sc->bge_cdata.bge_mtag_jumbo,
-	    sc->bge_cdata.bge_rx_jumbo_dmamap[i], mtod(m_new, void *),
-	    m_new->m_len, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-	if (error || ctx.bge_maxsegs == 0) {
-		if (m == NULL) {
-			sc->bge_cdata.bge_rx_jumbo_chain[i] = NULL;
+
+	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag_jumbo,
+	    sc->bge_cdata.bge_rx_jumbo_dmamap[i],
+	    m_new, segs, &nsegs, BUS_DMA_NOWAIT);
+	if (error) {
+		if (m == NULL)
 			m_freem(m_new);
-		}
-		return(ENOMEM);
+		return(error);
 	}
-	r->bge_addr.bge_addr_lo = htole32(BGE_ADDR_LO(ctx.bge_busaddr));
-	r->bge_addr.bge_addr_hi = htole32(BGE_ADDR_HI(ctx.bge_busaddr));
-	r->bge_flags = htole16(BGE_RXBDFLAG_END|BGE_RXBDFLAG_JUMBO_RING);
-	r->bge_len = htole16(m_new->m_len);
+	KASSERT(nsegs == BGE_NSEG_JUMBO, ("%s: %d segments", __func__, nsegs));
+
+	sc->bge_cdata.bge_rx_jumbo_chain[i] = m_new;
+
+	/*
+	 * Fill in the extended RX buffer descriptor.
+	 */
+	r = &sc->bge_ldata.bge_rx_jumbo_ring[i];
+	r->bge_addr0.bge_addr_lo = htole32(BGE_ADDR_LO(segs[0].ds_addr));
+	r->bge_addr0.bge_addr_hi = htole32(BGE_ADDR_HI(segs[0].ds_addr));
+	r->bge_len0 = htole16(segs[0].ds_len);
+	r->bge_addr1.bge_addr_lo = htole32(BGE_ADDR_LO(segs[1].ds_addr));
+	r->bge_addr1.bge_addr_hi = htole32(BGE_ADDR_HI(segs[1].ds_addr));
+	r->bge_len1 = htole16(segs[1].ds_len);
+	r->bge_addr2.bge_addr_lo = htole32(BGE_ADDR_LO(segs[2].ds_addr));
+	r->bge_addr2.bge_addr_hi = htole32(BGE_ADDR_HI(segs[2].ds_addr));
+	r->bge_len2 = htole16(segs[2].ds_len);
+	r->bge_len3 = htole16(0);
+	r->bge_flags = htole16(BGE_RXBDFLAG_JUMBO_RING|BGE_RXBDFLAG_END);
 	r->bge_idx = htole16(i);
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
 	    sc->bge_cdata.bge_rx_jumbo_dmamap[i],
 	    BUS_DMASYNC_PREREAD);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1082,8 +924,8 @@ static int
 bge_init_rx_ring_jumbo(sc)
 	struct bge_softc *sc;
 {
-	int i;
 	struct bge_rcb *rcb;
+	int i;
 
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if (bge_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
@@ -1097,7 +939,8 @@ bge_init_rx_ring_jumbo(sc)
 	sc->bge_jumbo = i - 1;
 
 	rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
-	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0, 0);
+	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
+				    BGE_RCB_FLAG_USE_EXT_RX_BD);
 	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
 	CSR_WRITE_4(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
@@ -1119,7 +962,7 @@ bge_free_rx_ring_jumbo(sc)
 			    sc->bge_cdata.bge_rx_jumbo_dmamap[i]);
 		}
 		bzero((char *)&sc->bge_ldata.bge_rx_jumbo_ring[i],
-		    sizeof(struct bge_rx_bd));
+		    sizeof(struct bge_extrx_bd));
 	}
 
 	return;
@@ -1470,9 +1313,8 @@ bge_blockinit(sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map,
 		    BUS_DMASYNC_PREREAD);
-		rcb->bge_maxlen_flags =
-		    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN,
-		    BGE_RCB_FLAG_RING_DISABLED);
+		rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
+		    BGE_RCB_FLAG_USE_EXT_RX_BD|BGE_RCB_FLAG_RING_DISABLED);
 		if (sc->bge_extram)
 			rcb->bge_nicaddr = BGE_EXT_JUMBO_RX_RINGS;
 		else
@@ -1943,7 +1785,7 @@ bge_dma_alloc(dev)
 	device_t dev;
 {
 	struct bge_softc *sc;
-	int nseg, i, error;
+	int i, error;
 	struct bge_dmamap_arg ctx;
 
 	sc = device_get_softc(dev);
@@ -1951,7 +1793,6 @@ bge_dma_alloc(dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-#define BGE_NSEG_NEW 32
 	error = bus_dma_tag_create(NULL,	/* parent */
 			PAGE_SIZE, 0,		/* alignment, boundary */
 			BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1966,11 +1807,10 @@ bge_dma_alloc(dev)
 	/*
 	 * Create tag for RX mbufs.
 	 */
-	nseg = 32;
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, MCLBYTES * nseg, nseg, MCLBYTES, BUS_DMA_ALLOCNOW, NULL, NULL,
-	    &sc->bge_cdata.bge_mtag);
+	    NULL, MCLBYTES * BGE_NSEG_NEW, BGE_NSEG_NEW, MCLBYTES,
+	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_mtag);
 
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -2057,8 +1897,8 @@ bge_dma_alloc(dev)
 
 		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 		    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-		    NULL, MCLBYTES * nseg, nseg, BGE_JLEN, 0, NULL, NULL,
-		    &sc->bge_cdata.bge_mtag_jumbo);
+		    NULL, MJUM9BYTES, BGE_NSEG_JUMBO, PAGE_SIZE,
+		    0, NULL, NULL, &sc->bge_cdata.bge_mtag_jumbo);
 
 		if (error) {
 			device_printf(dev, "could not allocate dma tag\n");
@@ -2066,7 +1906,6 @@ bge_dma_alloc(dev)
 		}
 
 		/* Create tag for jumbo RX ring */
-
 		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 		    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 		    NULL, BGE_JUMBO_RX_RING_SZ, 1, BGE_JUMBO_RX_RING_SZ, 0,
@@ -2078,18 +1917,14 @@ bge_dma_alloc(dev)
 		}
 
 		/* Allocate DMA'able memory for jumbo RX ring */
-
 		error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_jumbo_ring_tag,
-		    (void **)&sc->bge_ldata.bge_rx_jumbo_ring, BUS_DMA_NOWAIT,
+		    (void **)&sc->bge_ldata.bge_rx_jumbo_ring,
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 		    &sc->bge_cdata.bge_rx_jumbo_ring_map);
 		if (error)
 			return (ENOMEM);
 
-		bzero((char *)sc->bge_ldata.bge_rx_jumbo_ring,
-		    BGE_JUMBO_RX_RING_SZ);
-
 		/* Load the address of the jumbo RX ring */
-
 		ctx.bge_maxsegs = 1;
 		ctx.sc = sc;
 
@@ -2393,21 +2228,6 @@ bge_attach(dev)
 		goto fail;
 	}
 
-	/*
-	 * Try to allocate memory for jumbo buffers.
-	 * The 5705 does not appear to support jumbo frames.
-	 */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
-		if (bge_alloc_jumbo_mem(sc)) {
-			printf("bge%d: jumbo buffer allocation "
-			    "failed\n", sc->bge_unit);
-			bge_release_resources(sc);
-			error = ENXIO;
-			goto fail;
-		}
-	}
-
 	/* Set default tuneable values. */
 	sc->bge_stat_ticks = BGE_TICKS_PER_SEC;
 	sc->bge_rx_coal_ticks = 150;
@@ -2484,7 +2304,6 @@ bge_attach(dev)
 		    bge_ifmedia_upd, bge_ifmedia_sts)) {
 			printf("bge%d: MII without any PHY!\n", sc->bge_unit);
 			bge_release_resources(sc);
-			bge_free_jumbo_mem(sc);
 			error = ENXIO;
 			goto fail;
 		}
@@ -2562,9 +2381,6 @@ bge_detach(dev)
 	}
 
 	bge_release_resources(sc);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
-		bge_free_jumbo_mem(sc);
 
 	return(0);
 }
@@ -2739,7 +2555,7 @@ bge_reset(sc)
  * on the receive return list.
  *
  * Note: we have to be able to handle two possibilities here:
- * 1) the frame is from the jumbo recieve ring
+ * 1) the frame is from the jumbo receive ring
  * 2) the frame is from the standard receive ring
  */
 
