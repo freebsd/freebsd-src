@@ -1811,6 +1811,27 @@ struct bge_rx_bd {
 	u_int32_t		bge_opaque;
 };
 
+struct bge_extrx_bd {
+	bge_hostaddr		bge_addr1;
+	bge_hostaddr		bge_addr2;
+	bge_hostaddr		bge_addr3;
+	u_int16_t		bge_len2;
+	u_int16_t		bge_len1;
+	u_int16_t		bge_rsvd1;
+	u_int16_t		bge_len3;
+	bge_hostaddr		bge_addr0;
+	u_int16_t		bge_len0;
+	u_int16_t		bge_idx;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_type;
+	u_int16_t		bge_tcp_udp_csum;
+	u_int16_t		bge_ip_csum;
+	u_int16_t		bge_vlan_tag;
+	u_int16_t		bge_error_flag;
+	u_int32_t		bge_rsvd0;
+	u_int32_t		bge_opaque;
+};
+
 #define BGE_RXBDFLAG_END		0x0004
 #define BGE_RXBDFLAG_JUMBO_RING		0x0020
 #define BGE_RXBDFLAG_VLAN_TAG		0x0040
@@ -2145,7 +2166,6 @@ struct bge_gib {
 #define BGE_MAX_FRAMELEN	1536
 #define BGE_JUMBO_FRAMELEN	9018
 #define BGE_JUMBO_MTU		(BGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define BGE_PAGE_SIZE		PAGE_SIZE
 #define BGE_MIN_FRAMELEN		60
 
 /*
@@ -2214,6 +2234,9 @@ struct vpd_key {
 #define BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
 #define BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
 
+#define BGE_NSEG_JUMBO	(MJUM9BYTES/PAGE_SIZE + 1)
+#define BGE_NSEG_NEW 32
+
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -2224,7 +2247,7 @@ struct vpd_key {
 struct bge_ring_data {
 	struct bge_rx_bd	*bge_rx_std_ring;
 	bus_addr_t		bge_rx_std_ring_paddr;
-	struct bge_rx_bd	*bge_rx_jumbo_ring;
+	struct bge_extrx_bd	*bge_rx_jumbo_ring;
 	bus_addr_t		bge_rx_jumbo_ring_paddr;
 	struct bge_rx_bd	*bge_rx_return_ring;
 	bus_addr_t		bge_rx_return_ring_paddr;
@@ -2234,14 +2257,13 @@ struct bge_ring_data {
 	bus_addr_t		bge_status_block_paddr;
 	struct bge_stats	*bge_stats;
 	bus_addr_t		bge_stats_paddr;
-	void			*bge_jumbo_buf;
 	struct bge_gib		bge_info;
 };
 
 #define BGE_STD_RX_RING_SZ	\
 	(sizeof(struct bge_rx_bd) * BGE_STD_RX_RING_CNT)
 #define BGE_JUMBO_RX_RING_SZ	\
-	(sizeof(struct bge_rx_bd) * BGE_JUMBO_RX_RING_CNT)
+	(sizeof(struct bge_extrx_bd) * BGE_JUMBO_RX_RING_CNT)
 #define BGE_TX_RING_SZ		\
 	(sizeof(struct bge_tx_bd) * BGE_TX_RING_CNT)
 #define BGE_RX_RTN_RING_SZ(x)	\
@@ -2264,7 +2286,6 @@ struct bge_chain_data {
 	bus_dma_tag_t		bge_tx_ring_tag;
 	bus_dma_tag_t		bge_status_tag;
 	bus_dma_tag_t		bge_stats_tag;
-	bus_dma_tag_t		bge_jumbo_tag;
 	bus_dma_tag_t		bge_mtag;	/* mbuf mapping tag */
 	bus_dma_tag_t		bge_mtag_jumbo;	/* mbuf mapping tag */
 	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
@@ -2276,12 +2297,9 @@ struct bge_chain_data {
 	bus_dmamap_t		bge_rx_return_ring_map;
 	bus_dmamap_t		bge_status_map;
 	bus_dmamap_t		bge_stats_map;
-	bus_dmamap_t		bge_jumbo_map;
 	struct mbuf		*bge_tx_chain[BGE_TX_RING_CNT];
 	struct mbuf		*bge_rx_std_chain[BGE_STD_RX_RING_CNT];
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];
-	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			bge_jslots[BGE_JSLOTS];
 };
 
 struct bge_dmamap_arg {
@@ -2303,11 +2321,6 @@ struct bge_type {
 #define BGE_HWREV_TIGON_II	0x02
 #define BGE_TIMEOUT		100000
 #define BGE_TXCONS_UNSET		0xFFFF	/* impossible value */
-
-struct bge_jpool_entry {
-	int                             slot;
-	SLIST_ENTRY(bge_jpool_entry)	jpool_entries;
-};
 
 struct bge_bcom_hack {
 	int			reg;
@@ -2343,8 +2356,6 @@ struct bge_softc {
 	u_int16_t		bge_return_ring_cnt;
 	u_int16_t		bge_std;	/* current std ring head */
 	u_int16_t		bge_jumbo;	/* current jumo ring head */
-	SLIST_HEAD(__bge_jfreehead, bge_jpool_entry)	bge_jfree_listhead;
-	SLIST_HEAD(__bge_jinusehead, bge_jpool_entry)	bge_jinuse_listhead;
 	u_int32_t		bge_stat_ticks;
 	u_int32_t		bge_rx_coal_ticks;
 	u_int32_t		bge_tx_coal_ticks;
