@@ -200,6 +200,10 @@ struct freebsd32_sysctl_args {
 	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
 	char newlen_l_[PADL_(u_int32_t)]; u_int32_t newlen; char newlen_r_[PADR_(u_int32_t)];
 };
+struct freebsd32_futimes_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char tptr_l_[PADL_(struct timeval32 *)]; struct timeval32 * tptr; char tptr_r_[PADR_(struct timeval32 *)];
+};
 struct freebsd32_clock_gettime_args {
 	char clock_id_l_[PADL_(clockid_t)]; clockid_t clock_id; char clock_id_r_[PADR_(clockid_t)];
 	char tp_l_[PADL_(struct timespec32 *)]; struct timespec32 * tp; char tp_r_[PADR_(struct timespec32 *)];
@@ -297,6 +301,7 @@ int	freebsd32_lseek(struct thread *, struct freebsd32_lseek_args *);
 int	freebsd32_truncate(struct thread *, struct freebsd32_truncate_args *);
 int	freebsd32_ftruncate(struct thread *, struct freebsd32_ftruncate_args *);
 int	freebsd32_sysctl(struct thread *, struct freebsd32_sysctl_args *);
+int	freebsd32_futimes(struct thread *, struct freebsd32_futimes_args *);
 int	freebsd32_clock_gettime(struct thread *, struct freebsd32_clock_gettime_args *);
 int	freebsd32_clock_settime(struct thread *, struct freebsd32_clock_settime_args *);
 int	freebsd32_clock_getres(struct thread *, struct freebsd32_clock_getres_args *);
