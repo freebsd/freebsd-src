@@ -373,7 +373,7 @@ setit:
 		
 		sc->mii_ticks = 0;
 		brgphy_mii_phy_auto(sc);
-		return (0);
+		break;
 	}
 
 	/* Update the media status. */
