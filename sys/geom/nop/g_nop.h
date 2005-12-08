@@ -55,8 +55,12 @@
 } while (0)
 
 struct g_nop_softc {
-	off_t	sc_offset;
-	u_int	sc_failprob;
+	off_t		sc_offset;
+	u_int		sc_failprob;
+	uintmax_t	sc_reads;
+	uintmax_t	sc_writes;
+	uintmax_t	sc_readbytes;
+	uintmax_t	sc_wrotebytes;
 };
 #endif	/* _KERNEL */
 

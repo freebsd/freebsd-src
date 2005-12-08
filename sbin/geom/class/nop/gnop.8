@@ -49,6 +49,10 @@
 .Op Fl fv
 .Ar prov ...
 .Nm
+.Cm reset
+.Op Fl v
+.Ar prov ...
+.Nm
 .Cm list
 .Nm
 .Cm status
@@ -62,7 +66,10 @@ The
 utility is used for setting up transparent providers on existing ones.
 Its main purpose is testing other GEOM classes, as it allows forced provider
 removal and I/O error simulation with a given probability.
-It is also a good starting point for implementing new GEOM classes.
+It also gathers the following statistics: number of read requests, number of
+write requests, number of read bytes and number of wrote bytes.
+In addition, it can be used as a good starting point for implementing new GEOM
+class.
 .Pp
 The first argument to
 .Nm
@@ -77,13 +84,11 @@ The kernel module
 will be loaded if it is not loaded already.
 .It Cm configure
 Configure existing transparent provider.
-At the moment it is only used
-for changing failure probability.
-The kernel module
-.Pa geom_nop.ko
-will be loaded if it is not loaded already.
+At the moment it is only used for changing failure probability.
 .It Cm destroy
 Turn off the given transparent providers.
+.It Cm reset
+Reset statistics for the given transparent providers.
 .It Cm list
 See
 .Xr geom 8 .
@@ -138,6 +143,17 @@ with 50% failure probability, and how to destroy it.
 .Bd -literal -offset indent
 gnop create -v -f 50 da0
 gnop destroy -v da0.nop
+.Ed
+.Pp
+The traffic statistics for the given transparent providers we can get with
+.Cm list
+command.
+Example below shows how can we obtain number of bytes written with
+.Xr newfs 8 :
+.Bd -literal -offset indent
+gnop create da0
+newfs /dev/da0.nop
+gnop list
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
