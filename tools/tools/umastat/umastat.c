@@ -42,11 +42,13 @@
 #include <stdlib.h>
 
 static struct nlist namelist[] = {
-#define X_UMA_KEGS      0
+#define X_UMA_KEGS	0
 	{ .n_name = "_uma_kegs" },
-#define X_MP_MAXID      1
+#define X_MP_MAXCPUS	1
+	{ .n_name = "_mp_maxcpus" },
+#define X_MP_MAXID	2 
 	{ .n_name = "_mp_maxid" },
-#define	X_ALLCPU	2
+#define	X_ALLCPU	3
 	{ .n_name = "_all_cpus" },
 	{ .n_name = "" },
 };
@@ -269,9 +271,10 @@ main(int argc, char *argv[])
 	LIST_HEAD(, uma_keg) uma_kegs;
 	char name[MEMTYPE_MAXNAME];
 	struct uma_keg *kzp, kz;
-	struct uma_zone *uzp, uz;
+	struct uma_zone *uzp, *uzp_userspace;
 	kvm_t *kvm;
-	int all_cpus, cpu, mp_maxid, ret;
+	int all_cpus, cpu, mp_maxcpus, mp_maxid, ret;
+	size_t uzp_userspace_len;
 
 	if (argc != 1)
 		usage();
@@ -286,6 +289,13 @@ main(int argc, char *argv[])
 	if (namelist[X_UMA_KEGS].n_type == 0 ||
 	    namelist[X_UMA_KEGS].n_value == 0)
 		errx(-1, "kvm_nlist return");
+
+	ret = kread_symbol(kvm, X_MP_MAXCPUS, &mp_maxcpus, sizeof(mp_maxcpus),
+	    0);
+	if (ret != 0)
+		errx(-1, "kread_symbol: %s", kvm_geterr(kvm));
+
+	printf("mp_maxcpus = %d\n", mp_maxcpus);
 
 	ret = kread_symbol(kvm, X_MP_MAXID, &mp_maxid, sizeof(mp_maxid), 0);
 	if (ret != 0)
@@ -303,11 +313,24 @@ main(int argc, char *argv[])
 	if (ret != 0)
 		errx(-1, "kread_symbol: %s", kvm_geterr(kvm));
 
+	/*
+	 * uma_zone_t ends in an array of mp_maxid cache entries.  However,
+	 * it is statically declared as an array of size 1, so we need to
+	 * provide additional space.
+	 */
+	uzp_userspace_len = sizeof(struct uma_zone) + (mp_maxid - 1) *
+	    sizeof(struct uma_cache);
+	uzp_userspace = malloc(uzp_userspace_len);
+	if (uzp_userspace == NULL)
+		err(-1, "malloc");
+
 	for (kzp = LIST_FIRST(&uma_kegs); kzp != NULL; kzp =
 	    LIST_NEXT(&kz, uk_link)) {
 		ret = kread(kvm, kzp, &kz, sizeof(kz), 0);
-		if (ret != 0)
+		if (ret != 0) {
+			free(uzp_userspace);
 			errx(-1, "kread: %s", kvm_geterr(kvm));
+		}
 		printf("Keg {\n");
 
 		printf("  uk_recurse = %d\n", kz.uk_recurse);
@@ -329,34 +352,61 @@ main(int argc, char *argv[])
 			continue;
 		}
 		for (uzp = LIST_FIRST(&kz.uk_zones); uzp != NULL; uzp =
-		    LIST_NEXT(&uz, uz_link)) {
-			ret = kread(kvm, uzp, &uz, sizeof(uz), 0);
-			if (ret != 0)
+		    LIST_NEXT(uzp_userspace, uz_link)) {
+			/*
+			 * We actually copy in twice: once with the base
+			 * structure, so that we can then decide if we also
+			 * need to copy in the caches.  This prevents us
+			 * from reading past the end of the base UMA zones,
+			 * which is unlikely to cause problems but could.
+			 */
+			ret = kread(kvm, uzp, uzp_userspace,
+			    sizeof(struct uma_zone), 0);
+			if (ret != 0) {
+				free(uzp_userspace);
 				errx(-1, "kread: %s", kvm_geterr(kvm));
-			ret = kread_string(kvm, uz.uz_name, name,
+			}
+			if (!(kz.uk_flags & UMA_ZFLAG_INTERNAL)) {
+				ret = kread(kvm, uzp, uzp_userspace,
+				    uzp_userspace_len, 0);
+				if (ret != 0) {
+					free(uzp_userspace);
+					errx(-1, "kread: %s",
+					    kvm_geterr(kvm));
+				}
+			}
+			ret = kread_string(kvm, uzp_userspace->uz_name, name,
 			    MEMTYPE_MAXNAME);
-			if (ret != 0)
+			if (ret != 0) {
+				free(uzp_userspace);
 				errx(-1, "kread_string: %s", kvm_geterr(kvm));
+			}
 			printf("  Zone {\n");
 			printf("    uz_name = \"%s\";\n", name);
-			printf("    uz_allocs = %llu;\n", uz.uz_allocs);
-			printf("    uz_frees = %llu;\n", uz.uz_frees);
-			printf("    uz_fails = %llu;\n", uz.uz_fails);
-			printf("    uz_fills = %u;\n", uz.uz_fills);
-			printf("    uz_count = %u;\n", uz.uz_count);
-			uma_print_bucketlist(kvm,
-			    (struct bucketlist *)&uz.uz_full_bucket,
-			    "uz_full_bucket", "    ");
-			uma_print_bucketlist(kvm,
-			    (struct bucketlist *)&uz.uz_free_bucket,
-			    "uz_free_bucket", "    ");
+			printf("    uz_allocs = %llu;\n",
+			    uzp_userspace->uz_allocs);
+			printf("    uz_frees = %llu;\n",
+			    uzp_userspace->uz_frees);
+			printf("    uz_fails = %llu;\n",
+			    uzp_userspace->uz_fails);
+			printf("    uz_fills = %u;\n",
+			    uzp_userspace->uz_fills);
+			printf("    uz_count = %u;\n",
+			    uzp_userspace->uz_count);
+			uma_print_bucketlist(kvm, (struct bucketlist *)
+			    &uzp_userspace->uz_full_bucket, "uz_full_bucket",
+			    "    ");
+			uma_print_bucketlist(kvm, (struct bucketlist *)
+			    &uzp_userspace->uz_free_bucket, "uz_free_bucket",
+			    "    ");
 
 			if (!(kz.uk_flags & UMA_ZFLAG_INTERNAL)) {
 				for (cpu = 0; cpu < mp_maxid; cpu++) {
 					/* if (CPU_ABSENT(cpu)) */
 					if ((all_cpus & (1 << cpu)) == 0)
 						continue;
-					uma_print_cache(kvm, &uz.uz_cpu[cpu],
+					uma_print_cache(kvm,
+					    &uzp_userspace->uz_cpu[cpu],
 					    "uc_cache", cpu, "    ");
 				}
 			}
@@ -366,5 +416,6 @@ main(int argc, char *argv[])
 		printf("};\n");
 	}
 
+	free(uzp_userspace);
 	return (0);
 }
