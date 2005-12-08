@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
  */
 
 int nmbclusters;		/* limits number of mbuf clusters */
+int nmbjumbo4;			/* limits number of 4k jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 struct mbstat mbstat;
@@ -113,6 +114,8 @@ SYSCTL_DECL(_kern_ipc);
 /* XXX: These should be tuneables. Can't change UMA limits on the fly. */
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbclusters, CTLFLAG_RW, &nmbclusters, 0,
     "Maximum number of mbuf clusters allowed");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo4, CTLFLAG_RW, &nmbjumbo4, 0,
+    "Maximum number of mbuf 4k jumbo clusters allowed");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo9, CTLFLAG_RW, &nmbjumbo9, 0,
     "Maximum number of mbuf 9k jumbo clusters allowed");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo16, CTLFLAG_RW, &nmbjumbo16, 0,
@@ -126,6 +129,7 @@ SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
 uma_zone_t	zone_mbuf;
 uma_zone_t	zone_clust;
 uma_zone_t	zone_pack;
+uma_zone_t	zone_jumbo4;
 uma_zone_t	zone_jumbo9;
 uma_zone_t	zone_jumbo16;
 uma_zone_t	zone_ext_refcnt;
@@ -182,7 +186,18 @@ mbuf_init(void *dummy)
 	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
 	    mb_dtor_pack, mb_zinit_pack, mb_zfini_pack, zone_mbuf);
 
-	/* Make jumbo frame zone too. 9k and 16k. */
+	/* Make jumbo frame zone too. 4k, 9k and 16k. */
+	zone_jumbo4 = uma_zcreate(MBUF_JUMBO4_MEM_NAME, MJUM4BYTES,
+	    mb_ctor_clust, mb_dtor_clust,
+#ifdef INVARIANTS
+	    trash_init, trash_fini,
+#else
+	    NULL, NULL,
+#endif
+	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	if (nmbjumbo4 > 0)
+		uma_zone_set_max(zone_jumbo4, nmbjumbo4);
+
 	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
 #ifdef INVARIANTS
@@ -362,6 +377,9 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		switch (size) {
 		case MCLBYTES:
 			type = EXT_CLUSTER;
+			break;
+		case MJUM4BYTES:
+			type = EXT_JUMBO4;
 			break;
 		case MJUM9BYTES:
 			type = EXT_JUMBO9;
