@@ -94,7 +94,8 @@ portupgrade.
 20050227:
 	The on-disk format of LC_CTYPE files was changed to be machine
 	independent.  Please make sure NOT to use NO_CLEAN buildworld
-	when crossing this point.
+	when crossing this point. Crossing this point also requires
+	recompile or reinstall of all locale depended packages.
 
 20050225:
 	The ifi_epoch member of struct if_data has been changed to
@@ -360,7 +361,8 @@ COMMON ITEMS:
 	[8] In order to have a kernel that can run the 5.x binaries
 	needed to do an installworld, you must include the COMPAT_FREEBSD5
 	option in your kernel.  Failure to do so may leave you with a system
-	that is hard to boot to recover.
+	that is hard to boot to recover. A similar kernel option COMPAT_FREEBSD5
+	is required to run the 5.x binaries on more recent kernels.
 
 	Make sure that you merge any new devices from GENERIC since the
 	last time you updated your kernel config file.
