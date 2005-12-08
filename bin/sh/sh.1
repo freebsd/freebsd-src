@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2005
+.Dd December 8, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1957,6 +1957,7 @@ The first output line shows the user and system times for the shell
 itself, the second one contains the user and system times for the
 children.
 .It Ic trap Oo Ar action Oc Ar signal ...
+.It Ic trap Fl l
 Cause the shell to parse and execute
 .Ar action
 when any specified
@@ -1968,14 +1969,25 @@ In addition, the pseudo-signal
 may be used to specify an action that is performed when the shell terminates.
 The
 .Ar action
-may be null or omitted;
+may be an empty string or a dash
+.Pq Ar - ;
 the former causes the specified signal to be ignored
 and the latter causes the default action to be taken.
+Omitting the
+.Ar action
+is another way to request the default action, for compatibility reasons this
+usage is not recommended though.
 When the shell forks off a subshell,
 it resets trapped (but not ignored) signals to the default action.
 The
 .Ic trap
 command has no effect on signals that were ignored on entry to the shell.
+.Pp
+Option
+.Fl l
+causes the
+.Ic trap
+command to display a list of valid signal names.
 .It Ic type Op Ar name ...
 Interpret each
 .Ar name
