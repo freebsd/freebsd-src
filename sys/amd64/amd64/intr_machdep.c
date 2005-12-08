@@ -149,7 +149,7 @@ intr_config_intr(int vector, enum intr_trigger trig, enum intr_polarity pol)
 }
 
 void
-intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
+intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
 	struct thread *td;
 	struct intr_event *ie;
@@ -197,7 +197,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	 * Execute fast interrupt handlers directly.
 	 * To support clock handlers, if a handler registers
 	 * with a NULL argument, then we pass it a pointer to
-	 * an intrframe as its argument.
+	 * a trapframe as its argument.
 	 */
 	td->td_intr_nesting_level++;
 	thread = 0;
@@ -208,10 +208,10 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 			continue;
 		}
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_handler, ih->ih_argument == NULL ? iframe :
+		    ih->ih_handler, ih->ih_argument == NULL ? frame :
 		    ih->ih_argument, ih->ih_name);
 		if (ih->ih_argument == NULL)
-			ih->ih_handler(iframe);
+			ih->ih_handler(frame);
 		else
 			ih->ih_handler(ih->ih_argument);
 	}
