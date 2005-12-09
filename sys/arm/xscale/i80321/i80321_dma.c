@@ -55,6 +55,7 @@ typedef struct i80321_dmadesc_s {
 	vm_paddr_t local_addr;
 	vm_size_t count;
 	uint32_t descr_ctrl;
+	uint64_t unused;
 } __packed	i80321_dmadesc_t;
 
 typedef struct i80321_dmaring_s {
@@ -109,25 +110,31 @@ i80321_dma_attach(device_t dev)
 	struct i80321_dma_softc *softc = device_get_softc(dev);
 	struct i80321_softc *sc = device_get_softc(device_get_parent(dev));
 	int unit = device_get_unit(dev);
+	i80321_dmadesc_t *dmadescs;
 
-	mtx_init(&softc->mtx, "DMA engine mtx", NULL, MTX_DEF);
+	mtx_init(&softc->mtx, "DMA engine mtx", NULL, MTX_SPIN);
 	softc->sc_st = sc->sc_st;
 	if (bus_space_subregion(softc->sc_st, sc->sc_sh, unit == 0 ?
 	    VERDE_DMA_BASE0 : VERDE_DMA_BASE1, VERDE_DMA_SIZE, 
 	    &softc->sc_dma_sh) != 0)
 		panic("%s: unable to subregion DMA registers",
 		    device_get_name(dev));
-	if (bus_dma_tag_create(NULL, 8 * sizeof(int), 0, BUS_SPACE_MAXADDR, 
-	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(i80321_dmadesc_t),
-	    1, sizeof(i80321_dmadesc_t), BUS_DMA_ALLOCNOW, busdma_lock_mutex, 
+	if (bus_dma_tag_create(NULL, sizeof(i80321_dmadesc_t),
+	    0, BUS_SPACE_MAXADDR,  BUS_SPACE_MAXADDR, NULL, NULL, 
+	    DMA_RING_SIZE * sizeof(i80321_dmadesc_t), 1, 
+	    sizeof(i80321_dmadesc_t), BUS_DMA_ALLOCNOW, busdma_lock_mutex,
 	    &Giant, &softc->dmatag))
 		panic("Couldn't create a dma tag");
 	DMA_REG_WRITE(softc, 0, 0);
+	if (bus_dmamem_alloc(softc->dmatag, (void **)&dmadescs,
+    	    BUS_DMA_NOWAIT, &softc->dmaring[0].map))
+		panic("Couldn't alloc dma memory");
 	for (int i = 0; i < DMA_RING_SIZE; i++) {
-		if (bus_dmamem_alloc(softc->dmatag, 
-		    (void **)&softc->dmaring[i].desc,
-		    BUS_DMA_NOWAIT, &softc->dmaring[i].map))
-			panic("Couldn't alloc dma memory");
+		if (i > 0)
+			if (bus_dmamap_create(softc->dmatag, 0, 
+			    &softc->dmaring[i].map))
+				panic("Couldn't alloc dmamap");
+		softc->dmaring[i].desc = &dmadescs[i];	
 		bus_dmamap_load(softc->dmatag, softc->dmaring[i].map,
 		    softc->dmaring[i].desc, sizeof(i80321_dmadesc_t),
 		    i80321_mapphys, &softc->dmaring[i].phys_addr, 0);
@@ -185,10 +192,10 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 
 	if (!softcs[0] || !softcs[1])
 		return (-1);
-	mtx_lock(&softcs[0]->mtx);
+	mtx_lock_spin(&softcs[0]->mtx);
 	if (softcs[0]->flags & BUSY) {
-		mtx_unlock(&softcs[0]->mtx);
-		mtx_lock(&softcs[1]->mtx);
+		mtx_unlock_spin(&softcs[0]->mtx);
+		mtx_lock_spin(&softcs[1]->mtx);
 		if (softcs[1]->flags & BUSY) {
 			mtx_unlock(&softcs[1]->mtx);
 			return (-1);
@@ -197,7 +204,7 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 	} else
 		sc = softcs[0];
 	sc->flags |= BUSY;
-	mtx_unlock(&sc->mtx);
+	mtx_unlock_spin(&sc->mtx);
 	desc = sc->dmaring[0].desc;
 	if (flags & IS_PHYSICAL) {
 		desc->next_desc = 0;
@@ -206,13 +213,15 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 		desc->local_addr = (vm_paddr_t)dst;
 		desc->count = len;
 		desc->descr_ctrl = 1 << 6; /* Local memory to local memory. */
-		cpu_dcache_wb_range((vm_offset_t)desc, sizeof(*desc));
+		bus_dmamap_sync(sc->dmatag, 
+		    sc->dmaring[0].map, 
+		    BUS_DMASYNC_PREWRITE);
 	} else {
 		if (!virt_addr_is_valid(dst, len, 1, !(flags & DST_IS_USER)) || 
 		    !virt_addr_is_valid(src, len, 0, !(flags & SRC_IS_USER))) {
-			mtx_lock(&sc->mtx);
+			mtx_lock_spin(&sc->mtx);
 			sc->flags &= ~BUSY;
-			mtx_unlock(&sc->mtx);
+			mtx_unlock_spin(&sc->mtx);
 			return (-1);
 		}
 		cpu_dcache_wb_range((vm_offset_t)src, len);
@@ -266,9 +275,9 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 				if (tmplen <= 0 && descnb > 0) {
 					sc->dmaring[descnb - 1].desc->next_desc
 					    = 0;
-				cpu_dcache_wb_range((vm_offset_t)
-				    sc->dmaring[descnb - 1].desc,
-				    sizeof(i80321_dmadesc_t));
+					bus_dmamap_sync(sc->dmatag, 
+					    sc->dmaring[descnb - 1].map, 
+					    BUS_DMASYNC_PREWRITE);
 				}
 				continue;
 			}
@@ -284,21 +293,24 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 			} else
 				tmplen = 0;
 			if (descnb + 1 >= DMA_RING_SIZE) {
-				mtx_lock(&sc->mtx);
+				mtx_lock_spin(&sc->mtx);
 				sc->flags &= ~BUSY;
-				mtx_unlock(&sc->mtx);
+				mtx_unlock_spin(&sc->mtx);
 				return (-1);
 			}
 			if (tmplen > 0) {
 				desc->next_desc = sc->dmaring[descnb + 1].
 				    phys_addr;
-			cpu_dcache_wb_range((vm_offset_t)desc, sizeof(*desc));
+				bus_dmamap_sync(sc->dmatag, 
+				    sc->dmaring[descnb].map, 
+				    BUS_DMASYNC_PREWRITE);
 				desc = sc->dmaring[descnb + 1].desc;
 				descnb++;
 			} else {
 				desc->next_desc = 0;
-
-			cpu_dcache_wb_range((vm_offset_t)desc, sizeof(*desc));
+				bus_dmamap_sync(sc->dmatag,
+				    sc->dmaring[descnb].map,
+				    BUS_DMASYNC_PREWRITE);
 			}
 									
 		}
@@ -316,9 +328,9 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 	else
 		ret = 0;
 	DMA_REG_WRITE(sc, 0, 0);
-	mtx_lock(&sc->mtx);
+	mtx_lock_spin(&sc->mtx);
 	sc->flags &= ~BUSY;
-	mtx_unlock(&sc->mtx);
+	mtx_unlock_spin(&sc->mtx);
 	return (ret);
 }
 
