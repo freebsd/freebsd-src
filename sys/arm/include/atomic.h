@@ -310,6 +310,13 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #endif /* _LOCORE */
 
 
+static __inline int
+atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+{
+	return (atomic_cmpset_32((volatile u_int *)dst, (u_int)exp, 
+	    (u_int)src));
+}
+
 #define atomic_set_rel_int		atomic_set_32
 #define atomic_set_acq_long		atomic_set_32
 #define atomic_set_int			atomic_set_32
@@ -328,7 +335,7 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
 #define atomic_cmpset_acq_int		atomic_cmpset_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
-#define atomic_cmpset_acq_long		atomic_cmpset_ptr
+#define atomic_cmpset_acq_long		atomic_cmpset_long
 #define atomic_store_rel_ptr		atomic_store_ptr
 #define atomic_store_rel_int		atomic_store_32
 #define atomic_cmpset_rel_32		atomic_cmpset_32
