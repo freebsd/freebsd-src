@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
-#include <sys/timers.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
@@ -480,9 +479,6 @@ interpret:
 	 * be shared after an exec.
 	 */
 	fdunshare(p, td);
-
-	/* Clear POSIX timers */
-	itimers_event_hook(p, ITIMER_EV_EXEC);
 
 	/*
 	 * Malloc things before we need locks.

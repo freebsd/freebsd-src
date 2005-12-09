@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
@@ -86,6 +87,7 @@ static void	itimer_enter(struct itimer *);
 static void	itimer_leave(struct itimer *);
 static struct itimer *itimer_find(struct proc *, timer_t, int);
 static void	itimers_alloc(struct proc *);
+static void	itimers_event_hook(void *arg, struct proc *p);
 static int	realtimer_create(struct itimer *);
 static int	realtimer_gettime(struct itimer *, struct itimerspec *);
 static int	realtimer_settime(struct itimer *, int,
@@ -889,6 +891,10 @@ itimer_start(void)
 	p31b_setcfg(CTL_P1003_1B_TIMERS, 200112L);
 	p31b_setcfg(CTL_P1003_1B_DELAYTIMER_MAX, INT_MAX);
 	p31b_setcfg(CTL_P1003_1B_TIMER_MAX, TIMER_MAX);
+	EVENTHANDLER_REGISTER(process_exit, itimers_event_hook,
+		(void *)ITIMER_EV_EXIT, EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(process_exec, itimers_event_hook,
+		(void *)ITIMER_EV_EXEC, EVENTHANDLER_PRI_ANY);
 }
 
 int
@@ -1504,11 +1510,12 @@ itimers_alloc(struct proc *p)
 }
 
 /* Clean up timers when some process events are being triggered. */
-void
-itimers_event_hook(struct proc *p, int event)
+static void
+itimers_event_hook(void *arg, struct proc *p)
 {
 	struct itimers *its;
 	struct itimer *it;
+	int event = (int)arg;
 	int i;
 
 	if (p->p_itimers != NULL) {
