@@ -101,6 +101,7 @@
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
 
@@ -169,12 +170,15 @@ extern struct socket *ip_mrouter;
 /*
  * 'Interfaces' associated with decapsulator (so we can tell
  * packets that went through it from ones that get reflected
- * by a broken gateway).  These interfaces are never linked into
- * the system ifnet list & no routes point to them.  I.e., packets
- * can't be sent this way.  They only exist as a placeholder for
- * multicast source verification.
+ * by a broken gateway).  Different from IPv4 register_if,
+ * these interfaces are linked into the system ifnet list,
+ * because per-interface IPv6 statistics are maintained in
+ * ifp->if_afdata.  But it does not have any routes point 
+ * to them.  I.e., packets can't be sent this way.  They
+ * only exist as a placeholder for multicast source 
+ * verification.
  */
-struct ifnet multicast_register_if6;
+static struct ifnet *multicast_register_if6;
 
 #define ENCAP_HOPS 64
 
@@ -552,9 +556,11 @@ ip6_mrouter_done()
 	/*
 	 * Reset register interface
 	 */
-	if (reg_mif_num != (mifi_t)-1) {
-		if_detach(&multicast_register_if6);
+	if (reg_mif_num != (mifi_t)-1 && multicast_register_if6 != NULL) {
+		if_detach(multicast_register_if6);
+		if_free(multicast_register_if6);
 		reg_mif_num = (mifi_t)-1;
+		multicast_register_if6 = NULL;
 	}
 
 	ip6_mrouter = NULL;
@@ -596,14 +602,22 @@ add_m6if(mifcp)
 	ifp = ifnet_byindex(mifcp->mif6c_pifi);
 
 	if (mifcp->mif6c_flags & MIFF_REGISTER) {
-		ifp = &multicast_register_if6;
-
 		if (reg_mif_num == (mifi_t)-1) {
+			ifp = if_alloc(IFT_OTHER);
+
 			if_initname(ifp, "register_mif", 0);
 			ifp->if_flags |= IFF_LOOPBACK;
-			ifp->if_index = mifcp->mif6c_mifi;
-			reg_mif_num = mifcp->mif6c_mifi;
 			if_attach(ifp);
+			multicast_register_if6 = ifp;
+			reg_mif_num = mifcp->mif6c_mifi;
+			/* 
+			 * it is impossible to guess the ifindex of the 
+			 * register interface.  So mif6c_pifi is automatically
+			 * calculated.
+			 */
+			mifcp->mif6c_pifi = ifp->if_index;
+		} else {
+			ifp = multicast_register_if6;
 		}
 
 	} /* if REGISTER */
@@ -676,9 +690,12 @@ del_m6if(mifip)
 
 		if_allmulti(ifp, 0);
 	} else {
-		if (reg_mif_num != (mifi_t)-1) {
-			if_detach(&multicast_register_if6);
+		if (reg_mif_num != (mifi_t)-1 &&
+		    multicast_register_if6 != NULL) {
+			if_detach(multicast_register_if6);
+			if_free(multicast_register_if6);
 			reg_mif_num = (mifi_t)-1;
+			multicast_register_if6 = NULL;
 		}
 	}
 
