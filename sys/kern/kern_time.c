@@ -1515,7 +1515,7 @@ itimers_event_hook(void *arg, struct proc *p)
 {
 	struct itimers *its;
 	struct itimer *it;
-	int event = (int)arg;
+	int event = (int)(intptr_t)arg;
 	int i;
 
 	if (p->p_itimers != NULL) {
