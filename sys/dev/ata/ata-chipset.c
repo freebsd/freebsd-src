@@ -569,10 +569,10 @@ ata_ahci_intr(void *data)
 		int offset = (ch->unit << 7);
 
 		error = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SERR + offset);
-		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_SERR + offset, error);
 		status = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
-		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, status);
 		issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
+		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_SERR + offset, error);
+		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, status);
 
 		/* do we have cold connect surprise */
 		if (status & ATA_AHCI_P_IX_CPD) {
@@ -581,7 +581,8 @@ ata_ahci_intr(void *data)
 		}
 
 		/* check for and handle connect events */
-		if ((status & ATA_AHCI_P_IX_PC) &&
+		if (((status & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC)) ==
+		     ATA_AHCI_P_IX_PC) &&
 		    (tp = (struct ata_connect_task *)
 			  malloc(sizeof(struct ata_connect_task),
 				 M_ATA, M_NOWAIT | M_ZERO))) {
