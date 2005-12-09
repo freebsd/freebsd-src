@@ -115,21 +115,17 @@ static int	max_pending_per_proc = 128;
 SYSCTL_INT(_kern_sigqueue, OID_AUTO, max_pending_per_proc, CTLFLAG_RW,
     &max_pending_per_proc, 0, "Max pending signals per proc");
 
-static int	queue_rt_signal_only = 1;
-SYSCTL_INT(_kern_sigqueue, OID_AUTO, queue_rt_signal_only, CTLFLAG_RW,
-    &queue_rt_signal_only, 0, "Only rt signal is queued");
-
 static int	preallocate_siginfo = 1024;
 TUNABLE_INT("kern.sigqueue.preallocate", &preallocate_siginfo);
 SYSCTL_INT(_kern_sigqueue, OID_AUTO, preallocate, CTLFLAG_RD,
     &preallocate_siginfo, 0, "Preallocated signal memory size");
 
 static int	signal_overflow = 0;
-SYSCTL_INT(_kern_sigqueue, OID_AUTO, signal_overflow, CTLFLAG_RD,
+SYSCTL_INT(_kern_sigqueue, OID_AUTO, overflow, CTLFLAG_RD,
     &signal_overflow, 0, "Number of signals overflew");
 
 static int	signal_alloc_fail = 0;
-SYSCTL_INT(_kern_sigqueue, OID_AUTO, signal_alloc_fail, CTLFLAG_RD,
+SYSCTL_INT(_kern_sigqueue, OID_AUTO, alloc_fail, CTLFLAG_RD,
     &signal_alloc_fail, 0, "signals failed to be allocated");
 
 SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
