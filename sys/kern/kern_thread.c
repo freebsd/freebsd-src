@@ -78,12 +78,6 @@ TAILQ_HEAD(, ksegrp) zombie_ksegrps = TAILQ_HEAD_INITIALIZER(zombie_ksegrps);
 struct mtx kse_zombie_lock;
 MTX_SYSINIT(kse_zombie_lock, &kse_zombie_lock, "kse zombie lock", MTX_SPIN);
 
-static int queue_sigchild = 0;
-SYSCTL_DECL(_kern_sigqueue);
-SYSCTL_INT(_kern_sigqueue, OID_AUTO, queue_sigchild, CTLFLAG_RD,
-    &queue_sigchild, 0, "queue SIGCHILD");
-TUNABLE_INT("kern.sigqueue.queue_sigchild", &queue_sigchild);
-
 static int
 sysctl_kse_virtual_cpu(SYSCTL_HANDLER_ARGS)
 {
@@ -284,15 +278,11 @@ proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	TAILQ_INIT(&p->p_suspended);	     /* Threads suspended */
 	sigqueue_init(&p->p_sigqueue, p);
-	if (queue_sigchild) {
-		p->p_ksi = ksiginfo_alloc(1);
-		if (p->p_ksi != NULL) {
-			/* p_ksi may be null if ksiginfo zone is not ready */
-			p->p_ksi->ksi_flags = KSI_EXT | KSI_INS;
-		}
+	p->p_ksi = ksiginfo_alloc(1);
+	if (p->p_ksi != NULL) {
+		/* XXX p_ksi may be null if ksiginfo zone is not ready */
+		p->p_ksi->ksi_flags = KSI_EXT | KSI_INS;
 	}
-	else
-		p->p_ksi = NULL;
 	LIST_INIT(&p->p_mqnotifier);
 	p->p_numksegrps = 0;
 	p->p_numthreads = 0;
