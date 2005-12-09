@@ -7,7 +7,6 @@ MAN=	acct.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
 	bluetooth.protocols.5 \
-	config.5 \
 	core.5 \
 	devfs.5 \
 	devfs.conf.5 \
