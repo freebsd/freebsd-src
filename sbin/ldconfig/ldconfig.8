@@ -105,8 +105,8 @@ The following options are recognized by
 .Nm :
 .Bl -tag -width indent
 .It Fl 32
-On 64-bit systems that support running 32-bit binaries,
-generate hints for 32-bit shared libraries.
+Generate the hints for 32-bit ABI shared libraries
+on 64-bit systems that support running 32-bit binaries.
 .It Fl aout
 Generate the hints for a.out format shared libraries.
 .It Fl elf
@@ -191,6 +191,11 @@ invocations with
 Conventional configuration file containing directory names for
 invocations with
 .Fl elf .
+.It Pa /var/run/ld-elf32.so.hints
+.It Pa /var/run/ld32.so.hints
+Conventional configuration files containing directory names for
+invocations with
+.Fl 32 .
 .It Pa /etc/objformat
 Determines whether
 .Fl aout
