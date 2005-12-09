@@ -219,11 +219,11 @@ static struct fileops		mqueueops;
 #ifdef notyet
 static struct mqfs_node	*mqfs_create_dir(struct mqfs_node *parent,
 	const char *name, int namelen);
+static struct mqfs_node	*mqfs_create_link(struct mqfs_node *parent,
+	const char *name, int namelen);
 #endif
 
 static struct mqfs_node	*mqfs_create_file(struct mqfs_node *parent,
-	const char *name, int namelen);
-struct mqfs_node	*mqfs_create_link(struct mqfs_node *parent,
 	const char *name, int namelen);
 static int	mqfs_destroy(struct mqfs_node *mn);
 static void	mqfs_fileno_alloc(struct mqfs_info *mi, struct mqfs_node *mn);
@@ -1845,13 +1845,13 @@ notifier_search(struct proc *p, int fd)
 	return (nt);
 }
 
-static void
+static __inline void
 notifier_insert(struct proc *p, struct mqueue_notifier *nt)
 {
 	LIST_INSERT_HEAD(&p->p_mqnotifier, nt, nt_link);
 }
 
-static void
+static __inline void
 notifier_delete(struct proc *p, struct mqueue_notifier *nt)
 {
 	LIST_REMOVE(nt, nt_link);
