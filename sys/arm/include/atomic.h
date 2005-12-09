@@ -311,13 +311,16 @@ atomic_readandclear_32(volatile u_int32_t *p)
 
 
 #define atomic_set_rel_int		atomic_set_32
+#define atomic_set_acq_long		atomic_set_32
 #define atomic_set_int			atomic_set_32
 #define atomic_readandclear_int		atomic_readandclear_32
 #define atomic_clear_int		atomic_clear_32
+#define atomic_clear_acq_long		atomic_clear_32
 #define atomic_subtract_int		atomic_subtract_32
 #define atomic_subtract_rel_int		atomic_subtract_32
 #define atomic_subtract_acq_int		atomic_subtract_32
 #define atomic_add_int			atomic_add_32
+#define atomic_add_acq_long		atomic_add_32
 #define atomic_add_rel_int		atomic_add_32
 #define atomic_add_acq_int		atomic_add_32
 #define atomic_cmpset_int		atomic_cmpset_32
@@ -325,6 +328,7 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
 #define atomic_cmpset_acq_int		atomic_cmpset_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
+#define atomic_cmpset_acq_long		atomic_cmpset_ptr
 #define atomic_store_rel_ptr		atomic_store_ptr
 #define atomic_store_rel_int		atomic_store_32
 #define atomic_cmpset_rel_32		atomic_cmpset_32
