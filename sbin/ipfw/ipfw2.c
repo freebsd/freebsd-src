@@ -1391,9 +1391,6 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			twidth = strlen(timestr);
 		}
 		if (rule->timestamp) {
-#if _FreeBSD_version < 500000 /* XXX check */
-#define	_long_to_time(x)	(time_t)(x)
-#endif
 			t = _long_to_time(rule->timestamp);
 
 			strcpy(timestr, ctime(&t));
