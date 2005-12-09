@@ -226,7 +226,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     pr.pr_slot = pci_get_slot(dev);
     prt_walk_table(prtbuf, prt_lookup_device, &pr);
     if (pr.pr_entry == NULL) {
-	device_printf(pcib, "no PRT entry for %d.%d.INT%c", pci_get_bus(dev),
+	device_printf(pcib, "no PRT entry for %d.%d.INT%c\n", pci_get_bus(dev),
 	    pci_get_slot(dev), 'A' + pin);
 	goto out;
     }
