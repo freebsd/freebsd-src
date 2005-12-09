@@ -219,6 +219,7 @@ static int
 ngh_disconnect(hook_p hook)
 {
 
+	FREE(NG_HOOK_PRIVATE(hook), M_NETGRAPH);
 	NG_HOOK_SET_PRIVATE(hook, NULL);
 	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 		ng_rmnode_self(NG_HOOK_NODE(hook));
