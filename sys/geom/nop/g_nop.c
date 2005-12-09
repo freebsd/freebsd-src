@@ -557,7 +557,7 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytess>\n", indent,
 	    sc->sc_readbytes);
 	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,
-	    sc->sc_writebytes);
+	    sc->sc_wrotebytes);
 }
 
 DECLARE_GEOM_CLASS(g_nop_class, g_nop);
