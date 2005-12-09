@@ -109,6 +109,10 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
     &kern_logsigexit, 0, 
     "Log processes quitting on abnormal signals to syslog(3)");
 
+static int	kern_forcesigexit = 1;
+SYSCTL_INT(_kern, OID_AUTO, forcesigexit, CTLFLAG_RW,
+    &kern_forcesigexit, 0, "Force trap signal to be handled");
+
 SYSCTL_NODE(_kern, OID_AUTO, sigqueue, CTLFLAG_RW, 0, "POSIX real time signal");
 
 static int	max_pending_per_proc = 128;
@@ -1923,6 +1927,19 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 		}
 		mtx_unlock(&ps->ps_mtx);
 	} else {
+		/*
+		 * Avoid a possible infinite loop if the thread
+		 * masking the signal or process is ignoring the
+		 * signal.
+		 */
+		if (kern_forcesigexit &&
+		    (SIGISMEMBER(td->td_sigmask, sig) ||
+		     ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN)) {
+			SIGDELSET(td->td_sigmask, sig);
+			SIGDELSET(ps->ps_sigcatch, sig);
+			SIGDELSET(ps->ps_sigignore, sig);
+			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
+		}
 		mtx_unlock(&ps->ps_mtx);
 		p->p_code = code;	/* XXX for core dump/debugger */
 		p->p_sig = sig;		/* XXX to verify code */
