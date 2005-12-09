@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/xscale/xscalevar.h>
 
+#include "opt_timer.h"
+
 void (*i80321_hardclock_hook)(void) = NULL;
 struct i80321_timer_softc {
 	device_t	dev;
@@ -74,7 +76,10 @@ static uint32_t counts_per_hz;
 
 static int ticked = 0;
 
+#ifndef COUNTS_PER_SEC
 #define	COUNTS_PER_SEC		200000000	/* 200MHz */
+#endif
+
 #define	COUNTS_PER_USEC		(COUNTS_PER_SEC / 1000000)
 
 static struct timecounter i80321_timer_timecounter = {
