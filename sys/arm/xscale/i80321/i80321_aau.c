@@ -107,23 +107,30 @@ i80321_aau_attach(device_t dev)
 {
 	struct i80321_aau_softc *softc = device_get_softc(dev);
 	struct i80321_softc *sc = device_get_softc(device_get_parent(dev));
+	struct i80321_aaudesc_s *aaudescs;
 
-	mtx_init(&softc->mtx, "AAU mtx", NULL, MTX_DEF);
+	mtx_init(&softc->mtx, "AAU mtx", NULL, MTX_SPIN);
 	softc->sc_st = sc->sc_st;
 	if (bus_space_subregion(softc->sc_st, sc->sc_sh, VERDE_AAU_BASE, 
 	    VERDE_AAU_SIZE, &softc->sc_aau_sh) != 0)
 		panic("%s: unable to subregion AAU registers",
 		    device_get_name(dev));
-	if (bus_dma_tag_create(NULL, 8 * sizeof(int), 0, BUS_SPACE_MAXADDR, 
-	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(i80321_aaudesc_t),
+	if (bus_dma_tag_create(NULL, sizeof(i80321_aaudesc_t), 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, 
+	    AAU_RING_SIZE * sizeof(i80321_aaudesc_t),
 	    1, sizeof(i80321_aaudesc_t), BUS_DMA_ALLOCNOW, busdma_lock_mutex, 
 	    &Giant, &softc->dmatag))
 		panic("Couldn't create a dma tag");
+	if (bus_dmamem_alloc(softc->dmatag, (void **)&aaudescs,
+    	    BUS_DMA_NOWAIT, &softc->aauring[0].map))
+		panic("Couldn't alloc dma memory");
+
 	for (int i = 0; i < AAU_RING_SIZE; i++) {
-		if (bus_dmamem_alloc(softc->dmatag, 
-		    (void **)&softc->aauring[i].desc,
-		    BUS_DMA_NOWAIT, &softc->aauring[i].map))
-			panic("Couldn't alloc dma memory");
+		if (i > 0)
+			if (bus_dmamap_create(softc->dmatag, 0,
+			    &softc->aauring[i].map))
+				panic("Couldn't create dma map");
+		softc->aauring[i].desc = &aaudescs[i];
 		bus_dmamap_load(softc->dmatag, softc->aauring[i].map,
 		    softc->aauring[i].desc, sizeof(i80321_aaudesc_t),
 		    i80321_mapphys, &softc->aauring[i].phys_addr, 0);
@@ -166,19 +173,20 @@ aau_bzero(void *dst, int len, int flags)
 
 	if (!sc)
 		return (-1);
-	mtx_lock(&sc->mtx);
+	mtx_lock_spin(&sc->mtx);
 	if (sc->flags & BUSY) {
-		mtx_unlock(&sc->mtx);
+		mtx_unlock_spin(&sc->mtx);
 		return (-1);
 	}
 	sc->flags |= BUSY;
-	mtx_unlock(&sc->mtx);
+	mtx_unlock_spin(&sc->mtx);
 	desc = sc->aauring[0].desc;
 	if (flags & IS_PHYSICAL) {
 		desc->local_addr = (vm_paddr_t)dst;
 		desc->count = len;
 		desc->descr_ctrl = 2 << 1 | 1 << 31; /* Fill, enable dest write */
-		cpu_dcache_wb_range((vm_offset_t)desc, sizeof(*desc));
+		bus_dmamap_sync(sc->dmatag, sc->aauring[0].map, 
+		    BUS_DMASYNC_PREWRITE);
 	} else {
 		test_virt_addr(dst, len);
 		if ((vm_offset_t)dst & (31))
@@ -209,9 +217,9 @@ aau_bzero(void *dst, int len, int flags)
 				if (tmplen <= 0 && descnb > 0) {
 					sc->aauring[descnb - 1].desc->next_desc
 					    = 0;
-				cpu_dcache_wb_range((vm_offset_t)
-				    sc->aauring[descnb - 1].desc,
-				    sizeof(i80321_aaudesc_t));
+					bus_dmamap_sync(sc->dmatag, 
+					    sc->aauring[descnb - 1].map, 
+					    BUS_DMASYNC_PREWRITE);
 				}
 				continue;
 			}
@@ -224,22 +232,24 @@ aau_bzero(void *dst, int len, int flags)
 			} else
 				tmplen = 0;
 			if (descnb + 1 >= AAU_RING_SIZE) {
-				mtx_lock(&sc->mtx);
+				mtx_lock_spin(&sc->mtx);
 				sc->flags &= ~BUSY;
-				mtx_unlock(&sc->mtx);
+				mtx_unlock_spin(&sc->mtx);
 				return (-1);
 			}
 			if (tmplen > 0) {
 				desc->next_desc = sc->aauring[descnb + 1].
 				    phys_addr;
-				cpu_dcache_wb_range((vm_offset_t)desc
-				    , sizeof(*desc));
+				bus_dmamap_sync(sc->dmatag, 
+				    sc->aauring[descnb].map, 
+				    BUS_DMASYNC_PREWRITE);
 				desc = sc->aauring[descnb + 1].desc;
 				descnb++;
 			} else {
 				desc->next_desc = 0;
-				cpu_dcache_wb_range((vm_offset_t)desc,
-				    sizeof(*desc));
+				bus_dmamap_sync(sc->dmatag, 
+				    sc->aauring[descnb].map, 
+				    BUS_DMASYNC_PREWRITE);
 			}
 									
 		}
@@ -258,9 +268,9 @@ aau_bzero(void *dst, int len, int flags)
 	AAU_REG_WRITE(sc, 0x4, csr);
 	/* Stop the AAU. */
 	AAU_REG_WRITE(sc, 0, 0);
-	mtx_lock(&sc->mtx);
+	mtx_lock_spin(&sc->mtx);
 	sc->flags &= ~BUSY;
-	mtx_unlock(&sc->mtx);
+	mtx_unlock_spin(&sc->mtx);
 	return (ret);
 }
 
