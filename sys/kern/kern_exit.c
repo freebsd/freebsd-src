@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include <sys/timers.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -231,8 +230,6 @@ retry:
 	sigqueue_flush(&p->p_sigqueue);
 	sigqueue_flush(&td->td_sigqueue);
 	PROC_UNLOCK(p);
-
-	itimers_event_hook(p, ITIMER_EV_EXIT);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
