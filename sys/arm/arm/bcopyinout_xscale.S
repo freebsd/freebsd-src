@@ -145,11 +145,10 @@ ENTRY(copyin)
 	/* Quad-align the destination buffer */
 	tst	r1, #0x07		/* Already quad aligned? */
 	ldrnet	ip, [r0], #0x04
+	strne	ip, [r1], #0x04
+	subne	r2, r2, #0x04
 	stmfd	sp!, {r4-r9}		/* Free up some registers */
 	mov	r3, #-1			/* Signal restore r4-r9 */
-	tst	r1, #0x07		/* XXX: bug work-around */
-	subne	r2, r2, #0x04
-	strne	ip, [r1], #0x04
 
 	/* Destination buffer quad aligned, source is word aligned */
 	subs	r2, r2, #0x80
@@ -595,82 +594,66 @@ ENTRY(copyout)
 	blt	.Lcopyout_w_less_than8
 
 	/* Quad-align the destination buffer */
-	tst	r1, #0x07		/* Already quad aligned? */
+	tst	r0, #0x07		/* Already quad aligned? */
 	ldrne	ip, [r0], #0x04
-	stmfd	sp!, {r4-r9}		/* Free up some registers */
-	mov	r3, #-1			/* Signal restore r4-r9 */
-	tst	r1, #0x07		/* XXX: bug work-around */
 	subne	r2, r2, #0x04
 	strnet	ip, [r1], #0x04
+	
+	stmfd	sp!, {r4-r9}		/* Free up some registers */
+	mov	r3, #-1			/* Signal restore r4-r9 */
 
-	/* Destination buffer quad aligned, source is word aligned */
+	/* Destination buffer word aligned, source is quad aligned */
 	subs	r2, r2, #0x80
 	blt	.Lcopyout_w_lessthan128
 
 	/* Copy 128 bytes at a time */
 .Lcopyout_w_loop128:
-	ldr	r4, [r0], #0x04		/* LD:00-03 */
-	ldr	r5, [r0], #0x04		/* LD:04-07 */
+	ldrd	r4, [r0], #0x08		/* LD:00-07 */
 	pld	[r0, #0x18]		/* Prefetch 0x20 */
-	ldr	r6, [r0], #0x04		/* LD:08-0b */
-	ldr	r7, [r0], #0x04		/* LD:0c-0f */
-	ldr	r8, [r0], #0x04		/* LD:10-13 */
-	ldr	r9, [r0], #0x04		/* LD:14-17 */
+	ldrd	r6, [r0], #0x08		/* LD:08-0f */
+	ldrd	r8, [r0], #0x08		/* LD:10-17 */
 	strt	r4, [r1], #0x04		/* ST:00-03 */
 	strt	r5, [r1], #0x04		/* ST:04-07 */
-	ldr	r4, [r0], #0x04		/* LD:18-1b */
-	ldr	r5, [r0], #0x04		/* LD:1c-1f */
+	ldrd	r4, [r0], #0x08		/* LD:18-1f */
 	strt	r6, [r1], #0x04		/* ST:08-0b */
 	strt	r7, [r1], #0x04		/* ST:0c-0f */
-	ldr	r6, [r0], #0x04		/* LD:20-23 */
-	ldr	r7, [r0], #0x04		/* LD:24-27 */
+	ldrd	r6, [r0], #0x08		/* LD:20-27 */
 	pld	[r0, #0x18]		/* Prefetch 0x40 */
 	strt	r8, [r1], #0x04		/* ST:10-13 */
 	strt	r9, [r1], #0x04		/* ST:14-17 */
-	ldr	r8, [r0], #0x04		/* LD:28-2b */
-	ldr	r9, [r0], #0x04		/* LD:2c-2f */
+	ldrd	r8, [r0], #0x08		/* LD:28-2f */
 	strt	r4, [r1], #0x04		/* ST:18-1b */
 	strt	r5, [r1], #0x04		/* ST:1c-1f */
-	ldr	r4, [r0], #0x04		/* LD:30-33 */
-	ldr	r5, [r0], #0x04		/* LD:34-37 */
+	ldrd	r4, [r0], #0x08		/* LD:30-37 */
 	strt	r6, [r1], #0x04		/* ST:20-23 */
 	strt	r7, [r1], #0x04		/* ST:24-27 */
-	ldr	r6, [r0], #0x04		/* LD:38-3b */
-	ldr	r7, [r0], #0x04		/* LD:3c-3f */
+	ldrd	r6, [r0], #0x08		/* LD:38-3f */
 	strt	r8, [r1], #0x04		/* ST:28-2b */
 	strt	r9, [r1], #0x04		/* ST:2c-2f */
-	ldr	r8, [r0], #0x04		/* LD:40-43 */
-	ldr	r9, [r0], #0x04		/* LD:44-47 */
+	ldrd	r8, [r0], #0x08		/* LD:40-47 */
 	pld	[r0, #0x18]		/* Prefetch 0x60 */
 	strt	r4, [r1], #0x04		/* ST:30-33 */
 	strt	r5, [r1], #0x04		/* ST:34-37 */
-	ldr	r4, [r0], #0x04		/* LD:48-4b */
-	ldr	r5, [r0], #0x04		/* LD:4c-4f */
+	ldrd	r4, [r0], #0x08		/* LD:48-4f */
 	strt	r6, [r1], #0x04		/* ST:38-3b */
 	strt	r7, [r1], #0x04		/* ST:3c-3f */
-	ldr	r6, [r0], #0x04		/* LD:50-53 */
-	ldr	r7, [r0], #0x04		/* LD:54-57 */
+	ldrd	r6, [r0], #0x08		/* LD:50-57 */
 	strt	r8, [r1], #0x04		/* ST:40-43 */
 	strt	r9, [r1], #0x04		/* ST:44-47 */
-	ldr	r8, [r0], #0x04		/* LD:58-5b */
-	ldr	r9, [r0], #0x04		/* LD:5c-5f */
+	ldrd	r8, [r0], #0x08		/* LD:58-4f */
 	strt	r4, [r1], #0x04		/* ST:48-4b */
 	strt	r5, [r1], #0x04		/* ST:4c-4f */
-	ldr	r4, [r0], #0x04		/* LD:60-63 */
-	ldr	r5, [r0], #0x04		/* LD:64-67 */
+	ldrd	r4, [r0], #0x08		/* LD:60-67 */
 	pld	[r0, #0x18]		/* Prefetch 0x80 */
 	strt	r6, [r1], #0x04		/* ST:50-53 */
 	strt	r7, [r1], #0x04		/* ST:54-57 */
-	ldr	r6, [r0], #0x04		/* LD:68-6b */
-	ldr	r7, [r0], #0x04		/* LD:6c-6f */
+	ldrd	r6, [r0], #0x08		/* LD:68-6f */
 	strt	r8, [r1], #0x04		/* ST:58-5b */
 	strt	r9, [r1], #0x04		/* ST:5c-5f */
-	ldr	r8, [r0], #0x04		/* LD:70-73 */
-	ldr	r9, [r0], #0x04		/* LD:74-77 */
+	ldrd	r8, [r0], #0x08		/* LD:70-77 */
 	strt	r4, [r1], #0x04		/* ST:60-63 */
 	strt	r5, [r1], #0x04		/* ST:64-67 */
-	ldr	r4, [r0], #0x04		/* LD:78-7b */
-	ldr	r5, [r0], #0x04		/* LD:7c-7f */
+	ldrd	r4, [r0], #0x08		/* LD:78-7f */
 	strt	r6, [r1], #0x04		/* ST:68-6b */
 	strt	r7, [r1], #0x04		/* ST:6c-6f */
 	strt	r8, [r1], #0x04		/* ST:70-73 */
@@ -689,17 +672,13 @@ ENTRY(copyout)
 
 	/* Copy 32 bytes at a time */
 .Lcopyout_w_loop32:
-	ldr	r4, [r0], #0x04
-	ldr	r5, [r0], #0x04
+	ldrd	r4, [r0], #0x08
 	pld	[r0, #0x18]
-	ldr	r6, [r0], #0x04
-	ldr	r7, [r0], #0x04
-	ldr	r8, [r0], #0x04
-	ldr	r9, [r0], #0x04
+	ldrd	r6, [r0], #0x08
+	ldrd	r8, [r0], #0x08
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
-	ldr	r4, [r0], #0x04
-	ldr	r5, [r0], #0x04
+	ldrd	r4, [r0], #0x08
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 	strt	r8, [r1], #0x04
@@ -721,22 +700,22 @@ ENTRY(copyout)
 	nop
 
 	/* At least 24 bytes remaining */
-	ldr	r4, [r0], #0x04
-	ldr	r5, [r0], #0x04
+	ldrd	r4, [r0], #0x08
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
+	nop
 
 	/* At least 16 bytes remaining */
-	ldr	r4, [r0], #0x04
-	ldr	r5, [r0], #0x04
+	ldrd	r4, [r0], #0x08
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
+	nop
 
 	/* At least 8 bytes remaining */
-	ldr	r4, [r0], #0x04
-	ldr	r5, [r0], #0x04
+	ldrd	r4, [r0], #0x08
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
+	nop
 
 	/* Less than 8 bytes remaining */
 	ldmfd	sp!, {r4-r9}
