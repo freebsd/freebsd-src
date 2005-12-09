@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
+#undef DDB
 #include <arm/xscale/i80321/i80321reg.h>
 #include <arm/xscale/i80321/i80321var.h>
 #include <arm/xscale/i80321/iq80321reg.h>
@@ -277,7 +278,7 @@ initarm(void *arg, void *arg2)
 			valloc_pages(kernel_pt_table[loop],
 			    L2_TABLE_SIZE / PAGE_SIZE);
 		} else {
-			kernel_pt_table[loop].pv_pa = freemempos -
+			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[loop].pv_va = 
@@ -285,8 +286,6 @@ initarm(void *arg, void *arg2)
 		}
 		i++;
 	}
-	freemempos -= 2 * PAGE_SIZE;
-
 	freemem_pt = freemempos;
 	freemempos = 0xa0100000;
 	/*
