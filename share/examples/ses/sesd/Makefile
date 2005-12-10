@@ -32,9 +32,10 @@
 # mjacob@feral.com
 #
 
-MAN8	=	sesd.0
-SRCS	=	sesd.c eltsub.c
-PROG	=	sesd
-VPATH	=	${.CURDIR}/../srcs
+.PATH: ${.CURDIR}/../srcs
+
+PROG=	sesd
+SRCS=	sesd.c eltsub.c
+MAN=	sesd.8
 
 .include <bsd.prog.mk>
