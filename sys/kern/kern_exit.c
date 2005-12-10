@@ -117,7 +117,7 @@ exit1(struct thread *td, int rv)
 	struct ucred *tracecred;
 #endif
 	struct plimit *plim;
-	int refcnt;
+	int locked, refcnt;
 
 	/*
 	 * Drop Giant if caller has it.  Eventually we should warn about
@@ -295,13 +295,13 @@ retry:
 		    vm_map_max(&vm->vm_map));
 	}
 
-	mtx_lock(&Giant);	
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
 		struct session *sp;
 
 		sp = p->p_session;
 		if (sp->s_ttyvp) {
+			locked = VFS_LOCK_GIANT(sp->s_ttyvp->v_mount);
 			/*
 			 * Controlling process.
 			 * Signal foreground pgrp,
@@ -347,6 +347,7 @@ retry:
 			 * that the session once had a controlling terminal.
 			 * (for logging and informational purposes)
 			 */
+			VFS_UNLOCK_GIANT(locked);
 		}
 		SESS_LOCK(p->p_session);
 		sp->s_leader = NULL;
@@ -355,7 +356,6 @@ retry:
 	fixjobc(p, p->p_pgrp, 0);
 	sx_xunlock(&proctree_lock);
 	(void)acct_process(td);
-	mtx_unlock(&Giant);	
 #ifdef KTRACE
 	/*
 	 * release trace file
@@ -370,9 +370,9 @@ retry:
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
 	if (tracevp != NULL) {
-		mtx_lock(&Giant);
+		locked = VFS_LOCK_GIANT(tracevp->v_mount);
 		vrele(tracevp);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(locked);
 	}
 	if (tracecred != NULL)
 		crfree(tracecred);
@@ -382,9 +382,9 @@ retry:
 	 */
 	if ((vtmp = p->p_textvp) != NULL) {
 		p->p_textvp = NULL;
-		mtx_lock(&Giant);	
+		locked = VFS_LOCK_GIANT(vtmp->v_mount);
 		vrele(vtmp);
-		mtx_unlock(&Giant);	
+		VFS_UNLOCK_GIANT(locked);
 	}
 
 	/*
