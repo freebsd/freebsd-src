@@ -187,7 +187,7 @@ static	d_ioctl_t	ti_ioctl2;
 
 static struct cdevsw ti_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	ti_open,
 	.d_close =	ti_close,
 	.d_ioctl =	ti_ioctl2,
@@ -512,12 +512,6 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 	first_pass = 1;
 
 	/*
-	 * Make sure we aren't interrupted while we're changing the window
-	 * pointer.
-	 */
-	TI_LOCK(sc);
-
-	/*
 	 * Save the old window base value.
 	 */
 	origwin = CSR_READ_4(sc, TI_WINBASE);
@@ -548,19 +542,23 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 				ti_bcopy_swap(tmparray, tmparray2, segsize,
 					      TI_SWAP_NTOH);
 
+				TI_UNLOCK(sc);
 				if (first_pass) {
 					copyout(&tmparray2[segresid], ptr,
 						segsize - segresid);
 					first_pass = 0;
 				} else
 					copyout(tmparray2, ptr, segsize);
+				TI_LOCK(sc);
 			} else {
 				if (first_pass) {
 
 					ti_bcopy_swap(tmparray, tmparray2,
 						      segsize, TI_SWAP_NTOH);
+					TI_UNLOCK(sc);
 					bcopy(&tmparray2[segresid], ptr,
 					      segsize - segresid);
+					TI_LOCK(sc);
 					first_pass = 0;
 				} else
 					ti_bcopy_swap(tmparray, ptr, segsize,
@@ -569,7 +567,9 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 
 		} else {
 			if (useraddr) {
+				TI_UNLOCK(sc);
 				copyin(ptr, tmparray2, segsize);
+				TI_LOCK(sc);
 				ti_bcopy_swap(tmparray2, tmparray, segsize,
 					      TI_SWAP_HTON);
 			} else
@@ -620,9 +620,11 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 			 * of bytes from the host byte order buffer to
 			 * the user's buffer.
 			 */
-			if (useraddr)
+			if (useraddr) {
+				TI_UNLOCK(sc);
 				copyout(&tmpval2, ptr, resid);
-			else
+				TI_LOCK(sc);
+			} else
 				bcopy(&tmpval2, ptr, resid);
 		} else {
 			/*
@@ -636,9 +638,11 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 			 * to work, but the write side of it has not been
 			 * verified.  So user beware.
 			 */
-			if (useraddr)
+			if (useraddr) {
+				TI_UNLOCK(sc);
 				copyin(ptr, &tmpval2, resid);
-			else
+				TI_LOCK(sc);
+			} else
 				bcopy(ptr, &tmpval2, resid);
 
 			tmpval = htonl(tmpval2);
@@ -649,8 +653,6 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 	}
 
 	CSR_WRITE_4(sc, TI_WINBASE, origwin);
-
-	TI_UNLOCK(sc);
 
 	return (0);
 }
@@ -687,8 +689,6 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 	segptr = tigon_addr;
 	cnt = len;
 	ptr = buf;
-
-	TI_LOCK(sc);
 
 	while (cnt) {
 		CSR_WRITE_4(sc, CPU_REG(TI_SRAM_ADDR, cpu), segptr);
@@ -749,8 +749,6 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 		segptr += 4;
 		ptr += 4;
 	}
-
-	TI_UNLOCK(sc);
 
 	return (0);
 }
@@ -2232,8 +2230,7 @@ ti_attach(dev)
 	/* Set up ifnet structure */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	tis[sc->ti_unit] = sc;
 	ifp->if_ioctl = ti_ioctl;
 	ifp->if_start = ti_start;
@@ -2287,7 +2284,7 @@ ti_attach(dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET|INTR_MPSAFE,
 	   ti_intr, sc, &sc->ti_intrhand);
 
 	if (error) {
@@ -3220,8 +3217,10 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		outstats = (struct ti_stats *)addr;
 
+		TI_LOCK(sc);
 		bcopy(&sc->ti_rdata->ti_info.ti_stats, outstats,
 		      sizeof(struct ti_stats));
+		TI_UNLOCK(sc);
 		break;
 	}
 	case TIIOCGETPARAMS:
@@ -3230,6 +3229,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		params = (struct ti_params *)addr;
 
+		TI_LOCK(sc);
 		params->ti_stat_ticks = sc->ti_stat_ticks;
 		params->ti_rx_coal_ticks = sc->ti_rx_coal_ticks;
 		params->ti_tx_coal_ticks = sc->ti_tx_coal_ticks;
@@ -3237,6 +3237,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		params->ti_tx_max_coal_bds = sc->ti_tx_max_coal_bds;
 		params->ti_tx_buf_ratio = sc->ti_tx_buf_ratio;
 		params->param_mask = TI_PARAM_ALL;
+		TI_UNLOCK(sc);
 
 		error = 0;
 
@@ -3248,6 +3249,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		params = (struct ti_params *)addr;
 
+		TI_LOCK(sc);
 		if (params->param_mask & TI_PARAM_STAT_TICKS) {
 			sc->ti_stat_ticks = params->ti_stat_ticks;
 			CSR_WRITE_4(sc, TI_GCR_STAT_TICKS, sc->ti_stat_ticks);
@@ -3282,6 +3284,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			CSR_WRITE_4(sc, TI_GCR_TX_BUFFER_RATIO,
 				    sc->ti_tx_buf_ratio);
 		}
+		TI_UNLOCK(sc);
 
 		error = 0;
 
@@ -3309,6 +3312,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		trace_buf = (struct ti_trace_buf *)addr;
 
+		TI_LOCK(sc);
 		trace_start = CSR_READ_4(sc, TI_GCR_NICTRACE_START);
 		cur_trace_ptr = CSR_READ_4(sc, TI_GCR_NICTRACE_PTR);
 		trace_len = CSR_READ_4(sc, TI_GCR_NICTRACE_LEN);
@@ -3336,6 +3340,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 					cur_trace_ptr - trace_start;
 		} else
 			trace_buf->fill_len = 0;
+		TI_UNLOCK(sc);
 
 		break;
 	}
@@ -3380,6 +3385,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * For now, we'll only handle accessing regular SRAM,
 		 * nothing else.
 		 */
+		TI_LOCK(sc);
 		if ((mem_param->tgAddr >= TI_BEG_SRAM)
 		 && ((mem_param->tgAddr + mem_param->len) <= sram_end)) {
 			/*
@@ -3417,6 +3423,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			        mem_param->tgAddr, mem_param->len);
 			error = EINVAL;
 		}
+		TI_UNLOCK(sc);
 
 		break;
 	}
@@ -3435,6 +3442,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			error = EINVAL;
 			break;
 		}
+		TI_LOCK(sc);
 		if (cmd == ALT_READ_TG_REG) {
 			bus_space_read_region_4(sc->ti_btag, sc->ti_bhandle,
 						regs->addr, &tmpval, 1);
@@ -3451,6 +3459,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
 						 regs->addr, &tmpval, 1);
 		}
+		TI_UNLOCK(sc);
 
 		break;
 	}
