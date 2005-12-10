@@ -1,5 +1,3 @@
-# $NetBSD: $
-# $OpenBSD: $
 # $FreeBSD$
 #
 # Copyright (c) 2000 by Matthew Jacob
@@ -34,15 +32,11 @@
 # mjacob@feral.com
 #
 
-SYS	!=	uname -s
+CFLAGS+= -I/usr/include/cam/scsi -DSESINC="<scsi_ses.h>"
+BINDIR?= /usr/sbin
 
-.if ${SYS} == OpenBSD
-COPTS	+=	-I/usr/include/scsi -DSESINC="<ses.h>"
-.elif	${SYS} == NetBSD
-COPTS	+=	-I/usr/include/dev/scsipi -DSESINC="<ses.h>"
-.else
-CFLAGS	+=	-I/usr/include/cam/scsi -DSESINC="<scsi_ses.h>"
-.endif
-BINDIR	?=	/usr/sbin
+CLEANFILES+= ${MAN}
 
-.PATH:	../srcs
+.SUFFIXES: .0 .8
+.0.8:
+	cat ${.IMPSRC} > ${.TARGET}
