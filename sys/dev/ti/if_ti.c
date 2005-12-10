@@ -985,11 +985,25 @@ ti_alloc_jumbo_mem(sc)
 	struct ti_jpool_entry   *entry;
 
 	/* Grab a big chunk o' storage. */
-	sc->ti_cdata.ti_jumbo_buf = contigmalloc(TI_JMEM, M_DEVBUF,
-		M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
+				PAGE_SIZE, 0,		/* algnmnt, boundary */
+				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
+				NULL, NULL,		/* filter, filterarg */
+				TI_JMEM,		/* maxsize */
+				1,			/* nsegments */
+				TI_JMEM,		/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->ti_jumbo_dmat) != 0) {
+		device_printf(dev, "Failed to allocate jumbo dmat\n");
+		return (ENOBUFS);
+	}
 
-	if (sc->ti_cdata.ti_jumbo_buf == NULL) {
-		if_printf(sc->ti_ifp, "no memory for jumbo buffers!\n");
+	if (bus_dmamem_alloc(sc->ti_jumbo_dmat,
+			     (void**)&sc->ti_cdata.ti_jumbo_buf,
+			     BUS_DMA_NOWAIT, &sc->ti_jumbo_dmamap) != 0) {
+		device_printf(dev, "Failed to allocate jumbo memory\n");
 		return (ENOBUFS);
 	}
 
@@ -1007,10 +1021,7 @@ ti_alloc_jumbo_mem(sc)
 		entry = malloc(sizeof(struct ti_jpool_entry),
 			       M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM,
-			           M_DEVBUF);
-			sc->ti_cdata.ti_jumbo_buf = NULL;
-			if_printf(sc->ti_ifp, "no memory for jumbo "
+			device_printf(dev, "no memory for jumbo "
 			    "buffer queue!\n");
 			return (ENOBUFS);
 		}
@@ -2329,6 +2340,13 @@ ti_detach(dev)
 	}
 	ifmedia_removeall(&sc->ifmedia);
 
+#ifdef TI_PRIVATE_JUMBOS
+	if (sc->ti_cdata.ti_jumbo_buf)
+		bus_dmamem_free(sc->ti_jumbo_dmat, sc->ti_cdata.ti_jumbo_buf,
+		    sc->ti_jumbo_dmamap);
+	if (sc->ti_jumbo_dmat)
+		bus_dma_tag_destroy(sc->ti_jumbo_dmat);
+#endif
 	if (sc->ti_rdata)
 		bus_dmamem_free(sc->ti_rdata_dmat, sc->ti_rdata,
 				sc->ti_rdata_dmamap);
@@ -2346,13 +2364,6 @@ ti_detach(dev)
 	}
 	if (ifp)
 		if_free(ifp);
-
-#ifdef TI_PRIVATE_JUMBOS
-	if (sc->ti_cdata.ti_jumbo_buf)
-		contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM, M_DEVBUF);
-#endif
-	if (sc->ti_rdata)
-		contigfree(sc->ti_rdata, sizeof(struct ti_ring_data), M_DEVBUF);
 
 	TI_UNLOCK(sc);
 	mtx_destroy(&sc->ti_mtx);
