@@ -1001,6 +1001,8 @@ struct ti_softc {
 	u_int8_t		ti_linkstat;	/* Link state */
 	int			ti_hdrsplit;	/* enable header splitting */
 	bus_dma_tag_t		ti_parent_dmat;
+	bus_dma_tag_t		ti_jumbo_dmat;
+	bus_dmamap_t		ti_jumbo_dmamap;
 	bus_dma_tag_t		ti_rdata_dmat;
 	bus_dmamap_t		ti_rdata_dmamap;
 	uint32_t		ti_rdata_phys;
