@@ -137,9 +137,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <sys/tiio.h>
-#include <pci/if_tireg.h>
-#include <pci/ti_fw.h>
-#include <pci/ti_fw2.h>
+#include <dev/ti/if_tireg.h>
+#include <dev/ti/ti_fw.h>
+#include <dev/ti/ti_fw2.h>
 
 #define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
 /*
