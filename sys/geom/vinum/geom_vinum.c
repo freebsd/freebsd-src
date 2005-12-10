@@ -119,143 +119,26 @@ gv_access(struct g_provider *pp, int dr, int dw, int de)
 	return (error);
 }
 
-static struct g_geom *
-gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
+static void
+gv_init(struct g_class *mp)
 {
 	struct g_geom *gp;
-	struct g_consumer *cp;
 	struct gv_softc *sc;
-	struct gv_hdr *vhdr;
-	int error, first;
-	char *buf;
 
-	vhdr = NULL;
-	buf = NULL;
-	first = 0;
+	g_trace(G_T_TOPOLOGY, "gv_init(%p)", mp);
 
-	g_trace(G_T_TOPOLOGY, "gv_taste(%s, %s)", mp->name, pp->name);
-	g_topology_assert();
-
-	/* Check if we already have a VINUM geom, or create a new one. */
-	if (LIST_EMPTY(&mp->geom)) { 
-		gp = g_new_geomf(mp, "VINUM");
-		gp->spoiled = gv_orphan;
-		gp->orphan = gv_orphan;
-		gp->access = gv_access;
-		gp->start = gv_start;
-		gp->softc = g_malloc(sizeof(struct gv_softc),
-		    M_WAITOK | M_ZERO);
-		sc = gp->softc;
-		sc->geom = gp;
-		LIST_INIT(&sc->drives);
-		LIST_INIT(&sc->subdisks);
-		LIST_INIT(&sc->plexes);
-		LIST_INIT(&sc->volumes);
-		first++;
-	} else {
-		gp = LIST_FIRST(&mp->geom);
-		sc = gp->softc;
-	}
-	
-
-	/* We need a temporary consumer to read the config from. */
-	cp = g_new_consumer(gp);
-	error = g_attach(cp, pp);
-	if (error) {
-		g_destroy_consumer(cp);
-		if (first) {
-			g_free(sc);
-			g_destroy_geom(gp);
-		}
-		return (NULL);
-	}
-	error = g_access(cp, 1, 0, 0);
-	if (error) {
-		g_detach(cp);
-		g_destroy_consumer(cp);
-		if (first) {
-			g_free(gp->softc);
-			g_destroy_geom(gp);
-		}
-		return (NULL);
-	}
-	
-	g_topology_unlock();
-
-	/* Check if the provided slice is a valid vinum drive. */
-	vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, &error);
-	if (vhdr == NULL || error != 0) {
-		g_topology_lock();
-		g_access(cp, -1, 0, 0);
-		g_detach(cp);
-		g_destroy_consumer(cp);
-		if (first) {
-			g_free(sc);
-			g_destroy_geom(gp);
-		}
-		return (NULL);
-	}
-
-	/* This provider has no vinum magic on board. */
-	if (vhdr->magic != GV_MAGIC) {
-		/* Release the temporary consumer, we don't need it anymore. */
-		g_topology_lock();
-		g_access(cp, -1, 0, 0);
-		g_detach(cp);
-		g_destroy_consumer(cp);
-
-		g_free(vhdr);
-
-		/*
-		 * If there is no other VINUM geom yet just take this one; the
-		 * configuration is still empty, but it can be filled by other
-		 * valid vinum drives later.
-		 */
-		if (first)
-			return (gp);
-		else
-			return (NULL);
-
-	/*
-	 * We have found a valid vinum drive, now read the on-disk
-	 * configuration.
-	 */
-	} else {
-		g_free(vhdr);
-
-		buf = g_read_data(cp, GV_CFG_OFFSET, GV_CFG_LEN,
-		    &error);
-		if (buf == NULL || error != 0) {
-			g_topology_lock();
-			g_access(cp, -1, 0, 0);
-			g_detach(cp);
-			g_destroy_consumer(cp);
-			if (first) {
-				g_free(sc);
-				g_destroy_geom(gp);
-			}
-			return (NULL);
-		}
-
-		/* Release the temporary consumer, we don't need it anymore. */
-		g_topology_lock();
-		g_access(cp, -1, 0, 0);
-		g_detach(cp);
-		g_destroy_consumer(cp);
-
-		/* We are the first VINUM geom. */
-		if (first) {
-			gv_parse_config(sc, buf, 0);
-			g_free(buf);
-			return (gp);
-
-		/* Just merge the configs. */
-		} else {
-			gv_parse_config(sc, buf, 1);
-			g_free(buf);
-			return (NULL);
-		}
-	}
+	gp = g_new_geomf(mp, "VINUM");
+	gp->spoiled = gv_orphan;
+	gp->orphan = gv_orphan;
+	gp->access = gv_access;
+	gp->start = gv_start;
+	gp->softc = g_malloc(sizeof(struct gv_softc), M_WAITOK | M_ZERO);
+	sc = gp->softc;
+	sc->geom = gp;
+	LIST_INIT(&sc->drives);
+	LIST_INIT(&sc->subdisks);
+	LIST_INIT(&sc->plexes);
+	LIST_INIT(&sc->volumes);
 }
 
 /* Handle userland requests for creating new objects. */
@@ -612,7 +495,7 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 static struct g_class g_vinum_class	= {
 	.name = VINUM_CLASS_NAME,
 	.version = G_VERSION,
-	.taste = gv_taste,
+	.init = gv_init,
 	/*.destroy_geom = gv_destroy_geom,*/
 	.ctlreq = gv_config,
 };

@@ -418,7 +418,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct gv_freelist *fl;
 	struct gv_hdr *vhdr;
 	int error;
-	char errstr[ERRBUFSIZ];
+	char *buf, errstr[ERRBUFSIZ];
 
 	vhdr = NULL;
 	d = NULL;
@@ -452,19 +452,27 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/* Now check if the provided slice is a valid vinum drive. */
 	do {
-		vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, &error);
-		if (vhdr == NULL || error != 0)
+		vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, NULL);
+		if (vhdr == NULL)
 			break;
 		if (vhdr->magic != GV_MAGIC) {
 			g_free(vhdr);
 			break;
 		}
 
+		/* A valid vinum drive, let's parse the on-disk information. */
+		buf = g_read_data(cp, GV_CFG_OFFSET, GV_CFG_LEN, NULL);
+		if (buf == NULL) {
+			g_free(vhdr);
+			break;
+		}
 		g_topology_lock();
+		gv_parse_config(sc, buf, 1);
+		g_free(buf);
 
 		/*
-		 * We have found a valid vinum drive.  Let's see if it is
-		 * already known in the configuration.
+		 * Let's see if this drive is already known in the
+		 * configuration.
 		 */
 		d = gv_find_drive(sc, vhdr->label.name);
 
