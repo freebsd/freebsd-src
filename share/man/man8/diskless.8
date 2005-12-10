@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2004
+.Dd December 10, 2005
 .Dt DISKLESS 8
 .Os
 .Sh NAME
@@ -248,6 +248,18 @@ scripts provide a mechanism through which you can override various files
 in
 .Pa /etc
 (as well as other subdirectories of root).
+.Pp
+One difference that you should pay particular attention to is
+the value of
+.Va local_startup
+in
+.Pa /etc/defaults/rc.conf .
+A typical value for a
+.Nm
+boot is
+.Va mountcritremote ,
+however your needs may be different.
+.Pp
 The scripts provide four
 overriding directories situated in
 .Pa /conf/base ,

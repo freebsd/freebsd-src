@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: devfs
-# REQUIRE: rcconf mountcritremote
+# REQUIRE: mountcritremote
 # BEFORE:  SERVERS securelevel
 # KEYWORD: nojail
 
