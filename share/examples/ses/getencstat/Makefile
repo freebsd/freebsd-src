@@ -32,9 +32,10 @@
 # mjacob@feral.com
 #
 
-MAN8	=	getencstat.0
-SRCS	=	getencstat.c eltsub.c
-PROG	=	getencstat
-VPATH	=	${.CURDIR}/../srcs
+.PATH: ${.CURDIR}/../srcs
+
+PROG=	getencstat
+SRCS=	getencstat.c eltsub.c
+MAN=	getencstat.8
 
 .include <bsd.prog.mk>
