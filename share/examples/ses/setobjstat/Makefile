@@ -32,9 +32,10 @@
 # mjacob@feral.com
 #
 
-MAN8	=	setobjstat.0
-SRCS	=	setobjstat.c eltsub.c
-PROG	=	setobjstat
-VPATH	=	${.CURDIR}/../srcs
+.PATH: ${.CURDIR}/../srcs
+
+PROG=	setobjstat
+SRCS=	setobjstat.c eltsub.c
+MAN=	setobjstat.8
 
 .include <bsd.prog.mk>
