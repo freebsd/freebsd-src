@@ -150,7 +150,7 @@ ifn_start()
 
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
-	ifalias_up ${ifn} && cfg=0
+	ipv4_up ${ifn} && cfg=0
 	ipx_up ${ifn} && cfg=0
 
 	return $cfg
@@ -165,7 +165,7 @@ ifn_stop()
 	[ -z "$ifn" ] && return 1
 
 	ipx_down ${ifn} && cfg=0
-	ifalias_down ${ifn} && cfg=0
+	ipv4_down ${ifn} && cfg=0
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 
