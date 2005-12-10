@@ -28,7 +28,6 @@
 #
 
 # PROVIDE: resolv
-# REQUIRE: rcconf
 # KEYWORD: nojail
 
 . /etc/rc.subr
