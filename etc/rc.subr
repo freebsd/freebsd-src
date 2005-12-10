@@ -1380,7 +1380,7 @@ find_local_scripts_new () {
 	local_rc=''
 	for dir in ${local_startup}; do
 		if [ -d "${dir}" ]; then
-			for file in `grep -l '^# PROVIDE:' ${dir}/*`; do
+			for file in `grep -l '^# PROVIDE:' ${dir}/* 2>/dev/null`; do
 				case "$file" in
 				*.sample) ;;
 				*)	if [ -x "$file" ]; then
