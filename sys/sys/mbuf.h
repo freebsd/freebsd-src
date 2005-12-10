@@ -421,9 +421,11 @@ m_getjcl(int how, short type, int flags, int size)
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
+#if MJUM4BYTES != MCLBYTES
 	case MJUM4BYTES:
 		zone = zone_jumbo4;
 		break;
+#endif
 	case MJUM9BYTES:
 		zone = zone_jumbo9;
 		break;
@@ -485,9 +487,11 @@ m_cljget(struct mbuf *m, int how, int size)
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
+#if MJUM4BYTES != MCLBYTES
 	case MJUM4BYTES:
 		zone = zone_jumbo4;
 		break;
+#endif
 	case MJUM9BYTES:
 		zone = zone_jumbo9;
 		break;

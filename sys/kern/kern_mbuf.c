@@ -378,9 +378,11 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		case MCLBYTES:
 			type = EXT_CLUSTER;
 			break;
+#if MJUM4BYTES != MCLBYTES
 		case MJUM4BYTES:
 			type = EXT_JUMBO4;
 			break;
+#endif
 		case MJUM9BYTES:
 			type = EXT_JUMBO9;
 			break;
