@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 #
-# pccard_ether interfacename [start|stop]
+# pccard_ether interfacename [start|stop|restart]
 #
 # example: pccard_ether fxp0 start
 #
@@ -10,10 +10,13 @@
 . /etc/rc.subr
 . /etc/network.subr
 
-usage()
-{
-	err 3 'USAGE: $0 interface (start|stop)'
-}
+name="pccard_ether"
+start_precmd="checkauto"
+start_cmd="pccard_ether_start"
+stop_precmd="checkauto"
+stop_cmd="pccard_ether_stop"
+restart_precmd="checkauto"
+restart_cmd="pccard_ether_restart"
 
 setup_routes()
 {
@@ -54,24 +57,18 @@ remove_routes()
 	fi
 }
 
-ifn=$1
-shift
-startstop=$1
-shift
+checkauto()
+{
+	if [ -z "$rc_force" ]; then
+		# Ignore interfaces with the NOAUTO keyword
+		autoif $ifn || exit 0
+	fi
+}
 
-load_rc_config pccard_ether
-
-# Ignore interfaces with the NOAUTO keyword
-autoif $ifn || exit 0
-
-if [ -n "$1" ]; then
-	usage
-fi
-
-case ${startstop} in
-[Ss][Tt][Aa][Rr][Tt] | '')
-	if [ -x /usr/bin/grep ]; then
-		if ifconfig $ifn | grep -s netmask > /dev/null 2>&1; then
+pccard_ether_start()
+{
+	if [ -z "$rc_force" -a -x /usr/bin/grep ]; then
+		if ifconfig $ifn | grep -s '[<,]UP[,>]' > /dev/null 2>&1; then
 		    # Interface is already up, so ignore it.
 		    exit 0
 		fi
@@ -91,10 +88,10 @@ case ${startstop} in
 	if checkyesno ipv6_enable; then
 		network6_interface_setup $ifn
 	fi
-	;;
+}
 
-# Stop the interface
-[Ss][Tt][Oo][Pp])
+pccard_ether_stop()
+{
 	if [ -n "`ifconfig_getargs $ifn`" ]; then
 		if ! dhcpif $ifn; then
 			remove_routes
@@ -110,7 +107,24 @@ case ${startstop} in
 	if checkyesno removable_route_flush; then
 		route -n flush -inet > /dev/null
 	fi
-	;;
-*)
-	usage
-esac
+}
+
+pccard_ether_restart()
+{
+	# Hand implemented because the default implementation runs
+	# the equivalent of "$0 start; $0 stop" and this script
+	# doesn't support that syntax
+	pccard_ether_stop
+	pccard_ether_start
+}
+
+ifn=$1
+shift
+if [ -z "$*" ]; then
+	args="start"
+else
+	args=$*
+fi
+
+load_rc_config pccard_ether
+run_rc_command $args
