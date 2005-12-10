@@ -902,6 +902,7 @@ dev/syscons/snake/snake_saver.c	optional snake_saver
 dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_pci.c		optional tdfx pci
+dev/ti/if_ti.c			optional ti pci
 dev/trm/trm.c			optional trm
 dev/twa/tw_cl_fwimg.c		optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
@@ -1799,7 +1800,6 @@ pci/if_sf.c			optional sf pci
 pci/if_sis.c			optional sis pci
 pci/if_sk.c			optional sk pci
 pci/if_ste.c			optional ste pci
-pci/if_ti.c			optional ti pci
 pci/if_tl.c			optional tl pci
 pci/if_vr.c			optional vr pci
 pci/if_wb.c			optional wb pci
