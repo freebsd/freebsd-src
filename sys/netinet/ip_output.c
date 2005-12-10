@@ -889,7 +889,7 @@ spd_done:
 				if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 					m->m_pkthdr.csum_flags |=
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-					m0->m_pkthdr.csum_data = 0xffff;
+					m->m_pkthdr.csum_data = 0xffff;
 				}
 				m->m_pkthdr.csum_flags |=
 				    CSUM_IP_CHECKED | CSUM_IP_VALID;
