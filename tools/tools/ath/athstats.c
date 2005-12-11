@@ -125,8 +125,6 @@ printstats(FILE *fd, const struct ath_stats *stats)
 	STAT(tx_shortpre, "tx frames with short preamble");
 	STAT(tx_altrate, "tx frames with an alternate rate");
 	STAT(tx_protect, "tx frames with 11g protection");
-	STAT(tx_ctsburst, "tx frames with 11g protection and bursting");
-	STAT(tx_ctsext, "tx frames with 11g cts protection extended for bursting");
 	STAT(rx_nombuf,	"rx setup failed 'cuz no mbuf");
 	STAT(rx_busdma,	"rx setup failed for dma resrcs");
 	STAT(rx_orn, "rx failed 'cuz of desc overrun");
