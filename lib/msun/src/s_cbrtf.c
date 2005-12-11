@@ -1,5 +1,6 @@
 /* s_cbrtf.c -- float version of s_cbrt.c.
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Debugged by Bruce D. Evans.
  */
 
 /*
@@ -37,7 +38,7 @@ G =  3.5714286566e-01; /* 5/14      = 0x3eb6db6e */
 float
 cbrtf(float x)
 {
-	float r,s,t;
+	float r,s,t,w;
 	int32_t hx;
 	u_int32_t sign;
 	u_int32_t high;
@@ -63,6 +64,17 @@ cbrtf(float x)
 	r=t*t/x;
 	s=C+r*t;
 	t*=G+F/(s+E+D/s);
+
+    /* chop t to 12 bits and make it larger than cbrt(x) */
+	GET_FLOAT_WORD(high,t);
+	SET_FLOAT_WORD(t,high+0x00001000);
+
+    /* one step Newton iteration to 24 bits with error less than 0.984 ulps */
+	s=t*t;		/* t*t is exact */
+	r=x/s;
+	w=t+t;
+	r=(r-t)/(w+r);	/* r-t is exact */
+	t=t+t*r;
 
     /* retore the sign bit */
 	GET_FLOAT_WORD(high,t);
