@@ -779,7 +779,7 @@ usbd_setup_pipe(usbd_device_handle dev, usbd_interface_handle iface,
 		return (err);
 	}
 
-	if (!(dev->quirks->uq_flags & UQ_BROKEN_IPOD)) {
+	if (!(dev->quirks->uq_flags & UQ_NO_OPEN_CLEARSTALL)) {
 		/* Clear any stall and make sure DATA0 toggle will be used next. */
 		if (UE_GET_ADDR(ep->edesc->bEndpointAddress) != USB_CONTROL_ENDPOINT) {
 			err = usbd_clear_endpoint_stall(p);
