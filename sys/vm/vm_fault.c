@@ -745,7 +745,6 @@ readrest:
 				/*
 				 * get rid of the unnecessary page
 				 */
-				pmap_remove_all(fs.first_m);
 				vm_page_free(fs.first_m);
 				/*
 				 * grab the page and put it into the 
