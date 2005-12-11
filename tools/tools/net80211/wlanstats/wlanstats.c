@@ -37,7 +37,7 @@
  */
 
 /*
- * 80211stats [-i interface]
+ * wlanstats [-i interface]
  * (default interface is ath0).
  */
 #include <sys/types.h>
