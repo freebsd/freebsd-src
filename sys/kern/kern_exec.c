@@ -838,7 +838,6 @@ exec_map_first_page(imgp)
 		    (ma[0]->valid == 0)) {
 			if (ma[0]) {
 				vm_page_lock_queues();
-				pmap_remove_all(ma[0]);
 				vm_page_free(ma[0]);
 				vm_page_unlock_queues();
 			}
