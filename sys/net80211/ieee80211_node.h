@@ -324,6 +324,9 @@ void	ieee80211_add_scan(struct ieee80211com *,
 		const struct ieee80211_scanparams *,
 		const struct ieee80211_frame *,
 		int subtype, int rssi, int rstamp);
+void	ieee80211_init_neighbor(struct ieee80211_node *,
+		const struct ieee80211_frame *,
+		const struct ieee80211_scanparams *);
 struct ieee80211_node *ieee80211_add_neighbor(struct ieee80211com *,
 		const struct ieee80211_frame *,
 		const struct ieee80211_scanparams *);
