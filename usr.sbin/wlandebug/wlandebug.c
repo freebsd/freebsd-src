@@ -37,7 +37,7 @@
  */
 
 /*
- * 80211debug [-i interface] flags
+ * wlandebug [-i interface] flags
  * (default interface is wlan.0).
  */
 #include <sys/types.h>
