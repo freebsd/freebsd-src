@@ -67,9 +67,9 @@ cbrtf(float x)
 
     /* chop t to 12 bits and make it larger than cbrt(x) */
 	GET_FLOAT_WORD(high,t);
-	SET_FLOAT_WORD(t,high+0x00001000);
+	SET_FLOAT_WORD(t,(high&0xfffff000)+0x00001000);
 
-    /* one step Newton iteration to 24 bits with error less than 0.984 ulps */
+    /* one step Newton iteration to 24 bits with error less than 0.667 ulps */
 	s=t*t;		/* t*t is exact */
 	r=x/s;
 	w=t+t;
