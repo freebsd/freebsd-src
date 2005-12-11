@@ -140,19 +140,6 @@ struct ath_txq {
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
-	/*
-	 * State for patching up CTS when bursting.
-	 */
-	struct	ath_buf		*axq_linkbuf;	/* va of last buffer */
-	struct	ath_desc	*axq_lastdsWithCTS;
-						/* first desc of last descriptor
-						 * that contains CTS 
-						 */
-	struct	ath_desc	*axq_gatingds;	/* final desc of the gating desc
-						 * that determines whether
-						 * lastdsWithCTS has been DMA'ed
-						 * or not
-						 */
 };
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) \
@@ -512,10 +499,6 @@ void	ath_intr(void *);
 	((*(_ah)->ah_fillTxDesc)((_ah), (_ds), (_l), (_first), (_last), (_ds0)))
 #define	ath_hal_txprocdesc(_ah, _ds) \
 	((*(_ah)->ah_procTxDesc)((_ah), (_ds)))
-#define	ath_hal_updateCTSForBursting(_ah, _ds, _prevds, _prevdsWithCTS, \
-		_gatingds,  _txOpLimit, _ctsDuration) \
-	((*(_ah)->ah_updateCTSForBursting)((_ah), (_ds), (_prevds), \
-		(_prevdsWithCTS), (_gatingds), (_txOpLimit), (_ctsDuration)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio)))
