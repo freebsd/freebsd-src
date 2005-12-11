@@ -25,8 +25,8 @@ static char rcsid[] = "$FreeBSD$";
  * Return cube root of x
  */
 static const unsigned
-	B1 = 709958130, /* B1 = (84+2/3-0.03306235651)*2**23 */
-	B2 = 642849266; /* B2 = (76+2/3-0.03306235651)*2**23 */
+	B1 = 709958130, /* B1 = (127-127.0/3-0.03306235651)*2**23 */
+	B2 = 642849266; /* B2 = (127-127.0/3-24/3-0.03306235651)*2**23 */
 
 static const float
 C =  5.4285717010e-01, /* 19/35     = 0x3f0af8b0 */
@@ -59,7 +59,6 @@ cbrtf(float x)
 	else
 	  SET_FLOAT_WORD(t,hx/3+B1);
 
-
     /* new cbrt to 23 bits */
 	r=t*t/x;
 	s=C+r*t;
@@ -76,7 +75,7 @@ cbrtf(float x)
 	r=(r-t)/(w+r);	/* r-t is exact */
 	t=t+t*r;
 
-    /* retore the sign bit */
+    /* restore the sign bit */
 	GET_FLOAT_WORD(high,t);
 	SET_FLOAT_WORD(t,high|sign);
 	return(t);
