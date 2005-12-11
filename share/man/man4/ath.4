@@ -31,22 +31,36 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd December 29, 2004
+.Dd September 5, 2005
 .Dt ATH 4
 .Os
 .Sh NAME
 .Nm ath
 .Nd "Atheros IEEE 802.11 wireless network driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ath"
 .Cd "device ath_hal"
-.Cd "device ath_rate_onoe"
+.Cd "device ath_rate_sample"
 .Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ath_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for wireless network adapters based on
-the Atheros AR5210, AR5211, and AR5212 chips.
+the Atheros AR5210, AR5211, and AR5212 programming APIs.
+These APIs are used by a wide variety of chips; all chips with
+a PCI and/or CardBus interface are supported.
 Chip-specific support is provided by the Atheros Hardware Access Layer
 (HAL), that is packaged separately.
 .Pp
@@ -67,10 +81,12 @@ speeds as above for 802.11a operation and
 1Mbps, 2Mbps, 5.5 Mbps and 11Mbps for 802.11b operation.
 AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
 with transmit speeds appropriate to each.
-All chips also support an Atheros Turbo Mode (TM) that operates in
+Most chips also support an Atheros Turbo Mode (TM) that operates in
 the 5Ghz frequency range with 2x the transmit speeds.
-Some chips also support Turbo mode in the 2.4Ghz range with 802.11g.
-(These modes are, however, only interoperable with other Atheros-based devices.)
+Some chips also support Turbo mode in the 2.4Ghz range with 802.11g
+though this support is not presently available due to regulatory requirements.
+(Note that Turbo modes are, however,
+only interoperable with other Atheros-based devices.)
 The actual transmit speed used is dependent on signal quality and the
 .Dq "rate control"
 algorithm employed by the driver.
@@ -195,11 +211,10 @@ ifconfig ath0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
 .Pp
 Create a host-based wireless bridge to fxp0:
 .Bd -literal -offset indent
-Add BRIDGE to the kernel config.
 ifconfig ath0 inet up ssid my_ap media DS/11Mbps mediaopt hostap
-sysctl net.link.ether.bridge.enable=1
-sysctl net.link.ether.bridge.config="ath0 fxp0"
 sysctl net.inet.ip.check_interface=0
+ifconfig bridge0 create
+ifconfig bridge0 addm ath0 addm fxp0
 .Ed
 .Pp
 This will give you the same functionality as an access point.
@@ -310,12 +325,7 @@ have overlapping channels.
 Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
 Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
-Performance in lossy environments is suboptimal.
-The algorithm used to select the rate for transmitted packets is
-very simplistic.
 There is no software retransmit; only hardware retransmit is used.
-Contributors are encouraged to replace the existing rate control algorithm
-with a better one (hint: all the information needed is available to the driver).
 .Pp
 The driver does not fully enable power-save operation of the chip;
 consequently power use is suboptimal.
@@ -327,3 +337,7 @@ operating as an access point.
 Unfortunately this also means that devices purchased for use in one locale
 may not be usable in another.
 Changes are planned to remove this restriction when operating in station mode.
+.Pp
+WPA is not supported for 5210 parts.
+.Pp
+Atheros' SuperG functionality is not supported.
