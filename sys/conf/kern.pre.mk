@@ -75,6 +75,9 @@ INCLUDES+= -I$S/contrib/ngatm
 # .. and the same for twa
 INCLUDES+= -I$S/dev/twa
 
+# ...  and XFS
+INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
+
 .endif
 
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}

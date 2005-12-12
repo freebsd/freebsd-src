@@ -711,3 +711,6 @@ LOOKUP_SHARED		opt_vfs.h
 
 # HWPMC options
 HWPMC_HOOKS
+
+# XFS
+XFS			opt_xfs.h
