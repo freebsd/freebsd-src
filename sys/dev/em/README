@@ -226,11 +226,6 @@ Identifying Your Adapter section.
 
   Polling
   -------
-  NOTES: DEVICE POLLING is only valid for non-SMP kernels.
-
-        The driver has to be compiled into the kernel for DEVICE POLLING to be
-        enabled in the driver.
-
   To enable polling in the driver, add the following options to the kernel
   configuration, and then recompile the kernel:
 
