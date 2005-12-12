@@ -218,6 +218,7 @@ void	ieee80211_wme_updateparams_locked(struct ieee80211com *);
 
 #define	ieee80211_new_state(_ic, _nstate, _arg) \
 	(((_ic)->ic_newstate)((_ic), (_nstate), (_arg)))
+void	ieee80211_beacon_miss(struct ieee80211com *);
 void	ieee80211_print_essid(const u_int8_t *, int);
 void	ieee80211_dump_pkt(const u_int8_t *, int, int, int);
 

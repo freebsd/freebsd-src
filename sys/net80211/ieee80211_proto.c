@@ -97,6 +97,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ic->ic_rtsthreshold = IEEE80211_RTS_DEFAULT;
 	ic->ic_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
+	ic->ic_bmiss_max = IEEE80211_BMISS_MAX;
 	ic->ic_mcast_rate = IEEE80211_MCAST_RATE_DEFAULT;
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 	ic->ic_roaming = IEEE80211_ROAMING_AUTO;
@@ -815,6 +816,43 @@ ieee80211_wme_updateparams(struct ieee80211com *ic)
 		ieee80211_wme_updateparams_locked(ic);
 		IEEE80211_BEACON_UNLOCK(ic);
 	}
+}
+
+void
+ieee80211_beacon_miss(struct ieee80211com *ic)
+{
+
+	if (ic->ic_flags & IEEE80211_F_SCAN) {
+		/* XXX check ic_curchan != ic_bsschan? */
+		return;
+	}
+	IEEE80211_DPRINTF(ic,
+		IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+		"%s\n", "beacon miss");
+
+	/*
+	 * Our handling is only meaningful for stations that are
+	 * associated; any other conditions else will be handled
+	 * through different means (e.g. the tx timeout on mgt frames).
+	 */
+	if (ic->ic_opmode != IEEE80211_M_STA || ic->ic_state != IEEE80211_S_RUN)
+		return;
+
+	if (++ic->ic_bmiss_count < ic->ic_bmiss_max) {
+		/*
+		 * Send a directed probe req before falling back to a scan;
+		 * if we receive a response ic_bmiss_count will be reset.
+		 * Some cards mistakenly report beacon miss so this avoids
+		 * the expensive scan if the ap is still there.
+		 */
+		ieee80211_send_probereq(ic->ic_bss, ic->ic_myaddr,
+			ic->ic_bss->ni_bssid, ic->ic_bss->ni_bssid,
+			ic->ic_bss->ni_essid, ic->ic_bss->ni_esslen,
+			ic->ic_opt_ie, ic->ic_opt_ie_len);
+		return;
+	}
+	ic->ic_bmiss_count = 0;
+	ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
 }
 
 static void

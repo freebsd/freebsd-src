@@ -70,6 +70,8 @@
 #define	IEEE80211_BINTVAL_MIN	25	/* min beacon interval (TU's) */
 #define	IEEE80211_BINTVAL_DEFAULT 100	/* default beacon interval (TU's) */
 
+#define	IEEE80211_BMISS_MAX	2	/* maximum consecutive bmiss allowed */
+
 #define	IEEE80211_PS_SLEEP	0x1	/* STA is in power saving mode */
 #define	IEEE80211_PS_MAX_QUEUE	50	/* maximum saved packets */
 
@@ -142,6 +144,8 @@ struct ieee80211com {
 	int			ic_mcast_rate;	/* rate for mcast frames */
 	u_int16_t		ic_rtsthreshold;
 	u_int16_t		ic_fragthreshold;
+	u_int8_t		ic_bmiss_count;	/* current beacon miss count */
+	int			ic_bmiss_max;	/* max bmiss before scan */
 	struct ieee80211_node	*(*ic_node_alloc)(struct ieee80211_node_table*);
 	void			(*ic_node_free)(struct ieee80211_node *);
 	void			(*ic_node_cleanup)(struct ieee80211_node *);
