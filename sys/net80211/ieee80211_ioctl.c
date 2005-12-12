@@ -1480,6 +1480,9 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (ic->ic_flags & IEEE80211_F_PUREG) != 0;
 		break;
+	case IEEE80211_IOC_MCAST_RATE:
+		ireq->i_val = ic->ic_mcast_rate;
+		break;
 	case IEEE80211_IOC_FRAGTHRESHOLD:
 		ireq->i_val = ic->ic_fragthreshold;
 		break;
@@ -2368,6 +2371,9 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		/* NB: reset only if we're operating on an 11g channel */
 		if (ic->ic_curmode == IEEE80211_MODE_11G)
 			error = ENETRESET;
+		break;
+	case IEEE80211_IOC_MCAST_RATE:
+		ic->ic_mcast_rate = ireq->i_val & IEEE80211_RATE_VAL;
 		break;
 	case IEEE80211_IOC_FRAGTHRESHOLD:
 		if ((ic->ic_caps & IEEE80211_C_TXFRAG) == 0 &&

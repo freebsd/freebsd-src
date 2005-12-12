@@ -74,6 +74,7 @@
 #define	IEEE80211_PS_MAX_QUEUE	50	/* maximum saved packets */
 
 #define	IEEE80211_FIXED_RATE_NONE	-1
+#define	IEEE80211_MCAST_RATE_DEFAULT	(2*1)	/* default mcast rate (1M) */
 
 #define	IEEE80211_RTS_DEFAULT		IEEE80211_RTS_MAX
 #define	IEEE80211_FRAG_DEFAULT		IEEE80211_FRAG_MAX
@@ -138,6 +139,7 @@ struct ieee80211com {
 	struct ieee80211_channel *ic_ibss_chan;
 	struct ieee80211_channel *ic_curchan;	/* current channel */
 	int			ic_fixed_rate;	/* index to ic_sup_rates[] */
+	int			ic_mcast_rate;	/* rate for mcast frames */
 	u_int16_t		ic_rtsthreshold;
 	u_int16_t		ic_fragthreshold;
 	struct ieee80211_node	*(*ic_node_alloc)(struct ieee80211_node_table*);
