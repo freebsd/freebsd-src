@@ -104,5 +104,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	}
 
 	/* Check the environment. */
+	di->ops = uart_ns8250_ops;
 	return (uart_getenv(devtype, di));
 }

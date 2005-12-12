@@ -182,7 +182,6 @@ uart_getenv(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 
 	/* Set defaults. */
-	di->ops = uart_ns8250_ops;
 	di->bas.chan = 0;
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
