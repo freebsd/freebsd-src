@@ -53,6 +53,7 @@ void	cv_init(struct cv *cvp, const char *desc);
 void	cv_destroy(struct cv *cvp);
 
 void	cv_wait(struct cv *cvp, struct mtx *mp);
+void	cv_wait_unlock(struct cv *cvp, struct mtx *mp);
 int	cv_wait_sig(struct cv *cvp, struct mtx *mp);
 int	cv_timedwait(struct cv *cvp, struct mtx *mp, int timo);
 int	cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo);
