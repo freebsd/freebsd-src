@@ -663,6 +663,12 @@ set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 static
+DECL_CMD_FUNC(set80211mcastrate, val, d)
+{
+	set80211(s, IEEE80211_IOC_MCAST_RATE, (int) 2*atof(val), 0, NULL);
+}
+
+static
 DECL_CMD_FUNC(set80211fragthreshold, val, d)
 {
 	set80211(s, IEEE80211_IOC_FRAGTHRESHOLD,
@@ -1613,6 +1619,17 @@ ieee80211_status(int s)
 			LINE_CHECK("%crtsthreshold %d", spacer, ireq.i_val);
 	}
 
+	ireq.i_type = IEEE80211_IOC_MCAST_RATE;
+	if (ioctl(s, SIOCG80211, &ireq) != -1) {
+		if (ireq.i_val != 2*1 || verbose) {
+			if (ireq.i_val == 11)
+				LINE_CHECK("%cmcastrate 5.5", spacer);
+			else
+				LINE_CHECK("%cmcastrate %d", spacer,
+					ireq.i_val/2);
+		}
+	}
+
 	ireq.i_type = IEEE80211_IOC_FRAGTHRESHOLD;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val != IEEE80211_FRAG_MAX || verbose)
@@ -1913,6 +1930,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("mac:kick",		set80211kickmac),
 	DEF_CMD("pureg",	1,	set80211pureg),
 	DEF_CMD("-pureg",	0,	set80211pureg),
+	DEF_CMD_ARG("mcastrate",	set80211mcastrate),
 	DEF_CMD_ARG("fragthreshold",	set80211fragthreshold),
 };
 static struct afswtch af_ieee80211 = {
