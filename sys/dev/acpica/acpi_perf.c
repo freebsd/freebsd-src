@@ -244,6 +244,7 @@ acpi_perf_evaluate(device_t dev)
 	ACPI_OBJECT *pkg, *res;
 	ACPI_STATUS status;
 	int count, error, i, j;
+	static int once = 1;
 	uint32_t *p;
 
 	/* Get the control values and parameters for each state. */
@@ -276,7 +277,10 @@ acpi_perf_evaluate(device_t dev)
 	for (i = 0; i < sc->px_count; i++) {
 		res = &pkg->Package.Elements[i];
 		if (!ACPI_PKG_VALID(res, 6)) {
-			device_printf(dev, "invalid _PSS package\n");
+			if (once) {
+				once = 0;
+				device_printf(dev, "invalid _PSS package\n");
+			}
 			continue;
 		}
 
