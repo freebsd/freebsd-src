@@ -678,7 +678,7 @@ ieee80211_end_scan(struct ieee80211com *ic)
 		 * Decrement the failure counts so entries will be
 		 * reconsidered the next time around.  We really want
 		 * to do this only for sta's where we've previously
-		 had some success.
+		 * had some success.
 		 */
 		IEEE80211_NODE_LOCK(nt);
 		TAILQ_FOREACH(ni, &nt->nt_node, ni_list)
@@ -787,8 +787,10 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 	 */
 	obss = ic->ic_bss;
 	ic->ic_bss = selbs;		/* NB: caller assumed to bump refcnt */
-	if (obss != NULL)
+	if (obss != NULL) {
+		copy_bss(selbs, obss);
 		ieee80211_free_node(obss);
+	}
 	/*
 	 * Set the erp state (mostly the slot time) to deal with
 	 * the auto-select case; this should be redundant if the
