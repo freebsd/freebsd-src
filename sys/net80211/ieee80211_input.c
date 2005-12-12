@@ -1942,6 +1942,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			if (ic->ic_flags & IEEE80211_F_SCAN)
 				ieee80211_add_scan(ic, &scan, wh,
 					subtype, rssi, rstamp);
+			ic->ic_bmiss_count = 0;
 			return;
 		}
 		/*
