@@ -217,10 +217,12 @@ ieee80211_node_unauthorize(struct ieee80211_node *ni)
  * Set/change the channel.  The rate set is also updated as
  * to insure a consistent view by drivers.
  */
-static __inline void
+static void
 ieee80211_set_chan(struct ieee80211com *ic,
 	struct ieee80211_node *ni, struct ieee80211_channel *chan)
 {
+	if (chan == IEEE80211_CHAN_ANYC)	/* XXX while scanning */
+		chan = ic->ic_curchan;
 	ni->ni_chan = chan;
 	ni->ni_rates = ic->ic_sup_rates[ieee80211_chan2mode(ic, chan)];
 }
