@@ -698,6 +698,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 
 	ifv->ifv_p = p;
 	ifv->ifv_ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
+	ifv->ifv_ifp->if_baudrate = p->if_baudrate;
 	/*
 	 * Copy only a selected subset of flags from the parent.
 	 * Other flags are none of our business.
