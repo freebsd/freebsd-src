@@ -643,6 +643,8 @@ nve_init_locked(struct nve_softc *sc)
 	nve_stop(sc);
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: do pfnInit\n");
 
+	nve_ifmedia_upd_locked(ifp);
+
 	/* Setup Hardware interface and allocate memory structures */
 	error = sc->hwapi->pfnInit(sc->hwapi->pADCX, 
 	    0, /* force speed */ 
@@ -663,7 +665,6 @@ nve_init_locked(struct nve_softc *sc)
 
 	/* Setup multicast filter */
 	nve_setmulti(sc);
-	nve_ifmedia_upd_locked(ifp);
 
 	/* Update interface parameters */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -1306,7 +1307,7 @@ nve_osalloc(PNV_VOID ctx, PMEMORY_BLOCK mem)
 	sc = (struct nve_softc *)ctx;
 
 	mem->pLogical = (PVOID)contigmalloc(mem->uiLength, M_DEVBUF,
-	    M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE, 0);
+	    M_NOWAIT | M_ZERO, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (!mem->pLogical) {
 		device_printf(sc->dev, "memory allocation failed\n");
