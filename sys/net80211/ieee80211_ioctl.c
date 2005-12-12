@@ -1509,8 +1509,7 @@ ieee80211_ioctl_setoptie(struct ieee80211com *ic, struct ieee80211req *ireq)
 		return EINVAL;
 	if (ireq->i_len > IEEE80211_MAX_OPT_IE)
 		return EINVAL;
-	/* NB: data.length is validated by the wireless extensions code */
-	MALLOC(ie, void *, ireq->i_len, M_DEVBUF, M_WAITOK);
+	MALLOC(ie, void *, ireq->i_len, M_DEVBUF, M_NOWAIT);
 	if (ie == NULL)
 		return ENOMEM;
 	error = copyin(ireq->i_data, ie, ireq->i_len);
