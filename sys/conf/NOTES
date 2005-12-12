@@ -924,6 +924,12 @@ options 	EXT2FS
 #
 options 	REISERFS
 
+#
+# Add support for the SGI XFS filesystem. Currently,
+# this is limited to read-only access.
+#
+options 	XFS
+
 # Use real implementations of the aio_* system calls.  There are numerous
 # stability and security issues in the current aio code that make it
 # unsuitable for inclusion on machines with untrusted local users.
