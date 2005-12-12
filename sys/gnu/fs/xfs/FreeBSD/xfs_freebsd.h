@@ -206,6 +206,10 @@
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 #define roundup(x, y)	((((x)+((y)-1))/(y))*(y))
 
+#ifndef __user
+#define __user
+#endif
+
 /*
  * Juggle IRIX device numbers - still used in ondisk structures
  */
