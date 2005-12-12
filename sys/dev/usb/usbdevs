@@ -1460,6 +1460,7 @@ product SONY CLIE_S360		0x0095	Sony Clie s360
 product SONY CLIE_41_MS		0x0099	Sony Clie v4.1 Memory Stick slot
 product SONY CLIE_41		0x009a	Sony Clie v4.1
 product SONY CLIE_NX60		0x00da	Sony Clie nx60
+product SONY CLIE_TJ37		0x0169	Sony Clie tj37
 
 /* Sony Ericsson products */
 product SONYERICSSON DCU10	0x0528	USB Cable
