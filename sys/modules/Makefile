@@ -274,7 +274,8 @@ SUBDIR=	${_3dfx} \
 	wlan_wep \
 	wlan_xauth \
 	${_xe} \
-	xl
+	xl \
+	xfs
 
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
