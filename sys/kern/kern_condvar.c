@@ -95,17 +95,8 @@ cv_destroy(struct cv *cvp)
 void
 cv_wait(struct cv *cvp, struct mtx *mp)
 {
-	struct thread *td;
 	WITNESS_SAVE_DECL(mp);
 
-	td = curthread;
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
-#endif
-	CV_ASSERT(cvp, mp, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
-	    "Waiting on \"%s\"", cvp->cv_description);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	if (cold || panicstr) {
@@ -118,6 +109,40 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		return;
 	}
 
+	cv_wait_unlock(cvp, mp);
+	mtx_lock(mp);
+	WITNESS_RESTORE(&mp->mtx_object, mp);
+}
+
+/*
+ * Wait on a condition variable.  This function differs from cv_wait by
+ * not aquiring the mutex after condition variable was signaled.
+ */
+void
+cv_wait_unlock(struct cv *cvp, struct mtx *mp)
+{
+	struct thread *td;
+
+	td = curthread;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
+#endif
+	CV_ASSERT(cvp, mp, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	    "Waiting on \"%s\"", cvp->cv_description);
+
+	if (cold || panicstr) {
+		/*
+		 * During autoconfiguration, just give interrupts
+		 * a chance, then just return.  Don't run any other
+		 * thread or panic below, in case this is the idle
+		 * process and already asleep.
+		 */
+		mtx_unlock(mp);
+		return;
+	}
+
 	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
@@ -127,13 +152,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_wait(cvp);
 
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
-#endif
 	PICKUP_GIANT();
-	mtx_lock(mp);
-	WITNESS_RESTORE(&mp->mtx_object, mp);
 }
 
 /*
