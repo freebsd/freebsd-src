@@ -63,7 +63,9 @@ For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
 This driver requires firmware to be loaded before it will work.
-You need to install the net/iwi-firmware port before
+You need to install the
+.Pa ports/net/iwi-firmware
+port before
 .Xr ifconfig 8
 will work.
 .Sh EXAMPLES
@@ -92,6 +94,13 @@ ifconfig iwi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 .It "iwi%d: device timeout"
 The driver will reset the hardware.
 This should not happen.
+.It "ipw%d: could not read firmware image"
+The required firmware could not be found in
+.Pa /boot/firmware ,
+and therefore the card cannot operate.
+Ensure
+.Pa ports/net/iwi-firmware
+is installed correctly.
 .El
 .Sh SEE ALSO
 .Xr an 4 ,
