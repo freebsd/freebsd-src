@@ -130,12 +130,14 @@ static int      nve_probe(device_t);
 static int      nve_attach(device_t);
 static int      nve_detach(device_t);
 static void     nve_init(void *);
+static void     nve_init_locked(struct nve_softc *);
 static void     nve_stop(struct nve_softc *);
 static void     nve_shutdown(device_t);
 static int      nve_init_rings(struct nve_softc *);
 static void     nve_free_rings(struct nve_softc *);
 
 static void     nve_ifstart(struct ifnet *);
+static void     nve_ifstart_locked(struct ifnet *);
 static int      nve_ioctl(struct ifnet *, u_long, caddr_t);
 static void     nve_intr(void *);
 static void     nve_tick(void *);
@@ -144,6 +146,7 @@ static void     nve_watchdog(struct ifnet *);
 static void     nve_update_stats(struct nve_softc *);
 
 static int      nve_ifmedia_upd(struct ifnet *);
+static void	nve_ifmedia_upd_locked(struct ifnet *);
 static void     nve_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int      nve_miibus_readreg(device_t, int, int);
 static void     nve_miibus_writereg(device_t, int, int, int);
@@ -304,20 +307,18 @@ nve_attach(device_t dev)
 	struct ifnet		*ifp;
 	OS_API			*osapi;
 	ADAPTER_OPEN_PARAMS	OpenParams;
-	int			error = 0, i, rid, unit;
+	int			error = 0, i, rid;
 
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_attach - entry\n");
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	/* Allocate mutex */
 	mtx_init(&sc->mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
-	mtx_init(&sc->osmtx, device_get_nameunit(dev), NULL, MTX_SPIN);
+	    MTX_DEF);
+	callout_init_mtx(&sc->stat_callout, &sc->mtx, 0);
 
 	sc->dev = dev;
-	sc->unit = unit;
 
 	/* Preinitialize data structures */
 	bzero(&OpenParams, sizeof(ADAPTER_OPEN_PARAMS));
@@ -510,7 +511,7 @@ nve_attach(device_t dev)
 
 	/* Setup interface parameters */
 	ifp->if_softc = sc;
-	if_initname(ifp, "nve", unit);
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nve_ioctl;
 	ifp->if_output = ether_output;
@@ -525,11 +526,10 @@ nve_attach(device_t dev)
 
 	/* Attach to OS's managers. */
 	ether_ifattach(ifp, eaddr);
-	callout_handle_init(&sc->stat_ch);
 
 	/* Activate our interrupt handler. - attach last to avoid lock */
-	error = bus_setup_intr(sc->dev, sc->irq, INTR_TYPE_NET, nve_intr,
-	    sc, &sc->sc_ih);
+	error = bus_setup_intr(sc->dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    nve_intr, sc, &sc->sc_ih);
 	if (error) {
 		device_printf(sc->dev, "couldn't set up interrupt handler\n");
 		goto fail;
@@ -551,15 +551,16 @@ nve_detach(device_t dev)
 	struct ifnet *ifp;
 
 	KASSERT(mtx_initialized(&sc->mtx), ("mutex not initialized"));
-	NVE_LOCK(sc);
 
 	DEBUGOUT(NVE_DEBUG_DEINIT, "nve: nve_detach - entry\n");
 
 	ifp = sc->ifp;
 
 	if (device_is_attached(dev)) {
+		NVE_LOCK(sc);
 		nve_stop(sc);
-		/* XXX shouldn't hold lock over call to ether_ifdetch */
+		NVE_UNLOCK(sc);
+		callout_drain(&sc->stat_callout);
 		ether_ifdetach(ifp);
 	}
 
@@ -598,11 +599,9 @@ nve_detach(device_t dev)
 	if (sc->rtag)
 		bus_dma_tag_destroy(sc->rtag);
 
-	NVE_UNLOCK(sc);
 	if (ifp)
 		if_free(ifp);
 	mtx_destroy(&sc->mtx);
-	mtx_destroy(&sc->osmtx);
 
 	DEBUGOUT(NVE_DEBUG_DEINIT, "nve: nve_detach - exit\n");
 
@@ -614,17 +613,26 @@ static void
 nve_init(void *xsc)
 {
 	struct nve_softc *sc = xsc;
+
+	NVE_LOCK(sc);
+	nve_init_locked(sc);
+	NVE_UNLOCK(sc);
+}
+
+static void
+nve_init_locked(struct nve_softc *sc)
+{
 	struct ifnet *ifp;
 	int error;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_init - entry (%d)\n", sc->linkup);
 
 	ifp = sc->ifp;
 
 	/* Do nothing if already running */
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		goto fail;
+		return;
 
 	nve_stop(sc);
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: do pfnInit\n");
@@ -640,7 +648,7 @@ nve_init(void *xsc)
 	if (error) {
 		device_printf(sc->dev,
 		    "failed to start NVIDIA Hardware interface\n");
-		goto fail;
+		return;
 	}
 	/* Set the MAC address */
 	sc->hwapi->pfnSetNodeAddress(sc->hwapi->pADCX, IFP2ENADDR(sc->ifp));
@@ -649,18 +657,15 @@ nve_init(void *xsc)
 
 	/* Setup multicast filter */
 	nve_setmulti(sc);
-	nve_ifmedia_upd(ifp);
+	nve_ifmedia_upd_locked(ifp);
 
 	/* Update interface parameters */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->stat_ch = timeout(nve_tick, sc, hz);
+	callout_reset(&sc->stat_callout, hz, nve_tick, sc);
 
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_init - exit\n");
-
-fail:
-	NVE_UNLOCK(sc);
 
 	return;
 }
@@ -671,7 +676,7 @@ nve_stop(struct nve_softc *sc)
 {
 	struct ifnet *ifp;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_stop - entry\n");
 
@@ -679,7 +684,7 @@ nve_stop(struct nve_softc *sc)
 	ifp->if_timer = 0;
 
 	/* Cancel tick timer */
-	untimeout(nve_tick, sc, sc->stat_ch);
+	callout_stop(&sc->stat_callout);
 
 	/* Stop hardware activity */
 	sc->hwapi->pfnDisableInterrupts(sc->hwapi->pADCX);
@@ -699,8 +704,6 @@ nve_stop(struct nve_softc *sc)
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_stop - exit\n");
 
-	NVE_UNLOCK(sc);
-
 	return;
 }
 
@@ -715,7 +718,9 @@ nve_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Stop hardware activity */
+	NVE_LOCK(sc);
 	nve_stop(sc);
+	NVE_UNLOCK(sc);
 }
 
 /* Allocate TX ring buffers */
@@ -723,8 +728,6 @@ static int
 nve_init_rings(struct nve_softc *sc)
 {
 	int error, i;
-
-	NVE_LOCK(sc);
 
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_init_rings - entry\n");
 
@@ -738,8 +741,7 @@ nve_init_rings(struct nve_softc *sc)
 		if (buf->mbuf == NULL) {
 			device_printf(sc->dev, "couldn't allocate mbuf\n");
 			nve_free_rings(sc);
-			error = ENOBUFS;
-			goto fail;
+			return (ENOBUFS);
 		}
 		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
 		m_adj(buf->mbuf, ETHER_ALIGN);
@@ -748,14 +750,14 @@ nve_init_rings(struct nve_softc *sc)
 		if (error) {
 			device_printf(sc->dev, "couldn't create dma map\n");
 			nve_free_rings(sc);
-			goto fail;
+			return (error);
 		}
 		error = bus_dmamap_load_mbuf(sc->mtag, buf->map, buf->mbuf,
 					  nve_dmamap_rx_cb, &desc->paddr, 0);
 		if (error) {
 			device_printf(sc->dev, "couldn't dma map mbuf\n");
 			nve_free_rings(sc);
-			goto fail;
+			return (error);
 		}
 		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_PREREAD);
 
@@ -776,16 +778,13 @@ nve_init_rings(struct nve_softc *sc)
 		if (error) {
 			device_printf(sc->dev, "couldn't create dma map\n");
 			nve_free_rings(sc);
-			goto fail;
+			return (error);
 		}
 	}
 	bus_dmamap_sync(sc->ttag, sc->tmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_init_rings - exit\n");
-
-fail:
-	NVE_UNLOCK(sc);
 
 	return (error);
 }
@@ -795,8 +794,6 @@ static void
 nve_free_rings(struct nve_softc *sc)
 {
 	int i;
-
-	NVE_LOCK(sc);
 
 	DEBUGOUT(NVE_DEBUG_DEINIT, "nve: nve_free_rings - entry\n");
 
@@ -825,13 +822,21 @@ nve_free_rings(struct nve_softc *sc)
 	}
 
 	DEBUGOUT(NVE_DEBUG_DEINIT, "nve: nve_free_rings - exit\n");
-
-	NVE_UNLOCK(sc);
 }
 
 /* Main loop for sending packets from OS to interface */
 static void
 nve_ifstart(struct ifnet *ifp)
+{
+	struct nve_softc *sc = ifp->if_softc;
+
+	NVE_LOCK(sc);
+	nve_ifstart_locked(ifp);
+	NVE_UNLOCK(sc);
+}
+
+static void
+nve_ifstart_locked(struct ifnet *ifp)
 {
 	struct nve_softc *sc = ifp->if_softc;
 	struct nve_map_buffer *buf;
@@ -842,8 +847,11 @@ nve_ifstart(struct ifnet *ifp)
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_ifstart - entry\n");
 
+	NVE_LOCK_ASSERT(sc);
+
 	/* If link is down/busy or queue is empty do nothing */
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE || ifp->if_snd.ifq_head == NULL)
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE ||
+	    IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return;
 
 	/* Transmit queued packets until sent or TX ring is full */
@@ -953,46 +961,54 @@ nve_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int error = 0;
 
-	NVE_LOCK(sc);
-
 	DEBUGOUT(NVE_DEBUG_IOCTL, "nve: nve_ioctl - entry\n");
 
 	switch (command) {
 	case SIOCSIFMTU:
 		/* Set MTU size */
-		if (ifp->if_mtu == ifr->ifr_mtu)
+		NVE_LOCK(sc);
+		if (ifp->if_mtu == ifr->ifr_mtu) {
+			NVE_UNLOCK(sc);
 			break;
+		}
 		if (ifr->ifr_mtu + ifp->if_hdrlen <= MAX_PACKET_SIZE_1518) {
 			ifp->if_mtu = ifr->ifr_mtu;
 			nve_stop(sc);
-			nve_init(sc);
+			nve_init_locked(sc);
 		} else
 			error = EINVAL;
+		NVE_UNLOCK(sc);
 		break;
 
 	case SIOCSIFFLAGS:
 		/* Setup interface flags */
+		NVE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				nve_init(sc);
+				nve_init_locked(sc);
+				NVE_UNLOCK(sc);
 				break;
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				nve_stop(sc);
+				NVE_UNLOCK(sc);
 				break;
 			}
 		}
 		/* Handle IFF_PROMISC and IFF_ALLMULTI flags. */
 		nve_setmulti(sc);
+		NVE_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* Setup multicast filter */
+		NVE_LOCK(sc);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			nve_setmulti(sc);
 		}
+		NVE_UNLOCK(sc);
 		break;
 
 	case SIOCGIFMEDIA:
@@ -1010,8 +1026,6 @@ nve_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	DEBUGOUT(NVE_DEBUG_IOCTL, "nve: nve_ioctl - exit\n");
 
-	NVE_UNLOCK(sc);
-
 	return (error);
 }
 
@@ -1024,8 +1038,10 @@ nve_intr(void *arg)
 
 	DEBUGOUT(NVE_DEBUG_INTERRUPT, "nve: nve_intr - entry\n");
 
+	NVE_LOCK(sc);
 	if (!ifp->if_flags & IFF_UP) {
 		nve_stop(sc);
+		NVE_UNLOCK(sc);
 		return;
 	}
 	/* Handle interrupt event */
@@ -1033,12 +1049,13 @@ nve_intr(void *arg)
 		sc->hwapi->pfnHandleInterrupt(sc->hwapi->pADCX);
 		sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
 	}
-	if (ifp->if_snd.ifq_head != NULL)
-		nve_ifstart(ifp);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		nve_ifstart_locked(ifp);
 
 	/* If no pending packets we don't need a timeout */
 	if (sc->pending_txs == 0)
 		sc->ifp->if_timer = 0;
+	NVE_UNLOCK(sc);
 
 	DEBUGOUT(NVE_DEBUG_INTERRUPT, "nve: nve_intr - exit\n");
 
@@ -1055,7 +1072,7 @@ nve_setmulti(struct nve_softc *sc)
 	int i;
 	u_int8_t andaddr[6], oraddr[6];
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_setmulti - entry\n");
 
@@ -1072,7 +1089,6 @@ nve_setmulti(struct nve_softc *sc)
 		/* Accept all packets */
 		hwfilter.ulFilterFlags |= ACCEPT_ALL_PACKETS;
 		sc->hwapi->pfnSetPacketFilter(sc->hwapi->pADCX, &hwfilter);
-		NVE_UNLOCK(sc);
 		return;
 	}
 	/* Setup multicast filter */
@@ -1099,8 +1115,6 @@ nve_setmulti(struct nve_softc *sc)
 	/* Send filter to NVIDIA API */
 	sc->hwapi->pfnSetPacketFilter(sc->hwapi->pADCX, &hwfilter);
 
-	NVE_UNLOCK(sc);
-
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_setmulti - exit\n");
 
 	return;
@@ -1111,10 +1125,22 @@ static int
 nve_ifmedia_upd(struct ifnet *ifp)
 {
 	struct nve_softc *sc = ifp->if_softc;
+
+	NVE_LOCK(sc);
+	nve_ifmedia_upd_locked(ifp);
+	NVE_UNLOCK(sc);
+	return (0);
+}
+
+static void
+nve_ifmedia_upd_locked(struct ifnet *ifp)
+{
+	struct nve_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 
 	DEBUGOUT(NVE_DEBUG_MII, "nve: nve_ifmedia_upd\n");
 
+	NVE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->miibus);
 
 	if (mii->mii_instance) {
@@ -1125,8 +1151,6 @@ nve_ifmedia_upd(struct ifnet *ifp)
 		}
 	}
 	mii_mediachg(mii);
-
-	return (0);
 }
 
 /* Update current miibus PHY status of media */
@@ -1139,8 +1163,10 @@ nve_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	DEBUGOUT(NVE_DEBUG_MII, "nve: nve_ifmedia_sts\n");
 
 	sc = ifp->if_softc;
+	NVE_LOCK(sc);
 	mii = device_get_softc(sc->miibus);
 	mii_pollstat(mii);
+	NVE_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -1156,7 +1182,7 @@ nve_tick(void *xsc)
 	struct mii_data *mii;
 	struct ifnet *ifp;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 
 	ifp = sc->ifp;
 	nve_update_stats(sc);
@@ -1166,12 +1192,10 @@ nve_tick(void *xsc)
 
 	if (mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		if (ifp->if_snd.ifq_head != NULL)
-			nve_ifstart(ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			nve_ifstart_locked(ifp);
 	}
-	sc->stat_ch = timeout(nve_tick, sc, hz);
-
-	NVE_UNLOCK(sc);
+	callout_reset(&sc->stat_callout, hz, nve_tick, sc);
 
 	return;
 }
@@ -1183,7 +1207,7 @@ nve_update_stats(struct nve_softc *sc)
 	struct ifnet *ifp = sc->ifp;
 	ADAPTER_STATS stats;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 
 	if (sc->hwapi) {
 		sc->hwapi->pfnGetStatistics(sc->hwapi->pADCX, &stats);
@@ -1205,7 +1229,6 @@ nve_update_stats(struct nve_softc *sc)
 
 		ifp->if_collisions = stats.ulLateCollisionErrors;
 	}
-	NVE_UNLOCK(sc);
 
 	return;
 }
@@ -1249,14 +1272,16 @@ nve_watchdog(struct ifnet *ifp)
 
 	device_printf(sc->dev, "device timeout (%d)\n", sc->pending_txs);
 
+	NVE_LOCK(sc);
 	sc->tx_errors++;
 
 	nve_stop(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	nve_init(sc);
+	nve_init_locked(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
-		nve_ifstart(ifp);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		nve_ifstart_locked(ifp);
+	NVE_UNLOCK(sc);
 
 	return;
 }
@@ -1389,7 +1414,8 @@ nve_osallocrxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID *id)
 	struct nve_map_buffer *buf;
 	int error;
 
-	NVE_LOCK(sc);
+	if (device_is_attached(sc->dev))
+		NVE_LOCK_ASSERT(sc);
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_osallocrxbuf\n");
 
@@ -1429,11 +1455,9 @@ nve_osallocrxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID *id)
 	mem->uiLength = desc->buflength;
 	*id = (void *)desc;
 
-	NVE_UNLOCK(sc);
 	return (1);
 	
 fail:
-	NVE_UNLOCK(sc);
 	return (0);
 }
 
@@ -1444,8 +1468,6 @@ nve_osfreerxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID id)
 	struct nve_softc *sc = ctx;
 	struct nve_rx_desc *desc;
 	struct nve_map_buffer *buf;
-
-	NVE_LOCK(sc);
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_osfreerxbuf\n");
 
@@ -1460,8 +1482,6 @@ nve_osfreerxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID id)
 	sc->pending_rxs--;
 	buf->mbuf = NULL;
 
-	NVE_UNLOCK(sc);
-
 	return (1);
 }
 
@@ -1474,7 +1494,7 @@ nve_ospackettx(PNV_VOID ctx, PNV_VOID id, NV_UINT32 success)
 	struct nve_tx_desc *desc = (struct nve_tx_desc *) id;
 	struct ifnet *ifp;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_ospackettx\n");
 
@@ -1495,11 +1515,10 @@ nve_ospackettx(PNV_VOID ctx, PNV_VOID id, NV_UINT32 success)
 	if (sc->pending_txs < TX_RING_SIZE)
 		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	if (ifp->if_snd.ifq_head != NULL && sc->pending_txs < TX_RING_SIZE)
-		nve_ifstart(ifp);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) && sc->pending_txs < TX_RING_SIZE)
+		nve_ifstart_locked(ifp);
 
 fail:
-	NVE_UNLOCK(sc);
 
 	return (1);
 }
@@ -1515,8 +1534,9 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 	struct nve_rx_desc *desc;
 	struct nve_map_buffer *buf;
 	ADAPTER_READ_DATA *readdata;
+	struct mbuf *m;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_ospacketrx\n");
 
@@ -1538,13 +1558,17 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 
 		bus_dmamap_unload(sc->mtag, buf->map);
 
+		/* Blat the mbuf pointer, kernel will free the mbuf cluster */
+		m = buf->mbuf;
+		buf->mbuf = NULL;
+
 		/* Give mbuf to OS. */
-		(*ifp->if_input) (ifp, buf->mbuf);
+		NVE_UNLOCK(sc);
+		(*ifp->if_input)(ifp, m);
+		NVE_LOCK(sc);
 		if (readdata->ulFilterMatch & ADREADFL_MULTICAST_MATCH)
 			ifp->if_imcasts++;
 
-		/* Blat the mbuf pointer, kernel will free the mbuf cluster */
-		buf->mbuf = NULL;
 	} else {
 		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->mtag, buf->map);
@@ -1555,8 +1579,6 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 	sc->cur_rx = desc - sc->rx_desc;
 	sc->pending_rxs--;
 
-	NVE_UNLOCK(sc);
-
 	return (1);
 }
 
@@ -1564,17 +1586,8 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 static NV_SINT32
 nve_oslinkchg(PNV_VOID ctx, NV_SINT32 enabled)
 {
-	struct nve_softc *sc = (struct nve_softc *)ctx;
-	struct ifnet *ifp;
 
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_oslinkchg\n");
-
-	ifp = sc->ifp;
-
-	if (enabled)
-		ifp->if_flags |= IFF_UP;
-	else
-		ifp->if_flags &= ~IFF_UP;
 
 	return (1);
 }
@@ -1587,7 +1600,7 @@ nve_osalloctimer(PNV_VOID ctx, PNV_VOID *timer)
 
 	DEBUGOUT(NVE_DEBUG_BROKEN, "nve: nve_osalloctimer\n");
 
-	callout_handle_init(&sc->ostimer);
+	callout_init(&sc->ostimer, CALLOUT_MPSAFE);
 	*timer = &sc->ostimer;
 
 	return (1);
@@ -1599,6 +1612,8 @@ nve_osfreetimer(PNV_VOID ctx, PNV_VOID timer)
 {
 
 	DEBUGOUT(NVE_DEBUG_BROKEN, "nve: nve_osfreetimer\n");
+
+	callout_drain((struct callout *)timer);
 
 	return (1);
 }
@@ -1625,8 +1640,8 @@ nve_ossettimer(PNV_VOID ctx, PNV_VOID timer, NV_UINT32 delay)
 
 	DEBUGOUT(NVE_DEBUG_BROKEN, "nve: nve_ossettimer\n");
 
-	*(struct callout_handle *)timer = timeout(sc->ostimer_func,
-	    sc->ostimer_params, delay);
+	callout_reset((struct callout *)timer, delay, sc->ostimer_func,
+	    sc->ostimer_params);
 
 	return (1);
 }
@@ -1635,12 +1650,10 @@ nve_ossettimer(PNV_VOID ctx, PNV_VOID timer, NV_UINT32 delay)
 static NV_SINT32
 nve_oscanceltimer(PNV_VOID ctx, PNV_VOID timer)
 {
-	struct nve_softc *sc = ctx;
 
 	DEBUGOUT(NVE_DEBUG_BROKEN, "nve: nve_oscanceltimer\n");
 
-	untimeout(sc->ostimer_func, sc->ostimer_params,
-	    *(struct callout_handle *)timer);
+	callout_stop((struct callout *)timer);
 
 	return (1);
 }
@@ -1696,8 +1709,6 @@ nve_oslockacquire(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 
 	DEBUGOUT(NVE_DEBUG_LOCK, "nve: nve_oslockacquire\n");
 
-	NVE_OSLOCK((struct nve_softc *)lock);
-
 	return (1);
 }
 
@@ -1707,8 +1718,6 @@ nve_oslockrelease(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 {
 
 	DEBUGOUT(NVE_DEBUG_LOCK, "nve: nve_oslockrelease\n");
-
-	NVE_OSUNLOCK((struct nve_softc *)lock);
 
 	return (1);
 }
