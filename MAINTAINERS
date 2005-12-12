@@ -126,7 +126,6 @@ rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
 xfs		kan,rodrigc	Pre-commit review preferred.
-geom_zero	pjd	Pre-commit review preferred.
 pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
