@@ -1,6 +1,6 @@
 /* s_cbrtf.c -- float version of s_cbrt.c.
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
- * Debugged by Bruce D. Evans.
+ * Debugged and optimized by Bruce D. Evans.
  */
 
 /*
@@ -50,22 +50,21 @@ cbrtf(float x)
 	if(hx==0)
 	    return(x);		/* cbrt(0) is itself */
 
-	SET_FLOAT_WORD(x,hx);	/* x <- |x| */
     /* rough cbrt to 5 bits */
 	if(hx<0x00800000) { 		/* subnormal number */
 	    SET_FLOAT_WORD(t,0x4b800000); /* set t= 2**24 */
 	    t*=x;
 	    GET_FLOAT_WORD(high,t);
-	    SET_FLOAT_WORD(t,high/3+B2);
+	    SET_FLOAT_WORD(t,sign|((high&0x7fffffff)/3+B2));
 	} else
-	    SET_FLOAT_WORD(t,hx/3+B1);
+	    SET_FLOAT_WORD(t,sign|(hx/3+B1));
 
     /* new cbrt to 23 bits */
 	r=t*t/x;
 	s=C+r*t;
 	t*=G+F/(s+E+D/s);
 
-    /* chop t to 12 bits and make it larger than cbrt(x) */
+    /* chop t to 12 bits and make it larger in magnitude than cbrt(x) */
 	GET_FLOAT_WORD(high,t);
 	SET_FLOAT_WORD(t,(high&0xfffff000)+0x00001000);
 
@@ -76,8 +75,5 @@ cbrtf(float x)
 	r=(r-t)/(w+r);	/* r-t is exact */
 	t=t+t*r;
 
-    /* restore the sign bit */
-	GET_FLOAT_WORD(high,t);
-	SET_FLOAT_WORD(t,high|sign);
 	return(t);
 }
