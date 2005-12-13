@@ -29,14 +29,18 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <sys/select.h>
+#include <sys/stat.h>
 #include <sys/queue.h>
+#include <sys/ucred.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <bluetooth.h>
 #include <errno.h>
+#include <pwd.h>
 #include <sdp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,6 +96,13 @@ server_init(server_p srv, char const *control)
 	if (bind(unsock, (struct sockaddr *) &un, sizeof(un)) < 0) {
 		log_crit("Could not bind control socket. %s (%d)",
 			strerror(errno), errno);
+		close(unsock);
+		return (-1);
+	}
+
+	if (chmod(control, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH) < 0) {
+		log_crit("Could not change permissions on control socket. " \
+			"%s (%d)", strerror(errno), errno);
 		close(unsock);
 		return (-1);
 	}
@@ -185,6 +196,7 @@ server_init(server_p srv, char const *control)
 	srv->fdidx[unsock].valid = 1;
 	srv->fdidx[unsock].server = 1;
 	srv->fdidx[unsock].control = 1;
+	srv->fdidx[unsock].priv = 0;
 	srv->fdidx[unsock].rsp_cs = 0;
 	srv->fdidx[unsock].rsp_size = 0;
 	srv->fdidx[unsock].rsp_limit = 0;
@@ -195,6 +207,7 @@ server_init(server_p srv, char const *control)
 	srv->fdidx[l2sock].valid = 1;
 	srv->fdidx[l2sock].server = 1;
 	srv->fdidx[l2sock].control = 0;
+	srv->fdidx[l2sock].priv = 0;
 	srv->fdidx[l2sock].rsp_cs = 0;
 	srv->fdidx[l2sock].rsp_size = 0;
 	srv->fdidx[l2sock].rsp_limit = 0;
@@ -276,7 +289,7 @@ static void
 server_accept_client(server_p srv, int32_t fd)
 {
 	uint8_t		*rsp = NULL;
-	int32_t		 cfd, size;
+	int32_t		 cfd, size, priv;
 	uint16_t	 omtu;
 
 	do {
@@ -292,6 +305,8 @@ server_accept_client(server_p srv, int32_t fd)
 
 	assert(!FD_ISSET(cfd, &srv->fdset));
 	assert(!srv->fdidx[cfd].valid);
+
+	priv = 0;
 
 	if (!srv->fdidx[fd].control) {
 		/* Get local BD_ADDR */
@@ -326,6 +341,28 @@ server_accept_client(server_p srv, int32_t fd)
 			return;
 		}
 	} else {
+		struct xucred	 cr;
+		struct passwd	*pw;
+
+		/* Get peer's credentials */
+		memset(&cr, 0, sizeof(cr));
+		size = sizeof(cr);
+
+		if (getsockopt(cfd, 0, LOCAL_PEERCRED, &cr, &size) < 0) {
+			log_err("Could not get peer's credentials. %s (%d)",
+				strerror(errno), errno);
+			close(cfd);
+			return;
+		}
+
+		/* Check credentials */
+		pw = getpwuid(cr.cr_uid);
+		if (pw != NULL)
+			priv = (strcmp(pw->pw_name, "root") == 0);
+		else
+			log_warning("Could not verify credentials for uid %d",
+				cr.cr_uid);
+
 		memcpy(&srv->req_sa.l2cap_bdaddr, NG_HCI_BDADDR_ANY,
 			sizeof(srv->req_sa.l2cap_bdaddr));
 
@@ -351,6 +388,7 @@ server_accept_client(server_p srv, int32_t fd)
 	srv->fdidx[cfd].valid = 1;
 	srv->fdidx[cfd].server = 0;
 	srv->fdidx[cfd].control = srv->fdidx[fd].control;
+	srv->fdidx[cfd].priv = priv;
 	srv->fdidx[cfd].rsp_cs = 0;
 	srv->fdidx[cfd].rsp_size = 0;
 	srv->fdidx[cfd].rsp_limit = 0;
