@@ -7,17 +7,16 @@
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
-#else
-#error "Must have options for KDB, DDB in kernel config"
 #endif
 
 #include <support/kdb.h>
 
+#ifdef DDB
 DB_SET(xfs, xfs_ddb_cmd, db_cmd_set, CS_MORE, NULL)
 {
 	db_error("No commands registered.\n");
 }
-
+#endif
 
 int
 kdb_register(char *cmd, kdb_func_t func, char *usage, char *help, short minlen)
