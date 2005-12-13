@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/module.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/cons.h>
 #include <sys/power.h>
@@ -288,7 +289,21 @@ DELAY(int n)
 	int getit_calls = 1;
 	int n1;
 	static int state = 0;
+#endif
 
+	if (tsc_freq != 0 && !tsc_is_broken) {
+		uint64_t start, end, now;
+
+		sched_pin();
+		start = rdtsc();
+		end = start + (tsc_freq * n) / 1000000;
+		do {
+			now = rdtsc();
+		} while (now < end || (now > start && end < start));
+		sched_unpin();
+		return;
+	}
+#ifdef DELAYDEBUG
 	if (state == 0) {
 		state = 1;
 		for (n1 = 1; n1 <= 10000000; n1 *= 10)
