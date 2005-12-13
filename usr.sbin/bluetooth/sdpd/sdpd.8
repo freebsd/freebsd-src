@@ -110,10 +110,14 @@ possible to specify which services should be
 to which Bluetooth device.
 Such assignment should be done at service registration time.
 .Pp
-Access rights on the control socket define which application can register,
-remove or change the service.
-The application must be able to write to and read from the control socket
-in order to perform any query to the Service Database via control socket.
+Requests to register, remove or change service can only be made via the
+control socket.
+The
+.Nm
+daemon will check peer's credentials and will only accept the request if
+the application has the same effective user ID as the
+.Dq Li root
+user ID.
 .Pp
 The
 .Nm
