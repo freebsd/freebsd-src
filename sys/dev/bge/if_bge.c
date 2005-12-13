@@ -3750,10 +3750,8 @@ bge_link_upd(sc)
 	 * periods of heavy traffic. (There should be no
 	 * effect on copper NICs.)
 	 */
-	if (sc->bge_tbi) status = CSR_READ_4(sc, BGE_MAC_STS);
-
-	if (!sc->bge_tbi || !(status & (BGE_MACSTAT_PORT_DECODE_ERROR |
-		    BGE_MACSTAT_MI_COMPLETE))) {
+	if (!sc->bge_tbi || ((status = CSR_READ_4(sc, BGE_MAC_STS)) &
+	    (BGE_MACSTAT_PORT_DECODE_ERROR | BGE_MACSTAT_MI_COMPLETE)) == 0) {
 		sc->bge_link = 0;
 		callout_stop(&sc->bge_stat_ch);
 		bge_tick_locked(sc);
