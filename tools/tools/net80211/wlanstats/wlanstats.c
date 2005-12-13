@@ -54,7 +54,7 @@
 #include <unistd.h>
 #include <err.h>
 
-#include "../../../sys/net80211/ieee80211_ioctl.h"
+#include "../../../../sys/net80211/ieee80211_ioctl.h"
 
 const char *progname;
 
