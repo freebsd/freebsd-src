@@ -56,10 +56,10 @@
 #include <stdio.h>
 #include <signal.h>
 
-#include "../../../sys/contrib/dev/ath/ah_desc.h"
-#include "../../../sys/net80211/ieee80211_ioctl.h"
-#include "../../../sys/net80211/ieee80211_radiotap.h"
-#include "../../../sys/dev/ath/if_athioctl.h"
+#include "../../../../sys/contrib/dev/ath/ah_desc.h"
+#include "../../../../sys/net80211/ieee80211_ioctl.h"
+#include "../../../../sys/net80211/ieee80211_radiotap.h"
+#include "../../../../sys/dev/ath/if_athioctl.h"
 
 static const struct {
 	u_int		phyerr;
