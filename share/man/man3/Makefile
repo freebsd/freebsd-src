@@ -8,6 +8,7 @@ MAN=		assert.3 \
 		intro.3 \
 		${PTHREAD_MAN} \
 		queue.3 \
+		siginfo.3 \
 		stdarg.3 \
 		sysexits.3 \
 		tgmath.3 \
