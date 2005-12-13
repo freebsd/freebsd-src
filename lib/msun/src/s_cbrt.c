@@ -63,12 +63,13 @@ cbrt(double x)
      * subtraction virtually to keep e >= 0 so that ordinary integer
      * division rounds towards minus infinity; this is also efficient.
      */
-	if(hx<0x00100000) 		/* subnormal number */
-	  {SET_HIGH_WORD(t,0x43500000);	/* set t= 2**54 */
-	   t*=x; GET_HIGH_WORD(high,t); SET_HIGH_WORD(t,high/3+B2);
-	  }
-	else
-	  SET_HIGH_WORD(t,hx/3+B1);
+	if(hx<0x00100000) { 		/* subnormal number */
+	    SET_HIGH_WORD(t,0x43500000); /* set t= 2**54 */
+	    t*=x;
+	    GET_HIGH_WORD(high,t);
+	    SET_HIGH_WORD(t,high/3+B2);
+	} else
+	    SET_HIGH_WORD(t,hx/3+B1);
 
     /* new cbrt to 23 bits; may be implemented in single precision */
 	r=t*t/x;

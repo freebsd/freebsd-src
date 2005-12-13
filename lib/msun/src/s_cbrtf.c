@@ -52,12 +52,13 @@ cbrtf(float x)
 
 	SET_FLOAT_WORD(x,hx);	/* x <- |x| */
     /* rough cbrt to 5 bits */
-	if(hx<0x00800000) 		/* subnormal number */
-	  {SET_FLOAT_WORD(t,0x4b800000); /* set t= 2**24 */
-	   t*=x; GET_FLOAT_WORD(high,t); SET_FLOAT_WORD(t,high/3+B2);
-	  }
-	else
-	  SET_FLOAT_WORD(t,hx/3+B1);
+	if(hx<0x00800000) { 		/* subnormal number */
+	    SET_FLOAT_WORD(t,0x4b800000); /* set t= 2**24 */
+	    t*=x;
+	    GET_FLOAT_WORD(high,t);
+	    SET_FLOAT_WORD(t,high/3+B2);
+	} else
+	    SET_FLOAT_WORD(t,hx/3+B1);
 
     /* new cbrt to 23 bits */
 	r=t*t/x;
