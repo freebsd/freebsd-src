@@ -71,6 +71,9 @@ enum {
 	ATH_DEBUG_KEYCACHE	= 0x00020000,	/* key cache management */
 	ATH_DEBUG_STATE		= 0x00040000,	/* 802.11 state transitions */
 	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
+	ATH_DEBUG_LED		= 0x00100000,	/* led management */
+	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
+	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
@@ -96,6 +99,9 @@ static struct {
 	{ "keycache",	ATH_DEBUG_KEYCACHE },
 	{ "state",	ATH_DEBUG_STATE },
 	{ "node",	ATH_DEBUG_NODE },
+	{ "led",	ATH_DEBUG_LED },
+	{ "ff",		ATH_DEBUG_FF },
+	{ "dfs",	ATH_DEBUG_DFS },
 	{ "fatal",	ATH_DEBUG_FATAL },
 };
 
