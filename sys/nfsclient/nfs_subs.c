@@ -85,7 +85,7 @@ u_int32_t	rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
 u_int32_t	nfs_true, nfs_false;
 
 /* And other global data */
-static u_int32_t nfs_xid = 0;
+u_int32_t nfs_xid = 0;
 static enum vtype nv2tov_type[8]= {
 	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON,  VNON
 };
@@ -155,7 +155,7 @@ nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
 struct mbuf *
 nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
     int auth_len, struct mbuf *mrest, int mrest_len, struct mbuf **mbp,
-    u_int32_t *xidp)
+    u_int32_t **xidpp)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
@@ -191,7 +191,8 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 	if (++nfs_xid == 0)
 		nfs_xid++;
 
-	*tl++ = *xidp = txdr_unsigned(nfs_xid);
+	*xidpp = tl;
+	*tl++ = txdr_unsigned(nfs_xid);
 	*tl++ = rpc_call;
 	*tl++ = rpc_vers;
 	*tl++ = txdr_unsigned(NFS_PROG);
