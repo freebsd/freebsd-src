@@ -337,7 +337,7 @@ Hardware that can DMA starting at any address would specify
 for byte alignment.
 Hardware requiring DMA transfers to start on a multiple of 4K
 would specify
-.Em 4096.
+.Em 4096 .
 .It Fa boundary
 Boundary constraint, in bytes, of the target DMA memory region.
 The boundary indicates the set of addresses, all multiples of the
@@ -376,7 +376,7 @@ Optional filter function (may be NULL) to be called for any attempt to
 map memory into the window described by
 .Fa lowaddr
 and
-.Fa highaddr.
+.Fa highaddr .
 A filter function is only required when the single window described
 by
 .Fa lowaddr
@@ -496,7 +496,7 @@ Arguments are as follows:
 .Bl -tag -width buflen -compact
 .It Fa dmat
 DMA tag used to allocate
-.Fa map.
+.Fa map .
 .It Fa map
 A DMA map without a currently active mapping.
 .It Fa buf
