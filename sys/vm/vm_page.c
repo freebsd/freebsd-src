@@ -1012,6 +1012,8 @@ vm_page_free_toq(vm_page_t m)
 	struct vpgqueues *pq;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT(!pmap_page_is_mapped(m),
+	    ("vm_page_free_toq: freeing mapped page %p", m));
 	cnt.v_tfree++;
 
 	if (m->busy || ((m->queue - m->pc) == PQ_FREE)) {
