@@ -118,20 +118,8 @@
 #define	NBPC		PAGE_SIZE	/* Number of bytes per click */
 #define	BPCSHIFT	PAGE_SHIFT	/* LOG2(NBPC) if exact */
 
-/*
- * Size of block device i/o is parameterized here.
- * Currently the system supports page-sized i/o.
- */
-#define	BLKDEV_IOSHIFT		BPCSHIFT
-#ifndef BLKDEV_IOSIZE
-#define	BLKDEV_IOSIZE		(1<<BLKDEV_IOSHIFT)
-#else
-# if NBPC != BLKDEV_IOSIZE
-#   error Wrong BLKDEV_IOSIZE
-# endif
-#endif
 /* number of BB's per block device block */
-#define	BLKDEV_BB		BTOBB(BLKDEV_IOSIZE)
+#define	BLKDEV_BB	BTOBB(BLKDEV_IOSIZE)
 
 /* bytes to clicks */
 #define	btoct(x)	((__psunsigned_t)(x)>>BPCSHIFT)
