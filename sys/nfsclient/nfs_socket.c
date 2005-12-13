@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #define	TRUE	1
 #define	FALSE	0
 
+extern u_int32_t nfs_xid;
+
 /*
  * Estimate rto for an nfs rpc sent via. an unreliable datagram.
  * Use the mean and mean deviation of rtt for the appropriate type of rpc
@@ -924,7 +926,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	int s, error = 0, mrest_len, auth_len, auth_type;
 	int trylater_delay = NQ_TRYLATERDEL, trylater_cnt = 0;
 	struct timeval now;
-	u_int32_t xid;
+	u_int32_t *xidp;
 
 	/* Reject requests while attempting a forced unmount. */
 	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF) {
@@ -956,7 +958,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 		nmp->nm_numgrps : (cred->cr_ngroups - 1)) << 2) +
 		5 * NFSX_UNSIGNED;
 	m = nfsm_rpchead(cred, nmp->nm_flag, procnum, auth_type, auth_len,
-	     mrest, mrest_len, &mheadend, &xid);
+	     mrest, mrest_len, &mheadend, &xidp);
 
 	/*
 	 * For stream protocols, insert a Sun RPC Record Mark.
@@ -967,7 +969,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 			 (m->m_pkthdr.len - NFSX_UNSIGNED));
 	}
 	rep->r_mreq = m;
-	rep->r_xid = xid;
+	rep->r_xid = *xidp;
 tryagain:
 	if (nmp->nm_flag & NFSMNT_SOFT)
 		rep->r_retry = nmp->nm_retry;
@@ -1113,6 +1115,9 @@ tryagain:
 				trylater_delay *= nfs_backoff[trylater_cnt];
 				if (trylater_cnt < NFS_NBACKOFF - 1)
 					trylater_cnt++;
+				if (++nfs_xid == 0)
+					nfs_xid++;
+				rep->r_xid = *xidp = txdr_unsigned(nfs_xid);
 				goto tryagain;
 			}
 
