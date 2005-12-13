@@ -70,6 +70,19 @@ my %cmds = (
 );
 my %kernels;
 
+my $starttime;
+
+BEGIN {
+    ($starttime) = POSIX::times();
+}
+
+END {
+    my ($endtime, $user, $system) = POSIX::times();
+    my $ticks = POSIX::sysconf(&POSIX::_SC_CLK_TCK);
+    printf(STDERR "TB --- %.2f user %.2f system %.2f real\n",
+	   $user / $ticks, $system / $ticks, ($endtime - $starttime) / $ticks);
+}
+
 sub message(@) {
 
     my $msg = join(' ', @_);
