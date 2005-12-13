@@ -8,6 +8,8 @@
  * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
+ *
+ * Optimized by Bruce D. Evans.
  */
 
 #ifndef lint
@@ -47,7 +49,6 @@ cbrt(double x)
 	if((hx|low)==0)
 	    return(x);		/* cbrt(0) is itself */
 
-	SET_HIGH_WORD(x,hx);	/* x <- |x| */
     /*
      * Rough cbrt to 5 bits:
      *    cbrt(2**e*(1+m) ~= 2**(e/3)*(1+(e%3+m)/3)
@@ -67,16 +68,16 @@ cbrt(double x)
 	    SET_HIGH_WORD(t,0x43500000); /* set t= 2**54 */
 	    t*=x;
 	    GET_HIGH_WORD(high,t);
-	    SET_HIGH_WORD(t,high/3+B2);
+	    SET_HIGH_WORD(t,sign|((high&0x7fffffff)/3+B2));
 	} else
-	    SET_HIGH_WORD(t,hx/3+B1);
+	    SET_HIGH_WORD(t,sign|(hx/3+B1));
 
     /* new cbrt to 23 bits; may be implemented in single precision */
 	r=t*t/x;
 	s=C+r*t;
 	t*=G+F/(s+E+D/s);
 
-    /* chop t to 20 bits and make it larger than cbrt(x) */
+    /* chop t to 20 bits and make it larger in magnitude than cbrt(x) */
 	GET_HIGH_WORD(high,t);
 	INSERT_WORDS(t,high+0x00000001,0);
 
@@ -87,8 +88,5 @@ cbrt(double x)
 	r=(r-t)/(w+r);	/* r-t is exact */
 	t=t+t*r;
 
-    /* restore the sign bit */
-	GET_HIGH_WORD(high,t);
-	SET_HIGH_WORD(t,high|sign);
 	return(t);
 }
