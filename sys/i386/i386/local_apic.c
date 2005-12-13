@@ -834,8 +834,15 @@ apic_init(void *dummy __unused)
 	uint64_t apic_base;
 	int retval, best;
 
-	/* We only support built in local APICs. */
-	if (!(cpu_feature & CPUID_APIC))
+	/*
+	 * We only support built in local APICs.  Unfortunately, we can't
+	 * just check the CPUID_APIC bit in cpu_features because some BIOSen
+	 * don't set that flag.  Instead, we assume that all Pentium-class
+	 * and later machines have a local APIC.  The only non-Pentium-class
+	 * CPUs that can talk to an external APIC are 486s, so we just
+	 * bail if we are on a 486.
+	 */
+	if (cpu_class == CPUCLASS_486)
 		return;
 
 	/* Don't probe if APIC mode is disabled. */
