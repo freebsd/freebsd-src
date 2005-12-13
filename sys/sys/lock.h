@@ -50,6 +50,7 @@ struct thread;
 struct lock_class {
 	const	char *lc_name;
 	u_int	lc_flags;
+	void	(*lc_ddb_show)(struct lock_object *lock);
 };
 
 #define	LC_SLEEPLOCK	0x00000001	/* Sleep lock. */
