@@ -8,6 +8,7 @@ the other categories.
 Please make a subdir per program, and add a brief description to this
 file.
 
+ansify		Convert K&R-style function definitions to ANSI style
 ath		Tools specific to the Atheros 802.11 support
 backout_commit	A tool for reading in a commit message and generating
 		a script that will backout the commit.
