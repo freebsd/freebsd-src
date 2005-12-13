@@ -31,6 +31,10 @@
 use v5.6.0;
 use strict;
 
+use Getopt::Long;
+
+my $caddr_t;
+
 sub ansify($$$) {
     my $ifh = shift;
     my $ofh = shift;
@@ -75,8 +79,10 @@ sub ansify($$$) {
 		    $line += @saved;
 		    next OUTER;
 		}
-#		$type{$arg} = "void *"
-#		    if $type{$arg} eq "caddr_t";
+		if ($caddr_t) {
+		    $type{$arg} = "void *"
+			if $type{$arg} eq "caddr_t";
+		}
 		$repl .= $type{$arg};
 		$repl .= " "
 		    unless ($type{$arg} =~ m/\*$/);
@@ -129,7 +135,23 @@ sub ansify_file($) {
     }
 }
 
+sub usage() {
+    print STDERR "usage: ansify [options] [file ...]
+
+Options:
+  -c, --caddr_t                 Replace caddr_t with void * in converted
+                                function definitions
+";
+    exit(1);
+}
+
 MAIN:{
+    Getopt::Long::Configure("auto_abbrev", "bundling");
+    GetOptions(
+	       "c|caddr_t"		=> \$caddr_t,
+	       )
+	or usage();
+
     if (@ARGV) {
 	foreach (@ARGV) {
 	    ansify_file($_);
