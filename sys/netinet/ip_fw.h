@@ -461,6 +461,8 @@ typedef struct	_ipfw_table {
 	ipfw_table_entry ent[0];	/* entries			*/
 } ipfw_table;
 
+#define IP_FW_TABLEARG	65535
+
 /*
  * Main firewall chains definitions and global var's definitions.
  */
