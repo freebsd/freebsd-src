@@ -135,7 +135,7 @@ static int nwfs_cmount(struct mntarg *ma, void *data, int flags,
 	struct nwfs_args args; 	  /* will hold data from mount request */
 	int error;
 
-	error = copyin(data, (caddr_t)&args, sizeof(struct nwfs_args));
+	error = copyin(data, &args, sizeof(struct nwfs_args));
 	if (error)
 		return (error);
 
@@ -373,7 +373,7 @@ nwfs_quotactl(mp, cmd, uid, arg, td)
 	struct mount *mp;
 	int cmd;
 	uid_t uid;
-	caddr_t arg;
+	void *arg;
 	struct thread *td;
 {
 	NCPVODEBUG("return EOPNOTSUPP\n");
