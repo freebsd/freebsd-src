@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2005
+.Dd December 14, 2005
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -570,6 +570,19 @@ Another name for the
 .Cm bssid
 parameter is
 .Cm ap .
+.It Cm burst
+Enable packet bursting.
+Packet bursting is a transmission technique whereby the wireless
+medium is acquired once to send multiple frames and the interframe
+spacing is reduced.
+This technique can significantly increase throughput by reducing
+transmission overhead.
+Packet bursting is supported by the 802.11e QoS specification
+and some devices that do not support QoS may still be capable.
+By default packet bursting is enabled if a device is capable
+of doing it.
+To disable packet bursting, use
+.Fl burst .
 .It Cm chanlist Ar channels
 Set the desired channels to use when scanning for access
 points, neighbors in an IBSS network, or looking for unoccupied
