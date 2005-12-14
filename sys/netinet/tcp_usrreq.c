@@ -1162,10 +1162,10 @@ tcp_ctloutput(so, sopt)
  * be set by the route).
  */
 u_long	tcp_sendspace = 1024*32;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
     &tcp_sendspace , 0, "Maximum outgoing TCP datagram size");
 u_long	tcp_recvspace = 1024*64;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &tcp_recvspace , 0, "Maximum incoming TCP datagram size");
 
 /*

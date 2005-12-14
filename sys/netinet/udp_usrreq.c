@@ -899,7 +899,7 @@ release:
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
 					/* 40 1K datagrams */
-SYSCTL_INT(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
     &udp_sendspace, 0, "Maximum outgoing UDP datagram size");
 
 u_long	udp_recvspace = 40 * (1024 +
@@ -909,7 +909,7 @@ u_long	udp_recvspace = 40 * (1024 +
 				      sizeof(struct sockaddr_in)
 #endif
 				      );
-SYSCTL_INT(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
 static int
