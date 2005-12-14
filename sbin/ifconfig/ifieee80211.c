@@ -662,6 +662,12 @@ set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
 	set80211(s, IEEE80211_IOC_PUREG, d, 0, NULL);
 }
 
+static void
+set80211burst(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_BURST, d, 0, NULL);
+}
+
 static
 DECL_CMD_FUNC(set80211mcastrate, val, d)
 {
@@ -1674,6 +1680,14 @@ ieee80211_status(int s)
 	} else
 		wme = 0;
 
+	ireq.i_type = IEEE80211_IOC_BURST;
+	if (ioctl(s, SIOCG80211, &ireq) != -1) {
+		if (ireq.i_val)
+			LINE_CHECK("%cburst", spacer);
+		else if (verbose)
+			LINE_CHECK("%c-burst", spacer);
+	}
+
 	if (opmode == IEEE80211_M_HOSTAP) {
 		ireq.i_type = IEEE80211_IOC_HIDESSID;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
@@ -1932,6 +1946,8 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-pureg",	0,	set80211pureg),
 	DEF_CMD_ARG("mcastrate",	set80211mcastrate),
 	DEF_CMD_ARG("fragthreshold",	set80211fragthreshold),
+	DEF_CMD("burst",	1,	set80211burst),
+	DEF_CMD("-burst",	0,	set80211burst),
 };
 static struct afswtch af_ieee80211 = {
 	.af_name	= "af_ieee80211",
