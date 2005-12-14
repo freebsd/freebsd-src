@@ -265,7 +265,7 @@
     that. Kernel build times halved when I went to 32 Mbytes. Note that
     the SRM console steals 2Mbyte from the total system memory (and keeps
     it). For more serious work 128 Mbytes or more are recommended.
-    Although Alpha machines typically can accomodate large to very large
+    Although Alpha machines typically can accommodate large to very large
     physical memory sizes, &os; is limited to 1 or 2 Gbytes (dependent
     on the core chipset) of RAM. This restriction is due to the
     current implementation of the VM system.</para>
@@ -2108,7 +2108,7 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
      power it on/off remotely, reset it etc. See also the description for
      the RMC in the DS10 section of this document. RCM versus RMC is not a typo,
      the various documentation I consulted used both acronyms
-     interchangably. Note that if you want remote power on/off to function
+     interchangeably. Note that if you want remote power on/off to function
      you need to connect a small DC adapter to the machine in order to have
      the RCM logic powered. You need to supply 9-12V DC to the small inlet 
      located next to the keyboard connector.</para>
@@ -2608,7 +2608,7 @@ cpu     EV5</programlisting>
     driver). Some new SRM versions are known to recognize the Intel
     8255x Ethernet chips as driven by the &os; &man.fxp.4; driver. But
     beware: the &man.fxp.4; driver is reported not to work correctly
-    with &os; (although it works excellently on &os;/x86).</para>
+    with &os;/alpha (although it works excellently on &os;/x86).</para>
 
     <para>In general the SRM console emulates a VGA-compatibility mode
     on PCI VGA cards. This is, however, not guaranteed to work by
