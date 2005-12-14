@@ -1489,6 +1489,9 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_MACCMD:
 		error = ieee80211_ioctl_getmaccmd(ic, ireq);
 		break;
+	case IEEE80211_IOC_BURST:
+		ireq->i_val = (ic->ic_flags & IEEE80211_F_BURST) != 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -2381,6 +2384,15 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			return EINVAL;
 		ic->ic_fragthreshold = ireq->i_val;
 		error = IS_UP(ic) ? ic->ic_reset(ic->ic_ifp) : 0;
+		break;
+	case IEEE80211_IOC_BURST:
+		if (ireq->i_val) {
+			if ((ic->ic_caps & IEEE80211_C_BURST) == 0)
+				return EINVAL;
+			ic->ic_flags |= IEEE80211_F_BURST;
+		} else
+			ic->ic_flags &= ~IEEE80211_F_BURST;
+		error = ENETRESET;		/* XXX maybe not for station? */
 		break;
 	default:
 		error = EINVAL;
