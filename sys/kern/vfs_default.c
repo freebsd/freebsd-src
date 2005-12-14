@@ -532,7 +532,7 @@ vfs_stdquotactl (mp, cmds, uid, arg, td)
 	struct mount *mp;
 	int cmds;
 	uid_t uid;
-	caddr_t arg;
+	void *arg;
 	struct thread *td;
 {
 

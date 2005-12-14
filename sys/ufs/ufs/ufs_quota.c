@@ -399,7 +399,7 @@ quotaon(td, mp, type, fname)
 	struct thread *td;
 	struct mount *mp;
 	int type;
-	caddr_t fname;
+	void *fname;
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct vnode *vp, **vpp;
@@ -555,7 +555,7 @@ getquota(td, mp, id, type, addr)
 	struct mount *mp;
 	u_long id;
 	int type;
-	caddr_t addr;
+	void *addr;
 {
 	struct dquot *dq;
 	int error;
@@ -584,7 +584,7 @@ getquota(td, mp, id, type, addr)
 	error = dqget(NULLVP, id, VFSTOUFS(mp), type, &dq);
 	if (error)
 		return (error);
-	error = copyout((caddr_t)&dq->dq_dqb, addr, sizeof (struct dqblk));
+	error = copyout(&dq->dq_dqb, addr, sizeof (struct dqblk));
 	dqrele(NULLVP, dq);
 	return (error);
 }
@@ -598,7 +598,7 @@ setquota(td, mp, id, type, addr)
 	struct mount *mp;
 	u_long id;
 	int type;
-	caddr_t addr;
+	void *addr;
 {
 	struct dquot *dq;
 	struct dquot *ndq;
@@ -610,7 +610,7 @@ setquota(td, mp, id, type, addr)
 	if (error)
 		return (error);
 
-	error = copyin(addr, (caddr_t)&newlim, sizeof (struct dqblk));
+	error = copyin(addr, &newlim, sizeof (struct dqblk));
 	if (error)
 		return (error);
 	error = dqget(NULLVP, id, ump, type, &ndq);
@@ -664,7 +664,7 @@ setuse(td, mp, id, type, addr)
 	struct mount *mp;
 	u_long id;
 	int type;
-	caddr_t addr;
+	void *addr;
 {
 	struct dquot *dq;
 	struct ufsmount *ump = VFSTOUFS(mp);
@@ -676,7 +676,7 @@ setuse(td, mp, id, type, addr)
 	if (error)
 		return (error);
 
-	error = copyin(addr, (caddr_t)&usage, sizeof (struct dqblk));
+	error = copyin(addr, &usage, sizeof (struct dqblk));
 	if (error)
 		return (error);
 	error = dqget(NULLVP, id, ump, type, &ndq);
@@ -882,7 +882,7 @@ dqget(vp, id, ump, type, dqp)
 	dq->dq_type = type;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	aiov.iov_base = (caddr_t)&dq->dq_dqb;
+	aiov.iov_base = &dq->dq_dqb;
 	aiov.iov_len = sizeof (struct dqblk);
 	auio.uio_resid = sizeof (struct dqblk);
 	auio.uio_offset = (off_t)(id * sizeof (struct dqblk));
@@ -891,7 +891,7 @@ dqget(vp, id, ump, type, dqp)
 	auio.uio_td = (struct thread *)0;
 	error = VOP_READ(dqvp, &auio, 0, ump->um_cred[type]);
 	if (auio.uio_resid == sizeof(struct dqblk) && error == 0)
-		bzero((caddr_t)&dq->dq_dqb, sizeof(struct dqblk));
+		bzero(&dq->dq_dqb, sizeof(struct dqblk));
 	if (vp != dqvp)
 		VOP_UNLOCK(dqvp, 0, td);
 	if (dq->dq_flags & DQ_WANT)
@@ -994,7 +994,7 @@ dqsync(vp, dq)
 	dq->dq_flags |= DQ_LOCK;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	aiov.iov_base = (caddr_t)&dq->dq_dqb;
+	aiov.iov_base = &dq->dq_dqb;
 	aiov.iov_len = sizeof (struct dqblk);
 	auio.uio_resid = sizeof (struct dqblk);
 	auio.uio_offset = (off_t)(dq->dq_id * sizeof (struct dqblk));

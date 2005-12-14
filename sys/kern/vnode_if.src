@@ -215,7 +215,7 @@ vop_lease {
 vop_ioctl {
 	IN struct vnode *vp;
 	IN u_long command;
-	IN caddr_t data;
+	IN void *data;
 	IN int fflag;
 	IN struct ucred *cred;
 	IN struct thread *td;
@@ -440,7 +440,7 @@ vop_pathconf {
 #
 vop_advlock {
 	IN struct vnode *vp;
-	IN caddr_t id;
+	IN void *id;
 	IN int op;
 	IN struct flock *fl;
 	IN int flags;

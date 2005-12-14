@@ -108,7 +108,7 @@ smbfs_cmount(struct mntarg *ma, void * data, int flags, struct thread *td)
 	struct smbfs_args args;
 	int error;
 
-	error = copyin(data, (caddr_t)&args, sizeof(struct smbfs_args));
+	error = copyin(data, &args, sizeof(struct smbfs_args));
 	if (error)
 		return error;
 
@@ -366,7 +366,7 @@ smbfs_quotactl(mp, cmd, uid, arg, td)
 	struct mount *mp;
 	int cmd;
 	uid_t uid;
-	caddr_t arg;
+	void *arg;
 	struct thread *td;
 {
 	SMBVDEBUG("return EOPNOTSUPP\n");
