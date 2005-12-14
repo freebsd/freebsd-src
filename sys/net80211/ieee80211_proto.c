@@ -752,7 +752,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211com *ic)
 		chanp->wmep_logcwmax = bssp->wmep_logcwmax =
 			phyParam[ic->ic_curmode].logcwmax;
 		chanp->wmep_txopLimit = bssp->wmep_txopLimit =
-			(ic->ic_caps & IEEE80211_C_BURST) ?
+			(ic->ic_flags & IEEE80211_F_BURST) ?
 				phyParam[ic->ic_curmode].txopLimit : 0;		
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_WME,
 			"%s: %s [acm %u aifsn %u log2(cwmin) %u "
