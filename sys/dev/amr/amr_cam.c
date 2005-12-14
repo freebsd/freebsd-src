@@ -253,10 +253,10 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 	    /* save the channel number in the ccb */
 	    csio->ccb_h.sim_priv.entries[0].field = cam_sim_bus(sim);
 
-	    mtx_lock(&sc->amr_io_lock);
+	    mtx_lock(&sc->amr_list_lock);
 	    amr_enqueue_ccb(sc, ccb);
 	    amr_startio(sc);
-	    mtx_unlock(&sc->amr_io_lock);
+	    mtx_unlock(&sc->amr_list_lock);
 	    return;
 	}
 	break;
@@ -456,11 +456,17 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 	    ac->ac_length = sizeof(*aep);
 	    ac->ac_complete = amr_cam_complete_extcdb;
 	    ac->ac_mailbox.mb_command = AMR_CMD_EXTPASS;
+	    if (AMR_IS_SG64(sc))
+		ac->ac_flags |= AMR_CMD_SG64;
     } else {
 	    ac->ac_data = ap;
 	    ac->ac_length = sizeof(*ap);
 	    ac->ac_complete = amr_cam_complete;
-	    ac->ac_mailbox.mb_command = AMR_CMD_PASS;
+	    if (AMR_IS_SG64(sc)) {
+		ac->ac_mailbox.mb_command = AMR_CMD_PASS_64;
+		ac->ac_flags |= AMR_CMD_SG64;
+	    } else
+		ac->ac_mailbox.mb_command = AMR_CMD_PASS;
     }
 
 out:
@@ -484,11 +490,8 @@ out:
 static void
 amr_cam_poll(struct cam_sim *sim)
 {
-    struct amr_softc	*sc = cam_sim_softc(sim);
 
-    mtx_lock(&sc->amr_io_lock);
     amr_done(cam_sim_softc(sim));
-    mtx_unlock(&sc->amr_io_lock);
 }
 
  /********************************************************************************
