@@ -1451,7 +1451,7 @@ ieee80211_status(int s)
 	ireq.i_type = IEEE80211_IOC_BSSID;
 	ireq.i_len = IEEE80211_ADDR_LEN;
 	if (ioctl(s, SIOCG80211, &ireq) >= 0 &&
-	    memcmp(ireq.i_data, zerobssid, sizeof(zerobssid)) != 0)
+	    (memcmp(ireq.i_data, zerobssid, sizeof(zerobssid)) != 0 || verbose))
 		printf(" bssid %s", ether_ntoa(ireq.i_data));
 
 	ireq.i_type = IEEE80211_IOC_STATIONNAME;
