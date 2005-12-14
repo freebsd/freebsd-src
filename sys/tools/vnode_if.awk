@@ -178,7 +178,7 @@ if (cfile) {
 	    "struct vnodeop_desc vop_default_desc = {\n" \
 	    "	\"default\",\n" \
 	    "	0,\n" \
-	    "	(void *)(uintptr_t)vop_panic,\n" \
+	    "	(vop_bypass_t *)vop_panic,\n" \
 	    "	NULL,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
@@ -400,7 +400,7 @@ while ((getline < srcfile) > 0) {
 		printc("\t" releflags vppwillrele ",");
 
 		# function to call
-		printc("\t(void*)(uintptr_t)" uname "_AP,");
+		printc("\t(vop_bypass_t *)" uname "_AP,");
 		# vp offsets
 		printc("\t" name "_vp_offsets,");
 		# vpp (if any)

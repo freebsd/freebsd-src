@@ -179,12 +179,12 @@ void	dqinit(void);
 void	dqrele(struct vnode *, struct dquot *);
 void	dquninit(void);
 int	getinoquota(struct inode *);
-int	getquota(struct thread *, struct mount *, u_long, int, caddr_t);
+int	getquota(struct thread *, struct mount *, u_long, int, void *);
 int	qsync(struct mount *mp);
 int	quotaoff(struct thread *td, struct mount *, int);
-int	quotaon(struct thread *td, struct mount *, int, caddr_t);
-int	setquota(struct thread *, struct mount *, u_long, int, caddr_t);
-int	setuse(struct thread *, struct mount *, u_long, int, caddr_t);
+int	quotaon(struct thread *td, struct mount *, int, void *);
+int	setquota(struct thread *, struct mount *, u_long, int, void *);
+int	setuse(struct thread *, struct mount *, u_long, int, void *);
 vfs_quotactl_t ufs_quotactl;
 
 #else /* !_KERNEL */

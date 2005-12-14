@@ -472,7 +472,7 @@ typedef int vfs_unmount_t(struct mount *mp, int mntflags, struct thread *td);
 typedef int vfs_root_t(struct mount *mp, int flags, struct vnode **vpp,
 		    struct thread *td);
 typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid,
-		    caddr_t arg, struct thread *td);
+		    void *arg, struct thread *td);
 typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp,
 		    struct thread *td);
 typedef	int vfs_sync_t(struct mount *mp, int waitfor, struct thread *td);

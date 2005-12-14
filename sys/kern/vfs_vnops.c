@@ -327,7 +327,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
     aresid, td)
 	enum uio_rw rw;
 	struct vnode *vp;
-	caddr_t base;
+	void *base;
 	int len;
 	off_t offset;
 	enum uio_seg segflg;
@@ -420,7 +420,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
     file_cred, aresid, td)
 	enum uio_rw rw;
 	struct vnode *vp;
-	caddr_t base;
+	void *base;
 	size_t len;
 	off_t offset;
 	enum uio_seg segflg;
@@ -457,7 +457,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 		if (error)
 			break;
 		offset += chunk;
-		base += chunk;
+		base = (char *)base + chunk;
 		uio_yield();
 	} while (len);
 	if (aresid)
@@ -844,7 +844,7 @@ vn_closefile(fp, td)
 		lf.l_start = 0;
 		lf.l_len = 0;
 		lf.l_type = F_UNLCK;
-		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
+		(void) VOP_ADVLOCK(vp, fp, F_UNLCK, &lf, F_FLOCK);
 	}
 
 	fp->f_ops = &badfileops;
