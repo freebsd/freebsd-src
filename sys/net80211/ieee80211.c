@@ -184,6 +184,8 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	if (ic->ic_caps & IEEE80211_C_WME)
 		ic->ic_flags |= IEEE80211_F_WME;
 #endif
+	if (ic->ic_caps & IEEE80211_C_BURST)
+		ic->ic_flags |= IEEE80211_F_BURST;
 	(void) ieee80211_setmode(ic, ic->ic_curmode);
 
 	if (ic->ic_bintval == 0)
