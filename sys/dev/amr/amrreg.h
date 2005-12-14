@@ -119,12 +119,27 @@
 #define AMR_CMD_GET_MACHINEID	0x36
 #define AMR_CMD_GET_INITIATOR	0x7d	/* returns one byte */
 #define AMR_CMD_CONFIG		0xa1
+#define AMR_CMD_LREAD64		0xa7
+#define AMR_CMD_LWRITE64	0xa8
+#define AMR_CMD_PASS_64		0xc3
+#define AMR_CMD_EXTPASS		0xe3
+
+#define AMR_CONFIG_READ_NVRAM_CONFIG   0x04
+#define AMR_CONFIG_WRITE_NVRAM_CONFIG  0x0d
+#define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY       0x01
 #define AMR_CONFIG_PRODUCT_INFO		0x0e
 #define AMR_CONFIG_ENQ3			0x0f
 #define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY	0x01
 #define AMR_CONFIG_ENQ3_SOLICITED_FULL		0x02
 #define AMR_CONFIG_ENQ3_UNSOLICITED		0x03
-#define AMR_CMD_EXTPASS		0xe3
+
+/*
+ * Command for random deletion of logical drives
+ */
+#define FC_DEL_LOGDRV		0xA4
+#define OP_SUP_DEL_LOGDRV	0x2A
+#define OP_GET_LDID_MAP		0x18
+#define OP_DEL_LOGDRV		0x1C
 
 /*
  * Command results
@@ -397,13 +412,14 @@ struct amr_mailbox
 {
     u_int8_t	mb_command;
     u_int8_t	mb_ident;
-    u_int16_t	mb_blkcount;
+    u_int16_t	mb_blkcount;		/* u_int8_t opcode */
+					/* u_int8_t subopcode */
     u_int32_t	mb_lba;
     u_int32_t	mb_physaddr;
     u_int8_t	mb_drive;
-    u_int8_t	mb_nsgelem;
-    u_int8_t	res1;
-    u_int8_t	mb_busy;
+    u_int8_t	mb_nsgelem;		/* u_int8_t rserv[0] */
+    u_int8_t	res1;			/* u_int8_t rserv[1] */
+    u_int8_t	mb_busy;		/* u_int8_t rserv[2] */
     u_int8_t	mb_nstatus;
     u_int8_t	mb_status;
     u_int8_t	mb_completed[46];
@@ -414,7 +430,9 @@ struct amr_mailbox
 
 struct amr_mailbox64
 {
-    u_int32_t		mb64_segment;	/* for 64-bit controllers */
+    u_int8_t	pad[8];		/* Needed for alignment */
+    u_int32_t	sg64_lo;	/* S/G pointer for 64-bit commands */
+    u_int32_t	sg64_hi;	/* S/G pointer for 64-bit commands */
     struct amr_mailbox	mb;
 } __packed;
 
@@ -440,6 +458,12 @@ struct amr_mailbox_ioctl
 struct amr_sgentry
 {
     u_int32_t	sg_addr;
+    u_int32_t	sg_count;
+} __packed;
+
+struct amr_sg64entry
+{
+    u_int64_t	sg_addr;
     u_int32_t	sg_count;
 } __packed;
 
@@ -487,6 +511,26 @@ struct amr_ext_passthrough
     u_int8_t	ap_rsvd4;
     u_int32_t	ap_data_transfer_address;
     u_int32_t	ap_data_transfer_length;
+} __packed;
+
+struct amr_linux_ioctl {
+    u_int32_t	inlen;
+    u_int32_t	outlen;
+    union {
+	u_int8_t	fca[16];
+	struct {
+	    u_int8_t	opcode;
+	    u_int8_t	subopcode;
+	    u_int16_t	adapno;
+	    u_int32_t	buffer;
+	    u_int8_t	pad[4];
+	    u_int32_t	length;
+	} __packed fcs;
+    } __packed ui;
+    u_int8_t	mbox[18];
+    struct amr_passthrough	pthru;
+    u_int32_t	data;
+    u_int8_t	pad[4];
 } __packed;
 
 #ifdef _KERNEL

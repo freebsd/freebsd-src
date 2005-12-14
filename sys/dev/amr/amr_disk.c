@@ -89,7 +89,7 @@ static	disk_strategy_t	amrd_strategy;
 
 static devclass_t	amrd_devclass;
 #ifdef FREEBSD_4
-static int		disks_registered = 0;
+int			amr_disks_registered = 0;
 #endif
 
 static device_method_t amrd_methods[] = {
@@ -257,7 +257,7 @@ amrd_detach(device_t dev)
 	return(EBUSY);
 
 #ifdef FREEBSD_4
-    if (--disks_registered == 0)
+    if (--amr_disks_registered == 0)
 	cdevsw_remove(&amrddisk_cdevsw);
 #else
     disk_destroy(sc->amrd_disk);

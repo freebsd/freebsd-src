@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -90,6 +91,12 @@ static int		amr_sglist_map(struct amr_softc *sc);
 static void		amr_setup_mbox_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
 static int		amr_setup_mbox(struct amr_softc *sc);
 
+static u_int amr_force_sg32 = 0;
+TUNABLE_INT("hw.amr.force_sg32", &amr_force_sg32);
+SYSCTL_DECL(_hw_amr);
+SYSCTL_UINT(_hw_amr, OID_AUTO, force_sg32, CTLFLAG_RDTUN, &amr_force_sg32, 0,
+    "Force the AMR driver to use 32bit scatter gather");
+
 static device_method_t amr_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	amr_pci_probe),
@@ -113,47 +120,60 @@ static driver_t amr_pci_driver = {
 static devclass_t	amr_devclass;
 DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
 
-static struct
+static struct amr_ident
 {
     int		vendor;
     int		device;
-    int		flag;
-#define PROBE_SIGNATURE	(1<<0)
+    int		flags;
+#define AMR_ID_PROBE_SIG	(1<<0)	/* generic i960RD, check signature */
+#define AMR_ID_DO_SG64		(1<<1)
+#define AMR_ID_QUARTZ		(1<<2)
 } amr_device_ids[] = {
     {0x101e, 0x9010, 0},
     {0x101e, 0x9060, 0},
-    {0x8086, 0x1960, PROBE_SIGNATURE},/* generic i960RD, check for signature */
-    {0x101e, 0x1960, 0},
-    {0x1000, 0x1960, PROBE_SIGNATURE},
-    {0x1000, 0x0407, 0},
-    {0x1000, 0x0408, 0},
-    {0x1000, 0x0409, 0},
-    {0x1028, 0x000e, PROBE_SIGNATURE}, /* perc4/di i960 */
-    {0x1028, 0x000f, 0}, /* perc4/di Verde*/
-    {0x1028, 0x0013, 0}, /* perc4/di */
+    {0x8086, 0x1960, AMR_ID_QUARTZ | AMR_ID_PROBE_SIG},
+    {0x101e, 0x1960, AMR_ID_QUARTZ},
+    {0x1000, 0x1960, AMR_ID_QUARTZ | AMR_ID_PROBE_SIG},
+    {0x1000, 0x0407, AMR_ID_QUARTZ | AMR_ID_DO_SG64},
+    {0x1000, 0x0408, AMR_ID_QUARTZ | AMR_ID_DO_SG64},
+    {0x1000, 0x0409, AMR_ID_QUARTZ | AMR_ID_DO_SG64},
+    {0x1028, 0x000e, AMR_ID_QUARTZ | AMR_ID_DO_SG64 | AMR_ID_PROBE_SIG}, /* perc4/di i960 */
+    {0x1028, 0x000f, AMR_ID_QUARTZ | AMR_ID_DO_SG64}, /* perc4/di Verde*/
+    {0x1028, 0x0013, AMR_ID_QUARTZ | AMR_ID_DO_SG64}, /* perc4/di */
     {0, 0, 0}
 };
 
-static int
-amr_pci_probe(device_t dev)
+static struct amr_ident *
+amr_find_ident(device_t dev)
 {
-    int		i, sig;
+    struct amr_ident *id;
+    int sig;
 
-    debug_called(1);
-
-    for (i = 0; amr_device_ids[i].vendor != 0; i++) {
-	if ((pci_get_vendor(dev) == amr_device_ids[i].vendor) &&
-	    (pci_get_device(dev) == amr_device_ids[i].device)) {
+    for (id = amr_device_ids; id->vendor != 0; id++) {
+	if ((pci_get_vendor(dev) == id->vendor) &&
+	    (pci_get_device(dev) == id->device)) {
 
 	    /* do we need to test for a signature? */
-	    if (amr_device_ids[i].flag & PROBE_SIGNATURE) {
+	    if (id->flags & AMR_ID_PROBE_SIG) {
 		sig = pci_read_config(dev, AMR_CFG_SIG, 2);
 		if ((sig != AMR_SIGNATURE_1) && (sig != AMR_SIGNATURE_2))
 		    continue;
 	    }
-	    device_set_desc(dev, LSI_DESC_PCI);
-	    return(BUS_PROBE_DEFAULT);
+	    return (id);
 	}
+    }
+    return (NULL);
+}
+	
+static int
+amr_pci_probe(device_t dev)
+{
+
+    debug_called(1);
+
+    if (amr_find_ident(dev) != NULL) {
+	device_set_desc(dev, LSI_DESC_PCI);
+	return(BUS_PROBE_DEFAULT);
     }
     return(ENXIO);
 }
@@ -162,6 +182,7 @@ static int
 amr_pci_attach(device_t dev)
 {
     struct amr_softc	*sc;
+    struct amr_ident	*id;
     int			rid, rtype, error;
     u_int32_t		command;
 
@@ -173,7 +194,6 @@ amr_pci_attach(device_t dev)
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
     sc->amr_dev = dev;
-    mtx_init(&sc->amr_io_lock, "AMR IO Lock", NULL, MTX_DEF);
 
     /* assume failure is 'not configured' */
     error = ENXIO;
@@ -181,28 +201,33 @@ amr_pci_attach(device_t dev)
     /*
      * Determine board type.
      */
+    if ((id = amr_find_ident(dev)) == NULL)
+	return (ENXIO);
+
     command = pci_read_config(dev, PCIR_COMMAND, 1);
-    if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407) ||
-	(pci_get_device(dev) == 0x0408) || (pci_get_device(dev) == 0x0409) ||
-	(pci_get_device(dev) == 0x000e) || (pci_get_device(dev) == 0x000f) ||
-	(pci_get_device(dev) == 0x0013)) {
+    if (id->flags & AMR_ID_QUARTZ) {
 	/*
 	 * Make sure we are going to be able to talk to this board.
 	 */
 	if ((command & PCIM_CMD_MEMEN) == 0) {
 	    device_printf(dev, "memory window not available\n");
-	    goto out;
+	    return (ENXIO);
 	}
 	sc->amr_type |= AMR_TYPE_QUARTZ;
-
     } else {
 	/*
 	 * Make sure we are going to be able to talk to this board.
 	 */
 	if ((command & PCIM_CMD_PORTEN) == 0) {
 	    device_printf(dev, "I/O window not available\n");
-	    goto out;
+	    return (ENXIO);
 	}
+    }
+
+    if ((amr_force_sg32 == 0) && (id->flags & AMR_ID_DO_SG64) &&
+	(sizeof(vm_paddr_t) > 4)) {
+	device_printf(dev, "Using 64-bit DMA\n");
+	sc->amr_type |= AMR_TYPE_SG64;
     }
 
     /* force the busmaster enable bit on */
@@ -235,7 +260,9 @@ amr_pci_attach(device_t dev)
         device_printf(sc->amr_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE, amr_pci_intr, sc, &sc->amr_intr)) {
+    if (bus_setup_intr(sc->amr_dev, sc->amr_irq,
+	INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE, amr_pci_intr,
+	sc, &sc->amr_intr)) {
         device_printf(sc->amr_dev, "can't set up interrupt\n");
 	goto out;
     }
@@ -249,7 +276,9 @@ amr_pci_attach(device_t dev)
      * Allocate the parent bus DMA tag appropriate for PCI.
      */
     if (bus_dma_tag_create(NULL, 			/* parent */
-			   1, 0, 			/* alignment, boundary */
+			   1, 0, 			/* alignment,boundary */
+			   AMR_IS_SG64(sc) ?
+			   BUS_SPACE_MAXADDR :
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
@@ -266,15 +295,31 @@ amr_pci_attach(device_t dev)
      * Create DMA tag for mapping buffers into controller-addressable space.
      */
     if (bus_dma_tag_create(sc->amr_parent_dmat,		/* parent */
-			   1, 0,			/* alignment, boundary */
+			   1, 0,			/* alignment,boundary */
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   MAXBSIZE,			/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
-			   busdma_lock_mutex, &sc->amr_io_lock,	/* lockfunc, lockarg */
+			   busdma_lock_mutex,		/* lockfunc */
+			   &sc->amr_list_lock,		/* lockarg */
 			   &sc->amr_buffer_dmat)) {
+        device_printf(sc->amr_dev, "can't allocate buffer DMA tag\n");
+	goto out;
+    }
+
+    if (bus_dma_tag_create(sc->amr_parent_dmat,		/* parent */
+			   1, 0,			/* alignment,boundary */
+			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR,		/* highaddr */
+			   NULL, NULL,			/* filter, filterarg */
+			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
+			   MAXBSIZE,			/* maxsegsize */
+			   BUS_DMA_ALLOCNOW,		/* flags */
+			   busdma_lock_mutex,		/* lockfunc */
+			   &sc->amr_list_lock,		/* lockarg */
+			   &sc->amr_buffer64_dmat)) {
         device_printf(sc->amr_dev, "can't allocate buffer DMA tag\n");
 	goto out;
     }
@@ -284,6 +329,8 @@ amr_pci_attach(device_t dev)
     /*
      * Allocate and set up mailbox in a bus-visible fashion.
      */
+    mtx_init(&sc->amr_list_lock, "AMR List Lock", NULL, MTX_DEF);
+    mtx_init(&sc->amr_hw_lock, "AMR HW Lock", NULL, MTX_DEF);
     if ((error = amr_setup_mbox(sc)) != 0)
 	goto out;
 
@@ -423,9 +470,7 @@ amr_pci_intr(void *arg)
     debug_called(2);
 
     /* collect finished commands, queue anything waiting */
-    mtx_lock(&sc->amr_io_lock);
     amr_done(sc);
-    mtx_unlock(&sc->amr_io_lock);
 }
 
 /********************************************************************************
@@ -436,8 +481,8 @@ amr_pci_intr(void *arg)
 static void
 amr_pci_free(struct amr_softc *sc)
 {
-    u_int8_t			*p;
-    
+    u_int8_t	*p
+
     debug_called(1);
 
     amr_free(sc);
@@ -445,6 +490,8 @@ amr_pci_free(struct amr_softc *sc)
     /* destroy data-transfer DMA tag */
     if (sc->amr_buffer_dmat)
 	bus_dma_tag_destroy(sc->amr_buffer_dmat);
+    if (sc->amr_buffer64_dmat)
+	bus_dma_tag_destroy(sc->amr_buffer64_dmat);
 
     /* free and destroy DMA memory and tag for s/g lists */
     if (sc->amr_sgtable)
@@ -453,9 +500,10 @@ amr_pci_free(struct amr_softc *sc)
 	bus_dma_tag_destroy(sc->amr_sg_dmat);
 
     /* free and destroy DMA memory and tag for mailbox */
+    /* XXX Brain damaged GCC Alert! */
+    p = (u_int8_t *)(uintptr_t)(volatile void *)sc->amr_mailbox64;
     if (sc->amr_mailbox) {
-	p = (u_int8_t *)(uintptr_t)(volatile void *)sc->amr_mailbox;
-	bus_dmamem_free(sc->amr_mailbox_dmat, p - 16, sc->amr_mailbox_dmamap);
+	bus_dmamem_free(sc->amr_mailbox_dmat, p, sc->amr_mailbox_dmamap);
     }
     if (sc->amr_mailbox_dmat)
 	bus_dma_tag_destroy(sc->amr_mailbox_dmat);
@@ -495,6 +543,7 @@ static int
 amr_sglist_map(struct amr_softc *sc)
 {
     size_t	segsize;
+    u_int8_t	*p;
     int		error;
 
     debug_called(1);
@@ -503,19 +552,23 @@ amr_sglist_map(struct amr_softc *sc)
      * Create a single tag describing a region large enough to hold all of
      * the s/g lists we will need.
      *
-     * Note that we could probably use AMR_LIMITCMD here, but that may become tunable.
+     * Note that we could probably use AMR_LIMITCMD here, but that may become
+     * tunable.
      */
-    segsize = sizeof(struct amr_sgentry) * AMR_NSEG * AMR_MAXCMD;
+    if (AMR_IS_SG64(sc))
+	segsize = sizeof(struct amr_sg64entry) * AMR_NSEG * AMR_MAXCMD;
+    else
+	segsize = sizeof(struct amr_sgentry) * AMR_NSEG * AMR_MAXCMD;
+
     error = bus_dma_tag_create(sc->amr_parent_dmat, 	/* parent */
-			       1, 0, 			/* alignment, boundary */
+			       1, 0, 			/* alignment,boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       segsize, 1,		/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
-			       busdma_lock_mutex,	/* lockfunc */
-			       &Giant,			/* lockarg */
+			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->amr_sg_dmat);
     if (error != 0) {
 	device_printf(sc->amr_dev, "can't allocate scatter/gather DMA tag\n");
@@ -527,25 +580,32 @@ amr_sglist_map(struct amr_softc *sc)
      * controller-visible space.
      *	
      * XXX this assumes we can get enough space for all the s/g maps in one 
-     * contiguous slab.  We may need to switch to a more complex arrangement where
-     * we allocate in smaller chunks and keep a lookup table from slot to bus address.
+     * contiguous slab.  We may need to switch to a more complex arrangement
+     * where we allocate in smaller chunks and keep a lookup table from slot
+     * to bus address.
      *
-     * XXX HACK ALERT: at least some controllers don't like the s/g memory being
-     *                 allocated below 0x2000.  We leak some memory if we get some
-     *                 below this mark and allocate again.  We should be able to
-     *	               avoid this with the tag setup, but that does't seem to work.
+     * XXX HACK ALERT:	at least some controllers don't like the s/g memory
+     *			being allocated below 0x2000.  We leak some memory if
+     *			we get some below this mark and allocate again.  We
+     *			should be able to avoid this with the tag setup, but
+     *			that does't seem to work.
      */
 retry:
-    error = bus_dmamem_alloc(sc->amr_sg_dmat, (void **)&sc->amr_sgtable, BUS_DMA_NOWAIT, &sc->amr_sg_dmamap);
+    error = bus_dmamem_alloc(sc->amr_sg_dmat, (void **)&p, BUS_DMA_NOWAIT, &sc->amr_sg_dmamap);
     if (error) {
 	device_printf(sc->amr_dev, "can't allocate s/g table\n");
 	return(ENOMEM);
     }
-    bus_dmamap_load(sc->amr_sg_dmat, sc->amr_sg_dmamap, sc->amr_sgtable, segsize, amr_sglist_map_helper, sc, 0);
+    bus_dmamap_load(sc->amr_sg_dmat, sc->amr_sg_dmamap, p, segsize, amr_sglist_map_helper, sc, 0);
     if (sc->amr_sgbusaddr < 0x2000) {
 	debug(1, "s/g table too low (0x%x), reallocating\n", sc->amr_sgbusaddr);
 	goto retry;
     }
+
+    if (AMR_IS_SG64(sc))
+	sc->amr_sg64table = (struct amr_sg64entry *)p;
+    sc->amr_sgtable = (struct amr_sgentry *)p;
+
     return(0);
 }
 
@@ -563,7 +623,7 @@ amr_setup_mbox_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
     debug_called(1);
 
     /* save phsyical base of the basic mailbox structure */
-    sc->amr_mailboxphys = segs->ds_addr + 16;
+    sc->amr_mailboxphys = segs->ds_addr + offsetof(struct amr_mailbox64, mb);
 }
 
 static int
@@ -579,15 +639,15 @@ amr_setup_mbox(struct amr_softc *sc)
      * mailbox.
      */
     error = bus_dma_tag_create(sc->amr_parent_dmat,	/* parent */
-			       16, 0,			/* alignment, boundary */
+			       16, 0,			/* alignment,boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       sizeof(struct amr_mailbox) + 16, 1, /* maxsize, nsegments */
+			       sizeof(struct amr_mailbox64), /* maxsize */
+			       1,			/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
-			       busdma_lock_mutex,	/* lockfunc */
-			       &Giant,			/* lockarg */
+			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->amr_mailbox_dmat);
     if (error != 0) {
 	device_printf(sc->amr_dev, "can't allocate mailbox tag\n");
@@ -610,8 +670,8 @@ amr_setup_mbox(struct amr_softc *sc)
      * Conventional mailbox is inside the mailbox64 region.
      */
     bzero(p, sizeof(struct amr_mailbox64));
-    sc->amr_mailbox64 = (struct amr_mailbox64 *)(p + 12);
-    sc->amr_mailbox = (struct amr_mailbox *)(p + 16);
+    sc->amr_mailbox64 = (struct amr_mailbox64 *)p;
+    sc->amr_mailbox = &sc->amr_mailbox64->mb;
 
     return(0);
 }
