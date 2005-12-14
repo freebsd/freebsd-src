@@ -298,6 +298,7 @@ struct ata_connect_task {
 #define ATA_VIA8233C            0x31091106
 #define ATA_VIA8235             0x31771106
 #define ATA_VIA8237             0x32271106
+#define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
 #define ATA_VIA8371             0x03911106
@@ -365,6 +366,7 @@ struct ata_connect_task {
 #define VIACLK          0x10
 #define VIABUG          0x20
 #define VIABAR          0x40
+#define VIAAHCI         0x80
 
 
 /* global prototypes ata-pci.c */
