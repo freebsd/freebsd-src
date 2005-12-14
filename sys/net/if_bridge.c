@@ -193,6 +193,7 @@ static void	bridge_timer(void *);
 
 static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
 		    struct mbuf *, int);
+static void	bridge_span(struct bridge_softc *, struct mbuf *);
 
 static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
 		    struct ifnet *, int, uint8_t);
@@ -242,6 +243,8 @@ static int	bridge_ioctl_gma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
+static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
+static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
 static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
 		    int);
 static int	bridge_ip_checkbasic(struct mbuf **mp);
@@ -329,6 +332,11 @@ const struct bridge_control bridge_control_table[] = {
 	  BC_F_COPYIN|BC_F_SUSER },
 
 	{ bridge_ioctl_sifcost,		sizeof(struct ifbreq),
+	  BC_F_COPYIN|BC_F_SUSER },
+
+	{ bridge_ioctl_addspan,		sizeof(struct ifbreq),
+	  BC_F_COPYIN|BC_F_SUSER },
+	{ bridge_ioctl_delspan,		sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 };
 const int bridge_control_table_size =
@@ -443,6 +451,7 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	callout_init_mtx(&sc->sc_bstpcallout, &sc->sc_mtx, 0);
 
 	LIST_INIT(&sc->sc_iflist);
+	LIST_INIT(&sc->sc_spanlist);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
@@ -493,6 +502,11 @@ bridge_clone_destroy(struct ifnet *ifp)
 
 	while ((bif = LIST_FIRST(&sc->sc_iflist)) != NULL)
 		bridge_delete_member(sc, bif, 0);
+
+	while ((bif = LIST_FIRST(&sc->sc_spanlist)) != NULL) {
+		LIST_REMOVE(bif, bif_next);
+		free(bif, M_DEVBUF);
+	}
 
 	BRIDGE_UNLOCK(sc);
 
@@ -724,6 +738,11 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (ifs == NULL)
 		return (ENOENT);
 
+	/* If it's in the span list, it can't be a member. */
+	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
+		if (ifs == bif->bif_ifp)
+			return (EBUSY);
+
 	/* Allow the first member to define the MTU */
 	if (LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
@@ -834,6 +853,10 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOENT);
 
+	if (req->ifbr_ifsflags & IFBIF_SPAN)
+		/* SPAN is readonly */
+		return (EINVAL);
+
 	if (req->ifbr_ifsflags & IFBIF_STP) {
 		switch (bif->bif_ifp->if_type) {
 		case IFT_ETHER:
@@ -892,6 +915,8 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 	count = 0;
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next)
 		count++;
+	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
+		count++;
 
 	if (bifc->ifbic_len == 0) {
 		bifc->ifbic_len = sizeof(breq) * count;
@@ -901,6 +926,23 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 	count = 0;
 	len = bifc->ifbic_len;
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		if (len < sizeof(breq))
+			break;
+
+		strlcpy(breq.ifbr_ifsname, bif->bif_ifp->if_xname,
+		    sizeof(breq.ifbr_ifsname));
+		breq.ifbr_ifsflags = bif->bif_flags;
+		breq.ifbr_state = bif->bif_state;
+		breq.ifbr_priority = bif->bif_priority;
+		breq.ifbr_path_cost = bif->bif_path_cost;
+		breq.ifbr_portno = bif->bif_ifp->if_index & 0xff;
+		error = copyout(&breq, bifc->ifbic_req + count, sizeof(breq));
+		if (error)
+			break;
+		count++;
+		len -= sizeof(breq);
+	}
+	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next) {
 		if (len < sizeof(breq))
 			break;
 
@@ -1182,6 +1224,73 @@ bridge_ioctl_sifcost(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
+static int
+bridge_ioctl_addspan(struct bridge_softc *sc, void *arg)
+{
+	struct ifbreq *req = arg;
+	struct bridge_iflist *bif = NULL;
+	struct ifnet *ifs;
+
+	BRIDGE_LOCK_ASSERT(sc);
+
+	ifs = ifunit(req->ifbr_ifsname);
+	if (ifs == NULL)
+		return (ENOENT);
+
+	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
+		if (ifs == bif->bif_ifp)
+			return (EBUSY);
+
+	if (ifs->if_bridge != NULL)
+		return (EBUSY);
+
+	switch (ifs->if_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			break;
+		default:
+			return (EINVAL);
+	}
+
+	bif = malloc(sizeof(*bif), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (bif == NULL)
+		return (ENOMEM);
+
+	bif->bif_ifp = ifs;
+	bif->bif_flags = IFBIF_SPAN;
+
+	LIST_INSERT_HEAD(&sc->sc_spanlist, bif, bif_next);
+
+	return (0);
+}
+
+static int
+bridge_ioctl_delspan(struct bridge_softc *sc, void *arg)
+{
+	struct ifbreq *req = arg;
+	struct bridge_iflist *bif;
+
+	struct ifnet *ifs;
+
+	BRIDGE_LOCK_ASSERT(sc);
+
+	ifs = ifunit(req->ifbr_ifsname);
+	if (ifs == NULL)
+		return (ENOENT);
+
+	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
+		if (ifs == bif->bif_ifp)
+			break;
+
+	if (bif == NULL)
+		return (ENOENT);
+
+	LIST_REMOVE(bif, bif_next);
+	free(bif, M_DEVBUF);
+
+	return (0);
+}
+
 /*
  * bridge_ifdetach:
  *
@@ -1386,6 +1495,9 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 			m_freem(m);
 			return (0);
 		}
+
+		bridge_span(sc, m);
+
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			dst_if = bif->bif_ifp;
 			if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -1431,6 +1543,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 	 * XXX Spanning tree consideration here?
 	 */
 
+	bridge_span(sc, m);
 	if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		m_freem(m);
 		BRIDGE_UNLOCK(sc);
@@ -1694,6 +1807,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
+	bridge_span(sc, m);
+
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
 		/* Tap off 802.1D packets; they do not get forwarded. */
 		if (memcmp(eh->ether_dhost, bstp_etheraddr,
@@ -1884,6 +1999,38 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 
 out:
 	BRIDGE_UNREF(sc);
+}
+
+/*
+ * bridge_span:
+ *
+ *	Duplicate a packet out one or more interfaces that are in span mode,
+ *	the original mbuf is unmodified.
+ */
+static void
+bridge_span(struct bridge_softc *sc, struct mbuf *m)
+{
+	struct bridge_iflist *bif;
+	struct ifnet *dst_if;
+	struct mbuf *mc;
+
+	if (LIST_EMPTY(&sc->sc_spanlist))
+		return;
+
+	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next) {
+		dst_if = bif->bif_ifp;
+		
+		if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			continue;
+
+		mc = m_copypacket(m, M_DONTWAIT);
+		if (mc == NULL) {
+			sc->sc_ifp->if_oerrors++;
+			continue;
+		}
+
+		bridge_enqueue(sc, dst_if, mc);
+	}
 }
 
 /*

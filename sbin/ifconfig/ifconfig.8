@@ -1106,6 +1106,17 @@ This is the default for all interfaces added to a bridge.
 Clear the
 .Dq learning
 attribute on a member interface.
+.It Cm span Ar interface
+Add the interface named by
+.Ar interface
+as a span port on the bridge.
+Span ports transmit a copy of every frame received by the bridge.
+This is most useful for snooping a bridged network passively on
+another host connected to one of the span ports of the bridge.
+.It Cm -span Ar interface
+Delete the interface named by
+.Ar interface
+from the list of span ports of the bridge.
 .It Cm stp Ar interface
 Enable Spanning Tree protocol on
 .Ar interface .
