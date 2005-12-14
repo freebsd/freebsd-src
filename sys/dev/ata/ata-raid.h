@@ -757,7 +757,7 @@ struct via_raid_conf {
 #define VIA_L_MASK              0x07
 #define VIA_L_SHIFT             4
 
-    u_int64_t   	total_sectors;
+    u_int64_t   	disk_sectors;
     u_int32_t   	disk_id;
     u_int32_t   	disks[8];
     u_int8_t    	checksum;

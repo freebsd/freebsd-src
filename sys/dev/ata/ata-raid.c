@@ -3396,19 +3396,21 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	case VIA_T_RAID0:
 	    raid->type = AR_T_RAID0;
 	    raid->width = meta->stripe_layout & VIA_L_MASK;
-	    raid->total_sectors = meta->total_sectors;
+	    if (!raid->total_sectors ||
+		(raid->total_sectors > (raid->width * meta->disk_sectors)))
+		raid->total_sectors = raid->width * meta->disk_sectors;
 	    break;
 
 	case VIA_T_RAID1:
 	    raid->type = AR_T_RAID1;
 	    raid->width = 1;
-	    raid->total_sectors = meta->total_sectors;
+	    raid->total_sectors = meta->disk_sectors;
 	    break;
 
 	case VIA_T_SPAN:
 	    raid->type = AR_T_SPAN;
 	    raid->width = 1;
-	    raid->total_sectors += meta->total_sectors;
+	    raid->total_sectors += meta->disk_sectors;
 	    break;
 
 	default:
@@ -3433,7 +3435,7 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	    if ((meta->disks[disk] == meta->disk_id) &&
 		((disk * sizeof(int32_t)) == (meta->disk_index & VIA_D_MASK))) {
 		raid->disks[disk].dev = parent;
-		raid->disks[disk].sectors = meta->total_sectors / raid->width;
+		raid->disks[disk].sectors = meta->disk_sectors;
 		raid->disks[disk].flags =
 		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
 		ars->raid[raid->volume] = raid;
@@ -4409,8 +4411,8 @@ ata_raid_via_print_meta(struct via_raid_conf *meta)
     printf("stripe_disks        %d\n", meta->stripe_layout & VIA_L_MASK);
     printf("stripe_sectors      %d\n",
 	   0x08 << (meta->stripe_layout >> VIA_L_SHIFT));
-    printf("total_sectors       %llu\n",
-	   (unsigned long long)meta->total_sectors);
+    printf("disk_sectors        %llu\n",
+	   (unsigned long long)meta->disk_sectors);
     printf("disk_id             0x%08x\n", meta->disk_id);
     printf("DISK#   disk_id\n");
     for (i = 0; i < 8; i++) {
