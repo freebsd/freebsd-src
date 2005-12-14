@@ -399,6 +399,8 @@
 #define TI_MINI_RX_RING_CNT	1024
 #define TI_RETURN_RING_CNT	2048
 
+#define TI_MAXTXSEGS		128
+
 /*
  * Possible TX ring sizes.
  */
@@ -474,18 +476,22 @@
  * Even on the alpha, pci addresses are 32-bit quantities
  */
 
-#ifdef __64_bit_pci_addressing__ 
 typedef struct {
-	u_int64_t		ti_addr;
+	u_int32_t	ti_addr_hi;
+	u_int32_t	ti_addr_lo;
 } ti_hostaddr;
-#define TI_HOSTADDR(x)	x.ti_addr
-#else
-typedef struct {
-	u_int32_t		ti_addr_hi;
-	u_int32_t		ti_addr_lo;
-} ti_hostaddr;
-#define TI_HOSTADDR(x)	x.ti_addr_lo
-#endif
+
+#define TI_HOSTADDR(x)		x.ti_addr_lo
+
+static __inline void
+ti_hostaddr64(ti_hostaddr *x, bus_addr_t addr)
+{
+	uint64_t baddr;
+
+	baddr = (uint64_t)addr;
+	x->ti_addr_lo = baddr & 0xffffffff;
+	x->ti_addr_hi = baddr >> 32;
+}
 
 /*
  * Ring control block structure. The rules for the max_len field
@@ -902,7 +908,7 @@ struct ti_event_desc {
 
 #define TI_SSLOTS	256
 #define TI_MSLOTS	256
-#define TI_JSLOTS	384
+#define TI_JSLOTS	256
 
 #define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN)
 #define TI_JLEN (TI_JRAWLEN + (sizeof(u_int64_t) - \
@@ -919,7 +925,7 @@ struct ti_event_desc {
  */
 struct ti_ring_data {
 	struct ti_rx_desc	ti_rx_std_ring[TI_STD_RX_RING_CNT];
-#ifdef PRIVATE_JUMBOS
+#ifdef TI_PRIVATE_JUMBOS
 	struct ti_rx_desc	ti_rx_jumbo_ring[TI_JUMBO_RX_RING_CNT];
 #else
 	struct ti_rx_desc_ext	ti_rx_jumbo_ring[TI_JUMBO_RX_RING_CNT];
@@ -950,9 +956,13 @@ struct ti_ring_data {
  */
 struct ti_chain_data {
 	struct mbuf		*ti_tx_chain[TI_TX_RING_CNT];
+	bus_dmamap_t		ti_tx_maps[TI_TX_RING_CNT];
 	struct mbuf		*ti_rx_std_chain[TI_STD_RX_RING_CNT];
+	bus_dmamap_t		ti_rx_std_maps[TI_STD_RX_RING_CNT];
 	struct mbuf		*ti_rx_jumbo_chain[TI_JUMBO_RX_RING_CNT];
+	bus_dmamap_t		ti_rx_jumbo_maps[TI_JUMBO_RX_RING_CNT];
 	struct mbuf		*ti_rx_mini_chain[TI_MINI_RX_RING_CNT];
+	bus_dmamap_t		ti_rx_mini_maps[TI_MINI_RX_RING_CNT];
 	/* Stick the jumbo mem management stuff here too. */
 	caddr_t			ti_jslots[TI_JSLOTS];
 	void			*ti_jumbo_buf;
@@ -987,6 +997,7 @@ typedef enum {
 
 struct ti_softc {
 	STAILQ_ENTRY(ti_softc)	ti_links;
+	device_t		ti_dev;
 	struct ifnet		*ti_ifp;
 	bus_space_handle_t	ti_bhandle;
 	vm_offset_t		ti_vhandle;
@@ -1003,6 +1014,8 @@ struct ti_softc {
 	bus_dma_tag_t		ti_parent_dmat;
 	bus_dma_tag_t		ti_jumbo_dmat;
 	bus_dmamap_t		ti_jumbo_dmamap;
+	bus_dma_tag_t		ti_mbuftx_dmat;
+	bus_dma_tag_t		ti_mbufrx_dmat;
 	bus_dma_tag_t		ti_rdata_dmat;
 	bus_dmamap_t		ti_rdata_dmamap;
 	uint32_t		ti_rdata_phys;
@@ -1031,7 +1044,7 @@ struct ti_softc {
 	int			ti_txcnt;
 	struct mtx		ti_mtx;
 	ti_flag_vals		ti_flags;
-	struct cdev *dev;
+	struct cdev		 *dev;
 };
 
 #define	TI_LOCK(_sc)		mtx_lock(&(_sc)->ti_mtx)
