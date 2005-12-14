@@ -118,21 +118,6 @@ struct ptable_ent {
 
 #define	cdb2devb(bno)	((bno) * ISO_DEFAULT_BLOCK_SIZE / DEV_BSIZE)
 
-/* XXX these should be in the system headers */
-static __inline int
-isonum_722(p)
-	u_char *p;
-{
-	return (*p << 8)|p[1];
-}
-
-static __inline int
-isonum_732(p)
-	u_char *p;
-{
-	return (*p << 24)|(p[1] << 16)|(p[2] << 8)|p[3];
-}
-
 static ISO_SUSP_HEADER *
 susp_lookup_record(struct open_file *f, const char *identifier,
     struct iso_directory_record *dp, int lenskip)
