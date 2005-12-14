@@ -567,9 +567,9 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 u_long	rip_sendspace = RIPSNDQ;
 u_long	rip_recvspace = RIPRCVQ;
 
-SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
-SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
     &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
 
 static int
