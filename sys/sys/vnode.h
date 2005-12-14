@@ -608,11 +608,11 @@ int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred, int fdidx);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
-int	vn_rdwr(enum uio_rw rw, struct vnode *vp, caddr_t base,
+int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
 	    struct thread *td);
-int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, caddr_t base,
+int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
