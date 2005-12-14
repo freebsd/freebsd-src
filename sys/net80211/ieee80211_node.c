@@ -1096,6 +1096,15 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
 		ieee80211_node_authorize(ni);
+		if (ic->ic_opmode == IEEE80211_M_AHDEMO) {
+			/*
+			 * Blindly propagate capabilities based on the
+			 * local configuration.  In particular this permits
+			 * us to use QoS to disable ACK's.
+			 */
+			if (ic->ic_flags & IEEE80211_F_WME)
+				ni->ni_flags |= IEEE80211_NODE_QOS;
+		}
 	}
 	return ni;
 }
