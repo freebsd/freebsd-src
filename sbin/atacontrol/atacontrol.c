@@ -103,7 +103,7 @@ usage()
 		"        atacontrol detach channel\n"
 		"        atacontrol reinit channel\n"
 		"        atacontrol create type [interleave] disk0 ... diskN\n"
-		"        atacontrol delete channel\n"
+		"        atacontrol delete array\n"
 		"        atacontrol addspare array disk\n"
 		"        atacontrol rebuild array\n"
 		"        atacontrol status array\n"
