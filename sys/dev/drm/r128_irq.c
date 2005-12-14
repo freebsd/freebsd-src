@@ -1,4 +1,5 @@
-/* r128_irq.c -- IRQ handling for radeon -*- linux-c -*- */
+/* r128_irq.c -- IRQ handling for radeon -*- linux-c -*-
+ */
 /*-
  * Copyright (C) The Weather Channel, Inc.  2002.  All Rights Reserved.
  *
@@ -28,9 +29,10 @@
  * Authors:
  *    Keith Whitwell <keith@tungstengraphics.com>
  *    Eric Anholt <anholt@FreeBSD.org>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

@@ -30,8 +30,10 @@
  *    Daryll Strauss <daryll@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/tdfx_drv.h"
 #include "dev/drm/drmP.h"
@@ -42,23 +44,20 @@ static drm_pci_id_list_t tdfx_pciidlist[] = {
 	tdfx_PCI_IDS
 };
 
-extern drm_ioctl_desc_t tdfx_ioctls[];
-extern int tdfx_max_ioctl;
-
 static void tdfx_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = 1; /* No dev_priv */
+	dev->driver.buf_priv_size	= 1; /* No dev_priv */
 
-	dev->max_driver_ioctl = 0;
+	dev->driver.max_ioctl		= 0;
 
-	dev->driver_name = DRIVER_NAME;
-	dev->driver_desc = DRIVER_DESC;
-	dev->driver_date = DRIVER_DATE;
-	dev->driver_major = DRIVER_MAJOR;
-	dev->driver_minor = DRIVER_MINOR;
-	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+	dev->driver.name		= DRIVER_NAME;
+	dev->driver.desc		= DRIVER_DESC;
+	dev->driver.date		= DRIVER_DATE;
+	dev->driver.major		= DRIVER_MAJOR;
+	dev->driver.minor		= DRIVER_MINOR;
+	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
 
-	dev->use_mtrr = 1;
+	dev->driver.use_mtrr		= 1;
 }
 
 #ifdef __FreeBSD__
@@ -98,5 +97,10 @@ DRIVER_MODULE(tdfx, pci, tdfx_driver, drm_devclass, 0, 0);
 MODULE_DEPEND(tdfx, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
+#ifdef _LKM
 CFDRIVER_DECL(tdfx, DV_TTY, NULL);
+#else
+CFATTACH_DECL(tdfx, sizeof(drm_device_t), drm_probe, drm_attach, drm_detach,
+    drm_activate);
+#endif
 #endif

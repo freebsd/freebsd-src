@@ -19,9 +19,10 @@
  * ERIC ANHOLT BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -39,6 +40,11 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 	drm_local_map_t *map;
 	drm_file_t *priv;
 	drm_map_type_t type;
+#ifdef __FreeBSD__
+	vm_paddr_t phys;
+#else
+	paddr_t phys;
+#endif
 
 	DRM_LOCK();
 	priv = drm_find_file_by_proc(dev, DRM_CURPROC);
@@ -51,9 +57,10 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 	if (!priv->authenticated)
 		return DRM_ERR(EACCES);
 
-	DRM_SPINLOCK(&dev->dma_lock);
 	if (dev->dma && offset >= 0 && offset < ptoa(dev->dma->page_count)) {
 		drm_device_dma_t *dma = dev->dma;
+
+		DRM_SPINLOCK(&dev->dma_lock);
 
 		if (dma->pagelist != NULL) {
 			unsigned long page = offset >> PAGE_SHIFT;
@@ -70,8 +77,8 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 			DRM_SPINUNLOCK(&dev->dma_lock);
 			return -1;
 		}
+		DRM_SPINUNLOCK(&dev->dma_lock);
 	}
-	DRM_SPINUNLOCK(&dev->dma_lock);
 
 				/* A sequential search of a linked list is
 				   fine here because: 1) there will only be
@@ -91,7 +98,7 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 		DRM_DEBUG("can't find map\n");
 		return -1;
 	}
-	if (((map->flags&_DRM_RESTRICTED) && DRM_SUSER(DRM_CURPROC))) {
+	if (((map->flags&_DRM_RESTRICTED) && !DRM_SUSER(DRM_CURPROC))) {
 		DRM_UNLOCK();
 		DRM_DEBUG("restricted map\n");
 		return -1;
@@ -103,25 +110,25 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 	case _DRM_AGP:
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-		*paddr = offset;
-		return 0;
-#else
-		return atop(offset);
-#endif
+		phys = offset;
+		break;
+	case _DRM_CONSISTENT:
+		phys = vtophys((char *)map->handle + (offset - map->offset));
+		break;
 	case _DRM_SCATTER_GATHER:
 	case _DRM_SHM:
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-		*paddr = vtophys(offset);
-		return 0;
-#else
-		return atop(vtophys(offset));
-#endif
+		phys = vtophys(offset);
+		break;
 	default:
+		DRM_ERROR("bad map type %d\n", type);
 		return -1;	/* This should never happen. */
 	}
-	DRM_DEBUG("bailing out\n");
 
-	return -1;
+#if defined(__FreeBSD__) && __FreeBSD_version >= 500102
+	*paddr = phys;
+	return 0;
+#else
+	return atop(phys);
+#endif
 }
 

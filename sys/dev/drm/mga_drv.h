@@ -1,6 +1,6 @@
 /* mga_drv.h -- Private header for the Matrox G200/G400 driver -*- linux-c -*-
- * Created: Mon Dec 13 01:50:01 1999 by jhartmann@precisioninsight.com */
-/*-
+ * Created: Mon Dec 13 01:50:01 1999 by jhartmann@precisioninsight.com
+ *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All rights reserved.
@@ -26,9 +26,10 @@
  *
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__
@@ -40,11 +41,11 @@
 
 #define DRIVER_NAME		"mga"
 #define DRIVER_DESC		"Matrox G200/G400"
-#define DRIVER_DATE		"20021029"
+#define DRIVER_DATE		"20051102"
 
 #define DRIVER_MAJOR		3
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_MINOR		2
+#define DRIVER_PATCHLEVEL	1
 
 typedef struct drm_mga_primary_buffer {
 	u8 *start;
@@ -89,8 +90,42 @@ typedef struct drm_mga_private {
 	int chipset;
 	int usec_timeout;
 
+	/**
+	 * If set, the new DMA initialization sequence was used.  This is
+	 * primarilly used to select how the driver should uninitialized its
+	 * internal DMA structures.
+	 */
+	int used_new_dma_init;
+
+	/**
+	 * If AGP memory is used for DMA buffers, this will be the value
+	 * \c MGA_PAGPXFER.  Otherwise, it will be zero (for a PCI transfer).
+	 */
+	u32 dma_access;
+
+	/**
+	 * If AGP memory is used for DMA buffers, this will be the value
+	 * \c MGA_WAGP_ENABLE.  Otherwise, it will be zero (for a PCI
+	 * transfer).
+	 */
+	u32 wagp_enable;
+
+	/**
+	 * \name MMIO region parameters.
+	 * 
+	 * \sa drm_mga_private_t::mmio
+	 */
+	/*@{*/
+	u32 mmio_base;             /**< Bus address of base of MMIO. */
+	u32 mmio_size;             /**< Size of the MMIO region. */
+	/*@}*/
+
 	u32 clear_cmd;
 	u32 maccess;
+
+	wait_queue_head_t fence_queue;
+	atomic_t last_fence_retired;
+	u32 next_fence_to_post;
 
 	unsigned int fb_cpp;
 	unsigned int front_offset;
@@ -110,16 +145,24 @@ typedef struct drm_mga_private {
 	drm_local_map_t *status;
 	drm_local_map_t *warp;
 	drm_local_map_t *primary;
-	drm_local_map_t *buffers;
 	drm_local_map_t *agp_textures;
+	
+	unsigned long agp_handle;
+	unsigned int agp_size;
 } drm_mga_private_t;
 
+extern drm_ioctl_desc_t mga_ioctls[];
+extern int mga_max_ioctl;
+
 				/* mga_dma.c */
+extern int mga_dma_bootstrap(DRM_IOCTL_ARGS);
 extern int mga_dma_init(DRM_IOCTL_ARGS);
 extern int mga_dma_flush(DRM_IOCTL_ARGS);
 extern int mga_dma_reset(DRM_IOCTL_ARGS);
 extern int mga_dma_buffers(DRM_IOCTL_ARGS);
-extern void mga_driver_pretakedown(drm_device_t * dev);
+extern int mga_driver_load(drm_device_t *dev, unsigned long flags);
+extern int mga_driver_unload(drm_device_t * dev);
+extern void mga_driver_lastclose(drm_device_t * dev);
 extern int mga_driver_dma_quiescent(drm_device_t * dev);
 
 extern int mga_do_wait_for_idle(drm_mga_private_t * dev_priv);
@@ -131,14 +174,19 @@ extern void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv);
 extern int mga_freelist_put(drm_device_t * dev, drm_buf_t * buf);
 
 				/* mga_warp.c */
+extern unsigned int mga_warp_microcode_size(const drm_mga_private_t * dev_priv);
 extern int mga_warp_install_microcode(drm_mga_private_t * dev_priv);
 extern int mga_warp_init(drm_mga_private_t * dev_priv);
 
+				/* mga_irq.c */
+extern int mga_driver_fence_wait(drm_device_t * dev, unsigned int *sequence);
 extern int mga_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence);
 extern irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS);
 extern void mga_driver_irq_preinstall(drm_device_t * dev);
 extern void mga_driver_irq_postinstall(drm_device_t * dev);
 extern void mga_driver_irq_uninstall(drm_device_t * dev);
+extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
+			     unsigned long arg);
 
 #define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
 
@@ -183,7 +231,7 @@ static inline u32 _MGA_READ(u32 * addr)
 #define MGA_EMIT_STATE( dev_priv, dirty )				\
 do {									\
 	if ( (dirty) & ~MGA_UPLOAD_CLIPRECTS ) {			\
-		if ( dev_priv->chipset == MGA_CARD_TYPE_G400 ) {	\
+		if ( dev_priv->chipset >= MGA_CARD_TYPE_G400 ) {	\
 			mga_g400_emit_state( dev_priv );		\
 		} else {						\
 			mga_g200_emit_state( dev_priv );		\
@@ -519,6 +567,12 @@ do {									\
 /* This finishes the current batch of commands
  */
 #define MGA_EXEC 			0x0100
+
+/* AGP PLL encoding (for G200 only).
+ */
+#define MGA_AGP_PLL 			0x1e4c
+#	define MGA_AGP2XPLL_DISABLE		(0 << 0)
+#	define MGA_AGP2XPLL_ENABLE		(1 << 0)
 
 /* Warp registers
  */

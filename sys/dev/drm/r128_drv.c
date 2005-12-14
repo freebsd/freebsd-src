@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -43,38 +45,35 @@ static drm_pci_id_list_t r128_pciidlist[] = {
 	r128_PCI_IDS
 };
 
-extern drm_ioctl_desc_t r128_ioctls[];
-extern int r128_max_ioctl;
-
 static void r128_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = sizeof(drm_r128_buf_priv_t);
-	dev->prerelease = r128_driver_prerelease;
-	dev->pretakedown = r128_driver_pretakedown;
-	dev->vblank_wait = r128_driver_vblank_wait;
-	dev->irq_preinstall = r128_driver_irq_preinstall;
-	dev->irq_postinstall = r128_driver_irq_postinstall;
-	dev->irq_uninstall = r128_driver_irq_uninstall;
-	dev->irq_handler = r128_driver_irq_handler;
-	dev->dma_ioctl = r128_cce_buffers;
+	dev->driver.buf_priv_size	= sizeof(drm_r128_buf_priv_t);
+	dev->driver.preclose		= r128_driver_preclose;
+	dev->driver.lastclose		= r128_driver_lastclose;
+	dev->driver.vblank_wait		= r128_driver_vblank_wait;
+	dev->driver.irq_preinstall	= r128_driver_irq_preinstall;
+	dev->driver.irq_postinstall	= r128_driver_irq_postinstall;
+	dev->driver.irq_uninstall	= r128_driver_irq_uninstall;
+	dev->driver.irq_handler		= r128_driver_irq_handler;
+	dev->driver.dma_ioctl		= r128_cce_buffers;
 
-	dev->driver_ioctls = r128_ioctls;
-	dev->max_driver_ioctl = r128_max_ioctl;
+	dev->driver.ioctls		= r128_ioctls;
+	dev->driver.max_ioctl		= r128_max_ioctl;
 
-	dev->driver_name = DRIVER_NAME;
-	dev->driver_desc = DRIVER_DESC;
-	dev->driver_date = DRIVER_DATE;
-	dev->driver_major = DRIVER_MAJOR;
-	dev->driver_minor = DRIVER_MINOR;
-	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+	dev->driver.name		= DRIVER_NAME;
+	dev->driver.desc		= DRIVER_DESC;
+	dev->driver.date		= DRIVER_DATE;
+	dev->driver.major		= DRIVER_MAJOR;
+	dev->driver.minor		= DRIVER_MINOR;
+	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
 
-	dev->use_agp = 1;
-	dev->use_mtrr = 1;
-	dev->use_pci_dma = 1;
-	dev->use_sg = 1;
-	dev->use_dma = 1;
-	dev->use_irq = 1;
-	dev->use_vbl_irq = 1;
+	dev->driver.use_agp		= 1;
+	dev->driver.use_mtrr		= 1;
+	dev->driver.use_pci_dma		= 1;
+	dev->driver.use_sg		= 1;
+	dev->driver.use_dma		= 1;
+	dev->driver.use_irq		= 1;
+	dev->driver.use_vbl_irq		= 1;
 }
 
 #ifdef __FreeBSD__
@@ -114,5 +113,10 @@ DRIVER_MODULE(r128, pci, r128_driver, drm_devclass, 0, 0);
 MODULE_DEPEND(r128, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
+#ifdef _LKM
 CFDRIVER_DECL(r128, DV_TTY, NULL);
+#else
+CFATTACH_DECL(r128, sizeof(drm_device_t), drm_probe, drm_attach, drm_detach,
+    drm_activate);
+#endif
 #endif

@@ -1,5 +1,6 @@
 /* r128_drv.h -- Private header for r128 driver -*- linux-c -*-
- * Created: Mon Dec 13 09:51:11 1999 by faith@precisioninsight.com */
+ * Created: Mon Dec 13 09:51:11 1999 by faith@precisioninsight.com
+ */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -29,9 +30,10 @@
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *    Michel D�zer <daenzerm@student.ethz.ch>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
@@ -89,8 +91,6 @@ typedef struct drm_r128_private {
 
 	int usec_timeout;
 	int is_pci;
-	unsigned long phys_pci_gart;
-	dma_addr_t bus_pci_gart;
 	unsigned long cce_buffers_offset;
 
 	atomic_t idle_count;
@@ -121,6 +121,7 @@ typedef struct drm_r128_private {
 	drm_local_map_t *cce_ring;
 	drm_local_map_t *ring_rptr;
 	drm_local_map_t *agp_textures;
+	drm_ati_pcigart_info gart_info;
 } drm_r128_private_t;
 
 typedef struct drm_r128_buf_priv {
@@ -130,6 +131,9 @@ typedef struct drm_r128_buf_priv {
 	int dispatched;
 	drm_r128_freelist_t *list_entry;
 } drm_r128_buf_priv_t;
+
+extern drm_ioctl_desc_t r128_ioctls[];
+extern int r128_max_ioctl;
 
 				/* r128_cce.c */
 extern int r128_cce_init(DRM_IOCTL_ARGS);
@@ -154,8 +158,11 @@ extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
 extern void r128_driver_irq_preinstall(drm_device_t * dev);
 extern void r128_driver_irq_postinstall(drm_device_t * dev);
 extern void r128_driver_irq_uninstall(drm_device_t * dev);
-extern void r128_driver_pretakedown(drm_device_t * dev);
-extern void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp);
+extern void r128_driver_lastclose(drm_device_t * dev);
+extern void r128_driver_preclose(drm_device_t * dev, DRMFILE filp);
+
+extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long arg);
 
 /* Register definitions, register access macros and drmAddMap constants
  * for Rage 128 kernel driver.

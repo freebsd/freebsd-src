@@ -1,4 +1,4 @@
-/* drm_dma.c -- DMA IOCTL and function support
+/* drm_irq.c -- IRQ IOCTL and function support
  * Created: Fri Oct 18 2003 by anholt@FreeBSD.org
  */
 /*-
@@ -26,8 +26,10 @@
  * Authors:
  *    Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -62,7 +64,7 @@ drm_irq_handler_wrap(DRM_IRQ_ARGS)
 	drm_device_t *dev = (drm_device_t *)arg;
 
 	DRM_SPINLOCK(&dev->irq_lock);
-	dev->irq_handler(arg);
+	dev->driver.irq_handler(arg);
 	DRM_SPINUNLOCK(&dev->irq_lock);
 }
 #endif
@@ -70,6 +72,9 @@ drm_irq_handler_wrap(DRM_IRQ_ARGS)
 int drm_irq_install(drm_device_t *dev)
 {
 	int retcode;
+#ifdef __NetBSD__
+	pci_intr_handle_t ih;
+#endif
 
 	if (dev->irq == 0 || dev->dev_private == NULL)
 		return DRM_ERR(EINVAL);
@@ -88,7 +93,7 @@ int drm_irq_install(drm_device_t *dev)
 	DRM_SPININIT(dev->irq_lock, "DRM IRQ lock");
 
 				/* Before installing handler */
-	dev->irq_preinstall(dev);
+	dev->driver.irq_preinstall(dev);
 	DRM_UNLOCK();
 
 				/* Install handler */
@@ -110,12 +115,12 @@ int drm_irq_install(drm_device_t *dev)
 	if (retcode != 0)
 		goto err;
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
-	if (pci_intr_map(&dev->pa, &dev->ih) != 0) {
+	if (pci_intr_map(&dev->pa, &ih) != 0) {
 		retcode = ENOENT;
 		goto err;
 	}
-	dev->irqh = pci_intr_establish(&dev->pa.pa_pc, dev->ih, IPL_TTY,
-	    (irqreturn_t (*)(DRM_IRQ_ARGS))dev->irq_handler, dev);
+	dev->irqh = pci_intr_establish(&dev->pa.pa_pc, ih, IPL_TTY,
+	    (irqreturn_t (*)(void *))dev->irq_handler, dev);
 	if (!dev->irqh) {
 		retcode = ENOENT;
 		goto err;
@@ -124,7 +129,7 @@ int drm_irq_install(drm_device_t *dev)
 
 				/* After installing handler */
 	DRM_LOCK();
-	dev->irq_postinstall(dev);
+	dev->driver.irq_postinstall(dev);
 	DRM_UNLOCK();
 
 	return 0;
@@ -145,18 +150,22 @@ err:
 
 int drm_irq_uninstall(drm_device_t *dev)
 {
+#ifdef __FreeBSD__
 	int irqrid;
+#endif
 
 	if (!dev->irq_enabled)
 		return DRM_ERR(EINVAL);
 
 	dev->irq_enabled = 0;
+#ifdef __FreeBSD__
 	irqrid = dev->irqrid;
 	dev->irqrid = 0;
+#endif
 
 	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, dev->irq );
 
-	dev->irq_uninstall(dev);
+	dev->driver.irq_uninstall(dev);
 
 #ifdef __FreeBSD__
 	DRM_UNLOCK();
@@ -184,14 +193,14 @@ int drm_control(DRM_IOCTL_ARGS)
 		/* Handle drivers whose DRM used to require IRQ setup but the
 		 * no longer does.
 		 */
-		if (!dev->use_irq)
+		if (!dev->driver.use_irq)
 			return 0;
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl.irq != dev->irq)
 			return DRM_ERR(EINVAL);
 		return drm_irq_install(dev);
 	case DRM_UNINST_HANDLER:
-		if (!dev->use_irq)
+		if (!dev->driver.use_irq)
 			return 0;
 		DRM_LOCK();
 		err = drm_irq_uninstall(dev);
@@ -242,7 +251,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		ret = EINVAL;
 	} else {
 		DRM_LOCK();
-		ret = dev->vblank_wait(dev, &vblwait.request.sequence);
+		ret = dev->driver.vblank_wait(dev, &vblwait.request.sequence);
 		DRM_UNLOCK();
 
 		microtime(&now);
