@@ -2298,9 +2298,6 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		error = (ic->ic_flags & IEEE80211_F_WPA) ? ENETRESET : 0;
 		break;
 	case IEEE80211_IOC_BSSID:
-		/* NB: should only be set when in STA mode */
-		if (ic->ic_opmode != IEEE80211_M_STA)
-			return EINVAL;
 		if (ireq->i_len != sizeof(tmpbssid))
 			return EINVAL;
 		error = copyin(ireq->i_data, tmpbssid, ireq->i_len);
