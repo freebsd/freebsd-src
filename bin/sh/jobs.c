@@ -924,6 +924,8 @@ dowait(int block, struct job *job)
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
 		 (pid > 0 && WIFSTOPPED(status) && !iflag));
 	in_dowait--;
+	if (pid == -1 && errno == ECHILD && job != NULL)
+		job->state = JOBDONE;
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
 		if (pid <= 0)
