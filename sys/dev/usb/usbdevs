@@ -642,6 +642,8 @@ product AOX USB101		0x0008	Ethernet
 /* Apple Computer products */
 product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE SPEAKERS		0x1101	Speakers
+product APPLE IPOD3G		0x1203	iPod 3G
+product APPLE IPODVIDEO		0x1209	iPod Video
 
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
