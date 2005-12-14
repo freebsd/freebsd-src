@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -47,7 +47,7 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-struct pci_device_info 
+struct pci_device_info
 {
     TAILQ_ENTRY(pci_device_info)	link;
     int					id;
@@ -108,7 +108,7 @@ main(int argc, char **argv)
 		case 'r':
 			readmode = 1;
 			break;
-			
+
 		case 'w':
 			writemode = 1;
 			break;
@@ -139,16 +139,16 @@ main(int argc, char **argv)
 	if (listmode) {
 		list_devs(verbose);
 	} else if (attachedmode) {
-		chkattached(argv[optind], 
+		chkattached(argv[optind],
 		       byte ? 1 : isshort ? 2 : 4);
 	} else if (readmode) {
-		readit(argv[optind], argv[optind + 1], 
+		readit(argv[optind], argv[optind + 1],
 		       byte ? 1 : isshort ? 2 : 4);
 	} else if (writemode) {
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
 		       byte ? 1 : isshort ? 2 : 4);
 	} else {
- 		usage();
+		usage();
 	}
 
 	return exitstatus;
@@ -199,12 +199,12 @@ list_devs(int verbose)
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
 
 			printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08x "
-			       "chip=0x%08x rev=0x%02x hdr=0x%02x\n", 
+			       "chip=0x%08x rev=0x%02x hdr=0x%02x\n",
 			       (p->pd_name && *p->pd_name) ? p->pd_name :
 			       "none",
 			       (p->pd_name && *p->pd_name) ? (int)p->pd_unit :
 			       none_count++,
-			       p->pc_sel.pc_bus, p->pc_sel.pc_dev, 
+			       p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			       p->pc_sel.pc_func, (p->pc_class << 16) |
 			       (p->pc_subclass << 8) | p->pc_progif,
 			       (p->pc_subdevice << 16) | p->pc_subvendor,
@@ -224,7 +224,7 @@ list_verbose(struct pci_conf *p)
 	struct pci_vendor_info	*vi;
 	struct pci_device_info	*di;
 	char *dp;
-	
+
 	TAILQ_FOREACH(vi, &pci_vendors, link) {
 		if (vi->id == p->pc_vendor) {
 			printf("    vendor   = '%s'\n", vi->desc);
@@ -313,7 +313,7 @@ static struct
 	{PCIC_PROCESSOR,	-1,			"processor"},
 	{PCIC_SERIALBUS,	-1,			"serial bus"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FW,	"FireWire"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	"AccessBus"},	 
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	"AccessBus"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SSA,	"SSA"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_USB,	"USB"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FC,	"Fibre Channel"},
@@ -369,7 +369,8 @@ load_vendors(void)
 	FILE *db;
 	struct pci_vendor_info *cv;
 	struct pci_device_info *cd;
-	char buf[100], str[100];
+	char buf[1024], str[1024];
+	char *ch;
 	int id, error;
 
 	/*
@@ -391,8 +392,20 @@ load_vendors(void)
 		if (fgets(buf, sizeof(buf), db) == NULL)
 			break;
 
+		if ((ch = strchr(buf, '#')) != NULL)
+			*ch = '\0';
+		ch = strchr(buf, '\0') - 1;
+		while (ch > buf && isspace(*ch))
+			*ch-- = '\0';
+		if (ch <= buf)
+			continue;
+
+		/* Can't handle subvendor / subdevice entries yet */
+		if (buf[0] == '\t' && buf[1] == '\t')
+			continue;
+
 		/* Check for vendor entry */
-		if ((buf[0] != '\t') && (sscanf(buf, "%04x\t%[^\n]", &id, str) == 2)) {
+		if (buf[0] != '\t' && sscanf(buf, "%04x %[^\n]", &id, str) == 2) {
 			if ((id == 0) || (strlen(str) < 1))
 				continue;
 			if ((cv = malloc(sizeof(struct pci_vendor_info))) == NULL) {
@@ -411,9 +424,9 @@ load_vendors(void)
 			TAILQ_INSERT_TAIL(&pci_vendors, cv, link);
 			continue;
 		}
-		
+
 		/* Check for device entry */
-		if ((buf[0] == '\t') && (sscanf(buf + 1, "%04x\t%[^\n]", &id, str) == 2)) {
+		if (buf[0] == '\t' && sscanf(buf + 1, "%04x %[^\n]", &id, str) == 2) {
 			if ((id == 0) || (strlen(str) < 1))
 				continue;
 			if (cv == NULL) {
@@ -441,7 +454,7 @@ load_vendors(void)
 	if (ferror(db))
 		error = 1;
 	fclose(db);
-	
+
 	return(error);
 }
 
@@ -516,7 +529,7 @@ readit(const char *name, const char *reg, int width)
 		rend = strtol(end, (char **) 0, 0);
 	}
 	sel = getsel(name);
-	for (i = 1, r = rstart; r <= rend; i++, r += width) {	
+	for (i = 1, r = rstart; r <= rend; i++, r += width) {
 		readone(fd, &sel, r, width);
 		if (i && !(i % 8)) putchar(' ');
 		putchar(i % (16/width) ? ' ' : '\n');
