@@ -60,7 +60,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#define LSI_DESC_PCI "LSILogic MegaRAID 1.51"
+#define LSI_DESC_PCI "LSILogic MegaRAID 1.53"
 
 #ifdef AMR_DEBUG
 # define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
@@ -110,6 +110,13 @@ struct amr_command
     struct amr_softc		*ac_sc;
     u_int8_t			ac_slot;
     int				ac_status;	/* command completion status */
+    union {
+	struct amr_sgentry	*sg32;
+	struct amr_sg64entry	*sg64;
+    } ac_sg;
+    u_int32_t			ac_sgbusaddr;
+    u_int32_t			ac_sg64_lo;
+    u_int32_t			ac_sg64_hi;
     struct amr_mailbox		ac_mailbox;
     int				ac_flags;
 #define AMR_CMD_DATAIN		(1<<0)
@@ -120,21 +127,23 @@ struct amr_command
 #define AMR_CMD_MAPPED		(1<<5)
 #define AMR_CMD_SLEEP		(1<<6)
 #define AMR_CMD_BUSY		(1<<7)
+#define AMR_CMD_SG64		(1<<8)
+#define AC_IS_SG64(ac)		((ac)->ac_flags & AMR_CMD_SG64)
 
     struct bio			*ac_bio;
+    void			(* ac_complete)(struct amr_command *ac);
+    void			*ac_private;
 
     void			*ac_data;
     size_t			ac_length;
     bus_dmamap_t		ac_dmamap;
-    u_int32_t			ac_dataphys;
+    bus_dmamap_t		ac_dma64map;
 
     void			*ac_ccb_data;
     size_t			ac_ccb_length;
     bus_dmamap_t		ac_ccb_dmamap;
-    u_int32_t			ac_ccb_dataphys;
+    bus_dmamap_t		ac_ccb_dma64map;
 
-    void			(* ac_complete)(struct amr_command *ac);
-    void			*ac_private;
 };
 
 struct amr_command_cluster
@@ -158,6 +167,7 @@ struct amr_softc
     bus_space_tag_t		amr_btag;
     bus_dma_tag_t		amr_parent_dmat;	/* parent DMA tag */
     bus_dma_tag_t		amr_buffer_dmat;	/* data buffer DMA tag */
+    bus_dma_tag_t		amr_buffer64_dmat;
     struct resource		*amr_irq;		/* interrupt */
     void			*amr_intr;
 
@@ -170,6 +180,7 @@ struct amr_softc
 
     /* scatter/gather lists and their controller-visible mappings */
     struct amr_sgentry		*amr_sgtable;		/* s/g lists */
+    struct amr_sg64entry	*amr_sg64table;		/* 64bit s/g lists */
     u_int32_t			amr_sgbusaddr;		/* s/g table base address in bus space */
     bus_dma_tag_t		amr_sg_dmat;		/* s/g buffer DMA tag */
     bus_dmamap_t		amr_sg_dmamap;		/* map for s/g buffers */
@@ -191,6 +202,8 @@ struct amr_softc
 #define AMR_STATE_SHUTDOWN	(1<<3)
 #define AMR_STATE_CRASHDUMP	(1<<4)
 #define AMR_STATE_QUEUE_FRZN	(1<<5)
+#define AMR_STATE_LD_DELETE	(1<<6)
+#define AMR_STATE_REMAP_LD	(1<<7)
 
     /* per-controller queues */
     struct bio_queue_head 	amr_bioq;		/* pending I/O with no commands */
@@ -207,7 +220,8 @@ struct amr_softc
     struct cam_devq		*amr_cam_devq;
 
     /* control device */
-    struct cdev *amr_dev_t;
+    struct cdev			*amr_dev_t;
+    struct mtx			amr_list_lock;
 
     /* controller type-specific support */
     int				amr_type;
@@ -215,6 +229,8 @@ struct amr_softc
 #define AMR_IS_QUARTZ(sc)	((sc)->amr_type & AMR_TYPE_QUARTZ)
 #define AMR_TYPE_40LD		(1<<1)
 #define AMR_IS_40LD(sc)		((sc)->amr_type & AMR_TYPE_40LD)
+#define AMR_TYPE_SG64		(1<<2)
+#define AMR_IS_SG64(sc)		((sc)->amr_type & AMR_TYPE_SG64)
     int				(* amr_submit_command)(struct amr_softc *sc);
     int				(* amr_get_work)(struct amr_softc *sc, struct amr_mailbox *mbsave);
     int				(*amr_poll_command)(struct amr_command *ac);
@@ -224,7 +240,10 @@ struct amr_softc
     /* misc glue */
     struct intr_config_hook	amr_ich;		/* wait-for-interrupts probe hook */
     struct callout_handle	amr_timeout;		/* periodic status check */
-    struct mtx			amr_io_lock;
+    int				amr_allow_vol_config;
+    int				amr_linux_no_adapters;
+    int				amr_ld_del_supported;
+    struct mtx			amr_hw_lock;
 };
 
 /*
@@ -235,6 +254,8 @@ extern void		amr_free(struct amr_softc *sc);
 extern int		amr_flush(struct amr_softc *sc);
 extern int		amr_done(struct amr_softc *sc);
 extern void		amr_startio(struct amr_softc *sc);
+extern int		amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr,
+			    int32_t flag, d_thread_t *td);
 
 /*
  * Command buffer allocation.
