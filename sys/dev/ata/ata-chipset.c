@@ -1679,13 +1679,6 @@ ata_intel_chipinit(device_t dev)
 		    ctlr->dmainit = ata_ahci_dmainit;
 		    ctlr->allocate = ata_ahci_allocate;
 		}
-#if 0
-		else {
-		    /* enable SATA registers in compat mode */
-		    pci_write_config(dev, 0x94,
-				     pci_read_config(dev, 0x94, 4) | 1 << 9, 4);
-		}
-#endif
 	    }
 	}
 	ctlr->setmode = ata_sata_setmode;
@@ -4061,24 +4054,26 @@ ata_via_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_VIA82C586, 0x02, VIA33,  0x00,   ATA_UDMA2, "VIA 82C586B" },
-     { ATA_VIA82C586, 0x00, VIA33,  0x00,   ATA_WDMA2, "VIA 82C586" },
-     { ATA_VIA82C596, 0x12, VIA66,  VIACLK, ATA_UDMA4, "VIA 82C596B" },
-     { ATA_VIA82C596, 0x00, VIA33,  0x00,   ATA_UDMA2, "VIA 82C596" },
-     { ATA_VIA82C686, 0x40, VIA100, VIABUG, ATA_UDMA5, "VIA 82C686B"},
-     { ATA_VIA82C686, 0x10, VIA66,  VIACLK, ATA_UDMA4, "VIA 82C686A" },
-     { ATA_VIA82C686, 0x00, VIA33,  0x00,   ATA_UDMA2, "VIA 82C686" },
-     { ATA_VIA8231,   0x00, VIA100, VIABUG, ATA_UDMA5, "VIA 8231" },
-     { ATA_VIA8233,   0x00, VIA100, 0x00,   ATA_UDMA5, "VIA 8233" },
-     { ATA_VIA8233C,  0x00, VIA100, 0x00,   ATA_UDMA5, "VIA 8233C" },
-     { ATA_VIA8233A,  0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8233A" },
-     { ATA_VIA8235,   0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8235" },
-     { ATA_VIA8237,   0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8237" },
+    {{ ATA_VIA82C586, 0x02, VIA33,  0x00,    ATA_UDMA2, "VIA 82C586B" },
+     { ATA_VIA82C586, 0x00, VIA33,  0x00,    ATA_WDMA2, "VIA 82C586" },
+     { ATA_VIA82C596, 0x12, VIA66,  VIACLK,  ATA_UDMA4, "VIA 82C596B" },
+     { ATA_VIA82C596, 0x00, VIA33,  0x00,    ATA_UDMA2, "VIA 82C596" },
+     { ATA_VIA82C686, 0x40, VIA100, VIABUG,  ATA_UDMA5, "VIA 82C686B"},
+     { ATA_VIA82C686, 0x10, VIA66,  VIACLK,  ATA_UDMA4, "VIA 82C686A" },
+     { ATA_VIA82C686, 0x00, VIA33,  0x00,    ATA_UDMA2, "VIA 82C686" },
+     { ATA_VIA8231,   0x00, VIA100, VIABUG,  ATA_UDMA5, "VIA 8231" },
+     { ATA_VIA8233,   0x00, VIA100, 0x00,    ATA_UDMA5, "VIA 8233" },
+     { ATA_VIA8233C,  0x00, VIA100, 0x00,    ATA_UDMA5, "VIA 8233C" },
+     { ATA_VIA8233A,  0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8233A" },
+     { ATA_VIA8235,   0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8235" },
+     { ATA_VIA8237,   0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8237" },
+     { ATA_VIA8251,   0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8251" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
-    {{ ATA_VIA6410,   0x00, 0,      0x00,   ATA_UDMA6, "VIA 6410" },
-     { ATA_VIA6420,   0x00, 7,      0x00,   ATA_SA150, "VIA 6420" },
-     { ATA_VIA6421,   0x00, 6,      VIABAR, ATA_SA150, "VIA 6421" },
+    {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "VIA 6410" },
+     { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "VIA 6420" },
+     { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "VIA 6421" },
+     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA150, "VIA 8251" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
