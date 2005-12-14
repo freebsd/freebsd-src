@@ -117,9 +117,9 @@ illegal addressing mode
 .It Ta Dv ILL_ILLTRP Ta
 illegal trap
 .It Ta Dv ILL_PRVOPC Ta
-illegal Privileged opcode
+illegal privileged opcode
 .It Ta Dv ILL_PRVREG Ta
-illegal Privileged register
+illegal privileged register
 .It Ta Dv ILL_COPROC Ta
 coprocessor error
 .It Ta Dv ILL_BADSTK Ta
@@ -271,13 +271,14 @@ the ID of the message queue which generated the signal
 .El
 .Sh NOTES
 Currently, the kernel never generates
-.Dv SIGPOLL .
+.Dv SIGPOLL
+signal.
 Also, the
 .Xr kill 2
 system call does not queue signals, so you will not get code
 .Dv SI_USER .
 .Dv SIGCHLD
-is queued when a process changed its status or exited.
+signal is queued when a process changed its status or exited.
 .Tn POSIX
 Realtime Extensions like aio, timer, message queue also queue
 signals.
