@@ -29,9 +29,10 @@
  *
  * Authors:
  *    Nicolai Haehnle <prefect_@gmx.net>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

@@ -27,9 +27,10 @@
  *
  * Authors:
  *    Keith Whitwell <keith@tungstengraphics.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

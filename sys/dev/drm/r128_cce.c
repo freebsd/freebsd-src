@@ -1,5 +1,6 @@
 /* r128_cce.c -- ATI Rage 128 driver -*- linux-c -*-
- * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com */
+ * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com
+ */
 /*-
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -26,9 +27,10 @@
  *
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -325,7 +327,8 @@ static void r128_cce_init_ring_buffer(drm_device_t * dev,
 		ring_start = dev_priv->cce_ring->offset - dev->agp->base;
 	else
 #endif
-		ring_start = dev_priv->cce_ring->offset - dev->sg->handle;
+		ring_start = dev_priv->cce_ring->offset - 
+				(unsigned long)dev->sg->virtual;
 
 	R128_WRITE(R128_PM4_BUFFER_OFFSET, ring_start | R128_AGP_OFFSET);
 
@@ -486,6 +489,7 @@ static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
 		r128_do_cleanup_cce(dev);
 		return DRM_ERR(EINVAL);
 	}
+	dev->agp_buffer_token = init->buffers_offset;
 	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
 		DRM_ERROR("could not find dma buffer region!\n");
@@ -537,7 +541,7 @@ static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
 		dev_priv->cce_buffers_offset = dev->agp->base;
 	else
 #endif
-		dev_priv->cce_buffers_offset = dev->sg->handle;
+		dev_priv->cce_buffers_offset = (unsigned long)dev->sg->virtual;
 
 	dev_priv->ring.start = (u32 *) dev_priv->cce_ring->handle;
 	dev_priv->ring.end = ((u32 *) dev_priv->cce_ring->handle
@@ -558,14 +562,17 @@ static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
 #if __OS_HAS_AGP
 	if (dev_priv->is_pci) {
 #endif
-		if (!drm_ati_pcigart_init(dev, &dev_priv->phys_pci_gart,
-					  &dev_priv->bus_pci_gart, 0)) {
+		dev_priv->gart_info.gart_table_location = DRM_ATI_GART_MAIN;
+		dev_priv->gart_info.addr = NULL;
+		dev_priv->gart_info.bus_addr = 0;
+		dev_priv->gart_info.is_pcie = 0;
+		if (!drm_ati_pcigart_init(dev, &dev_priv->gart_info)) {
 			DRM_ERROR("failed to init PCI GART!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce(dev);
 			return DRM_ERR(ENOMEM);
 		}
-		R128_WRITE(R128_PCI_GART_PAGE, dev_priv->bus_pci_gart);
+		R128_WRITE(R128_PCI_GART_PAGE, dev_priv->gart_info.bus_addr);
 #if __OS_HAS_AGP
 	}
 #endif
@@ -606,10 +613,9 @@ int r128_do_cleanup_cce(drm_device_t * dev)
 		} else
 #endif
 		{
-			if (!drm_ati_pcigart_cleanup(dev,
-						     dev_priv->phys_pci_gart,
-						     dev_priv->bus_pci_gart))
-				DRM_ERROR("failed to cleanup PCI GART!\n");
+			if (dev_priv->gart_info.bus_addr)
+				if (!drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info))
+					DRM_ERROR("failed to cleanup PCI GART!\n");
 		}
 
 		drm_free(dev->dev_private, sizeof(drm_r128_private_t),

@@ -29,8 +29,10 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -39,9 +41,20 @@
 #include <dev/pci/pcireg.h>
 #endif
 
+/* Returns 1 if AGP or 0 if not. */
 static int
 drm_device_find_capability(drm_device_t *dev, int cap)
 {
+	int ret;
+
+	if (dev->driver.device_is_agp != NULL) {
+		ret = (*dev->driver.device_is_agp)(dev);
+		
+		if (ret != DRM_MIGHT_BE_AGP) {
+			return ret == 2;
+		}
+	}
+
 #ifdef __FreeBSD__
 	/* Code taken from agp.c.  IWBNI that was a public interface. */
 	u_int32_t status;
@@ -77,87 +90,106 @@ drm_device_find_capability(drm_device_t *dev, int cap)
 #endif
 }
 
-int
-drm_device_is_agp(drm_device_t *dev)
+int drm_device_is_agp(drm_device_t *dev)
 {
+	if (dev->driver.device_is_agp != NULL) {
+		int ret;
+
+		/* device_is_agp returns a tristate, 0 = not AGP, 1 = definitely
+		 * AGP, 2 = fall back to PCI capability
+		 */
+		ret = (*dev->driver.device_is_agp)(dev);
+		if (ret != 2)
+			return ret;
+	}
+
 	return (drm_device_find_capability(dev, PCIY_AGP));
 }
 
-int
-drm_device_is_pcie(drm_device_t *dev)
+int drm_device_is_pcie(drm_device_t *dev)
 {
 	return (drm_device_find_capability(dev, PCIY_EXPRESS));
 }
 
-int drm_agp_info(DRM_IOCTL_ARGS)
+int drm_agp_info(drm_device_t * dev, drm_agp_info_t *info)
 {
-	DRM_DEVICE;
 	struct agp_info *kern;
-	drm_agp_info_t   info;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 
 	kern                   = &dev->agp->info;
 	agp_get_info(dev->agp->agpdev, kern);
-	info.agp_version_major = 1;
-	info.agp_version_minor = 0;
-	info.mode              = kern->ai_mode;
-	info.aperture_base     = kern->ai_aperture_base;
-	info.aperture_size     = kern->ai_aperture_size;
-	info.memory_allowed    = kern->ai_memory_allowed;
-	info.memory_used       = kern->ai_memory_used;
-	info.id_vendor         = kern->ai_devid & 0xffff;
-	info.id_device         = kern->ai_devid >> 16;
+	info->agp_version_major = 1;
+	info->agp_version_minor = 0;
+	info->mode              = kern->ai_mode;
+	info->aperture_base     = kern->ai_aperture_base;
+	info->aperture_size     = kern->ai_aperture_size;
+	info->memory_allowed    = kern->ai_memory_allowed;
+	info->memory_used       = kern->ai_memory_used;
+	info->id_vendor         = kern->ai_devid & 0xffff;
+	info->id_device         = kern->ai_devid >> 16;
+
+	return 0;
+}
+
+int drm_agp_info_ioctl(DRM_IOCTL_ARGS)
+{
+	int err;
+	drm_agp_info_t info;
+	DRM_DEVICE;
+
+	err = drm_agp_info(dev, &info);
+	if (err != 0)
+		return err;
 
 	*(drm_agp_info_t *) data = info;
 	return 0;
 }
 
-int drm_agp_acquire(DRM_IOCTL_ARGS)
+int drm_agp_acquire_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	int          retcode;
+
+	return drm_agp_acquire(dev);
+}
+
+int drm_agp_acquire(drm_device_t *dev)
+{
+	int retcode;
 
 	if (!dev->agp || dev->agp->acquired)
 		return EINVAL;
+
 	retcode = agp_acquire(dev->agp->agpdev);
 	if (retcode)
 		return retcode;
+
 	dev->agp->acquired = 1;
 	return 0;
 }
 
-int drm_agp_release(DRM_IOCTL_ARGS)
+int drm_agp_release_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
+	return drm_agp_release(dev);
+}
+
+int drm_agp_release(drm_device_t * dev)
+{
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 	agp_release(dev->agp->agpdev);
 	dev->agp->acquired = 0;
 	return 0;
-	
 }
 
-void drm_agp_do_release(void)
+int drm_agp_enable(drm_device_t *dev, drm_agp_mode_t mode)
 {
-	device_t agpdev;
-
-	agpdev = DRM_AGP_FIND_DEVICE();
-	if (agpdev)
-		agp_release(agpdev);
-}
-
-int drm_agp_enable(DRM_IOCTL_ARGS)
-{
-	DRM_DEVICE;
-	drm_agp_mode_t mode;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
-
-	mode = *(drm_agp_mode_t *) data;
 	
 	dev->agp->mode    = mode.mode;
 	agp_enable(dev->agp->agpdev, mode.mode);
@@ -166,10 +198,18 @@ int drm_agp_enable(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int drm_agp_alloc(DRM_IOCTL_ARGS)
+int drm_agp_enable_ioctl(DRM_IOCTL_ARGS)
 {
+	drm_agp_mode_t mode;
 	DRM_DEVICE;
-	drm_agp_buffer_t request;
+
+	mode = *(drm_agp_mode_t *) data;
+
+	return drm_agp_enable(dev, mode);
+}
+
+int drm_agp_alloc(drm_device_t *dev, drm_agp_buffer_t *request)
+{
 	drm_agp_mem_t    *entry;
 	void	         *handle;
 	unsigned long    pages;
@@ -179,16 +219,17 @@ int drm_agp_alloc(DRM_IOCTL_ARGS)
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 
-	request = *(drm_agp_buffer_t *) data;
-
 	entry = malloc(sizeof(*entry), M_DRM, M_NOWAIT | M_ZERO);
 	if (entry == NULL)
 		return ENOMEM;
 
-	pages = (request.size + PAGE_SIZE - 1) / PAGE_SIZE;
-	type = (u_int32_t) request.type;
+	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
+	type = (u_int32_t) request->type;
 
-	if (!(handle = drm_agp_allocate_memory(pages, type))) {
+	DRM_UNLOCK();
+	handle = drm_agp_allocate_memory(pages, type);
+	DRM_LOCK();
+	if (handle == NULL) {
 		free(entry, M_DRM);
 		return ENOMEM;
 	}
@@ -204,12 +245,27 @@ int drm_agp_alloc(DRM_IOCTL_ARGS)
 
 	agp_memory_info(dev->agp->agpdev, entry->handle, &info);
 
-	request.handle   = (unsigned long) entry->handle;
-        request.physical = info.ami_physical;
+	request->handle   = (unsigned long) entry->handle;
+        request->physical = info.ami_physical;
+
+	return 0;
+}
+
+int drm_agp_alloc_ioctl(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_agp_buffer_t request;
+	int retcode;
+
+	request = *(drm_agp_buffer_t *) data;
+
+	DRM_LOCK();
+	retcode = drm_agp_alloc(dev, &request);
+	DRM_UNLOCK();
 
 	*(drm_agp_buffer_t *) data = request;
 
-	return 0;
+	return retcode;
 }
 
 static drm_agp_mem_t * drm_agp_lookup_entry(drm_device_t *dev, void *handle)
@@ -222,64 +278,94 @@ static drm_agp_mem_t * drm_agp_lookup_entry(drm_device_t *dev, void *handle)
 	return NULL;
 }
 
-int drm_agp_unbind(DRM_IOCTL_ARGS)
+int drm_agp_unbind(drm_device_t *dev, drm_agp_binding_t *request)
 {
-	DRM_DEVICE;
-	drm_agp_binding_t request;
 	drm_agp_mem_t     *entry;
 	int retcode;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
-	request = *(drm_agp_binding_t *) data;
-	if (!(entry = drm_agp_lookup_entry(dev, (void *)request.handle)))
+
+	entry = drm_agp_lookup_entry(dev, (void *)request->handle);
+	if (entry == NULL || !entry->bound)
 		return EINVAL;
-	if (!entry->bound) return EINVAL;
+
+	DRM_UNLOCK();
 	retcode = drm_agp_unbind_memory(entry->handle);
-	if (!retcode)
-	{
-		entry->bound=0;
-		return 0;
-	}
-	else
-		return retcode;
+	DRM_LOCK();
+
+	if (retcode == 0)
+		entry->bound = 0;
+
+	return retcode;
 }
 
-int drm_agp_bind(DRM_IOCTL_ARGS)
+int drm_agp_unbind_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_agp_binding_t request;
+	int retcode;
+
+	request = *(drm_agp_binding_t *) data;
+
+	DRM_LOCK();
+	retcode = drm_agp_unbind(dev, &request);
+	DRM_UNLOCK();
+
+	return retcode;
+}
+
+int drm_agp_bind(drm_device_t *dev, drm_agp_binding_t *request)
+{
 	drm_agp_mem_t     *entry;
 	int               retcode;
 	int               page;
 	
-	DRM_DEBUG("agp_bind, page_size=%x\n", PAGE_SIZE);
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
-	request = *(drm_agp_binding_t *) data;
-	if (!(entry = drm_agp_lookup_entry(dev, (void *)request.handle)))
+
+	DRM_DEBUG("agp_bind, page_size=%x\n", PAGE_SIZE);
+
+	entry = drm_agp_lookup_entry(dev, (void *)request->handle);
+	if (entry == NULL || entry->bound)
 		return EINVAL;
-	if (entry->bound) return EINVAL;
-	page = (request.offset + PAGE_SIZE - 1) / PAGE_SIZE;
-	if ((retcode = drm_agp_bind_memory(entry->handle, page)))
-		return retcode;
-	entry->bound = dev->agp->base + (page << PAGE_SHIFT);
-	return 0;
+
+	page = (request->offset + PAGE_SIZE - 1) / PAGE_SIZE;
+
+	DRM_UNLOCK();
+	retcode = drm_agp_bind_memory(entry->handle, page);
+	DRM_LOCK();
+	if (retcode == 0)
+		entry->bound = dev->agp->base + (page << PAGE_SHIFT);
+
+	return retcode;
 }
 
-int drm_agp_free(DRM_IOCTL_ARGS)
+int drm_agp_bind_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_agp_buffer_t request;
+	drm_agp_binding_t request;
+	int retcode;
+
+	request = *(drm_agp_binding_t *) data;
+
+	DRM_LOCK();
+	retcode = drm_agp_bind(dev, &request);
+	DRM_UNLOCK();
+
+	return retcode;
+}
+
+int drm_agp_free(drm_device_t *dev, drm_agp_buffer_t *request)
+{
 	drm_agp_mem_t    *entry;
 	
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
-	request = *(drm_agp_buffer_t *) data;
-	if (!(entry = drm_agp_lookup_entry(dev, (void*)request.handle)))
+
+	entry = drm_agp_lookup_entry(dev, (void*)request->handle);
+	if (entry == NULL)
 		return EINVAL;
-	if (entry->bound)
-		drm_agp_unbind_memory(entry->handle);
    
 	if (entry->prev)
 		entry->prev->next = entry->next;
@@ -287,9 +373,32 @@ int drm_agp_free(DRM_IOCTL_ARGS)
 		dev->agp->memory  = entry->next;
 	if (entry->next)
 		entry->next->prev = entry->prev;
+
+	DRM_UNLOCK();
+	if (entry->bound)
+		drm_agp_unbind_memory(entry->handle);
 	drm_agp_free_memory(entry->handle);
+	DRM_LOCK();
+
 	free(entry, M_DRM);
+
 	return 0;
+
+}
+
+int drm_agp_free_ioctl(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_agp_buffer_t request;
+	int retcode;
+
+	request = *(drm_agp_buffer_t *) data;
+
+	DRM_LOCK();
+	retcode = drm_agp_free(dev, &request);
+	DRM_UNLOCK();
+
+	return retcode;
 }
 
 drm_agp_head_t *drm_agp_init(void)
@@ -317,12 +426,6 @@ drm_agp_head_t *drm_agp_init(void)
 	}
 	return head;
 }
-
-void drm_agp_uninit(void)
-{
-/* FIXME: What goes here */
-}
-
 
 void *drm_agp_allocate_memory(size_t pages, u32 type)
 {
