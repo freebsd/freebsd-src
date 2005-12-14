@@ -144,8 +144,8 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	memused = cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
 	swap_pager_status(&i, &j);
-	swaptotal = i * PAGE_SIZE;
-	swapused = j * PAGE_SIZE;
+	swaptotal = (unsigned long long)i * PAGE_SIZE;
+	swapused = (unsigned long long)j * PAGE_SIZE;
 	swapfree = swaptotal - swapused;
 	memshared = 0;
 	mtx_lock(&vm_object_list_mtx);
