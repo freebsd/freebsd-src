@@ -158,8 +158,8 @@ static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
 static void handleclock(void* arg);
-static void
-calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer);
+static void calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc,
+    u_int32_t *timer);
 static void set_timer_freq(u_int freq, int intr_freq);
 
 void
