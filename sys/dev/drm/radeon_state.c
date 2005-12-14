@@ -25,9 +25,10 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *    Kevin E. Martin <martin@valinux.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
@@ -212,6 +213,15 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 	case RADEON_EMIT_PP_CUBIC_FACES_1:
 	case RADEON_EMIT_PP_CUBIC_FACES_2:
 	case R200_EMIT_PP_TRI_PERF_CNTL:
+	case R200_EMIT_PP_AFS_0:
+	case R200_EMIT_PP_AFS_1:
+	case R200_EMIT_ATF_TFACTOR:
+	case R200_EMIT_PP_TXCTLALL_0:
+	case R200_EMIT_PP_TXCTLALL_1:
+	case R200_EMIT_PP_TXCTLALL_2:
+	case R200_EMIT_PP_TXCTLALL_3:
+	case R200_EMIT_PP_TXCTLALL_4:
+	case R200_EMIT_PP_TXCTLALL_5:
 		/* These packets don't contain memory offsets */
 		break;
 
@@ -492,100 +502,103 @@ static struct {
 	int len;
 	const char *name;
 } packet[RADEON_MAX_STATE_PACKETS] = {
-	{
-	RADEON_PP_MISC, 7, "RADEON_PP_MISC"}, {
-	RADEON_PP_CNTL, 3, "RADEON_PP_CNTL"}, {
-	RADEON_RB3D_COLORPITCH, 1, "RADEON_RB3D_COLORPITCH"}, {
-	RADEON_RE_LINE_PATTERN, 2, "RADEON_RE_LINE_PATTERN"}, {
-	RADEON_SE_LINE_WIDTH, 1, "RADEON_SE_LINE_WIDTH"}, {
-	RADEON_PP_LUM_MATRIX, 1, "RADEON_PP_LUM_MATRIX"}, {
-	RADEON_PP_ROT_MATRIX_0, 2, "RADEON_PP_ROT_MATRIX_0"}, {
-	RADEON_RB3D_STENCILREFMASK, 3, "RADEON_RB3D_STENCILREFMASK"}, {
-	RADEON_SE_VPORT_XSCALE, 6, "RADEON_SE_VPORT_XSCALE"}, {
-	RADEON_SE_CNTL, 2, "RADEON_SE_CNTL"}, {
-	RADEON_SE_CNTL_STATUS, 1, "RADEON_SE_CNTL_STATUS"}, {
-	RADEON_RE_MISC, 1, "RADEON_RE_MISC"}, {
-	RADEON_PP_TXFILTER_0, 6, "RADEON_PP_TXFILTER_0"}, {
-	RADEON_PP_BORDER_COLOR_0, 1, "RADEON_PP_BORDER_COLOR_0"}, {
-	RADEON_PP_TXFILTER_1, 6, "RADEON_PP_TXFILTER_1"}, {
-	RADEON_PP_BORDER_COLOR_1, 1, "RADEON_PP_BORDER_COLOR_1"}, {
-	RADEON_PP_TXFILTER_2, 6, "RADEON_PP_TXFILTER_2"}, {
-	RADEON_PP_BORDER_COLOR_2, 1, "RADEON_PP_BORDER_COLOR_2"}, {
-	RADEON_SE_ZBIAS_FACTOR, 2, "RADEON_SE_ZBIAS_FACTOR"}, {
-	RADEON_SE_TCL_OUTPUT_VTX_FMT, 11, "RADEON_SE_TCL_OUTPUT_VTX_FMT"}, {
-	RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED, 17,
-		    "RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED"}, {
-	R200_PP_TXCBLEND_0, 4, "R200_PP_TXCBLEND_0"}, {
-	R200_PP_TXCBLEND_1, 4, "R200_PP_TXCBLEND_1"}, {
-	R200_PP_TXCBLEND_2, 4, "R200_PP_TXCBLEND_2"}, {
-	R200_PP_TXCBLEND_3, 4, "R200_PP_TXCBLEND_3"}, {
-	R200_PP_TXCBLEND_4, 4, "R200_PP_TXCBLEND_4"}, {
-	R200_PP_TXCBLEND_5, 4, "R200_PP_TXCBLEND_5"}, {
-	R200_PP_TXCBLEND_6, 4, "R200_PP_TXCBLEND_6"}, {
-	R200_PP_TXCBLEND_7, 4, "R200_PP_TXCBLEND_7"}, {
-	R200_SE_TCL_LIGHT_MODEL_CTL_0, 6, "R200_SE_TCL_LIGHT_MODEL_CTL_0"},
-	{
-	R200_PP_TFACTOR_0, 6, "R200_PP_TFACTOR_0"}, {
-	R200_SE_VTX_FMT_0, 4, "R200_SE_VTX_FMT_0"}, {
-	R200_SE_VAP_CNTL, 1, "R200_SE_VAP_CNTL"}, {
-	R200_SE_TCL_MATRIX_SEL_0, 5, "R200_SE_TCL_MATRIX_SEL_0"}, {
-	R200_SE_TCL_TEX_PROC_CTL_2, 5, "R200_SE_TCL_TEX_PROC_CTL_2"}, {
-	R200_SE_TCL_UCP_VERT_BLEND_CTL, 1, "R200_SE_TCL_UCP_VERT_BLEND_CTL"},
-	{
-	R200_PP_TXFILTER_0, 6, "R200_PP_TXFILTER_0"}, {
-	R200_PP_TXFILTER_1, 6, "R200_PP_TXFILTER_1"}, {
-	R200_PP_TXFILTER_2, 6, "R200_PP_TXFILTER_2"}, {
-	R200_PP_TXFILTER_3, 6, "R200_PP_TXFILTER_3"}, {
-	R200_PP_TXFILTER_4, 6, "R200_PP_TXFILTER_4"}, {
-	R200_PP_TXFILTER_5, 6, "R200_PP_TXFILTER_5"}, {
-	R200_PP_TXOFFSET_0, 1, "R200_PP_TXOFFSET_0"}, {
-	R200_PP_TXOFFSET_1, 1, "R200_PP_TXOFFSET_1"}, {
-	R200_PP_TXOFFSET_2, 1, "R200_PP_TXOFFSET_2"}, {
-	R200_PP_TXOFFSET_3, 1, "R200_PP_TXOFFSET_3"}, {
-	R200_PP_TXOFFSET_4, 1, "R200_PP_TXOFFSET_4"}, {
-	R200_PP_TXOFFSET_5, 1, "R200_PP_TXOFFSET_5"}, {
-	R200_SE_VTE_CNTL, 1, "R200_SE_VTE_CNTL"}, {
-	R200_SE_TCL_OUTPUT_VTX_COMP_SEL, 1, "R200_SE_TCL_OUTPUT_VTX_COMP_SEL"},
-	{
-	R200_PP_TAM_DEBUG3, 1, "R200_PP_TAM_DEBUG3"}, {
-	R200_PP_CNTL_X, 1, "R200_PP_CNTL_X"}, {
-	R200_RB3D_DEPTHXY_OFFSET, 1, "R200_RB3D_DEPTHXY_OFFSET"}, {
-	R200_RE_AUX_SCISSOR_CNTL, 1, "R200_RE_AUX_SCISSOR_CNTL"}, {
-	R200_RE_SCISSOR_TL_0, 2, "R200_RE_SCISSOR_TL_0"}, {
-	R200_RE_SCISSOR_TL_1, 2, "R200_RE_SCISSOR_TL_1"}, {
-	R200_RE_SCISSOR_TL_2, 2, "R200_RE_SCISSOR_TL_2"}, {
-	R200_SE_VAP_CNTL_STATUS, 1, "R200_SE_VAP_CNTL_STATUS"}, {
-	R200_SE_VTX_STATE_CNTL, 1, "R200_SE_VTX_STATE_CNTL"}, {
-	R200_RE_POINTSIZE, 1, "R200_RE_POINTSIZE"}, {
-	R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0, 4,
-		    "R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0"}, {
-	R200_PP_CUBIC_FACES_0, 1, "R200_PP_CUBIC_FACES_0"},	/* 61 */
-	{
-	R200_PP_CUBIC_OFFSET_F1_0, 5, "R200_PP_CUBIC_OFFSET_F1_0"},	/* 62 */
-	{
-	R200_PP_CUBIC_FACES_1, 1, "R200_PP_CUBIC_FACES_1"}, {
-	R200_PP_CUBIC_OFFSET_F1_1, 5, "R200_PP_CUBIC_OFFSET_F1_1"}, {
-	R200_PP_CUBIC_FACES_2, 1, "R200_PP_CUBIC_FACES_2"}, {
-	R200_PP_CUBIC_OFFSET_F1_2, 5, "R200_PP_CUBIC_OFFSET_F1_2"}, {
-	R200_PP_CUBIC_FACES_3, 1, "R200_PP_CUBIC_FACES_3"}, {
-	R200_PP_CUBIC_OFFSET_F1_3, 5, "R200_PP_CUBIC_OFFSET_F1_3"}, {
-	R200_PP_CUBIC_FACES_4, 1, "R200_PP_CUBIC_FACES_4"}, {
-	R200_PP_CUBIC_OFFSET_F1_4, 5, "R200_PP_CUBIC_OFFSET_F1_4"}, {
-	R200_PP_CUBIC_FACES_5, 1, "R200_PP_CUBIC_FACES_5"}, {
-	R200_PP_CUBIC_OFFSET_F1_5, 5, "R200_PP_CUBIC_OFFSET_F1_5"}, {
-	RADEON_PP_TEX_SIZE_0, 2, "RADEON_PP_TEX_SIZE_0"}, {
-	RADEON_PP_TEX_SIZE_1, 2, "RADEON_PP_TEX_SIZE_1"}, {
-	RADEON_PP_TEX_SIZE_2, 2, "RADEON_PP_TEX_SIZE_2"}, {
-	R200_RB3D_BLENDCOLOR, 3, "R200_RB3D_BLENDCOLOR"}, {
-	R200_SE_TCL_POINT_SPRITE_CNTL, 1, "R200_SE_TCL_POINT_SPRITE_CNTL"},
-	{
-	RADEON_PP_CUBIC_FACES_0, 1, "RADEON_PP_CUBIC_FACES_0"}, {
-	RADEON_PP_CUBIC_OFFSET_T0_0, 5, "RADEON_PP_CUBIC_OFFSET_T0_0"}, {
-	RADEON_PP_CUBIC_FACES_1, 1, "RADEON_PP_CUBIC_FACES_1"}, {
-	RADEON_PP_CUBIC_OFFSET_T1_0, 5, "RADEON_PP_CUBIC_OFFSET_T1_0"}, {
-	RADEON_PP_CUBIC_FACES_2, 1, "RADEON_PP_CUBIC_FACES_2"}, {
-	RADEON_PP_CUBIC_OFFSET_T2_0, 5, "RADEON_PP_CUBIC_OFFSET_T2_0"}, {
-	R200_PP_TRI_PERF, 2, "R200_PP_TRI_PERF"},
+	{RADEON_PP_MISC, 7, "RADEON_PP_MISC"},
+	{RADEON_PP_CNTL, 3, "RADEON_PP_CNTL"},
+	{RADEON_RB3D_COLORPITCH, 1, "RADEON_RB3D_COLORPITCH"},
+	{RADEON_RE_LINE_PATTERN, 2, "RADEON_RE_LINE_PATTERN"},
+	{RADEON_SE_LINE_WIDTH, 1, "RADEON_SE_LINE_WIDTH"},
+	{RADEON_PP_LUM_MATRIX, 1, "RADEON_PP_LUM_MATRIX"},
+	{RADEON_PP_ROT_MATRIX_0, 2, "RADEON_PP_ROT_MATRIX_0"},
+	{RADEON_RB3D_STENCILREFMASK, 3, "RADEON_RB3D_STENCILREFMASK"},
+	{RADEON_SE_VPORT_XSCALE, 6, "RADEON_SE_VPORT_XSCALE"},
+	{RADEON_SE_CNTL, 2, "RADEON_SE_CNTL"},
+	{RADEON_SE_CNTL_STATUS, 1, "RADEON_SE_CNTL_STATUS"},
+	{RADEON_RE_MISC, 1, "RADEON_RE_MISC"},
+	{RADEON_PP_TXFILTER_0, 6, "RADEON_PP_TXFILTER_0"},
+	{RADEON_PP_BORDER_COLOR_0, 1, "RADEON_PP_BORDER_COLOR_0"},
+	{RADEON_PP_TXFILTER_1, 6, "RADEON_PP_TXFILTER_1"},
+	{RADEON_PP_BORDER_COLOR_1, 1, "RADEON_PP_BORDER_COLOR_1"},
+	{RADEON_PP_TXFILTER_2, 6, "RADEON_PP_TXFILTER_2"},
+	{RADEON_PP_BORDER_COLOR_2, 1, "RADEON_PP_BORDER_COLOR_2"},
+	{RADEON_SE_ZBIAS_FACTOR, 2, "RADEON_SE_ZBIAS_FACTOR"},
+	{RADEON_SE_TCL_OUTPUT_VTX_FMT, 11, "RADEON_SE_TCL_OUTPUT_VTX_FMT"},
+	{RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED, 17,
+	 "RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED"},
+	{R200_PP_TXCBLEND_0, 4, "R200_PP_TXCBLEND_0"},
+	{R200_PP_TXCBLEND_1, 4, "R200_PP_TXCBLEND_1"},
+	{R200_PP_TXCBLEND_2, 4, "R200_PP_TXCBLEND_2"},
+	{R200_PP_TXCBLEND_3, 4, "R200_PP_TXCBLEND_3"},
+	{R200_PP_TXCBLEND_4, 4, "R200_PP_TXCBLEND_4"},
+	{R200_PP_TXCBLEND_5, 4, "R200_PP_TXCBLEND_5"},
+	{R200_PP_TXCBLEND_6, 4, "R200_PP_TXCBLEND_6"},
+	{R200_PP_TXCBLEND_7, 4, "R200_PP_TXCBLEND_7"},
+	{R200_SE_TCL_LIGHT_MODEL_CTL_0, 6, "R200_SE_TCL_LIGHT_MODEL_CTL_0"},
+	{R200_PP_TFACTOR_0, 6, "R200_PP_TFACTOR_0"},
+	{R200_SE_VTX_FMT_0, 4, "R200_SE_VTX_FMT_0"},
+	{R200_SE_VAP_CNTL, 1, "R200_SE_VAP_CNTL"},
+	{R200_SE_TCL_MATRIX_SEL_0, 5, "R200_SE_TCL_MATRIX_SEL_0"},
+	{R200_SE_TCL_TEX_PROC_CTL_2, 5, "R200_SE_TCL_TEX_PROC_CTL_2"},
+	{R200_SE_TCL_UCP_VERT_BLEND_CTL, 1, "R200_SE_TCL_UCP_VERT_BLEND_CTL"},
+	{R200_PP_TXFILTER_0, 6, "R200_PP_TXFILTER_0"},
+	{R200_PP_TXFILTER_1, 6, "R200_PP_TXFILTER_1"},
+	{R200_PP_TXFILTER_2, 6, "R200_PP_TXFILTER_2"},
+	{R200_PP_TXFILTER_3, 6, "R200_PP_TXFILTER_3"},
+	{R200_PP_TXFILTER_4, 6, "R200_PP_TXFILTER_4"},
+	{R200_PP_TXFILTER_5, 6, "R200_PP_TXFILTER_5"},
+	{R200_PP_TXOFFSET_0, 1, "R200_PP_TXOFFSET_0"},
+	{R200_PP_TXOFFSET_1, 1, "R200_PP_TXOFFSET_1"},
+	{R200_PP_TXOFFSET_2, 1, "R200_PP_TXOFFSET_2"},
+	{R200_PP_TXOFFSET_3, 1, "R200_PP_TXOFFSET_3"},
+	{R200_PP_TXOFFSET_4, 1, "R200_PP_TXOFFSET_4"},
+	{R200_PP_TXOFFSET_5, 1, "R200_PP_TXOFFSET_5"},
+	{R200_SE_VTE_CNTL, 1, "R200_SE_VTE_CNTL"},
+	{R200_SE_TCL_OUTPUT_VTX_COMP_SEL, 1,
+	 "R200_SE_TCL_OUTPUT_VTX_COMP_SEL"},
+	{R200_PP_TAM_DEBUG3, 1, "R200_PP_TAM_DEBUG3"},
+	{R200_PP_CNTL_X, 1, "R200_PP_CNTL_X"},
+	{R200_RB3D_DEPTHXY_OFFSET, 1, "R200_RB3D_DEPTHXY_OFFSET"},
+	{R200_RE_AUX_SCISSOR_CNTL, 1, "R200_RE_AUX_SCISSOR_CNTL"},
+	{R200_RE_SCISSOR_TL_0, 2, "R200_RE_SCISSOR_TL_0"},
+	{R200_RE_SCISSOR_TL_1, 2, "R200_RE_SCISSOR_TL_1"},
+	{R200_RE_SCISSOR_TL_2, 2, "R200_RE_SCISSOR_TL_2"},
+	{R200_SE_VAP_CNTL_STATUS, 1, "R200_SE_VAP_CNTL_STATUS"},
+	{R200_SE_VTX_STATE_CNTL, 1, "R200_SE_VTX_STATE_CNTL"},
+	{R200_RE_POINTSIZE, 1, "R200_RE_POINTSIZE"},
+	{R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0, 4,
+	 "R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0"},
+	{R200_PP_CUBIC_FACES_0, 1, "R200_PP_CUBIC_FACES_0"},	/* 61 */
+	{R200_PP_CUBIC_OFFSET_F1_0, 5, "R200_PP_CUBIC_OFFSET_F1_0"}, /* 62 */
+	{R200_PP_CUBIC_FACES_1, 1, "R200_PP_CUBIC_FACES_1"},
+	{R200_PP_CUBIC_OFFSET_F1_1, 5, "R200_PP_CUBIC_OFFSET_F1_1"},
+	{R200_PP_CUBIC_FACES_2, 1, "R200_PP_CUBIC_FACES_2"},
+	{R200_PP_CUBIC_OFFSET_F1_2, 5, "R200_PP_CUBIC_OFFSET_F1_2"},
+	{R200_PP_CUBIC_FACES_3, 1, "R200_PP_CUBIC_FACES_3"},
+	{R200_PP_CUBIC_OFFSET_F1_3, 5, "R200_PP_CUBIC_OFFSET_F1_3"},
+	{R200_PP_CUBIC_FACES_4, 1, "R200_PP_CUBIC_FACES_4"},
+	{R200_PP_CUBIC_OFFSET_F1_4, 5, "R200_PP_CUBIC_OFFSET_F1_4"},
+	{R200_PP_CUBIC_FACES_5, 1, "R200_PP_CUBIC_FACES_5"},
+	{R200_PP_CUBIC_OFFSET_F1_5, 5, "R200_PP_CUBIC_OFFSET_F1_5"},
+	{RADEON_PP_TEX_SIZE_0, 2, "RADEON_PP_TEX_SIZE_0"},
+	{RADEON_PP_TEX_SIZE_1, 2, "RADEON_PP_TEX_SIZE_1"},
+	{RADEON_PP_TEX_SIZE_2, 2, "RADEON_PP_TEX_SIZE_2"},
+	{R200_RB3D_BLENDCOLOR, 3, "R200_RB3D_BLENDCOLOR"},
+	{R200_SE_TCL_POINT_SPRITE_CNTL, 1, "R200_SE_TCL_POINT_SPRITE_CNTL"},
+	{RADEON_PP_CUBIC_FACES_0, 1, "RADEON_PP_CUBIC_FACES_0"},
+	{RADEON_PP_CUBIC_OFFSET_T0_0, 5, "RADEON_PP_CUBIC_OFFSET_T0_0"},
+	{RADEON_PP_CUBIC_FACES_1, 1, "RADEON_PP_CUBIC_FACES_1"},
+	{RADEON_PP_CUBIC_OFFSET_T1_0, 5, "RADEON_PP_CUBIC_OFFSET_T1_0"},
+	{RADEON_PP_CUBIC_FACES_2, 1, "RADEON_PP_CUBIC_FACES_2"},
+	{RADEON_PP_CUBIC_OFFSET_T2_0, 5, "RADEON_PP_CUBIC_OFFSET_T2_0"},
+	{R200_PP_TRI_PERF, 2, "R200_PP_TRI_PERF"},
+	{R200_PP_AFS_0, 32, "R200_PP_AFS_0"},     /* 85 */
+	{R200_PP_AFS_1, 32, "R200_PP_AFS_1"},
+	{R200_PP_TFACTOR_0, 8, "R200_ATF_TFACTOR"},
+	{R200_PP_TXFILTER_0, 8, "R200_PP_TXCTLALL_0"},
+	{R200_PP_TXFILTER_1, 8, "R200_PP_TXCTLALL_1"},
+	{R200_PP_TXFILTER_2, 8, "R200_PP_TXCTLALL_2"},
+	{R200_PP_TXFILTER_3, 8, "R200_PP_TXCTLALL_3"},
+	{R200_PP_TXFILTER_4, 8, "R200_PP_TXCTLALL_4"},
+	{R200_PP_TXFILTER_5, 8, "R200_PP_TXCTLALL_5"},
 };
 
 /* ================================================================
@@ -2084,7 +2097,7 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv;
+	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_vertex_t vertex;
@@ -2096,7 +2109,6 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
-	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2173,7 +2185,7 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv;
+	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_indices_t elts;
@@ -2186,7 +2198,6 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
-	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2402,7 +2413,7 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv;
+	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_vertex2_t vertex;
@@ -2415,7 +2426,6 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
-	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2922,7 +2932,7 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 		value = dev_priv->gart_vm_start;
 		break;
 	case RADEON_PARAM_REGISTER_HANDLE:
-		value = dev_priv->mmio_offset;
+		value = dev_priv->mmio->offset;
 		break;
 	case RADEON_PARAM_STATUS_HANDLE:
 		value = dev_priv->ring_rptr_offset;
@@ -2994,6 +3004,9 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 			dev_priv->sarea_priv->tiling_enabled = 1;
 		}
 		break;
+	case RADEON_SETPARAM_PCIGART_LOCATION:
+		dev_priv->pcigart_offset = sp.value;
+		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);
 		return DRM_ERR(EINVAL);
@@ -3009,7 +3022,7 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
  *
  * DRM infrastructure takes care of reclaiming dma buffers.
  */
-void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -3022,12 +3035,12 @@ void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void radeon_driver_pretakedown(drm_device_t * dev)
+void radeon_driver_lastclose(drm_device_t * dev)
 {
 	radeon_do_release(dev);
 }
 
-int radeon_driver_open_helper(drm_device_t * dev, drm_file_t * filp_priv)
+int radeon_driver_open(drm_device_t * dev, drm_file_t * filp_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	struct drm_radeon_driver_file_fields *radeon_priv;
@@ -3049,7 +3062,7 @@ int radeon_driver_open_helper(drm_device_t * dev, drm_file_t * filp_priv)
 	return 0;
 }
 
-void radeon_driver_free_filp_priv(drm_device_t * dev, drm_file_t * filp_priv)
+void radeon_driver_postclose(drm_device_t * dev, drm_file_t * filp_priv)
 {
 	struct drm_radeon_driver_file_fields *radeon_priv =
 	    filp_priv->driver_priv;
@@ -3058,33 +3071,33 @@ void radeon_driver_free_filp_priv(drm_device_t * dev, drm_file_t * filp_priv)
 }
 
 drm_ioctl_desc_t radeon_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_RADEON_CP_INIT)] = {radeon_cp_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_RADEON_CP_START)] = {radeon_cp_start, 1, 1},
-	[DRM_IOCTL_NR(DRM_RADEON_CP_STOP)] = {radeon_cp_stop, 1, 1},
-	[DRM_IOCTL_NR(DRM_RADEON_CP_RESET)] = {radeon_cp_reset, 1, 1},
-	[DRM_IOCTL_NR(DRM_RADEON_CP_IDLE)] = {radeon_cp_idle, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_CP_RESUME)] = {radeon_cp_resume, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_RESET)] = {radeon_engine_reset, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_FULLSCREEN)] = {radeon_fullscreen, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_SWAP)] = {radeon_cp_swap, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_CLEAR)] = {radeon_cp_clear, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_VERTEX)] = {radeon_cp_vertex, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_INDICES)] = {radeon_cp_indices, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_TEXTURE)] = {radeon_cp_texture, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_STIPPLE)] = {radeon_cp_stipple, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_INDIRECT)] = {radeon_cp_indirect, 1, 1},
-	[DRM_IOCTL_NR(DRM_RADEON_VERTEX2)] = {radeon_cp_vertex2, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_CMDBUF)] = {radeon_cp_cmdbuf, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_GETPARAM)] = {radeon_cp_getparam, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_FLIP)] = {radeon_cp_flip, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_ALLOC)] = {radeon_mem_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_FREE)] = {radeon_mem_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_INIT_HEAP)] = {radeon_mem_init_heap, 1, 1},
-	[DRM_IOCTL_NR(DRM_RADEON_IRQ_EMIT)] = {radeon_irq_emit, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_IRQ_WAIT)] = {radeon_irq_wait, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_SETPARAM)] = {radeon_cp_setparam, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_SURF_ALLOC)] = {radeon_surface_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_RADEON_SURF_FREE)] = {radeon_surface_free, 1, 0}
+	[DRM_IOCTL_NR(DRM_RADEON_CP_INIT)] = {radeon_cp_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_RADEON_CP_START)] = {radeon_cp_start, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_RADEON_CP_STOP)] = {radeon_cp_stop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_RADEON_CP_RESET)] = {radeon_cp_reset, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_RADEON_CP_IDLE)] = {radeon_cp_idle, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_CP_RESUME)] = {radeon_cp_resume, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_RESET)] = {radeon_engine_reset, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_FULLSCREEN)] = {radeon_fullscreen, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_SWAP)] = {radeon_cp_swap, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_CLEAR)] = {radeon_cp_clear, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_VERTEX)] = {radeon_cp_vertex, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_INDICES)] = {radeon_cp_indices, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_TEXTURE)] = {radeon_cp_texture, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_STIPPLE)] = {radeon_cp_stipple, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_INDIRECT)] = {radeon_cp_indirect, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_RADEON_VERTEX2)] = {radeon_cp_vertex2, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_CMDBUF)] = {radeon_cp_cmdbuf, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_GETPARAM)] = {radeon_cp_getparam, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_FLIP)] = {radeon_cp_flip, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_ALLOC)] = {radeon_mem_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_FREE)] = {radeon_mem_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_INIT_HEAP)] = {radeon_mem_init_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_RADEON_IRQ_EMIT)] = {radeon_irq_emit, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_IRQ_WAIT)] = {radeon_irq_wait, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_SETPARAM)] = {radeon_cp_setparam, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_SURF_ALLOC)] = {radeon_surface_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_RADEON_SURF_FREE)] = {radeon_surface_free, DRM_AUTH}
 };
 
 int radeon_max_ioctl = DRM_ARRAY_SIZE(radeon_ioctls);

@@ -1,5 +1,5 @@
-/* radeon_drv.h -- Private header for radeon driver -*- linux-c -*- */
-/*-
+/* radeon_drv.h -- Private header for radeon driver -*- linux-c -*-
+ *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Fremont, California.
  * All rights reserved.
@@ -26,16 +26,13 @@
  * Authors:
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __RADEON_DRV_H__
 #define __RADEON_DRV_H__
-
-#ifdef __linux__
-#include "radeon_i2c.h"
-#endif /* __linux__ */
 
 /* General customization:
  */
@@ -44,7 +41,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20050311"
+#define DRIVER_DATE		"20050911"
 
 /* Interface history:
  *
@@ -88,18 +85,23 @@
  *     - Add support for r100 cube maps
  * 1.16- Add R200_EMIT_PP_TRI_PERF_CNTL packet to support brilinear
  *       texture filtering on r200
+ * 1.17- Add initial support for R300 (3D).
+ * 1.18- Add support for GL_ATI_fragment_shader, new packets R200_EMIT_PP_AFS_0/1,
+         R200_EMIT_PP_TXCTLALL_0-5 (replaces R200_EMIT_PP_TXFILTER_0-5, 2 more regs)
+         and R200_EMIT_ATF_TFACTOR (replaces R200_EMIT_TFACTOR_0 (8 consts instead of 6)
+ * 1.19- Add support for gart table in FB memory and PCIE r300
  */
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		16
+#define DRIVER_MINOR		19
 #define DRIVER_PATCHLEVEL	0
 
 enum radeon_family {
 	CHIP_R100,
 	CHIP_RS100,
 	CHIP_RV100,
-	CHIP_R200,
 	CHIP_RV200,
+	CHIP_R200,
 	CHIP_RS200,
 	CHIP_R250,
 	CHIP_RS250,
@@ -213,9 +215,6 @@ typedef struct drm_radeon_private {
 
 	int microcode_version;
 
-	unsigned long phys_pci_gart;
-	dma_addr_t bus_pci_gart;
-
 	struct {
 		u32 boxes;
 		int freelist_timeouts;
@@ -247,8 +246,6 @@ typedef struct drm_radeon_private {
 
 	drm_radeon_depth_clear_t depth_clear;
 
-	unsigned long fb_offset;
-	unsigned long mmio_offset;
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
@@ -269,18 +266,21 @@ typedef struct drm_radeon_private {
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
 	struct radeon_virt_surface virt_surfaces[2*RADEON_MAX_SURFACES];
-	
+
+	unsigned long pcigart_offset;
+	drm_ati_pcigart_info gart_info;
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 
-#ifdef __linux__
-	struct radeon_i2c_chan i2c[4];
-#endif /* __linux__ */
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {
 	u32 age;
 } drm_radeon_buf_priv_t;
+
+extern int radeon_no_wb;
+extern drm_ioctl_desc_t radeon_ioctls[];
+extern int radeon_max_ioctl;
 
 				/* radeon_cp.c */
 extern int radeon_cp_init(DRM_IOCTL_ARGS);
@@ -317,12 +317,16 @@ extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(drm_device_t * dev);
 extern void radeon_driver_irq_postinstall(drm_device_t * dev);
 extern void radeon_driver_irq_uninstall(drm_device_t * dev);
-extern void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp);
-extern void radeon_driver_pretakedown(drm_device_t * dev);
-extern int radeon_driver_open_helper(drm_device_t * dev,
-				     drm_file_t * filp_priv);
-extern void radeon_driver_free_filp_priv(drm_device_t * dev,
-					 drm_file_t * filp_priv);
+
+extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
+extern int radeon_driver_unload(struct drm_device *dev);
+extern int radeon_driver_firstopen(struct drm_device *dev);
+extern void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp);
+extern void radeon_driver_postclose(drm_device_t * dev, drm_file_t * filp);
+extern void radeon_driver_lastclose(drm_device_t * dev);
+extern int radeon_driver_open(drm_device_t * dev, drm_file_t * filp_priv);
+extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
+					 unsigned long arg);
 
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(void);
@@ -876,6 +880,39 @@ extern int r300_do_cp_cmdbuf( drm_device_t* dev,
 
 #define R200_PP_TRI_PERF                  0x2cf8
 
+#define R200_PP_AFS_0                     0x2f80
+#define R200_PP_AFS_1                     0x2f00 /* same as txcblend_0 */
+
+/* MPEG settings from VHA code */
+#define RADEON_VHA_SETTO16_1                       0x2694
+#define RADEON_VHA_SETTO16_2                       0x2680
+#define RADEON_VHA_SETTO0_1                        0x1840
+#define RADEON_VHA_FB_OFFSET                       0x19e4
+#define RADEON_VHA_SETTO1AND70S                    0x19d8
+#define RADEON_VHA_DST_PITCH                       0x1408
+
+// set as reference header
+#define RADEON_VHA_BACKFRAME0_OFF_Y              0x1840
+#define RADEON_VHA_BACKFRAME1_OFF_PITCH_Y        0x1844
+#define RADEON_VHA_BACKFRAME0_OFF_U              0x1848
+#define RADEON_VHA_BACKFRAME1_OFF_PITCH_U        0x184c
+#define RADOEN_VHA_BACKFRAME0_OFF_V              0x1850
+#define RADEON_VHA_BACKFRAME1_OFF_PITCH_V        0x1854
+#define RADEON_VHA_FORWFRAME0_OFF_Y              0x1858
+#define RADEON_VHA_FORWFRAME1_OFF_PITCH_Y        0x185c
+#define RADEON_VHA_FORWFRAME0_OFF_U              0x1860
+#define RADEON_VHA_FORWFRAME1_OFF_PITCH_U        0x1864
+#define RADEON_VHA_FORWFRAME0_OFF_V              0x1868
+#define RADEON_VHA_FORWFRAME0_OFF_PITCH_V        0x1880
+#define RADEON_VHA_BACKFRAME0_OFF_Y_2            0x1884
+#define RADEON_VHA_BACKFRAME1_OFF_PITCH_Y_2      0x1888
+#define RADEON_VHA_BACKFRAME0_OFF_U_2            0x188c
+#define RADEON_VHA_BACKFRAME1_OFF_PITCH_U_2      0x1890
+#define RADEON_VHA_BACKFRAME0_OFF_V_2            0x1894
+#define RADEON_VHA_BACKFRAME1_OFF_PITCH_V_2      0x1898
+
+
+
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
 
@@ -889,6 +926,8 @@ extern int r300_do_cp_cmdbuf( drm_device_t* dev,
 #define RADEON_MAX_VB_VERTS		(0xffff)
 
 #define RADEON_RING_HIGH_MARK		128
+
+#define RADEON_PCIGART_TABLE_SIZE      (32*1024)
 
 #define RADEON_READ(reg)	DRM_READ32(  dev_priv->mmio, (reg) )
 #define RADEON_WRITE(reg,val)	DRM_WRITE32( dev_priv->mmio, (reg), (val) )
@@ -908,9 +947,6 @@ do {									\
 			((addr) & 0xff));				\
 	RADEON_WRITE( RADEON_PCIE_DATA, (val) );			\
 } while (0)
-
-extern int radeon_preinit(struct drm_device *dev, unsigned long flags);
-extern int radeon_postcleanup(struct drm_device *dev);
 
 #define CP_PACKET0( reg, n )						\
 	(RADEON_CP_PACKET0 | ((n) << 16) | ((reg) >> 2))

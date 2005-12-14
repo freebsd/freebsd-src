@@ -28,9 +28,10 @@
  * Authors:
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 
 #include <sys/types.h>
@@ -46,36 +47,33 @@ static drm_pci_id_list_t mach64_pciidlist[] = {
 	mach64_PCI_IDS
 };
 
-extern drm_ioctl_desc_t mach64_ioctls[];
-extern int mach64_max_ioctl;
-
 static void mach64_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = 1; /* No dev_priv */
-	dev->pretakedown = mach64_driver_pretakedown;
-	dev->vblank_wait = mach64_driver_vblank_wait;
-	dev->irq_preinstall = mach64_driver_irq_preinstall;
-	dev->irq_postinstall = mach64_driver_irq_postinstall;
-	dev->irq_uninstall = mach64_driver_irq_uninstall;
-	dev->irq_handler = mach64_driver_irq_handler;
-	dev->dma_ioctl = mach64_dma_buffers;
+	dev->driver.buf_priv_size	= 1; /* No dev_priv */
+	dev->driver.lastclose		= mach64_driver_lastclose;
+	dev->driver.vblank_wait		= mach64_driver_vblank_wait;
+	dev->driver.irq_preinstall	= mach64_driver_irq_preinstall;
+	dev->driver.irq_postinstall	= mach64_driver_irq_postinstall;
+	dev->driver.irq_uninstall	= mach64_driver_irq_uninstall;
+	dev->driver.irq_handler		= mach64_driver_irq_handler;
+	dev->driver.dma_ioctl		= mach64_dma_buffers;
 
-	dev->driver_ioctls = mach64_ioctls;
-	dev->max_driver_ioctl = mach64_max_ioctl;
+	dev->driver.ioctls		= mach64_ioctls;
+	dev->driver.max_ioctl		= mach64_max_ioctl;
 
-	dev->driver_name = DRIVER_NAME;
-	dev->driver_desc = DRIVER_DESC;
-	dev->driver_date = DRIVER_DATE;
-	dev->driver_major = DRIVER_MAJOR;
-	dev->driver_minor = DRIVER_MINOR;
-	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+	dev->driver.name		= DRIVER_NAME;
+	dev->driver.desc		= DRIVER_DESC;
+	dev->driver.date		= DRIVER_DATE;
+	dev->driver.major		= DRIVER_MAJOR;
+	dev->driver.minor		= DRIVER_MINOR;
+	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
 
-	dev->use_agp = 1;
-	dev->use_mtrr = 1;
-	dev->use_pci_dma = 1;
-	dev->use_dma = 1;
-	dev->use_irq = 1;
-	dev->use_vbl_irq = 1;
+	dev->driver.use_agp		= 1;
+	dev->driver.use_mtrr		= 1;
+	dev->driver.use_pci_dma		= 1;
+	dev->driver.use_dma		= 1;
+	dev->driver.use_irq		= 1;
+	dev->driver.use_vbl_irq		= 1;
 }
 
 #ifdef __FreeBSD__

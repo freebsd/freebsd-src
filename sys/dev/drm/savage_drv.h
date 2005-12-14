@@ -1,5 +1,5 @@
-/* savage_drv.h -- Private header for the savage driver
- *
+/* savage_drv.h -- Private header for the savage driver */
+/*-
  * Copyright 2004  Felix Kuehling
  * All Rights Reserved.
  *
@@ -21,9 +21,10 @@
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef __SAVAGE_DRV_H__
 #define __SAVAGE_DRV_H__
@@ -105,6 +106,9 @@ enum savage_family {
 	S3_SAVAGE2000,
 	S3_LAST
 };
+
+extern drm_ioctl_desc_t savage_ioctls[];
+extern int savage_max_ioctl;
 
 #define S3_SAVAGE3D_SERIES(chip)  ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE_MX))
 
@@ -191,15 +195,12 @@ typedef struct drm_savage_private {
 	/* Err, there is a macro wait_event in include/linux/wait.h.
 	 * Avoid unwanted macro expansion. */
 	void (*emit_clip_rect)(struct drm_savage_private *dev_priv,
-			       drm_clip_rect_t *pbox);
+			       const drm_clip_rect_t *pbox);
 	void (*dma_flush)(struct drm_savage_private *dev_priv);
 } drm_savage_private_t;
 
 /* ioctls */
-extern int savage_bci_init(DRM_IOCTL_ARGS);
 extern int savage_bci_cmdbuf(DRM_IOCTL_ARGS);
-extern int savage_bci_event_emit(DRM_IOCTL_ARGS);
-extern int savage_bci_event_wait(DRM_IOCTL_ARGS);
 extern int savage_bci_buffers(DRM_IOCTL_ARGS);
 
 /* BCI functions */
@@ -210,16 +211,18 @@ extern void savage_dma_reset(drm_savage_private_t *dev_priv);
 extern void savage_dma_wait(drm_savage_private_t *dev_priv, unsigned int page);
 extern uint32_t *savage_dma_alloc(drm_savage_private_t *dev_priv,
 				  unsigned int n);
-extern int savage_preinit(drm_device_t *dev, unsigned long chipset);
-extern int savage_postcleanup(drm_device_t *dev);
+extern int savage_driver_load(drm_device_t *dev, unsigned long chipset);
+extern int savage_driver_firstopen(drm_device_t *dev);
+extern void savage_driver_lastclose(drm_device_t *dev);
+extern int savage_driver_unload(drm_device_t *dev);
 extern int savage_do_cleanup_bci(drm_device_t *dev);
 extern void savage_reclaim_buffers(drm_device_t *dev, DRMFILE filp);
 
 /* state functions */
 extern void savage_emit_clip_rect_s3d(drm_savage_private_t *dev_priv,
-				      drm_clip_rect_t *pbox);
+				      const drm_clip_rect_t *pbox);
 extern void savage_emit_clip_rect_s4(drm_savage_private_t *dev_priv,
-				     drm_clip_rect_t *pbox);
+				     const drm_clip_rect_t *pbox);
 
 #define SAVAGE_FB_SIZE_S3	0x01000000	/*  16MB */
 #define SAVAGE_FB_SIZE_S4	0x02000000	/*  32MB */
@@ -502,15 +505,6 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t *dev_priv,
 
 #define BCI_WRITE( val ) *bci_ptr++ = (uint32_t)(val)
 
-#define BCI_COPY_FROM_USER(src,n) do {				\
-    unsigned int i;						\
-    for (i = 0; i < n; ++i) {					\
-	uint32_t val;						\
-	DRM_GET_USER_UNCHECKED(val, &((uint32_t*)(src))[i]);	\
-	BCI_WRITE(val);						\
-    }								\
-} while(0)
-
 /*
  * command DMA support
  */
@@ -536,8 +530,8 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t *dev_priv,
 
 #define DMA_WRITE( val ) *dma_ptr++ = (uint32_t)(val)
 
-#define DMA_COPY_FROM_USER(src,n) do {				\
-	DRM_COPY_FROM_USER_UNCHECKED(dma_ptr, (src), (n)*4);	\
+#define DMA_COPY(src, n) do {					\
+	memcpy(dma_ptr, (src), (n)*4);				\
 	dma_ptr += n;						\
 } while(0)
 

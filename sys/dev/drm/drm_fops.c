@@ -30,8 +30,10 @@
  *    Daryll Strauss <daryll@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
@@ -89,16 +91,21 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		priv->refs		= 1;
 		priv->minor		= m;
 		priv->ioctl_count 	= 0;
-		priv->authenticated	= !DRM_SUSER(p);
 
-		if (dev->open_helper) {
-			retcode = dev->open_helper(dev, priv);
+		/* for compatibility root is always authenticated */
+		priv->authenticated	= DRM_SUSER(p);
+
+		if (dev->driver.open) {
+			retcode = dev->driver.open(dev, priv);
 			if (retcode != 0) {
 				free(priv, M_DRM);
 				DRM_UNLOCK();
 				return retcode;
 			}
 		}
+
+		/* first opener automatically becomes master */
+		priv->master = TAILQ_EMPTY(&dev->files);
 
 		TAILQ_INSERT_TAIL(&dev->files, priv, link);
 	}
