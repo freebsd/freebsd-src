@@ -849,7 +849,8 @@ m_dup(struct mbuf *m, int how)
 				m_free(n);
 				goto nospace;
 			}
-			nsize = MHLEN;
+			if ((n->m_flags & M_EXT) == 0)
+				nsize = MHLEN;
 		}
 		n->m_len = 0;
 
