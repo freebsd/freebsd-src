@@ -451,12 +451,6 @@ struct vnodeop_desc {
 	int	vdesc_cred_offset;	/* cred location, if any */
 	int	vdesc_thread_offset;	/* thread location, if any */
 	int	vdesc_componentname_offset; /* if any */
-	/*
-	 * Finally, we've got a list of private data (about each operation)
-	 * for each transport layer.  (Support to manage this list is not
-	 * yet part of BSD.)
-	 */
-	caddr_t	*vdesc_transports;
 };
 
 #ifdef _KERNEL

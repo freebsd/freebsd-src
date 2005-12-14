@@ -184,7 +184,6 @@ if (cfile) {
 	    "	VDESC_NO_OFFSET,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
-	    "	NULL,\n" \
 	    "};\n");
 }
 
@@ -413,7 +412,7 @@ while ((getline < srcfile) > 0) {
 		# componentname
 		printc("\t" find_arg_with_type("struct componentname *") ",");
 		# transport layer information
-		printc("\tNULL,\n};\n");
+		printc("};\n");
 	}
 }
  
