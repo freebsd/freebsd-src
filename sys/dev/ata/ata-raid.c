@@ -3407,6 +3407,22 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	    raid->total_sectors = meta->disk_sectors;
 	    break;
 
+	case VIA_T_RAID01:
+	    raid->type = AR_T_RAID01;
+	    raid->width = meta->stripe_layout & VIA_L_MASK;
+	    if (!raid->total_sectors ||
+		(raid->total_sectors > (raid->width * meta->disk_sectors)))
+		raid->total_sectors = raid->width * meta->disk_sectors;
+	    break;
+
+	case VIA_T_RAID5:
+	    raid->type = AR_T_RAID5;
+	    raid->width = meta->stripe_layout & VIA_L_MASK;
+	    if (!raid->total_sectors ||
+		(raid->total_sectors > ((raid->width - 1)*meta->disk_sectors)))
+		raid->total_sectors = (raid->width - 1) * meta->disk_sectors;
+	    break;
+
 	case VIA_T_SPAN:
 	    raid->type = AR_T_SPAN;
 	    raid->width = 1;
@@ -3430,10 +3446,12 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	raid->heads = 255;
 	raid->sectors = 63;
 	raid->cylinders = raid->total_sectors / (63 * 255);
+	raid->offset_sectors = 0;
+	raid->rebuild_lba = 0;
+	raid->lun = array;
 
 	for (disk = 0; disk < 8; disk++) {
-	    if ((meta->disks[disk] == meta->disk_id) &&
-		((disk * sizeof(int32_t)) == (meta->disk_index & VIA_D_MASK))) {
+	    if (meta->disks[disk] == meta->disk_id) {
 		raid->disks[disk].dev = parent;
 		raid->disks[disk].sectors = meta->disk_sectors;
 		raid->disks[disk].flags =
@@ -4390,6 +4408,8 @@ ata_raid_via_type(int type)
     switch (type) {
     case VIA_T_RAID0:   return "RAID0";
     case VIA_T_RAID1:   return "RAID1";
+    case VIA_T_RAID5:   return "RAID5";
+    case VIA_T_RAID01:  return "RAID0+1";
     case VIA_T_SPAN:    return "SPAN";
     default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
 			return buffer;
@@ -4407,6 +4427,7 @@ ata_raid_via_print_meta(struct via_raid_conf *meta)
     printf("type                %s\n",
 	   ata_raid_via_type(meta->type & VIA_T_MASK));
     printf("bootable            %d\n", meta->type & VIA_T_BOOTABLE);
+    printf("unknown             %d\n", meta->type & VIA_T_UNKNOWN);
     printf("disk_index          0x%02x\n", meta->disk_index);
     printf("stripe_disks        %d\n", meta->stripe_layout & VIA_L_MASK);
     printf("stripe_sectors      %d\n",

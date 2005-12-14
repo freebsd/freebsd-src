@@ -743,15 +743,19 @@ struct via_raid_conf {
 
     u_int8_t    	dummy_0;
     u_int8_t    	type;
-#define VIA_T_MASK              0xfe
+#define VIA_T_MASK              0x7e
 #define VIA_T_BOOTABLE          0x01
 #define VIA_T_RAID0             0x04
 #define VIA_T_RAID1             0x0c
+#define VIA_T_RAID01            0x4c
+#define VIA_T_RAID5             0x2c
 #define VIA_T_SPAN              0x44
+#define VIA_T_UNKNOWN           0x80
 
     u_int8_t    	disk_index;
 #define VIA_D_MASK		0x0f
 #define VIA_D_DEGRADED		0x10
+#define VIA_D_HIGH_IDX		0x20
 
     u_int8_t    	stripe_layout;
 #define VIA_L_MASK              0x07
