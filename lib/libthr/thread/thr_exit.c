@@ -128,10 +128,13 @@ _pthread_exit(void *status)
 		THR_GCLIST_ADD(curthread);
 	curthread->state = PS_DEAD;
 	THREAD_LIST_UNLOCK(curthread);
-	if (curthread->joiner)
-		_thr_umtx_wake(&curthread->state, INT_MAX);
 	if (SHOULD_REPORT_EVENT(curthread, TD_DEATH))
 		_thr_report_death(curthread);
+
+	/*
+	 * Kernel will do wakeup at the address, so joiner thread
+	 * will be resumed if it is sleeping at the address.
+	 */
 	thr_exit(&curthread->tid);
 	PANIC("thr_exit() returned");
 	/* Never reach! */
