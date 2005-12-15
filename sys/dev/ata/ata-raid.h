@@ -584,7 +584,7 @@ struct nvidia_raid_conf {
 
 
 /* Promise FastTrak Metadata */
-#define PR_LBA(dev) \
+#define PROMISE_LBA(dev) \
 	(((((struct ad_softc *)device_get_ivars(dev))->total_secs / (((struct ad_softc *)device_get_ivars(dev))->heads * ((struct ad_softc *)device_get_ivars(dev))->sectors)) * ((struct ad_softc *)device_get_ivars(dev))->heads * ((struct ad_softc *)device_get_ivars(dev))->sectors) - ((struct ad_softc *)device_get_ivars(dev))->sectors)
 
 struct promise_raid_conf {
@@ -758,8 +758,9 @@ struct via_raid_conf {
 #define VIA_D_HIGH_IDX		0x20
 
     u_int8_t    	stripe_layout;
-#define VIA_L_MASK              0x07
-#define VIA_L_SHIFT             4
+#define VIA_L_DISKS             0x07
+#define VIA_L_MASK              0xf0
+#define VIA_L_SHIFT       	4
 
     u_int64_t   	disk_sectors;
     u_int32_t   	disk_id;
