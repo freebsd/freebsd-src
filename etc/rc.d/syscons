@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: syscons
-# REQUIRE: LOGIN usbd
+# REQUIRE: LOGIN
 # KEYWORD: nojail
 
 . /etc/rc.subr

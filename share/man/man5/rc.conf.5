@@ -2854,22 +2854,6 @@ is set to
 these are the flags to pass to the
 .Xr sshd 8
 daemon.
-.It Va usbd_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr usbd 8
-daemon at boot time.
-.It Va usbd_flags
-.Pq Vt str
-If
-.Va usbd_enable
-is set to
-.Dq Li YES ,
-these are the flags passed to the
-.Xr usbd 8
-daemon.
 .It Va watchdogd_enable
 .Pq Vt bool
 If set to
@@ -3461,7 +3445,6 @@ device and the mount point will be changed.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
-.Xr usbd 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
 .Xr ypserv 8 ,

@@ -1372,10 +1372,6 @@ DMenu MenuStartup = {
       { " pccard ifconfig",	"List of PCCARD ethernet devices to configure",
 	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_ifconfig" },
 #endif
-      { " usbd", "Enable USB daemon (detect USB attach / detach)",
-        dmenuVarCheck, dmenuToggleVariable, NULL, "usbd_enable=YES" },
-      { " usbd flags", "Set default flags to usbd (if enabled)", 
-        dmenuVarCheck, dmenuISetVariable, NULL, "usbd_flags" },
       { " ",		" -- ", NULL,	NULL, NULL, NULL, ' ', ' ', ' ' },
       { " Startup dirs",	"Set the list of dirs to look for startup scripts",
 	dmenuVarCheck, dmenuISetVariable, NULL, "local_startup" },

@@ -843,9 +843,6 @@ extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
 extern FILE	*mediaGetUFS(Device *dev, char *file, Boolean probe);
 
-/* usb.c */
-extern void	usbInitialize(void);
-
 /* user.c */
 extern int	userAddGroup(dialogMenuItem *self);
 extern int	userAddUser(dialogMenuItem *self);
