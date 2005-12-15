@@ -24,15 +24,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2005
+.Dd December 15, 2005
 .Dt SND_EMU10K1 4
 .Os
 .Sh NAME
 .Nm snd_emu10k1
 .Nd "SoundBlaster Live! and Audigy PCI bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_emu10k1"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_emu10k1_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
