@@ -189,7 +189,7 @@ on the specified partition).
 Defaults to
 .Pa /boot/kernel/kernel .
 Symbolic links are not supported (hard links are).
-.It Xo Op Fl aCcDdghmnPprsv
+.It Xo Op Fl aCcDdghmnPpqrsv
 .Op Fl S Ns Ar speed
 .Xc
 Boot flags:
@@ -253,6 +253,15 @@ and
 options are automatically set.
 .It Fl p
 pause after each attached device during the device probing phase.
+.It Fl q
+be quiet,
+do not write anything to the console unless automatic boot fails or
+is disabled.
+This option only affects second-stage bootstrap,
+to prevent next stages from writing to the console use in
+combination with the
+.Fl m 
+option.
 .It Fl r
 use the statically configured default for the device containing the
 root file system
