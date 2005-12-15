@@ -37,7 +37,10 @@
 
 #include "thr_private.h"
 
+static int join_common(pthread_t, void **, const struct timespec *);
+
 __weak_reference(_pthread_join, pthread_join);
+__weak_reference(_pthread_timedjoin_np, pthread_timedjoin_np);
 
 static void backout_join(void *arg)
 {
@@ -52,12 +55,31 @@ static void backout_join(void *arg)
 int
 _pthread_join(pthread_t pthread, void **thread_return)
 {
+	return (join_common(pthread, thread_return, NULL));
+}
+
+int
+_pthread_timedjoin_np(pthread_t pthread, void **thread_return,
+	const struct timespec *abstime)
+{
+	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
+	    abstime->tv_nsec >= 1000000000)
+		return (EINVAL);
+
+	return (join_common(pthread, thread_return, abstime));
+}
+
+static int
+join_common(pthread_t pthread, void **thread_return,
+	const struct timespec *abstime)
+{
 	struct pthread *curthread = _get_curthread();
+	struct timespec ts, ts2, *tsp;
 	void *tmp;
-	long state;
+	long tid;
 	int oldcancel;
 	int ret = 0;
- 
+
 	if (pthread == NULL)
 		return (EINVAL);
 
@@ -85,21 +107,40 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
 	oldcancel = _thr_cancel_enter(curthread);
 
-	while ((state = pthread->state) != PS_DEAD) {
-		_thr_umtx_wait(&pthread->state, state, NULL);
+	tid = pthread->tid;
+	while (pthread->tid != TID_TERMINATED) {
+		if (abstime != NULL) {
+			clock_gettime(CLOCK_REALTIME, &ts);
+			TIMESPEC_SUB(&ts2, abstime, &ts);
+			if (ts2.tv_sec < 0) {
+				ret = ETIMEDOUT;
+				break;
+			}
+			tsp = &ts2;
+		} else
+			tsp = NULL;
+		ret = _thr_umtx_wait(&pthread->tid, tid, tsp);
+		if (ret == ETIMEDOUT)
+			break;
 	}
 
 	_thr_cancel_leave(curthread, oldcancel);
 	THR_CLEANUP_POP(curthread, 0);
 
-	tmp = pthread->ret;
-	THREAD_LIST_LOCK(curthread);
-	pthread->tlflags |= TLFLAGS_DETACHED;
-	THR_GCLIST_ADD(pthread);
-	THREAD_LIST_UNLOCK(curthread);
+	if (ret == ETIMEDOUT) {
+		THREAD_LIST_LOCK(curthread);
+		pthread->joiner = NULL;
+		THREAD_LIST_UNLOCK(curthread);
+	} else {
+		tmp = pthread->ret;
+		THREAD_LIST_LOCK(curthread);
+		pthread->tlflags |= TLFLAGS_DETACHED;
+		pthread->joiner = NULL;
+		THR_GCLIST_ADD(pthread);
+		THREAD_LIST_UNLOCK(curthread);
 
-	if (thread_return != NULL)
-		*thread_return = tmp;
-
+		if (thread_return != NULL)
+			*thread_return = tmp;
+	}
 	return (ret);
 }
