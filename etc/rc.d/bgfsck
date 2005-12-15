@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: bgfsck
-# REQUIRE: cron devfs
+# REQUIRE: cron devfs syslogd
 # KEYWORD: nojail
 
 . /etc/rc.subr
