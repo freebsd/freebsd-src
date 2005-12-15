@@ -2133,8 +2133,8 @@ tbf_send_packet(struct vif *vifp, struct mbuf *m)
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, &imo, NULL);
 
 	if (mrtdebug & DEBUG_XMIT)
-	    log(LOG_DEBUG, "phyint_send on vif %d err %d\n",
-		(int)(vifp - viftable), error);
+	    log(LOG_DEBUG, "phyint_send on vif %td err %d\n",
+		vifp - viftable, error);
     }
 }
 
