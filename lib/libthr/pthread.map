@@ -109,11 +109,13 @@ global:
 	_pthread_mutexattr_getkind_np;
 	_pthread_mutexattr_getprioceiling;
 	_pthread_mutexattr_getprotocol;
+	_pthread_mutexattr_getpshared;
 	_pthread_mutexattr_gettype;
 	_pthread_mutexattr_init;
 	_pthread_mutexattr_setkind_np;
 	_pthread_mutexattr_setprioceiling;
 	_pthread_mutexattr_setprotocol;
+	_pthread_mutexattr_setpshared;
 	_pthread_mutexattr_settype;
 	_pthread_once;
 	_pthread_resume_all_np;
@@ -151,6 +153,7 @@ global:
 	_pthread_switch_add_np;
 	_pthread_switch_delete_np;
 	_pthread_testcancel;
+	_pthread_timedjoin_np;
 	_pthread_yield;
 	_raise;
 	_sem_close;
@@ -234,9 +237,11 @@ global:
 	pthread_cond_timedwait;
 	pthread_cond_wait;
 	pthread_condattr_destroy;
-	pthread_condattr_init;
 	pthread_condattr_getclock;
+	pthread_condattr_getpshared;
+	pthread_condattr_init;
 	pthread_condattr_setclock;
+	pthread_condattr_setpshared;
 	pthread_create;
 	pthread_detach;
 	pthread_equal;
@@ -262,12 +267,14 @@ global:
 	pthread_mutexattr_destroy;
 	pthread_mutexattr_getkind_np;
 	pthread_mutexattr_getprioceiling;
+	pthread_mutexattr_getpshared;
 	pthread_mutexattr_getprotocol;
 	pthread_mutexattr_gettype;
 	pthread_mutexattr_init;
 	pthread_mutexattr_setkind_np;
 	pthread_mutexattr_setprioceiling;
 	pthread_mutexattr_setprotocol;
+	pthread_mutexattr_setpshared;
 	pthread_mutexattr_settype;
 	pthread_once;
 	pthread_resume_all_np;
@@ -305,6 +312,7 @@ global:
 	pthread_switch_add_np;
 	pthread_switch_delete_np;
 	pthread_testcancel;
+	pthread_timedjoin_np;
 	pthread_yield;
 	raise;
 	read;
@@ -335,6 +343,8 @@ global:
 	sleep;
 	system;
 	tcdrain;
+	timer_create;
+	timer_delete;
 	usleep;
 	vfork;
 	wait;
