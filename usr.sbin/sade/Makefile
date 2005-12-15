@@ -11,7 +11,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
 	label.c main.c makedevs.c media.c menus.c misc.c modules.c \
 	mouse.c msg.c network.c nfs.c options.c package.c \
-	system.c tape.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
+	system.c tape.c tcpip.c termcap.c ttys.c ufs.c user.c \
 	variable.c ${_wizard} keymap.h
 
 CFLAGS+= -DUSE_GZIP=1

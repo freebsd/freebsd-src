@@ -15,7 +15,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	snmpd.config sysctl.conf syslog.conf usbd.conf \
+	snmpd.config sysctl.conf syslog.conf \
 	etc.${MACHINE_ARCH}/ttys \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
