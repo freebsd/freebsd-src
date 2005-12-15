@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20051214: usbd(8) removed
+OLD_FILES+=etc/rc.d/usbd
+OLD_FILES+=etc/usbd.conf
+OLD_FILES+=usr/sbin/usbd
+OLD_FILES+=usr/share/man/man8/usbd.8.gz
 # 20051029: rc.d/ppp-user renamed to rc.d/ppp for convenience
 OLD_FILES+=etc/rc.d/ppp-user
 # 20051012: setkey(8) moved to /sbin/
