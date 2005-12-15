@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: parse.y,v 1.83 2004/05/18 08:48:23 sakane Exp $	*/
+/*	$KAME: parse.y,v 1.82 2004/04/15 08:03:57 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
