@@ -25,23 +25,36 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2005
+.Dd December 15, 2005
 .Dt SND_SBC 4
 .Os
 .Sh NAME
 .Nm snd_sbc
 .Nd Creative Sound Blaster ISA and compatible bridge device driver
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_sbc"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_sbc_load="YES"
+.Ed
 .Pp
 Non-PnP cards require the following lines in
-.Pa /boot/device.hints :
-.Cd hint.sbc.0.at="isa"
-.Cd hint.sbc.0.port="0x220"
-.Cd hint.sbc.0.irq="5"
-.Cd hint.sbc.0.drq="1"
-.Cd hint.sbc.0.flags="0x15"
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.sbc.0.at="isa"
+hint.sbc.0.port="0x220"
+hint.sbc.0.irq="5"
+hint.sbc.0.drq="1"
+hint.sbc.0.flags="0x15"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
