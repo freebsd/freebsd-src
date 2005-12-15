@@ -847,17 +847,21 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 		xfer->status = USBD_SHORT_XFER;
 	}
 
-	if (xfer->callback)
-		xfer->callback(xfer, xfer->priv, xfer->status);
-
-#ifdef DIAGNOSTIC
-	if (pipe->methods->done != NULL)
+	/*
+	 * For repeat operations, call the callback first, as the xfer
+	 * will not go away and the "done" method may modify it. Otherwise
+	 * reverse the order in case the callback wants to free or reuse
+	 * the xfer.
+	 */
+	if (repeat) {
+		if (xfer->callback)
+			xfer->callback(xfer, xfer->priv, xfer->status);
 		pipe->methods->done(xfer);
-	else
-		printf("usb_transfer_complete: pipe->methods->done == NULL\n");
-#else
-	pipe->methods->done(xfer);
-#endif
+	} else {
+		pipe->methods->done(xfer);
+		if (xfer->callback)
+			xfer->callback(xfer, xfer->priv, xfer->status);
+	}
 
 	if (sync && !polling)
 		wakeup(xfer);
