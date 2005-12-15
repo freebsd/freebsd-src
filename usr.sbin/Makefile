@@ -169,7 +169,6 @@ SUBDIR=	ac \
 	trpt \
 	tzsetup \
 	ugidfw \
-	${_usbd} \
 	${_usbdevs} \
 	vidcontrol \
 	vipw \
@@ -255,7 +254,6 @@ _sendmail=	sendmail
 .endif
 
 .if !defined(NO_USB)
-_usbd=		usbd
 _usbdevs=	usbdevs
 .endif
 

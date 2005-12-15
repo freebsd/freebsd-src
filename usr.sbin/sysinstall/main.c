@@ -120,12 +120,6 @@ main(int argc, char **argv)
     }
 #endif
 
-    /* Initialize USB, if we haven't already done so. */
-    if (!pvariable_get("usbInitialize")) {
-	usbInitialize();
-	pvariable_set("usbInitialize=1");
-    }
-
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
