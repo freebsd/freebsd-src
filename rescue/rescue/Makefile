@@ -6,7 +6,7 @@ BINDIR?=/rescue
 
 # Shell scripts need #! line to be edited from /bin/sh to /rescue/sh
 SCRIPTS= nextboot_FIXED
-SCRIPTSNAME_nextboot_FIXED= nextboot.sh
+SCRIPTSNAME_nextboot_FIXED= nextboot
 nextboot_FIXED: ../../sbin/reboot/nextboot.sh
 	sed '1s/\/bin\//\/rescue\//' ${.ALLSRC} > ${.TARGET}
 CLEANFILES+= nextboot_FIXED
