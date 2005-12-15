@@ -756,7 +756,7 @@ nfstcp_readable(struct socket *so, int bytes)
 	
 	SOCKBUF_LOCK(&so->so_rcv);
 	retval = (so->so_rcv.sb_cc >= (bytes) ||
-		  (so->so_state & SBS_CANTRCVMORE) ||
+		  (so->so_rcv.sb_state & SBS_CANTRCVMORE) ||
 		  so->so_error);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	return (retval);
