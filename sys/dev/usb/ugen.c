@@ -1088,8 +1088,7 @@ ugen_isoc_rintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 		return;
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &count, NULL);
-	DPRINTFN(5,("ugen_isoc_rintr: xfer %d, count=%d\n",
-		    (int)(req - sce->isoreqs),
+	DPRINTFN(5,("ugen_isoc_rintr: xfer %td, count=%d\n", req - sce->isoreqs,
 		    count));
 
 	/* throw away oldest input if the buffer is full */
