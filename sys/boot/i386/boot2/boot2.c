@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 /* 0x12 is reserved for boot programs. */
 /* 0x13 is reserved for boot programs. */
 #define RBX_PAUSE	0x14	/* -p */
+#define RBX_QUIET	0x15	/* -q */
 #define RBX_NOINTR	0x1c	/* -n */
 /* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
 #define RBX_DUAL	0x1d	/* -D */
@@ -89,9 +90,11 @@ __FBSDID("$FreeBSD$");
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
 
+#define OPT_CHECK(opt)	((opts >> (opt)) & 1)
+
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCgmnPprsv";
+static const char optstr[NOPT] = "DhaCgmnpqrsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -102,6 +105,7 @@ static const unsigned char flags[NOPT] = {
     RBX_NOINTR,
     RBX_PROBEKBD,
     RBX_PAUSE,
+    RBX_QUIET,
     RBX_DFLTROOT,
     RBX_SINGLE,
     RBX_VERBOSE
@@ -159,7 +163,7 @@ strcmp(const char *s1, const char *s2)
 
 #include "ufsread.c"
 
-static int
+static inline int
 xfsread(ino_t inode, void *buf, size_t nbyte)
 {
     if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
@@ -245,7 +249,8 @@ main(void)
     if (*cmd) {
 	if (parse())
 	    autoboot = 0;
-	printf("%s: %s", PATH_CONFIG, cmd);
+	if (!OPT_CHECK(RBX_QUIET))
+	    printf("%s: %s", PATH_CONFIG, cmd);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
@@ -266,16 +271,17 @@ main(void)
     /* Present the user with the boot2 prompt. */
 
     for (;;) {
-	printf("\nFreeBSD/i386 boot\n"
-	       "Default: %u:%s(%u,%c)%s\n"
-	       "boot: ",
-	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-	       'a' + dsk.part, kname);
+	if (!autoboot || !OPT_CHECK(RBX_QUIET))
+	    printf("\nFreeBSD/i386 boot\n"
+		   "Default: %u:%s(%u,%c)%s\n"
+		   "boot: ",
+		   dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
+		   'a' + dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
 	if (!autoboot || keyhit(5*SECOND))
 	    getstr();
-	else
+	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
 	autoboot = 0;
 	if (parse())
@@ -298,8 +304,8 @@ load(void)
 	struct exec ex;
 	Elf32_Ehdr eh;
     } hdr;
-    Elf32_Phdr ep[2];
-    Elf32_Shdr es[2];
+    static Elf32_Phdr ep[2];
+    static Elf32_Shdr es[2];
     caddr_t p;
     ino_t ino;
     uint32_t addr, x;
@@ -583,7 +589,8 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 {
     static unsigned c = 0x2d5c7c2f;
 
-    printf("%c\b", c = c << 8 | c >> 24);
+    if (!OPT_CHECK(RBX_QUIET))
+	printf("%c\b", c = c << 8 | c >> 24);
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
     v86.addr = XREADORG;		/* call to xread in boot1 */
     v86.es = VTOPSEG(buf);
@@ -605,7 +612,7 @@ keyhit(unsigned ticks)
 {
     uint32_t t0, t1;
 
-    if (opts & 1 << RBX_NOINTR)
+    if (OPT_CHECK(RBX_NOINTR))
 	return 0;
     t0 = 0;
     for (;;) {
@@ -632,7 +639,7 @@ xputc(int c)
 static int
 xgetc(int fn)
 {
-    if (opts & 1 << RBX_NOINTR)
+    if (OPT_CHECK(RBX_NOINTR))
 	return 0;
     for (;;) {
 	if (ioctrl & IO_KEYBOARD && getc(1))
