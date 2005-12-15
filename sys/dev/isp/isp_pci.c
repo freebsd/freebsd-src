@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/stdint.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -1577,9 +1578,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		    dm_segs[segcnt].ds_len;
 		cto->rsp.m0.ct_xfrlen += dm_segs[segcnt].ds_len;
 		isp_prt(isp, ISP_LOGTDEBUG1,
-		    "isp_send_ctio2: ent0[%d]0x%llx:%lld",
-		    cto->ct_seg_count, (long long)dm_segs[segcnt].ds_addr,
-		    (long long)dm_segs[segcnt].ds_len);
+		    "isp_send_ctio2: ent0[%d]0x%jx:%ju",
+		    cto->ct_seg_count, (uintmax_t)dm_segs[segcnt].ds_addr,
+		    (uintmax_t)dm_segs[segcnt].ds_len);
 	}
 
 	while (segcnt < nseg) {
@@ -1606,10 +1607,10 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			crq->req_dataseg[seg].ds_base = dm_segs[segcnt].ds_addr;
 			crq->req_dataseg[seg].ds_count = dm_segs[segcnt].ds_len;
 			isp_prt(isp, ISP_LOGTDEBUG1,
-			    "isp_send_ctio2: ent%d[%d]0x%llx:%lld",
+			    "isp_send_ctio2: ent%d[%d]%jx:%ju",
 			    cto->ct_header.rqs_entry_count-1, seg,
-			    (long long) dm_segs[segcnt].ds_addr,
-			    (long long) dm_segs[segcnt].ds_len);
+			    (uintmax_t)dm_segs[segcnt].ds_addr,
+			    (uintmax_t)dm_segs[segcnt].ds_len);
 			cto->rsp.m0.ct_xfrlen += dm_segs[segcnt].ds_len;
 			cto->ct_seg_count++;
 		}
