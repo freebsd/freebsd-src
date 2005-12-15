@@ -31,8 +31,6 @@
 #ifndef _LINUX_MIB_H_
 #define _LINUX_MIB_H_
 
-void	linux_mib_destroy(void);
-
 void	linux_get_osname(struct thread *td, char *dst);
 int	linux_set_osname(struct thread *td, char *osname);
 

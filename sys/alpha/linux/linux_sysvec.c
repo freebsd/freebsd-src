@@ -265,7 +265,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_unregister_handler(*lihp);
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
-			linux_mib_destroy();
 		} else
 			printf("Could not deinstall ELF interpreter entry\n");
 		break;
