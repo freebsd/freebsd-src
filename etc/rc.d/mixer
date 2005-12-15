@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: mixer
-# BEFORE: LOGIN
+# REQUIRE: cleanvar
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
