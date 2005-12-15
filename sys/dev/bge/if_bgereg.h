@@ -207,14 +207,20 @@
 #define BGE_PCIMISCCTL_INDIRECT_ACCESS	0x00000080
 #define BGE_PCIMISCCTL_ASICREV		0xFFFF0000
 
-#define BGE_BIGENDIAN_INIT						\
-	(BGE_PCIMISCCTL_ENDIAN_BYTESWAP|				\
-	BGE_PCIMISCCTL_ENDIAN_WORDSWAP|BGE_PCIMISCCTL_CLEAR_INTA|	\
-	BGE_PCIMISCCTL_INDIRECT_ACCESS|BGE_PCIMISCCTL_MASK_PCI_INTR)
+#define BGE_HIF_SWAP_OPTIONS	(BGE_PCIMISCCTL_ENDIAN_WORDSWAP)
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define BGE_DMA_SWAP_OPTIONS \
+	BGE_MODECTL_WORDSWAP_NONFRAME| \
+	BGE_MODECTL_BYTESWAP_DATA|BGE_MODECTL_WORDSWAP_DATA
+#else
+#define BGE_DMA_SWAP_OPTIONS \
+	BGE_MODECTL_WORDSWAP_NONFRAME|BGE_MODECTL_BYTESWAP_NONFRAME| \
+	BGE_MODECTL_BYTESWAP_DATA|BGE_MODECTL_WORDSWAP_DATA
+#endif
 
-#define BGE_LITTLEENDIAN_INIT						\
-	(BGE_PCIMISCCTL_CLEAR_INTA|BGE_PCIMISCCTL_MASK_PCI_INTR|	\
-	BGE_PCIMISCCTL_ENDIAN_WORDSWAP|BGE_PCIMISCCTL_INDIRECT_ACCESS)
+#define BGE_INIT \
+	(BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_CLEAR_INTA| \
+	 BGE_PCIMISCCTL_MASK_PCI_INTR|BGE_PCIMISCCTL_INDIRECT_ACCESS)
 
 #define BGE_CHIPID_TIGON_I		0x40000000
 #define BGE_CHIPID_TIGON_II		0x60000000
@@ -1767,6 +1773,10 @@ struct bge_rcb {
 	u_int32_t		bge_maxlen_flags;
 	u_int32_t		bge_nicaddr;
 };
+
+#define	RCB_WRITE_4(sc, rcb, offset, val) \
+	bus_space_write_4(sc->bge_btag, sc->bge_bhandle, \
+			  rcb + offsetof(struct bge_rcb, offset), val)
 #define BGE_RCB_MAXLEN_FLAGS(maxlen, flags)	((maxlen) << 16 | (flags))
 
 #define BGE_RCB_FLAG_USE_EXT_RX_BD	0x0001
@@ -1774,10 +1784,17 @@ struct bge_rcb {
 
 struct bge_tx_bd {
 	bge_hostaddr		bge_addr;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_flags;
 	u_int16_t		bge_len;
 	u_int16_t		bge_vlan_tag;
 	u_int16_t		bge_rsvd;
+#else
+	u_int16_t		bge_len;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_rsvd;
+	u_int16_t		bge_vlan_tag;
+#endif
 };
 
 #define BGE_TXBDFLAG_TCP_UDP_CSUM	0x0001
@@ -1799,6 +1816,7 @@ struct bge_tx_bd {
 
 struct bge_rx_bd {
 	bge_hostaddr		bge_addr;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_len;
 	u_int16_t		bge_idx;
 	u_int16_t		bge_flags;
@@ -1807,6 +1825,16 @@ struct bge_rx_bd {
 	u_int16_t		bge_ip_csum;
 	u_int16_t		bge_vlan_tag;
 	u_int16_t		bge_error_flag;
+#else
+	u_int16_t		bge_idx;
+	u_int16_t		bge_len;
+	u_int16_t		bge_type;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_ip_csum;
+	u_int16_t		bge_tcp_udp_csum;
+	u_int16_t		bge_error_flag;
+	u_int16_t		bge_vlan_tag;
+#endif
 	u_int32_t		bge_rsvd;
 	u_int32_t		bge_opaque;
 };
@@ -1815,11 +1843,19 @@ struct bge_extrx_bd {
 	bge_hostaddr		bge_addr1;
 	bge_hostaddr		bge_addr2;
 	bge_hostaddr		bge_addr3;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_len2;
 	u_int16_t		bge_len1;
 	u_int16_t		bge_rsvd1;
 	u_int16_t		bge_len3;
+#else
+	u_int16_t		bge_len1;
+	u_int16_t		bge_len2;
+	u_int16_t		bge_len3;
+	u_int16_t		bge_rsvd1;
+#endif
 	bge_hostaddr		bge_addr0;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_len0;
 	u_int16_t		bge_idx;
 	u_int16_t		bge_flags;
@@ -1828,6 +1864,16 @@ struct bge_extrx_bd {
 	u_int16_t		bge_ip_csum;
 	u_int16_t		bge_vlan_tag;
 	u_int16_t		bge_error_flag;
+#else
+	u_int16_t		bge_idx;
+	u_int16_t		bge_len0;
+	u_int16_t		bge_type;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_ip_csum;
+	u_int16_t		bge_tcp_udp_csum;
+	u_int16_t		bge_error_flag;
+	u_int16_t		bge_vlan_tag;
+#endif
 	u_int32_t		bge_rsvd0;
 	u_int32_t		bge_opaque;
 };
@@ -1851,17 +1897,29 @@ struct bge_extrx_bd {
 #define BGE_RXERRFLAG_GIANT		0x0080
 
 struct bge_sts_idx {
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_rx_prod_idx;
 	u_int16_t		bge_tx_cons_idx;
+#else
+	u_int16_t		bge_tx_cons_idx;
+	u_int16_t		bge_rx_prod_idx;
+#endif
 };
 
 struct bge_status_block {
 	u_int32_t		bge_status;
 	u_int32_t		bge_rsvd0;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_rx_jumbo_cons_idx;
 	u_int16_t		bge_rx_std_cons_idx;
 	u_int16_t		bge_rx_mini_cons_idx;
 	u_int16_t		bge_rsvd1;
+#else
+	u_int16_t		bge_rx_std_cons_idx;
+	u_int16_t		bge_rx_jumbo_cons_idx;
+	u_int16_t		bge_rsvd1;
+	u_int16_t		bge_rx_mini_cons_idx;
+#endif
 	struct bge_sts_idx	bge_idx[16];
 };
 
@@ -2333,7 +2391,6 @@ struct bge_softc {
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;
 	bus_space_handle_t	bge_bhandle;
-	vm_offset_t		bge_vhandle;
 	bus_space_tag_t		bge_btag;
 	void			*bge_intrhand;
 	struct resource		*bge_irq;
