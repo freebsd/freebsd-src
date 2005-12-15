@@ -202,8 +202,6 @@ static int bge_resume		(device_t);
 static void bge_release_resources
 				(struct bge_softc *);
 static void bge_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
-static void bge_dma_map_tx_desc	(void *, bus_dma_segment_t *, int,
-				    bus_size_t, int);
 static int bge_dma_alloc	(device_t);
 static void bge_dma_free	(struct bge_softc *);
 
@@ -390,53 +388,6 @@ bge_dma_map_addr(arg, segs, nseg, error)
 	}
 
 	ctx->bge_busaddr = segs->ds_addr;
-
-	return;
-}
-
-/*
- * Map an mbuf chain into an TX ring.
- */
-
-static void
-bge_dma_map_tx_desc(arg, segs, nseg, mapsize, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	bus_size_t mapsize;
-	int error;
-{
-	struct bge_dmamap_arg *ctx;
-	struct bge_tx_bd *d = NULL;
-	int i = 0, idx;
-
-	if (error)
-		return;
-
-	ctx = arg;
-
-	/* Signal error to caller if there's too many segments */
-	if (nseg > ctx->bge_maxsegs) {
-		ctx->bge_maxsegs = 0;
-		return;
-	}
-
-	idx = ctx->bge_idx;
-	while(1) {
-		d = &ctx->bge_ring[idx];
-		d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
-		d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
-		d->bge_len = segs[i].ds_len;
-		d->bge_flags = ctx->bge_flags;
-		i++;
-		if (i == nseg)
-			break;
-		BGE_INC(idx, BGE_TX_RING_CNT);
-	}
-
-	d->bge_flags |= BGE_TXBDFLAG_END;
-	ctx->bge_maxsegs = nseg;
-	ctx->bge_idx = idx;
 
 	return;
 }
@@ -2989,15 +2940,15 @@ static int
 bge_encap(sc, m_head, txidx)
 	struct bge_softc *sc;
 	struct mbuf *m_head;
-	u_int32_t *txidx;
+	uint32_t *txidx;
 {
-	struct bge_tx_bd	*f = NULL;
-	u_int16_t		csum_flags = 0;
-	struct m_tag		*mtag;
-	struct bge_dmamap_arg	ctx;
+	bus_dma_segment_t	segs[BGE_NSEG_NEW];
 	bus_dmamap_t		map;
-	int			error;
-
+	struct bge_tx_bd	*d = NULL;
+	struct m_tag		*mtag;
+	uint32_t		idx = *txidx;
+	uint16_t		csum_flags = 0;
+	int			nsegs, i, error;
 
 	if (m_head->m_pkthdr.csum_flags) {
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
@@ -3012,46 +2963,68 @@ bge_encap(sc, m_head, txidx)
 
 	mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m_head);
 
-	ctx.sc = sc;
-	ctx.bge_idx = *txidx;
-	ctx.bge_ring = sc->bge_ldata.bge_tx_ring;
-	ctx.bge_flags = csum_flags;
+	map = sc->bge_cdata.bge_tx_dmamap[idx];
+	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map,
+	    m_head, segs, &nsegs, BUS_DMA_NOWAIT);
+        if (error) {
+		if (error == EFBIG) {
+			struct mbuf *m0;
+
+			m0 = m_defrag(m_head, M_DONTWAIT);
+			if (m0 == NULL)
+				return (ENOBUFS);
+			m_head = m0;
+			error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag,
+			    map, m_head, segs, &nsegs, BUS_DMA_NOWAIT);
+		}
+		if (error)
+			return (error); 
+	}
+
 	/*
 	 * Sanity check: avoid coming within 16 descriptors
 	 * of the end of the ring.
 	 */
-	ctx.bge_maxsegs = (BGE_TX_RING_CNT - sc->bge_txcnt) - 16;
-
-	map = sc->bge_cdata.bge_tx_dmamap[*txidx];
-	error = bus_dmamap_load_mbuf(sc->bge_cdata.bge_mtag, map,
-	    m_head, bge_dma_map_tx_desc, &ctx, BUS_DMA_NOWAIT);
-
-	if (error || ctx.bge_maxsegs == 0 /*||
-	    ctx.bge_idx == sc->bge_tx_saved_considx*/)
+	if (nsegs > (BGE_TX_RING_CNT - sc->bge_txcnt - 16)) {
+		bus_dmamap_unload(sc->bge_cdata.bge_mtag, map);
 		return (ENOBUFS);
+	}
+
+	for (i = 0; ; i++) {
+		d = &sc->bge_ldata.bge_tx_ring[idx];
+		d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
+		d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
+		d->bge_len = segs[i].ds_len;
+		d->bge_flags = csum_flags;
+		if (i == nsegs - 1)
+			break;
+		BGE_INC(idx, BGE_TX_RING_CNT);
+	}
+
+	/* Mark the last segment as end of packet... */
+	d->bge_flags |= BGE_TXBDFLAG_END;
+	/* ... and put VLAN tag into first segment.  */
+	d = &sc->bge_ldata.bge_tx_ring[*txidx];
+	if (mtag != NULL) {
+		d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
+		d->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
+	} else
+		d->bge_vlan_tag = 0;
 
 	/*
 	 * Insure that the map for this transmission
 	 * is placed at the array index of the last descriptor
 	 * in this chain.
 	 */
-	sc->bge_cdata.bge_tx_dmamap[*txidx] =
-	    sc->bge_cdata.bge_tx_dmamap[ctx.bge_idx];
-	sc->bge_cdata.bge_tx_dmamap[ctx.bge_idx] = map;
-	sc->bge_cdata.bge_tx_chain[ctx.bge_idx] = m_head;
-	sc->bge_txcnt += ctx.bge_maxsegs;
-	f = &sc->bge_ldata.bge_tx_ring[*txidx];
-	if (mtag != NULL) {
-		f->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
-		f->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
-	} else {
-		f->bge_vlan_tag = 0;
-	}
+	sc->bge_cdata.bge_tx_dmamap[*txidx] = sc->bge_cdata.bge_tx_dmamap[idx];
+	sc->bge_cdata.bge_tx_dmamap[idx] = map;
+	sc->bge_cdata.bge_tx_chain[idx] = m_head;
+	sc->bge_txcnt += nsegs;
 
-	BGE_INC(ctx.bge_idx, BGE_TX_RING_CNT);
-	*txidx = ctx.bge_idx;
+	BGE_INC(idx, BGE_TX_RING_CNT);
+	*txidx = idx;
 
-	return(0);
+	return (0);
 }
 
 /*
