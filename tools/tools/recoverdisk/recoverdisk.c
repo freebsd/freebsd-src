@@ -18,9 +18,11 @@
 #include <unistd.h>
 #include <sys/queue.h>
 #include <sys/disk.h>
+#include <sys/stat.h>
 
 #define BIGSIZE		(1024 * 1024)
 #define MEDIUMSIZE	(64 * 1024)
+#define MINSIZE		(512)
 
 struct lump {
 	off_t			start;
@@ -53,10 +55,11 @@ main(int argc, const char **argv)
 	struct lump *lp;
 	off_t 	t, d;
 	size_t i, j;
-	int error;
+	int error, flags;
 	u_char *buf;
-	u_int sectorsize;
+	u_int sectorsize, minsize;
 	time_t t1, t2;
+	struct stat sb;
 
 
 	if (argc < 2)
@@ -68,21 +71,34 @@ main(int argc, const char **argv)
 	fdr = open(argv[1], O_RDONLY);
 	if (fdr < 0)
 		err(1, "Cannot open read descriptor %s", argv[1]);
+
+	error = fstat(fdr, &sb);
+	if (error < 0)
+		err(1, "fstat failed");
+	flags = O_WRONLY;
+	if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
+		error = ioctl(fdr, DIOCGSECTORSIZE, &sectorsize);
+		if (error < 0)
+			err(1, "DIOCGSECTORSIZE failed");
+		minsize = sectorsize;
+
+		error = ioctl(fdr, DIOCGMEDIASIZE, &t);
+		if (error < 0)
+			err(1, "DIOCGMEDIASIZE failed");
+	} else {
+		sectorsize = 1;
+		t = sb.st_size;
+		minsize = MINSIZE;
+		flags |= O_CREAT | O_TRUNC;
+	}
+
 	if (argc > 2) {
-		fdw = open(argv[2], O_WRONLY);
+		fdw = open(argv[2], flags, DEFFILEMODE);
 		if (fdw < 0)
 			err(1, "Cannot open write descriptor %s", argv[2]);
 	} else {
 		fdw = -1;
 	}
-
-	error = ioctl(fdr, DIOCGSECTORSIZE, &sectorsize);
-	if (error < 0)
-		err(1, "DIOCGSECTORSIZE failed");
-
-	error = ioctl(fdr, DIOCGMEDIASIZE, &t);
-	if (error < 0)
-		err(1, "DIOCGMEDIASIZE failed");
 
 	new_lump(0, t, 0);
 	d = 0;
@@ -100,7 +116,7 @@ main(int argc, const char **argv)
 			if (lp->state == 1)
 				i = MEDIUMSIZE;
 			if (lp->state > 1)
-				i = sectorsize;
+				i = minsize;
 			time(&t2);
 			if (t1 != t2 || lp->len < BIGSIZE) {
 				printf("\r%13jd %7zu %13jd %3d %13jd %13jd %.8f",
