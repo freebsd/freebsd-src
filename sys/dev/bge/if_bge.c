@@ -424,19 +424,17 @@ bge_dma_map_tx_desc(arg, segs, nseg, mapsize, error)
 	idx = ctx->bge_idx;
 	while(1) {
 		d = &ctx->bge_ring[idx];
-		d->bge_addr.bge_addr_lo =
-		    htole32(BGE_ADDR_LO(segs[i].ds_addr));
-		d->bge_addr.bge_addr_hi =
-		    htole32(BGE_ADDR_HI(segs[i].ds_addr));
-		d->bge_len = htole16(segs[i].ds_len);
-		d->bge_flags = htole16(ctx->bge_flags);
+		d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
+		d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
+		d->bge_len = segs[i].ds_len;
+		d->bge_flags = ctx->bge_flags;
 		i++;
 		if (i == nseg)
 			break;
 		BGE_INC(idx, BGE_TX_RING_CNT);
 	}
 
-	d->bge_flags |= htole16(BGE_TXBDFLAG_END);
+	d->bge_flags |= BGE_TXBDFLAG_END;
 	ctx->bge_maxsegs = nseg;
 	ctx->bge_idx = idx;
 
@@ -788,11 +786,11 @@ bge_newbuf_std(sc, i, m)
 		}
 		return(ENOMEM);
 	}
-	r->bge_addr.bge_addr_lo = htole32(BGE_ADDR_LO(ctx.bge_busaddr));
-	r->bge_addr.bge_addr_hi = htole32(BGE_ADDR_HI(ctx.bge_busaddr));
-	r->bge_flags = htole16(BGE_RXBDFLAG_END);
-	r->bge_len = htole16(m_new->m_len);
-	r->bge_idx = htole16(i);
+	r->bge_addr.bge_addr_lo = BGE_ADDR_LO(ctx.bge_busaddr);
+	r->bge_addr.bge_addr_hi = BGE_ADDR_HI(ctx.bge_busaddr);
+	r->bge_flags = BGE_RXBDFLAG_END;
+	r->bge_len = m_new->m_len;
+	r->bge_idx = i;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
 	    sc->bge_cdata.bge_rx_std_dmamap[i],
@@ -853,18 +851,18 @@ bge_newbuf_jumbo(sc, i, m)
 	 * Fill in the extended RX buffer descriptor.
 	 */
 	r = &sc->bge_ldata.bge_rx_jumbo_ring[i];
-	r->bge_addr0.bge_addr_lo = htole32(BGE_ADDR_LO(segs[0].ds_addr));
-	r->bge_addr0.bge_addr_hi = htole32(BGE_ADDR_HI(segs[0].ds_addr));
-	r->bge_len0 = htole16(segs[0].ds_len);
-	r->bge_addr1.bge_addr_lo = htole32(BGE_ADDR_LO(segs[1].ds_addr));
-	r->bge_addr1.bge_addr_hi = htole32(BGE_ADDR_HI(segs[1].ds_addr));
-	r->bge_len1 = htole16(segs[1].ds_len);
-	r->bge_addr2.bge_addr_lo = htole32(BGE_ADDR_LO(segs[2].ds_addr));
-	r->bge_addr2.bge_addr_hi = htole32(BGE_ADDR_HI(segs[2].ds_addr));
-	r->bge_len2 = htole16(segs[2].ds_len);
-	r->bge_len3 = htole16(0);
-	r->bge_flags = htole16(BGE_RXBDFLAG_JUMBO_RING|BGE_RXBDFLAG_END);
-	r->bge_idx = htole16(i);
+	r->bge_addr0.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
+	r->bge_addr0.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
+	r->bge_len0 = segs[0].ds_len;
+	r->bge_addr1.bge_addr_lo = BGE_ADDR_LO(segs[1].ds_addr);
+	r->bge_addr1.bge_addr_hi = BGE_ADDR_HI(segs[1].ds_addr);
+	r->bge_len1 = segs[1].ds_len;
+	r->bge_addr2.bge_addr_lo = BGE_ADDR_LO(segs[2].ds_addr);
+	r->bge_addr2.bge_addr_hi = BGE_ADDR_HI(segs[2].ds_addr);
+	r->bge_len2 = segs[2].ds_len;
+	r->bge_len3 = 0;
+	r->bge_flags = BGE_RXBDFLAG_JUMBO_RING|BGE_RXBDFLAG_END;
+	r->bge_idx = i;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
 	    sc->bge_cdata.bge_rx_jumbo_dmamap[i],
@@ -1062,14 +1060,8 @@ bge_chipinit(sc)
 	int			i;
 	u_int32_t		dma_rw_ctl;
 
-	/* Set endianness before we access any non-PCI registers. */
-#if BYTE_ORDER == BIG_ENDIAN
-	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL,
-	    BGE_BIGENDIAN_INIT, 4);
-#else
-	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL,
-	    BGE_LITTLEENDIAN_INIT, 4);
-#endif
+	/* Set endian type before we access any non-PCI registers. */
+	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL, BGE_INIT, 4);
 
 	/*
 	 * Check the 'ROM failed' bit on the RX CPU to see if
@@ -1148,8 +1140,7 @@ bge_chipinit(sc)
 	/*
 	 * Set up general mode register.
 	 */
-	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_MODECTL_WORDSWAP_NONFRAME|
-	    BGE_MODECTL_BYTESWAP_DATA|BGE_MODECTL_WORDSWAP_DATA|
+	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_DMA_SWAP_OPTIONS|
 	    BGE_MODECTL_MAC_ATTN_INTR|BGE_MODECTL_HOST_SEND_BDS|
 	    BGE_MODECTL_TX_NO_PHDR_CSUM|BGE_MODECTL_RX_NO_PHDR_CSUM);
 
@@ -1181,7 +1172,8 @@ bge_blockinit(sc)
 	struct bge_softc *sc;
 {
 	struct bge_rcb *rcb;
-	volatile struct bge_rcb *vrcb;
+	bus_size_t vrcb;
+	bge_hostaddr taddr;
 	int i;
 
 	/*
@@ -1349,41 +1341,38 @@ bge_blockinit(sc)
 	 * bit in the flags field of all the TX send ring control blocks.
 	 * These are located in NIC memory.
 	 */
-	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
-	    BGE_SEND_RING_RCB);
+	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
 	for (i = 0; i < BGE_TX_RINGS_EXTSSRAM_MAX; i++) {
-		vrcb->bge_maxlen_flags =
-		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
-		vrcb->bge_nicaddr = 0;
-		vrcb++;
+		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
+		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED));
+		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
+		vrcb += sizeof(struct bge_rcb);
 	}
 
 	/* Configure TX RCB 0 (we use only the first ring) */
-	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
-	    BGE_SEND_RING_RCB);
-	vrcb->bge_hostaddr.bge_addr_lo =
-	    htole32(BGE_ADDR_LO(sc->bge_ldata.bge_tx_ring_paddr));
-	vrcb->bge_hostaddr.bge_addr_hi =
-	    htole32(BGE_ADDR_HI(sc->bge_ldata.bge_tx_ring_paddr));
-	vrcb->bge_nicaddr = BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT);
+	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
+	BGE_HOSTADDR(taddr, sc->bge_ldata.bge_tx_ring_paddr);
+	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, taddr.bge_addr_hi);
+	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
+	RCB_WRITE_4(sc, vrcb, bge_nicaddr,
+	    BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT));
 	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
-		vrcb->bge_maxlen_flags =
-		    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0);
+		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
+		    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0));
 
 	/* Disable all unused RX return rings */
-	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
-	    BGE_RX_RETURN_RING_RCB);
+	vrcb = BGE_MEMWIN_START + BGE_RX_RETURN_RING_RCB;
 	for (i = 0; i < BGE_RX_RINGS_MAX; i++) {
-		vrcb->bge_hostaddr.bge_addr_hi = 0;
-		vrcb->bge_hostaddr.bge_addr_lo = 0;
-		vrcb->bge_maxlen_flags =
+		RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, 0);
+		RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, 0);
+		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
 		    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt,
-		    BGE_RCB_FLAG_RING_DISABLED);
-		vrcb->bge_nicaddr = 0;
+		    BGE_RCB_FLAG_RING_DISABLED));
+		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 		CSR_WRITE_4(sc, BGE_MBX_RX_CONS0_LO +
 		    (i * (sizeof(u_int64_t))), 0);
-		vrcb++;
+		vrcb += sizeof(struct bge_rcb);
 	}
 
 	/* Initialize RX ring indexes */
@@ -1397,17 +1386,15 @@ bge_blockinit(sc)
 	 * The return rings live entirely within the host, so the
 	 * nicaddr field in the RCB isn't used.
 	 */
-	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
-	    BGE_RX_RETURN_RING_RCB);
-	vrcb->bge_hostaddr.bge_addr_lo =
-	    BGE_ADDR_LO(sc->bge_ldata.bge_rx_return_ring_paddr);
-	vrcb->bge_hostaddr.bge_addr_hi =
-	    BGE_ADDR_HI(sc->bge_ldata.bge_rx_return_ring_paddr);
+	vrcb = BGE_MEMWIN_START + BGE_RX_RETURN_RING_RCB;
+	BGE_HOSTADDR(taddr, sc->bge_ldata.bge_rx_return_ring_paddr);
+	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, taddr.bge_addr_hi);
+	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
 	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_PREWRITE);
-	vrcb->bge_nicaddr = 0x00000000;
-	vrcb->bge_maxlen_flags =
-	    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt, 0);
+	RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0x00000000);
+	RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
+	    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt, 0));	
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
@@ -2134,7 +2121,6 @@ bge_attach(dev)
 
 	sc->bge_btag = rman_get_bustag(sc->bge_res);
 	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
-	sc->bge_vhandle = (vm_offset_t)rman_get_virtual(sc->bge_res);
 
 	/* Allocate interrupt */
 	rid = 0;
@@ -2437,7 +2423,7 @@ bge_reset(sc)
 
 	pci_write_config(dev, BGE_PCI_MISC_CTL,
 	    BGE_PCIMISCCTL_INDIRECT_ACCESS|BGE_PCIMISCCTL_MASK_PCI_INTR|
-	    BGE_PCIMISCCTL_ENDIAN_WORDSWAP|BGE_PCIMISCCTL_PCISTATE_RW, 4);
+	BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_PCISTATE_RW, 4);
 
 	reset = BGE_MISCCFG_RESET_CORE_CLOCKS|(65<<1);
 
@@ -2473,7 +2459,7 @@ bge_reset(sc)
 	/* Reset some of the PCI state that got zapped by reset */
 	pci_write_config(dev, BGE_PCI_MISC_CTL,
 	    BGE_PCIMISCCTL_INDIRECT_ACCESS|BGE_PCIMISCCTL_MASK_PCI_INTR|
-	    BGE_PCIMISCCTL_ENDIAN_WORDSWAP|BGE_PCIMISCCTL_PCISTATE_RW, 4);
+	    BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_PCISTATE_RW, 4);
 	pci_write_config(dev, BGE_PCI_CACHESZ, cachesize, 4);
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
 	bge_writereg_ind(sc, BGE_MISC_CFG, (65 << 1));
@@ -2521,7 +2507,7 @@ bge_reset(sc)
 	}
 
 	/* Fix up byte swapping */
-	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_MODECTL_BYTESWAP_NONFRAME|
+	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_DMA_SWAP_OPTIONS|
 	    BGE_MODECTL_BYTESWAP_DATA);
 
 	CSR_WRITE_4(sc, BGE_MAC_MODE, 0);
@@ -2961,19 +2947,27 @@ bge_stats_update(sc)
 	struct bge_softc *sc;
 {
 	struct ifnet *ifp;
-	struct bge_stats *stats;
+	bus_size_t stats;
 
 	ifp = sc->bge_ifp;
 
-	stats = (struct bge_stats *)(sc->bge_vhandle +
-	    BGE_MEMWIN_START + BGE_STATS_BLOCK);
+	stats = BGE_MEMWIN_START + BGE_STATS_BLOCK;
+
+#define READ_STAT(sc, stats, stat) \
+	CSR_READ_4(sc, stats + offsetof(struct bge_stats, stat))
 
 	ifp->if_collisions +=
-	   (stats->txstats.dot3StatsSingleCollisionFrames.bge_addr_lo +
-	   stats->txstats.dot3StatsMultipleCollisionFrames.bge_addr_lo +
-	   stats->txstats.dot3StatsExcessiveCollisions.bge_addr_lo +
-	   stats->txstats.dot3StatsLateCollisions.bge_addr_lo) -
+	   (READ_STAT(sc, stats,
+		txstats.dot3StatsSingleCollisionFrames.bge_addr_lo) +
+	    READ_STAT(sc, stats,
+		txstats.dot3StatsMultipleCollisionFrames.bge_addr_lo) +
+	    READ_STAT(sc, stats,
+		txstats.dot3StatsExcessiveCollisions.bge_addr_lo) +
+	    READ_STAT(sc, stats,
+		txstats.dot3StatsLateCollisions.bge_addr_lo)) -
 	   ifp->if_collisions;
+
+#undef READ_STAT
 
 #ifdef notdef
 	ifp->if_collisions +=
@@ -3048,8 +3042,8 @@ bge_encap(sc, m_head, txidx)
 	sc->bge_txcnt += ctx.bge_maxsegs;
 	f = &sc->bge_ldata.bge_tx_ring[*txidx];
 	if (mtag != NULL) {
-		f->bge_flags |= htole16(BGE_TXBDFLAG_VLAN_TAG);
-		f->bge_vlan_tag = htole16(VLAN_TAG_VALUE(mtag));
+		f->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
+		f->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
 	} else {
 		f->bge_vlan_tag = 0;
 	}
