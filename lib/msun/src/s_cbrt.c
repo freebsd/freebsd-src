@@ -72,7 +72,21 @@ cbrt(double x)
 	} else
 	    SET_HIGH_WORD(t,sign|(hx/3+B1));
 
-    /* new cbrt to 23 bits; may be implemented in single precision */
+    /*
+     * New cbrt to 26 bits; may be implemented in single precision:
+     *    cbrt(x) = t*cbrt(x/t**3) ~= t*R(x/t**3)
+     * where R(r) = (14*r**2 + 35*r + 5)/(5*r**2 + 35*r + 14) is the
+     * (2,2) Pade approximation to cbrt(r) at r = 1.  We replace
+     * r = x/t**3 by 1/r = t**3/x since the latter can be evaluated
+     * more efficiently, and rearrange the expression for R(r) to use
+     * 4 additions and 2 divisions instead of the 4 additions, 4
+     * multiplications and 1 division that would be required using
+     * Horner's rule on the numerator and denominator.  t being good
+     * to 32 bits means that |t/cbrt(x)-1| < 1/32, so |x/t**3-1| < 0.1
+     * and for R(r) we can use any approximation to cbrt(r) that is good
+     * to 20 bits on [0.9, 1.1].  The (2,2) Pade approximation is not an
+     * especially good choice.
+     */
 	r=t*t/x;
 	s=C+r*t;
 	t*=G+F/(s+E+D/s);
