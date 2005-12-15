@@ -712,7 +712,6 @@ release.8:
 	cp ${.CURDIR}/../etc/defaults/pccard.conf \
 	    ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
-	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cp ${.CURDIR}/../etc/master.passwd ${RD}/mfsfd/etc/master.passwd
 	cp ${RD}/trees/base/etc/*pwd.db ${RD}/mfsfd/etc/
 	( for F in defaults/rc.conf netconfig protocols ; do \
