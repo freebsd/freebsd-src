@@ -104,8 +104,8 @@ struct proc;
 struct rusage_ext;
 struct thread;
 
-void	 addupc_intr(struct thread *td, uintptr_t pc, u_int ticks);
-void	 addupc_task(struct thread *td, uintptr_t pc, u_int ticks);
+void	 addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks);
+void	 addupc_task(struct thread *td, uintfptr_t pc, u_int ticks);
 void	 calccru(struct proc *p, struct timeval *up, struct timeval *sp);
 void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp);
 int	 chgproccnt(struct uidinfo *uip, int diff, int maxval);
