@@ -81,9 +81,9 @@ static int arpt_prune = (5*60*1); /* walk list every 5 minutes */
 static int arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, prune_intvl, CTLFLAG_RW,
-	   &arpt_prune, 0, "");
+	   &arpt_prune, 0, "ARP table prune interval in seconds");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW, 
-	   &arpt_keep, 0, "");
+	   &arpt_keep, 0, "ARP entry lifetime in seconds");
 
 #define	rt_expire rt_rmx.rmx_expire
 
@@ -106,11 +106,11 @@ static int	arp_proxyall = 0;
 static struct callout arp_callout;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
-	   &arp_maxtries, 0, "");
+	   &arp_maxtries, 0, "ARP resolution attempts before returning error");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
-	   &useloopback, 0, "");
+	   &useloopback, 0, "Use the loopback interface for local traffic");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
-	   &arp_proxyall, 0, "");
+	   &arp_proxyall, 0, "Enable proxy ARP for all suitable requests");
 
 static void	arp_init(void);
 static void	arp_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
