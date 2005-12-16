@@ -302,7 +302,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
 			 */
-			rv = vm_map_find(map, 0, 0, &start, end - start,
+			rv = vm_map_find(map, NULL, 0, &start, end - start,
 			    FALSE, prot, max, 0);
 			if (rv)
 				return (rv);
