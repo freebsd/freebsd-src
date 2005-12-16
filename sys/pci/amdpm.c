@@ -71,17 +71,10 @@ static int amdpm_debug = 0;
 /* nVidia nForce chipset */
 #define AMDPM_VENDORID_NVIDIA 0x10de
 #define AMDPM_DEVICEID_NF_SMB 0x01b4
-#define AMDPM_DEVICEID_NF2_SMB 0x0064
-#define AMDPM_DEVICEID_NF2_ULTRA_SMB 0x0084
-#define AMDPM_DEVICEID_NF3_PRO150_SMB 0x00D4
-#define AMDPM_DEVICEID_NF3_250GB_SMB 0x00E4
-#define AMDPM_DEVICEID_NF4_SMB 0x0052
 
 /* PCI Configuration space registers */
 #define AMDPCI_PMBASE 0x58
 #define NFPCI_PMBASE  0x14
-#define NF2PCI_PMBASE_1 0x50
-#define NF2PCI_PMBASE_2 0x54
 
 #define AMDPCI_GEN_CONFIG_PM 0x41
 #define AMDPCI_PMIOEN (1<<7)
@@ -133,7 +126,6 @@ struct amdpm_softc {
 	bus_space_handle_t smbsh;
 
 	device_t smbus;
-	device_t subdev;
 };
 
 #define AMDPM_SMBINB(amdpm,register) \
@@ -144,14 +136,6 @@ struct amdpm_softc {
 	(bus_space_read_2(amdpm->smbst, amdpm->smbsh, register))
 #define AMDPM_SMBOUTW(amdpm,register,value) \
 	(bus_space_write_2(amdpm->smbst, amdpm->smbsh, register, value))
-
-static int
-amdpmsub_probe(device_t dev)
-{
-
-	device_set_desc(dev, "nForce2/3/4 MCP SMBus Controller");
-	return (0);
-}
 
 static int
 amdpm_probe(device_t dev)
@@ -169,7 +153,7 @@ amdpm_probe(device_t dev)
 	     (did == AMDPM_DEVICEID_AMD8111PM))) {
 		device_set_desc(dev, "AMD 756/766/768/8111 Power Management Controller");
 
-		/*
+		/* 
 		 * We have to do this, since the BIOS won't give us the
 		 * resource info (not mine, anyway).
 		 */
@@ -180,72 +164,23 @@ amdpm_probe(device_t dev)
 		return (BUS_PROBE_DEFAULT);
 	}
 
-	if (vid == AMDPM_VENDORID_NVIDIA) {
-		switch(did) {
-		case AMDPM_DEVICEID_NF_SMB:
-			device_set_desc(dev, "nForce SMBus Controller");
+	if ((vid == AMDPM_VENDORID_NVIDIA) &&
+	    (did == AMDPM_DEVICEID_NF_SMB)) {
+		device_set_desc(dev, "nForce SMBus Controller");
 
-			/*
-			 * We have to do this, since the BIOS won't give us the
-			 * resource info (not mine, anyway).
-			 */
-			base = pci_read_config(dev, NFPCI_PMBASE, 4);
-			base &= 0xff00;
-			bus_set_resource(dev, SYS_RES_IOPORT, NFPCI_PMBASE,
-			    base, 32);
+		/* 
+		* We have to do this, since the BIOS won't give us the
+		* resource info (not mine, anyway).
+		*/
+		base = pci_read_config(dev, NFPCI_PMBASE, 4);
+		base &= 0xff00;
+		bus_set_resource(dev, SYS_RES_IOPORT, NFPCI_PMBASE,
+				 base, 32);
 
-			return (BUS_PROBE_DEFAULT);
-		case AMDPM_DEVICEID_NF2_SMB:
-		case AMDPM_DEVICEID_NF2_ULTRA_SMB:
-		case AMDPM_DEVICEID_NF3_PRO150_SMB:
-		case AMDPM_DEVICEID_NF3_250GB_SMB:
-		case AMDPM_DEVICEID_NF4_SMB:
-			device_set_desc(dev, "nForce2/3/4 MCP SMBus Controller");
-			base = pci_read_config(dev, NF2PCI_PMBASE_1, 4);
-			base &= 0xff00;
-			bus_set_resource(dev, SYS_RES_IOPORT, NF2PCI_PMBASE_1,
-			    base, 32);
-
-			return (BUS_PROBE_DEFAULT);
-		default:
-			break;
-		}
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return ENXIO;
-}
-
-static int
-amdpmsub_attach(device_t dev)
-{
-	device_t parent;
-	int base;
-	struct amdpm_softc *amdpmsub_sc = device_get_softc(dev);
-
-	parent = device_get_parent(dev);
-
-	amdpmsub_sc->rid = NF2PCI_PMBASE_2;
-
-	base = pci_read_config(parent, NF2PCI_PMBASE_2, 4);
-	base &= 0xff00;
-	bus_set_resource(parent, SYS_RES_IOPORT, NF2PCI_PMBASE_2, base, 32);
-
-	amdpmsub_sc->res = bus_alloc_resource_any(parent, SYS_RES_IOPORT,
-	    &amdpmsub_sc->rid, RF_ACTIVE);
-	if (amdpmsub_sc->res == NULL) {
-		device_printf(dev, "could not map i/o space\n");
-		return (ENXIO);
-	}
-	amdpmsub_sc->smbst = rman_get_bustag(amdpmsub_sc->res);
-	amdpmsub_sc->smbsh = rman_get_bushandle(amdpmsub_sc->res);
-
-	amdpmsub_sc->smbus = device_add_child(dev, "smbus", -1);
-	if (amdpmsub_sc->smbus == NULL)
-		return (EINVAL);
-
-	bus_generic_attach(dev);
-
-	return (0);
 }
 
 static int
@@ -253,7 +188,7 @@ amdpm_attach(device_t dev)
 {
 	struct amdpm_softc *amdpm_sc = device_get_softc(dev);
 	u_char val_b;
-
+	
 	/* Enable I/O block access */
 	val_b = pci_read_config(dev, AMDPCI_GEN_CONFIG_PM, 1);
 	pci_write_config(dev, AMDPCI_GEN_CONFIG_PM, val_b | AMDPCI_PMIOEN, 1);
@@ -261,17 +196,15 @@ amdpm_attach(device_t dev)
 	/* Allocate I/O space */
 	if (pci_get_vendor(dev) == AMDPM_VENDORID_AMD)
 		amdpm_sc->rid = AMDPCI_PMBASE;
-	else if (pci_get_device(dev) == AMDPM_DEVICEID_NF_SMB)
-		amdpm_sc->rid = NFPCI_PMBASE;
 	else
-		amdpm_sc->rid = NF2PCI_PMBASE_1;
+		amdpm_sc->rid = NFPCI_PMBASE;
 	amdpm_sc->res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 		&amdpm_sc->rid, RF_ACTIVE);
-
+	
 	if (amdpm_sc->res == NULL) {
 		device_printf(dev, "could not map i/o space\n");
 		return (ENXIO);
-	}
+	}	     
 
 	amdpm_sc->smbst = rman_get_bustag(amdpm_sc->res);
 	amdpm_sc->smbsh = rman_get_bushandle(amdpm_sc->res);
@@ -281,54 +214,15 @@ amdpm_attach(device_t dev)
 	if (!amdpm_sc->smbus)
 		return (EINVAL);
 
-	amdpm_sc->subdev = NULL;
-	if (pci_get_vendor(dev) == AMDPM_VENDORID_NVIDIA)
-		switch (pci_get_device(dev)) {
-		case AMDPM_DEVICEID_NF2_SMB:
-		case AMDPM_DEVICEID_NF2_ULTRA_SMB:
-		case AMDPM_DEVICEID_NF3_PRO150_SMB:
-		case AMDPM_DEVICEID_NF3_250GB_SMB:
-		case AMDPM_DEVICEID_NF4_SMB:
-			/* Trying to add secondary device as slave */
-			amdpm_sc->subdev = device_add_child(dev, "amdpm", -1);
-			if (!amdpm_sc->subdev) return (EINVAL);
-			break;
-		default:
-			break;
-		}
-
 	bus_generic_attach(dev);
 
 	return (0);
 }
 
 static int
-amdpmsub_detach(device_t dev)
-{
-	device_t parent;
-	struct amdpm_softc *amdpmsub_sc = device_get_softc(dev);
-
-	parent = device_get_parent(dev);
-
-	if (amdpmsub_sc->smbus) {
-		device_delete_child(dev, amdpmsub_sc->smbus);
-		amdpmsub_sc->smbus = NULL;
-	}
-	if (amdpmsub_sc->res)
-		bus_release_resource(parent, SYS_RES_IOPORT, amdpmsub_sc->rid,
-		    amdpmsub_sc->res);
-	return 0;
-}
-
-static int
 amdpm_detach(device_t dev)
 {
 	struct amdpm_softc *amdpm_sc = device_get_softc(dev);
-
-	if (amdpm_sc->subdev) {
-		device_delete_child(dev, amdpm_sc->subdev);
-		amdpm_sc->subdev = NULL;
-	}
 
 	if (amdpm_sc->smbus) {
 		device_delete_child(dev, amdpm_sc->smbus);
@@ -372,7 +266,7 @@ static int
 amdpm_abort(struct amdpm_softc *sc)
 {
 	u_short l;
-
+	
 	l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
 	AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE, l | AMDSMB_GE_ABORT);
 
@@ -624,7 +518,7 @@ amdpm_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 		len = min(remain, 32);
 
 		AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave & ~LSB);
-
+	
 		/*
 		 * Do we have to reset the internal 32-byte buffer?
 		 * Can't see how to do this from the data sheet.
@@ -668,12 +562,12 @@ amdpm_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	remain = count;
 	while (remain) {
 		AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave | LSB);
-
+	
 		AMDPM_SMBOUTB(sc, AMDSMB_HSTCMD, cmd);
 
 		l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
 		AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE, (l & 0xfff8) | AMDSMB_GE_CYC_BLOCK | AMDSMB_GE_HOST_STC);
-
+		
 		if ((error = amdpm_wait(sc)) != SMB_ENOERR)
 			goto error;
 
@@ -693,13 +587,14 @@ error:
 	return (error);
 }
 
+static devclass_t amdpm_devclass;
 
 static device_method_t amdpm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		amdpm_probe),
 	DEVMETHOD(device_attach,	amdpm_attach),
 	DEVMETHOD(device_detach,	amdpm_detach),
-
+	
 	/* SMBus interface */
 	DEVMETHOD(smbus_callback,	amdpm_callback),
 	DEVMETHOD(smbus_quick,		amdpm_quick),
@@ -711,32 +606,9 @@ static device_method_t amdpm_methods[] = {
 	DEVMETHOD(smbus_readw,		amdpm_readw),
 	DEVMETHOD(smbus_bwrite,		amdpm_bwrite),
 	DEVMETHOD(smbus_bread,		amdpm_bread),
-
+	
 	{ 0, 0 }
 };
-
-static device_method_t amdpmsub_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		amdpmsub_probe),
-	DEVMETHOD(device_attach,	amdpmsub_attach),
-	DEVMETHOD(device_detach,	amdpmsub_detach),
-
-	/* SMBus interface */
-	DEVMETHOD(smbus_callback,	amdpm_callback),
-	DEVMETHOD(smbus_quick,		amdpm_quick),
-	DEVMETHOD(smbus_sendb,		amdpm_sendb),
-	DEVMETHOD(smbus_recvb,		amdpm_recvb),
-	DEVMETHOD(smbus_writeb,		amdpm_writeb),
-	DEVMETHOD(smbus_readb,		amdpm_readb),
-	DEVMETHOD(smbus_writew,		amdpm_writew),
-	DEVMETHOD(smbus_readw,		amdpm_readw),
-	DEVMETHOD(smbus_bwrite,		amdpm_bwrite),
-	DEVMETHOD(smbus_bread,		amdpm_bread),
-
-	{ 0, 0 }
-};
-
-static devclass_t amdpm_devclass;
 
 static driver_t amdpm_driver = {
 	"amdpm",
@@ -744,14 +616,7 @@ static driver_t amdpm_driver = {
 	sizeof(struct amdpm_softc),
 };
 
-static driver_t amdpmsub_driver = {
-	"amdpm",
-	amdpmsub_methods,
-	sizeof(struct amdpm_softc),
-};
-
 DRIVER_MODULE(amdpm, pci, amdpm_driver, amdpm_devclass, 0, 0);
-DRIVER_MODULE(amdpm, amdpm, amdpmsub_driver, amdpm_devclass, 0, 0);
 
 MODULE_DEPEND(amdpm, pci, 1, 1, 1);
 MODULE_DEPEND(amdpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
