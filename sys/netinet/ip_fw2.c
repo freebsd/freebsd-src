@@ -3843,14 +3843,9 @@ ipfw_ctl(struct sockopt *sopt)
 	 */
 	if (sopt->sopt_name == IP_FW_ADD ||
 	    (sopt->sopt_dir == SOPT_SET && sopt->sopt_name != IP_FW_RESETLOG)) {
-#if __FreeBSD_version >= 500034
 		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
 		if (error)
 			return (error);
-#else /* FreeBSD 4.x */
-		if (securelevel >= 3)
-			return (EPERM);
-#endif
 	}
 
 	error = 0;
