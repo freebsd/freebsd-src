@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/shm.h>
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
@@ -237,6 +239,76 @@ vsunlock(void *addr, size_t len)
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+}
+
+/*
+ * Pin the page contained within the given object at the given offset.  If the
+ * page is not resident, allocate and load it using the given object's pager.
+ * Return the pinned page if successful; otherwise, return NULL.
+ */
+static vm_page_t
+vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
+{
+	vm_page_t m, ma[1];
+	vm_pindex_t pindex;
+	int rv;
+
+	VM_OBJECT_LOCK(object);
+	pindex = OFF_TO_IDX(offset);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	if ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
+		ma[0] = m;
+		rv = vm_pager_get_pages(object, ma, 1, 0);
+		m = vm_page_lookup(object, pindex);
+		if (m == NULL)
+			goto out;
+		if (m->valid == 0 || rv != VM_PAGER_OK) {
+			vm_page_lock_queues();
+			vm_page_free(m);
+			vm_page_unlock_queues();
+			m = NULL;
+			goto out;
+		}
+	}
+	vm_page_lock_queues();
+	vm_page_hold(m);
+	vm_page_wakeup(m);
+	vm_page_unlock_queues();
+out:
+	VM_OBJECT_UNLOCK(object);
+	return (m);
+}
+
+/*
+ * Return a CPU private mapping to the page at the given offset within the
+ * given object.  The page is pinned before it is mapped.
+ */
+struct sf_buf *
+vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset)
+{
+	vm_page_t m;
+
+	m = vm_imgact_hold_page(object, offset);
+	if (m == NULL)
+		return (NULL);
+	sched_pin();
+	return (sf_buf_alloc(m, SFB_CPUPRIVATE));
+}
+
+/*
+ * Destroy the given CPU private mapping and unpin the page that it mapped.
+ */
+void
+vm_imgact_unmap_page(struct sf_buf *sf)
+{
+	vm_page_t m;
+
+	m = sf_buf_page(sf);
+	sf_buf_free(sf);
+	sched_unpin();
+	vm_page_lock_queues();
+	vm_page_unhold(m);
+	vm_page_unlock_queues();
 }
 
 #ifndef KSTACK_MAX_PAGES
