@@ -126,9 +126,9 @@ blast_loop(int s, long duration, u_char *packet, u_int packet_len)
 	}
 
 	printf("\n");
-	printf("start:             %d.%09lu\n", starttime.tv_sec,
+	printf("start:             %zd.%09lu\n", starttime.tv_sec,
 	    starttime.tv_nsec);
-	printf("finish:            %d.%09lu\n", tmptime.tv_sec,
+	printf("finish:            %zd.%09lu\n", tmptime.tv_sec,
 	    tmptime.tv_nsec);
 	printf("send calls:        %d\n", send_calls);
 	printf("send errors:       %d\n", send_errors);
