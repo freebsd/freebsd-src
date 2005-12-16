@@ -166,6 +166,9 @@ static void em_clean_transmit_interrupts(struct adapter *);
 static int  em_allocate_receive_structures(struct adapter *);
 static int  em_allocate_transmit_structures(struct adapter *);
 static void em_process_receive_interrupts(struct adapter *, int);
+#ifndef __NO_STRICT_ALIGNMENT
+static int  em_fixup_rx(struct adapter *);
+#endif
 static void em_receive_checksum(struct adapter *, 
 				struct em_rx_desc *,
 				struct mbuf *);
@@ -687,16 +690,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFMTU:
 	    {
-#ifndef __NO_STRICT_ALIGNMENT
-		if (ifr->ifr_mtu > ETHERMTU)
-			/*
-			 * XXX
-			 * Due to the limitation of DMA engine, it needs fix-up
-			 * code for strict alignment architectures. Disable
-			 * jumbo frame until we have better solutions.
-			 */
-			error = EINVAL;
-#else
 		int max_frame_size;
 
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
@@ -725,7 +718,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 		em_init_locked(adapter);
 		EM_UNLOCK(adapter);
-#endif
 		break;
 	    }
 	case SIOCSIFFLAGS:
@@ -2969,12 +2961,20 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 				ifp->if_ipackets++;
                                 em_receive_checksum(adapter, current_desc,
                                                     adapter->fmp);
+#ifndef __NO_STRICT_ALIGNMENT
+				if (ifp->if_mtu > ETHERMTU &&
+				    em_fixup_rx(adapter) != 0)
+					goto skip;
+
+#endif
                                 if (current_desc->status & E1000_RXD_STAT_VP)
 					VLAN_INPUT_TAG(ifp, adapter->fmp,
 					    (le16toh(current_desc->special) &
 					    E1000_RXD_SPC_VLAN_MASK),
 					    adapter->fmp = NULL);
-
+#ifndef __NO_STRICT_ALIGNMENT
+skip:
+#endif
 				m = adapter->fmp;
 				adapter->fmp = NULL;
 				adapter->lmp = NULL;
@@ -3011,6 +3011,54 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 	adapter->next_rx_desc_to_check = i;
 	return;
 }
+
+#ifndef __NO_STRICT_ALIGNMENT
+/*
+ * When jumbo frames are enabled we should realign entire payload on
+ * architecures with strict alignment. This is serious design mistake of 8254x
+ * as it nullifies DMA operations. 8254x just allows RX buffer size to be
+ * 2048/4096/8192/16384. What we really want is 2048 - ETHER_ALIGN to align its
+ * payload. On architecures without strict alignment restrictions 8254x still
+ * performs unaligned memory access which would reduce the performance too. 
+ * To avoid copying over an entire frame to align, we allocate a new mbuf and
+ * copy ethernet header to the new mbuf. The new mbuf is prepended into the
+ * existing mbuf chain.
+ *
+ * Be aware, best performance of the 8254x is achived only when jumbo frame is
+ * not used at all on architectures with strict alignment.
+ */
+static int
+em_fixup_rx(struct adapter *adapter)
+{
+	struct mbuf *m, *n;
+	int error;
+
+	error = 0;
+	m = adapter->fmp;
+	if (m->m_len <= (MCLBYTES - ETHER_HDR_LEN)) {
+		bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
+		m->m_data += ETHER_HDR_LEN;
+	} else {
+		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		if (n != NULL) {
+			bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
+			m->m_data += ETHER_HDR_LEN;
+			m->m_len -= ETHER_HDR_LEN;
+			n->m_len = ETHER_HDR_LEN;
+			M_MOVE_PKTHDR(n, m);
+			n->m_next = m;
+			adapter->fmp = n;
+		} else {
+			adapter->dropped_pkts++;
+			m_freem(adapter->fmp);
+			adapter->fmp = NULL;
+			error = ENOMEM;
+		}
+	}
+
+	return (error);
+}
+#endif
 
 /*********************************************************************
  *
