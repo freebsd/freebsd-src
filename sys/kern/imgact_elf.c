@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/procfs.h>
 #include <sys/resourcevar.h>
+#include <sys/sf_buf.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
@@ -239,9 +240,9 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
 	vm_prot_t max)
 {
-	int error, rv;
+	struct sf_buf *sf;
+	int error;
 	vm_offset_t off;
-	vm_offset_t data_buf = 0;
 
 	/*
 	 * Create the page if it doesn't exist yet. Ignore errors.
@@ -255,25 +256,13 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Find the page from the underlying object.
 	 */
 	if (object) {
-		vm_object_reference(object);
-		rv = vm_map_find(exec_map,
-				 object,
-				 trunc_page(offset),
-				 &data_buf,
-				 PAGE_SIZE,
-				 TRUE,
-				 VM_PROT_READ,
-				 VM_PROT_ALL,
-				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
-			return (rv);
-		}
-
+		sf = vm_imgact_map_page(object, offset);
+		if (sf == NULL)
+			return (KERN_FAILURE);
 		off = offset - trunc_page(offset);
-		error = copyout((caddr_t)data_buf + off, (caddr_t)start,
+		error = copyout((caddr_t)sf_buf_kva(sf) + off, (caddr_t)start,
 		    end - start);
-		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
+		vm_imgact_unmap_page(sf);
 		if (error) {
 			return (KERN_FAILURE);
 		}
@@ -287,7 +276,8 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
 	vm_prot_t max, int cow)
 {
-	vm_offset_t data_buf, off;
+	struct sf_buf *sf;
+	vm_offset_t off;
 	vm_size_t sz;
 	int error, rv;
 
@@ -316,35 +306,23 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			    FALSE, prot, max, 0);
 			if (rv)
 				return (rv);
-			data_buf = 0;
-			while (start < end) {
-				vm_object_reference(object);
-				rv = vm_map_find(exec_map,
-						 object,
-						 trunc_page(offset),
-						 &data_buf,
-						 2 * PAGE_SIZE,
-						 TRUE,
-						 VM_PROT_READ,
-						 VM_PROT_ALL,
-						 (MAP_COPY_ON_WRITE
-						  | MAP_PREFAULT_PARTIAL));
-				if (rv != KERN_SUCCESS) {
-					vm_object_deallocate(object);
-					return (rv);
-				}
+			if (object == NULL)
+				return (KERN_SUCCESS);
+			for (; start < end; start += sz) {
+				sf = vm_imgact_map_page(object, offset);
+				if (sf == NULL)
+					return (KERN_FAILURE);
 				off = offset - trunc_page(offset);
 				sz = end - start;
-				if (sz > PAGE_SIZE)
-					sz = PAGE_SIZE;
-				error = copyout((caddr_t)data_buf + off,
+				if (sz > PAGE_SIZE - off)
+					sz = PAGE_SIZE - off;
+				error = copyout((caddr_t)sf_buf_kva(sf) + off,
 				    (caddr_t)start, sz);
-				vm_map_remove(exec_map, data_buf,
-				    data_buf + 2 * PAGE_SIZE);
+				vm_imgact_unmap_page(sf);
 				if (error) {
 					return (KERN_FAILURE);
 				}
-				start += sz;
+				offset += sz;
 			}
 			rv = KERN_SUCCESS;
 		} else {
@@ -365,12 +343,12 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
 	size_t pagesize)
 {
+	struct sf_buf *sf;
 	size_t map_len;
 	vm_offset_t map_addr;
 	int error, rv, cow;
 	size_t copy_len;
 	vm_offset_t file_addr;
-	vm_offset_t data_buf = 0;
 
 	error = 0;
 
@@ -455,27 +433,17 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 
 	if (copy_len != 0) {
 		vm_offset_t off;
-		vm_object_reference(object);
-		rv = vm_map_find(exec_map,
-				 object,
-				 trunc_page(offset + filsz),
-				 &data_buf,
-				 PAGE_SIZE,
-				 TRUE,
-				 VM_PROT_READ,
-				 VM_PROT_ALL,
-				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
-			return (EINVAL);
-		}
+
+		sf = vm_imgact_map_page(object, offset + filsz);
+		if (sf == NULL)
+			return (EIO);
 
 		/* send the page fragment to user space */
 		off = trunc_page_ps(offset + filsz, pagesize) -
 		    trunc_page(offset + filsz);
-		error = copyout((caddr_t)data_buf + off, (caddr_t)map_addr,
-		    copy_len);
-		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
+		error = copyout((caddr_t)sf_buf_kva(sf) + off,
+		    (caddr_t)map_addr, copy_len);
+		vm_imgact_unmap_page(sf);
 		if (error) {
 			return (error);
 		}
