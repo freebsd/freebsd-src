@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2005
+.Dd December 16, 2005
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1198,6 +1198,16 @@ parameter.
 .El
 .Pp
 The following parameters are specific to
+.Xr pfsync 4
+interfaces:
+.Bl -tag -width indent
+.It Cm maxupd Ar n
+Set the maximum number of updates for a single state which
+can be collapsed into one.
+This is an 8-bit number; the default value is 128. 
+.El
+.Pp
+The following parameters are specific to
 .Xr vlan 4
 interfaces:
 .Bl -tag -width indent
@@ -1348,6 +1358,7 @@ tried to alter an interface's configuration.
 .Xr netstat 1 ,
 .Xr carp 4 ,
 .Xr netintro 4 ,
+.Xr pfsync 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
 .\" .Xr eon 5 ,
