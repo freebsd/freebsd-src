@@ -3619,7 +3619,7 @@ ata_raid_via_write_meta(struct ar_softc *rdp)
     meta->disk_sectors = 
 	rdp->total_sectors / (rdp->width - (rdp->type == AR_RAID5));
     for (disk = 0; disk < rdp->total_disks; disk++)
-	meta->disks[disk] = (u_int32_t)rdp->disks[disk].dev;
+	meta->disks[disk] = (u_int32_t)(uintptr_t)rdp->disks[disk].dev;
 
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if (rdp->disks[disk].dev) {
