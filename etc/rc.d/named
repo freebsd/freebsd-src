@@ -13,6 +13,7 @@
 
 name="named"
 rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
 start_precmd="named_precmd"
 start_postcmd="make_symlinks"
 stop_postcmd="named_poststop"
