@@ -1129,11 +1129,13 @@ ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
 	priv = (ndis_ethpriv *)&p->np_protocolreserved;
 	priv->nep_ctx = ctx;
 
-	KeAcquireSpinLock(&block->nmb_lock, &irql);
+	if (!NDIS_SERIALIZED(block))
+		KeAcquireSpinLock(&block->nmb_lock, &irql);
 
 	InsertTailList((&block->nmb_packetlist), (&p->np_list));
 
-	KeReleaseSpinLock(&block->nmb_lock, irql);
+	if (!NDIS_SERIALIZED(block))
+		KeReleaseSpinLock(&block->nmb_lock, irql);
 
 	return;
 }
