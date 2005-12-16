@@ -13,7 +13,7 @@
 
 name="ipmon"
 rcvar=`set_rcvar`
-command="/sbin/ipmon"
+command="/sbin/${name}"
 start_precmd="ipmon_precmd"
 
 ipmon_precmd()
