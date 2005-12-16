@@ -480,7 +480,7 @@ profclock(frame)
 	struct thread *td;
 #ifdef GPROF
 	struct gmonparam *g;
-	int i;
+	uintfptr_t i;
 #endif
 
 	td = curthread;
@@ -500,8 +500,8 @@ profclock(frame)
 		 * Kernel statistics are just like addupc_intr, only easier.
 		 */
 		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON) {
-			i = CLKF_PC(frame) - g->lowpc;
+		if (g->state == GMON_PROF_ON && CLKF_PC(frame) >= g->lowpc) {
+			i = PC_TO_I(g, CLKF_PC(frame));
 			if (i < g->textsize) {
 				i /= HISTFRACTION * sizeof(*g->kcount);
 				g->kcount[i]++;
