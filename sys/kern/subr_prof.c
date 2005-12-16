@@ -461,7 +461,7 @@ profil(td, uap)
  * inaccurate.
  */
 void
-addupc_intr(struct thread *td, uintptr_t pc, u_int ticks)
+addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 {
 	struct uprof *prof;
 	caddr_t addr;
@@ -495,7 +495,7 @@ addupc_intr(struct thread *td, uintptr_t pc, u_int ticks)
  * update fails, we simply turn off profiling.
  */
 void
-addupc_task(struct thread *td, uintptr_t pc, u_int ticks)
+addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)
 {
 	struct proc *p = td->td_proc; 
 	struct uprof *prof;
