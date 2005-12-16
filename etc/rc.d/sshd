@@ -11,6 +11,7 @@
 
 name="sshd"
 rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
 keygen_cmd="sshd_keygen"
 start_precmd="sshd_precmd"
 pidfile="/var/run/${name}.pid"

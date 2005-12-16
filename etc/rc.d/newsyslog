@@ -13,7 +13,7 @@
 name="newsyslog"
 rcvar=`set_rcvar`
 required_files="/etc/newsyslog.conf"
-command="/usr/sbin/newsyslog"
+command="/usr/sbin/${name}"
 start_cmd="newsyslog_start"
 stop_cmd=":"
 
