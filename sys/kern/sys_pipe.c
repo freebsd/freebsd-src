@@ -1176,6 +1176,8 @@ pipe_write(fp, uio, active_cred, flags, td)
 					("Pipe buffer overflow"));
 			}
 			pipeunlock(wpipe);
+			if (error != 0)
+				break;
 		} else {
 			/*
 			 * If the "read-side" has been blocked, wake it up now.
