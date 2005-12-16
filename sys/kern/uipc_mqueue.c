@@ -1674,7 +1674,7 @@ _mqueue_send(struct mqueue *mq, struct mqueue_msg *msg, int timo)
 		mqueue_send_notification(mq);
 	if (mq->mq_flags & MQ_RSEL) {
 		mq->mq_flags &= ~MQ_RSEL;
-		selwakeuppri(&mq->mq_rsel, PSOCK);
+		selwakeup(&mq->mq_rsel);
 	}
 	KNOTE_LOCKED(&mq->mq_rsel.si_note, 0);
 	mtx_unlock(&mq->mq_mutex);
@@ -1809,7 +1809,7 @@ _mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg, int timo)
 			wakeup_one(&mq->mq_senders);
 		if (mq->mq_flags & MQ_WSEL) {
 			mq->mq_flags &= ~MQ_WSEL;
-			selwakeuppri(&mq->mq_wsel, PSOCK);
+			selwakeup(&mq->mq_wsel);
 		}
 		KNOTE_LOCKED(&mq->mq_wsel.si_note, 0);
 	}
@@ -2260,11 +2260,11 @@ mqueue_fdclose(struct thread *td, int fd, struct file *fp)
 		/* have to wakeup thread in same process */
 		if (mq->mq_flags & MQ_RSEL) {
 			mq->mq_flags &= ~MQ_RSEL;
-			selwakeuppri(&mq->mq_rsel, PSOCK);
+			selwakeup(&mq->mq_rsel);
 		}
 		if (mq->mq_flags & MQ_WSEL) {
 			mq->mq_flags &= ~MQ_WSEL;
-			selwakeuppri(&mq->mq_wsel, PSOCK);
+			selwakeup(&mq->mq_wsel);
 		}
 		mtx_unlock(&mq->mq_mutex);
 	}
