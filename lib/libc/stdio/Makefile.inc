@@ -23,6 +23,9 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c \
 	vswprintf.c vswscanf.c vwprintf.c vwscanf.c wbuf.c wprintf.c wscanf.c \
 	wsetup.c
 
+SRCS+=	xprintf.c xprintf_float.c xprintf_int.c xprintf_str.c
+SRCS+=	xprintf_hexdump.c xprintf_time.c xprintf_vis.c
+
 MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetwln.3 fgetws.3 \
 	flockfile.3 \
 	fopen.3 fputs.3 \
