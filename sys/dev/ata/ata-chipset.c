@@ -687,18 +687,19 @@ ata_acard_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ATP850R, 0, ATPOLD, 0x00, ATA_UDMA2, "Acard ATP850" },
-     { ATA_ATP860A, 0, 0,      0x00, ATA_UDMA4, "Acard ATP860A" },
-     { ATA_ATP860R, 0, 0,      0x00, ATA_UDMA4, "Acard ATP860R" },
-     { ATA_ATP865A, 0, 0,      0x00, ATA_UDMA6, "Acard ATP865A" },
-     { ATA_ATP865R, 0, 0,      0x00, ATA_UDMA6, "Acard ATP865R" },
+    {{ ATA_ATP850R, 0, ATPOLD, 0x00, ATA_UDMA2, "ATP850" },
+     { ATA_ATP860A, 0, 0,      0x00, ATA_UDMA4, "ATP860A" },
+     { ATA_ATP860R, 0, 0,      0x00, ATA_UDMA4, "ATP860R" },
+     { ATA_ATP865A, 0, 0,      0x00, ATA_UDMA6, "ATP865A" },
+     { ATA_ATP865R, 0, 0,      0x00, ATA_UDMA6, "ATP865R" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "Acard %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_acard_chipinit;
@@ -844,21 +845,22 @@ ata_ali_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ALI_5289, 0x00, 2, ALISATA, ATA_SA150, "AcerLabs M5289" },
-     { ATA_ALI_5287, 0x00, 4, ALISATA, ATA_SA150, "AcerLabs M5287" },
-     { ATA_ALI_5281, 0x00, 2, ALISATA, ATA_SA150, "AcerLabs M5281" },
-     { ATA_ALI_5229, 0xc5, 0, ALINEW,  ATA_UDMA6, "AcerLabs M5229" },
-     { ATA_ALI_5229, 0xc4, 0, ALINEW,  ATA_UDMA5, "AcerLabs M5229" },
-     { ATA_ALI_5229, 0xc2, 0, ALINEW,  ATA_UDMA4, "AcerLabs M5229" },
-     { ATA_ALI_5229, 0x20, 0, ALIOLD,  ATA_UDMA2, "AcerLabs M5229" },
-     { ATA_ALI_5229, 0x00, 0, ALIOLD,  ATA_WDMA2, "AcerLabs M5229" },
+    {{ ATA_ALI_5289, 0x00, 2, ALISATA, ATA_SA150, "M5289" },
+     { ATA_ALI_5287, 0x00, 4, ALISATA, ATA_SA150, "M5287" },
+     { ATA_ALI_5281, 0x00, 2, ALISATA, ATA_SA150, "M5281" },
+     { ATA_ALI_5229, 0xc5, 0, ALINEW,  ATA_UDMA6, "M5229" },
+     { ATA_ALI_5229, 0xc4, 0, ALINEW,  ATA_UDMA5, "M5229" },
+     { ATA_ALI_5229, 0xc2, 0, ALINEW,  ATA_UDMA4, "M5229" },
+     { ATA_ALI_5229, 0x20, 0, ALIOLD,  ATA_UDMA2, "M5229" },
+     { ATA_ALI_5229, 0x00, 0, ALIOLD,  ATA_WDMA2, "M5229" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "AcerLabs %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_ali_chipinit;
@@ -1077,17 +1079,18 @@ ata_amd_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_AMD756,  0x00, AMDNVIDIA, 0x00,            ATA_UDMA4, "AMD 756" },
-     { ATA_AMD766,  0x00, AMDNVIDIA, AMDCABLE|AMDBUG, ATA_UDMA5, "AMD 766" },
-     { ATA_AMD768,  0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA5, "AMD 768" },
-     { ATA_AMD8111, 0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA6, "AMD 8111" },
+    {{ ATA_AMD756,  0x00, AMDNVIDIA, 0x00,            ATA_UDMA4, "756" },
+     { ATA_AMD766,  0x00, AMDNVIDIA, AMDCABLE|AMDBUG, ATA_UDMA5, "766" },
+     { ATA_AMD768,  0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA5, "768" },
+     { ATA_AMD8111, 0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA6, "8111" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "AMD %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_amd_chipinit;
@@ -1122,19 +1125,20 @@ ata_ati_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ATI_IXP200,    0x00, 0,        0, ATA_UDMA5, "ATI IXP200" },
-     { ATA_ATI_IXP300,    0x00, 0,        0, ATA_UDMA6, "ATI IXP300" },
-     { ATA_ATI_IXP400,    0x00, 0,        0, ATA_UDMA6, "ATI IXP400" },
-     { ATA_ATI_IXP300_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "ATI IXP300" },
-     { ATA_ATI_IXP400_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "ATI IXP400" },
-     { ATA_ATI_IXP400_S2, 0x00, SIIMEMIO, 0, ATA_SA150, "ATI IXP400" },
+    {{ ATA_ATI_IXP200,    0x00, 0,        0, ATA_UDMA5, "IXP200" },
+     { ATA_ATI_IXP300,    0x00, 0,        0, ATA_UDMA6, "IXP300" },
+     { ATA_ATI_IXP400,    0x00, 0,        0, ATA_UDMA6, "IXP400" },
+     { ATA_ATI_IXP300_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP300" },
+     { ATA_ATI_IXP400_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP400" },
+     { ATA_ATI_IXP400_S2, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP400" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "ATI %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
 
@@ -1365,15 +1369,15 @@ ata_highpoint_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_HPT374, 0x07, HPT374, 0x00,   ATA_UDMA6, "HighPoint HPT374" },
-     { ATA_HPT372, 0x02, HPT372, 0x00,   ATA_UDMA6, "HighPoint HPT372N" },
-     { ATA_HPT372, 0x01, HPT372, 0x00,   ATA_UDMA6, "HighPoint HPT372" },
-     { ATA_HPT371, 0x01, HPT372, 0x00,   ATA_UDMA6, "HighPoint HPT371" },
-     { ATA_HPT366, 0x05, HPT372, 0x00,   ATA_UDMA6, "HighPoint HPT372" },
-     { ATA_HPT366, 0x03, HPT370, 0x00,   ATA_UDMA5, "HighPoint HPT370" },
-     { ATA_HPT366, 0x02, HPT366, 0x00,   ATA_UDMA4, "HighPoint HPT368" },
-     { ATA_HPT366, 0x00, HPT366, HPTOLD, ATA_UDMA4, "HighPoint HPT366" },
-     { ATA_HPT302, 0x01, HPT372, 0x00,   ATA_UDMA6, "HighPoint HPT302" },
+    {{ ATA_HPT374, 0x07, HPT374, 0x00,   ATA_UDMA6, "HPT374" },
+     { ATA_HPT372, 0x02, HPT372, 0x00,   ATA_UDMA6, "HPT372N" },
+     { ATA_HPT372, 0x01, HPT372, 0x00,   ATA_UDMA6, "HPT372" },
+     { ATA_HPT371, 0x01, HPT372, 0x00,   ATA_UDMA6, "HPT371" },
+     { ATA_HPT366, 0x05, HPT372, 0x00,   ATA_UDMA6, "HPT372" },
+     { ATA_HPT366, 0x03, HPT370, 0x00,   ATA_UDMA5, "HPT370" },
+     { ATA_HPT366, 0x02, HPT366, 0x00,   ATA_UDMA4, "HPT368" },
+     { ATA_HPT366, 0x00, HPT366, HPTOLD, ATA_UDMA4, "HPT366" },
+     { ATA_HPT302, 0x01, HPT372, 0x00,   ATA_UDMA6, "HPT302" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -1387,7 +1391,8 @@ ata_highpoint_ident(device_t dev)
 	else if (pci_get_function(dev) == 1)
 	    strcat(buffer, " (channel 2+3)");
     }
-    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "HighPoint %s %s controller",
+	    buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_highpoint_chipinit;
@@ -1546,43 +1551,44 @@ ata_intel_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_I82371FB,    0,    0, 0x00, ATA_WDMA2, "Intel PIIX" },
-     { ATA_I82371SB,    0,    0, 0x00, ATA_WDMA2, "Intel PIIX3" },
-     { ATA_I82371AB,    0,    0, 0x00, ATA_UDMA2, "Intel PIIX4" },
-     { ATA_I82443MX,    0,    0, 0x00, ATA_UDMA2, "Intel PIIX4" },
-     { ATA_I82451NX,    0,    0, 0x00, ATA_UDMA2, "Intel PIIX4" },
-     { ATA_I82801AB,    0,    0, 0x00, ATA_UDMA2, "Intel ICH0" },
-     { ATA_I82801AA,    0,    0, 0x00, ATA_UDMA4, "Intel ICH" },
-     { ATA_I82372FB,    0,    0, 0x00, ATA_UDMA4, "Intel ICH" },
-     { ATA_I82801BA,    0,    0, 0x00, ATA_UDMA5, "Intel ICH2" },
-     { ATA_I82801BA_1,  0,    0, 0x00, ATA_UDMA5, "Intel ICH2" },
-     { ATA_I82801CA,    0,    0, 0x00, ATA_UDMA5, "Intel ICH3" },
-     { ATA_I82801CA_1,  0,    0, 0x00, ATA_UDMA5, "Intel ICH3" },
-     { ATA_I82801DB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH4" },
-     { ATA_I82801DB_1,  0,    0, 0x00, ATA_UDMA5, "Intel ICH4" },
-     { ATA_I82801EB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH5" },
-     { ATA_I82801EB_S1, 0,    0, 0x00, ATA_SA150, "Intel ICH5" },
-     { ATA_I82801EB_R1, 0,    0, 0x00, ATA_SA150, "Intel ICH5" },
-     { ATA_I6300ESB,    0,    0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
-     { ATA_I6300ESB_S1, 0,    0, 0x00, ATA_SA150, "Intel 6300ESB" },
-     { ATA_I6300ESB_R1, 0,    0, 0x00, ATA_SA150, "Intel 6300ESB" },
-     { ATA_I82801FB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH6" },
-     { ATA_I82801FB_S1, 0, AHCI, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801FB_R1, 0, AHCI, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801FB_M,  0, AHCI, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801GB,    0,    0, 0x00, ATA_UDMA5, "Intel ICH7" },
-     { ATA_I82801GB_S1, 0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
-     { ATA_I82801GB_R1, 0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
-     { ATA_I82801GB_M,  0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
-     { ATA_I82801GB_AH, 0, AHCI, 0x00, ATA_SA300, "Intel ICH7" },
-     { ATA_I31244,	0,    0, 0x00, ATA_SA150, "Intel 31244" },
+    {{ ATA_I82371FB,    0,    0, 0x00, ATA_WDMA2, "PIIX" },
+     { ATA_I82371SB,    0,    0, 0x00, ATA_WDMA2, "PIIX3" },
+     { ATA_I82371AB,    0,    0, 0x00, ATA_UDMA2, "PIIX4" },
+     { ATA_I82443MX,    0,    0, 0x00, ATA_UDMA2, "PIIX4" },
+     { ATA_I82451NX,    0,    0, 0x00, ATA_UDMA2, "PIIX4" },
+     { ATA_I82801AB,    0,    0, 0x00, ATA_UDMA2, "ICH0" },
+     { ATA_I82801AA,    0,    0, 0x00, ATA_UDMA4, "ICH" },
+     { ATA_I82372FB,    0,    0, 0x00, ATA_UDMA4, "ICH" },
+     { ATA_I82801BA,    0,    0, 0x00, ATA_UDMA5, "ICH2" },
+     { ATA_I82801BA_1,  0,    0, 0x00, ATA_UDMA5, "ICH2" },
+     { ATA_I82801CA,    0,    0, 0x00, ATA_UDMA5, "ICH3" },
+     { ATA_I82801CA_1,  0,    0, 0x00, ATA_UDMA5, "ICH3" },
+     { ATA_I82801DB,    0,    0, 0x00, ATA_UDMA5, "ICH4" },
+     { ATA_I82801DB_1,  0,    0, 0x00, ATA_UDMA5, "ICH4" },
+     { ATA_I82801EB,    0,    0, 0x00, ATA_UDMA5, "ICH5" },
+     { ATA_I82801EB_S1, 0,    0, 0x00, ATA_SA150, "ICH5" },
+     { ATA_I82801EB_R1, 0,    0, 0x00, ATA_SA150, "ICH5" },
+     { ATA_I6300ESB,    0,    0, 0x00, ATA_UDMA5, "6300ESB" },
+     { ATA_I6300ESB_S1, 0,    0, 0x00, ATA_SA150, "6300ESB" },
+     { ATA_I6300ESB_R1, 0,    0, 0x00, ATA_SA150, "6300ESB" },
+     { ATA_I82801FB,    0,    0, 0x00, ATA_UDMA5, "ICH6" },
+     { ATA_I82801FB_S1, 0, AHCI, 0x00, ATA_SA150, "ICH6" },
+     { ATA_I82801FB_R1, 0, AHCI, 0x00, ATA_SA150, "ICH6" },
+     { ATA_I82801FB_M,  0, AHCI, 0x00, ATA_SA150, "ICH6" },
+     { ATA_I82801GB,    0,    0, 0x00, ATA_UDMA5, "ICH7" },
+     { ATA_I82801GB_S1, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_R1, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_M,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_AH, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I31244,	0,    0, 0x00, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "Intel %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_intel_chipinit;
@@ -1977,15 +1983,16 @@ ata_ite_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_IT8212F, 0x00, 0x00, 0x00, ATA_UDMA6, "ITE IT8212F" },
-     { ATA_IT8211F, 0x00, 0x00, 0x00, ATA_UDMA6, "ITE IT8211F" },
+    {{ ATA_IT8212F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8212F" },
+     { ATA_IT8211F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8211F" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "ITE %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_ite_chipinit;
@@ -2171,27 +2178,34 @@ ata_nvidia_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_NFORCE1,     0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nVidia nForce" },
-     { ATA_NFORCE2,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2" },
-     { ATA_NFORCE2_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2 MCP" },
-     { ATA_NFORCE2_MCP_S1, 0, 0,      0,      ATA_SA150, "nVidia nForce2 MCP" },
-     { ATA_NFORCE3,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3" },
-     { ATA_NFORCE3_PRO, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 Pro" },
-     { ATA_NFORCE3_PRO_S1, 0, 0,      0,      ATA_SA150, "nVidia nForce3 Pro" },
-     { ATA_NFORCE3_PRO_S2, 0, 0,      0,      ATA_SA150, "nVidia nForce3 Pro" },
-     { ATA_NFORCE3_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 MCP" },
-     { ATA_NFORCE3_MCP_S1, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
-     { ATA_NFORCE3_MCP_S2, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
-     { ATA_NFORCE4,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce4" },
-     { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA300, "nVidia nForce4" },
-     { ATA_NFORCE4_S2,  0, 0,         NV4OFF, ATA_SA300, "nVidia nForce4" },
-     { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
+    {{ ATA_NFORCE1,         0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nForce" },
+     { ATA_NFORCE2,         0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce2" },
+     { ATA_NFORCE2_PRO,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce2 Pro" },
+     { ATA_NFORCE2_PRO_S1,  0, 0,         0,      ATA_SA150, "nForce2 Pro" },
+     { ATA_NFORCE3,         0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce3" },
+     { ATA_NFORCE3_PRO,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce3 Pro" },
+     { ATA_NFORCE3_PRO_S1,  0, 0,         0,      ATA_SA150, "nForce3 Pro" },
+     { ATA_NFORCE3_PRO_S2,  0, 0,         0,      ATA_SA150, "nForce3 Pro" },
+     { ATA_NFORCE_MCP04,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP" },
+     { ATA_NFORCE_MCP04_S1, 0, 0,         NV4OFF, ATA_SA150, "nForce MCP" },
+     { ATA_NFORCE_MCP04_S2, 0, 0,         NV4OFF, ATA_SA150, "nForce MCP" },
+     { ATA_NFORCE_CK804,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce CK804" },
+     { ATA_NFORCE_CK804_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce CK804" },
+     { ATA_NFORCE_CK804_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce CK804" },
+     { ATA_NFORCE_MCP51,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP55,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP55" },
+     { 0, 0, 0, 0, 0, 0}} ;
+    char buffer[64] ;
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "nVidia %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_nvidia_chipinit;
@@ -2382,40 +2396,40 @@ ata_promise_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_PDC20246,  0, PROLD, 0x00,    ATA_UDMA2, "Promise PDC20246" },
-     { ATA_PDC20262,  0, PRNEW, 0x00,    ATA_UDMA4, "Promise PDC20262" },
-     { ATA_PDC20263,  0, PRNEW, 0x00,    ATA_UDMA4, "Promise PDC20263" },
-     { ATA_PDC20265,  0, PRNEW, 0x00,    ATA_UDMA5, "Promise PDC20265" },
-     { ATA_PDC20267,  0, PRNEW, 0x00,    ATA_UDMA5, "Promise PDC20267" },
-     { ATA_PDC20268,  0, PRTX,  PRTX4,   ATA_UDMA5, "Promise PDC20268" },
-     { ATA_PDC20269,  0, PRTX,  0x00,    ATA_UDMA6, "Promise PDC20269" },
-     { ATA_PDC20270,  0, PRTX,  PRTX4,   ATA_UDMA5, "Promise PDC20270" },
-     { ATA_PDC20271,  0, PRTX,  0x00,    ATA_UDMA6, "Promise PDC20271" },
-     { ATA_PDC20275,  0, PRTX,  0x00,    ATA_UDMA6, "Promise PDC20275" },
-     { ATA_PDC20276,  0, PRTX,  PRSX6K,  ATA_UDMA6, "Promise PDC20276" },
-     { ATA_PDC20277,  0, PRTX,  0x00,    ATA_UDMA6, "Promise PDC20277" },
-     { ATA_PDC20318,  0, PRMIO, PRSATA,  ATA_SA150, "Promise PDC20318" },
-     { ATA_PDC20319,  0, PRMIO, PRSATA,  ATA_SA150, "Promise PDC20319" },
-     { ATA_PDC20371,  0, PRMIO, PRCMBO,  ATA_SA150, "Promise PDC20371" },
-     { ATA_PDC20375,  0, PRMIO, PRCMBO,  ATA_SA150, "Promise PDC20375" },
-     { ATA_PDC20376,  0, PRMIO, PRCMBO,  ATA_SA150, "Promise PDC20376" },
-     { ATA_PDC20377,  0, PRMIO, PRCMBO,  ATA_SA150, "Promise PDC20377" },
-     { ATA_PDC20378,  0, PRMIO, PRCMBO,  ATA_SA150, "Promise PDC20378" },
-     { ATA_PDC20379,  0, PRMIO, PRCMBO,  ATA_SA150, "Promise PDC20379" },
-     { ATA_PDC20571,  0, PRMIO, PRCMBO2, ATA_SA150, "Promise PDC20571" },
-     { ATA_PDC20575,  0, PRMIO, PRCMBO2, ATA_SA150, "Promise PDC20575" },
-     { ATA_PDC20579,  0, PRMIO, PRCMBO2, ATA_SA150, "Promise PDC20579" },
-     { ATA_PDC20580,  0, PRMIO, PRCMBO2, ATA_SA150, "Promise PDC20580" },
-     { ATA_PDC20617,  0, PRMIO, PRPATA,  ATA_UDMA6, "Promise PDC20617" },
-     { ATA_PDC20618,  0, PRMIO, PRPATA,  ATA_UDMA6, "Promise PDC20618" },
-     { ATA_PDC20619,  0, PRMIO, PRPATA,  ATA_UDMA6, "Promise PDC20619" },
-     { ATA_PDC20620,  0, PRMIO, PRPATA,  ATA_UDMA6, "Promise PDC20620" },
-     { ATA_PDC20621,  0, PRMIO, PRSX4X,  ATA_UDMA5, "Promise PDC20621" },
-     { ATA_PDC20622,  0, PRMIO, PRSX4X,  ATA_SA150, "Promise PDC20622" },
-     { ATA_PDC40518,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40518" },
-     { ATA_PDC40519,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40519" },
-     { ATA_PDC40718,  0, PRMIO, PRSATA2, ATA_SA300, "Promise PDC40718" },
-     { ATA_PDC40719,  0, PRMIO, PRSATA2, ATA_SA300, "Promise PDC40719" },
+    {{ ATA_PDC20246,  0, PROLD, 0x00,    ATA_UDMA2, "PDC20246" },
+     { ATA_PDC20262,  0, PRNEW, 0x00,    ATA_UDMA4, "PDC20262" },
+     { ATA_PDC20263,  0, PRNEW, 0x00,    ATA_UDMA4, "PDC20263" },
+     { ATA_PDC20265,  0, PRNEW, 0x00,    ATA_UDMA5, "PDC20265" },
+     { ATA_PDC20267,  0, PRNEW, 0x00,    ATA_UDMA5, "PDC20267" },
+     { ATA_PDC20268,  0, PRTX,  PRTX4,   ATA_UDMA5, "PDC20268" },
+     { ATA_PDC20269,  0, PRTX,  0x00,    ATA_UDMA6, "PDC20269" },
+     { ATA_PDC20270,  0, PRTX,  PRTX4,   ATA_UDMA5, "PDC20270" },
+     { ATA_PDC20271,  0, PRTX,  0x00,    ATA_UDMA6, "PDC20271" },
+     { ATA_PDC20275,  0, PRTX,  0x00,    ATA_UDMA6, "PDC20275" },
+     { ATA_PDC20276,  0, PRTX,  PRSX6K,  ATA_UDMA6, "PDC20276" },
+     { ATA_PDC20277,  0, PRTX,  0x00,    ATA_UDMA6, "PDC20277" },
+     { ATA_PDC20318,  0, PRMIO, PRSATA,  ATA_SA150, "PDC20318" },
+     { ATA_PDC20319,  0, PRMIO, PRSATA,  ATA_SA150, "PDC20319" },
+     { ATA_PDC20371,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20371" },
+     { ATA_PDC20375,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20375" },
+     { ATA_PDC20376,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20376" },
+     { ATA_PDC20377,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20377" },
+     { ATA_PDC20378,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20378" },
+     { ATA_PDC20379,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20379" },
+     { ATA_PDC20571,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20571" },
+     { ATA_PDC20575,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20575" },
+     { ATA_PDC20579,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20579" },
+     { ATA_PDC20580,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20580" },
+     { ATA_PDC20617,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20617" },
+     { ATA_PDC20618,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20618" },
+     { ATA_PDC20619,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20619" },
+     { ATA_PDC20620,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20620" },
+     { ATA_PDC20621,  0, PRMIO, PRSX4X,  ATA_UDMA5, "PDC20621" },
+     { ATA_PDC20622,  0, PRMIO, PRSX4X,  ATA_SA150, "PDC20622" },
+     { ATA_PDC40518,  0, PRMIO, PRSATA2, ATA_SA150, "PDC40518" },
+     { ATA_PDC40519,  0, PRMIO, PRSATA2, ATA_SA150, "PDC40519" },
+     { ATA_PDC40718,  0, PRMIO, PRSATA2, ATA_SA300, "PDC40718" },
+     { ATA_PDC40719,  0, PRMIO, PRSATA2, ATA_SA300, "PDC40719" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
     uintptr_t devid = 0;
@@ -2452,7 +2466,8 @@ ata_promise_ident(device_t dev)
 	    start = end = 0;
 	}
     }
-    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "Promise %s %s controller",
+	    buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_promise_chipinit;
@@ -3280,18 +3295,19 @@ ata_serverworks_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ROSB4,  0x00, SWKS33,  0x00, ATA_UDMA2, "ServerWorks ROSB4" },
-     { ATA_CSB5,   0x92, SWKS100, 0x00, ATA_UDMA5, "ServerWorks CSB5" },
-     { ATA_CSB5,   0x00, SWKS66,  0x00, ATA_UDMA4, "ServerWorks CSB5" },
-     { ATA_CSB6,   0x00, SWKS100, 0x00, ATA_UDMA5, "ServerWorks CSB6" },
-     { ATA_CSB6_1, 0x00, SWKS66,  0x00, ATA_UDMA4, "ServerWorks CSB6" },
+    {{ ATA_ROSB4,  0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
+     { ATA_CSB5,   0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
+     { ATA_CSB5,   0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
+     { ATA_CSB6,   0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
+     { ATA_CSB6_1, 0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "ServerWorks %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_serverworks_chipinit;
@@ -3815,31 +3831,31 @@ ata_sis_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SIS182,  0x00, SISSATA,   0, ATA_SA150, "SiS 182" }, /* south */
-     { ATA_SIS181,  0x00, SISSATA,   0, ATA_SA150, "SiS 181" }, /* south */
-     { ATA_SIS180,  0x00, SISSATA,   0, ATA_SA150, "SiS 180" }, /* south */
-     { ATA_SIS965,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 965" }, /* south */
-     { ATA_SIS964,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 964" }, /* south */
-     { ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" }, /* south */
-     { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" }, /* south */
+    {{ ATA_SIS182,  0x00, SISSATA,   0, ATA_SA150, "182" }, /* south */
+     { ATA_SIS181,  0x00, SISSATA,   0, ATA_SA150, "181" }, /* south */
+     { ATA_SIS180,  0x00, SISSATA,   0, ATA_SA150, "180" }, /* south */
+     { ATA_SIS965,  0x00, SIS133NEW, 0, ATA_UDMA6, "965" }, /* south */
+     { ATA_SIS964,  0x00, SIS133NEW, 0, ATA_UDMA6, "964" }, /* south */
+     { ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "963" }, /* south */
+     { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "962" }, /* south */
 
-     { ATA_SIS745,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 745" }, /* 1chip */
-     { ATA_SIS735,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 735" }, /* 1chip */
-     { ATA_SIS733,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 733" }, /* 1chip */
-     { ATA_SIS730,  0x00, SIS100OLD, 0, ATA_UDMA5, "SiS 730" }, /* 1chip */
+     { ATA_SIS745,  0x00, SIS100NEW, 0, ATA_UDMA5, "745" }, /* 1chip */
+     { ATA_SIS735,  0x00, SIS100NEW, 0, ATA_UDMA5, "735" }, /* 1chip */
+     { ATA_SIS733,  0x00, SIS100NEW, 0, ATA_UDMA5, "733" }, /* 1chip */
+     { ATA_SIS730,  0x00, SIS100OLD, 0, ATA_UDMA5, "730" }, /* 1chip */
 
-     { ATA_SIS635,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" }, /* 1chip */
-     { ATA_SIS633,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 633" }, /* unknown */
-     { ATA_SIS630,  0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S"}, /* 1chip */
-     { ATA_SIS630,  0x00, SIS66,     0, ATA_UDMA4, "SiS 630" }, /* 1chip */
-     { ATA_SIS620,  0x00, SIS66,     0, ATA_UDMA4, "SiS 620" }, /* 1chip */
+     { ATA_SIS635,  0x00, SIS100NEW, 0, ATA_UDMA5, "635" }, /* 1chip */
+     { ATA_SIS633,  0x00, SIS100NEW, 0, ATA_UDMA5, "633" }, /* unknown */
+     { ATA_SIS630,  0x30, SIS100OLD, 0, ATA_UDMA5, "630S"}, /* 1chip */
+     { ATA_SIS630,  0x00, SIS66,     0, ATA_UDMA4, "630" }, /* 1chip */
+     { ATA_SIS620,  0x00, SIS66,     0, ATA_UDMA4, "620" }, /* 1chip */
 
-     { ATA_SIS550,  0x00, SIS66,     0, ATA_UDMA5, "SiS 550" },
-     { ATA_SIS540,  0x00, SIS66,     0, ATA_UDMA4, "SiS 540" },
-     { ATA_SIS530,  0x00, SIS66,     0, ATA_UDMA4, "SiS 530" },
+     { ATA_SIS550,  0x00, SIS66,     0, ATA_UDMA5, "550" },
+     { ATA_SIS540,  0x00, SIS66,     0, ATA_UDMA4, "540" },
+     { ATA_SIS530,  0x00, SIS66,     0, ATA_UDMA4, "530" },
 
-     { ATA_SIS5513, 0xc2, SIS33,     1, ATA_UDMA2, "SiS 5513" },
-     { ATA_SIS5513, 0x00, SIS33,     1, ATA_WDMA2, "SiS 5513" },
+     { ATA_SIS5513, 0xc2, SIS33,     1, ATA_UDMA2, "5513" },
+     { ATA_SIS5513, 0x00, SIS33,     1, ATA_WDMA2, "5513" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
     int found = 0;
@@ -3882,7 +3898,8 @@ ata_sis_ident(device_t dev)
 	pci_write_config(dev, 0x4a, reg4a, 1);
     }
     if (!found)
-	sprintf(buffer,"%s %s controller",idx->text,ata_mode2str(idx->max_dma));
+	sprintf(buffer,"SiS %s %s controller",
+		idx->text, ata_mode2str(idx->max_dma));
 
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
@@ -4054,26 +4071,26 @@ ata_via_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_VIA82C586, 0x02, VIA33,  0x00,    ATA_UDMA2, "VIA 82C586B" },
-     { ATA_VIA82C586, 0x00, VIA33,  0x00,    ATA_WDMA2, "VIA 82C586" },
-     { ATA_VIA82C596, 0x12, VIA66,  VIACLK,  ATA_UDMA4, "VIA 82C596B" },
-     { ATA_VIA82C596, 0x00, VIA33,  0x00,    ATA_UDMA2, "VIA 82C596" },
-     { ATA_VIA82C686, 0x40, VIA100, VIABUG,  ATA_UDMA5, "VIA 82C686B"},
-     { ATA_VIA82C686, 0x10, VIA66,  VIACLK,  ATA_UDMA4, "VIA 82C686A" },
-     { ATA_VIA82C686, 0x00, VIA33,  0x00,    ATA_UDMA2, "VIA 82C686" },
-     { ATA_VIA8231,   0x00, VIA100, VIABUG,  ATA_UDMA5, "VIA 8231" },
-     { ATA_VIA8233,   0x00, VIA100, 0x00,    ATA_UDMA5, "VIA 8233" },
-     { ATA_VIA8233C,  0x00, VIA100, 0x00,    ATA_UDMA5, "VIA 8233C" },
-     { ATA_VIA8233A,  0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8233A" },
-     { ATA_VIA8235,   0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8235" },
-     { ATA_VIA8237,   0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8237" },
-     { ATA_VIA8251,   0x00, VIA133, 0x00,    ATA_UDMA6, "VIA 8251" },
+    {{ ATA_VIA82C586, 0x02, VIA33,  0x00,    ATA_UDMA2, "82C586B" },
+     { ATA_VIA82C586, 0x00, VIA33,  0x00,    ATA_WDMA2, "82C586" },
+     { ATA_VIA82C596, 0x12, VIA66,  VIACLK,  ATA_UDMA4, "82C596B" },
+     { ATA_VIA82C596, 0x00, VIA33,  0x00,    ATA_UDMA2, "82C596" },
+     { ATA_VIA82C686, 0x40, VIA100, VIABUG,  ATA_UDMA5, "82C686B"},
+     { ATA_VIA82C686, 0x10, VIA66,  VIACLK,  ATA_UDMA4, "82C686A" },
+     { ATA_VIA82C686, 0x00, VIA33,  0x00,    ATA_UDMA2, "82C686" },
+     { ATA_VIA8231,   0x00, VIA100, VIABUG,  ATA_UDMA5, "8231" },
+     { ATA_VIA8233,   0x00, VIA100, 0x00,    ATA_UDMA5, "8233" },
+     { ATA_VIA8233C,  0x00, VIA100, 0x00,    ATA_UDMA5, "8233C" },
+     { ATA_VIA8233A,  0x00, VIA133, 0x00,    ATA_UDMA6, "8233A" },
+     { ATA_VIA8235,   0x00, VIA133, 0x00,    ATA_UDMA6, "8235" },
+     { ATA_VIA8237,   0x00, VIA133, 0x00,    ATA_UDMA6, "8237" },
+     { ATA_VIA8251,   0x00, VIA133, 0x00,    ATA_UDMA6, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
-    {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "VIA 6410" },
-     { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "VIA 6420" },
-     { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "VIA 6421" },
-     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA150, "VIA 8251" },
+    {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
+     { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "6420" },
+     { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
+     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA150, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
@@ -4086,7 +4103,8 @@ ata_via_ident(device_t dev)
 	    return ENXIO;
     }
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "VIA %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_via_chipinit;
