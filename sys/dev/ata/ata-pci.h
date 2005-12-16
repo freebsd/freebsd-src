@@ -171,19 +171,24 @@ struct ata_connect_task {
 #define ATA_NVIDIA_ID           0x10de
 #define ATA_NFORCE1             0x01bc10de
 #define ATA_NFORCE2             0x006510de
-#define ATA_NFORCE2_MCP         0x008510de
-#define ATA_NFORCE2_MCP_S1      0x008e10de
+#define ATA_NFORCE2_PRO         0x008510de
+#define ATA_NFORCE2_PRO_S1      0x008e10de
 #define ATA_NFORCE3             0x00d510de
 #define ATA_NFORCE3_PRO         0x00e510de
 #define ATA_NFORCE3_PRO_S1      0x00e310de
 #define ATA_NFORCE3_PRO_S2      0x00ee10de
-#define ATA_NFORCE3_MCP         0x003510de
-#define ATA_NFORCE3_MCP_S1      0x003610de
-#define ATA_NFORCE3_MCP_S2      0x003e10de
-#define ATA_NFORCE4             0x005310de
-#define ATA_NFORCE4_S1          0x005410de
-#define ATA_NFORCE4_S2          0x005510de
-
+#define ATA_NFORCE_MCP04        0x003510de
+#define ATA_NFORCE_MCP04_S1     0x003610de
+#define ATA_NFORCE_MCP04_S2     0x003e10de
+#define ATA_NFORCE_CK804        0x005310de
+#define ATA_NFORCE_CK804_S1     0x005410de
+#define ATA_NFORCE_CK804_S2     0x005510de
+#define ATA_NFORCE_MCP51        0x026510de
+#define ATA_NFORCE_MCP51_S1     0x026610de
+#define ATA_NFORCE_MCP51_S2     0x026710de
+#define ATA_NFORCE_MCP55        0x036e10de
+#define ATA_NFORCE_MCP55_S1     0x037e10de
+#define ATA_NFORCE_MCP55_S2     0x037f10de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
