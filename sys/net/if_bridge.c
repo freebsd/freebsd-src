@@ -170,6 +170,9 @@ __FBSDID("$FreeBSD$");
 #define	BRIDGE_RTABLE_PRUNE_PERIOD	(5 * 60)
 #endif
 
+static struct mtx 	bridge_list_mtx;
+eventhandler_tag	bridge_detach_cookie = NULL;
+
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
 uma_zone_t bridge_rtnode_zone;
@@ -178,7 +181,7 @@ static int	bridge_clone_create(struct if_clone *, int);
 static void	bridge_clone_destroy(struct ifnet *);
 
 static int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
-static void	bridge_ifdetach(struct ifnet *);
+static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
 static void	bridge_stop(struct ifnet *, int);
@@ -219,6 +222,8 @@ static struct bridge_iflist *bridge_lookup_member_if(struct bridge_softc *,
 		    struct ifnet *ifp);
 static void	bridge_delete_member(struct bridge_softc *,
 		    struct bridge_iflist *, int);
+static void	bridge_delete_span(struct bridge_softc *,
+		    struct bridge_iflist *);
 
 static int	bridge_ioctl_add(struct bridge_softc *, void *);
 static int	bridge_ioctl_del(struct bridge_softc *, void *);
@@ -345,6 +350,8 @@ const int bridge_control_table_size =
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
+LIST_HEAD(, bridge_softc) bridge_list;
+
 IFC_SIMPLE_DECLARE(bridge, 0);
 
 static int
@@ -353,24 +360,30 @@ bridge_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&bridge_list_mtx, "if_bridge list", NULL, MTX_DEF);
 		if_clone_attach(&bridge_cloner);
 		bridge_rtnode_zone = uma_zcreate("bridge_rtnode",
 		    sizeof(struct bridge_rtnode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
+		LIST_INIT(&bridge_list);
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
-		bridge_detach_p = bridge_ifdetach;
 		bstp_linkstate_p = bstp_linkstate;
+		bridge_detach_cookie = EVENTHANDLER_REGISTER(
+		    ifnet_departure_event, bridge_ifdetach, NULL,
+		    EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_UNLOAD:
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+		    bridge_detach_cookie);
 		if_clone_detach(&bridge_cloner);
 		uma_zdestroy(bridge_rtnode_zone);
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
-		bridge_detach_p = NULL;
 		bstp_linkstate_p = NULL;
+		mtx_destroy(&bridge_list_mtx);
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -481,6 +494,10 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
 
+	mtx_lock(&bridge_list_mtx);
+	LIST_INSERT_HEAD(&bridge_list, sc, sc_list);
+	mtx_unlock(&bridge_list_mtx);
+
 	return (0);
 }
 
@@ -504,14 +521,17 @@ bridge_clone_destroy(struct ifnet *ifp)
 		bridge_delete_member(sc, bif, 0);
 
 	while ((bif = LIST_FIRST(&sc->sc_spanlist)) != NULL) {
-		LIST_REMOVE(bif, bif_next);
-		free(bif, M_DEVBUF);
+		bridge_delete_span(sc, bif);
 	}
 
 	BRIDGE_UNLOCK(sc);
 
 	callout_drain(&sc->sc_brcallout);
 	callout_drain(&sc->sc_bstpcallout);
+
+	mtx_lock(&bridge_list_mtx);
+	LIST_REMOVE(sc, sc_list);
+	mtx_unlock(&bridge_list_mtx);
 
 	ether_ifdetach(ifp);
 	if_free_type(ifp, IFT_ETHER);
@@ -722,6 +742,23 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		bstp_initialization(sc);
+}
+
+/*
+ * bridge_delete_span:
+ *
+ *	Delete the specified span interface.
+ */
+static void
+bridge_delete_span(struct bridge_softc *sc, struct bridge_iflist *bif)
+{
+	BRIDGE_LOCK_ASSERT(sc);
+
+	KASSERT(bif->bif_ifp->if_bridge == NULL,
+	    ("%s: not a span interface", __func__));
+
+	LIST_REMOVE(bif, bif_next);
+	free(bif, M_DEVBUF);
 }
 
 static int
@@ -1285,8 +1322,7 @@ bridge_ioctl_delspan(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOENT);
 
-	LIST_REMOVE(bif, bif_next);
-	free(bif, M_DEVBUF);
+	bridge_delete_span(sc, bif);
 
 	return (0);
 }
@@ -1298,20 +1334,37 @@ bridge_ioctl_delspan(struct bridge_softc *sc, void *arg)
  *	interface is detaching.
  */
 static void
-bridge_ifdetach(struct ifnet *ifp)
+bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
 	struct bridge_iflist *bif;
 
-	BRIDGE_LOCK(sc);
+	/* Check if the interface is a bridge member */
+	if (sc != NULL) {
+		BRIDGE_LOCK(sc);
 
-	bif = bridge_lookup_member_if(sc, ifp);
-	if (bif == NULL)
+		bif = bridge_lookup_member_if(sc, ifp);
+		if (bif != NULL)
+			bridge_delete_member(sc, bif, 1);
+
+
+		BRIDGE_UNLOCK(sc);
 		return;
+	}
 
-	bridge_delete_member(sc, bif, 1);
+	/* Check if the interface is a span port */
+	mtx_lock(&bridge_list_mtx);
+	LIST_FOREACH(sc, &bridge_list, sc_list) {
+		BRIDGE_LOCK(sc);
+		LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
+			if (ifp == bif->bif_ifp) {
+				bridge_delete_span(sc, bif);
+				break;
+			}
 
-	BRIDGE_UNLOCK(sc);
+		BRIDGE_UNLOCK(sc);
+	}
+	mtx_unlock(&bridge_list_mtx);
 }
 
 /*

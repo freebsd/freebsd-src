@@ -267,6 +267,7 @@ struct bridge_rtnode {
  */
 struct bridge_softc {
 	struct ifnet		*sc_ifp;	/* make this an interface */
+	LIST_ENTRY(bridge_softc) sc_list;
 	struct mtx		sc_mtx;
 	struct cv		sc_cv;
 	uint64_t		sc_designated_root;
@@ -362,7 +363,6 @@ extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
 		struct sockaddr *, struct rtentry *);
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
-extern	void (*bridge_detach_p)(struct ifnet *);
 extern	void (*bstp_linkstate_p)(struct ifnet *ifp, int state);
 
 void	bstp_initialization(struct bridge_softc *);
