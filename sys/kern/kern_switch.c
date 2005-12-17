@@ -597,7 +597,7 @@ critical_enter(void)
 
 	td = curthread;
 	td->td_critnest++;
-	CTR4(KTR_CRITICAL, "critical_enter by thread %p (%ld, %s) to %d", td,
+	CTR4(KTR_CONTENTION, "critical_enter by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
 
@@ -625,7 +625,7 @@ critical_exit(void)
 		td->td_critnest--;
 	
 	
-	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
+	CTR4(KTR_CONTENTION, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
 
