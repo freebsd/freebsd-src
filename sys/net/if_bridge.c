@@ -392,8 +392,8 @@ bridge_modevent(module_t mod, int type, void *data)
 }
 
 static moduledata_t bridge_mod = {
-	"if_bridge", 
-	bridge_modevent, 
+	"if_bridge",
+	bridge_modevent,
 	0
 };
 
@@ -405,26 +405,27 @@ DECLARE_MODULE(if_bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 static int
 sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)
 {
-    int enable = pfil_ipfw;
-    int error;
+	int enable = pfil_ipfw;
+	int error;
 
-    error = sysctl_handle_int(oidp, &enable, 0, req);
-    enable = (enable) ? 1 : 0;
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	enable = (enable) ? 1 : 0;
 
-    if (enable != pfil_ipfw) {
-	pfil_ipfw = enable;
+	if (enable != pfil_ipfw) {
+		pfil_ipfw = enable;
 
-	/*
-	 * Disable pfil so that ipfw doesnt run twice, if the user really wants
-	 * both then they can re-enable pfil_bridge and/or pfil_member.
-	 */
-	if (pfil_ipfw) {
-		pfil_bridge = 0;
-		pfil_member = 0;
+		/*
+		 * Disable pfil so that ipfw doesnt run twice, if the user
+		 * really wants both then they can re-enable pfil_bridge and/or
+		 * pfil_member.
+		 */
+		if (pfil_ipfw) {
+			pfil_bridge = 0;
+			pfil_member = 0;
+		}
 	}
-    }
 
-    return error;
+	return error;
 }
 SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw, CTLTYPE_INT|CTLFLAG_RW,
 	    &pfil_ipfw, 0, &sysctl_pfil_ipfw, "I", "Layer2 filter with IPFW");
@@ -643,7 +644,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	default:
-		/* 
+		/*
 		 * drop the lock as ether_ioctl() will call bridge_start() and
 		 * cause the lock to be recursed.
 		 */
@@ -832,7 +833,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	else
 		bstp_stop(sc);
 
- out:
+out:
 	if (error) {
 		if (bif != NULL)
 			free(bif, M_DEVBUF);
@@ -1037,7 +1038,7 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		count++;
 		len -= sizeof(bareq);
 	}
- out:
+out:
 	bac->ifbac_len = sizeof(bareq) * count;
 	return (error);
 }
@@ -1306,7 +1307,6 @@ bridge_ioctl_delspan(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
-
 	struct ifnet *ifs;
 
 	BRIDGE_LOCK_ASSERT(sc);
@@ -1591,7 +1591,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 		return (0);
 	}
 
- sendunicast:
+sendunicast:
 	/*
 	 * XXX Spanning tree consideration here?
 	 */
@@ -2036,7 +2036,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 
 		/*
 		 * Filter on the output interface. Pass a NULL bridge interface
-		 * pointer so we do not redundantly filter on the bridge for 
+		 * pointer so we do not redundantly filter on the bridge for
 		 * each interface we broadcast on.
 		 */
 		if (runfilt && (inet_pfil_hook.ph_busy_count >= 0
@@ -2290,7 +2290,7 @@ bridge_rtdelete(struct bridge_softc *sc, struct ifnet *ifp, int full)
 
 	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
 		nbrt = LIST_NEXT(brt, brt_list);
-		if (brt->brt_ifp == ifp && (full || 
+		if (brt->brt_ifp == ifp && (full ||
 			    (brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC))
 			bridge_rtnode_destroy(sc, brt);
 	}
@@ -2437,7 +2437,7 @@ bridge_rtnode_insert(struct bridge_softc *sc, struct bridge_rtnode *brt)
 	panic("bridge_rtnode_insert: impossible");
 #endif
 
- out:
+out:
 	LIST_INSERT_HEAD(&sc->sc_rtlist, brt, brt_list);
 	sc->sc_brtcnt++;
 
@@ -2467,8 +2467,8 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
  * question.) If *bifp or *ifp are NULL then packet filtering is skipped for
  * that interface.
  */
-static int bridge_pfil(struct mbuf **mp, struct ifnet *bifp,
-		struct ifnet *ifp, int dir)
+static int
+bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
 	int snap, error, i;
 	struct ether_header *eh1, eh2;
@@ -2703,7 +2703,7 @@ ipfwpass:
 
 	return 0;
 
-    bad:
+bad:
 	m_freem(*mp);
 	*mp = NULL;
 	return error;
@@ -2805,7 +2805,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	*mp = m;
 	return 0;
 
-    bad:
+bad:
 	*mp = m;
 	return -1;
 }
@@ -2858,7 +2858,7 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 	*mp = m;
 	return 0;
 
-    bad:
+bad:
 	*mp = m;
 	return -1;
 }
