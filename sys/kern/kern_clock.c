@@ -237,7 +237,7 @@ hardclock(frame)
 {
 	int need_softclock = 0;
 
-	CTR0(KTR_CLK, "hardclock fired");
+	CTR0(KTR_INTR, "hardclock fired");
 	hardclock_process(frame);
 
 	tc_ticktock();
