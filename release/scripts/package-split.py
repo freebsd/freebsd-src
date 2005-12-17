@@ -70,7 +70,6 @@ def disc2_packages():
             'mail/popd',
             'mail/xfmail',
             'mail/postfix',
-            'misc/bsdiff',
             'net/cvsup',
             'net/cvsup-without-gui',
             'net/rsync',
@@ -87,18 +86,12 @@ def disc2_packages():
             'shells/zsh',
             'security/freebsd-update',
             'security/sudo',
-            'sysutils/portsnap',
             'sysutils/portupgrade',
             'www/links',
             'www/lynx',
             'x11/rxvt',
             # Formerly on disc3
-            'lang/php4',
-            'lang/php5',
-            'security/portaudit',
-            'www/apache13',
-            'www/apache13-modssl',
-            'www/apache2'])
+            'security/portaudit'])
     if arch == 'i386':
         pkgs.extend(['comms/ltmdm',
                      'www/opera'])
