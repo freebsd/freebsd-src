@@ -795,7 +795,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (ifs->if_bridge != NULL)
 		return (EBUSY);
 
-	bif = malloc(sizeof(*bif), M_DEVBUF, M_NOWAIT);
+	bif = malloc(sizeof(*bif), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (bif == NULL)
 		return (ENOMEM);
 
