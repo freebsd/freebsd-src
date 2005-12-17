@@ -44,30 +44,30 @@
 #define	KTR_DEV		0x00000004		/* Device driver */
 #define	KTR_LOCK	0x00000008		/* MP locking */
 #define	KTR_SMP		0x00000010		/* MP general */
-#define	KTR_FS		0x00000020		/* Filesystem */
-#define KTR_PMAP	0x00000040		/* Pmap tracing */
-#define KTR_MALLOC	0x00000080		/* Malloc tracing */
+#define	KTR_SPARE1	0x00000020		/* Unused */
+#define	KTR_PMAP	0x00000040		/* Pmap tracing */
+#define	KTR_MALLOC	0x00000080		/* Malloc tracing */
 #define	KTR_TRAP	0x00000100		/* Trap processing */
 #define	KTR_INTR	0x00000200		/* Interrupt tracing */
-#define KTR_SIG		0x00000400		/* Signal processing */
-#define	KTR_CLK		0x00000800		/* hardclock verbose */
+#define	KTR_SIG		0x00000400		/* Signal processing */
+#define	KTR_SPARE2	0x00000800		/* Unused */
 #define	KTR_PROC	0x00001000		/* Process scheduling */
 #define	KTR_SYSC	0x00002000		/* System call */
 #define	KTR_INIT	0x00004000		/* System initialization */
-#define KTR_KGDB	0x00008000		/* Trace kgdb internals */
-#define	KTR_IO		0x00010000		/* Upper I/O  */
+#define	KTR_SPARE3	0x00008000		/* Unused */
+#define	KTR_SPARE4	0x00010000		/* Unused */
 #define	KTR_EVH		0x00020000		/* Eventhandler */
-#define KTR_VFS		0x00040000		/* VFS events */
-#define KTR_VOP		0x00080000		/* Auto-generated vop events */
-#define KTR_VM		0x00100000		/* The virtual memory system */
-#define KTR_WITNESS	0x00200000
+#define	KTR_VFS		0x00040000		/* VFS events */
+#define	KTR_VOP		0x00080000		/* Auto-generated vop events */
+#define	KTR_VM		0x00100000		/* The virtual memory system */
+#define	KTR_WITNESS	0x00200000
 #define	KTR_RUNQ	0x00400000		/* Run queue */
 #define	KTR_CONTENTION	0x00800000		/* Lock contention */
 #define	KTR_UMA		0x01000000		/* UMA slab allocator */
 #define	KTR_CALLOUT	0x02000000		/* Callouts and timeouts */
 #define	KTR_GEOM	0x04000000		/* GEOM I/O events */
 #define	KTR_BUSDMA	0x08000000		/* busdma(9) events */
-#define	KTR_CRITICAL	0x10000000		/* Critical sections */
+#define	KTR_SPARE5	0x10000000		/* Unused */
 #define	KTR_SCHED	0x20000000		/* Machine parsed sched info. */
 #define	KTR_BUF		0x40000000		/* Buffer cache */
 #define	KTR_ALL		0x7fffffff
