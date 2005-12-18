@@ -109,6 +109,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #endif
 
+/* Uncomment this to enable logging of critical_enter/exit. */
+#if 0
+#define	KTR_CRITICAL	KTR_SCHED
+#else
+#define	KTR_CRITICAL	0
+#endif
+
 #ifdef FULL_PREEMPTION
 #ifndef PREEMPTION
 #error "The FULL_PREEMPTION option requires the PREEMPTION option"
@@ -597,7 +604,7 @@ critical_enter(void)
 
 	td = curthread;
 	td->td_critnest++;
-	CTR4(KTR_CONTENTION, "critical_enter by thread %p (%ld, %s) to %d", td,
+	CTR4(KTR_CRITICAL, "critical_enter by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
 
@@ -625,7 +632,7 @@ critical_exit(void)
 		td->td_critnest--;
 	
 	
-	CTR4(KTR_CONTENTION, "critical_exit by thread %p (%ld, %s) to %d", td,
+	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
 
