@@ -71,6 +71,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 		const void *srcaddr;
 		const Elf_Sym *srcsym = NULL;
 		Obj_Entry *srcobj;
+		const Ver_Entry *ve;
 
 		if (ELF_R_TYPE(rela->r_info) != R_PPC_COPY) {
 			continue;
@@ -81,10 +82,11 @@ do_copy_relocations(Obj_Entry *dstobj)
 		name = dstobj->strtab + dstsym->st_name;
 		hash = elf_hash(name);
 		size = dstsym->st_size;
+		ve = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
 
 		for (srcobj = dstobj->next;  srcobj != NULL;
 		     srcobj = srcobj->next) {
-			if ((srcsym = symlook_obj(name, hash, srcobj, false))
+			if ((srcsym = symlook_obj(name, hash, srcobj, ve, 0))
 			    != NULL) {
 				break;
 			}

@@ -205,6 +205,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 	const Elf_Rela *rela;
 	const Elf_Sym *dstsym;
 	const Elf_Sym *srcsym;
+	const Ver_Entry *ve;
 	void *dstaddr;
 	const void *srcaddr;
 	Obj_Entry *srcobj;
@@ -222,11 +223,12 @@ do_copy_relocations(Obj_Entry *dstobj)
 			name = dstobj->strtab + dstsym->st_name;
 			hash = elf_hash(name);
 			size = dstsym->st_size;
+			ve = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
 
 			for (srcobj = dstobj->next; srcobj != NULL;
 			    srcobj = srcobj->next)
 				if ((srcsym = symlook_obj(name, hash, srcobj,
-				    false)) != NULL)
+				    ve, 0)) != NULL)
 					break;
 
 			if (srcobj == NULL) {

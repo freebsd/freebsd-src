@@ -305,14 +305,18 @@ obj_free(Obj_Entry *obj)
 {
     Objlist_Entry *elm;
 
-    if (obj->tls_done) {
+    if (obj->tls_done)
 	free_tls_offset(obj);
-    }
     free(obj->path);
     while (obj->needed != NULL) {
 	Needed_Entry *needed = obj->needed;
 	obj->needed = needed->next;
 	free(needed);
+    }
+    while (!STAILQ_EMPTY(&obj->names)) {
+	Name_Entry *entry = STAILQ_FIRST(&obj->names);
+	STAILQ_REMOVE_HEAD(&obj->names, link);
+	free(entry);
     }
     while (!STAILQ_EMPTY(&obj->dldags)) {
 	elm = STAILQ_FIRST(&obj->dldags);
@@ -324,6 +328,7 @@ obj_free(Obj_Entry *obj)
 	STAILQ_REMOVE_HEAD(&obj->dagmembers, link);
 	free(elm);
     }
+    free(obj->vertab);
     free(obj->origin_path);
     free(obj->priv);
     free(obj);
@@ -337,6 +342,7 @@ obj_new(void)
     obj = CNEW(Obj_Entry);
     STAILQ_INIT(&obj->dldags);
     STAILQ_INIT(&obj->dagmembers);
+    STAILQ_INIT(&obj->names);
     return obj;
 }
 
