@@ -947,11 +947,15 @@ bge_init_tx_ring(sc)
 	sc->bge_txcnt = 0;
 	sc->bge_tx_saved_considx = 0;
 
-	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, 0);
+	/* Initialize transmit producer index for host-memory send ring. */
+	sc->bge_tx_prodidx = 0;
+	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, sc->bge_tx_prodidx);
+
 	/* 5700 b2 errata */
 	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
-		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, 0);
+		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, sc->bge_tx_prodidx);
 
+	/* NIC-memory send ring not used; initialize to zero. */
 	CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
 	/* 5700 b2 errata */
 	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
@@ -3040,7 +3044,7 @@ bge_start_locked(ifp)
 {
 	struct bge_softc *sc;
 	struct mbuf *m_head = NULL;
-	u_int32_t prodidx = 0;
+	uint32_t prodidx;
 	int count = 0;
 
 	sc = ifp->if_softc;
@@ -3048,7 +3052,7 @@ bge_start_locked(ifp)
 	if (!sc->bge_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return;
 
-	prodidx = CSR_READ_4(sc, BGE_MBX_TX_HOST_PROD0_LO);
+	prodidx = sc->bge_tx_prodidx;
 
 	while(sc->bge_cdata.bge_tx_chain[prodidx] == NULL) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -3107,6 +3111,8 @@ bge_start_locked(ifp)
 	/* 5700 b2 errata */
 	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
 		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
+
+	sc->bge_tx_prodidx = prodidx;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
