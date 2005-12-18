@@ -37,7 +37,12 @@ double
 cbrt(double x)
 {
 	int32_t	hx;
+	union {
+	    double value;
+	    uint64_t bits;
+	} u;
 	double r,s,t=0.0,w;
+	uint64_t bits;
 	u_int32_t sign;
 	u_int32_t high,low;
 
@@ -47,7 +52,7 @@ cbrt(double x)
 	if(hx>=0x7ff00000) return(x+x); /* cbrt(NaN,INF) is itself */
 	GET_LOW_WORD(low,x);
 	if((hx|low)==0)
-	    return(x);		/* cbrt(0) is itself */
+	    return(x);			/* cbrt(0) is itself */
 
     /*
      * Rough cbrt to 5 bits:
@@ -73,7 +78,7 @@ cbrt(double x)
 	    SET_HIGH_WORD(t,sign|(hx/3+B1));
 
     /*
-     * New cbrt to 26 bits; may be implemented in single precision:
+     * New cbrt to 25 bits:
      *    cbrt(x) = t*cbrt(x/t**3) ~= t*R(x/t**3)
      * where R(r) = (14*r**2 + 35*r + 5)/(5*r**2 + 35*r + 14) is the
      * (2,2) Pade approximation to cbrt(r) at r = 1.  We replace
@@ -91,16 +96,26 @@ cbrt(double x)
 	s=C+r*t;
 	t*=G+F/(s+E+D/s);
 
-    /* chop t to 20 bits and make it larger in magnitude than cbrt(x) */
-	GET_HIGH_WORD(high,t);
-	INSERT_WORDS(t,high+0x00000001,0);
+    /*
+     * Round t away from zero to 25 bits (sloppily except for ensuring that
+     * the result is larger in magnitude than cbrt(x) but not much more than
+     * 2 25-bit ulps larger).  With rounding towards zero, the error bound
+     * would be ~5/6 instead of ~4/6.  With a maximum error of 1 25-bit ulps
+     * in the rounded t, the infinite-precision error in the Newton
+     * approximation barely affects third digit in the the final error
+     * 0.667; the error in the rounded t can be up to about 12 25-bit ulps
+     * before the final error is larger than 0.667 ulps.
+     */
+	u.value=t;
+	u.bits=(u.bits+0x20000000)&0xfffffffff0000000ULL;
+	t=u.value;
 
-    /* one step Newton iteration to 53 bits with error less than 0.667 ulps */
-	s=t*t;		/* t*t is exact */
-	r=x/s;
-	w=t+t;
-	r=(r-t)/(w+r);	/* r-t is exact */
-	t=t+t*r;
+    /* one step Newton iteration to 53 bits with error < 0.667 ulps */
+	s=t*t;				/* t*t is exact */
+	r=x/s;				/* error <= 0.5 ulps; |r| < |t| */
+	w=t+t;				/* t+t is exact */
+	r=(r-t)/(w+r);			/* r-t is exact; w+r ~= 3*t */
+	t=t+t*r;			/* error <= 0.5 + 0.5/3 + epsilon */
 
 	return(t);
 }
