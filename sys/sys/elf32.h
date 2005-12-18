@@ -153,4 +153,7 @@ typedef struct {
 /* Macro for constructing st_info from field values. */
 #define ELF32_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
 
+/* Macro for accessing the fields of st_other. */
+#define ELF32_ST_VISIBILITY(oth)	((oth) & 0x3)
+
 #endif /* !_SYS_ELF32_H_ */
