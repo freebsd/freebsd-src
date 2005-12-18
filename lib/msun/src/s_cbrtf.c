@@ -48,7 +48,7 @@ cbrtf(float x)
 	hx  ^=sign;
 	if(hx>=0x7f800000) return(x+x); /* cbrt(NaN,INF) is itself */
 	if(hx==0)
-	    return(x);		/* cbrt(0) is itself */
+	    return(x);			/* cbrt(0) is itself */
 
     /* rough cbrt to 5 bits */
 	if(hx<0x00800000) { 		/* subnormal number */
@@ -64,16 +64,23 @@ cbrtf(float x)
 	s=C+r*t;
 	t*=G+F/(s+E+D/s);
 
-    /* chop t to 12 bits and make it larger in magnitude than cbrt(x) */
+    /*
+     * Round t away from zero to 12 bits (sloppily except for ensuring that
+     * the result is larger in magnitude than cbrt(x) but not much more than
+     * 1 12-bit ulp larger).  With rounding towards zero, the error bound
+     * would be ~5/6 instead of ~4/6, and with t 2 12-bit ulps larger the
+     * infinite-precision error in the Newton approximation would affect
+     * the second digit instead of the third digit of 4/6 = 0.666..., etc.
+     */
 	GET_FLOAT_WORD(high,t);
-	SET_FLOAT_WORD(t,(high&0xfffff000)+0x00001000);
+	SET_FLOAT_WORD(t,(high+0x1002)&0xfffff000);
 
-    /* one step Newton iteration to 24 bits with error less than 0.667 ulps */
-	s=t*t;		/* t*t is exact */
-	r=x/s;
-	w=t+t;
-	r=(r-t)/(w+r);	/* r-t is exact */
-	t=t+t*r;
+    /* one step Newton iteration to 24 bits with error < 0.667 ulps */
+	s=t*t;				/* t*t is exact */
+	r=x/s;				/* error <= 0.5 ulps; |r| < |t| */
+	w=t+t;				/* t+t is exact */
+	r=(r-t)/(w+r);			/* r-t is exact; w+r ~= 3*t */
+	t=t+t*r;			/* error <= 0.5 + 0.5/3 + epsilon */
 
 	return(t);
 }
