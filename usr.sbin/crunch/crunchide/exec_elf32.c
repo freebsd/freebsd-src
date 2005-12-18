@@ -192,7 +192,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	Elf_Shdr *shdrp = NULL, *symtabshdr, *strtabshdr;
 	Elf_Sym *symtabp = NULL;
 	char *strtabp = NULL;
-	Elf_Word *symfwmap = NULL, *symrvmap = NULL, nsyms, nlocalsyms, ewi;
+	Elf_Size *symfwmap = NULL, *symrvmap = NULL, nsyms, nlocalsyms, ewi;
 	struct listelem *relalist = NULL, *rellist = NULL, *tmpl;
 	ssize_t shdrsize;
 	int rv, i, weird;
@@ -295,10 +295,10 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	/* Prepare data structures for symbol movement. */
 	nsyms = xewtoh(symtabshdr->sh_size) / xewtoh(symtabshdr->sh_entsize);
 	nlocalsyms = xe32toh(symtabshdr->sh_info);
-	if ((symfwmap = xmalloc(nsyms * sizeof (Elf_Word), fn,
+	if ((symfwmap = xmalloc(nsyms * sizeof (Elf_Size), fn,
 	    "symbol forward mapping table")) == NULL)
 		goto bad;
-	if ((symrvmap = xmalloc(nsyms * sizeof (Elf_Word), fn,
+	if ((symrvmap = xmalloc(nsyms * sizeof (Elf_Size), fn,
 	    "symbol reverse mapping table")) == NULL)
 		goto bad;
 
@@ -309,7 +309,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	/* move symbols, making them local */
 	for (ewi = nlocalsyms; ewi < nsyms; ewi++) {
 		Elf_Sym *sp, symswap;
-		Elf_Word mapswap;
+		Elf_Size mapswap;
 
 		sp = &symtabp[ewi];
 

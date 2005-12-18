@@ -119,7 +119,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf32_Addr *where32, val32;
 	Elf_Addr addr;
 	Elf_Addr addend;
-	Elf_Word rtype, symidx;
+	Elf_Size rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 

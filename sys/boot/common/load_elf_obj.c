@@ -70,7 +70,7 @@ static int __elfN(obj_reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p, void *val, size_t len);
 static int __elfN(obj_parse_modmetadata)(struct preloaded_file *mp,
     elf_file_t ef);
-static Elf_Addr __elfN(obj_symaddr)(struct elf_file *ef, Elf_Word symidx);
+static Elf_Addr __elfN(obj_symaddr)(struct elf_file *ef, Elf_Size symidx);
 
 const char	*__elfN(obj_kerneltype) = "elf kernel";
 const char	*__elfN(obj_moduletype) = "elf obj module";
@@ -495,7 +495,7 @@ __elfN(obj_reloc_ptr)(struct preloaded_file *mp, elf_file_t ef, Elf_Addr p,
 
 /* Look up the address of a specified symbol. */
 static Elf_Addr
-__elfN(obj_symaddr)(struct elf_file *ef, Elf_Word symidx)
+__elfN(obj_symaddr)(struct elf_file *ef, Elf_Size symidx)
 {
 	Elf_Sym sym;
 	Elf_Addr base;

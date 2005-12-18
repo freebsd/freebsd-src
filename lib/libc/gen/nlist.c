@@ -243,8 +243,8 @@ __elf_fdnlist(fd, list)
 {
 	struct nlist *p;
 	Elf_Off symoff = 0, symstroff = 0;
-	Elf_Word symsize = 0, symstrsize = 0;
-	Elf_Sword cc, i;
+	Elf_Size symsize = 0, symstrsize = 0;
+	Elf_Ssize cc, i;
 	int nent = -1;
 	int errsave;
 	Elf_Sym sbuf[1024];
@@ -252,7 +252,7 @@ __elf_fdnlist(fd, list)
 	Elf_Ehdr ehdr;
 	char *strtab = NULL;
 	Elf_Shdr *shdr = NULL;
-	Elf_Word shdr_size;
+	Elf_Size shdr_size;
 	void *base;
 	struct stat st;
 
