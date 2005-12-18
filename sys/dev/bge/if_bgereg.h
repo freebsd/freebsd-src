@@ -2416,6 +2416,7 @@ struct bge_softc {
 	u_int32_t		bge_stat_ticks;
 	u_int32_t		bge_rx_coal_ticks;
 	u_int32_t		bge_tx_coal_ticks;
+	u_int32_t		bge_tx_prodidx;
 	u_int32_t		bge_rx_max_coal_bds;
 	u_int32_t		bge_tx_max_coal_bds;
 	u_int32_t		bge_tx_buf_ratio;
