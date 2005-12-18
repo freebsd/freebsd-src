@@ -80,10 +80,11 @@ typedef struct Struct_DoneList {
  * Function declarations.
  */
 static const char *basename(const char *);
-static void die(void);
+static void die(void) __dead2;
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
+static Obj_Entry *do_load_object(int, const char *, char *, struct stat *);
 static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
@@ -102,7 +103,7 @@ static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
-static Obj_Entry *load_object(char *);
+static Obj_Entry *load_object(const char *, const Obj_Entry *);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *);
 static void objlist_call_init(Objlist *);
@@ -118,17 +119,21 @@ static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
 static int rtld_dirname(const char *, char *);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
-static const void **get_program_var_addr(const char *name);
+static const void **get_program_var_addr(const char *);
 static void set_program_var(const char *, const void *);
-static const Elf_Sym *symlook_default(const char *, unsigned long hash,
-  const Obj_Entry *refobj, const Obj_Entry **defobj_out, bool in_plt);
-static const Elf_Sym *symlook_list(const char *, unsigned long,
-  Objlist *, const Obj_Entry **, bool in_plt, DoneList *);
+static const Elf_Sym *symlook_default(const char *, unsigned long,
+  const Obj_Entry *, const Obj_Entry **, const Ver_Entry *, int);
+static const Elf_Sym *symlook_list(const char *, unsigned long, Objlist *,
+  const Obj_Entry **, const Ver_Entry *, int flags, DoneList *);
 static void trace_loaded_objects(Obj_Entry *obj);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
+static int  rtld_verify_versions(const Objlist *);
+static int  rtld_verify_object_versions(Obj_Entry *);
+static void object_add_name(Obj_Entry *, const char *);
+static int  object_match_name(const Obj_Entry *, const char *);
 
 void r_debug_state(struct r_debug*, struct link_map*);
 
@@ -182,6 +187,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlerror,
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
+    (func_ptr_type) &dlvsym,
     (func_ptr_type) &dladdr,
     (func_ptr_type) &dllockinit,
     (func_ptr_type) &dlinfo,
@@ -388,6 +394,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     	obj->refcount++;
     }
 
+    dbg("checking for required versions");
+    if (rtld_verify_versions(&list_main) == -1 && !ld_tracing)
+	die();
+
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
 	exit(0);
@@ -555,6 +565,7 @@ digest_dynamic(Obj_Entry *obj, int early)
     const Elf_Dyn *dynp;
     Needed_Entry **needed_tail = &obj->needed;
     const Elf_Dyn *dyn_rpath = NULL;
+    const Elf_Dyn *dyn_soname = NULL;
     int plttype = DT_REL;
 
     obj->bind_now = false;
@@ -616,6 +627,29 @@ digest_dynamic(Obj_Entry *obj, int early)
 	    obj->strsize = dynp->d_un.d_val;
 	    break;
 
+	case DT_VERNEED:
+	    obj->verneed = (const Elf_Verneed *) (obj->relocbase +
+		dynp->d_un.d_val);
+	    break;
+
+	case DT_VERNEEDNUM:
+	    obj->verneednum = dynp->d_un.d_val;
+	    break;
+
+	case DT_VERDEF:
+	    obj->verdef = (const Elf_Verdef *) (obj->relocbase +
+		dynp->d_un.d_val);
+	    break;
+
+	case DT_VERDEFNUM:
+	    obj->verdefnum = dynp->d_un.d_val;
+	    break;
+
+	case DT_VERSYM:
+	    obj->versyms = (const Elf_Versym *)(obj->relocbase +
+		dynp->d_un.d_val);
+	    break;
+
 	case DT_HASH:
 	    {
 		const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
@@ -661,7 +695,7 @@ digest_dynamic(Obj_Entry *obj, int early)
 	    break;
 
 	case DT_SONAME:
-	    /* Not used by the dynamic linker. */
+	    dyn_soname = dynp;
 	    break;
 
 	case DT_INIT:
@@ -715,6 +749,9 @@ digest_dynamic(Obj_Entry *obj, int early)
 
     if (dyn_rpath != NULL)
 	obj->rpath = obj->strtab + dyn_rpath->d_un.d_val;
+
+    if (dyn_soname != NULL)
+	object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
 }
 
 /*
@@ -902,11 +939,12 @@ find_library(const char *xname, const Obj_Entry *refobj)
  */
 const Elf_Sym *
 find_symdef(unsigned long symnum, const Obj_Entry *refobj,
-    const Obj_Entry **defobj_out, bool in_plt, SymCache *cache)
+    const Obj_Entry **defobj_out, int flags, SymCache *cache)
 {
     const Elf_Sym *ref;
     const Elf_Sym *def;
     const Obj_Entry *defobj;
+    const Ver_Entry *ventry;
     const char *name;
     unsigned long hash;
 
@@ -938,8 +976,9 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 	    _rtld_error("%s: Bogus symbol table entry %lu", refobj->path,
 		symnum);
 	}
+	ventry = fetch_ventry(refobj, symnum);
 	hash = elf_hash(name);
-	def = symlook_default(name, hash, refobj, &defobj, in_plt);
+	def = symlook_default(name, hash, refobj, &defobj, ventry, flags);
     } else {
 	def = ref;
 	defobj = refobj;
@@ -1164,18 +1203,9 @@ load_needed_objects(Obj_Entry *first)
 	Needed_Entry *needed;
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	    const char *name = obj->strtab + needed->name;
-	    char *path = find_library(name, obj);
-
-	    needed->obj = NULL;
-	    if (path == NULL && !ld_tracing)
+	    needed->obj = load_object(obj->strtab + needed->name, obj);
+	    if (needed->obj == NULL && !ld_tracing)
 		return -1;
-
-	    if (path) {
-		needed->obj = load_object(path);
-		if (needed->obj == NULL && !ld_tracing)
-		    return -1;		/* XXX - cleanup */
-	    }
 	}
     }
 
@@ -1194,14 +1224,11 @@ load_preload_objects(void)
     p += strspn(p, delim);
     while (*p != '\0') {
 	size_t len = strcspn(p, delim);
-	char *path;
 	char savech;
 
 	savech = p[len];
 	p[len] = '\0';
-	if ((path = find_library(p, NULL)) == NULL)
-	    return -1;
-	if (load_object(path) == NULL)
+	if (load_object(p, NULL) == NULL)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
@@ -1211,24 +1238,26 @@ load_preload_objects(void)
 }
 
 /*
- * Load a shared object into memory, if it is not already loaded.  The
- * argument must be a string allocated on the heap.  This function assumes
- * responsibility for freeing it when necessary.
+ * Load a shared object into memory, if it is not already loaded.
  *
  * Returns a pointer to the Obj_Entry for the object.  Returns NULL
  * on failure.
  */
 static Obj_Entry *
-load_object(char *path)
+load_object(const char *name, const Obj_Entry *refobj)
 {
     Obj_Entry *obj;
     int fd = -1;
     struct stat sb;
-    struct statfs fs;
+    char *path;
 
     for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
-	if (strcmp(obj->path, path) == 0)
-	    break;
+	if (object_match_name(obj, name))
+	    return obj;
+
+    path = find_library(name, refobj);
+    if (path == NULL)
+	return NULL;
 
     /*
      * If we didn't find a match by pathname, open the file and check
@@ -1238,63 +1267,77 @@ load_object(char *path)
      * To avoid a race, we open the file and use fstat() rather than
      * using stat().
      */
-    if (obj == NULL) {
-	if ((fd = open(path, O_RDONLY)) == -1) {
-	    _rtld_error("Cannot open \"%s\"", path);
-	    return NULL;
-	}
-	if (fstat(fd, &sb) == -1) {
-	    _rtld_error("Cannot fstat \"%s\"", path);
+    if ((fd = open(path, O_RDONLY)) == -1) {
+	_rtld_error("Cannot open \"%s\"", path);
+	free(path);
+	return NULL;
+    }
+    if (fstat(fd, &sb) == -1) {
+	_rtld_error("Cannot fstat \"%s\"", path);
+	close(fd);
+	free(path);
+	return NULL;
+    }
+    for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
+	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev) {
 	    close(fd);
-	    return NULL;
-	}
-	for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
-	    if (obj->ino == sb.st_ino && obj->dev == sb.st_dev) {
-		close(fd);
-		break;
-	    }
+	    break;
 	}
     }
-
-    if (obj == NULL) {	/* First use of this object, so we must map it in */
-	/*
-	 * but first, make sure that environment variables haven't been 
-	 * used to circumvent the noexec flag on a filesystem.
-	 */
-	if (dangerous_ld_env) {
-	    if (fstatfs(fd, &fs) != 0) {
-		_rtld_error("Cannot fstatfs \"%s\"", path);
-		close(fd);
-		return NULL;
-	    }
-	    if (fs.f_flags & MNT_NOEXEC) {
-		_rtld_error("Cannot execute objects on %s\n", fs.f_mntonname);
-		close(fd);
-		return NULL;
-	    }
-	}
-	dbg("loading \"%s\"", path);
-	obj = map_object(fd, path, &sb);
+    if (obj != NULL) {
+	object_add_name(obj, name);
+	free(path);
 	close(fd);
-	if (obj == NULL) {
-	    free(path);
+	return obj;
+    }
+
+    /* First use of this object, so we must map it in */
+    obj = do_load_object(fd, name, path, &sb);
+    if (obj == NULL)
+	free(path);
+    close(fd);
+
+    return obj;
+}
+
+static Obj_Entry *
+do_load_object(int fd, const char *name, char *path, struct stat *sbp)
+{
+    Obj_Entry *obj;
+    struct statfs fs;
+
+    /*
+     * but first, make sure that environment variables haven't been
+     * used to circumvent the noexec flag on a filesystem.
+     */
+    if (dangerous_ld_env) {
+	if (fstatfs(fd, &fs) != 0) {
+	    _rtld_error("Cannot fstatfs \"%s\"", path);
+		return NULL;
+	}
+	if (fs.f_flags & MNT_NOEXEC) {
+	    _rtld_error("Cannot execute objects on %s\n", fs.f_mntonname);
 	    return NULL;
 	}
+    }
+    dbg("loading \"%s\"", path);
+    obj = map_object(fd, path, sbp);
+    if (obj == NULL)
+        return NULL;
 
-	obj->path = path;
-	digest_dynamic(obj, 0);
+    object_add_name(obj, name);
+    obj->path = path;
+    digest_dynamic(obj, 0);
 
-	*obj_tail = obj;
-	obj_tail = &obj->next;
-	obj_count++;
-	linkmap_add(obj);	/* for GDB & dlinfo() */
+    *obj_tail = obj;
+    obj_tail = &obj->next;
+    obj_count++;
+    linkmap_add(obj);	/* for GDB & dlinfo() */
 
-	dbg("  %p .. %p: %s", obj->mapbase,
-	  obj->mapbase + obj->mapsize - 1, obj->path);
-	if (obj->textrel)
-	    dbg("  WARNING: %s has impure text", obj->path);
-    } else
-	free(path);
+    dbg("  %p .. %p: %s", obj->mapbase,
+         obj->mapbase + obj->mapsize - 1, obj->path);
+    if (obj->textrel)
+	dbg("  WARNING: %s has impure text", obj->path);
 
     return obj;
 }
@@ -1709,9 +1752,7 @@ dlopen(const char *name, int mode)
 	obj = obj_main;
 	obj->refcount++;
     } else {
-	char *path = find_library(name, obj_main);
-	if (path != NULL)
-	    obj = load_object(path);
+	obj = load_object(name, obj_main);
     }
 
     if (obj) {
@@ -1723,6 +1764,8 @@ dlopen(const char *name, int mode)
 	    assert(*old_obj_tail == obj);
 
 	    result = load_needed_objects(obj);
+	    if (result != -1)
+		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
 		goto trace;
 
@@ -1763,8 +1806,9 @@ trace:
     exit(0);
 }
 
-void *
-dlsym(void *handle, const char *name)
+static void *
+do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
+    int flags)
 {
     const Obj_Entry *obj;
     unsigned long hash;
@@ -1775,34 +1819,33 @@ dlsym(void *handle, const char *name)
     hash = elf_hash(name);
     def = NULL;
     defobj = NULL;
+    flags |= SYMLOOK_IN_PLT;
 
     lockstate = rlock_acquire(rtld_bind_lock);
     if (handle == NULL || handle == RTLD_NEXT ||
 	handle == RTLD_DEFAULT || handle == RTLD_SELF) {
-	void *retaddr;
 
-	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
 	if ((obj = obj_from_addr(retaddr)) == NULL) {
 	    _rtld_error("Cannot determine caller's shared object");
 	    rlock_release(rtld_bind_lock, lockstate);
 	    return NULL;
 	}
 	if (handle == NULL) {	/* Just the caller's shared object. */
-	    def = symlook_obj(name, hash, obj, true);
+	    def = symlook_obj(name, hash, obj, ve, flags);
 	    defobj = obj;
 	} else if (handle == RTLD_NEXT || /* Objects after caller's */
 		   handle == RTLD_SELF) { /* ... caller included */
 	    if (handle == RTLD_NEXT)
 		obj = obj->next;
 	    for (; obj != NULL; obj = obj->next) {
-		if ((def = symlook_obj(name, hash, obj, true)) != NULL) {
+		if ((def = symlook_obj(name, hash, obj, ve, flags)) != NULL) {
 		    defobj = obj;
 		    break;
 		}
 	    }
 	} else {
 	    assert(handle == RTLD_DEFAULT);
-	    def = symlook_default(name, hash, obj, &defobj, true);
+	    def = symlook_default(name, hash, obj, &defobj, ve, flags);
 	}
     } else {
 	if ((obj = dlcheck(handle)) == NULL) {
@@ -1815,14 +1858,14 @@ dlsym(void *handle, const char *name)
 
 	    /* Search main program and all libraries loaded by it. */
 	    donelist_init(&donelist);
-	    def = symlook_list(name, hash, &list_main, &defobj, true,
+	    def = symlook_list(name, hash, &list_main, &defobj, ve, flags,
 	      &donelist);
 	} else {
 	    /*
 	     * XXX - This isn't correct.  The search should include the whole
 	     * DAG rooted at the given object.
 	     */
-	    def = symlook_obj(name, hash, obj, true);
+	    def = symlook_obj(name, hash, obj, ve, flags);
 	    defobj = obj;
 	}
     }
@@ -1847,6 +1890,26 @@ dlsym(void *handle, const char *name)
     _rtld_error("Undefined symbol \"%s\"", name);
     rlock_release(rtld_bind_lock, lockstate);
     return NULL;
+}
+
+void *
+dlsym(void *handle, const char *name)
+{
+	return do_dlsym(handle, name, __builtin_return_address(0), NULL,
+	    SYMLOOK_DLSYM);
+}
+
+void *
+dlvsym(void *handle, const char *name, const char *version)
+{
+	Ver_Entry ventry;
+
+	ventry.name = version;
+	ventry.file = NULL;
+	ventry.hash = elf_hash(version);
+	ventry.flags= 0;
+	return do_dlsym(handle, name, __builtin_return_address(0), &ventry,
+	    SYMLOOK_DLSYM);
 }
 
 int
@@ -2163,7 +2226,7 @@ get_program_var_addr(const char *name)
     for (obj = obj_main;  obj != NULL;  obj = obj->next) {
 	const Elf_Sym *def;
 
-	if ((def = symlook_obj(name, hash, obj, false)) != NULL) {
+	if ((def = symlook_obj(name, hash, obj, NULL, 0)) != NULL) {
 	    const void **addr;
 
 	    addr = (const void **)(obj->relocbase + def->st_value);
@@ -2196,8 +2259,8 @@ set_program_var(const char *name, const void *value)
  * defining object via the reference parameter DEFOBJ_OUT.
  */
 static const Elf_Sym *
-symlook_default(const char *name, unsigned long hash,
-    const Obj_Entry *refobj, const Obj_Entry **defobj_out, bool in_plt)
+symlook_default(const char *name, unsigned long hash, const Obj_Entry *refobj,
+    const Obj_Entry **defobj_out, const Ver_Entry *ventry, int flags)
 {
     DoneList donelist;
     const Elf_Sym *def;
@@ -2211,7 +2274,7 @@ symlook_default(const char *name, unsigned long hash,
 
     /* Look first in the referencing object if linked symbolically. */
     if (refobj->symbolic && !donelist_check(&donelist, refobj)) {
-	symp = symlook_obj(name, hash, refobj, in_plt);
+	symp = symlook_obj(name, hash, refobj, ventry, flags);
 	if (symp != NULL) {
 	    def = symp;
 	    defobj = refobj;
@@ -2220,7 +2283,8 @@ symlook_default(const char *name, unsigned long hash,
 
     /* Search all objects loaded at program start up. */
     if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_main, &obj, in_plt, &donelist);
+	symp = symlook_list(name, hash, &list_main, &obj, ventry, flags,
+	    &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -2232,8 +2296,8 @@ symlook_default(const char *name, unsigned long hash,
     STAILQ_FOREACH(elm, &list_global, link) {
        if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
            break;
-       symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
-         &donelist);
+       symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, ventry,
+	   flags, &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -2245,8 +2309,8 @@ symlook_default(const char *name, unsigned long hash,
     STAILQ_FOREACH(elm, &refobj->dldags, link) {
 	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
 	    break;
-	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
-	  &donelist);
+	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, ventry,
+	    flags, &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -2261,7 +2325,7 @@ symlook_default(const char *name, unsigned long hash,
      * in the "exports" array can be resolved from the dynamic linker.
      */
     if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_obj(name, hash, &obj_rtld, in_plt);
+	symp = symlook_obj(name, hash, &obj_rtld, ventry, flags);
 	if (symp != NULL && is_exported(symp)) {
 	    def = symp;
 	    defobj = &obj_rtld;
@@ -2275,7 +2339,8 @@ symlook_default(const char *name, unsigned long hash,
 
 static const Elf_Sym *
 symlook_list(const char *name, unsigned long hash, Objlist *objlist,
-  const Obj_Entry **defobj_out, bool in_plt, DoneList *dlp)
+  const Obj_Entry **defobj_out, const Ver_Entry *ventry, int flags,
+  DoneList *dlp)
 {
     const Elf_Sym *symp;
     const Elf_Sym *def;
@@ -2287,7 +2352,7 @@ symlook_list(const char *name, unsigned long hash, Objlist *objlist,
     STAILQ_FOREACH(elm, objlist, link) {
 	if (donelist_check(dlp, elm->obj))
 	    continue;
-	if ((symp = symlook_obj(name, hash, elm->obj, in_plt)) != NULL) {
+	if ((symp = symlook_obj(name, hash, elm->obj, ventry, flags)) != NULL) {
 	    if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
 		def = symp;
 		defobj = elm->obj;
@@ -2303,37 +2368,107 @@ symlook_list(const char *name, unsigned long hash, Objlist *objlist,
 
 /*
  * Search the symbol table of a single shared object for a symbol of
- * the given name.  Returns a pointer to the symbol, or NULL if no
- * definition was found.
+ * the given name and version, if requested.  Returns a pointer to the
+ * symbol, or NULL if no definition was found.
  *
  * The symbol's hash value is passed in for efficiency reasons; that
  * eliminates many recomputations of the hash value.
  */
 const Elf_Sym *
 symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
-  bool in_plt)
+    const Ver_Entry *ventry, int flags)
 {
-    if (obj->buckets != NULL) {
-	unsigned long symnum = obj->buckets[hash % obj->nbuckets];
+    unsigned long symnum;
+    const Elf_Sym *vsymp;
+    Elf_Versym verndx;
+    int vcount;
 
-	while (symnum != STN_UNDEF) {
-	    const Elf_Sym *symp;
-	    const char *strp;
+    if (obj->buckets == NULL)
+	return NULL;
 
-	    if (symnum >= obj->nchains)
+    vsymp = NULL;
+    vcount = 0;
+    symnum = obj->buckets[hash % obj->nbuckets];
+
+    for (; symnum != STN_UNDEF; symnum = obj->chains[symnum]) {
+	const Elf_Sym *symp;
+	const char *strp;
+
+	if (symnum >= obj->nchains)
 		return NULL;	/* Bad object */
-	    symp = obj->symtab + symnum;
-	    strp = obj->strtab + symp->st_name;
 
-	    if (name[0] == strp[0] && strcmp(name, strp) == 0)
-		return symp->st_shndx != SHN_UNDEF ||
-		  (!in_plt && symp->st_value != 0 &&
-		  ELF_ST_TYPE(symp->st_info) == STT_FUNC) ? symp : NULL;
+	symp = obj->symtab + symnum;
+	strp = obj->strtab + symp->st_name;
 
-	    symnum = obj->chains[symnum];
+	switch (ELF_ST_TYPE(symp->st_info)) {
+	case STT_FUNC:
+	case STT_NOTYPE:
+	case STT_OBJECT:
+	    if (symp->st_value == 0)
+		continue;
+		/* fallthrough */
+	case STT_TLS:
+	    if (symp->st_shndx != SHN_UNDEF ||
+		((flags & SYMLOOK_IN_PLT) == 0 &&
+		 ELF_ST_TYPE(symp->st_info) == STT_FUNC))
+		break;
+		/* fallthrough */
+	default:
+	    continue;
+	}
+	if (name[0] != strp[0] || strcmp(name, strp) != 0)
+	    continue;
+
+	if (ventry == NULL) {
+	    if (obj->versyms != NULL) {
+		verndx = VER_NDX(obj->versyms[symnum]);
+		if (verndx > obj->vernum) {
+		    _rtld_error("%s: symbol %s references wrong version %d",
+			obj->path, obj->strtab + symnum, verndx);
+		    continue;
+		}
+		if (verndx >= VER_NDX_GIVEN) {
+		    if (vsymp == NULL)
+			vsymp = symp;
+		    vcount ++;
+		    continue;
+		}
+	    }
+	    return symp;
+	} else {
+	    if (obj->versyms == NULL) {
+		if (object_match_name(obj, ventry->name)) {
+		    _rtld_error("%s: object %s should provide version %s for ",
+			"symbol %s", obj->path, ventry->name,
+			obj->strtab + symnum);
+		    continue;
+		}
+	    } else {
+		verndx = VER_NDX(obj->versyms[symnum]);
+		if (verndx > obj->vernum) {
+		    _rtld_error("%s: symbol %s references wrong version %d",
+			obj->path, obj->strtab + symnum, verndx);
+		    continue;
+		}
+		if (obj->vertab[verndx].hash != ventry->hash ||
+		    strcmp(obj->vertab[verndx].name, ventry->name)) {
+		    /*
+		     * Version does not match. Look if this is a default symbol
+		     * and if it is not hidden. If default symbol (num < 2)
+		     * is available, use it. Do not return symbol if we are
+		     * called by dlvsym, because dlvsym looks for a specific
+		     * version and default one is not what dlvsym wants.
+		     */
+		    if ((flags & SYMLOOK_DLSYM) ||
+			(obj->versyms[symnum] & VER_NDX_HIDDEN) ||
+			(verndx >= VER_NDX_GIVEN))
+			continue;
+		}
+	    }
+	    return symp;
 	}
     }
-    return NULL;
+    return (vcount == 1) ? vsymp : NULL;
 }
 
 static void
@@ -2476,7 +2611,7 @@ unlink_object(Obj_Entry *root)
 	objlist_remove(&list_global, root);
 
     	/* Remove the object from all objects' DAG lists. */
-    	STAILQ_FOREACH(elm, &root->dagmembers , link) {
+    	STAILQ_FOREACH(elm, &root->dagmembers, link) {
 	    objlist_remove(&elm->obj->dldags, root);
 	    if (elm->obj != root)
 		unlink_object(elm->obj);
@@ -2489,7 +2624,7 @@ ref_dag(Obj_Entry *root)
 {
     Objlist_Entry *elm;
 
-    STAILQ_FOREACH(elm, &root->dagmembers , link)
+    STAILQ_FOREACH(elm, &root->dagmembers, link)
 	elm->obj->refcount++;
 }
 
@@ -2498,7 +2633,7 @@ unref_dag(Obj_Entry *root)
 {
     Objlist_Entry *elm;
 
-    STAILQ_FOREACH(elm, &root->dagmembers , link)
+    STAILQ_FOREACH(elm, &root->dagmembers, link)
 	elm->obj->refcount--;
 }
 
@@ -2839,4 +2974,235 @@ _rtld_free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
     lockstate = wlock_acquire(rtld_bind_lock);
     free_tls(tcb, tcbsize, tcbalign);
     wlock_release(rtld_bind_lock, lockstate);
+}
+
+static void
+object_add_name(Obj_Entry *obj, const char *name)
+{
+    Name_Entry *entry;
+    size_t len;
+
+    len = strlen(name);
+    entry = malloc(sizeof(Name_Entry) + len);
+
+    if (entry != NULL) {
+	strcpy(entry->name, name);
+	STAILQ_INSERT_TAIL(&obj->names, entry, link);
+    }
+}
+
+static int
+object_match_name(const Obj_Entry *obj, const char *name)
+{
+    Name_Entry *entry;
+
+    STAILQ_FOREACH(entry, &obj->names, link) {
+	if (strcmp(name, entry->name) == 0)
+	    return (1);
+    }
+    return (0);
+}
+
+static Obj_Entry *
+locate_dependency(const Obj_Entry *obj, const char *name)
+{
+    const Objlist_Entry *entry;
+    const Needed_Entry *needed;
+
+    STAILQ_FOREACH(entry, &list_main, link) {
+	if (object_match_name(entry->obj, name))
+	    return entry->obj;
+    }
+
+    for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
+	if (needed->obj == NULL)
+	    continue;
+	if (object_match_name(needed->obj, name))
+	    return needed->obj;
+    }
+    _rtld_error("Unexpected  inconsistency: %s not found in dependency list",
+	name);
+    die();
+}
+
+static int
+check_object_provided_version(Obj_Entry *refobj, const Obj_Entry *depobj,
+    const Elf_Vernaux *vna)
+{
+    const Elf_Verdef *vd;
+    const char *vername;
+
+    vername = refobj->strtab + vna->vna_name;
+    vd = depobj->verdef;
+    if (vd == NULL) {
+	_rtld_error("%s does not have version information, but %s requires it",
+	    depobj->path, refobj->path);
+	*(char *)0 = 0;
+	return (-1);
+    }
+    for (;;) {
+	if (vd->vd_version != VER_DEF_CURRENT) {
+	    _rtld_error("Unsupported version of Elf_Verdef entry in %s : %d",
+		depobj->path, vd->vd_version);
+	    return (-1);
+	}
+	if (vna->vna_hash == vd->vd_hash) {
+	    const Elf_Verdaux *aux = (const Elf_Verdaux *)
+		((char *)vd + vd->vd_aux);
+	    if (strcmp(vername, depobj->strtab + aux->vda_name) == 0)
+		return (0);
+	}
+	if (vd->vd_next == 0)
+	    break;
+	vd = (const Elf_Verdef *) ((char *)vd + vd->vd_next);
+    }
+    if (vna->vna_flags & VER_FLG_WEAK)
+	return (0);
+    _rtld_error("Version %s required by %s can not be found in %s", vername,
+	refobj->path, depobj->path);
+    return (-1);
+}
+
+static int
+rtld_verify_object_versions(Obj_Entry *obj)
+{
+    const Elf_Verneed *vn;
+    const Elf_Verdef  *vd;
+    const Elf_Verdaux *vda;
+    const Elf_Vernaux *vna;
+    const Obj_Entry *depobj;
+    int maxvernum, vernum;
+
+    maxvernum = 0;
+    /*
+     * Walk over defined and required version records and figure out
+     * max index used by any of them. Do very basic sanity checking
+     * while there.
+     */
+    vn = obj->verneed;
+    while (vn != NULL) {
+	if (vn->vn_version != VER_NEED_CURRENT) {
+	    _rtld_error("Unsupported version of Elf_Verneed entry in %s: %d",
+		obj->path, vn->vn_version);
+	    return (-1);
+	}
+	vna = (const Elf_Vernaux *) ((char *)vn + vn->vn_aux);
+	for (;;) {
+	    vernum = VER_NEED_IDX(vna->vna_other);
+	    if (vernum > maxvernum)
+		maxvernum = vernum;
+	    if (vna->vna_next == 0)
+		 break;
+	    vna = (const Elf_Vernaux *) ((char *)vna + vna->vna_next);
+	}
+	if (vn->vn_next == 0)
+	    break;
+	vn = (const Elf_Verneed *) ((char *)vn + vn->vn_next);
+    }
+
+    vd = obj->verdef;
+    while (vd != NULL) {
+	if (vd->vd_version != VER_DEF_CURRENT) {
+	    _rtld_error("Unsupported version of Elf_Verneed entry: %d",
+		vd->vd_version);
+	    return (-1);
+	}
+	vernum = VER_DEF_IDX(vd->vd_ndx);
+	if (vernum > maxvernum)
+		maxvernum = vernum;
+	if (vd->vd_next == 0)
+	    break;
+	vd = (const Elf_Verdef *) ((char *)vd + vd->vd_next);
+    }
+
+    if (maxvernum == 0)
+	return (0);
+
+    /*
+     * Store version information in array indexable by version index.
+     * Verify that object version requirements are satisfied along the
+     * way.
+     */
+    obj->vernum = maxvernum + 1;
+    obj->vertab = calloc(obj->vernum, sizeof(Ver_Entry));
+
+    vd = obj->verdef;
+    while (vd != NULL) {
+	if ((vd->vd_flags & VER_FLG_BASE) == 0) {
+	    vernum = VER_DEF_IDX(vd->vd_ndx);
+	    assert(vernum <= maxvernum);
+	    vda = (const Elf_Verdaux *)((char *)vd + vd->vd_aux);
+	    obj->vertab[vernum].hash = vd->vd_hash;
+	    obj->vertab[vernum].name = obj->strtab + vda->vda_name;
+	    obj->vertab[vernum].file = NULL;
+	    obj->vertab[vernum].flags = 0;
+	}
+	if (vd->vd_next == 0)
+	    break;
+	vd = (const Elf_Verdef *) ((char *)vd + vd->vd_next);
+    }
+
+    vn = obj->verneed;
+    while (vn != NULL) {
+	depobj = locate_dependency(obj, obj->strtab + vn->vn_file);
+	vna = (const Elf_Vernaux *) ((char *)vn + vn->vn_aux);
+	for (;;) {
+	    if (check_object_provided_version(obj, depobj, vna))
+		return (-1);
+	    vernum = VER_NEED_IDX(vna->vna_other);
+	    assert(vernum <= maxvernum);
+	    obj->vertab[vernum].hash = vna->vna_hash;
+	    obj->vertab[vernum].name = obj->strtab + vna->vna_name;
+	    obj->vertab[vernum].file = obj->strtab + vn->vn_file;
+	    obj->vertab[vernum].flags = (vna->vna_other & VER_NEED_HIDDEN) ?
+		VER_INFO_HIDDEN : 0;
+	    if (vna->vna_next == 0)
+		 break;
+	    vna = (const Elf_Vernaux *) ((char *)vna + vna->vna_next);
+	}
+	if (vn->vn_next == 0)
+	    break;
+	vn = (const Elf_Verneed *) ((char *)vn + vn->vn_next);
+    }
+    return 0;
+}
+
+static int
+rtld_verify_versions(const Objlist *objlist)
+{
+    Objlist_Entry *entry;
+    int rc;
+
+    rc = 0;
+    STAILQ_FOREACH(entry, objlist, link) {
+	/*
+	 * Skip dummy objects or objects that have their version requirements
+	 * already checked.
+	 */
+	if (entry->obj->strtab == NULL || entry->obj->vertab != NULL)
+	    continue;
+	if (rtld_verify_object_versions(entry->obj) == -1) {
+	    rc = -1;
+	    if (ld_tracing == NULL)
+		break;
+	}
+    }
+    return rc;
+}
+
+const Ver_Entry *
+fetch_ventry(const Obj_Entry *obj, unsigned long symnum)
+{
+    Elf_Versym vernum;
+
+    if (obj->vertab) {
+	vernum = VER_NDX(obj->versyms[symnum]);
+	if (vernum >= obj->vernum) {
+	    _rtld_error("%s: symbol %s has wrong verneed value %d",
+		obj->path, obj->strtab + symnum, vernum);
+	} else if (obj->vertab[vernum].hash != 0) {
+	    return &obj->vertab[vernum];
+	}
+    }
+    return NULL;
 }

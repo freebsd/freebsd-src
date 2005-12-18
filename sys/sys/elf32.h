@@ -160,4 +160,42 @@ typedef struct {
 /* Macro for accessing the fields of st_other. */
 #define ELF32_ST_VISIBILITY(oth)	((oth) & 0x3)
 
+/* Structures used by Sun & GNU symbol versioning. */
+typedef struct
+{
+	Elf32_Half	vd_version;
+	Elf32_Half	vd_flags;
+	Elf32_Half	vd_ndx;
+	Elf32_Half	vd_cnt;
+	Elf32_Word	vd_hash;
+	Elf32_Word	vd_aux;
+	Elf32_Word	vd_next;
+} Elf32_Verdef;
+
+typedef struct
+{
+	Elf32_Word	vda_name;
+	Elf32_Word	vda_next;
+} Elf32_Verdaux;
+
+typedef struct
+{
+	Elf32_Half	vn_version;
+	Elf32_Half	vn_cnt;
+	Elf32_Word	vn_file;
+	Elf32_Word	vn_aux;
+	Elf32_Word	vn_next;
+} Elf32_Verneed;
+
+typedef struct
+{
+	Elf32_Word	vna_hash;
+	Elf32_Half	vna_flags;
+	Elf32_Half	vna_other;
+	Elf32_Word	vna_name;
+	Elf32_Word	vna_next;
+} Elf32_Vernaux;
+
+typedef Elf32_Half Elf32_Versym;
+
 #endif /* !_SYS_ELF32_H_ */

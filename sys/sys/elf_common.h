@@ -301,6 +301,12 @@ typedef struct {
 #define	DT_LOPROC	0x70000000	/* First processor-specific type. */
 #define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
+#define	DT_VERSYM	0x6ffffff0	/* Address of versym section. */
+#define	DT_VERDEF	0x6ffffffc	/* Address of verdef section. */
+#define	DT_VERDEFNUM	0x6ffffffd	/* Number of elems in verdef section */
+#define	DT_VERNEED	0x6ffffffe	/* Address of verneed section. */
+#define	DT_VERNEEDNUM	0x6fffffff	/* Number of elems in verneed section */
+
 /* Values for DT_FLAGS */
 #define	DF_ORIGIN	0x0001	/* Indicates that the object being loaded may
 				   make reference to the $ORIGIN substitution
@@ -351,5 +357,24 @@ typedef struct {
 
 /* Special symbol table indexes. */
 #define STN_UNDEF	0	/* Undefined symbol index. */
+
+/* Symbol versioning flags. */
+#define	VER_DEF_CURRENT	1
+#define VER_DEF_IDX(x)	VER_NDX(x)
+
+#define	VER_FLG_BASE	0x01
+#define	VER_FLG_WEAK	0x02
+
+#define	VER_NEED_CURRENT	1
+#define VER_NEED_WEAK	(1u << 15)
+#define VER_NEED_HIDDEN	VER_NDX_HIDDEN
+#define VER_NEED_IDX(x)	VER_NDX(x)
+
+#define	VER_NDX_LOCAL	0
+#define	VER_NDX_GLOBAL	1
+#define VER_NDX_GIVEN	2
+
+#define VER_NDX_HIDDEN	(1u << 15)
+#define VER_NDX(x)	((x) & ~(1u << 15))
 
 #endif /* !_SYS_ELF_COMMON_H_ */
