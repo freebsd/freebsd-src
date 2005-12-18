@@ -131,6 +131,8 @@ void	 dllockinit(void *_context,
 	    void (*_lock_release)(void *_lock),
 	    void (*_lock_destroy)(void *_lock),
 	    void (*_context_destroy)(void *_context));
+void	*dlvsym(void * __restrict, const char * __restrict,
+	    const char * __restrict);
 #endif /* __BSD_VISIBLE */
 __END_DECLS
 
