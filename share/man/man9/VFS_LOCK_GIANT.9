@@ -36,6 +36,7 @@
 .Nd "conditionally lock and unlock Giant around entry into VFS"
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/mount.h
 .In sys/vnode.h
 .Ft int
 .Fn VFS_LOCK_GIANT "struct mount *mp"
