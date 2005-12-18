@@ -90,6 +90,11 @@ typedef struct Struct_Needed_Entry {
     unsigned long name;		/* Offset of name in string table */
 } Needed_Entry;
 
+typedef struct Struct_Name_Entry {
+    STAILQ_ENTRY(Struct_Name_Entry) link;
+    char   name[1];
+} Name_Entry;
+
 /* Lock object */
 typedef struct Struct_LockInfo {
     void *context;		/* Client context for creating locks */
@@ -106,6 +111,15 @@ typedef struct Struct_LockInfo {
     void (*lock_destroy)(void *lock);
     void (*context_destroy)(void *context);
 } LockInfo;
+
+typedef struct Struct_Ver_Entry {
+	Elf_Word     hash;
+	unsigned int flags;
+	const char  *name;
+	const char  *file;
+} Ver_Entry;
+
+#define VER_INFO_HIDDEN	0x01
 
 /*
  * Shared object descriptor.
@@ -165,6 +179,12 @@ typedef struct Struct_Obj_Entry {
     const char *strtab;		/* String table */
     unsigned long strsize;	/* Size in bytes of string table */
 
+    const Elf_Verneed *verneed; /* Required versions. */
+    Elf_Word verneednum;	/* Number of entries in verneed table */
+    const Elf_Verdef  *verdef;	/* Provided versions. */
+    Elf_Word verdefnum;		/* Number of entries in verdef table */
+    const Elf_Versym *versyms;  /* Symbol versions table */
+
     const Elf_Hashelt *buckets;	/* Hash table buckets array */
     unsigned long nbuckets;	/* Number of buckets */
     const Elf_Hashelt *chains;	/* Hash table chain array */
@@ -172,6 +192,11 @@ typedef struct Struct_Obj_Entry {
 
     const char *rpath;		/* Search path specified in object */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
+
+    STAILQ_HEAD(, Struct_Name_Entry) names; /* List of names for this object we
+					       know about. */
+    Ver_Entry *vertab;		/* Versions required /defined by this object */
+    int vernum;			/* Number of entries in vertab */
 
     Elf_Addr init;		/* Initialization function to call */
     Elf_Addr fini;		/* Termination function to call */
@@ -199,6 +224,11 @@ typedef struct Struct_Obj_Entry {
 
 #define RTLD_STATIC_TLS_EXTRA	64
 
+/* Flags to be passed into symlook_ family of functions. */
+#define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */
+#define SYMLOOK_DLSYM	0x02	/* Return newes versioned symbol. Used by
+				   dlsym. */
+
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups
  * of the same symbol.
@@ -225,20 +255,21 @@ extern void dump_Elf_Rela (Obj_Entry *, const Elf_Rela *, u_long);
  */
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
-  const Obj_Entry **, bool, SymCache *);
+  const Obj_Entry **, int, SymCache *);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
-const Elf_Sym *symlook_obj(const char *, unsigned long,
-  const Obj_Entry *, bool);
+const Elf_Sym *symlook_obj(const char *, unsigned long, const Obj_Entry *,
+    const Ver_Entry *, int);
 void *tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset);
 void *allocate_tls(Obj_Entry *, void *, size_t, size_t);
 void free_tls(void *, size_t, size_t);
 void *allocate_module_tls(int index);
 bool allocate_tls_offset(Obj_Entry *obj);
 void free_tls_offset(Obj_Entry *obj);
+const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
 
 /*
  * MD function declarations.
