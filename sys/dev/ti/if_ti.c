@@ -2727,8 +2727,11 @@ ti_rxeof(sc)
 		 * If we received a packet with a vlan tag,
 		 * tag it before passing the packet upward.
 		 */
-		if (have_tag)
-			VLAN_INPUT_TAG(ifp, m, vlan_tag, continue);
+		if (have_tag) {
+			VLAN_INPUT_TAG(ifp, m, vlan_tag);
+			if (m == NULL)
+				continue;
+		}
 		TI_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		TI_LOCK(sc);

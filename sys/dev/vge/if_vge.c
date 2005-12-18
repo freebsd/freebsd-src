@@ -1490,9 +1490,12 @@ vge_rxeof(sc)
 			}
 		}
 
-		if (rxstat & VGE_RDSTS_VTAG)
+		if (rxstat & VGE_RDSTS_VTAG) {
 			VLAN_INPUT_TAG(ifp, m,
-			    ntohs((rxctl & VGE_RDCTL_VLANID)), continue);
+			    ntohs((rxctl & VGE_RDCTL_VLANID)));
+			if (m == NULL)
+				continue;
+		}
 
 		VGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);

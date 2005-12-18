@@ -1229,7 +1229,9 @@ nge_rxeof(sc)
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
 			VLAN_INPUT_TAG(ifp, m,
-			    ntohs(extsts & NGE_RXEXTSTS_VTCI), continue);
+			    ntohs(extsts & NGE_RXEXTSTS_VTCI));
+			if (m == NULL)
+				continue;
 		}
 		NGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
