@@ -118,7 +118,7 @@ elf64_dump_thread(struct thread *td, void *dst, size_t *off __unused)
 
 
 static Elf_Addr
-lookup_fdesc(linker_file_t lf, Elf_Word symidx, elf_lookup_fn lookup)
+lookup_fdesc(linker_file_t lf, Elf_Size symidx, elf_lookup_fn lookup)
 {
 	linker_file_t top;
 	Elf_Addr addr;
@@ -171,7 +171,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 {
 	Elf_Addr *where;
 	Elf_Addr addend, addr;
-	Elf_Word rtype, symidx;
+	Elf_Size rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 

@@ -124,7 +124,7 @@ static int	link_elf_each_function_name(linker_file_t,
 		    int (*)(const char *, void *), void *);
 static void	link_elf_reloc_local(linker_file_t);
 
-static Elf_Addr elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps);
+static Elf_Addr elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps);
 
 static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -843,7 +843,7 @@ link_elf_unload_file(linker_file_t file)
 }
 
 static const char *
-symbol_name(elf_file_t ef, Elf_Word r_info)
+symbol_name(elf_file_t ef, Elf_Size r_info)
 {
 	const Elf_Sym *ref;
 
@@ -879,7 +879,7 @@ relocate_file(elf_file_t ef)
 	const char *symname;
 	const Elf_Sym *sym;
 	int i;
-	Elf_Word symidx;
+	Elf_Size symidx;
 	Elf_Addr base;
 
 
@@ -1069,7 +1069,7 @@ link_elf_each_function_name(linker_file_t file,
  * the case that the symbol can be found through the hash table.
  */
 static Elf_Addr
-elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
+elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 {
 	elf_file_t ef = (elf_file_t)lf;
 	const Elf_Sym *sym;
@@ -1122,7 +1122,7 @@ link_elf_reloc_local(linker_file_t lf)
 	const Elf_Sym *sym;
 	Elf_Addr base;
 	int i;
-	Elf_Word symidx;
+	Elf_Size symidx;
 
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nrel; i++) {
