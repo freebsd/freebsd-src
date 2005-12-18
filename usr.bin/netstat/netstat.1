@@ -430,11 +430,35 @@ By default, this display summarizes information for all interfaces.
 Information for a specific interface may be displayed with the
 .Fl I
 option.
+.Pp
+The
+.Xr bpf 4
+flags displayed when
+.Nm
+is invoked with the
+.Fl B
+option represents the underlying parameters of the bpf peer. Each flag is
+represented as a single lower case letter.
+The mapping between the letters and flags in order of appearance are:
+.Bl -column ".Li i"
+.It Li p Ta Set if listening promiscuously
+.It Li i Ta BIOCIMMEDIATE has been set on the device
+.It Li f Ta BIOCGHDRCMPLT status: source link addresses are being
+filled automatically
+.It Li s Ta BIOCGSEESENT status: see packets originating locally and
+remotely on the interface.
+.It Li a Ta Packet reception generates a signal
+.It Li l Ta BIOCLOCK status: descriptor has been locked
+.El
+.Pp
+For more information about these flags, please refer to
+.Xr bpf 4 .
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr nfsstat 1 ,
 .Xr ps 1 ,
 .Xr sockstat 1 ,
+.Xr bpf 4 ,
 .Xr inet 4 ,
 .Xr route 4 ,
 .Xr unix 4 ,
