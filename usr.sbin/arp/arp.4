@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2005
+.Dd December 18, 2005
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -168,6 +168,13 @@ address above, and the cable has been disconnected from if0, then reconnected
 to if1.
 This message can only be issued if the sysctl
 .Va net.link.ether.inet.log_arp_wrong_iface
+is set to 1, which is the system's default behaviour.
+.Pp
+.Em "arp: %x:%x:%x:%x:%x:%x attempts to modify permanent entry for %d.%d.%d.%d on %s" :
+ARP has received an ARP reply that attempts to overwrite a permanent
+antry in the local ARP table.
+This error will be only logged, if the sysctl
+.Va net.link.ether.inet.log_arp_permanent_modify
 is set to 1, which is the system's default behaviour.
 .Sh SEE ALSO
 .Xr inet 4 ,

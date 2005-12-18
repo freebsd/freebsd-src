@@ -570,6 +570,7 @@ arpintr(struct mbuf *m)
  */
 static int log_arp_wrong_iface = 1;
 static int log_arp_movements = 1;
+static int log_arp_permanent_modify = 1;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
@@ -577,6 +578,9 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_movements, CTLFLAG_RW,
         &log_arp_movements, 0,
         "log arp replies from MACs different than the one in the cache");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
+        &log_arp_permanent_modify, 0,
+        "log arp replies from MACs different than the one in the permanent arp entry");
 
 
 static void
@@ -721,12 +725,13 @@ match:
 			    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 			    ifp->if_xname);
 		} else {
-		    log(LOG_ERR,
-			"arp: %*D attempts to modify permanent entry for %s on %s\n",
-			ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-			inet_ntoa(isaddr), ifp->if_xname);
-		    RT_UNLOCK(rt);
-		    goto reply;
+			RT_UNLOCK(rt);
+			if (log_arp_permanent_modify)
+				log(LOG_ERR, "arp: %*D attempts to modify "
+				    "permanent entry for %s on %s\n",
+				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
+				    inet_ntoa(isaddr), ifp->if_xname);
+			goto reply;
 		}
 	}
 	/*
