@@ -240,7 +240,7 @@ int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 #define ELF_RELOC_RELA	2
 
 struct elf_file;
-typedef Elf_Addr (symaddr_fn)(struct elf_file *ef, Elf_Word symidx);
+typedef Elf_Addr (symaddr_fn)(struct elf_file *ef, Elf_Size symidx);
 
 int	__elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result);
 int	__elfN(obj_loadfile)(char *filename, u_int64_t dest,
