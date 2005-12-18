@@ -48,7 +48,7 @@ struct elf_file_ops {
 	    void**ptr);
 	int (*seg_read_entry_rel)(elf_file_t ef, Elf_Off offset, size_t len,
 	    void**ptr);
-	Elf_Addr (*symaddr)(elf_file_t ef, Elf_Word symidx);
+	Elf_Addr (*symaddr)(elf_file_t ef, Elf_Size symidx);
 	int (*lookup_set)(elf_file_t ef, const char *name, long *startp,
 	    long *stopp, long *countp);
 	int (*lookup_symbol)(elf_file_t ef, const char* name, Elf_Sym** sym);

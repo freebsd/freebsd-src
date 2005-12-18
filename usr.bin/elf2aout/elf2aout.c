@@ -66,15 +66,15 @@ static void usage(void);
 int
 main(int ac, char **av)
 {
-	Elf64_Quarter phentsize;
-	Elf64_Quarter machine;
-	Elf64_Quarter phnum;
-	Elf64_Size filesz;
-	Elf64_Size memsz;
+	Elf64_Half phentsize;
+	Elf64_Half machine;
+	Elf64_Half phnum;
+	Elf64_Xword filesz;
+	Elf64_Xword memsz;
 	Elf64_Addr entry;
 	Elf64_Off offset;
 	Elf64_Off phoff;
-	Elf64_Half type;
+	Elf64_Word type;
 	unsigned char data;
 	struct stat sb;
 	struct exec a;

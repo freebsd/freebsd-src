@@ -60,8 +60,6 @@ __ElfType(Half);
 __ElfType(Off);
 __ElfType(Sword);
 __ElfType(Word);
-__ElfType(Size);
-__ElfType(Hashelt);
 __ElfType(Ehdr);
 __ElfType(Shdr);
 __ElfType(Phdr);
@@ -69,6 +67,11 @@ __ElfType(Dyn);
 __ElfType(Rel);
 __ElfType(Rela);
 __ElfType(Sym);
+
+/* Non-standard ELF types. */
+__ElfType(Hashelt);
+__ElfType(Size);
+__ElfType(Ssize);
 
 #define ELF_R_SYM	__ELFN(R_SYM)
 #define ELF_R_TYPE	__ELFN(R_TYPE)
