@@ -706,6 +706,7 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
+TUNABLE_INT("machdep.conspeed", __DEVOLATILE(int *, &comdefaultrate));
 
 /*
  *	Unload the driver and clear the table.
