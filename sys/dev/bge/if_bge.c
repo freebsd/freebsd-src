@@ -2623,8 +2623,11 @@ bge_rxeof(sc)
 		 * If we received a packet with a vlan tag,
 		 * attach that information to the packet.
 		 */
-		if (have_tag)
-			VLAN_INPUT_TAG(ifp, m, vlan_tag, continue);
+		if (have_tag) {
+			VLAN_INPUT_TAG(ifp, m, vlan_tag);
+			if (m == NULL)
+				continue;
+		}
 
 		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
