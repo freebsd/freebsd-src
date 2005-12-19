@@ -28,12 +28,11 @@ static const unsigned
 	B1 = 709958130, /* B1 = (127-127.0/3-0.03306235651)*2**23 */
 	B2 = 642849266; /* B2 = (127-127.0/3-24/3-0.03306235651)*2**23 */
 
+/* |1/cbrt(x) - p(x)| < 2**-14.5 (~[-4.37e-4, 4.366e-5]). */
 static const float
-C =  5.4285717010e-01, /* 19/35     = 0x3f0af8b0 */
-D = -7.0530611277e-01, /* -864/1225 = 0xbf348ef1 */
-E =  1.4142856598e+00, /* 99/70     = 0x3fb50750 */
-F =  1.6071428061e+00, /* 45/28     = 0x3fcdb6db */
-G =  3.5714286566e-01; /* 5/14      = 0x3eb6db6e */
+P0 =  1.5586718321,			/*  0x3fc7828f */
+P1 = -0.78271341324,			/* -0xbf485fe8 */
+P2 =  0.22403796017;			/*  0x3e656a35 */
 
 float
 cbrtf(float x)
@@ -59,10 +58,9 @@ cbrtf(float x)
 	} else
 	    SET_FLOAT_WORD(t,sign|(hx/3+B1));
 
-    /* new cbrt to 23 bits */
-	r=t*t/x;
-	s=C+r*t;
-	t*=G+F/(s+E+D/s);
+    /* new cbrt to 14 bits */
+	r=(t*t)*(t/x);
+	t=t*((P0+r*P1)+(r*r)*P2);
 
     /*
      * Round t away from zero to 12 bits (sloppily except for ensuring that
@@ -73,9 +71,9 @@ cbrtf(float x)
      * the second digit instead of the third digit of 4/6 = 0.666..., etc.
      */
 	GET_FLOAT_WORD(high,t);
-	SET_FLOAT_WORD(t,(high+0x1002)&0xfffff000);
+	SET_FLOAT_WORD(t,(high+0x1800)&0xfffff000);
 
-    /* one step Newton iteration to 24 bits with error < 0.667 ulps */
+    /* one step Newton iteration to 24 bits with error < 0.669 ulps */
 	s=t*t;				/* t*t is exact */
 	r=x/s;				/* error <= 0.5 ulps; |r| < |t| */
 	w=t+t;				/* t+t is exact */
