@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2002
+.Dd November 24, 2005
 .Dt DEVD 8
 .Os
 .Sh NAME
@@ -33,7 +33,9 @@
 .Nd "device state change daemon"
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ddn
+.Op Fl Dd
+.Op Fl f Ar file
+.Op Fl n
 .Sh DESCRIPTION
 The
 .Nm
@@ -41,11 +43,19 @@ daemon provides a way to have userland programs run when certain
 kernel events happen.
 .Pp
 The following options are accepted.
-.Bl -tag -width indent
+.Bl -tag -width indent-two
 .It Fl D
 Enable debugging messages.
 .It Fl d
 Run in the foreground instead of becoming a daemon.
+.It Fl f Ar file
+Use configuration file
+.Ar file
+instead of the default
+.Pa /etc/devd.conf .
+If option
+.Fl f
+is specified more than once, the last file specified is used.
 .It Fl n
 Do not process all pending events before becoming a daemon.
 Instead, call daemon right away.
@@ -95,7 +105,9 @@ The
 utility
 reads
 .Pa /etc/devd.conf
-and uses that file to drive the rest of the process.
+or the alternate configuration file specified with a
+.Fl f
+option and uses that file to drive the rest of the process.
 While the format of this file is described in
 .Xr devd.conf 5 ,
 some basics are covered here.
@@ -118,6 +130,17 @@ receives are forwarded to the
 .Ux
 domain socket at
 .Pa /var/run/devd.pipe .
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/devd.pipe" -compact
+.It Pa /etc/devd.conf
+The default
+.Nm
+configuration file.
+.It Pa /var/run/devd.pipe
+The socket used by
+.Nm
+to communicate with its clients.
+.El
 .Sh SEE ALSO
 .Xr devctl 4 ,
 .Xr devd.conf 5
