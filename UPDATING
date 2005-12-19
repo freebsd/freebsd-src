@@ -1854,10 +1854,10 @@ COMMON ITEMS:
  	<reboot>
 
 
-	To upgrade in-place from 4.x-stable to current
+	To upgrade in-place from 4.x-stable to 5.x
 	----------------------------------------------
 	# 5.x uses more space than 4.x.  Also, the location of kernel
-	# modules has changed.  If you are installing 5.0 onto a 4.x
+	# modules has changed.  If you are installing 5.x onto a 4.x
 	# system, you'll need about 30MB of free disk space on your /
 	# partition.  If you have less than this, you may encounter difficult
 	# to back out of problems with this procedure.  If /tmp is on
@@ -1877,6 +1877,7 @@ COMMON ITEMS:
 	/usr/src/etc/rc.d/preseedrandom				[8]
 	mergemaster -p						[9]
 	rm -rf /usr/include/g++
+	rm -f /sbin/mountd
 	make installworld					[11]
 	mergemaster -i						[12]
 	<reboot>
