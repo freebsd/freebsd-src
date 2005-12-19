@@ -554,7 +554,7 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<FailProb>%u</FailProb>\n", indent, sc->sc_failprob);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
-	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytess>\n", indent,
+	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
 	    sc->sc_readbytes);
 	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,
 	    sc->sc_wrotebytes);
