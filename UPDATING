@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20051219:	p1	FreeBSD-EN-05:04.nfs
+	Correct a locking issue in nfs_lookup() where a call to vrele()
+	might be made while holding the vnode mutex, which resulted
+	in kernel panics under certain load patterns.
+
 20051101:
 	FreeBSD 6.0-RELEASE
 
