@@ -240,7 +240,9 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 /*
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
- * XXX These are not STATES and really should be somewhere else.
+ * XXX: These are not STATES and really should be somewhere else.
+ * XXX: MNT_BYFSID collides with MNT_ACLS, but because MNT_ACLS is only used for
+ *      mount(2) and MNT_BYFSID is only used for unmount(2) it's harmless.
  */
 #define	MNT_UPDATE	0x00010000	/* not a real mount, just an update */
 #define	MNT_DELEXPORT	0x00020000	/* delete export host lists */
@@ -253,6 +255,7 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 /*
  * Still available.
  */
+#define	MNT_SPARE_0x00000010	0x00000010
 #define	MNT_SPARE_0x02000000	0x02000000
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
