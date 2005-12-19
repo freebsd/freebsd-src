@@ -861,17 +861,18 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
     p = dest;
 
     /* Decide whether we have to bounce */
-    if ((od->od_unit < 0x80) && 
-	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
+    if (VTOP(dest) >> 20 != 0 || ((od->od_unit < 0x80) && 
+	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16)))) {
 
 	/* 
-	 * There is a 64k physical boundary somewhere in the destination buffer, so we have
+	 * There is a 64k physical boundary somewhere in the destination buffer, or the
+	 * destination buffer is above first 1MB of physical memory so we have
 	 * to arrange a suitable bounce buffer.  Allocate a buffer twice as large as we
 	 * need to.  Use the bottom half unless there is a break there, in which case we
 	 * use the top half.
 	 */
 	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
-	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
+	bbuf = alloca(x * 2 * BIOSDISK_SECSIZE);
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
 	} else {
@@ -960,8 +961,6 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
 	      0x200 | x, ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec, (hd << 8) | od->od_unit, (v86.eax >> 8) & 0xff);
 	if (result) {
-	    if (bbuf != NULL)
-		free(bbuf);
 	    return(-1);
 	}
 	if (bbuf != NULL)
@@ -972,8 +971,6 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
     }
 	
 /*    hexdump(dest, (blks * BIOSDISK_SECSIZE)); */
-    if (bbuf != NULL)
-	free(bbuf);
     return(0);
 }
 
@@ -993,18 +990,18 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
     p = dest;
 
     /* Decide whether we have to bounce */
-    if ((od->od_unit < 0x80) && 
-	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
+    if (VTOP(dest) >> 20 != 0 || ((od->od_unit < 0x80) && 
+	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16)))) {
 
 	/* 
-	 * There is a 64k physical boundary somewhere in the destination buffer, so we have
+	 * There is a 64k physical boundary somewhere in the destination buffer, or the
+	 * destination buffer is above first 1MB of physical memory so we have
 	 * to arrange a suitable bounce buffer.  Allocate a buffer twice as large as we
 	 * need to.  Use the bottom half unless there is a break there, in which case we
 	 * use the top half.
 	 */
-
 	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
-	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
+	bbuf = alloca(x * 2 * BIOSDISK_SECSIZE);
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
 	} else {
@@ -1104,15 +1101,11 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
 	      0x200 | x, ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec, (hd << 8) | od->od_unit, (v86.eax >> 8) & 0xff);
 	if (result) {
-	    if (bbuf != NULL)
-		free(bbuf);
 	    return(-1);
 	}
     }
 	
 /*    hexdump(dest, (blks * BIOSDISK_SECSIZE)); */
-    if (bbuf != NULL)
-	free(bbuf);
     return(0);
 }
 static int
