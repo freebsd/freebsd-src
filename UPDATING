@@ -46,6 +46,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	ABI between ipfw(4) and ipfw(8) has been changed. You need
 	to rebuild ipfw(8) when rebuilding kernel.
 
+20051108:
+	rp(4)'s device files now contain the unit number.
+	Uses of {cua,tty}R[0-9a-f] should be replaced by {cua,tty}R0[0-9a-f].
+
 20051029:
 	/etc/rc.d/ppp-user has been renamed to /etc/rc.d/ppp.
 	Its /etc/rc.conf.d configuration file has been `ppp' from
