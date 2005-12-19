@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: cleartmp,v 1.4 2002/03/22 04:33:58 thorpej Exp $
 # $FreeBSD$
 #
 
@@ -12,12 +11,12 @@
 
 name="cleartmp"
 rcvar=`set_rcvar clear_tmp`
-start_cmd="cleartmp_start"
-stop_cmd=":"
-x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix"
+start_cmd="${name}_start"
 
 cleartmp_start()
 {
+
+	local x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix"
 	echo "Clearing /tmp."
 	#
 	#	Prune quickly with one rm, then use find to clean up
@@ -27,14 +26,16 @@ cleartmp_start()
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 	    find -x . ! -name . ! -name lost+found ! -name quota.user \
 		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
+
+	# Remove X lock files, since they will prevent you from restarting X.
+	rm -f /tmp/.X[0-9]-lock
+
+	# Create socket directories with correct permissions to avoid
+	# security problem.
+	#
+	rm -fr ${x11_socket_dirs}
+	mkdir -m 1777 ${x11_socket_dirs}
 }
 
 load_rc_config $name
 run_rc_command "$1"
-
-# Remove X lock files, since they will prevent you from restarting X.
-rm -f /tmp/.X[0-9]-lock
-
-# Create socket directories with correct permissions to avoid security problem.
-rm -fr ${x11_socket_dirs}
-mkdir -m 1777 ${x11_socket_dirs}
