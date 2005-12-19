@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2002
+.Dd December 19, 2005
 .Dt RC 8
 .Os
 .Sh NAME
@@ -94,12 +94,6 @@ executed at boot time and shutdown time.
 .Ss Operation of Nm
 .Bl -enum
 .It
-Source
-.Pa /etc/rc.subr
-to load various
-.Xr rc.subr 8
-shell functions to use.
-.It
 If autobooting, set
 .Va autoboot Ns = Ns Li yes
 and enable a flag
@@ -114,17 +108,35 @@ speedup will not occur when
 .Nm
 is started up after exiting the single-user shell.
 .It
+Determine whether the system is booting diskless,
+and if so run the
+.Pa /etc/rc.initdiskless
+script.
+.It
+Source
+.Pa /etc/rc.subr
+to load various
+.Xr rc.subr 8
+shell functions to use.
+.It
+Load the configuration files.
+.It
+Determine if booting in a jail,
+and add
+.Dq nojail
+to the list of KEYWORDS to skip in
+.Xr rcorder 8 .
+.It
 Invoke
 .Xr rcorder 8
 to order the files in
 .Pa /etc/rc.d/
 that do not have a
 .Dq Li nostart
-keyword (refer to
+KEYWORD (refer to
 .Xr rcorder 8 Ns 's
 .Fl s
-flag),
-and assign the result to a variable.
+flag).
 .It
 Call each script in turn using
 .Fn run_rc_script
@@ -138,6 +150,18 @@ and sources the script in a subshell.
 If the script has a
 .Pa .sh
 suffix then it is sourced directly into the current shell.
+Stop processing when the script that is the value of the
+.Va $early_late_divider
+has been run.
+.It
+Re-run
+.Xr rcorder 8 ,
+this time including the scripts in the
+.Va $local_startup
+directories.
+Ignore everything up to the
+.Va $early_late_divider ,
+then start executing the scripts as described above.
 .El
 .Ss Operation of Nm rc.shutdown
 .Bl -enum
@@ -148,13 +172,18 @@ to load various
 .Xr rc.subr 8
 shell functions to use.
 .It
+Load the configuration files.
+.It
 Invoke
 .Xr rcorder 8
 to order the files in
 .Pa /etc/rc.d/
+and the
+.Va $local_startup
+directories
 that have a
 .Dq Li shutdown
-keyword (refer to
+KEYWORD (refer to
 .Xr rcorder 8 Ns 's
 .Fl k
 flag),
@@ -188,13 +217,9 @@ In order of startup, these are:
 .Bl -tag -width ".Pa NETWORKING"
 .It Pa NETWORKING
 Ensure basic network services are running, including general
-network configuration
-.Pq Pa network1 , network2 , network3 .
+network configuration.
 .It Pa SERVERS
-Ensure basic services (such as
-.Pa NETWORKING , ppp-user , syslogd ,
-and
-.Pa isdnd )
+Ensure basic services
 exist for services that start early (such as
 .Pa named ) ,
 because they are required by
@@ -406,24 +431,6 @@ The
 script is used to set any special configurations for serial devices.
 .Pp
 The
-.Pa /etc/rc.d/network*
-scripts are used to start the network.
-The network is started in several passes.
-The first pass,
-.Pa /etc/rc.d/network1 ,
-sets the hostname and domainname and configures the network
-interfaces.
-The
-.Pa /etc/rc.d/network2
-script starts routing and sets routing options.
-The
-.Pa /etc/rc.d/network3
-script sets additional networking options.
-Finally, the
-.Pa /etc/rc.d/network_ipv6
-script configures IPv6 interfaces and options.
-.Pp
-The
 .Nm rc.firewall
 script is used to configure rules for the kernel based firewall
 service.
@@ -496,7 +503,6 @@ Most scripts require little more than the following.
 
 # PROVIDE: foo
 # REQUIRE: bar_service_required_to_precede_foo
-# BEFORE:  baz_service_requiring_foo_to_precede_it
 
 \&. /etc/rc.subr
 
@@ -535,29 +541,6 @@ do_nop()
 
 load_rc_config $name
 run_rc_command "$1"
-.Ed
-.Pp
-The following is a simple, hypothetical example of an old-style
-.Pa /usr/local/etc/rc.d/
-script,
-which would start a daemon at boot time,
-and kill it at shutdown time.
-.Bd -literal -offset indent
-#!/bin/sh -
-#
-#    initialization/shutdown script for foobar package
-
-case "$1" in
-start)
-	/usr/local/sbin/foo -d && echo -n ' foo'
-	;;
-stop)
-	kill `cat /var/run/foo.pid` && echo -n ' foo'
-	;;
-*)
-	echo "unknown option: $1 - should be 'start' or 'stop'" >&2
-	;;
-esac
 .Ed
 .Pp
 As all processes are killed by
