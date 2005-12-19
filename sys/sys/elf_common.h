@@ -206,6 +206,9 @@ typedef struct {
 #define SHT_GROUP		17	/* Section group. */
 #define SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
+#define SHT_GNU_verdef	0x6ffffffd	/* Symbol versions provided */
+#define SHT_GNU_verneed	0x6ffffffe	/* Symbol versions required */
+#define SHT_GNU_versym	0x6fffffff	/* Symbol version table */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
 #define SHT_LOPROC	0x70000000	/* reserved range for processor */
 #define SHT_HIPROC	0x7fffffff	/* specific section header types */
@@ -297,7 +300,7 @@ typedef struct {
 #define	DT_PREINIT_ARRAYSZ 33	/* Size in bytes of the array of
 				   pre-initialization functions. */
 #define	DT_LOOS		0x6000000d	/* First OS-specific */
-#define	DT_HIOS		0x6fff0000	/* Last OS-specific */
+#define	DT_HIOS		0x6ffff000	/* Last OS-specific */
 #define	DT_LOPROC	0x70000000	/* First processor-specific type. */
 #define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
