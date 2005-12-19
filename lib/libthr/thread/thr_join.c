@@ -127,6 +127,7 @@ join_common(pthread_t pthread, void **thread_return,
 		pthread->joiner = NULL;
 		THREAD_LIST_UNLOCK(curthread);
 	} else {
+		ret = 0;
 		tmp = pthread->ret;
 		THREAD_LIST_LOCK(curthread);
 		pthread->tlflags |= TLFLAGS_DETACHED;
