@@ -1204,7 +1204,7 @@ devfs_first(void)
 	if (error)
 		return;
 
-	error = VFS_MOUNT(mp, curthread);
+	error = VFS_MOUNT(mp, td);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 	if (error)
 		return;
