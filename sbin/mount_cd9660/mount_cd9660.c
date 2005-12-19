@@ -175,7 +175,7 @@ main(int argc, char **argv)
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
-	build_iovec(&iov, &iovlen, "ssector", &ssector, sizeof ssector);
+	build_iovec_argf(&iov, &iovlen, "ssector", "%d", ssector);
 
 	if (nmount(iov, iovlen, mntflags) < 0)
 		err(1, "%s", dev);
