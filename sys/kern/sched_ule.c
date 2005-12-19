@@ -69,6 +69,9 @@ SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
+static void sched_initticks(void *dummy);
+SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks, NULL)
+
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
 
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ule", 0,
@@ -81,7 +84,7 @@ static int slice_max = 10;
 SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 
 int realstathz;
-int tickincr = 1;
+int tickincr = 1 << 10;
 
 /*
  * The following datastructures are allocated within their parent structure
@@ -921,6 +924,11 @@ sched_setup(void *dummy)
 	int i;
 #endif
 
+	/*
+	 * To avoid divide-by-zero, we set realstathz a dummy value
+	 * in case which sched_clock() called before sched_initticks().
+	 */
+	realstathz = hz;
 	slice_min = (hz/100);	/* 10ms */
 	slice_max = (hz/7);	/* ~140ms */
 
@@ -1010,6 +1018,26 @@ sched_setup(void *dummy)
 	kseq_load_add(KSEQ_SELF(), &kse0);
 	mtx_unlock_spin(&sched_lock);
 }
+
+/* ARGSUSED */
+static void
+sched_initticks(void *dummy)
+{
+	mtx_lock_spin(&sched_lock);
+	realstathz = stathz ? stathz : hz;
+	slice_min = (realstathz/100);	/* 10ms */
+	slice_max = (realstathz/7);	/* ~140ms */
+
+	tickincr = (hz << 10) / realstathz;
+	/*
+	 * XXX This does not work for values of stathz that are much
+	 * larger than hz.
+	 */
+	if (tickincr == 0)
+		tickincr = 1;
+	mtx_unlock_spin(&sched_lock);
+}
+
 
 /*
  * Scale the scheduling priority according to the "interactivity" of this
@@ -1492,7 +1520,7 @@ sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 	child->kg_runtime = kg->kg_runtime;
 	child->kg_user_pri = kg->kg_user_pri;
 	sched_interact_fork(child);
-	kg->kg_runtime += tickincr << 10;
+	kg->kg_runtime += tickincr;
 	sched_interact_update(kg);
 }
 
@@ -1615,22 +1643,6 @@ sched_clock(struct thread *td)
 	if (kseq->ksq_assigned)
 		kseq_assign(kseq);	/* Potentially sets NEEDRESCHED */
 #endif
-	/*
-	 * sched_setup() apparently happens prior to stathz being set.  We
-	 * need to resolve the timers earlier in the boot so we can avoid
-	 * calculating this here.
-	 */
-	if (realstathz == 0) {
-		realstathz = stathz ? stathz : hz;
-		tickincr = hz / realstathz;
-		/*
-		 * XXX This does not work for values of stathz that are much
-		 * larger than hz.
-		 */
-		if (tickincr == 0)
-			tickincr = 1;
-	}
-
 	ke = td->td_kse;
 	kg = ke->ke_ksegrp;
 
@@ -1653,7 +1665,7 @@ sched_clock(struct thread *td)
 	 * We used a tick charge it to the ksegrp so that we can compute our
 	 * interactivity.
 	 */
-	kg->kg_runtime += tickincr << 10;
+	kg->kg_runtime += tickincr;
 	sched_interact_update(kg);
 
 	/*
