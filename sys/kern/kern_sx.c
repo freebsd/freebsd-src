@@ -36,17 +36,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ktr.h>
+#include <sys/linker_set.h>
 #include <sys/condvar.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
+
+#include <ddb/ddb.h>
+
+#ifdef DDB
+static void	db_show_sx(struct lock_object *lock);
+#endif
 
 struct lock_class lock_class_sx = {
 	"sx",
-	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE
+	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+#ifdef DDB
+	db_show_sx
+#endif
 };
 
 #ifndef INVARIANTS
@@ -367,3 +380,26 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 	}
 }
 #endif	/* INVARIANT_SUPPORT */
+
+#ifdef DDB
+void
+db_show_sx(struct lock_object *lock)
+{
+	struct thread *td;
+	struct sx *sx;
+
+	sx = (struct sx *)lock;
+
+	db_printf(" state: ");
+	if (sx->sx_cnt < 0) {
+		td = sx->sx_xholder;
+		db_printf("XLOCK: %p (tid %d, pid %d, \"%s\")\n", td,
+		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
+	} else if (sx->sx_cnt > 0)
+		db_printf("SLOCK: %d locks\n", sx->sx_cnt);
+	else
+		db_printf("UNLOCKED\n");
+	db_printf(" waiters: %d shared, %d exclusive\n", sx->sx_shrd_wcnt,
+	    sx->sx_excl_wcnt);
+}
+#endif
