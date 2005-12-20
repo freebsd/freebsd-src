@@ -58,13 +58,11 @@ struct smb_softc {
 static int smb_probe(device_t);
 static int smb_attach(device_t);
 static int smb_detach(device_t);
-static void smb_identify(driver_t *driver, device_t parent);
 
 static devclass_t smb_devclass;
 
 static device_method_t smb_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_identify,	smb_identify),
 	DEVMETHOD(device_probe,		smb_probe),
 	DEVMETHOD(device_attach,	smb_attach),
 	DEVMETHOD(device_detach,	smb_detach),
@@ -93,14 +91,6 @@ static struct cdevsw smb_cdevsw = {
 	.d_ioctl =	smbioctl,
 	.d_name =	"smb",
 };
-
-static void
-smb_identify(driver_t *driver, device_t parent)
-{
-
-	if (!device_find_child(parent, "smb", -1))
-		device_add_child(parent, "smb", -1);
-}
 
 static int
 smb_probe(device_t dev)
