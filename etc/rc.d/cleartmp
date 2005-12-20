@@ -11,21 +11,15 @@
 
 name="cleartmp"
 rcvar=`set_rcvar clear_tmp`
+
+start_precmd="${name}_prestart"
 start_cmd="${name}_start"
 
-cleartmp_start()
+cleartmp_prestart()
 {
+	checkyesno clear_tmp_X || return
 
 	local x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix"
-	echo "Clearing /tmp."
-	#
-	#	Prune quickly with one rm, then use find to clean up
-	#	/tmp/[lq]* (this is not needed with mfs /tmp, but
-	#	doesn't hurt anything).
-	#
-	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-	    find -x . ! -name . ! -name lost+found ! -name quota.user \
-		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
 
 	# Remove X lock files, since they will prevent you from restarting X.
 	rm -f /tmp/.X[0-9]-lock
@@ -35,6 +29,19 @@ cleartmp_start()
 	#
 	rm -fr ${x11_socket_dirs}
 	mkdir -m 1777 ${x11_socket_dirs}
+}
+
+cleartmp_start()
+{
+	echo "Clearing /tmp."
+	#
+	#	Prune quickly with one rm, then use find to clean up
+	#	/tmp/[lq]* (this is not needed with mfs /tmp, but
+	#	doesn't hurt anything).
+	#
+	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
+	    find -x . ! -name . ! -name lost+found ! -name quota.user \
+		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
 }
 
 load_rc_config $name
