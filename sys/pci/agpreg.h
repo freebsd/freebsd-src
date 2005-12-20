@@ -32,18 +32,12 @@
 /*
  * Offsets for various AGP configuration registers.
  */
-#define AGP_APBASE		0x10
-#define AGP_CAPPTR		0x34
+#define AGP_APBASE		PCIR_BAR(0)
 
 /*
  * Offsets from the AGP Capability pointer.
  */
 #define AGP_CAPID		0x0
-#define AGP_CAPID_GET_MAJOR(x)		(((x) & 0x00f00000U) >> 20)
-#define AGP_CAPID_GET_MINOR(x)		(((x) & 0x000f0000U) >> 16)
-#define AGP_CAPID_GET_NEXT_PTR(x)	(((x) & 0x0000ff00U) >> 8)
-#define AGP_CAPID_GET_CAP_ID(x)		(((x) & 0x000000ffU) >> 0)
-
 #define AGP_STATUS		0x4
 #define AGP_COMMAND		0x8
 #define AGP_STATUS_AGP3		0x0008
