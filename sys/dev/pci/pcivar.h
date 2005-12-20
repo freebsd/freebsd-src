@@ -348,6 +348,12 @@ pci_get_powerstate(device_t dev)
     return PCI_GET_POWERSTATE(device_get_parent(dev), dev);
 }
 
+static __inline int
+pci_find_extcap(device_t dev, int capability, int *capreg)
+{
+    return PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg);
+}
+
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
 #endif	/* _SYS_BUS_H_ */
