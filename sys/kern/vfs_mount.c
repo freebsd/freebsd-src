@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
 
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
-static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
-		    const char *fspath, struct thread *td, struct mount **mpp);
+static struct mount *vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
+		    const char *fspath, struct thread *td);
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(const char *mountfrom);
 static int	vfs_donmount(struct thread *td, int fsflags,
@@ -407,9 +407,9 @@ nmount(td, uap)
 /*
  * Allocate and initialize the mount point struct.
  */
-static int
+static struct mount *
 vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
-    const char *fspath, struct thread *td, struct mount **mpp)
+    const char *fspath, struct thread *td)
 {
 	struct mount *mp;
 
@@ -435,8 +435,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mac_create_mount(td->td_ucred, mp);
 #endif
 	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
-	*mpp = mp;
-	return (0);
+	return (mp);
 }
 
 /*
@@ -808,11 +807,7 @@ vfs_domount(
 		/*
 		 * Allocate and initialize the filesystem.
 		 */
-		error = vfs_mount_alloc(vp, vfsp, fspath, td, &mp);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
+		mp = vfs_mount_alloc(vp, vfsp, fspath, td);
 		VOP_UNLOCK(vp, 0, td);
 
 		/* XXXMAC: pass to vfs_mount_alloc? */
@@ -1199,10 +1194,7 @@ devfs_first(void)
 	if (vfsp == NULL) 
 		return;
 
-	error = vfs_mount_alloc(NULLVP, vfsp, "/dev", td, &mp);
-	KASSERT(error == 0, ("vfs_mount_alloc failed %d", error));
-	if (error)
-		return;
+	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td);
 
 	error = VFS_MOUNT(mp, td);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
