@@ -497,6 +497,7 @@ hint.mse.0.irq="5"
 #       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
+# cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # ctau: Cronyx Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -529,6 +530,9 @@ hint.arl.0.at="isa"
 hint.arl.0.irq="9"
 hint.arl.0.maddr="0xd0000"
 device		cp
+device		cs
+hint.cs.0.at="isa"
+hint.cs.0.port="0x300"
 device		ctau
 hint.ctau.0.at="isa"
 hint.ctau.0.port="0x240"

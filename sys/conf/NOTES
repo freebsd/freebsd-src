@@ -1701,7 +1701,6 @@ device		miibus
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
 # cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
-# cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -1804,9 +1803,6 @@ hint.cm.0.at="isa"
 hint.cm.0.port="0x2e0"
 hint.cm.0.irq="9"
 hint.cm.0.maddr="0xdc000"
-device		cs
-hint.cs.0.at="isa"
-hint.cs.0.port="0x300"
 device		ep
 device		ex
 device		fe
