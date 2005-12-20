@@ -237,8 +237,7 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 
 static int
 __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
-	vm_prot_t max)
+    vm_offset_t start, vm_offset_t end, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	int error;
@@ -248,8 +247,8 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
 	vm_map_lock(map);
-	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end), max,
-	    max, 0);
+	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end),
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
 
 	/*
@@ -273,8 +272,7 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 static int
 __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
-	vm_prot_t max, int cow)
+    vm_offset_t start, vm_offset_t end, vm_prot_t prot, int cow)
 {
 	struct sf_buf *sf;
 	vm_offset_t off;
@@ -283,7 +281,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 	if (start != trunc_page(start)) {
 		rv = __elfN(map_partial)(map, object, offset, start,
-		    round_page(start), prot, max);
+		    round_page(start), prot);
 		if (rv)
 			return (rv);
 		offset += round_page(start) - start;
@@ -291,7 +289,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 	if (end != round_page(end)) {
 		rv = __elfN(map_partial)(map, object, offset +
-		    trunc_page(end) - start, trunc_page(end), end, prot, max);
+		    trunc_page(end) - start, trunc_page(end), end, prot);
 		if (rv)
 			return (rv);
 		end = trunc_page(end);
@@ -303,7 +301,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			 * to copy the data. Sigh.
 			 */
 			rv = vm_map_find(map, NULL, 0, &start, end - start,
-			    FALSE, prot | VM_PROT_WRITE, max, 0);
+			    FALSE, prot | VM_PROT_WRITE, VM_PROT_ALL, 0);
 			if (rv)
 				return (rv);
 			if (object == NULL)
@@ -328,7 +326,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		} else {
 			vm_map_lock(map);
 			rv = vm_map_insert(map, object, offset, start, end,
-			    prot, max, cow);
+			    prot, VM_PROT_ALL, cow);
 			vm_map_unlock(map);
 		}
 		return (rv);
@@ -349,8 +347,6 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	int error, rv, cow;
 	size_t copy_len;
 	vm_offset_t file_addr;
-
-	error = 0;
 
 	/*
 	 * It's necessary to fail if the filsz + offset taken from the
@@ -397,7 +393,6 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 				      map_addr,		/* virtual start */
 				      map_addr + map_len,/* virtual end */
 				      prot,
-				      VM_PROT_ALL,
 				      cow);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
@@ -425,7 +420,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	/* This had damn well better be true! */
 	if (map_len != 0) {
 		rv = __elfN(map_insert)(&vmspace->vm_map, NULL, 0, map_addr,
-		    map_addr + map_len, VM_PROT_ALL, VM_PROT_ALL, 0);
+		    map_addr + map_len, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (EINVAL);
 		}
@@ -456,7 +451,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	vm_map_protect(&vmspace->vm_map, trunc_page(map_addr),
 	    round_page(map_addr + map_len),  prot, FALSE);
 
-	return (error);
+	return (0);
 }
 
 /*
