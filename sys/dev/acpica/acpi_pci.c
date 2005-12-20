@@ -117,6 +117,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt, pci_assign_interrupt_method),
+	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
 
 	{ 0, 0 }
 };

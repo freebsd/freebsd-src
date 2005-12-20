@@ -133,6 +133,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
+	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
 
 	{ 0, 0 }
 };
@@ -449,10 +450,10 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 		}
 		/* Find the next entry */
 		ptr = nextptr;
-		nextptr = REG(ptr + 1, 1);
+		nextptr = REG(ptr + PCICAP_NEXTPTR, 1);
 
 		/* Process this entry */
-		switch (REG(ptr, 1)) {
+		switch (REG(ptr + PCICAP_ID, 1)) {
 		case PCIY_PMG:		/* PCI power management */
 			if (cfg->pp.pp_cap == 0) {
 				cfg->pp.pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
@@ -475,6 +476,57 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 		}
 	}
 #undef REG
+}
+
+/*
+ * Return the offset in configuration space of the requested extended
+ * capability entry or 0 if the specified capability was not found.
+ */
+int
+pci_find_extcap_method(device_t dev, device_t child, int capability,
+    int *capreg)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	u_int32_t status;
+	u_int8_t ptr;
+
+	/*
+	 * Check the CAP_LIST bit of the PCI status register first.
+	 */
+	status = pci_read_config(child, PCIR_STATUS, 2);
+	if (!(status & PCIM_STATUS_CAPPRESENT))
+		return (ENXIO);
+
+	/*
+	 * Determine the start pointer of the capabilities list.
+	 */
+	switch (cfg->hdrtype & PCIM_HDRTYPE) {
+	case 0:
+		ptr = PCIR_CAP_PTR;
+		break;
+	case 2:
+		ptr = PCIR_CAP_PTR_2;
+		break;
+	default:
+		/* XXX: panic? */
+		return (ENXIO);		/* no extended capabilities support */
+	}
+	ptr = pci_read_config(child, ptr, 1);
+
+	/*
+	 * Traverse the capabilities list.
+	 */
+	while (ptr != 0) {
+		if (pci_read_config(child, ptr + PCICAP_ID, 1) == capability) {
+			if (capreg != NULL)
+				*capreg = ptr;
+			return (0);
+		}
+		ptr = pci_read_config(child, ptr + PCICAP_NEXTPTR, 1);
+	}
+
+	return (ENOENT);
 }
 
 /* free pcicfgregs structure and all depending data structures */
