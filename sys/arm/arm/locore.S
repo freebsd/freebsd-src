@@ -103,12 +103,13 @@ Lcopy_size:	.word _edata-_C_LABEL(_start)
 Lstart_off:	.word start_inram-_C_LABEL(_start)
 start_inram:
 	adr	r7, Lunmapped
-	bic	r7, r7, #0xff000000
-	orr	r7, r7, #PHYSADDR
 
 	/* Disable MMU for a while */
 	mrc     p15, 0, r2, c1, c0, 0
-	bic     r2, r2, #CPU_CONTROL_MMU_ENABLE
+	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
+	    CPU_CONTROL_WBUF_ENABLE)
+	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
+	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr     p15, 0, r2, c1, c0, 0
 
 	nop
@@ -121,6 +122,8 @@ Lunmapped:
 	/* build page table from scratch */
 	ldr	r0, Lstartup_pagetable
 	adr	r4, mmu_init_table
+	bic	r4, r4, #0xff000000
+	orr	r4, r4, #PHYSADDR
 	b	3f
 
 2:
@@ -143,43 +146,29 @@ Lunmapped:
 	/* Set the Domain Access register.  Very important! */
 	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
-
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
 	orr	r0, r0, #CPU_CONTROL_MMU_ENABLE
 	mcr	p15, 0, r0, c1, c0, 0
+	nop
+	nop
+	nop
 	CPWAIT(r0)
 
-	bl	mmu_done
-mmu_done:
 #endif
+mmu_done:
+	nop
 	adr	r1, .Lstart
 	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
 	sub	r2, r2, r1		/* get zero init data */
 	mov	r3, #0
-
 .L1:
 	str	r3, [r1], #0x0004	/* get zero init data */
 	subs	r2, r2, #4
 	bgt	.L1
+	ldr	pc, .Lvirt_done
 
-	ldr	r4, =KERNVIRTADDR
-	cmp	pc, r4
-#if	KERNVIRTADDR > KERNPHYSADDR
-	bgt	virt_done
-	ldr	r4, =KERNVIRTADDR
-	ldr	r5, =KERNPHYSADDR
-	sub	r4, r4, r5
-	add	pc, pc, r4
-#else
-	blt	virt_done
-	ldr	r4, =KERNPHYSADDR
-	ldr	r5, =KERNVIRTADDR
-	sub	r4, r4, r5
-	sub	pc, pc, r4
-#endif
 virt_done:
-	nop
 	mov	fp, #0		/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -217,6 +206,8 @@ mmu_init_table:
 	.word	_end
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
+.Lvirt_done:
+	.word	virt_done
 .Lmainreturned:
 	.asciz	"main() returned"
 	.align	0
