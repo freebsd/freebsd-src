@@ -155,7 +155,6 @@ agp_amd64_probe(device_t dev)
 	if (resource_disabled("agp", device_get_unit(dev)))
 		return ENXIO;
 	if ((desc = agp_amd64_match(dev))) {
-		device_verbose(dev);
 		device_set_desc(dev, desc);
 		return BUS_PROBE_DEFAULT;
 	}
@@ -515,6 +514,6 @@ static driver_t agp_amd64_driver = {
 
 static devclass_t agp_devclass;
 
-DRIVER_MODULE(agp_amd64, pci, agp_amd64_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_amd64, hostb, agp_amd64_driver, agp_devclass, 0, 0);
 MODULE_DEPEND(agp_amd64, agp, 1, 1, 1);
 MODULE_DEPEND(agp_amd64, pci, 1, 1, 1);
