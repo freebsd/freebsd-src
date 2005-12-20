@@ -101,33 +101,12 @@ agp_flush_cache()
 u_int8_t
 agp_find_caps(device_t dev)
 {
-	u_int32_t status;
-	u_int8_t ptr, next;
+	int capreg;
 
-	/*
-	 * Check the CAP_LIST bit of the PCI status register first.
-	 */
-	status = pci_read_config(dev, PCIR_STATUS, 2);
-	if (!(status & 0x10))
-		return 0;
 
-	/*
-	 * Traverse the capabilities list.
-	 */
-	for (ptr = pci_read_config(dev, AGP_CAPPTR, 1);
-	     ptr != 0;
-	     ptr = next) {
-		u_int32_t capid = pci_read_config(dev, ptr, 4);
-		next = AGP_CAPID_GET_NEXT_PTR(capid);
-
-		/*
-		 * If this capability entry ID is 2, then we are done.
-		 */
-		if (AGP_CAPID_GET_CAP_ID(capid) == 2)
-			return ptr;
-	}
-
-	return 0;
+	if (pci_find_extcap(dev, PCIY_AGP, &capreg) != 0)
+		capreg = 0;
+	return (capreg);
 }
 
 /*
