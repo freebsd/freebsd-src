@@ -1626,7 +1626,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 		/* Translate weird command-status signatures. */
 		if (sc->quirks & WRONG_CSWSIG) {
-			uDWord dCSWSignature = UGETDW(sc->csw.dCSWSignature);
+			u_int32_t dCSWSignature = UGETDW(sc->csw.dCSWSignature);
 			if (dCSWSignature == CSWSIGNATURE_OLYMPUS_C1 ||
 			    dCSWSignature == CSWSIGNATURE_IMAGINATION_DBX1)
 				USETDW(sc->csw.dCSWSignature, CSWSIGNATURE);
