@@ -70,6 +70,7 @@ struct acpi_video_softc {
 
 /* interfaces */
 static int	acpi_video_modevent(struct module*, int, void *);
+static void	acpi_video_identify(driver_t *driver, device_t parent);
 static int	acpi_video_probe(device_t);
 static int	acpi_video_attach(device_t);
 static int	acpi_video_detach(device_t);
@@ -137,6 +138,7 @@ static void	vo_set_device_state(ACPI_HANDLE, UINT32);
 #define DSS_COMMIT		(1 << 31)
 
 static device_method_t acpi_video_methods[] = {
+	DEVMETHOD(device_identify, acpi_video_identify),
 	DEVMETHOD(device_probe, acpi_video_probe),
 	DEVMETHOD(device_attach, acpi_video_attach),
 	DEVMETHOD(device_detach, acpi_video_detach),
@@ -152,7 +154,7 @@ static driver_t acpi_video_driver = {
 
 static devclass_t acpi_video_devclass;
 
-DRIVER_MODULE(acpi_video, pci, acpi_video_driver, acpi_video_devclass,
+DRIVER_MODULE(acpi_video, vgapci, acpi_video_driver, acpi_video_devclass,
 	      acpi_video_modevent, NULL);
 MODULE_DEPEND(acpi_video, acpi, 1, 1, 1);
 
@@ -187,6 +189,14 @@ acpi_video_modevent(struct module *mod __unused, int evt, void *cookie __unused)
 	}
 
 	return (err);
+}
+
+static void
+acpi_video_identify(driver_t *driver, device_t parent)
+{
+
+	if (device_find_child(parent, "acpi_video", -1) == NULL)
+		device_add_child(parent, "acpi_video", -1);
 }
 
 static int
