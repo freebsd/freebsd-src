@@ -92,7 +92,11 @@ static driver_t sis_driver = {
 };
 
 extern devclass_t drm_devclass;
+#if __FreeBSD_version >= 700010
+DRIVER_MODULE(sisdrm, vgapci, sis_driver, drm_devclass, 0, 0);
+#else
 DRIVER_MODULE(sisdrm, pci, sis_driver, drm_devclass, 0, 0);
+#endif
 MODULE_DEPEND(sisdrm, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
