@@ -759,6 +759,7 @@ dev/pci/pci_if.m		standard
 dev/pci/pci_pci.c		optional pci
 dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
+dev/pci/vga_pci.c		optional pci
 dev/pdq/if_fea.c		optional fea eisa
 dev/pdq/if_fpa.c		optional fpa pci
 dev/pdq/pdq.c			optional nowerror fea eisa | fpa pci
