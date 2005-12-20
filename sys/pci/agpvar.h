@@ -47,7 +47,6 @@ struct agp_info {
 	u_int32_t	ai_mode;
 	vm_offset_t	ai_aperture_base;
 	vm_size_t	ai_aperture_size;
-	vm_offset_t	ai_aperture_va;
 	vm_size_t	ai_memory_allowed;
 	vm_size_t	ai_memory_used;
 	u_int32_t	ai_devid;
