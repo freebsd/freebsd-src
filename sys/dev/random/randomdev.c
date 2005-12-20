@@ -61,7 +61,6 @@ static d_poll_t random_poll;
 
 static struct cdevsw random_cdevsw = {
 	.d_version = D_VERSION,
-	.d_flags = D_NEEDGIANT,
 	.d_close = random_close,
 	.d_read = random_read,
 	.d_write = random_write,
@@ -103,15 +102,8 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 	void *random_buf;
 
 	/* Blocking logic */
-	while (!random_systat.seeded && !error) {
-		if (flag & O_NONBLOCK)
-			error = EWOULDBLOCK;
-		else {
-			printf("Entropy device is blocking.\n");
-			error = tsleep(&random_systat,
-			    PUSER | PCATCH, "block", 0);
-		}
-	}
+	if (!random_systat.seeded)
+		error = (*random_systat.block)(flag);
 
 	/* The actual read */
 	if (!error) {
@@ -181,7 +173,7 @@ random_poll(struct cdev *dev __unused, int events, struct thread *td)
 		if (random_systat.seeded)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(td, &random_systat.rsel);
+			revents = (*random_systat.poll) (events,td);
 	}
 	return (revents);
 }
