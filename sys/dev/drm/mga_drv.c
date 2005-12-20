@@ -64,6 +64,8 @@ static drm_pci_id_list_t mga_pciidlist[] = {
  */
 static int mga_driver_device_is_agp(drm_device_t * dev)
 {
+	device_t bus;
+
 	/* There are PCI versions of the G450.  These cards have the
 	 * same PCI ID as the AGP G450, but have an additional PCI-to-PCI
 	 * bridge chip.  We detect these cards, which are not currently
@@ -72,9 +74,14 @@ static int mga_driver_device_is_agp(drm_device_t * dev)
 	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
 	 * device.
 	 */
+#if __FreeBSD_version >= 700010
+	bus = device_get_parent(device_get_parent(dev->device));
+#else
+	bus = device_get_parent(dev->device);
+#endif
 	if (pci_get_device(dev->device) == 0x0525 &&
-	    pci_get_vendor(device_get_parent(dev->device)) == 0x3388 &&
-	    pci_get_device(device_get_parent(dev->device)) == 0x0021)
+	    pci_get_vendor(bus) == 0x3388 &&
+	    pci_get_device(bus) == 0x0021)
 		return 0;
 	else
 		return 2;
@@ -148,7 +155,11 @@ static driver_t mga_driver = {
 };
 
 extern devclass_t drm_devclass;
+#if __FreeBSD_version >= 700010
+DRIVER_MODULE(mga, vgapci, mga_driver, drm_devclass, 0, 0);
+#else
 DRIVER_MODULE(mga, pci, mga_driver, drm_devclass, 0, 0);
+#endif
 MODULE_DEPEND(mga, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
