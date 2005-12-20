@@ -82,3 +82,10 @@ METHOD int assign_interrupt {
 	device_t	dev;
 	device_t	child;
 };
+
+METHOD int find_extcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		*capreg;
+};
