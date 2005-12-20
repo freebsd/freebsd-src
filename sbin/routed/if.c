@@ -805,13 +805,8 @@ ifinit(void)
 
 		if (ifs.int_if_flags & IFF_LOOPBACK) {
 			ifs.int_state |= IS_NO_RIP | IS_NO_RDISC;
-			if (ifs.int_addr == htonl(INADDR_LOOPBACK)) {
-				printf("loop %x\n", ifs.int_addr);
+			if (ifs.int_addr == htonl(INADDR_LOOPBACK))
 				ifs.int_state |= IS_PASSIVE;
-			} else {
-				printf("alias %x\n", ifs.int_addr);
-			}
-			
 			ifs.int_dstaddr = ifs.int_addr;
 			ifs.int_mask = HOST_MASK;
 			ifs.int_ripv1_mask = HOST_MASK;
