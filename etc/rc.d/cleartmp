@@ -12,7 +12,6 @@
 name="cleartmp"
 rcvar=`set_rcvar clear_tmp`
 
-start_precmd="${name}_prestart"
 start_cmd="${name}_start"
 
 cleartmp_prestart()
@@ -45,4 +44,10 @@ cleartmp_start()
 }
 
 load_rc_config $name
+
+# The clear_tmp_X variable should be tested even if clear_tmp_enable is NO
+case "$1" in
+start)	cleartmp_prestart ;;
+esac
+
 run_rc_command "$1"
