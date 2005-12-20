@@ -209,8 +209,7 @@ agp_generic_attach(device_t dev)
 	 * Find and map the aperture.
 	 */
 	rid = AGP_APBASE;
-	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-						 RF_ACTIVE);
+	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 	if (!sc->as_aperture)
 		return ENOMEM;
 
@@ -852,7 +851,6 @@ agp_get_info(device_t dev, struct agp_info *info)
 		pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
 	info->ai_aperture_base = rman_get_start(sc->as_aperture);
 	info->ai_aperture_size = rman_get_size(sc->as_aperture);
-	info->ai_aperture_va = (vm_offset_t) rman_get_virtual(sc->as_aperture);
 	info->ai_memory_allowed = sc->as_maxmem;
 	info->ai_memory_used = sc->as_allocated;
 }
