@@ -43,17 +43,13 @@ cbrt(double x)
 	    uint64_t bits;
 	} u;
 	double r,s,t=0.0,w;
-	uint64_t bits;
 	u_int32_t sign;
 	u_int32_t high,low;
 
-	GET_HIGH_WORD(hx,x);
+	EXTRACT_WORDS(hx,low,x);
 	sign=hx&0x80000000; 		/* sign= sign(x) */
 	hx  ^=sign;
 	if(hx>=0x7ff00000) return(x+x); /* cbrt(NaN,INF) is itself */
-	GET_LOW_WORD(low,x);
-	if((hx|low)==0)
-	    return(x);			/* cbrt(0) is itself */
 
     /*
      * Rough cbrt to 5 bits:
@@ -70,13 +66,15 @@ cbrt(double x)
      * subtraction virtually to keep e >= 0 so that ordinary integer
      * division rounds towards minus infinity; this is also efficient.
      */
-	if(hx<0x00100000) { 		/* subnormal number */
+	if(hx<0x00100000) { 		/* zero or subnormal? */
+	    if((hx|low)==0)
+		return(x);		/* cbrt(0) is itself */
 	    SET_HIGH_WORD(t,0x43500000); /* set t= 2**54 */
 	    t*=x;
 	    GET_HIGH_WORD(high,t);
-	    SET_HIGH_WORD(t,sign|((high&0x7fffffff)/3+B2));
+	    INSERT_WORDS(t,sign|((high&0x7fffffff)/3+B2),0);
 	} else
-	    SET_HIGH_WORD(t,sign|(hx/3+B1));
+	    INSERT_WORDS(t,sign|(hx/3+B1),0);
 
     /*
      * New cbrt to 23 bits:
