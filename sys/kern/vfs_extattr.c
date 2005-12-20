@@ -323,13 +323,11 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
-	mtx_lock(&Giant);
 	mp = fp->f_vnode->v_mount;
 	fdrop(fp, td);
-	if (mp == NULL) {
-		mtx_unlock(&Giant);
+	if (mp == NULL)
 		return (EBADF);
-	}
+	mtx_lock(&Giant);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
@@ -679,9 +677,9 @@ fchdir(td, uap)
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	VREF(vp);
 	fdrop(fp, td);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
@@ -2431,8 +2429,8 @@ fchflags(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = setfflags(td, fp->f_vnode, uap->flags);
-	fdrop(fp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -2561,8 +2559,8 @@ fchmod(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = setfmode(td, fp->f_vnode, uap->mode);
-	fdrop(fp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -2709,8 +2707,8 @@ fchown(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = setfown(td, fp->f_vnode, uap->uid, uap->gid);
-	fdrop(fp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -2913,8 +2911,8 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = setutimes(td, fp->f_vnode, ts, 2, tptr == NULL);
-	fdrop(fp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
+	fdrop(fp, td);
 	return (error);
 }
 
