@@ -751,6 +751,7 @@ dev/pccbb/pccbb_pci.c		optional cbb pci
 dev/pcf/pcf.c			optional pcf
 dev/pci/eisa_pci.c		optional pci eisa
 dev/pci/fixup_pci.c		optional pci
+dev/pci/hostb_pci.c		optional pci
 dev/pci/ignore_pci.c		optional pci
 dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci

@@ -336,64 +336,6 @@ DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, pcib_devclass, 0, 0);
 
 
 /*
- * Provide a device to "eat" the host->pci bridges that we dug up above
- * and stop them showing up twice on the probes.  This also stops them
- * showing up as 'none' in pciconf -l.
- */
-static int
-pci_hostb_probe(device_t dev)
-{
-	u_int32_t id;
-
-	id = pci_get_devid(dev);
-
-	switch (id) {
-
-	/* VIA VT82C596 Power Managment Function */
-	case 0x30501106:
-		return ENXIO;
-
-	default:
-		break;
-	}
-
-	if (pci_get_class(dev) == PCIC_BRIDGE &&
-	    pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
-		device_set_desc(dev, "Host to PCI bridge");
-		device_quiet(dev);
-		return -10000;
-	}
-	return ENXIO;
-}
-
-static int
-pci_hostb_attach(device_t dev)
-{
-
-	return 0;
-}
-
-static device_method_t pci_hostb_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		pci_hostb_probe),
-	DEVMETHOD(device_attach,	pci_hostb_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	{ 0, 0 }
-};
-static driver_t pci_hostb_driver = {
-	"hostb",
-	pci_hostb_methods,
-	1,
-};
-static devclass_t pci_hostb_devclass;
-
-DRIVER_MODULE(hostb, pci, pci_hostb_driver, pci_hostb_devclass, 0, 0);
-
-
-/*
  * Install placeholder to claim the resources owned by the
  * PCI bus interface.  This could be used to extract the
  * config space registers in the extreme case where the PnP
