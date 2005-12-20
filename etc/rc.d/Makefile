@@ -32,7 +32,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ramdisk ramdisk-own random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore sdpd securelevel sendmail \
-	serial sppp sshd swap1 \
+	serial sppp swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
 	ugidfw usbd \
@@ -40,6 +40,11 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	watchdogd wpa_supplicant \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd
+
+.if !defined(NO_OPENSSH)
+FILES+=	sshd
+.endif
+
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 
