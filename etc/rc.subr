@@ -426,6 +426,8 @@ wait_for_pids()
 #	reload		Similar to stop, except use $sig_reload instead,
 #			and doesn't wait_for_pids.
 #			$sig_reload defaults to HUP.
+#			Note that `reload' isn't provided by default,
+#			it should be enabled via $extra_commands.
 #
 #	restart		Run `stop' then `start'.
 #
@@ -493,9 +495,7 @@ run_rc_command()
 	esac
 
 	eval _overide_command=\$${name}_program
-	if [ -n "$_overide_command" ]; then
-		command=$_overide_command
-	fi
+	command=${command:+${_overide_command:-$command}}
 
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
@@ -515,7 +515,7 @@ run_rc_command()
 	fi
 
 	if [ -z "$rc_arg" ]; then
-		rc_usage "$_keywords"
+		rc_usage $_keywords
 	fi
 
 	if [ -n "$flags" ]; then	# allow override from environment
@@ -598,12 +598,12 @@ run_rc_command()
 		start)
 			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
 				echo "${name} already running? (pid=$rc_pid)."
-				exit 1
+				return 1
 			fi
 
 			if [ ! -x ${_chroot}${command} ]; then
 				info "run_rc_command: cannot run ($command)."
-				return 0
+				return 1
 			fi
 
 					# check for required variables,
@@ -681,14 +681,14 @@ $command $rc_flags $command_args"
 
 		stop)
 			if [ -z "$rc_pid" ]; then
-				[ -n "$rc_fast" ] && exit 0
+				[ -n "$rc_fast" ] && return 0
 				if [ -n "$pidfile" ]; then
 					echo \
 				    "${name} not running? (check $pidfile)."
 				else
 					echo "${name} not running?"
 				fi
-				exit 1
+				return 1
 			fi
 
 					# if the precmd failed and force
@@ -733,7 +733,7 @@ $command $rc_flags $command_args"
 				else
 					echo "${name} not running?"
 				fi
-				exit 1
+				return 1
 			fi
 			echo "Reloading ${name} config files."
 			if [ -n "$_precmd" ]; then
@@ -770,8 +770,9 @@ $command $rc_flags $command_args"
 			fi
 			_rc_restart_done=true
 
-			( $0 ${_rc_prefix}stop $rc_extra_args )
-			$0 ${_rc_prefix}start $rc_extra_args
+			# run stop in a subshell to keep variables for start
+			( run_rc_command ${_rc_prefix}stop $rc_extra_args )
+			run_rc_command ${_rc_prefix}start $rc_extra_args
 
 			if [ -n "$_postcmd" ]; then
 				eval $_postcmd $rc_extra_args
@@ -797,7 +798,7 @@ $command $rc_flags $command_args"
 			;;
 
 		*)
-			rc_usage "$_keywords"
+			rc_usage $_keywords
 			;;
 
 		esac
@@ -805,8 +806,8 @@ $command $rc_flags $command_args"
 	done
 
 	echo 1>&2 "$0: unknown directive '$rc_arg'."
-	rc_usage "$_keywords"
-	exit 1
+	rc_usage $_keywords
+	# not reached
 }
 
 #
