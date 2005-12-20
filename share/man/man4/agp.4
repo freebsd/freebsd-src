@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2001
+.Dd December 20, 2005
 .Dt AGP 4
 .Os
 .Sh NAME
@@ -37,26 +37,32 @@ The
 .Nm
 driver provides uniform, abstract methods for controlling
 the following devices:
-.Bl -bullet -offset indent -compact
-.It
-Ali M1541 host-to-AGP bridge
-.It
-.\" 761 not in -stable
-AMD 751 and 761 host-to-AGP bridges
-.It
-Intel i820, i840, i845, i850, and i860 host-to-AGP bridge
-.It
-Intel i810, i810-DC100, i810E, and i815 SVGA controllers
-.It
-Intel 82443GX host-to-AGP bridge
-.It
-SiS 5591 host-to-AGP bridge
+.Pp
+.Bl -tag -width "NVIDIA:" -compact
+.It Ali:
+M1541, M1621 and M1671 host to AGP bridges
+.It AMD:
+751, 761 and 762 host to AGP bridges
+.It ATI:
+RS100, RS200, RS250 and RS300 AGP bridges
+.It Intel:
+i820, i840, i845, i850, and i860 host to AGP bridges
+.It Intel:
+i810, i810-DC100, i810E, i815, 830M, 845G, 852GM, 852GME, 855GM, 855GME, 865G, 915G and 915GM SVGA controllers
+.It Intel:
+82443BX, 82443GX, 82443LX, 82815, 82820, 82830, 82840, 82845, 82845G, 82850, 82855, 82855GM, 82860, 82865, 82875P, E7205 host to AGP bridges
+.It NVIDIA:
+nForce and nForce2 AGP controllers
+.It SiS:
+530, 540, 550, 620, 630, 645, 645DX, 648, 650, 651, 655, 661, 730, 735, 740, 741, 745, 746, 760 and 5591 host to AGP bridges
+.It VIA:
+3296, 82C597, 82C598, 82C691, 82C694X, 82C8363, 8235, 8237, 8361, 8367, 8371, 8377, 8501, 8601, 862x, 8633, 8653, 8703, 8753, 8754, 8763, 8783, KT880, PM800, PM880, PN800, PN880, PT880, XM266 and XN266 host to PCI bridges
 .El
 .Pp
 The most common application of
 .Nm
 is for running
-.Xr XFree86 1
+.Xr X 7
 on the Intel i81x controllers.
 .Sh IOCTLS
 The following
