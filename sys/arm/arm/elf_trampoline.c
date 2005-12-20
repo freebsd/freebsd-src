@@ -47,9 +47,10 @@ memcpy(void *dst, const void *src, int len)
 {
 	const char *s = src;
     	char *d = dst;
-	
+
 	while (len) {
-		if (len >= 4 && !((vm_offset_t)d & 3) && !((vm_offset_t)s & 3)) {
+		if (0 && len >= 4 && !((vm_offset_t)d & 3) &&
+		    !((vm_offset_t)s & 3)) {
 			*(uint32_t *)d = *(uint32_t *)s;
 			s += 4;
 			d += 4;
@@ -83,6 +84,29 @@ bzero(void *addr, int count)
 void
 _start(void)
 {
+	int physaddr = KERNPHYSADDR;
+	int tmp1;
+	
+	__asm __volatile("adr %0, 2f\n"
+	    		 "bic %0, %0, #0xff000000\n"
+			 "bic sp, sp, #0xff000000\n"
+			 "and %1, %1, #0xff000000\n"
+			 "orr %0, %0, %1\n"
+			 "orr sp, sp, %1\n"
+			 "mrc p15, 0, %1, c1, c0, 0\n"
+			 "bic %1, %1, #1\n" /* Disable MMU */
+			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable, 
+						     WBUF enable */
+			 "orr %1, %1, #0x1000\n" /* Add IC enable */
+			 "orr %1, %1, #(0x800)\n" /* BPRD enable */
+
+			 "mcr p15, 0, %1, c1, c0, 0\n"
+			 "nop\n"
+			 "nop\n"
+			 "nop\n"
+			 "mov pc, %0\n"
+			 "2: nop\n"
+			 : "=r" (tmp1), "+r" (physaddr));
 	__start();
 }
 
@@ -156,6 +180,7 @@ inflate_kernel(void *kernel, void *startaddr)
 	char slide[GZ_WSIZE];
 
 	orig_input = kernel;
+	memcnt = memtot = 0;
 	i_input = (char *)kernel + GZ_HEAD;
 	if (((char *)kernel)[3] & 0x18) {
 		while (*i_input)
@@ -172,7 +197,6 @@ inflate_kernel(void *kernel, void *startaddr)
 }
 
 #endif
-
 
 void *
 load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end, 
@@ -194,6 +218,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	entry_point = (void*)eh->e_entry;
 	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
 	    eh->e_phnum * sizeof(phdr[0]));
+
 	/* Determine lastaddr. */
 	for (i = 0; i < eh->e_phnum; i++) {
 		if (lastaddr < (phdr[i].p_vaddr - KERNVIRTADDR + curaddr
@@ -204,9 +229,12 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	
 	/* Save the symbol tables, as there're about to be scratched. */
 	lastaddr = roundup(lastaddr, sizeof(long));
+	shdr = (Elf_Shdr *)lastaddr;
+	lastaddr += sizeof(*shdr) * eh->e_shnum;
+	memcpy(shdr, (void *)(kstart + eh->e_shoff),
+	    sizeof(*shdr) * eh->e_shnum);
 	if (eh->e_shnum * eh->e_shentsize != 0 &&
 	    eh->e_shoff != 0) {
-		shdr = (Elf_Shdr *)(kstart + eh->e_shoff);
 		for (i = 0; i < eh->e_shnum; i++) {
 			if (shdr[i].sh_type == SHT_SYMTAB) {
 				for (j = 0; j < eh->e_phnum; j++) {
@@ -295,6 +323,10 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 		*((Elf_Addr *)curaddr + 2) = lastaddr - curaddr + KERNVIRTADDR;
 	} else
 		*(Elf_Addr *)curaddr = 0;
+	/* Invalidate the instruction cache. */
+	__asm __volatile("mcr p15, 0, %0, c7, c5, 0\n"
+	    		 "mcr p15, 0, %0, c7, c10, 4\n"
+			 : : "r" (curaddr));
 	/* Jump to the entry point. */
 	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
 	__asm __volatile(".globl func_end\n"
