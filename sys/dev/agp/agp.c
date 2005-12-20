@@ -830,9 +830,18 @@ agp_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 device_t
 agp_find_device()
 {
+	device_t *children;
+	int i, count;
+
 	if (!agp_devclass)
-		return 0;
-	return devclass_get_device(agp_devclass, 0);
+		return NULL;
+	if (devclass_get_devices(agp_devclass, &children, &count) != 0)
+		return NULL;
+	for (i = 0; i < count; i++) {
+		if (device_is_attached(children[i]))
+			return (children[i]);
+	}
+	return NULL;
 }
 
 enum agp_acquire_state
