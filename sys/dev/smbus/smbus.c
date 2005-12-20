@@ -49,11 +49,12 @@ static devclass_t smbus_devclass;
  * Device methods
  */
 static int smbus_probe(device_t);
+static int smbus_attach(device_t);
 
 static device_method_t smbus_methods[] = {
         /* device interface */
         DEVMETHOD(device_probe,         smbus_probe),
-        DEVMETHOD(device_attach,        bus_generic_attach),
+        DEVMETHOD(device_attach,        smbus_attach),
         DEVMETHOD(device_detach,        bus_generic_detach),
 
         /* bus interface */
@@ -77,6 +78,15 @@ static int
 smbus_probe(device_t dev)
 {
 	device_set_desc(dev, "System Management Bus");
+
+	return (0);
+}
+
+static int
+smbus_attach(device_t dev)
+{
+	device_add_child(dev, NULL, -1);
+	bus_generic_attach(dev);
 
 	return (0);
 }
