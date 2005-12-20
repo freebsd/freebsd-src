@@ -106,6 +106,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
+	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	ofw_pcibus_get_devinfo),
