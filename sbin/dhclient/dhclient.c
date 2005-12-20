@@ -2252,6 +2252,8 @@ check_option(struct client_lease *l, int option)
 		if (!res_hnok(sbuf)) {
 			warning("Bogus Host Name option %d: %s (%s)", option,
 			    sbuf, opbuf);
+			l->options[option].len = 0;
+			free(l->options[option].data);
 			return (0);
 		}
 		return (1);
@@ -2260,7 +2262,8 @@ check_option(struct client_lease *l, int option)
 			if (!check_search(sbuf)) {
 				warning("Bogus domain search list %d: %s (%s)",
 				    option, sbuf, opbuf);
-				return (0);
+				l->options[option].len = 0;
+				free(l->options[option].data);
 			}
 		}
 		return (1);
