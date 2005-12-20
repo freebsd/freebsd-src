@@ -88,6 +88,15 @@ as 5, 10, 11 and 12.
 The CS8920 has no such limitation.
 .Pp
 Memory-mapped and DMA operation are not supported at this time.
+.Pp
+In addition to the ISA devices, the PC Card devices based on the CS889x0
+family are also supported.
+The IBM EtherJet PCMCIA Card is the only known device based on this
+chip.
+The PC Card support doesn't need the above specific ISA hints to work.
+The PC Card support may not work for 10base2 (thinnet) connections and may
+bogusly claim to support 10base5 (there are no known cards that have an
+AUI necessary for 10base5 support on their dongles).
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "cs%d: full/half duplex negotiation timeout"
