@@ -351,6 +351,7 @@ hint.mse.0.irq="13"
 #       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
+# cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters and pccard
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices
 #       (requires miibus)
@@ -368,6 +369,7 @@ hint.mse.0.irq="13"
 
 device		ar
 device		cp
+device		cs
 device		ed
 hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
