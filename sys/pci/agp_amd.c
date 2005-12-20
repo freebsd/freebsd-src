@@ -207,7 +207,6 @@ agp_amd_probe(device_t dev)
 		return (ENXIO);
 	desc = agp_amd_match(dev);
 	if (desc) {
-		device_verbose(dev);
 		device_set_desc(dev, desc);
 		return BUS_PROBE_DEFAULT;
 	}
@@ -415,6 +414,6 @@ static driver_t agp_amd_driver = {
 
 static devclass_t agp_devclass;
 
-DRIVER_MODULE(agp_amd, pci, agp_amd_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_amd, hostb, agp_amd_driver, agp_devclass, 0, 0);
 MODULE_DEPEND(agp_amd, agp, 1, 1, 1);
 MODULE_DEPEND(agp_amd, pci, 1, 1, 1);
