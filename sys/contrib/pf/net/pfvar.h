@@ -791,9 +791,11 @@ struct pf_state {
 #define	PFSTATE_FROMSYNC 0x02
 #define	PFSTATE_STALE	 0x04
 #ifdef __FreeBSD__
-#define	PFSTATE_EXPIRING 0x10
-#endif
+	u_int8_t	 local_flags;
+#define	PFSTATE_EXPIRING 0x01
+#else
 	u_int8_t	 pad;
+#endif
 };
 
 TAILQ_HEAD(pf_rulequeue, pf_rule);
