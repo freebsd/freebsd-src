@@ -965,3 +965,4 @@ static driver_t lpt_driver = {
 };
 
 DRIVER_MODULE(lpt, ppbus, lpt_driver, lpt_devclass, 0, 0);
+MODULE_DEPEND(lpt, ppbus, 1, 1, 1);

@@ -770,3 +770,4 @@ static driver_t lp_driver = {
 };
 
 DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, 0, 0);
+MODULE_DEPEND(plip, ppbus, 1, 1, 1);

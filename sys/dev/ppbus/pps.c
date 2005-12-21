@@ -321,3 +321,4 @@ static driver_t pps_driver = {
 	sizeof(struct pps_data),
 };
 DRIVER_MODULE(pps, ppbus, pps_driver, pps_devclass, 0, 0);
+MODULE_DEPEND(pps, ppbus, 1, 1, 1);
