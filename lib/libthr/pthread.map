@@ -1,5 +1,5 @@
 # $FreeBSD$
-LIBPTHREAD_1_0 {
+LIBTHREAD_1_0 {
 global:
 	___creat;
 	__accept;
