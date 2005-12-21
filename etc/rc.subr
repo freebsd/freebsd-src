@@ -832,10 +832,10 @@ run_rc_script()
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
 	case "$_file" in
-	*.sh)				# run in current shell
+	/etc/rc.d/*.sh)			# run in current shell
 		set $_arg; . $_file
 		;;
-	*[~#]|*.OLD|*.orig|*,v)		# scratch file; skip
+	*[~#]|*.OLD|*.bak|*.orig|*,v)	# scratch file; skip
 		warn "Ignoring scratch file $_file"
 		;;
 	*)				# run in subshell
@@ -1353,6 +1353,44 @@ geli_make_list()
 	done
 
 	echo ${devices2}
+}
+
+# Find scripts in local_startup directories that use the old syntax
+#
+find_local_scripts_old () {
+	zlist=''
+	slist=''
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for file in ${dir}/[0-9]*.sh; do
+				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
+				    continue
+				zlist="$zlist $file"
+			done
+			for file in ${dir}/[^0-9]*.sh; do
+				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
+				    continue
+				slist="$slist $file"
+			done
+		fi
+	done
+}
+
+find_local_scripts_new () {
+	local_rc=''
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for file in `grep -l '^# PROVIDE:' ${dir}/* 2>/dev/null`; do
+				case "$file" in
+				*.sample) ;;
+				*)	if [ -x "$file" ]; then
+						local_rc="${local_rc} ${file}"
+					fi
+					;;
+				esac
+			done
+		fi
+	done
 }
 
 fi

@@ -8,6 +8,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20051220:
+	Scripts in the local_startup directories (as defined in
+	/etc/defaults/rc.conf) that have the new rc.d semantics will
+	now be run as part of the base system rcorder. If there are
+	errors or problems with one of these local scripts, it could
+	cause boot problems. If you encounter such problems, boot in
+	single user mode, remove that script from the */rc.d directory.
+	Please report the problem to the port's maintainer, and the
+	freebsd-ports@freebsd.org mailing list.
+
 20051101:
 	FreeBSD 6.0-RELEASE
 
