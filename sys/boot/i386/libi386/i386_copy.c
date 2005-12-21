@@ -66,7 +66,7 @@ ssize_t
 i386_readin(const int fd, vm_offset_t dest, const size_t len)
 {
 
-    if (dest + len >= memtop) {
+    if (dest + len >= memtop_copyin) {
 	errno = EFBIG;
 	return(-1);
     }
