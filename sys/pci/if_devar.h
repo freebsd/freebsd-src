@@ -510,7 +510,7 @@ struct tulip_softc {
 	struct ifmedia		tulip_ifmedia;
 	int			tulip_unit;
 	struct ifnet		*tulip_ifp;
-	u_char			tulip_enaddr[6];
+	u_char			tulip_enaddr[ETHER_ADDR_LEN];
 	bus_space_tag_t		tulip_csrs_bst;
 	bus_space_handle_t	tulip_csrs_bsh;
 	tulip_regfile_t		tulip_csrs;
