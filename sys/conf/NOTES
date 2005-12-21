@@ -2167,7 +2167,7 @@ device		cardbus
 # which is a child of the 'smbus' device.
 #
 # Supported devices:
-# smb		standard io through /dev/smb*
+# smb		standard I/O through /dev/smb*
 #
 # Supported SMB interfaces:
 # iicsmb	I2C to SMB bridge with any iicbus interface
@@ -2177,7 +2177,9 @@ device		cardbus
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
 # viapm		VIA VT82C586B/596B/686A and VT8233 Power Management Unit
 # amdpm		AMD 756 Power Management Unit
+# amdsmb	AMD 8111 SMBus 2.0 Controller
 # nfpm		NVIDIA nForce Power Management Unit
+# nfsmb		NVIDIA nForce2/3/4 MCP SMBus 2.0 Controller
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -2186,7 +2188,9 @@ device		alpm
 device		ichsmb
 device		viapm
 device		amdpm
+device		amdsmb
 device		nfpm
+device		nfsmb
 
 device		smb
 
