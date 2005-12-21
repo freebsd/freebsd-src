@@ -112,6 +112,7 @@ int f_statistic;        /* print statistic */
 int f_silent;           /* suppress output, show only count of matches */
 int f_limit;            /* limit number of output lines, 0 == infinite */
 u_int counter;          /* counter for matches [-c] */
+char separator='\n';	/* line separator */
 
 
 void    usage(void);
@@ -145,8 +146,11 @@ main(argc, argv)
 #endif
 	(void) setlocale(LC_ALL, "");
 
-        while ((ch = getopt(argc, argv, "Scd:il:ms")) != -1)
+        while ((ch = getopt(argc, argv, "0Scd:il:ms")) != -1)
                 switch(ch) {
+                case '0':	/* 'find -print0' style */
+			separator = '\0';
+			break;
                 case 'S':	/* statistic lines */   
                         f_statistic = 1;
                         break;

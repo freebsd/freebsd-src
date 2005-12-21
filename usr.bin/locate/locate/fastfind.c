@@ -103,6 +103,7 @@ statistic (fp, path_fcodes)
 }
 #endif /* _LOCATE_STATISTIC_ */
 
+extern	char	separator;
 
 void
 #ifdef FF_MMAP
@@ -315,11 +316,11 @@ fastfind
 						else if (f_limit) {
 							counter++;
 							if (f_limit >= counter)
-								(void)puts(path);
+								(void)printf("%s%c",path,separator);
 							else 
 								errx(0, "[show only %d lines]", counter - 1);
 						} else
-							(void)puts(path);
+							(void)printf("%s%c",path,separator);
 					}
 					break;
 				}
