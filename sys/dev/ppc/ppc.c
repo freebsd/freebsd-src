@@ -2153,3 +2153,4 @@ ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 
 DRIVER_MODULE(ppc, isa, ppc_driver, ppc_devclass, 0, 0);
 DRIVER_MODULE(ppc, acpi, ppc_driver, ppc_devclass, 0, 0);
+MODULE_DEPEND(ppc, ppbus, 1, 1, 1);
