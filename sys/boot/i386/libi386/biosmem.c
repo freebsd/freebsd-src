@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "libi386.h"
 #include "btxv86.h"
 
-vm_offset_t	memtop;
+vm_offset_t	memtop, memtop_copyin;
 u_int32_t	bios_basemem, bios_extmem;
 
 #define SMAPSIG	0x534D4150
@@ -101,7 +101,7 @@ bios_getmem(void)
     }
 
     /* Set memtop to actual top of memory */
-    memtop = 0x100000 + bios_extmem;
+    memtop = memtop_copyin = 0x100000 + bios_extmem;
 
 }    
 
