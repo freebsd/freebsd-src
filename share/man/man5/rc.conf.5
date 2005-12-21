@@ -90,6 +90,33 @@ disable informational messages from the rc scripts.
 Informational messages are displayed when
 a condition that is not serious enough to warrant a warning or
 an error occurs.
+.It Va early_late_divider
+.Pq Vt str
+The name of the script that should be used as the
+delimiter between the
+.Dq early
+and
+.Dq late
+stages of the boot process.
+The early stage should contain all the services needed to
+get the disks (local or remote) mounted so that the late
+stage can include scripts contained in the directories
+listed in the
+.Va local_startup
+variable (see below).
+Thus, the two likely candidates for this value are
+mountcritlocal for the typical system,
+and mountcritremote if the system needs remote file
+systems mounted to get access to the
+.Va local_startup
+directories; for example when
+.Pa /usr/local
+is NFS mounted.
+Extreme care should be taken when changing this value,
+and before changing it one should ensure that there are
+adequate provisions to recover from a failed boot
+(such as physical contact with the machine,
+or reliable remote console access).
 .It Va swapfile
 .Pq Vt str
 If set to
