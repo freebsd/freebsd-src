@@ -724,6 +724,9 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		    (void) ifpromisc(ifs, 0);
 		    break;
 
+	    case IFT_GIF:
+		    break;
+
 	    default:
 #ifdef DIAGNOSTIC
 		    panic("bridge_delete_member: impossible");
@@ -781,12 +784,15 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		if (ifs == bif->bif_ifp)
 			return (EBUSY);
 
-	/* Allow the first member to define the MTU */
-	if (LIST_EMPTY(&sc->sc_iflist))
-		sc->sc_ifp->if_mtu = ifs->if_mtu;
-	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
-		if_printf(sc->sc_ifp, "invalid MTU for %s\n", ifs->if_xname);
-		return (EINVAL);
+	/* Allow the first Ethernet member to define the MTU */
+	if (ifs->if_type != IFT_GIF) {
+		if (LIST_EMPTY(&sc->sc_iflist))
+			sc->sc_ifp->if_mtu = ifs->if_mtu;
+		else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
+			if_printf(sc->sc_ifp, "invalid MTU for %s\n",
+			    ifs->if_xname);
+			return (EINVAL);
+		}
 	}
 
 	if (ifs->if_bridge == sc)
@@ -808,6 +814,9 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		error = ifpromisc(ifs, 1);
 		if (error)
 			goto out;
+		break;
+
+	case IFT_GIF:
 		break;
 
 	default:
@@ -1553,6 +1562,9 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			dst_if = bif->bif_ifp;
+
+			if (dst_if->if_type == IFT_GIF)
+				continue;
 			if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				continue;
 
@@ -1944,6 +1956,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	 * Unicast.  Make sure it's not for us.
 	 */
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		if(bif->bif_ifp->if_type == IFT_GIF)
+			continue;
 		/* It is destined for us. */
 		if (memcmp(IF_LLADDR(bif->bif_ifp), eh->ether_dhost,
 		    ETHER_ADDR_LEN) == 0) {
