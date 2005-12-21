@@ -125,7 +125,7 @@ main(int argc, char **argv)
 	fd_set ready, sockbits;
 	fd_set v4bits, v6bits;
 	int ch, connect_type_cnt, i, maxsock, msgsock;
-	size_t len;
+	socklen_t len;
 	int on = 1, unregister, reregister, sock;
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
 	int udpflag, ecode, s, srvcnt;
