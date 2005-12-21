@@ -789,7 +789,7 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		}
 
 	/* Experience showed that we should discard this */
-	if (h == -1)
+	if (h == (char) -1)
 		h = 0;
 
 	*result = ((int) h << 8) | ((int) l & 0xff);
