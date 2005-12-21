@@ -1,11 +1,10 @@
 #!/bin/sh
 #
-# $NetBSD: ntpd,v 1.6 2002/03/22 04:33:59 thorpej Exp $
 # $FreeBSD$
 #
 
 # PROVIDE: ntpd
-# REQUIRE: DAEMON cleanvar
+# REQUIRE: DAEMON ntpdate cleanvar devfs
 # BEFORE:  LOGIN
 # KEYWORD: nojail
 
