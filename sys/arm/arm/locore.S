@@ -103,6 +103,9 @@ Lcopy_size:	.word _edata-_C_LABEL(_start)
 Lstart_off:	.word start_inram-_C_LABEL(_start)
 start_inram:
 	adr	r7, Lunmapped
+	bic     r7, r7, #0xff000000
+	orr     r7, r7, #PHYSADDR
+			
 
 	/* Disable MMU for a while */
 	mrc     p15, 0, r2, c1, c0, 0
@@ -122,8 +125,6 @@ Lunmapped:
 	/* build page table from scratch */
 	ldr	r0, Lstartup_pagetable
 	adr	r4, mmu_init_table
-	bic	r4, r4, #0xff000000
-	orr	r4, r4, #PHYSADDR
 	b	3f
 
 2:
