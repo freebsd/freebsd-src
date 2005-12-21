@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
-#undef DDB
 #include <arm/xscale/i80321/i80321reg.h>
 #include <arm/xscale/i80321/i80321var.h>
 #include <arm/xscale/i80321/iq80321reg.h>
