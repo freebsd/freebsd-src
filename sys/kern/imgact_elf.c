@@ -82,8 +82,7 @@ static Elf_Brandinfo *__elfN(get_brandinfo)(const Elf_Ehdr *hdr,
     const char *interp);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry, size_t pagesize);
-static int __elfN(load_section)(struct proc *p,
-    struct vmspace *vmspace, struct vnode *vp, vm_object_t object,
+static int __elfN(load_section)(struct vmspace *vmspace, vm_object_t object,
     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
     vm_prot_t prot, size_t pagesize);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
@@ -336,8 +335,8 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 }
 
 static int
-__elfN(load_section)(struct proc *p, struct vmspace *vmspace,
-	struct vnode *vp, vm_object_t object, vm_offset_t offset,
+__elfN(load_section)(struct vmspace *vmspace,
+	vm_object_t object, vm_offset_t offset,
 	caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
 	size_t pagesize)
 {
@@ -520,25 +519,20 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * Check permissions, modes, uid, etc on the file, and "open" it.
 	 */
 	error = exec_check_permissions(imgp);
-	if (error) {
-		VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
+	if (error)
 		goto fail;
-	}
 
 	error = exec_map_first_page(imgp);
+	if (error)
+		goto fail;
+
 	/*
 	 * Also make certain that the interpreter stays the same, so set
 	 * its VV_TEXT flag, too.
 	 */
-	if (error == 0)
-		nd->ni_vp->v_vflag |= VV_TEXT;
+	nd->ni_vp->v_vflag |= VV_TEXT;
 
 	imgp->object = nd->ni_vp->v_object;
-	vm_object_reference(imgp->object);
-
-	VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
-	if (error)
-		goto fail;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 	if ((error = __elfN(check_header)(hdr)) != 0)
@@ -572,8 +566,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if ((error = __elfN(load_section)(p, vmspace,
-			    nd->ni_vp, imgp->object, phdr[i].p_offset,
+			if ((error = __elfN(load_section)(vmspace,
+			    imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
 			    pagesize)) != 0)
@@ -594,11 +588,9 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 fail:
 	if (imgp->firstpage)
 		exec_unmap_first_page(imgp);
-	if (imgp->object)
-		vm_object_deallocate(imgp->object);
 
 	if (nd->ni_vp)
-		vrele(nd->ni_vp);
+		vput(nd->ni_vp);
 
 	VFS_UNLOCK_GIANT(vfslocked);
 	free(tempdata, M_TEMP);
@@ -700,8 +692,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				prot |= VM_PROT_EXECUTE;
 #endif
 
-			if ((error = __elfN(load_section)(imgp->proc, vmspace,
-			    imgp->vp, imgp->object, phdr[i].p_offset,
+			if ((error = __elfN(load_section)(vmspace,
+			    imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
 			    sv->sv_pagesize)) != 0)
