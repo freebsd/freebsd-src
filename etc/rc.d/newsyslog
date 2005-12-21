@@ -6,7 +6,6 @@
 
 # PROVIDE: newsyslog
 # REQUIRE: cleanvar mountcritremote
-# BEFORE: syslogd
 
 . /etc/rc.subr
 
