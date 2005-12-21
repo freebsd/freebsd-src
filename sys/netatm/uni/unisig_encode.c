@@ -1533,7 +1533,7 @@ usf_enc_ie_ident(usf, ie, tbl)
 		 */
 		cp = (char *) ((intptr_t)ie + tbl[i].f_offs);
 		if (tbl[i].len == 0) {
-			if ((*cp == T_NO || *cp == T_ATM_ABSENT))
+			if ((*cp == T_NO || *(int8_t *)cp == T_ATM_ABSENT))
 				continue;
 		} else {
 			switch (tbl[i].f_size) {
