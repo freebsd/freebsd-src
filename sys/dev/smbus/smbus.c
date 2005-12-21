@@ -103,5 +103,7 @@ DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, alpm, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, ichsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, amdpm, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, amdsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, nfsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, viapropm, smbus_driver, smbus_devclass, 0, 0);
 MODULE_VERSION(smbus, SMBUS_MODVER);
