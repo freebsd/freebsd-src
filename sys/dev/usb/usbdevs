@@ -484,6 +484,7 @@ product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE SPEAKERS		0x1101	Speakers
 product APPLE IPOD3G		0x1203	iPod 3G
 product APPLE IPODVIDEO		0x1209	iPod Video
+product APPLE IPODNANO		0x120a	iPod Nano
 
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
