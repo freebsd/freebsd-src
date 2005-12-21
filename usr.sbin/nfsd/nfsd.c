@@ -124,7 +124,8 @@ main(int argc, char **argv)
 	struct sockaddr_in6 inet6peer;
 	fd_set ready, sockbits;
 	fd_set v4bits, v6bits;
-	int ch, connect_type_cnt, i, len, maxsock, msgsock;
+	int ch, connect_type_cnt, i, maxsock, msgsock;
+	size_t len;
 	int on = 1, unregister, reregister, sock;
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
 	int udpflag, ecode, s, srvcnt;
