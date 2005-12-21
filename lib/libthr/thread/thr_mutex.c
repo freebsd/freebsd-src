@@ -854,7 +854,8 @@ _mutex_cv_lock(pthread_mutex_t *m)
 {
 	int	ret;
 
-	if ((ret = _pthread_mutex_lock(m)) == 0)
+	ret = mutex_lock_common(_get_curthread(), m, NULL);
+	if (ret == 0)
 		(*m)->m_refcount--;
 	return (ret);
 }
