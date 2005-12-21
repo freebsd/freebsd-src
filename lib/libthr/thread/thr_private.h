@@ -55,16 +55,9 @@
 #include "thr_umtx.h"
 #include "thread_db.h"
 
-/*
- * Evaluate the storage class specifier.
- */
-#ifdef GLOBAL_PTHREAD_PRIVATE
-#define SCLASS
-#define SCLASS_PRESET(x...)	= x
-#else
-#define SCLASS			extern
-#define SCLASS_PRESET(x...)
-#endif
+#define __hidden		__attribute__((visibility("hidden")))
+typedef TAILQ_HEAD(pthreadlist, pthread) pthreadlist;
+typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
 
 /* Signal to do cancellation */
 #define	SIGCANCEL		32
@@ -588,91 +581,61 @@ extern int __isthreaded;
  * Global variables for the pthread kernel.
  */
 
-SCLASS void		*_usrstack	SCLASS_PRESET(NULL);
-SCLASS struct pthread	*_thr_initial	SCLASS_PRESET(NULL);
-SCLASS int		_thr_scope_system	SCLASS_PRESET(0);
+extern void		*_usrstack __hidden;
+extern struct pthread	*_thr_initial __hidden;
+extern int		_thr_scope_system __hidden;
 
 /* For debugger */
-SCLASS int		_libthr_debug		SCLASS_PRESET(0);
-SCLASS int		_thread_event_mask	SCLASS_PRESET(0);
-SCLASS struct pthread	*_thread_last_event;
+extern int		_libthr_debug;
+extern int		_thread_event_mask;
+extern struct pthread	*_thread_last_event;
 
 /* List of all threads: */
-SCLASS TAILQ_HEAD(, pthread)	_thread_list
-    SCLASS_PRESET(TAILQ_HEAD_INITIALIZER(_thread_list));
+extern pthreadlist	_thread_list;
 
 /* List of threads needing GC: */
-SCLASS TAILQ_HEAD(, pthread)	_thread_gc_list
-    SCLASS_PRESET(TAILQ_HEAD_INITIALIZER(_thread_gc_list));
+extern pthreadlist	_thread_gc_list __hidden;
 
-SCLASS int	_thread_active_threads  SCLASS_PRESET(1);
-
-SCLASS TAILQ_HEAD(atfork_head, pthread_atfork) _thr_atfork_list;
-SCLASS umtx_t	_thr_atfork_lock;
+extern int		_thread_active_threads;
+extern atfork_head	_thr_atfork_list __hidden;
+extern umtx_t		_thr_atfork_lock __hidden;
 
 /* Default thread attributes: */
-SCLASS struct pthread_attr _pthread_attr_default
-    SCLASS_PRESET({
-	.sched_policy = SCHED_RR,
-	.sched_inherit = 0,
-	.sched_interval = TIMESLICE_USEC,
-	.prio = THR_DEFAULT_PRIORITY,
-	.suspend = THR_CREATE_RUNNING,
-	.flags = 0,
-	.arg_attr = NULL,
-	.cleanup_attr = NULL,
-	.stackaddr_attr = NULL,
-	.stacksize_attr = THR_STACK_DEFAULT,
-	.guardsize_attr = 0
-    });
+extern struct pthread_attr _pthread_attr_default __hidden;
 
 /* Default mutex attributes: */
-SCLASS struct pthread_mutex_attr _pthread_mutexattr_default
-    SCLASS_PRESET({
-	.m_type = PTHREAD_MUTEX_DEFAULT,
-	.m_protocol = PTHREAD_PRIO_NONE,
-	.m_ceiling = 0,
-	.m_flags = 0
-    });
+extern struct pthread_mutex_attr _pthread_mutexattr_default __hidden;
 
 /* Default condition variable attributes: */
-SCLASS struct pthread_cond_attr _pthread_condattr_default
-    SCLASS_PRESET({
-	.c_pshared = PTHREAD_PROCESS_PRIVATE,
-	.c_clockid = CLOCK_REALTIME
-    });
+extern struct pthread_cond_attr _pthread_condattr_default __hidden;
 
-SCLASS pid_t		_thr_pid		SCLASS_PRESET(0);
-SCLASS int		_thr_guard_default;
-SCLASS int		_thr_stack_default	SCLASS_PRESET(THR_STACK_DEFAULT);
-SCLASS int		_thr_stack_initial	SCLASS_PRESET(THR_STACK_INITIAL);
-SCLASS int		_thr_page_size;
+extern pid_t	_thr_pid __hidden;
+extern int	_thr_guard_default __hidden;
+extern int	_thr_stack_default __hidden;
+extern int	_thr_stack_initial __hidden;
+extern int	_thr_page_size __hidden;
 /* Garbage thread count. */
-SCLASS int              _gc_count               SCLASS_PRESET(0);
+extern int	_gc_count __hidden;
 
-SCLASS umtx_t		_mutex_static_lock;
-SCLASS umtx_t		_cond_static_lock;
-SCLASS umtx_t		_rwlock_static_lock;
-SCLASS umtx_t		_keytable_lock;
-SCLASS umtx_t		_thr_list_lock;
-SCLASS umtx_t		_thr_event_lock;
-
-/* Undefine the storage class and preset specifiers: */
-#undef  SCLASS
-#undef	SCLASS_PRESET
+extern umtx_t	_mutex_static_lock __hidden;
+extern umtx_t	_cond_static_lock __hidden;
+extern umtx_t	_rwlock_static_lock __hidden;
+extern umtx_t	_keytable_lock __hidden;
+extern umtx_t	_thr_list_lock __hidden;
+extern umtx_t	_thr_event_lock __hidden;
 
 /*
  * Function prototype definitions.
  */
 __BEGIN_DECLS
-int	_thr_setthreaded(int);
-int	_mutex_cv_lock(pthread_mutex_t *);
-int	_mutex_cv_unlock(pthread_mutex_t *);
-void	_mutex_notify_priochange(struct pthread *, struct pthread *, int);
-int	_mutex_reinit(pthread_mutex_t *);
-void	_mutex_fork(struct pthread *curthread);
-void	_mutex_unlock_private(struct pthread *);
-void	_libpthread_init(struct pthread *);
+int	_thr_setthreaded(int) __hidden;
+int	_mutex_cv_lock(pthread_mutex_t *) __hidden;
+int	_mutex_cv_unlock(pthread_mutex_t *) __hidden;
+void	_mutex_notify_priochange(struct pthread *, struct pthread *, int) __hidden;
+int	_mutex_reinit(pthread_mutex_t *) __hidden;
+void	_mutex_fork(struct pthread *curthread) __hidden;
+void	_mutex_unlock_private(struct pthread *) __hidden;
+void	_libpthread_init(struct pthread *) __hidden;
 void	*_pthread_getspecific(pthread_key_t);
 int	_pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
 int	_pthread_cond_destroy(pthread_cond_t *);
@@ -702,41 +665,41 @@ void	_pthread_testcancel(void);
 void	_pthread_yield(void);
 void	_pthread_cleanup_push(void (*routine) (void *), void *routine_arg);
 void	_pthread_cleanup_pop(int execute);
-struct pthread *_thr_alloc(struct pthread *);
-void	_thread_exit(char *, int, char *) __dead2;
-void	_thr_exit_cleanup(void);
-int	_thr_ref_add(struct pthread *, struct pthread *, int);
-void	_thr_ref_delete(struct pthread *, struct pthread *);
-int	_thr_find_thread(struct pthread *, struct pthread *, int);
-void	_thr_rtld_init(void);
-void	_thr_rtld_fini(void);
-int	_thr_stack_alloc(struct pthread_attr *);
-void	_thr_stack_free(struct pthread_attr *);
-void	_thr_free(struct pthread *, struct pthread *);
-void	_thr_gc(struct pthread *);
-void    _thread_cleanupspecific(void);
-void    _thread_dump_info(void);
-void	_thread_printf(int, const char *, ...);
-void	_thr_spinlock_init(void);
-int	_thr_cancel_enter(struct pthread *);
-void	_thr_cancel_leave(struct pthread *, int);
-void	_thr_signal_block(struct pthread *);
-void	_thr_signal_unblock(struct pthread *);
-void	_thr_signal_init(void);
-void	_thr_signal_deinit(void);
-int	_thr_send_sig(struct pthread *, int sig);
-void	_thr_list_init(void);
-void	_thr_hash_add(struct pthread *);
-void	_thr_hash_remove(struct pthread *);
-struct pthread *_thr_hash_find(struct pthread *);
-void	_thr_link(struct pthread *curthread, struct pthread *thread);
-void	_thr_unlink(struct pthread *curthread, struct pthread *thread);
-void	_thr_suspend_check(struct pthread *curthread);
-void	_thr_assert_lock_level(void) __dead2;
-void	_thr_timer_init(void);
+struct pthread *_thr_alloc(struct pthread *) __hidden;
+void	_thread_exit(char *, int, char *) __hidden __dead2;
+void	_thr_exit_cleanup(void) __hidden;
+int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
+void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
+int	_thr_find_thread(struct pthread *, struct pthread *, int) __hidden;
+void	_thr_rtld_init(void) __hidden;
+void	_thr_rtld_fini(void) __hidden;
+int	_thr_stack_alloc(struct pthread_attr *) __hidden;
+void	_thr_stack_free(struct pthread_attr *) __hidden;
+void	_thr_free(struct pthread *, struct pthread *) __hidden;
+void	_thr_gc(struct pthread *) __hidden;
+void    _thread_cleanupspecific(void) __hidden;
+void    _thread_dump_info(void) __hidden;
+void	_thread_printf(int, const char *, ...) __hidden;
+void	_thr_spinlock_init(void) __hidden;
+int	_thr_cancel_enter(struct pthread *) __hidden;
+void	_thr_cancel_leave(struct pthread *, int) __hidden;
+void	_thr_signal_block(struct pthread *) __hidden;
+void	_thr_signal_unblock(struct pthread *) __hidden;
+void	_thr_signal_init(void) __hidden;
+void	_thr_signal_deinit(void) __hidden;
+int	_thr_send_sig(struct pthread *, int sig) __hidden;
+void	_thr_list_init(void) __hidden;
+void	_thr_hash_add(struct pthread *) __hidden;
+void	_thr_hash_remove(struct pthread *) __hidden;
+struct pthread *_thr_hash_find(struct pthread *) __hidden;
+void	_thr_link(struct pthread *curthread, struct pthread *thread) __hidden;
+void	_thr_unlink(struct pthread *curthread, struct pthread *thread) __hidden;
+void	_thr_suspend_check(struct pthread *curthread) __hidden;
+void	_thr_assert_lock_level(void) __hidden __dead2;
+void	_thr_timer_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
-			   struct pthread *newthread);
-void	_thr_report_death(struct pthread *curthread);
+			   struct pthread *newthread) __hidden;
+void	_thr_report_death(struct pthread *curthread) __hidden;
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 
