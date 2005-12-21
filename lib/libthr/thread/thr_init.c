@@ -69,6 +69,58 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
+void		*_usrstack;
+struct pthread	*_thr_initial;
+int		_thr_scope_system;
+int		_libthr_debug;
+int		_thread_event_mask;
+struct pthread	*_thread_last_event;
+pthreadlist	_thread_list = TAILQ_HEAD_INITIALIZER(_thread_list);
+pthreadlist 	_thread_gc_list = TAILQ_HEAD_INITIALIZER(_thread_gc_list);
+int		_thread_active_threads = 1;
+atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
+umtx_t		_thr_atfork_lock;
+
+struct pthread_attr _pthread_attr_default = {
+	.sched_policy = SCHED_RR,
+	.sched_inherit = 0,
+	.sched_interval = TIMESLICE_USEC,
+	.prio = THR_DEFAULT_PRIORITY,
+	.suspend = THR_CREATE_RUNNING,
+	.flags = 0,
+	.arg_attr = NULL,
+	.cleanup_attr = NULL,
+	.stackaddr_attr = NULL,
+	.stacksize_attr = THR_STACK_DEFAULT,
+	.guardsize_attr = 0
+};
+
+struct pthread_mutex_attr _pthread_mutexattr_default = {
+	.m_type = PTHREAD_MUTEX_DEFAULT,
+	.m_protocol = PTHREAD_PRIO_NONE,
+	.m_ceiling = 0,
+	.m_flags = 0
+};
+
+/* Default condition variable attributes: */
+struct pthread_cond_attr _pthread_condattr_default = {
+	.c_pshared = PTHREAD_PROCESS_PRIVATE,
+	.c_clockid = CLOCK_REALTIME
+};
+
+pid_t		_thr_pid;
+int		_thr_guard_default;
+int		_thr_stack_default = THR_STACK_DEFAULT;
+int		_thr_stack_initial = THR_STACK_INITIAL;
+int		_thr_page_size;
+int		_gc_count;
+umtx_t		_mutex_static_lock;
+umtx_t		_cond_static_lock;
+umtx_t		_rwlock_static_lock;
+umtx_t		_keytable_lock;
+umtx_t		_thr_list_lock;
+umtx_t		_thr_event_lock;
+
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
 int	__pthread_mutex_trylock(pthread_mutex_t *);
