@@ -228,7 +228,7 @@ structure, defined in
 as follows:
 .Bd -literal
 struct sockcred {
-  id_t	sc_uid;		/* real user id */
+  uid_t	sc_uid;		/* real user id */
   uid_t	sc_euid;	/* effective user id */
   gid_t	sc_gid;		/* real group id */
   gid_t	sc_egid;	/* effective group id */
@@ -247,7 +247,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct cmsghdr) + SOCKCREDSIZE(ngroups)
+cmsg_len = CMSG_LEN(SOCKCREDSIZE(ngroups))
 cmsg_level = SOL_SOCKET
 cmsg_type = SCM_CREDS
 .Ed
