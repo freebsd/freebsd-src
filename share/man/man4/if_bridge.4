@@ -173,7 +173,24 @@ ifconfig bridge0 \e
     addm fxp7 stp fxp7 \e
     up
 .Ed
+.Pp
+The bridge can tunnel Ethernet across an IP internet using the EtherIP
+protocol.
+This can be combined with
+.Xr ipsec 4
+to provide an encrypted connection.
+Create a
+.Xr gif 4
+interface and set the local and remote IP addresses for the
+tunnel, these are reversed on the remote bridge.
+.Bd -literal -offset indent
+ifconfig gif0 create
+ifconfig gif0 tunnel 1.2.3.4 5.6.7.8 up
+ifconfig bridge0 create
+ifconfig bridge0 addm fxp0 addm gif0 up
+.Ed
 .Sh SEE ALSO
+.Xr gif 4 ,
 .Xr ipf 4 ,
 .Xr ipfw 4 ,
 .Xr pf 4 ,

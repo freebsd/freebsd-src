@@ -85,6 +85,14 @@ struct gif_softc {
 #define	MTAG_GIF	1080679712
 #define	MTAG_GIF_CALLED	0
 
+struct etherip_header {
+	u_int8_t eip_ver;	/* version/reserved */
+	u_int8_t eip_pad;	/* required padding byte */
+};
+#define ETHERIP_VER_VERS_MASK   0x0f
+#define ETHERIP_VER_RSVD_MASK   0xf0
+#define ETHERIP_VERSION         0x03
+
 /* Prototypes */
 void gifattach0(struct gif_softc *);
 void gif_input(struct mbuf *, int, struct ifnet *);
