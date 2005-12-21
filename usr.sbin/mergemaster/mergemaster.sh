@@ -809,16 +809,16 @@ if [ -z "${PRE_WORLD}" -a -z "${RERUN}" ]; then
     case "${AUTO_RUN}" in
     '')
       echo ''
-      echo -n '   *** Delete them now? [y] '
+      echo -n '   *** Delete them now? [n] '
       read DELETE_STALE_RC_FILES
       case "${DELETE_STALE_RC_FILES}" in
-      [nN])
-        echo '      *** Files will not be deleted'
-        ;;
-      *)
+      [yY])
         echo '      *** Deleting ... '
         rm ${STALE_RC_FILES}
         echo '                       done.'
+        ;;
+      *)
+        echo '      *** Files will not be deleted'
         ;;
       esac
       sleep 2
