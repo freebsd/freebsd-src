@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20051222:
+	Bug fixes to the trimdomain(3) function in libutil may result in
+	slight changes to the host names appearing in log files under
+	relatively rare circumstances.
+
 20051220:
 	Scripts in the local_startup directories (as defined in
 	/etc/defaults/rc.conf) that have the new rc.d semantics will
