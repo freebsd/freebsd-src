@@ -82,6 +82,9 @@ struct wep_ctx {
 	u_int32_t	wc_iv;		/* initial vector for crypto */
 };
 
+/* number of references from net80211 layer */
+static	int nrefs = 0;
+
 static void *
 wep_attach(struct ieee80211com *ic, struct ieee80211_key *k)
 {
@@ -96,6 +99,7 @@ wep_attach(struct ieee80211com *ic, struct ieee80211_key *k)
 
 	ctx->wc_ic = ic;
 	get_random_bytes(&ctx->wc_iv, sizeof(ctx->wc_iv));
+	nrefs++;			/* NB: we assume caller locking */
 	return ctx;
 }
 
@@ -105,6 +109,8 @@ wep_detach(struct ieee80211_key *k)
 	struct wep_ctx *ctx = k->wk_private;
 
 	FREE(ctx, M_DEVBUF);
+	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
+	nrefs--;			/* NB: we assume caller locking */
 }
 
 static int
@@ -481,7 +487,14 @@ wep_modevent(module_t mod, int type, void *unused)
 		ieee80211_crypto_register(&wep);
 		return 0;
 	case MOD_UNLOAD:
-		ieee80211_crypto_unregister(&wep);
+	case MOD_QUIESCE:
+		if (nrefs) {
+			printf("wlan_wep: still in use (%u dynamic refs)\n",
+				nrefs);
+			return EBUSY;
+		}
+		if (type == MOD_UNLOAD)
+			ieee80211_crypto_unregister(&wep);
 		return 0;
 	}
 	return EINVAL;
