@@ -1762,16 +1762,14 @@ dlopen(const char *name, int mode)
 	mode &= RTLD_MODEMASK;
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
-
 	    result = load_needed_objects(obj);
+	    init_dag(obj);
 	    if (result != -1)
 		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
 		goto trace;
-
 	    if (result == -1 ||
-	      (init_dag(obj), relocate_objects(obj, mode == RTLD_NOW,
-	       &obj_rtld)) == -1) {
+	      (relocate_objects(obj, mode == RTLD_NOW, &obj_rtld)) == -1) {
 		obj->dl_refcount--;
 		unref_dag(obj);
 		if (obj->refcount == 0)
