@@ -246,6 +246,8 @@ static int
 tulip_txprobe(tulip_softc_t * const sc)
 {
     struct mbuf *m;
+    u_char *enaddr;
+
     /*
      * Before we are sure this is the right media we need
      * to send a small packet to make sure there's carrier.
@@ -260,8 +262,12 @@ tulip_txprobe(tulip_softc_t * const sc)
     /*
      * Construct a LLC TEST message which will point to ourselves.
      */
-    bcopy(IF_LLADDR(sc->tulip_ifp), mtod(m, struct ether_header *)->ether_dhost, 6);
-    bcopy(IF_LLADDR(sc->tulip_ifp), mtod(m, struct ether_header *)->ether_shost, 6);
+    if (sc->tulip_ifp->if_input != NULL)
+	enaddr = IF_LLADDR(sc->tulip_ifp);
+    else
+	enaddr = sc->tulip_enaddr;
+    bcopy(enaddr, mtod(m, struct ether_header *)->ether_dhost, ETHER_ADDR_LEN);
+    bcopy(enaddr, mtod(m, struct ether_header *)->ether_shost, ETHER_ADDR_LEN);
     mtod(m, struct ether_header *)->ether_type = htons(3);
     mtod(m, unsigned char *)[14] = 0;
     mtod(m, unsigned char *)[15] = 0;
@@ -3041,7 +3047,10 @@ tulip_addr_filter(tulip_softc_t * const sc)
     IF_ADDR_LOCK(ifp);
 
     /* Copy MAC address on stack to align. */
-    bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
+    if (ifp->if_input != NULL)
+    	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
+    else
+	bcopy(sc->tulip_enaddr, eaddr, ETHER_ADDR_LEN);
 
     TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
