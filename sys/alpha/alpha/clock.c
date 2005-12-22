@@ -157,7 +157,7 @@ static u_int64_t scaled_ticks_per_cycle;
 static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
-static void handleclock(void* arg);
+static void handleclock(int usermode, uintfptr_t pc);
 static void calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc,
     u_int32_t *timer);
 static void set_timer_freq(u_int freq, int intr_freq);
@@ -230,8 +230,7 @@ out:
  */
 
 /*
- * Start the real-time and statistics clocks. Leave stathz 0 since there
- * are no other timers available.
+ * Start the real-time and statistics clocks.
  */
 void
 cpu_initclocks()
@@ -275,7 +274,9 @@ cpu_initclocks()
 	 */
 	if (hwrpb->rpb_type != ST_DEC_21000) {
 		tc_init(&i8254_timecounter);
-	}
+		platform.clockintr = handleclock;
+	} else
+		platform.clockintr = hardclock;
 
 	if (ncpus == 1) {
 		alpha_timecounter.tc_frequency = freq;
@@ -283,7 +284,7 @@ cpu_initclocks()
 	}
 
 	stathz = hz / 8;
-	platform.clockintr = (void (*)(void *)) handleclock;
+	profhz = hz;
 
 	/*
 	 * Get the clock started.
@@ -424,27 +425,23 @@ set_timer_freq(u_int freq, int intr_freq)
 }
 
 static void
-handleclock(void *arg)
+handleclock(int usermode, uintfptr_t pc)
 {
-	/*
-	 * XXX: TurboLaser doesn't have an i8254 counter.
-	 * XXX: A replacement is needed, and another method
-	 * XXX: of determining this would be nice.
-	 */
-	if (hwrpb->rpb_type != ST_DEC_21000) {
-		if (timecounter->tc_get_timecount == i8254_get_timecount) {
-			mtx_lock_spin(&clock_lock);
-			if (i8254_ticked)
-				i8254_ticked = 0;
-			else {
-				i8254_offset += timer0_max_count;
-				i8254_lastcount = 0;
-			}
-			clkintr_pending = 0;
-			mtx_unlock_spin(&clock_lock);
+
+	KASSERT(hwrpb->rpb_type != ST_DEC_21000,
+	    ("custom clock handler called on TurboLaser"));
+	if (timecounter->tc_get_timecount == i8254_get_timecount) {
+		mtx_lock_spin(&clock_lock);
+		if (i8254_ticked)
+			i8254_ticked = 0;
+		else {
+			i8254_offset += timer0_max_count;
+			i8254_lastcount = 0;
 		}
+		clkintr_pending = 0;
+		mtx_unlock_spin(&clock_lock);
 	}
-	hardclock(arg);
+	hardclock(usermode, pc);
 }
 
 void

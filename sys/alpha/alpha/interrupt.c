@@ -489,23 +489,21 @@ alpha_clock_interrupt(struct trapframe *framep)
 		 */
 		if (PCPU_GET(cpuid) == 0) {
 #endif
-			(*platform.clockintr)(framep);
-			/* divide hz (1024) by 8 to get stathz (128) */
-			if ((++schedclk2 & 0x7) == 0) {
-				if (profprocs != 0)
-					profclock((struct clockframe *)framep);
-				statclock((struct clockframe *)framep);
-			}
+			(*platform.clockintr)(TRAPF_USERMODE(framep),
+			    TRAPF_PC(framep));
+
+			/* Bump stathz divider. */
+			schedclk2++;
 #ifdef SMP
-		} else {
-			hardclock_process((struct clockframe *)framep);
-			if ((schedclk2 & 0x7) == 0) {
-				if (profprocs != 0)
-					profclock((struct clockframe *)framep);
-				statclock((struct clockframe *)framep);
-			}
-		}
+		} else
+			hardclock_cpu(TRAPF_USERMODE(framep));
 #endif
+		if (profprocs != 0)
+			profclock(TRAPF_USERMODE(framep), TRAPF_PC(framep));
+
+		/* divide hz (1024) by 8 to get stathz (128) */
+		if ((schedclk2 & 0x7) == 0)
+			statclock(TRAPF_USERMODE(framep));
 		critical_exit();
 	}
 }

@@ -54,7 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/frame.h>
 
 #include <machine/katelib.h>
 
@@ -144,7 +146,7 @@ static void
 clockintr(arg)
 	void *arg;
 {
-	struct clockframe *frame = arg;
+	struct trapframe *frame = arg;
 	u_int32_t oscr, nextmatch, oldmatch;
 	int s;
 
@@ -179,7 +181,7 @@ clockintr(arg)
 	saost_sc->sc_clock_count = nextmatch;
 	bus_space_write_4(saost_sc->sc_iot, saost_sc->sc_ioh, SAOST_MR0,
 			  nextmatch);
-	hardclock(frame);
+	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 #if 0
 	mtx_unlock_spin(&clock_lock);
 #endif
@@ -190,7 +192,7 @@ static void
 statintr(arg)
 	void *arg;
 {
-	struct clockframe *frame = arg;
+	struct trapframe *frame = arg;
 	u_int32_t oscr, nextmatch, oldmatch;
 	int s;
 
@@ -225,7 +227,7 @@ statintr(arg)
 	}
 
 	saost_sc->sc_statclock_count = nextmatch;
-	statclock(frame);
+	statclock(TRAPF_USERMODE(frame));
 
 }
 #endif

@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
@@ -141,7 +142,7 @@ static struct timecounter i8254_timecounter = {
 };
 
 static void
-clkintr(struct clockframe *frame)
+clkintr(struct trapframe *frame)
 {
 
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
@@ -155,8 +156,8 @@ clkintr(struct clockframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	if (!using_lapic_timer)
-		hardclock(frame);
+	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
+	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 }
 
 int
@@ -212,17 +213,17 @@ release_timer2()
  * in the statistics, but the stat clock will no longer stop.
  */
 static void
-rtcintr(struct clockframe *frame)
+rtcintr(struct trapframe *frame)
 {
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		if (profprocs != 0) {
 			if (--pscnt == 0)
 				pscnt = psdiv;
-			profclock(frame);
+			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 		}
 		if (pscnt == psdiv)
-			statclock(frame);
+			statclock(TRAPF_USERMODE(frame));
 	}
 }
 

@@ -29,10 +29,7 @@ get_cyclecount(void)
 #define CPU_MAXID               6       /* number of valid machdep ids */
 
 
-#define CLKF_USERMODE(frame)    ((frame->if_spsr & PSR_MODE) == PSR_USR32_MODE)
-
 #define TRAPF_USERMODE(frame)	((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE)
-#define CLKF_PC(frame)          (frame->if_pc)
 
 #define TRAPF_PC(tfp)		((tfp)->tf_pc)
 

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
@@ -62,7 +63,7 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_ticks, CTLFLAG_RD, &adjust_ticks,
     0, "total number of tick interrupts with adjustment");
 
-static void tick_hardclock(struct clockframe *);
+static void tick_hardclock(struct trapframe *);
 
 void
 cpu_initclocks(void)
@@ -73,20 +74,20 @@ cpu_initclocks(void)
 }
 
 static __inline void
-tick_process(struct clockframe *cf)
+tick_process(struct trapframe *tf)
 {
 
 	if (PCPU_GET(cpuid) == 0)
-		hardclock(cf);
+		hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
 	else
-		hardclock_process(cf);
+		hardclock_cpu(TRAPF_USERMODE(tf));
 	if (profprocs != 0)
-		profclock(cf);
-	statclock(cf);
+		profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
+	statclock(TRAPF_USERMODE(tf));
 }
 
 static void
-tick_hardclock(struct clockframe *cf)
+tick_hardclock(struct trapframe *tf)
 {
 	u_long adj, s, tick, ref;
 	long delta;
@@ -108,7 +109,7 @@ tick_hardclock(struct clockframe *cf)
 	delta = tick - ref;
 	count = 0;
 	while (delta >= tick_increment) {
-		tick_process(cf);
+		tick_process(tf);
 		delta -= tick_increment;
 		ref += tick_increment;
 		if (adj != 0)
@@ -163,8 +164,7 @@ tick_start(void)
 	u_long base, s;
 
 	if (PCPU_GET(cpuid) == 0)
-		intr_setup(PIL_TICK, (ih_func_t *)tick_hardclock, -1, NULL,
-		    NULL);
+		intr_setup(PIL_TICK, tick_hardclock, -1, NULL, NULL);
 
 	/*
 	 * Try to make the tick interrupts as synchronously as possible on

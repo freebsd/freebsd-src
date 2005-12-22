@@ -65,13 +65,6 @@ struct trapframe {
 #define	FRAMELEN	roundup(sizeof(struct trapframe) + 8, 16)
 #define	trapframe(td)	((td)->td_frame)
 
-struct clockframe {
-	register_t srr1;
-	register_t srr0;
-	int pri;
-	int depth;
-};
-
 /*
  * Call frame for PowerPC used during fork.
  */

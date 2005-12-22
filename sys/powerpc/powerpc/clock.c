@@ -183,7 +183,7 @@ resettodr()
 }
 
 void
-decr_intr(struct clockframe *frame)
+decr_intr(struct trapframe *frame)
 {
 	u_long		tb;
 	long		tick;
@@ -225,10 +225,10 @@ decr_intr(struct clockframe *frame)
 	 */
 #if 0
 	while (--nticks > 0) {
-		hardclock(frame);
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	}
 #endif
-	hardclock(frame);
+	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 }
 
 void
