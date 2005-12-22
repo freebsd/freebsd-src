@@ -208,6 +208,7 @@ struct ieee80211com {
 /* NB: bits 0x4c available */
 #define	IEEE80211_F_FF		0x00000001	/* CONF: ATH FF enabled */
 #define	IEEE80211_F_TURBOP	0x00000002	/* CONF: ATH Turbo enabled*/
+#define	IEEE80211_F_BURST	0x00000004	/* CONF: bursting enabled */
 /* NB: this is intentionally setup to be IEEE80211_CAPINFO_PRIVACY */
 #define	IEEE80211_F_PRIVACY	0x00000010	/* CONF: privacy enabled */
 #define	IEEE80211_F_PUREG	0x00000020	/* CONF: 11g w/o 11b sta's */

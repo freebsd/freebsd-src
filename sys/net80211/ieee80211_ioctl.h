@@ -444,6 +444,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_PUREG		56	/* pure 11g (no 11b stations) */
 #define	IEEE80211_IOC_MCAST_RATE	72	/* tx rate for mcast frames */
 #define	IEEE80211_IOC_FRAGTHRESHOLD	73	/* tx fragmentation threshold */
+#define	IEEE80211_IOC_BURST		75	/* packet bursting */
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.
