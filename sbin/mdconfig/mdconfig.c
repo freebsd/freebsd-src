@@ -19,6 +19,7 @@
 #include <libutil.h>
 #include <string.h>
 #include <err.h>
+#include <assert.h>
 
 #include <sys/ioctl.h>
 #include <sys/param.h>
@@ -269,19 +270,28 @@ main(int argc, char **argv)
 	return (0);
 }
 
+static int
+mdunitcmp(const void *a, const void *b)
+{
+	return (*(int *)a - *(int *)b);
+}
+
 int
 list(const int fd)
 {
 	int unit;
+	int mdcount;
 
 	if (ioctl(fd, MDIOCLIST, &mdio) < 0)
 		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
-	for (unit = 0; unit < mdio.md_pad[0] && unit < MDNPAD - 1; unit++) {
+	mdcount = mdio.md_pad[0];
+	assert(mdcount < MDNPAD - 1);
+	if (mdcount > 0)
+		qsort(&mdio.md_pad[1], mdcount, sizeof(mdio.md_pad[0]), mdunitcmp);
+	for (unit = 0; unit < mdcount; unit++) {
 		printf("%s%s%d", unit > 0 ? " " : "",
 		    nflag ? "" : MD_NAME, mdio.md_pad[unit + 1]);
 	}
-	if (mdio.md_pad[0] - unit > 0)
-		printf(" ... %d more", mdio.md_pad[0] - unit);
 	if (unit > 0)
 		printf("\n");
 	return (0);
