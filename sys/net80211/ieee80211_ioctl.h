@@ -442,6 +442,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_ADDMAC		54	/* add sta to MAC ACL table */
 #define	IEEE80211_IOC_DELMAC		55	/* del sta from MAC ACL table */
 #define	IEEE80211_IOC_PUREG		56	/* pure 11g (no 11b stations) */
+#define	IEEE80211_IOC_MCAST_RATE	72	/* tx rate for mcast frames */
 #define	IEEE80211_IOC_FRAGTHRESHOLD	73	/* tx fragmentation threshold */
 
 /*

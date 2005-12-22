@@ -97,6 +97,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ic->ic_rtsthreshold = IEEE80211_RTS_DEFAULT;
 	ic->ic_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
+	ic->ic_mcast_rate = IEEE80211_MCAST_RATE_DEFAULT;
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 	ic->ic_roaming = IEEE80211_ROAMING_AUTO;
 
