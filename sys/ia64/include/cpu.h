@@ -44,17 +44,6 @@
 
 #include <machine/frame.h>
 
-/*
- * Arguments to hardclock and gatherstats encapsulate the previous machine
- * state in an opaque clockframe.
- */
-struct clockframe {
-	struct trapframe cf_tf;
-};
-#define	CLKF_PC(cf)		((cf)->cf_tf.tf_special.iip)
-#define	CLKF_CPL(cf)		((cf)->cf_tf.tf_special.psr & IA64_PSR_CPL)
-#define	CLKF_USERMODE(cf)	(CLKF_CPL(cf) != IA64_PSR_CPL_KERN)
-
 #define	TRAPF_PC(tf)		((tf)->tf_special.iip)
 #define	TRAPF_CPL(tf)		((tf)->tf_special.psr & IA64_PSR_CPL)
 #define	TRAPF_USERMODE(tf)	(TRAPF_CPL(tf) != IA64_PSR_CPL_KERN)

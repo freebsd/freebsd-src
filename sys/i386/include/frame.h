@@ -97,29 +97,4 @@ struct trapframe_vm86 {
 	int	tf_vm86_gs;
 };
 
-/* frame of clock (same as trap frame) */
-
-struct clockframe {
-	int	cf_fs;
-	int	cf_es;
-	int	cf_ds;
-	int	cf_edi;
-	int	cf_esi;
-	int	cf_ebp;
-	int	:32;
-	int	cf_ebx;
-	int	cf_edx;
-	int	cf_ecx;
-	int	cf_eax;
-	int	:32;		/* for compat with trap frame - trapno */
-	int	:32;		/* for compat with trap frame - err */
-	/* below portion defined in 386 hardware */
-	int	cf_eip;
-	int	cf_cs;
-	int	cf_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	cf_esp;
-	int	cf_ss;
-};
-
 #endif /* _MACHINE_FRAME_H_ */

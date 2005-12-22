@@ -29,7 +29,6 @@ extern int	wall_cmos_clock;
 /*
  * Driver to clock driver interface.
  */
-struct clockframe;
 
 int	acquire_timer2(int mode);
 int	release_timer2(void);

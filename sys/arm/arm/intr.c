@@ -55,7 +55,7 @@ static int intrcnt_tab[NIRQ];
 static int intrcnt_index = 0;
 static int last_printed = 0;
 
-void	arm_handler_execute(void *, int);
+void	arm_handler_execute(struct trapframe *, int);
 
 void
 arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg, 
@@ -99,7 +99,7 @@ dosoftints(void)
 }
 
 void
-arm_handler_execute(void *frame, int irqnb)
+arm_handler_execute(struct trapframe *frame, int irqnb)
 {
 	struct intr_event *event;
 	struct intr_handler *ih;

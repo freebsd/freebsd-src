@@ -149,7 +149,7 @@ static struct timecounter i8254_timecounter = {
 };
 
 static void
-clkintr(struct clockframe *frame)
+clkintr(struct trapframe *frame)
 {
 
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
@@ -163,8 +163,8 @@ clkintr(struct clockframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	if (!using_lapic_timer)
-		hardclock(frame);
+	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
+	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 }
 
 int

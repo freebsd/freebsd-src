@@ -62,10 +62,6 @@ struct trapframe {
 	tf->tf_tnpc += 4; \
 } while (0)
 
-struct clockframe {
-	struct	trapframe cf_tf;
-};
-
 struct frame {
 	u_long	fr_local[8];
 	u_long	fr_in[8];
