@@ -106,6 +106,9 @@ static	int tkip_encrypt(struct tkip_ctx *, struct ieee80211_key *,
 static	int tkip_decrypt(struct tkip_ctx *, struct ieee80211_key *,
 		struct mbuf *, int hdr_len);
 
+/* number of references from net80211 layer */
+static	int nrefs = 0;
+
 static void *
 tkip_attach(struct ieee80211com *ic, struct ieee80211_key *k)
 {
@@ -119,6 +122,7 @@ tkip_attach(struct ieee80211com *ic, struct ieee80211_key *k)
 	}
 
 	ctx->tc_ic = ic;
+	nrefs++;			/* NB: we assume caller locking */
 	return ctx;
 }
 
@@ -128,6 +132,8 @@ tkip_detach(struct ieee80211_key *k)
 	struct tkip_ctx *ctx = k->wk_private;
 
 	FREE(ctx, M_DEVBUF);
+	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
+	nrefs--;			/* NB: we assume caller locking */
 }
 
 static int
@@ -978,7 +984,14 @@ tkip_modevent(module_t mod, int type, void *unused)
 		ieee80211_crypto_register(&tkip);
 		return 0;
 	case MOD_UNLOAD:
-		ieee80211_crypto_unregister(&tkip);
+	case MOD_QUIESCE:
+		if (nrefs) {
+			printf("wlan_tkip: still in use (%u dynamic refs)\n",
+				nrefs);
+			return EBUSY;
+		}
+		if (type == MOD_UNLOAD)
+			ieee80211_crypto_unregister(&tkip);
 		return 0;
 	}
 	return EINVAL;
