@@ -1,4 +1,4 @@
-# @(#)asia	7.85
+# @(#)asia	7.89
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -85,7 +85,7 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 # Shanks has Yerevan switching to 3:00 (with Russian DST) in spring 1991,
 # then to 4:00 with no DST in fall 1995, then readopting Russian DST in 1997.
 # Go with Shanks, even when he disagrees with others.  Edgar Der-Danieliantz
-# <edd@AIC.NET> reported (1996-05-04) that Yerevan probably wouldn't use DST
+# reported (1996-05-04) that Yerevan probably wouldn't use DST
 # in 1996, though it did use DST in 1995.  IATA SSIM (1991/1998) reports that
 # Armenia switched from 3:00 to 4:00 in 1998 and observed DST after 1991,
 # but started switching at 3:00s in 1998.
@@ -99,9 +99,12 @@ Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			4:00 RussiaAsia	AM%sT
 
 # Azerbaijan
+# From Rustam Aliyev of the Azerbaijan Internet Forum (2005-10-23):
+# According to the resolution of Cabinet of Ministers, 1997
+# Resolution available at: http://aif.az/docs/daylight_res.pdf
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Azer	1997	max	-	Mar	lastSun	 1:00	1:00	S
-Rule	Azer	1997	max	-	Oct	lastSun	 1:00	0	-
+Rule	Azer	1997	max	-	Mar	lastSun	 4:00	1:00	S
+Rule	Azer	1997	max	-	Oct	lastSun	 5:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
 			3:00	-	BAKT	1957 Mar    # Baku Time
@@ -348,6 +351,17 @@ Link	Asia/Nicosia	Europe/Nicosia
 # Mikhail Saakashvili, who said the change was partly prompted by the process
 # of integration into Europe.
 
+# From Teimuraz Abashidze (2005-11-07):
+# Government of Georgia ... decided to NOT CHANGE daylight savings time on
+# [Oct.] 30, as it was done before during last more than 10 years.
+# Currently, we are in fact GMT +4:00, as before 30 October it was GMT
+# +3:00.... The problem is, there is NO FORMAL LAW or governmental document
+# about it.  As far as I can find, I was told, that there is no document,
+# because we just DIDN'T ISSUE document about switching to winter time....
+# I don't know what can be done, especially knowing that some years ago our
+# DST rules where changed THREE TIMES during one month.
+
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			2:59:16	-	TBMT	1924 May  2 # Tbilisi Mean Time
@@ -359,7 +373,8 @@ Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			4:00 E-EurAsia	GE%sT	1996 Oct lastSun
 			4:00	1:00	GEST	1997 Mar lastSun
 			4:00 E-EurAsia	GE%sT	2004 Jun 27
-			3:00 RussiaAsia	GE%sT
+			3:00 RussiaAsia	GE%sT	2005 Mar lastSun 2:00
+			4:00	-	GET
 
 # East Timor
 
@@ -915,6 +930,9 @@ Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 # The decision was taken because of the increase in working hours in
 # government's departments from six to seven hours.
 #
+# From Paul Eggert (2005-11-22):
+# Starting 2003 transitions are from Steffen Thorsen's web site timeanddate.com.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Jordan	1973	only	-	Jun	6	0:00	1:00	S
 Rule	Jordan	1973	1975	-	Oct	1	0:00	0	-
@@ -937,8 +955,11 @@ Rule	Jordan	1993	1998	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Jordan	1994	only	-	Sep	Fri>=15	0:00	0	-
 Rule	Jordan	1995	1998	-	Sep	Fri>=15	0:00s	0	-
 Rule	Jordan	1999	only	-	Jul	 1	0:00s	1:00	S
-Rule	Jordan	1999	max	-	Sep	lastThu	0:00s	0	-
+Rule	Jordan	1999	2002	-	Sep	lastThu	0:00s	0	-
 Rule	Jordan	2000	max	-	Mar	lastThu	0:00s	1:00	S
+Rule	Jordan	2003	only	-	Oct	24	0:00s	0	-
+Rule	Jordan	2004	only	-	Oct	15	0:00s	0	-
+Rule	Jordan	2005	max	-	Sep	lastFri	0:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Amman	2:23:44 -	LMT	1931
 			2:00	Jordan	EE%sT
@@ -1044,18 +1065,22 @@ Zone	Asia/Oral	3:25:24	-	LMT	1924 May  2 # or Ural'sk
 # <http://eng.gateway.kg/cgi-bin/page.pl?id=1&story_name=doc9979.shtml>
 # Kyrgyzstan is canceling the daylight saving time system.  I take the article
 # to mean that they will leave their clocks at 6 hours ahead of UTC.
+# From Malik Abdugaliev (2005-09-21):
+# Our government cancels daylight saving time 6th of August 2005.
+# From 2005-08-12 our GMT-offset is +6, w/o any daylight saving.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Kirgiz	1992	1996	-	Apr	Sun>=7	0:00s	1:00	S
-Rule	Kirgiz	1992	1996	-	Sep	lastSun	0:00	0	-
-Rule	Kirgiz	1997	max	-	Mar	lastSun	2:30	1:00	S
-Rule	Kirgiz	1997	max	-	Oct	lastSun	2:30	0	-
+Rule	Kyrgyz	1992	1996	-	Apr	Sun>=7	0:00s	1:00	S
+Rule	Kyrgyz	1992	1996	-	Sep	lastSun	0:00	0	-
+Rule	Kyrgyz	1997	2005	-	Mar	lastSun	2:30	1:00	S
+Rule	Kyrgyz	1997	2004	-	Oct	lastSun	2:30	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
 			5:00	-	FRUT	1930 Jun 21 # Frunze Time
 			6:00 RussiaAsia FRU%sT	1991 Mar 31 2:00s
 			5:00	1:00	FRUST	1991 Aug 31 2:00 # independence
-			5:00	Kirgiz	KG%sT		    # Kirgizstan Time
+			5:00	Kyrgyz	KG%sT	2005 Aug 12    # Kyrgyzstan Time
+			6:00	-	KGT
 
 ###############################################################################
 
@@ -1404,6 +1429,9 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # For now, let's assume that the spring switch was at 24:00,
 # and that they switch at 0:00 on the 3rd Fridays of April and October.
 
+# From Paul Eggert (2005-11-22):
+# Starting 2004 transitions are from Steffen Thorsen's web site timeanddate.com.
+
 # The rules for Egypt are stolen from the `africa' file.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -1414,7 +1442,9 @@ Rule EgyptAsia	1959	1965	-	Sep	30	3:00	0	-
 Rule EgyptAsia	1966	only	-	Oct	 1	3:00	0	-
 
 Rule Palestine	1999	max	-	Apr	Fri>=15	0:00	1:00	S
-Rule Palestine	1999	max	-	Oct	Fri>=15	0:00	0	-
+Rule Palestine	1999	2003	-	Oct	Fri>=15	0:00	0	-
+Rule Palestine	2004	only	-	Oct	 1	1:00	0	-
+Rule Palestine	2005	max	-	Oct	 4	1:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
