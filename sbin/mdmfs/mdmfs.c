@@ -386,7 +386,7 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 
 	/* Receive the unit number. */
 	if (norun) {	/* Since we didn't run, we can't read.  Fake it. */
-		unit = -1;
+		unit = 0;
 		return;
 	}
 	sfd = fdopen(fd, "r");
