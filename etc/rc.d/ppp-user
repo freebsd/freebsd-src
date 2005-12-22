@@ -11,6 +11,7 @@
 
 name="ppp"
 rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
 start_precmd="ppp_precmd"
 start_postcmd="ppp_postcmd"
 
