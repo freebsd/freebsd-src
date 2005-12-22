@@ -61,7 +61,7 @@ vga_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 	device_set_desc(dev, "VGA-compatible display");
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
