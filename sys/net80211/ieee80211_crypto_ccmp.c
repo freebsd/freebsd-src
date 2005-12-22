@@ -91,6 +91,9 @@ static	int ccmp_encrypt(struct ieee80211_key *, struct mbuf *, int hdrlen);
 static	int ccmp_decrypt(struct ieee80211_key *, u_int64_t pn,
 		struct mbuf *, int hdrlen);
 
+/* number of references from net80211 layer */
+static	int nrefs = 0;
+
 static void *
 ccmp_attach(struct ieee80211com *ic, struct ieee80211_key *k)
 {
@@ -103,6 +106,7 @@ ccmp_attach(struct ieee80211com *ic, struct ieee80211_key *k)
 		return NULL;
 	}
 	ctx->cc_ic = ic;
+	nrefs++;			/* NB: we assume caller locking */
 	return ctx;
 }
 
@@ -112,6 +116,8 @@ ccmp_detach(struct ieee80211_key *k)
 	struct ccmp_ctx *ctx = k->wk_private;
 
 	FREE(ctx, M_DEVBUF);
+	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
+	nrefs--;			/* NB: we assume caller locking */
 }
 
 static int
@@ -637,7 +643,14 @@ ccmp_modevent(module_t mod, int type, void *unused)
 		ieee80211_crypto_register(&ccmp);
 		return 0;
 	case MOD_UNLOAD:
-		ieee80211_crypto_unregister(&ccmp);
+	case MOD_QUIESCE:
+		if (nrefs) {
+			printf("wlan_ccmp: still in use (%u dynamic refs)\n",
+				nrefs);
+			return EBUSY;
+		}
+		if (type == MOD_UNLOAD)
+			ieee80211_crypto_unregister(&ccmp);
 		return 0;
 	}
 	return EINVAL;
