@@ -747,7 +747,6 @@ nodevice	amr		# AMI MegaRAID
 nodevice	twe		# 3ware ATA RAID
 nodevice	ataraid
 nodevice	cm
-nodevice	cs
 nodevice	ex
 nodevice	fea
 nodevice	intpm
@@ -755,7 +754,9 @@ nodevice	alpm
 nodevice	ichsmb
 nodevice	viapm
 nodevice	amdpm
+nodevice	amdsmb
 nodevice	nfpm
+nodevice	nfsmb
 
 
 #####################################################################
