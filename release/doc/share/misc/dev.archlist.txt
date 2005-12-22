@@ -49,7 +49,7 @@ ath	i386
 aue	i386,pc98,ia64,amd64
 awi	i386,pc98,amd64
 axe	i386,pc98,amd64
-bge	i386,pc98,ia64,amd64
+bge	i386,pc98,sparc64,ia64,amd64
 bktr	i386,pc98
 bt	i386,amd64
 cdce	i386,pc98,ia64,amd64
