@@ -52,7 +52,7 @@ void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 void	ipi_self(u_int ipi);
-void 	ipi_bitmap_handler(struct clockframe frame);
+void 	ipi_bitmap_handler(struct trapframe frame);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	mp_topology(void);

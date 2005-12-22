@@ -53,7 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 #include <arm/xscale/i80321/i80321reg.h>
@@ -377,11 +379,11 @@ DELAY(int n)
 void
 clockhandler(void *arg)
 {
-	struct clockframe *frame = arg;
+	struct trapframe *frame = arg;
 
 	ticked++;
 	tisr_write(TISR_TMR0);
-	hardclock(frame);
+	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 
 	if (i80321_hardclock_hook != NULL)
 		(*i80321_hardclock_hook)();

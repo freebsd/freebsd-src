@@ -48,20 +48,9 @@
 
 #include <machine/frame.h>
 
-/*
- * Arguments to hardclock and gatherstats encapsulate the previous
- * machine state in an opaque clockframe.  One the Alpha, we use
- * what we push on an interrupt (a trapframe).
- */
-struct clockframe {
-	struct trapframe	cf_tf;
-};
 #define	TRAPF_USERMODE(framep)						\
 	(((framep)->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0)
 #define	TRAPF_PC(framep)	((framep)->tf_regs[FRAME_PC])
-
-#define	CLKF_USERMODE(framep)	TRAPF_USERMODE(&(framep)->cf_tf)
-#define	CLKF_PC(framep)		TRAPF_PC(&(framep)->cf_tf)
 
 /*
  * CTL_MACHDEP definitions.

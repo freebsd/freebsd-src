@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/timetc.h>
 
-#include <machine/cpu.h>
-
 #ifdef GPROF
 #include <sys/gmon.h>
 #endif
@@ -189,12 +187,11 @@ initclocks(dummy)
 
 /*
  * Each time the real-time timer fires, this function is called on all CPUs.
- * Note that hardclock() calls hardclock_process() for the boot CPU, so only
+ * Note that hardclock() calls hardclock_cpu() for the boot CPU, so only
  * the other CPUs in the system need to call this function.
  */
 void
-hardclock_process(frame)
-	register struct clockframe *frame;
+hardclock_cpu(int usermode)
 {
 	struct pstats *pstats;
 	struct thread *td = curthread;
@@ -208,7 +205,7 @@ hardclock_process(frame)
 		/* XXXKSE What to do? */
 	} else {
 		pstats = p->p_stats;
-		if (CLKF_USERMODE(frame) &&
+		if (usermode &&
 		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
 			p->p_sflag |= PS_ALRMPEND;
@@ -232,12 +229,11 @@ hardclock_process(frame)
  * The real-time timer, interrupting hz times per second.
  */
 void
-hardclock(frame)
-	register struct clockframe *frame;
+hardclock(int usermode, uintfptr_t pc)
 {
 	int need_softclock = 0;
 
-	hardclock_process(frame);
+	hardclock_cpu(usermode);
 
 	tc_ticktock();
 	/*
@@ -246,8 +242,8 @@ hardclock(frame)
 	 * XXX: this only works for UP
 	 */
 	if (stathz == 0) {
-		profclock(frame);
-		statclock(frame);
+		profclock(usermode, pc);
+		statclock(usermode);
 	}
 
 #ifdef DEVICE_POLLING
@@ -401,8 +397,7 @@ stopprofclock(p)
  * This should be called by all active processors.
  */
 void
-statclock(frame)
-	register struct clockframe *frame;
+statclock(int usermode)
 {
 	struct rusage *ru;
 	struct vmspace *vm;
@@ -414,7 +409,7 @@ statclock(frame)
 	p = td->td_proc;
 
 	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
-	if (CLKF_USERMODE(frame)) {
+	if (usermode) {
 		/*
 		 * Charge the time as appropriate.
 		 */
@@ -473,8 +468,7 @@ statclock(frame)
 }
 
 void
-profclock(frame)
-	register struct clockframe *frame;
+profclock(int usermode, uintfptr_t pc)
 {
 	struct thread *td;
 #ifdef GPROF
@@ -483,7 +477,7 @@ profclock(frame)
 #endif
 
 	td = curthread;
-	if (CLKF_USERMODE(frame)) {
+	if (usermode) {
 		/*
 		 * Came from user mode; CPU was in user state.
 		 * If this process is being profiled, record the tick.
@@ -491,7 +485,7 @@ profclock(frame)
 		 * bother trying to count it.
 		 */
 		if (td->td_proc->p_flag & P_PROFIL)
-			addupc_intr(td, CLKF_PC(frame), 1);
+			addupc_intr(td, pc, 1);
 	}
 #ifdef GPROF
 	else {
@@ -499,11 +493,10 @@ profclock(frame)
 		 * Kernel statistics are just like addupc_intr, only easier.
 		 */
 		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON && CLKF_PC(frame) >= g->lowpc) {
-			i = PC_TO_I(g, CLKF_PC(frame));
+		if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
+			i = PC_TO_I(g, pc);
 			if (i < g->textsize) {
-				i /= HISTFRACTION * sizeof(*g->kcount);
-				g->kcount[i]++;
+				KCOUNT(g, i)++;
 			}
 		}
 	}

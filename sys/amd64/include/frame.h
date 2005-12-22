@@ -76,34 +76,4 @@ struct trapframe {
 	register_t	tf_ss;
 };
 
-/* frame of clock (same as interrupt frame) */
-
-struct clockframe {
-	register_t	cf_rdi;
-	register_t	cf_rsi;
-	register_t	cf_rdx;
-	register_t	cf_rcx;
-	register_t	cf_r8;
-	register_t	cf_r9;
-	register_t	cf_rax;
-	register_t	cf_rbx;
-	register_t	cf_rbp;
-	register_t	cf_r10;
-	register_t	cf_r11;
-	register_t	cf_r12;
-	register_t	cf_r13;
-	register_t	cf_r14;
-	register_t	cf_r15;
-	register_t	:64;		/* compat with trap frame - trapno */
-	register_t	:64;		/* compat with trap frame - addr */
-	register_t	:64;		/* compat with trap frame - flags */
-	register_t	:64;		/* compat with trap frame - err */
-	/* below portion defined in hardware */
-	register_t	cf_rip;
-	register_t	cf_cs;
-	register_t	cf_rflags;
-	register_t	cf_rsp;
-	register_t	cf_ss;
-};
-
 #endif /* _MACHINE_FRAME_H_ */

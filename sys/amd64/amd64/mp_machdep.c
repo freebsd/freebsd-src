@@ -917,7 +917,7 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 }
 
 void
-ipi_bitmap_handler(struct clockframe frame)
+ipi_bitmap_handler(struct trapframe frame)
 {
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;

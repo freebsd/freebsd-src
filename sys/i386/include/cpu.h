@@ -59,10 +59,6 @@
 	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))
 #define	TRAPF_PC(framep)	((framep)->tf_eip)
 
-#define	CLKF_USERMODE(framep) \
-	((ISPL((framep)->cf_cs) == SEL_UPL) || ((framep)->cf_eflags & PSL_VM))
-#define	CLKF_PC(framep)		((framep)->cf_eip)
-
 /*
  * CTL_MACHDEP definitions.
  */

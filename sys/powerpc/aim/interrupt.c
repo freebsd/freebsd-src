@@ -72,7 +72,7 @@ ext_intr_install(void (*new_extint)(void))
 	powerpc_extintr_handler = new_extint;
 }
 
-extern void	decr_intr(struct clockframe *);
+extern void	decr_intr(struct trapframe *);
 extern void	trap(struct trapframe *);
 
 /*
@@ -84,7 +84,6 @@ void
 powerpc_interrupt(struct trapframe *framep)
 {
         struct thread *td;
-	struct clockframe ckframe;
 
 	td = curthread;
 
@@ -97,9 +96,7 @@ powerpc_interrupt(struct trapframe *framep)
 
 	case EXC_DECR:
 		atomic_add_int(&td->td_intr_nesting_level, 1);
-		ckframe.srr0 = framep->srr0;
-		ckframe.srr1 = framep->srr1;
-		decr_intr(&ckframe);
+		decr_intr(framep);
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);	
 		break;
 
