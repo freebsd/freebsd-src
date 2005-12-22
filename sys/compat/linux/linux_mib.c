@@ -156,13 +156,6 @@ linux_get_prison(struct thread *td)
 }
 
 void
-linux_mib_destroy(void)
-{
-
-	mtx_destroy(&osname_lock);
-}
-
-void
 linux_get_osname(struct thread *td, char *dst)
 {
 	register struct prison *pr;
