@@ -334,8 +334,8 @@ __printf_render_int(struct __printf_io *io, const struct printf_info *pi, const 
 		} else 
 			uu = (unsigned short)argp->uintarg;
 	} else if (pi->is_char) {
-		if (sign && (char)argp->intarg < 0) {
-			uu = -(char)argp->intarg;
+		if (sign && (signed char)argp->intarg < 0) {
+			uu = -(signed char)argp->intarg;
 			ns = '-';
 		} else 
 			uu = (unsigned char)argp->uintarg;
