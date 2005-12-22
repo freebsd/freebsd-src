@@ -792,9 +792,11 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 	modeflags = chanflags[mode];
 	for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 		c = &ic->ic_channels[i];
+		if (c->ic_flags == 0)
+			continue;
 		if (mode == IEEE80211_MODE_AUTO) {
 			/* ignore turbo channels for autoselect */
-			if ((c->ic_flags &~ IEEE80211_CHAN_TURBO) != 0)
+			if ((c->ic_flags & IEEE80211_CHAN_TURBO) == 0)
 				break;
 		} else {
 			if ((c->ic_flags & modeflags) == modeflags)
@@ -813,9 +815,11 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 	memset(ic->ic_chan_active, 0, sizeof(ic->ic_chan_active));
 	for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 		c = &ic->ic_channels[i];
+		if (c->ic_flags == 0)
+			continue;
 		if (mode == IEEE80211_MODE_AUTO) {
 			/* take anything but pure turbo channels */
-			if ((c->ic_flags &~ IEEE80211_CHAN_TURBO) != 0)
+			if ((c->ic_flags & IEEE80211_CHAN_TURBO) == 0)
 				setbit(ic->ic_chan_active, i);
 		} else {
 			if ((c->ic_flags & modeflags) == modeflags)
@@ -890,13 +894,9 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 enum ieee80211_phymode
 ieee80211_chan2mode(struct ieee80211com *ic, struct ieee80211_channel *chan)
 {
-	if (IEEE80211_IS_CHAN_5GHZ(chan)) {
-		/*
-		 * This assumes all 11a turbo channels are also
-		 * usable withut turbo, which is currently true.
-		 */
-		if (ic->ic_curmode == IEEE80211_MODE_TURBO_A)
-			return IEEE80211_MODE_TURBO_A;
+	if (IEEE80211_IS_CHAN_T(chan)) {
+		return IEEE80211_MODE_TURBO_A;
+	} else if (IEEE80211_IS_CHAN_5GHZ(chan)) {
 		return IEEE80211_MODE_11A;
 	} else if (IEEE80211_IS_CHAN_FHSS(chan))
 		return IEEE80211_MODE_FH;
