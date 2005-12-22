@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20051215: rescue/nextboot.sh renamed to rescue/nextboot
+OLD_FILES+=rescue/nextboot.sh
 # 20051214: usbd(8) removed
 OLD_FILES+=etc/rc.d/usbd
 OLD_FILES+=etc/usbd.conf
