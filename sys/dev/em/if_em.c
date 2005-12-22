@@ -1048,6 +1048,15 @@ em_intr(void *arg)
 		else if (reg_icr == 0)
 			break;
 
+		/*
+		 * XXX: some laptops trigger several spurious interrupts
+		 * on em(4) when in the resume cycle. The ICR register
+		 * reports all-ones value in this case. Processing such
+		 * interrupts would lead to a freeze. I don't know why.
+		 */
+		if (reg_icr == 0xffffffff)
+			break;
+
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			em_process_receive_interrupts(adapter, -1);
 			em_clean_transmit_interrupts(adapter);
