@@ -1158,7 +1158,9 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       M_WAITOK|M_ZERO);
+		       M_NOWAIT|M_ZERO);
+		if (sdl == NULL)
+			return ENOMEM;
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;
@@ -1185,7 +1187,9 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       M_WAITOK|M_ZERO);
+		       M_NOWAIT|M_ZERO);
+		if (sdl == NULL)
+			return (ENOMEM);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;
