@@ -973,7 +973,7 @@ in_addmulti(ap, ifp)
 	 * If ifma->ifma_protospec is null, then if_addmulti() created
 	 * a new record.  Otherwise, we are done.
 	 */
-	if (ifma->ifma_protospec != 0) {
+	if (ifma->ifma_protospec != NULL) {
 		splx(s);
 		return ifma->ifma_protospec;
 	}
@@ -1021,7 +1021,7 @@ in_delmulti(inm)
 		 * the interface and nuke the packet.
 		 */
 		my_inm = *inm ;
-		ifma->ifma_protospec = 0;
+		ifma->ifma_protospec = NULL;
 		LIST_REMOVE(inm, inm_link);
 		free(inm, M_IPMADDR);
 	}
