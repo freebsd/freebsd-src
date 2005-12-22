@@ -173,12 +173,12 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 		while (delta >= ia64_clock_reload) {
 			/* Only the BSP runs the real clock */
 			if (PCPU_GET(cpuid) == 0)
-				hardclock((struct clockframe *)tf);
+				hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
 			else
-				hardclock_process((struct clockframe *)tf);
+				hardclock_cpu(TRAPF_USERMODE(tf));
 			if (profprocs != 0)
-				profclock((struct clockframe *)tf);
-			statclock((struct clockframe *)tf);
+				profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
+			statclock(TRAPF_USERMODE(tf));
 			delta -= ia64_clock_reload;
 			clk += ia64_clock_reload;
 			if (adj != 0)

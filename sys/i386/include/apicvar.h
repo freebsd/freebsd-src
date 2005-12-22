@@ -201,7 +201,7 @@ void	lapic_ipi_raw(register_t icrlo, u_int dest);
 void	lapic_ipi_vectored(u_int vector, int dest);
 int	lapic_ipi_wait(int delay);
 void	lapic_handle_intr(int vector, struct trapframe frame);
-void	lapic_handle_timer(struct clockframe frame);
+void	lapic_handle_timer(struct trapframe frame);
 void	lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id);
 int	lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked);
 int	lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode);

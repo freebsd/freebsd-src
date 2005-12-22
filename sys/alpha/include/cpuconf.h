@@ -68,7 +68,7 @@ extern struct platform {
 	void	(*cons_init)(void);
 	void	(*device_register)(struct device *, void *);
 	void	(*iointr)(void *, unsigned long);
-	void	(*clockintr)(void *);
+	void	(*clockintr)(int, uintfptr_t);
 	void	(*mcheck_handler)(unsigned long, struct trapframe *,
 		unsigned long, unsigned long);
 	void	(*cpu_idle)(void);

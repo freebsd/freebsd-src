@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/apicreg.h>
+#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -617,7 +618,7 @@ lapic_handle_intr(int vector, struct trapframe frame)
 }
 
 void
-lapic_handle_timer(struct clockframe frame)
+lapic_handle_timer(struct trapframe frame)
 {
 	struct lapic *la;
 
@@ -634,16 +635,16 @@ lapic_handle_timer(struct clockframe frame)
 	if (la->la_hard_ticks >= lapic_timer_hz) {
 		la->la_hard_ticks -= lapic_timer_hz;
 		if (PCPU_GET(cpuid) == 0)
-			hardclock(&frame);
+			hardclock(TRAPF_USERMODE(&frame), TRAPF_PC(&frame));
 		else
-			hardclock_process(&frame);
+			hardclock_cpu(TRAPF_USERMODE(&frame));
 	}
 
 	/* Fire statclock at stathz. */
 	la->la_stat_ticks += stathz;
 	if (la->la_stat_ticks >= lapic_timer_hz) {
 		la->la_stat_ticks -= lapic_timer_hz;
-		statclock(&frame);
+		statclock(TRAPF_USERMODE(&frame));
 	}
 
 	/* Fire profclock at profhz, but only when needed. */
@@ -651,7 +652,7 @@ lapic_handle_timer(struct clockframe frame)
 	if (la->la_prof_ticks >= lapic_timer_hz) {
 		la->la_prof_ticks -= lapic_timer_hz;
 		if (profprocs != 0)
-			profclock(&frame);
+			profclock(TRAPF_USERMODE(&frame), TRAPF_PC(&frame));
 	}
 	critical_exit();
 }

@@ -112,7 +112,6 @@ extern char **kenvp;
  * General function declarations.
  */
 
-struct clockframe;
 struct malloc_type;
 struct mtx;
 struct proc;
@@ -207,11 +206,11 @@ intptr_t casuptr(intptr_t *p, intptr_t old, intptr_t new);
 
 void	realitexpire(void *);
 
-void	hardclock(struct clockframe *frame);
-void	hardclock_process(struct clockframe *frame);
+void	hardclock(int usermode, uintfptr_t pc);
+void	hardclock_cpu(int usermode);
 void	softclock(void *);
-void	statclock(struct clockframe *frame);
-void	profclock(struct clockframe *frame);
+void	statclock(int usermode);
+void	profclock(int usermode, uintfptr_t pc);
 
 void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);

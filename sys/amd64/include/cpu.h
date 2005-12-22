@@ -59,10 +59,6 @@
 	(ISPL((framep)->tf_cs) == SEL_UPL)
 #define	TRAPF_PC(framep)	((framep)->tf_rip)
 
-#define	CLKF_USERMODE(framep) \
-	(ISPL((framep)->cf_cs) == SEL_UPL)
-#define	CLKF_PC(framep)		((framep)->cf_rip)
-
 /*
  * CTL_MACHDEP definitions.
  */
