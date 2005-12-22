@@ -115,6 +115,16 @@ Set UDP port number to
 Set the number of probe per hop count to
 .Ar probes .
 .It Fl r
+Bypass the normal routing tables and send directly to a host
+on an attached network.
+If the host is not on a directly-connected network,
+an error is returned.
+This option corresponds to the
+.Dv SO_DONTROUTE
+socket option;
+it can be used to ping a local host through an interface
+that has no route through it
+(e.g., after the interface was dropped by a routing daemon).
 .It Fl s Ar src
 .Ar Src
 specifies the source IPv6 address to be used.
