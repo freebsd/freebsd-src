@@ -1,4 +1,4 @@
-# @(#)northamerica	7.79
+# @(#)northamerica	7.82
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -243,6 +243,16 @@ Rule	US	2007	max	-	Nov	Sun>=1	2:00	0	S
 # One of the staff members said that the station was on Eastern Standard Time
 # and didn't change their clocks for Daylight Saving ... so that their
 # reports will always have times which are 5 hours behind UTC.
+
+# From Paul Eggert (2005-08-26):
+# According to today's Huntsville Times
+# <http://www.al.com/news/huntsvilletimes/index.ssf?/base/news/1125047783228320.xml&coll=1>
+# a few towns on Alabama's "eastern border with Georgia, such as Phenix City
+# in Russell County, Lanett in Chambers County and some towns in Lee County,
+# set their watches and clocks on Eastern time."  It quotes H.H. "Bubba"
+# Roberts, city administrator in Phenix City. as saying "We are in the Central
+# time zone, but we do go by the Eastern time zone because so many people work
+# in Columbus." 
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	NYC	1920	only	-	Mar	lastSun	2:00	1:00	D
@@ -1805,6 +1815,11 @@ Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 # to normal hours (after daylight saving time)".
 # For now, let's assume that it's a one-year temporary measure.
 
+# From Carlos A. Carnero Delgado (2005-11-12):
+# This year (just like in 2004-2005) there's no change in time zone
+# adjustment in Cuba.  We will stay in daylight saving time:
+# http://www.granma.cu/espanol/2005/noviembre/mier9/horario.html
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cuba	1928	only	-	Jun	10	0:00	1:00	D
 Rule	Cuba	1928	only	-	Oct	10	0:00	0	S
@@ -1835,7 +1850,7 @@ Rule	Cuba	1997	only	-	Oct	12	0:00s	0	S
 Rule	Cuba	1998	1999	-	Mar	lastSun	0:00s	1:00	D
 Rule	Cuba	1998	2003	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2000	max	-	Apr	Sun>=1	0:00s	1:00	D
-Rule	Cuba	2005	max	-	Oct	lastSun	0:00s	0	S
+Rule	Cuba	2006	max	-	Oct	lastSun	0:00s	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
@@ -2021,13 +2036,18 @@ Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Olveston
 # changes in 2000.  Perhaps a note could be added to the northamerica file, to
 # the effect that we have indirect evidence that DST was observed in 2000.
 #
+# From Jesper Norgaard Welen (2005-11-02):
+# Nicaragua left DST the 2005-10-02 at 00:00 (local time).
+# http://www.presidencia.gob.ni/presidencia/files_index/secretaria/comunicados/2005/septiembre/26septiembre-cambio-hora.htm
+# (2005-09-26)
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Nic	1979	1980	-	Mar	Sun>=16	0:00	1:00	D
 Rule	Nic	1979	1980	-	Jun	Mon>=23	0:00	0	S
-Rule	Nic	1992	only	-	Jan	1	4:00	1:00	D
+Rule	Nic	1992	only	-	Jan	 1	4:00	1:00	D
 Rule	Nic	1992	only	-	Sep	24	0:00	0	S
 Rule	Nic	2005	only	-	Apr	10	0:00	1:00	D
-Rule	Nic	2005	only	-	Sep	18	0:00	0	S
+Rule	Nic	2005	only	-	Oct	 2	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Managua	-5:45:08 -	LMT	1890
 			-5:45:12 -	MMT	1934 Jun 23 # Managua Mean Time?
