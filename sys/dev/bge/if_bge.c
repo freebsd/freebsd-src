@@ -519,7 +519,7 @@ bge_eeprom_getbyte(sc, addr, dest)
 
 	if (i == BGE_TIMEOUT) {
 		printf("bge%d: eeprom read timed out\n", sc->bge_unit);
-		return(0);
+		return(1);
 	}
 
 	/* Get result. */
@@ -2197,8 +2197,13 @@ bge_attach(dev)
 	if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG) == BGE_MAGIC_NUMBER)
 		hwcfg = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG);
 	else {
-		bge_read_eeprom(sc, (caddr_t)&hwcfg,
-				BGE_EE_HWCFG_OFFSET, sizeof(hwcfg));
+		if (bge_read_eeprom(sc, (caddr_t)&hwcfg, BGE_EE_HWCFG_OFFSET,
+		    sizeof(hwcfg))) {
+			printf("bge%d: failed to read EEPROM\n", unit);
+			bge_release_resources(sc);
+			error = ENXIO;
+			goto fail;
+		}
 		hwcfg = ntohl(hwcfg);
 	}
 
