@@ -1,4 +1,4 @@
-# @(#)southamerica	7.61
+# @(#)southamerica	7.65
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -525,12 +525,6 @@ Rule	Brazil	1997	only	-	Feb	16	 0:00	0	-
 # This year, the ending date of DS was postponed to March 1
 # to help dealing with the shortages of electric power.
 #
-# From Paul Eggert (1998-02-25):
-# <a href="http://churchnet.ucsm.ac.uk/news/files2/news165.htm">
-# Brazil Prepares for Papal Visit
-# </a>,
-# Church Net UK (1997-10-02).
-#
 # Decree 2,317 (1997-09-04), adopted by same states.
 Rule	Brazil	1997	only	-	Oct	 6	 0:00	1:00	S
 # Decree <a href="http://pcdsh01.on.br/figuras/HV2495.JPG">2,495</a>
@@ -565,11 +559,12 @@ Rule	Brazil	2003	only	-	Oct	19	 0:00	1:00	S
 # Decree 5,223 (2004-10-01) reestablishes DST in MT.
 # <a href="http://www.planalto.gov.br/ccivil_03/_Ato2004-2006/2004/Decreto/D5223.htm"></a>
 Rule	Brazil	2004	only	-	Nov	 2	 0:00	1:00	S
+# Decree <a href="http://pcdsh01.on.br/DecHV5539.gif">5,539</a> (2005-09-19),
+# adopted by the same states as before.
+Rule	Brazil	2005	max	-	Oct	Sun>=15	 0:00	1:00	S
 # The latest ruleset listed above says that the following states observe DST:
 # DF, ES, GO, MG, MS, MT, PR, RJ, RS, SC, SP.
-#
-Rule	Brazil	2005	max	-	Oct	Sun>=15	 0:00	1:00	S
-# For dates after mid-2005, the above rules with TO="max" are guesses
+# For dates after mid-2006, the above rules with TO="max" are guesses
 # and are quite possibly wrong, but are more likely than no DST at all.
 
 
@@ -1055,6 +1050,12 @@ Rule	Uruguay	2004	only	-	Sep	19	 0:00	1:00	S
 # save energy ... it was postponed two weeks....
 # http://www.presidencia.gub.uy/_Web/noticias/2005/03/2005031005.htm
 Rule	Uruguay	2005	only	-	Mar	27	 2:00	0	-
+# From Eduardo Cota (2005-09-27):
+# http://www.presidencia.gub.uy/_Web/decretos/2005/09/CM%20119_09%2009%202005_00001.PDF
+# This means that from 2005-10-09 at 02:00 local time, until 2006-03-12 at
+# 02:00 local time, official time in Uruguay will be at GMT -2.
+Rule	Uruguay	2005	only	-	Oct	 9	 2:00	1:00	S
+Rule	Uruguay	2006	only	-	Mar	12	 2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 			-3:44:44 -	MMT	1920 May  1	# Montevideo MT
