@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_bge.h"
 
 #define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#define ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
 MODULE_DEPEND(bge, pci, 1, 1, 1);
 MODULE_DEPEND(bge, ether, 1, 1, 1);
@@ -2177,13 +2178,22 @@ bge_attach(dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
-	/* NB: the code for RX csum offload is disabled for now */
-	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_HWTAGGING |
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
 	    IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
+
+        /*
+	 * 5700 B0 chips do not support checksumming correctly due
+	 * to hardware bugs.
+	 */
+	if (sc->bge_chipid == BGE_CHIPID_BCM5700_B0) {
+		ifp->if_capabilities &= ~IFCAP_HWCSUM;
+		ifp->if_capenable &= IFCAP_HWCSUM;
+		ifp->if_hwassist = 0;
+	}
 
 	/*
 	 * Figure out what sort of media we have by checking the
@@ -2596,18 +2606,18 @@ bge_rxeof(sc)
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
-#if 0 /* currently broken for some packets, possibly related to TCP options */
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 			if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
 				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-			if (cur_rx->bge_flags & BGE_RXBDFLAG_TCP_UDP_CSUM) {
+				
+			if (cur_rx->bge_flags & BGE_RXBDFLAG_TCP_UDP_CSUM &&
+			    m->m_pkthdr.len >= ETHER_MIN_NOPAD) {
 				m->m_pkthdr.csum_data =
 				    cur_rx->bge_tcp_udp_csum;
 				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
 			}
 		}
-#endif
 
 		/*
 		 * If we received a packet with a vlan tag,
@@ -2926,6 +2936,51 @@ bge_stats_update(sc)
 }
 
 /*
+ * Pad outbound frame to ETHER_MIN_NOPAD for an unusual reason.
+ * The bge hardware will pad out Tx runts to ETHER_MIN_NOPAD,
+ * but when such padded frames employ the bge IP/TCP checksum offload,
+ * the hardware checksum assist gives incorrect results (possibly
+ * from incorporating its own padding into the UDP/TCP checksum; who knows).
+ * If we pad such runts with zeros, the onboard checksum comes out correct.
+ */
+static __inline int
+bge_cksum_pad(struct mbuf *m)
+{
+	int padlen = ETHER_MIN_NOPAD - m->m_pkthdr.len;
+	struct mbuf *last;
+
+	/* If there's only the packet-header and we can pad there, use it. */
+	if (m->m_pkthdr.len == m->m_len && M_WRITABLE(m) &&
+	    M_TRAILINGSPACE(m) >= padlen) {
+		last = m;
+	} else {
+		/*
+		 * Walk packet chain to find last mbuf. We will either
+		 * pad there, or append a new mbuf and pad it.
+		 */
+		for (last = m; last->m_next != NULL; last = last->m_next);
+		if (!(M_WRITABLE(last) && M_TRAILINGSPACE(last) >= padlen)) {
+			/* Allocate new empty mbuf, pad it. Compact later. */
+			struct mbuf *n;
+
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n == NULL)
+				return (ENOBUFS);
+			n->m_len = 0;
+			last->m_next = n;
+			last = n;
+		}
+	}
+	
+	/* Now zero the pad area, to avoid the bge cksum-assist bug. */
+	memset(mtod(last, caddr_t) + last->m_len, 0, padlen);
+	last->m_len += padlen;
+	m->m_pkthdr.len += padlen;
+
+	return (0);
+}
+
+/*
  * Encapsulate an mbuf chain in the tx ring  by coupling the mbuf data
  * pointers to descriptors.
  */
@@ -2946,8 +3001,12 @@ bge_encap(sc, m_head, txidx)
 	if (m_head->m_pkthdr.csum_flags) {
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
 			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
-		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
 			csum_flags |= BGE_TXBDFLAG_TCP_UDP_CSUM;
+			if (m_head->m_pkthdr.len < ETHER_MIN_NOPAD &&
+			    bge_cksum_pad(m_head) != 0)
+				return (ENOBUFS);
+		}
 		if (m_head->m_flags & M_LASTFRAG)
 			csum_flags |= BGE_TXBDFLAG_IP_FRAG_END;
 		else if (m_head->m_flags & M_FRAG)
@@ -3465,10 +3524,10 @@ bge_ioctl(ifp, command, data)
 			}
 		}
 #endif
-		/* NB: the code for RX csum offload is disabled for now */
-		if (mask & IFCAP_TXCSUM) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if (IFCAP_TXCSUM & ifp->if_capenable)
+		if (mask & IFCAP_HWCSUM) {
+			ifp->if_capenable ^= IFCAP_HWCSUM;
+			if (IFCAP_HWCSUM & ifp->if_capenable &&
+			    IFCAP_HWCSUM & ifp->if_capabilities)
 				ifp->if_hwassist = BGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist = 0;
