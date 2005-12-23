@@ -47,11 +47,23 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
+/*
+ * MT-safe version
+ */
+
 size_t
-fread(buf, size, count, fp)
-	void * __restrict buf;
-	size_t size, count;
-	FILE * __restrict fp;
+fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
+{
+	int ret;
+
+	FLOCKFILE(fp);
+	ret = __fread(buf, size, count, fp);
+	FUNLOCKFILE(fp);
+	return (ret);
+}
+
+size_t
+__fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 {
 	size_t resid;
 	char *p;
@@ -65,7 +77,6 @@ fread(buf, size, count, fp)
 	 */
 	if ((resid = count * size) == 0)
 		return (0);
-	FLOCKFILE(fp);
 	ORIENT(fp, -1);
 	if (fp->_r < 0)
 		fp->_r = 0;
@@ -79,13 +90,11 @@ fread(buf, size, count, fp)
 		resid -= r;
 		if (__srefill(fp)) {
 			/* no more input: return partial result */
-			FUNLOCKFILE(fp);
 			return ((total - resid) / size);
 		}
 	}
 	(void)memcpy((void *)p, (void *)fp->_p, resid);
 	fp->_r -= resid;
 	fp->_p += resid;
-	FUNLOCKFILE(fp);
 	return (count);
 }

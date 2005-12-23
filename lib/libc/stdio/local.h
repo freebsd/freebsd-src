@@ -79,7 +79,8 @@ extern int	__vfscanf(FILE *, const char *, __va_list);
 extern int	__vfwprintf(FILE *, const wchar_t *, __va_list);
 extern int	__vfwscanf(FILE * __restrict, const wchar_t * __restrict,
 		    __va_list);
-
+extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
+		FILE * __restrict fp);
 extern int	__sdidinit;
 
 
