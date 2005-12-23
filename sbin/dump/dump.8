@@ -29,7 +29,7 @@
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2002
+.Dd December 22, 2005
 .Dt DUMP 8
 .Os
 .Sh NAME
@@ -452,6 +452,13 @@ program.
 Pathname of a remote shell program, if not
 .Xr rsh 1 .
 .El
+.Sh EXAMPLES
+Dumps the "/u" file system to dvds using growisofs.
+Uses a 16MB cache and creates a snapshot of the dump and records the
+dumpdates file.
+.Bd -literal
+/sbin/dump -0u  -L -C16 -B4589840 -P 'growisofs -Z /dev/cd0=/dev/fd/0' /u
+.Ed
 .Sh FILES
 .Bl -tag -width /etc/dumpdates -compact
 .It Pa /dev/sa0
