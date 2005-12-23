@@ -53,7 +53,7 @@ ${SPSEUDO}:
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    > ${.TARGET}
 
-MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
+MAN+=	_exit.2 abort2.2 accept.2 access.2 acct.2  adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
