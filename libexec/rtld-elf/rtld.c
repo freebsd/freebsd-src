@@ -3035,7 +3035,6 @@ check_object_provided_version(Obj_Entry *refobj, const Obj_Entry *depobj,
     if (vd == NULL) {
 	_rtld_error("%s does not have version information, but %s requires it",
 	    depobj->path, refobj->path);
-	*(char *)0 = 0;
 	return (-1);
     }
     for (;;) {
