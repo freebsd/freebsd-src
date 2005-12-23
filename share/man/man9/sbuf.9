@@ -337,6 +337,10 @@ and
 return
 .Dv NULL
 and \-1, respectively, if the buffer overflowed.
+.Pp
+.Fn sbuf_copyin
+returns \-1 if copying string from userland failed, and number of bytes
+copied otherwise.
 .Sh SEE ALSO
 .Xr printf 3 ,
 .Xr strcat 3 ,
