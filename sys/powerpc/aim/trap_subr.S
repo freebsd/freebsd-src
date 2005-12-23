@@ -438,6 +438,8 @@ CNAME(trapexit):
 	isync
 	addi	%r3,%r1,8
 	bl	CNAME(ast)
+	.globl	CNAME(asttrapexit)	/* backtrace code sentinel #2 */
+CNAME(asttrapexit):
 	b	trapexit		/* test ast ret value ? */
 1:
 	FRAME_LEAVE(PC_TEMPSAVE)
