@@ -429,6 +429,7 @@ _ciss=		ciss
 _cpufreq=	cpufreq
 _digi=		digi
 _drm=		drm
+_ed=		ed
 _em=		em
 _ext2fs=	ext2fs
 _hptmv=		hptmv
