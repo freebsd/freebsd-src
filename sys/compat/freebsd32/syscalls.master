@@ -751,4 +751,4 @@
 460	AUE_NULL	UNIMPL  mq_timedsend
 461	AUE_NULL	UNIMPL	mq_notify
 462	AUE_NULL	UNIMPL	mq_unlink
-463	AUE_NULL	MSTD	{ int abort2(const char *why, int nargs, void **args); }
+463	AUE_NULL	MNOPROTO { int abort2(const char *why, int nargs, void **args); }
