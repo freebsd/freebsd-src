@@ -52,13 +52,15 @@
 
 /* Statistics structure returned by NGM_SOURCE_GET_STATS */
 struct ng_source_stats {
-	u_int64_t	outOctets;
-	u_int64_t	outFrames;
-	u_int32_t	queueOctets;
-	u_int32_t	queueFrames;
+	uint64_t	outOctets;
+	uint64_t	outFrames;
+	uint32_t	queueOctets;
+	uint32_t	queueFrames;
+	uint32_t	maxPps;
 	struct timeval	startTime;
 	struct timeval	endTime;
 	struct timeval	elapsedTime;
+	struct timeval	lastTime;
 };
 
 extern const struct ng_parse_type ng_source_timeval_type;
@@ -68,9 +70,11 @@ extern const struct ng_parse_type ng_source_timeval_type;
 	  { "outFrames",	&ng_parse_uint64_type	},	\
 	  { "queueOctets",	&ng_parse_uint32_type	},	\
 	  { "queueFrames",	&ng_parse_uint32_type	},	\
+	  { "maxPps",		&ng_parse_uint32_type	},	\
 	  { "startTime",	&ng_source_timeval_type },	\
 	  { "endTime",		&ng_source_timeval_type },	\
 	  { "elapsedTime",	&ng_source_timeval_type },	\
+	  { "lastTime",		&ng_source_timeval_type },	\
 	  { NULL }						\
 }
 
@@ -83,6 +87,7 @@ enum {
 	NGM_SOURCE_STOP,		/* stop sending queued data */
 	NGM_SOURCE_CLR_DATA,		/* clear the queued data */
 	NGM_SOURCE_SETIFACE,		/* configure downstream iface */
+	NGM_SOURCE_SETPPS,		/* rate-limiting packets per second */
 };
 
 #endif /* _NETGRAPH_NG_SOURCE_H_ */
