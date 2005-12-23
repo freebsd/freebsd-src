@@ -56,10 +56,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/signalvar.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
+#include <sys/syslog.h>
 #include <sys/ptrace.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/filedesc.h>
@@ -552,6 +554,87 @@ retry:
 	 */
 	thread_exit();
 }
+
+
+#ifndef _SYS_SYSPROTO_H_
+struct abort2_args {
+	char *why;
+	int nargs;
+	void **args;
+};
+#endif
+
+/*
+ * MPSAFE.
+ */
+int
+abort2(struct thread *td, struct abort2_args *uap)
+{
+	struct proc *p = td->td_proc;
+	struct sbuf *sb;
+	void *uargs[16];
+	int error, i, sig;
+
+	error = 0;	/* satisfy compiler */
+
+	/*
+	 * Do it right now so we can log either proper call of abort2(), or
+	 * note, that invalid argument was passed. 512 is big enough to
+	 * handle 16 arguments' descriptions with additional comments.
+	 */
+	sb = sbuf_new(NULL, NULL, 512, SBUF_FIXEDLEN);
+	sbuf_clear(sb);
+	sbuf_printf(sb, "%s(pid %d uid %d) aborted: ",
+	    p->p_comm, p->p_pid, td->td_ucred->cr_uid);
+	/* 
+	 * Since we can't return from abort2(), send SIGKILL in cases, where
+	 * abort2() was called improperly
+	 */
+	sig = SIGKILL;
+	/* Prevent from DoSes from user-space. */
+	if (uap->nargs < 0 || uap->nargs > 16)
+		goto out;
+	if (uap->args == NULL)
+		goto out;
+	error = copyin(uap->args, uargs, uap->nargs * sizeof(void *));
+	if (error != 0)
+		goto out;
+	/*
+	 * Limit size of 'reason' string to 128. Will fit even when
+	 * maximal number of arguments was chosen to be logged.
+	 */
+	if (uap->why != NULL) {
+		error = sbuf_copyin(sb, uap->why, 128);
+		if (error < 0)
+			goto out;
+	} else {
+		sbuf_printf(sb, "(null)");
+	}
+	if (uap->nargs) {
+		sbuf_printf(sb, "(");
+		for (i = 0;i < uap->nargs; i++)
+			sbuf_printf(sb, "%s%p", i == 0 ? "" : ", ", uargs[i]);
+		sbuf_printf(sb, ")");
+	}
+	/*
+	 * Final stage: arguments were proper, string has been
+	 * successfully copied from userspace, and copying pointers
+	 * from user-space succeed.
+	 */
+	sig = SIGABRT;
+out:
+	if (sig == SIGKILL) {
+		sbuf_trim(sb);
+		sbuf_printf(sb, " (Reason text inaccessible)");
+	}
+	sbuf_cat(sb, "\n");
+	sbuf_finish(sb);
+	log(LOG_INFO, "%s", sbuf_data(sb));
+	sbuf_delete(sb);
+	exit1(td, W_EXITCODE(0, sig));
+	return (0);
+}
+
 
 #ifdef COMPAT_43
 /*
