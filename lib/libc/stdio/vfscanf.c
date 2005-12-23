@@ -412,7 +412,7 @@ literal:
 				}
 				nread += sum;
 			} else {
-				size_t r = fread((void *)va_arg(ap, char *), 1,
+				size_t r = __fread((void *)va_arg(ap, char *), 1,
 				    width, fp);
 
 				if (r == 0)
