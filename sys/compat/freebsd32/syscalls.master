@@ -743,4 +743,12 @@
 452	AUE_NULL	UNIMPL	setaudit_addr
 453	AUE_NULL	UNIMPL	auditctl
 454	AUE_NULL	UNIMPL	_umtx_op
+455	AUE_NULL	UNIMPL	thr_new
+456	AUE_NULL	UNIMPL	sigqueue
+457	AUE_NULL	UNIMPL	mq_open
+458	AUE_NULL	UNIMPL	mq_setattr
+459	AUE_NULL	UNIMPL	mq_timedreceive
+460	AUE_NULL	UNIMPL  mq_timedsend
+461	AUE_NULL	UNIMPL	mq_notify
+462	AUE_NULL	UNIMPL	mq_unlink
 463	AUE_NULL	MSTD	{ int abort2(const char *why, int nargs, void **args); }
