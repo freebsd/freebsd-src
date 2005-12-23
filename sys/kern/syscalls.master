@@ -816,5 +816,6 @@
 461	AUE_NULL	MNOSTD	{ int mq_notify(mqd_t mqd,		\
 				    const struct sigevent *sigev); }
 462	AUE_NULL	MNOSTD	{ int mq_unlink(const char *path); }
+463	AUE_NULL	MSTD	{ int abort2(const char *why, int nargs, void **args); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
