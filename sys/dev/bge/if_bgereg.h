@@ -2396,7 +2396,6 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
-	u_int8_t		bge_unit;	/* interface number */
 	u_int8_t		bge_extram;	/* has external SSRAM */
 	u_int8_t		bge_tbi;
 	u_int8_t		bge_rx_alignment_bug;
