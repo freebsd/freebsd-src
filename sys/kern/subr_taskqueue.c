@@ -410,7 +410,7 @@ taskqueue_define_fast(void *arg)
 	mtx_unlock(&taskqueue_queues_mutex);
 
 	swi_add(NULL, "Fast taskq", taskqueue_fast_run,
-		NULL, SWI_TQ_FAST, 0, &taskqueue_fast_ih);
+		NULL, SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih);
 }
 SYSINIT(taskqueue_fast, SI_SUB_CONFIGURE, SI_ORDER_SECOND,
     taskqueue_define_fast, NULL);
