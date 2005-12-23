@@ -80,6 +80,7 @@ extern int __mb_cur_max;
 
 __BEGIN_DECLS
 void	 abort(void) __dead2;
+void	 abort2(const char *, int, void **) __dead2;
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
 double	 atof(const char *);
