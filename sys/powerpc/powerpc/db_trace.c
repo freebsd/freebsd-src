@@ -97,6 +97,7 @@ struct db_variable db_regs[] = {
 struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
 
 extern int trapexit[];
+extern int asttrapexit[];
 extern int end[];
 
 /*
@@ -186,11 +187,13 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 		db_printf("0x%08x: ", stackframe);
 
 		/*
-		 * The trap code labels the return address from the
-		 * call to C code as 'trapexit'. Use this to determine
-		 * if the callframe has to traverse a saved trap context
+		 * The trap code labels the return addresses from the
+		 * call to C code as 'trapexit' and 'asttrapexit. Use this
+		 * to determine if the callframe has to traverse a saved
+		 * trap context
 		 */
-		if (lr + 4 == (db_addr_t) &trapexit) {
+		if ((lr + 4 == (db_addr_t) &trapexit) ||
+		    (lr + 4 == (db_addr_t) &asttrapexit)) {
 			const char *trapstr;
 			struct trapframe *tf = (struct trapframe *)
 				(stackframe+8);
@@ -312,7 +315,8 @@ stack_save(struct stack *st)
 		 * things are going wrong. Plus, prevents this shortened
 		 * version of code from accessing user-space frames
 		 */
-		if (callpc + 4 == (db_addr_t) &trapexit)
+		if (callpc + 4 == (db_addr_t) &trapexit ||
+		    callpc + 4 == (db_addr_t) &asttrapexit)
 			break;
 
 		if (stack_put(st, callpc) == -1)
