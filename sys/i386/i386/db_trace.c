@@ -168,7 +168,8 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 /*
  * Stack trace.
  */
-#define	INKERNEL(va)	(((vm_offset_t)(va)) >= USRSTACK)
+#define	INKERNEL(va)	(((vm_offset_t)(va)) >= USRSTACK && \
+	    ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
 
 struct i386_frame {
 	struct i386_frame	*f_frame;
@@ -524,6 +525,10 @@ stack_save(struct stack *st)
 		if (!INKERNEL(callpc))
 			break;
 		if (stack_put(st, callpc) == -1)
+			break;
+		if (frame->f_frame <= frame ||
+		    (vm_offset_t)frame->f_frame >=
+		    (vm_offset_t)ebp + KSTACK_PAGES * PAGE_SIZE)
 			break;
 		frame = frame->f_frame;
 	}
