@@ -180,7 +180,7 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
  * Stack trace.
  */
 #define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
-	    || (va) >= KERNBASE)
+	    || ((va) >= KERNBASE && (va) < VM_MAX_KERNEL_ADDRESS))
 
 struct amd64_frame {
 	struct amd64_frame	*f_frame;
@@ -514,6 +514,10 @@ stack_save(struct stack *st)
 		if (!INKERNEL(callpc))
 			break;
 		if (stack_put(st, callpc) == -1)
+			break;
+		if (frame->f_frame <= frame ||
+		    (vm_offset_t)frame->f_frame >=
+		    (vm_offset_t)rbp + KSTACK_PAGES * PAGE_SIZE)
 			break;
 		frame = frame->f_frame;
 	}
