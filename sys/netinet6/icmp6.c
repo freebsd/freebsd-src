@@ -2092,13 +2092,15 @@ icmp6_reflect(m, off)
 	sa6_src.sin6_len = sizeof(sa6_src);
 	sa6_src.sin6_addr = ip6->ip6_dst;
 	in6_recoverscope(&sa6_src, &ip6->ip6_dst, m->m_pkthdr.rcvif);
-	in6_embedscope(&ip6->ip6_dst, &sa6_src, NULL, NULL);
+	if (in6_embedscope(&ip6->ip6_dst, &sa6_src, NULL, NULL))
+		goto bad;
 	bzero(&sa6_dst, sizeof(sa6_dst));
 	sa6_dst.sin6_family = AF_INET6;
 	sa6_dst.sin6_len = sizeof(sa6_dst);
 	sa6_dst.sin6_addr = t;
 	in6_recoverscope(&sa6_dst, &t, m->m_pkthdr.rcvif);
-	in6_embedscope(&t, &sa6_dst, NULL, NULL);
+	if (in6_embedscope(&t, &sa6_dst, NULL, NULL))
+		goto bad;
 
 #ifdef COMPAT_RFC1885
 	/*

@@ -2577,7 +2577,7 @@ ip6_copypktopts(src, canwait)
 	if (src->ip6po_nexthop) {
 		dst->ip6po_nexthop = malloc(src->ip6po_nexthop->sa_len,
 		    M_IP6OPT, canwait);
-		if (dst->ip6po_nexthop == NULL && canwait == M_NOWAIT)
+		if (dst->ip6po_nexthop == NULL)
 			goto bad;
 		bcopy(src->ip6po_nexthop, dst->ip6po_nexthop,
 		    src->ip6po_nexthop->sa_len);

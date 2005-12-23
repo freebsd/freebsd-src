@@ -675,7 +675,7 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
 		 * (this may happen when we are sending a packet to one of
 		 *  our own addresses.)
 		 */
-		if (opts && opts->ip6po_pktinfo &&
+		if (ifp && opts && opts->ip6po_pktinfo &&
 		    opts->ip6po_pktinfo->ipi6_ifindex) {
 			if (!(ifp->if_flags & IFF_LOOPBACK) &&
 			    ifp->if_index !=
