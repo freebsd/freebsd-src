@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #ifdef DEBUG_LOCKS
 #include <sys/stack.h>
-#include <sys/sysctl.h>
 #endif
 #include <sys/kdb.h>
 
