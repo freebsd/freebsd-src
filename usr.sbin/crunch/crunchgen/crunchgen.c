@@ -74,6 +74,7 @@ typedef struct prog {
 	strlst_t *keeplist;
 	strlst_t *links;
 	strlst_t *libs;
+	strlst_t *libs_so;
 	int goterror;
 } prog_t;
 
@@ -83,6 +84,7 @@ typedef struct prog {
 strlst_t *buildopts = NULL;
 strlst_t *srcdirs   = NULL;
 strlst_t *libs      = NULL;
+strlst_t *libs_so   = NULL;
 prog_t   *progs     = NULL;
 
 char confname[MAXPATHLEN], infilename[MAXPATHLEN];
@@ -106,6 +108,8 @@ void out_of_memory(void);
 void add_string(strlst_t **listp, char *str);
 int is_dir(char *pathname);
 int is_nonempty_file(char *pathname);
+int subtract_strlst(strlst_t **lista, strlst_t **listb);
+int in_list(strlst_t **listp, char *str);
 
 /* helper routines for main() */
 
@@ -238,6 +242,7 @@ void add_srcdirs(int argc, char **argv);
 void add_progs(int argc, char **argv);
 void add_link(int argc, char **argv);
 void add_libs(int argc, char **argv);
+void add_libs_so(int argc, char **argv);
 void add_buildopts(int argc, char **argv);
 void add_special(int argc, char **argv);
 
@@ -292,6 +297,8 @@ void parse_one_file(char *filename)
 			f = add_link;
 		else if(!strcmp(fieldv[0], "libs"))
 			f = add_libs;
+		else if(!strcmp(fieldv[0], "libs_so"))
+			f = add_libs_so;
 		else if(!strcmp(fieldv[0], "buildopts"))
 			f = add_buildopts;
 		else if(!strcmp(fieldv[0], "special"))
@@ -408,6 +415,7 @@ void add_prog(char *progname)
 	p2->objdir = NULL;
 	p2->links = NULL;
 	p2->libs = NULL;
+	p2->libs_so = NULL;
 	p2->objs = NULL;
 	p2->keeplist = NULL;
 	p2->buildopts = NULL;
@@ -443,8 +451,27 @@ void add_libs(int argc, char **argv)
 {
 	int i;
 
-	for(i = 1; i < argc; i++)
+	for(i = 1; i < argc; i++) {
 		add_string(&libs, argv[i]);
+		if ( in_list(&libs_so, argv[i]) )
+			warnx("%s:%d: "
+				"library `%s' specified as dynamic earlier",
+				curfilename, linenum, argv[i]);
+	}
+}
+
+
+void add_libs_so(int argc, char **argv)
+{
+	int i;
+
+	for(i = 1; i < argc; i++) {
+		add_string(&libs_so, argv[i]);
+		if ( in_list(&libs, argv[i]) )
+			warnx("%s:%d: "
+				"library `%s' specified as static earlier",
+				curfilename, linenum, argv[i]);
+	}
 }
 
 
@@ -922,8 +949,14 @@ void top_makefile_rules(FILE *outmk)
 {
 	prog_t *p;
 
+	if ( subtract_strlst(&libs, &libs_so) )
+		fprintf(outmk, "# NOTE: Some LIBS declarations below overridden by LIBS_SO\n");
+
 	fprintf(outmk, "LIBS+=");
 	output_strlst(outmk, libs);
+
+	fprintf(outmk, "LIBS_SO+=");
+	output_strlst(outmk, libs_so);
 
 	if (makeobj) {
 		fprintf(outmk, "MAKEOBJDIRPREFIX?=%s\n", objprefix);
@@ -954,8 +987,15 @@ void top_makefile_rules(FILE *outmk)
 	fprintf(outmk, "all: objs exe\nobjs: $(SUBMAKE_TARGETS)\n");
 	fprintf(outmk, "exe: %s\n", execfname);
 	fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS)\n", execfname, execfname);
+	fprintf(outmk, ".if defined(LIBS_SO) && !empty(LIBS_SO)\n");
+	fprintf(outmk, "\t$(CC) -o %s %s.o $(CRUNCHED_OBJS) \\\n",
+	    execfname, execfname);
+	fprintf(outmk, "\t\t-Xlinker -Bstatic $(LIBS) \\\n");
+	fprintf(outmk, "\t\t-Xlinker -Bdynamic $(LIBS_SO)\n");
+	fprintf(outmk, ".else\n");
 	fprintf(outmk, "\t$(CC) -static -o %s %s.o $(CRUNCHED_OBJS) $(LIBS)\n",
 	    execfname, execfname);
+	fprintf(outmk, ".endif\n");
 	fprintf(outmk, "\tstrip %s\n", execfname);
 	fprintf(outmk, "realclean: clean subclean\n");
 	fprintf(outmk, "clean:\n\trm -f %s *.lo *.o *_stub.c\n", execfname);
@@ -1031,6 +1071,7 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	    p->name, p->name, p->ident);
 	if (p->libs)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
+
 	fprintf(outmk, "\n");
 	fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
@@ -1046,7 +1087,8 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 void output_strlst(FILE *outf, strlst_t *lst)
 {
 	for (; lst != NULL; lst = lst->next)
-		fprintf(outf, " %s", lst->str);
+		if ( strlen(lst->str) )
+			fprintf(outf, " %s", lst->str);
 	fprintf(outf, "\n");
 }
 
@@ -1106,6 +1148,27 @@ void add_string(strlst_t **listp, char *str)
 		p1->next = p2;
 }
 
+int subtract_strlst(strlst_t **lista, strlst_t **listb)
+{
+	int subtract_count = 0;
+	strlst_t *p1;
+	for (p1 = *listb; p1 != NULL; p1 = p1->next)
+		if ( in_list(lista, p1->str) ) {
+			warnx("Will compile library `%s' dynamically", p1->str);
+			strcat(p1->str, "");
+			subtract_count++;
+		}
+	return subtract_count;
+}
+
+int in_list(strlst_t **listp, char *str)
+{
+	strlst_t *p1;
+	for (p1 = *listp; p1 != NULL; p1 = p1->next)
+		if (!strcmp(p1->str, str))
+			return 1;
+	return 0;
+}
 
 int is_dir(char *pathname)
 {
