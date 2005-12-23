@@ -411,7 +411,7 @@ bge_vpd_readbyte(sc, addr)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: VPD read timed out\n", sc->bge_unit);
+		device_printf(sc->bge_dev, "VPD read timed out\n");
 		return(0);
 	}
 
@@ -453,8 +453,9 @@ bge_vpd_read(sc)
 	bge_vpd_read_res(sc, &res, pos);
 
 	if (res.vr_id != VPD_RES_ID) {
-		printf("bge%d: bad VPD resource id: expected %x got %x\n",
-			sc->bge_unit, VPD_RES_ID, res.vr_id);
+		device_printf(sc->bge_dev,
+		    "bad VPD resource id: expected %x got %x\n", VPD_RES_ID,
+		    res.vr_id);
 		return;
 	}
 
@@ -468,8 +469,9 @@ bge_vpd_read(sc)
 	bge_vpd_read_res(sc, &res, pos);
 
 	if (res.vr_id != VPD_RES_READ) {
-		printf("bge%d: bad VPD resource id: expected %x got %x\n",
-		    sc->bge_unit, VPD_RES_READ, res.vr_id);
+		device_printf(sc->bge_dev,
+		    "bad VPD resource id: expected %x got %x\n", VPD_RES_READ,
+		    res.vr_id);
 		return;
 	}
 
@@ -519,7 +521,7 @@ bge_eeprom_getbyte(sc, addr, dest)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: eeprom read timed out\n", sc->bge_unit);
+		device_printf(sc->bge_dev, "EEPROM read timed out\n");
 		return(1);
 	}
 
@@ -594,7 +596,7 @@ bge_miibus_readreg(dev, phy, reg)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: PHY read timed out\n", sc->bge_unit);
+		if_printf(sc->bge_ifp, "PHY read timed out\n");
 		val = 0;
 		goto done;
 	}
@@ -645,7 +647,7 @@ bge_miibus_writereg(dev, phy, reg, val)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: PHY read timed out\n", sc->bge_unit);
+		if_printf(sc->bge_ifp, "PHY read timed out\n");
 		return(0);
 	}
 
@@ -1021,8 +1023,7 @@ bge_chipinit(sc)
 	 * self-tests passed.
 	 */
 	if (CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
-		printf("bge%d: RX CPU self-diagnostics failed!\n",
-		    sc->bge_unit);
+		device_printf(sc->bge_dev, "RX CPU self-diagnostics failed!\n");
 		return(ENODEV);
 	}
 
@@ -1193,8 +1194,8 @@ bge_blockinit(sc)
 		}
 
 		if (i == BGE_TIMEOUT) {
-			printf("bge%d: buffer manager failed to start\n",
-			    sc->bge_unit);
+			device_printf(sc->bge_dev,
+			    "buffer manager failed to start\n");
 			return(ENXIO);
 		}
 	}
@@ -1211,8 +1212,7 @@ bge_blockinit(sc)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: flow-through queue init failed\n",
-		    sc->bge_unit);
+		device_printf(sc->bge_dev, "flow-through queue init failed\n");
 		return(ENXIO);
 	}
 
@@ -1384,8 +1384,8 @@ bge_blockinit(sc)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: host coalescing engine failed to idle\n",
-		    sc->bge_unit);
+		device_printf(sc->bge_dev,
+		    "host coalescing engine failed to idle\n");
 		return(ENXIO);
 	}
 
@@ -1543,7 +1543,6 @@ bge_probe(dev)
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct bge_softc));
-	sc->bge_unit = device_get_unit(dev);
 	sc->bge_dev = dev;
 
 	while(t->bge_name != NULL) {
@@ -1724,7 +1723,8 @@ bge_dma_alloc(dev)
 			&sc->bge_cdata.bge_parent_tag);
 
 	if (error != 0) {
-		device_printf(dev, "could not allocate parent dma tag\n");
+		device_printf(sc->bge_dev,
+		    "could not allocate parent dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -1737,7 +1737,7 @@ bge_dma_alloc(dev)
 	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_mtag);
 
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -1747,7 +1747,8 @@ bge_dma_alloc(dev)
 		error = bus_dmamap_create(sc->bge_cdata.bge_mtag, 0,
 			    &sc->bge_cdata.bge_rx_std_dmamap[i]);
 		if (error) {
-			device_printf(dev, "can't create DMA map for RX\n");
+			device_printf(sc->bge_dev,
+			    "can't create DMA map for RX\n");
 			return(ENOMEM);
 		}
 	}
@@ -1758,7 +1759,8 @@ bge_dma_alloc(dev)
 		error = bus_dmamap_create(sc->bge_cdata.bge_mtag, 0,
 			    &sc->bge_cdata.bge_tx_dmamap[i]);
 		if (error) {
-			device_printf(dev, "can't create DMA map for RX\n");
+			device_printf(sc->bge_dev,
+			    "can't create DMA map for RX\n");
 			return(ENOMEM);
 		}
 	}
@@ -1771,7 +1773,7 @@ bge_dma_alloc(dev)
 	    NULL, NULL, &sc->bge_cdata.bge_rx_std_ring_tag);
 
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -1825,7 +1827,8 @@ bge_dma_alloc(dev)
 		    0, NULL, NULL, &sc->bge_cdata.bge_mtag_jumbo);
 
 		if (error) {
-			device_printf(dev, "could not allocate dma tag\n");
+			device_printf(sc->bge_dev,
+			    "could not allocate dma tag\n");
 			return (ENOMEM);
 		}
 
@@ -1836,7 +1839,8 @@ bge_dma_alloc(dev)
 		    NULL, NULL, &sc->bge_cdata.bge_rx_jumbo_ring_tag);
 
 		if (error) {
-			device_printf(dev, "could not allocate dma tag\n");
+			device_printf(sc->bge_dev,
+			    "could not allocate dma tag\n");
 			return (ENOMEM);
 		}
 
@@ -1868,7 +1872,7 @@ bge_dma_alloc(dev)
 			error = bus_dmamap_create(sc->bge_cdata.bge_mtag_jumbo,
 				    0, &sc->bge_cdata.bge_rx_jumbo_dmamap[i]);
 			if (error) {
-				device_printf(dev,
+				device_printf(sc->bge_dev,
 				    "can't create DMA map for RX\n");
 				return(ENOMEM);
 			}
@@ -1884,7 +1888,7 @@ bge_dma_alloc(dev)
 	    NULL, NULL, &sc->bge_cdata.bge_rx_return_ring_tag);
 
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -1922,7 +1926,7 @@ bge_dma_alloc(dev)
 	    &sc->bge_cdata.bge_tx_ring_tag);
 
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -1958,7 +1962,7 @@ bge_dma_alloc(dev)
 	    NULL, NULL, &sc->bge_cdata.bge_status_tag);
 
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -1994,7 +1998,7 @@ bge_dma_alloc(dev)
 	    &sc->bge_cdata.bge_stats_tag);
 
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -2034,12 +2038,10 @@ bge_attach(dev)
 	u_int32_t hwcfg = 0;
 	u_int32_t mac_tmp = 0;
 	u_char eaddr[6];
-	int unit, error = 0, rid;
+	int error = 0, rid;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	sc->bge_dev = dev;
-	sc->bge_unit = unit;
 
 	/*
 	 * Map control/status registers.
@@ -2051,7 +2053,7 @@ bge_attach(dev)
 	    RF_ACTIVE|PCI_RF_DENSE);
 
 	if (sc->bge_res == NULL) {
-		printf ("bge%d: couldn't map memory\n", unit);
+		device_printf (sc->bge_dev, "couldn't map memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -2066,12 +2068,10 @@ bge_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->bge_irq == NULL) {
-		printf("bge%d: couldn't map interrupt\n", unit);
+		device_printf(sc->bge_dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
-
-	sc->bge_unit = unit;
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -2110,7 +2110,7 @@ bge_attach(dev)
 	bge_reset(sc);
 
 	if (bge_chipinit(sc)) {
-		printf("bge%d: chip initialization failed\n", sc->bge_unit);
+		device_printf(sc->bge_dev, "chip initialization failed\n");
 		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
@@ -2130,7 +2130,7 @@ bge_attach(dev)
 		eaddr[5] = (u_char)mac_tmp;
 	} else if (bge_read_eeprom(sc, eaddr,
 	    BGE_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
-		printf("bge%d: failed to read station address\n", unit);
+		device_printf(sc->bge_dev, "failed to read station address\n");
 		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
@@ -2144,8 +2144,8 @@ bge_attach(dev)
 		sc->bge_return_ring_cnt = BGE_RETURN_RING_CNT;
 
 	if (bge_dma_alloc(dev)) {
-		printf ("bge%d: failed to allocate DMA resources\n",
-		    sc->bge_unit);
+		device_printf(sc->bge_dev,
+		    "failed to allocate DMA resources\n");
 		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
@@ -2161,7 +2161,7 @@ bge_attach(dev)
 	/* Set up ifnet structure */
 	ifp = sc->bge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("bge%d: failed to if_alloc()\n", sc->bge_unit);
+		device_printf(sc->bge_dev, "failed to if_alloc()\n");
 		bge_release_resources(sc);
 		error = ENXIO;
 		goto fail;
@@ -2209,7 +2209,7 @@ bge_attach(dev)
 	else {
 		if (bge_read_eeprom(sc, (caddr_t)&hwcfg, BGE_EE_HWCFG_OFFSET,
 		    sizeof(hwcfg))) {
-			printf("bge%d: failed to read EEPROM\n", unit);
+			device_printf(sc->bge_dev, "failed to read EEPROM\n");
 			bge_release_resources(sc);
 			error = ENXIO;
 			goto fail;
@@ -2239,7 +2239,7 @@ bge_attach(dev)
 		 */
 		if (mii_phy_probe(dev, &sc->bge_miibus,
 		    bge_ifmedia_upd, bge_ifmedia_sts)) {
-			printf("bge%d: MII without any PHY!\n", sc->bge_unit);
+			device_printf(sc->bge_dev, "MII without any PHY!\n");
 			bge_release_resources(sc);
 			error = ENXIO;
 			goto fail;
@@ -2281,7 +2281,7 @@ bge_attach(dev)
 
 	if (error) {
 		bge_detach(dev);
-		printf("bge%d: couldn't set up irq\n", unit);
+		device_printf(sc->bge_dev, "couldn't set up irq\n");
 	}
 
 fail:
@@ -2439,7 +2439,7 @@ bge_reset(sc)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		printf("bge%d: firmware handshake timed out\n", sc->bge_unit);
+		device_printf(sc->bge_dev, "firmware handshake timed out\n");
 		return;
 	}
 
@@ -2830,8 +2830,7 @@ bge_tick_locked(sc)
 					    BGE_MACMODE_TBI_SEND_CFGS);
 				CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
 				if (bootverbose)
-					printf("bge%d: gigabit link up\n",
-					    sc->bge_unit);
+					if_printf(ifp, "gigabit link up\n");
 				if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 					bge_start_locked(ifp);
 			}
@@ -2847,7 +2846,7 @@ bge_tick_locked(sc)
 			if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
 			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)&&
 			    bootverbose)
-				printf("bge%d: gigabit link up\n", sc->bge_unit);
+				if_printf(ifp, "gigabit link up\n");
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				bge_start_locked(ifp);
 		}
@@ -3209,7 +3208,7 @@ bge_init_locked(sc)
 	 * control blocks and firmware.
 	 */
 	if (bge_blockinit(sc)) {
-		printf("bge%d: initialization failure\n", sc->bge_unit);
+		device_printf(sc->bge_dev, "initialization failure\n");
 		return;
 	}
 
@@ -3251,8 +3250,8 @@ bge_init_locked(sc)
 				break;
 		}
 		if (i == 10)
-			printf ("bge%d: 5705 A0 chip failed to load RX ring\n",
-			    sc->bge_unit);
+			device_printf (sc->bge_dev,
+			    "5705 A0 chip failed to load RX ring\n");
 	}
 
 	/* Init jumbo RX ring. */
@@ -3549,7 +3548,7 @@ bge_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
-	printf("bge%d: watchdog timeout -- resetting\n", sc->bge_unit);
+	if_printf(ifp, "watchdog timeout -- resetting\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bge_init(sc);
