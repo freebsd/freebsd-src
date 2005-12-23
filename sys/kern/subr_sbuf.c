@@ -379,7 +379,7 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 		return (-1);	/* XXX */
 	}
 
-	return (0);
+	return (done);
 }
 #endif
 
