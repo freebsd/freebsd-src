@@ -635,21 +635,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOEXEC);
 	}
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
-
-	/*
-	 * From this point on, we may have resources that need to be freed.
-	 */
-
-	VOP_UNLOCK(imgp->vp, 0, td);
-
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch (phdr[i].p_type) {
 	  	case PT_INTERP:	/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE) {
-				error = ENOEXEC;
-				goto fail;
-			}
+			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
+				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
 			break;
 		default:
@@ -661,14 +652,25 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
-		error = ENOEXEC;
-		goto fail;
+		return (ENOEXEC);
 	}
 	sv = brand_info->sysvec;
 	if (interp != NULL && brand_info->interp_newpath != NULL)
 		interp = brand_info->interp_newpath;
 
+	/*
+	 * Avoid a possible deadlock if the current address space is destroyed
+	 * and that address space maps the locked vnode.  In the common case,
+	 * the locked vnode's v_usecount is decremented but remains greater
+	 * than zero.  Consequently, the vnode lock is not needed by vrele().
+	 * However, in cases where the vnode lock is external, such as nullfs,
+	 * v_usecount may become zero.
+	 */
+	VOP_UNLOCK(imgp->vp, 0, td);
+
 	exec_new_vmspace(imgp, sv);
+
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	vmspace = imgp->proc->p_vmspace;
 
@@ -697,7 +699,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
 			    sv->sv_pagesize)) != 0)
-  				goto fail;
+				return (error);
 
 			/*
 			 * If this segment contains the program headers,
@@ -764,8 +766,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	    text_size > maxtsiz ||
 	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM)) {
 		PROC_UNLOCK(imgp->proc);
-		error = ENOMEM;
-		goto fail;
+		return (ENOMEM);
 	}
 
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
@@ -786,23 +787,27 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->entry_addr = entry;
 
 	imgp->proc->p_sysent = sv;
-	if (interp != NULL && brand_info->emul_path != NULL &&
-	    brand_info->emul_path[0] != '\0') {
-		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		snprintf(path, MAXPATHLEN, "%s%s", brand_info->emul_path,
-		    interp);
-		error = __elfN(load_file)(imgp->proc, path, &addr,
-		    &imgp->entry_addr, sv->sv_pagesize);
-		free(path, M_TEMP);
-		if (error == 0)
-			interp = NULL;
-	}
 	if (interp != NULL) {
-		error = __elfN(load_file)(imgp->proc, interp, &addr,
-		    &imgp->entry_addr, sv->sv_pagesize);
+		VOP_UNLOCK(imgp->vp, 0, td);
+		if (brand_info->emul_path != NULL &&
+		    brand_info->emul_path[0] != '\0') {
+			path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+			snprintf(path, MAXPATHLEN, "%s%s",
+			    brand_info->emul_path, interp);
+			error = __elfN(load_file)(imgp->proc, path, &addr,
+			    &imgp->entry_addr, sv->sv_pagesize);
+			free(path, M_TEMP);
+			if (error == 0)
+				interp = NULL;
+		}
+		if (interp != NULL) {
+			error = __elfN(load_file)(imgp->proc, interp, &addr,
+			    &imgp->entry_addr, sv->sv_pagesize);
+		}
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error != 0) {
 			uprintf("ELF interpreter %s not found\n", interp);
-			goto fail;
+			return (error);
 		}
 	}
 
@@ -823,8 +828,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
 
-fail:
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
 }
 
