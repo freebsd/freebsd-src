@@ -172,7 +172,7 @@ void	 unsetenv(const char *);
  */
 #if __XSI_VISIBLE
 /* XXX XSI requires pollution from <sys/wait.h> here.  We'd rather not. */
-/* long	 a64l(const char *); */
+long	 a64l(const char *);
 double	 drand48(void);
 /* char	*ecvt(double, int, int * __restrict, int * __restrict); */
 double	 erand48(unsigned short[3]);
@@ -182,7 +182,7 @@ int	 getsubopt(char **, char *const *, char **);
 int	 grantpt(int);
 char	*initstate(unsigned long /* XSI requires u_int */, char *, long);
 long	 jrand48(unsigned short[3]);
-/* char	*l64a(long); */
+char	*l64a(long);
 void	 lcong48(unsigned short[7]);
 long	 lrand48(void);
 #ifndef _MKSTEMP_DECLARED
@@ -258,6 +258,7 @@ __const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
 void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
