@@ -376,7 +376,8 @@ main(int argc, char **argv)
 	args.pa_printfile	= stderr;
 	args.pa_interval	= DEFAULT_WAIT_INTERVAL;
 	STAILQ_INIT(&args.pa_head);
-
+	bzero(&ds_start, sizeof(ds_start));
+	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
 
 	while ((option = getopt(argc, argv, "CD:EO:P:R:S:Wc:dgk:n:o:p:s:t:w:"))
@@ -971,12 +972,12 @@ main(int argc, char **argv)
 			err(EX_OSERR, "ERROR: Cannot retrieve driver "
 			    "statistics");
 		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull)
-			warn("WARNING: some samples were dropped.  Please "
+			warnx("WARNING: some samples were dropped.  Please "
 			    "consider tuning the \"kern.hwpmc.nsamples\" "
 			    "tunable.");
 		if (ds_start.pm_buffer_requests_failed !=
 		    ds_end.pm_buffer_requests_failed)
-			warn("WARNING: some events were discarded.  Please "
+			warnx("WARNING: some events were discarded.  Please "
 			    "consider tuning the \"kern.hwpmc.nbuffers\" "
 			    "tunable.");
 	}
