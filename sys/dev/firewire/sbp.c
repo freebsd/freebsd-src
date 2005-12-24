@@ -698,8 +698,8 @@ sbp_login(struct sbp_dev *sdev)
 	if (t.tv_sec >= 0 && t.tv_usec > 0)
 		ticks = (t.tv_sec * 1000 + t.tv_usec / 1000) * hz / 1000;
 SBP_DEBUG(0)
-	printf("%s: sec = %ld usec = %ld ticks = %d\n", __func__,
-	    t.tv_sec, t.tv_usec, ticks);
+	printf("%s: sec = %jd usec = %ld ticks = %d\n", __func__,
+	    (intmax_t)t.tv_sec, t.tv_usec, ticks);
 END_DEBUG
 	callout_reset(&sdev->login_callout, ticks,
 			sbp_login_callout, (void *)(sdev));
