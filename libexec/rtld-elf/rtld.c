@@ -2425,10 +2425,25 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 			obj->path, obj->strtab + symnum, verndx);
 		    continue;
 		}
-		if (verndx >= VER_NDX_GIVEN) {
-		    if (vsymp == NULL)
-			vsymp = symp;
-		    vcount ++;
+		/*
+		 * If we are not called from dlsym (i.e. this is a normal
+		 * relocation from unversioned binary, accept the symbol
+		 * immediately if it happens to have first version after
+		 * this shared object became versioned. Otherwise, if
+		 * symbol is versioned and not hidden, remember it. If it
+		 * is the only symbol with this name exported by the
+		 * shared object, it will be returned as a match at the
+		 * end of the function. If symbol is global (verndx < 2)
+		 * accept it unconditionally.
+		 */
+		if ((flags & SYMLOOK_DLSYM) == 0 && verndx == VER_NDX_GIVEN)
+		    return symp;
+	        else if (verndx >= VER_NDX_GIVEN) {
+		    if ((obj->versyms[symnum] & VER_NDX_HIDDEN) == 0) {
+			if (vsymp == NULL)
+			    vsymp = symp;
+			vcount ++;
+		    }
 		    continue;
 		}
 	    }
@@ -2451,8 +2466,8 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 		if (obj->vertab[verndx].hash != ventry->hash ||
 		    strcmp(obj->vertab[verndx].name, ventry->name)) {
 		    /*
-		     * Version does not match. Look if this is a default symbol
-		     * and if it is not hidden. If default symbol (num < 2)
+		     * Version does not match. Look if this is a global symbol
+		     * and if it is not hidden. If global symbol (verndx < 2)
 		     * is available, use it. Do not return symbol if we are
 		     * called by dlvsym, because dlvsym looks for a specific
 		     * version and default one is not what dlvsym wants.
@@ -2942,7 +2957,7 @@ free_tls_offset(Obj_Entry *obj)
      * block, we give our space back to the 'allocator'. This is a
      * simplistic workaround to allow libGL.so.1 to be loaded and
      * unloaded multiple times. We only handle the Variant II
-     * mechanism for now - this really needs a proper allocator.  
+     * mechanism for now - this really needs a proper allocator.
      */
     if (calculate_tls_end(obj->tlsoffset, obj->tlssize)
 	== calculate_tls_end(tls_last_offset, tls_last_size)) {
@@ -3018,8 +3033,8 @@ locate_dependency(const Obj_Entry *obj, const char *name)
 	if (object_match_name(needed->obj, name))
 	    return needed->obj;
     }
-    _rtld_error("Unexpected  inconsistency: %s not found in dependency list",
-	name);
+    _rtld_error("%s: Unexpected  inconsistency: dependency %s not found",
+	obj->path, name);
     die();
 }
 
@@ -3033,13 +3048,13 @@ check_object_provided_version(Obj_Entry *refobj, const Obj_Entry *depobj,
     vername = refobj->strtab + vna->vna_name;
     vd = depobj->verdef;
     if (vd == NULL) {
-	_rtld_error("%s does not have version information, but %s requires it",
-	    depobj->path, refobj->path);
+	_rtld_error("%s: version %s required by %s not defined",
+	    depobj->path, vername, refobj->path);
 	return (-1);
     }
     for (;;) {
 	if (vd->vd_version != VER_DEF_CURRENT) {
-	    _rtld_error("Unsupported version of Elf_Verdef entry in %s : %d",
+	    _rtld_error("%s: Unsupported version %d of Elf_Verdef entry",
 		depobj->path, vd->vd_version);
 	    return (-1);
 	}
@@ -3055,8 +3070,8 @@ check_object_provided_version(Obj_Entry *refobj, const Obj_Entry *depobj,
     }
     if (vna->vna_flags & VER_FLG_WEAK)
 	return (0);
-    _rtld_error("Version %s required by %s can not be found in %s", vername,
-	refobj->path, depobj->path);
+    _rtld_error("%s: version %s required by %s not found",
+	depobj->path, vername, refobj->path);
     return (-1);
 }
 
@@ -3079,7 +3094,7 @@ rtld_verify_object_versions(Obj_Entry *obj)
     vn = obj->verneed;
     while (vn != NULL) {
 	if (vn->vn_version != VER_NEED_CURRENT) {
-	    _rtld_error("Unsupported version of Elf_Verneed entry in %s: %d",
+	    _rtld_error("%s: Unsupported version %d of Elf_Verneed entry",
 		obj->path, vn->vn_version);
 	    return (-1);
 	}
@@ -3100,8 +3115,8 @@ rtld_verify_object_versions(Obj_Entry *obj)
     vd = obj->verdef;
     while (vd != NULL) {
 	if (vd->vd_version != VER_DEF_CURRENT) {
-	    _rtld_error("Unsupported version of Elf_Verneed entry: %d",
-		vd->vd_version);
+	    _rtld_error("%s: Unsupported version %d of Elf_Verdef entry",
+		obj->path, vd->vd_version);
 	    return (-1);
 	}
 	vernum = VER_DEF_IDX(vd->vd_ndx);
