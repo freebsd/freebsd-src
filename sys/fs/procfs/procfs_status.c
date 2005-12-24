@@ -132,10 +132,10 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		calcru(p, &ut, &st);
 		start = p->p_stats->p_start;
 		timevaladd(&start, &boottime);
-		sbuf_printf(sb, " %ld,%ld %ld,%ld %ld,%ld",
-		    start.tv_sec, start.tv_usec,
-		    ut.tv_sec, ut.tv_usec,
-		    st.tv_sec, st.tv_usec);
+		sbuf_printf(sb, " %jd,%ld %jd,%ld %jd,%ld",
+		    (intmax_t)start.tv_sec, start.tv_usec,
+		    (intmax_t)ut.tv_sec, ut.tv_usec,
+		    (intmax_t)st.tv_sec, st.tv_usec);
 	} else {
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
