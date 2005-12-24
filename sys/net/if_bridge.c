@@ -1596,8 +1596,12 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	}
 
 	if (dst_if == NULL) {
-		/* tap off packets passing the bridge */
-		BPF_MTAP(ifp, m);
+		/*
+		 * Tap off packets passing the bridge. Broadcast packets will
+		 * already be tapped as they are reinjected into ether_input.
+		 */
+		if ((m->m_flags & (M_BCAST|M_MCAST)) == 0)
+			BPF_MTAP(ifp, m);
 
 		bridge_broadcast(sc, src_if, m, 1);
 		return;
