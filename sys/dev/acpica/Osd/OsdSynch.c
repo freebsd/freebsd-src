@@ -257,8 +257,8 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
 	    tmo = 1;
 
 	if (acpi_semaphore_debug) {
-	    printf("%s: Wakeup timeleft(%lu, %lu), tmo %u, sem %p, thread %d\n",
-		__func__, timelefttv.tv_sec, timelefttv.tv_usec, tmo, as,
+	    printf("%s: Wakeup timeleft(%jd, %lu), tmo %u, sem %p, thread %d\n",
+		__func__, (intmax_t)timelefttv.tv_sec, timelefttv.tv_usec, tmo, as,
 		AcpiOsGetThreadId());
 	}
     }
