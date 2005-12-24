@@ -896,8 +896,8 @@ matchlen(src, dst)
 		break;
 #endif
 	case AF_INET:
-		s = (u_char *)&((struct sockaddr_in6 *)src)->sin6_addr;
-		d = (u_char *)&((struct sockaddr_in6 *)dst)->sin6_addr;
+		s = (u_char *)&((struct sockaddr_in *)src)->sin_addr;
+		d = (u_char *)&((struct sockaddr_in *)dst)->sin_addr;
 		addrlen = sizeof(struct in_addr);
 		lim = s + addrlen;
 		break;
