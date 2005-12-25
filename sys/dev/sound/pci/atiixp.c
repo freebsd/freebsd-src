@@ -35,7 +35,6 @@
  *	* SPDIF
  *	* Support for more than 2 channels.
  *	* VRA ? VRM ? DRA ?
- *	* Suspend / Resume.
  *	* 32bit native recording (seems broken, disabled)
  *
  *
@@ -82,7 +81,8 @@ struct atiixp_chinfo {
 	bus_addr_t sgd_addr;
 	uint32_t enable_bit, flush_bit, linkptr_bit, dma_dt_cur_bit;
 	uint32_t dma_segs;
-	int caps_32bit, dir;
+	uint32_t fmt;
+	int caps_32bit, dir, active;
 };
 
 struct atiixp_info {
@@ -185,6 +185,8 @@ static void atiixp_chip_post_init(void *);
 static int  atiixp_pci_probe(device_t);
 static int  atiixp_pci_attach(device_t);
 static int  atiixp_pci_detach(device_t);
+static int  atiixp_pci_suspend(device_t);
+static int  atiixp_pci_resume(device_t);
 
 /*
  * ATI IXP helper functions
@@ -262,7 +264,9 @@ atiixp_reset_aclink(struct atiixp_info *sc)
 	value = atiixp_rd(sc, ATI_REG_CMD);
 	while (!(value & ATI_REG_CMD_ACLINK_ACTIVE)
 						&& --timeout) {
+#if 0
 		device_printf(sc->dev, "not up; resetting aclink hardware\n");
+#endif
 
 		/* dip aclink reset but keep the acsync */
 		value &= ~ATI_REG_CMD_AC_RESET;
@@ -284,8 +288,10 @@ atiixp_reset_aclink(struct atiixp_info *sc)
 
 	if (timeout == 0)
 		device_printf(sc->dev, "giving up aclink reset\n");
+#if 0
 	if (timeout != 10)
 		device_printf(sc->dev, "aclink hardware reset successful\n");
+#endif
 
 	/* assert reset and sync for safety */
 	value  = atiixp_rd(sc, ATI_REG_CMD);
@@ -484,6 +490,7 @@ atiixp_chan_setformat(kobj_t obj, void *data, uint32_t format)
 		value &= ~ATI_REG_6CH_REORDER_EN;
 		atiixp_wr(sc, ATI_REG_6CH_REORDER, value);
 	}
+	ch->fmt = format;
 	atiixp_unlock(sc);
 
 	return 0;
@@ -626,12 +633,12 @@ atiixp_intr(void *p)
 		return;
 	}
 
-	if (status & ATI_REG_ISR_IN_STATUS) {
+	if ((status & ATI_REG_ISR_IN_STATUS) && sc->rch.channel) {
 		atiixp_unlock(sc);
 		chn_intr(sc->rch.channel);
 		atiixp_lock(sc);
 	}
-	if (status & ATI_REG_ISR_OUT_STATUS) {
+	if ((status & ATI_REG_ISR_OUT_STATUS) && sc->pch.channel) {
 		atiixp_unlock(sc);
 		chn_intr(sc->pch.channel);
 		atiixp_lock(sc);
@@ -988,10 +995,87 @@ atiixp_pci_detach(device_t dev)
 	return 0;
 }
 
+static int
+atiixp_pci_suspend(device_t dev)
+{
+	struct atiixp_info *sc = pcm_getdevinfo(dev);
+	uint32_t value;
+
+	/* quickly disable interrupts and save channels active state */
+	atiixp_lock(sc);
+	atiixp_disable_interrupts(sc);
+	value = atiixp_rd(sc, ATI_REG_CMD);
+	sc->pch.active = (value & ATI_REG_CMD_SEND_EN) ? 1 : 0;
+	sc->rch.active = (value & ATI_REG_CMD_RECEIVE_EN) ? 1 : 0;
+	atiixp_unlock(sc);
+
+	/* stop everything */
+	if (sc->pch.channel && sc->pch.active)
+		atiixp_chan_trigger(NULL, &sc->pch, PCMTRIG_STOP);
+	if (sc->rch.channel && sc->rch.active)
+		atiixp_chan_trigger(NULL, &sc->rch, PCMTRIG_STOP);
+
+	/* power down aclink and pci bus */
+	atiixp_lock(sc);
+	value = atiixp_rd(sc, ATI_REG_CMD);
+	value |= ATI_REG_CMD_POWERDOWN | ATI_REG_CMD_AC_RESET;
+	atiixp_wr(sc, ATI_REG_CMD, ATI_REG_CMD_POWERDOWN);
+	pci_set_powerstate(dev, PCI_POWERSTATE_D3);
+	atiixp_unlock(sc);
+
+	return 0;
+}
+
+static int
+atiixp_pci_resume(device_t dev)
+{
+	struct atiixp_info *sc = pcm_getdevinfo(dev);
+
+	atiixp_lock(sc);
+	/* power up pci bus */
+	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	pci_enable_io(dev, SYS_RES_MEMORY);
+	pci_enable_busmaster(dev);
+	/* reset / power up aclink */
+	atiixp_reset_aclink(sc);
+	atiixp_unlock(sc);
+
+	if (mixer_reinit(dev) == -1) {
+		device_printf(dev, "unable to reinitialize the mixer\n");
+		return ENXIO;
+	}
+
+	/*
+	 * Resume channel activities. Reset channel format regardless
+	 * of its previous state.
+	 */
+	if (sc->pch.channel) {
+		if (sc->pch.fmt)
+			atiixp_chan_setformat(NULL, &sc->pch, sc->pch.fmt);
+		if (sc->pch.active)
+			atiixp_chan_trigger(NULL, &sc->pch, PCMTRIG_START);
+	}
+	if (sc->rch.channel) {
+		if (sc->rch.fmt)
+			atiixp_chan_setformat(NULL, &sc->rch, sc->rch.fmt);
+		if (sc->rch.active)
+			atiixp_chan_trigger(NULL, &sc->rch, PCMTRIG_START);
+	}
+
+	/* enable interrupts */
+	atiixp_lock(sc);
+	atiixp_enable_interrupts(sc);
+	atiixp_unlock(sc);
+
+	return 0;
+}
+
 static device_method_t atiixp_methods[] = {
 	DEVMETHOD(device_probe,		atiixp_pci_probe),
 	DEVMETHOD(device_attach,	atiixp_pci_attach),
 	DEVMETHOD(device_detach,	atiixp_pci_detach),
+	DEVMETHOD(device_suspend,	atiixp_pci_suspend),
+	DEVMETHOD(device_resume,	atiixp_pci_resume),
 	{ 0, 0 }
 };
 
