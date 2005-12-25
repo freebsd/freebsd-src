@@ -742,6 +742,9 @@ pf_src_connlimit(struct pf_state **state)
 	int bad = 0;
 
 	(*state)->src_node->conn++;
+#ifdef __FreeBSD__
+	(*state)->local_flags |= PFSTATE_SRC_CONN;
+#endif
 	pf_add_threshold(&(*state)->src_node->conn_rate);
 
 	if ((*state)->rule.ptr->max_src_conn &&
@@ -1074,8 +1077,12 @@ pf_src_tree_remove_state(struct pf_state *s)
 
 	if (s->src_node != NULL) {
 		if (s->proto == IPPROTO_TCP) {
+#ifdef __FreeBSD__
+			if (s->local_flags & PFSTATE_SRC_CONN)
+#else
 			if (s->src.state == PF_TCPS_PROXY_DST ||
 			    s->timeout >= PFTM_TCP_ESTABLISHED)
+#endif
 				--s->src_node->conn;
 		}
 		if (--s->src_node->states <= 0) {
