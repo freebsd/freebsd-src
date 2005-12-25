@@ -206,7 +206,7 @@ nd6_setmtu0(ifp, ndi)
 	case IFT_FDDI:
 		ndi->maxmtu = MIN(FDDIIPMTU, ifp->if_mtu); /* RFC2467 */
 		break;
-	 case IFT_ISO88025:
+	case IFT_ISO88025:
 		 ndi->maxmtu = MIN(ISO88025_MAX_MTU, ifp->if_mtu);
 		 break;
 	default:
@@ -260,11 +260,11 @@ nd6_option(ndopts)
 	struct nd_opt_hdr *nd_opt;
 	int olen;
 
-	if (!ndopts)
+	if (ndopts == NULL)
 		panic("ndopts == NULL in nd6_option");
-	if (!ndopts->nd_opts_last)
+	if (ndopts->nd_opts_last == NULL)
 		panic("uninitialized ndopts in nd6_option");
-	if (!ndopts->nd_opts_search)
+	if (ndopts->nd_opts_search == NULL)
 		return NULL;
 	if (ndopts->nd_opts_done)
 		return NULL;
@@ -312,16 +312,16 @@ nd6_options(ndopts)
 	struct nd_opt_hdr *nd_opt;
 	int i = 0;
 
-	if (!ndopts)
+	if (ndopts == NULL)
 		panic("ndopts == NULL in nd6_options");
-	if (!ndopts->nd_opts_last)
+	if (ndopts->nd_opts_last == NULL)
 		panic("uninitialized ndopts in nd6_options");
-	if (!ndopts->nd_opts_search)
+	if (ndopts->nd_opts_search == NULL)
 		return 0;
 
 	while (1) {
 		nd_opt = nd6_option(ndopts);
-		if (!nd_opt && !ndopts->nd_opts_last) {
+		if (nd_opt == NULL && ndopts->nd_opts_last == NULL) {
 			/*
 			 * Message validation requires that all included
 			 * options have a length that is greater than zero.
@@ -331,7 +331,7 @@ nd6_options(ndopts)
 			return -1;
 		}
 
-		if (!nd_opt)
+		if (nd_opt == NULL)
 			goto skip1;
 
 		switch (nd_opt->nd_opt_type) {
@@ -775,10 +775,10 @@ nd6_lookup(addr6, create, ifp)
 			 * destination and allocate an interface route.
 			 */
 			RTFREE_LOCKED(rt);
-			rt = 0;
+			rt = NULL;
 		}
 	}
-	if (!rt) {
+	if (rt == NULL) {
 		if (create && ifp) {
 			int e;
 
@@ -838,11 +838,10 @@ nd6_lookup(addr6, create, ifp)
 	    rt->rt_gateway->sa_family != AF_LINK || rt->rt_llinfo == NULL ||
 	    (ifp && rt->rt_ifa->ifa_ifp != ifp)) {
 		if (create) {
-			log(LOG_DEBUG,
+			nd6log((LOG_DEBUG,
 			    "nd6_lookup: failed to lookup %s (if = %s)\n",
 			    ip6_sprintf(addr6),
-			    ifp ? if_name(ifp) : "unspec");
-			/* xxx more logs... kazu */
+			    ifp ? if_name(ifp) : "unspec"));
 		}
 		RT_UNLOCK(rt);
 		return (NULL);
@@ -1050,16 +1049,16 @@ nd6_nud_hint(rt, dst6, force)
 	 * If the caller specified "rt", use that.  Otherwise, resolve the
 	 * routing table by supplied "dst6".
 	 */
-	if (!rt) {
-		if (!dst6)
+	if (rt == NULL) {
+		if (dst6 == NULL)
 			return;
-		if (!(rt = nd6_lookup(dst6, 0, NULL)))
+		if ((rt = nd6_lookup(dst6, 0, NULL)) == NULL)
 			return;
 	}
 
 	if ((rt->rt_flags & RTF_GATEWAY) != 0 ||
 	    (rt->rt_flags & RTF_LLINFO) == 0 ||
-	    !rt->rt_llinfo || !rt->rt_gateway ||
+	    rt->rt_llinfo == NULL || rt->rt_gateway == NULL ||
 	    rt->rt_gateway->sa_family != AF_LINK) {
 		/* This is not a host route. */
 		return;
@@ -1217,7 +1216,7 @@ nd6_rtrequest(req, rt, info)
 		 */
 		R_Malloc(ln, struct llinfo_nd6 *, sizeof(*ln));
 		rt->rt_llinfo = (caddr_t)ln;
-		if (!ln) {
+		if (ln == NULL) {
 			log(LOG_DEBUG, "nd6_rtrequest: malloc failed\n");
 			break;
 		}
@@ -1290,7 +1289,7 @@ nd6_rtrequest(req, rt, info)
 				int error;
 
 				llsol = SIN6(rt_key(rt))->sin6_addr;
-				llsol.s6_addr16[0] = htons(0xff02);
+				llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
 				llsol.s6_addr32[1] = 0;
 				llsol.s6_addr32[2] = htonl(1);
 				llsol.s6_addr8[12] = 0xff;
@@ -1306,7 +1305,7 @@ nd6_rtrequest(req, rt, info)
 		break;
 
 	case RTM_DELETE:
-		if (!ln)
+		if (ln == NULL)
 			break;
 		/* leave from solicited node multicast for proxy ND */
 		if ((rt->rt_flags & RTF_ANNOUNCE) != 0 &&
@@ -1315,7 +1314,7 @@ nd6_rtrequest(req, rt, info)
 			struct in6_multi *in6m;
 
 			llsol = SIN6(rt_key(rt))->sin6_addr;
-			llsol.s6_addr16[0] = htons(0xff02);
+			llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
 			llsol.s6_addr32[1] = 0;
 			llsol.s6_addr32[2] = htonl(1);
 			llsol.s6_addr8[12] = 0xff;
@@ -1428,19 +1427,19 @@ nd6_ioctl(cmd, data, ifp)
 	case OSIOCGIFINFO_IN6:
 #define ND	ndi->ndi
 		/* XXX: old ndp(8) assumes a positive value for linkmtu. */
-		bzero(&ndi->ndi, sizeof(ndi->ndi));
-		ndi->ndi.linkmtu = IN6_LINKMTU(ifp);
-		ndi->ndi.maxmtu = ND_IFINFO(ifp)->maxmtu;
-		ndi->ndi.basereachable = ND_IFINFO(ifp)->basereachable;
-		ndi->ndi.reachable = ND_IFINFO(ifp)->reachable;
-		ndi->ndi.retrans = ND_IFINFO(ifp)->retrans;
-		ndi->ndi.flags = ND_IFINFO(ifp)->flags;
-		ndi->ndi.recalctm = ND_IFINFO(ifp)->recalctm;
-		ndi->ndi.chlim = ND_IFINFO(ifp)->chlim;
+		bzero(&ND, sizeof(ND));
+		ND.linkmtu = IN6_LINKMTU(ifp);
+		ND.maxmtu = ND_IFINFO(ifp)->maxmtu;
+		ND.basereachable = ND_IFINFO(ifp)->basereachable;
+		ND.reachable = ND_IFINFO(ifp)->reachable;
+		ND.retrans = ND_IFINFO(ifp)->retrans;
+		ND.flags = ND_IFINFO(ifp)->flags;
+		ND.recalctm = ND_IFINFO(ifp)->recalctm;
+		ND.chlim = ND_IFINFO(ifp)->chlim;
 		break;
 	case SIOCGIFINFO_IN6:
-		ndi->ndi = *ND_IFINFO(ifp);
-		ndi->ndi.linkmtu = IN6_LINKMTU(ifp);
+		ND = *ND_IFINFO(ifp);
+		ND.linkmtu = IN6_LINKMTU(ifp);
 		break;
 	case SIOCSIFINFO_IN6:
 		/*
@@ -1471,7 +1470,7 @@ nd6_ioctl(cmd, data, ifp)
 			ND_IFINFO(ifp)->chlim = ND.chlim;
 		/* FALLTHROUGH */
 	case SIOCSIFINFO_FLAGS:
-		ND_IFINFO(ifp)->flags = ndi->ndi.flags;
+		ND_IFINFO(ifp)->flags = ND.flags;
 		break;
 #undef ND
 	case SIOCSNDFLUSH_IN6:	/* XXX: the ioctl name is confusing... */
@@ -1589,9 +1588,9 @@ nd6_cache_lladdr(ifp, from, lladdr, lladdrlen, type, code)
 	int llchange;
 	int newstate = 0;
 
-	if (!ifp)
+	if (ifp == NULL)
 		panic("ifp == NULL in nd6_cache_lladdr");
-	if (!from)
+	if (from == NULL)
 		panic("from == NULL in nd6_cache_lladdr");
 
 	/* nothing must be updated for unspecified address */
@@ -1609,7 +1608,7 @@ nd6_cache_lladdr(ifp, from, lladdr, lladdrlen, type, code)
 	 */
 
 	rt = nd6_lookup(from, 0, ifp);
-	if (!rt) {
+	if (rt == NULL) {
 #if 0
 		/* nothing must be done if there's no lladdr */
 		if (!lladdr || !lladdrlen)
@@ -1625,7 +1624,7 @@ nd6_cache_lladdr(ifp, from, lladdr, lladdrlen, type, code)
 		is_newentry = 0;
 	}
 
-	if (!rt)
+	if (rt == NULL)
 		return NULL;
 	if ((rt->rt_flags & (RTF_GATEWAY | RTF_LLINFO)) != RTF_LLINFO) {
 fail:
@@ -1633,9 +1632,9 @@ fail:
 		return NULL;
 	}
 	ln = (struct llinfo_nd6 *)rt->rt_llinfo;
-	if (!ln)
+	if (ln == NULL)
 		goto fail;
-	if (!rt->rt_gateway)
+	if (rt->rt_gateway == NULL)
 		goto fail;
 	if (rt->rt_gateway->sa_family != AF_LINK)
 		goto fail;
@@ -1671,15 +1670,15 @@ fail:
 	}
 
 	if (!is_newentry) {
-		if ((!olladdr && lladdr) ||		/* (3) */
-		    (olladdr && lladdr && llchange)) {	/* (5) */
+		if ((!olladdr && lladdr != NULL) ||	/* (3) */
+		    (olladdr && lladdr != NULL && llchange)) {	/* (5) */
 			do_update = 1;
 			newstate = ND6_LLINFO_STALE;
 		} else					/* (1-2,4) */
 			do_update = 0;
 	} else {
 		do_update = 1;
-		if (!lladdr)				/* (6) */
+		if (lladdr == NULL)			/* (6) */
 			newstate = ND6_LLINFO_NOSTATE;
 		else					/* (7) */
 			newstate = ND6_LLINFO_STALE;
@@ -1930,7 +1929,7 @@ again:
 		    (rt = nd6_lookup(&dst->sin6_addr, 1, ifp)) != NULL)
 			ln = (struct llinfo_nd6 *)rt->rt_llinfo;
 	}
-	if (!ln || !rt) {
+	if (ln == NULL || rt == NULL) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0 &&
 		    !(ND_IFINFO(ifp)->flags & ND6_IFF_PERFORMNUD)) {
 			log(LOG_DEBUG,
