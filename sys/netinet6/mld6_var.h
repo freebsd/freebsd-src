@@ -42,6 +42,7 @@
  */
 #define MLD_OTHERLISTENER			0
 #define MLD_IREPORTEDLAST			1
+#define	MLD_REPORTPENDING			2 /* implementation specific */
 
 void	mld6_init(void);
 void	mld6_input(struct mbuf *, int);
