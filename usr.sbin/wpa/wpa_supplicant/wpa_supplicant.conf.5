@@ -495,6 +495,20 @@ network={
         phase2="auth=MD5"
 }
 .Ed
+.Pp
+Traditional WEP configuration with 104 bit key specified in hexadecimal.
+Note the WEP key is not quoted.
+.Bd -literal
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+        ssid="example"
+        scan_ssid=1
+        key_mgmt=NONE
+        wep_tx_keyidx=0
+        wep_key0=42FEEDDEAFBABEDEAFBEEFAA55
+}
+.Ed
 .Sh SEE ALSO
 .Xr wpa_cli 8 ,
 .Xr wpa_supplicant 8
