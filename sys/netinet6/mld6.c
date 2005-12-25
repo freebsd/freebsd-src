@@ -530,7 +530,7 @@ in6_addmulti(maddr6, ifp, errorp)
 
 	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
 	   at interrupt time?  If so, need to fix if_addmulti. XXX */
-	in6m = (struct in6_multi *)malloc(sizeof(*in6m), M_IPMADDR, M_NOWAIT);
+	in6m = (struct in6_multi *)malloc(sizeof(*in6m), M_IP6MADDR, M_NOWAIT);
 	if (in6m == NULL) {
 		splx(s);
 		return (NULL);
@@ -571,7 +571,7 @@ in6_delmulti(in6m)
 		mld6_stop_listening(in6m);
 		ifma->ifma_protospec = NULL;
 		LIST_REMOVE(in6m, in6m_entry);
-		free(in6m, M_IPMADDR);
+		free(in6m, M_IP6MADDR);
 	}
 	/* XXX - should be separate API for when we have an ifma? */
 	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
