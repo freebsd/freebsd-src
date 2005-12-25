@@ -1239,7 +1239,7 @@ pfxlist_onlink_check()
 			break;
 	}
 
-	if (pr) {
+	if (pr == NULL) {
 		/*
 		 * There is at least one prefix that has a reachable router.
 		 * Detach prefixes which have no reachable advertising
@@ -1300,7 +1300,7 @@ pfxlist_onlink_check()
 			if ((e = nd6_prefix_offlink(pr)) != 0) {
 				nd6log((LOG_ERR,
 				    "pfxlist_onlink_check: failed to "
-				    "make %s/%d offlink, errno=%d\n",
+				    "make %s/%d onlink, errno=%d\n",
 				    ip6_sprintf(&pr->ndpr_prefix.sin6_addr),
 				    pr->ndpr_plen, e));
 			}
@@ -1382,8 +1382,8 @@ nd6_prefix_onlink(pr)
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
 		nd6log((LOG_ERR,
 		    "nd6_prefix_onlink: %s/%d is already on-link\n",
-		    ip6_sprintf(&pr->ndpr_prefix.sin6_addr), pr->ndpr_plen);
-		return (EEXIST));
+		    ip6_sprintf(&pr->ndpr_prefix.sin6_addr), pr->ndpr_plen));
+		return (EEXIST);
 	}
 
 	/*
