@@ -793,6 +793,7 @@ struct pf_state {
 #ifdef __FreeBSD__
 	u_int8_t	 local_flags;
 #define	PFSTATE_EXPIRING 0x01
+#define	PFSTATE_SRC_CONN 0x02
 #else
 	u_int8_t	 pad;
 #endif
