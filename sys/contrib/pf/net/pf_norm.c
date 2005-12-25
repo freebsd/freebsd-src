@@ -75,6 +75,8 @@
 #include <net/pfvar.h>
 
 #ifndef __FreeBSD__
+#include <inttypes.h>
+
 struct pf_frent {
 	LIST_ENTRY(pf_frent) fr_next;
 	struct ip *fr_ip;
@@ -1815,8 +1817,9 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			    SEQ_LT(tsecr, dst->scrub->pfss_tsval0)? '3' : ' '));
 #ifdef __FreeBSD__
 			DPFPRINTF((" tsval: %u  tsecr: %u  +ticks: %u  "
-			    "idle: %lus %lums\n",
-			    tsval, tsecr, tsval_from_last, delta_ts.tv_sec,
+			    "idle: %jus %lums\n",
+			    tsval, tsecr, tsval_from_last,
+			    (uintmax_t)delta_ts.tv_sec,
 			    delta_ts.tv_usec / 1000));
 			DPFPRINTF((" src->tsval: %u  tsecr: %u\n",
 			    src->scrub->pfss_tsval, src->scrub->pfss_tsecr));
