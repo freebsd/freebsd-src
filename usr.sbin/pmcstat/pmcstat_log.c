@@ -727,7 +727,7 @@ pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
 	char *line;
 	uintmax_t libstart;
 	struct pmcstat_image *image, *rtldimage;
-	char libpath[PATH_MAX];
+	char libname[PATH_MAX], libpath[PATH_MAX];
 	char command[PATH_MAX + sizeof(PMCSTAT_LDD_COMMAND) + 1];
 
 	/* Look up path in the cache. */
@@ -792,9 +792,17 @@ pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
 				continue;
 			line[linelen-1] = '\0';
 
-			if (sscanf(line, "%s %jx",
-				libpath, &libstart) != 2)
+			libstart = 0;
+			libpath[0] = libname[0] = '\0';
+			if (sscanf(line, "%s \"%[^\"]\" %jx",
+				libname, libpath, &libstart) != 3)
 				continue;
+
+			if (libstart == 0) {
+				warnx("WARNING: object \"%s\" was not found "
+				    "for program \"%s\".", libname, path);
+				continue;
+			}
 
 			image = pmcstat_image_from_path(
 				pmcstat_string_intern(libpath));
@@ -1281,7 +1289,7 @@ pmcstat_initialize_logging(struct pmcstat_args *a)
 	struct pmcstat_image *img;
 
 	/* use a convenient format for 'ldd' output */
-	if (setenv("LD_TRACE_LOADED_OBJECTS_FMT1","%p %x\n",1) != 0)
+	if (setenv("LD_TRACE_LOADED_OBJECTS_FMT1","%o \"%p\" %x\n",1) != 0)
 		goto error;
 
 	/* Initialize hash tables */
