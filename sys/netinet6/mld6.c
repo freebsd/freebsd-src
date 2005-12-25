@@ -74,12 +74,15 @@
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
+#include <sys/callout.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -101,9 +104,12 @@
 #define MLD_UNSOLICITED_REPORT_INTERVAL	10
 
 static struct ip6_pktopts ip6_opts;
-static int mld6_timers_are_running;
 
 static void mld6_sendpkt(struct in6_multi *, int, const struct in6_addr *);
+static void mld_starttimer(struct in6_multi *);
+static void mld_stoptimer(struct in6_multi *);
+static void mld_timeo(struct in6_multi *);
+static u_long mld_timerresid(struct in6_multi *);
 
 void
 mld6_init()
@@ -111,8 +117,6 @@ mld6_init()
 	static u_int8_t hbh_buf[8];
 	struct ip6_hbh *hbh = (struct ip6_hbh *)hbh_buf;
 	u_int16_t rtalert_code = htons((u_int16_t)IP6OPT_RTALERT_MLD);
-
-	mld6_timers_are_running = 0;
 
 	/* ip6h_nxt will be fill in later */
 	hbh->ip6h_len = 0;	/* (8 >> 3) - 1 */
@@ -126,6 +130,84 @@ mld6_init()
 
 	ip6_initpktopts(&ip6_opts);
 	ip6_opts.ip6po_hbh = hbh;
+}
+
+static void
+mld_starttimer(in6m)
+	struct in6_multi *in6m;
+{
+	struct timeval now;
+
+	microtime(&now);
+	in6m->in6m_timer_expire.tv_sec = now.tv_sec + in6m->in6m_timer / hz;
+	in6m->in6m_timer_expire.tv_usec = now.tv_usec +
+	    (in6m->in6m_timer % hz) * (1000000 / hz);
+	if (in6m->in6m_timer_expire.tv_usec > 1000000) {
+		in6m->in6m_timer_expire.tv_sec++;
+		in6m->in6m_timer_expire.tv_usec -= 1000000;
+	}
+
+	/* start or restart the timer */
+	callout_reset(in6m->in6m_timer_ch, in6m->in6m_timer,
+	    (void (*) __P((void *)))mld_timeo, in6m);
+}
+
+static void
+mld_stoptimer(in6m)
+	struct in6_multi *in6m;
+{
+	if (in6m->in6m_timer == IN6M_TIMER_UNDEF)
+		return;
+
+	callout_stop(in6m->in6m_timer_ch);
+	in6m->in6m_timer = IN6M_TIMER_UNDEF;
+}
+
+static void
+mld_timeo(in6m)
+	struct in6_multi *in6m;
+{
+	int s = splnet();
+
+	in6m->in6m_timer = IN6M_TIMER_UNDEF;
+
+	callout_stop(in6m->in6m_timer_ch);
+
+	switch (in6m->in6m_state) {
+	case MLD_REPORTPENDING:
+		mld6_start_listening(in6m);
+		break;
+	default:
+		mld6_sendpkt(in6m, MLD_LISTENER_REPORT, NULL);
+		break;
+	}
+
+	splx(s);
+}
+
+static u_long
+mld_timerresid(in6m)
+	struct in6_multi *in6m;
+{
+	struct timeval now, diff;
+
+	microtime(&now);
+
+	if (now.tv_sec > in6m->in6m_timer_expire.tv_sec ||
+	    (now.tv_sec == in6m->in6m_timer_expire.tv_sec &&
+	    now.tv_usec > in6m->in6m_timer_expire.tv_usec)) {
+		return (0);
+	}
+	diff = in6m->in6m_timer_expire;
+	diff.tv_sec -= now.tv_sec;
+	diff.tv_usec -= now.tv_usec;
+	if (diff.tv_usec < 0) {
+		diff.tv_sec--;
+		diff.tv_usec += 1000000;
+	}
+
+	/* return the remaining time in milliseconds */
+	return (((u_long)(diff.tv_sec * 1000000 + diff.tv_usec)) / 1000);
 }
 
 void
@@ -155,11 +237,11 @@ mld6_start_listening(in6m)
 		in6m->in6m_state = MLD_OTHERLISTENER;
 	} else {
 		mld6_sendpkt(in6m, MLD_LISTENER_REPORT, NULL);
-		in6m->in6m_timer =
-			MLD_RANDOM_DELAY(MLD_UNSOLICITED_REPORT_INTERVAL *
-					 PR_FASTHZ);
+		in6m->in6m_timer = arc4random() %
+			MLD_UNSOLICITED_REPORT_INTERVAL * hz;
 		in6m->in6m_state = MLD_IREPORTEDLAST;
-		mld6_timers_are_running = 1;
+
+		mld_starttimer(in6m);
 	}
 	splx(s);
 }
@@ -276,6 +358,8 @@ mld6_input(m, off)
 		 * - Use the value specified in the query message as
 		 *   the maximum timeout.
 		 */
+		timer = ntohs(mldh->mld_maxdelay);
+
 		IFP_TO_IA6(ifp, ia);
 		if (ia == NULL)
 			break;
@@ -305,16 +389,17 @@ mld6_input(m, off)
 			    IN6_ARE_ADDR_EQUAL(&mld_addr, &in6m->in6m_addr)) {
 				if (timer == 0) {
 					/* send a report immediately */
+					mld_stoptimer(in6m);
 					mld6_sendpkt(in6m, MLD_LISTENER_REPORT,
 						NULL);
 					in6m->in6m_timer = 0; /* reset timer */
 					in6m->in6m_state = MLD_IREPORTEDLAST;
 				}
 				else if (in6m->in6m_timer == 0 || /*idle state*/
-					in6m->in6m_timer > timer) {
-					in6m->in6m_timer =
-						MLD_RANDOM_DELAY(timer);
-					mld6_timers_are_running = 1;
+				    mld_timerresid(in6m) > (u_long)timer) {
+					in6m->in6m_timer = arc4random() %
+					    (int)((long)(timer * hz) / 1000);
+					mld_starttimer(in6m);
 				}
 			}
 		}
@@ -353,39 +438,6 @@ mld6_input(m, off)
 	}
 
 	m_freem(m);
-}
-
-void
-mld6_fasttimeo()
-{
-	struct in6_multi *in6m;
-	struct in6_multistep step;
-	int s;
-
-	/*
-	 * Quick check to see if any work needs to be done, in order
-	 * to minimize the overhead of fasttimo processing.
-	 */
-	if (!mld6_timers_are_running)
-		return;
-
-	s = splnet();
-
-	mld6_timers_are_running = 0;
-	IN6_FIRST_MULTI(step, in6m);
-	while (in6m != NULL) {
-		if (in6m->in6m_timer == 0) {
-			/* do nothing */
-		} else if (--in6m->in6m_timer == 0) {
-			mld6_sendpkt(in6m, MLD_LISTENER_REPORT, NULL);
-			in6m->in6m_state = MLD_IREPORTEDLAST;
-		} else {
-			mld6_timers_are_running = 1;
-		}
-		IN6_NEXT_MULTI(step, in6m);
-	}
-
-	splx(s);
 }
 
 static void
@@ -492,10 +544,10 @@ mld6_sendpkt(in6m, type, dst)
  * and the number of source is not 0.
  */
 struct	in6_multi *
-in6_addmulti(maddr6, ifp, errorp)
+in6_addmulti(maddr6, ifp, errorp, delay)
 	struct in6_addr *maddr6;
 	struct ifnet *ifp;
-	int *errorp;
+	int *errorp, delay;
 {
 	struct in6_multi *in6m;
 	struct ifmultiaddr *ifma;
@@ -542,7 +594,24 @@ in6_addmulti(maddr6, ifp, errorp)
 	in6m->in6m_refcount = 1;
 	in6m->in6m_ifma = ifma;
 	ifma->ifma_protospec = in6m;
+	in6m->in6m_timer_ch = malloc(sizeof(*in6m->in6m_timer_ch), M_IP6MADDR,
+	    M_NOWAIT);
+	if (in6m->in6m_timer_ch == NULL) {
+		free(in6m, M_IP6MADDR);
+		splx(s);
+		return (NULL);
+	}
 	LIST_INSERT_HEAD(&in6_multihead, in6m, in6m_entry);
+
+	callout_init(in6m->in6m_timer_ch, 0);
+	in6m->in6m_timer = delay;
+	if (in6m->in6m_timer > 0) {
+		in6m->in6m_state = MLD_REPORTPENDING;
+		mld_starttimer(in6m);
+
+		splx(s);
+		return (in6m);
+	}
 
 	/*
 	 * Let MLD6 know that we have joined a new IPv6 multicast
@@ -568,9 +637,11 @@ in6_delmulti(in6m)
 		 * No remaining claims to this record; let MLD6 know
 		 * that we are leaving the multicast group.
 		 */
+		mld_stoptimer(in6m);
 		mld6_stop_listening(in6m);
 		ifma->ifma_protospec = NULL;
 		LIST_REMOVE(in6m, in6m_entry);
+		free(in6m->in6m_timer_ch, M_IP6MADDR);
 		free(in6m, M_IP6MADDR);
 	}
 	/* XXX - should be separate API for when we have an ifma? */

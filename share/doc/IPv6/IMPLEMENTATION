@@ -204,19 +204,16 @@ RFC3542: Advanced Sockets API for IPv6 (revised)
     * For supported library functions/kernel APIs, see sys/netinet6/ADVAPI.
     * Some of the updates in the draft are not implemented yet.  See
       TODO.2292bis for more details.
-draft-ietf-ipngwg-icmp-name-lookups-09: IPv6 Name Lookups Through ICMP
-draft-ietf-ngtrans-tcpudp-relay-04.txt:
-	An IPv6-to-IPv4 transport relay translator
-    * FAITH tcp relay translator (faithd) implements this.  See 3.1 for more
-      details.
-draft-ietf-ipngwg-router-selection-01.txt:
-	Default Router Preferences and More-Specific Routes
-    * router-side only.
-draft-ietf-ipngwg-scoping-arch-02.txt:
-	The architecture, text representation, and usage of IPv6
-	scoped addresses.
+RFC4007: IPv6 Scoped Address Architecture
     * some part of the documentation (especially about the routing
       model) is not supported yet.
+    * zone indices that contain scope types have not been supported yet.
+
+draft-ietf-ipngwg-icmp-name-lookups-09: IPv6 Name Lookups Through ICMP
+draft-ietf-ipv6-router-selection-07.txt:
+	Default Router Preferences and More-Specific Routes
+    * router-side: both router preference and specific routes are supported.
+    * host-side: only router preference is supported.
 draft-ietf-pim-sm-v2-new-02.txt
 	A revised version of RFC2362, which includes the IPv6 specific
 	packet format and protocol descriptions.
@@ -224,8 +221,12 @@ draft-ietf-dnsext-mdns-00.txt: Multicast DNS
     * kame/mdnsd has test implementation, which will not be built in
       default compilation.  The draft will experience a major change in the
       near future, so don't rely upon it.
+draft-ietf-ipngwg-icmp-v3-02.txt: ICMPv6 for IPv6 specification (revised)
+    * See 1.9 in this document for details.
 draft-itojun-ipv6-tcp-to-anycast-01.txt:
 	Disconnecting TCP connection toward IPv6 anycast address
+draft-ietf-ipv6-rfc2462bis-06.txt: IPv6 Stateless Address
+	Autoconfiguration (revised)
 draft-itojun-ipv6-transition-abuse-01.txt:
 	Possible abuse against IPv6 transition technologies (expired)
     * KAME does not implement RFC1933/2893 automatic tunnel.
@@ -240,10 +241,11 @@ draft-itojun-ipv6-flowlabel-api-01.txt: Socket API for IPv6 flow label field
 
 1.2 Neighbor Discovery
 
-Neighbor Discovery is fairly stable.  Currently Address Resolution,
-Duplicated Address Detection, and Neighbor Unreachability Detection
-are supported.  In the near future we will be adding Unsolicited Neighbor
-Advertisement transmission command as admin tool.
+Our implementation of Neighbor Discovery is fairly stable.  Currently
+Address Resolution, Duplicated Address Detection, and Neighbor
+Unreachability Detection are supported.  In the near future we will be
+adding an Unsolicited Neighbor Advertisement transmission command as
+an administration tool.
 
 Duplicated Address Detection (DAD) will be performed when an IPv6 address
 is assigned to a network interface, or the network interface is enabled
@@ -253,6 +255,21 @@ generated to syslog (and usually to console).  The "duplicated" mark
 can be checked with ifconfig.  It is administrators' responsibility to check
 for and recover from DAD failures.  We may try to improve failure recovery
 in future KAME code.
+
+A successor version of RFC2462 (called rfc2462bis) clarifies the
+behavior when DAD fails (i.e., duplicate is detected): if the
+duplicate address is a link-local address formed from an interface
+identifier based on the hardware address which is supposed to be
+uniquely assigned (e.g., EUI-64 for an Ethernet interface), IPv6
+operation on the interface should be disabled.  The KAME
+implementation supports this as follows: if this type of duplicate is
+detected, the kernel marks "disabled" in the ND specific data
+structure for the interface.  Every IPv6 I/O operation in the kernel
+checks this mark, and the kernel will drop packets received on or
+being sent to the "disabled" interface.  Whether the IPv6 operation is
+disabled or not can be confirmed by the ndp(8) command.  See the man
+page for more details.
+
 DAD procedure may not be effective on certain network interfaces/drivers.
 If a network driver needs long initialization time (with wireless network
 interfaces this situation is popular), and the driver mistakingly raises
@@ -261,15 +278,13 @@ DAD probes to not-really-ready network driver and the packet will not go out
 from the interface.  In such cases, network drivers should be corrected.
 
 Some of network drivers loop multicast packets back to themselves,
-even if instructed not to do so (especially in promiscuous mode).
-In such cases DAD may fail, because DAD engine sees inbound NS packet
-(actually from the node itself) and considers it as a sign of duplicate.
-In this case, drivers should be corrected to honor IFF_SIMPLEX behavior.
-For example, you may need to check source MAC address on an inbound packet,
-and reject it if it is from the node itself.
-You may also want to look at #if condition marked "heuristics" in
-sys/netinet6/nd6_nbr.c:nd6_dad_timer() as workaround (note that the code
-fragment in "heuristics" section is not spec conformant).
+even if instructed not to do so (especially in promiscuous mode).  In
+such cases DAD may fail, because the DAD engine sees inbound NS packet
+(actually from the node itself) and considers it as a sign of
+duplicate.  In this case, drivers should be corrected to honor
+IFF_SIMPLEX behavior.  For example, you may need to check source MAC
+address on an inbound packet, and reject it if it is from the node
+itself.
 
 Neighbor Discovery specification (RFC2461) does not talk about neighbor
 cache handling in the following cases:
@@ -281,12 +296,35 @@ For (1), we implemented workaround based on discussions on IETF ipngwg mailing
 list.  For more details, see the comments in the source code and email
 thread started from (IPng 7155), dated Feb 6 1999.
 
-IPv6 on-link determination rule (RFC2461) is quite different from assumptions
-in BSD IPv4 network code.  To implement behavior in RFC2461 section 5.2
-(when default router list is empty), the kernel needs to know the default
+IPv6 on-link determination rule (RFC2461) is quite different from
+assumptions in BSD IPv4 network code.  To implement the behavior in
+RFC2461 section 6.3.6 (3), the kernel needs to know the default
 outgoing interface.  To configure the default outgoing interface, use
-commands like "ndp -I de0" as root.  Note that the spec misuse the word
-"host" and "node" in several places in the section.
+commands like "ndp -I de0" as root.  Then the kernel will have a
+"default" route to the interface with the cloning "C" bit being on.
+This default route will cause to make a neighbor cache entry for every
+destination that does not match an explicit route entry.
+
+Note that we intentionally disable configuring the default interface
+by default.  This is because we found it sometimes caused inconvenient
+situation while it was rarely useful in practical usage.  For example,
+consider a destination that has both IPv4 and IPv6 addresses but is
+only reachable via IPv4.  Since our getaddrinfo(3) prefers IPv6 by
+default, an (TCP) application using the library with PF_UNSPEC first
+tries to connect to the IPv6 address.  If we turn on RFC 2461 6.3.6
+(3), we have to wait for quite a long period before the first attempt
+to make a connection fails.  If we turn it off, the first attempt will
+immediately fail with EHOSTUNREACH, and then the application can try
+the next, reachable address.
+
+The notion of the default interface is also disabled when the node is
+acting as a router.  The reason is that routers tend to control all
+routes stored in the kernel and the default route automatically
+installed would rather confuse the routers.  Note that the spec misuse
+the word "host" and "node" in several places in Section 5.2 of RFC
+2461.  We basically read the word "node" in this section as "host,"
+and thus believe the implementation policy does not break the
+specification.
 
 To avoid possible DoS attacks and infinite loops, KAME stack will accept
 only 10 options on ND packet.  Therefore, if you have 20 prefix options
@@ -312,32 +350,37 @@ There are certain limitations, though:
   We do not prohibit hosts from doing proxy ND, but there will be very limited
   use in it.
 
-Starting mid March 2000, we support Neighbor Unreachability Detection (NUD)
-on p2p interfaces, including tunnel interfaces (gif).  NUD is turned on by
-default.  Before March 2000 KAME stack did not perform NUD on p2p interfaces.
-If the change raises any interoperability issues, you can turn off/on NUD
-by per-interface basis.  Use "ndp -i interface -nud" to turn it off.
-Consult ndp(8) for details.
+Starting mid March 2000, we support Neighbor Unreachability Detection
+(NUD) on p2p interfaces, including tunnel interfaces (gif).  NUD is
+turned on by default.  Before March 2000 the KAME stack did not
+perform NUD on p2p interfaces.  If the change raises any
+interoperability issues, you can turn off/on NUD by per-interface
+basis.  Use "ndp -i interface -nud" to turn it off.  Consult ndp(8)
+for details.
 
 RFC2461 specifies upper-layer reachability confirmation hint.  Whenever
 upper-layer reachability confirmation hint comes, ND process can use it
 to optimize neighbor discovery process - ND process can omit real ND exchange
 and keep the neighbor cache state in REACHABLE.
 We currently have two sources for hints: (1) setsockopt(IPV6_REACHCONF)
-defined by 2292bis API, and (2) hints from tcp_input.
-It is questionable if they are really trustworthy.  For example, a rogue
-userland program can use IPV6_REACHCONF to confuse ND process.  Neighbor
-cache is a system-wide information pool, and it is bad to allow single process
-to affect others.  Also, tcp_input can be hosed by hijack attempts.  It is
-wrong to allow hijack attempts to affect ND process.
-Starting June 2000, ND code has a protection mechanism against incorrect
-upper-layer reachability confirmation.  ND code counts subsequent upper-layer
-hints.  If the number of hints reaches maximum, ND code will ignore further
-upper-layer hints and run real ND process to confirm reachability to the peer.
-sysctl net.inet6.icmp6.nd6_maxnudhint defines maximum # of subsequent
+defined by the RFC3542 API, and (2) hints from tcp(6)_input.
+
+It is questionable if they are really trustworthy.  For example, a
+rogue userland program can use IPV6_REACHCONF to confuse the ND
+process.  Neighbor cache is a system-wide information pool, and it is
+bad to allow a single process to affect others.  Also, tcp(6)_input
+can be hosed by hijack attempts.  It is wrong to allow hijack attempts
+to affect the ND process.
+
+Starting June 2000, the ND code has a protection mechanism against
+incorrect upper-layer reachability confirmation.  The ND code counts
+subsequent upper-layer hints.  If the number of hints reaches the
+maximum, the ND code will ignore further upper-layer hints and run
+real ND process to confirm reachability to the peer.  sysctl
+net.inet6.icmp6.nd6_maxnudhint defines the maximum # of subsequent
 upper-layer hints to be accepted.
 (from April 2000 to June 2000, we rejected setsockopt(IPV6_REACHCONF) from
-non-root process - after local discussion, it looks that hints are not
+non-root process - after a local discussion, it looks that hints are not
 that trustworthy even if they are from privileged processes)
 
 If inbound ND packets carry invalid values, the KAME kernel will
@@ -681,29 +724,34 @@ The first step in stateless address configuration is Duplicated Address
 Detection (DAD).  See 1.2 for more detail on DAD.
 
 When a host hears Router Advertisement from the router, a host may
-autoconfigure itself by stateless address autoconfiguration.
-This behavior can be controlled by net.inet6.ip6.accept_rtadv
-(host autoconfigures itself if it is set to 1).
-By autoconfiguration, network address prefix for the receiving interface
-(usually global address prefix) is added. The default route is also
-configured.
+autoconfigure itself by stateless address autoconfiguration.  This
+behavior can be controlled by the net.inet6.ip6.accept_rtadv sysctl
+variable and a per-interface flag managed in the kernel.  The latter,
+which we call "if_accept_rtadv" here, can be changed by the ndp(8)
+command (see the manpage for more details).  When the sysctl variable
+is set to 1, and the flag is set, the host autoconfigures itself.  By
+autoconfiguration, network address prefixes for the receiving
+interface (usually global address prefix) are added.  The default
+route is also configured.
 
 Routers periodically generate Router Advertisement packets.  To
 request an adjacent router to generate RA packet, a host can transmit
 Router Solicitation.  To generate an RS packet at any time, use the
-"rtsol" command. The "rtsold" daemon is also available. "rtsold"
-generates Router Solicitation whenever necessary, and it works great
+"rtsol" command.  The "rtsold" daemon is also available. "rtsold"
+generates Router Solicitation whenever necessary, and it works greatly
 for nomadic usage (notebooks/laptops).  If one wishes to ignore Router
 Advertisements, use sysctl to set net.inet6.ip6.accept_rtadv to 0.
+Additionally, ndp(8) command can be used to control the behavior
+per-interface basis.
 
 To generate Router Advertisement from a router, use the "rtadvd" daemon.
 
 Note that the IPv6 specification assumes the following items and that
 nonconforming cases are left unspecified:
 - Only hosts will listen to router advertisements
-- Hosts have single network interface (except loopback)
+- Hosts have a single network interface (except loopback)
 This is therefore unwise to enable net.inet6.ip6.accept_rtadv on routers,
-or multi-interface host.  A misconfigured node can behave strange
+or multi-interface hosts.  A misconfigured node can behave strange
 (KAME code allows nonconforming configuration, for those who would like
 to do some experiments).
 
@@ -713,11 +761,16 @@ To summarize the sysctl knob:
 	0		0		host (to be manually configured)
 	0		1		router
 	1		0		autoconfigured host
-					(spec assumes that host has single
-					interface only, autoconfigred host with
-					multiple interface is out-of-scope)
+					(spec assumes that hosts have a single
+					interface only, autoconfigred hosts
+					with multiple interfaces are
+					out-of-scope)
 	1		1		invalid, or experimental
 					(out-of-scope of spec)
+
+The if_accept_rtadv flag is referred only when accept_rtadv is 1 (the
+latter two cases).  The flag does not have any effects when the sysctl
+variable is 0.
 
 See 1.2 in the document for relationship between DAD and autoconfiguration.
 
@@ -791,6 +844,14 @@ sent from a user application as follows:
      the UP flag being on.  This rule is particularly useful for
      routers, since some routing daemons stop advertising prefixes
     (addresses) on interfaces that have become down.
+
+   - prefer addresses on "preferred" interfaces.  "Preferred"
+     interfaces can be specified by the ndp(8) command.  By default,
+     no interface is preferred, that is, this rule does not apply.
+     Again, this rule is particularly useful for routers, since there
+     is a convention, among router administrators, of assigning
+     "stable" addresses on a particular interface (typically a
+     loopback interface).
 
    In any case, addresses that break the scope zone of the
    destination, or addresses whose zone do not contain the outgoing
@@ -1396,7 +1457,7 @@ Here are couple of comments:
   The form can be used as a trigger for TCP DoS attack.  KAME code already
   filters them out.
 - The following examples are seemingly illegal.  It seems that there's general
-  consensus among ipngwg for those.  (1) mobile-ip6 home address option,
+  consensus among ipngwg for those.  (1) Mobile IPv6 home address option,
   (2) offlink packets (so routers should not forward them).
   KAME implmements (2) already.
 
@@ -1601,9 +1662,12 @@ The following table lists the network drivers we have tried so far.
 	bah zbus/amiga	NG(*)
 	cnw pcmcia/i386	ok	ok		yes
 	ep pcmcia/i386	ok	ok		-
+	fxp pci/i386	ok(*2)	ok		-
+	tlp pci/i386	ok	ok		-
 	le sbus/sparc	ok	ok		yes
 	ne pci/i386	ok	ok		yes
 	ne pcmcia/i386	ok	ok		yes
+	rtk pci/i386	ok	ok		-
 	wi pcmcia/i386	ok	ok		yes
 	(ATM)
 	en pci/i386	ok	ok		-
@@ -1629,7 +1693,7 @@ Here is a list of FreeBSD 3.x-RELEASE drivers and its conditions:
 
 (*) These drivers are distributed with PAO as PAO3
     (http://www.jp.freebsd.org/PAO/).
-(**) there are trouble reports with multicast filter initialization.
+(**) there were trouble reports with multicast filter initialization.
 
 More drivers will just simply work on KAME FreeBSD 3.x-RELEASE but have not
 been checked yet.
@@ -1677,6 +1741,7 @@ You may want to use "@insert" directive in /etc/pccard.conf to invoke
 (*) exp driver has serious conflict with KAME initialization sequence.
 A workaround is committed into sys/i386/pci/if_exp.c, and should be okay by now.
 
+
 3. Translator
 
 We categorize IPv4/IPv6 translator into 4 types.
@@ -1720,12 +1785,12 @@ the connection will be relayed toward IPv4 destination 163.221.202.12.
 
 faithd must be invoked on FAITH-relay dual stack node.
 
-For more details, consult kame/kame/faithd/README and
-draft-ietf-ngtrans-tcpudp-relay-04.txt.
+For more details, consult kame/kame/faithd/README and RFC3142.
 
 3.2 IPv6-to-IPv4 header translator
 
 (to be written)
+
 
 4. IPsec
 
@@ -1902,7 +1967,7 @@ Currently supported algorithms are:
 	keyed SHA1 with 96bit crypto checksum (no document)
 	HMAC MD5 with 96bit crypto checksum (rfc2403.txt
 	HMAC SHA1 with 96bit crypto checksum (rfc2404.txt)
-	HMAC SHA2-256 with 96bit crypto checksum (no document)
+	HMAC SHA2-256 with 96bit crypto checksum (draft-ietf-ipsec-ciph-sha-256-00.txt)
 	HMAC SHA2-384 with 96bit crypto checksum (no document)
 	HMAC SHA2-512 with 96bit crypto checksum (no document)
 	HMAC RIPEMD160 with 96bit crypto checksum (RFC2857)
@@ -1916,11 +1981,10 @@ Currently supported algorithms are:
 	BLOWFISH CBC (rfc2451.txt)
 	CAST128 CBC (rfc2451.txt)
 	RIJNDAEL/AES CBC (rfc3602.txt)
-	AES counter mode (draft-ietf-ipsec-ciph-aes-ctr-03.txt)
+	AES counter mode (rfc3686.txt)
 
-	each of the above can be combined with:
-	    ESP authentication with HMAC-MD5(96bit)
-	    ESP authentication with HMAC-SHA1(96bit)
+	each of the above can be combined with new IPsec AH schemes for
+	ESP authentication.
     IPComp
 	RFC2394: IP Payload Compression Using DEFLATE
 
@@ -2000,19 +2064,26 @@ Here are (some of) platforms we have tested IPsec/IKE interoperability
 in the past, no particular order.  Note that both ends (KAME and
 others) may have modified their implementation, so use the following
 list just for reference purposes.
-	ACC, allied-telesis, Altiga, Ashley-laurent (vpcom.com), BlueSteel,
-	CISCO IOS, Cryptek, Checkpoint FW-1, Data Fellows (F-Secure),
-	Ericsson, Fitel, FreeS/WAN, HiFn, HITACHI, IBM AIX, IIJ, Intel Canada,
-	Intel Packet Protect, MEW NetCocoon, MGCS, Microsoft WinNT/2000,
-	NAI PGPnet, NetLock, NIST (linux IPsec + plutoplus), NEC IX5000,
-	Netscreen, NxNetworks, OpenBSD isakmpd, Pivotal, Radguard, RapidStream,
-	RedCreek, Routerware, RSA, SSH (both IPv4/IPv6), Secure Computing,
-	Soliton, Sun Solaris8, TIS/NAI Gauntret, Toshiba, VPNet,
-	Yamaha RT series
+	6WIND, ACC, Allied-telesis, Altiga, Ashley-laurent (vpcom.com),
+	BlueSteel, CISCO IOS, Checkpoint FW-1, Compaq Tru54 UNIX
+	X5.1B-BL4, Cryptek, Data Fellows (F-Secure), Ericsson,
+	F-Secure VPN+ 5.40, Fitec, Fitel, FreeS/WAN, HITACHI, HiFn,
+	IBM AIX 5.1, III, IIJ (fujie stack), Intel Canada, Intel
+	Packet Protect, MEW NetCocoon, MGCS, Microsoft WinNT/2000/XP,
+	NAI PGPnet, NEC IX5000, NIST (linux IPsec + plutoplus),
+	NetLock, Netoctave, Netopia, Netscreen, Nokia EPOC, Nortel
+	GatewayController/CallServer 2000 (not released yet),
+	NxNetworks, OpenBSD isakmpd on OpenBSD, Oullim information
+	technologies SECUREWORKS VPN gateway 3.0, Pivotal, RSA,
+	Radguard, RapidStream, RedCreek, Routerware, SSH, SecGo
+	CryptoIP v3, Secure Computing, Soliton, Sun Solaris 8,
+	TIS/NAI Gauntret, Toshiba, Trilogy AdmitOne 2.6, Trustworks
+	TrustedClient v3.2, USAGI linux, VPNet, Yamaha RT series,
+	ZyXEL
 
 Here are (some of) platforms we have tested IPComp/IKE interoperability
 in the past, in no particular order.
-	IRE, SSH (both IPv4/IPv6), NetLock
+	Compaq, IRE, SSH, NetLock, FreeS/WAN, F-Secure VPN+ 5.40
 
 VPNC (vpnc.org) provides IPsec conformance tests, using KAME and OpenBSD
 IPsec/IKE implementations.  Their test results are available at
@@ -2147,9 +2218,11 @@ interoperate.
 
 5. ALTQ
 
-KAME kit includes ALTQ 2.1 code, which supports FreeBSD2, FreeBSD3,
-NetBSD and OpenBSD.  For BSD/OS, ALTQ does not work.
-ALTQ in KAME supports (or tries to support) IPv6.
+KAME kit includes ALTQ, which supports FreeBSD3, FreeBSD4, FreeBSD5
+NetBSD.  OpenBSD has ALTQ merged into pf and its ALTQ code is not
+compatible with other platforms so that KAME's ALTQ is not used for
+OpenBSD.  For BSD/OS, ALTQ does not work.
+ALTQ in KAME supports IPv6.
 (actually, ALTQ is developed on KAME repository since ALTQ 2.1 - Jan 2000)
 
 ALTQ occupies single character device number.  For FreeBSD, it is officially
@@ -2167,7 +2240,8 @@ compile ALTQ-ready kernel for other archititectures, take the following steps:
 - before building userland, change netbsd/{lib,usr.sbin,usr.bin}/Makefile
   (or openbsd/foobaa) so that it will visit altq-related sub directories.
 
-6. mobile-ip6
+
+6. Mobile IPv6
 
 6.1 KAME node as correspondent node
 
