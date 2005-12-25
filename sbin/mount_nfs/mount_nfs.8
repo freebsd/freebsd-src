@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2003
+.Dd December 25, 2005
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -143,9 +143,8 @@ There is a 60 second delay between each attempt.
 Use TCP transport instead of UDP.
 This is recommended for servers that are not on the same LAN cable as
 the client.
-(NB: This is NOT supported by most
-.No non- Ns Bx
-servers.)
+Not all NFS servers support this method, especially older ones,
+caution should be observed in these cases.
 .It Fl U
 Force the mount protocol to use UDP transport, even for TCP NFS mounts.
 (Necessary for some old
@@ -337,13 +336,3 @@ Set the retransmit timeout count for soft mounts to the specified value.
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
 .Xr showmount 8
-.Sh BUGS
-Due to the way that Sun RPC is implemented on top of UDP (unreliable datagram)
-transport, tuning such mounts is really a black art that can only be expected
-to have limited success.
-For clients mounting servers that are not on the same
-LAN cable or that tend to be overloaded,
-TCP transport is strongly recommended,
-but unfortunately this is restricted to mostly
-.Bx 4.4
-servers.
