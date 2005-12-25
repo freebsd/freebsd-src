@@ -51,6 +51,8 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -67,6 +69,8 @@ static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
 
 #ifdef IFMEDIA_DEBUG
 int	ifmedia_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
+	    0, "if_media debugging msgs");
 static	void ifmedia_printword(int);
 #endif
 
