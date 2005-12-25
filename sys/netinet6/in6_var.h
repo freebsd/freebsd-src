@@ -477,7 +477,7 @@ extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
 extern unsigned long in6_maxmtu;
 #ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_IPMADDR);
+MALLOC_DECLARE(M_IP6MADDR);
 #endif /* MALLOC_DECLARE */
 
 /*

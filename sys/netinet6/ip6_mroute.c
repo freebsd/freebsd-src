@@ -119,7 +119,7 @@
 
 #include <net/net_osdep.h>
 
-static MALLOC_DEFINE(M_MRTABLE, "mf6c", "multicast forwarding cache entry");
+static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
 #define M_HASCL(m) ((m)->m_flags & M_EXT)
 
@@ -542,12 +542,12 @@ ip6_mrouter_done()
 				struct rtdetq *n = rte->next;
 
 				m_free(rte->m);
-				free(rte, M_MRTABLE);
+				free(rte, M_MRTABLE6);
 				rte = n;
 			}
 			frt = rt;
 			rt = rt->mf6c_next;
-			free(frt, M_MRTABLE);
+			free(frt, M_MRTABLE6);
 		}
 	}
 
@@ -805,7 +805,7 @@ add_m6fc(mfccp)
 #ifdef UPCALL_TIMING
 				collate(&(rte->t));
 #endif /* UPCALL_TIMING */
-				free(rte, M_MRTABLE);
+				free(rte, M_MRTABLE6);
 				rte = n;
 			}
 			rt->mf6c_stall = NULL;
@@ -849,7 +849,7 @@ add_m6fc(mfccp)
 		}
 		if (rt == NULL) {
 			/* no upcall, so make a new entry */
-			rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE,
+			rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE6,
 						  M_NOWAIT);
 			if (rt == NULL) {
 				splx(s);
@@ -948,7 +948,7 @@ del_m6fc(mfccp)
 	}
 
 	*nptr = rt->mf6c_next;
-	free(rt, M_MRTABLE);
+	free(rt, M_MRTABLE6);
 
 	splx(s);
 
@@ -1073,7 +1073,7 @@ ip6_mforward(ip6, ifp, m)
 		 * Allocate mbufs early so that we don't do extra work if we
 		 * are just going to fail anyway.
 		 */
-		rte = (struct rtdetq *)malloc(sizeof(*rte), M_MRTABLE,
+		rte = (struct rtdetq *)malloc(sizeof(*rte), M_MRTABLE6,
 					      M_NOWAIT);
 		if (rte == NULL) {
 			splx(s);
@@ -1088,7 +1088,7 @@ ip6_mforward(ip6, ifp, m)
 		    (M_HASCL(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
 			mb0 = m_pullup(mb0, sizeof(struct ip6_hdr));
 		if (mb0 == NULL) {
-			free(rte, M_MRTABLE);
+			free(rte, M_MRTABLE6);
 			splx(s);
 			return (ENOBUFS);
 		}
@@ -1111,10 +1111,10 @@ ip6_mforward(ip6, ifp, m)
 #endif
 
 			/* no upcall, so make a new entry */
-			rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE,
+			rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE6,
 						  M_NOWAIT);
 			if (rt == NULL) {
-				free(rte, M_MRTABLE);
+				free(rte, M_MRTABLE6);
 				m_freem(mb0);
 				splx(s);
 				return (ENOBUFS);
@@ -1126,9 +1126,9 @@ ip6_mforward(ip6, ifp, m)
 			mm = m_copy(mb0, 0, sizeof(struct ip6_hdr));
 
 			if (mm == NULL) {
-				free(rte, M_MRTABLE);
+				free(rte, M_MRTABLE6);
 				m_freem(mb0);
-				free(rt, M_MRTABLE);
+				free(rt, M_MRTABLE6);
 				splx(s);
 				return (ENOBUFS);
 			}
@@ -1156,9 +1156,9 @@ ip6_mforward(ip6, ifp, m)
 				im->im6_mbz = 0;
 				break;
 			default:
-				free(rte, M_MRTABLE);
+				free(rte, M_MRTABLE6);
 				m_freem(mb0);
-				free(rt, M_MRTABLE);
+				free(rt, M_MRTABLE6);
 				splx(s);
 				return (EINVAL);
 			}
@@ -1189,9 +1189,9 @@ ip6_mforward(ip6, ifp, m)
 				log(LOG_WARNING, "ip6_mforward: ip6_mrouter "
 				    "socket queue full\n");
 				mrt6stat.mrt6s_upq_sockfull++;
-				free(rte, M_MRTABLE);
+				free(rte, M_MRTABLE6);
 				m_freem(mb0);
-				free(rt, M_MRTABLE);
+				free(rt, M_MRTABLE6);
 				splx(s);
 				return (ENOBUFS);
 			}
@@ -1223,7 +1223,7 @@ ip6_mforward(ip6, ifp, m)
 			for (p = &rt->mf6c_stall; *p != NULL; p = &(*p)->next)
 				if (++npkts > MAX_UPQ6) {
 					mrt6stat.mrt6s_upq_ovflw++;
-					free(rte, M_MRTABLE);
+					free(rte, M_MRTABLE6);
 					m_freem(mb0);
 					splx(s);
 					return (0);
@@ -1287,14 +1287,14 @@ expire_upcalls(unused)
 				do {
 					struct rtdetq *n = rte->next;
 					m_freem(rte->m);
-					free(rte, M_MRTABLE);
+					free(rte, M_MRTABLE6);
 					rte = n;
 				} while (rte != NULL);
 				mrt6stat.mrt6s_cache_cleanups++;
 				n6expire[i]--;
 
 				*nptr = mfc->mf6c_next;
-				free(mfc, M_MRTABLE);
+				free(mfc, M_MRTABLE6);
 			} else {
 				nptr = &mfc->mf6c_next;
 			}
