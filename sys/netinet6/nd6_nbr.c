@@ -183,12 +183,6 @@ nd6_ns_input(m, off, icmp6len)
 	 * In implementation, we add target link-layer address by default.
 	 * We do not add one in MUST NOT cases.
 	 */
-#if 0 /* too much! */
-	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &daddr6);
-	if (ifa && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST))
-		tlladdr = 0;
-	else
-#endif
 	if (!IN6_IS_ADDR_MULTICAST(&daddr6))
 		tlladdr = 0;
 	else
@@ -238,7 +232,7 @@ nd6_ns_input(m, off, icmp6len)
 			}
 		}
 	}
-	if (!ifa) {
+	if (ifa == NULL) {
 		/*
 		 * We've got an NS packet, and we don't have that adddress
 		 * assigned for us.  We MUST silently ignore it.
@@ -520,7 +514,7 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 	nd_ns->nd_ns_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(*ip6), icmp6len);
 
-	ip6_output(m, NULL, &ro, dad ? IPV6_DADOUTPUT : 0, &im6o, NULL, NULL);
+	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
 	icmp6stat.icp6s_outhist[ND_NEIGHBOR_SOLICIT]++;
@@ -596,7 +590,7 @@ nd6_na_input(m, off, icmp6len)
 
 	taddr6 = nd_na->nd_na_target;
 	if (in6_setscope(&taddr6, ifp, NULL))
-		return;		/* XXX: impossible */
+		goto bad;	/* XXX: impossible */
 
 	if (IN6_IS_ADDR_MULTICAST(&taddr6)) {
 		nd6log((LOG_ERR,
@@ -683,13 +677,13 @@ nd6_na_input(m, off, icmp6len)
 		if (is_solicited) {
 			ln->ln_state = ND6_LLINFO_REACHABLE;
 			ln->ln_byhint = 0;
-			if (ln->ln_expire) {
-				ln->ln_expire = time_second +
-				    ND_IFINFO(rt->rt_ifp)->reachable;
+			if (!ND6_LLINFO_PERMANENT(ln)) {
+				nd6_llinfo_settimer(ln,
+				    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
 			}
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE;
-			ln->ln_expire = time_second + nd6_gctimer;
+			nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
 		}
 		if ((ln->ln_router = is_router) != 0) {
 			/*
@@ -736,14 +730,14 @@ nd6_na_input(m, off, icmp6len)
 		 *	1	1	y	n	(2a) L *->REACHABLE
 		 *	1	1	y	y	(2a) L *->REACHABLE
 		 */
-		if (!is_override && (lladdr != NULL && llchange)) {   /* (1) */
+		if (!is_override && (lladdr != NULL && llchange)) {  /* (1) */
 			/*
 			 * If state is REACHABLE, make it STALE.
 			 * no other updates should be done.
 			 */
 			if (ln->ln_state == ND6_LLINFO_REACHABLE) {
 				ln->ln_state = ND6_LLINFO_STALE;
-				ln->ln_expire = time_second + nd6_gctimer;
+				nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
 			}
 			goto freeit;
 		} else if (is_override				   /* (2a) */
@@ -765,14 +759,15 @@ nd6_na_input(m, off, icmp6len)
 			if (is_solicited) {
 				ln->ln_state = ND6_LLINFO_REACHABLE;
 				ln->ln_byhint = 0;
-				if (ln->ln_expire) {
-					ln->ln_expire = time_second +
-					    ND_IFINFO(ifp)->reachable;
+				if (!ND6_LLINFO_PERMANENT(ln)) {
+					nd6_llinfo_settimer(ln,
+					    (long)ND_IFINFO(ifp)->reachable * hz);
 				}
 			} else {
 				if (lladdr != NULL && llchange) {
 					ln->ln_state = ND6_LLINFO_STALE;
-					ln->ln_expire = time_second + nd6_gctimer;
+					nd6_llinfo_settimer(ln,
+					    (long)nd6_gctimer * hz);
 				}
 			}
 		}
@@ -799,7 +794,7 @@ nd6_na_input(m, off, icmp6len)
 			dr = defrouter_lookup(in6, ifp);
 			if (dr)
 				defrtrlist_del(dr);
-			else if (!ip6_forwarding && ip6_accept_rtadv) {
+			else if (!ip6_forwarding) {
 				/*
 				 * Even if the neighbor is not in the default
 				 * router list, the neighbor may be used
@@ -816,12 +811,25 @@ nd6_na_input(m, off, icmp6len)
 	rt->rt_flags &= ~RTF_REJECT;
 	ln->ln_asked = 0;
 	if (ln->ln_hold) {
-		/*
-		 * we assume ifp is not a loopback here, so just set the 2nd
-		 * argument as the 1st one.
-		 */
-		nd6_output(ifp, ifp, ln->ln_hold,
-			   (struct sockaddr_in6 *)rt_key(rt), rt);
+		struct mbuf *m_hold, *m_hold_next;
+
+		for (m_hold = ln->ln_hold; m_hold; m_hold = m_hold_next) {
+			struct mbuf *mpkt = NULL;
+
+			m_hold_next = m_hold->m_nextpkt;
+			mpkt = m_copym(m_hold, 0, M_COPYALL, M_DONTWAIT);
+			if (mpkt == NULL) {
+				m_freem(m_hold);
+				break;
+			}
+			mpkt->m_nextpkt = NULL;
+			/*
+			 * we assume ifp is not a loopback here, so just set
+			 * the 2nd argument as the 1st one.
+			 */
+			nd6_output(ifp, ifp, mpkt,
+			    (struct sockaddr_in6 *)rt_key(rt), rt);
+		}
 		ln->ln_hold = NULL;
 	}
 
@@ -1087,9 +1095,9 @@ nd6_dad_stoptimer(dp)
  * Start Duplicate Address Detection (DAD) for specified interface address.
  */
 void
-nd6_dad_start(ifa, tick)
+nd6_dad_start(ifa, delay)
 	struct ifaddr *ifa;
-	int *tick;	/* minimum delay ticks for IFF_UP event */
+	int delay;
 {
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
@@ -1157,19 +1165,12 @@ nd6_dad_start(ifa, tick)
 	dp->dad_count = ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
-	if (tick == NULL) {
+	if (delay == 0) {
 		nd6_dad_ns_output(dp, ifa);
 		nd6_dad_starttimer(dp,
-		    ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
+		    (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
 	} else {
-		int ntick;
-
-		if (*tick == 0)
-			ntick = arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz);
-		else
-			ntick = *tick + arc4random() % (hz / 2);
-		*tick = ntick;
-		nd6_dad_starttimer(dp, ntick);
+		nd6_dad_starttimer(dp, delay);
 	}
 }
 
@@ -1252,7 +1253,7 @@ nd6_dad_timer(ifa)
 		 */
 		nd6_dad_ns_output(dp, ifa);
 		nd6_dad_starttimer(dp,
-		    ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
+		    (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
 	} else {
 		/*
 		 * We have transmitted sufficient number of DAD packets.
@@ -1383,15 +1384,9 @@ nd6_dad_ns_output(dp, ifa)
 
 	dp->dad_ns_tcount++;
 	if ((ifp->if_flags & IFF_UP) == 0) {
-#if 0
-		printf("%s: interface down?\n", if_name(ifp));
-#endif
 		return;
 	}
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-#if 0
-		printf("%s: interface not running?\n", if_name(ifp));
-#endif
 		return;
 	}
 

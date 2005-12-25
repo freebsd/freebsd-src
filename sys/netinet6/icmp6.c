@@ -2178,7 +2178,7 @@ void
 icmp6_fasttimo()
 {
 
-	mld6_fasttimeo();
+	return;
 }
 
 static const char *
@@ -2415,7 +2415,7 @@ icmp6_redirect_output(m0, rt)
 	icmp6_errcount(&icmp6stat.icp6s_outerrhist, ND_REDIRECT, 0);
 
 	/* if we are not router, we don't send icmp6 redirect */
-	if (!ip6_forwarding || ip6_accept_rtadv)
+	if (!ip6_forwarding)
 		goto fail;
 
 	/* sanity check */
