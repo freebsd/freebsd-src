@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#ifdef __FreeBSD__
+#include <inttypes.h>
+#endif
 #include <login_cap.h>
 #include <pwd.h>
 #include <signal.h>
@@ -702,8 +705,13 @@ change_filter(int add, const char *luser, const char *ipsrc)
 		syslog(LOG_INFO, "allowing %s, user %s", ipsrc, luser);
 	} else {
 		gettimeofday(&Tend, NULL);
+#ifdef __FreeBSD__
+		syslog(LOG_INFO, "removed %s, user %s - duration %jd seconds",
+		    ipsrc, luser, (intmax_t)(Tend.tv_sec - Tstart.tv_sec));
+#else
 		syslog(LOG_INFO, "removed %s, user %s - duration %ld seconds",
 		    ipsrc, luser, Tend.tv_sec - Tstart.tv_sec);
+#endif
 	}
 	return (0);
 no_mem:
