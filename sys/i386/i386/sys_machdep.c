@@ -267,12 +267,12 @@ i386_extend_pcb(struct thread *td)
 	KASSERT(td->td_pcb->pcb_ext == 0, ("already have a TSS!"));
 
 	/* Switch to the new TSS. */
-	mtx_lock_spin(&sched_lock);
+	critical_enter();
 	td->td_pcb->pcb_ext = ext;
-	private_tss |= PCPU_GET(cpumask);
+	PCPU_SET(private_tss, 1);
 	*PCPU_GET(tss_gdt) = ext->ext_tssd;
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
-	mtx_unlock_spin(&sched_lock);
+	critical_exit();
 
 	return 0;
 }

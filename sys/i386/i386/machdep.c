@@ -1285,8 +1285,6 @@ struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 
-int private_tss;			/* flag indicating private tss */
-
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern int has_f00f_bug;
 #endif
@@ -2241,7 +2239,6 @@ init386(first)
 	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	private_tss = 0;
 	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
 	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
