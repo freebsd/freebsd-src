@@ -611,6 +611,12 @@ Some
 adaptors ignore this setting unless you are in ad-hoc mode.
 Alternatively the frequency, in megahertz, may be specified
 instead of the channel number.
+.It Cm deftxkey Ar index
+Set the default key to use for transmission.
+Typically this is only set when using WEP encryption.
+The
+.Cm weptxkey
+is an alias for this request; it is provided for backwards compatibility.
 .It Cm dtimperiod Ar period
 Set the
 DTIM
@@ -850,6 +856,8 @@ is generally another name for
 Modes are case insensitive.
 .It Cm weptxkey Ar index
 Set the WEP key to be used for transmission.
+This is the same as setting the default transmission key with
+.Cm deftxkey .
 .It Cm wepkey Ar key Ns | Ns Ar index : Ns Ar key
 Set the selected WEP key.
 If an
