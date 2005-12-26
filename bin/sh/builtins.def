@@ -47,12 +47,12 @@
 # NOTE: bltincmd must come first!
 
 bltincmd	builtin
-commandcmd	command
-#alloccmd	alloc
+aliascmd	alias
 bgcmd -j	bg
+bindcmd		bind
 breakcmd	break continue
-#catfcmd	catf
 cdcmd		cd chdir
+commandcmd	command
 dotcmd		.
 echocmd		echo
 evalcmd		eval
@@ -62,15 +62,13 @@ expcmd		exp let
 exportcmd	export readonly
 #exprcmd		expr
 falsecmd	false
-histcmd -h	fc
 fgcmd -j	fg
 getoptscmd	getopts
 hashcmd		hash
+histcmd -h	fc
 jobidcmd	jobid
 jobscmd		jobs
-#linecmd		line
 localcmd	local
-#nlechocmd	nlecho
 #printfcmd	printf
 pwdcmd		pwd
 readcmd		read
@@ -78,16 +76,14 @@ returncmd	return
 setcmd		set
 setvarcmd	setvar
 shiftcmd	shift
+testcmd		test [
+timescmd	times
 trapcmd		trap
 truecmd		: true
 typecmd		type
+ulimitcmd	ulimit
 umaskcmd	umask
 unaliascmd	unalias
 unsetcmd	unset
 waitcmd		wait
-#foocmd		foo
-aliascmd	alias
-ulimitcmd	ulimit
-testcmd		test [
-bindcmd		bind
 wordexpcmd	wordexp

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/resource.h>
 #include <sys/wait.h> /* For WIFSIGNALED(status) */
 #include <errno.h>
 
@@ -1076,5 +1077,30 @@ execcmd(int argc, char **argv)
 		shellexec(argv + 1, environment(), pathval(), 0);
 
 	}
+	return 0;
+}
+
+
+int
+timescmd(int argc __unused, char **argv __unused)
+{
+	struct rusage ru;
+	long shumins, shsmins, chumins, chsmins;
+	double shusecs, shssecs, chusecs, chssecs;
+
+	if (getrusage(RUSAGE_SELF, &ru) < 0)
+		return 1;
+	shumins = ru.ru_utime.tv_sec / 60;
+	shusecs = ru.ru_utime.tv_sec % 60 + ru.ru_utime.tv_usec / 1000000.;
+	shsmins = ru.ru_stime.tv_sec / 60;
+	shssecs = ru.ru_stime.tv_sec % 60 + ru.ru_stime.tv_usec / 1000000.;
+	if (getrusage(RUSAGE_CHILDREN, &ru) < 0)
+		return 1;
+	chumins = ru.ru_utime.tv_sec / 60;
+	chusecs = ru.ru_utime.tv_sec % 60 + ru.ru_utime.tv_usec / 1000000.;
+	chsmins = ru.ru_stime.tv_sec / 60;
+	chssecs = ru.ru_stime.tv_sec % 60 + ru.ru_stime.tv_usec / 1000000.;
+	out1fmt("%ldm%.3fs %ldm%.3fs\n%ldm%.3fs %ldm%.3fs\n", shumins,
+	    shusecs, shsmins, shssecs, chumins, chusecs, chsmins, chssecs);
 	return 0;
 }

@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2005
+.Dd December 8, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -209,7 +209,11 @@ option if it has been set).
 Exit immediately if any untested command fails in non-interactive mode.
 The exit status of a command is considered to be
 explicitly tested if the command is part of the list used to control
-an if, elif, while, or until; if the command is the left
+an
+.Ic if , elif , while ,
+or
+.Ic until ;
+if the command is the left
 hand operand of an
 .Dq Li &&
 or
@@ -431,7 +435,7 @@ This use is discouraged.
 .Pp
 An alias name may be escaped in a command line, so that it is not
 replaced by its alias value, by using quoting characters within or
-adjacent to the alias name.  
+adjacent to the alias name.
 This is most often done by prefixing
 an alias name with a backslash to execute a function, built-in, or
 normal program with the same name.
@@ -893,7 +897,7 @@ and the syntax is:
 .Bd -ragged -offset indent
 .Ic local
 .Op Ar variable ...
-.Op Ar -
+.Op Fl
 .Ed
 .Pp
 The
@@ -1478,7 +1482,7 @@ that is guaranteed to find all of the standard utilities.
 .Pp
 If the
 .Fl v
-option is specified, 
+option is specified,
 .Ar utility
 is not executed but a description of its interpretation by the shell is
 printed.
@@ -1497,24 +1501,17 @@ It prints
 where
 .Ar description
 is either
-.Bl -item -offset indent
-.It
 the path name to
 .Ar utility ,
-.It
-.Ic a shell builtin ,
-.It
-.Ic a shell function ,
-.It
-.Ic a shell keyword
+a shell builtin,
+a shell function,
+a shell keyword
 or
-.It
-.Ic an alias for Ar value .
-.El
-.It Ic echo Oo Fl e | n Oc Op Ar string
-Print
-.Ar string
-to the standard output with a newline appended.
+an alias for
+. Ar value .
+.It Ic echo Oo Fl e | n Oc Op Ar string ...
+Print a space-separated list of the arguments to the standard output
+and append a newline character.
 .Bl -tag -width indent
 .It Fl n
 Suppress the output of the trailing newline.
@@ -1780,7 +1777,7 @@ option is specified, the PID of each job is also printed.
 If the
 .Fl s
 option is specified, only the PIDs of the jobs are printed, one per line.
-.It Ic local Oo Ar variable ... Oc Op Ar -
+.It Ic local Oo Ar variable ... Oc Op Fl
 See the
 .Sx Functions
 subsection.
@@ -1954,7 +1951,13 @@ A shift sets the value of $1 to the value of $2,
 the value of $2 to the value of $3, and so on,
 decreasing the value of $# by one.
 If there are zero positional parameters, shifting does not do anything.
+.It Ic times
+Print the amount of time spent executing the shell and its children.
+The first output line shows the user and system times for the shell
+itself, the second one contains the user and system times for the
+children.
 .It Ic trap Oo Ar action Oc Ar signal ...
+.It Ic trap Fl l
 Cause the shell to parse and execute
 .Ar action
 when any specified
@@ -1966,14 +1969,25 @@ In addition, the pseudo-signal
 may be used to specify an action that is performed when the shell terminates.
 The
 .Ar action
-may be null or omitted;
+may be an empty string or a dash
+.Pq Ar - ;
 the former causes the specified signal to be ignored
 and the latter causes the default action to be taken.
+Omitting the
+.Ar action
+is another way to request the default action, for compatibility reasons this
+usage is not recommended though.
 When the shell forks off a subshell,
 it resets trapped (but not ignored) signals to the default action.
 The
 .Ic trap
 command has no effect on signals that were ignored on entry to the shell.
+.Pp
+Option
+.Fl l
+causes the
+.Ic trap
+command to display a list of valid signal names.
 .It Ic type Op Ar name ...
 Interpret each
 .Ar name
