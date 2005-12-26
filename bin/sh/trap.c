@@ -153,15 +153,14 @@ trapcmd(int argc, char **argv)
 	if (argc <= 1) {
 		for (signo = 0 ; signo < sys_nsig ; signo++) {
 			if (signo < NSIG && trap[signo] != NULL) {
+				out1str("trap -- ");
+				out1qstr(trap[signo]);
 				if (signo == 0) {
-					out1fmt("trap -- '%s' %s\n",
-					    trap[signo], "exit");
+					out1str(" exit\n");
 				} else if (sys_signame[signo]) {
-					out1fmt("trap -- '%s' %s\n",
-					    trap[signo], sys_signame[signo]);
+					out1fmt(" %s\n", sys_signame[signo]);
 				} else {
-					out1fmt("trap -- '%s' %d\n",
-					    trap[signo], signo);
+					out1fmt(" %d\n", signo);
 				}
 			}
 		}
