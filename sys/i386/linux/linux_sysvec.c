@@ -868,6 +868,7 @@ static Elf32_Brandinfo linux_brand = {
 					"/lib/ld-linux.so.1",
 					&elf_linux_sysvec,
 					NULL,
+					BI_CAN_EXEC_DYN,
 				 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
@@ -878,6 +879,7 @@ static Elf32_Brandinfo linux_glibc2brand = {
 					"/lib/ld-linux.so.2",
 					&elf_linux_sysvec,
 					NULL,
+					BI_CAN_EXEC_DYN,
 				 };
 
 Elf32_Brandinfo *linux_brandlist[] = {
