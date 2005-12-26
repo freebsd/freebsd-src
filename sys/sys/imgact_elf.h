@@ -63,6 +63,8 @@ typedef struct {
 	const char *interp_path;
 	struct sysentvec *sysvec;
 	const char *interp_newpath;
+        int flags;
+#define		BI_CAN_EXEC_DYN	0x0001
 } __ElfN(Brandinfo);
 
 __ElfType(Auxargs);
