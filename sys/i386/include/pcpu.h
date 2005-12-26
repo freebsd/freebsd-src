@@ -54,7 +54,8 @@
 	struct	segment_descriptor *pc_fsgs_gdt;			\
 	int	pc_currentldt;						\
 	u_int	pc_acpi_id;						\
-	u_int	pc_apic_id
+	u_int	pc_apic_id;						\
+	int	pc_private_tss	/* flag indicating private tss */
 
 #if defined(lint)
  
