@@ -134,6 +134,10 @@ outqstr(const char *p, struct output *file)
 {
 	char ch;
 
+	if (p[0] == '\0') {
+		outstr("''", file);
+		return;
+	}
 	if (p[strcspn(p, "|&;<>()$`\\\"'")] == '\0' && (!ifsset() ||
 	    p[strcspn(p, ifsval())] == '\0')) {
 		outstr(p, file);

@@ -1,3 +1,4 @@
+.\"-
 .\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -31,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2004
+.Dd December 8, 2005
 .Dt SH 1
 .Os
 .Sh NAME
@@ -97,7 +98,7 @@ generally prompts before each command and handles programming
 and command errors differently (as described below).
 When first starting, the shell inspects argument 0, and
 if it begins with a dash
-.Pq Li - ,
+.Pq Ql - ,
 the shell is also considered a login shell.
 This is normally done automatically by the system
 when the user first logs in.
@@ -171,15 +172,15 @@ built-in command
 (described later in the section called
 .Sx Built-in Commands ) .
 Introducing an option with a dash
-.Pq Li -
+.Pq Ql -
 enables the option,
 while using a plus
-.Pq Li +
+.Pq Ql +
 disables the option.
 A
 .Dq Li --
 or plain
-.Dq Li -
+.Dq Ql -
 will stop option processing and will force the remaining
 words on the command line to be treated as arguments.
 The
@@ -207,13 +208,22 @@ option if it has been set).
 .It Fl e Li errexit
 Exit immediately if any untested command fails in non-interactive mode.
 The exit status of a command is considered to be
-explicitly tested if the command is used to control
-an if, elif, while, or until; or if the command is the left
+explicitly tested if the command is part of the list used to control
+an
+.Ic if , elif , while ,
+or
+.Ic until ;
+if the command is the left
 hand operand of an
 .Dq Li &&
 or
 .Dq Li ||
+operator; or if the command is a pipeline preceded by the
+.Ic !\&
 operator.
+If a shell function is executed and its exit status is explicitly
+tested, all commands of the function are considered to be tested as
+well.
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl I Li ignoreeof
@@ -303,8 +313,9 @@ Useful for debugging.
 .Pp
 The
 .Fl c
-option may be used to pass its string argument to the shell
-to be interpreted as input.
+option causes the commands to be read from the
+.Ar string
+operand instead of from the standard input.
 Keep in mind that this option only accepts a single string as its
 argument, hence multi-word strings must be quoted.
 .Pp
@@ -366,11 +377,11 @@ it impossible to put single-quotes in a single-quoted string).
 .It Double Quotes
 Enclosing characters within double quotes preserves the literal
 meaning of all characters except dollarsign
-.Pq Li $ ,
+.Pq Ql $ ,
 backquote
-.Pq Li ` ,
+.Pq Ql ` ,
 and backslash
-.Pq Li \e .
+.Pq Ql \e .
 The backslash inside double quotes is historically weird.
 It remains literal unless it precedes the following characters,
 which it serves to quote:
@@ -380,7 +391,7 @@ which it serves to quote:
 .It Backslash
 A backslash preserves the literal meaning of the following
 character, with the exception of the newline character
-.Pq Li \en .
+.Pq Ql \en .
 A backslash preceding a newline is treated as a line continuation.
 .El
 .Ss Reserved Words
@@ -713,7 +724,7 @@ They are executed in the current shell, although they do not affect its
 environment when used in pipelines.
 .Ss Background Commands (&)
 If a command is terminated by the control operator ampersand
-.Pq Li & ,
+.Pq Ql & ,
 the shell executes the command asynchronously;
 the shell does not wait for the command to finish
 before executing the next command.
@@ -785,10 +796,15 @@ repeat until the exit status of the first list is zero.
 The syntax of the
 .Ic for
 command is:
-.Dl Ic for Ar variable Ic in Ar word ...
+.Dl Ic for Ar variable Op Ic in Ar word ...
 .Dl Ic do Ar list
 .Dl Ic done
 .Pp
+If
+.Ic in
+and the following words are omitted,
+.Ic in Li $@
+is used instead.
 The words are expanded, and then the list is executed
 repeatedly with the variable set to each word in turn.
 The
@@ -881,7 +897,7 @@ and the syntax is:
 .Bd -ragged -offset indent
 .Ic local
 .Op Ar variable ...
-.Op Ar -
+.Op Fl
 .Ed
 .Pp
 The
@@ -958,12 +974,16 @@ The
 .Ic set
 built-in command can also be used to set or reset them.
 .Ss Special Parameters
-A special parameter is a parameter denoted by one of the following
-special characters.
-The value of the parameter is listed
-next to its character.
+A special parameter is a parameter denoted by a special one-character
+name.
+The special parameters recognized by the
+.Nm
+shell of
+.Fx
+are shown in the following list, exactly as they would appear in input
+typed by the user or in the source of a shell script.
 .Bl -hang
-.It Li *
+.It Li $*
 Expands to the positional parameters, starting from one.
 When
 the expansion occurs within a double-quoted string
@@ -976,7 +996,7 @@ or by a
 if
 .Ev IFS
 is unset.
-.It Li @
+.It Li $@
 Expands to the positional parameters, starting from one.
 When
 the expansion occurs within double-quotes, each positional
@@ -999,26 +1019,26 @@ the two arguments:
 .Bd -literal -offset indent
 "abc"   "def ghi"
 .Ed
-.It Li #
+.It Li $#
 Expands to the number of positional parameters.
-.It Li \&?
+.It Li $\&?
 Expands to the exit status of the most recent pipeline.
-.It Li -
+.It Li $-
 (hyphen) Expands to the current option flags (the single-letter
 option names concatenated into a string) as specified on
 invocation, by the set built-in command, or implicitly
 by the shell.
-.It Li $
+.It Li $$
 Expands to the process ID of the invoked shell.
 A subshell
 retains the same value of $ as its parent.
-.It Li \&!
+.It Li $\&!
 Expands to the process ID of the most recent background
 command executed from the current shell.
 For a
 pipeline, the process ID is that of the last command in the
 pipeline.
-.It Li 0
+.It Li $0
 (zero) Expands to the name of the shell or shell script.
 .El
 .Ss Word Expansions
@@ -1063,11 +1083,11 @@ character is used to introduce parameter expansion, command
 substitution, or arithmetic evaluation.
 .Ss Tilde Expansion (substituting a user's home directory)
 A word beginning with an unquoted tilde character
-.Pq Li ~
+.Pq Ql ~
 is
 subjected to tilde expansion.
 All the characters up to a slash
-.Pq Li /
+.Pq Ql /
 or the end of the word are treated as a username
 and are replaced with the user's home directory.
 If the
@@ -1296,13 +1316,13 @@ variable or the output of the command is scanned for these
 characters and they are turned into meta-characters.
 .Pp
 An asterisk
-.Pq Li *
+.Pq Ql *
 matches any string of characters.
 A question mark
-.Pq Li \&?
+.Pq Ql \&?
 matches any single character.
 A left bracket
-.Pq Li [
+.Pq Ql [
 introduces a character class.
 The end of the character class is indicated by a
 .Dq Li \&] ;
@@ -1316,7 +1336,7 @@ rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
 A range of characters may be specified using a minus sign.
 The character class may be complemented by making an exclamation point
-.Pq Li !\&
+.Pq Ql !\&
 the first character of the character class.
 .Pp
 To include a
@@ -1446,7 +1466,8 @@ A synonym for the
 .Ic cd
 built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
-Execute the specified
+.It Ic command Oo Fl v | V Oc Op Ar utility
+The first form of invocation executes the specified
 .Ar utility
 as a simple command (see the
 .Sx Simple Commands
@@ -1458,10 +1479,39 @@ option is specified, the command search is performed using a
 default value of
 .Ev PATH
 that is guaranteed to find all of the standard utilities.
-.It Ic echo Oo Fl e | n Oc Op Ar string
-Print
-.Ar string
-to the standard output with a newline appended.
+.Pp
+If the
+.Fl v
+option is specified,
+.Ar utility
+is not executed but a description of its interpretation by the shell is
+printed.
+For ordinary commands the output is the path name; for shell built-in
+commands, shell functions and keywords only the name is written.
+Aliases are printed as
+.Dq Ic alias Ar name Ns = Ns Ar value .
+.Pp
+The
+.Fl V
+option is identical to
+.Fl v
+except for the output.
+It prints
+.Dq Ar utility Ic is Ar description
+where
+.Ar description
+is either
+the path name to
+.Ar utility ,
+a shell builtin,
+a shell function,
+a shell keyword
+or
+an alias for
+. Ar value .
+.It Ic echo Oo Fl e | n Oc Op Ar string ...
+Print a space-separated list of the arguments to the standard output
+and append a newline character.
 .Bl -tag -width indent
 .It Fl n
 Suppress the output of the trailing newline.
@@ -1541,7 +1591,8 @@ If
 is given
 it is used as the exit status of the shell;
 otherwise the exit status of the preceding command is used.
-.It Ic export Oo Fl p Oc Op Ar name ...
+.It Ic export Ar name ...
+.It Ic export Op Fl p
 The specified names are exported so that they will
 appear in the environment of subsequent commands.
 The only way to un-export a variable is to
@@ -1651,9 +1702,9 @@ the string form of the first operand cannot contain an embedded equal sign.
 .Pp
 The following environment variables affect the execution of
 .Ic fc :
-.Bl -tag -width indent
+.Bl -tag -width ".Ev HISTSIZE"
 .It Ev FCEDIT
-Name of the editor to use.
+Name of the editor to use for history editing.
 .It Ev HISTSIZE
 The number of previous commands that are accessible.
 .El
@@ -1726,6 +1777,10 @@ option is specified, the PID of each job is also printed.
 If the
 .Fl s
 option is specified, only the PIDs of the jobs are printed, one per line.
+.It Ic local Oo Ar variable ... Oc Op Fl
+See the
+.Sx Functions
+subsection.
 .It Ic pwd Op Fl L | P
 Print the path of the current directory.
 The built-in command may
@@ -1791,7 +1846,7 @@ option is specified and the
 elapses before any input is supplied,
 the
 .Ic read
-command will return without assigning any values.
+command will return an exit status of 1 without assigning any values.
 The
 .Ar timeout
 value may optionally be followed by one of
@@ -1827,6 +1882,10 @@ If the
 option is specified, the read-only variables are printed as
 .Dq Ic readonly Ar name Ns = Ns Ar value
 lines, suitable for re-input to the shell.
+.It Ic return Op Ar exitstatus
+See the
+.Sx Functions
+subsection.
 .It Ic set Oo Fl /+abCEefIimnpTuVvx Oc Oo Fl /+o Ar longname Oc Oo
 .Fl c Ar string Oc Op Fl - Ar arg ...
 The
@@ -1861,9 +1920,9 @@ flag may be omitted when specifying arguments to be used
 as positional replacement parameters.
 This is not recommended,
 because the first argument may begin with a dash
-.Pq Li -
+.Pq Ql -
 or a plus
-.Pq Li + ,
+.Pq Ql + ,
 which the
 .Ic set
 command will interpret as a request to enable or disable options.
@@ -1892,7 +1951,13 @@ A shift sets the value of $1 to the value of $2,
 the value of $2 to the value of $3, and so on,
 decreasing the value of $# by one.
 If there are zero positional parameters, shifting does not do anything.
+.It Ic times
+Print the amount of time spent executing the shell and its children.
+The first output line shows the user and system times for the shell
+itself, the second one contains the user and system times for the
+children.
 .It Ic trap Oo Ar action Oc Ar signal ...
+.It Ic trap Fl l
 Cause the shell to parse and execute
 .Ar action
 when any specified
@@ -1904,14 +1969,25 @@ In addition, the pseudo-signal
 may be used to specify an action that is performed when the shell terminates.
 The
 .Ar action
-may be null or omitted;
+may be an empty string or a dash
+.Pq Ar - ;
 the former causes the specified signal to be ignored
 and the latter causes the default action to be taken.
+Omitting the
+.Ar action
+is another way to request the default action, for compatibility reasons this
+usage is not recommended though.
 When the shell forks off a subshell,
 it resets trapped (but not ignored) signals to the default action.
 The
 .Ic trap
 command has no effect on signals that were ignored on entry to the shell.
+.Pp
+Option
+.Fl l
+causes the
+.Ic trap
+command to display a list of valid signal names.
 .It Ic type Op Ar name ...
 Interpret each
 .Ar name
@@ -1985,16 +2061,19 @@ The maximal number of simultaneous processes for this user ID.
 .It Fl v Ar virtualmem
 The maximal virtual size of a process, in kilobytes.
 .El
-.It Ic umask Op Ar mask
+.It Ic umask Oo Fl S Oc Op Ar mask
 Set the file creation mask (see
 .Xr umask 2 )
-to the octal value specified by
+to the octal or symbolic (see
+.Xr chmod 1 )
+value specified by
 .Ar mask .
 If the argument is omitted, the current mask value is printed.
-.It Ic unalias Oo Fl a Oc Op Ar name
-If
-.Ar name
-is specified, the shell removes that alias.
+If the
+.Fl S
+option is specified, the output is symbolic, otherwise the output is octal.
+.It Ic unalias Oo Fl a Oc Op Ar name ...
+The specified alias names are removed.
 If
 .Fl a
 is specified, all aliases are removed.
@@ -2051,12 +2130,94 @@ Similarly, the
 .Dq Li set -E )
 command can be used to enable a subset of
 emacs-style command line editing features.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev HISTSIZE"
+.It Ev CDPATH
+The search path used with the
+.Ic cd
+built-in.
+.It Ev EDITOR
+The fallback editor used with the
+.Ic fc
+built-in.
+If not set, the default editor is
+.Xr ed 1 .
+.It Ev FCEDIT
+The default editor used with the
+.Ic fc
+built-in.
+.It Ev HISTSIZE
+The number of previous commands that are accessible.
+.It Ev HOME
+The starting directory of
+.Nm .
+.It Ev IFS
+Input Field Separators.
+This is normally set to
+.Aq space ,
+.Aq tab ,
+and
+.Aq newline .
+See the
+.Sx White Space Splitting
+section for more details.
+.It Ev MAIL
+The name of a mail file, that will be checked for the arrival of new
+mail.
+Overridden by
+.Ev MAILPATH .
+.It Ev MAILPATH
+A colon
+.Pq Ql \&:
+separated list of file names, for the shell to check for incoming
+mail.
+This environment setting overrides the
+.Ev MAIL
+setting.
+There is a maximum of 10 mailboxes that can be monitored at once.
+.It Ev PATH
+The default search path for executables.
+See the
+.Sx Path Search
+section for details.
+.It Ev PS1
+The primary prompt string, which defaults to
+.Dq Li "$ " ,
+unless you are the superuser, in which case it defaults to
+.Dq Li "# " .
+.It Ev PS2
+The secondary prompt string, which defaults to
+.Dq Li "> " .
+.It Ev TERM
+The default terminal setting for the shell.
+This is inherited by children of the shell, and is used in the history
+editing modes.
+.El
+.Sh EXIT STATUS
+Errors that are detected by the shell, such as a syntax error, will
+cause the shell to exit with a non-zero exit status.
+If the shell is not an interactive shell, the execution of the shell
+file will be aborted.
+Otherwise the shell will return the exit status of the last command
+executed, or if the exit builtin is used with a numeric argument, it
+will return the argument.
 .Sh SEE ALSO
 .Xr builtin 1 ,
+.Xr chsh 1 ,
 .Xr echo 1 ,
+.Xr ed 1 ,
+.Xr emacs 1 ,
 .Xr expr 1 ,
+.Xr getopt 1 ,
 .Xr pwd 1 ,
-.Xr test 1
+.Xr test 1 ,
+.Xr vi 1 ,
+.Xr execve 2 ,
+.Xr getrlimit 2 ,
+.Xr umask 2 ,
+.Xr editrc 5
 .Sh HISTORY
 A
 .Nm

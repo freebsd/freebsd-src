@@ -270,18 +270,20 @@ umaskcmd(int argc __unused, char **argv)
 			mask = 0;
 			do {
 				if (*ap >= '8' || *ap < '0')
-					error("Illegal number: %s", argv[1]);
+					error("Illegal number: %s", *argptr);
 				mask = (mask << 3) + (*ap - '0');
 			} while (*++ap != '\0');
 			umask(mask);
 		} else {
 			void *set;
+			INTOFF;
 			if ((set = setmode (ap)) == 0)
 				error("Illegal number: %s", ap);
 
 			mask = getmode (set, ~mask & 0777);
 			umask(~mask & 0777);
 			free(set);
+			INTON;
 		}
 	}
 	return 0;

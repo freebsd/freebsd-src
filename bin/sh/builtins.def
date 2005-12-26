@@ -77,6 +77,7 @@ returncmd	return
 setcmd		set
 setvarcmd	setvar
 shiftcmd	shift
+timescmd	times
 trapcmd		trap
 truecmd		: true
 typecmd		type
