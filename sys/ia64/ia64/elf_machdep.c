@@ -90,6 +90,7 @@ static Elf64_Brandinfo freebsd_brand_info = {
 	"/libexec/ld-elf.so.1",
 	&elf64_freebsd_sysvec,
 	NULL,
+	0,
 };
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
@@ -102,6 +103,7 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	"/usr/libexec/ld-elf.so.1",
 	&elf64_freebsd_sysvec,
 	NULL,
+	0,
 };
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
