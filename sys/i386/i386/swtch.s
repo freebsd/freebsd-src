@@ -197,7 +197,7 @@ sw1:
 	 */
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f				/* If not, use the default */
-	btsl	%esi, private_tss		/* mark use of private tss */
+	movl	$1, PCPU(PRIVATE_TSS) 		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f				/* Load it up */
 
@@ -213,8 +213,9 @@ sw1:
 	 * Test this CPU's  bit in the bitmap to see if this
 	 * CPU was using a private TSS.
 	 */
-	btrl	%esi, private_tss		/* Already using the common? */
-	jae	3f				/* if so, skip reloading */
+	cmpl	$0, PCPU(PRIVATE_TSS)		/* Already using the common? */
+	je	3f				/* if so, skip reloading */
+	movl	$0, PCPU(PRIVATE_TSS)
 	PCPU_ADDR(COMMON_TSSD, %edi)
 2:
 	/* Move correct tss descriptor into GDT slot, then reload tr. */

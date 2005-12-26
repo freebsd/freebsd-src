@@ -198,6 +198,7 @@ ASSYM(PC_FSGS_GDT, offsetof(struct pcpu, pc_fsgs_gdt));
 ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
+ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
 
 #ifdef DEV_APIC
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
