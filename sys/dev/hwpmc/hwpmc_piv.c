@@ -1544,8 +1544,9 @@ p4_stop_pmc(int cpu, int ri)
 /*
  * Handle an interrupt.
  *
- * The hardware sets the CCCR_OVF whenever a counter overflow occurs, so the handler
- * examines all the 18 CCCR registers, processing the counters that have overflowed.
+ * The hardware sets the CCCR_OVF whenever a counter overflow occurs,
+ * so the handler examines all the 18 CCCR registers, processing the
+ * counters that have overflowed.
  *
  * On HTT machines, the CCCR register is shared and will interrupt
  * both logical processors if so configured.  Thus multiple logical
