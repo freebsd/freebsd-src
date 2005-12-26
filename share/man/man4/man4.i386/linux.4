@@ -108,14 +108,6 @@ regardless of whether the
 .Nm
 module is statically linked into the kernel
 or loaded as a module.
-.Pp
-Some Linux scripts want to execute
-.Pa /lib/ld-linux.so.2 .
-In order to do this,
-you should turn the
-.Va kern.elf32.can_exec_dyn
-.Xr sysctl 8
-variable to 1.
 .Sh FILES
 .Bl -tag -width /compat/linux/proc -compact
 .It Pa /compat/linux
