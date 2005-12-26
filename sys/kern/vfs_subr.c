@@ -3884,3 +3884,20 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 	return (0);
 }
 
+/*
+ * Mark for update the access time of the file if the filesystem
+ * supports VA_MARK_ATIME.  This functionality is used by execve
+ * and mmap, so we want to avoid the synchronous I/O implied by
+ * directly setting va_atime for the sake of efficiency.
+ */
+void
+vfs_mark_atime(struct vnode *vp, struct thread *td)
+{
+	struct vattr atimeattr;
+
+	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0) {
+		VATTR_NULL(&atimeattr);
+		atimeattr.va_vaflags |= VA_MARK_ATIME;
+		(void)VOP_SETATTR(vp, &atimeattr, td->td_ucred, td);
+	}
+}

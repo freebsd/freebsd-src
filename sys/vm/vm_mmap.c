@@ -1164,6 +1164,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	}
 	*objp = obj;
 	*flagsp = flags;
+	vfs_mark_atime(vp, td);
+
 done:
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
