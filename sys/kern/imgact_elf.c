@@ -653,10 +653,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOEXEC);
 	}
 	if (hdr->e_type == ET_DYN &&
-	    (brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
-		error = ENOEXEC;
-		goto fail;
-	}
+	    (brand_info->flags & BI_CAN_EXEC_DYN) == 0)
+		return (ENOEXEC);
 	sv = brand_info->sysvec;
 	if (interp != NULL && brand_info->interp_newpath != NULL)
 		interp = brand_info->interp_newpath;
