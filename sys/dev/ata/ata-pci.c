@@ -114,6 +114,10 @@ ata_pci_probe(device_t dev)
 	if (!ata_ite_ident(dev))
 	    return 0;
 	break;
+    case ATA_MARVELL_ID:
+	if (!ata_marvell_ident(dev))
+	    return 0;
+	break;
     case ATA_NATIONAL_ID:
 	if (!ata_national_ident(dev))
 	    return 0;

@@ -98,6 +98,12 @@ static void ata_intel_old_setmode(device_t dev, int mode);
 static void ata_intel_new_setmode(device_t dev, int mode);
 static int ata_ite_chipinit(device_t dev);
 static void ata_ite_setmode(device_t dev, int mode);
+static int ata_marvell_chipinit(device_t dev);
+static int ata_marvell_allocate(device_t dev);
+static void ata_marvell_intr(void *data);
+static void ata_marvell_dmainit(device_t dev);
+static int ata_marvell_command(struct ata_request *request);
+static void ata_marvell_reset(device_t dev);
 static int ata_national_chipinit(device_t dev);
 static void ata_national_setmode(device_t dev, int mode);
 static int ata_nvidia_chipinit(device_t dev);
@@ -2077,6 +2083,440 @@ ata_ite_setmode(device_t dev, int mode)
 	}
 	atadev->mode = mode;
     }
+}
+
+
+/*
+ * Marvell chipset support functions
+ */
+#define ATA_MV_HOST_BASE(ch) \
+	((ch->unit & 3) * 0x0100) + (ch->unit > 3 ? 0x30000 : 0x20000)
+#define ATA_MV_EDMA_BASE(ch) \
+	((ch->unit & 3) * 0x2000) + (ch->unit > 3 ? 0x30000 : 0x20000)
+
+int
+ata_marvell_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_chip_id *idx;
+    static struct ata_chip_id ids[] =
+    {{ ATA_M88SX5040, 0, 4, MV5XXX, ATA_SA150, "88SX5040" },
+     { ATA_M88SX5041, 0, 4, MV5XXX, ATA_SA150, "88SX5041" },
+     { ATA_M88SX5080, 0, 8, MV5XXX, ATA_SA150, "88SX5080" },
+     { ATA_M88SX5081, 0, 8, MV5XXX, ATA_SA150, "88SX5081" },
+     { ATA_M88SX6041, 0, 4, MV6XXX, ATA_SA300, "88SX6041" },
+     { ATA_M88SX6081, 0, 8, MV6XXX, ATA_SA300, "88SX6081" },
+     { 0, 0, 0, 0, 0, 0}};
+    char buffer[64];
+
+    if (pci_get_class(dev) != PCIC_STORAGE ||
+	pci_get_vendor(dev) != ATA_MARVELL_ID)
+	return ENXIO;
+
+    if (!(idx = ata_match_chip(dev, ids)))
+	return ENXIO;
+
+    sprintf(buffer, "Marvell %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
+    device_set_desc_copy(dev, buffer);
+    ctlr->chip = idx;
+    ctlr->chipinit = ata_marvell_chipinit;
+    return 0;
+}
+
+static int
+ata_marvell_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int rid = ATA_IRQ_RID;
+
+    if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					       RF_SHAREABLE | RF_ACTIVE))) {
+	device_printf(dev, "unable to map interrupt\n");
+	return ENXIO;
+    }
+
+    ctlr->r_type1 = SYS_RES_MEMORY;
+    ctlr->r_rid1 = PCIR_BAR(0);
+    if (!(ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1,
+						&ctlr->r_rid1, RF_ACTIVE)))
+	return ENXIO;
+
+    /* mask all host controller interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x01d64, 0x00000000);
+
+    /* mask all PCI interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x01d5c, 0x00000000);
+
+    ctlr->reset = ata_marvell_reset;
+    ctlr->dmainit = ata_marvell_dmainit;
+    ctlr->allocate = ata_marvell_allocate;
+    ctlr->setmode = ata_sata_setmode;
+    ctlr->channels = ctlr->chip->cfg1;
+
+    if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+			ata_marvell_intr, ctlr, &ctlr->handle))) {
+	device_printf(dev, "unable to setup interrupt\n");
+	return ENXIO;
+    }
+
+    /* clear host controller interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x20014, 0x00000000);
+    if (ctlr->chip->cfg1 > 4)
+	ATA_OUTL(ctlr->r_res1, 0x30014, 0x00000000);
+
+    /* clear PCI interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x01d58, 0x00000000);
+
+    /* unmask PCI interrupts we want */
+    ATA_OUTL(ctlr->r_res1, 0x01d5c, 0x007fffff);
+
+    /* unmask host controller interrupts we want */
+    ATA_OUTL(ctlr->r_res1, 0x01d64, 0x000000ff/*HC0*/ | 0x0001fe00/*HC1*/ |
+	     /*(1<<19) | (1<<20) | (1<<21) |*/(1<<22) | (1<<24) | (0x7f << 25));
+
+    pci_write_config(dev, PCIR_COMMAND,
+		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+    return 0;
+}
+
+static int
+ata_marvell_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    bus_addr_t wordp = ch->dma->work_bus;
+    int i;
+
+    /* set legacy ATA resources */
+    for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
+	ch->r_io[i].res = ctlr->r_res1;
+	ch->r_io[i].offset = 0x02100 + (i << 2) + ATA_MV_EDMA_BASE(ch);
+    }
+    ch->r_io[ATA_CONTROL].res = ctlr->r_res1;
+    ch->r_io[ATA_CONTROL].offset = 0x02120 + ATA_MV_EDMA_BASE(ch);
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res1;
+    ata_default_registers(dev);
+
+    /* set SATA resources */
+    switch (ctlr->chip->cfg2) {
+    case MV5XXX:
+	ch->r_io[ATA_SSTATUS].res = ctlr->r_res1;
+	ch->r_io[ATA_SSTATUS].offset =  0x00100 + ATA_MV_HOST_BASE(ch);
+	ch->r_io[ATA_SERROR].res = ctlr->r_res1;
+	ch->r_io[ATA_SERROR].offset = 0x00104 + ATA_MV_HOST_BASE(ch);
+	ch->r_io[ATA_SCONTROL].res = ctlr->r_res1;
+	ch->r_io[ATA_SCONTROL].offset = 0x00108 + ATA_MV_HOST_BASE(ch);
+	break;
+    case MV6XXX:
+	ch->r_io[ATA_SSTATUS].res = ctlr->r_res1;
+	ch->r_io[ATA_SSTATUS].offset =  0x02300 + ATA_MV_EDMA_BASE(ch);
+	ch->r_io[ATA_SERROR].res = ctlr->r_res1;
+	ch->r_io[ATA_SERROR].offset = 0x02304 + ATA_MV_EDMA_BASE(ch);
+	ch->r_io[ATA_SCONTROL].res = ctlr->r_res1;
+	ch->r_io[ATA_SCONTROL].offset = 0x02308 + ATA_MV_EDMA_BASE(ch);
+	ch->r_io[ATA_SACTIVE].res = ctlr->r_res1;
+	ch->r_io[ATA_SACTIVE].offset = 0x02350 + ATA_MV_EDMA_BASE(ch);
+	break;
+    }
+
+    ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_USE_16BIT; /* XXX SOS needed ? */
+    ata_generic_hw(dev);
+    ch->hw.command = ata_marvell_command;
+
+    /* disable the EDMA machinery */
+    ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000002);
+    DELAY(100000);       /* SOS should poll for disabled */
+
+    /* set configuration to non-queued 128b read transfers stop on error */
+    ATA_OUTL(ctlr->r_res1, 0x02000 + ATA_MV_EDMA_BASE(ch), (1<<11) | (1<<13));
+
+    /* request queue base high */
+    ATA_OUTL(ctlr->r_res1, 0x02010 + ATA_MV_EDMA_BASE(ch), (wordp >> 16) >> 16);
+
+    /* request queue in ptr */
+    ATA_OUTL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch), wordp & 0xffffffff);
+
+    /* request queue out ptr */
+    ATA_OUTL(ctlr->r_res1, 0x02018 + ATA_MV_EDMA_BASE(ch), 0x0);
+
+    /* response queue base high */
+    wordp += 1024;
+    ATA_OUTL(ctlr->r_res1, 0x0201c + ATA_MV_EDMA_BASE(ch), (wordp >> 16) >> 16);
+
+    /* response queue in ptr */
+    ATA_OUTL(ctlr->r_res1, 0x02020 + ATA_MV_EDMA_BASE(ch), 0x0);
+
+    /* response queue out ptr */
+    ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), wordp & 0xffffffff);
+
+    /* clear SATA error register */
+    ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
+
+    /* clear any outstanding error interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch), 0x0);
+
+    /* unmask all error interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x0200c + ATA_MV_EDMA_BASE(ch), ~0x0);
+    
+    /* enable EDMA machinery */
+    ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000001);
+    return 0;
+}
+
+static void
+ata_marvell_intr(void *data)
+{
+    struct ata_pci_controller *ctlr = data;
+    struct ata_channel *ch;
+    struct ata_request *request;
+    u_int32_t cause, icr0 = 0, icr1 = 0;
+    int unit;
+
+    cause = ATA_INL(ctlr->r_res1, 0x01d60);
+    if ((icr0 = ATA_INL(ctlr->r_res1, 0x20014)))
+	ATA_OUTL(ctlr->r_res1, 0x20014, ~icr0);
+    if (ctlr->channels > 4) {
+	if ((icr1 = ATA_INL(ctlr->r_res1, 0x30014)))
+	    ATA_OUTL(ctlr->r_res1, 0x30014, ~icr1);
+    }
+
+    for (unit = 0; unit < ctlr->channels; unit++) {
+        u_int32_t icr;
+	int shift;
+
+	if (!(ch = ctlr->interrupt[unit].argument))
+	    continue;
+
+	mtx_lock(&ch->state_mtx);
+	shift = unit << 1;
+	if (ch->unit < 4) 
+	    icr = icr0;
+	else {
+	    icr = icr1;
+	    shift++;
+	}
+
+	/* do we have any errors flagged ? */
+	if (cause & (1 << shift)) {
+	    /* clear SATA error register */
+	    ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
+
+	    /* clear any outstanding error interrupts */
+	    ATA_OUTL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch), 0x0);
+	}
+
+	/* EDMA interrupt */
+	if ((icr & (0x0001 << (unit & 3))) && (request = ch->running)) {
+	    u_int32_t rsp_in, rsp_out;
+	    int slot;
+
+	    request->dmastat = ch->dma->stop(request->dev);
+	    ch->dma->unload(ch->dev);
+	    callout_stop(&request->callout);
+
+	    /* get response ptr's */
+	    rsp_in = ATA_INL(ctlr->r_res1, 0x02020 + ATA_MV_EDMA_BASE(ch));
+    	    rsp_out = ATA_INL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch));
+	    slot = (((rsp_in & ~0xffffff00) >> 3)) & 0x1f;
+	    rsp_out &= 0xffffff00;
+	    rsp_out += (slot << 3);
+
+	    /* XXX SOS get status and error into request */
+	    request->status = 0; /* XXX SOS */
+	    request->error = 0; /* XXX SOS */
+	    if (!(request->flags & ATA_R_TIMEOUT))
+	        request->donecount = request->bytecount;
+
+	    /* ack response */
+    	    ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), rsp_out);
+
+	    ch->running = NULL;
+	    if (ch->state == ATA_ACTIVE)
+                ch->state = ATA_IDLE;
+            mtx_unlock(&ch->state_mtx);
+            ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
+	    ata_finish(request);
+        }
+
+	/* legacy ATA interrupt */
+	else if (icr & (0x0100 << (unit & 3))) {
+	    mtx_unlock(&ch->state_mtx);
+	    ctlr->interrupt[unit].function(ch);
+	}
+
+	/* no device action to handle */
+	else {
+	    mtx_unlock(&ch->state_mtx);
+	}
+    }
+}
+
+struct ata_marvell_dma_prdentry {
+    u_int32_t addrlo;
+    u_int32_t count;
+    u_int32_t addrhi;
+    u_int32_t reserved;
+};  
+
+static void
+ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
+{
+    struct ata_dmasetprd_args *args = xsc;
+    struct ata_marvell_dma_prdentry *prd = args->dmatab;
+    int i;
+
+    if ((args->error = error))
+	return;
+
+    for (i = 0; i < nsegs; i++) {
+	prd[i].addrlo = htole32(segs[i].ds_addr);
+	prd[i].addrhi = 0;
+	prd[i].count = htole32(segs[i].ds_len);
+    }
+    prd[i - 1].count |= htole32(ATA_DMA_EOT);
+}
+
+static int
+ata_marvell_dmastart(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+
+    ch->flags |= ATA_DMA_ACTIVE;
+    return 0;
+}
+
+static int
+ata_marvell_dmastop(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+
+    ch->flags &= ~ATA_DMA_ACTIVE;
+
+    /* get status XXX SOS */
+    return 0;
+}
+
+static void
+ata_marvell_dmainit(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ata_dmainit(dev);
+    if (ch->dma) {
+        ch->dma->start = ata_marvell_dmastart;
+        ch->dma->stop = ata_marvell_dmastop;
+        ch->dma->setprd = ata_marvell_dmasetprd;
+    }
+}
+
+static int
+ata_marvell_command(struct ata_request *request)
+{
+    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    u_int32_t req_in, req_out;
+    u_int8_t *bytep;
+    u_int16_t *wordp;
+    u_int32_t *quadp;
+    int i, tag = 0x07;
+    int slot;
+
+    /* only DMA R/W goes through the EMDA machine */
+    /* XXX SOS add ATAPI commands support later */
+    if (request->u.ata.command != ATA_READ_DMA &&
+	request->u.ata.command != ATA_WRITE_DMA) {
+
+        /* disable the EDMA machinery */
+        if (ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)
+	    ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000002);
+	return ata_generic_command(request);
+    }
+
+    req_out = ATA_INL(ctlr->r_res1, 0x02018 + ATA_MV_EDMA_BASE(ch));
+
+    /* get next free request queue slot */
+    req_in = ATA_INL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch));
+    slot = (((req_in & ~0xfffffc00) >> 5) + 0) & 0x1f;
+    
+    bytep = (u_int8_t *)(ch->dma->work);
+    bytep += (slot << 5);
+    wordp = (u_int16_t *)bytep;
+    quadp = (u_int32_t *)bytep;
+
+    quadp[0] = (long)ch->dma->sg_bus & 0xffffffff;
+    quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000) >> 32;
+    wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag<<1);
+
+    i = 10;
+    bytep[i++] = (request->u.ata.count >> 8) & 0xff;
+    bytep[i++] = 0x10 | ATA_COUNT;
+    bytep[i++] = request->u.ata.count & 0xff;
+    bytep[i++] = 0x10 | ATA_COUNT;
+
+    bytep[i++] = (request->u.ata.lba >> 24) & 0xff;
+    bytep[i++] = 0x10 | ATA_SECTOR;
+    bytep[i++] = request->u.ata.lba & 0xff;
+    bytep[i++] = 0x10 | ATA_SECTOR;
+
+    bytep[i++] = (request->u.ata.lba >> 32) & 0xff;
+    bytep[i++] = 0x10 | ATA_CYL_LSB;
+    bytep[i++] = (request->u.ata.lba >> 8) & 0xff;
+    bytep[i++] = 0x10 | ATA_CYL_LSB;
+
+    bytep[i++] = (request->u.ata.lba >> 40) & 0xff;
+    bytep[i++] = 0x10 | ATA_CYL_MSB;
+    bytep[i++] = (request->u.ata.lba >> 16) & 0xff;
+    bytep[i++] = 0x10 | ATA_CYL_MSB;
+
+    bytep[i++] = ATA_D_LBA | ATA_D_IBM | ((request->u.ata.lba >> 24) & 0xf);
+    bytep[i++] = 0x10 | ATA_DRIVE;
+    bytep[i++] = request->u.ata.command;
+    bytep[i++] = 0x90 | ATA_COMMAND;
+
+    /* enable EDMA machinery if needed */
+    if (!(ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)) {
+	ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000001);
+	while (!(ATA_INL(ctlr->r_res1,
+			 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001))
+	    DELAY(10);
+    }
+
+    slot = (((req_in & ~0xfffffc00) >> 5) + 1) & 0x1f;
+    req_in &= 0xfffffc00;
+    req_in += (slot << 5);
+
+    /* tell EDMA it has a new request */
+    ATA_OUTL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch), req_in);
+   
+    return 0;
+}
+
+static void
+ata_marvell_reset(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    /* disable the EDMA machinery */
+    ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000002);
+    DELAY(100000);       /* SOS should poll for disabled */
+
+    /* clear SATA error register */
+    ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
+
+    /* clear any outstanding error interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch), 0x0);
+
+    /* unmask all error interrupts */
+    ATA_OUTL(ctlr->r_res1, 0x0200c + ATA_MV_EDMA_BASE(ch), ~0x0);
+
+    /* enable channel and test for devices */
+    ata_sata_phy_enable(ch);
+
+    /* enable EDMA machinery */
+    ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000001);
 }
 
 
