@@ -952,7 +952,7 @@ sched_setup(void *dummy)
 		for (cpus = 0, i = 0; i < MAXCPU; i++) {
 			if (CPU_ABSENT(i))
 				continue;
-			ksq = &kseq_cpu[cpus];
+			ksq = &kseq_cpu[i];
 			ksg = &kseq_groups[cpus];
 			/*
 			 * Setup a kseq group with one member.
