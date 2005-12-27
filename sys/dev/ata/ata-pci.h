@@ -161,6 +161,14 @@ struct ata_connect_task {
 #define ATA_IT8211F             0x82111283
 #define ATA_IT8212F             0x82121283
 
+#define ATA_MARVELL_ID          0x11ab
+#define ATA_M88SX5040           0x504011ab
+#define ATA_M88SX5041           0x504111ab
+#define ATA_M88SX5080           0x508011ab
+#define ATA_M88SX5081           0x508111ab
+#define ATA_M88SX6041           0x604111ab
+#define ATA_M88SX6081           0x608111ab
+
 #define ATA_MICRON_ID           0x1042
 #define ATA_MICRON_RZ1000       0x10001042
 #define ATA_MICRON_RZ1001       0x10011042
@@ -326,6 +334,9 @@ struct ata_connect_task {
 #define HPT374          3
 #define HPTOLD          0x01
 
+#define MV5XXX          5
+#define MV6XXX          6
+
 #define PROLD           0
 #define PRNEW           1
 #define PRTX            2
@@ -395,6 +406,7 @@ int ata_cypress_ident(device_t);
 int ata_highpoint_ident(device_t);
 int ata_intel_ident(device_t);
 int ata_ite_ident(device_t);
+int ata_marvell_ident(device_t);
 int ata_national_ident(device_t);
 int ata_nvidia_ident(device_t);
 int ata_promise_ident(device_t);
