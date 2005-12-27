@@ -58,6 +58,7 @@ static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 
 /* misc defines */
 #define IOMASK                  0xfffffffc
+#define ATA_PROBE_OK		-10
 
 /* prototypes */
 static void ata_pci_dmainit(device_t);
@@ -80,77 +81,77 @@ ata_pci_probe(device_t dev)
     switch (pci_get_vendor(dev)) {
     case ATA_ACARD_ID: 
 	if (!ata_acard_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_ACER_LABS_ID:
 	if (!ata_ali_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_AMD_ID:
 	if (!ata_amd_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_ATI_ID:
 	if (!ata_ati_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_CYRIX_ID:
 	if (!ata_cyrix_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_CYPRESS_ID:
 	if (!ata_cypress_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_HIGHPOINT_ID: 
 	if (!ata_highpoint_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_INTEL_ID:
 	if (!ata_intel_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_ITE_ID:
 	if (!ata_ite_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_MARVELL_ID:
 	if (!ata_marvell_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_NATIONAL_ID:
 	if (!ata_national_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_NVIDIA_ID:
 	if (!ata_nvidia_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_PROMISE_ID:
 	if (!ata_promise_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_SERVERWORKS_ID: 
 	if (!ata_serverworks_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_SILICON_IMAGE_ID:
 	if (!ata_sii_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_SIS_ID:
 	if (!ata_sis_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_VIA_ID: 
 	if (!ata_via_ident(dev))
-	    return 0;
+	    return ATA_PROBE_OK;
 	break;
     case ATA_CENATEK_ID:
 	if (pci_get_devid(dev) == ATA_CENATEK_ROCKET) {
 	    ata_generic_ident(dev);
 	    device_set_desc(dev, "Cenatek Rocket Drive controller");
-	    return 0;
+	    return ATA_PROBE_OK;
 	}
 	break;
     case ATA_MICRON_ID:
@@ -159,16 +160,17 @@ ata_pci_probe(device_t dev)
 	    ata_generic_ident(dev);
 	    device_set_desc(dev, 
 		"RZ 100? ATA controller !WARNING! data loss/corruption risk");
-	    return 0;
+	    return ATA_PROBE_OK;
 	}
 	break;
     }
 
     /* unknown chipset, try generic DMA if it seems possible */
     if ((pci_get_class(dev) == PCIC_STORAGE) &&
-	(pci_get_subclass(dev) == PCIS_STORAGE_IDE))
-	return ata_generic_ident(dev);
-
+	(pci_get_subclass(dev) == PCIS_STORAGE_IDE)) {
+	if (!ata_generic_ident(dev))
+	    return ATA_PROBE_OK;
+    }
     return ENXIO;
 }
 
