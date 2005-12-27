@@ -1,4 +1,6 @@
-# @(#)northamerica	7.82
+# @(#)northamerica	7.87
+# <pre>
+
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -130,6 +132,26 @@ Rule	US	1976	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	US	1987	2006	-	Apr	Sun>=1	2:00	1:00	D
 Rule	US	2007	max	-	Mar	Sun>=8	2:00	1:00	D
 Rule	US	2007	max	-	Nov	Sun>=1	2:00	0	S
+
+# From Arthur David Olson, 2005-12-19
+# We generate the files specified below to guard against old files with
+# obsolete information being left in the time zone binary directory.
+# We limit the list to names that have appeared in previous versions of
+# this time zone package.
+# We do these as separate Zones rather than as Links to avoid problems if
+# a particular place changes whether it observes DST.
+# We put these specifications here in the northamerica file both to
+# increase the chances that they'll actually get compiled and to
+# avoid the need to duplicate the US rules in another file.
+
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	EST		 -5:00	-	EST
+Zone	MST		 -7:00	-	MST
+Zone	HST		-10:00	-	HST
+Zone	EST5EDT		 -5:00	US	E%sT
+Zone	CST6CDT		 -6:00	US	C%sT
+Zone	MST7MDT		 -7:00	US	M%sT
+Zone	PST8PDT		 -8:00	US	P%sT
 
 # From Bob Devine (1988-01-28):
 # ...Alaska (and Hawaii) had the timezone names changed in 1967.
@@ -800,18 +822,37 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 
 # Unless otherwise specified, the data for Canada are all from Shanks.
 
-# From Paul Eggert (2000-10-02):
+# From Paul Eggert (2005-12-21):
 # H. David Matthews and Mary Vincent's map
-# <a href="http://www.canadiangeographic.ca/SO98/geomap.htm">
+# <a href="http://www.canadiangeographic.ca/Magazine/SO98/geomap.asp">
 # "It's about TIME", _Canadian Geographic_ (September-October 1998)
 # </a> contains detailed boundaries for regions observing nonstandard
 # time and daylight saving time arrangements in Canada circa 1998.
 #
-# INMS, the Institute for National Measurement Standards in Ottawa, has
-# <a href="http://www.nrc.ca/inms/time/tze.html">
+# INMS, the Institute for National Measurement Standards in Ottawa, has <a
+# href="http://inms-ienm.nrc-cnrc.gc.ca/en/time_services/daylight_saving_e.php">
 # information about standard and daylight saving time zones in Canada.
 # </a> (updated periodically).
 # Its unofficial information is often taken from Matthews and Vincent.
+#
+# CBC News reported that Ontario and Manitoba have announced plans to
+# follow the US change, and that Nova Scotia is considering it; see
+# <http://www.cbc.ca/news/background/daylightsavingtime/> (2005-10-21).
+# CBC news also reported that Prince Edward Island is the first
+# province in Atlantic Canada to follow the US change, and that Quebec
+# had agreed; see <http://www.cbc.ca/pei/story/pe_daylight_20051207.html>
+# (2005-12-07).
+#
+# To reflect all this, the Canada and Winn rules have been adjusted to
+# agree with the 2007 US change.  This means we assume most of Canada
+# will fall into line.  However, Alberta, British Columbia,
+# Newfoundland, Northwest Territories, and Yukon already have separate
+# rules in our database, so for now we'll leave them alone, which
+# means that we currently assume these regions will not change their
+# rules and will disagree with the US starting in 2007.  This
+# assumption is probably incorrect, with the possible exception of
+# Newfoundland.  We plan to adjust the Edm, Vanc, StJohns, and NT_YK
+# rules as the corresponding provinces make their announcements.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Canada	1918	only	-	Apr	14	2:00	1:00	D
@@ -820,8 +861,10 @@ Rule	Canada	1942	only	-	Feb	 9	2:00	1:00	W # War
 Rule	Canada	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	Canada	1945	only	-	Sep	30	2:00	0	S
 Rule	Canada	1974	1986	-	Apr	lastSun	2:00	1:00	D
-Rule	Canada	1974	max	-	Oct	lastSun	2:00	0	S
-Rule	Canada	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Canada	1974	2006	-	Oct	lastSun	2:00	0	S
+Rule	Canada	1987	2006	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Canada	2007	max	-	Mar	Sun>=8	2:00	1:00	D
+Rule	Canada	2007	max	-	Nov	Sun>=1	2:00	0	S
 
 
 # Newfoundland (and far southeast Labrador)
@@ -1147,11 +1190,13 @@ Rule	Winn	1963	only	-	Apr	lastSun	2:00	1:00	D
 Rule	Winn	1963	only	-	Sep	22	2:00	0	S
 Rule	Winn	1966	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	Winn	1966	1986	-	Oct	lastSun	2:00	0	S
-Rule	Winn	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Winn	1987	2006	-	Apr	Sun>=1	2:00s	1:00	D
 # From Paul Eggert (2000-10-02):
 # INMS (2000-09-12) says that, since 1988 at least, Manitoba switches from
 # DST at 03:00 local time.  For now, assume it started in 1987.
-Rule	Winn	1987	max	-	Oct	lastSun	2:00s	0	S
+Rule	Winn	1987	2006	-	Oct	lastSun	2:00s	0	S
+Rule	Winn	2007	max	-	Mar	Sun>=8	2:00s	1:00	D
+Rule	Winn	2007	max	-	Nov	Sun>=1	2:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 			-6:00	Winn	C%sT
