@@ -2426,7 +2426,9 @@ ata_marvell_command(struct ata_request *request)
     /* only DMA R/W goes through the EMDA machine */
     /* XXX SOS add ATAPI commands support later */
     if (request->u.ata.command != ATA_READ_DMA &&
-	request->u.ata.command != ATA_WRITE_DMA) {
+        request->u.ata.command != ATA_READ_DMA48 &&
+	request->u.ata.command != ATA_WRITE_DMA &&
+	request->u.ata.command != ATA_WRITE_DMA48) {
 
         /* disable the EDMA machinery */
         if (ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)
