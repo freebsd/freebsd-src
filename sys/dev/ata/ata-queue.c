@@ -415,27 +415,39 @@ ata_completed(void *context, int dummy)
 
     ATA_DEBUG_RQ(request, "completed callback/wakeup");
 
-    /* if we are part of a composite operation update progress */
+    /* if we are part of a composite operation we need to maintain progress */
     if ((composite = request->composite)) {
 	int index = 0;
 
 	mtx_lock(&composite->lock);
+
+	/* update whats done */
 	if (request->flags & ATA_R_READ)
 	    composite->rd_done |= (1 << request->this);
 	if (request->flags & ATA_R_WRITE)
 	    composite->wr_done |= (1 << request->this);
 
+	/* find ready to go dependencies */
 	if (composite->wr_depend &&
 	    (composite->rd_done & composite->wr_depend)==composite->wr_depend &&
 	    (composite->wr_needed & (~composite->wr_done))) {
-	    index = ((composite->wr_needed & (~composite->wr_done))) - 1;
+	    index = composite->wr_needed & ~composite->wr_done;
 	}
+
 	mtx_unlock(&composite->lock);
-	if (index)
-	    ata_start(device_get_parent(composite->request[index]->dev));
+
+	/* if we have any ready candidates kick them off */
+	if (index) {
+	    int bit;
+	    
+	    for (bit = 0; bit < MAX_COMPOSITES; bit++) {
+		if (index & (1 << bit))
+	    	    ata_start(device_get_parent(composite->request[bit]->dev));
+	    }
+	}
     }
 
-    /* get results back to the initiator */
+    /* get results back to the initiator for this request */
     if (request->callback)
 	(request->callback)(request);
     else
