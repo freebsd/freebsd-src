@@ -366,6 +366,7 @@ vendor TWINMOS		0x126f	TwinMOS
 vendor BELKIN2		0x1293	Belkin Components
 vendor MOBILITY		0x1342	Mobility
 vendor SHARK		0x13d2	Shark
+vendor IMAGINATION	0x149a	Imagination Technologies
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
@@ -796,6 +797,9 @@ product HP2 C500		0x6002	PhotoSmart C500
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
+
+/* Imagination Technologies products */
+product IMAGINATION DBX1	0x2107	DBX1 DSP core
 
 /* Inside Out Networks products */
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
