@@ -1145,9 +1145,27 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 		reg |= (prefetchable[0]?CBBM_BRIDGECTRL_PREFETCH_0:0)|
 		    (prefetchable[1]?CBBM_BRIDGECTRL_PREFETCH_1:0);
 		pci_write_config(sc->dev, CBBR_BRIDGECTRL, reg, 2);
+		if (cbb_debug) {
+			if (starts[0] != 0xffffffff)
+				device_printf(sc->dev, "Memory window 0:"
+				    " %#x-%#x%s\n", starts[0], ends[0],
+				    prefetchable[0] ? " prefetch" : "");
+			if (starts[1] != 0xffffffff)
+				device_printf(sc->dev, "Memory window 1:"
+				    " %#x-%#x%s\n", starts[1], ends[1],
+				    prefetchable[1] ? " prefetch" : "");
+		}
 	} else if (type == SYS_RES_IOPORT) {
 		cbb_cardbus_io_open(sc->dev, 0, starts[0], ends[0]);
 		cbb_cardbus_io_open(sc->dev, 1, starts[1], ends[1]);
+		if (cbb_debug) {
+			if (starts[0] != 0xffffffff)
+				device_printf(sc->dev, "I/O window 0:"
+				    " %#x-%#x\n", starts[0], ends[0]);
+			if (starts[1] != 0xffffffff)
+				device_printf(sc->dev, "I/O window 1:"
+				    " %#x-%#x\n", starts[1], ends[1]);
+		}
 	}
 }
 
@@ -1205,6 +1223,9 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 			start = cbb_start_32_io;
 		if (end < start)
 			end = start;
+		if (count > (1 << RF_ALIGNMENT(flags)))
+			flags = (flags & ~RF_ALIGNMENT_MASK) | 
+			    rman_make_alignment_flags(count);
 		break;
 	case SYS_RES_MEMORY:
 		if (start <= cbb_start_mem)
