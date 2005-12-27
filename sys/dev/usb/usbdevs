@@ -631,7 +631,7 @@ product ALTEC ADA70		0x0070	ADA70 Speakers
 product ALTEC ASC495		0xff05	ASC495 Speakers
 
 /* American Power Conversion products */
-product APC UPSPRO500		0x0002	Back-UPS Pro 500
+product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Anchor products */
 product ANCHOR EZUSB		0x2131	EZUSB
@@ -1157,6 +1157,10 @@ product MELCO KG54AI		0x0067	WLI-U2-KG54-AI WLAN
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
+
+/* MGE UPS Systems */
+product MGE UPS1		0x0001	MGE UPS SYSTEMS PROTECTIONCENTER 1
+product MGE UPS2		0xffff	MGE UPS SYSTEMS PROTECTIONCENTER 2
 
 /* Micro Star International products */
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
