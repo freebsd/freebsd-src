@@ -154,7 +154,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 			sin6->sin6_scope_id = 0;
 		} else {
 			log(LOG_DEBUG,
-			    "obsolete pre-RFC2553 sockaddr_in6 rejected");
+			    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
 			error = EINVAL;
 			goto out;
 		}
