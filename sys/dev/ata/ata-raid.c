@@ -460,7 +460,9 @@ ata_raid_strategy(struct bio *bp)
 
 			if ((composite = ata_alloc_composite())) {
 			    if ((mirror = ata_alloc_request())) {
-				rdp->rebuild_lba = blk + chunk;
+				if ((blk <= rdp->rebuild_lba) &&
+				    ((blk + chunk) > rdp->rebuild_lba))
+				    rdp->rebuild_lba = blk + chunk;
 				bcopy(request, mirror,
 				      sizeof(struct ata_request));
 				mirror->this = this;
@@ -633,6 +635,7 @@ ata_raid_done(struct ata_request *request)
 		/* if read failed retry on the mirror */
 		else if (request->result) {
 		    request->dev = rdp->disks[mirror].dev;
+		    request->flags &= ~ATA_R_TIMEOUT;
 		    ata_raid_send_request(request);
 		    return;
 		}
@@ -1103,7 +1106,8 @@ ata_raid_delete(int array)
 	return ENXIO;
  
     rdp->status &= ~AR_S_READY;
-    disk_destroy(rdp->disk);
+    if (rdp->disk)
+	disk_destroy(rdp->disk);
 
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if ((rdp->disks[disk].flags & AR_DF_PRESENT) && rdp->disks[disk].dev) {
@@ -2099,6 +2103,9 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
 		}
 	    }
 	}
+	else
+	    goto intel_out;
+
 	if (retval) {
 	    if (volume < meta->total_volumes) {
 		map = (struct intel_raid_mapping *)
@@ -3864,7 +3871,8 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 
 	    if (!rdp || !rdp->status)
 		continue;
-	    disk_destroy(rdp->disk);
+	    if (rdp->disk)
+		disk_destroy(rdp->disk);
 	}
 	if (testing || bootverbose)
 	    printf("ATA PseudoRAID unloaded\n");
