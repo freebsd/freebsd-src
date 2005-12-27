@@ -2109,10 +2109,6 @@ ata_marvell_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (pci_get_class(dev) != PCIC_STORAGE ||
-	pci_get_vendor(dev) != ATA_MARVELL_ID)
-	return ENXIO;
-
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
