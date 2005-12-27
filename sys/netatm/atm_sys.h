@@ -186,7 +186,7 @@ struct atm_time {
 		delta.tv_sec--;						\
 		delta.tv_usec += 1000000;				\
 	}								\
-	printf("%3ld.%6ld: ", delta.tv_sec, delta.tv_usec);
+	printf("%3ld.%6ld: ", (long)delta.tv_sec, delta.tv_usec);
 
 #define	ATM_DEBUG0(f)		if (atm_debug) {ATM_TIME; printf(f);}
 #define	ATM_DEBUGN0(f)		if (atm_debug) {printf(f);}
