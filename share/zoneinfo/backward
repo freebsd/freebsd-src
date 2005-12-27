@@ -1,4 +1,4 @@
-# @(#)backward	7.29
+# @(#)backward	7.30
 
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.
@@ -42,7 +42,6 @@ Link	America/Rio_Branco	Brazil/Acre
 Link	America/Noronha		Brazil/DeNoronha
 Link	America/Sao_Paulo	Brazil/East
 Link	America/Manaus		Brazil/West
-Link	America/Chicago		CST6CDT
 Link	America/Halifax		Canada/Atlantic
 Link	America/Winnipeg	Canada/Central
 Link	America/Regina		Canada/East-Saskatchewan
@@ -55,8 +54,6 @@ Link	America/Whitehorse	Canada/Yukon
 Link	America/Santiago	Chile/Continental
 Link	Pacific/Easter		Chile/EasterIsland
 Link	America/Havana		Cuba
-Link	America/Panama		EST
-Link	America/New_York	EST5EDT
 Link	Africa/Cairo		Egypt
 Link	Europe/Dublin		Eire
 Link	Europe/London		Europe/Belfast
@@ -67,7 +64,6 @@ Link	Etc/GMT			GMT+0
 Link	Etc/GMT			GMT-0
 Link	Etc/GMT			GMT0
 Link	Etc/GMT			Greenwich
-Link	Pacific/Honolulu	HST
 Link	Asia/Hong_Kong		Hongkong
 Link	Atlantic/Reykjavik	Iceland
 Link	Asia/Tehran		Iran
@@ -76,8 +72,6 @@ Link	America/Jamaica		Jamaica
 Link	Asia/Tokyo		Japan
 Link	Pacific/Kwajalein	Kwajalein
 Link	Africa/Tripoli		Libya
-Link	America/Phoenix		MST
-Link	America/Denver		MST7MDT
 Link	America/Tijuana		Mexico/BajaNorte
 Link	America/Mazatlan	Mexico/BajaSur
 Link	America/Mexico_City	Mexico/General
@@ -85,7 +79,6 @@ Link	Pacific/Auckland	NZ
 Link	Pacific/Chatham		NZ-CHAT
 Link	America/Denver		Navajo
 Link	Asia/Shanghai		PRC
-Link	America/Los_Angeles	PST8PDT
 Link	Pacific/Pago_Pago	Pacific/Samoa
 Link	Pacific/Truk		Pacific/Yap
 Link	Europe/Warsaw		Poland
