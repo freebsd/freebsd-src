@@ -682,6 +682,9 @@ A
 .Dv PMC_OP_PMCALLOCATE
 request was issued for PMC capabilities not supported
 by the specified PMC class.
+.It Bq Er EOPNOTSUPP
+(i386 architectures)
+A sampling mode PMC was requested on a CPU lacking an APIC.
 .It Bq Er EPERM
 A
 .Dv PMC_OP_PMCADMIN
