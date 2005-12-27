@@ -47,7 +47,7 @@ load_rc_config $name
 
 # The clear_tmp_X variable should be tested even if clear_tmp_enable is NO
 case "$1" in
-start)	cleartmp_prestart ;;
+*start)	cleartmp_prestart ;;
 esac
 
 run_rc_command "$1"
