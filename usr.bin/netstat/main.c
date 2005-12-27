@@ -265,6 +265,7 @@ static char *nlistf = NULL, *memf = NULL;
 
 int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
+int	Bflag;		/* show information about bpf consumers */
 int	bflag;		/* show i/f total bytes in/out */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
@@ -296,13 +297,16 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:iLlM:mN:np:rSstuWw:z")) != -1)
+	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:rSstuWw:z")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
 			break;
 		case 'a':
 			aflag = 1;
+			break;
+		case 'B':
+			Bflag = 1;
 			break;
 		case 'b':
 			bflag = 1;
@@ -435,6 +439,10 @@ main(int argc, char *argv[])
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
+	if (Bflag) {
+		bpf_stats(interface);
+		exit(0);
+	}
 	if (mflag) {
 		if (memf != NULL) {
 			if (kread(0, 0, 0) == 0)
@@ -682,7 +690,7 @@ name2protox(char *name)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLnSW] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdhnt] [-f address_family]\n"
@@ -692,6 +700,7 @@ usage(void)
 "       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
+"       netstat -B [ -I interface]",
 "       netstat -r [-AenW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-W] [-f address_family] [-M core] [-N system]",
