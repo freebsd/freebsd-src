@@ -92,7 +92,7 @@
 
 #define	CBBR_LEGACY				0x44	/* len=4 */
 
-/* TI * */
+/* TI */
 #define CBBR_SYSCTRL				0x80	/* len=4 */
 # define	CBBM_SYSCTRL_INTRTIE			0x20000000u
 
