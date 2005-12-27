@@ -506,6 +506,7 @@ vendor LINKSYS4		0x13b1	Linksys
 vendor SHARK		0x13d2	Shark
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
+vendor IMAGINATION	0x149a	Imagination Technologies
 vendor CONCEPTRONIC	0x14b2	Conceptronic
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor SOHOWARE		0x15e8	SOHOware
@@ -977,6 +978,9 @@ product HP2 C500		0x6002	PhotoSmart C500
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
+
+/* Imagination Technologies products */
+product IMAGINATION DBX1	0x2107	DBX1 DSP core
 
 /* Inside Out Networks products */
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
