@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../pci
 
 KMOD=	if_de
-SRCS=	if_de.c opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS=	if_de.c opt_bdg.h opt_ddb.h device_if.h bus_if.h pci_if.h
 
 # Compile-time options.
 
