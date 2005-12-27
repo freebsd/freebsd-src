@@ -199,8 +199,8 @@ static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t);
 static void decode_syscall(int, struct thread *);
 
 static char * watchtype_str(int type);
-int  amd64_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
-		    struct dbreg * d);
+int  amd64_set_watch(int watchnum, unsigned long watchaddr, int size,
+		    int access, struct dbreg * d);
 int  amd64_clr_watch(int watchnum, struct dbreg * d);
 
 /*
@@ -526,7 +526,7 @@ stack_save(struct stack *st)
 int
 amd64_set_watch(watchnum, watchaddr, size, access, d)
 	int watchnum;
-	unsigned int watchaddr;
+	unsigned long watchaddr;
 	int size;
 	int access;
 	struct dbreg * d;
