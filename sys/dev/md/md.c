@@ -228,7 +228,7 @@ destroy_indir(struct md_s *sc, struct indir *ip)
 }
 
 /*
- * This function does the math and alloctes the top level "indir" structure
+ * This function does the math and allocates the top level "indir" structure
  * for a device of "size" sectors.
  */
 
@@ -534,7 +534,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	p = bp->bio_data;
 
 	/*
-	 * offs is the ofset at whih to start operating on the
+	 * offs is the offset at which to start operating on the
 	 * next (ie, first) page.  lastp is the last page on
 	 * which we're going to operate.  lastend is the ending
 	 * position within that last page (ie, PAGE_SIZE if
