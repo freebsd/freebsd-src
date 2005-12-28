@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/resourcevar.h>
 #include <sys/systm.h>
+#include <sys/signal.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
