@@ -186,10 +186,10 @@ pccard_attach_card(device_t dev)
 	device_t child;
 	int i;
 
-	/*
-	 * this is here so that when socket_enable calls gettype, trt happens
-	 */
-	STAILQ_INIT(&sc->card.pf_head);
+	if (!STAILQ_EMPTY(&sc->card.pf_head)) {
+		if (bootverbose || pccard_debug)
+			device_printf(dev, "Card already inserted.\n");
+	}
 
 	DEVPRINTF((dev, "chip_socket_enable\n"));
 	POWER_ENABLE_SOCKET(device_get_parent(dev), dev);
@@ -325,6 +325,7 @@ pccard_detach_card(device_t dev)
 		STAILQ_REMOVE_HEAD(&sc->card.pf_head, pf_list);
 		free(pf, M_DEVBUF);
 	}
+	STAILQ_INIT(&sc->card.pf_head);
 	return (0);
 }
 
@@ -778,6 +779,7 @@ pccard_attach(device_t dev)
 	sc->sc_enabled_count = 0;
 	if ((err = pccard_device_create(sc)) != 0)
 		return  (err);
+	STAILQ_INIT(&sc->card.pf_head);
 	return (bus_generic_attach(dev));
 }
 
