@@ -176,7 +176,7 @@ device		rl		# RealTek 8129/8139
 #device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 #device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 #device		ste		# Sundance ST201 (D-Link DFE-550TX)
-#device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
+device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 #device		tl		# Texas Instruments ThunderLAN
 #device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 #device		vr		# VIA Rhine, Rhine II
