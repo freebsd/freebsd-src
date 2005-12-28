@@ -372,6 +372,7 @@ again:
 		ifp->if_snd.ifq_maxlen) {
 			error = ENOBUFS;
 			ipstat.ips_odropped++;
+			ifp->if_snd.ifq_drops += (ip->ip_len / ifp->if_mtu + 1);
 			goto bad;
 	}
 #endif /* !ALTQ */
