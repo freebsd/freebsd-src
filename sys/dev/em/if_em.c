@@ -626,17 +626,13 @@ static int
 em_resume(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
-	struct ifnet *ifp;
+	struct ifnet *ifp = adapter->ifp;
 
 	EM_LOCK(adapter);
-	ifp = adapter->ifp;
-	if (ifp->if_flags & IFF_UP) {
-		em_init_locked(adapter);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			em_start_locked(ifp);
-	}
-
 	em_init_locked(adapter);
+	if ((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
+			em_start_locked(ifp);
 	EM_UNLOCK(adapter);
 
 	return bus_generic_resume(dev);
