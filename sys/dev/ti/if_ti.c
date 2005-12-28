@@ -2935,7 +2935,8 @@ struct ti_dmamap_arg {
 	struct m_tag	*mtag;
 	struct mbuf	*m_head;
 	u_int16_t	csum_flags;
-	int idx;
+	int		idx;
+	int		error;
 };
 
 static void
@@ -2964,6 +2965,15 @@ ti_encap_cb(arg, segs, nseg, mapsize, error)
 	csum_flags = ctx->csum_flags;
 
 	/*
+	 * Sanity check: avoid coming within 16 descriptors
+	 * of the end of the ring.
+	 */
+	if ((TI_TX_RING_CNT - (sc->ti_txcnt + nseg)) < 16) {
+		ctx->error = ENOBUFS;
+		return;
+	}
+
+	/*
 	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
 	 * of fragments or hit the end of the mbuf chain.
@@ -2974,8 +2984,10 @@ ti_encap_cb(arg, segs, nseg, mapsize, error)
 			f = &txdesc;
 		} else
 			f = &sc->ti_rdata->ti_tx_ring[frag];
-		if (sc->ti_cdata.ti_tx_chain[frag] != NULL)
-			break;
+		if (sc->ti_cdata.ti_tx_chain[frag] != NULL) {
+			ctx->error = ENOBUFS;
+			return;
+		}
 		ti_hostaddr64(&f->ti_addr, segs[cnt].ds_addr);
 		f->ti_len = segs[cnt].ds_len;
 		f->ti_flags = csum_flags;
@@ -3005,7 +3017,7 @@ ti_encap_cb(arg, segs, nseg, mapsize, error)
 	sc->ti_txcnt += cnt;
 	
 	ctx->idx = frag;
-
+	ctx->error = 0;
 }
 
 /*
@@ -3052,12 +3064,7 @@ ti_encap(sc, m_head, txidx)
 	cnt = ctx.idx - frag;
 	frag = ctx.idx;
 
-	/*
-	 * Sanity check: avoid coming within 16 descriptors
-	 * of the end of the ring.
-	 */
-	if (((TI_TX_RING_CNT - (sc->ti_txcnt + cnt)) < 16) ||
-	    (frag == sc->ti_tx_saved_considx)) {
+	if ((ctx.error != 0) || (frag == sc->ti_tx_saved_considx)) {
 		bus_dmamap_unload(sc->ti_mbuftx_dmat, map);
 		return (ENOBUFS);
 	}
