@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -1306,7 +1307,7 @@ freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
 	/*
 	 * Vector through to semsys if it is loaded.
 	 */
-	return sysent[169].sy_call(td, uap);
+	return sysent[SYS_semsys].sy_call(td, uap);
 }
 
 int
@@ -1315,7 +1316,7 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 	/*
 	 * Vector through to msgsys if it is loaded.
 	 */
-	return sysent[170].sy_call(td, uap);
+	return sysent[SYS_msgsys].sy_call(td, uap);
 }
 
 int
@@ -1324,7 +1325,7 @@ freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 	/*
 	 * Vector through to shmsys if it is loaded.
 	 */
-	return sysent[171].sy_call(td, uap);
+	return sysent[SYS_shmsys].sy_call(td, uap);
 }
 
 int
