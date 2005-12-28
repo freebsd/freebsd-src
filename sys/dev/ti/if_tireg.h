@@ -1009,6 +1009,7 @@ struct ti_softc {
 #define ti_ev_prodidx		ti_rdata->ti_ev_prodidx_r
 #define ti_return_prodidx	ti_rdata->ti_return_prodidx_r
 #define ti_tx_considx		ti_rdata->ti_tx_considx_r
+	u_int16_t		ti_tx_saved_prodidx;
 	u_int16_t		ti_tx_saved_considx;
 	u_int16_t		ti_rx_saved_considx;
 	u_int16_t		ti_ev_saved_considx;
