@@ -2631,7 +2631,7 @@ nfs_flush(struct vnode *vp, int waitfor, struct thread *td,
 		passone = 0;
 	/*
 	 * A b_flags == (B_DELWRI | B_NEEDCOMMIT) block has been written to the
-	 * server, but nas not been committed to stable storage on the server
+	 * server, but has not been committed to stable storage on the server
 	 * yet. On the first pass, the byte range is worked out and the commit
 	 * rpc is done. On the second pass, nfs_writebp() is called to do the
 	 * job.
