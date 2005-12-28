@@ -2261,12 +2261,20 @@ ata_marvell_allocate(device_t dev)
     return 0;
 }
 
+struct ata_marvell_response {
+    u_int16_t	tag;
+    u_int8_t	edma_status;
+    u_int8_t	dev_status;
+    u_int32_t	timestamp;
+};
+
 static void
 ata_marvell_intr(void *data)
 {
     struct ata_pci_controller *ctlr = data;
     struct ata_channel *ch;
     struct ata_request *request;
+    struct ata_marvell_response *response;
     u_int32_t cause, icr0 = 0, icr1 = 0;
     int unit;
 
@@ -2318,16 +2326,22 @@ ata_marvell_intr(void *data)
 	    slot = (((rsp_in & ~0xffffff00) >> 3)) & 0x1f;
 	    rsp_out &= 0xffffff00;
 	    rsp_out += (slot << 3);
+	    response = (struct ata_marvell_response *)
+		(u_int8_t *)(ch->dma->work) + 1024 + (slot << 3);
 
-	    /* XXX SOS get status and error into request */
-	    request->status = 0; /* XXX SOS */
-	    request->error = 0; /* XXX SOS */
-	    if (!(request->flags & ATA_R_TIMEOUT))
-	        request->donecount = request->bytecount;
+	    /* record status for this request */
+	    request->status = response->dev_status;
+	    request->error = 0; 
 
 	    /* ack response */
     	    ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), rsp_out);
 
+	    /* update progress */
+	    if (!(request->status & ATA_S_ERROR) &&
+		!(request->flags & ATA_R_TIMEOUT))
+	        request->donecount = request->bytecount;
+
+	    /* finish up this request */
 	    ch->running = NULL;
 	    if (ch->state == ATA_ACTIVE)
                 ch->state = ATA_IDLE;
@@ -2412,7 +2426,7 @@ ata_marvell_command(struct ata_request *request)
 {
     struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
-    u_int32_t req_in, req_out;
+    u_int32_t req_in;
     u_int8_t *bytep;
     u_int16_t *wordp;
     u_int32_t *quadp;
@@ -2420,7 +2434,6 @@ ata_marvell_command(struct ata_request *request)
     int slot;
 
     /* only DMA R/W goes through the EMDA machine */
-    /* XXX SOS add ATAPI commands support later */
     if (request->u.ata.command != ATA_READ_DMA &&
         request->u.ata.command != ATA_READ_DMA48 &&
 	request->u.ata.command != ATA_WRITE_DMA &&
@@ -2432,17 +2445,15 @@ ata_marvell_command(struct ata_request *request)
 	return ata_generic_command(request);
     }
 
-    req_out = ATA_INL(ctlr->r_res1, 0x02018 + ATA_MV_EDMA_BASE(ch));
-
     /* get next free request queue slot */
     req_in = ATA_INL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch));
     slot = (((req_in & ~0xfffffc00) >> 5) + 0) & 0x1f;
-    
     bytep = (u_int8_t *)(ch->dma->work);
     bytep += (slot << 5);
     wordp = (u_int16_t *)bytep;
     quadp = (u_int32_t *)bytep;
 
+    /* fill in this request */
     quadp[0] = (long)ch->dma->sg_bus & 0xffffffff;
     quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000) >> 32;
     wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag<<1);
@@ -2481,11 +2492,10 @@ ata_marvell_command(struct ata_request *request)
 	    DELAY(10);
     }
 
+    /* tell EDMA it has a new request */
     slot = (((req_in & ~0xfffffc00) >> 5) + 1) & 0x1f;
     req_in &= 0xfffffc00;
     req_in += (slot << 5);
-
-    /* tell EDMA it has a new request */
     ATA_OUTL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch), req_in);
    
     return 0;
@@ -2499,7 +2509,8 @@ ata_marvell_reset(device_t dev)
 
     /* disable the EDMA machinery */
     ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000002);
-    DELAY(100000);       /* SOS should poll for disabled */
+    while ((ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001))
+	DELAY(10);
 
     /* clear SATA error register */
     ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
