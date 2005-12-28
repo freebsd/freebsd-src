@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/file.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -653,6 +654,13 @@ kern_setrlimit(td, which, limp)
 			(void)vm_map_protect(&p->p_vmspace->vm_map,
 			    addr, addr + size, prot, FALSE);
 		}
+	}
+
+	if (td->td_proc->p_sysent->sv_fixlimits != NULL) {
+		struct image_params imgp;
+
+		imgp.proc = td->td_proc;
+		td->td_proc->p_sysent->sv_fixlimits(&imgp);
 	}
 	return (0);
 }
