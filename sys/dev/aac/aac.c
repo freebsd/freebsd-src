@@ -281,6 +281,7 @@ aac_attach(struct aac_softc *sc)
 	mtx_init(&sc->aac_io_lock, "AAC I/O lock", NULL, MTX_DEF);
 	mtx_init(&sc->aac_container_lock, "AAC container lock", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->aac_container_tqh);
+	TAILQ_INIT(&sc->aac_ev_cmfree);
 
 	/* Initialize the local AIF queue pointers */
 	sc->aac_aifq_head = sc->aac_aifq_tail = AAC_AIFQ_LENGTH;
