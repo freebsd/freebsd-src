@@ -1727,6 +1727,7 @@ ti_init_tx_ring(sc)
 {
 	sc->ti_txcnt = 0;
 	sc->ti_tx_saved_considx = 0;
+	sc->ti_tx_saved_prodidx = 0;
 	CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, 0);
 	return (0);
 }
@@ -3102,7 +3103,7 @@ ti_start_locked(ifp)
 
 	sc = ifp->if_softc;
 
-	prodidx = CSR_READ_4(sc, TI_MB_SENDPROD_IDX);
+	prodidx = sc->ti_tx_saved_prodidx;
 
 	while (sc->ti_cdata.ti_tx_chain[prodidx] == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -3146,6 +3147,7 @@ ti_start_locked(ifp)
 	}
 
 	/* Transmit */
+	sc->ti_tx_saved_prodidx = prodidx;
 	CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, prodidx);
 
 	/*
