@@ -149,14 +149,6 @@ cardbus_pickup_maps(device_t cbdev, device_t child)
 		cardbus_add_map(cbdev, child, PCIR_BAR(reg));
 }
 
-static void
-cardbus_do_res(struct resource_list_entry *rle, device_t child, uint32_t start)
-{
-	rle->start = start;
-	rle->end = start + rle->count - 1;
-	pci_write_config(child, rle->rid, rle->start, 4);
-}
-
 static int
 cardbus_barsort(const void *a, const void *b)
 {
@@ -249,8 +241,16 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 			rle = barlist[tmp];
 			if (rle->type == SYS_RES_MEMORY &&
 			    dinfo->mprefetchable & BARBIT(rle->rid)) {
-				cardbus_do_res(rle, child, start);
-				start += rle->count;
+				rle->res = bus_alloc_resource(cbdev,
+				    rle->type, &rle->rid, start, end,
+				    rle->count,
+				    rman_make_alignment_flags(rle->count));
+				if (rle->res != NULL) {
+					rle->start = rman_get_start(rle->res);
+					rle->end = rman_get_end(rle->res);
+					pci_write_config(child,
+					    rle->rid, rle->start, 4);
+				}
 			}
 		}
 	}
@@ -297,8 +297,20 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 			rle = barlist[tmp];
 			if (rle->type == SYS_RES_MEMORY &&
 			    (dinfo->mprefetchable & BARBIT(rle->rid)) == 0) {
-				cardbus_do_res(rle, child, start);
-				start += rle->count;
+				rle->res = bus_alloc_resource(cbdev,
+				    rle->type, &rle->rid, start, end,
+				    rle->count,
+				    rman_make_alignment_flags(rle->count));
+				if (rle->res == NULL) {
+					DEVPRINTF((cbdev, "Cannot pre-allocate "
+					    "memory for cardbus device\n"));
+					free(barlist, M_DEVBUF);
+					return (ENOMEM);
+				}
+				rle->start = rman_get_start(rle->res);
+				rle->end = rman_get_end(rle->res);
+				pci_write_config(child,
+				    rle->rid, rle->start, 4);
 			}
 		}
 	}
@@ -341,8 +353,20 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		for (tmp = 0; tmp < count; tmp++) {
 			rle = barlist[tmp];
 			if (rle->type == SYS_RES_IOPORT) {
-				cardbus_do_res(rle, child, start);
-				start += rle->count;
+				rle->res = bus_alloc_resource(cbdev,
+				    rle->type, &rle->rid, start, end,
+				    rle->count,
+				    rman_make_alignment_flags(rle->count));
+				if (rle->res == NULL) {
+					DEVPRINTF((cbdev, "Cannot pre-allocate "
+					    "IO port for cardbus device\n"));
+					free(barlist, M_DEVBUF);
+					return (ENOMEM);
+				}
+				rle->start = rman_get_start(rle->res);
+				rle->end = rman_get_end(rle->res);
+				pci_write_config(child,
+				    rle->rid, rle->start, 4);
 			}
 		}
 	}
@@ -357,9 +381,10 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	}
 	start = rman_get_start(res);
 	end = rman_get_end(res);
-	bus_release_resource(cbdev, SYS_RES_IRQ, rid, res);
 	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid, start, end,
 	    1);
+	rle = resource_list_find(&dinfo->pci.resources, SYS_RES_IRQ, rid);
+	rle->res = res;
 	dinfo->pci.cfg.intline = start;
 	pci_write_config(child, PCIR_INTLINE, start, 1);
 
