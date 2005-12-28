@@ -1061,6 +1061,9 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	struct iovec aiov;
 	int error;
 	int ioflags;
+	int ppscheck = 0;
+	static struct timeval lastfail;
+	static int curfail;
 
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
@@ -1144,11 +1147,13 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	cnt.v_vnodepgsout += ncount;
 
 	if (error) {
-		printf("vnode_pager_putpages: I/O error %d\n", error);
+		if ((ppscheck = ppsratecheck(&lastfail, &curfail, 1)))
+			printf("vnode_pager_putpages: I/O error %d\n", error);
 	}
 	if (auio.uio_resid) {
-		printf("vnode_pager_putpages: residual I/O %d at %lu\n",
-		    auio.uio_resid, (u_long)m[0]->pindex);
+		if (ppscheck || ppsratecheck(&lastfail, &curfail, 1))
+			printf("vnode_pager_putpages: residual I/O %d at %lu\n",
+			    auio.uio_resid, (u_long)m[0]->pindex);
 	}
 	for (i = 0; i < ncount; i++) {
 		rtvals[i] = VM_PAGER_OK;
