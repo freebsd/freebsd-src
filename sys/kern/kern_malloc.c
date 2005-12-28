@@ -437,7 +437,7 @@ if (mtp == M_SUBPROC) {
 	    ("realloc: address %p out of range", (void *)addr));
 
 	/* Get the size of the original block */
-	if (slab->us_keg)
+	if (!(slab->us_flags & UMA_SLAB_MALLOC))
 		alloc = slab->us_keg->uk_size;
 	else
 		alloc = slab->us_size;
