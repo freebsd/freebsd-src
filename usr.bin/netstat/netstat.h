@@ -76,6 +76,12 @@ void	carp_stats (u_long, const char *, int);
 void	pfsync_stats (u_long, const char *, int);
 #ifdef IPSEC
 void	ipsec_stats(u_long, const char *, int);
+#ifdef FAST_IPSEC
+void	ipsec_stats_new (u_long, const char *, int);
+void	esp_stats (u_long, const char *, int);
+void	ah_stats (u_long, const char *, int);
+void	ipcomp_stats (u_long, const char *, int);
+#endif
 #endif
 
 #ifdef INET6
