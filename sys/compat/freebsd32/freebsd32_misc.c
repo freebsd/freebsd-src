@@ -895,14 +895,13 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 }
 
 #define FREEBSD32_ALIGNBYTES	(sizeof(int) - 1)
-#define FREEBSD32_ALIGN(p)	(((u_long)(p) + FREEBSD32_ALIGNBYTES) & ~FREEBSD32_ALIGNBYTES)
+#define FREEBSD32_ALIGN(p)	\
+	(((u_long)(p) + FREEBSD32_ALIGNBYTES) & ~FREEBSD32_ALIGNBYTES)
 #define	FREEBSD32_CMSG_SPACE(l)	\
 	(FREEBSD32_ALIGN(sizeof(struct cmsghdr)) + FREEBSD32_ALIGN(l))
 
 #define	FREEBSD32_CMSG_DATA(cmsg)	((unsigned char *)(cmsg) + \
 				 FREEBSD32_ALIGN(sizeof(struct cmsghdr)))
-
-
 static int
 freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 {
@@ -923,13 +922,13 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 	ctlbuf = msg->msg_control;
       
 	while (m && len > 0) {
-
 		cm = mtod(m, struct cmsghdr *);
 		clen = m->m_len;
 
 		while (cm != NULL) {
 
-			if (sizeof(struct cmsghdr) > clen || cm->cmsg_len > clen) {
+			if (sizeof(struct cmsghdr) > clen ||
+			    cm->cmsg_len > clen) {
 				error = EINVAL;
 				break;
 			}	
@@ -938,43 +937,41 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 
 			/* Adjust message length */
-
-			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) + datalen;
+			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
+			    datalen;
 
 
 			/* Copy cmsghdr */
-		
 			copylen = sizeof(struct cmsghdr);
-
 			if (len < copylen) {
 				msg->msg_flags |= MSG_CTRUNC;
 				copylen = len;
 			}
 
 			error = copyout(cm,ctlbuf,copylen);
-			if (error) goto exit;
+			if (error)
+				goto exit;
 
 			ctlbuf += FREEBSD32_ALIGN(copylen);
 			len    -= FREEBSD32_ALIGN(copylen);
 
-			if (len <= 0) break;
+			if (len <= 0)
+				break;
 
 			/* Copy data */
-
 			copylen = datalen;
-
 			if (len < copylen) {
 				msg->msg_flags |= MSG_CTRUNC;
 				copylen = len;
 			}
 
 			error = copyout(data,ctlbuf,copylen);
-			if (error) goto exit;
+			if (error)
+				goto exit;
 
 			ctlbuf += FREEBSD32_ALIGN(copylen);
 			len    -= FREEBSD32_ALIGN(copylen);
 
-	       	
 			if (CMSG_SPACE(datalen) < clen) {
 				clen -= CMSG_SPACE(datalen);
 				cm = (struct cmsghdr *)
@@ -993,8 +990,6 @@ exit:
 	return (error);
 
 }
-
-
 
 int
 freebsd32_recvmsg(td, uap)
@@ -1027,12 +1022,12 @@ freebsd32_recvmsg(td, uap)
 	msg.msg_iov = iov;
 
 	controlp = (msg.msg_control != NULL) ?  &control : NULL;
-	error = kern_recvit(td, uap->s, &msg, NULL, UIO_USERSPACE,controlp);
+	error = kern_recvit(td, uap->s, &msg, NULL, UIO_USERSPACE, controlp);
 	if (error == 0) {
 		msg.msg_iov = uiov;
 		
 		if (control != NULL)
-			error = freebsd32_copy_msg_out(&msg,control);
+			error = freebsd32_copy_msg_out(&msg, control);
 		
 		if (error == 0)
 			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
@@ -1053,7 +1048,6 @@ freebsd32_recvmsg(td, uap)
 static int
 freebsd32_convert_msg_in(struct mbuf **controlp)
 {
-	
 	struct mbuf *control = *controlp;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	void *data;
@@ -1063,7 +1057,6 @@ freebsd32_convert_msg_in(struct mbuf **controlp)
 	error = 0;
 	*controlp = NULL;
 
-	
 	while (cm != NULL) {
 		if (sizeof(struct cmsghdr) > clen || cm->cmsg_len > clen) {
 			error = EINVAL;
@@ -1073,7 +1066,8 @@ freebsd32_convert_msg_in(struct mbuf **controlp)
 		data = FREEBSD32_CMSG_DATA(cm);
 		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 
-		*controlp = sbcreatecontrol(data, datalen, cm->cmsg_type, cm->cmsg_level);
+		*controlp = sbcreatecontrol(data, datalen, cm->cmsg_type,
+		    cm->cmsg_level);
 		controlp = &(*controlp)->m_next;
 
 		if (FREEBSD32_CMSG_SPACE(datalen) < clen) {
@@ -1088,7 +1082,6 @@ freebsd32_convert_msg_in(struct mbuf **controlp)
 
 	m_freem(control);
 	return (error);
-
 }
 
 
@@ -1128,6 +1121,7 @@ freebsd32_sendmsg(struct thread *td,
 			error = EINVAL;
 			goto out;
 		}
+
 		error = sockargs(&control, msg.msg_control,
 		    msg.msg_controllen, MT_CONTROL);
 		if (error)
@@ -1136,10 +1130,10 @@ freebsd32_sendmsg(struct thread *td,
 		error = freebsd32_convert_msg_in(&control);
 		if (error)
 			goto out;
-
 	}
 
-	error = kern_sendit(td, uap->s, &msg, uap->flags, control, UIO_USERSPACE);
+	error = kern_sendit(td, uap->s, &msg, uap->flags, control,
+	    UIO_USERSPACE);
 
 out:
 	free(iov, M_IOV);
@@ -1172,7 +1166,8 @@ freebsd32_recvfrom(struct thread *td,
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	error = kern_recvit(td, uap->s, &msg, (void *)(uintptr_t)uap->fromlenaddr, UIO_USERSPACE,NULL);
+	error = kern_recvit(td, uap->s, &msg,
+	    (void *)(uintptr_t)uap->fromlenaddr, UIO_USERSPACE, NULL);
 	return (error);
 }
 
@@ -1839,7 +1834,8 @@ freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
 }
 
 int
-freebsd32_clock_gettime(struct thread *td, struct freebsd32_clock_gettime_args *uap)
+freebsd32_clock_gettime(struct thread *td,
+			struct freebsd32_clock_gettime_args *uap)
 {
 	struct timespec	ats;
 	struct timespec32 ats32;
@@ -1855,7 +1851,8 @@ freebsd32_clock_gettime(struct thread *td, struct freebsd32_clock_gettime_args *
 }
 
 int
-freebsd32_clock_settime(struct thread *td, struct freebsd32_clock_settime_args *uap)
+freebsd32_clock_settime(struct thread *td,
+			struct freebsd32_clock_settime_args *uap)
 {
 	struct timespec	ats;
 	struct timespec32 ats32;
@@ -1871,7 +1868,8 @@ freebsd32_clock_settime(struct thread *td, struct freebsd32_clock_settime_args *
 }
 
 int
-freebsd32_clock_getres(struct thread *td, struct freebsd32_clock_getres_args *uap)
+freebsd32_clock_getres(struct thread *td,
+		       struct freebsd32_clock_getres_args *uap)
 {
 	struct timespec	ts;
 	struct timespec32 ts32;
