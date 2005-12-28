@@ -319,7 +319,7 @@
 #define TI_GCR_RXRETURNCONS_IDX		0x680
 #define TI_GCR_CMDRING			0x700
 
-#define TI_GCR_NIC_ADDR(x)		(x - TI_GCR_BASE);
+#define TI_GCR_NIC_ADDR(x)		(x - TI_GCR_BASE)
 
 /*
  * Local memory window. The local memory window is a 2K shared
@@ -683,8 +683,6 @@ struct ti_tx_desc {
  * boundary.
  */
 
-#define ETHER_ALIGN 2
-
 #define TI_FRAMELEN		1518
 #define TI_JUMBO_FRAMELEN	9018
 #define TI_JUMBO_MTU		(TI_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
@@ -755,16 +753,12 @@ struct ti_tx_desc {
  * Tigon command structure.
  */
 struct ti_cmd_desc {
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t		ti_cmd:8;
-	u_int32_t		ti_code:12;
-	u_int32_t		ti_idx:12;
-#else
-	u_int32_t		ti_idx:12;
-	u_int32_t		ti_code:12;
-	u_int32_t		ti_cmd:8;
-#endif
+	u_int32_t		ti_cmdx;
 };
+
+#define TI_CMD_CMD(cmd)		(((((cmd)->ti_cmdx)) >> 24) & 0xff)
+#define TI_CMD_CODE(cmd)	(((((cmd)->ti_cmdx)) >> 12) & 0xfff)
+#define TI_CMD_IDX(cmd)		((((cmd)->ti_cmdx)) & 0xfff)
 
 #define TI_CMD_HOST_STATE		0x01
 #define TI_CMD_CODE_STACK_UP		0x01
@@ -812,56 +806,49 @@ struct ti_cmd_desc {
  * Utility macros to make issuing commands a little simpler. Assumes
  * that 'sc' and 'cmd' are in local scope.
  */
-#define TI_DO_CMD(x, y, z)		\
-	cmd.ti_cmd = (x);		\
-	cmd.ti_code = (y);		\
-	cmd.ti_idx = (z);		\
-	ti_cmd(sc, &cmd);
+#define TI_DO_CMD(x, y, z)	do {				\
+	cmd.ti_cmdx = (((x) << 24) | ((y) << 12) | ((z)));	\
+	ti_cmd(sc, &cmd);					\
+} while(0)
 
-#define TI_DO_CMD_EXT(x, y, z, v, w)	\
-	cmd.ti_cmd = (x);		\
-	cmd.ti_code = (y);		\
-	cmd.ti_idx = (z);		\
-	ti_cmd_ext(sc, &cmd, (v), (w));
+#define TI_DO_CMD_EXT(x, y, z, v, w)	do {			\
+	cmd.ti_cmdx = (((x) << 24) | ((y) << 12) | ((z)));	\
+	ti_cmd_ext(sc, &cmd, (v), (w));				\
+} while(0)
 
 /*
  * Other utility macros.
  */
-#define TI_INC(x, y)	(x) = (x + 1) % y
+#define TI_INC(x, y)	(x) = ((x) + 1) % y
 
-#define TI_UPDATE_JUMBOPROD(x, y)					\
-	if (x->ti_hwrev == TI_HWREV_TIGON) {				\
-		TI_DO_CMD(TI_CMD_SET_RX_JUMBO_PROD_IDX, 0, y);	\
-	} else {							\
-		CSR_WRITE_4(x, TI_MB_JUMBORXPROD_IDX, y);		\
-	}
+#define TI_UPDATE_JUMBOPROD(x, y)	do {				\
+	if ((x)->ti_hwrev == TI_HWREV_TIGON)				\
+		TI_DO_CMD(TI_CMD_SET_RX_JUMBO_PROD_IDX, 0, (y));	\
+	else								\
+		CSR_WRITE_4((x), TI_MB_JUMBORXPROD_IDX, (y));		\
+} while(0)
 
 #define TI_UPDATE_MINIPROD(x, y)					\
-		CSR_WRITE_4(x, TI_MB_MINIRXPROD_IDX, y);
+		CSR_WRITE_4((x), TI_MB_MINIRXPROD_IDX, (y))
 
-#define TI_UPDATE_STDPROD(x, y)						\
-	if (x->ti_hwrev == TI_HWREV_TIGON) {				\
-		TI_DO_CMD(TI_CMD_SET_RX_PROD_IDX, 0, y);		\
-	} else {							\
-		CSR_WRITE_4(x, TI_MB_STDRXPROD_IDX, y);			\
-	}
-
+#define TI_UPDATE_STDPROD(x, y)		do {				\
+	if ((x)->ti_hwrev == TI_HWREV_TIGON)				\
+		TI_DO_CMD(TI_CMD_SET_RX_PROD_IDX, 0, (y));		\
+	else								\
+		CSR_WRITE_4((x), TI_MB_STDRXPROD_IDX, (y));		\
+} while(0)
 
 /*
  * Tigon event structure.
  */
 struct ti_event_desc {
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t		ti_event:8;
-	u_int32_t		ti_code:12;
-	u_int32_t		ti_idx:12;
-#else
-	u_int32_t		ti_idx:12;
-	u_int32_t		ti_code:12;
-	u_int32_t		ti_event:8;
-#endif
+	u_int32_t		ti_eventx;
 	u_int32_t		ti_rsvd;
 };
+
+#define TI_EVENT_EVENT(e)	(((((e)->ti_eventx)) >> 24) & 0xff)
+#define TI_EVENT_CODE(e)	(((((e)->ti_eventx)) >> 12) & 0xfff)
+#define TI_EVENT_IDX(e)		(((((e)->ti_eventx))) & 0xfff)
 
 /*
  * Tigon events.
@@ -890,15 +877,15 @@ struct ti_event_desc {
  */
 
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->ti_btag, sc->ti_bhandle, reg, val)
+	bus_space_write_4((sc)->ti_btag, (sc)->ti_bhandle, (reg), (val))
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->ti_btag, sc->ti_bhandle, reg)
+	bus_space_read_4((sc)->ti_btag, (sc)->ti_bhandle, (reg))
 
 #define TI_SETBIT(sc, reg, x)	\
-	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) | x))
+	CSR_WRITE_4((sc), (reg), (CSR_READ_4((sc), (reg)) | (x)))
 #define TI_CLRBIT(sc, reg, x)	\
-	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) & ~x))
+	CSR_WRITE_4((sc), (reg), (CSR_READ_4((sc), (reg)) & ~(x)))
 
 /*
  * Memory management stuff. Note: the SSLOTS, MSLOTS and JSLOTS
@@ -944,10 +931,10 @@ struct ti_ring_data {
 	u_int32_t		ti_pad1[6];
 	struct ti_producer	ti_tx_considx_r;
 	u_int32_t		ti_pad2[6];
-	struct ti_tx_desc	*ti_tx_ring_nic;/* pointer to shared mem */
-	struct ti_cmd_desc	*ti_cmd_ring;	/* pointer to shared mem */
 	struct ti_gib		ti_info;
 };
+
+#define TI_RD_OFF(x)	offsetof(struct ti_ring_data, x)
 
 /*
  * Mbuf pointers. We need these to keep track of the virtual addresses
@@ -996,11 +983,9 @@ typedef enum {
 } ti_flag_vals;
 
 struct ti_softc {
-	STAILQ_ENTRY(ti_softc)	ti_links;
 	device_t		ti_dev;
 	struct ifnet		*ti_ifp;
 	bus_space_handle_t	ti_bhandle;
-	vm_offset_t		ti_vhandle;
 	bus_space_tag_t		ti_btag;
 	void			*ti_intrhand;
 	struct resource		*ti_irq;
@@ -1018,7 +1003,7 @@ struct ti_softc {
 	bus_dma_tag_t		ti_mbufrx_dmat;
 	bus_dma_tag_t		ti_rdata_dmat;
 	bus_dmamap_t		ti_rdata_dmamap;
-	uint32_t		ti_rdata_phys;
+	bus_addr_t		ti_rdata_phys;
 	struct ti_ring_data	*ti_rdata;	/* rings */
 	struct ti_chain_data	ti_cdata;	/* mbufs */
 #define ti_ev_prodidx		ti_rdata->ti_ev_prodidx_r
@@ -1060,28 +1045,24 @@ struct ti_softc {
 /*
  * Note that EEPROM_START leaves transmission enabled.
  */
-#define EEPROM_START							\
+#define EEPROM_START	do {							\
 	TI_SETBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock pin high */\
 	TI_SETBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_DOUT); /* Set DATA bit to 1 */	\
 	TI_SETBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_TXEN); /* Enable xmit to write bit */\
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_DOUT); /* Pull DATA bit to 0 again */\
-	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock low again */
+	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock low again */	\
+} while(0)
 
 /*
  * EEPROM_STOP ends access to the EEPROM and clears the ETXEN bit so
  * that no further data can be written to the EEPROM I/O pin.
  */
-#define EEPROM_STOP							\
+#define EEPROM_STOP	do {							\
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_TXEN); /* Disable xmit */	\
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_DOUT); /* Pull DATA to 0 */	\
 	TI_SETBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock high */	\
 	TI_SETBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_TXEN); /* Enable xmit */	\
 	TI_SETBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_DOUT); /* Toggle DATA to 1 */	\
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_TXEN); /* Disable xmit. */	\
-	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock low again */
-
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif
+	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock low again */	\
+} while(0)
