@@ -63,7 +63,7 @@ and reassigned to the new thread, which is placed earlier in the list.
 The pointer is then backed up to the previous thread (which may or may not
 be the new thread).
 
-When a thread sleeps or is removed, the KSE becomes available and if there 
+When a thread sleeps or is removed, the KSE becomes available and if there
 are queued threads that are not assigned KSEs, the highest priority one of
 them is assigned the KSE, which is then placed back on the run queue at
 the approipriate place, and the kg->kg_last_assigned pointer is adjusted down
@@ -72,16 +72,16 @@ to point to it.
 The following diagram shows 2 KSEs and 3 threads from a single process.
 
  RUNQ: --->KSE---KSE--...    (KSEs queued at priorities from threads)
-              \    \____   
+              \    \____
                \        \
     KSEGROUP---thread--thread--thread    (queued in priority order)
-        \                 / 
+        \                 /
          \_______________/
           (last_assigned)
 
 The result of this scheme is that the M available KSEs are always
 queued at the priorities they have inherrited from the M highest priority
-threads for that KSEGROUP. If this situation changes, the KSEs are 
+threads for that KSEGROUP. If this situation changes, the KSEs are
 reassigned to keep this true.
 ***/
 
@@ -267,7 +267,7 @@ remrunqueue(struct thread *td)
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/* remve from sys run queue and free up a slot */
 		sched_rem(td);
-		ke->ke_state = KES_THREAD; 
+		ke->ke_state = KES_THREAD;
 		return;
 	}
    	td3 = TAILQ_PREV(td, threadqueue, td_runq);
@@ -280,10 +280,10 @@ remrunqueue(struct thread *td)
 		 * see if we need to move the KSE in the run queues.
 		 */
 		sched_rem(td);
-		ke->ke_state = KES_THREAD; 
+		ke->ke_state = KES_THREAD;
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value"));
-		if (td2 == td) 
+		if (td2 == td)
 			kg->kg_last_assigned = td3;
 		/* slot_fill(kg); */ /* will replace it with another */
 	}
@@ -294,7 +294,7 @@ remrunqueue(struct thread *td)
  * Change the priority of a thread that is on the run queue.
  */
 void
-adjustrunqueue( struct thread *td, int newpri) 
+adjustrunqueue( struct thread *td, int newpri)
 {
 	struct ksegrp *kg;
 	struct kse *ke;
@@ -339,12 +339,12 @@ adjustrunqueue( struct thread *td, int newpri)
 
 /*
  * This function is called when a thread is about to be put on a
- * ksegrp run queue because it has been made runnable or its 
- * priority has been adjusted and the ksegrp does not have a 
+ * ksegrp run queue because it has been made runnable or its
+ * priority has been adjusted and the ksegrp does not have a
  * free kse slot.  It determines if a thread from the same ksegrp
  * should be preempted.  If so, it tries to switch threads
  * if the thread is on the same cpu or notifies another cpu that
- * it should switch threads. 
+ * it should switch threads.
  */
 
 static void
@@ -369,11 +369,11 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	}
 #endif /* FULL_PREEMPTION */
 
-	if (running_thread->td_critnest > 1) 
+	if (running_thread->td_critnest > 1)
 		running_thread->td_owepreempt = 1;
-	 else 		
+	 else
 		 mi_switch(SW_INVOL, NULL);
-	
+
 #else /* PREEMPTION */
 	running_thread->td_flags |= TDF_NEEDRESCHED;
 #endif /* PREEMPTION */
@@ -400,43 +400,43 @@ maybe_preempt_in_ksegrp(struct thread *td)
 		kg = td->td_ksegrp;
 
 		/* if someone is ahead of this thread, wait our turn */
-		if (td != TAILQ_FIRST(&kg->kg_runq))  
+		if (td != TAILQ_FIRST(&kg->kg_runq))
 			return;
-		
+
 		worst_pri = td->td_priority;
 		best_pcpu = NULL;
 		dontuse   = stopped_cpus | idle_cpus_mask;
-		
-		/* 
+
+		/*
 		 * Find a cpu with the worst priority that runs at thread from
 		 * the same  ksegrp - if multiple exist give first the last run
-		 * cpu and then the current cpu priority 
+		 * cpu and then the current cpu priority
 		 */
-		
+
 		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 			cpumask   = pc->pc_cpumask;
 			cputhread = pc->pc_curthread;
 
-			if ((cpumask & dontuse)  ||	 
+			if ((cpumask & dontuse)  ||
 			    cputhread->td_ksegrp != kg)
-				continue;	
+				continue;
 
 			if (cputhread->td_priority > worst_pri) {
 				worst_pri = cputhread->td_priority;
-				best_pcpu = pc;	
+				best_pcpu = pc;
 				continue;
 			}
-			
+
 			if (cputhread->td_priority == worst_pri &&
-			    best_pcpu != NULL &&			
+			    best_pcpu != NULL &&
 			    (td->td_lastcpu == pc->pc_cpuid ||
 				(PCPU_GET(cpumask) == cpumask &&
-				    td->td_lastcpu != best_pcpu->pc_cpuid))) 
+				    td->td_lastcpu != best_pcpu->pc_cpuid)))
 			    best_pcpu = pc;
-		}		
-		
+		}
+
 		/* Check if we need to preempt someone */
-		if (best_pcpu == NULL) 
+		if (best_pcpu == NULL)
 			return;
 
 #if defined(IPI_PREEMPTION) && defined(PREEMPTION)
@@ -455,7 +455,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 			return;
 		}
 #if !defined(KSEG_PEEMPT_BEST_CPU)
-	}	
+	}
 #endif
 
 	if (td->td_priority >= running_thread->td_priority)
@@ -467,12 +467,12 @@ maybe_preempt_in_ksegrp(struct thread *td)
 		running_thread->td_flags |= TDF_NEEDRESCHED;
 	}
 #endif /* ! FULL_PREEMPTION */
-	
-	if (running_thread->td_critnest > 1) 
+
+	if (running_thread->td_critnest > 1)
 		running_thread->td_owepreempt = 1;
-	 else 		
+	 else
 		 mi_switch(SW_INVOL, NULL);
-	
+
 #else /* PREEMPTION */
 	running_thread->td_flags |= TDF_NEEDRESCHED;
 #endif /* PREEMPTION */
@@ -520,16 +520,16 @@ setrunqueue(struct thread *td, int flags)
 		return;
 	}
 
-	/* 
-	 * If the concurrency has reduced, and we would go in the 
-	 * assigned section, then keep removing entries from the 
-	 * system run queue, until we are not in that section 
+	/*
+	 * If the concurrency has reduced, and we would go in the
+	 * assigned section, then keep removing entries from the
+	 * system run queue, until we are not in that section
 	 * or there is room for us to be put in that section.
 	 * What we MUST avoid is the case where there are threads of less
 	 * priority than the new one scheduled, but it can not
 	 * be scheduled itself. That would lead to a non contiguous set
 	 * of scheduled threads, and everything would break.
-	 */ 
+	 */
 	tda = kg->kg_last_assigned;
 	while ((kg->kg_avail_opennings <= 0) &&
 	    (tda && (tda->td_priority > td->td_priority))) {
@@ -576,8 +576,8 @@ setrunqueue(struct thread *td, int flags)
 		} else if (tda->td_priority > td->td_priority) {
 			td2 = td;
 		} else {
-			/* 
-			 * We are past last_assigned, so 
+			/*
+			 * We are past last_assigned, so
 			 * give the next slot to whatever is next,
 			 * which may or may not be us.
 			 */
@@ -627,11 +627,10 @@ critical_exit(void)
 			mi_switch(SW_INVOL, NULL);
 			mtx_unlock_spin(&sched_lock);
 		}
-	} else 
+	} else
 #endif
 		td->td_critnest--;
-	
-	
+
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
@@ -718,7 +717,7 @@ maybe_preempt(struct thread *td)
 			    TAILQ_PREV(td, threadqueue, td_runq);
 		TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	}
-		
+
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
@@ -900,7 +899,7 @@ runq_choose(struct runq *rq)
 				}
 				ke2 = TAILQ_NEXT(ke2, ke_procq);
 			}
-		} else 
+		} else
 #endif
 			ke = TAILQ_FIRST(rqh);
 		KASSERT(ke != NULL, ("runq_choose: no proc on busy queue"));
