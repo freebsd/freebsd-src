@@ -374,7 +374,8 @@
 204	AUE_NULL	MNOPROTO { int munlock(const void *addr, \
 				    size_t len); }
 205	AUE_NULL	MNOPROTO	{ int undelete(char *path); }
-206	AUE_NULL	MNOPROTO	{ int futimes(int fd, struct timeval *tptr); }
+206	AUE_NULL	MSTD	{ int freebsd32_futimes(int fd, \
+				    struct timeval32 *tptr); }
 207	AUE_NULL	MNOPROTO { int getpgid(pid_t pid); }
 208	AUE_NULL	UNIMPL	newreboot (NetBSD)
 209	AUE_NULL	MNOPROTO { int poll(struct pollfd *fds, u_int nfds, \

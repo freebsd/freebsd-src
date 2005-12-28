@@ -1221,6 +1221,28 @@ freebsd32_utimes(struct thread *td, struct freebsd32_utimes_args *uap)
 }
 
 int
+freebsd32_futimes(struct thread *td, struct freebsd32_futimes_args *uap)
+{
+	struct timeval32 s32[2];
+	struct timeval s[2], *sp;
+	int error;
+
+	if (uap->tptr != NULL) {
+		error = copyin(uap->tptr, s32, sizeof(s32));
+		if (error)
+			return (error);
+		CP(s32[0], s[0], tv_sec);
+		CP(s32[0], s[0], tv_usec);
+		CP(s32[1], s[1], tv_sec);
+		CP(s32[1], s[1], tv_usec);
+		sp = s;
+	} else
+		sp = NULL;
+	return (kern_futimes(td, uap->fd, sp, UIO_SYSSPACE));
+}
+
+
+int
 freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 {
 	struct timeval32 tv32;
