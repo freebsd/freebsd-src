@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.c,v 1.5.206.1 2004/03/06 08:13:38 marka Exp $ */
+/* $Id: forward.c,v 1.5.206.3 2005/03/17 03:58:30 marka Exp $ */
 
 #include <config.h>
 
@@ -139,13 +139,20 @@ isc_result_t
 dns_fwdtable_find(dns_fwdtable_t *fwdtable, dns_name_t *name,
 		  dns_forwarders_t **forwardersp)
 {
+	return (dns_fwdtable_find2(fwdtable, name, NULL, forwardersp));
+} 
+
+isc_result_t
+dns_fwdtable_find2(dns_fwdtable_t *fwdtable, dns_name_t *name,
+		   dns_name_t *foundname, dns_forwarders_t **forwardersp)
+{
 	isc_result_t result;
 
 	REQUIRE(VALID_FWDTABLE(fwdtable));
 
 	RWLOCK(&fwdtable->rwlock, isc_rwlocktype_read);
 
-	result = dns_rbt_findname(fwdtable->table, name, 0, NULL,
+	result = dns_rbt_findname(fwdtable->table, name, 0, foundname,
 				  (void **)forwardersp);
 	if (result == DNS_R_PARTIALMATCH)
 		result = ISC_R_SUCCESS;

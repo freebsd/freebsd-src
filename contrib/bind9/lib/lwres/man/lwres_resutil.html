@@ -1,186 +1,163 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: lwres_resutil.html,v 1.8.2.1.4.2 2004/08/22 23:39:05 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->lwres_resutil</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
->lwres_resutil</H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN8"
-></A
-><H2
->Name</H2
->lwres_string_parse, lwres_addr_parse, lwres_getaddrsbyname, lwres_getnamebyaddr&nbsp;--&nbsp;lightweight resolver utility functions</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN14"
-></A
-><H2
->Synopsis</H2
-><DIV
-CLASS="FUNCSYNOPSIS"
-><P
-></P
-><A
-NAME="AEN15"
-></A
-><PRE
-CLASS="FUNCSYNOPSISINFO"
->#include &lt;lwres/lwres.h&gt;</PRE
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_result_t
-lwres_string_parse</CODE
->(lwres_buffer_t *b, char **c, lwres_uint16_t *len);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_result_t
-lwres_addr_parse</CODE
->(lwres_buffer_t *b, lwres_addr_t *addr);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_result_t
-lwres_getaddrsbyname</CODE
->(lwres_context_t *ctx, const char *name, lwres_uint32_t addrtypes, lwres_gabnresponse_t **structp);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_result_t
-lwres_getnamebyaddr</CODE
->(lwres_context_t *ctx, lwres_uint32_t addrtype, lwres_uint16_t addrlen, const unsigned char *addr, lwres_gnbaresponse_t **structp);</CODE
-></P
-><P
-></P
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN43"
-></A
-><H2
->DESCRIPTION</H2
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_string_parse()</CODE
-> retrieves a DNS-encoded
+<!-- $Id: lwres_resutil.html,v 1.8.2.1.4.9 2005/10/13 02:33:58 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>lwres_resutil</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p>lwres_string_parse, lwres_addr_parse, lwres_getaddrsbyname, lwres_getnamebyaddr &#8212; lightweight resolver utility functions</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="funcsynopsis">
+<pre class="funcsynopsisinfo">#include &lt;lwres/lwres.h&gt;</pre>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
+<td><code class="funcdef">
+lwres_result_t
+<b class="fsfunc">lwres_string_parse</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
+<td><code class="funcdef">
+lwres_result_t
+<b class="fsfunc">lwres_addr_parse</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
+<td><code class="funcdef">
+lwres_result_t
+<b class="fsfunc">lwres_getaddrsbyname</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
+<tr>
+<td><code class="funcdef">
+lwres_result_t
+<b class="fsfunc">lwres_getnamebyaddr</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525921"></a><h2>DESCRIPTION</h2>
+<p>
+<code class="function">lwres_string_parse()</code> retrieves a DNS-encoded
 string starting the current pointer of lightweight resolver buffer
-<VAR
-CLASS="PARAMETER"
->b</VAR
->: i.e.  <CODE
-CLASS="CONSTANT"
->b-&gt;current</CODE
->.
+<em class="parameter"><code>b</code></em>: i.e.  <code class="constant">b-&gt;current</code>.
 When the function returns, the address of the first byte of the
-encoded string is returned via <VAR
-CLASS="PARAMETER"
->*c</VAR
-> and the
-length of that string is given by <VAR
-CLASS="PARAMETER"
->*len</VAR
->.  The
+encoded string is returned via <em class="parameter"><code>*c</code></em> and the
+length of that string is given by <em class="parameter"><code>*len</code></em>.  The
 buffer's current pointer is advanced to point at the character
 following the string length, the encoded string, and the trailing
-<SPAN
-CLASS="TYPE"
->NULL</SPAN
-> character.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_addr_parse()</CODE
-> extracts an address from the
-buffer <VAR
-CLASS="PARAMETER"
->b</VAR
->.  The buffer's current pointer
-<CODE
-CLASS="CONSTANT"
->b-&gt;current</CODE
-> is presumed to point at an encoded
+<span class="type">NULL</span> character.
+</p>
+<p>
+<code class="function">lwres_addr_parse()</code> extracts an address from the
+buffer <em class="parameter"><code>b</code></em>.  The buffer's current pointer
+<code class="constant">b-&gt;current</code> is presumed to point at an encoded
 address: the address preceded by a 32-bit protocol family identifier
 and a 16-bit length field.  The encoded address is copied to
-<CODE
-CLASS="CONSTANT"
->addr-&gt;address</CODE
-> and
-<CODE
-CLASS="CONSTANT"
->addr-&gt;length</CODE
-> indicates the size in bytes of
-the address that was copied.  <CODE
-CLASS="CONSTANT"
->b-&gt;current</CODE
-> is
+<code class="constant">addr-&gt;address</code> and
+<code class="constant">addr-&gt;length</code> indicates the size in bytes of
+the address that was copied.  <code class="constant">b-&gt;current</code> is
 advanced to point at the next byte of available data in the buffer
-following the encoded address.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_getaddrsbyname()</CODE
->
+following the encoded address.
+</p>
+<p>
+<code class="function">lwres_getaddrsbyname()</code>
 and
-<CODE
-CLASS="FUNCTION"
->lwres_getnamebyaddr()</CODE
->
+<code class="function">lwres_getnamebyaddr()</code>
 use the
-<SPAN
-CLASS="TYPE"
->lwres_gnbaresponse_t</SPAN
->
+<span class="type">lwres_gnbaresponse_t</span>
 structure defined below:
-<PRE
-CLASS="PROGRAMLISTING"
->typedef struct {
+</p>
+<pre class="programlisting">
+typedef struct {
         lwres_uint32_t          flags;
         lwres_uint16_t          naliases;
         lwres_uint16_t          naddrs;
@@ -191,197 +168,88 @@ CLASS="PROGRAMLISTING"
         lwres_addrlist_t        addrs;
         void                   *base;
         size_t                  baselen;
-} lwres_gabnresponse_t;</PRE
->
+} lwres_gabnresponse_t;
+</pre>
+<p>
 The contents of this structure are not manipulated directly but
 they are controlled through the
-<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->lwres_gabn</SPAN
->(3)</SPAN
->
-functions.</P
-><P
->The lightweight resolver uses
-<CODE
-CLASS="FUNCTION"
->lwres_getaddrsbyname()</CODE
-> to perform foward lookups.
-Hostname <VAR
-CLASS="PARAMETER"
->name</VAR
-> is looked up using the resolver
-context <VAR
-CLASS="PARAMETER"
->ctx</VAR
-> for memory allocation.
-<VAR
-CLASS="PARAMETER"
->addrtypes</VAR
-> is a bitmask indicating which type of
+<span class="citerefentry"><span class="refentrytitle">lwres_gabn</span>(3
+)</span>
+functions.
+</p>
+<p>
+The lightweight resolver uses
+<code class="function">lwres_getaddrsbyname()</code> to perform foward lookups.
+Hostname <em class="parameter"><code>name</code></em> is looked up using the resolver
+context <em class="parameter"><code>ctx</code></em> for memory allocation.
+<em class="parameter"><code>addrtypes</code></em> is a bitmask indicating which type of
 addresses are to be looked up.  Current values for this bitmask are
-<SPAN
-CLASS="TYPE"
->LWRES_ADDRTYPE_V4</SPAN
-> for IPv4 addresses and
-<SPAN
-CLASS="TYPE"
->LWRES_ADDRTYPE_V6</SPAN
-> for IPv6 addresses.  Results of the
-lookup are returned in <VAR
-CLASS="PARAMETER"
->*structp</VAR
->.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_getnamebyaddr()</CODE
-> performs reverse lookups.
-Resolver context <VAR
-CLASS="PARAMETER"
->ctx</VAR
-> is used for memory
+<span class="type">LWRES_ADDRTYPE_V4</span> for IPv4 addresses and
+<span class="type">LWRES_ADDRTYPE_V6</span> for IPv6 addresses.  Results of the
+lookup are returned in <em class="parameter"><code>*structp</code></em>.
+</p>
+<p>
+<code class="function">lwres_getnamebyaddr()</code> performs reverse lookups.
+Resolver context <em class="parameter"><code>ctx</code></em> is used for memory
 allocation.  The address type is indicated by
-<VAR
-CLASS="PARAMETER"
->addrtype</VAR
->: <SPAN
-CLASS="TYPE"
->LWRES_ADDRTYPE_V4</SPAN
-> or
-<SPAN
-CLASS="TYPE"
->LWRES_ADDRTYPE_V6</SPAN
->.  The address to be looked up is given
-by <VAR
-CLASS="PARAMETER"
->addr</VAR
-> and its length is
-<VAR
-CLASS="PARAMETER"
->addrlen</VAR
-> bytes.  The result of the function call
-is made available through <VAR
-CLASS="PARAMETER"
->*structp</VAR
->.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN84"
-></A
-><H2
->RETURN VALUES</H2
-><P
->Successful calls to
-<CODE
-CLASS="FUNCTION"
->lwres_string_parse()</CODE
->
+<em class="parameter"><code>addrtype</code></em>: <span class="type">LWRES_ADDRTYPE_V4</span> or
+<span class="type">LWRES_ADDRTYPE_V6</span>.  The address to be looked up is given
+by <em class="parameter"><code>addr</code></em> and its length is
+<em class="parameter"><code>addrlen</code></em> bytes.  The result of the function call
+is made available through <em class="parameter"><code>*structp</code></em>.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526060"></a><h2>RETURN VALUES</h2>
+<p>
+Successful calls to
+<code class="function">lwres_string_parse()</code>
 and
-<CODE
-CLASS="FUNCTION"
->lwres_addr_parse()</CODE
->
+<code class="function">lwres_addr_parse()</code>
 return
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_SUCCESS.</SPAN
->
+<span class="errorcode">LWRES_R_SUCCESS.</span>
 Both functions return
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_FAILURE</SPAN
->
+<span class="errorcode">LWRES_R_FAILURE</span>
 if the buffer is corrupt or
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_UNEXPECTEDEND</SPAN
->
+<span class="errorcode">LWRES_R_UNEXPECTEDEND</span>
 if the buffer has less space than expected for the components of the
-encoded string or address.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_getaddrsbyname()</CODE
->
+encoded string or address.
+</p>
+<p>
+<code class="function">lwres_getaddrsbyname()</code>
 returns
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_SUCCESS</SPAN
->
+<span class="errorcode">LWRES_R_SUCCESS</span>
 on success and it returns
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_NOTFOUND</SPAN
->
+<span class="errorcode">LWRES_R_NOTFOUND</span>
 if the hostname
-<VAR
-CLASS="PARAMETER"
->name</VAR
->
-could not be found.</P
-><P
-><SPAN
-CLASS="ERRORCODE"
->LWRES_R_SUCCESS</SPAN
->
+<em class="parameter"><code>name</code></em>
+could not be found.
+</p>
+<p>
+<span class="errorcode">LWRES_R_SUCCESS</span>
 is returned by a successful call to
-<CODE
-CLASS="FUNCTION"
->lwres_getnamebyaddr()</CODE
->.</P
-><P
->Both
-<CODE
-CLASS="FUNCTION"
->lwres_getaddrsbyname()</CODE
->
+<code class="function">lwres_getnamebyaddr()</code>.
+</p>
+<p>
+Both
+<code class="function">lwres_getaddrsbyname()</code>
 and
-<CODE
-CLASS="FUNCTION"
->lwres_getnamebyaddr()</CODE
->
+<code class="function">lwres_getnamebyaddr()</code>
 return
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_NOMEMORY</SPAN
->
+<span class="errorcode">LWRES_R_NOMEMORY</span>
 when memory allocation requests fail and
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_UNEXPECTEDEND</SPAN
->
+<span class="errorcode">LWRES_R_UNEXPECTEDEND</span>
 if the buffers used for sending queries and receiving replies are too
-small.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN105"
-></A
-><H2
->SEE ALSO</H2
-><P
-><SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->lwres_buffer</SPAN
->(3)</SPAN
->,
+small.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526130"></a><h2>SEE ALSO</h2>
+<p>
+<span class="citerefentry"><span class="refentrytitle">lwres_buffer</span>(3)</span>,
 
-<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->lwres_gabn</SPAN
->(3)</SPAN
->.</P
-></DIV
-></BODY
-></HTML
->
+<span class="citerefentry"><span class="refentrytitle">lwres_gabn</span>(3)</span>.
+</p>
+</div>
+</div></body>
+</html>

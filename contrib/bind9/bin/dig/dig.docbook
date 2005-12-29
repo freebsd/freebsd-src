@@ -1,6 +1,8 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -16,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.4.2.7.4.9 2004/06/23 04:19:41 marka Exp $ -->
+<!-- $Id: dig.docbook,v 1.4.2.7.4.12 2005/08/30 00:50:29 marka Exp $ -->
 
 <refentry>
 
@@ -30,6 +32,21 @@
 <refmiscinfo>BIND9</refmiscinfo>
 </refmeta>
 
+  <docinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder>Internet Software Consortium.</holder>
+    </copyright>
+  </docinfo>
+
 <refnamediv>
 <refname>dig</refname>
 <refpurpose>DNS lookup utility</refpurpose>
@@ -38,7 +55,7 @@
 <refsynopsisdiv>
 <cmdsynopsis>
 <command>dig</command>
-<arg choice=opt>@server</arg>
+<arg choice="opt">@server</arg>
 <arg><option>-b <replaceable class="parameter">address</replaceable></option></arg>
 <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
 <arg><option>-f <replaceable class="parameter">filename</replaceable></option></arg>
@@ -49,10 +66,10 @@
 <arg><option>-y <replaceable class="parameter">name:key</replaceable></option></arg>
 <arg><option>-4</option></arg>
 <arg><option>-6</option></arg>
-<arg choice=opt>name</arg>
-<arg choice=opt>type</arg>
-<arg choice=opt>class</arg>
-<arg choice=opt rep=repeat>queryopt</arg>
+<arg choice="opt">name</arg>
+<arg choice="opt">type</arg>
+<arg choice="opt">class</arg>
+<arg choice="opt" rep="repeat">queryopt</arg>
 </cmdsynopsis>
 
 <cmdsynopsis>
@@ -62,8 +79,8 @@
 
 <cmdsynopsis>
 <command>dig</command>
-<arg choice=opt rep=repeat>global-queryopt</arg>
-<arg choice=opt rep=repeat>query</arg>
+<arg choice="opt" rep="repeat">global-queryopt</arg>
+<arg choice="opt" rep="repeat">query</arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -513,11 +530,24 @@ Chase DNSSEC signature chains.  Requires dig be compiled with
 -DDIG_SIGCHASE.
 </para></listitem></varlistentry>
 
-<varlistentry><term><option>+trusted-key=####</option></term>
-<listitem><para>
-Specify a trusted key to be used with <option>+sigchase</option>.
-Requires dig be compiled with -DDIG_SIGCHASE.
-</para></listitem></varlistentry>
+	<varlistentry>
+	  <term><option>+trusted-key=####</option></term>
+	  <listitem>
+	    <para>
+	      Specifies a file containing trusted keys to be used with
+	      <option>+sigchase</option>.  Each DNSKEY record must be
+	      on its own line.
+	    </para>
+	    <para>
+	      If not specified <command>dig</command> will look for
+	      <filename>/etc/trusted-key.key</filename> then
+	      <filename>trusted-key.key</filename> in the current directory.
+	    </para>
+	    <para>
+	      Requires dig be compiled with -DDIG_SIGCHASE.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
 <varlistentry><term><option>+[no]topdown</option></term>
 <listitem><para>
