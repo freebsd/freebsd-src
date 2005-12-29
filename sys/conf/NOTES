@@ -435,6 +435,9 @@ options 	COMPILING_LINT
 # with the 'options' line, while the hwpmc device can be either compiled
 # in or loaded as a loadable kernel module.
 #
+# Additional configuration options may be required on specific architectures,
+# please see hwpmc(4).
+
 device  	hwpmc			# Driver (also a loadable module)
 options 	HWPMC_HOOKS		# Other necessary kernel hooks
 
