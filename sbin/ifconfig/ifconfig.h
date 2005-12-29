@@ -91,6 +91,8 @@ extern void setbridge_discover(const char *, int, int, const struct afswtch *raf
 extern void unsetbridge_discover(const char *, int, int, const struct afswtch *rafp);
 extern void setbridge_learn(const char *,int, int, const struct afswtch *rafp);
 extern void unsetbridge_learn(const char *, int, int, const struct afswtch *rafp);
+extern void setbridge_span(const char *, int, int, const struct afswtch *rafp);
+extern void unsetbridge_span(const char *, int, int, const struct afswtch *rafp);
 extern void setbridge_stp(const char *, int, int, const struct afswtch *rafp);
 extern void unsetbridge_stp(const char *, int, int, const struct afswtch *rafp);
 extern void setbridge_flush(const char *, int, int, const struct afswtch *rafp);

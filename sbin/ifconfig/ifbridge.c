@@ -239,6 +239,28 @@ unsetbridge_learn(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 void
+setbridge_span(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	if (do_cmd(s, BRDGADDS, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGADDS %s",  val);
+}
+
+void
+unsetbridge_span(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	if (do_cmd(s, BRDGDELS, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGDELS %s",  val);
+}
+
+void
 setbridge_stp(const char *val, int d, int s, const struct afswtch *afp)
 {
 

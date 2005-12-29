@@ -295,6 +295,8 @@ struct	cmd {
 	{ "-discover",	NEXTARG,	unsetbridge_discover },
 	{ "learn",	NEXTARG,	setbridge_learn },
 	{ "-learn",	NEXTARG,	unsetbridge_learn },
+	{ "span",	NEXTARG,	setbridge_span },
+	{ "-span",	NEXTARG,	unsetbridge_span },
 	{ "stp",	NEXTARG,	setbridge_stp },
 	{ "-stp",	NEXTARG,	unsetbridge_stp },
 	{ "flush",	0,		setbridge_flush },
