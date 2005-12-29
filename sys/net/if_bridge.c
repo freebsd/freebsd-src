@@ -260,9 +260,12 @@ static int	bridge_ip6_checkbasic(struct mbuf **mp);
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
+static int pfil_onlyip = 1; /* only pass IP[46] packets when pfil is enabled */
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
 static int pfil_member = 1; /* run pfil hooks on the member interface */
 static int pfil_ipfw = 0;   /* layer2 filter with ipfw */
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
+    &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
@@ -417,9 +420,11 @@ sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)
 		/*
 		 * Disable pfil so that ipfw doesnt run twice, if the user
 		 * really wants both then they can re-enable pfil_bridge and/or
-		 * pfil_member.
+		 * pfil_member. Also allow non-ip packets as ipfw can filter by
+		 * layer2 type.
 		 */
 		if (pfil_ipfw) {
+			pfil_onlyip = 0;
 			pfil_bridge = 0;
 			pfil_member = 0;
 		}
@@ -2498,6 +2503,9 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	snap = 0;
 	error = -1;	/* Default error if not error == 0 */
 
+	if (pfil_bridge == 0 && pfil_member == 0 && pfil_ipfw == 0)
+		return 0; /* filtering is disabled */
+
 	i = min((*mp)->m_pkthdr.len, max_protohdr);
 	if ((*mp)->m_len < i) {
 	    *mp = m_pullup(*mp, i);
@@ -2545,11 +2553,11 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			break;
 		default:
 			/*
-			 * ipfw allows layer2 protocol filtering using
-			 * 'mac-type' so we will let the packet past, if
-			 * ipfw is disabled then drop it.
+			 * Check to see if the user wants to pass non-ip
+			 * packets, these will not be checked by pfil(9) and
+			 * passed unconditionally so the default is to drop.
 			 */
-			if (!IPFW_LOADED || pfil_ipfw == 0)
+			if (pfil_onlyip)
 				goto bad;
 	}
 
