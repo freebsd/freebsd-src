@@ -241,10 +241,25 @@ use the following commands.
 To switch back to the default keyboard, use this command.
 .Pp
 .Dl kbdcontrol -k /dev/kbd0
+.Pp
+To allow using both the second USB keyboard and the first AT keyboard
+at the same time on console via
+.Xr kbdmux 4
+driver use the following sequence of commands.
+.Pp
+.Dl kbdcontrol -K < /dev/console
+.Pp
+.Dl kbdcontrol -a atkbd0 < /dev/kbdmux0
+.Pp
+.Dl kbdcontrol -a ukbd1 < /dev/kbdmux0
+.Pp
+.Dl kbdcontrol -k /dev/kbdmux0 < /dev/console
+.Pp
 .Sh SEE ALSO
 .Xr kbdmap 1 ,
 .Xr vidcontrol 1 ,
 .Xr atkbd 4 ,
+.Xr kbdmux 4 ,
 .Xr keyboard 4 ,
 .Xr screen 4 ,
 .Xr syscons 4 ,
