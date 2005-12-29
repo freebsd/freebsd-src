@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.40.2.5.4.4 2004/07/20 07:02:00 marka Exp $
+# $Id: rules.in,v 1.40.2.5.4.8 2005/10/28 01:53:44 marka Exp $
 
 ###
 ### Common Makefile rules for BIND 9.
@@ -112,8 +112,7 @@ ALL_CPPFLAGS = \
 	${ALWAYS_INCLUDES} ${CINCLUDES} ${STD_CINCLUDES} \
 	${ALWAYS_DEFINES} ${CDEFINES} ${STD_CDEFINES}
 
-ALL_CFLAGS = ${EXT_CFLAGS} ${CFLAGS} \
-	${ALL_CPPFLAGS} \
+ALL_CFLAGS = ${EXT_CFLAGS} ${ALL_CPPFLAGS} ${CFLAGS} \
 	${ALWAYS_WARNINGS} ${STD_CWARNINGS} ${CWARNINGS}
 
 .c.@O@:
@@ -132,7 +131,7 @@ cleandir: distclean
 superclean: maintainer-clean
 
 clean distclean maintainer-clean::
-	rm -f *.@O@ *.lo *.la core *.core .depend
+	rm -f *.@O@ *.o *.lo *.la core *.core .depend
 	rm -rf .libs
 
 distclean maintainer-clean::
@@ -181,48 +180,45 @@ INSTALL_SCRIPT =	@INSTALL_SCRIPT@
 INSTALL_DATA =		@INSTALL_DATA@
 
 ###
+### Programs used when generating documentation.  It's ok for these
+### not to exist when not generating documentation.
+###
+
+XSLTPROC =		@XSLTPROC@ --novalid
+PERL =			@PERL@
+LATEX =			@LATEX@
+PDFLATEX =		@PDFLATEX@
+
+###
 ### DocBook -> HTML
 ### DocBook -> man page
 ###
 
 .SUFFIXES: .docbook .html .1 .2 .3 .4 .5 .6 .7 .8
 
-OPENJADE = @OPENJADE@
-SGMLCATALOG = @SGMLCATALOG@
-HTMLSTYLE = @HTMLSTYLE@
-XMLDCL = @XMLDCL@
-DOCBOOK2MANSPEC = @DOCBOOK2MANSPEC@
-JADETEX = @JADETEX@
-PDFJADETEX = @PDFJADETEX@
-
-ONSGMLS = onsgmls
-SGMLSPL = sgmlspl
-
-#
-# Note: this rule assumes the docbook.dsl stylesheet
-# is being used.  If another stylesheet is used, the
-# filename 'r1.htm' in the rule might have to be
-# be changed.
-#
 .docbook.html:
-	${OPENJADE} -c ${SGMLCATALOG} -t sgml -d ${HTMLSTYLE} $<
-	echo "" >> r1.htm
-	cat ${top_srcdir}/docutil/HTML_COPYRIGHT r1.htm > $@
-	rm -f r1.htm
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-docbook-html.xsl $<
 
 .docbook.1:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.2:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.3:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.4:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.5:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.6:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.7:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
 .docbook.8:
-	sh ${top_srcdir}/docutil/docbook2man-wrapper.sh ${top_srcdir} $< $@
+	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<

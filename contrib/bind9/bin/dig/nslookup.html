@@ -1,617 +1,264 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: nslookup.html,v 1.1.6.3 2004/08/22 23:38:58 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->nslookup</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
->nslookup</H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN8"
-></A
-><H2
->Name</H2
->nslookup&nbsp;--&nbsp;query Internet name servers interactively</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN11"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->nslookup</B
->  [<VAR
-CLASS="OPTION"
->-option</VAR
->] [name | -] [server]</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN18"
-></A
-><H2
->DESCRIPTION</H2
-><P
-><B
-CLASS="COMMAND"
->Nslookup</B
->
-is a program to query Internet domain name servers.  <B
-CLASS="COMMAND"
->Nslookup</B
->
+<!-- $Id: nslookup.html,v 1.1.6.9 2005/10/13 02:33:44 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>nslookup</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463728"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p>nslookup &#8212; query Internet name servers interactively</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">nslookup</code>  [<code class="option">-option</code>] [name | -] [server]</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525973"></a><h2>DESCRIPTION</h2>
+<p>
+<span><strong class="command">Nslookup</strong></span>
+is a program to query Internet domain name servers.  <span><strong class="command">Nslookup</strong></span>
 has two modes: interactive and non-interactive.  Interactive mode allows
 the user to query name servers for information about various hosts and
 domains or to print a list of hosts in a domain.  Non-interactive mode is
 used to print just the name and requested information for a host or
-domain.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN23"
-></A
-><H2
->ARGUMENTS</H2
-><P
->Interactive mode is entered in the following cases:
-<P
-></P
-><OL
-TYPE="a"
-><LI
-><P
->when no arguments are given (the default name server will be used)</P
-></LI
-><LI
-><P
->when the first argument is a hyphen (-) and the second argument is
-the host name or Internet address of a name server.</P
-></LI
-></OL
-></P
-><P
->Non-interactive mode is used when the name or Internet address of the
+domain.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525990"></a><h2>ARGUMENTS</h2>
+<p>
+Interactive mode is entered in the following cases:
+</p>
+<div class="orderedlist"><ol type="a">
+<li><p>
+when no arguments are given (the default name server will be used)
+</p></li>
+<li><p>
+when the first argument is a hyphen (-) and the second argument is
+the host name or Internet address of a name server.
+</p></li>
+</ol></div>
+<p>
+</p>
+<p>
+Non-interactive mode is used when the name or Internet address of the
 host to be looked up is given as the first argument. The optional second
-argument specifies the host name or address of a name server.</P
-><P
->Options can also be specified on the command line if they precede the
+argument specifies the host name or address of a name server.
+</p>
+<p>
+Options can also be specified on the command line if they precede the
 arguments and are prefixed with a hyphen.  For example, to
 change the default query type to host information, and the initial timeout to 10 seconds, type:
-<DIV
-CLASS="INFORMALEXAMPLE"
-><P
-></P
-><A
-NAME="AEN33"
-></A
-><PRE
-CLASS="PROGRAMLISTING"
->nslookup -query=hinfo  -timeout=10</PRE
-><P
-></P
-></DIV
-></P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN35"
-></A
-><H2
->INTERACTIVE COMMANDS</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
->host [<SPAN
-CLASS="OPTIONAL"
->server</SPAN
->]</DT
-><DD
-><P
->Look up information for host using the current default server or
+</p>
+<div class="informalexample"><pre class="programlisting">
+nslookup -query=hinfo  -timeout=10
+</pre></div>
+<p>
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526033"></a><h2>INTERACTIVE COMMANDS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">host [<span class="optional">server</span>]</span></dt>
+<dd>
+<p>
+Look up information for host using the current default server or
 using server, if specified.  If host is an Internet address and
 the query type is A or PTR, the name of the host is returned.
 If host is a name and does not have a trailing period, the
-search list is used to qualify the name.</P
-><P
->To look up a host not in the current domain, append a period to
-the name.</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->server</CODE
-> <VAR
-CLASS="REPLACEABLE"
->domain</VAR
-></DT
-><DD
-><P
-></P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->lserver</CODE
-> <VAR
-CLASS="REPLACEABLE"
->domain</VAR
-></DT
-><DD
-><P
->Change the default server to <VAR
-CLASS="REPLACEABLE"
->domain</VAR
->; <CODE
-CLASS="CONSTANT"
->lserver</CODE
-> uses the initial
-server to look up information about <VAR
-CLASS="REPLACEABLE"
->domain</VAR
->, while <CODE
-CLASS="CONSTANT"
->server</CODE
-> uses
+search list is used to qualify the name.
+</p>
+<p>
+To look up a host not in the current domain, append a period to
+the name.
+</p>
+</dd>
+<dt><span class="term"><code class="constant">server</code> <em class="replaceable"><code>domain</code></em></span></dt>
+<dd><p></p></dd>
+<dt><span class="term"><code class="constant">lserver</code> <em class="replaceable"><code>domain</code></em></span></dt>
+<dd><p>
+Change the default server to <em class="replaceable"><code>domain</code></em>; <code class="constant">lserver</code> uses the initial
+server to look up information about <em class="replaceable"><code>domain</code></em>, while <code class="constant">server</code> uses
 the current default server.  If an authoritative answer can't be
 found, the names of servers that might have the answer are
-returned.</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->root</CODE
-></DT
-><DD
-><P
->not implemented</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->finger</CODE
-></DT
-><DD
-><P
->not implemented</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->ls</CODE
-></DT
-><DD
-><P
->not implemented</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->view</CODE
-></DT
-><DD
-><P
->not implemented</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->help</CODE
-></DT
-><DD
-><P
->not implemented</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->?</CODE
-></DT
-><DD
-><P
->not implemented</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->exit</CODE
-></DT
-><DD
-><P
->Exits the program.</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->set</CODE
-> <VAR
-CLASS="REPLACEABLE"
->keyword[<SPAN
-CLASS="OPTIONAL"
->=value</SPAN
->]</VAR
-></DT
-><DD
-><P
->This command is used to change state information that affects
+returned.
+</p></dd>
+<dt><span class="term"><code class="constant">root</code></span></dt>
+<dd><p>not implemented</p></dd>
+<dt><span class="term"><code class="constant">finger</code></span></dt>
+<dd><p>not implemented</p></dd>
+<dt><span class="term"><code class="constant">ls</code></span></dt>
+<dd><p>not implemented</p></dd>
+<dt><span class="term"><code class="constant">view</code></span></dt>
+<dd><p>not implemented</p></dd>
+<dt><span class="term"><code class="constant">help</code></span></dt>
+<dd><p>not implemented</p></dd>
+<dt><span class="term"><code class="constant">?</code></span></dt>
+<dd><p>not implemented</p></dd>
+<dt><span class="term"><code class="constant">exit</code></span></dt>
+<dd><p>Exits the program.</p></dd>
+<dt><span class="term"><code class="constant">set</code> <em class="replaceable"><code>keyword[<span class="optional">=value</span>]</code></em></span></dt>
+<dd>
+<p>This command is used to change state information that affects
 the lookups.  Valid keywords are:
- <P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
-><CODE
-CLASS="CONSTANT"
->all</CODE
-></DT
-><DD
-><P
->Prints the current values of the frequently used
-  options to <B
-CLASS="COMMAND"
->set</B
->.  Information about the  current default
+ </p>
+<div class="variablelist"><dl>
+<dt><span class="term"><code class="constant">all</code></span></dt>
+<dd><p>Prints the current values of the frequently used
+  options to <span><strong class="command">set</strong></span>.  Information about the  current default
   server and host is also printed.
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->class=</CODE
-><VAR
-CLASS="REPLACEABLE"
->value</VAR
-></DT
-><DD
-><P
->   Change the query class to one of:
-   <P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
-><CODE
-CLASS="CONSTANT"
->IN</CODE
-></DT
-><DD
-><P
->the Internet class</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->CH</CODE
-></DT
-><DD
-><P
->the Chaos class</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->HS</CODE
-></DT
-><DD
-><P
->the Hesiod class</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->ANY</CODE
-></DT
-><DD
-><P
->wildcard</P
-></DD
-></DL
-></DIV
->
+  </p></dd>
+<dt><span class="term"><code class="constant">class=</code><em class="replaceable"><code>value</code></em></span></dt>
+<dd>
+<p>
+   Change the query class to one of:
+   </p>
+<div class="variablelist"><dl>
+<dt><span class="term"><code class="constant">IN</code></span></dt>
+<dd><p>the Internet class</p></dd>
+<dt><span class="term"><code class="constant">CH</code></span></dt>
+<dd><p>the Chaos class</p></dd>
+<dt><span class="term"><code class="constant">HS</code></span></dt>
+<dd><p>the Hesiod class</p></dd>
+<dt><span class="term"><code class="constant">ANY</code></span></dt>
+<dd><p>wildcard</p></dd>
+</dl></div>
+<p>
    The class specifies the protocol group of the information.
-   </P
-><P
->   (Default = IN; abbreviation = cl)
-   </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
-><VAR
-CLASS="REPLACEABLE"
->[<SPAN
-CLASS="OPTIONAL"
->no</SPAN
->]</VAR
->debug</CODE
-></DT
-><DD
-><P
->  Turn debugging mode on.  A lot more information is
+   </p>
+<p>
+   (Default = IN; abbreviation = cl)
+   </p>
+</dd>
+<dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>debug</code></span></dt>
+<dd>
+<p>
+  Turn debugging mode on.  A lot more information is
   printed about the packet sent to the server and the
   resulting answer.
-  </P
-><P
->  (Default = nodebug; abbreviation = [<SPAN
-CLASS="OPTIONAL"
->no</SPAN
->]deb)
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
-><VAR
-CLASS="REPLACEABLE"
->[<SPAN
-CLASS="OPTIONAL"
->no</SPAN
->]</VAR
->d2</CODE
-></DT
-><DD
-><P
->  Turn debugging mode on.  A lot more information is
+  </p>
+<p>
+  (Default = nodebug; abbreviation = [<span class="optional">no</span>]deb)
+  </p>
+</dd>
+<dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>d2</code></span></dt>
+<dd>
+<p>
+  Turn debugging mode on.  A lot more information is
   printed about the packet sent to the server and the
   resulting answer.
-  </P
-><P
->  (Default = nod2)
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->domain=</CODE
-><VAR
-CLASS="REPLACEABLE"
->name</VAR
-></DT
-><DD
-><P
->  Sets the search list to <VAR
-CLASS="REPLACEABLE"
->name</VAR
->.
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
-><VAR
-CLASS="REPLACEABLE"
->[<SPAN
-CLASS="OPTIONAL"
->no</SPAN
->]</VAR
->search</CODE
-></DT
-><DD
-><P
->  If the lookup request contains at least one period but
+  </p>
+<p>
+  (Default = nod2)
+  </p>
+</dd>
+<dt><span class="term"><code class="constant">domain=</code><em class="replaceable"><code>name</code></em></span></dt>
+<dd><p>
+  Sets the search list to <em class="replaceable"><code>name</code></em>.
+  </p></dd>
+<dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>search</code></span></dt>
+<dd>
+<p>
+  If the lookup request contains at least one period but
   doesn't end with a trailing period, append the domain
   names in the domain search list to the request until an
   answer is received.
-  </P
-><P
->  (Default = search)
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->port=</CODE
-><VAR
-CLASS="REPLACEABLE"
->value</VAR
-></DT
-><DD
-><P
->  Change the default TCP/UDP name server port to <VAR
-CLASS="REPLACEABLE"
->value</VAR
->.
-  </P
-><P
->  (Default = 53; abbreviation = po)
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->querytype=</CODE
-><VAR
-CLASS="REPLACEABLE"
->value</VAR
-></DT
-><DD
-><P
-></P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->type=</CODE
-><VAR
-CLASS="REPLACEABLE"
->value</VAR
-></DT
-><DD
-><P
->  Change the top of the information query.
-  </P
-><P
->  (Default = A; abbreviations = q, ty)
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
-><VAR
-CLASS="REPLACEABLE"
->[<SPAN
-CLASS="OPTIONAL"
->no</SPAN
->]</VAR
->recurse</CODE
-></DT
-><DD
-><P
->  Tell the name server to query other servers if it does not have the
+  </p>
+<p>
+  (Default = search)
+  </p>
+</dd>
+<dt><span class="term"><code class="constant">port=</code><em class="replaceable"><code>value</code></em></span></dt>
+<dd>
+<p>
+  Change the default TCP/UDP name server port to <em class="replaceable"><code>value</code></em>.
+  </p>
+<p>
+  (Default = 53; abbreviation = po)
+  </p>
+</dd>
+<dt><span class="term"><code class="constant">querytype=</code><em class="replaceable"><code>value</code></em></span></dt>
+<dd><p></p></dd>
+<dt><span class="term"><code class="constant">type=</code><em class="replaceable"><code>value</code></em></span></dt>
+<dd>
+<p>
+  Change the top of the information query.
+  </p>
+<p>
+  (Default = A; abbreviations = q, ty)
+  </p>
+</dd>
+<dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>recurse</code></span></dt>
+<dd>
+<p>
+  Tell the name server to query other servers if it does not have the
   information.
-  </P
-><P
->  (Default = recurse; abbreviation = [no]rec)
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->retry=</CODE
-><VAR
-CLASS="REPLACEABLE"
->number</VAR
-></DT
-><DD
-><P
->  Set the number of retries to number.
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->timeout=</CODE
-><VAR
-CLASS="REPLACEABLE"
->number</VAR
-></DT
-><DD
-><P
->  Change the initial timeout interval for waiting for a
+  </p>
+<p>
+  (Default = recurse; abbreviation = [no]rec)
+  </p>
+</dd>
+<dt><span class="term"><code class="constant">retry=</code><em class="replaceable"><code>number</code></em></span></dt>
+<dd><p>
+  Set the number of retries to number.
+  </p></dd>
+<dt><span class="term"><code class="constant">timeout=</code><em class="replaceable"><code>number</code></em></span></dt>
+<dd><p>
+  Change the initial timeout interval for waiting for a
   reply to number seconds.
-  </P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
-><VAR
-CLASS="REPLACEABLE"
->[<SPAN
-CLASS="OPTIONAL"
->no</SPAN
->]</VAR
->vc</CODE
-></DT
-><DD
-><P
->  Always use a virtual circuit when sending requests to the server.
-  </P
-><P
->  (Default = novc)
-  </P
-></DD
-></DL
-></DIV
-></P
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN218"
-></A
-><H2
->FILES</H2
-><P
-><TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
-></P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN222"
-></A
-><H2
->SEE ALSO</H2
-><P
-><SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->dig</SPAN
->(1)</SPAN
->,
-<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->host</SPAN
->(1)</SPAN
->,
-<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->named</SPAN
->(8)</SPAN
->.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN234"
-></A
-><H2
->Author</H2
-><P
->Andrew Cherenson</P
-></DIV
-></BODY
-></HTML
->
+  </p></dd>
+<dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>vc</code></span></dt>
+<dd>
+<p>
+  Always use a virtual circuit when sending requests to the server.
+  </p>
+<p>
+  (Default = novc)
+  </p>
+</dd>
+</dl></div>
+<p>
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526490"></a><h2>FILES</h2>
+<p>
+<code class="filename">/etc/resolv.conf</code>
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526503"></a><h2>SEE ALSO</h2>
+<p>
+<span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
+<span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
+<span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526538"></a><h2>Author</h2>
+<p>
+Andrew Cherenson
+</p>
+</div>
+</div></body>
+</html>

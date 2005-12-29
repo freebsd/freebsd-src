@@ -1,36 +1,41 @@
-.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-.\" Copyright (C) 2000, 2001  Internet Software Consortium.
-.\"
+.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001 Internet Software Consortium.
+.\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
-.\"
+.\" 
 .\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 .\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
 .\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 .\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_getrrsetbyname.3,v 1.11.2.1.8.1 2004/03/06 07:41:43 marka Exp $
+.\" $Id: lwres_getrrsetbyname.3,v 1.11.2.1.8.5 2005/10/13 02:33:53 marka Exp $
 .\"
-.TH "LWRES_GETRRSETBYNAME" "3" "Oct 18, 2000" "BIND9" ""
-.SH NAME
+.hy 0
+.ad l
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "LWRES_GETRRSETBYNAME" "3" "Oct 18, 2000" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
 lwres_getrrsetbyname, lwres_freerrset \- retrieve DNS records
-.SH SYNOPSIS
-\fB#include <lwres/netdb.h>
-.sp
-.na
-int
-lwres_getrrsetbyname(const char *hostname, unsigned int rdclass, unsigned int rdtype, unsigned int flags, struct rrsetinfo **res);
-.ad
-.sp
-.na
-void
-lwres_freerrset(struct rrsetinfo *rrset);
-.ad
-\fR
+.SH "SYNOPSIS"
+.nf
+#include <lwres/netdb.h>
+.fi
+.HP 25
+\fBint\ \fBlwres_getrrsetbyname\fR\fR\fB(\fR\fBconst\ char\ *hostname\fR\fB, \fR\fBunsigned\ int\ rdclass\fR\fB, \fR\fBunsigned\ int\ rdtype\fR\fB, \fR\fBunsigned\ int\ flags\fR\fB, \fR\fBstruct\ rrsetinfo\ **res\fR\fB);\fR
+.HP 21
+\fBvoid\ \fBlwres_freerrset\fR\fR\fB(\fR\fBstruct\ rrsetinfo\ *rrset\fR\fB);\fR
 .PP
 The following structures are used:
 .sp
@@ -39,7 +44,6 @@ struct  rdatainfo {
         unsigned int            rdi_length;     /* length of data */
         unsigned char           *rdi_data;      /* record data */
 };
-
 struct  rrsetinfo {
         unsigned int            rri_flags;      /* RRSET_VALIDATED... */
         unsigned int            rri_rdclass;    /* class number */
@@ -51,19 +55,17 @@ struct  rrsetinfo {
         struct rdatainfo        *rri_rdatas;    /* individual records */
         struct rdatainfo        *rri_sigs;      /* individual signatures */
 };
-.sp
 .fi
+.sp
 .SH "DESCRIPTION"
 .PP
 \fBlwres_getrrsetbyname()\fR
 gets a set of resource records associated with a
 \fIhostname\fR,
-\fIclass\fR,
-and
+\fIclass\fR, and
 \fItype\fR.
 \fIhostname\fR
-is
-a pointer a to null-terminated string. The
+is a pointer a to null\-terminated string. The
 \fIflags\fR
 field is currently unused and must be zero.
 .PP
@@ -76,38 +78,30 @@ structure, containing a list of one or more
 \fBrdatainfo\fR
 structures containing resource records and potentially another list of
 \fBrdatainfo\fR
-structures containing SIG resource records
-associated with those records.
-The members
-rri_rdclass
+structures containing SIG resource records associated with those records. The members
+\fBrri_rdclass\fR
 and
-rri_rdtype
+\fBrri_rdtype\fR
 are copied from the parameters.
-rri_ttl
+\fBrri_ttl\fR
 and
-rri_name
-are properties of the obtained rrset.
-The resource records contained in
-rri_rdatas
+\fBrri_name\fR
+are properties of the obtained rrset. The resource records contained in
+\fBrri_rdatas\fR
 and
-rri_sigs
-are in uncompressed DNS wire format.
-Properties of the rdataset are represented in the
-rri_flags
-bitfield. If the RRSET_VALIDATED bit is set, the data has been DNSSEC
-validated and the signatures verified. 
+\fBrri_sigs\fR
+are in uncompressed DNS wire format. Properties of the rdataset are represented in the
+\fBrri_flags\fR
+bitfield. If the RRSET_VALIDATED bit is set, the data has been DNSSEC validated and the signatures verified.
 .PP
 All of the information returned by
 \fBlwres_getrrsetbyname()\fR
 is dynamically allocated: the
-rrsetinfo
+\fBrrsetinfo\fR
 and
-rdatainfo
-structures,
-and the canonical host name strings pointed to by the
-rrsetinfostructure.
-Memory allocated for the dynamically allocated structures created by
-a successful call to
+\fBrdatainfo\fR
+structures, and the canonical host name strings pointed to by the
+\fBrrsetinfo\fRstructure. Memory allocated for the dynamically allocated structures created by a successful call to
 \fBlwres_getrrsetbyname()\fR
 is released by
 \fBlwres_freerrset()\fR.
@@ -120,8 +114,7 @@ created by a call to
 .SH "RETURN VALUES"
 .PP
 \fBlwres_getrrsetbyname()\fR
-returns zero on success, and one of the following error
-codes if an error occurred:
+returns zero on success, and one of the following error codes if an error occurred:
 .TP
 \fBERRSET_NONAME\fR
 the name does not exist
@@ -138,7 +131,6 @@ a parameter is invalid
 \fBERRSET_FAIL\fR
 other failure
 .TP
-\fB\fR
 .SH "SEE ALSO"
 .PP
 \fBlwres\fR(3).

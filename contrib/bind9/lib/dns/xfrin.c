@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.124.2.4.2.9 2004/10/13 22:28:42 marka Exp $ */
+/* $Id: xfrin.c,v 1.124.2.4.2.12 2005/11/03 23:08:41 marka Exp $ */
 
 #include <config.h>
 
@@ -232,7 +232,7 @@ xfrin_log1(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
      ISC_FORMAT_PRINTF(5, 6);
 
 static void
-xfrin_log(dns_xfrin_ctx_t *xfr, unsigned int level, const char *fmt, ...)
+xfrin_log(dns_xfrin_ctx_t *xfr, int level, const char *fmt, ...)
      ISC_FORMAT_PRINTF(3, 4);
 
 /**************************************************************************/
@@ -581,7 +581,7 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
 		  isc_task_t *task, dns_xfrindone_t done, dns_xfrin_ctx_t **xfrp)
 {
 	dns_name_t *zonename = dns_zone_getorigin(zone);
-	dns_xfrin_ctx_t *xfr;
+	dns_xfrin_ctx_t *xfr = NULL;
 	isc_result_t result;
 	dns_db_t *db = NULL;
 
@@ -1391,7 +1391,7 @@ xfrin_log1(int level, dns_name_t *zonename, dns_rdataclass_t rdclass,
  */
 
 static void
-xfrin_log(dns_xfrin_ctx_t *xfr, unsigned int level, const char *fmt, ...)
+xfrin_log(dns_xfrin_ctx_t *xfr, int level, const char *fmt, ...)
 {
 	va_list ap;
 

@@ -1,4 +1,261 @@
 
+	--- 9.3.2 released ---
+
+	--- 9.3.2rc1 released ---
+
+1936.	[bug]		The validator could leak memory. [RT #15544]
+
+1932.	[bug]		hpux: LDFLAGS was getting corrupted. [RT #15530]
+
+	--- 9.3.2b2 released ---
+
+1930.	[port]		HPUX: ia64 support. [RT #15473]
+
+1929.	[port]		FreeBSD: extend use of PTHREAD_SCOPE_SYSTEM.
+
+1926.	[bug]		The Windows installer did not check for empty
+			passwords.  BINDinstall was being installed in
+			the wrong place. [RT #15483]
+
+1925.	[port]		All outer level AC_TRY_RUNs need cross compiling
+			defaults. [RT #15469]
+
+1924.	[port]		libbind: hpux ia64 support. [RT #15473]
+
+1923.	[bug]		ns_client_detach() called too early. [RT #15499]
+
+	--- 9.3.2b1 released ---
+
+1917.	[doc]		funcsynopsisinfo wasn't being treated as verbatim
+			when generating man pages. [RT #15385]
+
+1915.	[bug]		dig +ndots was broken. [RT #15215]
+
+1914.	[protocol]	DS is required to accept mnemonic algorithms
+			(RFC 4034).  Still emit numeric algorithms for
+			compatability with RFC 3658. [RT #15354]
+
+1911.	[bug]		Update windows socket code. [RT #14965]
+
+1910.	[bug]		dig's +sigchase code overhauled. [RT #14933]
+
+1909.	[bug]		The DLV code has been re-worked to make no longer
+			query order sensitive. [RT #14933]
+
+1905.	[bug]		Strings returned from cfg_obj_asstring() should be
+                        treated as read-only.  [RT #15256]
+
+1901.	[cleanup]	Don't add DNSKEY records to the additional section.
+
+1900.	[bug]		ixfr-from-differences failed to ensure that the
+			serial number increased. [RT #15036]
+
+1896.	[bug]		Extend ISC_SOCKADDR_FORMATSIZE and
+			ISC_NETADDR_FORMATSIZE to allow for scope details.
+
+1894.	[bug]		Recursive clients soft quota support wasn't working
+			as expected. [RT #15103]
+
+1893.	[bug]		A escaped character is, potentially, converted to
+			the output character set too early. [RT #14666]
+
+1892.	[port]		Use uintptr_t if available. [RT #14606]
+
+1889.	[port]		sunos: non blocking i/o support. [RT #14951]
+
+1887.	[bug]		The cache could delete expired records too fast for
+			clients with a virtual time in the past. [RT #14991]
+
+1886.	[bug]		fctx_create() could return success even though it
+			failed. [RT #14993]
+
+1884.	[cleanup]	dighost.c: move external declarations into <dig/dig.h>.
+
+1883.	[bug]		dnssec-signzone, dnssec-keygen: handle negative debug
+			levels. [RT #14962]
+
+1881.	[func]		Add a system test for named-checkconf. [RT #14931]
+
+1877.	[bug]		Fix unreasonably low quantum on call to
+			dns_rbt_destroy2().  Remove unnecessay unhash_node()
+			call. [RT #14919]
+
+1875.	[bug]		process_dhtkey() was using the wrong memory context
+			to free some memory. [RT #14890]
+
+1874.	[port]		sunos: portability fixes. [RT #14814]
+
+1873.	[port]		win32: isc__errno2result() now reports its caller.
+			[RT #13753]
+
+1872.	[port]		win32: Handle ERROR_NETNAME_DELETED.  [RT #13753]
+
+1867.	[bug]		It was possible to trigger a INSIST in
+			dlv_validatezonekey(). [RT #14846]
+
+1866.	[bug]		resolv.conf parse errors were being ignored by
+			dig/host/nslookup. [RT #14841]
+
+1865.	[bug]		Silently ignore nameservers in /etc/resolv.conf with
+			bad addresses. [RT #14841]
+
+1864.	[bug]		Don't try the alternative transfer source if you
+			got a answer / transfer with the main source
+			address. [RT #14802]
+
+1863.	[bug]		rrset-order "fixed" error messages not complete.
+
+1861.	[bug]		dig could trigger a INSIST on certain malformed
+			responses. [RT #14801]
+
+1860.	[port]		solaris 2.8: hack_shutup_pthreadmutexinit was
+			incorrectly set. [RT #14775]
+
+1858.	[bug]		The flush-zones-on-shutdown option wasn't being
+			parsed. [RT #14686]
+
+1857.	[bug]		named could trigger a INSIST() if reconfigured /
+			reloaded too fast.  [RT #14673]
+
+1856.	[doc]		Switch Docbook toolchain from DSSSL to XSL.
+			[RT #11398]
+
+1855.	[bug]		ixfr-from-differences was failing to detect changes
+			of ttl due to dns_diff_subtract() was ignoring the ttl
+			of records.  [RT #14616]
+
+1854.	[bug]		lwres also needs to know the print format for
+			(long long).  [RT #13754]
+
+1853.	[bug]		Rework how DLV interacts with proveunsecure().
+			[RT #13605]
+
+1852.	[cleanup]	Remove last vestiges of dnssec-signkey and
+			dnssec-makekeyset (removed from Makefile years ago).
+
+1850.	[bug]		Memory leak in lwres_getipnodebyaddr(). [RT #14591]
+
+1849.	[doc]		All forms of the man pages (docbook, man, html) should
+			have consistant copyright dates.
+
+1848.	[bug]		Improve SMF integration. [RT #13238]
+
+1847.	[bug]		isc_ondestroy_init() is called too late in
+			dns_rbtdb_create()/dns_rbtdb64_create(). 
+			[RT #13661]
+			
+1846.	[contrib]	query-loc-0.3.0 from Stephane Bortzmeyer
+			<bortzmeyer@nic.fr>.
+
+1845.	[bug]		Improve error reporting to distingish between
+			accept()/fcntl() and socket()/fcntl() errors.
+			[RT #13745]
+
+1844.	[bug]		inet_pton() accepted more that 4 hexadecimal digits
+			for each 16 bit piece of the IPv6 address.  The text
+			representation of a IPv6 address has been tighted
+			to disallow this (draft-ietf-ipv6-addr-arch-v4-02.txt).
+			[RT #5662]
+
+1843.	[cleanup]	CINCLUDES takes precedence over CFLAGS.  This helps
+			when CFLAGS contains "-I /usr/local/include"
+			resulting in old header files being used.
+
+1842.	[port]		cmsg_len() could produce incorrect results on
+			some platform. [RT #13744]
+
+1841.	[bug]		"dig +nssearch" now makes a recursive query to
+			find the list of nameservers to query. [RT #13694]
+
+1839.	[bug]		<isc/hash.h> was not being installed.
+
+1838.	[cleanup]	Don't allow Linux capabilities to be inherited.
+			[RT #13707]
+
+1837.	[bug]		Compile time option ISC_FACILITY was not effective
+			for 'named -u <user>'.  [RT #13714]
+
+1836.	[cleanup]	Silence compiler warnings in hash_test.c.
+
+1835.	[bug]		Update dnssec-signzone's usage message. [RT #13657]
+
+1834.	[bug]		Bad memset in rdata_test.c. [RT #13658]
+
+1833.	[bug]		Race condition in isc_mutex_lock_profile(). [RT #13660]
+
+1832.	[bug]		named fails to return BADKEY on unknown TSIG algorithm.
+			[RT #13620]
+
+1831.	[doc]		Update named-checkzone documentation. [RT#13604]
+
+1830.	[bug]		adb lame cache has sence of test reversed. [RT #13600]
+
+1829.	[bug]		win32: "pid-file none;" broken. [RT #13563]
+
+1828.	[bug]		isc_rwlock_init() failed to properly cleanup if it
+			encountered a error. [RT #13549]
+
+1827.	[bug]		host: update usage message for '-a'. [RT #37116]
+
+1826.	[bug]		Missing DESTROYLOCK() in isc_mem_createx() on out
+			of memory error. [RT #13537]
+
+1825.	[bug]		Missing UNLOCK() on out of memory error from in
+			rbtdb.c:subtractrdataset(). [RT #13519]
+
+1824.	[bug]		Memory leak on dns_zone_setdbtype() failure.
+			[RT #13510]
+
+1823.	[bug]		Wrong macro used to check for point to point interface.
+			[RT#13418]
+
+1822.	[bug]		check-names test for RT was reversed. [RT #13382]
+
+1821.	[doc]		acls definitions are no longer required to be 
+			in named.conf prior to reference.  They can be
+			defined after being referenced.
+
+1820.	[bug]		Gracefully handle acl loops. [RT #13659]
+
+1819.	[bug]		The validator needed to check both the algorithm and
+			digest types of the DS to determine if it could be
+			used to introduce a secure zone. [RT #13593]
+
+1816.	[port]		UnixWare: failed to compile lib/isc/unix/net.c.
+			[RT #13597]
+
+1815.	[bug]		nsupdate triggered a REQUIRE if the server was set
+			without also setting the zone and it encountered
+			a CNAME and was using TSIG.  [RT #13086]
+
+1810.	[bug]		configure, lib/bind/configure make different default
+			decisions about whether to do a threaded build.
+			[RT #13212]
+
+1809.	[bug]		"make distclean" failed for libbind if the platform
+			is not supported.
+
+1807.	[bug]		When forwarding (forward only) set the active domain
+			from the forward zone name. [RT #13526]
+			
+1804.	[bug]		Ensure that if we are queried for glue that it fits
+			in the additional section or TC is set to tell the
+			client to retry using TCP. [RT #10114]
+
+1803.	[bug]		dnssec-signzone sometimes failed to remove old
+			RRSIGs. [RT #13483]
+
+1802.	[bug]		Handle connection resets better. [RT #11280]
+
+1799.	[bug]		'rndc flushname' failed to flush negative cache
+			entries. [RT #13438]
+
+1795.	[bug]		"rndc dumpdb" was not fully documented.  Minor
+			formating issues with "rndc dumpdb -all".  [RT #13396]
+
+1791.	[bug]		'host -t a' still printed out AAAA and MX records.
+			[RT #13230]
+
 	--- 9.3.1 released ---
 
 1818.	[bug]		'named-checkconf -z' triggered an INSIST. [RT #13599]

@@ -76,9 +76,9 @@
 	 Addresses in the Domain Name System (DNS)
 3364:	Tradeoffs in Domain Name System (DNS) Support
 	 for Internet Protocol version 6 (IPv6)
-3390:	Internationalizing Domain Names In Applications (IDNA)
 3425:	Obsoleting IQUERY
 3445:	Limiting the Scope of the KEY Resource Record (RR)
+3490:	Internationalizing Domain Names In Applications (IDNA)
 3491:	Nameprep: A Stringprep Profile for Internationalized Domain Names (IDN)
 3492:	Punycode:A Bootstring encoding of Unicode for
 	  Internationalized Domain Names in Applications (IDNA)
@@ -90,5 +90,14 @@
 	  Secret Key Transaction Authentication for DNS (GSS-TSIG)
 3655:	Redefinition of DNS Authenticated Data (AD) bit
 3658:	Delegation Signer (DS) Resource Record (RR)
+3757:	Domain Name System KEY (DNSKEY) Resource Record (RR)
+	  Secure Entry Point (SEP) Flag
 3833:	Threat Analysis of the Domain Name System (DNS)
 3845:	DNS Security (DNSSEC) NextSECure (NSEC) RDATA Format
+3901:	DNS IPv6 Transport Operational Guidelines
+4025:	A Method for Storing IPsec Keying Material in DNS
+4033:	DNS Security Introduction and Requirements
+4034:	Resource Records for the DNS Security Extensions
+4035:	Protocol Modifications for the DNS Security Extensions
+4074:	Common Misbehavior Against DNS Queries for IPv6 Addresses
+4159:	Deprecation of "ip6.int"

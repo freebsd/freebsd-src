@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_pton.c,v 1.2.206.1 2004/03/09 08:33:33 marka Exp $";
+static const char rcsid[] = "$Id: inet_pton.c,v 1.2.206.2 2005/07/28 07:43:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -141,7 +141,7 @@ inet_pton6(src, dst)
 			  xdigits_u[] = "0123456789ABCDEF";
 	u_char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
 	const char *xdigits, *curtok;
-	int ch, saw_xdigit;
+	int ch, seen_xdigits;
 	u_int val;
 
 	memset((tp = tmp), '\0', NS_IN6ADDRSZ);
@@ -152,7 +152,7 @@ inet_pton6(src, dst)
 		if (*++src != ':')
 			return (0);
 	curtok = src;
-	saw_xdigit = 0;
+	seen_xdigits = 0;
 	val = 0;
 	while ((ch = *src++) != '\0') {
 		const char *pch;
@@ -162,14 +162,13 @@ inet_pton6(src, dst)
 		if (pch != NULL) {
 			val <<= 4;
 			val |= (pch - xdigits);
-			if (val > 0xffff)
+			if (++seen_xdigits > 4)
 				return (0);
-			saw_xdigit = 1;
 			continue;
 		}
 		if (ch == ':') {
 			curtok = src;
-			if (!saw_xdigit) {
+			if (!seen_xdigits) {
 				if (colonp)
 					return (0);
 				colonp = tp;
@@ -181,19 +180,19 @@ inet_pton6(src, dst)
 				return (0);
 			*tp++ = (u_char) (val >> 8) & 0xff;
 			*tp++ = (u_char) val & 0xff;
-			saw_xdigit = 0;
+			seen_xdigits = 0;
 			val = 0;
 			continue;
 		}
 		if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
 		    inet_pton4(curtok, tp) > 0) {
 			tp += NS_INADDRSZ;
-			saw_xdigit = 0;
+			seen_xdigits = 0;
 			break;	/* '\0' was seen by inet_pton4(). */
 		}
 		return (0);
 	}
-	if (saw_xdigit) {
+	if (seen_xdigits) {
 		if (tp + NS_INT16SZ > endp)
 			return (0);
 		*tp++ = (u_char) (val >> 8) & 0xff;

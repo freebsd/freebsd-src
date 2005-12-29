@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_ioctl.c,v 1.19.2.5.2.15 2004/11/10 22:22:49 marka Exp $ */
+/* $Id: ifiter_ioctl.c,v 1.19.2.5.2.17 2005/10/14 02:13:07 marka Exp $ */
 
 /*
  * Obtain the list of network interfaces using the SIOCGLIFCONF ioctl.
@@ -896,7 +896,9 @@ internal_current(isc_interfaceiter_t *iter) {
  */
 static isc_result_t
 internal_next4(isc_interfaceiter_t *iter) {
+#ifdef ISC_PLATFORM_HAVESALEN
 	struct ifreq *ifrp;
+#endif
 
 	REQUIRE (iter->pos < (unsigned int) iter->ifc.ifc_len);
 
@@ -906,14 +908,14 @@ internal_next4(isc_interfaceiter_t *iter) {
 	if (!iter->first)
 		return (ISC_R_SUCCESS);
 #endif
+#ifdef ISC_PLATFORM_HAVESALEN
 	ifrp = (struct ifreq *)((char *) iter->ifc.ifc_req + iter->pos);
 
-#ifdef ISC_PLATFORM_HAVESALEN
 	if (ifrp->ifr_addr.sa_len > sizeof(struct sockaddr))
 		iter->pos += sizeof(ifrp->ifr_name) + ifrp->ifr_addr.sa_len;
 	else
 #endif
-		iter->pos += sizeof(*ifrp);
+		iter->pos += sizeof(struct ifreq);
 
 	if (iter->pos >= (unsigned int) iter->ifc.ifc_len)
 		return (ISC_R_NOMORE);
@@ -924,21 +926,23 @@ internal_next4(isc_interfaceiter_t *iter) {
 #if defined(SIOCGLIFCONF) && defined(SIOCGLIFADDR)
 static isc_result_t
 internal_next6(isc_interfaceiter_t *iter) {
+#ifdef ISC_PLATFORM_HAVESALEN
 	struct LIFREQ *ifrp;
+#endif
 	
 	if (iter->result6 != ISC_R_SUCCESS && iter->result6 != ISC_R_IGNORE)
 		return (iter->result6);
 
 	REQUIRE(iter->pos6 < (unsigned int) iter->lifc.lifc_len);
 
+#ifdef ISC_PLATFORM_HAVESALEN
 	ifrp = (struct LIFREQ *)((char *) iter->lifc.lifc_req + iter->pos6);
 
-#ifdef ISC_PLATFORM_HAVESALEN
 	if (ifrp->lifr_addr.sa_len > sizeof(struct sockaddr))
 		iter->pos6 += sizeof(ifrp->lifr_name) + ifrp->lifr_addr.sa_len;
 	else
 #endif
-		iter->pos6 += sizeof(*ifrp);
+		iter->pos6 += sizeof(struct LIFREQ);
 
 	if (iter->pos6 >= (unsigned int) iter->lifc.lifc_len)
 		return (ISC_R_NOMORE);

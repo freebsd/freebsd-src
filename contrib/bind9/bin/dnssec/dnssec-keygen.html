@@ -1,544 +1,228 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001-2003  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: dnssec-keygen.html,v 1.5.2.1.4.6 2004/08/22 23:38:58 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->dnssec-keygen</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
-><SPAN
-CLASS="APPLICATION"
->dnssec-keygen</SPAN
-></H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN9"
-></A
-><H2
->Name</H2
-><SPAN
-CLASS="APPLICATION"
->dnssec-keygen</SPAN
->&nbsp;--&nbsp;DNSSEC key generation tool</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN13"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->dnssec-keygen</B
->  {-a <VAR
-CLASS="REPLACEABLE"
->algorithm</VAR
->} {-b <VAR
-CLASS="REPLACEABLE"
->keysize</VAR
->} {-n <VAR
-CLASS="REPLACEABLE"
->nametype</VAR
->} [<VAR
-CLASS="OPTION"
->-c <VAR
-CLASS="REPLACEABLE"
->class</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-e</VAR
->] [<VAR
-CLASS="OPTION"
->-f <VAR
-CLASS="REPLACEABLE"
->flag</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-g <VAR
-CLASS="REPLACEABLE"
->generator</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-h</VAR
->] [<VAR
-CLASS="OPTION"
->-k</VAR
->] [<VAR
-CLASS="OPTION"
->-p <VAR
-CLASS="REPLACEABLE"
->protocol</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-r <VAR
-CLASS="REPLACEABLE"
->randomdev</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-s <VAR
-CLASS="REPLACEABLE"
->strength</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-t <VAR
-CLASS="REPLACEABLE"
->type</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-v <VAR
-CLASS="REPLACEABLE"
->level</VAR
-></VAR
->] {name}</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN53"
-></A
-><H2
->DESCRIPTION</H2
-><P
->        <B
-CLASS="COMMAND"
->dnssec-keygen</B
-> generates keys for DNSSEC
+<!-- $Id: dnssec-keygen.html,v 1.5.2.1.4.13 2005/10/13 02:33:45 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>dnssec-keygen</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">dnssec-keygen</span> &#8212; DNSSEC key generation tool</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">dnssec-keygen</code>  {-a <em class="replaceable"><code>algorithm</code></em>} {-b <em class="replaceable"><code>keysize</code></em>} {-n <em class="replaceable"><code>nametype</code></em>} [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-e</code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-g <em class="replaceable"><code>generator</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k</code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>strength</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] {name}</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525956"></a><h2>DESCRIPTION</h2>
+<p>
+        <span><strong class="command">dnssec-keygen</strong></span> generates keys for DNSSEC
 	(Secure DNS), as defined in RFC 2535 and RFC &lt;TBA\&gt;.  It can also generate
 	keys for use with TSIG (Transaction Signatures), as
 	defined in RFC 2845.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN57"
-></A
-><H2
->OPTIONS</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
->-a <VAR
-CLASS="REPLACEABLE"
->algorithm</VAR
-></DT
-><DD
-><P
->	      Selects the cryptographic algorithm.  The value of
-	      <VAR
-CLASS="OPTION"
->algorithm</VAR
-> must be one of RSAMD5 (RSA) or RSASHA1,
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525969"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
+<dd>
+<p>
+	      Selects the cryptographic algorithm.  The value of
+	      <code class="option">algorithm</code> must be one of RSAMD5 (RSA) or RSASHA1,
 	      DSA, DH (Diffie Hellman), or HMAC-MD5.  These values
 	      are case insensitive.
-	  </P
-><P
->	      Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement algorithm,
+	  </p>
+<p>
+	      Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement algorithm,
 	      and DSA is recommended.  For TSIG, HMAC-MD5 is mandatory.
-	  </P
-><P
->	      Note 2: HMAC-MD5 and DH automatically set the -k flag.
-	  </P
-></DD
-><DT
->-b <VAR
-CLASS="REPLACEABLE"
->keysize</VAR
-></DT
-><DD
-><P
->	       Specifies the number of bits in the key.  The choice of key
+	  </p>
+<p>
+	      Note 2: HMAC-MD5 and DH automatically set the -k flag.
+	  </p>
+</dd>
+<dt><span class="term">-b <em class="replaceable"><code>keysize</code></em></span></dt>
+<dd><p>
+	       Specifies the number of bits in the key.  The choice of key
 	       size depends on the algorithm used.  RSAMD5 / RSASHA1 keys must be between
 	       512 and 2048 bits.  Diffie Hellman keys must be between
 	       128 and 4096 bits.  DSA keys must be between 512 and 1024
 	       bits and an exact multiple of 64.  HMAC-MD5 keys must be
 	       between 1 and 512 bits.
-	  </P
-></DD
-><DT
->-n <VAR
-CLASS="REPLACEABLE"
->nametype</VAR
-></DT
-><DD
-><P
->	       Specifies the owner type of the key.  The value of
-	       <VAR
-CLASS="OPTION"
->nametype</VAR
-> must either be ZONE (for a DNSSEC
+	  </p></dd>
+<dt><span class="term">-n <em class="replaceable"><code>nametype</code></em></span></dt>
+<dd><p>
+	       Specifies the owner type of the key.  The value of
+	       <code class="option">nametype</code> must either be ZONE (for a DNSSEC
 	       zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with a host (KEY)),
 	       USER (for a key associated with a user(KEY)) or OTHER (DNSKEY).  These values are
 	       case insensitive.
-	  </P
-></DD
-><DT
->-c <VAR
-CLASS="REPLACEABLE"
->class</VAR
-></DT
-><DD
-><P
->	       Indicates that the DNS record containing the key should have
+	  </p></dd>
+<dt><span class="term">-c <em class="replaceable"><code>class</code></em></span></dt>
+<dd><p>
+	       Indicates that the DNS record containing the key should have
 	       the specified class.  If not specified, class IN is used.
-	  </P
-></DD
-><DT
->-e</DT
-><DD
-><P
->	       If generating an RSAMD5/RSASHA1 key, use a large exponent.
-	  </P
-></DD
-><DT
->-f <VAR
-CLASS="REPLACEABLE"
->flag</VAR
-></DT
-><DD
-><P
->		Set the specified flag in the flag field of the KEY/DNSKEY record.
+	  </p></dd>
+<dt><span class="term">-e</span></dt>
+<dd><p>
+	       If generating an RSAMD5/RSASHA1 key, use a large exponent.
+	  </p></dd>
+<dt><span class="term">-f <em class="replaceable"><code>flag</code></em></span></dt>
+<dd><p>
+		Set the specified flag in the flag field of the KEY/DNSKEY record.
 		The only recognized flag is KSK (Key Signing Key) DNSKEY.
-	  </P
-></DD
-><DT
->-g <VAR
-CLASS="REPLACEABLE"
->generator</VAR
-></DT
-><DD
-><P
->	       If generating a Diffie Hellman key, use this generator.
+	  </p></dd>
+<dt><span class="term">-g <em class="replaceable"><code>generator</code></em></span></dt>
+<dd><p>
+	       If generating a Diffie Hellman key, use this generator.
 	       Allowed values are 2 and 5.  If no generator
 	       is specified, a known prime from RFC 2539 will be used
 	       if possible; otherwise the default is 2.
-	  </P
-></DD
-><DT
->-h</DT
-><DD
-><P
->	       Prints a short summary of the options and arguments to
-	       <B
-CLASS="COMMAND"
->dnssec-keygen</B
->.
-	  </P
-></DD
-><DT
->-k</DT
-><DD
-><P
->	       Generate KEY records rather than DNSKEY records.
-	  </P
-></DD
-><DT
->-p <VAR
-CLASS="REPLACEABLE"
->protocol</VAR
-></DT
-><DD
-><P
->	       Sets the protocol value for the generated key.  The protocol
+	  </p></dd>
+<dt><span class="term">-h</span></dt>
+<dd><p>
+	       Prints a short summary of the options and arguments to
+	       <span><strong class="command">dnssec-keygen</strong></span>.
+	  </p></dd>
+<dt><span class="term">-k</span></dt>
+<dd><p>
+	       Generate KEY records rather than DNSKEY records.
+	  </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>protocol</code></em></span></dt>
+<dd><p>
+	       Sets the protocol value for the generated key.  The protocol
 	       is a number between 0 and 255.  The default is 3 (DNSSEC).
 	       Other possible values for this argument are listed in
 	       RFC 2535 and its successors.
-	  </P
-></DD
-><DT
->-r <VAR
-CLASS="REPLACEABLE"
->randomdev</VAR
-></DT
-><DD
-><P
->	       Specifies the source of randomness.  If the operating
-	       system does not provide a <TT
-CLASS="FILENAME"
->/dev/random</TT
->
+	  </p></dd>
+<dt><span class="term">-r <em class="replaceable"><code>randomdev</code></em></span></dt>
+<dd><p>
+	       Specifies the source of randomness.  If the operating
+	       system does not provide a <code class="filename">/dev/random</code>
 	       or equivalent device, the default source of randomness
-	       is keyboard input.  <TT
-CLASS="FILENAME"
->randomdev</TT
-> specifies
+	       is keyboard input.  <code class="filename">randomdev</code> specifies
 	       the name of a character device or file containing random
 	       data to be used instead of the default.  The special value
-	       <TT
-CLASS="FILENAME"
->keyboard</TT
-> indicates that keyboard
+	       <code class="filename">keyboard</code> indicates that keyboard
 	       input should be used.
-	  </P
-></DD
-><DT
->-s <VAR
-CLASS="REPLACEABLE"
->strength</VAR
-></DT
-><DD
-><P
->	       Specifies the strength value of the key.  The strength is
+	  </p></dd>
+<dt><span class="term">-s <em class="replaceable"><code>strength</code></em></span></dt>
+<dd><p>
+	       Specifies the strength value of the key.  The strength is
 	       a number between 0 and 15, and currently has no defined
 	       purpose in DNSSEC.
-	  </P
-></DD
-><DT
->-t <VAR
-CLASS="REPLACEABLE"
->type</VAR
-></DT
-><DD
-><P
->	       Indicates the use of the key.  <VAR
-CLASS="OPTION"
->type</VAR
-> must be
+	  </p></dd>
+<dt><span class="term">-t <em class="replaceable"><code>type</code></em></span></dt>
+<dd><p>
+	       Indicates the use of the key.  <code class="option">type</code> must be
 	       one of AUTHCONF, NOAUTHCONF, NOAUTH, or NOCONF.  The default
 	       is AUTHCONF.  AUTH refers to the ability to authenticate
 	       data, and CONF the ability to encrypt data.
-	  </P
-></DD
-><DT
->-v <VAR
-CLASS="REPLACEABLE"
->level</VAR
-></DT
-><DD
-><P
->	       Sets the debugging level.
-	  </P
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN136"
-></A
-><H2
->GENERATED KEYS</H2
-><P
->        When <B
-CLASS="COMMAND"
->dnssec-keygen</B
-> completes successfully,
-	it prints a string of the form <TT
-CLASS="FILENAME"
->Knnnn.+aaa+iiiii</TT
->
+	  </p></dd>
+<dt><span class="term">-v <em class="replaceable"><code>level</code></em></span></dt>
+<dd><p>
+	       Sets the debugging level.
+	  </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526306"></a><h2>GENERATED KEYS</h2>
+<p>
+        When <span><strong class="command">dnssec-keygen</strong></span> completes successfully,
+	it prints a string of the form <code class="filename">Knnnn.+aaa+iiiii</code>
 	to the standard output.  This is an identification string for
-	the key it has generated.  These strings can be used as arguments
-	to <B
-CLASS="COMMAND"
->dnssec-makekeyset</B
->.
-    </P
-><P
-></P
-><UL
-><LI
-><P
->          <TT
-CLASS="FILENAME"
->nnnn</TT
-> is the key name.
-        </P
-></LI
-><LI
-><P
->          <TT
-CLASS="FILENAME"
->aaa</TT
-> is the numeric representation of the
+	the key it has generated.
+    </p>
+<div class="itemizedlist"><ul type="disc">
+<li><p>
+          <code class="filename">nnnn</code> is the key name.
+        </p></li>
+<li><p>
+          <code class="filename">aaa</code> is the numeric representation of the
           algorithm.
-        </P
-></LI
-><LI
-><P
->          <TT
-CLASS="FILENAME"
->iiiii</TT
-> is the key identifier (or footprint).
-        </P
-></LI
-></UL
-><P
->        <B
-CLASS="COMMAND"
->dnssec-keygen</B
-> creates two file, with names based
-	on the printed string.  <TT
-CLASS="FILENAME"
->Knnnn.+aaa+iiiii.key</TT
->
+        </p></li>
+<li><p>
+          <code class="filename">iiiii</code> is the key identifier (or footprint).
+        </p></li>
+</ul></div>
+<p>
+        <span><strong class="command">dnssec-keygen</strong></span> creates two file, with names based
+	on the printed string.  <code class="filename">Knnnn.+aaa+iiiii.key</code>
 	contains the public key, and
-	<TT
-CLASS="FILENAME"
->Knnnn.+aaa+iiiii.private</TT
-> contains the private
+	<code class="filename">Knnnn.+aaa+iiiii.private</code> contains the private
 	key.
-    </P
-><P
->        The <TT
-CLASS="FILENAME"
->.key</TT
-> file contains a DNS KEY record that
+    </p>
+<p>
+        The <code class="filename">.key</code> file contains a DNS KEY record that
 	can be inserted into a zone file (directly or with a $INCLUDE
 	statement).
-    </P
-><P
->        The <TT
-CLASS="FILENAME"
->.private</TT
-> file contains algorithm specific
+    </p>
+<p>
+        The <code class="filename">.private</code> file contains algorithm specific
 	fields.  For obvious security reasons, this file does not have
 	general read permission.
-    </P
-><P
->        Both <TT
-CLASS="FILENAME"
->.key</TT
-> and <TT
-CLASS="FILENAME"
->.private</TT
->
+    </p>
+<p>
+        Both <code class="filename">.key</code> and <code class="filename">.private</code>
 	files are generated for symmetric encryption algorithm such as
 	HMAC-MD5, even though the public and private key are equivalent.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN163"
-></A
-><H2
->EXAMPLE</H2
-><P
->        To generate a 768-bit DSA key for the domain
-	<KBD
-CLASS="USERINPUT"
->example.com</KBD
->, the following command would be
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526394"></a><h2>EXAMPLE</h2>
+<p>
+        To generate a 768-bit DSA key for the domain
+	<strong class="userinput"><code>example.com</code></strong>, the following command would be
 	issued:
-    </P
-><P
->        <KBD
-CLASS="USERINPUT"
->dnssec-keygen -a DSA -b 768 -n ZONE example.com</KBD
->
-    </P
-><P
->        The command would print a string of the form:
-    </P
-><P
->        <KBD
-CLASS="USERINPUT"
->Kexample.com.+003+26160</KBD
->
-    </P
-><P
->        In this example, <B
-CLASS="COMMAND"
->dnssec-keygen</B
-> creates
-	the files <TT
-CLASS="FILENAME"
->Kexample.com.+003+26160.key</TT
-> and
-	<TT
-CLASS="FILENAME"
->Kexample.com.+003+26160.private</TT
->
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN176"
-></A
-><H2
->SEE ALSO</H2
-><P
->      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->dnssec-signzone</SPAN
->(8)</SPAN
->,
-      <I
-CLASS="CITETITLE"
->BIND 9 Administrator Reference Manual</I
->,
-      <I
-CLASS="CITETITLE"
->RFC 2535</I
->,
-      <I
-CLASS="CITETITLE"
->RFC 2845</I
->,
-      <I
-CLASS="CITETITLE"
->RFC 2539</I
->.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN186"
-></A
-><H2
->AUTHOR</H2
-><P
->        Internet Systems Consortium
-    </P
-></DIV
-></BODY
-></HTML
->
+    </p>
+<p>
+        <strong class="userinput"><code>dnssec-keygen -a DSA -b 768 -n ZONE example.com</code></strong>
+    </p>
+<p>
+        The command would print a string of the form:
+    </p>
+<p>
+        <strong class="userinput"><code>Kexample.com.+003+26160</code></strong>
+    </p>
+<p>
+        In this example, <span><strong class="command">dnssec-keygen</strong></span> creates
+	the files <code class="filename">Kexample.com.+003+26160.key</code> and
+	<code class="filename">Kexample.com.+003+26160.private</code>
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526440"></a><h2>SEE ALSO</h2>
+<p>
+      <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
+      <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
+      <em class="citetitle">RFC 2535</em>,
+      <em class="citetitle">RFC 2845</em>,
+      <em class="citetitle">RFC 2539</em>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526473"></a><h2>AUTHOR</h2>
+<p>
+        <span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>
