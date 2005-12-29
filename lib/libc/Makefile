@@ -32,9 +32,7 @@ NOASM=
 .include "${.CURDIR}/compat-43/Makefile.inc"
 .include "${.CURDIR}/gdtoa/Makefile.inc"
 .include "${.CURDIR}/gen/Makefile.inc"
-.if ${MACHINE_ARCH} != "powerpc"
 .include "${.CURDIR}/gmon/Makefile.inc"
-.endif
 .include "${.CURDIR}/locale/Makefile.inc"
 .include "${.CURDIR}/net/Makefile.inc"
 .include "${.CURDIR}/nls/Makefile.inc"
