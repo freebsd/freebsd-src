@@ -237,7 +237,7 @@ kobj_lookup_method(kobj_class_t cls,
 	 * a 'miss'.
 	 */
 	kobj_lookup_hits--;
-	kobj_lookup_misses--;
+	kobj_lookup_misses++;
 #endif
 
 	ce = kobj_lookup_method_mi(cls, desc);
