@@ -143,6 +143,7 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_5400C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_6200C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_6300C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_82x0C }, 0 },
 
   /* Microtek */
  {{ USB_VENDOR_SCANLOGIC, USB_PRODUCT_SCANLOGIC_336CX }, 0 },
