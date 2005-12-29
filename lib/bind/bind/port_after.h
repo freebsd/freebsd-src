@@ -10,6 +10,9 @@
 #if (!defined(BSD)) || (BSD < 199306)
 #include <sys/bitypes.h>
 #endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 
 #undef NEED_PSELECT
 #define HAVE_SA_LEN 1
@@ -29,8 +32,6 @@
 #undef INNETGR_ARGS
 #undef SETNETGRENT_ARGS
 #define USE_IFNAMELINKID 1
-
-/* XXX sunos and cygwin needs O_NDELAY */
 #define PORT_NONBLOCK O_NONBLOCK
 
 /*
@@ -86,6 +87,19 @@ struct sockaddr_in6 {
 #ifdef BROKEN_IN6ADDR_INIT_MACROS
 #undef IN6ADDR_ANY_INIT
 #undef IN6ADDR_LOOPBACK_INIT
+#endif
+
+#ifdef _AIX
+#ifndef IN6ADDR_ANY_INIT
+#define IN6ADDR_ANY_INIT {{{ 0, 0, 0, 0 }}}
+#endif
+#ifndef IN6ADDR_LOOPBACK_INIT
+#if BYTE_ORDER == BIG_ENDIAN
+#define IN6ADDR_LOOPBACK_INIT {{{ 0, 0, 0, 1 }}}
+#else
+#define IN6ADDR_LOOPBACK_INIT {{{0, 0, 0, 0x01000000}}}
+#endif
+#endif
 #endif
 
 #ifndef IN6ADDR_ANY_INIT
@@ -244,7 +258,7 @@ char * strsep(char **stringp, const char *delim);
 #endif
 
 #ifndef ALIGN
-#define ALIGN(p) (((unsigned int)(p) + (sizeof(int) - 1)) & ~(sizeof(int) - 1))
+#define ALIGN(p) (((uintptr_t)(p) + (sizeof(long) - 1)) & ~(sizeof(long) - 1))
 #endif
 
 #ifdef NEED_SETGROUPENT
@@ -287,7 +301,7 @@ GROUP_R_SET_RETURN setgrent_r(GROUP_R_ENT_ARGS);
 GROUP_R_END_RETURN endgrent_r(GROUP_R_ENT_ARGS);
 #endif
 
-#ifdef NEED_INNETGR_R
+#if defined(NEED_INNETGR_R) && defined(NGR_R_RETURN)
 NGR_R_RETURN
 innetgr_r(const char *, const char *, const char *, const char *);
 #endif
@@ -370,7 +384,9 @@ int isc__gettimeofday(struct timeval *tp, struct timezone *tzp);
 
 int getnetgrent(char **machinep, char **userp, char **domainp);
 
+#ifdef NGR_R_ARGS
 int getnetgrent_r(char **machinep, char **userp, char **domainp, NGR_R_ARGS);
+#endif
 
 #ifdef SETNETGRENT_ARGS
 void setnetgrent(SETNETGRENT_ARGS);
