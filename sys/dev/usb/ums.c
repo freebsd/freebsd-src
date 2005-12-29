@@ -425,7 +425,7 @@ ums_intr(xfer, addr, status)
 	struct ums_softc *sc = addr;
 	u_char *ibuf;
 	int dx, dy, dz, dt;
-	u_char buttons = 0;
+	int buttons = 0;
 	int i;
 
 #define UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
