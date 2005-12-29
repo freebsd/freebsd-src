@@ -773,6 +773,135 @@ Included for
 compatibility.
 .El
 .Pp
+The following parameters are specific to bridge interfaces:
+.Bl -tag -width indent
+.It Cm addm Ar interface
+Add the interface named by
+.Ar interface
+as a member of the bridge.
+The interface is put into promiscuous mode
+so that it can receive every packet sent on the network.
+.It Cm deletem Ar interface
+Remove the interface named by
+.Ar interface
+from the bridge.
+Promiscuous mode is disabled on the interface when
+it is removed from the bridge.
+.It Cm maxaddr Ar size
+Set the size of the bridge address cache to
+.Ar size .
+The default is 100 entries.
+.It Cm timeout Ar seconds
+Set the timeout of address cache entries to
+.Ar seconds
+seconds.
+If
+.Ar seconds
+is zero, then address cache entries will not be expired.
+The default is 240 seconds.
+.It Cm addr
+Display the addresses that have been learned by the bridge.
+.It Cm static Ar interface-name Ar address
+Add a static entry into the address cache pointing to
+.Ar interface-name .
+Static entries are never aged out of the cache or re-placed, even if the
+address is seen on a different interface.
+.It Cm deladdr Ar address
+Delete
+.Ar address
+from the address cache.
+.It Cm flush
+Delete all dynamically-learned addresses from the address cache.
+.It Cm flushall
+Delete all addresses, including static addresses, from the address cache.
+.It Cm discover Ar interface
+Mark an interface as a
+.Dq discovering
+interface.
+When the bridge has no address cache entry
+(either dynamic or static)
+for the destination address of a packet,
+the bridge will forward the packet to all
+member interfaces marked as
+.Dq discovering .
+This is the default for all interfaces added to a bridge.
+.It Cm -discover Ar interface
+Clear the
+.Dq discovering
+attribute on a member interface.
+For packets without the
+.Dq discovering
+attribute, the only packets forwarded on the interface are broadcast
+or multicast packets and packets for which the destination address
+is known to be on the interface's segment.
+.It Cm learn Ar interface
+Mark an interface as a
+.Dq learning
+interface.
+When a packet arrives on such an interface, the source
+address of the packet is entered into the address cache as being a
+destination address on the interface's segment.
+This is the default for all interfaces added to a bridge.
+.It Cm -learn Ar interface
+Clear the
+.Dq learning
+attribute on a member interface.
+.It Cm span Ar interface
+Add the interface named by
+.Ar interface
+as a span port on the bridge.
+Span ports transmit a copy of every frame received by the bridge.
+This is most useful for snooping a bridged network passively on
+another host connected to one of the span ports of the bridge.
+.It Cm -span Ar interface
+Delete the interface named by
+.Ar interface
+from the list of span ports of the bridge.
+.It Cm stp Ar interface
+Enable Spanning Tree protocol on
+.Ar interface .
+The
+.Xr if_bridge 4
+driver has support for the IEEE 802.1D Spanning Tree protocol (STP).
+Spanning Tree is used to detect and remove loops in a network topology.
+.It Cm -stp Ar interface
+Disable Spanning Tree protocol on
+.Ar interface .
+This is the default for all interfaces added to a bridge.
+.It Cm maxage Ar seconds
+Set the time that a Spanning Tree protocol configuration is valid.
+The default is 20 seconds.
+The minimum is 1 second and the maximum is 255 seconds.
+.It Cm fwddelay Ar seconds
+Set the time that must pass before an interface begins forwarding
+packets when Spanning Tree is enabled.
+The default is 15 seconds.
+The minimum is 1 second and the maximum is 255 seconds.
+.It Cm hellotime Ar seconds
+Set the time between broadcasting of Spanning Tree protocol
+configuration messages.
+The default is 2 seconds.
+The minimum is 1 second and the maximum is 255 seconds.
+.It Cm priority Ar value
+Set the bridge priority for Spanning Tree.
+The default is 32768.
+The minimum is 0 and the maximum is 65536.
+.It Cm ifpriority Ar interface Ar value
+Set the Spanning Tree priority of
+.Ar interface
+to
+.Ar value .
+The default is 128.
+The minimum is 0 and the maximum is 255.
+.It Cm ifpathcost Ar interface Ar value
+Set the Spanning Tree path cost of
+.Ar interface
+to
+.Ar value .
+The default is 55.
+The minimum is 0 and the maximum is 65535.
+.El
+.Pp
 The
 .Nm
 utility displays the current configuration for a network interface
