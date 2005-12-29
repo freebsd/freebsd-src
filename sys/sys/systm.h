@@ -294,6 +294,7 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  */
 int	msleep(void *chan, struct mtx *mtx, int pri, const char *wmesg,
 	    int timo);
+int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo);
 #define	tsleep(chan, pri, wmesg, timo)	msleep(chan, NULL, pri, wmesg, timo)
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
