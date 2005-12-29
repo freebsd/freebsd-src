@@ -74,7 +74,6 @@ struct pcb {
 	struct segment_descriptor pcb_gsd;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
 	int	pcb_psl;	/* process status long */
-	void	(*pcb_switchout)(void);	/* Special switchout function. */
 	u_long	pcb_vm86[2];	/* vm86bios scratch space */
 };
 
