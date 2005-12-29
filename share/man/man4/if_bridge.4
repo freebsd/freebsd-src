@@ -88,7 +88,14 @@ inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
 Either stage can be disabled, this behaviour can be controlled using
 .Xr sysctl 8 :
-.Bl -tag -width ".Va net.link.bridge.pfil_member"
+.Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
+.It Va net.link.bridge.pfil_onlyip
+Set to
+.Li 1
+to only allow IP packets to pass when packet filtering is enabled (subject to
+firewall rules), set to
+.Li 0
+to unconditionally pass all non-IP Ethernet frames.
 .It Va net.link.bridge.pfil_member
 Set to
 .Li 1
