@@ -28,6 +28,8 @@
         ..
         gnats
         ..
+        gss
+        ..
         isdn            mode=0700
         ..
         mail
