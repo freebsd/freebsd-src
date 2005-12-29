@@ -12,6 +12,10 @@ docutil
 bin/tests
 lib/tests
 
+# Doc stuff
+doc/arm/latex-fixup.pl
+doc/xsl
+
 # Windows directories
 bin/check/win32
 bin/dig/win32
