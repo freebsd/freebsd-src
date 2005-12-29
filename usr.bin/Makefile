@@ -286,9 +286,7 @@ _vacation=	vacation
 .if !defined(NO_TOOLCHAIN)
 _c89=		c89
 _c99=		c99
-.if ${MACHINE_ARCH} != "powerpc"
 _gprof=		gprof
-.endif
 _lex=		lex
 _xlint=		xlint
 _yacc=		yacc
