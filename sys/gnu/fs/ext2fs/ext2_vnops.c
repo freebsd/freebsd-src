@@ -235,10 +235,6 @@ ext2_create(ap)
 	return (0);
 }
 
-/*
- * Open called.
- */
-
 static int
 ext2_open(ap)
 	struct vop_open_args /* {
@@ -248,8 +244,6 @@ ext2_open(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct inode *ip = VTOI(vp);
 
 	if (ap->a_vp->v_type == VBLK || ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -261,7 +255,7 @@ ext2_open(ap)
 	    (ap->a_mode & (FWRITE | O_APPEND)) == FWRITE)
 		return (EPERM);
 
-	vnode_create_vobject(ap->a_vp, ip->i_size, ap->a_td);
+	vnode_create_vobject(ap->a_vp, VTOI(ap->a_vp)->i_size, ap->a_td);
 
 	return (0);
 }
