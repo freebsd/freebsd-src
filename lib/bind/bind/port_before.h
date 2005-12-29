@@ -20,8 +20,11 @@ struct timezone;        /* silence warning */
 #undef WANT_IRS_PW
 
 #undef BSD_COMP
+#undef HAVE_POLL
+#undef HAVE_MD5
+#undef SOLARIS2
 
-#define DO_PTHREADS 1
+#undef DO_PTHREADS
 #define GETGROUPLIST_ARGS const char *name, gid_t basegid, gid_t *groups, int *ngroups
 #define GETNETBYADDR_ADDR_T long
 #define SETPWENT_VOID 1
@@ -135,6 +138,11 @@ struct timezone;        /* silence warning */
 	__attribute__((__format__(__printf__, fmt, args)))
 #else
 #define ISC_FORMAT_PRINTF(fmt, args)
+#endif
+
+/* Pull in host order macros when _XOPEN_SOURCE_EXTENDED is defined. */
+#if defined(__hpux) && defined(_XOPEN_SOURCE_EXTENDED)
+#include <sys/byteorder.h>
 #endif
 
 #endif
