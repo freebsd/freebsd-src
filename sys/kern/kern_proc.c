@@ -789,6 +789,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		} else {
 			kp->ki_stat = SWAIT;
 		}
+	} else if (p->p_state == PRS_ZOMBIE) {
+		kp->ki_stat = SZOMB;
 	} else {
 		kp->ki_stat = SIDL;
 	}
