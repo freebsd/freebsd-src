@@ -1,51 +1,47 @@
-.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-.\" Copyright (C) 2000, 2001  Internet Software Consortium.
-.\"
+.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001 Internet Software Consortium.
+.\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
-.\"
+.\" 
 .\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 .\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
 .\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 .\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_config.3,v 1.12.2.1.8.1 2004/03/06 07:41:42 marka Exp $
+.\" $Id: lwres_config.3,v 1.12.2.1.8.5 2005/10/13 02:33:58 marka Exp $
 .\"
-.TH "LWRES_CONFIG" "3" "Jun 30, 2000" "BIND9" ""
-.SH NAME
+.hy 0
+.ad l
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "LWRES_CONFIG" "3" "Jun 30, 2000" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
 lwres_conf_init, lwres_conf_clear, lwres_conf_parse, lwres_conf_print, lwres_conf_get \- lightweight resolver configuration
-.SH SYNOPSIS
-\fB#include <lwres/lwres.h>
-.sp
-.na
-void
-lwres_conf_init(lwres_context_t *ctx);
-.ad
-.sp
-.na
-void
-lwres_conf_clear(lwres_context_t *ctx);
-.ad
-.sp
-.na
-lwres_result_t
-lwres_conf_parse(lwres_context_t *ctx, const char *filename);
-.ad
-.sp
-.na
-lwres_result_t
-lwres_conf_print(lwres_context_t *ctx, FILE *fp);
-.ad
-.sp
-.na
-lwres_conf_t *
-lwres_conf_get(lwres_context_t *ctx);
-.ad
-\fR
+.SH "SYNOPSIS"
+.nf
+#include <lwres/lwres.h>
+.fi
+.HP 21
+\fBvoid\ \fBlwres_conf_init\fR\fR\fB(\fR\fBlwres_context_t\ *ctx\fR\fB);\fR
+.HP 22
+\fBvoid\ \fBlwres_conf_clear\fR\fR\fB(\fR\fBlwres_context_t\ *ctx\fR\fB);\fR
+.HP 32
+\fBlwres_result_t\ \fBlwres_conf_parse\fR\fR\fB(\fR\fBlwres_context_t\ *ctx\fR\fB, \fR\fBconst\ char\ *filename\fR\fB);\fR
+.HP 32
+\fBlwres_result_t\ \fBlwres_conf_print\fR\fR\fB(\fR\fBlwres_context_t\ *ctx\fR\fB, \fR\fBFILE\ *fp\fR\fB);\fR
+.HP 30
+\fBlwres_conf_t\ *\ \fBlwres_conf_get\fR\fR\fB(\fR\fBlwres_context_t\ *ctx\fR\fB);\fR
 .SH "DESCRIPTION"
 .PP
 \fBlwres_conf_init()\fR
@@ -55,8 +51,7 @@ structure for lightweight resolver context
 \fIctx\fR.
 .PP
 \fBlwres_conf_clear()\fR
-frees up all the internal memory used by
-that
+frees up all the internal memory used by that
 \fBlwres_conf_t\fR
 structure in resolver context
 \fIctx\fR.
@@ -75,29 +70,24 @@ prints the
 structure for resolver context
 \fIctx\fR
 to the
-\fBFILE\fR
-\fIfp\fR.
+\fBFILE\fR\fIfp\fR.
 .SH "RETURN VALUES"
 .PP
 \fBlwres_conf_parse()\fR
 returns
-LWRES_R_SUCCESS
+\fBLWRES_R_SUCCESS\fR
 if it successfully read and parsed
-\fIfilename\fR.
-It returns
-LWRES_R_FAILURE
+\fIfilename\fR. It returns
+\fBLWRES_R_FAILURE\fR
 if
 \fIfilename\fR
-could not be opened or contained incorrect
-resolver statements.
+could not be opened or contained incorrect resolver statements.
 .PP
 \fBlwres_conf_print()\fR
 returns
-LWRES_R_SUCCESS
-unless an error occurred when converting the network addresses to a
-numeric host address string.
-If this happens, the function returns
-LWRES_R_FAILURE.
+\fBLWRES_R_SUCCESS\fR
+unless an error occurred when converting the network addresses to a numeric host address string. If this happens, the function returns
+\fBLWRES_R_FAILURE\fR.
 .SH "SEE ALSO"
 .PP
 \fBstdio\fR(3),

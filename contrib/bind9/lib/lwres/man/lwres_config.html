@@ -1,282 +1,166 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: lwres_config.html,v 1.4.2.1.4.2 2004/08/22 23:39:03 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->lwres_config</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
->lwres_config</H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN8"
-></A
-><H2
->Name</H2
->lwres_conf_init, lwres_conf_clear, lwres_conf_parse, lwres_conf_print, lwres_conf_get&nbsp;--&nbsp;lightweight resolver configuration</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN15"
-></A
-><H2
->Synopsis</H2
-><DIV
-CLASS="FUNCSYNOPSIS"
-><P
-></P
-><A
-NAME="AEN16"
-></A
-><PRE
-CLASS="FUNCSYNOPSISINFO"
->#include &lt;lwres/lwres.h&gt;</PRE
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->void
-lwres_conf_init</CODE
->(lwres_context_t *ctx);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->void
-lwres_conf_clear</CODE
->(lwres_context_t *ctx);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_result_t
-lwres_conf_parse</CODE
->(lwres_context_t *ctx, const char *filename);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_result_t
-lwres_conf_print</CODE
->(lwres_context_t *ctx, FILE *fp);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->lwres_conf_t *
-lwres_conf_get</CODE
->(lwres_context_t *ctx);</CODE
-></P
-><P
-></P
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN40"
-></A
-><H2
->DESCRIPTION</H2
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_conf_init()</CODE
->
+<!-- $Id: lwres_config.html,v 1.4.2.1.4.9 2005/10/13 02:33:55 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>lwres_config</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p>lwres_conf_init, lwres_conf_clear, lwres_conf_parse, lwres_conf_print, lwres_conf_get &#8212; lightweight resolver configuration</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="funcsynopsis">
+<pre class="funcsynopsisinfo">#include &lt;lwres/lwres.h&gt;</pre>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<td><code class="funcdef">
+void
+<b class="fsfunc">lwres_conf_init</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<td><code class="funcdef">
+void
+<b class="fsfunc">lwres_conf_clear</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
+<td><code class="funcdef">
+lwres_result_t
+<b class="fsfunc">lwres_conf_parse</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
+<td><code class="funcdef">
+lwres_result_t
+<b class="fsfunc">lwres_conf_print</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<td><code class="funcdef">
+lwres_conf_t *
+<b class="fsfunc">lwres_conf_get</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+</div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525910"></a><h2>DESCRIPTION</h2>
+<p>
+<code class="function">lwres_conf_init()</code>
 creates an empty
-<SPAN
-CLASS="TYPE"
->lwres_conf_t</SPAN
->
+<span class="type">lwres_conf_t</span>
 structure for lightweight resolver context
-<VAR
-CLASS="PARAMETER"
->ctx</VAR
->.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_conf_clear()</CODE
->
+<em class="parameter"><code>ctx</code></em>.
+</p>
+<p>
+<code class="function">lwres_conf_clear()</code>
 frees up all the internal memory used by
 that
-<SPAN
-CLASS="TYPE"
->lwres_conf_t</SPAN
->
+<span class="type">lwres_conf_t</span>
 structure in resolver context
-<VAR
-CLASS="PARAMETER"
->ctx</VAR
->.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_conf_parse()</CODE
->
+<em class="parameter"><code>ctx</code></em>.
+</p>
+<p>
+<code class="function">lwres_conf_parse()</code>
 opens the file
-<VAR
-CLASS="PARAMETER"
->filename</VAR
->
+<em class="parameter"><code>filename</code></em>
 and parses it to initialise the resolver context
-<VAR
-CLASS="PARAMETER"
->ctx</VAR
->'s
-<SPAN
-CLASS="TYPE"
->lwres_conf_t</SPAN
->
-structure.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_conf_print()</CODE
->
+<em class="parameter"><code>ctx</code></em>'s
+<span class="type">lwres_conf_t</span>
+structure.
+</p>
+<p>
+<code class="function">lwres_conf_print()</code>
 prints the
-<SPAN
-CLASS="TYPE"
->lwres_conf_t</SPAN
->
+<span class="type">lwres_conf_t</span>
 structure for resolver context
-<VAR
-CLASS="PARAMETER"
->ctx</VAR
->
+<em class="parameter"><code>ctx</code></em>
 to the
-<SPAN
-CLASS="TYPE"
->FILE</SPAN
->
-<VAR
-CLASS="PARAMETER"
->fp</VAR
->.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN61"
-></A
-><H2
->RETURN VALUES</H2
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_conf_parse()</CODE
->
+<span class="type">FILE</span>
+<em class="parameter"><code>fp</code></em>.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525981"></a><h2>RETURN VALUES</h2>
+<p>
+<code class="function">lwres_conf_parse()</code>
 returns
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_SUCCESS</SPAN
->
+<span class="errorcode">LWRES_R_SUCCESS</span>
 if it successfully read and parsed
-<VAR
-CLASS="PARAMETER"
->filename</VAR
->.
+<em class="parameter"><code>filename</code></em>.
 It returns
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_FAILURE</SPAN
->
+<span class="errorcode">LWRES_R_FAILURE</span>
 if
-<VAR
-CLASS="PARAMETER"
->filename</VAR
->
+<em class="parameter"><code>filename</code></em>
 could not be opened or contained incorrect
-resolver statements.</P
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_conf_print()</CODE
->
+resolver statements.
+</p>
+<p>
+<code class="function">lwres_conf_print()</code>
 returns
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_SUCCESS</SPAN
->
+<span class="errorcode">LWRES_R_SUCCESS</span>
 unless an error occurred when converting the network addresses to a
 numeric host address string.
 If this happens, the function returns
-<SPAN
-CLASS="ERRORCODE"
->LWRES_R_FAILURE</SPAN
->.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN73"
-></A
-><H2
->SEE ALSO</H2
-><P
-><SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->stdio</SPAN
->(3)</SPAN
->,
-<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->resolver</SPAN
->(5)</SPAN
->.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN82"
-></A
-><H2
->FILES</H2
-><P
-><TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
-></P
-></DIV
-></BODY
-></HTML
->
+<span class="errorcode">LWRES_R_FAILURE</span>.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526021"></a><h2>SEE ALSO</h2>
+<p>
+<span class="citerefentry"><span class="refentrytitle">stdio</span>(3)</span>,
+<span class="citerefentry"><span class="refentrytitle">resolver</span>(5)</span>.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526048"></a><h2>FILES</h2>
+<p>
+<code class="filename">/etc/resolv.conf</code>
+</p>
+</div>
+</div></body>
+</html>

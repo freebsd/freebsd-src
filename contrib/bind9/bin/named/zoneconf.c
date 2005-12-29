@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.87.2.4.10.13 2004/04/20 14:12:09 marka Exp $ */
+/* $Id: zoneconf.c,v 1.87.2.4.10.15 2005/09/06 02:12:39 marka Exp $ */
 
 #include <config.h>
 
@@ -375,17 +375,30 @@ ns_zone_configure(cfg_obj_t *config, cfg_obj_t *vconfig, cfg_obj_t *zconfig,
 	obj = NULL;
 	result = cfg_map_get(zoptions, "database", &obj);
 	if (result == ISC_R_SUCCESS)
-		cpval = cfg_obj_asstring(obj);
+		cpval = isc_mem_strdup(mctx, cfg_obj_asstring(obj));
 	else
 		cpval = default_dbtype;
-	RETERR(strtoargv(mctx, cpval, &dbargc, &dbargv));
+
+	if (cpval == NULL)
+		return(ISC_R_NOMEMORY);
+
+	result = strtoargv(mctx, cpval, &dbargc, &dbargv);
+	if (result != ISC_R_SUCCESS && cpval != default_dbtype) {
+		isc_mem_free(mctx, cpval);
+		return (result);
+	}
+
 	/*
 	 * ANSI C is strange here.  There is no logical reason why (char **)
 	 * cannot be promoted automatically to (const char * const *) by the
 	 * compiler w/o generating a warning.
 	 */
-	RETERR(dns_zone_setdbtype(zone, dbargc, (const char * const *)dbargv));
+	result = dns_zone_setdbtype(zone, dbargc, (const char * const *)dbargv);
 	isc_mem_put(mctx, dbargv, dbargc * sizeof(*dbargv));
+	if (cpval != default_dbtype)
+		isc_mem_free(mctx, cpval);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 
 	obj = NULL;
 	result = cfg_map_get(zoptions, "file", &obj);

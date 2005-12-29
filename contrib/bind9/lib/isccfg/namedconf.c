@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.21.44.29 2004/10/17 23:19:51 marka Exp $ */
+/* $Id: namedconf.c,v 1.21.44.32 2005/10/26 05:06:40 marka Exp $ */
 
 #include <config.h>
 
@@ -479,7 +479,7 @@ static cfg_type_t cfg_type_hostname = {
 };
 
 /*
- * "server-id" arguement.
+ * "server-id" argument.
  */
 
 static isc_result_t
@@ -619,6 +619,7 @@ options_clauses[] = {
 	{ "use-id-pool", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "use-ixfr", &cfg_type_boolean, 0 },
 	{ "version", &cfg_type_qstringornone, 0 },
+	{ "flush-zones-on-shutdown", &cfg_type_boolean, 0 },
 	{ NULL, NULL, 0 }
 };
 

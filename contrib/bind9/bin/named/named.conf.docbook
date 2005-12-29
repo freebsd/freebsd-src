@@ -1,6 +1,8 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.1.4.2 2004/10/17 23:19:49 marka Exp $ -->
+<!-- $Id: named.conf.docbook,v 1.1.4.4 2005/05/13 01:22:33 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -27,6 +29,14 @@
     <manvolnum>5</manvolnum>
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
+
+  <docinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
 
   <refnamediv>
     <refname><filename>named.conf</filename></refname>
@@ -61,35 +71,35 @@
 
 <refsect1>
 <title>ACL</title>
-<LITERALLAYOUT>
+<literallayout>
 acl <replaceable>string</replaceable> { <replaceable>address_match_element</replaceable>; ... };
 
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>KEY</title>
-<LITERALLAYOUT>
+<literallayout>
 key <replaceable>domain_name</replaceable> {
 	algorithm <replaceable>string</replaceable>;
 	secret <replaceable>string</replaceable>;
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>MASTERS</title>
-<LITERALLAYOUT>
+<literallayout>
 masters <replaceable>string</replaceable> <optional> port <replaceable>integer</replaceable> </optional> {
 	( <replaceable>masters</replaceable> | <replaceable>ipv4_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> |
 	<replaceable>ipv6_address</replaceable> <optional>port <replaceable>integer</replaceable></optional> ) <optional> key <replaceable>string</replaceable> </optional>; ...
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>SERVER</title>
-<LITERALLAYOUT>
+<literallayout>
 server ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) {
 	bogus <replaceable>boolean</replaceable>;
 	edns <replaceable>boolean</replaceable>;
@@ -105,21 +115,21 @@ server ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</re
 
 	support-ixfr <replaceable>boolean</replaceable>; // obsolete
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>TRUSTED-KEYS</title>
-<LITERALLAYOUT>
+<literallayout>
 trusted-keys {
 	<replaceable>domain_name</replaceable> <replaceable>flags</replaceable> <replaceable>protocol</replaceable> <replaceable>algorithm</replaceable> <replaceable>key</replaceable>; ... 
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>CONTROLS</title>
-<LITERALLAYOUT>
+<literallayout>
 controls {
 	inet ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> | * )
 		<optional> port ( <replaceable>integer</replaceable> | * ) </optional>
@@ -127,12 +137,12 @@ controls {
 		<optional> keys { <replaceable>string</replaceable>; ... } </optional>;
 	unix <replaceable>unsupported</replaceable>; // not implemented
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>LOGGING</title>
-<LITERALLAYOUT>
+<literallayout>
 logging {
 	channel <replaceable>string</replaceable> {
 		file <replaceable>log_file</replaceable>;
@@ -146,12 +156,12 @@ logging {
 	};
 	category <replaceable>string</replaceable> { <replaceable>string</replaceable>; ... };
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>LWRES</title>
-<LITERALLAYOUT>
+<literallayout>
 lwres {
 	listen-on <optional> port <replaceable>integer</replaceable> </optional> {
 		( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) <optional> port <replaceable>integer</replaceable> </optional>; ...
@@ -160,12 +170,12 @@ lwres {
 	search { <replaceable>string</replaceable>; ... };
 	ndots <replaceable>integer</replaceable>;
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>OPTIONS</title>
-<LITERALLAYOUT>
+<literallayout>
 options {
 	avoid-v4-udp-ports { <replaceable>port</replaceable>; ... };
 	avoid-v6-udp-ports { <replaceable>port</replaceable>; ... };
@@ -304,12 +314,12 @@ options {
 	treat-cr-as-space <replaceable>boolean</replaceable>; // obsolete
 	use-id-pool <replaceable>boolean</replaceable>; // obsolete
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>VIEW</title>
-<LITERALLAYOUT>
+<literallayout>
 view <replaceable>string</replaceable> <replaceable>optional_class</replaceable> {
 	match-clients { <replaceable>address_match_element</replaceable>; ... };
 	match-destinations { <replaceable>address_match_element</replaceable>; ... };
@@ -423,12 +433,12 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	maintain-ixfr-base <replaceable>boolean</replaceable>; // obsolete
 	max-ixfr-log-size <replaceable>size</replaceable>; // obsolete
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>
 <title>ZONE</title>
-<LITERALLAYOUT>
+<literallayout>
 zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable> {
 	type ( master | slave | stub | hint |
 		forward | delegation-only );
@@ -500,7 +510,7 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	max-ixfr-log-size <replaceable>size</replaceable>; // obsolete
 	pubkey <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>quoted_string</replaceable>; // obsolete
 };
-</LITERALLAYOUT>
+</literallayout>
 </refsect1>
 
 <refsect1>

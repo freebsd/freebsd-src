@@ -1,434 +1,171 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000-2002  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2002 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: host.html,v 1.4.2.1.4.6 2004/08/22 23:38:58 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->host</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
->host</H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN8"
-></A
-><H2
->Name</H2
->host&nbsp;--&nbsp;DNS lookup utility</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN11"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->host</B
->  [<VAR
-CLASS="OPTION"
->-aCdlnrTwv</VAR
->] [<VAR
-CLASS="OPTION"
->-c <VAR
-CLASS="REPLACEABLE"
->class</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-N <VAR
-CLASS="REPLACEABLE"
->ndots</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-R <VAR
-CLASS="REPLACEABLE"
->number</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-t <VAR
-CLASS="REPLACEABLE"
->type</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-W <VAR
-CLASS="REPLACEABLE"
->wait</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-4</VAR
->] [<VAR
-CLASS="OPTION"
->-6</VAR
->] {name} [server]</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN37"
-></A
-><H2
->DESCRIPTION</H2
-><P
-><B
-CLASS="COMMAND"
->host</B
->
+<!-- $Id: host.html,v 1.4.2.1.4.12 2005/10/13 02:33:44 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>host</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p>host &#8212; DNS lookup utility</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">host</code>  [<code class="option">-aCdlnrTwv</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-N <em class="replaceable"><code>ndots</code></em></code>] [<code class="option">-R <em class="replaceable"><code>number</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-W <em class="replaceable"><code>wait</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] {name} [server]</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525901"></a><h2>DESCRIPTION</h2>
+<p>
+<span><strong class="command">host</strong></span>
 is a simple utility for performing DNS lookups.
 It is normally used to convert names to IP addresses and vice versa.
 When no arguments or options are given,
-<B
-CLASS="COMMAND"
->host</B
->
-prints a short summary of its command line arguments and options.</P
-><P
-><VAR
-CLASS="PARAMETER"
->name</VAR
-> is the domain name that is to be looked
+<span><strong class="command">host</strong></span>
+prints a short summary of its command line arguments and options.
+</p>
+<p>
+<em class="parameter"><code>name</code></em> is the domain name that is to be looked
 up.  It can also be a dotted-decimal IPv4 address or a colon-delimited
-IPv6 address, in which case <B
-CLASS="COMMAND"
->host</B
-> will by default
+IPv6 address, in which case <span><strong class="command">host</strong></span> will by default
 perform a reverse lookup for that address.
-<VAR
-CLASS="PARAMETER"
->server</VAR
-> is an optional argument which is either
-the name or IP address of the name server that <B
-CLASS="COMMAND"
->host</B
->
+<em class="parameter"><code>server</code></em> is an optional argument which is either
+the name or IP address of the name server that <span><strong class="command">host</strong></span>
 should query instead of the server or servers listed in
-<TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
->.</P
-><P
->The <VAR
-CLASS="OPTION"
->-a</VAR
-> (all) option is equivalent to setting the
-<VAR
-CLASS="OPTION"
->-v</VAR
-> option and asking <B
-CLASS="COMMAND"
->host</B
-> to make
-a query of type ANY.</P
-><P
->When the <VAR
-CLASS="OPTION"
->-C</VAR
-> option is used, <B
-CLASS="COMMAND"
->host</B
->
+<code class="filename">/etc/resolv.conf</code>.
+</p>
+<p>
+The <code class="option">-a</code> (all) option is equivalent to setting the
+<code class="option">-v</code> option and asking <span><strong class="command">host</strong></span> to make
+a query of type ANY.
+</p>
+<p>
+When the <code class="option">-C</code> option is used, <span><strong class="command">host</strong></span>
 will attempt to display the SOA records for zone
-<VAR
-CLASS="PARAMETER"
->name</VAR
-> from all the listed authoritative name
+<em class="parameter"><code>name</code></em> from all the listed authoritative name
 servers for that zone.  The list of name servers is defined by the NS
-records that are found for the zone.</P
-><P
->The <VAR
-CLASS="OPTION"
->-c</VAR
-> option instructs to make a DNS query of class
-<VAR
-CLASS="PARAMETER"
->class</VAR
->.  This can be used to lookup Hesiod or
-Chaosnet class resource records.  The default class is IN (Internet).</P
-><P
->Verbose output is generated by <B
-CLASS="COMMAND"
->host</B
-> when the
-<VAR
-CLASS="OPTION"
->-d</VAR
-> or <VAR
-CLASS="OPTION"
->-v</VAR
-> option is used.  The two
+records that are found for the zone.
+</p>
+<p>
+The <code class="option">-c</code> option instructs to make a DNS query of class
+<em class="parameter"><code>class</code></em>.  This can be used to lookup Hesiod or
+Chaosnet class resource records.  The default class is IN (Internet).
+</p>
+<p>
+Verbose output is generated by <span><strong class="command">host</strong></span> when the
+<code class="option">-d</code> or <code class="option">-v</code> option is used.  The two
 options are equivalent.  They have been provided for backwards
-compatibility.  In previous versions, the <VAR
-CLASS="OPTION"
->-d</VAR
-> option
-switched on debugging traces and <VAR
-CLASS="OPTION"
->-v</VAR
-> enabled verbose
-output.</P
-><P
->List mode is selected by the <VAR
-CLASS="OPTION"
->-l</VAR
-> option.  This makes
-<B
-CLASS="COMMAND"
->host</B
-> perform a zone transfer for zone
-<VAR
-CLASS="PARAMETER"
->name</VAR
->.  Transfer the zone printing out the NS, PTR
-and address records (A/AAAA).  If combined with <VAR
-CLASS="OPTION"
->-a</VAR
->
-all records will be printed.  </P
-><P
->The <VAR
-CLASS="OPTION"
->-i</VAR
->
+compatibility.  In previous versions, the <code class="option">-d</code> option
+switched on debugging traces and <code class="option">-v</code> enabled verbose
+output.
+</p>
+<p>
+List mode is selected by the <code class="option">-l</code> option.  This makes
+<span><strong class="command">host</strong></span> perform a zone transfer for zone
+<em class="parameter"><code>name</code></em>.  Transfer the zone printing out the NS, PTR
+and address records (A/AAAA).  If combined with <code class="option">-a</code>
+all records will be printed.  
+</p>
+<p>
+The <code class="option">-i</code>
 option specifies that reverse lookups of IPv6 addresses should
 use the IP6.INT domain as defined in RFC1886.
-The default is to use IP6.ARPA.</P
-><P
->The <VAR
-CLASS="OPTION"
->-N</VAR
-> option sets the number of dots that have to be
-in <VAR
-CLASS="PARAMETER"
->name</VAR
-> for it to be considered absolute.  The
+The default is to use IP6.ARPA.
+</p>
+<p>
+The <code class="option">-N</code> option sets the number of dots that have to be
+in <em class="parameter"><code>name</code></em> for it to be considered absolute.  The
 default value is that defined using the ndots statement in
-<TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
->, or 1 if no ndots statement is
+<code class="filename">/etc/resolv.conf</code>, or 1 if no ndots statement is
 present.  Names with fewer dots are interpreted as relative names and
-will be searched for in the domains listed in the <SPAN
-CLASS="TYPE"
->search</SPAN
->
-or <SPAN
-CLASS="TYPE"
->domain</SPAN
-> directive in
-<TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
->.</P
-><P
->The number of UDP retries for a lookup can be changed with the
-<VAR
-CLASS="OPTION"
->-R</VAR
-> option.  <VAR
-CLASS="PARAMETER"
->number</VAR
-> indicates
-how many times <B
-CLASS="COMMAND"
->host</B
-> will repeat a query that does
+will be searched for in the domains listed in the <span class="type">search</span>
+or <span class="type">domain</span> directive in
+<code class="filename">/etc/resolv.conf</code>.
+</p>
+<p>
+The number of UDP retries for a lookup can be changed with the
+<code class="option">-R</code> option.  <em class="parameter"><code>number</code></em> indicates
+how many times <span><strong class="command">host</strong></span> will repeat a query that does
 not get answered.  The default number of retries is 1.  If
-<VAR
-CLASS="PARAMETER"
->number</VAR
-> is negative or zero, the number of
-retries will default to 1.</P
-><P
->Non-recursive queries can be made via the <VAR
-CLASS="OPTION"
->-r</VAR
-> option.
-Setting this option clears the <SPAN
-CLASS="TYPE"
->RD</SPAN
-> &mdash; recursion
-desired &mdash; bit in the query which <B
-CLASS="COMMAND"
->host</B
-> makes.
+<em class="parameter"><code>number</code></em> is negative or zero, the number of
+retries will default to 1.
+</p>
+<p>
+Non-recursive queries can be made via the <code class="option">-r</code> option.
+Setting this option clears the <span class="type">RD</span> &#8212; recursion
+desired &#8212; bit in the query which <span><strong class="command">host</strong></span> makes.
 This should mean that the name server receiving the query will not
-attempt to resolve <VAR
-CLASS="PARAMETER"
->name</VAR
->.  The
-<VAR
-CLASS="OPTION"
->-r</VAR
-> option enables <B
-CLASS="COMMAND"
->host</B
-> to mimic
+attempt to resolve <em class="parameter"><code>name</code></em>.  The
+<code class="option">-r</code> option enables <span><strong class="command">host</strong></span> to mimic
 the behaviour of a name server by making non-recursive queries and
 expecting to receive answers to those queries that are usually
-referrals to other name servers.</P
-><P
->By default <B
-CLASS="COMMAND"
->host</B
-> uses UDP when making queries.  The
-<VAR
-CLASS="OPTION"
->-T</VAR
-> option makes it use a TCP connection when querying
+referrals to other name servers.
+</p>
+<p>
+By default <span><strong class="command">host</strong></span> uses UDP when making queries.  The
+<code class="option">-T</code> option makes it use a TCP connection when querying
 the name server.  TCP will be automatically selected for queries that
-require it, such as zone transfer (AXFR) requests.</P
-><P
->The <VAR
-CLASS="OPTION"
->-4</VAR
-> option forces <B
-CLASS="COMMAND"
->host</B
-> to only
-use IPv4 query transport.  The <VAR
-CLASS="OPTION"
->-6</VAR
-> option forces
-<B
-CLASS="COMMAND"
->host</B
-> to only use IPv6 query transport.</P
-><P
->The <VAR
-CLASS="OPTION"
->-t</VAR
-> option is used to select the query type.
-<VAR
-CLASS="PARAMETER"
->type</VAR
-> can be any recognised query type: CNAME,
+require it, such as zone transfer (AXFR) requests.
+</p>
+<p>
+The <code class="option">-4</code> option forces <span><strong class="command">host</strong></span> to only
+use IPv4 query transport.  The <code class="option">-6</code> option forces
+<span><strong class="command">host</strong></span> to only use IPv6 query transport.
+</p>
+<p>
+The <code class="option">-t</code> option is used to select the query type.
+<em class="parameter"><code>type</code></em> can be any recognised query type: CNAME,
 NS, SOA, SIG, KEY, AXFR, etc.  When no query type is specified,
-<B
-CLASS="COMMAND"
->host</B
-> automatically selects an appropriate query
+<span><strong class="command">host</strong></span> automatically selects an appropriate query
 type.  By default it looks for A records, but if the
-<VAR
-CLASS="OPTION"
->-C</VAR
-> option was given, queries will be made for SOA
-records, and if <VAR
-CLASS="PARAMETER"
->name</VAR
-> is a dotted-decimal IPv4
-address or colon-delimited IPv6 address, <B
-CLASS="COMMAND"
->host</B
-> will
+<code class="option">-C</code> option was given, queries will be made for SOA
+records, and if <em class="parameter"><code>name</code></em> is a dotted-decimal IPv4
+address or colon-delimited IPv6 address, <span><strong class="command">host</strong></span> will
 query for PTR records.  If a query type of IXFR is chosen the starting
 serial number can be specified by appending an equal followed by the
-starting serial number (e.g. -t IXFR=12345678).</P
-><P
->The time to wait for a reply can be controlled through the
-<VAR
-CLASS="OPTION"
->-W</VAR
-> and <VAR
-CLASS="OPTION"
->-w</VAR
-> options.  The
-<VAR
-CLASS="OPTION"
->-W</VAR
-> option makes <B
-CLASS="COMMAND"
->host</B
-> wait for
-<VAR
-CLASS="PARAMETER"
->wait</VAR
-> seconds.  If <VAR
-CLASS="PARAMETER"
->wait</VAR
->
+starting serial number (e.g. -t IXFR=12345678).
+</p>
+<p>
+The time to wait for a reply can be controlled through the
+<code class="option">-W</code> and <code class="option">-w</code> options.  The
+<code class="option">-W</code> option makes <span><strong class="command">host</strong></span> wait for
+<em class="parameter"><code>wait</code></em> seconds.  If <em class="parameter"><code>wait</code></em>
 is less than one, the wait interval is set to one second.  When the
-<VAR
-CLASS="OPTION"
->-w</VAR
-> option is used, <B
-CLASS="COMMAND"
->host</B
-> will
+<code class="option">-w</code> option is used, <span><strong class="command">host</strong></span> will
 effectively wait forever for a reply.  The time to wait for a response
 will be set to the number of seconds given by the hardware's maximum
-value for an integer quantity.</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN115"
-></A
-><H2
->FILES</H2
-><P
-><TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
-></P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN119"
-></A
-><H2
->SEE ALSO</H2
-><P
-><SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->dig</SPAN
->(1)</SPAN
->,
-<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->named</SPAN
->(8)</SPAN
->.</P
-></DIV
-></BODY
-></HTML
->
+value for an integer quantity.
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526241"></a><h2>FILES</h2>
+<p>
+<code class="filename">/etc/resolv.conf</code>
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526253"></a><h2>SEE ALSO</h2>
+<p>
+<span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
+<span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>.
+</p>
+</div>
+</div></body>
+</html>

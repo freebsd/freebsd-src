@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_cidr_ntop.c,v 1.1.2.1.8.2 2004/03/17 00:29:46 marka Exp $";
+static const char rcsid[] = "$Id: inet_cidr_ntop.c,v 1.1.2.1.8.3 2005/11/03 23:08:40 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -178,7 +178,9 @@ inet_cidr_ntop_ipv6(const u_char *src, int bits, char *dst, size_t size) {
 	for (i = 0; i < NS_IN6ADDRSZ; i++)
 		words[i / 2] |= (src[i] << ((1 - (i % 2)) << 3));
 	best.base = -1;
+	best.len = 0;
 	cur.base = -1;
+	cur.len = 0;
 	for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++) {
 		if (words[i] == 0) {
 			if (cur.base == -1)
