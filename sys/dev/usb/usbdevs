@@ -706,6 +706,7 @@ product CANON N656U		0x2206	CanoScan N656U
 product CANON N1220U		0x2207	CanoScan N1220U
 product CANON N676U		0x220d	CanoScan N676U
 product CANON N1240U		0x220e	CanoScan N1240U
+product CANON LIDE25		0x2220	CanoScan LIDE 25
 product CANON S10		0x3041	PowerShot S10
 product CANON S100		0x3045	PowerShot S100
 product CANON S200		0x3065	PowerShot S200
