@@ -15,9 +15,9 @@ DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
 LDADD=	-lssh -lutil -lz
 
 .if !defined(NO_KERBEROS)
-CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_H=1 -DKRB5 -DHEIMDAL
-DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
-LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
+CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
+DPADD+=	 ${LIBGSSAPI}
+LDADD+=	 -lgssapi
 .endif
 
 .if defined(X11BASE)

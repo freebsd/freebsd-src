@@ -56,6 +56,9 @@ RCSID("$FreeBSD$");
 
 #ifdef __FreeBSD__
 #include <resolv.h>
+#ifdef GSSAPI
+#include <gssapi/gssapi.h>
+#endif
 #endif
 
 #include "ssh.h"
@@ -1636,6 +1639,18 @@ main(int ac, char **av)
 		debug("res_init()");         
 		res_init();         
 	}
+#ifdef GSSAPI
+	/*
+	 * Force GSS-API to parse its configuration and load any
+	 * mechanism plugins.
+	 */
+	{
+		gss_OID_set mechs;
+		OM_uint32 minor_status;
+		gss_indicate_mechs(&minor_status, &mechs);
+		gss_release_oid_set(&minor_status, &mechs);
+	}
+#endif
 #endif
 
 	/*

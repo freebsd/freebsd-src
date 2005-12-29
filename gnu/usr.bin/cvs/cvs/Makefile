@@ -32,7 +32,7 @@ DPADD=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
 .if !defined(NO_KERBEROS) && !defined(NO_OPENSSL) && !defined(NO_CRYPT)
-CFLAGS+= -DHAVE_GSSAPI -DHAVE_GSSAPI_H -DENCRYPTION
+CFLAGS+= -DHAVE_GSSAPI -DENCRYPTION
 LDADD+= -lgssapi -lkrb5 -lasn1 -lcrypto -lroken -lcrypt -lcom_err
 DPADD+= ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBROKEN}
 DPADD+= ${LIBCRYPT} ${LIBCOM_ERR}

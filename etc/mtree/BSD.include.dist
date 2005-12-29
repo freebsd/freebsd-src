@@ -121,6 +121,8 @@
     ..
     gpib
     ..
+    gssapi
+    ..
     isofs
         cd9660
         ..
