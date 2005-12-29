@@ -43,6 +43,26 @@ BIND 9
 		Nominum, Inc.
 
 
+BIND 9.3.2
+
+        BIND 9.3.2 is a maintenance release, containing fixes for
+        a number of bugs in 9.3.1.
+
+        libbind: corresponds to that from BIND 8.4.7-REL.
+
+	Known Issues:
+
+	The following INSIST can be triggered with DNSSEC enabled.
+
+resolver.c:762: INSIST(result != 0 || dns_rdataset_isassociated(event->rdataset) || fctx->type == ((dns_rdatatype_t)dns_rdatatype_any) || fctx->type == ((dns_rdatatype_t)dns_rdatatype_rrsig)) failed
+
+	We are still trying to isolate the cause.  If you have core
+	dump please send a bug report to bind9-bugs@isc.org with
+	the location of the core, named executable and OS details.
+	
+	Note: contrib/nanny contains a perl script to restart named
+	in the event of a INSIST/REQUIRE/ENSURE failure.
+
 BIND 9.3.1
 
         BIND 9.3.1 is a maintenance release, containing fixes for
@@ -210,7 +230,7 @@ Building
 		UnixWare 7.1.1
 		HP-UX 10.20
 		BSD/OS 4.2
-		Mac OS X 10.1
+		Mac OS X 10.1, 10.3.8
 
 	To build, just
 
@@ -300,9 +320,11 @@ Building
 	Building with gcc is not supported, unless gcc is the vendor's usual
 	compiler (e.g. the various BSD systems, Linux).
 	
+	Known compiler issues:
 	* gcc-3.2.1 and gcc-3.1.1 is known to cause problems with solaris-x86.
 	* gcc prior to gcc-3.2.3 ultrasparc generates incorrect code at -02.
 	* gcc-3.3.5 powerpc generates incorrect code at -02.
+	* Irix, MipsPRO 7.4.1m is known to cause problems.
 
 	A limited test suite can be run with "make test".  Many of
 	the tests require you to configure a set of virtual IP addresses

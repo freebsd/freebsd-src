@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.5 2004/08/24 00:32:15 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.6 2005/10/11 00:48:14 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -688,7 +688,7 @@ gethostans(struct irs_ho *this,
 {
 	struct pvt *pvt = (struct pvt *)this->private;
 	int type, class, ancount, qdcount, n, haveanswer, had_error;
-	int error = NETDB_SUCCESS, arcount;
+	int error = NETDB_SUCCESS;
 	int (*name_ok)(const char *);
 	const HEADER *hp;
 	const u_char *eom;
@@ -735,7 +735,6 @@ gethostans(struct irs_ho *this,
 	hp = (const HEADER *)ansbuf;
 	ancount = ntohs(hp->ancount);
 	qdcount = ntohs(hp->qdcount);
-	arcount = ntohs(hp->arcount);
 	bp = pvt->hostbuf;
 	ep = pvt->hostbuf + sizeof(pvt->hostbuf);
 	cp = ansbuf + HFIXEDSZ;

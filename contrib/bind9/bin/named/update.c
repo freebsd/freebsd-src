@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.88.2.5.2.25 2004/10/21 01:40:22 marka Exp $ */
+/* $Id: update.c,v 1.88.2.5.2.27 2005/10/08 00:21:06 marka Exp $ */
 
 #include <config.h>
 
@@ -2723,8 +2723,8 @@ updatedone_action(isc_task_t *task, isc_event_t *event) {
 	INSIST(client->nupdates > 0);
 	client->nupdates--;
 	respond(client, uev->result);
-	ns_client_detach(&client);
 	isc_event_free(&event);
+	ns_client_detach(&client);
 }
 
 /*
@@ -2740,8 +2740,8 @@ forward_fail(isc_task_t *task, isc_event_t *event) {
 	INSIST(client->nupdates > 0);
 	client->nupdates--;
 	respond(client, DNS_R_SERVFAIL);
-	ns_client_detach(&client);
 	isc_event_free(&event);
+	ns_client_detach(&client);
 }
 
 

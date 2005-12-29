@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.13.4.30 2004/06/30 14:13:05 marka Exp $ */
+/* $Id: query.c,v 1.198.2.13.4.36 2005/08/11 05:25:20 marka Exp $ */
 
 #include <config.h>
 
@@ -1198,17 +1198,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	 * recursing to add address records, which in turn can cause
 	 * recursion to add KEYs.
 	 */
-	if (type == dns_rdatatype_a || type == dns_rdatatype_aaaa) {
-		/*
-		 * RFC 2535 section 3.5 says that when A or AAAA records are
-		 * retrieved as additional data, any KEY RRs for the owner name
-		 * should be added to the additional data section.
-		 *
-		 * XXXRTH  We should lower the priority here.  Alternatively,
-		 * we could raise the priority of glue records.
-		 */
-		eresult = query_addadditional(client, name, dns_rdatatype_dnskey);
- 	} else if (type == dns_rdatatype_srv && trdataset != NULL) {
+ 	if (type == dns_rdatatype_srv && trdataset != NULL) {
 		/*
 		 * If we're adding SRV records to the additional data
 		 * section, it's helpful if we add the SRV additional data
@@ -1241,8 +1231,6 @@ static inline void
 query_addrdataset(ns_client_t *client, dns_name_t *fname,
 		  dns_rdataset_t *rdataset)
 {
-	dns_rdatatype_t type = rdataset->type;
-
 	/*
 	 * Add 'rdataset' and any pertinent additional data to
 	 * 'fname', a name in the response message for 'client'.
@@ -1266,22 +1254,6 @@ query_addrdataset(ns_client_t *client, dns_name_t *fname,
 	 */
 	(void)dns_rdataset_additionaldata(rdataset,
 					  query_addadditional, client);
-	/*
-	 * RFC 2535 section 3.5 says that when NS, SOA, A, or AAAA records
-	 * are retrieved, any KEY RRs for the owner name should be added
-	 * to the additional data section.  We treat A6 records the same way.
-	 *
-	 * We don't care if query_addadditional() fails.
-	 */
-	if (type == dns_rdatatype_ns || type == dns_rdatatype_soa ||
-	    type == dns_rdatatype_a || type == dns_rdatatype_aaaa ||
-	    type == dns_rdatatype_a6) {
-		/*
-		 * XXXRTH  We should lower the priority here.  Alternatively,
-		 * we could raise the priority of glue records.
-		 */
-		(void)query_addadditional(client, fname, dns_rdatatype_dnskey);
-	}
 	CTRACE("query_addrdataset: done");
 }
 
@@ -2116,33 +2088,37 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 	 * connection was accepted (if allowed by the TCP quota).
 	 */
 	if (client->recursionquota == NULL) {
-		isc_boolean_t killoldest = ISC_FALSE;
 		result = isc_quota_attach(&ns_g_server->recursionquota,
 					  &client->recursionquota);
-		if (result == ISC_R_SOFTQUOTA) {
+		if  (result == ISC_R_SOFTQUOTA) {
 			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
 				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
-				      "recursive-clients limit exceeded, "
+				      "recursive-clients soft limit exceeded, "
 				      "aborting oldest query");
-			killoldest = ISC_TRUE;
+			ns_client_killoldestquery(client);
 			result = ISC_R_SUCCESS;
-		}
-		if (dns_resolver_nrunning(client->view->resolver) >
-		    (unsigned int)ns_g_server->recursionquota.max)
-			result = ISC_R_QUOTA;
-		if (result == ISC_R_SUCCESS && !client->mortal &&
-		    (client->attributes & NS_CLIENTATTR_TCP) == 0)
-			result = ns_client_replace(client);
-		if (result != ISC_R_SUCCESS) {
+		} else if (result == ISC_R_QUOTA) {
 			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
 				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
 				      "no more recursive clients: %s",
 				      isc_result_totext(result));
-			if (client->recursionquota != NULL)
-				isc_quota_detach(&client->recursionquota);
-			return (result);
+			ns_client_killoldestquery(client);
 		}
-		ns_client_recursing(client, killoldest);
+		if (result == ISC_R_SUCCESS && !client->mortal &&
+		    (client->attributes & NS_CLIENTATTR_TCP) == 0) {
+			result = ns_client_replace(client);
+			if (result != ISC_R_SUCCESS) {
+				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+					      NS_LOGMODULE_QUERY,
+					      ISC_LOG_WARNING,
+					      "ns_client_replace() failed: %s",
+					      isc_result_totext(result));
+				isc_quota_detach(&client->recursionquota);
+			}
+		}
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		ns_client_recursing(client);
 	}
 
 	/*
@@ -2317,6 +2293,34 @@ query_addnoqnameproof(ns_client_t *client, dns_rdataset_t *rdataset) {
                 query_putrdataset(client, &nsecsig);
         if (fname != NULL)
                 query_releasename(client, &fname);
+}
+
+static inline void
+answer_in_glue(ns_client_t *client, dns_rdatatype_t qtype) {
+	dns_name_t *name;
+	dns_message_t *msg;
+	dns_section_t section = DNS_SECTION_ADDITIONAL;
+	dns_rdataset_t *rdataset = NULL;
+
+	msg = client->message;
+	for (name = ISC_LIST_HEAD(msg->sections[section]);
+	     name != NULL;
+	     name = ISC_LIST_NEXT(name, link))
+		if (dns_name_equal(name, client->query.qname)) {
+			for (rdataset = ISC_LIST_HEAD(name->list);
+			     rdataset != NULL;
+			     rdataset = ISC_LIST_NEXT(rdataset, link))
+				if (rdataset->type == qtype)
+					break;
+			break;
+		}
+	if (rdataset != NULL) {
+		ISC_LIST_UNLINK(msg->sections[section], name, link);
+		ISC_LIST_PREPEND(msg->sections[section], name, link);
+		ISC_LIST_UNLINK(name->list, rdataset, link);
+		ISC_LIST_PREPEND(name->list, rdataset, link);
+		rdataset->attributes |= DNS_RDATASETATTR_REQUIREDGLUE;
+	}
 }
 
 /*
@@ -2875,7 +2879,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		/*
 		 * Add SOA.  If the query was for a SOA record force the
 		 * ttl to zero so that it is possible for clients to find
-		 * the containing zone of a arbitary name with a stub
+		 * the containing zone of an arbitrary name with a stub
 		 * resolver and not have it cached.
 		 */
 		if (qtype == dns_rdatatype_soa)
@@ -3337,6 +3341,16 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 * send the response.
 		 */
 		setup_query_sortlist(client);
+
+		/*
+		 * If this is a referral and the answer to the question
+		 * is in the glue sort it to the start of the additional
+		 * section.
+		 */
+		if (client->message->counts[DNS_SECTION_ANSWER] == 0 &&
+		    client->message->rcode == dns_rcode_noerror &&
+		    (qtype == dns_rdatatype_a || qtype == dns_rdatatype_aaaa))
+			answer_in_glue(client, qtype);
 
 		if (client->message->rcode == dns_rcode_nxdomain &&
 		    client->view->auth_nxdomain == ISC_TRUE)

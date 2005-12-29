@@ -1,7 +1,9 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001  Internet Software Consortium.
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwres_packet.docbook,v 1.6.206.1 2004/03/06 08:15:42 marka Exp $ -->
+<!-- $Id: lwres_packet.docbook,v 1.6.206.3 2005/05/12 21:36:16 sra Exp $ -->
 
 <refentry>
 
@@ -29,6 +31,19 @@
 <manvolnum>3</manvolnum>
 <refmiscinfo>BIND9</refmiscinfo>
 </refmeta>
+
+  <docinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <holder>Internet Software Consortium.</holder>
+    </copyright>
+  </docinfo>
 
 <refnamediv>
 <refname>lwres_lwpacket_renderheader</refname>
