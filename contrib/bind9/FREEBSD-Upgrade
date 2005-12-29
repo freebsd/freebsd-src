@@ -28,13 +28,13 @@
 
 5) Resolve conflicts.
 
-   As of 17 March 2005, we have no local patches against BIND 9; thus
+   As of 28 December 2005, we have no local patches against BIND 9; thus
    there are no conflicts to merge.  This may change at a later date.
 
 6) Remove any references to the {bin,lib}/tests and docutil
    directories from the configure and Makefile templates:
 
-	$ sed -i.orig -e '/\/tests/d; /docutil/d;' \
+	$ sed -i.orig -e '/\/tests/d; /docutil/d; /\/xsl/d;' \
 		configure.in Makefile.in */Makefile.in
 
    Please do not commit this change, as it would unnecessarily take
