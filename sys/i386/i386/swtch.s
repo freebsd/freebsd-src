@@ -114,12 +114,6 @@ ENTRY(cpu_switch)
 	movl	%gs,PCB_GS(%edx)
 	pushfl					/* PSL */
 	popl	PCB_PSL(%edx)
-	/* Check to see if we need to call a switchout function. */
-	movl	PCB_SWITCHOUT(%edx),%eax
-	cmpl	$0, %eax
-	je	1f
-	call	*%eax
-1:
 	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
 	jz      1f                              /* no, skip over */

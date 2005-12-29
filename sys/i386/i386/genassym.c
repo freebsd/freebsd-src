@@ -140,7 +140,6 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(union savefpu));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
-ASSYM(PCB_SWITCHOUT, offsetof(struct pcb, pcb_switchout));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_VM86CALL, PCB_VM86CALL);
