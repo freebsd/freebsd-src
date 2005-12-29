@@ -857,6 +857,7 @@ product EPSON 3200		0x011c	Perfection 3200 scanner
 product EPSON 1260		0x011d	Perfection 1260 scanner
 product EPSON 1660		0x011e	Perfection 1660 scanner
 product EPSON 1670		0x011f	Perfection 1670 scanner
+product EPSON 2480		0x0121  Perfection 2480 scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial
