@@ -28,7 +28,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
-	${_libio} libipsec \
+	libgssapi ${_libio} libipsec \
 	libipx libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	libpmc ${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
