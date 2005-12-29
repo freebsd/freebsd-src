@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddresses.c,v 1.13.126.6 2004/09/16 01:00:58 marka Exp $ */
+/* $Id: getaddresses.c,v 1.13.126.8 2005/10/14 02:13:06 marka Exp $ */
 
 #include <config.h>
 #include <string.h>
@@ -65,8 +65,8 @@ bind9_getaddresses(const char *hostname, in_port_t port,
 	REQUIRE(addrcount != NULL);
 	REQUIRE(addrsize > 0);
 
-	have_ipv4 = (isc_net_probeipv4() == ISC_R_SUCCESS);
-	have_ipv6 = (isc_net_probeipv6() == ISC_R_SUCCESS);
+	have_ipv4 = ISC_TF((isc_net_probeipv4() == ISC_R_SUCCESS));
+	have_ipv6 = ISC_TF((isc_net_probeipv6() == ISC_R_SUCCESS));
 
 	/*
 	 * Try IPv4, then IPv6.  In order to handle the extended format

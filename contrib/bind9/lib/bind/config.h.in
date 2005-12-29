@@ -1,6 +1,8 @@
 #undef _SOCKADDR_LEN
 #undef HAVE_FCNTL_H
 #undef HAVE_PATHS_H
+#undef HAVE_INTTYPES_H
+#undef HAVE_STROPTS_H
 #undef HAVE_SYS_TIMERS_H
 #undef SYS_CDEFS_H
 #undef _POSIX_PTHREAD_SEMANTICS
@@ -34,6 +36,8 @@
 #undef NEED_SETPASSENT
 
 #undef HAS_PW_CLASS
+
+#undef uintptr_t
 
 /* Shut up warnings about sputaux in stdio.h on BSD/OS pre-4.1 */ 
 #undef SHUTUP_SPUTAUX

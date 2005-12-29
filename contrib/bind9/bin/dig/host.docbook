@@ -1,6 +1,8 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -16,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: host.docbook,v 1.2.2.2.4.5 2004/04/13 01:26:26 marka Exp $ -->
+<!-- $Id: host.docbook,v 1.2.2.2.4.7 2005/05/13 01:22:32 marka Exp $ -->
 
 <refentry>
 
@@ -29,6 +31,20 @@
 <manvolnum>1</manvolnum>
 <refmiscinfo>BIND9</refmiscinfo>
 </refmeta>
+
+  <docinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <holder>Internet Software Consortium.</holder>
+    </copyright>
+  </docinfo>
 
 <refnamediv>
 <refname>host</refname>
@@ -46,8 +62,8 @@
   <arg><option>-W <replaceable class="parameter">wait</replaceable></option></arg>
   <arg><option>-4</option></arg>
   <arg><option>-6</option></arg>
-  <arg choice=req>name</arg>
-  <arg choice=opt>server</arg>
+  <arg choice="req">name</arg>
+  <arg choice="opt">server</arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 

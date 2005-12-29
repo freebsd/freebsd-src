@@ -1,91 +1,80 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: lwres_getrrsetbyname.html,v 1.5.2.1.4.2 2004/08/22 23:39:04 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->lwres_getrrsetbyname</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
->lwres_getrrsetbyname</H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN8"
-></A
-><H2
->Name</H2
->lwres_getrrsetbyname, lwres_freerrset&nbsp;--&nbsp;retrieve DNS records</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN12"
-></A
-><H2
->Synopsis</H2
-><DIV
-CLASS="FUNCSYNOPSIS"
-><P
-></P
-><A
-NAME="AEN13"
-></A
-><PRE
-CLASS="FUNCSYNOPSISINFO"
->#include &lt;lwres/netdb.h&gt;</PRE
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->int
-lwres_getrrsetbyname</CODE
->(const char *hostname, unsigned int rdclass, unsigned int rdtype, unsigned int flags, struct rrsetinfo **res);</CODE
-></P
-><P
-><CODE
-><CODE
-CLASS="FUNCDEF"
->void
-lwres_freerrset</CODE
->(struct rrsetinfo *rrset);</CODE
-></P
-><P
-></P
-></DIV
-><P
->The following structures are used:
-<PRE
-CLASS="PROGRAMLISTING"
->struct  rdatainfo {
+<!-- $Id: lwres_getrrsetbyname.html,v 1.5.2.1.4.9 2005/10/13 02:33:57 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>lwres_getrrsetbyname</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p>lwres_getrrsetbyname, lwres_freerrset &#8212; retrieve DNS records</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="funcsynopsis">
+<pre class="funcsynopsisinfo">#include &lt;lwres/netdb.h&gt;</pre>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
+<td><code class="funcdef">
+int
+<b class="fsfunc">lwres_getrrsetbyname</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<td><code class="funcdef">
+void
+<b class="fsfunc">lwres_freerrset</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+</div>
+<p>
+The following structures are used:
+</p>
+<pre class="programlisting">
+struct  rdatainfo {
         unsigned int            rdi_length;     /* length of data */
         unsigned char           *rdi_data;      /* record data */
 };
@@ -100,261 +89,129 @@ struct  rrsetinfo {
         char                    *rri_name;      /* canonical name */
         struct rdatainfo        *rri_rdatas;    /* individual records */
         struct rdatainfo        *rri_sigs;      /* individual signatures */
-};</PRE
-></P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN29"
-></A
-><H2
->DESCRIPTION</H2
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_getrrsetbyname()</CODE
->
+};
+</pre>
+<p>
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525878"></a><h2>DESCRIPTION</h2>
+<p>
+<code class="function">lwres_getrrsetbyname()</code>
 gets a set of resource records associated with a
-<VAR
-CLASS="PARAMETER"
->hostname</VAR
->,
+<em class="parameter"><code>hostname</code></em>,
 
-<VAR
-CLASS="PARAMETER"
->class</VAR
->,
+<em class="parameter"><code>class</code></em>,
 
 and
-<VAR
-CLASS="PARAMETER"
->type</VAR
->.
+<em class="parameter"><code>type</code></em>.
 
-<VAR
-CLASS="PARAMETER"
->hostname</VAR
->
+<em class="parameter"><code>hostname</code></em>
 is
 a pointer a to null-terminated string.  The
-<VAR
-CLASS="PARAMETER"
->flags</VAR
->
-field is currently unused and must be zero.</P
-><P
->After a successful call to
-<CODE
-CLASS="FUNCTION"
->lwres_getrrsetbyname()</CODE
->,
+<em class="parameter"><code>flags</code></em>
+field is currently unused and must be zero.
+</p>
+<p>
+After a successful call to
+<code class="function">lwres_getrrsetbyname()</code>,
 
-<VAR
-CLASS="PARAMETER"
->*res</VAR
->
+<em class="parameter"><code>*res</code></em>
 is a pointer to an
-<SPAN
-CLASS="TYPE"
->rrsetinfo</SPAN
->
+<span class="type">rrsetinfo</span>
 structure, containing a list of one or more
-<SPAN
-CLASS="TYPE"
->rdatainfo</SPAN
->
+<span class="type">rdatainfo</span>
 structures containing resource records and potentially another list of
-<SPAN
-CLASS="TYPE"
->rdatainfo</SPAN
->
+<span class="type">rdatainfo</span>
 structures containing SIG resource records
 associated with those records.
 The members
-<CODE
-CLASS="CONSTANT"
->rri_rdclass</CODE
->
+<code class="constant">rri_rdclass</code>
 and
-<CODE
-CLASS="CONSTANT"
->rri_rdtype</CODE
->
+<code class="constant">rri_rdtype</code>
 are copied from the parameters.
-<CODE
-CLASS="CONSTANT"
->rri_ttl</CODE
->
+<code class="constant">rri_ttl</code>
 and
-<CODE
-CLASS="CONSTANT"
->rri_name</CODE
->
+<code class="constant">rri_name</code>
 are properties of the obtained rrset.
 The resource records contained in
-<CODE
-CLASS="CONSTANT"
->rri_rdatas</CODE
->
+<code class="constant">rri_rdatas</code>
 and
-<CODE
-CLASS="CONSTANT"
->rri_sigs</CODE
->
+<code class="constant">rri_sigs</code>
 are in uncompressed DNS wire format.
 Properties of the rdataset are represented in the
-<CODE
-CLASS="CONSTANT"
->rri_flags</CODE
->
+<code class="constant">rri_flags</code>
 bitfield.  If the RRSET_VALIDATED bit is set, the data has been DNSSEC
-validated and the signatures verified.  </P
-><P
->All of the information returned by
-<CODE
-CLASS="FUNCTION"
->lwres_getrrsetbyname()</CODE
->
+validated and the signatures verified.  
+</p>
+<p>
+All of the information returned by
+<code class="function">lwres_getrrsetbyname()</code>
 is dynamically allocated: the
-<CODE
-CLASS="CONSTANT"
->rrsetinfo</CODE
->
+<code class="constant">rrsetinfo</code>
 and
-<CODE
-CLASS="CONSTANT"
->rdatainfo</CODE
->
+<code class="constant">rdatainfo</code>
 structures,
 and the canonical host name strings pointed to by the
-<CODE
-CLASS="CONSTANT"
->rrsetinfo</CODE
->structure.
+<code class="constant">rrsetinfo</code>structure.
 
 Memory allocated for the dynamically allocated structures created by
 a successful call to
-<CODE
-CLASS="FUNCTION"
->lwres_getrrsetbyname()</CODE
->
+<code class="function">lwres_getrrsetbyname()</code>
 is released by
-<CODE
-CLASS="FUNCTION"
->lwres_freerrset()</CODE
->.
+<code class="function">lwres_freerrset()</code>.
 
-<VAR
-CLASS="PARAMETER"
->rrset</VAR
->
+<em class="parameter"><code>rrset</code></em>
 is a pointer to a
-<SPAN
-CLASS="TYPE"
->struct rrset</SPAN
->
+<span class="type">struct rrset</span>
 created by a call to
-<CODE
-CLASS="FUNCTION"
->lwres_getrrsetbyname()</CODE
->.&#13;</P
-><P
-></P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN62"
-></A
-><H2
->RETURN VALUES</H2
-><P
-><CODE
-CLASS="FUNCTION"
->lwres_getrrsetbyname()</CODE
->
+<code class="function">lwres_getrrsetbyname()</code>.
+
+</p>
+<p>
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526058"></a><h2>RETURN VALUES</h2>
+<p>
+<code class="function">lwres_getrrsetbyname()</code>
 returns zero on success, and one of the following error
 codes if an error occurred:
-<P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
-><CODE
-CLASS="CONSTANT"
->ERRSET_NONAME</CODE
-></DT
-><DD
-><P
->the name does not exist</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->ERRSET_NODATA</CODE
-></DT
-><DD
-><P
->the name exists, but does not have data of the desired type</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->ERRSET_NOMEMORY</CODE
-></DT
-><DD
-><P
->memory could not be allocated</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->ERRSET_INVAL</CODE
-></DT
-><DD
-><P
->a parameter is invalid</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
->ERRSET_FAIL</CODE
-></DT
-><DD
-><P
->other failure</P
-></DD
-><DT
-><CODE
-CLASS="CONSTANT"
-></CODE
-></DT
-><DD
-><P
-></P
-></DD
-></DL
-></DIV
->&#13;</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN97"
-></A
-><H2
->SEE ALSO</H2
-><P
-><SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->lwres</SPAN
->(3)</SPAN
->.</P
-></DIV
-></BODY
-></HTML
->
+</p>
+<div class="variablelist"><dl>
+<dt><span class="term"><code class="constant">ERRSET_NONAME</code></span></dt>
+<dd><p>
+the name does not exist
+</p></dd>
+<dt><span class="term"><code class="constant">ERRSET_NODATA</code></span></dt>
+<dd><p>
+the name exists, but does not have data of the desired type
+</p></dd>
+<dt><span class="term"><code class="constant">ERRSET_NOMEMORY</code></span></dt>
+<dd><p>
+memory could not be allocated
+</p></dd>
+<dt><span class="term"><code class="constant">ERRSET_INVAL</code></span></dt>
+<dd><p>
+a parameter is invalid
+</p></dd>
+<dt><span class="term"><code class="constant">ERRSET_FAIL</code></span></dt>
+<dd><p>
+other failure
+</p></dd>
+<dt><span class="term"><code class="constant"></code></span></dt>
+<dd><p>
+</p></dd>
+</dl></div>
+<p>
+
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526132"></a><h2>SEE ALSO</h2>
+<p>
+<span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>.
+</p>
+</div>
+</div></body>
+</html>
