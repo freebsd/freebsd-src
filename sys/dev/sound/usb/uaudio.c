@@ -3838,8 +3838,8 @@ uaudio_init_params(struct uaudio_softc *sc, struct chan *ch, int mode)
 				if (a1d->bSamFreqType == UA_SAMP_CONTNUOUS) {
 					DPRINTFN(2,("uaudio_set_params: cont %d-%d\n",
 					    UA_SAMP_LO(a1d), UA_SAMP_HI(a1d)));
-					if (UA_SAMP_LO(a1d) < ch->sample_rate &&
-					    ch->sample_rate < UA_SAMP_HI(a1d)) {
+					if (UA_SAMP_LO(a1d) <= ch->sample_rate &&
+					    ch->sample_rate <= UA_SAMP_HI(a1d)) {
 						if (mode == AUMODE_PLAY)
 							sc->sc_playchan.altidx = i;
 						else
