@@ -379,8 +379,8 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 */
 	DPRINTF(("%s: media sectorsize %u, mediasize %lld\n",
 	    gp->name, pp->sectorsize, pp->mediasize));
-	buf = g_read_data(cp, 0, pp->sectorsize, &error);
-	if (buf == NULL || error != 0)
+	buf = g_read_data(cp, 0, pp->sectorsize, NULL);
+	if (buf == NULL)
 		goto err;
 	header = (struct cloop_header *) buf;
 	if (strncmp(header->magic, CLOOP_MAGIC_START,
@@ -429,8 +429,8 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 		free(buf, M_GEOM);
 		buf = g_read_data(
-		    cp, blk * pp->sectorsize, pp->sectorsize, &error);
-		if (buf == NULL || error != 0)
+		    cp, blk * pp->sectorsize, pp->sectorsize, NULL);
+		if (buf == NULL)
 			goto err;
 		nread = MIN(total_offsets - offsets_read,
 		     pp->sectorsize / sizeof(uint64_t));

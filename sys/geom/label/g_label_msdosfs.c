@@ -49,14 +49,14 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
 	char *sector, *volume;
-	int i, error;
+	int i;
 
 	g_topology_assert_not();
 	pp = cp->provider;
 	label[0] = '\0';
 
-	sector = (char *)g_read_data(cp, 0, pp->sectorsize, &error);
-	if (sector == NULL || error != 0)
+	sector = (char *)g_read_data(cp, 0, pp->sectorsize, NULL);
+	if (sector == NULL)
 		return;
 	if (strncmp(sector + 0x36, FAT12, strlen(FAT12)) == 0) {
 		G_LABEL_DEBUG(1, "MSDOS (FAT12) file system detected on %s.",
