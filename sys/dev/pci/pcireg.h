@@ -116,6 +116,7 @@
 
 #define PCIR_BARS	0x10
 #define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
+#define PCI_RID2BAR(rid) (1<<(((rid)-PCIR_BARS)/4))
 #define PCIR_CIS	0x28
 #define PCIM_CIS_ASI_MASK	0x7
 #define PCIM_CIS_ASI_TUPLE	0
