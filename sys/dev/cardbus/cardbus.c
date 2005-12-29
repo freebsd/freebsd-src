@@ -670,7 +670,8 @@ static device_method_t cardbus_methods[] = {
 };
 
 DECLARE_CLASS(pci_driver);
-DEFINE_CLASS_1(cardbus, cardbus_driver, cardbus_methods, 0, pci_driver);
+DEFINE_CLASS_1(cardbus, cardbus_driver, cardbus_methods,
+    sizeof(struct cardbus_softc), pci_driver);
 
 static devclass_t cardbus_devclass;
 
