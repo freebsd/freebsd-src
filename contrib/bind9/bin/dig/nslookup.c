@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.90.2.4.2.8 2004/09/06 01:33:05 marka Exp $ */
+/* $Id: nslookup.c,v 1.90.2.4.2.10 2005/07/12 05:47:42 marka Exp $ */
 
 #include <config.h>
 
@@ -43,19 +43,6 @@
 #include <dns/byaddr.h>
 
 #include <dig/dig.h>
-
-extern ISC_LIST(dig_lookup_t) lookup_list;
-extern dig_serverlist_t server_list;
-extern ISC_LIST(dig_searchlist_t) search_list;
-
-extern isc_boolean_t usesearch, debugging;
-extern in_port_t port;
-extern unsigned int timeout;
-extern isc_mem_t *mctx;
-extern int tries;
-extern int lookup_counter;
-extern isc_task_t *global_task;
-extern char *progname;
 
 static isc_boolean_t short_form = ISC_TRUE,
 	tcpmode = ISC_FALSE,

@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.83.2.5.2.10 $)
+AC_REVISION($Revision: 1.83.2.5.2.22 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -169,12 +169,12 @@ AC_PROG_CC
 AC_HEADER_STDC
 
 
-AC_CHECK_HEADERS(fcntl.h db.h paths.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/timers.h)
-
+AC_CHECK_HEADERS(fcntl.h db.h paths.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/timers.h stropts.h)
 
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
+AC_CHECK_TYPE(uintptr_t,unsigned long)
 AC_HEADER_TIME
 #
 # check if we need to #include sys/select.h explicitly
@@ -315,86 +315,7 @@ case "$use_randomdev" in
 		;;
 esac
 
-#
-# Begin pthreads checking.
-#
-# First, decide whether to use multithreading or not.
-#
-AC_MSG_CHECKING(whether to look for thread support)
-AC_ARG_ENABLE(threads,
-	[  --disable-threads	disable multithreading])
-case "$enable_threads" in
-	yes|'')
-		AC_MSG_RESULT(yes)
-		use_threads=true
-		;;
-	no)
-		AC_MSG_RESULT(no)	
-		use_threads=false
-		;;
-	*)
-	    	AC_MSG_ERROR([--enable-threads takes yes or no])
-		;;
-esac
-
-if $use_threads
-then
-	#
-	# Search for / configure pthreads in a system-dependent fashion.
-	#
-	case "$host" in
-	  *-netbsd*)
-		# NetBSD has multiple pthreads implementations.	 The
-		# recommended one to use is "unproven-pthreads".  The
-		# older "mit-pthreads" may also work on some NetBSD
-		# versions.  The PTL2 thread library does not
-		# currently work with bind9, but can be chosen with
-		# the --with-ptl2 option for those who wish to
-		# experiment with it.
-		CC="gcc"
-		AC_MSG_CHECKING(which NetBSD thread library to use)
-
-		AC_ARG_WITH(ptl2,
-[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
-		    use_ptl2="$withval", use_ptl2="no")
-
-		: ${LOCALBASE:=/usr/pkg}
-
-		if test "X$use_ptl2" = "Xyes"
-		then
-			AC_MSG_RESULT(PTL2)
-			AC_MSG_WARN(
-[linking with PTL2 is highly experimental and not expected to work])
-			CC=ptlgcc
-		else
-			if test ! -d $LOCALBASE/pthreads
-			then
-				AC_MSG_RESULT(none)
-				use_threads=false
-			fi
-
-			if $use_threads
-			then
-				AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
-				pkg="$LOCALBASE/pthreads"
-				lib1="-L$pkg/lib -Wl,-R$pkg/lib"
-				lib2="-lpthread -lm -lgcc -lpthread"
-				LIBS="$lib1 $lib2 $LIBS"
-				CPPFLAGS="$CPPFLAGS -I$pkg/include"
-				STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
-			fi
-		fi
-		;;
-		*)
-			AC_CHECK_LIB(pthread, pthread_create,,
-				AC_CHECK_LIB(pthread, __pthread_create,,
-				AC_CHECK_LIB(pthread, __pthread_create_system,,
-				AC_CHECK_LIB(c_r, pthread_create,,
-				AC_CHECK_LIB(c, pthread_create,,
-				use_threads=false)))))
-		;;
-	esac
-fi
+sinclude(../../config.threads.in)dnl
 
 if $use_threads
 then
@@ -451,6 +372,7 @@ then
 			AC_DEFINE(POSIX_GETGRNAM_R)
 			;;
 		*hpux11*)
+			AC_DEFINE(NEED_ENDNETGRENT_R)
 			AC_DEFINE(_PTHREADS_DRAFT4)
 			;;
 		#
@@ -503,11 +425,17 @@ then
 			;;
 		esac
 	fi
+	AC_DEFINE(_REENTRANT)
 	ALWAYS_DEFINES="-D_REENTRANT"
 	DO_PTHREADS="#define DO_PTHREADS 1"
 	WANT_IRS_THREADSGR_OBJS="\${WANT_IRS_THREADSGR_OBJS}"
 	WANT_IRS_THREADSPW_OBJS="\${WANT_IRS_THREADSPW_OBJS}"
-	WANT_IRS_THREADS_OBJS="\${WANT_IRS_THREADS_OBJS}"
+	case $host in
+	ia64-hp-hpux11.*)
+		WANT_IRS_THREADS_OBJS="";;
+	*)
+		WANT_IRS_THREADS_OBJS="\${WANT_IRS_THREADS_OBJS}";;
+	esac
 	WANT_THREADS_OBJS="\${WANT_THREADS_OBJS}"
 	thread_dir=pthreads
 else
@@ -520,14 +448,14 @@ else
 	thread_dir=nothreads
 fi
 
-AC_CHECK_FUNC(strlcat, AC_DEFINE(HAVE_STRLCAT))
-
 AC_SUBST(ALWAYS_DEFINES)
 AC_SUBST(DO_PTHREADS)
 AC_SUBST(WANT_IRS_THREADSGR_OBJS)
 AC_SUBST(WANT_IRS_THREADSPW_OBJS)
 AC_SUBST(WANT_IRS_THREADS_OBJS)
 AC_SUBST(WANT_THREADS_OBJS)
+
+AC_CHECK_FUNC(strlcat, AC_DEFINE(HAVE_STRLCAT))
 
 AC_CHECK_FUNC(if_nametoindex,
 	[USE_IFNAMELINKID="#define USE_IFNAMELINKID 1"],
@@ -605,7 +533,7 @@ else
 			;;
 		*)
 			# Turn off the pointlessly noisy warnings.
-			STD_CWARNINGS="+w1 +W 474,530"
+			STD_CWARNINGS="+w1 +W 474,530,2193,2236"
 			;;
 		esac
 		CCOPT="$CCOPT -Ae -z"
@@ -665,6 +593,10 @@ AC_CHECK_FUNC(catgets, AC_DEFINE(HAVE_CATGETS),)
 #
 case "$host" in
 	mips-sgi-irix*)
+		;;
+	ia64-hp-hpux11.*)
+		AC_CHECK_LIB(socket, socket)
+		AC_CHECK_LIB(nsl, inet_ntoa)
 		;;
 	*)
 		AC_CHECK_LIB(d4r, gethostbyname_r)
@@ -1075,6 +1007,10 @@ PORT_DIR=port/unknown
 SOLARIS_BITTYPES="#undef NEED_SOLARIS_BITTYPES"
 BSD_COMP="#undef BSD_COMP"
 USE_FIONBIO_IOCTL="#undef USE_FIONBIO_IOCTL"
+PORT_NONBLOCK="#define PORT_NONBLOCK O_NONBLOCK"
+HAVE_MD5="#undef HAVE_MD5"
+USE_POLL="#undef HAVE_POLL"
+SOLARIS2="#undef SOLARIS2"
 case "$host" in
 	*aix3.2*)	PORT_DIR="port/aix32";;
 	*aix4*)		PORT_DIR="port/aix4";;
@@ -1082,7 +1018,9 @@ case "$host" in
 	*aux3*)		PORT_DIR="port/aux3";;
 	*-bsdi2*)	PORT_DIR="port/bsdos2";;
 	*-bsdi*)	PORT_DIR="port/bsdos";;
-	*-cygwin*)	PORT_DIR="port/cygwin";;
+	*-cygwin*)
+			PORT_NONBLOCK="#define PORT_NONBLOCK O_NDELAY"
+			PORT_DIR="port/cygwin";;
 	*-darwin*)	PORT_DIR="port/darwin";;
 	*-osf*)		PORT_DIR="port/decunix";;
 	*-freebsd*)	PORT_DIR="port/freebsd";;
@@ -1098,29 +1036,45 @@ case "$host" in
 	*-openbsd*)	PORT_DIR="port/openbsd";;
 	*-qnx*)		PORT_DIR="port/qnx";;
 	*-rhapsody*)	PORT_DIR="port/rhapsody";;
-	*-solaris2.[[01234]]*)
+	*-sunos4*)
+			PORT_NONBLOCK="#define PORT_NONBLOCK O_NDELAY"
+			PORT_DIR="port/sunos";;
+	*-solaris2.[[01234]])
 			BSD_COMP="#define BSD_COMP 1"
 			SOLARIS_BITTYPES="#define NEED_SOLARIS_BITTYPES 1"
 			USE_FIONBIO_IOCTL="#define USE_FIONBIO_IOCTL 1"
+			SOLARIS2="#define SOLARIS2 1"
 			PORT_DIR="port/solaris";;
-	*-solaris2.5*)
+	*-solaris2.5)
 			BSD_COMP="#define BSD_COMP 1"
 			SOLARIS_BITTYPES="#define NEED_SOLARIS_BITTYPES 1"
+			SOLARIS2="#define SOLARIS2 1"
+			PORT_DIR="port/solaris";;
+	*-solaris2.[[67]])
+			BSD_COMP="#define BSD_COMP 1"
+			SOLARIS2="#define SOLARIS2 1"
 			PORT_DIR="port/solaris";;
 	*-solaris2*)	BSD_COMP="#define BSD_COMP 1"
+			USE_POLL="#define USE_POLL 1"
+			HAVE_MD5="#define HAVE_MD5 1"
+			SOLARIS2="#define SOLARIS2 1"
 			PORT_DIR="port/solaris";;
 	*-ultrix*)	PORT_DIR="port/ultrix";;
 	*-sco-sysv*uw2.0*)	PORT_DIR="port/unixware20";;
 	*-sco-sysv*uw2.1.2*)	PORT_DIR="port/unixware212";;
 	*-sco-sysv*uw7*)	PORT_DIR="port/unixware7";;
 esac
+
 AC_SUBST(BSD_COMP)
 AC_SUBST(SOLARIS_BITTYPES)
 AC_SUBST(USE_FIONBIO_IOCTL)
+AC_SUBST(PORT_NONBLOCK)
 AC_SUBST(PORT_DIR)
+AC_SUBST(USE_POLL)
+AC_SUBST(HAVE_MD5)
+AC_SUBST(SOLARIS2)
 PORT_INCLUDE=${PORT_DIR}/include
 AC_SUBST(PORT_INCLUDE)
-
 
 #
 # Look for a 4.4BSD or 4.3BSD struct msghdr
@@ -1365,6 +1319,10 @@ AC_SUBST(GETGROUPLIST_ARGS)
 
 AC_CHECK_FUNC(setgroupent,,AC_DEFINE(NEED_SETGROUPENT))
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(getnetbyaddr_r,
 AC_TRY_COMPILE(
 [
@@ -1453,6 +1411,26 @@ NET_R_RETURN="#define NET_R_RETURN int"
 GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T long"
 NETENT_DATA="#define NETENT_DATA 1"
 ],
+AC_TRY_COMPILE(
+#undef __USE_MISC
+#define __USE_MISC
+[#include <netdb.h>
+int getnetbyaddr_r (uint32_t, int, struct netent *,
+                    char *, size_t, struct netent **, int *);
+],
+[return (0)],
+[
+NET_R_ARGS="#define NET_R_ARGS char *buf, size_t buflen, struct netent **answerp, int *h_errnop"
+NET_R_BAD="#define NET_R_BAD ERANGE"
+NET_R_COPY="#define NET_R_COPY buf, buflen"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS char *buf, size_t buflen"
+NET_R_OK="#define NET_R_OK 0"
+NET_R_SETANSWER="#define NET_R_SETANSWER 1"
+NET_R_RETURN="#define NET_R_RETURN int"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T unsigned long int"
+NETENT_DATA="#undef NETENT_DATA"
+],
+)
 )
 )
 )
@@ -1468,6 +1446,8 @@ NET_R_RETURN="#define NET_R_RETURN struct netent *"
 GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T long"
 NETENT_DATA="#undef NETENT_DATA"
 )
+esac
+
 case "$host" in
 *dec-osf*) GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T int" ;;
 esac
@@ -1516,6 +1496,11 @@ AC_SUBST(NET_R_ENT_ARGS)
 AC_SUBST(NET_R_SET_RESULT)
 AC_SUBST(NET_R_SET_RETURN)
 
+
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(endnetent_r,
 AC_TRY_COMPILE(
 [
@@ -1560,6 +1545,7 @@ NET_R_END_RETURN="#define NET_R_END_RETURN void"
 NET_R_END_RESULT="#define NET_R_END_RESULT(x) /*empty*/"
 NET_R_END_RETURN="#define NET_R_END_RETURN void"
 )
+esac
 AC_SUBST(NET_R_END_RESULT)
 AC_SUBST(NET_R_END_RETURN)
 
@@ -1612,6 +1598,10 @@ AC_SUBST(GROUP_R_SET_RESULT)
 AC_SUBST(GROUP_R_SET_RETURN)
 
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(gethostbyname_r,
 AC_TRY_COMPILE(
 [
@@ -1646,7 +1636,7 @@ HOST_R_ARGS="#define HOST_R_ARGS struct hostent_data *hdptr"
 HOST_R_BAD="#define HOST_R_BAD (-1)"
 HOST_R_COPY="#define HOST_R_COPY hdptr"
 HOST_R_COPY_ARGS="#define HOST_R_COPY_ARGS HOST_R_ARGS"
-HOST_R_ERRNO="#define HOST_R_ERRNO NULL"
+HOST_R_ERRNO="#undef HOST_R_ERRNO"
 HOST_R_OK="#define HOST_R_OK 0"
 HOST_R_RETURN="#define HOST_R_RETURN int"
 HOST_R_SETANSWER="#undef HOST_R_SETANSWER"
@@ -1684,6 +1674,7 @@ HOST_R_RETURN="#define HOST_R_RETURN struct hostent *"
 HOST_R_SETANSWER="#undef HOST_R_SETANSWER"
 HOSTENT_DATA="#undef HOSTENT_DATA"
 )
+esac
 AC_SUBST(HOST_R_ARGS)
 AC_SUBST(HOST_R_BAD)
 AC_SUBST(HOST_R_COPY)
@@ -1694,6 +1685,10 @@ AC_SUBST(HOST_R_RETURN)
 AC_SUBST(HOST_R_SETANSWER)
 AC_SUBST(HOSTENT_DATA)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(endhostent_r,
 AC_TRY_COMPILE([
 #undef _REENTRANT
@@ -1739,10 +1734,15 @@ HOST_R_END_RESULT="#define HOST_R_END_RESULT(x) /*empty*/"
 HOST_R_END_RETURN="#define HOST_R_END_RETURN void"
 HOST_R_ENT_ARGS="#undef HOST_R_ENT_ARGS /*empty*/"
 )
+esac;
 AC_SUBST(HOST_R_END_RESULT)
 AC_SUBST(HOST_R_END_RETURN)
 AC_SUBST(HOST_R_ENT_ARGS)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(sethostent_r,
 AC_TRY_COMPILE([
 #undef _REENTRANT
@@ -1778,6 +1778,7 @@ HOST_R_SET_RETURN="#define HOST_R_SET_RETURN void"],
 HOST_R_SET_RESULT="#undef HOST_R_SET_RESULT"
 HOST_R_SET_RETURN="#define HOST_R_SET_RETURN void"
 )
+esac
 AC_SUBST(HOST_R_SET_RESULT)
 AC_SUBST(HOST_R_SET_RETURN)
 
@@ -1819,6 +1820,10 @@ SETGRENT_VOID="#undef SETGRENT_VOID"
 )
 AC_SUBST(SETGRENT_VOID)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(getnetgrent_r,
 AC_TRY_COMPILE(
 [
@@ -1886,6 +1891,7 @@ NGR_R_COPY_ARGS="#define NGR_R_COPY_ARGS NGR_R_ARGS"
 NGR_R_OK="#define NGR_R_OK 1"
 NGR_R_RETURN="#define NGR_R_RETURN int"
 )
+esac
 AC_SUBST(NGR_R_ARGS)
 AC_SUBST(NGR_R_BAD)
 AC_SUBST(NGR_R_COPY)
@@ -1930,6 +1936,10 @@ AC_SUBST(NGR_R_SET_RETURN)
 
 AC_CHECK_FUNC(innetgr_r,,AC_DEFINE(NEED_INNETGR_R))
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(getprotoent_r,
 AC_TRY_COMPILE(
 [
@@ -1984,6 +1994,7 @@ PROTO_R_OK="#define PROTO_R_OK pptr"
 PROTO_R_SETANSWER="#undef PROTO_R_SETANSWER"
 PROTO_R_RETURN="#define PROTO_R_RETURN struct protoent *"
 )
+esac
 AC_SUBST(PROTO_R_ARGS)
 AC_SUBST(PROTO_R_BAD)
 AC_SUBST(PROTO_R_COPY)
@@ -1992,6 +2003,10 @@ AC_SUBST(PROTO_R_OK)
 AC_SUBST(PROTO_R_SETANSWER)
 AC_SUBST(PROTO_R_RETURN)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(endprotoent_r,
 AC_TRY_COMPILE(
 [
@@ -2015,10 +2030,15 @@ PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) /*empty*/"
 PROTO_R_END_RETURN="#define PROTO_R_END_RETURN void"
 PROTO_R_ENT_ARGS="#undef PROTO_R_ENT_ARGS /*empty*/"
 )
+esac
 AC_SUBST(PROTO_R_END_RESULT)
 AC_SUBST(PROTO_R_END_RETURN)
 AC_SUBST(PROTO_R_ENT_ARGS)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(setprotoent_r,
 AC_TRY_COMPILE(
 [
@@ -2037,6 +2057,7 @@ PROTO_R_SET_RETURN="#define PROTO_R_SET_RETURN void"
 PROTO_R_SET_RESULT="#undef PROTO_R_SET_RESULT"
 PROTO_R_SET_RETURN="#define PROTO_R_SET_RETURN void"
 )
+esac
 AC_SUBST(PROTO_R_SET_RESULT)
 AC_SUBST(PROTO_R_SET_RETURN)
 
@@ -2126,6 +2147,10 @@ AC_SUBST(PASS_R_SET_RETURN)
 AC_CHECK_FUNC(getpwnam_r,,AC_DEFINE(NEED_GETPWNAM_R))
 AC_CHECK_FUNC(getpwuid_r,,AC_DEFINE(NEED_GETPWUID_R))
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(getservent_r,
 AC_TRY_COMPILE([
 #undef __USE_MISC
@@ -2172,6 +2197,7 @@ SERV_R_OK="#define SERV_R_OK sptr"
 SERV_R_SETANSWER="#undef SERV_R_SETANSWER"
 SERV_R_RETURN="#define SERV_R_RETURN struct servent *"
 )
+esac
 AC_SUBST(SERV_R_ARGS)
 AC_SUBST(SERV_R_BAD)
 AC_SUBST(SERV_R_COPY)
@@ -2180,6 +2206,10 @@ AC_SUBST(SERV_R_OK)
 AC_SUBST(SERV_R_SETANSWER)
 AC_SUBST(SERV_R_RETURN)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(endservent_r,
 AC_TRY_COMPILE(
 [
@@ -2204,10 +2234,15 @@ SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) /*empty*/"
 SERV_R_END_RETURN="#define SERV_R_END_RETURN void "
 SERV_R_ENT_ARGS="#undef SERV_R_ENT_ARGS /*empty*/"
 )
+esac
 AC_SUBST(SERV_R_END_RESULT)
 AC_SUBST(SERV_R_END_RETURN)
 AC_SUBST(SERV_R_ENT_ARGS)
 
+case $host in
+ia64-hp-hpux11.*)
+;;
+*)
 AC_CHECK_FUNC(setservent_r,
 AC_TRY_COMPILE(
 [
@@ -2229,6 +2264,7 @@ SERV_R_SET_RETURN="#define SERV_R_SET_RETURN void"
 SERV_R_SET_RESULT="#undef SERV_R_SET_RESULT"
 SERV_R_SET_RETURN="#define SERV_R_SET_RETURN void"
 )
+esac
 AC_SUBST(SERV_R_SET_RESULT)
 AC_SUBST(SERV_R_SET_RETURN)
 
@@ -2327,7 +2363,6 @@ case "$host" in
 		hack_shutup_in6addr_init_macros=yes
 		;;
 	*-solaris2.8)
-		hack_shutup_pthreadmutexinit=yes
 		hack_shutup_in6addr_init_macros=yes
 		;;
 	*-solaris2.9)

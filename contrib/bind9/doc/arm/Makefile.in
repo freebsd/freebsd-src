@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001, 2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.8.2.2.8.3 2004/03/08 09:04:24 marka Exp $
+# $Id: Makefile.in,v 1.8.2.2.8.5 2005/05/13 01:22:35 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -23,47 +23,41 @@ top_srcdir =	@top_srcdir@
 
 MANOBJS = Bv9ARM.html
 
+PDFOBJS = Bv9ARM.pdf
+
 distclean::
 	rm -f validate.sh
 	rm -f nominum-docbook-html.dsl nominum-docbook-print.dsl
 	rm -f HTML.index HTML.manifest
 
-doc man:: ${MANOBJS}
+doc man:: ${MANOBJS} ${PDFOBJS}
 
-docclean manclean maintainer-clean::
-	rm -f *.html
+clean::
+	rm -f Bv9ARM.aux Bv9ARM.brf Bv9ARM.glo Bv9ARM.idx
+	rm -f Bv9ARM.log Bv9ARM.out Bv9ARM.tex Bv9ARM.tex.tmp
 
-Bv9ARM.html: Bv9ARM-book.xml nominum-docbook-html.dsl
-	${OPENJADE} -v \
-	    -c ${SGMLCATALOG} \
-	    -t sgml \
-	    -d ./nominum-docbook-html.dsl \
-	    ${XMLDCL} ./Bv9ARM-book.xml
-	rm -f HTML.index HTML.manifest
+docclean manclean maintainer-clean:: clean
+	rm -f *.html *.pdf
 
-Bv9ARM-book.rtf: Bv9ARM-book.xml nominum-docbook-print.dsl
-	${OPENJADE} -v \
-	    -c ${SGMLCATALOG} \
-	    -t rtf \
-	    -d ./nominum-docbook-print.dsl \
-	    ${XMLDCL} ./Bv9ARM-book.xml
+Bv9ARM.html: Bv9ARM-book.xml
+	${XSLTPROC} --stringparam root.filename Bv9ARM \
+		${top_srcdir}/doc/xsl/isc-docbook-chunk.xsl \
+		Bv9ARM-book.xml
 
-Bv9ARM-book.tex: Bv9ARM-book.xml nominum-docbook-print.dsl
-	${OPENJADE} -v \
-	     -c ${SGMLCATALOG} \
-	     -d ./nominum-docbook-print.dsl \
-	     -t tex \
-	     ${XMLDCL} ./Bv9ARM-book.xml
+Bv9ARM.tex: Bv9ARM-book.xml
+	${XSLTPROC} ${top_srcdir}/doc/xsl/pre-latex.xsl Bv9ARM-book.xml | \
+	${XSLTPROC} ${top_srcdir}/doc/xsl/isc-docbook-latex.xsl - | \
+	@PERL@ latex-fixup.pl >$@.tmp 
+	if test -s $@.tmp; then mv $@.tmp $@; else rm -f $@.tmp; exit 1; fi
 
-Bv9ARM-book.dvi: Bv9ARM-book.tex
+Bv9ARM.dvi: Bv9ARM.tex
 	rm -f Bv9ARM-book.aux Bv9ARM-book.dvi Bv9ARM-book.log
-	${JADETEX} ./Bv9ARM-book.tex || true
-	${JADETEX} ./Bv9ARM-book.tex || true
-	${JADETEX} ./Bv9ARM-book.tex || true
+	${LATEX} '\batchmode\input Bv9ARM.tex' || rm -f $@
+	${LATEX} '\batchmode\input Bv9ARM.tex' || rm -f $@
+	${LATEX} '\batchmode\input Bv9ARM.tex' || rm -f $@
 
-Bv9ARM-book.pdf: Bv9ARM-book.tex
+Bv9ARM.pdf: Bv9ARM.tex
 	rm -f Bv9ARM-book.aux Bv9ARM-book.pdf Bv9ARM-book.log
-	${PDFJADETEX} ./Bv9ARM-book.tex || true
-	${PDFJADETEX} ./Bv9ARM-book.tex || true
-	${PDFJADETEX} ./Bv9ARM-book.tex || true
-
+	${PDFLATEX} '\batchmode\input Bv9ARM.tex' || rm -f $@
+	${PDFLATEX} '\batchmode\input Bv9ARM.tex' || rm -f $@
+	${PDFLATEX} '\batchmode\input Bv9ARM.tex' || rm -f $@
