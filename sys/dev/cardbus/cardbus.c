@@ -406,13 +406,20 @@ cardbus_probe(device_t cbdev)
 static int
 cardbus_attach(device_t cbdev)
 {
+	struct cardbus_softc *sc = device_get_softc(cbdev);
+
+	sc->sc_dev = cbdev;
+	cardbus_device_create(sc);
 	return 0;
 }
 
 static int
 cardbus_detach(device_t cbdev)
 {
+	struct cardbus_softc *sc = device_get_softc(cbdev);
+
 	cardbus_detach_card(cbdev);
+	cardbus_device_destroy(sc);
 	return 0;
 }
 
