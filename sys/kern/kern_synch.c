@@ -241,6 +241,170 @@ msleep(ident, mtx, priority, wmesg, timo)
 	return (rval);
 }
 
+int
+msleep_spin(ident, mtx, wmesg, timo)
+	void *ident;
+	struct mtx *mtx;
+	const char *wmesg;
+	int timo;
+{
+	struct thread *td;
+	struct proc *p;
+	int rval;
+	WITNESS_SAVE_DECL(mtx);
+
+	td = curthread;
+	p = td->td_proc;
+	KASSERT(mtx != NULL, ("sleeping without a mutex"));
+	KASSERT(p != NULL, ("msleep1"));
+	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+
+	if (cold) {
+		/*
+		 * During autoconfiguration, just return;
+		 * don't run any other threads or panic below,
+		 * in case this is the idle thread and already asleep.
+		 * XXX: this used to do "s = splhigh(); splx(safepri);
+		 * splx(s);" to give interrupts a chance, but there is
+		 * no way to give interrupts a chance now.
+		 */
+		return (0);
+	}
+
+	sleepq_lock(ident);
+	CTR5(KTR_PROC, "msleep_spin: thread %p (pid %ld, %s) on %s (%p)",
+	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
+
+	DROP_GIANT();
+	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
+	WITNESS_SAVE(&mtx->mtx_object, mtx);
+	mtx_unlock_spin(mtx);
+
+	/*
+	 * We put ourselves on the sleep queue and start our timeout.
+	 */
+	sleepq_add(ident, mtx, wmesg, SLEEPQ_MSLEEP);
+	if (timo)
+		sleepq_set_timeout(ident, timo);
+
+	/*
+	 * Can't call ktrace with any spin locks held so it can lock the
+	 * ktrace_mtx lock, and WITNESS_WARN considers it an error to hold
+	 * any spin lock.  Thus, we have to drop the sleepq spin lock while
+	 * we handle those requests.  This is safe since we have placed our
+	 * thread on the sleep queue already.
+	 */
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW)) {
+		sleepq_release(ident);
+		ktrcsw(1, 0);
+		sleepq_lock(ident);
+	}
+#endif
+#ifdef WITNESS
+	sleepq_release(ident);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "Sleeping on \"%s\"",
+	    wmesg);
+	sleepq_lock(ident);
+#endif
+	if (timo)
+		rval = sleepq_timedwait(ident);
+	else {
+		sleepq_wait(ident);
+		rval = 0;
+	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
+#endif
+	PICKUP_GIANT();
+	mtx_lock_spin(mtx);
+	WITNESS_RESTORE(&mtx->mtx_object, mtx);
+	return (rval);
+}
+
+int
+msleep_spin(ident, mtx, wmesg, timo)
+	void *ident;
+	struct mtx *mtx;
+	const char *wmesg;
+	int timo;
+{
+	struct thread *td;
+	struct proc *p;
+	int rval;
+	WITNESS_SAVE_DECL(mtx);
+
+	td = curthread;
+	p = td->td_proc;
+	KASSERT(mtx != NULL, ("sleeping without a mutex"));
+	KASSERT(p != NULL, ("msleep1"));
+	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+
+	if (cold) {
+		/*
+		 * During autoconfiguration, just return;
+		 * don't run any other threads or panic below,
+		 * in case this is the idle thread and already asleep.
+		 * XXX: this used to do "s = splhigh(); splx(safepri);
+		 * splx(s);" to give interrupts a chance, but there is
+		 * no way to give interrupts a chance now.
+		 */
+		return (0);
+	}
+
+	sleepq_lock(ident);
+	CTR5(KTR_PROC, "msleep_spin: thread %p (pid %ld, %s) on %s (%p)",
+	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
+
+	DROP_GIANT();
+	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
+	WITNESS_SAVE(&mtx->mtx_object, mtx);
+	mtx_unlock_spin(mtx);
+
+	/*
+	 * We put ourselves on the sleep queue and start our timeout.
+	 */
+	sleepq_add(ident, mtx, wmesg, SLEEPQ_MSLEEP);
+	if (timo)
+		sleepq_set_timeout(ident, timo);
+
+	/*
+	 * Can't call ktrace with any spin locks held so it can lock the
+	 * ktrace_mtx lock, and WITNESS_WARN considers it an error to hold
+	 * any spin lock.  Thus, we have to drop the sleepq spin lock while
+	 * we handle those requests.  This is safe since we have placed our
+	 * thread on the sleep queue already.
+	 */
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW)) {
+		sleepq_release(ident);
+		ktrcsw(1, 0);
+		sleepq_lock(ident);
+	}
+#endif
+#ifdef WITNESS
+	sleepq_release(ident);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "Sleeping on \"%s\"",
+	    wmesg);
+	sleepq_lock(ident);
+#endif
+	if (timo)
+		rval = sleepq_timedwait(ident);
+	else {
+		sleepq_wait(ident);
+		rval = 0;
+	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
+#endif
+	PICKUP_GIANT();
+	mtx_lock_spin(mtx);
+	WITNESS_RESTORE(&mtx->mtx_object, mtx);
+	return (rval);
+}
+
 /*
  * Make all threads sleeping on the specified identifier runnable.
  */
