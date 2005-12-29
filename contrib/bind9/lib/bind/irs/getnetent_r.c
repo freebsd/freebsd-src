@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetent_r.c,v 1.3.206.1 2004/03/09 08:33:36 marka Exp $";
+static const char rcsid[] = "$Id: getnetent_r.c,v 1.3.206.2 2005/09/03 12:47:38 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -118,6 +118,9 @@ setnetent_r(int stay_open, NET_R_ENT_ARGS)
 setnetent_r(int stay_open)
 #endif
 {
+#ifdef NET_R_ENT_ARGS
+	UNUSED(ndptr);
+#endif
 	setnetent(stay_open);
 #ifdef NET_R_SET_RESULT
 	return (NET_R_SET_RESULT);
@@ -131,6 +134,9 @@ endnetent_r(NET_R_ENT_ARGS)
 endnetent_r()
 #endif
 {
+#ifdef NET_R_ENT_ARGS
+	UNUSED(ndptr);
+#endif
 	endnetent();
 	NET_R_END_RESULT(NET_R_OK);
 }

@@ -1,6 +1,8 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nslookup.docbook,v 1.3.6.3 2004/08/30 00:50:11 marka Exp $ -->
+<!-- $Id: nslookup.docbook,v 1.3.6.5 2005/05/13 01:22:33 marka Exp $ -->
 
 <!--
  - Copyright (c) 1985, 1989
@@ -62,6 +64,14 @@
 <refmiscinfo>BIND9</refmiscinfo>
 </refmeta>
 
+  <docinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
 <refnamediv>
 <refname>nslookup</refname>
 <refpurpose>query Internet name servers interactively</refpurpose>
@@ -71,8 +81,8 @@
 <cmdsynopsis>
   <command>nslookup</command>
   <arg><option>-option</option></arg>
-  <arg choice=opt>name | -</arg>
-  <arg choice=opt>server</arg>
+  <arg choice="opt">name | -</arg>
+  <arg choice="opt">server</arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -93,19 +103,19 @@ domain.
 <title>ARGUMENTS</title>
 <para>
 Interactive mode is entered in the following cases:
-<OrderedList Numeration=Loweralpha>
-<Listitem>
+<orderedlist numeration="loweralpha">
+<listitem>
 <para>
 when no arguments are given (the default name server will be used)
 </para>
-</Listitem>
-<Listitem>
+</listitem>
+<listitem>
 <para>
 when the first argument is a hyphen (-) and the second argument is
 the host name or Internet address of a name server.
 </para>
-</Listitem>
-</OrderedList>
+</listitem>
+</orderedlist>
 </para>
 
 <para>
@@ -118,11 +128,11 @@ argument specifies the host name or address of a name server.
 Options can also be specified on the command line if they precede the
 arguments and are prefixed with a hyphen.  For example, to
 change the default query type to host information, and the initial timeout to 10 seconds, type:
-<InformalExample>
-<PROGRAMLISTING>
+<informalexample>
+<programlisting>
 nslookup -query=hinfo  -timeout=10
-</PROGRAMLISTING>
-</InformalExample>
+</programlisting>
+</informalexample>
 </para>
 
 </refsect1>

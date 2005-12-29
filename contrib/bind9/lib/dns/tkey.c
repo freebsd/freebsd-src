@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tkey.c,v 1.71.2.1.10.5 2004/06/11 00:30:54 marka Exp $
+ * $Id: tkey.c,v 1.71.2.1.10.7 2005/06/12 00:02:26 marka Exp $
  */
 
 #include <config.h>
@@ -356,7 +356,7 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 
 	isc_buffer_init(&secret, secretdata, sizeof(secretdata));
 
-	randomdata = isc_mem_get(tctx->mctx, TKEY_RANDOM_AMOUNT);
+	randomdata = isc_mem_get(tkeyout->mctx, TKEY_RANDOM_AMOUNT);
 	if (randomdata == NULL)
 		goto failure;
 
@@ -397,8 +397,8 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 		isc_buffer_free(&shared);
 	if (pubkey != NULL)
 		dst_key_free(&pubkey);
-	if (randomdata == NULL)
-		isc_mem_put(tctx->mctx, randomdata, TKEY_RANDOM_AMOUNT);
+	if (randomdata != NULL)
+		isc_mem_put(tkeyout->mctx, randomdata, TKEY_RANDOM_AMOUNT);
 	return (result);
 }
 

@@ -1,6 +1,6 @@
 #ifdef HMAC_MD5
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/hmac_link.c,v 1.2.2.1 2003/06/27 03:51:36 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/hmac_link.c,v 1.2.2.1.4.1 2005/07/28 07:43:16 marka Exp $";
 #endif
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -36,8 +36,15 @@ static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/hmac_lin
 #include <resolv.h>
 
 #include "dst_internal.h"
+
 #ifdef USE_MD5
-# include "md5.h"
+# ifndef HAVE_MD5
+#  include "md5.h"
+# else
+#  ifdef SOLARIS2
+#   include <sys/md5.h>
+#  endif
+# endif
 # ifndef _MD5_H_
 #  define _MD5_H_ 1	/* make sure we do not include rsaref md5.h file */
 # endif
@@ -438,7 +445,11 @@ dst_hmac_md5_generate_key(DST_KEY *key, const int nothing)
  *	   related functions 
  */
 int
+#ifdef	SUNW_LIBMD5
+dst_md5_hmac_init()
+#else
 dst_hmac_md5_init()
+#endif
 {
 	if (dst_t_func[KEY_HMAC_MD5] != NULL)
 		return (1);
