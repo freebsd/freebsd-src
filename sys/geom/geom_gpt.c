@@ -137,7 +137,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct gpt_ent *ent, *part;
 	struct gpt_hdr *hdr;
 	u_int i, secsz, tblsz;
-	int error, ps;
+	int ps;
 	uint32_t entries, entsz;
 
 	g_trace(G_T_TOPOLOGY, "g_gpt_taste(%s,%s)", mp->name, pp->name);
@@ -165,8 +165,8 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		/* XXX: we need to get the media size as well. */
 
 		/* Read both the MBR sector and the GPT sector. */
-		mbr = g_read_data(cp, 0, 2 * secsz, &error);
-		if (mbr == NULL || error != 0)
+		mbr = g_read_data(cp, 0, 2 * secsz, NULL);
+		if (mbr == NULL)
 			break;
 
 		if (!is_pmbr(mbr))
@@ -187,7 +187,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		entsz = le32toh(hdr->hdr_entsz);
 		tblsz = (entries * entsz + secsz - 1) & ~(secsz - 1);
 		buf = g_read_data(cp, le64toh(hdr->hdr_lba_table) * secsz,
-		    tblsz, &error);
+		    tblsz, NULL);
 		if (buf == NULL)
 			break;
 

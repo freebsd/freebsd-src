@@ -62,7 +62,7 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_vol_ffs_softc *ms;
-	int error, sb, superblock;
+	int sb, superblock;
 	struct fs *fs;
 
 	g_trace(G_T_TOPOLOGY, "vol_taste(%s,%s)", mp->name, pp->name);
@@ -99,8 +99,8 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			continue;
 
 		fs = (struct fs *) g_read_data(cp, superblock,
-			SBLOCKSIZE, &error);
-		if (fs == NULL || error != 0)
+			SBLOCKSIZE, NULL);
+		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */
 		if (fs->fs_magic == FS_UFS1_MAGIC) {
