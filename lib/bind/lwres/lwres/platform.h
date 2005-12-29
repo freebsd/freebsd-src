@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -89,6 +89,16 @@
  * If this system need a modern sprintf() that returns (int) not (char*).
  */
 #undef LWRES_PLATFORM_NEEDSPRINTF
+
+/*
+ * The printf format string modifier to use with lwres_uint64_t values.
+ */
+#define LWRES_PLATFORM_QUADFORMAT "ll"
+
+/*! \brief
+ * Define if this system needs strtoul.
+ */
+#undef ISC_PLATFORM_NEEDSTRTOUL
 
 #ifndef LWRES_PLATFORM_USEDECLSPEC
 #define LIBLWRES_EXTERNAL_DATA
