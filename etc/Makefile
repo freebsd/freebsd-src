@@ -103,6 +103,7 @@ distribution:
 		${DESTDIR}/etc/master.passwd
 	cd ${.CURDIR}/bluetooth; ${MAKE} install
 	cd ${.CURDIR}/defaults; ${MAKE} install
+	cd ${.CURDIR}/gss; ${MAKE} install
 	cd ${.CURDIR}/periodic; ${MAKE} install
 	cd ${.CURDIR}/rc.d; ${MAKE} install
 	cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall

@@ -49,7 +49,7 @@ sed -E
     -e's;-lbsdxml!;lib/libexpat;g'
     -e's;-lm!;lib/msun;g'
     -e's;-l(supc\+\+)!;gnu/lib/lib\1;g'
-    -e's;-l(asn1|gssapi|krb5|roken)!;kerberos5/lib/lib\1;g'
+    -e's;-l(asn1|krb5|roken)!;kerberos5/lib/lib\1;g'
     -e's;-l(crypto|ssh|ssl)!;secure/lib/lib\1;g'
     -e's;-l([^!]+)!;lib/lib\1;g'
 "

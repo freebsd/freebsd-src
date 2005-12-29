@@ -966,7 +966,6 @@ _generic_libs=	gnu/lib
 
 .if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _prebuild_libs+=	kerberos5/lib/libasn1
-_prebuild_libs+=	kerberos5/lib/libgssapi
 _prebuild_libs+=	kerberos5/lib/libkrb5
 _prebuild_libs+=	kerberos5/lib/libroken
 _generic_libs+=	kerberos5/lib
@@ -977,7 +976,7 @@ _prebuild_libs+= lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
 		lib/libncurses lib/libnetgraph lib/libopie lib/libpam \
 		lib/libradius \
 		lib/libsbuf lib/libtacplus lib/libutil \
-		lib/libz lib/msun
+		lib/libz lib/msun lib/libgssapi
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
@@ -991,9 +990,7 @@ lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if !defined(NO_KERBEROS)
-secure/lib/libssh__L: kerberos5/lib/libgssapi__L kerberos5/lib/libkrb5__L \
-    kerberos5/lib/libasn1__L lib/libcom_err__L lib/libmd__L \
-    kerberos5/lib/libroken__L
+secure/lib/libssh__L: lib/libgssapi__L
 .endif
 .endif
 .endif
