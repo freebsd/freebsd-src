@@ -91,7 +91,7 @@
 /*
  * If this system needs inet_pton(), ISC_PLATFORM_NEEDPTON will be defined.
  */
-#define ISC_PLATFORM_NEEDPTON 1
+#undef ISC_PLATFORM_NEEDPTON
 
 /*
  * If this system needs inet_aton(), ISC_PLATFORM_NEEDATON will be defined.
