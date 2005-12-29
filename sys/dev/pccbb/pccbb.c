@@ -485,7 +485,7 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
-		DPRINTF(("Status is 0x%x\n", status));
+		DPRINTF(("Status is 0x%x %x\n", status, sc->bsh));
 		if (!CBB_CARD_PRESENT(status)) {
 			not_a_card = 0;		/* We know card type */
 			cbb_removal(sc);
@@ -1034,21 +1034,20 @@ cbb_cardbus_mem_open(device_t brdev, int win, uint32_t start, uint32_t end)
 	return (0);
 }
 
-/*
- * XXX The following function belongs in the pci bus layer.
- */
+#define START_NONE 0xffffffff
+#define END_NONE 0
+
 static void
 cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 {
 	uint32_t starts[2];
 	uint32_t ends[2];
 	struct cbb_reslist *rle;
-	int align;
-	int prefetchable[2];
+	int align, i;
 	uint32_t reg;
 
-	starts[0] = starts[1] = 0xffffffff;
-	ends[0] = ends[1] = 0;
+	starts[0] = starts[1] = START_NONE;
+	ends[0] = ends[1] = END_NONE;
 
 	if (type == SYS_RES_MEMORY)
 		align = CBB_MEMALIGN;
@@ -1057,115 +1056,68 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 	else
 		align = 1;
 
-	/*
-	 * This looks somewhat bogus, and doesn't seem to really respect
-	 * alignment.  The alignment stuff is happening too late (it
-	 * should happen at allocation time, not activation time) and
-	 * this code looks generally to be too complex for the purpose
-	 * it surves.
-	 */
 	SLIST_FOREACH(rle, &sc->rl, link) {
 		if (rle->type != type)
-			;
-		else if (rle->res == NULL) {
-			device_printf(sc->dev, "WARNING: Resource not reserved?  "
-			    "(type=%d, addr=%lx)\n",
-			    rle->type, rman_get_start(rle->res));
-		} else if (!(rman_get_flags(rle->res) & RF_ACTIVE)) {
-			/* XXX */
-		} else if (starts[0] == 0xffffffff) {
-			starts[0] = rman_get_start(rle->res);
-			ends[0] = rman_get_end(rle->res);
-			prefetchable[0] =
-			    rman_get_flags(rle->res) & RF_PREFETCHABLE;
-		} else if (rman_get_end(rle->res) > ends[0] &&
-		    rman_get_start(rle->res) - ends[0] <
-		    CBB_AUTO_OPEN_SMALLHOLE && prefetchable[0] ==
-		    (rman_get_flags(rle->res) & RF_PREFETCHABLE)) {
-			ends[0] = rman_get_end(rle->res);
-		} else if (rman_get_start(rle->res) < starts[0] &&
-		    starts[0] - rman_get_end(rle->res) <
-		    CBB_AUTO_OPEN_SMALLHOLE && prefetchable[0] ==
-		    (rman_get_flags(rle->res) & RF_PREFETCHABLE)) {
-			starts[0] = rman_get_start(rle->res);
-		} else if (starts[1] == 0xffffffff) {
-			starts[1] = rman_get_start(rle->res);
-			ends[1] = rman_get_end(rle->res);
-			prefetchable[1] =
-			    rman_get_flags(rle->res) & RF_PREFETCHABLE;
-		} else if (rman_get_end(rle->res) > ends[1] &&
-		    rman_get_start(rle->res) - ends[1] <
-		    CBB_AUTO_OPEN_SMALLHOLE && prefetchable[1] ==
-		    (rman_get_flags(rle->res) & RF_PREFETCHABLE)) {
-			ends[1] = rman_get_end(rle->res);
-		} else if (rman_get_start(rle->res) < starts[1] &&
-		    starts[1] - rman_get_end(rle->res) <
-		    CBB_AUTO_OPEN_SMALLHOLE && prefetchable[1] ==
-		    (rman_get_flags(rle->res) & RF_PREFETCHABLE)) {
-			starts[1] = rman_get_start(rle->res);
+			continue;
+		if (rle->res == NULL)
+			continue;
+		if (!(rman_get_flags(rle->res) & RF_ACTIVE))
+			continue;
+		if (rman_get_flags(rle->res) & RF_PREFETCHABLE)
+			i = 1;
+		else
+			i = 0;
+		if (rman_get_start(rle->res) < starts[i])
+			starts[i] = rman_get_start(rle->res);
+		if (rman_get_end(rle->res) > ends[i])
+			ends[i] = rman_get_end(rle->res);
+	}
+	for (i = 0; i < 2; i++) {
+		if (starts[i] == START_NONE)
+			continue;
+		starts[i] &= ~(align - 1);
+		ends[i] = ((ends[i] + align - 1) & ~(align - 1)) - 1;
+	}
+	if (starts[0] != START_NONE && starts[1] != START_NONE) {
+		if (starts[0] < starts[1]) {
+			if (ends[0] > starts[1]) {
+				device_printf(sc->dev, "Overlapping ranges"
+				    " for prefetch and non-prefetch memory\n");
+				return;
+			}
 		} else {
-			uint32_t diffs[2];
-			int win;
-
-			diffs[0] = diffs[1] = 0xffffffff;
-			if (rman_get_start(rle->res) > ends[0])
-				diffs[0] = rman_get_start(rle->res) - ends[0];
-			else if (rman_get_end(rle->res) < starts[0])
-				diffs[0] = starts[0] - rman_get_end(rle->res);
-			if (rman_get_start(rle->res) > ends[1])
-				diffs[1] = rman_get_start(rle->res) - ends[1];
-			else if (rman_get_end(rle->res) < starts[1])
-				diffs[1] = starts[1] - rman_get_end(rle->res);
-
-			win = (diffs[0] <= diffs[1])?0:1;
-			if (rman_get_start(rle->res) > ends[win])
-				ends[win] = rman_get_end(rle->res);
-			else if (rman_get_end(rle->res) < starts[win])
-				starts[win] = rman_get_start(rle->res);
-			if (!(rman_get_flags(rle->res) & RF_PREFETCHABLE))
-				prefetchable[win] = 0;
+			if (ends[1] > starts[0]) {
+				device_printf(sc->dev, "Overlapping ranges"
+				    " for prefetch and non-prefetch memory\n");
+				return;
+			}
 		}
-
-		if (starts[0] != 0xffffffff)
-			starts[0] -= starts[0] % align;
-		if (starts[1] != 0xffffffff)
-			starts[1] -= starts[1] % align;
-		if (ends[0] % align != 0)
-			ends[0] += align - ends[0] % align - 1;
-		if (ends[1] % align != 0)
-			ends[1] += align - ends[1] % align - 1;
 	}
 
 	if (type == SYS_RES_MEMORY) {
 		cbb_cardbus_mem_open(sc->dev, 0, starts[0], ends[0]);
 		cbb_cardbus_mem_open(sc->dev, 1, starts[1], ends[1]);
 		reg = pci_read_config(sc->dev, CBBR_BRIDGECTRL, 2);
-		reg &= ~(CBBM_BRIDGECTRL_PREFETCH_0|
+		reg &= ~(CBBM_BRIDGECTRL_PREFETCH_0 |
 		    CBBM_BRIDGECTRL_PREFETCH_1);
-		reg |= (prefetchable[0]?CBBM_BRIDGECTRL_PREFETCH_0:0)|
-		    (prefetchable[1]?CBBM_BRIDGECTRL_PREFETCH_1:0);
+		if (starts[1] != START_NONE)
+			reg |= CBBM_BRIDGECTRL_PREFETCH_1;
 		pci_write_config(sc->dev, CBBR_BRIDGECTRL, reg, 2);
-		if (cbb_debug) {
-			if (starts[0] != 0xffffffff)
-				device_printf(sc->dev, "Memory window 0:"
-				    " %#x-%#x%s\n", starts[0], ends[0],
-				    prefetchable[0] ? " prefetch" : "");
-			if (starts[1] != 0xffffffff)
-				device_printf(sc->dev, "Memory window 1:"
-				    " %#x-%#x%s\n", starts[1], ends[1],
-				    prefetchable[1] ? " prefetch" : "");
+		if (bootverbose) {
+			device_printf(sc->dev, "Opening memory:\n");
+			if (starts[0] != START_NONE)
+				device_printf(sc->dev, "Normal: %#x-%#x\n",
+				    starts[0], ends[0]);
+			if (starts[1] != START_NONE)
+				device_printf(sc->dev, "Prefetch: %#x-%#x\n",
+				    starts[1], ends[1]);
 		}
 	} else if (type == SYS_RES_IOPORT) {
 		cbb_cardbus_io_open(sc->dev, 0, starts[0], ends[0]);
 		cbb_cardbus_io_open(sc->dev, 1, starts[1], ends[1]);
-		if (cbb_debug) {
-			if (starts[0] != 0xffffffff)
-				device_printf(sc->dev, "I/O window 0:"
-				    " %#x-%#x\n", starts[0], ends[0]);
-			if (starts[1] != 0xffffffff)
-				device_printf(sc->dev, "I/O window 1:"
-				    " %#x-%#x\n", starts[1], ends[1]);
-		}
+		if (bootverbose && starts[0] != START_NONE)
+			device_printf(sc->dev, "Opening I/O: %#x-%#x\n",
+			    starts[0], ends[0]);
 	}
 }
 
@@ -1241,7 +1193,6 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 			    rman_make_alignment_flags(align);
 		break;
 	}
-
 	res = BUS_ALLOC_RESOURCE(device_get_parent(brdev), child, type, rid,
 	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
