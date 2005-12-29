@@ -1807,15 +1807,20 @@ witness_display_spinlock(struct lock_object *lock, struct thread *owner)
 void
 witness_save(struct lock_object *lock, const char **filep, int *linep)
 {
+	struct lock_list_entry *lock_list;
 	struct lock_instance *instance;
 
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
 		return;
-	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
-		panic("%s: lock (%s) %s is not a sleep lock", __func__,
-		    lock->lo_class->lc_name, lock->lo_name);
-	instance = find_instance(curthread->td_sleeplocks, lock);
+	if (lock->lo_class->lc_flags & LC_SLEEPLOCK)
+		lock_list = curthread->td_sleeplocks;
+	else {
+		if (witness_skipspin)
+			return;
+		lock_list = PCPU_GET(spinlocks);
+	}
+	instance = find_instance(lock_list, lock);
 	if (instance == NULL)
 		panic("%s: lock (%s) %s not locked", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
@@ -1826,15 +1831,20 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 void
 witness_restore(struct lock_object *lock, const char *file, int line)
 {
+	struct lock_list_entry *lock_list;
 	struct lock_instance *instance;
 
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
 		return;
-	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
-		panic("%s: lock (%s) %s is not a sleep lock", __func__,
-		    lock->lo_class->lc_name, lock->lo_name);
-	instance = find_instance(curthread->td_sleeplocks, lock);
+	if (lock->lo_class->lc_flags & LC_SLEEPLOCK)
+		lock_list = curthread->td_sleeplocks;
+	else {
+		if (witness_skipspin)
+			return;
+		lock_list = PCPU_GET(spinlocks);
+	}
+	instance = find_instance(lock_list, lock);
 	if (instance == NULL)
 		panic("%s: lock (%s) %s not locked", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
