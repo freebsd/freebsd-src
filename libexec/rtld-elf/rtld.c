@@ -449,7 +449,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 }
 
 Elf_Addr
-_rtld_bind(Obj_Entry *obj, Elf_Word reloff)
+_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 {
     const Elf_Rel *rel;
     const Elf_Sym *def;
