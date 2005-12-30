@@ -7,11 +7,11 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)arp.c	1.4 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: arp.c,v 2.8 2003/12/01 02:01:15 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: arp.c,v 2.8.2.1 2005/06/12 07:18:38 darrenr Exp $";
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
-#if !defined(ultrix) && !defined(hpux) && !defined(__hpux) && !defined(__osf__)
+#if !defined(ultrix) && !defined(hpux) && !defined(__hpux) && !defined(__osf__) && !defined(_AIX51)
 #include <sys/sockio.h>
 #endif
 #include <sys/ioctl.h>

@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: addicmp.c,v 1.10.2.1 2004/12/09 19:41:16 darrenr Exp
+ * $Id: addicmp.c,v 1.10.2.1 2004/12/09 19:41:16 darrenr Exp $
  */
 
 #include <ctype.h>

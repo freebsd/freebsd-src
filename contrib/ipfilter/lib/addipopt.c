@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: addipopt.c,v 1.7 2002/01/28 06:50:45 darrenr Exp
+ * $Id: addipopt.c,v 1.7 2002/01/28 06:50:45 darrenr Exp $
  */
 
 #include "ipf.h"

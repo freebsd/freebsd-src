@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: tcpoptnames.c,v 1.5 2002/01/28 06:50:48 darrenr Exp
+ * $Id: tcpoptnames.c,v 1.5 2002/01/28 06:50:48 darrenr Exp $
  */
 
 #include "ipf.h"

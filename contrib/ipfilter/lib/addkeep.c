@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: addkeep.c,v 1.12 2003/12/01 01:59:42 darrenr Exp
+ * $Id: addkeep.c,v 1.12 2003/12/01 01:59:42 darrenr Exp $
  */
 
 #include "ipf.h"

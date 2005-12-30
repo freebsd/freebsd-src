@@ -5,7 +5,7 @@ ipmon \- monitors /dev/ipl for logged packets
 .SH SYNOPSIS
 .B ipmon
 [
-.B \-abDFhnpstvxX
+.B \-abBDFhnpstvxX
 ] [
 .B "\-N <device>"
 ] [
@@ -72,6 +72,9 @@ unreachable message.
 In order for \fBipmon\fP to properly work, the kernel option
 \fBIPFILTER_LOG\fP must be turned on in your kernel.  Please see
 \fBoptions(4)\fP for more details.
+.LP
+\fBipmon\fP reopns its log file(s) and rereads its configuration file
+when it receives a SIGHUP signal.
 .SH OPTIONS
 .TP
 .B \-a
@@ -81,6 +84,11 @@ are displayed to the same output 'device' (stderr or syslog).
 .B \-b
 For rules which log the body of a packet, generate hex output representing
 the packet contents after the headers.
+.TP
+.B \-B <binarylogfilename>
+Enable logging of the raw, unformatted binary data to the specified
+\fI<binarylogfilename>\fP file.  This can be read, later, using \fBipmon\fP
+with the \fB-f\fP option.
 .TP
 .B \-D
 Cause ipmon to turn itself into a daemon.  Using subshells or backgrounding

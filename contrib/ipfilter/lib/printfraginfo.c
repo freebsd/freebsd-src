@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printfraginfo.c,v 1.1.2.2 2004/03/23 15:15:45 darrenr Exp
+ * $Id: printfraginfo.c,v 1.1.2.2 2004/03/23 15:15:45 darrenr Exp $
  */
 #include "ipf.h"
 #include "kmem.h"

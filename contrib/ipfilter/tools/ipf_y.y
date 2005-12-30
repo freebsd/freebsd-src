@@ -59,7 +59,7 @@ static	struct	wordtab icmpcodewords[17];
 static	struct	wordtab icmptypewords[16];
 static	struct	wordtab ipv4optwords[25];
 static	struct	wordtab ipv4secwords[9];
-static	struct	wordtab ipv6optwords[8];
+static	struct	wordtab ipv6optwords[9];
 static	struct	wordtab logwords[33];
 
 %}
@@ -136,6 +136,7 @@ static	struct	wordtab logwords[33];
 
 %token	IPF6_V6HDRS IPFY_IPV6OPT IPFY_IPV6OPT_DSTOPTS IPFY_IPV6OPT_HOPOPTS
 %token	IPFY_IPV6OPT_IPV6 IPFY_IPV6OPT_NONE IPFY_IPV6OPT_ROUTING
+%token	IPFY_IPV6OPT_MOBILITY IPFY_IPV6OPT_ESP IPFY_IPV6OPT_FRAG
 
 %token	IPFY_ICMPT_UNR IPFY_ICMPT_ECHO IPFY_ICMPT_ECHOR IPFY_ICMPT_SQUENCH
 %token	IPFY_ICMPT_REDIR IPFY_ICMPT_TIMEX IPFY_ICMPT_PARAMP IPFY_ICMPT_TIMEST
@@ -1026,7 +1027,7 @@ codelist:
 	icmpcode
 	{ DOREM(fr->fr_icmp |= htons($1); fr->fr_icmpm |= htons(0xff);) }
 	| codelist lmore icmpcode
-	{ DOREM(fr->fr_icmp |= htons($3); fr->fr_icmpm |= htons(0xff);) }
+	{ DOREM(fr->fr_icmp &= htons(0xff00); fr->fr_icmp |= htons($3); fr->fr_icmpm |= htons(0xff);) }
 	;
 
 age:	| IPFY_AGE YY_NUMBER		{ DOALL(fr->fr_age[0] = $2; \
@@ -1086,6 +1087,7 @@ stateopt:
 	| IPFY_NOICMPERR	{ DOALL(fr->fr_flags |= FR_NOICMPERR;) }
 
 	| IPFY_SYNC		{ DOALL(fr->fr_flags |= FR_STATESYNC;) }
+	age;
 	;
 
 portnum:
@@ -1102,15 +1104,14 @@ portnum:
 	;
 
 withlist:
-	withopt
-	| withlist withopt
-	| withlist ',' withopt
+	withopt				{ nowith = 0; }
+	| withlist withopt		{ nowith = 0; }
+	| withlist ',' withopt		{ nowith = 0; }
 	;
 
 withopt:
 	opttype		{ DOALL(fr->fr_flx |= $1; fr->fr_mflx |= $1;) }
-	| notwith opttype
-					{ DOALL(fr->fr_mflx |= $2;) }
+	| notwith opttype		{ DOALL(fr->fr_mflx |= $2;) }
 	| ipopt ipopts			{ yyresetdict(); }
 	| notwith ipopt ipopts		{ yyresetdict(); }
 	| startv6hdrs ipv6hdrs		{ yyresetdict(); }
@@ -1268,12 +1269,13 @@ setsecclass:
 ipv6hdr:
 	IPFY_AH			{ $$ = getv6optbyvalue(IPPROTO_AH); }
 	| IPFY_IPV6OPT_DSTOPTS	{ $$ = getv6optbyvalue(IPPROTO_DSTOPTS); }
-	| IPFY_ESP		{ $$ = getv6optbyvalue(IPPROTO_ESP); }
+	| IPFY_IPV6OPT_ESP	{ $$ = getv6optbyvalue(IPPROTO_ESP); }
 	| IPFY_IPV6OPT_HOPOPTS	{ $$ = getv6optbyvalue(IPPROTO_HOPOPTS); }
 	| IPFY_IPV6OPT_IPV6	{ $$ = getv6optbyvalue(IPPROTO_IPV6); }
 	| IPFY_IPV6OPT_NONE	{ $$ = getv6optbyvalue(IPPROTO_NONE); }
 	| IPFY_IPV6OPT_ROUTING	{ $$ = getv6optbyvalue(IPPROTO_ROUTING); }
-	| IPFY_FRAG		{ $$ = getv6optbyvalue(IPPROTO_FRAGMENT); }
+	| IPFY_IPV6OPT_FRAG	{ $$ = getv6optbyvalue(IPPROTO_FRAGMENT); }
+	| IPFY_IPV6OPT_MOBILITY	{ $$ = getv6optbyvalue(IPPROTO_MOBILITY); }
 	;
 
 level:	IPFY_LEVEL			{ setsyslog(); }
@@ -1435,6 +1437,7 @@ static	struct	wordtab ipfwords[95] = {
 	{ "mask",			IPFY_MASK },
 	{ "match-tag",			IPFY_MATCHTAG },
 	{ "mbcast",			IPFY_MBCAST },
+	{ "mcast",			IPFY_MULTICAST },
 	{ "multicast",			IPFY_MULTICAST },
 	{ "nat",			IPFY_NAT },
 	{ "ne",				YY_CMP_NE },
@@ -1574,12 +1577,13 @@ static	struct	wordtab ipv4secwords[9] = {
 	{ NULL,				0 },
 };
 
-static	struct	wordtab ipv6optwords[8] = {
+static	struct	wordtab ipv6optwords[9] = {
 	{ "dstopts",			IPFY_IPV6OPT_DSTOPTS },
-	{ "esp",			IPFY_ESP },
-	{ "frag",			IPFY_FRAG },
+	{ "esp",			IPFY_IPV6OPT_ESP },
+	{ "frag",			IPFY_IPV6OPT_FRAG },
 	{ "hopopts",			IPFY_IPV6OPT_HOPOPTS },
 	{ "ipv6",			IPFY_IPV6OPT_IPV6 },
+	{ "mobility",			IPFY_IPV6OPT_MOBILITY },
 	{ "none",			IPFY_IPV6OPT_NONE },
 	{ "routing",			IPFY_IPV6OPT_ROUTING },
 	{ NULL,				0 },
@@ -1826,8 +1830,7 @@ char *phrase;
 		fr->fr_v = v;
 		fr->fr_type = FR_T_BPFOPC;
 
-		if (!strncmp(phrase, "\"0x", 2)) {
-			phrase++;
+		if (!strncmp(phrase, "0x", 2)) {
 			fb = malloc(sizeof(fakebpf_t));
 
 			for (i = 0, s = strtok(phrase, " \r\n\t"); s != NULL;

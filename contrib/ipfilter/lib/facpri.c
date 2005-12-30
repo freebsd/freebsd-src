@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: facpri.c,v 1.6 2003/12/01 01:59:43 darrenr Exp
+ * $Id: facpri.c,v 1.6.2.1 2005/11/14 17:45:06 darrenr Exp $
  */
 
 #include <stdio.h>
@@ -22,7 +22,7 @@
 #include "facpri.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: facpri.c,v 1.6 2003/12/01 01:59:43 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: facpri.c,v 1.6.2.1 2005/11/14 17:45:06 darrenr Exp $";
 #endif
 
 
@@ -42,10 +42,10 @@ table_t	facs[] = {
 #else
 	{ "cron", LOG_CRON1 },
 #endif
-#ifdef	LOG_FTP
+#ifdef LOG_FTP
 	{ "ftp", LOG_FTP },
 #endif
-#ifdef	LOG_AUTHPRIV
+#ifdef LOG_AUTHPRIV
 	{ "authpriv", LOG_AUTHPRIV },
 #endif
 #ifdef	LOG_AUDIT
