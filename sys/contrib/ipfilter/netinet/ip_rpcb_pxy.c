@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 2002-2003 by Ryan Beasley <ryanb@goddamnbastard.org>
  *
@@ -39,7 +37,7 @@
  *   o The enclosed hack of STREAMS support is pretty sick and most likely
  *     broken.
  *
- *	Id: ip_rpcb_pxy.c,v 2.25.2.3 2005/02/04 10:22:56 darrenr Exp
+ *	$Id: ip_rpcb_pxy.c,v 2.25.2.3 2005/02/04 10:22:56 darrenr Exp $
  */
 
 #define	IPF_RPCB_PROXY
