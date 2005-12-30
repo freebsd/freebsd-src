@@ -142,12 +142,6 @@ struct {
 
 static uma_zone_t mt_zone;
 
-#ifdef DEBUG_MEMGUARD
-u_int vm_memguard_divisor;
-SYSCTL_UINT(_vm, OID_AUTO, memguard_divisor, CTLFLAG_RD, &vm_memguard_divisor,
-    0, "(kmem_size/memguard_divisor) == memguard submap size");
-#endif
-
 u_int vm_kmem_size;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
     "Size of kernel memory");
@@ -304,8 +298,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		   ("malloc(M_WAITOK) in interrupt context"));
 
 #ifdef DEBUG_MEMGUARD
-	/* XXX CHANGEME! */
-	if (mtp == M_SUBPROC)
+	if (memguard_cmp(mtp))
 		return memguard_alloc(size, flags);
 #endif
 
@@ -359,8 +352,7 @@ free(void *addr, struct malloc_type *mtp)
 		return;
 
 #ifdef DEBUG_MEMGUARD
-	/* XXX CHANGEME! */
-	if (mtp == M_SUBPROC) {
+	if (memguard_cmp(mtp)) {
 		memguard_free(addr);
 		return;
 	}
@@ -423,8 +415,7 @@ realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	 */
 
 #ifdef DEBUG_MEMGUARD
-/* XXX: CHANGEME! */
-if (mtp == M_SUBPROC) {
+if (memguard_cmp(mtp)) {
 	slab = NULL;
 	alloc = size;
 } else {
@@ -549,7 +540,7 @@ kmeminit(void *dummy)
 	 * scenarios as they occur.  It is only used for debugging.
 	 */
 	vm_memguard_divisor = 10;
-	TUNABLE_INT_FETCH("vm.memguard_divisor", &vm_memguard_divisor);
+	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
 
 	/* Pick a conservative value if provided value sucks. */
 	if ((vm_memguard_divisor <= 0) ||
@@ -647,6 +638,19 @@ malloc_uninit(void *data)
 	}
 
 	uma_zfree(mt_zone, mtip);
+}
+
+struct malloc_type *
+malloc_desc2type(const char *desc)
+{
+	struct malloc_type *mtp;
+
+	mtx_assert(&malloc_mtx, MA_OWNED);
+	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next) {
+		if (strcmp(mtp->ks_shortdesc, desc) == 0)
+			return (mtp);
+	}
+	return (NULL);
 }
 
 static int
