@@ -812,8 +812,8 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 		if (c->ic_flags == 0)
 			continue;
 		if (mode == IEEE80211_MODE_AUTO) {
-			/* ignore turbo channels for autoselect */
-			if ((c->ic_flags & IEEE80211_CHAN_TURBO) == 0)
+			/* ignore static turbo channels for autoselect */
+			if (!IEEE80211_IS_CHAN_T(c))
 				break;
 		} else {
 			if ((c->ic_flags & modeflags) == modeflags)
@@ -835,8 +835,8 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 		if (c->ic_flags == 0)
 			continue;
 		if (mode == IEEE80211_MODE_AUTO) {
-			/* take anything but pure turbo channels */
-			if ((c->ic_flags & IEEE80211_CHAN_TURBO) == 0)
+			/* take anything but static turbo channels */
+			if (!IEEE80211_IS_CHAN_T(c))
 				setbit(ic->ic_chan_active, i);
 		} else {
 			if ((c->ic_flags & modeflags) == modeflags)
