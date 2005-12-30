@@ -1,12 +1,10 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * Id: ip_sync.h,v 2.11.2.2 2004/11/04 19:29:07 darrenr Exp
+ * $Id: ip_sync.h,v 2.11.2.2 2004/11/04 19:29:07 darrenr Exp $
  */
 
 #ifndef __IP_SYNC_H__

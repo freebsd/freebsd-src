@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 2001-2003 by Darren Reed
  *
@@ -8,7 +6,7 @@
  * Simple ISAKMP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * Id: ip_ipsec_pxy.c,v 2.20.2.6 2005/03/28 10:47:53 darrenr Exp
+ * $Id: ip_ipsec_pxy.c,v 2.20.2.7 2005/08/20 13:48:22 darrenr Exp $
  *
  */
 #define	IPF_IPSEC_PROXY
@@ -96,8 +94,8 @@ nat_t *nat;
 	mb_t *m;
 	ip_t *ip;
 
+	off = fin->fin_plen - fin->fin_dlen + fin->fin_ipoff;
 	bzero(ipsec_buffer, sizeof(ipsec_buffer));
-	off = fin->fin_hlen + sizeof(udphdr_t);
 	ip = fin->fin_ip;
 	m = fin->fin_m;
 
@@ -287,8 +285,8 @@ nat_t *nat;
 	if ((fin->fin_dlen < sizeof(cookies)) || (fin->fin_flx & FI_FRAG))
 		return -1;
 
+	off = fin->fin_plen - fin->fin_dlen + fin->fin_ipoff;
 	ipsec = aps->aps_data;
-	off = fin->fin_hlen + sizeof(udphdr_t);
 	m = fin->fin_m;
 	COPYDATA(m, off, sizeof(cookies), (char *)cookies);
 
