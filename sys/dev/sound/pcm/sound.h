@@ -130,7 +130,8 @@ nomenclature:
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 #define SD_F_SIMPLEX		0x00000001
-#define	SD_F_AUTOVCHAN		0x00000002
+#define SD_F_AUTOVCHAN		0x00000002
+#define SD_F_SOFTVOL		0x00000004
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
@@ -144,10 +145,13 @@ nomenclature:
 
 /* make figuring out what a format is easier. got AFMT_STEREO already */
 #define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
+#define AFMT_24BIT (AFMT_S24_LE | AFMT_S24_BE | AFMT_U24_LE | AFMT_U24_BE)
 #define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
-#define AFMT_8BIT (AFMT_U8 | AFMT_S8)
-#define AFMT_SIGNED (AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
-#define AFMT_BIGENDIAN (AFMT_S16_BE | AFMT_U16_BE)
+#define AFMT_8BIT (AFMT_MU_LAW | AFMT_A_LAW | AFMT_U8 | AFMT_S8)
+#define AFMT_SIGNED (AFMT_S32_LE | AFMT_S32_BE | AFMT_S24_LE | AFMT_S24_BE | \
+			AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
+#define AFMT_BIGENDIAN (AFMT_S32_BE | AFMT_U32_BE | AFMT_S24_BE | AFMT_U24_BE | \
+			AFMT_S16_BE | AFMT_U16_BE)
 
 struct pcm_channel *fkchan_setup(device_t dev);
 int fkchan_kill(struct pcm_channel *c);
@@ -235,11 +239,12 @@ void snd_mtxassert(void *m);
 int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
+int sndstat_acquire(void);
+int sndstat_release(void);
 int sndstat_register(device_t dev, char *str, sndstat_handler handler);
 int sndstat_registerfile(char *str);
 int sndstat_unregister(device_t dev);
 int sndstat_unregisterfile(char *str);
-int sndstat_busy(void);
 
 #define SND_DECLARE_FILE(version) \
 	_SND_DECLARE_FILE(__LINE__, version)

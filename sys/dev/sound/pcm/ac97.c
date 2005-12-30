@@ -84,10 +84,8 @@ static const struct ac97mixtable_entry ac97mixtable_default[32] = {
 	[SOUND_MIXER_LINE]	= { AC97_MIX_LINE, 	5, 0, 1, 1, 5, 0, 1 },
 	[SOUND_MIXER_PHONEIN]	= { AC97_MIX_PHONE, 	5, 0, 0, 1, 8, 0, 0 },
 	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 1, 1 },
-#if 0
 	/* use igain for the mic 20dB boost */
 	[SOUND_MIXER_IGAIN] 	= { -AC97_MIX_MIC, 	1, 6, 0, 0, 0, 1, 1 },
-#endif
 	[SOUND_MIXER_CD]	= { AC97_MIX_CD, 	5, 0, 1, 1, 2, 0, 1 },
 	[SOUND_MIXER_LINE1]	= { AC97_MIX_AUX, 	5, 0, 1, 1, 4, 0, 0 },
 	[SOUND_MIXER_VIDEO]	= { AC97_MIX_VIDEO, 	5, 0, 1, 1, 3, 0, 0 },
@@ -118,6 +116,11 @@ static const struct ac97_vendorid ac97vendorid[] = {
 	{ 0x57454300, "Winbond" },
 	{ 0x574d4c00, "Wolfson" },
 	{ 0x594d4800, "Yamaha" },
+	/* 
+	 * XXX This is a fluke, really! The real vendor
+	 * should be SigmaTel, not this! This should be
+	 * removed someday!
+	 */
 	{ 0x01408300, "Creative" },
 	{ 0x00000000, NULL }
 };
@@ -145,7 +148,9 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x414c4710, 0x0f, 0, "ALC200", 	0 },
 	{ 0x414c4740, 0x0f, 0, "ALC202", 	0 },
 	{ 0x414c4720, 0x0f, 0, "ALC650", 	0 },
+	{ 0x414c4752, 0x0f, 0, "ALC250",	0 },
 	{ 0x414c4760, 0x0f, 0, "ALC655",	0 },
+	{ 0x414c4770, 0x0f, 0, "ALC203",	0 },
 	{ 0x414c4780, 0x0f, 0, "ALC658",	0 },
 	{ 0x414c4790, 0x0f, 0, "ALC850",	0 },
 	{ 0x43525900, 0x07, 0, "CS4297", 	0 },
@@ -156,10 +161,14 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x43525940, 0x07, 0, "CS4201",	0 },
 	{ 0x43525958, 0x07, 0, "CS4205",	0 },
 	{ 0x43525960, 0x07, 0, "CS4291A",	0 },
-	{ 0x434d4961, 0x00, 0, "CMI9739",	0 },
+	{ 0x434d4961, 0x00, 0, "CMI9739",	cmi9739_patch },
 	{ 0x434d4941, 0x00, 0, "CMI9738",	0 },
+	{ 0x434d4978, 0x00, 0, "CMI9761",	0 },
+	{ 0x434d4982, 0x00, 0, "CMI9761",	0 },
+	{ 0x434d4983, 0x00, 0, "CMI9761",	0 },
 	{ 0x43585421, 0x00, 0, "HSD11246",	0 },
 	{ 0x43585428, 0x07, 0, "CX20468",	0 },
+	{ 0x43585430, 0x00, 0, "CX20468-21",	0 },
 	{ 0x44543000, 0x00, 0, "DT0398",	0 },
 	{ 0x454d4323, 0x00, 0, "EM28023",	0 },
 	{ 0x454d4328, 0x00, 0, "EM28028",	0 },
@@ -192,6 +201,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x83847658, 0x00, 0, "STAC9758/59",	0 },
 	{ 0x83847660, 0x00, 0, "STAC9760/61",	0 }, /* Extrapolated */
 	{ 0x83847662, 0x00, 0, "STAC9762/63",	0 }, /* Extrapolated */
+	{ 0x83847666, 0x00, 0, "STAC9766/67",	0 },
 	{ 0x53494c22, 0x00, 0, "Si3036",	0 },
 	{ 0x53494c23, 0x00, 0, "Si3038",	0 },
 	{ 0x54524103, 0x00, 0, "TR28023",	0 }, /* Extrapolated */
@@ -201,6 +211,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x54524e03, 0x07, 0, "TLV320AIC27",	0 },
 	{ 0x54584e20, 0x00, 0, "TLC320AD90",	0 },
 	{ 0x56494161, 0x00, 0, "VIA1612A",      0 },
+	{ 0x56494170, 0x00, 0, "VIA1617A",      0 },
 	{ 0x574d4c00, 0x00, 0, "WM9701A",	0 },
 	{ 0x574d4c03, 0x00, 0, "WM9703/4/7/8",	0 },
 	{ 0x574d4c04, 0x00, 0, "WM9704Q",	0 },
@@ -211,6 +222,11 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x594d4800, 0x00, 0, "YMF743",	0 },
 	{ 0x594d4802, 0x00, 0, "YMF752",	0 },
 	{ 0x594d4803, 0x00, 0, "YMF753",	0 },
+	/* 
+	 * XXX This is a fluke, really! The real codec
+	 * should be STAC9704, not this! This should be
+	 * removed someday!
+	 */
 	{ 0x01408384, 0x00, 0, "EV1938",	0 },
 	{ 0, 0, 0, NULL, 0 }
 };
@@ -283,6 +299,21 @@ static char *ac97extfeature[] = {
 u_int16_t
 ac97_rdcd(struct ac97_info *codec, int reg)
 {
+	if (codec->flags & AC97_F_RDCD_BUG) {
+		u_int16_t i[2], j = 100;
+
+		i[0] = AC97_READ(codec->methods, codec->devinfo, reg);
+		i[1] = AC97_READ(codec->methods, codec->devinfo, reg);
+		while (i[0] != i[1] && j)
+			i[j-- & 1] = AC97_READ(codec->methods, codec->devinfo, reg);
+#if 0
+		if (j < 100) {
+			device_printf(codec->dev, "%s(): Inconsistent register value at"
+					" 0x%08x (retry: %d)\n", __func__, reg, 100 - j);
+		}
+#endif
+		return i[!(j & 1)];
+	}
 	return AC97_READ(codec->methods, codec->devinfo, reg);
 }
 
@@ -452,14 +483,16 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 		 */
 		snd_mtxlock(codec->lock);
 		if (e->mask) {
-			int cur = ac97_rdcd(codec, e->reg);
+			int cur = ac97_rdcd(codec, reg);
 			val |= cur & ~(mask);
 		}
 		ac97_wrcd(codec, reg, val);
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
 	} else {
-		/* printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable); */
+#if 0
+		printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable);
+#endif
 		return -1;
 	}
 }
@@ -511,6 +544,40 @@ ac97_fix_tone(struct ac97_info *codec)
 	}
 }
 
+static void
+ac97_fix_volume(struct ac97_info *codec)
+{
+    	struct snddev_info *d = device_get_softc(codec->dev);
+
+#if 0
+	/* XXX For the sake of debugging purposes */
+	ac97_wrcd(codec, AC97_MIX_PCM, 0);
+	bzero(&codec->mix[SOUND_MIXER_PCM],
+		sizeof(codec->mix[SOUND_MIXER_PCM]));
+	codec->flags |= AC97_F_SOFTVOL;
+	if (d)
+		d->flags |= SD_F_SOFTVOL;
+	return;
+#endif
+	switch (codec->id) {
+		case 0x434d4941:	/* CMI9738 */
+		case 0x434d4961:	/* CMI9739 */
+		case 0x434d4978:	/* CMI9761 */
+		case 0x434d4982:	/* CMI9761 */
+		case 0x434d4983:	/* CMI9761 */
+			ac97_wrcd(codec, AC97_MIX_PCM, 0);
+			break;
+		default:
+			return;
+			break;
+	}
+	bzero(&codec->mix[SOUND_MIXER_PCM],
+			sizeof(codec->mix[SOUND_MIXER_PCM]));
+	codec->flags |= AC97_F_SOFTVOL;
+	if (d)
+		d->flags |= SD_F_SOFTVOL;
+}
+
 static const char*
 ac97_hw_desc(u_int32_t id, const char* vname, const char* cname, char* buf)
 {
@@ -536,8 +603,9 @@ ac97_initmixer(struct ac97_info *codec)
 	const char *cname, *vname;
 	char desc[80];
 	u_int8_t model, step;
-	unsigned i, j, k, old;
+	unsigned i, j, k, bit, old;
 	u_int32_t id;
+	int reg;
 
 	snd_mtxlock(codec->lock);
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
@@ -552,6 +620,16 @@ ac97_initmixer(struct ac97_info *codec)
 	ac97_wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 
 	i = ac97_rdcd(codec, AC97_REG_RESET);
+	j = ac97_rdcd(codec, AC97_REG_RESET);
+	/*
+	 * Let see if this codec can return consistent value.
+	 * If not, turn on aggressive read workaround
+	 * (STAC9704 comes in mind).
+	 */
+	if (i != j) {
+		codec->flags |= AC97_F_RDCD_BUG;
+		i = ac97_rdcd(codec, AC97_REG_RESET);
+	}
 	codec->caps = i & 0x03ff;
 	codec->se =  (i & 0x7c00) >> 10;
 
@@ -605,27 +683,75 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 	ac97_fix_auxout(codec);
 	ac97_fix_tone(codec);
+	ac97_fix_volume(codec);
 	if (codec_patch)
 		codec_patch(codec);
 
 	for (i = 0; i < 32; i++) {
 		k = codec->noext? codec->mix[i].enable : 1;
-		if (k && (codec->mix[i].reg > 0)) {
-			old = ac97_rdcd(codec, codec->mix[i].reg);
-			ac97_wrcd(codec, codec->mix[i].reg, 0x3f);
-			j = ac97_rdcd(codec, codec->mix[i].reg);
-			ac97_wrcd(codec, codec->mix[i].reg, old);
-			codec->mix[i].enable = (j != 0 && j != old)? 1 : 0;
-			for (k = 1; j & (1 << k); k++);
-			codec->mix[i].bits = j? k - codec->mix[i].ofs : 0;
+		reg = codec->mix[i].reg;
+		if (reg < 0)
+			reg = -reg;
+		if (k && reg) {
+			j = old = ac97_rdcd(codec, reg);
+			/*
+			 * Test for mute bit (except for AC97_MIX_TONE,
+			 * where we simply assume it as available).
+			 */
+			if (codec->mix[i].mute) {
+				ac97_wrcd(codec, reg, j | 0x8000);
+				j = ac97_rdcd(codec, reg);
+			} else
+				j |= 0x8000;
+			if ((j & 0x8000)) {
+				/*
+				 * Test whether the control width should be
+				 * 4, 5 or 6 bit. For 5bit register, we should
+				 * test it whether it's really 5 or 6bit. Leave
+				 * 4bit register alone, because sometimes an
+				 * attempt to write past 4th bit may cause
+				 * incorrect result especially for AC97_MIX_BEEP
+				 * (ac97 2.3).
+				 */
+				bit = codec->mix[i].bits;
+				if (bit == 5)
+					bit++;
+				j = ((1 << bit) - 1) << codec->mix[i].ofs;
+				ac97_wrcd(codec, reg,
+					j | (codec->mix[i].mute ? 0x8000 : 0));
+				k = ac97_rdcd(codec, reg) & j;
+				k >>= codec->mix[i].ofs;
+				if (reg == AC97_MIX_TONE &&
+							((k & 0x0001) == 0x0000))
+					k >>= 1;
+				for (j = 0; k >> j; j++)
+					;
+				if (j != 0) {
+#if 0
+					device_printf(codec->dev, "%2d: [ac97_rdcd() = %d] [Testbit = %d] %d -> %d\n",
+						i, k, bit, codec->mix[i].bits, j);
+#endif
+					codec->mix[i].enable = 1;
+					codec->mix[i].bits = j;
+				} else
+					codec->mix[i].enable = 0;
+			} else
+				codec->mix[i].enable = 0;
+			ac97_wrcd(codec, reg, old);
 		}
-		/* printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits); */
+#if 0
+		printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits);
+#endif
 	}
 
 	device_printf(codec->dev, "<%s>\n",
 		      ac97_hw_desc(codec->id, vname, cname, desc));
 
 	if (bootverbose) {
+		if (codec->flags & AC97_F_RDCD_BUG)
+			device_printf(codec->dev, "Buggy AC97 Codec: aggressive ac97_rdcd() workaround enabled\n");
+		if (codec->flags & AC97_F_SOFTVOL)
+			device_printf(codec->dev, "Soft PCM volume\n");
 		device_printf(codec->dev, "Codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
@@ -645,8 +771,16 @@ ac97_initmixer(struct ac97_info *codec)
 		}
 	}
 
-	if ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0)
-		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+	i = 0;
+	while ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0) {
+		if (++i == 100) {
+			device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+			break;
+		}
+		DELAY(1000);
+	}
+	if (bootverbose)
+		device_printf(codec->dev, "ac97 codec dac ready count: %d\n", i);
 	snd_mtxunlock(codec->lock);
 	return 0;
 }

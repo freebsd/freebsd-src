@@ -92,7 +92,9 @@ static driver_intr_t 	mss_intr;
 
 /* prototypes for local functions */
 static int 		mss_detect(device_t dev, struct mss_info *mss);
+#ifndef PC98
 static int		opti_detect(device_t dev, struct mss_info *mss);
+#endif
 static char 		*ymf_test(device_t dev, struct mss_info *mss);
 static void		ad_unmute(struct mss_info *mss);
 
@@ -111,7 +113,9 @@ static void             ad_leave_MCE(struct mss_info *mss);
 /* OPTi-specific functions */
 static void		opti_write(struct mss_info *mss, u_char reg,
 				   u_char data);
+#ifndef PC98
 static u_char		opti_read(struct mss_info *mss, u_char reg);
+#endif
 static int		opti_init(device_t dev, struct mss_info *mss);
 
 /* io primitives */
@@ -795,11 +799,15 @@ mss_intr(void *arg)
 		c &= ~served;
 		if (sndbuf_runsz(mss->pch.buffer) && (c & 0x10)) {
 	    		served |= 0x10;
+			mss_unlock(mss);
 	    		chn_intr(mss->pch.channel);
+			mss_lock(mss);
 		}
 		if (sndbuf_runsz(mss->rch.buffer) && (c & 0x20)) {
 	    		served |= 0x20;
+			mss_unlock(mss);
 	    		chn_intr(mss->rch.channel);
+			mss_lock(mss);
 		}
 		/* now ack the interrupt */
 		if (FULL_DUPLEX(mss)) ad_write(mss, 24, ~c); /* ack selectively */
@@ -970,6 +978,7 @@ mss_speed(struct mss_chinfo *ch, int speed)
 			    abs(speed-speeds[i]) < abs(speed-speeds[sel])) sel = i;
         	speed = speeds[sel];
         	ad_write(mss, 8, (ad_read(mss, 8) & 0xf0) | sel);
+		ad_wait_init(mss, 10000);
     	}
     	ad_leave_MCE(mss);
 
@@ -1009,7 +1018,11 @@ mss_format(struct mss_chinfo *ch, u_int32_t format)
     	arg <<= 4;
     	ad_enter_MCE(mss);
     	ad_write(mss, 8, (ad_read(mss, 8) & 0x0f) | arg);
-    	if (FULL_DUPLEX(mss)) ad_write(mss, 28, arg); /* capture mode */
+	ad_wait_init(mss, 10000);
+    	if (ad_read(mss, 12) & 0x40) {	/* mode2? */
+		ad_write(mss, 28, arg); /* capture mode */
+		ad_wait_init(mss, 10000);
+	}
     	ad_leave_MCE(mss);
     	return format;
 }
@@ -1111,8 +1124,16 @@ opti931_intr(void *arg)
 		return;
     	}
 
-    	if (sndbuf_runsz(mss->rch.buffer) && (mc11 & 8)) chn_intr(mss->rch.channel);
-    	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) chn_intr(mss->pch.channel);
+    	if (sndbuf_runsz(mss->rch.buffer) && (mc11 & 8)) {
+		mss_unlock(mss);
+		chn_intr(mss->rch.channel);
+		mss_lock(mss);
+	}
+    	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) {
+		mss_unlock(mss);
+		chn_intr(mss->pch.channel);
+		mss_lock(mss);
+	}
     	opti_wr(mss, 11, ~mc11); /* ack */
     	if (--loops) goto again;
 	mss_unlock(mss);
@@ -1355,6 +1376,7 @@ mss_detect(device_t dev, struct mss_info *mss)
     	name = "AD1848";
     	mss->bd_id = MD_AD1848; /* AD1848 or CS4248 */
 
+#ifndef PC98
 	if (opti_detect(dev, mss)) {
 		switch (mss->bd_id) {
 			case MD_OPTI924:
@@ -1367,6 +1389,7 @@ mss_detect(device_t dev, struct mss_info *mss)
 		printf("Found OPTi device %s\n", name);
 		if (opti_init(dev, mss) == 0) goto gotit;
 	}
+#endif
 
    	/*
      	* Check that the I/O address is in use.
@@ -1573,6 +1596,7 @@ no:
     	return ENXIO;
 }
 
+#ifndef PC98
 static int
 opti_detect(device_t dev, struct mss_info *mss)
 {
@@ -1618,6 +1642,7 @@ opti_detect(device_t dev, struct mss_info *mss)
 	}
 	return 0;
 }
+#endif
 
 static char *
 ymf_test(device_t dev, struct mss_info *mss)
@@ -2152,6 +2177,7 @@ opti_write(struct mss_info *mss, u_char reg, u_char val)
 	}
 }
 
+#ifndef PC98
 u_char
 opti_read(struct mss_info *mss, u_char reg)
 {
@@ -2175,6 +2201,7 @@ opti_read(struct mss_info *mss, u_char reg)
 	}
 	return -1;
 }
+#endif
 
 static device_method_t pnpmss_methods[] = {
 	/* Device interface */

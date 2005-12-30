@@ -361,8 +361,11 @@ ess_intr(void *arg)
 	rirq = (src & sc->rch.hwch)? 1 : 0;
 
 	if (pirq) {
-		if (sc->pch.run)
+		if (sc->pch.run) {
+			ess_unlock(sc);
 			chn_intr(sc->pch.channel);
+			ess_lock(sc);
+		}
 		if (sc->pch.stopping) {
 			sc->pch.run = 0;
 			sndbuf_dma(sc->pch.buffer, PCMTRIG_STOP);
@@ -375,8 +378,11 @@ ess_intr(void *arg)
 	}
 
 	if (rirq) {
-		if (sc->rch.run)
+		if (sc->rch.run) {
+			ess_unlock(sc);
 			chn_intr(sc->rch.channel);
+			ess_lock(sc);
+		}
 		if (sc->rch.stopping) {
 			sc->rch.run = 0;
 			sndbuf_dma(sc->rch.buffer, PCMTRIG_STOP);

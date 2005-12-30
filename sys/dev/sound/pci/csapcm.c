@@ -667,6 +667,14 @@ csa_init(struct csa_info *csa)
 	/* Crank up the power on the DAC and ADC. */
 	csa_setplaysamplerate(resp, 8000);
 	csa_setcapturesamplerate(resp, 8000);
+	/* Set defaults */
+	csa_writeio(resp, BA0_EGPIODR, EGPIODR_GPOE0);
+	csa_writeio(resp, BA0_EGPIOPTR, EGPIOPTR_GPPT0);
+	/* Power up amplifier */
+	csa_writeio(resp, BA0_EGPIODR, csa_readio(resp, BA0_EGPIODR) |
+		EGPIODR_GPOE2);
+	csa_writeio(resp, BA0_EGPIOPTR, csa_readio(resp, BA0_EGPIOPTR) | 
+		EGPIOPTR_GPPT2);
 
 	return 0;
 }

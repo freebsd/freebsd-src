@@ -876,8 +876,8 @@ cmi_attach(device_t dev)
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/sc->bufsz, /*nsegments*/1,
 			       /*maxsegz*/0x3ffff, /*flags*/0,
-			       /*lockfunc*/busdma_lock_mutex,
-			       /*lockfunc*/&Giant,
+			       /*lockfunc*/NULL,
+			       /*lockfunc*/NULL,
 			       &sc->parent_dmat) != 0) {
 		device_printf(dev, "cmi_attach: Unable to create dma tag\n");
 		goto bad;

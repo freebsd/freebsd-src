@@ -86,6 +86,7 @@ struct via_info {
 	struct via_chinfo pch, rch;
 	struct via_dma_op *sgd_table;
 	u_int16_t codec_caps;
+	struct mtx *lock;
 };
 
 static u_int32_t via_fmt[] = {
@@ -98,7 +99,7 @@ static u_int32_t via_fmt[] = {
 static struct pcmchan_caps via_vracaps = {4000, 48000, via_fmt, 0};
 static struct pcmchan_caps via_caps = {48000, 48000, via_fmt, 0};
 
-static u_int32_t
+static __inline u_int32_t
 via_rd(struct via_info *via, int regno, int size)
 {
 
@@ -115,7 +116,7 @@ via_rd(struct via_info *via, int regno, int size)
 }
 
 
-static void
+static __inline void
 via_wr(struct via_info *via, int regno, u_int32_t data, int size)
 {
 
@@ -244,6 +245,7 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	struct via_info *via = devinfo;
 	struct via_chinfo *ch;
 
+	snd_mtxlock(via->lock);
 	if (dir == PCMDIR_PLAY) {
 		ch = &via->pch;
 		ch->base = VIA_PLAY_DMAOPS_BASE;
@@ -266,9 +268,11 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
+	snd_mtxunlock(via->lock);
 
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
 		return NULL;
+
 	return ch;
 }
 
@@ -286,10 +290,12 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 		mode_set |= VIA_RPMODE_16BIT;
 
 	DEB(printf("set format: dir = %d, format=%x\n", ch->dir, format));
+	snd_mtxlock(via->lock);
 	mode = via_rd(via, ch->mode, 1);
 	mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
 	mode |= mode_set;
 	via_wr(via, ch->mode, mode, 1);
+	snd_mtxunlock(via->lock);
 
 	return 0;
 }
@@ -342,12 +348,14 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	ado = ch->sgd_table;
 	DEB(printf("ado located at va=%p pa=%x\n", ado, sgd_addr));
 
+	snd_mtxlock(via->lock);
 	if (go == PCMTRIG_START) {
 		via_buildsgdt(ch);
 		via_wr(via, ch->base, sgd_addr, 4);
 		via_wr(via, ch->ctrl, VIA_RPCTRL_START, 1);
 	} else
 		via_wr(via, ch->ctrl, VIA_RPCTRL_TERMINATE, 1);
+	snd_mtxunlock(via->lock);
 
 	DEB(printf("viachan_trigger: go=%d\n", go));
 	return 0;
@@ -363,11 +371,13 @@ viachan_getptr(kobj_t obj, void *data)
 	int ptr, base, base1, len, seg;
 
 	ado = ch->sgd_table;
+	snd_mtxlock(via->lock);
 	base1 = via_rd(via, ch->base, 4);
 	len = via_rd(via, ch->count, 4);
 	base = via_rd(via, ch->base, 4);
 	if (base != base1) 	/* Avoid race hazard */
 		len = via_rd(via, ch->count, 4);
+	snd_mtxunlock(via->lock);
 
 	DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 
@@ -417,22 +427,25 @@ static void
 via_intr(void *p)
 {
 	struct via_info *via = p;
-	int		st;
 
 	/* DEB(printf("viachan_intr\n")); */
 	/* Read channel */
-	st = via_rd(via, VIA_PLAY_STAT, 1);
-	if (st & VIA_RPSTAT_INTR) {
+	snd_mtxlock(via->lock);
+	if (via_rd(via, VIA_PLAY_STAT, 1) & VIA_RPSTAT_INTR) {
 		via_wr(via, VIA_PLAY_STAT, VIA_RPSTAT_INTR, 1);
+		snd_mtxunlock(via->lock);
 		chn_intr(via->pch.channel);
+		snd_mtxlock(via->lock);
 	}
 
 	/* Write channel */
-	st = via_rd(via, VIA_RECORD_STAT, 1);
-	if (st & VIA_RPSTAT_INTR) {
+	if (via_rd(via, VIA_RECORD_STAT, 1) & VIA_RPSTAT_INTR) {
 		via_wr(via, VIA_RECORD_STAT, VIA_RPSTAT_INTR, 1);
+		snd_mtxunlock(via->lock);
 		chn_intr(via->rch.channel);
+		return;
 	}
+	snd_mtxunlock(via->lock);
 }
 
 /*
@@ -468,6 +481,7 @@ via_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
+	via->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 
 	/* Get resources */
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -521,7 +535,7 @@ via_attach(device_t dev)
 	via->irqid = 0;
 	via->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &via->irqid,
 		RF_ACTIVE | RF_SHAREABLE);
-	if (!via->irq || snd_setup_intr(dev, via->irq, 0, via_intr, via, &via->ih)) {
+	if (!via->irq || snd_setup_intr(dev, via->irq, INTR_MPSAFE, via_intr, via, &via->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -546,8 +560,8 @@ via_attach(device_t dev)
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/via->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant, &via->parent_dmat) != 0) {
+		/*flags*/0, /*lockfunc*/NULL,
+		/*lockarg*/NULL, &via->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
@@ -563,8 +577,8 @@ via_attach(device_t dev)
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/NSEGS * sizeof(struct via_dma_op),
 		/*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant, &via->sgd_dmat) != 0) {
+		/*flags*/0, /*lockfunc*/NULL,
+		/*lockarg*/NULL, &via->sgd_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
@@ -594,6 +608,7 @@ bad:
 	if (via->parent_dmat) bus_dma_tag_destroy(via->parent_dmat);
 	if (via->sgd_dmamap) bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
 	if (via->sgd_dmat) bus_dma_tag_destroy(via->sgd_dmat);
+	if (via->lock) snd_mtxfree(via->lock);
 	if (via) free(via, M_DEVBUF);
 	return ENXIO;
 }
@@ -615,6 +630,7 @@ via_detach(device_t dev)
 	bus_dma_tag_destroy(via->parent_dmat);
 	bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
 	bus_dma_tag_destroy(via->sgd_dmat);
+	snd_mtxfree(via->lock);
 	free(via, M_DEVBUF);
 	return 0;
 }

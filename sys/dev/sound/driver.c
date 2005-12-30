@@ -54,6 +54,7 @@ MODULE_VERSION(snd_driver, 1);
 
 MODULE_DEPEND(snd_driver, snd_ad1816, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_als4000, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_atiixp, 1, 1, 1);
 /* MODULE_DEPEND(snd_driver, snd_aureal, 1, 1, 1); */
 MODULE_DEPEND(snd_driver, snd_cmi, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_cs4281, 1, 1, 1);

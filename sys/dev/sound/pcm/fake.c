@@ -29,6 +29,10 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 static u_int32_t fk_fmt[] = {
+	AFMT_MU_LAW,
+	AFMT_STEREO | AFMT_MU_LAW,
+	AFMT_A_LAW,
+	AFMT_STEREO | AFMT_A_LAW,
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
 	AFMT_S8,
@@ -41,6 +45,22 @@ static u_int32_t fk_fmt[] = {
 	AFMT_STEREO | AFMT_S16_BE,
 	AFMT_U16_BE,
 	AFMT_STEREO | AFMT_U16_BE,
+	AFMT_S24_LE,
+	AFMT_STEREO | AFMT_S24_LE,
+	AFMT_U24_LE,
+	AFMT_STEREO | AFMT_U24_LE,
+	AFMT_S24_BE,
+	AFMT_STEREO | AFMT_S24_BE,
+	AFMT_U24_BE,
+	AFMT_STEREO | AFMT_U24_BE,
+	AFMT_S32_LE,
+	AFMT_STEREO | AFMT_S32_LE,
+	AFMT_U32_LE,
+	AFMT_STEREO | AFMT_U32_LE,
+	AFMT_S32_BE,
+	AFMT_STEREO | AFMT_S32_BE,
+	AFMT_U32_BE,
+	AFMT_STEREO | AFMT_U32_BE,
 	0
 };
 static struct pcmchan_caps fk_caps = {0, 1000000, fk_fmt, 0};
@@ -120,6 +140,12 @@ fkchan_setup(device_t dev)
 	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK);
 	c->methods = kobj_create(&fkchan_class, M_DEVBUF, M_WAITOK);
 	c->parentsnddev = d;
+	/*
+	 * Fake channel is such a blessing in disguise. Using this,
+	 * we can keep track prefered virtual channel speed without
+	 * querying kernel hint repetitively (see vchan_create / vchan.c).
+	 */
+	c->speed = 0;
 	snprintf(c->name, CHN_NAMELEN, "%s:fake", device_get_nameunit(dev));
 
 	return c;

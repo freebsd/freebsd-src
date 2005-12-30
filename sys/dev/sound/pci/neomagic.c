@@ -223,7 +223,16 @@ nm_initcd(kobj_t obj, void *devinfo)
 	struct sc_info *sc = (struct sc_info *)devinfo;
 
 	nm_wr(sc, 0x6c0, 0x01, 1);
+#if 0
+	/*
+	 * The following code-line may cause a hang for some chipsets, see
+	 * PR 56617.
+	 * In case of a bugreport without this line have a look at the PR and
+	 * conditionize the code-line based upon the specific version of
+	 * the chip.
+	 */
 	nm_wr(sc, 0x6cc, 0x87, 1);
+#endif
 	nm_wr(sc, 0x6cc, 0x80, 1);
 	nm_wr(sc, 0x6cc, 0x00, 1);
 	return 1;
