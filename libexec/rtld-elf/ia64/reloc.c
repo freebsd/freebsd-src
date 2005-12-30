@@ -318,9 +318,9 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 
 	default:
-		_rtld_error("%s: Unsupported relocation type %d"
+		_rtld_error("%s: Unsupported relocation type %u"
 			    " in non-PLT relocations\n", obj->path,
-			    ELF_R_TYPE(rela->r_info));
+			    (unsigned int)ELF_R_TYPE(rela->r_info));
 		return -1;
 	}
 

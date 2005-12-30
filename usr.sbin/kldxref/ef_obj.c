@@ -113,7 +113,7 @@ static int ef_obj_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
     void **ptr);
 static int ef_obj_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
     void **ptr);
-static Elf_Addr ef_obj_symaddr(elf_file_t ef, Elf_Word symidx);
+static Elf_Addr ef_obj_symaddr(elf_file_t ef, Elf_Size symidx);
 static int ef_obj_lookup_set(elf_file_t ef, const char *name, long *startp,
     long *stopp, long *countp);
 static int ef_obj_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym);
@@ -176,7 +176,7 @@ ef_obj_lookup_set(elf_file_t ef, const char *name, long *startp, long *stopp,
 }
 
 static Elf_Addr
-ef_obj_symaddr(elf_file_t ef, Elf_Word symidx)
+ef_obj_symaddr(elf_file_t ef, Elf_Size symidx)
 {
 	const Elf_Sym *sym;
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 1999
+.Dd December 18, 2005
 .Dt ELF 5
 .Os
 .Sh NAME
@@ -88,23 +88,22 @@ symbol tables.
 .Pp
 The following types are being used for 32-bit architectures:
 .Bd -literal -offset indent
-Elf32_Addr	Unsigned program address
-Elf32_Half	Unsigned halfword field
-Elf32_Off	Unsigned file offset
-Elf32_Sword	Signed large integer
-Elf32_Word	Field or unsigned large integer
-Elf32_Size	Unsigned object size
+Elf32_Addr	Unsigned 32-bit program address
+Elf32_Half	Unsigned 16-bit field
+Elf32_Off	Unsigned 32-bit file offset
+Elf32_Sword	Signed 32-bit field or integer
+Elf32_Word	Unsigned 32-bit field or integer
 .Ed
 .Pp
 For 64-bit architectures we have the following types:
 .Bd -literal -offset indent
-Elf64_Addr	Unsigned program address
-Elf64_Half	Unsigned halfword field
-Elf64_Off	Unsigned file offset
-Elf64_Sword	Signed large integer
-Elf64_Word	Field or unsigned large integer
-Elf64_Size	Unsigned object size
-Elf64_Quarter	Unsigned quarterword field
+Elf64_Addr	Unsigned 64-bit program address
+Elf64_Half	Unsigned 16-bit field
+Elf64_Off	Unsigned 64-bit file offset
+Elf64_Sword	Signed 32-bit field
+Elf64_Word	Unsigned 32-bit field
+Elf64_Sxword	Signed 64-bit field or integer
+Elf64_Xword	Unsigned 64-bit field or integer
 .Ed
 .Pp
 All data structures that the file format defines follow the
@@ -137,19 +136,19 @@ typedef struct {
 .Bd -literal -offset indent
 typedef struct {
 	unsigned char   e_ident[EI_NIDENT];
-	Elf64_Quarter   e_type;
-	Elf64_Quarter   e_machine;
-	Elf64_Half      e_version;
+	Elf64_Half      e_type;
+	Elf64_Half      e_machine;
+	Elf64_Word      e_version;
 	Elf64_Addr      e_entry;
 	Elf64_Off       e_phoff;
 	Elf64_Off       e_shoff;
-	Elf64_Half      e_flags;
-	Elf64_Quarter   e_ehsize;
-	Elf64_Quarter   e_phentsize;
-	Elf64_Quarter   e_phnum;
-	Elf64_Quarter   e_shentsize;
-	Elf64_Quarter   e_shnum;
-	Elf64_Quarter   e_shstrndx;
+	Elf64_Word      e_flags;
+	Elf64_Half      e_ehsize;
+	Elf64_Half      e_phentsize;
+	Elf64_Half      e_phnum;
+	Elf64_Half      e_shentsize;
+	Elf64_Half      e_shnum;
+	Elf64_Half      e_shstrndx;
 } Elf64_Ehdr;
 .Ed
 .Pp
@@ -416,23 +415,23 @@ typedef struct {
         Elf32_Off       p_offset;
         Elf32_Addr      p_vaddr;
         Elf32_Addr      p_paddr;
-        Elf32_Size      p_filesz;
-        Elf32_Size      p_memsz;
+        Elf32_Word      p_filesz;
+        Elf32_Word      p_memsz;
         Elf32_Word      p_flags;
-        Elf32_Size      p_align;
+        Elf32_Word      p_align;
 } Elf32_Phdr;
 .Ed
 .Pp
 .Bd -literal -offset indent
 typedef struct {
-        Elf64_Half      p_type;
-        Elf64_Half      p_flags;
+        Elf64_Word      p_type;
+        Elf64_Word      p_flags;
         Elf64_Off       p_offset;
         Elf64_Addr      p_vaddr;
         Elf64_Addr      p_paddr;
-        Elf64_Size      p_filesz;
-        Elf64_Size      p_memsz;
-        Elf64_Size      p_align;
+        Elf64_Xword     p_filesz;
+        Elf64_Xword     p_memsz;
+        Elf64_Xword     p_align;
 } Elf64_Phdr;
 .Ed
 .Pp
@@ -631,26 +630,26 @@ typedef struct {
 	Elf32_Word      sh_flags;
 	Elf32_Addr      sh_addr;
 	Elf32_Off       sh_offset;
-	Elf32_Size      sh_size;
+	Elf32_Word      sh_size;
 	Elf32_Word      sh_link;
 	Elf32_Word      sh_info;
-	Elf32_Size      sh_addralign;
-	Elf32_Size      sh_entsize;
+	Elf32_Word      sh_addralign;
+	Elf32_Word      sh_entsize;
 } Elf32_Shdr;
 .Ed
 .Pp
 .Bd -literal -offset indent
 typedef struct {
-	Elf64_Half      sh_name;
-	Elf64_Half      sh_type;
-	Elf64_Size      sh_flags;
+	Elf64_Word      sh_name;
+	Elf64_Word      sh_type;
+	Elf64_Xword     sh_flags;
 	Elf64_Addr      sh_addr;
 	Elf64_Off       sh_offset;
-	Elf64_Size      sh_size;
-	Elf64_Half      sh_link;
-	Elf64_Half      sh_info;
-	Elf64_Size      sh_addralign;
-	Elf64_Size      sh_entsize;
+	Elf64_Xword     sh_size;
+	Elf64_Word      sh_link;
+	Elf64_Word      sh_info;
+	Elf64_Xword     sh_addralign;
+	Elf64_Xword     sh_entsize;
 } Elf64_Shdr;
 .Ed
 .Pp
@@ -1073,7 +1072,7 @@ index is a subscript into this array.
 typedef struct {
 	Elf32_Word      st_name;
 	Elf32_Addr      st_value;
-	Elf32_Size      st_size;
+	Elf32_Word      st_size;
 	unsigned char   st_info;
 	unsigned char   st_other;
 	Elf32_Half      st_shndx;
@@ -1082,12 +1081,12 @@ typedef struct {
 .Pp
 .Bd -literal -offset indent
 typedef struct {
-	Elf64_Half      st_name;
+	Elf64_Word      st_name;
 	unsigned char   st_info;
 	unsigned char   st_other;
-	Elf64_Quarter   st_shndx;
+	Elf64_Half      st_shndx;
 	Elf64_Addr      st_value;
-	Elf64_Size      st_size;
+	Elf64_Xword     st_size;
 } Elf64_Sym;
 .Ed
 .Pp
@@ -1217,7 +1216,7 @@ typedef struct {
 .Bd -literal -offset indent
 typedef struct {
 	Elf64_Addr      r_offset;
-	Elf64_Size      r_info;
+	Elf64_Xword     r_info;
 } Elf64_Rel;
 .Ed
 .Pp
@@ -1233,8 +1232,8 @@ typedef struct {
 .Bd -literal -offset indent
 typedef struct {
 	Elf64_Addr      r_offset;
-	Elf64_Size      r_info;
-	Elf64_Off       r_addend;
+	Elf64_Xword     r_info;
+	Elf64_Sxword    r_addend;
 } Elf64_Rela;
 .Ed
 .Pp

@@ -35,13 +35,17 @@
  * ELF definitions common to all 32-bit architectures.
  */
 
-typedef u_int32_t	Elf32_Addr;
-typedef u_int16_t	Elf32_Half;
-typedef u_int32_t	Elf32_Off;
+typedef uint32_t	Elf32_Addr;
+typedef uint16_t	Elf32_Half;
+typedef uint32_t	Elf32_Off;
 typedef int32_t		Elf32_Sword;
-typedef u_int32_t	Elf32_Word;
-typedef u_int32_t	Elf32_Size;
-typedef Elf32_Off	Elf32_Hashelt;
+typedef uint32_t	Elf32_Word;
+
+typedef Elf32_Word	Elf32_Hashelt;
+
+/* Non-standard class-dependent datatype used for abstraction. */
+typedef Elf32_Word	Elf32_Size;
+typedef Elf32_Sword	Elf32_Ssize;
 
 /*
  * ELF header.
@@ -75,11 +79,11 @@ typedef struct {
 	Elf32_Word	sh_flags;	/* Section flags. */
 	Elf32_Addr	sh_addr;	/* Address in memory image. */
 	Elf32_Off	sh_offset;	/* Offset in file. */
-	Elf32_Size	sh_size;	/* Size in bytes. */
+	Elf32_Word	sh_size;	/* Size in bytes. */
 	Elf32_Word	sh_link;	/* Index of a related section. */
 	Elf32_Word	sh_info;	/* Depends on section type. */
-	Elf32_Size	sh_addralign;	/* Alignment in bytes. */
-	Elf32_Size	sh_entsize;	/* Size of each entry in section. */
+	Elf32_Word	sh_addralign;	/* Alignment in bytes. */
+	Elf32_Word	sh_entsize;	/* Size of each entry in section. */
 } Elf32_Shdr;
 
 /*
@@ -91,10 +95,10 @@ typedef struct {
 	Elf32_Off	p_offset;	/* File offset of contents. */
 	Elf32_Addr	p_vaddr;	/* Virtual address in memory image. */
 	Elf32_Addr	p_paddr;	/* Physical address (not used). */
-	Elf32_Size	p_filesz;	/* Size of contents in file. */
-	Elf32_Size	p_memsz;	/* Size of contents in memory. */
+	Elf32_Word	p_filesz;	/* Size of contents in file. */
+	Elf32_Word	p_memsz;	/* Size of contents in memory. */
 	Elf32_Word	p_flags;	/* Access permission flags. */
-	Elf32_Size	p_align;	/* Alignment in memory and file. */
+	Elf32_Word	p_align;	/* Alignment in memory and file. */
 } Elf32_Phdr;
 
 /*
@@ -104,7 +108,7 @@ typedef struct {
 typedef struct {
 	Elf32_Sword	d_tag;		/* Entry type. */
 	union {
-		Elf32_Size	d_val;	/* Integer value. */
+		Elf32_Word	d_val;	/* Integer value. */
 		Elf32_Addr	d_ptr;	/* Address value. */
 	} d_un;
 } Elf32_Dyn;
@@ -140,7 +144,7 @@ typedef struct {
 typedef struct {
 	Elf32_Word	st_name;	/* String table index of name. */
 	Elf32_Addr	st_value;	/* Symbol value. */
-	Elf32_Size	st_size;	/* Size of associated object. */
+	Elf32_Word	st_size;	/* Size of associated object. */
 	unsigned char	st_info;	/* Type and binding information. */
 	unsigned char	st_other;	/* Reserved (not used). */
 	Elf32_Half	st_shndx;	/* Section index of symbol. */
@@ -152,5 +156,8 @@ typedef struct {
 
 /* Macro for constructing st_info from field values. */
 #define ELF32_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
+
+/* Macro for accessing the fields of st_other. */
+#define ELF32_ST_VISIBILITY(oth)	((oth) & 0x3)
 
 #endif /* !_SYS_ELF32_H_ */

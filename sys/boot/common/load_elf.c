@@ -744,7 +744,7 @@ __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
 }
 
 static Elf_Addr
-__elfN(symaddr)(struct elf_file *ef, Elf_Word symidx)
+__elfN(symaddr)(struct elf_file *ef, Elf_Size symidx)
 {
 
 	/* Symbol lookup by index not required here. */

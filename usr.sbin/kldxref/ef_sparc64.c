@@ -44,7 +44,7 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
     Elf_Off dataoff, size_t len, void *dest)
 {
 	const Elf_Rela *a;
-	Elf_Word w;
+	Elf_Size w;
 
 	switch (reltype) {
 	case EF_RELOC_RELA:
@@ -59,7 +59,7 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
 				break;
 			default:
 				warnx("unhandled relocation type %u",
-				    ELF_R_TYPE(a->r_info));
+				    (unsigned int)ELF_R_TYPE(a->r_info));
 				break;
 			}
 		}

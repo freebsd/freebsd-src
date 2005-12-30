@@ -193,7 +193,7 @@ static long reloc_target_bitmask[] = {
 
 static int reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela,
 			       SymCache *cache);
-static void install_plt(Elf_Half *pltgot, Elf_Addr proc);
+static void install_plt(Elf_Word *pltgot, Elf_Addr proc);
 
 extern char _rtld_bind_start_0[];
 extern char _rtld_bind_start_1[];
@@ -280,13 +280,13 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 	const Obj_Entry *defobj;
 	const Elf_Sym *def;
 	Elf_Addr *where;
-	Elf_Half *where32;
+	Elf_Word *where32;
 	Elf_Word type;
 	Elf_Addr value;
 	Elf_Addr mask;
 
 	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-	where32 = (Elf_Half *)where;
+	where32 = (Elf_Word *)where;
 	defobj = NULL;
 	def = NULL;
 
@@ -468,7 +468,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 {
 	const Elf_Rela *rela = (const Elf_Rela *)rel;
 	Elf_Addr offset;
-	Elf_Half *where;
+	Elf_Word *where;
 
 	if (rela - refobj->pltrela < 32764) {
 		/*
@@ -496,7 +496,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 		 * have a choice of several different relocation techniques
 		 * which are increasingly expensive.
 		 */
-		where = (Elf_Half *)wherep;
+		where = (Elf_Word *)wherep;
 		offset = ((Elf_Addr)where) - target;
 		if (offset <= (1L<<20) && offset >= -(1L<<20)) {
 			/*
@@ -687,10 +687,10 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 void
 init_pltgot(Obj_Entry *obj)
 {
-	Elf_Half *entry;
+	Elf_Word *entry;
 
 	if (obj->pltgot != NULL) {
-		entry = (Elf_Half *)obj->pltgot;
+		entry = (Elf_Word *)obj->pltgot;
 		install_plt(&entry[0], (Elf_Addr)_rtld_bind_start_0);
 		install_plt(&entry[8], (Elf_Addr)_rtld_bind_start_1);
 		obj->pltgot[8] = (Elf_Addr)obj;
@@ -698,7 +698,7 @@ init_pltgot(Obj_Entry *obj)
 }
 
 static void
-install_plt(Elf_Half *pltgot, Elf_Addr proc)
+install_plt(Elf_Word *pltgot, Elf_Addr proc)
 {
 	pltgot[0] = SAVE;
 	flush(pltgot, 0);

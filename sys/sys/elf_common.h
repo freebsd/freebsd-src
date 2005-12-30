@@ -86,22 +86,26 @@ typedef struct {
 #define ELFDATA2MSB	2	/* 2's complement big-endian. */
 
 /* Values for e_ident[EI_OSABI]. */
-#define ELFOSABI_SYSV		0	/* UNIX System V ABI */
-#define ELFOSABI_NONE		ELFOSABI_SYSV	/* symbol used in old spec */
+#define ELFOSABI_NONE		0	/* UNIX System V ABI */
 #define ELFOSABI_HPUX		1	/* HP-UX operating system */
 #define ELFOSABI_NETBSD		2	/* NetBSD */
 #define ELFOSABI_LINUX		3	/* GNU/Linux */
 #define ELFOSABI_HURD		4	/* GNU/Hurd */
 #define ELFOSABI_86OPEN		5	/* 86Open common IA32 ABI */
 #define ELFOSABI_SOLARIS	6	/* Solaris */
-#define ELFOSABI_MONTEREY	7	/* Monterey */
+#define ELFOSABI_AIX		7	/* AIX */
 #define ELFOSABI_IRIX		8	/* IRIX */
 #define ELFOSABI_FREEBSD	9	/* FreeBSD */
 #define ELFOSABI_TRU64		10	/* TRU64 UNIX */
 #define ELFOSABI_MODESTO	11	/* Novell Modesto */
 #define ELFOSABI_OPENBSD	12	/* OpenBSD */
+#define ELFOSABI_OPENVMS	13	/* Open VMS */
+#define ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
 #define ELFOSABI_ARM		97	/* ARM */
 #define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
+
+#define ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */
+#define ELFOSABI_MONTEREY	ELFOSABI_AIX	/* Monterey */
 
 /* e_ident */
 #define IS_ELF(ehdr)	((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
@@ -115,6 +119,10 @@ typedef struct {
 #define ET_EXEC		2	/* Executable. */
 #define ET_DYN		3	/* Shared object. */
 #define ET_CORE		4	/* Core file. */
+#define ET_LOOS		0xfe00	/* First operating system specific. */
+#define ET_HIOS		0xfeff	/* Last operating system-specific. */
+#define ET_LOPROC	0xff00	/* First processor-specific. */
+#define ET_HIPROC	0xffff	/* Last processor-specific. */
 
 /* Values for e_machine. */
 #define EM_NONE		0	/* Unknown machine. */
@@ -123,46 +131,80 @@ typedef struct {
 #define EM_386		3	/* Intel i386. */
 #define EM_68K		4	/* Motorola 68000. */
 #define EM_88K		5	/* Motorola 88000. */
-#define EM_486		6	/* Intel i486. */
 #define EM_860		7	/* Intel i860. */
-#define EM_MIPS		8	/* MIPS R3000 Big-Endian only */
-
-/* Extensions.  This list is not complete. */
-#define EM_S370		9	/* IBM System/370 */
-#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */ /* Depreciated */
-#define EM_PARISC	15	/* HPPA */
-#define EM_SPARC32PLUS	18	/* SPARC v8plus */
-#define EM_PPC		20	/* PowerPC 32-bit */
-#define EM_PPC64	21	/* PowerPC 64-bit */
-#define EM_ARM		40	/* ARM */
-#define EM_SPARCV9	43	/* SPARC v9 64-bit */
-#define EM_IA_64	50	/* Intel IA-64 Processor */
+#define EM_MIPS		8	/* MIPS R3000 Big-Endian only. */
+#define EM_S370		9	/* IBM System/370. */
+#define EM_MIPS_RS3_LE	10	/* MIPS R3000 Little-Endian. */
+#define EM_PARISC	15	/* HP PA-RISC. */
+#define EM_VPP500	17	/* Fujitsu VPP500. */
+#define EM_SPARC32PLUS	18	/* SPARC v8plus. */
+#define EM_960		19	/* Intel 80960. */
+#define EM_PPC		20	/* PowerPC 32-bit. */
+#define EM_PPC64	21	/* PowerPC 64-bit. */
+#define EM_S390		22	/* IBM System/390. */
+#define EM_V800		36	/* NEC V800. */
+#define EM_FR20		37	/* Fujitsu FR20. */
+#define EM_RH32		38	/* TRW RH-32. */
+#define EM_RCE		39	/* Motorola RCE. */
+#define EM_ARM		40	/* ARM. */
+#define EM_SH		42	/* Hitachi SH. */
+#define EM_SPARCV9	43	/* SPARC v9 64-bit. */
+#define EM_TRICORE	44	/* Siemens TriCore embedded processor. */
+#define EM_ARC		45	/* Argonaut RISC Core. */
+#define EM_H8_300	46	/* Hitachi H8/300. */
+#define EM_H8_300H	47	/* Hitachi H8/300H. */
+#define EM_H8S		48	/* Hitachi H8S. */
+#define EM_H8_500	49	/* Hitachi H8/500. */
+#define EM_IA_64	50	/* Intel IA-64 Processor. */
+#define EM_MIPS_X	51	/* Stanford MIPS-X. */
+#define EM_COLDFIRE	52	/* Motorola ColdFire. */
+#define EM_68HC12	53	/* Motorola M68HC12. */
+#define EM_MMA		54	/* Fujitsu MMA. */
+#define EM_PCP		55	/* Siemens PCP. */
+#define EM_NCPU		56	/* Sony nCPU. */
+#define EM_NDR1		57	/* Denso NDR1 microprocessor. */
+#define EM_STARCORE	58	/* Motorola Star*Core processor. */
+#define EM_ME16		59	/* Toyota ME16 processor. */
+#define EM_ST100	60	/* STMicroelectronics ST100 processor. */
+#define EM_TINYJ	61	/* Advanced Logic Corp. TinyJ processor. */
 #define EM_X86_64	62	/* Advanced Micro Devices x86-64 */
-#define EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI */
+
+/* Non-standard or deprecated. */
+#define EM_486		6	/* Intel i486. */
+#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */
+#define EM_ALPHA_STD	41	/* Digital Alpha (standard value). */
+#define EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI) */
 
 /* Special section indexes. */
 #define SHN_UNDEF	     0		/* Undefined, missing, irrelevant. */
 #define SHN_LORESERVE	0xff00		/* First of reserved range. */
 #define SHN_LOPROC	0xff00		/* First processor-specific. */
 #define SHN_HIPROC	0xff1f		/* Last processor-specific. */
+#define SHN_LOOS	0xff20		/* First operating system-specific. */
+#define SHN_HIOS	0xff3f		/* Last operating system-specific. */
 #define SHN_ABS		0xfff1		/* Absolute values. */
 #define SHN_COMMON	0xfff2		/* Common data. */
+#define SHN_XINDEX	0xffff		/* Escape -- index stored elsewhere. */
 #define SHN_HIRESERVE	0xffff		/* Last of reserved range. */
 
 /* sh_type */
-#define SHT_NULL	0		/* inactive */
-#define SHT_PROGBITS	1		/* program defined information */
-#define SHT_SYMTAB	2		/* symbol table section */
-#define SHT_STRTAB	3		/* string table section */
-#define SHT_RELA	4		/* relocation section with addends */
-#define SHT_HASH	5		/* symbol hash table section */
-#define SHT_DYNAMIC	6		/* dynamic section */ 
-#define SHT_NOTE	7		/* note section */
-#define SHT_NOBITS	8		/* no space section */
-#define SHT_REL		9		/* relocation section - no addends */
-#define SHT_SHLIB	10		/* reserved - purpose unknown */
-#define SHT_DYNSYM	11		/* dynamic symbol table section */ 
-#define SHT_NUM		12		/* number of section types */
+#define SHT_NULL		0	/* inactive */
+#define SHT_PROGBITS		1	/* program defined information */
+#define SHT_SYMTAB		2	/* symbol table section */
+#define SHT_STRTAB		3	/* string table section */
+#define SHT_RELA		4	/* relocation section with addends */
+#define SHT_HASH		5	/* symbol hash table section */
+#define SHT_DYNAMIC		6	/* dynamic section */ 
+#define SHT_NOTE		7	/* note section */
+#define SHT_NOBITS		8	/* no space section */
+#define SHT_REL			9	/* relocation section - no addends */
+#define SHT_SHLIB		10	/* reserved - purpose unknown */
+#define SHT_DYNSYM		11	/* dynamic symbol table section */ 
+#define SHT_INIT_ARRAY		14	/* Initialization function pointers. */
+#define SHT_FINI_ARRAY		15	/* Termination function pointers. */
+#define SHT_PREINIT_ARRAY	16	/* Pre-initialization function ptrs. */
+#define SHT_GROUP		17	/* Section group. */
+#define SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
 #define SHT_LOPROC	0x70000000	/* reserved range for processor */
@@ -171,11 +213,18 @@ typedef struct {
 #define SHT_HIUSER	0xffffffff	/* specific indexes */
 
 /* Flags for sh_flags. */
-#define SHF_WRITE	0x1		/* Section contains writable data. */
-#define SHF_ALLOC	0x2		/* Section occupies memory. */
-#define SHF_EXECINSTR	0x4		/* Section contains instructions. */
-#define SHF_TLS		0x400		/* Section contains TLS data. */
-#define SHF_MASKPROC	0xf0000000	/* Reserved for processor-specific. */
+#define SHF_WRITE		0x1	/* Section contains writable data. */
+#define SHF_ALLOC		0x2	/* Section occupies memory. */
+#define SHF_EXECINSTR		0x4	/* Section contains instructions. */
+#define SHF_MERGE		0x10	/* Section may be merged. */
+#define SHF_STRINGS		0x20	/* Section contains strings. */
+#define SHF_INFO_LINK		0x40	/* sh_info holds section index. */
+#define SHF_LINK_ORDER		0x80	/* Special ordering requirements. */
+#define SHF_OS_NONCONFORMING	0x100	/* OS-specific processing required. */
+#define SHF_GROUP		0x200	/* Member of section group. */
+#define SHF_TLS			0x400	/* Section contains TLS data. */
+#define SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
+#define SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
 
 /* Values for p_type. */
 #define PT_NULL		0	/* Unused entry. */
@@ -186,18 +235,17 @@ typedef struct {
 #define PT_SHLIB	5	/* Reserved (not used). */
 #define PT_PHDR		6	/* Location of program header itself. */
 #define	PT_TLS		7	/* Thread local storage segment */
-
-#define PT_COUNT	8	/* Number of defined p_type values. */
-
-#define	PT_LOOS		0x60000000	/* OS-specific */
-#define	PT_HIOS		0x6fffffff	/* OS-specific */
+#define PT_LOOS		0x60000000	/* First OS-specific. */
+#define PT_HIOS		0x6fffffff	/* Last OS-specific. */
 #define PT_LOPROC	0x70000000	/* First processor-specific type. */
 #define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
 /* Values for p_flags. */
-#define PF_X		0x1	/* Executable. */
-#define PF_W		0x2	/* Writable. */
-#define PF_R		0x4	/* Readable. */
+#define PF_X		0x1		/* Executable. */
+#define PF_W		0x2		/* Writable. */
+#define PF_R		0x4		/* Readable. */
+#define PF_MASKOS	0x0ff00000	/* Operating system-specific. */
+#define PF_MASKPROC	0xf0000000	/* Processor-specific. */
 
 /* Values for d_tag. */
 #define DT_NULL		0	/* Terminating entry. */
@@ -248,11 +296,8 @@ typedef struct {
 				   pre-initialization functions. */
 #define	DT_PREINIT_ARRAYSZ 33	/* Size in bytes of the array of
 				   pre-initialization functions. */
-
-#define	DT_COUNT	33	/* Number of defined d_tag values. */
-
 #define	DT_LOOS		0x6000000d	/* First OS-specific */
-#define	DT_HIOS		0x6fff0000	/* Last OS-specific */
+#define	DT_HIOS		0x6ffff000	/* Last OS-specific */
 #define	DT_LOPROC	0x70000000	/* First processor-specific type. */
 #define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
@@ -280,8 +325,10 @@ typedef struct {
 #define STB_LOCAL	0	/* Local symbol */
 #define STB_GLOBAL	1	/* Global symbol */
 #define STB_WEAK	2	/* like global - lower precedence */
+#define STB_LOOS	10	/* Reserved range for operating system */
+#define STB_HIOS	12	/*   specific semantics. */
 #define STB_LOPROC	13	/* reserved range for processor */
-#define STB_HIPROC	15	/*  specific symbol bindings */
+#define STB_HIPROC	15	/*   specific semantics. */
 
 /* Symbol type - ELFNN_ST_TYPE - st_info */
 #define STT_NOTYPE	0	/* Unspecified type. */
@@ -289,9 +336,18 @@ typedef struct {
 #define STT_FUNC	2	/* Function. */
 #define STT_SECTION	3	/* Section. */
 #define STT_FILE	4	/* Source file. */
+#define STT_COMMON	5	/* Uninitialized common block. */
 #define STT_TLS		6	/* TLS object. */
+#define STT_LOOS	10	/* Reserved range for operating system */
+#define STT_HIOS	12	/*   specific semantics. */
 #define STT_LOPROC	13	/* reserved range for processor */
-#define STT_HIPROC	15	/*  specific symbol types */
+#define STT_HIPROC	15	/*   specific semantics. */
+
+/* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
+#define STV_DEFAULT	0x0	/* Default visibility (see binding). */
+#define STV_INTERNAL	0x1	/* Special meaning in relocatable objects. */
+#define STV_HIDDEN	0x2	/* Not visible. */
+#define STV_PROTECTED	0x3	/* Visible but not preemptible. */
 
 /* Special symbol table indexes. */
 #define STN_UNDEF	0	/* Undefined symbol index. */
