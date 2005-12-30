@@ -162,10 +162,23 @@ main(int argc, char **argv)
 	STAILQ_INIT(&ftab);
 	if (yyparse())
 		exit(3);
+
+	/*
+	 * Ensure that required elements (machine, cpu, ident) are present.
+	 */
 	if (machinename == NULL) {
 		printf("Specify machine type, e.g. ``machine i386''\n");
 		exit(1);
 	}
+	if (ident == NULL) {
+		printf("no ident line specified\n");
+		exit(1);
+	}
+	if (SLIST_EMPTY(&cputype)) {
+		printf("cpu type must be specified\n");
+		exit(1);
+	}
+
 	/*
 	 * make symbolic links in compilation directory
 	 * for "sys" (to make genassym.c work along with #include <sys/xxx>)
@@ -194,6 +207,8 @@ main(int argc, char **argv)
 	}
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */
+	makeenv();			/* build env.c */
+	makehints();			/* build hints.c */
 	headers();			/* make a lot of .h files */
 	configfile();			/* put config file into kernel*/
 	cleanheaders(p);
