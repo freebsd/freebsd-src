@@ -144,6 +144,8 @@ int	yyparse(void);
 int	yylex(void);
 void	options(void);
 void	makefile(void);
+void	makeenv(void);
+void	makehints(void);
 void	headers(void);
 
 extern STAILQ_HEAD(device_head, device) dtab;
