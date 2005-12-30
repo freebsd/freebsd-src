@@ -2275,35 +2275,62 @@ ata_marvell_intr(void *data)
     struct ata_channel *ch;
     struct ata_request *request;
     struct ata_marvell_response *response;
-    u_int32_t cause, icr0 = 0, icr1 = 0;
+    u_int32_t cause, icr = 0;
     int unit;
 
+    /* get main interrupt cause register contents to save time below */
     cause = ATA_INL(ctlr->r_res1, 0x01d60);
-    if ((icr0 = ATA_INL(ctlr->r_res1, 0x20014)))
-	ATA_OUTL(ctlr->r_res1, 0x20014, ~icr0);
-    if (ctlr->channels > 4) {
-	if ((icr1 = ATA_INL(ctlr->r_res1, 0x30014)))
-	    ATA_OUTL(ctlr->r_res1, 0x30014, ~icr1);
-    }
 
     for (unit = 0; unit < ctlr->channels; unit++) {
-        u_int32_t icr;
-	int shift;
+	int shift = (unit << 1) + (unit >= 4);
 
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
 
 	mtx_lock(&ch->state_mtx);
-	shift = unit << 1;
-	if (ch->unit < 4) 
-	    icr = icr0;
-	else {
-	    icr = icr1;
-	    shift++;
+	if (unit == 0) {
+	    icr = ATA_INL(ctlr->r_res1, 0x20014);
+	    ATA_OUTL(ctlr->r_res1, 0x20014, ~icr);
+	}
+	if (unit == 4) {
+	    icr = ATA_INL(ctlr->r_res1, 0x30014);
+	    ATA_OUTL(ctlr->r_res1, 0x30014, ~icr);
 	}
 
 	/* do we have any errors flagged ? */
 	if (cause & (1 << shift)) {
+	    struct ata_connect_task *tp;
+	    u_int32_t error = 
+		ATA_INL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch));
+
+	    /* check for and handle disconnect events */
+	    if ((error & 0x00000008) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
+
+		if (bootverbose)
+		    device_printf(ch->dev, "DISCONNECT requested\n");
+		tp->action = ATA_C_DETACH;
+		tp->dev = ch->dev;
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
+		taskqueue_enqueue(taskqueue_thread, &tp->task);
+	    }
+
+	    /* check for and handle connect events */
+	    if ((error & 0x00000010) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
+
+		if (bootverbose)
+		    device_printf(ch->dev, "CONNECT requested\n");
+		tp->action = ATA_C_ATTACH;
+		tp->dev = ch->dev;
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
+		taskqueue_enqueue(taskqueue_thread, &tp->task);
+	    }
+
 	    /* clear SATA error register */
 	    ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
 
