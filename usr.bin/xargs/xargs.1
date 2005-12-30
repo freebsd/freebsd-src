@@ -50,6 +50,7 @@
 .Oo
 .Fl I Ar replstr
 .Op Fl R Ar replacements
+.Op Fl S Ar replsize
 .Oc
 .Op Fl J Ar replstr
 .Op Fl L Ar number
@@ -114,13 +115,20 @@ flag is specified) arguments to
 .Ar utility
 with the entire line of input.
 The resulting arguments, after replacement is done, will not be allowed to grow
-beyond 255 bytes; this is implemented by concatenating as much of the argument
+beyond
+.Ar replsize
+(or 255 if no
+.Fl S
+flag is specified)
+bytes; this is implemented by concatenating as much of the argument
 containing
 .Ar replstr
 as possible, to the constructed arguments to
 .Ar utility ,
-up to 255 bytes.
-The 255 byte limit does not apply to arguments to
+up to
+.Ar replsize
+bytes.
+The size limit does not apply to arguments to
 .Ar utility
 which do not contain
 .Ar replstr ,
@@ -220,6 +228,13 @@ will do replacement in.
 If
 .Ar replacements
 is negative, the number of arguments in which to replace is unbounded.
+.It Fl S Ar replsize
+Specify the amount of space (in bytes) that
+.Fl I
+can use for replacements.
+The default for
+.Ar replsize
+is 255.
 .It Fl s Ar size
 Set the maximum number of bytes for the command line length provided to
 .Ar utility .
@@ -293,7 +308,7 @@ utility is expected to be
 .St -p1003.2
 compliant.
 The
-.Fl J , o , P
+.Fl J , o , P, S
 and
 .Fl R
 options are non-standard
