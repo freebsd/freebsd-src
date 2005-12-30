@@ -370,23 +370,32 @@ static int
 sb16mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
-    	u_char recdev;
+    	u_char recdev_l, recdev_r;
 
-	recdev = 0;
-	if (src & SOUND_MASK_MIC)
-		recdev |= 0x01; /* mono mic */
+	recdev_l = 0;
+	recdev_r = 0;
+	if (src & SOUND_MASK_MIC) {
+		recdev_l |= 0x01; /* mono mic */
+		recdev_r |= 0x01;
+	}
 
-	if (src & SOUND_MASK_CD)
-		recdev |= 0x06; /* l+r cd */
+	if (src & SOUND_MASK_CD) {
+		recdev_l |= 0x04; /* l cd */
+		recdev_r |= 0x02; /* r cd */
+	}
 
-	if (src & SOUND_MASK_LINE)
-		recdev |= 0x18; /* l+r line */
+	if (src & SOUND_MASK_LINE) {
+		recdev_l |= 0x10; /* l line */
+		recdev_r |= 0x08; /* r line */
+	}
 
-	if (src & SOUND_MASK_SYNTH)
-		recdev |= 0x60; /* l+r midi */
+	if (src & SOUND_MASK_SYNTH) {
+		recdev_l |= 0x40; /* l midi */
+		recdev_r |= 0x20; /* r midi */
+	}
 
-	sb_setmixer(sb, SB16_IMASK_L, recdev);
-	sb_setmixer(sb, SB16_IMASK_R, recdev);
+	sb_setmixer(sb, SB16_IMASK_L, recdev_l);
+	sb_setmixer(sb, SB16_IMASK_R, recdev_r);
 
 	/* Switch on/off FM tuner source */
 	if (src & SOUND_MASK_LINE1)
@@ -494,7 +503,7 @@ static void
 sb_intr(void *arg)
 {
     	struct sb_info *sb = (struct sb_info *)arg;
-    	int reason = 3, c;
+    	int reason, c;
 
     	/*
      	 * The Vibra16X has separate flags for 8 and 16 bit transfers, but
@@ -570,8 +579,9 @@ sb_setup(struct sb_info *sb)
 	sb_reset_dsp(sb);
 
 	if (sb->bd_flags & BD_F_SB16X) {
+		/* full-duplex doesn't work! */
 		pprio = sb->pch.run? 1 : 0;
-		sndbuf_dmasetup(sb->pch.buffer, pprio? sb->drq1 : NULL);
+		sndbuf_dmasetup(sb->pch.buffer, pprio? sb->drq1 : sb->drq2);
 		sb->pch.dch = pprio? 1 : 0;
 		sndbuf_dmasetup(sb->rch.buffer, pprio? sb->drq2 : sb->drq1);
 		sb->rch.dch = pprio? 2 : 1;
@@ -848,7 +858,7 @@ sb16_attach(device_t dev)
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %ud %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
 		rman_get_start(sb->drq1), status2, sb->bufsize,
 		PCM_KLDSTRING(snd_sb16));

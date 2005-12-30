@@ -180,6 +180,10 @@ struct snd_size {
 #define AFMT_S32_BE	0x00002000	/* Big endian signed 32-bit */
 #define AFMT_U32_LE	0x00004000	/* Little endian unsigned 32-bit */
 #define AFMT_U32_BE	0x00008000	/* Big endian unsigned 32-bit */
+#define AFMT_S24_LE	0x00010000	/* Little endian signed 24-bit */
+#define AFMT_S24_BE	0x00020000	/* Big endian signed 24-bit */
+#define AFMT_U24_LE	0x00040000	/* Little endian unsigned 24-bit */
+#define AFMT_U24_BE	0x00080000	/* Big endian unsigned 24-bit */
 
 #define AFMT_STEREO	0x10000000	/* can do/want stereo	*/
 

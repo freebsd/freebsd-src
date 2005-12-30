@@ -286,8 +286,12 @@ sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt)
 	b->fmt = fmt;
 	b->bps = 1;
 	b->bps <<= (b->fmt & AFMT_STEREO)? 1 : 0;
-	b->bps <<= (b->fmt & AFMT_16BIT)? 1 : 0;
-	b->bps <<= (b->fmt & AFMT_32BIT)? 2 : 0;
+	if (b->fmt & AFMT_16BIT)
+		b->bps <<= 1;
+	else if (b->fmt & AFMT_24BIT)
+		b->bps *= 3;
+	else if (b->fmt & AFMT_32BIT)
+		b->bps <<= 2;
 	return 0;
 }
 

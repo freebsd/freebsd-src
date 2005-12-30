@@ -46,3 +46,13 @@ void ad198x_patch(struct ac97_info* codec)
 	ac97_wrcd(codec, 0x76, ac97_rdcd(codec, 0x76) | 0x0420);
 }
 
+void cmi9739_patch(struct ac97_info* codec)
+{
+	/*
+	 * Few laptops (notably ASUS W1000N) need extra register
+	 * initialization to power up the internal speakers.
+	 */
+	ac97_wrcd(codec, AC97_REG_POWER, 0x000f);
+	ac97_wrcd(codec, AC97_MIXEXT_CLFE, 0x0000);
+	ac97_wrcd(codec, 0x64, 0x7110);
+}

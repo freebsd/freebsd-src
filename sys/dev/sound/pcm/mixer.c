@@ -41,6 +41,7 @@ struct snd_mixer {
 	int hwvol_muted;
 	int hwvol_mixer;
 	int hwvol_step;
+	device_t dev;
 	u_int32_t hwvol_mute_level;
 	u_int32_t devs;
 	u_int32_t recdevs;
@@ -60,6 +61,7 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_LINE]	= 75,
 	[SOUND_MIXER_MIC] 	= 0,
 	[SOUND_MIXER_CD]	= 75,
+	[SOUND_MIXER_IGAIN]	= 0,
 	[SOUND_MIXER_LINE1]	= 75,
 	[SOUND_MIXER_VIDEO]	= 75,
 	[SOUND_MIXER_RECLEV]	= 0,
@@ -112,6 +114,7 @@ mixer_lookup(char *devname)
 static int
 mixer_set(struct snd_mixer *mixer, unsigned dev, unsigned lev)
 {
+	struct snddev_info *d;
 	unsigned l, r;
 	int v;
 
@@ -121,9 +124,34 @@ mixer_set(struct snd_mixer *mixer, unsigned dev, unsigned lev)
 	l = min((lev & 0x00ff), 100);
 	r = min(((lev & 0xff00) >> 8), 100);
 
-	v = MIXER_SET(mixer, dev, l, r);
-	if (v < 0)
-		return -1;
+	d = device_get_softc(mixer->dev);
+	if (dev == SOUND_MIXER_PCM && d &&
+			(d->flags & SD_F_SOFTVOL)) {
+		struct snddev_channel *sce;
+		struct pcm_channel *ch;
+#ifdef USING_MUTEX
+		int locked = (mixer->lock && mtx_owned((struct mtx *)(mixer->lock))) ? 1 : 0;
+
+		if (locked)
+			snd_mtxunlock(mixer->lock);
+#endif
+		SLIST_FOREACH(sce, &d->channels, link) {
+			ch = sce->channel;
+			CHN_LOCK(ch);
+			if (ch->direction == PCMDIR_PLAY &&
+					(ch->feederflags & (1 << FEEDER_VOLUME)))
+				chn_setvolume(ch, l, r);
+			CHN_UNLOCK(ch);
+		}
+#ifdef USING_MUTEX
+		if (locked)
+			snd_mtxlock(mixer->lock);
+#endif
+	} else {
+		v = MIXER_SET(mixer, dev, l, r);
+		if (v < 0)
+			return -1;
+	}
 
 	mixer->level[dev] = l | (r << 8);
 	return 0;
@@ -156,6 +184,9 @@ mixer_getrecsrc(struct snd_mixer *mixer)
 void
 mix_setdevs(struct snd_mixer *m, u_int32_t v)
 {
+	struct snddev_info *d = device_get_softc(m->dev);
+	if (d && (d->flags & SD_F_SOFTVOL))
+		v |= SOUND_MASK_PCM;
 	m->devs = v;
 }
 
@@ -198,6 +229,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	m->type = cls->name;
 	m->devinfo = devinfo;
 	m->busy = 0;
+	m->dev = dev;
 
 	if (MIXER_INIT(m))
 		goto bad;
@@ -397,16 +429,13 @@ static int
 mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
-	intrmask_t s;
 
 	m = i_dev->si_drv1;
-	s = spltty();
 	snd_mtxlock(m->lock);
 
 	m->busy++;
 
 	snd_mtxunlock(m->lock);
-	splx(s);
 	return 0;
 }
 
@@ -414,21 +443,17 @@ static int
 mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
-	intrmask_t s;
 
 	m = i_dev->si_drv1;
-	s = spltty();
 	snd_mtxlock(m->lock);
 
 	if (!m->busy) {
 		snd_mtxunlock(m->lock);
-		splx(s);
 		return EBADF;
 	}
 	m->busy--;
 
 	snd_mtxunlock(m->lock);
-	splx(s);
 	return 0;
 }
 
@@ -436,15 +461,13 @@ int
 mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
-	intrmask_t s;
 	int ret, *arg_i = (int *)arg;
 	int v = -1, j = cmd & 0xff;
 
 	m = i_dev->si_drv1;
-	if (!m->busy)
+	if (mode != -1 && !m->busy)
 		return EBADF;
 
-	s = spltty();
 	snd_mtxlock(m->lock);
 	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
 		if (j == SOUND_MIXER_RECSRC)
@@ -452,7 +475,6 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 		else
 			ret = mixer_set(m, j, *arg_i);
 		snd_mtxunlock(m->lock);
-		splx(s);
 		return (ret == 0)? 0 : ENXIO;
 	}
 
@@ -480,7 +502,6 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 		return (v != -1)? 0 : ENXIO;
 	}
 	snd_mtxunlock(m->lock);
-	splx(s);
 	return ENXIO;
 }
 
@@ -495,7 +516,7 @@ mixer_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		return;
 	if (strcmp(name, "mixer") == 0) {
 		sd = devclass_get_softc(pcm_devclass, snd_unit);
-		if (sd != NULL) {
+		if (sd != NULL && sd->mixer_dev != NULL) {
 			*dev = sd->mixer_dev;
 			dev_ref(*dev);
 		}

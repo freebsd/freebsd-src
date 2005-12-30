@@ -24,21 +24,45 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2005
+.Dd December 15, 2005
 .Dt SND_ES137X 4
 .Os
 .Sh NAME
 .Nm snd_es137x
 .Nd "Ensoniq AudioPCI ES137x bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_es137x"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_es137x_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 bridge driver allows the generic audio driver
 .Xr sound 4
 to attach to the Ensoniq 137x audio cards.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+variable are available in addition to those available to all
+.Xr sound 4
+devices:
+.Bl -tag -width ".Va hw.snd.pcm%d.spdif_enabled" -offset indent
+.It Va hw.snd.pcm%d.spdif_enabled
+Enables S/PDIF output on the primary playback channel.
+This
+.Xr sysctl 8
+variable is available only if the device is known to support S/PDIF output.
+.El
 .Sh HARDWARE
 The
 .Nm
@@ -73,9 +97,10 @@ Ensoniq AudioPCI ES1373-8
 .Sh HISTORY
 The
 .Nm
-manual page first appeared in
-.Fx 5.3 .
+device driver first appeared in
+.Fx 4.0 .
 .Sh AUTHORS
 .An "Russell Cattelan" Aq cattelan@thebarn.com
 .An "Cameron Grant" Aq cg@FreeBSD.org
 .An "Joachim Kuebart"
+.An "Jonathan Noack" Aq noackjr@alumni.rice.edu

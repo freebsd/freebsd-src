@@ -75,6 +75,7 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void			*ih;
+	struct mtx		*lock;
 
 	unsigned int		bufsz;
 	struct sc_chinfo	pch, rch;
@@ -90,7 +91,11 @@ static u_int32_t als_format[] = {
         0
 };
 
-static struct pcmchan_caps als_caps = { 4000, 48000, als_format, 0 };
+/*
+ * I don't believe this rotten soundcard can do 48k, really,
+ * trust me.
+ */
+static struct pcmchan_caps als_caps = { 4000, 44100, als_format, 0 };
 
 /* ------------------------------------------------------------------------- */
 /* Register Utilities */
@@ -199,6 +204,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	struct	sc_info	*sc = devinfo;
 	struct	sc_chinfo *ch;
 
+	snd_mtxlock(sc->lock);
 	if (dir == PCMDIR_PLAY) {
 		ch = &sc->pch;
 		ch->gcr_fifo_status = ALS_GCR_FIFO0_STATUS;
@@ -213,9 +219,11 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->format = AFMT_U8;
 	ch->speed = DSP_DEFAULT_SPEED;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
+	snd_mtxunlock(sc->lock);
+
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0)
 		return NULL;
-	}
+
 	return ch;
 }
 
@@ -263,9 +271,12 @@ static int
 alschan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 	int32_t pos, sz;
 
+	snd_mtxlock(sc->lock);
 	pos = als_gcr_rd(ch->parent, ch->gcr_fifo_status) & 0xffff;
+	snd_mtxunlock(sc->lock);
 	sz  = sndbuf_getsize(ch->buffer);
 	return (2 * sz - pos - 1) % sz;
 }
@@ -378,7 +389,9 @@ static int
 alspchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct	sc_chinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 
+	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_playback_start(ch);
@@ -387,6 +400,7 @@ alspchan_trigger(kobj_t obj, void *data, int go)
 		als_playback_stop(ch);
 		break;
 	}
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -468,7 +482,9 @@ static int
 alsrchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct	sc_chinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 
+	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		als_capture_start(ch);
@@ -477,6 +493,7 @@ alsrchan_trigger(kobj_t obj, void *data, int go)
 		als_capture_stop(ch);
 		break;
 	}
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -578,8 +595,13 @@ alsmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 
 	for (i = l = r = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (src & (1 << i)) {
-			l |= amt[i].iselect;
-			r |= amt[i].iselect << 1;
+			if (amt[i].iselect == 1) {	/* microphone */
+				l |= amt[i].iselect;
+				r |= amt[i].iselect;
+			} else {
+				l |= amt[i].iselect;
+				r |= amt[i].iselect >> 1;
+			}
 		}
 	}
 
@@ -605,13 +627,20 @@ als_intr(void *p)
 	struct sc_info *sc = (struct sc_info *)p;
 	u_int8_t intr, sb_status;
 
+	snd_mtxlock(sc->lock);
 	intr = als_intr_rd(sc);
 
-	if (intr & 0x80)
+	if (intr & 0x80) {
+		snd_mtxunlock(sc->lock);
 		chn_intr(sc->pch.channel);
+		snd_mtxlock(sc->lock);
+	}
 
-	if (intr & 0x40)
+	if (intr & 0x40) {
+		snd_mtxunlock(sc->lock);
 		chn_intr(sc->rch.channel);
+		snd_mtxlock(sc->lock);
+	}
 
 	/* ACK interrupt in PCI core */
 	als_intr_wr(sc, intr);
@@ -627,6 +656,8 @@ als_intr(void *p)
 		als_ack_read(sc, ALS_MIDI_DATA);
 	if (sb_status & ALS_IRQ_CR1E)
 		als_ack_read(sc, ALS_CR1E_ACK_PORT);
+
+	snd_mtxunlock(sc->lock);
 	return;
 }
 
@@ -708,6 +739,10 @@ als_resource_free(device_t dev, struct sc_info *sc)
 		bus_dma_tag_destroy(sc->parent_dmat);
 		sc->parent_dmat = 0;
 	}
+	if (sc->lock) {
+		snd_mtxfree(sc->lock);
+		sc->lock = NULL;
+	}
 }
 
 static int
@@ -730,7 +765,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_AV, als_intr,
+	if (snd_setup_intr(dev, sc->irq, INTR_MPSAFE, als_intr,
 			   sc, &sc->ih)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto bad;
@@ -745,8 +780,8 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/sc->bufsz,
 			       /*nsegments*/1, /*maxsegz*/0x3ffff,
-			       /*flags*/0, /*lockfunc*/busdma_lock_mutex,
-			       /*lockarg*/&Giant, &sc->parent_dmat) != 0) {
+			       /*flags*/0, /*lockfunc*/NULL,
+			       /*lockarg*/NULL, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
@@ -768,6 +803,7 @@ als_pci_attach(device_t dev)
 		return ENXIO;
 	}
 
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	sc->dev = dev;
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -851,9 +887,11 @@ als_pci_suspend(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
+	snd_mtxlock(sc->lock);
 	sc->pch.dma_was_active = als_playback_stop(&sc->pch);
 	sc->rch.dma_was_active = als_capture_stop(&sc->rch);
 	als_uninit(sc);
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -862,13 +900,17 @@ als_pci_resume(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
+
+	snd_mtxlock(sc->lock);
 	if (als_init(sc) != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
+		snd_mtxunlock(sc->lock);
 		return ENXIO;
 	}
 
 	if (mixer_reinit(dev) != 0) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
+		snd_mtxunlock(sc->lock);
 		return ENXIO;
 	}
 
@@ -879,6 +921,8 @@ als_pci_resume(device_t dev)
 	if (sc->rch.dma_was_active) {
 		als_capture_start(&sc->rch);
 	}
+	snd_mtxunlock(sc->lock);
+
 	return 0;
 }
 

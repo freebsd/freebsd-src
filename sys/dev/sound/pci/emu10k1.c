@@ -494,12 +494,12 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 	m->buf = tmp_addr;
 	m->slave = s;
 	if (sc->audigy) {
-		m->fxrt1 = FXBUS_MIDI_CHORUS | FXBUS_PCM_LEFT << 8 |
-		    FXBUS_PCM_RIGHT << 16 | FXBUS_MIDI_REVERB << 24;
+		m->fxrt1 = FXBUS_MIDI_CHORUS | FXBUS_PCM_RIGHT << 8 |
+		    FXBUS_PCM_LEFT << 16 | FXBUS_MIDI_REVERB << 24;
 		m->fxrt2 = 0x3f3f3f3f;	/* No effects on second route */
 	} else {
-		m->fxrt1 = FXBUS_MIDI_CHORUS | FXBUS_PCM_LEFT << 4 |
-		    FXBUS_PCM_RIGHT << 8 | FXBUS_MIDI_REVERB << 12;
+		m->fxrt1 = FXBUS_MIDI_CHORUS | FXBUS_PCM_RIGHT << 4 |
+		    FXBUS_PCM_LEFT << 8 | FXBUS_MIDI_REVERB << 12;
 		m->fxrt2 = 0;
 	}
 
