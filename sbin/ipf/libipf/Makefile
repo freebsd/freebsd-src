@@ -20,8 +20,8 @@ SRCS=		addicmp.c addipopt.c addkeep.c bcopywrap.c binprint.c \
 		printpoolnode.c printfr.c printfraginfo.c printhostmap.c \
 		printifname.c printhostmask.c printlog.c printmask.c \
 		printnat.c printportcmp.c printpacket.c printpacket6.c \
-		printsbuf.c printstate.c printtunable.c ratoi.c ratoui.c \
-		remove_hash.c remove_hashnode.c remove_pool.c \
+		printproto.c printsbuf.c printstate.c printtunable.c ratoi.c \
+		ratoui.c remove_hash.c remove_hashnode.c remove_pool.c \
 		remove_poolnode.c resetlexer.c rwlock_emul.c tcpflags.c \
 		tcp_flags.c to_interface.c var.c verbose.c v6ionames.c \
 		v6optvalue.c
