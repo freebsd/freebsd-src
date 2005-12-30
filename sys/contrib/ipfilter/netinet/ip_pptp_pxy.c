@@ -1,12 +1,10 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 2002-2003 by Darren Reed
  *
  * Simple PPTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * Id: ip_pptp_pxy.c,v 2.10.2.9 2005/03/16 18:17:34 darrenr Exp
+ * $Id: ip_pptp_pxy.c,v 2.10.2.11 2005/12/04 23:39:27 darrenr Exp $
  *
  */
 #define	IPF_PPTP_PROXY
@@ -89,10 +87,8 @@ nat_t *nat;
 	pptp_pxy_t *pptp;
 	ipnat_t *ipn;
 	ip_t *ip;
-	int off;
 
 	ip = fin->fin_ip;
-	off = fin->fin_hlen + sizeof(udphdr_t);
 
 	if (nat_outlookup(fin, 0, IPPROTO_GRE, nat->nat_inip,
 			  ip->ip_dst) != NULL) {
@@ -238,7 +234,7 @@ nat_t *nat;
 pptp_pxy_t *pptp;
 int rev;
 {
-	static char *funcname = "ippr_pptp_nextmessage";
+	static const char *funcname = "ippr_pptp_nextmessage";
 	pptp_side_t *pptps;
 	u_32_t start, end;
 	pptp_hdr_t *hdr;
