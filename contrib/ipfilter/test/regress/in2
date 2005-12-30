@@ -2,7 +2,10 @@ rdr le0 9.8.7.6/32 port 0 -> 1.1.1.1 port 0 tcp
 rdr le0 9.8.7.6/32 port 0 -> 1.1.1.1 port 0 ip
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp
 rdr le0 9.8.7.6/32 -> 1.1.1.1 ip
+rdr le0 9.8.7.6/0xff000000 -> 1.1.1.1 ip
+rdr le0 9.8.7.6/0xffff0000 -> 1.1.1.1 ip
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp
+rdr le0 9.8.7.6/32 port 80 -> 0/0 port 80 tcp
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 udp
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp/udp
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 icmp
@@ -11,7 +14,7 @@ rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp round-robin
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin
 rdr le0 9.8.7.6/32 port 0 -> 1.1.1.1 port 0 ip frag
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 icmp frag
-rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcpudp frag
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp round-robin frag
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag
 rdr le0 9.8.7.6/32 -> 1.1.1.1 ip frag age 10
@@ -65,3 +68,4 @@ rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port 5555 tcp
 rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port = 5555 tcp
 rdr le0 0/0 -> test.host.dots
 rdr le0 0/0 -> test.host.dots,test.host.dots
+rdr adsl0,ppp0 0/0 port 25 -> 127.0.0.1 port 25

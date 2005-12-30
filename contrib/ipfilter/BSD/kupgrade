@@ -31,6 +31,14 @@ else
 	major=x
 fi
  
+if [ ! -f ip_rules.c -o ! -f ip_rules.h ] ; then
+	echo "Please do a build of ipfilter and then run the following"
+	echo "command to build extra files:"
+	echo
+	echo "make ip_rules.c"
+	exit 1
+fi
+
 echo -n "Installing "
 for j in auth frag nat proxy scan state sync pool htable lookup rules; do
 	for i in ip_$j.[ch]; do
