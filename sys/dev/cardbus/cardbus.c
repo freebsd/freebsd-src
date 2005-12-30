@@ -184,7 +184,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		if (rle->type == SYS_RES_IOPORT) {
 			io_size += rle->count;
 		} else if (rle->type == SYS_RES_MEMORY) {
-			if (dinfo->mprefetchable & BARBIT(rle->rid))
+			if (dinfo->mprefetchable & PCI_RID2BAR(rle->rid))
 				mem_psize += rle->count;
 			else
 				mem_nsize += rle->count;
@@ -205,7 +205,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		rle = barlist[tmp];
 		if (rle->res == NULL &&
 		    rle->type == SYS_RES_MEMORY &&
-		    dinfo->mprefetchable & BARBIT(rle->rid)) {
+		    dinfo->mprefetchable & PCI_RID2BAR(rle->rid)) {
 			flags = rman_make_alignment_flags(rle->count);
 			break;
 		}
@@ -240,7 +240,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		for (tmp = 0; tmp < count; tmp++) {
 			rle = barlist[tmp];
 			if (rle->type == SYS_RES_MEMORY &&
-			    dinfo->mprefetchable & BARBIT(rle->rid)) {
+			    dinfo->mprefetchable & PCI_RID2BAR(rle->rid)) {
 				rle->res = bus_alloc_resource(cbdev,
 				    rle->type, &rle->rid, start, end,
 				    rle->count,
@@ -260,7 +260,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	for (tmp = 0; tmp < count; tmp++) {
 		rle = barlist[tmp];
 		if (rle->type == SYS_RES_MEMORY &&
-		    (dinfo->mprefetchable & BARBIT(rle->rid)) == 0) {
+		    (dinfo->mprefetchable & PCI_RID2BAR(rle->rid)) == 0) {
 			flags = rman_make_alignment_flags(rle->count);
 			break;
 		}
@@ -296,7 +296,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		for (tmp = 0; tmp < count; tmp++) {
 			rle = barlist[tmp];
 			if (rle->type == SYS_RES_MEMORY &&
-			    (dinfo->mprefetchable & BARBIT(rle->rid)) == 0) {
+			  (dinfo->mprefetchable & PCI_RID2BAR(rle->rid)) == 0) {
 				rle->res = bus_alloc_resource(cbdev,
 				    rle->type, &rle->rid, start, end,
 				    rle->count,
