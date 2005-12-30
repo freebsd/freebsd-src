@@ -53,7 +53,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: ip_htable.c,v 2.34.2.2 2004/10/17 15:49:15 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_htable.c,v 2.34.2.4 2005/11/13 15:38:37 darrenr Exp $";
 #endif
 
 #ifdef	IPFILTER_LOOKUP
@@ -141,12 +141,9 @@ iplookupop_t *op;
 					    sizeof(oiph->iph_name)) == 0)
 					break;
 		} while (oiph != NULL);
+
 		(void)strncpy(iph->iph_name, name, sizeof(iph->iph_name));
-		err = COPYOUT(iph, op->iplo_struct, sizeof(*iph));
-		if (err != 0) {
-			KFREE(iph);
-			return EFAULT;
-		}
+		(void)strncpy(op->iplo_name, name, sizeof(op->iplo_name));
 		iph->iph_type |= IPHASH_ANON;
 	}
 

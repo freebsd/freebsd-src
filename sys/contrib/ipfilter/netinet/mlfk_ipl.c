@@ -103,6 +103,7 @@ static struct cdevsw ipl_cdevsw = {
 	.d_open =	iplopen,
 	.d_close =	iplclose,
 	.d_read =	iplread,
+	.d_write =	iplwrite,
 	.d_ioctl =	iplioctl,
 	.d_name =	"ipl",
 # if __FreeBSD_version < 600000
