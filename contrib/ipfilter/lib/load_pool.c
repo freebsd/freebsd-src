@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: load_pool.c,v 1.14.2.2 2005/02/01 02:44:06 darrenr Exp
+ * $Id: load_pool.c,v 1.14.2.3 2005/11/13 15:41:13 darrenr Exp $
  */
 
 #include <fcntl.h>
@@ -38,7 +38,7 @@ ioctlfunc_t iocfunc;
 	op.iplo_struct = &pool;
 	bzero((char *)&pool, sizeof(pool));
 	strncpy(pool.ipo_name, plp->ipo_name, sizeof(pool.ipo_name));
-	if (*plp->ipo_name == '\0')
+	if (plp->ipo_name[0] == '\0')
 		op.iplo_arg |= IPOOL_ANON;
 
 	if ((opts & OPT_REMOVE) == 0) {
@@ -49,6 +49,9 @@ ioctlfunc_t iocfunc;
 			}
 	}
 
+	if (op.iplo_arg & IPOOL_ANON)
+		strncpy(pool.ipo_name, op.iplo_name, sizeof(pool.ipo_name));
+
 	if ((opts & OPT_VERBOSE) != 0) {
 		pool.ipo_list = plp->ipo_list;
 		printpool(&pool, bcopywrap, pool.ipo_name, opts);
@@ -56,7 +59,7 @@ ioctlfunc_t iocfunc;
 	}
 
 	for (a = plp->ipo_list; a != NULL; a = a->ipn_next)
-		load_poolnode(plp->ipo_unit, plp->ipo_name, a, iocfunc);
+		load_poolnode(plp->ipo_unit, pool.ipo_name, a, iocfunc);
 
 	if ((opts & OPT_REMOVE) != 0) {
 		if ((*iocfunc)(poolfd, SIOCLOOKUPDELTABLE, &op))

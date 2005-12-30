@@ -12,9 +12,10 @@ ipmap :: = mapblock | redir | map .
 map ::= mapit ifname lhs "->" dstipmask [ mapicmp | mapport | mapproxy ]
         mapoptions .
 mapblock ::= "map-block" ifname lhs "->" ipmask [ ports ] mapoptions .
-redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport rdroptions .
+redir ::= "rdr" ifname rlhs "->" ip [ "," ip ] rdrport rdroptions .
 
 lhs ::= ipmask | fromto .
+rlhs ::= ipmask dport | fromto .
 dport ::= "port" portnum [ "-" portnum ] .
 ports ::= "ports" numports | "auto" .
 rdrport ::= "port" portnum .

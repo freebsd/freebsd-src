@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ipt.h,v 2.6 2003/02/16 02:33:09 darrenr Exp
+ * $Id: ipt.h,v 2.6 2003/02/16 02:33:09 darrenr Exp $
  */
 
 #ifndef	__IPT_H__

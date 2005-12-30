@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printportcmp.c,v 1.7 2003/02/16 02:31:05 darrenr Exp
+ * $Id: printportcmp.c,v 1.7 2003/02/16 02:31:05 darrenr Exp $
  */
 
 #include "ipf.h"

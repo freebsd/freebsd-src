@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: binprint.c,v 1.8 2002/05/14 15:18:56 darrenr Exp
+ * $Id: binprint.c,v 1.8 2002/05/14 15:18:56 darrenr Exp $
  */
 
 #include "ipf.h"
