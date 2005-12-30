@@ -846,7 +846,7 @@ list_scan(int s)
 {
 	uint8_t buf[24*1024];
 	struct ieee80211req ireq;
-	char ssid[14];
+	char ssid[IEEE80211_NWID_LEN+1];
 	uint8_t *cp;
 	int len;
 
@@ -861,7 +861,7 @@ list_scan(int s)
 	if (len < sizeof(struct ieee80211req_scan_result))
 		return;
 
-	printf("%-14.14s  %-17.17s  %4s %4s  %-5s %3s %4s\n"
+	printf("%-32.32s  %-17.17s  %4s %4s  %-5s %3s %4s\n"
 		, "SSID"
 		, "BSSID"
 		, "CHAN"
@@ -877,7 +877,7 @@ list_scan(int s)
 
 		sr = (struct ieee80211req_scan_result *) cp;
 		vp = (u_int8_t *)(sr+1);
-		printf("%-14.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
+		printf("%-32.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
 			, copy_essid(ssid, sizeof(ssid), vp, sr->isr_ssid_len)
 				, ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
