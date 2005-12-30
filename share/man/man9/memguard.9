@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2005
+.Dd December 30, 2005
 .Dt MEMGUARD 9
 .Os
 .Sh NAME
@@ -47,42 +47,29 @@ can only take over
 and
 .Fn free
 for a particular malloc type.
-.Nm
-takes over
-.Dv M_SUBPROC
-allocations by default.
-.Sh FILES
-.Bl -tag -width ".Pa src/sys/kern/kern_malloc.c" -compact
-.It Pa src/sys/kern/kern_malloc.c
-File to replace the malloc type in
-.El
 .Sh EXAMPLES
-The following steps are necessary to use
-.Nm :
-.Bl -enum
-.It
-Put the
-.Dv DEBUG_MEMGUARD
-option into your kernel config.
-.It
-Open
-.Pa src/sys/kern/kern_malloc.c
-in your favourite editor.
-Look for lines containing
-.Dq Li "XXX CHANGEME!"
-and replace
-.Dv M_SUBPROC
-with the appropriate malloc type.
-This might require additional but small/simple
-code modifications
-(e.g., if the malloc type is declared out of scope).
-.It
-Build and install your kernel.
-Tune the
-.Va vm.memguard_divisor
-boot-time tunable, which is used to scale how much of
+To use memguard for memory type compiled into the kernel, one has to add the
+following line to the
+.Pa /boot/loader.conf :
+.Bd -literal -offset indent
+vm.memguard.desc=<memory_type>
+.Ed
+.Pp
+Where memory_type is a short description of memory type to monitor.
+.Pp
+To use memguard for memory type defined in a kernel module, one has to set
+.Va vm.memguard.desc
+.Xr sysctl 8
+variable before loading the module:
+.Bd -literal -offset indent
+sysctl vm.memguard.desc=<memory_type>
+.Ed
+.Pp
+The
+.Va vm.memguard.divisor
+boot-time tunable is used to scale how much of
 .Va kmem_map
-you want to allot for
+one wants to allocate for
 .Nm .
 The default is 10, so
 .Va kmem_size Ns /10
@@ -93,7 +80,6 @@ value can be obtained via the
 .Va vm.kmem_size
 .Xr sysctl 8
 variable.
-.El
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr vmstat 8 ,
