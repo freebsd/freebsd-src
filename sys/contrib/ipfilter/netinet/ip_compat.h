@@ -1452,6 +1452,7 @@ typedef	struct	mb_s	{
 # define	UIOMOVE(a,b,c,d)	ipfuiomove(a,b,c,d)
 extern	void	m_copydata __P((mb_t *, int, int, caddr_t));
 extern	int	ipfuiomove __P((caddr_t, int, int, struct uio *));
+extern	int	bcopywrap __P((void *, void *, size_t));
 # ifndef CACHE_HASH
 #  define	CACHE_HASH(x)	((IFNAME(fin->fin_ifp)[0] + \
 				  ((struct ifnet *)fin->fin_ifp)->if_unit) & 7)
