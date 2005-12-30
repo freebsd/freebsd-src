@@ -1,0 +1,81 @@
+# $FreeBSD$
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on).
+cpu		OEA
+
+options 	POWERMAC		#NewWorld Apple PowerMacs
+options 	PSIM			#GDB PSIM ppc simulator
+
+options		SC_OFWFB		# OFW frame buffer
+
+# Standard busses
+device		pci
+
+device		zs		# Zilog 8350 based serial ports
+device		gem		# Sun GEM/Sun ERI/Apple GMAC
+device		ofwd		# Open Firmware disks
+
+
+#####################################################################
+# Devices we don't want to deal with
+
+nodevice	atkbdc
+nodevice	atkbd
+nodevice	psm
+nodevice	vga
+nodevice	fdc
+nodevice	ppc
+# when splash works enable *_saver
+nodevice	splash
+nodevice	blank_saver
+nodevice	daemon_saver
+nodevice	dragon_saver
+nodevice	fade_saver
+nodevice	fire_saver
+nodevice	green_saver
+nodevice	logo_saver
+nodevice	rain_saver
+nodevice	snake_saver
+nodevice	star_saver
+nodevice	warp_saver
+nodevice	daemon_saver
+nodevice	star_saver
+nodevice	snake_saver
+# needs outsw use fixed
+nodevice	cs
+# XXX can't remember why
+nodevice	uart
+# isa
+nodevice	pcii
+nodevice	tnt4882
+# wants gdb_cur
+nodevice	dcons
+nodevice	dcons_crom
+# not yet
+nodevice	sio
+
+
+#####################################################################
+# Options we don't want to deal with
+
+nooption 	SMP
+nooption 	GDB
+nooption	VGA_DEBUG
+nooption	VGA_WIDTH90
+nooption	VGA_SLOW_IOACCESS
+nooption	VGA_ALT_SEQACCESS
+nooption	PPC_DEBUG
+nooption	PPC_PROBE_CHIPSET
+nooption	PSM_RESETAFTERSUSPEND
+nooption	PSM_HOOKRESUME
+nooption	ATKBD_DFLT_KEYMAP
+nooption 	UKBD_DFLT_KEYMAP
