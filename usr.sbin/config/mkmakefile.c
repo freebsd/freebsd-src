@@ -113,7 +113,6 @@ makefile(void)
 	char line[BUFSIZ];
 	struct opt *op;
 	int versreq;
-	char *s;
 
 	read_files();
 	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
@@ -124,12 +123,6 @@ makefile(void)
 	}
 	if (ifp == 0)
 		err(1, "%s", line);
-
-	/* XXX this check seems to be misplaced. */
-	if (SLIST_EMPTY(&cputype)) {
-		printf("cpu type must be specified\n");
-		exit(1);
-	}
 
 	ofp = fopen(path("Makefile.new"), "w");
 	if (ofp == 0)
@@ -181,8 +174,18 @@ makefile(void)
 	(void) fclose(ifp);
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
+}
 
-	/* XXX makefile() should make the Makefile, not hints.c. */
+/*
+ * Build hints.c from the skeleton
+ */
+void
+makehints(void)
+{
+	FILE *ifp, *ofp;
+	char line[BUFSIZ];
+	char *s;
+
 	if (hints) {
 		ifp = fopen(hints, "r");
 		if (ifp == NULL)
@@ -234,8 +237,18 @@ makefile(void)
 		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("hints.c.new"), path("hints.c"));
+}
 
-	/* XXX makefile() should make the Makefile, not env.c. */
+/*
+ * Build env.c from the skeleton
+ */
+void
+makeenv(void)
+{
+	FILE *ifp, *ofp;
+	char line[BUFSIZ];
+	char *s;
+
 	if (env) {
 		ifp = fopen(env, "r");
 		if (ifp == NULL)
@@ -518,10 +531,6 @@ read_files(void)
 	char fname[MAXPATHLEN];
 	struct files_name *nl, *tnl;
 	
-	if (ident == NULL) {
-		printf("no ident line specified\n");
-		exit(1);
-	}
 	(void) snprintf(fname, sizeof(fname), "../../conf/files");
 	read_file(fname);
 	(void) snprintf(fname, sizeof(fname),

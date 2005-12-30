@@ -290,10 +290,6 @@ read_options(void)
 	char genopt[MAXPATHLEN];
 
 	SLIST_INIT(&otab);
-	if (ident == NULL) {
-		printf("no ident line specified\n");
-		exit(1);
-	}
 	(void) snprintf(fname, sizeof(fname), "../../conf/options");
 openit:
 	fp = fopen(fname, "r");
