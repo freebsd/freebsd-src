@@ -245,28 +245,12 @@ chn_wrfeed(struct pcm_channel *c)
 	    ("%s(%s): amt %d > source size %d, flags 0x%x", __func__, c->name,
 	   amt, sndbuf_getsize(bs), c->flags));
 
-	if (SLIST_EMPTY(&c->children)) {
-		/*
-		 * Hardware channel
-		 */
-		if (sndbuf_getready(bs) < amt)
-			c->xruns++;
-		ret = (amt > 0) ? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
-	} else {
-		/*
-		 * vchan
-		 */
-		if (amt > 0) {
-			ret = sndbuf_feed(bs, b, c, c->feeder, amt);
-			/*
-			 * Possible vchan xruns. There should be no empty space
-			 * left in buffer.
-			 */
-			if (sndbuf_getfree(b) > 0)
-				c->xruns++;
-		} else
-			ret = ENOSPC;
-	}
+	ret = (amt > 0) ? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
+	/*
+	 * Possible xruns. There should be no empty space left in buffer.
+	 */
+	if (sndbuf_getfree(b) > 0)
+		c->xruns++;
 
 	if (ret == 0 && sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
