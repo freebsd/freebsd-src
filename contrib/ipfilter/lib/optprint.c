@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: optprint.c,v 1.6 2002/07/13 15:59:49 darrenr Exp
+ * $Id: optprint.c,v 1.6 2002/07/13 15:59:49 darrenr Exp $
  */
 #include "ipf.h"
 

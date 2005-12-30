@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ipft_sn.c,v 1.7 2003/02/16 02:32:36 darrenr Exp
+ * $Id: ipft_sn.c,v 1.7 2003/02/16 02:32:36 darrenr Exp $
  */
 
 /*
@@ -16,7 +16,7 @@
 #include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: ipft_sn.c,v 1.7 2003/02/16 02:32:36 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipft_sn.c,v 1.7 2003/02/16 02:32:36 darrenr Exp $";
 #endif
 
 struct	llc	{

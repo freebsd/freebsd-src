@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: extras.c,v 1.12 2002/07/13 12:06:49 darrenr Exp
+ * $Id: extras.c,v 1.12 2002/07/13 12:06:49 darrenr Exp $
  */
 
 #include "ipf.h"

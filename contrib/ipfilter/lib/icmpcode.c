@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: icmpcode.c,v 1.7.2.1 2004/12/09 19:41:20 darrenr Exp
+ * $Id: icmpcode.c,v 1.7.2.1 2004/12/09 19:41:20 darrenr Exp $
  */
 
 #include <ctype.h>

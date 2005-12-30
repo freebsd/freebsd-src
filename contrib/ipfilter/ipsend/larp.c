@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)larp.c	1.1 8/19/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: larp.c,v 2.4 2003/12/01 02:01:16 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: larp.c,v 2.4 2003/12/01 02:01:16 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>

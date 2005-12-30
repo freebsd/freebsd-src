@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * Id: ipmon.h,v 2.8 2003/07/25 22:16:20 darrenr Exp
+ * $Id: ipmon.h,v 2.8 2003/07/25 22:16:20 darrenr Exp $
  */
 
 

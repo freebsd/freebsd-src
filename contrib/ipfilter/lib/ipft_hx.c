@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_hx.c	1.1 3/9/96 (C) 1996 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipft_hx.c,v 1.11.4.1 2004/12/09 19:41:20 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipft_hx.c,v 1.11.4.3 2005/12/04 10:07:21 darrenr Exp $";
 #endif
 
 #include <ctype.h>
@@ -83,7 +83,7 @@ int	cnt, *dir;
 			*s = '\0';
 		if (!*line)
 			continue;
-		if (!(opts & OPT_BRIEF)) {
+		if ((opts & OPT_DEBUG) != 0) {
 			printf("input: %s", line);
 		}
 
@@ -108,7 +108,7 @@ int	cnt, *dir;
 			s = line;
 		t = (char *)ip;
 		ip = (ip_t *)readhex(s, (char *)ip);
-		if (!(opts & OPT_BRIEF)) {
+		if ((opts & OPT_DEBUG) != 0) {
 			if (opts & OPT_ASCII) {
 				if (t < (char *)ip)
 					putchar('\t');
@@ -124,6 +124,8 @@ int	cnt, *dir;
 			fflush(stdout);
 		}
 	}
+	if (feof(tfp))
+		return 0;
 	return -1;
 }
 

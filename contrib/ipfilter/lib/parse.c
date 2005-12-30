@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: parse.c,v 1.34.2.1 2004/12/09 19:41:21 darrenr Exp
+ * $Id: parse.c,v 1.34.2.1 2004/12/09 19:41:21 darrenr Exp $
  */
 #include <ctype.h>
 #include "ipf.h"

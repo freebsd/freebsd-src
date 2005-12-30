@@ -78,7 +78,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipmon.c,v 1.33.2.8 2004/12/09 19:41:26 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.10 2005/06/18 02:41:35 darrenr Exp $";
 #endif
 
 
@@ -420,6 +420,14 @@ static void init_tabs()
 			    p->p_name != NULL && protocols[p->p_proto] == NULL)
 				protocols[p->p_proto] = strdup(p->p_name);
 		endprotoent();
+#if defined(_AIX51)
+		if (protocols[0])
+			free(protocols[0]);
+		if (protocols[252])
+			free(protocols[252]);
+		protocols[0] = "ip";
+		protocols[252] = NULL;
+#endif
 	}
 
 	if (udp_ports != NULL) {
@@ -1024,7 +1032,8 @@ int	blen;
 	(void) sprintf(t, "%*.*s%u", len, len, ipf->fl_ifname, ipf->fl_unit);
 	t += strlen(t);
 #endif
-#if (defined(__sgi) || defined(__powerpc__) || defined(__arm__))
+#if defined(__sgi) || defined(_AIX51) || defined(__powerpc__) || \
+    defined(__arm__)
 	if ((ipf->fl_group[0] == 255) && (ipf->fl_group[1] == '\0'))
 #else
 	if ((ipf->fl_group[0] == -1) && (ipf->fl_group[1] == '\0'))

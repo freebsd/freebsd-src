@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: flags.c,v 1.4 2002/11/02 07:16:36 darrenr Exp
+ * $Id: flags.c,v 1.4 2002/11/02 07:16:36 darrenr Exp $
  */
 
 #include "ipf.h"
