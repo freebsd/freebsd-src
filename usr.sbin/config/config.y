@@ -343,12 +343,32 @@ newfile(char *name)
 }
 	
 /*
- * add a device to the list of devices
+ * Find a device in the list of devices.
+ */
+static struct device *
+finddev(char *name)
+{
+	struct device *dp;
+
+	STAILQ_FOREACH(dp, &dtab, d_next)
+		if (eq(dp->d_name, name))
+			return (dp);
+
+	return (NULL);
+}
+	
+/*
+ * Add a device to the list of devices.
  */
 static void
 newdev(char *name)
 {
 	struct device *np;
+
+	if (finddev(name)) {
+		printf("WARNING: duplicate device `%s' encountered.\n", name);
+		return;
+	}
 
 	np = (struct device *) malloc(sizeof *np);
 	memset(np, 0, sizeof(*np));
@@ -357,30 +377,48 @@ newdev(char *name)
 }
 
 /*
- * remove a device from the list of devices
+ * Remove a device from the list of devices.
  */
 static void
 rmdev(char *name)
 {
-	struct device *dp, *rmdp;
+	struct device *dp;
 
-	STAILQ_FOREACH(dp, &dtab, d_next) {
-		if (eq(dp->d_name, name)) {
-			rmdp = dp;
-			dp = STAILQ_NEXT(dp, d_next);
-			STAILQ_REMOVE(&dtab, rmdp, device, d_next);
-			free(rmdp->d_name);
-			free(rmdp);
-			if (dp == NULL)
-				break;
-		}
+	dp = finddev(name);
+	if (dp != NULL) {
+		STAILQ_REMOVE(&dtab, dp, device, d_next);
+		free(dp->d_name);
+		free(dp);
 	}
 }
 
+/*
+ * Find an option in the list of options.
+ */
+static struct opt *
+findopt(struct opt_head *list, char *name)
+{
+	struct opt *op;
+
+	SLIST_FOREACH(op, list, op_next)
+		if (eq(op->op_name, name))
+			return (op);
+
+	return (NULL);
+}
+
+/*
+ * Add an option to the list of options.
+ */
 static void
 newopt(struct opt_head *list, char *name, char *value)
 {
 	struct opt *op;
+
+	if (findopt(list, name)) {
+		printf("WARNING: duplicate option `%s' encountered.\n", name);
+		return;
+	}
 
 	op = (struct opt *)malloc(sizeof (struct opt));
 	memset(op, 0, sizeof(*op));
@@ -390,22 +428,20 @@ newopt(struct opt_head *list, char *name, char *value)
 	SLIST_INSERT_HEAD(list, op, op_next);
 }
 
+/*
+ * Remove an option from the list of options.
+ */
 static void
 rmopt(struct opt_head *list, char *name)
 {
-	struct opt *op, *rmop;
+	struct opt *op;
 
-	SLIST_FOREACH(op, list, op_next) {
-		if (eq(op->op_name, name)) {
-			rmop = op;
-			op = SLIST_NEXT(op, op_next);
-			SLIST_REMOVE(list, rmop, opt, op_next);
-			free(rmop->op_name);
-			if (rmop->op_value != NULL)
-				free(rmop->op_value);
-			free(rmop);
-			if (op == NULL)
-				break;
-		}
+	op = findopt(list, name);
+	if (op != NULL) {
+		SLIST_REMOVE(list, op, opt, op_next);
+		free(op->op_name);
+		if (op->op_value != NULL)
+			free(op->op_value);
+		free(op);
 	}
 }
