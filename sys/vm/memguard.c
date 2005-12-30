@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -58,6 +59,67 @@ __FBSDID("$FreeBSD$");
  * you need to increase MAX_PAGES_PER_ITEM.
  */
 #define	MAX_PAGES_PER_ITEM	64
+
+SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
+/*
+ * The vm_memguard_divisor variable controls how much of kmem_map should be
+ * reserved for MemGuard.
+ */
+u_int vm_memguard_divisor;
+SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RD, &vm_memguard_divisor,
+    0, "(kmem_size/memguard_divisor) == memguard submap size");     
+
+/*
+ * Short description (ks_shortdesc) of memory type to monitor.
+ */
+static char vm_memguard_desc[128] = "";
+static struct malloc_type *vm_memguard_mtype = NULL;
+TUNABLE_STR("vm.memguard.desc", vm_memguard_desc, sizeof(vm_memguard_desc));
+static int
+memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
+{
+	struct malloc_type_internal *mtip;
+	struct malloc_type_stats *mtsp;
+	struct malloc_type *mtp;
+	char desc[128];
+	long bytes;
+	int error, i;
+
+	strlcpy(desc, vm_memguard_desc, sizeof(desc));
+	error = sysctl_handle_string(oidp, desc, sizeof(desc), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/*
+	 * We can change memory type when no memory has been allocated for it
+	 * or when there is no such memory type yet (ie. it will be loaded with
+	 * kernel module).
+	 */
+	bytes = 0;
+	mtx_lock(&malloc_mtx);
+	mtp = malloc_desc2type(desc);
+	if (mtp != NULL) {
+		mtip = mtp->ks_handle;
+		for (i = 0; i < MAXCPU; i++) {
+			mtsp = &mtip->mti_stats[i];
+			bytes += mtsp->mts_memalloced;
+			bytes -= mtsp->mts_memfreed;
+		}
+	}
+	if (bytes > 0)
+		error = EBUSY;
+	else {
+		/*
+		 * If mtp is NULL, it will be initialized in memguard_cmp().
+		 */
+		vm_memguard_mtype = mtp;
+		strlcpy(vm_memguard_desc, desc, sizeof(vm_memguard_desc));
+	}
+	mtx_unlock(&malloc_mtx);
+	return (error);
+}
+SYSCTL_PROC(_vm_memguard, OID_AUTO, desc, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
+    memguard_sysctl_desc, "A", "Short description of memory type to monitor");
 
 /*
  * Global MemGuard data.
@@ -237,6 +299,34 @@ memguard_free(void *addr)
 	MEMGUARD_CRIT_SECTION_ENTER;
 	STAILQ_INSERT_TAIL(mgfifo, e, entries);
 	MEMGUARD_CRIT_SECTION_EXIT;
+}
+
+int
+memguard_cmp(struct malloc_type *mtp)
+{
+
+#if 1
+	/*
+	 * The safest way of comparsion is to always compare short description
+	 * string of memory type, but it is also the slowest way.
+	 */
+	return (strcmp(mtp->ks_shortdesc, vm_memguard_desc) == 0);
+#else
+	/*
+	 * If we compare pointers, there are two possible problems:
+	 * 1. Memory type was unloaded and new memory type was allocated at the
+	 *    same address.
+	 * 2. Memory type was unloaded and loaded again, but allocated at a
+	 *    different address.
+	 */
+	if (vm_memguard_mtype != NULL)
+		return (mtp == vm_memguard_mtype);
+	if (strcmp(mtp->ks_shortdesc, vm_memguard_desc) == 0) {
+		vm_memguard_mtype = mtp;
+		return (1);
+	}
+	return (0);
+#endif
 }
 
 /*
