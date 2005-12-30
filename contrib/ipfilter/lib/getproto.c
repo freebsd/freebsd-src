@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #include "ipf.h"
 
 int getproto(name)
@@ -13,6 +11,14 @@ char *name;
 			break;
 	if (*s == '\0')
 		return atoi(name);
+
+#ifdef _AIX51
+	/*
+	 * For some bogus reason, "ip" is 252 in /etc/protocols on AIX 5
+	 */
+	if (!strcasecmp(name, "ip"))
+		return 0;
+#endif
 
 	p = getprotobyname(name);
 	if (p != NULL)

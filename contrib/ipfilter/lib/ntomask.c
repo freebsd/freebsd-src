@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #include "ipf.h"
 
 int ntomask(v, nbits, ap)

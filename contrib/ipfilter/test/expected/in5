@@ -1,3 +1,4 @@
+map le0 from 9.8.7.6/32 port > 1024 to any -> 1.1.1.1/32 portmap tcp 10000:20000
 rdr le0 from any to 9.8.7.6/32 port = 0 -> 1.1.1.1 port 0 tcp
 rdr le0 from any to 9.8.7.6/32 -> 1.1.1.1 ip
 rdr le0 from any to 9.8.7.6/32 port = 8888 -> 1.1.1.1 port 888 tcp

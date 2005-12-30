@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 1988, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -28,7 +26,7 @@
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
  */
 
-#ifndef _NET_RADIX_H_
+#if !defined(_NET_RADIX_H_) && !defined(_RADIX_H_)
 #define	_NET_RADIX_H_
 #ifndef _RADIX_H_
 #define	_RADIX_H_
@@ -42,7 +40,7 @@
 # endif
 #endif
 
-#ifdef __sgi
+#if defined(__sgi)
 # define	radix_mask	ipf_radix_mask
 # define	radix_node	ipf_radix_node
 # define	radix_node_head	ipf_radix_node_head
@@ -146,6 +144,12 @@ struct radix_node_head {
 };
 
 
+#if defined(AIX)
+# undef Bcmp
+# undef Bzero
+# undef R_Malloc
+# undef Free
+#endif
 #define Bcmp(a, b, n)	bcmp(((caddr_t)(a)), ((caddr_t)(b)), (unsigned)(n))
 #if defined(linux) && defined(_KERNEL)
 # define Bcopy(a, b, n)	memmove(((caddr_t)(b)), ((caddr_t)(a)), (unsigned)(n))
@@ -157,7 +161,7 @@ struct radix_node_head {
 #define FreeS(p, z)		KFREES(p, z)
 #define Free(p)			KFREE(p)
 
-#if (defined(__osf__) || (IRIX >= 60516)) && defined(_KERNEL)
+#if (defined(__osf__) || defined(AIX) || (IRIX >= 60516)) && defined(_KERNEL)
 # define	rn_init		ipf_rn_init
 # define	rn_fini		ipf_rn_fini
 # define	rn_inithead	ipf_rn_inithead

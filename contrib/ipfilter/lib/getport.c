@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #include "ipf.h"
 
 int getport(fr, name, port)

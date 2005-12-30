@@ -1,11 +1,9 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2000 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: opts.h,v 2.12 2003/08/14 14:24:27 darrenr Exp
+ * $Id: opts.h,v 2.12 2003/08/14 14:24:27 darrenr Exp $
  */
 
 #ifndef	__OPTS_H__

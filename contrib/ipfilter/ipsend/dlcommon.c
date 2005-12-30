@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Common (shared) DLPI test routines.
  * Mostly pretty boring boilerplate sorta stuff.

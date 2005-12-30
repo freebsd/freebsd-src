@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1995-1998 by Darren Reed.
  *
@@ -8,7 +6,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsopt.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipsopt.c,v 2.4.4.1 2004/03/23 12:58:05 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipsopt.c,v 2.4.4.1 2004/03/23 12:58:05 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>

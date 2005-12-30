@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #include <ctype.h>
 
 #include "ipf.h"

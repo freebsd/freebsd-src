@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifdef	IPFILTER_SCAN
 
 #include <ctype.h>

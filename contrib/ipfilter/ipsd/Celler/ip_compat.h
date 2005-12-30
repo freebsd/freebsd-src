@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * (C)opyright 1995 by Darren Reed.
  *

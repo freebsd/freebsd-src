@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1999-2001, 2003 by Darren Reed.
  *
@@ -41,7 +39,7 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include "ipf.h"
-#include "ipl.h"
+#include "netinet/ipl.h"
 
 #if !defined(lint)
 static const char rcsid[] = "@(#)Id: ipfs.c,v 1.12 2003/12/01 01:56:53 darrenr Exp";

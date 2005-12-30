@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 
 typedef	struct	wordtab	{
 	char	*w_word;

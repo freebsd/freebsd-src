@@ -1,11 +1,9 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: verbose.c,v 1.6 2001/06/09 17:09:25 darrenr Exp
+ * $Id: verbose.c,v 1.6 2001/06/09 17:09:25 darrenr Exp $
  */
 
 #if defined(__STDC__)

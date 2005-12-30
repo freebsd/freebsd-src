@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*-
  * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -42,7 +40,7 @@
 
 #if !(defined(lint) || defined(KERNEL) || defined(_KERNEL))
 static const char rcsid[] =
-    "@(#) $Header: /devel/CVS/IP-Filter/bpf_filter.c,v 2.2 2003/08/19 16:49:58 darrenr Exp $ (LBL)";
+    "@(#) $Header: /devel/CVS/IP-Filter/bpf_filter.c,v 2.2.2.1 2005/06/18 02:41:30 darrenr Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -53,7 +51,7 @@ static const char rcsid[] =
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include "ip_compat.h"
+#include "netinet/ip_compat.h"
 #include "bpf-ipf.h"
 
 

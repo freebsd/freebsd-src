@@ -1,12 +1,10 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: nat_setgroupmap.c,v 1.1 2003/04/13 06:40:14 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: nat_setgroupmap.c,v 1.1 2003/04/13 06:40:14 darrenr Exp $";
 #endif
 
 #include "ipf.h"

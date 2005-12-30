@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #include "ipf.h"
 
 char *getsumd(sum)

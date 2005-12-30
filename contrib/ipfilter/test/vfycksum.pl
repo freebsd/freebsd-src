@@ -3,6 +3,14 @@
 # validate the IPv4 header checksum.
 # $bytes[] is an array of 16bit values, with $cnt elements in the array.
 #
+sub dump {
+	print "\n";
+	for ($i = 0; $i < $#bytes; $i++) {
+		printf "%04x ", $bytes[$i];
+	}
+	print "\n";
+}
+
 sub dosum {
 	local($seed) = $_[0];
 	local($start) = $_[1];
@@ -99,7 +107,8 @@ sub tcpcheck {
 	}
 
 	if ($z) {
-		print " TCP: missing data($x $y $z)";
+		print " TCP: missing data($x $y $z) $hl";
+#		&dump();
 		return;
 	}
 

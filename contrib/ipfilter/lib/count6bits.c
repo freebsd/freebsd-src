@@ -1,11 +1,9 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: count6bits.c,v 1.4 2001/06/09 17:09:23 darrenr Exp
+ * $Id: count6bits.c,v 1.4 2001/06/09 17:09:23 darrenr Exp $
  */
 
 #include "ipf.h"

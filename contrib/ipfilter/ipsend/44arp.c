@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Based upon 4.4BSD's /usr/sbin/arp
  */
