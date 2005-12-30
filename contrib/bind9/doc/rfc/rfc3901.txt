@@ -1,0 +1,283 @@
+
+
+
+
+
+
+Network Working Group                                          A. Durand
+Request for Comments: 3901                        SUN Microsystems, Inc.
+BCP: 91                                                         J. Ihren
+Category: Best Current Practice                               Autonomica
+                                                          September 2004
+
+
+               DNS IPv6 Transport Operational Guidelines
+
+Status of this Memo
+
+   This document specifies an Internet Best Current Practices for the
+   Internet Community, and requests discussion and suggestions for
+   improvements.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2004).
+
+Abstract
+
+   This memo provides guidelines and Best Current Practice for operating
+   DNS in a world where queries and responses are carried in a mixed
+   environment of IPv4 and IPv6 networks.
+
+1.  Introduction to the Problem of Name Space Fragmentation:
+    following the referral chain
+
+   A resolver that tries to look up a name starts out at the root, and
+   follows referrals until it is referred to a name server that is
+   authoritative for the name.  If somewhere down the chain of referrals
+   it is referred to a name server that is only accessible over a
+   transport which the resolver cannot use, the resolver is unable to
+   finish the task.
+
+   When the Internet moves from IPv4 to a mixture of IPv4 and IPv6 it is
+   only a matter of time until this starts to happen.  The complete DNS
+   hierarchy then starts to fragment into a graph where authoritative
+   name servers for certain nodes are only accessible over a certain
+   transport.  The concern is that a resolver using only a particular
+   version of IP and querying information about another node using the
+   same version of IP can not do it because somewhere in the chain of
+   servers accessed during the resolution process, one or more of them
+   will only be accessible with the other version of IP.
+
+   With all DNS data only available over IPv4 transport everything is
+   simple.  IPv4 resolvers can use the intended mechanism of following
+   referrals from the root and down while IPv6 resolvers have to work
+
+
+
+Durand & Ihren           Best Current Practice                  [Page 1]
+
+RFC 3901             DNS IPv6 Transport Guidelines        September 2004
+
+
+   through a "translator", i.e., they have to use a recursive name
+   server on a so-called "dual stack" host as a "forwarder" since they
+   cannot access the DNS data directly.
+
+   With all DNS data only available over IPv6 transport everything would
+   be equally simple, with the exception of IPv4 recursive name servers
+   having to switch to a forwarding configuration.
+
+   However, the second situation will not arise in the foreseeable
+   future.  Instead, the transition will be from IPv4 only to a mixture
+   of IPv4 and IPv6, with three categories of DNS data depending on
+   whether the information is available only over IPv4 transport, only
+   over IPv6 or both.
+
+   Having DNS data available on both transports is the best situation.
+   The major question is how to ensure that it becomes the norm as
+   quickly as possible.  However, while it is obvious that some DNS data
+   will only be available over v4 transport for a long time it is also
+   obvious that it is important to avoid fragmenting the name space
+   available to IPv4 only hosts.  For example, during transition it is
+   not acceptable to break the name space that we presently have
+   available for IPv4-only hosts.
+
+2.  Terminology
+
+   The phrase "IPv4 name server" indicates a name server available over
+   IPv4 transport.  It does not imply anything about what DNS [1,2] data
+   is served.  Likewise, "IPv6 [4,5,6] name server" indicates a name
+   server available over IPv6 transport.  The phrase "dual-stack name
+   server" indicates a name server that is actually configured to run
+   both protocols, IPv4 and IPv6, and not merely a server running on a
+   system capable of running both but actually configured to run only
+   one.
+
+3.  Policy Based Avoidance of Name Space Fragmentation
+
+   Today there are only a few DNS "zones" on the public Internet that
+   are available over IPv6 transport, and most of them can be regarded
+   as "experimental".  However, as soon as the root and top level
+   domains are available over IPv6 transport, it is reasonable to expect
+   that it will become more common to have zones served by IPv6 servers.
+
+   Having those zones served only by IPv6-only name server would not be
+   a good development, since this will fragment the previously
+   unfragmented IPv4 name space and there are strong reasons to find a
+   mechanism to avoid it.
+
+
+
+
+
+Durand & Ihren           Best Current Practice                  [Page 2]
+
+RFC 3901             DNS IPv6 Transport Guidelines        September 2004
+
+
+   The recommended approach to maintain name space continuity is to use
+   administrative policies, as described in the next section.
+
+4.  DNS IPv6 Transport recommended Guidelines
+
+   In order to preserve name space continuity, the following
+   administrative policies are recommended:
+
+      - every recursive name server SHOULD be either IPv4-only or dual
+        stack,
+
+         This rules out IPv6-only recursive servers.  However, one might
+         design configurations where a chain of IPv6-only name server
+         forward queries to a set of dual stack recursive name server
+         actually performing those recursive queries.
+
+      - every DNS zone SHOULD be served by at least one IPv4-reachable
+        authoritative name server.
+
+         This rules out DNS zones served only by IPv6-only authoritative
+         name servers.
+
+   Note: zone validation processes SHOULD ensure that there is at least
+   one IPv4 address record available for the name servers of any child
+   delegations within the zone.
+
+5.  Security Considerations
+
+   The guidelines described in this memo introduce no new security
+   considerations into the DNS protocol or associated operational
+   scenarios.
+
+6.  Acknowledgment
+
+   This document is the result of many conversations that happened in
+   the DNS community at IETF and elsewhere since 2001.  During that
+   period of time, a number of Internet drafts have been published to
+   clarify various aspects of the issues at stake.  This document
+   focuses on the conclusion of those discussions.
+
+   The authors would like to acknowledge the role of Pekka Savola in his
+   thorough review of the document.
+
+
+
+
+
+
+
+
+
+Durand & Ihren           Best Current Practice                  [Page 3]
+
+RFC 3901             DNS IPv6 Transport Guidelines        September 2004
+
+
+7.  Normative References
+
+   [1]  Mockapetris, P., "Domain names - concepts and facilities", STD
+        13, RFC 1034, November 1987.
+
+   [2]  Mockapetris, P., "Domain names - implementation and
+        specification", STD 13, RFC 1035, November 1987.
+
+   [3]  Bradner, S., "The Internet Standards Process -- Revision 3", BCP
+        9, RFC 2026, October 1996.
+
+   [4]  Deering, S. and R. Hinden, "Internet Protocol, Version 6 (IPv6)
+        Specification", RFC 2460, December 1998.
+
+   [5]  Hinden, R. and S. Deering, "Internet Protocol Version 6 (IPv6)
+        Addressing Architecture", RFC 3513, April 2003.
+
+   [6]  Thomson, S., Huitema, C., Ksinant, V., and M. Souissi, "DNS
+        Extensions to Support IP Version 6", RFC 3596, October 2003.
+
+8.  Authors' Addresses
+
+   Alain Durand
+   SUN Microsystems, Inc
+   17 Network circle UMPK17-202
+   Menlo Park, CA, 94025
+   USA
+
+   EMail: Alain.Durand@sun.com
+
+
+   Johan Ihren
+   Autonomica
+   Bellmansgatan 30
+   SE-118 47 Stockholm
+   Sweden
+
+   EMail: johani@autonomica.se
+
+
+
+
+
+
+
+
+
+
+
+
+
+Durand & Ihren           Best Current Practice                  [Page 4]
+
+RFC 3901             DNS IPv6 Transport Guidelines        September 2004
+
+
+9.  Full Copyright Statement
+
+   Copyright (C) The Internet Society (2004).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/S HE
+   REPRESENTS OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE
+   INTERNET ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF
+   THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the IETF's procedures with respect to rights in IETF Documents can
+   be found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at ietf-
+   ipr@ietf.org.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+
+Durand & Ihren           Best Current Practice                  [Page 5]
+
