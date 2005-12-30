@@ -1,2 +1,33 @@
 pass in proto icmp from 127.0.0.1/32 to 127.0.0.1/32 icmp-type timest
 block in proto icmp from any to any icmp-type unreach code 1
+pass in proto icmp from any to any icmp-type unreach code 15
+pass in proto icmp from any to any icmp-type unreach code 13
+pass in proto icmp from any to any icmp-type unreach code 8
+pass in proto icmp from any to any icmp-type unreach code 4
+pass in proto icmp from any to any icmp-type unreach code 9
+pass in proto icmp from any to any icmp-type unreach code 11
+pass in proto icmp from any to any icmp-type unreach code 14
+pass in proto icmp from any to any icmp-type unreach code 10
+pass in proto icmp from any to any icmp-type unreach code 12
+pass in proto icmp from any to any icmp-type unreach code 7
+pass in proto icmp from any to any icmp-type unreach code 1
+pass in proto icmp from any to any icmp-type unreach code 6
+pass in proto icmp from any to any icmp-type unreach code 0
+pass in proto icmp from any to any icmp-type unreach code 3
+pass in proto icmp from any to any icmp-type unreach code 2
+pass in proto icmp from any to any icmp-type unreach code 5
+pass in proto icmp from any to any icmp-type echo
+pass in proto icmp from any to any icmp-type echorep
+pass in proto icmp from any to any icmp-type inforeq
+pass in proto icmp from any to any icmp-type inforep
+pass in proto icmp from any to any icmp-type maskrep
+pass in proto icmp from any to any icmp-type maskreq
+pass in proto icmp from any to any icmp-type paramprob
+pass in proto icmp from any to any icmp-type redir
+pass in proto icmp from any to any icmp-type unreach
+pass in proto icmp from any to any icmp-type routerad
+pass in proto icmp from any to any icmp-type routersol
+pass in proto icmp from any to any icmp-type squench
+pass in proto icmp from any to any icmp-type timest
+pass in proto icmp from any to any icmp-type timestrep
+pass in proto icmp from any to any icmp-type timex
