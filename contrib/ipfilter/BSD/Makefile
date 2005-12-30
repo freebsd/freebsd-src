@@ -8,7 +8,8 @@ SBINDEST=/sbin
 MANDIR=/usr/share/man
 SEARCHDIRS!=echo $(BINDEST) $(SBINDEST) /bin /usr/bin /sbin /usr/sbin /usr/local/bin /usr/local/sbin | awk '{for(i=1;i<NF;i++){print $$i;}}' - | sort -u
 
-CC=cc -Wall -Wuninitialized -Wstrict-prototypes -O
+CC=gcc -Wall -Wuninitialized -Wstrict-prototypes -O
+#UFLAGS=-fprofile-arcs -ftest-coverage
 CFLAGS=-g -I$(TOP)
 #
 # For NetBSD/FreeBSD
@@ -45,7 +46,7 @@ MODOBJS=ip_fil.o fil.o ml_ipl.o ip_nat.o ip_frag.o ip_state.o ip_proxy.o \
 	ip_scan.o ip_sync.o
 #	ip_trafcon.o
 DFLAGS=$(IPFLKM) $(IPFLOG) $(LOOKUP) $(SYNC) $(DEF) $(DLKM) $(IPFBPF)
-IPF=ipf.o ipfcomp.o ipf_y.o ipf_l.o
+IPF=ipf.o ipfcomp.o ipf_y.o ipf_l.o bpf_filter_u.o
 IPT=ipftest.o fil_u.o ip_frag_u.o ip_state_u.o ip_nat_u.o \
     ip_proxy_u.o ip_auth_u.o ip_htable_u.o ip_lookup_u.o ip_pool_u.o \
     ip_scan_u.o ip_sync_u.o ip_rules_u.o ip_fil_u.o ip_log_u.o \
@@ -66,7 +67,8 @@ LIBSRC=$(TOP)/lib
 RANLIB=ranlib
 AROPTS=cq
 HERE!=pwd
-CCARGS=-I. $(DEBUG) $(CFLAGS)
+CCARGS=-I. $(DEBUG) $(CFLAGS) $(UFLAGS)
+KCARGS=-I. $(DEBUG) $(CFLAGS)
 #
 # Extra is option kernel things we always want in user space.
 #
@@ -77,6 +79,9 @@ include $(TOP)/lib/Makefile
 build all: machine $(OBJ)/libipf.a ipf ipfs ipfstat ipftest ipmon ipnat \
 	   ippool ipscan ipsyncm ipsyncs $(LKM) $(LKMR)
 	-sh -c 'for i in ipf ipftest ipmon ippool ipnat ipscan ipsyncm ipsyncs; do /bin/rm -f $(TOP)/$$i; ln -s `pwd`/$$i $(TOP); done'
+	-/bin/rm -f ../tools ./tools
+	-ln -s ../tools .
+	-ln -s ../tools ..
 
 machine: Makefile.kmod
 	if [ -f Makefile.kmod ] ; then \
@@ -135,7 +140,7 @@ fil_u.o: $(TOP)/fil.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/ip_compat.h \
 
 fil.o: $(TOP)/fil.c $(TOP)/ip_fil.h $(TOP)/ip_compat.h $(TOP)/ipl.h \
 	    $(TOP)/ip_rules.h
-	$(CC) $(CCARGS) $(POLICY) $(DFLAGS) $(IPFBPF) $(COMPIPF) \
+	$(CC) $(KCARGS) $(POLICY) $(DFLAGS) $(IPFBPF) $(COMPIPF) \
 	    -c $(TOP)/fil.c -o $@
 
 ipf.o: $(TOOL)/ipf.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/opts.h
@@ -240,8 +245,8 @@ ipfrule.ko.5: ip_rulesx.o $(MLR)
 	ld -Bshareable -d -warn-common -o $(LKMR:S/.5$//) $(.TARGET:S/.ko/.kld/) 
 ipfrule.ko: ip_rulesx.o $(MLR)
 	gensetdefs ip_rulesx.o $(MLR)
-	$(CC) $(CCARGS) -c setdef0.c
-	$(CC) $(CCARGS) -c setdef1.c
+	$(CC) $(KCARGS) -c setdef0.c
+	$(CC) $(KCARGS) -c setdef1.c
 	ld -Bshareable -o $@ setdef0.o ip_rulesx.o $(MLR) setdef1.o
 
 ipf.ko.5 ipl.ko.5: $(MODOBJS)
@@ -250,59 +255,59 @@ ipf.ko.5 ipl.ko.5: $(MODOBJS)
 
 ipf.ko ipl.ko: $(MODOBJS) 
 	gensetdefs $(MODOBJS)
-	$(CC) $(CCARGS) -c setdef0.c
-	$(CC) $(CCARGS) -c setdef1.c
+	$(CC) $(KCARGS) -c setdef0.c
+	$(CC) $(KCARGS) -c setdef1.c
 	ld -Bshareable -o $@ setdef0.o $(MODOBJS) setdef1.o
 
 ip_nat.o: $(TOP)/ip_nat.c $(TOP)/ip_nat.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_nat.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_nat.c -o $@
 
 ip_frag.o: $(TOP)/ip_frag.c $(TOP)/ip_frag.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_frag.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_frag.c -o $@
 
 ip_state.o: $(TOP)/ip_state.c $(TOP)/ip_state.h $(TOP)/ip_compat.h \
 	$(TOP)/ip_fil.h $(TOP)/ip_nat.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_state.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_state.c -o $@
 
 ip_proxy.o: $(TOP)/ip_proxy.c $(TOP)/ip_proxy.h $(TOP)/ip_compat.h \
 	$(TOP)/ip_fil.h $(PROXYLIST) $(TOP)/ip_nat.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_proxy.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_proxy.c -o $@
 
 ip_auth.o: $(TOP)/ip_auth.c $(TOP)/ip_auth.h $(TOP)/ip_compat.h \
 	$(TOP)/ip_fil.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_auth.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_auth.c -o $@
 
 ip_fil.c:
 	/bin/rm -f ip_fil.c
 	ln -s $(TOP)/ip_fil_`uname -s|tr A-Z a-z`.c ip_fil.c
 
 ip_fil.o: ip_fil.c $(TOP)/ip_fil.h $(TOP)/ip_compat.h $(TOP)/ip_nat.h
-	$(CC) $(CCARGS) $(DFLAGS) $(COMPIPF) -c ip_fil.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) $(COMPIPF) -c ip_fil.c -o $@
 
 ip_log.o: $(TOP)/ip_log.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_log.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_log.c -o $@
 
 ip_scan.o: $(TOP)/ip_scan.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h $(TOP)/ip_scan.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_scan.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_scan.c -o $@
 
 ip_sync.o: $(TOP)/ip_sync.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h $(TOP)/ip_sync.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_sync.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_sync.c -o $@
 
 ip_pool.o: $(TOP)/ip_pool.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	$(TOP)/ip_lookup.h $(TOP)/ip_pool.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_pool.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_pool.c -o $@
 
 ip_htable.o: $(TOP)/ip_htable.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	$(TOP)/ip_lookup.h $(TOP)/ip_htable.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_htable.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_htable.c -o $@
 
 ip_lookup.o: $(TOP)/ip_lookup.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	$(TOP)/ip_pool.h $(TOP)/ip_htable.h $(TOP)/ip_lookup.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_lookup.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_lookup.c -o $@
 
 ip_trafcon.o: $(TOP)/ip_trafcon.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	      $(TOP)/ip_trafcon.h
-	$(CC) $(CCARGS) $(DFLAGS) -c $(TOP)/ip_trafcon.c -o $@
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_trafcon.c -o $@
 
 vnode_if.h: $(VNODESHDIR)/vnode_if.src
 	mkdir -p ../sys
@@ -449,6 +454,7 @@ clean:
 	${RM} -f ipnat_y.c ipnat_y.h ipnat_l.c ipnat_l.h
 	${RM} -f ipmon_y.c ipmon_y.h ipmon_l.c ipmon_l.h
 	${RM} -f ipsyncm ipsyncs ipfs ip_rules.c ip_rules.h
+	${RM} -f *.da *.gcov *.bb *.bbg tools
 
 	${MAKE} -f Makefile.ipsend ${MFLAGS} clean
 	if [ -f Makefile.kmod ] ; then \
@@ -508,3 +514,10 @@ install:
 		fi \
 	done
 	(cd $(TOP)/man; make INSTALL=$(INSTALL) MANDIR=$(MANDIR) install; cd $(TOP))
+
+coverage:
+	ksh -c 'for i in *.da; do j=$${i%%.da}.c; gcov $$j 2>&1 | egrep -v "y.tab.c|Could|Creating|_l\.c|\.h"; done'  | sort -n > report
+	sort -n report | perl -e 'while(<>) { next if (/^0.00/); s/\%//g; @F=split;$$lc+=$$F[2];$$t += $$F[0]/100*$$F[2];}  printf "%d of %d = %d%%\n", $$t, $$lc,$$t/$$lc*100;' >> report
+
+clean-coverage:
+	/bin/rm -f *.gcov *.da
