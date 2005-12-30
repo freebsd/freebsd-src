@@ -1,17 +1,15 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1995-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * Id: ip_state.h,v 2.68.2.3 2005/03/03 14:24:11 darrenr Exp
+ * $Id: ip_state.h,v 2.68.2.5 2005/08/20 13:48:25 darrenr Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
 
-#if defined(__STDC__) || defined(__GNUC__)
+#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 # define	SIOCDELST	_IOW('r', 61, struct ipfobj)
 #else
 # define	SIOCDELST	_IOW(r, 61, struct ipfobj)
@@ -60,8 +58,8 @@ typedef struct ipstate {
 	u_char	is_v;
 	u_32_t	is_hv;
 	u_32_t	is_tag;
-	u_32_t	is_opt;			/* packet options set */
-	u_32_t	is_optmsk;		/*    "      "    mask */
+	u_32_t	is_opt[2];		/* packet options set */
+	u_32_t	is_optmsk[2];		/*    "      "    mask */
 	u_short	is_sec;			/* security options set */
 	u_short	is_secmsk;		/*    "        "    mask */
 	u_short	is_auth;		/* authentication options set */

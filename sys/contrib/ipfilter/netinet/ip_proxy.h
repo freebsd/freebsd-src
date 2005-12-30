@@ -1,11 +1,9 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1997-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ip_proxy.h,v 2.31.2.2 2005/03/12 19:33:48 darrenr Exp
+ * $Id: ip_proxy.h,v 2.31.2.3 2005/06/18 02:41:33 darrenr Exp $
  */
 
 #ifndef	__IP_PROXY_H__
@@ -15,6 +13,12 @@
 #define SOLARIS (defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 #endif
 
+#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
+#define	SIOCPROXY	_IOWR('r', 64, struct ap_control)
+#else
+#define	SIOCPROXY	_IOWR(r, 64, struct ap_control)
+#endif
+
 #ifndef	APR_LABELLEN
 #define	APR_LABELLEN	16
 #endif
@@ -22,15 +26,16 @@
 
 struct	nat;
 struct	ipnat;
+struct	ipstate;
 
 typedef	struct	ap_tcp {
 	u_short	apt_sport;	/* source port */
 	u_short	apt_dport;	/* destination port */
 	short	apt_sel[2];	/* {seq,ack}{off,min} set selector */
 	short	apt_seqoff[2];	/* sequence # difference */
-	tcp_seq	apt_seqmin[2];	/* don't change seq-off until after this */
+	u_32_t	apt_seqmin[2];	/* don't change seq-off until after this */
 	short	apt_ackoff[2];	/* sequence # difference */
-	tcp_seq	apt_ackmin[2];	/* don't change seq-off until after this */
+	u_32_t	apt_ackmin[2];	/* don't change seq-off until after this */
 	u_char	apt_state[2];	/* connection state */
 } ap_tcp_t;
 
@@ -197,7 +202,7 @@ typedef	struct	raudio_s {
 	u_32_t	rap_sbf;	/* flag to indicate which of the 19 bytes have
 				 * been filled
 				 */
-	tcp_seq	rap_sseq;
+	u_32_t	rap_sseq;
 } raudio_t;
 
 #define	RA_ID_END	0
@@ -233,7 +238,7 @@ typedef struct ipsec_pxy {
 	int		ipsc_rckset;
 	ipnat_t		ipsc_rule;
 	nat_t		*ipsc_nat;
-	ipstate_t	*ipsc_state;
+	struct ipstate	*ipsc_state;
 } ipsec_pxy_t;
 
 /*
@@ -253,7 +258,7 @@ typedef	struct pptp_side {
 typedef	struct pptp_pxy {
 	ipnat_t		pptp_rule;
 	nat_t		*pptp_nat;
-	ipstate_t	*pptp_state;
+	struct ipstate	*pptp_state;
 	u_short		pptp_call[2];
 	pptp_side_t	pptp_side[2];
 } pptp_pxy_t;
