@@ -200,7 +200,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	exit(EXIT_FAILURE);
     }
     if (buf.st_nlink > 1) {
-	syslog(LOG_ERR,"Someboy is trying to run a linked script for job %s",
+	syslog(LOG_ERR,"Somebody is trying to run a linked script for job %s",
 		filename);
 	exit(EXIT_FAILURE);
     }
