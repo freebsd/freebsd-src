@@ -291,6 +291,7 @@ MAN=	aac.4 \
 	snd_ich.4 \
 	snd_maestro.4 \
 	snd_maestro3.4 \
+	snd_mss.4 \
 	snd_neomagic.4 \
 	snd_sbc.4 \
 	snd_solo.4 \
