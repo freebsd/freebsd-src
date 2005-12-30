@@ -146,18 +146,11 @@ scripts recognize a
 .Nm
 startup and perform
 the actions found in
-.Pa /etc/rc.d/initdiskless ,
 .Pa /etc/rc.d/resolv ,
 .Pa /etc/rc.d/tmp ,
+.Pa /etc/rc.d/var ,
 and
-.Pa /etc/rc.d/var .
-On early 5.x releases, the functions of latter three scripts where
-implemented in
-.Pa /etc/rc.d/diskless .
-On older systems, the scripts are located in
-.Pa /etc/rc.diskless1
-and
-.Pa /etc/rc.diskless2 .
+.Pa /etc/rc.initdiskless .
 .Sh CONFIGURATION
 In order to run a
 .Nm
