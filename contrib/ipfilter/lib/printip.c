@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printip.c,v 1.3 2002/07/13 12:10:27 darrenr Exp
+ * $Id: printip.c,v 1.3 2002/07/13 12:10:27 darrenr Exp $
  */
 
 #include "ipf.h"

@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: checkrev.c,v 1.12.2.1 2004/03/09 14:44:39 darrenr Exp
+ * $Id: checkrev.c,v 1.12.2.1 2004/03/09 14:44:39 darrenr Exp $
  */
 
 #include <sys/ioctl.h>

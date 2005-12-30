@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: make_range.c,v 1.2 2002/05/18 07:27:52 darrenr Exp
+ * $Id: make_range.c,v 1.2 2002/05/18 07:27:52 darrenr Exp $
  */
 #include "ipf.h"
 

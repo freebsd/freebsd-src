@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: v6ionames.c,v 1.1.4.1 2005/01/02 13:08:49 darrenr Exp
+ * $Id: v6ionames.c,v 1.1.4.2 2005/10/17 18:31:09 darrenr Exp $
  */
 #include "ipf.h"
 
@@ -21,6 +21,7 @@ struct	ipopt_names	v6ionames[] ={
 	{ IPPROTO_AH,		0x000020,	0,	"ah" },
 	{ IPPROTO_NONE,		0x000040,	0,	"none" },	
 	{ IPPROTO_DSTOPTS,	0x000080,	0,	"dstopts" },
+	{ IPPROTO_MOBILITY,	0x000100,	0,	"mobility" },
 	{ 0, 			0,		0,	(char *)NULL }
 };
 

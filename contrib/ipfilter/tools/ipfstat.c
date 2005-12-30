@@ -70,7 +70,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipfstat.c,v 1.44.2.11 2005/03/30 14:09:57 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.13 2005/10/17 17:26:32 darrenr Exp $";
 #endif
 
 #ifdef __hpux
@@ -1008,10 +1008,11 @@ int topclosed;
 {
 	char str1[STSTRSIZE], str2[STSTRSIZE], str3[STSTRSIZE], str4[STSTRSIZE];
 	int maxtsentries = 0, reverse = 0, sorting = STSORT_DEFAULT;
-	int i, j, winy, tsentry, maxx, maxy, redraw = 0;
+	int i, j, winy, tsentry, maxx, maxy, redraw = 0, ret = 0;
 	int len, srclen, dstlen, forward = 1, c = 0;
 	ips_stat_t ipsst, *ipsstp = &ipsst;
 	statetop_t *tstable = NULL, *tp;
+	const char *errstr = "";
 	ipstate_t ips;
 	ipfobj_t ipfo;
 	struct timeval selecttimeout;
@@ -1051,8 +1052,9 @@ int topclosed;
 		/* get state table */
 		bzero((char *)&ipsst, sizeof(ipsst));
 		if ((ioctl(state_fd, SIOCGETFS, &ipfo) == -1)) {
-			perror("ioctl(SIOCGETFS)");
-			exit(-1);
+			errstr = "ioctl(SIOCGETFS)";
+			ret = -1;
+			goto out;
 		}
 
 		/* clear the history */
@@ -1416,12 +1418,15 @@ int topclosed;
 		}
 	} /* while */
 
+out:
 	printw("\n");
 	curs_set(1);
-	nocbreak();
+	/* nocbreak(); XXX - endwin() should make this redundant */
 	endwin();
 
 	free(tstable);
+	if (ret != 0)
+		perror(errstr);
 }
 #endif
 
@@ -1612,7 +1617,9 @@ static char *getip(v, addr)
 int v;
 i6addr_t *addr;
 {
+#ifdef  USE_INET6
 	static char hostbuf[MAXHOSTNAMELEN+1];
+#endif
 
 	if (v == 4)
 		return inet_ntoa(addr->in4);

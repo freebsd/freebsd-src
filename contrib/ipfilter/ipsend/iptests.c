@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: iptests.c,v 2.8.2.3 2004/04/16 23:33:04 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: iptests.c,v 2.8.2.4 2005/06/12 07:18:39 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -32,7 +32,7 @@ static const char rcsid[] = "@(#)Id: iptests.c,v 2.8.2.3 2004/04/16 23:33:04 dar
 # include <sys/proc.h>
 #endif
 #if !defined(ultrix) && !defined(hpux) && !defined(linux) && \
-    !defined(__sgi) && !defined(__osf__)
+    !defined(__sgi) && !defined(__osf__) && !defined(_AIX51)
 # include <kvm.h>
 #endif
 #ifndef	ultrix

@@ -5,11 +5,11 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ipft_tx.c,v 1.15.2.2 2004/12/09 19:41:21 darrenr Exp
+ * $Id: ipft_tx.c,v 1.15.2.6 2005/12/04 10:07:22 darrenr Exp $
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipft_tx.c,v 1.15.2.2 2004/12/09 19:41:21 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 1.15.2.6 2005/12/04 10:07:22 darrenr Exp $";
 #endif
 
 #include <ctype.h>
@@ -161,7 +161,7 @@ int	cnt, *dir;
 			*s = '\0';
 		if (!*line)
 			continue;
-		if (!(opts & OPT_BRIEF))
+		if ((opts & OPT_DEBUG) != 0)
 			printf("input: %s\n", line);
 		*ifn = NULL;
 		*dir = 0;
@@ -172,6 +172,8 @@ int	cnt, *dir;
 			return sizeof(ip_t);
 #endif
 	}
+	if (feof(tfp))
+		return 0;
 	return -1;
 }
 
@@ -297,15 +299,22 @@ int	*out;
 		char	**s, *t;
 		int	i;
 
+		t = strchr(*cpp, ',');
+		if (t != NULL)
+			*t = '\0';
+
 		for (s = tx_icmptypes, i = 0; !*s || strcmp(*s, "END");
-		     s++, i++)
-			if (*s && !strncasecmp(*cpp, *s, strlen(*s))) {
+		     s++, i++) {
+			if (*s && !strcasecmp(*cpp, *s)) {
 				ic->icmp_type = i;
-				if ((t = strchr(*cpp, ',')))
-					ic->icmp_code = atoi(t+1);
+				if (t != NULL)
+					ic->icmp_code = atoi(t + 1);
 				cpp++;
 				break;
 			}
+		}
+		if (t != NULL)
+			*t = ',';
 	}
 
 	if (*cpp && !strcasecmp(*cpp, "opt")) {

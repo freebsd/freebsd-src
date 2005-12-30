@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)Id: natparse.c,v 1.8.2.1 2004/12/09 19:41:21 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.8.2.1 2004/12/09 19:41:21 darrenr Exp $";
 #endif
 
 #include <sys/ioctl.h>

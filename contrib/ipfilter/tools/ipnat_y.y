@@ -160,8 +160,6 @@ map:	mapit ifnames addr IPNY_TLATE rhaddr proxy mapoptions
 					strncpy(nat->in_ifnames[1],
 						nat->in_ifnames[0],
 						sizeof(nat->in_ifnames[0]));
-				  if ((nat->in_flags & IPN_TCPUDPICMPQ) == 0)
-					setnatproto(nat->in_p);
 				  if (((nat->in_redir & NAT_MAPBLK) != 0) ||
 				      ((nat->in_flags & IPN_AUTOPORTMAP) != 0))
 					nat_setgroupmap(nat);
@@ -188,8 +186,6 @@ map:	mapit ifnames addr IPNY_TLATE rhaddr proxy mapoptions
 					strncpy(nat->in_ifnames[1],
 						nat->in_ifnames[0],
 						sizeof(nat->in_ifnames[0]));
-				  if ((nat->in_flags & IPN_TCPUDPICMPQ) == 0)
-					setnatproto(nat->in_p);
 				  if (((nat->in_redir & NAT_MAPBLK) != 0) ||
 				      ((nat->in_flags & IPN_AUTOPORTMAP) != 0))
 					nat_setgroupmap(nat);
@@ -306,6 +302,11 @@ rhaddr:	addr				{ $$.a = $1.a; $$.m = $1.m; }
 dip:
 	hostname			{ nat->in_inip = $1.s_addr;
 					  nat->in_inmsk = 0xffffffff; }
+	| hostname '/' YY_NUMBER	{ if ($3 != 0 || $1.s_addr != 0)
+						yyerror("Only 0/0 supported");
+					  nat->in_inip = 0;
+					  nat->in_inmsk = 0;
+					}
 	| hostname ',' hostname		{ nat->in_flags |= IPN_SPLIT;
 					  nat->in_inip = $1.s_addr;
 					  nat->in_inmsk = $3.s_addr; }
@@ -454,11 +455,11 @@ addr:	IPNY_ANY			{ $$.a.s_addr = 0; $$.m.s_addr = 0; }
 					  $$.a.s_addr &= $$.m.s_addr; }
 	| hostname '/' ipv4		{ $$.a = $1; $$.m = $3;
 					  $$.a.s_addr &= $$.m.s_addr; }
-	| hostname '/' hexnumber	{ $$.a = $1; $$.m.s_addr = $3;
+	| hostname '/' hexnumber	{ $$.a = $1; $$.m.s_addr = htonl($3);
 					  $$.a.s_addr &= $$.m.s_addr; }
 	| hostname IPNY_MASK ipv4	{ $$.a = $1; $$.m = $3;
 					  $$.a.s_addr &= $$.m.s_addr; }
-	| hostname IPNY_MASK hexnumber	{ $$.a = $1; $$.m.s_addr = $3;
+	| hostname IPNY_MASK hexnumber	{ $$.a = $1; $$.m.s_addr = htonl($3);
 					  $$.a.s_addr &= $$.m.s_addr; }
 	;
 
@@ -471,7 +472,7 @@ nummask:
 
 portstuff:
 	compare portspec		{ $$.pc = $1; $$.p1 = $2; }
-	| portspec range portspec	{ $$.pc = $2; $$.p1 = $1; $$.p1 = $3; }
+	| portspec range portspec	{ $$.pc = $2; $$.p1 = $1; $$.p2 = $3; }
 	;
 
 mapoptions:
