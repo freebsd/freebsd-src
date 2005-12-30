@@ -80,9 +80,7 @@ static void		pci_assign_interrupt(device_t bus, device_t dev,
 			    int force_route);
 static int		pci_add_map(device_t pcib, device_t bus, device_t dev,
 			    int b, int s, int f, int reg,
-			    struct resource_list *rl);
-static void		pci_add_resources(device_t pcib, device_t bus,
-			    device_t dev);
+			    struct resource_list *rl, int force, int prefetch);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
 static void		pci_load_vendor_data(void);
@@ -830,7 +828,8 @@ pci_memen(device_t pcib, int b, int s, int f)
  */
 static int
 pci_add_map(device_t pcib, device_t bus, device_t dev,
-    int b, int s, int f, int reg, struct resource_list *rl)
+    int b, int s, int f, int reg, struct resource_list *rl, int force,
+    int prefetch)
 {
 	uint32_t map;
 	uint64_t base;
@@ -841,6 +840,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	uint16_t cmd;
 	int type;
 	int barlen;
+	struct resource *res;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, 0xffffffff, 4);
@@ -889,14 +889,20 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	/*
 	 * If base is 0, then we have problems.  It is best to ignore
 	 * such entries for the moment.  These will be allocated later if
-	 * the driver specifically requests them.
+	 * the driver specifically requests them.  However, some
+	 * removable busses look better when all resources are allocated,
+	 * so allow '0' to be overriden.
 	 *
 	 * Similarly treat maps whose values is the same as the test value
 	 * read back.  These maps have had all f's written to them by the
 	 * BIOS in an attempt to disable the resources.
 	 */
-	if (base == 0 || map == testval)
+	if (!force && (base == 0 || map == testval)) {
+		if (bootverbose)
+		printf("ignored rid %#x: base %#llx map %#x testval %#x\n",
+		    reg, base, map, testval);   
 		return (barlen);
+	}
 
 	/*
 	 * This code theoretically does the right thing, but has
@@ -924,16 +930,28 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 			return (barlen);
 	}
 
-	start = base;
-	end = base + (1 << ln2size) - 1;
 	count = 1 << ln2size;
+	if (base == 0 || base == pci_mapbase(testval)) {
+		start = 0;	/* Let the parent deside */
+		end = ~0ULL;
+	} else {
+		start = base;
+		end = base + (1 << ln2size) - 1;
+	}
 	resource_list_add(rl, type, reg, start, end, count);
 
 	/*
 	 * Not quite sure what to do on failure of allocating the resource
 	 * since I can postulate several right answers.
 	 */
-	resource_list_alloc(rl, bus, dev, type, &reg, start, end, count, 0);
+	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
+	    prefetch ? RF_PREFETCHABLE : 0);
+	if (res == NULL)
+		printf("alloc failed\n");
+	else
+	printf("Allocated for %#x: start %#lx end %#lx\n", reg, rman_get_start(res), rman_get_end(res));
+	if (res != NULL)
+		pci_write_config(dev, reg, rman_get_start(res), 4);
 	return (barlen);
 }
 
@@ -946,7 +964,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
  */
 static void
 pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
-	     int s, int f, struct resource_list *rl)
+    int s, int f, struct resource_list *rl, int force, uint32_t prefetchmask)
 {
 	int rid, type, progif;
 #if 0
@@ -963,29 +981,39 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 	progif = pci_read_config(dev, PCIR_PROGIF, 1);
 	type = SYS_RES_IOPORT;
 	if (progif & PCIP_STORAGE_IDE_MODEPRIM) {
-		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(0), rl);
-		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(1), rl);
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(0), rl, force,
+		    prefetchmask & (1 << 0));
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(1), rl, force,
+		    prefetchmask & (1 << 1));
 	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7,8,0);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7, 8,
+		    0);
 		rid = PCIR_BAR(1);
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6,1,0);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6, 1,
+		    0);
 	}
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
-		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(2), rl);
-		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(3), rl);
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(2), rl, force,
+		    prefetchmask & (1 << 2));
+		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(3), rl, force,
+		    prefetchmask & (1 << 3));
 	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177,8,0);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177, 8,
+		    0);
 		rid = PCIR_BAR(3);
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376,1,0);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376, 1,
+		    0);
 	}
-	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl);
-	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(5), rl);
+	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl, force,
+	    prefetchmask & (1 << 4));
+	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(5), rl, force,
+	    prefetchmask & (1 << 5));
 }
 
 static void
@@ -1035,14 +1063,17 @@ pci_assign_interrupt(device_t bus, device_t dev, int force_route)
 	resource_list_add(&dinfo->resources, SYS_RES_IRQ, 0, irq, irq, 1);
 }
 
-static void
-pci_add_resources(device_t pcib, device_t bus, device_t dev)
+void
+pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
+	device_t pcib;
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list *rl = &dinfo->resources;
 	struct pci_quirk *q;
 	int b, i, f, s;
+
+	pcib = device_get_parent(bus);
 
 	b = cfg->bus;
 	s = cfg->slot;
@@ -1052,16 +1083,20 @@ pci_add_resources(device_t pcib, device_t bus, device_t dev)
 	if ((pci_get_class(dev) == PCIC_STORAGE) &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
 	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV))
-		pci_ata_maps(pcib, bus, dev, b, s, f, rl);
+		pci_ata_maps(pcib, bus, dev, b, s, f, rl, force, prefetchmask);
 	else
 		for (i = 0; i < cfg->nummaps;)
 			i += pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(i),
-			    rl);
+			    rl, force, prefetchmask & (1 << i));
 
+	/*
+	 * Add additional, quirked resources.
+	 */
 	for (q = &pci_quirks[0]; q->devid; q++) {
 		if (q->devid == ((cfg->device << 16) | cfg->vendor)
 		    && q->type == PCI_QUIRK_MAP_REG)
-			pci_add_map(pcib, bus, dev, b, s, f, q->arg1, rl);
+			pci_add_map(pcib, bus, dev, b, s, f, q->arg1, rl,
+			  force, 0);
 	}
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
@@ -1115,16 +1150,13 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 void
 pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 {
-	device_t pcib;
-
-	pcib = device_get_parent(bus);
 	dinfo->cfg.dev = device_add_child(bus, NULL, -1);
 	device_set_ivars(dinfo->cfg.dev, dinfo);
 	resource_list_init(&dinfo->resources);
 	pci_cfg_save(dinfo->cfg.dev, dinfo, 0);
 	pci_cfg_restore(dinfo->cfg.dev, dinfo);
 	pci_print_verbose(dinfo);
-	pci_add_resources(pcib, bus, dinfo->cfg.dev);
+	pci_add_resources(bus, dinfo->cfg.dev, 0, 0);
 }
 
 static int
