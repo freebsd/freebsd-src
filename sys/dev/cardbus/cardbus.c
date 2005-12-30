@@ -287,18 +287,13 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 	/* Free all allocated resources */
 	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
 		if (rle->res) {
-			if (rman_get_device(rle->res) != cbdev)
-				device_printf(cbdev, "Bug: Resource still "
-				    "owned by child.  "
-				    "(type=%d, rid=%d, addr=%lx)\n",
-				    rle->type, rle->rid,
-				    rman_get_start(rle->res));
 			BUS_RELEASE_RESOURCE(device_get_parent(cbdev),
 			    cbdev, rle->type, rle->rid, rle->res);
 			rle->res = NULL;
 			/*
 			 * zero out config so the card won't acknowledge
-			 * access to the space anymore
+			 * access to the space anymore. XXX doesn't handle
+			 * 64-bit bars.
 			 */
 			pci_write_config(dinfo->pci.cfg.dev, rle->rid, 0, 4);
 		}
