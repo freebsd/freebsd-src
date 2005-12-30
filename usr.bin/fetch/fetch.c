@@ -202,8 +202,12 @@ stat_display(struct xferstat *xs, int force)
 
 	fprintf(stderr, "\r%-46.46s", xs->name);
 	if (xs->size <= 0) {
+		setproctitle("%s [%s]", xs->name, stat_bytes(xs->rcvd));
 		fprintf(stderr, "        %s", stat_bytes(xs->rcvd));
 	} else {
+		setproctitle("%s [%d%% of %s]", xs->name,
+		    (int)((100.0 * xs->rcvd) / xs->size),
+		    stat_bytes(xs->size));
 		fprintf(stderr, "%3d%% of %s",
 		    (int)((100.0 * xs->rcvd) / xs->size),
 		    stat_bytes(xs->size));
