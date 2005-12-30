@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 2002-2003 by Darren Reed.
  *
@@ -35,7 +33,7 @@ struct file;
 # undef _KERNEL
 #endif
 #include <sys/socket.h>
-#if (defined(__osf__) || defined(__hpux) || defined(__sgi)) && defined(_KERNEL)
+#if (defined(__osf__) || defined(AIX) || defined(__hpux) || defined(__sgi)) && defined(_KERNEL)
 # ifdef __osf__
 #  include <net/radix.h>
 # endif
@@ -63,7 +61,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: ip_lookup.c,v 2.35.2.5 2004/07/06 11:16:25 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_lookup.c,v 2.35.2.8 2005/11/13 15:35:45 darrenr Exp $";
 #endif
 
 #ifdef	IPFILTER_LOOKUP
@@ -137,9 +135,7 @@ ioctlcmd_t cmd;
 int mode;
 {
 	int err;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	mode = mode;	/* LINT */
 
@@ -370,6 +366,15 @@ caddr_t data;
 		err = EINVAL;
 		break;
 	}
+
+	/*
+	 * For anonymous pools, copy back the operation struct because in the
+	 * case of success it will contain the new table's name.
+	 */
+	if ((err == 0) && ((op.iplo_arg & IPOOL_ANON) != 0)) {
+		BCOPYOUT(&op, data, sizeof(op));
+	}
+
 	return err;
 }
 

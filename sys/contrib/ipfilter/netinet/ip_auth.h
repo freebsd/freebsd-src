@@ -1,11 +1,9 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1997-2001 by Darren Reed & Guido Van Rooij.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ip_auth.h,v 2.16 2003/07/25 12:29:56 darrenr Exp
+ * $Id: ip_auth.h,v 2.16 2003/07/25 12:29:56 darrenr Exp $
  *
  */
 #ifndef	__IP_AUTH_H__

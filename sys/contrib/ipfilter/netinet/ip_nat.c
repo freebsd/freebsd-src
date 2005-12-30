@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1995-2003 by Darren Reed.
  *
@@ -37,7 +35,9 @@ struct file;
 #else
 # include <sys/ioctl.h>
 #endif
-#include <sys/fcntl.h>
+#if !defined(AIX)
+# include <sys/fcntl.h>
+#endif
 #if !defined(linux)
 # include <sys/protosw.h>
 #endif
@@ -107,7 +107,7 @@ extern struct ifnet vpnif;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: ip_nat.c,v 2.195.2.38 2005/03/28 11:09:54 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.195.2.47 2005/11/14 17:13:35 darrenr Exp $";
 #endif
 
 
@@ -186,15 +186,15 @@ static	INLINE	int nat_newrdr __P((fr_info_t *, nat_t *, natinfo_t *));
 static	hostmap_t *nat_hostmap __P((ipnat_t *, struct in_addr,
 				    struct in_addr, struct in_addr, u_32_t));
 static	void	nat_hostmapdel __P((struct hostmap *));
-static	INLINE	int nat_icmpquerytype4 __P((int));
+static	int	nat_icmpquerytype4 __P((int));
 static	int	nat_siocaddnat __P((ipnat_t *, ipnat_t **, int));
 static	void	nat_siocdelnat __P((ipnat_t *, ipnat_t **, int));
-static	INLINE	int nat_finalise __P((fr_info_t *, nat_t *, natinfo_t *,
+static	int	nat_finalise __P((fr_info_t *, nat_t *, natinfo_t *,
 				      tcphdr_t *, nat_t **, int));
 static	void	nat_resolverule __P((ipnat_t *));
 static	nat_t	*fr_natclone __P((fr_info_t *, nat_t *));
 static	void	nat_mssclamp __P((tcphdr_t *, u_32_t, fr_info_t *, u_short *));
-static	INLINE	int nat_wildok __P((nat_t *, int, int, int, int));
+static	int	nat_wildok __P((nat_t *, int, int, int, int));
 
 
 /* ------------------------------------------------------------------------ */
@@ -799,10 +799,14 @@ int mode;
 		error = appr_ioctl(data, cmd, mode);
 		break;
 	case SIOCSTLCK :
-		fr_lock(data, &fr_nat_lock);
+		if (!(mode & FWRITE)) {
+			error = EPERM;
+		} else {
+			fr_lock(data, &fr_nat_lock);
+		}
 		break;
 	case SIOCSTPUT :
-		if (fr_nat_lock) {
+		if ((mode & FWRITE) != 0) {
 			error = fr_natputent(data, getlock);
 		} else {
 			error = EACCES;
@@ -1346,8 +1350,15 @@ int getlock;
 		fin.fin_data[0] = ntohs(nat->nat_oport);
 		fin.fin_data[1] = ntohs(nat->nat_outport);
 		fin.fin_ifp = nat->nat_ifps[1];
-		if (nat_inlookup(&fin, 0, fin.fin_p, nat->nat_oip,
-				  nat->nat_inip) != NULL) {
+		if (getlock) {
+			READ_ENTER(&ipf_nat);
+		}
+		n = nat_inlookup(&fin, 0, fin.fin_p, nat->nat_oip,
+				  nat->nat_inip);
+		if (getlock) {
+			RWLOCK_EXIT(&ipf_nat);
+		}
+		if (n != NULL) {
 			error = EEXIST;
 			goto junkput;
 		}
@@ -1355,8 +1366,15 @@ int getlock;
 		fin.fin_data[0] = ntohs(nat->nat_outport);
 		fin.fin_data[1] = ntohs(nat->nat_oport);
 		fin.fin_ifp = nat->nat_ifps[0];
-		if (nat_outlookup(&fin, 0, fin.fin_p, nat->nat_outip,
-				 nat->nat_oip) != NULL) {
+		if (getlock) {
+			READ_ENTER(&ipf_nat);
+		}
+		n = nat_outlookup(&fin, 0, fin.fin_p, nat->nat_outip,
+				 nat->nat_oip);
+		if (getlock) {
+			RWLOCK_EXIT(&ipf_nat);
+		}
+		if (n != NULL) {
 			error = EEXIST;
 			goto junkput;
 		}
@@ -1420,7 +1438,9 @@ int getlock;
 			MUTEX_NUKE(&fr->fr_lock);
 			MUTEX_INIT(&fr->fr_lock, "nat-filter rule lock");
 		} else {
-			READ_ENTER(&ipf_nat);
+			if (getlock) {
+				READ_ENTER(&ipf_nat);
+			}
 			for (n = nat_instances; n; n = n->nat_next)
 				if (n->nat_fr == fr)
 					break;
@@ -1430,7 +1450,9 @@ int getlock;
 				fr->fr_ref++;
 				MUTEX_EXIT(&fr->fr_lock);
 			}
-			RWLOCK_EXIT(&ipf_nat);
+			if (getlock) {
+				RWLOCK_EXIT(&ipf_nat);
+			}
 
 			if (!n) {
 				error = ESRCH;
@@ -1981,8 +2003,8 @@ natinfo_t *ni;
 	 * packet might match a different one to the previous connection but
 	 * we want the same destination to be used.
 	 */
-	if ((np->in_flags & (IPN_ROUNDR|IPN_STICKY)) ==
-	    (IPN_ROUNDR|IPN_STICKY)) {
+	if (((np->in_flags & (IPN_ROUNDR|IPN_SPLIT)) != 0) &&
+	    ((np->in_flags & IPN_STICKY) != 0)) {
 		hm = nat_hostmap(NULL, fin->fin_src, fin->fin_dst, in,
 				 (u_32_t)dport);
 		if (hm != NULL) {
@@ -2003,7 +2025,7 @@ natinfo_t *ni;
 		in.s_addr = np->in_nip;
 
 		if ((np->in_flags & (IPN_ROUNDR|IPN_STICKY)) == IPN_STICKY) {
-			hm = nat_hostmap(np, fin->fin_src, fin->fin_dst,
+			hm = nat_hostmap(NULL, fin->fin_src, fin->fin_dst,
 					 in, (u_32_t)dport);
 			if (hm != NULL) {
 				in.s_addr = hm->hm_mapip.s_addr;
@@ -2076,6 +2098,9 @@ natinfo_t *ni;
 	nat->nat_inip.s_addr = htonl(in.s_addr);
 	nat->nat_outip = fin->fin_dst;
 	nat->nat_oip = fin->fin_src;
+	if ((nat->nat_hm == NULL) && ((np->in_flags & IPN_STICKY) != 0))
+		nat->nat_hm = nat_hostmap(np, fin->fin_src, fin->fin_dst, in,
+					  (u_32_t)dport);
 
 	ni->nai_sum1 = LONG_SUM(ntohl(fin->fin_daddr)) + ntohs(dport);
 	ni->nai_sum2 = LONG_SUM(in.s_addr) + ntohs(nport);
@@ -2337,7 +2362,7 @@ done:
 /* for both IPv4 and IPv6.                                                  */
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
-static INLINE int nat_finalise(fin, nat, ni, tcp, natsave, direction)
+static int nat_finalise(fin, nat, ni, tcp, natsave, direction)
 fr_info_t *fin;
 nat_t *nat;
 natinfo_t *ni;
@@ -2362,8 +2387,6 @@ int direction;
 	nat->nat_ptr = np;
 	nat->nat_p = fin->fin_p;
 	nat->nat_mssclamp = np->in_mssclamp;
-	fr = fin->fin_fr;
-	nat->nat_fr = fr;
 
 	if ((np->in_apr != NULL) && ((ni->nai_flags & NAT_SLAVE) == 0))
 		if (appr_new(fin, nat) == -1)
@@ -2373,6 +2396,8 @@ int direction;
 		if (nat_logging)
 			nat_log(nat, (u_int)np->in_redir);
 		np->in_use++;
+		fr = fin->fin_fr;
+		nat->nat_fr = fr;
 		if (fr != NULL) {
 			MUTEX_ENTER(&fr->fr_lock);
 			fr->fr_ref++;
@@ -2514,8 +2539,7 @@ int dir;
 	 * Only a basic IP header (no options) should be with an ICMP error
 	 * header.  Also, if it's not an error type, then return.
 	 */
-	if ((fin->fin_hlen != sizeof(ip_t)) ||
-	    !fr_icmp4errortype(type))
+	if ((fin->fin_hlen != sizeof(ip_t)) || !(fin->fin_flx & FI_ICMPERR))
 		return NULL;
 
 	/*
@@ -3805,8 +3829,15 @@ u_32_t nflags;
 			CALC_SUMD(s1, s2, sumd);
 			fix_outcksum(fin, &fin->fin_ip->ip_sum, sumd);
 		}
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || defined(linux)
+#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
+    defined(linux) || defined(BRIDGE_IPF)
 		else {
+			/*
+			 * Strictly speaking, this isn't necessary on BSD
+			 * kernels because they do checksum calculation after
+			 * this code has run BUT if ipfilter is being used
+			 * to do NAT as a bridge, that code doesn't exist.
+			 */
 			if (nat->nat_dir == NAT_OUTBOUND)
 				fix_outcksum(fin, &fin->fin_ip->ip_sum,
 					     nat->nat_ipsumd);
@@ -4315,9 +4346,7 @@ void fr_natexpire()
 {
 	ipftq_t *ifq, *ifqnext;
 	ipftqent_t *tqe, *tqn;
-#if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-#endif
+	SPL_INT(s);
 	int i;
 
 	SPL_NET(s);
@@ -4372,9 +4401,7 @@ void *ifp;
 	ipnat_t *n;
 	nat_t *nat;
 	void *ifp2;
-#if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-#endif
+	SPL_INT(s);
 
 	if (fr_running <= 0)
 		return;
@@ -4456,7 +4483,7 @@ void *ifp;
 /* Tests to see if the ICMP type number passed is a query/response type or  */
 /* not.                                                                     */
 /* ------------------------------------------------------------------------ */
-static INLINE int nat_icmpquerytype4(icmptype)
+static int nat_icmpquerytype4(icmptype)
 int icmptype;
 {
 
@@ -4609,9 +4636,20 @@ nat_t *nat;
 
 	MUTEX_NUKE(&clone->nat_lock);
 
+	clone->nat_aps = NULL;
+	/*
+	 * Initialize all these so that nat_delete() doesn't cause a crash.
+	 */
+	clone->nat_tqe.tqe_pnext = NULL;
+	clone->nat_tqe.tqe_next = NULL;
+	clone->nat_tqe.tqe_ifq = NULL;
+	clone->nat_tqe.tqe_parent = clone;
+
 	clone->nat_flags &= ~SI_CLONE;
 	clone->nat_flags |= SI_CLONED;
 
+	if (clone->nat_hm)
+		clone->nat_hm->hm_ref++;
 
 	if (nat_insert(clone, fin->fin_rev) == -1) {
 		KFREE(clone);
@@ -4630,14 +4668,13 @@ nat_t *nat;
 		MUTEX_EXIT(&fr->fr_lock);
 	}
 
-
 	/*
 	 * Because the clone is created outside the normal loop of things and
 	 * TCP has special needs in terms of state, initialise the timeout
 	 * state of the new NAT from here.
 	 */
 	if (clone->nat_p == IPPROTO_TCP) {
-		(void) fr_tcp_age(&clone->nat_tqe, fin, nat_tqb, \
+		(void) fr_tcp_age(&clone->nat_tqe, fin, nat_tqb,
 				  clone->nat_flags);
 	}
 #ifdef	IPFILTER_SYNC
@@ -4662,7 +4699,7 @@ nat_t *nat;
 /* Use NAT entry and packet direction to determine which combination of     */
 /* wildcard flags should be used.                                           */
 /* ------------------------------------------------------------------------ */
-static INLINE int nat_wildok(nat, sport, dport, flags, dir)
+static int nat_wildok(nat, sport, dport, flags, dir)
 nat_t *nat;
 int sport;
 int dport;

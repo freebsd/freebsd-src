@@ -1,11 +1,9 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1998-2003 by Darren Reed
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ip_raudio_pxy.c,v 1.40.2.3 2005/02/04 10:22:55 darrenr Exp
+ * $Id: ip_raudio_pxy.c,v 1.40.2.3 2005/02/04 10:22:55 darrenr Exp $
  */
 
 #define	IPF_RAUDIO_PROXY
