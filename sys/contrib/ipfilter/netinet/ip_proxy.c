@@ -16,7 +16,9 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#include <sys/fcntl.h>
+#if !defined(AIX)
+# include <sys/fcntl.h>
+#endif
 #if !defined(_KERNEL) && !defined(__KERNEL__)
 # include <stdio.h>
 # include <string.h>
@@ -35,7 +37,8 @@ struct file;
 #include <sys/socket.h>
 #if defined(_KERNEL)
 # if !defined(__NetBSD__) && !defined(sun) && !defined(__osf__) && \
-     !defined(__OpenBSD__) && !defined(__hpux) && !defined(__sgi)
+     !defined(__OpenBSD__) && !defined(__hpux) && !defined(__sgi) && \
+     !defined(AIX)
 #  include <sys/ctype.h>
 # endif
 # include <sys/systm.h>
@@ -93,12 +96,7 @@ struct file;
 #if defined(_KERNEL)
 # include "netinet/ip_irc_pxy.c"
 # include "netinet/ip_raudio_pxy.c"
-# ifdef IPFILTER_H323
-#  include "netinet/ip_h323_pxy.c"
-# endif
-# ifdef	IPFILTER_PRO
-#  include "netinet/ip_msnrpc_pxy.c"
-# endif
+# include "netinet/ip_h323_pxy.c"
 # include "netinet/ip_netbios_pxy.c"
 #endif
 #include "netinet/ip_ipsec_pxy.c"
@@ -107,7 +105,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: ip_proxy.c,v 2.62.2.12 2005/03/03 14:28:24 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.14 2005/06/18 02:41:33 darrenr Exp $";
 #endif
 
 static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));

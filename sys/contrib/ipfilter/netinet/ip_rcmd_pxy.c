@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ip_rcmd_pxy.c,v 1.41.2.4 2005/02/04 10:22:55 darrenr Exp
+ * $Id: ip_rcmd_pxy.c,v 1.41.2.5 2005/10/02 04:20:07 darrenr Exp $
  *
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
  * code.
@@ -154,6 +154,8 @@ nat_t *nat;
 	 * other way.
 	 */
 	bcopy((char *)fin, (char *)&fi, sizeof(fi));
+	fi.fin_state = NULL;
+	fi.fin_nat = NULL;
 	fi.fin_flx |= FI_IGNORE;
 	fi.fin_data[0] = sp;
 	fi.fin_data[1] = 0;

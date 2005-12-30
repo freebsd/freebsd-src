@@ -419,9 +419,7 @@ int *types, cnt;
 	iplog_t *ipl;
 	size_t len;
 	int i;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	/*
 	 * Check to see if this log record has a CRC which matches the last
@@ -541,9 +539,7 @@ struct uio *uio;
 	size_t dlen, copied;
 	int error = 0;
 	iplog_t *ipl;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	/*
 	 * Sanity checks.  Make sure the minor # is valid and we're copying
@@ -655,9 +651,7 @@ minor_t unit;
 {
 	iplog_t *ipl;
 	int used;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	SPL_NET(s);
 	MUTEX_ENTER(&ipl_mutex);

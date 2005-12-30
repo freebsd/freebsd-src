@@ -81,7 +81,11 @@ extern	void	fr_slowtimer __P((void));
 extern	void	fr_slowtimer __P((void *));
 # endif
 #else
+# if defined(linux) && defined(_KERNEL)
+extern	void	fr_slowtimer __P((long));
+# else
 extern	int	fr_slowtimer __P((void));
+# endif
 #endif
 
 #endif	/* __IP_FRAG_H__ */

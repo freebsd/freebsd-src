@@ -25,7 +25,7 @@
 # endif
 #endif
 
-#if defined(__STDC__) || defined(__GNUC__)
+#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 # define	SIOCADAFR	_IOW('r', 60, struct ipfobj)
 # define	SIOCRMAFR	_IOW('r', 61, struct ipfobj)
 # define	SIOCSETFF	_IOW('r', 62, u_int)
@@ -905,6 +905,7 @@ typedef	struct	tcpdata	{
 
 #define	TCP_WSCALE_SEEN		0x00000001
 #define	TCP_WSCALE_FIRST	0x00000002
+#define	TCP_SACK_PERMIT		0x00000004
 
 
 typedef	struct tcpinfo {
@@ -914,6 +915,9 @@ typedef	struct tcpinfo {
 } tcpinfo_t;
 
 
+/*
+ * Structures to define a GRE header as seen in a packet.
+ */
 struct	grebits	{
 	u_32_t	grb_C:1;
 	u_32_t	grb_R:1;
@@ -948,7 +952,9 @@ typedef	struct	grehdr	{
 #define	gr_A		gr_bits.grb_A
 #define	gr_ver		gr_bits.grb_ver
 
-
+/*
+ * GRE information tracked by "keep state"
+ */
 typedef	struct	greinfo	{
 	u_short	gs_call[2];
 	u_short	gs_flags;
@@ -956,6 +962,20 @@ typedef	struct	greinfo	{
 } greinfo_t;
 
 #define	GRE_REV(x)	((ntohs(x) >> 13) & 7)
+
+
+/*
+ * Format of an Authentication header
+ */
+typedef	struct	authhdr	{
+	u_char	ah_next;
+	u_char	ah_plen;
+	u_short	ah_reserved;
+	u_32_t	ah_spi;
+	u_32_t	ah_seq;
+	/* Following the sequence number field is 0 or more bytes of */
+	/* authentication data, as specified by ah_plen - RFC 2402.  */
+} authhdr_t;
 
 
 /*
@@ -1240,8 +1260,9 @@ extern	ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_hostmap;
 extern	ipfmutex_t	ipf_timeoutlock, ipf_stinsert, ipf_natio, ipf_nat_new;
 extern	ipfrwlock_t	ipf_mutex, ipf_global, ip_poolrw, ipf_ipidfrag;
 extern	ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+extern	ipfrwlock_t	ipf_frcache;
 
-extern	char	*memstr __P((char *, char *, int, int));
+extern	char	*memstr __P((const char *, char *, int, int));
 extern	int	count4bits __P((u_32_t));
 extern	int	frrequest __P((int, ioctlcmd_t, caddr_t, int, int));
 extern	char	*getifname __P((struct ifnet *));
@@ -1314,7 +1335,6 @@ extern	void		fr_fixskip __P((frentry_t **, frentry_t *, int));
 extern	void		fr_forgetifp __P((void *));
 extern	frentry_t 	*fr_getrulen __P((int, char *, u_32_t));
 extern	void		fr_getstat __P((struct friostat *));
-extern	int		fr_icmp4errortype __P((int));
 extern	int		fr_ifpaddr __P((int, int, void *,
 				struct in_addr *, struct in_addr *));
 extern	int		fr_initialise __P((void));
