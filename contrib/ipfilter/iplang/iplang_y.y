@@ -1,12 +1,10 @@
-/*	$NetBSD$	*/
-
 %{
 /*
  * Copyright (C) 1997-1998 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: iplang_y.y,v 2.9.2.2 2004/12/09 19:41:10 darrenr Exp
+ * $Id: iplang_y.y,v 2.9.2.3 2005/10/17 17:25:04 darrenr Exp $
  */
 
 #include <stdio.h>
@@ -1290,8 +1288,14 @@ void prep_packet()
 	if (ifp->if_fd == -1)
 		ifp->if_fd = initdevice(ifp->if_name, 5);
 	gwip = sending.snd_gw;
-	if (!gwip.s_addr)
+	if (!gwip.s_addr) {
+		if (aniphead == NULL) {
+			fprintf(stderr,
+				"no destination address defined for sending\n");
+			return;
+		}
 		gwip = aniphead->ah_ip->ip_dst;
+	}
 	(void) send_ip(ifp->if_fd, ifp->if_MTU, (ip_t *)ipbuffer, gwip, 2);
 }
 

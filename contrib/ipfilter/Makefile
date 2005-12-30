@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# Id: Makefile,v 2.76.2.13 2004/11/08 18:42:40 darrenr Exp
+# $Id: Makefile,v 2.76.2.18 2005/12/04 23:41:22 darrenr Exp $
 #
 SHELL=/bin/sh
 BINDEST=/usr/local/bin
@@ -192,6 +192,15 @@ freebsd5: include
 	else \
 		echo "#define INET6" > opt_inet6.h; \
 	fi
+	if [ "x$(IPFBPF)" = "x" ] ; then \
+		echo "#undef NBPF" > opt_bpf.h; \
+		echo "#undef NBPFILTER" > opt_bpf.h; \
+		echo "#undef DEV_BPF" > opt_bpf.h; \
+	else \
+		echo "#define NBPF" > opt_bpf.h; \
+		echo "#define NBPFILTER" > opt_bpf.h; \
+		echo "#define DEV_BPF" > opt_bpf.h; \
+	fi
 	if [ x$(ENABLE_PFIL) = x ] ; then \
 		echo "#undef PFIL_HOOKS" > opt_pfil.h; \
 	else \
@@ -237,6 +246,11 @@ osf tru64: null include
 	(cd OSF/`OSF/cpurev`; make build TRU64=`uname -v` TOP=../.. "DEBUG=-g" $(MFLAGS) "MACHASSERT=$(MACHASSERT)" "OSREV=`../cpurev`"; cd ..)
 	(cd OSF/`OSF/cpurev`; make -f Makefile.ipsend build TRU64=`uname -v` TOP=../.. $(MFLAGS) "OSREV=`../cpurev`"; cd ..)
 
+aix: null include
+	make setup "TARGOS=AIX" "CPUDIR=`AIX/cpurev`"
+	(cd AIX/`AIX/cpurev`; make build AIX=`uname -v` TOP=../.. "DEBUG=-g" $(MFLAGS) "OSREV=`../cpurev`" BITS=`../bootbits.sh`; cd ..)
+#	(cd AIX/`AIX/cpurev`; make -f Makefile.ipsend build AIX=`uname -v` TOP=../.. $(MFLAGS) "OSREV=`../cpurev`"; cd ..)
+
 bsd: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) 'DLKM=-D_LKM' "ML=mln_ipl.c" "MLR=mln_rule.o"; cd ..)
@@ -277,6 +291,7 @@ clean: clean-include
 	(cd HPUX; $(MAKE) BITS=32 TOP=.. clean)
 	(cd Linux; $(MAKE) TOP=.. clean)
 	(cd OSF; $(MAKE) TOP=.. clean)
+	(cd AIX; $(MAKE) TOP=.. clean)
 	if [ "`uname -s`" = "IRIX" ]; then (cd IRIX; $(MAKE) clean); fi
 	[ -d test ] && (cd test; $(MAKE) clean)
 	(cd ipsend; $(MAKE) clean)
@@ -294,6 +309,9 @@ clean-hpux: clean-include
 
 clean-osf: clean-include
 	(cd OSF; make clean)
+
+clean-aix: clean-include
+	(cd AIX; make clean)
 
 clean-linux: clean-include
 	(cd Linux; make clean)
@@ -347,6 +365,10 @@ install-sunos4: solaris
 install-sunos5: solaris null
 	(cd SunOS5; $(MAKE) CPU=$(CPU) TOP=.. install)
 
+install-aix:
+	(cd AIX/`AIX/cpurev`; make install "TOP=../.." $(MFLAGS); cd ..)
+#	(cd AIX/`AIX/cpurev`; make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
+
 install-hpux: hpux
 	(cd HPUX/`HPUX/cpurev`; $(MAKE) CPU=$(CPU) TOP=../.. "BITS=`getconf KERNEL_BITS`" install)
 
@@ -355,7 +377,6 @@ install-irix: irix
 
 install-osf install-tru64:
 	(cd OSF/`OSF/cpurev`; make install "TOP=../.." $(MFLAGS); cd ..)
-	(cd OSF/`OSF/cpurev`; make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
 
 do-cvs:
 	find . -type d -name CVS -print | xargs /bin/rm -rf
@@ -378,3 +399,4 @@ mdb:
 	       -DIPFILTER_SCAN -DIPFILTER_LKM -DSOLARIS2=10 -n ipf_mdb -k \
 	       -I/home/dr146992/pfil -I/home/dr146992/ipf -f \
 	       /usr/include/netinet/in_systm.h,/usr/include/sys/ethernet.h,/usr/include/netinet/in.h,/usr/include/netinet/ip.h,/usr/include/netinet/ip_var.h,/usr/include/netinet/tcp.h,/usr/include/netinet/tcpip.h,/usr/include/netinet/ip_icmp.h,/usr/include/netinet/udp.h,ip_compat.h,ip_fil.h,ip_nat.h,ip_state.h,ip_proxy.h,ip_scan.h
+

@@ -1,11 +1,9 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2002 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: load_hashnode.c,v 1.2.4.1 2004/03/06 14:33:28 darrenr Exp
+ * $Id: load_hashnode.c,v 1.2.4.1 2004/03/06 14:33:28 darrenr Exp $
  */
 
 #include <fcntl.h>

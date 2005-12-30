@@ -68,6 +68,7 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/printip.o \
      $(DEST)/printpool.o \
      $(DEST)/printpoolnode.o \
+     $(DEST)/printproto.o \
      $(DEST)/printfr.o \
      $(DEST)/printfraginfo.o \
      $(DEST)/printhostmap.o \
@@ -246,6 +247,8 @@ $(DEST)/printpool.o: $(LIBSRC)/printpool.c $(TOP)/ip_fil.h $(TOP)/ip_pool.h
 $(DEST)/printpoolnode.o: $(LIBSRC)/printpoolnode.c $(TOP)/ip_fil.h \
     $(TOP)/ip_pool.h $(TOP)/ip_lookup.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printpoolnode.c -o $@
+$(DEST)/printproto.o: $(LIBSRC)/printproto.c $(TOP)/ip_fil.h
+	$(CC) $(CCARGS) -c $(LIBSRC)/printproto.c -o $@
 $(DEST)/printhostmap.o: $(LIBSRC)/printhostmap.c $(TOP)/ip_fil.h
 	$(CC) $(CCARGS) -c $(LIBSRC)/printhostmap.c -o $@
 $(DEST)/printifname.o: $(LIBSRC)/printifname.c $(INCDEP)

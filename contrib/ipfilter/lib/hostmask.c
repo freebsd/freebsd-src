@@ -1,11 +1,9 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: hostmask.c,v 1.10 2002/01/28 06:50:46 darrenr Exp
+ * $Id: hostmask.c,v 1.10 2002/01/28 06:50:46 darrenr Exp $
  */
 
 #include "ipf.h"

@@ -4,7 +4,7 @@ After you have installed IpFilter.
 You will need to change three files:
 
 /etc/rc.local
-/etc/sysconfig
+/etc/rc.conf
 /etc/natrules
 
 You will have to:

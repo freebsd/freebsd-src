@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcpip.h	8.1 (Berkeley) 6/10/93
- * Id: tcpip.h,v 2.2.2.3 2004/05/26 15:45:48 darrenr Exp
+ * $Id: tcpip.h,v 2.2.2.3 2004/05/26 15:45:48 darrenr Exp $
  */
 
 #ifndef _NETINET_TCPIP_H_

@@ -5,3 +5,4 @@ block in proto ipv6 from any to any
 block in proto udp from any to any
 block in proto 250 from any to any
 pass in proto tcp/udp from any to any
+block in proto tcp/udp from any to any

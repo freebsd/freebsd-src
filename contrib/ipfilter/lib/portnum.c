@@ -1,12 +1,10 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  *
- * Id: portnum.c,v 1.6.4.1 2004/12/09 19:41:22 darrenr Exp
+ * $Id: portnum.c,v 1.6.4.1 2004/12/09 19:41:22 darrenr Exp $
  */
 
 #include <ctype.h>

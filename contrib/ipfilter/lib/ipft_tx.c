@@ -1,15 +1,13 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 1995-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ipft_tx.c,v 1.15.2.2 2004/12/09 19:41:21 darrenr Exp
+ * $Id: ipft_tx.c,v 1.15.2.6 2005/12/04 10:07:22 darrenr Exp $
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipft_tx.c,v 1.15.2.2 2004/12/09 19:41:21 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 1.15.2.6 2005/12/04 10:07:22 darrenr Exp $";
 #endif
 
 #include <ctype.h>
@@ -31,8 +29,8 @@ static	int	text_open __P((char *)), text_close __P((void));
 static	int	text_readip __P((char *, int, char **, int *));
 static	int	parseline __P((char *, ip_t *, char **, int *));
 
-static	char	_tcp_flagset[] = "FSRPAUEC";
-static	u_char	_tcp_flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
+static	char	myflagset[] = "FSRPAUEC";
+static	u_char	myflags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
 				TH_ACK, TH_URG, TH_ECN, TH_CWR };
 
 struct	ipread	iptext = { text_open, text_close, text_readip, R_DO_CKSUM };
@@ -161,7 +159,7 @@ int	cnt, *dir;
 			*s = '\0';
 		if (!*line)
 			continue;
-		if (!(opts & OPT_BRIEF))
+		if ((opts & OPT_DEBUG) != 0)
 			printf("input: %s\n", line);
 		*ifn = NULL;
 		*dir = 0;
@@ -172,6 +170,8 @@ int	cnt, *dir;
 			return sizeof(ip_t);
 #endif
 	}
+	if (feof(tfp))
+		return 0;
 	return -1;
 }
 
@@ -280,14 +280,12 @@ int	*out;
 	ip->ip_dst.s_addr = tx_hostnum(*cpp, &r);
 	cpp++;
 	if (*cpp && ip->ip_p == IPPROTO_TCP) {
-		extern	char	_tcp_flagset[];
-		extern	u_char	_tcp_flags[];
 		char	*s, *t;
 
 		tcp->th_flags = 0;
 		for (s = *cpp; *s; s++)
-			if ((t  = strchr(_tcp_flagset, *s)))
-				tcp->th_flags |= _tcp_flags[t - _tcp_flagset];
+			if ((t  = strchr(myflagset, *s)))
+				tcp->th_flags |= myflags[t - myflagset];
 		if (tcp->th_flags)
 			cpp++;
 		if (tcp->th_flags == 0)
@@ -299,15 +297,22 @@ int	*out;
 		char	**s, *t;
 		int	i;
 
+		t = strchr(*cpp, ',');
+		if (t != NULL)
+			*t = '\0';
+
 		for (s = tx_icmptypes, i = 0; !*s || strcmp(*s, "END");
-		     s++, i++)
-			if (*s && !strncasecmp(*cpp, *s, strlen(*s))) {
+		     s++, i++) {
+			if (*s && !strcasecmp(*cpp, *s)) {
 				ic->icmp_type = i;
-				if ((t = strchr(*cpp, ',')))
-					ic->icmp_code = atoi(t+1);
+				if (t != NULL)
+					ic->icmp_code = atoi(t + 1);
 				cpp++;
 				break;
 			}
+		}
+		if (t != NULL)
+			*t = ',';
 	}
 
 	if (*cpp && !strcasecmp(*cpp, "opt")) {

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 
 extern	long		string_start;
 extern	long		string_end;

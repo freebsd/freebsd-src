@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #include "ipf.h"
 
 #define	EMM_MAGIC	0x97dd8b3a
