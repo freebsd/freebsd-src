@@ -946,10 +946,6 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
-	if (res == NULL)
-		printf("alloc failed\n");
-	else
-	printf("Allocated for %#x: start %#lx end %#lx\n", reg, rman_get_start(res), rman_get_end(res));
 	if (res != NULL)
 		pci_write_config(dev, reg, rman_get_start(res), 4);
 	return (barlen);
