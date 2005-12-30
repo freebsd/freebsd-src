@@ -36,6 +36,18 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 	s1 = *str;
 	if (s1 == NULL)
 		return;
+	/*
+	 * If maxsize is 0 then set it to to the length of s1, because we have
+	 * to duplicate s1.  XXX we maybe should double-check whether the match
+	 * appears in s1.  If it doesn't, then we also have to set the length
+	 * to the length of s1, to avoid modifying the argument.  It may make
+	 * sense to check if maxsize is <= strlen(s1), because in that case we
+	 * want to return the unmodified string, too.
+	 */
+	if (maxsize == 0) {
+		match = NULL;
+		maxsize = strlen(s1) + 1;
+	}
 	s2 = calloc(maxsize, 1);
 	if (s2 == NULL)
 		err(1, "calloc");
