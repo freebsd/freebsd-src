@@ -312,9 +312,9 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	/* missing: R_X86_64_GOTPCREL, R_X86_64_32, R_X86_64_32S, R_X86_64_16, R_X86_64_PC16, R_X86_64_8, R_X86_64_PC8 */
 
 	    default:
-		_rtld_error("%s: Unsupported relocation type %d"
+		_rtld_error("%s: Unsupported relocation type %u"
 		  " in non-PLT relocations\n", obj->path,
-		  ELF_R_TYPE(rela->r_info));
+		  (unsigned int)ELF_R_TYPE(rela->r_info));
 		goto done;
 	    }
 	}
