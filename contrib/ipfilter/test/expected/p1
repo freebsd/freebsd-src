@@ -9,6 +9,8 @@ nomatch
 List of active MAP/Redirect filters:
 
 List of active sessions:
+
+Hostmap table:
 List of active state sessions:
 List of configured pools
 table role = ipf type = tree number = 100

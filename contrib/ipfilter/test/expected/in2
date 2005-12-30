@@ -2,7 +2,10 @@ rdr le0 9.8.7.6/32 port 0 -> 1.1.1.1 port 0 tcp
 rdr le0 9.8.7.6/32 -> 1.1.1.1 ip
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp
 rdr le0 9.8.7.6/32 -> 1.1.1.1 ip
+rdr le0 9.0.0.0/8 -> 1.1.1.1 ip
+rdr le0 9.8.0.0/16 -> 1.1.1.1 ip
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp
+rdr le0 9.8.7.6/32 port 80 -> 0.0.0.0/0 port 80 tcp
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 udp
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp/udp
 rdr le0 9.8.7.6/32 -> 1.1.1.1 icmp
@@ -11,7 +14,7 @@ rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp round-robin
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin
 rdr le0 9.8.7.6/32 -> 1.1.1.1 ip frag
 rdr le0 9.8.7.6/32 -> 1.1.1.1 icmp frag
-rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp/udp frag
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1 port 80 tcp round-robin frag
 rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag
 rdr le0 9.8.7.6/32 -> 1.1.1.1 ip frag age 10/10
@@ -65,3 +68,4 @@ rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port 5555 tcp
 rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port = 5555 tcp
 rdr le0 0.0.0.0/0 -> 254.220.186.152 ip
 rdr le0 0.0.0.0/0 -> 254.220.186.152,254.220.186.152 ip
+rdr adsl0,ppp0 0.0.0.0/0 port 25 -> 127.0.0.1 port 25 tcp
