@@ -316,7 +316,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 
 	if (type == SYS_RES_MEMORY) {
 		if (reg & TPL_BAR_REG_PREFETCHABLE)
-			dinfo->mprefetchable |= PCI_RID2BAR(bar);
+			dinfo->mprefetchable |= (1 << PCI_RID2BAR(bar));
 #if 0
 		/*
 		 * XXX: It appears from a careful reading of the spec
@@ -338,7 +338,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 		 * correctness.
 		 */
 		if (reg & TPL_BAR_REG_BELOW1MB)
-			dinfo->mbelow1mb |= PCI_RID2BAR(bar);
+			dinfo->mbelow1mb |= (1 << PCI_RID2BAR(bar));
 #endif
 	}
 
@@ -360,9 +360,11 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 
 	DEVPRINTF((cbdev, "Opening BAR: type=%s, bar=%02x, len=%04x%s%s\n",
 	    (type == SYS_RES_MEMORY) ? "MEM" : "IO", bar, len,
-	    (type == SYS_RES_MEMORY && dinfo->mprefetchable & PCI_RID2BAR(bar)) ?
+	    (type == SYS_RES_MEMORY &&
+	    dinfo->mprefetchable & (1 << PCI_RID2BAR(bar))) ?
 	    " (Prefetchable)" : "", type == SYS_RES_MEMORY ?
-	    ((dinfo->mbelow1mb & PCI_RID2BAR(bar)) ? " (Below 1Mb)" : "") : ""));
+	    ((dinfo->mbelow1mb & (1 << PCI_RID2BAR(bar)) ?
+	    " (Below 1Mb)" : "") : ""));
 
 	resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
 
