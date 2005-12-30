@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:15:56 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.27 2005/08/20 13:48:19 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) || defined(_KERNEL)
@@ -125,7 +125,7 @@ static	int	fr_send_ip __P((fr_info_t *, mb_t *, mb_t **));
 # ifdef USE_MUTEXES
 ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_stinsert;
 ipfmutex_t	ipf_nat_new, ipf_natio, ipf_timeoutlock;
-ipfrwlock_t	ipf_mutex, ipf_global, ipf_ipidfrag;
+ipfrwlock_t	ipf_mutex, ipf_global, ipf_ipidfrag, ipf_frcache;
 ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 # endif
 int		ipf_locks_done = 0;
@@ -145,6 +145,19 @@ struct callout_handle fr_slowtimer_ch;
 int (*fr_checkp) __P((ip_t *ip, int hlen, void *ifp, int out, mb_t **mp));
 # endif /* NETBSD_PF */
 #endif /* __FreeBSD_version >= 500011 */
+
+
+#if (__FreeBSD_version >= 502103)
+static eventhandler_tag ipf_arrivetag, ipf_departtag, ipf_clonetag;
+
+static void ipf_ifevent(void *arg);
+
+static void ipf_ifevent(arg)
+void *arg;
+{
+        frsync(NULL);
+}
+#endif
 
 
 #if (__FreeBSD_version >= 501108) && defined(_KERNEL)
@@ -203,6 +216,7 @@ int iplattach()
 	RWLOCK_INIT(&ipf_global, "ipf filter load/unload mutex");
 	MUTEX_INIT(&ipf_timeoutlock, "ipf timeout queue mutex");
 	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock");
+	RWLOCK_INIT(&ipf_frcache, "ipf cache rwlock");
 	RWLOCK_INIT(&ipf_ipidfrag, "ipf IP NAT-Frag rwlock");
 	ipf_locks_done = 1;
 
@@ -271,6 +285,18 @@ pfil_error:
 	}
 #  endif
 # endif
+
+#if (__FreeBSD_version >= 502103)
+	ipf_arrivetag =  EVENTHANDLER_REGISTER(ifnet_arrival_event, \
+					       ipf_ifevent, NULL, \
+					       EVENTHANDLER_PRI_ANY);
+	ipf_departtag =  EVENTHANDLER_REGISTER(ifnet_departure_event, \
+					       ipf_ifevent, NULL, \
+					       EVENTHANDLER_PRI_ANY);
+	ipf_clonetag =  EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
+					      NULL, EVENTHANDLER_PRI_ANY);
+#endif
+
 	if (fr_checkp != fr_check) {
 		fr_savep = fr_checkp;
 		fr_checkp = fr_check;
@@ -314,6 +340,18 @@ int ipldetach()
 
 	if (fr_control_forwarding & 2)
 		ipforwarding = 0;
+
+#if (__FreeBSD_version >= 502103)
+	if (ipf_arrivetag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ipf_arrivetag);
+	}
+	if (ipf_departtag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ipf_departtag);
+	}
+	if (ipf_clonetag != NULL) {
+		EVENTHANDLER_DEREGISTER(if_clone_event, ipf_clonetag);
+	}
+#endif
 
 	SPL_NET(s);
 
@@ -380,6 +418,7 @@ int ipldetach()
 		MUTEX_DESTROY(&ipf_timeoutlock);
 		MUTEX_DESTROY(&ipf_rw);
 		RW_DESTROY(&ipf_mutex);
+		RW_DESTROY(&ipf_frcache);
 		RW_DESTROY(&ipf_ipidfrag);
 		RW_DESTROY(&ipf_global);
 		ipf_locks_done = 0;
@@ -421,7 +460,7 @@ int mode;
 	friostat_t fio;
 
 #if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+	if ((securelevel >= 3) && (mode & FWRITE))
 		return EPERM;
 #endif
 

@@ -474,9 +474,10 @@ int dlen;
 {
 	u_int a1, a2, a3, a4, data_ip;
 	char newbuf[IPF_FTPBUFSZ];
-	char *s, *brackets[2];
+	const char *brackets[2];
 	u_short a5, a6;
 	ftpside_t *f;
+	char *s;
 
 	if (ippr_ftp_forcepasv != 0 &&
 	    ftp->ftp_side[0].ftps_cmds != FTPXY_C_PASV) {
