@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.
  *
@@ -55,7 +53,8 @@ struct file;
 # include <sys/malloc.h>
 #endif
 
-#if (defined(__osf__) || defined(__hpux) || defined(__sgi)) && defined(_KERNEL)
+#if defined(_KERNEL) && (defined(__osf__) || defined(AIX) || \
+     defined(__hpux) || defined(__sgi))
 # ifdef __osf__
 #  include <net/radix.h>
 # endif
@@ -79,7 +78,7 @@ static int rn_freenode __P((struct radix_node *, void *));
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ip_pool.c,v 2.55.2.12 2005/02/01 04:04:46 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_pool.c,v 2.55.2.15 2005/11/13 15:38:37 darrenr Exp $";
 #endif
 
 #ifdef IPFILTER_LOOKUP
@@ -356,11 +355,9 @@ ip_pool_t *ipo;
 addrfamily_t *addr, *mask;
 {
 	struct radix_node *n;
-#ifdef USE_SPL
-	int s;
+	SPL_INT(s);
 
 	SPL_NET(s);
-#endif
 	RADIX_NODE_HEAD_LOCK(ipo->ipo_head);
 	n = ipo->ipo_head->rnh_lookup(addr, mask, ipo->ipo_head);
 	RADIX_NODE_HEAD_UNLOCK(ipo->ipo_head);
@@ -550,6 +547,7 @@ iplookupop_t *op;
 		}
 
 		(void)strncpy(h->ipo_name, name, sizeof(h->ipo_name));
+		(void)strncpy(op->iplo_name, name, sizeof(op->iplo_name));
 	} else {
 		(void) strncpy(h->ipo_name, op->iplo_name, sizeof(h->ipo_name));
 	}
