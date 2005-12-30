@@ -879,7 +879,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	        		struct snd_dbuf *bs = wrch->bufsoft;
 
 				CHN_LOCK(wrch);
-				chn_wrupdate(wrch);
+				/* XXX abusive DMA update: chn_wrupdate(wrch); */
 				a->bytes = sndbuf_getfree(bs);
 	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
 	        		a->fragstotal = sndbuf_getblkcnt(bs);
@@ -896,7 +896,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	        		struct snd_dbuf *bs = rdch->bufsoft;
 
 				CHN_LOCK(rdch);
-				chn_rdupdate(rdch);
+				/* XXX abusive DMA update: chn_rdupdate(rdch); */
 	        		a->bytes = sndbuf_gettotal(bs);
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
@@ -914,7 +914,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	        		struct snd_dbuf *bs = wrch->bufsoft;
 
 				CHN_LOCK(wrch);
-				chn_wrupdate(wrch);
+				/* XXX abusive DMA update: chn_wrupdate(wrch); */
 	        		a->bytes = sndbuf_gettotal(bs);
 	        		a->blocks = sndbuf_getblocks(bs) - wrch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
@@ -990,7 +990,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	        	struct snd_dbuf *bs = wrch->bufsoft;
 
 			CHN_LOCK(wrch);
-			chn_wrupdate(wrch);
+			/* XXX abusive DMA update: chn_wrupdate(wrch); */
 			*arg_i = sndbuf_getready(b) + sndbuf_getready(bs);
 			CHN_UNLOCK(wrch);
 		} else
