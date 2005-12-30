@@ -137,10 +137,13 @@ int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 #define CHN_F_DEAD		0x00020000
 #define CHN_F_BADSETTING	0x00040000
 #define CHN_F_SETBLOCKSIZE	0x00080000
+#define CHN_F_HAS_VCHAN		0x00100000
 
 #define	CHN_F_VIRTUAL		0x10000000  /* not backed by hardware */
 
-#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD | CHN_F_VIRTUAL)
+#define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD | \
+					CHN_F_HAS_VCHAN | CHN_F_VIRTUAL)
+					
 
 #define CHN_N_RATE		0x00000001
 #define CHN_N_FORMAT		0x00000002

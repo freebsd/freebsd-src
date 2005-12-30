@@ -138,12 +138,16 @@ ad1816_intr(void *arg)
     	}
     	/* check for capture interupt */
     	if (sndbuf_runsz(ad1816->rch.buffer) && (c & AD1816_INTRCI)) {
+		ad1816_unlock(ad1816);
 		chn_intr(ad1816->rch.channel);
+		ad1816_lock(ad1816);
 		served |= AD1816_INTRCI;		/* cp served */
     	}
     	/* check for playback interupt */
     	if (sndbuf_runsz(ad1816->pch.buffer) && (c & AD1816_INTRPI)) {
+		ad1816_unlock(ad1816);
 		chn_intr(ad1816->pch.channel);
+		ad1816_lock(ad1816);
 		served |= AD1816_INTRPI;		/* pb served */
     	}
     	if (served == 0) {
