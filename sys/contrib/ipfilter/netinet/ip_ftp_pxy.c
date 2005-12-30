@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1997-2003 by Darren Reed
  *
@@ -8,7 +6,7 @@
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * Id: ip_ftp_pxy.c,v 2.88.2.15 2005/03/19 19:38:10 darrenr Exp
+ * $Id: ip_ftp_pxy.c,v 2.88.2.16 2005/12/04 23:39:27 darrenr Exp $
  */
 
 #define	IPF_FTP_PROXY
@@ -473,9 +471,10 @@ int dlen;
 {
 	u_int a1, a2, a3, a4, data_ip;
 	char newbuf[IPF_FTPBUFSZ];
-	char *s, *brackets[2];
+	const char *brackets[2];
 	u_short a5, a6;
 	ftpside_t *f;
+	char *s;
 
 	if (ippr_ftp_forcepasv != 0 &&
 	    ftp->ftp_side[0].ftps_cmds != FTPXY_C_PASV) {

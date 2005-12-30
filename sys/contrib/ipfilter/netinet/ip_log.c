@@ -1,11 +1,9 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1997-2003 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ip_log.c,v 2.75.2.6 2004/10/16 07:59:27 darrenr Exp
+ * $Id: ip_log.c,v 2.75.2.7 2005/06/11 07:47:44 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) || defined(_KERNEL)
@@ -416,9 +414,7 @@ int *types, cnt;
 	iplog_t *ipl;
 	size_t len;
 	int i;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	/*
 	 * Check to see if this log record has a CRC which matches the last
@@ -538,9 +534,7 @@ struct uio *uio;
 	size_t dlen, copied;
 	int error = 0;
 	iplog_t *ipl;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	/*
 	 * Sanity checks.  Make sure the minor # is valid and we're copying
@@ -652,9 +646,7 @@ minor_t unit;
 {
 	iplog_t *ipl;
 	int used;
-# if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-# endif
+	SPL_INT(s);
 
 	SPL_NET(s);
 	MUTEX_ENTER(&ipl_mutex);
