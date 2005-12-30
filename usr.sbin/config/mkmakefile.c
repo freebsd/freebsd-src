@@ -310,7 +310,7 @@ read_file(char *fname)
 	struct device *dp;
 	struct opt *op;
 	char *wd, *this, *compilewith, *depends, *clean, *warning;
-	int compile, match, nreqs, devfound, std, filetype,
+	int compile, match, nreqs, std, filetype,
 	    imp_rule, no_obj, before_depend, mandatory, nowerror;
 
 	fp = fopen(fname, "r");
@@ -465,14 +465,11 @@ nextparam:
 		nowerror = 1;
 		goto nextparam;
 	}
-	devfound = 0;		/* XXX duplicate device entries */
 	STAILQ_FOREACH(dp, &dtab, d_next)
 		if (eq(dp->d_name, wd)) {
 			dp->d_done |= DEVDONE;
-			devfound = 1;
+			goto nextparam;
 		}
-	if (devfound)
-		goto nextparam;
 	if (mandatory) {
 		printf("%s: mandatory device \"%s\" not found\n",
 		       fname, wd);
