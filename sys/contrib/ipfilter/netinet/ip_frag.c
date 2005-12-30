@@ -47,7 +47,7 @@ struct file;
 # endif
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
-# if defined(_KERNEL) && !defined(__sgi)
+# if defined(_KERNEL) && !defined(__sgi) && !defined(AIX)
 #  include <sys/kernel.h>
 # endif
 #else
@@ -238,7 +238,7 @@ ipfr_t *table[];
 	ip = fin->fin_ip;
 
 	if (pass & FR_FRSTRICT)
-		if ((ip->ip_off & IP_OFFMASK) != 0)
+		if (fin->fin_off != 0)
 			return NULL;
 
 	frag.ipfr_p = ip->ip_p;
@@ -278,8 +278,16 @@ ipfr_t *table[];
 		return NULL;
 	}
 
-	if ((fra->ipfr_rule = fin->fin_fr) != NULL)
-		fin->fin_fr->fr_ref++;
+	fra->ipfr_rule = fin->fin_fr;
+	if (fra->ipfr_rule != NULL) {
+
+		frentry_t *fr;
+
+		fr = fin->fin_fr;
+		MUTEX_ENTER(&fr->fr_lock);
+		fr->fr_ref++;
+		MUTEX_EXIT(&fr->fr_lock);
+	}
 
 	/*
 	 * Insert the fragment into the fragment table, copy the struct used
@@ -747,9 +755,7 @@ void fr_fragexpire()
 {
 	ipfr_t	**fp, *fra;
 	nat_t	*nat;
-#if defined(USE_SPL) && defined(_KERNEL)
-	int	s;
-#endif
+	SPL_INT(s);
 
 	if (fr_frag_lock)
 		return;
@@ -815,7 +821,7 @@ void fr_fragexpire()
 /* expectation of this being called twice per second.                       */
 /* ------------------------------------------------------------------------ */
 #if !defined(_KERNEL) || (!SOLARIS && !defined(__hpux) && !defined(__sgi) && \
-			  !defined(__osf__))
+			  !defined(__osf__) && !defined(linux))
 # if defined(_KERNEL) && ((BSD >= 199103) || defined(__sgi))
 void fr_slowtimer __P((void *ptr))
 # else

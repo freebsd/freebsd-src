@@ -98,7 +98,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: ip_sync.c,v 2.40.2.3 2005/02/18 13:06:29 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.5 2005/09/04 12:51:12 darrenr Exp $";
 #endif
 
 #define	SYNC_STATETABSZ	256
@@ -231,8 +231,10 @@ ipstate_t *ips;
 		ips->is_die = htonl(ips->is_die);
 		ips->is_pass = htonl(ips->is_pass);
 		ips->is_flags = htonl(ips->is_flags);
-		ips->is_opt = htonl(ips->is_opt);
-		ips->is_optmsk = htonl(ips->is_optmsk);
+		ips->is_opt[0] = htonl(ips->is_opt[0]);
+		ips->is_opt[1] = htonl(ips->is_opt[1]);
+		ips->is_optmsk[0] = htonl(ips->is_optmsk[0]);
+		ips->is_optmsk[1] = htonl(ips->is_optmsk[1]);
 		ips->is_sec = htons(ips->is_sec);
 		ips->is_secmsk = htons(ips->is_secmsk);
 		ips->is_auth = htons(ips->is_auth);
@@ -246,8 +248,10 @@ ipstate_t *ips;
 		ips->is_die = ntohl(ips->is_die);
 		ips->is_pass = ntohl(ips->is_pass);
 		ips->is_flags = ntohl(ips->is_flags);
-		ips->is_opt = ntohl(ips->is_opt);
-		ips->is_optmsk = ntohl(ips->is_optmsk);
+		ips->is_opt[0] = ntohl(ips->is_opt[0]);
+		ips->is_opt[1] = ntohl(ips->is_opt[1]);
+		ips->is_optmsk[0] = ntohl(ips->is_optmsk[0]);
+		ips->is_optmsk[1] = ntohl(ips->is_optmsk[1]);
 		ips->is_sec = ntohs(ips->is_sec);
 		ips->is_secmsk = ntohs(ips->is_secmsk);
 		ips->is_auth = ntohs(ips->is_auth);
