@@ -733,6 +733,13 @@ ac97_initmixer(struct ac97_info *codec)
 #endif
 					codec->mix[i].enable = 1;
 					codec->mix[i].bits = j;
+				} else if (reg == AC97_MIX_BEEP) {
+					/*
+					 * Few codec such as CX20468-21 does
+					 * have this control register, although
+					 * the only usable part is the mute bit.
+					 */
+					codec->mix[i].enable = 1;
 				} else
 					codec->mix[i].enable = 0;
 			} else
