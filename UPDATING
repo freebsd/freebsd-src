@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20051231:
+	The page coloring algorithm in the VM subsystem was converted
+	from tuning with kernel options to autotuning. Please remove
+	any PQ_* option except PQ_NOOPT from your kernel config.
+
 20051211:
 	The net80211-related tools in the tools/tools/ath directory
 	have been moved to tools/tools/net80211 and renamed with a
