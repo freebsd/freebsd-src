@@ -396,8 +396,6 @@ struct ciss_config_table
 {
     char	signature[4];		/* "CISS" */
     u_int32_t	valence;
-#define CISS_MIN_VALENCE	1	/* only value currently supported */
-#define CISS_MAX_VALENCE	1
     u_int32_t	supported_methods;
 #define CISS_TRANSPORT_METHOD_READY	(1<<0)
 #define CISS_TRANSPORT_METHOD_SIMPLE	(1<<1)
