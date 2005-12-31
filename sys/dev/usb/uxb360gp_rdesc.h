@@ -30,7 +30,7 @@
  * The descriptor has no output report format, thus preventing you from
  * controlling the LEDs and the built-in rumblers.
  */
-static uByte uhid_xb360gp_report_descr[] = {
+static const uByte uhid_xb360gp_report_descr[] = {
     0x05, 0x01,		/* USAGE PAGE (Generic Desktop)		*/
     0x09, 0x05,		/* USAGE (Gamepad)			*/
     0xa1, 0x01,		/* COLLECTION (Application)		*/
