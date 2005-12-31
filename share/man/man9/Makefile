@@ -219,6 +219,7 @@ MAN=	accept_filter.9 \
 	ucred.9 \
 	uidinfo.9 \
 	uio.9 \
+	usbdi.9 \
 	utopia.9 \
 	vaccess.9 \
 	vaccess_acl_posix1e.9 \
@@ -969,6 +970,55 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9
+MLINKS+=usbdi.9 usb_find_desc.9 \
+	usbdi.9 usbd_abort_default_pipe.9 \
+	usbdi.9 usbd_abort_pipe.9 \
+	usbdi.9 usbd_alloc_buffer.9 \
+	usbdi.9 usbd_alloc_xfer.9 \
+	usbdi.9 usbd_clear_endpoint_stall.9 \
+	usbdi.9 usbd_clear_endpoint_stall_async.9 \
+	usbdi.9 usbd_clear_endpoint_toggle.9 \
+	usbdi.9 usbd_close_pipe.9 \
+	usbdi.9 usbd_device2interface_handle.9 \
+	usbdi.9 usbd_do_request.9 \
+	usbdi.9 usbd_do_request_async.9 \
+	usbdi.9 usbd_do_request_flags.9 \
+	usbdi.9 usbd_do_request_flags_pipe.9 \
+	usbdi.9 usbd_endpoint_count.9 \
+	usbdi.9 usbd_errstr.9 \
+	usbdi.9 usbd_find_edesc.9 \
+	usbdi.9 usbd_find_idesc.9 \
+	usbdi.9 usbd_free_buffer.9 \
+	usbdi.9 usbd_free_xfer.9 \
+	usbdi.9 usbd_get_buffer.9 \
+	usbdi.9 usbd_get_config.9 \
+	usbdi.9 usbd_get_config_desc.9 \
+	usbdi.9 usbd_get_config_desc_full.9 \
+	usbdi.9 usbd_get_config_descriptor.9 \
+	usbdi.9 usbd_get_device_descriptor.9 \
+	usbdi.9 usbd_get_endpoint_descriptor.9 \
+	usbdi.9 usbd_get_interface_altindex.9 \
+	usbdi.9 usbd_get_interface_descriptor.9 \
+	usbdi.9 usbd_get_no_alts.9 \
+	usbdi.9 usbd_get_quirks.9 \
+	usbdi.9 usbd_get_speed.9 \
+	usbdi.9 usbd_get_string.9 \
+	usbdi.9 usbd_get_string_desc.9 \
+	usbdi.9 usbd_get_xfer_status.9 \
+	usbdi.9 usbd_interface2device_handle.9 \
+	usbdi.9 usbd_interface2endpoint_descriptor.9 \
+	usbdi.9 usbd_interface_count.9 \
+	usbdi.9 usbd_open_pipe.9 \
+	usbdi.9 usbd_open_pipe_intr.9 \
+	usbdi.9 usbd_pipe2device_handle.9 \
+	usbdi.9 usbd_set_config_index.9 \
+	usbdi.9 usbd_set_config_no.9 \
+	usbdi.9 usbd_set_interface.9 \
+	usbdi.9 usbd_setup_default_xfer.9 \
+	usbdi.9 usbd_setup_isoc_xfer.9 \
+	usbdi.9 usbd_setup_xfer.9 \
+	usbdi.9 usbd_sync_transfer.9 \
+	usbdi.9 usbd_transfer.9
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
