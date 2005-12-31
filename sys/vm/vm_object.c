@@ -215,12 +215,11 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		object->flags = OBJ_ONEMAPPING;
-	if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
-		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
-	else
+	incr = PQ_MAXLENGTH;
+	if (size <= incr)
 		incr = size;
 	object->pg_color = next_index;
-	next_index = (object->pg_color + incr) & PQ_L2_MASK;
+	next_index = (object->pg_color + incr) & PQ_COLORMASK;
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
@@ -1228,15 +1227,13 @@ vm_object_shadow(
 		source->generation++;
 		if (length < source->size)
 			length = source->size;
-		if (length > PQ_L2_SIZE / 3 + PQ_PRIME1 ||
-		    source->generation > 1)
-			length = PQ_L2_SIZE / 3 + PQ_PRIME1;
+		if (length > PQ_MAXLENGTH || source->generation > 1)
+			length = PQ_MAXLENGTH;
 		result->pg_color = (source->pg_color +
-		    length * source->generation) & PQ_L2_MASK;
+		    length * source->generation) & PQ_COLORMASK;
 		result->flags |= source->flags & OBJ_NEEDGIANT;
 		VM_OBJECT_UNLOCK(source);
-		next_index = (result->pg_color + PQ_L2_SIZE / 3 + PQ_PRIME1) &
-		    PQ_L2_MASK;
+		next_index = (result->pg_color + PQ_MAXLENGTH) & PQ_COLORMASK;
 	}
 
 
@@ -2127,7 +2124,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 			if (rcount) {
 				padiff = pa + rcount * PAGE_SIZE - VM_PAGE_TO_PHYS(m);
 				padiff >>= PAGE_SHIFT;
-				padiff &= PQ_L2_MASK;
+				padiff &= PQ_COLORMASK;
 				if (padiff == 0) {
 					pa = VM_PAGE_TO_PHYS(m) - rcount * PAGE_SIZE;
 					++rcount;

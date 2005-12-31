@@ -170,6 +170,14 @@ struct bat	battable[16];
 
 struct kva_md_info kmi;
 
+void setPQL2(int *const size, int *const ways);
+
+void
+setPQL2(int *const size, int *const ways)
+{
+	return;
+}
+
 static void
 powerpc_ofw_shutdown(void *junk, int howto)
 {

@@ -146,70 +146,39 @@ CTASSERT(sizeof(u_long) >= 8);
 #endif
 #endif
 
-#if !defined(KLD_MODULE)
-/*
- * Page coloring parameters
- */
+/* PQ_CACHE and PQ_FREE represents a PQ_NUMCOLORS consecutive queue. */
+#define PQ_NONE		0
+#define PQ_FREE		1
+#define PQ_INACTIVE	(page_queue_coloring.inactive)
+#define PQ_ACTIVE	(page_queue_coloring.active)
+#define PQ_CACHE	(page_queue_coloring.cache)
+#define PQ_HOLD		(page_queue_coloring.hold)
+#define PQ_COUNT	(page_queue_coloring.count)
+#define PQ_MAXCOLORS	1024
+#define PQ_MAXCOUNT	(4 + 2 * PQ_MAXCOLORS)
+#define PQ_NUMCOLORS	(page_queue_coloring.numcolors)
+#define PQ_PRIME1	(page_queue_coloring.prime1)
+#define PQ_PRIME2	(page_queue_coloring.prime2)
+#define PQ_COLORMASK	(page_queue_coloring.colormask)
+#define PQ_MAXLENGTH	(page_queue_coloring.maxlength)
 
-/* Backward compatibility for existing PQ_*CACHE config options. */
-#if !defined(PQ_CACHESIZE)
-#if defined(PQ_HUGECACHE)
-#define PQ_CACHESIZE 1024
-#elif defined(PQ_LARGECACHE)
-#define PQ_CACHESIZE 512
-#elif defined(PQ_MEDIUMCACHE)
-#define PQ_CACHESIZE 256
-#elif defined(PQ_NORMALCACHE)
-#define PQ_CACHESIZE 64
-#elif defined(PQ_NOOPT)
-#define PQ_CACHESIZE 0
-#else
-#define PQ_CACHESIZE 128
-#endif
-#endif			/* !defined(PQ_CACHESIZE) */
+/* Returns the real queue a page is on. */
+#define VM_PAGE_GETQUEUE(m)	((m)->queue)
 
-#if PQ_CACHESIZE >= 1024
-#define PQ_PRIME1 31	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_PRIME2 23	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_L2_SIZE 256	/* A number of colors opt for 1M cache */
+/* Returns the well known queue a page is on. */
+#define VM_PAGE_GETKNOWNQUEUE1(m)	((m)->queue - (m)->pc)
+#define VM_PAGE_GETKNOWNQUEUE2(m)	VM_PAGE_GETQUEUE(m)
 
-#elif PQ_CACHESIZE >= 512
-#define PQ_PRIME1 31	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_PRIME2 23	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
+/* Given the real queue number and a page color return the well know queue. */
+#define VM_PAGE_RESOLVEQUEUE(m, q)	((q) - (m)->pc)
 
-#elif PQ_CACHESIZE >= 256
-#define PQ_PRIME1 13	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_PRIME2 7	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
+/* Returns true if the page is in the named well known queue. */
+#define VM_PAGE_INQUEUE1(m, q)	(VM_PAGE_GETKNOWNQUEUE1(m) == (q))
+#define VM_PAGE_INQUEUE2(m, q)	(VM_PAGE_GETKNOWNQUEUE2(m) == (q))
 
-#elif PQ_CACHESIZE >= 128
-#define PQ_PRIME1 9	/* Produces a good PQ_L2_SIZE/3 + PQ_PRIME1 */
-#define PQ_PRIME2 5	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_L2_SIZE 32	/* A number of colors opt for 128k cache */
-
-#elif PQ_CACHESIZE >= 64
-#define PQ_PRIME1 5	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_PRIME2 3	/* Prime number somewhat less than PQ_L2_SIZE */
-#define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
-
-#else
-#define PQ_PRIME1 1	/* Disable page coloring. */
-#define PQ_PRIME2 1
-#define PQ_L2_SIZE 1
-
-#endif
-
-#define PQ_L2_MASK (PQ_L2_SIZE - 1)
-
-/* PQ_CACHE and PQ_FREE represent PQ_L2_SIZE consecutive queues. */
-#define PQ_NONE 0
-#define PQ_FREE	1
-#define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
-#define PQ_ACTIVE (2 + 1*PQ_L2_SIZE)
-#define PQ_CACHE (3 + 1*PQ_L2_SIZE)
-#define PQ_HOLD  (3 + 2*PQ_L2_SIZE)
-#define PQ_COUNT (4 + 2*PQ_L2_SIZE)
+/* Sets the queue a page is on. */
+#define VM_PAGE_SETQUEUE1(m, q)	(VM_PAGE_GETQUEUE(m) = (q) + (m)->pc)
+#define VM_PAGE_SETQUEUE2(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
 
 struct vpgqueues {
 	struct pglist pl;
@@ -217,10 +186,22 @@ struct vpgqueues {
 	int	lcnt;
 };
 
-extern struct vpgqueues vm_page_queues[PQ_COUNT];
-extern struct mtx vm_page_queue_free_mtx;
+struct pq_coloring {
+	int numcolors;
+	int colormask;
+	int prime1;
+	int prime2;
+	int inactive;
+	int active;
+	int cache;
+	int hold;
+	int count;
+	int maxlength;
+};
 
-#endif			/* !defined(KLD_MODULE) */
+extern struct vpgqueues vm_page_queues[PQ_MAXCOUNT];
+extern struct mtx vm_page_queue_free_mtx;
+extern struct pq_coloring page_queue_coloring;
 
 /*
  * These are the flags defined for vm_page.
