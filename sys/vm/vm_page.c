@@ -382,7 +382,7 @@ vm_page_unhold(vm_page_t mem)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
+	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD))
 		vm_page_free_toq(mem);
 }
 
@@ -457,9 +457,9 @@ vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 void
 vm_page_dirty(vm_page_t m)
 {
-	KASSERT(m->queue - m->pc != PQ_CACHE,
+	KASSERT(VM_PAGE_GETKNOWNQUEUE1(m) != PQ_CACHE,
 	    ("vm_page_dirty: page in cache!"));
-	KASSERT(m->queue - m->pc != PQ_FREE,
+	KASSERT(VM_PAGE_GETKNOWNQUEUE1(m) != PQ_FREE,
 	    ("vm_page_dirty: page is free!"));
 	m->dirty = VM_PAGE_BITS_ALL;
 }
@@ -700,7 +700,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 
 	vm_page_remove(m);
 	vm_page_insert(m, new_object, new_pindex);
-	if (m->queue - m->pc == PQ_CACHE)
+	if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
 		vm_page_deactivate(m);
 	vm_page_dirty(m);
 }
@@ -777,9 +777,9 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-		color = (pindex + object->pg_color) & PQ_L2_MASK;
+		color = (pindex + object->pg_color) & PQ_COLORMASK;
 	} else
-		color = pindex & PQ_L2_MASK;
+		color = pindex & PQ_COLORMASK;
 
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
@@ -946,8 +946,8 @@ vm_page_activate(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (m->queue != PQ_ACTIVE) {
-		if ((m->queue - m->pc) == PQ_CACHE)
+	if (VM_PAGE_GETKNOWNQUEUE2(m) != PQ_ACTIVE) {
+		if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
 			cnt.v_reactivated++;
 		vm_pageq_remove(m);
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
@@ -1016,12 +1016,12 @@ vm_page_free_toq(vm_page_t m)
 	    ("vm_page_free_toq: freeing mapped page %p", m));
 	cnt.v_tfree++;
 
-	if (m->busy || ((m->queue - m->pc) == PQ_FREE)) {
+	if (m->busy || VM_PAGE_INQUEUE1(m, PQ_FREE)) {
 		printf(
 		"vm_page_free: pindex(%lu), busy(%d), PG_BUSY(%d), hold(%d)\n",
 		    (u_long)m->pindex, m->busy, (m->flags & PG_BUSY) ? 1 : 0,
 		    m->hold_count);
-		if ((m->queue - m->pc) == PQ_FREE)
+		if (VM_PAGE_INQUEUE1(m, PQ_FREE))
 			panic("vm_page_free: freeing free page");
 		else
 			panic("vm_page_free: freeing busy page");
@@ -1064,10 +1064,10 @@ vm_page_free_toq(vm_page_t m)
 
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
-		m->queue = PQ_HOLD;
+		VM_PAGE_SETQUEUE2(m, PQ_HOLD);
 	} else
-		m->queue = PQ_FREE + m->pc;
-	pq = &vm_page_queues[m->queue];
+		VM_PAGE_SETQUEUE1(m, PQ_FREE);
+	pq = &vm_page_queues[VM_PAGE_GETQUEUE(m)];
 	mtx_lock_spin(&vm_page_queue_free_mtx);
 	pq->lcnt++;
 	++(*pq->cnt);
@@ -1220,10 +1220,10 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	/*
 	 * Ignore if already inactive.
 	 */
-	if (m->queue == PQ_INACTIVE)
+	if (VM_PAGE_INQUEUE2(m, PQ_INACTIVE))
 		return;
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
-		if ((m->queue - m->pc) == PQ_CACHE)
+		if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
 			cnt.v_reactivated++;
 		vm_page_flag_clear(m, PG_WINATCFLS);
 		vm_pageq_remove(m);
@@ -1231,7 +1231,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			TAILQ_INSERT_HEAD(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 		else
 			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-		m->queue = PQ_INACTIVE;
+		VM_PAGE_SETQUEUE2(m, PQ_INACTIVE);
 		vm_page_queues[PQ_INACTIVE].lcnt++;
 		cnt.v_inactive_count++;
 	}
@@ -1307,7 +1307,7 @@ vm_page_cache(vm_page_t m)
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
 	}
-	if ((m->queue - m->pc) == PQ_CACHE)
+	if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
 		return;
 
 	/*
@@ -1359,8 +1359,8 @@ vm_page_dontneed(vm_page_t m)
 	 * occassionally leave the page alone
 	 */
 	if ((dnw & 0x01F0) == 0 ||
-	    m->queue == PQ_INACTIVE || 
-	    m->queue - m->pc == PQ_CACHE
+	    VM_PAGE_INQUEUE2(m, PQ_INACTIVE) || 
+	    VM_PAGE_INQUEUE1(m, PQ_CACHE)
 	) {
 		if (m->act_count >= ACT_INIT)
 			--m->act_count;
@@ -1734,13 +1734,13 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 {
 	int i;
 	db_printf("PQ_FREE:");
-	for (i = 0; i < PQ_L2_SIZE; i++) {
+	for (i = 0; i < PQ_NUMCOLORS; i++) {
 		db_printf(" %d", vm_page_queues[PQ_FREE + i].lcnt);
 	}
 	db_printf("\n");
 		
 	db_printf("PQ_CACHE:");
-	for (i = 0; i < PQ_L2_SIZE; i++) {
+	for (i = 0; i < PQ_NUMCOLORS; i++) {
 		db_printf(" %d", vm_page_queues[PQ_CACHE + i].lcnt);
 	}
 	db_printf("\n");

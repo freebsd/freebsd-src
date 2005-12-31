@@ -69,6 +69,8 @@ void panicifcpuunsupported(void);
 
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
+void setPQL2(int *const size, int *const ways);
+static void setPQL2_AMD(void);
 
 int	cpu_class;
 char machine[] = "amd64";
@@ -92,6 +94,9 @@ static struct {
 	{ "Clawhammer",		CPUCLASS_K8 },		/* CPU_CLAWHAMMER */
 	{ "Sledgehammer",	CPUCLASS_K8 },		/* CPU_SLEDGEHAMMER */
 };
+
+extern int pq_l2size;
+extern int pq_l2nways;
 
 void
 printcpuinfo(void)
@@ -525,4 +530,31 @@ print_AMD_info(void)
 		printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
 		print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
 	}
+}
+
+static void             
+setPQL2_AMD(void)
+{
+	if (cpu_exthigh >= 0x80000006) {
+		u_int regs[4];
+
+		do_cpuid(0x80000006, regs);
+		*size = regs[2] >> 16;
+		*ways = (regs[2] >> 12) & 0x0f;
+		switch (*ways) {
+		case 0:				/* disabled/not present */
+		case 15:			/* fully associative */
+		default: *ways = 1; break;	/* reserved configuration */
+		case 4: *ways = 4; break;
+		case 6: *ways = 8; break;
+		case 8: *ways = 16; break;
+		}
+	}
+}
+
+void
+setPQL2(int *const size, int *const ways);
+{
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+		setPQL2_AMD(size, ways);
 }

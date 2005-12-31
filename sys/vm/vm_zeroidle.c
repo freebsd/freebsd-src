@@ -120,7 +120,7 @@ vm_page_zero_idle(void)
 		if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 			zero_state = 1;
 	}
-	free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
+	free_rover = (free_rover + PQ_PRIME2) & PQ_COLORMASK;
 	mtx_unlock_spin(&vm_page_queue_free_mtx);
 	return (1);
 }

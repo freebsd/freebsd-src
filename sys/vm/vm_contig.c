@@ -141,7 +141,7 @@ vm_contig_launder(int queue)
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
 
-		KASSERT(m->queue == queue,
+		KASSERT(VM_PAGE_INQUEUE2(m, queue),
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
 		error = vm_contig_launder_page(m);
 		if (error == 0)
@@ -255,7 +255,7 @@ again1:
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 
-			if ((m->queue - m->pc) == PQ_CACHE) {
+			if (VM_PAGE_INQUEUE1(m, PQ_CACHE)) {
 				if (m->hold_count != 0) {
 					start++;
 					goto again0;
@@ -456,16 +456,15 @@ retry_page:
 			pqtype = m->queue - m->pc;
 			if (pass != 0 && pqtype != PQ_FREE &&
 			    pqtype != PQ_CACHE) {
-				switch (m->queue) {
-				case PQ_ACTIVE:
-				case PQ_INACTIVE:
+				if (m->queue == PQ_ACTIVE ||
+				    m->queue == PQ_INACTIVE) {
 					if (vm_contig_launder_page(m) != 0)
 						goto cleanup_freed;
 					pqtype = m->queue - m->pc;
 					if (pqtype == PQ_FREE ||
 					    pqtype == PQ_CACHE)
 						break;
-				default:
+				} else {
 cleanup_freed:
 					vm_page_release_contigl(&pga[i + 1],
 					    start + npages - 1 - i);

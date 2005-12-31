@@ -517,11 +517,6 @@ NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
 PQ_NOOPT		opt_vmpage.h
-PQ_NORMALCACHE		opt_vmpage.h
-PQ_MEDIUMCACHE		opt_vmpage.h
-PQ_LARGECACHE		opt_vmpage.h
-PQ_HUGECACHE		opt_vmpage.h
-PQ_CACHESIZE		opt_vmpage.h
 
 # The MemGuard replacement allocator used for tamper-after-free detection
 DEBUG_MEMGUARD		opt_vm.h

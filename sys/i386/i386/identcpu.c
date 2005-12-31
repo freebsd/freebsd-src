@@ -74,7 +74,13 @@ void	enable_K6_2_wt_alloc(void);
 void panicifcpuunsupported(void);
 
 static void identifycyrix(void);
+void setPQL2(int *const size, int *const ways);
+static void setPQL2_AMD(int *const size, int *const ways);
+static void setPQL2_INTEL(int *const size, int *const ways);
+static void get_INTEL_TLB(u_int data, int *const size, int *const ways);
 static void print_AMD_info(void);
+static void print_INTEL_info(void);
+static void print_INTEL_TLB(u_int data);
 static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
 
@@ -873,6 +879,8 @@ printcpuinfo(void)
 
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
 		print_AMD_info();
+	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
+		print_INTEL_info();
 	else if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
 		 strcmp(cpu_vendor, "TransmetaCPU") == 0)
 		print_transmeta_info();
@@ -1215,6 +1223,464 @@ print_AMD_info(void)
 			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
 		}
 	}
+}
+
+static void
+print_INTEL_info(void)
+{
+	u_int regs[4];
+	u_int rounds, regnum;
+
+	do_cpuid(0x2, regs);
+
+	rounds = (regs[0] & 0xff) - 1;
+
+	for (regnum = 0; regnum <= 3; ++regnum) {
+		if ((regs[regnum] & (1<<31)) == 0) {
+			if (regnum != 0)
+				print_INTEL_TLB(regs[regnum] & 0xff);
+			print_INTEL_TLB((regs[regnum] >> 8) & 0xff);
+			print_INTEL_TLB((regs[regnum] >> 16) & 0xff);
+			print_INTEL_TLB((regs[regnum] >> 24) & 0xff);
+		}
+	}
+
+	while (rounds > 0) {
+		do_cpuid(0x2, regs);
+
+		for (regnum = 0; regnum <= 3; ++regnum) {
+			if ((regs[regnum] & (1<<31)) == 0) {
+				if (regnum != 0)
+					print_INTEL_TLB(regs[regnum] & 0xff);
+				print_INTEL_TLB((regs[regnum] >> 8) & 0xff);
+				print_INTEL_TLB((regs[regnum] >> 16) & 0xff);
+				print_INTEL_TLB((regs[regnum] >> 24) & 0xff);
+			}
+		}
+
+		--rounds;
+	}
+
+	if (cpu_exthigh >= 0x80000006) {
+		do_cpuid(0x80000006, regs);
+		printf("\nL2 cache: %u kbytes, %u-way associative, %u bytes/line",
+		    regs[2] & 0xffff, (regs[2] >> 16) & 0xff, regs[2] >> 24);
+	}
+
+	printf("\n");
+}
+
+static void
+print_INTEL_TLB(u_int data)
+{
+	switch (data) {
+	case 0x0:
+	case 0x40:
+	default:
+		break;
+	case 0x1:
+		printf("\nInstruction TLB: 4-KBPages, 4-way set associative, 32 entries");
+		break;
+	case 0x2:
+		printf("\nInstruction TLB: 4-MB Pages, fully associative, 2 entries");
+		break;
+	case 0x3:
+		printf("\nData TLB: 4-KB Pages, 4-way set associative, 64 entries");
+		break;
+	case 0x4:
+		printf("\nData TLB: 4-MB Pages, 4-way set associative, 8 entries");
+		break;
+	case 0x6:
+		printf("\n1st-level instruction cache: 8-KB, 4-way set associative, 32-byte line size");
+		break;
+	case 0x8:
+		printf("\n1st-level instruction cache: 16-KB, 4-way set associative, 32-byte line size");
+		break;
+	case 0xa:
+		printf("\n1st-level data cache: 8-KB, 2-way set associative, 32-byte line size");
+		break;
+	case 0xc:
+		printf("\n1st-level data cache: 16-KB, 4-way set associative, 32-byte line size");
+		break;
+	case 0x22:
+		printf("\n3rd-level cache: 512 KB, 4-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x23:
+		printf("\n3rd-level cache: 1-MB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x25:
+		printf("\n3rd-level cache: 2-MB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x29:
+		printf("\n3rd-level cache: 4-MB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x2c:
+		printf("\n1st-level data cache: 32-KB, 8-way set associative, 64-byte line size");
+		break;
+	case 0x30:
+		printf("\n1st-level instruction cache: 32-KB, 8-way set associative, 64-byte line size");
+		break;
+	case 0x39:
+		printf("\n2nd-level cache: 128-KB, 4-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x3b:
+		printf("\n2nd-level cache: 128-KB, 2-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x3c:
+		printf("\n2nd-level cache: 256-KB, 4-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x41:
+		printf("\n2nd-level cache: 128-KB, 4-way set associative, 32-byte line size");
+		break;
+	case 0x42:
+		printf("\n2nd-level cache: 256-KB, 4-way set associative, 32-byte line size");
+		break;
+	case 0x43:
+		printf("\n2nd-level cache: 512-KB, 4-way set associative, 32 byte line size");
+		break;
+	case 0x44:
+		printf("\n2nd-level cache: 1-MB, 4-way set associative, 32 byte line size");
+		break;
+	case 0x45:
+		printf("\n2nd-level cache: 2-MB, 4-way set associative, 32 byte line size");
+		break;
+	case 0x50:
+		printf("\nInstruction TLB: 4-KB, 2-MB or 4-MB pages, fully associative, 64 entries");
+		break;
+	case 0x51:
+		printf("\nInstruction TLB: 4-KB, 2-MB or 4-MB pages, fully associative, 128 entries");
+		break;
+	case 0x52:
+		printf("\nInstruction TLB: 4-KB, 2-MB or 4-MB pages, fully associative, 256 entries");
+		break;
+	case 0x5b:
+		printf("\nData TLB: 4-KB or 4-MB pages, fully associative, 64 entries");
+		break;
+	case 0x5c:
+		printf("\nData TLB: 4-KB or 4-MB pages, fully associative, 128 entries");
+		break;
+	case 0x5d:
+		printf("\nData TLB: 4-KB or 4-MB pages, fully associative, 256 entries");
+		break;
+	case 0x60:
+		printf("\n1st-level data cache: 16-KB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x66:
+		printf("\n1st-level data cache: 8-KB, 4-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x67:
+		printf("\n1st-level data cache: 16-KB, 4-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x68:
+		printf("\n1st-level data cache: 32-KB, 4 way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x70:
+		printf("\nTrace cache: 12K-uops, 8-way set associative");
+		break;
+	case 0x71:
+		printf("\nTrace cache: 16K-uops, 8-way set associative");
+		break;
+	case 0x72:
+		printf("\nTrace cache: 32K-uops, 8-way set associative");
+		break;
+	case 0x79:
+		printf("\n2nd-level cache: 128-KB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x7a:
+		printf("\n2nd-level cache: 256-KB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x7b:
+		printf("\n2nd-level cache: 512-KB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x7c:
+		printf("\n2nd-level cache: 1-MB, 8-way set associative, sectored cache, 64-byte line size");
+		break;
+	case 0x82:
+		printf("\n2nd-level cache: 256-KB, 8-way set associative, 32 byte line size");
+		break;
+	case 0x83:
+		printf("\n2nd-level cache: 512-KB, 8-way set associative, 32 byte line size");
+		break;
+	case 0x84:
+		printf("\n2nd-level cache: 1-MB, 8-way set associative, 32 byte line size");
+		break;
+	case 0x85:
+		printf("\n2nd-level cache: 2-MB, 8-way set associative, 32 byte line size");
+		break;
+	case 0x86:
+		printf("\n2nd-level cache: 512-KB, 4-way set associative, 64 byte line size");
+		break;
+	case 0x87:
+		printf("\n2nd-level cache: 1-MB, 8-way set associative, 64 byte line size");
+		break;
+	case 0xb0:
+		printf("\nInstruction TLB: 4-KB Pages, 4-way set associative, 128 entries");
+		break;
+	case 0xb3:
+		printf("\nData TLB: 4-KB Pages, 4-way set associative, 128 entries");
+		break;
+	}
+}
+
+
+static void
+setPQL2_AMD(int *const size, int *const ways) {
+	if (cpu_exthigh >= 0x80000006) {
+		u_int regs[4];
+
+		do_cpuid(0x80000006, regs);
+		*size = regs[2] >> 16;
+		*ways = (regs[2] >> 12) & 0x0f;
+		if(*ways == 255)		/* fully associative */
+			*ways = 1;
+	}
+}
+
+
+static void
+setPQL2_INTEL(int *const size, int *const ways)
+{
+	u_int rounds, regnum;
+	u_int regs[4];
+
+	do_cpuid(0x2, regs);
+	rounds = (regs[0] & 0xff) - 1;
+
+	for (regnum = 0; regnum <= 3; ++regnum) {
+		if ((regs[regnum] & (1<<31)) == 0) {
+			if (regnum != 0)
+				get_INTEL_TLB(regs[regnum] & 0xff,
+				    size, ways);
+			get_INTEL_TLB((regs[regnum] >> 8) & 0xff,
+			    size, ways);
+			get_INTEL_TLB((regs[regnum] >> 16) & 0xff,
+			    size, ways);
+			get_INTEL_TLB((regs[regnum] >> 24) & 0xff,
+			    size, ways);
+		}
+	}
+
+	while (rounds > 0) {
+		do_cpuid(0x2, regs);
+
+		for (regnum = 0; regnum <= 3; ++regnum) {
+			if ((regs[regnum] & (1<<31)) == 0) {
+				if (regnum != 0)
+					get_INTEL_TLB(regs[regnum] & 0xff,
+					    size, ways);
+				get_INTEL_TLB((regs[regnum] >> 8) & 0xff,
+				    size, ways);
+				get_INTEL_TLB((regs[regnum] >> 16) & 0xff,
+				    size, ways);
+				get_INTEL_TLB((regs[regnum] >> 24) & 0xff,
+				    size, ways);
+                        }
+                }
+
+                --rounds;
+        }
+
+	if (cpu_exthigh >= 0x80000006) {
+		do_cpuid(0x80000006, regs);
+		if (*size < (regs[2] & 0xffff)) {
+			*size = regs[2] & 0xffff;
+			*ways = (regs[2] >> 16) & 0xff;
+		}
+        }
+}
+
+static void
+get_INTEL_TLB(u_int data, int *const size, int *const ways)
+{
+	switch (data) {
+	default:
+		break;
+	case 0x22:
+		/* 3rd-level cache: 512 KB, 4-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 512) {
+			*size = 512;
+			*ways = 4;
+		}
+		break;
+	case 0x23:
+		/* 3rd-level cache: 1-MB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 1024) {
+			*size = 1024;
+			*ways = 8;
+		}
+		break;
+	case 0x25:
+		/* 3rd-level cache: 2-MB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 2048) {
+			*size = 2048;
+			*ways = 8;
+		}
+		break;
+	case 0x29:
+		/* 3rd-level cache: 4-MB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 4096) {
+			*size = 4096;
+			*ways = 8;
+		}
+		break;
+	case 0x39:
+		/* 2nd-level cache: 128-KB, 4-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 128) {
+			*size = 128;
+			*ways = 4;
+		}
+		break;
+	case 0x3b:
+		/* 2nd-level cache: 128-KB, 2-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 128) {
+			*size = 128;
+			*ways = 2;
+		}
+		break;
+	case 0x3c:
+		/* 2nd-level cache: 256-KB, 4-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 256) {
+			*size = 256;
+			*ways = 4;
+		}
+		break;
+	case 0x41:
+		/* 2nd-level cache: 128-KB, 4-way set associative,
+		 * 32-byte line size */
+		if (*size < 128) {
+			*size = 128;
+			*ways = 4;
+		}
+		break;
+	case 0x42:
+		/* 2nd-level cache: 256-KB, 4-way set associative,
+		 * 32-byte line size */
+		if (*size < 256) {
+			*size = 256;
+			*ways = 4;
+		}
+		break;
+	case 0x43:
+		/* 2nd-level cache: 512-KB, 4-way set associative,
+		 * 32 byte line size */
+		if (*size < 512) {
+			*size = 512;
+			*ways = 4;
+		}
+		break;
+	case 0x44:
+		/* 2nd-level cache: 1-MB, 4-way set associative,
+		 * 32 byte line size */
+		if (*size < 1024) {
+			*size = 1024;
+			*ways = 4;
+		}
+		break;
+	case 0x45:
+		/* 2nd-level cache: 2-MB, 4-way set associative,
+		 * 32 byte line size */
+		if (*size < 2048) {
+			*size = 2048;
+			*ways = 4;
+		}
+		break;
+	case 0x79:
+		/* 2nd-level cache: 128-KB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 128) {
+			*size = 128;
+			*ways = 8;
+		}
+		break;
+	case 0x7a:
+		/* 2nd-level cache: 256-KB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 256) {
+			*size = 256;
+			*ways = 8;
+		}
+		break;
+	case 0x7b:
+		/* 2nd-level cache: 512-KB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 512) {
+			*size = 512;
+			*ways = 8;
+		}
+		break;
+	case 0x7c:
+		/* 2nd-level cache: 1-MB, 8-way set associative,
+		 * sectored cache, 64-byte line size */
+		if (*size < 1024) {
+			*size = 1024;
+			*ways = 8;
+		}
+		break;
+	case 0x82:
+		/* 2nd-level cache: 256-KB, 8-way set associative,
+		 * 32 byte line size */
+		if (*size < 128) {
+			*size = 128;
+			*ways = 8;
+		}
+		break;
+	case 0x83:
+		/* 2nd-level cache: 512-KB, 8-way set associative,
+		 * 32 byte line size */
+		if (*size < 512) {
+			*size = 512;
+			*ways = 8;
+		}
+		break;
+	case 0x84:
+		/* 2nd-level cache: 1-MB, 8-way set associative,
+		 * 32 byte line size */
+		if (*size < 1024) {
+			*size = 1024;
+			*ways = 8;
+		}
+		break;
+	case 0x85:
+		/* 2nd-level cache: 2-MB, 8-way set associative,
+		 * 32 byte line size */
+		if (*size < 2048) {
+			*size = 2048;
+			*ways = 8;
+		}
+		break;
+	case 0x86:
+		/* 2nd-level cache: 512-KB, 4-way set associative,
+		 * 64 byte line size */
+		if (*size < 512) {
+			*size = 512;
+			*ways = 4;
+		}
+		break;
+	case 0x87:
+		/* 2nd-level cache: 1-MB, 8-way set associative,
+		 * 64 byte line size */
+		if (*size < 1024) {
+			*size = 512;
+			*ways = 8;
+		}
+		break;
+	}
+}
+
+void
+setPQL2(int *const size, int *const ways)
+{
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+		setPQL2_AMD(size, ways);
+	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
+		setPQL2_INTEL(size, ways);
 }
 
 static void
