@@ -248,11 +248,12 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		/* got a channel, already locked for us */
 		if (chn_reset(rdch, fmt)) {
 			pcm_chnrelease(rdch);
+			pcm_lock(d);
 			i_dev->si_drv1 = NULL;
+			pcm_unlock(d);
 			return ENODEV;
 		}
 
-		pcm_lock(d);
 		if (flags & O_NONBLOCK)
 			rdch->flags |= CHN_F_NBIO;
 		pcm_chnref(rdch, 1);
@@ -261,6 +262,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		/*
 		 * Record channel created, ref'ed and unlocked
 		 */
+		 pcm_lock(d);
 	}
 
 	if (flags & FWRITE) {
@@ -274,14 +276,15 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	    else if (chn_reset(wrch, fmt))
 		error = ENODEV;
 
-	    pcm_lock(d);
 	    if (error != 0) {
 		if (wrch) {
 		    /*
 		     * Free play channel
 		     */
 		    pcm_chnrelease(wrch);
+		    pcm_lock(d);
 		    i_dev->si_drv2 = NULL;
+		    pcm_unlock(d);
 		}
 		if (rdref) {
 		    /*
@@ -290,10 +293,11 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		    CHN_LOCK(rdch);
 		    pcm_chnref(rdch, -1);
 		    pcm_chnrelease(rdch);
+		    pcm_lock(d);
 		    i_dev->si_drv1 = NULL;
+		    pcm_unlock(d);
 		}
 
-		pcm_unlock(d);
 		return error;
 	    }
 
@@ -301,6 +305,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		wrch->flags |= CHN_F_NBIO;
 	    pcm_chnref(wrch, 1);
 	    CHN_UNLOCK(wrch);
+	    pcm_lock(d);
 	}
 
 	i_dev->si_drv1 = rdch;
@@ -318,8 +323,10 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	int refs;
 
 	d = dsp_get_info(i_dev);
+	pcm_lock(d);
 	rdch = i_dev->si_drv1;
 	wrch = i_dev->si_drv2;
+	pcm_unlock(d);
 
 	refs = 0;
 
