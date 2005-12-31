@@ -384,6 +384,7 @@ vendor ARASAN		0x07da	Arasan
 vendor ALLIEDCABLE	0x07e6	Allied Cable
 vendor STSN		0x07ef	STSN
 vendor ZOOM		0x0803	Zoom
+vendor PCS		0x0810	Personal Communication Systems
 vendor BROADLOGIC	0x0827	BroadLogic
 vendor HANDSPRING	0x082d	Handspring
 vendor PALM		0x0830	Palm
