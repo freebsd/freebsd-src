@@ -15,6 +15,7 @@ MAN=	aac.4 \
 	aio.4 \
 	altq.4 \
 	amd.4 \
+	${_amdsmb.4} \
 	amr.4 \
 	an.4 \
 	arcmsr.4 \
@@ -163,6 +164,7 @@ MAN=	aac.4 \
 	ncv.4 \
 	netgraph.4 \
 	netintro.4 \
+	${_nfsmb.4} \
 	ng_async.4 \
 	ng_atm.4 \
 	ngatmbase.4 \
@@ -487,7 +489,9 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+_amdsmb.4=	amdsmb.4
 _if_nve.4=	if_nve.4
+_nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
 _spkr.4=	spkr.4
 _speaker.4=	speaker.4
