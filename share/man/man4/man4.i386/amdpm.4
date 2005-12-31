@@ -25,20 +25,23 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2001
+.Dd December 31, 2005
 .Dt AMDPM 4 i386
 .Os
 .Sh NAME
 .Nm amdpm
-.Nd AMD 756 Power Management controller driver
+.Nd AMD 756/766/768/8111 Power Management controller driver
 .Sh SYNOPSIS
 .Cd device smbus
 .Cd device smb
 .Cd device amdpm
 .Sh DESCRIPTION
-This driver provides access to the
-.Tn AMD 756 Power management controller .
-Currently, only smbus controller function is implemented.
+This driver provides access to
+.Tn AMD 756/766/768/8111 Power management controllers .
+Currently, only the SMBus 1.0 controller function is implemented.
+The SMBus 2.0 functionality of the AMD 8111 controller is supported via the
+.Xr amdsmb 4
+driver.
 .Pp
 The embedded SMBus controller of the AMD 756 chipset may give you access
 to the monitoring facilities of your mainboard.
@@ -47,6 +50,7 @@ See
 for writing user code to fetch voltages, temperature and so on from the
 monitoring chip of your mainboard.
 .Sh SEE ALSO
+.Xr amdsmb 4 ,
 .Xr smb 4 ,
 .Xr smbus 4
 .Sh HISTORY
