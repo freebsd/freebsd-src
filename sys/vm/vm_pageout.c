@@ -741,7 +741,7 @@ rescan0:
 
 		cnt.v_pdpages++;
 
-		if (m->queue != PQ_INACTIVE) {
+		if (VM_PAGE_GETQUEUE(m) != PQ_INACTIVE) {
 			goto rescan0;
 		}
 
@@ -957,7 +957,7 @@ rescan0:
 				 * reused for another vnode.  The object might
 				 * have been reused for another vnode.
 				 */
-				if (m->queue != PQ_INACTIVE ||
+				if (VM_PAGE_GETQUEUE(m) != PQ_INACTIVE ||
 				    m->object != object ||
 				    object->handle != vp) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
@@ -1039,7 +1039,7 @@ unlock_and_continue:
 
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
-		KASSERT(m->queue == PQ_ACTIVE,
+		KASSERT(VM_PAGE_INQUEUE2(m, PQ_ACTIVE),
 		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
@@ -1132,7 +1132,7 @@ unlock_and_continue:
 	cache_cur = cache_last_free;
 	cache_first_failure = -1;
 	while (cnt.v_free_count < cnt.v_free_reserved && (cache_cur =
-	    (cache_cur + PQ_PRIME2) & PQ_L2_MASK) != cache_first_failure) {
+	    (cache_cur + PQ_PRIME2) & PQ_COLORMASK) != cache_first_failure) {
 		TAILQ_FOREACH(m, &vm_page_queues[PQ_CACHE + cache_cur].pl,
 		    pageq) {
 			KASSERT(m->dirty == 0,
@@ -1316,7 +1316,7 @@ vm_pageout_page_stats()
 	while ((m != NULL) && (pcount-- > 0)) {
 		int actcount;
 
-		KASSERT(m->queue == PQ_ACTIVE,
+		KASSERT(VM_PAGE_INQUEUE2(m, PQ_ACTIVE),
 		    ("vm_pageout_page_stats: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
@@ -1407,7 +1407,7 @@ vm_pageout()
 	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
 	    cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
-	    cnt.v_pageout_free_min + (cnt.v_page_count / 768) + PQ_L2_SIZE;
+	    cnt.v_pageout_free_min + (cnt.v_page_count / 768) + PQ_NUMCOLORS;
 	cnt.v_free_severe = cnt.v_free_min / 2;
 	cnt.v_free_min += cnt.v_free_reserved;
 	cnt.v_free_severe += cnt.v_free_reserved;
