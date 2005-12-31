@@ -304,7 +304,7 @@ arg1:		if (insingle || indouble)
 			errx(1, "unterminated quote");
 arg2:
 		foundeof = *eofstr != '\0' &&
-		    strcmp(argp, eofstr) == 0;
+		    strncmp(argp, eofstr, p - argp) == 0;
 
 		/* Do not make empty args unless they are quoted */
 		if ((argp != p || wasquoted) && !foundeof) {
