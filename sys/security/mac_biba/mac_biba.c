@@ -124,6 +124,11 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW,
     &ptys_equal, 0, "Label pty devices as biba/equal on create");
 TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
 
+static int	interfaces_equal;
+SYSCTL_INT(_security_mac_biba, OID_AUTO, interfaces_equal, CTLFLAG_RW,
+    &interfaces_equal, 0, "Label network interfaces as biba/equal on create");
+TUNABLE_INT("security.mac.biba.interfaces_equal", &interfaces_equal);
+
 static int	revocation_enabled = 0;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RW,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
@@ -1176,7 +1181,7 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 
 	dest = SLOT(ifnetlabel);
 
-	if (ifnet->if_type == IFT_LOOP) {
+	if (ifnet->if_type == IFT_LOOP || interfaces_equal != 0) {
 		type = MAC_BIBA_TYPE_EQUAL;
 		goto set;
 	}
