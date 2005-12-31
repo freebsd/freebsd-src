@@ -485,7 +485,7 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
-		DPRINTF(("Status is 0x%x %x\n", status, sc->bsh));
+		DPRINTF(("Status is 0x%x\n", status));
 		if (!CBB_CARD_PRESENT(status)) {
 			not_a_card = 0;		/* We know card type */
 			cbb_removal(sc);
