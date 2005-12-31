@@ -171,6 +171,13 @@ struct cpuinit api_cpuinit[] = {
 };
 int napi_cpuinit = (sizeof(api_cpuinit) / sizeof(api_cpuinit[0]));
 
+void setPQL2(int *const size, int *const ways);
+
+void
+setPQL2(int *const size, int *const ways)
+{
+	return;
+}
 
 void
 platform_not_configured(int cputype)

@@ -158,6 +158,14 @@ struct kva_md_info kmi;
 #define	Mhz	1000000L
 #define	Ghz	(1000L*Mhz)
 
+void setPQL2(int *const size, int *const ways);
+
+void
+setPQL2(int *const size, int *const ways)
+{
+	return;
+}
+
 static void
 identifycpu(void)
 {

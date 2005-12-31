@@ -111,14 +111,8 @@ options 	DFLDSIZ=(1024UL*1024*1024)
 options 	BLKDEV_IOSIZE=8192
 
 # Options for the VM subsystem
-# L2 cache size (in KB) can be specified in PQ_CACHESIZE
-options 	PQ_CACHESIZE=512	# color for 512k cache
 # Deprecated options supported for backwards compatibility
 #options 	PQ_NOOPT		# No coloring
-#options 	PQ_LARGECACHE		# color for 512k cache
-#options 	PQ_HUGECACHE		# color for 1024k cache
-#options 	PQ_MEDIUMCACHE		# color for 256k cache
-#options 	PQ_NORMALCACHE		# color for 64k cache
 
 # This allows you to actually store this configuration file into
 # the kernel binary itself, where it may be later read by saying:
@@ -409,7 +403,7 @@ options 	REGRESSION
 
 #
 # RESTARTABLE_PANICS allows one to continue from a panic as if it were
-# a call to the debugger via the Debugger() function instead.  It is only
+# a call to the debugger to continue from a panic as instead.  It is only
 # useful if a kernel debugger is present.  To restart from a panic, reset
 # the panicstr variable to NULL and continue execution.  This option is
 # for development use only and should NOT be used in production systems
