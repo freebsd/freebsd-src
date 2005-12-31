@@ -268,6 +268,11 @@ static struct
     { 0x0e11, 0x409B, CISS_BOARD_SA5,	"HP Smart Array 642" },
     { 0x0e11, 0x409C, CISS_BOARD_SA5,	"HP Smart Array 6400" },
     { 0x0e11, 0x409D, CISS_BOARD_SA5,	"HP Smart Array 6400 EM" },
+    { 0x103C, 0x3211, CISS_BOARD_SA5,	"HP Smart Array E200i" },
+    { 0x103C, 0x3212, CISS_BOARD_SA5,	"HP Smart Array E200" },
+    { 0x103C, 0x3213, CISS_BOARD_SA5,	"HP Smart Array E200i" },
+    { 0x103C, 0x3214, CISS_BOARD_SA5,	"HP Smart Array E200i" },
+    { 0x103C, 0x3215, CISS_BOARD_SA5,	"HP Smart Array E200i" },
     { 0x103C, 0x3220, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3222, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3225, CISS_BOARD_SA5,	"HP Smart Array P600" },
@@ -275,8 +280,8 @@ static struct
     { 0x103C, 0x3231, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3232, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3233, CISS_BOARD_SA5,	"HP Smart Array" },
-    { 0x103C, 0x3234, CISS_BOARD_SA5,	"HP Smart Array" },
-    { 0x103C, 0x3235, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3234, CISS_BOARD_SA5,	"HP Smart Array P400" },
+    { 0x103C, 0x3235, CISS_BOARD_SA5,	"HP Smart Array P400i" },
     { 0x103C, 0x3236, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3237, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3238, CISS_BOARD_SA5,	"HP Smart Array" },
@@ -570,12 +575,6 @@ ciss_init_pci(struct ciss_softc *sc)
 	ciss_printf(sc, "config signature mismatch (got '%c%c%c%c')\n",
 		    sc->ciss_cfg->signature[0], sc->ciss_cfg->signature[1],
 		    sc->ciss_cfg->signature[2], sc->ciss_cfg->signature[3]);
-	return(ENXIO);
-    }
-    if ((sc->ciss_cfg->valence < CISS_MIN_VALENCE) ||
-	(sc->ciss_cfg->valence > CISS_MAX_VALENCE)) {
-	ciss_printf(sc, "adapter interface specification (%d) unsupported\n",
-		    sc->ciss_cfg->valence);
 	return(ENXIO);
     }
 
@@ -1870,8 +1869,11 @@ ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_stat
      * Logical/Physical LUNs commands.
      */
     if ((cc->header.host_tag & CISS_HDR_HOST_TAG_ERROR) &&
+	((ce->command_status == CISS_CMD_STATUS_DATA_OVERRUN) ||
+	 (ce->command_status == CISS_CMD_STATUS_DATA_UNDERRUN)) &&
 	((cc->cdb.cdb[0] == CISS_OPCODE_REPORT_LOGICAL_LUNS) ||
-	 (cc->cdb.cdb[0] == CISS_OPCODE_REPORT_PHYSICAL_LUNS))) {
+	 (cc->cdb.cdb[0] == CISS_OPCODE_REPORT_PHYSICAL_LUNS) ||
+	 (cc->cdb.cdb[0] == INQUIRY))) {
 	cc->header.host_tag &= ~CISS_HDR_HOST_TAG_ERROR;
 	debug(2, "ignoring irrelevant under/overrun error");
     }
