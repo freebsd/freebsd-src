@@ -363,7 +363,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	    (type == SYS_RES_MEMORY &&
 	    dinfo->mprefetchable & (1 << PCI_RID2BAR(bar))) ?
 	    " (Prefetchable)" : "", type == SYS_RES_MEMORY ?
-	    ((dinfo->mbelow1mb & (1 << PCI_RID2BAR(bar)) ?
+	    ((dinfo->mbelow1mb & (1 << PCI_RID2BAR(bar))) ?
 	    " (Below 1Mb)" : "") : ""));
 
 	resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
