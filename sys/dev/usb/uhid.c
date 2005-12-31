@@ -220,7 +220,8 @@ USB_ATTACH(uhid)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	int size;
-	void *descptr, *desc;
+	void *desc;
+	const void *descptr;
 	usbd_status err;
 	char devinfo[1024];
 
@@ -257,12 +258,25 @@ USB_ATTACH(uhid)
 	sc->sc_ep_addr = ed->bEndpointAddress;
 
 	descptr = NULL;
-	if (uaa->vendor == USB_VENDOR_WACOM &&
-	    uaa->product == USB_PRODUCT_WACOM_GRAPHIRE /* &&
-	    uaa->revision == 0x???? */) { /* XXX should use revision */
+	if (uaa->vendor == USB_VENDOR_WACOM) {
 		/* The report descriptor for the Wacom Graphire is broken. */
-		size = sizeof uhid_graphire_report_descr;
-		descptr = uhid_graphire_report_descr;
+		if (uaa->product == USB_PRODUCT_WACOM_GRAPHIRE) {
+			size = sizeof uhid_graphire_report_descr;
+			descptr = uhid_graphire_report_descr;
+		} else if (uaa->product == USB_PRODUCT_WACOM_GRAPHIRE3_4X5) {
+			static uByte reportbuf[] = {2, 2, 2};
+
+			/*
+			 * The Graphire3 needs 0x0202 to be written to
+			 * feature report ID 2 before it'll start
+			 * returning digitizer data.
+			 */
+			usbd_set_report(uaa->iface, UHID_FEATURE_REPORT, 2,
+			    &reportbuf, sizeof reportbuf);
+
+			size = sizeof uhid_graphire3_4x5_report_descr;
+			descptr = uhid_graphire3_4x5_report_descr;
+		}
 	} else if (id->bInterfaceClass == UICLASS_VENDOR &&
 	    id->bInterfaceSubClass == UISUBCLASS_XBOX360_CONTROLLER &&
 	    id->bInterfaceProtocol == UIPROTO_XBOX360_GAMEPAD) {
