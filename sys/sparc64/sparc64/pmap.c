@@ -293,6 +293,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
 	physsz = 0;
 	getenv_quad("hw.physmem", &physmem);
+	physmem = ctob(physmem);
 	for (i = 0, j = 0; i < sz; i++, j += 2) {
 		CTR2(KTR_PMAP, "start=%#lx size=%#lx", mra[i].mr_start,
 		    mra[i].mr_size);
