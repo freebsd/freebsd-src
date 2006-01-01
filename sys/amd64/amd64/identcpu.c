@@ -70,7 +70,7 @@ void panicifcpuunsupported(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
 void setPQL2(int *const size, int *const ways);
-static void setPQL2_AMD(void);
+static void setPQL2_AMD(int *const size, int *const ways);
 
 int	cpu_class;
 char machine[] = "amd64";
@@ -533,7 +533,7 @@ print_AMD_info(void)
 }
 
 static void             
-setPQL2_AMD(void)
+setPQL2_AMD(int *const size, int *const ways)
 {
 	if (cpu_exthigh >= 0x80000006) {
 		u_int regs[4];
@@ -553,7 +553,7 @@ setPQL2_AMD(void)
 }
 
 void
-setPQL2(int *const size, int *const ways);
+setPQL2(int *const size, int *const ways)
 {
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
 		setPQL2_AMD(size, ways);
