@@ -897,12 +897,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * read back.  These maps have had all f's written to them by the
 	 * BIOS in an attempt to disable the resources.
 	 */
-	if (!force && (base == 0 || map == testval)) {
-		if (bootverbose)
-		printf("ignored rid %#x: base %#llx map %#x testval %#x\n",
-		    reg, base, map, testval);   
+	if (!force && (base == 0 || map == testval))
 		return (barlen);
-	}
 
 	/*
 	 * This code theoretically does the right thing, but has
