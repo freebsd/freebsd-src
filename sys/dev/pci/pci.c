@@ -60,8 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
-#if (defined(__i386__) && !defined(PC98)) || defined(__amd64__) || \
-    defined (__ia64__)
+#ifdef __HAVE_ACPI
 #include <contrib/dev/acpica/acpi.h>
 #include "acpi_if.h"
 #else
@@ -1092,8 +1091,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	}
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
-#if defined(__ia64__) || defined(__i386__) || defined(__amd64__) || \
-		defined(__arm__) || defined(__alpha__)
+#ifdef __PCI_REROUTE_INTERRUPT
 		/*
 		 * Try to re-route interrupts. Sometimes the BIOS or
 		 * firmware may leave bogus values in these registers.
