@@ -608,6 +608,7 @@ prompt(void)
 		(void)fclose(ttyfp);
 		return (0);
 	}
+	response[rsize - 1] = '\0';
 	match = regexec(&cre, response, 0, NULL, 0);
 	(void)fclose(ttyfp);
 	regfree(&cre);
