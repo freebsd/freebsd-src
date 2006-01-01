@@ -361,6 +361,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 	return ret;
 }
 
+#if 0
 static int
 chn_rddump(struct pcm_channel *c, unsigned int cnt)
 {
@@ -375,6 +376,7 @@ chn_rddump(struct pcm_channel *c, unsigned int cnt)
 	sndbuf_setxrun(b, sndbuf_getxrun(b) + cnt);
 	return sndbuf_dispose(b, NULL, cnt);
 }
+#endif
 
 /*
  * Feed new data from the read buffer. Can be called in the bottom half.
@@ -401,13 +403,13 @@ chn_rdfeed(struct pcm_channel *c)
 	}
 #endif
 	amt = sndbuf_getfree(bs);
-	if (amt < sndbuf_getready(b))
-		c->xruns++;
 	ret = (amt > 0)? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
 
 	amt = sndbuf_getready(b);
-	if (amt > 0)
-		chn_rddump(c, amt);
+	if (amt > 0) {
+		c->xruns++;
+		sndbuf_dispose(b, NULL, amt);
+	}
 
 	chn_wakeup(c);
 
@@ -427,8 +429,8 @@ chn_rdupdate(struct pcm_channel *c)
 	chn_trigger(c, PCMTRIG_EMLDMARD);
 	chn_dmaupdate(c);
 	ret = chn_rdfeed(c);
-	if (ret)
-		printf("chn_rdfeed: %d\n", ret);
+	DEB(if (ret)
+		printf("chn_rdfeed: %d\n", ret);)
 
 }
 
