@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 	}
 	maxprocs = 1;
 	while ((ch = getopt(argc, argv, "0E:I:J:L:n:oP:pR:S:s:rtx")) != -1)
-		switch(ch) {
+		switch (ch) {
 		case 'E':
 			eofstr = optarg;
 			break;
@@ -269,7 +269,7 @@ parse_input(int argc, char *argv[])
 
 	foundeof = 0;
 
-	switch(ch = getchar()) {
+	switch (ch = getchar()) {
 	case EOF:
 		/* No arguments since last exec. */
 		if (p == bbp) {
@@ -537,7 +537,7 @@ run(char **argv)
 	}
 exec:
 	childerr = 0;
-	switch(pid = vfork()) {
+	switch (pid = vfork()) {
 	case -1:
 		err(1, "vfork");
 	case 0:
