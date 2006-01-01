@@ -44,6 +44,8 @@
 #endif
 
 #define __NO_STRICT_ALIGNMENT
+#define __HAVE_ACPI
+#define __PCI_REROUTE_INTERRUPT
 
 /*
  * Basic types upon which most other types are built.
