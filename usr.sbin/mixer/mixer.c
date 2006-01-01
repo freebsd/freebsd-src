@@ -26,7 +26,7 @@ const char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
 void usage(int devmask, int recmask);
 int res_name(const char *name, int mask);
-void print_recsrc(int recsrc);
+void print_recsrc(int recsrc, int shortflag);
 
 void
 usage(int devmask, int recmask)
@@ -69,19 +69,27 @@ res_name(const char *name, int mask)
 }
 
 void
-print_recsrc(int recsrc)
+print_recsrc(int recsrc, int shortflag)
 {
 	int i, n = 0;
-	fprintf(stderr, "Recording source: ");
+
+	if (!shortflag)
+		printf("Recording source: ");
 
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & recsrc) {
-			if (n)
-				fprintf(stderr, ", ");
-			fprintf(stderr, "%s", names[i]);
+			if (shortflag) {
+				if (n)
+					printf(" +rec ");
+				else
+					printf("=rec ");
+			} else if (n)
+				printf(", ");
+			printf("%s", names[i]);
 			n = 1;
 		}
-	fprintf(stderr, "\n");
+	if (!shortflag)
+		printf("\n");
 }
 
 int
@@ -97,17 +105,17 @@ main(int argc, char *argv[])
 
 	char *name;
 
-	name = strdup("/dev/mixer");
+	name = "/dev/mixer";
 
 	if (!strcmp(argv[0], "mixer2"))
-		name = strdup("/dev/mixer1");
+		name = "/dev/mixer1";
 	else if (!strcmp(argv[0], "mixer3"))
-		name = strdup("/dev/mixer2");
+		name = "/dev/mixer2";
 
 	while ((ch = getopt(argc, argv, "f:sS")) != -1)
 		switch (ch) {
 			case 'f':
-				name = strdup(optarg);
+				name = optarg;
 				break;
 			case 's':
 				shortflag = 1;
@@ -123,7 +131,6 @@ main(int argc, char *argv[])
 
 	if ((baz = open(name, O_RDWR)) < 0)
 		err(1, "%s", name);
-	free(name);
 	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1)
 		err(1, "SOUND_MIXER_READ_DEVMASK");
 	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1)
@@ -152,7 +159,7 @@ main(int argc, char *argv[])
 		}
 		if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
 			err(1, "SOUND_MIXER_READ_RECSRC");
-		print_recsrc(recsrc);
+		print_recsrc(recsrc, shortflag || Shortflag);
 		return(0);
 	}
 
@@ -288,7 +295,7 @@ main(int argc, char *argv[])
 	if (drecsrc) {
 		if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
 			err(1, "SOUND_MIXER_READ_RECSRC");
-		print_recsrc(recsrc);
+		print_recsrc(recsrc, shortflag || Shortflag);
 	}
 
 	close(baz);
