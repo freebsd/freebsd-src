@@ -37,6 +37,7 @@ struct trussinfo
 	int pid;
 	int flags;
 	int in_fork;
+	int strsize;
 	FILE *outfile;
 
 	struct timespec start_time;
