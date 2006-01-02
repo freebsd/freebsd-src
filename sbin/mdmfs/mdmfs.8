@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2004
+.Dd January 2, 2006
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLlMNSUX
+.Op Fl DLlMNPSUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
@@ -197,6 +197,13 @@ Specify the mount options with which to mount the file system.
 See
 .Xr mount 8
 for more information.
+.It Fl P
+Preserve the existing filesystem;
+do not run
+.Xr newfs 8 .
+This only makes sense if
+.Fl F
+is specified to create a vnode-backed disk.
 .It Fl p Ar permissions
 Set the file (directory) permissions of the mount point
 .Ar mount-point
