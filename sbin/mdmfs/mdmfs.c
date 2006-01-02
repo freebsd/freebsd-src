@@ -89,7 +89,7 @@ main(int argc, char **argv)
 	    *mount_arg;
 	enum md_types mdtype;		/* The type of our memory disk. */
 	bool have_mdtype;
-	bool detach, softdep, autounit;
+	bool detach, softdep, autounit, newfs;
 	char *mtpoint, *unitstr;
 	char *p;
 	int ch;
@@ -101,6 +101,7 @@ main(int argc, char **argv)
 	detach = true;
 	softdep = true;
 	autounit = false;
+	newfs = true;
 	have_mdtype = false;
 	mdtype = MD_SWAP;
 	mdname = MD_NAME;
@@ -121,7 +122,7 @@ main(int argc, char **argv)
 		compat = true;
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:e:F:f:hi:LlMm:Nn:O:o:p:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:e:F:f:hi:LlMm:Nn:O:o:p:PSs:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -195,6 +196,11 @@ main(int argc, char **argv)
 		case 'o':
 			argappend(&mount_arg, "-o %s", optarg);
 			break;
+		case 'P':
+			if (compat)
+				usage();
+			newfs = false;
+			break;
 		case 'p':
 			if (compat)
 				usage();
@@ -263,6 +269,8 @@ main(int argc, char **argv)
 		mdtype = MD_SWAP;
 	if (softdep)
 		argappend(&newfs_arg, "-U");
+	if (mdtype != MD_VNODE && !newfs)
+		errx(1, "-P requires a vnode-backed disk");
 
 	/* Do the work. */
 	if (detach && !autounit)
@@ -271,7 +279,8 @@ main(int argc, char **argv)
 		do_mdconfig_attach_au(mdconfig_arg, mdtype);
 	else
 		do_mdconfig_attach(mdconfig_arg, mdtype);
-	do_newfs(newfs_arg);
+	if (newfs)
+		do_newfs(newfs_arg);
 	do_mount(mount_arg, mtpoint);
 	do_mtptsetup(mtpoint, &mi);
 
@@ -666,7 +675,7 @@ usage(void)
 		name = "mdmfs";
 	if (!compat)
 		fprintf(stderr,
-"usage: %s [-DLlMNSUX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
+"usage: %s [-DLlMNPSUX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
 "\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
 "\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
 "\t[-o mount-options] [-p permissions] [-s size] [-v version]\n"
