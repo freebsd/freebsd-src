@@ -1022,15 +1022,12 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 	struct ifbaconf *bac = arg;
 	struct bridge_rtnode *brt;
 	struct ifbareq bareq;
-	struct timeval tv;
 	int count = 0, error = 0, len;
 
 	BRIDGE_LOCK_ASSERT(sc);
 
 	if (bac->ifbac_len == 0)
 		return (0);
-
-	getmicrotime(&tv);
 
 	len = bac->ifbac_len;
 	LIST_FOREACH(brt, &sc->sc_rtlist, brt_list) {
@@ -1040,8 +1037,8 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		    sizeof(bareq.ifba_ifsname));
 		memcpy(bareq.ifba_dst, brt->brt_addr, sizeof(brt->brt_addr));
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC &&
-				tv.tv_sec < brt->brt_expire)
-			bareq.ifba_expire = brt->brt_expire - tv.tv_sec;
+				time_second < brt->brt_expire)
+			bareq.ifba_expire = brt->brt_expire - time_second;
 		else
 			bareq.ifba_expire = 0;
 		bareq.ifba_flags = brt->brt_flags;
@@ -2124,7 +2121,6 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
     struct ifnet *dst_if, int setflags, uint8_t flags)
 {
 	struct bridge_rtnode *brt;
-	struct timeval tv;
 	int error;
 
 	BRIDGE_LOCK_ASSERT(sc);
@@ -2133,7 +2129,6 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	 * A route for this destination might already exist.  If so,
 	 * update it, otherwise create a new one.
 	 */
-	getmicrotime(&tv);
 	if ((brt = bridge_rtnode_lookup(sc, dst)) == NULL) {
 		if (sc->sc_brtcnt >= sc->sc_brtmax)
 			return (ENOSPC);
@@ -2147,7 +2142,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 		if (brt == NULL)
 			return (ENOMEM);
 
-		brt->brt_expire = tv.tv_sec + sc->sc_brttimeout;
+		brt->brt_expire = time_second + sc->sc_brttimeout;
 		brt->brt_flags = IFBAF_DYNAMIC;
 		memcpy(brt->brt_addr, dst, ETHER_ADDR_LEN);
 
@@ -2161,7 +2156,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	if (setflags) {
 		brt->brt_flags = flags;
 		brt->brt_expire = (flags & IFBAF_STATIC) ? 0 :
-		    tv.tv_sec + sc->sc_brttimeout;
+		    time_second + sc->sc_brttimeout;
 	}
 
 	return (0);
@@ -2246,16 +2241,13 @@ static void
 bridge_rtage(struct bridge_softc *sc)
 {
 	struct bridge_rtnode *brt, *nbrt;
-	struct timeval tv;
 
 	BRIDGE_LOCK_ASSERT(sc);
-
-	getmicrotime(&tv);
 
 	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
 		nbrt = LIST_NEXT(brt, brt_list);
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC) {
-			if (tv.tv_sec >= brt->brt_expire)
+			if (time_second >= brt->brt_expire)
 				bridge_rtnode_destroy(sc, brt);
 		}
 	}
