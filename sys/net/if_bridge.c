@@ -2152,11 +2152,10 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	}
 
 	brt->brt_ifp = dst_if;
-	if (setflags) {
+	brt->brt_expire = (flags & IFBAF_STATIC) ? 0 :
+	    time_uptime + sc->sc_brttimeout;
+	if (setflags)
 		brt->brt_flags = flags;
-		brt->brt_expire = (flags & IFBAF_STATIC) ? 0 :
-		    time_uptime + sc->sc_brttimeout;
-	}
 
 	return (0);
 }
