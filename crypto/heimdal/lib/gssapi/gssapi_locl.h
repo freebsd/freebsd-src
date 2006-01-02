@@ -32,6 +32,7 @@
  */
 
 /* $Id: gssapi_locl.h,v 1.24.2.5 2003/09/18 22:01:52 lha Exp $ */
+/* $FreeBSD$ */
 
 #ifndef GSSAPI_LOCL_H
 #define GSSAPI_LOCL_H
@@ -41,7 +42,7 @@
 #endif
 
 #include <krb5_locl.h>
-#include <gssapi.h>
+#include "gssapi.h"
 #include <assert.h>
 
 #include "arcfour.h"
