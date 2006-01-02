@@ -2151,7 +2151,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	}
 
 	brt->brt_ifp = dst_if;
-	if (flags & IFBAF_DYNAMIC)
+	if ((flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
 		brt->brt_expire = time_uptime + sc->sc_brttimeout;
 	if (setflags)
 		brt->brt_flags = flags;
