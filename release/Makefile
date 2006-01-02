@@ -1242,6 +1242,9 @@ buildBootFloppy:
 .if !exists(${ACPI_KO})
 	@echo 'mfsroot_before="read -p \"Insert boot floppy and press Enter\""' >> ${IMAGEDIR}/boot/loader.conf
 .endif
+.if defined(SPLIT_MFSROOT)
+	@echo 'mfsroot_after="read -p \"Insert boot floppy and press Enter\""' >> ${IMAGEDIR}/boot/loader.conf
+.endif
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${IMAGEDIR}/boot.config
 .endif
