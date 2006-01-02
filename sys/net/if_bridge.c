@@ -720,24 +720,24 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	BRIDGE_LOCK_ASSERT(sc);
 
 	if (!gone) {
-	    switch (ifs->if_type) {
-	    case IFT_ETHER:
-	    case IFT_L2VLAN:
-		    /*
-		     * Take the interface out of promiscuous mode.
-		     */
-		    (void) ifpromisc(ifs, 0);
-		    break;
+		switch (ifs->if_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			/*
+			 * Take the interface out of promiscuous mode.
+			 */
+			(void) ifpromisc(ifs, 0);
+			break;
 
-	    case IFT_GIF:
-		    break;
+		case IFT_GIF:
+			break;
 
-	    default:
+		default:
 #ifdef DIAGNOSTIC
-		    panic("bridge_delete_member: impossible");
+			panic("bridge_delete_member: impossible");
 #endif
-		    break;
-	    }
+			break;
+		}
 	}
 
 	ifs->if_bridge = NULL;
@@ -1358,7 +1358,6 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 		if (bif != NULL)
 			bridge_delete_member(sc, bif, 1);
 
-
 		BRIDGE_UNLOCK(sc);
 		return;
 	}
@@ -1958,7 +1957,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	 * Unicast.  Make sure it's not for us.
 	 */
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-		if(bif->bif_ifp->if_type == IFT_GIF)
+		if (bif->bif_ifp->if_type == IFT_GIF)
 			continue;
 		/* It is destined for us. */
 		if (memcmp(IF_LLADDR(bif->bif_ifp), eh->ether_dhost,
