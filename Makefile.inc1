@@ -423,8 +423,8 @@ build32:
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
 .if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
-#	cd ${.CURDIR}/kerberos5/lib; \
-#	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	cd ${.CURDIR}/kerberos5/lib; \
+	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
 .endfor
 .for _dir in usr.sbin/pcvt/keycap usr.bin/lex/lib
