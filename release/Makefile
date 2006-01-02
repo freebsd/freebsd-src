@@ -35,6 +35,10 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # be copied; cvs update will be used instead.
 #EXTSRCDIR=/usr/src
 #
+# To use a checked-out ports collection directory instead of
+# checking out from a local CVS repository, set this option.
+#EXTPORTSDIR=/usr/ports
+#
 # To add other options to the CVS subcommands (co,up), set
 #CVSCMDARGS="-D '01/01/2002 00:00:00 UTC'"
 #
@@ -384,8 +388,14 @@ release rerelease:
 .endif
 	rm -rf ${CHROOTDIR}/usr/ports
 .if !defined(NOPORTSATALL)
+.if defined(EXTPORTSDIR)
+	cd ${CHROOTDIR}/usr && cp -R -H ${EXTPORTSDIR} ports
+	# If there are distfiles downloaded removing them
+	rm -rf ports/distfiles/*
+.else
 	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} \
 	    co ${CVSCMDARGS} ${CVS_PORTSARGS} ${RELEASEPORTSMODULE}
+.endif
 .endif
 .if !defined(NODOC)
 	rm -rf ${CHROOTDIR}/usr/doc
@@ -415,7 +425,7 @@ release rerelease:
 	    update ${CVSCMDARGS} -P -d -r ${RELEASETAG}
 .endif
 	rm -f ${CHROOTDIR}/tmp/.world_done 
-.if !defined(NOPORTS)
+.if !defined(NOPORTS) && !defined(EXTPORTSDIR)
 	cd ${CHROOTDIR}/usr/ports && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
 	    update ${CVSCMDARGS} -P -d
 	rm -f ${CHROOTDIR}/tmp/.skip_ports_index
