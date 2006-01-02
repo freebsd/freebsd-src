@@ -392,22 +392,15 @@ main(int argc, char *argv[])
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGTTOU, &sa, NULL);
 		close(fds[0]);
-		setpgid(child_pid, child_pid);
-		tcsetpgrp(STDERR_FILENO, child_pid);
 		close(fds[1]);
 		sigaction(SIGPIPE, &sa_pipe, NULL);
 		while ((pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
-				kill(getpid(), SIGSTOP);
-				child_pgrp = getpgid(child_pid);
-				tcsetpgrp(1, child_pgrp);
-				kill(child_pid, SIGCONT);
 				statusp = 1;
 				continue;
 			}
 			break;
 		}
-		tcsetpgrp(STDERR_FILENO, getpgrp());
 		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
