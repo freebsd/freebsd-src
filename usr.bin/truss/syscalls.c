@@ -71,7 +71,7 @@ struct syscall syscalls[] = {
 	{ "fcntl", 1, 3,
 	  { { Int, 0 } , { Fcntl, 1 }, { Hex, 2 }}},
 	{ "readlink", 1, 3,
-	  { { String, 0 } , { Readlinkres | OUT, 1 }, { Int, 2 }}},
+	  { { Name, 0 } , { Readlinkres | OUT, 1 }, { Int, 2 }}},
 	{ "lseek", 2, 3,
 #ifdef __LP64__
 	  { { Int, 0 }, {Quad, 2 }, { Whence, 3 }}},
@@ -89,48 +89,48 @@ struct syscall syscalls[] = {
 	{ "mprotect", 1, 3,
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}}},
 	{ "open", 1, 3,
-	  { { String | IN, 0} , { Hex, 1}, {Octal, 2}}},
+	  { { Name | IN, 0} , { Hex, 1}, {Octal, 2}}},
 	{ "mkdir", 1, 2,
-	  { { String, 0} , {Octal, 1}}},
+	  { { Name, 0} , {Octal, 1}}},
 	{ "linux_open", 1, 3,
-	  { { String, 0 }, { Hex, 1}, { Octal, 2 }}},
+	  { { Name, 0 }, { Hex, 1}, { Octal, 2 }}},
 	{ "close", 1, 1,
 	  { { Int, 0 } } },
 	{ "link", 0, 2,
-	  { { String, 0 }, { String, 1 }}},
+	  { { Name, 0 }, { Name, 1 }}},
 	{ "unlink", 0, 1,
-	  { { String, 0 }}},
+	  { { Name, 0 }}},
 	{ "chdir", 0, 1,
-	  { { String, 0 }}},
+	  { { Name, 0 }}},
 	{ "chroot", 0, 1,
-	  { { String, 0 }}},
+	  { { Name, 0 }}},
 	{ "mknod", 0, 3,
-	  { { String, 0 }, { Octal, 1 }, { Int, 3 }}},
+	  { { Name, 0 }, { Octal, 1 }, { Int, 3 }}},
 	{ "chmod", 0, 2,
-	  { { String, 0 }, { Octal, 1 }}},
+	  { { Name, 0 }, { Octal, 1 }}},
 	{ "chown", 0, 3,
-	  { { String, 0 }, { Int, 1 }, { Int, 2 }}},
+	  { { Name, 0 }, { Int, 1 }, { Int, 2 }}},
 	{ "mount", 0, 4,
-	  { { String, 0 }, { String, 1 }, { Int, 2 }, { Ptr, 3 }}},
+	  { { Name, 0 }, { Name, 1 }, { Int, 2 }, { Ptr, 3 }}},
 	{ "umount", 0, 2,
-	  { { String, 0 }, { Int, 2 }}},
+	  { { Name, 0 }, { Int, 2 }}},
 	{ "fstat", 1, 2,
 	  { { Int, 0},  {Ptr | OUT , 1 }}},
 	{ "stat", 1, 2,
-	  { { String | IN, 0 }, { Ptr | OUT, 1 }}},
+	  { { Name | IN, 0 }, { Ptr | OUT, 1 }}},
 	{ "lstat", 1, 2,
-	  { { String | IN, 0 }, { Ptr | OUT, 1 }}},
+	  { { Name | IN, 0 }, { Ptr | OUT, 1 }}},
 	{ "linux_newstat", 1, 2,
-	  { { String | IN, 0 }, { Ptr | OUT, 1 }}},
+	  { { Name | IN, 0 }, { Ptr | OUT, 1 }}},
 	{ "linux_newfstat", 1, 2,
 	  { { Int, 0 }, { Ptr | OUT, 1 }}},
 	{ "write", 1, 3,
-	  { { Int, 0 }, { Ptr | IN, 1 }, { Int, 2 }}},
+	  { { Int, 0 }, { String | IN, 1 }, { Int, 2 }}},
 	{ "ioctl", 1, 3,
 	  { { Int, 0 }, { Ioctl, 1 }, { Hex, 2 }}},
 	{ "break", 1, 1, { { Hex, 0 }}},
 	{ "exit", 0, 1, { { Hex, 0 }}},
-	{ "access", 1, 2, { { String | IN, 0 }, { Int, 1 }}},
+	{ "access", 1, 2, { { Name | IN, 0 }, { Int, 1 }}},
 	{ "sigaction", 1, 3,
 	  { { Signal, 0 }, { Sigaction | IN, 1 }, { Sigaction | OUT, 2 }}},
 	{ "accept", 1, 3,
@@ -148,12 +148,12 @@ struct syscall syscalls[] = {
 	{ "sendto", 1, 6,
 	  { { Hex, 0 }, { Ptr | IN, 1 }, { Int, 3 }, { Hex, 3 }, { Sockaddr | IN, 4 }, { Ptr | IN, 5 } } },
 	{ "execve", 1, 3,
-	  { { String | IN, 0 }, { StringArray | IN, 1 }, { StringArray | IN, 2 } } },
+	  { { Name | IN, 0 }, { StringArray | IN, 1 }, { StringArray | IN, 2 } } },
 	{ "linux_execve", 1, 3,
-	  { { String | IN, 0 }, { StringArray | IN, 1 }, { StringArray | IN, 2 } } },
-	{ "kldload", 0, 1, { { String | IN, 0 }}},
+	  { { Name | IN, 0 }, { StringArray | IN, 1 }, { StringArray | IN, 2 } } },
+	{ "kldload", 0, 1, { { Name | IN, 0 }}},
 	{ "kldunload", 0, 1, { { Int, 0 }}},
-	{ "kldfind", 0, 1, { { String | IN, 0 }}},
+	{ "kldfind", 0, 1, { { Name | IN, 0 }}},
 	{ "kldnext", 0, 1, { { Int, 0 }}},
 	{ "kldstat", 0, 2, { { Int, 0 }, { Ptr, 1 }}},
 	{ "kldfirstmod", 0, 1, { { Int, 0 }}},
@@ -166,15 +166,23 @@ struct syscall syscalls[] = {
 	{ "getitimer", 1, 2, { { Int, 0 }, { Itimerval | OUT, 2 }}},
 	{ "setitimer", 1, 3, { { Int, 0 }, { Itimerval, 1} , { Itimerval | OUT, 2 }}},
 	{ "utimes", 1, 2,
-		{ { String | IN, 0 }, { Timeval | IN, 1 }}},
+		{ { Name | IN, 0 }, { Timeval | IN, 1 }}},
 	{ "lutimes", 1, 2,
-		{ { String | IN, 0 }, { Timeval | IN, 1 }}},
+		{ { Name | IN, 0 }, { Timeval | IN, 1 }}},
 	{ "futimes", 1, 2,
 		{ { Int, 0 }, { Timeval | IN, 1 }}},
 	{ "chflags", 1, 2,
-		{ { String | IN, 0 }, { Hex, 1 }}},
+		{ { Name | IN, 0 }, { Hex, 1 }}},
 	{ "lchflags", 1, 2,
-		{ { String | IN, 0 }, { Hex, 1 }}},
+		{ { Name | IN, 0 }, { Hex, 1 }}},
+	{ "munmap", 1, 2,
+		{ { Ptr, 0 }, { Int, 1 }}},
+	{ "read", 1, 3,
+	  { { Int, 0}, { String | OUT, 1}, { Int, 2}}},
+	{ "rename", 1, 2,
+	  { { Name , 0} , { Name, 1}}},
+	{ "symlink", 1, 2,
+	  { { Name , 0} , { Name, 1}}},
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
@@ -228,16 +236,14 @@ get_string(int procfd, void *offset, int max) {
 		err(1, "dup");
 	if ((p = fdopen(fd, "r")) == NULL)
 		err(1, "fdopen");
-	buf = malloc( size = (max ? max : 64 ) );
+	buf = malloc( size = (max ? max + 1 : 64 ) );
 	len = 0;
 	buf[0] = 0;
 	if (fseeko(p, (uintptr_t)offset, SEEK_SET) == 0) {
 		while ((c = fgetc(p)) != EOF) {
 			buf[len++] = c;
-			if (c == 0 || len == max) {
-				buf[len] = 0;
+			if (c == 0 || len == max)
 				break;
-			}
 			if (len == size) {
 				char *tmp;
 				tmp = realloc(buf, size+64);
@@ -249,6 +255,7 @@ get_string(int procfd, void *offset, int max) {
 				buf = tmp;
 			}
 		}
+		buf[len] = 0;
 	}
 	fclose(p);
 	return (buf);
@@ -279,8 +286,10 @@ remove_trailing_or(char *str)
  */
 
 char *
-print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
+print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval, struct trussinfo *trussinfo) {
   char *tmp = NULL;
+  int max = 0;
+
   switch (sc->type & ARG_MASK) {
   case Hex:
     asprintf(&tmp, "0x%lx", args[sc->offset]);
@@ -292,10 +301,20 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
     asprintf(&tmp, "%ld", args[sc->offset]);
     break;
   case String:
+    max = trussinfo->strsize;
+    if (max == 0)
+    {
+      asprintf(&tmp, "0x%lx", args[sc->offset]);
+      break;
+    }
+  case Name:
     {
       char *tmp2;
-      tmp2 = get_string(fd, (void*)args[sc->offset], 0);
-      asprintf(&tmp, "\"%s\"", tmp2);
+      tmp2 = get_string(fd, (void*)args[sc->offset], max ? max + 1 : 0);
+      if (max && memchr(tmp2, '\0', max + 1) == NULL)
+        asprintf(&tmp, "\"%.*s...\"", max, tmp2);
+      else
+        asprintf(&tmp, "\"%s\"", tmp2);
       free(tmp2);
     }
   break;
@@ -729,6 +748,7 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
     char **s_args, int errorp, long retval)
 {
   print_syscall(trussinfo, name, nargs, s_args);
+  fflush(trussinfo->outfile);
   if (errorp) {
     fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval, strerror(retval));
   } else {
