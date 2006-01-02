@@ -2141,7 +2141,6 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 		if (brt == NULL)
 			return (ENOMEM);
 
-		brt->brt_expire = time_uptime + sc->sc_brttimeout;
 		brt->brt_flags = IFBAF_DYNAMIC;
 		memcpy(brt->brt_addr, dst, ETHER_ADDR_LEN);
 
@@ -2152,8 +2151,8 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	}
 
 	brt->brt_ifp = dst_if;
-	brt->brt_expire = (flags & IFBAF_STATIC) ? 0 :
-	    time_uptime + sc->sc_brttimeout;
+	if (flags & IFBAF_DYNAMIC)
+		brt->brt_expire = time_uptime + sc->sc_brttimeout;
 	if (setflags)
 		brt->brt_flags = flags;
 
