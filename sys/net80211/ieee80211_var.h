@@ -246,6 +246,7 @@ struct ieee80211com {
 #define	IEEE80211_FEXT_WDS	0x00000001	/* CONF: 4 addr allowed */
 /* 0x00000006 reserved */
 #define	IEEE80211_FEXT_BGSCAN	0x00000008	/* STATUS: enable full bgscan completion */
+#define	IEEE80211_FEXT_ERPUPDATE 0x00000200	/* STATUS: update ERP element */
 
 /* ic_caps */
 #define	IEEE80211_C_WEP		0x00000001	/* CAPABILITY: WEP available */
