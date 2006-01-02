@@ -217,7 +217,7 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 	      i < (fsc.nargs - 1) ? "," : "");
 #endif
       if (sc && !(sc->args[i].type & OUT)) {
-	fsc.s_args[i] = print_arg(Procfd, &sc->args[i], fsc.args, 0);
+	fsc.s_args[i] = print_arg(Procfd, &sc->args[i], fsc.args, 0, trussinfo);
       }
     }
 #if DEBUG
@@ -322,7 +322,7 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 	if (errorp)
 	  asprintf(&temp, "0x%lx", fsc.args[sc->args[i].offset]);
 	else
-	  temp = print_arg(Procfd, &sc->args[i], fsc.args, retval);
+	  temp = print_arg(Procfd, &sc->args[i], fsc.args, retval, trussinfo);
 	fsc.s_args[i] = temp;
       }
     }
