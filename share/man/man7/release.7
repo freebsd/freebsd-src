@@ -283,6 +283,18 @@ instead of that directory being populated by a CVS checkout.
 For
 .Dq Li "rerelease" ,
 this will NOT be copied; cvs update will be used instead.
+.It Va EXTDOCDIR
+The directory specified by this variable will be copied into
+.Pa ${CHROOTDIR}/usr/doc .
+For
+.Dq Li "rerelease" ,
+this will NOT be copied; cvs update will be used instead.
+.It Va EXTPORTSDIR
+The directory specified by this variable will be copied into
+.Pa ${CHROOTDIR}/usr/ports .
+For
+.Dq Li "rerelease" ,
+this will do NOTHING.
 .It Va KERNEL_FLAGS
 The contents of this variable are passed to
 .Xr make 1
