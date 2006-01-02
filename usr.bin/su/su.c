@@ -156,7 +156,7 @@ main(int argc, char *argv[])
 		char		* const *b;
 	}		np;
 	uid_t		ruid;
-	pid_t		child_pid, child_pgrp, pid;
+	pid_t		child_pid, pid;
 	int		asme, ch, asthem, fastlogin, prio, i, retcode,
 			statusp, setmaclabel;
 	u_int		setwhat;
@@ -396,6 +396,8 @@ main(int argc, char *argv[])
 		sigaction(SIGPIPE, &sa_pipe, NULL);
 		while ((pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
+				kill(getpid(), SIGSTOP);
+				kill(child_pid, SIGCONT);
 				statusp = 1;
 				continue;
 			}
