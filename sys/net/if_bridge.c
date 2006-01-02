@@ -1037,8 +1037,8 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		    sizeof(bareq.ifba_ifsname));
 		memcpy(bareq.ifba_dst, brt->brt_addr, sizeof(brt->brt_addr));
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC &&
-				time_second < brt->brt_expire)
-			bareq.ifba_expire = brt->brt_expire - time_second;
+				time_uptime < brt->brt_expire)
+			bareq.ifba_expire = brt->brt_expire - time_uptime;
 		else
 			bareq.ifba_expire = 0;
 		bareq.ifba_flags = brt->brt_flags;
@@ -2141,7 +2141,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 		if (brt == NULL)
 			return (ENOMEM);
 
-		brt->brt_expire = time_second + sc->sc_brttimeout;
+		brt->brt_expire = time_uptime + sc->sc_brttimeout;
 		brt->brt_flags = IFBAF_DYNAMIC;
 		memcpy(brt->brt_addr, dst, ETHER_ADDR_LEN);
 
@@ -2155,7 +2155,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	if (setflags) {
 		brt->brt_flags = flags;
 		brt->brt_expire = (flags & IFBAF_STATIC) ? 0 :
-		    time_second + sc->sc_brttimeout;
+		    time_uptime + sc->sc_brttimeout;
 	}
 
 	return (0);
@@ -2246,7 +2246,7 @@ bridge_rtage(struct bridge_softc *sc)
 	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
 		nbrt = LIST_NEXT(brt, brt_list);
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC) {
-			if (time_second >= brt->brt_expire)
+			if (time_uptime >= brt->brt_expire)
 				bridge_rtnode_destroy(sc, brt);
 		}
 	}
