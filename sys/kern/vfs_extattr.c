@@ -2713,6 +2713,25 @@ fchown(td, uap)
 }
 
 /*
+ * Normalize the tv_usec value of t within the allowed range.
+ */
+static struct timeval
+normalize_timeval(const struct timeval *t)
+{
+	struct timeval n;
+
+	if (t->tv_usec >= 0 && t->tv_usec < 1000000)
+		return *t;
+	n.tv_sec = t->tv_sec + t->tv_usec / 1000000;
+	n.tv_usec = t->tv_usec % 1000000;
+	if (n.tv_usec < 0) {
+		n.tv_sec--;
+		n.tv_usec += 1000000;
+	}
+	return n;
+}
+
+/*
  * Common implementation code for utimes(), lutimes(), and futimes().
  */
 static int
@@ -2721,7 +2740,7 @@ getutimes(usrtvp, tvpseg, tsp)
 	enum uio_seg tvpseg;
 	struct timespec *tsp;
 {
-	struct timeval tv[2];
+	struct timeval tv[2], tvn;
 	const struct timeval *tvp;
 	int error;
 
@@ -2738,8 +2757,10 @@ getutimes(usrtvp, tvpseg, tsp)
 			tvp = tv;
 		}
 
-		TIMEVAL_TO_TIMESPEC(&tvp[0], &tsp[0]);
-		TIMEVAL_TO_TIMESPEC(&tvp[1], &tsp[1]);
+		tvn = normalize_timeval(&tvp[0]);
+		TIMEVAL_TO_TIMESPEC(&tvn, &tsp[0]);
+		tvn = normalize_timeval(&tvp[1]);
+		TIMEVAL_TO_TIMESPEC(&tvn, &tsp[1]);
 	}
 	return (0);
 }
