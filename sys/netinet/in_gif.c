@@ -100,6 +100,7 @@ in_gif_output(ifp, family, m)
 	struct sockaddr_in *sin_src = (struct sockaddr_in *)sc->gif_psrc;
 	struct sockaddr_in *sin_dst = (struct sockaddr_in *)sc->gif_pdst;
 	struct ip iphdr;	/* capsule IP header, host byte ordered */
+	struct etherip_header eiphdr;
 	int proto, error;
 	u_int8_t tos;
 
@@ -142,6 +143,20 @@ in_gif_output(ifp, family, m)
 		break;
 	    }
 #endif /* INET6 */
+	case AF_LINK:
+ 		proto = IPPROTO_ETHERIP;
+ 		eiphdr.eip_ver = ETHERIP_VERSION & ETHERIP_VER_VERS_MASK;
+ 		eiphdr.eip_pad = 0;
+ 		/* prepend Ethernet-in-IP header */
+ 		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
+ 		if (m && m->m_len < sizeof(struct etherip_header))
+ 			m = m_pullup(m, sizeof(struct etherip_header));
+ 		if (m == NULL)
+ 			return ENOBUFS;
+ 		bcopy(&eiphdr, mtod(m, struct etherip_header *),
+		    sizeof(struct etherip_header));
+		break;
+
 	default:
 #ifdef DEBUG
 		printf("in_gif_output: warning: unknown family %d passed\n",
@@ -302,6 +317,10 @@ in_gif_input(m, off)
 		break;
 	    }
 #endif /* INET6 */
+ 	case IPPROTO_ETHERIP:
+ 		af = AF_LINK;
+ 		break;	
+
 	default:
 		ipstat.ips_nogif++;
 		m_freem(m);

@@ -80,6 +80,8 @@
 #endif /* INET6 */
 
 #include <netinet/ip_encap.h>
+#include <net/ethernet.h>
+#include <net/if_bridgevar.h>
 #include <net/if_gif.h>
 
 #include <net/net_osdep.h>
@@ -99,6 +101,7 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
+static void	gif_start(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int);
 static void	gif_clone_destroy(struct ifnet *);
 
@@ -177,6 +180,7 @@ gifattach0(sc)
 	GIF2IFP(sc)->if_flags  |= IFF_LINK2;
 #endif
 	GIF2IFP(sc)->if_ioctl  = gif_ioctl;
+	GIF2IFP(sc)->if_start  = gif_start;
 	GIF2IFP(sc)->if_output = gif_output;
 	GIF2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(GIF2IFP(sc));
@@ -306,6 +310,9 @@ gif_encapcheck(m, off, proto, arg)
 	case IPPROTO_IPV6:
 		break;
 #endif
+	case IPPROTO_ETHERIP:
+		break;
+
 	default:
 		return 0;
 	}
@@ -336,6 +343,28 @@ gif_encapcheck(m, off, proto, arg)
 	default:
 		return 0;
 	}
+}
+
+static void
+gif_start(struct ifnet *ifp)
+{
+	struct gif_softc *sc;
+	struct mbuf *m;
+
+	sc = ifp->if_softc;
+
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	for (;;) {
+		IFQ_DEQUEUE(&ifp->if_snd, m);
+		if (m == 0)
+			break;
+
+		gif_output(ifp, m, sc->gif_pdst, NULL);
+
+	}
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	return;
 }
 
 int
@@ -412,12 +441,16 @@ gif_output(ifp, m, dst, rt)
 		dst->sa_family = af;
 	}
 
+	af = dst->sa_family;
 	if (ifp->if_bpf) {
-		af = dst->sa_family;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 	ifp->if_opackets++;	
 	ifp->if_obytes += m->m_pkthdr.len;
+
+	/* override to IPPROTO_ETHERIP for bridged traffic */
+	if (ifp->if_bridge)
+		af = AF_LINK;
 
 	/* inner AF-specific encapsulation */
 
@@ -427,12 +460,12 @@ gif_output(ifp, m, dst, rt)
 	switch (sc->gif_psrc->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = in_gif_output(ifp, dst->sa_family, m);
+		error = in_gif_output(ifp, af, m);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = in6_gif_output(ifp, dst->sa_family, m);
+		error = in6_gif_output(ifp, af, m);
 		break;
 #endif
 	default:
@@ -453,7 +486,8 @@ gif_input(m, af, ifp)
 	int af;
 	struct ifnet *ifp;
 {
-	int isr;
+	int isr, n;
+	struct etherip_header *eip;
 
 	if (ifp == NULL) {
 		/* just in case */
@@ -500,6 +534,35 @@ gif_input(m, af, ifp)
 		isr = NETISR_IPV6;
 		break;
 #endif
+	case AF_LINK:
+		n = sizeof(struct etherip_header) + sizeof(struct ether_header);
+		if (n > m->m_len) {
+			m = m_pullup(m, n);
+			if (m == NULL) {
+				ifp->if_ierrors++;
+				return;
+			}
+		}
+
+		eip = mtod(m, struct etherip_header *);
+ 		if (eip->eip_ver !=
+		    (ETHERIP_VERSION & ETHERIP_VER_VERS_MASK)) {
+			/* discard unknown versions */
+			m_freem(m);
+			return;
+		}
+		m_adj(m, sizeof(struct etherip_header));
+
+		m->m_flags &= ~(M_BCAST|M_MCAST);
+		m->m_pkthdr.rcvif = ifp;
+
+		if (ifp->if_bridge)
+			BRIDGE_INPUT(ifp, m);
+		
+		if (m != NULL)
+			m_freem(m);
+		return;
+
 	default:
 		if (ng_gif_input_orphan_p != NULL)
 			(*ng_gif_input_orphan_p)(ifp, m, af);
