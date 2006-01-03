@@ -625,14 +625,9 @@ ichsmb_wait(sc_p sc)
 	KASSERT(sc->ich_cmd != -1,
 	    ("%s: ich_cmd=%d\n", __func__ , sc->ich_cmd));
 	mtx_assert(&sc->mutex, MA_OWNED);
-sleep:
-	error = msleep(sc, &sc->mutex, PZERO | PCATCH, "ichsmb", hz / 4);
+	error = msleep(sc, &sc->mutex, PZERO, "ichsmb", hz / 4);
 	DBG("msleep -> %d\n", error);
 	switch (error) {
-	case ERESTART:
-		if (sc->ich_cmd != -1)
-			goto sleep;
-		/* FALLTHROUGH */
 	case 0:
 		smb_error = sc->smb_error;
 		break;
