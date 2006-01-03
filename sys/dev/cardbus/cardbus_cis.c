@@ -58,6 +58,8 @@ extern int cardbus_cis_debug;
 #define	DPRINTF(a) if (cardbus_cis_debug) printf a
 #define	DEVPRINTF(x) if (cardbus_cis_debug) device_printf x
 
+#define CIS_CONFIG_SPACE	(struct resource *)~0UL
+
 static int decode_tuple_generic(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
     struct tuple_callbacks *info, void *);
@@ -296,11 +298,10 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 
 	reg = *tupledata;
 	len = le32toh(*(uint32_t*)(tupledata + 2));
-	if (reg & TPL_BAR_REG_AS) {
+	if (reg & TPL_BAR_REG_AS)
 		type = SYS_RES_IOPORT;
-	} else {
+	else
 		type = SYS_RES_MEMORY;
-	}
 
 	bar = reg & TPL_BAR_REG_ASI_MASK;
 	if (bar == 0) {
@@ -453,7 +454,7 @@ cardbus_read_tuple(device_t cbdev, device_t child, struct resource *res,
     uint32_t start, uint32_t *off, int *tupleid, int *len,
     uint8_t *tupledata)
 {
-	if (res == (struct resource*)~0UL) {
+	if (res == CIS_CONFIG_SPACE) {
 		return (cardbus_read_tuple_conf(cbdev, child, start, off,
 		    tupleid, len, tupledata));
 	} else {
@@ -466,7 +467,7 @@ static void
 cardbus_read_tuple_finish(device_t cbdev, device_t child, int rid,
     struct resource *res)
 {
-	if (res != (struct resource*)~0UL) {
+	if (res != CIS_CONFIG_SPACE) {
 		bus_release_resource(cbdev, SYS_RES_MEMORY, rid, res);
 		if (rid == PCIM_CIS_ASI_ROM)
 			pci_write_config(child, rid, pci_read_config(child,
@@ -487,7 +488,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		if (cardbus_cis_debug)
 			device_printf(cbdev, "CIS in PCI config space\n");
 		/* CIS in PCI config space need no initialization */
-		return ((struct resource*)~0UL);
+		return (CIS_CONFIG_SPACE);
 	case PCIM_CIS_ASI_BAR0:
 	case PCIM_CIS_ASI_BAR1:
 	case PCIM_CIS_ASI_BAR2:
