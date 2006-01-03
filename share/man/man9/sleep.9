@@ -29,8 +29,8 @@
 .Os
 .Dt SLEEP 9
 .Sh NAME
-.Nm sleep ,
 .Nm msleep ,
+.Nm msleep_spin ,
 .Nm tsleep ,
 .Nm wakeup
 .Nd wait for events
@@ -39,13 +39,15 @@
 .In sys/systm.h
 .In sys/proc.h
 .Ft int
-.Fn tsleep "void *ident" "int priority" "const char *wmesg" "int timo"
+.Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn msleep "void *ident" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
+.Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
 .Ft void
-.Fn wakeup "void *ident"
+.Fn wakeup "void *chan"
 .Ft void
-.Fn wakeup_one "void *ident"
+.Fn wakeup_one "void *chan"
 .Sh DESCRIPTION
 The functions
 .Fn tsleep
@@ -56,11 +58,11 @@ If a process must wait for an
 external event, it is put on sleep by
 .Fn tsleep .
 The parameter
-.Fa ident
+.Fa chan
 is an arbitrary address that uniquely identifies the event on which
 the process is being asleep.
 All processes sleeping on a single
-.Fa ident
+.Fa chan
 are woken up later by
 .Fn wakeup ,
 often called from inside an interrupt routine, to indicate that the
@@ -77,7 +79,7 @@ The
 .Fn wakeup_one
 function is used to make the first process in the queue that is
 sleeping on the parameter
-.Fa ident
+.Fa chan
 runnable.
 This can prevent the system from becoming saturated
 when a large number of processes are sleeping on the same address,
@@ -104,7 +106,7 @@ If
 .Fa priority
 includes the
 .Dv PCATCH
-flag, signals are checked before and after sleeping, else signals are
+flag, signals are checked before and after sleeping, otherwise signals are
 not checked.
 Returns 0 if awakened,
 .Er EWOULDBLOCK
@@ -139,6 +141,27 @@ The mutex is
 used to ensure that a condition can be checked atomically, and
 that the current process can be suspended without missing a
 change to the condition, or an associated wakeup.
+.Pp
+The
+.Fn msleep_spin
+function is another variation on
+.Fn tsleep
+similar to
+.Fn msleep .
+Unlike
+.Fn msleep ,
+this function accepts a spin mutex rather than a default mutex for its
+.Fa mtx
+parameter.
+It is also more limited in that it does not accept a
+.Fa priority
+parameter.
+Thus, it will not change the priority of a sleeping thread,
+and it does not support the
+.Dv PDROP
+and
+.Dv PCATCH
+flags.
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
@@ -155,6 +178,14 @@ The
 .Fn tsleep
 function appeared in
 .Bx 4.4 .
+The
+.Fn msleep
+function appeared in
+.Fx 5.0 ,
+and the
+.Fn msleep_spin
+function appeared in
+.Fx 7.0 .
 .Pp
 The
 .Fn sleep
