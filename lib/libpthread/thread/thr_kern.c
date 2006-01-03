@@ -225,7 +225,7 @@ _kse_single_thread(struct pthread *curthread)
 	 * Restore signal mask early, so any memory problems could
 	 * dump core.
 	 */ 
-	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
+	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	_thread_active_threads = 1;
 
 	/*
