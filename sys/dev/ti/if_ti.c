@@ -184,9 +184,7 @@ static void ti_txeof(struct ti_softc *);
 static void ti_rxeof(struct ti_softc *);
 
 static void ti_stats_update(struct ti_softc *);
-static int ti_encap(struct ti_softc *, struct mbuf *, u_int32_t *);
-static void ti_encap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
-    bus_size_t mapsize, int error);
+static int ti_encap(struct ti_softc *, struct mbuf **);
 
 static void ti_intr(void *);
 static void ti_start(struct ifnet *);
@@ -908,7 +906,7 @@ ti_cmd(sc, cmd)
 	struct ti_softc		*sc;
 	struct ti_cmd_desc	*cmd;
 {
-	u_int32_t		index;
+	int			index;
 
 	index = sc->ti_cmd_saved_prodidx;
 	CSR_WRITE_4(sc, TI_GCR_CMDRING + (index * 4), *(u_int32_t *)(cmd));
@@ -928,7 +926,7 @@ ti_cmd_ext(sc, cmd, arg, len)
 	caddr_t			arg;
 	int			len;
 {
-	u_int32_t		index;
+	int			index;
 	int			i;
 
 	index = sc->ti_cmd_saved_prodidx;
@@ -1002,8 +1000,10 @@ ti_alloc_dmamaps(struct ti_softc *sc)
 	int i;
 
 	for (i = 0; i < TI_TX_RING_CNT; i++) {
+		sc->ti_cdata.ti_txdesc[i].tx_m = NULL;
+		sc->ti_cdata.ti_txdesc[i].tx_dmamap = 0;
 		if (bus_dmamap_create(sc->ti_mbuftx_dmat, 0,
-				      &sc->ti_cdata.ti_tx_maps[i]))
+				      &sc->ti_cdata.ti_txdesc[i].tx_dmamap))
 			return (ENOBUFS);
 	}
 	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
@@ -1033,10 +1033,10 @@ ti_free_dmamaps(struct ti_softc *sc)
 
 	if (sc->ti_mbuftx_dmat)
 		for (i = 0; i < TI_TX_RING_CNT; i++)
-			if (sc->ti_cdata.ti_tx_maps[i]) {
+			if (sc->ti_cdata.ti_txdesc[i].tx_dmamap) {
 				bus_dmamap_destroy(sc->ti_mbuftx_dmat,
-				    sc->ti_cdata.ti_tx_maps[i]);
-				sc->ti_cdata.ti_tx_maps[i] = 0;
+				    sc->ti_cdata.ti_txdesc[i].tx_dmamap);
+				sc->ti_cdata.ti_txdesc[i].tx_dmamap = 0;
 			}
 
 	if (sc->ti_mbufrx_dmat)
@@ -1701,20 +1701,20 @@ static void
 ti_free_tx_ring(sc)
 	struct ti_softc		*sc;
 {
-	bus_dmamap_t		map;
+	struct ti_txdesc	*txd;
 	int			i;
 
 	if (sc->ti_rdata->ti_tx_ring == NULL)
 		return;
 
 	for (i = 0; i < TI_TX_RING_CNT; i++) {
-		if (sc->ti_cdata.ti_tx_chain[i] != NULL) {
-			map = sc->ti_cdata.ti_tx_maps[i];
-			bus_dmamap_sync(sc->ti_mbuftx_dmat, map,
+		txd = &sc->ti_cdata.ti_txdesc[i];
+		if (txd->tx_m != NULL) {
+			bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->ti_mbuftx_dmat, map);
-			m_freem(sc->ti_cdata.ti_tx_chain[i]);
-			sc->ti_cdata.ti_tx_chain[i] = NULL;
+			bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+			m_freem(txd->tx_m);
+			txd->tx_m = NULL;
 		}
 		bzero((char *)&sc->ti_rdata->ti_tx_ring[i],
 		    sizeof(struct ti_tx_desc));
@@ -1725,6 +1725,15 @@ static int
 ti_init_tx_ring(sc)
 	struct ti_softc		*sc;
 {
+	struct ti_txdesc	*txd;
+	int			i;
+
+	STAILQ_INIT(&sc->ti_cdata.ti_txfreeq);
+	STAILQ_INIT(&sc->ti_cdata.ti_txbusyq);
+	for (i = 0; i < TI_TX_RING_CNT; i++) {
+		txd = &sc->ti_cdata.ti_txdesc[i];
+		STAILQ_INSERT_TAIL(&sc->ti_cdata.ti_txfreeq, txd, tx_q);
+	}
 	sc->ti_txcnt = 0;
 	sc->ti_tx_saved_considx = 0;
 	sc->ti_tx_saved_prodidx = 0;
@@ -2826,44 +2835,47 @@ static void
 ti_txeof(sc)
 	struct ti_softc		*sc;
 {
+	struct ti_txdesc	*txd;
+	struct ti_tx_desc	txdesc;
 	struct ti_tx_desc	*cur_tx = NULL;
 	struct ifnet		*ifp;
-	bus_dmamap_t		map;
+	int			idx;
 
 	ifp = sc->ti_ifp;
 
+	txd = STAILQ_FIRST(&sc->ti_cdata.ti_txbusyq);
+	if (txd == NULL)
+		return;
 	/*
 	 * Go through our tx ring and free mbufs for those
 	 * frames that have been sent.
 	 */
-	while (sc->ti_tx_saved_considx != sc->ti_tx_considx.ti_idx) {
-		u_int32_t		idx = 0;
-		struct ti_tx_desc	txdesc;
-
-		idx = sc->ti_tx_saved_considx;
+	for (idx = sc->ti_tx_saved_considx; idx != sc->ti_tx_considx.ti_idx;
+	    TI_INC(idx, TI_TX_RING_CNT)) {
 		if (sc->ti_hwrev == TI_HWREV_TIGON) {
 			ti_mem_read(sc, TI_TX_RING_BASE + idx * sizeof(txdesc),
 			    sizeof(txdesc), &txdesc);
 			cur_tx = &txdesc;
 		} else
 			cur_tx = &sc->ti_rdata->ti_tx_ring[idx];
-		if (cur_tx->ti_flags & TI_BDFLAG_END)
-			ifp->if_opackets++;
-		if (sc->ti_cdata.ti_tx_chain[idx] != NULL) {
-			m_freem(sc->ti_cdata.ti_tx_chain[idx]);
-			sc->ti_cdata.ti_tx_chain[idx] = NULL;
-			map = sc->ti_cdata.ti_tx_maps[idx];
-			bus_dmamap_sync(sc->ti_mbuftx_dmat, map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->ti_mbuftx_dmat, map);
-		}
 		sc->ti_txcnt--;
-		TI_INC(sc->ti_tx_saved_considx, TI_TX_RING_CNT);
-		ifp->if_timer = 0;
-	}
-
-	if (cur_tx != NULL)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if ((cur_tx->ti_flags & TI_BDFLAG_END) == 0)
+			continue;
+		bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+
+		ifp->if_opackets++;
+		m_freem(txd->tx_m);
+		txd->tx_m = NULL;
+		STAILQ_REMOVE_HEAD(&sc->ti_cdata.ti_txbusyq, tx_q);
+		STAILQ_INSERT_TAIL(&sc->ti_cdata.ti_txfreeq, txd, tx_q);
+		txd = STAILQ_FIRST(&sc->ti_cdata.ti_txbusyq);
+	}
+	sc->ti_tx_saved_considx = idx;
+
+	ifp->if_timer = sc->ti_txcnt > 0 ? 5 : 0;
 }
 
 static void
@@ -2931,68 +2943,86 @@ ti_stats_update(sc)
 	    BUS_DMASYNC_PREREAD);
 }
 
-struct ti_dmamap_arg {
-	struct ti_softc	*sc;
-	struct m_tag	*mtag;
-	struct mbuf	*m_head;
-	u_int16_t	csum_flags;
-	int		idx;
-	int		error;
-};
-
-static void
-ti_encap_cb(arg, segs, nseg, mapsize, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	bus_size_t mapsize;
-	int error;
-{
+/*
+ * Encapsulate an mbuf chain in the tx ring  by coupling the mbuf data
+ * pointers to descriptors.
+ */
+static int
+ti_encap(sc, m_head)
 	struct ti_softc		*sc;
-	struct ti_dmamap_arg	*ctx;
-	struct ti_tx_desc	*f = NULL;
+	struct mbuf		**m_head;
+{
+	struct ti_txdesc	*txd;
+	struct ti_tx_desc	*f;
 	struct ti_tx_desc	txdesc;
+	struct mbuf		*m, *n;
 	struct m_tag		*mtag;
-	u_int32_t		frag, cur, cnt = 0;
+	bus_dma_segment_t	txsegs[TI_MAXTXSEGS];
 	u_int16_t		csum_flags;
+	int			error, frag, i, nseg;
 
-	if (error)
-		return;
+	if ((txd = STAILQ_FIRST(&sc->ti_cdata.ti_txfreeq)) == NULL)
+		return (ENOBUFS);
 
-	ctx = (struct ti_dmamap_arg *)arg;
-	sc = ctx->sc;
-	cur = frag = ctx->idx;
-	mtag = ctx->mtag;
-	csum_flags = ctx->csum_flags;
-
-	/*
-	 * Sanity check: avoid coming within 16 descriptors
-	 * of the end of the ring.
-	 */
-	if ((TI_TX_RING_CNT - (sc->ti_txcnt + nseg)) < 16) {
-		ctx->error = ENOBUFS;
-		return;
+	m = *m_head;
+	csum_flags = 0;
+	if (m->m_pkthdr.csum_flags) {
+		if (m->m_pkthdr.csum_flags & CSUM_IP)
+			csum_flags |= TI_BDFLAG_IP_CKSUM;
+		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+			csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
+		if (m->m_flags & M_LASTFRAG)
+			csum_flags |= TI_BDFLAG_IP_FRAG_END;
+		else if (m->m_flags & M_FRAG)
+			csum_flags |= TI_BDFLAG_IP_FRAG;
 	}
 
-	/*
-	 * Start packing the mbufs in this chain into
-	 * the fragment pointers. Stop when we run out
-	 * of fragments or hit the end of the mbuf chain.
-	 */
-	while (nseg-- > 0) {
+	error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+	    m, txsegs, &nseg, 0);
+	if (error == EFBIG) {
+		n = m_defrag(m, M_DONTWAIT);
+		if (n == NULL) {
+			m_freem(m);
+			m = NULL;
+			return (ENOMEM);
+		}
+		m = n;
+		error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat,
+		    txd->tx_dmamap, m, txsegs, &nseg, 0);
+		if (error) {
+			m_freem(m);
+			m = NULL;
+			return (error);
+		}
+	} else if (error != 0)
+		return (error);
+	if (nseg == 0) {
+		m_freem(m);
+		m = NULL;
+		return (EIO);
+	}
+
+	if (sc->ti_txcnt + nseg >= TI_TX_RING_CNT) {
+		bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+		return (ENOBUFS);
+	}
+
+	bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+
+	mtag = VLAN_OUTPUT_TAG(sc->ti_ifp, m);
+	frag = sc->ti_tx_saved_prodidx;
+	for (i = 0; i < nseg; i++) {
 		if (sc->ti_hwrev == TI_HWREV_TIGON) {
 			bzero(&txdesc, sizeof(txdesc));
 			f = &txdesc;
 		} else
 			f = &sc->ti_rdata->ti_tx_ring[frag];
-		if (sc->ti_cdata.ti_tx_chain[frag] != NULL) {
-			ctx->error = ENOBUFS;
-			return;
-		}
-		ti_hostaddr64(&f->ti_addr, segs[cnt].ds_addr);
-		f->ti_len = segs[cnt].ds_len;
+		ti_hostaddr64(&f->ti_addr, txsegs[i].ds_addr);
+		f->ti_len = txsegs[i].ds_len;
 		f->ti_flags = csum_flags;
-
 		if (mtag != NULL) {
 			f->ti_flags |= TI_BDFLAG_VLAN_TAG;
 			f->ti_vlan_tag = VLAN_TAG_VALUE(mtag) & 0xfff;
@@ -3003,77 +3033,24 @@ ti_encap_cb(arg, segs, nseg, mapsize, error)
 		if (sc->ti_hwrev == TI_HWREV_TIGON)
 			ti_mem_write(sc, TI_TX_RING_BASE + frag *
 			    sizeof(txdesc), sizeof(txdesc), &txdesc);
-		cur = frag;
 		TI_INC(frag, TI_TX_RING_CNT);
-		cnt++;
 	}
 
+	sc->ti_tx_saved_prodidx = frag;
+	/* set TI_BDFLAG_END on the last descriptor */
+	frag = (frag + TI_TX_RING_CNT - 1) % TI_TX_RING_CNT;
 	if (sc->ti_hwrev == TI_HWREV_TIGON) {
 		txdesc.ti_flags |= TI_BDFLAG_END;
-		ti_mem_write(sc, TI_TX_RING_BASE + cur * sizeof(txdesc),
+		ti_mem_write(sc, TI_TX_RING_BASE + frag * sizeof(txdesc),
 		    sizeof(txdesc), &txdesc);
 	} else
-		sc->ti_rdata->ti_tx_ring[cur].ti_flags |= TI_BDFLAG_END;
-	sc->ti_cdata.ti_tx_chain[cur] = ctx->m_head;
-	sc->ti_txcnt += cnt;
-	
-	ctx->idx = frag;
-	ctx->error = 0;
-}
+		sc->ti_rdata->ti_tx_ring[frag].ti_flags |= TI_BDFLAG_END;
 
-/*
- * Encapsulate an mbuf chain in the tx ring  by coupling the mbuf data
- * pointers to descriptors.
- */
-static int
-ti_encap(sc, m_head, txidx)
-	struct ti_softc		*sc;
-	struct mbuf		*m_head;
-	u_int32_t		*txidx;
-{
-	bus_dmamap_t		map;
-	struct ti_dmamap_arg	ctx;
-	u_int32_t		frag, cnt;
-	u_int16_t		csum_flags = 0;
-	int			error;
+	STAILQ_REMOVE_HEAD(&sc->ti_cdata.ti_txfreeq, tx_q);
+	STAILQ_INSERT_TAIL(&sc->ti_cdata.ti_txbusyq, txd, tx_q);
+	txd->tx_m = m;
+	sc->ti_txcnt += nseg;
 
-	frag = *txidx;
-
-	if (m_head->m_pkthdr.csum_flags) {
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= TI_BDFLAG_IP_CKSUM;
-		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
-		if (m_head->m_flags & M_LASTFRAG)
-			csum_flags |= TI_BDFLAG_IP_FRAG_END;
-		else if (m_head->m_flags & M_FRAG)
-			csum_flags |= TI_BDFLAG_IP_FRAG;
-	}
-
-	ctx.sc = sc;
-	ctx.idx = frag;
-	ctx.csum_flags = csum_flags;
-	ctx.mtag = VLAN_OUTPUT_TAG(sc->ti_ifp, m_head);
-	ctx.m_head = m_head;
-
-	map = sc->ti_cdata.ti_tx_maps[frag];
-	error = bus_dmamap_load_mbuf(sc->ti_mbuftx_dmat, map, m_head,
-	    ti_encap_cb, &ctx, 0);
-	if (error)
-		return (ENOBUFS);
-
-	cnt = ctx.idx - frag;
-	frag = ctx.idx;
-
-	if ((ctx.error != 0) || (frag == sc->ti_tx_saved_considx)) {
-		bus_dmamap_unload(sc->ti_mbuftx_dmat, map);
-		return (ENOBUFS);
-	}
-
-	bus_dmamap_sync(sc->ti_mbuftx_dmat, map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
-	    BUS_DMASYNC_PREWRITE);
-	*txidx = frag;
 	return (0);
 }
 
@@ -3099,13 +3076,12 @@ ti_start_locked(ifp)
 {
 	struct ti_softc		*sc;
 	struct mbuf		*m_head = NULL;
-	u_int32_t		prodidx = 0;
+	int			enq = 0;
 
 	sc = ifp->if_softc;
 
-	prodidx = sc->ti_tx_saved_prodidx;
-
-	while (sc->ti_cdata.ti_tx_chain[prodidx] == NULL) {
+	for (; ifp->if_snd.ifq_head != NULL &&
+	    sc->ti_txcnt < (TI_TX_RING_CNT - 16);) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -3133,12 +3109,15 @@ ti_start_locked(ifp)
 		 * don't have room, set the OACTIVE flag and wait
 		 * for the NIC to drain the ring.
 		 */
-		if (ti_encap(sc, m_head, &prodidx)) {
+		if (ti_encap(sc, &m_head)) {
+			if (m_head == NULL)
+				break;
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
+		enq++;
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
@@ -3146,14 +3125,15 @@ ti_start_locked(ifp)
 		BPF_MTAP(ifp, m_head);
 	}
 
-	/* Transmit */
-	sc->ti_tx_saved_prodidx = prodidx;
-	CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, prodidx);
+	if (enq > 0) {
+		/* Transmit */
+		CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, sc->ti_tx_saved_prodidx);
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	ifp->if_timer = 5;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		ifp->if_timer = 5;
+	}
 }
 
 static void
