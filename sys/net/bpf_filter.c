@@ -520,7 +520,12 @@ bpf_validate(f, len)
 	register int i;
 	register const struct bpf_insn *p;
 
-	if (len < 1)
+	/* Do not accept negative length filter. */
+	if (len < 0)
+		return 0;
+
+	/* An empty filter means accept all. */
+	if (len == 0)
 		return 1;
 
 	for (i = 0; i < len; ++i) {
