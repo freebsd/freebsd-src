@@ -399,7 +399,7 @@
 #define TI_MINI_RX_RING_CNT	1024
 #define TI_RETURN_RING_CNT	2048
 
-#define TI_MAXTXSEGS		128
+#define TI_MAXTXSEGS		32
 
 /*
  * Possible TX ring sizes.
@@ -904,6 +904,14 @@ struct ti_event_desc {
 #define TI_RESID (TI_JPAGESZ - (TI_JLEN * TI_JSLOTS) % TI_JPAGESZ)
 #define TI_JMEM ((TI_JLEN * TI_JSLOTS) + TI_RESID)
 
+struct ti_txdesc {
+	struct mbuf	*tx_m;
+	bus_dmamap_t	tx_dmamap;
+	STAILQ_ENTRY(ti_txdesc) tx_q;
+};
+
+STAILQ_HEAD(ti_txdq, ti_txdesc);
+
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -942,8 +950,9 @@ struct ti_ring_data {
  * not the other way around.
  */
 struct ti_chain_data {
-	struct mbuf		*ti_tx_chain[TI_TX_RING_CNT];
-	bus_dmamap_t		ti_tx_maps[TI_TX_RING_CNT];
+	struct ti_txdesc	ti_txdesc[TI_TX_RING_CNT];
+	struct ti_txdq		ti_txfreeq;
+	struct ti_txdq		ti_txbusyq;
 	struct mbuf		*ti_rx_std_chain[TI_STD_RX_RING_CNT];
 	bus_dmamap_t		ti_rx_std_maps[TI_STD_RX_RING_CNT];
 	struct mbuf		*ti_rx_jumbo_chain[TI_JUMBO_RX_RING_CNT];
@@ -1009,14 +1018,14 @@ struct ti_softc {
 #define ti_ev_prodidx		ti_rdata->ti_ev_prodidx_r
 #define ti_return_prodidx	ti_rdata->ti_return_prodidx_r
 #define ti_tx_considx		ti_rdata->ti_tx_considx_r
-	u_int16_t		ti_tx_saved_prodidx;
-	u_int16_t		ti_tx_saved_considx;
-	u_int16_t		ti_rx_saved_considx;
-	u_int16_t		ti_ev_saved_considx;
-	u_int16_t		ti_cmd_saved_prodidx;
-	u_int16_t		ti_std;		/* current std ring head */
-	u_int16_t		ti_mini;	/* current mini ring head */
-	u_int16_t		ti_jumbo;	/* current jumo ring head */
+	int			ti_tx_saved_prodidx;
+	int			ti_tx_saved_considx;
+	int			ti_rx_saved_considx;
+	int			ti_ev_saved_considx;
+	int			ti_cmd_saved_prodidx;
+	int			ti_std;		/* current std ring head */
+	int			ti_mini;	/* current mini ring head */
+	int			ti_jumbo;	/* current jumo ring head */
 	SLIST_HEAD(__ti_mchead, ti_mc_entry)	ti_mc_listhead;
 	SLIST_HEAD(__ti_jfreehead, ti_jpool_entry)	ti_jfree_listhead;
 	SLIST_HEAD(__ti_jinusehead, ti_jpool_entry)	ti_jinuse_listhead;
