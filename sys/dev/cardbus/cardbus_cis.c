@@ -289,7 +289,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int type;
 	uint8_t reg;
-	uint32_t bar, pci_bar;
+	uint32_t bar;
 
 	if (len != 6) {
 		device_printf(cbdev, "CIS BAR length not 6 (%d)\n", len);
@@ -343,37 +343,6 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 #endif
 	}
 
-	/*
-	 * Sanity check the BAR length reported in the CIS with the length
-	 * encoded in the PCI BAR.  The latter seems to be more reliable.
-	 * XXX - This probably belongs elsewhere.
-	 */
-	pci_write_config(child, bar, 0xffffffff, 4);
-	pci_bar = pci_read_config(child, bar, 4);
-	if ((pci_bar != 0x0) && (pci_bar != 0xffffffff)) {
-		if (type == SYS_RES_MEMORY) {
-			pci_bar &= ~0xf;
-		} else {
-			pci_bar &= ~0x3;
-		}
-		len = 1 << (ffs(pci_bar) - 1);
-	}
-
-	DEVPRINTF((cbdev, "Opening BAR: type=%s, bar=%02x, len=%04x%s%s\n",
-	    (type == SYS_RES_MEMORY) ? "MEM" : "IO", bar, len,
-	    (type == SYS_RES_MEMORY &&
-	    dinfo->mprefetchable & (1 << PCI_RID2BAR(bar))) ?
-	    " (Prefetchable)" : "", type == SYS_RES_MEMORY ?
-	    ((dinfo->mbelow1mb & (1 << PCI_RID2BAR(bar))) ?
-	    " (Below 1Mb)" : "") : ""));
-
-	resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
-
-	/*
-	 * Mark the appropriate bit in the PCI command register so that
-	 * device drivers will know which type of BARs can be used.
-	 */
-	pci_enable_io(child, type);
 	return (0);
 }
 
@@ -454,13 +423,11 @@ cardbus_read_tuple(device_t cbdev, device_t child, struct resource *res,
     uint32_t start, uint32_t *off, int *tupleid, int *len,
     uint8_t *tupledata)
 {
-	if (res == CIS_CONFIG_SPACE) {
+	if (res == CIS_CONFIG_SPACE)
 		return (cardbus_read_tuple_conf(cbdev, child, start, off,
 		    tupleid, len, tupledata));
-	} else {
-		return (cardbus_read_tuple_mem(cbdev, res, start, off,
-		    tupleid, len, tupledata));
-	}
+	return (cardbus_read_tuple_mem(cbdev, res, start, off, tupleid, len,
+	    tupledata));
 }
 
 static void
@@ -468,7 +435,7 @@ cardbus_read_tuple_finish(device_t cbdev, device_t child, int rid,
     struct resource *res)
 {
 	if (res != CIS_CONFIG_SPACE) {
-		bus_release_resource(cbdev, SYS_RES_MEMORY, rid, res);
+		bus_release_resource(child, SYS_RES_MEMORY, rid, res);
 		if (rid == PCIM_CIS_ASI_ROM)
 			pci_write_config(child, rid, pci_read_config(child,
 			    rid, 4) & ~PCIR_BIOS, 4);
@@ -511,15 +478,13 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	}
 
 	/* allocate the memory space to read CIS */
-	res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, rid, 0, ~0, 1,
+	res = bus_alloc_resource(child, SYS_RES_MEMORY, rid, 0, ~0, 1,
 	    rman_make_alignment_flags(4096) | RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(cbdev, "Unable to allocate resource "
 		    "to read CIS.\n");
 		return (NULL);
 	}
-	PCI_ENABLE_IO(cbdev, child, SYS_RES_MEMORY);
-	pci_write_config(child, *rid, rman_get_start(res), 4);
 	if (*rid == PCIR_BIOS)
 		pci_write_config(child, *rid,
 		    rman_get_start(res) | PCIM_BIOS_ENABLE, 4);
