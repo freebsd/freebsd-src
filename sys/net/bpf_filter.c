@@ -521,7 +521,7 @@ bpf_validate(f, len)
 	register const struct bpf_insn *p;
 
 	if (len < 1)
-		return 0;
+		return 1;
 
 	for (i = 0; i < len; ++i) {
 		/*
