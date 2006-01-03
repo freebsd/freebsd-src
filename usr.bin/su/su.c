@@ -156,7 +156,7 @@ main(int argc, char *argv[])
 		char		* const *b;
 	}		np;
 	uid_t		ruid;
-	pid_t		child_pid, pid;
+	pid_t		child_pid, child_pgrp, pid;
 	int		asme, ch, asthem, fastlogin, prio, i, retcode,
 			statusp, setmaclabel;
 	u_int		setwhat;
@@ -392,17 +392,30 @@ main(int argc, char *argv[])
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGTTOU, &sa, NULL);
 		close(fds[0]);
+		setpgid(child_pid, child_pid);
+		if (tcgetpgrp(STDERR_FILENO) == getpgrp())
+			tcsetpgrp(STDERR_FILENO, child_pid);
 		close(fds[1]);
 		sigaction(SIGPIPE, &sa_pipe, NULL);
 		while ((pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
+				child_pgrp = getpgid(child_pid);
+				if (tcgetpgrp(STDERR_FILENO) == child_pgrp)
+					tcsetpgrp(STDERR_FILENO, getpgrp());
 				kill(getpid(), SIGSTOP);
+				if (tcgetpgrp(STDERR_FILENO) == getpgrp()) {
+					child_pgrp = getpgid(child_pid);
+					tcsetpgrp(STDERR_FILENO, child_pgrp);
+				}
 				kill(child_pid, SIGCONT);
 				statusp = 1;
 				continue;
 			}
 			break;
 		}
+		child_pgrp = getpgid(child_pid);
+		if (tcgetpgrp(STDERR_FILENO) == child_pgrp)
+			tcsetpgrp(STDERR_FILENO, getpgrp());
 		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
