@@ -258,6 +258,16 @@ struct protosw inetsw[] = {
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_ETHERIP,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =		encap4_input,
+	.pr_ctloutput =		rip_ctloutput,
+	.pr_init =		encap_init,
+	.pr_usrreqs =		&rip_usrreqs
+},
+{
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_GRE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
