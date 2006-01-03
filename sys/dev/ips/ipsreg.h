@@ -62,6 +62,10 @@
 #define IPS_MAX_SG_ELEMENTS		32
 #define IPS_MAX_IOBUF_SIZE		(64 * 1024)
 #define IPS_BLKSIZE			512
+#define IPS_MAX_LD			8
+#define IPS_MAX_CHANNELS		4
+#define IPS_MAX_TARGETS			15
+#define IPS_MAX_CHUNKS			16
 
 /* logical drive states */
 
@@ -121,6 +125,7 @@
 #define IPS_REBUILD_STATUS_CMD		0x0C
 #define IPS_ERROR_TABLE_CMD		0x17
 #define IPS_DRIVE_INFO_CMD		0x19
+#define IPS_CMD_READ_CONF		0x38
 #define IPS_SUBSYS_PARAM_CMD		0x40
 #define IPS_CONFIG_SYNC_CMD		0x58
 #define IPS_SG_READ_CMD			0x82
@@ -322,8 +327,74 @@ typedef struct{
 	u_int16_t	config_update_count;
 	u_int8_t	blockedflags;
 	u_int8_t	psdn_error;
-	u_int16_t	addr_dead_disk[4*16];/* ugly, max # channels * max # scsi devices per channel */
+	u_int16_t	addr_dead_disk[IPS_MAX_CHANNELS][IPS_MAX_TARGETS];
 }__attribute__((packed)) ips_adapter_info_t;
+
+typedef struct {
+	u_int8_t	initiator;
+	u_int8_t	parameters;
+	u_int8_t	miscflag;
+	u_int8_t	state;
+	u_int32_t	blkcount;
+	u_int8_t	deviceid[28];
+} __attribute__((packed)) ips_devstate_t;
+
+/*
+ * The states that a physical drive can be in.  The 'present' value can be
+ * OR'd with the other values.
+ */
+#define IPS_DEVSTATE_PRESENT	0x81
+#define IPS_DEVSTATE_REBUILD	0x02
+#define IPS_DEVSTATE_SPARE	0x04
+#define IPS_DEVSTATE_MEMBER	0x08
+
+typedef struct {
+	u_int8_t	channel;
+	u_int8_t	target;
+	u_int16_t	reserved;
+	u_int32_t	startsectors;
+	u_int32_t	numsectors;
+} __attribute__((packed)) ips_chunk_t;
+
+typedef struct {
+	u_int16_t	userfield;
+	u_int8_t	state;
+	u_int8_t	raidcacheparam;
+	u_int8_t	numchunkunits;
+	u_int8_t	stripesize;
+	u_int8_t	params;
+	u_int8_t	reserved;
+	u_int32_t	ldsize;
+	ips_chunk_t	chunk[IPS_MAX_CHUNKS];
+} __attribute__((packed)) ips_ld_t;
+
+typedef struct {
+	u_int8_t	boarddisc[8];
+	u_int8_t	processor[8];
+	u_int8_t	numchantype;
+	u_int8_t	numhostinttype;
+	u_int8_t	compression;
+	u_int8_t	nvramtype;
+	u_int32_t	nvramsize;
+} __attribute__((packed)) ips_hardware_t;
+
+typedef struct {
+	u_int8_t	ldcount;
+	u_int8_t	day;
+	u_int8_t	month;
+	u_int8_t	year;
+	u_int8_t	initiatorid[4];
+	u_int8_t	hostid[12];
+	u_int8_t	timesign[8];
+	u_int32_t	useropt;
+	u_int16_t	userfield;
+	u_int8_t	rebuildrate;
+	u_int8_t	reserve;
+	ips_hardware_t	hardwaredisc;
+	ips_ld_t	ld[IPS_MAX_LD];
+	ips_devstate_t	dev[IPS_MAX_CHANNELS][IPS_MAX_TARGETS+1];
+	u_int8_t	reserved[512];
+} __attribute__((packed)) ips_conf_t;
 
 typedef union {
    struct {
