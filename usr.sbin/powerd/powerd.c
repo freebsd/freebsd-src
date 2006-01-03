@@ -28,26 +28,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __i386__
+#ifdef USE_APM
 #include <machine/apm_bios.h>
 #endif
 
@@ -55,17 +54,17 @@ __FBSDID("$FreeBSD$");
 #define DEFAULT_IDLE_PERCENT	90
 #define DEFAULT_POLL_INTERVAL	500	/* Poll interval in milliseconds */
 
-enum modes_t {
+typedef enum {
 	MODE_MIN,
 	MODE_ADAPTIVE,
 	MODE_MAX,
-};
+} modes_t;
 
-enum power_src_t {
+typedef enum {
 	SRC_AC,
 	SRC_BATTERY,
 	SRC_UNKNOWN,
-};
+} power_src_t;
 
 const char *modes[] = {
 	"AC",
@@ -82,10 +81,9 @@ static int	read_usage_times(long *idle, long *total);
 static int	read_freqs(int *numfreqs, int **freqs, int **power);
 static int	set_freq(int freq);
 static void	acline_init(void);
-static int	acline_read(void);
+static void	acline_read(void);
 static int	devd_init(void);
 static void	devd_close(void);
-static void	*devd_read(void *arg);
 static void	handle_sigs(int sig);
 static void	parse_mode(char *arg, int *mode, int ch);
 static void	usage(void);
@@ -96,19 +94,29 @@ static int	freq_mib[4];
 static int	levels_mib[4];
 static int	acline_mib[3];
 
-/* devd-cached value provided by our thread. */
-static int	devd_acline;
-
 /* Configuration */
 static int	cpu_running_mark;
 static int	cpu_idle_mark;
 static int	poll_ival;
 static int	vflag;
 
-static int	apm_fd;
-static int	devd_pipe;
-static pthread_t devd_thread;
-static int	exit_requested;
+static volatile sig_atomic_t exit_requested;
+static power_src_t acline_status;
+static enum {
+	ac_none,
+	ac_acpi_sysctl,
+	ac_acpi_devd,
+#ifdef USE_APM
+	ac_apm,
+#endif
+} acline_mode;
+#ifdef USE_APM
+static int	apm_fd = -1;
+#endif
+static int	devd_pipe = -1;
+
+#define DEVD_RETRY_INTERVAL 60 /* seconds */
+static struct timeval tried_devd;
 
 static int
 read_usage_times(long *idle, long *total)
@@ -195,168 +203,132 @@ set_freq(int freq)
 
 /*
  * Try to use ACPI to find the AC line status.  If this fails, fall back
- * to APM.  If nothing succeeds, we'll just run in default mode.  If we are
- * using ACPI, try opening a pipe to devd to detect AC line events.
+ * to APM.  If nothing succeeds, we'll just run in default mode.
  */
 static void
 acline_init()
 {
-	int acline;
 	size_t len;
 
-	apm_fd = -1;
-	devd_pipe = -1;
-	len = sizeof(acline);
-	if (sysctlbyname(ACPIAC, &acline, &len, NULL, 0) == 0) {
-		len = 3;
-		if (sysctlnametomib(ACPIAC, acline_mib, &len))
-			err(1, "lookup acline");
-
-		/* Read line status once so that we have an initial value. */
-		devd_acline = acline_read();
-
-		/*
-		 * Try connecting to the devd pipe and start a read thread
-		 * if we succeed.
-		 */
-		if ((devd_pipe = devd_init()) >= 0) {
-			if (pthread_create(&devd_thread, NULL, devd_read,
-			    &devd_pipe))
-				err(1, "pthread_create devd thread");
-		} else if (vflag) {
-			warnx(
-		"unable to connect to devd pipe, using polling mode instead");
-		}
+	len = 3;
+	if (sysctlnametomib(ACPIAC, acline_mib, &len) == 0) {
+		acline_mode = ac_acpi_sysctl;
+		if (vflag)
+			warnx("using sysctl for AC line status");
+#ifdef USE_APM
+	} else if ((apm_fd = open(APMDEV, O_RDONLY)) >= 0) {
+		if (vflag)
+			warnx("using APM for AC line status");
+		acline_mode = ac_apm;
+#endif
 	} else {
-		apm_fd = open(APMDEV, O_RDONLY);
-		if (apm_fd == -1)
-			warnx(
-		"cannot read AC line status, using default settings");
+		warnx("unable to determine AC line status");
+		acline_mode = ac_none;
 	}
 }
 
-static int
-acline_read()
+static void
+acline_read(void)
 {
-	int acline;
-	size_t len;
-#ifdef __i386__
-	struct apm_info info;
+	if (acline_mode == ac_acpi_devd) {
+		char buf[DEVCTL_MAXBUF], *ptr;
+		ssize_t rlen;
+		int notify;
+
+		rlen = read(devd_pipe, buf, sizeof(buf));
+		if (rlen == 0 || (rlen < 0 && errno != EWOULDBLOCK)) {
+			if (vflag)
+				warnx("lost devd connection, switching to sysctl");
+			devd_close();
+			acline_mode = ac_acpi_sysctl;
+			/* FALLTHROUGH */
+		}
+		if (rlen > 0 &&
+		    (ptr = strstr(buf, "system=ACPI")) != NULL &&
+		    (ptr = strstr(ptr, "subsystem=ACAD")) != NULL &&
+		    (ptr = strstr(ptr, "notify=")) != NULL &&
+		    sscanf(ptr, "notify=%x", &notify) == 1)
+			acline_status = (notify ? SRC_AC : SRC_BATTERY);
+	}
+	if (acline_mode == ac_acpi_sysctl) {
+		int acline;
+		size_t len;
+
+		len = sizeof(acline);
+		if (sysctl(acline_mib, 3, &acline, &len, NULL, 0) == 0)
+			acline_status = (acline ? SRC_AC : SRC_BATTERY);
+		else
+			acline_status = SRC_UNKNOWN;
+	}
+#ifdef USE_APM
+	if (acline_mode == ac_apm) {
+		struct apm_info info;
+
+		if (ioctl(apm_fd, APMIO_GETINFO, &info) == 0) {
+			acline_status = (info.ai_acline ? SRC_AC : SRC_BATTERY);
+		} else {
+			close(apm_fd);
+			apm_fd = -1;
+			acline_mode = ac_none;
+			acline_status = SRC_UNKNOWN;
+		}
+	}
 #endif
+	/* try to (re)connect to devd */
+	if (acline_mode == ac_acpi_sysctl) {
+		struct timeval now;
 
-	acline = SRC_UNKNOWN;
-	len = sizeof(acline);
-
-	/*
-	 * Get state from our devd thread, the ACPI sysctl, or APM.  We
-	 * prefer sources in this order.
-	 */
-	if (devd_pipe >= 0)
-		acline = devd_acline;
-	else if (sysctl(acline_mib, 3, &acline, &len, NULL, 0) == 0)
-		acline = acline ? SRC_AC : SRC_BATTERY;
-#ifdef __i386__
-	else if (apm_fd != -1 && ioctl(apm_fd, APMIO_GETINFO, &info) == 0)
-		acline = info.ai_acline ? SRC_AC : SRC_BATTERY;
-#endif
-
-	return (acline);
+		gettimeofday(&now, NULL);
+		if (now.tv_sec > tried_devd.tv_sec + DEVD_RETRY_INTERVAL) {
+			if (devd_init() >= 0) {
+				if (vflag)
+					warnx("using devd for AC line status");
+				acline_mode = ac_acpi_devd;
+			}
+			tried_devd = now;
+		}
+	}
 }
 
 static int
 devd_init(void)
 {
 	struct sockaddr_un devd_addr;
-	int devd_sock;
 
 	bzero(&devd_addr, sizeof(devd_addr));
-	if ((devd_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+	if ((devd_pipe = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
 		if (vflag)
-			warn("failed to create devd socket");
+			warn("%s(): socket()", __func__);
 		return (-1);
 	}
 
 	devd_addr.sun_family = PF_LOCAL;
 	strlcpy(devd_addr.sun_path, DEVDPIPE, sizeof(devd_addr.sun_path));
-	if (connect(devd_sock, (struct sockaddr *)&devd_addr,
+	if (connect(devd_pipe, (struct sockaddr *)&devd_addr,
 	    sizeof(devd_addr)) == -1) {
-		close(devd_sock);
+		if (vflag)
+			warn("%s(): connect()", __func__);
+		close(devd_pipe);
+		devd_pipe = -1;
 		return (-1);
 	}
 
-	return (devd_sock);
+	if (fcntl(devd_pipe, F_SETFL, O_NONBLOCK) == -1) {
+		if (vflag)
+			warn("%s(): fcntl()", __func__);
+		close(devd_pipe);
+		return (-1);
+	}
+
+	return (devd_pipe);
 }
 
 static void
 devd_close(void)
 {
 
-	if (devd_pipe < 0)
-		return;
-
-	pthread_kill(devd_thread, SIGTERM);
 	close(devd_pipe);
-}
-
-/*
- * This loop runs as a separate thread.  It reads events from devd, but
- * spends most of its time blocked in select(2).
- */
-static void *
-devd_read(void *arg)
-{
-	char buf[DEVCTL_MAXBUF], *ptr;
-	fd_set fdset;
-	int fd, notify, rlen;
-
-	fd = *(int *)arg;
-	notify = -1;
-	FD_ZERO(&fdset);
-	while (!exit_requested) {
-		FD_SET(fd, &fdset);
-		if (select(fd + 1, &fdset, NULL, NULL, NULL) < 0)
-			break;
-		if (!FD_ISSET(fd, &fdset))
-			continue;
-
-		/* Read the notify string, devd NULL-terminates it. */
-		rlen = read(fd, buf, sizeof(buf));
-		if (rlen <= 0) {
-			close(devd_pipe);
-			devd_pipe = -1;
-			if (vflag)
-				warnx(
-			"devd disappeared, downgrading to polling mode");
-
-			/*
-			 * Keep trying to reconnect to devd but sleep in
-			 * between to avoid wasting CPU cycles.
-			 */
-			while (!exit_requested && (fd = devd_init()) < 0)
-				sleep(300);
-
-			if (fd >= 0) {
-				devd_pipe = fd;
-				if (vflag)
-					warnx(
-				"devd came back, upgrading to event mode");
-			}
-			continue;
-		}
-
-		/* Loosely match the notify string. */
-		if ((ptr = strstr(buf, "system=ACPI")) != NULL &&
-		    (ptr = strstr(ptr, "subsystem=ACAD")) != NULL &&
-		    (ptr = strstr(ptr, "notify=")) != NULL) {
-		        if (sscanf(ptr, "notify=%x", &notify) != 1) {
-				warnx("bad devd notify string");
-				continue;
-			}
-			devd_acline = notify ? SRC_AC : SRC_BATTERY;
-		}
-	}
-
-	return (NULL);
+	devd_pipe = -1;
 }
 
 static void
@@ -392,10 +364,13 @@ usage(void)
 int
 main(int argc, char * argv[])
 {
+	struct timeval timeout;
+	fd_set fdset;
+	int nfds;
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	long idle, total;
-	int acline, curfreq, *freqs, i, *mwatts, numfreqs;
+	int curfreq, *freqs, i, *mwatts, numfreqs;
 	int ch, mode, mode_ac, mode_battery, mode_none;
 	uint64_t mjoules_used;
 	size_t len;
@@ -407,7 +382,6 @@ main(int argc, char * argv[])
 	poll_ival = DEFAULT_POLL_INTERVAL;
 	mjoules_used = 0;
 	vflag = 0;
-	apm_fd = -1;
 
 	/* User must be root to control frequencies. */
 	if (geteuid() != 0)
@@ -479,15 +453,6 @@ main(int argc, char * argv[])
 	if (read_freqs(&numfreqs, &freqs, &mwatts))
 		err(1, "error reading supported CPU frequencies");
 
-	/*
-	 * Exit cleanly on signals; devd may send a SIGPIPE if it dies.  We
-	 * do this before acline_init() since it may create a thread and we
-	 * want it to inherit our signal mask.
-	 */
-	signal(SIGINT, handle_sigs);
-	signal(SIGTERM, handle_sigs);
-	signal(SIGPIPE, SIG_IGN);
-
 	/* Run in the background unless in verbose mode. */
 	if (!vflag) {
 		pid_t otherpid;
@@ -512,10 +477,24 @@ main(int argc, char * argv[])
 	/* Decide whether to use ACPI or APM to read the AC line status. */
 	acline_init();
 
+	/*
+	 * Exit cleanly on signals.
+	 */
+	signal(SIGINT, handle_sigs);
+	signal(SIGTERM, handle_sigs);
+
 	/* Main loop. */
 	for (;;) {
-		/* Check status every few milliseconds. */
-		usleep(poll_ival);
+		FD_ZERO(&fdset);
+		if (devd_pipe >= 0) {
+			FD_SET(devd_pipe, &fdset);
+			nfds = devd_pipe + 1;
+		} else {
+			nfds = 0;
+		}
+		timeout.tv_sec = poll_ival / 1000000;
+		timeout.tv_usec = poll_ival % 1000000;
+		select(nfds, &fdset, NULL, &fdset, &timeout);
 
 		/* If the user requested we quit, print some statistics. */
 		if (exit_requested) {
@@ -527,8 +506,8 @@ main(int argc, char * argv[])
 		}
 
 		/* Read the current AC status and record the mode. */
-		acline = acline_read();
-		switch (acline) {
+		acline_read();
+		switch (acline_status) {
 		case SRC_AC:
 			mode = mode_ac;
 			break;
@@ -539,7 +518,7 @@ main(int argc, char * argv[])
 			mode = mode_none;
 			break;
 		default:
-			errx(1, "invalid AC line status %d", acline);
+			errx(1, "invalid AC line status %d", acline_status);
 		}
 
 		/* Read the current frequency. */
@@ -568,7 +547,8 @@ main(int argc, char * argv[])
 				if (vflag) {
 					printf("now operating on %s power; "
 					    "changing frequency to %d MHz\n",
-					    modes[acline], freqs[numfreqs - 1]);
+					    modes[acline_status],
+					    freqs[numfreqs - 1]);
 				}
 				if (set_freq(freqs[numfreqs - 1]) != 0) {
 					warn("error setting CPU freq %d",
@@ -585,7 +565,8 @@ main(int argc, char * argv[])
 				if (vflag) {
 					printf("now operating on %s power; "
 					    "changing frequency to %d MHz\n",
-					    modes[acline], freqs[0]);
+					    modes[acline_status],
+					    freqs[0]);
 				}
 				if (set_freq(freqs[0]) != 0) {
 					warn("error setting CPU freq %d",
