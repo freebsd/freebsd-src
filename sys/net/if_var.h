@@ -238,6 +238,23 @@ typedef void if_init_f_t(void *);
 #define	if_list		if_link
 
 /*
+ * Locks for address lists on the network interface.  In FreeBSD 6 and
+ * later, the if_addr_mtx was added to struct ifnet.  In order to
+ * maintain ABI compatibility with drivers compiled for earlier FreeBSD 5
+ * releases, we can't do that here.  Instead, a global if_addr_mtx is
+ * shared for all link layer address lists.  These macros still take a
+ * dummy "if" argument to maintain API compatibility with FreeBSD 6 and
+ * later.
+ */
+extern struct mtx if_addr_mtx;
+#define	IF_ADDR_LOCK_INIT(if)	mtx_init(&if_addr_mtx,		\
+				    "if_addr_mtx", NULL, MTX_DEF)
+#define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&if_addr_mtx)
+#define	IF_ADDR_LOCK(if)	mtx_lock(&if_addr_mtx)
+#define	IF_ADDR_UNLOCK(if)	mtx_unlock(&if_addr_mtx)
+#define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&if_addr_mtx, MA_OWNED)
+
+/*
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
  * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
@@ -678,7 +695,6 @@ struct	ifaddr *ifa_ifwithnet(struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 
-struct	ifmultiaddr *ifmaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
 
 #define IF_LLADDR(ifp)							\
