@@ -449,8 +449,10 @@ acpi_pci_link_attach(device_t dev)
 		}
 	}
 	sc->pl_num_links = creq.count;
-	if (creq.count == 0)
+	if (creq.count == 0) {
+		ACPI_SERIAL_END(pci_link);
 		return (0);
+	}
 	sc->pl_links = malloc(sizeof(struct link) * sc->pl_num_links,
 	    M_PCI_LINK, M_WAITOK | M_ZERO);
 
