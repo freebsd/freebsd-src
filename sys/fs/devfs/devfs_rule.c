@@ -186,8 +186,10 @@ devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct threa
 			error = EEXIST;
 			break;
 		}
-		if (rid2rsn(dr->dr_id) == 0)
-			return (EIO);
+		if (rid2rsn(dr->dr_id) == 0) {
+			error = EIO;
+			break;
+		}
 		error = devfs_rule_insert(dr);
 		break;
 	case DEVFSIO_RAPPLY:
