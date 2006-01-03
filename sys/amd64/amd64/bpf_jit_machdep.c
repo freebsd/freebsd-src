@@ -103,6 +103,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 	 */
 	emit_func emitm;
 
+	/* Do not compile an empty filter. */
+	if (nins == 0)
+		return NULL;
+
 	/* Allocate the reference table for the jumps */
 	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int),
 	    M_BPFJIT, M_NOWAIT);
