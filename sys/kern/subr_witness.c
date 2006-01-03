@@ -1330,18 +1330,8 @@ enroll(const char *description, struct lock_class *lock_class)
 			return (w);
 		}
 	}
-	/*
-	 * We issue a warning for any spin locks not defined in the static
-	 * order list as a way to discourage their use (folks should really
-	 * be using non-spin mutexes most of the time).  However, several
-	 * 3rd part device drivers use spin locks because that is all they
-	 * have available on Windows and Linux and they think that normal
-	 * mutexes are insufficient.
-	 */
-	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_spin_warn)
-		printf("WITNESS: spin lock %s not in order list", description);
 	if ((w = witness_get()) == NULL)
-		return (NULL);
+		goto out;
 	w->w_name = description;
 	w->w_class = lock_class;
 	w->w_refcount = 1;
@@ -1356,6 +1346,18 @@ enroll(const char *description, struct lock_class *lock_class)
 		    lock_class->lc_name);
 	}
 	mtx_unlock_spin(&w_mtx);
+out:
+	/*
+	 * We issue a warning for any spin locks not defined in the static
+	 * order list as a way to discourage their use (folks should really
+	 * be using non-spin mutexes most of the time).  However, several
+	 * 3rd part device drivers use spin locks because that is all they
+	 * have available on Windows and Linux and they think that normal
+	 * mutexes are insufficient.
+	 */
+	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_spin_warn)
+		printf("WITNESS: spin lock %s not in order list\n",
+		    description);
 	return (w);
 }
 
@@ -2017,7 +2019,7 @@ DB_SHOW_COMMAND(alllocks, db_witness_list_all)
 		FOREACH_THREAD_IN_PROC(p, td) {
 			if (!witness_thread_has_locks(td))
 				continue;
-			printf("Process %d (%s) thread %p (%d)\n", p->p_pid,
+			db_printf("Process %d (%s) thread %p (%d)\n", p->p_pid,
 			    p->p_comm, td, td->td_tid);
 			witness_list(td);
 		}
