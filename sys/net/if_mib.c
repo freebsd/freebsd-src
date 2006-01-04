@@ -75,6 +75,8 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	u_int namelen = arg2;
 	struct ifnet *ifp;
 	struct ifmibdata ifmd;
+	size_t dlen;
+	char *dbuf;
 
 	if (namelen != 2)
 		return EINVAL;
@@ -134,7 +136,22 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		error = SYSCTL_IN(req, ifp->if_linkmib, ifp->if_linkmiblen);
 		if (error)
 			return error;
-		
+
+	case IFDATA_DRIVERNAME:
+		/* 20 is enough for 64bit ints */
+		dlen = strlen(ifp->if_dname) + 20 + 1;
+		if ((dbuf = malloc(dlen, M_TEMP, M_NOWAIT)) == NULL)
+			return (ENOMEM);
+		if (ifp->if_dunit == IF_DUNIT_NONE)
+			strcpy(dbuf, ifp->if_dname);
+		else
+			sprintf(dbuf, "%s%d", ifp->if_dname, ifp->if_dunit);
+
+		error = SYSCTL_OUT(req, dbuf, strlen(dbuf) + 1);
+		if (error == 0 && req->newptr != NULL)
+			error = EPERM;
+		free(dbuf, M_TEMP);
+		return (error);
 	}
 	return 0;
 }
