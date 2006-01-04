@@ -332,7 +332,7 @@ getaddrinfo(hostname, servname, hints, res)
 	pai->ai_family = PF_UNSPEC;
 	pai->ai_socktype = ANY;
 	pai->ai_protocol = ANY;
-#ifdef __sparcv9
+#if defined(sun) && defined(_SOCKLEN_T) && defined(__sparcv9)
 	/*
 	 * clear _ai_pad to preserve binary
 	 * compatibility with previously compiled 64-bit
@@ -340,7 +340,7 @@ getaddrinfo(hostname, servname, hints, res)
 	 * guaranteeing the upper 32-bits are empty.
 	 */
 	pai->_ai_pad = 0;
-#endif /* __sparcv9 */
+#endif
 	pai->ai_addrlen = 0;
 	pai->ai_canonname = NULL;
 	pai->ai_addr = NULL;
@@ -365,7 +365,7 @@ getaddrinfo(hostname, servname, hints, res)
 		}
 		memcpy(pai, hints, sizeof(*pai));
 
-#ifdef __sparcv9
+#if defined(sun) && defined(_SOCKLEN_T) && defined(__sparcv9)
 		/*
 		 * We need to clear _ai_pad to preserve binary
 		 * compatibility.  See prior comment.
