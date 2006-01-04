@@ -322,6 +322,7 @@ xboxfb_drvinit (void* unused)
 
 	/* probe for a keyboard */
 	xboxfb_timer (NULL);
+	xboxfb_tp = ttyalloc();
 }
 
 static void
@@ -361,7 +362,7 @@ xboxfb_dev_open(struct cdev* dev, int flag, int mode, struct thread* td)
 {
 	struct tty* tp;
 
-	tp = xboxfb_tp = dev->si_tty = ttymalloc (xboxfb_tp);
+	tp = dev->si_tty = xboxfb_tp;
 
 	tp->t_oproc = xboxfb_tty_start;
 	tp->t_param = xboxfb_tty_param;
