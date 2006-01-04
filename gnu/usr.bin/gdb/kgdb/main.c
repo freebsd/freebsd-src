@@ -302,7 +302,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	struct captured_main_args args;
 	char *s;
-	int a, ch, quiet;
+	int a, ch, quiet, writecore;
 
 	dumpnr = -1;
 
@@ -327,8 +327,9 @@ main(int argc, char *argv[])
 	}
 
 	quiet = 0;
+	writecore = 0;
 
-	while ((ch = getopt(argc, argv, "ac:d:fn:qr:v")) != -1) {
+	while ((ch = getopt(argc, argv, "ac:d:fn:qr:vw")) != -1) {
 		switch (ch) {
 		case 'a':
 			annotation_level++;
@@ -371,6 +372,9 @@ main(int argc, char *argv[])
 			break;
 		case 'v':	/* increase verbosity. */
 			verbose++;
+			break;
+		case 'w':	/* core file is writeable. */
+			writecore = 1;
 			break;
 		case '?':
 		default:
@@ -464,7 +468,8 @@ main(int argc, char *argv[])
 	}
 
 	if (remote == NULL) {
-		kvm = kvm_openfiles(kernel, vmcore, NULL, O_RDONLY, kvm_err);
+		kvm = kvm_openfiles(kernel, vmcore, NULL,
+		    writecore ? O_RDWR : O_RDONLY, kvm_err);
 		if (kvm == NULL)
 			errx(1, kvm_err);
 		atexit(kgdb_atexit);
