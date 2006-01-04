@@ -128,7 +128,9 @@ struct vnode	*rootvnode;
 static const char *global_opts[] = {
 	"fstype",
 	"fspath",
+	"rdonly",
 	"ro",
+	"rw",
 	"suid",
 	"exec",
 	NULL
@@ -488,6 +490,69 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		error = EINVAL;
 		goto bail;
 	}
+
+	/*
+	 * We need to see if we have the "update" option
+	 * before we call vfs_domount(), since vfs_domount() has special
+	 * logic based on MNT_UPDATE.  This is very important
+	 * when we want to update the root filesystem.
+	 */ 
+	if (vfs_getopt(optlist, "update", NULL, NULL) == 0)
+		fsflags |= MNT_UPDATE;
+
+	if (vfs_getopt(optlist, "async", NULL, NULL) == 0)
+		fsflags |= MNT_ASYNC;
+
+	if (vfs_getopt(optlist, "force", NULL, NULL) == 0)
+		fsflags |= MNT_FORCE;
+
+	if (vfs_getopt(optlist, "multilabel", NULL, NULL) == 0)
+		fsflags |= MNT_MULTILABEL;
+
+	if (vfs_getopt(optlist, "noasync", NULL, NULL) == 0)
+		fsflags &= ~MNT_ASYNC;
+
+	if (vfs_getopt(optlist, "noatime", NULL, NULL) == 0)
+		fsflags |= MNT_NOATIME;
+
+	if (vfs_getopt(optlist, "noclusterr", NULL, NULL) == 0)
+		fsflags |= MNT_NOCLUSTERR;
+
+	if (vfs_getopt(optlist, "noclusterw", NULL, NULL) == 0)
+		fsflags |= MNT_NOCLUSTERW;
+
+	if (vfs_getopt(optlist, "noexec", NULL, NULL) == 0)
+		fsflags |= MNT_NOEXEC;
+
+	if (vfs_getopt(optlist, "nosuid", NULL, NULL) == 0)
+		fsflags |= MNT_NOSUID;
+
+	if (vfs_getopt(optlist, "nosymfollow", NULL, NULL) == 0)
+		fsflags |= MNT_NOSYMFOLLOW;
+
+	if (vfs_getopt(optlist, "noro", NULL, NULL) == 0)
+		fsflags &= ~MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "ro", NULL, NULL) == 0)
+		fsflags |= MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "rdonly", NULL, NULL) == 0)
+		fsflags |= MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "rw", NULL, NULL) == 0)
+		fsflags &= ~MNT_RDONLY;
+
+	if (vfs_getopt(optlist, "snapshot", NULL, NULL) == 0)
+		fsflags |= MNT_SNAPSHOT;
+
+	if (vfs_getopt(optlist, "suiddir", NULL, NULL) == 0)
+		fsflags |= MNT_SUIDDIR;
+
+	if (vfs_getopt(optlist, "sync", NULL, NULL) == 0)
+		fsflags |= MNT_SYNCHRONOUS;
+
+	if (vfs_getopt(optlist, "union", NULL, NULL) == 0)
+		fsflags |= MNT_UNION;
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
