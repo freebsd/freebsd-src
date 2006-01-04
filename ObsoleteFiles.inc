@@ -2813,11 +2813,15 @@ OLD_LIBS+=usr/lib/libkrb.so.3
 OLD_LIBS+=usr/lib/libroken.so.
 OLD_LIBS+=usr/lib/libssl.so.2
 OLD_LIBS+=usr/lib/pam_kerberosIV.so
+# 200208XX
+OLD_LIBS+=usr/lib/libgssapi.so.4
 # 200203XX
 OLD_LIBS+=usr/lib/libss.so.3
 OLD_LIBS+=usr/lib/libusb.so.0
 # 200112XX
 OLD_LIBS+=usr/lib/libfetch.so.2
+# 200110XX
+OLD_LIBS+=usr/lib/libgssapi.so.3
 # 200104XX
 OLD_LIBS+=usr/lib/libdescrypt.so.2
 OLD_LIBS+=usr/lib/libscrypt.so.2
@@ -2853,6 +2857,8 @@ OLD_LIBS+=usr/lib/libvgl.so.1
 OLD_LIBS+=usr/lib/libwrap.so.2
 # 199909XX
 OLD_LIBS+=usr/lib/libc_r.so.3
+# ???
+OLD_LIBS+=usr/lib/libgssapi.so.6
 
 # 20040925: bind9 import
 OLD_DIRS+=usr/share/doc/bind/html
