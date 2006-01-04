@@ -103,7 +103,7 @@ cd9660_lookup(ap)
 	struct vnode *tdp;		/* returned by cd9660_vget_internal */
 	u_long bmask;			/* block offset mask */
 	int error;
-	ino_t ino = 0;
+	ino_t ino = 0, saved_ino;
 	int reclen;
 	u_short namelen;
 	int isoflags;
@@ -348,10 +348,11 @@ found:
 	 * it's a relocated directory.
 	 */
 	if (flags & ISDOTDOT) {
+		saved_ino = dp->i_ino;
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino,
+		error = cd9660_vget_internal(vdp->v_mount, saved_ino,
 					     LK_EXCLUSIVE, &tdp,
-					     dp->i_ino != ino, ep);
+					     saved_ino != ino, ep);
 		brelse(bp);
 		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error)
