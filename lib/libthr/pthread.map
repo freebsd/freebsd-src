@@ -2,12 +2,14 @@
 LIBTHREAD_1_0 {
 global:
 	___creat;
+	___mq_close;
 	__accept;
 	__close;
 	__connect;
 	__error;
 	__fcntl;
 	__fsync;
+	__mq_notify;
 	__msync;
 	__nanosleep;
 	__open;
@@ -32,6 +34,7 @@ global:
 	_aio_suspend;
 	_execve;
 	_fork;
+	_mq_notify;
 	_nanosleep;
 	_pause;
 	_pselect;
@@ -193,6 +196,7 @@ global:
 	fcntl;
 	fork;
 	fsync;
+	mq_notify;
 	msync;
 	nanosleep;
 	open;
