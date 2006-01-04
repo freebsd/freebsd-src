@@ -102,7 +102,7 @@ dev_rel(struct cdev *dev)
 		;
 	else 
 #endif
-if (dev->si_devsw == NULL && dev->si_refcount == 0) {
+	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
 		LIST_REMOVE(dev, si_list);
 		flag = 1;
 	}
@@ -635,7 +635,7 @@ destroy_devl(struct cdev *dev)
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
 	    ("WARNING: Driver mistake: destroy_dev on %d\n", minor(dev)));
-		
+
 	devfs_destroy(dev);
 
 	/* Remove name marking */
