@@ -283,7 +283,7 @@ dcons_open(DEV dev, int flag, int mode, THREAD *td)
 	if (unit != 0)
 		return (ENXIO);
 
-	tp = dev->si_tty = ttymalloc(dev->si_tty);
+	tp = dev->si_tty;
 	tp->t_oproc = dcons_tty_start;
 	tp->t_param = dcons_tty_param;
 	tp->t_stop = nottystop;
@@ -584,7 +584,7 @@ dcons_attach_port(int port, char *name, int flags)
 	dev = make_dev(&dcons_cdevsw, port,
 			UID_ROOT, GID_WHEEL, 0600, name);
 	dc->dev = (void *)dev;
-	tp = ttymalloc(NULL);
+	tp = ttyalloc();
 
 	dev->si_drv1 = (void *)dc;
 	dev->si_tty = tp;
