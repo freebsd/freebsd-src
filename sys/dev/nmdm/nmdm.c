@@ -62,9 +62,6 @@ static t_oproc_t	nmdmoproc;
 static t_param_t	nmdmparam;
 static t_stop_t		nmdmstop;
 
-static void 	nmdminit(struct cdev *dev);
-
-
 static struct cdevsw nmdm_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	nmdmopen,
@@ -235,7 +232,7 @@ nmdminit(struct cdev *dev1)
 	pt->part1.dev = dev1;
 	pt->part2.dev = dev2;
 
-	pt->part1.nm_tty = ttymalloc(pt->part1.nm_tty);
+	pt->part1.nm_tty = ttyalloc();
 	pt->part1.nm_tty->t_oproc = nmdmoproc;
 	pt->part1.nm_tty->t_stop = nmdmstop;
 	pt->part1.nm_tty->t_modem = nmdmmodem;
@@ -245,7 +242,7 @@ nmdminit(struct cdev *dev1)
 	TASK_INIT(&pt->part1.pt_task, 0, nmdm_task_tty, pt->part1.nm_tty);
 	callout_init(&pt->part1.co, 0);
 
-	pt->part2.nm_tty = ttymalloc(pt->part2.nm_tty);
+	pt->part2.nm_tty = ttyalloc();
 	pt->part2.nm_tty->t_oproc = nmdmoproc;
 	pt->part2.nm_tty->t_stop = nmdmstop;
 	pt->part2.nm_tty->t_modem = nmdmmodem;
