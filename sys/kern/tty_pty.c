@@ -150,7 +150,7 @@ ptyinit(struct cdev *devc, struct thread *td)
 	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devc = devc;
 
-	pt->pt_tty = ttymalloc(pt->pt_tty);
+	pt->pt_tty = ttyalloc();
 	pt->pt_tty->t_sc = pt;
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = pt->pt_tty;
