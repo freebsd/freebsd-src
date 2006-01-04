@@ -102,7 +102,9 @@ static void
 ssccnattach(void *arg)
 {
 	make_dev(&ssc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ssccons");
+	ssc_tp = ttyalloc();
 }
+
 SYSINIT(ssccnattach, SI_SUB_DRIVERS, SI_ORDER_ANY, ssccnattach, 0);
 
 static void
@@ -139,7 +141,7 @@ sscopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	int s;
 	int error = 0, setuptimeout = 0;
  
-	tp = ssc_tp = dev->si_tty = ttymalloc(ssc_tp);
+	tp = dev->si_tty = ssc_tp;
 
 	s = spltty();
 	tp->t_oproc = sscstart;
