@@ -79,7 +79,9 @@ vm_coloring_init(void)
 
 	setPQL2(&pq_cachesize, &pq_cachenways);
 
-	if (pq_cachesize > 0 && pq_cachenways > 0 && PAGE_SIZE > 1024)
+	CTASSERT(PAGE_SIZE/1024 > 0);
+
+	if (pq_cachesize > 0 && pq_cachenways > 0)
 		PQ_NUMCOLORS = pq_cachesize / (PAGE_SIZE/1024) / \
 		    pq_cachenways;
 	else
