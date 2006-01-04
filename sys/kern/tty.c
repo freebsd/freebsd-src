@@ -2827,17 +2827,10 @@ ttyrel(struct tty *tp)
  * tty_open().
  */
 struct tty *
-ttymalloc(struct tty *tp)
+ttyalloc()
 {
+	struct tty *tp;
 
-	if (tp) {
-		/*
-		 * XXX: Either this argument should go away, or we should
-		 * XXX: require it and do a ttyrel(tp) here and allocate
-		 * XXX: a new tty.  For now do nothing.
-		 */
-		return(tp);
-	}
 	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
 	mtx_init(&tp->t_mtx, "tty", NULL, MTX_DEF);
 
@@ -2860,13 +2853,6 @@ ttymalloc(struct tty *tp)
 	knlist_init(&tp->t_rsel.si_note, &tp->t_mtx, NULL, NULL, NULL);
 	knlist_init(&tp->t_wsel.si_note, &tp->t_mtx, NULL, NULL, NULL);
 	return (tp);
-}
-
-struct tty *
-ttyalloc()
-{
-
-	return (ttymalloc(NULL));
 }
 
 static void
