@@ -47,7 +47,7 @@
 
 #include "ifinfo.h"
 
-static void printit(const struct ifmibdata *);
+static void printit(const struct ifmibdata *, const char *);
 static const char *iftype(int);
 static const char *ifphys(int, int);
 static int isit(int, char **, const char *);
@@ -72,6 +72,7 @@ main(int argc, char **argv)
 	void *linkmib;
 	size_t linkmiblen;
 	printfcn pf;
+	char *dname;
 
 	while ((c = getopt(argc, argv, "l")) != -1) {
 		switch(c) {
@@ -110,7 +111,24 @@ main(int argc, char **argv)
 
 		if (!isit(argc - optind, argv + optind, ifmd.ifmd_name))
 			continue;
-		printit(&ifmd);
+
+		dname = NULL;
+		len = 0;
+		name[5] = IFDATA_DRIVERNAME;
+		if (sysctl(name, 6, NULL, &len, 0, 0) < 0) {
+			warn("sysctl(net.link.ifdata.%d.drivername)", i);
+		} else {
+			if ((dname = malloc(len)) == NULL)
+				err(EX_OSERR, NULL);
+			if (sysctl(name, 6, dname, &len, 0, 0) < 0) {
+				warn("sysctl(net.link.ifdata.%d.drivername)",
+				    i);
+				free(dname);
+				dname = NULL;
+			}
+		}
+		printit(&ifmd, dname);
+		free(dname);
 		if (dolink && (pf = findlink(ifmd.ifmd_data.ifi_type))) {
 			name[5] = IFDATA_LINKSPECIFIC;
 			if (sysctl(name, 6, 0, &linkmiblen, 0, 0) < 0)
@@ -135,9 +153,12 @@ main(int argc, char **argv)
 }
 
 static void
-printit(const struct ifmibdata *ifmd)
+printit(const struct ifmibdata *ifmd, const char *dname)
 {
-	printf("Interface %.*s:\n", IFNAMSIZ, ifmd->ifmd_name);
+	printf("Interface %.*s", IFNAMSIZ, ifmd->ifmd_name);
+	if (dname != NULL)
+		printf(" (%s)", dname);
+	printf(":\n");
 	printf("\tflags: %x\n", ifmd->ifmd_flags);
 	printf("\tpromiscuous listeners: %d\n", ifmd->ifmd_pcount);
 	printf("\tsend queue length: %d\n", ifmd->ifmd_snd_len);
