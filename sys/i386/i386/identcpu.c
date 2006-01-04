@@ -74,6 +74,9 @@ void	enable_K6_2_wt_alloc(void);
 void panicifcpuunsupported(void);
 
 static void identifycyrix(void);
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+static void init_exthigh(void);
+#endif
 void setPQL2(int *const size, int *const ways);
 static void setPQL2_AMD(int *const size, int *const ways);
 static void setPQL2_INTEL(int *const size, int *const ways);
@@ -144,6 +147,30 @@ static struct {
 int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
 
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+static void
+init_exthigh(void)
+{
+	static int done = 0;
+	u_int regs[4];
+
+	if (done == 0) {
+		if (cpu_high > 0 &&
+		    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+		    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
+		    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+		    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
+		    strcmp(cpu_vendor, "Geode by NSC") == 0)) {
+			do_cpuid(0x80000000, regs);
+			if (regs[0] >= 0x80000000)
+				cpu_exthigh = regs[0];
+		}
+
+		done = 1;
+	}
+}
+#endif
+
 void
 printcpuinfo(void)
 {
@@ -158,23 +185,13 @@ printcpuinfo(void)
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	/* Check for extended CPUID information and a processor name. */
-	if (cpu_high > 0 &&
-	    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
-	    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
-	    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
-	    strcmp(cpu_vendor, "Geode by NSC") == 0)) {
-		do_cpuid(0x80000000, regs);
-		if (regs[0] >= 0x80000000) {
-			cpu_exthigh = regs[0];
-			if (cpu_exthigh >= 0x80000004) {
-				brand = cpu_brand;
-				for (i = 0x80000002; i < 0x80000005; i++) {
-					do_cpuid(i, regs);
-					memcpy(brand, regs, sizeof(regs));
-					brand += sizeof(regs);
-				}
-			}
+	init_exthigh();
+	if (cpu_exthigh >= 0x80000004) {
+		brand = cpu_brand;
+		for (i = 0x80000002; i < 0x80000005; i++) {
+			do_cpuid(i, regs);
+			memcpy(brand, regs, sizeof(regs));
+			brand += sizeof(regs);
 		}
 	}
 
@@ -1431,8 +1448,6 @@ setPQL2_AMD(int *const size, int *const ways) {
 		do_cpuid(0x80000006, regs);
 		*size = regs[2] >> 16;
 		*ways = (regs[2] >> 12) & 0x0f;
-		if(*ways == 255)		/* fully associative */
-			*ways = 1;
 	}
 }
 
@@ -1677,10 +1692,15 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 void
 setPQL2(int *const size, int *const ways)
 {
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+	/* make sure the cpu_exthigh variable is initialized */
+	init_exthigh();
+
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
 		setPQL2_AMD(size, ways);
 	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
 		setPQL2_INTEL(size, ways);
+#endif
 }
 
 static void
