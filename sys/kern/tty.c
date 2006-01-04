@@ -253,6 +253,7 @@ static u_char const char_type[] = {
  */
 static	TAILQ_HEAD(, tty) tty_list = TAILQ_HEAD_INITIALIZER(tty_list);
 static struct mtx tty_list_mutex;
+MTX_SYSINIT(tty_list, &tty_list_mutex, "ttylist", MTX_DEF);
 
 static struct unrhdr *tty_unit;
 
@@ -2828,12 +2829,6 @@ ttyrel(struct tty *tp)
 struct tty *
 ttymalloc(struct tty *tp)
 {
-	static int once;
-
-	if (!once) {
-		mtx_init(&tty_list_mutex, "ttylist", NULL, MTX_DEF);
-		once++;
-	}
 
 	if (tp) {
 		/*
