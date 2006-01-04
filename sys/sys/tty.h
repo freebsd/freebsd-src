@@ -360,7 +360,6 @@ void	 ttyinitmode(struct tty *tp, int echo, int speed);
 int	 ttyinput(int c, struct tty *tp);
 int	 ttylclose(struct tty *tp, int flag);
 void	 ttyldoptim(struct tty *tp);
-struct tty *ttymalloc(struct tty *tp);
 int	 ttymodem(struct tty *tp, int flag);
 int	 tty_open(struct cdev *device, struct tty *tp);
 int	 ttyref(struct tty *tp);
