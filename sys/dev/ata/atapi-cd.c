@@ -1513,7 +1513,7 @@ acd_read_structure(device_t dev, struct dvd_struct *s)
 
     case DVD_STRUCT_COPYRIGHT:
 	s->cpst = d->data[0];
-	s->rmi = d->data[0];
+	s->rmi = d->data[1];
 	break;
 
     case DVD_STRUCT_DISCKEY:
