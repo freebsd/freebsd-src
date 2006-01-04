@@ -2279,7 +2279,6 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 			fdused(fdp, indx);
 		if (fp != NULL)
 			FILE_LOCK(fp);
-		FILEDESC_UNLOCK(fdp);
 
 		/*
 		 * we now own the reference to fp that the ofiles[] array
@@ -2287,6 +2286,9 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		 */
 		if (fp != NULL)
 			fdrop_locked(fp, td);
+
+		FILEDESC_UNLOCK(fdp);
+
 		return (0);
 
 	default:
