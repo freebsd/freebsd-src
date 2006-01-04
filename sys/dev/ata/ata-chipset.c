@@ -2995,8 +2995,6 @@ ata_promise_chipinit(device_t dev)
 	break;
 
     case PRMIO:
-//      if (ctlr->r_res1)
-//          bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,ctlr->r_res1);
 	ctlr->r_type1 = SYS_RES_MEMORY;
 	ctlr->r_rid1 = PCIR_BAR(4);
 	if (!(ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1,
@@ -3694,7 +3692,7 @@ ata_promise_setmode(device_t dev, int mode)
     struct ata_device *atadev = device_get_softc(dev);
     int devno = (ch->unit << 1) + ATA_DEV(atadev->unit);
     int error;
-    u_int32_t timings33[][2] = {
+    u_int32_t timings[][2] = {
     /*    PROLD       PRNEW                mode */
 	{ 0x004ff329, 0x004fff2f },     /* PIO 0 */
 	{ 0x004fec25, 0x004ff82a },     /* PIO 1 */
@@ -3755,7 +3753,7 @@ ata_promise_setmode(device_t dev, int mode)
     if (!error) {
 	if (ctlr->chip->cfg1 < PRTX)
 	    pci_write_config(gparent, 0x60 + (devno << 2),
-			     timings33[ctlr->chip->cfg1][ata_mode2idx(mode)],4);
+			     timings[ata_mode2idx(mode)][ctlr->chip->cfg1], 4);
 	atadev->mode = mode;
     }
     return;
