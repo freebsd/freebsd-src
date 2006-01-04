@@ -2738,8 +2738,8 @@ getutimes(usrtvp, tvpseg, tsp)
 			tvp = tv;
 		}
 
-		if (tvp[0].tv_usec < 0 || tvp[0].tv_usec > 999999 ||
-		    tvp[1].tv_usec < 0 || tvp[1].tv_usec > 999999)
+		if (tvp[0].tv_usec < 0 || tvp[0].tv_usec >= 1000000 ||
+		    tvp[1].tv_usec < 0 || tvp[1].tv_usec >= 1000000)
 			return (EINVAL);
 		TIMEVAL_TO_TIMESPEC(&tvp[0], &tsp[0]);
 		TIMEVAL_TO_TIMESPEC(&tvp[1], &tsp[1]);
