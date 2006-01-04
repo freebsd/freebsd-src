@@ -2213,7 +2213,8 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 
-	if (ifmr->ifm_status & IFM_10_T && sc->flags & FXP_FLAG_CU_RESUME_BUG)
+	if (IFM_SUBTYPE(ifmr->ifm_active) == IFM_10_T &&
+	    sc->flags & FXP_FLAG_CU_RESUME_BUG)
 		sc->cu_resume_bug = 1;
 	else
 		sc->cu_resume_bug = 0;
