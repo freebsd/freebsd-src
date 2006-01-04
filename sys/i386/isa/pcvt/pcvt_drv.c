@@ -257,7 +257,7 @@ pcvt_attach(device_t dev)
 
 	for(i = 0; i < totalscreens; i++)
 	{
-		pcvt_tty[i] = ttymalloc(pcvt_tty[i]);
+		pcvt_tty[i] = ttyalloc();
 		vs[i].vs_tty = pcvt_tty[i];
 		make_dev(&vt_cdevsw, i, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", i);
 	}
@@ -644,7 +644,7 @@ pcvt_cn_probe(struct consdev *cp)
 
 	sprintf(cp->cn_name, "ttyv%r", 0);
 	cp->cn_pri = CN_INTERNAL;
-	pcvt_tty[0] = ttymalloc(pcvt_tty[0]);
+	pcvt_tty[0] = ttyalloc();
 	cp->cn_tp = pcvt_tty[0];
 }
 
