@@ -2920,7 +2920,8 @@ ata_promise_ident(device_t dev)
 	devid == ATA_I960RM) 
 	return ENXIO;
 
-    strcpy(buffer, idx->text);
+    strcpy(buffer, "Promise ");
+    strcat(buffer, idx->text);
 
     /* if we are on a FastTrak TX4, adjust the interrupt resource */
     if ((idx->cfg2 & PRTX4) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
@@ -2942,8 +2943,7 @@ ata_promise_ident(device_t dev)
 	    start = end = 0;
 	}
     }
-    sprintf(buffer, "Promise %s %s controller",
-	    buffer, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_promise_chipinit;
