@@ -74,9 +74,7 @@ void	enable_K6_2_wt_alloc(void);
 void panicifcpuunsupported(void);
 
 static void identifycyrix(void);
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static void init_exthigh(void);
-#endif
 void setPQL2(int *const size, int *const ways);
 static void setPQL2_AMD(int *const size, int *const ways);
 static void setPQL2_INTEL(int *const size, int *const ways);
@@ -102,7 +100,6 @@ static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
     &hw_clockrate, 0, "CPU instruction clock rate");
 
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static char cpu_brand[48];
 
 #define	MAX_BRAND_INDEX	8
@@ -118,7 +115,6 @@ static const char *cpu_brandtable[MAX_BRAND_INDEX + 1] = {
 	NULL,
 	"Intel Pentium 4"
 };
-#endif
 
 static struct {
 	char	*cpu_name;
@@ -147,7 +143,6 @@ static struct {
 int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
 
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static void
 init_exthigh(void)
 {
@@ -169,21 +164,17 @@ init_exthigh(void)
 		done = 1;
 	}
 }
-#endif
 
 void
 printcpuinfo(void)
 {
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	u_int regs[4], i;
 	char *brand;
-#endif
 
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof (cpu_model));
 
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	/* Check for extended CPUID information and a processor name. */
 	init_exthigh();
 	if (cpu_exthigh >= 0x80000004) {
@@ -621,8 +612,6 @@ printcpuinfo(void)
 	if (*brand != '\0')
 		strcpy(cpu_model, brand);
 
-#endif
-
 	printf("%s (", cpu_model);
 	switch(cpu_class) {
 	case CPUCLASS_286:
@@ -659,7 +648,6 @@ printcpuinfo(void)
 		printf("Unknown");	/* will panic below... */
 	}
 	printf("-class CPU)\n");
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
 	if(cpu_id)
@@ -888,8 +876,6 @@ printcpuinfo(void)
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
 		printf("\n");
-
-#endif
 
 	if (!bootverbose)
 		return;
@@ -1692,7 +1678,6 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 void
 setPQL2(int *const size, int *const ways)
 {
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	/* make sure the cpu_exthigh variable is initialized */
 	init_exthigh();
 
@@ -1700,7 +1685,6 @@ setPQL2(int *const size, int *const ways)
 		setPQL2_AMD(size, ways);
 	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
 		setPQL2_INTEL(size, ways);
-#endif
 }
 
 static void
