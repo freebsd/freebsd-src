@@ -1092,7 +1092,7 @@ ntfs_isnamepermitted(
 
 	switch (iep->ie_fnametype) {
 	case 2:
-		ddprintf(("ntfs_isnamepermitted: skiped DOS name\n"));
+		ddprintf(("ntfs_isnamepermitted: skipped DOS name\n"));
 		return 0;
 	case 0: case 1: case 3:
 		return 1;
