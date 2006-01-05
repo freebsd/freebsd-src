@@ -1,5 +1,31 @@
-/*	$NetBSD: inet.c,v 1.35.2.1 1999/04/29 14:57:08 perry Exp $	*/
+/*	$FreeBSD$	*/
 /*	$KAME: ipsec.c,v 1.33 2003/07/25 09:54:32 itojun Exp $	*/
+
+/*
+ * Copyright (c) 2005 NTT Multimedia Communications Laboratories, Inc.
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -78,9 +104,15 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
-#ifdef IPSEC
+#if defined(IPSEC) && !defined(FAST_IPSEC)
 #include <netinet6/ipsec.h>
-#include <netkey/keysock.h>
+#endif
+
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ah_var.h>
+#include <netipsec/esp_var.h>
+#include <netipsec/ipcomp_var.h>
 #endif
 
 #include <stdio.h>
@@ -88,7 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "netstat.h"
 
-#ifdef IPSEC 
+#ifdef IPSEC
 struct val2str {
 	int val;
 	const char *str;
@@ -143,20 +175,10 @@ static struct val2str ipsec_compnames[] = {
 	{ -1, NULL },
 };
 
-static const char *pfkey_msgtypenames[] = {
-	"reserved", "getspi", "update", "add", "delete",
-	"get", "acquire", "register", "expire", "flush",
-	"dump", "x_promisc", "x_pchange", "x_spdupdate", "x_spdadd",
-	"x_spddelete", "x_spdget", "x_spdacquire", "x_spddump", "x_spdflush",
-	"x_spdsetidx", "x_spdexpire", "x_spddelete2"
-};
+static void ipsec_hist(const u_quad_t *hist, size_t histmax,
+		       const struct val2str *name, const char *title);
+static void print_ipsecstats(const struct ipsecstat *ipsecstat);
 
-static struct ipsecstat ipsecstat;
-
-static void print_ipsecstats (void);
-static const char *pfkey_msgtype_names (int);
-static void ipsec_hist (const u_quad_t *, size_t, const struct val2str *,
-	const char *);
 
 /*
  * Dump IPSEC statistics structure.
@@ -191,12 +213,12 @@ ipsec_hist(const u_quad_t *hist, size_t histmax, const struct val2str *name,
 }
 
 static void
-print_ipsecstats(void)
+print_ipsecstats(const struct ipsecstat *ipsecstat)
 {
-#define	p(f, m) if (ipsecstat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ipsecstat.f, plural(ipsecstat.f))
-#define	pes(f, m) if (ipsecstat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ipsecstat.f, plurales(ipsecstat.f))
+#define	p(f, m) if (ipsecstat->f || sflag <= 1) \
+    printf(m, (unsigned long long)ipsecstat->f, plural(ipsecstat->f))
+#define	pes(f, m) if (ipsecstat->f || sflag <= 1) \
+    printf(m, (unsigned long long)ipsecstat->f, plurales(ipsecstat->f))
 #define hist(f, n, t) \
     ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
@@ -211,9 +233,9 @@ print_ipsecstats(void)
 	p(in_espreplay, "\t%llu inbound packet%s failed on ESP replay check\n");
 	p(in_ahauthsucc, "\t%llu inbound packet%s considered authentic\n");
 	p(in_ahauthfail, "\t%llu inbound packet%s failed on authentication\n");
-	hist(ipsecstat.in_ahhist, ipsec_ahnames, "AH input");
-	hist(ipsecstat.in_esphist, ipsec_espnames, "ESP input");
-	hist(ipsecstat.in_comphist, ipsec_compnames, "IPComp input");
+	hist(ipsecstat->in_ahhist, ipsec_ahnames, "AH input");
+	hist(ipsecstat->in_esphist, ipsec_espnames, "ESP input");
+	hist(ipsecstat->in_comphist, ipsec_compnames, "IPComp input");
 
 	p(out_success, "\t%llu outbound packet%s processed successfully\n");
 	p(out_polvio, "\t%llu outbound packet%s violated process security "
@@ -222,9 +244,9 @@ print_ipsecstats(void)
 	p(out_inval, "\t%llu invalid outbound packet%s\n");
 	p(out_nomem, "\t%llu outbound packet%s failed due to insufficient memory\n");
 	p(out_noroute, "\t%llu outbound packet%s with no route\n");
-	hist(ipsecstat.out_ahhist, ipsec_ahnames, "AH output");
-	hist(ipsecstat.out_esphist, ipsec_espnames, "ESP output");
-	hist(ipsecstat.out_comphist, ipsec_compnames, "IPComp output");
+	hist(ipsecstat->out_ahhist, ipsec_ahnames, "AH output");
+	hist(ipsecstat->out_esphist, ipsec_espnames, "ESP output");
+	hist(ipsecstat->out_comphist, ipsec_compnames, "IPComp output");
 	p(spdcachelookup, "\t%llu SPD cache lookup%s\n");
 	pes(spdcachemiss, "\t%llu SPD cache miss%s\n");
 #undef p
@@ -233,90 +255,240 @@ print_ipsecstats(void)
 }
 
 void
-ipsec_stats(u_long off __unused, const char *name, int af1 __unused)
+ipsec_stats(u_long off, const char *name, int af1 __unused)
 {
+	struct ipsecstat ipsecstat;
+
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&ipsecstat, sizeof (ipsecstat));
+	kread(off, (char *)&ipsecstat, sizeof(ipsecstat));
 
-	print_ipsecstats();
+	print_ipsecstats(&ipsecstat);
 }
 
-static const char *
-pfkey_msgtype_names(int x)
-{
-	const int max =
-	    sizeof(pfkey_msgtypenames)/sizeof(pfkey_msgtypenames[0]);
-	static char buf[20];
 
-	if (x < max && pfkey_msgtypenames[x])
-		return pfkey_msgtypenames[x];
-	snprintf(buf, sizeof(buf), "#%d", x);
-	return buf;
+#ifdef FAST_IPSEC
+
+static void ipsec_hist_new(const u_int32_t *hist, size_t histmax,
+			   const struct val2str *name, const char *title);
+static void print_newipsecstats(const struct newipsecstat *newipsecstat);
+static void print_ahstats(const struct ahstat *ahstat);
+static void print_espstats(const struct espstat *espstat);
+static void print_ipcompstats(const struct ipcompstat *ipcompstat);
+
+/*
+ * Dump IPSEC statistics structure.
+ */
+static void
+ipsec_hist_new(const u_int32_t *hist, size_t histmax,
+	       const struct val2str *name, const char *title)
+{
+	int first;
+	size_t proto;
+	const struct val2str *p;
+
+	first = 1;
+	for (proto = 0; proto < histmax; proto++) {
+		if (hist[proto] <= 0)
+			continue;
+		if (first) {
+			printf("\t%s histogram:\n", title);
+			first = 0;
+		}
+		for (p = name; p && p->str; p++) {
+			if (p->val == (int)proto)
+				break;
+		}
+		if (p && p->str) {
+			printf("\t\t%s: %u\n", p->str, hist[proto]);
+		} else {
+			printf("\t\t#%lu: %u\n", (unsigned long)proto,
+			       hist[proto]);
+		}
+	}
+}
+  
+static void
+print_newipsecstats(const struct newipsecstat *newipsecstat)
+{
+#define	p(f, m) if (newipsecstat->f || sflag <= 1) \
+    printf(m, newipsecstat->f, plural(newipsecstat->f))
+
+	p(ips_in_polvio, "\t%u inbound packet%s violated process "
+		"security policy\n");
+	p(ips_out_polvio, "\t%u outbound packet%s violated process "
+		"security policy\n");
+	p(ips_out_nosa, "\t%u outbound packet%s with no SA available\n");
+	p(ips_out_nomem, "\t%u outbound packet%s failed due to "
+		"insufficient memory\n");
+	p(ips_out_noroute, "\t%u outbound packet%s with no route "
+		"available\n");
+	p(ips_out_inval, "\t%u invalid outbound packet%s\n");
+	p(ips_out_bundlesa, "\t%u outbound packet%s with bundled SAs\n");
+	p(ips_mbcoalesced, "\t%u mbuf%s coalesced during clone\n");
+	p(ips_clcoalesced, "\t%u cluster%s coalesced during clone\n");
+	p(ips_clcopied, "\t%u cluster%s copied during clone\n");
+	p(ips_mbinserted, "\t%u mbuf%s inserted during makespace\n");
+#undef p
+}
+  
+void
+ipsec_stats_new(u_long off, const char *name, int af __unused)
+{
+	struct newipsecstat newipsecstat;
+
+	if (off == 0)
+		return;
+  	printf ("%s:\n", name);
+	kread(off, (char *)&newipsecstat, sizeof(newipsecstat));
+
+	print_newipsecstats(&newipsecstat);
+}
+
+static void
+print_ahstats(const struct ahstat *ahstat)
+{
+#define	p32(f, m) if (ahstat->f || sflag <= 1) \
+    printf("\t%u" m, (unsigned int)ahstat->f, plural(ahstat->f))
+#define	p64(f, m) if (ahstat->f || sflag <= 1) \
+    printf("\t%llu" m, (unsigned long long)ahstat->f, plural(ahstat->f))
+#define hist(f, n, t) \
+    ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
+
+	p32(ahs_hdrops, " packet%s shorter than header shows\n");
+	p32(ahs_nopf, " packet%s dropped; protocol family not supported\n");
+	p32(ahs_notdb, " packet%s dropped; no TDB\n");
+	p32(ahs_badkcr, " packet%s dropped; bad KCR\n");
+	p32(ahs_qfull, " packet%s dropped; queue full\n");
+	p32(ahs_noxform, " packet%s dropped; no transform\n");
+	p32(ahs_wrap, " replay counter wrap%s\n");
+	p32(ahs_badauth, " packet%s dropped; bad authentication detected\n");
+	p32(ahs_badauthl, " packet%s dropped; bad authentication length\n");
+	p32(ahs_replay, " possible replay packet%s detected\n");
+	p32(ahs_input, " packet%s in\n");
+	p32(ahs_output, " packet%s out\n");
+	p32(ahs_invalid, " packet%s dropped; invalid TDB\n");
+	p64(ahs_ibytes, " byte%s in\n");
+	p64(ahs_obytes, " byte%s out\n");
+	p32(ahs_toobig, " packet%s dropped; larger than IP_MAXPACKET\n");
+	p32(ahs_pdrops, " packet%s blocked due to policy\n");
+	p32(ahs_crypto, " crypto processing failure%s\n");
+	p32(ahs_tunnel, " tunnel sanity check failure%s\n");
+	hist(ahstat->ahs_hist, ipsec_ahnames, "AH output");
+
+#undef p32
+#undef p64
+#undef hist
 }
 
 void
-pfkey_stats(u_long off __unused, const char *name, int af1 __unused)
+ah_stats(u_long off, const char *name, int af __unused)
 {
-	struct pfkeystat pfkeystat;
-	unsigned first, type;
+	struct ahstat ahstat;
 
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&pfkeystat, sizeof(pfkeystat));
+	kread(off, (char *)&ahstat, sizeof(ahstat));
 
-#define	p(f, m) if (pfkeystat.f || sflag <= 1) \
-    printf(m, (unsigned long long)pfkeystat.f, plural(pfkeystat.f))
-
-	/* userland -> kernel */
-	p(out_total, "\t%llu request%s sent from userland\n");
-	p(out_bytes, "\t%llu byte%s sent from userland\n");
-	for (first = 1, type = 0;
-	     type < sizeof(pfkeystat.out_msgtype)/sizeof(pfkeystat.out_msgtype[0]);
-	     type++) {
-		if (pfkeystat.out_msgtype[type] <= 0)
-			continue;
-		if (first) {
-			printf("\thistogram by message type:\n");
-			first = 0;
-		}
-		printf("\t\t%s: %llu\n", pfkey_msgtype_names(type),
-		    (unsigned long long)pfkeystat.out_msgtype[type]);
-	}
-	p(out_invlen, "\t%llu message%s with invalid length field\n");
-	p(out_invver, "\t%llu message%s with invalid version field\n");
-	p(out_invmsgtype, "\t%llu message%s with invalid message type field\n");
-	p(out_tooshort, "\t%llu message%s too short\n");
-	p(out_nomem, "\t%llu message%s with memory allocation failure\n");
-	p(out_dupext, "\t%llu message%s with duplicate extension\n");
-	p(out_invexttype, "\t%llu message%s with invalid extension type\n");
-	p(out_invsatype, "\t%llu message%s with invalid sa type\n");
-	p(out_invaddr, "\t%llu message%s with invalid address extension\n");
-
-	/* kernel -> userland */
-	p(in_total, "\t%llu request%s sent to userland\n");
-	p(in_bytes, "\t%llu byte%s sent to userland\n");
-	for (first = 1, type = 0;
-	     type < sizeof(pfkeystat.in_msgtype)/sizeof(pfkeystat.in_msgtype[0]);
-	     type++) {
-		if (pfkeystat.in_msgtype[type] <= 0)
-			continue;
-		if (first) {
-			printf("\thistogram by message type:\n");
-			first = 0;
-		}
-		printf("\t\t%s: %llu\n", pfkey_msgtype_names(type),
-		    (unsigned long long)pfkeystat.in_msgtype[type]);
-	}
-	p(in_msgtarget[KEY_SENDUP_ONE],
-	    "\t%llu message%s toward single socket\n");
-	p(in_msgtarget[KEY_SENDUP_ALL],
-	    "\t%llu message%s toward all sockets\n");
-	p(in_msgtarget[KEY_SENDUP_REGISTERED],
-	    "\t%llu message%s toward registered sockets\n");
-	p(in_nomem, "\t%llu message%s with memory allocation failure\n");
-#undef p
+	print_ahstats(&ahstat);
 }
+
+static void
+print_espstats(const struct espstat *espstat)
+{
+#define	p32(f, m) if (espstat->f || sflag <= 1) \
+    printf("\t%u" m, (unsigned int)espstat->f, plural(espstat->f))
+#define	p64(f, m) if (espstat->f || sflag <= 1) \
+    printf("\t%llu" m, (unsigned long long)espstat->f, plural(espstat->f))
+#define hist(f, n, t) \
+    ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
+
+	p32(esps_hdrops, " packet%s shorter than header shows\n");
+	p32(esps_nopf, " packet%s dropped; protocol family not supported\n");
+	p32(esps_notdb, " packet%s dropped; no TDB\n");
+	p32(esps_badkcr, " packet%s dropped; bad KCR\n");
+	p32(esps_qfull, " packet%s dropped; queue full\n");
+	p32(esps_noxform, " packet%s dropped; no transform\n");
+	p32(esps_badilen, " packet%s dropped; bad ilen\n");
+	p32(esps_wrap, " replay counter wrap%s\n");
+	p32(esps_badenc, " packet%s dropped; bad encryption detected\n");
+	p32(esps_badauth, " packet%s dropped; bad authentication detected\n");
+	p32(esps_replay, " possible replay packet%s detected\n");
+	p32(esps_input, " packet%s in\n");
+	p32(esps_output, " packet%s out\n");
+	p32(esps_invalid, " packet%s dropped; invalid TDB\n");
+	p64(esps_ibytes, " byte%s in\n");
+	p64(esps_obytes, " byte%s out\n");
+	p32(esps_toobig, " packet%s dropped; larger than IP_MAXPACKET\n");
+	p32(esps_pdrops, " packet%s blocked due to policy\n");
+	p32(esps_crypto, " crypto processing failure%s\n");
+	p32(esps_tunnel, " tunnel sanity check failure%s\n");
+	hist(espstat->esps_hist, ipsec_espnames, "ESP output");
+
+#undef p32
+#undef p64
+#undef hist
+}
+
+void
+esp_stats(u_long off, const char *name, int af __unused)
+{
+	struct espstat espstat;
+
+	if (off == 0)
+		return;
+	printf ("%s:\n", name);
+	kread(off, (char *)&espstat, sizeof(espstat));
+
+	print_espstats(&espstat);
+}
+
+static void
+print_ipcompstats(const struct ipcompstat *ipcompstat)
+{
+#define	p32(f, m) if (ipcompstat->f || sflag <= 1) \
+    printf("\t%u" m, (unsigned int)ipcompstat->f, plural(ipcompstat->f))
+#define	p64(f, m) if (ipcompstat->f || sflag <= 1) \
+    printf("\t%llu" m, (unsigned long long)ipcompstat->f, plural(ipcompstat->f))
+#define hist(f, n, t) \
+    ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
+
+	p32(ipcomps_hdrops, " packet%s shorter than header shows\n");
+	p32(ipcomps_nopf, " packet%s dropped; protocol family not supported\n");
+	p32(ipcomps_notdb, " packet%s dropped; no TDB\n");
+	p32(ipcomps_badkcr, " packet%s dropped; bad KCR\n");
+	p32(ipcomps_qfull, " packet%s dropped; queue full\n");
+	p32(ipcomps_noxform, " packet%s dropped; no transform\n");
+	p32(ipcomps_wrap, " replay counter wrap%s\n");
+	p32(ipcomps_input, " packet%s in\n");
+	p32(ipcomps_output, " packet%s out\n");
+	p32(ipcomps_invalid, " packet%s dropped; invalid TDB\n");
+	p64(ipcomps_ibytes, " byte%s in\n");
+	p64(ipcomps_obytes, " byte%s out\n");
+	p32(ipcomps_toobig, " packet%s dropped; larger than IP_MAXPACKET\n");
+	p32(ipcomps_pdrops, " packet%s blocked due to policy\n");
+	p32(ipcomps_crypto, " crypto processing failure%s\n");
+	hist(ipcompstat->ipcomps_hist, ipsec_compnames, "COMP output");
+
+#undef p32
+#undef p64
+#undef hist
+}
+
+void
+ipcomp_stats(u_long off, const char *name, int af __unused)
+{
+	struct ipcompstat ipcompstat;
+
+	if (off == 0)
+		return;
+	printf ("%s:\n", name);
+	kread(off, (char *)&ipcompstat, sizeof(ipcompstat));
+
+	print_ipcompstats(&ipcompstat);
+}
+
+#endif /* FAST_IPSEC */
 #endif /*IPSEC*/
