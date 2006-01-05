@@ -55,7 +55,7 @@ static u_int32_t ess_playfmt[] = {
 	AFMT_STEREO | AFMT_U16_LE,
 	0
 };
-static struct pcmchan_caps ess_playcaps = {5000, 49000, ess_playfmt, 0};
+static struct pcmchan_caps ess_playcaps = {6000, 48000, ess_playfmt, 0};
 
 /*
  * Recording output is byte-swapped
@@ -71,7 +71,7 @@ static u_int32_t ess_recfmt[] = {
 	AFMT_STEREO | AFMT_U16_BE,
 	0
 };
-static struct pcmchan_caps ess_reccaps = {5000, 49000, ess_recfmt, 0};
+static struct pcmchan_caps ess_reccaps = {6000, 48000, ess_recfmt, 0};
 
 struct ess_info;
 
