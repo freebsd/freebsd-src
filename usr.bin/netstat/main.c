@@ -140,6 +140,14 @@ static struct nlist nl[] = {
 	{ "_carpstats" },
 #define N_PFSYNCSTAT	34
 	{ "_pfsyncstats" },
+#define	N_FAST_IPSECSTAT 35
+	{ "_newipsecstat" },
+#define	N_AHSTAT	36
+	{ "_ahstat" },
+#define	N_ESPSTAT	37
+	{ "_espstat" },
+#define	N_IPCOMPSTAT	38
+	{ "_ipcompstat" },
 	{ "" },
 };
 
@@ -170,6 +178,16 @@ struct protox {
 #ifdef IPSEC
 	{ -1,		N_IPSECSTAT,	1,	NULL,
 	  ipsec_stats,	NULL,		"ipsec",	0},
+#ifdef FAST_IPSEC
+	{ -1,		N_FAST_IPSECSTAT, 1,	0,
+	  ipsec_stats_new, NULL,	"fastipsec",	0},
+	{ -1,		N_AHSTAT,	1,	0,
+	  ah_stats,	NULL,		"ah",		0},
+	{ -1,		N_ESPSTAT,	1,	0,
+	  esp_stats,	NULL,		"esp",		0},
+	{ -1,		N_IPCOMPSTAT,	1,	0,
+	  ipcomp_stats,	NULL,		"ipcomp",	0},
+#endif
 #endif
 	{ -1,		-1,		1,	NULL,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
@@ -503,6 +521,17 @@ main(int argc, char *argv[])
 
 	kread(0, 0, 0);
 	if (tp) {
+#ifdef FAST_IPSEC
+		/*
+		 * HACK: fallback to printing the new FAST IPSEC stats
+		 *	 if the kernel was built with FAST_IPSEC rather
+		 *	 than the KAME IPSEC stack (the two are mutually
+		 *	 exclusive).
+		 */
+		if (nl[tp->pr_sindex].n_value == 0 &&
+		    strcmp(tp->pr_name, "ipsec") == 0)
+			tp = name2protox("fastipsec");
+#endif
 		printproto(tp, tp->pr_name);
 		exit(0);
 	}
