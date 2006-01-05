@@ -102,6 +102,7 @@ vendor KYE		0x0458	KYE Systems
 vendor DIAMOND2		0x045a	Diamond (Supra)
 vendor MICROSOFT	0x045e	Microsoft
 vendor PRIMAX		0x0461	Primax Electronics
+vendor MGE		0x0463	MGE
 vendor AMP		0x0464	AMP
 vendor CHERRY		0x046a	Cherry Mikroschalter
 vendor MEGATRENDS	0x046b	American Megatrends
@@ -366,6 +367,7 @@ vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	Japan Radio Company
+vendor DELORME		0x1163	Delorme Publishing
 vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
 vendor BELKIN2		0x1293	Belkin Components
 vendor MOBILITY		0x1342	Mobility
@@ -604,6 +606,9 @@ product DALLAS J6502		0x4201	J-6502 speakers
 
 /* Dell products */
 product DELL BC02		0x8000	Dell BC02 Bluetooth USB Adapter
+
+/* Delorme Paublishing products */
+product DELORME EARTHMATE	0x0100	Earthmate GPS
 
 /* Diamond products */
 product DIAMOND RIO500USB	0x0001	Rio 500 USB
