@@ -99,6 +99,10 @@ struct ex_types {
 #ifdef __ia64__
 	{ "FreeBSD ELF64", ia64_syscall_entry, ia64_syscall_exit },
 #endif
+#ifdef __powerpc__
+	{ "FreeBSD ELF", powerpc_syscall_entry, powerpc_syscall_exit },
+	{ "FreeBSD ELF32", powerpc_syscall_entry, powerpc_syscall_exit },
+#endif
 #ifdef __sparc64__
 	{ "FreeBSD ELF64", sparc64_syscall_entry, sparc64_syscall_exit },
 #endif
