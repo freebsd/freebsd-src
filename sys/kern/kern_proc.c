@@ -818,7 +818,7 @@ void
 fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
 
-        fill_kinfo_proc_only(p, kp);
+	fill_kinfo_proc_only(p, kp);
 	mtx_lock_spin(&sched_lock);
 	if (FIRST_THREAD_IN_PROC(p) != NULL)
 		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
@@ -887,7 +887,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	fill_kinfo_proc(p, &kinfo_proc);
+	fill_kinfo_proc_only(p, &kinfo_proc);
 	if (flags & KERN_PROC_NOTHREADS) {
 		mtx_lock_spin(&sched_lock);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
