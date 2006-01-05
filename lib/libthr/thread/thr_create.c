@@ -37,9 +37,7 @@
 
 #include "thr_private.h"
 
-static void free_thread(struct pthread *curthread, struct pthread *thread);
 static int  create_stack(struct pthread_attr *pattr);
-static void free_stack(struct pthread *curthread, struct pthread_attr *pattr);
 static void thread_start(struct pthread *curthread);
 
 __weak_reference(_pthread_create, pthread_create);
@@ -50,7 +48,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 {
 	struct pthread *curthread, *new_thread;
 	struct thr_param param;
-	int ret = 0, locked;
+	int ret = 0, locked, create_suspended;
+	sigset_t set, oset;
 
 	_thr_check_init();
 
@@ -133,11 +132,20 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	TAILQ_INIT(&new_thread->pri_mutexq);
 
 	/* Initialise hooks in the thread structure: */
-	if (new_thread->attr.suspend == THR_CREATE_SUSPENDED)
+	if (new_thread->attr.suspend == THR_CREATE_SUSPENDED) {
 		new_thread->flags = THR_FLAGS_NEED_SUSPEND;
+		create_suspended = 1;
+	} else {
+		create_suspended = 0;
+	}
+
 	new_thread->state = PS_RUNNING;
 
+	if (new_thread->attr.flags & PTHREAD_CREATE_DETACHED)
+		new_thread->tlflags |= TLFLAGS_DETACHED;
+
 	/* Add the new thread. */
+	new_thread->refcount = 1;
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
@@ -157,13 +165,34 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	param.flags = 0;
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
+
 	/* Schedule the new thread. */
+	if (create_suspended) {
+		SIGFILLSET(set);
+		SIGDELSET(set, SIGTRAP);
+		__sys_sigprocmask(SIG_SETMASK, &set, &oset);
+		new_thread->sigmask = oset;
+	}
+
 	ret = thr_new(&param, sizeof(param));
+
+	if (create_suspended)
+		__sys_sigprocmask(SIG_SETMASK, &oset, NULL);
+
 	if (ret != 0) {
-		if (locked)
-			THR_THREAD_UNLOCK(curthread, new_thread);
-		_thr_unlink(curthread, new_thread);
-		free_thread(curthread, new_thread);
+		if (!locked)
+			THR_THREAD_LOCK(curthread, new_thread);
+		new_thread->state = PS_DEAD;
+		new_thread->tid = TID_TERMINATED;
+		if (new_thread->flags & THR_FLAGS_NEED_SUSPEND) {
+			new_thread->cycle++;
+			_thr_umtx_wake(&new_thread->cycle, INT_MAX);
+		}
+		THR_THREAD_UNLOCK(curthread, new_thread);
+		THREAD_LIST_LOCK(curthread);
+		new_thread->tlflags |= TLFLAGS_DETACHED;
+		_thr_ref_delete_unlocked(curthread, new_thread);
+		THREAD_LIST_UNLOCK(curthread);
 		(*thread) = 0;
 		ret = EAGAIN;
 	} else if (locked) {
@@ -171,14 +200,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		THR_THREAD_UNLOCK(curthread, new_thread);
 	}
 	return (ret);
-}
-
-static void
-free_thread(struct pthread *curthread, struct pthread *thread)
-{
-	free_stack(curthread, &thread->attr);
-	curthread->tid = TID_TERMINATED;
-	_thr_free(curthread, thread);
 }
 
 static int
@@ -198,22 +219,25 @@ create_stack(struct pthread_attr *pattr)
 }
 
 static void
-free_stack(struct pthread *curthread, struct pthread_attr *pattr)
-{
-	if ((pattr->flags & THR_STACK_USER) == 0) {
-		THREAD_LIST_LOCK(curthread);
-		/* Stack routines don't use malloc/free. */
-		_thr_stack_free(pattr);
-		THREAD_LIST_UNLOCK(curthread);
-	}
-}
-
-static void
 thread_start(struct pthread *curthread)
 {
-	if (curthread->flags & THR_FLAGS_NEED_SUSPEND)
-		_thr_suspend_check(curthread);
+	if (curthread->attr.suspend == THR_CREATE_SUSPENDED) {
+		sigset_t set = curthread->sigmask;
 
+		_thr_ast(curthread);
+
+		/*
+		 * Parent thread have stored signal mask for us,
+		 * we should restore it now.
+		 */
+		sigprocmask(SIG_SETMASK, &set, NULL);
+	}
+
+	/*
+	 * This is used as a serialization point to allow parent
+	 * to report 'new thread' event to debugger before the thread
+	 * does real work.
+	 */
 	THR_LOCK(curthread);
 	THR_UNLOCK(curthread);
 
