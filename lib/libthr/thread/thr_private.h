@@ -349,6 +349,12 @@ struct pthread {
 	/* How many low level locks the thread held. */
 	int			locklevel;
 
+	/*
+	 * Set to non-zero when this thread has entered a critical
+	 * region.  We allow for recursive entries into critical regions.
+	 */
+	int			critical_count;
+
 	/* Signal blocked counter. */
 	int			sigblock;
 
@@ -494,6 +500,10 @@ struct pthread {
 	td_event_msg_t		event_buf;
 };
 
+#define	THR_IN_CRITICAL(thrd)				\
+	(((thrd)->locklevel > 0) ||			\
+	((thrd)->critical_count > 0))
+
 #define THR_UMTX_TRYLOCK(thrd, lck)			\
 	_thr_umtx_trylock((lck), (thrd)->tid)
 
@@ -517,6 +527,7 @@ do {							\
 	if ((thrd)->locklevel > 0) {			\
 		_thr_umtx_unlock((lck), (thrd)->tid);	\
 		(thrd)->locklevel--;			\
+		_thr_ast(thrd);				\
 	} else { 					\
 		_thr_assert_lock_level();		\
 	}						\
@@ -673,6 +684,7 @@ void	_thread_exit(char *, int, char *) __hidden __dead2;
 void	_thr_exit_cleanup(void) __hidden;
 int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
+void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
 int	_thr_find_thread(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_rtld_init(void) __hidden;
 void	_thr_rtld_fini(void) __hidden;
@@ -695,10 +707,11 @@ void	_thr_list_init(void) __hidden;
 void	_thr_hash_add(struct pthread *) __hidden;
 void	_thr_hash_remove(struct pthread *) __hidden;
 struct pthread *_thr_hash_find(struct pthread *) __hidden;
-void	_thr_link(struct pthread *curthread, struct pthread *thread) __hidden;
-void	_thr_unlink(struct pthread *curthread, struct pthread *thread) __hidden;
-void	_thr_suspend_check(struct pthread *curthread) __hidden;
+void	_thr_link(struct pthread *, struct pthread *) __hidden;
+void	_thr_unlink(struct pthread *, struct pthread *) __hidden;
+void	_thr_suspend_check(struct pthread *) __hidden;
 void	_thr_assert_lock_level(void) __hidden __dead2;
+void	_thr_ast(struct pthread *) __hidden;
 void	_thr_timer_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
 			   struct pthread *newthread) __hidden;
