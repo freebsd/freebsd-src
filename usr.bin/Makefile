@@ -227,8 +227,7 @@ SUBDIR=	alias \
 	${_ypmatch} \
 	${_ypwhich}
 
-.if ${MACHINE_ARCH} != "arm" && \
-    ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "arm"
 _truss=		truss
 .endif
 
