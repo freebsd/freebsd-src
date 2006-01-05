@@ -88,5 +88,4 @@ resume_common(struct pthread *thread)
 	thread->flags &= ~THR_FLAGS_NEED_SUSPEND;
 	thread->cycle++;
 	_thr_umtx_wake(&thread->cycle, 1);
-	_thr_send_sig(thread, SIGCANCEL);
 }

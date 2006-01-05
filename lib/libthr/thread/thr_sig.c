@@ -52,34 +52,67 @@ sigcancel_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 
 	if (curthread->cancelflags & THR_CANCEL_AT_POINT)
 		pthread_testcancel();
-	if (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
-		__sys_sigprocmask(SIG_SETMASK, &ucp->uc_sigmask, NULL);
-		_thr_suspend_check(curthread);
+	_thr_ast(curthread);
+}
+
+void
+_thr_ast(struct pthread *curthread)
+{
+	if (!THR_IN_CRITICAL(curthread)) {
+		if (__predict_false((curthread->flags &
+		    (THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
+			== THR_FLAGS_NEED_SUSPEND))
+			_thr_suspend_check(curthread);
 	}
 }
 
 void
 _thr_suspend_check(struct pthread *curthread)
 {
-	long cycle;
+	umtx_t cycle;
 
-	/* Async suspend. */
+	/* 
+	 * Blocks SIGCANCEL which other threads must send.
+	 */
 	_thr_signal_block(curthread);
-	THR_LOCK(curthread);
-	if ((curthread->flags & (THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
-		== THR_FLAGS_NEED_SUSPEND) {
+
+	/*
+	 * Increase critical_count, here we don't use THR_LOCK/UNLOCK
+	 * because we are leaf code, we don't want to recursively call
+	 * ourself.
+	 */
+	curthread->critical_count++;
+	THR_UMTX_LOCK(curthread, &(curthread)->lock);
+	while ((curthread->flags & (THR_FLAGS_NEED_SUSPEND |
+		THR_FLAGS_SUSPENDED)) == THR_FLAGS_NEED_SUSPEND) {
+		curthread->cycle++;
+		cycle = curthread->cycle;
+
+		/* Wake the thread suspending us. */
+		_thr_umtx_wake(&curthread->cycle, INT_MAX);
+
+		/*
+		 * if we are from pthread_exit, we don't want to
+		 * suspend, just go and die.
+		 */
+		if (curthread->state == PS_DEAD)
+			break;
 		curthread->flags |= THR_FLAGS_SUSPENDED;
-		while (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
-			cycle = curthread->cycle;
-			THR_UNLOCK(curthread);
-			_thr_signal_unblock(curthread);
-			_thr_umtx_wait(&curthread->cycle, cycle, NULL);
-			_thr_signal_block(curthread);
-			THR_LOCK(curthread);
-		}
+		THR_UMTX_UNLOCK(curthread, &(curthread)->lock);
+		_thr_umtx_wait(&curthread->cycle, cycle, NULL);
+		THR_UMTX_LOCK(curthread, &(curthread)->lock);
 		curthread->flags &= ~THR_FLAGS_SUSPENDED;
 	}
-	THR_UNLOCK(curthread);
+	THR_UMTX_UNLOCK(curthread, &(curthread)->lock);
+	curthread->critical_count--;
+
+	/* 
+	 * Unblocks SIGCANCEL, it is possible a new SIGCANCEL is ready and
+	 * a new signal frame will nest us, this seems a problem because 
+	 * stack will grow and overflow, but because kernel will automatically
+	 * mask the SIGCANCEL when delivering the signal, so we at most only
+	 * have one nesting signal frame, this should be fine.
+	 */
 	_thr_signal_unblock(curthread);
 }
 
