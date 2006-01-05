@@ -156,14 +156,6 @@ reiserfs_reclaim(struct vop_reclaim_args *ap)
 	/* Remove the inode from its hash chain. */
 	vfs_hash_remove(vp);
 
-	/* Purge old data structures associated with the inode. */
-	if (ip->i_devvp) {
-		reiserfs_log(LOG_DEBUG, "releasing device (0x%p)\n",
-		    ip->i_devvp);
-		vrele(ip->i_devvp);
-		ip->i_devvp = NULL;
-	}
-
 	reiserfs_log(LOG_DEBUG, "free private data\n");
 	FREE(vp->v_data, M_REISERFSNODE);
 	vp->v_data = NULL;
@@ -834,7 +826,6 @@ reiserfs_iget(
 	reiserfs_read_locked_inode(ip, &args);
 
 	ip->i_devvp = rmp->rm_devvp;
-	VREF(ip->i_devvp);
 
 	switch(vp->v_type = IFTOVT(ip->i_mode)) {
 	case VBLK:
