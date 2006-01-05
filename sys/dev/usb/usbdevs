@@ -90,6 +90,7 @@ vendor KYE		0x0458	KYE Systems
 vendor DIAMOND2		0x045a	Diamond (Supra)
 vendor MICROSOFT	0x045e	Microsoft
 vendor PRIMAX		0x0461	Primax Electronics
+vendor MGE		0x0463	MGE
 vendor AMP		0x0464	AMP
 vendor CHERRY		0x046a	Cherry Mikroschalter
 vendor MEGATRENDS	0x046b	American Megatrends
