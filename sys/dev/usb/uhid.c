@@ -91,6 +91,9 @@ __FBSDID("$FreeBSD$");
 /* Report descriptor for broken Wacom Graphire */
 #include <dev/usb/ugraphire_rdesc.h>
 
+/* For hid blacklist quirk */
+#include <dev/usb/usb_quirks.h>
+
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (uhiddebug) logprintf x
 #define DPRINTFN(n,x)	if (uhiddebug>(n)) logprintf x
@@ -190,6 +193,8 @@ USB_MATCH(uhid)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == NULL || id->bInterfaceClass != UICLASS_HID)
+		return (UMATCH_NONE);
+	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_HID_IGNORE)
 		return (UMATCH_NONE);
 #if 0
 	if (uaa->matchlvl)
