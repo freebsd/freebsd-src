@@ -72,6 +72,8 @@ MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
+static void fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp);
+static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp);
 static void pgadjustjobc(struct pgrp *pgrp, int entering);
 static void pgdelete(struct pgrp *);
 static int proc_ctor(void *mem, int size, void *arg, int flags);
@@ -601,32 +603,21 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 	}
 }
 #endif /* DDB */
-void
-fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp);
 
 /*
- * Fill in a kinfo_proc structure for the specified process.
+ * Clear kinfo_proc and fill in any information that is common
+ * to all threads in the process.
  * Must be called with the target process locked.
  */
-void
-fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
+static void
+fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 {
-	fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
-}
-
-void
-fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
-{
-	struct proc *p;
 	struct thread *td0;
-	struct ksegrp *kg;
 	struct tty *tp;
 	struct session *sp;
 	struct timeval tv;
 	struct ucred *cred;
 	struct sigacts *ps;
-
-	p = td->td_proc;
 
 	bzero(kp, sizeof(*kp));
 
@@ -685,7 +676,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_tsize = vm->vm_tsize;
 		kp->ki_dsize = vm->vm_dsize;
 		kp->ki_ssize = vm->vm_ssize;
-	}
+	} else if (p->p_state == PRS_ZOMBIE)
+		kp->ki_stat = SZOMB;
 	if ((p->p_sflag & PS_INMEM) && p->p_stats) {
 		kp->ki_start = p->p_stats->p_start;
 		timevaladd(&kp->ki_start, &boottime);
@@ -704,71 +696,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_nice = p->p_nice;
 	bintime2timeval(&p->p_runtime, &tv);
 	kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
-	if (p->p_state != PRS_ZOMBIE) {
-#if 0
-		if (td == NULL) {
-			/* XXXKSE: This should never happen. */
-			printf("fill_kinfo_proc(): pid %d has no threads!\n",
-			    p->p_pid);
-			mtx_unlock_spin(&sched_lock);
-			return;
-		}
-#endif
-		if (td->td_wmesg != NULL) {
-			strlcpy(kp->ki_wmesg, td->td_wmesg,
-			    sizeof(kp->ki_wmesg));
-		}
-		if (TD_ON_LOCK(td)) {
-			kp->ki_kiflag |= KI_LOCKBLOCK;
-			strlcpy(kp->ki_lockname, td->td_lockname,
-			    sizeof(kp->ki_lockname));
-		}
-
-		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
-			if (TD_ON_RUNQ(td) ||
-			    TD_CAN_RUN(td) ||
-			    TD_IS_RUNNING(td)) {
-				kp->ki_stat = SRUN;
-			} else if (P_SHOULDSTOP(p)) {
-				kp->ki_stat = SSTOP;
-			} else if (TD_IS_SLEEPING(td)) {
-				kp->ki_stat = SSLEEP;
-			} else if (TD_ON_LOCK(td)) {
-				kp->ki_stat = SLOCK;
-			} else {
-				kp->ki_stat = SWAIT;
-			}
-		} else {
-			kp->ki_stat = SIDL;
-		}
-
-		kg = td->td_ksegrp;
-
-		/* things in the KSE GROUP */
-		kp->ki_estcpu = kg->kg_estcpu;
-		kp->ki_slptime = kg->kg_slptime;
-		kp->ki_pri.pri_user = kg->kg_user_pri;
-		kp->ki_pri.pri_class = kg->kg_pri_class;
-
-		/* Things in the thread */
-		kp->ki_wchan = td->td_wchan;
-		kp->ki_pri.pri_level = td->td_priority;
-		kp->ki_pri.pri_native = td->td_base_pri;
-		kp->ki_lastcpu = td->td_lastcpu;
-		kp->ki_oncpu = td->td_oncpu;
-		kp->ki_tdflags = td->td_flags;
-		kp->ki_tid = td->td_tid;
-		kp->ki_numthreads = p->p_numthreads;
-		kp->ki_pcb = td->td_pcb;
-		kp->ki_kstack = (void *)td->td_kstack;
-		kp->ki_pctcpu = sched_pctcpu(td);
-
-		/* We can't get this anymore but ps etc never used it anyway. */
-		kp->ki_rqindex = 0;
-
-	} else {
-		kp->ki_stat = SZOMB;
-	}
 	mtx_unlock_spin(&sched_lock);
 	tp = NULL;
 	if (p->p_pgrp) {
@@ -804,13 +731,97 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	    p->p_sysent->sv_name[0] != '\0')
 		strlcpy(kp->ki_emul, p->p_sysent->sv_name, sizeof(kp->ki_emul));
 	kp->ki_siglist = p->p_siglist;
-        SIGSETOR(kp->ki_siglist, td->td_siglist);
-	kp->ki_sigmask = td->td_sigmask;
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_lock = p->p_lock;
 	if (p->p_pptr)
 		kp->ki_ppid = p->p_pptr->p_pid;
+}
+
+/*
+ * Fill in information that is thread specific.
+ * Must be called with sched_lock locked.
+ */
+static void
+fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
+{
+	struct ksegrp *kg;
+	struct proc *p;
+
+	p = td->td_proc;
+
+	if (td->td_wmesg != NULL)
+		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
+	else
+		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
+	if (TD_ON_LOCK(td)) {
+		kp->ki_kiflag |= KI_LOCKBLOCK;
+		strlcpy(kp->ki_lockname, td->td_lockname,
+		    sizeof(kp->ki_lockname));
+	} else {
+		kp->ki_kiflag &= ~KI_LOCKBLOCK;
+		bzero(kp->ki_lockname, sizeof(kp->ki_lockname));
+	}
+
+	if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
+		if (TD_ON_RUNQ(td) ||
+		    TD_CAN_RUN(td) ||
+		    TD_IS_RUNNING(td)) {
+			kp->ki_stat = SRUN;
+		} else if (P_SHOULDSTOP(p)) {
+			kp->ki_stat = SSTOP;
+		} else if (TD_IS_SLEEPING(td)) {
+			kp->ki_stat = SSLEEP;
+		} else if (TD_ON_LOCK(td)) {
+			kp->ki_stat = SLOCK;
+		} else {
+			kp->ki_stat = SWAIT;
+		}
+	} else {
+		kp->ki_stat = SIDL;
+	}
+
+	kg = td->td_ksegrp;
+
+	/* things in the KSE GROUP */
+	kp->ki_estcpu = kg->kg_estcpu;
+	kp->ki_slptime = kg->kg_slptime;
+	kp->ki_pri.pri_user = kg->kg_user_pri;
+	kp->ki_pri.pri_class = kg->kg_pri_class;
+
+	/* Things in the thread */
+	kp->ki_wchan = td->td_wchan;
+	kp->ki_pri.pri_level = td->td_priority;
+	kp->ki_pri.pri_native = td->td_base_pri;
+	kp->ki_lastcpu = td->td_lastcpu;
+	kp->ki_oncpu = td->td_oncpu;
+	kp->ki_tdflags = td->td_flags;
+	kp->ki_tid = td->td_tid;
+	kp->ki_numthreads = p->p_numthreads;
+	kp->ki_pcb = td->td_pcb;
+	kp->ki_kstack = (void *)td->td_kstack;
+	kp->ki_pctcpu = sched_pctcpu(td);
+
+	/* We can't get this anymore but ps etc never used it anyway. */
+	kp->ki_rqindex = 0;
+
+	SIGSETOR(kp->ki_siglist, td->td_siglist);
+	kp->ki_sigmask = td->td_sigmask;
+}
+
+/*
+ * Fill in a kinfo_proc structure for the specified process.
+ * Must be called with the target process locked.
+ */
+void
+fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
+{
+
+	fill_kinfo_proc_only(p, kp);
+	mtx_lock_spin(&sched_lock);
+	if (FIRST_THREAD_IN_PROC(p) != NULL)
+		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
+	mtx_unlock_spin(&sched_lock);
 }
 
 struct pstats *
@@ -875,24 +886,28 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
+	fill_kinfo_proc_only(p, &kinfo_proc);
 	if (flags & KERN_PROC_NOTHREADS) {
-		fill_kinfo_proc(p, &kinfo_proc);
-		PROC_UNLOCK(p);
+		mtx_lock_spin(&sched_lock);
+		if (FIRST_THREAD_IN_PROC(p) != NULL)
+			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), &kinfo_proc);
+		mtx_unlock_spin(&sched_lock);
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 				   sizeof(kinfo_proc));
-		PROC_LOCK(p);
 	} else {
-		_PHOLD(p);
-		FOREACH_THREAD_IN_PROC(p, td) {
-			fill_kinfo_thread(td, &kinfo_proc);
-			PROC_UNLOCK(p);
+		mtx_lock_spin(&sched_lock);
+		if (FIRST_THREAD_IN_PROC(p) != NULL)
+			FOREACH_THREAD_IN_PROC(p, td) {
+				fill_kinfo_thread(td, &kinfo_proc);
+				error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
+						   sizeof(kinfo_proc));
+				if (error)
+					break;
+			}
+		else
 			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 					   sizeof(kinfo_proc));
-			PROC_LOCK(p);
-			if (error)
-				break;
-		}
-		_PRELE(p);
+		mtx_unlock_spin(&sched_lock);
 	}
 	PROC_UNLOCK(p);
 	if (error)
@@ -934,6 +949,9 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	if (oid_number == KERN_PROC_PID) {
 		if (namelen != 1) 
 			return (EINVAL);
+		error = sysctl_wire_old_buffer(req, 0);
+		if (error)
+			return (error);		
 		p = pfind((pid_t)name[0]);
 		if (!p)
 			return (ESRCH);
