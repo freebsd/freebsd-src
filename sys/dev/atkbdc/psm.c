@@ -2546,7 +2546,7 @@ psmsoftintr(void *arg)
 	    /* Sanity check for out of sync packets. */
 	    if ((pb->ipacket[0] & 0xc8) != 0x80 ||
 		(pb->ipacket[3] & 0xc8) != 0xc0)
-		continue;
+		goto NEXT;
 
 	    x = y = x0 = y0 = 0;
 
@@ -2818,6 +2818,7 @@ psmsoftintr(void *arg)
 	}
         pb->inputbytes = 0;
 
+NEXT:
 	if (++sc->pqueue_start >= PSM_PACKETQUEUE)
 		sc->pqueue_start = 0;
     } while (sc->pqueue_start != sc->pqueue_end);
