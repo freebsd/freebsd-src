@@ -250,13 +250,11 @@ static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
 
 #ifdef WITNESS
 static int nosleepwithlocks = 1;
-SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
-    0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
 #else
 static int nosleepwithlocks = 0;
+#endif
 SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
     0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
-#endif
 SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
@@ -1800,10 +1798,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 #endif
 		} else {
 			badness = 0;
-#ifdef WITNESS
 			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 			    "malloc(M_WAITOK) of \"%s\"", zone->uz_name);
-#endif
 		}
 		if (badness) {
 			flags &= ~M_WAITOK;
