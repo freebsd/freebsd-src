@@ -419,7 +419,6 @@ MLINKS+=fwip.4 if_fwip.4
 MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=geom.4 GEOM.4
-MLINKS+=geom_fox.4 GEOM.4
 MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
