@@ -66,6 +66,62 @@ __FBSDID("$FreeBSD$");
 #define KERNCRED thread0.td_ucred
 #define DEBUG 1
 
+#include "opt_ffs.h"
+
+#ifdef NO_FFS_SNAPSHOT
+int
+ffs_snapshot(mp, snapfile)
+	struct mount *mp;
+	char *snapfile;
+{
+	return (EINVAL);
+}
+
+int
+ffs_snapblkfree(fs, devvp, bno, size, inum)
+	struct fs *fs;
+	struct vnode *devvp;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+{
+	return (EINVAL);
+}
+
+void
+ffs_snapremove(vp)
+	struct vnode *vp;
+{
+}
+
+void
+ffs_snapshot_mount(mp)
+	struct mount *mp;
+{
+}
+
+void
+ffs_snapshot_unmount(mp)
+	struct mount *mp;
+{
+}
+
+void
+ffs_snapgone(ip)
+	struct inode *ip;
+{
+}
+
+int
+ffs_copyonwrite(devvp, bp)
+	struct vnode *devvp;
+	struct buf *bp;
+{
+	return (EINVAL);
+}
+
+#else
+
 TAILQ_HEAD(snaphead, inode);
 
 struct snapdata {
@@ -2171,3 +2227,5 @@ readblock(vp, bp, lbn)
 	g_destroy_bio(bip);
 	return (bp->b_error);
 }
+
+#endif

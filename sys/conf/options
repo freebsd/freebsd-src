@@ -213,6 +213,11 @@ UDF_ICONV	opt_dontuse.h
 # otherwise a STUB module will be compiled in.
 SOFTUPDATES	opt_ffs.h
 
+# On small, embedded systems, it can be useful to turn off support for
+# snapshots.  It saves about 30-40k for a feature that would be lightly
+# used, if it is used at all.
+NO_FFS_SNAPSHOT	opt_ffs.h
+
 # Enabling this option turns on support for Access Control Lists in UFS,
 # which can be used to support high security configurations.  Depends on
 # UFS_EXTATTR.
