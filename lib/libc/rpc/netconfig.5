@@ -43,11 +43,17 @@ A raw connection.
 .It Ar flags
 This field is either blank (specified by
 .Dq Li - ) ,
-or contains a
-.Dq Li v ,
-meaning visible to the
+or contains one or more of the following characters:
+.Bl -tag -width b -offset indent
+.It Sy b
+The network represented by this entry is broadcast capable.
+This flag is meaningless in
+.Fx .
+.It Sy v
+The entry is visible to, and will be returned by, the
 .Xr getnetconfig 3
 function.
+.El
 .It Ar family
 The protocol family of the transport.
 This is currently one of:
@@ -107,8 +113,8 @@ the following format:
 .Bd -literal
 struct netconfig {
     char *nc_netid;              /* Network ID */
-    unsigned long nc_semantics;  /* Semantics (see below) */
-    unsigned long nc_flag;       /* Flags (see below) */
+    unsigned long nc_semantics;  /* Semantics */
+    unsigned long nc_flag;       /* Flags */
     char *nc_protofmly;          /* Protocol family */
     char *nc_proto;              /* Protocol name */
     char *nc_device;             /* Network device pathname (unused) */
