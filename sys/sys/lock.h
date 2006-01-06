@@ -68,6 +68,20 @@ struct lock_class {
 #define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
 #define	LO_ENROLLPEND	0x00800000	/* On the pending enroll list. */
+#define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
+
+/*
+ * Lock classes are statically assigned an index into the gobal lock_classes
+ * array.  Debugging code looks up the lock class for a given lock object
+ * by indexing the array.
+ */
+#define	LO_CLASSSHIFT		24
+#define	LO_CLASSINDEX(lock)	((((lock)->lo_flags) & LO_CLASSMASK) >> LO_CLASSSHIFT)
+#define	LOCK_CLASS(lock)	(lock_classes[LO_CLASSINDEX((lock))])
+#define	LOCK_CLASS_SPIN_MUTEX	0
+#define	LOCK_CLASS_SLEEP_MUTEX	1
+#define	LOCK_CLASS_SX		2
+#define	LOCK_CLASS_MAX		LOCK_CLASS_SX
 
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
 #define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
@@ -166,21 +180,21 @@ struct lock_list_entry {
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR5(KTR_LOCK, opname " (%s) %s r = %d at %s:%d",	\
-		    (lo)->lo_class->lc_name, (lo)->lo_name,		\
+		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
 		    (u_int)(recurse), (file), (line));			\
 } while (0)
 
 #define	LOCK_LOG_TRY(opname, lo, flags, result, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR5(KTR_LOCK, "TRY_" opname " (%s) %s result=%d at %s:%d",\
-		    (lo)->lo_class->lc_name, (lo)->lo_name,		\
+		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
 		    (u_int)(result), (file), (line));			\
 } while (0)
 
 #define	LOCK_LOG_INIT(lo, flags) do {					\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR4(KTR_LOCK, "%s: %p (%s) %s", __func__, (lo),	\
- 		    (lo)->lo_class->lc_name, (lo)->lo_name);		\
+ 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name);		\
 } while (0)
 
 #define	LOCK_LOG_DESTROY(lo, flags)	LOCK_LOG_INIT(lo, flags)
@@ -198,6 +212,8 @@ struct lock_list_entry {
 extern struct lock_class lock_class_mtx_sleep;
 extern struct lock_class lock_class_mtx_spin;
 extern struct lock_class lock_class_sx;
+
+extern struct lock_class *lock_classes[];
 
 void	spinlock_enter(void);
 void	spinlock_exit(void);
