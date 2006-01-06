@@ -1,7 +1,7 @@
 /*-
- * Copyright (C) 1998 Specialix International.
+ * Copyright (C) 1988-1998 Specialix International.
  *
- * Download code for SI/XIO/SX host cards.
+ * Download code for SI/XIO host cards.
  *
  * Redistribution and use in binary forms (this file is a binary form), with
  * or without modification, are permitted provided that the following
