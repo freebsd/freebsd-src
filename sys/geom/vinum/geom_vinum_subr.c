@@ -792,6 +792,8 @@ gv_kill_drive_thread(struct gv_drive *d)
 		d->flags &= ~GV_DRIVE_THREAD_ACTIVE;
 		d->flags &= ~GV_DRIVE_THREAD_DIE;
 		d->flags &= ~GV_DRIVE_THREAD_DEAD;
+		g_free(d->bqueue);
+		d->bqueue = NULL;
 		mtx_destroy(&d->bqueue_mtx);
 	}
 }
@@ -807,6 +809,10 @@ gv_kill_plex_thread(struct gv_plex *p)
 		p->flags &= ~GV_PLEX_THREAD_ACTIVE;
 		p->flags &= ~GV_PLEX_THREAD_DIE;
 		p->flags &= ~GV_PLEX_THREAD_DEAD;
+		g_free(p->bqueue);
+		g_free(p->wqueue);
+		p->bqueue = NULL;
+		p->wqueue = NULL;
 		mtx_destroy(&p->bqueue_mtx);
 	}
 }
@@ -822,6 +828,8 @@ gv_kill_vol_thread(struct gv_volume *v)
 		v->flags &= ~GV_VOL_THREAD_ACTIVE;
 		v->flags &= ~GV_VOL_THREAD_DIE;
 		v->flags &= ~GV_VOL_THREAD_DEAD;
+		g_free(v->bqueue);
+		v->bqueue = NULL;
 		mtx_destroy(&v->bqueue_mtx);
 	}
 }

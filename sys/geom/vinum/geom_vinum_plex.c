@@ -88,14 +88,11 @@ void
 gv_plex_done(struct bio *bp)
 {
 	struct gv_plex *p;
-	struct gv_bioq *bq;
 
 	p = bp->bio_from->geom->softc;
 	bp->bio_cflags |= GV_BIO_DONE;
-	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
-	bq->bp = bp;
 	mtx_lock(&p->bqueue_mtx);
-	TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+	bioq_insert_tail(p->bqueue, bp);
 	wakeup(p);
 	mtx_unlock(&p->bqueue_mtx);
 }
@@ -236,7 +233,6 @@ static void
 gv_plex_start(struct bio *bp)
 {
 	struct gv_plex *p;
-	struct gv_bioq *bq;
 
 	switch(bp->bio_cmd) {
 	case BIO_READ:
@@ -260,10 +256,8 @@ gv_plex_start(struct bio *bp)
 		return;
 	}
 
-	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
-	bq->bp = bp;
 	mtx_lock(&p->bqueue_mtx);
-	TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+	bioq_disksort(p->bqueue, bp);
 	wakeup(p);
 	mtx_unlock(&p->bqueue_mtx);
 }
@@ -274,7 +268,6 @@ gv_plex_worker(void *arg)
 	struct bio *bp;
 	struct gv_plex *p;
 	struct gv_sd *s;
-	struct gv_bioq *bq;
 
 	p = arg;
 	KASSERT(p != NULL, ("NULL p"));
@@ -286,20 +279,15 @@ gv_plex_worker(void *arg)
 			break;
 
 		/* Take the first BIO from our queue. */
-		bq = TAILQ_FIRST(&p->bqueue);
-		if (bq == NULL) {
+		bp = bioq_takefirst(p->bqueue);
+		if (bp == NULL) {
 			msleep(p, &p->bqueue_mtx, PRIBIO, "-", hz/10);
 			continue;
 		}
-		TAILQ_REMOVE(&p->bqueue, bq, queue);
 		mtx_unlock(&p->bqueue_mtx);
-
-		bp = bq->bp;
 
 		/* A completed request. */
 		if (bp->bio_cflags & GV_BIO_DONE) {
-			g_free(bq);
-
 			if (bp->bio_cflags & GV_BIO_SYNCREQ ||
 			    bp->bio_cflags & GV_BIO_REBUILD) {
 				s = bp->bio_to->private;
@@ -327,19 +315,16 @@ gv_plex_worker(void *arg)
 			if (gv_stripe_active(p, bp)) {
 				/* Park the bio on the waiting queue. */
 				mtx_lock(&p->bqueue_mtx);
-				TAILQ_INSERT_TAIL(&p->wqueue, bq, queue);
+				bioq_disksort(p->wqueue, bp);
 				mtx_unlock(&p->bqueue_mtx);
 			} else {
-				g_free(bq);
 				bp->bio_cflags &= ~GV_BIO_ONHOLD;
 				g_io_request(bp, bp->bio_caller2);
 			}
 
 		/* A normal request to this plex. */
-		} else {
-			g_free(bq);
+		} else
 			gv_plex_normal_request(p, bp);
-		}
 
 		mtx_lock(&p->bqueue_mtx);
 	}
@@ -380,7 +365,7 @@ gv_normal_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 static int
 gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 {
-	struct bio *cbp, *pbp;
+	struct bio *pbp;
 	int err, finished, i;
 
 	err = 0;
@@ -393,12 +378,12 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 		finished = 0;
 
 	} else if (wp->parity != NULL) {
-		cbp = wp->parity;
+		pbp = wp->parity;
 		wp->parity = NULL;
 
 		/* Check if the parity is correct. */
 		for (i = 0; i < wp->length; i++) {
-			if (bp->bio_data[i] != cbp->bio_data[i]) {
+			if (bp->bio_data[i] != pbp->bio_data[i]) {
 				err = 1;
 				break;
 			}
@@ -410,7 +395,7 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 
 			/* ... but we rebuild it. */
 			if (bp->bio_parent->bio_cflags & GV_BIO_PARITY) {
-				g_io_request(cbp, cbp->bio_caller2);
+				g_io_request(pbp, pbp->bio_caller2);
 				finished = 0;
 			}
 		}
@@ -421,7 +406,7 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 		 */
 		if (finished) {
 			bp->bio_parent->bio_inbed++;
-			g_destroy_bio(cbp);
+			g_destroy_bio(pbp);
 		}
 
 	}
@@ -459,7 +444,11 @@ gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
 				TAILQ_REMOVE(&p->packets, wp, list);
 				/* Bring the waiting bios back into the game. */
 				mtx_lock(&p->bqueue_mtx);
-				TAILQ_CONCAT(&p->bqueue, &p->wqueue, queue);
+				pbp = bioq_takefirst(p->wqueue);
+				while (pbp != NULL) {
+					bioq_disksort(p->bqueue, pbp);
+					pbp = bioq_takefirst(p->wqueue);
+				}
 				mtx_unlock(&p->bqueue_mtx);
 			}
 			g_free(wp);
@@ -499,7 +488,11 @@ gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
 				TAILQ_REMOVE(&p->packets, wp, list);
 				/* Bring the waiting bios back into the game. */
 				mtx_lock(&p->bqueue_mtx);
-				TAILQ_CONCAT(&p->bqueue, &p->wqueue, queue);
+				pbp = bioq_takefirst(p->wqueue);
+				while (pbp != NULL) {
+					bioq_disksort(p->bqueue, pbp);
+					pbp = bioq_takefirst(p->wqueue);
+				}
 				mtx_unlock(&p->bqueue_mtx);
 				g_free(wp);
 			}
@@ -662,10 +655,8 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 		    gv_stripe_active(p, pbp)) {
 			/* Park the bio on the waiting queue. */
 			pbp->bio_cflags |= GV_BIO_ONHOLD;
-			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
-			bq->bp = pbp;
 			mtx_lock(&p->bqueue_mtx);
-			TAILQ_INSERT_TAIL(&p->wqueue, bq, queue);
+			bioq_disksort(p->wqueue, pbp);
 			mtx_unlock(&p->bqueue_mtx);
 		} else
 			g_io_request(pbp, pbp->bio_caller2);
@@ -776,8 +767,19 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			gv_update_vol_size(p->vol_sc, p->size);
 
 		/*
-		 * If necessary, create a bio queue mutex and a worker thread.
+		 * If necessary, create bio queues, queue mutex and a worker
+		 * thread.
 		 */
+		if (p->bqueue == NULL) {
+			p->bqueue = g_malloc(sizeof(struct bio_queue_head),
+			    M_WAITOK | M_ZERO);
+			bioq_init(p->bqueue);
+		}
+		if (p->wqueue == NULL) {
+			p->wqueue = g_malloc(sizeof(struct bio_queue_head),
+			    M_WAITOK | M_ZERO);
+			bioq_init(p->wqueue);
+		}
 		if (mtx_initialized(&p->bqueue_mtx) == 0)
 			mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
 		if (!(p->flags & GV_PLEX_THREAD_ACTIVE)) {
@@ -798,8 +800,12 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		p->geom = gp;
 
 		TAILQ_INIT(&p->packets);
-		TAILQ_INIT(&p->bqueue);
-		TAILQ_INIT(&p->wqueue);
+		p->bqueue = g_malloc(sizeof(struct bio_queue_head),
+		    M_WAITOK | M_ZERO);
+		bioq_init(p->bqueue);
+		p->wqueue = g_malloc(sizeof(struct bio_queue_head),
+		    M_WAITOK | M_ZERO);
+		bioq_init(p->wqueue);
 		mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
 		kthread_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
 		    p->name);
