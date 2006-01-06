@@ -198,7 +198,11 @@ struct gv_drive {
 	LIST_HEAD(,gv_sd)	subdisks;	/* Subdisks on this drive. */
 	LIST_ENTRY(gv_drive)	drive;		/* Entry in the vinum config. */
 
-	TAILQ_HEAD(,gv_bioq)	bqueue;		/* BIO queue of this drive. */
+#ifdef _KERNEL
+	struct bio_queue_head	*bqueue;	/* BIO queue of this drive. */
+#else
+	char			*padding;
+#endif
 	struct mtx		bqueue_mtx;	/* Mtx. to protect the queue. */
 
 	struct g_geom	*geom;			/* The geom of this drive. */
@@ -277,8 +281,12 @@ struct gv_plex {
 	off_t	synced;			/* Count of synced bytes. */
 
 	struct mtx		bqueue_mtx; /* Lock for the BIO queue. */
-	TAILQ_HEAD(,gv_bioq)	bqueue;	/* BIO queue. */
-	TAILQ_HEAD(,gv_bioq)	wqueue;	/* Waiting BIO queue. */
+#ifdef _KERNEL
+	struct bio_queue_head	*bqueue; /* BIO queue. */
+	struct bio_queue_head	*wqueue; /* Waiting BIO queue. */
+#else
+	char			*bpad, *wpad;
+#endif
 	TAILQ_HEAD(,gv_raid5_packet)	packets; /* RAID5 sub-requests. */
 
 	LIST_HEAD(,gv_sd)   subdisks;	/* List of attached subdisks. */
@@ -307,7 +315,11 @@ struct gv_volume {
 #define	GV_VOL_THREAD_DEAD	0x04	/* The thread has died. */
 
 	struct mtx		bqueue_mtx; /* Lock for the BIO queue. */
-	TAILQ_HEAD(,gv_bioq)	bqueue;	/* BIO queue. */
+#ifdef _KERNEL
+	struct bio_queue_head	*bqueue; /* BIO queue. */
+#else
+	char			*padding;
+#endif
 
 	LIST_HEAD(,gv_plex)   plexes;	/* List of attached plexes. */
 	LIST_ENTRY(gv_volume) volume;	/* Entry in vinum config. */

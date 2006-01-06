@@ -77,7 +77,8 @@ gv_config_new_drive(struct gv_drive *d)
 	LIST_INSERT_HEAD(&d->freelist, fl, freelist);
 	d->freelist_entries = 1;
 
-	TAILQ_INIT(&d->bqueue);
+	d->bqueue = g_malloc(sizeof(struct bio_queue_head), M_WAITOK | M_ZERO);
+	bioq_init(d->bqueue);
 	mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
 	kthread_create(gv_drive_worker, d, NULL, 0, 0, "gv_d %s", d->name);
 	d->flags |= GV_DRIVE_THREAD_ACTIVE;
@@ -235,15 +236,12 @@ static void
 gv_drive_done(struct bio *bp)
 {
 	struct gv_drive *d;
-	struct gv_bioq *bq;
 
 	/* Put the BIO on the worker queue again. */
 	d = bp->bio_from->geom->softc;
 	bp->bio_cflags |= GV_BIO_DONE;
-	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
-	bq->bp = bp;
 	mtx_lock(&d->bqueue_mtx);
-	TAILQ_INSERT_TAIL(&d->bqueue, bq, queue);
+	bioq_insert_tail(d->bqueue, bp);
 	wakeup(d);
 	mtx_unlock(&d->bqueue_mtx);
 }
@@ -254,7 +252,6 @@ gv_drive_start(struct bio *bp)
 {
 	struct gv_drive *d;
 	struct gv_sd *s;
-	struct gv_bioq *bq;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -279,10 +276,8 @@ gv_drive_start(struct bio *bp)
 	 * Put the BIO on the worker queue, where the worker thread will pick
 	 * it up.
 	 */
-	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
-	bq->bp = bp;
 	mtx_lock(&d->bqueue_mtx);
-	TAILQ_INSERT_TAIL(&d->bqueue, bq, queue);
+	bioq_disksort(d->bqueue, bp);
 	wakeup(d);
 	mtx_unlock(&d->bqueue_mtx);
 
@@ -296,7 +291,6 @@ gv_drive_worker(void *arg)
 	struct g_provider *pp;
 	struct gv_drive *d;
 	struct gv_sd *s;
-	struct gv_bioq *bq, *bq2;
 	int error;
 
 	d = arg;
@@ -308,16 +302,13 @@ gv_drive_worker(void *arg)
 			break;
 
 		/* Take the first BIO from out queue. */
-		bq = TAILQ_FIRST(&d->bqueue);
-		if (bq == NULL) {
+		bp = bioq_takefirst(d->bqueue);
+		if (bp == NULL) {
 			msleep(d, &d->bqueue_mtx, PRIBIO, "-", hz/10);
 			continue;
  		}
-		TAILQ_REMOVE(&d->bqueue, bq, queue);
 		mtx_unlock(&d->bqueue_mtx);
  
-		bp = bq->bp;
-		g_free(bq);
 		pp = bp->bio_to;
 		gp = pp->geom;
 
@@ -371,11 +362,8 @@ gv_drive_worker(void *arg)
 		mtx_lock(&d->bqueue_mtx);
 	}
 
-	TAILQ_FOREACH_SAFE(bq, &d->bqueue, queue, bq2) {
-		TAILQ_REMOVE(&d->bqueue, bq, queue);
+	while ((bp = bioq_takefirst(d->bqueue)) != NULL) {
 		mtx_unlock(&d->bqueue_mtx);
-		bp = bq->bp;
-		g_free(bq);
 		if (bp->bio_cflags & GV_BIO_DONE) 
 			g_std_done(bp);
 		else
@@ -504,15 +492,19 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			LIST_INSERT_HEAD(&d->freelist, fl, freelist);
 			d->freelist_entries = 1;
 
-			TAILQ_INIT(&d->bqueue);
-
 			/* Save it into the main configuration. */
 			LIST_INSERT_HEAD(&sc->drives, d, drive);
 		}
 
 		/*
-		 * Create a bio queue mutex and a worker thread, if necessary.
+		 * Create bio queue, queue mutex and a worker thread, if
+		 * necessary.
 		 */
+		if (d->bqueue == NULL) {
+			d->bqueue = g_malloc(sizeof(struct bio_queue_head),
+			    M_WAITOK | M_ZERO);
+			bioq_init(d->bqueue);
+		}
 		if (mtx_initialized(&d->bqueue_mtx) == 0)
 			mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
 

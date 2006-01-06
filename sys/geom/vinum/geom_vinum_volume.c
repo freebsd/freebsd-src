@@ -79,14 +79,11 @@ static void
 gv_volume_done(struct bio *bp)
 {
 	struct gv_volume *v;
-	struct gv_bioq *bq;
 
 	v = bp->bio_from->geom->softc;
 	bp->bio_cflags |= GV_BIO_DONE;
-	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
-	bq->bp = bp;
 	mtx_lock(&v->bqueue_mtx);
-	TAILQ_INSERT_TAIL(&v->bqueue, bq, queue);
+	bioq_insert_tail(v->bqueue, bp);
 	wakeup(v);
 	mtx_unlock(&v->bqueue_mtx);
 }
@@ -95,7 +92,6 @@ static void
 gv_volume_start(struct bio *bp)
 {
 	struct gv_volume *v;
-	struct gv_bioq *bq;
 
 	switch(bp->bio_cmd) {
 	case BIO_READ:
@@ -114,10 +110,8 @@ gv_volume_start(struct bio *bp)
 		return;
 	}
 
-	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
-	bq->bp = bp;
 	mtx_lock(&v->bqueue_mtx);
-	TAILQ_INSERT_TAIL(&v->bqueue, bq, queue);
+	bioq_disksort(v->bqueue, bp);
 	wakeup(v);
 	mtx_unlock(&v->bqueue_mtx);
 }
@@ -127,7 +121,6 @@ gv_vol_worker(void *arg)
 {
 	struct bio *bp;
 	struct gv_volume *v;
-	struct gv_bioq *bq;
 
 	v = arg;
 	KASSERT(v != NULL, ("NULL v"));
@@ -138,16 +131,12 @@ gv_vol_worker(void *arg)
 			break;
 
 		/* Take the first BIO from our queue. */
-		bq = TAILQ_FIRST(&v->bqueue);
-		if (bq == NULL) {
+		bp = bioq_takefirst(v->bqueue);
+		if (bp == NULL) {
 			msleep(v, &v->bqueue_mtx, PRIBIO, "-", hz/10);
 			continue;
 		}
-		TAILQ_REMOVE(&v->bqueue, bq, queue);
 		mtx_unlock(&v->bqueue_mtx);
-
-		bp = bq->bp;
-		g_free(bq);
 
 		if (bp->bio_cflags & GV_BIO_DONE)
 			gv_vol_completed_request(v, bp);
@@ -169,7 +158,6 @@ gv_vol_completed_request(struct gv_volume *v, struct bio *bp)
 	struct bio *pbp;
 	struct g_geom *gp;
 	struct g_consumer *cp, *cp2;
-	struct gv_bioq *bq;
 
 	pbp = bp->bio_parent;
 
@@ -196,10 +184,8 @@ gv_vol_completed_request(struct gv_volume *v, struct bio *bp)
 
 		g_destroy_bio(bp);
 		pbp->bio_children--;
-		bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
-		bq->bp = pbp;
 		mtx_lock(&v->bqueue_mtx);
-		TAILQ_INSERT_TAIL(&v->bqueue, bq, queue);
+		bioq_disksort(v->bqueue, pbp);
 		mtx_unlock(&v->bqueue_mtx);
 		return;
 
@@ -370,11 +356,15 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		gp->access = gv_volume_access;
 		gp->softc = v;
 		first++;
-		TAILQ_INIT(&v->bqueue);
 	} else
 		gp = v->geom;
 
-	/* Create bio queue mutex and worker thread, if necessary. */
+	/* Create bio queue, queue mutex, and worker thread, if necessary. */
+	if (v->bqueue == NULL) {
+		v->bqueue = g_malloc(sizeof(struct bio_queue_head),
+		    M_WAITOK | M_ZERO);
+		bioq_init(v->bqueue);
+	}
 	if (mtx_initialized(&v->bqueue_mtx) == 0)
 		mtx_init(&v->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
 
