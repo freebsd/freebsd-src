@@ -1983,8 +1983,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	}
 
 	/*
-	 * Note: FREAD failure returns EBADF to maintain backwards
-	 * compatibility with what routines returned before.
+	 * FREAD and FWRITE failure return EBADF as per POSIX.
 	 *
 	 * Only one flag, or 0, may be specified.
 	 */
@@ -1994,7 +1993,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	}
 	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0) {
 		FILEDESC_UNLOCK(fdp);
-		return (EINVAL);
+		return (EBADF);
 	}
 	if (hold) {
 		fhold(fp);
