@@ -80,7 +80,7 @@ typedef	struct fd_set {
 #if __BSD_VISIBLE
 #define	FD_COPY(f, t)	(void)(*(t) = *(f))
 #endif
-#define	FD_ISSET(n, p)	((p)->__fds_bits[(n)/_NFDBITS] & __fdset_mask(n))
+#define	FD_ISSET(n, p)	(((p)->__fds_bits[(n)/_NFDBITS] & __fdset_mask(n)) != 0)
 #define	FD_SET(n, p)	((p)->__fds_bits[(n)/_NFDBITS] |= __fdset_mask(n))
 #define	FD_ZERO(p) do {					\
 	fd_set *_p;					\
