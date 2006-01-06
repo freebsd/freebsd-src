@@ -21,6 +21,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060106:
+	The kernel ABI was mostly destroyed due to a change in the size
+	of struct lock_object which is nested in other structures such
+	as mutexes which are nested in all sorts of other structures.
+	Make sure your kernel and modules are in sync.
+
 20051231:
 	The page coloring algorithm in the VM subsystem was converted
 	from tuning with kernel options to autotuning. Please remove
