@@ -97,12 +97,10 @@ static device_method_t acpi_pcib_pci_methods[] = {
     {0, 0}
 };
 
-static driver_t acpi_pcib_pci_driver = {
-    "pcib",
-    acpi_pcib_pci_methods,
-    sizeof(struct acpi_pcib_softc),
-};
+static devclass_t pcib_devclass;
 
+DEFINE_CLASS_0(pcib, acpi_pcib_pci_driver, acpi_pcib_pci_methods,
+    sizeof(struct acpi_pcib_softc));
 DRIVER_MODULE(acpi_pcib, pci, acpi_pcib_pci_driver, pcib_devclass, 0, 0);
 MODULE_DEPEND(acpi_pcib, acpi, 1, 1, 1);
 
