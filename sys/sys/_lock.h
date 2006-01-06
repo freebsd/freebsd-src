@@ -32,7 +32,6 @@
 #define	_SYS__LOCK_H_
 
 struct lock_object {
-	struct	lock_class *lo_class;
 	const	char *lo_name;		/* Individual lock name. */
 	const	char *lo_type;		/* General lock type. */
 	u_int	lo_flags;

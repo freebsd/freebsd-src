@@ -83,9 +83,9 @@ sx_init(struct sx *sx, const char *description)
 	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
 	    ("sx lock %s %p already initialized", description, sx));
 	bzero(sx, sizeof(*sx));
-	lock->lo_class = &lock_class_sx;
+	lock->lo_flags = LOCK_CLASS_SX << LO_CLASSSHIFT;
 	lock->lo_type = lock->lo_name = description;
-	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
+	lock->lo_flags |= LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
 	    LO_UPGRADABLE;
 	sx->sx_lock = mtx_pool_find(mtxpool_lockbuilder, sx);
 	sx->sx_cnt = 0;
