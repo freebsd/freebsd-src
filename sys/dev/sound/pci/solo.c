@@ -44,6 +44,9 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* more accurate clocks and split audio1/audio2 rates */
 #define ESS18XX_NEWSPEED
 
+/* 1 = INTR_MPSAFE, 0 = GIANT */
+#define ESS18XX_MPSAFE	1
+
 static u_int32_t ess_playfmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
@@ -93,7 +96,20 @@ struct ess_info {
 	unsigned int bufsz;
 
     	struct ess_chinfo pch, rch;
+#if ESS18XX_MPSAFE == 1
+	struct mtx *lock;
+#endif
 };
+
+#if ESS18XX_MPSAFE == 1
+#define ess_lock(_ess) snd_mtxlock((_ess)->lock)
+#define ess_unlock(_ess) snd_mtxunlock((_ess)->lock)
+#define ess_lock_assert(_ess) snd_mtxassert((_ess)->lock)
+#else
+#define ess_lock(_ess)
+#define ess_unlock(_ess)
+#define ess_lock_assert(_ess)
+#endif
 
 static int ess_rd(struct ess_info *sc, int reg);
 static void ess_wr(struct ess_info *sc, int reg, u_int8_t val);
@@ -219,29 +235,22 @@ ess_cmd1(struct ess_info *sc, u_char cmd, int val)
 static void
 ess_setmixer(struct ess_info *sc, u_int port, u_int value)
 {
-    	u_long   flags;
-
 	DEB(printf("ess_setmixer: reg=%x, val=%x\n", port, value);)
-    	flags = spltty();
     	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	ess_wr(sc, SB_MIX_DATA, (u_char) (value & 0xff));
     	DELAY(10);
-    	splx(flags);
 }
 
 static int
 ess_getmixer(struct ess_info *sc, u_int port)
 {
     	int val;
-    	u_long flags;
 
-    	flags = spltty();
     	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	val = ess_rd(sc, SB_MIX_DATA);
     	DELAY(10);
-    	splx(flags);
 
     	return val;
 }
@@ -296,6 +305,7 @@ ess_intr(void *arg)
     	struct ess_info *sc = (struct ess_info *)arg;
 	int src, pirq = 0, rirq = 0;
 
+	ess_lock(sc);
 	src = 0;
 	if (ess_getmixer(sc, 0x7a) & 0x80)
 		src |= 2;
@@ -328,7 +338,9 @@ ess_intr(void *arg)
 			else
 				ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) & ~0x03);
 		}
+		ess_unlock(sc);
 		chn_intr(sc->pch.channel);
+		ess_lock(sc);
 	}
 
 	if (rirq) {
@@ -338,13 +350,17 @@ ess_intr(void *arg)
 			/* XXX: will this stop audio2? */
 			ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x01);
 		}
+		ess_unlock(sc);
 		chn_intr(sc->rch.channel);
+		ess_lock(sc);
 	}
 
 	if (src & 2)
 		ess_setmixer(sc, 0x7a, ess_getmixer(sc, 0x7a) & ~0x80);
 	if (src & 1)
     		ess_rd(sc, DSP_DATA_AVAIL);
+
+	ess_unlock(sc);
 }
 
 /* utility functions for ESS */
@@ -570,6 +586,7 @@ esschan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
+	ess_lock(sc);
 	switch (go) {
 	case PCMTRIG_START:
 		ess_dmasetup(sc, ch->hwch, sndbuf_getbufaddr(ch->buffer), sndbuf_getsize(ch->buffer), ch->dir);
@@ -583,6 +600,7 @@ esschan_trigger(kobj_t obj, void *data, int go)
 		ess_stop(ch);
 		break;
 	}
+	ess_unlock(sc);
 	return 0;
 }
 
@@ -591,8 +609,12 @@ esschan_getptr(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
+	int ret;
 
-	return ess_dmapos(sc, ch->hwch);
+	ess_lock(sc);
+	ret = ess_dmapos(sc, ch->hwch);
+	ess_unlock(sc);
+	return ret;
 }
 
 static struct pcmchan_caps *
@@ -760,10 +782,8 @@ static int
 ess_dmapos(struct ess_info *sc, int ch)
 {
 	int p = 0, i = 0, j = 0;
-	u_long flags;
 
 	KASSERT(ch == 1 || ch == 2, ("bad ch"));
-	flags = spltty();
 	if (ch == 1) {
 
 /*
@@ -787,7 +807,6 @@ ess_dmapos(struct ess_info *sc, int ch)
 	}
 	else if (ch == 2)
 		p = port_rd(sc->io, 0x4, 2);
-	splx(flags);
 	return sc->dmasz[ch - 1] - p;
 }
 
@@ -841,6 +860,13 @@ ess_release_resources(struct ess_info *sc, device_t dev)
 		sc->parent_dmat = 0;
     	}
 
+#if ESS18XX_MPSAFE == 1
+	if (sc->lock) {
+		snd_mtxfree(sc->lock);
+		sc->lock = NULL;
+	}
+#endif
+
     	free(sc, M_DEVBUF);
 }
 
@@ -868,7 +894,14 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		RF_ACTIVE | RF_SHAREABLE);
 
+#if ESS18XX_MPSAFE == 1
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+
+	return (sc->irq && sc->io && sc->sb && sc->vc &&
+				sc->mpu && sc->gp && sc->lock)? 0 : ENXIO;
+#else
 	return (sc->irq && sc->io && sc->sb && sc->vc && sc->mpu && sc->gp)? 0 : ENXIO;
+#endif
 }
 
 static int
@@ -911,6 +944,7 @@ ess_resume(device_t dev)
 	uint32_t data;
 	struct ess_info *sc = pcm_getdevinfo(dev);
 	
+	ess_lock(sc);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
@@ -921,14 +955,19 @@ ess_resume(device_t dev)
 	pci_write_config(dev, ESS_PCI_DDMACONTROL, ddma, 2);
 	pci_write_config(dev, ESS_PCI_CONFIG, 0, 2);
 
-    	if (ess_reset_dsp(sc))
+    	if (ess_reset_dsp(sc)) {
+		ess_unlock(sc);
 		goto no;
+	}
+	ess_unlock(sc);
     	if (mixer_reinit(dev))
 		goto no;
+	ess_lock(sc);
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x2a);
 
 	port_wr(sc->io, 0x7, 0xb0, 1); /* enable irqs */
+	ess_unlock(sc);
 
 	return 0;
  no:
@@ -962,11 +1001,6 @@ ess_attach(device_t dev)
 	pci_write_config(dev, ESS_PCI_DDMACONTROL, ddma, 2);
 	pci_write_config(dev, ESS_PCI_CONFIG, 0, 2);
 
-    	if (ess_reset_dsp(sc))
-		goto no;
-    	if (mixer_init(dev, &solomixer_class, sc))
-		goto no;
-
 	port_wr(sc->io, 0x7, 0xb0, 1); /* enable irqs */
 #ifdef ESS18XX_DUPLEX
 	sc->duplex = 1;
@@ -979,24 +1013,48 @@ ess_attach(device_t dev)
 #else
 	sc->newspeed = 0;
 #endif
-	if (sc->newspeed)
-		ess_setmixer(sc, 0x71, 0x2a);
+	if (snd_setup_intr(dev, sc->irq,
+#if ESS18XX_MPSAFE == 1
+			INTR_MPSAFE
+#else
+			0
+#endif
+			, ess_intr, sc, &sc->ih)) {
+		device_printf(dev, "unable to map interrupt\n");
+		goto no;
+	}
 
-	snd_setup_intr(dev, sc->irq, 0, ess_intr, sc, &sc->ih);
     	if (!sc->duplex)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
+#if 0
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/65536, /*boundary*/0,
+#endif
+    	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
 			/*maxsize*/sc->bufsz, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
-			/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-			/*lockarg*/&Giant, &sc->parent_dmat) != 0) {
+			/*flags*/0,
+#if ESS18XX_MPSAFE == 1
+			/*lockfunc*/NULL, /*lockarg*/NULL,
+#else
+			/*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant,
+#endif
+			&sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
+
+    	if (ess_reset_dsp(sc))
+		goto no;
+
+	if (sc->newspeed)
+		ess_setmixer(sc, 0x71, 0x2a);
+
+    	if (mixer_init(dev, &solomixer_class, sc))
+		goto no;
 
     	snprintf(status, SND_STATUSLEN, "at io 0x%lx,0x%lx,0x%lx irq %ld %s",
     	     	rman_get_start(sc->io), rman_get_start(sc->sb), rman_get_start(sc->vc),
