@@ -112,12 +112,9 @@ static device_method_t apb_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t apb_driver = {
-	"pcib",
-	apb_methods,
-	sizeof(struct apb_softc),
-};
+static devclass_t pcib_devclass;
 
+DEFINE_CLASS_0(pcib, apb_driver, apb_methods, sizeof(struct apb_softc));
 DRIVER_MODULE(apb, pci, apb_driver, pcib_devclass, 0, 0);
 
 /* APB specific registers */
