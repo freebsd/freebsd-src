@@ -220,10 +220,10 @@ trap(frame)
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
 			/*
-			 * We shouldn't enable interrupts while in a critical
-			 * section or servicing an NMI.
+			 * We shouldn't enable interrupts while holding a
+			 * spin lock or servicing an NMI.
 			 */
-			if (type != T_NMI && td->td_critnest == 0)
+			if (type != T_NMI && td->td_md.md_spinlock_count == 0)
 				enable_intr();
 		}
 	}
