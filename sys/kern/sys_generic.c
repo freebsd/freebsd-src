@@ -398,7 +398,7 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 
 	error = fget_write(td, fd, &fp);
 	if (error)
-		return (EBADF);
+		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
 	fdrop(fp, td);
 	return (error);
@@ -444,7 +444,7 @@ kern_pwritev(td, fd, auio, offset)
 
 	error = fget_write(td, fd, &fp);
 	if (error)
-		return (EBADF);
+		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
 		error = ESPIPE;
 	else if (offset < 0 && fp->f_vnode->v_type != VCHR)
