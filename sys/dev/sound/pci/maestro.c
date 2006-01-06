@@ -1244,9 +1244,9 @@ agg_ac97_read(kobj_t obj, void *sc, int regno)
 	struct agg_info *ess = sc;
 	int ret;
 
-	agg_lock(ess);
+	/* XXX sound locking violation: agg_lock(ess); */
 	ret = agg_rdcodec(ess, regno);
-	agg_unlock(ess);
+	/* agg_unlock(ess); */
 	return ret;
 }
 
@@ -1256,9 +1256,9 @@ agg_ac97_write(kobj_t obj, void *sc, int regno, u_int32_t data)
 	struct agg_info *ess = sc;
 	int ret;
 
-	agg_lock(ess);
+	/* XXX sound locking violation: agg_lock(ess); */
 	ret = agg_wrcodec(ess, regno, data);
-	agg_unlock(ess);
+	/* agg_unlock(ess); */
 	return ret;
 }
 
@@ -1879,10 +1879,12 @@ agg_attach(device_t dev)
 	agg_power(ess, PCI_POWERSTATE_D0);
 	if (agg_rdcodec(ess, 0) == 0x80) {
 		/* XXX - TODO: PT101 */
+		agg_unlock(ess);
 		device_printf(dev, "PT101 codec detected!\n");
 		ret = ENXIO;
 		goto bad;
 	}
+	agg_unlock(ess);
 	codec = AC97_CREATE(dev, ess, agg_ac97);
 	if (codec == NULL) {
 		device_printf(dev, "failed to create AC97 codec softc!\n");
@@ -1901,13 +1903,13 @@ agg_attach(device_t dev)
 		goto bad;
 
 	mixer_hwvol_init(dev);
+	agg_lock(ess);
 	agg_power(ess, powerstate_init);
+	agg_unlock(ess);
 	for (data = 0; data < AGG_MAXPLAYCH; data++)
 		pcm_addchan(dev, PCMDIR_PLAY, &aggpch_class, ess);
 	pcm_addchan(dev, PCMDIR_REC, &aggrch_class, ess);
 	adjust_pchbase(ess->pch, ess->playchns, ess->bufsz);
-
-	agg_unlock(ess);
 
 	snprintf(status, SND_STATUSLEN,
 	    "port 0x%lx-0x%lx irq %ld at device %d.%d on pci%d",
@@ -1968,6 +1970,7 @@ agg_detach(device_t dev)
 
 	agg_lock(ess);
 	agg_power(ess, PCI_POWERSTATE_D3);
+	agg_unlock(ess);
 
 	bus_teardown_intr(dev, ess->irq, ess->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ess->irqid, ess->irq);
