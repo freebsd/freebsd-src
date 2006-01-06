@@ -326,12 +326,9 @@ static device_method_t legacy_pcib_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t legacy_pcib_driver = {
-	"pcib",
-	legacy_pcib_methods,
-	1,
-};
+static devclass_t pcib_devclass;
 
+DEFINE_CLASS_0(pcib, legacy_pcib_driver, legacy_pcib_methods, 1);
 DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, pcib_devclass, 0, 0);
 
 
@@ -377,12 +374,7 @@ static device_method_t pcibus_pnp_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t pcibus_pnp_driver = {
-	"pcibus_pnp",
-	pcibus_pnp_methods,
-	1,		/* no softc */
-};
-
 static devclass_t pcibus_pnp_devclass;
 
+DEFINE_CLASS_0(pcibus_pnp, pcibus_pnp_driver, pcibus_pnp_methods, 1);
 DRIVER_MODULE(pcibus_pnp, isa, pcibus_pnp_driver, pcibus_pnp_devclass, 0, 0);
