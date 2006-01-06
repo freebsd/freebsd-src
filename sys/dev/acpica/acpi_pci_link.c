@@ -627,8 +627,11 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	/* Bump the reference count. */
 	ACPI_SERIAL_BEGIN(pci_link);
 	link = acpi_pci_link_lookup(dev, index);
-	if (link == NULL)
-		panic("%s: apparently invalid index %d", __func__, index);
+	if (link == NULL) {
+		device_printf(dev, "apparently invalid index %d\n", index);
+		ACPI_SERIAL_END(pci_link);
+		return;
+	}
 	link->l_references++;
 	if (link->l_routed)
 		pci_link_interrupt_weights[link->l_irq]++;
