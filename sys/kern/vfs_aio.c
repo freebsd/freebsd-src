@@ -1447,7 +1447,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj,
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
-		return (EBADF);
+		return (error);
 	}
 	aiocbe->fd_file = fp;
 
