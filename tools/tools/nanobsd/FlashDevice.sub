@@ -38,8 +38,8 @@
 
 sub_FlashDevice () {
 
-	a1=`echo $1 | tr '[A-Z] '[a-z]'` 
-	a2=`echo $2 | tr '[A-Z] '[a-z]'` 
+	a1=`echo $1 | tr '[A-Z]' '[a-z]'` 
+	a2=`echo $2 | tr '[A-Z]' '[a-z]'` 
 	case $a1 in
 	integral)
 		# Source: mich@FreeBSD.org
