@@ -240,11 +240,11 @@ trap(frame)
 			    type);
 			/*
 			 * Page faults need interrupts disabled until later,
-			 * and we shouldn't enable interrupts while in a
-			 * critical section or if servicing an NMI.
+			 * and we shouldn't enable interrupts while holding
+			 * a spin lock or if servicing an NMI.
 			 */
 			if (type != T_NMI && type != T_PAGEFLT &&
-			    td->td_critnest == 0)
+			    td->td_md.md_spinlock_count == 0)
 				enable_intr();
 		}
 	}
