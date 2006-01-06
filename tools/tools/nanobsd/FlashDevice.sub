@@ -37,8 +37,25 @@
 #
 
 sub_FlashDevice () {
-	case $1 in
-	[Ss][Aa][Nn][Dd][Ii][Ss][Kk])
+
+	a1=`echo $1 | tr '[A-Z] '[a-z]'` 
+	a2=`echo $2 | tr '[A-Z] '[a-z]'` 
+	case $a1 in
+	integral)
+		# Source: mich@FreeBSD.org
+		case $a2 in
+		256|256mb)
+			NANO_MEDIASIZE=`expr 259596288 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown Integral i-Pro Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	sandisk)
 		# Source:
 		#	SanDisk CompactFlash Memory Card
 		#	Product Manual
@@ -48,43 +65,43 @@ sub_FlashDevice () {
 		# Table 2-7 
 		# NB: notice math error in SDCFJ-4096-388 line.
 		#
-		case $2 in
-		32|32MB)
+		case $a2 in
+		32|32mb)
 			NANO_MEDIASIZE=`expr 32112640 / 512`
 			NANO_HEADS=4
 			NANO_SECTS=32
 			;;
-		64|64MB)
+		64|64mb)
 			NANO_MEDIASIZE=`expr 64225280 / 512`
 			NANO_HEADS=8
 			NANO_SECTS=32
 			;;
-		128|128MB)
+		128|128mb)
 			NANO_MEDIASIZE=`expr 128450560 / 512`
 			NANO_HEADS=8
 			NANO_SECTS=32
 			;;
-		256|256MB)
+		256|256mb)
 			NANO_MEDIASIZE=`expr 256901120 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=32
 			;;
-		512|512MB)
+		512|512mb)
 			NANO_MEDIASIZE=`expr 512483328 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=63
 			;;
-		1024|1024MB|1G)
+		1024|1024mb|1g)
 			NANO_MEDIASIZE=`expr 1024966656 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=63
 			;;
-		2048|2048MB|2G)
+		2048|2048mb|2g)
 			NANO_MEDIASIZE=`expr 2048901120 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=63
 			;;
-		4096|4096MB|4G)
+		4096|4096mb|4g)
 			NANO_MEDIASIZE=`expr 4097802240 / 512`
 			NANO_HEADS=16
 			NANO_SECTS=63
@@ -95,9 +112,22 @@ sub_FlashDevice () {
 			;;
 		esac
 		;;
-	[Ss][Oo][Ee][Kk][Rr][Ii][Ss])
+	siliconsystems)
 		case $2 in
-		[Nn][Ee][Tt]4526 | 4526 | [Nn][Ee][Tt]4826 | 4826 | 64 | 64MB)
+		4096|4g)
+			NANO_MEDIASIZE=`expr 4224761856 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown SiliconSystems Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	soekris)
+		case $2 in
+		net4526 | 4526 | net4826 | 4826 | 64 | 64mb)
 			NANO_MEDIASIZE=125056
 			NANO_HEADS=4
 			NANO_SECTS=32
@@ -108,15 +138,15 @@ sub_FlashDevice () {
 			;;
 		esac
 		;;
-	[Ss][Ii][Ll][Ii][Cc][Oo][Nn][Ss][Yy][Ss][Tt][Ee][Mm][Ss])
-		case $2 in
-		4096|4G)
-			NANO_MEDIASIZE=`expr 4224761856 / 512`
-			NANO_HEADS=16
-			NANO_SECTS=63
+	transcend)
+		case 2 in
+		dom064m)
+			NANO_MEDIASIZE=125184
+			NANO_HEADS=4
+			NANO_SECTS=32
 			;;
 		*)
-			echo "Unknown SiliconSystems Flash capacity"
+			echo "Unknown Transcend Flash capacity"
 			exit 2
 			;;
 		esac
