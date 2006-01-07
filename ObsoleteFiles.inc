@@ -16,17 +16,8 @@
 
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
 OLD_FILES+=rescue/nextboot.sh
-# 20051214: usbd(8) removed
-OLD_FILES+=etc/rc.d/usbd
-OLD_FILES+=etc/usbd.conf
-OLD_FILES+=usr/sbin/usbd
-OLD_FILES+=usr/share/man/man8/usbd.8.gz
-# 20051029: rc.d/ppp-user renamed to rc.d/ppp for convenience
-OLD_FILES+=etc/rc.d/ppp-user
 # 20051012: setkey(8) moved to /sbin/
 OLD_FILES+=usr/sbin/setkey
-# 20050927: bridge(4) replaced by if_bridge(4)
-OLD_FILES+=usr/include/net/bridge.h
 # 20050831: not implemented
 OLD_FILES+=usr/share/man/man3/getino.3.gz
 OLD_FILES+=usr/share/man/man3/putino.3.gz
@@ -2589,8 +2580,6 @@ OLD_FILES+=usr/share/games/quiz.db/ucc
 OLD_FILES+=usr/share/games/cribbage.instr
 OLD_FILES+=usr/share/games/fish.instr
 OLD_FILES+=usr/share/games/wump.info
-OLD_FILES+=usr/share/tmac/mm/locale
-OLD_FILES+=usr/share/tmac/mm/se_locale
 OLD_FILES+=usr/games/hide/adventure
 OLD_FILES+=usr/games/hide/arithmetic
 OLD_FILES+=usr/games/hide/atc
