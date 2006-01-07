@@ -530,10 +530,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 */
 		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_addr = (void *)tf->srr0; /* XXX */
+		sf.sf_si.si_addr = (void *) ((tf->exc == EXC_DSI) ? 
+		                             tf->dar : tf->srr0);
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
+		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
+		                             tf->dar : tf->srr0;
 	}
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
