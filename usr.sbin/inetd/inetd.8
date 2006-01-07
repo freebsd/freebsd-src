@@ -28,7 +28,7 @@
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\" $FreeBSD$
 .\"
-.Dd February 7, 1996
+.Dd January 7, 2006
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -786,6 +786,8 @@ the last component of the socket's pathname.
 .Bl -tag -width /var/run/inetd.pid -compact
 .It Pa /etc/inetd.conf
 configuration file
+.It Pa /etc/netconfig
+network configuration data base
 .It Pa /etc/rpc
 translation of service names to RPC program numbers
 .It Pa /etc/services
@@ -890,12 +892,39 @@ The
 .Nm
 utility attempted to renounce the privileged state associated with a
 socket but was unable to.
+.Pp
+.It Xo unknown
+.Ar rpc/udp
+or
+.Ar rpc/tcp
+.Xc
+No entry was found for either
+.Ar udp
+or
+.Ar tcp
+in the
+.Xr netconfig 5
+database.
+.Pp
+.It Xo unknown
+.Ar rpc/udp6
+or
+.Ar rpc/tcp6
+.Xc
+No entry was found for either
+.Ar udp6
+or
+.Ar tcp6
+in the
+.Xr netconfig 5
+database.
 .El
 .Sh SEE ALSO
 .Xr ipsec_set_policy 3 ,
 .Xr hosts_access 5 ,
 .Xr hosts_options 5 ,
 .Xr login.conf 5 ,
+.Xr netconfig 5 ,
 .Xr passwd 5 ,
 .Xr rpc 5 ,
 .Xr services 5 ,
