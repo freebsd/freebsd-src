@@ -884,7 +884,7 @@ mtx_destroy(struct mtx *m)
 		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 
 		/* Perform the non-mtx related part of mtx_unlock_spin(). */
-		if (m->mtx_object.lo_class == &lock_class_mtx_spin)
+		if (LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SPIN_MUTEX)
 			spinlock_exit();
 
 		/* Tell witness this isn't locked to make it happy. */
