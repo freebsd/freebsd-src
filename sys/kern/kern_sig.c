@@ -1872,7 +1872,6 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
-			p->p_xthread = td;
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td0) {
 				if (TD_IS_SLEEPING(td0) &&
@@ -2179,7 +2178,6 @@ issignal(td)
 				    &p->p_mtx.mtx_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
-				p->p_xthread = td;
 				mtx_lock_spin(&sched_lock);
 				FOREACH_THREAD_IN_PROC(p, td0) {
 					if (TD_IS_SLEEPING(td0) &&
