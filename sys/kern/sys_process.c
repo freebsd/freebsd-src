@@ -491,7 +491,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	int error, write, tmp, num;
 	int proctree_locked = 0;
 	lwpid_t tid = 0, *buf;
-	pid_t saved_pid = pid;
 #ifdef COMPAT_IA32
 	int wrap32 = 0, safe = 0;
 	struct ptrace_io_desc32 *piod32 = NULL;
@@ -567,7 +566,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	}
 
 	if (tid == 0) {
-		td2 = FIRST_THREAD_IN_PROC(p);
+		if ((p->p_flag & P_STOPPED_TRACE) != 0) {
+			KASSERT(p->p_xthread != NULL, ("NULL p_xthread"));
+			td2 = p->p_xthread;
+		} else {
+			td2 = FIRST_THREAD_IN_PROC(p);
+		}
 		tid = td2->td_tid;
 	}
 
@@ -637,10 +641,17 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		/* not currently stopped */
-		if (!P_SHOULDSTOP(p) || p->p_suspcount != p->p_numthreads ||
+		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) == 0 ||
+		    p->p_suspcount != p->p_numthreads  ||
 		    (p->p_flag & P_WAITED) == 0) {
 			error = EBUSY;
 			goto fail;
+		}
+
+		if ((p->p_flag & P_STOPPED_TRACE) == 0) {
+			static int count = 0;
+			if (count++ == 0)
+				printf("P_STOPPED_TRACE not set.\n");
 		}
 
 		/* OK */
@@ -786,17 +797,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (proctree_locked)
 			sx_xunlock(&proctree_lock);
 		/* deliver or queue signal */
-		if (P_SHOULDSTOP(p)) {
-			p->p_xstat = data;
+		mtx_lock_spin(&sched_lock);
+		td2->td_flags &= ~TDF_XSIG;
+		mtx_unlock_spin(&sched_lock);
+		td2->td_xsig = data;
+		p->p_xstat = data;
+		p->p_xthread = NULL;
+		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
 			mtx_lock_spin(&sched_lock);
-			if (saved_pid <= PID_MAX) {
-				p->p_xthread->td_flags &= ~TDF_XSIG;
-				p->p_xthread->td_xsig = data;
-			} else {
-				td2->td_flags &= ~TDF_XSIG;
-				td2->td_xsig = data;
-			}
-			p->p_xthread = NULL;
 			if (req == PT_DETACH) {
 				struct thread *td3;
 				FOREACH_THREAD_IN_PROC(p, td3)
@@ -809,15 +817,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 */
 			mtx_unlock_spin(&sched_lock);
 			thread_continued(p);
-			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
+			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
 			mtx_unlock_spin(&sched_lock);
-		} else if (data) {
-			psignal(p, data);
 		}
-		PROC_UNLOCK(p);
 
+		if (data)
+			psignal(p, data);
+
+		PROC_UNLOCK(p);
 		return (0);
 
 	case PT_WRITE_I:
@@ -955,16 +964,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			return (EINVAL);
 		pl = addr;
 		_PHOLD(p);
-		if (saved_pid <= PID_MAX) {
-			pl->pl_lwpid = p->p_xthread->td_tid;
+		pl->pl_lwpid = td2->td_tid;
+		if (td2->td_flags & TDF_XSIG)
 			pl->pl_event = PL_EVENT_SIGNAL;
-		} else {
-			pl->pl_lwpid = td2->td_tid;
-			if (td2->td_flags & TDF_XSIG)
-				pl->pl_event = PL_EVENT_SIGNAL;
-			else
-				pl->pl_event = 0;
-		}
+		else
+			pl->pl_event = 0;
 		if (td2->td_pflags & TDP_SA) {
 			pl->pl_flags = PL_FLAG_SA;
 			if (td2->td_upcall && !TD_CAN_UNBIND(td2))
