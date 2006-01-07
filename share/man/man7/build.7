@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd January 07, 2006
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -95,6 +95,43 @@ Equivalent to
 .Cm buildkernel
 followed by
 .Cm installkernel
+.El
+.Pp
+Convenience targets for cleaning up the install destination directory
+denoted by variable
+.Va DESTDIR
+include:
+.Bl -tag -width ".Cm delete-old-libs"
+.It Cm check-old
+Print a list of old files and directores in the system.
+.It Cm delete-old
+Delete obsolete base system files and directories interactively.
+When
+.Li -DBATCH_DELETE_OLD_FILES
+is specified at the command line, the delete operation will be
+non-interactive.
+The variables
+.Va DESTDIR ,
+.Va TARGET_ARCH
+and
+.Va TARGET
+should be set as with
+.Dq Li "make installworld" .
+.It Cm delete-old-libs
+Delete obsolete base system libraries interactively.
+This target should only be used if no 3rd party software uses these
+libraries.
+When
+.Li -DBATCH_DELETE_OLD_FILES
+is specified at the command line, the delete operation will be
+non-interactive.
+The variables
+.Va DESTDIR ,
+.Va TARGET_ARCH
+and
+.Va TARGET
+should be set as with
+.Dq Li "make installworld" .
 .El
 .Pp
 For more information about the ports build process, see

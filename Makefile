@@ -16,6 +16,9 @@
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
 # update              - Convenient way to update your source tree (cvs).
+# check-old           - Print a list of old files/directories in the system.
+# delete-old          - Delete obsolete files and directories interactively.
+# delete-old-libs     - Delete obsolete libraries interactively.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -38,15 +41,17 @@
 # For individuals wanting to upgrade their sources (even if only a
 # delta of a few days):
 #
-# 1.  `cd /usr/src'       (or to the directory containing your source tree).
-# 2.  `make buildworld'
-# 3.  `make buildkernel KERNCONF=YOUR_KERNEL_HERE'     (default is GENERIC).
-# 4.  `make installkernel KERNCONF=YOUR_KERNEL_HERE'   (default is GENERIC).
-# 5.  `reboot'        (in single user mode: boot -s from the loader prompt).
-# 6.  `mergemaster -p'
-# 7.  `make installworld'
-# 8.  `mergemaster'
-# 9.  `reboot'
+#  1.  `cd /usr/src'       (or to the directory containing your source tree).
+#  2.  `make buildworld'
+#  3.  `make buildkernel KERNCONF=YOUR_KERNEL_HERE'     (default is GENERIC).
+#  4.  `make installkernel KERNCONF=YOUR_KERNEL_HERE'   (default is GENERIC).
+#  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
+#  6.  `mergemaster -p'
+#  7.  `make installworld'
+#  8.  `make delete-old'
+#  9.  `mergemaster'
+# 10.  `reboot'
+# 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
@@ -62,9 +67,9 @@
 # developer convenience only.  They are intentionally not documented and
 # completely subject to change without notice.
 #
-TGTS=	all all-man buildenv buildkernel buildworld checkdpadd clean \
-	cleandepend cleandir depend distribute distributeworld \
-	distrib-dirs distribution everything \
+TGTS=	all all-man buildenv buildkernel buildworld check-old checkdpadd \
+	clean cleandepend cleandir delete-old delete-old-libs depend \
+	distribute distributeworld distrib-dirs distribution everything \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installworld \
 	kernel-toolchain libraries lint maninstall \
