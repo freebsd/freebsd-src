@@ -1059,3 +1059,102 @@ par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
 .endfor
 
 .include <bsd.subdir.mk>
+
+.if make(delete-old) || make(delete-old-libs) || make(check-old)
+
+#
+# check for / delete old files section
+#
+
+.include "ObsoleteFiles.inc"
+
+OLD_LIBS_MESSAGE="Please be sure no application still uses those libraries, \
+else you can not start such an application. Consult UPDATING for more \
+information regarding how to cope with the removal/revision bump of a \
+specific library."
+
+.if !defined(BATCH_DELETE_OLD_FILES)
+RM_I=-i
+.else
+RM_I=-v
+.endif
+
+delete-old-files:
+	@echo ">>> Removing old files (only deletes safe to delete libs)"
+.for file in ${OLD_FILES}
+# Ask for every old file if the user really wants to remove it.
+# It's annoying, but better safe than sorry.
+	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
+                ||  ([ -f "${DESTDIR}/${file}" ] \
+                        && echo "Removing schg flag on ${DESTDIR}/${file}" \
+                        && chflags noschg "${DESTDIR}/${file}" \
+                        && rm ${RM_I} "${DESTDIR}/${file}"))
+.endfor
+# Remove catpages without corresponding manpages.
+	@3<&0; \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
+	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
+	while read catpage; do \
+		read manpage; \
+		if [ ! -e "$${manpage}" ]; then \
+			rm ${RM_I} $${catpage} <&3 ; \
+	        fi; \
+	done
+	@echo ">>> Old files removed"
+
+check-old-files:
+	@echo ">>> Checking for old files"
+.for file in ${OLD_FILES}
+	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
+.endfor
+# Check for catpages without corresponding manpages.
+	@find ${DESTDIR}/usr/share/man/cat* ! -type d | \
+	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
+	while read catpage; do \
+		read manpage; \
+		if [ ! -e "$${manpage}" ]; then \
+			echo $${catpage} ; \
+	        fi; \
+	done
+
+delete-old-libs:
+	@echo ">>> Removing old libraries"
+	@echo "${OLD_LIBS_MESSAGE}" | fmt
+.for file in ${OLD_LIBS}
+	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
+		||  ([ -f "${DESTDIR}/${file}" ] \
+			&& echo "Removing schg flag on ${DESTDIR}/${file}" \
+			&& chflags noschg "${DESTDIR}/${file}" \
+			&& rm ${RM_I} "${DESTDIR}/${file}"))
+.endfor
+	@echo ">>> Old libraries removed"
+
+check-old-libs:
+	@echo ">>> Checking for old libraries"
+.for file in ${OLD_LIBS}
+	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
+.endfor
+
+delete-old-dirs:
+	@echo ">>> Removing old directories"
+.for dir in ${OLD_DIRS}
+# Don't fail if an old directory isn't empty.
+	@[ ! -d "${DESTDIR}/${dir}" ] || (rmdir -v "${DESTDIR}/${dir}" || true)
+.endfor
+	@echo ">>> Old directories removed"
+
+check-old-dirs:
+	@echo ">>> Checking for old directories"
+.for dir in ${OLD_DIRS}
+	@[ ! -d "${DESTDIR}/${dir}" ] || echo "${DESTDIR}/${dir}"
+.endfor
+
+delete-old: delete-old-files delete-old-dirs
+	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+
+check-old: check-old-files check-old-libs check-old-dirs
+	@echo "To remove old files and directories run '${MAKE} delete-old'."
+	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+
+.endif
+
