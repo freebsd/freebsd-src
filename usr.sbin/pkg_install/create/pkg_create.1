@@ -368,10 +368,14 @@ This is done by embedding specialized command sequences
 in the packing list.
 Briefly described, these sequences are:
 .Bl -tag -width indent -compact
-.It Cm @cwd Ar directory
+.It Cm @cwd Op Ar directory
 Set the internal directory pointer to point to
 .Ar directory .
 All subsequent filenames will be assumed relative to this directory.
+If no
+.Ar directory
+argument is given, it will set the internal directory pointer to the
+first prefix value.
 Note:
 .Cm @cd
 is also an alias for this command.
