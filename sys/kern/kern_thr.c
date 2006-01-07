@@ -310,19 +310,34 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 	p = td->td_proc;
 	error = 0;
 	PROC_LOCK(p);
-	ttd = thread_find(p, uap->id);
-	if (ttd == NULL) {
-		error = ESRCH;
-		goto out;
+	if (uap->id == -1) {
+		if (uap->sig != 0 && !_SIG_VALID(uap->sig)) {
+			error = EINVAL;
+		} else {
+			error = ESRCH;
+			FOREACH_THREAD_IN_PROC(p, ttd) {
+				if (ttd != td) {
+					error = 0;
+					if (uap->sig == 0)
+						break;
+					tdsignal(p, ttd, uap->sig, NULL);
+				}
+			}
+		}
+	} else {
+		if (uap->id != td->td_tid)
+			ttd = thread_find(p, uap->id);
+		else
+			ttd = td;
+		if (ttd == NULL)
+			error = ESRCH;
+		else if (uap->sig == 0)
+			;
+		else if (!_SIG_VALID(uap->sig))
+			error = EINVAL;
+		else
+			tdsignal(p, ttd, uap->sig, NULL);
 	}
-	if (uap->sig == 0)
-		goto out;
-	if (!_SIG_VALID(uap->sig)) {
-		error = EINVAL;
-		goto out;
-	}
-	tdsignal(p, ttd, uap->sig, NULL);
-out:
 	PROC_UNLOCK(p);
 	return (error);
 }
