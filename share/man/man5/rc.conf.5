@@ -2830,6 +2830,23 @@ which are writable by anyone except root.
 Set this variable to
 .Dq Li YES
 to disable that security check during system startup.
+.It Va ldconfig_local_dirs
+.Pq Vt str
+Set to the list of local
+.Xr ldconfig 8
+directories.
+The names of all files in the directories listed will be
+passed as arguments to
+.Xr ldconfig 8 .
+.It Va ldconfig_local32_dirs
+.Pq Vt str
+Set to the list of local 32-bit compatibility
+.Xr ldconfig 8
+directories.
+The names of all files in the directories listed will be
+passed as arguments to
+.Xr ldconfig 8
+.Fl 32 .
 .It Va kern_securelevel_enable
 .Pq Vt bool
 Set to
