@@ -54,8 +54,6 @@ struct usbd_quirks {
 #define UQ_AU_INP_ASYNC	0x0800	/* input is async despite claim of adaptive */
 #define UQ_ASSUME_CM_OVER_DATA 0x1000 /* modem device breaks on cm over data */
 #define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
-#define UQ_NO_OPEN_CLEARSTALL	0x4000	/* don't usbd_clear_endpoint_stall() */
-					/* in usbd_setup_pipe() */
 #define UQ_HID_IGNORE	0x8000	/* device should be ignored by hid class */
 					
 };
