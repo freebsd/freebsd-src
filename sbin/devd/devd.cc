@@ -166,7 +166,7 @@ match::match(config &c, const char *var, const char *re)
 	_re = "^";
 	_re.append(c.expand_string(string(re)));
 	_re.append("$");
-	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB);
+	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB | REG_ICASE);
 }
 
 match::~match()
