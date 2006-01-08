@@ -97,7 +97,7 @@ __weak_reference(__mq_notify, _mq_notify);
 __weak_reference(___mq_close, mq_close);
 __weak_reference(___mq_close, _mq_close);
 
-#define	SIGSERVICE		SIGCANCEL	/* Reuse SIGCANCEL */
+#define	SIGSERVICE		(SIGCANCEL+1)
 
 #define	RT_WORKING		0x01
 #define	RT_WANTED		0x02
@@ -478,6 +478,9 @@ service_loop(void *arg)
 	setjmp(tn->tn_jbuf);
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	sigemptyset(&set);
+	sigaddset(&set, SIGCANCEL);
+	__sys_sigprocmask(SIG_UNBLOCK, &set, NULL);
+	sigdelset(&set, SIGCANCEL);
 	sigaddset(&set, SIGSERVICE);
 	THR_CLEANUP_PUSH(curthread, thread_cleanup, tn);
 	while (tn->tn_exit == 0) {
