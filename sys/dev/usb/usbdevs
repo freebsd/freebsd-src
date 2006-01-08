@@ -713,6 +713,7 @@ product BTC BTC7932		0x6782	Keyboard with mouse port
 /* Canon, Inc. products */
 product CANON N656U		0x2206	CanoScan N656U
 product CANON N1220U		0x2207	CanoScan N1220U
+product CANON D660U		0x2208	CanoScan D660U
 product CANON N676U		0x220d	CanoScan N676U
 product CANON N1240U		0x220e	CanoScan N1240U
 product CANON LIDE25		0x2220	CanoScan LIDE 25
