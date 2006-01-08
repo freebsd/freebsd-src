@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2000
+.Dd January 8, 2006
 .Dt SETKEY 8
 .Os
 .\"
@@ -344,7 +344,7 @@ Specify an authentication algorithm for AH.
 Specify a compression algorithm for IPComp.
 If
 .Fl R
-is specified,
+is specified, the
 .Ar spi
 field value will be used as the IPComp CPI
 (compression parameter index)
@@ -386,11 +386,10 @@ This takes the following form:
 .Ar prefixlen
 and
 .Ar port
-must be decimal number.
-The square bracket around
+must be a decimal number.
+The square brackets around
 .Ar port
-is really necessary.
-They are not manpage metacharacters.
+are necessary and are not manpage metacharacters.
 For FQDN resolution, the rules applicable to
 .Ar src
 and
@@ -399,49 +398,48 @@ apply here as well.
 .\"
 .Pp
 .It Ar upperspec
-Upper-layer protocol to be used.
-You can use one of words in
+The upper layer protocol to be used.
+You can use one of the words in
 .Pa /etc/protocols
 as
-.Ar upperspec .
-Or
+.Ar upperspec ,
+as well as
 .Li icmp6 ,
 .Li ip4 ,
-and
-.Li any
-can be specified.
-.Li any
+or
+.Li any .
+.Li Any
 stands for
 .Dq any protocol .
-Also you can use the protocol number.
-You can specify a type and/or a code of ICMPv6 when
-upper-layer protocol is ICMPv6.
-The specification can be placed after
+The protocol number may also be used to specify the 
+.Ar upperspec .
+A type and code related to ICMPv6 may also be specified as an
+.Ar upperspec .
+The type is specified first, followed by a comma and then the relevant
+code.
+The specification must be placed after
 .Li icmp6 .
-A type is separated with a code by single comma.
-A code must be specified anytime.
-When a zero is specified, the kernel deals with it as a wildcard.
-Note that the kernel cannot distinguish a wildcard from that a type
-of ICMPv6 is zero.
-For example, the following means the policy does not require IPsec
-for any inbound Neighbor Solicitation:
+The kernel considers a zero to be a wildcard but 
+cannot distinguish between a wildcard and an ICMPv6 
+type which is zero.
+The following example shows a policy where IPSec is not required for
+inbound Neighbor Solicitations:
 .Pp
 .Dl "spdadd ::/0 ::/0 icmp6 135,0 -P in none;"
 .Pp
 NOTE:
 .Ar upperspec
-does not work against forwarding case at this moment,
-as it requires extra reassembly at forwarding node
-(not implemented at this moment).
-We have many protocols in
+does not work in the forwarding case at this moment,
+as it requires extra reassembly at forwarding node,
+which is not implemented at this moment.
+Although there are many protocols in
 .Pa /etc/protocols ,
-but protocols except of TCP, UDP and ICMP may not be suitable to use with IPsec.
-You have to consider and be careful to use them.
+protocols other than TCP, UDP and ICMP may not be suitable to use with IPsec.
 .\"
 .Pp
 .It Ar policy
 .Ar policy
-is the one of the following three formats:
+is expressed in one of the following three formats:
 .Bd -ragged -offset indent
 .It Fl P Ar direction Li discard
 .It Fl P Ar direction Li none
@@ -450,29 +448,30 @@ is the one of the following three formats:
 .Xc
 .Ed
 .Pp
-You must specify the direction of its policy as
-.Ar direction .
-Either
-.Li out
-or
-.Li in
-are used.
-.Li discard
-means the packet matching indexes will be discarded.
+The direction of a policy must be specified as
+one of:
+.Li out ,
+.Li in ,
+.Li discard 
+.Li none ,
+or 
+.Li ipsec .
+.Li Discard
+means that packets matching the supplied indices will be discarded
+while 
 .Li none
-means that IPsec operation will not take place onto the packet.
+means that IPsec operations will not take place on the packet and
 .Li ipsec
 means that IPsec operation will take place onto the packet.
-The part of
+The 
 .Ar protocol/mode/src-dst/level
-specifies the rule how to process the packet.
-Either
+statement gives the rule for how to process the packet.
+.Ar Protocol is specified as
 .Li ah ,
 .Li esp
 or
 .Li ipcomp
-is to be set as
-.Ar protocol .
+The
 .Ar mode
 is either
 .Li transport
@@ -482,13 +481,13 @@ If
 .Ar mode
 is
 .Li tunnel ,
-you must specify the end-points addresses of the SA as
+you must specify the end-point addresses of the SA as
 .Ar src
 and
 .Ar dst
-with
-.Sq -
-between these addresses which is used to specify the SA to use.
+with a dash, 
+.Sq - ,
+between the addresses.
 If
 .Ar mode
 is
@@ -498,28 +497,32 @@ both
 and
 .Ar dst
 can be omitted.
+The
 .Ar level
-is to be one of the following:
+is one of the following:
 .Li default , use , require
 or
 .Li unique .
 If the SA is not available in every level, the kernel will request
-getting SA to the key exchange daemon.
+the SA from the key exchange daemon.
+A value of
 .Li default
-means the kernel consults to the system wide default against protocol you
-specified, e.g.,
+tells the kernel to use the system wide default protocol 
+e.g. the one from the
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
-.Li use
-means that the kernel use a SA if it is available,
-otherwise the kernel keeps normal operation.
-.Li require
-means SA is required whenever the kernel sends a packet matched
-with the policy.
+.Li Use
+means that the kernel will use an SA if it is available,
+otherwise the kernel will pass the packet as it would normally.
+.Li Require
+means that an SA is required whenever the kernel sends a packet matched
+that matches the policy.
+The 
 .Li unique
-is the same to require.
-In addition, it allows the policy to bind with the unique out-bound SA.
-You just specify the policy level
+level is the same as
+.Li require
+but, in addition, it allows the policy to bind with the unique out-bound SA.
+For example, if you specify the policy level
 .Li unique ,
 .Xr racoon 8
 will configure the SA for the policy.
@@ -528,18 +531,19 @@ you can put the decimal number as the policy identifier after
 .Li unique
 separated by colon
 .Ql :\&
-like the following;
+as in the following example:
 .Li unique:number .
 In order to bind this policy to the SA,
 .Li number
-must be between 1 and 32767.
-It corresponds to
+must be between 1 and 32767, 
+which corresponds to
 .Ar extensions Fl u
-of the manual SA configuration.
-When you want to use SA bundle, you can define multiple rules.
-For example, if an IP header was followed by AH header followed by ESP header
-followed by an upper layer protocol header, the rule
-would be:
+of manual SA configuration.
+.Pp
+When you want to use an SA bundle, you can define multiple rules.  For
+example, if an IP header was followed by an AH header followed by an
+ESP header followed by an upper layer protocol header, the rule would
+be:
 .Dl esp/transport//require ah/transport//require ;
 The rule order is very important.
 .Pp
@@ -549,25 +553,26 @@ and
 .Dq Li none
 are not in the syntax described in
 .Xr ipsec_set_policy 3 .
-There are little differences in the syntax.
+There are small, but important, differences in the syntax.
 See
 .Xr ipsec_set_policy 3
-for detail.
+for details.
 .Pp
 .El
 .Pp
 .\"
 .Sh ALGORITHMS
 The following list shows the supported algorithms.
+The
 .Sy protocol
 and
 .Sy algorithm
-are almost orthogonal.
-Followings are the list of authentication algorithms that can be used as
+are almost completely orthogonal.
+The following list of authentication algorithms can be used as
 .Ar aalgo
-in
+in the
 .Fl A Ar aalgo
-of
+of the
 .Ar protocol
 parameter:
 .Pp
@@ -596,11 +601,11 @@ aes-xcbc-mac	128		ah: 96bit ICV (RFC3566)
 tcp-md5		8 to 640	tcp: rfc2385
 .Ed
 .Pp
-Followings are the list of encryption algorithms that can be used as
+The following is the list of encryption algorithms that can be used as the
 .Ar ealgo
-in
+in the
 .Fl E Ar ealgo
-of
+of the
 .Ar protocol
 parameter:
 .Pp
@@ -621,11 +626,12 @@ Note that the first 128 bits of a key for
 .Li aes-ctr
 will be used as AES key, and remaining 32 bits will be used as nonce.
 .Pp
-Followings are the list of compression algorithms that can be used as
+The following are the list of compression algorithms that can be used
+as the
 .Ar calgo
-in
+in the
 .Fl C Ar calgo
-of
+of the
 .Ar protocol
 parameter:
 .Pp
@@ -638,26 +644,50 @@ deflate		rfc2394
 .Ex -std
 .\"
 .Sh EXAMPLES
+Add an ESP SA between two IPv6 addresses using the
+des-cbc encryption algorithm.
 .Bd -literal -offset
 add 3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
 	-E des-cbc 0x3ffe05014819ffff ;
 
+.Ed
+.\"
+Add an authentication SA between two FQDN specified hosts:
+.Bd -literal -offset
 add -6 myhost.example.com yourhost.example.com ah 123456
 	-A hmac-sha1 "AH SA configuration!" ;
 
+.Ed
+Use both ESP and AH between two numerically specified hosts:
+.Bd -literal -offset
 add 10.0.11.41 10.0.11.33 esp 0x10001
 	-E des-cbc 0x3ffe05014819ffff
 	-A hmac-md5 "authentication!!" ;
 
+.Ed
+Get the SA information assocaited with first example above:
+.Bd -literal -offset
 get 3ffe:501:4819::1 3ffe:501:481d::1 ah 123456 ;
 
+.Ed
+Flush all entries from the database:
+.Bd -literal -offset
 flush ;
 
+.Ed
+Dump the ESP entries from the database:
+.Bd -literal -offset
 dump esp ;
 
+.Ed
+Add a security policy between two networks that uses ESP in tunnel mode:
+.Bd -literal -offset
 spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 	-P out ipsec esp/tunnel/192.168.0.1-192.168.1.2/require ;
 
+.Ed
+Use TCP MD5 between two numerically specified hosts:
+.Bd -literal -offset
 add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
 
 .Ed
