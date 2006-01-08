@@ -580,6 +580,7 @@ product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
 product ACERP ACERSCAN_320U	0x2022	Acerscan 320U
 product ACERP ACERSCAN_640U	0x2040	Acerscan 640U
 product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
+product ACERP ACERSCAN_1240U	0x20c0	Acerscan 1240U
 product ACERP AWL300		0x9000	AWL300 Wireless adapter
 product ACERP AWL400		0x9001	AWL400 Wireless adapter
 
