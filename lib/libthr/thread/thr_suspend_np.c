@@ -76,21 +76,33 @@ _pthread_suspend_all_np(void)
 	struct pthread *thread;
 	int ret;
 
-restart:
 	THREAD_LIST_LOCK(curthread);
 
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
 		if (thread != curthread) {
 			THR_THREAD_LOCK(curthread, thread);
+			if (thread->state != PS_DEAD &&
+	      		   !(thread->flags & THR_FLAGS_SUSPENDED))
+			    thread->flags |= THR_FLAGS_NEED_SUSPEND;
+			THR_THREAD_UNLOCK(curthread, thread);
+		}
+	}
+	thr_kill(-1, SIGCANCEL);
+
+restart:
+	TAILQ_FOREACH(thread, &_thread_list, tle) {
+		if (thread != curthread) {
 			/* First try to suspend the thread without waiting */
+			THR_THREAD_LOCK(curthread, thread);
 			ret = suspend_common(curthread, thread, 0);
 			if (ret == 0) {
-				/* Can not suspended, try to wait */
+				/* Can not suspend, try to wait */
 				thread->refcount++;
 				THREAD_LIST_UNLOCK(curthread);
 				suspend_common(curthread, thread, 1);
 				THR_THREAD_UNLOCK(curthread, thread);
-				_thr_ref_delete(curthread, thread);
+				THREAD_LIST_LOCK(curthread);
+				_thr_ref_delete_unlocked(curthread, thread);
 				/*
 				 * Because we were blocked, things may have
 				 * been changed, we have to restart the
@@ -114,13 +126,14 @@ suspend_common(struct pthread *curthread, struct pthread *thread,
 	while (thread->state != PS_DEAD &&
 	      !(thread->flags & THR_FLAGS_SUSPENDED)) {
 		thread->flags |= THR_FLAGS_NEED_SUSPEND;
+		THR_THREAD_UNLOCK(curthread, thread);
 		_thr_send_sig(thread, SIGCANCEL);
 		if (waitok) {
 			tmp = thread->cycle;
-			THR_THREAD_UNLOCK(curthread, thread);
 			_thr_umtx_wait(&thread->cycle, tmp, NULL);
 			THR_THREAD_LOCK(curthread, thread);
 		} else {
+			THR_THREAD_LOCK(curthread, thread);
 			return (0);
 		}
 	}
