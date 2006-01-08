@@ -190,6 +190,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		}
 		THR_THREAD_UNLOCK(curthread, new_thread);
 		THREAD_LIST_LOCK(curthread);
+		_thread_active_threads--;
 		new_thread->tlflags |= TLFLAGS_DETACHED;
 		_thr_ref_delete_unlocked(curthread, new_thread);
 		THREAD_LIST_UNLOCK(curthread);
