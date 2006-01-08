@@ -395,7 +395,7 @@ rulespec_intok(struct devfs_rule *dr, int ac __unused, char **av,
 			dr->dr_iacts |= DRA_MODE;
 			set = setmode(av[1]);
 			if (set == NULL)
-				errx(1, "invald mode: %s", av[1]);
+				errx(1, "invalid mode: %s", av[1]);
 			dr->dr_mode = getmode(set, 0);
 			av += 2;
 		} else if (strcmp(av[0], "include") == 0) {
