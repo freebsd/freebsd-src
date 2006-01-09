@@ -29,3 +29,5 @@
 #define MACHINE		"pc98"
 
 #include <i386/param.h>
+
+#undef __HAVE_ACPI
