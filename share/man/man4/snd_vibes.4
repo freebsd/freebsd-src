@@ -24,15 +24,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2005
+.Dd December 1, 2005
 .Dt SND_VIBES 4
 .Os
 .Sh NAME
 .Nm snd_vibes
 .Nd "S3 SonicVibes bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_vibes"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_vibes_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -55,3 +66,6 @@ The
 .Nm
 device driver first appeared in
 .Fx 4.4 .
+.Sh AUTHORS
+This manual page was written by
+.An Joel Dahl Aq joel@FreeBSD.org .

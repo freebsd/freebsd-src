@@ -24,16 +24,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2004
+.Dd December 15, 2005
 .Dt SND_ESS 4
 .Os
 .Sh NAME
 .Nm snd_ess
 .Nd "Ensoniq ESS ISA PnP/non-PnP bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_ess"
 .Cd "device snd_sbc"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_ess_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,8 +65,8 @@ Ensoniq ESS ISA PnP/non-PnP
 .Sh HISTORY
 The
 .Nm
-manual page first appeared in
-.Fx 5.3 .
+device driver first appeared in
+.Fx 4.1 .
 .Sh AUTHORS
 .An "Cameron Grant" Aq cg@FreeBSD.org
 .An "Luigi Rizzo" Aq luigi@FreeBSD.org

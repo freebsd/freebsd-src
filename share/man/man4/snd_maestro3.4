@@ -24,15 +24,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2004
+.Dd December 15, 2005
 .Dt SND_MAESTRO3 4
 .Os
 .Sh NAME
 .Nm snd_maestro3
 .Nd "ESS Maestro3/Allegro-1 bridge device driver"
 .Sh SYNOPSIS
+
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_maestro3"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_maestro3_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,12 +58,6 @@ The firmware for the sound processor is licensed under the GNU Public
 License, and thus this driver is not included in the default
 .Pa GENERIC
 kernel.
-A convenient way to automatically load the driver is to add the line
-.Pp
-.Dl snd_maestro3_load="YES"
-.Pp
-to the file
-.Pa /boot/loader.conf .
 .Sh HARDWARE
 The
 .Nm

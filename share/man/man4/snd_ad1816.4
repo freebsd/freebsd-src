@@ -24,20 +24,35 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2004
+.Dd December 15, 2005
 .Dt SND_AD1816 4
 .Os
 .Sh NAME
 .Nm snd_ad1816
 .Nd "Analog Devices AD1816 ISA bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_ad1816"
+.Ed
 .Pp
-.Cd hint.pcm.0.at="isa"
-.Cd hint.pcm.0.irq="10"
-.Cd hint.pcm.0.drq="1"
-.Cd hint.pcm.0.flags="0x0"
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_ad1816_load="YES"
+.Ed
+.Pp
+Non-PnP cards require the following lines in
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.pcm.0.at="isa"
+hint.pcm.0.irq="10"
+hint.pcm.0.drq="1"
+hint.pcm.0.flags="0x0"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,8 +73,8 @@ Analog Devices AD1816
 .Sh HISTORY
 The
 .Nm
-manual page first appeared in
-.Fx 5.3 .
+device driver first appeared in
+.Fx 4.0 .
 .Sh AUTHORS
 .An "Cameron Grant" Aq cg@FreeBSD.org
 .An "Luigi Rizzo" Aq luigi@FreeBSD.org
