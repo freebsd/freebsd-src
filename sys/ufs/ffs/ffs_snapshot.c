@@ -203,7 +203,7 @@ ffs_snapshot(mp, snapfile)
 	struct nameidata nd;
 	struct mount *wrtmp;
 	struct vattr vat;
-	struct vnode *vp, *xvp, *nvp, *devvp;
+	struct vnode *vp, *xvp, *mvp, *devvp;
 	struct uio auio;
 	struct iovec aiov;
 	struct snapdata *sn;
@@ -485,7 +485,7 @@ restart:
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
 loop:
-	MNT_VNODE_FOREACH(xvp, mp, nvp) {
+	MNT_VNODE_FOREACH(xvp, mp, mvp) {
 		VI_LOCK(xvp);
 		MNT_IUNLOCK(mp);
 		if ((xvp->v_iflag & VI_DOOMED) ||
@@ -506,6 +506,7 @@ loop:
 		}
 		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0) {
 			MNT_ILOCK(mp);
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			goto loop;
 		}
 		if (snapdebug)
@@ -553,6 +554,7 @@ loop:
 			free(copy_fs->fs_csp, M_UFSMNT);
 			bawrite(sbp);
 			sbp = NULL;
+			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			goto out1;
 		}
 		MNT_ILOCK(mp);

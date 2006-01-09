@@ -134,9 +134,9 @@ enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
 	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VBAD,
 };
-int vttoif_tab[9] = {
+int vttoif_tab[10] = {
 	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK,
-	S_IFSOCK, S_IFIFO, S_IFMT,
+	S_IFSOCK, S_IFIFO, S_IFMT, S_IFMT
 };
 
 /*
@@ -566,7 +566,12 @@ vlrureclaim(struct mount *mp)
 	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	count = mp->mnt_nvnodelistsize / 10 + 1;
-	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
+	while (count != 0) {
+		vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
+		while (vp != NULL && vp->v_type == VMARKER)
+			vp = TAILQ_NEXT(vp, v_nmntvnodes);
+		if (vp == NULL)
+			break;
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		--count;
@@ -968,6 +973,8 @@ insmntque(struct vnode *vp, struct mount *mp)
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
 	MNT_ILOCK(vp->v_mount);
 	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+	VNASSERT(mp->mnt_nvnodelistsize >= 0, vp,
+		("neg mount point vnode list size"));
 	mp->mnt_nvnodelistsize++;
 	MNT_IUNLOCK(vp->v_mount);
 }
@@ -2241,7 +2248,7 @@ vflush(mp, rootrefs, flags, td)
 	int flags;
 	struct thread *td;
 {
-	struct vnode *vp, *nvp, *rootvp = NULL;
+	struct vnode *vp, *mvp, *rootvp = NULL;
 	struct vattr vattr;
 	int busy = 0, error;
 
@@ -2260,7 +2267,7 @@ vflush(mp, rootrefs, flags, td)
 	}
 	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 
 		VI_LOCK(vp);
 		vholdl(vp);
@@ -2269,6 +2276,7 @@ loop:
 		if (error) {
 			vdrop(vp);
 			MNT_ILOCK(mp);
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			goto loop;
 		}
 		/*
@@ -2489,7 +2497,8 @@ count_dev(dev)
  * Print out a description of a vnode.
  */
 static char *typename[] =
-{"VNON", "VREG", "VDIR", "VBLK", "VCHR", "VLNK", "VSOCK", "VFIFO", "VBAD"};
+{"VNON", "VREG", "VDIR", "VBLK", "VCHR", "VLNK", "VSOCK", "VFIFO", "VBAD",
+ "VMARKER"};
 
 void
 vn_printf(struct vnode *vp, const char *fmt, ...)
@@ -2818,20 +2827,11 @@ vfs_unmountall()
 void
 vfs_msync(struct mount *mp, int flags)
 {
-	struct vnode *vp, *nvp;
+	struct vnode *vp, *mvp;
 	struct vm_object *obj;
-	int tries;
 
-	tries = 5;
 	MNT_ILOCK(mp);
-loop:
-	TAILQ_FOREACH_SAFE(vp, &mp->mnt_nvnodelist, v_nmntvnodes, nvp) {
-		if (vp->v_mount != mp) {
-			if (--tries > 0)
-				goto loop;
-			break;
-		}
-
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_OBJDIRTY) &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, NULL) == 0)) {
@@ -2856,11 +2856,6 @@ loop:
 				vput(vp);
 			}
 			MNT_ILOCK(mp);
-			if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp) {
-				if (--tries > 0)
-					goto loop;
-				break;
-			}
 		} else
 			VI_UNLOCK(vp);
 	}

@@ -90,6 +90,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
+MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 
 /* List of mounted filesystems. */
 struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
@@ -445,6 +446,28 @@ static void
 vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
 
+	MNT_ILOCK(mp);
+	if (mp->mnt_holdcnt != 0) {
+		printf("Waiting for mount point to be unheld\n");
+		while (mp->mnt_holdcnt != 0) {
+			mp->mnt_holdcntwaiters++;
+			msleep(&mp->mnt_holdcnt, MNT_MTX(mp),
+			       PZERO, "mntdestroy", 0);
+			mp->mnt_holdcntwaiters--;
+		}
+		printf("mount point unheld\n");
+	}
+	if (mp->mnt_writeopcount > 0) {
+		printf("Waiting for mount point write ops\n");
+		while (mp->mnt_writeopcount > 0) {
+			mp->mnt_kern_flag |= MNTK_SUSPEND;
+			msleep(&mp->mnt_writeopcount,
+			       MNT_MTX(mp),
+			       PZERO, "mntdestroy2", 0);
+		}
+		printf("mount point write ops completed\n");
+	}
+	MNT_IUNLOCK(mp);
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
@@ -453,6 +476,12 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup(mp);
+	if (mp->mnt_writeopcount != 0)
+		panic("vfs_mount_destroy: nonzero writeopcount");
+	if (mp->mnt_nvnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero nvnodelistsize");
+	mp->mnt_writeopcount = -1000;
+	mp->mnt_nvnodelistsize = -1000;
 	MNT_IUNLOCK(mp);
 	mtx_destroy(&mp->mnt_mtx);
 #ifdef MAC
@@ -1658,26 +1687,95 @@ vfs_copyopt(opts, name, dest, len)
  */
 
 struct vnode *
-__mnt_vnode_next(struct vnode **nvp, struct mount *mp)
+__mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
-	mtx_assert(&mp->mnt_mtx, MA_OWNED);
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
 
-	vp = *nvp;
+	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
+	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
+	while (vp != NULL && vp->v_type == VMARKER) 
+		vp = TAILQ_NEXT(vp, v_nmntvnodes);
+	
 	/* Check if we are done */
-	if (vp == NULL)
+	if (vp == NULL) {
+		__mnt_vnode_markerfree(mvp, mp);
 		return (NULL);
-	/* If our next vnode is no longer ours, start over */
-	if (vp->v_mount != mp) 
-		vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	/* Save pointer to next vnode in list */
-	if (vp != NULL)
-		*nvp = TAILQ_NEXT(vp, v_nmntvnodes);
-	else
-		*nvp = NULL;
+	}
+	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
+	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
 	return (vp);
 }
+
+struct vnode *
+__mnt_vnode_first(struct vnode **mvp, struct mount *mp)
+{
+	struct vnode *vp;
+
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+
+	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
+	while (vp != NULL && vp->v_type == VMARKER) 
+		vp = TAILQ_NEXT(vp, v_nmntvnodes);
+	
+	/* Check if we are done */
+	if (vp == NULL) {
+		*mvp = NULL;
+		return (NULL);
+	}
+	mp->mnt_holdcnt++;
+	MNT_IUNLOCK(mp);
+	*mvp = (struct vnode *) malloc(sizeof(struct vnode),
+				       M_VNODE_MARKER,
+				       M_WAITOK | M_ZERO);
+	MNT_ILOCK(mp);
+	(*mvp)->v_type = VMARKER;
+
+	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
+	while (vp != NULL && vp->v_type == VMARKER) 
+		vp = TAILQ_NEXT(vp, v_nmntvnodes);
+	
+	/* Check if we are done */
+	if (vp == NULL) {
+		MNT_IUNLOCK(mp);
+		free(*mvp, M_VNODE_MARKER);
+		MNT_ILOCK(mp);
+		*mvp = NULL;
+		mp->mnt_holdcnt--;
+		if (mp->mnt_holdcnt == 0 && mp->mnt_holdcntwaiters != 0)
+			wakeup(&mp->mnt_holdcnt);
+		return (NULL);
+	}
+	mp->mnt_markercnt++;
+	(*mvp)->v_mount = mp;
+	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
+	return (vp);
+}
+
+
+void
+__mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
+{
+
+	if (*mvp == NULL)
+		return;
+	
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+
+	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
+	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
+	MNT_IUNLOCK(mp);
+	free(*mvp, M_VNODE_MARKER);
+	MNT_ILOCK(mp);
+	*mvp = NULL;
+
+	mp->mnt_markercnt--;
+	mp->mnt_holdcnt--;
+	if (mp->mnt_holdcnt == 0 && mp->mnt_holdcntwaiters != 0)
+		wakeup(&mp->mnt_holdcnt);
+}
+
 
 int
 __vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
