@@ -114,7 +114,7 @@ static u_int32_t fmts[] = {
 };
 
 static struct pcmchan_caps fm801ch_caps = {
-	4000, 48000,
+	5500, 48000,
 	fmts, 0
 };
 
