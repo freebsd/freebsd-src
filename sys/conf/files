@@ -962,6 +962,7 @@ dev/usb/ubser.c			optional ubser
 dev/usb/ucom.c			optional ucom
 dev/usb/ucycom.c		optional ucycom ucom
 dev/usb/udbp.c			optional udbp
+dev/usb/ufoma.c			optional ufoma ucom
 dev/usb/ufm.c			optional ufm
 dev/usb/uftdi.c			optional uftdi ucom
 dev/usb/ugen.c			optional ugen
