@@ -5526,13 +5526,26 @@ softdep_request_cleanup(fs, vp)
 			return (0);
 		UFS_UNLOCK(ump);
 		ACQUIRE_LOCK(&lk);
+		if (softdep_worklist_busy < 0) {
+			request_cleanup(FLUSH_REMOVE_WAIT);
+			FREE_LOCK(&lk);
+			UFS_LOCK(ump);
+			return (0);
+		}
+		softdep_worklist_busy += 1;
 		if (num_on_worklist > 0 &&
 		    process_worklist_item(NULL, LK_NOWAIT) != -1) {
 			stat_worklist_push += 1;
+			softdep_worklist_busy -= 1;
+			if (softdep_worklist_req && softdep_worklist_busy == 0)
+				wakeup(&softdep_worklist_req);
 			FREE_LOCK(&lk);
 			UFS_LOCK(ump);
 			continue;
 		}
+		softdep_worklist_busy -= 1;
+		if (softdep_worklist_req && softdep_worklist_busy == 0)
+			wakeup(&softdep_worklist_req);
 		request_cleanup(FLUSH_REMOVE_WAIT);
 		FREE_LOCK(&lk);
 		UFS_LOCK(ump);
@@ -5564,12 +5577,17 @@ request_cleanup(resource)
 	 * inode as that could lead to deadlock.  We set TDP_SOFTDEP
 	 * to avoid recursively processing the worklist.
 	 */
-	if (num_on_worklist > max_softdeps / 10) {
+	if (num_on_worklist > max_softdeps / 10 &&
+	    softdep_worklist_busy >= 0) {
+		softdep_worklist_busy += 1;
 		td->td_pflags |= TDP_SOFTDEP;
 		process_worklist_item(NULL, LK_NOWAIT);
 		process_worklist_item(NULL, LK_NOWAIT);
 		td->td_pflags &= ~TDP_SOFTDEP;
 		stat_worklist_push += 2;
+		softdep_worklist_busy -= 1;
+		if (softdep_worklist_req && softdep_worklist_busy == 0)
+			wakeup(&softdep_worklist_req);
 		return(1);
 	}
 	/*
