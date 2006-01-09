@@ -501,7 +501,7 @@ static int compute_sb_data(devvp, es, fs)
 static int
 ext2_reload(struct mount *mp, struct thread *td)
 {
-	struct vnode *vp, *nvp, *devvp;
+	struct vnode *vp, *mvp, *devvp;
 	struct inode *ip;
 	struct buf *bp;
 	struct ext2_super_block * es;
@@ -545,7 +545,7 @@ ext2_reload(struct mount *mp, struct thread *td)
 
 loop:
 	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);
@@ -556,6 +556,7 @@ loop:
 		 * Step 4: invalidate all cached file data.
 		 */
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
+			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			goto loop;
 		}
 		if (vinvalbuf(vp, 0, td, 0, 0))
@@ -570,6 +571,7 @@ loop:
 		if (error) {
 			VOP_UNLOCK(vp, 0, td);
 			vrele(vp);
+			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			return (error);
 		}
 		ext2_ei2i((struct ext2_inode *) ((char *)bp->b_data +
@@ -855,7 +857,7 @@ ext2_sync(mp, waitfor, td)
 	int waitfor;
 	struct thread *td;
 {
-	struct vnode *nvp, *vp;
+	struct vnode *mvp, *vp;
 	struct inode *ip;
 	struct ext2mount *ump = VFSTOEXT2(mp);
 	struct ext2_sb_info *fs;
@@ -871,7 +873,7 @@ ext2_sync(mp, waitfor, td)
 	 */
 	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
 			VI_UNLOCK(vp);
@@ -890,8 +892,10 @@ loop:
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
 			MNT_ILOCK(mp);
-			if (error == ENOENT)
+			if (error == ENOENT) {
+				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 				goto loop;
+			}
 			continue;
 		}
 		if ((error = VOP_FSYNC(vp, waitfor, td)) != 0)
