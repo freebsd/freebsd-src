@@ -829,6 +829,16 @@ ich_pci_attach(device_t dev)
 	sc->codec = AC97_CREATE(dev, sc, ich_ac97);
 	if (sc->codec == NULL)
 		goto bad;
+
+	/*
+	 * Turn on inverted external amplifier sense flags for ICH4/82801DB.
+	 * Does ICH3/82801CA need this too ? I left them out for now.
+	 *
+	 * http://lists.freebsd.org/pipermail/freebsd-multimedia/2003-November/000531.html
+	 */
+	if (vendor == INTEL_VENDORID && devid == INTEL_82801DB)
+		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
+
 	mixer_init(dev, ac97_getmixerclass(), sc->codec);
 
 	/* check and set VRA function */
