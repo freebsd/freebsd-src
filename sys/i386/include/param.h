@@ -51,6 +51,9 @@
 
 #ifndef _NO_NAMESPACE_POLLUTION
 
+#define __HAVE_ACPI
+#define __PCI_REROUTE_INTERRUPT
+
 #ifndef _MACHINE_PARAM_H_
 #define	_MACHINE_PARAM_H_
 
