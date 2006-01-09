@@ -25,23 +25,36 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2004
+.Dd December 15, 2005
 .Dt SND_GUSC 4
 .Os
 .Sh NAME
 .Nm snd_gusc
 .Nd Gravis UltraSound ISA bridge device driver
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_gusc"
+.Ed
 .Pp
-For non-PnP cards, add the following lines in
-.Pa /boot/device.hints .
-.Cd hint.gusc.0.at="isa"
-.Cd hint.gusc.0.port="0x220"
-.Cd hint.gusc.0.irq="5"
-.Cd hint.gusc.0.drq="1"
-.Cd hint.gusc.0.flags="0x13"
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_gusc_load="YES"
+.Ed
+.Pp
+Non-PnP cards require the following lines in
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.gusc.0.at="isa"
+hint.gusc.0.port="0x220"
+hint.gusc.0.irq="5"
+hint.gusc.0.drq="1"
+hint.gusc.0.flags="0x13"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
