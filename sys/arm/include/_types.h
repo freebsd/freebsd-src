@@ -43,8 +43,6 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#define __PCI_REROUTE_INTERRUPT
-
 /*
  * Basic types upon which most other types are built.
  */
