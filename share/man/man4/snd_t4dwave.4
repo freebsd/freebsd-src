@@ -24,15 +24,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2005
+.Dd December 1, 2005
 .Dt SND_T4DWAVE 4
 .Os
 .Sh NAME
 .Nm snd_t4dwave
 .Nd "Trident 4DWave bridge device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_t4dwave"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_t4dwave_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -61,3 +72,6 @@ The
 .Nm
 device driver first appeared in
 .Fx 4.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Joel Dahl Aq joel@FreeBSD.org .
