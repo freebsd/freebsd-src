@@ -75,7 +75,7 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 #define MARK_ENTRY(op) (coda_vfsopstats[op].entries++)
 #define MARK_INT_SAT(op) (coda_vfsopstats[op].sat_intrn++)
 #define MARK_INT_FAIL(op) (coda_vfsopstats[op].unsat_intrn++)
-#define MRAK_INT_GEN(op) (coda_vfsopstats[op].gen_intrn++)
+#define MARK_INT_GEN(op) (coda_vfsopstats[op].gen_intrn++)
 
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
 extern int vc_nb_open(struct cdev *, int, int, struct thread *);
