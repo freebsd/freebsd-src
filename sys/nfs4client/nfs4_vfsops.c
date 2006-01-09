@@ -752,6 +752,7 @@ loop:
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
+			MNT_ILOCK(mp);
 			goto loop;
 		}
 		error = VOP_FSYNC(vp, waitfor, td);
