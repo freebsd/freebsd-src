@@ -403,7 +403,7 @@ quotaon(td, mp, type, fname)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct vnode *vp, **vpp;
-	struct vnode *nvp;
+	struct vnode *mvp;
 	struct dquot *dq;
 	int error, flags;
 	struct nameidata nd;
@@ -453,11 +453,12 @@ quotaon(td, mp, type, fname)
 	 */
 	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			MNT_ILOCK(mp);
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			goto again;
 		}
 		if (vp->v_type == VNON || vp->v_writecount == 0) {
@@ -470,8 +471,10 @@ again:
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
 		MNT_ILOCK(mp);
-		if (error)
+		if (error) {
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			break;
+		}
 	}
 	MNT_IUNLOCK(mp);
 	ump->um_qflags[type] &= ~QTF_OPENING;
@@ -490,7 +493,7 @@ quotaoff(td, mp, type)
 	int type;
 {
 	struct vnode *vp;
-	struct vnode *qvp, *nvp;
+	struct vnode *qvp, *mvp;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct dquot *dq;
 	struct inode *ip;
@@ -509,7 +512,7 @@ quotaoff(td, mp, type)
 	 */
 	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
 		if (vp->v_type == VNON) {
@@ -519,6 +522,7 @@ again:
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			MNT_ILOCK(mp);
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			goto again;
 		}
 		ip = VTOI(vp);
@@ -717,7 +721,7 @@ qsync(mp)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct thread *td = curthread;		/* XXX */
-	struct vnode *vp, *nvp;
+	struct vnode *vp, *mvp;
 	struct dquot *dq;
 	int i, error;
 
@@ -736,7 +740,7 @@ qsync(mp)
 	 */
 	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
 		if (vp->v_type == VNON) {
@@ -747,8 +751,10 @@ again:
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
 			MNT_ILOCK(mp);
-			if (error == ENOENT)
+			if (error == ENOENT) {
+				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 				goto again;
+			}
 			continue;
 		}
 		for (i = 0; i < MAXQUOTAS; i++) {
