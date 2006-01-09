@@ -232,6 +232,7 @@ struct ath_softc {
 		u_int8_t	pad[64];
 	} u_rx_rt;
 	int			sc_rx_th_len;
+	u_int			sc_monpass;	/* frames to pass in mon.mode */
 
 	struct task		sc_fataltask;	/* fatal int processing */
 
@@ -479,6 +480,15 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_MCAST_KEYSRCH, 1, NULL) == HAL_OK)
 #else
 #define	ath_hal_getmcastkeysearch(_ah)	0
+#endif
+#if HAL_ABI_VERSION < 0x05120700
+#define	ath_hal_process_noisefloor(_ah)
+#define	ath_hal_getchannoise(_ah, _c)	(-96)
+#define	HAL_CAP_TPC_ACK	100
+#define	HAL_CAP_TPC_CTS	101
+#else
+#define	ath_hal_getchannoise(_ah, _c) \
+	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
