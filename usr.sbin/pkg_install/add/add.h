@@ -29,6 +29,7 @@ extern char	*Prefix;
 extern Boolean	PrefixRecursive;
 extern Boolean	NoInstall;
 extern Boolean	NoRecord;
+extern Boolean	KeepPackage;
 extern char	*Mode;
 extern char	*Owner;
 extern char	*Group;
