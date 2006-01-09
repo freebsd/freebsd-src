@@ -522,15 +522,22 @@ do {							\
 	_thr_umtx_lock(lck, (thrd)->tid);		\
 } while (0)
 
+#ifdef	_PTHREADS_INVARIANTS
+#define	THR_ASSERT_LOCKLEVEL(thrd)			\
+do {							\
+	if (__predict_false((thrd)->locklevel <= 0))	\
+		_thr_assert_lock_level();		\
+} while (0)
+#else
+#define THR_ASSERT_LOCKLEVEL(thrd)
+#endif
+
 #define	THR_LOCK_RELEASE(thrd, lck)			\
 do {							\
-	if ((thrd)->locklevel > 0) {			\
-		_thr_umtx_unlock((lck), (thrd)->tid);	\
-		(thrd)->locklevel--;			\
-		_thr_ast(thrd);				\
-	} else { 					\
-		_thr_assert_lock_level();		\
-	}						\
+	THR_ASSERT_LOCKLEVEL(thrd);			\
+	_thr_umtx_unlock((lck), (thrd)->tid);		\
+	(thrd)->locklevel--;				\
+	_thr_ast(thrd);					\
 } while (0)
 
 #define	THR_LOCK(curthrd)		THR_LOCK_ACQUIRE(curthrd, &(curthrd)->lock)
