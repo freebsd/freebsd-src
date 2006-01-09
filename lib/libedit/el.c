@@ -74,14 +74,21 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 	el->el_infd = fileno(fin);
 	el->el_outfile = fout;
 	el->el_errfile = ferr;
-	el->el_prog = strdup(prog);
+	if ((el->el_prog = el_strdup(prog)) == NULL) {
+		el_free(el);
+		return NULL;
+	}
 
 	/*
          * Initialize all the modules. Order is important!!!
          */
 	el->el_flags = 0;
 
-	(void) term_init(el);
+	if (term_init(el) == -1) {
+		el_free(el->el_prog);
+		el_free(el);
+		return NULL;
+	}
 	(void) key_init(el);
 	(void) map_init(el);
 	if (tty_init(el) == -1)
@@ -143,11 +150,12 @@ public int
 el_set(EditLine *el, int op, ...)
 {
 	va_list va;
-	int rv;
-	va_start(va, op);
+	int rv = 0;
 
 	if (el == NULL)
 		return (-1);
+	va_start(va, op);
+
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
@@ -167,7 +175,6 @@ el_set(EditLine *el, int op, ...)
 			el->el_flags |= HANDLE_SIGNALS;
 		else
 			el->el_flags &= ~HANDLE_SIGNALS;
-		rv = 0;
 		break;
 
 	case EL_BIND:
@@ -266,11 +273,11 @@ el_get(EditLine *el, int op, void *ret)
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
-		rv = prompt_get(el, (el_pfunc_t *) & ret, op);
+		rv = prompt_get(el, (el_pfunc_t *) ret, op);
 		break;
 
 	case EL_EDITOR:
-		rv = map_get_editor(el, (const char **) &ret);
+		rv = map_get_editor(el, (const char **)ret);
 		break;
 
 	case EL_SIGNAL:

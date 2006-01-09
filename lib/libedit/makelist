@@ -123,7 +123,6 @@ case $FLAG in
 	    }
 	}
 	END {
-	    printf("    { NULL, 0, NULL }\n");
 	    printf("};\n");
 	    printf("\nprotected const el_bindings_t* help__get()");
 	    printf("{ return el_func_help; }\n");

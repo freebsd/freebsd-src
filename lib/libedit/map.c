@@ -1127,11 +1127,12 @@ private void
 map_print_key(EditLine *el, el_action_t *map, char *in)
 {
 	char outbuf[EL_BUFSIZ];
-	el_bindings_t *bp;
+	el_bindings_t *bp, *ep;
 
 	if (in[0] == '\0' || in[1] == '\0') {
 		(void) key__decode_str(in, outbuf, "");
-		for (bp = el->el_map.help; bp->name != NULL; bp++)
+		ep = &el->el_map.help[el->el_map.nfunc];
+		for (bp = el->el_map.help; bp < ep; bp++)
 			if (bp->func == map[(unsigned char) *in]) {
 				(void) fprintf(el->el_outfile,
 				    "%s\t->\t%s\n", outbuf, bp->name);
@@ -1148,7 +1149,7 @@ map_print_key(EditLine *el, el_action_t *map, char *in)
 private void
 map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 {
-	el_bindings_t *bp;
+	el_bindings_t *bp, *ep;
 	char firstbuf[2], lastbuf[2];
 	char unparsbuf[EL_BUFSIZ], extrabuf[EL_BUFSIZ];
 
@@ -1163,7 +1164,8 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 			    key__decode_str(firstbuf, unparsbuf, STRQQ));
 		return;
 	}
-	for (bp = el->el_map.help; bp->name != NULL; bp++) {
+	ep = &el->el_map.help[el->el_map.nfunc];
+	for (bp = el->el_map.help; bp < ep; bp++) {
 		if (bp->func == map[first]) {
 			if (first == last) {
 				(void) fprintf(el->el_outfile, "%-15s->  %s\n",
@@ -1246,7 +1248,7 @@ map_bind(EditLine *el, int argc, char **argv)
 	char outbuf[EL_BUFSIZ];
 	char *in = NULL;
 	char *out = NULL;
-	el_bindings_t *bp;
+	el_bindings_t *bp, *ep;
 	int cmd;
 	int key;
 
@@ -1288,8 +1290,8 @@ map_bind(EditLine *el, int argc, char **argv)
 				return (0);
 
 			case 'l':
-				for (bp = el->el_map.help; bp->name != NULL;
-				    bp++)
+				ep = &el->el_map.help[el->el_map.nfunc];
+				for (bp = el->el_map.help; bp < ep; bp++)
 					(void) fprintf(el->el_outfile,
 					    "%s\n\t%s\n",
 					    bp->name, bp->description);
@@ -1390,15 +1392,15 @@ protected int
 map_addfunc(EditLine *el, const char *name, const char *help, el_func_t func)
 {
 	void *p;
-	int nf = el->el_map.nfunc + 2;
+	int nf = el->el_map.nfunc + 1;
 
 	if (name == NULL || help == NULL || func == NULL)
 		return (-1);
 
-	if ((p = el_reallocf(el->el_map.func, nf * sizeof(el_func_t))) == NULL)
+	if ((p = el_realloc(el->el_map.func, nf * sizeof(el_func_t))) == NULL)
 		return (-1);
 	el->el_map.func = (el_func_t *) p;
-	if ((p = el_reallocf(el->el_map.help, nf * sizeof(el_bindings_t)))
+	if ((p = el_realloc(el->el_map.help, nf * sizeof(el_bindings_t)))
 	    == NULL)
 		return (-1);
 	el->el_map.help = (el_bindings_t *) p;
@@ -1409,7 +1411,6 @@ map_addfunc(EditLine *el, const char *name, const char *help, el_func_t func)
 	el->el_map.help[nf].name = name;
 	el->el_map.help[nf].func = nf;
 	el->el_map.help[nf].description = help;
-	el->el_map.help[++nf].name = NULL;
 	el->el_map.nfunc++;
 
 	return (0);

@@ -62,10 +62,10 @@ typedef enum {
 #define	WINCR		20
 #define	AINCR		10
 
+#define	tok_strdup(a)		strdup(a)
 #define	tok_malloc(a)		malloc(a)
 #define	tok_free(a)		free(a)
 #define	tok_realloc(a, b)	realloc(a, b)
-#define tok_reallocf(a, b)	reallocf(a, b)
 
 
 struct tokenizer {
@@ -108,16 +108,29 @@ tok_init(const char *ifs)
 {
 	Tokenizer *tok = (Tokenizer *) tok_malloc(sizeof(Tokenizer));
 
-	tok->ifs = strdup(ifs ? ifs : IFS);
+	if (tok == NULL)
+		return NULL;
+	tok->ifs = tok_strdup(ifs ? ifs : IFS);
+	if (tok->ifs == NULL) {
+		tok_free((ptr_t)tok);
+		return NULL;
+	}
 	tok->argc = 0;
 	tok->amax = AINCR;
 	tok->argv = (char **) tok_malloc(sizeof(char *) * tok->amax);
-	if (tok->argv == NULL)
-		return (NULL);
+	if (tok->argv == NULL) {
+		tok_free((ptr_t)tok->ifs);
+		tok_free((ptr_t)tok);
+		return NULL;
+	}
 	tok->argv[0] = NULL;
 	tok->wspace = (char *) tok_malloc(WINCR);
-	if (tok->wspace == NULL)
-		return (NULL);
+	if (tok->wspace == NULL) {
+		tok_free((ptr_t)tok->argv);
+		tok_free((ptr_t)tok->ifs);
+		tok_free((ptr_t)tok);
+		return NULL;
+	}
 	tok->wmax = tok->wspace + WINCR;
 	tok->wstart = tok->wspace;
 	tok->wptr = tok->wspace;
@@ -386,7 +399,7 @@ tok_line(Tokenizer *tok, const char *line, int *argc, char ***argv)
 		if (tok->argc >= tok->amax - 4) {
 			char **p;
 			tok->amax += AINCR;
-			p = (char **) tok_reallocf(tok->argv,
+			p = (char **) tok_realloc(tok->argv,
 			    tok->amax * sizeof(char *));
 			if (p == NULL)
 				return (-1);

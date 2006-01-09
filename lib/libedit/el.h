@@ -89,6 +89,7 @@ typedef struct el_state_t {
 /*
  * Until we come up with something better...
  */
+#define	el_strdup(a)	strdup(a)
 #define	el_malloc(a)	malloc(a)
 #define	el_realloc(a,b)	realloc(a, b)
 #define el_reallocf(a,b) reallocf(a, b)

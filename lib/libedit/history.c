@@ -85,6 +85,7 @@ struct history {
 #define	HENTER(h, ev, str)	(*(h)->h_enter)((h)->h_ref, ev, str)
 #define	HADD(h, ev, str)	(*(h)->h_add)((h)->h_ref, ev, str)
 
+#define	h_strdup(a)	strdup(a)
 #define	h_malloc(a)	malloc(a)
 #define	h_realloc(a, b)	realloc((a), (b))
 #define	h_free(a)	free(a)
@@ -128,7 +129,7 @@ private int history_def_curr(ptr_t, HistEvent *);
 private int history_def_set(ptr_t, HistEvent *, const int n);
 private int history_def_enter(ptr_t, HistEvent *, const char *);
 private int history_def_add(ptr_t, HistEvent *, const char *);
-private void history_def_init(ptr_t *, HistEvent *, int);
+private int history_def_init(ptr_t *, HistEvent *, int);
 private void history_def_clear(ptr_t, HistEvent *);
 private int history_def_insert(history_t *, HistEvent *, const char *);
 private void history_def_delete(history_t *, HistEvent *, hentry_t *);
@@ -374,11 +375,11 @@ history_def_insert(history_t *h, HistEvent *ev, const char *str)
 {
 
 	h->cursor = (hentry_t *) h_malloc(sizeof(hentry_t));
-	if (h->cursor)
-		h->cursor->ev.str = strdup(str);
-	if (!h->cursor || !h->cursor->ev.str) {
-		he_seterrev(ev, _HE_MALLOC_FAILED);
-		return (-1);
+	if (h->cursor == NULL)
+		goto oomem;
+	if ((h->cursor->ev.str = h_strdup(str)) == NULL) {
+		h_free((ptr_t)h->cursor);
+		goto oomem;
 	}
 	h->cursor->ev.num = ++h->eventid;
 	h->cursor->next = h->list.next;
@@ -389,6 +390,9 @@ history_def_insert(history_t *h, HistEvent *ev, const char *str)
 
 	*ev = h->cursor->ev;
 	return (0);
+oomem:
+	he_seterrev(ev, _HE_MALLOC_FAILED);
+	return (-1);
 }
 
 
@@ -418,10 +422,12 @@ history_def_enter(ptr_t p, HistEvent *ev, const char *str)
  *	Default history initialization function
  */
 /* ARGSUSED */
-private void
-history_def_init(ptr_t *p, HistEvent *ev, int n)
+private int
+history_def_init(ptr_t *p, HistEvent *ev __unused, int n)
 {
 	history_t *h = (history_t *) h_malloc(sizeof(history_t));
+	if (h == NULL)
+		return -1;
 
 	if (n <= 0)
 		n = 0;
@@ -433,6 +439,7 @@ history_def_init(ptr_t *p, HistEvent *ev, int n)
 	h->list.ev.num = 0;
 	h->cursor = &h->list;
 	*p = (ptr_t) h;
+	return 0;
 }
 
 
@@ -461,10 +468,15 @@ history_def_clear(ptr_t p, HistEvent *ev)
 public History *
 history_init(void)
 {
-	History *h = (History *) h_malloc(sizeof(History));
 	HistEvent ev;
+	History *h = (History *) h_malloc(sizeof(History));
+	if (h == NULL)
+		return NULL;
 
-	history_def_init(&h->h_ref, &ev, 0);
+	if (history_def_init(&h->h_ref, &ev, 0) == -1) {
+		h_free((ptr_t)h);
+		return NULL;
+	}
 	h->h_ent = -1;
 	h->h_next = history_def_next;
 	h->h_first = history_def_first;
@@ -603,6 +615,8 @@ history_load(History *h, const char *fname)
 		goto done;
 
 	ptr = h_malloc(max_size = 1024);
+	if (ptr == NULL)
+		goto done;
 	for (i = 0; (line = fgetln(fp, &sz)) != NULL; i++) {
 		char c = line[sz];
 
@@ -612,15 +626,24 @@ history_load(History *h, const char *fname)
 			line[sz] = '\0';
 
 		if (max_size < sz) {
-			max_size = (sz + 1023) & ~1023;
-			ptr = h_realloc(ptr, max_size);
+			char *nptr;
+			max_size = (sz + 1024) & ~1023;
+			nptr = h_realloc(ptr, max_size);
+			if (nptr == NULL) {
+				i = -1;
+				goto oomem;
+			}
+			ptr = nptr;
 		}
 		(void) strunvis(ptr, line);
 		line[sz] = c;
-		HENTER(h, &ev, ptr);
+		if (HENTER(h, &ev, ptr) == -1) {
+			h_free((ptr_t)ptr);
+			return -1;
+		}
 	}
-	h_free(ptr);
-
+oomem:
+	h_free((ptr_t)ptr);
 done:
 	(void) fclose(fp);
 	return (i);
@@ -635,28 +658,40 @@ history_save(History *h, const char *fname)
 {
 	FILE *fp;
 	HistEvent ev;
-	int i = 0, retval;
+	int i = -1, retval;
 	size_t len, max_size;
 	char *ptr;
 
 	if ((fp = fopen(fname, "w")) == NULL)
 		return (-1);
 
-	(void) fchmod(fileno(fp), S_IRUSR|S_IWUSR);
-	(void) fputs(hist_cookie, fp);
+	if (fchmod(fileno(fp), S_IRUSR|S_IWUSR) == -1)
+		goto done;
+	if (fputs(hist_cookie, fp) == EOF)
+		goto done;
 	ptr = h_malloc(max_size = 1024);
-	for (retval = HLAST(h, &ev);
+	if (ptr == NULL)
+		goto done;
+	for (i = 0, retval = HLAST(h, &ev);
 	    retval != -1;
 	    retval = HPREV(h, &ev), i++) {
 		len = strlen(ev.str) * 4;
 		if (len >= max_size) {
-			max_size = (len + 1023) & 1023;
-			ptr = h_realloc(ptr, max_size);
+			char *nptr;
+			max_size = (len + 1024) & ~1023;
+			nptr = h_realloc(ptr, max_size);
+			if (nptr == NULL) {
+				i = -1;
+				goto oomem;
+			}
+			ptr = nptr;
 		}
 		(void) strvis(ptr, ev.str, VIS_WHITE);
 		(void) fprintf(fp, "%s\n", ptr);
 	}
-	h_free(ptr);
+oomem:
+	h_free((ptr_t)ptr);
+done:
 	(void) fclose(fp);
 	return (i);
 }
