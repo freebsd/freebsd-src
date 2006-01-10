@@ -138,8 +138,11 @@ static int  em_probe(device_t);
 static int  em_attach(device_t);
 static int  em_detach(device_t);
 static int  em_shutdown(device_t);
+static int  em_suspend(device_t);
+static int  em_resume(device_t);
 static void em_intr(void *);
 static void em_start(struct ifnet *);
+static void em_start_locked(struct ifnet *ifp);
 static int  em_ioctl(struct ifnet *, u_long, caddr_t);
 static void em_watchdog(struct ifnet *);
 static void em_init(void *);
@@ -217,6 +220,8 @@ static device_method_t em_methods[] = {
 	DEVMETHOD(device_attach, em_attach),
 	DEVMETHOD(device_detach, em_detach),
 	DEVMETHOD(device_shutdown, em_shutdown),
+	DEVMETHOD(device_suspend, em_suspend),
+	DEVMETHOD(device_resume, em_resume),
 	{0, 0}
 };
 
@@ -597,6 +602,37 @@ em_shutdown(device_t dev)
 	em_stop(adapter);
 	EM_UNLOCK(adapter);
 	return(0);
+}
+
+/*
+ * Suspend/resume device methods.
+ */
+static int
+em_suspend(device_t dev)
+{
+	struct adapter *adapter = device_get_softc(dev);
+
+	EM_LOCK(adapter);
+	em_stop(adapter);
+	EM_UNLOCK(adapter);
+
+	return bus_generic_suspend(dev);
+}
+
+static int
+em_resume(device_t dev)
+{
+	struct adapter *adapter = device_get_softc(dev);
+	struct ifnet *ifp = adapter->ifp;
+
+	EM_LOCK(adapter);
+	em_init_locked(adapter);
+	if ((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
+		em_start_locked(ifp);
+	EM_UNLOCK(adapter);
+
+	return bus_generic_resume(dev);
 }
 
 
@@ -1054,6 +1090,15 @@ em_intr(void *arg)
 		    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
 			break;
 		else if (reg_icr == 0)
+			break;
+
+		/*
+		 * XXX: some laptops trigger several spurious interrupts
+		 * on em(4) when in the resume cycle. The ICR register
+		 * reports all-ones value in this case. Processing such
+		 * interrupts would lead to a freeze. I don't know why.
+		 */
+		if (reg_icr == 0xffffffff)
 			break;
 
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
