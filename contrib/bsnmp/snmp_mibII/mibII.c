@@ -1030,7 +1030,7 @@ u_char *
 mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 {
 	int name[6];
-	u_char *buf;
+	u_char *buf, *newbuf;
 
 	name[0] = CTL_NET;
 	name[1] = PF_ROUTE;
@@ -1041,6 +1041,7 @@ mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 
 	*lenp = 0;
 
+	/* initial estimate */
 	if (sysctl(name, 6, NULL, lenp, NULL, 0) == -1) {
 		syslog(LOG_ERR, "sysctl estimate (%d,%d,%d,%d,%d,%d): %m",
 		    name[0], name[1], name[2], name[3], name[4], name[5]);
@@ -1049,15 +1050,24 @@ mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 	if (*lenp == 0)
 		return (NULL);
 
-	if ((buf = malloc(*lenp)) == NULL) {
-		syslog(LOG_ERR, "sysctl buffer: %m");
-		return (NULL);
-	}
+	buf = NULL;
+	for (;;) {
+		if ((newbuf = realloc(buf, *lenp)) == NULL) {
+			syslog(LOG_ERR, "sysctl buffer: %m");
+			free(buf);
+			return (NULL);
+		}
+		buf = newbuf;
+			
+		if (sysctl(name, 6, buf, lenp, NULL, 0) == 0)
+			break;
 
-	if (sysctl(name, 6, buf, lenp, NULL, 0) == -1) {
-		syslog(LOG_ERR, "sysctl get: %m");
-		free(buf);
-		return (NULL);
+		if (errno != ENOMEM) {
+			syslog(LOG_ERR, "sysctl get: %m");
+			free(buf);
+			return (NULL);
+		}
+		*lenp += *lenp / 8 + 1;
 	}
 
 	return (buf);
