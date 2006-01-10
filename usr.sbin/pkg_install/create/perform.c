@@ -345,6 +345,8 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     FILE *totar;
     pid_t pid;
     const char *cname;
+    char *prefix = NULL;
+
 
     args[nargs++] = "tar";	/* argv[0] */
 
@@ -428,12 +430,17 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     for (p = plist->head; p; p = p->next) {
 	if (p->type == PLIST_FILE)
 	    fprintf(totar, "%s\n", p->name);
+	else if (p->type == PLIST_CWD && p->name == NULL)
+	    fprintf(totar, "-C\n%s\n", prefix);
 	else if (p->type == PLIST_CWD && BaseDir && p->name && p->name[0] == '/')
 	    fprintf(totar, "-C\n%s%s\n", BaseDir, p->name);
 	else if (p->type == PLIST_CWD || p->type == PLIST_SRC)
 	    fprintf(totar, "-C\n%s\n", p->name);
 	else if (p->type == PLIST_IGNORE)
 	     p = p->next;
+	if (p->type == PLIST_CWD && !prefix)
+	    prefix = p->name;
+
     }
 
     fclose(totar);
