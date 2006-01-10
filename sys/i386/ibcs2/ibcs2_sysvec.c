@@ -105,6 +105,8 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 	int rval = 0;
 
 	switch(type) {
+	case MOD_LOAD:
+		break;
 	case MOD_UNLOAD:
 		/* if this was an ELF module we'd use elf_brand_inuse()... */
 		sx_slock(&allproc_lock);
@@ -115,8 +117,9 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 			}
 		}
 		sx_sunlock(&allproc_lock);
+		break;
 	default:
-	        return (EOPNOTSUPP);
+	        rval = EOPNOTSUPP;
 		break;
 	}
 	return (rval);
