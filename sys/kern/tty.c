@@ -83,10 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/sx.h>
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
+#if defined(COMPAT_43TTY)
 #include <sys/ioctl_compat.h>
-#endif
 #endif
 #include <sys/proc.h>
 #define	TTYDEFCHARS
@@ -828,8 +826,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	case  TIOCSTI:
 	case  TIOCSTOP:
 	case  TIOCSWINSZ:
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
+#if defined(COMPAT_43TTY)
 	case  TIOCLBIC:
 	case  TIOCLBIS:
 	case  TIOCLSET:
@@ -838,7 +835,6 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	case  TIOCSETN:
 	case  TIOCSETP:
 	case  TIOCSLTC:
-#endif
 #endif
 		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
@@ -1255,12 +1251,8 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	case TIOCCBRK:
 		return (tt_break(tp, 0));
 	default:
-#if defined(COMPAT_43)
-#ifndef BURN_BRIDGES
+#if defined(COMPAT_43TTY)
 		return (ttcompat(tp, cmd, data, flag));
-#else
-		return (ENOIOCTL);
-#endif
 #else
 		return (ENOIOCTL);
 #endif

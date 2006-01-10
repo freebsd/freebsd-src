@@ -75,8 +75,8 @@ struct ttysize {
  * Compatibility with old terminal driver
  *
  * Source level -> #define USE_OLD_TTY
- * Kernel level -> options COMPAT_43
+ * Kernel level -> options COMPAT_43TTY
  */
-#if defined(USE_OLD_TTY) || defined(COMPAT_43)
+#if defined(USE_OLD_TTY) || defined(COMPAT_43TTY)
 #include <sys/ioctl_compat.h>
 #endif
