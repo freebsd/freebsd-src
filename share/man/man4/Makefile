@@ -340,6 +340,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	ufoma.4 \
 	ufm.4 \
 	uftdi.4 \
 	ugen.4 \
