@@ -256,6 +256,9 @@ options 	TURNSTILE_PROFILING
 #
 options 	COMPAT_43
 
+# Old tty interface.
+options 	COMPAT_43TTY
+
 # Enable FreeBSD4 compatibility syscalls
 options 	COMPAT_FREEBSD4
 
