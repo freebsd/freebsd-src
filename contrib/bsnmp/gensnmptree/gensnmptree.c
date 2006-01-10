@@ -353,6 +353,7 @@ parse(enum tok tok)
 
 	node = xalloc(sizeof(struct node));
 	node->lno = lno;
+	node->flags = 0;
 
 	if (tok != '(')
 		report("'(' expected at begin of node");
