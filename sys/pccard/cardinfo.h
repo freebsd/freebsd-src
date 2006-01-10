@@ -154,25 +154,6 @@ struct dev_desc {
 	uint32_t	product;	/* Product ID */
 	uint32_t	prodext;	/* Product ID (extended) */
 };
-#if __FreeBSD_version < 5000000		/* 4.x compatibility only. */
-#define PIOCSDRVOLD	_IOWR('P', 6, struct dev_desc_old) /* Set driver */
-struct dev_desc_old {
-	char		name[16];	/* Driver name */
-	int		unit;		/* Driver unit number */
-	unsigned long	mem;		/* Memory address of driver */
-	int		memsize;	/* Memory size (if used) */
-	int		iobase;		/* base of I/O ports */
-	int		iosize;		/* Length of I/O ports */
-	int		irqmask;	/* Interrupt number(s) to allocate */
-	int		flags;		/* Device flags */
-	uint8_t		misc[DEV_MISC_LEN]; /* For any random info */
-	uint8_t		manufstr[DEV_MAX_CIS_LEN];
-	uint8_t		versstr[DEV_MAX_CIS_LEN];
-	uint32_t	manufacturer;	/* Manufacturer ID */
-	uint32_t	product;	/* Product ID */
-	uint32_t	prodext;	/* Product ID (extended) */
-};
-#endif
 #define DEV_DESC_HAS_SIZE 1
 
 struct pcic_reg {
