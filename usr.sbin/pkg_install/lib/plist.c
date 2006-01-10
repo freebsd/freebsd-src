@@ -318,7 +318,7 @@ write_plist(Package *pkg, FILE *fp)
 	    break;
 
 	case PLIST_CWD:
-	    fprintf(fp, "%ccwd %s\n", CMD_CHAR, plist->name);
+	    fprintf(fp, "%ccwd %s\n", CMD_CHAR, (plist->name == NULL) ? "" : plist->name);
 	    break;
 
 	case PLIST_SRC:
@@ -414,6 +414,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
     Boolean fail = SUCCESS;
     Boolean preserve;
     char tmp[FILENAME_MAX], *name = NULL;
+    char *prefix = NULL;
 
     preserve = find_plist_option(pkg, "preserve") ? TRUE : FALSE;
     for (p = pkg->head; p; p = p->next) {
@@ -427,7 +428,9 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    break;
 
 	case PLIST_CWD:
-	    Where = p->name;
+	    if (!prefix)
+		prefix = p->name;
+	    Where = (p->name == NULL) ? prefix : p->name;
 	    if (Verbose)
 		printf("Change working directory to %s\n", Where);
 	    break;
