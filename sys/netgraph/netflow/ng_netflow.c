@@ -605,8 +605,12 @@ ng_netflow_disconnect(hook_p hook)
 	priv_p priv = NG_NODE_PRIVATE(node);
 	iface_p iface = NG_HOOK_PRIVATE(hook);
 
-	if (iface != NULL)
-		iface->hook = NULL;
+	if (iface != NULL) {
+		if (iface->hook == hook)
+			iface->hook = NULL;
+		if (iface->out == hook)
+			iface->out = NULL;
+	}
 
 	/* if export hook disconnected stop running expire(). */
 	if (hook == priv->export) {
