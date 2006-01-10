@@ -625,7 +625,7 @@ usage(void)
 		"usage: arp [-n] [-i interface] hostname",
 		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
-		"       arp -d -a",
+		"       arp -d [-i interface] -a",
 		"       arp -s hostname ether_addr [temp] [pub]",
 		"       arp -S hostname ether_addr [temp] [pub]",
 		"       arp -f filename");
