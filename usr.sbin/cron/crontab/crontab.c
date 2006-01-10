@@ -134,6 +134,7 @@ parse_args(argc, argv)
 	char	*argv[];
 {
 	int		argch;
+	char		resolved_path[PATH_MAX];
 
 	if (!(pw = getpwuid(getuid())))
 		errx(ERROR_EXIT, "your UID isn't in the passwd file, bailing out");
@@ -200,6 +201,9 @@ parse_args(argc, argv)
 		 */
 		if (!strcmp(Filename, "-")) {
 			NewCrontab = stdin;
+		} else if (realpath(Filename, resolved_path) != NULL &&
+		    !strcmp(resolved_path, "/etc/crontab")) {
+			err(ERROR_EXIT, "/etc/crontab must be edited manually");
 		} else {
 			/* relinquish the setuid status of the binary during
 			 * the open, lest nonroot users read files they should
