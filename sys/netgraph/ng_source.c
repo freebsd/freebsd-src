@@ -181,6 +181,13 @@ static const struct ng_cmdlist ng_source_cmds[] = {
 	  &ng_parse_string_type,
 	  NULL
 	},
+	{
+	  NGM_SOURCE_COOKIE,
+	  NGM_SOURCE_SETPPS,
+	  "setpps",
+	  &ng_parse_uint32_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -350,6 +357,21 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			ng_source_store_output_ifp(sc, ifname);
+			break;
+		    }
+		case NGM_SOURCE_SETPPS:
+		    {
+			uint32_t pps;
+
+			if (msg->header.arglen != sizeof(uint32_t)) {
+				error = EINVAL;
+				break;
+			}
+
+			pps = *(uint32_t *)msg->data;
+
+			sc->stats.maxPps = pps;
+
 			break;
 		    }
 		default:
@@ -548,6 +570,7 @@ ng_source_start(sc_p sc, uint64_t packets)
 	timevalclear(&sc->stats.elapsedTime);
 	timevalclear(&sc->stats.endTime);
 	getmicrotime(&sc->stats.startTime);
+	getmicrotime(&sc->stats.lastTime);
 	ng_callout(&sc->intr_ch, sc->node, NULL, 0,
 	    ng_source_intr, sc, 0);
 
@@ -592,6 +615,21 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 		packets = ifq->ifq_maxlen - ifq->ifq_len;
 	} else
 		packets = sc->snd_queue.ifq_len;
+
+	if (sc->stats.maxPps != 0) {
+		struct timeval	now, elapsed;
+		uint64_t	usec;
+		int		maxpkt;
+
+		getmicrotime(&now);
+		elapsed = now;
+		timevalsub(&elapsed, &sc->stats.lastTime);
+		usec = elapsed.tv_sec * 1000000 + elapsed.tv_usec;
+		maxpkt = (uint64_t)sc->stats.maxPps * usec / 1000000;
+		sc->stats.lastTime = now;
+		if (packets > maxpkt)
+			packets = maxpkt;
+	}
 
 	ng_source_send(sc, packets, NULL);
 	if (sc->packets == 0)
