@@ -32,7 +32,7 @@
 .\" Author: Dave Chapeskie <dchapeskie@sandvine.com>
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2005
+.Dd December 5, 2005
 .Dt NG_SOURCE 4
 .Os
 .Sh NAME
@@ -175,6 +175,11 @@ hook.
 .It Dv NGM_SOURCE_SETIFACE Pq Ic setiface
 This message requires the name of the interface
 to be configured as an argument.
+.It Dv NGM_SOURCE_SETPPS Pq Ic setpps
+This message requires a single
+.Vt uint32_t
+parameter which puts upper limit on the amount of packets
+sent per second.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
