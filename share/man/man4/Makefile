@@ -84,6 +84,7 @@ MAN=	aac.4 \
 	gdb.4 \
 	gem.4 \
 	geom.4 \
+	geom_fox.4 \
 	gif.4 \
 	gre.4 \
 	harp.4 \
