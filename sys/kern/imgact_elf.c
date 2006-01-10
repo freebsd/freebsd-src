@@ -654,8 +654,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	/*
 	 * Do we have a valid ELF header ?
+	 *
+	 * Only allow ET_EXEC & ET_DYN here, reject ET_DYN later
+	 * if particular brand doesn't support it.
 	 */
-	if (__elfN(check_header)(hdr) != 0 || hdr->e_type != ET_EXEC)
+	if (__elfN(check_header)(hdr) != 0 ||
+	    (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN))
 		return (-1);
 
 	/*
@@ -695,6 +699,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
+		error = ENOEXEC;
+		goto fail;
+	}
+	if (hdr->e_type == ET_DYN && brand_info->brand != ELFOSABI_LINUX) {
 		error = ENOEXEC;
 		goto fail;
 	}
