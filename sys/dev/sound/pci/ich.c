@@ -737,6 +737,7 @@ ich_pci_probe(device_t dev)
 static int
 ich_pci_attach(device_t dev)
 {
+	uint32_t		subdev;
 	u_int16_t		extcaps;
 	uint16_t		devid, vendor;
 	struct sc_info 		*sc;
@@ -752,6 +753,7 @@ ich_pci_attach(device_t dev)
 
 	vendor = sc->vendor = pci_get_vendor(dev);
 	devid = sc->devid = pci_get_device(dev);
+	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	/*
 	 * The SiS 7012 register set isn't quite like the standard ich.
 	 * There really should be a general "quirks" mechanism.
@@ -831,13 +833,18 @@ ich_pci_attach(device_t dev)
 		goto bad;
 
 	/*
-	 * Turn on inverted external amplifier sense flags for ICH4/82801DB.
-	 * Does ICH3/82801CA need this too ? I left them out for now.
-	 *
-	 * http://lists.freebsd.org/pipermail/freebsd-multimedia/2003-November/000531.html
+	 * Turn on inverted external amplifier sense flags for few
+	 * 'special' boards.
 	 */
-	if (vendor == INTEL_VENDORID && devid == INTEL_82801DB)
+	switch (subdev) {
+	case 0x203a161f:	/* Gateway 4028GZ */
+	case 0x8144104d:	/* Sony - VAIO PCG-TR* */
+	case 0x8197104d:	/* Sony S1XP */
 		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
+		break;
+	default:
+		break;
+	}
 
 	mixer_init(dev, ac97_getmixerclass(), sc->codec);
 
