@@ -66,7 +66,7 @@ to the contents of the storage device.
 .Pp
 If, on the other hand, the device is
 .Dq cold ,
-it should present an formidable
+it should present a formidable
 challenge for an attacker to gain access to the contents in the absence of
 a valid pass-phrase.
 .Pp
@@ -101,7 +101,7 @@ of the device is checked to see if it contains the lock-sector data.
 The lock-sector contains an encrypted copy of an architecture neutral
 byte-sequence which encodes the fields of the lock-structure.
 The order in which these fields are encoded is determined from the key-material.
-The encoded bytestream is encrypted with 256bit AES in CBC mode.
+The encoded byte stream is encrypted with 256bit AES in CBC mode.
 .Ss Third barrier: decryption of the sector key.
 For each sector, an MD5 hash over a
 .Dq salt
