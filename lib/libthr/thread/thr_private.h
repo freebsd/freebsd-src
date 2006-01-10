@@ -83,6 +83,12 @@ typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
 #define THR_ASSERT(cond, msg)
 #endif
 
+#ifdef PIC
+# define STATIC_LIB_REQUIRE(name)
+#else
+# define STATIC_LIB_REQUIRE(name) __asm (".globl " #name)
+#endif
+
 #define	TIMESPEC_ADD(dst, src, val)				\
 	do { 							\
 		(dst)->tv_sec = (src)->tv_sec + (val)->tv_sec;	\
