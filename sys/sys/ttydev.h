@@ -35,8 +35,6 @@
 #ifndef _SYS_TTYDEV_H_
 #define	_SYS_TTYDEV_H_
 
-#ifndef BURN_BRIDGES
-
 #ifdef USE_OLD_TTY
 #define B0	0
 #define B50	1
@@ -60,7 +58,5 @@
 #define B460800	19
 #define B921600	20
 #endif /* USE_OLD_TTY */
-
-#endif /* BURN_BRIDGES */
 
 #endif /* !_SYS_TTYDEV_H_ */
