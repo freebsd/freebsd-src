@@ -1462,8 +1462,8 @@ main(int argc, char *argv[])
 	/*
 	 * Get standard communities
 	 */
-	(void)comm_define(1, "SNMP read", NULL, "public");
-	(void)comm_define(2, "SNMP write", NULL, "public");
+	(void)comm_define(1, "SNMP read", NULL, NULL);
+	(void)comm_define(2, "SNMP write", NULL, NULL);
 	community = COMM_INITIALIZE;
 
 	trap_reqid = reqid_allocate(512, NULL);
