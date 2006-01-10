@@ -206,17 +206,18 @@ input_open_file(const char *fname, int sysdir)
 	struct input *input;
 	FILE *fp;
 	char path[PATH_MAX + 1];
-	char *col;
+	const char *col;
 	const char *ptr;
 
 	if (sysdir) {
 		ptr = syspath;
 		fp = NULL;
 		while (*ptr != '\0') {
-			if ((col = strchr(ptr, ':')) == NULL)
+			if ((col = strchr(ptr, ':')) == NULL) {
 				snprintf(path, sizeof(path), "%s/%s",
 				    ptr, fname);
-			else if (col == ptr)
+				col = ptr + strlen(ptr) - 1;
+			} else if (col == ptr)
 				snprintf(path, sizeof(path), "./%s", fname);
 			else
 				snprintf(path, sizeof(path), "%.*s/%s",
