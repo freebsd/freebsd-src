@@ -38,9 +38,12 @@
 #ifndef _SYS_IOCTL_COMPAT_H_
 #define	_SYS_IOCTL_COMPAT_H_
 
-#ifndef BURN_BRIDGES
 #include <sys/ttychars.h>
 #include <sys/ttydev.h>
+
+#ifdef USE_OLD_TTY
+#warning "Old BSD tty API used, please upgrade"
+#endif
 
 struct tchars {
 	char	t_intrc;	/* interrupt */
@@ -162,5 +165,4 @@ struct sgttyb {
 #define	NETLDISC	1
 #define	NTTYDISC	2
 
-#endif /* BURN_BRIDGES */
 #endif /* !_SYS_IOCTL_COMPAT_H_ */

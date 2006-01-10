@@ -46,6 +46,7 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_GPT		# GUID Partition Tables.
 options 	COMPAT_43		# Needed by COMPAT_LINUX32
+options 	COMPAT_43TTY		# BSD 4.3 TTY compat [KEEP THIS!]
 options 	COMPAT_IA32		# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5

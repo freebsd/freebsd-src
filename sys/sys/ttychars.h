@@ -33,8 +33,6 @@
 #ifndef _SYS_TTYCHARS_H_
 #define _SYS_TTYCHARS_H_
 
-#ifndef BURN_BRIDGES
-
 /*
  * 4.3 COMPATIBILITY FILE
  *
@@ -60,7 +58,5 @@ struct ttychars {
 #ifdef USE_OLD_TTY
 #include <sys/ttydefaults.h>	/* to pick up character defaults */
 #endif
-
-#endif /* BURN_BRIDGES */
 
 #endif /* !_SYS_TTYCHARS_H_ */
