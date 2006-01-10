@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 	if (!func)
 		func = F_GET;
 	if (rifname) {
-		if (func != F_GET)
+		if (func != F_GET && !(func == F_DELETE && aflag))
 			errx(1, "-i not applicable to this operation");
 		if (if_nametoindex(rifname) == 0) {
 			if (errno == ENXIO)
