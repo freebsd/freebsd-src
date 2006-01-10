@@ -56,6 +56,7 @@ rollback(const char *name, const char *home, PackingList start, PackingList stop
     PackingList q;
     char try[FILENAME_MAX], bup[FILENAME_MAX];
     const char *dir;
+    char *prefix = NULL;
 
     dir = home;
     for (q = start; q != stop; q = q->next) {
@@ -69,7 +70,11 @@ rollback(const char *name, const char *home, PackingList start, PackingList stop
 	    }
 	}
 	else if (q->type == PLIST_CWD) {
-	    if (strcmp(q->name, "."))
+	    if (!prefix)
+		prefix = q->name;
+	    if (q->name == NULL)
+		q->name = prefix;
+	    else if (strcmp(q->name, "."))
 		dir = q->name;
 	    else
 		dir = home;
@@ -103,7 +108,7 @@ void
 extract_plist(const char *home, Package *pkg)
 {
     PackingList p = pkg->head;
-    char *last_file;
+    char *last_file, *prefix = NULL;
     char *where_args, *perm_args, *last_chdir;
     int maxargs, where_count = 0, perm_count = 0, add_count;
     Boolean preserve;
@@ -212,6 +217,10 @@ extract_plist(const char *home, Package *pkg)
 	    break;
 
 	case PLIST_CWD:
+	    if (!prefix)
+		prefix = p->name;
+	    if (p->name == NULL)
+		p->name = strdup(prefix);
 	    if (Verbose)
 		printf("extract: CWD to %s\n", p->name);
 	    PUSHOUT(Directory);

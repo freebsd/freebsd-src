@@ -64,12 +64,15 @@ check_list(const char *home, Package *pkg)
     const char *where = home;
     const char *there = NULL;
     char name[FILENAME_MAX];
+    char *prefix = NULL;
     PackingList p;
 
     for (p = pkg->head; p != NULL; p = p->next)
 	switch (p->type) {
 	case PLIST_CWD:
-	    where = p->name;
+	    if (!prefix)
+		prefix = p->name;
+	    where = (p->name == NULL) ? prefix : p->name;
 	    break;
 
 	case PLIST_IGNORE:
@@ -135,7 +138,7 @@ copy_plist(const char *home, Package *plist)
     PackingList p = plist->head;
     const char *where = home;
     const char *there = NULL, *mythere;
-    char *where_args;
+    char *where_args, *prefix = NULL;
     const char *last_chdir, *root = "/";
     int maxargs, where_count = 0, add_count;
     struct stat stb;
@@ -168,7 +171,11 @@ copy_plist(const char *home, Package *plist)
 
     while (p) {
 	if (p->type == PLIST_CWD)
-	    where = p->name;
+	{
+	    if (!prefix)
+		prefix = p->name;
+	    where = p->name == NULL ? prefix : p->name;
+	}
 	else if (p->type == PLIST_SRC)
 	    there = p->name;
 	else if (p->type == PLIST_IGNORE)
