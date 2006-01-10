@@ -985,7 +985,8 @@ amr_query_controller(struct amr_softc *sc)
 	free(ap, M_DEVBUF);
 
 	ap = amr_enquiry(sc, 0, FC_DEL_LOGDRV, OP_SUP_DEL_LOGDRV, 0, &status);
-	free(ap, M_DEVBUF);
+	if (ap != NULL)
+	    free(ap, M_DEVBUF);
 	if (!status) {
 	    sc->amr_ld_del_supported = 1;
 	    device_printf(sc->amr_dev, "delete logical drives supported by controller\n");
