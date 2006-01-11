@@ -145,11 +145,7 @@ taskqueue_terminate(struct proc **pp, struct taskqueue *tq)
 	*pp = NULL;
 	if (p) {
 		wakeup_one(tq);
-		PROC_LOCK(p);		/* NB: insure we don't miss wakeup */
-		TQ_UNLOCK(tq);		/* let taskqueue thread run */
-		TQ_SLEEP(tq, p, &p->p_mtx, PWAIT, "taskqueue_destroy", 0);
-		PROC_UNLOCK(p);
-		TQ_LOCK(tq);
+		TQ_SLEEP(tq, p, &tq->tq_mutex, PWAIT, "taskqueue_destroy", 0);
 	}
 }
 
