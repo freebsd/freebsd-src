@@ -8,6 +8,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20060111:	p9	FreeBSD-SA-06:01.texindex, FreeBSD-SA-06:02.ee,
+			FreeBSD-SA-06:03.cpio
+	Correct insecure temporary file usage in texindex. [06:01]
+
+	Correct insecure temporary file usage in ee. [06:02]
+
+	Correct a race condition when setting file permissions,
+	sanitize file names by default, and fix a buffer overflow
+	when handling files larger than 4GB in cpio. [06:03]
+
 20051011:	p8	FreeBSD-SA-05:21.openssl
 	Correct a man-in-the-middle SSL version rollback vulnerability.
 
