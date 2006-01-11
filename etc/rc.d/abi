@@ -29,7 +29,12 @@ linux_start()
 		kldload linux > /dev/null 2>&1
 	fi
 	if [ -x /compat/linux/sbin/ldconfig ]; then
-		/compat/linux/sbin/ldconfig
+		_tmpdir=`mktemp -d -t linux-ldconfig`
+		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
+		if ! cmp -s ${_tmpdir}/ld.so.cache /compat/linux/etc/ld.so.cache; then
+			cat ${_tmpdir}/ld.so.cache > /compat/linux/etc/ld.so.cache
+		fi
+		rm -rf ${_tmpdir}
 	fi
 }
 
