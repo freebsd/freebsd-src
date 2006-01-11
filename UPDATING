@@ -8,6 +8,19 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060111:	p2	FreeBSD-SA-06:01.texindex, FreeBSD-SA-06:02.ee,
+			FreeBSD-SA-06:03.cpio, FreeBSD-SA-06:04.ipfw
+	Correct insecure temporary file usage in texindex. [06:01]
+
+	Correct insecure temporary file usage in ee. [06:02]
+
+	Correct a race condition when setting file permissions,
+	sanitize file names by default, and fix a buffer overflow
+	when handling files larger than 4GB in cpio. [06:03]
+
+	Fix an error in the handling of IP fragments in ipfw which
+	can cause a kernel panic. [06:04]
+
 20051219:	p1	FreeBSD-EN-05:04.nfs
 	Correct a locking issue in nfs_lookup() where a call to vrele()
 	might be made while holding the vnode mutex, which resulted

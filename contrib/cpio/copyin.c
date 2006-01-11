@@ -46,6 +46,19 @@ $FreeBSD$
 #define lchown chown
 #endif
 
+# ifndef DIRECTORY_SEPARATOR
+#  define DIRECTORY_SEPARATOR '/'
+# endif
+
+# ifndef ISSLASH
+#  define ISSLASH(C) ((C) == DIRECTORY_SEPARATOR)
+# endif
+
+# ifndef FILE_SYSTEM_PREFIX_LEN
+#  define FILE_SYSTEM_PREFIX_LEN(Filename) 0
+# endif
+
+
 static void read_pattern_file ();
 static void tape_skip_padding ();
 static void defer_copyin ();
@@ -376,6 +389,54 @@ swab_array (ptr, count)
 /* Current time for verbose table.  */
 static time_t current_time;
 
+/* Return a safer suffix of FILE_NAME, or "." if it has no safer
+   suffix.  Check for fully specified file names and other atrocities.  */
+
+static const char *
+safer_name_suffix (char const *file_name)
+{
+  char const *p;
+
+  /* Skip file system prefixes, leading file name components that contain
+     "..", and leading slashes.  */
+
+  size_t prefix_len = FILE_SYSTEM_PREFIX_LEN (file_name);
+
+  for (p = file_name + prefix_len; *p;)
+    {
+      if (p[0] == '.' && p[1] == '.' && (ISSLASH (p[2]) || !p[2]))
+       prefix_len = p + 2 - file_name;
+
+      do
+       {
+         char c = *p++;
+         if (ISSLASH (c))
+           break;
+       }
+      while (*p);
+    }
+
+  for (p = file_name + prefix_len; ISSLASH (*p); p++)
+    continue;
+  prefix_len = p - file_name;
+
+  if (prefix_len)
+    {
+      char *prefix = alloca (prefix_len + 1);
+      memcpy (prefix, file_name, prefix_len);
+      prefix[prefix_len] = '\0';
+
+
+      error (0, 0, "Removing leading `%s' from member names", prefix);
+    }
+
+  if (!*p)
+    p = ".";
+
+  return p;
+}
+
+
 /* Read the collection from standard input and create files
    in the file system.  */
 
@@ -396,6 +457,7 @@ process_copy_in ()
   int in_file_des;		/* Input file descriptor.  */
   char skip_file;		/* Flag for use with patterns.  */
   int existing_dir;		/* True if file is a dir & already exists.  */
+  mode_t existing_mode;
   int i;			/* Loop index variable.  */
   char *link_name = NULL;	/* Name of hard and symbolic links.  */
 #ifdef HPUX_CDF
@@ -494,18 +556,11 @@ process_copy_in ()
 
       /* Do we have to ignore absolute paths, and if so, does the filename
          have an absolute path?  */
-      if (no_abs_paths_flag && file_hdr.c_name && file_hdr.c_name [0] == '/')
+      if (!abs_paths_flag && file_hdr.c_name && file_hdr.c_name[0])
 	{
-	  char *p;
+	  const char *p = safer_name_suffix (file_hdr.c_name);
 
-	  p = file_hdr.c_name;
-	  while (*p == '/')
-	    ++p;
-	  if (*p == '\0')
-	    {
-	      strcpy (file_hdr.c_name, ".");
-	    }
-	  else
+	  if (p != file_hdr.c_name)
 	    {
 	      char *non_abs_name;
 
@@ -642,6 +697,7 @@ process_copy_in ()
 		     we are trying to create, don't complain about
 		     it.  */
 		  existing_dir = TRUE;
+		  existing_mode = file_stat.st_mode;
 		}
 	      else if (!unconditional_flag
 		       && file_hdr.c_mtime <= file_stat.st_mtime)
@@ -778,8 +834,6 @@ process_copy_in ()
 		    }
 		  copy_files_tape_to_disk (in_file_des, out_file_des, file_hdr.c_filesize);
 		  disk_empty_output_buffer (out_file_des);
-		  if (close (out_file_des) < 0)
-		    error (0, errno, "%s", file_hdr.c_name);
 
 		  if (archive_format == arf_crcascii)
 		    {
@@ -789,13 +843,15 @@ process_copy_in ()
 		    }
 		  /* File is now copied; set attributes.  */
 		  if (!no_chown_flag)
-		    if ((chown (file_hdr.c_name,
+		    if ((fchown (out_file_des,
 				set_owner_flag ? set_owner : file_hdr.c_uid,
 			   set_group_flag ? set_group : file_hdr.c_gid) < 0)
 			&& errno != EPERM)
 		      error (0, errno, "%s", file_hdr.c_name);
 		  /* chown may have turned off some permissions we wanted. */
-		  if (chmod (file_hdr.c_name, (int) file_hdr.c_mode) < 0)
+		  if (fchmod (out_file_des, (int) file_hdr.c_mode) < 0)
+		    error (0, errno, "%s", file_hdr.c_name);
+		  if (close (out_file_des) < 0)
 		    error (0, errno, "%s", file_hdr.c_name);
 		  if (retain_time_flag)
 		    {
@@ -847,14 +903,23 @@ process_copy_in ()
 		      cdf_flag = 1;
 		    }
 #endif
-		  res = mkdir (file_hdr.c_name, file_hdr.c_mode);
+		  res = mkdir (file_hdr.c_name, file_hdr.c_mode & ~077);
 		}
 	      else
-		res = 0;
+		{
+		  if (!no_chown_flag && (existing_mode & 077) != 0
+		     && chmod (file_hdr.c_name, existing_mode & 07700) < 0)
+		   {
+		     error (0, errno, "%s: chmod", file_hdr.c_name);
+		     return;
+		   }
+		   res = 0;
+		}
+
 	      if (res < 0 && create_dir_flag)
 		{
 		  create_all_directories (file_hdr.c_name);
-		  res = mkdir (file_hdr.c_name, file_hdr.c_mode);
+		  res = mkdir (file_hdr.c_name, file_hdr.c_mode & ~077);
 		}
 	      if (res < 0)
 		{
@@ -936,20 +1001,20 @@ process_copy_in ()
 	      
 #ifdef CP_IFIFO
 	      if ((file_hdr.c_mode & CP_IFMT) == CP_IFIFO)
-		res = mkfifo (file_hdr.c_name, file_hdr.c_mode);
+		res = mkfifo (file_hdr.c_name, file_hdr.c_mode & ~077);
 	      else
 #endif
-		res = mknod (file_hdr.c_name, file_hdr.c_mode,
+		res = mknod (file_hdr.c_name, file_hdr.c_mode & ~077,
 		      makedev (file_hdr.c_rdev_maj, file_hdr.c_rdev_min));
 	      if (res < 0 && create_dir_flag)
 		{
 		  create_all_directories (file_hdr.c_name);
 #ifdef CP_IFIFO
 		  if ((file_hdr.c_mode & CP_IFMT) == CP_IFIFO)
-		    res = mkfifo (file_hdr.c_name, file_hdr.c_mode);
+		    res = mkfifo (file_hdr.c_name, file_hdr.c_mode & ~077);
 		  else
 #endif
-		    res = mknod (file_hdr.c_name, file_hdr.c_mode,
+		    res = mknod (file_hdr.c_name, file_hdr.c_mode & ~077,
 				 makedev (file_hdr.c_rdev_maj,
 					  file_hdr.c_rdev_min));
 		}
@@ -1376,18 +1441,18 @@ create_final_defers ()
 	  continue;
 	}
 
-      if (close (out_file_des) < 0)
-	error (0, errno, "%s", d->header.c_name);
-
+  
       /* File is now copied; set attributes.  */
       if (!no_chown_flag)
-	if ((chown (d->header.c_name,
+	if ((fchown (out_file_des,
 		    set_owner_flag ? set_owner : d->header.c_uid,
 	       set_group_flag ? set_group : d->header.c_gid) < 0)
 	    && errno != EPERM)
 	  error (0, errno, "%s", d->header.c_name);
       /* chown may have turned off some permissions we wanted. */
-      if (chmod (d->header.c_name, (int) d->header.c_mode) < 0)
+      if (fchmod (out_file_des, (int) d->header.c_mode) < 0)
+	error (0, errno, "%s", d->header.c_name);
+      if (close (out_file_des) < 0)
 	error (0, errno, "%s", d->header.c_name);
       if (retain_time_flag)
 	{

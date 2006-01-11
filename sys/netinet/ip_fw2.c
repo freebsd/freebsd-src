@@ -3062,7 +3062,7 @@ check_body:
 				 * if the packet is not ICMP (or is an ICMP
 				 * query), and it is not multicast/broadcast.
 				 */
-				if (hlen > 0 && is_ipv4 &&
+				if (hlen > 0 && is_ipv4 && offset == 0 &&
 				    (proto != IPPROTO_ICMP ||
 				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
