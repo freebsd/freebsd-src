@@ -145,7 +145,7 @@ chkerr() {
 # Create a generic memory disk
 #
 mount_md() {
-    /sbin/mdmfs -i 4096 -s $1 -M md $2
+    /sbin/mdmfs -S -i 4096 -s $1 -M md $2
 }
 
 # Create the memory filesystem if it has not already been created
