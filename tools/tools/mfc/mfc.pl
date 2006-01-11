@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "0.4.2";
+my $version = "0.4.3";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -255,7 +255,7 @@ if ($opt{s}) {
 	print "Searching commit mail on www.freebsd.org...\n";
 	$commiturl = search_mail($opt{s});
 	print "Fetching commit mail from www.freebsd.org...\n";
-	@commitmail = `fetch -q -o - '$commiturl'`;
+	@commitmail = `fetch -q -o - $commiturl`;
 } elsif ($opt{f}) {
 	open MAIL, $opt{f} || die "Can't open $opt{f} for reading.";
 	@commitmail = <MAIL>;	
