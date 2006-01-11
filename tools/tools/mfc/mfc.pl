@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "0.4";
+my $version = "0.4.1";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -146,7 +146,7 @@ sub fetch_mail($)
 
 	# XXX - This should go away once my mid.cgi patches hits the doc tree.
 	foreach (@years) {
-		$url = `fetch -q -o - http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid | grep getmsg.cgi`;
+		$url = `fetch -q -o - 'http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid' | grep getmsg.cgi`;
 		last if (!($url =~ /^$/));
 	}
 	if ($url =~ /^$/) {
@@ -166,7 +166,7 @@ sub search_mail($)
 
 	# XXX - I guess we could take 5 first results instead of just the first
 	# but it has been working correctly for each search I've made so ...
-	my $result = `fetch -q -o - http://www.freebsd.org/cgi/search.cgi?words=$query&max=1&sort=score&index=recent&source=cvs-all | grep getmsg.cgi`;
+	my $result = `fetch -q -o - 'http://www.freebsd.org/cgi/search.cgi?words=$query&max=1&sort=score&index=recent&source=cvs-all' | grep getmsg.cgi`;
 
 	$result =~ s/.*href="(.*)">.*/http:\/\/www.freebsd.org\/cgi\/$1+raw/;
 	if ($result =~ /^$/) {
@@ -196,7 +196,7 @@ sub mfc_headers($)
 {
 	if ($_[0] =~ /^$/) {
 		$mfc_func = \&mfc_author;
-	} elsif ($_[0] =~ /^(\S+)\s+(\S+\s\S+\s\S+)$/) {
+	} elsif ($_[0] =~ /^(\w+)\s+(\S+\s\S+\s\S+)$/) {
 		# Skipped headers (probably a copy/paste from sobomax MFC reminder).
 		mfc_author($_[0]);
 	} else {
@@ -206,7 +206,7 @@ sub mfc_headers($)
 
 sub mfc_author($)
 {
-	if (!($_[0] =~ /^(\S+)\s+(\S+\s\S+\s\S+)$/)) {
+	if (!($_[0] =~ /^(\w+)\s+(\S+\s\S+\s\S+)$/)) {
 		die "Can't determine commit author and date.";
 	}
 	$commit_author = $1;
