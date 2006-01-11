@@ -100,7 +100,7 @@ set80211ssid(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	int		ssid;
 	int		len;
-	u_int8_t	data[33];
+	u_int8_t	data[IEEE80211_NWID_LEN];
 
 	ssid = 0;
 	len = strlen(val);
@@ -111,7 +111,8 @@ set80211ssid(const char *val, int d, int s, const struct afswtch *rafp)
 
 	bzero(data, sizeof(data));
 	len = sizeof(data);
-	get_string(val, NULL, data, &len);
+	if (get_string(val, NULL, data, &len) == NULL)
+		exit(1);
 
 	set80211(s, IEEE80211_IOC_SSID, ssid, len, data);
 }
@@ -266,6 +267,8 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 			bzero(data, sizeof(data));
 			len = sizeof(data);
 			val = get_string(val, ",", data, &len);
+			if (val == NULL)
+				exit(1);
 
 			set80211(s, IEEE80211_IOC_WEPKEY, i, len, data);
 		}
