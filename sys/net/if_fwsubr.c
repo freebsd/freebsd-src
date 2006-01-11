@@ -62,8 +62,6 @@
 #include <netinet6/nd6.h>
 #endif
 
-#define IFP2FC(IFP) ((struct fw_com *)IFP)
-
 MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
 
 struct fw_hwaddr firewire_broadcastaddr = {
@@ -79,7 +77,7 @@ static int
 firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt0)
 {
-	struct fw_com *fc = IFP2FC(ifp);
+	struct fw_com *fc = IFP2FWC(ifp);
 	int error, type;
 	struct rtentry *rt = NULL;
 	struct m_tag *mtag;
@@ -499,7 +497,7 @@ bad:
 void
 firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 {
-	struct fw_com *fc = IFP2FC(ifp);
+	struct fw_com *fc = IFP2FWC(ifp);
 	union fw_encap *enc;
 	int type, isr;
 
@@ -667,7 +665,7 @@ firewire_ioctl(struct ifnet *ifp, int command, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(&IFP2FC(ifp)->fc_hwaddr,
+			bcopy(&IFP2FWC(ifp)->fc_hwaddr,
 			    (caddr_t) sa->sa_data, sizeof(struct fw_hwaddr));
 		}
 		break;
@@ -747,7 +745,7 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 void
 firewire_ifattach(struct ifnet *ifp, struct fw_hwaddr *llc)
 {
-	struct fw_com *fc = IFP2FC(ifp);
+	struct fw_com *fc = IFP2FWC(ifp);
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 	static const char* speeds[] = {
@@ -794,7 +792,7 @@ firewire_ifdetach(struct ifnet *ifp)
 void
 firewire_busreset(struct ifnet *ifp)
 {
-	struct fw_com *fc = IFP2FC(ifp);
+	struct fw_com *fc = IFP2FWC(ifp);
 	struct fw_reass *r;
 	struct mbuf *m;
 
