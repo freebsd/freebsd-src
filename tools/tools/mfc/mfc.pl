@@ -34,13 +34,15 @@
 #  - cvs
 #  - fetch
 #  - perl (with getopt module)
-#  - nc
 #  - mkdir, cat, chmod, grep (hopefully everybody has them)
+#  - cdiff or colordiff (optional)
 #
 #  This script is using 3 environment variables :
 #  - MFCHOME: directory where patches, scripts and commit message will be stored.
 #  - MFCCVSROOT: alternative CVSROOT used to generate diffs for new/dead files.
 #  - MFCLOGIN: define this to your freefall login if you have commit rights.
+#
+# TODO: Look for XXX in the file.
 #
 
 use strict;
@@ -54,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "0.3";
+my $version = "0.4";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -64,6 +66,7 @@ my %dead_files = ( );
 my @logmsg = ( );
 my @commitmail = ( );
 my $commiturl;
+my $cdiff;
 my $answer;
 my $mfc_func = \&mfc_headers;
 
@@ -72,12 +75,14 @@ my $first_log_line = 1;
 sub init()
 {
 	# Look for pre-requisites.
-	my @reqs = ( "fetch", "cvs", "nc", "mkdir", "cat", "chmod", "grep" );
+	my @reqs = ( "fetch", "cvs", "mkdir", "cat", "chmod", "grep" );
 	my $cmd;
 	foreach (@reqs) {
 		$cmd = `which $_`;
 		die "$_ is missing. Please check pre-requisites." if ($cmd =~ /^$/);
 	}
+	$cdiff = `which cdiff`;
+	$cdiff = `which colordiff` if ($cdiff =~ /^$/);
 
 	# Parse command-line options.
 	my $opt_string = 'f:hi:m:s:v';
@@ -116,6 +121,7 @@ sub previous_revision($)
 	my ($rev) = @_;
 	my @rev;
 
+	# XXX - I'm not sure this is working as it should.
 	return 0 if ($rev =~ /^1\.1$/);
 	@rev = split '\.', $rev;
 	return undef unless @rev;
@@ -138,8 +144,9 @@ sub fetch_mail($)
 	$msgid =~ s/>//;
 	$msgid =~ s/@.*//;
 
+	# XXX - This should go away once my mid.cgi patches hits the doc tree.
 	foreach (@years) {
-		$url = `echo "GET http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid" | nc www.freebsd.org 80 | grep getmsg.cgi`;
+		$url = `fetch -q -o - http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid | grep getmsg.cgi`;
 		last if (!($url =~ /^$/));
 	}
 	if ($url =~ /^$/) {
@@ -157,7 +164,9 @@ sub search_mail($)
 
 	$query =~ s/\s+/+/g;
 
-	my $result = `echo "GET http://www.freebsd.org/cgi/search.cgi?words=$query&max=1&sort=score&index=recent&source=cvs-all HTTP/1.0" | nc www.freebsd.org 80 | grep getmsg.cgi`;
+	# XXX - I guess we could take 5 first results instead of just the first
+	# but it has been working correctly for each search I've made so ...
+	my $result = `fetch -q -o - http://www.freebsd.org/cgi/search.cgi?words=$query&max=1&sort=score&index=recent&source=cvs-all | grep getmsg.cgi`;
 
 	$result =~ s/.*href="(.*)">.*/http:\/\/www.freebsd.org\/cgi\/$1+raw/;
 	if ($result =~ /^$/) {
@@ -173,6 +182,7 @@ sub fetch_diff($)
 	my $old = previous_revision($mfc_files{$name});
 	my $new = $mfc_files{$name};
 
+	# CVSWeb uses rcsdiff instead of cvs rdiff, that's a problem for deleted and new files.
 	if ($new_files{$name} or $dead_files{$name}) {
 		print "    Generating diff for $name using cvs rdiff...\n";
 		system("cvs -d $cvsroot rdiff -u -r$old -r$new $name >> $mfchome/$opt{i}/patch 2>/dev/null");
@@ -186,6 +196,9 @@ sub mfc_headers($)
 {
 	if ($_[0] =~ /^$/) {
 		$mfc_func = \&mfc_author;
+	} elsif ($_[0] =~ /^(\S+)\s+(\S+\s\S+\s\S+)$/) {
+		# Skipped headers (probably a copy/paste from sobomax MFC reminder).
+		mfc_author($_[0]);
 	} else {
 		# Nothing
 	}
@@ -315,6 +328,14 @@ if ($mfclogin) {
 			print SCRIPT " \\\n  $_" foreach (keys(%dead_files));
 			print SCRIPT "\n";
 		}
+	}
+
+	print SCRIPT "cvs diff";
+	print SCRIPT " \\\n  $_" foreach (keys(%mfc_files));
+	if ($cdiff =~ /^$/) {
+		print SCRIPT "\n";
+	} else {
+		print SCRIPT " | $cdiff";
 	}
 
 	print SCRIPT "cvs ci";
