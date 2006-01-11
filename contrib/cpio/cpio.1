@@ -19,7 +19,7 @@ cpio \- copy files to and from archives
 [\-\-unconditional] [\-\-verbose] [\-\-block-size=blocks] [\-\-swap-halfwords]
 [\-\-io-size=bytes] [\-\-pattern-file=file] [\-\-format=format]
 [\-\-owner=[user][:.][group]] [\-\-no-preserve-owner] [\-\-message=message]
-[\-\-force\-local] [\-\-no\-absolute\-filenames] [\-\-sparse] [\-\-only\-verify\-crc]
+[\-\-force\-local] [\-\-absolute\-filenames] [\-\-sparse] [\-\-only\-verify\-crc]
 [\-\-quiet] [\-\-help] [\-\-version] [pattern...] [< archive]
 
 .B cpio
@@ -251,9 +251,9 @@ current volume number (starting at 1).
 In the verbose table of contents listing, show numeric UID and GID
 instead of translating them into names.
 .TP
-.I " \-\-no-absolute-filenames"
-In copy-in mode, create all files relative to the current directory,
-even if they have an absolute file name in the archive.
+.I " \-\-absolute-filenames"
+Do not strip leading file name components that contain ".."
+and leading slashes from file names in copy-in mode
 .TP
 .I " \-\-no-preserve-owner"
 In copy-in mode and copy-pass mode, do not change the ownership of the
