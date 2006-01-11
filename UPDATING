@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060111:
+	Bug fixes to the trimdomain(3) function in libutil may result in
+	slight changes to the host names appearing in log files under
+	relatively rare circumstances.
+
 20051015:
 	The shared library version number of libarchive was accidentally
 	bumped up during an MFC of other changes on October 4, 2005.  It
