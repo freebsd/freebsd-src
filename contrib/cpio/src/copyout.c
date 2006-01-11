@@ -303,12 +303,13 @@ write_out_header (struct new_cpio_header *file_hdr, int out_des)
     {
       char ascii_header[112];
       char *magic_string;
+      int ret;
 
       if (archive_format == arf_crcascii)
 	magic_string = "070702";
       else
 	magic_string = "070701";
-      sprintf (ascii_header,
+      ret = snprintf (ascii_header, sizeof(ascii_header),
 	       "%6s%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx",
 	       magic_string,
 	       file_hdr->c_ino, file_hdr->c_mode, file_hdr->c_uid,
@@ -316,6 +317,10 @@ write_out_header (struct new_cpio_header *file_hdr, int out_des)
 	     file_hdr->c_filesize, file_hdr->c_dev_maj, file_hdr->c_dev_min,
 	   file_hdr->c_rdev_maj, file_hdr->c_rdev_min, file_hdr->c_namesize,
 	       file_hdr->c_chksum);
+      if (ret >= sizeof(ascii_header)) {
+	fprintf(stderr, "Internal overflow, aborting\n");
+	exit (1);
+      }
       tape_buffered_write (ascii_header, out_des, 110L);
 
       /* Write file name to output.  */
@@ -325,6 +330,7 @@ write_out_header (struct new_cpio_header *file_hdr, int out_des)
   else if (archive_format == arf_oldascii || archive_format == arf_hpoldascii)
     {
       char ascii_header[78];
+      int ret;
       dev_t dev;
       dev_t rdev;
 
@@ -365,7 +371,7 @@ write_out_header (struct new_cpio_header *file_hdr, int out_des)
       /* Debian hack: The type of dev_t has changed in glibc.  Fixed output
          to ensure that a long int is passed to sprintf.  This has been
          reported to "bug-gnu-utils@prep.ai.mit.edu". (1998/5/26) -BEM */
-      sprintf (ascii_header,
+      snprintf (ascii_header, sizeof(ascii_header),
 	       "%06ho%06lo%06lo%06lo%06lo%06lo%06lo%06lo%011lo%06lo%011lo",
 	       file_hdr->c_magic & 0xFFFF, (long) dev & 0xFFFF,
 	       file_hdr->c_ino & 0xFFFF, file_hdr->c_mode & 0xFFFF,
@@ -373,6 +379,10 @@ write_out_header (struct new_cpio_header *file_hdr, int out_des)
 	       file_hdr->c_nlink & 0xFFFF, (long) rdev & 0xFFFF,
 	       file_hdr->c_mtime, file_hdr->c_namesize & 0xFFFF,
 	       file_hdr->c_filesize);
+      if (ret >= sizeof(ascii_header)) {
+	fprintf(stderr, "Internal overflow, aborting\n");
+	exit (1);
+      }
       tape_buffered_write (ascii_header, out_des, 76L);
 
       /* Write file name to output.  */
@@ -508,6 +518,14 @@ process_copy_out ()
 	  file_hdr.c_dev_maj = major (file_stat.st_dev);
 	  file_hdr.c_dev_min = minor (file_stat.st_dev);
 	  file_hdr.c_ino = file_stat.st_ino;
+
+	  /* Skip files larger than 4GB which will cause problems on
+	     64bit platforms (and just not work on 32bit). */
+	  if (file_stat.st_size > 0xffffffff) {
+	    error (0, 0, "%s: skipping >4GB file", input_name.ds_string);
+	    continue;
+	  }
+
 	  /* For POSIX systems that don't define the S_IF macros,
 	     we can't assume that S_ISfoo means the standard Unix
 	     S_IFfoo bit(s) are set.  So do it manually, with a
