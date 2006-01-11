@@ -174,18 +174,18 @@ process_copy_pass ()
 	      disk_empty_output_buffer (out_file_des);
 	      if (close (in_file_des) < 0)
 		error (0, errno, "%s", input_name.ds_string);
-	      if (close (out_file_des) < 0)
-		error (0, errno, "%s", output_name.ds_string);
 
 	      /* Set the attributes of the new file.  */
 	      if (!no_chown_flag)
-		if ((chown (output_name.ds_string,
+		if ((fchown (out_file_des,
 			    set_owner_flag ? set_owner : in_file_stat.st_uid,
 		      set_group_flag ? set_group : in_file_stat.st_gid) < 0)
 		    && errno != EPERM)
 		  error (0, errno, "%s", output_name.ds_string);
 	      /* chown may have turned off some permissions we wanted. */
-	      if (chmod (output_name.ds_string, in_file_stat.st_mode) < 0)
+	      if (fchmod (out_file_des, in_file_stat.st_mode) < 0)
+		error (0, errno, "%s", output_name.ds_string);
+	      if (close (out_file_des) < 0)
 		error (0, errno, "%s", output_name.ds_string);
 	      if (reset_time_flag)
 		{
@@ -224,15 +224,24 @@ process_copy_pass ()
 		  cdf_flag = 1;
 		}
 #endif
-	      res = mkdir (output_name.ds_string, in_file_stat.st_mode);
+	      res = mkdir (output_name.ds_string, in_file_stat.st_mode & ~077);
 
 	    }
 	  else
-	    res = 0;
+            {
+              if (!no_chown_flag && (out_file_stat.st_mode & 077) != 0
+                  && chmod (output_name.ds_string, out_file_stat.st_mode & 07700) < 0)
+                {
+                  error (0, errno, "%s: chmod", output_name.ds_string);
+                  continue;
+                }
+              res = 0;
+            }
+
 	  if (res < 0 && create_dir_flag)
 	    {
 	      create_all_directories (output_name.ds_string);
-	      res = mkdir (output_name.ds_string, in_file_stat.st_mode);
+	      res = mkdir (output_name.ds_string, in_file_stat.st_mode & ~077);
 	    }
 	  if (res < 0)
 	    {
@@ -298,20 +307,20 @@ process_copy_pass ()
 	    {
 #ifdef S_ISFIFO
 	      if (S_ISFIFO (in_file_stat.st_mode))
-		res = mkfifo (output_name.ds_string, in_file_stat.st_mode);
+		res = mkfifo (output_name.ds_string, in_file_stat.st_mode & ~077);
 	      else
 #endif
-		res = mknod (output_name.ds_string, in_file_stat.st_mode,
+		res = mknod (output_name.ds_string, in_file_stat.st_mode & ~077,
 			     in_file_stat.st_rdev);
 	      if (res < 0 && create_dir_flag)
 		{
 		  create_all_directories (output_name.ds_string);
 #ifdef S_ISFIFO
 		  if (S_ISFIFO (in_file_stat.st_mode))
-		    res = mkfifo (output_name.ds_string, in_file_stat.st_mode);
+		    res = mkfifo (output_name.ds_string, in_file_stat.st_mode & ~077);
 		  else
 #endif
-		    res = mknod (output_name.ds_string, in_file_stat.st_mode,
+		    res = mknod (output_name.ds_string, in_file_stat.st_mode & ~077,
 				 in_file_stat.st_rdev);
 		}
 	      if (res < 0)
