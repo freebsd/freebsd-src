@@ -98,8 +98,8 @@ int quiet_flag = FALSE;
    actually extract the files. */
 int only_verify_crc_flag = FALSE;
 
-/* If TRUE, don't use any absolute paths, prefix them by `./'.  */
-int no_abs_paths_flag = FALSE;
+/* If TRUE, allow any absolute paths */
+int abs_paths_flag = FALSE;
 
 #ifdef DEBUG_CPIO
 /* If TRUE, print debugging information.  */

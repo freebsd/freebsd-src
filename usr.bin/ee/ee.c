@@ -300,7 +300,7 @@ void finish P_((void));
 int quit P_((int noverify));
 void edit_abort P_((int arg));
 void delete_text P_((void));
-int write_file P_((char *file_name));
+int write_file P_((char *file_name, int warn_if_exists));
 int search P_((int display_message));
 void search_prompt P_((void));
 void del_char P_((void));
@@ -1687,7 +1687,7 @@ char *cmd_str1;
 			cmd_str = cmd_str2 = get_string(file_write_prompt_str, TRUE);
 		}
 		tmp_file = resolve_name(cmd_str);
-		write_file(tmp_file);
+		write_file(tmp_file, 1);
 		if (tmp_file != cmd_str)
 			free(tmp_file);
 	}
@@ -2394,7 +2394,7 @@ finish()	/* prepare to exit edit session	*/
 		file_name = tmp_file;
 	}
 
-	if (write_file(file_name))
+	if (write_file(file_name, 1))
 	{
 		text_changes = FALSE;
 		quit(0);
@@ -2471,8 +2471,9 @@ delete_text()
 }
 
 int 
-write_file(file_name)
+write_file(file_name, warn_if_exists)
 char *file_name;
+int warn_if_exists;
 {
 	char cr;
 	char *tmp_point;
@@ -2482,7 +2483,8 @@ char *file_name;
 	int write_flag = TRUE;
 
 	charac = lines = 0;
-	if ((in_file_name == NULL) || strcmp(in_file_name, file_name))
+	if (warn_if_exists &&
+	    ((in_file_name == NULL) || strcmp(in_file_name, file_name)))
 	{
 		if ((temp_fp = fopen(file_name, "r")))
 		{
@@ -3724,7 +3726,7 @@ int arg;
 	{
 		string = get_string(file_write_prompt_str, TRUE);
 		tmp_file = resolve_name(string);
-		write_file(tmp_file);
+		write_file(tmp_file, 1);
 		if (tmp_file != string)
 			free(tmp_file);
 		free(string);
@@ -3761,7 +3763,7 @@ int arg;
 				string = tmp_file;
 			}
 		}
-		if (write_file(string))
+		if (write_file(string, 1))
 		{
 			in_file_name = string;
 			text_changes = FALSE;
@@ -4374,17 +4376,25 @@ spell_op()	/* check spelling of words in the editor	*/
 void 
 ispell_op()
 {
-	char name[128];
+	char template[128], *name;
 	char string[256];
-	int pid;
+	int fd;
 
 	if (restrict_mode())
 	{
 		return;
 	}
-	pid = getpid();
-	sprintf(name, "/tmp/ee.%d", pid);
-	if (write_file(name))
+	(void)sprintf(template, "/tmp/ee.XXXXXXXX");
+	name = mktemp(&template[0]);
+	fd = open(name, O_CREAT | O_EXCL | O_RDWR, 0600);
+	if (fd < 0) {
+		wmove(com_win, 0, 0);
+		wprintw(com_win, create_file_fail_msg, name);
+		wrefresh(com_win);
+		return;
+	}
+	close(fd);
+	if (write_file(name, 0))
 	{
 		sprintf(string, "ispell %s", name);
 		sh_command(string);
