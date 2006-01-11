@@ -27,6 +27,7 @@
 #include "dstring.h"
 #include "extern.h"
 #include "defer.h"
+#include "dirname.h"
 #include <rmt.h>
 #ifndef	FNM_PATHNAME
 #include <fnmatch.h>
@@ -392,19 +393,26 @@ create_final_defers ()
 	  continue;
 	}
 
-      if (close (out_file_des) < 0)
-	error (0, errno, "%s", d->header.c_name);
-
+      /*
+       *  Avoid race condition.
+       *  Set chown and chmod before closing the file desc.
+       *  pvrabec@redhat.com
+       */
+       
       /* File is now copied; set attributes.  */
       if (!no_chown_flag)
-	if ((chown (d->header.c_name,
+	if ((fchown (out_file_des,
 		    set_owner_flag ? set_owner : d->header.c_uid,
 	       set_group_flag ? set_group : d->header.c_gid) < 0)
 	    && errno != EPERM)
 	  error (0, errno, "%s", d->header.c_name);
       /* chown may have turned off some permissions we wanted. */
-      if (chmod (d->header.c_name, (int) d->header.c_mode) < 0)
+      if (fchmod (out_file_des, (int) d->header.c_mode) < 0)
 	error (0, errno, "%s", d->header.c_name);
+
+      if (close (out_file_des) < 0)
+	error (0, errno, "%s", d->header.c_name);
+
       if (retain_time_flag)
 	{
 	  times.actime = times.modtime = d->header.c_mtime;
@@ -560,6 +568,25 @@ copyin_regular_file (struct new_cpio_header* file_hdr, int in_file_des)
       write (out_file_des, "", 1);
       delayed_seek_count = 0;
     }
+    
+  /*
+   *  Avoid race condition.
+   *  Set chown and chmod before closing the file desc.
+   *  pvrabec@redhat.com
+   */
+   
+  /* File is now copied; set attributes.  */
+  if (!no_chown_flag)
+    if ((fchown (out_file_des,
+		set_owner_flag ? set_owner : file_hdr->c_uid,
+	   set_group_flag ? set_group : file_hdr->c_gid) < 0)
+	&& errno != EPERM)
+      error (0, errno, "%s", file_hdr->c_name);
+  
+  /* chown may have turned off some permissions we wanted. */
+  if (fchmod (out_file_des, (int) file_hdr->c_mode) < 0)
+    error (0, errno, "%s", file_hdr->c_name);
+     
   if (close (out_file_des) < 0)
     error (0, errno, "%s", file_hdr->c_name);
 
@@ -570,18 +597,6 @@ copyin_regular_file (struct new_cpio_header* file_hdr, int in_file_des)
 	       file_hdr->c_name, crc, file_hdr->c_chksum);
     }
 
-  /* File is now copied; set attributes.  */
-  if (!no_chown_flag)
-    if ((chown (file_hdr->c_name,
-		set_owner_flag ? set_owner : file_hdr->c_uid,
-	   set_group_flag ? set_group : file_hdr->c_gid) < 0)
-	&& errno != EPERM)
-      error (0, errno, "%s", file_hdr->c_name);
-  
-  /* chown may have turned off some permissions we wanted. */
-  if (chmod (file_hdr->c_name, (int) file_hdr->c_mode) < 0)
-    error (0, errno, "%s", file_hdr->c_name);
-  
   if (retain_time_flag)
     {
       struct utimbuf times;		/* For setting file times.  */
@@ -592,7 +607,7 @@ copyin_regular_file (struct new_cpio_header* file_hdr, int in_file_des)
       if (utime (file_hdr->c_name, &times) < 0)
 	error (0, errno, "%s", file_hdr->c_name);
     }
-  
+    
   tape_skip_padding (in_file_des, file_hdr->c_filesize);
   if (file_hdr->c_nlink > 1
       && (archive_format == arf_newascii || archive_format == arf_crcascii) )
@@ -1350,6 +1365,53 @@ swab_array (char *ptr, int count)
     }
 }
 
+/* Return a safer suffix of FILE_NAME, or "." if it has no safer
+   suffix.  Check for fully specified file names and other atrocities.  */
+
+static const char *
+safer_name_suffix (char const *file_name)
+{
+  char const *p;
+
+  /* Skip file system prefixes, leading file name components that contain
+     "..", and leading slashes.  */
+
+  size_t prefix_len = FILE_SYSTEM_PREFIX_LEN (file_name);
+
+  for (p = file_name + prefix_len; *p;)
+    {
+      if (p[0] == '.' && p[1] == '.' && (ISSLASH (p[2]) || !p[2]))
+	prefix_len = p + 2 - file_name;
+
+      do
+	{
+	  char c = *p++;
+	  if (ISSLASH (c))
+	    break;
+	}
+      while (*p);
+    }
+
+  for (p = file_name + prefix_len; ISSLASH (*p); p++)
+    continue;
+  prefix_len = p - file_name;
+
+  if (prefix_len)
+    {
+      char *prefix = alloca (prefix_len + 1);
+      memcpy (prefix, file_name, prefix_len);
+      prefix[prefix_len] = '\0';
+
+
+      error (0, 0, _("Removing leading `%s' from member names"), prefix);
+    }
+
+  if (!*p)
+    p = ".";
+
+  return p;
+}
+
 /* Read the collection from standard input and create files
    in the file system.  */
 
@@ -1460,18 +1522,11 @@ process_copy_in ()
 
       /* Do we have to ignore absolute paths, and if so, does the filename
          have an absolute path?  */
-      if (no_abs_paths_flag && file_hdr.c_name && file_hdr.c_name [0] == '/')
+      if (!abs_paths_flag && file_hdr.c_name && file_hdr.c_name [0])
 	{
-	  char *p;
+	  const char *p = safer_name_suffix (file_hdr.c_name);
 
-	  p = file_hdr.c_name;
-	  while (*p == '/')
-	    ++p;
-	  if (*p == '\0')
-	    {
-	      strcpy (file_hdr.c_name, ".");
-	    }
-	  else
+	  if (p != file_hdr.c_name)
 	    {
               /* Debian hack: file_hrd.c_name is sometimes set to
                  point to static memory by code in tar.c.  This

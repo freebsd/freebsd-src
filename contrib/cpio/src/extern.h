@@ -46,7 +46,7 @@ extern int no_chown_flag;
 extern int sparse_flag;
 extern int quiet_flag;
 extern int only_verify_crc_flag;
-extern int no_abs_paths_flag;
+extern int abs_paths_flag;
 extern unsigned int warn_option;
 
 /* Values for warn_option */

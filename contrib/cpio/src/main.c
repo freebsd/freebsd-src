@@ -43,6 +43,7 @@
 
 enum cpio_options {
   NO_ABSOLUTE_FILENAMES_OPTION=256,  
+  ABSOLUTE_FILENAMES_OPTION,  
   NO_PRESERVE_OWNER_OPTION,      
   ONLY_VERIFY_CRC_OPTION,        
   RENAME_BATCH_FILE_OPTION,      
@@ -136,6 +137,8 @@ static struct argp_option options[] = {
    N_("In copy-in mode, read additional patterns specifying filenames to extract or list from FILE"), 210},
   {"no-absolute-filenames", NO_ABSOLUTE_FILENAMES_OPTION, 0, 0,
    N_("Create all files relative to the current directory"), 210},
+  {"absolute-filenames", ABSOLUTE_FILENAMES_OPTION, 0, 0,
+   N_("do not strip leading file name components that contain \"..\" and leading slashes from file names"), 210},
   {"only-verify-crc", ONLY_VERIFY_CRC_OPTION, 0, 0,
    N_("When reading a CRC format archive in copy-in mode, only verify the CRC's of each file in the archive, don't actually extract the files"), 210},
   {"rename", 'r', 0, 0,
@@ -394,7 +397,11 @@ crc newc odc bin ustar tar (all-caps also recognized)"), arg);
       break;
 
     case NO_ABSOLUTE_FILENAMES_OPTION:		/* --no-absolute-filenames */
-      no_abs_paths_flag = true;
+      abs_paths_flag = false;
+      break;
+	
+    case ABSOLUTE_FILENAMES_OPTION:		/* --absolute-filenames */
+      abs_paths_flag = true;
       break;
 	
     case NO_PRESERVE_OWNER_OPTION:		/* --no-preserve-owner */
@@ -633,7 +640,7 @@ process_args (int argc, char *argv[])
 		      _("--append is used but no archive file name is given (use -F or -O options")));
 
       CHECK_USAGE(rename_batch_file, "--rename-batch-file", "--create");
-      CHECK_USAGE(no_abs_paths_flag, "--no-absolute-pathnames", "--create");
+      CHECK_USAGE(abs_paths_flag, "--absolute-pathnames", "--create");
       CHECK_USAGE(input_archive_name, "-I", "--create");
       if (archive_name && output_archive_name)
 	USAGE_ERROR ((0, 0, _("Both -O and -F are used in copy-out mode")));
@@ -660,7 +667,7 @@ process_args (int argc, char *argv[])
       CHECK_USAGE(rename_flag, "--rename", "--pass-through");
       CHECK_USAGE(append_flag, "--append", "--pass-through");
       CHECK_USAGE(rename_batch_file, "--rename-batch-file", "--pass-through");
-      CHECK_USAGE(no_abs_paths_flag, "--no-absolute-pathnames",
+      CHECK_USAGE(abs_paths_flag, "--absolute-pathnames",
 		  "--pass-through");
       CHECK_USAGE(to_stdout_option, "--to-stdout", "--pass-through");
       
