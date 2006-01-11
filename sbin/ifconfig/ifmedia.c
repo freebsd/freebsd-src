@@ -240,6 +240,7 @@ setifmediacallback(int s, void *arg)
 	static int did_it = 0;
 
 	if (!did_it) {
+		ifr.ifr_media = ifmr->ifm_current;
 		if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
 			err(1, "SIOCSIFMEDIA (media)");
 		free(ifmr->ifm_ulist);
