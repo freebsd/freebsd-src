@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "0.4.1";
+my $version = "0.4.2";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -146,7 +146,7 @@ sub fetch_mail($)
 
 	# XXX - This should go away once my mid.cgi patches hits the doc tree.
 	foreach (@years) {
-		$url = `fetch -q -o - 'http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid' | grep getmsg.cgi`;
+		$url = `fetch -q -o - 'http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid' | grep getmsg.cgi | head -n 1`;
 		last if (!($url =~ /^$/));
 	}
 	if ($url =~ /^$/) {
@@ -154,7 +154,8 @@ sub fetch_mail($)
 		exit 1;
 	}
 	$url =~ s/.*HREF="(.*)".*/$1+raw/;
-	$url =~ s/hub.freebsd.org/www.freebsd.org/;
+	$url =~ s/.*href="(.*)".*/$1/;
+	$url =~ s/^.*\/cgi/http:\/\/www.freebsd.org\/cgi/;
 	return $url;
 }
 
@@ -254,7 +255,7 @@ if ($opt{s}) {
 	print "Searching commit mail on www.freebsd.org...\n";
 	$commiturl = search_mail($opt{s});
 	print "Fetching commit mail from www.freebsd.org...\n";
-	@commitmail = `fetch -q -o - $commiturl`;
+	@commitmail = `fetch -q -o - '$commiturl'`;
 } elsif ($opt{f}) {
 	open MAIL, $opt{f} || die "Can't open $opt{f} for reading.";
 	@commitmail = <MAIL>;	
