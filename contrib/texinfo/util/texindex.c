@@ -386,6 +386,21 @@ For more information about these matters, see the files named COPYING.\n"),
     usage (1);
 }
 
+static char **tv;
+static int tv_alloc;
+static int tv_used;
+
+static int
+findtempname (char *tempname)
+{
+  int i;
+
+  for (i = 0; i < tv_used; i++)
+    if (strcmp (tv[i], tempname) == 0)
+	return (1);
+  return (0);
+}
+
 /* Return a name for temporary file COUNT. */
 
 static char *
@@ -393,11 +408,12 @@ maketempname (count)
      int count;
 {
   static char *tempbase = NULL;
+  char *tempname;
   char tempsuffix[10];
+  int fd;
 
   if (!tempbase)
     {
-      int fd;
       tempbase = concat (tempdir, "txidxXXXXXX");
 
       fd = mkstemp (tempbase);
@@ -406,7 +422,52 @@ maketempname (count)
     }
 
   sprintf (tempsuffix, ".%d", count);
-  return concat (tempbase, tempsuffix);
+  tempname = concat (tempbase, tempsuffix);
+  /*
+   * The open logic becomes a bit convoluted. If open(2) fails due to EEXIST,
+   * it's likely because somebody attempted to race us, or because we have
+   * already created this file.
+   */
+  fd = open (tempname, O_CREAT|O_EXCL|O_WRONLY, 0600);
+  if (fd == -1)
+    {
+	/*
+	 * If errno is not EEXIST, then open failed for some other reason, so
+	 * we should terminate. If errno == EEXIST AND we didn't create this
+	 * file, terminate. Otherwise, it's safe to say that errno == EEXIST
+	 * because we already created it, in this event, we can just return.
+	 */
+	if (errno != EEXIST ||
+	  (errno == EEXIST && findtempname (tempname) == 0))
+	  pfatal_with_name (tempname);
+	return (tempname);
+    }
+  else if (fd > 0)
+    {
+	close (fd);
+    }
+  if (tv == NULL)
+    {
+	tv_alloc = 16;
+	tv = calloc (tv_alloc, sizeof (char *));
+	if (tv == NULL)
+	  {
+	    fprintf (stderr, "calloc failed\n");
+	    exit (1);
+	  }
+    }
+  else if (tv_used == tv_alloc)
+    {
+	tv_alloc += 4;
+	tv = realloc (tv, tv_alloc * sizeof (char *));
+	if (tv == NULL)
+	  {
+	    fprintf (stderr, "realloc failed");
+	    exit (1);
+	  }
+    }
+  tv[tv_used++] = strdup (tempname);
+  return tempname;
 }
 
 
