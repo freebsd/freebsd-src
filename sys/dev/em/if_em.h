@@ -48,6 +48,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
+#include <sys/kthread.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -334,6 +338,10 @@ struct adapter {
 	u_int8_t        unit;
 	struct mtx	mtx;
 	int		em_insert_vlan_header;
+	struct task	link_task;
+	struct task	rxtx_task;
+	struct taskqueue *tq;		/* private task queue */
+	struct proc	*tqproc;	/* thread handling sc_tq */
 
 	/* Info about the board itself */
 	u_int32_t       part_num;
@@ -378,8 +386,9 @@ struct adapter {
 	struct em_dma_alloc rxdma;              /* bus_dma glue for rx desc */
         struct em_rx_desc *rx_desc_base;
         u_int32_t          next_rx_desc_to_check;
-        u_int16_t          num_rx_desc;
         u_int32_t          rx_buffer_len;
+        u_int16_t          num_rx_desc;
+        int                rx_process_limit;
         struct em_buffer   *rx_buffer_area;
 	bus_dma_tag_t      rxtag;
 
