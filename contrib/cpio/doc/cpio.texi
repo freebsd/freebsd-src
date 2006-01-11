@@ -288,7 +288,7 @@ cpio @{-i|--extract@} [-bcdfmnrtsuvBSV] [-C bytes] [-E file]
 [--swap-halfwords] [--io-size=bytes] [--pattern-file=file]
 [--format=format] [--owner=[user][:.][group]]
 [--no-preserve-owner] [--message=message] [--help] [--version]
-[-no-absolute-filenames] [--sparse] [-only-verify-crc] [-quiet]
+[--absolute-filenames] [--sparse] [-only-verify-crc] [-quiet]
 [--rsh-command=command] [pattern...] [< archive]
 @end example
 
@@ -451,9 +451,9 @@ current volume number (starting at 1).
 Show numeric UID and GID instead of translating them into names when using the
 @samp{--verbose option}.
 
-@item --no-absolute-filenames
-Create all files relative to the current directory in copy-in mode, even
-if they have an absolute file name in the archive.
+@item --absolute-filenames
+Do not strip leading file name components that contain ".." and
+leading slashes from file names in copy-in mode
 
 @item --no-preserve-owner
 Do not change the ownership of the files; leave them owned by the user

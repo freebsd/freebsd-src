@@ -183,19 +183,25 @@ process_copy_pass ()
 		}
 	      if (close (in_file_des) < 0)
 		error (0, errno, "%s", input_name.ds_string);
-	      if (close (out_file_des) < 0)
-		error (0, errno, "%s", output_name.ds_string);
-
+	      /*
+	       *  Avoid race condition.
+	       *  Set chown and chmod before closing the file desc.
+	       *  pvrabec@redhat.com
+	       */
 	      /* Set the attributes of the new file.  */
 	      if (!no_chown_flag)
-		if ((chown (output_name.ds_string,
+		if ((fchown (out_file_des,
 			    set_owner_flag ? set_owner : in_file_stat.st_uid,
 		      set_group_flag ? set_group : in_file_stat.st_gid) < 0)
 		    && errno != EPERM)
 		  error (0, errno, "%s", output_name.ds_string);
 	      /* chown may have turned off some permissions we wanted. */
-	      if (chmod (output_name.ds_string, in_file_stat.st_mode) < 0)
+	      if (fchmod (out_file_des, in_file_stat.st_mode) < 0)
 		error (0, errno, "%s", output_name.ds_string);
+		
+	      if (close (out_file_des) < 0)
+		error (0, errno, "%s", output_name.ds_string);
+
 	      if (reset_time_flag)
 		{
 		  times.actime = in_file_stat.st_atime;

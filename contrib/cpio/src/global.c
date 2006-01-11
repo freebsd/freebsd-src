@@ -100,7 +100,7 @@ int quiet_flag = false;
 int only_verify_crc_flag = false;
 
 /* If true, don't use any absolute paths, prefix them by `./'.  */
-int no_abs_paths_flag = false;
+int abs_paths_flag = false;
 
 #ifdef DEBUG_CPIO
 /* If true, print debugging information.  */
