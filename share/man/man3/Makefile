@@ -108,6 +108,7 @@ MLINKS+=	timeradd.3 timerclear.3 \
 MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 RB_ENTRY.3 \
 		tree.3 RB_FIND.3 \
+		tree.3 RB_NFIND.3 \
 		tree.3 RB_FOREACH.3 \
 		tree.3 RB_GENERATE.3 \
 		tree.3 RB_HEAD.3 \

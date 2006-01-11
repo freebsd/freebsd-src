@@ -62,6 +62,7 @@
 .Nm RB_MIN ,
 .Nm RB_MAX ,
 .Nm RB_FIND ,
+.Nm RB_NFIND ,
 .Nm RB_LEFT ,
 .Nm RB_RIGHT ,
 .Nm RB_PARENT ,
@@ -117,6 +118,8 @@
 .Fn RB_MAX NAME "RB_HEAD *head"
 .Ft "struct TYPE *"
 .Fn RB_FIND NAME "RB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn RB_NFIND NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn RB_LEFT "struct TYPE *elm" "RB_ENTRY NAME"
 .Ft "struct TYPE *"
@@ -405,7 +408,9 @@ from the tree pointed by
 .Pp
 The
 .Fn RB_FIND
-macro can be used to find a particular element in the tree.
+and
+.Fn RB_NFIND
+macros can be used to find a particular element in the tree.
 .Bd -literal -offset indent
 struct TYPE find, *res;
 find.key = 30;

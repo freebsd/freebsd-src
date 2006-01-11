@@ -382,6 +382,7 @@ void name##_RB_REMOVE_COLOR(struct name *, struct type *, struct type *);\
 struct type *name##_RB_REMOVE(struct name *, struct type *);		\
 struct type *name##_RB_INSERT(struct name *, struct type *);		\
 struct type *name##_RB_FIND(struct name *, struct type *);		\
+struct type *name##_RB_NFIND(struct name *, struct type *);		\
 struct type *name##_RB_NEXT(struct type *);				\
 struct type *name##_RB_MINMAX(struct name *, int);			\
 									\
@@ -628,6 +629,35 @@ name##_RB_FIND(struct name *head, struct type *elm)			\
 	return (NULL);							\
 }									\
 									\
+/* Finds the first node greater than or equal to the search key */	\
+struct type *								\
+name##_RB_NFIND(struct name *head, struct type *elm)			\
+{									\
+	struct type *ret = RB_ROOT(head);				\
+	struct type *tmp;						\
+	int comp;							\
+	while (ret && (comp = cmp(elm, ret)) != 0) {			\
+		if (comp < 0) {						\
+			if ((tmp = RB_LEFT(ret, field)) == NULL)	\
+				break;					\
+			ret = tmp;					\
+		} else {						\
+			if ((tmp = RB_RIGHT(ret, field)) == NULL) {	\
+				tmp = ret;				\
+				ret = RB_PARENT(ret, field);		\
+				while (ret && tmp == RB_RIGHT(ret,	\
+				    field)) {				\
+					tmp = ret;			\
+					ret = RB_PARENT(ret, field);	\
+				}					\
+				break;					\
+			}						\
+			ret = tmp;					\
+		}							\
+	}								\
+	return (ret);							\
+}									\
+									\
 /* ARGSUSED */								\
 struct type *								\
 name##_RB_NEXT(struct type *elm)					\
@@ -671,6 +701,7 @@ name##_RB_MINMAX(struct name *head, int val)				\
 #define RB_INSERT(name, x, y)	name##_RB_INSERT(x, y)
 #define RB_REMOVE(name, x, y)	name##_RB_REMOVE(x, y)
 #define RB_FIND(name, x, y)	name##_RB_FIND(x, y)
+#define RB_NFIND(name, x, y)	name##_RB_NFIND(x, y)
 #define RB_NEXT(name, x, y)	name##_RB_NEXT(y)
 #define RB_MIN(name, x)		name##_RB_MINMAX(x, RB_NEGINF)
 #define RB_MAX(name, x)		name##_RB_MINMAX(x, RB_INF)
