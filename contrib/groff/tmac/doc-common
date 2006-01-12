@@ -435,6 +435,7 @@
 .ds doc-operating-system-NetBSD-2.0.1 2.0.1
 .ds doc-operating-system-NetBSD-2.0.2 2.0.2
 .ds doc-operating-system-NetBSD-2.1   2.1
+.ds doc-operating-system-NetBSD-3.0   3.0
 .
 .ds doc-operating-system-FreeBSD-1.0     1.0
 .ds doc-operating-system-FreeBSD-1.1     1.1
@@ -472,11 +473,20 @@
 .ds doc-operating-system-FreeBSD-4.8     4.8
 .ds doc-operating-system-FreeBSD-4.9     4.9
 .ds doc-operating-system-FreeBSD-4.10    4.10
+.ds doc-operating-system-FreeBSD-4.11    4.11
 .ds doc-operating-system-FreeBSD-5.0     5.0
 .ds doc-operating-system-FreeBSD-5.1     5.1
 .ds doc-operating-system-FreeBSD-5.2     5.2
 .ds doc-operating-system-FreeBSD-5.2.1   5.2.1
 .ds doc-operating-system-FreeBSD-5.3     5.3
+.ds doc-operating-system-FreeBSD-5.4     5.4
+.ds doc-operating-system-FreeBSD-6.0     6.0
+.ds doc-operating-system-FreeBSD-6.1     6.1
+.
+.ds doc-operating-system-Darwin-8.0.0 8.0.0
+.ds doc-operating-system-Darwin-8.1.0 8.1.0
+.ds doc-operating-system-Darwin-8.2.0 8.2.0
+.ds doc-operating-system-Darwin-8.3.0 8.3.0
 .
 .de Os
 .  ie "\$1"" \
@@ -512,11 +522,19 @@
 .      el \
 .        tm mdoc warning: .Os: Unknown NetBSD version `\$2' (#\n[.c])
 .  \}\}
+.  el \{ .ie "\$1"Darwin" \{\
+.    ds doc-operating-system Darwin
+.    if \A\$2 \{\
+.      ie d doc-operating-system-Darwin-\$2 \
+.        as doc-operating-system \~\*[doc-operating-system-Darwin-\$2]
+.      el \
+.        tm mdoc warning: .Os: Unknown Darwin version `\$2' (#\n[.c])
+.  \}\}
 .  el \{\
 .    ds doc-operating-system \$1
 .    if !"\$2"" \
 .      as doc-operating-system " \$2
-.  \}\}\}\}\}
+.  \}\}\}\}\}\}
 ..
 .
 .
