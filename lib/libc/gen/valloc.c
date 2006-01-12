@@ -41,12 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 void *
-valloc(i)
-	size_t i;
+valloc(size_t i)
 {
-	long valsiz = getpagesize(), j;
-	void *cp = malloc(i + (valsiz-1));
+	void	*ret;
 
-	j = ((long)cp + (valsiz-1)) &~ (valsiz-1);
-	return ((void *)j);
+	if (posix_memalign(&ret, getpagesize(), i) != 0)
+		ret = NULL;
+
+	return ret;
 }
