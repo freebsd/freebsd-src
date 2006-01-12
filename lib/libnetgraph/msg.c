@@ -232,6 +232,22 @@ NgDeliverMsg(int cs, const char *path,
 		goto done;
 	}
 
+	/* Wait for reply if there should be one. */
+	if (msg->header.cmd & NGM_HASREPLY) {
+		fd_set rfds;
+		int n;
+
+		FD_ZERO(&rfds);
+		FD_SET(cs, &rfds);
+		n = select(cs + 1, &rfds, NULL, NULL, NULL);
+		if (n == -1) {
+			errnosv = errno;
+			if (_gNgDebugLevel >= 1)
+				NGLOG("select");
+			rtn = -1;
+		}
+	}
+
 done:
 	/* Done */
 	free(buf);		/* OK if buf is NULL */
