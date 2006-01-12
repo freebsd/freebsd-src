@@ -130,10 +130,11 @@ void _set_tp(void *tp);
 extern const char *__progname;
 
 /*
- * This is the lock to make malloc() thread-safe.  It is externalized
- * so that thread libraries can protect malloc across fork().
+ * These functions are used by the threading libraries in order to protect
+ * malloc across fork().
  */
-extern struct _spinlock *__malloc_lock;
+void _malloc_prefork(void);
+void _malloc_postfork(void);
 
 /*
  * Function to clean up streams, called from abort() and exit().
