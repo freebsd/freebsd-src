@@ -733,14 +733,6 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	NG_NODE_UNREF(node);
 }
 
-#ifdef	NETGRAPH_DEBUG
-void
-ng_ref_node(node_p node)
-{
-	_NG_NODE_REF(node);
-}
-#endif
-
 /*
  * Remove a reference to the node, possibly the last.
  * deadnode always acts as it it were the last.
