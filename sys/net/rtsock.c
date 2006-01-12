@@ -477,10 +477,10 @@ route_output(struct mbuf *m, struct socket *so)
 			    (info.rti_info[RTAX_IFA] != NULL &&
 			     !sa_equal(info.rti_info[RTAX_IFA],
 				       rt->rt_ifa->ifa_addr))) {
-				if ((error = rt_getifa(&info)) != 0) {
-					RT_UNLOCK(rt);
+				RT_UNLOCK(rt);
+				if ((error = rt_getifa(&info)) != 0)
 					senderr(error);
-				}
+				RT_LOCK(rt);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL &&
 			    (error = rt_setgate(rt, rt_key(rt),
