@@ -399,7 +399,7 @@ refresh_processor_tbl(void)
 			continue;
 		}
 
-		assert(hrState_g.kd != NULL);
+		assert(hr_kd != NULL);
 
 		plist = kvm_getprocs(hr_kd, KERN_PROC_PID,
 		    entry->idle_pid, &nproc);

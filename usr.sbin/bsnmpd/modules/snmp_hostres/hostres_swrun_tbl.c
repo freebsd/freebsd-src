@@ -207,7 +207,7 @@ kinfo_proc_to_swrun_entry(const struct kinfo_proc *kp,
 	entry->path[0] = '\0';
 	entry->parameters[0] = '\0';
 
-	assert(hrState_g.kd != NULL);
+	assert(hr_kd != NULL);
 
 	argv = kvm_getargv(hr_kd, kp, sizeof(entry->parameters) - 1);
 	if(argv != NULL){
@@ -423,7 +423,7 @@ fetch_swrun_entry(struct swrun_entry *entry)
 
 	} else {
 		/* this is a process */
-		assert(hrState_g.kd != NULL);
+		assert(hr_kd != NULL);
 		plist = kvm_getprocs(hr_kd, KERN_PROC_PID,
 		    entry->index - 1, &nproc);
 		if (plist == NULL || nproc != 1) {
@@ -489,7 +489,7 @@ invalidate_swrun_entry(struct swrun_entry *entry, int commit)
 		}
 	} else {
 		/* this is a process */
-		assert(hrState_g.kd != NULL);
+		assert(hr_kd != NULL);
 
 		plist = kvm_getprocs(hr_kd, KERN_PROC_PID,
 		    entry->index - 1, &nproc);
