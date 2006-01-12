@@ -108,7 +108,6 @@ static ng_constructor_t	ng_ether_constructor;
 static ng_rcvmsg_t	ng_ether_rcvmsg;
 static ng_shutdown_t	ng_ether_shutdown;
 static ng_newhook_t	ng_ether_newhook;
-static ng_connect_t	ng_ether_connect;
 static ng_rcvdata_t	ng_ether_rcvdata;
 static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
@@ -203,7 +202,6 @@ static struct ng_type ng_ether_typestruct = {
 	.rcvmsg =	ng_ether_rcvmsg,
 	.shutdown =	ng_ether_shutdown,
 	.newhook =	ng_ether_newhook,
-	.connect =	ng_ether_connect,
 	.rcvdata =	ng_ether_rcvdata,
 	.disconnect =	ng_ether_disconnect,
 	.cmdlist =	ng_ether_cmdlist,
@@ -409,18 +407,6 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 
 	/* OK */
 	*hookptr = hook;
-	return (0);
-}
-
-/*
- * Hooks are attached, adjust to force queueing.
- * We don't really care which hook it is.
- * they should all be queuing for outgoing data.
- */
-static	int
-ng_ether_connect(hook_p hook)
-{
-	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	return (0);
 }
 
