@@ -335,8 +335,8 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 	Elf_Sym *es;
 	char *mapbase;
 	void *vtmp;
-	size_t mapsize;
-	int alignmask, error, fd, pb, ra, res, rl;
+	size_t mapsize, alignmask, max_addralign;
+	int error, fd, pb, ra, res, rl;
 	int i, j, nbytes, nsym, shstrindex, symstrindex, symtabindex;
 
 	if (filename == NULL)
@@ -468,12 +468,15 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 
 	/* Size up code/data(progbits) and bss(nobits). */
 	alignmask = 0;
+	max_addralign = 0;
 	mapsize = 0;
 	for (i = 0; i < hdr->e_shnum; i++) {
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
 			alignmask = shdr[i].sh_addralign - 1;
+			if (shdr[i].sh_addralign > max_addralign)
+				max_addralign = shdr[i].sh_addralign;
 			mapsize += alignmask;
 			mapsize &= ~alignmask;
 			mapsize += shdr[i].sh_size;
@@ -482,10 +485,9 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 	}
 
 	/* We know how much space we need for the text/data/bss/etc. */
-	ef->address = malloc(mapsize);
 	ef->size = mapsize;
-	if (ef->address == NULL) {
-		printf("malloc failed\n");
+	if (posix_memalign((void **)&ef->address, max_addralign, mapsize)) {
+		printf("posix_memalign failed\n");
 		goto out;
 	}
 	mapbase = ef->address;
