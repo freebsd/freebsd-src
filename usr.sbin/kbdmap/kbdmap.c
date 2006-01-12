@@ -823,9 +823,6 @@ main(int argc, char **argv)
 
 	program = extract_name(argv[0]);
 
-	/* Parse command line arguments */
-	parse_args(argc, argv);
-
 	font_current = get_font();
 	if (font_current == NULL)
 		font_current = font_default;
@@ -834,6 +831,9 @@ main(int argc, char **argv)
 		dir = fontdir;
 	else
 		dir = keymapdir;
+
+	/* Parse command line arguments */
+	parse_args(argc, argv);
 
 	/* Read and display options */
 	menu_read();
