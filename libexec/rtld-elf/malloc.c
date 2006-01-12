@@ -236,6 +236,22 @@ malloc(nbytes)
   	return ((char *)(op + 1));
 }
 
+void *
+calloc(size_t num, size_t size)
+{
+	void *ret;
+
+	if (size != 0 && (num * size) / size != num) {
+		/* size_t overflow. */
+		return (NULL);
+	}
+
+	if ((ret = malloc(num * size)) != NULL)
+		memset(ret, 0, num * size);
+
+	return (ret);
+}
+
 /*
  * Allocate more memory to the indicated bucket.
  */
