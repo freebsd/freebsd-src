@@ -97,9 +97,9 @@ OS_getSystemUptime(uint32_t *ut)
 			return (SNMP_ERR_GENERR);
 		}
 
-		HRDBG("boot timestamp from kernel: {%ld, %ld}",
-		    kernel_boot_timestamp.tv_sec,
-		    kernel_boot_timestamp.tv_usec);
+		HRDBG("boot timestamp from kernel: {%lld, %ld}",
+		    (long long)kernel_boot_timestamp.tv_sec,
+		    (long)kernel_boot_timestamp.tv_usec);
 
 		kernel_boot = ((uint64_t)kernel_boot_timestamp.tv_sec * 100) +
 		    (kernel_boot_timestamp.tv_usec / 10000);
