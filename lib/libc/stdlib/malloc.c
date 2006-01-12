@@ -1150,6 +1150,50 @@ malloc(size_t size)
     return (pubrealloc(NULL, size, " in malloc():"));
 }
 
+int
+posix_memalign(void **memptr, size_t alignment, size_t size)
+{
+    int err;
+    void *result;
+
+    /* Make sure that alignment is a large enough power of 2. */
+    if (((alignment - 1) & alignment) != 0 || alignment < sizeof(void *))
+	    return (EINVAL);
+
+    /* 
+     * (size & alignment) is enough to assure the requested alignment, since
+     * the allocator always allocates power-of-two blocks.
+     */
+    err = errno; /* Protect errno against changes in pubrealloc(). */
+    result = pubrealloc(NULL, (size & alignment), " in posix_memalign()");
+    errno = err;
+
+    if (result == NULL)
+	return (ENOMEM);
+
+    *memptr = result;
+    return (0);
+}
+
+void *
+calloc(size_t num, size_t size)
+{
+    void *ret;
+
+    if (size != 0 && (num * size) / size != num) {
+	/* size_t overflow. */
+	errno = ENOMEM;
+	return (NULL);
+    }
+
+    ret = pubrealloc(NULL, num * size, " in calloc():");
+
+    if (ret != NULL)
+	memset(ret, 0, num * size);
+
+    return (ret);
+}
+
 void
 free(void *ptr)
 {
@@ -1164,3 +1208,23 @@ realloc(void *ptr, size_t size)
     return (pubrealloc(ptr, size, " in realloc():"));
 }
 
+/*
+ * Begin library-private functions, used by threading libraries for protection
+ * of malloc during fork().  These functions are only called if the program is
+ * running in threaded mode, so there is no need to check whether the program
+ * is threaded here.
+ */
+
+void
+_malloc_prefork(void)
+{
+
+	_spinlock(__malloc_lock);
+}
+
+void
+_malloc_postfork(void)
+{
+
+	_spinunlock(__malloc_lock);
+}

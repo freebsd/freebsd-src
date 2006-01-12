@@ -91,7 +91,7 @@ _fork(void)
 
 	/* Fork a new process: */
 	if (_kse_isthreaded() != 0) {
-		_spinlock(__malloc_lock);
+		_malloc_prefork();
 	}
 	if ((ret = __sys_fork()) == 0) {
 		/* Child process */
@@ -107,8 +107,8 @@ _fork(void)
 		}
 		_thr_mutex_reinit(&_thr_atfork_mutex);
 	} else {
-		if ((_kse_isthreaded() != 0) && (__malloc_lock != NULL)) {
-			_spinunlock(__malloc_lock);
+		if (_kse_isthreaded() != 0) {
+			_malloc_postfork();
 		}
 		errsave = errno; 
 		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
