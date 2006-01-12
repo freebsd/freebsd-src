@@ -219,6 +219,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	s = splhigh();
 	vm_page_insert(page, object, offset);
 	splx(s);
+	m[reqpage] = page;
 
 	return (VM_PAGER_OK);
 }
