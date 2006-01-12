@@ -1161,11 +1161,11 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 	    return (EINVAL);
 
     /* 
-     * (size & alignment) is enough to assure the requested alignment, since
+     * (size | alignment) is enough to assure the requested alignment, since
      * the allocator always allocates power-of-two blocks.
      */
     err = errno; /* Protect errno against changes in pubrealloc(). */
-    result = pubrealloc(NULL, (size & alignment), " in posix_memalign()");
+    result = pubrealloc(NULL, (size | alignment), " in posix_memalign()");
     errno = err;
 
     if (result == NULL)
