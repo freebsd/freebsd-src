@@ -158,7 +158,7 @@ void	 _Exit(int) __dead2;
  * research can be done.
  */
 #if __POSIX_VISIBLE /* >= ??? */
-/* int	 posix_memalign(void **, size_t, size_t); (ADV) */
+int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 rand_r(unsigned *);			/* (TSF) */
 int	 setenv(const char *, const char *, int);
 void	 unsetenv(const char *);
