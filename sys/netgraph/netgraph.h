@@ -411,7 +411,6 @@ static __inline void _chknode(node_p node, char *file, int line);
 static __inline char * _ng_node_name(node_p node, char *file, int line);
 static __inline int _ng_node_has_name(node_p node, char *file, int line);
 static __inline ng_ID_t _ng_node_id(node_p node, char *file, int line);
-void ng_ref_node(node_p node);
 static __inline void _ng_node_ref(node_p node, char *file, int line);
 static __inline int _ng_node_unref(node_p node, char *file, int line);
 static __inline void _ng_node_set_private(node_p node, void * val,
@@ -461,8 +460,7 @@ static __inline void
 _ng_node_ref(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
-	/*_NG_NODE_REF(node);*/
-	ng_ref_node(node);
+	_NG_NODE_REF(node);
 }
 
 static __inline int
