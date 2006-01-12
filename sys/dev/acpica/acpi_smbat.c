@@ -341,26 +341,27 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_STATUS, &val))
 		goto out;
 
-	if (val & SMBATT_BS_DISCHARGING) {
+	sc->bst.state = 0;
+	if (val & SMBATT_BS_DISCHARGING)
 		sc->bst.state |= ACPI_BATT_STAT_DISCHARG;
-
-		/*
-		 * If the rate is negative, it is discharging.  Otherwise,
-		 * it is charging.
-		 */
-		if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_AT_RATE, &val))
-			goto out;
-		if (val < 0)
-			sc->bst.rate = (-val) * factor;
-		else
-			sc->bst.rate = -1;
-	} else {
-		sc->bst.state |= ACPI_BATT_STAT_CHARGING;
-		sc->bst.rate = -1;
-	}
 
 	if (val & SMBATT_BS_REMAINING_CAPACITY_ALARM)
 		sc->bst.state |= ACPI_BATT_STAT_CRITICAL;
+
+	/*
+	 * If the rate is negative, it is discharging.  Otherwise,
+	 * it is charging.
+	 */
+	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_CURRENT, &val))
+		goto out;
+
+	if (val > 0) {
+		sc->bst.rate = val * factor;
+		sc->bst.state |= ACPI_BATT_STAT_CHARGING;
+	} else if (val < 0)
+		sc->bst.rate = (-val) * factor;
+	else
+		sc->bst.rate = 0;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_REMAINING_CAPACITY, &val))
 		goto out;
