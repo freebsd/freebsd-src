@@ -94,12 +94,6 @@ _pthread_atfork(void (*prepare)(void), void (*parent)(void),
 	return (0);
 }
 
-/*
- * For a while, allow libpthread to work with a libc that doesn't
- * export the malloc lock.
- */
-#pragma weak __malloc_lock
-
 __weak_reference(_fork, fork);
 
 pid_t
@@ -129,9 +123,9 @@ _fork(void)
 	 * child process because another thread in malloc code will
 	 * simply be kill by fork().
 	 */
-	if ((_thr_isthreaded() != 0) && (__malloc_lock != NULL)) {
+	if (_thr_isthreaded() != 0) {
 		unlock_malloc = 1;
-		_spinlock(__malloc_lock);
+		_malloc_prefork();
 	} else {
 		unlock_malloc = 0;
 	}
@@ -160,7 +154,7 @@ _fork(void)
 		_thr_umtx_init(&_thr_atfork_lock);
 		_thr_setthreaded(0);
 
-		/* reinitialize libc spinlocks, this includes __malloc_lock. */
+		/* reinitialize libc spinlocks. */
 		_thr_spinlock_init();
 		_mutex_fork(curthread);
 
@@ -183,7 +177,7 @@ _fork(void)
 		_thr_signal_unblock(curthread);
 
 		if (unlock_malloc)
-			_spinunlock(__malloc_lock);
+			_malloc_postfork();
 
 		/* Run down atfork parent handlers. */
 		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
