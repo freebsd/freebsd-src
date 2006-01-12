@@ -1821,8 +1821,9 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 	 * XXXGL: assert this?
 	 */
 	if (!QUEUE_ACTIVE(ngq)) {
-		CTR3(KTR_NET, "%s: node %p queue empty; queue flags 0x%lx",
-		    __func__, ngq->q_node, ngq->q_flags);
+		CTR4(KTR_NET, "%20s: node [%x] (%p) queue empty; "
+		    "queue flags 0x%lx", __func__,
+		    ngq->q_node->nd_ID, ngq->q_node, ngq->q_flags);
 		return (NULL);
 	}
 
@@ -1839,9 +1840,9 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 			 * get called again until something changes.
 			 */
 			ng_worklist_remove(ngq->q_node);
-			CTR3(KTR_NET, "%s: node %p queued reader can't proceed;"
-			    " queue flags 0x%lx",
-			    __func__, ngq->q_node, ngq->q_flags);
+			CTR4(KTR_NET, "%20s: node [%x] (%p) queued reader "
+			    "can't proceed; queue flags 0x%lx", __func__,
+			    ngq->q_node->nd_ID, ngq->q_node, ngq->q_flags);
 			return (NULL);
 		}
 		/*
@@ -1908,9 +1909,9 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 		 * would be a waste of effort to do all this again.
 		 */
 		ng_worklist_remove(ngq->q_node);
-		CTR3(KTR_NET, "%s: node %p can't dequeue anything;"
-		    " queue flags 0x%lx",
-		    __func__, ngq->q_node, ngq->q_flags);
+		CTR4(KTR_NET, "%20s: node [%x] (%p) can't dequeue anything; "
+		    "queue flags 0x%lx", __func__,
+		    ngq->q_node->nd_ID, ngq->q_node, ngq->q_flags);
 		return (NULL);
 	}
 
@@ -1920,9 +1921,9 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 	 */
 	item = ngq->queue;
 	ngq->queue = item->el_next;
-	CTR5(KTR_NET, "%s: node %p dequeued item %p with flags 0x%lx;"
-	    " queue flags 0x%lx",
-	    __func__, ngq->q_node, item, item->el_flags, ngq->q_flags);
+	CTR6(KTR_NET, "%20s: node [%x] (%p) dequeued item %p with flags 0x%lx; "
+	    "queue flags 0x%lx", __func__,
+	    ngq->q_node->nd_ID,ngq->q_node, item, item->el_flags, ngq->q_flags);
 	if (ngq->last == &(item->el_next)) {
 		/*
 		 * that was the last entry in the queue so set the 'last
@@ -1953,8 +1954,9 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 			ng_setisr(ngq->q_node);
 		}
 	}
-	CTR5(KTR_NET, "%s: node %p returning item %p as %s; queue flags 0x%lx",
-	    __func__, ngq->q_node, item, *rw ? "WRITER" : "READER" ,
+	CTR6(KTR_NET, "%20s: node [%x] (%p) returning item %p as %s; "
+	    "queue flags 0x%lx", __func__,
+	    ngq->q_node->nd_ID, ngq->q_node, item, *rw ? "WRITER" : "READER" ,
 	    ngq->q_flags);
 	return (item);
 }
@@ -1976,16 +1978,16 @@ ng_queue_rw(struct ng_queue * ngq, item_p  item, int rw)
 		NGI_SET_READER(item);
 	item->el_next = NULL;	/* maybe not needed */
 	*ngq->last = item;
-	CTR4(KTR_NET, "%s: node %p queued item %p as %s",
-	    __func__, ngq->q_node, item, rw ? "WRITER" : "READER" );
+	CTR5(KTR_NET, "%20s: node [%x] (%p) queued item %p as %s", __func__,
+	    ngq->q_node->nd_ID, ngq->q_node, item, rw ? "WRITER" : "READER" );
 	/*
 	 * If it was the first item in the queue then we need to
 	 * set the last pointer and the type flags.
 	 */
 	if (ngq->last == &(ngq->queue)) {
 		atomic_add_long(&ngq->q_flags, OP_PENDING);
-		CTR2(KTR_NET, "%s: node %p set OP_PENDING",
-		    __func__, ngq->q_node);
+		CTR3(KTR_NET, "%20s: node [%x] (%p) set OP_PENDING", __func__,
+		    ngq->q_node->nd_ID, ngq->q_node);
 	}
 
 	ngq->last = &(item->el_next);
@@ -2026,8 +2028,8 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	atomic_add_long(&ngq->q_flags, READER_INCREMENT);
 	if ((ngq->q_flags & NGQ_RMASK) == 0) {
 		/* Successfully grabbed node */
-		CTR3(KTR_NET, "%s: node %p fast acquired item %p",
-		    __func__, ngq->q_node, item);
+		CTR4(KTR_NET, "%20s: node [%x] (%p) fast acquired item %p",
+		    __func__, ngq->q_node->nd_ID, ngq->q_node, item);
 		return (item);
 	}
 	/* undo the damage if we didn't succeed */
@@ -2046,8 +2048,8 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	if ((ngq->q_flags & NGQ_RMASK) == 0) {
 		atomic_add_long(&ngq->q_flags, READER_INCREMENT);
 		mtx_unlock_spin((&ngq->q_mtx));
-		CTR3(KTR_NET, "%s: node %p slow acquired item %p",
-		    __func__, ngq->q_node, item);
+		CTR4(KTR_NET, "%20s: node [%x] (%p) slow acquired item %p",
+		    __func__, ngq->q_node->nd_ID, ngq->q_node, item);
 		return (item);
 	}
 
@@ -2082,8 +2084,8 @@ restart:
 			atomic_subtract_long(&ngq->q_flags, WRITER_ACTIVE);
 			goto restart;
 		}
-		CTR3(KTR_NET, "%s: node %p acquired item %p",
-		    __func__, ngq->q_node, item);
+		CTR4(KTR_NET, "%20s: node [%x] (%p) acquired item %p",
+		    __func__, ngq->q_node->nd_ID, ngq->q_node, item);
 		return (item);
 	}
 
@@ -3247,7 +3249,8 @@ ngintr(void)
 		node->nd_flags &= ~NGF_WORKQ;	
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
 		mtx_unlock_spin(&ng_worklist_mtx);
-		CTR2(KTR_NET, "%s: node %p taken off worklist", __func__, node);
+		CTR3(KTR_NET, "%20s: node [%x] (%p) taken off worklist",
+		    __func__, node->nd_ID, node);
 		/*
 		 * We have the node. We also take over the reference
 		 * that the list had on it.
@@ -3291,8 +3294,8 @@ ng_worklist_remove(node_p node)
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
 		mtx_unlock_spin(&ng_worklist_mtx);
 		NG_NODE_UNREF(node);
-		CTR2(KTR_NET, "%s: node %p removed from worklist",
-		    __func__, node);
+		CTR3(KTR_NET, "%20s: node [%x] (%p) removed from worklist",
+		    __func__, node->nd_ID, node);
 	} else {
 		mtx_unlock_spin(&ng_worklist_mtx);
 	}
@@ -3319,10 +3322,11 @@ ng_setisr(node_p node)
 		TAILQ_INSERT_TAIL(&ng_worklist, node, nd_work);
 		mtx_unlock_spin(&ng_worklist_mtx);
 		NG_NODE_REF(node); /* XXX fafe in mutex? */
-		CTR2(KTR_NET, "%s: node %p put on worklist", __func__, node);
+		CTR3(KTR_NET, "%20s: node [%x] (%p) put on worklist", __func__,
+		    node->nd_ID, node);
 	} else
-		CTR2(KTR_NET, "%s: node %p already on worklist",
-		    __func__, node);
+		CTR3(KTR_NET, "%20s: node [%x] (%p) already on worklist",
+		    __func__, node->nd_ID, node);
 	schednetisr(NETISR_NETGRAPH);
 }
 
