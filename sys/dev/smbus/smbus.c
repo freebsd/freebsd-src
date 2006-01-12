@@ -50,7 +50,6 @@ static devclass_t smbus_devclass;
  */
 static int smbus_probe(device_t);
 static int smbus_attach(device_t);
-static int smbus_add_child(device_t dev, int order, const char *name, int unit);
 
 static device_method_t smbus_methods[] = {
         /* device interface */
@@ -59,7 +58,6 @@ static device_method_t smbus_methods[] = {
         DEVMETHOD(device_detach,        bus_generic_detach),
 
         /* bus interface */
-        DEVMETHOD(bus_add_child,	smbus_add_child),
         DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
         { 0, 0 }
@@ -88,16 +86,6 @@ static int
 smbus_attach(device_t dev)
 {
 	device_add_child(dev, NULL, -1);
-	bus_generic_attach(dev);
-         
-        return (0);
-}
-
-static int
-smbus_add_child(device_t dev, int order, const char *name, int unit)
-{
-	device_add_child_ordered(dev, order, name, unit);
-
 	bus_generic_attach(dev);
 
 	return (0);
