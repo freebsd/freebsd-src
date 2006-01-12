@@ -3299,7 +3299,7 @@ ng_worklist_remove(node_p node)
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
 		mtx_unlock_spin(&ng_worklist_mtx);
 		NG_NODE_UNREF(node);
-		CTR2(KTR_NET, "%s: node %p removed off worklist",
+		CTR2(KTR_NET, "%s: node %p removed from worklist",
 		    __func__, node);
 	} else {
 		mtx_unlock_spin(&ng_worklist_mtx);
