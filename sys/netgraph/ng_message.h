@@ -78,8 +78,10 @@ struct ng_mesg {
 	char	data[];			/* placeholder for actual data */
 };
 
-/* this command is guaranteed to not alter data or'd into the command */
+/* This command is guaranteed to not alter data (or'd into the command). */
 #define NGM_READONLY	0x10000000
+/* This command is guaranteed to have a reply (or'd into the command). */
+#define NGM_HASREPLY	0x20000000
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
@@ -117,23 +119,35 @@ struct ng_mesg {
  */
 
 /* Generic message type cookie */
-#define NGM_GENERIC_COOKIE	977674408
+#define NGM_GENERIC_COOKIE	1137070366
 
-/* Generic messages defined for this type cookie */
-#define	NGM_SHUTDOWN		1	/* shut down node */
-#define NGM_MKPEER		2	/* create and attach a peer node */
-#define NGM_CONNECT		3	/* connect two nodes */
-#define NGM_NAME		4	/* give a node a name */
-#define NGM_RMHOOK		5	/* break a connection btw. two nodes */
-#define	NGM_NODEINFO		(6|NGM_READONLY)/* get nodeinfo for target */
-#define	NGM_LISTHOOKS		(7|NGM_READONLY)/* get list of hooks on node */
-#define	NGM_LISTNAMES		(8|NGM_READONLY)/* list globally named nodes */
-#define	NGM_LISTNODES		(9|NGM_READONLY)/* list nodes, named & not */
-#define	NGM_LISTTYPES		(10|NGM_READONLY)/* list installed node types */
-#define	NGM_TEXT_STATUS		(11|NGM_READONLY)/* (optional) get txt status */
-#define	NGM_BINARY2ASCII	(12|NGM_READONLY)/* convert ng_mesg to ascii */
-#define	NGM_ASCII2BINARY	(13|NGM_READONLY)/* convert ascii to ng_mesg */
-#define	NGM_TEXT_CONFIG		14	/* (optional) get/set text config */
+/* Generic messages defined for this type cookie. */
+enum {
+	NGM_SHUTDOWN	= 1,	/* Shut down node. */
+	NGM_MKPEER	= 2,	/* Create and attach a peer node. */
+	NGM_CONNECT	= 3,	/* Connect two nodes. */
+	NGM_NAME	= 4,	/* Give a node a name. */
+	NGM_RMHOOK	= 5,	/* Break a connection between two nodes. */
+
+	/* Get nodeinfo for target. */
+	NGM_NODEINFO	= (6|NGM_READONLY|NGM_HASREPLY),
+	/* Get list of hooks on node. */
+	NGM_LISTHOOKS	= (7|NGM_READONLY|NGM_HASREPLY),
+	/* List globally named nodes. */
+	NGM_LISTNAMES	= (8|NGM_READONLY|NGM_HASREPLY),
+	/* List all nodes. */
+	NGM_LISTNODES	= (9|NGM_READONLY|NGM_HASREPLY),
+	/* List installed node types. */
+	NGM_LISTTYPES	= (10|NGM_READONLY|NGM_HASREPLY),
+	/* (optional) Get text status. */
+	NGM_TEXT_STATUS	= (11|NGM_READONLY|NGM_HASREPLY),
+	/* Convert struct ng_mesg to ASCII. */
+	NGM_BINARY2ASCII= (12|NGM_READONLY|NGM_HASREPLY),
+	/* Convert ASCII to struct ng_mesg. */
+	NGM_ASCII2BINARY= (13|NGM_READONLY|NGM_HASREPLY),
+	/* (optional) Get/set text config. */
+	NGM_TEXT_CONFIG	= 14,
+};
 
 /*
  * Flow control and intra node control messages.
