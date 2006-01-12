@@ -32,7 +32,7 @@
 .\"     @(#)valloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 13, 2005
 .Dt VALLOC 3
 .Os
 .Sh NAME
@@ -48,9 +48,9 @@
 .Bf -symbolic
 The
 .Fn valloc
-function is obsoleted by the current version of
-.Xr malloc 3 ,
-which aligns page-sized and larger allocations.
+function is obsoleted by
+.Xr posix_memalign 3 ,
+which can be used to request page-aligned allocations.
 .Ef
 .Pp
 The
@@ -59,23 +59,23 @@ function
 allocates
 .Fa size
 bytes aligned on a page boundary.
-It is implemented by calling
-.Xr malloc 3
-with a slightly larger request, saving the true beginning of the block
-allocated, and returning a properly aligned pointer.
 .Sh RETURN VALUES
 The
 .Fn valloc
 function returns
 a pointer to the allocated space if successful; otherwise
-a null pointer is returned
+a null pointer is returned.
+.Sh SEE ALSO
+.Xr posix_memalign 3
 .Sh HISTORY
 The
 .Fn valloc
 function appeared in
 .Bx 3.0 .
-.Sh BUGS
-A
-.Fn vfree
-function
-has not been implemented.
+.Pp
+The
+.Fn valloc
+function correctly allocated memory that could be deallocated via
+.Fn free
+in
+.Bx 7.0 .
