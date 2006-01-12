@@ -36,7 +36,6 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-#include <assert.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <stdint.h>
