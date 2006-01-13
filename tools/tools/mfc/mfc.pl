@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "0.4.3";
+my $version = "0.4.4";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -125,6 +125,10 @@ sub previous_revision($)
 	return 0 if ($rev =~ /^1\.1$/);
 	@rev = split '\.', $rev;
 	return undef unless @rev;
+	if (($#rev % 2) != 1) {
+		pop @rev;
+		return join ".", @rev;
+	}
 	if ($rev[-1] == 1) {
 		pop @rev;
 		return &previous_revision(join ".", @rev);
