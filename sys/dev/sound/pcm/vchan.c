@@ -440,8 +440,15 @@ vchan_create(struct pcm_channel *parent)
 							device_get_unit(parent->dev),
 								"vchanrate", &speed);
 				CHN_LOCK(parent);
-				if (r != 0)
+				if (r != 0) {
 					speed = VCHAN_DEFAULT_SPEED;
+					/*
+					 * Workaround for sb16 running
+					 * poorly at 45k.
+					 */
+					if (speed > parent_caps->maxspeed)
+						speed = 44100;
+				}
 			}
 
 			/*
