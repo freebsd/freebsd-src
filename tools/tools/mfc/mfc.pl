@@ -63,9 +63,14 @@ my $commit_date;
 my %mfc_files = ( );
 my %new_files = ( );
 my %dead_files = ( );
+my @msgids = ( );
 my @logmsg = ( );
 my @commitmail = ( );
 my $commiturl;
+my @prs;
+my @submitted_by;
+my @reviewed_by;
+my @obtained_from;
 my $cdiff;
 my $answer;
 my $mfc_func = \&mfc_headers;
@@ -88,6 +93,7 @@ sub init()
 	my $opt_string = 'f:hi:m:s:v';
 	getopts( "$opt_string", \%opt ) or usage();
 	usage() if !$opt{i} or $opt{h};
+	@msgids = split / /, $opt{m} if (defined($opt{m}));
 }
 
 sub usage()
@@ -103,13 +109,14 @@ Options:
   -f file    : commit mail file to use ('-' for stdin)
   -h         : this (help) message
   -i id      : identifier used to save commit log message and patch
-  -m msg-id  : message-id referring to the original commit
+  -m msg-id  : message-id referring to the original commit (you can use more than one)
   -s query   : search commit mail archives (a filename with his revision is a good search)
   -v         : be a little more verbose
 Examples:
   $0 -m 200601081417.k08EH4EN027418 -i uscanner
   $0 -s "param.h 1.41" -i move_acpi
   $0 -f commit.txt -i id
+  $0 -m "200601081417.k08EH4EN027418 200601110806.k0B86m9C054798" -i consecutive
 
 Please report bugs to: Florent Thoumie <flz\@FreeBSD.org>
 EOF
@@ -184,11 +191,11 @@ sub search_mail($)
 sub fetch_diff($)
 {
 	my $name = $_[0];
-	my $old = previous_revision($mfc_files{$name});
-	my $new = $mfc_files{$name};
+	my $old = $mfc_files{$name}{"from"};
+	my $new = $mfc_files{$name}{"to"};
 
 	# CVSWeb uses rcsdiff instead of cvs rdiff, that's a problem for deleted and new files.
-	if ($new_files{$name} or $dead_files{$name}) {
+	if (exists($new_files{$name}) or exists($dead_files{$name})) {
 		print "    Generating diff for $name using cvs rdiff...\n";
 		system("cvs -d $cvsroot rdiff -u -r$old -r$new $name >> $mfchome/$opt{i}/patch 2>/dev/null");
 	} else {
@@ -205,7 +212,9 @@ sub mfc_headers($)
 		# Skipped headers (probably a copy/paste from sobomax MFC reminder).
 		mfc_author($_[0]);
 	} else {
-		# Nothing
+		if ($_[0] =~ /^Message-Id:\s*(\S+)$/ and ($opt{v} or $opt{s})) {
+			print "Message-Id is $1.\n";
+		}
 	}
 }
 
@@ -216,6 +225,8 @@ sub mfc_author($)
 	}
 	$commit_author = $1;
 	$commit_date = $2;	
+
+	print "Committed by $commit_author on $commit_date.\n";
 
 	$mfc_func = \&mfc_modified_files;
 }
@@ -242,15 +253,81 @@ sub mfc_revisions($)
 {
 	my $name;
 	my $rev;
+	my $prev;
 
 	return if ($_[0] =~ /^$/);
+	if (!($_[0] =~ /^\s+(\S+)\s+\S+\s+\S+\s+(\S+)/)) {
+		# Probably two consecutive cut/paste commit mails.
+		$mfc_func = \&mfc_headers;
+		mfc_headers($_[0]);
+		return;
+	} else {
+		$_[0] =~ /\s+(\S+)\s+\S+\s+\S+\s+(\S+)/;
+		$name = $2;
+		$rev = $1;
 
-	$_[0] =~ /\s+(\S+)\s+\S+\s+\S+\s+(\S+)/;
-	$name = $2;
-	$rev = $1;
-	$mfc_files{$name} = $rev;
-	$new_files{$name} = "foo" if ($_[0] =~ /\(new\)$/);
-	$dead_files{$name} = "foo" if ($_[0] =~ /\(dead\)$/);
+		$new_files{$name} = undef if ($_[0] =~ /\(new\)$/);
+		$dead_files{$name} = undef if ($_[0] =~ /\(dead\)$/);
+		
+		if (defined($mfc_files{$name}{"from"})) {
+			$prev = previous_revision($rev);
+			if ($mfc_files{$name}{"to"} =~ /^$prev$/) {
+				$mfc_files{$name}{"to"} = $rev;
+			} else {
+				die "Non-consecutive revisions found for $name.";
+			}
+		} else {
+			$mfc_files{$name}{"to"} = $rev;
+			$mfc_files{$name}{"from"} = previous_revision($rev);
+		}
+	}
+}
+
+sub strip_log(@) {
+	my $tmp;
+
+	while ($logmsg[$#logmsg] =~ /^\s*$/ or $logmsg[$#logmsg] =~ /^\s\s\w+(\s\w+)*:\s+\w+(\s+\w+)*/) {
+		$tmp = pop(@logmsg);
+		$tmp =~ s/^\s*//;
+		chomp($tmp);
+		if ($tmp =~ /^PR:\s+(.*)/) {
+			push(@prs, $1);
+		}
+		if ($tmp =~ /^Submitted by:\s+(.*)/) {
+			push(@submitted_by, $1);
+		}
+		if ($tmp =~ /^Reviewed by:\s+(.*)/) {
+			push(@reviewed_by, $1);
+		}
+		if ($tmp =~ /^Obtained from:\s+(.*)/) {
+			push(@obtained_from, $1);
+		}
+	}
+}
+
+sub print_epilog {
+	my $tmp;
+
+	if ($#prs >= 0) {
+		$tmp = join(", ", @prs);
+		chomp($tmp);
+		print MSG "PR:\t\t$tmp\n";
+	}
+	if ($#submitted_by >= 0) {
+		$tmp = join(", ", @submitted_by);
+		chomp($tmp);
+		print MSG "Submitted by:\t$tmp\n";
+	}
+	if ($#reviewed_by >= 0) {
+		$tmp = join(", ", @reviewed_by);
+		chomp($tmp);
+		print MSG "Reviewed by:\t$tmp\n";
+	}
+	if ($#obtained_from >= 0) {
+		$tmp = join(", ", @obtained_from);
+		chomp($tmp);
+		print MSG "Obtained from:\t$tmp\n";
+	}
 }
 
 init();
@@ -260,17 +337,23 @@ if ($opt{s}) {
 	$commiturl = search_mail($opt{s});
 	print "Fetching commit mail from www.freebsd.org...\n";
 	@commitmail = `fetch -q -o - $commiturl`;
+	$mfc_func->($_) foreach (@commitmail);
+	strip_log(@logmsg);
 } elsif ($opt{f}) {
 	open MAIL, $opt{f} || die "Can't open $opt{f} for reading.";
 	@commitmail = <MAIL>;	
 	close MAIL;
+	$mfc_func->($_) foreach (@commitmail);
+	strip_log(@logmsg);
 } else { # $opt{m}
-	print "Fetching commit mail from www.freebsd.org...\n";
-	$commiturl = fetch_mail($opt{m});
-	@commitmail = `fetch -q -o - $commiturl`;
+	foreach (@msgids) {
+		print "Fetching commit mail from www.freebsd.org...\n";
+		$commiturl = fetch_mail($_);
+		@commitmail = `fetch -q -o - $commiturl`;
+		$mfc_func->($_) foreach (@commitmail);
+		strip_log(@logmsg);
+	}
 }
-
-$mfc_func->($_) foreach (@commitmail);
 
 die "Doesn't seem you gave me a real commit mail." if ($mfc_func == \&mfc_headers);
 die "No file affected by commit?" if (scalar(keys(%mfc_files)) == 0);
@@ -279,12 +362,10 @@ die "No file affected by commit?" if (scalar(keys(%mfc_files)) == 0);
 system("mkdir -p $mfchome/$opt{i}");
 system("cat /dev/null > $mfchome/$opt{i}/patch");
 
-print "Committed by $commit_author on $commit_date.\n";
-
 if ($opt{v} or $opt{s}) {
-	# Print files touched by commit.
-	print "Files touched by commit:\n";
-	print "    ", $_, " -> rev ", $mfc_files{$_}, "\n" foreach (keys(%mfc_files));
+	# Print files touched by commit(s).
+	print "Files touched by commit(s):\n";
+	print "    ", $_, ": rev ", $mfc_files{$_}{"from"}, " -> ", $mfc_files{$_}{"to"}, "\n" foreach (keys(%mfc_files));
 }
 
 if ($opt{s}) {
@@ -305,14 +386,17 @@ if ($mfclogin) {
 	# Create commit message from previous commit message.
 	print "Processing commit message...\n";
 	# Chop empty lines Template lines like "Approved by: (might be dangerous)".
-	pop(@logmsg) while ($logmsg[$#logmsg] =~ /^\s*$/ or $logmsg[$#logmsg] =~ /^\s\s\w+(\s\w+)*:\s+\w+(\s+\w+)*/);
 	open MSG, "> $mfchome/$opt{i}/msg" || die "Can't open $mfchome/$opt{i}/msg for writing.";
 	print MSG "MFC:\n\n";
 	
 	# Append merged file names and revisions to the commit message.
 	print MSG $_ foreach (@logmsg);
 	print MSG "\n";
-	print MSG "      ", $_, ": rev ", $mfc_files{$_}, "\n" foreach (keys(%mfc_files));
+	print MSG "      ", $_, ": rev ", $mfc_files{$_}{"from"}, "-> ", $mfc_files{$_}{"to"}, "\n" foreach (keys(%mfc_files));
+
+	# Append useful info gathered from Submitted/Obtained/... lines.
+	print MSG "\n";
+	print_epilog();
 	close MSG;
 
 	# Create commit script.
