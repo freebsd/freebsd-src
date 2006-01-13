@@ -363,6 +363,22 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Motorola" , "Motorola Phone",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Qware BeatZkey! Pro
+		 * PR: usb/79164
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "GENERIC", "USB DISK DEVICE",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Time DPA20B 1GB MP3 Player
+		 * PR: usb/81846
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB2.0*", "(FS) FLASH DISK*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
