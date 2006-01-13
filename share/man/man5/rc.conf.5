@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2006
+.Dd January 12, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -112,6 +112,11 @@ systems mounted to get access to the
 directories; for example when
 .Pa /usr/local
 is NFS mounted.
+For
+.Pa rc.conf
+within a
+.Xr jail 8
+NETWORKING is likely to be an appropriate value.
 Extreme care should be taken when changing this value,
 and before changing it one should ensure that there are
 adequate provisions to recover from a failed boot
@@ -3442,6 +3447,7 @@ device and the mount point will be changed.
 .Xr ipnat 8 ,
 .Xr isdnd 8 ,
 .Xr isdntrace 8 ,
+.Xr jail 8 ,
 .Xr kldxref 8 ,
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
