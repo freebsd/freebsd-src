@@ -716,7 +716,159 @@ out:
 }
 
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
-#define	snderr(errno)	{ error = (errno); goto release; }
+
+int
+sosend_dgram(so, addr, uio, top, control, flags, td)
+	struct socket *so;
+	struct sockaddr *addr;
+	struct uio *uio;
+	struct mbuf *top;
+	struct mbuf *control;
+	int flags;
+	struct thread *td;
+{
+	long space, resid;
+	int clen = 0, error, dontroute;
+	int atomic = sosendallatonce(so) || top;
+
+	KASSERT(so->so_type == SOCK_DGRAM, ("sodgram_send: !SOCK_DGRAM"));
+	KASSERT(so->so_proto->pr_flags & PR_ATOMIC,
+	    ("sodgram_send: !PR_ATOMIC"));
+
+	if (uio != NULL)
+		resid = uio->uio_resid;
+	else
+		resid = top->m_pkthdr.len;
+	/*
+	 * In theory resid should be unsigned.
+	 * However, space must be signed, as it might be less than 0
+	 * if we over-committed, and we must use a signed comparison
+	 * of space and resid.  On the other hand, a negative resid
+	 * causes us to loop sending 0-length segments to the protocol.
+	 *
+	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
+	 * type sockets since that's an error.
+	 */
+	if (resid < 0) {
+		error = EINVAL;
+		goto out;
+	}
+
+	dontroute =
+	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0;
+	if (td != NULL)
+		td->td_proc->p_stats->p_ru.ru_msgsnd++;
+	if (control != NULL)
+		clen = control->m_len;
+
+	SOCKBUF_LOCK(&so->so_snd);
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+		SOCKBUF_UNLOCK(&so->so_snd);
+		error = EPIPE;
+		goto out;
+	}
+	if (so->so_error) {
+		error = so->so_error;
+		so->so_error = 0;
+		SOCKBUF_UNLOCK(&so->so_snd);
+		goto out;
+	}
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
+		/*
+		 * `sendto' and `sendmsg' is allowed on a connection-
+		 * based socket if it supports implied connect.
+		 * Return ENOTCONN if not connected and no address is
+		 * supplied.
+		 */
+		if ((so->so_proto->pr_flags & PR_CONNREQUIRED) &&
+		    (so->so_proto->pr_flags & PR_IMPLOPCL) == 0) {
+			if ((so->so_state & SS_ISCONFIRMING) == 0 &&
+			    !(resid == 0 && clen != 0)) {
+				SOCKBUF_UNLOCK(&so->so_snd);
+				error = ENOTCONN;
+				goto out;
+			}
+		} else if (addr == NULL) {
+			if (so->so_proto->pr_flags & PR_CONNREQUIRED)
+				error = ENOTCONN;
+			else
+				error = EDESTADDRREQ;
+			SOCKBUF_UNLOCK(&so->so_snd);
+			goto out;
+		}
+	}
+
+	/*
+	 * Do we need MSG_OOB support in SOCK_DGRAM?  Signs here may be a
+	 * problem and need fixing.
+	 */
+	space = sbspace(&so->so_snd);
+	if (flags & MSG_OOB)
+		space += 1024;
+	space -= clen;
+	if (resid > space) {
+		error = EMSGSIZE;
+		goto out;
+	}
+	SOCKBUF_UNLOCK(&so->so_snd);
+	if (uio == NULL) {
+		resid = 0;
+		if (flags & MSG_EOR)
+			top->m_flags |= M_EOR;
+	} else {
+		error = sosend_copyin(uio, &top, atomic, &space, flags);
+		if (error)
+			goto out;
+		resid = uio->uio_resid;
+	}
+	KASSERT(resid == 0, ("sosend_dgram: resid != 0"));
+	/*
+	 * XXXRW: Frobbing SO_DONTROUTE here is even worse without sblock
+	 * than with.
+	 */
+	if (dontroute) {
+		SOCK_LOCK(so);
+		so->so_options |= SO_DONTROUTE;
+		SOCK_UNLOCK(so);
+	}
+	/*
+	 * XXX all the SBS_CANTSENDMORE checks previously
+	 * done could be out of date.  We could have recieved
+	 * a reset packet in an interrupt or maybe we slept
+	 * while doing page faults in uiomove() etc. We could
+	 * probably recheck again inside the locking protection
+	 * here, but there are probably other places that this
+	 * also happens.  We must rethink this.
+	 */
+	error = (*so->so_proto->pr_usrreqs->pru_send)(so,
+	    (flags & MSG_OOB) ? PRUS_OOB :
+	/*
+	 * If the user set MSG_EOF, the protocol
+	 * understands this flag and nothing left to
+	 * send then use PRU_SEND_EOF instead of PRU_SEND.
+	 */
+	    ((flags & MSG_EOF) &&
+	     (so->so_proto->pr_flags & PR_IMPLOPCL) &&
+	     (resid <= 0)) ?
+		PRUS_EOF :
+		/* If there is more to send set PRUS_MORETOCOME */
+		(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
+		top, addr, control, td);
+	if (dontroute) {
+		SOCK_LOCK(so);
+		so->so_options &= ~SO_DONTROUTE;
+		SOCK_UNLOCK(so);
+	}
+	clen = 0;
+	control = NULL;
+	top = NULL;
+out:
+	if (top != NULL)
+		m_freem(top);
+	if (control != NULL)
+		m_freem(control);
+	return (error);
+}
 
 /*
  * Send on a socket.
@@ -735,7 +887,7 @@ out:
  * must check for short counts if EINTR/ERESTART are returned.
  * Data and control buffers are freed on return.
  */
-
+#define	snderr(errno)	{ error = (errno); goto release; }
 int
 sosend(so, addr, uio, top, control, flags, td)
 	struct socket *so;
@@ -897,6 +1049,7 @@ out:
 		m_freem(control);
 	return (error);
 }
+#undef snderr
 
 /*
  * The part of soreceive() that implements reading non-inline out-of-band
