@@ -96,24 +96,30 @@ struct	vlanreq {
 #define	MTAG_VLAN	1035328035
 #define	MTAG_VLAN_TAG	0		/* tag of VLAN interface */
 
-#define	VLAN_INPUT_TAG(_ifp, _m, _t, _errcase) do {		\
+/*
+ * This macro must expand to a lvalue so that it can be used
+ * to set a tag with a simple assignment.
+ */
+#define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt) + 1))
+
+#define	VLAN_INPUT_TAG(_ifp, _m, _t) do {			\
 	struct m_tag *mtag;					\
 	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG,		\
 			   sizeof (u_int), M_NOWAIT);		\
-	if (mtag == NULL) {					\
+	if (mtag != NULL) {					\
+		VLAN_TAG_VALUE(mtag) = (_t);			\
+		m_tag_prepend((_m), mtag);			\
+		(_m)->m_flags |= M_VLANTAG;			\
+	} else {						\
 		(_ifp)->if_ierrors++;				\
 		m_freem(_m);					\
-		_errcase;					\
+		_m = NULL;					\
 	}							\
-	*(u_int *)(mtag+1) = (_t);				\
-	m_tag_prepend((_m), mtag);				\
-	(_m)->m_flags |= M_VLANTAG;				\
 } while (0)
 
 #define	VLAN_OUTPUT_TAG(_ifp, _m)				\
 	((_m)->m_flags & M_VLANTAG ?				\
 		m_tag_locate((_m), MTAG_VLAN, MTAG_VLAN_TAG, NULL) : NULL)
-#define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt)+1))
 #endif /* _KERNEL */
 
 #endif /* _NET_IF_VLAN_VAR_H_ */

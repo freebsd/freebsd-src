@@ -1670,9 +1670,12 @@ re_rxeof(sc)
 			}
 		}
 
-		if (rxvlan & RL_RDESC_VLANCTL_TAG)
+		if (rxvlan & RL_RDESC_VLANCTL_TAG) {
 			VLAN_INPUT_TAG(ifp, m,
-			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA)), continue);
+			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA)));
+			if (m == NULL)
+				continue;
+		}
 		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		RL_LOCK(sc);

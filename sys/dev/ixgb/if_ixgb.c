@@ -2152,8 +2152,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 						      adapter->fmp);
 				if (current_desc->status & IXGB_RX_DESC_STATUS_VP)
 					VLAN_INPUT_TAG(ifp, adapter->fmp,
-						       current_desc->special,
-						       adapter->fmp = NULL);
+						       current_desc->special);
 
 				if (adapter->fmp != NULL) {
 					IXGB_UNLOCK(adapter);
