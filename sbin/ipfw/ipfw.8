@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2005
+.Dd January 16, 2006
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1524,6 +1524,19 @@ the routing table (see
 .Xr route 4 ) .
 .Pp
 Lookup tables currently support IPv4 addresses only.
+.Pp
+The
+.Cm tablearg
+feature provides the ability to use a value, looked up in the table, as
+the argument for a rule action.
+This can significantly reduce number of rules in some configurations.
+The
+.Cm tablearg
+argument can be used with the following actions:
+.Cm pipe , queue, divert, tee, netgraph, ngtee .
+See the
+.Sx EXAMPLES
+Section for example usage of tables and the tablearg keyword.
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
 .Em sets
@@ -2426,6 +2439,23 @@ on a net with per-host limits, rather than per-network limits:
 .Dl "ipfw add pipe 2 ip from any to 192.168.2.0/24 in"
 .Dl "ipfw pipe 1 config mask src-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
 .Dl "ipfw pipe 2 config mask dst-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Ss LOOKUP TABLES
+In the following example, we need to create several traffic bandwidth
+classes and we need different hosts/networks to fall into different classes.
+We create one pipe for each class and configure them accordingly.
+Then we create a single table and fill it with IP subnets and addresses.
+For each subnet/host we set the argument equal to the number of the pipe
+that it should use.
+Then we classify traffic using a single rule:
+.Pp
+.Dl "ipfw pipe 1 config bw 1000Kbyte/s"
+.Dl "ipfw pipe 4 config bw 4000Kbyte/s"
+.Dl "..."
+.Dl "ipfw table 1 add 192.168.2.0/24 1"
+.Dl "ipfw table 1 add 192.168.0.0/27 4"
+.Dl "ipfw table 1 add 192.168.0.2 1"
+.Dl "..."
+.Dl "ipfw pipe tablearg ip from table(1) to any"
 .Ss SETS OF RULES
 To add a set of rules atomically, e.g.\& set 18:
 .Pp
