@@ -1228,7 +1228,7 @@ nge_rxeof(sc)
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
-			VLAN_INPUT_TAG(ifp, m,
+			VLAN_INPUT_TAG_NEW(ifp, m,
 			    ntohs(extsts & NGE_RXEXTSTS_VTCI));
 			if (m == NULL)
 				continue;
