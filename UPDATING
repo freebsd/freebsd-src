@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060113:
+	libc's malloc implementation has been replaced.  This change has the
+	potential to uncover application bugs that previously went unnoticed.
+	See the malloc(3) manual page for more details.
+
 20060112:
 	The generic netgraph(4) cookie has been changed. If you upgrade
 	kernel passing this point, you also need to upgrade userland
