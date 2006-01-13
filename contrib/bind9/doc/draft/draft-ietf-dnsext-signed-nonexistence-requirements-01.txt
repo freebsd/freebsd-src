@@ -1,0 +1,755 @@
+
+
+Network Working Group                                          B. Laurie
+Internet-Draft                                                   Nominet
+Expires: March 2, 2005                                         R. Loomis
+                                                                    SAIC
+                                                          September 2004
+
+
+
+      Requirements related to DNSSEC Signed Proof of Non-Existence
+         draft-ietf-dnsext-signed-nonexistence-requirements-01
+
+
+Status of this Memo
+
+
+   This document is an Internet-Draft and is subject to all provisions
+   of section 3 of RFC 3667.  By submitting this Internet-Draft, each
+   author represents that any applicable patent or other IPR claims of
+   which he or she is aware have been or will be disclosed, and any of
+   which he or she become aware will be disclosed, in accordance with
+   RFC 3668.
+
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as
+   Internet-Drafts.
+
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt.
+
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+
+   This Internet-Draft will expire on March 2, 2005.
+
+
+Copyright Notice
+
+
+   Copyright (C) The Internet Society (2004).
+
+
+Abstract
+
+
+   DNSSEC-bis uses the NSEC record to provide authenticated denial of
+   existence of RRsets.  NSEC also has the side-effect of permitting
+   zone enumeration, even if zone transfers have been forbidden.
+   Because some see this as a problem, this document has been assembled
+   to detail the possible requirements for denial of existence A/K/A
+   signed proof of non-existence.
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 1]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+Table of Contents
+
+
+   1.   Introduction . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.   Non-purposes . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.   Zone Enumeration . . . . . . . . . . . . . . . . . . . . . .   3
+   4.   Zone Enumeration II  . . . . . . . . . . . . . . . . . . . .   4
+   5.   Zone Enumeration III . . . . . . . . . . . . . . . . . . . .   4
+   6.   Exposure of Contents . . . . . . . . . . . . . . . . . . . .   4
+   7.   Zone Size  . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   8.   Single Method  . . . . . . . . . . . . . . . . . . . . . . .   5
+   9.   Empty Non-terminals  . . . . . . . . . . . . . . . . . . . .   5
+   10.  Prevention of Precomputed Dictionary Attacks . . . . . . . .   6
+   11.  DNSSEC-Adoption and Zone-Growth Relationship . . . . . . . .   6
+   12.  Non-overlap of denial records with possible zone records . .   7
+   13.  Exposure of Private Keys . . . . . . . . . . . . . . . . . .   7
+   14.  Minimisation of Zone Signing Cost  . . . . . . . . . . . . .   8
+   15.  Minimisation of Asymmetry  . . . . . . . . . . . . . . . . .   8
+   16.  Minimisation of Client Complexity  . . . . . . . . . . . . .   8
+   17.  Completeness . . . . . . . . . . . . . . . . . . . . . . . .   8
+   18.  Purity of Namespace  . . . . . . . . . . . . . . . . . . . .   8
+   19.  Replay Attacks . . . . . . . . . . . . . . . . . . . . . . .   8
+   20.  Compatibility with NSEC  . . . . . . . . . . . . . . . . . .   8
+   21.  Compatibility with NSEC II . . . . . . . . . . . . . . . . .   9
+   22.  Compatibility with NSEC III  . . . . . . . . . . . . . . . .   9
+   23.  Coexistence with NSEC  . . . . . . . . . . . . . . . . . . .   9
+   24.  Coexistence with NSEC II . . . . . . . . . . . . . . . . . .   9
+   25.  Protocol Design  . . . . . . . . . . . . . . . . . . . . . .   9
+   26.  Process  . . . . . . . . . . . . . . . . . . . . . . . . . .   9
+   27.  Acknowledgements . . . . . . . . . . . . . . . . . . . . . .   9
+   28.  Requirements notation  . . . . . . . . . . . . . . . . . . .   9
+   29.  Security Considerations  . . . . . . . . . . . . . . . . . .  10
+   30.  References . . . . . . . . . . . . . . . . . . . . . . . . .  10
+   30.1   Normative References . . . . . . . . . . . . . . . . . . .  10
+   30.2   Informative References . . . . . . . . . . . . . . . . . .  10
+        Authors' Addresses . . . . . . . . . . . . . . . . . . . . .  10
+        Intellectual Property and Copyright Statements . . . . . . .  11
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 2]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+1.  Introduction
+
+
+   NSEC records allow trivial enumeration of zones - a situation that
+   has existed for several years but which has recently been raised as a
+   significant concern for DNSSECbis deployment in several zones.
+   Alternate proposals have been made that make zone enumeration more
+   difficult, and some previous proposals to modify DNSSEC had related
+   requirements/desirements that are relevant to the discussion.  In
+   addition the original designs for NSEC/NXT records were based on
+   working group discussions and the choices made were not always
+   documented with context and requirements-- so some of those choices
+   may need to be restated as requirements.  Overall, the working group
+   needs to better understand the requirements for denial of existence
+   (and certain other requirements related to DNSSECbis deployment) in
+   order to evaluate the proposals that may replace NSEC.
+
+
+   In the remainder of this document, "NSEC++" is used as shorthand for
+   "a denial of existence proof that will replace NSEC".  "NSECbis" has
+   also been used as shorthand for this, but we avoid that usage since
+   NSECbis will not be part of DNSSECbis and therefore there might be
+   some confusion.
+
+
+2.  Non-purposes
+
+
+   This document does not currently document the reasons why zone
+   enumeration might be "bad" from a privacy, security, business, or
+   other perspective--except insofar as those reasons result in
+   requirements.  Once the list of requirements is complete and vaguely
+   coherent, the trade-offs (reducing zone enumeration will have X cost,
+   while providing Y benefit) may be revisited.  The editors of this
+   compendium received inputs on the potential reasons why zone
+   enumeration is bad (and there was significant discussion on the
+   DNSEXT WG mailing list) but that information fell outside the scope
+   of this document.
+
+
+   Note also that this document does not assume that NSEC *must* be
+   replaced with NSEC++, if the requirements can be met through other
+   methods (e.g., "white lies" with the current NSEC).  As is stated
+   above, this document is focused on requirements collection and
+   (ideally) prioritization rather than on the actual implementation.
+
+
+3.  Zone Enumeration
+
+
+   Authenticated denial should not permit trivial zone enumeration.
+
+
+   Additional discussion:  NSEC (and NXT before it) provide a linked
+   list that could be "walked" to trivially enumerate all the signed
+   records in a zone.  This requirement is primarily (though not
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 3]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   exclusively) important for zones that either are delegation-only/
+   -mostly or do not have reverse lookup (PTR) records configured, since
+   enterprises that have PTR records for all A records have already
+   provided a similar capability to enumerate the contents of DNS zones.
+
+
+   Contributor: various
+
+
+4.  Zone Enumeration II
+
+
+   Zone enumeration should be at least as difficult as it would be to
+   effect a dictionary attack using simple DNS queries to do the same in
+   an unsecured zone.
+
+
+   (Editor comment: it is not clear how to measure difficulty in this
+   case.  Some examples could be monetary cost, bandwidth, processing
+   power or some combination of these.  It has also been suggested that
+   the requirement is that the graph of difficulty of enumeration vs.
+   the fraction of the zone enumerated should be approximately the same
+   shape in the two cases)
+
+
+   Contributor: Nominet
+
+
+5.  Zone Enumeration III
+
+
+   Enumeration of a zone with random contents should computationally
+   infeasible.
+
+
+   Editor comment: this is proposed as a way of evaluating the
+   effectiveness of a proposal rather than as a requirement anyone would
+   actually have in practice.
+
+
+   Contributor: Alex Bligh
+
+
+6.  Exposure of Contents
+
+
+   NSEC++ should not expose any of the contents of the zone (apart from
+   the NSEC++ records themselves, of course).
+
+
+   Editor comment: this is a weaker requirement than prevention of
+   enumeration, but certainly any zone that satisfied this requirement
+   would also satisfy the trivial prevention of enumeration requirement.
+
+
+   Contributor: Ed Lewis
+
+
+7.  Zone Size
+
+
+   Requirement:  NSEC++ should make it possible to take precautions
+   against trivial zone size estimates.  Since not all zone owners care
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 4]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   about others estimation of the size of a zone, it is not always
+   necessary to prohibit trivial estimation of the size of the zone but
+   NSEC++ should allow such measures.
+
+
+   Additional Discussion: Even with proposals based on obfuscating names
+   with hashes it is trivial to give very good estimates of the number
+   of domains in a certain zone.  Just send 10 random queries and look
+   at the range between the two hash values returned in each NSEC++.  As
+   hash output can be assumed to follow a rectangular random
+   distribution, using the mean difference between the two values, you
+   can estimate the total number of records.  It is probably sufficient
+   to look at even one NSEC++, since the two hash values should follow a
+   (I believe) Poisson distribution.
+
+
+   The concern is motivated by some wording remembered from NSEC, which
+   stated that NSEC MUST only be present for existing owner names in the
+   zone, and MUST NOT be present for non-existing owner names.  If
+   similar wording were carried over to NSEC++, introducing bogus owner
+   names in the hash chain (an otherwise simple solution to guard
+   against trivial estimates of zone size) wouldn't be allowed.
+
+
+   One simple attempt at solving this is to describe in the
+   specifications how zone signer tools can add a number of random
+   "junk" records.
+
+
+   Editor's comment: it is interesting that obfuscating names might
+   actually make it easier to estimate zone size.
+
+
+   Contributor: Simon Josefsson.
+
+
+8.  Single Method
+
+
+   Requirement:  A single NSEC++ method must be able to carry both
+   old-style denial (i.e.  plain labels) and whatever the new style
+   looks like.  Having two separate denial methods could result in
+   cornercases where one method can deny the other and vice versa.
+
+
+   Additional discussion:  This requirement can help -bis folks to a
+   smooth upgrade to -ter.  First they'd change the method while the
+   content is the same, then they can change content of the method.
+
+
+   Contributor: Roy Arends.
+
+
+9.  Empty Non-terminals
+
+
+   Requirement:  Empty-non-terminals (ENT) should remain empty.  In
+   other words, adding NSEC++ records to an existing DNS structure
+   should not cause the creation of NSEC++ records (or related records)
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 5]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   at points that are otherwise ENT.
+
+
+   Additional discussion:  Currently NSEC complies with ENT requirement:
+   b.example.com NSEC a.c.example.com implies the existence of an ENT
+   with ownername c.example.com.  NSEC2 breaks that requirement, since
+   the ownername is entirely hashed causing the structure to disappear.
+   This is why EXIST was introduced.  But EXIST causes ENT to be
+   non-empty-terminals.  Next to the dissappearance of ENT, it causes
+   (some) overhead since an EXIST record needs a SIG, NSEC2 and
+   SIG(NSEC2).  DNSNR honours this requirement by hashing individual
+   labels instead of ownernames.  However this causes very long labels.
+   Truncation is a measure against very long ownernames, but that is
+   controversial.  There is a fair discussion of the validity of
+   truncation in the DNSNR draft, but that hasn't got proper review yet.
+
+
+   Contributor: Roy Arends.
+
+
+   (Editor comment: it is not clear to us that an EXIST record needs an
+   NSEC2 record, since it is a special purpose record only used for
+   denial of existence)
+
+
+10.  Prevention of Precomputed Dictionary Attacks
+
+
+   Requirement:  NSEC++ needs to provide a method to reduce the
+   effectiveness of precomputed dictionary attacks.
+
+
+   Additional Discussion:  Salt is a measure against dictionary attacks.
+   There are other possible measures (such as iterating hashes in
+   NSEC2).  The salt needs to be communicated in every response, since
+   it is needed in every verification.  Some have suggested to move the
+   salt to a special record instead of the denial record.  I think this
+   is not wise.  Response size has more priority over zone size.  An
+   extra record causes a larger response than a larger existing record.
+
+
+   Contributor: Roy Arends.
+
+
+   (Editor comment: the current version of NSEC2 also has the salt in
+   every NSEC2 record)
+
+
+11.  DNSSEC-Adoption and Zone-Growth Relationship
+
+
+   Background:  Currently with NSEC, when a delegation centric zone
+   deploys DNSSEC, the zone-size multiplies by a non-trivial factor even
+   when the DNSSEC-adoption rate of the subzones remains low--because
+   each delegation point creates at least one NSEC record and
+   corresponding signature in the parent even if the child is not
+   signed.
+
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 6]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   Requirements:  A delegation-only (or delegation-mostly) zone that is
+   signed but which has no signed child zones should initially need only
+   to add SIG(SOA), DNSKEY, and SIG(DNSKEY) at the apex, along with some
+   minimal set of NSEC++ records to cover zone contents.  Further,
+   during the transition of a delegation-only zone from 0% signed
+   children to 100% signed children, the growth in the delegation-only
+   zone should be roughly proportional to the percentage of signed child
+   zones.
+
+
+   Additional Discussion: This is why DNSNR has the Authoritative Only
+   bit.  This is similar to opt-in for delegations only.  This (bit) is
+   currently the only method to help delegation-centric zone cope with
+   zone-growth due to DNSSEC adoption.  As an example, A delegation only
+   zone which deploys DNSSEC with the help of this bit, needs to add
+   SIG(SOA), DNSKEY, SIG(DNSKEY), DNSNR, SIG(DNSNR) at the apex.  No
+   more than that.
+
+
+   Contributor: Roy Arends.
+
+
+12.  Non-overlap of denial records with possible zone records
+
+
+   Requirement:  NSEC++ records should in some way be differentiated
+   from regular zone records, so that there is no possibility that a
+   record in the zone could be duplicated by a non-existence proof
+   (NSEC++) record.
+
+
+   Additional discussion:  This requirement is derived from a discussion
+   on the DNSEXT mailing list related to copyrights and domain names.
+   As was outlined there, one solution is to put NSEC++ records in a
+   separate namespace, e.g.: $ORIGIN co.uk.
+   873bcdba87401b485022b8dcd4190e3e IN NS jim.rfc1035.com ; your
+   delegation 873bcdba87401b485022b8dcd4190e3e._no IN NSEC++ 881345...
+   ; for amazon.co.uk.
+
+
+   Contributor: various
+
+
+   (Editor comment:  One of us still does not see why a conflict
+   matters.  Even if there is an apparent conflict or overlap, the
+   "conflicting" NSEC2 name _only_ appears in NSEC2 records, and the
+   other name _never_ appears in NSEC2 records.)
+
+
+13.  Exposure of Private Keys
+
+
+   Private keys associated with the public keys in the DNS should be
+   exposed as little as possible.  It is highly undesirable for private
+   keys to be distributed to nameservers, or to otherwise be available
+   in the run-time environment of nameservers.
+
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 7]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   Contributors: Nominet, Olaf Kolkman, Ed Lewis
+
+
+14.  Minimisation of Zone Signing Cost
+
+
+   The additional cost of creating an NSEC++ signed zone should not
+   significantly exceed the cost of creating an ordinary signed zone.
+
+
+   Contributor: Nominet
+
+
+15.  Minimisation of Asymmetry
+
+
+   Nameservers should have to do as little additional work as necessary.
+   More precisely, it is desirable for any increase in cost incurred by
+   the nameservers to be offset by a proportionate increase in cost to
+   DNS `clients', e.g.  stub and/or `full-service' resolvers.
+
+
+   Contributor: Nominet
+
+
+16.  Minimisation of Client Complexity
+
+
+   Caching, wildcards, CNAMEs, DNAMEs should continue to work without
+   adding too much complexity at the client side.
+
+
+   Contributor: Olaf Kolkman
+
+
+17.  Completeness
+
+
+   A proof of nonexistence should be possible for all nonexistent data
+   in the zone.
+
+
+   Contributor: Olaf Kolkman
+
+
+18.  Purity of Namespace
+
+
+   The name space should not be muddied with fake names or data sets.
+
+
+   Contributor: Ed Lewis
+
+
+19.  Replay Attacks
+
+
+   NSEC++ should not allow a replay to be used to deny existence of an
+   RR that actually exists.
+
+
+   Contributor: Ed Lewis
+
+
+20.  Compatibility with NSEC
+
+
+   NSEC++ should not introduce changes incompatible with NSEC.
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 8]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   Contributor: Ed Lewis
+
+
+21.  Compatibility with NSEC II
+
+
+   NSEC++ should differ from NSEC in a way that is transparent to the
+   resolver or validator.
+
+
+   Contributor: Ed Lewis
+
+
+22.  Compatibility with NSEC III
+
+
+   NSEC++ should differ from NSEC as little as possible whilst achieving
+   other requirements.
+
+
+   Contributor: Alex Bligh
+
+
+23.  Coexistence with NSEC
+
+
+   NSEC++ should be optional, allowing NSEC to be used instead.
+
+
+   Contributor: Ed Lewis, Alex Bligh
+
+
+24.  Coexistence with NSEC II
+
+
+   NSEC++ should not impose extra work on those content with NSEC.
+
+
+   Contributor: Ed Lewis
+
+
+25.  Protocol Design
+
+
+   A good security protocol would allow signing the nonexistence of some
+   selected names without revealing anything about other names.
+
+
+   Contributor: Dan Bernstein
+
+
+26.  Process
+
+
+   Clearly not all of these requirements can be met.  Therefore the next
+   phase of this document will be to either prioritise them or narrow
+   them down to a non-contradictory set, which should then allow us to
+   judge proposals on the basis of their fit.
+
+
+27.  Acknowledgements
+
+
+28.  Requirements notation
+
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                  [Page 9]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+   document are to be interpreted as            described in [RFC2119].
+
+
+29.  Security Considerations
+
+
+   There are currently no security considerations called out in this
+   draft.  There will be security considerations in the choice of which
+   requirements will be implemented, but there are no specific security
+   requirements during the requirements collection process.
+
+
+30.  References
+
+
+30.1  Normative References
+
+
+   [dnssecbis-protocol]
+              "DNSSECbis Protocol Definitions", BCP XX, RFC XXXX, Some
+              Month 2004.
+
+
+30.2  Informative References
+
+
+   [RFC2026]  Bradner, S., "The Internet Standards Process -- Revision
+              3", BCP 9, RFC 2026, October 1996.
+
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+
+   [RFC2418]  Bradner, S., "IETF Working Group Guidelines and
+              Procedures", BCP 25, RFC 2418, September 1998.
+
+
+
+Authors' Addresses
+
+
+   Ben Laurie
+   Nominet
+   17 Perryn Road
+   London  W3 7LR
+   England
+
+
+   Phone: +44 (20) 8735 0686
+   EMail: ben@algroup.co.uk
+
+
+
+   Rip Loomis
+   Science Applications International Corporation
+   7125 Columbia Gateway Drive, Suite 300
+   Columbia, MD  21046
+   US
+
+
+   EMail: gilbert.r.loomis@saic.com
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                 [Page 10]
+Internet-Draft      signed-nonexistence-requirements      September 2004
+
+
+
+Intellectual Property Statement
+
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+
+
+Disclaimer of Validity
+
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+Copyright Statement
+
+
+   Copyright (C) The Internet Society (2004).  This document is subject
+   to the rights, licenses and restrictions contained in BCP 78, and
+   except as set forth therein, the authors retain all their rights.
+
+
+
+Acknowledgment
+
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+Laurie & Loomis          Expires March 2, 2005                 [Page 11]
