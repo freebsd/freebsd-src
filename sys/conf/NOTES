@@ -1924,7 +1924,6 @@ device		"snd_t4dwave"
 device		"snd_via8233"
 device		"snd_via82c686"
 device		snd_vibes
-#device		"snd_vortex1"
 device		snd_uaudio
 
 #
