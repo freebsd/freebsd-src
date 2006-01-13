@@ -473,8 +473,10 @@ ef_clone(struct ef_link *efl, int ft)
 	efp->ef_pifp = ifp;
 	efp->ef_frametype = ft;
 	eifp = efp->ef_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
+	if (eifp == NULL) {
+		free(efp, M_IFADDR);
 		return (ENOSPC);
+	}
 	snprintf(eifp->if_xname, IFNAMSIZ,
 	    "%sf%d", ifp->if_xname, efp->ef_frametype);
 	eifp->if_dname = "ef";
