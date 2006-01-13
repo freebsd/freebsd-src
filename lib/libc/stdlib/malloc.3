@@ -13,11 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2004
+.Dd January 12, 2006
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -67,25 +63,9 @@ The
 .Fn malloc
 function allocates
 .Fa size
-bytes of memory.
+bytes of uninitialized memory.
 The allocated space is suitably aligned (after possible pointer coercion)
 for storage of any type of object.
-If the space is at least
-.Va pagesize
-bytes in length (see
-.Xr getpagesize 3 ) ,
-the returned memory will be page boundary aligned as well.
-If
-.Fn malloc
-fails, a
-.Dv NULL
-pointer is returned.
-.Pp
-Note that
-.Fn malloc
-does
-.Em NOT
-normally initialize the returned memory to zero bytes.
 .Pp
 The
 .Fn calloc
@@ -113,20 +93,14 @@ The contents of the memory are unchanged up to the lesser of the new and
 old sizes.
 If the new size is larger,
 the value of the newly allocated portion of the memory is undefined.
-If the requested memory cannot be allocated,
-.Dv NULL
-is returned and
-the memory referenced by
-.Fa ptr
-is valid and unchanged.
-If memory can be allocated, the memory referenced by
+Upon success, the memory referenced by
 .Fa ptr
 is freed and a pointer to the newly allocated memory is returned.
 Note that
 .Fn realloc
 and
 .Fn reallocf
-may move the memory allocation resulting in a different return value than
+may move the memory allocation, resulting in a different return value than
 .Fa ptr .
 If
 .Fa ptr
@@ -182,34 +156,46 @@ flags being set) become fatal.
 The process will call
 .Xr abort 3
 in these cases.
+.It C
+Increase/decrease the size of the cache by a factor of two.
+The default cache size is 256 objects for each arena.
+This option can be specified multiple times.
 .It J
 Each byte of new memory allocated by
 .Fn malloc ,
 .Fn realloc
 or
 .Fn reallocf
-as well as all memory returned by
+will be initialized to 0xa5.
+All memory returned by
 .Fn free ,
 .Fn realloc
 or
 .Fn reallocf
-will be initialized to 0xd0.
-This options also sets the
-.Dq R
-option.
+will be initialized to 0x5a.
 This is intended for debugging and will impact performance negatively.
-.It H
-Pass a hint to the kernel about pages unused by the allocation functions.
-This will help performance if the system is paging excessively.
-This option is off by default.
-.It R
-Causes the
-.Fn realloc
-and
-.Fn reallocf
-functions to always reallocate memory even if the initial allocation was
-sufficiently large.
-This can substantially aid in compacting memory.
+.It K
+Increase/decrease the virtual memory chunk size by a factor of two.
+The default chunk size is 16 MB.
+This option can be specified multiple times.
+.It N
+Increase/decrease the number of arenas by a factor of two.
+The default number of arenas is twice the number of CPUs, or one if there is a
+single CPU.
+This option can be specified multiple times.
+.It P
+Various statistics are printed at program exit via an
+.Xr atexit 3
+function.
+This has the potential to cause deadlock for a multi-threaded process that exits
+while one or more threads are executing in the memory allocation functions.
+Therefore, this option should only be used with care; it is primarily intended
+as a performance tuning aid during application development.
+.It Q
+Increase/decrease the size of the allocation quantum by a factor of two.
+The default quantum is the minimum allowed by the architecture (typically 8 or
+16 bytes).
+This option can be specified multiple times.
 .It U
 Generate
 .Dq utrace
@@ -241,20 +227,18 @@ the source code:
 _malloc_options = "X";
 .Ed
 .It Z
-This option implicitly sets the
-.Dq J
+Each byte of new memory allocated by
+.Fn malloc ,
+.Fn realloc
+or
+.Fn reallocf
+will be initialized to 0x0.
+Note that this initialization only happens once for each byte, so
+.Fn realloc
 and
-.Dq R
-options, and then zeros out the bytes that were requested.
+.Fn reallocf
+calls do not zero memory that was previously allocated.
 This is intended for debugging and will impact performance negatively.
-.It <
-Reduce the size of the cache by a factor of two.
-The default cache size is 16 pages.
-This option can be specified multiple times.
-.It >
-Double the size of the cache by a factor of two.
-The default cache size is 16 pages.
-This option can be specified multiple times.
 .El
 .Pp
 The
@@ -301,31 +285,63 @@ deallocates it in this case.
 The
 .Fn free
 function returns no value.
+.Sh IMPLEMENTATION NOTES
+This allocator uses multiple arenas in order to reduce lock contention for
+threaded programs on multi-processor systems.
+This works well with regard to threading scalability, but incurs some costs.
+There is a small fixed per-arena overhead, and additionally, arenas manage
+memory completely independently of each other, which means a small fixed
+increase in overall memory fragmentation.
+These overheads aren't generally an issue, given the number of arenas normally
+used.
+Note that using substantially more arenas than the default is not likely to
+improve performance, mainly due to reduced cache performance.
+However, it may make sense to reduce the number of arenas if an application
+does not make much use of the allocation functions.
+.Pp
+This allocator uses a novel approach to object caching.
+For objects below a size threshold (use the
+.Dq P
+option to discover the threshold), full deallocation and attempted coalescence
+with adjacent memory regions are delayed.
+This is so that if the application requests an allocation of that size soon
+thereafter, the request can be met much more quickly.
+Most applications heavily use a small number of object sizes, so this caching
+has the potential to have a large positive performance impact.
+However, the effectiveness of the cache depends on the cache being large enough
+to absorb typical fluctuations in the number of allocated objects.
+If an application routinely fluctuates by thousands of objects, then it may
+make sense to increase the size of the cache.
+Conversely, if an application's memory usage fluctuates very little, it may
+make sense to reduce the size of the cache, so that unused regions can be
+coalesced sooner.
+.Pp
+This allocator is very aggressive about tightly packing objects in memory, even
+for objects much larger than the system page size.
+For programs that allocate objects larger than half the system page size, this
+has the potential to reduce memory footprint in comparison to other allocators.
+However, it has some side effects that are important to keep in mind.
+First, even multi-page objects can start at non-page-aligned addresses, since
+the implementation only guarantees quantum alignment.
+Second, this tight packing of objects can cause objects to share L1 cache
+lines, which can be a performance issue for multi-threaded applications.
+There are two ways to approach these issues.
+First,
+.Fn posix_memalign
+provides the ability to align allocations as needed.
+By aligning an allocation to at least the L1 cache line size, and padding the
+allocation request by one cache line unit, the programmer can rest assured that
+no cache line sharing will occur for the object.
+Second, the
+.Dq Q
+option can be used to force all allocations to be aligned with the L1 cache
+lines.
+This approach should be used with care though, because although easy to
+implement, it means that all allocations must be at least as large as the
+quantum, which can cause severe internal fragmentation if the application
+allocates many small objects.
 .Sh DEBUGGING MALLOC PROBLEMS
-The major difference between this implementation and other allocation
-implementations is that the free pages are not accessed unless allocated,
-and are aggressively returned to the kernel for reuse.
-.Bd -ragged -offset indent
-Most allocation implementations will store a data structure containing a
-linked list in the free chunks of memory,
-used to tie all the free memory together.
-That can be suboptimal,
-as every time the free-list is traversed,
-the otherwise unused, and likely paged out,
-pages are faulted into primary memory.
-On systems which are paging,
-this can result in a factor of five increase in the number of page-faults
-done by a process.
-.Ed
-.Pp
-A side effect of this architecture is that many minor transgressions on
-the interface which would traditionally not be detected are in fact
-detected.
-As a result, programs that have been running happily for
-years may suddenly start to complain loudly, when linked with this
-allocation implementation.
-.Pp
-The first and most important thing to do is to set the
+The first thing to do is to set the
 .Dq A
 option.
 This option forces a coredump (if possible) at the first sign of trouble,
@@ -335,16 +351,15 @@ It is probably also a good idea to recompile the program with suitable
 options and symbols for debugger support.
 .Pp
 If the program starts to give unusual results, coredump or generally behave
-differently without emitting any of the messages listed in the next
+differently without emitting any of the messages mentioned in the next
 section, it is likely because it depends on the storage being filled with
 zero bytes.
-Try running it with
+Try running it with the
 .Dq Z
 option set;
 if that improves the situation, this diagnosis has been confirmed.
 If the program still misbehaves,
-the likely problem is accessing memory outside the allocated area,
-more likely after than before the allocated area.
+the likely problem is accessing memory outside the allocated area.
 .Pp
 Alternatively, if the symptoms are not easy to reproduce, setting the
 .Dq J
@@ -356,20 +371,14 @@ option, if supported by the kernel, can provide a detailed trace of
 all calls made to these functions.
 .Pp
 Unfortunately this implementation does not provide much detail about
-the problems it detects, the performance impact for storing such information
+the problems it detects; the performance impact for storing such information
 would be prohibitive.
-There are a number of allocation implementations available on the 'Net
-which focus on detecting and pinpointing problems by trading performance
-for extra sanity checks and detailed diagnostics.
+There are a number of allocation implementations available on the Internet
+which focus on detecting and pinpointing problems by trading performance for
+extra sanity checks and detailed diagnostics.
 .Sh DIAGNOSTIC MESSAGES
-If
-.Fn malloc ,
-.Fn calloc ,
-.Fn realloc
-or
-.Fn free
-detect an error or warning condition,
-a message will be printed to file descriptor STDERR_FILENO.
+If any of the memory allocation/deallocation functions detect an error or
+warning condition, a message will be printed to file descriptor STDERR_FILENO.
 Errors will result in the process dumping core.
 If the
 .Dq A
@@ -383,65 +392,11 @@ the
 .Dv stderr
 file descriptor is not suitable for this.
 Please note that doing anything which tries to allocate memory in
-this function will assure death of the process.
+this function is likely to result in a crash or deadlock.
 .Pp
-The following is a brief description of possible error messages and
-their meanings:
-.Pp
+All messages are prefixed by:
 .Bl -diag
-.It "(ES): mumble mumble mumble"
-The allocation functions were compiled with
-.Dq EXTRA_SANITY
-defined, and an error was found during the additional error checking.
-Consult the source code for further information.
-.It "mmap(2) failed, check limits"
-This most likely means that the system is dangerously overloaded or that
-the process' limits are incorrectly specified.
-.It "freelist is destroyed"
-The internal free-list has been corrupted.
-.It "out of memory"
-The
-.Dq X
-option was specified and an allocation of memory failed.
-.El
-.Pp
-The following is a brief description of possible warning messages and
-their meanings:
-.Bl -diag
-.It "chunk/page is already free"
-The process attempted to
-.Fn free
-memory which had already been freed.
-.It "junk pointer, ..."
-A pointer specified to one of the allocation functions points outside the
-bounds of the memory of which they are aware.
-.It "malloc() has never been called"
-No memory has been allocated,
-yet something is being freed or
-realloc'ed.
-.It "modified (chunk-/page-) pointer"
-The pointer passed to
-.Fn free
-or
-.Fn realloc
-has been modified.
-.It "pointer to wrong page"
-The pointer that
-.Fn free ,
-.Fn realloc ,
-or
-.Fn reallocf
-is trying to free does not reference a possible page.
-.It "recursive call"
-A process has attempted to call an allocation function recursively.
-This is not permitted.
-In particular, signal handlers should not
-attempt to allocate memory.
-.It "unknown char in MALLOC_OPTIONS"
-An unknown option was specified.
-Even with the
-.Dq A
-option set, this warning is still only a warning.
+.It <progname>: (malloc)
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of the allocation
@@ -454,11 +409,10 @@ is set, the characters it contains will be interpreted as flags to the
 allocation functions.
 .El
 .Sh EXAMPLES
-To set a systemwide reduction of cache size, and to dump core whenever
-a problem occurs:
+To dump core whenever a problem occurs:
 .Pp
 .Bd -literal -offset indent
-ln -s 'A<' /etc/malloc.conf
+ln -s 'A' /etc/malloc.conf
 .Ed
 .Pp
 To specify in the source that a program does no return value checking
@@ -467,12 +421,12 @@ on calls to these functions:
 _malloc_options = "X";
 .Ed
 .Sh SEE ALSO
-.Xr brk 2 ,
 .Xr mmap 2 ,
 .Xr alloca 3 ,
+.Xr atexit 3 ,
 .Xr getpagesize 3 ,
-.Xr memory 3
-.Pa /usr/share/doc/papers/malloc.ascii.gz
+.Xr memory 3 ,
+.Xr posix_memalign 3
 .Sh STANDARDS
 The
 .Fn malloc ,
@@ -483,25 +437,7 @@ and
 functions conform to
 .St -isoC .
 .Sh HISTORY
-The present allocation implementation started out as a file system for a
-drum attached to a 20bit binary challenged computer which was built
-with discrete germanium transistors.
-It has since graduated to
-handle primary storage rather than secondary.
-It first appeared in its new shape and ability in
-.Fx 2.2 .
-.Pp
 The
 .Fn reallocf
 function first appeared in
 .Fx 3.0 .
-.Sh AUTHORS
-.An Poul-Henning Kamp Aq phk@FreeBSD.org
-.Sh BUGS
-The messages printed in case of problems provide no detail about the
-actual values.
-.Pp
-It can be argued that returning a
-.Dv NULL
-pointer when asked to
-allocate zero bytes is a silly response to a silly question.
