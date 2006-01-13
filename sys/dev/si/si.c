@@ -541,7 +541,8 @@ try_next:
 			pp->sp_pend = IDLE_CLOSE;
 			pp->sp_state = 0;	/* internal flag */
 #ifdef SI_DEBUG
-			sprintf(pp->sp_name, "si%r%r", unit, x);
+			sprintf(pp->sp_name, "si%r%r", unit,
+			    (int)(pp - sc->sc_ports));
 #endif
 			tp = pp->sp_tty = ttyalloc();
 			tp->t_sc = pp;
@@ -552,7 +553,8 @@ try_next:
 			tp->t_oproc = si_start;
 			tp->t_param = siparam;
 			tp->t_stop = si_stop;
-			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "A%r%r", unit, x);
+			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "A%r%r", unit
+ 			    (int)(pp - sc->sc_ports));
 		}
 try_next2:
 		if (modp->sm_next == 0) {
@@ -576,7 +578,9 @@ try_next2:
 		done_chartimes = 1;
 	}
 
-	make_dev(&si_Scdevsw, 0, 0, 0, 0600, "si_control");
+	if (unit == 0)
+		make_dev(&si_Scdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+		    "si_control");
 	return (0);
 }
 
