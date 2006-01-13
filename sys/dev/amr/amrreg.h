@@ -124,9 +124,8 @@
 #define AMR_CMD_PASS_64		0xc3
 #define AMR_CMD_EXTPASS		0xe3
 
-#define AMR_CONFIG_READ_NVRAM_CONFIG   0x04
-#define AMR_CONFIG_WRITE_NVRAM_CONFIG  0x0d
-#define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY       0x01
+#define AMR_CONFIG_READ_NVRAM_CONFIG	0x04
+#define AMR_CONFIG_WRITE_NVRAM_CONFIG	0x0d
 #define AMR_CONFIG_PRODUCT_INFO		0x0e
 #define AMR_CONFIG_ENQ3			0x0f
 #define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY	0x01
@@ -392,8 +391,9 @@ struct amr_enquiry3
     u_int16_t	ae_opstatus[AMR_40LD_MAXDRIVES / 8];	/* operation status per drive */
     u_int32_t	ae_drivesize[AMR_40LD_MAXDRIVES];	/* logical drive size */
     u_int8_t	ae_driveprop[AMR_40LD_MAXDRIVES];	/* logical drive properties */
-    u_int8_t	ae_drivestate[AMR_40LD_MAXDRIVES];	/* physical drive state */
-    u_int16_t	ae_driveformat[AMR_40LD_MAXPHYSDRIVES];
+    u_int8_t	ae_drivestate[AMR_40LD_MAXDRIVES];	/* logical drive state */
+    u_int8_t	ae_pdrivestate[AMR_40LD_MAXPHYSDRIVES];	/* physical drive state */
+    u_int16_t	ae_pdriveformat[AMR_40LD_MAXPHYSDRIVES / 16];
     u_int8_t	ae_targxfer[80];			/* physical drive transfer rates */
 
     u_int8_t	res1[263];		/* pad to 1024 bytes */
