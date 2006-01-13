@@ -794,18 +794,31 @@ es1370_init(struct es_info *es)
 int
 es1371_init(struct es_info *es)
 {
-	uint32_t cssr, devid, revid;
+	uint32_t cssr, devid, revid, subdev;
 	int idx;
 
 	ES_LOCK(es);
 	/* This is NOT ES1370 */
 	es->escfg = ES_SET_IS_ES1370(es->escfg, 0);
 	es->num = 0;
-	es->ctrl = CTRL_JYSTK_EN;
 	es->sctrl = 0;
 	cssr = 0;
 	devid = pci_get_devid(es->dev);
 	revid = pci_get_revid(es->dev);
+	subdev = (pci_get_subdevice(es->dev) << 16) | pci_get_subvendor(es->dev);
+	/*
+	 * Joyport blacklist. Either we're facing with broken hardware
+	 * or because this hardware need special (unknown) initialization
+	 * procedures.
+	 */
+	switch (subdev) {
+	case 0x20001274:	/* old Ensoniq */
+		es->ctrl = 0;
+		break;
+	default:
+		es->ctrl = CTRL_JYSTK_EN;
+		break;
+	}
 	if (devid == CT4730_PCI_ID) {
 		/* XXX amplifier hack? */
 		es->ctrl |= (1 << 16);
