@@ -202,8 +202,12 @@ stat_display(struct xferstat *xs, int force)
 
 	fprintf(stderr, "\r%-46.46s", xs->name);
 	if (xs->size <= 0) {
+		setproctitle("%s [%s]", xs->name, stat_bytes(xs->rcvd));
 		fprintf(stderr, "        %s", stat_bytes(xs->rcvd));
 	} else {
+		setproctitle("%s [%d%% of %s]", xs->name,
+		    (int)((100.0 * xs->rcvd) / xs->size),
+		    stat_bytes(xs->size));
 		fprintf(stderr, "%3d%% of %s",
 		    (int)((100.0 * xs->rcvd) / xs->size),
 		    stat_bytes(xs->size));
@@ -420,17 +424,17 @@ fetch(char *URL, const char *path)
 		r = stat(path, &sb);
 		if (r == 0 && r_flag && S_ISREG(sb.st_mode)) {
 			url->offset = sb.st_size;
-		} else {
+		} else if (r == -1 || !S_ISREG(sb.st_mode)) {
 			/*
 			 * Whatever value sb.st_size has now is either
 			 * wrong (if stat(2) failed) or irrelevant (if the
 			 * path does not refer to a regular file)
 			 */
 			sb.st_size = -1;
-			if (r == -1 && errno != ENOENT) {
-				warnx("%s: stat()", path);
-				goto failure;
-			}
+		}
+		if (r == -1 && errno != ENOENT) {
+			warnx("%s: stat()", path);
+			goto failure;
 		}
 	}
 
