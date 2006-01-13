@@ -155,6 +155,8 @@ static void em_media_status(struct ifnet *, struct ifmediareq *);
 static int  em_media_change(struct ifnet *);
 static void em_identify_hardware(struct adapter *);
 static int  em_allocate_pci_resources(struct adapter *);
+static int  em_allocate_intr(struct adapter *);
+static void em_free_intr(struct adapter *);
 static void em_free_pci_resources(struct adapter *);
 static void em_local_timer(void *);
 static int  em_hardware_init(struct adapter *);
@@ -513,6 +515,8 @@ em_attach(device_t dev)
 	/* Setup OS specific network interface */
 	em_setup_interface(dev, adapter);
 
+	em_allocate_intr(adapter);
+
 	/* Initialize statistics */
 	em_clear_hw_cntrs(&adapter->hw);
 	em_update_stats_counters(adapter);
@@ -553,6 +557,7 @@ err_rx_desc:
         em_dma_free(adapter, &adapter->txdma);
 err_tx_desc:
 err_pci:
+	em_free_intr(adapter);
         em_free_pci_resources(adapter);
 	EM_LOCK_DESTROY(adapter);
         return(error);
@@ -582,17 +587,7 @@ em_detach(device_t dev)
 		ether_poll_deregister(ifp);
 #endif
 
-	if (adapter->res_interrupt != NULL) {
-		bus_teardown_intr(dev, adapter->res_interrupt, 
-				  adapter->int_handler_tag);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, 
-				     adapter->res_interrupt);
-		adapter->res_interrupt = NULL;
-		if (adapter->tq != NULL) {
-			taskqueue_drain(adapter->tq, &adapter->rxtx_task);
-			taskqueue_drain(taskqueue_fast, &adapter->link_task);
-		}
-	}
+	em_free_intr(adapter);
 	EM_LOCK(adapter);
 	adapter->in_detach = 1;
 	em_stop(adapter);
@@ -2030,11 +2025,18 @@ em_allocate_pci_resources(struct adapter * adapter)
 		return(ENXIO);
 	}
 
-	/*
-	 * XXX The interrupt shouldn't be set up until the driver and the
-	 * chip is more initialized.
-	 */
-	em_disable_intr(adapter);
+	adapter->hw.back = &adapter->osdep;
+
+	return(0);
+}
+
+int
+em_allocate_intr(struct adapter *adapter)
+{
+	device_t        dev = adapter->dev;
+
+	/* Manually turn off all interrupts */
+	E1000_WRITE_REG(&adapter->hw, IMC, 0xffffffff);
 
 	/*
 	 * Try allocating a fast interrupt and the associated deferred
@@ -2071,10 +2073,26 @@ em_allocate_pci_resources(struct adapter * adapter)
 		}
 	}
 
-	adapter->hw.back = &adapter->osdep;
 	em_enable_intr(adapter);
+	return (0);
+}
 
-	return(0);
+static void
+em_free_intr(struct adapter *adapter)
+{
+	device_t dev = adapter->dev;
+
+	if (adapter->res_interrupt != NULL) {
+		bus_teardown_intr(dev, adapter->res_interrupt, 
+				  adapter->int_handler_tag);
+		adapter->int_handler_tag = NULL;
+	}
+	if (adapter->tq != NULL) {
+		taskqueue_drain(adapter->tq, &adapter->rxtx_task);
+		taskqueue_drain(taskqueue_fast, &adapter->link_task);
+		taskqueue_free(adapter->tq);
+		adapter->tq = NULL;
+	}
 }
 
 static void
@@ -2082,12 +2100,7 @@ em_free_pci_resources(struct adapter * adapter)
 {
 	device_t dev = adapter->dev;
 
-	if (adapter->tq != NULL) {
-		taskqueue_free(adapter->tq);
-	}
 	if (adapter->res_interrupt != NULL) {
-		bus_teardown_intr(dev, adapter->res_interrupt, 
-				  adapter->int_handler_tag);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, 
 				     adapter->res_interrupt);
 	}
