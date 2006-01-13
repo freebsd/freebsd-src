@@ -2862,7 +2862,7 @@ bge_rxeof(sc)
 		 * attach that information to the packet.
 		 */
 		if (have_tag) {
-			VLAN_INPUT_TAG(ifp, m, vlan_tag);
+			VLAN_INPUT_TAG_NEW(ifp, m, vlan_tag);
 			if (m == NULL)
 				continue;
 		}

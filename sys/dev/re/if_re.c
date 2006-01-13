@@ -1671,7 +1671,7 @@ re_rxeof(sc)
 		}
 
 		if (rxvlan & RL_RDESC_VLANCTL_TAG) {
-			VLAN_INPUT_TAG(ifp, m,
+			VLAN_INPUT_TAG_NEW(ifp, m,
 			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA)));
 			if (m == NULL)
 				continue;
