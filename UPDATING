@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060112:
+	The generic netgraph(4) cookie has been changed. If you upgrade
+	kernel passing this point, you also need to upgrade userland
+	and netgraph(4) utilities like ports/net/mpd or ports/net/mpd4.
+
 20060106:
 	The kernel ABI was mostly destroyed due to a change in the size
 	of struct lock_object which is nested in other structures such
