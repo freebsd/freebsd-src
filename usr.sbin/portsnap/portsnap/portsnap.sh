@@ -255,9 +255,11 @@ fetch_check_params() {
 
 # Perform sanity checks and set some final parameters
 # in preparation for extracting or updating ${PORTSDIR}
+# Complain if ${PORTSDIR} exists but is not writable,
+# but don't complain if ${PORTSDIR} doesn't exist.
 extract_check_params() {
 	_WORKDIR_bad="Directory does not exist: "
-	_PORTSDIR_bad="Directory does not exist or is not writable: "
+	_PORTSDIR_bad="Directory is not writable: "
 
 	if ! [ -d "${WORKDIR}" ]; then
 		echo -n "`basename $0`: "
@@ -265,7 +267,7 @@ extract_check_params() {
 		echo ${WORKDIR}
 		exit 1
 	fi
-	if ! [ -d "${PORTSDIR}" -a -w "${PORTSDIR}" ]; then
+	if [ -d "${PORTSDIR}" ] && ! [ -w "${PORTSDIR}" ]; then
 		echo -n "`basename $0`: "
 		echo -n "${_PORTSDIR_bad}"
 		echo ${PORTSDIR}
@@ -812,6 +814,8 @@ extract_metadata() {
 
 # Do the actual work involved in "extract"
 extract_run() {
+	mkdir -p ${PORTSDIR} || return 1
+
 	if !
 		if ! [ -z "${EXTRACTPATH}" ]; then
 			grep "^${EXTRACTPATH}" ${WORKDIR}/INDEX
