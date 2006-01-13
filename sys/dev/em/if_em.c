@@ -3017,9 +3017,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
                                 if (current_desc->status & E1000_RXD_STAT_VP)
 					VLAN_INPUT_TAG(ifp, adapter->fmp,
 					    (le16toh(current_desc->special) &
-					    E1000_RXD_SPC_VLAN_MASK),
-					    adapter->fmp = NULL);
-
+					    E1000_RXD_SPC_VLAN_MASK));
 				m = adapter->fmp;
 				adapter->fmp = NULL;
 				adapter->lmp = NULL;
