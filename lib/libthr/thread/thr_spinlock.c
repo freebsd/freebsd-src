@@ -40,7 +40,7 @@
 
 #include "thr_private.h"
 
-#define	MAX_SPINLOCKS	20
+#define	MAX_SPINLOCKS	72
 
 /*
  * These data structures are used to trace all spinlocks
