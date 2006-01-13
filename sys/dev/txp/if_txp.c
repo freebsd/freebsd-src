@@ -766,8 +766,9 @@ txp_rx_reclaim(sc, r)
 		}
 
 		if (rxd->rx_stat & RX_STAT_VLAN) {
-			VLAN_INPUT_TAG(ifp,
-				m, htons(rxd->rx_vlan >> 16), goto next);
+			VLAN_INPUT_TAG(ifp, m, htons(rxd->rx_vlan >> 16));
+			if (m == NULL)
+				goto next;
 		}
 
 		TXP_UNLOCK(sc);
