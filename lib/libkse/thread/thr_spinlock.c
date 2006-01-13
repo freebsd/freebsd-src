@@ -40,7 +40,7 @@
 #include "spinlock.h"
 #include "thr_private.h"
 
-#define	MAX_SPINLOCKS	5
+#define	MAX_SPINLOCKS	72
 
 struct spinlock_extra {
 	spinlock_t	*owner;
