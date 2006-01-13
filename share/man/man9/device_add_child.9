@@ -97,7 +97,7 @@ is used, then the new child will be added as if its order was zero.
 When adding a device in the context of
 .Xr DEVICE_IDENTIFY 9
 routine, the
-.Xr device_find_children 9
+.Xr device_find_child 9
 routine should be used to ensure that the device has not already been
 added to the tree.
 Because the device name and
@@ -112,7 +112,7 @@ devices.
 The new device if successful, NULL otherwise.
 .Sh SEE ALSO
 .Xr device 9 ,
-.Xr device_find_children 9 ,
+.Xr device_find_child 9 ,
 .Xr DEVICE_IDENTIFY 9
 .Sh AUTHORS
 This manual page was written by
