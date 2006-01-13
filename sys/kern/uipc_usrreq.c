@@ -1270,6 +1270,8 @@ unp_freerights(struct file **rp, int fdcount)
 		 * zero the pointer before calling
 		 * unp_discard since it may end up
 		 * in unp_gc()..
+		 *
+		 * XXXRW: This is less true than it used to be.
 		 */
 		*rp++ = 0;
 		unp_discard(fp);
