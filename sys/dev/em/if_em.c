@@ -2031,6 +2031,12 @@ em_allocate_pci_resources(struct adapter * adapter)
 	}
 
 	/*
+	 * XXX The interrupt shouldn't be set up until the driver and the
+	 * chip is more initialized.
+	 */
+	em_disable_intr(adapter);
+
+	/*
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.  If that doesn't work, try just using an
 	 * ithread.
@@ -2066,6 +2072,7 @@ em_allocate_pci_resources(struct adapter * adapter)
 	}
 
 	adapter->hw.back = &adapter->osdep;
+	em_enable_intr(adapter);
 
 	return(0);
 }
