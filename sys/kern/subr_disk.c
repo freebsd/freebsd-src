@@ -153,7 +153,7 @@ bioq_disksort(bioq, bp)
 	/*
 	 * If the queue is empty then it's easy.
 	 */
-	if ((bq = bioq_first(bioq)) == NULL) {
+	if (bioq_first(bioq) == NULL) {
 		bioq_insert_tail(bioq, bp);
 		return;
 	}
