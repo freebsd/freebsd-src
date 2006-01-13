@@ -533,6 +533,9 @@ void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags,
 	    struct thread *td);
+int	sosend_dgram(struct socket *so, struct sockaddr *addr,
+	    struct uio *uio, struct mbuf *top, struct mbuf *control,
+	    int flags, struct thread *td);
 int	sosetopt(struct socket *so, struct sockopt *sopt);
 int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);
