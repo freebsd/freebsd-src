@@ -710,7 +710,7 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 	if (m != NULL) {
 		if (ni->ni_vlan != 0) {
 			/* attach vlan tag */
-			VLAN_INPUT_TAG(ifp, m, ni->ni_vlan);
+			VLAN_INPUT_TAG_NEW(ifp, m, ni->ni_vlan);
 			if (m == NULL)
 				goto out;	/* XXX goto err? */
 		}

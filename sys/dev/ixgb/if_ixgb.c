@@ -2143,7 +2143,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 						      adapter->fmp);
 
 				if (current_desc->status & IXGB_RX_DESC_STATUS_VP)
-					VLAN_INPUT_TAG(eh, adapter->fmp,
+					VLAN_INPUT_TAG_NEW(eh, adapter->fmp,
 						     current_desc->special);
 				else
 					ether_input(ifp, eh, adapter->fmp);
@@ -2151,7 +2151,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 				ixgb_receive_checksum(adapter, current_desc,
 						      adapter->fmp);
 				if (current_desc->status & IXGB_RX_DESC_STATUS_VP)
-					VLAN_INPUT_TAG(ifp, adapter->fmp,
+					VLAN_INPUT_TAG_NEW(ifp, adapter->fmp,
 						       current_desc->special);
 
 				if (adapter->fmp != NULL) {

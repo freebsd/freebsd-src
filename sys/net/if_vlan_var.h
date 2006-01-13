@@ -102,7 +102,28 @@ struct	vlanreq {
  */
 #define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt) + 1))
 
-#define	VLAN_INPUT_TAG(_ifp, _m, _t) do {			\
+/*
+ * This macro is kept for API compatibility. 
+ */
+#define	VLAN_INPUT_TAG(_ifp, _m, _t, _errcase) do {	\
+	struct m_tag *mtag;				\
+	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG,	\
+	    sizeof (u_int), M_NOWAIT);			\
+	if (mtag != NULL) {				\
+		VLAN_TAG_VALUE(mtag) = (_t);		\
+		m_tag_prepend((_m), mtag);		\
+		(_m)->m_flags |= M_VLANTAG;		\
+	} else {					\
+		(_ifp)->if_ierrors++;			\
+		m_freem(_m);				\
+		_errcase;				\
+	}						\
+} while (0)
+
+/*
+ * This macro is equal to VLAN_INPUT_TAG() in HEAD.
+ */
+#define	VLAN_INPUT_TAG_NEW(_ifp, _m, _t) do {			\
 	struct m_tag *mtag;					\
 	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG,		\
 			   sizeof (u_int), M_NOWAIT);		\
