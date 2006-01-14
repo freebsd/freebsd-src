@@ -886,15 +886,21 @@ syncache_add(inc, to, th, sop, m)
 		 * Treat this as if the cache was full; drop the oldest
 		 * entry and insert the new one.
 		 */
+		tcpstat.tcps_sc_zonefail++;
 		/* NB: guarded by INP_INFO_WLOCK(&tcbinfo) */
 		for (i = SYNCACHE_MAXREXMTS; i >= 0; i--) {
 			sc = TAILQ_FIRST(&tcp_syncache.timerq[i]);
 			if (sc != NULL)
 				break;
 		}
+		if (sc == NULL) {
+			/* Generic memory failure. */
+			if (ipopts)
+				(void) m_free(ipopts);
+			return (0);
+		}
 		sc->sc_tp->ts_recent = ticks;
 		syncache_drop(sc, NULL);
-		tcpstat.tcps_sc_zonefail++;
 		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
 		if (sc == NULL) {
 			if (ipopts)
