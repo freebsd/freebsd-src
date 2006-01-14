@@ -80,8 +80,10 @@
 #define	CARD_AOPEN_VA1000	18
 #define CARD_PINNACLE_PCTV_RAVE	19
 #define CARD_PIXELVIEW_PLAYTV_PAK	20
-#define Bt848_MAX_CARD		21
-
+#define CARD_TERRATVALUE	21
+#define	CARD_PIXELVIEW_PLAYTV_PRO_REV_4C	22
+#define Bt848_MAX_CARD		23
+ 
 #define CARD_IO_GV		CARD_IO_BCTV2
 
 int	signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig );

@@ -391,6 +391,30 @@ static const struct CARDTYPE cards[] = {
 	    { 0x20000, 0x80000, 0, 0xa8000, 1 },        /* audio MUX values */
 	    0xAA0000 },                         /* GPIO mask */
 
+	{  CARD_TERRATVALUE,                    /* the card id */
+	   "TerraTec TValue",                   /* the 'name' */
+	   NULL,                                /* the tuner */
+	   0,                                   /* the tuner i2c address */
+	   0,                                   /* dbx is optional */
+	   0,
+	   0,
+	   0,                                   /* EEProm type */
+	   0,                                   /* EEProm size */
+	   /* Tuner, Extern, Intern, Mute, Enabled */
+	   { 0x500, 0x900, 0x300, 0x900, 1 },	/* audio MUX values */
+	   0xffff00 },				/* GPIO mask */
+
+	{  CARD_PIXELVIEW_PLAYTV_PRO_REV_4C,    /* the card id */
+	   "PixelView PlayTV Pro REV-4C ",      /* the 'name' */
+	   NULL,                                /* the tuner */
+	   0,                                   /* the tuner i2c address */
+	   0,                                   /* dbx is optional */
+	   0,
+	   0,
+	   0,                                   /* EEProm type */
+	   0,                                   /* EEProm size */
+	   { 0x01, 0x04, 0x01, 0x03, 1 },       /* audio MUX values */
+	   0x00ffffff },
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
@@ -582,6 +606,7 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define PCI_VENDOR_AVERMEDIA	0x1461
 #define PCI_VENDOR_STB		0x10B4
 #define PCI_VENDOR_ASKEY	0x144F
+#define PCI_VENDOR_TERRATEC	0x153B
 #endif
 /* Following not confirmed with http://members.hyperlink.net.au/~chart,
    so not added to NetBSD's pcidevs */
@@ -595,6 +620,11 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define PCI_VENDOR_PINNACLE_NEW	0x11BD
 
 #define MODEL_IODATA_GV_BCTV3_PCI	0x4020
+#define	MODEL_TERRATVALUE_1117		0x1117
+#define MODEL_TERRATVALUE_1118		0x1118
+#define	MODEL_TERRATVALUE_1119		0x1119
+#define	MODEL_TERRATVALUE_111A		0x111a
+#define MODEL_TERRATVALUE_1134		0x1134
 
 void
 probeCard( bktr_ptr_t bktr, int verbose, int unit )
@@ -737,6 +767,20 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
 		    goto checkTuner;
+		}
+
+		if (subsystem_vendor_id == PCI_VENDOR_TERRATEC) {
+		    switch (subsystem_id) {
+			case MODEL_TERRATVALUE_1117:
+			case MODEL_TERRATVALUE_1118:
+			case MODEL_TERRATVALUE_1119:
+			case MODEL_TERRATVALUE_111A:
+			case MODEL_TERRATVALUE_1134:
+	 		    bktr->card = cards[ (card = CARD_TERRATVALUE) ];
+			    bktr->card.eepromAddr = eeprom_i2c_address;
+			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+			    goto checkTuner;
+		    }
 		}
 
 		/* Vendor is unknown. We will use the standard probe code */
@@ -1162,6 +1206,11 @@ checkTuner:
 
 	case CARD_IO_BCTV3:
 	    select_tuner( bktr, ALPS_TSCH5 ); /* ALPS_TSCH6, in fact. */
+	    goto checkDBX;
+	    break;
+
+	case CARD_TERRATVALUE:
+	    select_tuner( bktr, PHILIPS_PAL); /* Phlips PAL tuner */
 	    goto checkDBX;
 	    break;
 
