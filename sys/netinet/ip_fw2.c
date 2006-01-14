@@ -2524,7 +2524,7 @@ check_body:
 				 * if the packet is not ICMP (or is an ICMP
 				 * query), and it is not multicast/broadcast.
 				 */
-				if (hlen > 0 &&
+				if (hlen > 0 && offset == 0 &&
 				    (proto != IPPROTO_ICMP ||
 				     is_icmp_query(ip)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
