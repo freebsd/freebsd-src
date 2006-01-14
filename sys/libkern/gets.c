@@ -56,6 +56,8 @@ gets(char *cp, size_t size, int visible)
 				lp--;
 			}
 			continue;
+		case '\0':
+			continue;
 		default:
 			if (lp < end) {
 				if (visible)
