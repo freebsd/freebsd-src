@@ -56,8 +56,7 @@ __FBSDID("$FreeBSD$");
 
 struct pcii_softc {
 	int foo;
-	struct resource	*res[2];
-	struct resource	*dma;
+	struct resource	*res[3];
 	void *intr_handler;
 	struct upd7210	upd7210;
 };
