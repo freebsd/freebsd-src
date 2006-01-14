@@ -170,6 +170,11 @@ __FBSDID("$FreeBSD$");
 #define	BRIDGE_RTABLE_PRUNE_PERIOD	(5 * 60)
 #endif
 
+/*
+ * List of capabilities to mask on the member interface.
+ */
+#define	BRIDGE_IFCAPS_MASK		IFCAP_TXCSUM
+
 static struct mtx 	bridge_list_mtx;
 eventhandler_tag	bridge_detach_cookie = NULL;
 
@@ -181,6 +186,7 @@ static int	bridge_clone_create(struct if_clone *, int);
 static void	bridge_clone_destroy(struct ifnet *);
 
 static int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
+static void	bridge_mutecaps(struct bridge_iflist *, int);
 static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
@@ -665,6 +671,42 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 /*
+ * bridge_mutecaps:
+ *
+ *	Clear or restore unwanted capabilities on the member interface
+ */
+static void
+bridge_mutecaps(struct bridge_iflist *bif, int mute)
+{
+	struct ifnet *ifp = bif->bif_ifp;
+	struct ifreq ifr;
+	int error;
+
+	if (ifp->if_ioctl == NULL)
+		return;
+
+	bzero(&ifr, sizeof ifr);
+	ifr.ifr_reqcap = ifp->if_capenable;
+
+	if (mute) {
+		/* mask off and save capabilities */
+		bif->bif_mutecap = ifr.ifr_reqcap & BRIDGE_IFCAPS_MASK;
+		if (bif->bif_mutecap != 0)
+			ifr.ifr_reqcap &= ~BRIDGE_IFCAPS_MASK;
+	} else
+		/* restore muted capabilities */
+		ifr.ifr_reqcap |= bif->bif_mutecap;
+
+
+	if (bif->bif_mutecap != 0) {
+		IFF_LOCKGIANT(ifp);
+		error = (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
+		IFF_UNLOCKGIANT(ifp);
+	}
+}
+	
+
+/*
  * bridge_lookup_member:
  *
  *	Lookup a bridge member interface.
@@ -727,6 +769,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 			 * Take the interface out of promiscuous mode.
 			 */
 			(void) ifpromisc(ifs, 0);
+			bridge_mutecaps(bif, 0);
 			break;
 
 		case IFT_GIF:
@@ -810,6 +853,11 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOMEM);
 
+	bif->bif_ifp = ifs;
+	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
+	bif->bif_priority = BSTP_DEFAULT_PORT_PRIORITY;
+	bif->bif_path_cost = BSTP_DEFAULT_PATH_COST;
+
 	switch (ifs->if_type) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
@@ -819,6 +867,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		error = ifpromisc(ifs, 1);
 		if (error)
 			goto out;
+
+		bridge_mutecaps(bif, 1);
 		break;
 
 	case IFT_GIF:
@@ -828,11 +878,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		error = EINVAL;
 		goto out;
 	}
-
-	bif->bif_ifp = ifs;
-	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
-	bif->bif_priority = BSTP_DEFAULT_PORT_PRIORITY;
-	bif->bif_path_cost = BSTP_DEFAULT_PATH_COST;
 
 	ifs->if_bridge = sc;
 	/*
@@ -1435,11 +1480,6 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 {
 	int len, err;
 	short mflags;
-
-	/*
-	 * Clear any in-bound checksum flags for this packet.
-	 */
-	m->m_pkthdr.csum_flags = 0;
 
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
