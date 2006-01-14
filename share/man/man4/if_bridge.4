@@ -146,6 +146,9 @@ as on the interface on which the packet arrives or departs.
 .Pp
 The MTU of the first member interface to be added is used as the bridge MTU,
 all additional members are required to have exactly the same value.
+.Pp
+The TXCSUM capability is disabled for any interface added to the bridge, this
+is restored when the interface is removed again.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
