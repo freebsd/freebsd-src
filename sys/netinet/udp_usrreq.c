@@ -151,7 +151,6 @@ udp_input(m, off)
 	register struct ip *ip;
 	register struct udphdr *uh;
 	register struct inpcb *inp;
-	struct mbuf *opts = 0;
 	int len;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
@@ -399,8 +398,6 @@ badheadlocked:
 	INP_INFO_RUNLOCK(&udbinfo);
 badunlocked:
 	m_freem(m);
-	if (opts)
-		m_freem(opts);
 	return;
 }
 
