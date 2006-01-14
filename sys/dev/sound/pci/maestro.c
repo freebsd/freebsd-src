@@ -1457,7 +1457,7 @@ aggpch_getcaps(kobj_t obj, void *data)
 		AFMT_STEREO | AFMT_S16_LE,
 		0
 	};
-	static struct pcmchan_caps playcaps = {2000, 767999, playfmt, 0};
+	static struct pcmchan_caps playcaps = {8000, 48000, playfmt, 0};
 
 	return &playcaps;
 }
