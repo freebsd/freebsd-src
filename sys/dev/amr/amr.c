@@ -531,7 +531,8 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
     ac = NULL;
     ap = NULL;
 
-    copyin(addr, &ali, sizeof(ali));
+    if ((error = copyin(addr, &ali, sizeof(ali))) != 0)
+	return (error);
     switch (ali.ui.fcs.opcode) {
     case 0x82:
 	switch(ali.ui.fcs.subopcode) {
