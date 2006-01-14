@@ -1489,7 +1489,7 @@ vfs_mountroot_ask(void)
 	for(;;) {
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 		printf("                       eg. ufs:da0s1a\n");
 #else
 		printf("                       eg. ufs:/dev/da0a\n");
