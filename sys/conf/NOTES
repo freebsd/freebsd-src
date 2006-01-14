@@ -1928,7 +1928,10 @@ device		sound
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
-# snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus.
+# snd_au88x0		Aureal Vortex 1/2/Advantage PCI. This driver
+#			lacks support for playback and recording.
+# snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus. Only
+#			for sparc64.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
 # snd_cs4281:		Crystal Semiconductor CS4281 PCI.
 # snd_csa:		Crystal Semiconductor CS461x/428x PCI. (except
@@ -1941,7 +1944,8 @@ device		sound
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_ich:		Intel ICH PCI and some more audio controllers
-#			embedded in a chipset.
+#			embedded in a chipset, for example nVidia
+#			nForce controllers.
 # snd_maestro:		ESS Technology Maestro-1/2x PCI.
 # snd_maestro3:		ESS Technology Maestro-3/Allegro PCI.
 # snd_mss:		Microsoft Sound System ISA PnP/non-PnP.
@@ -1953,7 +1957,7 @@ device		sound
 # snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
 #			Supports ESS and Avance ISA chips as well.
 # snd_solo:		ESS Solo-1x PCI.
-# snd_t4dwave:		Trident 4DWave PCI, Sis 7018 PCI and Acer Labs
+# snd_t4dwave:		Trident 4DWave DX/NX PCI, Sis 7018 PCI and Acer Labs
 #			M5451 PCI.
 # snd_via8233:		VIA VT8233x PCI.
 # snd_via82c686:	VIA VT82C686A PCI.
