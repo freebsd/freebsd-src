@@ -318,7 +318,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				 ERROUT(EINVAL);
 
 			index  = (uint16_t *)msg->data;
-			if (*index > NG_NETFLOW_MAXIFACES)
+			if (*index >= NG_NETFLOW_MAXIFACES)
 				ERROUT(EINVAL);
 
 			/* connected iface? */
@@ -342,7 +342,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setdlt *)msg->data;
-			if (set->iface > NG_NETFLOW_MAXIFACES)
+			if (set->iface >= NG_NETFLOW_MAXIFACES)
 				ERROUT(EINVAL);
 			iface = &priv->ifaces[set->iface];
 
@@ -371,7 +371,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setifindex *)msg->data;
-			if (set->iface > NG_NETFLOW_MAXIFACES)
+			if (set->iface >= NG_NETFLOW_MAXIFACES)
 				ERROUT(EINVAL);
 			iface = &priv->ifaces[set->iface];
 
