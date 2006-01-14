@@ -261,12 +261,22 @@ _mutex_reinit(pthread_mutex_t *mutex)
 void
 _mutex_fork(struct pthread *curthread)
 {
+#if 0
 	TAILQ_INIT(&curthread->mutexq);
 	TAILQ_INIT(&curthread->pri_mutexq);
 	curthread->priority_mutex_count = 0;
-#if 0
+#else
 	struct pthread_mutex *m;
 
+	/*
+	 * Fix mutex ownership for child process.
+	 * note that process shared mutex should not
+	 * be inherited because owner is forking thread
+	 * which is in parent process, they should be
+	 * removed from the owned mutex list, current
+	 * process shared mutex is not supported, so I
+	 * am not worried.
+	 */
 	TAILQ_FOREACH(m, &curthread->mutexq, m_qe) {
 		m->m_lock = (umtx_t)curthread->tid;
 	}
