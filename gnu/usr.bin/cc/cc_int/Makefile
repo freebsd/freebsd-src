@@ -67,7 +67,8 @@ SRCS+=	cpplib.c cpplex.c cppmacro.c cppexp.c cppfiles.c cpptrad.c \
 SRCS+=	insn-$F.c
 CLEANFILES+= insn-$F.c
 insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F ${MD_FILE}
-	${.OBJDIR}/../cc_tools/gen$F ${MD_FILE} > insn-$F.c
+	${.OBJDIR}/../cc_tools/gen$F ${MD_FILE} > insn-$F.c \
+	    ${.MAKEFLAGS:M-s:S;-s;2>/dev/null;}
 .endfor
 .for F in modes
 SRCS+=	insn-$F.c
