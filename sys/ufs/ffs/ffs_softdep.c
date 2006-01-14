@@ -5901,6 +5901,19 @@ getdirtybuf(bp, mtx, waitfor)
 		return (NULL);
 	}
 	if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
+		if (mtx == &lk && waitfor == MNT_WAIT) {
+			mtx_unlock(mtx);
+			BO_LOCK(bp->b_bufobj);
+			BUF_UNLOCK(bp);
+			if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
+				bp->b_vflags |= BV_BKGRDWAIT;
+				msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj),
+				       PRIBIO | PDROP, "getbuf", 0);
+			} else
+				BO_UNLOCK(bp->b_bufobj);
+			mtx_lock(mtx);
+			return (NULL);
+		}
 		BUF_UNLOCK(bp);
 		if (waitfor != MNT_WAIT)
 			return (NULL);
