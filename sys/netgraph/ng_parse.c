@@ -1456,13 +1456,10 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		cbuf += strlen(cbuf);
 		didOne = 1;
 	}
-	FREE(workBuf, M_NETGRAPH_PARSE);
 
 	/* Closing brace/bracket */
-	if ((error = ng_parse_append(&cbuf, &cbuflen, "%s%c",
-	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']')) != 0)
-		goto fail;
-	return (0);
+	error = ng_parse_append(&cbuf, &cbuflen, "%s%c",
+	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']');
 
 fail:
 	/* Clean up after failure */
