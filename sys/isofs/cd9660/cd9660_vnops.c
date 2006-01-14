@@ -108,6 +108,7 @@ cd9660_setattr(ap)
 		case VFIFO:
 		case VNON:
 		case VBAD:
+		case VMARKER:
 			return (0);
 		}
 	}

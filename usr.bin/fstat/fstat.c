@@ -692,6 +692,7 @@ nfs_filestat(struct vnode *vp, struct filestat *fsp)
 		break;
 	case VNON:
 	case VBAD:
+	case VMARKER:
 		return 0;
 	};
 	fsp->mode = mode;
