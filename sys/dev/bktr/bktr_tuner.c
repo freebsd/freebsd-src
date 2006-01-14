@@ -278,17 +278,27 @@ static const struct TUNER tuners[] = {
              TSBH1_FCONTROL,
              0x00 },
            { 0x00, 0x00 },                      /* band-switch crosspoints */
-           { 0x01, 0x02, 0x08, 0x00 } },         /* the band-switch values */
+           { 0x01, 0x02, 0x08, 0x00 } },        /* the band-switch values */
 
 	/* MT2032 Microtune */
 	{ "MT2032",				/* the 'name' */
-	   TTYPE_PAL,			/* input type */
+	   TTYPE_PAL,				/* input type */
 	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
 	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
 	   { 0xa0, 0x90, 0x30, 0x00 } },	/* the band-switch values */
+
+	 /* LG TPI8PSB12P PAL */
+	 { "LG TPI8PSB12P PAL",                 /* the 'name' */
+	   TTYPE_PAL,                           /* input type */
+	   { TSA552x_SCONTROL,                  /* control byte for Tuner PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
+	   { 0x00, 0x00 },                      /* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30, 0x8e } },        /* the band-switch values */
 };
 
 
