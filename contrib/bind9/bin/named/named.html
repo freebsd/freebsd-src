@@ -1,625 +1,240 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: named.html,v 1.4.2.1.4.4 2004/08/22 23:38:59 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->named</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
-><SPAN
-CLASS="APPLICATION"
->named</SPAN
-></H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN9"
-></A
-><H2
->Name</H2
-><SPAN
-CLASS="APPLICATION"
->named</SPAN
->&nbsp;--&nbsp;Internet domain name server</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN13"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->named</B
->  [<VAR
-CLASS="OPTION"
->-4</VAR
->] [<VAR
-CLASS="OPTION"
->-6</VAR
->] [<VAR
-CLASS="OPTION"
->-c <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-d <VAR
-CLASS="REPLACEABLE"
->debug-level</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-f</VAR
->] [<VAR
-CLASS="OPTION"
->-g</VAR
->] [<VAR
-CLASS="OPTION"
->-n <VAR
-CLASS="REPLACEABLE"
->#cpus</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-p <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-s</VAR
->] [<VAR
-CLASS="OPTION"
->-t <VAR
-CLASS="REPLACEABLE"
->directory</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-u <VAR
-CLASS="REPLACEABLE"
->user</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-v</VAR
->] [<VAR
-CLASS="OPTION"
->-x <VAR
-CLASS="REPLACEABLE"
->cache-file</VAR
-></VAR
->]</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN49"
-></A
-><H2
->DESCRIPTION</H2
-><P
->	<B
-CLASS="COMMAND"
->named</B
-> is a Domain Name System (DNS) server,
+<!-- $Id: named.html,v 1.4.2.1.4.9 2005/10/13 02:33:47 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>named</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">named</span> &#8212; Internet domain name server</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525923"></a><h2>DESCRIPTION</h2>
+<p>
+	<span><strong class="command">named</strong></span> is a Domain Name System (DNS) server,
 	part of the BIND 9 distribution from ISC.  For more
 	information on the DNS, see RFCs 1033, 1034, and 1035.
-    </P
-><P
->	When invoked without arguments, <B
-CLASS="COMMAND"
->named</B
-> will
+    </p>
+<p>
+	When invoked without arguments, <span><strong class="command">named</strong></span> will
 	read the default configuration file
-	<TT
-CLASS="FILENAME"
->/etc/named.conf</TT
->, read any initial
+	<code class="filename">/etc/named.conf</code>, read any initial
 	data, and listen for queries.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN56"
-></A
-><H2
->OPTIONS</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
->-4</DT
-><DD
-><P
->		Use IPv4 only even if the host machine is capable of IPv6.
-		<VAR
-CLASS="OPTION"
->-4</VAR
-> and <VAR
-CLASS="OPTION"
->-6</VAR
-> are mutually
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525948"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-4</span></dt>
+<dd><p>
+		Use IPv4 only even if the host machine is capable of IPv6.
+		<code class="option">-4</code> and <code class="option">-6</code> are mutually
 		exclusive.
-          </P
-></DD
-><DT
->-6</DT
-><DD
-><P
->		Use IPv6 only even if the host machine is capable of IPv4.
-		<VAR
-CLASS="OPTION"
->-4</VAR
-> and <VAR
-CLASS="OPTION"
->-6</VAR
-> are mutually
+          </p></dd>
+<dt><span class="term">-6</span></dt>
+<dd><p>
+		Use IPv6 only even if the host machine is capable of IPv4.
+		<code class="option">-4</code> and <code class="option">-6</code> are mutually
 		exclusive.
-          </P
-></DD
-><DT
->-c <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-></DT
-><DD
-><P
->		Use <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-> as the
+          </p></dd>
+<dt><span class="term">-c <em class="replaceable"><code>config-file</code></em></span></dt>
+<dd><p>
+		Use <em class="replaceable"><code>config-file</code></em> as the
 		configuration file instead of the default,
-		<TT
-CLASS="FILENAME"
->/etc/named.conf</TT
->.  To
+		<code class="filename">/etc/named.conf</code>.  To
 		ensure that reloading the configuration file continues
 		to work after the server has changed its working
 		directory due to to a possible
-		<VAR
-CLASS="OPTION"
->directory</VAR
-> option in the configuration
-		file, <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-> should be
+		<code class="option">directory</code> option in the configuration
+		file, <em class="replaceable"><code>config-file</code></em> should be
 		an absolute pathname.
-          </P
-></DD
-><DT
->-d <VAR
-CLASS="REPLACEABLE"
->debug-level</VAR
-></DT
-><DD
-><P
->		Set the daemon's debug level to <VAR
-CLASS="REPLACEABLE"
->debug-level</VAR
->.
-		Debugging traces from <B
-CLASS="COMMAND"
->named</B
-> become
+          </p></dd>
+<dt><span class="term">-d <em class="replaceable"><code>debug-level</code></em></span></dt>
+<dd><p>
+		Set the daemon's debug level to <em class="replaceable"><code>debug-level</code></em>.
+		Debugging traces from <span><strong class="command">named</strong></span> become
 		more verbose as the debug level increases.
-          </P
-></DD
-><DT
->-f</DT
-><DD
-><P
->		Run the server in the foreground (i.e. do not daemonize).
-          </P
-></DD
-><DT
->-g</DT
-><DD
-><P
->		Run the server in the foreground and force all logging
-		to <TT
-CLASS="FILENAME"
->stderr</TT
->.
-          </P
-></DD
-><DT
->-n <VAR
-CLASS="REPLACEABLE"
->#cpus</VAR
-></DT
-><DD
-><P
->		Create <VAR
-CLASS="REPLACEABLE"
->#cpus</VAR
-> worker threads
+          </p></dd>
+<dt><span class="term">-f</span></dt>
+<dd><p>
+		Run the server in the foreground (i.e. do not daemonize).
+          </p></dd>
+<dt><span class="term">-g</span></dt>
+<dd><p>
+		Run the server in the foreground and force all logging
+		to <code class="filename">stderr</code>.
+          </p></dd>
+<dt><span class="term">-n <em class="replaceable"><code>#cpus</code></em></span></dt>
+<dd><p>
+		Create <em class="replaceable"><code>#cpus</code></em> worker threads
 		to take advantage of multiple CPUs.  If not specified,
-		<B
-CLASS="COMMAND"
->named</B
-> will try to determine the
+		<span><strong class="command">named</strong></span> will try to determine the
 		number of CPUs present and create one thread per CPU.
 		If it is unable to determine the number of CPUs, a
 		single worker thread will be created.
-          </P
-></DD
-><DT
->-p <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></DT
-><DD
-><P
->		Listen for queries on port <VAR
-CLASS="REPLACEABLE"
->port</VAR
->.  If not
+          </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+		Listen for queries on port <em class="replaceable"><code>port</code></em>.  If not
 		specified, the default is port 53.
-          </P
-></DD
-><DT
->-s</DT
-><DD
-><P
->		Write memory usage statistics to <TT
-CLASS="FILENAME"
->stdout</TT
-> on exit.
-          </P
-><DIV
-CLASS="NOTE"
-><BLOCKQUOTE
-CLASS="NOTE"
-><P
-><B
->Note: </B
->		This option is mainly of interest to BIND 9 developers
+          </p></dd>
+<dt><span class="term">-s</span></dt>
+<dd>
+<p>
+		Write memory usage statistics to <code class="filename">stdout</code> on exit.
+          </p>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+<p>
+		This option is mainly of interest to BIND 9 developers
 		and may be removed or changed in a future release.
-	    </P
-></BLOCKQUOTE
-></DIV
-></DD
-><DT
->-t <VAR
-CLASS="REPLACEABLE"
->directory</VAR
-></DT
-><DD
-><P
->		<CODE
-CLASS="FUNCTION"
->chroot()</CODE
-> to <VAR
-CLASS="REPLACEABLE"
->directory</VAR
-> after
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
+<dd>
+<p>
+		<code class="function">chroot()</code> to <em class="replaceable"><code>directory</code></em> after
 		processing the command line arguments, but before
 		reading the configuration file.
-          </P
-><DIV
-CLASS="WARNING"
-><P
-></P
-><TABLE
-CLASS="WARNING"
-BORDER="1"
-WIDTH="90%"
-><TR
-><TD
-ALIGN="CENTER"
-><B
->Warning</B
-></TD
-></TR
-><TR
-><TD
-ALIGN="LEFT"
-><P
->		This option should be used in conjunction with the
-		<VAR
-CLASS="OPTION"
->-u</VAR
-> option, as chrooting a process
+          </p>
+<div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Warning</h3>
+<p>
+		This option should be used in conjunction with the
+		<code class="option">-u</code> option, as chrooting a process
 		running as root doesn't enhance security on most
-		systems; the way <CODE
-CLASS="FUNCTION"
->chroot()</CODE
-> is
+		systems; the way <code class="function">chroot()</code> is
 		defined allows a process with root privileges to
 		escape a chroot jail.
-	    </P
-></TD
-></TR
-></TABLE
-></DIV
-></DD
-><DT
->-u <VAR
-CLASS="REPLACEABLE"
->user</VAR
-></DT
-><DD
-><P
->		<CODE
-CLASS="FUNCTION"
->setuid()</CODE
-> to <VAR
-CLASS="REPLACEABLE"
->user</VAR
-> after completing
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-u <em class="replaceable"><code>user</code></em></span></dt>
+<dd>
+<p>
+		<code class="function">setuid()</code> to <em class="replaceable"><code>user</code></em> after completing
 		privileged operations, such as creating sockets that
 		listen on privileged ports.
-          </P
-><DIV
-CLASS="NOTE"
-><BLOCKQUOTE
-CLASS="NOTE"
-><P
-><B
->Note: </B
->		On Linux, <B
-CLASS="COMMAND"
->named</B
-> uses the kernel's
+          </p>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+<p>
+		On Linux, <span><strong class="command">named</strong></span> uses the kernel's
 		capability mechanism to drop all root privileges
-		except the ability to <CODE
-CLASS="FUNCTION"
->bind()</CODE
-> to a
+		except the ability to <code class="function">bind()</code> to a
 		privileged port and set process resource limits.
-		Unfortunately, this means that the <VAR
-CLASS="OPTION"
->-u</VAR
->
-		option only works when <B
-CLASS="COMMAND"
->named</B
-> is run
+		Unfortunately, this means that the <code class="option">-u</code>
+		option only works when <span><strong class="command">named</strong></span> is run
 		on kernel 2.2.18 or later, or kernel 2.3.99-pre3 or
 		later, since previous kernels did not allow privileges
-		to be retained after <CODE
-CLASS="FUNCTION"
->setuid()</CODE
->.
-	    </P
-></BLOCKQUOTE
-></DIV
-></DD
-><DT
->-v</DT
-><DD
-><P
->		Report the version number and exit.
-          </P
-></DD
-><DT
->-x <VAR
-CLASS="REPLACEABLE"
->cache-file</VAR
-></DT
-><DD
-><P
->		Load data from <VAR
-CLASS="REPLACEABLE"
->cache-file</VAR
-> into the
+		to be retained after <code class="function">setuid()</code>.
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-v</span></dt>
+<dd><p>
+		Report the version number and exit.
+          </p></dd>
+<dt><span class="term">-x <em class="replaceable"><code>cache-file</code></em></span></dt>
+<dd>
+<p>
+		Load data from <em class="replaceable"><code>cache-file</code></em> into the
 		cache of the default view.
-          </P
-><DIV
-CLASS="WARNING"
-><P
-></P
-><TABLE
-CLASS="WARNING"
-BORDER="1"
-WIDTH="90%"
-><TR
-><TD
-ALIGN="CENTER"
-><B
->Warning</B
-></TD
-></TR
-><TR
-><TD
-ALIGN="LEFT"
-><P
->		This option must not be used.  It is only of interest
+          </p>
+<div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Warning</h3>
+<p>
+		This option must not be used.  It is only of interest
 		to BIND 9 developers and may be removed or changed in a
 		future release.
-	    </P
-></TD
-></TR
-></TABLE
-></DIV
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN153"
-></A
-><H2
->SIGNALS</H2
-><P
->	In routine operation, signals should not be used to control
-	the nameserver; <B
-CLASS="COMMAND"
->rndc</B
-> should be used
+	    </p>
+</div>
+</dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526297"></a><h2>SIGNALS</h2>
+<p>
+	In routine operation, signals should not be used to control
+	the nameserver; <span><strong class="command">rndc</strong></span> should be used
 	instead.
-    </P
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
->SIGHUP</DT
-><DD
-><P
->		Force a reload of the server.
-          </P
-></DD
-><DT
->SIGINT, SIGTERM</DT
-><DD
-><P
->		Shut down the server.
-          </P
-></DD
-></DL
-></DIV
-><P
->	The result of sending any other signals to the server is undefined.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN167"
-></A
-><H2
->CONFIGURATION</H2
-><P
->	The <B
-CLASS="COMMAND"
->named</B
-> configuration file is too complex
+    </p>
+<div class="variablelist"><dl>
+<dt><span class="term">SIGHUP</span></dt>
+<dd><p>
+		Force a reload of the server.
+          </p></dd>
+<dt><span class="term">SIGINT, SIGTERM</span></dt>
+<dd><p>
+		Shut down the server.
+          </p></dd>
+</dl></div>
+<p>
+	The result of sending any other signals to the server is undefined.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526412"></a><h2>CONFIGURATION</h2>
+<p>
+	The <span><strong class="command">named</strong></span> configuration file is too complex
 	to describe in detail here.  A complete description is
-	provided in the <I
-CLASS="CITETITLE"
->BIND 9 Administrator Reference
-	Manual</I
->.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN172"
-></A
-><H2
->FILES</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
-><TT
-CLASS="FILENAME"
->/etc/named.conf</TT
-></DT
-><DD
-><P
->		The default configuration file.
-          </P
-></DD
-><DT
-><TT
-CLASS="FILENAME"
->/var/run/named.pid</TT
-></DT
-><DD
-><P
->		The default process-id file.
-          </P
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN185"
-></A
-><H2
->SEE ALSO</H2
-><P
->	<I
-CLASS="CITETITLE"
->RFC 1033</I
->,
-	<I
-CLASS="CITETITLE"
->RFC 1034</I
->,
-	<I
-CLASS="CITETITLE"
->RFC 1035</I
->,
-	<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->rndc</SPAN
->(8)</SPAN
->,
-	<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->lwresd</SPAN
->(8)</SPAN
->,
-	<I
-CLASS="CITETITLE"
->BIND 9 Administrator Reference Manual</I
->.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN198"
-></A
-><H2
->AUTHOR</H2
-><P
->	Internet Systems Consortium
-    </P
-></DIV
-></BODY
-></HTML
->
+	provided in the <em class="citetitle">BIND 9 Administrator Reference
+	Manual</em>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526429"></a><h2>FILES</h2>
+<div class="variablelist"><dl>
+<dt><span class="term"><code class="filename">/etc/named.conf</code></span></dt>
+<dd><p>
+		The default configuration file.
+          </p></dd>
+<dt><span class="term"><code class="filename">/var/run/named.pid</code></span></dt>
+<dd><p>
+		The default process-id file.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526469"></a><h2>SEE ALSO</h2>
+<p>
+	<em class="citetitle">RFC 1033</em>,
+	<em class="citetitle">RFC 1034</em>,
+	<em class="citetitle">RFC 1035</em>,
+	<span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
+	<span class="citerefentry"><span class="refentrytitle">lwresd</span>(8)</span>,
+	<em class="citetitle">BIND 9 Administrator Reference Manual</em>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526512"></a><h2>AUTHOR</h2>
+<p>
+	<span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>

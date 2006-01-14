@@ -1,94 +1,111 @@
-.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-.\" Copyright (C) 2000-2002  Internet Software Consortium.
-.\"
+.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000-2002 Internet Software Consortium.
+.\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
-.\"
+.\" 
 .\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 .\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
 .\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 .\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkzone.8,v 1.11.2.1.8.4 2004/06/03 05:35:42 marka Exp $
+.\" $Id: named-checkzone.8,v 1.11.2.1.8.8 2005/10/13 02:33:41 marka Exp $
 .\"
-.TH "NAMED-CHECKZONE" "8" "June 13, 2000" "BIND9" ""
-.SH NAME
-named-checkzone \- zone file validity checking tool
-.SH SYNOPSIS
-.sp
-\fBnamed-checkzone\fR [ \fB-d\fR ]  [ \fB-j\fR ]  [ \fB-q\fR ]  [ \fB-v\fR ]  [ \fB-c \fIclass\fB\fR ]  [ \fB-k \fImode\fB\fR ]  [ \fB-n \fImode\fB\fR ]  [ \fB-o \fIfilename\fB\fR ]  [ \fB-t \fIdirectory\fB\fR ]  [ \fB-w \fIdirectory\fB\fR ]  [ \fB-D\fR ]  \fBzonename\fR \fBfilename\fR
+.hy 0
+.ad l
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "NAMED\-CHECKZONE" "8" "June 13, 2000" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+named\-checkzone \- zone file validity checking tool
+.SH "SYNOPSIS"
+.HP 16
+\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] {zonename} {filename}
 .SH "DESCRIPTION"
 .PP
-\fBnamed-checkzone\fR checks the syntax and integrity of
-a zone file. It performs the same checks as \fBnamed\fR
+\fBnamed\-checkzone\fR
+checks the syntax and integrity of a zone file. It performs the same checks as
+\fBnamed\fR
 does when loading a zone. This makes
-\fBnamed-checkzone\fR useful for checking zone
-files before configuring them into a name server.
+\fBnamed\-checkzone\fR
+useful for checking zone files before configuring them into a name server.
 .SH "OPTIONS"
 .TP
-\fB-d\fR
+\-d
 Enable debugging.
 .TP
-\fB-q\fR
-Quiet mode - exit code only.
+\-q
+Quiet mode \- exit code only.
 .TP
-\fB-v\fR
-Print the version of the \fBnamed-checkzone\fR
+\-v
+Print the version of the
+\fBnamed\-checkzone\fR
 program and exit.
 .TP
-\fB-j\fR
+\-j
 When loading the zone file read the journal if it exists.
 .TP
-\fB-c \fIclass\fB\fR
+\-c \fIclass\fR
 Specify the class of the zone. If not specified "IN" is assumed.
 .TP
-\fB-k \fImode\fB\fR
-Perform \fB"check-name"\fR checks with the specified failure mode.
-Possible modes are \fB"fail"\fR,
-\fB"warn"\fR (default) and
+\-k \fImode\fR
+Perform
+\fB"check\-name"\fR
+checks with the specified failure mode. Possible modes are
+\fB"fail"\fR,
+\fB"warn"\fR
+(default) and
 \fB"ignore"\fR.
 .TP
-\fB-n \fImode\fB\fR
-Specify whether NS records should be checked to see if they
-are addresses. Possible modes are \fB"fail"\fR,
-\fB"warn"\fR (default) and
+\-n \fImode\fR
+Specify whether NS records should be checked to see if they are addresses. Possible modes are
+\fB"fail"\fR,
+\fB"warn"\fR
+(default) and
 \fB"ignore"\fR.
 .TP
-\fB-o \fIfilename\fB\fR
-Write zone output to \fIdirectory\fR.
+\-o \fIfilename\fR
+Write zone output to
+\fIfilename\fR.
 .TP
-\fB-t \fIdirectory\fB\fR
-chroot to \fIdirectory\fR so that include
-directives in the configuration file are processed as if
-run by a similarly chrooted named.
+\-t \fIdirectory\fR
+chroot to
+\fIdirectory\fR
+so that include directives in the configuration file are processed as if run by a similarly chrooted named.
 .TP
-\fB-w \fIdirectory\fB\fR
-chdir to \fIdirectory\fR so that relative
-filenames in master file $INCLUDE directives work. This
-is similar to the directory clause in
+\-w \fIdirectory\fR
+chdir to
+\fIdirectory\fR
+so that relative filenames in master file $INCLUDE directives work. This is similar to the directory clause in
 \fInamed.conf\fR.
 .TP
-\fB-D\fR
+\-D
 Dump zone file in canonical format.
 .TP
-\fBzonename\fR
+zonename
 The domain name of the zone being checked.
 .TP
-\fBfilename\fR
+filename
 The name of the zone file.
 .SH "RETURN VALUES"
 .PP
-\fBnamed-checkzone\fR returns an exit status of 1 if
-errors were detected and 0 otherwise.
+\fBnamed\-checkzone\fR
+returns an exit status of 1 if errors were detected and 0 otherwise.
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
-\fIRFC 1035\fR,
-\fIBIND 9 Administrator Reference Manual\fR.
+RFC 1035,
+BIND 9 Administrator Reference Manual.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium

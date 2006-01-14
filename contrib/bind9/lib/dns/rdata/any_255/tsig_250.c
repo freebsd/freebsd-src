@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.c,v 1.52.2.1.2.6 2004/03/08 09:04:40 marka Exp $ */
+/* $Id: tsig_250.c,v 1.52.2.1.2.8 2005/03/20 22:34:01 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 13:39:43 PST 2000 by gson */
 
@@ -162,8 +162,10 @@ totext_any_tsig(ARGS_TOTEXT) {
 	 */
 	sigtime = ((isc_uint64_t)sr.base[0] << 40) |
 		  ((isc_uint64_t)sr.base[1] << 32) |
-		  (sr.base[2] << 24) | (sr.base[3] << 16) |
-		  (sr.base[4] << 8) | sr.base[5];
+		  ((isc_uint64_t)sr.base[2] << 24) |
+		  ((isc_uint64_t)sr.base[3] << 16) |
+		  ((isc_uint64_t)sr.base[4] << 8) |
+		  (isc_uint64_t)sr.base[5];
 	isc_region_consume(&sr, 6);
 	bufp = &buf[sizeof(buf) - 1];
 	*bufp-- = 0;
@@ -457,8 +459,10 @@ tostruct_any_tsig(ARGS_TOSTRUCT) {
 	INSIST(sr.length >= 6);
 	tsig->timesigned = ((isc_uint64_t)sr.base[0] << 40) |
 			   ((isc_uint64_t)sr.base[1] << 32) |
-			   (sr.base[2] << 24) | (sr.base[3] << 16) |
-			   (sr.base[4] << 8) | sr.base[5];
+			   ((isc_uint64_t)sr.base[2] << 24) |
+			   ((isc_uint64_t)sr.base[3] << 16) |
+			   ((isc_uint64_t)sr.base[4] << 8) |
+			   (isc_uint64_t)sr.base[5];
 	isc_region_consume(&sr, 6);
 
 	/*

@@ -1,238 +1,113 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: rndc.conf.html,v 1.5.2.1.4.3 2004/08/22 23:39:00 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->rndc.conf</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
-><TT
-CLASS="FILENAME"
->rndc.conf</TT
-></H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN9"
-></A
-><H2
->Name</H2
-><TT
-CLASS="FILENAME"
->rndc.conf</TT
->&nbsp;--&nbsp;rndc configuration file</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN13"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->rndc.conf</B
-> </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN16"
-></A
-><H2
->DESCRIPTION</H2
-><P
->        <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> is the configuration file
-	for <B
-CLASS="COMMAND"
->rndc</B
->, the BIND 9 name server control
+<!-- $Id: rndc.conf.html,v 1.5.2.1.4.10 2005/10/13 02:33:51 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>rndc.conf</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><code class="filename">rndc.conf</code> &#8212; rndc configuration file</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">rndc.conf</code> </p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525833"></a><h2>DESCRIPTION</h2>
+<p>
+        <code class="filename">rndc.conf</code> is the configuration file
+	for <span><strong class="command">rndc</strong></span>, the BIND 9 name server control
 	utility.  This file has a similar structure and syntax to
-	<TT
-CLASS="FILENAME"
->named.conf</TT
->.  Statements are enclosed
+	<code class="filename">named.conf</code>.  Statements are enclosed
 	in braces and terminated with a semi-colon.  Clauses in
 	the statements are also semi-colon terminated.  The usual
 	comment styles are supported:
-    </P
-><P
->        C style: /* */
-    </P
-><P
->        C++ style: // to end of line
-    </P
-><P
->        Unix style: # to end of line
-    </P
-><P
->        <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> is much simpler than
-	<TT
-CLASS="FILENAME"
->named.conf</TT
->.  The file uses three
+    </p>
+<p>
+        C style: /* */
+    </p>
+<p>
+        C++ style: // to end of line
+    </p>
+<p>
+        Unix style: # to end of line
+    </p>
+<p>
+        <code class="filename">rndc.conf</code> is much simpler than
+	<code class="filename">named.conf</code>.  The file uses three
 	statements: an options statement, a server statement
 	and a key statement.
-    </P
-><P
->        The <VAR
-CLASS="OPTION"
->options</VAR
-> statement contains three clauses.
-	The <VAR
-CLASS="OPTION"
->default-server</VAR
-> clause is followed by the
+    </p>
+<p>
+        The <code class="option">options</code> statement contains three clauses.
+	The <code class="option">default-server</code> clause is followed by the
 	name or address of a name server.  This host will be used when
 	no name server is given as an argument to
-	<B
-CLASS="COMMAND"
->rndc</B
->.  The <VAR
-CLASS="OPTION"
->default-key</VAR
->
+	<span><strong class="command">rndc</strong></span>.  The <code class="option">default-key</code>
 	clause is followed by the name of a key which is identified by
-	a <VAR
-CLASS="OPTION"
->key</VAR
-> statement.  If no
-	<VAR
-CLASS="OPTION"
->keyid</VAR
-> is provided on the rndc command line,
-	and no <VAR
-CLASS="OPTION"
->key</VAR
-> clause is found in a matching
-	<VAR
-CLASS="OPTION"
->server</VAR
-> statement, this default key will be
+	a <code class="option">key</code> statement.  If no
+	<code class="option">keyid</code> is provided on the rndc command line,
+	and no <code class="option">key</code> clause is found in a matching
+	<code class="option">server</code> statement, this default key will be
 	used to authenticate the server's commands and responses.  The
-	<VAR
-CLASS="OPTION"
->default-port</VAR
-> clause is followed by the port
+	<code class="option">default-port</code> clause is followed by the port
 	to connect to on the remote name server.  If no
-	<VAR
-CLASS="OPTION"
->port</VAR
-> option is provided on the rndc command
-	line, and no <VAR
-CLASS="OPTION"
->port</VAR
-> clause is found in a
-	matching <VAR
-CLASS="OPTION"
->server</VAR
-> statement, this default port
+	<code class="option">port</code> option is provided on the rndc command
+	line, and no <code class="option">port</code> clause is found in a
+	matching <code class="option">server</code> statement, this default port
 	will be used to connect.
-    </P
-><P
->        After the <VAR
-CLASS="OPTION"
->server</VAR
-> keyword, the server statement
+    </p>
+<p>
+        After the <code class="option">server</code> keyword, the server statement
 	includes a string which is the hostname or address for a name
 	server.  The statement has two possible clauses:
-	<VAR
-CLASS="OPTION"
->key</VAR
-> and <VAR
-CLASS="OPTION"
->port</VAR
->. The key name must
+	<code class="option">key</code> and <code class="option">port</code>. The key name must
 	match the name of a key statement in the file.  The port number
 	specifies the port to connect to.
-    </P
-><P
->        The <VAR
-CLASS="OPTION"
->key</VAR
-> statement begins with an identifying
+    </p>
+<p>
+        The <code class="option">key</code> statement begins with an identifying
 	string, the name of the key.  The statement has two clauses.
-	<VAR
-CLASS="OPTION"
->algorithm</VAR
-> identifies the encryption algorithm
-	for <B
-CLASS="COMMAND"
->rndc</B
-> to use; currently only HMAC-MD5 is
+	<code class="option">algorithm</code> identifies the encryption algorithm
+	for <span><strong class="command">rndc</strong></span> to use; currently only HMAC-MD5 is
 	supported.  This is followed by a secret clause which contains
 	the base-64 encoding of the algorithm's encryption key.  The
 	base-64 string is enclosed in double quotes.
-    </P
-><P
->        There are two common ways to generate the base-64 string for the
-	secret.  The BIND 9 program <B
-CLASS="COMMAND"
->rndc-confgen</B
-> can
+    </p>
+<p>
+        There are two common ways to generate the base-64 string for the
+	secret.  The BIND 9 program <span><strong class="command">rndc-confgen</strong></span> can
 	be used to generate a random key, or the
-	<B
-CLASS="COMMAND"
->mmencode</B
-> program, also known as
-	<B
-CLASS="COMMAND"
->mimencode</B
->, can be used to generate a base-64
-	string from known input.  <B
-CLASS="COMMAND"
->mmencode</B
-> does not
+	<span><strong class="command">mmencode</strong></span> program, also known as
+	<span><strong class="command">mimencode</strong></span>, can be used to generate a base-64
+	string from known input.  <span><strong class="command">mmencode</strong></span> does not
 	ship with BIND 9 but is available on many systems.  See the
 	EXAMPLE section for sample command lines for each.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN54"
-></A
-><H2
->EXAMPLE</H2
-><PRE
-CLASS="PROGRAMLISTING"
->    options {
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525968"></a><h2>EXAMPLE</h2>
+<pre class="programlisting">
+    options {
         default-server  localhost;
         default-key     samplekey;
       };
@@ -245,133 +120,60 @@ CLASS="PROGRAMLISTING"
         algorithm       hmac-md5;
         secret          "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
       };
-    </PRE
-><P
->        In the above example, <B
-CLASS="COMMAND"
->rndc</B
-> will by default use
+    </pre>
+<p>
+        In the above example, <span><strong class="command">rndc</strong></span> will by default use
 	the server at localhost (127.0.0.1) and the key called samplekey.
 	Commands to the localhost server will use the samplekey key, which
 	must also be defined in the server's configuration file with the
 	same name and secret.  The key statement indicates that samplekey
 	uses the HMAC-MD5 algorithm and its secret clause contains the
 	base-64 encoding of the HMAC-MD5 secret enclosed in double quotes.
-    </P
-><P
->        To generate a random secret with <B
-CLASS="COMMAND"
->rndc-confgen</B
->:
-    </P
-><P
->        <KBD
-CLASS="USERINPUT"
->rndc-confgen</KBD
->
-    </P
-><P
->        A complete <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> file, including the
+    </p>
+<p>
+        To generate a random secret with <span><strong class="command">rndc-confgen</strong></span>:
+    </p>
+<p>
+        <strong class="userinput"><code>rndc-confgen</code></strong>
+    </p>
+<p>
+        A complete <code class="filename">rndc.conf</code> file, including the
         randomly generated key, will be written to the standard
-        output.  Commented out <VAR
-CLASS="OPTION"
->key</VAR
-> and
-        <VAR
-CLASS="OPTION"
->controls</VAR
-> statements for
-        <TT
-CLASS="FILENAME"
->named.conf</TT
-> are also printed.
-    </P
-><P
->        To generate a base-64 secret with <B
-CLASS="COMMAND"
->mmencode</B
->:
-    </P
-><P
->        <KBD
-CLASS="USERINPUT"
->echo "known plaintext for a secret" | mmencode</KBD
->
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN72"
-></A
-><H2
->NAME SERVER CONFIGURATION</H2
-><P
->        The name server must be configured to accept rndc connections and
-	to recognize the key specified in the <TT
-CLASS="FILENAME"
->rndc.conf</TT
->
-	file, using the controls statement in <TT
-CLASS="FILENAME"
->named.conf</TT
->.
-	See the sections on the <VAR
-CLASS="OPTION"
->controls</VAR
-> statement in the
+        output.  Commented out <code class="option">key</code> and
+        <code class="option">controls</code> statements for
+        <code class="filename">named.conf</code> are also printed.
+    </p>
+<p>
+        To generate a base-64 secret with <span><strong class="command">mmencode</strong></span>:
+    </p>
+<p>
+        <strong class="userinput"><code>echo "known plaintext for a secret" | mmencode</code></strong>
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526028"></a><h2>NAME SERVER CONFIGURATION</h2>
+<p>
+        The name server must be configured to accept rndc connections and
+	to recognize the key specified in the <code class="filename">rndc.conf</code>
+	file, using the controls statement in <code class="filename">named.conf</code>.
+	See the sections on the <code class="option">controls</code> statement in the
 	BIND 9 Administrator Reference Manual for details.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN78"
-></A
-><H2
->SEE ALSO</H2
-><P
->      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->rndc</SPAN
->(8)</SPAN
->,
-      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->rndc-confgen</SPAN
->(8)</SPAN
->,
-      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->mmencode</SPAN
->(1)</SPAN
->,
-      <I
-CLASS="CITETITLE"
->BIND 9 Administrator Reference Manual</I
->.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN91"
-></A
-><H2
->AUTHOR</H2
-><P
->        Internet Systems Consortium
-    </P
-></DIV
-></BODY
-></HTML
->
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526049"></a><h2>SEE ALSO</h2>
+<p>
+      <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">rndc-confgen</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">mmencode</span>(1)</span>,
+      <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526091"></a><h2>AUTHOR</h2>
+<p>
+        <span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>

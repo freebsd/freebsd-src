@@ -18,6 +18,9 @@ struct timezone;        /* silence warning */
 @WANT_IRS_PW@
 
 @BSD_COMP@
+@USE_POLL@
+@HAVE_MD5@
+@SOLARIS2@
 
 @DO_PTHREADS@
 @GETGROUPLIST_ARGS@
@@ -133,6 +136,11 @@ struct timezone;        /* silence warning */
 	__attribute__((__format__(__printf__, fmt, args)))
 #else
 #define ISC_FORMAT_PRINTF(fmt, args)
+#endif
+
+/* Pull in host order macros when _XOPEN_SOURCE_EXTENDED is defined. */
+#if defined(__hpux) && defined(_XOPEN_SOURCE_EXTENDED)
+#include <sys/byteorder.h>
 #endif
 
 #endif

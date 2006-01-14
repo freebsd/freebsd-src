@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.h,v 1.41.2.5.2.6 2004/03/08 02:08:01 marka Exp $ */
+/* $Id: rdataset.h,v 1.41.2.5.2.8 2005/03/17 03:58:31 marka Exp $ */
 
 #ifndef DNS_RDATASET_H
 #define DNS_RDATASET_H 1
@@ -130,22 +130,23 @@ struct dns_rdataset {
  *	Used by message.c to indicate that the rdataset's rdata had differing
  *	TTL values, and the rdataset->ttl holds the smallest.
  */
-#define DNS_RDATASETATTR_QUESTION	0x0001
-#define DNS_RDATASETATTR_RENDERED	0x0002		/* Used by message.c */
-#define DNS_RDATASETATTR_ANSWERED	0x0004		/* Used by server. */
-#define DNS_RDATASETATTR_CACHE		0x0008		/* Used by resolver. */
-#define DNS_RDATASETATTR_ANSWER		0x0010		/* Used by resolver. */
-#define DNS_RDATASETATTR_ANSWERSIG	0x0020		/* Used by resolver. */
-#define DNS_RDATASETATTR_EXTERNAL	0x0040		/* Used by resolver. */
-#define DNS_RDATASETATTR_NCACHE		0x0080		/* Used by resolver. */
-#define DNS_RDATASETATTR_CHAINING	0x0100		/* Used by resolver. */
-#define DNS_RDATASETATTR_TTLADJUSTED	0x0200		/* Used by message.c */
-#define DNS_RDATASETATTR_FIXEDORDER	0x0400
-#define DNS_RDATASETATTR_RANDOMIZE	0x0800
-#define DNS_RDATASETATTR_CHASE		0x1000		/* Used by resolver. */
-#define DNS_RDATASETATTR_NXDOMAIN	0x2000
-#define DNS_RDATASETATTR_NOQNAME	0x4000
-#define DNS_RDATASETATTR_CHECKNAMES	0x8000		/* Used by resolver. */
+#define DNS_RDATASETATTR_QUESTION	0x00000001
+#define DNS_RDATASETATTR_RENDERED	0x00000002	/* Used by message.c */
+#define DNS_RDATASETATTR_ANSWERED	0x00000004	/* Used by server. */
+#define DNS_RDATASETATTR_CACHE		0x00000008	/* Used by resolver. */
+#define DNS_RDATASETATTR_ANSWER		0x00000010	/* Used by resolver. */
+#define DNS_RDATASETATTR_ANSWERSIG	0x00000020	/* Used by resolver. */
+#define DNS_RDATASETATTR_EXTERNAL	0x00000040	/* Used by resolver. */
+#define DNS_RDATASETATTR_NCACHE		0x00000080	/* Used by resolver. */
+#define DNS_RDATASETATTR_CHAINING	0x00000100	/* Used by resolver. */
+#define DNS_RDATASETATTR_TTLADJUSTED	0x00000200	/* Used by message.c */
+#define DNS_RDATASETATTR_FIXEDORDER	0x00000400
+#define DNS_RDATASETATTR_RANDOMIZE	0x00000800
+#define DNS_RDATASETATTR_CHASE		0x00001000	/* Used by resolver. */
+#define DNS_RDATASETATTR_NXDOMAIN	0x00002000
+#define DNS_RDATASETATTR_NOQNAME	0x00004000
+#define DNS_RDATASETATTR_CHECKNAMES	0x00008000	/* Used by resolver. */
+#define DNS_RDATASETATTR_REQUIREDGLUE	0x00010000
 
 /*
  * _OMITDNSSEC:

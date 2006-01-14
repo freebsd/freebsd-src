@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_verify.c,v 1.1.206.1 2004/03/09 08:33:45 marka Exp $";
+static const char rcsid[] = "$Id: ns_verify.c,v 1.1.206.2 2005/10/11 00:48:16 marka Exp $";
 #endif
 
 /* Import. */
@@ -144,7 +144,7 @@ ns_verify(u_char *msg, int *msglen, void *k,
 	int n;
 	int error;
 	u_int16_t type, length;
-	u_int16_t fudge, sigfieldlen, id, otherfieldlen;
+	u_int16_t fudge, sigfieldlen, otherfieldlen;
 
 	dst_init();
 	if (msg == NULL || msglen == NULL || *msglen < 0)
@@ -198,9 +198,9 @@ ns_verify(u_char *msg, int *msglen, void *k,
 	sigstart = cp;
 	cp += sigfieldlen;
 
-	/* Read the original id and error. */
+	/* Skip id and read error. */
 	BOUNDS_CHECK(cp, 2*INT16SZ);
-	GETSHORT(id, cp);
+	cp += INT16SZ;
 	GETSHORT(error, cp);
 
 	/* Parse the other data. */
@@ -341,12 +341,12 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 	      int required)
 {
 	HEADER *hp = (HEADER *)msg;
-	u_char *recstart, *rdatastart, *sigstart;
+	u_char *recstart, *sigstart;
 	unsigned int sigfieldlen, otherfieldlen;
 	u_char *cp, *eom = msg + *msglen, *cp2;
 	char name[MAXDNAME], alg[MAXDNAME];
 	u_char buf[MAXDNAME];
-	int n, type, length, fudge, id, error;
+	int n, type, length, fudge, error;
 	time_t timesigned;
 
 	if (msg == NULL || msglen == NULL || state == NULL)
@@ -403,7 +403,6 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 		return (NS_TSIG_ERROR_FORMERR);
 
 	/* Read the algorithm name. */
-	rdatastart = cp;
 	n = dn_expand(msg, eom, cp, alg, MAXDNAME);
 	if (n < 0)
 		return (NS_TSIG_ERROR_FORMERR);
@@ -429,9 +428,9 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 	sigstart = cp;
 	cp += sigfieldlen;
 
-	/* Read the original id and error. */
+	/* Skip id and read error. */
 	BOUNDS_CHECK(cp, 2*INT16SZ);
-	GETSHORT(id, cp);
+	cp += INT16SZ;
 	GETSHORT(error, cp);
 
 	/* Parse the other data. */

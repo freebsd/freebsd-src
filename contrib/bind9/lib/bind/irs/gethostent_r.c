@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: gethostent_r.c,v 1.4.206.3 2004/09/01 02:03:07 marka Exp $";
+static const char rcsid[] = "$Id: gethostent_r.c,v 1.4.206.4 2005/09/03 12:47:38 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -44,7 +44,9 @@ gethostbyname_r(const char *name,  struct hostent *hptr, HOST_R_ARGS) {
 	int n = 0;
 #endif
 
+#ifdef HOST_R_ERRNO
 	HOST_R_ERRNO;
+#endif
 
 #ifdef HOST_R_SETANSWER
 	if (he == NULL || (n = copy_hostent(he, hptr, HOST_R_COPY)) != 0)
@@ -69,7 +71,9 @@ gethostbyaddr_r(const char *addr, int len, int type,
 	int n = 0;
 #endif
 
+#ifdef HOST_R_ERRNO
 	HOST_R_ERRNO;
+#endif
 
 #ifdef HOST_R_SETANSWER
 	if (he == NULL || (n = copy_hostent(he, hptr, HOST_R_COPY)) != 0)
@@ -99,7 +103,9 @@ gethostent_r(struct hostent *hptr, HOST_R_ARGS) {
 	int n = 0;
 #endif
 
+#ifdef HOST_R_ERRNO
 	HOST_R_ERRNO;
+#endif
 
 #ifdef HOST_R_SETANSWER
 	if (he == NULL || (n = copy_hostent(he, hptr, HOST_R_COPY)) != 0)
@@ -123,6 +129,9 @@ sethostent_r(int stay_open, HOST_R_ENT_ARGS)
 sethostent_r(int stay_open)
 #endif
 {
+#ifdef HOST_R_ENT_ARGS
+	UNUSED(hdptr);
+#endif
 	sethostent(stay_open);
 #ifdef	HOST_R_SET_RESULT
 	return (HOST_R_SET_RESULT);
@@ -136,6 +145,9 @@ endhostent_r(HOST_R_ENT_ARGS)
 endhostent_r(void)
 #endif
 {
+#ifdef HOST_R_ENT_ARGS
+	UNUSED(hdptr);
+#endif
 	endhostent();
 	HOST_R_END_RESULT(HOST_R_OK);
 }

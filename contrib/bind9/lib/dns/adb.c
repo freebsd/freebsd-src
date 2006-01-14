@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.11.2.20 2004/11/10 22:32:40 marka Exp $ */
+/* $Id: adb.c,v 1.181.2.11.2.24 2005/10/14 05:19:00 marka Exp $ */
 
 /*
  * Implementation notes
@@ -1784,7 +1784,7 @@ shutdown_task(isc_task_t *task, isc_event_t *ev) {
 static isc_boolean_t
 check_expire_name(dns_adbname_t **namep, isc_stdtime_t now) {
 	dns_adbname_t *name;
-	isc_result_t result = ISC_FALSE;
+	isc_boolean_t result = ISC_FALSE;
 
 	INSIST(namep != NULL && DNS_ADBNAME_VALID(*namep));
 	name = *namep;
@@ -1861,7 +1861,7 @@ static isc_boolean_t
 cleanup_names(dns_adb_t *adb, int bucket, isc_stdtime_t now) {
 	dns_adbname_t *name;
 	dns_adbname_t *next_name;
-	isc_result_t result = ISC_FALSE;
+	isc_boolean_t result = ISC_FALSE;
 
 	DP(CLEAN_LEVEL, "cleaning name bucket %d", bucket);
 
@@ -3347,7 +3347,7 @@ dns_adb_marklame(dns_adb_t *adb, dns_adbaddrinfo_t *addr, dns_name_t *zone,
 	bucket = addr->entry->lock_bucket;
 	LOCK(&adb->entrylocks[bucket]);
 	zi = ISC_LIST_HEAD(addr->entry->zoneinfo);
-	while (zi != NULL && dns_name_equal(zone, &zi->zone))
+	while (zi != NULL && !dns_name_equal(zone, &zi->zone))
 		zi = ISC_LIST_NEXT(zi, plink);
 	if (zi != NULL) {
 		if (expire_time > zi->lame_timer)
@@ -3366,7 +3366,7 @@ dns_adb_marklame(dns_adb_t *adb, dns_adbaddrinfo_t *addr, dns_name_t *zone,
  unlock:
 	UNLOCK(&adb->entrylocks[bucket]);
 
-	return (ISC_R_SUCCESS);
+	return (result);
 }
 
 void
