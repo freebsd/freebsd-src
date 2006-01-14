@@ -64,8 +64,9 @@ ACPI_MODULE_NAME("IBM")
 #define ACPI_IBM_METHOD_BLUETOOTH	8
 #define ACPI_IBM_METHOD_WLAN		9
 #define ACPI_IBM_METHOD_FANSPEED	10
-#define ACPI_IBM_METHOD_FANSTATUS	11
-#define ACPI_IBM_METHOD_THERMAL		12
+#define ACPI_IBM_METHOD_FANLEVEL	11
+#define ACPI_IBM_METHOD_FANSTATUS	12
+#define ACPI_IBM_METHOD_THERMAL		13
 
 /* Hotkeys/Buttons */
 #define IBM_RTC_HOTKEY1			0x64
@@ -94,6 +95,8 @@ ACPI_MODULE_NAME("IBM")
 #define   IBM_EC_MASK_VOL		0xf
 #define   IBM_EC_MASK_MUTE		(1 << 6)
 #define IBM_EC_FANSTATUS		0x2F
+#define   IBM_EC_MASK_FANLEVEL		0x3f
+#define   IBM_EC_MASK_FANDISENGAGED	(1 << 6)
 #define   IBM_EC_MASK_FANSTATUS		(1 << 7)
 #define IBM_EC_FANSPEED			0x84
 
@@ -229,10 +232,16 @@ static struct {
 		.access		= CTLTYPE_INT | CTLFLAG_RD
 	},
 	{
+		.name		= "fan_level",
+		.method		= ACPI_IBM_METHOD_FANLEVEL,
+		.description	= "Fan level",
+		.access		= CTLTYPE_INT | CTLFLAG_RW
+	},
+	{
 		.name		= "fan",
 		.method		= ACPI_IBM_METHOD_FANSTATUS,
 		.description	= "Fan enable",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 
 	{ NULL, 0, NULL, 0 }
@@ -590,6 +599,22 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 		}
 		break;
 
+	case ACPI_IBM_METHOD_FANLEVEL:
+		/*
+		 * The IBM_EC_FANSTATUS register works as follows:
+		 * Bit 0-5 indicate the level at which the fan operates. Only
+		 *       values between 0 and 7 have an effect. Everything
+		 *       above 7 is treated the same as level 7
+		 * Bit 6 overrides the fan speed limit if set to 1
+		 * Bit 7 indicates at which mode the fan operates:
+		 *       manual (0) or automatic (1)
+		 */
+		if (!sc->fan_handle) {
+			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
+			val = val_ec & IBM_EC_MASK_FANLEVEL;
+		}
+		break;
+
 	case ACPI_IBM_METHOD_FANSTATUS:
 		if (!sc->fan_handle) {
 			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
@@ -731,6 +756,32 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 		val = (arg == 1) ? sc->wlan_bt_flags | IBM_NAME_MASK_BT : sc->wlan_bt_flags & (~IBM_NAME_MASK_BT);
 		return acpi_SetInteger(sc->handle, IBM_NAME_WLAN_BT_SET, val);
 		break;
+
+	case ACPI_IBM_METHOD_FANLEVEL:
+		if (arg < 0 || arg > 7)
+			return (EINVAL);
+
+		if (!sc->fan_handle) {
+			/* Read the current fanstatus */
+			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
+			val = val_ec & (~IBM_EC_MASK_FANLEVEL);
+
+			return ACPI_EC_WRITE(sc->ec_dev, IBM_EC_FANSTATUS, val | arg, 1);
+		}
+		break;
+
+	case ACPI_IBM_METHOD_FANSTATUS:
+		if (arg < 0 || arg > 1)
+			return (EINVAL);
+
+		if (!sc->fan_handle) {
+			/* Read the current fanstatus */
+			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
+
+			return ACPI_EC_WRITE(sc->ec_dev, IBM_EC_FANSTATUS,
+				(arg == 1) ? (val_ec | IBM_EC_MASK_FANSTATUS) : (val_ec & (~IBM_EC_MASK_FANSTATUS)), 1);
+		}
+		break;
 	}
 
 	return (0);
@@ -804,6 +855,7 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 		     ACPI_SUCCESS(AcpiGetHandle(sc->handle, "\\FSPD", &sc->fan_handle)));
 		return (TRUE);
 
+	case ACPI_IBM_METHOD_FANLEVEL:
 	case ACPI_IBM_METHOD_FANSTATUS:
 		/* 
 		 * Fan status is only supported on those models,
