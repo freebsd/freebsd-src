@@ -329,12 +329,12 @@ static int
 ngfrm_rcvdata(hook_p hook, item_p item)
 {
 	struct	ctxinfo *const ctxp = NG_HOOK_PRIVATE(hook);
+	struct	mbuf *m = NULL;
 	int     error = 0;
 	int     dlci;
 	sc_p    sc;
 	int     alen;
 	char   *data;
-	struct mbuf *m;
 
 	/* Data doesn't come in from just anywhere (e.g debug hook) */
 	if (ctxp == NULL) {
