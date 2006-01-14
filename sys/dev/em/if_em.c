@@ -2053,13 +2053,9 @@ em_allocate_intr(struct adapter *adapter)
 		TASK_INIT(&adapter->link_task, 0, em_handle_link, adapter);
 		adapter->tq = taskqueue_create_fast("em_taskq", M_NOWAIT,
 			taskqueue_thread_enqueue,
-			&adapter->tq, &adapter->tqproc);
-		kthread_create(taskqueue_thread_loop,
-			&adapter->tq, &adapter->tqproc,
-			0, 0, "%s taskq", device_get_nameunit(adapter->dev));
-		mtx_lock_spin(&sched_lock);
-		sched_prio(FIRST_THREAD_IN_PROC(adapter->tqproc), PI_NET);
-		mtx_unlock_spin(&sched_lock);
+			&adapter->tq);
+		taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
+		    device_get_nameunit(adapter->dev));
 	}
 #endif
 	if (adapter->int_handler_tag == NULL) {
