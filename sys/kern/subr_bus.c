@@ -2820,7 +2820,7 @@ resource_list_purge(struct resource_list *rl)
 {
 	struct resource_list_entry *rle;
 
-	STAILQ_FOREACH(rle, rl, link) {
+	while ((rle = STAILQ_FIRST(rl)) != NULL) {
 		if (rle->res)
 			bus_release_resource(rman_get_device(rle->res),
 			    rle->type, rle->rid, rle->res);
