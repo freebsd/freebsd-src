@@ -559,7 +559,6 @@ nglmi_rcvdata(hook_p hook, item_p item)
 	unsigned short dlci;
 	u_short packetlen;
 	int     resptype_seen = 0;
-	int     seq_seen = 0;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
@@ -669,8 +668,6 @@ nglmi_rcvdata(hook_p hook, item_p item)
 			/* The remote tells us what it thinks the sequence
 			 * numbers are. If it's not size 2, it must be a
 			 * duplicate to have gotten this far, skip it. */
-			if (seq_seen != 0)	/* already seen seq numbers */
-				goto nextIE;
 			if (segsize != 2)
 				goto nextIE;
 			sc->remote_seq = data[2];
