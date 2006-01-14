@@ -2333,16 +2333,10 @@ asr_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND,
 	    pci_read_config(dev, PCIR_COMMAND, sizeof(char)) |
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
-	/* Knowledge is power, responsibility is direct */
-	{
-		struct pci_devinfo {
-			STAILQ_ENTRY(pci_devinfo) pci_links;
-			struct resource_list	  resources;
-			pcicfgregs		  cfg;
-		} * dinfo = device_get_ivars(dev);
-		sc->ha_pciBusNum = dinfo->cfg.bus;
-		sc->ha_pciDeviceNum = (dinfo->cfg.slot << 3) | dinfo->cfg.func;
-	}
+
+	sc->ha_pciBusNum = pci_get_bus(dev);
+	sc->ha_pciDeviceNum = (pci_get_slot(dev) << 3) | pci_get_function(dev);
+
 	/* Check if the device is there? */
 	if ((ASR_resetIOP(sc) == 0) ||
 	    ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
