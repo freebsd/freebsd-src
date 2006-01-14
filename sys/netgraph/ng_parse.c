@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/ctype.h>
@@ -799,10 +800,10 @@ ng_fixedstring_parse(const struct ng_parse_type *type,
 	int len;
 	int slen;
 
-	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
-		return (EINVAL);
 	if (slen + 1 > fi->bufSize)
 		return (E2BIG);
+	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
+		return (EINVAL);
 	*off += len;
 	bcopy(sval, buf, slen);
 	FREE(sval, M_NETGRAPH_PARSE);
@@ -900,9 +901,9 @@ ng_sizedstring_parse(const struct ng_parse_type *type,
 	int len;
 	int slen;
 
-	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
+	if (slen > USHRT_MAX)
 		return (EINVAL);
-	if (slen > 0xffff)
+	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
 	*off += len;
 	*((u_int16_t *)buf) = (u_int16_t)slen;
