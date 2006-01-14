@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: control.c,v 1.7.2.2.2.11 2004/09/03 03:43:31 marka Exp $ */
+/* $Id: control.c,v 1.7.2.2.2.14 2005/04/29 01:04:47 marka Exp $ */
 
 #include <config.h>
 
@@ -37,6 +37,9 @@
 #include <named/log.h>
 #include <named/os.h>
 #include <named/server.h>
+#ifdef HAVE_LIBSCF
+#include <named/ns_smf_globals.h>
+#endif
 
 static isc_boolean_t
 command_compare(const char *text, const char *command) {
@@ -58,6 +61,9 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 	isccc_sexpr_t *data;
 	char *command;
 	isc_result_t result;
+#ifdef HAVE_LIBSCF
+	ns_smf_want_disable = 0;
+#endif
 
 	data = isccc_alist_lookup(message, "_data");
 	if (data == NULL) {
@@ -92,11 +98,41 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 	} else if (command_compare(command, NS_COMMAND_RETRANSFER)) {
 		result = ns_server_retransfercommand(ns_g_server, command);
 	} else if (command_compare(command, NS_COMMAND_HALT)) {
+#ifdef HAVE_LIBSCF
+		/*
+		 * If we are managed by smf(5), AND in chroot, then
+		 * we cannot connect to the smf repository, so just
+		 * return with an appropriate message back to rndc.
+		 */
+		if (ns_smf_got_instance == 1 && ns_smf_chroot == 1) {
+			result = ns_smf_add_message(text);
+			return (result);
+		}
+		/*
+		 * If we are managed by smf(5) but not in chroot,
+		 * try to disable ourselves the smf way.
+		 */
+		if (ns_smf_got_instance == 1 && ns_smf_chroot == 0)
+			ns_smf_want_disable = 1;
+		/*
+		 * If ns_smf_got_instance = 0, ns_smf_chroot
+		 * is not relevant and we fall through to
+		 * isc_app_shutdown below.
+		 */
+#endif
 		ns_server_flushonshutdown(ns_g_server, ISC_FALSE);
 		ns_os_shutdownmsg(command, text);
 		isc_app_shutdown();
 		result = ISC_R_SUCCESS;
 	} else if (command_compare(command, NS_COMMAND_STOP)) {
+#ifdef HAVE_LIBSCF
+		if (ns_smf_got_instance == 1 && ns_smf_chroot == 1) {
+			result = ns_smf_add_message(text);
+			return (result);
+		}
+		if (ns_smf_got_instance == 1 && ns_smf_chroot == 0)
+			ns_smf_want_disable = 1;
+#endif
 		ns_server_flushonshutdown(ns_g_server, ISC_TRUE);
 		ns_os_shutdownmsg(command, text);
 		isc_app_shutdown();

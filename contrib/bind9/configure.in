@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.294.2.23.2.39 $)
+AC_REVISION($Revision: 1.294.2.23.2.51 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -261,6 +261,7 @@ AC_TRY_COMPILE(, [
 
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(ssize_t, int)
+AC_CHECK_TYPE(uintptr_t,unsigned long)
 AC_CHECK_TYPE(socklen_t,
 [AC_DEFINE(ISC_SOCKADDR_LEN_T, socklen_t)],
 [
@@ -608,158 +609,7 @@ esac
 #
 AC_CHECK_FUNC(arc4random, AC_DEFINE(HAVE_ARC4RANDOM))
 
-#
-# Begin pthreads checking.
-#
-# First, decide whether to use multithreading or not.
-#
-# Enable multithreading by default on systems where it is known
-# to work well, and where debugging of multithreaded programs
-# is supported.
-#
-
-AC_MSG_CHECKING(whether to build with thread support)
-
-case $host in
-*-dec-osf*)
-	use_threads=true ;;
-[*-solaris2.[0-6]])
-	# Thread signals are broken on Solaris 2.6; they are sometimes
-	# delivered to the wrong thread.
-	use_threads=false ;;
-*-solaris*)
-	use_threads=true ;;
-*-ibm-aix*)
-	use_threads=true ;;
-*-hp-hpux10*)
-	use_threads=false ;;
-*-hp-hpux11*)
-	use_threads=true ;;
-*-sgi-irix*)
-	use_threads=true ;;
-*-sco-sysv*uw*|*-*-sysv*UnixWare*)
-        # UnixWare
-	use_threads=false ;;
-*-*-sysv*OpenUNIX*)
-        # UnixWare
-	use_threads=true ;;
-*-netbsd*)
-	if test -r /usr/lib/libpthread.so ; then
-	    use_threads=true
-	else
-	    # Socket I/O optimizations introduced in 9.2 expose a
-	    # bug in unproven-pthreads; see PR #12650
-	    use_threads=false
-	fi
-	;;
-*-openbsd*)
-	# OpenBSD users have reported that named dumps core on
-	# startup when built with threads.
-	use_threads=false ;;
-*-freebsd*)
-	use_threads=false ;;
-*-bsdi[234]*)
-	# Thread signals do not work reliably on some versions of BSD/OS.
-	use_threads=false ;;
-*-bsdi5*)
-	use_threads=true ;;
-*-linux*)
-   	# Threads are disabled on Linux by default because most
-	# Linux kernels produce unusable core dumps from multithreaded
-	# programs, and because of limitations in setuid().
-	use_threads=false ;;	
-*)
-	use_threads=false ;;
-esac
-
-AC_ARG_ENABLE(threads,
-	[  --enable-threads	enable multithreading])
-case "$enable_threads" in
-	yes)
-		use_threads=true
-		;;
-	no)
-		use_threads=false
-		;;
-	'')
-		# Use system-dependent default
-		;;
-	*)
-	    	AC_MSG_ERROR([--enable-threads takes yes or no])
-		;;
-esac
-
-if $use_threads
-then
-	AC_MSG_RESULT(yes)
-else
-	AC_MSG_RESULT(no)	
-fi
-
-if $use_threads
-then
-	#
-	# Search for / configure pthreads in a system-dependent fashion.
-	#
-	case "$host" in
-	  *-netbsd*)
-		# NetBSD has multiple pthreads implementations.	 The
-		# recommended one to use is "unproven-pthreads".  The
-		# older "mit-pthreads" may also work on some NetBSD
-		# versions.  The PTL2 thread library does not
-		# currently work with bind9, but can be chosen with
-		# the --with-ptl2 option for those who wish to
-		# experiment with it.
-		CC="gcc"
-		AC_MSG_CHECKING(which NetBSD thread library to use)
-
-		AC_ARG_WITH(ptl2,
-[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
-		    use_ptl2="$withval", use_ptl2="no")
-
-		: ${LOCALBASE:=/usr/pkg}
-
-		if test "X$use_ptl2" = "Xyes"
-		then
-			AC_MSG_RESULT(PTL2)
-			AC_MSG_WARN(
-[linking with PTL2 is highly experimental and not expected to work])
-			CC=ptlgcc
-		else
-			if test -r /usr/lib/libpthread.so
-			then
-				AC_MSG_RESULT(native)
-				LIBS="-lpthread $LIBS"
-			else
-				if test ! -d $LOCALBASE/pthreads
-				then
-					AC_MSG_RESULT(none)
-					AC_MSG_ERROR("could not find thread libraries")
-				fi
-
-				if $use_threads
-				then
-					AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
-					pkg="$LOCALBASE/pthreads"
-					lib1="-L$pkg/lib -Wl,-R$pkg/lib"
-					lib2="-lpthread -lm -lgcc -lpthread"
-					LIBS="$lib1 $lib2 $LIBS"
-					CPPFLAGS="$CPPFLAGS -I$pkg/include"
-					STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
-				fi
-			fi
-		fi
-		;;
-		*)
-			AC_CHECK_LIB(pthread, pthread_create,,
-				AC_CHECK_LIB(pthread, __pthread_create,,
-				AC_CHECK_LIB(pthread, __pthread_create_system,,
-				AC_CHECK_LIB(c_r, pthread_create,,
-				AC_CHECK_LIB(c, pthread_create,,
-				AC_MSG_ERROR("could not find thread libraries"))))))
-		;;
-	esac
-fi
+sinclude(config.threads.in)dnl
 
 if $use_threads
 then
@@ -790,7 +640,11 @@ then
 		*-freebsd*)
 			AC_CHECK_LIB(c_r, sigwait, AC_DEFINE(HAVE_SIGWAIT),)
 			case $host in
-			*-freebsd5.3|*-freebsd5.3.*)
+			*-freebsd5.[[012]]|*-freebsd5.[[012]].*);;
+			*-freebsd5.[[3456789]]|*-freebsd5.[[3456789]].*)
+				AC_DEFINE(NEED_PTHREAD_SCOPE_SYSTEM)
+				;;
+			*-freebsd6.*)
 				AC_DEFINE(NEED_PTHREAD_SCOPE_SYSTEM)
 				;;
 			esac
@@ -884,7 +738,6 @@ fi
 
 AC_SUBST(ALWAYS_DEFINES)
 AC_SUBST(ISC_PLATFORM_USETHREADS)
-
 ISC_THREAD_DIR=$thread_dir
 AC_SUBST(ISC_THREAD_DIR)
 
@@ -939,7 +792,7 @@ if test "X$GCC" = "Xyes"; then
 	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat"
 	case "$host" in
 	*-hp-hpux*)
-		LDFLAGS="-Wl,+vnocompatwarnings $LDFALGS"
+		LDFLAGS="-Wl,+vnocompatwarnings $LDFLAGS"
 		;;
 	esac
 else
@@ -961,11 +814,11 @@ else
 			;;
 		*)
 			# Turn off the pointlessly noisy warnings.
-			STD_CWARNINGS="+w1 +W 474,530"
+			STD_CWARNINGS="+w1 +W 474,530,2193,2236"
 			;;
 		esac
 		CCOPT="$CCOPT -Ae -z"
-		LDFLAGS="-Wl,+vnocompatwarnings $LDFALGS"
+		LDFLAGS="-Wl,+vnocompatwarnings $LDFLAGS"
 		MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
 		;;
 	*-sgi-irix*)
@@ -1414,6 +1267,10 @@ char a[16],b[64]; return(inet_ntop(AF_INET6, a, b, sizeof(b)) == (char*)0);}],
         [AC_MSG_RESULT(no)
         ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
         ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
+        ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"],
+        [AC_MSG_RESULT(assuming inet_ntop needed)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
         ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"])
 
 
@@ -1437,7 +1294,13 @@ main() { char a[16]; return (inet_pton(AF_INET, "1.2.3", a) == 1 ? 1 :
         ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
         ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"],
 	[AC_MSG_RESULT(assuming target platform has working inet_pton)
-	ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"])
+	ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
+        [AC_MSG_RESULT(assuming inet_pton needed)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
+        ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"],
+        [AC_MSG_RESULT(assuming target platform has working inet_pton)
+        ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"])
 
 AC_MSG_CHECKING([for inet_aton])
 AC_TRY_LINK([
@@ -1703,9 +1566,15 @@ AC_CHECK_FUNC(memmove,
 AC_SUBST(ISC_PLATFORM_NEEDMEMMOVE)
 
 AC_CHECK_FUNC(strtoul,
-	[ISC_PLATFORM_NEEDSTRTOUL="#undef ISC_PLATFORM_NEEDSTRTOUL"],
-	[ISC_PLATFORM_NEEDSTRTOUL="#define ISC_PLATFORM_NEEDSTRTOUL 1"])
+	[ISC_PLATFORM_NEEDSTRTOUL="#undef ISC_PLATFORM_NEEDSTRTOUL"
+	 LWRES_PLATFORM_NEEDSTRTOUL="#undef ISC_PLATFORM_NEEDSTRTOUL"
+	 GENRANDOMLIB=""],
+	[ISC_PLATFORM_NEEDSTRTOUL="#define ISC_PLATFORM_NEEDSTRTOUL 1"
+	 LWRES_PLATFORM_NEEDSTRTOUL="#define ISC_PLATFORM_NEEDSTRTOUL 1"
+	 "GENRANDOMLIB=${ISCLIBS}"])
 AC_SUBST(ISC_PLATFORM_NEEDSTRTOUL)
+AC_SUBST(LWRES_PLATFORM_NEEDSTRTOUL)
+AC_SUBST(GENRANDOMLIB)
 
 AC_CHECK_FUNC(strlcpy,
 	[ISC_PLATFORM_NEEDSTRLCPY="#undef ISC_PLATFORM_NEEDSTRLCPY"],
@@ -1760,6 +1629,9 @@ AC_SUBST(ISC_EXTRA_SRCS)
 # will produce a inconsistant result in the later case.  If the compiler
 # fails due to seeing "%lld" we fall back to "l".
 #
+# Digital Unix 4.0 (gcc?) (long long) is 64 bits as is its long. It uses
+# %ld even for (long long)/
+#
 # Win32 uses "%I64d", but that's defined elsewhere since we don't use
 # configure on Win32.
 #
@@ -1776,12 +1648,16 @@ main() {
 } 
 ],
 	[AC_MSG_RESULT(ll)
-	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "ll"'],
+	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "ll"'
+	LWRES_PLATFORM_QUADFORMAT='#define LWRES_PLATFORM_QUADFORMAT "ll"'],
 	[AC_MSG_RESULT(l)
-	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "l"'],
+	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "l"'
+	LWRES_PLATFORM_QUADFORMAT='#define LWRES_PLATFORM_QUADFORMAT "l"'],
 	[AC_MSG_RESULT(assuming target platform uses ll)
-	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "ll"'])
+	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "ll"'
+	LWRES_PLATFORM_QUADFORMAT='#define LWRES_PLATFORM_QUADFORMAT "ll"'])
 AC_SUBST(ISC_PLATFORM_QUADFORMAT)
+AC_SUBST(LWRES_PLATFORM_QUADFORMAT)
 
 #
 # Security Stuff
@@ -1802,6 +1678,15 @@ AC_CHECK_HEADERS(sys/prctl.h)
 # Time Zone Stuff
 #
 AC_CHECK_FUNC(tzset, AC_DEFINE(HAVE_TZSET))
+
+AC_MSG_CHECKING(for optarg decarartion)
+AC_TRY_COMPILE([
+#include <unistd.h>
+],
+[optarg = 0;],
+[AC_MSG_RESULT(yes)],
+[AC_MSG_RESULT(no)
+AC_DEFINE(NEED_OPTARG, 1, [Defined if extern char *optarg is not declared.])])
 
 #
 # BSD/OS, and perhaps some others, don't define rlim_t.
@@ -1843,7 +1728,9 @@ ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"],
 [AC_MSG_ERROR([unable to determine sizeof rlim_cur])
 ],[AC_MSG_ERROR(this cannot happen)])
 ],[AC_MSG_ERROR(this cannot happen)])
-],[AC_MSG_ERROR(cannot determine type of rlim_cur when cross compiling - define rlim_t)])
+],[
+ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"
+AC_MSG_RESULT(cannot determine type of rlim_cur when cross compiling - assuming long long int)])
 ])
 AC_SUBST(ISC_PLATFORM_RLIMITTYPE)
 
@@ -1958,30 +1845,50 @@ esac
 AC_SUBST(ISC_PLATFORM_HAVEIFNAMETOINDEX)
 
 #
+#  The following sets up how non-blocking i/o is established.
+#  Sunos, cygwin and solaris 2.x (x<5) require special handling.
+#
+case "$host" in
+*-sunos*) AC_DEFINE(PORT_NONBLOCK, O_NDELAY);;
+*-cygwin*) AC_DEFINE(PORT_NONBLOCK, O_NDELAY);;
+*-solaris2.[[01234]])
+	AC_DEFINE(PORT_NONBLOCK, O_NONBLOCK)
+	AC_DEFINE(USE_FIONBIO_IOCTL, 1,
+		  [Defined if you need to use ioctl(FIONBIO) instead a fcntl call to make non-blocking.])
+	;;
+*) AC_DEFINE(PORT_NONBLOCK, O_NONBLOCK,
+	     [Sets which flag to pass to open/fcntl to make non-blocking (O_NDELAY/O_NONBLOCK).])
+	;;
+esac
+#
 # The following sections deal with tools used for formatting
 # the documentation.  They are all optional, unless you are
 # a developer editing the documentation source.
 #
 
-# Directory trees where SGML files are commonly found.
-sgmltrees="/usr/pkg/share/sgml /usr/local/share/sgml /usr/share/sgml"
-
-#
-# Look for openjade.  Plain jade is no longer supported.
-#
-
-AC_PATH_PROGS(OPENJADE, openjade, openjade)
-AC_SUBST(OPENJADE)
-
 #
 # Look for TeX.
 #
 
-AC_PATH_PROGS(JADETEX, jadetex, jadetex)
-AC_SUBST(JADETEX)
+AC_PATH_PROGS(LATEX, latex, latex)
+AC_SUBST(LATEX)
 
-AC_PATH_PROGS(PDFJADETEX, pdfjadetex, pdfjadetex)
-AC_SUBST(PDFJADETEX)
+AC_PATH_PROGS(PDFLATEX, pdflatex, pdflatex)
+AC_SUBST(PDFLATEX)
+
+#
+# Look for xsltproc (libxslt)
+#
+
+AC_PATH_PROG(XSLTPROC, xsltproc, xsltproc)
+AC_SUBST(XSLTPROC)
+
+#
+# Look for xmllint (libxml2)
+#
+
+AC_PATH_PROG(XMLLINT, xmllint, xmllint)
+AC_SUBST(XMLLINT)
 
 #
 # Subroutine for searching for an ordinary file (e.g., a stylesheet)
@@ -2018,74 +1925,60 @@ AC_SUBST($1)
 ])
 
 #
-# Look for the SGML catalog.
-# Its location varies, so far we have seen:
+# Look for Docbook-XSL stylesheets.  Location probably varies by
+# system.  Guessing where it might be found, based on where SGML stuff
+# lives on some systems.  FreeBSD is the only one I'm sure of at the
+# moment.
 #
-# 	NetBSD 	/usr/pkg/share/sgml/docbook/catalog
-# 	FreeBSD	/usr/local/share/sgml/docbook/catalog
-#	Linux	/usr/local/share/dsssl/docbook/catalog
-#		/usr/share/sgml/docbook/dsssl-stylesheets/catalog
+
+docbook_xsl_trees="/usr/pkg/share/xsl /usr/local/share/xsl /usr/share/xsl"
+
 #
-catalogpath=""
-for d in $sgmltrees 
+# Look for stylesheets we need.
+#
+
+NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_HTML, docbook/html/docbook.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_XHTML, docbook/xhtml/docbook.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_MAN, docbook/manpages/docbook.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_HTML, docbook/html/chunk.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_XHTML, docbook/xhtml/chunk.xsl, $docbook_xsl_trees)
+
+#
+# Same dance for db2latex
+#
+# No idea where this lives except on FreeBSD.
+#
+
+db2latex_xsl_trees="/usr/local/share"
+
+#
+# Look for stylesheets we need.
+#
+
+NOM_PATH_FILE(XSLT_DB2LATEX_STYLE, db2latex/xsl/docbook.xsl, $db2latex_xsl_trees)
+
+#
+# Look for "admonition" image directory.  Can't use NOM_PATH_FILE()
+# because it's a directory, so just do the same things, inline.
+#
+
+AC_MSG_CHECKING(for db2latex/xsl/figures)
+for d in $db2latex_xsl_trees
 do
-	catalogpath="$catalogpath $d"
-	for s in docbook/dsssl-stylesheets
-	do
-		catalogpath="$catalogpath $d/$s"
-	done
+	dd=$d/db2latex/xsl/figures
+	if test -d $dd
+	then
+		XSLT_DB2LATEX_ADMONITIONS=$dd
+		AC_MSG_RESULT($dd)
+		break
+	fi
 done
-NOM_PATH_FILE(SGMLCATALOG, catalog, $catalogpath)
-
-#
-# Look for the HTML stylesheet html/docbook.dsl, used for
-# formatting man pages in HTML.  Its location varies,
-# so far we have seen:
-#
-# 	NetBSD 	/usr/pkg/share/sgml/docbook/dsssl/modular/
-# 	FreeBSD	/usr/local/share/sgml/docbook/dsssl/modular/
-#	Linux	/usr/local/share/dsssl/docbook/
-#		/usr/share/sgml/docbook/dsssl-stylesheets/
-#
-# Ditto for the print stylesheet print/docbook.dsl.
-#
-
-stylepath=""
-for d in $sgmltrees 
-do
-	for s in docbook/dsssl/modular dsssl/docbook docbook/dsssl-stylesheets
-	do
-		stylepath="$stylepath $d/$s"
-	done
-done
-NOM_PATH_FILE(HTMLSTYLE, html/docbook.dsl, $stylepath)
-NOM_PATH_FILE(PRINTSTYLE, print/docbook.dsl, $stylepath)
-
-#
-# Look for XML declarations.
-# Its location varies, so far we have seen:
-#
-# 	NetBSD 	/usr/pkg/share/sgml/docbook/dsssl/modular/dtds/decls/
-# 	FreeBSD	/usr/local/share/sgml/docbook/dsssl/modular/dtds/decls/
-#	Linux	/usr/local/share/dsssl/docbook/dtds/decls/
-#		/usr/share/sgml/docbook/dsssl-stylesheets/dtds/decls/
-#
-
-xmlpath=""
-for d in $sgmltrees 
-do
-	for s in docbook/dsssl/modular dsssl/docbook docbook/dsssl-stylesheets
-	do
-		xmlpath="$xmlpath $d/$s"
-	done
-done
-NOM_PATH_FILE(XMLDCL, dtds/decls/xml.dcl, $xmlpath)
-
-#
-# Look for docbook2man-spec.pl
-#
-
-NOM_PATH_FILE(DOCBOOK2MANSPEC, docbook2X/docbook2man-spec.pl, $sgmltrees)
+if test "X$XSLT_DB2LATEX_ADMONITIONS" = "X"
+then
+	AC_MSG_RESULT(not found)
+	XSLT_DB2LATEX_ADMONITIONS=db2latex/xsl/figures
+fi
+AC_SUBST(XSLT_DB2LATEX_ADMONITIONS)
 
 #
 # Substitutions
@@ -2213,12 +2106,13 @@ AC_OUTPUT(
 	bin/dnssec/Makefile
 	doc/Makefile
 	doc/arm/Makefile
-	doc/arm/nominum-docbook-html.dsl
-	doc/arm/nominum-docbook-print.dsl
-	doc/arm/validate.sh
 	doc/misc/Makefile
-	docutil/docbook2man-wrapper.sh
+	doc/xsl/Makefile
 	isc-config.sh
+	doc/xsl/isc-docbook-chunk.xsl
+	doc/xsl/isc-docbook-html.xsl
+	doc/xsl/isc-docbook-latex.xsl
+	doc/xsl/isc-manpage.xsl
 )
 chmod a+x isc-config.sh
 

@@ -149,9 +149,6 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 /* #undef NEED_PTHREAD_SCOPE_SYSTEM */
 
-/* Define to 1 if you have the <dlfcn.h> header file. */
-/* #undef HAVE_DLFCN_H */
-
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
@@ -227,6 +224,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Defined if extern char *optarg is not declared. */
+/* #undef NEED_OPTARG */
+
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT ""
 
@@ -242,11 +242,19 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
+/* Sets which flag to pass to open/fcntl to make non-blocking
+   (O_NDELAY/O_NONBLOCK). */
+#define PORT_NONBLOCK O_NONBLOCK
+
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define TIME_WITH_SYS_TIME 1
+
+/* Defined if you need to use ioctl(FIONBIO) instead a fcntl call to make
+   non-blocking. */
+/* #undef USE_FIONBIO_IOCTL */
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
@@ -255,14 +263,15 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
+/* Define as `__inline' if that's what the C compiler calls it, or to nothing
+   if it is not supported. */
 /* #undef inline */
-#endif
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef ssize_t */
+
+/* Define to `unsigned long' if <sys/types.h> does not define. */
+/* #undef uintptr_t */

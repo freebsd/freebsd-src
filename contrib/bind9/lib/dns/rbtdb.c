@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.168.2.11.2.16 2004/05/23 11:07:23 marka Exp $ */
+/* $Id: rbtdb.c,v 1.168.2.11.2.22 2005/10/14 01:38:48 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -96,6 +96,12 @@ typedef isc_uint32_t			rbtdb_rdatatype_t;
 		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_dname)
 #define RBTDB_RDATATYPE_NCACHEANY \
 		RBTDB_RDATATYPE_VALUE(0, dns_rdatatype_any)
+
+/*
+ * Allow clients with a virtual time of upto 5 minutes in the past to see
+ * records that would have otherwise have expired.
+ */
+#define RBTDB_VIRTUAL 300
 
 struct noqname {
 	dns_name_t name;
@@ -413,7 +419,7 @@ free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log, isc_event_t *event) {
  again:
 	if (rbtdb->tree != NULL) {
 		result = dns_rbt_destroy2(&rbtdb->tree,
-					  (rbtdb->task != NULL) ? 5 : 0);
+					  (rbtdb->task != NULL) ? 1000 : 0);
 		if (result == ISC_R_QUOTA) {
 			INSIST(rbtdb->task != NULL);
 			if (event == NULL)
@@ -2752,10 +2758,9 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 	isc_result_t result;
 	dns_fixedname_t fname, forigin;
 	dns_name_t *name, *origin;
-	rbtdb_rdatatype_t matchtype, sigmatchtype, nsectype;
+	rbtdb_rdatatype_t matchtype, sigmatchtype;
 
 	matchtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_nsec, 0);
-	nsectype = RBTDB_RDATATYPE_VALUE(0, dns_rdatatype_nsec);
 	sigmatchtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig,
 					     dns_rdatatype_nsec);
 	
@@ -2786,7 +2791,9 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 				 * node as dirty, so it will get cleaned up 
 				 * later.
 				 */
-				if (node->references == 0) {
+				if (header->ttl > search->now - RBTDB_VIRTUAL)
+					header_prev = header;
+				else if (node->references == 0) {
 					INSIST(header->down == NULL);
 					if (header_prev != NULL)
 						header_prev->next =
@@ -2943,7 +2950,9 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 			 * mark it as stale, and the node as dirty, so it will
 			 * get cleaned up later.
 			 */
-			if (node->references == 0) {
+			if (header->ttl > now - RBTDB_VIRTUAL)
+				header_prev = header;
+			else if (node->references == 0) {
 				INSIST(header->down == NULL);
 				if (header_prev != NULL)
 					header_prev->next = header->next;
@@ -3210,7 +3219,9 @@ cache_findzonecut(dns_db_t *db, dns_name_t *name, unsigned int options,
 			 * mark it as stale, and the node as dirty, so it will
 			 * get cleaned up later.
 			 */
-			if (node->references == 0) {
+			if (header->ttl > now - RBTDB_VIRTUAL)
+				header_prev = header;
+			else if (node->references == 0) {
 				INSIST(header->down == NULL);
 				if (header_prev != NULL)
 					header_prev->next = header->next;
@@ -3398,7 +3409,7 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 	LOCK(&rbtdb->node_locks[rbtnode->locknum].lock);
 
 	for (header = rbtnode->data; header != NULL; header = header->next)
-		if (header->ttl <= now) {
+		if (header->ttl <= now - RBTDB_VIRTUAL) {
 			/*
 			 * We don't check if rbtnode->references == 0 and try
 			 * to free like we do in cache_find(), because
@@ -3640,8 +3651,10 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 			 * rbtnode->references must be non-zero.  This is so
 			 * because 'node' is an argument to the function.
 			 */
-			header->attributes |= RDATASET_ATTR_STALE;
-			rbtnode->dirty = 1;
+			if (header->ttl <= now - RBTDB_VIRTUAL) {
+				header->attributes |= RDATASET_ATTR_STALE;
+				rbtnode->dirty = 1;
+			}
 		} else if (EXISTS(header)) {
 			if (header->type == matchtype)
 				found = header;
@@ -4344,6 +4357,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	changed = add_changed(rbtdb, rbtversion, rbtnode);
 	if (changed == NULL) {
 		free_rdataset(rbtdb->common.mctx, newheader);
+		UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock);
 		return (ISC_R_NOMEMORY);
 	}
 
@@ -4909,6 +4923,11 @@ dns_rbtdb_create
 	isc_mem_attach(mctx, &rbtdb->common.mctx);
 
 	/*
+	 * Must be initalized before free_rbtdb() is called.
+	 */
+	isc_ondestroy_init(&rbtdb->common.ondest);
+
+	/*
 	 * Make a copy of the origin name.
 	 */
 	result = dns_name_dupwithoffsets(origin, mctx, &rbtdb->common.origin);
@@ -4985,8 +5004,6 @@ dns_rbtdb_create
 	}
 	rbtdb->future_version = NULL;
 	ISC_LIST_INIT(rbtdb->open_versions);
-
-	isc_ondestroy_init(&rbtdb->common.ondest);
 
 	rbtdb->common.magic = DNS_DB_MAGIC;
 	rbtdb->common.impmagic = RBTDB_MAGIC;

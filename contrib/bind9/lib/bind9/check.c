@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.37.6.29 2004/11/22 05:02:41 marka Exp $ */
+/* $Id: check.c,v 1.37.6.32 2005/11/03 23:08:41 marka Exp $ */
 
 #include <config.h>
 
@@ -119,7 +119,7 @@ check_orderent(cfg_obj_t *ent, isc_log_t *logctx) {
 		result = ISC_R_FAILURE;
 	} else if (strcasecmp(cfg_obj_asstring(obj), "fixed") == 0) {
 		cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
-			    "rrset-order: order 'fixed' not implemented");
+			    "rrset-order: order 'fixed' not fully implemented");
 	} else if (/* strcasecmp(cfg_obj_asstring(obj), "fixed") != 0 && */
 		   strcasecmp(cfg_obj_asstring(obj), "random") != 0 &&
 		   strcasecmp(cfg_obj_asstring(obj), "cyclic") != 0) {
@@ -598,8 +598,10 @@ validate_masters(cfg_obj_t *obj, cfg_obj_t *config, isc_uint32_t *countp,
 
 	REQUIRE(countp != NULL);
 	result = isc_symtab_create(mctx, 100, NULL, NULL, ISC_FALSE, &symtab);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS) {
+		*countp = count;
 		return (result);
+	}
 
  newlist:
 	list = cfg_tuple_get(obj, "addresses");

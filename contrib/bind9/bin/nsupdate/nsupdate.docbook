@@ -1,7 +1,9 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001-2003  Internet Software Consortium.
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.8.2.3.2.8 2004/03/08 04:04:23 marka Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.8.2.3.2.10 2005/05/12 21:36:03 sra Exp $ -->
 
 <refentry>
 <refentryinfo>
@@ -27,6 +29,22 @@
 <manvolnum>8</manvolnum>
 <refmiscinfo>BIND9</refmiscinfo>
 </refmeta>
+
+  <docinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder>Internet Software Consortium.</holder>
+    </copyright>
+  </docinfo>
+
 <refnamediv>
 <refname>nsupdate</refname>
 <refpurpose>Dynamic DNS update utility</refpurpose>
@@ -229,6 +247,8 @@ where the dynamic update requests get sent.
 If no port number is specified, the default DNS port number of 53 is
 used.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -248,6 +268,9 @@ will send updates using an address and port chosen by the system.
 <parameter>port</parameter>
 can additionally be used to make requests come from a specific port.
 If no port number is specified, the system will assign one.
+</para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -482,6 +505,7 @@ updates specified since the last send.
 Sends the current message.  This is equivalent to entering a blank line.
 </para>
 </listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -493,8 +517,10 @@ Sends the current message.  This is equivalent to entering a blank line.
 Displays the answer.
 </para>
 </listitem>
+</varlistentry>
 
 </variablelist>
+</para>
 
 <para>
 Lines beginning with a semicolon are comments and are ignored.
@@ -562,6 +588,7 @@ RRSIG, DNSKEY and NSEC records.)
 used to identify default name server
 </para>
 </listitem>
+</varlistentry>
 
 <varlistentry><term><constant>K{name}.+157.+{random}.key</constant></term>
 <listitem>
@@ -572,6 +599,7 @@ base-64 encoding of HMAC-MD5 key created by
 </citerefentry>.
 </para>
 </listitem>
+</varlistentry>
 
 <varlistentry><term><constant>K{name}.+157.+{random}.private</constant></term>
 <listitem>
@@ -582,6 +610,7 @@ base-64 encoding of HMAC-MD5 key created by
 </citerefentry>.
 </para>
 </listitem>
+</varlistentry>
 </variablelist>
 </refsect1>
 
@@ -615,7 +644,7 @@ base-64 encoding of HMAC-MD5 key created by
 <citerefentry>
 <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
 </citerefentry>.
-
+</para>
 </refsect1>
 <refsect1>
 <title>BUGS</title>

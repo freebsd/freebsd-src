@@ -1,497 +1,189 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000, 2001  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: lwresd.html,v 1.4.2.1.4.3 2004/08/22 23:38:59 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->lwresd</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
-><SPAN
-CLASS="APPLICATION"
->lwresd</SPAN
-></H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN9"
-></A
-><H2
->Name</H2
-><SPAN
-CLASS="APPLICATION"
->lwresd</SPAN
->&nbsp;--&nbsp;lightweight resolver daemon</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN13"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->lwresd</B
->  [<VAR
-CLASS="OPTION"
->-C <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-d <VAR
-CLASS="REPLACEABLE"
->debug-level</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-f</VAR
->] [<VAR
-CLASS="OPTION"
->-g</VAR
->] [<VAR
-CLASS="OPTION"
->-i <VAR
-CLASS="REPLACEABLE"
->pid-file</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-n <VAR
-CLASS="REPLACEABLE"
->#cpus</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-P <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-p <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-s</VAR
->] [<VAR
-CLASS="OPTION"
->-t <VAR
-CLASS="REPLACEABLE"
->directory</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-u <VAR
-CLASS="REPLACEABLE"
->user</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-v</VAR
->]</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN48"
-></A
-><H2
->DESCRIPTION</H2
-><P
->	<B
-CLASS="COMMAND"
->lwresd</B
-> is the daemon providing name lookup
+<!-- $Id: lwresd.html,v 1.4.2.1.4.8 2005/10/13 02:33:47 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>lwresd</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">lwresd</span> &#8212; lightweight resolver daemon</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">lwresd</code>  [<code class="option">-C <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-i <em class="replaceable"><code>pid-file</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-P <em class="replaceable"><code>port</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>]</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525920"></a><h2>DESCRIPTION</h2>
+<p>
+	<span><strong class="command">lwresd</strong></span> is the daemon providing name lookup
 	services to clients that use the BIND 9 lightweight resolver
 	library.  It is essentially a stripped-down, caching-only name
 	server that answers queries using the BIND 9 lightweight
 	resolver protocol rather than the DNS protocol.
-    </P
-><P
->	<B
-CLASS="COMMAND"
->lwresd</B
-> listens for resolver queries on a
+    </p>
+<p>
+	<span><strong class="command">lwresd</strong></span> listens for resolver queries on a
 	UDP port on the IPv4 loopback interface, 127.0.0.1.  This
-	means that <B
-CLASS="COMMAND"
->lwresd</B
-> can only be used by
+	means that <span><strong class="command">lwresd</strong></span> can only be used by
 	processes running on the local machine.  By default UDP port
 	number 921 is used for lightweight resolver requests and
 	responses.
-    </P
-><P
->	Incoming lightweight resolver requests are decoded by the
+    </p>
+<p>
+	Incoming lightweight resolver requests are decoded by the
 	server which then resolves them using the DNS protocol.  When
-	the DNS lookup completes, <B
-CLASS="COMMAND"
->lwresd</B
-> encodes
+	the DNS lookup completes, <span><strong class="command">lwresd</strong></span> encodes
 	the answers in the lightweight resolver format and returns
 	them to the client that made the request.
-    </P
-><P
->	If <TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
-> contains any
-	<VAR
-CLASS="OPTION"
->nameserver</VAR
-> entries, <B
-CLASS="COMMAND"
->lwresd</B
->
+    </p>
+<p>
+	If <code class="filename">/etc/resolv.conf</code> contains any
+	<code class="option">nameserver</code> entries, <span><strong class="command">lwresd</strong></span>
 	sends recursive DNS queries to those servers.  This is similar
 	to the use of forwarders in a caching name server.  If no
-	<VAR
-CLASS="OPTION"
->nameserver</VAR
-> entries are present, or if
-	forwarding fails, <B
-CLASS="COMMAND"
->lwresd</B
-> resolves the
+	<code class="option">nameserver</code> entries are present, or if
+	forwarding fails, <span><strong class="command">lwresd</strong></span> resolves the
 	queries autonomously starting at the root name servers, using
 	a built-in list of root server hints.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN63"
-></A
-><H2
->OPTIONS</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
->-C <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-></DT
-><DD
-><P
->		Use <VAR
-CLASS="REPLACEABLE"
->config-file</VAR
-> as the
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525969"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-C <em class="replaceable"><code>config-file</code></em></span></dt>
+<dd><p>
+		Use <em class="replaceable"><code>config-file</code></em> as the
 		configuration file instead of the default,
-		<TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
->.
-          </P
-></DD
-><DT
->-d <VAR
-CLASS="REPLACEABLE"
->debug-level</VAR
-></DT
-><DD
-><P
->		Set the daemon's debug level to <VAR
-CLASS="REPLACEABLE"
->debug-level</VAR
->.
-		Debugging traces from <B
-CLASS="COMMAND"
->lwresd</B
-> become
+		<code class="filename">/etc/resolv.conf</code>.
+          </p></dd>
+<dt><span class="term">-d <em class="replaceable"><code>debug-level</code></em></span></dt>
+<dd><p>
+		Set the daemon's debug level to <em class="replaceable"><code>debug-level</code></em>.
+		Debugging traces from <span><strong class="command">lwresd</strong></span> become
 		more verbose as the debug level increases.
-          </P
-></DD
-><DT
->-f</DT
-><DD
-><P
->		Run the server in the foreground (i.e. do not daemonize).
-          </P
-></DD
-><DT
->-g</DT
-><DD
-><P
->		Run the server in the foreground and force all logging
-		to <TT
-CLASS="FILENAME"
->stderr</TT
->.
-          </P
-></DD
-><DT
->-n <VAR
-CLASS="REPLACEABLE"
->#cpus</VAR
-></DT
-><DD
-><P
->		Create <VAR
-CLASS="REPLACEABLE"
->#cpus</VAR
-> worker threads
+          </p></dd>
+<dt><span class="term">-f</span></dt>
+<dd><p>
+		Run the server in the foreground (i.e. do not daemonize).
+          </p></dd>
+<dt><span class="term">-g</span></dt>
+<dd><p>
+		Run the server in the foreground and force all logging
+		to <code class="filename">stderr</code>.
+          </p></dd>
+<dt><span class="term">-n <em class="replaceable"><code>#cpus</code></em></span></dt>
+<dd><p>
+		Create <em class="replaceable"><code>#cpus</code></em> worker threads
 		to take advantage of multiple CPUs.  If not specified,
-		<B
-CLASS="COMMAND"
->lwresd</B
-> will try to determine the
+		<span><strong class="command">lwresd</strong></span> will try to determine the
 		number of CPUs present and create one thread per CPU.
 		If it is unable to determine the number of CPUs, a
 		single worker thread will be created.
-          </P
-></DD
-><DT
->-P <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></DT
-><DD
-><P
->		Listen for lightweight resolver queries on port
-		<VAR
-CLASS="REPLACEABLE"
->port</VAR
->.  If
+          </p></dd>
+<dt><span class="term">-P <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+		Listen for lightweight resolver queries on port
+		<em class="replaceable"><code>port</code></em>.  If
 		not specified, the default is port 921.
-          </P
-></DD
-><DT
->-p <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></DT
-><DD
-><P
->		Send DNS lookups to port <VAR
-CLASS="REPLACEABLE"
->port</VAR
->.  If not
+          </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+		Send DNS lookups to port <em class="replaceable"><code>port</code></em>.  If not
 		specified, the default is port 53.  This provides a
 		way of testing the lightweight resolver daemon with a
 		name server that listens for queries on a non-standard
 		port number.
-          </P
-></DD
-><DT
->-s</DT
-><DD
-><P
->		Write memory usage statistics to <TT
-CLASS="FILENAME"
->stdout</TT
->
+          </p></dd>
+<dt><span class="term">-s</span></dt>
+<dd>
+<p>
+		Write memory usage statistics to <code class="filename">stdout</code>
 		on exit.
-          </P
-><DIV
-CLASS="NOTE"
-><BLOCKQUOTE
-CLASS="NOTE"
-><P
-><B
->Note: </B
->		This option is mainly of interest to BIND 9 developers
+          </p>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+<p>
+		This option is mainly of interest to BIND 9 developers
 		and may be removed or changed in a future release.
-	    </P
-></BLOCKQUOTE
-></DIV
-></DD
-><DT
->-t <VAR
-CLASS="REPLACEABLE"
->directory</VAR
-></DT
-><DD
-><P
->		<CODE
-CLASS="FUNCTION"
->chroot()</CODE
-> to <VAR
-CLASS="REPLACEABLE"
->directory</VAR
-> after
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
+<dd>
+<p>
+		<code class="function">chroot()</code> to <em class="replaceable"><code>directory</code></em> after
 		processing the command line arguments, but before
 		reading the configuration file.
-          </P
-><DIV
-CLASS="WARNING"
-><P
-></P
-><TABLE
-CLASS="WARNING"
-BORDER="1"
-WIDTH="90%"
-><TR
-><TD
-ALIGN="CENTER"
-><B
->Warning</B
-></TD
-></TR
-><TR
-><TD
-ALIGN="LEFT"
-><P
->		This option should be used in conjunction with the
-		<VAR
-CLASS="OPTION"
->-u</VAR
-> option, as chrooting a process
+          </p>
+<div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Warning</h3>
+<p>
+		This option should be used in conjunction with the
+		<code class="option">-u</code> option, as chrooting a process
 		running as root doesn't enhance security on most
-		systems; the way <CODE
-CLASS="FUNCTION"
->chroot()</CODE
-> is
+		systems; the way <code class="function">chroot()</code> is
 		defined allows a process with root privileges to
 		escape a chroot jail.
-	    </P
-></TD
-></TR
-></TABLE
-></DIV
-></DD
-><DT
->-u <VAR
-CLASS="REPLACEABLE"
->user</VAR
-></DT
-><DD
-><P
->		<CODE
-CLASS="FUNCTION"
->setuid()</CODE
-> to <VAR
-CLASS="REPLACEABLE"
->user</VAR
-> after completing
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-u <em class="replaceable"><code>user</code></em></span></dt>
+<dd><p>
+		<code class="function">setuid()</code> to <em class="replaceable"><code>user</code></em> after completing
 		privileged operations, such as creating sockets that
 		listen on privileged ports.
-          </P
-></DD
-><DT
->-v</DT
-><DD
-><P
->		Report the version number and exit.
-          </P
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN137"
-></A
-><H2
->FILES</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
-><TT
-CLASS="FILENAME"
->/etc/resolv.conf</TT
-></DT
-><DD
-><P
->		The default configuration file.
-          </P
-></DD
-><DT
-><TT
-CLASS="FILENAME"
->/var/run/lwresd.pid</TT
-></DT
-><DD
-><P
->		The default process-id file.
-          </P
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN150"
-></A
-><H2
->SEE ALSO</H2
-><P
->	<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->named</SPAN
->(8)</SPAN
->,
-	<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->lwres</SPAN
->(3)</SPAN
->,
-	<SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->resolver</SPAN
->(5)</SPAN
->.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN162"
-></A
-><H2
->AUTHOR</H2
-><P
->	Internet Systems Consortium
-    </P
-></DIV
-></BODY
-></HTML
->
+          </p></dd>
+<dt><span class="term">-v</span></dt>
+<dd><p>
+		Report the version number and exit.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526237"></a><h2>FILES</h2>
+<div class="variablelist"><dl>
+<dt><span class="term"><code class="filename">/etc/resolv.conf</code></span></dt>
+<dd><p>
+		The default configuration file.
+          </p></dd>
+<dt><span class="term"><code class="filename">/var/run/lwresd.pid</code></span></dt>
+<dd><p>
+		The default process-id file.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526277"></a><h2>SEE ALSO</h2>
+<p>
+	<span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+	<span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>,
+	<span class="citerefentry"><span class="refentrytitle">resolver</span>(5)</span>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526315"></a><h2>AUTHOR</h2>
+<p>
+	<span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>

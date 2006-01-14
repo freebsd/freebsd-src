@@ -1,538 +1,185 @@
 <!--
- - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2001-2003  Internet Software Consortium.
- -
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001, 2003 Internet Software Consortium.
+ - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: rndc-confgen.html,v 1.3.2.5.2.4 2004/08/22 23:39:00 marka Exp $ -->
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->rndc-confgen</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
-><BODY
-CLASS="REFENTRY"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><H1
-><A
-NAME="AEN1"
-></A
-><SPAN
-CLASS="APPLICATION"
->rndc-confgen</SPAN
-></H1
-><DIV
-CLASS="REFNAMEDIV"
-><A
-NAME="AEN9"
-></A
-><H2
->Name</H2
-><SPAN
-CLASS="APPLICATION"
->rndc-confgen</SPAN
->&nbsp;--&nbsp;rndc key generation tool</DIV
-><DIV
-CLASS="REFSYNOPSISDIV"
-><A
-NAME="AEN13"
-></A
-><H2
->Synopsis</H2
-><P
-><B
-CLASS="COMMAND"
->rndc-confgen</B
->  [<VAR
-CLASS="OPTION"
->-a</VAR
->] [<VAR
-CLASS="OPTION"
->-b <VAR
-CLASS="REPLACEABLE"
->keysize</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-c <VAR
-CLASS="REPLACEABLE"
->keyfile</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-h</VAR
->] [<VAR
-CLASS="OPTION"
->-k <VAR
-CLASS="REPLACEABLE"
->keyname</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-p <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-r <VAR
-CLASS="REPLACEABLE"
->randomfile</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-s <VAR
-CLASS="REPLACEABLE"
->address</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-t <VAR
-CLASS="REPLACEABLE"
->chrootdir</VAR
-></VAR
->] [<VAR
-CLASS="OPTION"
->-u <VAR
-CLASS="REPLACEABLE"
->user</VAR
-></VAR
->]</P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN44"
-></A
-><H2
->DESCRIPTION</H2
-><P
->        <B
-CLASS="COMMAND"
->rndc-confgen</B
-> generates configuration files
-	for <B
-CLASS="COMMAND"
->rndc</B
->.  It can be used as a
+<!-- $Id: rndc-confgen.html,v 1.3.2.5.2.11 2005/10/13 02:33:51 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>rndc-confgen</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">rndc-confgen</span> &#8212; rndc key generation tool</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">rndc-confgen</code>  [<code class="option">-a</code>] [<code class="option">-b <em class="replaceable"><code>keysize</code></em></code>] [<code class="option">-c <em class="replaceable"><code>keyfile</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>keyname</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomfile</code></em></code>] [<code class="option">-s <em class="replaceable"><code>address</code></em></code>] [<code class="option">-t <em class="replaceable"><code>chrootdir</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>]</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525911"></a><h2>DESCRIPTION</h2>
+<p>
+        <span><strong class="command">rndc-confgen</strong></span> generates configuration files
+	for <span><strong class="command">rndc</strong></span>.  It can be used as a
         convenient alternative to writing the
-        <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> file
-        and the corresponding <B
-CLASS="COMMAND"
->controls</B
->
-        and <B
-CLASS="COMMAND"
->key</B
->
-	statements in <TT
-CLASS="FILENAME"
->named.conf</TT
-> by hand.
-        Alternatively, it can be run with the <B
-CLASS="COMMAND"
->-a</B
->
-        option to set up a <TT
-CLASS="FILENAME"
->rndc.key</TT
-> file and
-        avoid the need for a <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> file
-        and a <B
-CLASS="COMMAND"
->controls</B
-> statement altogether.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN57"
-></A
-><H2
->OPTIONS</H2
-><P
-></P
-><DIV
-CLASS="VARIABLELIST"
-><DL
-><DT
->-a</DT
-><DD
-><P
->	      Do automatic <B
-CLASS="COMMAND"
->rndc</B
-> configuration.
-	      This creates a file <TT
-CLASS="FILENAME"
->rndc.key</TT
->
-	      in <TT
-CLASS="FILENAME"
->/etc</TT
-> (or whatever
-              <VAR
-CLASS="VARNAME"
->sysconfdir</VAR
->
-	      was specified as when <ACRONYM
-CLASS="ACRONYM"
->BIND</ACRONYM
-> was built)
-              that is read by both <B
-CLASS="COMMAND"
->rndc</B
->
-              and <B
-CLASS="COMMAND"
->named</B
-> on startup.  The
-	      <TT
-CLASS="FILENAME"
->rndc.key</TT
-> file defines a default
+        <code class="filename">rndc.conf</code> file
+        and the corresponding <span><strong class="command">controls</strong></span>
+        and <span><strong class="command">key</strong></span>
+	statements in <code class="filename">named.conf</code> by hand.
+        Alternatively, it can be run with the <span><strong class="command">-a</strong></span>
+        option to set up a <code class="filename">rndc.key</code> file and
+        avoid the need for a <code class="filename">rndc.conf</code> file
+        and a <span><strong class="command">controls</strong></span> statement altogether.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525957"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-a</span></dt>
+<dd>
+<p>
+	      Do automatic <span><strong class="command">rndc</strong></span> configuration.
+	      This creates a file <code class="filename">rndc.key</code>
+	      in <code class="filename">/etc</code> (or whatever
+              <code class="varname">sysconfdir</code>
+	      was specified as when <span class="acronym">BIND</span> was built)
+              that is read by both <span><strong class="command">rndc</strong></span>
+              and <span><strong class="command">named</strong></span> on startup.  The
+	      <code class="filename">rndc.key</code> file defines a default
               command channel and authentication key allowing
-	      <B
-CLASS="COMMAND"
->rndc</B
-> to communicate with
-	      <B
-CLASS="COMMAND"
->named</B
-> on the local host
+	      <span><strong class="command">rndc</strong></span> to communicate with
+	      <span><strong class="command">named</strong></span> on the local host
 	      with no further configuration.  
-	  </P
-><P
->	      Running <B
-CLASS="COMMAND"
->rndc-confgen -a</B
-> allows
-	      BIND 9 and <B
-CLASS="COMMAND"
->rndc</B
-> to be used as drop-in
-	      replacements for BIND 8 and <B
-CLASS="COMMAND"
->ndc</B
->,
+	  </p>
+<p>
+	      Running <span><strong class="command">rndc-confgen -a</strong></span> allows
+	      BIND 9 and <span><strong class="command">rndc</strong></span> to be used as drop-in
+	      replacements for BIND 8 and <span><strong class="command">ndc</strong></span>,
 	      with no changes to the existing BIND 8
-	      <TT
-CLASS="FILENAME"
->named.conf</TT
-> file.
-	  </P
-><P
->	      If a more elaborate configuration than that
-	      generated by <B
-CLASS="COMMAND"
->rndc-confgen -a</B
->
+	      <code class="filename">named.conf</code> file.
+	  </p>
+<p>
+	      If a more elaborate configuration than that
+	      generated by <span><strong class="command">rndc-confgen -a</strong></span>
 	      is required, for example if rndc is to be used remotely,
-	      you should run <B
-CLASS="COMMAND"
->rndc-confgen</B
-> without the
-	      <B
-CLASS="COMMAND"
->-a</B
-> option and set up a
-	      <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> and
-	      <TT
-CLASS="FILENAME"
->named.conf</TT
->
+	      you should run <span><strong class="command">rndc-confgen</strong></span> without the
+	      <span><strong class="command">-a</strong></span> option and set up a
+	      <code class="filename">rndc.conf</code> and
+	      <code class="filename">named.conf</code>
 	      as directed.
-          </P
-></DD
-><DT
->-b <VAR
-CLASS="REPLACEABLE"
->keysize</VAR
-></DT
-><DD
-><P
->	       Specifies the size of the authentication key in bits.
+          </p>
+</dd>
+<dt><span class="term">-b <em class="replaceable"><code>keysize</code></em></span></dt>
+<dd><p>
+	       Specifies the size of the authentication key in bits.
 	       Must be between 1 and 512 bits; the default is 128.
-	  </P
-></DD
-><DT
->-c <VAR
-CLASS="REPLACEABLE"
->keyfile</VAR
-></DT
-><DD
-><P
->	       Used with the <B
-CLASS="COMMAND"
->-a</B
-> option to specify
-	       an alternate location for <TT
-CLASS="FILENAME"
->rndc.key</TT
->.
-	  </P
-></DD
-><DT
->-h</DT
-><DD
-><P
->	       Prints a short summary of the options and arguments to
-	       <B
-CLASS="COMMAND"
->rndc-confgen</B
->.
-	  </P
-></DD
-><DT
->-k <VAR
-CLASS="REPLACEABLE"
->keyname</VAR
-></DT
-><DD
-><P
->	       Specifies the key name of the rndc authentication key.
+	  </p></dd>
+<dt><span class="term">-c <em class="replaceable"><code>keyfile</code></em></span></dt>
+<dd><p>
+	       Used with the <span><strong class="command">-a</strong></span> option to specify
+	       an alternate location for <code class="filename">rndc.key</code>.
+	  </p></dd>
+<dt><span class="term">-h</span></dt>
+<dd><p>
+	       Prints a short summary of the options and arguments to
+	       <span><strong class="command">rndc-confgen</strong></span>.
+	  </p></dd>
+<dt><span class="term">-k <em class="replaceable"><code>keyname</code></em></span></dt>
+<dd><p>
+	       Specifies the key name of the rndc authentication key.
 	       This must be a valid domain name.
-	       The default is <CODE
-CLASS="CONSTANT"
->rndc-key</CODE
->.
-	  </P
-></DD
-><DT
->-p <VAR
-CLASS="REPLACEABLE"
->port</VAR
-></DT
-><DD
-><P
->	       Specifies the command channel port where <B
-CLASS="COMMAND"
->named</B
->
-	       listens for connections from <B
-CLASS="COMMAND"
->rndc</B
->.
+	       The default is <code class="constant">rndc-key</code>.
+	  </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+	       Specifies the command channel port where <span><strong class="command">named</strong></span>
+	       listens for connections from <span><strong class="command">rndc</strong></span>.
 	       The default is 953.
-	  </P
-></DD
-><DT
->-r <VAR
-CLASS="REPLACEABLE"
->randomfile</VAR
-></DT
-><DD
-><P
->	       Specifies a source of random data for generating the
+	  </p></dd>
+<dt><span class="term">-r <em class="replaceable"><code>randomfile</code></em></span></dt>
+<dd><p>
+	       Specifies a source of random data for generating the
 	       authorization.  If the operating
-	       system does not provide a <TT
-CLASS="FILENAME"
->/dev/random</TT
->
+	       system does not provide a <code class="filename">/dev/random</code>
 	       or equivalent device, the default source of randomness
-	       is keyboard input.  <TT
-CLASS="FILENAME"
->randomdev</TT
-> specifies
+	       is keyboard input.  <code class="filename">randomdev</code> specifies
 	       the name of a character device or file containing random
 	       data to be used instead of the default.  The special value
-	       <TT
-CLASS="FILENAME"
->keyboard</TT
-> indicates that keyboard
+	       <code class="filename">keyboard</code> indicates that keyboard
 	       input should be used.
-	  </P
-></DD
-><DT
->-s <VAR
-CLASS="REPLACEABLE"
->address</VAR
-></DT
-><DD
-><P
->	       Specifies the IP address where <B
-CLASS="COMMAND"
->named</B
->
+	  </p></dd>
+<dt><span class="term">-s <em class="replaceable"><code>address</code></em></span></dt>
+<dd><p>
+	       Specifies the IP address where <span><strong class="command">named</strong></span>
 	       listens for command channel connections from
-	       <B
-CLASS="COMMAND"
->rndc</B
->.  The default is the loopback
+	       <span><strong class="command">rndc</strong></span>.  The default is the loopback
 	       address 127.0.0.1.
-	  </P
-></DD
-><DT
->-t <VAR
-CLASS="REPLACEABLE"
->chrootdir</VAR
-></DT
-><DD
-><P
->	       Used with the <B
-CLASS="COMMAND"
->-a</B
-> option to specify
-	       a directory where <B
-CLASS="COMMAND"
->named</B
-> will run
-	       chrooted.  An additional copy of the <TT
-CLASS="FILENAME"
->rndc.key</TT
->
+	  </p></dd>
+<dt><span class="term">-t <em class="replaceable"><code>chrootdir</code></em></span></dt>
+<dd><p>
+	       Used with the <span><strong class="command">-a</strong></span> option to specify
+	       a directory where <span><strong class="command">named</strong></span> will run
+	       chrooted.  An additional copy of the <code class="filename">rndc.key</code>
 	       will be written relative to this directory so that
-	       it will be found by the chrooted <B
-CLASS="COMMAND"
->named</B
->.
-	  </P
-></DD
-><DT
->-u <VAR
-CLASS="REPLACEABLE"
->user</VAR
-></DT
-><DD
-><P
->	       Used with the <B
-CLASS="COMMAND"
->-a</B
-> option to set the owner
-	       of the <TT
-CLASS="FILENAME"
->rndc.key</TT
-> file generated.  If
-	       <B
-CLASS="COMMAND"
->-t</B
-> is also specified only the file in
+	       it will be found by the chrooted <span><strong class="command">named</strong></span>.
+	  </p></dd>
+<dt><span class="term">-u <em class="replaceable"><code>user</code></em></span></dt>
+<dd><p>
+	       Used with the <span><strong class="command">-a</strong></span> option to set the owner
+	       of the <code class="filename">rndc.key</code> file generated.  If
+	       <span><strong class="command">-t</strong></span> is also specified only the file in
 	       the chroot area has its owner changed.
-	  </P
-></DD
-></DL
-></DIV
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN147"
-></A
-><H2
->EXAMPLES</H2
-><P
->        To allow <B
-CLASS="COMMAND"
->rndc</B
-> to be used with
+	  </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526270"></a><h2>EXAMPLES</h2>
+<p>
+        To allow <span><strong class="command">rndc</strong></span> to be used with
 	no manual configuration, run
-    </P
-><P
->        <KBD
-CLASS="USERINPUT"
->rndc-confgen -a</KBD
->
-    </P
-><P
->        To print a sample <TT
-CLASS="FILENAME"
->rndc.conf</TT
-> file and
-	corresponding <B
-CLASS="COMMAND"
->controls</B
-> and <B
-CLASS="COMMAND"
->key</B
->
-	statements to be manually inserted into <TT
-CLASS="FILENAME"
->named.conf</TT
->,
+    </p>
+<p>
+        <strong class="userinput"><code>rndc-confgen -a</code></strong>
+    </p>
+<p>
+        To print a sample <code class="filename">rndc.conf</code> file and
+	corresponding <span><strong class="command">controls</strong></span> and <span><strong class="command">key</strong></span>
+	statements to be manually inserted into <code class="filename">named.conf</code>,
 	run
-    </P
-><P
->        <KBD
-CLASS="USERINPUT"
->rndc-confgen</KBD
->
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN160"
-></A
-><H2
->SEE ALSO</H2
-><P
->      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->rndc</SPAN
->(8)</SPAN
->,
-      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->rndc.conf</SPAN
->(5)</SPAN
->,
-      <SPAN
-CLASS="CITEREFENTRY"
-><SPAN
-CLASS="REFENTRYTITLE"
->named</SPAN
->(8)</SPAN
->,
-      <I
-CLASS="CITETITLE"
->BIND 9 Administrator Reference Manual</I
->.
-    </P
-></DIV
-><DIV
-CLASS="REFSECT1"
-><A
-NAME="AEN173"
-></A
-><H2
->AUTHOR</H2
-><P
->        Internet Systems Consortium
-    </P
-></DIV
-></BODY
-></HTML
->
+    </p>
+<p>
+        <strong class="userinput"><code>rndc-confgen</code></strong>
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526314"></a><h2>SEE ALSO</h2>
+<p>
+      <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">rndc.conf</span>(5)</span>,
+      <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+      <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526357"></a><h2>AUTHOR</h2>
+<p>
+        <span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>

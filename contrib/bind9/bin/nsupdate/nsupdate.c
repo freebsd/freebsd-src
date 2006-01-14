@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.103.2.15.2.18 2004/09/16 02:12:18 marka Exp $ */
+/* $Id: nsupdate.c,v 1.103.2.15.2.20 2005/03/17 03:58:26 marka Exp $ */
 
 #include <config.h>
 
@@ -1634,6 +1634,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		ddebug("Destroying request [%p]", request);
 		dns_request_destroy(&request);
 		dns_message_renderreset(soaquery);
+		dns_message_settsigkey(soaquery, NULL);
 		sendrequest(localaddr, &servers[ns_inuse], soaquery, &request);
 		isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
 		isc_event_free(&event);
@@ -1813,6 +1814,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	dns_name_clone(&tname, name);
 	dns_request_destroy(&request);
 	dns_message_renderreset(soaquery);
+	dns_message_settsigkey(soaquery, NULL);
 	if (userserver != NULL)
 		sendrequest(localaddr, userserver, soaquery, &request);
 	else

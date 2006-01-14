@@ -1,46 +1,46 @@
-.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-.\" Copyright (C) 2000, 2001  Internet Software Consortium.
-.\"
+.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
+.\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
-.\"
+.\" 
 .\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 .\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
 .\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 .\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_getipnode.3,v 1.13.2.2.4.2 2004/03/09 05:21:10 marka Exp $
+.\" $Id: lwres_getipnode.3,v 1.13.2.2.4.6 2005/10/13 02:33:53 marka Exp $
 .\"
-.TH "LWRES_GETIPNODE" "3" "Jun 30, 2000" "BIND9" ""
-.SH NAME
+.hy 0
+.ad l
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "LWRES_GETIPNODE" "3" "Jun 30, 2000" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
 lwres_getipnodebyname, lwres_getipnodebyaddr, lwres_freehostent \- lightweight resolver nodename / address translation API
-.SH SYNOPSIS
-\fB#include <lwres/netdb.h>
-.sp
-.na
-struct hostent *
-lwres_getipnodebyname(const char *name, int af, int flags, int *error_num);
-.ad
-.sp
-.na
-struct hostent *
-lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num);
-.ad
-.sp
-.na
-void
-lwres_freehostent(struct hostent *he);
-.ad
-\fR
+.SH "SYNOPSIS"
+.nf
+#include <lwres/netdb.h>
+.fi
+.HP 39
+\fBstruct\ hostent\ *\ \fBlwres_getipnodebyname\fR\fR\fB(\fR\fBconst\ char\ *name\fR\fB, \fR\fBint\ af\fR\fB, \fR\fBint\ flags\fR\fB, \fR\fBint\ *error_num\fR\fB);\fR
+.HP 39
+\fBstruct\ hostent\ *\ \fBlwres_getipnodebyaddr\fR\fR\fB(\fR\fBconst\ void\ *src\fR\fB, \fR\fBsize_t\ len\fR\fB, \fR\fBint\ af\fR\fB, \fR\fBint\ *error_num\fR\fB);\fR
+.HP 23
+\fBvoid\ \fBlwres_freehostent\fR\fR\fB(\fR\fBstruct\ hostent\ *he\fR\fB);\fR
 .SH "DESCRIPTION"
 .PP
-These functions perform thread safe, protocol independent
-nodename-to-address and address-to-nodename 
-translation as defined in RFC2553.
+These functions perform thread safe, protocol independent nodename\-to\-address and address\-to\-nodename translation as defined in RFC2553.
 .PP
 They use a
 \fBstruct hostent\fR
@@ -56,8 +56,8 @@ struct  hostent {
         char    **h_addr_list;  /* list of addresses from name server */
 };
 #define h_addr  h_addr_list[0]  /* address, for backward compatibility */
-.sp
 .fi
+.sp
 .PP
 The members of this structure are:
 .TP
@@ -65,10 +65,10 @@ The members of this structure are:
 The official (canonical) name of the host.
 .TP
 \fBh_aliases\fR
-A NULL-terminated array of alternate names (nicknames) for the host.
+A NULL\-terminated array of alternate names (nicknames) for the host.
 .TP
 \fBh_addrtype\fR
-The type of address being returned - usually
+The type of address being returned \- usually
 \fBPF_INET\fR
 or
 \fBPF_INET6\fR.
@@ -79,49 +79,38 @@ The length of the address in bytes.
 \fBh_addr_list\fR
 A
 \fBNULL\fR
-terminated array of network addresses for the host.
-Host addresses are returned in network byte order.
+terminated array of network addresses for the host. Host addresses are returned in network byte order.
 .PP
 \fBlwres_getipnodebyname()\fR
 looks up addresses of protocol family
 \fIaf\fR
 for the hostname
-\fIname\fR.
-The
+\fIname\fR. The
 \fIflags\fR
-parameter contains ORed flag bits to 
-specify the types of addresses that are searched
-for, and the types of addresses that are returned. 
-The flag bits are:
+parameter contains ORed flag bits to specify the types of addresses that are searched for, and the types of addresses that are returned. The flag bits are:
 .TP
 \fBAI_V4MAPPED\fR
 This is used with an
 \fIaf\fR
-of AF_INET6, and causes IPv4 addresses to be returned as IPv4-mapped
-IPv6 addresses.
+of AF_INET6, and causes IPv4 addresses to be returned as IPv4\-mapped IPv6 addresses.
 .TP
 \fBAI_ALL\fR
 This is used with an
 \fIaf\fR
-of AF_INET6, and causes all known addresses (IPv6 and IPv4) to be returned.
-If AI_V4MAPPED is also set, the IPv4 addresses are return as mapped
-IPv6 addresses.
+of AF_INET6, and causes all known addresses (IPv6 and IPv4) to be returned. If AI_V4MAPPED is also set, the IPv4 addresses are return as mapped IPv6 addresses.
 .TP
 \fBAI_ADDRCONFIG\fR
-Only return an IPv6 or IPv4 address if here is an active network
-interface of that type. This is not currently implemented
-in the BIND 9 lightweight resolver, and the flag is ignored.
+Only return an IPv6 or IPv4 address if here is an active network interface of that type. This is not currently implemented in the BIND 9 lightweight resolver, and the flag is ignored.
 .TP
 \fBAI_DEFAULT\fR
 This default sets the
-AI_V4MAPPED
+\fBAI_V4MAPPED\fR
 and
-AI_ADDRCONFIG
+\fBAI_ADDRCONFIG\fR
 flag bits.
 .PP
 \fBlwres_getipnodebyaddr()\fR
-performs a reverse lookup
-of address
+performs a reverse lookup of address
 \fIsrc\fR
 which is
 \fIlen\fR
@@ -133,16 +122,14 @@ or
 \fBPF_INET6\fR.
 .PP
 \fBlwres_freehostent()\fR
-releases all the memory associated with
-the
+releases all the memory associated with the
 \fBstruct hostent\fR
 pointer
-\fIhe\fR.
-Any memory allocated for the
-h_name,
-h_addr_list
+\fIhe\fR. Any memory allocated for the
+\fBh_name\fR,
+\fBh_addr_list\fR
 and
-h_aliases
+\fBh_aliases\fR
 is freed, as is the memory for the
 \fBhostent\fR
 structure itself.
@@ -156,32 +143,26 @@ set
 \fI*error_num\fR
 to an appropriate error code and the function returns a
 \fBNULL\fR
-pointer.
-The error codes and their meanings are defined in
+pointer. The error codes and their meanings are defined in
 \fI<lwres/netdb.h>\fR:
 .TP
 \fBHOST_NOT_FOUND\fR
 No such host is known.
 .TP
 \fBNO_ADDRESS\fR
-The server recognised the request and the name but no address is
-available. Another type of request to the name server for the
-domain might return an answer.
+The server recognised the request and the name but no address is available. Another type of request to the name server for the domain might return an answer.
 .TP
 \fBTRY_AGAIN\fR
-A temporary and possibly transient error occurred, such as a
-failure of a server to respond. The request may succeed if
-retried.
+A temporary and possibly transient error occurred, such as a failure of a server to respond. The request may succeed if retried.
 .TP
 \fBNO_RECOVERY\fR
-An unexpected failure occurred, and retrying the request
-is pointless.
+An unexpected failure occurred, and retrying the request is pointless.
 .PP
-\fBlwres_hstrerror\fR(3)
+\fBlwres_hstrerror\fR(3 )
 translates these error codes to suitable error messages.
 .SH "SEE ALSO"
 .PP
-\fBRFC2553\fR,
+\fBRFC2553\fR(),
 \fBlwres\fR(3),
 \fBlwres_gethostent\fR(3),
 \fBlwres_getaddrinfo\fR(3),

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.c,v 1.2.4.3 2004/09/16 07:01:13 marka Exp $ */
+/* $Id: print.c,v 1.2.4.7 2005/10/14 01:38:51 marka Exp $ */
 
 #include <config.h>
 
@@ -25,10 +25,12 @@
 
 #define	LWRES__PRINT_SOURCE	/* Used to get the lwres_print_* prototypes. */
 
-#include <stdlib.h>
+#include <lwres/stdlib.h>
 
 #include "assert_p.h"
 #include "print_p.h"
+
+#define LWRES_PRINT_QUADFORMAT LWRES_PLATFORM_QUADFORMAT
 
 int
 lwres__print_sprintf(char *str, const char *format, ...) {
@@ -70,7 +72,6 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 	int left;
 	int plus;
 	int space;
-	int neg;
 	long long tmpi;
 	unsigned long long tmpui;
 	unsigned long width;
@@ -110,7 +111,7 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 		/*
 		 * Reset flags.
 		 */
-		dot = neg = space = plus = left = zero = alt = h = l = q = 0;
+		dot = space = plus = left = zero = alt = h = l = q = 0;
 		width = precision = 0;
 		head = "";
 		length = pad = zeropad = 0;
@@ -242,7 +243,7 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 						head = "";
 					tmpui = tmpi;
 				}
-				sprintf(buf, "%llu",
+				sprintf(buf, "%" LWRES_PRINT_QUADFORMAT "u",
 					tmpui);
 				goto printint;
 			case 'o':
@@ -254,7 +255,9 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 				else
 					tmpui = va_arg(ap, int);
 				sprintf(buf,
-					alt ? "%#llo" : "%llo", tmpui);
+					alt ? "%#" LWRES_PRINT_QUADFORMAT "o"
+					    : "%" LWRES_PRINT_QUADFORMAT "o",
+					tmpui);
 				goto printint;
 			case 'u':
 				if (q)
@@ -264,7 +267,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					tmpui = va_arg(ap, unsigned long int);
 				else
 					tmpui = va_arg(ap, unsigned int);
-				sprintf(buf, "%llu", tmpui);
+				sprintf(buf, "%" LWRES_PRINT_QUADFORMAT "u",
+					tmpui);
 				goto printint;
 			case 'x':
 				if (q)
@@ -279,7 +283,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					if (precision > 2U)
 						precision -= 2;
 				}
-				sprintf(buf, "%llx", tmpui);
+				sprintf(buf, "%" LWRES_PRINT_QUADFORMAT "x",
+					tmpui);
 				goto printint;
 			case 'X':
 				if (q)
@@ -294,7 +299,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					if (precision > 2U)
 						precision -= 2;
 				}
-				sprintf(buf, "%llX", tmpui);
+				sprintf(buf, "%" LWRES_PRINT_QUADFORMAT "X",
+					tmpui);
 				goto printint;
 			printint:
 				if (precision != 0U || width != 0U) {

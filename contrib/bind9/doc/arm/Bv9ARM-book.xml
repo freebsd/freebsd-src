@@ -1,24 +1,44 @@
-
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
+               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.52 2005/02/09 03:48:57 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.59 2005/10/10 00:22:24 marka Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
 
-<bookinfo>
-<copyright>
-<year>2004</year>
-<holder>Internet Systems Consortium, Inc. ("ISC")</holder>
-</copyright>
-<copyright>
-<year>2000-2003</year>
-<holder>Internet Software Consortium</holder>
-</copyright>
-</bookinfo>
+  <bookinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder>Internet Software Consortium.</holder>
+    </copyright>
+  </bookinfo>
 
-  <chapter id="ch01">
+  <chapter id="Bv9ARM.ch01">
   <title>Introduction </title>
   <para>The Internet Domain Name System (<acronym>DNS</acronym>) consists of the syntax
   to specify the names of entities in the Internet in a hierarchical
@@ -368,7 +388,7 @@ be placed inside a firewall.</para>
 
 </chapter>
 
-<chapter id="ch02"><title><acronym>BIND</acronym> Resource Requirements</title>
+<chapter id="Bv9ARM.ch02"><title><acronym>BIND</acronym> Resource Requirements</title>
 
 <sect1>
 <title>Hardware requirements</title>
@@ -419,7 +439,7 @@ of the BIND 9 source distribution.</para>
 </sect1>
 </chapter>
 
-<chapter id="ch03">
+<chapter id="Bv9ARM.ch03">
 <title>Name Server Configuration</title>
 <para>In this section we provide some suggested configurations along
 with guidelines for their use. We also address the topic of reasonable
@@ -667,6 +687,7 @@ of a server.</para>
               checks the syntax of a <filename>named.conf</filename> file.</para>
               <cmdsynopsis label="Usage">
                 <command>named-checkconf</command>
+		<arg>-jvz</arg>
                 <arg>-t <replaceable>directory</replaceable></arg>
                 <arg><replaceable>filename</replaceable></arg>
               </cmdsynopsis>
@@ -734,24 +755,31 @@ of a server.</para>
    <listitem><para>Retransfer the given zone from the master.</para></listitem>
    </varlistentry>
 
-   <varlistentry><term><userinput>freeze <replaceable>zone</replaceable>
+   <varlistentry> <term><userinput>freeze <optional><replaceable>zone</replaceable>
        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-   <listitem><para>Suspend updates to a dynamic zone.  This allows manual
+           <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
+   <listitem><para>Suspend updates to a dynamic zone.  If no zone is specified
+	then all zones are suspended.  This allows manual
     edits to be made to a zone normally updated by dynamic update.  It
     also causes changes in the journal file to be synced into the master
     and the journal file to be removed.  All dynamic update attempts will
     be refused while the zone is frozen.</para></listitem>
    </varlistentry>
 
-   <varlistentry><term><userinput>unfreeze <replaceable>zone</replaceable>
+   <varlistentry><term><userinput>thaw <optional><replaceable>zone</replaceable>
        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-   <listitem><para>Enable updates to a frozen dynamic zone.  This causes
+           <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
+   <listitem><para>Enable updates to a frozen dynamic zone.  If no zone is
+    specified then all frozen zones are enabled.  This causes
     the server to reload the zone from disk, and re-enables dynamic updates
-    after the load has completed.  After a zone is unfrozen, dynamic updates
+    after the load has completed.  After a zone is thawed, dynamic updates
     will no longer be refused.</para></listitem>
    </varlistentry>
+
+   <varlistentry><term><userinput>notify <replaceable>zone</replaceable>
+       <optional><replaceable>class</replaceable>
+           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
+   <listitem><para>Resend NOTIFY messages for the zone</para></listitem></varlistentry>
 
    <varlistentry><term><userinput>reconfig</userinput></term>
    <listitem><para>Reload the configuration file and load new zones,
@@ -773,20 +801,21 @@ of a server.</para>
    <command>logging</command> section of
    <filename>named.conf</filename>.</para></listitem></varlistentry>
 
-   <varlistentry><term><userinput>dumpdb</userinput></term>
-   <listitem><para>Dump the server's caches to the dump file. </para></listitem></varlistentry>
+   <varlistentry><term><userinput>dumpdb <optional>-all|-cache|-zone</optional> <optional><replaceable>view ...</replaceable></optional></userinput></term>
+   <listitem><para>Dump the server's caches (default) and / or zones to the
+	 dump file for the specified views.  If no view is specified all
+	 views are dumped.</para></listitem></varlistentry>
 
-   <varlistentry><term><userinput>stop</userinput></term>
-   <listitem><para>Stop the server,
-   making sure any recent changes
+   <varlistentry><term><userinput>stop <optional>-p</optional></userinput></term>
+   <listitem><para>Stop the server, making sure any recent changes
    made through dynamic update or IXFR are first saved to the master files
-   of the updated zones.</para></listitem></varlistentry>
+   of the updated zones.  If -p is specified named's process id is returned.</para></listitem></varlistentry>
 
-   <varlistentry><term><userinput>halt</userinput></term>
+   <varlistentry><term><userinput>halt <optional>-p</optional></userinput></term>
    <listitem><para>Stop the server immediately.  Recent changes
    made through dynamic update or IXFR are not saved to the master files,
    but will be rolled forward from the journal files when the server
-   is restarted.</para></listitem></varlistentry>
+   is restarted.  If -p is specified named's process id is returned.</para></listitem></varlistentry>
 
    <varlistentry><term><userinput>trace</userinput></term>
    <listitem><para>Increment the servers debugging level by one. </para></listitem></varlistentry>
@@ -801,11 +830,19 @@ of a server.</para>
    <varlistentry><term><userinput>flush</userinput></term>
    <listitem><para>Flushes the server's cache.</para></listitem></varlistentry>
 
+   <varlistentry><term><userinput>flushname</userinput> <replaceable>name</replaceable></term>
+   <listitem><para>Flushes the given name from the server's cache.</para></listitem></varlistentry>
+
    <varlistentry><term><userinput>status</userinput></term>
    <listitem><para>Display status of the server.
 Note the number of zones includes the internal <command>bind/CH</command> zone
 and the default <command>./IN</command> hint zone if there is not a
 explicit root zone configured.</para></listitem></varlistentry>
+
+   <varlistentry><term><userinput>recursing</userinput></term>
+   <listitem><para>Dump the list of queries named is currently recursing
+   on.
+   </para></listitem></varlistentry>
 
 </variablelist>
 
@@ -957,7 +994,7 @@ reload the database. </para></entry>
   </sect1>
   </chapter>
 
-<chapter id="ch04">
+<chapter id="Bv9ARM.ch04">
 <title>Advanced DNS Features</title>
 
 <sect1 id="notify">
@@ -1004,7 +1041,7 @@ protocol is specified in RFC 1996.
 
     <para>All changes made to a zone using dynamic update are stored in the
     zone's journal file.  This file is automatically created by the
-    server when when the first dynamic update takes place.  The name of
+    server when the first dynamic update takes place.  The name of
     the journal file is formed by appending the
     extension <filename>.jnl</filename> to the
     name of the corresponding zone file.  The journal file is in a
@@ -1123,7 +1160,7 @@ to those internal hosts. With the wildcard records, the mail will
 be delivered to the bastion host, which can then forward it on to
 internal hosts.</para>
 <para>Here's an example of a wildcard MX record:</para>
-<programlisting><literal>*   IN MX 10 external1.example.com.</literal></programlisting>
+<programlisting>*   IN MX 10 external1.example.com.</programlisting>
 <para>Now that they accept mail on behalf of anything in the internal
 network, the bastion hosts will need to know how to deliver mail
 to internal hosts. In order for this to work properly, the resolvers on
@@ -1620,7 +1657,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
   </sect1>
   </chapter>
 
-  <chapter id="ch05"><title>The <acronym>BIND</acronym> 9 Lightweight Resolver</title>
+  <chapter id="Bv9ARM.ch05"><title>The <acronym>BIND</acronym> 9 Lightweight Resolver</title>
 <sect1><title>The Lightweight Resolver Library</title>
 <para>Traditionally applications have been linked with a stub resolver
 library that sends recursive DNS queries to a local caching name
@@ -1666,7 +1703,7 @@ be configured to act as a lightweight resolver daemon using the
 
 </sect1></chapter>
 
-<chapter id="ch06"><title><acronym>BIND</acronym> 9 Configuration Reference</title>
+<chapter id="Bv9ARM.ch06"><title><acronym>BIND</acronym> 9 Configuration Reference</title>
 
 <para><acronym>BIND</acronym> 9 configuration is broadly similar
 to <acronym>BIND</acronym> 8; however, there are a few new areas
@@ -1831,7 +1868,7 @@ which constitute an address match list can be any of the following:</para>
 <listitem>
             <simpara>a key ID, as defined by the <command>key</command> statement</simpara></listitem>
 <listitem>
-            <simpara>the name of an address match list previously defined with
+            <simpara>the name of an address match list defined with
 the <command>acl</command> statement</simpara></listitem>
 <listitem>
             <simpara>a nested address match list enclosed in braces</simpara></listitem></itemizedlist>
@@ -2181,7 +2218,7 @@ installed.
 
 <para>
 To disable the command channel, use an empty <command>controls</command>
-statement: <command>controls { };</command>.
+statement: <command>controls { };</command>.
 </para>
 
     </sect2>
@@ -2591,9 +2628,10 @@ The query log entry reports the client's IP address and port number.  The
 query name, class and type.  It also reports whether the Recursion Desired
 flag was set (+ if set, - if not set), EDNS was in use (E) or if the
 query was signed (S).</para>
-<programlisting><computeroutput>client 127.0.0.1#62536: query: www.example.com IN AAAA +SE</computeroutput>
-<computeroutput>client ::1#62537: query: www.example.net IN AAAA -SE</computeroutput>
-</programlisting>
+<para><computeroutput>client 127.0.0.1#62536: query: www.example.com IN AAAA +SE</computeroutput>
+</para>
+<para><computeroutput>client ::1#62537: query: www.example.net IN AAAA -SE</computeroutput>
+</para>
 </entry>
 </row>
 <row rowsep = "0">
@@ -2724,7 +2762,7 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> dnssec-lookaside <replaceable>domain</replaceable> trust-anchor <replaceable>domain</replaceable>; </optional>
     <optional> dnssec-must-be-secure <replaceable>domain yes_or_no</replaceable>; </optional>
     <optional> forward ( <replaceable>only</replaceable> | <replaceable>first</replaceable> ); </optional>
-    <optional> forwarders { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
+    <optional> forwarders { <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> dual-stack-servers <optional>port <replaceable>ip_port</replaceable></optional> { ( <replaceable>domain_name</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> | <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ) ; ... }; </optional>
     <optional> check-names ( <replaceable>master</replaceable> | <replaceable>slave</replaceable> | <replaceable>response</replaceable> )( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
     <optional> allow-notify { <replaceable>address_match_list</replaceable> }; </optional>
@@ -2958,7 +2996,7 @@ record does) the DNSKEY RRset is deemed to be trusted.
 
 <varlistentry><term><command>dnssec-must-be-secure</command></term>
 <listitem><para>
-Specify heirachies which must / may not be secure (signed and validated).
+Specify heirarchies which must / may not be secure (signed and validated).
 If <userinput>yes</userinput> then named will only accept answers if they
 are secure.
 If <userinput>no</userinput> then normal dnssec validation applies
@@ -3714,11 +3752,25 @@ in the configuration file.</para>
 except zone transfers are performed using IPv6.</para>
               </listitem></varlistentry>
 
-<varlistentry><term><command>alt-transfer-source</command></term>
-<listitem><para>An alternate transfer source if the one listed in
-<command>transfer-source</command> fails and
-<command>use-alt-transfer-source</command> is set.</para>
-              </listitem></varlistentry>
+	    <varlistentry>
+	      <term><command>alt-transfer-source</command></term>
+	      <listitem>
+		<para>
+		  An alternate transfer source if the one listed in
+		  <command>transfer-source</command> fails and
+		  <command>use-alt-transfer-source</command> is
+		  set.
+		</para>
+		<note>
+		  If you do not wish the alternate transfer source
+		  to be used you should set
+		  <command>use-alt-transfer-source</command>
+		  appropriately and you should not depend upon
+		  getting a answer back to the first refresh
+		  query.
+		</note>
+              </listitem>
+	    </varlistentry>
 
 <varlistentry><term><command>alt-transfer-source-v6</command></term>
 <listitem><para>An alternate transfer source if the one listed in
@@ -4553,7 +4605,7 @@ Statement Grammar</title>
     <optional> delegation-only <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> file <replaceable>string</replaceable> ; </optional>
     <optional> forward (<constant>only</constant>|<constant>first</constant>) ; </optional>
-    <optional> forwarders { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
+    <optional> forwarders { <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> ixfr-base <replaceable>string</replaceable> ; </optional>
     <optional> ixfr-tmp-file <replaceable>string</replaceable> ; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable> ; </optional>
@@ -5539,10 +5591,10 @@ be appended to any unqualified records. When a zone is first read
 in there is an implicit <command>$ORIGIN</command> &#60;<varname>zone-name</varname>><command>.</command> The
 current <command>$ORIGIN</command> is appended to the domain specified
 in the <command>$ORIGIN</command> argument if it is not absolute.</para>
-<programlisting><literal>$ORIGIN example.com.
-WWW     CNAME   MAIN-SERVER</literal></programlisting>
+<programlisting>$ORIGIN example.com.
+WWW     CNAME   MAIN-SERVER</programlisting>
 <para>is equivalent to</para>
-<programlisting><literal>WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.</literal></programlisting></sect3>
+<programlisting>WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.</programlisting></sect3>
 <sect3><title>The <command>$INCLUDE</command> Directive</title>
 <para>Syntax: <command>$INCLUDE</command>
 <replaceable>filename</replaceable> <optional>
@@ -5576,17 +5628,17 @@ resource records that only differ from each other by an iterator. <command>$GENE
 be used to easily generate the sets of records required to support
 sub /24 reverse delegations described in RFC 2317: Classless IN-ADDR.ARPA
 delegation.</para>
-<programlisting><literal>$ORIGIN 0.0.192.IN-ADDR.ARPA.
+<programlisting>$ORIGIN 0.0.192.IN-ADDR.ARPA.
 $GENERATE 1-2 0 NS SERVER$.EXAMPLE.
-$GENERATE 1-127 $ CNAME $.0</literal></programlisting>
+$GENERATE 1-127 $ CNAME $.0</programlisting>
 <para>is equivalent to</para>
-<programlisting><literal>0.0.0.192.IN-ADDR.ARPA NS SERVER1.EXAMPLE.
+<programlisting>0.0.0.192.IN-ADDR.ARPA NS SERVER1.EXAMPLE.
 0.0.0.192.IN-ADDR.ARPA. NS SERVER2.EXAMPLE.
 1.0.0.192.IN-ADDR.ARPA. CNAME 1.0.0.0.192.IN-ADDR.ARPA.
 2.0.0.192.IN-ADDR.ARPA. CNAME 2.0.0.0.192.IN-ADDR.ARPA.
 ...
 127.0.0.192.IN-ADDR.ARPA. CNAME 127.0.0.0.192.IN-ADDR.ARPA.
-</literal></programlisting>
+</programlisting>
       <informaltable colsep = "0" rowsep = "0">
         <tgroup cols = "2" colsep = "0" rowsep = "0" tgroupstyle = "3Level-table">
           <colspec colname = "1" colnum = "1" colsep = "0" colwidth = "0.875in"/>
@@ -5655,7 +5707,7 @@ and not part of the standard zone file format.</para>
     </sect2>
   </sect1>
 </chapter>
-<chapter id="ch07"><title><acronym>BIND</acronym> 9 Security Considerations</title>
+<chapter id="Bv9ARM.ch07"><title><acronym>BIND</acronym> 9 Security Considerations</title>
 <sect1 id="Access_Control_Lists"><title>Access Control Lists</title>
 <para>Access Control Lists (ACLs), are address match lists that
 you can set up and nickname for future use in <command>allow-notify</command>,
@@ -5778,7 +5830,7 @@ all.</para>
 
 </sect1></chapter>
 
-<chapter id="ch08">
+<chapter id="Bv9ARM.ch08">
   <title>Troubleshooting</title>
   <sect1>
     <title>Common Problems</title>
@@ -5837,7 +5889,7 @@ all.</para>
     to read more.</para>
   </sect1>
 </chapter>
-<appendix id="ch09">
+<appendix id="Bv9ARM.ch09">
   <title>Appendices</title>
   <sect1>
     <title>Acknowledgments</title>
