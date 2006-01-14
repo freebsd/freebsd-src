@@ -380,8 +380,8 @@ static Asr_softc_t * Asr_softc;
  */
 
 /* I2O HDM interface */
-static int	asr_probe(device_t tag);
-static int	asr_attach(device_t tag);
+static int	asr_probe(device_t dev);
+static int	asr_attach(device_t dev);
 
 static int	asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			  struct thread *td);
@@ -664,13 +664,13 @@ ASR_getStatus(Asr_softc_t *sc, PI2O_EXEC_STATUS_GET_REPLY buffer)
  * virtual adapters.
  */
 static int
-asr_probe(device_t tag)
+asr_probe(device_t dev)
 {
 	u_int32_t id;
 
-	id = (pci_get_device(tag) << 16) | pci_get_vendor(tag);
+	id = (pci_get_device(dev) << 16) | pci_get_vendor(dev);
 	if ((id == 0xA5011044) || (id == 0xA5111044)) {
-		device_set_desc(tag, "Adaptec Caching SCSI RAID");
+		device_set_desc(dev, "Adaptec Caching SCSI RAID");
 		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
@@ -2188,7 +2188,7 @@ asr_hbareset(Asr_softc_t *sc)
  * limit and a reduction in error checking (in the pre 4.0 case).
  */
 static int
-asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
+asr_pci_map_mem(device_t dev, Asr_softc_t *sc)
 {
 	int		rid;
 	u_int32_t	p, l, s;
@@ -2197,7 +2197,7 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 	 * I2O specification says we must find first *memory* mapped BAR
 	 */
 	for (rid = 0; rid < 4; rid++) {
-		p = pci_read_config(tag, PCIR_BAR(rid), sizeof(p));
+		p = pci_read_config(dev, PCIR_BAR(rid), sizeof(p));
 		if ((p & 1) == 0) {
 			break;
 		}
@@ -2209,10 +2209,10 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 		rid = 0;
 	}
 	rid = PCIR_BAR(rid);
-	p = pci_read_config(tag, rid, sizeof(p));
-	pci_write_config(tag, rid, -1, sizeof(p));
-	l = 0 - (pci_read_config(tag, rid, sizeof(l)) & ~15);
-	pci_write_config(tag, rid, p, sizeof(p));
+	p = pci_read_config(dev, rid, sizeof(p));
+	pci_write_config(dev, rid, -1, sizeof(p));
+	l = 0 - (pci_read_config(dev, rid, sizeof(l)) & ~15);
+	pci_write_config(dev, rid, p, sizeof(p));
 	if (l > MAX_MAP) {
 		l = MAX_MAP;
 	}
@@ -2224,9 +2224,9 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 	 * accessible via BAR0, the messaging registers are accessible
 	 * via BAR1. If the subdevice code is 50 to 59 decimal.
 	 */
-	s = pci_read_config(tag, PCIR_DEVVENDOR, sizeof(s));
+	s = pci_read_config(dev, PCIR_DEVVENDOR, sizeof(s));
 	if (s != 0xA5111044) {
-		s = pci_read_config(tag, PCIR_SUBVEND_0, sizeof(s));
+		s = pci_read_config(dev, PCIR_SUBVEND_0, sizeof(s));
 		if ((((ADPTDOMINATOR_SUB_ID_START ^ s) & 0xF000FFFF) == 0)
 		 && (ADPTDOMINATOR_SUB_ID_START <= s)
 		 && (s <= ADPTDOMINATOR_SUB_ID_END)) {
@@ -2234,7 +2234,7 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 		}
 	}
 	p &= ~15;
-	sc->ha_mem_res = bus_alloc_resource(tag, SYS_RES_MEMORY, &rid,
+	sc->ha_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	  p, p + l, l, RF_ACTIVE);
 	if (sc->ha_mem_res == NULL) {
 		return (0);
@@ -2247,15 +2247,15 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 		if ((rid += sizeof(u_int32_t)) >= PCIR_BAR(4)) {
 			return (0);
 		}
-		p = pci_read_config(tag, rid, sizeof(p));
-		pci_write_config(tag, rid, -1, sizeof(p));
-		l = 0 - (pci_read_config(tag, rid, sizeof(l)) & ~15);
-		pci_write_config(tag, rid, p, sizeof(p));
+		p = pci_read_config(dev, rid, sizeof(p));
+		pci_write_config(dev, rid, -1, sizeof(p));
+		l = 0 - (pci_read_config(dev, rid, sizeof(l)) & ~15);
+		pci_write_config(dev, rid, p, sizeof(p));
 		if (l > MAX_MAP) {
 			l = MAX_MAP;
 		}
 		p &= ~15;
-		sc->ha_mes_res = bus_alloc_resource(tag, SYS_RES_MEMORY, &rid,
+		sc->ha_mes_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 		  p, p + l, l, RF_ACTIVE);
 		if (sc->ha_mes_res == NULL) {
 			return (0);
@@ -2274,20 +2274,20 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
  * registration requirements.
  */
 static int
-asr_pci_map_int(device_t tag, Asr_softc_t *sc)
+asr_pci_map_int(device_t dev, Asr_softc_t *sc)
 {
 	int rid = 0;
 
-	sc->ha_irq_res = bus_alloc_resource_any(tag, SYS_RES_IRQ, &rid,
+	sc->ha_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	  RF_ACTIVE | RF_SHAREABLE);
 	if (sc->ha_irq_res == NULL) {
 		return (0);
 	}
-	if (bus_setup_intr(tag, sc->ha_irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
+	if (bus_setup_intr(dev, sc->ha_irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 	  (driver_intr_t *)asr_intr, (void *)sc, &(sc->ha_intr))) {
 		return (0);
 	}
-	sc->ha_irq = pci_read_config(tag, PCIR_INTLINE, sizeof(char));
+	sc->ha_irq = pci_read_config(dev, PCIR_INTLINE, sizeof(char));
 	return (1);
 } /* asr_pci_map_int */
 
@@ -2295,18 +2295,18 @@ asr_pci_map_int(device_t tag, Asr_softc_t *sc)
  *	Attach the devices, and virtual devices to the driver list.
  */
 static int
-asr_attach(device_t tag)
+asr_attach(device_t dev)
 {
 	PI2O_EXEC_STATUS_GET_REPLY status;
 	PI2O_LCT_ENTRY		 Device;
 	Asr_softc_t		 *sc, **ha;
 	struct scsi_inquiry_data *iq;
 	union asr_ccb		 *ccb;
-	int			 bus, size, unit = device_get_unit(tag);
+	int			 bus, size, unit;
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		return(ENOMEM);
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
+
 	if (Asr_softc == NULL) {
 		/*
 		 *	Fixup the OS revision as saved in the dptsig for the
@@ -2325,13 +2325,13 @@ asr_attach(device_t tag)
 	/*
 	 *	This is the real McCoy!
 	 */
-	if (!asr_pci_map_mem(tag, sc)) {
-		printf ("asr%d: could not map memory\n", unit);
+	if (!asr_pci_map_mem(dev, sc)) {
+		device_printf(dev, "could not map memory\n");
 		return(ENXIO);
 	}
 	/* Enable if not formerly enabled */
-	pci_write_config(tag, PCIR_COMMAND,
-	    pci_read_config(tag, PCIR_COMMAND, sizeof(char)) |
+	pci_write_config(dev, PCIR_COMMAND,
+	    pci_read_config(dev, PCIR_COMMAND, sizeof(char)) |
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
 	/* Knowledge is power, responsibility is direct */
 	{
@@ -2339,7 +2339,7 @@ asr_attach(device_t tag)
 			STAILQ_ENTRY(pci_devinfo) pci_links;
 			struct resource_list	  resources;
 			pcicfgregs		  cfg;
-		} * dinfo = device_get_ivars(tag);
+		} * dinfo = device_get_ivars(dev);
 		sc->ha_pciBusNum = dinfo->cfg.bus;
 		sc->ha_pciDeviceNum = (dinfo->cfg.slot << 3) | dinfo->cfg.func;
 	}
@@ -2348,7 +2348,7 @@ asr_attach(device_t tag)
 	    ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
 	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL) ||
 	    (ASR_getStatus(sc, status) == NULL)) {
-		printf ("asr%d: could not initialize hardware\n", unit);
+		device_printf(dev, "could not initialize hardware\n");
 		return(ENODEV);	/* Get next, maybe better luck */
 	}
 	sc->ha_SystemTable.OrganizationID = status->OrganizationID;
@@ -2360,8 +2360,8 @@ asr_attach(device_t tag)
 	sc->ha_SystemTable.MessengerInfo.InboundMessagePortAddressLow =
 	    (U32)(sc->ha_Base + I2O_REG_TOFIFO);	/* XXX 64-bit */
 
-	if (!asr_pci_map_int(tag, (void *)sc)) {
-		printf ("asr%d: could not map interrupt\n", unit);
+	if (!asr_pci_map_int(dev, (void *)sc)) {
+		device_printf(dev, "could not map interrupt\n");
 		return(ENXIO);
 	}
 
@@ -2414,7 +2414,7 @@ asr_attach(device_t tag)
 			(void)ASR_acquireHrt(sc);
 		}
 	} else {
-		printf ("asr%d: failed to initialize\n", unit);
+		device_printf(dev, "failed to initialize\n");
 		return(ENXIO);
 	}
 	/*
@@ -2448,7 +2448,7 @@ asr_attach(device_t tag)
 	 *	Print the HBA model number as inquired from the card.
 	 */
 
-	printf("asr%d:", unit);
+	device_printf(dev, " ");
 
 	if ((iq = (struct scsi_inquiry_data *)malloc(
 	    sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK | M_ZERO)) !=
@@ -2533,7 +2533,7 @@ asr_attach(device_t tag)
 	 * fill in the prototype cam_path.
 	 */
 	if ((ccb = asr_alloc_ccb(sc)) == NULL) {
-		printf ("asr%d: CAM could not be notified of asynchronous callback parameters\n", unit);
+		device_printf(dev, "CAM could not be notified of asynchronous callback parameters\n");
 		return(ENOMEM);
 	}
 	for (bus = 0; bus <= sc->ha_MaxBus; ++bus) {
