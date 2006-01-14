@@ -65,31 +65,8 @@ struct acpi_task_ctx {
     void 			*at_context;
 };
 
-/*
- * Private task queue definition for ACPI
- */
-static struct proc *
-acpi_task_start_threads(struct taskqueue **tqp)
-{
-    struct proc	*acpi_kthread_proc;
-    int	err, i;
-
-    KASSERT(*tqp != NULL, ("acpi taskqueue not created before threads"));
-
-    /* Start one or more threads to service our taskqueue. */
-    for (i = 0; i < acpi_max_threads; i++) {
-	err = kthread_create(taskqueue_thread_loop, tqp, &acpi_kthread_proc,
-	    0, 0, "acpi_task%d", i);
-	if (err) {
-	    printf("%s: kthread_create failed (%d)\n", __func__, err);
-	    break;
-	}
-    }
-    return (acpi_kthread_proc);
-}
-
 TASKQUEUE_DEFINE(acpi, taskqueue_thread_enqueue, &taskqueue_acpi,
-    taskqueue_acpi_proc = acpi_task_start_threads(&taskqueue_acpi));
+    taskqueue_start_threads(&taskqueue_acpi, 3, PWAIT, "acpi_task"));
 
 /*
  * Bounce through this wrapper function since ACPI-CA doesn't understand
