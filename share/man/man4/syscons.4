@@ -288,10 +288,20 @@ It will prevent users from
 entering the kernel debugger (KDB) by pressing the key combination.
 KDB will still be invoked when the kernel panics or hits a break point
 if it is included in the kernel.
+If this option is not defined, this behavior may be controled at runtime
+by the
+.Xr sysctl 8
+variable
+.Pq Va hw.syscons.kbd_kbdkey .
 .It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is
 .Dv Ctl-Alt-Del ) ,
 so that the casual user may not accidentally reboot the system.
+If this option is not defined, this behavior may be controled at runtime
+by the
+.Xr sysctl 8
+variable
+.Pq Va hw.syscons.kbd_reboot .
 .It Dv SC_HISTORY_SIZE=N
 Sets the size of back scroll buffer to
 .Fa N
