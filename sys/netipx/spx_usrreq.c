@@ -1352,8 +1352,6 @@ spx_attach(so, proto, td)
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
-	if (ipxp != NULL)
-		return (EISCONN);
 	IPX_LIST_LOCK();
 	error = ipx_pcballoc(so, &ipxpcb_list, td);
 	if (error)
@@ -1483,8 +1481,6 @@ spx_detach(so)
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
-	if (ipxp == NULL)
-		return (ENOTCONN);
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	if (cb->s_state > TCPS_LISTEN)
