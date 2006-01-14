@@ -2533,7 +2533,7 @@ ti_rxeof(sc)
 		 * tag it before passing the packet upward.
 		 */
 		if (have_tag) {
-			VLAN_INPUT_TAG(ifp, m, vlan_tag);
+			VLAN_INPUT_TAG_NEW(ifp, m, vlan_tag);
 			if (m == NULL)
 				continue;
 		}
