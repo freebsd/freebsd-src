@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,11 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.77.2.1.10.9 2004/09/16 04:57:02 marka Exp $ */
+/* $Id: journal.c,v 1.77.2.1.10.13 2005/11/03 23:08:41 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <isc/file.h>
 #include <isc/mem.h>
@@ -1564,7 +1565,7 @@ read_one_rr(dns_journal_t *j) {
 	/*
 	 * Read an RR.
 	 */
-	result = journal_read_rrhdr(j, &rrhdr);
+	CHECK(journal_read_rrhdr(j, &rrhdr));
 	/*
 	 * Perform a sanity check on the journal RR size.
 	 * The smallest possible RR has a 1-byte owner name
@@ -1750,6 +1751,8 @@ dns_diff_subtract(dns_diff_t diff[2], dns_diff_t *r) {
 	isc_result_t result;
 	dns_difftuple_t *p[2];
 	int i, t;
+	isc_boolean_t append;
+
 	CHECK(dns_diff_sort(&diff[0], rdata_order));
 	CHECK(dns_diff_sort(&diff[1], rdata_order));
 
@@ -1778,11 +1781,17 @@ dns_diff_subtract(dns_diff_t diff[2], dns_diff_t *r) {
 		}
 		INSIST(t == 0);
 		/*
-		 * Identical RRs in both databases; skip them both.
+		 * Identical RRs in both databases; skip them both
+		 * if the ttl differs.
 		 */
+		append = ISC_TF(p[0]->ttl != p[1]->ttl);
 		for (i = 0; i < 2; i++) {
 			ISC_LIST_UNLINK(diff[i].tuples, p[i], link);
-			dns_difftuple_free(&p[i]);
+			if (append) {
+				ISC_LIST_APPEND(r->tuples, p[i], link);
+			} else {
+				dns_difftuple_free(&p[i]);
+			}
 		}
 	next: ;
 	}

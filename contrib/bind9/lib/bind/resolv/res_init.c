@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 1.9.2.5.4.2 2004/03/16 12:34:18 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 1.9.2.5.4.5 2005/11/03 00:00:52 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -101,6 +101,10 @@ static const char rcsid[] = "$Id: res_init.c,v 1.9.2.5.4.2 2004/03/16 12:34:18 m
 /* Options.  Should all be left alone. */
 #define RESOLVSORT
 #define DEBUG
+
+#ifdef SOLARIS2
+#include <sys/systeminfo.h>
+#endif
 
 static void res_setoptions __P((res_state, const char *, const char *));
 
@@ -163,15 +167,15 @@ __res_vinit(res_state statp, int preinit) {
 	int dots;
 	union res_sockaddr_union u[2];
 
+	if (statp->_u._ext.ext != NULL)
+		res_ndestroy(statp);
+
 	if (!preinit) {
 		statp->retrans = RES_TIMEOUT;
 		statp->retry = RES_DFLRETRY;
 		statp->options = RES_DEFAULT;
 		statp->id = res_randomid();
 	}
-
-	if ((statp->options & RES_INIT) != 0U)
-		res_ndestroy(statp);
 
 	memset(u, 0, sizeof(u));
 #ifdef USELOOPBACK
@@ -212,11 +216,41 @@ __res_vinit(res_state statp, int preinit) {
 		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
 		strcpy(statp->_u._ext.ext->nsuffix, "ip6.arpa");
 		strcpy(statp->_u._ext.ext->nsuffix2, "ip6.int");
-	}
+	} else
+		return (-1);
 #ifdef RESOLVSORT
 	statp->nsort = 0;
 #endif
 	res_setservers(statp, u, nserv);
+
+#ifdef	SOLARIS2
+	/*
+	 * The old libresolv derived the defaultdomain from NIS/NIS+.
+	 * We want to keep this behaviour
+	 */
+	{
+		char buf[sizeof(statp->defdname)], *cp;
+		int ret;
+
+		if ((ret = sysinfo(SI_SRPC_DOMAIN, buf, sizeof(buf))) > 0 &&
+			(unsigned int)ret <= sizeof(buf)) {
+			if (buf[0] == '+')
+				buf[0] = '.';
+			cp = strchr(buf, '.');
+			if (cp == NULL) {
+				if (strlcpy(statp->defdname, buf,
+					sizeof(statp->defdname))
+					>= sizeof(statp->defdname))
+					goto freedata;
+			} else {
+				if (strlcpy(statp->defdname, cp+1,
+					sizeof(statp->defdname))
+					 >= sizeof(statp->defdname))
+					goto freedata;
+			}
+		}
+	}
+#endif	/* SOLARIS2 */
 
 	/* Allow user to override the local domain definition */
 	if ((cp = getenv("LOCALDOMAIN")) != NULL) {
@@ -456,6 +490,15 @@ __res_vinit(res_state statp, int preinit) {
 		res_setoptions(statp, cp, "env");
 	statp->options |= RES_INIT;
 	return (0);
+
+#ifdef	SOLARIS2
+ freedata:
+	if (statp->_u._ext.ext != NULL) {
+		free(statp->_u._ext.ext);
+		statp->_u._ext.ext = NULL;
+	}
+	return (-1);
+#endif
 }
 
 static void
@@ -495,6 +538,22 @@ res_setoptions(res_state statp, const char *options, const char *source)
 			if (statp->options & RES_DEBUG)
 				printf(";;\ttimeout=%d\n", statp->retrans);
 #endif
+#ifdef	SOLARIS2
+		} else if (!strncmp(cp, "retrans:", sizeof("retrans:") - 1)) {
+			/*
+		 	 * For backward compatibility, 'retrans' is
+		 	 * supported as an alias for 'timeout', though
+		 	 * without an imposed maximum.
+		 	 */
+			statp->retrans = atoi(cp + sizeof("retrans:") - 1);
+		} else if (!strncmp(cp, "retry:", sizeof("retry:") - 1)){
+			/*
+			 * For backward compatibility, 'retry' is
+			 * supported as an alias for 'attempts', though
+			 * without an imposed maximum.
+			 */
+			statp->retry = atoi(cp + sizeof("retry:") - 1);
+#endif	/* SOLARIS2 */
 		} else if (!strncmp(cp, "attempts:", sizeof("attempts:") - 1)){
 			i = atoi(cp + sizeof("attempts:") - 1);
 			if (i <= RES_MAXRETRY)

@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.4.2.6.8.1 2004/09/16 00:57:33 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.4.2.6.8.3 2005/10/11 00:48:14 marka Exp $";
 #endif
 
 /*
@@ -336,7 +336,10 @@ dst_read_key(const char *in_keyname, const u_int16_t in_id,
 	if (in_keyname == NULL) {
 		EREPORT(("dst_read_private_key(): Null key name passed in\n"));
 		return (NULL);
-	} else
+	} else if (strlen(in_keyname) >= sizeof(keyname)) {
+		EREPORT(("dst_read_private_key(): keyname too big\n"));
+		return (NULL);
+	} else 
 		strcpy(keyname, in_keyname);
 
 	/* before I read in the public key, check if it is allowed to sign */
@@ -347,7 +350,7 @@ dst_read_key(const char *in_keyname, const u_int16_t in_id,
 		return pubkey; 
 
 	if (!(dg_key = dst_s_get_key_struct(keyname, pubkey->dk_alg,
-					 pubkey->dk_flags, pubkey->dk_proto,
+					    pubkey->dk_flags, pubkey->dk_proto,
 					    0)))
 		return (dg_key);
 	/* Fill in private key and some fields in the general key structure */
@@ -953,7 +956,6 @@ dst_generate_key(const char *name, const int bits, const int exp,
 		 const int flags, const int protocol, const int alg)
 {
 	DST_KEY *new_key = NULL;
-	int res;
 	int dnslen;
 	u_char dns[2048];
 
@@ -975,7 +977,7 @@ dst_generate_key(const char *name, const int bits, const int exp,
 			 alg));
 		return (dst_free_key(new_key));
 	}
-	if ((res = new_key->dk_func->generate(new_key, exp)) <= 0) {
+	if (new_key->dk_func->generate(new_key, exp) <= 0) {
 		EREPORT(("dst_generate_key_pair(): Key generation failure %s %d %d %d\n",
 			 new_key->dk_key_name, new_key->dk_alg,
 			 new_key->dk_key_size, exp));

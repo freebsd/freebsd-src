@@ -122,8 +122,16 @@ retry:
 			(stdout, "%s", ""),
 			answer, (anslen > len) ? len : anslen);
 
-		Dprint(statp->pfcode & RES_PRF_REPLY,
-		       (stdout, ";; TSIG invalid (%s)\n", p_rcode(ret)));
+		if (ret > 0) {
+			Dprint(statp->pfcode & RES_PRF_REPLY,
+			       (stdout, ";; server rejected TSIG (%s)\n",
+				p_rcode(ret)));
+		} else {
+			Dprint(statp->pfcode & RES_PRF_REPLY,
+			       (stdout, ";; TSIG invalid (%s)\n",
+				p_rcode(-ret)));
+		}
+
 		free (nstatp);
 		free (newmsg);
 		dst_free_key(dstkey);

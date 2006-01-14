@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.139.2.2.4.17 2004/10/25 01:36:06 marka Exp $ */
+/* $Id: dnssec-signzone.c,v 1.139.2.2.4.21 2005/10/14 01:38:41 marka Exp $ */
 
 #include <config.h>
 
@@ -787,15 +787,12 @@ signname(dns_dbnode_t *node, dns_name_t *name) {
 	dns_rdatasetiter_t *rdsiter;
 	isc_boolean_t isdelegation = ISC_FALSE;
 	isc_boolean_t hasds = ISC_FALSE;
-	isc_boolean_t atorigin;
 	isc_boolean_t changed = ISC_FALSE;
 	dns_diff_t del, add;
 	char namestr[DNS_NAME_FORMATSIZE];
 	isc_uint32_t nsttl = 0;
 
 	dns_name_format(name, namestr, sizeof(namestr));
-
-	atorigin = dns_name_equal(name, gorigin);
 
 	/*
 	 * Determine if this is a delegation point.
@@ -931,13 +928,16 @@ signname(dns_dbnode_t *node, dns_name_t *name) {
 
 static inline isc_boolean_t
 active_node(dns_dbnode_t *node) {
-	dns_rdatasetiter_t *rdsiter;
+	dns_rdatasetiter_t *rdsiter = NULL;
+	dns_rdatasetiter_t *rdsiter2 = NULL;
 	isc_boolean_t active = ISC_FALSE;
 	isc_result_t result;
 	dns_rdataset_t rdataset;
+	dns_rdatatype_t type;
+	dns_rdatatype_t covers;
+	isc_boolean_t found;
 
 	dns_rdataset_init(&rdataset);
-	rdsiter = NULL;
 	result = dns_db_allrdatasets(gdb, node, gversion, 0, &rdsiter);
 	check_result(result, "dns_db_allrdatasets()");
 	result = dns_rdatasetiter_first(rdsiter);
@@ -958,36 +958,63 @@ active_node(dns_dbnode_t *node) {
 
 	if (!active) {
 		/*
-		 * Make sure there is no NSEC / RRSIG records for
-		 * this node.
+		 * The node is empty of everything but NSEC / RRSIG records.
 		 */
-		result = dns_db_deleterdataset(gdb, node, gversion,
-					       dns_rdatatype_nsec, 0);
-		if (result == DNS_R_UNCHANGED)
-			result = ISC_R_SUCCESS;
-		check_result(result, "dns_db_deleterdataset(nsec)");
-		
-		result = dns_rdatasetiter_first(rdsiter);
 		for (result = dns_rdatasetiter_first(rdsiter);
 		     result == ISC_R_SUCCESS;
 		     result = dns_rdatasetiter_next(rdsiter)) {
 			dns_rdatasetiter_current(rdsiter, &rdataset);
-			if (rdataset.type == dns_rdatatype_rrsig) {
-				dns_rdatatype_t type = rdataset.type;
-				dns_rdatatype_t covers = rdataset.covers;
-				result = dns_db_deleterdataset(gdb, node,
-							       gversion, type,
-							       covers);
-				if (result == DNS_R_UNCHANGED)
-					result = ISC_R_SUCCESS;
-				check_result(result,
-					     "dns_db_deleterdataset(rrsig)");
-			}
+			result = dns_db_deleterdataset(gdb, node, gversion,
+						       rdataset.type,
+						       rdataset.covers);
+			check_result(result, "dns_db_deleterdataset()");
 			dns_rdataset_disassociate(&rdataset);
 		}
 		if (result != ISC_R_NOMORE)
 			fatal("rdataset iteration failed: %s",
 			      isc_result_totext(result));
+	} else {
+		/* 
+		 * Delete RRSIGs for types that no longer exist.
+		 */
+		result = dns_db_allrdatasets(gdb, node, gversion, 0, &rdsiter2);
+		check_result(result, "dns_db_allrdatasets()");
+		for (result = dns_rdatasetiter_first(rdsiter);
+		     result == ISC_R_SUCCESS;
+		     result = dns_rdatasetiter_next(rdsiter)) {
+			dns_rdatasetiter_current(rdsiter, &rdataset);
+			type = rdataset.type;
+			covers = rdataset.covers;
+			dns_rdataset_disassociate(&rdataset);
+			if (type != dns_rdatatype_rrsig)
+				continue;
+			found = ISC_FALSE;
+			for (result = dns_rdatasetiter_first(rdsiter2);
+			     !found && result == ISC_R_SUCCESS;
+			     result = dns_rdatasetiter_next(rdsiter2)) {
+				dns_rdatasetiter_current(rdsiter2, &rdataset);
+				if (rdataset.type == covers)
+					found = ISC_TRUE;
+				dns_rdataset_disassociate(&rdataset);
+			}
+			if (!found) {
+				if (result != ISC_R_NOMORE)
+					fatal("rdataset iteration failed: %s",
+					      isc_result_totext(result));
+				result = dns_db_deleterdataset(gdb, node,
+							       gversion, type,
+							       covers);
+				check_result(result,
+					     "dns_db_deleterdataset(rrsig)");
+			} else if (result != ISC_R_NOMORE &&
+				   result != ISC_R_SUCCESS)
+				fatal("rdataset iteration failed: %s",
+				      isc_result_totext(result));
+		}
+		if (result != ISC_R_NOMORE)
+			fatal("rdataset iteration failed: %s",
+			      isc_result_totext(result));
+		dns_rdatasetiter_destroy(&rdsiter2);
 	}
 	dns_rdatasetiter_destroy(&rdsiter);
 
@@ -1423,7 +1450,6 @@ warnifallksk(dns_db_t *db) {
 	dns_dbnode_t *node = NULL;
 	dns_rdataset_t rdataset;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	dst_key_t *pubkey;
 	isc_result_t result;
 	dns_rdata_key_t key;
 	isc_boolean_t have_non_ksk = ISC_FALSE;
@@ -1444,7 +1470,6 @@ warnifallksk(dns_db_t *db) {
 	result = dns_rdataset_first(&rdataset);
 	check_result(result, "dns_rdataset_first");
 	while (result == ISC_R_SUCCESS) {
-		pubkey = NULL;
 		dns_rdata_reset(&rdata);
 		dns_rdataset_current(&rdataset, &rdata);
 		result = dns_rdata_tostruct(&rdata, &key, NULL);
@@ -1615,9 +1640,9 @@ usage(void) {
 	fprintf(stderr, "\t\tdirectory to find keyset files (.)\n");
 	fprintf(stderr, "\t-g:\t");
 	fprintf(stderr, "generate DS records from keyset files\n");
-	fprintf(stderr, "\t-s YYYYMMDDHHMMSS|+offset:\n");
+	fprintf(stderr, "\t-s [YYYYMMDDHHMMSS|+offset]:\n");
 	fprintf(stderr, "\t\tRRSIG start time - absolute|offset (now - 1 hour)\n");
-	fprintf(stderr, "\t-e YYYYMMDDHHMMSS|+offset|\"now\"+offset]:\n");
+	fprintf(stderr, "\t-e [YYYYMMDDHHMMSS|+offset|\"now\"+offset]:\n");
 	fprintf(stderr, "\t\tRRSIG end time  - absolute|from start|from now "
 				"(now + 30 days)\n");
 	fprintf(stderr, "\t-i interval:\n");

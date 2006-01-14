@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.33.2.1.2.5 2004/03/08 09:05:10 marka Exp $ */
+/* $Id: lwconfig.c,v 1.33.2.1.2.8 2005/06/08 02:35:21 marka Exp $ */
 
 /***
  *** Module for parsing resolv.conf files.
@@ -277,6 +277,7 @@ lwres_conf_parsenameserver(lwres_context_t *ctx,  FILE *fp) {
 	char word[LWRES_CONFMAXLINELEN];
 	int res;
 	lwres_conf_t *confdata;
+	lwres_addr_t address;
 
 	confdata = &ctx->confdata;
 
@@ -292,10 +293,9 @@ lwres_conf_parsenameserver(lwres_context_t *ctx,  FILE *fp) {
 	if (res != EOF && res != '\n')
 		return (LWRES_R_FAILURE); /* Extra junk on line. */
 
-	res = lwres_create_addr(word,
-				&confdata->nameservers[confdata->nsnext++], 1);
-	if (res != LWRES_R_SUCCESS)
-		return (res);
+	res = lwres_create_addr(word, &address, 1);
+	if (res == LWRES_R_SUCCESS)
+		confdata->nameservers[confdata->nsnext++] = address;
 
 	return (LWRES_R_SUCCESS);
 }
