@@ -31,6 +31,8 @@
    As of 28 December 2005, we have no local patches against BIND 9; thus
    there are no conflicts to merge.  This may change at a later date.
 
+5a) Remove any files that are no longer in the tarball from the vendor branch.
+
 6) Remove any references to the {bin,lib}/tests and docutil
    directories from the configure and Makefile templates:
 
