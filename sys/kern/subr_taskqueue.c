@@ -37,8 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
+#include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
@@ -55,8 +57,12 @@ struct taskqueue {
 	struct task		*tq_running;
 	struct mtx		tq_mutex;
 	struct proc		**tq_pproc;
+	int			tq_pcount;
 	int			tq_spin;
+	int			tq_flags;
 };
+
+#define	TQ_FLAGS_ACTIVE		(1 << 0)
 
 static __inline void
 TQ_LOCK(struct taskqueue *tq)
@@ -100,7 +106,6 @@ SYSINIT(taskqueue_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_taskqueue_list,
 static struct taskqueue *
 _taskqueue_create(const char *name, int mflags,
 		 taskqueue_enqueue_fn enqueue, void *context,
-		 struct proc **pp,
 		 int mtxflags, const char *mtxname)
 {
 	struct taskqueue *queue;
@@ -113,8 +118,8 @@ _taskqueue_create(const char *name, int mflags,
 	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
-	queue->tq_pproc = pp;
 	queue->tq_spin = (mtxflags & MTX_SPIN) != 0;
+	queue->tq_flags |= TQ_FLAGS_ACTIVE;
 	mtx_init(&queue->tq_mutex, mtxname, NULL, mtxflags);
 
 	mtx_lock(&taskqueue_queues_mutex);
@@ -126,10 +131,9 @@ _taskqueue_create(const char *name, int mflags,
 
 struct taskqueue *
 taskqueue_create(const char *name, int mflags,
-		 taskqueue_enqueue_fn enqueue, void *context,
-		 struct proc **pp)
+		 taskqueue_enqueue_fn enqueue, void *context)
 {
-	return _taskqueue_create(name, mflags, enqueue, context, pp,
+	return _taskqueue_create(name, mflags, enqueue, context,
 			MTX_DEF, "taskqueue");
 }
 
@@ -139,13 +143,10 @@ taskqueue_create(const char *name, int mflags,
 static void
 taskqueue_terminate(struct proc **pp, struct taskqueue *tq)
 {
-	struct proc *p;
 
-	p = *pp;
-	*pp = NULL;
-	if (p) {
-		wakeup_one(tq);
-		TQ_SLEEP(tq, p, &tq->tq_mutex, PWAIT, "taskqueue_destroy", 0);
+	while (tq->tq_pcount > 0) {
+		wakeup(tq);
+		TQ_SLEEP(tq, pp, &tq->tq_mutex, PWAIT, "taskqueue_destroy", 0);
 	}
 }
 
@@ -158,9 +159,11 @@ taskqueue_free(struct taskqueue *queue)
 	mtx_unlock(&taskqueue_queues_mutex);
 
 	TQ_LOCK(queue);
+	queue->tq_flags &= ~TQ_FLAGS_ACTIVE;
 	taskqueue_run(queue);
 	taskqueue_terminate(queue->tq_pproc, queue);
 	mtx_destroy(&queue->tq_mutex);
+	free(queue->tq_pproc, M_TASKQUEUE);
 	free(queue, M_TASKQUEUE);
 }
 
@@ -306,6 +309,43 @@ taskqueue_swi_giant_run(void *dummy)
 	taskqueue_run(taskqueue_swi_giant);
 }
 
+int
+taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
+			const char *name, ...)
+{
+	va_list ap;
+	struct taskqueue *tq;
+	char ktname[MAXCOMLEN];
+	int i;
+
+	if (count <= 0)
+		return (EINVAL);
+	tq = *tqp;
+
+	if ((tq->tq_pproc = malloc(sizeof(struct proc *) * count, M_TASKQUEUE,
+	    M_NOWAIT | M_ZERO)) == NULL)
+		return (ENOMEM);
+	
+	va_start(ap, name);
+	vsnprintf(ktname, MAXCOMLEN, name, ap);
+	va_end(ap);
+
+	for (i = 0; i < count; i++) {
+		if (count == 1)
+			kthread_create(taskqueue_thread_loop, tqp,
+			    &tq->tq_pproc[i], 0, 0, ktname);
+		else
+			kthread_create(taskqueue_thread_loop, tqp,
+			    &tq->tq_pproc[i], 0, 0, "%s_%d", ktname, i);
+		mtx_lock_spin(&sched_lock);
+		sched_prio(FIRST_THREAD_IN_PROC(tq->tq_pproc[i]), pri);
+		mtx_unlock_spin(&sched_lock);
+		tq->tq_pcount++;
+	}
+
+	return (0);
+}
+
 void
 taskqueue_thread_loop(void *arg)
 {
@@ -317,10 +357,11 @@ taskqueue_thread_loop(void *arg)
 	do {
 		taskqueue_run(tq);
 		TQ_SLEEP(tq, tq, &tq->tq_mutex, curthread->td_priority, "-", 0);
-	} while (*tq->tq_pproc != NULL);
+	} while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0);
 
 	/* rendezvous with thread that asked us to terminate */
-	wakeup_one(tq);
+	tq->tq_pcount--;
+	wakeup_one(tq->tq_pproc);
 	TQ_UNLOCK(tq);
 	kthread_exit(0);
 }
@@ -349,10 +390,9 @@ TASKQUEUE_DEFINE_THREAD(thread);
 
 struct taskqueue *
 taskqueue_create_fast(const char *name, int mflags,
-		 taskqueue_enqueue_fn enqueue, void *context,
-		 struct proc **pp)
+		 taskqueue_enqueue_fn enqueue, void *context)
 {
-	return _taskqueue_create(name, mflags, enqueue, context, pp,
+	return _taskqueue_create(name, mflags, enqueue, context,
 			MTX_SPIN, "fast_taskqueue");
 }
 
