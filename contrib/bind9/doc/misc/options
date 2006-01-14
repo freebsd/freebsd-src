@@ -49,6 +49,7 @@ options {
         use-id-pool <boolean>; // obsolete
         use-ixfr <boolean>;
         version ( <quoted_string> | none );
+        flush-zones-on-shutdown <boolean>;
         allow-recursion { <address_match_element>; ... };
         allow-v6-synthesis { <address_match_element>; ... }; // obsolete
         sortlist { <address_match_element>; ... };

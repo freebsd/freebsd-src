@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.15.2.59 2004/11/10 22:13:56 marka Exp $ */
+/* $Id: server.c,v 1.339.2.15.2.65 2005/07/27 02:53:15 marka Exp $ */
 
 #include <config.h>
 
@@ -81,6 +81,10 @@
 #include <named/tkeyconf.h>
 #include <named/tsigconf.h>
 #include <named/zoneconf.h>
+#ifdef HAVE_LIBSCF
+#include <named/ns_smf_globals.h>
+#include <stdlib.h>
+#endif
 
 /*
  * Check an operation for failure.  Assumes that the function
@@ -1798,7 +1802,7 @@ configure_server_quota(cfg_obj_t **maps, const char *name, isc_quota_t *quota)
 
 	result = ns_config_get(maps, name, &obj);
 	INSIST(result == ISC_R_SUCCESS);
-	quota->max = cfg_obj_asuint32(obj);
+	isc_quota_max(quota, cfg_obj_asuint32(obj));
 }
 
 /*
@@ -1937,9 +1941,13 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
 		 * At this point the zone list may contain a stale zone
 		 * just removed from the configuration.  To see the validity,
 		 * check if the corresponding view is in our current view list.
+		 * There may also be old zones that are still in the process
+		 * of shutting down and have detached from their old view
+		 * (zoneview == NULL).
 		 */
 		zoneview = dns_zone_getview(zone);
-		INSIST(zoneview != NULL);
+		if (zoneview == NULL)
+			continue;
 		for (view = ISC_LIST_HEAD(server->viewlist);
 		     view != NULL && view != zoneview;
 		     view = ISC_LIST_NEXT(view, link))
@@ -2221,6 +2229,11 @@ load_configuration(const char *filename, ns_server_t *server,
 	configure_server_quota(maps, "tcp-clients", &server->tcpquota);
 	configure_server_quota(maps, "recursive-clients",
 			       &server->recursionquota);
+	if (server->recursionquota.max > 1000)
+		isc_quota_soft(&server->recursionquota,
+			       server->recursionquota.max - 100);
+	else
+		isc_quota_soft(&server->recursionquota, 0);
 
 	CHECK(configure_view_acl(NULL, config, "blackhole", &aclconfctx,
 				 ns_g_mctx, &server->blackholeacl));
@@ -2948,7 +2961,6 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	result = isc_quota_init(&server->recursionquota, 100);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
-	isc_quota_soft(&server->recursionquota, ISC_FALSE);
 
 	result = dns_aclenv_init(mctx, &server->aclenv);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
@@ -3637,6 +3649,15 @@ add_view_tolist(struct dumpcontext *dctx, dns_view_t *view) {
 	struct viewlistentry *vle;
 	isc_result_t result = ISC_R_SUCCESS;
 	
+	/*
+	 * Prevent duplicate views.
+	 */
+	for (vle = ISC_LIST_HEAD(dctx->viewlist);
+	     vle != NULL;
+	     vle = ISC_LIST_NEXT(vle, link))
+		if (vle->view == view)
+			return (ISC_R_SUCCESS);
+
 	vle = isc_mem_get(dctx->mctx, sizeof *vle);
 	if (vle == NULL)
 		return (ISC_R_NOMEMORY);
@@ -3700,9 +3721,11 @@ dumpdone(void *arg, isc_result_t result) {
 		if (dctx->view == NULL)
 			goto done;
 		INSIST(dctx->zone == NULL);
-	}
+	} else
+		goto resume;
  nextview:
 	fprintf(dctx->fp, ";\n; Start view %s\n;\n", dctx->view->view->name);
+ resume:
 	if (dctx->zone == NULL && dctx->cache == NULL && dctx->dumpcache) {
 		style = &dns_master_style_cache;
 		/* start cache dump */
@@ -3763,9 +3786,12 @@ dumpdone(void *arg, isc_result_t result) {
 							    &dctx->mdctx);
 			if (result == DNS_R_CONTINUE)
 				return;
-			if (result == ISC_R_NOTIMPLEMENTED)
+			if (result == ISC_R_NOTIMPLEMENTED) {
 				fprintf(dctx->fp, "; %s\n",
 					dns_result_totext(result));
+				result = ISC_R_SUCCESS;
+				goto nextzone;
+			}
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 		}
@@ -3788,7 +3814,6 @@ dumpdone(void *arg, isc_result_t result) {
 			      "dumpdb failed: %s", dns_result_totext(result));
 	dumpcontext_destroy(dctx);
 }
-
 
 isc_result_t
 ns_server_dumpdb(ns_server_t *server, char *args) {
@@ -3845,6 +3870,7 @@ ns_server_dumpdb(ns_server_t *server, char *args) {
 		ptr = next_token(&args, " \t");
 	} 
 
+ nextview:
 	for (view = ISC_LIST_HEAD(server->viewlist);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link))
@@ -3852,6 +3878,11 @@ ns_server_dumpdb(ns_server_t *server, char *args) {
 		if (ptr != NULL && strcmp(view->name, ptr) != 0)
 			continue;
 		CHECK(add_view_tolist(dctx, view));
+	}
+	if (ptr != NULL) {
+		ptr = next_token(&args, " \t");
+		if (ptr != NULL)
+			goto nextview;
 	}
 	dumpdone(dctx, ISC_R_SUCCESS);
 	return (ISC_R_SUCCESS);
@@ -4101,3 +4132,22 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args) {
 	dns_zone_detach(&zone);
 	return (result);
 }
+
+#ifdef HAVE_LIBSCF
+/*
+ * This function adds a message for rndc to echo if named
+ * is managed by smf and is also running chroot.
+ */
+isc_result_t
+ns_smf_add_message(isc_buffer_t *text) {
+	unsigned int n;
+
+	n = snprintf((char *)isc_buffer_used(text),
+		isc_buffer_availablelength(text),
+		"use svcadm(1M) to manage named");
+	if (n >= isc_buffer_availablelength(text))
+		return (ISC_R_NOSPACE);
+	isc_buffer_add(text, n);
+	return (ISC_R_SUCCESS);
+}
+#endif /* HAVE_LIBSCF */

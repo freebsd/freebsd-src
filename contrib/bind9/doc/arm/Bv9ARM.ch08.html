@@ -1,135 +1,73 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML
-><HEAD
-><TITLE
->Troubleshooting</TITLE
-><META
-NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
-REL="HOME"
-TITLE="BIND 9 Administrator Reference Manual"
-HREF="Bv9ARM.html"><LINK
-REL="PREVIOUS"
-TITLE="BIND 9 Security Considerations"
-HREF="Bv9ARM.ch07.html"><LINK
-REL="NEXT"
-TITLE="Appendices"
-HREF="Bv9ARM.ch09.html"></HEAD
-><BODY
-CLASS="chapter"
-BGCOLOR="#FFFFFF"
-TEXT="#000000"
-LINK="#0000FF"
-VLINK="#840084"
-ALINK="#0000FF"
-><DIV
-CLASS="NAVHEADER"
-><TABLE
-SUMMARY="Header navigation table"
-WIDTH="100%"
-BORDER="0"
-CELLPADDING="0"
-CELLSPACING="0"
-><TR
-><TH
-COLSPAN="3"
-ALIGN="center"
->BIND 9 Administrator Reference Manual</TH
-></TR
-><TR
-><TD
-WIDTH="10%"
-ALIGN="left"
-VALIGN="bottom"
-><A
-HREF="Bv9ARM.ch07.html"
-ACCESSKEY="P"
->Prev</A
-></TD
-><TD
-WIDTH="80%"
-ALIGN="center"
-VALIGN="bottom"
-></TD
-><TD
-WIDTH="10%"
-ALIGN="right"
-VALIGN="bottom"
-><A
-HREF="Bv9ARM.ch09.html"
-ACCESSKEY="N"
->Next</A
-></TD
-></TR
-></TABLE
-><HR
-ALIGN="LEFT"
-WIDTH="100%"></DIV
-><DIV
-CLASS="chapter"
-><H1
-><A
-NAME="ch08"
-></A
->Chapter 8. Troubleshooting</H1
-><DIV
-CLASS="TOC"
-><DL
-><DT
-><B
->Table of Contents</B
-></DT
-><DT
->8.1. <A
-HREF="Bv9ARM.ch08.html#AEN4755"
->Common Problems</A
-></DT
-><DT
->8.2. <A
-HREF="Bv9ARM.ch08.html#AEN4760"
->Incrementing and Changing the Serial Number</A
-></DT
-><DT
->8.3. <A
-HREF="Bv9ARM.ch08.html#AEN4765"
->Where Can I Get Help?</A
-></DT
-></DL
-></DIV
-><DIV
-CLASS="sect1"
-><H1
-CLASS="sect1"
-><A
-NAME="AEN4755"
->8.1. Common Problems</A
-></H1
-><DIV
-CLASS="sect2"
-><H2
-CLASS="sect2"
-><A
-NAME="AEN4757"
->8.1.1. It's not working; how can I figure out what's wrong?</A
-></H2
-><P
->The best solution to solving installation and
+<!--
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id: Bv9ARM.ch08.html,v 1.50.2.9.2.24 2005/10/13 02:34:02 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Chapter 8. Troubleshooting</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="prev" href="Bv9ARM.ch07.html" title="Chapter 7. BIND 9 Security Considerations">
+<link rel="next" href="Bv9ARM.ch09.html" title="Appendix A. Appendices">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center">Chapter 8. Troubleshooting</th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="Bv9ARM.ch07.html">Prev</a> </td>
+<th width="60%" align="center"> </th>
+<td width="20%" align="right"> <a accesskey="n" href="Bv9ARM.ch09.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="chapter" lang="en">
+<div class="titlepage"><div><div><h2 class="title">
+<a name="Bv9ARM.ch08"></a>Chapter 8. Troubleshooting</h2></div></div></div>
+<div class="toc">
+<p><b>Table of Contents</b></p>
+<dl>
+<dt><span class="sect1"><a href="Bv9ARM.ch08.html#id2567630">Common Problems</a></span></dt>
+<dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch08.html#id2567636">It's not working; how can I figure out what's wrong?</a></span></dt></dl></dd>
+<dt><span class="sect1"><a href="Bv9ARM.ch08.html#id2567648">Incrementing and Changing the Serial Number</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch08.html#id2567665">Where Can I Get Help?</a></span></dt>
+</dl>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2567630"></a>Common Problems</h2></div></div></div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2567636"></a>It's not working; how can I figure out what's wrong?</h3></div></div></div>
+<p>The best solution to solving installation and
       configuration issues is to take preventative measures by setting
       up logging files beforehand. The log files provide a
       source of hints and information that can be used to figure out
-      what went wrong and how to fix the problem.</P
-></DIV
-></DIV
-><DIV
-CLASS="sect1"
-><H1
-CLASS="sect1"
-><A
-NAME="AEN4760"
->8.2. Incrementing and Changing the Serial Number</A
-></H1
-><P
->Zone serial numbers are just numbers-they aren't date
+      what went wrong and how to fix the problem.</p>
+</div>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2567648"></a>Incrementing and Changing the Serial Number</h2></div></div></div>
+<p>Zone serial numbers are just numbers-they aren't date
     related.  A lot of people set them to a number that represents a
     date, usually of the form YYYYMMDDRR. A number of people have been
     testing these numbers for Y2K compliance and have set the number
@@ -138,135 +76,49 @@ NAME="AEN4760"
     numbers are used to indicate that a zone has been updated. If the
     serial number on the slave server is lower than the serial number
     on the master, the slave server will attempt to update its copy of
-    the zone.</P
-><P
->Setting the serial number to a lower number on the master
+    the zone.</p>
+<p>Setting the serial number to a lower number on the master
     server than the slave server means that the slave will not perform
-    updates to its copy of the zone.</P
-><P
->The solution to this is to add 2147483647 (2^31-1) to the
+    updates to its copy of the zone.</p>
+<p>The solution to this is to add 2147483647 (2^31-1) to the
     number, reload the zone and make sure all slaves have updated to
     the new zone serial number, then reset the number to what you want
-    it to be, and reload the zone again.</P
-></DIV
-><DIV
-CLASS="sect1"
-><H1
-CLASS="sect1"
-><A
-NAME="AEN4765"
->8.3. Where Can I Get Help?</A
-></H1
-><P
->The Internet Software Consortium (<ACRONYM
-CLASS="acronym"
->ISC</ACRONYM
->) offers a wide range
-    of support and service agreements for <ACRONYM
-CLASS="acronym"
->BIND</ACRONYM
-> and <ACRONYM
-CLASS="acronym"
->DHCP</ACRONYM
-> servers. Four
+    it to be, and reload the zone again.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2567665"></a>Where Can I Get Help?</h2></div></div></div>
+<p>The Internet Software Consortium (<span class="acronym">ISC</span>) offers a wide range
+    of support and service agreements for <span class="acronym">BIND</span> and <span class="acronym">DHCP</span> servers. Four
     levels of premium support are available and each level includes
-    support for all <ACRONYM
-CLASS="acronym"
->ISC</ACRONYM
-> programs, significant discounts on products
+    support for all <span class="acronym">ISC</span> programs, significant discounts on products
     and training, and a recognized priority on bug fixes and
-    non-funded feature requests. In addition, <ACRONYM
-CLASS="acronym"
->ISC</ACRONYM
-> offers a standard
+    non-funded feature requests. In addition, <span class="acronym">ISC</span> offers a standard
     support agreement package which includes services ranging from bug
     fix announcements to remote support. It also includes training in
-    <ACRONYM
-CLASS="acronym"
->BIND</ACRONYM
-> and <ACRONYM
-CLASS="acronym"
->DHCP</ACRONYM
->.</P
-><P
->To discuss arrangements for support, contact
-    <A
-HREF="mailto:info@isc.org"
-TARGET="_top"
->info@isc.org</A
-> or visit the
-    <ACRONYM
-CLASS="acronym"
->ISC</ACRONYM
-> web page at <A
-HREF="http://www.isc.org/services/support/"
-TARGET="_top"
->http://www.isc.org/services/support/</A
->
-    to read more.</P
-></DIV
-></DIV
-><DIV
-CLASS="NAVFOOTER"
-><HR
-ALIGN="LEFT"
-WIDTH="100%"><TABLE
-SUMMARY="Footer navigation table"
-WIDTH="100%"
-BORDER="0"
-CELLPADDING="0"
-CELLSPACING="0"
-><TR
-><TD
-WIDTH="33%"
-ALIGN="left"
-VALIGN="top"
-><A
-HREF="Bv9ARM.ch07.html"
-ACCESSKEY="P"
->Prev</A
-></TD
-><TD
-WIDTH="34%"
-ALIGN="center"
-VALIGN="top"
-><A
-HREF="Bv9ARM.html"
-ACCESSKEY="H"
->Home</A
-></TD
-><TD
-WIDTH="33%"
-ALIGN="right"
-VALIGN="top"
-><A
-HREF="Bv9ARM.ch09.html"
-ACCESSKEY="N"
->Next</A
-></TD
-></TR
-><TR
-><TD
-WIDTH="33%"
-ALIGN="left"
-VALIGN="top"
-><ACRONYM
-CLASS="acronym"
->BIND</ACRONYM
-> 9 Security Considerations</TD
-><TD
-WIDTH="34%"
-ALIGN="center"
-VALIGN="top"
->&nbsp;</TD
-><TD
-WIDTH="33%"
-ALIGN="right"
-VALIGN="top"
->Appendices</TD
-></TR
-></TABLE
-></DIV
-></BODY
-></HTML
->
+    <span class="acronym">BIND</span> and <span class="acronym">DHCP</span>.</p>
+<p>To discuss arrangements for support, contact
+    <a href="mailto:info@isc.org" target="_top">info@isc.org</a> or visit the
+    <span class="acronym">ISC</span> web page at <a href="http://www.isc.org/services/support/" target="_top">http://www.isc.org/services/support/</a>
+    to read more.</p>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="Bv9ARM.ch07.html">Prev</a> </td>
+<td width="20%" align="center"> </td>
+<td width="40%" align="right"> <a accesskey="n" href="Bv9ARM.ch09.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">Chapter 7. <span class="acronym">BIND</span> 9 Security Considerations </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> Appendix A. Appendices</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

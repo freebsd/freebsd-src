@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.46.2.4.8.19 2004/10/07 02:34:20 marka Exp $ */
+/* $Id: os.c,v 1.46.2.4.8.22 2005/05/20 01:37:19 marka Exp $ */
 
 #include <config.h>
 #include <stdarg.h>
@@ -46,6 +46,9 @@
 
 #include <named/main.h>
 #include <named/os.h>
+#ifdef HAVE_LIBSCF
+#include <named/ns_smf_globals.h>
+#endif
 
 static char *pidfile = NULL;
 static int devnullfd = -1;
@@ -159,7 +162,7 @@ linux_setcaps(unsigned int caps) {
 	memset(&cap, 0, sizeof(cap));
 	cap.effective = caps;
 	cap.permitted = caps;
-	cap.inheritable = caps;
+	cap.inheritable = 0;
 	if (syscall(SYS_capset, &caphead, &cap) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
 		ns_main_earlyfatal("capset failed: %s:"
@@ -417,6 +420,9 @@ all_digits(const char *s) {
 void
 ns_os_chroot(const char *root) {
 	char strbuf[ISC_STRERRORSIZE];
+#ifdef HAVE_LIBSCF
+	ns_smf_chroot = 0;
+#endif
 	if (root != NULL) {
 		if (chroot(root) < 0) {
 			isc__strerror(errno, strbuf, sizeof(strbuf));
@@ -426,6 +432,10 @@ ns_os_chroot(const char *root) {
 			isc__strerror(errno, strbuf, sizeof(strbuf));
 			ns_main_earlyfatal("chdir(/): %s", strbuf);
 		}
+#ifdef HAVE_LIBSCF
+		/* Set ns_smf_chroot flag on successful chroot. */
+		ns_smf_chroot = 1;
+#endif
 	}
 }
 

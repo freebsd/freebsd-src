@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.h,v 1.8.12.3 2004/03/08 09:04:52 marka Exp $ */
+/* $Id: quota.h,v 1.8.12.6 2005/08/11 15:00:08 marka Exp $ */
 
 #ifndef ISC_QUOTA_H
 #define ISC_QUOTA_H 1
@@ -53,7 +53,7 @@ struct isc_quota {
 	/* Locked by lock. */
 	int 		max;
 	int 		used;
-	isc_boolean_t	soft;
+	int		soft;
 };
 
 isc_result_t
@@ -73,9 +73,15 @@ isc_quota_destroy(isc_quota_t *quota);
  */
 
 void
-isc_quota_soft(isc_quota_t *quota, isc_boolean_t soft);
+isc_quota_soft(isc_quota_t *quota, int soft);
 /*
  * Turn on/off soft quotas.
+ */
+
+void
+isc_quota_max(isc_quota_t *quota, int max);
+/*
+ * Re-set a maximum quota.
  */
 
 isc_result_t

@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.12.2.5.2.7 2004/12/09 04:07:14 marka Exp $
+# $Id: Makefile.in,v 1.12.2.5.2.9 2005/07/29 00:13:08 marka Exp $
 
 srcdir =        @srcdir@
 VPATH =         @srcdir@
@@ -85,10 +85,11 @@ NAMESEROBJS= nameser/ns_date.@O@ nameser/ns_name.@O@ nameser/ns_netint.@O@ \
 	nameser/ns_parse.@O@ nameser/ns_print.@O@  nameser/ns_samedomain.@O@ \
 	nameser/ns_sign.@O@ nameser/ns_ttl.@O@ nameser/ns_verify.@O@
 
-RESOLVOBJS= resolv/herror.@O@ resolv/res_comp.@O@ resolv/res_data.@O@ \
-	resolv/res_debug.@O@ resolv/res_findzonecut.@O@ resolv/res_init.@O@ \
-	resolv/res_mkquery.@O@ resolv/res_mkupdate.@O@ resolv/res_query.@O@ \
-	resolv/res_send.@O@ resolv/res_sendsigned.@O@ resolv/res_update.@O@
+RESOLVOBJS= resolv/herror.@O@ resolv/mtctxres.@O@ resolv/res_comp.@O@ \
+	resolv/res_data.@O@ resolv/res_debug.@O@ resolv/res_findzonecut.@O@ \
+	resolv/res_init.@O@ resolv/res_mkquery.@O@ resolv/res_mkupdate.@O@ \
+	resolv/res_query.@O@ resolv/res_send.@O@ resolv/res_sendsigned.@O@ \
+	resolv/res_update.@O@
 
 SUBDIRS = bsd dst include inet irs isc nameser resolv @PORT_INCLUDE@
 

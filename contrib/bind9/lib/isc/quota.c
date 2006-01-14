@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.c,v 1.11.12.3 2004/03/08 09:04:49 marka Exp $ */
+/* $Id: quota.c,v 1.11.12.5 2005/07/29 00:13:09 marka Exp $ */
 
 #include <config.h>
 
@@ -28,38 +28,45 @@ isc_result_t
 isc_quota_init(isc_quota_t *quota, int max) {
 	quota->max = max;
 	quota->used = 0;
-	quota->soft = ISC_FALSE;
+	quota->soft = 0;
 	return (isc_mutex_init(&quota->lock));
 }
 
 void
 isc_quota_destroy(isc_quota_t *quota) {
 	INSIST(quota->used == 0);
-	quota->max = -1;
-	quota->used = -1;
-	quota->soft = ISC_FALSE;
+	quota->max = 0;
+	quota->used = 0;
+	quota->soft = 0;
 	DESTROYLOCK(&quota->lock);
 }
 
 void
-isc_quota_soft(isc_quota_t *quota, isc_boolean_t soft) {
+isc_quota_soft(isc_quota_t *quota, int soft) {
+	LOCK(&quota->lock);
 	quota->soft = soft;
+	UNLOCK(&quota->lock);
+}
+
+void
+isc_quota_max(isc_quota_t *quota, int max) {
+	LOCK(&quota->lock);
+	quota->max = max;
+	UNLOCK(&quota->lock);
 }
 
 isc_result_t
 isc_quota_reserve(isc_quota_t *quota) {
 	isc_result_t result;
 	LOCK(&quota->lock);
-	if (quota->used < quota->max) {
-		quota->used++;
-		result = ISC_R_SUCCESS;
-	} else {
-		if (quota->soft) {
-			quota->used++;
+	if (quota->max == 0 || quota->used < quota->max) {
+		if (quota->soft == 0 || quota->used < quota->soft)
+			result = ISC_R_SUCCESS;
+		else
 			result = ISC_R_SOFTQUOTA;
-		} else
-			result = ISC_R_QUOTA;
-	}
+		quota->used++;
+	} else
+		result = ISC_R_QUOTA;
 	UNLOCK(&quota->lock);
 	return (result);
 }
