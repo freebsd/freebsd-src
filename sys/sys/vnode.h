@@ -59,7 +59,8 @@
 /*
  * Vnode types.  VNON means no type.
  */
-enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
+enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
+		  VMARKER };
 
 /*
  * Each underlying filesystem allocates its own private area and hangs
