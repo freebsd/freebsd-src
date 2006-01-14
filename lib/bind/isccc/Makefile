@@ -16,9 +16,6 @@ SRCS=		alist.c base64.c cc.c ccmsg.c \
 
 CFLAGS+=	-I${SRCDIR}/include
 
-DPADD=		${PTHREAD_DPADD}
-LDADD=		${PTHREAD_LDADD}
-
 .if defined(WITH_BIND_LIBS)
 INCS=		${SRCDIR}/include/isccc/alist.h \
 		${SRCDIR}/include/isccc/base64.h \
