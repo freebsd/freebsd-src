@@ -2301,7 +2301,6 @@ asr_attach(device_t dev)
 	PI2O_LCT_ENTRY		 Device;
 	Asr_softc_t		 *sc, **ha;
 	struct scsi_inquiry_data *iq;
-	union asr_ccb		 *ccb;
 	int			 bus, size, unit;
 
 	sc = device_get_softc(dev);
@@ -2523,13 +2522,6 @@ asr_attach(device_t dev)
 	printf (" %d channel, %d CCBs, Protocol I2O\n", sc->ha_MaxBus + 1,
 	  (sc->ha_QueueSize > MAX_INBOUND) ? MAX_INBOUND : sc->ha_QueueSize);
 
-	/*
-	 * fill in the prototype cam_path.
-	 */
-	if ((ccb = asr_alloc_ccb(sc)) == NULL) {
-		device_printf(dev, "CAM could not be notified of asynchronous callback parameters\n");
-		return(ENOMEM);
-	}
 	for (bus = 0; bus <= sc->ha_MaxBus; ++bus) {
 		struct cam_devq	  * devq;
 		int		    QueueSize = sc->ha_QueueSize;
@@ -2570,7 +2562,7 @@ asr_attach(device_t dev)
 			continue;
 		}
 	}
-	asr_free_ccb(ccb);
+
 	/*
 	 *	Generate the device node information
 	 */
