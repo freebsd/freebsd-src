@@ -656,13 +656,7 @@ ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS)
 		if (error) break;
 		/* I can't do conn_lock while list is locked */
 		ncp->nc_lwant++;
-		if (!error) {
-			ncp_conn_getinfo(ncp, &ncs);
-		} else {
-			bzero(&ncs,sizeof(ncs));
-			ncs.connRef = ncp->nc_id;
-			strcpy(ncs.li.server,"***");
-		}
+		ncp_conn_getinfo(ncp, &ncs);
 		ncp->nc_lwant--;
 		error = SYSCTL_OUT(req, &ncs, sizeof(ncs));
 	}
