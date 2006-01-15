@@ -937,6 +937,7 @@ an_rxeof(struct an_softc *sc)
 			/* Read NIC frame header */
 			if (an_read_data(sc, id, 0, (caddr_t)&rx_frame, 
 					 sizeof(rx_frame))) {
+				m_freem(m);
 				ifp->if_ierrors++;
 				return;
 			}
@@ -945,16 +946,19 @@ an_rxeof(struct an_softc *sc)
 			if (an_read_data(sc, id, 0x34, 
 					 (caddr_t)&rx_frame_802_3,
 					 sizeof(rx_frame_802_3))) {
+				m_freem(m);
 				ifp->if_ierrors++;
 				return;
 			}
 			if (rx_frame_802_3.an_rx_802_3_status != 0) {
+				m_freem(m);
 				ifp->if_ierrors++;
 				return;
 			}
 			/* Check for insane frame length */
 			len = rx_frame_802_3.an_rx_802_3_payload_len;
 			if (len > sizeof(sc->buf_802_11)) {
+				m_freem(m);
 				printf("an%d: oversized packet "
 				       "received (%d, %d)\n",
 				       sc->an_unit, len, MCLBYTES);
