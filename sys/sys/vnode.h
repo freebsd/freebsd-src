@@ -578,8 +578,9 @@ int	speedup_syncer(void);
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
-int	vaccess(enum vtype type, mode_t file_mode, uid_t uid, gid_t gid,
-	    mode_t acc_mode, struct ucred *cred, int *privused);
+int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
+	    gid_t file_gid, mode_t acc_mode, struct ucred *cred,
+	    int *privused);
 int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, mode_t acc_mode,
 	    struct ucred *cred, int *privused);
