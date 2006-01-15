@@ -553,7 +553,7 @@ try_next:
 			tp->t_oproc = si_start;
 			tp->t_param = siparam;
 			tp->t_stop = si_stop;
-			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "A%r%r", unit
+			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "A%r%r", unit,
  			    (int)(pp - sc->sc_ports));
 		}
 try_next2:
