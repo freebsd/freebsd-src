@@ -59,7 +59,7 @@ do_command(e, u)
 		break;
 	case 0:
 		/* child process */
-		acquire_daemonlock(1);
+		pidfile_close(pfh);
 		child_process(e, u);
 		Debug(DPROC, ("[%d] child process done, exiting\n", getpid()))
 		_exit(OK_EXIT);

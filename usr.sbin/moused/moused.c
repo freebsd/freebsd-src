@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -161,6 +162,7 @@ int	background = FALSE;
 int	identify = ID_NONE;
 int	extioctl = FALSE;
 char	*pidfile = "/var/run/moused.pid";
+struct pidfh *pfh;
 
 #define SCROLL_NOTSCROLLING	0
 #define SCROLL_PREPARE		1
@@ -940,7 +942,7 @@ moused(void)
     struct timeval timeout;
     fd_set fds;
     u_char b;
-    FILE *fp;
+    pid_t mpid;
     int flags;
     int c;
     int i;
@@ -949,15 +951,20 @@ moused(void)
 	logerr(1, "cannot open /dev/consolectl");
 
     if (!nodaemon && !background) {
+	pfh = pidfile_open(pidfile, 0600, &mpid);
+	if (pfh == NULL) {
+	    if (errno == EEXIST)
+		logerrx(1, "moused already running, pid: %d", mpid);
+	    logwarn("cannot open pid file");
+	}
 	if (daemon(0, 0)) {
+	    int saved_errno = errno;
+	    pidfile_remove(pfh);
+	    errno = saved_errno;
 	    logerr(1, "failed to become a daemon");
 	} else {
 	    background = TRUE;
-	    fp = fopen(pidfile, "w");
-	    if (fp != NULL) {
-		fprintf(fp, "%d\n", getpid());
-		fclose(fp);
-	    }
+	    pidfile_write(pfh);
 	}
     }
 
