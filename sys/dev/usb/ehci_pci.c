@@ -373,6 +373,10 @@ ehci_pci_attach(device_t self)
 		return ENXIO;
 	}
 
+	/* Enable workaround for dropped interrupts as required */
+	if (pci_get_vendor(self) == PCI_EHCI_VENDORID_VIA)
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+
 	/*
 	 * Find companion controllers.  According to the spec they always
 	 * have lower function numbers so they should be enumerated already.
