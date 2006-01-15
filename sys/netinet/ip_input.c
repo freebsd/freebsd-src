@@ -174,7 +174,7 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
 	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
 
 static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
-struct mtx ipqlock;
+static struct mtx ipqlock;
 struct callout ipport_tick_callout;
 
 #define	IPQ_LOCK()	mtx_lock(&ipqlock)
