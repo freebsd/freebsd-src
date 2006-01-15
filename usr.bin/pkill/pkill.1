@@ -44,7 +44,7 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl Sfilnovx
+.Op Fl LSfilnovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -60,7 +60,7 @@
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl finovx
+.Op Fl Lfinovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -95,6 +95,15 @@ file.
 Restrict matches to processes with a real group ID in the comma-separated
 list
 .Ar gid .
+.It Fl L
+The
+.Ar pidfile
+file given for the
+.Fl F
+option must be locked with the
+.Xr flock 2
+syscall or created with
+.Xr pidfile 3 .
 .It Fl M Ar core
 Extract values associated with the name list from the specified core
 instead of the currently running system.
@@ -233,8 +242,10 @@ An internal error occurred.
 .Xr kill 1 ,
 .Xr killall 1 ,
 .Xr ps 1 ,
+.Xr flock 2 ,
 .Xr kill 2 ,
 .Xr sigaction 2 ,
+.Xr pidfile 3 ,
 .Xr re_format 7
 .\" Xr signal 7
 .Sh HISTORY

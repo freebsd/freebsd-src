@@ -5,8 +5,8 @@ LINKS=	${BINDIR}/watchdogd ${BINDIR}/watchdog
 MAN=	watchdogd.8 watchdog.8
 WARNS?=	6
 
-LDADD=	-lm
-DPADD=	${LIBM}
+LDADD=	-lm -lutil
+DPADD=	${LIBM} ${LIBUTIL}
 
 .include <bsd.prog.mk>
 

@@ -34,6 +34,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -210,7 +211,6 @@ void		set_cron_uid __P((void)),
 		env_free __P((char **)),
 		unget_char __P((int, FILE *)),
 		free_entry __P((entry *)),
-		acquire_daemonlock __P((int)),
 		skip_comments __P((FILE *)),
 		log_it __P((char *, int, char *, char *)),
 		log_close __P((void));
@@ -289,6 +289,7 @@ extern	int	LineNumber;
 extern unsigned	Jitter,
 		RootJitter;
 extern	time_t	TargetTime;
+extern struct pidfh *pfh;
 # if DEBUGGING
 extern	int	DebugFlags;
 extern	char	*DebugFlagNames[];
