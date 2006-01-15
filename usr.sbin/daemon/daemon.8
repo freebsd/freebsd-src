@@ -53,7 +53,10 @@ Redirect standard input, standard output and standard error to
 .Pa /dev/null .
 .It Fl p Ar file
 Write the ID of the created process into the
-.Ar file .
+.Ar file
+using
+.Xr pidfile 3
+functionality.
 Note, that the file will be created shortly before the process is
 actually executed, and will remain after the process exits (although
 it will be removed if the execution fails).
@@ -65,7 +68,8 @@ utility exits 1 if an error is returned by the
 .Xr daemon 3
 library routine, 2 if the
 .Ar pidfile
-is requested, but cannot be opened,
+is requested, but cannot be opened, 3 if process is already running (pidfile
+exists and is locked),
 otherwise 0.
 .Sh DIAGNOSTICS
 If the command cannot be executed, an error message is displayed on
@@ -75,6 +79,7 @@ flag is specified.
 .Sh SEE ALSO
 .Xr daemon 3 ,
 .Xr exec 3 ,
+.Xr pidfile 3 ,
 .Xr termios 4 ,
 .Xr tty 4
 .Sh HISTORY

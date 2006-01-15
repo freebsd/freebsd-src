@@ -46,6 +46,7 @@ static	void	usage __P((void)),
 
 static time_t	last_time = 0;
 static int	dst_enabled = 0;
+struct pidfh *pfh;
 
 static void
 usage() {
@@ -63,6 +64,28 @@ usage() {
 	exit(ERROR_EXIT);
 }
 
+static void
+open_pidfile(void)
+{
+	char	pidfile[MAX_FNAME];
+	char	buf[MAX_TEMPSTR];
+	int	otherpid;
+
+	(void) snprintf(pidfile, sizeof(pidfile), PIDFILE, PIDDIR);
+	pfh = pidfile_open(pidfile, 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST) {
+			snprintf(buf, sizeof(buf),
+			    "cron already running, pid: %d", otherpid);
+		} else {
+			snprintf(buf, sizeof(buf),
+			    "can't open or create %s: %s", pidfile,
+			    strerror(errno));
+		}
+		log_it("CRON", getpid(), "DEATH", buf);
+		errx(ERROR_EXIT, "%s", buf);
+	}
+}
 
 int
 main(argc, argv)
@@ -87,7 +110,7 @@ main(argc, argv)
 #endif
 	(void) signal(SIGHUP, sighup_handler);
 
-	acquire_daemonlock(0);
+	open_pidfile();
 	set_cron_uid();
 	set_cron_cwd();
 
@@ -105,12 +128,13 @@ main(argc, argv)
 		(void) fprintf(stderr, "[%d] cron started\n", getpid());
 	} else {
 		if (daemon(1, 0) == -1) {
+			pidfile_remove(pfh);
 			log_it("CRON",getpid(),"DEATH","can't become daemon");
 			exit(0);
 		}
 	}
 
-	acquire_daemonlock(0);
+	pidfile_write(pfh);
 	database.head = NULL;
 	database.tail = NULL;
 	database.mtime = (time_t) 0;
