@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "1.0";
+my $version = "1.0.1";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -392,7 +392,7 @@ if ($mfclogin) {
 	# Append merged file names and revisions to the commit message.
 	print MSG $_ foreach (@logmsg);
 	print MSG "\n";
-	print MSG "      ", $_, ": rev ", $mfc_files{$_}{"from"}, "-> ", $mfc_files{$_}{"to"}, "\n" foreach (keys(%mfc_files));
+	print MSG "      ", $_, ": rev ", $mfc_files{$_}{"from"}, " -> ", $mfc_files{$_}{"to"}, "\n" foreach (keys(%mfc_files));
 
 	# Append useful info gathered from Submitted/Obtained/... lines.
 	print MSG "\n";
