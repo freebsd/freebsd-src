@@ -55,15 +55,16 @@ static int ed_isa_probe(device_t);
 static int ed_isa_attach(device_t);
 
 static struct isa_pnp_id ed_ids[] = {
-	{ 0x1684a34d,	NULL },		/* SMC8416 */
-	{ 0xd680d041,	NULL },		/* PNP80d6 */
-	{ 0x1980635e,	NULL },		/* WSC8019 */
 	{ 0x0131d805,	NULL },		/* ANX3101 */
+	{ 0x4cf48906,	NULL },		/* ATIf44c */
 	{ 0x01200507,	NULL },		/* AXE2001 */
-	{ 0x19808c4a,	NULL },		/* RTL8019 */
 	{ 0x0090252a,	NULL },		/* JQE9000 */
 	{ 0x0020832e,	NULL },		/* KTC2000 */
-	{ 0x4cf48906,	NULL },		/* ATIf44c */
+	{ 0xd680d041,	NULL },		/* PNP80d6 */
+	{ 0x6081d041,	NULL },		/* PNP8160 */
+	{ 0x19808c4a,	NULL },		/* RTL8019 */
+	{ 0x1684a34d,	NULL },		/* SMC8416 */
+	{ 0x1980635e,	NULL },		/* WSC8019 */
 	{ 0,		NULL }
 };
 
