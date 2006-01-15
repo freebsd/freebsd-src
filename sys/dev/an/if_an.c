@@ -1034,6 +1034,7 @@ an_rxeof(struct an_softc *sc)
 				/* Check for insane frame length */
 				len = an_rx_desc.an_len + 12;
 				if (len > MCLBYTES) {
+					m_freem(m);
 					printf("an%d: oversized packet "
 					       "received (%d, %d)\n",
 					       sc->an_unit, len, MCLBYTES);
