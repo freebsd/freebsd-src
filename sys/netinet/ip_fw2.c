@@ -2383,9 +2383,9 @@ do {									\
 	 * Now scan the rules, and parse microinstructions for each rule.
 	 */
 	for (; f; f = f->next) {
-		int l, cmdlen;
 		ipfw_insn *cmd;
-		int skip_or; /* skip rest of OR block */
+		uint32_t tablearg = 0;
+		int l, cmdlen, skip_or; /* skip rest of OR block */
 
 again:
 		if (set_disable & (1 << f->set) )
@@ -2548,6 +2548,8 @@ check_body:
 				    if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
 					match =
 					    ((ipfw_insn_u32 *)cmd)->d[0] == v;
+				    else
+					tablearg = v;
 				}
 				break;
 
@@ -2999,7 +3001,10 @@ check_body:
 			case O_PIPE:
 			case O_QUEUE:
 				args->rule = f; /* report matching rule */
-				args->cookie = cmd->arg1;
+				if (cmd->arg1 == IP_FW_TABLEARG)
+					args->cookie = tablearg;
+				else
+					args->cookie = cmd->arg1;
 				retval = IP_FW_DUMMYNET;
 				goto done;
 
@@ -3020,7 +3025,10 @@ check_body:
 				}
 				dt = (struct divert_tag *)(mtag+1);
 				dt->cookie = f->rulenum;
-				dt->info = cmd->arg1;
+				if (cmd->arg1 == IP_FW_TABLEARG)
+					dt->info = tablearg;
+				else
+					dt->info = cmd->arg1;
 				m_tag_prepend(m, mtag);
 				retval = (cmd->opcode == O_DIVERT) ?
 				    IP_FW_DIVERT : IP_FW_TEE;
@@ -3085,7 +3093,10 @@ check_body:
 			case O_NETGRAPH:
 			case O_NGTEE:
 				args->rule = f;	/* report matching rule */
-				args->cookie = cmd->arg1;
+				if (cmd->arg1 == IP_FW_TABLEARG)
+					args->cookie = tablearg;
+				else
+					args->cookie = cmd->arg1;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				goto done;
