@@ -286,7 +286,7 @@ configAnonFTP(dialogMenuItem *self __unused)
     
     if (directory_exists(tconf.homedir)) {
 	msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
-	vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
+	vsystem("chmod 555 %s && chown root:%s %s", tconf.homedir, tconf.group, tconf.homedir);
 	vsystem("mkdir %s/etc && chmod 555 %s/etc", tconf.homedir, tconf.homedir);
 	vsystem("mkdir -p %s/pub", tconf.homedir);
 	if (tconf.upload[0]) {
@@ -300,7 +300,7 @@ configAnonFTP(dialogMenuItem *self __unused)
 	    vsystem("/usr/sbin/pwd_mkdb -d %s/etc %s/etc/master.passwd && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir, tconf.homedir);
 	    vsystem("rm -f %s/etc/master.passwd %s/etc/spwd.db", tconf.homedir, tconf.homedir);
 	    vsystem("awk -F: '{if ((substr($1, 1, 1) != \"+\") && (substr($1, 1, 1) != \"-\") && ($3 < 100)) print $0}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
-	    vsystem("chown -R root.%s %s/pub", tconf.group, tconf.homedir);
+	    vsystem("chown -R root:%s %s/pub", tconf.group, tconf.homedir);
 	}
 	else {
 	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
