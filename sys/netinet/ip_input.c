@@ -107,17 +107,6 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
-static int    nipq = 0;         /* total # of reass queues */
-static int    maxnipq;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_RW,
-	&maxnipq, 0,
-	"Maximum number of IPv4 fragment reassembly queue entries");
-
-static int    maxfragsperpacket;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
-	&maxfragsperpacket, 0,
-	"Maximum number of IPv4 fragments allowed per packet");
-
 static int	ip_sendsourcequench = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
 	&ip_sendsourcequench, 0,
@@ -166,21 +155,37 @@ struct ipstat ipstat;
 SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
     &ipstat, ipstat, "IP statistics (struct ipstat, netinet/ip_var.h)");
 
-/* Packet reassembly stuff */
+/*
+ * IP datagram reassembly.
+ */
 #define IPREASS_NHASH_LOG2      6
 #define IPREASS_NHASH           (1 << IPREASS_NHASH_LOG2)
 #define IPREASS_HMASK           (IPREASS_NHASH - 1)
 #define IPREASS_HASH(x,y) \
 	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
 
+static uma_zone_t ipq_zone;
 static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
 static struct mtx ipqlock;
-struct callout ipport_tick_callout;
 
 #define	IPQ_LOCK()	mtx_lock(&ipqlock)
 #define	IPQ_UNLOCK()	mtx_unlock(&ipqlock)
 #define	IPQ_LOCK_INIT()	mtx_init(&ipqlock, "ipqlock", NULL, MTX_DEF)
 #define	IPQ_LOCK_ASSERT()	mtx_assert(&ipqlock, MA_OWNED)
+
+static void	maxnipq_update(void);
+
+static int	maxnipq;	/* Administrative limit on # reass queues. */
+static int	nipq = 0;	/* Total # of reass queues */
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD, &nipq, 0,
+	"Current number of IPv4 fragment reassembly queue entries");
+
+static int	maxfragsperpacket;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
+	&maxfragsperpacket, 0,
+	"Maximum number of IPv4 fragments allowed per packet");
+
+struct callout	ipport_tick_callout;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -249,6 +254,9 @@ ip_init()
 	    TAILQ_INIT(&ipq[i]);
 	maxnipq = nmbclusters / 32;
 	maxfragsperpacket = 16;
+	ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
+	    NULL, UMA_ALIGN_PTR, 0);
+	maxnipq_update();
 
 	/* Start ipport_tick. */
 	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
@@ -747,6 +755,59 @@ bad:
 }
 
 /*
+ * After maxnipq has been updated, propagate the change to UMA.  The UMA zone
+ * max has slightly different semantics than the sysctl, for historical
+ * reasons.
+ */
+static void
+maxnipq_update(void)
+{
+
+	/*
+	 * -1 for unlimited allocation.
+	 */
+	if (maxnipq < 0)
+		uma_zone_set_max(ipq_zone, 0);
+	/*
+	 * Positive number for specific bound.
+	 */
+	if (maxnipq > 0)
+		uma_zone_set_max(ipq_zone, maxnipq);
+	/*
+	 * Zero specifies no further fragment queue allocation -- set the
+	 * bound very low, but rely on implementation elsewhere to actually
+	 * prevent allocation and reclaim current queues.
+	 */
+	if (maxnipq == 0)
+		uma_zone_set_max(ipq_zone, 1);
+}
+
+static int
+sysctl_maxnipq(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+
+	i = maxnipq;
+	error = sysctl_handle_int(oidp, &i, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	/*
+	 * XXXRW: Might be a good idea to sanity check the argument and place
+	 * an extreme upper bound.
+	 */
+	if (i < -1)
+		return (EINVAL);
+	maxnipq = i;
+	maxnipq_update();
+	return (0);
+}
+
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
+    NULL, 0, sysctl_maxnipq, "I",
+    "Maximum number of IPv4 fragment reassembly queue entries");
+
+/*
  * Take incoming datagram fragment and try to reassemble it into
  * whole datagram.  If the argument is the first fragment or one
  * in between the function will return NULL and store the mbuf
@@ -800,9 +861,8 @@ ip_reass(struct mbuf *m)
 	fp = NULL;
 
 	/*
-	 * Enforce upper bound on number of fragmented packets
-	 * for which we attempt reassembly;
-	 * If maxnipq is -1, accept all fragments without limitation.
+	 * Attempt to trim the number of allocated fragment queues if it
+	 * exceeds the administrative limit.
 	 */
 	if ((nipq > maxnipq) && (maxnipq > 0)) {
 		/*
@@ -865,12 +925,12 @@ found:
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
 	if (fp == NULL) {
-		if ((t = m_get(M_DONTWAIT, MT_FTABLE)) == NULL)
+		fp = uma_zalloc(ipq_zone, M_NOWAIT);
+		if (fp == NULL)
 			goto dropfrag;
-		fp = mtod(t, struct ipq *);
 #ifdef MAC
 		if (mac_init_ipq(fp, M_NOWAIT) != 0) {
-			m_free(t);
+			uma_zfree(ipq_zone, fp);
 			goto dropfrag;
 		}
 		mac_create_ipq(m, fp);
@@ -1038,7 +1098,7 @@ found:
 	ip->ip_dst = fp->ipq_dst;
 	TAILQ_REMOVE(head, fp, ipq_list);
 	nipq--;
-	(void) m_free(dtom(fp));
+	uma_zfree(ipq_zone, fp);
 	m->m_len += (ip->ip_hl << 2);
 	m->m_data -= (ip->ip_hl << 2);
 	/* some debugging cruft by sklower, below, will go away soon */
@@ -1079,7 +1139,7 @@ ip_freef(fhp, fp)
 		m_freem(q);
 	}
 	TAILQ_REMOVE(fhp, fp, ipq_list);
-	(void) m_free(dtom(fp));
+	uma_zfree(ipq_zone, fp);
 	nipq--;
 }
 
