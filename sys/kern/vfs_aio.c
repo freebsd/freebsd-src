@@ -2318,9 +2318,9 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		timo = tvtohz(&atv);
 	}
 
-	ki = p->p_aioinfo;
-	if (ki == NULL)
+	if (p->p_aioinfo == NULL)
 		aio_init_aioinfo(p);
+	ki = p->p_aioinfo;
 
 	for (;;) {
 		PROC_LOCK(p);
