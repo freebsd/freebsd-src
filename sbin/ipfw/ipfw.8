@@ -816,10 +816,10 @@ The rule body has the following format:
 .Ed
 .Pp
 The first part (proto from src to dst) is for backward
-compatibility with
-.Nm ipfw1 .
-In
-.Nm ipfw2
+compatibility with earlier versions of
+.Fx .
+In modern
+.Fx
 any match pattern (including MAC headers, IP protocols,
 addresses and ports) can be specified in the
 .Ar options
@@ -2002,10 +2002,6 @@ for the RED algorithm.
 .It Em net.inet.ip.fw.autoinc_step : No 100
 Delta between rule numbers when auto-generating them.
 The value must be in the range 1..1000.
-This variable is only present in
-.Nm ipfw2 ,
-the delta is hardwired to 100 in
-.Nm ipfw1 .
 .It Em net.inet.ip.fw.curr_dyn_buckets : Em net.inet.ip.fw.dyn_buckets
 The current number of buckets in the hash table for dynamic rules
 (readonly).
@@ -2079,129 +2075,6 @@ Controls whether bridged packets are passed to
 Default is no.
 .El
 .Pp
-.Sh IPFW2 ENHANCEMENTS
-This Section lists the features that have been introduced in
-.Nm ipfw2
-which were not present in
-.Nm ipfw1 .
-They are listed in order of the potential impact that they can
-have in writing your rulesets.
-You might want to consider using these features in order to
-write your rulesets in a more efficient way.
-.Bl -tag -width indent
-.It Syntax and flags
-.Nm ipfw1
-does not support the -n flag (only test syntax),
-nor does it allow spaces after commas or support all
-rule fields in a single argument.
-.Nm ipfw1
-does not allow the -f flag (force) in conjunction with
-the -p flag (preprocessor).
-.Nm ipfw1
-does not support the -c (compact) flag.
-.It Handling of non-IPv4 packets
-.Nm ipfw1
-will silently accept all non-IPv4 packets (which
-.Nm ipfw1
-will only see when
-.Em net.link.ether.bridge_ipfw=1 ) .
-.Nm ipfw2
-will filter all packets (including non-IPv4 ones) according to the ruleset.
-To achieve the same behaviour as
-.Nm ipfw1
-you can use the following as the very first rule in your ruleset:
-.Pp
-.Dl "ipfw add 1 allow layer2 not mac-type ip"
-.Pp
-The
-.Cm layer2
-option might seem redundant, but it is necessary -- packets
-passed to the firewall from layer3 will not have a MAC header,
-so the
-.Cm mac-type ip
-pattern will always fail on them, and the
-.Cm not
-operator will make this rule into a pass-all.
-.It Addresses
-.Nm ipfw1
-does not support address sets or lists of addresses.
-.Pp
-.It Port specifications
-.Nm ipfw1
-only allows one port range when specifying TCP and UDP ports, and
-is limited to 10 entries instead of the 30 allowed by
-.Nm ipfw2 .
-Also, in
-.Nm ipfw1
-you can only specify ports when the rule is requesting
-.Cm tcp
-or
-.Cm udp
-packets.
-With
-.Nm ipfw2
-you can put port specifications in rules matching all packets,
-and the match will be attempted only on those packets carrying
-protocols which include port identifiers.
-.Pp
-Finally,
-.Nm ipfw1
-allowed the first port entry to be specified as
-.Ar port:mask
-where
-.Ar mask
-can be an arbitrary 16-bit mask.
-This syntax is of questionable usefulness and it is not
-supported anymore in
-.Nm ipfw2 .
-.It Or-blocks
-.Nm ipfw1
-does not support Or-blocks.
-.It keepalives
-.Nm ipfw1
-does not generate keepalives for stateful sessions.
-As a consequence, it might cause idle sessions to drop because
-the lifetime of the dynamic rules expires.
-.It Sets of rules
-.Nm ipfw1
-does not implement sets of rules.
-.It MAC header filtering and Layer-2 firewalling.
-.Nm ipfw1
-does not implement filtering on MAC header fields, nor is it
-invoked on packets from
-.Cm ether_demux()
-and
-.Cm ether_output_frame().
-The sysctl variable
-.Em net.link.ether.ipfw
-has no effect there.
-.It Options
-In
-.Nm ipfw1 ,
-the following options only accept a single value as an argument:
-.Pp
-.Cm ipid, iplen, ipttl
-.Pp
-The following options are not implemented by
-.Nm ipfw1 :
-.Pp
-.Cm dst-ip, dst-port, layer2, mac, mac-type, src-ip, src-port.
-.Pp
-Additionally, the RELENG_4 version of
-.Nm ipfw1
-does not implement the following options:
-.Pp
-.Cm ipid, iplen, ipprecedence, iptos, ipttl,
-.Cm ipversion, tcpack, tcpseq, tcpwin .
-.It Dummynet options
-The following option for
-.Nm dummynet
-pipes/queues is not supported:
-.Cm noerror .
-.It IPv6 Support
-There was no IPv6 support in
-.Nm ipfw1 .
-.El
 .Sh EXAMPLES
 There are far too many possible uses of
 .Nm
@@ -2239,9 +2112,8 @@ All other SYN packets will be rejected by the final
 .Cm deny
 rule.
 .Pp
-If you administer one or more subnets, you can take advantage of the
-.Nm ipfw2
-syntax to specify address sets and or-blocks and write extremely
+If you administer one or more subnets, you can take advantage
+of the address sets and or-blocks and write extremely
 compact rulesets which selectively enable services to blocks
 of clients, as below:
 .Pp
@@ -2251,11 +2123,6 @@ of clients, as below:
 .Dl "ipfw add allow ip from ${goodguys} to any"
 .Dl "ipfw add deny ip from ${badguys} to any"
 .Dl "... normal policies ..."
-.Pp
-The
-.Nm ipfw1
-syntax would require a separate rule for each IP in the above
-example.
 .Pp
 The
 .Cm verrevpath
