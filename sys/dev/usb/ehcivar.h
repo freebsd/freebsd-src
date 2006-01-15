@@ -94,6 +94,7 @@ struct ehci_soft_islot {
 #define EHCI_COMPANION_MAX 8
 
 #define EHCI_SCFLG_DONEINIT	0x0001	/* ehci_init() has been called. */
+#define EHCI_SCFLG_LOSTINTRBUG	0x0002	/* workaround for VIA chipsets */
 
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */
@@ -153,6 +154,7 @@ typedef struct ehci_softc {
 	struct lock sc_doorbell_lock;
 
 	usb_callout_t sc_tmo_pcd;
+	usb_callout_t sc_tmo_intrlist;
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	device_ptr_t sc_child;		/* /dev/usb# device */
