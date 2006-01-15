@@ -299,7 +299,7 @@ configAnonFTP(dialogMenuItem *self __unused)
 	    vsystem("awk -F: '{if ((substr($1, 1, 1) != \"+\") && (substr($1, 1, 1) != \"-\") && ($3 < 10 || $1 == \"ftp\")) print $0}' /etc/master.passwd > %s/etc/master.passwd", tconf.homedir);
 	    vsystem("/usr/sbin/pwd_mkdb -d %s/etc %s/etc/master.passwd && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir, tconf.homedir);
 	    vsystem("rm -f %s/etc/master.passwd %s/etc/spwd.db", tconf.homedir, tconf.homedir);
-	    vsystem("awk -F: '{if ((substr($1, 1, 1) != \"+\") && (substr($1, 1, 1) != \"-\") && ($3 < 100)) print $0}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
+	    vsystem("awk -F: '!/^#/ {if ((substr($1, 1, 1) != \"+\") && (substr($1, 1, 1) != \"-\") && ($3 < 100)) printf \"%%s:*:%%s:\\n\", $1, $3}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
 	    vsystem("chown -R root:%s %s/pub", tconf.group, tconf.homedir);
 	}
 	else {
