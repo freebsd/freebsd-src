@@ -585,6 +585,8 @@ uhci_detach(struct uhci_softc *sc, int flags)
 
 	if (rv != 0)
 		return (rv);
+#else
+	sc->sc_dying = 1;
 #endif
 
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
