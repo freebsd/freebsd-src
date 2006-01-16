@@ -33,41 +33,79 @@
  * $FreeBSD$
  */
 
-/* Allocate space for global thread variables here: */
-#define GLOBAL_PTHREAD_PRIVATE
-
 #include "namespace.h"
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
-#include <machine/reg.h>
-
 #include <sys/ioctl.h>
-#include <sys/mount.h>
-#include <sys/uio.h>
-#include <sys/socket.h>
-#include <sys/event.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/ttycom.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <pthread.h>
 #include <pthread_np.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include "un-namespace.h"
 
 #include "libc_private.h"
 #include "thr_private.h"
+
+void		*_usrstack;
+struct pthread	*_thr_initial;
+int		_thr_scope_system;
+int		_libthr_debug;
+int		_thread_event_mask;
+struct pthread	*_thread_last_event;
+pthreadlist	_thread_list = TAILQ_HEAD_INITIALIZER(_thread_list);
+pthreadlist 	_thread_gc_list = TAILQ_HEAD_INITIALIZER(_thread_gc_list);
+int		_thread_active_threads = 1;
+atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
+umtx_t		_thr_atfork_lock;
+
+struct pthread_attr _pthread_attr_default = {
+	.sched_policy = SCHED_RR,
+	.sched_inherit = 0,
+	.sched_interval = TIMESLICE_USEC,
+	.prio = THR_DEFAULT_PRIORITY,
+	.suspend = THR_CREATE_RUNNING,
+	.flags = 0,
+	.arg_attr = NULL,
+	.cleanup_attr = NULL,
+	.stackaddr_attr = NULL,
+	.stacksize_attr = THR_STACK_DEFAULT,
+	.guardsize_attr = 0
+};
+
+struct pthread_mutex_attr _pthread_mutexattr_default = {
+	.m_type = PTHREAD_MUTEX_DEFAULT,
+	.m_protocol = PTHREAD_PRIO_NONE,
+	.m_ceiling = 0,
+	.m_flags = 0
+};
+
+/* Default condition variable attributes: */
+struct pthread_cond_attr _pthread_condattr_default = {
+	.c_pshared = PTHREAD_PROCESS_PRIVATE,
+	.c_clockid = CLOCK_REALTIME
+};
+
+pid_t		_thr_pid;
+int		_thr_guard_default;
+int		_thr_stack_default = THR_STACK_DEFAULT;
+int		_thr_stack_initial = THR_STACK_INITIAL;
+int		_thr_page_size;
+int		_gc_count;
+umtx_t		_mutex_static_lock;
+umtx_t		_cond_static_lock;
+umtx_t		_rwlock_static_lock;
+umtx_t		_keytable_lock;
+umtx_t		_thr_list_lock;
+umtx_t		_thr_event_lock;
 
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
@@ -81,62 +119,59 @@ static void init_main_thread(struct pthread *thread);
  * All weak references used within libc should be in this table.
  * This is so that static libraries will work.
  */
-static void *references[] = {
-	&_accept,
-	&_bind,
-	&_close,
-	&_connect,
-	&_dup,
-	&_dup2,
-	&_execve,
-	&_fcntl,
-	&_flock,
-	&_flockfile,
-	&_fstat,
-	&_fstatfs,
-	&_fsync,
-	&_funlockfile,
-	&_getdirentries,
-	&_getlogin,
-	&_getpeername,
-	&_getsockname,
-	&_getsockopt,
-	&_ioctl,
-	&_kevent,
-	&_listen,
-	&_nanosleep,
-	&_open,
-	&_pthread_getspecific,
-	&_pthread_key_create,
-	&_pthread_key_delete,
-	&_pthread_mutex_destroy,
-	&_pthread_mutex_init,
-	&_pthread_mutex_lock,
-	&_pthread_mutex_trylock,
-	&_pthread_mutex_unlock,
-	&_pthread_mutexattr_init,
-	&_pthread_mutexattr_destroy,
-	&_pthread_mutexattr_settype,
-	&_pthread_once,
-	&_pthread_setspecific,
-	&_read,
-	&_readv,
-	&_recvfrom,
-	&_recvmsg,
-	&_select,
-	&_sendmsg,
-	&_sendto,
-	&_setsockopt,
-	&_sigaction,
-	&_sigprocmask,
-	&_sigsuspend,
-	&_socket,
-	&_socketpair,
-	&_thread_init_hack,
-	&_wait4,
-	&_write,
-	&_writev
-};
+STATIC_LIB_REQUIRE(_accept);
+STATIC_LIB_REQUIRE(_bind);
+STATIC_LIB_REQUIRE(_close);
+STATIC_LIB_REQUIRE(_connect);
+STATIC_LIB_REQUIRE(_dup);
+STATIC_LIB_REQUIRE(_dup2);
+STATIC_LIB_REQUIRE(_execve);
+STATIC_LIB_REQUIRE(_fcntl);
+STATIC_LIB_REQUIRE(_flock);
+STATIC_LIB_REQUIRE(_flockfile);
+STATIC_LIB_REQUIRE(_fstat);
+STATIC_LIB_REQUIRE(_fstatfs);
+STATIC_LIB_REQUIRE(_fsync);
+STATIC_LIB_REQUIRE(_getdirentries);
+STATIC_LIB_REQUIRE(_getlogin);
+STATIC_LIB_REQUIRE(_getpeername);
+STATIC_LIB_REQUIRE(_getsockname);
+STATIC_LIB_REQUIRE(_getsockopt);
+STATIC_LIB_REQUIRE(_ioctl);
+STATIC_LIB_REQUIRE(_kevent);
+STATIC_LIB_REQUIRE(_listen);
+STATIC_LIB_REQUIRE(_nanosleep);
+STATIC_LIB_REQUIRE(_open);
+STATIC_LIB_REQUIRE(_pthread_getspecific);
+STATIC_LIB_REQUIRE(_pthread_key_create);
+STATIC_LIB_REQUIRE(_pthread_key_delete);
+STATIC_LIB_REQUIRE(_pthread_mutex_destroy);
+STATIC_LIB_REQUIRE(_pthread_mutex_init);
+STATIC_LIB_REQUIRE(_pthread_mutex_lock);
+STATIC_LIB_REQUIRE(_pthread_mutex_trylock);
+STATIC_LIB_REQUIRE(_pthread_mutex_unlock);
+STATIC_LIB_REQUIRE(_pthread_mutexattr_init);
+STATIC_LIB_REQUIRE(_pthread_mutexattr_destroy);
+STATIC_LIB_REQUIRE(_pthread_mutexattr_settype);
+STATIC_LIB_REQUIRE(_pthread_once);
+STATIC_LIB_REQUIRE(_pthread_setspecific);
+STATIC_LIB_REQUIRE(_read);
+STATIC_LIB_REQUIRE(_readv);
+STATIC_LIB_REQUIRE(_recvfrom);
+STATIC_LIB_REQUIRE(_recvmsg);
+STATIC_LIB_REQUIRE(_select);
+STATIC_LIB_REQUIRE(_sendmsg);
+STATIC_LIB_REQUIRE(_sendto);
+STATIC_LIB_REQUIRE(_setsockopt);
+STATIC_LIB_REQUIRE(_sigaction);
+STATIC_LIB_REQUIRE(_sigprocmask);
+STATIC_LIB_REQUIRE(_sigsuspend);
+STATIC_LIB_REQUIRE(_socket);
+STATIC_LIB_REQUIRE(_socketpair);
+STATIC_LIB_REQUIRE(_thread_init_hack);
+STATIC_LIB_REQUIRE(_wait4);
+STATIC_LIB_REQUIRE(_write);
+STATIC_LIB_REQUIRE(_writev);
 
 /*
  * These are needed when linking statically.  All references within
@@ -144,19 +179,20 @@ static void *references[] = {
  * if they are not (strongly) referenced by the application or other
  * libraries, then the actual functions will not be loaded.
  */
-static void *libgcc_references[] = {
-	&_pthread_once,
-	&_pthread_key_create,
-	&_pthread_key_delete,
-	&_pthread_getspecific,
-	&_pthread_setspecific,
-	&_pthread_mutex_init,
-	&_pthread_mutex_destroy,
-	&_pthread_mutex_lock,
-	&_pthread_mutex_trylock,
-	&_pthread_mutex_unlock,
-	&_pthread_create
-};
+STATIC_LIB_REQUIRE(_pthread_once);
+STATIC_LIB_REQUIRE(_pthread_key_create);
+STATIC_LIB_REQUIRE(_pthread_key_delete);
+STATIC_LIB_REQUIRE(_pthread_getspecific);
+STATIC_LIB_REQUIRE(_pthread_setspecific);
+STATIC_LIB_REQUIRE(_pthread_mutex_init);
+STATIC_LIB_REQUIRE(_pthread_mutex_destroy);
+STATIC_LIB_REQUIRE(_pthread_mutex_lock);
+STATIC_LIB_REQUIRE(_pthread_mutex_trylock);
+STATIC_LIB_REQUIRE(_pthread_mutex_unlock);
+STATIC_LIB_REQUIRE(_pthread_create);
+
+/* Pull in all symbols required by libthread_db */
+STATIC_LIB_REQUIRE(_thread_state_running);
 
 #define	DUAL_ENTRY(entry)	\
 	(pthread_func_t)entry, (pthread_func_t)entry
@@ -195,7 +231,6 @@ static pthread_func_t jmp_table[][2] = {
 	{DUAL_ENTRY(_pthread_sigmask)}		/* PJT_SIGMASK */
 };
 
-extern int _thread_state_running;
 static int init_once = 0;
 
 /*
@@ -240,16 +275,6 @@ _libpthread_init(struct pthread *curthread)
 	if ((_thr_initial != NULL) && (curthread == NULL))
 		/* Only initialize the threaded application once. */
 		return;
-
-	/*
-	 * Make gcc quiescent about {,libgcc_}references not being
-	 * referenced:
-	 */
-	if ((references[0] == NULL) || (libgcc_references[0] == NULL))
-		PANIC("Failed loading mandatory references in _thread_init");
-
-	/* Pull debug symbols in for static binary */
-	_thread_state_running = PS_RUNNING;
 
 	/*
 	 * Check the size of the jump table to make sure it is preset
