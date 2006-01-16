@@ -177,7 +177,6 @@ __FBSDID("$FreeBSD$");
  * working.
  */
 #define	MALLOC_STATS
-/* #define	MALLOC_STATS_BASE */
 #define	MALLOC_STATS_ARENAS
 
 /*
@@ -253,15 +252,10 @@ __FBSDID("$FreeBSD$");
  * Size and alignment of memory chunks that are allocated by the OS's virtual
  * memory system.
  *
- * chunk_size must be at least as large as the system page size.  In practice,
- * it actually needs to be quite a bit larger (64 KB or so), because calling
- * _pthread_self() can trigger a ~16 KB allocation due to libpthread
- * initialization, and infinite recursion will occur if libpthread
- * initialization requires a chunk allocation.
+ * chunksize limits:
  *
- * chunk_size must be <= 2^29.
+ *   pagesize <= chunk_size <= 2^29
  */
-#define	CHUNK_2POW_MIN		16
 #define	CHUNK_2POW_DEFAULT	24
 #define	CHUNK_2POW_MAX		29
 
@@ -269,9 +263,6 @@ __FBSDID("$FreeBSD$");
  * Maximum size of L1 cache line.  This is used to avoid cache line aliasing,
  * so over-estimates are okay (up to a point), but under-estimates will
  * negatively affect performance.
- *
- * Most allocations from base_arena use this, in order to avoid any false
- * sharing.
  */
 #define	CACHELINE_2POW 6
 #define	CACHELINE ((size_t) (1 << CACHELINE_2POW))
@@ -287,8 +278,6 @@ __FBSDID("$FreeBSD$");
  */
 typedef struct {
 	spinlock_t	lock;
-	bool		recursive;
-	volatile int	val;
 } malloc_mutex_t;
 
 static bool malloc_initialized = false;
@@ -614,9 +603,6 @@ struct arena_s {
 	/* All operations on this arena require that mtx be locked. */
 	malloc_mutex_t	mtx;
 
-	/* True if this arena is allocated from base_arena. */
-	bool		malloced;
-
 	/*
 	 * bins is used to store rings of free regions of the following sizes,
 	 * assuming a 16-byte quantum (sizes include region separators):
@@ -742,13 +728,29 @@ static size_t		huge_total;
  */
 static chunk_tree_t	old_chunks;
 
+/****************************/
+/*
+ * base (internal allocation).
+ */
+
+/*
+ * Current chunk that is being used for internal memory allocations.  This
+ * chunk is carved up in cacheline-size quanta, so that there is no chance of
+ * false cach sharing. 
+ * */
+void			*base_chunk;
+void			*base_next_addr;
+void			*base_past_addr; /* Addr immediately past base_chunk. */
+chunk_node_t		*base_chunk_nodes; /* LIFO cache of chunk nodes. */
+malloc_mutex_t		base_mtx;
+#ifdef MALLOC_STATS
+uint64_t		base_total;
+#endif
+
 /********/
 /*
  * Arenas.
  */
-
-/* Arena that is used for internal memory allocations. */
-static arena_t		base_arena;
 
 /* 
  * Arenas that are used to service external requests.  Not all elements of the
@@ -810,10 +812,12 @@ typedef struct {
  */
 
 static void	malloc_mutex_init(malloc_mutex_t *a_mutex);
-static void	malloc_mutex_recursive_init(malloc_mutex_t *a_mutex);
 static void	wrtmessage(const char *p1, const char *p2, const char *p3,
 		const char *p4);
 static void	malloc_printf(const char *format, ...);
+static void	*base_alloc(size_t size);
+static chunk_node_t *base_chunk_node_alloc(void);
+static void	base_chunk_node_dealloc(chunk_node_t *node);
 #ifdef MALLOC_STATS
 static void	stats_merge(arena_t *arena, arena_stats_t *stats_arenas);
 static void	stats_print(arena_stats_t *stats_arenas);
@@ -849,7 +853,7 @@ static void	*arena_ralloc(arena_t *arena, void *ptr, size_t size);
 #ifdef MALLOC_STATS
 static bool	arena_stats(arena_t *arena, size_t *allocated, size_t *total);
 #endif
-static void	arena_new(arena_t *arena, bool malloced, bool recursive);
+static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
 #ifndef NO_TLS
 static arena_t	*choose_arena_hard(void);
@@ -882,55 +886,22 @@ malloc_mutex_init(malloc_mutex_t *a_mutex)
 	static const spinlock_t lock = _SPINLOCK_INITIALIZER;
 
 	a_mutex->lock = lock;
-	a_mutex->recursive = false;
-	a_mutex->val = 0;
-}
-
-static void
-malloc_mutex_recursive_init(malloc_mutex_t *a_mutex)
-{
-	static const spinlock_t lock = _SPINLOCK_INITIALIZER;
-
-	a_mutex->lock = lock;
-	a_mutex->recursive = true;
-	a_mutex->val = 0;
 }
 
 static __inline void
 malloc_mutex_lock(malloc_mutex_t *a_mutex)
 {
-#define	MAX_SPIN 1024
 
-	if (__isthreaded) {
-		if (a_mutex->recursive == false)
-			_SPINLOCK(&a_mutex->lock);
-		else {
-			volatile long *owner = &a_mutex->lock.lock_owner;
-			long self;
-
-			self = (long)_pthread_self();
-
-			if (atomic_cmpset_acq_long(owner, self, self) == 0)
-				_SPINLOCK(&a_mutex->lock);
-			a_mutex->val++;
-		}
-	}
+	if (__isthreaded)
+		_SPINLOCK(&a_mutex->lock);
 }
 
 static __inline void
 malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 {
 
-	if (__isthreaded) {
-		if (a_mutex->recursive == false) {
-			_SPINUNLOCK(&a_mutex->lock);
-		} else {
-			a_mutex->val--;
-			if (a_mutex->val == 0) {
-				_SPINUNLOCK(&a_mutex->lock);
-			}
-		}
-	}
+	if (__isthreaded)
+		_SPINUNLOCK(&a_mutex->lock);
 }
 
 /*
@@ -952,6 +923,10 @@ malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 /* Return the smallest chunk multiple that is >= s. */
 #define	CHUNK_CEILING(s)						\
 	(((s) + chunk_size_mask) & ~chunk_size_mask)
+
+/* Return the smallest cacheline multiple that is >= s. */
+#define	CACHELINE_CEILING(s)						\
+	(((s) + (CACHELINE - 1)) & ~(CACHELINE - 1))
 
 /* Return the smallest quantum multiple that is >= a. */
 #define	QUANTUM_CEILING(a)						\
@@ -1007,6 +982,88 @@ malloc_printf(const char *format, ...)
 	va_end(ap);
 	_malloc_message(buf, "", "", "");
 }
+
+/******************************************************************************/
+
+static void *
+base_alloc(size_t size)
+{
+	void *ret;
+	size_t csize;
+
+	/* Round size up to nearest multiple of the cacheline size. */
+	csize = CACHELINE_CEILING(size);
+
+	malloc_mutex_lock(&base_mtx);
+
+	/* Make sure there's enough space for the allocation. */
+	if ((size_t)base_next_addr + csize > (size_t)base_past_addr) {
+		void *tchunk;
+		size_t alloc_size;
+
+		/*
+		 * If chunk_size and opt_ndelay are sufficiently small and
+		 * large, respectively, it's possible for an allocation request
+		 * to exceed a single chunk here.  Deal with this, but don't
+		 * worry about internal fragmentation.
+		 */
+
+		if (csize <= chunk_size)
+			alloc_size = chunk_size;
+		else
+			alloc_size = CHUNK_CEILING(csize);
+
+		tchunk = chunk_alloc(alloc_size);
+		if (tchunk == NULL) {
+			ret = NULL;
+			goto RETURN;
+		}
+		base_chunk = tchunk;
+		base_next_addr = (void *)base_chunk;
+		base_past_addr = (void *)((size_t)base_chunk + alloc_size);
+#ifdef MALLOC_STATS
+		base_total += alloc_size;
+#endif
+	}
+
+	/* Allocate. */
+	ret = base_next_addr;
+	base_next_addr = (void *)((size_t)base_next_addr + csize);
+
+RETURN:
+	malloc_mutex_unlock(&base_mtx);
+	return (ret);
+}
+
+static chunk_node_t *
+base_chunk_node_alloc(void)
+{
+	chunk_node_t *ret;
+
+	malloc_mutex_lock(&base_mtx);
+	if (base_chunk_nodes != NULL) {
+		ret = base_chunk_nodes;
+		base_chunk_nodes = *(chunk_node_t **)ret;
+		malloc_mutex_unlock(&base_mtx);
+	} else {
+		malloc_mutex_unlock(&base_mtx);
+		ret = (chunk_node_t *)base_alloc(sizeof(chunk_node_t));
+	}
+
+	return (ret);
+}
+
+static void
+base_chunk_node_dealloc(chunk_node_t *node)
+{
+
+	malloc_mutex_lock(&base_mtx);
+	*(chunk_node_t **)node = base_chunk_nodes;
+	base_chunk_nodes = node;
+	malloc_mutex_unlock(&base_mtx);
+}
+
+/******************************************************************************/
 
 /*
  * Note that no bitshifting is done for booleans in any of the bitmask-based
@@ -1490,7 +1547,7 @@ RETURN:
 		delchunk = tchunk;
 		tchunk = RB_NEXT(chunk_tree_s, &delchunks, delchunk);
 		RB_REMOVE(chunk_tree_s, &delchunks, delchunk);
-		idalloc(delchunk);
+		base_chunk_node_dealloc(delchunk);
 	}
 
 	assert(CHUNK_ADDR2BASE(ret) == ret);
@@ -1509,8 +1566,7 @@ chunk_dealloc(void *chunk, size_t size)
 	if (size == chunk_size) {
 		chunk_node_t *node;
 
-		node = ipalloc(&base_arena, CACHELINE,
-		    sizeof(chunk_node_t) + CACHELINE);
+		node = base_chunk_node_alloc();
 
 		malloc_mutex_lock(&chunks_mtx);
 		if (node != NULL) {
@@ -2320,16 +2376,12 @@ arena_delay_cache(arena_t *arena, region_t *reg)
 
 			/* Insert into delayed. */
 
-			/*
-			 * Clear a slot, then put reg in it.  We have to loop
-			 * here, because in the case of base_arena, it's
-			 * possible for this loop to cause deallocation if a
-			 * chunk is discarded.
-			 */
-			for (slot = arena->next_delayed;
-			    arena->delayed[slot] != NULL;
-			    slot = arena->next_delayed)
+			/* Clear a slot, then put reg in it. */
+			slot = arena->next_delayed;
+			if (arena->delayed[slot] != NULL)
 				arena_undelay(arena, slot);
+			assert(slot == arena->next_delayed);
+			assert(arena->delayed[slot] == NULL);
 
 			reg->next.u.s.slot = slot;
 
@@ -3473,17 +3525,13 @@ arena_stats(arena_t *arena, size_t *allocated, size_t *total)
 }
 #endif
 
-static void
-arena_new(arena_t *arena, bool malloced, bool recursive)
+static bool
+arena_new(arena_t *arena)
 {
+	bool ret;
 	unsigned i;
 
-	arena->malloced = malloced;
-
-	if (recursive)
-		malloc_mutex_recursive_init(&arena->mtx);
-	else
-		malloc_mutex_init(&arena->mtx);
+	malloc_mutex_init(&arena->mtx);
 
 	for (i = 0; i < NBINS; i++)
 		qr_new(&arena->bins[i].regions, next.u.s.link);
@@ -3498,6 +3546,16 @@ arena_new(arena_t *arena, bool malloced, bool recursive)
 	RB_INIT(&arena->chunks);
 	arena->nchunks = 0;
 
+	assert(opt_ndelay > 0);
+	arena->delayed = (region_t **)base_alloc(opt_ndelay
+	    * sizeof(region_t *));
+	if (arena->delayed == NULL) {
+		ret = true;
+		goto RETURN;
+	}
+	memset(arena->delayed, 0, opt_ndelay * sizeof(region_t *));
+	arena->next_delayed = 0;
+
 #ifdef MALLOC_STATS
 	arena->allocated = 0;
 
@@ -3508,18 +3566,9 @@ arena_new(arena_t *arena, bool malloced, bool recursive)
 	arena->magic = ARENA_MAGIC;
 #endif
 
-	/*
-	 * Do this last, since it involved recursing in the case of base_arena.
-	 *
-	 * Use page alignment for delayed, so that only one page must be kept
-	 * in RAM, rather than two (assuming a small enough array).  This seems
-	 * prudent, given that all of delayed is touched often.
-	 */
-	assert(opt_ndelay > 0);
-	arena->delayed = (region_t **)ipalloc(&base_arena, pagesize,
-	    (opt_ndelay * sizeof(region_t *)) + CACHELINE);
-	memset(arena->delayed, 0, opt_ndelay * sizeof(region_t *));
-	arena->next_delayed = 0;
+	ret = false;
+RETURN:
+	return (ret);
 }
 
 /* Create a new arena and insert it into the arenas array at index ind. */
@@ -3528,27 +3577,25 @@ arenas_extend(unsigned ind)
 {
 	arena_t *ret;
 
-	ret = (arena_t *)ipalloc(&base_arena, CACHELINE,
-	    sizeof(arena_t) + CACHELINE);
-	if (ret != NULL) {
-		arena_new(ret, true, false);
+	ret = (arena_t *)base_alloc(sizeof(arena_t));
+	if (ret != NULL && arena_new(ret) == false) {
 		arenas[ind] = ret;
-	} else {
-		/*
-		 * OOM here is quite inconvenient to propagate, since dealing
-		 * with it would require a check for failure in the fast path.
-		 * Instead, punt by using arenas[0].  In practice, this is an
-		 * extremely unlikely failure.
-		 */
-		malloc_printf("%s: (malloc) Error initializing arena\n",
-		    _getprogname());
-		if (opt_abort)
-			abort();
-
-		ret = arenas[0];
+		return (ret);
 	}
+	/* Only reached if there is an OOM error. */
 
-	return (ret);
+	/*
+	 * OOM here is quite inconvenient to propagate, since dealing with it
+	 * would require a check for failure in the fast path.  Instead, punt
+	 * by using arenas[0].  In practice, this is an extremely unlikely
+	 * failure.
+	 */
+	malloc_printf("%s: (malloc) Error initializing arena\n",
+	    _getprogname());
+	if (opt_abort)
+		abort();
+
+	return (arenas[0]);
 }
 
 /*
@@ -3671,8 +3718,7 @@ huge_malloc(arena_t *arena, size_t size)
 	}
 
 	/* Allocate a chunk node with which to track the chunk. */
-	node = ipalloc(&base_arena, CACHELINE,
-	    sizeof(chunk_node_t) + CACHELINE);
+	node = base_chunk_node_alloc();
 	if (node == NULL) {
 		ret = NULL;
 		goto RETURN;
@@ -3680,7 +3726,7 @@ huge_malloc(arena_t *arena, size_t size)
 
 	ret = chunk_alloc(chunk_size);
 	if (ret == NULL) {
-		idalloc(node);
+		base_chunk_node_dealloc(node);
 		ret = NULL;
 		goto RETURN;
 	}
@@ -3733,7 +3779,7 @@ huge_dalloc(void *ptr)
 	/* Unmap chunk. */
 	chunk_dealloc(node->chunk, node->size);
 
-	idalloc(node);
+	base_chunk_node_dealloc(node);
 }
 
 static void *
@@ -3830,8 +3876,7 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 			/*
 			 * Allocate a chunk node with which to track the chunk.
 			 */
-			node = ipalloc(&base_arena, CACHELINE,
-			    sizeof(chunk_node_t) + CACHELINE);
+			node = base_chunk_node_alloc();
 			if (node == NULL) {
 				ret = NULL;
 				goto RETURN;
@@ -3839,7 +3884,7 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 
 			ret = chunk_alloc(alloc_size);
 			if (ret == NULL) {
-				idalloc(node);
+				base_chunk_node_dealloc(node);
 				ret = NULL;
 				goto RETURN;
 			}
@@ -4060,16 +4105,7 @@ istats(size_t *allocated, size_t *total)
 	unsigned i;
 
 	tallocated = 0;
-	ttotal = 0;
-
-	/* base_arena. */
-	arena_stats(&base_arena, &rallocated, &rtotal);
-	/*
-	 * base_arena is all overhead, so pay no attention to to rallocated
-	 * here.
-	 */
-	tallocated = 0;
-	ttotal = rtotal;
+	ttotal = base_total;
 
 	/* arenas. */
 	for (i = 0; i < narenas; i++) {
@@ -4154,22 +4190,6 @@ malloc_print_stats(void)
 				    chunks_stats.curchunks);
 			}
 
-#ifdef MALLOC_STATS_BASE
-			/*
-			 * Copy base_arena's stats out, so that they are
-			 * self-consistent, even if the process of printing
-			 * stats is causing additional allocation.
-			 */
-			memset(&stats_arenas, 0, sizeof(arena_stats_t));
-			malloc_mutex_lock(&base_arena.mtx);
-			stats_merge(&base_arena, &stats_arenas);
-			malloc_mutex_unlock(&base_arena.mtx);
-
-			/* Print base_arena stats. */
-			malloc_printf("\nbase_arena statistics:\n");
-			stats_print(&stats_arenas);
-#endif
-
 #ifdef MALLOC_STATS_ARENAS
 			/* Print stats for each arena. */
 			for (i = 0; i < narenas; i++) {
@@ -4187,9 +4207,7 @@ malloc_print_stats(void)
 			}
 #endif
 
-			/* 
-			 * Merge arena stats from arenas (leave out base_arena).
-			 */
+			/* Merge arena stats from arenas. */
 			memset(&stats_arenas, 0, sizeof(arena_stats_t));
 			for (i = 0; i < narenas; i++) {
 				arena = arenas[i];
@@ -4339,7 +4357,7 @@ malloc_init_hard(void)
 				opt_junk = true;
 				break;
 			case 'k':
-				if (opt_chunk_2pow > CHUNK_2POW_MIN)
+				if ((1 << opt_chunk_2pow) > pagesize)
 					opt_chunk_2pow--;
 				break;
 			case 'K':
@@ -4441,8 +4459,15 @@ malloc_init_hard(void)
 #endif
 	RB_INIT(&old_chunks);
 
-	/* Create base arena. */
-	arena_new(&base_arena, false, true);
+	/* Initialize base allocation data structures. */
+	base_chunk = NULL;
+	base_next_addr = NULL;
+	base_past_addr = NULL;
+	base_chunk_nodes = NULL;
+	malloc_mutex_init(&base_mtx);
+#ifdef MALLOC_STATS
+	base_total = 0;
+#endif
 
 	if (ncpus > 1) {
 		/* 
@@ -4489,8 +4514,7 @@ malloc_init_hard(void)
 #endif
 
 	/* Allocate and initialize arenas. */
-	arenas = (arena_t **)ipalloc(&base_arena, CACHELINE,
-	    (sizeof(arena_t *) * narenas) + CACHELINE);
+	arenas = (arena_t **)base_alloc(sizeof(arena_t *) * narenas);
 	/* OOM here is fatal. */
 	assert(arenas != NULL);
 	/*
@@ -4755,7 +4779,7 @@ _malloc_prefork(void)
 	}
 	malloc_mutex_unlock(&arenas_mtx);
 
-	malloc_mutex_lock(&base_arena.mtx);
+	malloc_mutex_lock(&base_mtx);
 
 	malloc_mutex_lock(&chunks_mtx);
 }
@@ -4769,7 +4793,7 @@ _malloc_postfork(void)
 
 	malloc_mutex_unlock(&chunks_mtx);
 
-	malloc_mutex_unlock(&base_arena.mtx);
+	malloc_mutex_unlock(&base_mtx);
 
 	malloc_mutex_lock(&arenas_mtx);
 	for (i = 0; i < narenas; i++) {
