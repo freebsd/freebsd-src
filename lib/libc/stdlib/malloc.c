@@ -216,6 +216,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __ia64__
 #  define QUANTUM_2POW_MIN	4
 #  define SIZEOF_PTR		8
+#  define NO_TLS
 #endif
 #ifdef __alpha__
 #  define QUANTUM_2POW_MIN	4
