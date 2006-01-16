@@ -145,6 +145,8 @@ _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 	if ((ret = _thr_ref_add(curthread, pid, /*include dead*/0)) != 0)
 		return (ret);
 	attr = pid->attr;
+	if (pid->tlflags & TLFLAGS_DETACHED)
+		attr.flags |= PTHREAD_DETACHED;
 	_thr_ref_delete(curthread, pid);
 	memcpy(*dst, &attr, sizeof(struct pthread_attr));
 
