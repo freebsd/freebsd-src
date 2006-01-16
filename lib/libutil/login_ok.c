@@ -82,7 +82,7 @@ login_str2inlist(const char **ttlst, const char *str1, const char *str2, int fla
 
 /*
  * login_timelist()
- * This function is intentinoally public - reused by TAS.
+ * This function is intentionally public - reused by TAS.
  * Returns an allocated list of time periods given an array
  * of time periods in ascii form.
  */
