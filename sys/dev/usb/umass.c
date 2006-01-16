@@ -1091,7 +1091,8 @@ USB_ATTACH(umass)
 
 	/* Get the maximum LUN supported by the device.
 	 */
-	if ((sc->proto & UMASS_PROTO_WIRE) == UMASS_PROTO_BBB)
+	if (((sc->proto & UMASS_PROTO_WIRE) == UMASS_PROTO_BBB) &&
+	    !(sc->quirks & NO_GETMAXLUN))
 		sc->maxlun = umass_bbb_get_max_lun(sc);
 	else
 		sc->maxlun = 0;
