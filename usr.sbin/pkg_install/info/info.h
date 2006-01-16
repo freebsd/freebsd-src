@@ -65,6 +65,7 @@ extern int Flags;
 extern Boolean Quiet;
 extern Boolean QUIET;
 extern Boolean UseBlkSz;
+extern Boolean KeepPackage;
 extern char *InfoPrefix;
 extern char PlayPen[];
 extern char *CheckPkg;

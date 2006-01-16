@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include "info.h"
 #include <err.h>
 
-static char Options[] = "abcdDe:EfgGhiIjkl:LmoO:pPqQrRst:vVW:xX";
+static char Options[] = "abcdDe:EfgGhiIjkKl:LmoO:pPqQrRst:vVW:xX";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -37,6 +37,7 @@ char *InfoPrefix	= (char *)(uintptr_t)"";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
 char *LookUpOrigin	= NULL;
+Boolean KeepPackage	= FALSE;
 struct which_head *whead;
 
 static void usage __P((void));
@@ -121,6 +122,10 @@ main(int argc, char **argv)
 
 	case 'k':
 	    Flags |= SHOW_DEINSTALL;
+	    break;
+
+	case 'K':
+	    KeepPackage = TRUE;
 	    break;
 
 	case 'r':
@@ -262,7 +267,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-	"usage: pkg_info [-bcdDEfgGiIjkLmopPqQrRsvVxX] [-e package] [-l prefix]",
+	"usage: pkg_info [-bcdDEfgGiIjkKLmopPqQrRsvVxX] [-e package] [-l prefix]",
 	"                [-t template] -a | pkg-name ...",
 	"       pkg_info [-qQ] -W filename",
 	"       pkg_info [-qQ] -O origin",

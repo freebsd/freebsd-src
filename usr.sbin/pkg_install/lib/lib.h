@@ -169,7 +169,7 @@ Boolean         isfile(const char *);
 Boolean		isempty(const char *);
 Boolean		issymlink(const char *);
 Boolean		isURL(const char *);
-char		*fileGetURL(const char *, const char *);
+char		*fileGetURL(const char *, const char *, int);
 char		*fileFindByPath(const char *, const char *);
 char		*fileGetContents(const char *);
 void		write_file(const char *, const char *);
