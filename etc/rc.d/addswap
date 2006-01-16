@@ -22,7 +22,15 @@ addswap_start()
 	[Nn][Oo] | '')
 		;;
 	*)
-		if [ -w "${swapfile}" -a -c /dev/mdctl ]; then
+		if [ -w "${swapfile}" ]; then
+			if ! kldstat -q -m g_md ; then
+				if kldload g_md ; then
+					info 'g_md module loaded.'
+				else
+					warn 'g_md module failed to load.'
+					return 1
+				fi
+			fi
 			echo "Adding ${swapfile} as additional swap"
 			mdev=`mdconfig -a -t vnode -f ${swapfile}` && swapon /dev/${mdev}
 		fi
