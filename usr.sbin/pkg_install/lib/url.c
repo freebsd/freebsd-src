@@ -24,24 +24,27 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include <err.h>
 #include <fetch.h>
+#include <libgen.h>
 #include <sys/wait.h>
+#include <stdio.h>
 
 /*
  * Try and fetch a file by URL, returning the directory name for where
  * it's unpacked, if successful.
  */
 char *
-fileGetURL(const char *base, const char *spec)
+fileGetURL(const char *base, const char *spec, int keep_package)
 {
-    char *cp, *rp;
+    char *cp, *rp, *tmp;
     char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
     char buf[8192];
+    char pkg[FILENAME_MAX];
     FILE *ftp;
     pid_t tpid;
     int pfd[2], pstat, r, w = 0;
     char *hint;
-    int fd;
+    int fd, pkgfd = 0;
 
     rp = NULL;
     /* Special tip that sysinstall left for us */
@@ -95,6 +98,19 @@ fileGetURL(const char *base, const char *spec)
     else
 	strcpy(fname, spec);
 
+   if (keep_package) {
+    	tmp = getenv("PKGDIR");
+	strlcpy(pkg, tmp ? tmp : ".", sizeof(pkg));
+	tmp = basename(fname);
+	strlcat(pkg, "/", sizeof(pkg));
+	strlcat(pkg, tmp, sizeof(pkg));
+    	if ((pkgfd = open(pkg, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1) {
+    	    printf("Error: Unable to open %s\n", pkg);
+	    perror("open");
+	    return NULL;
+	}
+   } 
+
     if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
 	printf("Error: FTP Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
@@ -138,10 +154,17 @@ fileGetURL(const char *base, const char *spec)
 	    break;
 	if ((w = write(pfd[1], buf, r)) != r)
 	    break;
+	if (keep_package) {
+	    if ((w = write(pkgfd, buf, r)) != r)
+		break;
+	}    
     }
     if (ferror(ftp))
 	warn("warning: error reading from server");
     fclose(ftp);
+    if (keep_package) {
+	close(pkgfd);
+    } 
     close(pfd[1]);
     if (w == -1)
 	warn("warning: error writing to tar");

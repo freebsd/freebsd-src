@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2005
+.Dd January 16, 2006
 .Dt PKG_INFO 1
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl bcdDEfgGijIkLmopPqQrRsvVxX
+.Op Fl bcdDEfgGijIkKLmopPqQrRsvVxX
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -106,6 +106,10 @@ precedence over all other package formatting options.
 Show the requirements script (if any) for each package.
 .It Fl k
 Show the de-install script (if any) for each package.
+.It Fl K
+Keep any downloaded package in
+.Ev PKGDIR
+if it is defined or in current directory by default.
 .It Fl r
 Show the list of packages on which each package depends.
 .It Fl R
@@ -242,6 +246,8 @@ Specifies an alternative location for the installed package database.
 .It Ev PKG_PATH
 Specifies an alternative package location, if a given package cannot be
 found.
+.It Ev PKGDIR
+Specifies an alternative location to save downloaded packages to.
 .El
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact

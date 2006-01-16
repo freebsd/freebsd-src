@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2005
+.Dd January 16, 2006
 .Dt PKG_ADD 1
 .Os
 .Sh NAME
@@ -23,7 +23,7 @@
 .Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vInfrRMS
+.Op Fl vInfrRMSK
 .Op Fl t Ar template
 .Op Fl p Ar prefix
 .Op Fl P Ar prefix
@@ -83,6 +83,10 @@ will search them in each directory named by
 .Ev PKG_PATH .
 .It Fl v
 Turn on verbose output.
+.It Fl K
+Keep any downloaded package in
+.Ev PKGDIR
+if it is defined or in current directory by default.
 .It Fl I
 If any installation scripts (pre-install or post-install) exist for a given
 package, do not execute them.
@@ -517,6 +521,12 @@ uses when the
 .Fl r
 option is invoked.
 Thus it should be a complete URL to the remote package file(s).
+.Pp
+The environment variable
+.Ev PKGDIR
+Specifies an alternative location to save downloaded packages to when
+.Fl K
+option is used.
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/tmp
