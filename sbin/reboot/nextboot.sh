@@ -8,31 +8,46 @@
 delete="NO"
 force="NO"
 nextboot_file="/boot/nextboot.conf"
+kernel=""
 
 display_usage() {
 	echo "Usage: nextboot [-f] [-o options] -k kernel"
 	echo "       nextboot -D"
 }
 
-while getopts "Dfk:o:" argument ; do
-	case "${argument}" in
-	D)
+# Parse args, do not use getopt because we don't want to rely on /usr
+while test $# -gt 0; do
+	case $1 in
+	-D)
 		delete="YES"
 		;;
-	f)
+	-f)
 		force="YES"
 		;;
-	k)
-		kernel="${OPTARG}"
+	-k)
+		if test $# -lt 2; then
+			echo "$0: option $1 must specify kernel"
+			display_usage
+			exit 1
+		fi
+		kernel="$2"
+		shift
 		;;
-	o)
-		kernel_options="${OPTARG}"
+	-o)
+		if test $# -lt 2; then
+			echo "$0: option $1 must specify boot options"
+			display_usage
+			exit 1
+		fi
+		kernel_options="$2"
+		shift
 		;;
 	*)
 		display_usage
 		exit 1
 		;;
 	esac
+	shift
 done
 
 if [ ${delete} = "YES" ]; then
