@@ -189,8 +189,6 @@ links:
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
-	rm -f tags1
-	sed -e 's,      ../,    ,' tags > tags1
 
 .if ${MACHINE_ARCH} != "ia64"
 .if exists(${DESTDIR}/boot)
