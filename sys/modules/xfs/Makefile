@@ -81,6 +81,8 @@ SRCS =  vnode_if.h \
 	kmem.c \
 	kdb.c
 
+SRCS+=	opt_ddb.h
+
 .include <bsd.kmod.mk>
 
 CFLAGS+= -I${.CURDIR}/../../gnu/fs/xfs/FreeBSD \
