@@ -94,7 +94,7 @@ struct ehci_soft_islot {
 #define EHCI_COMPANION_MAX 8
 
 #define EHCI_SCFLG_DONEINIT	0x0001	/* ehci_init() has been called. */
-#define EHCI_SCFLG_LOSTINTRBUG	0x0002	/* workaround for VIA chipsets */
+#define EHCI_SCFLG_LOSTINTRBUG	0x0002	/* workaround for VIA / ATI chipsets */
 
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */

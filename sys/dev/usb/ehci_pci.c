@@ -335,6 +335,9 @@ ehci_pci_attach(device_t self)
 	case PCI_EHCI_VENDORID_APPLE:
 		sprintf(sc->sc_vendor, "Apple");
 		break;
+	case PCI_EHCI_VENDORID_ATI:
+		sprintf(sc->sc_vendor, "ATI");
+		break;
 	case PCI_EHCI_VENDORID_CMDTECH:
 		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
@@ -374,8 +377,17 @@ ehci_pci_attach(device_t self)
 	}
 
 	/* Enable workaround for dropped interrupts as required */
-	if (pci_get_vendor(self) == PCI_EHCI_VENDORID_VIA)
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+	case PCI_EHCI_VENDORID_VIA:
 		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Dropped interrupts workaround enabled\n");
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * Find companion controllers.  According to the spec they always
