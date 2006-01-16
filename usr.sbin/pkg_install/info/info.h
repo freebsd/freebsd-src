@@ -64,6 +64,7 @@ TAILQ_HEAD(which_head, which_entry);
 extern int Flags;
 extern Boolean QUIET;
 extern Boolean UseBlkSz;
+extern Boolean KeepPackage;
 extern char *InfoPrefix;
 extern char PlayPen[];
 extern char *CheckPkg;

@@ -100,7 +100,7 @@ pkg_do(char *pkg)
     int code = 0;
 
     if (isURL(pkg)) {
-	if ((cp = fileGetURL(NULL, pkg)) != NULL) {
+	if ((cp = fileGetURL(NULL, pkg, KeepPackage)) != NULL) {
 	    strcpy(fname, cp);
 	    isTMP = TRUE;
 	}
