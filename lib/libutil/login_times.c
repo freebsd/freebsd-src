@@ -72,7 +72,7 @@ parse_lt(const char * str)
 	char		buf[64];
 
 	/* Make local copy and force lowercase to simplify parsing */
-	p = strlcpy(buf, str, sizeof buf);
+	p = strncpy(buf, str, sizeof buf);
 	buf[sizeof buf - 1] = '\0';
 	for (i = 0; buf[i]; i++)
 	    buf[i] = (char)tolower(buf[i]);
