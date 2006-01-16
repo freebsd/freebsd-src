@@ -20,6 +20,7 @@ SRCS+= \
 	thr_fork.c \
 	thr_getprio.c \
 	thr_getschedparam.c \
+	thr_info.c \
 	thr_init.c \
 	thr_join.c \
 	thr_list.c \

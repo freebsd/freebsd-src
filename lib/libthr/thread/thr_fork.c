@@ -105,10 +105,6 @@ __weak_reference(_fork, fork);
 pid_t
 _fork(void)
 {
-	static umtx_t inprogress;
-	static int waiters;
-	umtx_t tmp;
-
 	struct pthread *curthread;
 	struct pthread_atfork *af;
 	pid_t ret;
@@ -120,25 +116,7 @@ _fork(void)
 
 	curthread = _get_curthread();
 
-	/*
-	 * Block all signals until we reach a safe point.
-	 */
-	_thr_signal_block(curthread);
-
 	THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
-	tmp = inprogress;
-	while (tmp) {
-		waiters++;
-		THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
-		_thr_umtx_wait(&inprogress, tmp, NULL);
-		THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
-		waiters--;
-		tmp = inprogress;
-	}
-	inprogress = 1;
-
-	/* Unlock mutex, allow new hook to be added during executing hooks. */
-	THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
 
 	/* Run down atfork prepare handlers. */
 	TAILQ_FOREACH_REVERSE(af, &_thr_atfork_list, atfork_head, qe) {
@@ -158,11 +136,15 @@ _fork(void)
 		unlock_malloc = 0;
 	}
 
+	/*
+	 * Block all signals until we reach a safe point.
+	 */
+	_thr_signal_block(curthread);
+
 	/* Fork a new process: */
 	if ((ret = __sys_fork()) == 0) {
 		/* Child process */
 		errsave = errno;
-		inprogress = 0;
 		curthread->cancelflags &= ~THR_CANCEL_NEEDED;
 		/*
 		 * Thread list will be reinitialized, and later we call
@@ -197,11 +179,11 @@ _fork(void)
 		/* Parent process */
 		errsave = errno;
 
-		if (unlock_malloc)
-			_spinunlock(__malloc_lock);
-
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
+
+		if (unlock_malloc)
+			_spinunlock(__malloc_lock);
 
 		/* Run down atfork parent handlers. */
 		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
@@ -209,10 +191,6 @@ _fork(void)
 				af->parent();
 		}
 
-		THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
-		inprogress = 0;
-		if (waiters)
-			_thr_umtx_wake(&inprogress, waiters);
 		THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
 	}
 	errno = errsave;

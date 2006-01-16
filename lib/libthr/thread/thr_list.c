@@ -129,7 +129,6 @@ _thr_gc(struct pthread *curthread)
 			continue;
 		}
 
-		DBG_MSG("Freeing thread %p\n", td);
 		_thr_free(curthread, td);
 	}
 }
@@ -224,8 +223,6 @@ _thr_link(struct pthread *curthread, struct pthread *thread)
 {
 	THREAD_LIST_LOCK(curthread);
 	THR_LIST_ADD(thread);
-	if (thread->attr.flags & PTHREAD_DETACHED)
-		thread->tlflags |= TLFLAGS_DETACHED;
 	_thread_active_threads++;
 	THREAD_LIST_UNLOCK(curthread);
 }
@@ -299,13 +296,19 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 void
 _thr_ref_delete(struct pthread *curthread, struct pthread *thread)
 {
+	THREAD_LIST_LOCK(curthread);
+	_thr_ref_delete_unlocked(curthread, thread);
+	THREAD_LIST_UNLOCK(curthread);
+}
+
+void
+_thr_ref_delete_unlocked(struct pthread *curthread, struct pthread *thread)
+{
 	if (thread != NULL) {
-		THREAD_LIST_LOCK(curthread);
 		thread->refcount--;
-		if ((thread->refcount == 0) &&
-		    (thread->tlflags & TLFLAGS_GC_SAFE) != 0)
+		if ((thread->refcount == 0) && thread->state == PS_DEAD &&
+		    (thread->tlflags & TLFLAGS_DETACHED) != 0)
 			THR_GCLIST_ADD(thread);
-		THREAD_LIST_UNLOCK(curthread);
 	}
 }
 

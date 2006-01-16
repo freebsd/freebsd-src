@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <stddef.h>
 #include <pthread.h>
 #include <rtld.h>

@@ -124,9 +124,16 @@ _pthread_exit(void *status)
 		exit(0);
 		/* Never reach! */
 	}
+	THR_LOCK(curthread);
+	curthread->state = PS_DEAD;
+	THR_UNLOCK(curthread);
+	/*
+	 * Thread was created with initial refcount 1, we drop the
+	 * reference count to allow it to be garbage collected.
+	 */
+	curthread->refcount--;
 	if (curthread->tlflags & TLFLAGS_DETACHED)
 		THR_GCLIST_ADD(curthread);
-	curthread->state = PS_DEAD;
 	THREAD_LIST_UNLOCK(curthread);
 	if (SHOULD_REPORT_EVENT(curthread, TD_DEATH))
 		_thr_report_death(curthread);

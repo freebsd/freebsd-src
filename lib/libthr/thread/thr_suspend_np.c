@@ -37,7 +37,8 @@
 
 #include "thr_private.h"
 
-static void suspend_common(struct pthread *thread);
+static int suspend_common(struct pthread *, struct pthread *,
+		int);
 
 __weak_reference(_pthread_suspend_np, pthread_suspend_np);
 __weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
@@ -58,7 +59,7 @@ _pthread_suspend_np(pthread_t thread)
 	    == 0) {
 		/* Lock the threads scheduling queue: */
 		THR_THREAD_LOCK(curthread, thread);
-		suspend_common(thread);
+		suspend_common(curthread, thread, 1);
 		/* Unlock the threads scheduling queue: */
 		THR_THREAD_UNLOCK(curthread, thread);
 
@@ -71,29 +72,71 @@ _pthread_suspend_np(pthread_t thread)
 void
 _pthread_suspend_all_np(void)
 {
-	struct pthread	*curthread = _get_curthread();
-	struct pthread	*thread;
+	struct pthread *curthread = _get_curthread();
+	struct pthread *thread;
+	int ret;
 
-	/* Take the thread list lock: */
 	THREAD_LIST_LOCK(curthread);
 
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
 		if (thread != curthread) {
 			THR_THREAD_LOCK(curthread, thread);
-			suspend_common(thread);
+			if (thread->state != PS_DEAD &&
+	      		   !(thread->flags & THR_FLAGS_SUSPENDED))
+			    thread->flags |= THR_FLAGS_NEED_SUSPEND;
+			THR_THREAD_UNLOCK(curthread, thread);
+		}
+	}
+	thr_kill(-1, SIGCANCEL);
+
+restart:
+	TAILQ_FOREACH(thread, &_thread_list, tle) {
+		if (thread != curthread) {
+			/* First try to suspend the thread without waiting */
+			THR_THREAD_LOCK(curthread, thread);
+			ret = suspend_common(curthread, thread, 0);
+			if (ret == 0) {
+				/* Can not suspend, try to wait */
+				thread->refcount++;
+				THREAD_LIST_UNLOCK(curthread);
+				suspend_common(curthread, thread, 1);
+				THR_THREAD_UNLOCK(curthread, thread);
+				THREAD_LIST_LOCK(curthread);
+				_thr_ref_delete_unlocked(curthread, thread);
+				/*
+				 * Because we were blocked, things may have
+				 * been changed, we have to restart the
+				 * process.
+				 */
+				goto restart;
+			}
 			THR_THREAD_UNLOCK(curthread, thread);
 		}
 	}
 
-	/* Release the thread list lock: */
 	THREAD_LIST_UNLOCK(curthread);
 }
 
-static void
-suspend_common(struct pthread *thread)
+static int
+suspend_common(struct pthread *curthread, struct pthread *thread,
+	int waitok)
 {
-	if (thread->state != PS_DEAD) {
+	umtx_t tmp;
+
+	while (thread->state != PS_DEAD &&
+	      !(thread->flags & THR_FLAGS_SUSPENDED)) {
 		thread->flags |= THR_FLAGS_NEED_SUSPEND;
+		THR_THREAD_UNLOCK(curthread, thread);
 		_thr_send_sig(thread, SIGCANCEL);
+		if (waitok) {
+			tmp = thread->cycle;
+			_thr_umtx_wait(&thread->cycle, tmp, NULL);
+			THR_THREAD_LOCK(curthread, thread);
+		} else {
+			THR_THREAD_LOCK(curthread, thread);
+			return (0);
+		}
 	}
+
+	return (1);
 }
