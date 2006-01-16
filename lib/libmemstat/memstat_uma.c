@@ -301,7 +301,7 @@ kread_symbol(kvm_t *kvm, int index, void *address, size_t size,
 int
 memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 {
-	static LIST_HEAD(, uma_keg) uma_kegs;
+	LIST_HEAD(, uma_keg) uma_kegs;
 	struct memory_type *mtp;
 	struct uma_bucket *ubp, ub;
 	struct uma_cache *ucp;
