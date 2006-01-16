@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define PCI_OHCI_VENDORID_ACERLABS	0x10b9
 #define PCI_OHCI_VENDORID_AMD		0x1022
 #define PCI_OHCI_VENDORID_APPLE		0x106b
+#define PCI_OHCI_VENDORID_ATI		0x1002
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
 #define PCI_OHCI_VENDORID_NEC		0x1033
 #define PCI_OHCI_VENDORID_NVIDIA	0x12D2
@@ -91,6 +92,10 @@ static const char *ohci_device_amd756 = "AMD-756 USB Controller";
 
 #define PCI_OHCI_DEVICEID_AMD766	0x74141022
 static const char *ohci_device_amd766 = "AMD-766 USB Controller";
+
+#define PCI_OHCI_DEVICEID_SB400_1	0x43741002
+#define PCI_OHCI_DEVICEID_SB400_2	0x43751002
+static const char *ohci_device_sb400 = "ATI SB400 USB Controller";
 
 #define PCI_OHCI_DEVICEID_FIRELINK	0xc8611045
 static const char *ohci_device_firelink = "OPTi 82C861 (FireLink) USB controller";
@@ -163,6 +168,9 @@ ohci_pci_match(device_t self)
 		return (ohci_device_amd756);
 	case PCI_OHCI_DEVICEID_AMD766:
 		return (ohci_device_amd766);
+	case PCI_OHCI_DEVICEID_SB400_1:
+	case PCI_OHCI_DEVICEID_SB400_2:
+		return (ohci_device_sb400);
 	case PCI_OHCI_DEVICEID_USB0670:
 		return (ohci_device_usb0670);
 	case PCI_OHCI_DEVICEID_USB0673:
@@ -260,6 +268,9 @@ ohci_pci_attach(device_t self)
 		break;
 	case PCI_OHCI_VENDORID_APPLE:
 		sprintf(sc->sc_vendor, "Apple");
+		break;
+	case PCI_OHCI_VENDORID_ATI:
+		sprintf(sc->sc_vendor, "ATI");
 		break;
 	case PCI_OHCI_VENDORID_CMDTECH:
 		sprintf(sc->sc_vendor, "CMDTECH");
