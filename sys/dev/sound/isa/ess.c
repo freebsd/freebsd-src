@@ -61,7 +61,7 @@ static u_int32_t ess_pfmt[] = {
 	0
 };
 
-static struct pcmchan_caps ess_playcaps = {5000, 49000, ess_pfmt, 0};
+static struct pcmchan_caps ess_playcaps = {6000, 48000, ess_pfmt, 0};
 
 static u_int32_t ess_rfmt[] = {
 	AFMT_U8,
@@ -75,7 +75,7 @@ static u_int32_t ess_rfmt[] = {
 	0
 };
 
-static struct pcmchan_caps ess_reccaps = {5000, 49000, ess_rfmt, 0};
+static struct pcmchan_caps ess_reccaps = {6000, 48000, ess_rfmt, 0};
 
 struct ess_info;
 
