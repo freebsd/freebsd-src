@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: cleartmp,v 1.4 2002/03/22 04:33:58 thorpej Exp $
 # $FreeBSD$
 #
 
@@ -12,9 +11,25 @@
 
 name="cleartmp"
 rcvar=`set_rcvar clear_tmp`
-start_cmd="cleartmp_start"
-stop_cmd=":"
-x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix"
+
+start_cmd="${name}_start"
+
+cleartmp_prestart()
+{
+	checkyesno clear_tmp_X || return
+
+	local x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix \
+	    /tmp/.XIM-unix"
+
+	# Remove X lock files, since they will prevent you from restarting X.
+	rm -f /tmp/.X[0-9]-lock
+
+	# Create socket directories with correct permissions to avoid
+	# security problem.
+	#
+	rm -fr ${x11_socket_dirs}
+	mkdir -m 1777 ${x11_socket_dirs}
+}
 
 cleartmp_start()
 {
@@ -26,15 +41,16 @@ cleartmp_start()
 	#
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 	    find -x . ! -name . ! -name lost+found ! -name quota.user \
-		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
+		! -name quota.group ! -name .X11-unix ! -name .ICE-unix \
+		! -name .font-unix ! -name .XIM-unix \
+		-exec rm -rf -- {} \; -type d -prune)
 }
 
 load_rc_config $name
+
+# The clear_tmp_X variable should be tested even if clear_tmp_enable is NO
+case "$1" in
+*start)	cleartmp_prestart ;;
+esac
+
 run_rc_command "$1"
-
-# Remove X lock files, since they will prevent you from restarting X.
-rm -f /tmp/.X[0-9]-lock
-
-# Create socket directories with correct permissions to avoid security problem.
-rm -fr ${x11_socket_dirs}
-mkdir -m 1777 ${x11_socket_dirs}

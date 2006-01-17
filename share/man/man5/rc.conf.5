@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2005
+.Dd December 19, 2005
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -322,6 +322,11 @@ Note that this process requires access to certain commands in
 before
 .Pa /usr
 is mounted on normal systems.
+.It Va cleanvar_enable
+.Pq Vt bool
+Clean the
+.Pa /var
+directory.
 .It Va local_startup
 .Pq Vt str
 List of directories to search for startup script files.
