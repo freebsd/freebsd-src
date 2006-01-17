@@ -6,6 +6,18 @@
 # PROVIDE: cleanvar
 # REQUIRE: mountcritlocal var
 
+. /etc/rc.subr
+
+name="cleanvar"
+rcvar=`set_rcvar`
+
+start_precmd="${name}_prestart"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+extra_commands="reload"
+reload_cmd="${name}_start"
+
 purgedir()
 {
 	local dir file
@@ -34,20 +46,28 @@ purgedir()
 	fi
 }
 
-# These files must be removed only the first time this script is run
-# on boot.
-#
-[ "$1" != "reload" ] && rm -f /var/run/clean_var /var/spool/lock/clean_var
+cleanvar_prestart()
+{
+	# These files must be removed only the first time this script is run
+	# on boot.
+	#
+	rm -f /var/run/clean_var /var/spool/lock/clean_var
+}
 
-if [ -d /var/run -a ! -f /var/run/clean_var ]; then
-	purgedir /var/run
-	# And an initial utmp file
-	(cd /var/run && cp /dev/null utmp && chmod 644 utmp;)
-	>/var/run/clean_var
-fi
-if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then
-	purgedir /var/spool/lock
-	>/var/spool/lock/clean_var
-fi
-rm -rf /var/spool/uucp/.Temp/*
+cleanvar_start () 
+{
+	if [ -d /var/run -a ! -f /var/run/clean_var ]; then
+		purgedir /var/run
+		# And an initial utmp file
+		(cd /var/run && cp /dev/null utmp && chmod 644 utmp;)
+		>/var/run/clean_var
+	fi
+	if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then
+		purgedir /var/spool/lock
+		>/var/spool/lock/clean_var
+	fi
+	rm -rf /var/spool/uucp/.Temp/*
+}
 
+load_rc_config $name
+run_rc_command "$1"
