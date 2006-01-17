@@ -451,7 +451,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	struct uio *uio;
 	struct iovec *iov;
 	u_int i, nsec, add, secsize;
-	int err, error, flags;
+	int err, error;
 	size_t size;
 	u_char *p, *data;
 
@@ -523,7 +523,6 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
-		crd->crd_flags = flags;
 		crd->crd_flags =
 		    CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
