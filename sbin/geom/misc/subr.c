@@ -315,66 +315,76 @@ gctl_error(struct gctl_req *req, const char *error, ...)
 	va_end(ap);
 }
 
-void *
-gctl_get_param(struct gctl_req *req, const char *param, int *len)
+static void *
+gctl_get_param(struct gctl_req *req, size_t len, const char *pfmt, va_list ap)
 {
-	unsigned i;
+	struct gctl_req_arg *argp;
+	char param[256];
 	void *p;
-	struct gctl_req_arg *ap;
-
-	for (i = 0; i < req->narg; i++) {
-		ap = &req->arg[i];
-		if (strcmp(param, ap->name))
-			continue;
-		if (!(ap->flag & GCTL_PARAM_RD))
-			continue;
-		p = ap->value;
-		if (len != NULL)
-			*len = ap->len;
-		return (p);
-	}
-	return (NULL);
-}
-
-char const *
-gctl_get_asciiparam(struct gctl_req *req, const char *param)
-{
 	unsigned i;
-	char const *p;
-	struct gctl_req_arg *ap;
 
+	vsnprintf(param, sizeof(param), pfmt, ap);
 	for (i = 0; i < req->narg; i++) {
-		ap = &req->arg[i];
-		if (strcmp(param, ap->name))
+		argp = &req->arg[i];
+		if (strcmp(param, argp->name))
 			continue;
-		if (!(ap->flag & GCTL_PARAM_RD))
+		if (!(argp->flag & GCTL_PARAM_RD))
 			continue;
-		p = ap->value;
-		if (ap->len < 1) {
-			gctl_error(req, "No length argument (%s)", param);
-			return (NULL);
-		}
-		if (p[ap->len - 1] != '\0') {
-			gctl_error(req, "Unterminated argument (%s)", param);
-			return (NULL);
+		p = argp->value;
+		if (len == 0) {
+			/* We are looking for a string. */
+			if (argp->len < 1) {
+				fprintf(stderr, "No length argument (%s).\n",
+				    param);
+				abort();
+			}
+			if (((char *)p)[argp->len - 1] != '\0') {
+				fprintf(stderr, "Unterminated argument (%s).\n",
+				    param);
+				abort();
+			}
+		} else if ((int)len != argp->len) {
+			fprintf(stderr, "Wrong length %s argument.\n", param);
+			abort();
 		}
 		return (p);
 	}
-	return (NULL);
+	fprintf(stderr, "No such argument (%s).\n", param);
+	abort();
 }
 
-void *
-gctl_get_paraml(struct gctl_req *req, const char *param, int len)
+int
+gctl_get_int(struct gctl_req *req, const char *pfmt, ...)
 {
-	int i;
-	void *p;
+	int *p;
+	va_list ap;
 
-	p = gctl_get_param(req, param, &i);
-	if (p == NULL)
-		gctl_error(req, "Missing %s argument", param);
-	else if (i != len) {
-		p = NULL;
-		gctl_error(req, "Wrong length %s argument", param);
-	}
+	va_start(ap, pfmt);
+	p = gctl_get_param(req, sizeof(int), pfmt, ap);
+	va_end(ap);
+	return (*p);
+}
+
+intmax_t
+gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...)
+{
+	intmax_t *p;
+	va_list ap;
+
+	va_start(ap, pfmt);
+	p = gctl_get_param(req, sizeof(intmax_t), pfmt, ap);
+	va_end(ap);
+	return (*p);
+}
+
+const char *
+gctl_get_ascii(struct gctl_req *req, const char *pfmt, ...)
+{
+	const char *p;
+	va_list ap;
+
+	va_start(ap, pfmt);
+	p = gctl_get_param(req, 0, pfmt, ap);
+	va_end(ap);
 	return (p);
 }

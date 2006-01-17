@@ -128,7 +128,7 @@ mirror_main(struct gctl_req *req, unsigned flags)
 	if ((flags & G_FLAG_VERBOSE) != 0)
 		verbose = 1;
 
-	name = gctl_get_asciiparam(req, "verb");
+	name = gctl_get_ascii(req, "verb");
 	if (name == NULL) {
 		gctl_error(req, "No '%s' argument.", "verb");
 		return;
@@ -151,66 +151,41 @@ mirror_label(struct gctl_req *req)
 	struct g_mirror_metadata md;
 	u_char sector[512];
 	const char *str;
-	char param[16];
-	int *hardcode, *nargs, *noautosync, bal, error, i;
 	unsigned sectorsize;
 	off_t mediasize;
-	intmax_t *valp;
+	intmax_t val;
+	int error, i, nargs, bal, hardcode, noautosync;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 2) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 2) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
 	strlcpy(md.md_magic, G_MIRROR_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_MIRROR_VERSION;
-	str = gctl_get_asciiparam(req, "arg0");
-	if (str == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	str = gctl_get_ascii(req, "arg0");
 	strlcpy(md.md_name, str, sizeof(md.md_name));
 	md.md_mid = arc4random();
-	md.md_all = *nargs - 1;
+	md.md_all = nargs - 1;
 	md.md_mflags = 0;
 	md.md_dflags = 0;
 	md.md_genid = 0;
 	md.md_syncid = 1;
 	md.md_sync_offset = 0;
-	valp = gctl_get_paraml(req, "slice", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "slice");
-		return;
-	}
-	md.md_slice = *valp;
-	str = gctl_get_asciiparam(req, "balance");
-	if (str == NULL) {
-		gctl_error(req, "No '%s' argument.", "balance");
-		return;
-	}
+	val = gctl_get_intmax(req, "slice");
+	md.md_slice = val;
+	str = gctl_get_ascii(req, "balance");
 	bal = balance_id(str);
 	if (bal == -1) {
-		gctl_error(req, "Wrong balance algorithm.");
+		gctl_error(req, "Invalid balance algorithm.");
 		return;
 	}
 	md.md_balance = bal;
-	noautosync = gctl_get_paraml(req, "noautosync", sizeof(*noautosync));
-	if (noautosync == NULL) {
-		gctl_error(req, "No '%s' argument.", "noautosync");
-		return;
-	}
-	if (*noautosync)
+	noautosync = gctl_get_int(req, "noautosync");
+	if (noautosync)
 		md.md_mflags |= G_MIRROR_DEVICE_FLAG_NOAUTOSYNC;
-	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
-	if (hardcode == NULL) {
-		gctl_error(req, "No '%s' argument.", "hardcode");
-		return;
-	}
+	hardcode = gctl_get_int(req, "hardcode");
 
 	/*
 	 * Calculate sectorsize by finding least common multiple from
@@ -218,13 +193,11 @@ mirror_label(struct gctl_req *req)
 	 */
 	mediasize = 0;
 	sectorsize = 0;
-	for (i = 1; i < *nargs; i++) {
+	for (i = 1; i < nargs; i++) {
 		unsigned ssize;
 		off_t msize;
 
-		snprintf(param, sizeof(param), "arg%u", i);
-		str = gctl_get_asciiparam(req, param);
-
+		str = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(str);
 		ssize = g_get_sectorsize(str);
 		if (msize == 0 || ssize == 0) {
@@ -246,10 +219,8 @@ mirror_label(struct gctl_req *req)
 	/*
 	 * Clear last sector first, to spoil all components if device exists.
 	 */
-	for (i = 1; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		str = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		str = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(str, NULL);
 		if (error != 0) {
 			gctl_error(req, "Can't store metadata on %s: %s.", str,
@@ -261,15 +232,13 @@ mirror_label(struct gctl_req *req)
 	/*
 	 * Ok, store metadata (use disk number as priority).
 	 */
-	for (i = 1; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		str = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		str = gctl_get_ascii(req, "arg%d", i);
 		md.md_did = arc4random();
 		md.md_priority = i - 1;
 		md.md_provsize = g_get_mediasize(str);
 		assert(md.md_provsize != 0);
-		if (!*hardcode)
+		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
 			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
@@ -293,23 +262,16 @@ static void
 mirror_clear(struct gctl_req *req)
 {
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(name, G_MIRROR_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
@@ -327,23 +289,16 @@ mirror_dump(struct gctl_req *req)
 {
 	struct g_mirror_metadata md, tmpmd;
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_read(name, (u_char *)&tmpmd, sizeof(tmpmd),
 		    G_MIRROR_MAGIC);
 		if (error != 0) {
@@ -369,28 +324,17 @@ mirror_activate(struct gctl_req *req)
 {
 	struct g_mirror_metadata md, tmpmd;
 	const char *name, *path;
-	int *nargs, error, i;
-	char param[16];
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 2) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 2) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	name = gctl_get_ascii(req, "arg0");
 
-	for (i = 1; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		path = gctl_get_asciiparam(req, param);
-
+	for (i = 1; i < nargs; i++) {
+		path = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_read(path, (u_char *)&tmpmd, sizeof(tmpmd),
 		    G_MIRROR_MAGIC);
 		if (error != 0) {
