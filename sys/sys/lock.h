@@ -78,10 +78,7 @@ struct lock_class {
 #define	LO_CLASSSHIFT		24
 #define	LO_CLASSINDEX(lock)	((((lock)->lo_flags) & LO_CLASSMASK) >> LO_CLASSSHIFT)
 #define	LOCK_CLASS(lock)	(lock_classes[LO_CLASSINDEX((lock))])
-#define	LOCK_CLASS_SPIN_MUTEX	0
-#define	LOCK_CLASS_SLEEP_MUTEX	1
-#define	LOCK_CLASS_SX		2
-#define	LOCK_CLASS_MAX		LOCK_CLASS_SX
+#define	LOCK_CLASS_MAX		(LO_CLASSMASK >> LO_CLASSSHIFT)
 
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
 #define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
@@ -199,6 +196,8 @@ struct lock_list_entry {
 
 #define	LOCK_LOG_DESTROY(lo, flags)	LOCK_LOG_INIT(lo, flags)
 
+#define	lock_initalized(lo)	((lo)->lo_flags & LO_INITIALIZED)
+
 /*
  * Helpful macros for quickly coming up with assertions with informative
  * panic messages.
@@ -215,6 +214,9 @@ extern struct lock_class lock_class_sx;
 
 extern struct lock_class *lock_classes[];
 
+void	lock_init(struct lock_object *lock, struct lock_class *class,
+    const char *name, const char *type, int flags);
+void	lock_destroy(struct lock_object *lock);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
 void	witness_init(struct lock_object *);
@@ -286,8 +288,8 @@ const char *witness_file(struct lock_object *);
 	witness_line(lock)
 
 #else	/* WITNESS */
-#define	WITNESS_INIT(lock)	((lock)->lo_flags |= LO_INITIALIZED)
-#define	WITNESS_DESTROY(lock)	((lock)->lo_flags &= ~LO_INITIALIZED)
+#define	WITNESS_INIT(lock)
+#define	WITNESS_DESTROY(lock)
 #define	WITNESS_DEFINEORDER(lock1, lock2)	0
 #define	WITNESS_CHECKORDER(lock, flags, file, line)
 #define	WITNESS_LOCK(lock, flags, file, line)

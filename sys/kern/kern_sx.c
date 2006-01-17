@@ -77,16 +77,7 @@ sx_sysinit(void *arg)
 void
 sx_init(struct sx *sx, const char *description)
 {
-	struct lock_object *lock;
 
-	lock = &sx->sx_object;
-	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
-	    ("sx lock %s %p already initialized", description, sx));
-	bzero(sx, sizeof(*sx));
-	lock->lo_flags = LOCK_CLASS_SX << LO_CLASSSHIFT;
-	lock->lo_type = lock->lo_name = description;
-	lock->lo_flags |= LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
-	    LO_UPGRADABLE;
 	sx->sx_lock = mtx_pool_find(mtxpool_lockbuilder, sx);
 	sx->sx_cnt = 0;
 	cv_init(&sx->sx_shrd_cv, description);
@@ -94,17 +85,13 @@ sx_init(struct sx *sx, const char *description)
 	cv_init(&sx->sx_excl_cv, description);
 	sx->sx_excl_wcnt = 0;
 	sx->sx_xholder = NULL;
-
-	LOCK_LOG_INIT(lock, 0);
-
-	WITNESS_INIT(lock);
+	lock_init(&sx->sx_object, &lock_class_sx, description, NULL,
+	    LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
 }
 
 void
 sx_destroy(struct sx *sx)
 {
-
-	LOCK_LOG_DESTROY(&sx->sx_object, 0);
 
 	KASSERT((sx->sx_cnt == 0 && sx->sx_shrd_wcnt == 0 && sx->sx_excl_wcnt ==
 	    0), ("%s (%s): holders or waiters\n", __func__,
@@ -114,7 +101,7 @@ sx_destroy(struct sx *sx)
 	cv_destroy(&sx->sx_shrd_cv);
 	cv_destroy(&sx->sx_excl_cv);
 
-	WITNESS_DESTROY(&sx->sx_object);
+	lock_destroy(&sx->sx_object);
 }
 
 void
