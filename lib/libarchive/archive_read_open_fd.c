@@ -99,7 +99,8 @@ file_close(struct archive *a, void *client_data)
 	struct read_fd_data *mine = client_data;
 
 	(void)a; /* UNUSED */
-	free(mine->buffer);
+	if (mine->buffer != NULL)
+		free(mine->buffer);
 	free(mine);
 	return (ARCHIVE_OK);
 }
