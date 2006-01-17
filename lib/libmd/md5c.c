@@ -147,12 +147,13 @@ MD5Init (context)
  */
 
 void
-MD5Update (context, input, inputLen)
+MD5Update (context, in, inputLen)
 	MD5_CTX *context;
-	const unsigned char *input;
+	const void *in;
 	unsigned int inputLen;
 {
 	unsigned int i, idx, partLen;
+	const unsigned char *input = in;
 
 	/* Compute number of bytes mod 64 */
 	idx = (unsigned int)((context->count[0] >> 3) & 0x3F);

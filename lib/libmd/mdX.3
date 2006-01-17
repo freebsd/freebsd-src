@@ -29,7 +29,7 @@
 .Ft void
 .Fn MDXInit "MDX_CTX *context"
 .Ft void
-.Fn MDXUpdate "MDX_CTX *context" "const unsigned char *data" "unsigned int len"
+.Fn MDXUpdate "MDX_CTX *context" "const void *data" "unsigned int len"
 .Ft void
 .Fn MDXPad "MDX_CTX *context"
 .Ft void
@@ -41,7 +41,7 @@
 .Ft "char *"
 .Fn MDXFileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
-.Fn MDXData "const unsigned char *data" "unsigned int len" "char *buf"
+.Fn MDXData "const void *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
 The MDX functions calculate a 128-bit cryptographic checksum (digest)
 for any number of input bytes.
