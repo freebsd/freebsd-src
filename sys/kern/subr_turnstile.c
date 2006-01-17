@@ -832,19 +832,3 @@ turnstile_head(struct turnstile *ts)
 #endif
 	return (TAILQ_FIRST(&ts->ts_blocked));
 }
-
-/*
- * Returns true if a turnstile is empty.
- */
-int
-turnstile_empty(struct turnstile *ts)
-{
-#ifdef INVARIANTS
-	struct turnstile_chain *tc;
-
-	MPASS(ts != NULL);
-	tc = TC_LOOKUP(ts->ts_lockobj);
-	mtx_assert(&tc->tc_lock, MA_OWNED);
-#endif
-	return (TAILQ_EMPTY(&ts->ts_blocked));
-}
