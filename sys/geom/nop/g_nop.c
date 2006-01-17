@@ -81,19 +81,30 @@ g_nop_start(struct bio *bp)
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
 	G_NOP_LOGREQ(bp, "Request received.");
-	cbp = g_clone_bio(bp);
-	if (cbp == NULL) {
-		g_io_deliver(bp, ENOMEM);
-		return;
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		sc->sc_reads++;
+		sc->sc_readbytes += bp->bio_length;
+		break;
+	case BIO_WRITE:
+		sc->sc_writes++;
+		sc->sc_wrotebytes += bp->bio_length;
+		break;
 	}
 	if (sc->sc_failprob > 0) {
 		u_int rval;
 
 		rval = arc4random() % 100;
 		if (rval < sc->sc_failprob) {
+			G_NOP_LOGREQ(bp, "Returning EIO.");
 			g_io_deliver(bp, EIO);
 			return;
 		}
+	}
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
 	}
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
@@ -176,6 +187,10 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc = g_malloc(sizeof(*sc), M_WAITOK);
 	sc->sc_offset = offset;
 	sc->sc_failprob = failprob;
+	sc->sc_reads = 0;
+	sc->sc_writes = 0;
+	sc->sc_readbytes = 0;
+	sc->sc_wrotebytes = 0;
 	gp->softc = sc;
 	gp->start = g_nop_start;
 	gp->orphan = g_nop_orphan;
@@ -449,6 +464,50 @@ g_nop_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
+g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_nop_softc *sc;
+	struct g_provider *pp;
+	const char *name;
+	char param[16];
+	int i, *nargs;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument", "nargs");
+		return;
+	}
+	if (*nargs <= 0) {
+		gctl_error(req, "Missing device(s).");
+		return;
+	}
+
+	for (i = 0; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%d", i);
+		name = gctl_get_asciiparam(req, param); 
+		if (name == NULL) {
+			gctl_error(req, "No 'arg%d' argument", i);
+			return;
+		}
+		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
+			name += strlen("/dev/");
+		pp = g_provider_by_name(name);
+		if (pp == NULL || pp->geom->class != mp) {
+			G_NOP_DEBUG(1, "Provider %s is invalid.", name);
+			gctl_error(req, "Provider %s is invalid.", name);
+			return; 
+		}
+		sc = pp->geom->softc;
+		sc->sc_reads = 0;
+		sc->sc_writes = 0;
+		sc->sc_readbytes = 0;
+		sc->sc_wrotebytes = 0;
+	}
+}
+
+static void
 g_nop_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
@@ -474,6 +533,9 @@ g_nop_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	} else if (strcmp(verb, "destroy") == 0) {
 		g_nop_ctl_destroy(req, mp);
 		return;
+	} else if (strcmp(verb, "reset") == 0) {
+		g_nop_ctl_reset(req, mp);
+		return;
 	}
 
 	gctl_error(req, "Unknown verb.");
@@ -490,7 +552,13 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sc = gp->softc;
 	sbuf_printf(sb, "%s<Offset>%jd</Offset>\n", indent,
 	    (intmax_t)sc->sc_offset);
-	sbuf_printf(sb, "%s<Failprob>%u</Failprob>\n", indent, sc->sc_failprob);
+	sbuf_printf(sb, "%s<FailProb>%u</FailProb>\n", indent, sc->sc_failprob);
+	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
+	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
+	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
+	    sc->sc_readbytes);
+	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,
+	    sc->sc_wrotebytes);
 }
 
 DECLARE_GEOM_CLASS(g_nop_class, g_nop);

@@ -68,5 +68,8 @@ struct g_command class_commands[] = {
 	    },
 	    "[-fv] prov ..."
 	},
+	{ "reset", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] prov ..."
+	},
 	G_CMD_SENTINEL
 };
