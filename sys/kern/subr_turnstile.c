@@ -328,6 +328,7 @@ init_turnstiles(void)
 		    NULL, MTX_SPIN);
 	}
 	mtx_init(&td_contested_lock, "td_contested", NULL, MTX_SPIN);
+	LIST_INIT(&thread0.td_contested);
 	thread0.td_turnstile = NULL;
 }
 
