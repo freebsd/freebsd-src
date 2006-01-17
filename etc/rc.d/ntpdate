@@ -1,12 +1,10 @@
 #!/bin/sh
 #
-# $NetBSD: ntpdate,v 1.8 2002/03/22 04:16:39 lukem Exp $
 # $FreeBSD$
 #
 
-# BEFORE: ntpd
 # PROVIDE: ntpdate
-# REQUIRE: NETWORKING syslogd
+# REQUIRE: NETWORKING syslogd named
 # KEYWORD: nojail
 
 . /etc/rc.subr
