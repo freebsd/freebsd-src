@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
  * XMAC registers. This driver takes advantage of these features to allow
  * both XMACs to operate as independent interfaces.
  */
- 
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -694,7 +694,7 @@ sk_marv_miibus_readreg(sc_if, phy, reg)
 	SK_IF_LOCK(sc_if);
         SK_YU_WRITE_2(sc_if, YUKON_SMICR, YU_SMICR_PHYAD(phy) |
 		      YU_SMICR_REGAD(reg) | YU_SMICR_OP_READ);
-        
+
 	for (i = 0; i < SK_TIMEOUT; i++) {
 		DELAY(1);
 		val = SK_YU_READ_2(sc_if, YUKON_SMICR);
@@ -708,7 +708,7 @@ sk_marv_miibus_readreg(sc_if, phy, reg)
 		SK_IF_UNLOCK(sc_if);
 		return(0);
 	}
-        
+
 	val = SK_YU_READ_2(sc_if, YUKON_SMIDR);
 	SK_IF_UNLOCK(sc_if);
 
@@ -933,12 +933,12 @@ sk_init_rx_ring(sc_if)
 		if (i == (SK_RX_RING_CNT - 1)) {
 			cd->sk_rx_chain[i].sk_next =
 			    &cd->sk_rx_chain[0];
-			rd->sk_rx_ring[i].sk_next = 
+			rd->sk_rx_ring[i].sk_next =
 			    vtophys(&rd->sk_rx_ring[0]);
 		} else {
 			cd->sk_rx_chain[i].sk_next =
 			    &cd->sk_rx_chain[i + 1];
-			rd->sk_rx_ring[i].sk_next = 
+			rd->sk_rx_ring[i].sk_next =
 			    vtophys(&rd->sk_rx_ring[i + 1]);
 		}
 	}
@@ -965,12 +965,12 @@ sk_init_tx_ring(sc_if)
 		if (i == (SK_TX_RING_CNT - 1)) {
 			cd->sk_tx_chain[i].sk_next =
 			    &cd->sk_tx_chain[0];
-			rd->sk_tx_ring[i].sk_next = 
+			rd->sk_tx_ring[i].sk_next =
 			    vtophys(&rd->sk_tx_ring[0]);
 		} else {
 			cd->sk_tx_chain[i].sk_next =
 			    &cd->sk_tx_chain[i + 1];
-			rd->sk_tx_ring[i].sk_next = 
+			rd->sk_tx_ring[i].sk_next =
 			    vtophys(&rd->sk_tx_ring[i + 1]);
 		}
 	}
@@ -1011,7 +1011,7 @@ sk_newbuf(sc_if, c, m)
 
 		/* Attach the buffer to the mbuf */
 		MEXTADD(m_new, buf, SK_JLEN, sk_jfree,
-		    (struct sk_if_softc *)sc_if, 0, EXT_NET_DRV); 
+		    (struct sk_if_softc *)sc_if, 0, EXT_NET_DRV);
 		m_new->m_data = (void *)buf;
 		m_new->m_pkthdr.len = m_new->m_len = SK_JLEN;
 	} else {
@@ -1079,7 +1079,7 @@ sk_alloc_jumbo_mem(sc_if)
 	for (i = 0; i < SK_JSLOTS; i++) {
 		sc_if->sk_cdata.sk_jslots[i] = ptr;
 		ptr += SK_JLEN;
-		entry = malloc(sizeof(struct sk_jpool_entry), 
+		entry = malloc(sizeof(struct sk_jpool_entry),
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
 			sk_free_jumbo_mem(sc_if);
@@ -2751,7 +2751,7 @@ sk_init_yukon(sc_if)
 	/* Setup Yukon's address */
 	for (i = 0; i < 3; i++) {
 		/* Write Source Address 1 (unicast filter) */
-		SK_YU_WRITE_2(sc_if, YUKON_SAL1 + i * 4, 
+		SK_YU_WRITE_2(sc_if, YUKON_SAL1 + i * 4,
 			      IF_LLADDR(sc_if->sk_ifp)[i * 2] |
 			      IF_LLADDR(sc_if->sk_ifp)[i * 2 + 1] << 8);
 	}
@@ -2828,7 +2828,7 @@ sk_init_locked(sc_if)
 			SK_LINKLED_LINKSYNC_ON);
 
 		/* Configure RX LED */
-		SK_IF_WRITE_1(sc_if, 0, SK_RXLED1_CTL,	
+		SK_IF_WRITE_1(sc_if, 0, SK_RXLED1_CTL,
 			SK_RXLEDCTL_COUNTER_START);
 
 		/* Configure TX LED */
