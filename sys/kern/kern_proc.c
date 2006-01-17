@@ -1018,6 +1018,8 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			}
 			mtx_unlock_spin(&sched_lock);
 			PROC_LOCK(p);
+			KASSERT(p->p_ucred != NULL,
+			    ("process credential is NULL for non-NEW proc"));
 			/*
 			 * Show a user only appropriate processes.
 			 */
@@ -1032,8 +1034,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			switch (oid_number) {
 
 			case KERN_PROC_GID:
-				if (p->p_ucred == NULL ||
-				    p->p_ucred->cr_gid != (gid_t)name[0]) {
+				if (p->p_ucred->cr_gid != (gid_t)name[0]) {
 					PROC_UNLOCK(p);
 					continue;
 				}
@@ -1041,7 +1042,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			case KERN_PROC_PGRP:
 				/* could do this by traversing pgrp */
-				if (p->p_pgrp == NULL || 
+				if (p->p_pgrp == NULL ||
 				    p->p_pgrp->pg_id != (pid_t)name[0]) {
 					PROC_UNLOCK(p);
 					continue;
@@ -1049,8 +1050,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				break;
 
 			case KERN_PROC_RGID:
-				if (p->p_ucred == NULL ||
-				    p->p_ucred->cr_rgid != (gid_t)name[0]) {
+				if (p->p_ucred->cr_rgid != (gid_t)name[0]) {
 					PROC_UNLOCK(p);
 					continue;
 				}
@@ -1082,16 +1082,14 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				break;
 
 			case KERN_PROC_UID:
-				if (p->p_ucred == NULL || 
-				    p->p_ucred->cr_uid != (uid_t)name[0]) {
+				if (p->p_ucred->cr_uid != (uid_t)name[0]) {
 					PROC_UNLOCK(p);
 					continue;
 				}
 				break;
 
 			case KERN_PROC_RUID:
-				if (p->p_ucred == NULL || 
-				    p->p_ucred->cr_ruid != (uid_t)name[0]) {
+				if (p->p_ucred->cr_ruid != (uid_t)name[0]) {
 					PROC_UNLOCK(p);
 					continue;
 				}
