@@ -1365,13 +1365,23 @@ sk_reset(sc)
 	 * defers interrupts specified in the interrupt moderation
 	 * timer mask based on the timeout specified in the interrupt
 	 * moderation timer init register. Each bit in the timer
-	 * register represents 18.825ns, so to specify a timeout in
-	 * microseconds, we have to multiply by 54.
+	 * register represents one tick, so to specify a timeout in
+	 * microseconds, we have to multiply by the correct number of
+	 * ticks-per-microsecond.
 	 */
+	switch (sc->sk_type) {
+	case SK_GENESIS:
+		sc->sk_int_ticks = SK_IMTIMER_TICKS_GENESIS;
+		break;
+	default:
+		sc->sk_int_ticks = SK_IMTIMER_TICKS_YUKON;
+		break;
+	}
 	if (bootverbose)
 		printf("skc%d: interrupt moderation is %d us\n",
 		    sc->sk_unit, sc->sk_int_mod);
-	sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod));
+	sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod,
+	    sc->sk_int_ticks));
 	sk_win_write_4(sc, SK_IMMR, SK_ISR_TX1_S_EOF|SK_ISR_TX2_S_EOF|
 	    SK_ISR_RX1_EOF|SK_ISR_RX2_EOF);
 	sk_win_write_1(sc, SK_IMTIMERCTL, SK_IMCTL_START);
@@ -2905,8 +2915,9 @@ sk_init_locked(sc_if)
 	/* Set interrupt moderation if changed via sysctl. */
 	/* SK_LOCK(sc); */
 	imr = sk_win_read_4(sc, SK_IMTIMERINIT);
-	if (imr != SK_IM_USECS(sc->sk_int_mod)) {
-		sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod));
+	if (imr != SK_IM_USECS(sc->sk_int_mod, sc->sk_int_ticks)) {
+		sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod,
+		    sc->sk_int_ticks));
 		if (bootverbose)
 			printf("skc%d: interrupt moderation is %d us\n",
 			    sc->sk_unit, sc->sk_int_mod);
