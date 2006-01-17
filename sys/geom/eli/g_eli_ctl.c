@@ -611,6 +611,10 @@ g_eli_ctl_kill(struct gctl_req *req, struct g_class *mp)
 		for (i = 0; i < *nargs; i++) {
 			snprintf(param, sizeof(param), "arg%u", i);
 			prov = gctl_get_asciiparam(req, param);
+			if (prov == NULL) {
+				G_ELI_DEBUG(0, "No 'arg%d' argument.", i);
+				continue;
+			}
 
 			sc = g_eli_find_device(mp, prov);
 			if (sc == NULL) {
