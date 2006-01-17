@@ -211,6 +211,11 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("nfs_reclaim: pushing active", vp);
 
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+
 	vfs_hash_remove(vp);
 
 	/*
@@ -232,6 +237,5 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 
 	uma_zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
 	return (0);
 }
