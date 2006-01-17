@@ -22,6 +22,11 @@ ldconfig_start()
 	checkyesno ldconfig_insecure && _ins="-i"
 	if [ -x "${ldconfig_command}" ]; then
 		_LDC="/lib /usr/lib"
+		for i in ${ldconfig_local_dirs}; do
+			if [ -d "${i}" ]; then
+				ldconfig_paths="${ldconfig_paths} `find ${i} -type f`"
+			fi
+		done
 		for i in ${ldconfig_paths} /etc/ld-elf.so.conf; do
 			if [ -r "${i}" ]; then
 				_LDC="${_LDC} ${i}"
@@ -29,6 +34,18 @@ ldconfig_start()
 		done
 		echo 'ELF ldconfig path:' ${_LDC}
 		${ldconfig} -elf ${_ins} ${_LDC}
+
+		case `sysctl -n hw.machine_arch` in
+		amd64)
+			for i in ${ldconfig_local32_dirs}; do
+				if [ -d "${i}" ]; then
+					ldconfig32_paths="${ldconfig32_paths} `find ${i} -type f`"
+				fi
+			done
+			echo '32-bit compatibility ldconfig path:' ${ldconfig32_paths}
+			${ldconfig} -32 -m ${_ins} ${ldconfig32_paths}
+			;;
+		esac
 
 		# Legacy aout support for i386 only
 		case `sysctl -n hw.machine_arch` in
