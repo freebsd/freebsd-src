@@ -88,7 +88,7 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 }
 
 char *
-MDXData (const unsigned char *data, unsigned int len, char *buf)
+MDXData (const void *data, unsigned int len, char *buf)
 {
 	MDX_CTX ctx;
 

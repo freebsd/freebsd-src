@@ -101,14 +101,15 @@ RIPEMD160_CTX *c;
 	c->num=0;
 	}
 
-void RIPEMD160_Update(c, data, len)
+void RIPEMD160_Update(c, in, len)
 RIPEMD160_CTX *c;
-const unsigned char *data;
+const void *in;
 size_t len;
 	{
 	u_int32_t *p;
 	int sw,sc;
 	u_int32_t l;
+	const unsigned char *data = in;
 
 	if (len == 0) return;
 
