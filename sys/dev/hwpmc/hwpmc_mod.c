@@ -1486,17 +1486,19 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		}
 
 		/*
-		 * If this process is the target of a PMC, check if the new
-		 * credentials are compatible with the owner's permissions.
+		 * If the process being exec'ed is not the target of any
+		 * PMC, we are done.
 		 */
-
-		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL)
+		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL) {
+			if (freepath)
+				FREE(freepath, M_TEMP);
 			break;
+		}
 
 		/*
 		 * Log the exec event to all monitoring owners.  Skip
 		 * owners who have already recieved the event because
-		 * the have system sampling PMCs active.
+		 * they had system sampling PMCs active.
 		 */
 		for (ri = 0; ri < md->pmd_npmc; ri++)
 			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
