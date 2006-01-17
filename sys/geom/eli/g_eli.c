@@ -831,8 +831,6 @@ failed:
 		g_detach(cp);
 	}
 	g_destroy_consumer(cp);
-	if (pp != NULL)
-		g_destroy_provider(pp);
 	g_destroy_geom(gp);
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
