@@ -543,9 +543,6 @@ witness_init(struct lock_object *lock)
 
 	/* Various sanity checks. */
 	class = LOCK_CLASS(lock);
-	if (lock->lo_flags & LO_INITIALIZED)
-		panic("%s: lock (%s) %s is already initialized", __func__,
-		    class->lc_name, lock->lo_name);
 	if ((lock->lo_flags & LO_RECURSABLE) != 0 &&
 	    (class->lc_flags & LC_RECURSABLE) == 0)
 		panic("%s: lock (%s) %s can not be recursable", __func__,
@@ -566,7 +563,6 @@ witness_init(struct lock_object *lock)
 	 * it to the pending_locks list.  If it is not too early, then enroll
 	 * the lock now.
 	 */
-	lock->lo_flags |= LO_INITIALIZED;
 	if (witness_watch == 0 || panicstr != NULL ||
 	    (lock->lo_flags & LO_WITNESS) == 0)
 		lock->lo_witness = NULL;
@@ -586,9 +582,6 @@ witness_destroy(struct lock_object *lock)
 	class = LOCK_CLASS(lock);
 	if (witness_cold)
 		panic("lock (%s) %s destroyed while witness_cold",
-		    class->lc_name, lock->lo_name);
-	if ((lock->lo_flags & LO_INITIALIZED) == 0)
-		panic("%s: lock (%s) %s is not initialized", __func__,
 		    class->lc_name, lock->lo_name);
 
 	/* XXX: need to verify that no one holds the lock */
@@ -615,7 +608,6 @@ witness_destroy(struct lock_object *lock)
 		STAILQ_REMOVE(&pending_locks, lock, lock_object, lo_list);
 		lock->lo_flags &= ~LO_ENROLLPEND;
 	}
-	lock->lo_flags &= ~LO_INITIALIZED;
 }
 
 #ifdef DDB
