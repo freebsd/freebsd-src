@@ -99,12 +99,13 @@ MD2_CTX *context;                                        /* context */
      operation, processing another message block, and updating the
      context.
  */
-void MD2Update (context, input, inputLen)
+void MD2Update (context, in, inputLen)
 MD2_CTX *context;                                        /* context */
-const unsigned char *input;                                /* input block */
+const void *in;                                /* input block */
 unsigned int inputLen;                     /* length of input block */
 {
   unsigned int i, idx, partLen;
+  const unsigned char *input = in;
 
   /* Update number of bytes mod 16 */
   idx = context->count;

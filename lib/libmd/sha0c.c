@@ -115,14 +115,15 @@ SHA_CTX *c;
 	c->num=0;
 	}
 
-void SHA_Update(c, data, len)
+void SHA_Update(c, in, len)
 SHA_CTX *c;
-const unsigned char *data;
+const void *in;
 size_t len;
 	{
 	u_int32_t *p;
 	int ew,ec,sw,sc;
 	u_int32_t l;
+	const unsigned char *data = in;
 
 	if (len == 0) return;
 
