@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2005
+.Dd December 20, 2005
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2799,6 +2799,14 @@ Set to
 to have
 .Pa /tmp
 cleaned at startup.
+.It Va clear_tmp_X
+.Pq Vt bool
+Set to
+.Dq Li NO
+to disable removing of X11 lock files,
+and the removal and (secure) recreation
+of the various socket directories for X11
+related programs.
 .It Va ldconfig_paths
 .Pq Vt str
 Set to the list of shared library paths to use with
