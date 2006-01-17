@@ -904,9 +904,6 @@ void
 mutex_init(void)
 {
 
-	/* Setup thread0 so that mutexes work. */
-	LIST_INIT(&thread0.td_contested);
-
 	/* Setup turnstiles so that sleep mutexes work. */
 	init_turnstiles();
 
