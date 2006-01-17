@@ -61,7 +61,7 @@ typedef struct Algorithm_t {
 	DIGEST_Init *Init;
 	DIGEST_Update *Update;
 	DIGEST_End *End;
-	char *(*Data)(const unsigned char *, unsigned int, char *);
+	char *(*Data)(const void *, unsigned int, char *);
 	char *(*File)(const char *, char *);
 } Algorithm_t;
 
