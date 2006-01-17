@@ -837,6 +837,7 @@ ich_pci_attach(device_t dev)
 	 * 'special' boards.
 	 */
 	switch (subdev) {
+	case 0x202f161f:	/* Gateway 7326GZ */
 	case 0x203a161f:	/* Gateway 4028GZ */
 	case 0x8144104d:	/* Sony VAIO PCG-TR* */
 	case 0x8197104d:	/* Sony S1XP */
