@@ -600,12 +600,16 @@ hpfs_reclaim(ap)
 
 	dprintf(("hpfs_reclaim(0x%x0): \n", hp->h_no));
 
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+
 	vfs_hash_remove(vp);
 
 	mtx_destroy(&hp->h_interlock);
 
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
 
 	FREE(hp, M_HPFSNO);
 
