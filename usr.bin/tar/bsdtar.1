@@ -167,7 +167,9 @@ The filename can be
 .Pa -
 for standard input or standard output.
 If not specified, the default tape device will be used.
-(On FreeBSD, the default tape device is
+(On
+.Fx ,
+the default tape device is
 .Pa /dev/sa0 . )
 .It Fl -fast-read ( Fl W Cm fast-read )
 (x and t mode only)
@@ -660,7 +662,10 @@ John Gilmore's
 public-domain implementation (circa November, 1987)
 was quite influential, and formed the basis of GNU tar.
 GNU tar was included as the standard system tar
-in FreeBSD beginning with FreeBSD 1.0.
+in
+.Fx
+beginning with
+.Fx 1.0 .
 .Pp
 This is a complete re-implementation based on the
 .Xr libarchive 3
