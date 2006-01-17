@@ -81,11 +81,6 @@ g_nop_start(struct bio *bp)
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
 	G_NOP_LOGREQ(bp, "Request received.");
-	cbp = g_clone_bio(bp);
-	if (cbp == NULL) {
-		g_io_deliver(bp, ENOMEM);
-		return;
-	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		sc->sc_reads++;
@@ -104,6 +99,11 @@ g_nop_start(struct bio *bp)
 			g_io_deliver(bp, EIO);
 			return;
 		}
+	}
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
 	}
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
