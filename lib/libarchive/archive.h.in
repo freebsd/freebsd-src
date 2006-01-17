@@ -180,6 +180,7 @@ int		 archive_read_support_format_cpio(struct archive *);
 int		 archive_read_support_format_gnutar(struct archive *);
 int		 archive_read_support_format_iso9660(struct archive *);
 int		 archive_read_support_format_tar(struct archive *);
+int		 archive_read_support_format_tp(struct archive *);
 int		 archive_read_support_format_zip(struct archive *);
 
 

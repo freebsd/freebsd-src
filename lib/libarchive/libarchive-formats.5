@@ -235,6 +235,16 @@ compressed with the
 .Dq deflate
 algorithm.
 Older zip compression algorithms are not supported.
+.Ss Tp Formats
+The libarchive library has experimental support for tp format,
+which was used in Fourth Edition through Sixth Edition Unix.
+(It was supplanted by tar in Seventh Edition Unix.)
+There were several distinct variants of this format; libarchive
+supports the original tp format and the itp variant.
+Currently, tp format support is not enabled by
+.Fn archive_read_support_format_all ,
+it must be explicitly enabled by calling
+.Fn archive_read_support_format_tp .
 .Sh SEE ALSO
 .Xr cpio 1 ,
 .Xr mkisofs 1 ,
