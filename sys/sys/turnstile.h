@@ -62,9 +62,8 @@
  * released at thread destruction may not be the same turnstile that the
  * thread allocated when it was created.
  *
- * A function can query a turnstile to see if it is empty via
- * turnstile_empty().  The highest priority thread blocked on a turnstile
- * can be obtained via turnstile_head().
+ * The highest priority thread blocked on a turnstile can be obtained via
+ * turnstile_head().
  */
 
 struct lock_object;
@@ -78,7 +77,6 @@ void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
 void	turnstile_broadcast(struct turnstile *);
 void	turnstile_claim(struct lock_object *);
-int	turnstile_empty(struct turnstile *);
 void	turnstile_free(struct turnstile *);
 struct thread *turnstile_head(struct turnstile *);
 void	turnstile_lock(struct lock_object *);
