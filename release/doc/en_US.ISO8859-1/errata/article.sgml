@@ -37,6 +37,7 @@
       <year>2003</year>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -112,6 +113,27 @@
 	</thead>
 
 	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
+		>06:03.cpio</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in &man.cpio.1;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc"
+		>06:02.eex</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>&man.ee.1; temporary file privilege escalation</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc"
+		>06:01.texindex</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>Texindex temporary file privilege escalation</para></entry>
+	  </row>
+
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc"
 		>SA-05:09.htt</ulink></entry>
