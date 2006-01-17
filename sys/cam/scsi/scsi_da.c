@@ -204,6 +204,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * Doesn't like the synchronize cache command.
+		 * Reported by: Blaz Zupan <blaz@gold.amis.net>
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "MAVERICK 540S", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
@@ -213,6 +214,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Doesn't like the synchronize cache command.
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "LPS525S", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Doesn't like the synchronize cache command.
+		 * Reported by: walter@pelissero.de
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "LPS540S", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
@@ -229,6 +238,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		/* See above. */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Doesn't like the synchronize cache command.
+		 * Reported by: walter@pelissero.de
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CP3500*", "*"},
+                /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -315,7 +332,30 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Frontier Labs NEX IA+ Digital Audio Player, rev 1.10/0.01
 		 * PR: kern/70158
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FL" , "NexIA+*", "*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FL" , "Nex*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * ZICPlay USB MP3 Player with FM
+		 * PR: kern/75057
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ACTIONS*" , "USB DISK*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * TEAC USB floppy mechanisms
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TEAC" , "FD-05*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Kingston DataTraveler II+ USB Pen-Drive.
+		 * Reported by: Pawel Jakub Dawidek <pjd@FreeBSD.org>
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Kingston" , "DataTraveler II+", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 };
