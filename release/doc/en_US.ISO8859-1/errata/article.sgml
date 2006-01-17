@@ -36,6 +36,7 @@
       <year>2003</year>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -99,7 +100,54 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>No advisories.</para>
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:04.ipfw.asc"
+		>06:04.ipfw</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>&man.ipfw.4; IP fragment denial of service</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
+		>06:03.cpio</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in &man.cpio.1;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc"
+		>06:02.eex</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>&man.ee.1; temporary file privilege escalation</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc"
+		>06:01.texindex</ulink></entry>
+	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>Texindex temporary file privilege escalation</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
   </sect1>
 
   <sect1 id="known-problems">
