@@ -2425,6 +2425,9 @@ struct bge_softc {
 	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
+	u_long			bge_rx_discards;
+	u_long			bge_tx_discards;
+	u_long			bge_tx_collisions;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
