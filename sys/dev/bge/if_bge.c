@@ -1899,6 +1899,9 @@ bge_attach(dev)
 	ifp->if_snd.ifq_maxlen = BGE_TX_RING_CNT - 1;
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
 	ifp->if_capabilities = IFCAP_HWCSUM;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -2203,6 +2206,14 @@ bge_rxeof(sc)
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
 
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
+
 		cur_rx =
 	    &sc->bge_rdata->bge_rx_return_ring[sc->bge_rx_saved_considx];
 
@@ -2338,6 +2349,80 @@ bge_txeof(sc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t bge_poll;
+
+static void
+bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct bge_softc *sc = ifp->if_softc;
+
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 0);
+		CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 0);
+		BGE_CLRBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+		CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
+		return;
+	}
+
+	sc->rxcycles = count;
+
+	if (!(ifp->if_flags & IFF_RUNNING))
+		return;
+
+	bge_rxeof(sc);
+	bge_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		bge_start(ifp);
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		u_int32_t statusword;
+		u_int32_t status, mimode;
+
+		statusword =
+		    atomic_readandclear_32(&sc->bge_rdata->bge_status_block.bge_status);
+
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
+			status = CSR_READ_4(sc, BGE_MAC_STS);
+			if (status & BGE_MACSTAT_MI_INTERRUPT) {
+				sc->bge_link = 0;
+				untimeout(bge_tick, sc, sc->bge_stat_ch);
+				bge_tick(sc);
+				/* Clear the interrupt */
+				CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
+				    BGE_EVTENB_MI_INTERRUPT);
+				bge_miibus_readreg(sc->bge_dev, 1, BRGPHY_MII_ISR);
+				bge_miibus_writereg(sc->bge_dev, 1, BRGPHY_MII_IMR,
+				    BRGPHY_INTRS);
+			}
+		} else {
+			if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED) {
+				status = CSR_READ_4(sc, BGE_MAC_STS);
+				mimode = CSR_READ_4(sc, BGE_MI_MODE);
+				if (!(status & (BGE_MACSTAT_PORT_DECODE_ERROR|
+				    BGE_MACSTAT_MI_COMPLETE)) && (!sc->bge_tbi &&
+				    (mimode & BGE_MIMODE_AUTOPOLL))) {
+					sc->bge_link = 0;
+					untimeout(bge_tick, sc, sc->bge_stat_ch);
+					bge_tick(sc);
+				}
+				/* Clear the interrupt */
+				CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
+				    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
+				    BGE_MACSTAT_LINK_CHANGED);
+
+				/* Force flush the status block cached by PCI bridge */
+				CSR_READ_4(sc, BGE_MBX_IRQ0_LO);
+			}
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void
 bge_intr(xsc)
 	void *xsc;
@@ -2350,6 +2435,21 @@ bge_intr(xsc)
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		return;
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(bge_poll, ifp)) { /* ok, disable interrupts */
+		BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+		CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
+		CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
+		CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
+		bge_poll(ifp, 0, 1);
+		return;
+	}
+#endif /* DEVICE_POLLING */
+
 	statusword =
 	    atomic_readandclear_32(&sc->bge_rdata->bge_status_block.bge_status);
 
@@ -2819,10 +2919,21 @@ bge_init(xsc)
 	/* Tell firmware we're alive. */
 	BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if we are polling. */
+	if (ifp->if_ipending & IFF_POLLING) {
+		BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+		CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
+		CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
+		CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
+	} else
+#endif
 	/* Enable host interrupts. */
+	{
 	BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_CLEAR_INTA);
 	BGE_CLRBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
+	}
 
 	bge_ifmedia_upd(ifp);
 
@@ -2945,7 +3056,7 @@ bge_ioctl(ifp, command, data)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int s, mask, error = 0;
+	int s, error = 0;
 	struct mii_data *mii;
 
 	s = splimp();
@@ -3016,14 +3127,7 @@ bge_ioctl(ifp, command, data)
 		}
 		break;
         case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
-			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
-		}
-		error = 0;
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = EINVAL;
@@ -3072,6 +3176,10 @@ bge_stop(sc)
 		mii = device_get_softc(sc->bge_miibus);
 
 	untimeout(bge_tick, sc, sc->bge_stat_ch);
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
 
 	/*
 	 * Disable all of the receiver blocks
@@ -3155,8 +3263,6 @@ bge_stop(sc)
 	sc->bge_link = 0;
 
 	sc->bge_tx_saved_considx = BGE_TXCONS_UNSET;
-
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
 }
