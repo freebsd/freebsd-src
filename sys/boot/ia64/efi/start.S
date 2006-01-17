@@ -62,17 +62,12 @@
 				   non-writable segments. */
 #define DT_JMPREL	23	/* Address of PLT relocations. */
 
-#define DT_COUNT	24	/* Number of defined d_tag values. */
-	
-#define R_IA64_NONE		0	/* None */
-#define R_IA64_DIR64MSB		0x26	/* word64 MSB	S + A */
-#define R_IA64_DIR64LSB		0x27	/* word64 LSB	S + A */
-#define R_IA64_FPTR64MSB	0x46	/* word64 MSB	@fptr(S + A) */
-#define R_IA64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
-#define R_IA64_REL64MSB		0x6e	/* word64 MSB	BD + A */
-#define R_IA64_REL32LSB		0x6d	/* word32 LSB	BD + A */
-#define R_IA64_REL64LSB		0x6f	/* word64 LSB	BD + A */
-#define	R_IA64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
+#define R_IA_64_NONE		0	/* None */
+#define R_IA_64_DIR64LSB	0x27	/* word64 LSB	S + A */
+#define R_IA_64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
+#define R_IA_64_REL32LSB	0x6d	/* word32 LSB	BD + A */
+#define R_IA_64_REL64LSB	0x6f	/* word64 LSB	BD + A */
+#define	R_IA_64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
 
 ENTRY(_start, 2)
 	alloc	loc0=ar.pfs,2,3,3,0
@@ -134,7 +129,7 @@ _start_plabel:
 // r22 = size of PLT relocations
 // r23 = relocation type
 // r24 = address of symbol
-// r28 = R_IA64_IPLTLSB
+// r28 = R_IA_64_IPLTLSB
 // f8 = address of symbol table
 // f9 = size of symtab element
 
@@ -155,7 +150,7 @@ STATIC_ENTRY(_reloc, 2)
 	mov	r19=0
 	mov	r22=0
 	mov	r20=24
-	mov	r28=R_IA64_IPLTLSB
+	mov	r28=R_IA_64_IPLTLSB
 	;;
 1:
 	ld8	r16=[r15],8		// read r15->d_tag
@@ -214,13 +209,13 @@ STATIC_ENTRY(_reloc, 2)
 	sub	r19=r19,r20		// update relasz
 	extr.u	r23=r16,0,32		// ELF64_R_TYPE(r16)
 	;;
-	cmp.eq	p6,p0=R_IA64_NONE,r23
+	cmp.eq	p6,p0=R_IA_64_NONE,r23
 (p6)	br.cond.dpnt.few 2b
 	;;
-	cmp.eq	p6,p0=R_IA64_REL32LSB,r23
+	cmp.eq	p6,p0=R_IA_64_REL32LSB,r23
 (p6)	br.cond.dptk.few 3f
 	;;
-	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_REL64LSB,r23
 (p6)	br.cond.dptk.few 4f
 	;;
 	extr.u	r29=r16,32,32		// ELF64_R_SYM(r16)
@@ -237,10 +232,10 @@ STATIC_ENTRY(_reloc, 2)
 	;;
 	add	r24=r29,in0		// relocate symbol value
 	;;
-	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_DIR64LSB,r23
 (p6)	br.cond.dptk.few 5f
 	;;
-	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_FPTR64LSB,r23
 (p6)	br.cond.dptk.few 6f
 	;;
 	cmp.ne	p6,p0=r28,r23		// IPLTLSB

@@ -157,7 +157,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
 
 	switch (ELF_R_TYPE(rela->r_info)) {
-	case R_IA64_REL64LSB:
+	case R_IA_64_REL64LSB:
 		/*
 		 * We handle rtld's relocations in rtld_start.S
 		 */
@@ -166,7 +166,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 				load64(where) + (Elf_Addr) obj->relocbase);
 		break;
 
-	case R_IA64_DIR64LSB: {
+	case R_IA_64_DIR64LSB: {
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 		Elf_Addr target;
@@ -182,7 +182,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
-	case R_IA64_FPTR64LSB: {
+	case R_IA_64_FPTR64LSB: {
 		/*
 		 * We have to make sure that all @fptr references to
 		 * the same function are identical so that code can
@@ -229,7 +229,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
-	case R_IA64_IPLTLSB: {
+	case R_IA_64_IPLTLSB: {
 		/*
 		 * Relocation typically used to populate C++ virtual function
 		 * tables. It creates a 128-bit function descriptor at the
@@ -259,7 +259,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
-	case R_IA64_DTPMOD64LSB: {
+	case R_IA_64_DTPMOD64LSB: {
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 
@@ -272,7 +272,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
-	case R_IA64_DTPREL64LSB: {
+	case R_IA_64_DTPREL64LSB: {
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 
@@ -285,7 +285,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
-	case R_IA64_TPREL64LSB: {
+	case R_IA_64_TPREL64LSB: {
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 
@@ -314,7 +314,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
-	case R_IA64_NONE:
+	case R_IA_64_NONE:
 		break;
 
 	default:
@@ -396,7 +396,7 @@ reloc_plt(Obj_Entry *obj)
 		for (rel = obj->pltrel;  rel < rellim;  rel++) {
 			Elf_Addr *where;
 
-			assert(ELF_R_TYPE(rel->r_info) == R_IA64_IPLTLSB);
+			assert(ELF_R_TYPE(rel->r_info) == R_IA_64_IPLTLSB);
 
 			/* Relocate the @fptr pointing into the PLT. */
 			where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
@@ -411,7 +411,7 @@ reloc_plt(Obj_Entry *obj)
 		for (rela = obj->pltrela;  rela < relalim;  rela++) {
 			Elf_Addr *where;
 
-			assert(ELF_R_TYPE(rela->r_info) == R_IA64_IPLTLSB);
+			assert(ELF_R_TYPE(rela->r_info) == R_IA_64_IPLTLSB);
 
 			/* Relocate the @fptr pointing into the PLT. */
 			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
@@ -439,7 +439,7 @@ reloc_jmpslots(Obj_Entry *obj)
 			const Elf_Sym *def;
 			const Obj_Entry *defobj;
 
-			assert(ELF_R_TYPE(rel->r_info) == R_IA64_IPLTLSB);
+			assert(ELF_R_TYPE(rel->r_info) == R_IA_64_IPLTLSB);
 			where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 			def = find_symdef(ELF_R_SYM(rel->r_info), obj,
 					  &defobj, true, NULL);
