@@ -712,15 +712,16 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				 */
 #ifdef __FreeBSD__
 				*m0 = m_dup(m, M_DONTWAIT);
-				/* From KAME Project : We have missed this! */
-				m_adj(*m0, (h->ip_hl << 2) -
-				    (*m0)->m_pkthdr.len);
 #else
 				*m0 = m_copym2(m, 0, h->ip_hl << 2, M_NOWAIT);
 #endif
 				if (*m0 == NULL)
 					goto no_mem;
 #ifdef __FreeBSD__
+				/* From KAME Project : We have missed this! */
+				m_adj(*m0, (h->ip_hl << 2) -
+				    (*m0)->m_pkthdr.len);
+
 				KASSERT(((*m0)->m_next == NULL), 
 				    ("(*m0)->m_next != NULL: %s", 
 				    __FUNCTION__));
