@@ -20,6 +20,10 @@
     lib
     ..
     libdata
+        ldconfig
+        ..
+        ldconfig32
+        ..
         pkgconfig
         ..
     ..

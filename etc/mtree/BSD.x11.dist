@@ -192,6 +192,10 @@
         ..
     ..
     libdata
+        ldconfig
+        ..
+        ldconfig32
+        ..
     ..
     libexec
     ..
