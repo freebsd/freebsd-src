@@ -25,7 +25,7 @@ ARCHIVE_API_MAJOR=	1
 # Note: Do NOT reset this to zero after bumping ARCHIVE_API_MAJOR!
 ARCHIVE_API_MINOR=	2
 # Bumped often. ;-)
-ARCHIVE_API_REVISION=	36
+ARCHIVE_API_REVISION=	37
 # Full libarchive version combines the above three numbers.
 VERSION= ${ARCHIVE_API_MAJOR}.${ARCHIVE_API_MINOR}.${ARCHIVE_API_REVISION}
 
@@ -68,6 +68,7 @@ BASE_SRCS= archive_check_magic.c			\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_iso9660.c		\
 	archive_read_support_format_tar.c		\
+	archive_read_support_format_tp.c		\
 	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string_sprintf.c			\
