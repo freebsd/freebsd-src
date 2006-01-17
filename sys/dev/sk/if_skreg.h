@@ -380,7 +380,7 @@
 
 #define SK_IMTIMER_TICKS_GENESIS	53
 #define SK_IMTIMER_TICKS_YUKON		78
-#define SK_IMTIMER_TICKS_YUKON_EC	128
+#define SK_IMTIMER_TICKS_YUKON_EC	125
 #define SK_IM_USECS(x, t)		((x) * (t))
 
 #define	SK_IM_MIN	10
