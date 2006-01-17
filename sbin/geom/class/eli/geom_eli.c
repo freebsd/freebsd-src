@@ -228,7 +228,7 @@ eli_main(struct gctl_req *req, unsigned flags)
 	if ((flags & G_FLAG_VERBOSE) != 0)
 		verbose = 1;
 
-	name = gctl_get_asciiparam(req, "verb");
+	name = gctl_get_ascii(req, "verb");
 	if (name == NULL) {
 		gctl_error(req, "No '%s' argument.", "verb");
 		return;
@@ -295,25 +295,14 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 {
 	struct hmac_ctx ctx;
 	const char *str;
-	int *nopassphrase;
-	int error;
+	int error, nopassphrase;
 
-	nopassphrase = gctl_get_paraml(req,
-	    new ? "nonewpassphrase" : "nopassphrase", sizeof(*nopassphrase));
-	if (nopassphrase == NULL) {
-		gctl_error(req, "No '%s' argument.",
-		    new ? "nonewpassphrase" : "nopassphrase");
-		return (NULL);
-	}
+	nopassphrase =
+	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
 
 	g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
-	str = gctl_get_asciiparam(req, new ? "newkeyfile" : "keyfile");
-	if (str == NULL) {
-		gctl_error(req, "No '%s' argument.",
-		    new ? "newkeyfile" : "keyfile");
-		return (NULL);
-	}
+	str = gctl_get_ascii(req, new ? "newkeyfile" : "keyfile");
 	if (str[0] != '\0') {
 		char buf[MAXPHYS];
 		ssize_t done;
@@ -342,7 +331,7 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 		}
 	}
 
-	if (!*nopassphrase) {
+	if (!nopassphrase) {
 		char buf1[BUFSIZ], buf2[BUFSIZ], *p;
 
 		if (!new && md->md_iterations == -1) {
@@ -506,26 +495,17 @@ eli_init(struct gctl_req *req)
 	unsigned char sector[sizeof(struct g_eli_metadata)];
 	unsigned char key[G_ELI_USERKEYLEN];
 	const char *str, *prov;
-	int *nargs, *boot;
 	unsigned secsize;
 	off_t mediasize;
-	intmax_t *valp;
-	int error;
+	intmax_t val;
+	int error, nargs, boot;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	prov = gctl_get_asciiparam(req, "arg0");
-	if (prov == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	prov = gctl_get_ascii(req, "arg0");
 	mediasize = g_get_mediasize(prov);
 	secsize = g_get_sectorsize(prov);
 	if (mediasize == 0 || secsize == 0) {
@@ -538,56 +518,35 @@ eli_init(struct gctl_req *req)
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_ELI_VERSION;
 	md.md_flags = 0;
-	boot = gctl_get_paraml(req, "boot", sizeof(*boot));
-	if (boot == NULL) {
-		gctl_error(req, "No '%s' argument.", "boot");
-		return;
-	}
-	if (*boot) {
-		int *nonewpassphrase;
+	boot = gctl_get_int(req, "boot");
+	if (boot) {
+		int nonewpassphrase;
 
 		/* Part of key cannot be read on boot from a file. */
-		str = gctl_get_asciiparam(req, "newkeyfile");
-		if (str == NULL) {
-			gctl_error(req, "No '%s' argument.", "newkeyfile");
-			return;
-		}
+		str = gctl_get_ascii(req, "newkeyfile");
 		if (str[0] != '\0') {
 			gctl_error(req,
 			    "Options -b and -K are mutually exclusive.");
 			return;
 		}
 		/* Key has to be given as a passphrase on boot. */
-		nonewpassphrase = gctl_get_paraml(req, "nonewpassphrase",
-		    sizeof(*nonewpassphrase));
-		if (nonewpassphrase == NULL) {
-			gctl_error(req, "No '%s' argument.", "nonewpassphrase");
-			return;
-		}
-		if (*nonewpassphrase) {
+		nonewpassphrase = gctl_get_int(req, "nonewpassphrase");
+		if (nonewpassphrase) {
 			gctl_error(req,
 			    "Options -b and -P are mutually exclusive.");
 			return;
 		}
 		md.md_flags |= G_ELI_FLAG_BOOT;
 	}
-	str = gctl_get_asciiparam(req, "algo");
-	if (str == NULL) {
-		gctl_error(req, "No '%s' argument.", "algo");
-		return;
-	}
+	str = gctl_get_ascii(req, "algo");
 	md.md_algo = g_eli_str2algo(str);
 	if (md.md_algo < CRYPTO_ALGORITHM_MIN ||
 	    md.md_algo > CRYPTO_ALGORITHM_MAX) {
 		gctl_error(req, "Invalid encryption algorithm.");
 		return;
 	}
-	valp = gctl_get_paraml(req, "keylen", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "keylen");
-		return;
-	}
-	md.md_keylen = *valp;
+	val = gctl_get_intmax(req, "keylen");
+	md.md_keylen = val;
 	md.md_keylen = g_eli_keylen(md.md_algo, md.md_keylen);
 	if (md.md_keylen == 0) {
 		gctl_error(req, "Invalid key length.");
@@ -595,26 +554,18 @@ eli_init(struct gctl_req *req)
 	}
 	md.md_provsize = mediasize;
 
-	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "iterations");
-		return;
-	}
-	md.md_iterations = *valp;
+	val = gctl_get_intmax(req, "iterations");
+	md.md_iterations = val;
 
-	valp = gctl_get_paraml(req, "sectorsize", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "sectorsize");
-		return;
-	}
-	if (*valp == 0)
+	val = gctl_get_intmax(req, "sectorsize");
+	if (val == 0)
 		md.md_sectorsize = secsize;
 	else {
-		if (*valp < 0 || (*valp % secsize) != 0) {
+		if (val < 0 || (val % secsize) != 0) {
 			gctl_error(req, "Invalid sector size.");
 			return;
 		}
-		md.md_sectorsize = *valp;
+		md.md_sectorsize = val;
 	}
 
 	md.md_keys = 0x01;
@@ -657,22 +608,14 @@ eli_attach(struct gctl_req *req)
 	struct g_eli_metadata md;
 	unsigned char key[G_ELI_USERKEYLEN];
 	const char *prov;
-	int *nargs;
+	int nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	prov = gctl_get_asciiparam(req, "arg0");
-	if (prov == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	prov = gctl_get_ascii(req, "arg0");
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
@@ -695,16 +638,12 @@ eli_setkey_attached(struct gctl_req *req, const char *prov,
  struct g_eli_metadata *md)
 {
 	unsigned char key[G_ELI_USERKEYLEN];
-	intmax_t *valp;
+	intmax_t val;
 
-	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "iterations");
-		return;
-	}
+	val = gctl_get_intmax(req, "iterations");
 	/* Check if iterations number should be changed. */
-	if (*valp != -1)
-		md->md_iterations = *valp;
+	if (val != -1)
+		md->md_iterations = val;
 
 	/* Generate key for Master Key encryption. */
 	if (eli_genkey(req, md, key, 1) == NULL) {
@@ -723,7 +662,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 {
 	unsigned char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
 	unsigned char *mkeydst;
-	intmax_t *valp;
+	intmax_t val;
 	unsigned nkey;
 	int error;
 
@@ -754,13 +693,9 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	if (verbose)
 		printf("Decrypted Master Key %u.\n", nkey);
 
-	valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "keyno");
-		return;
-	}
-	if (*valp != -1)
-		nkey = *valp;
+	val = gctl_get_intmax(req, "keyno");
+	if (val != -1)
+		nkey = val;
 #if 0
 	else
 		; /* Use the key number which was found during decryption. */
@@ -770,13 +705,9 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 		return;
 	}
 
-	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "iterations");
-		return;
-	}
+	val = gctl_get_intmax(req, "iterations");
 	/* Check if iterations number should and can be changed. */
-	if (*valp != -1) {
+	if (val != -1) {
 		if (bitcount32(md->md_keys) != 1) {
 			gctl_error(req, "To be able to use '-i' option, only "
 			    "one key can be defined.");
@@ -787,7 +718,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 			    "changed when '-i' option is used.");
 			return;
 		}
-		md->md_iterations = *valp;
+		md->md_iterations = val;
 	}
 
 	mkeydst = md->md_mkeys + nkey * G_ELI_MKEYLEN;
@@ -823,22 +754,14 @@ eli_setkey(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
 	const char *prov;
-	int *nargs;
+	int nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	prov = gctl_get_asciiparam(req, "arg0");
-	if (prov == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	prov = gctl_get_ascii(req, "arg0");
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
@@ -861,48 +784,34 @@ eli_delkey_detached(struct gctl_req *req, const char *prov)
 {
 	struct g_eli_metadata md;
 	unsigned char *mkeydst;
-	intmax_t *valp;
+	intmax_t val;
 	unsigned nkey;
-	int *all, *force;
+	int all, force;
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
 
-	all = gctl_get_paraml(req, "all", sizeof(*all));
-	if (all == NULL) {
-		gctl_error(req, "No '%s' argument.", "all");
-		return;
-	}
-
-	if (*all)
+	all = gctl_get_int(req, "all");
+	if (all)
 		arc4rand(md.md_mkeys, sizeof(md.md_mkeys));
 	else {
-		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (force == NULL) {
-			gctl_error(req, "No '%s' argument.", "force");
-			return;
-		}
-
-		valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
-		if (valp == NULL) {
-			gctl_error(req, "No '%s' argument.", "keyno");
-			return;
-		}
-		if (*valp == -1) {
+		force = gctl_get_int(req, "force");
+		val = gctl_get_intmax(req, "keyno");
+		if (val == -1) {
 			gctl_error(req, "Key number has to be specified.");
 			return;
 		}
-		nkey = *valp;
+		nkey = val;
 		if (nkey >= G_ELI_MAXMKEYS) {
 			gctl_error(req, "Invalid '%s' argument.", "keyno");
 			return;
 		}
-		if (!(md.md_keys & (1 << nkey)) && !*force) {
+		if (!(md.md_keys & (1 << nkey)) && !force) {
 			gctl_error(req, "Master Key %u is not set.", nkey);
 			return;
 		}
 		md.md_keys &= ~(1 << nkey);
-		if (md.md_keys == 0 && !*force) {
+		if (md.md_keys == 0 && !force) {
 			gctl_error(req, "This is the last Master Key. Use '-f' "
 			    "option if you really want to remove it.");
 			return;
@@ -919,22 +828,14 @@ static void
 eli_delkey(struct gctl_req *req)
 {
 	const char *prov;
-	int *nargs;
+	int nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
-	prov = gctl_get_asciiparam(req, "arg0");
-	if (prov == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	prov = gctl_get_ascii(req, "arg0");
 
 	if (eli_is_attached(prov))
 		eli_delkey_attached(req, prov);
@@ -975,21 +876,11 @@ static void
 eli_kill(struct gctl_req *req)
 {
 	const char *prov;
-	char param[16];
-	unsigned i;
-	int *nargs, *all;
+	int i, nargs, all;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	all = gctl_get_paraml(req, "all", sizeof(*all));
-	if (all == NULL) {
-		gctl_error(req, "No '%s' argument.", "all");
-		return;
-	}
-	if (!*all && *nargs == 0) {
+	nargs = gctl_get_int(req, "nargs");
+	all = gctl_get_int(req, "all");
+	if (!all && nargs == 0) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
@@ -1011,10 +902,8 @@ eli_kill(struct gctl_req *req)
 	/*
 	 * Now the rest.
 	 */
-	for (i = 0; i < (unsigned)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		prov = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		prov = gctl_get_ascii(req, "arg%d", i);
 		if (!eli_is_attached(prov))
 			eli_kill_detached(req, prov);
 	}
@@ -1028,28 +917,15 @@ eli_backup(struct gctl_req *req)
 	unsigned secsize;
 	unsigned char *sector;
 	off_t mediasize;
-	int *nargs, filefd, provfd;
+	int nargs, filefd, provfd;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 2) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 2) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
-
-	prov = gctl_get_asciiparam(req, "arg0");
-	if (prov == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	file = gctl_get_asciiparam(req, "arg1");
-	if (file == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 1);
-		return;
-	}
+	prov = gctl_get_ascii(req, "arg0");
+	file = gctl_get_ascii(req, "arg1");
 
 	provfd = filefd = -1;
 	sector = NULL;
@@ -1122,28 +998,15 @@ eli_restore(struct gctl_req *req)
 	unsigned char *sector;
 	unsigned secsize;
 	off_t mediasize;
-	int *nargs, filefd, provfd;
+	int nargs, filefd, provfd;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 2) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 2) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
-
-	file = gctl_get_asciiparam(req, "arg0");
-	if (file == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 1);
-		return;
-	}
-	prov = gctl_get_asciiparam(req, "arg1");
-	if (prov == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
+	file = gctl_get_ascii(req, "arg0");
+	prov = gctl_get_ascii(req, "arg1");
 
 	provfd = filefd = -1;
 	sector = NULL;
@@ -1212,23 +1075,16 @@ static void
 eli_clear(struct gctl_req *req)
 {
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_clear(name, G_ELI_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Cannot clear metadata on %s: %s.\n",
@@ -1246,23 +1102,16 @@ eli_dump(struct gctl_req *req)
 {
 	struct g_eli_metadata md, tmpmd;
 	const char *name;
-	char param[16];
-	int *nargs, error, i;
+	int error, i, nargs;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
 		error = g_metadata_read(name, (unsigned char *)&tmpmd,
 		    sizeof(tmpmd), G_ELI_MAGIC);
 		if (error != 0) {

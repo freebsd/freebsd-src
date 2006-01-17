@@ -138,6 +138,7 @@ Use round-robin algorithm when choosing component to read.
 .It Cm split
 Split read requests, which are bigger than or equal to slice size on N pieces,
 where N is the number of active components.
+This is the default balance algorithm.
 .El
 .It Fl h
 Hardcode providers' names in metadata.
@@ -148,7 +149,8 @@ When using the
 .Cm split
 balance algorithm and an I/O READ request is bigger than or equal to this value,
 the I/O request will be split into N pieces, where N is the number of active
-component.
+components.
+Defaults to 4096 bytes.
 .El
 .It Cm clear
 Clear metadata on the given providers.
