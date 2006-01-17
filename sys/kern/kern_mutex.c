@@ -278,7 +278,7 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	KASSERT(LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SLEEP_MUTEX,
+	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_lock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
 	WITNESS_CHECKORDER(&m->mtx_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
@@ -303,7 +303,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	KASSERT(LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SLEEP_MUTEX,
+	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
@@ -382,7 +382,7 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	KASSERT(LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SPIN_MUTEX,
+	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
 	    m->mtx_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&m->mtx_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
@@ -398,7 +398,7 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	KASSERT(LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SPIN_MUTEX,
+	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin,
 	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
 	    m->mtx_object.lo_name, file, line));
 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
@@ -419,7 +419,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	int rval;
 
 	MPASS(curthread != NULL);
-	KASSERT(LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SLEEP_MUTEX,
+	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
 
@@ -830,7 +830,8 @@ mtx_sysinit(void *arg)
 void
 mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 {
-	struct lock_object *lock;
+	struct lock_class *class;
+	int flags;
 
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
 	    MTX_NOWITNESS | MTX_DUPOK)) == 0);
@@ -840,30 +841,33 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 	mtx_validate(m);
 #endif
 
-	lock = &m->mtx_object;
-	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
-	    ("mutex \"%s\" %p already initialized", name, m));
-	bzero(m, sizeof(*m));
+	/* Determine lock class and lock flags. */
 	if (opts & MTX_SPIN)
-		lock->lo_flags = LOCK_CLASS_SPIN_MUTEX << LO_CLASSSHIFT;
+		class = &lock_class_mtx_spin;
 	else
-		lock->lo_flags = LOCK_CLASS_SLEEP_MUTEX << LO_CLASSSHIFT;
-	lock->lo_name = name;
-	lock->lo_type = type != NULL ? type : name;
+		class = &lock_class_mtx_sleep;
+	flags = 0;
 	if (opts & MTX_QUIET)
-		lock->lo_flags |= LO_QUIET;
+		flags |= LO_QUIET;
 	if (opts & MTX_RECURSE)
-		lock->lo_flags |= LO_RECURSABLE;
+		flags |= LO_RECURSABLE;
 	if ((opts & MTX_NOWITNESS) == 0)
-		lock->lo_flags |= LO_WITNESS;
+		flags |= LO_WITNESS;
 	if (opts & MTX_DUPOK)
-		lock->lo_flags |= LO_DUPOK;
+		flags |= LO_DUPOK;
 
+	/* Initialize mutex. */
 	m->mtx_lock = MTX_UNOWNED;
+	m->mtx_recurse = 0;
+#ifdef MUTEX_PROFILING
+	m->mtx_acqtime = 0;
+	m->mtx_filename = NULL;
+	m->mtx_lineno = 0;
+	m->mtx_contest_holding = 0;
+	m->mtx_contest_locking = 0;
+#endif
 
-	LOCK_LOG_INIT(lock, opts);
-
-	WITNESS_INIT(lock);
+	lock_init(&m->mtx_object, class, name, type, flags);
 }
 
 /*
@@ -876,15 +880,13 @@ void
 mtx_destroy(struct mtx *m)
 {
 
-	LOCK_LOG_DESTROY(&m->mtx_object, 0);
-
 	if (!mtx_owned(m))
 		MPASS(mtx_unowned(m));
 	else {
 		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 
 		/* Perform the non-mtx related part of mtx_unlock_spin(). */
-		if (LO_CLASSINDEX(&m->mtx_object) == LOCK_CLASS_SPIN_MUTEX)
+ 		if (LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin)
 			spinlock_exit();
 
 		/* Tell witness this isn't locked to make it happy. */
@@ -892,7 +894,7 @@ mtx_destroy(struct mtx *m)
 		    __LINE__);
 	}
 
-	WITNESS_DESTROY(&m->mtx_object);
+	lock_destroy(&m->mtx_object);
 }
 
 /*
@@ -917,37 +919,7 @@ mutex_init(void)
 	mtx_lock(&Giant);
 }
 
-#if LOCK_DEBUG > 0 || defined(DDB)
-/* XXX: This is not mutex-specific. */
-struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
-	&lock_class_mtx_spin,
-	&lock_class_mtx_sleep,
-	&lock_class_sx,
-};
-#endif
-
 #ifdef DDB
-/* XXX: This function is not mutex-specific. */
-DB_SHOW_COMMAND(lock, db_show_lock)
-{
-	struct lock_object *lock;
-	struct lock_class *class;
-
-	if (!have_addr)
-		return;
-	lock = (struct lock_object *)addr;
-	if (LO_CLASSINDEX(lock) > LOCK_CLASS_MAX) {
-		db_printf("Unknown lock class: %d\n", LO_CLASSINDEX(lock));
-		return;
-	}
-	class = LOCK_CLASS(lock);
-	db_printf(" class: %s\n", class->lc_name);
-	db_printf(" name: %s\n", lock->lo_name);
-	if (lock->lo_type && lock->lo_type != lock->lo_name)
-		db_printf(" type: %s\n", lock->lo_type);
-	class->lc_ddb_show(lock);
-}
-
 void
 db_show_mtx(struct lock_object *lock)
 {
@@ -957,7 +929,7 @@ db_show_mtx(struct lock_object *lock)
 	m = (struct mtx *)lock;
 
 	db_printf(" flags: {");
-	if (LO_CLASSINDEX(lock) == LOCK_CLASS_SPIN_MUTEX)
+	if (LOCK_CLASS(lock) == &lock_class_mtx_spin)
 		db_printf("SPIN");
 	else
 		db_printf("DEF");

@@ -1299,6 +1299,7 @@ kern/subr_eventhandler.c	standard
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard
 kern/subr_kobj.c		standard
+kern/subr_lock.c		standard
 kern/subr_log.c			standard
 kern/subr_mbpool.c		optional libmbpool
 kern/subr_mchain.c		optional libmchain
