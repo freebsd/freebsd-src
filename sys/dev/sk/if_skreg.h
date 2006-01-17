@@ -378,8 +378,10 @@
 #define SK_IMCTL_STOP	0x02
 #define SK_IMCTL_START	0x04
 
-#define SK_IMTIMER_TICKS	54
-#define SK_IM_USECS(x)		((x) * SK_IMTIMER_TICKS)
+#define SK_IMTIMER_TICKS_GENESIS	53
+#define SK_IMTIMER_TICKS_YUKON		78
+#define SK_IMTIMER_TICKS_YUKON_EC	128
+#define SK_IM_USECS(x, t)		((x) * (t))
 
 #define	SK_IM_MIN	10
 #define	SK_IM_DEFAULT	100
@@ -1452,6 +1454,7 @@ struct sk_softc {
 	u_int32_t		sk_pmd;		/* physical media type */
 	u_int32_t		sk_intrmask;
 	int			sk_int_mod;
+	int			sk_int_ticks;
 	struct sk_if_softc	*sk_if[2];
 	device_t		sk_devs[2];
 	struct mtx		sk_mtx;
