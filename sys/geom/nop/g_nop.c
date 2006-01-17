@@ -96,6 +96,7 @@ g_nop_start(struct bio *bp)
 
 		rval = arc4random() % 100;
 		if (rval < sc->sc_failprob) {
+			G_NOP_LOGREQ(bp, "Returning EIO.");
 			g_io_deliver(bp, EIO);
 			return;
 		}
