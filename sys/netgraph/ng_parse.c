@@ -800,10 +800,12 @@ ng_fixedstring_parse(const struct ng_parse_type *type,
 	int len;
 	int slen;
 
-	if (slen + 1 > fi->bufSize)
-		return (E2BIG);
 	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
+	if (slen + 1 > fi->bufSize) {
+		FREE(sval, M_NETGRAPH_PARSE);
+		return (E2BIG);
+	}
 	*off += len;
 	bcopy(sval, buf, slen);
 	FREE(sval, M_NETGRAPH_PARSE);
@@ -901,10 +903,12 @@ ng_sizedstring_parse(const struct ng_parse_type *type,
 	int len;
 	int slen;
 
-	if (slen > USHRT_MAX)
-		return (EINVAL);
 	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
+	if (slen > USHRT_MAX) {
+		FREE(sval, M_NETGRAPH_PARSE);
+		return (EINVAL);
+	}
 	*off += len;
 	*((u_int16_t *)buf) = (u_int16_t)slen;
 	bcopy(sval, buf + 2, slen);
