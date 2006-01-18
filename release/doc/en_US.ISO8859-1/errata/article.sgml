@@ -119,6 +119,13 @@
 
 	<tbody>
 	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:05.80211.asc"
+		>06:05.80211</ulink></entry>
+	    <entry>18&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>IEEE 802.11 buffer overflow</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:04.ipfw.asc"
 		>06:04.ipfw</ulink></entry>
 	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
