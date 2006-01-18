@@ -601,7 +601,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	switch (type) {
 #ifdef INET
 	case ETHERTYPE_IP:
-		if (ip_fastforward(m))
+		if ((m = ip_fastforward(m)) == NULL)
 			return;
 		isr = NETISR_IP;
 		break;
