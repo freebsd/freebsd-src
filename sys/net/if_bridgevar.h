@@ -248,6 +248,7 @@ struct bridge_iflist {
 	uint8_t			bif_priority;
 	struct ifnet		*bif_ifp;	/* member if */
 	uint32_t		bif_flags;	/* member if flags */
+	int			bif_mutecap;	/* member muted caps */
 };
 
 /*
