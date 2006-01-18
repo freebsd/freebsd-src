@@ -743,13 +743,17 @@ ds_intr(void *p)
 		for (i = 0; i < DS1_CHANS; i++) {
 			if (sc->pch[i].run) {
 				x = 1;
+				snd_mtxunlock(sc->lock);
 				chn_intr(sc->pch[i].channel);
+				snd_mtxlock(sc->lock);
 			}
 		}
 		for (i = 0; i < 2; i++) {
 			if (sc->rch[i].run) {
 				x = 1;
+				snd_mtxunlock(sc->lock);
 				chn_intr(sc->rch[i].channel);
+				snd_mtxlock(sc->lock);
 			}
 		}
 		i = ds_rd(sc, YDSXGR_MODE, 4);
@@ -830,8 +834,8 @@ ds_init(struct sc_info *sc)
 
 	if (sc->regbase == NULL) {
 		if (bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-				       NULL, NULL, memsz, 1, memsz, 0, busdma_lock_mutex,
-				       &Giant, &sc->control_dmat))
+				       NULL, NULL, memsz, 1, memsz, 0, NULL,
+				       NULL, &sc->control_dmat))
 			return -1;
 		if (bus_dmamem_alloc(sc->control_dmat, &buf, BUS_DMA_NOWAIT, &sc->map))
 			return -1;
@@ -971,8 +975,8 @@ ds_pci_attach(device_t dev)
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/sc->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant, &sc->buffer_dmat) != 0) {
+		/*flags*/0, /*lockfunc*/NULL,
+		/*lockarg*/NULL, &sc->buffer_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
@@ -986,12 +990,23 @@ ds_pci_attach(device_t dev)
 	codec = AC97_CREATE(dev, sc, ds_ac97);
 	if (codec == NULL)
 		goto bad;
+	/*
+	 * Turn on inverted external amplifier sense flags for few
+	 * 'special' boards.
+	 */
+	switch (subdev) {
+	case 0x81171033:	/* NEC ValueStar (VT550/0) */
+		ac97_setflags(codec, ac97_getflags(codec) | AC97_F_EAPD_INV);
+		break;
+	default:
+		break;
+	}
 	mixer_init(dev, ac97_getmixerclass(), codec);
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
 					 RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq || snd_setup_intr(dev, sc->irq, 0, ds_intr, sc, &sc->ih)) {
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ds_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
