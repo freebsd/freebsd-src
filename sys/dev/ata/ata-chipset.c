@@ -338,7 +338,7 @@ ata_sata_setmode(device_t dev, int mode)
      */
     if (atadev->param.satacapabilities != 0x0000 &&
 	atadev->param.satacapabilities != 0xffff) {
-        struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(device_get_parent(dev));
 	int status;
 
 	/* on some drives we need to set the transfer mode */
@@ -500,7 +500,7 @@ ata_ahci_status(device_t dev)
 	/* clear interrupt */
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action);
 
-        /* do we have any device action ? */
+	/* do we have any device action ? */
 	if (!(issued & (1 << tag)))
 	    return 1;
     }
@@ -1587,7 +1587,7 @@ ata_intel_ident(device_t dev)
      { ATA_I82801GB_R1, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
      { ATA_I82801GB_M,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
      { ATA_I82801GB_AH, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I31244,	0,    0, 0x00, ATA_SA150, "31244" },
+     { ATA_I31244,      0,    0, 0x00, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1621,9 +1621,9 @@ ata_intel_chipinit(device_t dev)
 	    ctlr->r_type2 = SYS_RES_MEMORY;
 	    ctlr->r_rid2 = PCIR_BAR(0);
 	    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						        &ctlr->r_rid2,
+							&ctlr->r_rid2,
 							RF_ACTIVE)))
-	        return ENXIO;
+		return ENXIO;
 	    ctlr->channels = 4;
 	    ctlr->allocate = ata_intel_31244_allocate;
 	    ctlr->reset = ata_intel_31244_reset;
@@ -2048,10 +2048,10 @@ ata_ite_setmode(device_t dev, int mode)
 	((ch->unit & 3) * 0x2000) + (ch->unit > 3 ? 0x30000 : 0x20000)
 
 struct ata_marvell_response {
-    u_int16_t	tag;
-    u_int8_t	edma_status;
-    u_int8_t	dev_status;
-    u_int32_t	timestamp;
+    u_int16_t   tag;
+    u_int8_t    edma_status;
+    u_int8_t    dev_status;
+    u_int32_t   timestamp;
 };
 
 struct ata_marvell_dma_prdentry {
@@ -2290,8 +2290,8 @@ ata_marvell_begin_transaction(struct ata_request *request)
     if (request->u.ata.command != ATA_READ_DMA &&
 	request->u.ata.command != ATA_WRITE_DMA) {
 
-        /* disable the EDMA machinery */
-        if (ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)
+	/* disable the EDMA machinery */
+	if (ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)
 	    ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000002);
 	return ata_begin_transaction(request);
     }
@@ -2301,11 +2301,11 @@ ata_marvell_begin_transaction(struct ata_request *request)
 
     /* check sanity, setup SG list and DMA engine */
     if ((error = ch->dma->load(ch->dev, request->data, request->bytecount,
-                               request->flags & ATA_R_READ, ch->dma->sg,
-                               &dummy))) {
-        device_printf(request->dev, "setting up DMA failed\n");
-        request->result = error;
-        return ATA_OP_FINISHED;
+			       request->flags & ATA_R_READ, ch->dma->sg,
+			       &dummy))) {
+	device_printf(request->dev, "setting up DMA failed\n");
+	request->result = error;
+	return ATA_OP_FINISHED;
     }
 
     /* get next free request queue slot */
@@ -2389,7 +2389,7 @@ ata_marvell_end_transaction(struct ata_request *request)
 
 	/* get response ptr's */
 	rsp_in = ATA_INL(ctlr->r_res1, 0x02020 + ATA_MV_EDMA_BASE(ch));
-    	rsp_out = ATA_INL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch));
+	rsp_out = ATA_INL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch));
 	slot = (((rsp_in & ~0xffffff00) >> 3)) & 0x1f;
 	rsp_out &= 0xffffff00;
 	rsp_out += (slot << 3);
@@ -2401,7 +2401,7 @@ ata_marvell_end_transaction(struct ata_request *request)
 	request->error = 0; 
 
 	/* ack response */
-    	ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), rsp_out);
+	ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), rsp_out);
 
 	/* update progress */
 	if (!(request->status & ATA_S_ERROR) &&
@@ -2473,7 +2473,7 @@ ata_marvell_dmainit(device_t dev)
     ata_dmainit(dev);
     if (ch->dma) {
 	/* note start and stop are not used here */
-        ch->dma->setprd = ata_marvell_dmasetprd;
+	ch->dma->setprd = ata_marvell_dmasetprd;
     }
 }
 
@@ -2781,7 +2781,8 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20571,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20571" },
      { ATA_PDC20575,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20575" },
      { ATA_PDC20579,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20579" },
-     { ATA_PDC20580,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20580" },
+     { ATA_PDC20771,  0, PRMIO, PRCMBO2, ATA_SA300, "PDC20771" },
+     { ATA_PDC40775,  0, PRMIO, PRCMBO2, ATA_SA300, "PDC40775" },
      { ATA_PDC20617,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20617" },
      { ATA_PDC20618,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20618" },
      { ATA_PDC20619,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20619" },
@@ -2792,6 +2793,7 @@ ata_promise_ident(device_t dev)
      { ATA_PDC40519,  0, PRMIO, PRSATA2, ATA_SA150, "PDC40519" },
      { ATA_PDC40718,  0, PRMIO, PRSATA2, ATA_SA300, "PDC40718" },
      { ATA_PDC40719,  0, PRMIO, PRSATA2, ATA_SA300, "PDC40719" },
+     { ATA_PDC40779,  0, PRMIO, PRSATA2, ATA_SA300, "PDC40779" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
     uintptr_t devid = 0;
@@ -2883,11 +2885,11 @@ ata_promise_chipinit(device_t dev)
 	    u_int32_t dimm = ATA_INL(ctlr->r_res2, 0x000c0080);
 
 	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
-                bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
-                               ata_promise_sx4_intr, ctlr, &ctlr->handle)) {
-                device_printf(dev, "unable to setup interrupt\n");
-                goto failnfree;
-            }
+		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+			       ata_promise_sx4_intr, ctlr, &ctlr->handle)) {
+		device_printf(dev, "unable to setup interrupt\n");
+		goto failnfree;
+	    }
 
 	    /* print info about cache memory */
 	    device_printf(dev, "DIMM size %dMB @ 0x%08x%s\n",
@@ -2923,11 +2925,11 @@ ata_promise_chipinit(device_t dev)
 	     * status register they have.
 	     */
 	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
-                bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
-                               ata_promise_mio_intr, ctlr, &ctlr->handle)) {
-                device_printf(dev, "unable to setup interrupt\n");
-                goto failnfree;
-            }
+		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+			       ata_promise_mio_intr, ctlr, &ctlr->handle)) {
+		device_printf(dev, "unable to setup interrupt\n");
+		goto failnfree;
+	    }
 	    /* prime fake interrupt register */
 	    ATA_OUTL(ctlr->r_res2, 0x060, 0xffffffff);
 	    break;
@@ -3224,8 +3226,8 @@ ata_promise_mio_intr(void *data)
     ATA_OUTL(ctlr->r_res2, 0x060, ATA_INL(ctlr->r_res2, 0x040));
 
     for (unit = 0; unit < ctlr->channels; unit++) {
-        if ((ch = ctlr->interrupt[unit].argument))
-            ctlr->interrupt[unit].function(ch);
+	if ((ch = ctlr->interrupt[unit].argument))
+	    ctlr->interrupt[unit].function(ch);
     }
     ATA_OUTL(ctlr->r_res2, 0x060, 0xffffffff);
 }
@@ -4518,7 +4520,7 @@ ata_via_allocate(device_t dev)
 		
 	rid = PCIR_BAR(ch->unit);
 	if (!(r_io = bus_alloc_resource_any(device_get_parent(dev),
-	   				    SYS_RES_IOPORT,
+					    SYS_RES_IOPORT,
 					    &rid, RF_ACTIVE)))
 	    return ENXIO;
 
@@ -4538,7 +4540,7 @@ ata_via_allocate(device_t dev)
     }
     else {
 	/* setup the usual register normal pci style */
-        if (ata_pci_allocate(dev))
+	if (ata_pci_allocate(dev))
 	    return ENXIO;
     }
 

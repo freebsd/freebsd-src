@@ -1394,7 +1394,7 @@ ata_raid_wipe_metadata(struct ar_softc *rdp)
 		lba = HPTV2_LBA(rdp->disks[disk].dev);
 		size = sizeof(struct hptv2_raid_conf);
 		break;
-	    	
+		
 	    case AR_F_HPTV3_RAID:
 		lba = HPTV3_LBA(rdp->disks[disk].dev);
 		size = sizeof(struct hptv3_raid_conf);
@@ -1402,7 +1402,7 @@ ata_raid_wipe_metadata(struct ar_softc *rdp)
 
 	    case AR_F_INTEL_RAID:
 		lba = INTEL_LBA(rdp->disks[disk].dev);
-		size = 3 * 512;		/* XXX SOS */
+		size = 3 * 512;         /* XXX SOS */
 		break;
 
 	    case AR_F_ITE_RAID:
@@ -2180,12 +2180,12 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
     meta->config_id = timestamp.tv_sec;
     meta->generation = rdp->generation;
     meta->total_disks = rdp->total_disks;
-    meta->total_volumes = 1;					/* XXX SOS */
+    meta->total_volumes = 1;                                    /* XXX SOS */
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if (rdp->disks[disk].dev) {
- 	    struct ata_channel *ch =
+	    struct ata_channel *ch =
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
- 	    struct ata_device *atadev =
+	    struct ata_device *atadev =
 		device_get_softc(rdp->disks[disk].dev);
 
 	    bcopy(atadev->param.serial, meta->disk[disk].serial,
@@ -2211,12 +2211,12 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
 
     bcopy(rdp->name, map->name, sizeof(rdp->name));
     map->total_sectors = rdp->total_sectors;
-    map->state = 12; 						/* XXX SOS */
+    map->state = 12;                                            /* XXX SOS */
     map->offset = rdp->offset_sectors;
     map->stripe_count = rdp->total_sectors / (rdp->interleave*rdp->total_disks);
     map->stripe_sectors =  rdp->interleave;
     map->disk_sectors = rdp->total_sectors / rdp->width;
-    map->status = INTEL_S_READY;				/* XXX SOS */
+    map->status = INTEL_S_READY;                                /* XXX SOS */
     switch (rdp->type) {
     case AR_T_RAID0:
 	map->type = INTEL_T_RAID0;
@@ -3442,7 +3442,7 @@ ata_raid_sis_write_meta(struct ar_softc *rdp)
 		pci_get_device(GRANDPARENT(rdp->disks[disk].dev));
 	    bcopy(atadev->param.model, meta->model, sizeof(meta->model));
 
-    	    /* XXX SOS if total_disks > 2 this may not float */
+	    /* XXX SOS if total_disks > 2 this may not float */
 	    meta->disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
 
 	    if (testing || bootverbose)
@@ -3649,7 +3649,7 @@ ata_raid_via_write_meta(struct ar_softc *rdp)
 	free(meta, M_AR);
 	return ENODEV;
     }
-    meta->type |= VIA_T_BOOTABLE;	/* XXX SOS */
+    meta->type |= VIA_T_BOOTABLE;       /* XXX SOS */
     meta->disk_sectors = 
 	rdp->total_sectors / (rdp->width - (rdp->type == AR_RAID5));
     for (disk = 0; disk < rdp->total_disks; disk++)
@@ -4256,7 +4256,7 @@ ata_raid_intel_print_meta(struct intel_raid_conf *meta)
 	for (i = 0; i < map->total_disks; i++ ) {
 	    printf("    disk %d at disk_idx 0x%08x\n", i, map->disk_idx[i]);
 	}
-    	map = (struct intel_raid_mapping *)&map->disk_idx[map->total_disks];
+	map = (struct intel_raid_mapping *)&map->disk_idx[map->total_disks];
     }
     printf("=================================================\n");
 }

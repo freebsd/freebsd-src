@@ -43,7 +43,7 @@ struct ata_raid_subdisk {
 struct ar_softc {
     int                 lun;
     u_int8_t            name[32];
-    int			volume;
+    int                 volume;
     u_int64_t           magic_0;
     u_int64_t           magic_1;
     int                 type;
@@ -662,41 +662,41 @@ struct promise_raid_conf {
 	( ((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
 
 struct sii_raid_conf {
-    u_int16_t   	ata_params_00_53[54];
-    u_int64_t   	total_sectors;
-    u_int16_t   	ata_params_58_79[70];
-    u_int16_t   	dummy_0;
-    u_int16_t   	dummy_1;
-    u_int32_t   	controller_pci_id;
-    u_int16_t   	version_minor;
-    u_int16_t   	version_major;
-    u_int8_t    	timestamp[6];
-    u_int16_t   	stripe_sectors;
-    u_int16_t   	dummy_2;
-    u_int8_t    	disk_number;
-    u_int8_t    	type;
+    u_int16_t           ata_params_00_53[54];
+    u_int64_t           total_sectors;
+    u_int16_t           ata_params_58_79[70];
+    u_int16_t           dummy_0;
+    u_int16_t           dummy_1;
+    u_int32_t           controller_pci_id;
+    u_int16_t           version_minor;
+    u_int16_t           version_major;
+    u_int8_t            timestamp[6];
+    u_int16_t           stripe_sectors;
+    u_int16_t           dummy_2;
+    u_int8_t            disk_number;
+    u_int8_t            type;
 #define SII_T_RAID0             0x00
 #define SII_T_RAID1             0x01
 #define SII_T_RAID01            0x02
 #define SII_T_SPARE             0x03
 
-    u_int8_t    	raid0_disks;
-    u_int8_t    	raid0_ident;
-    u_int8_t    	raid1_disks;
-    u_int8_t    	raid1_ident;
-    u_int64_t   	rebuild_lba;
-    u_int32_t   	generation;
-    u_int8_t    	status;
+    u_int8_t            raid0_disks;
+    u_int8_t            raid0_ident;
+    u_int8_t            raid1_disks;
+    u_int8_t            raid1_ident;
+    u_int64_t           rebuild_lba;
+    u_int32_t           generation;
+    u_int8_t            status;
 #define SII_S_READY             0x01
     
-    u_int8_t    	base_raid1_position;
-    u_int8_t    	base_raid0_position;
-    u_int8_t    	position;
-    u_int16_t   	dummy_3;
-    u_int8_t    	name[16];
-    u_int16_t   	checksum_0;
-    int8_t      	filler1[190];
-    u_int16_t   	checksum_1;
+    u_int8_t            base_raid1_position;
+    u_int8_t            base_raid0_position;
+    u_int8_t            position;
+    u_int16_t           dummy_3;
+    u_int8_t            name[16];
+    u_int16_t           checksum_0;
+    int8_t              filler1[190];
+    u_int16_t           checksum_1;
 } __packed;
 
 
@@ -705,29 +705,29 @@ struct sii_raid_conf {
 	( ((struct ad_softc *)device_get_ivars(dev))->total_secs - 16)
 
 struct sis_raid_conf {
-    u_int16_t   	magic;
+    u_int16_t           magic;
 #define SIS_MAGIC               0x0010
 
-    u_int8_t		disks;
-#define SIS_D_MASTER          	0xf0
-#define SIS_D_MIRROR          	0x0f
+    u_int8_t            disks;
+#define SIS_D_MASTER            0xf0
+#define SIS_D_MIRROR            0x0f
 
-    u_int8_t		type_total_disks;
-#define SIS_D_MASK          	0x0f
+    u_int8_t            type_total_disks;
+#define SIS_D_MASK              0x0f
 #define SIS_T_MASK              0xf0
 #define SIS_T_JBOD              0x10
-#define SIS_T_RAID0         	0x20
+#define SIS_T_RAID0             0x20
 #define SIS_T_RAID1             0x30
 
-    u_int32_t   	dummy_0;
-    u_int32_t   	controller_pci_id;
-    u_int16_t   	stripe_sectors;
-    u_int16_t   	dummy_1;
-    u_int32_t   	timestamp;
-    u_int8_t		model[40];
-    u_int8_t		disk_number;
-    u_int8_t		dummy_2[3];
-    int8_t      	filler1[448];
+    u_int32_t           dummy_0;
+    u_int32_t           controller_pci_id;
+    u_int16_t           stripe_sectors;
+    u_int16_t           dummy_1;
+    u_int32_t           timestamp;
+    u_int8_t            model[40];
+    u_int8_t            disk_number;
+    u_int8_t            dummy_2[3];
+    int8_t              filler1[448];
 } __packed;
 
 
@@ -736,11 +736,11 @@ struct sis_raid_conf {
 	( ((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
 
 struct via_raid_conf {
-    u_int16_t   	magic;
+    u_int16_t           magic;
 #define VIA_MAGIC               0xaa55
 
-    u_int8_t    	dummy_0;
-    u_int8_t    	type;
+    u_int8_t            dummy_0;
+    u_int8_t            type;
 #define VIA_T_MASK              0x7e
 #define VIA_T_BOOTABLE          0x01
 #define VIA_T_RAID0             0x04
@@ -750,19 +750,19 @@ struct via_raid_conf {
 #define VIA_T_SPAN              0x44
 #define VIA_T_UNKNOWN           0x80
 
-    u_int8_t    	disk_index;
-#define VIA_D_MASK		0x0f
-#define VIA_D_DEGRADED		0x10
-#define VIA_D_HIGH_IDX		0x20
+    u_int8_t            disk_index;
+#define VIA_D_MASK              0x0f
+#define VIA_D_DEGRADED          0x10
+#define VIA_D_HIGH_IDX          0x20
 
-    u_int8_t    	stripe_layout;
+    u_int8_t            stripe_layout;
 #define VIA_L_DISKS             0x07
 #define VIA_L_MASK              0xf0
-#define VIA_L_SHIFT       	4
+#define VIA_L_SHIFT             4
 
-    u_int64_t   	disk_sectors;
-    u_int32_t   	disk_id;
-    u_int32_t   	disks[8];
-    u_int8_t    	checksum;
-    u_int8_t    	filler_1[461];
+    u_int64_t           disk_sectors;
+    u_int32_t           disk_id;
+    u_int32_t           disks[8];
+    u_int8_t            checksum;
+    u_int8_t            filler_1[461];
 } __packed;
