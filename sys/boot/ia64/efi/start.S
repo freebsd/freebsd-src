@@ -29,37 +29,18 @@
 	.text
 
 #include <machine/asm.h>
-		
+
 #define EFI_SUCCESS		0
 #define EFI_LOAD_ERROR		1
 #define EFI_BUFFER_TOO_SMALL	5
-	
+
 #define DT_NULL		0	/* Terminating entry. */
-#define DT_NEEDED	1	/* String table offset of a needed shared
-				   library. */
 #define DT_PLTRELSZ	2	/* Total size in bytes of PLT relocations. */
-#define DT_PLTGOT	3	/* Processor-dependent address. */
-#define DT_HASH		4	/* Address of symbol hash table. */
-#define DT_STRTAB	5	/* Address of string table. */
 #define DT_SYMTAB	6	/* Address of symbol table. */
 #define DT_RELA		7	/* Address of ElfNN_Rela relocations. */
 #define DT_RELASZ	8	/* Total size of ElfNN_Rela relocations. */
 #define DT_RELAENT	9	/* Size of each ElfNN_Rela relocation entry. */
-#define DT_STRSZ	10	/* Size of string table. */
 #define DT_SYMENT	11	/* Size of each symbol table entry. */
-#define DT_INIT		12	/* Address of initialization function. */
-#define DT_FINI		13	/* Address of finalization function. */
-#define DT_SONAME	14	/* String table offset of shared object
-				   name. */
-#define DT_RPATH	15	/* String table offset of library path. */
-#define DT_SYMBOLIC	16	/* Indicates "symbolic" linking. */
-#define DT_REL		17	/* Address of ElfNN_Rel relocations. */
-#define DT_RELSZ	18	/* Total size of ElfNN_Rel relocations. */
-#define DT_RELENT	19	/* Size of each ElfNN_Rel relocation. */
-#define DT_PLTREL	20	/* Type of relocation used for PLT. */
-#define DT_DEBUG	21	/* Reserved (not used). */
-#define DT_TEXTREL	22	/* Indicates there may be relocations in
-				   non-writable segments. */
 #define DT_JMPREL	23	/* Address of PLT relocations. */
 
 #define R_IA_64_NONE		0	/* None */
