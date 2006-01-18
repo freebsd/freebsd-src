@@ -737,6 +737,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_tdev = NODEV;
 	if (p->p_comm[0] != '\0') {
 		strlcpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm));
+		/*
+		 * Temporarily give the thread a default name of the process
+		 * as it's erroneously used in the snmp code.
+		 * Remove this when that is fixed. (soon I'm told)
+		 */
 		strlcpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm));
 	}
 	if (p->p_sysent && p->p_sysent->sv_name != NULL &&
@@ -766,6 +771,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
 		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
+	if (td->td_name[0] != '\0')
+		strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
 	if (TD_ON_LOCK(td)) {
 		kp->ki_kiflag |= KI_LOCKBLOCK;
 		strlcpy(kp->ki_lockname, td->td_lockname,
