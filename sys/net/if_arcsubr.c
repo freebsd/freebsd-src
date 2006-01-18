@@ -559,14 +559,14 @@ arc_input(ifp, m)
 #ifdef INET
 	case ARCTYPE_IP:
 		m_adj(m, ARC_HDRNEWLEN);
-		if (ip_fastforward(m))
+		if ((m = ip_fastforward(m)) == NULL)
 			return;
 		isr = NETISR_IP;
 		break;
 
 	case ARCTYPE_IP_OLD:
 		m_adj(m, ARC_HDRLEN);
-		if (ip_fastforward(m))
+		if ((m = ip_fastforward(m)) == NULL)
 			return;
 		isr = NETISR_IP;
 		break;
