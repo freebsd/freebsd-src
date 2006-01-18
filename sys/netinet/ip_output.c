@@ -1043,9 +1043,9 @@ in_delayed_cksum(struct mbuf *m)
 		 * XXX
 		 * this shouldn't happen, but if it does, the
 		 * correct behavior may be to insert the checksum
-		 * in the existing chain instead of rearranging it.
+		 * in the appropriate next mbuf in the chain.
 		 */
-		m = m_pullup(m, offset + sizeof(u_short));
+		return;
 	}
 	*(u_short *)(m->m_data + offset) = csum;
 }
