@@ -56,7 +56,7 @@ struct option long_opts[] =
   {"list", 0, &table_flag, TRUE},
   {"make-directories", 0, &create_dir_flag, TRUE},
   {"message", 1, 0, 'M'},
-  {"no-absolute-filenames", 0, 0, 136},
+  {"absolute-filenames", 0, 0, 136},
   {"no-preserve-owner", 0, 0, 134},
   {"nonmatching", 0, &copy_matching_files, FALSE},
   {"numeric-uid-gid", 0, &numeric_uid, TRUE},
@@ -105,7 +105,7 @@ Usage: %s {-o|--create} [-0acvABLV] [-C bytes] [-H format] [-M message]\n\
        [--unconditional] [--verbose] [--block-size=blocks] [--swap-halfwords]\n\
        [--io-size=bytes] [--pattern-file=file] [--format=format]\n\
        [--owner=[user][:.][group]] [--no-preserve-owner] [--message=message]\n\
-       [--force-local] [--no-absolute-filenames] [--sparse] [--only-verify-crc]\n\
+       [--force-local] [--absolute-filenames] [--sparse] [--only-verify-crc]\n\
        [--quiet] [--help] [--version] [pattern...] [< archive]\n",
 	   program_name);
   fprintf (fp, "\
@@ -266,8 +266,8 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 	  numeric_uid = TRUE;
 	  break;
 
-	case 136:		/* --no-absolute-filenames */
-	  no_abs_paths_flag = TRUE;
+	case 136:		/* --absolute-filenames */
+	  abs_paths_flag = TRUE;
 	  break;
 	
 	case 134:		/* --no-preserve-owner */
@@ -414,7 +414,7 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 	  || retain_time_flag || no_chown_flag || set_owner_flag
 	  || set_group_flag || swap_bytes_flag || swap_halfwords_flag
 	  || (append_flag && !(archive_name || output_archive_name))
-	  || rename_batch_file || no_abs_paths_flag
+	  || rename_batch_file || abs_paths_flag
 	  || input_archive_name || (archive_name && output_archive_name))
 	usage (stderr, 2);
       if (archive_format == arf_unknown)
@@ -429,7 +429,7 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
       if (argc - 1 != optind || archive_format != arf_unknown
 	  || swap_bytes_flag || swap_halfwords_flag
 	  || table_flag || rename_flag || append_flag
-	  || rename_batch_file || no_abs_paths_flag)
+	  || rename_batch_file || abs_paths_flag)
 	usage (stderr, 2);
       directory_name = argv[optind];
     }
