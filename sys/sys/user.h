@@ -109,7 +109,7 @@
 
 #define	WMESGLEN	8		/* size of returned wchan message */
 #define	LOCKNAMELEN	8		/* size of returned lock name */
-#define	OCOMMLEN	16		/* size of returned ki_ocomm name */
+#define	OCOMMLEN	16		/* size of returned thread name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
 #define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
 #define	KI_NGROUPS	16		/* number of groups in ki_groups */
@@ -172,7 +172,7 @@ struct kinfo_proc {
 	char	ki_rqindex;		/* Run queue index */
 	u_char	ki_oncpu;		/* Which cpu we are on */
 	u_char	ki_lastcpu;		/* Last cpu we were on */
-	char	ki_ocomm[OCOMMLEN+1];	/* command name */
+	char	ki_ocomm[OCOMMLEN+1];	/* thread name */
 	char	ki_wmesg[WMESGLEN+1];	/* wchan message */
 	char	ki_login[LOGNAMELEN+1];	/* setlogin name */
 	char	ki_lockname[LOCKNAMELEN+1]; /* lock name */
