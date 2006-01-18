@@ -219,11 +219,11 @@ ata_reinit(device_t dev)
 		    if (ch->running && ch->running->dev == children[i]) {
 			callout_stop(&ch->running->callout);
 			request = ch->running;
-    			ch->running = NULL;
+			ch->running = NULL;
 		    }
 		    else
 			request = NULL;
-    		    mtx_unlock(&ch->state_mtx);
+		    mtx_unlock(&ch->state_mtx);
 
 		    if (request) {
 			request->result = ENXIO;
@@ -233,7 +233,7 @@ ata_reinit(device_t dev)
 			/* if not timeout finish request here */
 			if (!(request->flags & ATA_R_TIMEOUT))
 			    ata_finish(request);
-                    }
+		    }
 		    device_delete_child(dev, children[i]);
 		}
 	}

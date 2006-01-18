@@ -321,7 +321,7 @@ struct atapi_sense {
 };
 
 /* structure used for composite atomic operations */
-#define MAX_COMPOSITES		32		/* u_int32_t bits */
+#define MAX_COMPOSITES          32              /* u_int32_t bits */
 struct ata_composite {
     struct mtx          lock;                   /* control lock */
     u_int32_t           rd_needed;              /* needed read subdisks */
@@ -330,7 +330,7 @@ struct ata_composite {
     u_int32_t           wr_depend;              /* write depends on subdisks */
     u_int32_t           wr_done;                /* done write subdisks */
     struct ata_request  *request[MAX_COMPOSITES];
-    u_int32_t		residual;		/* bytes still to transfer */
+    u_int32_t           residual;               /* bytes still to transfer */
     caddr_t             data_1;     
     caddr_t             data_2;     
 };
@@ -496,7 +496,7 @@ struct ata_channel {
 #define         ATA_USE_16BIT           0x02
 #define         ATA_ATAPI_DMA_RO        0x04
 #define         ATA_NO_48BIT_DMA        0x08
-#define		ATA_ALWAYS_DMASTAT	0x10
+#define         ATA_ALWAYS_DMASTAT      0x10
 
     int                         devices;        /* what is present */
 #define         ATA_ATA_MASTER          0x01
