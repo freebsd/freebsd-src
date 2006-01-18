@@ -848,7 +848,7 @@ list_scan(int s)
 	struct ieee80211req ireq;
 	char ssid[IEEE80211_NWID_LEN+1];
 	uint8_t *cp;
-	int len;
+	int len, ssidmax;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
@@ -861,8 +861,9 @@ list_scan(int s)
 	if (len < sizeof(struct ieee80211req_scan_result))
 		return;
 
-	printf("%-32.32s  %-17.17s  %4s %4s  %-5s %3s %4s\n"
-		, "SSID"
+	ssidmax = verbose ? IEEE80211_NWID_LEN : 14;
+	printf("%-*.*s  %-17.17s  %4s %4s  %-5s %3s %4s\n"
+		, ssidmax, ssidmax, "SSID"
 		, "BSSID"
 		, "CHAN"
 		, "RATE"
@@ -877,9 +878,10 @@ list_scan(int s)
 
 		sr = (struct ieee80211req_scan_result *) cp;
 		vp = (u_int8_t *)(sr+1);
-		printf("%-32.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
-			, copy_essid(ssid, sizeof(ssid), vp, sr->isr_ssid_len)
-				, ssid
+		printf("%-*.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
+			, ssidmax
+			  , copy_essid(ssid, sizeof(ssid), vp, sr->isr_ssid_len)
+			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
 			, ieee80211_mhz2ieee(sr->isr_freq)
 			, getmaxrate(sr->isr_rates, sr->isr_nrates)
