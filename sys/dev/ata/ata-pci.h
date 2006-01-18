@@ -88,20 +88,20 @@ struct ata_connect_task {
 #define ATA_AMD8111             0x74691022
 
 #define ATA_ACER_LABS_ID        0x10b9
-#define ATA_ALI_1533		0x153310b9
+#define ATA_ALI_1533            0x153310b9
 #define ATA_ALI_5229            0x522910b9
 #define ATA_ALI_5281            0x528110b9
 #define ATA_ALI_5287            0x528710b9
 #define ATA_ALI_5288            0x528810b9
 #define ATA_ALI_5289            0x528910b9
 
-#define ATA_ATI_ID		0x1002
-#define ATA_ATI_IXP200		0x43491002
-#define ATA_ATI_IXP300		0x43691002
-#define ATA_ATI_IXP400		0x43761002
-#define ATA_ATI_IXP300_S1	0x436e1002
-#define ATA_ATI_IXP400_S1	0x43791002
-#define ATA_ATI_IXP400_S2	0x437a1002
+#define ATA_ATI_ID              0x1002
+#define ATA_ATI_IXP200          0x43491002
+#define ATA_ATI_IXP300          0x43691002
+#define ATA_ATI_IXP400          0x43761002
+#define ATA_ATI_IXP300_S1       0x436e1002
+#define ATA_ATI_IXP400_S1       0x43791002
+#define ATA_ATI_IXP400_S2       0x437a1002
 
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
@@ -153,7 +153,7 @@ struct ata_connect_task {
 #define ATA_I82801GB_R1         0x27c38086
 #define ATA_I82801GB_AH         0x27c18086
 #define ATA_I82801GB_M          0x27c58086
-#define ATA_I31244		0x32008086
+#define ATA_I31244              0x32008086
 
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
@@ -220,17 +220,21 @@ struct ata_connect_task {
 #define ATA_PDC20571            0x3571105a
 #define ATA_PDC20575            0x3d75105a
 #define ATA_PDC20579            0x3574105a
-#define ATA_PDC20580            0x3570105a
+#define ATA_PDC20771            0x3570105a
 #define ATA_PDC40518            0x3d18105a
 #define ATA_PDC40519            0x3519105a
 #define ATA_PDC40718            0x3d17105a
 #define ATA_PDC40719            0x3515105a
+#define ATA_PDC40775            0x3d73105a
+#define ATA_PDC40779            0x3577105a
 #define ATA_PDC20617            0x6617105a
 #define ATA_PDC20618            0x6626105a
 #define ATA_PDC20619            0x6629105a
 #define ATA_PDC20620            0x6620105a
 #define ATA_PDC20621            0x6621105a
 #define ATA_PDC20622            0x6622105a
+#define ATA_PDC20624            0x6624105a
+#define ATA_PDC81518            0x8002105a
 
 #define ATA_SERVERWORKS_ID      0x1166
 #define ATA_ROSB4_ISA           0x02001166
@@ -319,7 +323,7 @@ struct ata_connect_task {
 #define ATA_VIA6421             0x32491106
 
 /* chipset setup related defines */
-#define AHCI		1
+#define AHCI            1
 #define ATPOLD          1
 
 #define ALIOLD          0x01
