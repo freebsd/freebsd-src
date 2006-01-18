@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2005
+.Dd January 18, 2005
 .Dt BKTR 4
 .Os
 .Sh NAME
@@ -74,9 +74,9 @@ The following sysctls may be used to further configure the driver:
 .Em sysctl hw.bt848.card=nnnn
 This can be used to override the card make which was detected at boot time.
 .Ql nnnn
-is set to an integer from 1 to 13 taken from the following table:
+is set to an integer from 1 to 23 taken from the following table:
 .Pp
-.Bl -tag -compact -width 22n
+.Bl -tag -compact -width 30n
 .It MIRO
 1
 .It HAUPPAUGE
@@ -103,12 +103,32 @@ is set to an integer from 1 to 13 taken from the following table:
 12
 .It VIDEO_HIGHWAY_XTREME
 13
+.It ASKEY_DYNALINK_MAGIC_TVIEW
+14
+.It LEADTEK
+15
+.It TERRATVPLUS
+16
+.It IO_BCTV3
+17
+.It AOPEN_VA1000
+18
+.It PINNACLE_PCTV_RAVE
+19
+.It PIXELVIEW_PLAYTV_PAK
+20
+.It TERRATVALUE
+21
+.It PIXELVIEW_PLAYTV_PRO_REV_4C
+22
+.It Bt848_MAX
+23
 .El
 .Pp
 .Em sysctl hw.bt848.tuner=nnnn
 This can be used to override the tuner make which was detected at boot time.
 .Ql nnnn
-is set to an integer from 1 to 13 taken from the following table:
+is set to an integer from 1 to 16 taken from the following table:
 .Pp
 .Bl -tag -compact -width 22n
 .It NO_TUNER
@@ -139,6 +159,12 @@ is set to an integer from 1 to 13 taken from the following table:
 12
 .It ALPS_TSBH1
 13
+.It MT2032
+14
+.It LG_TPI8PSB12P_PAL
+15
+.It Bt848_MAX
+16
 .El
 .Sh HARDWARE
 The
@@ -177,11 +203,15 @@ Pinnacle PCTV Rave
 .It
 PixelView PlayTV PAK
 .It
+PixelView PlayTV Pro (rev 4C, 9D)
+.It
 SIGMA TV II
 .It
 STB TV PCI Television Tuner
 .It
 Super TV Tuner
+.It
+TerraTec TValue
 .It
 V-Stream XPERT TV-PVR 878
 .It
