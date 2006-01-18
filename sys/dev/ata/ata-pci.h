@@ -392,6 +392,9 @@ int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, st
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
 int ata_pci_allocate(device_t dev);
+void ata_pci_hw(device_t dev);
+int ata_pci_status(device_t dev);
+
 
 /* global prototypes ata-chipset.c */
 int ata_generic_ident(device_t);
@@ -413,7 +416,6 @@ int ata_sii_ident(device_t);
 int ata_sis_ident(device_t);
 int ata_via_ident(device_t);
 int ata_legacy(device_t);
-struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *);
 
 /* global prototypes ata-dma.c */
 void ata_dmainit(device_t);
