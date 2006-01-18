@@ -747,6 +747,7 @@ findpcb:
 #ifdef INET6
 		if (isipv6 && inp->inp_ip_minttl > ip6->ip6_hlim)
 			goto drop;
+		else
 #endif
 		if (inp->inp_ip_minttl > ip->ip_ttl)
 			goto drop;
