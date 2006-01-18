@@ -24,7 +24,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 20060118:
 	This actually occured some time ago, but installing the kernel
 	now also installs a bunch of symbol files for the kernel modules.
-	This increases the size of /boot/kenrnel to about 67Mbytes. You
+	This increases the size of /boot/kernel to about 67Mbytes. You
 	will need twice this if you will eventually back this up to kernel.old
 	on your next install.
 	If you have a shortage of room in your root partition, you should add
