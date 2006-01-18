@@ -470,6 +470,7 @@ struct ata_dma {
 
 /* structure holding lowlevel functions */
 struct ata_lowlevel {
+    int (*status)(device_t dev);
     int (*begin_transaction)(struct ata_request *request);
     int (*end_transaction)(struct ata_request *request);
     int (*command)(struct ata_request *request);
@@ -495,6 +496,7 @@ struct ata_channel {
 #define         ATA_USE_16BIT           0x02
 #define         ATA_ATAPI_DMA_RO        0x04
 #define         ATA_NO_48BIT_DMA        0x08
+#define		ATA_ALWAYS_DMASTAT	0x10
 
     int                         devices;        /* what is present */
 #define         ATA_ATA_MASTER          0x01
@@ -534,6 +536,7 @@ int ata_detach(device_t dev);
 int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
+int ata_interrupt(void *data);
 int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
@@ -558,6 +561,8 @@ char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);
+int ata_begin_transaction(struct ata_request *);
+int ata_end_transaction(struct ata_request *);
 void ata_generic_reset(device_t dev);
 int ata_generic_command(struct ata_request *request);
 

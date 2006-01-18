@@ -94,7 +94,8 @@ ata_queue_request(struct ata_request *request)
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
 	ATA_DEBUG_RQ(request, "wait for completition");
-	while (sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	while (!dumping &&
+	       sema_timedwait(&request->done, request->timeout * hz * 4)) {
 	    device_printf(request->dev,
 		"req=%p %s semaphore timeout !! DANGER Will Robinson !!\n",
 		      request, ata_cmd2str(request));
@@ -200,6 +201,13 @@ ata_start(device_t dev)
 		    ata_finish(request);
 		    return;
 		}
+		if (dumping) {
+		    mtx_unlock(&ch->state_mtx);
+		    mtx_unlock(&ch->queue_mtx);
+		    while (!ata_interrupt(ch))
+	    		DELAY(10);
+		    return;
+		}	
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
@@ -216,7 +224,8 @@ ata_finish(struct ata_request *request)
      * if in ATA_STALL_QUEUE state or request has ATA_R_DIRECT flags set
      * we need to call ata_complete() directly here (no taskqueue involvement)
      */
-    if ((ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
+    if (dumping ||
+	(ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
 	ATA_DEBUG_RQ(request, "finish directly");
 	ata_completed(request, 0);
     }
