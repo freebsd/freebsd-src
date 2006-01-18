@@ -56,7 +56,7 @@ static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 
 /* misc defines */
 #define IOMASK                  0xfffffffc
-#define ATA_PROBE_OK		-10
+#define ATA_PROBE_OK            -10
 
 /* prototypes */
 static void ata_pci_dmainit(device_t);
@@ -443,16 +443,16 @@ ata_pci_status(device_t dev)
 		    (ch->dma->flags & ATA_DMA_ACTIVE))) {
 	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
-       	if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
+	if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
 	    ATA_BMSTAT_INTERRUPT)
 	    return 0;
 	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
 	DELAY(1);
     }
     if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
-        DELAY(100);
-        if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
-            return 0;
+	DELAY(100);
+	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
+	    return 0;
     }
     return 1;
 }

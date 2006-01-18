@@ -205,9 +205,9 @@ ata_start(device_t dev)
 		    mtx_unlock(&ch->state_mtx);
 		    mtx_unlock(&ch->queue_mtx);
 		    while (!ata_interrupt(ch))
-	    		DELAY(10);
+			DELAY(10);
 		    return;
-		}	
+		}       
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
@@ -449,7 +449,7 @@ ata_completed(void *context, int dummy)
 	    
 	    for (bit = 0; bit < MAX_COMPOSITES; bit++) {
 		if (index & (1 << bit))
-	    	    ata_start(device_get_parent(composite->request[bit]->dev));
+		    ata_start(device_get_parent(composite->request[bit]->dev));
 	    }
 	}
     }
