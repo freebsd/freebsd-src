@@ -145,7 +145,6 @@ ENTRY(cpu_switch)
 #endif
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
-	movl	%ecx,%edi
 	movl	8(%esp),%ecx			/* New thread */
 #ifdef INVARIANTS
 	testl	%ecx,%ecx			/* no thread? */
