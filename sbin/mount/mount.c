@@ -391,14 +391,21 @@ main(int argc, char *argv[])
 int
 ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 {
+	char realfsfile[PATH_MAX];
 	int i;
 
 	if (fs->fs_file[0] == '/' && fs->fs_file[1] == '\0')
 		/* the root file system can always be remounted */
 		return (0);
 
+	/* The user may have specified a symlink in fstab, resolve the path */
+	if (realpath(fs->fs_file, realfsfile) == NULL) {
+		/* Cannot resolve the path, use original one */
+		strlcpy(realfsfile, fs->fs_file, sizeof(realfsfile));
+	}
+
 	for (i = mntsize - 1; i >= 0; --i)
-		if (strcmp(fs->fs_file, mntbuf[i].f_mntonname) == 0 &&
+		if (strcmp(realfsfile, mntbuf[i].f_mntonname) == 0 &&
 		    (!isremountable(fs->fs_vfstype) ||
 		     strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0))
 			return (1);
