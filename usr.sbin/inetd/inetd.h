@@ -74,10 +74,7 @@ struct	servtab {
 	int	se_maxchild;		/* max number of children */
 	int	se_maxcpm;		/* max connects per IP per minute */
 	int	se_numchild;		/* current number of children */
-	int	se_free;		/* free when numchild == 0 */
-#ifdef SANITY_CHECK
 	pid_t	*se_pids;		/* array of child pids */
-#endif
 	char	*se_user;		/* user name to run as */
 	char    *se_group;              /* group name to run as */
 #ifdef  LOGIN_CAP
@@ -148,14 +145,3 @@ struct biltin {
 	int	bi_maxchild;		/* max number of children, -1=default */
 	bi_fn_t	*bi_fn;			/* function which performs it */
 };
-
-void	watch(short, uintptr_t, void *, u_int, int);
-#define	WATCH_SOCK(fd, data)	watch(EVFILT_READ, fd, data, 0, 1)
-#define	UNWATCH_SOCK(fd, data)	watch(EVFILT_READ, fd, data, 0, 0)
-#define	WATCH_SIG(sig, data)	watch(EVFILT_SIGNAL, sig, data, 0, 1)
-#define	UNWATCH_SIG(sig, data)	watch(EVFILT_SIGNAL, sig, data, 0, 0)
-#define	WATCH_PROC(proc, data)	 watch(EVFILT_PROC, proc, data, NOTE_EXIT, 1)
-#define	UNWATCH_PROC(proc, data) watch(EVFILT_PROC, proc, data, NOTE_EXIT, 0)
-#define	WATCH_FD(fd, data)	watch(EVFILT_VNODE, fd, data, NOTE_DELETE|NOTE_WRITE|NOTE_EXTEND|NOTE_RENAME, 1)
-#define	UNWATCH_FD(fd, data)	watch(EVFILT_VNODE, fd, data, NOTE_DELETE|NOTE_WRITE|NOTE_EXTEND|NOTE_RENAME, 0)
-
