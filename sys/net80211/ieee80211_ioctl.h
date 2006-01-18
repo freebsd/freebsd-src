@@ -409,7 +409,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_MLME		21
 #define	IEEE80211_IOC_OPTIE		22	/* optional info. element */
 #define	IEEE80211_IOC_SCAN_REQ		23
-#define	IEEE80211_IOC_SCAN_RESULTS	24
+/* 24 was IEEE80211_IOC_SCAN_RESULTS */
 #define	IEEE80211_IOC_COUNTERMEASURES	25	/* WPA/TKIP countermeasures */
 #define	IEEE80211_IOC_WPA		26	/* WPA mode (0,1,2) */
 #define	IEEE80211_IOC_CHANLIST		27	/* channel list */
@@ -445,16 +445,23 @@ struct ieee80211req {
 #define	IEEE80211_IOC_MCAST_RATE	72	/* tx rate for mcast frames */
 #define	IEEE80211_IOC_FRAGTHRESHOLD	73	/* tx fragmentation threshold */
 #define	IEEE80211_IOC_BURST		75	/* packet bursting */
+#define	IEEE80211_IOC_SCAN_RESULTS	76	/* get scan results */
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.
+ * Each result is a fixed size structure followed by a variable
+ * length SSID and one or more variable length information elements.
+ * The size of each variable length item is found in the fixed
+ * size structure and the entire length of the record is specified
+ * in isr_len.  Result records are rounded to a multiple of 4 bytes.
  */
 struct ieee80211req_scan_result {
 	u_int16_t	isr_len;		/* length (mult of 4) */
+	u_int16_t	isr_ie_len;		/* IE length */
 	u_int16_t	isr_freq;		/* MHz */
 	u_int16_t	isr_flags;		/* channel flags */
-	u_int8_t	isr_noise;
-	u_int8_t	isr_rssi;
+	int8_t		isr_noise;
+	int8_t		isr_rssi;
 	u_int8_t	isr_intval;		/* beacon interval */
 	u_int8_t	isr_capinfo;		/* capabilities */
 	u_int8_t	isr_erp;		/* ERP element */
@@ -462,8 +469,7 @@ struct ieee80211req_scan_result {
 	u_int8_t	isr_nrates;
 	u_int8_t	isr_rates[IEEE80211_RATE_MAXSIZE];
 	u_int8_t	isr_ssid_len;		/* SSID length */
-	u_int8_t	isr_ie_len;		/* IE length */
-	u_int8_t	isr_pad[5];
+	u_int8_t	isr_pad[8];
 	/* variable length SSID followed by IE data */
 };
 

@@ -971,30 +971,44 @@ ieee80211_ioctl_getstastats(struct ieee80211com *ic, struct ieee80211req *ireq)
 	return error;
 }
 
+#define COMPAT_FREEBSD6
+#ifdef COMPAT_FREEBSD6
+#define	IEEE80211_IOC_SCAN_RESULTS_OLD	24
+
+struct scan_result_old {
+	u_int16_t	isr_len;		/* length (mult of 4) */
+	u_int16_t	isr_freq;		/* MHz */
+	u_int16_t	isr_flags;		/* channel flags */
+	u_int8_t	isr_noise;
+	u_int8_t	isr_rssi;
+	u_int8_t	isr_intval;		/* beacon interval */
+	u_int8_t	isr_capinfo;		/* capabilities */
+	u_int8_t	isr_erp;		/* ERP element */
+	u_int8_t	isr_bssid[IEEE80211_ADDR_LEN];
+	u_int8_t	isr_nrates;
+	u_int8_t	isr_rates[IEEE80211_RATE_MAXSIZE];
+	u_int8_t	isr_ssid_len;		/* SSID length */
+	u_int8_t	isr_ie_len;		/* IE length */
+	u_int8_t	isr_pad[5];
+	/* variable length SSID followed by IE data */
+};
+
 static void
-get_scan_result(struct ieee80211req_scan_result *sr,
+old_get_scan_result(struct scan_result_old *sr,
 	const struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	u_int ielen = 0;
+	u_int ielen;
 
 	memset(sr, 0, sizeof(*sr));
 	sr->isr_ssid_len = ni->ni_esslen;
+	ielen = 0;
 	if (ni->ni_wpa_ie != NULL)
 		ielen += 2+ni->ni_wpa_ie[1];
 	if (ni->ni_wme_ie != NULL)
 		ielen += 2+ni->ni_wme_ie[1];
-
-	/*
-	 * The value sr->isr_ie_len is defined as a uint8_t, so we
-	 * need to be careful to avoid an integer overflow.  If the
-	 * value would overflow, we will set isr_ie_len to zero, and
-	 * ieee80211_ioctl_getscanresults (below) will avoid copying
-	 * the (overflowing) data.
-	 */
-	if (ielen > 255)
-		ielen = 0;
-	sr->isr_ie_len = ielen;
+	/* NB: beware of overflow, isr_ie_len is 8 bits */
+	sr->isr_ie_len = (ielen > 255 ? 0 : ielen);
 	sr->isr_len = sizeof(*sr) + sr->isr_ssid_len + sr->isr_ie_len;
 	sr->isr_len = roundup(sr->isr_len, sizeof(u_int32_t));
 	if (ni->ni_chan != IEEE80211_CHAN_ANYC) {
@@ -1013,13 +1027,13 @@ get_scan_result(struct ieee80211req_scan_result *sr,
 }
 
 static int
-ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ireq)
+old_getscanresults(struct ieee80211com *ic, struct ieee80211req *ireq)
 {
 	union {
-		struct ieee80211req_scan_result res;
+		struct scan_result_old res;
 		char data[512];		/* XXX shrink? */
 	} u;
-	struct ieee80211req_scan_result *sr = &u.res;
+	struct scan_result_old *sr = &u.res;
 	struct ieee80211_node_table *nt;
 	struct ieee80211_node *ni;
 	int error, space;
@@ -1034,7 +1048,7 @@ ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ire
 		/* NB: skip pre-scan node state */ 
 		if (ni->ni_chan == IEEE80211_CHAN_ANYC)
 			continue;
-		get_scan_result(sr, ni);
+		old_get_scan_result(sr, ni);
 		if (sr->isr_len > sizeof(u))
 			continue;		/* XXX */
 		if (space < sr->isr_len)
@@ -1042,13 +1056,15 @@ ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ire
 		cp = (u_int8_t *)(sr+1);
 		memcpy(cp, ni->ni_essid, ni->ni_esslen);
 		cp += ni->ni_esslen;
-		if (sr->isr_ie_len > 0 && ni->ni_wpa_ie != NULL) {
-			memcpy(cp, ni->ni_wpa_ie, 2+ni->ni_wpa_ie[1]);
-			cp += 2+ni->ni_wpa_ie[1];
-		}
-		if (sr->isr_ie_len > 0 && ni->ni_wme_ie != NULL) {
-			memcpy(cp, ni->ni_wme_ie, 2+ni->ni_wme_ie[1]);
-			cp += 2+ni->ni_wme_ie[1];
+		if (sr->isr_ie_len) {
+			if (ni->ni_wpa_ie != NULL) {
+				memcpy(cp, ni->ni_wpa_ie, 2+ni->ni_wpa_ie[1]);
+				cp += 2+ni->ni_wpa_ie[1];
+			}
+			if (ni->ni_wme_ie != NULL) {
+				memcpy(cp, ni->ni_wme_ie, 2+ni->ni_wme_ie[1]);
+				cp += 2+ni->ni_wme_ie[1];
+			}
 		}
 		error = copyout(sr, p, sr->isr_len);
 		if (error)
@@ -1057,6 +1073,124 @@ ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ire
 		space -= sr->isr_len;
 	}
 	ireq->i_len -= space;
+	return error;
+}
+#endif /* COMPAT_FREEBSD6 */
+
+struct scanresultsreq {
+	struct ieee80211req_scan_result *sr;
+	size_t	space;
+};
+
+static size_t
+scan_space(const struct ieee80211_node *ni, size_t *ielen)
+{
+	size_t len;
+
+	*ielen = 0;
+	if (ni->ni_wpa_ie != NULL)
+		*ielen += 2+ni->ni_wpa_ie[1];
+	if (ni->ni_wme_ie != NULL)
+		*ielen += 2+ni->ni_wme_ie[1];
+	/*
+	 * NB: ie's can be no more than 255 bytes and the max 802.11
+	 * packet is <3Kbytes so we are sure this doesn't overflow
+	 * 16-bits; if this is a concern we can drop the ie's.
+	 */
+	len = sizeof(struct ieee80211req_scan_result) + ni->ni_esslen + *ielen;
+	return roundup(len, sizeof(u_int32_t));
+}
+
+static void
+get_scan_space(void *arg, struct ieee80211_node *ni)
+{
+	struct scanresultsreq *req = arg;
+	size_t ielen;
+
+	req->space += scan_space(ni, &ielen);
+}
+
+static void
+get_scan_result(void *arg, struct ieee80211_node *ni)
+{
+	struct scanresultsreq *req = arg;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211req_scan_result *sr;
+	size_t ielen, len;
+	u_int8_t *cp;
+
+	len = scan_space(ni, &ielen);
+	if (len > req->space)
+		return;
+	sr = req->sr;
+	KASSERT(len <= 65535 && ielen <= 65535,
+	    ("len %zu ssid %u ie %zu", len, ni->ni_esslen, ielen));
+	sr->isr_len = len;
+	sr->isr_ssid_len = ni->ni_esslen;
+	sr->isr_ie_len = ielen;
+	if (ni->ni_chan != IEEE80211_CHAN_ANYC) {
+		sr->isr_freq = ni->ni_chan->ic_freq;
+		sr->isr_flags = ni->ni_chan->ic_flags;
+	}
+	/* XXX need to rev driver apis for signal data */
+	sr->isr_rssi = (int8_t) ic->ic_node_getrssi(ni);
+	sr->isr_intval = ni->ni_intval;
+	sr->isr_capinfo = ni->ni_capinfo;
+	sr->isr_erp = ni->ni_erp;
+	IEEE80211_ADDR_COPY(sr->isr_bssid, ni->ni_bssid);
+	sr->isr_nrates = ni->ni_rates.rs_nrates;
+	if (sr->isr_nrates > 15)
+		sr->isr_nrates = 15;
+	memcpy(sr->isr_rates, ni->ni_rates.rs_rates, sr->isr_nrates);
+	cp = (u_int8_t *)(sr+1);
+	memcpy(cp, ni->ni_essid, ni->ni_esslen);
+	cp += ni->ni_esslen;
+	if (sr->isr_ie_len) {
+		if (ni->ni_wpa_ie != NULL) {
+			memcpy(cp, ni->ni_wpa_ie, 2+ni->ni_wpa_ie[1]);
+			cp += 2+ni->ni_wpa_ie[1];
+		}
+		if (ni->ni_wme_ie != NULL) {
+			memcpy(cp, ni->ni_wme_ie, 2+ni->ni_wme_ie[1]);
+			cp += 2+ni->ni_wme_ie[1];
+		}
+	}
+
+	req->sr = (struct ieee80211req_scan_result *)(((u_int8_t *)sr) + len);
+	req->space -= len;
+}
+
+static int
+ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ireq)
+{
+	struct scanresultsreq req;
+	int error;
+
+	if (ireq->i_len < sizeof(struct scanresultsreq))
+		return EFAULT;
+
+	error = 0;
+	req.space = 0;
+	ieee80211_iterate_nodes(&ic->ic_scan, get_scan_space, &req);
+	if (req.space > ireq->i_len)
+		req.space = ireq->i_len;
+	if (req.space > 0) {
+		size_t space;
+		void *p;
+
+		space = req.space;
+		/* XXX M_WAITOK after driver lock released */
+		MALLOC(p, void *, space, M_TEMP, M_NOWAIT | M_ZERO);
+		if (p == NULL)
+			return ENOMEM;
+		req.sr = p;
+		ieee80211_iterate_nodes(&ic->ic_scan, get_scan_result, &req);
+		ireq->i_len = space - req.space;
+		error = copyout(p, ireq->i_data, ireq->i_len);
+		FREE(p, M_TEMP);
+	} else
+		ireq->i_len = 0;
+
 	return error;
 }
 
@@ -1109,6 +1243,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	if (len > req->space)
 		return;
 	si = req->si;
+	KASSERT(len <= 65535 && ielen <= 65535, ("len %zu ie %zu", len, ielen));
 	si->isi_len = len;
 	si->isi_ie_len = ielen;
 	si->isi_freq = ni->ni_chan->ic_freq;
@@ -1459,6 +1594,11 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_WPAIE:
 		error = ieee80211_ioctl_getwpaie(ic, ireq);
 		break;
+#ifdef COMPAT_FREEBSD6
+	case IEEE80211_IOC_SCAN_RESULTS_OLD:
+		error = old_getscanresults(ic, ireq);
+		break;
+#endif
 	case IEEE80211_IOC_SCAN_RESULTS:
 		error = ieee80211_ioctl_getscanresults(ic, ireq);
 		break;
