@@ -68,7 +68,6 @@ BASE_SRCS= archive_check_magic.c			\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_iso9660.c		\
 	archive_read_support_format_tar.c		\
-	archive_read_support_format_tp.c		\
 	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string_sprintf.c			\
