@@ -321,6 +321,7 @@ struct thread {
 	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* (a) Size of alternate kstack. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
+	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 };
