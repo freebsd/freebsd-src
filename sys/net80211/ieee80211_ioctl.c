@@ -976,13 +976,25 @@ get_scan_result(struct ieee80211req_scan_result *sr,
 	const struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
+	u_int ielen = 0;
 
 	memset(sr, 0, sizeof(*sr));
 	sr->isr_ssid_len = ni->ni_esslen;
 	if (ni->ni_wpa_ie != NULL)
-		sr->isr_ie_len += 2+ni->ni_wpa_ie[1];
+		ielen += 2+ni->ni_wpa_ie[1];
 	if (ni->ni_wme_ie != NULL)
-		sr->isr_ie_len += 2+ni->ni_wme_ie[1];
+		ielen += 2+ni->ni_wme_ie[1];
+
+	/*
+	 * The value sr->isr_ie_len is defined as a uint8_t, so we
+	 * need to be careful to avoid an integer overflow.  If the
+	 * value would overflow, we will set isr_ie_len to zero, and
+	 * ieee80211_ioctl_getscanresults (below) will avoid copying
+	 * the (overflowing) data.
+	 */
+	if (ielen > 255)
+		ielen = 0;
+	sr->isr_ie_len = ielen;
 	sr->isr_len = sizeof(*sr) + sr->isr_ssid_len + sr->isr_ie_len;
 	sr->isr_len = roundup(sr->isr_len, sizeof(u_int32_t));
 	if (ni->ni_chan != IEEE80211_CHAN_ANYC) {
@@ -1030,11 +1042,11 @@ ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ire
 		cp = (u_int8_t *)(sr+1);
 		memcpy(cp, ni->ni_essid, ni->ni_esslen);
 		cp += ni->ni_esslen;
-		if (ni->ni_wpa_ie != NULL) {
+		if (sr->isr_ie_len > 0 && ni->ni_wpa_ie != NULL) {
 			memcpy(cp, ni->ni_wpa_ie, 2+ni->ni_wpa_ie[1]);
 			cp += 2+ni->ni_wpa_ie[1];
 		}
-		if (ni->ni_wme_ie != NULL) {
+		if (sr->isr_ie_len > 0 && ni->ni_wme_ie != NULL) {
 			memcpy(cp, ni->ni_wme_ie, 2+ni->ni_wme_ie[1]);
 			cp += 2+ni->ni_wme_ie[1];
 		}
