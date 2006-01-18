@@ -790,7 +790,8 @@ passout:
 		 * them, there is no way for one to update all its
 		 * routes when the MTU is changed.
 		 */
-		if ((ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST)) &&
+		if (ro != NULL &&
+		    (ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST)) &&
 		    (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
 			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
 		}
