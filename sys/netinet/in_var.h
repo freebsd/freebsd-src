@@ -167,6 +167,17 @@ SYSCTL_DECL(_net_inet_raw);
 extern LIST_HEAD(in_multihead, in_multi) in_multihead;
 
 /*
+ * Lock macros for IPv4 layer multicast address lists.  IPv4 lock goes
+ * before link layer multicast locks in the lock order.  In most cases,
+ * consumers of IN_*_MULTI() macros should acquire the locks before
+ * calling them; users of the in_{add,del}multi() functions should not.
+ */
+extern struct mtx in_multi_mtx;
+#define	IN_MULTI_LOCK()		mtx_lock(&in_multi_mtx)
+#define	IN_MULTI_UNLOCK()	mtx_unlock(&in_multi_mtx)
+#define	IN_MULTI_LOCK_ASSERT()	mtx_assert(&in_multi_mtx, MA_OWNED)
+
+/*
  * Structure used by macros below to remember position when stepping through
  * all of the in_multi records.
  */
@@ -185,6 +196,8 @@ struct in_multistep {
 do { \
 	struct ifmultiaddr *ifma; \
 \
+	IN_MULTI_LOCK_ASSERT(); \
+	IF_ADDR_LOCK(ifp); \
 	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) { \
 		if (ifma->ifma_addr->sa_family == AF_INET \
 		    && ((struct sockaddr_in *)ifma->ifma_addr)->sin_addr.s_addr == \
@@ -192,6 +205,7 @@ do { \
 			break; \
 	} \
 	(inm) = ifma ? ifma->ifma_protospec : 0; \
+	IF_ADDR_UNLOCK(ifp); \
 } while(0)
 
 /*
@@ -205,6 +219,7 @@ do { \
 	/* struct in_multistep  step; */ \
 	/* struct in_multi *inm; */ \
 do { \
+	IN_MULTI_LOCK_ASSERT(); \
 	if (((inm) = (step).i_inm) != NULL) \
 		(step).i_inm = LIST_NEXT((step).i_inm, inm_link); \
 } while(0)
@@ -213,6 +228,7 @@ do { \
 	/* struct in_multistep step; */ \
 	/* struct in_multi *inm; */ \
 do { \
+	IN_MULTI_LOCK_ASSERT(); \
 	(step).i_inm = LIST_FIRST(&in_multihead); \
 	IN_NEXT_MULTI((step), (inm)); \
 } while(0)

@@ -280,6 +280,7 @@ igmp_input(register struct mbuf *m, int off)
 		 * - Use the value specified in the query message as
 		 *   the maximum timeout.
 		 */
+		IN_MULTI_LOCK();
 		IN_FIRST_MULTI(step, inm);
 		while (inm != NULL) {
 			if (inm->inm_ifp == ifp &&
@@ -295,6 +296,7 @@ igmp_input(register struct mbuf *m, int off)
 			}
 			IN_NEXT_MULTI(step, inm);
 		}
+		IN_MULTI_UNLOCK();
 
 		break;
 
@@ -337,14 +339,15 @@ igmp_input(register struct mbuf *m, int off)
 		 * If we belong to the group being reported, stop
 		 * our timer for that group.
 		 */
+		IN_MULTI_LOCK();
 		IN_LOOKUP_MULTI(igmp->igmp_group, ifp, inm);
-
 		if (inm != NULL) {
 			inm->inm_timer = 0;
 			++igmpstat.igps_rcv_ourreports;
 
 			inm->inm_state = IGMP_OTHERMEMBER;
 		}
+		IN_MULTI_UNLOCK();
 
 		break;
 	}
@@ -359,7 +362,8 @@ igmp_input(register struct mbuf *m, int off)
 void
 igmp_joingroup(struct in_multi *inm)
 {
-	int s = splnet();
+
+	IN_MULTI_LOCK_ASSERT();
 
 	if (inm->inm_addr.s_addr == igmp_all_hosts_group
 	    || inm->inm_ifp->if_flags & IFF_LOOPBACK) {
@@ -375,12 +379,13 @@ igmp_joingroup(struct in_multi *inm)
 		inm->inm_state = IGMP_IREPORTEDLAST;
 		igmp_timers_are_running = 1;
 	}
-	splx(s);
 }
 
 void
 igmp_leavegroup(struct in_multi *inm)
 {
+
+	IN_MULTI_LOCK_ASSERT();
 
 	if (inm->inm_state == IGMP_IREPORTEDLAST &&
 	    inm->inm_addr.s_addr != igmp_all_hosts_group &&
@@ -394,7 +399,6 @@ igmp_fasttimo(void)
 {
 	register struct in_multi *inm;
 	struct in_multistep step;
-	int s;
 
 	/*
 	 * Quick check to see if any work needs to be done, in order
@@ -404,7 +408,7 @@ igmp_fasttimo(void)
 	if (!igmp_timers_are_running)
 		return;
 
-	s = splnet();
+	IN_MULTI_LOCK();
 	igmp_timers_are_running = 0;
 	IN_FIRST_MULTI(step, inm);
 	while (inm != NULL) {
@@ -418,13 +422,12 @@ igmp_fasttimo(void)
 		}
 		IN_NEXT_MULTI(step, inm);
 	}
-	splx(s);
+	IN_MULTI_UNLOCK();
 }
 
 void
 igmp_slowtimo(void)
 {
-	int s = splnet();
 	struct router_info *rti;
 
 	IGMP_PRINTF("[igmp.c,_slowtimo] -- > entering \n");
@@ -438,7 +441,6 @@ igmp_slowtimo(void)
 	}
 	mtx_unlock(&igmp_mtx);
 	IGMP_PRINTF("[igmp.c,_slowtimo] -- > exiting \n");
-	splx(s);
 }
 
 static void
@@ -448,6 +450,8 @@ igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 	struct igmp *igmp;
 	struct ip *ip;
 	struct ip_moptions imo;
+
+	IN_MULTI_LOCK_ASSERT();
 
 	MGETHDR(m, M_DONTWAIT, MT_HEADER);
 	if (m == NULL)

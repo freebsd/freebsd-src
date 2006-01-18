@@ -607,7 +607,9 @@ passin:
 		 * See if we belong to the destination multicast group on the
 		 * arrival interface.
 		 */
+		IN_MULTI_LOCK();
 		IN_LOOKUP_MULTI(ip->ip_dst, m->m_pkthdr.rcvif, inm);
+		IN_MULTI_UNLOCK();
 		if (inm == NULL) {
 			ipstat.ips_notmember++;
 			m_freem(m);

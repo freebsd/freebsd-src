@@ -72,7 +72,16 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
 	&sameprefixcarponly, 0,
 	"Refuse to create same prefixes on different interfaces");
 
+/*
+ * The IPv4 multicast list (in_multihead and associated structures) are
+ * protected by the global in_multi_mtx.  See in_var.h for more details.  For
+ * now, in_multi_mtx is marked as recursible due to IGMP's calling back into
+ * ip_output() to send IGMP packets while holding the lock; this probably is
+ * not quite desirable.
+ */
 struct in_multihead in_multihead; /* XXX BSS initialization */
+struct mtx in_multi_mtx;
+MTX_SYSINIT(in_multi_mtx, &in_multi_mtx, "in_multi_mtx", MTX_DEF | MTX_RECURSE);
 
 extern struct inpcbinfo ripcbinfo;
 extern struct inpcbinfo udbinfo;
@@ -952,8 +961,9 @@ in_addmulti(ap, ifp)
 	int error;
 	struct sockaddr_in sin;
 	struct ifmultiaddr *ifma;
-	int s = splnet();
 
+	IFF_LOCKGIANT(ifp);
+	IN_MULTI_LOCK();
 	/*
 	 * Call generic routine to add membership or increment
 	 * refcount.  It wants addresses in the form of a sockaddr,
@@ -965,7 +975,8 @@ in_addmulti(ap, ifp)
 	sin.sin_addr = *ap;
 	error = if_addmulti(ifp, (struct sockaddr *)&sin, &ifma);
 	if (error) {
-		splx(s);
+		IN_MULTI_UNLOCK();
+		IFF_UNLOCKGIANT(ifp);
 		return 0;
 	}
 
@@ -974,16 +985,16 @@ in_addmulti(ap, ifp)
 	 * a new record.  Otherwise, we are done.
 	 */
 	if (ifma->ifma_protospec != NULL) {
-		splx(s);
+		IN_MULTI_UNLOCK();
+		IFF_UNLOCKGIANT(ifp);
 		return ifma->ifma_protospec;
 	}
 
-	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
-	   at interrupt time?  If so, need to fix if_addmulti. XXX */
 	inm = (struct in_multi *)malloc(sizeof(*inm), M_IPMADDR,
 	    M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
-		splx(s);
+		IN_MULTI_UNLOCK();
+		IFF_UNLOCKGIANT(ifp);
 		return (NULL);
 	}
 
@@ -997,7 +1008,8 @@ in_addmulti(ap, ifp)
 	 * Let IGMP know that we have joined a new IP multicast group.
 	 */
 	igmp_joingroup(inm);
-	splx(s);
+	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
 	return (inm);
 }
 
@@ -1008,10 +1020,14 @@ void
 in_delmulti(inm)
 	register struct in_multi *inm;
 {
-	struct ifmultiaddr *ifma = inm->inm_ifma;
+	struct ifmultiaddr *ifma;
 	struct in_multi my_inm;
-	int s = splnet();
+	struct ifnet *ifp;
 
+	ifp = inm->inm_ifp;
+	IFF_LOCKGIANT(ifp);
+	IN_MULTI_LOCK();
+	ifma = inm->inm_ifma;
 	my_inm.inm_ifp = NULL ; /* don't send the leave msg */
 	if (ifma->ifma_refcount == 1) {
 		/*
@@ -1029,5 +1045,6 @@ in_delmulti(inm)
 	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
 	if (my_inm.inm_ifp != NULL)
 		igmp_leavegroup(&my_inm);
-	splx(s);
+	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
 }
