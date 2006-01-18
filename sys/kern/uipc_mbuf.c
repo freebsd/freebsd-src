@@ -248,13 +248,26 @@ mb_free_ext(struct mbuf *m)
 		/*
 		 * Do the free, should be safe.
 		 */
-		if (m->m_ext.ext_type == EXT_PACKET) {
+		switch (m->m_ext.ext_type) {
+		case EXT_PACKET:
 			uma_zfree(zone_pack, m);
 			return;
-		} else if (m->m_ext.ext_type == EXT_CLUSTER) {
+		case EXT_CLUSTER:
 			uma_zfree(zone_clust, m->m_ext.ext_buf);
 			m->m_ext.ext_buf = NULL;
-		} else {
+			break;
+		case EXT_JUMBO4:
+			uma_zfree(zone_jumbo4, m->m_ext.ext_buf);
+			break;
+		case EXT_JUMBO9:
+			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
+			break;
+		case EXT_JUMBO16:
+			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
+			break;
+		default:
+			KASSERT(m->m_ext.ext_free != NULL,
+			    ("%s: external free pointer not set", __func__));
 			(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
 			    m->m_ext.ext_args);
 			if (m->m_ext.ext_type != EXT_EXTREF) {
