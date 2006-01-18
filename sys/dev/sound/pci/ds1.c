@@ -834,8 +834,8 @@ ds_init(struct sc_info *sc)
 
 	if (sc->regbase == NULL) {
 		if (bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-				       NULL, NULL, memsz, 1, memsz, 0, busdma_lock_mutex,
-				       &Giant, &sc->control_dmat))
+				       NULL, NULL, memsz, 1, memsz, 0, NULL,
+				       NULL, &sc->control_dmat))
 			return -1;
 		if (bus_dmamem_alloc(sc->control_dmat, &buf, BUS_DMA_NOWAIT, &sc->map))
 			return -1;
@@ -975,8 +975,8 @@ ds_pci_attach(device_t dev)
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/sc->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant, &sc->buffer_dmat) != 0) {
+		/*flags*/0, /*lockfunc*/NULL,
+		/*lockarg*/NULL, &sc->buffer_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
