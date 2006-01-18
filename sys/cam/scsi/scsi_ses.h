@@ -29,7 +29,7 @@
  *
  */
 
-#define	SESIOC			(('s' - 040) << 8)
+#define	SESIOC			('s' - 040)
 #define	SESIOC_GETNOBJ		_IO(SESIOC, 1)
 #define	SESIOC_GETOBJMAP	_IO(SESIOC, 2)
 #define	SESIOC_GETENCSTAT	_IO(SESIOC, 3)
