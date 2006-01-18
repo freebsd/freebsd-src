@@ -34,7 +34,7 @@
  */
 
 #ifndef __ELF_WORD_SIZE
-#define __ELF_WORD_SIZE 64
+#define	__ELF_WORD_SIZE	64
 #endif
 
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
@@ -150,17 +150,19 @@ __ElfType(Auxinfo);
 #define	R_IA_64_IMM14		0x21	/* immediate14	S + A */
 #define	R_IA_64_IMM22		0x22	/* immediate22	S + A */
 #define	R_IA_64_IMM64		0x23	/* immediate64	S + A */
-#define	R_IA_64_DIR32MSB		0x24	/* word32 MSB	S + A */
-#define	R_IA_64_DIR32LSB		0x25	/* word32 LSB	S + A */
-#define	R_IA_64_DIR64MSB		0x26	/* word64 MSB	S + A */
-#define	R_IA_64_DIR64LSB		0x27	/* word64 LSB	S + A */
+#define	R_IA_64_DIR32MSB	0x24	/* word32 MSB	S + A */
+#define	R_IA_64_DIR32LSB	0x25	/* word32 LSB	S + A */
+#define	R_IA_64_DIR64MSB	0x26	/* word64 MSB	S + A */
+#define	R_IA_64_DIR64LSB	0x27	/* word64 LSB	S + A */
 #define	R_IA_64_GPREL22		0x2a	/* immediate22	@gprel(S + A) */
-#define	R_IA_64_GPREL64I		0x2b	/* immediate64	@gprel(S + A) */
+#define	R_IA_64_GPREL64I	0x2b	/* immediate64	@gprel(S + A) */
+#define	R_IA_64_GPREL32MSB	0x2c	/* word32 MSB	@gprel(S + A) */
+#define	R_IA_64_GPREL32LSB	0x2d	/* word32 LSB	@gprel(S + A) */
 #define	R_IA_64_GPREL64MSB	0x2e	/* word64 MSB	@gprel(S + A) */
 #define	R_IA_64_GPREL64LSB	0x2f	/* word64 LSB	@gprel(S + A) */
 #define	R_IA_64_LTOFF22		0x32	/* immediate22	@ltoff(S + A) */
-#define	R_IA_64_LTOFF64I		0x33	/* immediate64	@ltoff(S + A) */
-#define	R_IA_64_PLTOFF22		0x3a	/* immediate22	@pltoff(S + A) */
+#define	R_IA_64_LTOFF64I	0x33	/* immediate64	@ltoff(S + A) */
+#define	R_IA_64_PLTOFF22	0x3a	/* immediate22	@pltoff(S + A) */
 #define	R_IA_64_PLTOFF64I	0x3b	/* immediate64	@pltoff(S + A) */
 #define	R_IA_64_PLTOFF64MSB	0x3e	/* word64 MSB	@pltoff(S + A) */
 #define	R_IA_64_PLTOFF64LSB	0x3f	/* word64 LSB	@pltoff(S + A) */
@@ -169,9 +171,10 @@ __ElfType(Auxinfo);
 #define	R_IA_64_FPTR32LSB	0x45	/* word32 LSB	@fptr(S + A) */
 #define	R_IA_64_FPTR64MSB	0x46	/* word64 MSB	@fptr(S + A) */
 #define	R_IA_64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
-#define	R_IA_64_PCREL21B		0x49	/* immediate21 form1 S + A - P */
-#define	R_IA_64_PCREL21M		0x4a	/* immediate21 form2 S + A - P */
-#define	R_IA_64_PCREL21F		0x4b	/* immediate21 form3 S + A - P */
+#define	R_IA_64_PCREL60B	0x48	/* immediate60 form1 S + A - P */
+#define	R_IA_64_PCREL21B	0x49	/* immediate21 form1 S + A - P */
+#define	R_IA_64_PCREL21M	0x4a	/* immediate21 form2 S + A - P */
+#define	R_IA_64_PCREL21F	0x4b	/* immediate21 form3 S + A - P */
 #define	R_IA_64_PCREL32MSB	0x4c	/* word32 MSB	S + A - P */
 #define	R_IA_64_PCREL32LSB	0x4d	/* word32 LSB	S + A - P */
 #define	R_IA_64_PCREL64MSB	0x4e	/* word64 MSB	S + A - P */
@@ -190,30 +193,33 @@ __ElfType(Auxinfo);
 #define	R_IA_64_SECREL32LSB	0x65	/* word32 LSB	@secrel(S + A) */
 #define	R_IA_64_SECREL64MSB	0x66	/* word64 MSB	@secrel(S + A) */
 #define	R_IA_64_SECREL64LSB	0x67	/* word64 LSB	@secrel(S + A) */
-#define	R_IA_64_REL32MSB		0x6c	/* word32 MSB	BD + A */
-#define	R_IA_64_REL32LSB		0x6d	/* word32 LSB	BD + A */
-#define	R_IA_64_REL64MSB		0x6e	/* word64 MSB	BD + A */
-#define	R_IA_64_REL64LSB		0x6f	/* word64 LSB	BD + A */
-#define	R_IA_64_LTV32MSB		0x74	/* word32 MSB	S + A */
-#define	R_IA_64_LTV32LSB		0x75	/* word32 LSB	S + A */
-#define	R_IA_64_LTV64MSB		0x76	/* word64 MSB	S + A */
-#define	R_IA_64_LTV64LSB		0x77	/* word64 LSB	S + A */
+#define	R_IA_64_REL32MSB	0x6c	/* word32 MSB	BD + A */
+#define	R_IA_64_REL32LSB	0x6d	/* word32 LSB	BD + A */
+#define	R_IA_64_REL64MSB	0x6e	/* word64 MSB	BD + A */
+#define	R_IA_64_REL64LSB	0x6f	/* word64 LSB	BD + A */
+#define	R_IA_64_LTV32MSB	0x74	/* word32 MSB	S + A */
+#define	R_IA_64_LTV32LSB	0x75	/* word32 LSB	S + A */
+#define	R_IA_64_LTV64MSB	0x76	/* word64 MSB	S + A */
+#define	R_IA_64_LTV64LSB	0x77	/* word64 LSB	S + A */
+#define	R_IA_64_PCREL21BI	0x79	/* immediate21 form1 S + A - P */
+#define	R_IA_64_PCREL22		0x7a	/* immediate22	S + A - P */
+#define	R_IA_64_PCREL64I	0x7b	/* immediate64	S + A - P */
 #define	R_IA_64_IPLTMSB		0x80	/* function descriptor MSB special */
 #define	R_IA_64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
 #define	R_IA_64_SUB		0x85	/* immediate64	A - S */
-#define	R_IA_64_LTOFF22X		0x86	/* immediate22	special */
+#define	R_IA_64_LTOFF22X	0x86	/* immediate22	special */
 #define	R_IA_64_LDXMOV		0x87	/* immediate22	special */
 #define	R_IA_64_TPREL14		0x91	/* imm14	@tprel(S + A) */
 #define	R_IA_64_TPREL22		0x92	/* imm22	@tprel(S + A) */
-#define	R_IA_64_TPREL64I		0x93	/* imm64	@tprel(S + A) */
+#define	R_IA_64_TPREL64I	0x93	/* imm64	@tprel(S + A) */
 #define	R_IA_64_TPREL64MSB	0x96	/* word64 MSB	@tprel(S + A) */
 #define	R_IA_64_TPREL64LSB	0x97	/* word64 LSB	@tprel(S + A) */
 #define	R_IA_64_LTOFF_TPREL22	0x9a	/* imm22	@ltoff(@tprel(S+A)) */
 #define	R_IA_64_DTPMOD64MSB	0xa6	/* word64 MSB	@dtpmod(S + A) */
 #define	R_IA_64_DTPMOD64LSB	0xa7	/* word64 LSB	@dtpmod(S + A) */
 #define	R_IA_64_LTOFF_DTPMOD22	0xaa	/* imm22	@ltoff(@dtpmod(S+A)) */
-#define	R_IA_64_DTPREL14		0xb1	/* imm14	@dtprel(S + A) */
-#define	R_IA_64_DTPREL22		0xb2	/* imm22	@dtprel(S + A) */
+#define	R_IA_64_DTPREL14	0xb1	/* imm14	@dtprel(S + A) */
+#define	R_IA_64_DTPREL22	0xb2	/* imm22	@dtprel(S + A) */
 #define	R_IA_64_DTPREL64I	0xb3	/* imm64	@dtprel(S + A) */
 #define	R_IA_64_DTPREL32MSB	0xb4	/* word32 MSB	@dtprel(S + A) */
 #define	R_IA_64_DTPREL32LSB	0xb5	/* word32 LSB	@dtprel(S + A) */
@@ -233,6 +239,6 @@ __ElfType(Auxinfo);
 
 /* Processor specific dynmamic section tags. */
 
-#define DT_IA64_PLT_RESERVE     0x70000000
+#define	DT_IA64_PLT_RESERVE	0x70000000
 
 #endif /* !_MACHINE_ELF_H_ */
