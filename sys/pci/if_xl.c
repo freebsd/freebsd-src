@@ -1690,7 +1690,7 @@ xl_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (ifp && ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
