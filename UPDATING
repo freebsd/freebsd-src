@@ -17,6 +17,16 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20060118:	p37	FreeBSD-SA-06:01.texindex, FreeBSD-SA-06:02.ee,
+			FreeBSD-SA-06:03.cpio
+	Correct insecure temporary file usage in texindex. [06:01]
+
+	Correct insecure temporary file usage in ee. [06:02]
+
+	Correct a race condition when setting file permissions,
+	sanitize file names by default, and fix a buffer overflow
+	when handling files larger than 4GB in cpio. [06:03]
+
 20051013:	p36	FreeBSD-SA-05:21.openssl
 	Correct a man-in-the-middle SSL version rollback vulnerability.
 
