@@ -767,8 +767,11 @@ syncache_expand(inc, th, sop, m)
 	/*
 	 * If seg contains an ACK, but not for our SYN/ACK, send a RST.
 	 */
-	if (th->th_ack != sc->sc_iss + 1)
+	if (th->th_ack != sc->sc_iss + 1) {
+		if (sch == NULL)
+			syncache_free(sc);
 		return (0);
+	}
 
 	so = syncache_socket(sc, *sop, m);
 	if (so == NULL) {
