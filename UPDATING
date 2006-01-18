@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060118:	p3	FreeBSD-SA-06:05.80211
+	Correct a buffer overflow when scanning for 802.11 wireless
+	networks which can be provoked by corrupt beacon or probe
+	response frames.
+
 20060111:	p2	FreeBSD-SA-06:01.texindex, FreeBSD-SA-06:02.ee,
 			FreeBSD-SA-06:03.cpio, FreeBSD-SA-06:04.ipfw
 	Correct insecure temporary file usage in texindex. [06:01]
