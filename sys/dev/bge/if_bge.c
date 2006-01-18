@@ -785,26 +785,36 @@ bge_newbuf_jumbo(sc, i, m)
 			m_freem(m_new);
 		return(error);
 	}
-	KASSERT(nsegs == BGE_NSEG_JUMBO, ("%s: %d segments", __func__, nsegs));
-
 	sc->bge_cdata.bge_rx_jumbo_chain[i] = m_new;
 
 	/*
 	 * Fill in the extended RX buffer descriptor.
 	 */
 	r = &sc->bge_ldata.bge_rx_jumbo_ring[i];
-	r->bge_addr0.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
-	r->bge_addr0.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
-	r->bge_len0 = segs[0].ds_len;
-	r->bge_addr1.bge_addr_lo = BGE_ADDR_LO(segs[1].ds_addr);
-	r->bge_addr1.bge_addr_hi = BGE_ADDR_HI(segs[1].ds_addr);
-	r->bge_len1 = segs[1].ds_len;
-	r->bge_addr2.bge_addr_lo = BGE_ADDR_LO(segs[2].ds_addr);
-	r->bge_addr2.bge_addr_hi = BGE_ADDR_HI(segs[2].ds_addr);
-	r->bge_len2 = segs[2].ds_len;
-	r->bge_len3 = 0;
 	r->bge_flags = BGE_RXBDFLAG_JUMBO_RING|BGE_RXBDFLAG_END;
 	r->bge_idx = i;
+	r->bge_len3 = r->bge_len2 = r->bge_len1 = 0;
+	switch (nsegs) {
+	case 4:
+		r->bge_addr3.bge_addr_lo = BGE_ADDR_LO(segs[3].ds_addr);
+		r->bge_addr3.bge_addr_hi = BGE_ADDR_HI(segs[3].ds_addr);
+		r->bge_len3 = segs[3].ds_len;
+	case 3:
+		r->bge_addr2.bge_addr_lo = BGE_ADDR_LO(segs[2].ds_addr);
+		r->bge_addr2.bge_addr_hi = BGE_ADDR_HI(segs[2].ds_addr);
+		r->bge_len2 = segs[2].ds_len;
+	case 2:
+		r->bge_addr1.bge_addr_lo = BGE_ADDR_LO(segs[1].ds_addr);
+		r->bge_addr1.bge_addr_hi = BGE_ADDR_HI(segs[1].ds_addr);
+		r->bge_len1 = segs[1].ds_len;
+	case 1:
+		r->bge_addr0.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
+		r->bge_addr0.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
+		r->bge_len0 = segs[0].ds_len;
+		break;
+	default:
+		panic("%s: %d segments\n", __func__, nsegs);
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
 	    sc->bge_cdata.bge_rx_jumbo_dmamap[i],
