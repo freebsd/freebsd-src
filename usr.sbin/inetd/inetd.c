@@ -113,8 +113,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/types.h>
-#include <sys/event.h>
 #include <sys/stat.h>
 #include <sys/un.h>
 
@@ -199,7 +197,6 @@ __FBSDID("$FreeBSD$");
 #ifndef TOOMANY
 #define	TOOMANY		256		/* don't start more than TOOMANY */
 #endif
-
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 #define MAX_MAXCHLD	32767		/* max allowable max children */
@@ -207,6 +204,8 @@ __FBSDID("$FreeBSD$");
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
 
 void		close_sep(struct servtab *);
+void		flag_signal(int);
+void		flag_config(int);
 void		config(void);
 int		cpmip(const struct servtab *, int);
 void		endconfig(void);
@@ -216,8 +215,11 @@ struct servtab *getconfigent(void);
 int		matchservent(const char *, const char *, const char *);
 char	       *nextline(FILE *);
 void		addchild(struct servtab *, int);
+void		flag_reapchild(int);
+void		reapchild(void);
 void		enable(struct servtab *);
 void		disable(struct servtab *);
+void		flag_retry(int);
 void		retry(void);
 int		setconfig(void);
 void		setup(struct servtab *);
@@ -228,6 +230,7 @@ void		unregisterrpc(register struct servtab *sep);
 static struct conninfo *search_conn(struct servtab *sep, int ctrl);
 static int	room_conn(struct servtab *sep, struct conninfo *conn);
 static void	addchild_conn(struct conninfo *conn, pid_t pid);
+static void	reapchild_conn(pid_t pid);
 static void	free_conn(struct conninfo *conn);
 static void	resize_conn(struct servtab *sep, int maxperip);
 static void	free_connlist(struct servtab *sep);
@@ -242,7 +245,7 @@ int	wrap_bi = 0;
 int	debug = 0;
 int	dolog = 0;
 int	maxsock;			/* highest-numbered descriptor */
-int	kqsock;
+fd_set	allsock;
 int	options;
 int	timingout;
 int	toomany = TOOMANY;
@@ -258,6 +261,7 @@ int	v4bind_ok = 0;
 struct	sockaddr_in6 *bind_sa6;
 int	v6bind_ok = 0;
 #endif
+int	signalpipe[2];
 #ifdef SANITY_CHECK
 int	nsock;
 #endif
@@ -309,7 +313,6 @@ whichaf(struct request_info *req)
 int
 main(int argc, char **argv)
 {
-	struct kevent	kqevlist[16];
 	struct servtab *sep;
 	struct passwd *pwd;
 	struct group *grp;
@@ -333,11 +336,7 @@ main(int argc, char **argv)
 #define peer4	p_un.peer_un4
 #define peer6	p_un.peer_un6
 #define peermax	p_un.peer_max
-	int i, j;
-#ifdef SANITY_CHECK
-	int k;
-#endif
-	int status;
+	int i;
 	struct addrinfo hints, *res;
 	const char *servname;
 	int error;
@@ -520,21 +519,19 @@ main(int argc, char **argv)
 	}
 #endif
 
-	kqsock = kqueue();
-	if (kqsock < 0)
-		err(EX_OSERR, "ERROR: Cannot allocate kqueue");
-
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);
 	sigaddset(&sa.sa_mask, SIGALRM);
 	sigaddset(&sa.sa_mask, SIGCHLD);
 	sigaddset(&sa.sa_mask, SIGHUP);
-	sa.sa_handler = SIG_IGN;
+	sa.sa_handler = flag_retry;
 	sigaction(SIGALRM, &sa, &saalrm);
-	WATCH_SIG(SIGALRM, retry);
 	config();
+	sa.sa_handler = flag_config;
 	sigaction(SIGHUP, &sa, &sahup);
-	WATCH_SIG(SIGHUP, config);
+	sa.sa_handler = flag_reapchild;
+	sigaction(SIGCHLD, &sa, &sachld);
+	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, &sapipe);
 
 	{
@@ -547,8 +544,27 @@ main(int argc, char **argv)
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
 
+	if (pipe(signalpipe) != 0) {
+		syslog(LOG_ERR, "pipe: %m");
+		exit(EX_OSERR);
+	}
+	if (fcntl(signalpipe[0], F_SETFD, FD_CLOEXEC) < 0 ||
+	    fcntl(signalpipe[1], F_SETFD, FD_CLOEXEC) < 0) {
+		syslog(LOG_ERR, "signalpipe: fcntl (F_SETFD, FD_CLOEXEC): %m");
+		exit(EX_OSERR);
+	}
+	FD_SET(signalpipe[0], &allsock);
+#ifdef SANITY_CHECK
+	nsock++;
+#endif
+	if (signalpipe[0] > maxsock)
+	    maxsock = signalpipe[0];
+	if (signalpipe[1] > maxsock)
+	    maxsock = signalpipe[1];
+
 	for (;;) {
 	    int n, ctrl;
+	    fd_set readable;
 
 #ifdef SANITY_CHECK
 	    if (nsock == 0) {
@@ -556,60 +572,46 @@ main(int argc, char **argv)
 		exit(EX_SOFTWARE);
 	    }
 #endif
-
-	    if ((n = kevent(kqsock, NULL, 0, kqevlist,
-		sizeof kqevlist / sizeof *kqevlist,
-		(struct timespec *)0)) <= 0) {
-		    if (n == -1 && errno != EINTR) {
-			syslog(LOG_WARNING, "kevent: %m");
+	    readable = allsock;
+	    if ((n = select(maxsock + 1, &readable, (fd_set *)0,
+		(fd_set *)0, (struct timeval *)0)) <= 0) {
+		    if (n < 0 && errno != EINTR) {
+			syslog(LOG_WARNING, "select: %m");
 			sleep(1);
 		    }
 		    continue;
 	    }
-
-	    for (j = 0; j < n; j++) {
-		if (kqevlist[j].filter == EVFILT_SIGNAL) {
-		    /* handle any queued signal flags */
+	    /* handle any queued signal flags */
+	    if (FD_ISSET(signalpipe[0], &readable)) {
+		int nsig;
+		if (ioctl(signalpipe[0], FIONREAD, &nsig) != 0) {
+		    syslog(LOG_ERR, "ioctl: %m");
+		    exit(EX_OSERR);
+		}
+		while (--nsig >= 0) {
+		    char c;
+		    if (read(signalpipe[0], &c, 1) != 1) {
+			syslog(LOG_ERR, "read: %m");
+			exit(EX_OSERR);
+		    }
 		    if (debug)
-			warnx("calling signalhandler for sig %td",
-			    kqevlist[j].ident);
-		    ((void (*)(void))kqevlist[j].udata)();
-		} else if (kqevlist[j].filter == EVFILT_PROC) {
-			sep = (struct servtab *)kqevlist[j].udata;
-			pid = wait4(kqevlist[j].ident, &status, WNOHANG,
-			    (struct rusage *)0);
-			if (debug)
-				warnx("%d reaped, status %#x", pid, status);
-			if (pid == 0) {
-				/* XXX - this could leave a zombie */
-				syslog(LOG_WARNING, "can't reap pid %td",
-				    kqevlist[j].ident);
-				continue;
-			}
-#ifdef SANITY_CHECK
-			for (k = 0; k < sep->se_numchild; k++)
-				if (sep->se_pids[k] == pid)
-					break;
-			if (k != sep->se_numchild)
-				sep->se_pids[k] =
-				    sep->se_pids[sep->se_numchild - 1];
-#endif
-			if (sep->se_maxchild &&
-			    sep->se_numchild == sep->se_maxchild)
-				enable(sep);
-			if (status)
-				syslog(LOG_WARNING,
-				    "%s[%d]: exit status 0x%x",
-				    sep->se_server, pid, status);
-			/* XXX - this should never happen */
-			if (--sep->se_numchild < 0)
-				sep->se_numchild = 0;
-			if (sep->se_free && sep->se_numchild == 0) {
-				freeconfig(sep);
-				free((char *)sep);
-			}
-		} else {
-		    sep = (struct servtab *)kqevlist[j].udata;
+			warnx("handling signal flag %c", c);
+		    switch(c) {
+		    case 'A': /* sigalrm */
+			retry();
+			break;
+		    case 'C': /* sigchld */
+			reapchild();
+			break;
+		    case 'H': /* sighup */
+			config();
+			break;
+		    }
+		}
+	    }
+	    for (sep = servtab; n && sep; sep = sep->se_next)
+	        if (sep->se_fd != -1 && FD_ISSET(sep->se_fd, &readable)) {
+		    n--;
 		    if (debug)
 			    warnx("someone wants %s", sep->se_service);
 		    dofork = !sep->se_bi || sep->se_bi->bi_fork || ISWRAP(sep);
@@ -880,7 +882,21 @@ main(int argc, char **argv)
 		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM)
 			    close(ctrl);
 		}
-	    }
+	}
+}
+
+/*
+ * Add a signal flag to the signal flag queue for later handling
+ */
+
+void
+flag_signal(int c)
+{
+	char ch = c;
+
+	if (write(signalpipe[1], &ch, 1) != 1) {
+		syslog(LOG_ERR, "write: %m");
+		_exit(EX_OSERR);
 	}
 }
 
@@ -892,18 +908,72 @@ main(int argc, char **argv)
 void
 addchild(struct servtab *sep, pid_t pid)
 {
+	if (sep->se_maxchild <= 0)
+		return;
 #ifdef SANITY_CHECK
-	if (sep->se_maxchild && sep->se_numchild >= sep->se_maxchild) {
+	if (sep->se_numchild >= sep->se_maxchild) {
 		syslog(LOG_ERR, "%s: %d >= %d",
 		    __func__, sep->se_numchild, sep->se_maxchild);
 		exit(EX_SOFTWARE);
 	}
-	sep->se_pids[sep->se_numchild] = pid;
 #endif
-	sep->se_numchild++;
-	if (sep->se_maxchild && sep->se_numchild == sep->se_maxchild)
+	sep->se_pids[sep->se_numchild++] = pid;
+	if (sep->se_numchild == sep->se_maxchild)
 		disable(sep);
-	WATCH_PROC(pid, sep);
+}
+
+/*
+ * Some child process has exited. See if it's on somebody's list.
+ */
+
+void
+flag_reapchild(int signo __unused)
+{
+	flag_signal('C');
+}
+
+void
+reapchild(void)
+{
+	int k, status;
+	pid_t pid;
+	struct servtab *sep;
+
+	for (;;) {
+		pid = wait3(&status, WNOHANG, (struct rusage *)0);
+		if (pid <= 0)
+			break;
+		if (debug)
+			warnx("%d reaped, %s %u", pid,
+			    WIFEXITED(status) ? "status" : "signal",
+			    WIFEXITED(status) ? WEXITSTATUS(status)
+				: WTERMSIG(status));
+		for (sep = servtab; sep; sep = sep->se_next) {
+			for (k = 0; k < sep->se_numchild; k++)
+				if (sep->se_pids[k] == pid)
+					break;
+			if (k == sep->se_numchild)
+				continue;
+			if (sep->se_numchild == sep->se_maxchild)
+				enable(sep);
+			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
+			if (WIFSIGNALED(status) || WEXITSTATUS(status))
+				syslog(LOG_WARNING,
+				    "%s[%d]: exited, %s %u",
+				    sep->se_server, pid,
+				    WIFEXITED(status) ? "status" : "signal",
+				    WIFEXITED(status) ? WEXITSTATUS(status)
+					: WTERMSIG(status));
+			break;
+		}
+		reapchild_conn(pid);
+	}
+}
+
+void
+flag_config(int signo __unused)
+{
+	flag_signal('H');
 }
 
 void
@@ -920,10 +990,8 @@ config(void)
 		syslog(LOG_ERR, "%s: %m", CONFIG);
 		return;
 	}
-
-	for (sep = servtab; sep != NULL; sep = sep->se_next)
+	for (sep = servtab; sep; sep = sep->se_next)
 		sep->se_checked = 0;
-
 	while ((new = getconfigent())) {
 		if (getpwnam(new->se_user) == NULL) {
 			syslog(LOG_ERR,
@@ -969,17 +1037,12 @@ config(void)
 			/* copy over outstanding child pids */
 			if (sep->se_maxchild > 0 && new->se_maxchild > 0) {
 				new->se_numchild = sep->se_numchild;
-				/* XXX - this can cause problems */
 				if (new->se_numchild > new->se_maxchild)
 					new->se_numchild = new->se_maxchild;
-#ifdef SANITY_CHECK
 				memcpy(new->se_pids, sep->se_pids,
 				    new->se_numchild * sizeof(*new->se_pids));
-#endif
 			}
-#ifdef SANITY_CHECK
 			SWAP(pid_t *, sep->se_pids, new->se_pids);
-#endif
 			sep->se_maxchild = new->se_maxchild;
 			sep->se_numchild = new->se_numchild;
 			sep->se_maxcpm = new->se_maxcpm;
@@ -988,11 +1051,14 @@ config(void)
 			sep->se_bi = new->se_bi;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
-				if (sep->se_maxchild
-				    && sep->se_numchild == sep->se_maxchild)
-					disable(sep);
-				else
-					enable(sep);
+			      if (sep->se_maxchild > 0
+				  && sep->se_numchild == sep->se_maxchild) {
+				      if (FD_ISSET(sep->se_fd, &allsock))
+					  disable(sep);
+			      } else {
+				      if (!FD_ISSET(sep->se_fd, &allsock))
+					  enable(sep);
+			      }
 			}
 			sep->se_accept = new->se_accept;
 			SWAP(char *, sep->se_user, new->se_user);
@@ -1112,11 +1178,8 @@ config(void)
 			print_service("FREE", sep);
 		if (sep->se_rpc && sep->se_rpc_prog > 0)
 			unregisterrpc(sep);
-		if (sep->se_numchild == 0) {
-			freeconfig(sep);
-			free((char *)sep);
-		} else
-			sep->se_free = 1;
+		freeconfig(sep);
+		free(sep);
 	}
 	(void) sigsetmask(omask);
 }
@@ -1177,6 +1240,12 @@ unregisterrpc(struct servtab *sep)
 }
 
 void
+flag_retry(int signo __unused)
+{
+	flag_signal('A');
+}
+
+void
 retry(void)
 {
 	struct servtab *sep;
@@ -1210,12 +1279,12 @@ setup(struct servtab *sep)
 #define	turnon(fd, opt) \
 setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 	if (strcmp(sep->se_proto, "tcp") == 0 && (options & SO_DEBUG) &&
-	    turnon(sep->se_fd, SO_DEBUG) == -1)
+	    turnon(sep->se_fd, SO_DEBUG) < 0)
 		syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
-	if (turnon(sep->se_fd, SO_REUSEADDR) == -1)
+	if (turnon(sep->se_fd, SO_REUSEADDR) < 0)
 		syslog(LOG_ERR, "setsockopt (SO_REUSEADDR): %m");
 #ifdef SO_PRIVSTATE
-	if (turnon(sep->se_fd, SO_PRIVSTATE) == -1)
+	if (turnon(sep->se_fd, SO_PRIVSTATE) < 0)
 		syslog(LOG_ERR, "setsockopt (SO_PRIVSTATE): %m");
 #endif
 	/* tftpd opens a new connection then needs more infos */
@@ -1223,7 +1292,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 	    (strcmp(sep->se_proto, "udp") == 0) &&
 	    (sep->se_accept == 0) &&
 	    (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_RECVPKTINFO,
-			(char *)&on, sizeof (on)) == -1))
+			(char *)&on, sizeof (on)) < 0))
 		syslog(LOG_ERR, "setsockopt (IPV6_RECVPKTINFO): %m");
 	if (sep->se_family == AF_INET6) {
 		int flag = sep->se_nomapped ? 1 : 0;
@@ -1328,7 +1397,8 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 
 #ifdef IPSEC
 void
-ipsecsetup(struct servtab *sep)
+ipsecsetup(sep)
+	struct servtab *sep;
 {
 	char *buf;
 	char *policy_in = NULL;
@@ -1405,7 +1475,8 @@ void
 close_sep(struct servtab *sep)
 {
 	if (sep->se_fd >= 0) {
-		disable(sep);
+		if (FD_ISSET(sep->se_fd, &allsock))
+			disable(sep);
 		(void) close(sep->se_fd);
 		sep->se_fd = -1;
 	}
@@ -1444,7 +1515,7 @@ enter(struct servtab *cp)
 	long omask;
 
 	sep = (struct servtab *)malloc(sizeof (*sep));
-	if (sep == NULL) {
+	if (sep == (struct servtab *)0) {
 		syslog(LOG_ERR, "malloc: %m");
 		exit(EX_OSERR);
 	}
@@ -1474,9 +1545,14 @@ enable(struct servtab *sep)
 		    "%s: %s: is mux", __func__, sep->se_service);
 		exit(EX_SOFTWARE);
 	}
+	if (FD_ISSET(sep->se_fd, &allsock)) {
+		syslog(LOG_ERR,
+		    "%s: %s: not off", __func__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
 	nsock++;
 #endif
-	WATCH_SOCK(sep->se_fd, sep);
+	FD_SET(sep->se_fd, &allsock);
 	if (sep->se_fd > maxsock)
 		maxsock = sep->se_fd;
 }
@@ -1498,13 +1574,18 @@ disable(struct servtab *sep)
 		    "%s: %s: is mux", __func__, sep->se_service);
 		exit(EX_SOFTWARE);
 	}
+	if (!FD_ISSET(sep->se_fd, &allsock)) {
+		syslog(LOG_ERR,
+		    "%s: %s: not on", __func__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
 	if (nsock == 0) {
 		syslog(LOG_ERR, "%s: nsock=0", __func__);
 		exit(EX_SOFTWARE);
 	}
 	nsock--;
 #endif
-	UNWATCH_SOCK(sep->se_fd, sep);
+	FD_CLR(sep->se_fd, &allsock);
 	if (sep->se_fd == maxsock)
 		maxsock--;
 }
@@ -1568,10 +1649,12 @@ more:
 			for (p = cp + 2; p && *p && isspace(*p); p++)
 				;
 			if (*p == '\0') {
-				free(policy);
+				if (policy)
+					free(policy);
 				policy = NULL;
 			} else if (ipsec_get_policylen(p) >= 0) {
-				free(policy);
+				if (policy)
+					free(policy);
 				policy = newstr(p);
 			} else {
 				syslog(LOG_ERR,
@@ -1887,7 +1970,6 @@ more:
 		else
 			sep->se_maxchild = 1;
 	}
-#ifdef SANITY_CHECK
 	if (sep->se_maxchild > 0) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
 		if (sep->se_pids == NULL) {
@@ -1895,7 +1977,6 @@ more:
 			exit(EX_OSERR);
 		}
 	}
-#endif
 	argc = 0;
 	for (arg = skip(&cp); cp; arg = skip(&cp))
 		if (argc < MAXARGV) {
@@ -1921,22 +2002,29 @@ freeconfig(struct servtab *cp)
 {
 	int i;
 
-	free(cp->se_service);
-	free(cp->se_proto);
-	free(cp->se_user);
-	free(cp->se_group);
+	if (cp->se_service)
+		free(cp->se_service);
+	if (cp->se_proto)
+		free(cp->se_proto);
+	if (cp->se_user)
+		free(cp->se_user);
+	if (cp->se_group)
+		free(cp->se_group);
 #ifdef LOGIN_CAP
-	free(cp->se_class);
+	if (cp->se_class)
+		free(cp->se_class);
 #endif
-	free(cp->se_server);
-#ifdef SANITY_CHECK
-	free(cp->se_pids);
-#endif
+	if (cp->se_server)
+		free(cp->se_server);
+	if (cp->se_pids)
+		free(cp->se_pids);
 	for (i = 0; i < MAXARGV; i++)
-		free(cp->se_argv[i]);
+		if (cp->se_argv[i])
+			free(cp->se_argv[i]);
 	free_connlist(cp);
 #ifdef IPSEC
-	free(cp->se_policy);
+	if (cp->se_policy)
+		free(cp->se_policy);
 #endif
 }
 
@@ -2215,7 +2303,8 @@ cpmip(const struct servtab *sep, int ctrl)
 		    strcmp(sep->se_service, chBest->ch_Service) != 0) {
 			chBest->ch_Family = sin4->sin_family;
 			chBest->ch_Addr4 = sin4->sin_addr;
-			free(chBest->ch_Service);
+			if (chBest->ch_Service)
+				free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
 			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
 		} 
@@ -2228,7 +2317,8 @@ cpmip(const struct servtab *sep, int ctrl)
 		    strcmp(sep->se_service, chBest->ch_Service) != 0) {
 			chBest->ch_Family = sin6->sin6_family;
 			chBest->ch_Addr6 = sin6->sin6_addr;
-			free(chBest->ch_Service);
+			if (chBest->ch_Service)
+				free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
 			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
 		}
@@ -2264,25 +2354,6 @@ cpmip(const struct servtab *sep, int ctrl)
 		}
 	}
 	return(r);
-}
-
-void
-watch(short filter, uintptr_t ident, void *data, u_int fflags, int addrm)
-{
-	struct kevent kev;
-	int i;
-
-	EV_SET(&kev, ident, filter, addrm? EV_ADD:EV_DELETE,
-	       fflags, 0, data);
-
-	i = kevent(kqsock, &kev, 1, NULL, 0, NULL);
-
-	if (i == -1)
-		syslog(LOG_ERR, "kevent failed: %m");
-	
-	if (debug) {
-		warnx("kqueue, ident: %td, addrm: %d, ret: %d, data: %p, errno: %s", ident, addrm, i, data, strerror(errno));
-	}
 }
 
 static struct conninfo *
@@ -2393,6 +2464,26 @@ addchild_conn(struct conninfo *conn, pid_t pid)
 	}
 
 	conn->co_proc[conn->co_numchild++] = proc;
+}
+
+static void
+reapchild_conn(pid_t pid)
+{
+	struct procinfo *proc;
+	struct conninfo *conn;
+	int i;
+
+	if ((proc = search_proc(pid, 0)) == NULL)
+		return;
+	if ((conn = proc->pr_conn) == NULL)
+		return;
+	for (i = 0; i < conn->co_numchild; ++i)
+		if (conn->co_proc[i] == proc) {
+			conn->co_proc[i] = conn->co_proc[--conn->co_numchild];
+			break;
+		}
+	free_proc(proc);
+	free_conn(conn);
 }
 
 static void
