@@ -63,7 +63,6 @@ static struct cdevsw ata_cdevsw = {
 };
 
 /* prototypes */
-static void ata_interrupt(void *);
 static void ata_boot_attach(void);
 static device_t ata_add_child(device_t, struct ata_device *, int);
 static int ata_getparam(struct ata_device *, int);
@@ -139,7 +138,7 @@ ata_attach(device_t dev)
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS,
-				ata_interrupt, ch, &ch->ih))) {
+				(driver_intr_t *)ata_interrupt, ch, &ch->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
 	return error;
     }
@@ -317,7 +316,7 @@ ata_resume(device_t dev)
     return error;
 }
 
-static void
+int
 ata_interrupt(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
@@ -325,20 +324,17 @@ ata_interrupt(void *data)
 
     mtx_lock(&ch->state_mtx);
     do {
+	/* ignore interrupt if its not for us */
+	if (ch->hw.status && !ch->hw.status(ch->dev))
+	    break;
+
 	/* do we have a running request */
 	if (!(request = ch->running))
 	    break;
 
 	ATA_DEBUG_RQ(request, "interrupt");
 
-	/* ignore interrupt if device is busy */
-	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
-	    DELAY(100);
-	    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
-		break;
-	}
-
-	/* check for the right state */
+	/* safetycheck for the right state */
 	if (ch->state != ATA_ACTIVE && ch->state != ATA_STALL_QUEUE) {
 	    device_printf(request->dev, "interrupt on idle channel ignored\n");
 	    break;
@@ -355,10 +351,11 @@ ata_interrupt(void *data)
 	    mtx_unlock(&ch->state_mtx);
 	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
-	    return;
+	    return 1;
 	}
     } while (0);
     mtx_unlock(&ch->state_mtx);
+    return 0;
 }
 
 /*

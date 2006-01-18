@@ -203,7 +203,8 @@ ata_pci_attach(device_t dev)
 					      RF_ACTIVE);
     }
 
-    ctlr->chipinit(dev);
+    if (ctlr->chipinit(dev))
+	return ENXIO;
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++) {
@@ -420,8 +421,40 @@ ata_pci_allocate(device_t dev)
 	}
     }
 
-    ata_generic_hw(dev);
+    ata_pci_hw(dev);
     return 0;
+}
+
+void
+ata_pci_hw(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ata_generic_hw(dev);
+    ch->hw.status = ata_pci_status;
+}
+
+int
+ata_pci_status(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ch->dma && ((ch->flags & ATA_ALWAYS_DMASTAT) ||
+		    (ch->dma->flags & ATA_DMA_ACTIVE))) {
+	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+
+       	if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
+	    ATA_BMSTAT_INTERRUPT)
+	    return 0;
+	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
+	DELAY(1);
+    }
+    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
+        DELAY(100);
+        if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
+            return 0;
+    }
+    return 1;
 }
 
 static int
