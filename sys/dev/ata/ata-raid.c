@@ -111,7 +111,7 @@ static int testing = 0;
 
 /* device structures */
 static disk_strategy_t ata_raid_strategy;
-//static dumper_t ata_raid_dump;
+static dumper_t ata_raid_dump;
 
 static void
 ata_raid_attach(struct ar_softc *rdp, int writeback)
@@ -134,7 +134,7 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
 	buffer[0] = '\0';
     rdp->disk = disk_alloc();
     rdp->disk->d_strategy = ata_raid_strategy;
-    //rdp->disk->d_dump = ata_raid_dump;
+    rdp->disk->d_dump = ata_raid_dump;
     rdp->disk->d_name = "ar";
     rdp->disk->d_sectorsize = DEV_BSIZE;
     rdp->disk->d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
@@ -749,6 +749,35 @@ ata_raid_done(struct ata_request *request)
     }
     else
 	ata_free_request(request);
+}
+
+static int
+ata_raid_dump(void *arg, void *virtual, vm_offset_t physical,
+	      off_t offset, size_t length)
+{
+    struct disk *dp = arg;
+    struct ar_softc *rdp = dp->d_drv1;
+    struct bio bp;
+
+    /* length zero is special and really means flush buffers to media */
+    if (!length) {
+	int disk, error;
+
+	for (disk = 0, error = 0; disk < rdp->total_disks; disk++) 
+	    if (rdp->disks[disk].dev)
+		error |= ata_controlcmd(rdp->disks[disk].dev,
+					ATA_FLUSHCACHE, 0, 0, 0);
+	return (error ? EIO : 0);
+    }
+
+    bzero(&bp, sizeof(struct bio));
+    bp.bio_disk = dp;
+    bp.bio_pblkno = offset / DEV_BSIZE;
+    bp.bio_bcount = length;
+    bp.bio_data = virtual;
+    bp.bio_cmd = BIO_WRITE;
+    ata_raid_strategy(&bp);
+    return bp.bio_error;
 }
 
 static void
