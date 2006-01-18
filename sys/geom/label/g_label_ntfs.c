@@ -45,45 +45,44 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
 	struct bootfile *bf;
-	struct attr    *atr;
-	char           *filerecp = NULL, *ap, vnchar;
 	struct filerec *fr;
-	char		mftrecsz;
-	int		recsize;
-	int		j;
-	off_t		voloff;
-	g_topology_assert_not();
-	pp = cp->provider;
-	label[0] = '\0';
-	
-	bf = (struct bootfile *)g_read_data(cp, 0, pp->sectorsize, NULL);
+	struct attr *atr;
+	off_t voloff;
+	char *filerecp, *ap;
+	char mftrecsz, vnchar;
+	int recsize, j;
 
-	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0) {
+	g_topology_assert_not();
+
+	label[0] = '\0';
+	pp = cp->provider;
+	filerecp = NULL;
+
+	bf = (struct bootfile *)g_read_data(cp, 0, pp->sectorsize, NULL);
+	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
 		goto done;
-	}
-	
+
 	mftrecsz = (char)bf->bf_mftrecsz;
 	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
-	if(recsize % pp->sectorsize != 0)
+	if (recsize % pp->sectorsize != 0)
 		goto done;
-	
+
 	voloff = bf->bf_mftcn * bf->bf_spc * bf->bf_bps +
-	  recsize * NTFS_VOLUMEINO;
-	if(voloff % pp->sectorsize != 0)
+	    recsize * NTFS_VOLUMEINO;
+	if (voloff % pp->sectorsize != 0)
 		goto done;
 
 	filerecp = g_read_data(cp, voloff, recsize, NULL);
 	if (filerecp == NULL)
 		goto done;
-
 	fr = (struct filerec *)filerecp;
 
-	if(fr->fr_fixup.fh_magic != NTFS_FILEMAGIC){
-		label[0] = 0;
+	if (fr->fr_fixup.fh_magic != NTFS_FILEMAGIC)
 		goto done;
-	}
 
-	for (ap = filerecp + fr->fr_attroff; atr = (struct attr *)ap, atr->a_hdr.a_type != -1; ap += atr->a_hdr.reclen) {
+	for (ap = filerecp + fr->fr_attroff;
+	    atr = (struct attr *)ap, atr->a_hdr.a_type != -1;
+	    ap += atr->a_hdr.reclen) {
 		if (atr->a_hdr.a_type == NTFS_A_VOLUMENAME) {
 			if(atr->a_r.a_datalen >= size *2){
 				label[0] = 0;
@@ -95,7 +94,7 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 			 */
 			for (j = 0; j < atr->a_r.a_datalen; j++) {
 				vnchar = *(ap + atr->a_r.a_dataoff + j);
-				if ((j & 1)) {
+				if (j & 1) {
 					if (vnchar) {
 						label[0] = 0;
 						goto done;
@@ -113,8 +112,6 @@ done:
 		g_free(bf);
 	if (filerecp != NULL)
 		g_free(filerecp);
-	return;
-
 }
 
 const struct g_label_desc g_label_ntfs = {
