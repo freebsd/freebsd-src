@@ -2349,8 +2349,6 @@ g_mirror_read_metadata(struct g_consumer *cp, struct g_mirror_metadata *md)
 	if (buf == NULL) {
 		G_MIRROR_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    cp->provider->name, error);
-		if (buf != NULL)
-			g_free(buf);
 		return (error);
 	}
 
