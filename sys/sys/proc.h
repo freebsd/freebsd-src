@@ -291,6 +291,7 @@ struct thread {
 	int		td_xsig;	/* (c) Signal for ptrace */
 	u_long		td_profil_addr;	/* (k) Temporary addr until AST. */
 	u_int		td_profil_ticks; /* (k) Temporary ticks until AST. */
+	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall(). */
@@ -321,7 +322,6 @@ struct thread {
 	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* (a) Size of alternate kstack. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
-	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 };
