@@ -49,13 +49,11 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(LOCK_CLASS_MAX == 15);
 
-#if LOCK_DEBUG > 0 || defined(DDB)
 struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
 	&lock_class_mtx_spin,
 	&lock_class_mtx_sleep,
 	&lock_class_sx,
 };
-#endif
 
 void
 lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
