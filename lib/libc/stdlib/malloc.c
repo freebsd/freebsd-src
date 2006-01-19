@@ -1789,7 +1789,7 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 	assert(region_prev_free_get(&next->sep));
 	assert(region_next_size_get(&treg->sep) == next->prev.size);
 
-	while (region_prev_free_get(&treg->sep)) {
+	if (region_prev_free_get(&treg->sep)) {
 		prev_size = treg->prev.size;
 		prev = (region_t *)&((char *)treg)[-prev_size];
 		assert(region_next_free_get(&prev->sep));
@@ -1801,13 +1801,13 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 		treg = prev;
 
 #ifdef MALLOC_STATS
-		if (ret == false)
-			arena->stats.ncoalesce++;
+		arena->stats.ncoalesce++;
 #endif
 		ret = true;
 	}
+	assert(region_prev_free_get(&treg->sep) == false);
 
-	while (region_next_free_get(&next->sep)) {
+	if (region_next_free_get(&next->sep)) {
 		next_size = region_next_size_get(&next->sep);
 		nextnext = (region_t *)&((char *)next)[next_size];
 		assert(region_prev_free_get(&nextnext->sep));
@@ -1828,6 +1828,7 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 
 		next = (region_t *)&((char *)treg)[tsize];
 	}
+	assert(region_next_free_get(&next->sep) == false);
 
 	/* Update header/footer. */
 	if (ret) {
