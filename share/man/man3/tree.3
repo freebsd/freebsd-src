@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2002
+.Dd January 17, 2006
 .Dt TREE 3
 .Os
 .Sh NAME
@@ -52,7 +52,9 @@
 .Nm SPLAY_INSERT ,
 .Nm SPLAY_REMOVE ,
 .Nm RB_PROTOTYPE ,
+.Nm RB_PROTOTYPE_STATIC ,
 .Nm RB_GENERATE ,
+.Nm RB_GENERATE_STATIC ,
 .Nm RB_ENTRY ,
 .Nm RB_HEAD ,
 .Nm RB_INITIALIZER ,
@@ -102,7 +104,9 @@
 .Ft "struct TYPE *"
 .Fn SPLAY_REMOVE NAME "SPLAY_HEAD *head" "struct TYPE *elm"
 .Fn RB_PROTOTYPE NAME TYPE FIELD CMP
+.Fn RB_PROTOTYPE_STATIC NAME TYPE FIELD CMP
 .Fn RB_GENERATE NAME TYPE FIELD CMP
+.Fn RB_GENERATE_STATIC NAME TYPE FIELD CMP
 .Fn RB_ENTRY TYPE
 .Fn RB_HEAD HEADNAME TYPE
 .Fn RB_INITIALIZER "RB_HEAD *head"
@@ -156,14 +160,16 @@ The argument
 .Fa NAME
 has to be a unique name prefix for every tree that is defined.
 .Pp
-The function prototypes are declared with either
+The function prototypes are declared with
 .Fn SPLAY_PROTOTYPE ,
+.Fn RB_PROTOTYPE ,
 or
-.Fn RB_PROTOTYPE .
-The function bodies are generated with either
+.Fn RB_PROTOTYPE_STATIC .
+The function bodies are generated with
 .Fn SPLAY_GENERATE ,
+.Fn RB_GENERATE ,
 or
-.Fn RB_GENERATE .
+.Fn RB_GENERATE_STATIC .
 See the examples below for further explanation of how these macros are used.
 .Sh SPLAY TREES
 A splay tree is a self-organizing data structure.
@@ -344,6 +350,8 @@ macro declares a structure that allows elements to be connected in the tree.
 In order to use the functions that manipulate the tree structure,
 their prototypes need to be declared with the
 .Fn RB_PROTOTYPE
+or
+.Fn RB_PROTOTYPE_STATIC
 macro,
 where
 .Fa NAME
@@ -359,10 +367,14 @@ argument is the name of the element defined by
 .Pp
 The function bodies are generated with the
 .Fn RB_GENERATE
+or
+.Fn RB_GENERATE_STATIC
 macro.
-It takes the same arguments as the
+These macros take the same arguments as the
 .Fn RB_PROTOTYPE
-macro, but should be used only once.
+and
+.Fn RB_PROTOTYPE_STATIC
+macros, but should be used only once.
 .Pp
 Finally,
 the
