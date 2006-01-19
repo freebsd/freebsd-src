@@ -1144,6 +1144,11 @@ static __inline size_t
 region_next_size_get(region_sep_t *sep)
 {
 
+	/* The region cannot extend past the end of the containing chunk. */
+	assert(CHUNK_ADDR2OFFSET(&sep[1])
+	    + (size_t) (((sep->bits) & NEXT_SIZE_MASK) << opt_quantum_2pow)
+	    <= chunk_size);
+
 	return ((size_t) (((sep->bits) & NEXT_SIZE_MASK) << opt_quantum_2pow));
 }
 
@@ -1153,6 +1158,8 @@ region_next_size_set(region_sep_t *sep, size_t size)
 	uint32_t bits;
 
 	assert(size % quantum == 0);
+	/* The region cannot extend past the end of the containing chunk. */
+	assert(CHUNK_ADDR2OFFSET(&sep[1]) + size <= chunk_size);
 
 	bits = sep->bits;
 	bits &= ~NEXT_SIZE_MASK;
