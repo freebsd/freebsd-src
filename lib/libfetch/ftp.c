@@ -322,8 +322,24 @@ _ftp_mode_type(conn_t *conn, int mode, int type)
 	default:
 		return (FTP_PROTOCOL_ERROR);
 	}
-	if ((e = _ftp_cmd(conn, "MODE %c", mode)) != FTP_OK)
-		return (e);
+	if ((e = _ftp_cmd(conn, "MODE %c", mode)) != FTP_OK) {
+		if (mode == 'S') {
+			/*
+			 * Stream mode is supposed to be the default - so
+			 * much so that some servers not only do not
+			 * support any other mode, but do not support the
+			 * MODE command at all.
+			 *
+			 * If "MODE S" fails, it is unlikely that we
+			 * previously succeeded in setting a different
+			 * mode.  Therefore, we simply hope that the
+			 * server is already in the correct mode, and
+			 * silently ignore the failure.
+			 */
+		} else {
+			return (e);
+		}
+	}
 
 	switch (type) {
 	case 0:
