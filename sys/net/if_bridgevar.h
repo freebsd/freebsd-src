@@ -105,7 +105,7 @@
 #define	BRDGGMA			19	/* get max age (ifbrparam) */
 #define	BRDGSMA			20	/* set max age (ifbrparam) */
 #define	BRDGSIFPRIO		21	/* set if priority (ifbreq) */
-#define BRDGSIFCOST		22	/* set if path cost (ifbreq) */
+#define	BRDGSIFCOST		22	/* set if path cost (ifbreq) */
 #define	BRDGADDS		23	/* add bridge span member (ifbreq) */
 #define	BRDGDELS		24	/* delete bridge span member (ifbreq) */
 
@@ -248,6 +248,7 @@ struct bridge_iflist {
 	uint8_t			bif_priority;
 	struct ifnet		*bif_ifp;	/* member if */
 	uint32_t		bif_flags;	/* member if flags */
+	int			bif_mutecap;	/* member muted caps */
 };
 
 /*

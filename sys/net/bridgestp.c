@@ -700,7 +700,7 @@ bstp_input(struct ifnet *ifp, struct mbuf *m)
 		goto out;
 	}
 
- out:
+out:
 	if (m)
 		m_freem(m);
 	return (NULL);

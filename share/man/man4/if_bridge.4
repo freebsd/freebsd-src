@@ -80,12 +80,22 @@ The
 driver implements the IEEE 802.1D Spanning Tree protocol (STP).
 Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
+Packet filtering can be used with any firewall package that hooks in via the
+.Xr pfil 9
+framework.
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
 Either stage can be disabled, this behaviour can be controlled using
 .Xr sysctl 8 :
-.Bl -tag -width ".Va net.link.bridge.pfil_member"
+.Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
+.It Va net.link.bridge.pfil_onlyip
+Set to
+.Li 1
+to only allow IP packets to pass when packet filtering is enabled (subject to
+firewall rules), set to
+.Li 0
+to unconditionally pass all non-IP Ethernet frames.
 .It Va net.link.bridge.pfil_member
 Set to
 .Li 1
@@ -136,6 +146,9 @@ as on the interface on which the packet arrives or departs.
 .Pp
 The MTU of the first member interface to be added is used as the bridge MTU,
 all additional members are required to have exactly the same value.
+.Pp
+The TXCSUM capability is disabled for any interface added to the bridge, this
+is restored when the interface is removed again.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
@@ -171,6 +184,9 @@ ifconfig bridge0 \e
     up
 .Ed
 .Sh SEE ALSO
+.Xr ipf 4 ,
+.Xr ipfw 4 ,
+.Xr pf 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
