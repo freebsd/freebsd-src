@@ -870,7 +870,7 @@ static void	*iralloc(arena_t *arena, void *ptr, size_t size);
 static void	istats(size_t *allocated, size_t *total);
 #endif
 static void	malloc_print_stats(void);
-static void	malloc_init_hard(void);
+static bool	malloc_init_hard(void);
 
 /*
  * End function prototypes.
@@ -4238,7 +4238,7 @@ malloc_print_stats(void)
  * since otherwise choose_arena() has no way to know whether it's safe
  * to call _pthread_self().
  */
-static __inline void
+static __inline bool
 malloc_init(void)
 {
 
@@ -4249,10 +4249,12 @@ malloc_init(void)
 	assert(__isthreaded == 0 || malloc_initialized);
 
 	if (malloc_initialized == false)
-		malloc_init_hard();
+		return (malloc_init_hard());
+
+	return (false);
 }
 
-static void
+static bool
 malloc_init_hard(void)
 {
 	unsigned i, j;
@@ -4515,8 +4517,8 @@ malloc_init_hard(void)
 
 	/* Allocate and initialize arenas. */
 	arenas = (arena_t **)base_alloc(sizeof(arena_t *) * narenas);
-	/* OOM here is fatal. */
-	assert(arenas != NULL);
+	if (arenas == NULL)
+		return (true);
 	/*
 	 * Zero the array.  In practice, this should always be pre-zeroed,
 	 * since it was just mmap()ed, but let's be sure.
@@ -4528,12 +4530,13 @@ malloc_init_hard(void)
 	 * arena_choose_hard().
 	 */
 	arenas_extend(0);
-	/* OOM here is fatal. */
-	assert(arenas[0] != NULL);
+	if (arenas[0] == NULL)
+		return (true);
 
 	malloc_mutex_init(&arenas_mtx);
 
 	malloc_initialized = true;
+	return (false);
 }
 
 /*
@@ -4550,7 +4553,10 @@ malloc(size_t size)
 	void *ret;
 	arena_t *arena;
 
-	malloc_init();
+	if (malloc_init()) {
+		ret = NULL;
+		goto RETURN;
+	}
 
 	if (size == 0) {
 		if (opt_sysv == false)
@@ -4566,6 +4572,7 @@ malloc(size_t size)
 	else
 		ret = NULL;
 
+RETURN:
 	if (ret == NULL) {
 		if (opt_xmalloc) {
 			malloc_printf("%s: (malloc) Error in malloc(%zu):"
@@ -4576,7 +4583,6 @@ malloc(size_t size)
 	} else if (opt_zero)
 		memset(ret, 0, size);
 
-RETURN:
 	UTRACE(0, size, ret);
 	return (ret);
 }
@@ -4588,26 +4594,30 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 	arena_t *arena;
 	void *result;
 
-	malloc_init();
-
-	/* Make sure that alignment is a large enough power of 2. */
-	if (((alignment - 1) & alignment) != 0 || alignment < sizeof(void *)) {
-		if (opt_xmalloc) {
-			malloc_printf("%s: (malloc) Error in"
-			    " posix_memalign(%zu, %zu): invalid alignment\n",
-			    _getprogname(), alignment, size);
-			abort();
+	if (malloc_init())
+		result = NULL;
+	else {
+		/* Make sure that alignment is a large enough power of 2. */
+		if (((alignment - 1) & alignment) != 0
+		    || alignment < sizeof(void *)) {
+			if (opt_xmalloc) {
+				malloc_printf("%s: (malloc) Error in"
+				    " posix_memalign(%zu, %zu):"
+				    " invalid alignment\n",
+				    _getprogname(), alignment, size);
+				abort();
+			}
+			result = NULL;
+			ret = EINVAL;
+			goto RETURN;
 		}
-		result = NULL;
-		ret = EINVAL;
-		goto RETURN;
-	}
 
-	arena = choose_arena();
-	if (arena != NULL)
-		result = ipalloc(arena, alignment, size);
-	else
-		result = NULL;
+		arena = choose_arena();
+		if (arena != NULL)
+			result = ipalloc(arena, alignment, size);
+		else
+			result = NULL;
+	}
 
 	if (result == NULL) {
 		if (opt_xmalloc) {
@@ -4635,7 +4645,10 @@ calloc(size_t num, size_t size)
 	void *ret;
 	arena_t *arena;
 
-	malloc_init();
+	if (malloc_init()) {
+		ret = NULL;
+		goto RETURN;
+	}
 
 	if (num * size == 0) {
 		if (opt_sysv == false)
@@ -4712,13 +4725,15 @@ realloc(void *ptr, size_t size)
 				}
 			}
 		} else {
-			malloc_init();
-
-			arena = choose_arena();
-			if (arena != NULL)
-				ret = imalloc(arena, size);
-			else
+			if (malloc_init())
 				ret = NULL;
+			else {
+				arena = choose_arena();
+				if (arena != NULL)
+					ret = imalloc(arena, size);
+				else
+					ret = NULL;
+			}
 
 			if (ret == NULL) {
 				if (opt_xmalloc) {
