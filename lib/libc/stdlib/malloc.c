@@ -708,9 +708,12 @@ static chunk_tree_t	huge;
 /*
  * Try to use brk for chunk-size allocations, due to address space constraints.
  */
-void *brk_base; /* Result of first sbrk(0) call. */
-void *brk_prev; /* Current end of brk, or ((void *)-1) if brk is exhausted. */
-void *brk_max; /* Upper limit on brk addresses (may be an over-estimate). */
+/* Result of first sbrk(0) call. */
+static void		*brk_base;
+/* Current end of brk, or ((void *)-1) if brk is exhausted. */
+static void		*brk_prev;
+/* Upper limit on brk addresses (may be an over-estimate). */
+static void		*brk_max;
 #endif
 
 #ifdef MALLOC_STATS
@@ -738,13 +741,13 @@ static chunk_tree_t	old_chunks;
  * chunk is carved up in cacheline-size quanta, so that there is no chance of
  * false cach sharing. 
  * */
-void			*base_chunk;
-void			*base_next_addr;
-void			*base_past_addr; /* Addr immediately past base_chunk. */
-chunk_node_t		*base_chunk_nodes; /* LIFO cache of chunk nodes. */
-malloc_mutex_t		base_mtx;
+static void		*base_chunk;
+static void		*base_next_addr;
+static void		*base_past_addr; /* Addr immediately past base_chunk. */
+static chunk_node_t	*base_chunk_nodes; /* LIFO cache of chunk nodes. */
+static malloc_mutex_t	base_mtx;
 #ifdef MALLOC_STATS
-uint64_t		base_total;
+static uint64_t		base_total;
 #endif
 
 /********/
@@ -773,7 +776,7 @@ static __thread arena_t *arenas_map;
 
 #ifdef MALLOC_STATS
 /* Chunk statistics. */
-chunk_stats_t		stats_chunks;
+static chunk_stats_t	stats_chunks;
 #endif
 
 /*******************************/
@@ -1287,7 +1290,7 @@ chunk_comp(chunk_node_t *a, chunk_node_t *b)
 }
 
 /* Generate red-black tree code for chunks. */
-RB_GENERATE(chunk_tree_s, chunk_node_s, link, chunk_comp);
+RB_GENERATE_STATIC(chunk_tree_s, chunk_node_s, link, chunk_comp);
 
 static __inline int
 region_comp(region_node_t *a, region_node_t *b)
@@ -1332,7 +1335,7 @@ region_comp(region_node_t *a, region_node_t *b)
 }
 
 /* Generate red-black tree code for regions. */
-RB_GENERATE(region_tree_s, region_node_s, link, region_comp);
+RB_GENERATE_STATIC(region_tree_s, region_node_s, link, region_comp);
 
 static void *
 pages_map(void *addr, size_t size)
