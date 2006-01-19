@@ -824,7 +824,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 			} else {
 				hosed++;
 			}
-		} else {
+		} else if (frp == NULL) {
 			/* There is a gap between fragments */
 			DPFPRINTF(("fragcache[%d]: gap %d %d-%d (%d-%d)\n",
 			    h->ip_id, -aftercut, off, max, fra->fr_off,
