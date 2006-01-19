@@ -207,14 +207,20 @@
 #define BGE_PCIMISCCTL_INDIRECT_ACCESS	0x00000080
 #define BGE_PCIMISCCTL_ASICREV		0xFFFF0000
 
-#define BGE_BIGENDIAN_INIT						\
-	(BGE_PCIMISCCTL_ENDIAN_BYTESWAP|				\
-	BGE_PCIMISCCTL_ENDIAN_WORDSWAP|BGE_PCIMISCCTL_CLEAR_INTA|	\
-	BGE_PCIMISCCTL_INDIRECT_ACCESS|BGE_PCIMISCCTL_MASK_PCI_INTR)
+#define BGE_HIF_SWAP_OPTIONS	(BGE_PCIMISCCTL_ENDIAN_WORDSWAP)
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define BGE_DMA_SWAP_OPTIONS \
+	BGE_MODECTL_WORDSWAP_NONFRAME| \
+	BGE_MODECTL_BYTESWAP_DATA|BGE_MODECTL_WORDSWAP_DATA
+#else
+#define BGE_DMA_SWAP_OPTIONS \
+	BGE_MODECTL_WORDSWAP_NONFRAME|BGE_MODECTL_BYTESWAP_NONFRAME| \
+	BGE_MODECTL_BYTESWAP_DATA|BGE_MODECTL_WORDSWAP_DATA
+#endif
 
-#define BGE_LITTLEENDIAN_INIT						\
-	(BGE_PCIMISCCTL_CLEAR_INTA|BGE_PCIMISCCTL_MASK_PCI_INTR|	\
-	BGE_PCIMISCCTL_ENDIAN_WORDSWAP|BGE_PCIMISCCTL_INDIRECT_ACCESS)
+#define BGE_INIT \
+	(BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_CLEAR_INTA| \
+	 BGE_PCIMISCCTL_MASK_PCI_INTR|BGE_PCIMISCCTL_INDIRECT_ACCESS)
 
 #define BGE_CHIPID_TIGON_I		0x40000000
 #define BGE_CHIPID_TIGON_II		0x60000000
@@ -1767,6 +1773,10 @@ struct bge_rcb {
 	u_int32_t		bge_maxlen_flags;
 	u_int32_t		bge_nicaddr;
 };
+
+#define	RCB_WRITE_4(sc, rcb, offset, val) \
+	bus_space_write_4(sc->bge_btag, sc->bge_bhandle, \
+			  rcb + offsetof(struct bge_rcb, offset), val)
 #define BGE_RCB_MAXLEN_FLAGS(maxlen, flags)	((maxlen) << 16 | (flags))
 
 #define BGE_RCB_FLAG_USE_EXT_RX_BD	0x0001
@@ -1774,10 +1784,17 @@ struct bge_rcb {
 
 struct bge_tx_bd {
 	bge_hostaddr		bge_addr;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_flags;
 	u_int16_t		bge_len;
 	u_int16_t		bge_vlan_tag;
 	u_int16_t		bge_rsvd;
+#else
+	u_int16_t		bge_len;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_rsvd;
+	u_int16_t		bge_vlan_tag;
+#endif
 };
 
 #define BGE_TXBDFLAG_TCP_UDP_CSUM	0x0001
@@ -1799,6 +1816,7 @@ struct bge_tx_bd {
 
 struct bge_rx_bd {
 	bge_hostaddr		bge_addr;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_len;
 	u_int16_t		bge_idx;
 	u_int16_t		bge_flags;
@@ -1807,7 +1825,56 @@ struct bge_rx_bd {
 	u_int16_t		bge_ip_csum;
 	u_int16_t		bge_vlan_tag;
 	u_int16_t		bge_error_flag;
+#else
+	u_int16_t		bge_idx;
+	u_int16_t		bge_len;
+	u_int16_t		bge_type;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_ip_csum;
+	u_int16_t		bge_tcp_udp_csum;
+	u_int16_t		bge_error_flag;
+	u_int16_t		bge_vlan_tag;
+#endif
 	u_int32_t		bge_rsvd;
+	u_int32_t		bge_opaque;
+};
+
+struct bge_extrx_bd {
+	bge_hostaddr		bge_addr1;
+	bge_hostaddr		bge_addr2;
+	bge_hostaddr		bge_addr3;
+#if BYTE_ORDER == LITTLE_ENDIAN
+	u_int16_t		bge_len2;
+	u_int16_t		bge_len1;
+	u_int16_t		bge_rsvd1;
+	u_int16_t		bge_len3;
+#else
+	u_int16_t		bge_len1;
+	u_int16_t		bge_len2;
+	u_int16_t		bge_len3;
+	u_int16_t		bge_rsvd1;
+#endif
+	bge_hostaddr		bge_addr0;
+#if BYTE_ORDER == LITTLE_ENDIAN
+	u_int16_t		bge_len0;
+	u_int16_t		bge_idx;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_type;
+	u_int16_t		bge_tcp_udp_csum;
+	u_int16_t		bge_ip_csum;
+	u_int16_t		bge_vlan_tag;
+	u_int16_t		bge_error_flag;
+#else
+	u_int16_t		bge_idx;
+	u_int16_t		bge_len0;
+	u_int16_t		bge_type;
+	u_int16_t		bge_flags;
+	u_int16_t		bge_ip_csum;
+	u_int16_t		bge_tcp_udp_csum;
+	u_int16_t		bge_error_flag;
+	u_int16_t		bge_vlan_tag;
+#endif
+	u_int32_t		bge_rsvd0;
 	u_int32_t		bge_opaque;
 };
 
@@ -1830,17 +1897,29 @@ struct bge_rx_bd {
 #define BGE_RXERRFLAG_GIANT		0x0080
 
 struct bge_sts_idx {
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_rx_prod_idx;
 	u_int16_t		bge_tx_cons_idx;
+#else
+	u_int16_t		bge_tx_cons_idx;
+	u_int16_t		bge_rx_prod_idx;
+#endif
 };
 
 struct bge_status_block {
 	u_int32_t		bge_status;
 	u_int32_t		bge_rsvd0;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t		bge_rx_jumbo_cons_idx;
 	u_int16_t		bge_rx_std_cons_idx;
 	u_int16_t		bge_rx_mini_cons_idx;
 	u_int16_t		bge_rsvd1;
+#else
+	u_int16_t		bge_rx_std_cons_idx;
+	u_int16_t		bge_rx_jumbo_cons_idx;
+	u_int16_t		bge_rsvd1;
+	u_int16_t		bge_rx_mini_cons_idx;
+#endif
 	struct bge_sts_idx	bge_idx[16];
 };
 
@@ -2145,7 +2224,6 @@ struct bge_gib {
 #define BGE_MAX_FRAMELEN	1536
 #define BGE_JUMBO_FRAMELEN	9018
 #define BGE_JUMBO_MTU		(BGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define BGE_PAGE_SIZE		PAGE_SIZE
 #define BGE_MIN_FRAMELEN		60
 
 /*
@@ -2214,6 +2292,9 @@ struct vpd_key {
 #define BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
 #define BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
 
+#define BGE_NSEG_JUMBO	4
+#define BGE_NSEG_NEW 32
+
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -2224,7 +2305,7 @@ struct vpd_key {
 struct bge_ring_data {
 	struct bge_rx_bd	*bge_rx_std_ring;
 	bus_addr_t		bge_rx_std_ring_paddr;
-	struct bge_rx_bd	*bge_rx_jumbo_ring;
+	struct bge_extrx_bd	*bge_rx_jumbo_ring;
 	bus_addr_t		bge_rx_jumbo_ring_paddr;
 	struct bge_rx_bd	*bge_rx_return_ring;
 	bus_addr_t		bge_rx_return_ring_paddr;
@@ -2234,14 +2315,13 @@ struct bge_ring_data {
 	bus_addr_t		bge_status_block_paddr;
 	struct bge_stats	*bge_stats;
 	bus_addr_t		bge_stats_paddr;
-	void			*bge_jumbo_buf;
 	struct bge_gib		bge_info;
 };
 
 #define BGE_STD_RX_RING_SZ	\
 	(sizeof(struct bge_rx_bd) * BGE_STD_RX_RING_CNT)
 #define BGE_JUMBO_RX_RING_SZ	\
-	(sizeof(struct bge_rx_bd) * BGE_JUMBO_RX_RING_CNT)
+	(sizeof(struct bge_extrx_bd) * BGE_JUMBO_RX_RING_CNT)
 #define BGE_TX_RING_SZ		\
 	(sizeof(struct bge_tx_bd) * BGE_TX_RING_CNT)
 #define BGE_RX_RTN_RING_SZ(x)	\
@@ -2264,7 +2344,6 @@ struct bge_chain_data {
 	bus_dma_tag_t		bge_tx_ring_tag;
 	bus_dma_tag_t		bge_status_tag;
 	bus_dma_tag_t		bge_stats_tag;
-	bus_dma_tag_t		bge_jumbo_tag;
 	bus_dma_tag_t		bge_mtag;	/* mbuf mapping tag */
 	bus_dma_tag_t		bge_mtag_jumbo;	/* mbuf mapping tag */
 	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
@@ -2276,12 +2355,9 @@ struct bge_chain_data {
 	bus_dmamap_t		bge_rx_return_ring_map;
 	bus_dmamap_t		bge_status_map;
 	bus_dmamap_t		bge_stats_map;
-	bus_dmamap_t		bge_jumbo_map;
 	struct mbuf		*bge_tx_chain[BGE_TX_RING_CNT];
 	struct mbuf		*bge_rx_std_chain[BGE_STD_RX_RING_CNT];
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];
-	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			bge_jslots[BGE_JSLOTS];
 };
 
 struct bge_dmamap_arg {
@@ -2304,11 +2380,6 @@ struct bge_type {
 #define BGE_TIMEOUT		100000
 #define BGE_TXCONS_UNSET		0xFFFF	/* impossible value */
 
-struct bge_jpool_entry {
-	int                             slot;
-	SLIST_ENTRY(bge_jpool_entry)	jpool_entries;
-};
-
 struct bge_bcom_hack {
 	int			reg;
 	int			val;
@@ -2320,13 +2391,11 @@ struct bge_softc {
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;
 	bus_space_handle_t	bge_bhandle;
-	vm_offset_t		bge_vhandle;
 	bus_space_tag_t		bge_btag;
 	void			*bge_intrhand;
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
-	u_int8_t		bge_unit;	/* interface number */
 	u_int8_t		bge_extram;	/* has external SSRAM */
 	u_int8_t		bge_tbi;
 	u_int8_t		bge_rx_alignment_bug;
@@ -2343,11 +2412,10 @@ struct bge_softc {
 	u_int16_t		bge_return_ring_cnt;
 	u_int16_t		bge_std;	/* current std ring head */
 	u_int16_t		bge_jumbo;	/* current jumo ring head */
-	SLIST_HEAD(__bge_jfreehead, bge_jpool_entry)	bge_jfree_listhead;
-	SLIST_HEAD(__bge_jinusehead, bge_jpool_entry)	bge_jinuse_listhead;
 	u_int32_t		bge_stat_ticks;
 	u_int32_t		bge_rx_coal_ticks;
 	u_int32_t		bge_tx_coal_ticks;
+	u_int32_t		bge_tx_prodidx;
 	u_int32_t		bge_rx_max_coal_bds;
 	u_int32_t		bge_tx_max_coal_bds;
 	u_int32_t		bge_tx_buf_ratio;
@@ -2357,6 +2425,9 @@ struct bge_softc {
 	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
+	u_long			bge_rx_discards;
+	u_long			bge_tx_discards;
+	u_long			bge_tx_collisions;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
