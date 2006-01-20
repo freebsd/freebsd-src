@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.10 2005/05/23 09:10:11 brandt_h Exp $
+.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.14 2005/10/04 13:30:35 brandt_h Exp $
 .\"
-.Dd May 23, 2005
+.Dd October 4, 2005
 .Dt SNMPMOD 3
 .Os
 .Sh NAME
@@ -63,6 +66,7 @@
 .Nm reqid_istype ,
 .Nm reqid_type ,
 .Nm timer_start ,
+.Nm timer_start_repeat ,
 .Nm timer_stop ,
 .Nm fd_select ,
 .Nm fd_deselect ,
@@ -142,6 +146,8 @@ Begemot SNMP library
 .Fn reqid_type "int32_t reqid"
 .Ft void *
 .Fn timer_start "u_int ticks" "void (*func)(void *)" "void *uarg" "struct lmodule *mod"
+.Ft void *
+.Fn timer_start_repeat "u_int ticks" "u_int repeat_ticks" "void (*func)(void *)" "void *uarg" "struct lmodule *mod"
 .Ft void
 .Fn timer_stop "void *timer_id"
 .Ft void *
@@ -221,22 +227,26 @@ Begemot SNMP library
 .Fn index_append_off "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src" "u_int off"
 .Sh DESCRIPTION
 The
-.Xr snmpd 1
+.Xr bsnmpd 1
 SNMP daemon implements a minimal MIB which consists of the system group, part
 of the SNMP MIB, a private configuration MIB, a trap destination table, a
 UDP port table, a community table, a module table, a statistics group and
-a debugging group. All other MIBs are support through loadable modules.
+a debugging group.
+All other MIBs are support through loadable modules.
 This allows
-.Xr snmpd 1
+.Xr bsnmpd 1
 to use for task, that are not the classical SNMP task.
 .Ss MODULE LOADING AND UNLOADING
-Modules are loaded by writing to the module table. This table is indexed by
-a string, that identfies the module to the daemon. This identifier is used
+Modules are loaded by writing to the module table.
+This table is indexed by a string, that identifies the module to the daemon.
+This identifier is used
 to select the correct configuration section from the configuration files and
-to identify resources allocated to this module. A row in the module table is
+to identify resources allocated to this module.
+A row in the module table is
 created by writing a string of non-zero length to the
 .Va begemotSnmpdModulePath
-column. This string must be the complete path to the file containing the module.
+column.
+This string must be the complete path to the file containing the module.
 A module can be unloaded by writing a zero length string to the path column
 of an existing row.
 .Pp
@@ -273,29 +283,33 @@ This structure must be statically initialized and its fields have the
 following functions:
 .Bl -tag -width ".It Va tree_size"
 .It Va comment
-This is a string that will be visible in the module table. It should give
-some hint about the function of this module.
+This is a string that will be visible in the module table.
+It should give some hint about the function of this module.
 .It Va init
-This function is called upon loading the module. The module pointer should
+This function is called upon loading the module.
+The module pointer should
 be stored by the module because it is needed in other calls and the
 argument vector will contain the arguments to this module from the daemons
-command line. This function should return 0 if everything is ok or an
-UNIX error code (see
-.Xr errno 3 ).
+command line.
+This function should return 0 if everything is ok or an UNIX error code (see
+.Xr errno 3 ) .
 Once the function returns 0, the
 .Va fini
 function is called when the module is unloaded.
 .It Va fini
-The module is unloaded. This gives the module a chance to free resources that
-are not automatically freed. Be sure to free all memory, because daemons tend
-to run very long. This function pointer may be
+The module is unloaded.
+This gives the module a chance to free resources that
+are not automatically freed.
+Be sure to free all memory, because daemons tend to run very long.
+This function pointer may be
 .Li NULL
 if it is not needed.
 .It Va idle
 If this function pointer is not
 .Li NULL ,
 the function pointed to by it is called whenever the daemon is going
-to wait for an event. Try to avoid using this feature.
+to wait for an event.
+Try to avoid using this feature.
 .It Va dump
 Whenever the daemon receives a
 .Li SIGUSR1
@@ -322,7 +336,7 @@ If not
 this function is called after successful loading and initializing the module
 to start its actual operation.
 .It Va proxy
-If the daemon receives a PDU and that PDU has a community string who's
+If the daemon receives a PDU and that PDU has a community string whose
 community was registered by this module and
 .Va proxy
 is not
@@ -336,16 +350,18 @@ This is the number of nodes in
 .It Va loading
 If this pointer is not
 .Li NULL
-it is called whenever another module was loaded or unloaded. It gets a
+it is called whenever another module was loaded or unloaded.
+It gets a
 pointer to that module and a flag that is 0 for unloading and 1 for loading.
 .El
 .Pp
 When everything is ok, the daemon merges the module's MIB tree into its current
 global tree, calls the modules
 .Fn init
-function. If this function returns an error, the modules MIB tree is removed from
-the global one and the module is unloaded. If initialisation is successful,
-the modules
+function.
+If this function returns an error, the modules MIB tree is removed from
+the global one and the module is unloaded.
+If initialization is successful, the modules
 .Fn start
 function is called.
 After it returns the
@@ -363,10 +379,11 @@ functions of all other modules are called.
 There are a number of macros designed to help implementing SNMP tables.
 A problem while implementing a table is the support for the GETNEXT operator.
 The GETNEXT operation has to find out whether, given an arbitrary OID, the
-lessest table row, that has an OID higher than the given OID. The easiest way
+lessest table row, that has an OID higher than the given OID.
+The easiest way
 to do this is to keep the table as an ordered list of structures each one
-of which contains an OID that is the index of the table row. This allows easy
-removal, insertion and search.
+of which contains an OID that is the index of the table row.
+This allows easy removal, insertion and search.
 .Pp
 The helper macros assume, that the table is organized as a TAILQ (see
 .Xr queue 3
@@ -400,7 +417,7 @@ assume the existence of a
 .Vt struct asn_oid
 that is used as index, the macros
 .Fn *_OBJECT_INT_*
-assume the existance of an unsigned integer field that is used as index.
+assume the existence of an unsigned integer field that is used as index.
 .Pp
 The macros
 .Fn *_INDEX
@@ -413,7 +430,7 @@ The macros
 allow the explicit naming of the link field of the tail queues, the others
 assume that the link field is named
 .Va link .
-Explicitely naming the link field may be necessary if the same structures
+Explicitly naming the link field may be necessary if the same structures
 are held in two or more different tables.
 .Pp
 The arguments to the macros are as follows:
@@ -431,7 +448,8 @@ Must point to the
 .Va var
 field of the
 .Fa value
-argument to the node operation callback. This is the OID to search for.
+argument to the node operation callback.
+This is the OID to search for.
 .It Fa SUB
 This is the index of the start of the table index in the OID pointed to
 by
@@ -466,18 +484,19 @@ struct systemg {
 	u_char		*contact;
 	u_char		*name;
 	u_char		*location;
-	u_int32_t	services;
-	u_int32_t	or_last_change;
+	uint32_t	services;
+	uint32_t	or_last_change;
 };
 .Ed
 .Ss COMMUNITIES
-The SNMP daemon implements a community table. On recipte of a request message
+The SNMP daemon implements a community table.
+On recipte of a request message
 the community string in that message is compared to each of the community
 strings in that table, if a match is found, the global variable
 .Va community
-is set to the community identifier for that community. Community identifiers
-are unsigned integers. For the three standard communities there are three
-constants defined:
+is set to the community identifier for that community.
+Community identifiers are unsigned integers.
+For the three standard communities there are three constants defined:
 .Bd -literal -offset indent
 #define COMM_INITIALIZE	0
 #define COMM_READ	1
@@ -487,24 +506,26 @@ constants defined:
 .Va community
 is set to
 .Li COMM_INITIALIZE
-while the assignments in the configuration file are processed. To
+while the assignments in the configuration file are processed.
+To
 .Li COMM_READ
 or
 .Li COMM_WRITE
 when the community strings for the read-write or read-only community are found
 in the incoming PDU.
 .Pp
-Modules can define additional communities. This may be necessary to provide
+Modules can define additional communities.
+This may be necessary to provide
 transport proxying (a PDU received on one communication link is proxied to
-another link) or to implement non-UDP access points to SNMP. A new
-community is defined with the function
+another link) or to implement non-UDP access points to SNMP.
+A new community is defined with the function
 .Fn comm_define .
 It takes the following parameters:
 .Bl -tag -width ".It Fa descr"
 .It Fa priv
-This is an integer identifying the community to the module. Each module has
-its own namespace with regard to this parameter. The community table is
-indexed with the module name and this identifier.
+This is an integer identifying the community to the module.
+Each module has its own namespace with regard to this parameter.
+The community table is indexed with the module name and this identifier.
 .It Fa descr
 This is a string providing a human readable description of the community.
 It is visible in the community table.
@@ -514,7 +535,8 @@ This is the module defining the community.
 This is the initial community string.
 .El
 .Pp
-The function returns a globally unique community identifier. If a PDU is
+The function returns a globally unique community identifier.
+If a PDU is
 received who's community string matches, this identifier is set into the global
 .Va community .
 .Pp
@@ -531,7 +553,8 @@ contains the OID 0.0.
 .Ss REQUEST ID RANGES
 For modules that implement SNMP client functions besides SNMP agent functions
 it may be necessary to identify SNMP requests by their identifier to allow
-easier routing of responses to the correct sub-system. Request id ranges
+easier routing of responses to the correct sub-system.
+Request id ranges
 provide a way to aquire globally non-overlapping sub-ranges of the entire
 31-bit id range.
 .Pp
@@ -543,7 +566,8 @@ For example, the call
 id = reqid_allocate(1000, module);
 .Ed
 .Pp
-allocates a range of 1000 request ids. The function returns the request
+allocates a range of 1000 request ids.
+The function returns the request
 id range identifier or 0 if there is not enough identifier space.
 The function
 .Fn reqid_base
@@ -578,9 +602,20 @@ after
 .Fa ticks
 SNMP ticks have expired.
 .Fa mod
-is the module that starts the timer. Timers are one-shot, they are not
-restarted. The function returns a timer identifier that can be used to
-stop the timer via
+is the module that starts the timer.
+These timers are one-shot, they are not restarted.
+Repeatable timers are started with
+.Fn timer_start_repeat
+which takes an additional argument
+.Fa repeat_ticks .
+The argument
+.Fa ticks
+gives the number of ticks until the first execution of the callback, while
+.Fa repeat_ticks
+is the number of ticks between invocations of the callback.
+Note, that currently the number of initial ticks silently may be set identical
+to the number of ticks between callback invocations.
+The function returns a timer identifier that can be used to stop the timer via
 .Fn timer_stop .
 If a module is unloaded all timers started by the module that have not expired
 yet are stopped.
@@ -598,9 +633,10 @@ and the user argument
 .Fa uarg
 whenever the file descriptor
 .Fa fd
-can be red or has a close condition. If the file descriptor is not in
-non-blocking mode, it is set to non-blocking mode. If the callback is not
-needed anymore,
+can be read or has a close condition.
+If the file descriptor is not in
+non-blocking mode, it is set to non-blocking mode.
+If the callback is not needed anymore,
 .Fn fd_deselect
 may be called with the value returned from
 .Fn fd_select .
@@ -609,17 +645,18 @@ the module is unloaded.
 .Pp
 To temporarily suspend the file descriptor registration
 .Fn fd_suspend
-can be called. This also causes the file descriptor to be switched back to
+can be called.
+This also causes the file descriptor to be switched back to
 blocking mode if it was blocking prior the call to
 .Fn fd_select .
-This is necessary to do synchronuous input on a selected socket.
+This is necessary to do synchronous input on a selected socket.
 The effect of
 .Fn fd_suspend
 can be undone with
 .Fn fd_resume .
 .Ss OBJECT RESOURCES
-The system group contains an object resource table. A module may create
-an entry in this table by calling
+The system group contains an object resource table.
+A module may create an entry in this table by calling
 .Fn or_register
 with the
 .Fa oid
@@ -634,10 +671,11 @@ unloaded.
 .Ss TRANSMIT AND RECEIVE BUFFERS
 A buffer is allocated via
 .Fn buf_alloc .
-The argument must be 1 for transmit and 0 for receive buffers. The function
-may return
+The argument must be 1 for transmit and 0 for receive buffers.
+The function may return
 .Li NULL
-if there is no memory available. The current buffersize can be obtained with
+if there is no memory available.
+The current buffersize can be obtained with
 .Fn buf_size .
 .Sh PROCESSING PDUS
 For modules that need to do their own PDU processing (for example for proxying)
@@ -666,7 +704,8 @@ A SET PDU had a value field in a binding with wrong ASN.1 encoding.
 The buffer appears to contain a valid begin of a PDU, but is too short.
 For streaming transports this means that the caller must save what he
 already has and trying to obtain more input and reissue this input to
-the function. For datagram transports this means that part of the
+the function.
+For datagram transports this means that part of the
 datagram was lost and the input should be ignored.
 .El
 .Pp
@@ -674,11 +713,12 @@ The function
 .Fn snmp_input_finish
 does the other half of processing: if
 .Fn snmp_input_start
-did not return OK, tries to construct an error response. If the start was OK,
-it calls the correct function from
-.Xr bsnmpagent
+did not return OK, tries to construct an error response.
+If the start was OK, it calls the correct function from
+.Xr bsnmpagent 3
 to execute the request and depending on the outcome constructs a response or
-error response PDU or ignores the request PDU. It returns either
+error response PDU or ignores the request PDU.
+It returns either
 .Er SNMPD_INPUT_OK
 or
 .Er SNMPD_INPUT_FAILED .
@@ -695,7 +735,8 @@ the transport and the index in the port table) to the given address.
 .Pp
 The function
 .Fn snmp_send_trap
-sends a trap to all trap destinations. The arguments are the
+sends a trap to all trap destinations.
+The arguments are the
 .Fa oid
 identifying the trap and a NULL-terminated list of
 .Vt struct snmp_value
@@ -712,15 +753,16 @@ should be called for SNMP_OP_SET.
 .Fa value
 and
 .Fa ctx
-are the resp\&. arguments to the node callback.
+are the resp\&.\& arguments to the node callback.
 .Fa valp
 is a pointer to the pointer that holds the current value and
 .Fa req_size
 should be -1 if any size of the string is acceptable or a number larger or
-equal zero if the string must have a specific size. The function saves
+equal zero if the string must have a specific size.
+The function saves
 the old value in the scratch area (note, that any initial value must have
 been allocated by
-.Xr malloc 3 ),
+.Xr malloc 3 ) ,
 allocates a new string, copies over the new value, NUL-terminates it and
 sets the new current value.
 .It Fn string_commit
@@ -728,11 +770,13 @@ simply frees the saved old value in the scratch area.
 .It Fn string_rollback
 frees the new value, and puts back the old one.
 .It Fn string_get
-is used for GET or GETNEXT. If
+is used for GET or GETNEXT.
+If
 .Fa len
 is -1, the length is computed via
 .Xr strlen 3
-from the current string value. If the current value is NULL,
+from the current string value.
+If the current value is NULL,
 a OCTET STRING of zero length is returned.
 .It Fn string_free
 must be called if either rollback or commit fails to free the saved old value.
@@ -771,13 +815,15 @@ Retrieves the OID
 The following functions help in handling table indexes:
 .Bl -tag -width "XXXXXXXXX"
 .It Fn index_decode
-Decodes the index part of the OID. The parameter
+Decodes the index part of the OID.
+The parameter
 .Fa oid
 must be a pointer to the
 .Va var
 field of the
 .Fa value
-argument of the node callback. The
+argument of the node callback.
+The
 .Fa sub
 argument must be the index of the start of the index in the OID (this is
 the
@@ -794,14 +840,16 @@ elements as follows:
 .Vt int32_t *
 expected as argument.
 .It Li COUNTER64
-.Vt u_int64_t *
-expected as argument. Note, that this syntax is illegal for indexes.
+.Vt uint64_t *
+expected as argument.
+Note, that this syntax is illegal for indexes.
 .It Li OCTET STRING
 A
 .Vt u_char **
 and a
 .Vt size_t *
-expected as arguments. A buffer is allocated to hold the decoded string.
+expected as arguments.
+A buffer is allocated to hold the decoded string.
 .It Li OID
 A
 .Vt struct asn_oid *
@@ -828,7 +876,8 @@ and
 .Fa sub
 resp.
 .Fa oid2
-is the OID to compare to. The function returns -1, 0, +1 when the
+is the OID to compare to.
+The function returns -1, 0, +1 when the
 variable is lesser, equal, higher to the given OID.
 .Fa oid2
 must contain only the index part of the table column.
@@ -861,7 +910,7 @@ beginning at position
 .El
 .Sh SEE ALSO
 .Xr gensnmptree 1 ,
-.Xr snmpd 1 ,
+.Xr bsnmpd 1 ,
 .Xr bsnmpagent 3 ,
 .Xr bsnmpclient 3 ,
 .Xr bsnmplib 3

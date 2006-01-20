@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/config.c,v 1.22 2004/08/12 17:09:49 brandt Exp $
+ * $Begemot: bsnmp/snmpd/config.c,v 1.24 2005/10/04 11:21:37 brandt_h Exp $
  *
  * Parse configuration file.
  */
@@ -206,17 +206,18 @@ input_open_file(const char *fname, int sysdir)
 	struct input *input;
 	FILE *fp;
 	char path[PATH_MAX + 1];
-	char *col;
+	const char *col;
 	const char *ptr;
 
 	if (sysdir) {
 		ptr = syspath;
 		fp = NULL;
 		while (*ptr != '\0') {
-			if ((col = strchr(ptr, ':')) == NULL)
+			if ((col = strchr(ptr, ':')) == NULL) {
 				snprintf(path, sizeof(path), "%s/%s",
 				    ptr, fname);
-			else if (col == ptr)
+				col = ptr + strlen(ptr) - 1;
+			} else if (col == ptr)
 				snprintf(path, sizeof(path), "./%s", fname);
 			else
 				snprintf(path, sizeof(path), "%.*s/%s",
@@ -820,7 +821,7 @@ parse_oid(const char *varname, struct asn_oid *oid)
 	while (token == '.') {
 		if (gettoken() == TOK_NUM) {
 			if (numval > ASN_MAXID)
-				report("subid too large %#"PRIx64, numval);
+				report("subid too large %#"QUADXFMT, numval);
 			if (oid->len == ASN_MAXOIDLEN)
 				report("index too long");
 			oid->subs[oid->len++] = numval;
@@ -863,7 +864,7 @@ parse_syntax_integer(struct snmp_value *value)
 	if (token != TOK_NUM)
 		report("bad INTEGER syntax");
 	if (numval > 0x7fffffff)
-		report("INTEGER too large %"PRIu64, numval);
+		report("INTEGER too large %"QUADFMT, numval);
 
 	value->v.integer = numval;
 	gettoken();
@@ -1131,7 +1132,7 @@ parse_define(const char *varname)
 		m->value = string;
 		m->length = length;
 	} else {
-		if (t != TOK_ASSIGN) {
+		if (t == TOK_ASSIGN) {
 			free(m->value);
 			m->value = string;
 			m->length = length;
@@ -1360,5 +1361,7 @@ define_macro(const char *name, const char *value)
 	}
 	strcpy(m->value, value);
 	m->length = strlen(value);
+	m->perm = 1;
+	LIST_INSERT_HEAD(&macros, m, link);
 	return (0);
 }
