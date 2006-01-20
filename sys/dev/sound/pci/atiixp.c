@@ -432,7 +432,7 @@ atiixp_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		ch->flush_bit = ATI_REG_FIFO_IN_FLUSH;
 		ch->dma_dt_cur_bit = ATI_REG_IN_DMA_DT_CUR;
 		/* XXX Native 32bit recording appear to be broken */
-		ch->caps_32bit = 0;
+		ch->caps_32bit = 1;
 	}
 
 	ch->buffer = b;
