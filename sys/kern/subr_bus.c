@@ -781,7 +781,17 @@ devclass_find_internal(const char *classname, const char *parentname,
 
 		bus_data_generation_update();
 	}
-	if (parentname && dc && !dc->parent) {
+
+	/*
+	 * If a parent class is specified, then set that as our parent so
+	 * that this devclass will support drivers for the parent class as
+	 * well.  If the parent class has the same name don't do this though
+	 * as it creates a cycle that can trigger an infinite loop in
+	 * device_probe_child() if a device exists for which there is no
+	 * suitable driver.
+	 */
+	if (parentname && dc && !dc->parent &&
+	    strcmp(classname, parentname) != 0) {
 		dc->parent = devclass_find_internal(parentname, 0, FALSE);
 	}
 
