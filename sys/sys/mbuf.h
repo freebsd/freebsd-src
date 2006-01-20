@@ -438,7 +438,7 @@ m_getjcl(int how, short type, int flags, int size)
 	n = uma_zalloc_arg(zone, m, how);
 	if (n == NULL)
 		uma_zfree(zone_mbuf, m);
-	return n;
+	return m;
 }
 
 static __inline
