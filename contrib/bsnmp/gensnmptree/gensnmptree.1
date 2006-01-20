@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2001-2003
+.\" Copyright (c) 2001-2005
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
 .\"
@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/gensnmptree/gensnmptree.1,v 1.4 2005/02/25 11:55:56 brandt_h Exp $
+.\" $Begemot: bsnmp/gensnmptree/gensnmptree.1,v 1.5 2005/06/15 11:31:25 brandt_h Exp $
 .\"
-.Dd October 7, 2003
+.Dd June 14, 2005
 .Dt GENSNMPTREE 1
 .Os
 .Sh NAME
@@ -43,8 +43,8 @@
 The
 .Nm
 utility is used to either generate C language tables and header files from
-a MIB description or to numeric OIDs from MIB descriptions. The first form
-is used only for maintaining the
+a MIB description or to numeric OIDs from MIB descriptions.
+The first form is used only for maintaining the
 .Xr snmpd 1
 daemon or for module writers.
 The second form may be used by SNMP client program writers.
@@ -70,7 +70,8 @@ option is specified
 .Nm
 expects MIB variable names (only the last component) on its command line.
 It reads a MIB specification from standard input and for each MIB variable
-name emits two C preprocessor defines on its standard output. One define
+name emits two C preprocessor defines on its standard output.
+One define
 .Va OID_ Ns Ar name
 can be used as an array initialized to initialize a
 .Va struct asn_oid .
@@ -85,7 +86,8 @@ Print a short help page.
 .It Fl e
 Enter extract mode.
 .It Fl l
-Generate local preprocessor includes. This is used for bootstrapping
+Generate local preprocessor includes.
+This is used for bootstrapping
 .Xr snmpd 1 .
 .It Fl t
 Instead of normal output print the resulting tree.
