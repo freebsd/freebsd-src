@@ -4170,6 +4170,7 @@ ipfw_init(void)
 			"(support disabled)\n", error);
 		IPFW_DYN_LOCK_DESTROY();
 		IPFW_LOCK_DESTROY(&layer3_chain);
+		uma_zdestroy(ipfw_dyn_rule_zone);
 		return (error);
 	}
 
