@@ -579,11 +579,13 @@ bad:
 
 
 /*
- * Reconnect routine: Called when a connection is broken on a reliable
- * protocol. - clean up the old socket - nfs_connect() again - set
- * R_MUSTRESEND for all outstanding requests on mount point If this fails the
- * mount point is DEAD! nb: Must be called with the nfs_sndlock() set on the
- * mount point.
+ * Reconnect routine:
+ * Called when a connection is broken on a reliable protocol.
+ * - clean up the old socket
+ * - rpcclnt_connect() again
+ * - set R_MUSTRESEND for all outstanding requests on mount point
+ * If this fails the mount point is DEAD!
+ * nb: Must be called with the rpcclnt_sndlock() set on the mount point.
  */
 int
 rpcclnt_reconnect(rep, td)
@@ -614,7 +616,7 @@ rpcclnt_reconnect(rep, td)
 }
 
 /*
- * NFS disconnect. Clean up and unlink.
+ * RPC transport disconnect. Clean up and unlink.
  */
 void
 rpcclnt_disconnect(rpc)
@@ -645,14 +647,17 @@ rpcclnt_safedisconnect(struct rpcclnt * rpc)
 }
 
 /*
- * This is the nfs send routine. For connection based socket types, it must
- * be called with an nfs_sndlock() on the socket. "rep == NULL" indicates
- * that it has been called from a server. For the client side: - return EINTR
- * if the RPC is terminated, 0 otherwise - set R_MUSTRESEND if the send fails
- * for any reason - do any cleanup required by recoverable socket errors
- * (???) For the server side: - return EINTR or ERESTART if interrupted by a
- * signal - return EPIPE if a connection is lost for connection based sockets
- * (TCP...) - do any cleanup required by recoverable socket errors (???)
+ * This is the rpc send routine. For connection based socket types, it
+ * must be called with an rpcclnt_sndlock() on the socket.
+ * "rep == NULL" indicates that it has been called from a server.
+ * For the client side:
+ * - return EINTR if the RPC is terminated, 0 otherwise
+ * - set R_MUSTRESEND if the send fails for any reason
+ * - do any cleanup required by recoverable socket errors (?)
+ * For the server side:
+ * - return EINTR or ERESTART if interrupted by a signal
+ * - return EPIPE if a connection is lost for connection based sockets (TCP...)
+ * - do any cleanup required by recoverable socket errors (?)
  */
 static int
 rpcclnt_send(so, nam, top, rep)
@@ -1115,21 +1120,20 @@ rpcmout:
 
 /* XXX: ignores tryagain! */
 /*
- * code from nfs_request - goes something like this - fill in task struct -
- * links task into list - calls nfs_send() for first transmit - calls
- * nfs_receive() to get reply - fills in reply (which should be initialized
- * prior to calling), which is valid when 0 is returned and is NEVER freed in
- * this function
+ * code from nfs_request - goes something like this
+ *	- fill in task struct
+ *	- links task into list
+ *	- calls rpcclnt_send() for first transmit
+ *	- calls rpcclnt_reply() to get reply
+ *	- fills in reply (which should be initialized prior to
+ *	  calling), which is valid when 0 is returned and is
+ *	  NEVER freed in this function
  * 
- * always frees the request header, but NEVER frees 'mrest'
+ * nb: always frees the request header, but NEVER frees 'mrest'
  * 
- */
-/*
- * ruthtype
- * pcclnt_setauth() should be used before calling this. EAUTH is returned if
+ * rpcclnt_setauth() should be used before calling this. EAUTH is returned if
  * authentication fails.
- */
-/*
+ *
  * note that reply->result_* are invalid unless reply->type ==
  * RPC_MSGACCEPTED and reply->status == RPC_SUCCESS and that reply->verf_*
  * are invalid unless reply->type == RPC_MSGACCEPTED
@@ -1370,9 +1374,10 @@ rpcmout:
 
 
 /*
- * Nfs timer routine Scan the nfsreq list and retranmit any requests that
- * have timed out To avoid retransmission attempts on STREAM sockets (in the
- * future) make sure to set the r_retry field to 0 (implies nm_retry == 0).
+ * RPC timer routine
+ * Scan the rpctask list and retranmit any requests that have timed out.
+ * To avoid retransmission attempts on STREAM sockets (in the future) make
+ * sure to set the r_retry field to 0 (implies nm_retry == 0).
  */
 void
 rpcclnt_timer(arg)
