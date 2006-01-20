@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmp.c,v 1.38 2004/08/06 08:46:53 brandt Exp $
+ * $Begemot: bsnmp/lib/snmp.c,v 1.40 2005/10/04 14:32:42 brandt_h Exp $
  *
  * SNMP
  */
@@ -36,7 +36,11 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdarg.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <netdb.h>
