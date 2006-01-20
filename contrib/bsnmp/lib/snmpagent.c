@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpagent.c,v 1.19 2004/08/19 17:09:09 brandt Exp $
+ * $Begemot: bsnmp/lib/snmpagent.c,v 1.20 2005/10/04 11:21:33 brandt_h Exp $
  *
  * SNMP Agent functions
  */
@@ -36,7 +36,11 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdarg.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#endif
 #include <string.h>
 
 #include "asn1.h"
