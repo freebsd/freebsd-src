@@ -33,7 +33,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 /*
  * Default speed
  */
-#define VCHAN_DEFAULT_SPEED	44100
+#define VCHAN_DEFAULT_SPEED	48000
 
 extern int feeder_rate_ratemin;
 extern int feeder_rate_ratemax;
@@ -442,8 +442,21 @@ vchan_create(struct pcm_channel *parent)
 							device_get_unit(parent->dev),
 								"vchanrate", &speed);
 				CHN_LOCK(parent);
-				if (r != 0)
-					speed = VCHAN_DEFAULT_SPEED;
+				if (r != 0) {
+					/*
+					 * Workaround for sb16 running
+					 * poorly at 45k / 49k.
+					 */
+					switch (parent_caps->maxspeed) {
+					case 45000:
+					case 49000:
+						speed = 44100;
+						break;
+					default:
+						speed = VCHAN_DEFAULT_SPEED;
+						break;
+					}
+				}
 			}
 
 			/*
