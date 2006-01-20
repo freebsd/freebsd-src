@@ -423,7 +423,11 @@ rpcclnt_connect(rpc, td)
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = INADDR_ANY;
 		sin.sin_port = htons(0);
-		error = sobind(so, (struct sockaddr *) & sin, td);
+		/*
+		 * &thread0 gives us root credentials to ensure sobind
+		 * will give us a reserved ephemeral port.
+		 */
+		error = sobind(so, (struct sockaddr *) & sin, &thread0);
 #endif
 		if (error)
 			goto bad;
