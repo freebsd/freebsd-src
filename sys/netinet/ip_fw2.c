@@ -1695,15 +1695,6 @@ lookup_next_rule(struct ip_fw *me)
 	return rule;
 }
 
-static void
-init_tables(struct ip_fw_chain *ch)
-{
-	int i;
-
-	for (i = 0; i < IPFW_TABLES_MAX; i++)
-		rn_inithead((void **)&ch->tables[i], 32);
-}
-
 static int
 add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	uint8_t mlen, uint32_t value)
@@ -1780,6 +1771,7 @@ flush_table(struct ip_fw_chain *ch, uint16_t tbl)
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
 	rnh = ch->tables[tbl];
+	KASSERT(rnh != NULL, ("NULL IPFW table"));
 	rnh->rnh_walktree(rnh, flush_table_entry, rnh);
 	return (0);
 }
@@ -1793,6 +1785,23 @@ flush_tables(struct ip_fw_chain *ch)
 
 	for (tbl = 0; tbl < IPFW_TABLES_MAX; tbl++)
 		flush_table(ch, tbl);
+}
+
+static int
+init_tables(struct ip_fw_chain *ch)
+{ 
+	int i;
+	uint16_t j;
+
+	for (i = 0; i < IPFW_TABLES_MAX; i++) {
+		if (!rn_inithead((void **)&ch->tables[i], 32)) {
+			for (j = 0; j < i; j++) {
+				(void) flush_table(ch, j);
+			}
+			return (ENOMEM);
+		}
+	}
+	return (0);
 }
 
 static int
@@ -4204,7 +4213,13 @@ ipfw_init(void)
 		printf("limited to %d packets/entry by default\n",
 		    verbose_limit);
 
-	init_tables(&layer3_chain);
+	error = init_tables(&layer3_chain);
+	if (error) {
+		IPFW_DYN_LOCK_DESTROY();
+		IPFW_LOCK_DESTROY(&layer3_chain);
+		uma_zdestroy(ipfw_dyn_rule_zone);
+		return (error);
+	}
 	ip_fw_ctl_ptr = ipfw_ctl;
 	ip_fw_chk_ptr = ipfw_chk;
 	callout_reset(&ipfw_timeout, hz, ipfw_tick, NULL);
