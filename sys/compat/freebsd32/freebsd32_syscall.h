@@ -213,7 +213,7 @@
 #define	FREEBSD32_SYS_getdents	272
 #define	FREEBSD32_SYS_lchmod	274
 #define	FREEBSD32_SYS_netbsd_lchown	275
-#define	FREEBSD32_SYS_lutimes	276
+#define	FREEBSD32_SYS_freebsd32_lutimes	276
 #define	FREEBSD32_SYS_netbsd_msync	277
 #define	FREEBSD32_SYS_nstat	278
 #define	FREEBSD32_SYS_nfstat	279
