@@ -354,6 +354,15 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Kingston" , "DataTraveler II+", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Motorola E398 Mobile Phone (TransFlash memory card).
+		 * Reported by: Wojciech A. Koszek <dunstan@FreeBSD.czest.pl>
+		 * PR: usb/89889
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Motorola" , "Motorola Phone",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
