@@ -1632,6 +1632,13 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		}
 	}
 
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SAS) {
+		struct	ccb_trans_settings_sas *sas = &cts.xport_specific.sas;
+		if (sas->valid & CTS_SAS_VALID_SPEED) {
+			speed = sas->bitrate;
+		}
+	}
+
 	mb = speed / 1000;
 	if (mb > 0)
 		printf("%s%d: %d.%03dMB/s transfers",

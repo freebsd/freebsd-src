@@ -226,13 +226,14 @@ typedef enum {
 	XPORT_SSA,	/* Serial Storage Architecture */
 	XPORT_USB,	/* Universal Serial Bus */
 	XPORT_PPB,	/* Parallel Port Bus */
-	XPORT_ATA	/* AT Attachment */
+	XPORT_ATA,	/* AT Attachment */
+	XPORT_SAS,	/* Serial Attached SCSI */
 } cam_xport;
 
-#define PROTO_VERSION_UNKNOWN (UINT_MAX - 1) 
-#define PROTO_VERSION_UNSPECIFIED UINT_MAX 
-#define XPORT_VERSION_UNKNOWN (UINT_MAX - 1) 
-#define XPORT_VERSION_UNSPECIFIED UINT_MAX 
+#define PROTO_VERSION_UNKNOWN (UINT_MAX - 1)
+#define PROTO_VERSION_UNSPECIFIED UINT_MAX
+#define XPORT_VERSION_UNKNOWN (UINT_MAX - 1)
+#define XPORT_VERSION_UNSPECIFIED UINT_MAX
 #endif /* CAM_NEW_TRAN_CODE */
 
 typedef union {
@@ -527,6 +528,9 @@ struct ccb_pathinq_settings_fc {
 	u_int32_t port;		/* 24 bit port id, if known */
 	u_int32_t bitrate;	/* Mbps */
 };
+struct ccb_pathinq_settings_sas {
+	u_int32_t bitrate;	/* Mbps */
+};
 #define	PATHINQ_SETTINGS_SIZE	128
 #endif /* CAM_NEW_TRAN_CODE */
 
@@ -558,6 +562,7 @@ struct ccb_pathinq {
 	union {
 		struct ccb_pathinq_settings_spi spi;
 		struct ccb_pathinq_settings_fc fc;
+		struct ccb_pathinq_settings_sas sas;
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 #endif /* CAM_NEW_TRAN_CODE */
@@ -761,6 +766,13 @@ struct ccb_trans_settings_fc {
 	u_int32_t 	bitrate;	/* Mbps */
 };
 
+struct ccb_trans_settings_sas {
+	u_int     	valid;		/* Which fields to honor */
+#define	CTS_SAS_VALID_SPEED		0x1000
+	u_int32_t 	bitrate;	/* Mbps */
+};
+
+
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
 struct ccb_trans_settings {
 	struct	  ccb_hdr ccb_h;
@@ -777,6 +789,7 @@ struct ccb_trans_settings {
 		u_int  valid;	/* Which fields to honor */
 		struct ccb_trans_settings_spi spi;
 		struct ccb_trans_settings_fc fc;
+		struct ccb_trans_settings_sas sas;
 	} xport_specific;
 };
 
