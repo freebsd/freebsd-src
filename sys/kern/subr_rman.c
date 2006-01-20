@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -89,7 +89,7 @@ static	int int_rman_release_resource(struct rman *rm, struct resource *r);
 int
 rman_init(struct rman *rm)
 {
-	static int once;
+	static int once = 0;
 
 	if (once == 0) {
 		once = 1;
@@ -104,7 +104,7 @@ rman_init(struct rman *rm)
 
 	TAILQ_INIT(&rm->rm_list);
 	rm->rm_mtx = malloc(sizeof *rm->rm_mtx, M_RMAN, M_NOWAIT | M_ZERO);
-	if (rm->rm_mtx == 0)
+	if (rm->rm_mtx == NULL)
 		return ENOMEM;
 	mtx_init(rm->rm_mtx, "rman", NULL, MTX_DEF);
 
@@ -126,14 +126,14 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
 	    rm->rm_descr, start, end));
 	r = malloc(sizeof *r, M_RMAN, M_NOWAIT | M_ZERO);
-	if (r == 0)
+	if (r == NULL)
 		return ENOMEM;
 	r->r_start = start;
 	r->r_end = end;
 	r->r_rm = rm;
 
 	mtx_lock(rm->rm_mtx);
-	for (s = TAILQ_FIRST(&rm->rm_list);	
+	for (s = TAILQ_FIRST(&rm->rm_list);
 	     s && s->r_end < r->r_start;
 	     s = TAILQ_NEXT(s, r_link))
 		;
@@ -189,7 +189,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	struct	resource *r, *s, *rv;
 	u_long	rstart, rend, amask, bmask;
 
-	rv = 0;
+	rv = NULL;
 
 	DPRINTF(("rman_reserve_resource: <%s> request: [%#lx, %#lx], length "
 	       "%#lx, flags %u, device %s\n", rm->rm_descr, start, end, count,
@@ -199,7 +199,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 
 	mtx_lock(rm->rm_mtx);
 
-	for (r = TAILQ_FIRST(&rm->rm_list); 
+	for (r = TAILQ_FIRST(&rm->rm_list);
 	     r && r->r_end < start;
 	     r = TAILQ_NEXT(r, r_link))
 		;
@@ -268,14 +268,14 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			 * two new allocations; the second requires but one.
 			 */
 			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
-			if (rv == 0)
+			if (rv == NULL)
 				goto out;
 			rv->r_start = rstart;
 			rv->r_end = rstart + count - 1;
 			rv->r_flags = flags | RF_ALLOCATED;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
-			
+
 			if (s->r_start < rv->r_start && s->r_end > rv->r_end) {
 				DPRINTF(("splitting region in three parts: "
 				       "[%#lx, %#lx]; [%#lx, %#lx]; [%#lx, %#lx]\n",
@@ -286,9 +286,9 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				 * We are allocating in the middle.
 				 */
 				r = malloc(sizeof *r, M_RMAN, M_NOWAIT|M_ZERO);
-				if (r == 0) {
+				if (r == NULL) {
 					free(rv, M_RMAN);
-					rv = 0;
+					rv = NULL;
 					goto out;
 				}
 				r->r_start = rv->r_end + 1;
@@ -344,24 +344,24 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		    (s->r_start & amask) == 0 &&
 		    ((s->r_start ^ s->r_end) & bmask) == 0) {
 			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
-			if (rv == 0)
+			if (rv == NULL)
 				goto out;
 			rv->r_start = s->r_start;
 			rv->r_end = s->r_end;
-			rv->r_flags = s->r_flags & 
+			rv->r_flags = s->r_flags &
 				(RF_ALLOCATED | RF_SHAREABLE | RF_TIMESHARE);
 			rv->r_dev = dev;
 			rv->r_rm = rm;
-			if (s->r_sharehead == 0) {
+			if (s->r_sharehead == NULL) {
 				s->r_sharehead = malloc(sizeof *s->r_sharehead,
 						M_RMAN, M_NOWAIT | M_ZERO);
-				if (s->r_sharehead == 0) {
+				if (s->r_sharehead == NULL) {
 					free(rv, M_RMAN);
-					rv = 0;
+					rv = NULL;
 					goto out;
 				}
 				LIST_INIT(s->r_sharehead);
-				LIST_INSERT_HEAD(s->r_sharehead, s, 
+				LIST_INSERT_HEAD(s->r_sharehead, s,
 						 r_sharelink);
 				s->r_flags |= RF_FIRSTSHARE;
 			}
@@ -386,10 +386,10 @@ out:
 		struct resource *whohas;
 		if (int_rman_activate_resource(rm, rv, &whohas)) {
 			int_rman_release_resource(rm, rv);
-			rv = 0;
+			rv = NULL;
 		}
 	}
-			
+
 	mtx_unlock(rm->rm_mtx);
 	return (rv);
 }
@@ -418,7 +418,7 @@ int_rman_activate_resource(struct rman *rm, struct resource *r,
 	 */
 	if ((r->r_flags & RF_TIMESHARE) == 0
 	    || (r->r_flags & RF_ACTIVE) != 0
-	    || r->r_sharehead == 0) {
+	    || r->r_sharehead == NULL) {
 		r->r_flags |= RF_ACTIVE;
 		return 0;
 	}
@@ -466,7 +466,7 @@ rman_await_resource(struct resource *r, int pri, int timo)
 		if (rv != EBUSY)
 			return (rv);	/* returns with mutex held */
 
-		if (r->r_sharehead == 0)
+		if (r->r_sharehead == NULL)
 			panic("rman_await_resource");
 		whohas->r_flags |= RF_WANTED;
 		rv = msleep(r->r_sharehead, rm->rm_mtx, pri, "rmwait", timo);
@@ -532,9 +532,9 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		 * Make sure that the sharing list goes away completely
 		 * if the resource is no longer being shared at all.
 		 */
-		if (LIST_NEXT(s, r_sharelink) == 0) {
+		if (LIST_NEXT(s, r_sharelink) == NULL) {
 			free(s->r_sharehead, M_RMAN);
-			s->r_sharehead = 0;
+			s->r_sharehead = NULL;
 			s->r_flags &= ~RF_FIRSTSHARE;
 		}
 		goto out;
@@ -749,10 +749,12 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Find the indexed resource manager
 	 */
+	mtx_lock(&rman_mtx);
 	TAILQ_FOREACH(rm, &rman_head, rm_link) {
 		if (rman_idx-- == 0)
 			break;
 	}
+	mtx_unlock(&rman_mtx);
 	if (rm == NULL)
 		return (ENOENT);
 
@@ -775,6 +777,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Find the indexed resource and return it.
 	 */
+	mtx_lock(&rman_mtx);
 	TAILQ_FOREACH(res, &rm->rm_list, r_link) {
 		if (res_idx-- == 0) {
 			bzero(&ures, sizeof(ures));
@@ -798,13 +801,14 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 			ures.r_size = res->r_end - res->r_start + 1;
 			ures.r_flags = res->r_flags;
 
+			mtx_unlock(&rman_mtx);
 			error = SYSCTL_OUT(req, &ures, sizeof(ures));
 			return (error);
 		}
 	}
+	mtx_unlock(&rman_mtx);
 	return (ENOENT);
 }
 
 SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD, sysctl_rman,
     "kernel resource manager");
-
