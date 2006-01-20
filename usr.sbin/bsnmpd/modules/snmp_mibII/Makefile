@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB=${.CURDIR}/../../../../contrib/bsnmp
+CONTRIB= ${.CURDIR}/../../../../contrib/bsnmp
 .PATH: ${CONTRIB}/snmp_mibII
 
 MOD=	mibII
