@@ -1230,7 +1230,7 @@ hme_rxcksum(struct mbuf *m, u_int32_t flags)
 		return;
 	}
 
-	cksum = ~(flags & HME_XD_RXCKSUM);
+	cksum = htons(~(flags & HME_XD_RXCKSUM));
 	/* checksum fixup for IP options */
 	len = hlen - sizeof(struct ip);
 	if (len > 0) {
