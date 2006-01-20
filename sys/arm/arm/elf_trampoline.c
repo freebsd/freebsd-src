@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/inflate.h>
 #include <machine/elf.h>
+#include <machine/pte.h>
+
 #include <stdlib.h>
 
 #include "opt_global.h"
@@ -204,7 +206,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 {
 	Elf32_Ehdr *eh;
 	Elf32_Phdr phdr[512] /* XXX */, *php;
-	Elf32_Shdr *shdr;
+	Elf32_Shdr shdr[512] /* XXX */;
 	int i,j;
 	void *entry_point;
 	int symtabindex = -1;
@@ -228,9 +230,6 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	}
 	
 	/* Save the symbol tables, as there're about to be scratched. */
-	lastaddr = roundup(lastaddr, sizeof(long));
-	shdr = (Elf_Shdr *)lastaddr;
-	lastaddr += sizeof(*shdr) * eh->e_shnum;
 	memcpy(shdr, (void *)(kstart + eh->e_shoff),
 	    sizeof(*shdr) * eh->e_shnum);
 	if (eh->e_shnum * eh->e_shentsize != 0 &&
@@ -337,7 +336,51 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 extern char func_end[];
 
 extern void *_end;
-void __start(void)
+
+#define PMAP_DOMAIN_KERNEL	15 /*
+				    * Just define it instead of including the
+				    * whole VM headers set.
+				    */
+int __hack;
+static __inline void
+setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend)
+{
+	unsigned int *pd = (unsigned int *)pt_addr;
+	vm_paddr_t addr;
+	int domain = (DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT;
+	int tmp;
+
+	bzero(pd, L1_TABLE_SIZE);
+	for (addr = physstart; addr < physend; addr += L1_S_SIZE)
+		pd[addr >> L1_S_SHIFT] = L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW)|
+		    L1_S_DOM(PMAP_DOMAIN_KERNEL) | addr;
+	/* XXX: See below */
+	if (0xfff00000 < physstart || 0xfff00000 > physend)
+		pd[0xfff00000 >> L1_S_SHIFT] = L1_TYPE_S|L1_S_AP(AP_KRW)|
+		    L1_S_DOM(PMAP_DOMAIN_KERNEL)|physstart;
+	__asm __volatile("mcr p15, 0, %1, c2, c0, 0\n" /* set TTB */
+	    		 "mcr p15, 0, %1, c8, c7, 0\n" /* Flush TTB */
+			 "mcr p15, 0, %2, c3, c0, 0\n" /* Set DAR */
+			 "mrc p15, 0, %0, c1, c0, 0\n"
+			 "orr %0, %0, #1\n" /* MMU_ENABLE */
+			 "mcr p15, 0, %0, c1, c0, 0\n"
+			 "mrc p15, 0, %0, c2, c0, 0\n" /* CPWAIT */
+			 "mov r0, r0\n"
+			 "sub pc, pc, #4\n" :
+			 "=r" (tmp) : "r" (pd), "r" (domain));
+	
+	/* 
+	 * XXX: This is the most stupid workaround I've ever wrote.
+	 * For some reason, the KB9202 won't boot the kernel unless
+	 * we access an address which is not in the 
+	 * 0x20000000 - 0x20ffffff range. I hope I'll understand
+	 * what's going on later.
+	 */
+	__hack = *(volatile int *)0xfffff21c;
+}
+
+void
+__start(void)
 {
 	void *curaddr;
 	void *dst;
@@ -348,6 +391,10 @@ void __start(void)
 	curaddr = (void*)((unsigned int)curaddr & 0xfff00000);
 #ifdef KZIP
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
+		int pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
+		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
+		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
+		    (vm_paddr_t)curaddr + 0x10000000);
 		/* Gzipped kernel */
 		dst = inflate_kernel(kernel, &_end);
 		kernel = (char *)&_end;
