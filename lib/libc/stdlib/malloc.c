@@ -265,7 +265,7 @@ __FBSDID("$FreeBSD$");
  * negatively affect performance.
  */
 #define	CACHELINE_2POW 6
-#define	CACHELINE ((size_t) (1 << CACHELINE_2POW))
+#define	CACHELINE ((size_t)(1 << CACHELINE_2POW))
 
 /* Default number of regions to delay coalescence for. */
 #define NDELAY 256
@@ -917,11 +917,11 @@ malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 
 /* Return the chunk address for allocation address a. */
 #define	CHUNK_ADDR2BASE(a)						\
-	((void *) ((size_t) (a) & ~chunk_size_mask))
+	((void *)((uintptr_t)(a) & ~chunk_size_mask))
 
 /* Return the chunk offset of address a. */
 #define	CHUNK_ADDR2OFFSET(a)						\
-	((size_t) (a) & chunk_size_mask)
+	((size_t)((uintptr_t)(a) & chunk_size_mask))
 
 /* Return the smallest chunk multiple that is >= s. */
 #define	CHUNK_CEILING(s)						\
@@ -1000,7 +1000,7 @@ base_alloc(size_t size)
 	malloc_mutex_lock(&base_mtx);
 
 	/* Make sure there's enough space for the allocation. */
-	if ((size_t)base_next_addr + csize > (size_t)base_past_addr) {
+	if ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
 		void *tchunk;
 		size_t alloc_size;
 
@@ -1023,7 +1023,7 @@ base_alloc(size_t size)
 		}
 		base_chunk = tchunk;
 		base_next_addr = (void *)base_chunk;
-		base_past_addr = (void *)((size_t)base_chunk + alloc_size);
+		base_past_addr = (void *)((uintptr_t)base_chunk + alloc_size);
 #ifdef MALLOC_STATS
 		base_total += alloc_size;
 #endif
@@ -1031,7 +1031,7 @@ base_alloc(size_t size)
 
 	/* Allocate. */
 	ret = base_next_addr;
-	base_next_addr = (void *)((size_t)base_next_addr + csize);
+	base_next_addr = (void *)((uintptr_t)base_next_addr + csize);
 
 RETURN:
 	malloc_mutex_unlock(&base_mtx);
@@ -1144,7 +1144,7 @@ static __inline size_t
 region_next_size_get(region_sep_t *sep)
 {
 
-	return ((size_t) (((sep->bits) & NEXT_SIZE_MASK) << opt_quantum_2pow));
+	return ((size_t)(((sep->bits) & NEXT_SIZE_MASK) << opt_quantum_2pow));
 }
 
 static __inline void
@@ -1156,7 +1156,7 @@ region_next_size_set(region_sep_t *sep, size_t size)
 
 	bits = sep->bits;
 	bits &= ~NEXT_SIZE_MASK;
-	bits |= (((uint32_t) size) >> opt_quantum_2pow);
+	bits |= (((uint32_t)size) >> opt_quantum_2pow);
 
 	sep->bits = bits;
 }
@@ -1279,7 +1279,7 @@ chunk_comp(chunk_node_t *a, chunk_node_t *b)
 	assert(a != NULL);
 	assert(b != NULL);
 
-	if ((size_t) a->chunk < (size_t) b->chunk)
+	if ((uintptr_t)a->chunk < (uintptr_t)b->chunk)
 		ret = -1;
 	else if (a->chunk == b->chunk)
 		ret = 0;
@@ -1371,8 +1371,8 @@ AGAIN:
 		ret = NULL;
 	}
 #ifdef USE_BRK
-	else if ((size_t)ret >= (size_t)brk_base
-	    && (size_t)ret < (size_t)brk_max) {
+	else if ((uintptr_t)ret >= (uintptr_t)brk_base
+	    && (uintptr_t)ret < (uintptr_t)brk_max) {
 		/*
 		 * We succeeded in mapping memory, but at a location that could
 		 * be confused with brk.  Leave the mapping intact so that this
@@ -1444,8 +1444,8 @@ chunk_alloc(size_t size)
 			RB_INSERT(chunk_tree_s, &delchunks, delchunk);
 
 #ifdef USE_BRK
-			if ((size_t)chunk >= (size_t)brk_base
-			    && (size_t)chunk < (size_t)brk_max) {
+			if ((uintptr_t)chunk >= (uintptr_t)brk_base
+			    && (uintptr_t)chunk < (uintptr_t)brk_max) {
 				/* Re-use a previously freed brk chunk. */
 				ret = chunk;
 				goto RETURN;
@@ -1513,15 +1513,15 @@ chunk_alloc(size_t size)
 				/* Leading space. */
 				pages_unmap(ret, chunk_size - offset);
 
-				ret = (void *) ((size_t) ret + (chunk_size -
+				ret = (void *)((uintptr_t)ret + (chunk_size -
 				    offset));
 
 				/* Trailing space. */
-				pages_unmap((void *) ((size_t) ret + size),
+				pages_unmap((void *)((uintptr_t)ret + size),
 				    offset);
 			} else {
 				/* Trailing space only. */
-				pages_unmap((void *) ((size_t) ret + size),
+				pages_unmap((void *)((uintptr_t)ret + size),
 				    chunk_size);
 			}
 			goto RETURN;
@@ -1589,8 +1589,8 @@ chunk_dealloc(void *chunk, size_t size)
 	}
 
 #ifdef USE_BRK
-	if ((size_t)chunk >= (size_t)brk_base
-	    && (size_t)chunk < (size_t)brk_max)
+	if ((uintptr_t)chunk >= (uintptr_t)brk_base
+	    && (uintptr_t)chunk < (uintptr_t)brk_max)
 		madvise(chunk, size, MADV_FREE);
 	else
 #endif
@@ -1875,7 +1875,7 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 
 	if (arena->split == NULL) {
 		/* Cases 3-6 ruled out. */
-	} else if ((size_t)next < (size_t)arena->split) {
+	} else if ((uintptr_t)next < (uintptr_t)arena->split) {
 		/* Cases 3-6 ruled out. */
 	} else {
 		region_t *split_next;
@@ -1884,7 +1884,7 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 		split_size = region_next_size_get(&arena->split->sep);
 		split_next = (region_t *)&((char *)arena->split)[split_size];
 
-		if ((size_t)split_next < (size_t)treg) {
+		if ((uintptr_t)split_next < (uintptr_t)treg) {
 			/* Cases 3-6 ruled out. */
 		} else {
 			/*
@@ -1907,7 +1907,7 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 	/* If we get here, then cases 3-6 have been ruled out. */
 	if (arena->frag == NULL) {
 		/* Cases 1-6 ruled out. */
-	} else if ((size_t)next < (size_t)arena->frag) {
+	} else if ((uintptr_t)next < (uintptr_t)arena->frag) {
 		/* Cases 1-6 ruled out. */
 	} else {
 		region_t *frag_next;
@@ -1916,7 +1916,7 @@ arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 		frag_size = region_next_size_get(&arena->frag->sep);
 		frag_next = (region_t *)&((char *)arena->frag)[frag_size];
 
-		if ((size_t)frag_next < (size_t)treg) {
+		if ((uintptr_t)frag_next < (uintptr_t)treg) {
 			/* Cases 1-6 ruled out. */
 		} else {
 			/*
@@ -1973,7 +1973,7 @@ arena_coalesce_hard(arena_t *arena, region_t *reg, region_t *next, size_t size,
 	else if (arena->frag != NULL) {
 		/* Determine whether frag will be coalesced with. */
 
-		if ((size_t)next < (size_t)arena->frag)
+		if ((uintptr_t)next < (uintptr_t)arena->frag)
 			frag_adjacent = false;
 		else {
 			region_t *frag_next;
@@ -1983,7 +1983,7 @@ arena_coalesce_hard(arena_t *arena, region_t *reg, region_t *next, size_t size,
 			frag_next = (region_t *)&((char *)arena->frag)
 			    [frag_size];
 
-			if ((size_t)frag_next < (size_t)reg)
+			if ((uintptr_t)frag_next < (uintptr_t)reg)
 				frag_adjacent = false;
 			else
 				frag_adjacent = true;
@@ -2006,7 +2006,7 @@ arena_coalesce_hard(arena_t *arena, region_t *reg, region_t *next, size_t size,
 		arena->frag = NULL;
 
 		a_size = region_next_size_get(&a->sep);
-		assert(a_size == (size_t)reg - (size_t)a);
+		assert(a_size == (uintptr_t)reg - (uintptr_t)a);
 
 		b_size = region_next_size_get(&next->sep);
 
@@ -3215,7 +3215,8 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size)
 		total_size = region_next_size_get(&reg->sep);
 
 		if (alignment > bin_maxsize || size > bin_maxsize) {
-			size_t split_size, p;
+			size_t split_size;
+			uintptr_t p;
 
 			/*
 			 * Put this allocation toward the end of reg, since
@@ -3223,30 +3224,30 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size)
 			 * the end of split regions.
 			 */
 			split_size = region_next_size_get(&reg->sep);
-			p = (size_t)&((char *)&reg->next)[split_size];
+			p = (uintptr_t)&((char *)&reg->next)[split_size];
 			p -= offsetof(region_t, next);
 			p -= size;
 			p &= ~(alignment - 1);
 			p -= offsetof(region_t, next);
 
-			offset = p - (size_t)reg;
+			offset = p - (uintptr_t)reg;
 		} else {
-			if ((((size_t)&reg->next) & (alignment - 1)) != 0) {
-				size_t p;
+			if ((((uintptr_t)&reg->next) & (alignment - 1)) != 0) {
+				uintptr_t p;
 
 				/*
 				 * reg is unaligned.  Calculate the offset into
 				 * reg to actually base the allocation at.
 				 */
-				p = ((size_t)&reg->next + alignment)
+				p = ((uintptr_t)&reg->next + alignment)
 				    & ~(alignment - 1);
-				while (p - (size_t)&reg->next
+				while (p - (uintptr_t)&reg->next
 				    < QUANTUM_CEILING(sizeof(
 				    region_small_sizer_t)))
 					p += alignment;
 				p -= offsetof(region_t, next);
 
-				offset = p - (size_t)reg;
+				offset = p - (uintptr_t)reg;
 			} else
 				offset = 0;
 		}
@@ -3268,7 +3269,7 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size)
 
 			prev = reg;
 			reg = (region_t *)&((char *)prev)[offset];
-			assert(((size_t)&reg->next & (alignment - 1)) == 0);
+			assert(((uintptr_t)&reg->next & (alignment - 1)) == 0);
 
 			/* prev. */
 			region_next_size_set(&prev->sep, offset);
@@ -3334,7 +3335,7 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size)
 	}
 
 RETURN:
-	assert(((size_t)ret & (alignment - 1)) == 0);
+	assert(((uintptr_t)ret & (alignment - 1)) == 0);
 	return (ret);
 }
 
@@ -3893,12 +3894,12 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 				goto RETURN;
 			}
 
-			offset = (size_t)ret & (alignment - 1);
+			offset = (uintptr_t)ret & (alignment - 1);
 			assert(offset % chunk_size == 0);
 			assert(offset < alloc_size);
 			if (offset == 0) {
 				/* Trim trailing space. */
-				chunk_dealloc((void *) ((size_t) ret
+				chunk_dealloc((void *)((uintptr_t)ret
 				    + chunksize), alloc_size - chunksize);
 			} else {
 				size_t trailsize;
@@ -3906,7 +3907,7 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 				/* Trim leading space. */
 				chunk_dealloc(ret, alignment - offset);
 
-				ret = (void *) ((size_t) ret + (alignment
+				ret = (void *)((uintptr_t)ret + (alignment
 				    - offset));
 
 				trailsize = alloc_size - (alignment - offset)
@@ -3914,7 +3915,7 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 				if (trailsize != 0) {
 				    /* Trim trailing space. */
 				    assert(trailsize < alloc_size);
-				    chunk_dealloc((void *) ((size_t) ret
+				    chunk_dealloc((void *)((uintptr_t)ret
 				        + chunksize), trailsize);
 				}
 			}
@@ -3946,7 +3947,7 @@ RETURN:
 		if (ret != NULL)
 			memset(ret, 0xa5, size);
 	}
-	assert(((size_t)ret & (alignment - 1)) == 0);
+	assert(((uintptr_t)ret & (alignment - 1)) == 0);
 	return (ret);
 }
 
@@ -3968,8 +3969,8 @@ icalloc(arena_t *arena, size_t num, size_t size)
 		 */
 		ret = huge_malloc(arena, num * size);
 #ifdef USE_BRK
-		if ((size_t)ret >= (size_t)brk_base
-		    && (size_t)ret < (size_t)brk_max) {
+		if ((uintptr_t)ret >= (uintptr_t)brk_base
+		    && (uintptr_t)ret < (uintptr_t)brk_max) {
 			/* 
 			 * This may be a re-used brk chunk.  Therefore, zero
 			 * the memory.
@@ -4145,7 +4146,7 @@ malloc_print_stats(void)
 		    opt_chunk_2pow);
 		malloc_printf("Quantum size: %zu (2^%zu)\n", quantum, 
 		    opt_quantum_2pow);
-		malloc_printf("Pointer size: %u\n", sizeof(size_t));
+		malloc_printf("Pointer size: %u\n", sizeof(void *));
 		malloc_printf("Number of bins: %u\n", NBINS);
 		malloc_printf("Maximum bin size: %u\n", bin_maxsize);
 		malloc_printf("Assertions %s\n",
@@ -4457,7 +4458,7 @@ malloc_init_hard(void)
 #ifdef USE_BRK
 	brk_base = sbrk(0);
 	brk_prev = brk_base;
-	brk_max = (void *)((size_t)brk_base + MAXDSIZ);
+	brk_max = (void *)((uintptr_t)brk_base + MAXDSIZ);
 #endif
 #ifdef MALLOC_STATS
 	huge_allocated = 0;
