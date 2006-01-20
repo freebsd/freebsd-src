@@ -436,8 +436,10 @@ m_getjcl(int how, short type, int flags, int size)
 		panic("%s: m_getjcl: invalid cluster type", __func__);
 	}
 	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL)
+	if (n == NULL) {
 		uma_zfree(zone_mbuf, m);
+		return NULL;
+	}
 	return m;
 }
 
