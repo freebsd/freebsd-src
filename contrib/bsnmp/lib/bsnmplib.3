@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/bsnmplib.3,v 1.6 2005/02/25 11:55:59 brandt_h Exp $
+.\" $Begemot: bsnmp/lib/bsnmplib.3,v 1.9 2005/10/04 08:46:51 brandt_h Exp $
 .\"
-.Dd August 15, 2002
+.Dd October 4, 2005
 .Dt BSNMPLIB 3
 .Os
 .Sh NAME
@@ -84,15 +87,15 @@ struct snmp_value {
 	  }			octetstring;
 	  struct asn_oid	oid;
 	  u_char		ipaddress[4];
-	  u_int32_t		uint32;	/* also gauge32, counter32,
+	  uint32_t		uint32;	/* also gauge32, counter32,
 					   unsigned32, timeticks */
-	  u_int64_t		counter64;
+	  uint64_t		counter64;
 	}			v;
 };
 .Ed
 .Pp
-This structure represents one variable binding from an SNMP PDU. The
-field
+This structure represents one variable binding from an SNMP PDU.
+The field
 .Fa var
 is the ASN.1 of the variable that is bound.
 .Fa syntax
@@ -178,8 +181,8 @@ is the type of the PDU.
 .Pp
 The function
 .Fn snmp_value_free
-is used to free all the dynamic allocated contents of an SNMP value. It does
-not free the structure pointed to by
+is used to free all the dynamic allocated contents of an SNMP value.
+It does not free the structure pointed to by
 .Fa value
 itself.
 .Pp
@@ -187,7 +190,7 @@ The function
 .Fn snmp_value_parse
 parses the ASCII representation of an SNMP value into its binary form.
 This function is mainly used by the configuration file reader of
-.Xr snmpd 1 .
+.Xr bsnmpd 1 .
 .Pp
 The function
 .Fn snmp_value_copy
@@ -197,14 +200,14 @@ to the structure pointed to by
 .Fa to .
 It assumes that
 .Fa to
-is uninitialized and will overwrite its previous contents. It does not itself
-allocate the structure pointed to by
+is uninitialized and will overwrite its previous contents.
+It does not itself allocate the structure pointed to by
 .Fa to .
 .Pp
 The function
 .Fn snmp_pdu_free
-frees all the dynamically allocated components of the PDU. It does not itself
-free the structure pointed to by
+frees all the dynamically allocated components of the PDU.
+It does not itself free the structure pointed to by
 .Fa pdu .
 .Pp
 The function
@@ -239,7 +242,7 @@ The function
 .Fn TRUTH_OK
 checks, whether its argument is a legal SNMP truth value.
 .Sh DIAGNOSTICS
-When an error occures in any of the function the function pointed to
+When an error occurs in any of the function the function pointed to
 by the global pointer
 .Bd -literal -offset indent
 extern void (*snmp_error)(const char *, ...);
@@ -291,7 +294,7 @@ Encoding failed.
 .El
 .Sh SEE ALSO
 .Xr gensnmptree 1 ,
-.Xr snmpd 1 ,
+.Xr bsnmpd 1 ,
 .Xr bsnmpagent 3 ,
 .Xr bsnmpclient 3 ,
 .Xr bsnmplib 3
