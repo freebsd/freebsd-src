@@ -72,41 +72,11 @@ static device_method_t ofw_pcibus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ofw_pcibus_probe),
 	DEVMETHOD(device_attach,	ofw_pcibus_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	pci_print_child),
-	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
-	DEVMETHOD(bus_read_ivar,	pci_read_ivar),
-	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
-	DEVMETHOD(bus_driver_added,	pci_driver_added),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-
-	DEVMETHOD(bus_get_resource_list, pci_get_resource_list),
-	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
-	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
-	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
-	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 
 	/* PCI interface */
-	DEVMETHOD(pci_read_config,	pci_read_config_method),
-	DEVMETHOD(pci_write_config,	pci_write_config_method),
-	DEVMETHOD(pci_enable_busmaster,	pci_enable_busmaster_method),
-	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
-	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
-	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
-	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
-	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
-	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	ofw_pcibus_get_devinfo),
@@ -128,12 +98,10 @@ struct ofw_pcibus_softc {
 	phandle_t	ops_node;
 };
 
-static driver_t ofw_pcibus_driver = {
-	"pci",
-	ofw_pcibus_methods,
-	sizeof(struct ofw_pcibus_softc),
-};
+static devclass_t pci_devclass;
 
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
+    sizeof(struct ofw_pcibus_softc), pci_driver);
 DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
