@@ -77,9 +77,11 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO}
 	${OBJCOPY} ${STRIP_FLAGS} ${KERNEL_KO}.tmp 
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp.gz\"" \
 	>opt_kernname.h 
+	eval $$(stat -s ${KERNEL_KO}.tmp) && \
+	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
 	gzip -9 ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
-	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
+	echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -DKZIP -I. -c $S/kern/inflate.c -o inflate-tramp.o
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
 	-DKZIP $S/$M/$M/elf_trampoline.c inflate-tramp.o $S/$M/$M/inckern.S \
