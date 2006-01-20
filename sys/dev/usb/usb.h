@@ -489,6 +489,8 @@ typedef struct {
 #define  UIPROTO_IRDA			0
 
 #define UICLASS_VENDOR		0xff
+#define  UISUBCLASS_XBOX360_CONTROLLER	0x5d
+#define  UIPROTO_XBOX360_GAMEPAD	0x01
 
 
 #define USB_HUB_MAX_DEPTH 5
