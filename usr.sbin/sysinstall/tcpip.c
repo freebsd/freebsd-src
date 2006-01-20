@@ -597,7 +597,7 @@ netconfig:
 	if (ipv4_enable) {
 	    sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	    if (use_dhcp)
-		sprintf(temp, "DHCP");
+		sprintf(temp, "DHCP %s", extras);
 	    else
 		sprintf(temp, "inet %s %s netmask %s",
 			ipaddr, extras, netmask);
