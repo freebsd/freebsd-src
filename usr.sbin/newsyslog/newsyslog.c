@@ -1773,7 +1773,7 @@ static void
 do_zipwork(struct zipwork_entry *zwork)
 {
 	const char *pgm_name, *pgm_path;
-	int zstatus;
+	int errsav, fcount, zstatus;
 	pid_t pidzip, wpid;
 	char zresult[MAXPATHLEN];
 
@@ -1792,6 +1792,11 @@ do_zipwork(struct zipwork_entry *zwork)
 		warnx("invalid entry for %s in do_zipwork", zwork->zw_fname);
 		return;
 	}
+	pgm_name = strrchr(pgm_path, '/');
+	if (pgm_name == NULL)
+		pgm_name = pgm_path;
+	else
+		pgm_name++;
 
 	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_pidok <= 0) {
 		warnx(
@@ -1802,37 +1807,46 @@ do_zipwork(struct zipwork_entry *zwork)
 	}
 
 	if (noaction) {
-		pgm_name = strrchr(pgm_path, '/');
-		if (pgm_name == NULL)
-			pgm_name = pgm_path;
-		else
-			pgm_name++;
 		printf("\t%s %s\n", pgm_name, zwork->zw_fname);
 		change_attrs(zresult, zwork->zw_conf);
 		return;
 	}
 
+	fcount = 1;
 	pidzip = fork();
-	if (pidzip < 0)
-		err(1, "gzip fork");
-	else if (!pidzip) {
+	while (pidzip < 0) {
+		/*
+		 * The fork failed.  If the failure was due to a temporary
+		 * problem, then wait a short time and try it again.
+		 */
+		errsav = errno;
+		warn("fork() for `%s %s'", pgm_name, zwork->zw_fname);
+		if (errsav != EAGAIN || fcount > 5)
+			errx(1, "Exiting...");
+		sleep(fcount * 12);
+		fcount++;
+		pidzip = fork();
+	}
+	if (!pidzip) {
 		/* The child process executes the compression command */
 		execl(pgm_path, pgm_path, "-f", zwork->zw_fname, (char *)0);
-		err(1, "%s", pgm_path);
+		err(1, "execl(`%s -f %s')", pgm_path, zwork->zw_fname);
 	}
 
 	wpid = waitpid(pidzip, &zstatus, 0);
 	if (wpid == -1) {
+		/* XXX - should this be a fatal error? */
 		warn("%s: waitpid(%d)", pgm_path, pidzip);
 		return;
 	}
 	if (!WIFEXITED(zstatus)) {
-		warn("%s: did not terminate normally", pgm_path);
+		warnx("`%s -f %s' did not terminate normally", pgm_name,
+		    zwork->zw_fname);
 		return;
 	}
 	if (WEXITSTATUS(zstatus)) {
-		warn("%s: terminated with %d (non-zero) status",
-		    pgm_path, WEXITSTATUS(zstatus));
+		warnx("`%s -f %s' terminated with a non-zero status (%d)",
+		    pgm_name, zwork->zw_fname, WEXITSTATUS(zstatus));
 		return;
 	}
 
@@ -2349,6 +2363,12 @@ createlog(const struct conf_entry *ent)
 		close(fd);
 }
 
+/*
+ * Change the attributes of a given filename to what was specified in
+ * the newsyslog.conf entry.  This routine is only called for files
+ * that newsyslog expects that it has created, and thus it is a fatal
+ * error if this routine finds that the file does not exist.
+ */
 static void
 change_attrs(const char *fname, const struct conf_entry *ent)
 {
@@ -2367,8 +2387,11 @@ change_attrs(const char *fname, const struct conf_entry *ent)
 	}
 
 	failed = chmod(fname, ent->permissions);
-	if (failed)
-		warn("can't chmod %s", fname);
+	if (failed) {
+		if (errno != EPERM)
+			err(1, "chmod(%s) in change_attrs", fname);
+		warn("change_attrs couldn't chmod(%s)", fname);
+	}
 
 	if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1) {
 		failed = chown(fname, ent->uid, ent->gid);
