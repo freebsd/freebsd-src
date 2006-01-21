@@ -711,31 +711,25 @@ static __inline__ u_int16_t gdt_dec16(u_int8_t *);
 static __inline__ u_int32_t gdt_dec32(u_int8_t *);
 
 static __inline__ void
-gdt_enc16(addr, value)
-        u_int8_t *addr;
-        u_int16_t value;
+gdt_enc16(u_int8_t *addr, u_int16_t value)
 {
         *(u_int16_t *)addr = htole16(value);
 }
 
 static __inline__ void
-gdt_enc32(addr, value)
-        u_int8_t *addr;
-        u_int32_t value;
+gdt_enc32(u_int8_t *addr, u_int32_t value)
 {
         *(u_int32_t *)addr = htole32(value);
 }
 
 static __inline__ u_int16_t
-gdt_dec16(addr)
-        u_int8_t *addr;
+gdt_dec16(u_int8_t *addr)
 {
         return le16toh(*(u_int16_t *)addr);
 }
 
 static __inline__ u_int32_t
-gdt_dec32(addr)
-        u_int8_t *addr;
+gdt_dec32(u_int8_t *addr)
 {
         return le32toh(*(u_int32_t *)addr);
 }
