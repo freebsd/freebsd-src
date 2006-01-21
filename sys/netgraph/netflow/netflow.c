@@ -99,7 +99,7 @@ MALLOC_DECLARE(M_NETFLOW_HASH);
 MALLOC_DEFINE(M_NETFLOW_HASH, "NetFlow hash", "NetFlow hash");
 
 static int export_add(item_p, struct flow_entry *);
-static int export_send(priv_p, item_p);
+static int export_send(priv_p, item_p, int flags);
 
 /* Generate hash for a given flow record. */
 static __inline uint32_t
@@ -177,7 +177,7 @@ get_export_dgram(priv_p priv)
  * Re-attach incomplete datagram back to priv.
  * If there is already another one, then send incomplete. */
 static void
-return_export_dgram(priv_p priv, item_p item)
+return_export_dgram(priv_p priv, item_p item, int flags)
 {
 	/*
 	 * It may happen on SMP, that some thread has already
@@ -190,7 +190,7 @@ return_export_dgram(priv_p priv, item_p item)
 		mtx_unlock(&priv->export_mtx);
 	} else {
 		mtx_unlock(&priv->export_mtx);
-		export_send(priv, item);
+		export_send(priv, item, flags);
 	}
 }
 
@@ -199,7 +199,7 @@ return_export_dgram(priv_p priv, item_p item)
  * full, then call export_send().
  */
 static __inline void
-expire_flow(priv_p priv, item_p *item, struct flow_entry *fle)
+expire_flow(priv_p priv, item_p *item, struct flow_entry *fle, int flags)
 {
 	if (*item == NULL)
 		*item = get_export_dgram(priv);
@@ -209,7 +209,7 @@ expire_flow(priv_p priv, item_p *item, struct flow_entry *fle)
 		return;
 	}
 	if (export_add(*item, fle) > 0) {
-		export_send(priv, *item);
+		export_send(priv, *item, flags);
 		*item = NULL;
 	}
 	uma_zfree_arg(priv->zone, fle, priv);
@@ -386,11 +386,11 @@ ng_netflow_cache_flush(priv_p priv)
 	for (hsh = priv->hash, i = 0; i < NBUCKETS; hsh++, i++)
 		TAILQ_FOREACH_SAFE(fle, &hsh->head, fle_hash, fle1) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, &item, fle);
+			expire_flow(priv, &item, fle, NG_QUEUE);
 		}
 
 	if (item != NULL)
-		export_send(priv, item);
+		export_send(priv, item, NG_QUEUE);
 
 	uma_zdestroy(priv->zone);
 
@@ -492,7 +492,7 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
 			break;
 		if ((INACTIVE(fle) && SMALL(fle)) || AGED(fle)) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, &item, fle);
+			expire_flow(priv, &item, fle, NG_QUEUE);
 			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
 		}
 	}
@@ -513,7 +513,8 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
 		if (tcp_flags & TH_FIN || tcp_flags & TH_RST || AGED(fle) ||
 		    (fle->f.bytes >= (UINT_MAX - IF_MAXMTU)) ) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, &item, fle);
+			expire_flow(priv, &item, fle, NG_QUEUE);
+			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
 		} else {
 			/*
 			 * It is the newest, move it to the tail,
@@ -531,7 +532,7 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
 	mtx_unlock(&hsh->mtx);
 
 	if (item != NULL)
-		return_export_dgram(priv, item);
+		return_export_dgram(priv, item, NG_QUEUE);
 
 	return (error);
 }
@@ -539,7 +540,6 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
 /*
  * Return records from cache to userland.
  *
- * TODO: consider NGM_READONLY
  * TODO: matching particular IP should be done in kernel, here.
  */
 int
@@ -603,7 +603,7 @@ ng_netflow_flow_show(priv_p priv, uint32_t last, struct ng_mesg *resp)
 
 /* We have full datagram in privdata. Send it to export hook. */
 static int
-export_send(priv_p priv, item_p item)
+export_send(priv_p priv, item_p item, int flags)
 {
 	struct mbuf *m = NGI_M(item);
 	struct netflow_v5_export_dgram *dgram = mtod(m,
@@ -627,7 +627,7 @@ export_send(priv_p priv, item_p item)
 
 	if (priv->export != NULL)
 		/* Should also NET_LOCK_GIANT(). */
-		NG_FWD_ITEM_HOOK(error, item, priv->export);
+		NG_FWD_ITEM_HOOK_FLAGS(error, item, priv->export, flags);
 
 	return (error);
 }
@@ -720,7 +720,7 @@ ng_netflow_expire(void *arg)
 			if ((INACTIVE(fle) && (SMALL(fle) || (used > (NBUCKETS*2)))) ||
 			    AGED(fle)) {
 				TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-				expire_flow(priv, &item, fle);
+				expire_flow(priv, &item, fle, NG_NOFLAGS);
 				used--;
 				atomic_add_32(&priv->info.nfinfo_inact_exp, 1);
 			}
@@ -729,7 +729,7 @@ ng_netflow_expire(void *arg)
 	}
 
 	if (item != NULL)
-		return_export_dgram(priv, item);
+		return_export_dgram(priv, item, NG_NOFLAGS);
 
 	/* Schedule next expire. */
 	callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
