@@ -78,8 +78,10 @@ struct ng_mesg {
 	char	data[];			/* placeholder for actual data */
 };
 
-/* this command is guaranteed to not alter data or'd into the command */
+/* This command is guaranteed to not alter data (or'd into the command). */
 #define NGM_READONLY	0x10000000
+/* This command is guaranteed to have a reply (or'd into the command). */
+#define NGM_HASREPLY	0x20000000
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
