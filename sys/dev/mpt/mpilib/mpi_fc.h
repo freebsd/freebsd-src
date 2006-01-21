@@ -28,13 +28,13 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- *           Name:  MPI_FC.H
+ * 
+ * 
+ *           Name:  mpi_fc.h
  *          Title:  MPI Fibre Channel messages and structures
  *  Creation Date:  June 12, 2000
  *
- *    MPI_FC.H Version:  01.02.04
+ *    mpi_fc.h Version:  01.05.01
  *
  *  Version History
  *  ---------------
@@ -65,6 +65,8 @@
  *                      MSG_LINK_SERVICE_RSP_REPLY.
  *  05-31-02  01.02.03  Adding AliasIndex to FC Direct Access requests.
  *  01-16-04  01.02.04  Added define for MPI_FC_PRIM_SEND_FLAGS_ML_RESET_LINK.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  --------------------------------------------------------------------------
  */
 
@@ -74,7 +76,7 @@
 
 /*****************************************************************************
 *
-*        F C    T a r g e t    M o d e    M e s s a g e s
+*        F C    D i r e c t    A c c e s s     M e s s a g e s
 *
 *****************************************************************************/
 
