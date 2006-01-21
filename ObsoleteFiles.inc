@@ -16,6 +16,8 @@
 
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
 OLD_FILES+=rescue/nextboot.sh
+# 20051029: rc.d/ppp-user renamed to rc.d/ppp for convenience
+OLD_FILES+=etc/rc.d/ppp-user
 # 20051012: setkey(8) moved to /sbin/
 OLD_FILES+=usr/sbin/setkey
 # 20050831: not implemented
