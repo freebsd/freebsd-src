@@ -1687,6 +1687,9 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 	else
 		power = 31;
 
+	/* adjust txpower using ifconfig settings */
+	power -= (100 - ic->ic_txpowlimit) / 8;
+
 	DPRINTFN(2, ("setting channel to %u, txpower to %u\n", chan, power));
 
 	switch (sc->rf_rev) {
