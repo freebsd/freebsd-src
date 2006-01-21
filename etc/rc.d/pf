@@ -25,7 +25,7 @@ resync_precmd="$stop_precmd"
 resync_cmd="pf_resync"
 status_precmd="$stop_precmd"
 status_cmd="pf_status"
-extra_commands="check reload resync"
+extra_commands="check reload resync status"
 
 pf_prestart()
 {
