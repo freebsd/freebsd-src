@@ -2305,9 +2305,16 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 {
 	struct ural_softc *sc = (struct ural_softc *)priv;
 	struct ural_amrr *amrr = &sc->amrr;
+	struct ifnet *ifp = sc->sc_ic.ic_ifp;
 
-	if (status != USBD_NORMAL_COMPLETION)
+	if (status != USBD_NORMAL_COMPLETION) {
+		device_printf(sc->sc_dev, "could not retrieve Tx statistics - "
+		    "cancelling automatic rate control\n");
 		return;
+	}
+
+	/* count TX retry-fail as Tx errors */
+	ifp->if_oerrors += sc->sta[9];
 
 	amrr->retrycnt =
 	    sc->sta[7] +	/* TX one-retry ok count */
