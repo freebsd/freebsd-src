@@ -496,16 +496,17 @@ main(int argc, char *argv[], char **envp)
 					    (struct sockaddr *)&his_addr,
 					    &addrlen);
 					if (fd >= 0) {
-						if ((pid = fork()) == 0) {
-							/* child */
-							(void) dup2(fd, 0);
-							(void) dup2(fd, 1);
-							close(ctl_sock[i]);
-						} else
+						if ((pid = fork()) == 0)
+							break;
+						else
 							close(fd);
 					}
 				}
 			if (pid == 0) {
+				/* child */
+				(void) dup2(fd, 0);
+				(void) dup2(fd, 1);
+				close(ctl_sock[i]);
 				if (pfh != NULL)
 					pidfile_close(pfh);
 				break;
