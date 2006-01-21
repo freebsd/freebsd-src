@@ -144,7 +144,9 @@ port.
 When
 .Fl D
 is specified, write the daemon's process ID to
-.Ar file .
+.Ar file
+instead of the default pid file,
+.Pa /var/run/ftpd.pid .
 .It Fl R
 With this option set,
 .Nm
@@ -519,7 +521,7 @@ executable need not be placed into the chrooted tree, nor need the
 .Pa ~/bin
 directory exist.
 .Sh FILES
-.Bl -tag -width ".Pa /var/log/xferlog" -compact
+.Bl -tag -width ".Pa /var/run/ftpd.pid" -compact
 .It Pa /etc/ftpusers
 List of unwelcome/restricted users.
 .It Pa /etc/ftpchroot
@@ -530,6 +532,8 @@ Virtual hosting configuration file.
 Welcome notice.
 .It Pa /etc/ftpmotd
 Welcome notice after login.
+.It Pa /var/run/ftpd.pid
+Default pid file for daemon mode.
 .It Pa /var/run/nologin
 Displayed and access refused.
 .It Pa /var/log/ftpd
