@@ -2629,10 +2629,11 @@ bge_rxeof(sc)
 		m->m_pkthdr.rcvif = ifp;
 
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-				
+			if (cur_rx->bge_flags & BGE_RXBDFLAG_IP_CSUM) {
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+				if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
+					m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			}
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_TCP_UDP_CSUM &&
 			    m->m_pkthdr.len >= ETHER_MIN_NOPAD) {
 				m->m_pkthdr.csum_data =
