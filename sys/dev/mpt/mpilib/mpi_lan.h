@@ -28,13 +28,13 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- *           Name:  MPI_LAN.H
+ * 
+ * 
+ *           Name:  mpi_lan.h
  *          Title:  MPI LAN messages and structures
  *  Creation Date:  June 30, 2000
  *
- *    MPI_LAN.H Version:  01.02.01
+ *    mpi_lan.h Version:  01.05.01
  *
  *  Version History
  *  ---------------
@@ -56,6 +56,8 @@
  *  02-20-01  01.01.02  Started using MPI_POINTER.
  *  03-27-01  01.01.03  Added structure offset comments.
  *  08-08-01  01.02.01  Original release for v1.2 work.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  --------------------------------------------------------------------------
  */
 
