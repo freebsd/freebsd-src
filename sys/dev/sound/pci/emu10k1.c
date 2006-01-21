@@ -45,7 +45,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	EMUMAXPAGES	(WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE)
 #define	EMU10K1_PCI_ID	0x00021102	/* 1102 => Creative Labs Vendor ID */
 #define	EMU10K2_PCI_ID	0x00041102	
-#define EMU10K1X_PCI_ID	0x00061102
 #define	EMU10K3_PCI_ID	0x00081102	
 #define	EMU_DEFAULT_BUFSZ	4096
 #define EMU_MAX_CHANS	8
@@ -1883,10 +1882,6 @@ emu_pci_probe(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case EMU10K1_PCI_ID:
 		s = "Creative EMU10K1";
-		break;
-
-	case EMU10K1X_PCI_ID:
-		s = "Creative SB Live! (Dell OEM)";
 		break;
 
 	case EMU10K2_PCI_ID:
