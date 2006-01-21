@@ -1107,6 +1107,7 @@ product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 ethernet
 product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 wireless adapter
 product LINKSYS4 WUSB54G	0x000d	WUSB54G wireless adapter
 product LINKSYS4 WUSB54GP	0x0011	WUSB54GP wireless adapter
+product LINKSYS4 HU200TS	0x001a	HU200TS wireless adapter
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -1167,6 +1168,7 @@ product MELCO LUAU2KTX		0x003d	LUA-U2-KTX Ethernet
 product MELCO KG54YB		0x005e	WLI-U2-KG54-YB WLAN
 product MELCO KG54		0x0066	WLI-U2-KG54 WLAN
 product MELCO KG54AI		0x0067	WLI-U2-KG54-AI WLAN
+product MELCO NINWIFI		0x008b	Nintendo Wi-Fi
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
