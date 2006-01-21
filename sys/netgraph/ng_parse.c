@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/ctype.h>
@@ -801,8 +802,10 @@ ng_fixedstring_parse(const struct ng_parse_type *type,
 
 	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
-	if (slen + 1 > fi->bufSize)
+	if (slen + 1 > fi->bufSize) {
+		FREE(sval, M_NETGRAPH_PARSE);
 		return (E2BIG);
+	}
 	*off += len;
 	bcopy(sval, buf, slen);
 	FREE(sval, M_NETGRAPH_PARSE);
@@ -902,8 +905,10 @@ ng_sizedstring_parse(const struct ng_parse_type *type,
 
 	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
-	if (slen > 0xffff)
+	if (slen > USHRT_MAX) {
+		FREE(sval, M_NETGRAPH_PARSE);
 		return (EINVAL);
+	}
 	*off += len;
 	*((u_int16_t *)buf) = (u_int16_t)slen;
 	bcopy(sval, buf + 2, slen);
@@ -1455,13 +1460,10 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		cbuf += strlen(cbuf);
 		didOne = 1;
 	}
-	FREE(workBuf, M_NETGRAPH_PARSE);
 
 	/* Closing brace/bracket */
-	if ((error = ng_parse_append(&cbuf, &cbuflen, "%s%c",
-	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']')) != 0)
-		goto fail;
-	return (0);
+	error = ng_parse_append(&cbuf, &cbuflen, "%s%c",
+	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']');
 
 fail:
 	/* Clean up after failure */
