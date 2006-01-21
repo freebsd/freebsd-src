@@ -150,6 +150,9 @@ Static void		ural_set_chan(struct ural_softc *,
 Static void		ural_disable_rf_tune(struct ural_softc *);
 #endif
 Static void		ural_enable_tsf_sync(struct ural_softc *);
+Static void		ural_update_slot(struct ifnet *);
+Static void		ural_set_txpreamble(struct ural_softc *);
+Static void		ural_set_basicrates(struct ural_softc *);
 Static void		ural_set_bssid(struct ural_softc *, uint8_t *);
 Static void		ural_set_macaddr(struct ural_softc *, uint8_t *);
 Static void		ural_update_promisc(struct ural_softc *);
@@ -300,7 +303,6 @@ static const struct {
 	uint32_t	r2;
 	uint32_t	r4;
 } ural_rf5222[] = {
-	/* channels in the 2.4GHz band */
 	{   1, 0x08808, 0x0044d, 0x00282 },
 	{   2, 0x08808, 0x0044e, 0x00282 },
 	{   3, 0x08808, 0x0044f, 0x00282 },
@@ -316,7 +318,6 @@ static const struct {
 	{  13, 0x08808, 0x00469, 0x00282 },
 	{  14, 0x08808, 0x0046b, 0x00286 },
 
-	/* channels in the 5.2GHz band */
 	{  36, 0x08804, 0x06225, 0x00287 },
 	{  40, 0x08804, 0x06226, 0x00287 },
 	{  44, 0x08804, 0x06227, 0x00287 },
@@ -460,6 +461,7 @@ USB_ATTACH(ural)
 	    IEEE80211_C_HOSTAP |	/* HostAp mode supported */
 	    IEEE80211_C_TXPMGT |	/* tx power management */
 	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
+	    IEEE80211_C_SHSLOT |	/* short slot time supported */
 	    IEEE80211_C_WPA;		/* 802.11i */
 
 	if (sc->rf_rev == RAL_RF_5222) {
@@ -724,6 +726,7 @@ ural_task(void *arg)
 	struct ural_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 	enum ieee80211_state ostate;
+	struct ieee80211_node *ni;
 	struct mbuf *m;
 
 	ostate = ic->ic_state;
@@ -755,31 +758,25 @@ ural_task(void *arg)
 	case IEEE80211_S_RUN:
 		ural_set_chan(sc, ic->ic_curchan);
 
-		/* update basic rate set */
-		if (ic->ic_curmode == IEEE80211_MODE_11B) {
-			/* 11b basic rates: 1, 2Mbps */
-			ural_write(sc, RAL_TXRX_CSR11, 0x3);
-		} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
-			/* 11a basic rates: 6, 12, 24Mbps */
-			ural_write(sc, RAL_TXRX_CSR11, 0x150);
-		} else {
-			/* 11g basic rates: 1, 2, 5.5, 11, 6, 12, 24Mbps */
-			ural_write(sc, RAL_TXRX_CSR11, 0x15f);
-		}
+		ni = ic->ic_bss;
 
-		if (ic->ic_opmode != IEEE80211_M_MONITOR)
-			ural_set_bssid(sc, ic->ic_bss->ni_bssid);
+		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+			ural_update_slot(ic->ic_ifp);
+			ural_set_txpreamble(sc);
+			ural_set_basicrates(sc);
+			ural_set_bssid(sc, ni->ni_bssid);
+		}
 
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 		    ic->ic_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ic, ic->ic_bss, &sc->sc_bo);
+			m = ieee80211_beacon_alloc(ic, ni, &sc->sc_bo);
 			if (m == NULL) {
 				printf("%s: could not allocate beacon\n",
 				    USBDEVNAME(sc->sc_dev));
 				return;
 			}
 
-			if (ural_tx_bcn(sc, m, ic->ic_bss) != 0) {
+			if (ural_tx_bcn(sc, m, ni) != 0) {
 				printf("%s: could not send beacon\n",
 				    USBDEVNAME(sc->sc_dev));
 				return;
@@ -795,7 +792,7 @@ ural_task(void *arg)
 		/* enable automatic rate adaptation in STA mode */
 		if (ic->ic_opmode == IEEE80211_M_STA &&
 		    ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
-			ural_amrr_start(sc, ic->ic_bss);
+			ural_amrr_start(sc, ni);
 
 		break;
 	}
@@ -824,7 +821,10 @@ ural_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 #define RAL_ACK_SIZE	14	/* 10 + 4(FCS) */
 #define RAL_CTS_SIZE	14	/* 10 + 4(FCS) */
-#define RAL_SIFS	10
+
+#define RAL_SIFS		10	/* us */
+
+#define RAL_RXTX_TURNAROUND	5	/* us */
 
 /*
  * This function is only used by the Rx radiotap code.
@@ -918,7 +918,8 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	usbd_get_xfer_status(xfer, NULL, NULL, &len, NULL);
 
 	if (len < RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
-		printf("%s: xfer too short %d\n", USBDEVNAME(sc->sc_dev), len);
+		DPRINTF(("%s: xfer too short %d\n", USBDEVNAME(sc->sc_dev),
+		    len));
 		ifp->if_ierrors++;
 		goto skip;
 	}
@@ -957,8 +958,8 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 		tap->wr_flags = IEEE80211_RADIOTAP_F_FCS;   
 		tap->wr_rate = ural_rxrate(desc);
-		tap->wr_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wr_antenna = sc->rx_ant;
 		tap->wr_antsignal = desc->rssi;
 
@@ -1078,25 +1079,21 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 	desc->flags |= htole32(RAL_TX_NEWSEQ);
 	desc->flags |= htole32(len << 16);
 
-	if (RAL_RATE_IS_OFDM(rate))
-		desc->flags |= htole32(RAL_TX_OFDM);
-
-	desc->wme = htole16(RAL_AIFSN(3) | RAL_LOGCWMIN(4) | RAL_LOGCWMAX(6));
+	desc->wme = htole16(RAL_AIFSN(2) | RAL_LOGCWMIN(3) | RAL_LOGCWMAX(5));
 	desc->wme |= htole16(RAL_IVOFFSET(sizeof (struct ieee80211_frame)));
 
-	/*
-	 * Fill PLCP fields.
-	 */
+	/* setup PLCP fields */
+	desc->plcp_signal  = ural_plcp_signal(rate);
 	desc->plcp_service = 4;
 
 	len += IEEE80211_CRC_LEN;
 	if (RAL_RATE_IS_OFDM(rate)) {
-		/* IEEE Std 802.11a-1999, pp. 14 */
+		desc->flags |= htole32(RAL_TX_OFDM);
+
 		plcp_length = len & 0xfff;
 		desc->plcp_length_hi = plcp_length >> 6;
 		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
-		/* IEEE Std 802.11b-1999, pp. 16 */
 		plcp_length = (16 * len + rate - 1) / rate;
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
@@ -1105,11 +1102,10 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 		}
 		desc->plcp_length_hi = plcp_length >> 8;
 		desc->plcp_length_lo = plcp_length & 0xff;
-	}
 
-	desc->plcp_signal = ural_plcp_signal(rate);
-	if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
-		desc->plcp_signal |= 0x08;
+		if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
+			desc->plcp_signal |= 0x08;
+	}
 
 	desc->iv = 0;
 	desc->eiv = 0;
@@ -1210,8 +1206,8 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
@@ -1299,8 +1295,8 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
@@ -1447,7 +1443,7 @@ ural_reset(struct ifnet *ifp)
 	if (ic->ic_opmode != IEEE80211_M_MONITOR)
 		return ENETRESET;
 
-	ural_set_chan(sc, ic->ic_ibss_chan);
+	ural_set_chan(sc, ic->ic_curchan);
 
 	return 0;
 }
@@ -1658,7 +1654,6 @@ ural_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 Static void
 ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t power, tmp;
 	u_int i, chan;
@@ -1726,16 +1721,12 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 
 	/* dual-band RF */
 	case RAL_RF_5222:
-		for (i = 0; i < N(ural_rf5222); i++)
-			if (ural_rf5222[i].chan == chan)
-				break;
+		for (i = 0; i < ural_rf5222[i].chan != chan; i++);
 
-		if (i < N(ural_rf5222)) {
-			ural_rf_write(sc, RAL_RF1, ural_rf5222[i].r1);
-			ural_rf_write(sc, RAL_RF2, ural_rf5222[i].r2);
-			ural_rf_write(sc, RAL_RF3, power << 7 | 0x00040);
-			ural_rf_write(sc, RAL_RF4, ural_rf5222[i].r4);
-		}
+		ural_rf_write(sc, RAL_RF1, ural_rf5222[i].r1);
+		ural_rf_write(sc, RAL_RF2, ural_rf5222[i].r2);
+		ural_rf_write(sc, RAL_RF3, power << 7 | 0x00040);
+		ural_rf_write(sc, RAL_RF4, ural_rf5222[i].r4);
 		break;
 	}
 
@@ -1753,7 +1744,6 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 		/* clear CRC errors */
 		ural_read(sc, RAL_STA_CSR0);
 	}
-#undef N
 }
 
 #if 0
@@ -1807,6 +1797,64 @@ ural_enable_tsf_sync(struct ural_softc *sc)
 	ural_write(sc, RAL_TXRX_CSR19, tmp);
 
 	DPRINTF(("enabling TSF synchronization\n"));
+}
+
+Static void
+ural_update_slot(struct ifnet *ifp)
+{
+	struct ural_softc *sc = ifp->if_softc;
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint16_t slottime, sifs, eifs;
+
+	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+
+	/*
+	 * These settings may sound a bit inconsistent but this is what the
+	 * reference driver does.
+	 */
+	if (ic->ic_curmode == IEEE80211_MODE_11B) {
+		sifs = 16 - RAL_RXTX_TURNAROUND;
+		eifs = 364;
+	} else {
+		sifs = 10 - RAL_RXTX_TURNAROUND;
+		eifs = 64;
+	}
+
+	ural_write(sc, RAL_MAC_CSR10, slottime);
+	ural_write(sc, RAL_MAC_CSR11, sifs);
+	ural_write(sc, RAL_MAC_CSR12, eifs);
+}
+
+Static void
+ural_set_txpreamble(struct ural_softc *sc)
+{
+	uint16_t tmp;
+
+	tmp = ural_read(sc, RAL_TXRX_CSR10);
+
+	tmp &= ~RAL_SHORT_PREAMBLE;
+	if (sc->sc_ic.ic_flags & IEEE80211_F_SHPREAMBLE)
+		tmp |= RAL_SHORT_PREAMBLE;
+
+	ural_write(sc, RAL_TXRX_CSR10, tmp);
+}
+
+Static void
+ural_set_basicrates(struct ural_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	/* update basic rate set */
+	if (ic->ic_curmode == IEEE80211_MODE_11B) {
+		/* 11b basic rates: 1, 2Mbps */
+		ural_write(sc, RAL_TXRX_CSR11, 0x3);
+	} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_bss->ni_chan)) {
+		/* 11a basic rates: 6, 12, 24Mbps */
+		ural_write(sc, RAL_TXRX_CSR11, 0x150);
+	} else {
+		/* 11g basic rates: 1, 2, 5.5, 11, 6, 12, 24Mbps */
+		ural_write(sc, RAL_TXRX_CSR11, 0x15f);
+	}
 }
 
 Static void
@@ -2027,8 +2075,6 @@ ural_init(void *priv)
 		goto fail;
 
 	/* set default BSS channel */
-	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
-	ic->ic_curchan = ic->ic_ibss_chan;
 	ural_set_chan(sc, ic->ic_curchan);
 
 	/* clear statistic registers (STA_CSR0 to STA_CSR10) */

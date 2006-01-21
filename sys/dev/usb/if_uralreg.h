@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -42,6 +42,7 @@
 #define RAL_MAC_CSR7	0x040e	/* BSSID2 */
 #define RAL_MAC_CSR8	0x0410	/* Max frame length */
 #define RAL_MAC_CSR9	0x0412	/* Timer control */
+#define RAL_MAC_CSR10	0x0414	/* Slot time */
 #define RAL_MAC_CSR11	0x0416	/* IFS */
 #define RAL_MAC_CSR12	0x0418	/* EIFS */
 #define RAL_MAC_CSR13	0x041a	/* Power mode0 */
@@ -63,6 +64,7 @@
 #define RAL_TXRX_CSR6	0x044c	/* CCK Tx BBP ID1 */
 #define RAL_TXRX_CSR7	0x044e	/* OFDM Tx BBP ID0 */
 #define RAL_TXRX_CSR8	0x0450	/* OFDM Tx BBP ID1 */
+#define RAL_TXRX_CSR10	0x0454	/* Auto responder control */
 #define RAL_TXRX_CSR11	0x0456	/* Auto responder basic rate */
 #define RAL_TXRX_CSR18	0x0464	/* Beacon interval */
 #define RAL_TXRX_CSR19	0x0466	/* Beacon/sync control */
@@ -101,6 +103,8 @@
 #define RAL_DROP_BAD_VERSION	(1 << 6)
 #define RAL_DROP_MULTICAST	(1 << 9)
 #define RAL_DROP_BROADCAST	(1 << 10)
+
+#define RAL_SHORT_PREAMBLE	(1 << 2)
 
 #define RAL_RESET_ASIC	(1 << 0)
 #define RAL_RESET_BBP	(1 << 1)
