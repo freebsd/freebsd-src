@@ -135,6 +135,7 @@ Static void		ural_start(struct ifnet *);
 Static void		ural_watchdog(struct ifnet *);
 Static int		ural_reset(struct ifnet *);
 Static int		ural_ioctl(struct ifnet *, u_long, caddr_t);
+Static void		ural_set_testmode(struct ural_softc *);
 Static void		ural_eeprom_read(struct ural_softc *, uint16_t, void *,
 			    int);
 Static uint16_t		ural_read(struct ural_softc *, uint16_t);
@@ -148,9 +149,7 @@ Static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
 Static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
 Static void		ural_set_chan(struct ural_softc *,
 			    struct ieee80211_channel *);
-#if 0
 Static void		ural_disable_rf_tune(struct ural_softc *);
-#endif
 Static void		ural_enable_tsf_sync(struct ural_softc *);
 Static void		ural_update_slot(struct ifnet *);
 Static void		ural_set_txpreamble(struct ural_softc *);
@@ -1490,6 +1489,25 @@ ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 Static void
+ural_set_testmode(struct ural_softc *sc)
+{
+	usb_device_request_t req;
+	usbd_status error;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = RAL_VENDOR_REQUEST;
+	USETW(req.wValue, 4);
+	USETW(req.wIndex, 1);
+	USETW(req.wLength, 0);
+
+	error = usbd_do_request(sc->sc_udev, &req, NULL);
+	if (error != 0) {
+		printf("%s: could not set test mode: %s\n",
+		    USBDEVNAME(sc->sc_dev), usbd_errstr(error));
+	}
+}
+
+Static void
 ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -1745,10 +1763,12 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 
 		/* clear CRC errors */
 		ural_read(sc, RAL_STA_CSR0);
+
+		DELAY(10000);
+		ural_disable_rf_tune(sc);
 	}
 }
 
-#if 0
 /*
  * Disable RF auto-tuning.
  */
@@ -1767,7 +1787,6 @@ ural_disable_rf_tune(struct ural_softc *sc)
 
 	DPRINTFN(2, ("disabling RF autotune\n"));
 }
-#endif
 
 /*
  * Refer to IEEE Std 802.11-1999 pp. 123 for more information on TSF
@@ -2047,6 +2066,9 @@ ural_init(void *priv)
 	usbd_status error;
 	int i, ntries;
 
+	ural_set_testmode(sc);
+	ural_write(sc, 0x308, 0x00f0);	/* XXX magic */
+
 	ural_stop(sc);
 
 	/* initialize MAC registers to default values */
@@ -2071,7 +2093,7 @@ ural_init(void *priv)
 	ural_write(sc, RAL_MAC_CSR1, RAL_HOST_READY);
 
 	/* set basic rate set (will be updated later) */
-	ural_write(sc, RAL_TXRX_CSR11, 0x153);
+	ural_write(sc, RAL_TXRX_CSR11, 0x15f);
 
 	if (ural_bbp_init(sc) != 0)
 		goto fail;
