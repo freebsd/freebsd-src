@@ -1864,7 +1864,6 @@ restart:
 		int flags;
 		char *waitmsg;
 
-		mtx_unlock(&bqlock);
 		if (defrag) {
 			flags = VFS_BIO_NEED_BUFSPACE;
 			waitmsg = "nbufkv";
@@ -1875,11 +1874,14 @@ restart:
 			waitmsg = "newbuf";
 			flags = VFS_BIO_NEED_ANY;
 		}
+		mtx_lock(&nblock);
+		needsbuffer |= flags;
+		mtx_unlock(&nblock);
+		mtx_unlock(&bqlock);
 
 		bd_speedup();	/* heeeelp */
 
 		mtx_lock(&nblock);
-		needsbuffer |= flags;
 		while (needsbuffer & flags) {
 			if (msleep(&needsbuffer, &nblock,
 			    (PRIBIO + 4) | slpflag, waitmsg, slptimeo)) {
