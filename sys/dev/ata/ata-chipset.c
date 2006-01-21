@@ -339,15 +339,15 @@ ata_sata_setmode(device_t dev, int mode)
     if (atadev->param.satacapabilities != 0x0000 &&
 	atadev->param.satacapabilities != 0xffff) {
 	struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-	int status;
 
 	/* on some drives we need to set the transfer mode */
 	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
 		       ata_limit_mode(dev, mode, ATA_UDMA6));
 
 	/* query SATA STATUS for the speed */
-	status = ATA_IDX_INL(ch, ATA_SSTATUS);
-	if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)
+        if (ch->r_io[ATA_SSTATUS].res && 
+	   ((ATA_IDX_INL(ch, ATA_SSTATUS) & ATA_SS_CONWELL_MASK) ==
+	    ATA_SS_CONWELL_GEN2))
 	    atadev->mode = ATA_SA300;
 	else 
 	    atadev->mode = ATA_SA150;
