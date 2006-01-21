@@ -85,6 +85,9 @@ to be removed.
 The directory containing the directory to be removed is marked sticky,
 and neither the containing directory nor the directory to be removed
 are owned by the effective user ID.
+.It Bq Er EPERM
+After expanding any symbolic links, the last component of the path is
+.Ql .. .
 .It Bq Er EBUSY
 The directory to be removed is the mount point
 for a mounted file system.
