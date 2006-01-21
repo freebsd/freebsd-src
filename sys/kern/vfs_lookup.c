@@ -467,18 +467,25 @@ dirloop:
 	}
 
 	/*
-	 * Handle "..": two special cases.
-	 * 1. If at root directory (e.g. after chroot)
+	 * Handle "..": four special cases.
+	 * 1. Return an error if this is the last component of
+	 *    the name and the operation is DELETE or RENAME.
+	 * 2. If at root directory (e.g. after chroot)
 	 *    or at absolute root directory
 	 *    then ignore it so can't get out.
-	 * 2. If this vnode is the root of a mounted
+	 * 3. If this vnode is the root of a mounted
 	 *    filesystem, then replace it with the
 	 *    vnode which was mounted on so we take the
 	 *    .. in the other filesystem.
-	 * 3. If the vnode is the top directory of
+	 * 4. If the vnode is the top directory of
 	 *    the jail or chroot, don't let them out.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
+		if ((cnp->cn_flags & ISLASTCN) != 0 &&
+		    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+			error = EPERM;
+			goto bad;
+		}
 		for (;;) {
 			if (dp == ndp->ni_rootdir || 
 			    dp == ndp->ni_topdir || 
