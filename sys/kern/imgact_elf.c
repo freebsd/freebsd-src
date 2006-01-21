@@ -318,10 +318,13 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			}
 			rv = KERN_SUCCESS;
 		} else {
+			vm_object_reference(object);
 			vm_map_lock(map);
 			rv = vm_map_insert(map, object, offset, start, end,
 			    prot, VM_PROT_ALL, cow);
 			vm_map_unlock(map);
+			if (rv != KERN_SUCCESS)
+				vm_object_deallocate(object);
 		}
 		return (rv);
 	} else {
@@ -375,8 +378,6 @@ __elfN(load_section)(struct vmspace *vmspace,
 		map_len = round_page_ps(offset + filsz, pagesize) - file_addr;
 
 	if (map_len != 0) {
-		vm_object_reference(object);
-
 		/* cow flags: don't dump readonly sections in core */
 		cow = MAP_COPY_ON_WRITE | MAP_PREFAULT |
 		    (prot & VM_PROT_WRITE ? 0 : MAP_DISABLE_COREDUMP);
@@ -388,10 +389,8 @@ __elfN(load_section)(struct vmspace *vmspace,
 				      map_addr + map_len,/* virtual end */
 				      prot,
 				      cow);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
+		if (rv != KERN_SUCCESS)
 			return (EINVAL);
-		}
 
 		/* we can stop now if we've covered it all */
 		if (memsz == filsz) {
@@ -598,7 +597,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	const Elf_Phdr *phdr;
-	Elf_Auxargs *elf_auxargs = NULL;
+	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
 	vm_prot_t prot;
 	u_long text_size = 0, data_size = 0, total_size = 0;
@@ -634,14 +633,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	}
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 	for (i = 0; i < hdr->e_phnum; i++) {
-		switch (phdr[i].p_type) {
-	  	case PT_INTERP:	/* Path to interpreter */
+		if (phdr[i].p_type == PT_INTERP) {
+			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
 			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
-			break;
-		default:
 			break;
 		}
 	}
