@@ -226,11 +226,17 @@ main(int ac, char **av)
 		for (p = desc; (c = *p++) != '\0';) {
 			if (c != '%')
 				continue;
-			if ((c = *p++) == '\0')
+next:			if ((c = *p++) == '\0')
 				break;
 			if (parm == KTR_PARMS)
 				errx(1, "too many parameters");
 			switch (c) {
+			case '0': case '1': case '2': case '3': case '4':
+			case '5': case '6': case '7': case '8': case '9':
+			case '#': case '-': case ' ': case '+': case '\'':
+			case 'h': case 'l': case 'j': case 't': case 'z':
+			case 'q': case 'L': case '.':
+				goto next;
 			case 's':
 				if (kvm_read(kd, (u_long)buf[i].ktr_parms[parm],
 				    sbuf[parm], sizeof(sbuf[parm])) == -1)
