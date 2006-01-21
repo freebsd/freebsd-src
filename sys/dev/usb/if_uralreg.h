@@ -23,6 +23,7 @@
 #define RAL_CONFIG_NO	1
 #define RAL_IFACE_INDEX 0
 
+#define RAL_VENDOR_REQUEST	0x01
 #define RAL_WRITE_MAC		0x02
 #define RAL_READ_MAC		0x03
 #define RAL_WRITE_MULTI_MAC	0x06
