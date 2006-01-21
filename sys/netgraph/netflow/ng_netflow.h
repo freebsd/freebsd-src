@@ -32,7 +32,7 @@
 #define	_NG_NETFLOW_H_
 
 #define NG_NETFLOW_NODE_TYPE	"netflow"
-#define NGM_NETFLOW_COOKIE	1115810374
+#define NGM_NETFLOW_COOKIE	1137078102
 
 #define	NG_NETFLOW_MAXIFACES	512
 
@@ -44,12 +44,12 @@
 
 /* Netgraph commands understood by netflow node */
 enum {
-    NGM_NETFLOW_INFO = 1,	/* get node info */
-    NGM_NETFLOW_IFINFO,		/* get iface info */
-    NGM_NETFLOW_SHOW,		/* show ip cache flow */
-    NGM_NETFLOW_SETDLT,		/* set data-link type */	
-    NGM_NETFLOW_SETIFINDEX, 	/* set interface index */
-    NGM_NETFLOW_SETTIMEOUTS, 	/* set active/inactive flow timeouts */
+    NGM_NETFLOW_INFO = 1|NGM_READONLY|NGM_HASREPLY,	/* get node info */
+    NGM_NETFLOW_IFINFO = 2|NGM_READONLY|NGM_HASREPLY,	/* get iface info */
+    NGM_NETFLOW_SHOW = 3|NGM_READONLY|NGM_HASREPLY,	/* show ip cache flow */
+    NGM_NETFLOW_SETDLT		= 4,	/* set data-link type */	
+    NGM_NETFLOW_SETIFINDEX	= 5, 	/* set interface index */
+    NGM_NETFLOW_SETTIMEOUTS	= 6, 	/* set active/inactive flow timeouts */
 };
 
 /* This structure is returned by the NGM_NETFLOW_INFO message */
