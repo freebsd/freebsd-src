@@ -318,7 +318,6 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 	m = (struct mbuf *)mem;
 	if ((m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
-	KASSERT((m->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
