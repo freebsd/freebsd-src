@@ -187,7 +187,7 @@ static struct opie	opiedata;
 static char		opieprompt[OPIE_CHALLENGE_MAX+1];
 static int		pwok;
 
-char	*pid_file = NULL;
+char	*pid_file = NULL; /* means default location to pidfile(3) */
 
 /*
  * Limit number of pathnames that glob can return.
@@ -431,6 +431,16 @@ main(int argc, char *argv[], char **envp)
 		int *ctl_sock, fd, maxfd = -1, nfds, i;
 		fd_set defreadfds, readfds;
 		pid_t pid;
+		struct pidfh *pfh;
+
+		if ((pfh = pidfile_open(pid_file, 0600, &pid)) == NULL) {
+			if (errno == EEXIST) {
+				syslog(LOG_ERR, "%s already running, pid %d",
+				       getprogname(), (int)pid);
+				exit(1);
+			}
+			syslog(LOG_WARNING, "pidfile_open: %m");
+		}
 
 		/*
 		 * Detach from parent.
@@ -439,6 +449,10 @@ main(int argc, char *argv[], char **envp)
 			syslog(LOG_ERR, "failed to become a daemon");
 			exit(1);
 		}
+
+		if (pfh != NULL && pidfile_write(pfh) == -1)
+			syslog(LOG_WARNING, "pidfile_write: %m");
+
 		sa.sa_handler = reapchild;
 		(void)sigaction(SIGCHLD, &sa, NULL);
 
@@ -461,32 +475,6 @@ main(int argc, char *argv[], char **envp)
 				maxfd = ctl_sock[i];
 		}
 
-		/*
-		 * Atomically write process ID
-		 */
-		if (pid_file)
-		{
-			int fd;
-			char buf[20];
-
-			fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC
-				| O_NONBLOCK | O_EXLOCK, 0644);
-			if (fd < 0) {
-				if (errno == EAGAIN)
-					syslog(LOG_ERR,
-					    "%s: already locked", pid_file);
-				else
-					syslog(LOG_ERR, "%s: %m", pid_file);
-				exit(1);
-			}
-			snprintf(buf, sizeof(buf),
-				"%lu\n", (unsigned long) getpid());
-			if (write(fd, buf, strlen(buf)) < 0) {
-				syslog(LOG_ERR, "%s: write: %m", pid_file);
-				exit(1);
-			}
-			/* Leave the pid file open and locked */
-		}
 		/*
 		 * Loop forever accepting connection requests and forking off
 		 * children to handle them.
@@ -517,8 +505,11 @@ main(int argc, char *argv[], char **envp)
 							close(fd);
 					}
 				}
-			if (pid == 0)
+			if (pid == 0) {
+				if (pfh != NULL)
+					pidfile_close(pfh);
 				break;
+			}
 		}
 	} else {
 		addrlen = sizeof(his_addr);
