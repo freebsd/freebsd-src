@@ -45,6 +45,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	EMUMAXPAGES	(WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE)
 #define	EMU10K1_PCI_ID	0x00021102	/* 1102 => Creative Labs Vendor ID */
 #define	EMU10K2_PCI_ID	0x00041102	
+#define EMU10K1X_PCI_ID	0x00061102
 #define	EMU10K3_PCI_ID	0x00081102	
 #define	EMU_DEFAULT_BUFSZ	4096
 #define EMU_MAX_CHANS	8
@@ -1312,12 +1313,12 @@ audigy_initefx(struct sc_info *sc)
 
 	/* Audigy 2 (EMU10K2) DSP Registers:
 	   FX Bus
-		0x000-0x00f : 16 registers (???)
+		0x000-0x00f : 16 registers (?)
 	   Input
 		0x040/0x041 : AC97 Codec (l/r)
 		0x042/0x043 : ADC, S/PDIF (l/r)
 		0x044/0x045 : Optical S/PDIF in (l/r)
-		0x046/0x047 : ???
+		0x046/0x047 : ?
 		0x048/0x049 : Line/Mic 2 (l/r)
 		0x04a/0x04b : RCA S/PDIF (l/r)
 		0x04c/0x04d : Aux 2 (l/r)
@@ -1328,11 +1329,11 @@ audigy_initefx(struct sc_info *sc)
 		0x066/0x067 : Digital Rear (l/r)
 		0x068/0x069 : Analog Front (l/r)
 		0x06a/0x06b : Analog Center/LFE
-		0x06c/0x06d : ???
+		0x06c/0x06d : ?
 		0x06e/0x06f : Analog Rear (l/r)
 		0x070/0x071 : AC97 Output (l/r)
-		0x072/0x073 : ???
-		0x074/0x075 : ???
+		0x072/0x073 : ?
+		0x074/0x075 : ?
 		0x076/0x077 : ADC Recording Buffer (l/r)
 	   Constants
 		0x0c0 - 0x0c4 = 0 - 4
@@ -1341,9 +1342,9 @@ audigy_initefx(struct sc_info *sc)
 		0x0cb = 0x10000000, 0x0cc = 0x20000000, 0x0cd = 0x40000000
 		0x0ce = 0x80000000, 0x0cf = 0x7fffffff, 0x0d0 = 0xffffffff
 		0x0d1 = 0xfffffffe, 0x0d2 = 0xc0000000, 0x0d3 = 0x41fbbcdc
-		0x0d4 = 0x5a7ef9db, 0x0d5 = 0x00100000, 0x0dc = 0x00000001 (???)
+		0x0d4 = 0x5a7ef9db, 0x0d5 = 0x00100000, 0x0dc = 0x00000001 (?)
 	   Temporary Values
-		0x0d6 : Accumulator (???)
+		0x0d6 : Accumulator (?)
 		0x0d7 : Condition Register
 		0x0d8 : Noise source
 		0x0d9 : Noise source
@@ -1882,6 +1883,10 @@ emu_pci_probe(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case EMU10K1_PCI_ID:
 		s = "Creative EMU10K1";
+		break;
+
+	case EMU10K1X_PCI_ID:
+		s = "Creative SB Live! (Dell OEM)";
 		break;
 
 	case EMU10K2_PCI_ID:
