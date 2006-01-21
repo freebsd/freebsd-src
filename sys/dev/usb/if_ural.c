@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -2239,7 +2239,7 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 	amrr->retrycnt =
 	    sc->sta[7] +	/* TX one-retry ok count */
 	    sc->sta[8] +	/* TX more-retry ok count */
-	    sc->sta[8];		/* TX retry-fail count */
+	    sc->sta[9];		/* TX retry-fail count */
 
 	amrr->txcnt =
 	    amrr->retrycnt +
