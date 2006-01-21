@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060122:
+	/etc/rc.d/ppp-user has been renamed to /etc/rc.d/ppp.
+	Its /etc/rc.conf.d configuration file has been `ppp' from
+	the beginning, and hence there is no need to touch it.
+
 20051230:
 	A lot of fixes and new features in the soundsystem. To get all
 	benefits, you may want to recompile mplayer (if installed) after
