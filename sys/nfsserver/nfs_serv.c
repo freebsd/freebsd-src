@@ -525,17 +525,13 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (error) {
-		if (dirp) {
-			vrele(dirp);
-			dirp = NULL;
-		}
-		mtx_unlock(&Giant);	/* VFS */
-		NFSD_LOCK();
-		nfsm_reply(NFSX_POSTOPATTR(v3));
-		if (v3)
-			nfsm_srvpostop_attr(dirattr_ret, &dirattr);
-		error = 0;
-		goto nfsmout;
+	mtx_unlock(&Giant);	/* VFS */
+	NFSD_LOCK();
+	nfsm_reply(NFSX_POSTOPATTR(v3));
+	if (v3)
+		nfsm_srvpostop_attr(dirattr_ret, &dirattr);
+	error = 0;
+	goto nfsmout;
 	}
 
 	/*
@@ -599,11 +595,6 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		}
 	}
 
-	if (dirp) {
-		vrele(dirp);
-		dirp = NULL;
-	}
-
 	/*
 	 * Resources at this point:
 	 *	ndp->ni_vp	may not be NULL
@@ -664,8 +655,6 @@ nfsmout:
 	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
-	if (dirp)
-		vrele(dirp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (ndp->ni_startdir)
 		vrele(ndp->ni_startdir);
