@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: NETWORKING NETWORK
-# REQUIRE: netif routing network_ipv6 isdnd ppp-user
+# REQUIRE: netif routing network_ipv6 isdnd ppp
 # REQUIRE: routed mrouted route6d mroute6d
 
 #	This is a dummy dependency, for services which require networking
