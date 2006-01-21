@@ -495,22 +495,29 @@ main(int argc, char *argv[], char **envp)
 					fd = accept(ctl_sock[i],
 					    (struct sockaddr *)&his_addr,
 					    &addrlen);
-					if (fd >= 0) {
-						if ((pid = fork()) == 0)
-							break;
-						else
-							close(fd);
+					if (fd == -1) {
+						syslog(LOG_WARNING,
+						       "accept: %m");
+						continue;
+					}
+					switch (pid = fork()) {
+					case 0:
+						/* child */
+						(void) dup2(fd, 0);
+						(void) dup2(fd, 1);
+						(void) close(fd);
+						for (i = 1; i <= *ctl_sock; i++)
+							close(ctl_sock[i]);
+						if (pfh != NULL)
+							pidfile_close(pfh);
+						goto gotchild;
+					case -1:
+						syslog(LOG_WARNING, "fork: %m");
+						/* FALLTHROUGH */
+					default:
+						close(fd);
 					}
 				}
-			if (pid == 0) {
-				/* child */
-				(void) dup2(fd, 0);
-				(void) dup2(fd, 1);
-				close(ctl_sock[i]);
-				if (pfh != NULL)
-					pidfile_close(pfh);
-				break;
-			}
 		}
 	} else {
 		addrlen = sizeof(his_addr);
@@ -520,6 +527,7 @@ main(int argc, char *argv[], char **envp)
 		}
 	}
 
+gotchild:
 	sa.sa_handler = SIG_DFL;
 	(void)sigaction(SIGCHLD, &sa, NULL);
 
