@@ -330,11 +330,8 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL)
  * unmounting. Interlock is not released on failure.
  */
 int
-vfs_busy(mp, flags, interlkp, td)
-	struct mount *mp;
-	int flags;
-	struct mtx *interlkp;
-	struct thread *td;
+vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
+    struct thread *td)
 {
 	int lkflags;
 
@@ -370,9 +367,7 @@ vfs_busy(mp, flags, interlkp, td)
  * Free a busy filesystem.
  */
 void
-vfs_unbusy(mp, td)
-	struct mount *mp;
-	struct thread *td;
+vfs_unbusy(struct mount *mp, struct thread *td)
 {
 
 	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
@@ -382,8 +377,7 @@ vfs_unbusy(mp, td)
  * Lookup a mount point by filesystem identifier.
  */
 struct mount *
-vfs_getvfs(fsid)
-	fsid_t *fsid;
+vfs_getvfs(fsid_t *fsid)
 {
 	struct mount *mp;
 
@@ -428,8 +422,7 @@ vfs_suser(struct mount *mp, struct thread *td)
  * different mounts.
  */
 void
-vfs_getnewfsid(mp)
-	struct mount *mp;
+vfs_getnewfsid(struct mount *mp)
 {
 	static u_int16_t mntid_base;
 	fsid_t tfsid;
@@ -469,8 +462,7 @@ SYSCTL_INT(_vfs, OID_AUTO, timestamp_precision, CTLFLAG_RW,
  * Get a current timestamp.
  */
 void
-vfs_timestamp(tsp)
-	struct timespec *tsp;
+vfs_timestamp(struct timespec *tsp)
 {
 	struct timeval tv;
 
@@ -497,8 +489,7 @@ vfs_timestamp(tsp)
  * Set vnode attributes to VNOVAL
  */
 void
-vattr_null(vap)
-	struct vattr *vap;
+vattr_null(struct vattr *vap)
 {
 
 	vap->va_type = VNON;
@@ -854,11 +845,8 @@ vtryrecycle(struct vnode *vp)
  * Return the next vnode from the free list.
  */
 int
-getnewvnode(tag, mp, vops, vpp)
-	const char *tag;
-	struct mount *mp;
-	struct vop_vector *vops;
-	struct vnode **vpp;
+getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
+    struct vnode **vpp)
 {
 	struct vnode *vp = NULL;
 	struct bufobj *bo;
@@ -984,7 +972,8 @@ insmntque(struct vnode *vp, struct mount *mp)
  * Called with the underlying object locked.
  */
 int
-bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag, int slptimeo)
+bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
+    int slptimeo)
 {
 	int error;
 
@@ -1067,7 +1056,8 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag, in
  * Called with the underlying object locked.
  */
 int
-vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag, int slptimeo)
+vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag,
+    int slptimeo)
 {
 
 	CTR2(KTR_VFS, "vinvalbuf vp %p flags %d", vp, flags);
@@ -1080,11 +1070,8 @@ vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag, int slpti
  *
  */
 static int
-flushbuflist(bufv, flags, bo, slpflag, slptimeo)
-	struct bufv *bufv;
-	int flags;
-	struct bufobj *bo;
-	int slpflag, slptimeo;
+flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
+    int slptimeo)
 {
 	struct buf *bp, *nbp;
 	int retval, error;
@@ -1157,7 +1144,8 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
  * sync activity.
  */
 int
-vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td, off_t length, int blksize)
+vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
+    off_t length, int blksize)
 {
 	struct buf *bp, *nbp;
 	int anyfreed;
@@ -1928,10 +1916,7 @@ v_decr_useonly(struct vnode *vp)
  * been changed to a new filesystem type).
  */
 int
-vget(vp, flags, td)
-	struct vnode *vp;
-	int flags;
-	struct thread *td;
+vget( struct vnode *vp, int flags, struct thread *td)
 {
 	int oweinact;
 	int oldflags;
@@ -2040,8 +2025,7 @@ vrefcnt(struct vnode *vp)
  * If count drops to zero, call inactive routine and return to freelist.
  */
 void
-vrele(vp)
-	struct vnode *vp;
+vrele(struct vnode *vp)
 {
 	struct thread *td = curthread;	/* XXX */
 
@@ -2090,8 +2074,7 @@ vrele(vp)
  * re-aquiring the lock (as vrele() aquires the lock internally.)
  */
 void
-vput(vp)
-	struct vnode *vp;
+vput(struct vnode *vp)
 {
 	struct thread *td = curthread;	/* XXX */
 	int error;
@@ -2242,11 +2225,7 @@ SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
-vflush(mp, rootrefs, flags, td)
-	struct mount *mp;
-	int rootrefs;
-	int flags;
-	struct thread *td;
+vflush( struct mount *mp, int rootrefs, int flags, struct thread *td)
 {
 	struct vnode *vp, *mvp, *rootvp = NULL;
 	struct vattr vattr;
@@ -2467,8 +2446,7 @@ vgonel(struct vnode *vp)
  * Calculate the total number of references to a special device.
  */
 int
-vcount(vp)
-	struct vnode *vp;
+vcount(struct vnode *vp)
 {
 	int count;
 
@@ -2482,8 +2460,7 @@ vcount(vp)
  * Same as above, but using the struct cdev *as argument
  */
 int
-count_dev(dev)
-	struct cdev *dev;
+count_dev(struct cdev *dev)
 {
 	int count;
 
@@ -2782,7 +2759,7 @@ SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
  * of mounting to avoid dependencies.
  */
 void
-vfs_unmountall()
+vfs_unmountall(void)
 {
 	struct mount *mp;
 	struct thread *td;
@@ -2934,10 +2911,7 @@ v_addpollinfo(struct vnode *vp)
  * to avoid race conditions.)
  */
 int
-vn_pollrecord(vp, td, events)
-	struct vnode *vp;
-	struct thread *td;
-	short events;
+vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 {
 
 	if (vp->v_pollinfo == NULL)
@@ -2986,8 +2960,7 @@ static struct vop_vector sync_vnodeops = {
  * Create a new filesystem syncer vnode for the specified mount point.
  */
 int
-vfs_allocate_syncvnode(mp)
-	struct mount *mp;
+vfs_allocate_syncvnode(struct mount *mp)
 {
 	struct vnode *vp;
 	static long start, incr, next;
@@ -3031,13 +3004,7 @@ vfs_allocate_syncvnode(mp)
  * Do a lazy sync of the filesystem.
  */
 static int
-sync_fsync(ap)
-	struct vop_fsync_args /* {
-		struct vnode *a_vp;
-		struct ucred *a_cred;
-		int a_waitfor;
-		struct thread *a_td;
-	} */ *ap;
+sync_fsync(struct vop_fsync_args *ap)
 {
 	struct vnode *syncvp = ap->a_vp;
 	struct mount *mp = syncvp->v_mount;
@@ -3087,11 +3054,7 @@ sync_fsync(ap)
  * The syncer vnode is no referenced.
  */
 static int
-sync_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+sync_inactive(struct vop_inactive_args *ap)
 {
 
 	vgone(ap->a_vp);
@@ -3104,10 +3067,7 @@ sync_inactive(ap)
  * Modifications to the worklist must be protected by sync_mtx.
  */
 static int
-sync_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+sync_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct bufobj *bo;
@@ -3132,9 +3092,7 @@ sync_reclaim(ap)
  * Check if vnode represents a disk device
  */
 int
-vn_isdisk(vp, errp)
-	struct vnode *vp;
-	int *errp;
+vn_isdisk(struct vnode *vp, int *errp)
 {
 	int error;
 
@@ -3162,14 +3120,8 @@ vn_isdisk(vp, errp)
  * request (obsoleted).  Returns 0 on success, or an errno on failure.
  */
 int
-vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
-	enum vtype type;
-	mode_t file_mode;
-	uid_t file_uid;
-	gid_t file_gid;
-	mode_t acc_mode;
-	struct ucred *cred;
-	int *privused;
+vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
+    mode_t acc_mode, struct ucred *cred, int *privused)
 {
 	mode_t dac_granted;
 #ifdef CAPABILITIES
@@ -3287,8 +3239,8 @@ privcheck:
  * permissions.
  */
 int
-extattr_check_cred(struct vnode *vp, int attrnamespace,
-    struct ucred *cred, struct thread *td, int access)
+extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
+    struct thread *td, int access)
 {
 
 	/*
