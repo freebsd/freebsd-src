@@ -1360,19 +1360,15 @@ chn_buildfeeder(struct pcm_channel *c)
 				return EOPNOTSUPP;
 			}
 
-			if ((type == FEEDER_RATE &&
-					!fmtvalid(fc->desc->in, fmtlist))
-					|| c->feeder->desc->out != fc->desc->in) {
- 				DEB(printf("build fmtchain from 0x%x to 0x%x: ", c->feeder->desc->out, fc->desc->in));
-				tmp[0] = fc->desc->in;
-				tmp[1] = 0;
-				if (chn_fmtchain(c, tmp) == 0) {
-					DEB(printf("failed\n"));
+ 			DEB(printf("build fmtchain from 0x%08x to 0x%08x: ", c->feeder->desc->out, fc->desc->in));
+			tmp[0] = fc->desc->in;
+			tmp[1] = 0;
+			if (chn_fmtchain(c, tmp) == 0) {
+				DEB(printf("failed\n"));
 
-					return ENODEV;
-				}
- 				DEB(printf("ok\n"));
+				return ENODEV;
 			}
+ 			DEB(printf("ok\n"));
 
 			err = chn_addfeeder(c, fc, fc->desc);
 			if (err) {
@@ -1384,21 +1380,15 @@ chn_buildfeeder(struct pcm_channel *c)
 		}
 	}
 
-	if (fmtvalid(c->feeder->desc->out, fmtlist)
-			&& !(c->direction == PCMDIR_REC &&
-				c->format != c->feeder->desc->out))
-		hwfmt = c->feeder->desc->out;
-	else {
-		if (c->direction == PCMDIR_REC) {
-			tmp[0] = c->format;
-			tmp[1] = 0;
-			hwfmt = chn_fmtchain(c, tmp);
-		} else
-			hwfmt = chn_fmtchain(c, fmtlist);
-	}
+ 	if (c->direction == PCMDIR_REC) {
+	 	tmp[0] = c->format;
+ 		tmp[1] = 0;
+ 		hwfmt = chn_fmtchain(c, tmp);
+ 	} else
+ 		hwfmt = chn_fmtchain(c, fmtlist);
 
 	if (hwfmt == 0 || !fmtvalid(hwfmt, fmtlist)) {
-		DEB(printf("Invalid hardware format: 0x%x\n", hwfmt));
+		DEB(printf("Invalid hardware format: 0x%08x\n", hwfmt));
 		return ENODEV;
 	}
 

@@ -53,6 +53,10 @@ struct pcm_feeder {
 void feeder_register(void *p);
 struct feeder_class *feeder_getclass(struct pcm_feederdesc *desc);
 
+int chn_fmtscore(u_int32_t fmt);
+u_int32_t chn_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
+u_int32_t chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts);
+u_int32_t chn_fmtbest(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t chn_fmtchain(struct pcm_channel *c, u_int32_t *to);
 int chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc);
 int chn_removefeeder(struct pcm_channel *c);

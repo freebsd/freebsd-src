@@ -265,9 +265,9 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 	struct feedertab_entry *fte;
 	struct pcm_feeder *try, *ret;
 
-	/* printf("trying %s (%x -> %x)...\n", source->class->name, source->desc->in, source->desc->out); */
+	DEB(printf("trying %s (0x%08x -> 0x%08x)...\n", source->class->name, source->desc->in, source->desc->out));
 	if (fmtvalid(source->desc->out, to)) {
-		/* printf("got it\n"); */
+		DEB(printf("got it\n"));
 		return source;
 	}
 
@@ -295,11 +295,99 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 	return NULL;
 }
 
+int
+chn_fmtscore(u_int32_t fmt)
+{
+	if (fmt & AFMT_32BIT)
+		return 32;
+	if (fmt & AFMT_24BIT)
+		return 24;
+	if (fmt & AFMT_16BIT)
+		return 16;
+	if (fmt & (AFMT_U8|AFMT_S8))
+		return 8;
+	return 4;
+}
+
+u_int32_t
+chn_fmtbestbit(u_int32_t fmt, u_int32_t *fmts)
+{
+	u_int32_t best;
+	int i, score, score2, oldscore;
+
+	best = 0;
+	score = chn_fmtscore(fmt);
+	oldscore = 0;
+	for (i = 0; fmts[i] != 0; i++) {
+		score2 = chn_fmtscore(fmts[i]);
+		if (oldscore == 0 || (score2 == score) ||
+			    (score2 > oldscore && score2 < score) ||
+			    (score2 < oldscore && score2 > score)) {
+			best = fmts[i];
+			oldscore = score2;
+		}
+	}
+	return best;
+}
+
+u_int32_t
+chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts)
+{
+	u_int32_t best;
+	int i, score, score2, oldscore;
+
+	best = 0;
+	score = chn_fmtscore(fmt);
+	oldscore = 0;
+	for (i = 0; fmts[i] != 0; i++) {
+		if ((fmt & AFMT_STEREO) == (fmts[i] & AFMT_STEREO)) {
+			score2 = chn_fmtscore(fmts[i]);
+			if (oldscore == 0 || (score2 == score) ||
+				    (score2 > oldscore && score2 < score) ||
+				    (score2 < oldscore && score2 > score)) {
+				best = fmts[i];
+				oldscore = score2;
+			}
+		}
+	}
+	return best;
+}
+
+u_int32_t
+chn_fmtbest(u_int32_t fmt, u_int32_t *fmts)
+{
+	u_int32_t best1, best2;
+	int score, score1, score2;
+
+	best1 = chn_fmtbeststereo(fmt, fmts);
+	best2 = chn_fmtbestbit(fmt, fmts);
+
+	if (best1 != 0 && best2 != 0) {
+		if (fmt & AFMT_STEREO)
+			return best1;
+		else {
+			score = chn_fmtscore(fmt);
+			score1 = chn_fmtscore(best1);
+			score2 = chn_fmtscore(best2);
+			if (score2 == score)
+				return best2;
+			else if (score1 == score || score1 > score2)
+				return best1;
+			return best2;
+		}
+	} else if (best2 == 0)
+		return best1;
+	else if (best1 == 0)
+		return best2;
+
+	return best1;
+}
+
 u_int32_t
 chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 {
 	struct pcm_feeder *try, *del, *stop;
-	u_int32_t tmpfrom[2], best, *from;
+	u_int32_t tmpfrom[2], tmpto[2], best, *from;
 	int i, max, bestmax;
 
 	KASSERT(c != NULL, ("c == NULL"));
@@ -311,19 +399,40 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 
 	if (c->direction == PCMDIR_REC && c->feeder->desc->type == FEEDER_ROOT) {
 		from = chn_getcaps(c)->fmtlist;
+		if (fmtvalid(to[0], from))
+			from = to;
+		else {
+			best = chn_fmtbest(to[0], from);
+			if (best != 0) {
+				tmpfrom[0] = best;
+				tmpfrom[1] = 0;
+				from = tmpfrom;
+			}
+		}
 	} else {
 		tmpfrom[0] = c->feeder->desc->out;
 		tmpfrom[1] = 0;
 		from = tmpfrom;
+		if (to[1] != 0) {
+			if (fmtvalid(tmpfrom[0], to)) {
+				tmpto[0] = tmpfrom[0];
+				tmpto[1] = 0;
+				to = tmpto;
+			} else {
+				best = chn_fmtbest(tmpfrom[0], to);
+				if (best != 0) {
+					tmpto[0] = best;
+					tmpto[1] = 0;
+					to = tmpto;
+				}
+			}
+		}
 	}
 
 	i = 0;
 	best = 0;
 	bestmax = 100;
-	while (from[i] != 0)
-		i++;
-	while (i > 0) {
-		i--;
+	while (from[i] != 0) {
 		c->feeder->desc->out = from[i];
 		try = NULL;
 		max = 0;
@@ -341,6 +450,7 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 			try = try->source;
 			feeder_destroy(del);
 		}
+		i++;
 	}
 	if (best == 0)
 		return 0;
