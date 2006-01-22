@@ -3597,6 +3597,18 @@ bus_child_location_str(device_t child, char *buf, size_t buflen)
 	return (BUS_CHILD_LOCATION_STR(parent, child, buf, buflen));
 }
 
+/* Resume all devices and then notify userland that we're up again. */
+static int
+root_resume(device_t dev)
+{
+	int error;
+
+	error = bus_generic_resume(dev);
+	if (error == 0)
+		devctl_notify("kern", "power", "resume", NULL);
+	return (error);
+}
+
 static int
 root_print_child(device_t dev, device_t child)
 {
@@ -3635,7 +3647,7 @@ static kobj_method_t root_methods[] = {
 	/* Device interface */
 	KOBJMETHOD(device_shutdown,	bus_generic_shutdown),
 	KOBJMETHOD(device_suspend,	bus_generic_suspend),
-	KOBJMETHOD(device_resume,	bus_generic_resume),
+	KOBJMETHOD(device_resume,	root_resume),
 
 	/* Bus interface */
 	KOBJMETHOD(bus_print_child,	root_print_child),
