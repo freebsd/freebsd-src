@@ -151,7 +151,7 @@ int	unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 int	winChkName(const u_char *un, size_t unlen, int chksum,
 	    struct msdosfsmount *pmp);
 int	win2unixfn(struct winentry *wep, int chksum, struct msdosfsmount *pmp);
-u_int8_t winChksum(u_int8_t *name);
+u_int8_t winChksum(struct direntry *dep);
 int	winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp);
 size_t	winLenFixup(const u_char *un, size_t unlen);
 #endif	/* _KERNEL */
