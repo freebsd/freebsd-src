@@ -1209,7 +1209,7 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 	mtx_lock(&aio_sock_mtx);
 	TAILQ_FOREACH_SAFE(cb, &so->so_aiojobq, list, cbn) {
 		if (opcode == cb->uaiocb.aio_lio_opcode) {
-			if (cb->jobstate != JOBST_JOBQGLOBAL)
+			if (cb->jobstate != JOBST_JOBQSOCK)
 				panic("invalid queue value");
 			p = cb->userproc;
 			ki = p->p_aioinfo;
