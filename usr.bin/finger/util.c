@@ -420,6 +420,7 @@ userinfo(pn, pw)
 /*
  * Is this user hiding from finger?
  * If ~<user>/.nofinger exists, return 1 (hide), else return 0 (nohide).
+ * Nobody can hide from root.
  */
 
 int
@@ -429,7 +430,7 @@ hide(pw)
 	struct stat st;
 	char buf[MAXPATHLEN];
 
-	if (!pw->pw_dir)
+	if (invoker_root || !pw->pw_dir)
 		return 0;
 
 	snprintf(buf, sizeof(buf), "%s/%s", pw->pw_dir, _PATH_NOFINGER);
