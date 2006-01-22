@@ -116,7 +116,7 @@ main(int argc, char *argv[]){
 				iocb[k]->aio_lio_opcode = LIO_WRITE;
 			}
 			sig.sigev_notify_kqueue = kq;
-			sig.sigev_value.sigval_ptr = lio[j];
+			sig.sigev_value.sival_ptr = lio[j];
 			sig.sigev_notify = SIGEV_KEVENT;
 			time(&time1);
 			result = lio_listio(LIO_NOWAIT, lio[j],

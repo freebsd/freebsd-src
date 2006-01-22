@@ -95,7 +95,7 @@ main(int argc, char *argv[]){
 			iocb[i]->aio_offset = iocb[i]->aio_nbytes * i * run;
 			
 			iocb[i]->aio_sigevent.sigev_notify_kqueue = kq;
-			iocb[i]->aio_sigevent.sigev_value.sigval_ptr = iocb[i];
+			iocb[i]->aio_sigevent.sigev_value.sival_ptr = iocb[i];
 			iocb[i]->aio_sigevent.sigev_notify = SIGEV_KEVENT;
 			
 			result = aio_write(iocb[i]);
