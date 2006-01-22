@@ -169,12 +169,9 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
  * Allocate a PCB and associate it with the socket.
  */
 int
-in_pcballoc(so, pcbinfo, type)
-	struct socket *so;
-	struct inpcbinfo *pcbinfo;
-	const char *type;
+in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo, const char *type)
 {
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	int error;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
@@ -226,10 +223,7 @@ out:
 }
 
 int
-in_pcbbind(inp, nam, cred)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	struct ucred *cred;
+in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
 	int anonport, error;
 
@@ -264,12 +258,8 @@ in_pcbbind(inp, nam, cred)
  * On error, the values of *laddrp and *lportp are not changed.
  */
 int
-in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
-	struct inpcb *inp;
-	struct sockaddr *nam;
-	in_addr_t *laddrp;
-	u_short *lportp;
-	struct ucred *cred;
+in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
+    u_short *lportp, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
@@ -486,10 +476,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
  * then pick one.
  */
 int
-in_pcbconnect(inp, nam, cred)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	struct ucred *cred;
+in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
 	u_short lport, fport;
 	in_addr_t laddr, faddr;
@@ -548,15 +535,9 @@ in_pcbconnect(inp, nam, cred)
  * is set to NULL.
  */
 int
-in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	in_addr_t *laddrp;
-	u_short *lportp;
-	in_addr_t *faddrp;
-	u_short *fportp;
-	struct inpcb **oinpp;
-	struct ucred *cred;
+in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
+    in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
+    struct inpcb **oinpp, struct ucred *cred)
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
@@ -689,8 +670,7 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
 }
 
 void
-in_pcbdisconnect(inp)
-	struct inpcb *inp;
+in_pcbdisconnect(struct inpcb *inp)
 {
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
@@ -707,8 +687,7 @@ in_pcbdisconnect(inp)
 }
 
 void
-in_pcbdetach(inp)
-	struct inpcb *inp;
+in_pcbdetach(struct inpcb *inp)
 {
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
@@ -739,9 +718,7 @@ in_pcbdetach(inp)
 }
 
 struct sockaddr *
-in_sockaddr(port, addr_p)
-	in_port_t port;
-	struct in_addr *addr_p;
+in_sockaddr(in_port_t port, struct in_addr *addr_p)
 {
 	struct sockaddr_in *sin;
 
@@ -764,12 +741,10 @@ in_sockaddr(port, addr_p)
  * because there actually /is/ a programming error somewhere... XXX)
  */
 int
-in_setsockaddr(so, nam, pcbinfo)
-	struct socket *so;
-	struct sockaddr **nam;
-	struct inpcbinfo *pcbinfo;
+in_setsockaddr(struct socket *so, struct sockaddr **nam,
+    struct inpcbinfo *pcbinfo)
 {
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	struct in_addr addr;
 	in_port_t port;
 
@@ -793,12 +768,10 @@ in_setsockaddr(so, nam, pcbinfo)
  * The wrapper function will pass down the pcbinfo for this function to lock.
  */
 int
-in_setpeeraddr(so, nam, pcbinfo)
-	struct socket *so;
-	struct sockaddr **nam;
-	struct inpcbinfo *pcbinfo;
+in_setpeeraddr(struct socket *so, struct sockaddr **nam,
+    struct inpcbinfo *pcbinfo)
 {
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	struct in_addr addr;
 	in_port_t port;
 
@@ -819,11 +792,8 @@ in_setpeeraddr(so, nam, pcbinfo)
 }
 
 void
-in_pcbnotifyall(pcbinfo, faddr, errno, notify)
-	struct inpcbinfo *pcbinfo;
-	struct in_addr faddr;
-	int errno;
-	struct inpcb *(*notify)(struct inpcb *, int);
+in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr faddr, int errno,
+    struct inpcb *(*notify)(struct inpcb *, int))
 {
 	struct inpcb *inp, *ninp;
 	struct inpcbhead *head;
@@ -851,9 +821,7 @@ in_pcbnotifyall(pcbinfo, faddr, errno, notify)
 }
 
 void
-in_pcbpurgeif0(pcbinfo, ifp)
-	struct inpcbinfo *pcbinfo;
-	struct ifnet *ifp;
+in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
 	struct inpcb *inp;
 	struct ip_moptions *imo;
@@ -896,13 +864,10 @@ in_pcbpurgeif0(pcbinfo, ifp)
  * Lookup a PCB based on the local address and port.
  */
 struct inpcb *
-in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
-	struct inpcbinfo *pcbinfo;
-	struct in_addr laddr;
-	u_int lport_arg;
-	int wild_okay;
+in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
+    u_int lport_arg, int wild_okay)
 {
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	int matchwild = 3, wildcard;
 	u_short lport = lport_arg;
 
@@ -1001,16 +966,12 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
  * Lookup PCB in hash list.
  */
 struct inpcb *
-in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
-		  ifp)
-	struct inpcbinfo *pcbinfo;
-	struct in_addr faddr, laddr;
-	u_int fport_arg, lport_arg;
-	int wildcard;
-	struct ifnet *ifp;
+in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
+    u_int fport_arg, struct in_addr laddr, u_int lport_arg, int wildcard,
+    struct ifnet *ifp)
 {
 	struct inpcbhead *head;
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
 
 	INP_INFO_RLOCK_ASSERT(pcbinfo);
@@ -1080,8 +1041,7 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
  * Insert PCB onto various hash lists.
  */
 int
-in_pcbinshash(inp)
-	struct inpcb *inp;
+in_pcbinshash(struct inpcb *inp)
 {
 	struct inpcbhead *pcbhash;
 	struct inpcbporthead *pcbporthash;
@@ -1135,8 +1095,7 @@ in_pcbinshash(inp)
  * not change after in_pcbinshash() has been called.
  */
 void
-in_pcbrehash(inp)
-	struct inpcb *inp;
+in_pcbrehash(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
@@ -1162,8 +1121,7 @@ in_pcbrehash(inp)
  * Remove PCB from various lists.
  */
 void
-in_pcbremlists(inp)
-	struct inpcb *inp;
+in_pcbremlists(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
@@ -1190,8 +1148,7 @@ in_pcbremlists(inp)
  * label change into the in_pcb for the socket.
  */
 void
-in_pcbsosetlabel(so)
-	struct socket *so;
+in_pcbsosetlabel(struct socket *so)
 {
 #ifdef MAC
 	struct inpcb *inp;
@@ -1215,8 +1172,7 @@ in_pcbsosetlabel(so)
  */
 
 void
-ipport_tick(xtp)
-	void *xtp;
+ipport_tick(void *xtp)
 {
 	if (ipport_tcpallocs > ipport_tcplastcount + ipport_randomcps) {
 		ipport_stoprandom = ipport_randomtime;
