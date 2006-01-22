@@ -110,6 +110,7 @@ SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
 
 static void	vm_object_qcollapse(vm_object_t object);
 static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
+static void	vm_object_vndeallocate(vm_object_t object);
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -390,7 +391,7 @@ vm_object_reference_locked(vm_object_t object)
 /*
  * Handle deallocating an object of type OBJT_VNODE.
  */
-void
+static void
 vm_object_vndeallocate(vm_object_t object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
