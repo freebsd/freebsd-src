@@ -341,9 +341,7 @@ static struct t_atm_cause	ipatm_cause = {
  *
  */
 int
-ipatm_openpvc(pvp, sivp)
-	struct ipatmpvc	*pvp;
-	struct ipvcc	**sivp;
+ipatm_openpvc(struct ipatmpvc *pvp, struct ipvcc **sivp)
 {
 	struct ipvcc	*ivp = NULL;	/* XXX pacify gcc-3.1 */
 	Atm_attributes	*ap;
@@ -600,11 +598,8 @@ done:
  *
  */
 int
-ipatm_createsvc(ifp, daf, dst, sivp)
-	struct ifnet		*ifp;
-	u_short			daf;
-	caddr_t			dst;
-	struct ipvcc		**sivp;
+ipatm_createsvc(struct ifnet *ifp, u_short daf, caddr_t dst,
+    struct ipvcc **sivp)
 {
 	struct atm_nif	*nip = IFP2ANIF(ifp);
 	struct ip_nif	*inp;
@@ -779,8 +774,7 @@ done:
  *
  */
 int
-ipatm_opensvc(ivp)
-	struct ipvcc	*ivp;
+ipatm_opensvc(struct ipvcc *ivp)
 {
 	struct ip_nif	*inp = ivp->iv_ipnif;
 	Atm_attributes	*ap;
@@ -865,8 +859,7 @@ ipatm_opensvc(ivp)
  *
  */
 int
-ipatm_retrysvc(ivp)
-	struct ipvcc	*ivp;
+ipatm_retrysvc(struct ipvcc *ivp)
 {
 	struct ip_nif	*inp = ivp->iv_ipnif;
 
@@ -895,8 +888,7 @@ ipatm_retrysvc(ivp)
  *
  */
 void
-ipatm_activate(ivp)
-	struct ipvcc	*ivp;
+ipatm_activate(struct ipvcc *ivp)
 {
 
 	/*
@@ -955,11 +947,8 @@ ipatm_activate(ivp)
  *
  */
 int
-ipatm_incoming(tok, cop, ap, tokp)
-	void		*tok;
-	Atm_connection	*cop;
-	Atm_attributes	*ap;
-	void		**tokp;
+ipatm_incoming(void *tok, Atm_connection *cop, Atm_attributes *ap,
+    void **tokp)
 {
 	struct atm_nif	*nip = ap->nif;
 	struct ip_nif	*inp;
@@ -1127,9 +1116,7 @@ reject:
  *
  */
 int
-ipatm_closevc(ivp, code)
-	struct ipvcc	*ivp;
-	int		code;
+ipatm_closevc(struct ipvcc *ivp, int code)
 {
 	struct ip_nif	*inp = ivp->iv_ipnif;
 	int	s, err;
@@ -1238,9 +1225,7 @@ ipatm_closevc(ivp, code)
  *
  */
 int
-ipatm_chknif(in, inp)
-	struct in_addr	in;
-	struct ip_nif	*inp;
+ipatm_chknif(struct in_addr in, struct ip_nif *inp)
 {
 	struct in_ifaddr	*ia;
 	u_long	i;
@@ -1296,9 +1281,7 @@ ipatm_chknif(in, inp)
  *
  */
 struct ipvcc *
-ipatm_iptovc(dst, nip)
-	struct sockaddr_in	*dst;
-	struct atm_nif		*nip;
+ipatm_iptovc(struct sockaddr_in *dst, struct atm_nif *nip)
 {
 	struct ip_nif	*inp;
 	struct ipvcc	*ivp;
@@ -1344,4 +1327,3 @@ ipatm_iptovc(dst, nip)
 
 	return (ivp);
 }
-
