@@ -32,7 +32,7 @@
 .\"     @(#)rmdir.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 22, 2006
 .Dt RMDIR 2
 .Os
 .Sh NAME
@@ -85,8 +85,10 @@ to be removed.
 The directory containing the directory to be removed is marked sticky,
 and neither the containing directory nor the directory to be removed
 are owned by the effective user ID.
-.It Bq Er EPERM
-After expanding any symbolic links, the last component of the path is
+.It Bq Er EINVAL
+The last component of the path is
+.Ql .\&
+or
 .Ql .. .
 .It Bq Er EBUSY
 The directory to be removed is the mount point
