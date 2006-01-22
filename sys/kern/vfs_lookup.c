@@ -483,7 +483,7 @@ dirloop:
 	if (cnp->cn_flags & ISDOTDOT) {
 		if ((cnp->cn_flags & ISLASTCN) != 0 &&
 		    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
-			error = EPERM;
+			error = EINVAL;
 			goto bad;
 		}
 		for (;;) {
