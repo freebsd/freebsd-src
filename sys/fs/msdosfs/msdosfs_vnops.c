@@ -1688,7 +1688,7 @@ msdosfs_readdir(ap)
 #else
 			dirbuf.d_fileno = (uint32_t)fileno;
 #endif
-			if (chksum != winChksum(dentp->deName)) {
+			if (chksum != winChksum(dentp)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
 				    dentp->deLowerCase |

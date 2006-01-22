@@ -916,22 +916,21 @@ win2unixfn(wep, chksum, pmp)
  * Compute the unrolled checksum of a DOS filename for Win95 LFN use.
  */
 u_int8_t
-winChksum(name)
-	u_int8_t *name;
+winChksum(struct direntry *dep)
 {
 	u_int8_t s;
 
-	s = name[0];
-	s = ((s << 7) | (s >> 1)) + name[1];
-	s = ((s << 7) | (s >> 1)) + name[2];
-	s = ((s << 7) | (s >> 1)) + name[3];
-	s = ((s << 7) | (s >> 1)) + name[4];
-	s = ((s << 7) | (s >> 1)) + name[5];
-	s = ((s << 7) | (s >> 1)) + name[6];
-	s = ((s << 7) | (s >> 1)) + name[7];
-	s = ((s << 7) | (s >> 1)) + name[8];
-	s = ((s << 7) | (s >> 1)) + name[9];
-	s = ((s << 7) | (s >> 1)) + name[10];
+	s = dep->deName[0];
+	s = ((s << 7) | (s >> 1)) + dep->deName[1];
+	s = ((s << 7) | (s >> 1)) + dep->deName[2];
+	s = ((s << 7) | (s >> 1)) + dep->deName[3];
+	s = ((s << 7) | (s >> 1)) + dep->deName[4];
+	s = ((s << 7) | (s >> 1)) + dep->deName[5];
+	s = ((s << 7) | (s >> 1)) + dep->deName[6];
+	s = ((s << 7) | (s >> 1)) + dep->deName[7];
+	s = ((s << 7) | (s >> 1)) + dep->deExtension[0];
+	s = ((s << 7) | (s >> 1)) + dep->deExtension[1];
+	s = ((s << 7) | (s >> 1)) + dep->deExtension[2];
 
 	return (s);
 }
