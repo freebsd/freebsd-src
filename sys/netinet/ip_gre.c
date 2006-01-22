@@ -310,9 +310,7 @@ gre_mobile_input(struct mbuf *m, int hlen)
  * in_gre.c during destroy.
  */
 static struct gre_softc *
-gre_lookup(m, proto)
-	struct mbuf *m;
-	u_int8_t proto;
+gre_lookup(struct mbuf *m, u_int8_t proto)
 {
 	struct ip *ip = mtod(m, struct ip *);
 	struct gre_softc *sc;
