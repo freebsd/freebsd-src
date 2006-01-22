@@ -944,6 +944,11 @@ aio_daemon(void *_id)
 			/* Do the I/O function. */
 			aio_process(aiocbe);
 
+			mtx_lock(&aio_job_mtx);
+			/* Decrement the active job count. */
+			ki->kaio_active_count--;
+			mtx_unlock(&aio_job_mtx);
+
 			PROC_LOCK(userp);
 			TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
 			aio_bio_done_notify(userp, aiocbe, DONE_QUEUE);
@@ -954,8 +959,6 @@ aio_daemon(void *_id)
 			PROC_UNLOCK(userp);
 
 			mtx_lock(&aio_job_mtx);
-			/* Decrement the active job count. */
-			ki->kaio_active_count--;
 		}
 
 		/*
