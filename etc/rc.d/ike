@@ -12,6 +12,7 @@
 
 name="ike"
 rcvar=`set_rcvar`
+command="/usr/local/sbin/isakmpd"
 extra_commands="reload"
 
 load_rc_config $name
