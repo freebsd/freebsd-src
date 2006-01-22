@@ -1633,7 +1633,7 @@ restart:
 	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT | LOCKLEAF | MPSAFE, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
-		return (error);
+		return (error == EINVAL ? EPERM : error);
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 	if (vp->v_type == VDIR)
