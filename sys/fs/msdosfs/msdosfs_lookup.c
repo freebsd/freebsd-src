@@ -278,7 +278,7 @@ msdosfs_lookup(ap)
 				/*
 				 * Check for a checksum or name match
 				 */
-				chksum_ok = (chksum == winChksum(dep->deName));
+				chksum_ok = (chksum == winChksum(dep));
 				if (!chksum_ok
 				    && (!olddos || bcmp(dosfilename, dep->deName, 11))) {
 					chksum = -1;
@@ -619,7 +619,7 @@ createde(dep, ddep, depp, cnp)
 	 * Now write the Win95 long name
 	 */
 	if (ddep->de_fndcnt > 0) {
-		u_int8_t chksum = winChksum(ndep->deName);
+		u_int8_t chksum = winChksum(ndep);
 		const u_char *un = (const u_char *)cnp->cn_nameptr;
 		int unlen = cnp->cn_namelen;
 		int cnt = 1;
