@@ -572,14 +572,13 @@ fetch_snapshot() {
 	fetch_metadata || return 1
 	fetch_metadata_sanity || return 1
 
-	rm -f ${SNAPSHOTHASH}.tgz
 	rm -rf snap/
 
 # Don't ask fetch(1) to be quiet -- downloading a snapshot of ~ 35MB will
 # probably take a while, so the progrees reports that fetch(1) generates
 # will be useful for keeping the users' attention from drifting.
 	echo "Fetching snapshot generated at `date -r ${SNAPSHOTDATE}`:"
-	fetch http://${SERVERNAME}/s/${SNAPSHOTHASH}.tgz || return 1
+	fetch -r http://${SERVERNAME}/s/${SNAPSHOTHASH}.tgz || return 1
 
 	echo -n "Extracting snapshot... "
 	tar -xzf ${SNAPSHOTHASH}.tgz snap/ || return 1
