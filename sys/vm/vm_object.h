@@ -201,7 +201,6 @@ boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t);
 void vm_object_collapse (vm_object_t);
 void vm_object_deallocate (vm_object_t);
 void vm_object_terminate (vm_object_t);
-void vm_object_vndeallocate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_page_clean (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
