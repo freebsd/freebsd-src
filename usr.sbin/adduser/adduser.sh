@@ -447,7 +447,10 @@ get_homedir() {
 #	allocates one if it is not specified.
 #
 get_uid() {
-	uuid=${uidstart}
+	if [ -z "$uuid" ]; then
+		uuid=${uidstart}
+	fi
+
 	_input=
 	_prompt=
 
