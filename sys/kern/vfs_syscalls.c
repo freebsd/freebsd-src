@@ -2334,6 +2334,9 @@ getutimes(usrtvp, tsp)
 	} else {
 		if ((error = copyin(usrtvp, tv, sizeof (tv))) != 0)
 			return (error);
+		if (tv[0].tv_usec < 0 || tv[0].tv_usec >= 1000000 ||
+		    tv[1].tv_usec < 0 || tv[1].tv_usec >= 1000000)
+			return (EINVAL);
 		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
 		TIMEVAL_TO_TIMESPEC(&tv[1], &tsp[1]);
 	}
