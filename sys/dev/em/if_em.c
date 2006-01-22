@@ -2014,18 +2014,18 @@ em_allocate_intr(struct adapter *adapter)
 	 * ithread.
 	 */
 #ifndef NO_EM_FASTINTR
+	/* Init the deferred processing contexts. */
+	TASK_INIT(&adapter->rxtx_task, 0, em_handle_rxtx, adapter);
+	TASK_INIT(&adapter->link_task, 0, em_handle_link, adapter);
+	adapter->tq = taskqueue_create_fast("em_taskq", M_NOWAIT,
+		taskqueue_thread_enqueue, &adapter->tq);
+	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
+	    device_get_nameunit(adapter->dev));
 	if (bus_setup_intr(dev, adapter->res_interrupt,
 			   INTR_TYPE_NET | INTR_FAST, em_intr_fast, adapter,
-			   &adapter->int_handler_tag) == 0) {
-
-		/* Init the deferred processing contexts. */
-		TASK_INIT(&adapter->rxtx_task, 0, em_handle_rxtx, adapter);
-		TASK_INIT(&adapter->link_task, 0, em_handle_link, adapter);
-		adapter->tq = taskqueue_create_fast("em_taskq", M_NOWAIT,
-			taskqueue_thread_enqueue,
-			&adapter->tq);
-		taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
-		    device_get_nameunit(adapter->dev));
+			   &adapter->int_handler_tag) != 0) {
+		taskqueue_free(adapter->tq);
+		adapter->tq = NULL;
 	}
 #endif
 	if (adapter->int_handler_tag == NULL) {
