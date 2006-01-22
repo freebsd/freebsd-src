@@ -95,6 +95,7 @@ int entries, gflag, kflag, lflag, mflag, pplan, sflag, oflag, Tflag;
 sa_family_t family = PF_UNSPEC;
 int d_first = -1;
 char tbuf[1024];
+int invoker_root = 0;
 
 static void loginlist(void);
 static int option(int, char **);
@@ -168,6 +169,7 @@ main(int argc, char **argv)
 	static char myname[] = "finger";
 
 	if (getuid() == 0 || geteuid() == 0) {
+		invoker_root = 1;
 		if ((pw = getpwnam(UNPRIV_NAME)) && pw->pw_uid > 0) {
 			 setgid(pw->pw_gid);
 			 setuid(pw->pw_uid);
