@@ -246,7 +246,8 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			return EBUSY;
 		}
 		/* got a channel, already locked for us */
-		if (chn_reset(rdch, fmt)) {
+		if (chn_reset(rdch, fmt) ||
+				(fmt && chn_setspeed(rdch, DSP_DEFAULT_SPEED))) {
 			pcm_chnrelease(rdch);
 			pcm_lock(d);
 			i_dev->si_drv1 = NULL;
@@ -273,7 +274,8 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	    if (!wrch)
 		error = EBUSY; /* XXX Right return code? */
-	    else if (chn_reset(wrch, fmt))
+	    else if (chn_reset(wrch, fmt) ||
+	    		(fmt && chn_setspeed(wrch, DSP_DEFAULT_SPEED)))
 		error = ENODEV;
 
 	    if (error != 0) {
