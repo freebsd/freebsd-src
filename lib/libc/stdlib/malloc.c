@@ -4365,12 +4365,12 @@ malloc_init_hard(void)
 				opt_abort = true;
 				break;
 			case 'c':
-				opt_ndelay <<= 1;
+				opt_ndelay >>= 1;
 				if (opt_ndelay == 0)
 					opt_ndelay = 1;
 				break;
 			case 'C':
-				opt_ndelay >>= 1;
+				opt_ndelay <<= 1;
 				if (opt_ndelay == 0)
 					opt_ndelay = 1;
 				break;
