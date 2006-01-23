@@ -568,7 +568,7 @@ if_purgeaddrs(struct ifnet *ifp)
 
 	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 
-		if (ifa->ifa_addr->sa_family == AF_LINK)
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_LINK)
 			continue;
 #ifdef INET
 		/* XXX: Ugly!! ad hoc just for INET */
