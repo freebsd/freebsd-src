@@ -2,7 +2,8 @@
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
  *
- * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +25,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
  */
 
 #include <sys/cdefs.h>
@@ -220,6 +222,10 @@ static struct ispmdvec mdvec_2300 = {
 #define	PCI_PRODUCT_QLOGIC_ISP2312	0x2312
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP2322
+#define	PCI_PRODUCT_QLOGIC_ISP2322	0x2322
+#endif
+
 #ifndef	PCI_PRODUCT_QLOGIC_ISP6312
 #define	PCI_PRODUCT_QLOGIC_ISP6312	0x6312
 #endif
@@ -253,6 +259,9 @@ static struct ispmdvec mdvec_2300 = {
 
 #define	PCI_QLOGIC_ISP2312	\
 	((PCI_PRODUCT_QLOGIC_ISP2312 << 16) | PCI_VENDOR_QLOGIC)
+
+#define	PCI_QLOGIC_ISP2322	\
+	((PCI_PRODUCT_QLOGIC_ISP2322 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP6312	\
 	((PCI_PRODUCT_QLOGIC_ISP6312 << 16) | PCI_VENDOR_QLOGIC)
@@ -335,6 +344,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP2312:
 		device_set_desc(dev, "Qlogic ISP 2312 PCI FC-AL Adapter");
+		break;
+	case PCI_QLOGIC_ISP2322:
+		device_set_desc(dev, "Qlogic ISP 2322 PCI FC-AL Adapter");
 		break;
 	case PCI_QLOGIC_ISP6312:
 		device_set_desc(dev, "Qlogic ISP 6312 PCI FC-AL Adapter");
@@ -534,6 +546,13 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2300_OFF;
 	}
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2322) {
+		mdvp = &mdvec_2300;
+		basetype = ISP_HA_FC_2322;
+		psize = sizeof (fcparam);
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
+		    PCI_MBOX_REGS2300_OFF;
+	}
 	isp = &pcs->pci_isp;
 	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (isp->isp_param == NULL) {
@@ -550,7 +569,10 @@ isp_pci_attach(device_t dev)
 	 * Try and find firmware for this device.
 	 */
 
-	if (isp_get_firmware_p) {
+	/*
+	 * Don't even attempt to get firmware for the 2322/2422 (yet)
+	 */
+	if (IS_2322(isp) == 0 && IS_24XX(isp) == 0 && isp_get_firmware_p) {
 		int device = (int) pci_get_device(dev);
 #ifdef	ISP_TARGET_MODE
 		(*isp_get_firmware_p)(0, 1, device, &mdvp->dv_ispfw);
@@ -744,7 +766,7 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Last minute checks...
 	 */
-	if (IS_2312(isp)) {
+	if (IS_23XX(isp)) {
 		isp->isp_port = pci_get_function(dev);
 	}
 
