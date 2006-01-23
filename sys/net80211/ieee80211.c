@@ -190,7 +190,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 
 	if (ic->ic_bintval == 0)
 		ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;
-	ic->ic_bmisstimeout = 7*ic->ic_bintval;	/* default 7 beacons */
+	ic->ic_bmissthreshold = 7;		/* default 7 beacons */
 	ic->ic_dtim_period = IEEE80211_DTIM_DEFAULT;
 	IEEE80211_BEACON_LOCK_INIT(ic, "beacon");
 
