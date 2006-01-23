@@ -2143,7 +2143,7 @@ ath_beacon_config(struct ath_softc *sc)
 		 * TU's and then calculate based on the beacon interval.
 		 * Note that we clamp the result to at most 10 beacons.
 		 */
-		bs.bs_bmissthreshold = howmany(ic->ic_bmisstimeout, intval);
+		bs.bs_bmissthreshold = ic->ic_bmissthreshold;
 		if (bs.bs_bmissthreshold > 10)
 			bs.bs_bmissthreshold = 10;
 		else if (bs.bs_bmissthreshold <= 0)
