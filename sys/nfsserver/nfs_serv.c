@@ -525,13 +525,13 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (error) {
-	mtx_unlock(&Giant);	/* VFS */
-	NFSD_LOCK();
-	nfsm_reply(NFSX_POSTOPATTR(v3));
-	if (v3)
-		nfsm_srvpostop_attr(dirattr_ret, &dirattr);
-	error = 0;
-	goto nfsmout;
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
+		nfsm_reply(NFSX_POSTOPATTR(v3));
+		if (v3)
+			nfsm_srvpostop_attr(dirattr_ret, &dirattr);
+		error = 0;
+		goto nfsmout;
 	}
 
 	/*
