@@ -368,15 +368,17 @@ i80321_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &sc->sc_io_rman;
 		bt = sc->sc_pciio;
 		bh = sc->sc_io;
-		start = start - 0x90000000 + sc->sc_io;
-		end = end - 0x90000000 + sc->sc_io;
+		if (start < sc->sc_io) {
+			start = start - 0x90000000 + sc->sc_io;
+			end = end - 0x90000000 + sc->sc_io;
+		}
 		break;
 	default:
 		return (NULL);
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL) 
+	if (rv == NULL)
 		return (NULL);
 	if (type != SYS_RES_IRQ) {
 		bh += (rman_get_start(rv));
