@@ -1,10 +1,8 @@
-/* $FreeBSD$ */
 /*-
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
- * Feral Software
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +41,8 @@
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -95,7 +95,7 @@ static const char xact3[] =
 static const char pskip[] =
     "SCSI phase skipped for target %d.%d.%d";
 static const char topology[] =
-    "Loop ID %d, AL_PA 0x%x, Port ID 0x%x, Loop State 0x%x, Topology '%s'";
+    "Loop ID %d, Port ID 0x%x, Loop State 0x%x, Topology '%s'";
 static const char swrej[] =
     "Fabric Nameserver rejected %s (Reason=0x%x Expl=0x%x) for Port ID 0x%x";
 static const char finmsg[] =
@@ -165,6 +165,7 @@ isp_reset(struct ispsoftc *isp)
 	char *btype = "????";
 
 	isp->isp_state = ISP_NILSTATE;
+	MEMZERO(&mbs, sizeof (mbs));
 
 	/*
 	 * Basic types (SCSI, FibreChannel and PCI or SBus)
@@ -251,6 +252,12 @@ isp_reset(struct ispsoftc *isp)
 			break;
 		case ISP_HA_FC_2312:
 			btype = "2312";
+			break;
+		case ISP_HA_FC_2322:
+			btype = "2322";
+			break;
+		case ISP_HA_FC_2422:
+			btype = "2422";
 			break;
 		default:
 			break;
@@ -677,6 +684,15 @@ again:
 
 	mbs.param[0] = MBOX_EXEC_FIRMWARE;
 	mbs.param[1] = code_org;
+	if (IS_2322(isp) || IS_24XX(isp)) {
+		if (isp->isp_loaded_fw) {
+			mbs.param[2] = 1;
+		} else {
+			mbs.param[2] = 0;
+		}
+		mbs.obits |= 2;
+	}
+
 	isp_mboxcmd(isp, &mbs, MBLOGNONE);
 	/*
 	 * Give it a chance to start.
@@ -746,9 +762,8 @@ again:
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "Firmware Attributes = 0x%x", mbs.param[6]);
 		}
-		if (ISP_READ(isp, BIU2100_CSR) & BIU2100_PCI64) {
-			isp_prt(isp, ISP_LOGCONFIG,
-			    "Installed in 64-Bit PCI slot");
+		if (IS_2KLOGIN(isp)) {
+			isp_prt(isp, ISP_LOGCONFIG, "2K Logins Supported");
 		}
 	}
 
@@ -869,6 +884,7 @@ isp_scsi_init(struct ispsoftc *isp)
 	 * Set Retry Delay and Count.
 	 * You set both channels at the same time.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_RETRY_COUNT;
 	mbs.param[1] = sdp_chan0->isp_retry_count;
 	mbs.param[2] = sdp_chan0->isp_retry_delay;
@@ -1048,6 +1064,7 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 	/*
 	 * Set (possibly new) Initiator ID.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_INIT_SCSI_ID;
 	mbs.param[1] = (channel << 7) | sdp->isp_initiator_id;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
@@ -1257,9 +1274,9 @@ isp_fibre_init(struct ispsoftc *isp)
 	icbp->icb_hardaddr = loopid;
 	if (icbp->icb_hardaddr >= 125) {
 		/*
-		 * We end up with a Loop ID of 255 for F-Port topologies
+		 * We end up with these Loop IDs for F-Port topologies
 		 */
-		if (icbp->icb_hardaddr != 255) {
+		if (icbp->icb_hardaddr != 0xff || icbp->icb_hardaddr != 0x800) {
 		    isp_prt(isp, ISP_LOGERR,
 			"bad hard address %u- resetting to zero",
 			icbp->icb_hardaddr); 
@@ -1354,8 +1371,10 @@ isp_fibre_init(struct ispsoftc *isp)
 #endif
 #endif
 
+	MEMZERO(&mbs, sizeof (mbs));
+
 	/*
-	 * For 22XX > 2.1.26 && 23XX, set someoptions.
+	 * For 22XX > 2.1.26 && 23XX, set some options.
 	 * XXX: Probably okay for newer 2100 f/w too.
 	 */
 	if (ISP_FW_NEWER_THAN(isp, 2, 26, 0)) {
@@ -1457,6 +1476,7 @@ isp_getmap(struct ispsoftc *isp, fcpos_map_t *map)
 	fcparam *fcp = (fcparam *) isp->isp_param;
 	mbreg_t mbs;
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_GET_FC_AL_POSITION_MAP;
 	mbs.param[1] = 0;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -1498,8 +1518,14 @@ isp_getpdb(struct ispsoftc *isp, int id, isp_pdb_t *pdbp)
 	fcparam *fcp = (fcparam *) isp->isp_param;
 	mbreg_t mbs;
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_GET_PORT_DB;
-	mbs.param[1] = id << 8;
+	if (IS_2KLOGIN(isp)) {
+		mbs.param[1] = id;
+		mbs.obits |= (1 << 10);
+	} else {
+		mbs.param[1] = id << 8;
+	}
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	/*
@@ -1528,10 +1554,18 @@ isp_get_portname(struct ispsoftc *isp, int loopid, int nodename)
 	u_int64_t wwn = 0;
 	mbreg_t mbs;
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_GET_PORT_NAME;
-	mbs.param[1] = loopid << 8;
-	if (nodename)
-		mbs.param[1] |= 1;
+	if (IS_2KLOGIN(isp)) {
+		mbs.param[1] = loopid;
+		if (nodename)
+			mbs.param[10] = 1;
+		mbs.obits |= (1 << 10);
+	} else {
+		mbs.param[1] = loopid << 8;
+		if (nodename)
+			mbs.param[1] |= 1;
+	}
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		wwn =
@@ -1647,6 +1681,7 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 	/*
 	 * Get our Loop ID (if possible). We really need to have it.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_GET_LOOP_ID;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -1661,7 +1696,11 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 	} else {
 		fcp->isp_topo = TOPO_NL_PORT;
 	}
-	fcp->isp_portid = fcp->isp_alpa = mbs.param[2] & 0xff;
+	/*
+	 * XXX: We can get the AL_PA (low 8 bits) from here.
+	 * XXX: Where do we get the upper 16 bits?
+	 */
+	fcp->isp_portid = mbs.param[2] & 0xff;
 
 	/*
 	 * Check to see if we're on a fabric by trying to see if we
@@ -1752,7 +1791,7 @@ not_on_fabric:
 		}
 	}
 
-	isp_prt(isp, ISP_LOGCONFIG, topology, fcp->isp_loopid, fcp->isp_alpa,
+	isp_prt(isp, ISP_LOGCONFIG, topology, fcp->isp_loopid,
 	    fcp->isp_portid, fcp->isp_loopstate, toponames[fcp->isp_topo]);
 
 	/*
@@ -1966,8 +2005,14 @@ isp_pdb_sync(struct ispsoftc *isp)
 		if (lp->loggedin) {
 			if (lp->force_logout ||
 			    isp_getpdb(isp, lp->loopid, &pdb) == 0) {
+				MEMZERO(&mbs, sizeof (mbs));
 				mbs.param[0] = MBOX_FABRIC_LOGOUT;
-				mbs.param[1] = lp->loopid << 8;
+				if (IS_2KLOGIN(isp)) {
+					mbs.param[1] = lp->loopid;
+					mbs.obits |= (1 << 10);
+				} else {
+					mbs.param[1] = lp->loopid << 8;
+				}
 				mbs.param[2] = 0;
 				mbs.param[3] = 0;
 				isp_mboxcmd(isp, &mbs, MBLOGNONE);
@@ -1988,8 +2033,14 @@ isp_pdb_sync(struct ispsoftc *isp)
 		loopid = lp - fcp->portdb;
 		lp->loopid = FL_PORT_ID;
 		do {
+			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_FABRIC_LOGIN;
-			mbs.param[1] = loopid << 8;
+			if (IS_2KLOGIN(isp)) {
+				mbs.param[1] = loopid;
+				mbs.obits |= (1 << 10);
+			} else {
+				mbs.param[1] = loopid << 8;
+			}
 			mbs.param[2] = portid >> 16;
 			mbs.param[3] = portid & 0xffff;
 			isp_mboxcmd(isp, &mbs, MBLOGALL & ~(MBOX_LOOP_ID_USED |
@@ -2104,10 +2155,14 @@ dump_em:
 		lp->valid = 0;
 		isp_prt(isp, ISP_LOGINFO,
 		    ldumped, loopid, lp->loopid, lp->portid);
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_FABRIC_LOGOUT;
-		mbs.param[1] = lp->loopid << 8;
-		mbs.param[2] = 0;
-		mbs.param[3] = 0;
+		if (IS_2KLOGIN(isp)) {
+			mbs.param[1] = lp->loopid;
+			mbs.obits |= (1 << 10);
+		} else {
+			mbs.param[1] = lp->loopid << 8;
+		}
 		isp_mboxcmd(isp, &mbs, MBLOGNONE);
 		if (fcp->isp_fwstate != FW_READY ||
 		    fcp->isp_loopstate != LOOP_SYNCING_PDB) {
@@ -2488,6 +2543,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		rq->snscb_data[5] = (portid >> 16) & 0xff;
 		isp_put_sns_request(isp, rq, (sns_screq_t *) fcp->isp_scratch);
 		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GA_NXT_REQ_SIZE);
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_SEND_SNS;
 		mbs.param[1] = SNS_GA_NXT_REQ_SIZE >> 1;
 		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -2638,6 +2694,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 	rq->snscb_fc4_type = ftype;
 	isp_put_gid_ft_request(isp, rq, (sns_gid_ft_req_t *) fcp->isp_scratch);
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GID_FT_REQ_SIZE);
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SEND_SNS;
 	mbs.param[1] = SNS_GID_FT_REQ_SIZE >> 1;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -2715,6 +2772,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		isp_put_gxn_id_request(isp, gq,
 		    (sns_gxn_id_req_t *) fcp->isp_scratch);
 		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GXN_ID_REQ_SIZE);
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_SEND_SNS;
 		mbs.param[1] = SNS_GXN_ID_REQ_SIZE >> 1;
 		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -2770,6 +2828,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		isp_put_gxn_id_request(isp, gq,
 		    (sns_gxn_id_req_t *) fcp->isp_scratch);
 		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GXN_ID_REQ_SIZE);
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_SEND_SNS;
 		mbs.param[1] = SNS_GXN_ID_REQ_SIZE >> 1;
 		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -2833,6 +2892,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		isp_put_gxn_id_request(isp, gq,
 		    (sns_gxn_id_req_t *) fcp->isp_scratch);
 		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GXN_ID_REQ_SIZE);
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_SEND_SNS;
 		mbs.param[1] = SNS_GXN_ID_REQ_SIZE >> 1;
 		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -2934,6 +2994,7 @@ isp_register_fc4_type(struct ispsoftc *isp)
 #endif
 	FC_SCRATCH_ACQUIRE(isp);
 	isp_put_sns_request(isp, reqp, (sns_screq_t *) fcp->isp_scratch);
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SEND_SNS;
 	mbs.param[1] = SNS_RFT_ID_REQ_SIZE >> 1;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
@@ -3273,15 +3334,19 @@ isp_start(XS_T *xs)
 			reqp->req_flags = XS_TAG_TYPE(xs);
 		}
 	}
-	reqp->req_target = target | (XS_CHANNEL(xs) << 7);
 	if (IS_SCSI(isp)) {
+		reqp->req_target = target | (XS_CHANNEL(xs) << 7);
 		reqp->req_lun_trn = XS_LUN(xs);
 		reqp->req_cdblen = XS_CDBLEN(xs);
+	} else if (IS_2KLOGIN(isp)) {
+		((ispreqt2e_t *)reqp)->req_target = target;
+		((ispreqt2e_t *)reqp)->req_scclun = XS_LUN(xs);
+	} else if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
+		((ispreqt2_t *)reqp)->req_target = target;
+		((ispreqt2_t *)reqp)->req_scclun = XS_LUN(xs);
 	} else {
-		if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN)
-			((ispreqt2_t *)reqp)->req_scclun = XS_LUN(xs);
-		else
-			((ispreqt2_t *)reqp)->req_lun_trn = XS_LUN(xs);
+		((ispreqt2_t *)reqp)->req_target = target;
+		((ispreqt2_t *)reqp)->req_lun_trn = XS_LUN(xs);
 	}
 	MEMCPY(reqp->req_cdb, XS_CDBP(xs), XS_CDBLEN(xs));
 
@@ -3333,6 +3398,8 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
 	int bus, tgt;
 	u_int16_t handle;
 
+	MEMZERO(&mbs, sizeof (mbs));
+
 	switch (ctl) {
 	default:
 		isp_prt(isp, ISP_LOGERR, "Unknown Control Opcode 0x%x", ctl);
@@ -3369,7 +3436,16 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
 		tgt = (*((int *) arg)) & 0xffff;
 		bus = (*((int *) arg)) >> 16;
 		mbs.param[0] = MBOX_ABORT_TARGET;
-		mbs.param[1] = (tgt << 8) | (bus << 15);
+		if (IS_SCSI(isp)) {
+			mbs.param[1] = (tgt << 8) | (bus << 15);
+		} else {
+			if (IS_2KLOGIN(isp)) {
+				mbs.param[1] = tgt;
+				mbs.obits |= (1 << 10);
+			} else {
+				mbs.param[1] = (tgt << 8);
+			}
+		}
 		mbs.param[2] = 3;	/* 'delay', in seconds */
 		isp_mboxcmd(isp, &mbs, MBLOGALL);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -3393,7 +3469,11 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
 		mbs.param[0] = MBOX_ABORT;
 		if (IS_FC(isp)) {
 			if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN)  {
-				mbs.param[1] = tgt << 8;
+				if (IS_2KLOGIN(isp)) {
+					mbs.param[1] = tgt;
+				} else {
+					mbs.param[1] = tgt << 8;
+				}
 				mbs.param[4] = 0;
 				mbs.param[5] = 0;
 				mbs.param[6] = XS_LUN(xs);
@@ -3541,7 +3621,7 @@ again:
 			if (isp->isp_mboxbsy) {
 				int i = 0, obits = isp->isp_obits;
 				isp->isp_mboxtmp[i++] = mbox;
-				for (i = 1; i < MAX_MAILBOX; i++) {
+				for (i = 1; i < MAX_MAILBOX(isp); i++) {
 					if ((obits & (1 << i)) == 0) {
 						continue;
 					}
@@ -4145,8 +4225,6 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 	}
 	case ASYNC_LIP_F8:
 	case ASYNC_LIP_OCCURRED:
-		FCPARAM(isp)->isp_lipseq =
-		    ISP_READ(isp, OUTMAILBOX1);
 		FCPARAM(isp)->isp_fwstate = FW_CONFIG_WAIT;
 		FCPARAM(isp)->isp_loopstate = LOOP_LIP_RCVD;
 		isp->isp_sendmarker = 1;
@@ -4300,7 +4378,7 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 		int i, nh;
 		u_int16_t handles[16];
 
-		for (nh = 0, i = 1; i < MAX_MAILBOX; i++) {
+		for (nh = 0, i = 1; i < MAX_MAILBOX(isp); i++) {
 			if ((bus & (1 << i)) == 0) {
 				continue;
 			}
@@ -4716,6 +4794,7 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		if (FCPARAM(isp)->isp_topo == TOPO_NL_PORT ||
 		    FCPARAM(isp)->isp_topo == TOPO_FL_PORT) {
 			mbreg_t mbs;
+			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_INIT_LIP;
 			isp_mboxcmd_qnw(isp, &mbs, 1);
 		}
@@ -4810,7 +4889,6 @@ isp_mbox_continue(struct ispsoftc *isp)
 		return (-1);
 	}
 
-
 	/*
 	 * Clear the previous interrupt.
 	 */
@@ -4820,6 +4898,7 @@ isp_mbox_continue(struct ispsoftc *isp)
 	/*
 	 * Continue with next word.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	ptr = isp->isp_mbxworkp;
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
@@ -4840,10 +4919,10 @@ isp_mbox_continue(struct ispsoftc *isp)
 }
 
 
-#define	HIBYT(x)			((x) >> 0x8)
-#define	LOBYT(x)			((x)  & 0xff)
-#define	ISPOPMAP(a, b)			(((a) << 8) | (b))
-static const u_int16_t mbpscsi[] = {
+#define	HIWRD(x)			((x) >> 16)
+#define	LOWRD(x)			((x)  & 0xffff)
+#define	ISPOPMAP(a, b)			(((a) << 16) | (b))
+static const u_int32_t mbpscsi[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
@@ -5039,7 +5118,7 @@ static char *scsi_mbcmd_names[] = {
 };
 #endif
 
-static const u_int16_t mbpfc[] = {
+static const u_int32_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
@@ -5312,7 +5391,7 @@ static void
 isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 {
 	unsigned int ibits, obits, box, opcode;
-	const u_int16_t *mcp;
+	const u_int32_t *mcp;
 
 	if (IS_FC(isp)) {
 		mcp = mbpfc;
@@ -5320,9 +5399,11 @@ isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 		mcp = mbpscsi;
 	}
 	opcode = mbp->param[0];
-	ibits = HIBYT(mcp[opcode]) & NMBOX_BMASK(isp);
-	obits = LOBYT(mcp[opcode]) & NMBOX_BMASK(isp);
-	for (box = 0; box < MAX_MAILBOX; box++) {
+	ibits = HIWRD(mcp[opcode]) & NMBOX_BMASK(isp);
+	obits = LOWRD(mcp[opcode]) & NMBOX_BMASK(isp);
+	ibits |= mbp->ibits;
+	obits |= mbp->obits;
+	for (box = 0; box < MAX_MAILBOX(isp); box++) {
 		if (ibits & (1 << box)) {
 			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
 		}
@@ -5351,7 +5432,7 @@ isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
 {
 	char *cname, *xname, tname[16], mname[16];
 	unsigned int lim, ibits, obits, box, opcode;
-	const u_int16_t *mcp;
+	const u_int32_t *mcp;
 
 	if (IS_FC(isp)) {
 		mcp = mbpfc;
@@ -5367,8 +5448,11 @@ isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
 		return;
 	}
 
-	ibits = HIBYT(mcp[opcode]) & NMBOX_BMASK(isp);
-	obits = LOBYT(mcp[opcode]) & NMBOX_BMASK(isp);
+	ibits = HIWRD(mcp[opcode]) & NMBOX_BMASK(isp);
+	obits = LOWRD(mcp[opcode]) & NMBOX_BMASK(isp);
+
+	ibits |= mbp->ibits;
+	obits |= mbp->obits;
 
 	if (ibits == 0 && obits == 0) {
 		mbp->param[0] = MBOX_COMMAND_PARAM_ERROR;
@@ -5381,7 +5465,7 @@ isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
 	 */
 	MBOX_ACQUIRE(isp);
 
-	for (box = 0; box < MAX_MAILBOX; box++) {
+	for (box = 0; box < MAX_MAILBOX(isp); box++) {
 		if (ibits & (1 << box)) {
 			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
 		}
@@ -5418,7 +5502,7 @@ isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
 	/*
 	 * Copy back output registers.
 	 */
-	for (box = 0; box < MAX_MAILBOX; box++) {
+	for (box = 0; box < MAX_MAILBOX(isp); box++) {
 		if (obits & (1 << box)) {
 			mbp->param[box] = isp->isp_mboxtmp[box];
 		}
@@ -5498,6 +5582,7 @@ isp_fw_state(struct ispsoftc *isp)
 		mbreg_t mbs;
 		fcparam *fcp = isp->isp_param;
 
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_GET_FW_STATE;
 		isp_mboxcmd(isp, &mbs, MBLOGALL);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -5535,6 +5620,7 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 	}
 	sdp = isp->isp_param;
 	sdp += bus;
+	MEMZERO(&mbs, sizeof (mbs));
 
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
 		u_int16_t flags, period, offset;
@@ -5650,6 +5736,7 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 	mbreg_t mbs;
 	sdparam *sdp;
 
+	MEMZERO(&mbs, sizeof (mbs));
 	if (IS_FC(isp)) {
 		fcparam *fcp = (fcparam *) isp->isp_param;
 		int nvfail;
@@ -6467,6 +6554,7 @@ isp2200_fw_dump(struct ispsoftc *isp)
 	mbreg_t mbs;
 	u_int16_t *ptr;
 
+	MEMZERO(&mbs, sizeof (mbs));
 	ptr = FCPARAM(isp)->isp_dump_data;
 	if (ptr == NULL) {
 		isp_prt(isp, ISP_LOGERR,
@@ -6611,6 +6699,7 @@ isp2300_fw_dump(struct ispsoftc *isp)
 	mbreg_t mbs;
 	u_int16_t *ptr;
 
+	MEMZERO(&mbs, sizeof (mbs));
 	ptr = FCPARAM(isp)->isp_dump_data;
 	if (ptr == NULL) {
 		isp_prt(isp, ISP_LOGERR,

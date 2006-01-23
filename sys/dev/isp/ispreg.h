@@ -3,7 +3,7 @@
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -371,15 +371,26 @@
 #define	OUTMAILBOX6	(MBOX_BLOCK+0xC)
 #define	OUTMAILBOX7	(MBOX_BLOCK+0xE)
 
+/*
+ * Strictly speaking, it's 
+ *  SCSI && 2100 : 8 MBOX registers
+ *  2200: 24 MBOX registers
+ *  2300: 32 MBOX registers
+ */
 #define	MBOX_OFF(n)	(MBOX_BLOCK + ((n) << 1))
 #define	NMBOX(isp)	\
 	(((((isp)->isp_type & ISP_HA_SCSI) >= ISP_HA_SCSI_1040A) || \
-	 ((isp)->isp_type & ISP_HA_FC))? 8 : 6)
+	 ((isp)->isp_type & ISP_HA_FC))? 12 : 6)
 #define	NMBOX_BMASK(isp)	\
 	(((((isp)->isp_type & ISP_HA_SCSI) >= ISP_HA_SCSI_1040A) || \
-	 ((isp)->isp_type & ISP_HA_FC))? 0xff : 0x3f)
+	 ((isp)->isp_type & ISP_HA_FC))? 0xfff : 0x3f)
 
-#define	MAX_MAILBOX	8
+#define	MAX_MAILBOX(isp)	((IS_FC(isp))? 12 : 8)
+#define	MAILBOX_STORAGE		12
+typedef struct {
+	u_int16_t param[MAILBOX_STORAGE];
+	u_int16_t ibits, obits;
+} mbreg_t;
 
 /*
  * Fibre Protocol Module and Frame Buffer Register Offsets/Definitions (2X00).
