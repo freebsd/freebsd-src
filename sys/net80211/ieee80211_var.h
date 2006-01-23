@@ -144,6 +144,7 @@ struct ieee80211com {
 	int			ic_mcast_rate;	/* rate for mcast frames */
 	u_int16_t		ic_rtsthreshold;
 	u_int16_t		ic_fragthreshold;
+	u_int8_t		ic_bmissthreshold;
 	u_int8_t		ic_bmiss_count;	/* current beacon miss count */
 	int			ic_bmiss_max;	/* max bmiss before scan */
 	struct ieee80211_node	*(*ic_node_alloc)(struct ieee80211_node_table*);
@@ -157,7 +158,6 @@ struct ieee80211com {
 	u_int16_t		ic_txmax;	/* max tx retry count */
 	u_int16_t		ic_txlifetime;	/* tx lifetime */
 	u_int16_t		ic_txpowlimit;	/* global tx power limit */
-	u_int16_t		ic_bmisstimeout;/* beacon miss threshold (ms) */
 	u_int16_t		ic_nonerpsta;	/* # non-ERP stations */
 	u_int16_t		ic_longslotsta;	/* # long slot time stations */
 	int			ic_mgt_timer;	/* mgmt timeout */
