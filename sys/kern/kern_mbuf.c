@@ -434,7 +434,7 @@ mb_zinit_pack(void *mem, int size, int how)
 	struct mbuf *m;
 
 	m = (struct mbuf *)mem;		/* m is virgin. */
-	uma_zalloc_arg(zone_clust, m, how);
+	(void)uma_zalloc_arg(zone_clust, m, how);
 	if (m->m_ext.ext_buf == NULL)
 		return (ENOMEM);
 	m->m_ext.ext_type = EXT_PACKET;	/* Override. */
