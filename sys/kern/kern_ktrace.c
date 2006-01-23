@@ -952,6 +952,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
+	vrele(vp);
 	mtx_unlock(&Giant);
 	if (!error)
 		return;
