@@ -1518,7 +1518,6 @@ vfs_vmio_release(struct buf *bp)
 			 */
 			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid &&
 			    m->hold_count == 0) {
-				pmap_remove_all(m);
 				vm_page_free(m);
 			} else if (bp->b_flags & B_DIRECT) {
 				vm_page_try_to_free(m);
