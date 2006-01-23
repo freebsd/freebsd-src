@@ -2980,7 +2980,7 @@ RETURN:
 static region_t *
 arena_chunk_reg_alloc(arena_t *arena, size_t size, bool fit)
 {
-	region_t *ret, *next;
+	region_t *ret;
 	chunk_node_t *chunk;
 
 	chunk = chunk_alloc(chunk_size);
@@ -3014,12 +3014,29 @@ arena_chunk_reg_alloc(arena_t *arena, size_t size, bool fit)
 	region_prev_free_unset(&ret->sep);
 	region_next_free_unset(&ret->sep);
 
-	/* Create a separator at the end of this new region. */
-	next = (region_t *)&((char *)ret)[region_next_size_get(&ret->sep)];
-	region_next_size_set(&next->sep, 0);
-	region_prev_free_unset(&next->sep);
-	region_next_free_unset(&next->sep);
-	region_next_contig_unset(&next->sep);
+	/*
+	 * Avoiding the following when possible is worthwhile, because it
+	 * avoids touching a page that for many applications would never be
+	 * touched otherwise.
+	 */
+#ifdef USE_BRK
+	if ((uintptr_t)ret >= (uintptr_t)brk_base
+	    && (uintptr_t)ret < (uintptr_t)brk_max) {
+		region_t *next;
+
+		/*
+		 * This may be a re-used brk chunk, so we have no guarantee
+		 * that the memory is zero-filled.  Therefore manually create a
+		 * separator at the end of this new region (all zero bits).
+		 */
+		next = (region_t *)&((char *)ret)[region_next_size_get(
+		    &ret->sep)];
+		region_next_size_set(&next->sep, 0);
+		region_prev_free_unset(&next->sep);
+		region_next_free_unset(&next->sep);
+		region_next_contig_unset(&next->sep);
+	}
+#endif
 
 	if (fit)
 		arena_reg_fit(arena, size, ret, (arena->split == NULL));
