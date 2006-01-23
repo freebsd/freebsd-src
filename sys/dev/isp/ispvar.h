@@ -2,7 +2,7 @@
 /*-
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #ifndef	_ISPVAR_H
@@ -174,7 +173,6 @@ typedef	u_int32_t	isp_dma_addr_t;
 /*
  * SCSI Specific Host Adapter Parameters- per bus, per target
  */
-
 typedef struct {
 	u_int		isp_gotdparms		: 1,
 			isp_req_ack_active_neg	: 1,
@@ -230,7 +228,6 @@ typedef struct {
 #define	DPARM_DEFAULT	(0xFF00 & ~DPARM_QFRZ)
 #define	DPARM_SAFE_DFLT	(DPARM_DEFAULT & ~(DPARM_WIDE|DPARM_SYNC|DPARM_TQING))
 
-
 /* technically, not really correct, as they need to be rated based upon clock */
 #define	ISP_80M_SYNCPARMS	0x0c09
 #define	ISP_40M_SYNCPARMS	0x0c0a
@@ -254,8 +251,9 @@ typedef struct {
 #endif
 
 typedef struct {
-	u_int32_t		isp_fwoptions	: 16,
-				isp_gbspeed	: 2,
+	u_int32_t				: 13,
+				isp_gbspeed	: 3,
+						: 2,
 				isp_iid_set	: 1,
 				loop_seen_once	: 1,
 				isp_loopstate	: 4,	/* Current Loop State */
@@ -263,11 +261,11 @@ typedef struct {
 				isp_gotdparms	: 1,
 				isp_topo	: 3,
 				isp_onfabric	: 1;
-	u_int8_t		isp_iid;	/* 'initiator' id */
-	u_int8_t		isp_loopid;	/* hard loop id */
-	u_int8_t		isp_alpa;	/* ALPA */
-	u_int32_t		isp_portid;
-	volatile u_int16_t	isp_lipseq;	/* LIP sequence # */
+	u_int32_t				: 8,
+				isp_portid	: 24;	/* S_ID */
+	u_int16_t		isp_fwoptions;
+	u_int16_t		isp_iid;	/* 'initiator' id */
+	u_int16_t		isp_loopid;	/* hard loop id */
 	u_int16_t		isp_fwattr;	/* firmware attributes */
 	u_int8_t		isp_execthrottle;
 	u_int8_t		isp_retry_delay;
@@ -287,20 +285,20 @@ typedef struct {
 	 * to move around.
 	 */
 	struct lportdb {
-		u_int32_t
-					port_type	: 8,
-					loopid		: 8,
+		u_int32_t		loopid		: 16,
+							: 2,
 					fc4_type	: 4,
 					last_fabric_dev	: 1,
-							: 2,
 					relogin		: 1,
 					force_logout	: 1,
 					was_fabric_dev	: 1,
 					fabric_dev	: 1,
 					loggedin	: 1,
 					roles		: 2,
+					tvalid		: 1,
 					valid		: 1;
-		u_int32_t		portid;
+		u_int32_t		port_type	: 8,
+					portid		: 24;
 		u_int64_t		node_wwn;
 		u_int64_t		port_wwn;
 	} portdb[MAX_FC_TARG], tport[FC_PORT_ID];
@@ -414,7 +412,7 @@ typedef struct ispsoftc {
 	volatile u_int16_t	isp_resodx;	/* index of next result */
 	volatile u_int16_t	isp_rspbsy;
 	volatile u_int16_t	isp_lasthdls;	/* last handle seed */
-	volatile u_int16_t	isp_mboxtmp[MAX_MAILBOX];
+	volatile u_int16_t	isp_mboxtmp[MAILBOX_STORAGE];
 	volatile u_int16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile u_int16_t	isp_mbxwrk0;
 	volatile u_int16_t	isp_mbxwrk1;
@@ -554,6 +552,9 @@ typedef struct ispsoftc {
 #define	ISP_HA_FC_2200		0x20
 #define	ISP_HA_FC_2300		0x30
 #define	ISP_HA_FC_2312		0x40
+#define	ISP_HA_FC_2322		0x50
+#define	ISP_HA_FC_2400		0x60
+#define	ISP_HA_FC_2422		0x61
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
@@ -574,6 +575,8 @@ typedef struct ispsoftc {
 #define	IS_23XX(isp)	((isp)->isp_type >= ISP_HA_FC_2300)
 #define	IS_2300(isp)	((isp)->isp_type == ISP_HA_FC_2300)
 #define	IS_2312(isp)	((isp)->isp_type == ISP_HA_FC_2312)
+#define	IS_2322(isp)	((isp)->isp_type == ISP_HA_FC_2322)
+#define	IS_24XX(isp)	((isp)->isp_type >= ISP_HA_FC_2400)
 
 /*
  * DMA cookie macros
@@ -742,9 +745,8 @@ typedef enum {
 	ISPASYNC_CHANGE_NOTIFY,		/* FC Change Notification */
 	ISPASYNC_FABRIC_DEV,		/* FC Fabric Device Arrival */
 	ISPASYNC_PROMENADE,		/* FC Objects coming && going */
-	ISPASYNC_TARGET_MESSAGE,	/* target message */
-	ISPASYNC_TARGET_EVENT,		/* target asynchronous event */
-	ISPASYNC_TARGET_ACTION,		/* other target command action */
+	ISPASYNC_TARGET_NOTIFY,		/* target asynchronous notification event */
+	ISPASYNC_TARGET_ACTION,		/* target action requested */
 	ISPASYNC_CONF_CHANGE,		/* Platform Configuration Change */
 	ISPASYNC_UNHANDLED_RESPONSE,	/* Unhandled Response Entry */
 	ISPASYNC_FW_CRASH,		/* Firmware has crashed */

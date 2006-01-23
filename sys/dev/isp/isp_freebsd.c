@@ -1,7 +1,8 @@
 /*-
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -507,6 +508,7 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 	{
 		int needmarker;
 		struct isp_fc_tsk_mgmt *fct = (struct isp_fc_tsk_mgmt *) addr;
+		u_int16_t loopid;
 		mbreg_t mbs;
 
 		if (IS_SCSI(isp)) {
@@ -516,33 +518,36 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 
 		memset(&mbs, 0, sizeof (mbs));
 		needmarker = retval = 0;
-
+		loopid = fct->loopid;
+		if (IS_2KLOGIN(isp) == 0) {
+			loopid <<= 8;
+		}
 		switch (fct->action) {
 		case CLEAR_ACA:
 			mbs.param[0] = MBOX_CLEAR_ACA;
-			mbs.param[1] = fct->loopid << 8;
+			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			break;
 		case TARGET_RESET:
 			mbs.param[0] = MBOX_TARGET_RESET;
-			mbs.param[1] = fct->loopid << 8;
+			mbs.param[1] = loopid;
 			needmarker = 1;
 			break;
 		case LUN_RESET:
 			mbs.param[0] = MBOX_LUN_RESET;
-			mbs.param[1] = fct->loopid << 8;
+			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
 		case CLEAR_TASK_SET:
 			mbs.param[0] = MBOX_CLEAR_TASK_SET;
-			mbs.param[1] = fct->loopid << 8;
+			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
 		case ABORT_TASK_SET:
 			mbs.param[0] = MBOX_ABORT_TASK_SET;
-			mbs.param[1] = fct->loopid << 8;
+			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
@@ -606,7 +611,6 @@ static cam_status isp_target_start_ctio(struct ispsoftc *, union ccb *);
 static int isp_handle_platform_atio(struct ispsoftc *, at_entry_t *);
 static int isp_handle_platform_atio2(struct ispsoftc *, at2_entry_t *);
 static int isp_handle_platform_ctio(struct ispsoftc *, void *);
-static void isp_handle_platform_ctio_fastpost(struct ispsoftc *, u_int32_t);
 static int isp_handle_platform_notify_scsi(struct ispsoftc *, in_entry_t *);
 static int isp_handle_platform_notify_fc(struct ispsoftc *, in_fcentry_t *);
 
@@ -1794,19 +1798,6 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 
 	}
 	return (0);
-}
-
-static void
-isp_handle_platform_ctio_fastpost(struct ispsoftc *isp, u_int32_t token)
-{
-	union ccb *ccb;
-	ccb = isp_find_xs_tgt(isp, token & 0xffff);
-	KASSERT((ccb != NULL),
-	    ("null ccb in isp_handle_platform_ctio_fastpost"));
-	isp_destroy_tgt_handle(isp, token & 0xffff);
-	isp_prt(isp, ISP_LOGTDEBUG1, "CTIOx[%x] fastpost complete",
-	    token & 0xffff);
-	isp_complete_ctio(ccb);
 }
 
 static int
@@ -3081,30 +3072,11 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		break;
 	}
 #ifdef	ISP_TARGET_MODE
-	case ISPASYNC_TARGET_MESSAGE:
+	case ISPASYNC_TARGET_NOTIFY:
 	{
-		tmd_msg_t *mp = arg;
+		tmd_notify_t *nt = arg;
 		isp_prt(isp, ISP_LOGALL,
-		    "bus %d iid %d tgt %d lun %d ttype %x tval %x msg[0]=%x",
-		    mp->nt_bus, (int) mp->nt_iid, (int) mp->nt_tgt,
-		    (int) mp->nt_lun, mp->nt_tagtype, mp->nt_tagval,
-		    mp->nt_msg[0]);
-		break;
-	}
-	case ISPASYNC_TARGET_EVENT:
-	{
-		tmd_event_t *ep = arg;
-		if (ep->ev_event == ASYNC_CTIO_DONE) {
-			/*
-			 * ACK the interrupt first
-			 */
-			ISP_WRITE(isp, BIU_SEMA, 0);
-			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-			isp_handle_platform_ctio_fastpost(isp, ep->ev_bus);
-			break;
-		}
-		isp_prt(isp, ISP_LOGALL,
-		    "bus %d event code 0x%x", ep->ev_bus, ep->ev_event);
+		    "target notify code 0x%x", nt->nt_ncode);
 		break;
 	}
 	case ISPASYNC_TARGET_ACTION:
