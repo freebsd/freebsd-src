@@ -1051,7 +1051,7 @@ aio_newproc(int *start)
 		mtx_lock(&aio_job_mtx);
 		num_aio_procs++;
 		if (start != NULL)
-			*start--;
+			(*start)--;
 		mtx_unlock(&aio_job_mtx);
 	} else {
 		free_unr(aiod_unr, id);
