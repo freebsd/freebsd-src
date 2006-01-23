@@ -222,9 +222,6 @@ device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 device		sn		# SMC's 9000 series of Ethernet chips
 device		xe		# Xircom pccard Ethernet
 
-# ISA devices that use the old ISA shims
-#device		le
-
 # Wireless NIC cards
 device		wlan		# 802.11 support
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
