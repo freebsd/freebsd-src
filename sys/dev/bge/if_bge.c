@@ -695,16 +695,9 @@ bge_newbuf_std(sc, i, m)
 	int			error;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
+		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
 		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
 		m_new = m;
