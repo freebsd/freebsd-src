@@ -144,7 +144,7 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
     "Number of aio requests presently handled by the buf subsystem");
 
 /* Number of async I/O thread in the process of being started */
-/* XXX This should be local to _aio_aqueue() */
+/* XXX This should be local to aio_aqueue() */
 static int num_aio_resv_start = 0;
 
 static int aiod_timeout;
@@ -227,7 +227,6 @@ struct aioliojob {
 	int	lioj_flags;
 	int	lioj_count;
 	int	lioj_finished_count;
-	int	lioj_ref_count;
 	struct	sigevent lioj_signal;	/* signal on all I/O done */
 	TAILQ_ENTRY(aioliojob) lioj_list;
 	struct  knlist klist;		/* list of knotes */
@@ -272,8 +271,8 @@ static void	aio_onceonly(void);
 static int	aio_free_entry(struct aiocblist *aiocbe);
 static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
-static int	aio_aqueue(struct thread *td, struct aiocb *job, int type,
-			int osigev);
+static int	aio_aqueue(struct thread *td, struct aiocb *job,
+			struct aioliojob *lio, int type, int osigev);
 static void	aio_physwakeup(struct buf *bp);
 static void	aio_proc_rundown(void *arg, struct proc *p);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
@@ -515,7 +514,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 		lj->lioj_count--;
 		lj->lioj_finished_count--;
 
-		if (lj->lioj_count == 0 && lj->lioj_ref_count == 0) {
+		if (lj->lioj_count == 0) {
 			TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
 			/* lio is going away, we need to destroy any knotes */
 			knlist_delete(&lj->klist, curthread, 1);
@@ -638,15 +637,14 @@ restart:
 		aio_free_entry(cbe);
 
 	while ((lj = TAILQ_FIRST(&ki->kaio_liojoblist)) != NULL) {
-		if (lj->lioj_count == 0 && lj->lioj_ref_count == 0) {
+		if (lj->lioj_count == 0) {
 			TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
 			knlist_delete(&lj->klist, curthread, 1);
 			sigqueue_take(&lj->lioj_ksi);
 			uma_zfree(aiolio_zone, lj);
 		} else {
-			panic("LIO job not cleaned up: C:%d, FC:%d, RC:%d\n",
-			    lj->lioj_count, lj->lioj_finished_count,
-			    lj->lioj_ref_count);
+			panic("LIO job not cleaned up: C:%d, FC:%d\n",
+			    lj->lioj_count, lj->lioj_finished_count);
 		}
 	}
 
@@ -733,7 +731,7 @@ aio_process(struct aiocblist *aiocbe)
 	inblock_st = mycp->p_stats->p_ru.ru_inblock;
 	oublock_st = mycp->p_stats->p_ru.ru_oublock;
 	/*
-	 * _aio_aqueue() acquires a reference to the file that is
+	 * aio_aqueue() acquires a reference to the file that is
 	 * released in aio_free_entry().
 	 */
 	if (cb->aio_lio_opcode == LIO_READ) {
@@ -1066,7 +1064,7 @@ aio_newproc(int *start)
  * VCHR devices.  This method doesn't use an aio helper thread, and
  * thus has very low overhead.
  *
- * Assumes that the caller, _aio_aqueue(), has incremented the file
+ * Assumes that the caller, aio_aqueue(), has incremented the file
  * structure's reference count, preventing its deallocation for the
  * duration of this call.
  */
@@ -1247,7 +1245,7 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
  * technique is done in this code.
  */
 static int
-_aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
+aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	int type, int oldsigev)
 {
 	struct proc *p = td->td_proc;
@@ -1265,16 +1263,25 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	int fd;
 	int jid;
 
+	if (p->p_aioinfo == NULL)
+		aio_init_aioinfo(p);
+
 	ki = p->p_aioinfo;
+
+	suword(&job->_aiocb_private.status, -1);
+	suword(&job->_aiocb_private.error, 0);
+	suword(&job->_aiocb_private.kernelinfo, -1);
+
+	if (num_queue_count >= max_queue_count ||
+	    ki->kaio_count >= ki->kaio_qallowed_count) {
+		suword(&job->_aiocb_private.error, EAGAIN);
+		return (EAGAIN);
+	}
 
 	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK | M_ZERO);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
 	knlist_init(&aiocbe->klist, &p->p_mtx, NULL, NULL, NULL);
-
-	suword(&job->_aiocb_private.status, -1);
-	suword(&job->_aiocb_private.error, 0);
-	suword(&job->_aiocb_private.kernelinfo, -1);
 
 	if (oldsigev) {
 		bzero(&aiocbe->uaiocb, sizeof(struct aiocb));
@@ -1486,28 +1493,6 @@ retryproc:
 
 done:
 	return (error);
-}
-
-/*
- * This routine queues an AIO request, checking for quotas.
- */
-static int
-aio_aqueue(struct thread *td, struct aiocb *job, int type, int oldsigev)
-{
-	struct proc *p = td->td_proc;
-	struct kaioinfo *ki;
-
-	if (p->p_aioinfo == NULL)
-		aio_init_aioinfo(p);
-
-	if (num_queue_count >= max_queue_count)
-		return (EAGAIN);
-
-	ki = p->p_aioinfo;
-	if (ki->kaio_count >= ki->kaio_qallowed_count)
-		return (EAGAIN);
-
-	return _aio_aqueue(td, job, NULL, type, oldsigev);
 }
 
 /*
@@ -1776,7 +1761,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	PROC_UNLOCK(p);
 
 	/*
-	 * Hack for failure of _aio_aqueue.
+	 * Hack for failure of aio_aqueue.
 	 */
 	status = fuword(&uap->aiocbp->_aiocb_private.status);
 	if (status == -1) {
@@ -1793,14 +1778,14 @@ int
 oaio_read(struct thread *td, struct oaio_read_args *uap)
 {
 
-	return aio_aqueue(td, (struct aiocb *)uap->aiocbp, LIO_READ, 1);
+	return aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_READ, 1);
 }
 
 int
 aio_read(struct thread *td, struct aio_read_args *uap)
 {
 
-	return aio_aqueue(td, uap->aiocbp, LIO_READ, 0);
+	return aio_aqueue(td, uap->aiocbp, NULL, LIO_READ, 0);
 }
 
 /* syscall - asynchronous write to a file (REALTIME) */
@@ -1808,14 +1793,14 @@ int
 oaio_write(struct thread *td, struct oaio_write_args *uap)
 {
 
-	return aio_aqueue(td, (struct aiocb *)uap->aiocbp, LIO_WRITE, 1);
+	return aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE, 1);
 }
 
 int
 aio_write(struct thread *td, struct aio_write_args *uap)
 {
 
-	return aio_aqueue(td, uap->aiocbp, LIO_WRITE, 0);
+	return aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITE, 0);
 }
 
 /* syscall - list directed I/O (REALTIME) */
@@ -1863,7 +1848,6 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 	lj->lioj_flags = 0;
 	lj->lioj_count = 0;
 	lj->lioj_finished_count = 0;
-	lj->lioj_ref_count = 0;
 	knlist_init(&lj->klist, &p->p_mtx, NULL, NULL, NULL);
 	ksiginfo_init(&lj->lioj_ksi);
 
@@ -1935,7 +1919,7 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 	for (i = 0; i < uap->nent; i++) {
 		iocb = (struct aiocb *)(intptr_t)fuword(&cbptr[i]);
 		if (((intptr_t)iocb != -1) && ((intptr_t)iocb != 0)) {
-			error = _aio_aqueue(td, iocb, lj, 0, oldsigev);
+			error = aio_aqueue(td, iocb, lj, 0, oldsigev);
 			if (error != 0)
 				nerror++;
 		}
