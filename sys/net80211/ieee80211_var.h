@@ -71,6 +71,7 @@
 #define	IEEE80211_BINTVAL_DEFAULT 100	/* default beacon interval (TU's) */
 
 #define	IEEE80211_BMISS_MAX	2	/* maximum consecutive bmiss allowed */
+#define	IEEE80211_SWBMISS_THRESHOLD 50	/* s/w bmiss threshold (TU's) */
 
 #define	IEEE80211_PS_SLEEP	0x1	/* STA is in power saving mode */
 #define	IEEE80211_PS_MAX_QUEUE	50	/* maximum saved packets */
@@ -83,6 +84,7 @@
 
 #define	IEEE80211_MS_TO_TU(x)	(((x) * 1024) / 1000)
 #define	IEEE80211_TU_TO_MS(x)	(((x) * 1000) / 1024)
+#define	IEEE80211_TU_TO_TICKS(x)(((x) * hz) / 1024)
 
 struct ieee80211_aclator;
 struct sysctl_ctx_list;
@@ -147,6 +149,9 @@ struct ieee80211com {
 	u_int8_t		ic_bmissthreshold;
 	u_int8_t		ic_bmiss_count;	/* current beacon miss count */
 	int			ic_bmiss_max;	/* max bmiss before scan */
+	u_int16_t		ic_swbmiss_count;/* beacons in last period */
+	u_int16_t		ic_swbmiss_period;/* s/w bmiss period */
+	struct callout		ic_swbmiss;	/* s/w beacon miss timer */
 	struct ieee80211_node	*(*ic_node_alloc)(struct ieee80211_node_table*);
 	void			(*ic_node_free)(struct ieee80211_node *);
 	void			(*ic_node_cleanup)(struct ieee80211_node *);
@@ -247,6 +252,7 @@ struct ieee80211com {
 /* 0x00000006 reserved */
 #define	IEEE80211_FEXT_BGSCAN	0x00000008	/* STATUS: enable full bgscan completion */
 #define	IEEE80211_FEXT_ERPUPDATE 0x00000200	/* STATUS: update ERP element */
+#define	IEEE80211_FEXT_SWBMISS	0x00000400	/* CONF: do bmiss in s/w */
 
 /* ic_caps */
 #define	IEEE80211_C_WEP		0x00000001	/* CAPABILITY: WEP available */
