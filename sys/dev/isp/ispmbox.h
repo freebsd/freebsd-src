@@ -2,7 +2,7 @@
 /*-
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -159,10 +159,6 @@
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
 #define	MBOX_BUSY			0x04
-
-typedef struct {
-	u_int16_t param[8];
-} mbreg_t;
 
 /*
  * Mailbox Command Complete Status Codes
@@ -351,6 +347,7 @@ typedef struct {
 #define SYNC_DEVICE	0
 #define SYNC_TARGET	1
 #define SYNC_ALL	2
+#define SYNC_LIP	3
 
 #define	ISP_RQDSEG_T2		3
 typedef struct {
@@ -368,6 +365,20 @@ typedef struct {
 	ispds_t		req_dataseg[ISP_RQDSEG_T2];
 } ispreqt2_t;
 
+typedef struct {
+	isphdr_t	req_header;
+	u_int32_t	req_handle;
+	u_int16_t	req_target;
+	u_int16_t	req_scclun;
+	u_int16_t	req_flags;
+	u_int16_t	_res2;
+	u_int16_t	req_time;
+	u_int16_t	req_seg_count;
+	u_int8_t	req_cdb[16];
+	u_int32_t	req_totalcnt;
+	ispds_t		req_dataseg[ISP_RQDSEG_T2];
+} ispreqt2e_t;
+
 #define	ISP_RQDSEG_T3		2
 typedef struct {
 	isphdr_t	req_header;
@@ -383,6 +394,20 @@ typedef struct {
 	u_int32_t	req_totalcnt;
 	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
 } ispreqt3_t;
+
+typedef struct {
+	isphdr_t	req_header;
+	u_int32_t	req_handle;
+	u_int16_t	req_target;
+	u_int16_t	req_scclun;
+	u_int16_t	req_flags;
+	u_int16_t	_res2;
+	u_int16_t	req_time;
+	u_int16_t	req_seg_count;
+	u_int8_t	req_cdb[16];
+	u_int32_t	req_totalcnt;
+	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
+} ispreqt3e_t;
 
 /* req_flag values */
 #define	REQFLAG_NODISCON	0x0001
@@ -569,6 +594,12 @@ typedef struct {
 #define	ISP_FW_ATTR_CLASS2	0x08
 #define	ISP_FW_ATTR_FCTAPE	0x10
 #define	ISP_FW_ATTR_IP		0x20
+#define	ISP_FW_ATTR_VI		0x40
+#define	ISP_FW_ATTR_VI_SOLARIS	0x80
+#define	ISP_FW_ATTR_2KLOGINS	0x100	/* XXX: just a guess */
+
+#define	IS_2KLOGIN(isp)	\
+	(IS_FC(isp) && (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
 
 /*
  * Reduced Interrupt Operation Response Queue Entreis
