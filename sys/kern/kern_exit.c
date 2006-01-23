@@ -437,14 +437,13 @@ retry:
 
 	/*
 	 * Save exit status and finalize rusage info except for times,
-	 * adding in child rusage info.
+	 * adding in child rusage info later when our time is locked.
 	 */
 	PROC_LOCK(p);
 	p->p_xstat = rv;
 	p->p_xthread = td;
 	p->p_stats->p_ru.ru_nvcsw++;
 	*p->p_ru = p->p_stats->p_ru;
-	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/*
 	 * Notify interested parties of our demise.
@@ -530,6 +529,8 @@ retry:
 	mtx_lock_spin(&sched_lock);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
+
+	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	binuptime(&new_switchtime);
