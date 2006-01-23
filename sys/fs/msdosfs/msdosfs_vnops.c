@@ -1176,7 +1176,7 @@ abortit:
 		zp->de_fndoffset = from_diroffset;
 		error = removede(zp, ip);
 		if (error) {
-			/* XXX should really panic here, fs is corrupt */
+			/* XXX should downgrade to ro here, fs is corrupt */
 			if (newparent)
 				VOP_UNLOCK(fdvp, 0, td);
 			VOP_UNLOCK(fvp, 0, td);
@@ -1186,7 +1186,7 @@ abortit:
 			error = pcbmap(dp, de_cluster(pmp, to_diroffset), 0,
 				       &ip->de_dirclust, 0);
 			if (error) {
-				/* XXX should really panic here, fs is corrupt */
+				/* XXX should downgrade to ro here, fs is corrupt */
 				if (newparent)
 					VOP_UNLOCK(fdvp, 0, td);
 				VOP_UNLOCK(fvp, 0, td);
@@ -1216,7 +1216,7 @@ abortit:
 		error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
 			      NOCRED, &bp);
 		if (error) {
-			/* XXX should really panic here, fs is corrupt */
+			/* XXX should downgrade to ro here, fs is corrupt */
 			brelse(bp);
 			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
@@ -1227,7 +1227,7 @@ abortit:
 			putushort(dotdotp->deHighClust, dp->de_StartCluster >> 16);
 		error = bwrite(bp);
 		if (error) {
-			/* XXX should really panic here, fs is corrupt */
+			/* XXX should downgrade to ro here, fs is corrupt */
 			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
 		}
