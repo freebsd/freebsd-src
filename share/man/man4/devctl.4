@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2003
+.Dd January 23, 2006
 .Dt DEVCTL 4
 .Os
 .Sh NAME
@@ -93,6 +93,7 @@ The first character of the record is the event type.
 .Pp
 .Bl -column -compact "Type" "Description"
 .Em "Type	Description"
+!	A notify event, such as a link state change.
 +	Device node in tree attached.
 -	Device node in tree detached.
 ?	Unknown device detected.
