@@ -864,7 +864,8 @@ moduledir_readhints(struct moduledir *mdp)
     if (mdp->d_hints != NULL || (mdp->d_flags & MDIR_NOHINTS))
 	return;
     path = moduledir_fullpath(mdp, "linker.hints");
-    if (stat(path, &st) != 0 || st.st_size < (sizeof(version) + sizeof(int)) ||
+    if (stat(path, &st) != 0 ||
+	st.st_size < (ssize_t)(sizeof(version) + sizeof(int)) ||
 	st.st_size > 100 * 1024 || (fd = open(path, O_RDONLY)) < 0) {
 	free(path);
 	mdp->d_flags |= MDIR_NOHINTS;
