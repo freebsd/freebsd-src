@@ -858,7 +858,7 @@ ip_next_mtu(mtu, dir)
 
 	size = (sizeof mtutab) / (sizeof mtutab[0]);
 	if (dir >= 0) {
-		for (i = 0; i < size; i++) {
+		for (i = 0; i < size; i++)
 			if (mtu > mtutab[i])
 				return mtutab[i];
 	} else {
