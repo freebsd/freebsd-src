@@ -640,14 +640,13 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 }
 
 /*
- * Send packets out our output hook
+ * Send packets out our output hook.
  */
 static int
-ng_source_send (sc_p sc, int tosend, int *sent_p)
+ng_source_send(sc_p sc, int tosend, int *sent_p)
 {
-	struct ifqueue tmp_queue;
 	struct mbuf *m, *m2;
-	int sent = 0;
+	int sent;
 	int error = 0;
 
 	KASSERT(tosend >= 0, ("%s: negative tosend param", __func__));
@@ -657,14 +656,13 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 	if ((uint64_t)tosend > sc->packets)
 		tosend = sc->packets;
 
-	/* Copy the required number of packets to a temporary queue */
-	bzero (&tmp_queue, sizeof (tmp_queue));
+	/* Go through the queue sending packets one by one. */
 	for (sent = 0; error == 0 && sent < tosend; ++sent) {
 		_IF_DEQUEUE(&sc->snd_queue, m);
 		if (m == NULL)
 			break;
 
-		/* duplicate the packet */
+		/* Duplicate the packet. */
 		m2 = m_copypacket(m, M_DONTWAIT);
 		if (m2 == NULL) {
 			_IF_PREPEND(&sc->snd_queue, m);
@@ -675,25 +673,11 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 		/* Re-enqueue the original packet for us. */
 		_IF_ENQUEUE(&sc->snd_queue, m);
 
-		/* Queue the copy for sending at splimp. */
-		_IF_ENQUEUE(&tmp_queue, m2);
-	}
-
-	sent = 0;
-	for (;;) {
-		_IF_DEQUEUE(&tmp_queue, m2);
-		if (m2 == NULL)
+		sc->stats.outFrames++;
+		sc->stats.outOctets += m2->m_pkthdr.len;
+		NG_SEND_DATA_ONLY(error, sc->output, m2);
+		if (error)
 			break;
-		if (error == 0) {
-			++sent;
-			sc->stats.outFrames++;
-			sc->stats.outOctets += m2->m_pkthdr.len;
-			NG_SEND_DATA_ONLY(error, sc->output, m2);
-			if (error)
-				log(LOG_DEBUG, "%s: error=%d", __func__, error);
-		} else {
-			NG_FREE_M(m2);
-		}
 	}
 
 	sc->packets -= sent;
