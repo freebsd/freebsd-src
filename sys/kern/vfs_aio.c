@@ -1296,6 +1296,16 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		uma_zfree(aiocb_zone, aiocbe);
 		return (error);
 	}
+
+	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT &&
+	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_SIGNAL &&
+	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_THREAD_ID &&
+	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_NONE) {
+		suword(&job->_aiocb_private.error, EINVAL);
+		uma_zfree(aiocb_zone, aiocbe);
+		return (EINVAL);
+	}
+	
 	if ((aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL ||
 	     aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_THREAD_ID) &&
 		!_SIG_VALID(aiocbe->uaiocb.aio_sigevent.sigev_signo)) {
@@ -1892,11 +1902,16 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 			}
 		} else if (lj->lioj_signal.sigev_notify == SIGEV_NONE) {
 			;
-		} else if (!_SIG_VALID(lj->lioj_signal.sigev_signo)) {
+		} else if (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL ||
+			   lj->lioj_signal.sigev_notify == SIGEV_THREAD_ID) {
+				if (!_SIG_VALID(lj->lioj_signal.sigev_signo)) {
+					uma_zfree(aiolio_zone, lj);
+					return EINVAL;
+				}
+				lj->lioj_flags |= LIOJ_SIGNAL;
+		} else {
 			uma_zfree(aiolio_zone, lj);
 			return EINVAL;
-		} else {
-			lj->lioj_flags |= LIOJ_SIGNAL;
 		}
 	}
 
