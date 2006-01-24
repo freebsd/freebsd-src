@@ -286,7 +286,7 @@ configAnonFTP(dialogMenuItem *self __unused)
     
     if (directory_exists(tconf.homedir)) {
 	msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
-	vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
+	vsystem("chmod 555 %s && chown root:%s %s", tconf.homedir, tconf.group, tconf.homedir);
 	vsystem("mkdir %s/bin && chmod 555 %s/bin", tconf.homedir, tconf.homedir);
 	vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tconf.homedir, tconf.homedir);
 	vsystem("cp /bin/date %s/bin && chmod 111 %s/bin/date", tconf.homedir, tconf.homedir);
@@ -298,8 +298,8 @@ configAnonFTP(dialogMenuItem *self __unused)
 	if (DITEM_STATUS(createFtpUser()) == DITEM_SUCCESS) {
 	    msgNotify("Copying password information for anon FTP.");
 	    vsystem("awk -F: '{if ($3 < 10 || $1 == \"ftp\") print $0}' /etc/passwd > %s/etc/passwd && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
-	    vsystem("awk -F: '{if ($3 < 100) print $0}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
-	    vsystem("chown -R root.%s %s/pub", tconf.group, tconf.homedir);
+	    vsystem("awk -F: '!/^#/ {if ($3 < 100) printf \"%%s:*:%%s:\\n\", $1, $3}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
+	    vsystem("chown -R root:%s %s/pub", tconf.group, tconf.homedir);
 	}
 	else {
 	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
