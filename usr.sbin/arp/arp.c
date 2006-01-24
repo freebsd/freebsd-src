@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 	if (!func)
 		func = F_GET;
 	if (rifname) {
-		if (func != F_GET)
+		if (func != F_GET && !(func == F_DELETE && aflag))
 			errx(1, "-i not applicable to this operation");
 		if (if_nametoindex(rifname) == 0) {
 			if (errno == ENXIO)
@@ -625,7 +625,7 @@ usage(void)
 		"usage: arp [-n] [-i interface] hostname",
 		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
-		"       arp -d -a",
+		"       arp -d [-i interface] -a",
 		"       arp -s hostname ether_addr [temp] [pub]",
 		"       arp -S hostname ether_addr [temp] [pub]",
 		"       arp -f filename");
