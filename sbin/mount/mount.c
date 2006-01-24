@@ -717,7 +717,7 @@ update_options(opts, fstab, curflags)
 void
 remopt(string, opt)
 	char *string;
- 	const char *opt;
+	const char *opt;
 {
 	char *o, *p, *r;
 
