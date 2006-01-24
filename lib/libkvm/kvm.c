@@ -179,6 +179,11 @@ _kvm_open(kd, uf, mf, flag, errout)
 		_kvm_syserr(kd, kd->program, "%s", mf);
 		goto failed;
 	}
+	if (S_ISREG(st.st_mode) && st.st_size <= 0) {
+		errno = EINVAL;
+		_kvm_syserr(kd, kd->program, "empty file");
+		goto failed;
+	}
 	if (fcntl(kd->pmfd, F_SETFD, FD_CLOEXEC) < 0) {
 		_kvm_syserr(kd, kd->program, "%s", mf);
 		goto failed;
