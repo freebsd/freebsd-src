@@ -100,6 +100,7 @@ struct feed_rate_info {
 	uint32_t alpha;		/* interpolation distance */
 	uint32_t pos, bpos;	/* current sample / buffer positions */
 	uint32_t bufsz;		/* total buffer size */
+	uint32_t stray;		/* stray bytes */
 	int32_t  scale, roll;	/* scale / roll factor */
 	int16_t  *buffer;
 	uint32_t (*convert)(struct feed_rate_info *, int16_t *, uint32_t);
@@ -350,6 +351,7 @@ feed_rate_setup(struct pcm_feeder *f)
 	info->pos = 2;
 	info->bpos = 4;
 	info->alpha = 0;
+	info->stray = 0;
 	feed_rate_reset(info);
 	if (info->src == info->dst) {
 		/*
@@ -710,12 +712,13 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	slot = (((info->gx * (count >> 1)) + info->gy - info->alpha - 1) / info->gy) << 1;
 	RATE_TEST((slot & 1) == 0, ("%s: Slot count not sample integral (%d)\n",
 						__func__, slot));
-	slot &= ~1;
 	/*
 	 * Optimize buffer feeding aggresively to ensure calculated slot
 	 * can be fitted nicely into available buffer free space, hence
 	 * avoiding multiple feeding.
 	 */
+	RATE_TEST(info->stray == 0, ("%s: [1] Stray bytes: %u\n",
+		__func__,info->stray));
 	if (info->pos != 2 && info->bpos - info->pos == 2 &&
 			info->bpos + slot > info->bufsz) {
 		/*
@@ -734,25 +737,31 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	i = 0;
 	for (;;) {
 		for (;;) {
-			fetch = info->bufsz - info->bpos;
+			fetch = (info->bufsz - info->bpos) << 1;
+			fetch -= info->stray;
 			RATE_ASSERT(fetch >= 0,
 				("%s: [1] Buffer overrun: %d > %d\n",
 					__func__, info->bpos, info->bufsz));
-			if (slot < fetch)
-				fetch = slot;
-			fetch &= ~1;
+			if ((slot << 1) < fetch)
+				fetch = slot << 1;
 			if (fetch > 0) {
-				RATE_TEST((fetch & 1) == 0,
-					("%s: Fetch size not sample integral (%d)\n",
-					__func__, fetch));
+				RATE_ASSERT(((info->bpos << 1) - info->stray) >= 0 &&
+					((info->bpos << 1) - info->stray) < (info->bufsz << 1),
+					("%s: DANGER - BUFFER OVERRUN! bufsz=%d, pos=%d\n", __func__,
+					info->bufsz << 1, (info->bpos << 1) - info->stray));
 				fetch = FEEDER_FEED(f->source, c,
-						(uint8_t *)(info->buffer + info->bpos),
-						fetch << 1, source);
+						(uint8_t *)(info->buffer) + (info->bpos << 1) - info->stray,
+						fetch, source);
+				info->stray = 0;
 				if (fetch == 0)
 					break;
 				RATE_TEST((fetch & 3) == 0,
 					("%s: Fetch size not byte integral (%d)\n",
 					__func__, fetch));
+				info->stray += fetch & 3;
+				RATE_TEST(info->stray == 0,
+					("%s: Stray bytes detected (%d)\n",
+					__func__, info->stray));
 				fetch >>= 1;
 				fetch &= ~1;
 				info->bpos += fetch;
@@ -790,6 +799,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			 * to beginning of buffer so next cycle can
 			 * interpolate using it.
 			 */
+			RATE_TEST(info->stray == 0, ("%s: [2] Stray bytes: %u\n", __func__, info->stray));
 			info->buffer[0] = info->buffer[info->pos - 2];
 			info->buffer[1] = info->buffer[info->pos - 1];
 			info->bpos = 2;
@@ -798,7 +808,10 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if (i == count)
 			break;
 	}
+#if 0
 	RATE_TEST(count == i, ("Expect: %u , Got: %u\n", count << 1, i << 1));
+#endif
+	RATE_TEST(info->stray == 0, ("%s: [3] Stray bytes: %u\n", __func__, info->stray));
 	return i << 1;
 }
 
