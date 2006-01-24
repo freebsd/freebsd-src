@@ -9,8 +9,6 @@
 # BEFORE:  DAEMON mountcritremote
 # KEYWORD: nojail
 
-#	it does not really require beforenetlkm.
-
 . /etc/rc.subr
 
 name="ipsec"
