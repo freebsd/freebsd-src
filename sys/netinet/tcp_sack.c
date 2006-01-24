@@ -323,6 +323,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		tp->snd_numholes = 0;
 	if (tp->t_maxseg == 0)
 		panic("tcp_sack_option"); /* Should never happen */
+next_block:
 	while (tmp_olen > 0) {
 		struct sackblk sack;
 
@@ -420,12 +421,12 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 					tcp_sack_globalholes >= 
 					 tcp_sack_globalmaxholes) {
 					tcpstat.tcps_sack_sboverflow++;
-					continue;
+					goto next_block;
 				}
 				temp = (struct sackhole *)
 					uma_zalloc(sack_hole_zone,M_NOWAIT);
 				if (temp == NULL)
-					continue; /* ENOBUFS */
+					goto next_block; /* ENOBUFS */
 				temp->next = cur->next;
 				temp->start = sack.end;
 				temp->end = cur->end;
