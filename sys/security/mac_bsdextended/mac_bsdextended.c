@@ -150,7 +150,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	index = name[0];
-        if (index > MAC_BSDEXTENDED_MAXRULES)
+        if (index >= MAC_BSDEXTENDED_MAXRULES)
 		return (ENOENT);
 
 	ruleptr = NULL;
