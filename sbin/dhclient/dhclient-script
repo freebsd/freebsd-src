@@ -276,7 +276,7 @@ TIMEOUT)
 	if [ -n "$new_routers" ]; then
 		$LOGGER "New Routers ($interface): $new_routers"
 		set "$new_routers"
-		if ping -q -c 1 -w 1 "$1"; then
+		if ping -q -c 1 -t 1 "$1"; then
 			if [ "$new_ip_address" != "$alias_ip_address" ]; then
 				add_new_alias
 			fi
