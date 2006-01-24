@@ -1517,17 +1517,19 @@ ip_forward(struct mbuf *m, int srcrt)
 #endif
 				ipstat.ips_cantfrag++;
 				break;
-			} else 
+			}
 #endif /*IPSEC || FAST_IPSEC*/
 		/*
-		 * When doing source routing 'ia' can be NULL.  Fall back
-		 * to the minimum guaranteed routeable packet size and use
-		 * the same hack as IPSEC to setup a dummyifp for icmp.
+		 * If the MTU wasn't set before use the interface mtu or
+		 * fall back to the next smaller mtu step compared to the
+		 * current packet size.
 		 */
-		if (ia == NULL)
-			mtu = IP_MSS;
-		else
-			mtu = ia->ia_ifp->if_mtu;
+		if (mtu == 0) {
+			if (ia != NULL)
+				mtu = ia->ia_ifp->if_mtu;
+			else
+				mtu = ip_next_mtu(ip->ip_len, 0);
+		}
 #if defined(IPSEC) || defined(FAST_IPSEC)
 		}
 #endif /*IPSEC || FAST_IPSEC*/
