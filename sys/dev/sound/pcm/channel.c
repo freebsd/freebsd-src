@@ -34,8 +34,11 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define MIN_CHUNK_SIZE 		256	/* for uiomove etc. */
+#if 0
 #define	DMA_ALIGN_THRESHOLD	4
 #define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
+#endif
+#define	DMA_ALIGN_MASK(bps)		(~((bps) - 1))
 
 #define CANCHANGE(c) (!(c->flags & CHN_F_TRIGGERED))
 
@@ -1253,7 +1256,10 @@ chn_getptr(struct pcm_channel *c)
 #if 1
 	hwptr &= ~a ; /* Apply channel align mask */
 #endif
+#if 0
 	hwptr &= DMA_ALIGN_MASK; /* Apply DMA align mask */
+#endif
+	hwptr &= DMA_ALIGN_MASK(sndbuf_getbps(c->bufhard));
 	return hwptr;
 }
 
