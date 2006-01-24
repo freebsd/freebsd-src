@@ -830,12 +830,10 @@ cmi_probe(device_t dev)
 static int
 cmi_attach(device_t dev)
 {
-	struct snddev_info	*d;
 	struct sc_info		*sc;
 	u_int32_t		data;
 	char			status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	sc = malloc(sizeof(struct sc_info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
