@@ -28,7 +28,7 @@ linux_start()
 	if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
 		kldload linux > /dev/null 2>&1
 	fi
-	if [ -x /compat/linux/sbin/ldconfig ]; then
+	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
 		_tmpdir=`mktemp -d -t linux-ldconfig`
 		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
 		if ! cmp -s ${_tmpdir}/ld.so.cache /compat/linux/etc/ld.so.cache; then
