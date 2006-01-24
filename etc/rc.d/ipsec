@@ -61,8 +61,6 @@ ipsec_stop()
 ipsec_reload()
 {
 	echo "Reloading ipsec manual keys/policies."
-	${ipsec_program} -F
-	${ipsec_program} -FP
 	${ipsec_program} -f "$ipsec_file"
 }
 
