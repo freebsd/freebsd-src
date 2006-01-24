@@ -872,6 +872,7 @@ aio_daemon(void *_id)
 	 */
 	fdfree(td);
 
+	/* The daemon resides in its own pgrp. */
 	setsid(td, NULL);
 
 	/*
