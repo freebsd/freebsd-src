@@ -479,7 +479,8 @@ in_control(so, cmd, data, ifp, td)
 	s = splnet();
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
-	LIST_REMOVE(ia, ia_hash);
+	if (ia->ia_addr.sin_family == AF_INET)
+		LIST_REMOVE(ia, ia_hash);
 	IFAFREE(&ia->ia_ifa);
 	splx(s);
 
