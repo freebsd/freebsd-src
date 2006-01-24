@@ -30,6 +30,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
@@ -154,6 +155,9 @@ udp_input(m, off)
 	int len;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
+#ifdef IPFIREWALL_FORWARD
+	struct m_tag *fwd_tag;
+#endif
 
 	udpstat.udps_ipackets++;
 
@@ -242,6 +246,22 @@ udp_input(m, off)
 		}
 	} else
 		udpstat.udps_nosum++;
+
+#ifdef IPFIREWALL_FORWARD
+	/* Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain. */
+	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+
+	if (fwd_tag != NULL) {
+		struct sockaddr_in *next_hop;
+
+		/* Do the hack. */
+		next_hop = (struct sockaddr_in *)(fwd_tag + 1);
+		ip->ip_dst = next_hop->sin_addr;
+		uh->uh_dport = ntohs(next_hop->sin_port);
+		/* Remove the tag from the packet.  We don't need it anymore. */
+		m_tag_delete(m, fwd_tag);
+	}
+#endif
 
 	INP_INFO_RLOCK(&udbinfo);
 
