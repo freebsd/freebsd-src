@@ -38,13 +38,18 @@
 
 /*
  * Trace classes
+ *
+ * Two of the trace classes (KTR_DEV and KTR_SUBSYS) are special in that
+ * they are really placeholders so that indvidual drivers and subsystems
+ * can map their internal tracing to the general class when they wish to
+ * have tracing enabled and map it to 0 when they don't.
  */
 #define	KTR_GEN		0x00000001		/* General (TR) */
 #define	KTR_NET		0x00000002		/* Network */
 #define	KTR_DEV		0x00000004		/* Device driver */
 #define	KTR_LOCK	0x00000008		/* MP locking */
 #define	KTR_SMP		0x00000010		/* MP general */
-#define	KTR_SPARE1	0x00000020		/* Unused */
+#define	KTR_SUBSYS	0x00000020		/* Subsystem. */
 #define	KTR_PMAP	0x00000040		/* Pmap tracing */
 #define	KTR_MALLOC	0x00000080		/* Malloc tracing */
 #define	KTR_TRAP	0x00000100		/* Trap processing */
@@ -60,7 +65,7 @@
 #define	KTR_VFS		0x00040000		/* VFS events */
 #define	KTR_VOP		0x00080000		/* Auto-generated vop events */
 #define	KTR_VM		0x00100000		/* The virtual memory system */
-#define	KTR_WITNESS	0x00200000
+#define	KTR_SPARE1	0x00200000		/* Unused */
 #define	KTR_RUNQ	0x00400000		/* Run queue */
 #define	KTR_CONTENTION	0x00800000		/* Lock contention */
 #define	KTR_UMA		0x01000000		/* UMA slab allocator */
