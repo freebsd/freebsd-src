@@ -33,6 +33,10 @@ portupgrade.
 	Please report the problem to the port's maintainer, and the
 	freebsd-ports@freebsd.org mailing list.
 
+20051215:
+	The setkey(8) utility was moved from /usr/sbin/setkey to /sbin/setkey.
+	You may want to update scripts which depend on its location.
+
 20051101:
 	FreeBSD 6.0-RELEASE
 
