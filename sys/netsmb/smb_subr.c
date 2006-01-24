@@ -117,7 +117,7 @@ char *
 smb_strdupin(char *s, int maxlen)
 {
 	char *p, bt;
-	int len = 0;
+	int error, len = 0;
 
 	for (p = s; ;p++) {
 		if (copyin(p, &bt, 1))
@@ -129,7 +129,11 @@ smb_strdupin(char *s, int maxlen)
 			break;
 	}
 	p = malloc(len, M_SMBSTR, M_WAITOK);
-	copyin(s, p, len);
+	error = copyin(s, p, len);
+	if (error) {
+		free(p, M_SMBSTR);
+		return (NULL);
+	}
 	return p;
 }
 
