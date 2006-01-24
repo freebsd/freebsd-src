@@ -103,6 +103,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#if 0
+#define	KTR_WITNESS	KTR_SUBSYS
+#else
+#define	KTR_WITNESS	0
+#endif
+
 /* Easier to stay with the old names. */
 #define	lo_list		lo_witness_data.lod_list
 #define	lo_witness	lo_witness_data.lod_witness
