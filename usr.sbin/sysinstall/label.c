@@ -67,7 +67,7 @@
 #define ROOT_MIN_SIZE			118
 #endif
 #define SWAP_MIN_SIZE			32
-#define USR_MIN_SIZE			80
+#define USR_MIN_SIZE			128
 #define VAR_MIN_SIZE			20
 #define TMP_MIN_SIZE			20
 #define HOME_MIN_SIZE			20
