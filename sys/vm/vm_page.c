@@ -1558,6 +1558,8 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	bits = vm_page_bits(base, size);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
+		pmap_remove_all(m);
 	m->valid &= ~bits;
 	m->dirty &= ~bits;
 	m->object->generation++;
