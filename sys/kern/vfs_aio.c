@@ -420,10 +420,18 @@ aio_unload(void)
 	error = kqueue_del_filteropts(EVFILT_AIO);
 	if (error)
 		return error;
+	error = kqueue_del_filteropts(EVFILT_LIO);
+	if (error)
+		return error;
 	async_io_version = 0;
 	aio_swake = NULL;
 	taskqueue_free(taskqueue_aiod_bio);
 	delete_unrhdr(aiod_unr);
+	uma_zdestroy(kaio_zone);
+	uma_zdestroy(aiop_zone);
+	uma_zdestroy(aiocb_zone);
+	uma_zdestroy(aiol_zone);
+	uma_zdestroy(aiolio_zone);
 	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	EVENTHANDLER_DEREGISTER(process_exec, exec_tag);
 	mtx_destroy(&aio_job_mtx);
@@ -833,8 +841,6 @@ aio_daemon(void *_id)
 	struct proc *curcp, *mycp, *userp;
 	struct vmspace *myvm, *tmpvm;
 	struct thread *td = curthread;
-	struct pgrp *newpgrp;
-	struct session *newsess;
 	int id = (intptr_t)_id;
 
 	/*
@@ -866,15 +872,7 @@ aio_daemon(void *_id)
 	 */
 	fdfree(td);
 
-	/* The daemon resides in its own pgrp. */
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
-		M_WAITOK | M_ZERO);
-	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION,
-		M_WAITOK | M_ZERO);
-
-	sx_xlock(&proctree_lock);
-	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
-	sx_xunlock(&proctree_lock);
+	setsid(td, NULL);
 
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
