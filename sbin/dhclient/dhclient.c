@@ -200,13 +200,23 @@ routehandler(struct protocol *p)
 
 	switch (rtm->rtm_type) {
 	case RTM_NEWADDR:
+		/*
+		 * XXX: If someone other than us adds our address,
+		 * we should assume they are taking over from us,
+		 * delete the lease record, and exit without modifying
+		 * the interface.
+		 */
+		break;
+	case RTM_DELADDR:
 		ifam = (struct ifa_msghdr *)rtm;
+
 		if (ifam->ifam_index != ifi->index)
 			break;
 		if (findproto((char *)(ifam + 1), ifam->ifam_addrs) != AF_INET)
 			break;
-		if (ifi == NULL)
-			goto die;
+		if (scripttime == 0 || t < scripttime + 10)
+			break;
+
 		sa = get_ifa((char *)(ifam + 1), ifam->ifam_addrs);
 		if (sa == NULL)
 			goto die;
@@ -221,17 +231,7 @@ routehandler(struct protocol *p)
 			if (addr_eq(a, l->address))
 				break;
 
-		if (l != NULL)	/* new addr is the one we set */
-			break;
-
-		goto die;
-	case RTM_DELADDR:
-		ifam = (struct ifa_msghdr *)rtm;
-		if (ifam->ifam_index != ifi->index)
-			break;
-		if (findproto((char *)(ifam + 1), ifam->ifam_addrs) != AF_INET)
-			break;
-		if (scripttime == 0 || t < scripttime + 10)
+		if (l == NULL)	/* deleted addr is not the one we set */
 			break;
 		goto die;
 	case RTM_IFINFO:
