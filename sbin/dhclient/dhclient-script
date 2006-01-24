@@ -19,9 +19,10 @@
 #
 #
 
-NETSTAT=/usr/bin/netstat
+ARP=/usr/sbin/arp
 AWK=/usr/bin/awk
 HOSTNAME=/bin/hostname
+NETSTAT=/usr/bin/netstat
 
 LOCALHOST=127.0.0.1
 
@@ -257,7 +258,9 @@ EXPIRE|FAIL)
 		delete_old_address
 		delete_old_routes
 	fi
-	ifconfig $interface delete
+	if [ -x $ARP ]; then
+		$ARP -d -a -i $interface
+	fi
 	# XXX Why add alias we just deleted above?
 	add_new_alias
 	if [ -f /etc/resolv.conf.save ]; then
