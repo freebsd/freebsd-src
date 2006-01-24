@@ -151,6 +151,10 @@ term          TERM
 .Pp
 Additional environment variables may be set using the list type
 capability "setenv=var1 val1,var2 val2..,varN valN".
+.It LOGIN_SETMAC
+Set the MAC label for the current process to the label specified
+in system login class database.
+.Pp
 .It LOGIN_SETALL
 Enables all of the above settings.
 .El
@@ -188,5 +192,6 @@ with LOG_ERR priority and directed to the currently active facility.
 .Xr getcap 3 ,
 .Xr initgroups 3 ,
 .Xr login_cap 3 ,
+.Xr mac_set_proc 3 ,
 .Xr login.conf 5 ,
 .Xr termcap 5
