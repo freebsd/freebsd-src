@@ -2,6 +2,10 @@
 
 .PATH: ${.CURDIR}/../../dev/amr
 
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+SUBDIR= amr_linux
+.endif
+
 KMOD=	amr
 SRCS=	amr.c amr_pci.c amr_disk.c device_if.h bus_if.h pci_if.h
 
