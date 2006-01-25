@@ -28,17 +28,17 @@
  * 2005-06-11:
  * ==========
  *
- * *New* and rewritten soft sample rate converter supporting arbitary sample
- * rate, fine grained scalling/coefficients and unified up/down stereo
- * converter. Most of disclaimers from orion's previous version also applied
- * here, regarding with linear interpolation deficiencies, pre/post
- * anti-aliasing filtering issues. This version comes with much simpler and
+ * *New* and rewritten soft sample rate converter supporting arbitrary sample
+ * rates, fine grained scaling/coefficients and a unified up/down stereo
+ * converter. Most of the disclaimers from orion's notes also applies
+ * here, regarding linear interpolation deficiencies and pre/post
+ * anti-aliasing filtering issues. This version comes with a much simpler and
  * tighter interface, although it works almost exactly like the older one.
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                         *
  * This new implementation is fully dedicated in memory of Cameron Grant,  *
- * the creator of magnificent, highly addictive feeder infrastructure.     *
+ * the creator of the magnificent, highly addictive feeder infrastructure. *
  *                                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
@@ -51,7 +51,7 @@
  * stage in the future.
  * 
  * Since this accuracy of interpolation is sensitive and examination
- * of the algorithm output is harder from the kernel, th code is
+ * of the algorithm output is harder from the kernel, the code is
  * designed to be compiled in the kernel and in a userland test
  * harness.  This is done by selectively including and excluding code
  * with several portions based on whether _KERNEL is defined.  It's a
@@ -713,7 +713,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	RATE_TEST((slot & 1) == 0, ("%s: Slot count not sample integral (%d)\n",
 						__func__, slot));
 	/*
-	 * Optimize buffer feeding aggresively to ensure calculated slot
+	 * Optimize buffer feeding aggressively to ensure calculated slot
 	 * can be fitted nicely into available buffer free space, hence
 	 * avoiding multiple feeding.
 	 */
