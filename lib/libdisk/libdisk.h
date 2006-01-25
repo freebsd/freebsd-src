@@ -28,7 +28,8 @@ enum platform {
 	p_sparc64,
 	p_ia64,
 	p_ppc,
-	p_amd64
+	p_amd64,
+	p_arm
 };
 extern const enum platform platform;
 

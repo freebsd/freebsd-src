@@ -26,7 +26,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
 	${_libypclnt} libalias libarchive ${_libatm} \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
-	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
+	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
 	libgssapi ${_libio} libipsec \
 	libipx libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
@@ -66,10 +66,6 @@ _libvgl=	libvgl
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
     ${MACHINE_ARCH} != "powerpc" && !defined(NO_LIBC_R)
 _libc_r=
-.endif
-
-.if ${MACHINE_ARCH} != "arm"
-_libdisk=	libdisk
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
