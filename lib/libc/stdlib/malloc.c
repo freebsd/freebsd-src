@@ -303,12 +303,6 @@ struct malloc_bin_stats_s {
 	 */
 	uint64_t	nfit;
 
-	/*
-	 * Number of allocation requests that were successfully serviced by this
-	 * bin, but that a smaller bin could have serviced.
-	 */
-	uint64_t	noverfit;
-
 	/* High-water marks for this bin. */
 	unsigned long	highcached;
 
@@ -837,6 +831,7 @@ static void	arena_large_insert(arena_t *arena, region_t *reg, bool lru);
 static void	arena_large_cache(arena_t *arena, region_t *reg, bool lru);
 static void	arena_lru_cache(arena_t *arena, region_t *reg);
 static void	arena_delay_cache(arena_t *arena, region_t *reg);
+static region_t	*arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit);
 static region_t	*arena_split_reg_alloc(arena_t *arena, size_t size, bool fit);
 static void	arena_reg_fit(arena_t *arena, size_t size, region_t *reg,
 		bool restore_split);
@@ -1190,7 +1185,6 @@ stats_merge(arena_t *arena, arena_stats_t *stats_arenas)
 		stats_arenas->bins[i].nrequests +=
 		    arena->stats.bins[i].nrequests;
 		stats_arenas->bins[i].nfit += arena->stats.bins[i].nfit;
-		stats_arenas->bins[i].noverfit += arena->stats.bins[i].noverfit;
 		if (arena->stats.bins[i].highcached
 		    > stats_arenas->bins[i].highcached) {
 		    stats_arenas->bins[i].highcached
@@ -1238,14 +1232,13 @@ stats_print(arena_stats_t *stats_arenas)
 	    stats_arenas->frag.nrequests, stats_arenas->frag.nserviced);
 
 	malloc_printf("bins:\n");
-	malloc_printf(" %4s%7s%13s%13s%13s%11s\n", "bin", 
-	    "size", "nrequests", "nfit", "noverfit", "highcached");
+	malloc_printf(" %4s%7s%13s%13s%11s\n", "bin", 
+	    "size", "nrequests", "nfit", "highcached");
 	for (i = 0; i < NBINS; i++) {
 		malloc_printf(
-		    " %4u%7u%13llu%13llu%13llu%11lu\n",
+		    " %4u%7u%13llu%13llu%11lu\n",
 		    i, ((i + bin_shift) << opt_quantum_2pow),
 		    stats_arenas->bins[i].nrequests, stats_arenas->bins[i].nfit,
-		    stats_arenas->bins[i].noverfit,
 		    stats_arenas->bins[i].highcached);
 	}
 
@@ -1656,12 +1649,6 @@ arena_bins_search(arena_t *arena, size_t size)
 		if (bit != 0) {
 			/* Usable allocation found. */
 			ret = (i * (sizeof(int) << 3)) + bit - 1;
-#ifdef MALLOC_STATS
-			if (ret == minbin)
-				arena->stats.bins[minbin].nfit++;
-			else
-				arena->stats.bins[ret].noverfit++;
-#endif
 			goto RETURN;
 		}
 	}
@@ -1765,7 +1752,7 @@ arena_extract(arena_t *arena, region_t *reg)
 	}
 }
 
-/* Try to coalesce reg with its neighbors.  Return NULL if coalescing fails. */
+/* Try to coalesce reg with its neighbors.  Return false if coalescing fails. */
 static bool
 arena_coalesce(arena_t *arena, region_t **reg, size_t size)
 {
@@ -2134,6 +2121,16 @@ arena_bin_pop(arena_t *arena, unsigned bin)
 	ret = qr_next(&tbin->regions, next.u.s.link);
 	assert(region_next_size_get(&ret->sep)
 	    == ((bin + bin_shift) << opt_quantum_2pow));
+	if (region_next_free_get(&ret->sep) == false) {
+		/*
+		 * Use delayed regions in LIFO order, in order to increase
+		 * locality of use, and thereby (hopefully) reduce
+		 * fragmentation.
+		 */
+		ret = qr_prev(&tbin->regions, next.u.s.link);
+		assert(region_next_size_get(&ret->sep)
+		    == ((bin + bin_shift) << opt_quantum_2pow));
+	}
 	qr_remove(ret, next.u.s.link);
 #ifdef MALLOC_STATS
 	arena->stats.bins[bin].nregions--;
@@ -2263,6 +2260,7 @@ arena_lru_cache(arena_t *arena, region_t *reg)
 	    >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
 
 	size = region_next_size_get(&reg->sep);
+	assert(arena_coalesce(arena, &reg, size) == false);
 	if (size <= bin_maxsize) {
 		arena_bin_append(arena, (size >> opt_quantum_2pow) - bin_shift,
 		    reg);
@@ -2289,6 +2287,7 @@ arena_mru_cache(arena_t *arena, region_t *reg, size_t size)
 	assert(region_next_size_get(&reg->sep)
 	    >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
 	assert(size == region_next_size_get(&reg->sep));
+	assert(arena_coalesce(arena, &reg, size) == false);
 
 	if (size <= bin_maxsize) {
 		arena_bin_push(arena, (size >> opt_quantum_2pow) - bin_shift,
@@ -2431,16 +2430,48 @@ arena_delay_cache(arena_t *arena, region_t *reg)
 	}
 }
 
-static __inline region_t *
+static region_t *
 arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
 {
 	region_t *ret;
+	size_t total_size
+#ifdef MALLOC_DEBUG
+	    = 0 /* for assert() below. */
+#endif
+	    ;
+	bool refill;
+
+	/* 
+	 * Clear frag if it is too small to carve a maximally sized small
+	 * region from. 
+	 */
+	if (arena->frag != NULL) {
+		if ((total_size = region_next_size_get(&arena->frag->sep)) 
+		    < size && size <= bin_maxsize) {
+			region_t *reg;
+
+			reg = arena->frag;
+			region_next_contig_set(&reg->sep);
+
+			arena->frag = NULL;
+
+			arena_delay_cache(arena, reg);
+			refill = true;
+		} else {
+			/*
+			 * No need to refill.  Note that total_size was set
+			 * above.
+			 */
+			refill = false;
+		}
+	} else
+		refill = true;
 
 	/*
 	 * Try to fill frag if it's empty.  Frag needs to be marked as
 	 * allocated.
 	 */
-	if (arena->frag == NULL) {
+	if (refill) {
 		region_node_t *node;
 
 		node = RB_MIN(region_tree_s, &arena->large_regions);
@@ -2456,101 +2487,110 @@ arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
 			assert(region_next_free_get(&frag->sep));
 			region_next_free_unset(&frag->sep);
 
-			next = (region_t *)&((char *)frag)[region_next_size_get(
-			    &frag->sep)];
+			total_size = region_next_size_get(&frag->sep);
+			next = (region_t *)&((char *)frag)[total_size];
 			assert(region_prev_free_get(&next->sep));
 			region_prev_free_unset(&next->sep);
 
 			arena->frag = frag;
-		}
-	}
+		} else {
+			unsigned bin;
 
-	if (arena->frag != NULL) {
+			/* Look in bins for a large enough region.  */
+			if ((bin = arena_bins_search(arena, size))
+			    != UINT_MAX) {
+				/* Use the smallest available region. */
+				arena->frag = arena_bin_pop(arena, bin);
 #ifdef MALLOC_STATS
-		arena->stats.frag.nrequests++;
+				arena->stats.frag.ncached++;
 #endif
-
-		if (region_next_size_get(&arena->frag->sep) >= size) {
-			if (fit) {
-				size_t total_size;
-
-				/*
-				 * Use frag, but try to use the beginning for
-				 * smaller regions, and the end for larger
-				 * regions.  This reduces fragmentation in some
-				 * pathological use cases.  It tends to group
-				 * short-lived (smaller) regions, which
-				 * increases the effectiveness of coalescing.
-				 */
-
 				total_size =
 				    region_next_size_get(&arena->frag->sep);
-				assert(size % quantum == 0);
+				assert(total_size >= size);
+			} else {
+				/* Unable to fill frag. */
+				return (NULL);
+			}
+		}
+	}
+	assert(arena->frag != NULL);
+	/* total_size has been set in all possible paths that lead to here. */
+	assert(total_size != 0);
 
-				if (total_size - size >= QUANTUM_CEILING(
-				    sizeof(region_small_sizer_t))) {
-					if (size <= bin_maxsize) {
-						region_t *next;
+#ifdef MALLOC_STATS
+	arena->stats.frag.nrequests++;
+#endif
 
-						/*
-						 * Carve space from the
-						 * beginning of frag.
-						 */
+	if (total_size < size) {
+		/* 
+		 * Frag isn't large enough to service this request.  Note that
+		 * this is only possible for a large request, since the refill
+		 * code always makes sure to refill frag if it's too small to
+		 * service a current small request.
+		 */
+		assert(size > bin_maxsize);
+		return (NULL);
+	}
 
-						/* ret. */
-						ret = arena->frag;
-						region_next_size_set(&ret->sep,
-						    size);
-						assert(region_next_free_get(
-						    &ret->sep) == false);
+	if (fit) {
+		/*
+		 * Use frag, but try to use the beginning for smaller regions,
+		 * and the end for larger regions.  This reduces fragmentation
+		 * in some pathological use cases.  It tends to group
+		 * short-lived (smaller) regions, which increases the
+		 * effectiveness of coalescing.
+		 */
 
-						/* next. */
-						next = (region_t *)&((char *)
-						    ret)[size];
-						region_next_size_set(&next->sep,
-						    total_size - size);
-						assert(size >=
-						    QUANTUM_CEILING(sizeof(
-						    region_small_sizer_t)));
-						region_prev_free_unset(
-						    &next->sep);
-						region_next_free_unset(
-						    &next->sep);
+		total_size = region_next_size_get(&arena->frag->sep);
+		assert(size % quantum == 0);
 
-						/* Update frag. */
-						arena->frag = next;
-					} else {
-						region_t *prev;
-						size_t prev_size;
+		if (total_size - size >=
+		    QUANTUM_CEILING(sizeof(region_small_sizer_t))) {
+			if (size <= bin_maxsize) {
+				region_t *next;
 
-						/*
-						 * Carve space from the end of
-						 * frag.
-						 */
+				/* Carve space from the beginning of frag. */
 
-						/* prev. */
-						prev_size = total_size - size;
-						prev = arena->frag;
-						region_next_size_set(&prev->sep,
-						    prev_size);
-						assert(prev_size >=
-						    QUANTUM_CEILING(sizeof(
-						    region_small_sizer_t)));
-						assert(region_next_free_get(
-						    &prev->sep) == false);
+				/* ret. */
+				ret = arena->frag;
+				region_next_size_set(&ret->sep, size);
+				assert(region_next_free_get(&ret->sep)
+				    == false);
 
-						/* ret. */
-						ret = (region_t *)&((char *)
-						    prev)[prev_size];
-						region_next_size_set(&ret->sep,
-						    size);
-						region_prev_free_unset(
-						    &ret->sep);
-						region_next_free_unset(
-						    &ret->sep);
+				/* next. */
+				next = (region_t *)&((char *)ret)[size];
+				region_next_size_set(&next->sep,
+				    total_size - size);
+				assert(size >= QUANTUM_CEILING(sizeof(
+				    region_small_sizer_t)));
+				region_prev_free_unset(&next->sep);
+				region_next_free_unset(&next->sep);
+
+				/* Update frag. */
+				arena->frag = next;
+			} else {
+				region_t *prev;
+				size_t prev_size;
+
+				/* Carve space from the end of frag. */
+
+				/* prev. */
+				prev_size = total_size - size;
+				prev = arena->frag;
+				region_next_size_set(&prev->sep, prev_size);
+				assert(prev_size >= QUANTUM_CEILING(sizeof(
+				    region_small_sizer_t)));
+				assert(region_next_free_get(&prev->sep)
+				    == false);
+
+				/* ret. */
+				ret = (region_t *)&((char *)prev)[prev_size];
+				region_next_size_set(&ret->sep, size);
+				region_prev_free_unset(&ret->sep);
+				region_next_free_unset(&ret->sep);
 
 #ifdef MALLOC_DEBUG
-						{
+				{
 					region_t *next;
 
 					/* next. */
@@ -2558,83 +2598,57 @@ arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
 					    [region_next_size_get(&ret->sep)];
 					assert(region_prev_free_get(&next->sep)
 					    == false);
-						}
-#endif
-					}
-#ifdef MALLOC_STATS
-					arena->stats.nsplit++;
-#endif
-				} else {
-					/*
-					 * frag is close enough to the right
-					 * size that there isn't enough room to
-					 * create a neighboring region.
-					 */
-
-					/* ret. */
-					ret = arena->frag;
-					arena->frag = NULL;
-					assert(region_next_free_get(&ret->sep)
-					    == false);
-
-#ifdef MALLOC_DEBUG
-					{
-						region_t *next;
-
-						/* next. */
-						next = (region_t *)&((char *)
-						    ret)[region_next_size_get(
-						    &ret->sep)];
-						assert(region_prev_free_get(
-						    &next->sep) == false);
-					}
-#endif
-				}
-#ifdef MALLOC_STATS
-				arena->stats.frag.nserviced++;
-#endif
-			} else {
-				/* Don't fit to the allocation size. */
-
-				/* ret. */
-				ret = arena->frag;
-				arena->frag = NULL;
-				assert(region_next_free_get(&ret->sep)
-				    == false);
-
-#ifdef MALLOC_DEBUG
-				{
-					region_t *next;
-
-					/* next. */
-					next = (region_t *) &((char *) ret)
-					   [region_next_size_get(&ret->sep)];
-					assert(region_prev_free_get(&next->sep)
-					    == false);
 				}
 #endif
 			}
-			region_next_contig_set(&ret->sep);
-			goto RETURN;
-		} else if (size <= bin_maxsize) {
-			region_t *reg;
-
+#ifdef MALLOC_STATS
+			arena->stats.nsplit++;
+#endif
+		} else {
 			/*
-			 * The frag region is too small to service a small
-			 * request.  Clear frag.
+			 * Frag is close enough to the right size that there
+			 * isn't enough room to create a neighboring region.
 			 */
 
-			reg = arena->frag;
-			region_next_contig_set(&reg->sep);
-
+			/* ret. */
+			ret = arena->frag;
 			arena->frag = NULL;
+			assert(region_next_free_get(&ret->sep) == false);
 
-			arena_delay_cache(arena, reg);
+#ifdef MALLOC_DEBUG
+			{
+				region_t *next;
+
+				/* next. */
+				next = (region_t *)&((char *)ret)[total_size];
+				assert(region_prev_free_get(&next->sep)
+				    == false);
+			}
+#endif
 		}
-	}
+#ifdef MALLOC_STATS
+		arena->stats.frag.nserviced++;
+#endif
+	} else {
+		/* Don't fit to the allocation size. */
 
-	ret = NULL;
-RETURN:
+		/* ret. */
+		ret = arena->frag;
+		arena->frag = NULL;
+		assert(region_next_free_get(&ret->sep) == false);
+
+#ifdef MALLOC_DEBUG
+		{
+			region_t *next;
+
+			/* next. */
+			next = (region_t *) &((char *) ret)[total_size];
+			assert(region_prev_free_get(&next->sep) == false);
+		}
+#endif
+	}
+	region_next_contig_set(&ret->sep);
+
 	return (ret);
 }
 
@@ -2865,7 +2879,14 @@ arena_reg_fit(arena_t *arena, size_t size, region_t *reg, bool restore_split)
 			assert(region_prev_free_get(&nextnext->sep) == false);
 			region_prev_free_set(&nextnext->sep);
 
-			arena_mru_cache(arena, next, next_size);
+			if (arena_coalesce(arena, &next, next_size)) {
+				if (next != NULL) {
+					next_size = region_next_size_get(
+					    &next->sep);
+					arena_mru_cache(arena, next, next_size);
+				}
+			} else
+				arena_mru_cache(arena, next, next_size);
 		}
 
 #ifdef MALLOC_STATS
@@ -2903,22 +2924,6 @@ arena_bin_reg_alloc(arena_t *arena, size_t size, bool fit)
 	ret = arena_frag_reg_alloc(arena, size, fit);
 	if (ret != NULL)
 		goto RETURN;
-
-	/* Look in all bins for a large enough region. */
-	if ((bin = arena_bins_search(arena, size)) == (size >> opt_quantum_2pow)
-	    - bin_shift) {
-		/* Over-fit. */
-		ret = arena_bin_pop(arena, bin);
-		assert(region_next_size_get(&ret->sep) >= size);
-
-		if (fit)
-			arena_reg_fit(arena, size, ret, false);
-
-#ifdef MALLOC_STATS
-		arena->stats.bins[bin].noverfit++;
-#endif
-		goto RETURN;
-	}
 
 	ret = NULL;
 RETURN:
@@ -3311,7 +3316,15 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size)
 				region_next_free_set(&prev->sep);
 				region_prev_free_set(&reg->sep);
 
-				arena_mru_cache(arena, prev, offset);
+				if (arena_coalesce(arena, &prev, offset)) {
+					if (prev != NULL) {
+						offset = region_next_size_get(
+						    &prev->sep);
+						arena_mru_cache(arena, prev, 
+						    offset);
+					}
+				} else
+					arena_mru_cache(arena, prev, offset);
 			}
 #ifdef MALLOC_STATS
 			arena->stats.nsplit++;
