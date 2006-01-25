@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+/* Note that these traces do not work with KTR_ALQ. */
 #if 0
 #define	KTR_WITNESS	KTR_SUBSYS
 #else
