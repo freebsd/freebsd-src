@@ -2,9 +2,8 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB=${.CURDIR}/../../../../contrib/bsnmp
-SNMP_ATM=${.CURDIR}/../../../../contrib/ngatm/snmp_atm
-.PATH: ${SNMP_ATM}
+CONTRIB= ${.CURDIR}/../../../../contrib/ngatm
+.PATH: ${CONTRIB}/snmp_atm
 
 MOD=	atm
 SRCS=	snmp_atm.c atm_sys.c
@@ -17,6 +16,6 @@ INCS=	snmp_${MOD}.h
 
 EXTRAMIBDEFS= atm_freebsd.def
 
-CFLAGS+= -I${SNMP_ATM}
+CFLAGS+= -I${CONTRIB}/snmp_atm
 
-.include <bsd.lib.mk>
+.include <bsd.snmpmod.mk>
