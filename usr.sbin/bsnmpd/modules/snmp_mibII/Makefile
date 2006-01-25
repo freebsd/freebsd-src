@@ -13,7 +13,9 @@ XSYM=	ipAddrTable ifTable ifRcvAddressEntry ifMIB ipMIB tcpMIB udpMIB	\
 	ipForward ifIndex linkDown linkUp
 MAN=	snmp_mibII.3
 
+CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd
+
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
 
-.include <bsd.lib.mk>
+.include <bsd.snmpmod.mk>
