@@ -1693,7 +1693,9 @@ vm_object_collapse(vm_object_t object)
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
 			 */
-			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
+			if (object->resident_page_count != object->size &&
+			    vm_object_backing_scan(object,
+			    OBSC_TEST_ALL_SHADOWED) == 0) {
 				VM_OBJECT_UNLOCK(backing_object);
 				break;
 			}
