@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -48,8 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* prototypes */
-static int ata_begin_transaction(struct ata_request *);
-static int ata_end_transaction(struct ata_request *);
+static int ata_generic_status(device_t dev);
 static int ata_wait(struct ata_channel *ch, struct ata_device *, u_int8_t);
 static void ata_pio_read(struct ata_request *, int);
 static void ata_pio_write(struct ata_request *, int);
@@ -64,16 +61,17 @@ ata_generic_hw(device_t dev)
 
     ch->hw.begin_transaction = ata_begin_transaction;
     ch->hw.end_transaction = ata_end_transaction;
+    ch->hw.status = ata_generic_status;
     ch->hw.command = ata_generic_command;
 }
 
 /* must be called with ATA channel locked and state_mtx held */
-static int
+int
 ata_begin_transaction(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_device *atadev = device_get_softc(request->dev);
-    int dummy;
+    int dummy, error;
 
     ATA_DEBUG_RQ(request, "begin transaction");
 
@@ -96,7 +94,7 @@ ata_begin_transaction(struct ata_request *request)
 
 	    /* issue command */
 	    if (ch->hw.command(request)) {
-		device_printf(request->dev, "error issueing %s command\n",
+		device_printf(request->dev, "error issuing %s command\n",
 			   ata_cmd2str(request));
 		request->result = EIO;
 		goto begin_finished;
@@ -130,16 +128,17 @@ ata_begin_transaction(struct ata_request *request)
     /* ATA DMA data transfer commands */
     case ATA_R_DMA:
 	/* check sanity, setup SG list and DMA engine */
-	if (ch->dma->load(ch->dev, request->data, request->bytecount,
-			  request->flags & ATA_R_READ, ch->dma->sg, &dummy)) {
+	if ((error = ch->dma->load(ch->dev, request->data, request->bytecount,
+				   request->flags & ATA_R_READ, ch->dma->sg, 
+				   &dummy))) {
 	    device_printf(request->dev, "setting up DMA failed\n");
-	    request->result = EIO;
+	    request->result = error;
 	    goto begin_finished;
 	}
 
 	/* issue command */
 	if (ch->hw.command(request)) {
-	    device_printf(request->dev, "error issueing %s command\n",
+	    device_printf(request->dev, "error issuing %s command\n",
 		       ata_cmd2str(request));
 	    request->result = EIO;
 	    goto begin_finished;
@@ -184,10 +183,11 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* check sanity, setup SG list and DMA engine */
-	if (ch->dma->load(ch->dev, request->data, request->bytecount,
-			  request->flags & ATA_R_READ, ch->dma->sg, &dummy)) {
+	if ((error = ch->dma->load(ch->dev, request->data, request->bytecount,
+				   request->flags & ATA_R_READ, ch->dma->sg,
+				   &dummy))) {
 	    device_printf(request->dev, "setting up DMA failed\n");
-	    request->result = EIO;
+	    request->result = error;
 	    goto begin_finished;
 	}
 
@@ -220,7 +220,7 @@ begin_continue:
 }
 
 /* must be called with ATA channel locked and state_mtx held */
-static int
+int
 ata_end_transaction(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
@@ -470,7 +470,7 @@ end_continue:
     return ATA_OP_CONTINUES;
 }
 
-/* must be called with ATA channel locked */
+/* must be called with ATA channel locked and state_mtx held */
 void
 ata_generic_reset(device_t dev)
 {
@@ -603,6 +603,20 @@ ata_generic_reset(device_t dev)
 	device_printf(dev, "reset tp2 stat0=%02x stat1=%02x devices=0x%b\n",
 		      stat0, stat1, ch->devices,
 		      "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
+}
+
+/* must be called with ATA channel locked and state_mtx held */
+int
+ata_generic_status(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
+	DELAY(100);
+	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
+	    return 0;
+    }
+    return 1;
 }
 
 static int

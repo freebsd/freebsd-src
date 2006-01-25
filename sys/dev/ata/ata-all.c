@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -65,15 +63,15 @@ static struct cdevsw ata_cdevsw = {
 };
 
 /* prototypes */
-static void ata_interrupt(void *);
 static void ata_boot_attach(void);
 static device_t ata_add_child(device_t, struct ata_device *, int);
+static int ata_getparam(struct ata_device *, int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 
 /* global vars */
-MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
+MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 devclass_t ata_devclass;
 uma_zone_t ata_request_zone;
@@ -140,7 +138,7 @@ ata_attach(device_t dev)
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS,
-				ata_interrupt, ch, &ch->ih))) {
+				(driver_intr_t *)ata_interrupt, ch, &ch->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
 	return error;
     }
@@ -221,11 +219,11 @@ ata_reinit(device_t dev)
 		    if (ch->running && ch->running->dev == children[i]) {
 			callout_stop(&ch->running->callout);
 			request = ch->running;
-    			ch->running = NULL;
+			ch->running = NULL;
 		    }
 		    else
 			request = NULL;
-    		    mtx_unlock(&ch->state_mtx);
+		    mtx_unlock(&ch->state_mtx);
 
 		    if (request) {
 			request->result = ENXIO;
@@ -235,7 +233,7 @@ ata_reinit(device_t dev)
 			/* if not timeout finish request here */
 			if (!(request->flags & ATA_R_TIMEOUT))
 			    ata_finish(request);
-                    }
+		    }
 		    device_delete_child(dev, children[i]);
 		}
 	}
@@ -318,7 +316,7 @@ ata_resume(device_t dev)
     return error;
 }
 
-static void
+int
 ata_interrupt(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
@@ -326,20 +324,17 @@ ata_interrupt(void *data)
 
     mtx_lock(&ch->state_mtx);
     do {
+	/* ignore interrupt if its not for us */
+	if (ch->hw.status && !ch->hw.status(ch->dev))
+	    break;
+
 	/* do we have a running request */
 	if (!(request = ch->running))
 	    break;
 
 	ATA_DEBUG_RQ(request, "interrupt");
 
-	/* ignore interrupt if device is busy */
-	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
-	    DELAY(100);
-	    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
-		break;
-	}
-
-	/* check for the right state */
+	/* safetycheck for the right state */
 	if (ch->state != ATA_ACTIVE && ch->state != ATA_STALL_QUEUE) {
 	    device_printf(request->dev, "interrupt on idle channel ignored\n");
 	    break;
@@ -356,10 +351,11 @@ ata_interrupt(void *data)
 	    mtx_unlock(&ch->state_mtx);
 	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
-	    return;
+	    return 1;
 	}
     } while (0);
     mtx_unlock(&ch->state_mtx);
+    return 0;
 }
 
 /*
@@ -511,6 +507,7 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 	return error;
    
     case IOCATAGPARM:
+	ata_getparam(atadev, 0);
 	bcopy(&atadev->param, params, sizeof(struct ata_params));
 	return 0;
 	
@@ -572,9 +569,9 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 }
 
 static int
-ata_getparam(device_t parent, struct ata_device *atadev)
+ata_getparam(struct ata_device *atadev, int init)
 {
-    struct ata_channel *ch = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
     struct ata_request *request;
     u_int8_t command = 0;
     int error = ENOMEM, retries = 2;
@@ -631,8 +628,7 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 	bpack(atacap->revision, atacap->revision, sizeof(atacap->revision));
 	btrim(atacap->serial, sizeof(atacap->serial));
 	bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
-	sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
-	device_set_desc_copy(atadev->dev, buffer);
+
 	if (bootverbose)
 	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
 		   ch->unit, atadev->unit == ATA_MASTER ? "master":"slave",
@@ -641,17 +637,21 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 		   ata_mode2str(ata_umode(atacap)),
 		   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
 
-	if (atadev->param.config & ATA_PROTO_ATAPI) {
-	    if (atapi_dma && ch->dma &&
-		(atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
-		ata_umode(&atadev->param) >= ATA_UDMA2)
-		atadev->mode = ATA_DMA_MAX;
-	}
-	else {
-	    if (ata_dma && ch->dma &&
-		(ata_umode(&atadev->param) > 0 ||
-		 ata_wmode(&atadev->param) > 0))
-		atadev->mode = ATA_DMA_MAX;
+	if (init) {
+	    sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
+	    device_set_desc_copy(atadev->dev, buffer);
+	    if (atadev->param.config & ATA_PROTO_ATAPI) {
+		if (atapi_dma && ch->dma &&
+		    (atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
+		    ata_umode(&atadev->param) >= ATA_UDMA2)
+		    atadev->mode = ATA_DMA_MAX;
+	    }
+	    else {
+		if (ata_dma && ch->dma &&
+		    (ata_umode(&atadev->param) > 0 ||
+		     ata_wmode(&atadev->param) > 0))
+		    atadev->mode = ATA_DMA_MAX;
+	    }
 	}
     }
     else {
@@ -704,11 +704,11 @@ ata_identify(device_t dev)
 	slave = NULL;
     }
 
-    if (slave && ata_getparam(dev, slave)) {
+    if (slave && ata_getparam(slave, 1)) {
 	device_delete_child(dev, slave_child);
 	free(slave, M_ATA);
     }
-    if (master && ata_getparam(dev, master)) {
+    if (master && ata_getparam(master, 1)) {
 	device_delete_child(dev, master_child);
 	free(master, M_ATA);
     }
@@ -807,6 +807,12 @@ ata_modify_if_48bit(struct ata_request *request)
 	    break;
 	case ATA_FLUSHCACHE:
 	    request->u.ata.command = ATA_FLUSHCACHE48;
+	    break;
+	case ATA_READ_NATIVE_MAX_ADDDRESS:
+	    request->u.ata.command = ATA_READ_NATIVE_MAX_ADDDRESS48;
+	    break;
+	case ATA_SET_MAX_ADDRESS:
+	    request->u.ata.command = ATA_SET_MAX_ADDRESS48;
 	    break;
 	default:
 	    return;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -96,7 +94,8 @@ ata_queue_request(struct ata_request *request)
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
 	ATA_DEBUG_RQ(request, "wait for completition");
-	while (sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	while (!dumping &&
+	       sema_timedwait(&request->done, request->timeout * hz * 4)) {
 	    device_printf(request->dev,
 		"req=%p %s semaphore timeout !! DANGER Will Robinson !!\n",
 		      request, ata_cmd2str(request));
@@ -202,6 +201,13 @@ ata_start(device_t dev)
 		    ata_finish(request);
 		    return;
 		}
+		if (dumping) {
+		    mtx_unlock(&ch->state_mtx);
+		    mtx_unlock(&ch->queue_mtx);
+		    while (!ata_interrupt(ch))
+			DELAY(10);
+		    return;
+		}       
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
@@ -218,7 +224,8 @@ ata_finish(struct ata_request *request)
      * if in ATA_STALL_QUEUE state or request has ATA_R_DIRECT flags set
      * we need to call ata_complete() directly here (no taskqueue involvement)
      */
-    if ((ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
+    if (dumping ||
+	(ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
 	ATA_DEBUG_RQ(request, "finish directly");
 	ata_completed(request, 0);
     }
@@ -415,27 +422,39 @@ ata_completed(void *context, int dummy)
 
     ATA_DEBUG_RQ(request, "completed callback/wakeup");
 
-    /* if we are part of a composite operation update progress */
+    /* if we are part of a composite operation we need to maintain progress */
     if ((composite = request->composite)) {
 	int index = 0;
 
 	mtx_lock(&composite->lock);
+
+	/* update whats done */
 	if (request->flags & ATA_R_READ)
 	    composite->rd_done |= (1 << request->this);
 	if (request->flags & ATA_R_WRITE)
 	    composite->wr_done |= (1 << request->this);
 
+	/* find ready to go dependencies */
 	if (composite->wr_depend &&
 	    (composite->rd_done & composite->wr_depend)==composite->wr_depend &&
 	    (composite->wr_needed & (~composite->wr_done))) {
-	    index = ((composite->wr_needed & (~composite->wr_done))) - 1;
+	    index = composite->wr_needed & ~composite->wr_done;
 	}
+
 	mtx_unlock(&composite->lock);
-	if (index)
-	    ata_start(device_get_parent(composite->request[index]->dev));
+
+	/* if we have any ready candidates kick them off */
+	if (index) {
+	    int bit;
+	    
+	    for (bit = 0; bit < MAX_COMPOSITES; bit++) {
+		if (index & (1 << bit))
+		    ata_start(device_get_parent(composite->request[bit]->dev));
+	    }
+	}
     }
 
-    /* get results back to the initiator */
+    /* get results back to the initiator for this request */
     if (request->callback)
 	(request->callback)(request);
     else

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -63,7 +61,7 @@ static const struct pccard_product ata_pccard_products[] = {
 };
 
 static int
-ata_pccard_match(device_t dev)
+ata_pccard_probe(device_t dev)
 {
     const struct pccard_product *pp;
     u_int32_t fcn = PCCARD_FUNCTION_UNSPEC;
@@ -87,17 +85,17 @@ ata_pccard_match(device_t dev)
 }
 
 static int
-ata_pccard_probe(device_t dev)
+ata_pccard_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct resource *io, *ctlio;
-    int i, rid;
+    int i, rid, err;
 
     /* allocate the io range to get start and length */
     rid = ATA_IOADDR_RID;
     if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 				  ATA_IOSIZE, RF_ACTIVE)))
-	return ENXIO;
+	return (ENXIO);
 
     /* setup the resource vectors */
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
@@ -121,7 +119,7 @@ ata_pccard_probe(device_t dev)
 	    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 		ch->r_io[i].res = NULL;
-	    return ENXIO;
+	    return (ENXIO);
 	}
 	ch->r_io[ATA_CONTROL].res = ctlio;
 	ch->r_io[ATA_CONTROL].offset = 0;
@@ -132,7 +130,10 @@ ata_pccard_probe(device_t dev)
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     ata_generic_hw(dev);
-    return ata_probe(dev);
+    err = ata_probe(dev);
+    if (err)
+	return (err);
+    return (ata_attach(dev));
 }
 
 static int
@@ -154,14 +155,9 @@ ata_pccard_detach(device_t dev)
 
 static device_method_t ata_pccard_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,             pccard_compat_probe),
-    DEVMETHOD(device_attach,            pccard_compat_attach),
+    DEVMETHOD(device_probe,             ata_pccard_probe),
+    DEVMETHOD(device_attach,            ata_pccard_attach),
     DEVMETHOD(device_detach,            ata_pccard_detach),
-
-    /* card interface */
-    DEVMETHOD(card_compat_match,        ata_pccard_match),
-    DEVMETHOD(card_compat_probe,        ata_pccard_probe),
-    DEVMETHOD(card_compat_attach,       ata_attach),
 
     { 0, 0 }
 };
