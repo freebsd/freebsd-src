@@ -148,7 +148,6 @@ sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
 		    req->td->td_ucred, ALQ_DEFAULT_CMODE,
 		    sizeof(struct ktr_entry), ktr_alq_depth);
 		if (error == 0) {
-			ktr_mask &= ~KTR_ALQ_MASK;
 			ktr_alq_cnt = 0;
 			ktr_alq_failed = 0;
 			ktr_alq_enabled = 1;
