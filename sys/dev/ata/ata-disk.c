@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -65,7 +63,7 @@ static disk_ioctl_t ad_ioctl;
 static dumper_t ad_dump;
 
 /* local vars */
-static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
+static MALLOC_DEFINE(M_AD, "ad_driver", "ATA disk driver");
 
 static int
 ad_probe(device_t dev)
@@ -291,45 +289,23 @@ ad_ioctl(struct disk *disk, u_long cmd, void *data, int flag, struct thread *td)
 
 static int
 ad_dump(void *arg, void *virtual, vm_offset_t physical,
-       off_t offset, size_t length)
+	off_t offset, size_t length)
 {
     struct disk *dp = arg;
-    device_t dev = dp->d_drv1;
-    struct ata_device *atadev = device_get_softc(dev);
-    struct ad_softc *adp = device_get_ivars(dev);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_request request;
+    struct bio bp;
 
-    if (!adp)
-	return ENXIO;
+    /* length zero is special and really means flush buffers to media */
+    if (!length)
+	return ata_controlcmd(dp->d_drv1, ATA_FLUSHCACHE, 0, 0, 0);
 
-    bzero(&request, sizeof(struct ata_request));
-    request.dev = dev;
-
-    if (length) {
-	request.data = virtual;
-	request.bytecount = length;
-	request.transfersize = min(length, atadev->max_iosize);
-	request.flags = ATA_R_WRITE;
-	if (atadev->max_iosize > DEV_BSIZE)
-	    request.u.ata.command = ATA_WRITE_MUL;
-	else
-	    request.u.ata.command = ATA_WRITE;
-	request.u.ata.lba = offset / DEV_BSIZE;
-	request.u.ata.count = request.bytecount / DEV_BSIZE;
-    }
-    else {
-	request.u.ata.command = ATA_FLUSHCACHE;
-	request.flags = ATA_R_CONTROL;
-    }
-    if (ch->hw.begin_transaction(&request) == ATA_OP_CONTINUES) {
-	do {
-	    DELAY(20);
-	} while (ch->hw.end_transaction(&request) == ATA_OP_CONTINUES);
-    }
-    if (request.status & ATA_S_ERROR)
-	return EIO;
-    return 0;
+    bzero(&bp, sizeof(struct bio));
+    bp.bio_disk = dp;
+    bp.bio_pblkno = offset / DEV_BSIZE;
+    bp.bio_bcount = length;
+    bp.bio_data = virtual;
+    bp.bio_cmd = BIO_WRITE;
+    ad_strategy(&bp);
+    return bp.bio_error;
 }
 
 static void

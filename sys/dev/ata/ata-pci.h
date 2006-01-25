@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -90,20 +88,20 @@ struct ata_connect_task {
 #define ATA_AMD8111             0x74691022
 
 #define ATA_ACER_LABS_ID        0x10b9
-#define ATA_ALI_1533		0x153310b9
+#define ATA_ALI_1533            0x153310b9
 #define ATA_ALI_5229            0x522910b9
 #define ATA_ALI_5281            0x528110b9
 #define ATA_ALI_5287            0x528710b9
 #define ATA_ALI_5288            0x528810b9
 #define ATA_ALI_5289            0x528910b9
 
-#define ATA_ATI_ID		0x1002
-#define ATA_ATI_IXP200		0x43491002
-#define ATA_ATI_IXP300		0x43691002
-#define ATA_ATI_IXP400		0x43761002
-#define ATA_ATI_IXP300_S1	0x436e1002
-#define ATA_ATI_IXP400_S1	0x43791002
-#define ATA_ATI_IXP400_S2	0x437a1002
+#define ATA_ATI_ID              0x1002
+#define ATA_ATI_IXP200          0x43491002
+#define ATA_ATI_IXP300          0x43691002
+#define ATA_ATI_IXP400          0x43761002
+#define ATA_ATI_IXP300_S1       0x436e1002
+#define ATA_ATI_IXP400_S1       0x43791002
+#define ATA_ATI_IXP400_S2       0x437a1002
 
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
@@ -155,11 +153,19 @@ struct ata_connect_task {
 #define ATA_I82801GB_R1         0x27c38086
 #define ATA_I82801GB_AH         0x27c18086
 #define ATA_I82801GB_M          0x27c58086
-#define ATA_I31244		0x32008086
+#define ATA_I31244              0x32008086
 
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
 #define ATA_IT8212F             0x82121283
+
+#define ATA_MARVELL_ID          0x11ab
+#define ATA_M88SX5040           0x504011ab
+#define ATA_M88SX5041           0x504111ab
+#define ATA_M88SX5080           0x508011ab
+#define ATA_M88SX5081           0x508111ab
+#define ATA_M88SX6041           0x604111ab
+#define ATA_M88SX6081           0x608111ab
 
 #define ATA_MICRON_ID           0x1042
 #define ATA_MICRON_RZ1000       0x10001042
@@ -171,19 +177,24 @@ struct ata_connect_task {
 #define ATA_NVIDIA_ID           0x10de
 #define ATA_NFORCE1             0x01bc10de
 #define ATA_NFORCE2             0x006510de
-#define ATA_NFORCE2_MCP         0x008510de
-#define ATA_NFORCE2_MCP_S1      0x008e10de
+#define ATA_NFORCE2_PRO         0x008510de
+#define ATA_NFORCE2_PRO_S1      0x008e10de
 #define ATA_NFORCE3             0x00d510de
 #define ATA_NFORCE3_PRO         0x00e510de
 #define ATA_NFORCE3_PRO_S1      0x00e310de
 #define ATA_NFORCE3_PRO_S2      0x00ee10de
-#define ATA_NFORCE3_MCP         0x003510de
-#define ATA_NFORCE3_MCP_S1      0x003610de
-#define ATA_NFORCE3_MCP_S2      0x003e10de
-#define ATA_NFORCE4             0x005310de
-#define ATA_NFORCE4_S1          0x005410de
-#define ATA_NFORCE4_S2          0x005510de
-
+#define ATA_NFORCE_MCP04        0x003510de
+#define ATA_NFORCE_MCP04_S1     0x003610de
+#define ATA_NFORCE_MCP04_S2     0x003e10de
+#define ATA_NFORCE_CK804        0x005310de
+#define ATA_NFORCE_CK804_S1     0x005410de
+#define ATA_NFORCE_CK804_S2     0x005510de
+#define ATA_NFORCE_MCP51        0x026510de
+#define ATA_NFORCE_MCP51_S1     0x026610de
+#define ATA_NFORCE_MCP51_S2     0x026710de
+#define ATA_NFORCE_MCP55        0x036e10de
+#define ATA_NFORCE_MCP55_S1     0x037e10de
+#define ATA_NFORCE_MCP55_S2     0x037f10de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
@@ -209,17 +220,21 @@ struct ata_connect_task {
 #define ATA_PDC20571            0x3571105a
 #define ATA_PDC20575            0x3d75105a
 #define ATA_PDC20579            0x3574105a
-#define ATA_PDC20580            0x3570105a
+#define ATA_PDC20771            0x3570105a
 #define ATA_PDC40518            0x3d18105a
 #define ATA_PDC40519            0x3519105a
 #define ATA_PDC40718            0x3d17105a
 #define ATA_PDC40719            0x3515105a
+#define ATA_PDC40775            0x3d73105a
+#define ATA_PDC40779            0x3577105a
 #define ATA_PDC20617            0x6617105a
 #define ATA_PDC20618            0x6626105a
 #define ATA_PDC20619            0x6629105a
 #define ATA_PDC20620            0x6620105a
 #define ATA_PDC20621            0x6621105a
 #define ATA_PDC20622            0x6622105a
+#define ATA_PDC20624            0x6624105a
+#define ATA_PDC81518            0x8002105a
 
 #define ATA_SERVERWORKS_ID      0x1166
 #define ATA_ROSB4_ISA           0x02001166
@@ -298,6 +313,7 @@ struct ata_connect_task {
 #define ATA_VIA8233C            0x31091106
 #define ATA_VIA8235             0x31771106
 #define ATA_VIA8237             0x32271106
+#define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
 #define ATA_VIA8371             0x03911106
@@ -307,6 +323,7 @@ struct ata_connect_task {
 #define ATA_VIA6421             0x32491106
 
 /* chipset setup related defines */
+#define AHCI            1
 #define ATPOLD          1
 
 #define ALIOLD          0x01
@@ -318,6 +335,9 @@ struct ata_connect_task {
 #define HPT372          2
 #define HPT374          3
 #define HPTOLD          0x01
+
+#define MV5XXX          5
+#define MV6XXX          6
 
 #define PROLD           0
 #define PRNEW           1
@@ -364,6 +384,7 @@ struct ata_connect_task {
 #define VIACLK          0x10
 #define VIABUG          0x20
 #define VIABAR          0x40
+#define VIAAHCI         0x80
 
 
 /* global prototypes ata-pci.c */
@@ -375,6 +396,9 @@ int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, st
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
 int ata_pci_allocate(device_t dev);
+void ata_pci_hw(device_t dev);
+int ata_pci_status(device_t dev);
+
 
 /* global prototypes ata-chipset.c */
 int ata_generic_ident(device_t);
@@ -387,6 +411,7 @@ int ata_cypress_ident(device_t);
 int ata_highpoint_ident(device_t);
 int ata_intel_ident(device_t);
 int ata_ite_ident(device_t);
+int ata_marvell_ident(device_t);
 int ata_national_ident(device_t);
 int ata_nvidia_ident(device_t);
 int ata_promise_ident(device_t);
@@ -395,7 +420,6 @@ int ata_sii_ident(device_t);
 int ata_sis_ident(device_t);
 int ata_via_ident(device_t);
 int ata_legacy(device_t);
-struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *);
 
 /* global prototypes ata-dma.c */
 void ata_dmainit(device_t);
