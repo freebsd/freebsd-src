@@ -50,6 +50,8 @@ const enum platform platform =
 	p_ppc
 #elif defined(__amd64__)
 	p_amd64
+#elif defined(__arm__)
+	p_arm
 #else
 	IHAVENOIDEA
 #endif
