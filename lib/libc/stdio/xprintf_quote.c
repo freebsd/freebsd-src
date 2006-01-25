@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <wchar.h>
 #include <vis.h>
 #include <assert.h>
@@ -37,7 +38,7 @@
 #include "printf.h"
 
 int
-__printf_arginfo_vis(const struct printf_info *pi, size_t n, int *argt)
+__printf_arginfo_quote(const struct printf_info *pi __unused, size_t n, int *argt)
 {
 
 	assert(n >= 1);
@@ -46,33 +47,62 @@ __printf_arginfo_vis(const struct printf_info *pi, size_t n, int *argt)
 }
 
 int
-__printf_render_vis(struct __printf_io *io, const struct printf_info *pi, const void *const *arg)
+__printf_render_quote(struct __printf_io *io, const struct printf_info *pi __unused, const void *const *arg)
 {
-	char *p, *buf;
-	unsigned l;
-	int ret;
+	const char *str, *p, *t, *o;
+	char *q, *r;
+	int i, ret;
 
-	ret = 0;
-	p = *((char **)arg[0]);
-	if (p == NULL)
-		return (__printf_out(io, pi, "(null)", 6));
-	if (pi->prec >= 0)
-		l = pi->prec;
-	else
-		l = strlen(p);
-	buf = malloc(l * 4 + 1);
-	if (buf == NULL)
-		return (-1);
-	if (pi->showsign)
-		ret = strvisx(buf, p, l, VIS_WHITE | VIS_HTTPSTYLE);
-	else if (pi->pad == '0')
-		ret = strvisx(buf, p, l, VIS_WHITE | VIS_OCTAL);
-	else if (pi->alt)
-		ret = strvisx(buf, p, l, VIS_WHITE);
-	else
-		ret = strvisx(buf, p, l, VIS_WHITE | VIS_CSTYLE | VIS_OCTAL);
-	ret += __printf_out(io, pi, buf, ret);
+	str = *((const char *const *)arg[0]);
+	if (str == NULL)
+		return (__printf_out(io, pi, "\"(null)\"", 8));
+	i = 0;
+	if (*str == '\0')
+		i++;
+	else if (*str == '#')
+		i++;
+	else {
+		for (p = str; *p; p++)
+			if (isspace(*p) || *p == '\\' || *p == '"')
+				i++;
+	}
+	if (!i) 
+		return (__printf_out(io, pi, str, strlen(str)));
+	
+	q = malloc(strlen(str) * 5);
+	assert(q != NULL);
+	r = q;
+	ret = __printf_out(io, pi, "\"", 1);
+	t = str;
+	for (p = str; *p; p++) {
+		o = NULL;
+		if (*p == '\\')
+			o = "\\\\";
+		else if (*p == '\n')
+			o = "\\n";
+		else if (*p == '\r')
+			o = "\\r";
+		else if (*p == '\t')
+			o = "\\t";
+		else if (*p == ' ')
+			o = " ";
+		else if (*p == '"')
+			o = "\\\"";
+		else if (isspace(*p)) {
+			sprintf(r, "\\%03o", *p);
+			o = r;
+			r += strlen(r) + 1;
+		} else
+			continue;
+		if (p != t) {
+			ret += __printf_out(io, pi, t, p - t);
+			t = p + 1;
+		}
+		ret += __printf_out(io, pi, o, strlen(o));
+	}
+	if (p != t)
+		ret += __printf_out(io, pi, t, p - t);
+	ret += __printf_out(io, pi, "\"", 1);
 	__printf_flush(io);
-	free(buf);
 	return(ret);
 }

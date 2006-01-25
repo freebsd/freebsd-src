@@ -124,15 +124,27 @@ int register_printf_function(int spec, printf_function *render, printf_arginfo_f
 int register_printf_render(int spec, printf_render *render, printf_arginfo_function *arginfo);
 int register_printf_render_std(const unsigned char *specs);
 
+/* vprintf_errno.c */
+printf_arginfo_function		__printf_arginfo_errno;
+printf_render			__printf_render_errno;
+
 /* vprintf_float.c */
 printf_arginfo_function		__printf_arginfo_float;
 printf_render			__printf_render_float;
+
+/* vprintf_hexdump.c */
+printf_arginfo_function		__printf_arginfo_hexdump;
+printf_render 			__printf_render_hexdump;
 
 /* vprintf_int.c */
 printf_arginfo_function		__printf_arginfo_ptr;
 printf_arginfo_function		__printf_arginfo_int;
 printf_render			__printf_render_ptr;
 printf_render			__printf_render_int;
+
+/* vprintf_quoute.c */
+printf_arginfo_function		__printf_arginfo_quote;
+printf_render 			__printf_render_quote;
 
 /* vprintf_str.c */
 printf_arginfo_function		__printf_arginfo_chr;
@@ -143,10 +155,6 @@ printf_render			__printf_render_str;
 /* vprintf_time.c */
 printf_arginfo_function		__printf_arginfo_time;
 printf_render			__printf_render_time;
-
-/* vprintf_hexdump.c */
-printf_arginfo_function		__printf_arginfo_hexdump;
-printf_render 			__printf_render_hexdump;
 
 /* vprintf_vis.c */
 printf_arginfo_function		__printf_arginfo_vis;
