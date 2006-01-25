@@ -37,42 +37,29 @@
 #include "printf.h"
 
 int
-__printf_arginfo_vis(const struct printf_info *pi, size_t n, int *argt)
+__printf_arginfo_errno(const struct printf_info *pi __unused, size_t n, int *argt)
 {
 
 	assert(n >= 1);
-	argt[0] = PA_POINTER;
+	argt[0] = PA_INT;
 	return (1);
 }
 
 int
-__printf_render_vis(struct __printf_io *io, const struct printf_info *pi, const void *const *arg)
+__printf_render_errno(struct __printf_io *io, const struct printf_info *pi __unused, const void *const *arg)
 {
-	char *p, *buf;
-	unsigned l;
-	int ret;
+	int ret, error;
+	char buf[64];
+	const char *p;
 
 	ret = 0;
-	p = *((char **)arg[0]);
-	if (p == NULL)
-		return (__printf_out(io, pi, "(null)", 6));
-	if (pi->prec >= 0)
-		l = pi->prec;
-	else
-		l = strlen(p);
-	buf = malloc(l * 4 + 1);
-	if (buf == NULL)
-		return (-1);
-	if (pi->showsign)
-		ret = strvisx(buf, p, l, VIS_WHITE | VIS_HTTPSTYLE);
-	else if (pi->pad == '0')
-		ret = strvisx(buf, p, l, VIS_WHITE | VIS_OCTAL);
-	else if (pi->alt)
-		ret = strvisx(buf, p, l, VIS_WHITE);
-	else
-		ret = strvisx(buf, p, l, VIS_WHITE | VIS_CSTYLE | VIS_OCTAL);
-	ret += __printf_out(io, pi, buf, ret);
+	error = *((const int *)arg[0]);
+	if (error >= 0 && error < sys_nerr) {
+		p = strerror(error);
+		return (__printf_out(io, pi, p, strlen(p)));
+	}
+	sprintf(buf, "errno=%d/0x%x", error, error);
+	ret += __printf_out(io, pi, buf, strlen(buf));
 	__printf_flush(io);
-	free(buf);
 	return(ret);
 }
