@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "1.0.1";
+my $version = "1.0.2";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -74,8 +74,6 @@ my @obtained_from;
 my $cdiff;
 my $answer;
 my $mfc_func = \&mfc_headers;
-
-my $first_log_line = 1;
 
 sub init()
 {
@@ -286,7 +284,7 @@ sub mfc_revisions($)
 sub strip_log(@) {
 	my $tmp;
 
-	while ($logmsg[$#logmsg] =~ /^\s*$/ or $logmsg[$#logmsg] =~ /^\s\s\w+(\s\w+)*:\s+\w+(\s+\w+)*/) {
+	while ($#logmsg >= 0 and ($logmsg[$#logmsg] =~ /^\s*$/ or $logmsg[$#logmsg] =~ /^\s\s\w+(\s\w+)*:\s+\w+(\s+\w+)*/)) {
 		$tmp = pop(@logmsg);
 		$tmp =~ s/^\s*//;
 		chomp($tmp);
