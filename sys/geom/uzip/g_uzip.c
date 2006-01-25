@@ -287,6 +287,7 @@ g_uzip_start(struct bio *bp)
 	    bp2->bio_offset, bp2->bio_length));
 	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UZIP, M_NOWAIT);
 	if (bp2->bio_data == NULL) {
+		g_destroy_bio(bp2);
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
