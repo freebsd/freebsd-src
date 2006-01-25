@@ -2541,7 +2541,6 @@ arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
 		 * effectiveness of coalescing.
 		 */
 
-		total_size = region_next_size_get(&arena->frag->sep);
 		assert(size % quantum == 0);
 
 		if (total_size - size >=
