@@ -211,6 +211,8 @@ autologin|al.9600:\
 #
 3wire.9600|9600-3wire:\
 	:np:nc:sp#9600:
+3wire.19200|19200-3wire:\
+	:np:nc:sp#19200:
 3wire.38400|38400-3wire:\
 	:np:nc:sp#38400:
 3wire.57600|57600-3wire:\
