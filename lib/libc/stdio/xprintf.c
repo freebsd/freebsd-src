@@ -655,6 +655,16 @@ register_printf_render_std(const unsigned char *specs)
 			    __printf_render_hexdump,
 			    __printf_arginfo_hexdump);
 			break;
+		case 'M':
+			register_printf_render(*specs,
+			    __printf_render_errno,
+			    __printf_arginfo_errno);
+			break;
+		case 'Q':
+			register_printf_render(*specs,
+			    __printf_render_quote,
+			    __printf_arginfo_quote);
+			break;
 		case 'T':
 			register_printf_render(*specs,
 			    __printf_render_time,
