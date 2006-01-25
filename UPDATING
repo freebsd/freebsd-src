@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20060125:	p10	FreeBSD-SA-06:07.pf
+	Correct an error in pf handling of IP packet fragments which
+	could result in a kernel panic.
+
 20060111:	p9	FreeBSD-SA-06:01.texindex, FreeBSD-SA-06:02.ee,
 			FreeBSD-SA-06:03.cpio
 	Correct insecure temporary file usage in texindex. [06:01]
