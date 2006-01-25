@@ -615,6 +615,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		bzero(&args, sizeof args);
 		if (bc->bc_flags & BC_F_COPYIN) {
 			error = copyin(ifd->ifd_data, &args, ifd->ifd_len);
 			if (error)
@@ -1022,6 +1023,7 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 
 	count = 0;
 	len = bifc->ifbic_len;
+	bzero(&breq, sizeof breq);
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if (len < sizeof(breq))
 			break;
@@ -1075,6 +1077,7 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		return (0);
 
 	len = bac->ifbac_len;
+	bzero(&bareq, sizeof bareq);
 	LIST_FOREACH(brt, &sc->sc_rtlist, brt_list) {
 		if (len < sizeof(bareq))
 			goto out;
