@@ -101,7 +101,7 @@ dsp_set_flags(struct cdev *dev, u_int32_t flags)
 }
 
 /*
- * return the channels channels associated with an open device instance.
+ * return the channels associated with an open device instance.
  * set the priority if the device is simplex and one direction (only) is
  * specified.
  * lock channels specified.

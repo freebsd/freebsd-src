@@ -30,7 +30,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                         *
  * This new implementation is fully dedicated in memory of Cameron Grant,  *
- * the creator of magnificent, highly addictive feeder infrastructure.     *
+ * the creator of the magnificent, highly addictive feeder infrastructure. *
  *                                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
