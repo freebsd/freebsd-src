@@ -461,9 +461,9 @@ retry_page:
 					if (vm_contig_launder_page(m) != 0)
 						goto cleanup_freed;
 					pqtype = m->queue - m->pc;
-					if (pqtype == PQ_FREE ||
-					    pqtype == PQ_CACHE)
-						break;
+					if (pqtype != PQ_FREE &&
+					    pqtype != PQ_CACHE)
+						goto cleanup_freed;
 				} else {
 cleanup_freed:
 					vm_page_release_contigl(&pga[i + 1],
