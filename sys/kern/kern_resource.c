@@ -733,8 +733,8 @@ calcru(p, up, sp)
 			    &pcpu_find(td->td_oncpu)->pc_switchtime);
 		}
 	}
-	calcru1(p, &rux, up, sp);
 	mtx_unlock_spin(&sched_lock);
+	calcru1(p, &rux, up, sp);
 	p->p_rux.rux_uu = rux.rux_uu;
 	p->p_rux.rux_su = rux.rux_su;
 	p->p_rux.rux_iu = rux.rux_iu;
