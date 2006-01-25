@@ -119,6 +119,20 @@
 
 	<tbody>
 	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
+		>06:07.pf</ulink></entry>
+	    <entry>25&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>IP fragment handling panic in &man.pf.4;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:06.kmem.asc"
+		>06:06.kmem</ulink></entry>
+	    <entry>25&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>Local kernel memory disclosure</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:05.80211.asc"
 		>06:05.80211</ulink></entry>
 	    <entry>18&nbsp;Janurary&nbsp;2006</entry>
