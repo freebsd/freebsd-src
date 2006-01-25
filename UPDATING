@@ -8,6 +8,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060125:	p4	FreeBSD-SA-06:06.kmem, FreeBSD-SA-06:07.pf
+	Make sure buffers in if_bridge are fully initialized before
+	copying them to userland.  Correct a logic error which could
+	allow too much data to be copied into userland. [06:06]
+
+	Correct an error in pf handling of IP packet fragments which
+	could result in a kernel panic. [06:07]
+
 20060118:	p3	FreeBSD-SA-06:05.80211
 	Correct a buffer overflow when scanning for 802.11 wireless
 	networks which can be provoked by corrupt beacon or probe

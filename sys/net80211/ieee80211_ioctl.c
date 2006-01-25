@@ -884,7 +884,7 @@ static int
 ieee80211_ioctl_getchanlist(struct ieee80211com *ic, struct ieee80211req *ireq)
 {
 
-	if (sizeof(ic->ic_chan_active) > ireq->i_len)
+	if (sizeof(ic->ic_chan_active) < ireq->i_len)
 		ireq->i_len = sizeof(ic->ic_chan_active);
 	return copyout(&ic->ic_chan_active, ireq->i_data, ireq->i_len);
 }
