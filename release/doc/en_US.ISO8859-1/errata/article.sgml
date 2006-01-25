@@ -114,6 +114,13 @@
 
 	<tbody>
 	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
+		>06:07.pf</ulink></entry>
+	    <entry>25&nbsp;Janurary&nbsp;2006</entry>
+	    <entry><para>IP fragment handling panic in &man.pf.4;</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
 		>06:03.cpio</ulink></entry>
 	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
