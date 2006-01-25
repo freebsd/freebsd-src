@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -54,7 +52,7 @@ static int ata_dmaload(device_t, caddr_t, int32_t, int, void *, int *);
 static int ata_dmaunload(device_t);
 
 /* local vars */
-static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
+static MALLOC_DEFINE(M_ATADMA, "ata_dma", "ATA driver DMA");
 
 /* misc defines */
 #define MAXTABSZ        PAGE_SIZE
@@ -115,7 +113,7 @@ ata_dmaalloc(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, ch->dma->max_iosize,
 			   ATA_DMA_ENTRIES, ch->dma->segsize,
-			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->data_tag))
+			   0, NULL, NULL, &ch->dma->data_tag))
 	goto error;
 
     if (bus_dmamem_alloc(ch->dma->sg_tag, (void **)&ch->dma->sg, 0,
@@ -223,31 +221,33 @@ ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir,
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dmasetprd_args cba;
+    int error;
 
     if (ch->dma->flags & ATA_DMA_LOADED) {
 	device_printf(dev, "FAILURE - already active DMA on this device\n");
-	return -1;
+	return EIO;
     }
     if (!count) {
 	device_printf(dev, "FAILURE - zero length DMA transfer attempted\n");
-	return -1;
+	return EIO;
     }
     if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
 	(count & (ch->dma->alignment - 1))) {
 	device_printf(dev, "FAILURE - non aligned DMA transfer attempted\n");
-	return -1;
+	return EIO;
     }
     if (count > ch->dma->max_iosize) {
 	device_printf(dev, "FAILURE - oversized DMA transfer attempt %d > %d\n",
 		      count, ch->dma->max_iosize);
-	return -1;
+	return EIO;
     }
 
     cba.dmatab = addr;
 
-    if (bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map, data, count,
-			ch->dma->setprd, &cba, 0) || cba.error)
-	return -1;
+    if ((error = bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map,
+				 data, count, ch->dma->setprd, &cba,
+				 BUS_DMA_NOWAIT)) || (error = cba.error))
+	return error;
 
     *entries = cba.nsegs;
 

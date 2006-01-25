@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -94,7 +92,7 @@ static int acd_format(device_t, struct cdr_format_params *);
 static int acd_test_ready(device_t);
 
 /* internal vars */
-static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
+static MALLOC_DEFINE(M_ACD, "acd_driver", "ATAPI CD driver buffers");
 static struct g_class acd_class = {
 	.name = "ACD",
 	.version = G_VERSION,
@@ -337,9 +335,11 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 		bcopy(&cdp->toc, toc, sizeof(struct toc));
 		entry = toc->tab + (toc->hdr.ending_track + 1 -
 			toc->hdr.starting_track) + 1;
-		while (--entry >= toc->tab)
+		while (--entry >= toc->tab) {
 		    lba2msf(ntohl(entry->addr.lba), &entry->addr.msf.minute,
 			    &entry->addr.msf.second, &entry->addr.msf.frame);
+		    entry->addr_type = CD_MSF_FORMAT;
+		}
 	    }
 	    error = copyout(toc->tab + starting_track - toc->hdr.starting_track,
 			    te->data, len);
@@ -940,17 +940,17 @@ acd_read_toc(device_t dev)
     int8_t ccb[16];
     int track, ntracks, len;
 
-    if (acd_test_ready(dev))
-	return;
-
     if (!(atadev->flags & ATA_D_MEDIA_CHANGED))
 	return;
 
     atadev->flags &= ~ATA_D_MEDIA_CHANGED;
     bzero(&cdp->toc, sizeof(cdp->toc));
-    bzero(ccb, sizeof(ccb));
     cdp->disk_size = -1;                        /* hack for GEOM SOS */
 
+    if (acd_test_ready(dev))
+	return;
+
+    bzero(ccb, sizeof(ccb));
     len = sizeof(struct ioc_toc_header) + sizeof(struct cd_toc_entry);
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
@@ -1511,7 +1511,7 @@ acd_read_structure(device_t dev, struct dvd_struct *s)
 
     case DVD_STRUCT_COPYRIGHT:
 	s->cpst = d->data[0];
-	s->rmi = d->data[0];
+	s->rmi = d->data[1];
 	break;
 
     case DVD_STRUCT_DISCKEY:

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2005 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2006 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -65,11 +63,13 @@ static int ata_raid_addspare(struct ata_ioc_raid_config *config);
 static int ata_raid_rebuild(int array);
 static int ata_raid_read_metadata(device_t subdisk);
 static int ata_raid_write_metadata(struct ar_softc *rdp);
+static int ata_raid_wipe_metadata(struct ar_softc *rdp);
 static int ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_hptv2_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_hptv2_write_meta(struct ar_softc *rdp);
 static int ata_raid_hptv3_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_intel_write_meta(struct ar_softc *rdp);
 static int ata_raid_ite_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_lsiv2_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_lsiv3_read_meta(device_t dev, struct ar_softc **raidp);
@@ -77,7 +77,10 @@ static int ata_raid_nvidia_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native);
 static int ata_raid_promise_write_meta(struct ar_softc *rdp);
 static int ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_sis_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_sis_write_meta(struct ar_softc *rdp);
 static int ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_via_write_meta(struct ar_softc *rdp);
 static struct ata_request *ata_raid_init_request(struct ar_softc *rdp, struct bio *bio);
 static int ata_raid_send_request(struct ata_request *request);
 static int ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags);
@@ -97,17 +100,18 @@ static void ata_raid_lsiv3_print_meta(struct lsiv3_raid_conf *meta);
 static void ata_raid_nvidia_print_meta(struct nvidia_raid_conf *meta);
 static void ata_raid_promise_print_meta(struct promise_raid_conf *meta);
 static void ata_raid_sii_print_meta(struct sii_raid_conf *meta);
+static void ata_raid_sis_print_meta(struct sis_raid_conf *meta);
 static void ata_raid_via_print_meta(struct via_raid_conf *meta);
 
 /* internal vars */   
 static struct ar_softc *ata_raid_arrays[MAX_ARRAYS];
-static MALLOC_DEFINE(M_AR, "AR driver", "ATA PseudoRAID driver");
+static MALLOC_DEFINE(M_AR, "ar_driver", "ATA PseudoRAID driver");
 static devclass_t ata_raid_sub_devclass;
 static int testing = 0;
 
 /* device structures */
 static disk_strategy_t ata_raid_strategy;
-//static dumper_t ata_raid_dump;
+static dumper_t ata_raid_dump;
 
 static void
 ata_raid_attach(struct ar_softc *rdp, int writeback)
@@ -116,13 +120,6 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
     int disk;
 
     mtx_init(&rdp->lock, "ATA PseudoRAID metadata lock", NULL, MTX_DEF);
-
-    /* bail out on RAID5 as that is not properly supported yet */
-    if (rdp->type == AR_T_RAID5) {
-	printf("ar%d: RAID5 not supported\n", rdp->lun);
-	return;
-    }
-
     ata_raid_config_changed(rdp, writeback);
 
     /* sanitize arrays total_size % (width * interleave) == 0 */
@@ -137,7 +134,7 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
 	buffer[0] = '\0';
     rdp->disk = disk_alloc();
     rdp->disk->d_strategy = ata_raid_strategy;
-    //rdp->disk->d_dump = ata_raid_dump;
+    rdp->disk->d_dump = ata_raid_dump;
     rdp->disk->d_name = "ar";
     rdp->disk->d_sectorsize = DEV_BSIZE;
     rdp->disk->d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
@@ -251,13 +248,13 @@ ata_raid_strategy(struct bio *bp)
 	 count -= chunk, blkno += chunk, data += (chunk * DEV_BSIZE)) {
 
 	switch (rdp->type) {
-	case AR_T_JBOD:
 	case AR_T_RAID1:
 	    drv = 0;
 	    lba = blkno;
 	    chunk = count;
 	    break;
 	
+	case AR_T_JBOD:
 	case AR_T_SPAN:
 	    drv = 0;
 	    lba = blkno;
@@ -410,6 +407,7 @@ ata_raid_strategy(struct bio *bp)
 				mtx_init(&composite->lock,
 					 "ATA PseudoRAID rebuild lock",
 					 NULL, MTX_DEF);
+				composite->residual = request->bytecount;
 				composite->rd_needed |= (1 << drv);
 				composite->wr_depend |= (1 << drv);
 				composite->wr_needed |= (1 << this);
@@ -460,7 +458,9 @@ ata_raid_strategy(struct bio *bp)
 
 			if ((composite = ata_alloc_composite())) {
 			    if ((mirror = ata_alloc_request())) {
-				rdp->rebuild_lba = blk + chunk;
+				if ((blk <= rdp->rebuild_lba) &&
+				    ((blk + chunk) > rdp->rebuild_lba))
+				    rdp->rebuild_lba = blk + chunk;
 				bcopy(request, mirror,
 				      sizeof(struct ata_request));
 				mirror->this = this;
@@ -468,6 +468,7 @@ ata_raid_strategy(struct bio *bp)
 				mtx_init(&composite->lock,
 					 "ATA PseudoRAID mirror lock",
 					 NULL, MTX_DEF);
+				composite->residual = request->bytecount;
 				composite->wr_needed |= (1 << drv);
 				composite->wr_needed |= (1 << this);
 				composite->request[drv] = request;
@@ -562,7 +563,7 @@ ata_raid_done(struct ata_request *request)
 	}
 	else {
 	    bp->bio_resid -= request->donecount;
-	    if (bp->bio_resid == 0)
+	    if (!bp->bio_resid)
 		finished = 1;
 	}
 	break;
@@ -607,7 +608,8 @@ ata_raid_done(struct ata_request *request)
 			/* good data, update how far we've gotten */
 			else {
 			    bp->bio_resid -= request->donecount;
-			    if (bp->bio_resid == 0) {
+			    composite->residual -= request->donecount;
+			    if (!composite->residual) {
 				if (composite->wr_done & (1 << mirror))
 				    finished = 1;
 			    }
@@ -621,7 +623,7 @@ ata_raid_done(struct ata_request *request)
 				printf("DOH! rebuild failed\n"); /* XXX SOS */
 				rdp->rebuild_lba = blk;
 			    }
-			    if (bp->bio_resid == 0)
+			    if (!composite->residual)
 				finished = 1;
 			}
 		    }
@@ -631,6 +633,7 @@ ata_raid_done(struct ata_request *request)
 		/* if read failed retry on the mirror */
 		else if (request->result) {
 		    request->dev = rdp->disks[mirror].dev;
+		    request->flags &= ~ATA_R_TIMEOUT;
 		    ata_raid_send_request(request);
 		    return;
 		}
@@ -638,7 +641,7 @@ ata_raid_done(struct ata_request *request)
 		/* we have good data */
 		else {
 		    bp->bio_resid -= request->donecount;
-		    if (bp->bio_resid == 0)
+		    if (!bp->bio_resid)
 			finished = 1;
 		}
 	    }
@@ -658,10 +661,14 @@ ata_raid_done(struct ata_request *request)
 			    }
 			    bp->bio_resid -=
 				composite->request[mirror]->donecount;
+			    composite->residual -=
+				composite->request[mirror]->donecount;
 			}
-			else
+			else {
 			    bp->bio_resid -= request->donecount;
-			if (bp->bio_resid == 0)
+			    composite->residual -= request->donecount;
+			}
+			if (!composite->residual)
 			    finished = 1;
 		    }
 		    mtx_unlock(&composite->lock);
@@ -669,7 +676,7 @@ ata_raid_done(struct ata_request *request)
 		/* no mirror we are done */
 		else {
 		    bp->bio_resid -= request->donecount;
-		    if (bp->bio_resid == 0)
+		    if (!bp->bio_resid)
 			finished = 1;
 		}
 	    }
@@ -698,7 +705,7 @@ ata_raid_done(struct ata_request *request)
 	else {
 	    // did we have an XOR game going ??
 	    bp->bio_resid -= request->donecount;
-	    if (bp->bio_resid == 0)
+	    if (!bp->bio_resid)
 		finished = 1;
 	}
 	break;
@@ -723,7 +730,8 @@ ata_raid_done(struct ata_request *request)
 	    rdp->status &= ~AR_S_REBUILDING;
 	    ata_raid_config_changed(rdp, 1);
 	}
-	biodone(bp);
+	if (!bp->bio_resid)
+	    biodone(bp);
     }
 		 
     if (composite) {
@@ -741,6 +749,35 @@ ata_raid_done(struct ata_request *request)
     }
     else
 	ata_free_request(request);
+}
+
+static int
+ata_raid_dump(void *arg, void *virtual, vm_offset_t physical,
+	      off_t offset, size_t length)
+{
+    struct disk *dp = arg;
+    struct ar_softc *rdp = dp->d_drv1;
+    struct bio bp;
+
+    /* length zero is special and really means flush buffers to media */
+    if (!length) {
+	int disk, error;
+
+	for (disk = 0, error = 0; disk < rdp->total_disks; disk++) 
+	    if (rdp->disks[disk].dev)
+		error |= ata_controlcmd(rdp->disks[disk].dev,
+					ATA_FLUSHCACHE, 0, 0, 0);
+	return (error ? EIO : 0);
+    }
+
+    bzero(&bp, sizeof(struct bio));
+    bp.bio_disk = dp;
+    bp.bio_pblkno = offset / DEV_BSIZE;
+    bp.bio_bcount = length;
+    bp.bio_data = virtual;
+    bp.bio_cmd = BIO_WRITE;
+    ata_raid_strategy(&bp);
+    return bp.bio_error;
 }
 
 static void
@@ -872,7 +909,7 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 	    struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
 	    /* is device already assigned to another array ? */
-	    if (ars->raid) {
+	    if (ars->raid[rdp->volume]) {
 		config->disks[disk] = -1;
 		free(rdp, M_AR);
 		return EBUSY;
@@ -890,6 +927,11 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 		rdp->disks[disk].sectors = HPTV3_LBA(rdp->disks[disk].dev);
 		break;
 
+	    case ATA_INTEL_ID:
+		ctlr = AR_F_INTEL_RAID;
+		rdp->disks[disk].sectors = INTEL_LBA(rdp->disks[disk].dev);
+		break;
+
 	    case ATA_ITE_ID:
 		ctlr = AR_F_ITE_RAID;
 		rdp->disks[disk].sectors = ITE_LBA(rdp->disks[disk].dev);
@@ -898,9 +940,15 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 	    case 0:     /* XXX SOS cover up for bug in our PCI code */
 	    case ATA_PROMISE_ID:        
 		ctlr = AR_F_PROMISE_RAID;
-		rdp->disks[disk].sectors = PR_LBA(rdp->disks[disk].dev);
+		rdp->disks[disk].sectors = PROMISE_LBA(rdp->disks[disk].dev);
 		break;
 
+	    case ATA_SIS_ID:        
+		ctlr = AR_F_SIS_RAID;
+		rdp->disks[disk].sectors = SIS_LBA(rdp->disks[disk].dev);
+		break;
+
+	    case ATA_ATI_ID:        
 	    case ATA_VIA_ID:        
 		ctlr = AR_F_VIA_RAID;
 		rdp->disks[disk].sectors = VIA_LBA(rdp->disks[disk].dev);
@@ -922,7 +970,7 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 		       "If that is not what you want, use the BIOS to "
 		       "create the array\n");
 		ctlr = AR_F_FREEBSD_RAID;
-		rdp->disks[disk].sectors = PR_LBA(rdp->disks[disk].dev);
+		rdp->disks[disk].sectors = PROMISE_LBA(rdp->disks[disk].dev);
 		break;
 	    }
 
@@ -1040,6 +1088,10 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 	rdp->interleave = min(max(8, rdp->interleave), 256); /*+*/
 	break;
 
+    case AR_F_SIS_RAID:
+	rdp->interleave = min(max(32, rdp->interleave), 512); /*+*/
+	break;
+
     case AR_F_VIA_RAID:
 	rdp->interleave = min(max(8, rdp->interleave), 128); /*+*/
 	break;
@@ -1060,8 +1112,8 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 					   config->disks[disk]))) {
 	    struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
-	    ars->raid = rdp;
-	    ars->disk_number = disk;
+	    ars->raid[rdp->volume] = rdp;
+	    ars->disk_number[rdp->volume] = disk;
 	}
     }
     ata_raid_attach(rdp, 1);
@@ -1081,7 +1133,8 @@ ata_raid_delete(int array)
 	return ENXIO;
  
     rdp->status &= ~AR_S_READY;
-    disk_destroy(rdp->disk);
+    if (rdp->disk)
+	disk_destroy(rdp->disk);
 
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if ((rdp->disks[disk].flags & AR_DF_PRESENT) && rdp->disks[disk].dev) {
@@ -1089,17 +1142,17 @@ ata_raid_delete(int array)
 		     device_get_unit(rdp->disks[disk].dev)))) {
 		struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
-		if (ars->raid != rdp)           /* XXX SOS */
+		if (ars->raid[rdp->volume] != rdp)           /* XXX SOS */
 		    device_printf(subdisk, "DOH! this disk doesn't belong\n");
-		if (ars->disk_number != disk)   /* XXX SOS */
+		if (ars->disk_number[rdp->volume] != disk)   /* XXX SOS */
 		    device_printf(subdisk, "DOH! this disk number is wrong\n");
-		ars->raid = NULL;
-		ars->disk_number = -1;
+		ars->raid[rdp->volume] = NULL;
+		ars->disk_number[rdp->volume] = -1;
 	    }
 	    rdp->disks[disk].flags = 0;
 	}
     }
-    ata_raid_write_metadata(rdp);       /* XXX SOS wipe metadata instead? */
+    ata_raid_wipe_metadata(rdp);
     ata_raid_arrays[array] = NULL;
     free(rdp, M_AR);
     return 0;
@@ -1132,12 +1185,12 @@ ata_raid_addspare(struct ata_ioc_raid_config *config)
 					       config->disks[0] ))) {
 		struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
-		if (ars->raid) 
+		if (ars->raid[rdp->volume]) 
 		    return EBUSY;
     
 		/* XXX SOS validate size etc etc */
-		ars->raid = rdp;
-		ars->disk_number = disk;
+		ars->raid[rdp->volume] = rdp;
+		ars->disk_number[rdp->volume] = disk;
 		rdp->disks[disk].dev = device_get_parent(subdisk);
 		rdp->disks[disk].flags =
 		    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_SPARE);
@@ -1238,6 +1291,11 @@ ata_raid_read_metadata(device_t subdisk)
 		return 0;
 	    break;
 
+	case ATA_SIS_ID:
+	    if (ata_raid_sis_read_meta(subdisk, ata_raid_arrays))
+		return 0;
+	    break;
+
 	case ATA_VIA_ID:
 	    if (ata_raid_via_read_meta(subdisk, ata_raid_arrays))
 		return 0;
@@ -1277,15 +1335,21 @@ ata_raid_write_metadata(struct ar_softc *rdp)
 	 * this is handy since we cannot know what version BIOS is on there
 	 */
 	return ata_raid_hptv2_write_meta(rdp);
+
+    case AR_F_INTEL_RAID:
+	return ata_raid_intel_write_meta(rdp);
+
+    case AR_F_SIS_RAID:
+	return ata_raid_sis_write_meta(rdp);
+
+    case AR_F_VIA_RAID:
+	return ata_raid_via_write_meta(rdp);
 #if 0
     case AR_F_HPTV3_RAID:
 	return ata_raid_hptv3_write_meta(rdp);
 
     case AR_F_ADAPTEC_RAID:
 	return ata_raid_adaptec_write_meta(rdp);
-
-    case AR_F_INTEL_RAID:
-	return ata_raid_intel_write_meta(rdp);
 
     case AR_F_ITE_RAID:
 	return ata_raid_ite_write_meta(rdp);
@@ -1302,14 +1366,102 @@ ata_raid_write_metadata(struct ar_softc *rdp)
     case AR_F_SII_RAID:
 	return ata_raid_sii_write_meta(rdp);
 
-    case AR_F_VIA_RAID:
-	return ata_raid_via_write_meta(rdp);
 #endif
     default:
 	printf("ar%d: writing of %s metadata is NOT supported yet\n",
 	       rdp->lun, ata_raid_format(rdp));
     }
     return -1;
+}
+
+static int
+ata_raid_wipe_metadata(struct ar_softc *rdp)
+{
+    int disk, error = 0;
+    u_int64_t lba;
+    u_int32_t size;
+    u_int8_t *meta;
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    switch (rdp->format) {
+	    case AR_F_ADAPTEC_RAID:
+		lba = ADP_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct adaptec_raid_conf);
+		break;
+
+	    case AR_F_HPTV2_RAID:
+		lba = HPTV2_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct hptv2_raid_conf);
+		break;
+		
+	    case AR_F_HPTV3_RAID:
+		lba = HPTV3_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct hptv3_raid_conf);
+		break;
+
+	    case AR_F_INTEL_RAID:
+		lba = INTEL_LBA(rdp->disks[disk].dev);
+		size = 3 * 512;         /* XXX SOS */
+		break;
+
+	    case AR_F_ITE_RAID:
+		lba = ITE_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct ite_raid_conf);
+		break;
+
+	    case AR_F_LSIV2_RAID:
+		lba = LSIV2_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct lsiv2_raid_conf);
+		break;
+
+	    case AR_F_LSIV3_RAID:
+		lba = LSIV3_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct lsiv3_raid_conf);
+		break;
+
+	    case AR_F_NVIDIA_RAID:
+		lba = NVIDIA_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct nvidia_raid_conf);
+		break;
+
+	    case AR_F_FREEBSD_RAID:
+	    case AR_F_PROMISE_RAID: 
+		lba = PROMISE_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct promise_raid_conf);
+		break;
+
+	    case AR_F_SII_RAID:
+		lba = SII_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct sii_raid_conf);
+		break;
+
+	    case AR_F_SIS_RAID:
+		lba = SIS_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct sis_raid_conf);
+		break;
+
+	    case AR_F_VIA_RAID:
+		lba = VIA_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct via_raid_conf);
+		break;
+
+	    default:
+		printf("ar%d: wiping of %s metadata is NOT supported yet\n",
+		       rdp->lun, ata_raid_format(rdp));
+		return ENXIO;
+	    }
+	    if (!(meta = malloc(size, M_AR, M_NOWAIT | M_ZERO)))
+		return ENOMEM;
+	    if (ata_raid_rw(rdp->disks[disk].dev, lba, meta, size,
+			    ATA_R_WRITE | ATA_R_DIRECT)) {
+		device_printf(rdp->disks[disk].dev, "wipe metadata failed\n");
+		error = EIO;
+	    }
+	    free(meta, M_AR);
+	}
+    }
+    return error;
 }
 
 /* Adaptec HostRAID Metadata */
@@ -1409,15 +1561,15 @@ ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp)
 	    struct ata_device *atadev = device_get_softc(parent);
 	    struct ata_channel *ch = device_get_softc(GRANDPARENT(dev));
 	    int disk_number = (ch->unit << !(ch->flags & ATA_NO_SLAVE)) +
-			      (atadev->unit == ATA_MASTER ? 0 : 1);
+			      ATA_DEV(atadev->unit);
 
 	    raid->disks[disk_number].dev = parent;
 	    raid->disks[disk_number].sectors = 
 		be32toh(meta->configs[disk_number + 1].sectors);
 	    raid->disks[disk_number].flags =
 		(AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
-	    ars->raid = raid;
-	    ars->disk_number = disk_number;
+	    ars->raid[raid->volume] = raid;
+	    ars->disk_number[raid->volume] = disk_number;
 	    retval = 1;
 	}
 	break;
@@ -1572,8 +1724,8 @@ highpoint_raid01:
 	    raid->total_disks = raid->width;
 	if (disk_number >= raid->total_disks)
 	    raid->total_disks = disk_number + 1;
-	ars->raid = raid;
-	ars->disk_number = disk_number;
+	ars->raid[raid->volume] = raid;
+	ars->disk_number[raid->volume] = disk_number;
 	retval = 1;
 	break;
     }
@@ -1650,16 +1802,18 @@ ata_raid_hptv2_write_meta(struct ar_softc *rdp)
 	    meta->type = HPTV2_T_SPAN;
 	    strcpy(meta->name_2, "SPAN");
 	    break;
+	default:
+	    free(meta, M_AR);
+	    return ENODEV;
 	}
 
 	meta->array_width = rdp->width;
 	meta->stripe_shift = (rdp->width > 1) ? (ffs(rdp->interleave)-1) : 0;
 	meta->total_sectors = rdp->total_sectors;
 	meta->rebuild_lba = rdp->rebuild_lba;
-
-	if (rdp->disks[disk].dev &&
-	    (rdp->disks[disk].flags & (AR_DF_PRESENT | AR_DF_ONLINE)) ==
-	    (AR_DF_PRESENT | AR_DF_ONLINE)) {
+	if (testing || bootverbose)
+	    ata_raid_hptv2_print_meta(meta);
+	if (rdp->disks[disk].dev) {
 	    if (ata_raid_rw(rdp->disks[disk].dev,
 			    HPTV2_LBA(rdp->disks[disk].dev), meta,
 			    sizeof(struct promise_raid_conf),
@@ -1801,8 +1955,8 @@ ata_raid_hptv3_read_meta(device_t dev, struct ar_softc **raidp)
 	raid->disks[disk_number].dev = parent;
 	raid->disks[disk_number].flags = 
 	    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE);
-	ars->raid = raid;
-	ars->disk_number = disk_number;
+	ars->raid[raid->volume] = raid;
+	ars->disk_number[raid->volume] = disk_number;
 	retval = 1;
 	break;
     }
@@ -1819,20 +1973,25 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
     struct ata_raid_subdisk *ars = device_get_softc(dev);
     device_t parent = device_get_parent(dev);
     struct intel_raid_conf *meta;
+    struct intel_raid_mapping *map;
     struct ar_softc *raid = NULL;
     u_int32_t checksum, *ptr;
-    int array, count, disk, retval = 0;
+    int array, count, disk, volume = 1, retval = 0;
+    char *tmp;
 
     if (!(meta = (struct intel_raid_conf *)
-	  malloc(1024, M_AR, M_NOWAIT | M_ZERO)))
+	  malloc(1536, M_AR, M_NOWAIT | M_ZERO)))
 	return ENOMEM;
 
-    if (ata_raid_rw(parent, INTEL_LBA(parent),
-		    meta, 1024, ATA_R_READ)) {
+    if (ata_raid_rw(parent, INTEL_LBA(parent), meta, 1024, ATA_R_READ)) {
 	if (testing || bootverbose)
 	    device_printf(parent, "Intel read metadata failed\n");
 	goto intel_out;
     }
+    tmp = (char *)meta;
+    bcopy(tmp, tmp+1024, 512);
+    bcopy(tmp+512, tmp, 1024);
+    bzero(tmp+1024, 512);
 
     /* check if this is a Intel RAID struct */
     if (strncmp(meta->intel_id, INTEL_MAGIC, strlen(INTEL_MAGIC))) {
@@ -1840,22 +1999,22 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
 	    device_printf(parent, "Intel check1 failed\n");
 	goto intel_out;
     }
+
     for (checksum = 0, ptr = (u_int32_t *)meta, count = 0;
 	 count < (meta->config_size / sizeof(u_int32_t)); count++) {
 	checksum += *ptr++;
     }
-
-/* XXX SOS needs to be fixed */
-device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
-
+    checksum -= meta->checksum;
     if (checksum != meta->checksum) {  
 	if (testing || bootverbose)
 	    device_printf(parent, "Intel check2 failed\n");          
-	//goto intel_out;
+	goto intel_out;
     }
 
     if (testing || bootverbose)
 	ata_raid_intel_print_meta(meta);
+
+    map = (struct intel_raid_mapping *)&meta->disk[meta->total_disks];
 
     /* now convert Intel metadata into our generic form */
     for (array = 0; array < MAX_ARRAYS; array++) {
@@ -1878,13 +2037,9 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 
 	/*
 	 * update our knowledge about the array config based on generation
-	 * we only grap the first volume description (yet) since the
-	 * BIOS'n I have access to puts crap into the following ones
+	 * NOTE: there can be multiple volumes on a disk set
 	 */
 	if (!meta->generation || meta->generation > raid->generation) {
-	    struct intel_raid_mapping *map = 
-		(struct intel_raid_mapping *)&meta->disk[meta->total_disks];
-
 	    switch (map->type) {
 	    case INTEL_T_RAID0:
 		raid->type = AR_T_RAID0;
@@ -1892,8 +2047,16 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 		break;
 
 	    case INTEL_T_RAID1:
-		raid->type = AR_T_RAID1;
+		if (map->total_disks == 4)
+		    raid->type = AR_T_RAID01;
+		else
+		    raid->type = AR_T_RAID1;
 		raid->width = map->total_disks / 2;
+		break;
+
+	    case INTEL_T_RAID5:
+		raid->type = AR_T_RAID5;
+		raid->width = map->total_disks;
 		break;
 
 	    default:
@@ -1928,6 +2091,7 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 	    raid->offset_sectors = map->offset;         
 	    raid->rebuild_lba = 0;
 	    raid->lun = array;
+	    raid->volume = volume - 1;
 	    strncpy(raid->name, map->name,
 		    min(sizeof(raid->name), sizeof(map->name)));
 
@@ -1937,7 +2101,8 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 		bcopy(meta->disk[map->disk_idx[disk]].serial,
 		      raid->disks[disk].serial,
 		      sizeof(raid->disks[disk].serial));
-		raid->disks[disk].sectors = map->disk_sectors;
+		raid->disks[disk].sectors =
+		    meta->disk[map->disk_idx[disk]].sectors;
 		raid->disks[disk].flags = 0;
 		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_ONLINE)
 		    raid->disks[disk].flags |= AR_DF_ONLINE;
@@ -1959,20 +2124,152 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 		    sizeof(raid->disks[disk].serial))) {
 		    raid->disks[disk].dev = parent;
 		    raid->disks[disk].flags |= (AR_DF_PRESENT | AR_DF_ONLINE);
-		    ars->raid = raid;
-		    ars->disk_number = disk;
+		    ars->raid[raid->volume] = raid;
+		    ars->disk_number[raid->volume] = disk;
 		    retval = 1;
 		}
 	    }
 	}
-	if (retval)
+	else
+	    goto intel_out;
+
+	if (retval) {
+	    if (volume < meta->total_volumes) {
+		map = (struct intel_raid_mapping *)
+		      &map->disk_idx[map->total_disks];
+		volume++;
+		retval = 0;
+		continue;
+	    }
 	    break;
+	}
+	else {
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    if (volume == 2)
+		retval = 1;
+	}
     }
 
 intel_out:
     free(meta, M_AR);
     return retval;
 }
+
+static int
+ata_raid_intel_write_meta(struct ar_softc *rdp)
+{
+    struct intel_raid_conf *meta;
+    struct intel_raid_mapping *map;
+    struct timeval timestamp;
+    u_int32_t checksum, *ptr;
+    int count, disk, error = 0;
+    char *tmp;
+
+    if (!(meta = (struct intel_raid_conf *)
+	  malloc(1536, M_AR, M_NOWAIT | M_ZERO))) {
+	printf("ar%d: failed to allocate metadata storage\n", rdp->lun);
+	return ENOMEM;
+    }
+
+    rdp->generation++;
+    microtime(&timestamp);
+
+    bcopy(INTEL_MAGIC, meta->intel_id, sizeof(meta->intel_id));
+    bcopy(INTEL_VERSION_1100, meta->version, sizeof(meta->version));
+    meta->config_id = timestamp.tv_sec;
+    meta->generation = rdp->generation;
+    meta->total_disks = rdp->total_disks;
+    meta->total_volumes = 1;                                    /* XXX SOS */
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    struct ata_channel *ch =
+		device_get_softc(device_get_parent(rdp->disks[disk].dev));
+	    struct ata_device *atadev =
+		device_get_softc(rdp->disks[disk].dev);
+
+	    bcopy(atadev->param.serial, meta->disk[disk].serial,
+		  sizeof(rdp->disks[disk].serial));
+	    meta->disk[disk].sectors = rdp->disks[disk].sectors;
+	    meta->disk[disk].id = (ch->unit << 16) | ATA_DEV(atadev->unit);
+	}
+	else
+	    meta->disk[disk].sectors = rdp->total_sectors / rdp->width;
+	meta->disk[disk].flags = 0;
+	if (rdp->disks[disk].flags & AR_DF_SPARE)
+	    meta->disk[disk].flags  |= INTEL_F_SPARE;
+	else {
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		meta->disk[disk].flags |= INTEL_F_ONLINE;
+	    else
+		meta->disk[disk].flags |= INTEL_F_DOWN;
+	    if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
+		meta->disk[disk].flags  |= INTEL_F_ASSIGNED;
+	}
+    }
+    map = (struct intel_raid_mapping *)&meta->disk[meta->total_disks];
+
+    bcopy(rdp->name, map->name, sizeof(rdp->name));
+    map->total_sectors = rdp->total_sectors;
+    map->state = 12;                                            /* XXX SOS */
+    map->offset = rdp->offset_sectors;
+    map->stripe_count = rdp->total_sectors / (rdp->interleave*rdp->total_disks);
+    map->stripe_sectors =  rdp->interleave;
+    map->disk_sectors = rdp->total_sectors / rdp->width;
+    map->status = INTEL_S_READY;                                /* XXX SOS */
+    switch (rdp->type) {
+    case AR_T_RAID0:
+	map->type = INTEL_T_RAID0;
+	break;
+    case AR_T_RAID1:
+	map->type = INTEL_T_RAID1;
+	break;
+    case AR_T_RAID01:
+	map->type = INTEL_T_RAID1;
+	break;
+    case AR_T_RAID5:
+	map->type = INTEL_T_RAID5;
+	break;
+    default:
+	free(meta, M_AR);
+	return ENODEV;
+    }
+    map->total_disks = rdp->total_disks;
+    map->magic[0] = 0x02;
+    map->magic[1] = 0xff;
+    map->magic[2] = 0x01;
+    for (disk = 0; disk < rdp->total_disks; disk++)
+	map->disk_idx[disk] = disk;
+
+    meta->config_size = (char *)&map->disk_idx[disk] - (char *)meta;
+    for (checksum = 0, ptr = (u_int32_t *)meta, count = 0;
+	 count < (meta->config_size / sizeof(u_int32_t)); count++) {
+	checksum += *ptr++;
+    }
+    meta->checksum = checksum;
+
+    if (testing || bootverbose)
+	ata_raid_intel_print_meta(meta);
+
+    tmp = (char *)meta;
+    bcopy(tmp, tmp+1024, 512);
+    bcopy(tmp+512, tmp, 1024);
+    bzero(tmp+1024, 512);
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    if (ata_raid_rw(rdp->disks[disk].dev,
+			    INTEL_LBA(rdp->disks[disk].dev),
+			    meta, 1024, ATA_R_WRITE | ATA_R_DIRECT)) {
+		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
+		error = EIO;
+	    }
+	}
+    }
+    free(meta, M_AR);
+    return error;
+}
+
 
 /* Integrated Technology Express Metadata */
 static int
@@ -2085,8 +2382,8 @@ ata_raid_ite_read_meta(device_t dev, struct ar_softc **raidp)
 	raid->disks[disk_number].sectors = raid->total_sectors / raid->width;
 	raid->disks[disk_number].flags = 
 	    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE);
-	ars->raid = raid;
-	ars->disk_number = disk_number;
+	ars->raid[raid->volume] = raid;
+	ars->disk_number[raid->volume] = disk_number;
 	retval = 1;
 	break;
     }
@@ -2203,8 +2500,8 @@ ata_raid_lsiv2_read_meta(device_t dev, struct ar_softc **raidp)
 		meta->configs[conf_entry].disk.disk_sectors;
 	    raid->disks[meta->disk_number].flags = 
 		(AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
-	    ars->raid = raid;
-	    ars->disk_number = meta->disk_number;
+	    ars->raid[raid->volume] = raid;
+	    ars->disk_number[raid->volume] = meta->disk_number;
 	    retval = 1;
 	}
 	else
@@ -2342,8 +2639,8 @@ ata_raid_lsiv3_read_meta(device_t dev, struct ar_softc **raidp)
 	raid->disks[disk_number].sectors = raid->total_sectors / raid->width;
 	raid->disks[disk_number].flags = 
 	    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE);
-	ars->raid = raid;
-	ars->disk_number = disk_number;
+	ars->raid[raid->volume] = raid;
+	ars->disk_number[raid->volume] = disk_number;
 	retval = 1;
 	entry++;
 	array++;
@@ -2468,8 +2765,8 @@ ata_raid_nvidia_read_meta(device_t dev, struct ar_softc **raidp)
 	    raid->total_sectors / raid->width;
 	raid->disks[meta->disk_number].flags =
 	    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE);
-	ars->raid = raid;
-	ars->disk_number = meta->disk_number;
+	ars->raid[raid->volume] = raid;
+	ars->disk_number[raid->volume] = meta->disk_number;
 	retval = 1;
 	break;
     }
@@ -2494,7 +2791,7 @@ ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native)
 	  malloc(sizeof(struct promise_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
 	return ENOMEM;
 
-    if (ata_raid_rw(parent, PR_LBA(parent),
+    if (ata_raid_rw(parent, PROMISE_LBA(parent),
 		    meta, sizeof(struct promise_raid_conf), ATA_R_READ)) {
 	if (testing || bootverbose)
 	    device_printf(parent, "%s read metadata failed\n",
@@ -2651,8 +2948,8 @@ ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native)
 		if ((raid->disks[disk_number].flags &
 		    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE)) ==
 		    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE)) {
-		    ars->raid = raid;
-		    ars->disk_number = disk_number;
+		    ars->raid[raid->volume] = raid;
+		    ars->disk_number[raid->volume] = disk_number;
 		    retval = 1;
 		}
 	    }
@@ -2688,13 +2985,13 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 	meta->dummy_0 = 0x00020000;
 	meta->raid.disk_number = disk;
 
-	if ((rdp->disks[disk].flags & AR_DF_PRESENT) && rdp->disks[disk].dev) {
+	if (rdp->disks[disk].dev) {
 	    struct ata_device *atadev = device_get_softc(rdp->disks[disk].dev);
 	    struct ata_channel *ch = 
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
 
 	    meta->raid.channel = ch->unit;
-	    meta->raid.device = (atadev->unit != 0);
+	    meta->raid.device = ATA_DEV(atadev->unit);
 	    meta->raid.disk_sectors = rdp->disks[disk].sectors;
 	    meta->raid.disk_offset = rdp->offset_sectors;
 	}
@@ -2745,6 +3042,9 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 	case AR_T_JBOD:
 	    meta->raid.type = PR_T_JBOD;
 	    break;
+	default:
+	    free(meta, M_AR);
+	    return ENODEV;
 	}
 
 	meta->raid.total_disks = rdp->total_disks;
@@ -2779,7 +3079,7 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 		    device_get_softc(rdp->disks[drive].dev);
 
 		meta->raid.disk[drive].channel = ch->unit;
-		meta->raid.disk[drive].device = (atadev->unit != 0);
+		meta->raid.disk[drive].device = ATA_DEV(atadev->unit);
 	    }
 	    meta->raid.disk[drive].magic_0 =
 		PR_MAGIC0(meta->raid.disk[drive]) | timestamp.tv_sec;
@@ -2798,7 +3098,10 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 	    meta->checksum = 0;
 	    for (ckptr = (int32_t *)meta, count = 0; count < 511; count++)
 		meta->checksum += *ckptr++;
-	    if (ata_raid_rw(rdp->disks[disk].dev, PR_LBA(rdp->disks[disk].dev),
+	    if (testing || bootverbose)
+		ata_raid_promise_print_meta(meta);
+	    if (ata_raid_rw(rdp->disks[disk].dev,
+			    PROMISE_LBA(rdp->disks[disk].dev),
 			    meta, sizeof(struct promise_raid_conf),
 			    ATA_R_WRITE | ATA_R_DIRECT)) {
 		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
@@ -2946,8 +3249,8 @@ ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp)
 		    raid->total_sectors / raid->width;
 		raid->disks[disk_number].flags =
 		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
-		ars->raid = raid;
-		ars->disk_number = disk_number;
+		ars->raid[raid->volume] = raid;
+		ars->disk_number[raid->volume] = disk_number;
 		retval = 1;
 	    }
 	}
@@ -2957,6 +3260,205 @@ ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp)
 sii_out:
     free(meta, M_AR);
     return retval;
+}
+
+/* Silicon Integrated Systems Metadata */
+static int
+ata_raid_sis_read_meta(device_t dev, struct ar_softc **raidp)
+{
+    struct ata_raid_subdisk *ars = device_get_softc(dev);
+    device_t parent = device_get_parent(dev);
+    struct sis_raid_conf *meta;
+    struct ar_softc *raid = NULL;
+    int array, disk_number, drive, retval = 0;
+
+    if (!(meta = (struct sis_raid_conf *)
+	  malloc(sizeof(struct sis_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, SIS_LBA(parent),
+		    meta, sizeof(struct sis_raid_conf), ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent,
+			  "Silicon Integrated Systems read metadata failed\n");
+    }
+
+    /* check for SiS magic */
+    if (meta->magic != SIS_MAGIC) {
+	if (testing || bootverbose)
+	    device_printf(parent,
+			  "Silicon Integrated Systems check1 failed\n");
+	goto sis_out;
+    }
+
+    if (testing || bootverbose)
+	ata_raid_sis_print_meta(meta);
+
+    /* now convert SiS meta into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!raidp[array]) {
+	    raidp[array] = 
+		(struct ar_softc *)malloc(sizeof(struct ar_softc), M_AR,
+					  M_NOWAIT | M_ZERO);
+	    if (!raidp[array]) {
+		device_printf(parent, "failed to allocate metadata storage\n");
+		goto sis_out;
+	    }
+	}
+
+	raid = raidp[array];
+	if (raid->format && (raid->format != AR_F_SIS_RAID))
+	    continue;
+
+	if ((raid->format == AR_F_SIS_RAID) &&
+	    ((raid->magic_0 != meta->controller_pci_id) ||
+	     (raid->magic_1 != meta->timestamp))) {
+	    continue;
+	}
+
+	switch (meta->type_total_disks & SIS_T_MASK) {
+	case SIS_T_JBOD:
+	    raid->type = AR_T_JBOD;
+	    raid->width = (meta->type_total_disks & SIS_D_MASK);
+	    raid->total_sectors += SIS_LBA(parent);
+	    break;
+
+	case SIS_T_RAID0:
+	    raid->type = AR_T_RAID0;
+	    raid->width = (meta->type_total_disks & SIS_D_MASK);
+	    if (!raid->total_sectors || 
+		(raid->total_sectors > (raid->width * SIS_LBA(parent))))
+		raid->total_sectors = raid->width * SIS_LBA(parent);
+	    break;
+
+	case SIS_T_RAID1:
+	    raid->type = AR_T_RAID1;
+	    raid->width = 1;
+	    if (!raid->total_sectors || (raid->total_sectors > SIS_LBA(parent)))
+		raid->total_sectors = SIS_LBA(parent);
+	    break;
+
+	default:
+	    device_printf(parent, "Silicon Integrated Systems "
+			  "unknown RAID type 0x%08x\n", meta->magic);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    goto sis_out;
+	}
+	raid->magic_0 = meta->controller_pci_id;
+	raid->magic_1 = meta->timestamp;
+	raid->format = AR_F_SIS_RAID;
+	raid->generation = 0;
+	raid->interleave = meta->stripe_sectors;
+	raid->total_disks = (meta->type_total_disks & SIS_D_MASK);
+	raid->heads = 255;
+	raid->sectors = 63;
+	raid->cylinders = raid->total_sectors / (63 * 255);
+	raid->offset_sectors = 0;
+	raid->rebuild_lba = 0;
+	raid->lun = array;
+	/* XXX SOS if total_disks > 2 this doesn't float */
+	if (((meta->disks & SIS_D_MASTER) >> 4) == meta->disk_number)
+	    disk_number = 0;
+	else 
+	    disk_number = 1;
+
+	for (drive = 0; drive < raid->total_disks; drive++) {
+	    raid->disks[drive].sectors = raid->total_sectors/raid->width;
+	    if (drive == disk_number) {
+		raid->disks[disk_number].dev = parent;
+		raid->disks[disk_number].flags =
+		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
+		ars->raid[raid->volume] = raid;
+		ars->disk_number[raid->volume] = disk_number;
+	    }
+	}
+	retval = 1;
+	break;
+    }
+
+sis_out:
+    free(meta, M_AR);
+    return retval;
+}
+
+static int
+ata_raid_sis_write_meta(struct ar_softc *rdp)
+{
+    struct sis_raid_conf *meta;
+    struct timeval timestamp;
+    int disk, error = 0;
+
+    if (!(meta = (struct sis_raid_conf *)
+	  malloc(sizeof(struct sis_raid_conf), M_AR, M_NOWAIT | M_ZERO))) {
+	printf("ar%d: failed to allocate metadata storage\n", rdp->lun);
+	return ENOMEM;
+    }
+
+    rdp->generation++;
+    microtime(&timestamp);
+
+    meta->magic = SIS_MAGIC;
+    /* XXX SOS if total_disks > 2 this doesn't float */
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    struct ata_channel *ch = 
+		device_get_softc(device_get_parent(rdp->disks[disk].dev));
+	    struct ata_device *atadev = device_get_softc(rdp->disks[disk].dev);
+	    int disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
+
+	    meta->disks |= disk_number << ((1 - disk) << 2);
+	}
+    }
+    switch (rdp->type) {
+    case AR_T_JBOD:
+	meta->type_total_disks = SIS_T_JBOD;
+	break;
+
+    case AR_T_RAID0:
+	meta->type_total_disks = SIS_T_RAID0;
+	break;
+
+    case AR_T_RAID1:
+	meta->type_total_disks = SIS_T_RAID1;
+	break;
+
+    default:
+	free(meta, M_AR);
+	return ENODEV;
+    }
+    meta->type_total_disks |= (rdp->total_disks & SIS_D_MASK);
+    meta->stripe_sectors = rdp->interleave;
+    meta->timestamp = timestamp.tv_sec;
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    struct ata_channel *ch = 
+		device_get_softc(device_get_parent(rdp->disks[disk].dev));
+	    struct ata_device *atadev = device_get_softc(rdp->disks[disk].dev);
+
+	    meta->controller_pci_id =
+		(pci_get_vendor(GRANDPARENT(rdp->disks[disk].dev)) << 16) |
+		pci_get_device(GRANDPARENT(rdp->disks[disk].dev));
+	    bcopy(atadev->param.model, meta->model, sizeof(meta->model));
+
+	    /* XXX SOS if total_disks > 2 this may not float */
+	    meta->disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
+
+	    if (testing || bootverbose)
+		ata_raid_sis_print_meta(meta);
+
+	    if (ata_raid_rw(rdp->disks[disk].dev,
+			    SIS_LBA(rdp->disks[disk].dev),
+			    meta, sizeof(struct sis_raid_conf),
+			    ATA_R_WRITE | ATA_R_DIRECT)) {
+		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
+		error = EIO;
+	    }
+	}
+    }
+    free(meta, M_AR);
+    return error;
 }
 
 /* VIA Tech V-RAID Metadata */
@@ -2988,7 +3490,7 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	goto via_out;
     }
 
-    /* calc the checksum and compare for valid */
+    /* calculate checksum and compare for valid */
     for (checksum = 0, ptr = (u_int8_t *)meta, count = 0; count < 50; count++)
 	checksum += *ptr++;
     if (checksum != meta->checksum) {  
@@ -3021,20 +3523,38 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	switch (meta->type & VIA_T_MASK) {
 	case VIA_T_RAID0:
 	    raid->type = AR_T_RAID0;
-	    raid->width = meta->stripe_layout & VIA_L_MASK;
-	    raid->total_sectors = meta->total_sectors;
+	    raid->width = meta->stripe_layout & VIA_L_DISKS;
+	    if (!raid->total_sectors ||
+		(raid->total_sectors > (raid->width * meta->disk_sectors)))
+		raid->total_sectors = raid->width * meta->disk_sectors;
 	    break;
 
 	case VIA_T_RAID1:
 	    raid->type = AR_T_RAID1;
 	    raid->width = 1;
-	    raid->total_sectors = meta->total_sectors;
+	    raid->total_sectors = meta->disk_sectors;
+	    break;
+
+	case VIA_T_RAID01:
+	    raid->type = AR_T_RAID01;
+	    raid->width = meta->stripe_layout & VIA_L_DISKS;
+	    if (!raid->total_sectors ||
+		(raid->total_sectors > (raid->width * meta->disk_sectors)))
+		raid->total_sectors = raid->width * meta->disk_sectors;
+	    break;
+
+	case VIA_T_RAID5:
+	    raid->type = AR_T_RAID5;
+	    raid->width = meta->stripe_layout & VIA_L_DISKS;
+	    if (!raid->total_sectors ||
+		(raid->total_sectors > ((raid->width - 1)*meta->disk_sectors)))
+		raid->total_sectors = (raid->width - 1) * meta->disk_sectors;
 	    break;
 
 	case VIA_T_SPAN:
 	    raid->type = AR_T_SPAN;
 	    raid->width = 1;
-	    raid->total_sectors += meta->total_sectors;
+	    raid->total_sectors += meta->disk_sectors;
 	    break;
 
 	default:
@@ -3046,7 +3566,8 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	raid->magic_0 = meta->disks[0];
 	raid->format = AR_F_VIA_RAID;
 	raid->generation = 0;
-	raid->interleave = 0x08 << (meta->stripe_layout >> VIA_L_SHIFT);
+	raid->interleave = 
+	    0x08 << ((meta->stripe_layout & VIA_L_MASK) >> VIA_L_SHIFT);
 	for (count = 0, disk = 0; disk < 8; disk++)
 	    if (meta->disks[disk])
 		count++;
@@ -3054,16 +3575,20 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	raid->heads = 255;
 	raid->sectors = 63;
 	raid->cylinders = raid->total_sectors / (63 * 255);
+	raid->offset_sectors = 0;
+	raid->rebuild_lba = 0;
+	raid->lun = array;
 
-	for (disk = 0; disk < 8; disk++) {
-	    if ((meta->disks[disk] == meta->disk_id) &&
-		((disk * sizeof(int32_t)) == (meta->disk_index & VIA_D_MASK))) {
+	for (disk = 0; disk < raid->total_disks; disk++) {
+	    if (meta->disks[disk] == meta->disk_id) {
 		raid->disks[disk].dev = parent;
-		raid->disks[disk].sectors = meta->total_sectors / raid->width;
+		bcopy(&meta->disk_id, raid->disks[disk].serial,
+		      sizeof(u_int32_t));
+		raid->disks[disk].sectors = meta->disk_sectors;
 		raid->disks[disk].flags =
 		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
-		ars->raid = raid;
-		ars->disk_number = disk;
+		ars->raid[raid->volume] = raid;
+		ars->disk_number[raid->volume] = disk;
 		retval = 1;
 		break;
 	    }
@@ -3074,6 +3599,90 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 via_out:
     free(meta, M_AR);
     return retval;
+}
+static int
+ata_raid_via_write_meta(struct ar_softc *rdp)
+{
+    struct via_raid_conf *meta;
+    int disk, error = 0;
+
+    if (!(meta = (struct via_raid_conf *)
+	  malloc(sizeof(struct via_raid_conf), M_AR, M_NOWAIT | M_ZERO))) {
+	printf("ar%d: failed to allocate metadata storage\n", rdp->lun);
+	return ENOMEM;
+    }
+
+    rdp->generation++;
+
+    meta->magic = VIA_MAGIC;
+    meta->dummy_0 = 0x02;
+    switch (rdp->type) {
+    case AR_T_SPAN:
+	meta->type = VIA_T_SPAN;
+	meta->stripe_layout = (rdp->total_disks & VIA_L_DISKS);
+	break;
+
+    case AR_T_RAID0:
+	meta->type = VIA_T_RAID0;
+	meta->stripe_layout = ((rdp->interleave >> 1) & VIA_L_MASK);
+	meta->stripe_layout |= (rdp->total_disks & VIA_L_DISKS);
+	break;
+
+    case AR_T_RAID1:
+	meta->type = VIA_T_RAID1;
+	meta->stripe_layout = (rdp->total_disks & VIA_L_DISKS);
+	break;
+
+    case AR_T_RAID5:
+	meta->type = VIA_T_RAID5;
+	meta->stripe_layout = ((rdp->interleave >> 1) & VIA_L_MASK);
+	meta->stripe_layout |= (rdp->total_disks & VIA_L_DISKS);
+	break;
+
+    case AR_T_RAID01:
+	meta->type = VIA_T_RAID01;
+	meta->stripe_layout = ((rdp->interleave >> 1) & VIA_L_MASK);
+	meta->stripe_layout |= (rdp->width & VIA_L_DISKS);
+	break;
+
+    default:
+	free(meta, M_AR);
+	return ENODEV;
+    }
+    meta->type |= VIA_T_BOOTABLE;       /* XXX SOS */
+    meta->disk_sectors = 
+	rdp->total_sectors / (rdp->width - (rdp->type == AR_RAID5));
+    for (disk = 0; disk < rdp->total_disks; disk++)
+	meta->disks[disk] = (u_int32_t)(uintptr_t)rdp->disks[disk].dev;
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    u_int8_t *ptr;
+	    int count;
+
+	    meta->disk_index = disk * sizeof(u_int32_t);
+	    if (rdp->type == AR_T_RAID01)
+		meta->disk_index = ((meta->disk_index & 0x08) << 2) |
+				   (meta->disk_index & ~0x08);
+	    meta->disk_id = meta->disks[disk];
+	    meta->checksum = 0;
+	    for (ptr = (u_int8_t *)meta, count = 0; count < 50; count++)
+		meta->checksum += *ptr++;
+
+	    if (testing || bootverbose)
+		ata_raid_via_print_meta(meta);
+
+	    if (ata_raid_rw(rdp->disks[disk].dev,
+			    VIA_LBA(rdp->disks[disk].dev),
+			    meta, sizeof(struct via_raid_conf),
+			    ATA_R_WRITE | ATA_R_DIRECT)) {
+		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
+		error = EIO;
+	    }
+	}
+    }
+    free(meta, M_AR);
+    return error;
 }
 
 static struct ata_request *
@@ -3206,9 +3815,12 @@ static int
 ata_raid_subdisk_attach(device_t dev)
 {
     struct ata_raid_subdisk *ars = device_get_softc(dev);
+    int volume;
 
-    ars->raid = NULL;
-    ars->disk_number = -1;
+    for (volume = 0; volume < MAX_VOLUMES; volume++) {
+	ars->raid[volume] = NULL;
+	ars->disk_number[volume] = -1;
+    }
     ata_raid_read_metadata(dev);
     return 0;
 }
@@ -3217,14 +3829,17 @@ static int
 ata_raid_subdisk_detach(device_t dev)
 {
     struct ata_raid_subdisk *ars = device_get_softc(dev);
+    int volume;
 
-    if (ars->raid) {
-	ars->raid->disks[ars->disk_number].flags &= 
-	    ~(AR_DF_PRESENT | AR_DF_ONLINE);
-	ars->raid->disks[ars->disk_number].dev = NULL;
-	ata_raid_config_changed(ars->raid, 1);
-	ars->raid = NULL;
-	ars->disk_number = -1;
+    for (volume = 0; volume < MAX_VOLUMES; volume++) {
+	if (ars->raid[volume]) {
+	    ars->raid[volume]->disks[ars->disk_number[volume]].flags &= 
+		~(AR_DF_PRESENT | AR_DF_ONLINE);
+	    ars->raid[volume]->disks[ars->disk_number[volume]].dev = NULL;
+	    ata_raid_config_changed(ars->raid[volume], 1);
+	    ars->raid[volume] = NULL;
+	    ars->disk_number[volume] = -1;
+	}
     }
     return 0;
 }
@@ -3252,7 +3867,7 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 
     switch (what) {
     case MOD_LOAD:
-	if (bootverbose)
+	if (testing || bootverbose)
 	    printf("ATA PseudoRAID loaded\n");
 #if 0
 	/* setup table to hold metadata for all ATA PseudoRAID arrays */
@@ -3283,9 +3898,10 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 
 	    if (!rdp || !rdp->status)
 		continue;
-	    disk_destroy(rdp->disk);
+	    if (rdp->disk)
+		disk_destroy(rdp->disk);
 	}
-	if (bootverbose)
+	if (testing || bootverbose)
 	    printf("ATA PseudoRAID unloaded\n");
 #if 0
 	free(ata_raid_arrays, M_AR);
@@ -3320,6 +3936,7 @@ ata_raid_format(struct ar_softc *rdp)
     case AR_F_NVIDIA_RAID:      return "nVidia MediaShield";
     case AR_F_PROMISE_RAID:     return "Promise Fasttrak";
     case AR_F_SII_RAID:         return "Silicon Image Medley";
+    case AR_F_SIS_RAID:         return "Silicon Integrated Systems";
     case AR_F_VIA_RAID:         return "VIA Tech V-RAID";
     default:                    return "UNKNOWN";
     }
@@ -3592,6 +4209,7 @@ ata_raid_intel_type(int type)
     switch (type) {
     case INTEL_T_RAID0: return "RAID0";
     case INTEL_T_RAID1: return "RAID1";
+    case INTEL_T_RAID5: return "RAID5";
     default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
 			return buffer;
     }
@@ -3632,10 +4250,13 @@ ata_raid_intel_print_meta(struct intel_raid_conf *meta)
 	printf("status              %u\n", map->status);
 	printf("type                %s\n", ata_raid_intel_type(map->type));
 	printf("total_disks         %u\n", map->total_disks);
+	printf("magic[0]            0x%02x\n", map->magic[0]);
+	printf("magic[1]            0x%02x\n", map->magic[1]);
+	printf("magic[2]            0x%02x\n", map->magic[2]);
 	for (i = 0; i < map->total_disks; i++ ) {
 	    printf("    disk %d at disk_idx 0x%08x\n", i, map->disk_idx[i]);
 	}
-	map = (struct intel_raid_mapping *)&map->disk_idx[i];
+	map = (struct intel_raid_mapping *)&map->disk_idx[map->total_disks];
     }
     printf("=================================================\n");
 }
@@ -3961,6 +4582,41 @@ ata_raid_sii_print_meta(struct sii_raid_conf *meta)
 }
 
 static char *
+ata_raid_sis_type(int type)
+{
+    static char buffer[16];
+
+    switch (type) {
+    case SIS_T_JBOD:    return "JBOD";
+    case SIS_T_RAID0:   return "RAID0";
+    case SIS_T_RAID1:   return "RAID1";
+    default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
+			return buffer;
+    }
+}
+
+static void
+ata_raid_sis_print_meta(struct sis_raid_conf *meta)
+{
+    printf("**** ATA Silicon Integrated Systems Metadata ****\n");
+    printf("magic               0x%04x\n", meta->magic);
+    printf("disks               0x%02x\n", meta->disks);
+    printf("type                %s\n",
+	   ata_raid_sis_type(meta->type_total_disks & SIS_T_MASK));
+    printf("total_disks         %u\n", meta->type_total_disks & SIS_D_MASK);
+    printf("dummy_0             0x%08x\n", meta->dummy_0);
+    printf("controller_pci_id   0x%08x\n", meta->controller_pci_id);
+    printf("stripe_sectors      %u\n", meta->stripe_sectors);
+    printf("dummy_1             0x%04x\n", meta->dummy_1);
+    printf("timestamp           0x%08x\n", meta->timestamp);
+    printf("model               %.40s\n", meta->model);
+    printf("disk_number         %u\n", meta->disk_number);
+    printf("dummy_2             0x%02x 0x%02x 0x%02x\n",
+	   meta->dummy_2[0], meta->dummy_2[1], meta->dummy_2[2]);
+    printf("=================================================\n");
+}
+
+static char *
 ata_raid_via_type(int type)
 {
     static char buffer[16];
@@ -3968,6 +4624,8 @@ ata_raid_via_type(int type)
     switch (type) {
     case VIA_T_RAID0:   return "RAID0";
     case VIA_T_RAID1:   return "RAID1";
+    case VIA_T_RAID5:   return "RAID5";
+    case VIA_T_RAID01:  return "RAID0+1";
     case VIA_T_SPAN:    return "SPAN";
     default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
 			return buffer;
@@ -3985,12 +4643,14 @@ ata_raid_via_print_meta(struct via_raid_conf *meta)
     printf("type                %s\n",
 	   ata_raid_via_type(meta->type & VIA_T_MASK));
     printf("bootable            %d\n", meta->type & VIA_T_BOOTABLE);
+    printf("unknown             %d\n", meta->type & VIA_T_UNKNOWN);
     printf("disk_index          0x%02x\n", meta->disk_index);
-    printf("stripe_disks        %d\n", meta->stripe_layout & VIA_L_MASK);
-    printf("stripe_sectors      %d\n",
-	   0x08 << (meta->stripe_layout >> VIA_L_SHIFT));
-    printf("total_sectors       %llu\n",
-	   (unsigned long long)meta->total_sectors);
+    printf("stripe_layout       0x%02x\n", meta->stripe_layout);
+    printf(" stripe_disks       %d\n", meta->stripe_layout & VIA_L_DISKS);
+    printf(" stripe_sectors     %d\n",
+	   0x08 << ((meta->stripe_layout & VIA_L_MASK) >> VIA_L_SHIFT));
+    printf("disk_sectors        %llu\n",
+	   (unsigned long long)meta->disk_sectors);
     printf("disk_id             0x%08x\n", meta->disk_id);
     printf("DISK#   disk_id\n");
     for (i = 0; i < 8; i++) {
