@@ -44,7 +44,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <netgraph.h>
-#include "snmpmod.h"
+#include <bsnmp/snmpmod.h>
 #include "snmp_netgraph.h"
 #include "netgraph_tree.h"
 #include "netgraph_oid.h"
