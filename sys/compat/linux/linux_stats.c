@@ -132,6 +132,16 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 #endif
 
 	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
+	  if (!error && strlen(path) > strlen("/dev/pts/") &&
+	      !strncmp(path, "/dev/pts/", strlen("/dev/pts/"))
+	      && path[9] >= '0' && path[9] <= '9') {
+		  /* 
+   		   * Linux checks major and minors of the slave device to make
+		   * sure it's a pty deivce, so let's make him believe it is.
+		   */
+		  buf.st_rdev = (136 << 8);
+	  }
+	  
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -201,6 +211,7 @@ struct l_statfs {
 #define	LINUX_NTFS_SUPER_MAGIC	0x5346544EL
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
+#define LINUX_DEVFS_SUPER_MAGIC	0x1373L
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
@@ -217,6 +228,7 @@ bsd_to_linux_ftype(const char *fstypename)
 		{"nwfs",    LINUX_NCP_SUPER_MAGIC},
 		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
 		{"coda",    LINUX_CODA_SUPER_MAGIC},
+		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
 		{NULL,      0L}};
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
@@ -397,6 +409,16 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 #endif
 
 	error = kern_stat(td, filename, UIO_SYSSPACE, &buf);
+	if (!error && strlen(filename) > strlen("/dev/pts/") &&
+	    !strncmp(filename, "/dev/pts/", strlen("/dev/pts/"))
+	    && filename[9] >= '0' && filename[9] <= '9') {
+		/* 
+		 * Linux checks major and minors of the slave device to make
+		 * sure it's a pty deivce, so let's make him believe it is.
+		 */
+		buf.st_rdev = (136 << 8);
+	}
+	   
 	LFREEPATH(filename);
 	if (error)
 		return (error);
