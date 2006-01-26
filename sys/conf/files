@@ -439,6 +439,7 @@ dev/awi/am79c930.c		optional awi
 dev/awi/awi.c			optional awi
 dev/awi/if_awi_pccard.c		optional awi pccard
 dev/bfe/if_bfe.c		optional bfe
+dev/amr/amr_linux.c		optional amr compat_linux
 dev/bge/if_bge.c		optional bge
 dev/bktr/bktr_audio.c		optional bktr pci
 dev/bktr/bktr_card.c		optional bktr pci
