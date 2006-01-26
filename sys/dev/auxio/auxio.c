@@ -200,8 +200,15 @@ auxio_led_func(void *arg, int onoff)
 
 	sc = (struct auxio_softc *)arg;
 
-	led = onoff ? AUXIO_LED_LED : 0;
 	AUXIO_LOCK(sc);
+	/*
+	 * NB: We must not touch the other bits of the SBus AUXIO reg.
+	 */
+	led = auxio_led_read(sc);
+	if (onoff)
+		led |= AUXIO_LED_LED;
+	else
+		led &= ~AUXIO_LED_LED;
 	auxio_led_write(sc, led);
 	AUXIO_UNLOCK(sc);
 }
@@ -226,7 +233,6 @@ auxio_ebus_attach(device_t dev)
 	struct auxio_softc *sc;
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(*sc));
 	sc->sc_dev = dev;
 
 	AUXIO_LOCK_INIT(sc);
@@ -256,7 +262,7 @@ auxio_attach_common(struct auxio_softc *sc)
 		sc->sc_regh[i] = rman_get_bushandle(res);
 	}
 
-	sc->sc_led_stat = auxio_led_read(sc);
+	sc->sc_led_stat = auxio_led_read(sc) & AUXIO_LED_LED;
 	sc->sc_led_dev = led_create(auxio_led_func, sc, "auxioled");
 	/* turn on the LED */
 	auxio_led_func(sc, 1);
@@ -300,7 +306,6 @@ auxio_sbus_attach(device_t dev)
 	struct auxio_softc *sc;
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(*sc));
 	sc->sc_dev = dev;
 
 	AUXIO_LOCK_INIT(sc);
