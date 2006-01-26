@@ -444,8 +444,12 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	 * XXX: Might want to make the ownership/permissions here more
 	 * configurable.
 	 */
-	pt->pt_devs = devs = make_dev_cred(&pts_cdevsw, pt->pt_num, 
-	    td->td_ucred, UID_ROOT, GID_WHEEL, 0666, "pts/%d", pt->pt_num);
+	if (pt->pt_devs)
+		devs = pt->pt_devs;
+	else
+		pt->pt_devs = devs = make_dev_cred(&pts_cdevsw, pt->pt_num, 
+		    td->td_ucred, UID_ROOT, GID_WHEEL, 0666, "pts/%d",
+		    pt->pt_num);
 	devs->si_drv1 = pt;
 	devs->si_tty = pt->pt_tty;
 	pt->pt_tty->t_dev = devs;
