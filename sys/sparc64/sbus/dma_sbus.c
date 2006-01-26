@@ -105,9 +105,7 @@ static device_attach_t dma_attach;
 static bus_print_child_t dma_print_child;
 static bus_probe_nomatch_t dma_probe_nomatch;
 static bus_get_resource_list_t dma_get_resource_list;
-#if 0
 static bus_setup_intr_t dma_setup_intr;
-#endif
 static ofw_bus_get_devinfo_t dma_get_devinfo;
 
 static struct dma_devinfo *dma_setup_dinfo(device_t, struct dma_softc *,
@@ -119,15 +117,14 @@ static device_method_t dma_methods[] = {
         /* Device interface */
 	DEVMETHOD(device_probe,		dma_probe),
 	DEVMETHOD(device_attach,	dma_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	dma_print_child),
 	DEVMETHOD(bus_probe_nomatch,	dma_probe_nomatch),
-#if 0
 	DEVMETHOD(bus_setup_intr,	dma_setup_intr),
-#else
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-#endif
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
@@ -404,7 +401,6 @@ dma_get_resource_list(device_t dev, device_t child)
 	return (&ddi->ddi_rl);
 }
 
-#if 0
 static int
 dma_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
     driver_intr_t *intr, void *arg, void **cookiep)
@@ -423,7 +419,6 @@ dma_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	return (BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    intr, arg, cookiep));
 }
-#endif
 
 static const struct ofw_bus_devinfo *
 dma_get_devinfo(device_t bus, device_t child)
