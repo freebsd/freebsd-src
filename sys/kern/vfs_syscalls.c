@@ -1579,7 +1579,7 @@ restart:
 	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT|LOCKLEAF, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
-		return (error);
+		return (error == EINVAL ? EPERM : error);
 	vp = nd.ni_vp;
 	if (vp->v_type == VDIR)
 		error = EPERM;		/* POSIX */
