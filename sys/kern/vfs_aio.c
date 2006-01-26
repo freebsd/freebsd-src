@@ -1339,7 +1339,7 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	}
 	if (error) {
 		uma_zfree(aiocb_zone, aiocbe);
-		suword(&job->_aiocb_private.error, EBADF);
+		suword(&job->_aiocb_private.error, error);
 		return (error);
 	}
 	aiocbe->fd_file = fp;
@@ -1544,12 +1544,14 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 			cb->inputcharge = 0;
 		}
 		aio_free_entry(cb);
+		PROC_UNLOCK(p);
 		suword(&uaiocb->_aiocb_private.error, error);
 		suword(&uaiocb->_aiocb_private.status, status);
 		error = 0;
-	} else
+	} else {
 		error = EINVAL;
-	PROC_UNLOCK(p);
+		PROC_UNLOCK(p);
+	}
 	return (error);
 }
 
