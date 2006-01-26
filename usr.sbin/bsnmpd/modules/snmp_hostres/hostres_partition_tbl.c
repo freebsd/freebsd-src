@@ -38,7 +38,8 @@
 
 #include <assert.h>
 #include <err.h>
-#include <libdisk.h>
+#include <inttypes.h>
+#include <libgeom.h>
 #include <paths.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +48,12 @@
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
 #include "hostres_tree.h"
+
+#ifdef PC98
+#define HR_FREEBSD_PART_TYPE	0xc494
+#else
+#define	HR_FREEBSD_PART_TYPE	165
+#endif
 
 /*
  * One row in the hrPartitionTable
@@ -95,15 +102,14 @@ static uint32_t next_partition_index = 1;
  * Create a new partition table entry
  */
 static struct partition_entry *
-partition_entry_create(int32_t ds_index, const struct chunk *chunk)
+partition_entry_create(int32_t ds_index, const char *chunk_name)
 {
 	struct partition_entry *entry;
 	struct partition_map_entry *map = NULL;
 
 	/* sanity checks */
-	assert(chunk != NULL);
-	assert(chunk->name != NULL);
-	if (chunk == NULL || chunk->name == NULL || chunk->name[0] == '\0')
+	assert(chunk_name != NULL);
+	if (chunk_name == NULL || chunk_name[0] == '\0')
 		return (NULL);
 
 	if ((entry = malloc(sizeof(*entry))) == NULL) {
@@ -114,7 +120,7 @@ partition_entry_create(int32_t ds_index, const struct chunk *chunk)
 
 	/* check whether we already have seen this partition */
 	STAILQ_FOREACH(map, &partition_map, link)
-		if (strcmp(map->id, chunk->name) == 0 ) {
+		if (strcmp(map->id, chunk_name) == 0 ) {
 			map->entry = entry;
 			break;
 		}
@@ -135,18 +141,17 @@ partition_entry_create(int32_t ds_index, const struct chunk *chunk)
 
 		map->index = next_partition_index++;
 
-		memset(map->id, 0, sizeof(map->id));
-		strncpy(map->id, chunk->name, sizeof(map->id) - 1);
+		strlcpy(map->id, chunk_name, sizeof(map->id));
 
 		map->entry = entry;
 		STAILQ_INSERT_TAIL(&partition_map, map, link);
 
 		HRDBG("%s added into hrPartitionMap at index=%d",
-		    chunk->name, map->index);
+		    chunk_name, map->index);
 
 	} else {
 		HRDBG("%s exists in hrPartitionMap index=%d",
-		    chunk->name, map->index);
+		    chunk_name, map->index);
 	}
 
 	/* create the index */
@@ -154,11 +159,10 @@ partition_entry_create(int32_t ds_index, const struct chunk *chunk)
 	entry->index.subs[0] = ds_index;
 	entry->index.subs[1] = map->index;
 
-	memset(&entry->id[0], 0, sizeof(entry->id));
-	strncpy(entry->id, chunk->name, sizeof(entry->id) - 1);
+	strlcpy(entry->id, chunk_name, sizeof(entry->id));
 
 	snprintf(entry->label, sizeof(entry->label) - 1,
-	    "%s%s", _PATH_DEV, chunk->name);
+	    "%s%s", _PATH_DEV, chunk_name);
 
 	INSERT_OBJECT_OID(entry, &partition_tbl);
 
@@ -216,36 +220,33 @@ partition_entry_find_by_label(const char *name)
 }
 
 /**
- * Process a chunk from libdisk. A chunk is either a slice or a partition.
+ * Process a chunk from libgeom(4). A chunk is either a slice or a partition.
  * If necessary create a new partition table entry for it. In any case
  * set the size field of the entry and set the FOUND flag.
  */
 static void
-handle_chunk(int32_t ds_index, const struct chunk* chunk,
-    const struct disk *disk)
+handle_chunk(int32_t ds_index, const char *chunk_name, off_t chunk_size)
 {
 	struct partition_entry *entry = NULL;
 	daddr_t k_size;
 
-	assert(chunk != NULL);
-	if (chunk == NULL)
+	assert(chunk_name != NULL);
+	assert(chunk_name[0] != '\0');
+	if (chunk_name == NULL || chunk_name == '\0')
 		return;
 
-	if (chunk->type == unused) {
-		HRDBG("SKIP unused chunk %s", chunk->name);
-		return;
-	}
-	HRDBG("ANALYZE chunk %s", chunk->name);
+	HRDBG("ANALYZE chunk %s", chunk_name);
 
-	if ((entry = partition_entry_find_by_name(chunk->name)) == NULL)
-		if ((entry = partition_entry_create(ds_index, chunk)) == NULL)
+	if ((entry = partition_entry_find_by_name(chunk_name)) == NULL)
+		if ((entry = partition_entry_create(ds_index,
+		    chunk_name)) == NULL)
 			return;
 
 	entry->flags |= HR_PARTITION_FOUND;
 
 	/* actual size may overflow the SNMP type */
-	k_size = chunk->size / (1024 / disk->sector_size);
-	entry->size = (k_size > (daddr_t)INT_MAX ? INT_MAX : k_size);
+	k_size = chunk_size / 1024;
+	entry->size = (k_size > (off_t)INT_MAX ? INT_MAX : k_size);
 }
 
 /**
@@ -264,31 +265,155 @@ partition_tbl_pre_refresh(void)
 }
 
 /**
- * Called from the DiskStorage table for every row. Open the device and
- * process all the partitions in it. ds_index is the index into the DiskStorage
- * table.
+ * Try to find a geom(4) class by its name. Returns a pointer to that
+ * class if found NULL otherways.
+ */
+static struct gclass *
+find_class(struct gmesh *mesh, const char *name)
+{
+	struct gclass *classp;
+
+	LIST_FOREACH(classp, &mesh->lg_class, lg_class)
+		if (strcmp(classp->lg_name, name) == 0)
+			return (classp);
+	return (NULL);
+}
+
+/**
+ * Process all MBR-type partitions from the given disk.
+ */
+static void
+get_mbr(struct gclass *classp, int32_t ds_index, const char *disk_dev_name)
+{
+	struct ggeom *gp;
+	struct gprovider *pp;
+	struct gconfig *conf;
+	long part_type;
+
+	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+		/* We are only interested in partitions from this disk */
+		if (strcmp(gp->lg_name, disk_dev_name) != 0)
+			continue;
+
+		/*
+		 * Find all the non-BSD providers (these are handled in get_bsd)
+		 */
+		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+			LIST_FOREACH(conf, &pp->lg_config, lg_config) {
+				if (conf->lg_name == NULL ||
+				    conf->lg_val == NULL ||
+				    strcmp(conf->lg_name, "type") != 0)
+					continue;
+
+				/*
+				 * We are not interested in BSD partitions
+				 * (ie ad0s1 is not interesting at this point).
+				 * We'll take care of them in detail (slice
+				 * by slice) in get_bsd.
+				 */
+				part_type = strtol(conf->lg_val, NULL, 10);
+				if (part_type == HR_FREEBSD_PART_TYPE)
+					break;
+				HRDBG("-> MBR PROVIDER Name: %s", pp->lg_name);
+				HRDBG("Mediasize: %jd",
+				    (intmax_t)pp->lg_mediasize / 1024);
+				HRDBG("Sectorsize: %u", pp->lg_sectorsize);
+				HRDBG("Mode: %s", pp->lg_mode);
+				HRDBG("CONFIG: %s: %s",
+				    conf->lg_name, conf->lg_val);
+
+				handle_chunk(ds_index, pp->lg_name,
+				    pp->lg_mediasize);
+			}
+		}
+	}
+}
+
+/**
+ * Process all BSD-type partitions from the given disk.
+ */
+static void
+get_bsd_sun(struct gclass *classp, int32_t ds_index, const char *disk_dev_name)
+{
+	struct ggeom *gp;
+	struct gprovider *pp;
+
+	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+		/*
+		 * We are only interested in those geoms starting with
+		 * the disk_dev_name passed as parameter to this function.
+		 */
+		if (strncmp(gp->lg_name, disk_dev_name,
+		    strlen(disk_dev_name)) != 0)
+			continue;
+
+		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+			if (pp->lg_name == NULL)
+				continue;
+			handle_chunk(ds_index, pp->lg_name, pp->lg_mediasize);
+		}
+	}
+}
+
+/**
+ * Called from the DiskStorage table for every row. Open the GEOM(4) framework
+ * and process all the partitions in it.
+ * ds_index is the index into the DiskStorage table.
+ * This is done in two steps: for non BSD partitions the geom class "MBR" is
+ * used, for our BSD slices the "BSD" geom class.
  */
 void
 partition_tbl_handle_disk(int32_t ds_index, const char *disk_dev_name)
 {
-	struct disk *disk;
-	struct chunk *chunk;
-     	struct chunk *partt;
+	struct gmesh mesh;	/* GEOM userland tree */
+	struct gclass *classp;
+	int error;
 
 	assert(disk_dev_name != NULL);
 	assert(ds_index > 0);
 
-     	if ((disk = Open_Disk(disk_dev_name)) == NULL) {
-		syslog(LOG_ERR, "%s: cannot Open_Disk()", disk_dev_name);
+     	HRDBG("===> getting partitions for %s <===", disk_dev_name);
+
+	/* try to construct the GEOM tree */
+	if ((error = geom_gettree(&mesh)) != 0) {
+		syslog(LOG_WARNING, "cannot get GEOM tree: %m");
 		return;
 	}
 
-     	for (chunk = disk->chunks->part; chunk != NULL; chunk = chunk->next) {
-     		handle_chunk(ds_index, chunk, disk);
-		for (partt = chunk->part; partt != NULL; partt = partt->next)
-     			handle_chunk(ds_index, partt, disk);
-     	}
-     	Free_Disk(disk);
+	/*
+	 * First try the GEOM "MBR" class.
+	 * This is needed for non-BSD slices (aka partitions)
+	 * on PC architectures.
+	 */
+	if ((classp = find_class(&mesh, "MBR")) != NULL) {
+		get_mbr(classp, ds_index, disk_dev_name);
+	} else {
+		HRDBG("cannot find \"MBR\" geom class");
+	}
+
+	/*
+	 * Get the "BSD" GEOM class.
+	 * Here we'll find all the info needed about the BSD slices.
+	 */
+	if ((classp = find_class(&mesh, "BSD")) != NULL) {
+		get_bsd_sun(classp, ds_index, disk_dev_name);
+	} else {
+		/* no problem on sparc64 */
+		HRDBG("cannot find \"BSD\" geom class");
+	}
+
+	/*
+	 * Get the "SUN" GEOM class.
+	 * Here we'll find all the info needed about the BSD slices.
+	 */
+	if ((classp = find_class(&mesh, "SUN")) != NULL) {
+		get_bsd_sun(classp, ds_index, disk_dev_name);
+	} else {
+		/* no problem on i386 */
+		HRDBG("cannot find \"SUN\" geom class");
+	}
+
+	geom_deletetree(&mesh);
 }
 
 /**
