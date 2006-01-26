@@ -53,6 +53,48 @@ static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #include <termios.h>
 #include <unistd.h>
 
+int __use_pts(void);
+
+static int
+new_openpty(int *amaster, int *aslave, char *name, struct termios *termp,
+    struct winsize *winp)
+{
+	int master, slave;
+
+	master = posix_openpt(O_RDWR);
+	if (master == -1)
+		return (-1);
+
+	if (grantpt(master) == -1) {
+		close(master);
+		return (-1);
+	}
+
+	slave = open(ptsname(master), O_RDWR);
+	if (slave == -1) {
+		close(master);
+		return (-1);
+	}
+
+	if (unlockpt(master) == -1) {
+		close(master);
+		close(slave);
+		return (-1);
+	}
+
+	*amaster = master;
+	*aslave = slave;
+
+	if (name)
+		strcpy(name, ptsname(master));
+	if (termp)
+		tcsetattr(slave, TCSAFLUSH, termp);
+	if (winp)
+		ioctl(slave, TIOCSWINSZ, (char *)winp);
+
+	return (0);
+}
+
 int
 openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct winsize *winp)
 {
@@ -60,6 +102,9 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct win
 	const char *cp1, *cp2;
 	int master, slave, ttygid;
 	struct group *gr;
+
+	if (__use_pts())
+		return (new_openpty(amaster, aslave, name, termp, winp));
 
 	if ((gr = getgrnam("tty")) != NULL)
 		ttygid = gr->gr_gid;
