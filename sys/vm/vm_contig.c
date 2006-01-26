@@ -473,19 +473,14 @@ cleanup_freed:
 				}
 			}
 			if (pqtype == PQ_CACHE) {
-				if (m->hold_count != 0) {
-					start = i - npages + 1;
-					goto retry;
-				}
+				if (m->hold_count != 0)
+					goto cleanup_freed;
 				object = m->object;
-				if (!VM_OBJECT_TRYLOCK(object)) {
-					start = i - npages + 1;
-					goto retry;
-				}
+				if (!VM_OBJECT_TRYLOCK(object))
+					goto cleanup_freed;
 				if ((m->flags & PG_BUSY) || m->busy != 0) {
 					VM_OBJECT_UNLOCK(object);
-					start = i - npages + 1;
-					goto retry;
+					goto cleanup_freed;
 				}
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
