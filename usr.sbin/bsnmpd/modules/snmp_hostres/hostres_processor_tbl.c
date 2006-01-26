@@ -242,7 +242,7 @@ processor_get_pids(void)
 		HRDBG("CPU no. %d with SNMP index=%d has idle PID %d",
 		    entry->cpu_no, entry->index, entry->idle_pid);
 
-		save_sample(entry, plist);
+		save_sample(entry, kp);
 	}
 }
 
@@ -427,9 +427,9 @@ static void
 get_cpus_samples(void *arg __unused)
 {
 
-	HRDBG("[%llu] ENTER", get_ticks());
+	HRDBG("[%llu] ENTER", (unsigned long long)get_ticks());
 	refresh_processor_tbl();
-	HRDBG("[%llu] EXIT", get_ticks());
+	HRDBG("[%llu] EXIT", (unsigned long long)get_ticks());
 }
 
 /**
