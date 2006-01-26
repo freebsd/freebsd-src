@@ -177,11 +177,45 @@ mode, command operations may be detected with a
 .Xr select 2
 for exceptional conditions.
 .El
+
+There is currently two pty systems available : the original BSD pty, and a
+SysVR4 pts-like implementation.
+You can switch between the two implementations by setting the
+.Va kern.pts.enable
+sysctl. Setting it to 0 will use the BSD pty, to non-zero the pts 
+implementation. It defaults to 0.
+You can set the maximum number of ptys which can be allocated at the same time
+with the
+.Va kern.pts.max
+sysctl. It defaults to 1000. 
+It is not recommanded to use more than 1000 pseudo-terminals, as all software
+which use
+.Xr utmp 5
+won't be able to handle pseudo-terminals with number superior to 999.
+
+The pts implementation also supports the 
+.Dv TIOCGPTN
+.Xr ioctl 2
+call, which takes a pointer to an unsigned int as a parameter and provides the
+number of the pty.
+
 .Sh FILES
 .Bl -tag -width /dev/tty[p-sP-S][0-9a-v]x -compact
+The files used by the BSD pseudo terminals implementation are :
 .It Pa /dev/pty[p-sP-S][0-9a-v]
 master pseudo terminals
 .It Pa /dev/tty[p-sP-S][0-9a-v]
+slave pseudo terminals
+
+.El
+The files used by the pts implementation are :
+.Bl -tag -width /dev/pts/[num]x -compact
+.It Pa /dev/ptmx
+control device, returns a file descriptor to a new master pseudo terminal
+when opened.
+.It Pa /dev/pty[num]
+master pseudo terminals
+.It Pa /dev/pts/[num]
 slave pseudo terminals
 .El
 .Sh DIAGNOSTICS
