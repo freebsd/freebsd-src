@@ -250,7 +250,6 @@ setttyent()
 		}
 		closedir(devpts_dir);
 	}
-	printf("it is %d %d\n", maxpts, curpts);
 	if (tf) {
 		rewind(tf);
 		return (1);
