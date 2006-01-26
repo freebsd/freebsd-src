@@ -324,11 +324,13 @@
 #if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
+#define	__format_arg(fmtarg)
 #else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
+#define	__format_arg(fmtarg)	__attribute__((__format_arg__ (fmtarg)))
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
