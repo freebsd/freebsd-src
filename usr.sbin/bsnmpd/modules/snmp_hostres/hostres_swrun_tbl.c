@@ -200,7 +200,7 @@ kinfo_proc_to_swrun_entry(const struct kinfo_proc *kp,
 	char **argv = NULL;
 	uint64_t cpu_time = 0;
 
-	strlcpy((char*)entry->name, kp->ki_ocomm, sizeof(entry->name));
+	strlcpy((char*)entry->name, kp->ki_comm, sizeof(entry->name));
 
 	entry->id = oid_zeroDotZero; /* unknown id - FIXME */
 
