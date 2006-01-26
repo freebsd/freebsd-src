@@ -54,6 +54,7 @@ struct ifmibdata {
  */
 #define	IFDATA_GENERAL	1	/* generic stats for all kinds of ifaces */
 #define	IFDATA_LINKSPECIFIC	2 /* specific to the type of interface */
+#define	IFDATA_DRIVERNAME	3 /* driver name and unit */
 
 /*
  * MIB tags at the net.link.generic.system level
