@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
@@ -1593,9 +1594,7 @@ an_dump_record(struct an_softc *sc, struct an_ltv_gen *ltv, char *string)
 			printf("%02x ", *ptr2);
 
 			temp = *ptr2++;
-			if (temp >= ' ' && temp <= '~')
-				buf[count] = temp;
-			else if (temp >= 'A' && temp <= 'Z')
+			if (isprint(temp))
 				buf[count] = temp;
 			else
 				buf[count] = '.';
