@@ -1,4 +1,4 @@
-/*	$NetBSD: ehcivar.h,v 1.12 2001/12/31 12:16:57 augustss Exp $	*/
+/*	$NetBSD: ehcivar.h,v 1.19 2005/04/29 15:04:29 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*-
@@ -85,6 +85,7 @@ struct ehci_soft_islot {
 #define EHCI_FRAMELIST_MAXCOUNT	1024
 #define EHCI_IPOLLRATES		8	/* Poll rates (1ms, 2, 4, 8 ... 128) */
 #define EHCI_INTRQHS		((1 << EHCI_IPOLLRATES) - 1)
+#define EHCI_MAX_POLLRATE	(1 << (EHCI_IPOLLRATES - 1))
 #define EHCI_IQHIDX(lev, pos)	\
     ((((pos) & ((1 << (lev)) - 1)) | (1 << (lev))) - 1)
 #define EHCI_ILEV_IVAL(lev)	(1 << (lev))
@@ -93,6 +94,7 @@ struct ehci_soft_islot {
 #define EHCI_COMPANION_MAX 8
 
 #define EHCI_SCFLG_DONEINIT	0x0001	/* ehci_init() has been called. */
+#define EHCI_SCFLG_LOSTINTRBUG	0x0002	/* workaround for VIA / ATI chipsets */
 
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */
@@ -108,7 +110,7 @@ typedef struct ehci_softc {
 #endif
 	u_int sc_offs;			/* offset to operational regs */
 
-	char sc_vendor[16];		/* vendor string for root hub */
+	char sc_vendor[32];		/* vendor string for root hub */
 	int sc_id_vendor;		/* vendor ID for root hub */
 
 	u_int32_t sc_cmd;		/* shadow of cmd reg during suspend */
@@ -124,6 +126,9 @@ typedef struct ehci_softc {
 	usb_dma_t sc_fldma;
 	ehci_link_t *sc_flist;
 	u_int sc_flsize;
+#ifndef __FreeBSD__
+	u_int sc_rand;			/* XXX need proper intr scheduling */
+#endif
 
 	struct ehci_soft_islot sc_islots[EHCI_INTRQHS];
 
@@ -149,11 +154,15 @@ typedef struct ehci_softc {
 	struct lock sc_doorbell_lock;
 
 	usb_callout_t sc_tmo_pcd;
+	usb_callout_t sc_tmo_intrlist;
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	device_ptr_t sc_child;		/* /dev/usb# device */
 #endif
 	char sc_dying;
+#if defined(__NetBSD__)
+	struct usb_dma_reserve sc_dma_reserve;
+#endif
 } ehci_softc_t;
 
 #define EREAD1(sc, a) bus_space_read_1((sc)->iot, (sc)->ioh, (a))
