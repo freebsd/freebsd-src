@@ -225,11 +225,8 @@ disk_query_disk(struct disk_entry *entry)
 
 	mediasize = mediasize / 1024;
 	entry->capacity = (mediasize > INT_MAX ? INT_MAX : mediasize);
+	partition_tbl_handle_disk(entry->index, entry->dev_name);
 
-	if (entry->media == DSM_HARDDISK) {
-		/* XXX libdisk crashes if a empty cdrom device is opened */
-		partition_tbl_handle_disk(entry->index, entry->dev_name);
-	}
 	(void)close(fd);
 }
 

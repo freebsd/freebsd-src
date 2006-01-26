@@ -48,7 +48,7 @@ SRCS=	hostres_begemot.c		\
 	printcap.c
 
 #Not having NDEBUG defined will enable assertions and a lot of output on stderr
-CFLAGS+=	-DNDEBUG -I${LPRSRC}
+CFLAGS+= -DNDEBUG -I${LPRSRC}
 XSYM=	host hrStorageOther hrStorageRam hrStorageVirtualMemory \
 	hrStorageFixedDisk hrStorageRemovableDisk hrStorageFloppyDisk \
 	hrStorageCompactDisc hrStorageRamDisk hrStorageFlashMemory \
@@ -69,8 +69,8 @@ MAN=	snmp_hostres.3
 DEFS=	${MOD}_tree.def
 BMIBS=	BEGEMOT-HOSTRES-MIB.txt
 
-DPADD=	${LIBKVM} ${LIBDEVINFO} ${LIBM} ${LIBDISK} ${LIBMEMSTAT}
-LDADD=	-lkvm -ldevinfo -lm -ldisk -lmemstat
+DPADD=	${LIBKVM} ${LIBDEVINFO} ${LIBM} ${LIBGEOM} ${LIBMEMSTAT}
+LDADD=	-lkvm -ldevinfo -lm -lgeom -lmemstat
 
 .include <bsd.snmpmod.mk>
 
