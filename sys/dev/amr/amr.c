@@ -2220,7 +2220,7 @@ amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 {
     int		worked, i;
     u_int32_t	outd;
-    u_int8_t	nstatus ,status;
+    u_int8_t	nstatus;
     u_int8_t	completed[46];
 
     debug_called(3);
@@ -2244,16 +2244,11 @@ amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 	    sc->amr_mailbox->mb_completed[i] = 0xff;
 	}
 
-	/* this should never happen, someone screwed up the completion status */
-	if ((status = sc->amr_mailbox->mb_status) == 0xff) {
-	    device_printf(sc->amr_dev, "status 0xff from the firmware\n");
-	    return (worked);
-	}
-	sc->amr_mailbox->mb_status = 0xff;
-
 	/* Save information for later processing */
 	mbsave->mb_nstatus = nstatus;
-	mbsave->mb_status = status;
+	mbsave->mb_status = sc->amr_mailbox->mb_status;
+	sc->amr_mailbox->mb_status = 0xff;
+
 	for (i = 0; i < nstatus; i++)
 	    mbsave->mb_completed[i] = completed[i];
 
