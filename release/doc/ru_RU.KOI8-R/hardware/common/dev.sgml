@@ -683,8 +683,6 @@
   <sect2 id="sound">
     <title>Звуковые устройства</title>
 
-    &hwlist.sound;
-
     &hwlist.snd.ad1816;
 
     &hwlist.snd.als4000;
