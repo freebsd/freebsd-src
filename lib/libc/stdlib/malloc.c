@@ -2121,16 +2121,6 @@ arena_bin_pop(arena_t *arena, unsigned bin)
 	ret = qr_next(&tbin->regions, next.u.s.link);
 	assert(region_next_size_get(&ret->sep)
 	    == ((bin + bin_shift) << opt_quantum_2pow));
-	if (region_next_free_get(&ret->sep) == false) {
-		/*
-		 * Use delayed regions in LIFO order, in order to increase
-		 * locality of use, and thereby (hopefully) reduce
-		 * fragmentation.
-		 */
-		ret = qr_prev(&tbin->regions, next.u.s.link);
-		assert(region_next_size_get(&ret->sep)
-		    == ((bin + bin_shift) << opt_quantum_2pow));
-	}
 	qr_remove(ret, next.u.s.link);
 #ifdef MALLOC_STATS
 	arena->stats.bins[bin].nregions--;
@@ -2138,9 +2128,16 @@ arena_bin_pop(arena_t *arena, unsigned bin)
 	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
 		arena_mask_unset(arena, bin);
 
-	arena_delayed_extract(arena, ret);
+	if (region_next_free_get(&ret->sep) == false) {
+		uint32_t slot;
 
-	if (region_next_free_get(&ret->sep)) {
+		assert(region_next_contig_get(&ret->sep));
+
+		/* Extract this region from the delayed FIFO. */
+		slot = ret->next.u.s.slot;
+		assert(arena->delayed[slot] == ret);
+		arena->delayed[slot] = NULL;
+	} else {
 		region_t *next;
 
 		/* Non-delayed region. */
@@ -2338,7 +2335,7 @@ arena_undelay(arena_t *arena, uint32_t slot)
 		    - (CHUNK_REG_OFFSET + offsetof(region_t, next))) {
 			/*
 			 * Insert coalesced region into appropriate bin (or
-			 * largeRegions).
+			 * large_regions).
 			 */
 			arena_lru_cache(arena, reg);
 		} else {
