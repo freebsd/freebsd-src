@@ -444,63 +444,129 @@ make_packet(sessp sp) {
 }
 
 /**************************************************************************
- * Routine to match a service offered					  *
+ * Routines to match a service.						  *
  **************************************************************************/
+
 /*
  * Find a hook that has a service string that matches that
- * we are seeking. for now use a simple string.
+ * we are seeking. For now use a simple string.
  * In the future we may need something like regexp().
- * for testing allow a null string to match 1st found and a null service
- * to match all requests. Also make '*' do the same.
+ *
+ * Null string is a wildcard (ANY service), according to RFC2516.
+ * And historical FreeBSD wildcard is also "*".
  */
 
-#define NG_MATCH_EXACT	1
-#define NG_MATCH_ANY	2
-
 static hook_p
-pppoe_match_svc(node_p node, const char *svc_name, int svc_len, int match)
+pppoe_match_svc(node_p node, const struct pppoe_tag *tag)
 {
-	sessp	sp	= NULL;
-	negp	neg	= NULL;
-	priv_p	privp	= NG_NODE_PRIVATE(node);
-	hook_p	allhook	= NULL;
-	hook_p	hook;
+	priv_p privp = NG_NODE_PRIVATE(node);
+	hook_p hook;
 
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+		sessp sp = NG_HOOK_PRIVATE(hook);
+		negp neg;
 
-		/* skip any hook that is debug or ethernet */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
-		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+		/* Skip any hook that is debug or ethernet. */
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
+		    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
 			continue;
-		sp = NG_HOOK_PRIVATE(hook);
 
 		/* Skip any sessions which are not in LISTEN mode. */
-		if ( sp->state != PPPOE_LISTENING)
+		if (sp->state != PPPOE_LISTENING)
 			continue;
 
 		neg = sp->neg;
 
-		/* Special case for a blank or "*" service name (wildcard) */
-		if (match == NG_MATCH_ANY && neg->service_len == 1 &&
-		    neg->service.data[0] == '*') {
-			allhook = hook;
-			continue;
-		}
+		/* Empty Service-Name matches any service. */
+		if (neg->service_len == 0)
+			break;
+
+		/* Special case for a blank or "*" service name (wildcard). */
+		if (neg->service_len == 1 && neg->service.data[0] == '*')
+			break;
 
 		/* If the lengths don't match, that aint it. */
-		if (neg->service_len != svc_len)
+		if (neg->service_len != ntohs(tag->tag_len))
 			continue;
 
-		/* An exact match? */
-		if (svc_len == 0)
-			break;
-
-		if (strncmp(svc_name, neg->service.data, svc_len) == 0)
+		if (strncmp(tag->tag_data, neg->service.data,
+		    ntohs(tag->tag_len)) == 0)
 			break;
 	}
-	CTR3(KTR_NET, "%20s: matched %p for %s", __func__, hook, svc_name);
+	CTR3(KTR_NET, "%20s: matched %p for %s", __func__, hook, tag->tag_data);
 
-	return (hook ? hook : allhook);
+	return (hook);
+}
+
+/*
+ * Broadcast the PADI packet in m0 to all listening hooks.
+ * This routine is called when a PADI with empty Service-Name
+ * tag is received. Client should receive PADOs with all
+ * available services.
+ */
+static int
+pppoe_broadcast_padi(node_p node, struct mbuf *m0)
+{
+	priv_p privp = NG_NODE_PRIVATE(node);
+	hook_p hook;
+	int error = 0;
+
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+		sessp sp = NG_HOOK_PRIVATE(hook);
+		struct mbuf *m;
+
+		/*
+		 * Go through all listening hooks and
+		 * broadcast the PADI packet up there
+		 */
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
+		    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+			continue;
+
+		if (sp->state != PPPOE_LISTENING)
+			continue;
+
+		m = m_dup(m0, M_DONTWAIT);
+		if (m == NULL)
+			return (ENOMEM);
+		NG_SEND_DATA_ONLY(error, hook, m);
+		if (error)
+			return (error);
+	}
+
+	return (0);
+}
+
+/*
+ * Find a hook, which name equals to given service.
+ */
+static hook_p
+pppoe_find_svc(node_p node, const char *svc_name, int svc_len)
+{
+	priv_p privp = NG_NODE_PRIVATE(node);
+	hook_p	hook;
+
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+		sessp sp = NG_HOOK_PRIVATE(hook);
+		negp neg;
+
+		/* Skip any hook that is debug or ethernet. */
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
+		    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+			continue;
+
+		/* Skip any sessions which are not in LISTEN mode. */
+		if (sp->state != PPPOE_LISTENING)
+			continue;
+
+		neg = sp->neg;
+
+		if (neg->service_len == svc_len &&
+		    strncmp(svc_name, neg->service.data, svc_len == 0))
+			return (hook);
+	}
+
+	return (NULL);
 }
 
 /**************************************************************************
@@ -703,8 +769,8 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				 * Ensure we aren't already listening for this
 				 * service.
 				 */
-				if (pppoe_match_svc(node, ourmsg->data,
-				    ourmsg->data_len, NG_MATCH_EXACT) != NULL)
+				if (pppoe_find_svc(node, ourmsg->data,
+				    ourmsg->data_len) != NULL)
 					LEAVE(EEXIST);
 			}
 
@@ -1085,18 +1151,26 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				 */
 				tag = get_tag(ph, PTT_SRV_NAME);
 				if (tag == NULL) {
-					printf("no service tag\n");
+					CTR1(KTR_NET,
+					    "%20s: PADI w/o Service-Name",
+					    __func__);
 					LEAVE(ENETUNREACH);
 				}
-				sendhook = pppoe_match_svc(NG_HOOK_NODE(hook),
-			    		tag->tag_data, ntohs(tag->tag_len),
-					NG_MATCH_ANY);
-				if (sendhook) {
-					NG_FWD_NEW_DATA(error, item,
-								sendhook, m);
-				} else {
-					LEAVE(ENETUNREACH);
-				}
+
+				/*
+				 * If Service-Name is NULL, we broadcast
+				 * the PADI to all listening hooks, otherwise
+				 * we seek for a matching one.
+				 */
+				if (ntohs(tag->tag_len) != 0) {
+					sendhook = pppoe_match_svc(node, tag);
+					if (sendhook != NULL)
+						NG_FWD_NEW_DATA(error, item,
+						    sendhook, m);
+					else
+						error = ENETUNREACH;
+				} else
+					error = pppoe_broadcast_padi(node, m);
 				break;
 			case	PADO_CODE:
 				/*
