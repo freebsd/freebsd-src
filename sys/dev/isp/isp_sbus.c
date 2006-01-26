@@ -2,7 +2,8 @@
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
  *
- * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

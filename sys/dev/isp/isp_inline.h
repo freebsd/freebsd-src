@@ -2,10 +2,8 @@
 /*-
  * Qlogic Host Adapter Inline Functions
  *
- * Copyright (c) 1999, 2000, 2001 by Matthew Jacob
- * Feral Software
+ * Copyright (c) 1999-2006 by Matthew Jacob
  * All rights reserved.
- * mjacob@feral.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -314,7 +312,11 @@ isp_put_request(struct ispsoftc *, ispreq_t *, ispreq_t *);
 static INLINE void
 isp_put_request_t2(struct ispsoftc *, ispreqt2_t *, ispreqt2_t *);
 static INLINE void
+isp_put_request_t2e(struct ispsoftc *, ispreqt2e_t *, ispreqt2e_t *);
+static INLINE void
 isp_put_request_t3(struct ispsoftc *, ispreqt3_t *, ispreqt3_t *);
+static INLINE void
+isp_put_request_t3e(struct ispsoftc *, ispreqt3e_t *, ispreqt3e_t *);
 static INLINE void
 isp_put_extended_request(struct ispsoftc *, ispextreq_t *, ispextreq_t *);
 static INLINE void
@@ -366,7 +368,11 @@ isp_get_atio(struct ispsoftc *, at_entry_t *, at_entry_t *);
 static INLINE void
 isp_put_atio2(struct ispsoftc *, at2_entry_t *, at2_entry_t *);
 static INLINE void
+isp_put_atio2e(struct ispsoftc *, at2e_entry_t *, at2e_entry_t *);
+static INLINE void
 isp_get_atio2(struct ispsoftc *, at2_entry_t *, at2_entry_t *);
+static INLINE void
+isp_get_atio2e(struct ispsoftc *, at2e_entry_t *, at2e_entry_t *);
 static INLINE void
 isp_put_ctio(struct ispsoftc *, ct_entry_t *, ct_entry_t *);
 static INLINE void
@@ -374,7 +380,11 @@ isp_get_ctio(struct ispsoftc *, ct_entry_t *, ct_entry_t *);
 static INLINE void
 isp_put_ctio2(struct ispsoftc *, ct2_entry_t *, ct2_entry_t *);
 static INLINE void
+isp_put_ctio2e(struct ispsoftc *, ct2e_entry_t *, ct2e_entry_t *);
+static INLINE void
 isp_get_ctio2(struct ispsoftc *, ct2_entry_t *, ct2_entry_t *);
+static INLINE void
+isp_get_ctio2e(struct ispsoftc *, ct2e_entry_t *, ct2e_entry_t *);
 static INLINE void
 isp_put_enable_lun(struct ispsoftc *, lun_entry_t *, lun_entry_t *);
 static INLINE void
@@ -386,7 +396,11 @@ isp_get_notify(struct ispsoftc *, in_entry_t *, in_entry_t *);
 static INLINE void
 isp_put_notify_fc(struct ispsoftc *, in_fcentry_t *, in_fcentry_t *);
 static INLINE void
+isp_put_notify_fc_e(struct ispsoftc *, in_fcentry_e_t *, in_fcentry_e_t *);
+static INLINE void
 isp_get_notify_fc(struct ispsoftc *, in_fcentry_t *, in_fcentry_t *);
+static INLINE void
+isp_get_notify_fc_e(struct ispsoftc *, in_fcentry_e_t *, in_fcentry_e_t *);
 static INLINE void
 isp_put_notify_ack(struct ispsoftc *, na_entry_t *, na_entry_t *);
 static INLINE void
@@ -394,7 +408,11 @@ isp_get_notify_ack(struct ispsoftc *, na_entry_t *, na_entry_t *);
 static INLINE void
 isp_put_notify_ack_fc(struct ispsoftc *, na_fcentry_t *, na_fcentry_t *);
 static INLINE void
+isp_put_notify_ack_fc_e(struct ispsoftc *, na_fcentry_e_t *, na_fcentry_e_t *);
+static INLINE void
 isp_get_notify_ack_fc(struct ispsoftc *, na_fcentry_t *, na_fcentry_t *);
+static INLINE void
+isp_get_notify_ack_fc_e(struct ispsoftc *, na_fcentry_e_t *, na_fcentry_e_t *);
 #endif
 
 #define	ISP_IS_SBUS(isp)	\
@@ -517,6 +535,30 @@ isp_put_request_t2(struct ispsoftc *isp, ispreqt2_t *tqsrc, ispreqt2_t *tqdst)
 }
 
 static INLINE void
+isp_put_request_t2e(struct ispsoftc *isp, ispreqt2e_t *tqsrc, ispreqt2e_t *tqdst)
+{
+	int i;
+	isp_copy_out_hdr(isp, &tqsrc->req_header, &tqdst->req_header);
+	ISP_IOXPUT_32(isp, tqsrc->req_handle, &tqdst->req_handle);
+	ISP_IOXPUT_16(isp, tqsrc->req_target, &tqdst->req_target);
+	ISP_IOXPUT_16(isp, tqsrc->req_scclun, &tqdst->req_scclun);
+	ISP_IOXPUT_16(isp, tqsrc->req_flags,  &tqdst->req_flags);
+	ISP_IOXPUT_16(isp, tqsrc->_res2, &tqdst->_res2);
+	ISP_IOXPUT_16(isp, tqsrc->req_time, &tqdst->req_time);
+	ISP_IOXPUT_16(isp, tqsrc->req_seg_count, &tqdst->req_seg_count);
+	for (i = 0; i < 16; i++) {
+		ISP_IOXPUT_8(isp, tqsrc->req_cdb[i], &tqdst->req_cdb[i]);
+	}
+	ISP_IOXPUT_32(isp, tqsrc->req_totalcnt, &tqdst->req_totalcnt);
+	for (i = 0; i < ISP_RQDSEG_T2; i++) {
+		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_base,
+		    &tqdst->req_dataseg[i].ds_base);
+		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_count,
+		    &tqdst->req_dataseg[i].ds_count);
+	}
+}
+
+static INLINE void
 isp_put_request_t3(struct ispsoftc *isp, ispreqt3_t *tqsrc, ispreqt3_t *tqdst)
 {
 	int i;
@@ -524,6 +566,32 @@ isp_put_request_t3(struct ispsoftc *isp, ispreqt3_t *tqsrc, ispreqt3_t *tqdst)
 	ISP_IOXPUT_32(isp, tqsrc->req_handle, &tqdst->req_handle);
 	ISP_IOXPUT_8(isp, tqsrc->req_lun_trn, &tqdst->req_lun_trn);
 	ISP_IOXPUT_8(isp, tqsrc->req_target, &tqdst->req_target);
+	ISP_IOXPUT_16(isp, tqsrc->req_scclun, &tqdst->req_scclun);
+	ISP_IOXPUT_16(isp, tqsrc->req_flags,  &tqdst->req_flags);
+	ISP_IOXPUT_16(isp, tqsrc->_res2, &tqdst->_res2);
+	ISP_IOXPUT_16(isp, tqsrc->req_time, &tqdst->req_time);
+	ISP_IOXPUT_16(isp, tqsrc->req_seg_count, &tqdst->req_seg_count);
+	for (i = 0; i < 16; i++) {
+		ISP_IOXPUT_8(isp, tqsrc->req_cdb[i], &tqdst->req_cdb[i]);
+	}
+	ISP_IOXPUT_32(isp, tqsrc->req_totalcnt, &tqdst->req_totalcnt);
+	for (i = 0; i < ISP_RQDSEG_T3; i++) {
+		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_base,
+		    &tqdst->req_dataseg[i].ds_base);
+		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_basehi,
+		    &tqdst->req_dataseg[i].ds_basehi);
+		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_count,
+		    &tqdst->req_dataseg[i].ds_count);
+	}
+}
+
+static INLINE void
+isp_put_request_t3e(struct ispsoftc *isp, ispreqt3e_t *tqsrc, ispreqt3e_t *tqdst)
+{
+	int i;
+	isp_copy_out_hdr(isp, &tqsrc->req_header, &tqdst->req_header);
+	ISP_IOXPUT_32(isp, tqsrc->req_handle, &tqdst->req_handle);
+	ISP_IOXPUT_16(isp, tqsrc->req_target, &tqdst->req_target);
 	ISP_IOXPUT_16(isp, tqsrc->req_scclun, &tqdst->req_scclun);
 	ISP_IOXPUT_16(isp, tqsrc->req_flags,  &tqdst->req_flags);
 	ISP_IOXPUT_16(isp, tqsrc->_res2, &tqdst->_res2);
@@ -1072,6 +1140,35 @@ isp_put_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 }
 
 static INLINE void
+isp_put_atio2e(struct ispsoftc *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
+{
+	int i;
+	isp_copy_out_hdr(isp, &atsrc->at_header, &atdst->at_header);
+	ISP_IOXPUT_32(isp, atsrc->at_reserved, &atdst->at_reserved);
+	ISP_IOXPUT_16(isp, atsrc->at_iid, &atdst->at_iid);
+	ISP_IOXPUT_16(isp, atsrc->at_rxid, &atdst->at_rxid);
+	ISP_IOXPUT_16(isp, atsrc->at_flags, &atdst->at_flags);
+	ISP_IOXPUT_16(isp, atsrc->at_status, &atdst->at_status);
+	ISP_IOXPUT_8(isp, atsrc->at_crn, &atdst->at_crn);
+	ISP_IOXPUT_8(isp, atsrc->at_taskcodes, &atdst->at_taskcodes);
+	ISP_IOXPUT_8(isp, atsrc->at_taskflags, &atdst->at_taskflags);
+	ISP_IOXPUT_8(isp, atsrc->at_execodes, &atdst->at_execodes);
+	for (i = 0; i < ATIO2_CDBLEN; i++) {
+		ISP_IOXPUT_8(isp, atsrc->at_cdb[i], &atdst->at_cdb[i]);
+	}
+	ISP_IOXPUT_32(isp, atsrc->at_datalen, &atdst->at_datalen);
+	ISP_IOXPUT_16(isp, atsrc->at_scclun, &atdst->at_scclun);
+	for (i = 0; i < 4; i++) {
+		ISP_IOXPUT_16(isp, atsrc->at_wwpn[i], &atdst->at_wwpn[i]);
+	}
+	for (i = 0; i < 6; i++) {
+		ISP_IOXPUT_16(isp, atsrc->at_reserved2[i],
+		    &atdst->at_reserved2[i]);
+	}
+	ISP_IOXPUT_16(isp, atsrc->at_oxid, &atdst->at_oxid);
+}
+
+static INLINE void
 isp_get_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 {
 	int i;
@@ -1079,6 +1176,35 @@ isp_get_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 	ISP_IOXGET_32(isp, &atsrc->at_reserved, atdst->at_reserved);
 	ISP_IOXGET_8(isp, &atsrc->at_lun, atdst->at_lun);
 	ISP_IOXGET_8(isp, &atsrc->at_iid, atdst->at_iid);
+	ISP_IOXGET_16(isp, &atsrc->at_rxid, atdst->at_rxid);
+	ISP_IOXGET_16(isp, &atsrc->at_flags, atdst->at_flags);
+	ISP_IOXGET_16(isp, &atsrc->at_status, atdst->at_status);
+	ISP_IOXGET_8(isp, &atsrc->at_crn, atdst->at_crn);
+	ISP_IOXGET_8(isp, &atsrc->at_taskcodes, atdst->at_taskcodes);
+	ISP_IOXGET_8(isp, &atsrc->at_taskflags, atdst->at_taskflags);
+	ISP_IOXGET_8(isp, &atsrc->at_execodes, atdst->at_execodes);
+	for (i = 0; i < ATIO2_CDBLEN; i++) {
+		ISP_IOXGET_8(isp, &atsrc->at_cdb[i], atdst->at_cdb[i]);
+	}
+	ISP_IOXGET_32(isp, &atsrc->at_datalen, atdst->at_datalen);
+	ISP_IOXGET_16(isp, &atsrc->at_scclun, atdst->at_scclun);
+	for (i = 0; i < 4; i++) {
+		ISP_IOXGET_16(isp, &atsrc->at_wwpn[i], atdst->at_wwpn[i]);
+	}
+	for (i = 0; i < 6; i++) {
+		ISP_IOXGET_16(isp, &atsrc->at_reserved2[i],
+		    atdst->at_reserved2[i]);
+	}
+	ISP_IOXGET_16(isp, &atsrc->at_oxid, atdst->at_oxid);
+}
+
+static INLINE void
+isp_get_atio2e(struct ispsoftc *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
+{
+	int i;
+	isp_copy_in_hdr(isp, &atsrc->at_header, &atdst->at_header);
+	ISP_IOXGET_32(isp, &atsrc->at_reserved, atdst->at_reserved);
+	ISP_IOXGET_16(isp, &atsrc->at_iid, atdst->at_iid);
 	ISP_IOXGET_16(isp, &atsrc->at_rxid, atdst->at_rxid);
 	ISP_IOXGET_16(isp, &atsrc->at_flags, atdst->at_flags);
 	ISP_IOXGET_16(isp, &atsrc->at_status, atdst->at_status);
@@ -1268,6 +1394,89 @@ isp_put_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 }
 
 static INLINE void
+isp_put_ctio2e(struct ispsoftc *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
+{
+	int i;
+	isp_copy_out_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
+	ISP_IOXPUT_16(isp, ctsrc->ct_reserved, &ctdst->ct_reserved);
+	ISP_IOXPUT_16(isp, ctsrc->ct_fwhandle, &ctdst->ct_fwhandle);
+	ISP_IOXPUT_16(isp, ctsrc->ct_iid, &ctdst->ct_iid);
+	ISP_IOXPUT_16(isp, ctsrc->ct_rxid, &ctdst->ct_rxid);
+	ISP_IOXPUT_16(isp, ctsrc->ct_flags, &ctdst->ct_flags);
+	ISP_IOXPUT_16(isp, ctsrc->ct_timeout, &ctdst->ct_timeout);
+	ISP_IOXPUT_16(isp, ctsrc->ct_seg_count, &ctdst->ct_seg_count);
+	ISP_IOXPUT_32(isp, ctsrc->ct_resid, &ctdst->ct_resid);
+	ISP_IOXPUT_32(isp, ctsrc->ct_reloff, &ctdst->ct_reloff);
+	if ((ctsrc->ct_flags & CT2_FLAG_MMASK) == CT2_FLAG_MODE0) {
+		ISP_IOXPUT_32(isp, ctsrc->rsp.m0._reserved,
+		    &ctdst->rsp.m0._reserved);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m0._reserved2,
+		    &ctdst->rsp.m0._reserved2);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m0.ct_scsi_status,
+		    &ctdst->rsp.m0.ct_scsi_status);
+		ISP_IOXPUT_32(isp, ctsrc->rsp.m0.ct_xfrlen,
+		    &ctdst->rsp.m0.ct_xfrlen);
+		if (ctsrc->ct_header.rqs_entry_type == RQSTYPE_CTIO2) {
+			for (i = 0; i < ISP_RQDSEG_T2; i++) {
+				ISP_IOXPUT_32(isp,
+				    ctsrc->rsp.m0.ct_dataseg[i].ds_base,
+				    &ctdst->rsp.m0.ct_dataseg[i].ds_base);
+				ISP_IOXPUT_32(isp,
+				    ctsrc->rsp.m0.ct_dataseg[i].ds_count,
+				    &ctdst->rsp.m0.ct_dataseg[i].ds_count);
+			}
+		} else if (ctsrc->ct_header.rqs_entry_type == RQSTYPE_CTIO3) {
+			for (i = 0; i < ISP_RQDSEG_T3; i++) {
+				ISP_IOXPUT_32(isp,
+				    ctsrc->rsp.m0.ct_dataseg64[i].ds_base,
+				    &ctdst->rsp.m0.ct_dataseg64[i].ds_base);
+				ISP_IOXPUT_32(isp,
+				    ctsrc->rsp.m0.ct_dataseg64[i].ds_basehi,
+				    &ctdst->rsp.m0.ct_dataseg64[i].ds_basehi);
+				ISP_IOXPUT_32(isp,
+				    ctsrc->rsp.m0.ct_dataseg64[i].ds_count,
+				    &ctdst->rsp.m0.ct_dataseg64[i].ds_count);
+			}
+		} else if (ctsrc->ct_header.rqs_entry_type == RQSTYPE_CTIO4) {
+			ISP_IOXPUT_16(isp, ctsrc->rsp.m0.ct_dslist.ds_type,
+			    &ctdst->rsp.m0.ct_dslist.ds_type);
+			ISP_IOXPUT_32(isp, ctsrc->rsp.m0.ct_dslist.ds_segment,
+			    &ctdst->rsp.m0.ct_dslist.ds_segment);
+			ISP_IOXPUT_32(isp, ctsrc->rsp.m0.ct_dslist.ds_base,
+			    &ctdst->rsp.m0.ct_dslist.ds_base);
+		}
+	} else if ((ctsrc->ct_flags & CT2_FLAG_MMASK) == CT2_FLAG_MODE1) {
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m1._reserved,
+		    &ctdst->rsp.m1._reserved);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m1._reserved2,
+		    &ctdst->rsp.m1._reserved2);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m1.ct_senselen,
+		    &ctdst->rsp.m1.ct_senselen);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m1.ct_scsi_status,
+		    &ctdst->rsp.m1.ct_scsi_status);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m1.ct_resplen,
+		    &ctdst->rsp.m1.ct_resplen);
+		for (i = 0; i < MAXRESPLEN; i++) {
+			ISP_IOXPUT_8(isp, ctsrc->rsp.m1.ct_resp[i],
+			    &ctdst->rsp.m1.ct_resp[i]);
+		}
+	} else {
+		ISP_IOXPUT_32(isp, ctsrc->rsp.m2._reserved,
+		    &ctdst->rsp.m2._reserved);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m2._reserved2,
+		    &ctdst->rsp.m2._reserved2);
+		ISP_IOXPUT_16(isp, ctsrc->rsp.m2._reserved3,
+		    &ctdst->rsp.m2._reserved3);
+		ISP_IOXPUT_32(isp, ctsrc->rsp.m2.ct_datalen,
+		    &ctdst->rsp.m2.ct_datalen);
+		ISP_IOXPUT_32(isp, ctsrc->rsp.m2.ct_fcp_rsp_iudata.ds_base,
+		    &ctdst->rsp.m2.ct_fcp_rsp_iudata.ds_base);
+		ISP_IOXPUT_32(isp, ctsrc->rsp.m2.ct_fcp_rsp_iudata.ds_count,
+		    &ctdst->rsp.m2.ct_fcp_rsp_iudata.ds_count);
+	}
+}
+
+static INLINE void
 isp_get_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 {
 	isp_copy_in_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
@@ -1275,6 +1484,22 @@ isp_get_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 	ISP_IOXGET_16(isp, &ctsrc->ct_fwhandle, ctdst->ct_fwhandle);
 	ISP_IOXGET_8(isp, &ctsrc->ct_lun, ctdst->ct_lun);
 	ISP_IOXGET_8(isp, &ctsrc->ct_iid, ctdst->ct_iid);
+	ISP_IOXGET_16(isp, &ctsrc->ct_rxid, ctdst->ct_rxid);
+	ISP_IOXGET_16(isp, &ctsrc->ct_flags, ctdst->ct_flags);
+	ISP_IOXGET_16(isp, &ctsrc->ct_status, ctdst->ct_status);
+	ISP_IOXGET_16(isp, &ctsrc->ct_timeout, ctdst->ct_timeout);
+	ISP_IOXGET_16(isp, &ctsrc->ct_seg_count, ctdst->ct_seg_count);
+	ISP_IOXGET_32(isp, &ctsrc->ct_reloff, ctdst->ct_reloff);
+	ISP_IOXGET_32(isp, &ctsrc->ct_resid, ctdst->ct_resid);
+}
+
+static INLINE void
+isp_get_ctio2e(struct ispsoftc *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
+{
+	isp_copy_in_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
+	ISP_IOXGET_16(isp, &ctsrc->ct_reserved, ctdst->ct_reserved);
+	ISP_IOXGET_16(isp, &ctsrc->ct_fwhandle, ctdst->ct_fwhandle);
+	ISP_IOXGET_16(isp, &ctsrc->ct_iid, ctdst->ct_iid);
 	ISP_IOXGET_16(isp, &ctsrc->ct_rxid, ctdst->ct_rxid);
 	ISP_IOXGET_16(isp, &ctsrc->ct_flags, ctdst->ct_flags);
 	ISP_IOXGET_16(isp, &ctsrc->ct_status, ctdst->ct_status);
@@ -1454,6 +1679,20 @@ isp_put_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
 }
 
 static INLINE void
+isp_put_notify_fc_e(struct ispsoftc *isp, in_fcentry_e_t *insrc,
+    in_fcentry_e_t *indst)
+{
+	isp_copy_out_hdr(isp, &insrc->in_header, &indst->in_header);
+	ISP_IOXPUT_32(isp, insrc->in_reserved, &indst->in_reserved);
+	ISP_IOXPUT_16(isp, insrc->in_iid, &indst->in_iid);
+	ISP_IOXPUT_16(isp, insrc->in_scclun, &indst->in_scclun);
+	ISP_IOXPUT_32(isp, insrc->in_reserved2, &indst->in_reserved2);
+	ISP_IOXPUT_16(isp, insrc->in_status, &indst->in_status);
+	ISP_IOXPUT_16(isp, insrc->in_task_flags, &indst->in_task_flags);
+	ISP_IOXPUT_16(isp, insrc->in_seqid, &indst->in_seqid);
+}
+
+static INLINE void
 isp_get_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
     in_fcentry_t *indst)
 {
@@ -1461,6 +1700,20 @@ isp_get_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
 	ISP_IOXGET_32(isp, &insrc->in_reserved, indst->in_reserved);
 	ISP_IOXGET_8(isp, &insrc->in_lun, indst->in_lun);
 	ISP_IOXGET_8(isp, &insrc->in_iid, indst->in_iid);
+	ISP_IOXGET_16(isp, &insrc->in_scclun, indst->in_scclun);
+	ISP_IOXGET_32(isp, &insrc->in_reserved2, indst->in_reserved2);
+	ISP_IOXGET_16(isp, &insrc->in_status, indst->in_status);
+	ISP_IOXGET_16(isp, &insrc->in_task_flags, indst->in_task_flags);
+	ISP_IOXGET_16(isp, &insrc->in_seqid, indst->in_seqid);
+}
+
+static INLINE void
+isp_get_notify_fc_e(struct ispsoftc *isp, in_fcentry_e_t *insrc,
+    in_fcentry_e_t *indst)
+{
+	isp_copy_in_hdr(isp, &insrc->in_header, &indst->in_header);
+	ISP_IOXGET_32(isp, &insrc->in_reserved, indst->in_reserved);
+	ISP_IOXGET_16(isp, &insrc->in_iid, indst->in_iid);
 	ISP_IOXGET_16(isp, &insrc->in_scclun, indst->in_scclun);
 	ISP_IOXGET_32(isp, &insrc->in_reserved2, indst->in_reserved2);
 	ISP_IOXGET_16(isp, &insrc->in_status, indst->in_status);
@@ -1538,6 +1791,26 @@ isp_put_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
 }
 
 static INLINE void
+isp_put_notify_ack_fc_e(struct ispsoftc *isp, na_fcentry_e_t *nasrc,
+    na_fcentry_e_t *nadst)
+{
+	int i;
+	isp_copy_out_hdr(isp, &nasrc->na_header, &nadst->na_header);
+	ISP_IOXPUT_32(isp, nasrc->na_reserved, &nadst->na_reserved);
+	ISP_IOXPUT_16(isp, nasrc->na_iid, &nadst->na_iid);
+	ISP_IOXPUT_16(isp, nasrc->na_scclun, &nadst->na_scclun);
+	ISP_IOXPUT_16(isp, nasrc->na_flags, &nadst->na_flags);
+	ISP_IOXPUT_16(isp, nasrc->na_reserved2, &nadst->na_reserved2);
+	ISP_IOXPUT_16(isp, nasrc->na_status, &nadst->na_status);
+	ISP_IOXPUT_16(isp, nasrc->na_task_flags, &nadst->na_task_flags);
+	ISP_IOXPUT_16(isp, nasrc->na_seqid, &nadst->na_seqid);
+	for (i = 0; i < NA2_RSVDLEN; i++) {
+		ISP_IOXPUT_16(isp, nasrc->na_reserved3[i],
+		    &nadst->na_reserved3[i]);
+	}
+}
+
+static INLINE void
 isp_get_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
     na_fcentry_t *nadst)
 {
@@ -1546,6 +1819,26 @@ isp_get_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
 	ISP_IOXGET_32(isp, &nasrc->na_reserved, nadst->na_reserved);
 	ISP_IOXGET_8(isp, &nasrc->na_lun, nadst->na_lun);
 	ISP_IOXGET_8(isp, &nasrc->na_iid, nadst->na_iid);
+	ISP_IOXGET_16(isp, &nasrc->na_scclun, nadst->na_scclun);
+	ISP_IOXGET_16(isp, &nasrc->na_flags, nadst->na_flags);
+	ISP_IOXGET_16(isp, &nasrc->na_reserved2, nadst->na_reserved2);
+	ISP_IOXGET_16(isp, &nasrc->na_status, nadst->na_status);
+	ISP_IOXGET_16(isp, &nasrc->na_task_flags, nadst->na_task_flags);
+	ISP_IOXGET_16(isp, &nasrc->na_seqid, nadst->na_seqid);
+	for (i = 0; i < NA2_RSVDLEN; i++) {
+		ISP_IOXGET_16(isp, &nasrc->na_reserved3[i],
+		    nadst->na_reserved3[i]);
+	}
+}
+
+static INLINE void
+isp_get_notify_ack_fc_e(struct ispsoftc *isp, na_fcentry_e_t *nasrc,
+    na_fcentry_e_t *nadst)
+{
+	int i;
+	isp_copy_in_hdr(isp, &nasrc->na_header, &nadst->na_header);
+	ISP_IOXGET_32(isp, &nasrc->na_reserved, nadst->na_reserved);
+	ISP_IOXGET_16(isp, &nasrc->na_iid, nadst->na_iid);
 	ISP_IOXGET_16(isp, &nasrc->na_scclun, nadst->na_scclun);
 	ISP_IOXGET_16(isp, &nasrc->na_flags, nadst->na_flags);
 	ISP_IOXGET_16(isp, &nasrc->na_reserved2, nadst->na_reserved2);

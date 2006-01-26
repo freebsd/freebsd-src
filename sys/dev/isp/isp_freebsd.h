@@ -1,7 +1,9 @@
 /* $FreeBSD$ */
 /*-
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
- * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002 by Matthew Jacob
+ *
+ * Copyright (c) 1997-2006 by Matthew Jacob
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -66,7 +68,7 @@
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
  */
-#if	_MACHINE_ARCH == sparc64
+#ifdef __sparc64__
 #define	ISP_SBUS_SUPPORTED	1
 #else
 #define	ISP_SBUS_SUPPORTED	0
