@@ -226,6 +226,10 @@ static struct ispmdvec mdvec_2300 = {
 #define	PCI_PRODUCT_QLOGIC_ISP2322	0x2322
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP2422
+#define	PCI_PRODUCT_QLOGIC_ISP2422	0x2422
+#endif
+
 #ifndef	PCI_PRODUCT_QLOGIC_ISP6312
 #define	PCI_PRODUCT_QLOGIC_ISP6312	0x6312
 #endif
@@ -347,6 +351,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP2322:
 		device_set_desc(dev, "Qlogic ISP 2322 PCI FC-AL Adapter");
+		break;
+	case PCI_QLOGIC_ISP2422:
+		device_set_desc(dev, "Qlogic ISP 2422 PCI FC-AL Adapter");
 		break;
 	case PCI_QLOGIC_ISP6312:
 		device_set_desc(dev, "Qlogic ISP 6312 PCI FC-AL Adapter");
@@ -549,6 +556,13 @@ isp_pci_attach(device_t dev)
 	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2322) {
 		mdvp = &mdvec_2300;
 		basetype = ISP_HA_FC_2322;
+		psize = sizeof (fcparam);
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
+		    PCI_MBOX_REGS2300_OFF;
+	}
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2422) {
+		mdvp = &mdvec_2300;
+		basetype = ISP_HA_FC_2422;
 		psize = sizeof (fcparam);
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2300_OFF;
