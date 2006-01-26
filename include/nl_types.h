@@ -97,8 +97,7 @@ typedef	__nl_item	nl_item;
 
 __BEGIN_DECLS
 nl_catd  catopen(const char *, int);
-char    *catgets(nl_catd, int, int, const char *)
-	__attribute__((__format_arg__(4)));
+char    *catgets(nl_catd, int, int, const char *) __format_arg(4);
 int	 catclose(nl_catd);
 __END_DECLS
 
