@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 
-#include <dev/amr/amr_compat.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 
@@ -89,7 +89,7 @@ static	disk_strategy_t	amrd_strategy;
 
 static devclass_t	amrd_devclass;
 #ifdef FREEBSD_4
-static int		disks_registered = 0;
+int			amr_disks_registered = 0;
 #endif
 
 static device_method_t amrd_methods[] = {
@@ -111,9 +111,6 @@ static int
 amrd_open(struct disk *dp)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dp->d_drv1;
-#if __FreeBSD_version < 500000		/* old buf style */
-    struct disklabel    *label;
-#endif
 
     debug_called(1);
 
@@ -123,23 +120,6 @@ amrd_open(struct disk *dp)
     /* controller not active? */
     if (sc->amrd_controller->amr_state & AMR_STATE_SHUTDOWN)
 	return(ENXIO);
-
-#if __FreeBSD_version < 500000		/* old buf style */
-    label = &sc->amrd_disk.d_label;
-    bzero(label, sizeof(*label));
-    label->d_type       = DTYPE_SCSI;
-    label->d_secsize    = AMR_BLKSIZE;
-    label->d_nsectors   = sc->amrd_drive->al_sectors;
-    label->d_ntracks    = sc->amrd_drive->al_heads;
-    label->d_ncylinders = sc->amrd_drive->al_cylinders;
-    label->d_secpercyl  = sc->amrd_drive->al_sectors * sc->amrd_drive->al_heads;
-    label->d_secperunit = sc->amrd_drive->al_size;
-#else
-    sc->amrd_disk->d_sectorsize = AMR_BLKSIZE;
-    sc->amrd_disk->d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
-    sc->amrd_disk->d_fwsectors = sc->amrd_drive->al_sectors;
-    sc->amrd_disk->d_fwheads = sc->amrd_drive->al_heads;
-#endif
 
     return (0);
 }
@@ -216,7 +196,7 @@ amrd_intr(void *data)
 	bio->bio_resid = 0;
     }
 
-    AMR_BIO_FINISH(bio);
+    biodone(bio);
 }
 
 static int
@@ -257,10 +237,11 @@ amrd_attach(device_t dev)
     sc->amrd_disk->d_dump = (dumper_t *)amrd_dump;
     sc->amrd_disk->d_unit = sc->amrd_unit;
     sc->amrd_disk->d_flags = 0;
+    sc->amrd_disk->d_sectorsize = AMR_BLKSIZE;
+    sc->amrd_disk->d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
+    sc->amrd_disk->d_fwsectors = sc->amrd_drive->al_sectors;
+    sc->amrd_disk->d_fwheads = sc->amrd_drive->al_heads;
     disk_create(sc->amrd_disk, DISK_VERSION);
-#ifdef FREEBSD_4
-    disks_registered++;
-#endif
 
     return (0);
 }
@@ -276,7 +257,7 @@ amrd_detach(device_t dev)
 	return(EBUSY);
 
 #ifdef FREEBSD_4
-    if (--disks_registered == 0)
+    if (--amr_disks_registered == 0)
 	cdevsw_remove(&amrddisk_cdevsw);
 #else
     disk_destroy(sc->amrd_disk);

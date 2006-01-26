@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 
-#include <dev/amr/amr_compat.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
@@ -94,33 +94,24 @@ static void		amr_cam_complete_extcdb(struct amr_command *ac);
 static __inline void
 amr_enqueue_ccb(struct amr_softc *sc, union ccb *ccb)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_TAIL(&sc->amr_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
-    splx(s);
 }
 
 static __inline void
 amr_requeue_ccb(struct amr_softc *sc, union ccb *ccb)
 {
-    int		s;
 
-    s = splbio();
     TAILQ_INSERT_HEAD(&sc->amr_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
-    splx(s);
 }
 
 static __inline union ccb *
 amr_dequeue_ccb(struct amr_softc *sc)
 {
     union ccb	*ccb;
-    int		s;
 
-    s = splbio();
     if ((ccb = (union ccb *)TAILQ_FIRST(&sc->amr_cam_ccbq)) != NULL)
 	TAILQ_REMOVE(&sc->amr_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
-    splx(s);
     return(ccb);
 }
 
@@ -262,10 +253,10 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 	    /* save the channel number in the ccb */
 	    csio->ccb_h.sim_priv.entries[0].field = cam_sim_bus(sim);
 
-	    mtx_lock(&sc->amr_io_lock);
+	    mtx_lock(&sc->amr_list_lock);
 	    amr_enqueue_ccb(sc, ccb);
 	    amr_startio(sc);
-	    mtx_unlock(&sc->amr_io_lock);
+	    mtx_unlock(&sc->amr_list_lock);
 	    return;
 	}
 	break;
@@ -465,11 +456,17 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 	    ac->ac_length = sizeof(*aep);
 	    ac->ac_complete = amr_cam_complete_extcdb;
 	    ac->ac_mailbox.mb_command = AMR_CMD_EXTPASS;
+	    if (AMR_IS_SG64(sc))
+		ac->ac_flags |= AMR_CMD_SG64;
     } else {
 	    ac->ac_data = ap;
 	    ac->ac_length = sizeof(*ap);
 	    ac->ac_complete = amr_cam_complete;
-	    ac->ac_mailbox.mb_command = AMR_CMD_PASS;
+	    if (AMR_IS_SG64(sc)) {
+		ac->ac_mailbox.mb_command = AMR_CMD_PASS_64;
+		ac->ac_flags |= AMR_CMD_SG64;
+	    } else
+		ac->ac_mailbox.mb_command = AMR_CMD_PASS;
     }
 
 out:
@@ -493,11 +490,8 @@ out:
 static void
 amr_cam_poll(struct cam_sim *sim)
 {
-    struct amr_softc	*sc = cam_sim_softc(sim);
 
-    mtx_lock(&sc->amr_io_lock);
     amr_done(cam_sim_softc(sim));
-    mtx_unlock(&sc->amr_io_lock);
 }
 
  /********************************************************************************

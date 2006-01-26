@@ -65,7 +65,7 @@
 /*
  * Fetch the driver's interface version.
  */
-#define AMR_IO_VERSION_NUMBER	0x01
+#define AMR_IO_VERSION_NUMBER	153
 #define AMR_IO_VERSION	_IOR('A', 0x200, int)
 
 /*
