@@ -327,7 +327,8 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	pt->pt_send = 0;
 	pt->pt_ucntl = 0;
 
-	pty_create_slave(td->td_ucred, pt, minor(dev));
+	if (!pt->devs)
+		pty_create_slave(td->td_ucred, pt, minor(dev));
 	pt->pt_devc_open = 1;
 
 	return (0);
