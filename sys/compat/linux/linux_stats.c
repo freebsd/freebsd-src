@@ -137,7 +137,7 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 	      && path[9] >= '0' && path[9] <= '9') {
 		  /* 
    		   * Linux checks major and minors of the slave device to make
-		   * sure it's a pty deivce, so let's make him believe it is.
+		   * sure it's a pty device, so let's make him believe it is.
 		   */
 		  buf.st_rdev = (136 << 8);
 	  }
