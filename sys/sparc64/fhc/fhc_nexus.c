@@ -55,6 +55,9 @@ static device_method_t fhc_nexus_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		fhc_nexus_probe),
 	DEVMETHOD(device_attach,	fhc_nexus_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface. */
 	DEVMETHOD(bus_print_child,	fhc_print_child),
