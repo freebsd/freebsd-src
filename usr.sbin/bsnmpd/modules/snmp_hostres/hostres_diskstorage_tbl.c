@@ -43,6 +43,7 @@
 #include <sys/sysctl.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <paths.h>
@@ -277,6 +278,14 @@ disk_OS_get_ATA_disks(void)
 		for (found = lookup; found->media != DSM_UNKNOWN; found++) {
 			if (strncmp(map->name_key, found->dev_name,
 			    strlen(found->dev_name)) != 0)
+				continue;
+
+			/*
+			 * Avoid false disk devices. For example adw(4) and
+			 * adv(4) - they are not disks!
+			 */
+			if (strlen(map->name_key) > strlen(found->dev_name) &&
+			    !isdigit(map->name_key[strlen(found->dev_name)]))
 				continue;
 
 			/* First get the entry from the hrDeviceTbl */
