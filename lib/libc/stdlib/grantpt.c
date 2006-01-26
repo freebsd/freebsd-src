@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
+#include <sys/ioctl.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -56,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #define PTM_PREFIX	"pty"	/* pseudo tty master naming convention */
 #define PTS_PREFIX	"tty"	/* pseudo tty slave naming convention */
+#define NEWPTS_PREFIX	"pts/"
+#define PTMX		"ptmx"
 
 /*
  * The following are range values for pseudo TTY devices.  Pseudo TTYs have a
@@ -77,6 +81,29 @@ __FBSDID("$FreeBSD$");
 #define ISPTM(x)	(S_ISCHR((x).st_mode) && 			\
 			 minor((x).st_rdev) >= 0 &&			\
 			 minor((x).st_rdev) < PT_MAX)
+
+
+static int
+is_pts(int fd)
+{
+	int nb;
+
+	return (_ioctl(fd, TIOCGPTN, &nb) == 0);
+}
+
+int
+__use_pts(void)
+{
+	int use_pts;
+	size_t len;
+	int error;
+
+	len = sizeof(use_pts);
+	error = sysctlbyname("kern.pts.enable", &use_pts, &len, NULL, 0);
+	if (error)
+		return (0);
+	return (use_pts);
+}
 
 /*
  * grantpt():  grant ownership of a slave pseudo-terminal device to the
@@ -180,6 +207,10 @@ posix_openpt(int oflag)
 	if (oflag & ~(O_RDWR | O_NOCTTY))
 		errno = EINVAL;
 	else {
+		if (__use_pts()) {
+			fildes = _open(_PATH_DEV PTMX, oflag);
+			return (fildes);
+		}
 		mc1 = master + strlen(_PATH_DEV PTM_PREFIX);
 		mc2 = mc1 + 1;
 
@@ -214,6 +245,7 @@ char *
 ptsname(int fildes)
 {
 	static char slave[] = _PATH_DEV PTS_PREFIX "XY";
+	static char new_slave[] = _PATH_DEV NEWPTS_PREFIX "4294967295";
 	char *retval;
 	struct stat sbuf;
 
@@ -223,11 +255,19 @@ ptsname(int fildes)
 		if (!ISPTM(sbuf))
 			errno = EINVAL;
 		else {
-			(void)snprintf(slave, sizeof(slave),
-				       _PATH_DEV PTS_PREFIX "%s",
-				       devname(sbuf.st_rdev, S_IFCHR) +
-				       strlen(PTM_PREFIX));
-			retval = slave;
+			if (!is_pts(fildes)) {
+				(void)snprintf(slave, sizeof(slave),
+					       _PATH_DEV PTS_PREFIX "%s",
+					       devname(sbuf.st_rdev, S_IFCHR) +
+					       strlen(PTM_PREFIX));
+				retval = slave;
+			} else {
+				(void)snprintf(new_slave, sizeof(new_slave),
+					       _PATH_DEV NEWPTS_PREFIX "%s",
+					       devname(sbuf.st_rdev, S_IFCHR) +
+					       strlen(PTM_PREFIX));
+				retval = new_slave;
+			}
 		}
 	}
 
