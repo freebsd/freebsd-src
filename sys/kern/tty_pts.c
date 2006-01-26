@@ -1,4 +1,14 @@
-/*-
+/*
+ * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006 Olivier Houchard
+ * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project in part by Network
+ * Associates Laboratories, the Security Research Division of Network
+ * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+ * as part of the DARPA CHATS research program.
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -47,47 +57,51 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl_compat.h>
 #endif
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/tty.h>
-#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/poll.h>
 #include <sys/kernel.h>
-#include <sys/uio.h>
+#include <sys/vnode.h>
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
+#include <sys/conf.h>
+#include <sys/sysctl.h>
+#include <sys/filio.h>
 
 static MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
 static void ptsstart(struct tty *tp);
 static void ptsstop(struct tty *tp, int rw);
 static void ptcwakeup(struct tty *tp, int flag);
-static struct cdev *ptyinit(struct cdev *cdev, struct thread *td);
 
-static	d_open_t	ptsopen;
-static	d_close_t	ptsclose;
-static	d_read_t	ptsread;
-static	d_write_t	ptswrite;
-static	d_ioctl_t	ptsioctl;
-static	d_open_t	ptcopen;
-static	d_close_t	ptcclose;
-static	d_read_t	ptcread;
-static	d_ioctl_t	ptcioctl;
-static	d_write_t	ptcwrite;
-static	d_poll_t	ptcpoll;
+static d_open_t		ptsopen;
+static d_close_t	ptsclose;
+static d_read_t		ptsread;
+static d_write_t	ptswrite;
+static d_ioctl_t	ptsioctl;
+static d_ioctl_t	ptcioctl;
+static d_open_t		ptcopen;
+static d_close_t	ptcclose;
+static d_read_t		ptcread;
+static d_write_t	ptcwrite;
+static d_poll_t		ptcpoll;
 
 static struct cdevsw pts_cdevsw = {
-	.d_version =	D_VERSION,
+	.d_version = 	D_VERSION,
 	.d_open =	ptsopen,
 	.d_close =	ptsclose,
 	.d_read =	ptsread,
 	.d_write =	ptswrite,
 	.d_ioctl =	ptsioctl,
+	.d_poll =	ttypoll,
 	.d_name =	"pts",
 	.d_flags =	D_TTY | D_NEEDGIANT,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static struct cdevsw ptc_cdevsw = {
-	.d_version =	D_VERSION,
+	.d_version = 	D_VERSION,
 	.d_open =	ptcopen,
 	.d_close =	ptcclose,
 	.d_read =	ptcread,
@@ -96,114 +110,174 @@ static struct cdevsw ptc_cdevsw = {
 	.d_poll =	ptcpoll,
 	.d_name =	"ptc",
 	.d_flags =	D_TTY | D_NEEDGIANT,
+	.d_kqfilter =	ttykqfilter,
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */
 
-struct	ptsc {
-	int	pt_flags;
-	struct	selinfo pt_selr, pt_selw;
-	u_char	pt_send;
-	u_char	pt_ucntl;
-	struct tty *pt_tty;
-	struct cdev *devs, *devc;
-	int	pt_devs_open, pt_devc_open;
-	struct	prison *pt_prison;
+#define TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
+#define TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
+#define TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
+
+/*-
+ * Once a tty is allocated, it cannot (currently) be freed.  As such,
+ * we keep a global list of ptys that have been used so we can recycle
+ * them.  An another list is provided for released pts, whiiich are 
+ * not currently allocated, permitting reuse.  pt_flags holds state
+ * associated with a particular session, so isn't overloaded for this.
+ * When a pty descriptor is unused, its number is set to -1 giving
+ * more consistent and traditional allocation orders to pty numbers.
+ *
+ * Locking: (p) indicates that the field is locked by the global pt_mtx.
+ * (c) indicates the value is constant after allocation.   Other fields
+ * await tty locking generally, and are protected by Giant.
+ */
+struct	pt_desc {
+	int			 pt_num;	/* (c) pty number */
+	LIST_ENTRY(pt_desc)	 pt_list;	/* (p) global pty list */
+
+	int			 pt_flags;
+	struct selinfo		 pt_selr, pt_selw;
+	u_char			 pt_send;
+	u_char			 pt_ucntl;
+	struct tty		 *pt_tty;
+	struct cdev		 *pt_devs, *pt_devc;
+	int			 pt_pts_open, pt_ptc_open;
+	struct prison		*pt_prison;
 };
 
-#define	PF_PKT		0x08		/* packet mode */
-#define	PF_STOPPED	0x10		/* user told stopped */
-#define	PF_NOSTOP	0x40
-#define PF_UCNTL	0x80		/* user control mode */
+static struct mtx		pt_mtx;
+static LIST_HEAD(,pt_desc)	pt_list;
+static LIST_HEAD(,pt_desc)	pt_free_list;
 
-#define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
-#define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
-#define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
+#define	PF_PKT		0x008		/* packet mode */
+#define	PF_STOPPED	0x010		/* user told stopped */
+#define	PF_REMOTE	0x020		/* remote and flow controlled input */
+#define	PF_NOSTOP	0x040
+#define PF_UCNTL	0x080		/* user control mode */
+#define	PF_COPEN	0x100		/* control half open */
+#define	PF_SOPEN	0x200		/* slave half open */
 
-static char *names = "pqrsPQRS";
+static unsigned int next_avail_nb;
+
+static int use_old_pty = 0;
+
+static unsigned int max_pts = 1000;
+
+static unsigned int nb_allocated;
+
+TUNABLE_INT("kern.pts.enable", &use_old_pty);
+
+SYSCTL_NODE(_kern, OID_AUTO, pts, CTLFLAG_RD, 0, "pts");
+
+SYSCTL_INT(_kern_pts, OID_AUTO, enable, CTLFLAG_RW, &use_old_pty, 0,
+    "enable pts");
+
+SYSCTL_INT(_kern_pts, OID_AUTO, max, CTLFLAG_RW, &max_pts, 0,
+    "max pts");
+
 /*
- * This function creates and initializes a pts/ptc pair
- *
- * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
- * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
- *
- * XXX: define and add mapping of upper minor bits to allow more
- *      than 256 ptys.
+ * If there's a free pty descriptor in the pty descriptor list, retrieve it.
+ * Otherwise, allocate a new one, initialize it, and hook it up.  If there's
+ * not a tty number, reject.
  */
-static struct cdev *
-ptyinit(struct cdev *devc, struct thread *td)
+static struct pt_desc *
+pty_new(void)
 {
-	struct ptsc *pt;
-	int n;
+	struct pt_desc *pt;
+	int nb;
 
-	n = minor(devc);
-	/* For now we only map the lower 8 bits of the minor */
-	if (n & ~0xff)
+	mtx_lock(&pt_mtx);
+	if (nb_allocated >= max_pts) {
+		mtx_unlock(&pt_mtx);
 		return (NULL);
-
-	devc->si_flags &= ~SI_CHEAPCLONE;
-
-	/*
-	 * Initially do not create a slave endpoint.
-	 */
-	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
-	pt->devc = devc;
-
-	pt->pt_tty = ttyalloc();
-	pt->pt_tty->t_sc = pt;
-	devc->si_drv1 = pt;
-	devc->si_tty = pt->pt_tty;
-	return (devc);
+	}
+	pt = LIST_FIRST(&pt_free_list);
+	if (pt) {
+		LIST_REMOVE(pt, pt_list);
+		LIST_INSERT_HEAD(&pt_list, pt, pt_list);
+		mtx_unlock(&pt_mtx);
+	} else {
+		nb = next_avail_nb++;
+		mtx_unlock(&pt_mtx);
+		pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
+		mtx_lock(&pt_mtx);
+		pt->pt_num = nb;
+		LIST_INSERT_HEAD(&pt_list, pt, pt_list);
+		mtx_unlock(&pt_mtx);
+		pt->pt_tty = ttyalloc();
+	}
+	nb_allocated++;
+	return (pt);
 }
 
+/*
+ * Release a pty descriptor back to the pool for reuse.  The pty number
+ * remains allocated.
+ */
 static void
-pty_create_slave(struct ucred *cred, struct ptsc *pt, int n)
+pty_release(struct pt_desc *pt)
 {
 
-	pt->devs = make_dev_cred(&pts_cdevsw, n, cred, UID_ROOT, GID_WHEEL,
-	    0666, "tty%c%r", names[n / 32], n % 32);
-	pt->devs->si_drv1 = pt;
-	pt->devs->si_tty = pt->pt_tty;
-	pt->pt_tty->t_dev = pt->devs;
+	KASSERT(pt->pt_ptc_open == 0 && pt->pt_pts_open == 0,
+	    ("pty_release: pts/%d freed while open\n", pt->pt_num));
+	KASSERT(pt->pt_devs == NULL && pt->pt_devc == NULL,
+	    ("pty_release: pts/%d freed whith non-null struct cdev\n", pt->pt_num));
+	mtx_assert(&pt_mtx, MA_OWNED);
+	nb_allocated--;
+	LIST_REMOVE(pt, pt_list);
+	LIST_INSERT_HEAD(&pt_free_list, pt, pt_list);
 }
 
+/*
+ * Given a pty descriptor, if both endpoints are closed, release all
+ * resources and destroy the device nodes to flush file system level
+ * state for the tty (owner, avoid races, etc).
+ */
 static void
-pty_destroy_slave(struct ptsc *pt)
+pty_maybecleanup(struct pt_desc *pt)
 {
 
+	if (pt->pt_ptc_open || pt->pt_pts_open)
+		return;
+
+	if (bootverbose)
+		printf("destroying pty %d\n", pt->pt_num);
+
+	destroy_dev(pt->pt_devs);
+	destroy_dev(pt->pt_devc);
+	pt->pt_devs = pt->pt_devc = NULL;
 	pt->pt_tty->t_dev = NULL;
-	destroy_dev(pt->devs);
-	pt->devs = NULL;
-}
 
-static void
-pty_maybe_destroy_slave(struct ptsc *pt)
-{
-
-	if (pt->pt_devc_open == 0 && pt->pt_devs_open == 0)
-		pty_destroy_slave(pt);
+	mtx_lock(&pt_mtx);
+	pty_release(pt);
+	mtx_unlock(&pt_mtx);
 }
 
 /*ARGSUSED*/
-static	int
+static int
 ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
 	struct tty *tp;
 	int error;
-	struct ptsc *pt;
+	struct pt_desc *pt;
 
-	if (!dev->si_drv1)
-		return(ENXIO);
 	pt = dev->si_drv1;
 	tp = dev->si_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
-		ttyinitmode(tp, 1, 0);
-	} else if (tp->t_state & TS_XCLUDE && suser(td))
+		ttychars(tp);		/* Set up default chars */
+		tp->t_iflag = TTYDEF_IFLAG;
+		tp->t_oflag = TTYDEF_OFLAG;
+		tp->t_lflag = TTYDEF_LFLAG;
+		tp->t_cflag = TTYDEF_CFLAG;
+		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
 		return (EBUSY);
-	else if (pt->pt_prison != td->td_ucred->cr_prison)
+	} else if (pt->pt_prison != td->td_ucred->cr_prison) {
 		return (EBUSY);
+	}
 	if (tp->t_oproc)			/* Ctrlr still around. */
-		(void)ttyld_modem(tp, 1);
+		ttyld_modem(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
 		if (flag&FNONBLOCK)
 			break;
@@ -215,41 +289,81 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	error = ttyld_open(tp, dev);
 	if (error == 0) {
 		ptcwakeup(tp, FREAD|FWRITE);
-		pt->pt_devs_open = 1;
-	} else
-		pty_maybe_destroy_slave(pt);
+		pt->pt_pts_open = 1;
+	}
 	return (error);
 }
 
-static	int
+static int
 ptsclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	struct ptsc *pti;
+	struct pt_desc *pt = dev->si_drv1;
 	struct tty *tp;
 	int err;
 
 	tp = dev->si_tty;
-	pti = dev->si_drv1;
-
-	KASSERT(dev == pti->devs, ("ptsclose: dev != pti->devs"));
-
 	err = ttyld_close(tp, flag);
+	ptsstop(tp, FREAD|FWRITE);
 	(void) tty_close(tp);
-
-	pti->pt_devs_open = 0;
-	pty_maybe_destroy_slave(pti);
-
+	pt->pt_pts_open = 0;
+	pty_maybecleanup(pt);
 	return (err);
 }
 
-static	int
+static int
 ptsread(struct cdev *dev, struct uio *uio, int flag)
 {
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	struct tty *tp = dev->si_tty;
+	struct pt_desc *pt = dev->si_drv1;
+	struct pgrp *pg;
 	int error = 0;
 
-	if (tp->t_oproc)
-		error = ttyld_read(tp, uio, flag);
+again:
+	if (pt->pt_flags & PF_REMOTE) {
+		while (isbackground(p, tp)) {
+			sx_slock(&proctree_lock);
+			PROC_LOCK(p);
+			if (SIGISMEMBER(p->p_sigacts->ps_sigignore, SIGTTIN) ||
+			    SIGISMEMBER(td->td_sigmask, SIGTTIN) ||
+			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT) {
+				PROC_UNLOCK(p);
+				sx_sunlock(&proctree_lock);
+				return (EIO);
+			}
+			pg = p->p_pgrp;
+			PROC_UNLOCK(p);
+			PGRP_LOCK(pg);
+			sx_sunlock(&proctree_lock);
+			pgsignal(pg, SIGTTIN, 1);
+			PGRP_UNLOCK(pg);
+			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
+					 0);
+			if (error)
+				return (error);
+		}
+		if (tp->t_canq.c_cc == 0) {
+			if (flag & IO_NDELAY)
+				return (EWOULDBLOCK);
+			error = ttysleep(tp, TSA_PTS_READ(tp), TTIPRI | PCATCH,
+					 "ptsin", 0);
+			if (error)
+				return (error);
+			goto again;
+		}
+		while (tp->t_canq.c_cc > 1 && uio->uio_resid > 0)
+			if (ureadc(getc(&tp->t_canq), uio) < 0) {
+				error = EFAULT;
+				break;
+			}
+		if (tp->t_canq.c_cc == 1)
+			(void) getc(&tp->t_canq);
+		if (tp->t_canq.c_cc)
+			return (error);
+	} else
+		if (tp->t_oproc)
+			ttyld_read(tp, uio, flag);
 	ptcwakeup(tp, FWRITE);
 	return (error);
 }
@@ -259,7 +373,7 @@ ptsread(struct cdev *dev, struct uio *uio, int flag)
  * Wakeups of controlling tty will happen
  * indirectly, when tty driver calls ptsstart.
  */
-static	int
+static int
 ptswrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
@@ -277,7 +391,7 @@ ptswrite(struct cdev *dev, struct uio *uio, int flag)
 static void
 ptsstart(struct tty *tp)
 {
-	struct ptsc *pt = tp->t_sc;
+	struct pt_desc *pt = tp->t_dev->si_drv1;
 
 	if (tp->t_state & TS_TTSTOP)
 		return;
@@ -291,56 +405,73 @@ ptsstart(struct tty *tp)
 static void
 ptcwakeup(struct tty *tp, int flag)
 {
-	struct ptsc *pt = tp->t_sc;
+	struct pt_desc *pt = tp->t_dev->si_drv1;
 
 	if (flag & FREAD) {
-		selwakeuppri(&pt->pt_selr, TTIPRI);
+		selwakeup(&pt->pt_selr);
 		wakeup(TSA_PTC_READ(tp));
 	}
 	if (flag & FWRITE) {
-		selwakeuppri(&pt->pt_selw, TTOPRI);
+		selwakeup(&pt->pt_selw);
 		wakeup(TSA_PTC_WRITE(tp));
 	}
 }
 
-static	int
+/*
+ * ptcopen implementes exclusive access to the master/control device
+ * as well as creating the slave device based on the credential of the
+ * process opening the master.  By creating the slave here, we avoid
+ * a race to access the master in terms of having a process with access
+ * to an incorrectly owned slave, but it does create the possibility
+ * that a racing process can cause a ptmx user to get EIO if it gets
+ * there first.  Consumers of ptmx must look for EIO and retry if it
+ * happens.  VFS locking may actually prevent this from occurring due
+ * to the lookup into devfs holding the vnode lock through open, but
+ * it's better to be careful.
+ */
+static int
 ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
+	struct pt_desc *pt = dev->si_drv1;
 	struct tty *tp;
-	struct ptsc *pt;
+	struct cdev *devs;
 
-	if (!dev->si_drv1)
-		ptyinit(dev, td);
-	if (!dev->si_drv1)
-		return(ENXIO);
 	tp = dev->si_tty;
 	if (tp->t_oproc)
 		return (EIO);
+
+	/*
+	 * XXX: Might want to make the ownership/permissions here more
+	 * configurable.
+	 */
+	pt->pt_devs = devs = make_dev_cred(&pts_cdevsw, pt->pt_num, 
+	    td->td_ucred, UID_ROOT, GID_WHEEL, 0666, "pts/%d", pt->pt_num);
+	devs->si_drv1 = pt;
+	devs->si_tty = pt->pt_tty;
+	pt->pt_tty->t_dev = devs;
+
 	tp->t_timeout = -1;
 	tp->t_oproc = ptsstart;
 	tp->t_stop = ptsstop;
-	(void)ttyld_modem(tp, 1);
+	ttyld_modem(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
 	pt = dev->si_drv1;
 	pt->pt_prison = td->td_ucred->cr_prison;
 	pt->pt_flags = 0;
 	pt->pt_send = 0;
 	pt->pt_ucntl = 0;
-
-	pty_create_slave(td->td_ucred, pt, minor(dev));
-	pt->pt_devc_open = 1;
-
+	pt->pt_ptc_open = 1;
 	return (0);
 }
 
-static	int
+static int
 ptcclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct ptsc *pti = dev->si_drv1;
+	struct pt_desc *pt = dev->si_drv1;
 	struct tty *tp;
 
 	tp = dev->si_tty;
-	(void)ttyld_modem(tp, 0);
+	ttyld_modem(tp, 0);
 
 	/*
 	 * XXX MDMBUF makes no sense for ptys but would inhibit the above
@@ -357,16 +488,16 @@ ptcclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	}
 
 	tp->t_oproc = 0;		/* mark closed */
-	pti->pt_devc_open = 0;
-	pty_maybe_destroy_slave(pti);
+	pt->pt_ptc_open = 0;
+	pty_maybecleanup(pt);
 	return (0);
 }
 
-static	int
+static int
 ptcread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp = dev->si_tty;
-	struct ptsc *pt = dev->si_drv1;
+	struct pt_desc *pt = dev->si_drv1;
 	char buf[BUFSIZ];
 	int error = 0, cc;
 
@@ -402,7 +533,7 @@ ptcread(struct cdev *dev, struct uio *uio, int flag)
 		}
 		if ((tp->t_state & TS_CONNECTED) == 0)
 			return (0);	/* EOF */
-		if (flag & O_NONBLOCK)
+		if (flag & IO_NDELAY)
 			return (EWOULDBLOCK);
 		error = tsleep(TSA_PTC_READ(tp), TTIPRI | PCATCH, "ptcin", 0);
 		if (error)
@@ -420,10 +551,10 @@ ptcread(struct cdev *dev, struct uio *uio, int flag)
 	return (error);
 }
 
-static	void
+static void
 ptsstop(struct tty *tp, int flush)
 {
-	struct ptsc *pt = tp->t_sc;
+	struct pt_desc *pt = tp->t_dev->si_drv1;
 	int flag;
 
 	/* note: FLUSHREAD and FLUSHWRITE already ok */
@@ -442,11 +573,11 @@ ptsstop(struct tty *tp, int flush)
 	ptcwakeup(tp, flag);
 }
 
-static	int
+static int
 ptcpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
-	struct ptsc *pt = dev->si_drv1;
+	struct pt_desc *pt = dev->si_drv1;
 	int revents = 0;
 	int s;
 
@@ -468,7 +599,9 @@ ptcpoll(struct cdev *dev, int events, struct thread *td)
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (tp->t_state & TS_ISOPEN &&
-		    (((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
+		    ((pt->pt_flags & PF_REMOTE) ?
+		     (tp->t_canq.c_cc == 0) :
+		     ((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
 		      (tp->t_canq.c_cc == 0 && (tp->t_lflag & ICANON)))))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
@@ -488,7 +621,7 @@ ptcpoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
-static	int
+static int
 ptcwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp = dev->si_tty;
@@ -496,11 +629,52 @@ ptcwrite(struct cdev *dev, struct uio *uio, int flag)
 	int cc = 0;
 	u_char locbuf[BUFSIZ];
 	int cnt = 0;
+	struct pt_desc *pt = dev->si_drv1;
 	int error = 0;
 
 again:
 	if ((tp->t_state&TS_ISOPEN) == 0)
 		goto block;
+	if (pt->pt_flags & PF_REMOTE) {
+		if (tp->t_canq.c_cc)
+			goto block;
+		while ((uio->uio_resid > 0 || cc > 0) &&
+		       tp->t_canq.c_cc < TTYHOG - 1) {
+			if (cc == 0) {
+				cc = min(uio->uio_resid, BUFSIZ);
+				cc = min(cc, TTYHOG - 1 - tp->t_canq.c_cc);
+				cp = locbuf;
+				error = uiomove(cp, cc, uio);
+				if (error)
+					return (error);
+				/* check again for safety */
+				if ((tp->t_state & TS_ISOPEN) == 0) {
+					/* adjust as usual */
+					uio->uio_resid += cc;
+					return (EIO);
+				}
+			}
+			if (cc > 0) {
+				cc = b_to_q((char *)cp, cc, &tp->t_canq);
+				/*
+				 * XXX we don't guarantee that the canq size
+				 * is >= TTYHOG, so the above b_to_q() may
+				 * leave some bytes uncopied.  However, space
+				 * is guaranteed for the null terminator if
+				 * we don't fail here since (TTYHOG - 1) is
+				 * not a multiple of CBSIZE.
+				 */
+				if (cc > 0)
+					break;
+			}
+		}
+		/* adjust for data copied in but not written */
+		uio->uio_resid += cc;
+		(void) putc(0, &tp->t_canq);
+		ttwakeup(tp);
+		wakeup(TSA_PTS_READ(tp));
+		return (0);
+	}
 	while (uio->uio_resid > 0 || cc > 0) {
 		if (cc == 0) {
 			cc = min(uio->uio_resid, BUFSIZ);
@@ -538,7 +712,7 @@ block:
 		uio->uio_resid += cc;
 		return (EIO);
 	}
-	if (flag & O_NONBLOCK) {
+	if (flag & IO_NDELAY) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;
 		if (cnt == 0)
@@ -554,15 +728,14 @@ block:
 	goto again;
 }
 
-/*ARGSUSED*/
-static	int
+static int
 ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
-	struct ptsc *pt = dev->si_drv1;
+	struct pt_desc *pt = dev->si_drv1;
 
 	switch (cmd) {
-
+		
 	case TIOCGPGRP:
 		/*
 		 * We avoid calling ttioctl on the controller since,
@@ -570,7 +743,7 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		 */
 		*(int *)data = tp->t_pgrp ? tp->t_pgrp->pg_id : 0;
 		return (0);
-
+		
 	case TIOCPKT:
 		if (*(int *)data) {
 			if (pt->pt_flags & PF_UCNTL)
@@ -579,7 +752,7 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		} else
 			pt->pt_flags &= ~PF_PKT;
 		return (0);
-
+		
 	case TIOCUCNTL:
 		if (*(int *)data) {
 			if (pt->pt_flags & PF_PKT)
@@ -588,15 +761,30 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		} else
 			pt->pt_flags &= ~PF_UCNTL;
 		return (0);
+	case TIOCGPTN:
+		*(unsigned int *)data = pt->pt_num;
+		return (0);
 	}
-
+	
 	/*
 	 * The rest of the ioctls shouldn't be called until
 	 * the slave is open.
 	 */
-	if ((tp->t_state & TS_ISOPEN) == 0)
-		return (EAGAIN);
-
+	if ((tp->t_state & TS_ISOPEN) == 0) {
+		if (cmd == TIOCGETA) {
+			/* 
+			 * TIOCGETA is used by isatty() to make sure it's
+			 * a tty. Linux openpty() calls isatty() very early,
+			 * before the slave is opened, so don't actually
+			 * fill the struct termios, but just let isatty()
+			 * know it's a tty.
+			 */
+			return (0);
+		}
+		if (cmd != FIONBIO && cmd != FIOASYNC)
+			return (EAGAIN);
+	}
+	
 	switch (cmd) {
 #ifdef COMPAT_43TTY
 	case TIOCSETP:
@@ -613,7 +801,7 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		 */
 		ndflush(&tp->t_outq, tp->t_outq.c_cc);
 		break;
-
+		
 	case TIOCSIG:
 		if (*(unsigned int *)data >= NSIG ||
 		    *(unsigned int *)data == 0)
@@ -630,16 +818,14 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			ttyinfo(tp);
 		return(0);
 	}
-
 	return (ptsioctl(dev, cmd, data, flag, td));
 }
-
 /*ARGSUSED*/
-static	int
+static int
 ptsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
-	struct ptsc *pt = dev->si_drv1;
+	struct pt_desc *pt = dev->si_drv1;
 	u_char *cc = tp->t_cc;
 	int stop, error;
 
@@ -665,7 +851,7 @@ ptsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		}
 		return(0);
 	}
-	error = ttyioctl(dev, cmd, data, flag, td);
+	error = ttioctl(tp, cmd, data, flag);
 	if (error == ENOTTY) {
 		if (pt->pt_flags & PF_UCNTL &&
 		    (cmd & ~0xff) == UIOCCMD(0)) {
@@ -721,47 +907,64 @@ ptsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	return (error);
 }
 
+/*
+ * Match lookups on /dev/ptmx, find the next free pty (if any), set up
+ * the pty descriptor, register it, and return a reference to the master.
+ *
+ * pts == /dev/pts/xxx (oldstyle: ttyp...)
+ * ptc == /dev/pty/xxx (oldstyle: ptyp...)
+ */
 static void
-pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
+pty_clone(void *arg, struct ucred *cred, char *name, int namelen,
     struct cdev **dev)
 {
-	int u;
+	struct pt_desc *pt;
+	struct cdev *devc;
 
 	if (*dev != NULL)
 		return;
-	if (bcmp(name, "pty", 3) != 0)
+
+	if (strcmp(name, "ptmx") != 0)
 		return;
-	if (name[5] != '\0')
+
+	pt = pty_new();
+	if (pt == NULL)
 		return;
-	switch (name[3]) {
-	case 'p': u =   0; break;
-	case 'q': u =  32; break;
-	case 'r': u =  64; break;
-	case 's': u =  96; break;
-	case 'P': u = 128; break;
-	case 'Q': u = 160; break;
-	case 'R': u = 192; break;
-	case 'S': u = 224; break;
-	default: return;
-	}
-	if (name[4] >= '0' && name[4] <= '9')
-		u += name[4] - '0';
-	else if (name[4] >= 'a' && name[4] <= 'v')
-		u += name[4] - 'a' + 10;
-	else
-		return;
-	*dev = make_dev_cred(&ptc_cdevsw, u, cr,
-	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[u / 32], u % 32);
-	dev_ref(*dev);
-	(*dev)->si_flags |= SI_CHEAPCLONE;
+
+	/*
+	 * XXX: Lack of locking here considered worrying.  We expose the
+	 * pts/pty device nodes before they are fully initialized, although
+	 * Giant likely protects us (unless make_dev blocks...?).
+	 *
+	 * XXX: If a process performs a lookup on /dev/ptmx but never an
+	 * open, we won't GC the device node.  We should have a callout
+	 * sometime later that GC's device instances that were never
+	 * opened, or some way to tell devfs that "this had better be for
+	 * an open() or we won't create a device".
+	 */
+	pt->pt_devc = devc = make_dev_cred(&ptc_cdevsw, pt->pt_num, cred,
+	    UID_ROOT, GID_WHEEL, 0666, "pty%d", pt->pt_num);
+
+	dev_ref(devc);
+	devc->si_drv1 = pt;
+	devc->si_tty = pt->pt_tty;
+	*dev = devc;
+
+	if (bootverbose)
+		printf("pty_clone: allocated pty %d to uid %d\n", pt->pt_num,
+	    cred->cr_ruid);
+
 	return;
 }
 
 static void
-ptc_drvinit(void *unused)
+pty_drvinit(void *unused)
 {
 
+	mtx_init(&pt_mtx, "pt_mtx", NULL, MTX_DEF);
+	LIST_INIT(&pt_list);
+	LIST_INIT(&pt_free_list);
 	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
 }
 
-SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ptc_drvinit,NULL)
+SYSINIT(ptydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,pty_drvinit,NULL)
