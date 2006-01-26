@@ -213,18 +213,18 @@ processor_get_pids(void)
 		if (!IS_KERNPROC(kp))
 			continue;
 
-		if (strcmp(kp->ki_ocomm, "idle") == 0) {
+		if (strcmp(kp->ki_comm, "idle") == 0) {
 			/* single processor system */
 			cpu = 0;
-		} else if (sscanf(kp->ki_ocomm, "idle: cpu%d%n", &cpu, &nchars)
-		    == 1 && (u_int)nchars == strlen(kp->ki_ocomm)) {
+		} else if (sscanf(kp->ki_comm, "idle: cpu%d%n", &cpu, &nchars)
+		    == 1 && (u_int)nchars == strlen(kp->ki_comm)) {
 			/* MP system */
 		} else
 			/* not an idle process */
 			continue;
 
 		HRDBG("'%s' proc with pid %d is on CPU #%d (last on #%d)",
-		    kp->ki_ocomm, kp->ki_pid, kp->ki_oncpu, kp->ki_lastcpu);
+		    kp->ki_comm, kp->ki_pid, kp->ki_oncpu, kp->ki_lastcpu);
 
 		TAILQ_FOREACH(entry, &processor_tbl, link)
 			if (entry->cpu_no == kp->ki_lastcpu)
