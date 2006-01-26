@@ -1,16 +1,16 @@
 /* $FreeBSD$ */
 /*-
  * Qlogic ISP Host Adapter Public Target Interface Structures && Routines
- *---------------------------------------
- * Copyright (c) 2000 by Matthew Jacob
+ *
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
@@ -25,38 +25,120 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * Matthew Jacob
- * Feral Software
- * mjacob@feral.com
  */
+/*
+ * Qlogic ISP Host Adapter Public Target Interface Structures && Routines
+ */
+
+#ifndef	_ISP_TPUBLIC_H
+#define	_ISP_TPUBLIC_H	1
 
 /*
- * Required software target mode message and event handling structures.
- *
- * The message and event structures are used by the MI layer
- * to propagate messages and events upstream.
+ * Action codes set by the Qlogic MD target driver for
+ * the external layer to figure out what to do with.
  */
+typedef enum {
+	QOUT_HBA_REG=0,	/* the argument is a pointer to a hba_register_t */
+	QOUT_ENABLE,	/* the argument is a pointer to a enadis_t */
+	QOUT_DISABLE,	/* the argument is a pointer to a enadis_t */
+	QOUT_TMD_START,	/* the argument is a pointer to a tmd_cmd_t */
+	QOUT_TMD_DONE,	/* the argument is a pointer to a tmd_cmd_t */
+	QOUT_NOTIFY,	/* the argument is a pointer to a tmd_notify_t */
+	QOUT_HBA_UNREG	/* the argument is a pointer to a hba_register_t */
+} tact_e;
 
-#ifndef	IN_MSGLEN
-#define	IN_MSGLEN	8
-#endif
-typedef struct {
-	void *		nt_hba;			/* HBA tag */
-	u_int64_t	nt_iid;			/* inititator id */
-	u_int64_t	nt_tgt;			/* target id */
-	u_int64_t	nt_lun;			/* logical unit */
-	u_int32_t	nt_tagval;		/* tag value */
-	u_int8_t	nt_bus;			/* bus */
-	u_int8_t	nt_tagtype;		/* tag type */
-	u_int8_t	nt_msg[IN_MSGLEN];	/* message content */
-} tmd_msg_t;
+/*
+ * Action codes set by the external layer for the
+ * MD Qlogic driver to figure out what to do with.
+ */
+typedef enum {
+	QIN_HBA_REG=99,	/* the argument is a pointer to a hba_register_t */
+	QIN_ENABLE,	/* the argument is a pointer to a enadis_t */
+	QIN_DISABLE,	/* the argument is a pointer to a enadis_t */
+	QIN_TMD_CONT,	/* the argument is a pointer to a tmd_cmd_t */
+	QIN_TMD_FIN,	/* the argument is a pointer to a tmd_cmd_t */
+	QIN_NOTIFY_ACK,	/* the argument is a pointer to a tmd_notify_t */
+	QIN_HBA_UNREG,	/* the argument is a pointer to a hba_register_t */
+} qact_e;
 
+/*
+ * This structure is used to register to other software modules the
+ * binding of an HBA identifier, driver name and instance and the
+ * lun width capapbilities of this target driver. It's up to each
+ * platform to figure out how it wants to do this, but a typical
+ * sequence would be for the MD layer to find some external module's
+ * entry point and start by sending a QOUT_HBA_REG with info filled
+ * in, and the external module to call back with a QIN_HBA_REG that
+ * passes back the corresponding information.
+ */
+#define	QR_VERSION	2
 typedef struct {
-	void *		ev_hba;			/* HBA tag */
-	u_int32_t	ev_bus;			/* bus */
-	u_int32_t	ev_event;		/* type of async event */
-} tmd_event_t;
+	void *	r_identity;
+	void   (*r_action)(qact_e, void *);
+	char	r_name[8];
+	int	r_inst;
+	int	r_version;
+	enum { R_FC, R_SCSI } r_type;
+} hba_register_t;
+
+/*
+ * Notify structure
+ */
+typedef enum {
+    NT_ABORT_TASK=0x1000,
+    NT_ABORT_TASK_SET,
+    NT_CLEAR_ACA,
+    NT_CLEAR_TASK_SET,
+    NT_LUN_RESET,
+    NT_TARGET_RESET,
+    NT_BUS_RESET,
+    NT_LIP_RESET,
+    NT_LINK_UP,
+    NT_LINK_DOWN,
+    NT_LOGOUT,
+    NT_HBA_RESET
+} tmd_ncode_t;
+
+typedef struct tmd_notify {
+    void *      nt_hba;         /* HBA tag */
+    uint64_t    nt_iid;         /* inititator id */
+    uint64_t    nt_tgt;         /* target id */
+    uint16_t    nt_lun;         /* logical unit */
+    uint16_t    nt_padding;     /* padding */
+    uint32_t    nt_tagval;      /* tag value */
+    tmd_ncode_t nt_ncode;       /* action */
+    void *      nt_lreserved;
+    void *      nt_hreserved;
+} tmd_notify_t;
+#define LUN_ANY     0xffff
+#define INI_ANY     ((uint64_t) -1)
+#define TAG_ANY     0
+#define MATCH_TMD(tmd, iid, lun, tag)                   \
+    (                                                   \
+        (tmd) &&                                        \
+        (iid == INI_ANY || iid == tmd->cd_iid) &&       \
+        (lun == LUN_ANY || lun == tmd->cd_lun) &&       \
+        (tag == TAG_ANY || tag == tmd->cd_tagval)       \
+    )
+
+/*
+ * A word about ENABLE/DISABLE: the argument is a pointer to a enadis_t
+ * with cd_hba, cd_iid, cd_chan, cd_tgt and cd_lun filled out.
+ *
+ * If an error occurs in either enabling or disabling the described lun
+ * cd_error is set with an appropriate non-zero value.
+ *
+ * Logical unit zero must be the first enabled and the last disabled.
+ */
+typedef struct {
+	void *			en_private;	/* for outer layer usage */
+	void *			en_hba;		/* HBA tag */
+	u_int64_t		en_iid;		/* initiator ID */
+	u_int64_t		en_tgt;		/* target id */
+	u_int64_t		en_lun;		/* logical unit */
+	u_int8_t		en_chan;	/* channel on card */
+	int32_t			en_error;
+} enadis_t;
 
 /*
  * Suggested Software Target Mode Command Handling structure.
@@ -262,37 +344,6 @@ typedef struct tmd_cmd {
 
 
 /*
- * Action codes set by the Qlogic MD target driver for
- * the external layer to figure out what to do with.
- */
-typedef enum {
-	QOUT_HBA_REG=0,	/* the argument is a pointer to a hba_register_t */
-	QOUT_ENABLE,	/* the argument is a pointer to a enadis_t */
-	QOUT_DISABLE,	/* the argument is a pointer to a enadis_t */
-	QOUT_TMD_START,	/* the argument is a pointer to a tmd_cmd_t */
-	QOUT_TMD_DONE,	/* the argument is a pointer to a tmd_cmd_t */
-	QOUT_TEVENT,	/* the argument is a pointer to a tmd_event_t */
-	QOUT_TMSG,	/* the argument is a pointer to a tmd_msg_t */
-	QOUT_IOCTL,	/* the argument is a pointer to a ioctl_cmd_t */
-	QOUT_HBA_UNREG	/* the argument is a pointer to a hba_register_t */
-} tact_e;
-
-/*
- * Action codes set by the external layer for the
- * MD Qlogic driver to figure out what to do with.
- */
-typedef enum {
-	QIN_HBA_REG=99,	/* the argument is a pointer to a hba_register_t */
-	QIN_ENABLE,	/* the argument is a pointer to a enadis_t */
-	QIN_DISABLE,	/* the argument is a pointer to a enadis_t */
-	QIN_TMD_CONT,	/* the argument is a pointer to a tmd_cmd_t */
-	QIN_TMD_FIN,	/* the argument is a pointer to a tmd_cmd_t */
-	QIN_IOCTL,	/* the argument is a pointer to a ioctl_cmd_t */
-	QIN_HBA_UNREG,	/* the argument is a pointer to a hba_register_t */
-} qact_e;
-
-
-/*
  * A word about the START/CONT/DONE/FIN dance:
  *
  *	When the HBA is enabled for receiving commands, one may	show up
@@ -320,72 +371,6 @@ typedef enum {
  */
 
 /*
- * A word about ENABLE/DISABLE: the argument is a pointer to a enadis_t
- * with cd_hba, cd_iid, cd_chan, cd_tgt and cd_lun filled out.
- *
- * If an error occurs in either enabling or disabling the described lun
- * cd_error is set with an appropriate non-zero value.
- *
- * Logical unit zero must be the first enabled and the last disabled.
- */
-typedef struct {
-	void *			cd_private;	/* for outer layer usage */
-	void *			cd_hba;		/* HBA tag */
-	u_int64_t		cd_iid;		/* initiator ID */
-	u_int64_t		cd_tgt;		/* target id */
-	u_int64_t		cd_lun;		/* logical unit */
-	u_int8_t		cd_chan;	/* channel on card */
-	int32_t			cd_error;
-} enadis_t;
-
-/*
- * This structure is used to register to other software modules the
- * binding of an HBA identifier, driver name and instance and the
- * lun width capapbilities of this target driver. It's up to each
- * platform to figure out how it wants to do this, but a typical
- * sequence would be for the MD layer to find some external module's
- * entry point and start by sending a QOUT_HBA_REG with info filled
- * in, and the external module to call back with a QIN_HBA_REG that
- * passes back the corresponding information.
- */
-#define	QR_VERSION	1
-typedef struct {
-	void *	r_identity;
-	void   (*r_action)(qact_e, void *);
-	char	r_name[8];
-	int	r_inst;
-	int	r_version;
-	enum { R_FC, R_SCSI } r_type;
-} hba_register_t;
-
-/*
- * This structure is used to pass an encapsulated ioctl through to the
- * MD layer. In many implementations it's often convenient to open just
- * one device, but actions you want to take need to be taken on the
- * underlying HBA. Rather than invent a separate protocol for each action,
- * an ioctl passthrough seems simpler.
- *
- * In order to avoid cross domain copy problems, though, the caller will
- * be responsible for allocating and providing a staging area for all ioctl
- * related data. This, unavoidably, requires some ioctl decode capability
- * in the outer layer code.`
- *
- * And also, albeit being cheesy, we'll define a few internal ioctls here.
- */
-typedef struct {
-	void *	i_identity;	/* HBA tag */
-	void *	i_syncptr;	/* synchronization pointer */
-	int	i_cmd;		/* ioctl command */
-	void *	i_arg;		/* ioctl argument area */
-	int	i_errno;	/* ioctl error return */
-} ioctl_cmd_t;
-
-#define	QI_IOC	('Q' << 8)
-#define	QI_SCSI_TINI	QI_IOC|0
-#define	QI_SCSI_CMD	QI_IOC|1
-#define	QI_WWPN_XLT	QI_IOC|2
-
-/*
  * Target handler functions.
  *
  * The MD target handler function (the outer layer calls this)
@@ -398,4 +383,4 @@ typedef struct {
  *
  *	void system_target_handler(tact_e, void *arg)
  */
-
+#endif	/* _ISP_TPUBLIC_H */
