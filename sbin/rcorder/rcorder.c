@@ -1,4 +1,6 @@
+# if 0
 /*	$NetBSD: rcorder.c,v 1.7 2000/08/04 07:33:55 enami Exp $	*/
+#endif
 
 /*
  * Copyright (c) 1998, 1999 Matthew R. Green
@@ -34,6 +36,8 @@
  */
 
 #include <sys/types.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/stat.h>
 
 #include <err.h>
@@ -753,7 +757,8 @@ do_file(fnode)
 		r_tmp = r;
 		satisfy_req(r, fnode->filename);
 		r = r->next;
-		free(r_tmp);
+		if (was_set == 0)
+			free(r_tmp);		   
 	}
 	fnode->req_list = NULL;
 
@@ -792,8 +797,10 @@ do_file(fnode)
 	}
 
 	DPRINTF((stderr, "nuking %s\n", fnode->filename));
-	free(fnode->filename);
-	free(fnode);
+	if (was_set == 0) {
+   		free(fnode->filename);
+   		free(fnode);
+	}
 }
 
 void
