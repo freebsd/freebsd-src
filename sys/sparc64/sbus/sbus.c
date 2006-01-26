@@ -219,6 +219,9 @@ static device_method_t sbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbus_probe),
 	DEVMETHOD(device_attach,	sbus_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	sbus_print_child),
