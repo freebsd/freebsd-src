@@ -274,6 +274,7 @@ archive_read_format_tp_read_header(struct archive *a,
 	struct stat st;
 	struct tp *tp;
 	struct file_info *file;
+	const void *v;
 	const char *p;
 	ssize_t bytes_read;
 	int r;
@@ -283,8 +284,7 @@ archive_read_format_tp_read_header(struct archive *a,
 	/* Read the entire TOC first. */
 	if (!tp->toc_read) {
 		/* Skip the initial block. */
-		bytes_read = (a->compression_read_ahead)(a,
-		    (const void **)&p, 512);
+		bytes_read = (a->compression_read_ahead)(a, &v, 512);
 		if (bytes_read < 512)
 			return (ARCHIVE_FATAL);
 		bytes_read = 512;
@@ -294,12 +294,13 @@ archive_read_format_tp_read_header(struct archive *a,
 		/* Consume TOC entries. */
 		do {
 			bytes_read = (a->compression_read_ahead)(a,
-			    (const void **)&p, tp->toc_size);
+			    &v, tp->toc_size);
 			if (bytes_read < tp->toc_size)
 				return (ARCHIVE_FATAL);
 			bytes_read = tp->toc_size;
 			tp->current_position += bytes_read;
 			(a->compression_read_consume)(a, bytes_read);
+			p = (const char *)v;
 			file = (*tp->parse_file_info)(a, p);
 			if (file != NULL)
 				add_entry(tp, file);
