@@ -268,6 +268,9 @@ const char *witness_file(struct lock_object *);
 #define	WITNESS_UNLOCK(lock, flags, file, line)				\
 	witness_unlock((lock), (flags), (file), (line))
 
+#define	WITNESS_CHECK(flags, lock, fmt, ...)				\
+	witness_warn((flags), (lock), (fmt), ## __VA_ARGS__)
+
 #define	WITNESS_WARN(flags, lock, fmt, ...)				\
 	witness_warn((flags), (lock), (fmt), ## __VA_ARGS__)
 
@@ -296,6 +299,7 @@ const char *witness_file(struct lock_object *);
 #define	WITNESS_UPGRADE(lock, flags, file, line)
 #define	WITNESS_DOWNGRADE(lock, flags, file, line)
 #define	WITNESS_UNLOCK(lock, flags, file, line)
+#define	WITNESS_CHECK(flags, lock, fmt, ...)	0
 #define	WITNESS_WARN(flags, lock, fmt, ...)
 #define	WITNESS_SAVE_DECL(n)
 #define	WITNESS_SAVE(lock, n)
