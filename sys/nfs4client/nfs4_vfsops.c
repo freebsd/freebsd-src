@@ -652,7 +652,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	if (mrep != NULL)
 		m_freem(mrep);
 bad:
-	nfs_disconnect(nmp);
+	nfs4_disconnect(nmp);
 	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
 
@@ -692,7 +692,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	/*
 	 * We are now committed to the unmount.
 	 */
-	nfs_disconnect(nmp);
+	nfs4_disconnect(nmp);
 	FREE(nmp->nm_nam, M_SONAME);
 
 	/* XXX there's a race condition here for SMP */
