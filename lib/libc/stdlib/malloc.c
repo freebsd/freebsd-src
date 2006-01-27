@@ -177,7 +177,6 @@ __FBSDID("$FreeBSD$");
  * working.
  */
 #define	MALLOC_STATS
-#define	MALLOC_STATS_ARENAS
 
 /*
  * Include redzones before/after every region, and check for buffer overflows.
@@ -298,10 +297,10 @@ struct malloc_bin_stats_s {
 	uint64_t	nrequests;
 
 	/*
-	 * Number of best-fit allocations that were successfully serviced by
+	 * Number of exact-fit allocations that were successfully serviced by
 	 * this bin.
 	 */
-	uint64_t	nfit;
+	uint64_t	nserviced;
 
 	/* High-water marks for this bin. */
 	unsigned long	highcached;
@@ -311,7 +310,7 @@ struct malloc_bin_stats_s {
 	 * during normal operation, so is maintained here in order to allow
 	 * calculating the high water mark.
 	 */
-	unsigned	nregions;
+	unsigned	curcached;
 };
 
 typedef struct arena_stats_s arena_stats_t;
@@ -349,11 +348,8 @@ struct arena_stats_s {
 
 	/* Frag statistics. */
 	struct {
-		/*
-		 * Number of times a region is cached in the "frag" field of
-		 * the arena.
-		 */
-		uint64_t	ncached;
+		/* Number of times the "frag" field of the arena is refilled. */
+		uint64_t	nrefills;
 
 		/*
 		 * Number of times a region is requested from the "frag" field
@@ -377,16 +373,10 @@ struct arena_stats_s {
 		uint64_t	nrequests;
 
 		/*
-		 * Number of best-fit allocations that were successfully
+		 * Number of allocation requests that were successfully
 		 * serviced by large_regions.
 		 */
-		uint64_t	nfit;
-
-		/*
-		 * Number of allocation requests that were successfully serviced
-		 * large_regions, but that a bin could have serviced.
-		 */
-		uint64_t	noverfit;
+		uint64_t	nserviced;
 
 		/*
 		 * High-water mark for large_regions (number of nodes in tree).
@@ -1176,7 +1166,7 @@ stats_merge(arena_t *arena, arena_stats_t *stats_arenas)
 	stats_arenas->split.nserviced += arena->stats.split.nserviced;
 
 	/* Frag. */
-	stats_arenas->frag.ncached += arena->stats.frag.ncached;
+	stats_arenas->frag.nrefills += arena->stats.frag.nrefills;
 	stats_arenas->frag.nrequests += arena->stats.frag.nrequests;
 	stats_arenas->frag.nserviced += arena->stats.frag.nserviced;
 
@@ -1184,18 +1174,20 @@ stats_merge(arena_t *arena, arena_stats_t *stats_arenas)
 	for (i = 0; i < NBINS; i++) {
 		stats_arenas->bins[i].nrequests +=
 		    arena->stats.bins[i].nrequests;
-		stats_arenas->bins[i].nfit += arena->stats.bins[i].nfit;
+		stats_arenas->bins[i].nserviced +=
+		    arena->stats.bins[i].nserviced;
 		if (arena->stats.bins[i].highcached
 		    > stats_arenas->bins[i].highcached) {
 		    stats_arenas->bins[i].highcached
 			= arena->stats.bins[i].highcached;
 		}
+		stats_arenas->bins[i].curcached
+		    += arena->stats.bins[i].curcached;
 	}
 
 	/* large and large_regions. */
 	stats_arenas->large.nrequests += arena->stats.large.nrequests;
-	stats_arenas->large.nfit += arena->stats.large.nfit;
-	stats_arenas->large.noverfit += arena->stats.large.noverfit;
+	stats_arenas->large.nserviced += arena->stats.large.nserviced;
 	if (arena->stats.large.highcached > stats_arenas->large.highcached)
 		stats_arenas->large.highcached = arena->stats.large.highcached;
 	stats_arenas->large.curcached += arena->stats.large.curcached;
@@ -1227,28 +1219,29 @@ stats_print(arena_stats_t *stats_arenas)
 	    stats_arenas->split.nserviced);
 
 	malloc_printf("cached frag usage:\n");
-	malloc_printf(" %13s%13s%13s\n", "ncached", "nrequests", "nserviced");
-	malloc_printf(" %13llu%13llu%13llu\n", stats_arenas->frag.ncached,
+	malloc_printf(" %13s%13s%13s\n", "nrefills", "nrequests", "nserviced");
+	malloc_printf(" %13llu%13llu%13llu\n", stats_arenas->frag.nrefills,
 	    stats_arenas->frag.nrequests, stats_arenas->frag.nserviced);
 
 	malloc_printf("bins:\n");
-	malloc_printf(" %4s%7s%13s%13s%11s\n", "bin", 
-	    "size", "nrequests", "nfit", "highcached");
+	malloc_printf(" %4s%7s%13s%13s%11s%11s\n", "bin", 
+	    "size", "nrequests", "nserviced", "highcached", "curcached");
 	for (i = 0; i < NBINS; i++) {
 		malloc_printf(
-		    " %4u%7u%13llu%13llu%11lu\n",
+		    " %4u%7u%13llu%13llu%11lu%11lu\n",
 		    i, ((i + bin_shift) << opt_quantum_2pow),
-		    stats_arenas->bins[i].nrequests, stats_arenas->bins[i].nfit,
-		    stats_arenas->bins[i].highcached);
+		    stats_arenas->bins[i].nrequests,
+		    stats_arenas->bins[i].nserviced,
+		    stats_arenas->bins[i].highcached,
+		    stats_arenas->bins[i].curcached);
 	}
 
 	malloc_printf("large:\n");
-	malloc_printf(" %13s%13s%13s%13s%13s\n", "nrequests", "nfit",
-	    "noverfit", "highcached", "curcached");
-	malloc_printf(" %13llu%13llu%13llu%13lu%13lu\n",
-	    stats_arenas->large.nrequests, stats_arenas->large.nfit,
-	    stats_arenas->large.noverfit, stats_arenas->large.highcached,
-	    stats_arenas->large.curcached);
+	malloc_printf(" %13s%13s%13s%13s\n", "nrequests", "nserviced",
+	    "highcached", "curcached");
+	malloc_printf(" %13llu%13llu%13lu%13lu\n",
+	    stats_arenas->large.nrequests, stats_arenas->large.nserviced,
+	    stats_arenas->large.highcached, stats_arenas->large.curcached);
 
 	malloc_printf("huge\n");
 	malloc_printf(" %13s\n", "nrequests");
@@ -1715,7 +1708,7 @@ arena_bin_extract(arena_t *arena, unsigned bin, region_t *reg)
 
 	qr_remove(reg, next.u.s.link);
 #ifdef MALLOC_STATS
-	arena->stats.bins[bin].nregions--;
+	arena->stats.bins[bin].curcached--;
 #endif
 	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
 		arena_mask_unset(arena, bin);
@@ -2066,12 +2059,12 @@ arena_bin_append(arena_t *arena, unsigned bin, region_t *reg)
 	qr_new(reg, next.u.s.link);
 	qr_before_insert(&tbin->regions, reg, next.u.s.link);
 #ifdef MALLOC_STATS
-	arena->stats.bins[bin].nregions++;
+	arena->stats.bins[bin].curcached++;
 
-	if (arena->stats.bins[bin].nregions
+	if (arena->stats.bins[bin].curcached
 	    > arena->stats.bins[bin].highcached) {
 		arena->stats.bins[bin].highcached
-		    = arena->stats.bins[bin].nregions;
+		    = arena->stats.bins[bin].curcached;
 	}
 #endif
 }
@@ -2096,12 +2089,12 @@ arena_bin_push(arena_t *arena, unsigned bin, region_t *reg)
 	qr_new(reg, next.u.s.link);
 	qr_after_insert(&tbin->regions, reg, next.u.s.link);
 #ifdef MALLOC_STATS
-	arena->stats.bins[bin].nregions++;
+	arena->stats.bins[bin].curcached++;
 
-	if (arena->stats.bins[bin].nregions
+	if (arena->stats.bins[bin].curcached
 	    > arena->stats.bins[bin].highcached) {
 		arena->stats.bins[bin].highcached
-		    = arena->stats.bins[bin].nregions;
+		    = arena->stats.bins[bin].curcached;
 	}
 #endif
 }
@@ -2123,7 +2116,7 @@ arena_bin_pop(arena_t *arena, unsigned bin)
 	    == ((bin + bin_shift) << opt_quantum_2pow));
 	qr_remove(ret, next.u.s.link);
 #ifdef MALLOC_STATS
-	arena->stats.bins[bin].nregions--;
+	arena->stats.bins[bin].curcached--;
 #endif
 	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
 		arena_mask_unset(arena, bin);
@@ -2479,7 +2472,7 @@ arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
 
 			frag = node->reg;
 #ifdef MALLOC_STATS
-			arena->stats.frag.ncached++;
+			arena->stats.frag.nrefills++;
 #endif
 			assert(region_next_free_get(&frag->sep));
 			region_next_free_unset(&frag->sep);
@@ -2499,7 +2492,7 @@ arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
 				/* Use the smallest available region. */
 				arena->frag = arena_bin_pop(arena, bin);
 #ifdef MALLOC_STATS
-				arena->stats.frag.ncached++;
+				arena->stats.frag.nrefills++;
 #endif
 				total_size =
 				    region_next_size_get(&arena->frag->sep);
@@ -2657,7 +2650,6 @@ arena_split_reg_alloc(arena_t *arena, size_t size, bool fit)
 #ifdef MALLOC_STATS
 		arena->stats.split.nrequests++;
 #endif
-
 		if (region_next_size_get(&arena->split->sep) >= size) {
 			if (fit) {
 				size_t total_size;
@@ -2778,7 +2770,6 @@ arena_split_reg_alloc(arena_t *arena, size_t size, bool fit)
 					}
 #endif
 				}
-
 #ifdef MALLOC_STATS
 				arena->stats.split.nserviced++;
 #endif
@@ -2884,7 +2875,6 @@ arena_reg_fit(arena_t *arena, size_t size, region_t *reg, bool restore_split)
 			} else
 				arena_mru_cache(arena, next, next_size);
 		}
-
 #ifdef MALLOC_STATS
 		arena->stats.nsplit++;
 #endif
@@ -2911,7 +2901,7 @@ arena_bin_reg_alloc(arena_t *arena, size_t size, bool fit)
 		ret = arena_bin_pop(arena, bin);
 		assert(region_next_size_get(&ret->sep) >= size);
 #ifdef MALLOC_STATS
-		arena->stats.bins[bin].nfit++;
+		arena->stats.bins[bin].nserviced++;
 #endif
 		goto RETURN;
 	}
@@ -2967,10 +2957,7 @@ arena_large_reg_alloc(arena_t *arena, size_t size, bool fit)
 		arena_reg_fit(arena, size, ret, false);
 
 #ifdef MALLOC_STATS
-	if (size > bin_maxsize)
-		arena->stats.large.nfit++;
-	else
-		arena->stats.large.noverfit++;
+	arena->stats.large.nserviced++;
 #endif
 
 RETURN:
@@ -3962,13 +3949,12 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 		}
 	}
 
-RETURN:
 #ifdef MALLOC_STATS
 	malloc_mutex_lock(&arena->mtx);
 	arena->stats.npalloc++;
 	malloc_mutex_unlock(&arena->mtx);
 #endif
-
+RETURN:
 	if (opt_junk) {
 		if (ret != NULL)
 			memset(ret, 0xa5, size);
@@ -4118,12 +4104,12 @@ iralloc(arena_t *arena, void *ptr, size_t size)
 
 	idalloc(ptr);
 
-RETURN:
 #ifdef MALLOC_STATS
 	malloc_mutex_lock(&arena->mtx);
 	arena->stats.nralloc++;
 	malloc_mutex_unlock(&arena->mtx);
 #endif
+RETURN:
 	return (ret);
 }
 
@@ -4202,7 +4188,7 @@ malloc_print_stats(void)
 		{
 			arena_stats_t stats_arenas;
 			arena_t *arena;
-			unsigned i;
+			unsigned i, narenas_used;
 
 			/* Print chunk stats. */
 			{
@@ -4221,11 +4207,11 @@ malloc_print_stats(void)
 				    chunks_stats.curchunks);
 			}
 
-#ifdef MALLOC_STATS_ARENAS
 			/* Print stats for each arena. */
-			for (i = 0; i < narenas; i++) {
+			for (i = 0, narenas_used = 0; i < narenas; i++) {
 				arena = arenas[i];
 				if (arena != NULL) {
+					narenas_used++;
 					malloc_printf(
 					    "\narenas[%u] statistics:\n", i);
 					malloc_mutex_lock(&arena->mtx);
@@ -4236,22 +4222,29 @@ malloc_print_stats(void)
 					    " unused arena\n", i);
 				}
 			}
-#endif
 
-			/* Merge arena stats from arenas. */
-			memset(&stats_arenas, 0, sizeof(arena_stats_t));
-			for (i = 0; i < narenas; i++) {
-				arena = arenas[i];
-				if (arena != NULL) {
-					malloc_mutex_lock(&arena->mtx);
-					stats_merge(arena, &stats_arenas);
-					malloc_mutex_unlock(&arena->mtx);
+			/*
+			 * Only print merged stats if multiple arenas were
+			 * used.
+			 */
+			if (narenas_used > 1) {
+				/* Merge arena stats from arenas. */
+				memset(&stats_arenas, 0, sizeof(arena_stats_t));
+				for (i = 0; i < narenas; i++) {
+					arena = arenas[i];
+					if (arena != NULL) {
+						malloc_mutex_lock(&arena->mtx);
+						stats_merge(arena,
+						    &stats_arenas);
+						malloc_mutex_unlock(
+						    &arena->mtx);
+					}
 				}
-			}
 
-			/* Print arena stats. */
-			malloc_printf("\nMerged arena statistics:\n");
-			stats_print(&stats_arenas);
+				/* Print arena stats. */
+				malloc_printf("\nMerged arena statistics:\n");
+				stats_print(&stats_arenas);
+			}
 		}
 #endif /* #ifdef MALLOC_STATS */
 		malloc_printf("--- End malloc statistics ---\n");
