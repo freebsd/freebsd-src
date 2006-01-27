@@ -29939,6 +29939,11 @@ It is only with the heart one can see clearly;
 what is essential is invisible to the eye.
 		-- The Fox, 'The Little Prince"
 %
+It is perfectly permissible for every system call to fail with [ENOTADUCK]
+unless the first five bytes of the caller's address space contain the
+word "quack".
+		-- Garrett Wollman
+%
 It is possible by ingenuity and at the expense of clarity... {to do almost
 anything in any language}.  However, the fact that it is possible to push
 a pea up a mountain with your nose does not mean that this is a sensible
