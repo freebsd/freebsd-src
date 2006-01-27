@@ -133,9 +133,10 @@ mdmaybeload(void)
 	snprintf(name2, sizeof(name2), "geom_%s", MD_NAME);
 	if (modfind(name1) == -1) {
 		/* Not present in kernel, try loading it. */
-		if (kldload(name2) == -1 || modfind(name1) == -1) {
+		if ((kldload(name2) == -1 || modfind(name1) == -1) &&
+		    (kldload(name1) == -1 || modfind(name1) == -1)) {
 			if (errno != EEXIST) {
-				errx(EXIT_FAILURE,
+				syslog(LOG_WARNING,
 				    "%s module not available!", name2);
 			}
 		}
