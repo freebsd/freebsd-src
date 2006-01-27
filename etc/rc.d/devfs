@@ -41,19 +41,25 @@ read_devfs_conf()
 {
 	if [ -r /etc/devfs.conf ]; then
 		cd /dev
-		while read action device parameter; do
+		while read action devicelist parameter; do
 			case "${action}" in
-			l*)	if [ -c ${device} -a ! -e ${parameter} ]; then
-					ln -fs ${device} ${parameter}
-				fi
+			l*)	for device in ${devicelist}; do
+					if [ -c ${device} -a ! -e ${parameter} ]; then
+						ln -fs ${device} ${parameter}
+					fi
+				done
 				;;
-			o*)	if [ -c ${device} ]; then
-					chown ${parameter} ${device}
-				fi
+			o*)	for device in ${devicelist}; do
+					if [ -c ${device} ]; then
+						chown ${parameter} ${device}
+					fi
+				done
 				;;
-			p*)	if [ -c ${device} ]; then
-					chmod ${parameter} ${device}
-				fi
+			p*)	for device in ${devicelist}; do
+					if [ -c ${device} ]; then
+						chmod ${parameter} ${device}
+					fi
+				done
 				;;
 			esac
 		done < /etc/devfs.conf
