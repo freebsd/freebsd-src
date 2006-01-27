@@ -71,6 +71,7 @@ struct ed_softc {
         void	(*sc_tick)(void *);
 	void (*readmem)(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
 	    uint16_t amount);
+	u_short	(*sc_write_mbufs)(struct ed_softc *, struct mbuf *, bus_size_t);
 
 	int	nic_offset;	/* NIC (DS8390) I/O bus address offset */
 	int	asic_offset;	/* ASIC I/O bus address offset */
@@ -215,14 +216,10 @@ int	ed_isa_mem_ok(device_t, u_long, u_int); /* XXX isa specific */
 void	ed_stop(struct ed_softc *);
 void	ed_shmem_readmem16(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_shmem_readmem8(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
+u_short	ed_shmem_write_mbufs(struct ed_softc *, struct mbuf *, bus_size_t);
 void	ed_pio_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
-
-/* The following is unsatisfying XXX */
-#ifdef ED_HPP
-void	ed_hpp_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
-u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
-#endif
+u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, bus_size_t);
 
 void	ed_disable_16bit_access(struct ed_softc *);
 void	ed_enable_16bit_access(struct ed_softc *);

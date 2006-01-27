@@ -192,6 +192,7 @@ ed_probe_Novell_generic(device_t dev, int flags)
 	/* clear any pending interrupts that might have occurred above */
 	ed_nic_outb(sc, ED_P0_ISR, 0xff);
 
+	sc->sc_write_mbufs = ed_pio_write_mbufs;
 	return (0);
 }
 
