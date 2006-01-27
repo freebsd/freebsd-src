@@ -39,7 +39,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
 /* if defined, playback always uses the 2nd channel and full duplex works */
-#undef ESS18XX_DUPLEX
+#define ESS18XX_DUPLEX	1
 
 /* more accurate clocks and split audio1/audio2 rates */
 #define ESS18XX_NEWSPEED
