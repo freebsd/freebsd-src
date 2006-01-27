@@ -11,4 +11,9 @@ SRCS=	bktr_core.c bktr_os.c bktr_audio.c bktr_tuner.c bktr_card.c msp34xx.c \
 
 CFLAGS+= -DBKTR_FREEBSD_MODULE
 
+.if defined(BKTR_USE_FREEBSD_SMBUS)
+SRCS+=	bktr_i2c.c iicbb_if.h iicbus_if.h smbus_if.h
+CFLAGS+= -DBKTR_USE_FREEBSD_SMBUS
+.endif
+
 .include <bsd.kmod.mk>
