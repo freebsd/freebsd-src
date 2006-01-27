@@ -277,7 +277,7 @@ vm_pageq_remove(vm_page_t m)
 		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
 		pq->lcnt--;
-		if ((queue - m->pc) == PQ_CACHE) {
+		if (VM_PAGE_RESOLVEQUEUE(m, queue) == PQ_CACHE) {
 			if (vm_paging_needed())
 				pagedaemon_wakeup();
 		}
