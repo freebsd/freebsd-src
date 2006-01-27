@@ -224,7 +224,9 @@ form of this message is
 For example, the following command will configure the node to initiate
 the next session in the proprietary 3Com mode:
 .Pp
-.Dl ngctl msg fxp0:orphans pppoe_setmode "3Com"
+.Bd -literal -offset indent
+ngctl msg fxp0:orphans pppoe_setmode '"3Com"'
+.Ed
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
