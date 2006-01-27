@@ -72,19 +72,27 @@ struct turnstile;
 
 #ifdef _KERNEL
 
+/* Which queue to block on or which queue to wakeup one or more threads from. */
+#define	TS_EXCLUSIVE_QUEUE	0
+#define	TS_SHARED_QUEUE		1
+
+/* The type of lock currently held. */
+#define	TS_EXCLUSIVE_LOCK	TS_EXCLUSIVE_QUEUE
+#define	TS_SHARED_LOCK		TS_SHARED_QUEUE
+
 void	init_turnstiles(void);
 void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
-void	turnstile_broadcast(struct turnstile *);
+void	turnstile_broadcast(struct turnstile *, int);
 void	turnstile_claim(struct lock_object *);
 void	turnstile_free(struct turnstile *);
-struct thread *turnstile_head(struct turnstile *);
+struct thread *turnstile_head(struct turnstile *, int);
 void	turnstile_lock(struct lock_object *);
 struct turnstile *turnstile_lookup(struct lock_object *);
 void	turnstile_release(struct lock_object *);
-int	turnstile_signal(struct turnstile *);
-void	turnstile_unpend(struct turnstile *);
-void	turnstile_wait(struct lock_object *, struct thread *);
+int	turnstile_signal(struct turnstile *, int);
+void	turnstile_unpend(struct turnstile *, int);
+void	turnstile_wait(struct lock_object *, struct thread *, int);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */
