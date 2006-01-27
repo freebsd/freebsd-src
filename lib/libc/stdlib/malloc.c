@@ -133,7 +133,16 @@
 
 /******************************************************************************/
 
-#define	MALLOC_DEBUG
+/* 
+ * In order to disable various extra features that may have negative
+ * performance impacts, (assertions, expanded statistics, redzones), define
+ * NO_MALLOC_EXTRAS.
+ */
+/* #define NO_MALLOC_EXTRAS */
+
+#ifndef NO_MALLOC_EXTRAS
+#  define MALLOC_DEBUG
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -176,12 +185,16 @@ __FBSDID("$FreeBSD$");
  * Calculate statistics that can be used to get an idea of how well caching is
  * working.
  */
-#define	MALLOC_STATS
+#ifndef NO_MALLOC_EXTRAS
+#  define MALLOC_STATS
+#endif
 
 /*
  * Include redzones before/after every region, and check for buffer overflows.
  */
-#define MALLOC_REDZONES
+#ifndef NO_MALLOC_EXTRAS
+#  define MALLOC_REDZONES
+#endif
 #ifdef MALLOC_REDZONES
 #  define MALLOC_RED_2POW	4
 #  define MALLOC_RED		((size_t)(1 << MALLOC_RED_2POW))
