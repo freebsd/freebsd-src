@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd July 5, 2005
+.Dd January 27, 2006
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -182,24 +182,42 @@ struct ngpppoe_sts {
 .Ed
 .Bl -tag -width 3n
 .It Dv NGM_PPPOE_GETMODE
-The
-.Nm
-node can operate in two different modes:
-standard mode described in RFC 2516, and in a non-standard mode compatible
-with equipment from 3Com.
-When
-.Nm
-is a client node, it initiates a session using the configured mode.
-In server mode
-.Nm
-supports both modes simultaneously.
-This message returns the currently configured mode as a string.
+This command returns the current compatibility mode of the node
+as a string.
 .Tn ASCII
 form of this message is
 .Qq Li pppoe_getmode .
+The following keywords are can be returned:
+.Bl -tag -width 3n
+.It Qq standard
+The node operates according to RFC 2516.
+.It Qq 3Com
+When
+.Nm
+is a PPPoE client, it initiates a session encapsulating packets into
+incorrect 3Com ethertypes.
+This compatibility option doesn't affect server mode.
+In server mode
+.Nm
+supports both modes simultaneously, depending on the ethertype, the
+client used when connecting.
+.It Qq D-Link
+When
+.Nm
+is a PPPoE server serving only specific Service-Name(s), it will respond
+to a PADI requests with empty Service-Name tag, returning all available
+Service-Name(s) on node.
+This option is necessary for compatibility with D-Link DI-614+ and DI-624+
+SOHO routers as clients, when serving only specific Service-Name.
+This compatibility option doesn't affect client mode.
+.El
+.Pp
 .It Dv NGM_PPPOE_SETMODE
 Configure node to the specified mode.
 The string argument is required.
+This command understands same keywords, that are returned by
+.Dv NGM_PPPOE_GETMODE
+command.
 .Tn ASCII
 form of this message is
 .Qq Li pppoe_setmode .
