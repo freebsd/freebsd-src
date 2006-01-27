@@ -228,17 +228,6 @@ typedef struct sess_con *sessp;
 
 #define	NG_PPPOE_SESSION_NODE(sp) NG_HOOK_NODE(sp->hook)
 
-enum {
-	PPPOE_STANDARD	= 1,	/* standard RFC2516 mode */
-	PPPOE_NONSTANDARD,	/* 3Com proprietary mode */
-};
-
-struct ng_pppoe_mode_t {
-	uint8_t				id;
-	const struct ether_header	*eh_prototype;
-	const char			*name;
-};
-
 static const struct ether_header eh_standard =
 	{{0xff,0xff,0xff,0xff,0xff,0xff},
 	{0x00,0x00,0x00,0x00,0x00,0x00},
@@ -247,13 +236,7 @@ static const struct ether_header eh_standard =
 static const struct ether_header eh_3Com =
 	{{0xff,0xff,0xff,0xff,0xff,0xff},
 	{0x00,0x00,0x00,0x00,0x00,0x00},
-	ETHERTYPE_PPPOE_STUPID_DISC};
-
-static const struct ng_pppoe_mode_t ng_pppoe_modes[] = {
-	{ PPPOE_STANDARD,	&eh_standard,	NG_PPPOE_STANDARD },
-	{ PPPOE_NONSTANDARD,	&eh_3Com,	NG_PPPOE_NONSTANDARD },
-	{ 0, NULL},
-};
+	ETHERTYPE_PPPOE_3COM_DISC};
 
 /*
  * Information we store for each node
@@ -265,7 +248,9 @@ struct PPPoE {
 	u_int   	packets_in;	/* packets in from ethernet */
 	u_int   	packets_out;	/* packets out towards ethernet */
 	uint32_t	flags;
-	const struct	ng_pppoe_mode_t	*mode;	/* standard PPPoE or 3Com? */
+#define	COMPAT_3COM	0x00000001
+#define	COMPAT_DLINK	0x00000002
+	const struct	ether_header	*eh;	/* standard PPPoE or 3Com? */
 };
 typedef struct PPPoE *priv_p;
 
@@ -647,8 +632,8 @@ ng_pppoe_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, privp);
 	privp->node = node;
 
-	/* Initialize to standard mode (the first one in ng_pppoe_modes[]). */
-	privp->mode = &ng_pppoe_modes[0];
+	/* Initialize to standard mode. */
+	privp->eh = &eh_standard;
 
 	CTR3(KTR_NET, "%20s: created node [%x] (%p)",
 	    __func__, node->nd_ID, node);
@@ -806,7 +791,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			neg->m->m_len = sizeof(struct pppoe_full_hdr);
 			neg->pkt = mtod(neg->m, union packet*);
 			memcpy((void *)&neg->pkt->pkt_header.eh,
-			    (const void *)privp->mode->eh_prototype,
+			    (const void *)privp->eh,
 			    sizeof(struct ether_header));
 			neg->pkt->pkt_header.ph.ver = 0x1;
 			neg->pkt->pkt_header.ph.type = 0x1;
@@ -912,7 +897,6 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		case NGM_PPPOE_SETMODE:
 		    {
-			const struct ng_pppoe_mode_t *mode;
 			char *s;
 			size_t len;
 
@@ -923,25 +907,61 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			len = msg->header.arglen - 1;
 
 			/* Search for matching mode string. */
-			for (mode = ng_pppoe_modes; mode->id != 0; mode++ )
-				if ((strlen(mode->name) == len) &&
-				    !strncmp(mode->name, s, len))
-					break;	/* found */
-
-			if (mode->id != 0)
-				privp->mode = mode;
-			else
-				LEAVE(EINVAL);
+			if (len == strlen(NG_PPPOE_STANDARD) &&
+			    (strncmp(NG_PPPOE_STANDARD, s, len) == 0)) {
+				privp->flags = 0;
+				privp->eh = &eh_standard;
+				break;
+			}
+			if (len == strlen(NG_PPPOE_3COM) &&
+			    (strncmp(NG_PPPOE_3COM, s, len) == 0)) {
+				privp->flags |= COMPAT_3COM;
+				privp->eh = &eh_3Com;
+				break;
+			}
+			if (len == strlen(NG_PPPOE_DLINK) &&
+			    (strncmp(NG_PPPOE_DLINK, s, len) == 0)) {
+				privp->flags |= COMPAT_DLINK;
+				break;
+			}
+			error = EINVAL;
 			break;
 		    }
 		case NGM_PPPOE_GETMODE:
-			NG_MKRESPONSE(resp, msg, strlen(privp->mode->name) + 1,
-			    M_NOWAIT);
+		    {
+			char *s;
+			size_t len = 0;
+
+			if (privp->flags == 0)
+				len += strlen(NG_PPPOE_STANDARD) + 1;
+			if (privp->flags & COMPAT_3COM)
+				len += strlen(NG_PPPOE_3COM) + 1;
+			if (privp->flags & COMPAT_DLINK)
+				len += strlen(NG_PPPOE_DLINK) + 1;
+
+			NG_MKRESPONSE(resp, msg, len, M_NOWAIT);
 			if (resp == NULL)
 				LEAVE(ENOMEM);
-			strlcpy((char *)resp->data, privp->mode->name,
-			    strlen(privp->mode->name) + 1);
+
+			s = (char *)resp->data;
+			if (privp->flags == 0) {
+				len = strlen(NG_PPPOE_STANDARD);
+				strlcpy(s, NG_PPPOE_STANDARD, len + 1);
+				break;
+			}
+			if (privp->flags & COMPAT_3COM) {
+				len = strlen(NG_PPPOE_3COM);
+				strlcpy(s, NG_PPPOE_3COM, len + 1);
+				s += len;
+			}
+			if (privp->flags & COMPAT_DLINK) {
+				if (s != resp->data)
+					*s++ = '|';
+				len = strlen(NG_PPPOE_DLINK);
+				strlcpy(s, NG_PPPOE_DLINK, len + 1);
+			}
 			break;
+		    }
 		default:
 			LEAVE(EINVAL);
 		}
@@ -950,10 +970,9 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		LEAVE(EINVAL);
 	}
 
-	CTR2(KTR_NET, "%20s: returning %d", __func__, error);
-
 	/* Take care of synchronous response, if any. */
 quit:
+	CTR2(KTR_NET, "%20s: returning %d", __func__, error);
 	NG_RESPOND_MSG(error, node, item, resp);
 	/* Free the message and return. */
 	NG_FREE_MSG(msg);
@@ -984,8 +1003,7 @@ pppoe_start(sessp sp)
 	 * mode use configured ethertype.
 	 */
 	memcpy((void *)&sp->neg->pkt->pkt_header.eh,
-	    (const void *)privp->mode->eh_prototype,
-	    sizeof(struct ether_header));
+	    (const void *)privp->eh, sizeof(struct ether_header));
 	sp->neg->pkt->pkt_header.ph.code = PADI_CODE;
 	uniqtag.hdr.tag_type = PTT_HOST_UNIQ;
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
@@ -1094,7 +1112,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		wh = mtod(m, struct pppoe_full_hdr *);
 		length = ntohs(wh->ph.length);
 		switch(wh->eh.ether_type) {
-		case	ETHERTYPE_PPPOE_STUPID_DISC: /* fall through */
+		case	ETHERTYPE_PPPOE_3COM_DISC: /* fall through */
 		case	ETHERTYPE_PPPOE_DISC:
 			/*
 			 * We need to try to make sure that the tag area
@@ -1158,19 +1176,22 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				}
 
 				/*
-				 * If Service-Name is NULL, we broadcast
-				 * the PADI to all listening hooks, otherwise
-				 * we seek for a matching one.
+				 * First, try to match Service-Name
+				 * against our listening hooks. If
+				 * no success and we are in D-Link
+				 * compat mode and Service-Name is
+				 * empty, then we broadcast the PADI
+				 * to all listening hooks.
 				 */
-				if (ntohs(tag->tag_len) != 0) {
-					sendhook = pppoe_match_svc(node, tag);
-					if (sendhook != NULL)
-						NG_FWD_NEW_DATA(error, item,
-						    sendhook, m);
-					else
-						error = ENETUNREACH;
-				} else
+				sendhook = pppoe_match_svc(node, tag);
+				if (sendhook != NULL)
+					NG_FWD_NEW_DATA(error, item,
+					    sendhook, m);
+				else if (privp->flags & COMPAT_DLINK &&
+					 ntohs(tag->tag_len) == 0)
 					error = pppoe_broadcast_padi(node, m);
+				else
+					error = ENETUNREACH;
 				break;
 			case	PADO_CODE:
 				/*
@@ -1304,9 +1325,9 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				/* Configure ethertype depending on what
 				 * ethertype was used at discovery phase */
 				if (sp->pkt_hdr.eh.ether_type ==
-				    ETHERTYPE_PPPOE_STUPID_DISC)
+				    ETHERTYPE_PPPOE_3COM_DISC)
 					sp->pkt_hdr.eh.ether_type
-						= ETHERTYPE_PPPOE_STUPID_SESS;
+						= ETHERTYPE_PPPOE_3COM_SESS;
 				else
 					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
@@ -1355,9 +1376,9 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				 * Keep a copy of the header we will be using.
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				if (privp->mode->id == PPPOE_NONSTANDARD)
+				if (privp->flags & COMPAT_3COM)
 					sp->pkt_hdr.eh.ether_type
-						= ETHERTYPE_PPPOE_STUPID_SESS;
+						= ETHERTYPE_PPPOE_3COM_SESS;
 				else
 					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
@@ -1389,7 +1410,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				LEAVE(EPFNOSUPPORT);
 			}
 			break;
-		case	ETHERTYPE_PPPOE_STUPID_SESS:
+		case	ETHERTYPE_PPPOE_3COM_SESS:
 		case	ETHERTYPE_PPPOE_SESS:
 			/*
 			 * Find matching peer/session combination.
@@ -1627,8 +1648,8 @@ ng_pppoe_disconnect(hook_p hook)
 			 * during sessions stage.
 			 */
 			if (sp->pkt_hdr.eh.ether_type ==
-			    ETHERTYPE_PPPOE_STUPID_SESS)
-				wh->eh.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
+			    ETHERTYPE_PPPOE_3COM_SESS)
+				wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
 			else
 				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
