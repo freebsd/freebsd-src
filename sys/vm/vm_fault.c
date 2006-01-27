@@ -410,8 +410,8 @@ RetryFault:;
 
 			vm_pageq_remove_nowakeup(fs.m);
 
-			if ((queue - fs.m->pc) == PQ_CACHE \
-			    && vm_page_count_severe()) {
+			if (VM_PAGE_RESOLVEQUEUE(fs.m, queue) == PQ_CACHE &&
+			    vm_page_count_severe()) {
 				vm_page_activate(fs.m);
 				vm_page_unlock_queues();
 				unlock_and_deallocate(&fs);
