@@ -68,14 +68,18 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 	int cnt, fd;
 	static char device[MAXNAMLEN] = _PATH_DEV;
 	static char errbuf[1024];
+	char *p;
 	int forked;
 
 	forked = 0;
 	if (iovcnt > (int)(sizeof(localiov) / sizeof(localiov[0])))
 		return ("too many iov's (change code in wall/ttymsg.c)");
 
-	strlcpy(device + sizeof(_PATH_DEV) - 1, line, sizeof(device));
-	if (strchr(device + sizeof(_PATH_DEV) - 1, '/')) {
+	p = device + sizeof(_PATH_DEV) - 1;
+	strlcpy(p, line, sizeof(device));
+	if (strncmp(p, "pts/", 4) == 0)
+		p += 4;
+	if (strchr(p, '/') != NULL) {
 		/* A slash is an attempt to break security... */
 		(void) snprintf(errbuf, sizeof(errbuf),
 		    "Too many '/' in \"%s\"", device);
