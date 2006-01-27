@@ -22,6 +22,7 @@ CFLAGS+=	-DPC98
 
 CLEANFILES+=	tmp.c tst01 tst01.o
 NO_PROFILE=
+NO_PIC=
 
 MAN=		libdisk.3
 
