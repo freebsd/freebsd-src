@@ -763,6 +763,8 @@ aio_process(struct aiocblist *aiocbe)
 		auio.uio_rw = UIO_READ;
 		error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, td);
 	} else {
+		if (fp->f_type == DTYPE_VNODE)
+			bwillwrite();
 		auio.uio_rw = UIO_WRITE;
 		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, td);
 	}
