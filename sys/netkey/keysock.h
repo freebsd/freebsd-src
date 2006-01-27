@@ -71,7 +71,7 @@ struct keycb {
 
 extern struct pfkeystat pfkeystat;
 
-extern int key_output(struct mbuf *, ...);
+extern int key_output(struct mbuf *m, struct socket *so);
 extern int key_usrreq(struct socket *,
 	int, struct mbuf *, struct mbuf *, struct mbuf *);
 
