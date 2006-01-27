@@ -477,9 +477,11 @@ retry:
 			    "smallalloc", 0);
 			in_sleep--;
 			goto retry;
+		} else if (in_alloc) {
+			mtx_unlock(&smallalloc_mtx);
+			return (NULL);
 		}
-		if (wait & M_WAITOK)
-			in_alloc = 1;
+		in_alloc = 1;
 		mtx_unlock(&smallalloc_mtx);
 		/* Try to alloc 1MB of contiguous memory. */
 		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
