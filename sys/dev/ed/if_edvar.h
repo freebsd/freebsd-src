@@ -220,7 +220,6 @@ void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
 
 /* The following is unsatisfying XXX */
 #ifdef ED_HPP
-void	ed_hpp_set_physical_link(struct ed_softc *);
 void	ed_hpp_readmem(struct ed_softc *, bus_size_t, uint8_t *, uint16_t);
 u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 #endif
