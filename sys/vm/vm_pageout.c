@@ -337,7 +337,7 @@ more:
 			ib = 0;
 			break;
 		}
-		if (((p->queue - p->pc) == PQ_CACHE) ||
+		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
 		    (p->flags & (PG_BUSY|PG_UNMANAGED)) || p->busy) {
 			ib = 0;
 			break;
@@ -367,7 +367,7 @@ more:
 
 		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
 			break;
-		if (((p->queue - p->pc) == PQ_CACHE) ||
+		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
 		    (p->flags & (PG_BUSY|PG_UNMANAGED)) || p->busy) {
 			break;
 		}
