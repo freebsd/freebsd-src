@@ -119,6 +119,7 @@ static struct cdevsw ptc_cdevsw = {
 #define TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
 #define TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
+#define NUM_TO_MINOR(c)		((c & 0xff) | ((c & ~0xff) << 16))
 /*-
  * Once a tty is allocated, it cannot (currently) be freed.  As such,
  * we keep a global list of ptys that have been used so we can recycle
@@ -188,7 +189,7 @@ pty_new(void)
 	int nb;
 
 	mtx_lock(&pt_mtx);
-	if (nb_allocated >= max_pts) {
+	if (nb_allocated >= max_pts || nb_allocated == 0xffffff) {
 		mtx_unlock(&pt_mtx);
 		return (NULL);
 	}
@@ -447,7 +448,8 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	if (pt->pt_devs)
 		devs = pt->pt_devs;
 	else
-		pt->pt_devs = devs = make_dev_cred(&pts_cdevsw, pt->pt_num, 
+		pt->pt_devs = devs = make_dev_cred(&pts_cdevsw, 
+		    NUM_TO_MINOR(pt->pt_num), 
 		    td->td_ucred, UID_ROOT, GID_WHEEL, 0666, "pts/%d",
 		    pt->pt_num);
 	devs->si_drv1 = pt;
@@ -946,8 +948,9 @@ pty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	 * opened, or some way to tell devfs that "this had better be for
 	 * an open() or we won't create a device".
 	 */
-	pt->pt_devc = devc = make_dev_cred(&ptc_cdevsw, pt->pt_num, cred,
-	    UID_ROOT, GID_WHEEL, 0666, "pty%d", pt->pt_num);
+	pt->pt_devc = devc = make_dev_cred(&ptc_cdevsw, 
+	    NUM_TO_MINOR(pt->pt_num), cred, UID_ROOT, GID_WHEEL, 0666, "pty%d",
+	    pt->pt_num);
 
 	dev_ref(devc);
 	devc->si_drv1 = pt;
