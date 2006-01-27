@@ -1426,7 +1426,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 				are_queues_locked = TRUE;
 				vm_page_lock_queues();
 			}
-			if ((p->queue - p->pc) == PQ_CACHE)
+			if (VM_PAGE_INQUEUE1(p, PQ_CACHE))
 				vm_page_deactivate(p);
 			mpte = pmap_enter_quick(map->pmap,
 			    addr + ptoa(tmpidx), p, prot, mpte);

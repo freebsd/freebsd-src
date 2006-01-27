@@ -719,7 +719,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 			curgeneration = object->generation;
 			p = vm_page_lookup(object, tscan);
 			if (p == NULL || p->valid == 0 ||
-			    (p->queue - p->pc) == PQ_CACHE) {
+			    VM_PAGE_INQUEUE1(p, PQ_CACHE)) {
 				if (--scanlimit == 0)
 					break;
 				++tscan;
@@ -808,7 +808,7 @@ again:
 		if (((p->flags & PG_CLEANCHK) == 0) ||
 			(pi < tstart) || (pi >= tend) ||
 			(p->valid == 0) ||
-			((p->queue - p->pc) == PQ_CACHE)) {
+		    VM_PAGE_INQUEUE1(p, PQ_CACHE)) {
 			vm_page_flag_clear(p, PG_CLEANCHK);
 			continue;
 		}
@@ -886,7 +886,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				 (tp->flags & PG_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
-			if((tp->queue - tp->pc) == PQ_CACHE) {
+			if (VM_PAGE_INQUEUE1(tp, PQ_CACHE)) {
 				vm_page_flag_clear(tp, PG_CLEANCHK);
 				break;
 			}
@@ -914,7 +914,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					 (tp->flags & PG_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
-				if ((tp->queue - tp->pc) == PQ_CACHE) {
+				if (VM_PAGE_INQUEUE1(tp, PQ_CACHE)) {
 					vm_page_flag_clear(tp, PG_CLEANCHK);
 					break;
 				}
