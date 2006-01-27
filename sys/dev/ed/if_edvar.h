@@ -243,7 +243,7 @@ extern devclass_t ed_devclass;
 #define ED_VENDOR_SIC		0x04		/* Allied-Telesis SIC */
 
 /*
- * Compile-time config flags
+ * Configure time flags
  */
 /*
  * this sets the default for enabling/disabling the transceiver
