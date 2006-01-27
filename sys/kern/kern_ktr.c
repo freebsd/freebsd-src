@@ -100,6 +100,26 @@ SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD, &ktr_version, 0, "");
 volatile int	ktr_idx = 0;
 struct	ktr_entry ktr_buf[KTR_ENTRIES];
 
+static int
+sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
+{
+	int clear, error;
+
+	clear = 0;
+	error = sysctl_handle_int(oidp, &clear, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (clear) {
+		bzero(ktr_buf, sizeof(ktr_buf));
+		ktr_idx = 0;
+	}
+
+	return (error);
+}
+SYSCTL_PROC(_debug_ktr, OID_AUTO, clear, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
+    sysctl_debug_ktr_clear, "I", "Clear KTR Buffer");
+
 #ifdef KTR_VERBOSE
 int	ktr_verbose = KTR_VERBOSE;
 TUNABLE_INT("debug.ktr.verbose", &ktr_verbose);
