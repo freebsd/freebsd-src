@@ -1789,7 +1789,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 		   ("malloc(M_WAITOK) in interrupt context"));
 		if (nosleepwithlocks) {
 #ifdef WITNESS
-			badness = WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
+			badness = WITNESS_CHECK(WARN_GIANTOK | WARN_SLEEPOK,
 			    NULL,
 			    "malloc(M_WAITOK) of \"%s\", forcing M_NOWAIT",
 			    zone->uz_name);
