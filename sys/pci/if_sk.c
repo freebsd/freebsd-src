@@ -1304,10 +1304,7 @@ static int
 skc_probe(dev)
 	device_t		dev;
 {
-	struct sk_softc		*sc;
 	struct sk_type		*t = sk_devs;
-
-	sc = device_get_softc(dev);
 
 	while(t->sk_name != NULL) {
 		if ((pci_get_vendor(dev) == t->sk_vid) &&
