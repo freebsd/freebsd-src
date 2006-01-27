@@ -1512,6 +1512,15 @@ swp_pager_async_iodone(struct buf *bp)
 		VM_OBJECT_UNLOCK(object);
 	}
 
+	/* 
+	 * swapdev_strategy() manually sets b_vp and b_bufobj before calling 
+	 * bstrategy(). Set them back to NULL now we're done with it, or we'll
+	 * trigger a KASSERT in relpbuf().
+	 */
+	if (bp->b_vp) {
+		    bp->b_vp = NULL;
+		    bp->b_bufobj = NULL;
+	}
 	/*
 	 * release the physical I/O buffer
 	 */
