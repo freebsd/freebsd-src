@@ -154,9 +154,9 @@ sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
 
 	enable = ktr_alq_enabled;
 
-        error = sysctl_handle_int(oidp, &enable, 0, req);
-        if (error || !req->newptr)
-                return (error);
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	if (error || !req->newptr)
+		return (error);
 
 	if (enable) {
 		if (ktr_alq_enabled)
