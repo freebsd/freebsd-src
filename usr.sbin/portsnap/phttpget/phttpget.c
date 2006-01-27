@@ -326,7 +326,7 @@ main(int argc, char *argv[])
 	error = getaddrinfo(env_HTTP_PROXY ? env_HTTP_PROXY : servername,
 	    env_HTTP_PROXY ? proxyport : "http", &hints, &res0);
 	if (error)
-		errx(1, "%s: host = %s, port = %s",
+		errx(1, "host = %s, port = %s: %s",
 		    env_HTTP_PROXY ? env_HTTP_PROXY : servername,
 		    env_HTTP_PROXY ? proxyport : "http",
 		    gai_strerror(error));
