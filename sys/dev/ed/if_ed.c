@@ -310,13 +310,17 @@ ed_attach(device_t dev)
 				    dot3ChipSetNational8390);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
 
-	/*
-	 * Set default state for ALTPHYS flag (used to disable the 
-	 * tranceiver for AUI operation), based on config option.
-	 */
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	/*
+	 * Set default state for LINK2 flag (used to disable the 
+	 * tranceiver for AUI operation), based on config option.
+	 * We only set this flag before we attach the device, so there's
+	 * no race.  It is convenient to allow users to turn this off
+	 * by default in the kernel config, but given our more advanced
+	 * boot time configuration options, this might no longer be needed.
+	 */
 	if (device_get_flags(dev) & ED_FLAGS_DISABLE_TRANCEIVER)
-		ifp->if_flags |= IFF_ALTPHYS;
+		ifp->if_flags |= IFF_LINK2;
 
 	/*
 	 * Attach the interface
@@ -338,12 +342,12 @@ ed_attach(device_t dev)
 			    sc->hpp_mem_start ? "memory mapped" : "regular");
 		else
 #endif
-			printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
+			printf("%s", sc->isa16bit ? "(16 bit)" : "(8 bit)");
 
 #if defined(ED_HPP) || defined(ED_3C503)
 		printf("%s", (((sc->vendor == ED_VENDOR_3COM) ||
 				    (sc->vendor == ED_VENDOR_HP)) &&
-			   (ifp->if_flags & IFF_ALTPHYS)) ?
+			   (ifp->if_flags & IFF_LINK2)) ?
 		    " tranceiver disabled" : "");
 #endif
 		printf("\n");
@@ -575,7 +579,7 @@ ed_init_locked(struct ed_softc *sc)
 	 * (there is no settable hardware default).
 	 */
 	if (sc->vendor == ED_VENDOR_3COM) {
-		if (ifp->if_flags & IFF_ALTPHYS)
+		if (ifp->if_flags & IFF_LINK2)
 			ed_asic_outb(sc, ED_3COM_CR, 0);
 		else
 			ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
@@ -1241,14 +1245,14 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 */
 		ed_setrcr(sc);
 
+#ifdef ED_3C503
 		/*
 		 * An unfortunate hack to provide the (required) software
 		 * control of the tranceiver for 3Com/HP boards.
-		 * The ALTPHYS flag disables the tranceiver if set.
+		 * The LINK2 flag disables the tranceiver if set.
 		 */
-#ifdef ED_3C503
 		if (sc->vendor == ED_VENDOR_3COM) {
-			if (ifp->if_flags & IFF_ALTPHYS)
+			if (ifp->if_flags & IFF_LINK2)
 				ed_asic_outb(sc, ED_3COM_CR, 0);
 			else
 				ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
