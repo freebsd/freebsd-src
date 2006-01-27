@@ -573,20 +573,8 @@ ed_init_locked(struct ed_softc *sc)
 	 */
 	ed_nic_outb(sc, ED_P0_TCR, 0);
 
-#ifdef ED_3C503
-	/*
-	 * If this is a 3Com board, the tranceiver must be software enabled
-	 * (there is no settable hardware default).
-	 */
-	if (sc->vendor == ED_VENDOR_3COM) {
-		if (ifp->if_flags & IFF_LINK2)
-			ed_asic_outb(sc, ED_3COM_CR, 0);
-		else
-			ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
-	}
-#endif
 	if (sc->sc_mediachg)
-	    sc->sc_mediachg(sc);
+		sc->sc_mediachg(sc);
 
 	/*
 	 * Set 'running' flag, and clear output active flag.
@@ -1227,12 +1215,15 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		/*
 		 * If the interface is marked up and stopped, then start it.
+		 * If we're up and already running, then it may be a mediachg.
 		 * If it is marked down and running, then stop it.
 		 */
 		ED_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				ed_init_locked(sc);
+			else if (sc->sc_mediachg)
+				sc->sc_mediachg(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				ed_stop(sc);
@@ -1245,23 +1236,6 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 */
 		ed_setrcr(sc);
 
-#ifdef ED_3C503
-		/*
-		 * An unfortunate hack to provide the (required) software
-		 * control of the tranceiver for 3Com/HP boards.
-		 * The LINK2 flag disables the tranceiver if set.
-		 */
-		if (sc->vendor == ED_VENDOR_3COM) {
-			if (ifp->if_flags & IFF_LINK2)
-				ed_asic_outb(sc, ED_3COM_CR, 0);
-			else
-				ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
-		}
-#endif
-#ifdef ED_HPP
-		if (sc->vendor == ED_VENDOR_HP) 
-			ed_hpp_set_physical_link(sc);
-#endif
 		ED_UNLOCK(sc);
 		break;
 

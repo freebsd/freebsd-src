@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 static void	ed_hpp_writemem(struct ed_softc *, uint8_t *, uint16_t,
 		    uint16_t);
+static void	ed_hpp_set_physical_link(struct ed_softc *sc);
 
 /*
  * Interrupt conversion table for the HP PC LAN+
@@ -355,6 +356,7 @@ ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
 			return (ENXIO);
 	}
 
+	sc->sc_mediachg = ed_hpp_set_physical_link;
 	return (0);
 }
 
@@ -362,7 +364,7 @@ ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
  * HP PC Lan+ : Set the physical link to use AUI or TP/TL.
  */
 
-void
+static void
 ed_hpp_set_physical_link(struct ed_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
