@@ -74,6 +74,13 @@
 #define	ISP_SBUS_SUPPORTED	0
 #endif
 
+/*
+ * Hackery- remove TARGET MODE when compiling as a module on sparc64
+ */
+#if	defined(__sparc64__) && defined(KLD_MODULE) && defined(ISP_TARGET_MODE)
+#undef	ISP_TARGET_MODE
+#endif
+
 #define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
 /* #define	ISP_SMPLOCK			1 */
 
