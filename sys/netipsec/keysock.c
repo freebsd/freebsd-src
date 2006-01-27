@@ -77,23 +77,11 @@ struct pfkeystat pfkeystat;
  * key_output()
  */
 int
-#if __STDC__
-key_output(struct mbuf *m, ...)
-#else
-key_output(m, va_alist)
-	struct mbuf *m;
-	va_dcl
-#endif
+key_output(struct mbuf *m, struct socket *so)
 {
 	struct sadb_msg *msg;
 	int len, error = 0;
 	int s;
-	struct socket *so;
-	va_list ap;
-
-	va_start(ap, m);
-	so = va_arg(ap, struct socket *);
-	va_end(ap);
 
 	if (m == 0)
 		panic("%s: NULL pointer was passed.\n", __func__);
@@ -590,7 +578,7 @@ struct protosw keysw[] = {
 	.pr_domain =		&keydomain,
 	.pr_protocol =		PF_KEY_V2,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_output =		(pr_output_t *)key_output,
+	.pr_output =		key_output,
 	.pr_ctlinput =		raw_ctlinput,
 	.pr_init =		raw_init,
 	.pr_usrreqs =		&key_usrreqs
