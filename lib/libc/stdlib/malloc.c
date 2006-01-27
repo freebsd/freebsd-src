@@ -310,7 +310,7 @@ struct malloc_bin_stats_s {
 	 * during normal operation, so is maintained here in order to allow
 	 * calculating the high water mark.
 	 */
-	unsigned	curcached;
+	unsigned long	curcached;
 };
 
 typedef struct arena_stats_s arena_stats_t;
