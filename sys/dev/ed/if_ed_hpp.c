@@ -371,7 +371,7 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_LAN);
 	lan_page = ed_asic_inw(sc, ED_HPP_PAGE_0);
 
-	if (ifp->if_flags & IFF_ALTPHYS) {
+	if (ifp->if_flags & IFF_LINK2) {
 		/*
 		 * Use the AUI port.
 		 */
