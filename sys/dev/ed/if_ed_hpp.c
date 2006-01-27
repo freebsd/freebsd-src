@@ -60,9 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 
+static void	ed_hpp_readmem(struct ed_softc *, bus_size_t, uint8_t *,
+		    uint16_t);
 static void	ed_hpp_writemem(struct ed_softc *, uint8_t *, uint16_t,
 		    uint16_t);
 static void	ed_hpp_set_physical_link(struct ed_softc *sc);
+static u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *,
+		    bus_size_t);
 
 /*
  * Interrupt conversion table for the HP PC LAN+
@@ -357,6 +361,8 @@ ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
 	}
 
 	sc->sc_mediachg = ed_hpp_set_physical_link;
+	sc->sc_write_mbufs = ed_hpp_write_mbufs;
+	sc->readmem = ed_hpp_readmem;
 	return (0);
 }
 
@@ -411,7 +417,7 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
  * IO.
  */
 
-void
+static void
 ed_hpp_readmem(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
     uint16_t amount)
 {
@@ -547,8 +553,8 @@ ed_hpp_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
  * allows it.
  */
 
-u_short
-ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
+static u_short
+ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 {
 	int len, wantbyte;
 	unsigned short total_len;

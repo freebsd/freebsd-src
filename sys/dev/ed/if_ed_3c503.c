@@ -325,7 +325,7 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 	 * mem.
 	 */
 	ed_asic_outb(sc, ED_3COM_GACFR, ED_3COM_GACFR_RSEL |
-	     ED_3COM_GACFR_MBS0);
+	    ED_3COM_GACFR_MBS0);
 
 	/*
 	 * Initialize "Vector Pointer" registers. These gawd-awful things are
@@ -338,8 +338,10 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 	ed_asic_outb(sc, ED_3COM_VPTR0, 0x00);
 
 	error = ed_clear_memory(dev);
-	if (error == 0)
+	if (error == 0) {
 		sc->sc_mediachg = ed_3c503_mediachg;
+		sc->sc_write_mbufs = ed_shmem_write_mbufs;
+	}
 	return (error);
 }
 

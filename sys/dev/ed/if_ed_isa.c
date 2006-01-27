@@ -82,6 +82,7 @@ ed_isa_probe_Novell(device_t dev)
 	/*
 	 * Final sanity check for Gateway Ethernet cards before
 	 * believing that they really are Gateway AT.
+	 * XXX I think this is stale.
 	 */
 	if ((ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) &&
 	    (sc->enaddr[2] == 0x86)) {
@@ -175,10 +176,6 @@ ed_isa_attach(device_t dev)
 		return (error);
 	}
 
-#ifdef ED_HPP
-	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS)
-		sc->readmem = ed_hpp_readmem;
-#endif
 	return ed_attach(dev);
 }
 

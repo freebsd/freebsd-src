@@ -87,8 +87,6 @@ static __inline void ed_rint(struct ed_softc *);
 static __inline void ed_xmit(struct ed_softc *);
 static __inline void ed_ring_copy(struct ed_softc *, bus_size_t, char *,
     u_short);
-static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *,
-    bus_size_t);
 
 static void	ed_setrcr(struct ed_softc *);
 
@@ -276,7 +274,11 @@ ed_attach(device_t dev)
 			sc->readmem = ed_pio_readmem;
 		}
 	}
-	
+	if (sc->sc_write_mbufs == NULL) {
+		device_printf(dev, "No write mbufs routine set\n");
+		return (ENXIO);
+	}
+
 	callout_init_mtx(&sc->tick_ch, ED_MUTEX(sc), 0);
 	/*
 	 * Set interface to stopped condition (reset)
@@ -711,77 +713,10 @@ outloop:
 	/* txb_new points to next open buffer slot */
 	buffer = sc->mem_start + (sc->txb_new * ED_TXBUF_SIZE * ED_PAGE_SIZE);
 
-	if (sc->mem_shared) {
-		/*
-		 * Special case setup for 16 bit boards...
-		 */
-		if (sc->isa16bit) {
-			switch (sc->vendor) {
-#ifdef ED_3C503
-				/*
-				 * For 16bit 3Com boards (which have 16k of
-				 * memory), we have the xmit buffers in a
-				 * different page of memory ('page 0') - so
-				 * change pages.
-				 */
-			case ED_VENDOR_3COM:
-				ed_asic_outb(sc, ED_3COM_GACFR,
-					     ED_3COM_GACFR_RSEL);
-				break;
-#endif
-				/*
-				 * Enable 16bit access to shared memory on
-				 * WD/SMC boards.
-				 *
-				 * XXX - same as ed_enable_16bit_access()
-				 */
-			case ED_VENDOR_WD_SMC:
-				ed_asic_outb(sc, ED_WD_LAAR,
-				    sc->wd_laar_proto | ED_WD_LAAR_M16EN);
-				if (sc->chip_type == ED_CHIP_TYPE_WD790)
-					ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_MENB);
-				break;
-			}
-		}
-		for (len = 0; m != 0; m = m->m_next) {
-			if (sc->isa16bit)
-				bus_space_write_region_2(sc->mem_bst,
-				    sc->mem_bsh, buffer,
-				    mtod(m, uint16_t *), (m->m_len + 1)/ 2);
-			else
-				bus_space_write_region_1(sc->mem_bst,
-				    sc->mem_bsh, buffer,
-				    mtod(m, uint8_t *), m->m_len);
-			buffer += m->m_len;
-			len += m->m_len;
-		}
-
-		/*
-		 * Restore previous shared memory access
-		 */
-		if (sc->isa16bit) {
-			switch (sc->vendor) {
-#ifdef ED_3C503
-			case ED_VENDOR_3COM:
-				ed_asic_outb(sc, ED_3COM_GACFR,
-				    ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
-				break;
-#endif
-			case ED_VENDOR_WD_SMC:
-				/* XXX - same as ed_disable_16bit_access() */
-				if (sc->chip_type == ED_CHIP_TYPE_WD790)
-					ed_asic_outb(sc, ED_WD_MSR, 0x00);
-				ed_asic_outb(sc, ED_WD_LAAR,
-				    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
-				break;
-			}
-		}
-	} else {
-		len = ed_pio_write_mbufs(sc, m, buffer);
-		if (len == 0) {
-			m_freem(m0);
-			goto outloop;
-		}
+	len = sc->sc_write_mbufs(sc, m, buffer);
+	if (len == 0) {
+		m_freem(m0);
+		goto outloop;
 	}
 
 	sc->txb_len[sc->txb_new] = max(len, (ETHER_MIN_LEN-ETHER_CRC_LEN));
@@ -1457,7 +1392,7 @@ ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
  * Write an mbuf chain to the destination NIC memory address using
  *	programmed I/O.
  */
-static u_short
+u_short
 ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 {
 	struct ifnet *ifp = sc->ifp;
@@ -1466,12 +1401,6 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 	int     maxwait = 200;	/* about 240us */
 
 	ED_ASSERT_LOCKED(sc);
-
-#ifdef ED_HPP
-	/* HP PC Lan+ cards need special handling */
-	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS)
-		return ed_hpp_write_mbufs(sc, m, dst);
-#endif
 
 	/* Regular Novell cards */
 	/* First, count up the total number of bytes to copy */
@@ -1707,4 +1636,75 @@ ed_clear_memory(device_t dev)
 		}
 	}
 	return (0);
+}
+	    
+u_short
+ed_shmem_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
+{
+	u_short len;
+
+	/*
+	 * Special case setup for 16 bit boards...
+	 */
+	if (sc->isa16bit) {
+		switch (sc->vendor) {
+#ifdef ED_3C503
+			/*
+			 * For 16bit 3Com boards (which have 16k of
+			 * memory), we have the xmit buffers in a
+			 * different page of memory ('page 0') - so
+			 * change pages.
+			 */
+		case ED_VENDOR_3COM:
+			ed_asic_outb(sc, ED_3COM_GACFR, ED_3COM_GACFR_RSEL);
+			break;
+#endif
+			/*
+			 * Enable 16bit access to shared memory on
+			 * WD/SMC boards.
+			 *
+			 * XXX - same as ed_enable_16bit_access()
+			 */
+		case ED_VENDOR_WD_SMC:
+			ed_asic_outb(sc, ED_WD_LAAR,
+			    sc->wd_laar_proto | ED_WD_LAAR_M16EN);
+			if (sc->chip_type == ED_CHIP_TYPE_WD790)
+				ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_MENB);
+			break;
+		}
+	}
+	for (len = 0; m != 0; m = m->m_next) {
+		if (sc->isa16bit)
+			bus_space_write_region_2(sc->mem_bst,
+			    sc->mem_bsh, dst,
+			    mtod(m, uint16_t *), (m->m_len + 1)/ 2);
+		else
+			bus_space_write_region_1(sc->mem_bst,
+			    sc->mem_bsh, dst,
+			    mtod(m, uint8_t *), m->m_len);
+		dst += m->m_len;
+		len += m->m_len;
+	}
+
+	/*
+	 * Restore previous shared memory access
+	 */
+	if (sc->isa16bit) {
+		switch (sc->vendor) {
+#ifdef ED_3C503
+		case ED_VENDOR_3COM:
+			ed_asic_outb(sc, ED_3COM_GACFR,
+			    ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
+			break;
+#endif
+		case ED_VENDOR_WD_SMC:
+			/* XXX - same as ed_disable_16bit_access() */
+			if (sc->chip_type == ED_CHIP_TYPE_WD790)
+				ed_asic_outb(sc, ED_WD_MSR, 0x00);
+			ed_asic_outb(sc, ED_WD_LAAR,
+			    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
+			break;
+		}
+	}
+	return (len);
 }
