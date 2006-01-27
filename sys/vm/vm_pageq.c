@@ -248,6 +248,7 @@ vm_pageq_remove_nowakeup(vm_page_t m)
 {
 	int queue = VM_PAGE_GETQUEUE(m);
 	struct vpgqueues *pq;
+
 	if (queue != PQ_NONE) {
 		pq = &vm_page_queues[queue];
 		VM_PAGE_SETQUEUE2(m, PQ_NONE);
