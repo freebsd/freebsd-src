@@ -1547,7 +1547,6 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 		PROC_UNLOCK(p);
 		suword(&uaiocb->_aiocb_private.error, error);
 		suword(&uaiocb->_aiocb_private.status, status);
-		error = 0;
 	} else {
 		error = EINVAL;
 		PROC_UNLOCK(p);
