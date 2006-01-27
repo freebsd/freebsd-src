@@ -265,12 +265,20 @@ trap(frame)
 		 * do the VM lookup, so just consider it a fatal trap so the
 		 * kernel can print out a useful trap message and even get
 		 * to the debugger.
+		 *
+		 * If we get a page fault while holding a non-sleepable
+		 * lock, then it is most likely a fatal kernel page fault.
+		 * If WITNESS is enabled, then it's going to whine about
+		 * bogus LORs with various VM locks, so just skip to the
+		 * fatal trap handling directly.
 		 */
 		eva = rcr2();
-		if (td->td_critnest == 0)
-			enable_intr();
-		else
+		if (td->td_critnest != 0 ||
+		    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
+		    "Kernel page fault") != 0)
 			trap_fatal(&frame, eva);
+		else
+			enable_intr();
 	}
 
         if ((ISPL(frame.tf_cs) == SEL_UPL) ||
