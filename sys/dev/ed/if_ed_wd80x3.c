@@ -428,6 +428,7 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 	 */
 	error = ed_clear_memory(dev);
 	ed_disable_16bit_access(sc);
+	sc->sc_write_mbufs = ed_shmem_write_mbufs;
 	return (error);
 }
 

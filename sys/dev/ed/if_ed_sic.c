@@ -150,6 +150,7 @@ ed_probe_SIC(device_t dev, int port_rid, int flags)
 
 	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
 
+	sc->sc_write_mbufs = ed_shmem_write_mbufs;
 	return (0);
 }
 
