@@ -32,7 +32,7 @@
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2004
+.Dd January 27, 2006
 .Dt SU 1
 .Os
 .Sh NAME
@@ -52,7 +52,20 @@ and switches to that user ID
 (the default user is the superuser).
 A shell is then executed.
 .Pp
-PAM is used to set all policy.
+PAM is used to set the policy
+.Xr su 1
+will use.
+In particular, by default only users in the
+.Dq Li wheel
+group can switch to UID 0
+.Pq Dq Li root .
+This group requirement may be changed by modifying the 
+.Dq Li pam_group
+section of 
+.Pa /etc/pam.d/su .
+See 
+.Xr pam_group 8
+for details on how to modify this setting.
 .Pp
 By default, the environment is unmodified with the exception of
 .Ev USER ,
@@ -220,7 +233,8 @@ Simulate a login for root.
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr environ 7 ,
-.Xr pam 8
+.Xr pam 8 ,
+.Xr pam_group 8
 .Sh HISTORY
 A
 .Nm
