@@ -497,7 +497,7 @@ main(int argc, char *argv[])
 	int fd1, fd2, i, j, p;
 	struct utsname uts;
 
-	printf("version, juggle.c %s\n", "$P4: //depot/projects/netsmp/src/tools/netperf/juggle/juggle.c#3 $");
+	printf("version, juggle.c %s\n", "$FreeBSD$");
 
 	if (uname(&uts) < 0)
 		err(-1, "utsname");
