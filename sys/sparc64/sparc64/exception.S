@@ -1841,7 +1841,7 @@ tl0_fp_ieee:
 tl0_fp_other:
 	tl0_gen		T_FP_EXCEPTION_OTHER		! 0x22
 tl0_tag_ovflw:
-	tl0_gen		T_TAG_OFERFLOW			! 0x23
+	tl0_gen		T_TAG_OVERFLOW			! 0x23
 tl0_clean_window:
 	clean_window					! 0x24
 tl0_divide:
@@ -1946,7 +1946,7 @@ tl1_fp_ieee:
 tl1_fp_other:
 	tl1_gen		T_FP_EXCEPTION_OTHER		! 0x222
 tl1_tag_ovflw:
-	tl1_gen		T_TAG_OFERFLOW			! 0x223
+	tl1_gen		T_TAG_OVERFLOW			! 0x223
 tl1_clean_window:
 	clean_window					! 0x224
 tl1_divide:
