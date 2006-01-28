@@ -342,10 +342,10 @@ STATIC_ENTRY(_reloc, 1)
 
 	extr.u	r23=r16,0,32		// ELF64_R_TYPE(r16)
 	;;
-	cmp.eq	p6,p0=R_IA64_NONE,r23
+	cmp.eq	p6,p0=R_IA_64_NONE,r23
 (p6)	br.cond.dpnt.few 3f
 	;;
-	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_REL64LSB,r23
 (p6)	br.cond.dptk.few 4f
 	;;
 
@@ -364,10 +364,10 @@ STATIC_ENTRY(_reloc, 1)
 	add	r16=r16,in0		// relocate symbol value
 	;;
 
-	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_DIR64LSB,r23
 (p6)	br.cond.dptk.few 5f
 	;;
-	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_FPTR64LSB,r23
 (p6)	br.cond.dptk.few 6f
 	;;
 

@@ -29,50 +29,26 @@
 	.text
 
 #include <machine/asm.h>
-		
+
 #define EFI_SUCCESS		0
 #define EFI_LOAD_ERROR		1
 #define EFI_BUFFER_TOO_SMALL	5
-	
+
 #define DT_NULL		0	/* Terminating entry. */
-#define DT_NEEDED	1	/* String table offset of a needed shared
-				   library. */
 #define DT_PLTRELSZ	2	/* Total size in bytes of PLT relocations. */
-#define DT_PLTGOT	3	/* Processor-dependent address. */
-#define DT_HASH		4	/* Address of symbol hash table. */
-#define DT_STRTAB	5	/* Address of string table. */
 #define DT_SYMTAB	6	/* Address of symbol table. */
 #define DT_RELA		7	/* Address of ElfNN_Rela relocations. */
 #define DT_RELASZ	8	/* Total size of ElfNN_Rela relocations. */
 #define DT_RELAENT	9	/* Size of each ElfNN_Rela relocation entry. */
-#define DT_STRSZ	10	/* Size of string table. */
 #define DT_SYMENT	11	/* Size of each symbol table entry. */
-#define DT_INIT		12	/* Address of initialization function. */
-#define DT_FINI		13	/* Address of finalization function. */
-#define DT_SONAME	14	/* String table offset of shared object
-				   name. */
-#define DT_RPATH	15	/* String table offset of library path. */
-#define DT_SYMBOLIC	16	/* Indicates "symbolic" linking. */
-#define DT_REL		17	/* Address of ElfNN_Rel relocations. */
-#define DT_RELSZ	18	/* Total size of ElfNN_Rel relocations. */
-#define DT_RELENT	19	/* Size of each ElfNN_Rel relocation. */
-#define DT_PLTREL	20	/* Type of relocation used for PLT. */
-#define DT_DEBUG	21	/* Reserved (not used). */
-#define DT_TEXTREL	22	/* Indicates there may be relocations in
-				   non-writable segments. */
 #define DT_JMPREL	23	/* Address of PLT relocations. */
 
-#define DT_COUNT	24	/* Number of defined d_tag values. */
-	
-#define R_IA64_NONE		0	/* None */
-#define R_IA64_DIR64MSB		0x26	/* word64 MSB	S + A */
-#define R_IA64_DIR64LSB		0x27	/* word64 LSB	S + A */
-#define R_IA64_FPTR64MSB	0x46	/* word64 MSB	@fptr(S + A) */
-#define R_IA64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
-#define R_IA64_REL64MSB		0x6e	/* word64 MSB	BD + A */
-#define R_IA64_REL32LSB		0x6d	/* word32 LSB	BD + A */
-#define R_IA64_REL64LSB		0x6f	/* word64 LSB	BD + A */
-#define	R_IA64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
+#define R_IA_64_NONE		0	/* None */
+#define R_IA_64_DIR64LSB	0x27	/* word64 LSB	S + A */
+#define R_IA_64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
+#define R_IA_64_REL32LSB	0x6d	/* word32 LSB	BD + A */
+#define R_IA_64_REL64LSB	0x6f	/* word64 LSB	BD + A */
+#define	R_IA_64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
 
 ENTRY(_start, 2)
 	alloc	loc0=ar.pfs,2,3,3,0
@@ -134,7 +110,7 @@ _start_plabel:
 // r22 = size of PLT relocations
 // r23 = relocation type
 // r24 = address of symbol
-// r28 = R_IA64_IPLTLSB
+// r28 = R_IA_64_IPLTLSB
 // f8 = address of symbol table
 // f9 = size of symtab element
 
@@ -155,7 +131,7 @@ STATIC_ENTRY(_reloc, 2)
 	mov	r19=0
 	mov	r22=0
 	mov	r20=24
-	mov	r28=R_IA64_IPLTLSB
+	mov	r28=R_IA_64_IPLTLSB
 	;;
 1:
 	ld8	r16=[r15],8		// read r15->d_tag
@@ -214,13 +190,13 @@ STATIC_ENTRY(_reloc, 2)
 	sub	r19=r19,r20		// update relasz
 	extr.u	r23=r16,0,32		// ELF64_R_TYPE(r16)
 	;;
-	cmp.eq	p6,p0=R_IA64_NONE,r23
+	cmp.eq	p6,p0=R_IA_64_NONE,r23
 (p6)	br.cond.dpnt.few 2b
 	;;
-	cmp.eq	p6,p0=R_IA64_REL32LSB,r23
+	cmp.eq	p6,p0=R_IA_64_REL32LSB,r23
 (p6)	br.cond.dptk.few 3f
 	;;
-	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_REL64LSB,r23
 (p6)	br.cond.dptk.few 4f
 	;;
 	extr.u	r29=r16,32,32		// ELF64_R_SYM(r16)
@@ -237,10 +213,10 @@ STATIC_ENTRY(_reloc, 2)
 	;;
 	add	r24=r29,in0		// relocate symbol value
 	;;
-	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_DIR64LSB,r23
 (p6)	br.cond.dptk.few 5f
 	;;
-	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_FPTR64LSB,r23
 (p6)	br.cond.dptk.few 6f
 	;;
 	cmp.ne	p6,p0=r28,r23		// IPLTLSB
