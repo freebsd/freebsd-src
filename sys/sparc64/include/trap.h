@@ -41,7 +41,7 @@
 #define	T_FP_DISABLED			7
 #define	T_FP_EXCEPTION_IEEE_754		8
 #define	T_FP_EXCEPTION_OTHER		9
-#define	T_TAG_OFERFLOW			10
+#define	T_TAG_OVERFLOW			10
 #define	T_DIVISION_BY_ZERO		11
 #define	T_DATA_EXCEPTION		12
 #define	T_DATA_ERROR			13
