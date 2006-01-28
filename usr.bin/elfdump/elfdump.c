@@ -232,7 +232,7 @@ d_tags(u_int64_t tag) {
 	case 0x6fffffff: return "DT_VERNEEDNUM";
 	case 0x6ffffff0: return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "DT_IA64_PLT_RESERVE";
+	case 0x70000000: return "DT_IA_64_PLT_RESERVE";
 	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
 	case 0x7ffffffe: return "DT_SUNW_USED";
 	case 0x7fffffff: return "DT_SUNW_FILTER";

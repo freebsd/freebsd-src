@@ -564,7 +564,7 @@ init_pltgot(Obj_Entry *obj)
 	Elf_Addr *pltres = 0;
 
 	/*
-	 * When there are no PLT relocations, the DT_IA64_PLT_RESERVE entry
+	 * When there are no PLT relocations, the DT_IA_64_PLT_RESERVE entry
 	 * is bogus. Do not setup the BOR pointers in that case. An example
 	 * of where this happens is /usr/lib/libxpg4.so.3.
 	 */
@@ -575,12 +575,12 @@ init_pltgot(Obj_Entry *obj)
 	 * Find the PLT RESERVE section.
 	 */
 	for (dynp = obj->dynamic;  dynp->d_tag != DT_NULL;  dynp++) {
-		if (dynp->d_tag == DT_IA64_PLT_RESERVE)
+		if (dynp->d_tag == DT_IA_64_PLT_RESERVE)
 			pltres = (u_int64_t *)
 				(obj->relocbase + dynp->d_un.d_ptr);
 	}
 	if (!pltres)
-		errx(1, "Can't find DT_IA64_PLT_RESERVE entry");
+		errx(1, "Can't find DT_IA_64_PLT_RESERVE entry");
 
 	/*
 	 * The PLT RESERVE section is used to get values to pass to
