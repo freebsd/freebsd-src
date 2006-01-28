@@ -1920,7 +1920,6 @@ vget( struct vnode *vp, int flags, struct thread *td)
 {
 	int oweinact;
 	int oldflags;
-	int usecount;
 	int error;
 
 	error = 0;
@@ -1942,7 +1941,6 @@ vget( struct vnode *vp, int flags, struct thread *td)
 		flags |= LK_EXCLUSIVE;
 		oweinact = 1;
 	}
-	usecount = vp->v_usecount;
 	v_incr_usecount(vp);
 	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
 		VI_LOCK(vp);
@@ -1953,24 +1951,6 @@ vget( struct vnode *vp, int flags, struct thread *td)
 		 * active.
 		 */
 		v_decr_usecount(vp);
-		/*
-		 * Print warning when race below occur:
-		 *
-		 * thread1	thread2
-		 * -------	-------
-		 *					v_usecount=0
-		 * vref(vp)				v_usecount=1
-		 *		vget(vp)
-		 *		v_incr_usecount(vp)	v_usecount=2
-		 *		vn_lock(vp)
-		 * vrele(vp)				v_usecount=1
-		 *		v_decr_usecount(vp)	v_usecount=0
-		 *
-		 * In such situation VOP_INACTIVE() will not be called for
-		 * the vnode vp.
-		 */
-		if (usecount > 0 && vp->v_usecount == 0)
-			printf("vinactive() won't be called for vp=%p\n", vp);
 		return (error);
 	}
 	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
