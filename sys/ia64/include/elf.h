@@ -239,6 +239,6 @@ __ElfType(Auxinfo);
 
 /* Processor specific dynmamic section tags. */
 
-#define	DT_IA64_PLT_RESERVE	0x70000000
+#define	DT_IA_64_PLT_RESERVE	0x70000000
 
 #endif /* !_MACHINE_ELF_H_ */
