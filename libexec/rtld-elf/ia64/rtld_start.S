@@ -162,9 +162,9 @@ END(_rtld_bind_start)
 #define DT_RELASZ	8	/* Total size of ElfNN_Rela relocations. */
 #define DT_RELAENT	9	/* Size of each ElfNN_Rela relocation entry. */
 
-#define R_IA64_NONE		0	/* None */
-#define R_IA64_DIR64LSB		0x27	/* word64 LSB	S + A */
-#define R_IA64_REL64LSB		0x6f	/* word64 LSB	BD + A */
+#define R_IA_64_NONE		0	/* None */
+#define R_IA_64_DIR64LSB	0x27	/* word64 LSB	S + A */
+#define R_IA_64_REL64LSB	0x6f	/* word64 LSB	BD + A */
 
 /*
  * _rtld_reloc:	relocate the rtld image, apart from @fptrs.
@@ -216,14 +216,14 @@ STATIC_ENTRY(_rtld_reloc, 1)
 
 	extr.u	r23=r16,0,32		// ELF64_R_TYPE(r16)
 	;;
-	cmp.eq	p6,p0=R_IA64_NONE,r23
+	cmp.eq	p6,p0=R_IA_64_NONE,r23
 (p6)	br.cond.dpnt.few 3f
 	;;
-	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_DIR64LSB,r23
 	;;
 (p6)	br.cond.dptk.few 4f
 	;;
-	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
+	cmp.eq	p6,p0=R_IA_64_REL64LSB,r23
 	;;
 (p6)	br.cond.dptk.few 4f
 	;;
