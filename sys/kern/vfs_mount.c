@@ -818,10 +818,18 @@ vfs_domount(
 			vput(vp);
 			return (ENOTDIR);
 		}
-		vfsp = vfs_byname_kld(fstype, td, &error);
-		if (vfsp == NULL) {
-			vput(vp);
-			return (error);
+		/* Don't try to load KLDs if we're mounting the root. */
+		if (fsflags & MNT_ROOTFS) {
+			if ((vfsp = vfs_byname(fstype)) == NULL) {
+				vput(vp);
+				return (ENODEV);
+			}
+		} else {
+			vfsp = vfs_byname_kld(fstype, td, &error);
+			if (vfsp == NULL) {
+				vput(vp);
+				return (error);
+			}
 		}
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_MOUNT) != 0 ||
