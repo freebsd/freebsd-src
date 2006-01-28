@@ -2324,7 +2324,7 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
                                size,                    /* maxsize */
                                1,                       /* nsegments */
                                size,                    /* maxsegsize */
-                               BUS_DMA_ALLOCNOW,        /* flags */
+                               0,		        /* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
                                &dma->dma_tag);
