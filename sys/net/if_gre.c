@@ -120,14 +120,14 @@ static void	greattach(void);
 extern struct domain inetdomain;
 static const struct protosw in_gre_protosw =
 { SOCK_RAW,     &inetdomain,    IPPROTO_GRE,    PR_ATOMIC|PR_ADDR,
-  (pr_input_t*)gre_input, (pr_output_t*)rip_output, rip_ctlinput, rip_ctloutput,
+  gre_input, (pr_output_t*)rip_output, rip_ctlinput, rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
 };
 static const struct protosw in_mobile_protosw =
 { SOCK_RAW,     &inetdomain,    IPPROTO_MOBILE, PR_ATOMIC|PR_ADDR,
-  (pr_input_t*)gre_mobile_input, (pr_output_t*)rip_output, rip_ctlinput, rip_ctloutput,
+  gre_mobile_input, (pr_output_t*)rip_output, rip_ctlinput, rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
