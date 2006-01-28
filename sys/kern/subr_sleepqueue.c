@@ -853,7 +853,9 @@ DB_SHOW_COMMAND(sleepq, db_show_sleepqueue)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
+#ifdef INVARIANTS
 	struct lock_object *lock;
+#endif
 	struct thread *td;
 	void *wchan;
 	int i;
