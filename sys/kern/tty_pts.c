@@ -158,21 +158,20 @@ static LIST_HEAD(,pt_desc)	pt_free_list;
 
 static unsigned int next_avail_nb;
 
-static int use_old_pty = 0;
+static int use_pts = 0;
 
 static unsigned int max_pts = 1000;
 
 static unsigned int nb_allocated;
 
-TUNABLE_INT("kern.pts.enable", &use_old_pty);
+TUNABLE_INT("kern.pts.enable", &use_pts);
 
 SYSCTL_NODE(_kern, OID_AUTO, pts, CTLFLAG_RD, 0, "pts");
 
-SYSCTL_INT(_kern_pts, OID_AUTO, enable, CTLFLAG_RW, &use_old_pty, 0,
+SYSCTL_INT(_kern_pts, OID_AUTO, enable, CTLFLAG_RW, &use_pts, 0,
     "enable pts");
 
-SYSCTL_INT(_kern_pts, OID_AUTO, max, CTLFLAG_RW, &max_pts, 0,
-    "max pts");
+SYSCTL_INT(_kern_pts, OID_AUTO, max, CTLFLAG_RW, &max_pts, 0, "max pts");
 
 /*
  * If there's a free pty descriptor in the pty descriptor list, retrieve it.
