@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -217,7 +217,8 @@ struct ral_tx_desc {
 	uint8_t		plcp_service;
 #define RAL_PLCP_LENGEXT	0x80
 
-	uint16_t	plcp_length;
+	uint8_t		plcp_length_lo;
+	uint8_t		plcp_length_hi;
 	uint32_t	iv;
 	uint32_t	eiv;
 	uint8_t		key[IEEE80211_KEYBUF_SIZE];
@@ -229,6 +230,7 @@ struct ral_rx_desc {
 	uint32_t	flags;
 #define RAL_RX_BUSY		(1 << 0)
 #define RAL_RX_CRC_ERROR	(1 << 5)
+#define RAL_RX_OFDM		(1 << 6)
 #define RAL_RX_PHY_ERROR	(1 << 7)
 #define RAL_RX_CIPHER_BUSY	(1 << 8)
 #define RAL_RX_ICV_ERROR	(1 << 9)
