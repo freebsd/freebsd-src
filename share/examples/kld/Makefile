@@ -67,6 +67,6 @@
 #	$FreeBSD$
 #
 
-SUBDIR=	cdev syscall dyn_sysctl
+SUBDIR=	cdev dyn_sysctl firmware syscall
 
 .include <bsd.subdir.mk>
