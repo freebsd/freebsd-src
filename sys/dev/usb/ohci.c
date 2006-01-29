@@ -393,6 +393,8 @@ ohci_detach(struct ohci_softc *sc, int flags)
 
 	if (rv != 0)
 		return (rv);
+#else
+	sc->sc_dying = 1;
 #endif
 
 	usb_uncallout(sc->sc_tmo_rhsc, ohci_rhsc_enable, sc);
