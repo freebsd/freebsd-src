@@ -180,7 +180,7 @@ exported on a server.
 .Pp
 A
 .Sm off
-.Fl index No = Sy file
+.Fl index No = Pa file
 .Sm on
 option can be used to specify a file whose handle will be returned if
 a directory is looked up using the public filehandle
@@ -275,14 +275,14 @@ the default remote mount-point file
 .Ed
 .Pp
 Given that
-.Sy /usr ,
-.Sy /u
+.Pa /usr ,
+.Pa /u
 and
-.Sy /u2
+.Pa /u2
 are
 local file system mount points, the above example specifies the following:
 .Pp
-.Sy /usr
+.Pa /usr
 is exported to hosts
 .Em friends
 where friends is specified in the netgroup file
@@ -299,23 +299,23 @@ root mapped to the user and groups associated with ``daemon'';
 it is exported to the rest of the world as read-only with
 all users mapped to the user and groups associated with ``nobody''.
 .Pp
-.Sy /u
+.Pa /u
 is exported to all hosts on the subnetwork
 .Em 131.104.48
 with root mapped to the uid for ``bin'' and with no group access.
 .Pp
-.Sy /u2
+.Pa /u2
 is exported to the hosts in ``friends'' with root mapped to uid and groups
 associated with ``root'';
 it is exported to all hosts on network ``cis-net'' allowing mounts at any
 directory within /u2.
 .Pp
 The file system rooted at
-.Sy /cdrom
+.Pa /cdrom
 will exported read-only to the entire network 192.168.33.0/24, including
 all its subdirectories.
 Since
-.Sy /cdrom
+.Pa /cdrom
 is the conventional mountpoint for a CD-ROM device, this export will
 fail if no CD-ROM medium is currently mounted there since that line
 would then attempt to export a subdirectory of the root file system
@@ -331,15 +331,15 @@ As soon as an actual CD-ROM is going to be mounted,
 will notify
 .Xr mountd 8
 about this situation, and the
-.Sy /cdrom
+.Pa /cdrom
 file system will be exported as intended.
 Note that without using the
 .Fl alldirs
 option, the export would always succeed.
 While there is no CD-ROM medium mounted under
-.Sy /cdrom ,
+.Pa /cdrom ,
 it would export the (normally empty) directory
-.Sy /cdrom
+.Pa /cdrom
 of the root file system instead.
 .Sh SEE ALSO
 .Xr netgroup 5 ,
