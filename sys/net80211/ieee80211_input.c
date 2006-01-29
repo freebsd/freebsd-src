@@ -1769,6 +1769,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		scan.chan = scan.bchan;
 
 		while (frm < efrm) {
+			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1]);
 			switch (*frm) {
 			case IEEE80211_ELEMID_SSID:
 				scan.ssid = frm;
@@ -2001,6 +2002,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		 */
 		ssid = rates = xrates = NULL;
 		while (frm < efrm) {
+			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1]);
 			switch (*frm) {
 			case IEEE80211_ELEMID_SSID:
 				ssid = frm;
@@ -2177,6 +2179,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			frm += 6;	/* ignore current AP info */
 		ssid = rates = xrates = wpa = wme = NULL;
 		while (frm < efrm) {
+			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1]);
 			switch (*frm) {
 			case IEEE80211_ELEMID_SSID:
 				ssid = frm;
@@ -2381,6 +2384,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 
 		rates = xrates = wpa = wme = NULL;
 		while (frm < efrm) {
+			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1]);
 			switch (*frm) {
 			case IEEE80211_ELEMID_RATES:
 				rates = frm;
