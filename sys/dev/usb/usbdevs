@@ -1319,6 +1319,8 @@ product PLX TESTBOARD		0x9060	test board
 
 /* PNY products */
 product PNY ATTACHE		0x1300	USB 2.0 Flash Drive
+product PNY A256MB		0x1400	Attache 256MB USB 2.0 Flash Drive
+product PNY DISKPRO512		0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB flash drive)
 
 /* Primax products */
 product PRIMAX G2X300		0x0300	G2-200 scanner
@@ -1393,6 +1395,8 @@ product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
 product SANDISK SDDR75		0x0810	ImageMate SDDR-75
 product SANDISK SDCZ2_256	0x7104	Cruzer Mini 256MB
+product SANDISK SDCZ4_128	0x7112	Cruzer Micro 128MB
+product SANDISK SDCZ4_256	0x7113	Cruzer Micro 256MB
 
 /* Sanyo Electric products */
 product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
