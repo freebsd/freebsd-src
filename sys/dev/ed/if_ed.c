@@ -3520,6 +3520,7 @@ ds_getmcaf(sc, mcaf)
 	mcaf[0] = 0;
 	mcaf[1] = 0;
 
+	IF_ADDR_LOCK(sc->ifp);
 	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -3527,4 +3528,5 @@ ds_getmcaf(sc, mcaf)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		af[index >> 3] |= 1 << (index & 7);
 	}
+	IF_ADDR_UNLOCK(sc->ifp);
 }

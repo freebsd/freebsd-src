@@ -2118,6 +2118,7 @@ wlconfig(struct wl_softc *sc)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
+    IF_ADDR_LOCK(sc->ifp);
     TAILQ_FOREACH(ifma, &sc->wl_if.if_multiaddrs, ifma_link) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 	    continue;
@@ -2128,6 +2129,7 @@ wlconfig(struct wl_softc *sc)
         outw(PIOP1(base), addrp[4] + (addrp[5] << 8));
         ++cnt;
     }
+    IF_ADDR_UNLOCK(sc->ifp);
     outw(PIOR1(base), OFFSET_CU + 6);		/* mc-cnt */
     outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
     if (wlcmd(sc, "config()-mcaddress") == 0)

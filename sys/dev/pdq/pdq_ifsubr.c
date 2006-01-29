@@ -282,6 +282,7 @@ pdq_os_addr_fill(
     sc->sc_if.if_flags &= ~IFF_ALLMULTI;
 #endif
 
+    IF_ADDR_LOCK(PDQ_IFNET(sc));
     for (ifma = TAILQ_FIRST(&sc->sc_if.if_multiaddrs); ifma && num_addrs > 0;
 	 ifma = TAILQ_NEXT(ifma, ifma_link)) {
 	    char *mcaddr;
@@ -294,6 +295,7 @@ pdq_os_addr_fill(
 	    addr++;
 	    num_addrs--;
     }
+    IF_ADDR_UNLOCK(PDQ_IFNET(sc));
     /*
      * If not all the address fit into the CAM, turn on all-multicast mode.
      */

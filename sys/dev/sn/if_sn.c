@@ -1413,9 +1413,12 @@ sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 
 	bzero(mcf, MCFSZ);
 
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ac->ac_if.if_multiaddrs, ifma_link) {
-	    if (ifma->ifma_addr->sa_family != AF_LINK)
+	    if (ifma->ifma_addr->sa_family != AF_LINK) {
+		IF_ADDR_UNLOCK(ifp);
 		return 0;
+	    }
 	    index = ether_crc32_le(LLADDR((struct sockaddr_dl *)
 		ifma->ifma_addr), ETHER_ADDR_LEN) & 0x3f;
 	    index2 = 0;
@@ -1426,5 +1429,6 @@ sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 	    }
 	    af[index2 >> 3] |= 1 << (index2 & 7);
 	}
+	IF_ADDR_UNLOCK(ifp);
 	return 1;  /* use multicast filter */
 }

@@ -2045,6 +2045,7 @@ fe_mcaf ( struct fe_softc *sc )
 	struct ifmultiaddr *ifma;
 
 	filter = fe_filter_nothing;
+	IF_ADDR_LOCK(sc->ifp);
 	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -2057,6 +2058,7 @@ fe_mcaf ( struct fe_softc *sc )
 
 		filter.data[index >> 3] |= 1 << (index & 7);
 	}
+	IF_ADDR_UNLOCK(sc->ifp);
 	return ( filter );
 }
 

@@ -2999,8 +2999,8 @@ tulip_addr_filter(
 #endif
 
     multicnt = 0;
+    IF_ADDR_LOCK(sc->tulip_ifp);
     TAILQ_FOREACH(ifma, &sc->tulip_if.if_multiaddrs, ifma_link) {
-
 	    if (ifma->ifma_addr->sa_family == AF_LINK)
 		multicnt++;
     }
@@ -3121,6 +3121,7 @@ tulip_addr_filter(
 #endif
 	}
     }
+    IF_ADDR_UNLOCK(sc->tulip_ifp);
 #if defined(IFF_ALLMULTI)
     if (sc->tulip_flags & TULIP_ALLMULTI)
 	sc->tulip_if.if_flags |= IFF_ALLMULTI;

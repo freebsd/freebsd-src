@@ -391,6 +391,7 @@ lge_setmulti(sc)
 	CSR_WRITE_4(sc, LGE_MAR1, 0);
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -401,6 +402,7 @@ lge_setmulti(sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	CSR_WRITE_4(sc, LGE_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, LGE_MAR1, hashes[1]);

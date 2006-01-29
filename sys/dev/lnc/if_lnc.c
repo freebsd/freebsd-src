@@ -239,6 +239,7 @@ lnc_setladrf(struct lnc_softc *sc)
 	 */
 
 	bzero(sc->init_block->ladrf, MULTICAST_FILTER_LEN);
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -247,6 +248,7 @@ lnc_setladrf(struct lnc_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
 	}
+	IF_ADDR_UNLOCK(ifp);
 }
 
 void

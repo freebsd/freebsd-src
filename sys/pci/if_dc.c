@@ -1112,6 +1112,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1119,6 +1120,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (ifp->if_flags & IFF_BROADCAST) {
 		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
@@ -1181,6 +1183,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 		return;
 
 	/* Now program new ones. */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1195,6 +1198,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	CSR_WRITE_4(sc, DC_AL_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, DC_AL_MAR1, hashes[1]);
@@ -1252,6 +1256,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 		return;
 
 	/* now program new ones */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1261,6 +1266,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_MAR0);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA, hashes[0]);
@@ -1304,6 +1310,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1311,6 +1318,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (ifp->if_flags & IFF_BROADCAST) {
 		h = dc_mchash_le(sc, ifp->if_broadcastaddr);

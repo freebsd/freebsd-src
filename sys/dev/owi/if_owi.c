@@ -1209,6 +1209,7 @@ wi_setmulti(sc)
 		return;
 	}
 
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1221,6 +1222,7 @@ wi_setmulti(sc)
 			break;
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	mcast.wi_len = (i * 3) + 1;
 	wi_write_record(sc, (struct wi_ltv_gen *)&mcast);

@@ -1035,6 +1035,7 @@ udav_setmulti(struct udav_softc *sc)
 		ETHER_NEXT_MULTI(step, enm);
 	}
 #elif defined(__FreeBSD__)
+	IF_ADDR_LOCK(ifp);
 #if __FreeBSD_version >= 500000
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 #else
@@ -1047,6 +1048,7 @@ udav_setmulti(struct udav_softc *sc)
 		    ifma->ifma_addr));
 		hashes[h>>3] |= 1 << (h & 0x7);
 	}
+	IF_ADDR_UNLOCK(ifp);
 #endif
 
 	/* disable all multicast */
