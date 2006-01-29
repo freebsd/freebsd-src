@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -23,6 +23,7 @@
 struct ural_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
 	uint8_t		wr_flags;
+	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
 	uint8_t		wr_antenna;
@@ -31,6 +32,7 @@ struct ural_rx_radiotap_header {
 
 #define RAL_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
+	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA) |				\
 	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
@@ -67,6 +69,14 @@ struct ural_rx_data {
 	struct mbuf		*m;
 };
 
+struct ural_amrr {
+	int	txcnt;
+	int	retrycnt;
+	int	success;
+	int	success_threshold;
+	int	recovery;
+};
+
 struct ural_softc {
 	struct ifnet			*sc_ifp;
 	struct ieee80211com		sc_ic;
@@ -82,11 +92,15 @@ struct ural_softc {
 	uint32_t			asic_rev;
 	uint8_t				rf_rev;
 
+	usbd_xfer_handle		amrr_xfer;
+
 	usbd_pipe_handle		sc_rx_pipeh;
 	usbd_pipe_handle		sc_tx_pipeh;
 
 	enum ieee80211_state		sc_state;
 	struct usb_task			sc_task;
+
+	struct ural_amrr		amrr;
 
 	struct ural_rx_data		rx_data[RAL_RX_LIST_COUNT];
 	struct ural_tx_data		tx_data[RAL_TX_LIST_COUNT];
@@ -97,9 +111,11 @@ struct ural_softc {
 	struct mtx			sc_mtx;
 
 	struct callout			scan_ch;
+	struct callout			amrr_ch;
 
 	int				sc_tx_timer;
 
+	uint16_t			sta[11];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[14];
 
