@@ -36,6 +36,8 @@
 #
 # SRCS		List of source files.
 #
+# FIRMWS	List of firmware images in format filename:shortname:version
+#
 # DESTDIR	The tree where the module gets installed. [not set]
 #
 # +++ targets +++
@@ -117,6 +119,32 @@ CFLAGS+=	-fno-omit-frame-pointer
 
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
+.endif
+
+.if defined(FIRMWS)
+.if !exists(@)
+${KMOD:S/$/.c/}: @
+.else
+${KMOD:S/$/.c/}: @/tools/fw_stub.awk
+.endif
+	${AWK} -f @/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g}
+
+SRCS+=	${KMOD:S/$/.c/}
+CLEANFILES+=	${KMOD:S/$/.c/}
+
+.for _firmw in ${FIRMWS}
+${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
+	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
+.if !exists(${.CURDIR}/${_firmw:C/\:.*$//})
+	ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}
+	${LD} -b binary ${LDFLAGS} -r -d -o ${.TARGET} ${_firmw:C/\:.*$//}
+	rm -f ${_firmw:C/\:.*$//}
+.else
+	${LD} -b binary ${LDFLAGS} -r -d -o ${.TARGET} ${_firmw:C/\:.*$//}
+.endif
+
+OBJS+=	${_firmw:C/\:.*$/.fwo/}
+.endfor
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}

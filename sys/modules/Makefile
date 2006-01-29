@@ -77,6 +77,7 @@ SUBDIR=	${_3dfx} \
 	fdescfs \
 	${_fe} \
 	firewire \
+	firmware \
 	fxp \
 	${_gem} \
 	geom \
