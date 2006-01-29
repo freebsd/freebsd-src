@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004
+.\" Copyright (c) 2004-2006
 .\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd January 29, 2006
 .Os
 .Dt IPW 4
 .Sh NAME
@@ -83,13 +83,13 @@ Join a specific BSS network with network name
 Join a specific BSS network with 40-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x1234567890
+    wepmode on wepkey 0x1234567890 weptxkey 1
 .Ed
 .Pp
 Join a specific BSS network with 104-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x01020304050607080910111213
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -110,9 +110,7 @@ before proceeding.
 .Xr pci 4 ,
 .Xr wi 4 ,
 .Xr wlan 4 ,
-.Xr ifconfig 8 ,
-.Xr ipwcontrol 8 ,
-.Xr wicontrol 8
+.Xr ifconfig 8
 .Rs
 .%T The IPW Web Page
 .%O http://damien.bergamini.free.fr/ipw/
