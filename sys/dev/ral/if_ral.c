@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -105,6 +105,7 @@ static void		ral_rx_intr(struct ral_softc *);
 static void		ral_beacon_expire(struct ral_softc *);
 static void		ral_wakeup_expire(struct ral_softc *);
 static void		ral_intr(void *);
+static uint8_t		ral_rxrate(struct ral_rx_desc *);
 static int		ral_ack_rate(struct ieee80211com *, int);
 static uint16_t		ral_txtime(int, int, uint32_t);
 static uint8_t		ral_plcp_signal(int);
@@ -134,6 +135,7 @@ static void		ral_disable_rf_tune(struct ral_softc *);
 static void		ral_enable_tsf_sync(struct ral_softc *);
 static void		ral_update_plcp(struct ral_softc *);
 static void		ral_update_slot(struct ifnet *);
+static void		ral_set_basicrates(struct ral_softc *);
 static void		ral_update_led(struct ral_softc *, int, int);
 static void		ral_set_bssid(struct ral_softc *, uint8_t *);
 static void		ral_set_macaddr(struct ral_softc *, uint8_t *);
@@ -292,7 +294,6 @@ static const struct {
 	uint32_t	r2;
 	uint32_t	r4;
 } ral_rf5222[] = {
-	/* channels in the 2.4GHz band */
 	{   1, 0x08808, 0x0044d, 0x00282 },
 	{   2, 0x08808, 0x0044e, 0x00282 },
 	{   3, 0x08808, 0x0044f, 0x00282 },
@@ -308,7 +309,6 @@ static const struct {
 	{  13, 0x08808, 0x00469, 0x00282 },
 	{  14, 0x08808, 0x0046b, 0x00286 },
 
-	/* channels in the 5.2GHz band */
 	{  36, 0x08804, 0x06225, 0x00287 },
 	{  40, 0x08804, 0x06226, 0x00287 },
 	{  44, 0x08804, 0x06227, 0x00287 },
@@ -973,8 +973,9 @@ static int
 ral_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ral_softc *sc = ic->ic_ifp->if_softc;
-	struct mbuf *m;
 	enum ieee80211_state ostate;
+	struct ieee80211_node *ni;
+	struct mbuf *m;
 	int error = 0;
 
 	ostate = ic->ic_state;
@@ -1010,24 +1011,17 @@ ral_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_RUN:
 		ral_set_chan(sc, ic->ic_curchan);
 
-		/* update basic rate set */
-		if (ic->ic_curmode == IEEE80211_MODE_11B) {
-			/* 11b basic rates: 1, 2Mbps */
-			RAL_WRITE(sc, RAL_ARSP_PLCP_1, 0x3);
-		} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
-			/* 11a basic rates: 6, 12, 24Mbps */
-			RAL_WRITE(sc, RAL_ARSP_PLCP_1, 0x150);
-		} else {
-			/* 11g basic rates: 1, 2, 5.5, 11, 6, 12, 24Mbps */
-			RAL_WRITE(sc, RAL_ARSP_PLCP_1, 0x15f);
-		}
+		ni = ic->ic_bss;
 
-		if (ic->ic_opmode != IEEE80211_M_MONITOR)
-			ral_set_bssid(sc, ic->ic_bss->ni_bssid);
+		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+			ral_update_plcp(sc);
+			ral_set_basicrates(sc);
+			ral_set_bssid(sc, ni->ni_bssid);
+		}
 
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 		    ic->ic_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ic, ic->ic_bss, &sc->sc_bo);
+			m = ieee80211_beacon_alloc(ic, ni, &sc->sc_bo);
 			if (m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate beacon\n");
@@ -1035,8 +1029,8 @@ ral_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 				break;
 			}
 
-			ieee80211_ref_node(ic->ic_bss);
-			error = ral_tx_bcn(sc, m, ic->ic_bss);
+			ieee80211_ref_node(ni);
+			error = ral_tx_bcn(sc, m, ni);
 			if (error != 0)
 				break;
 		}
@@ -1111,7 +1105,7 @@ ral_eeprom_read(struct ral_softc *sc, uint8_t addr)
 	RAL_EEPROM_CTL(sc, 0);
 	RAL_EEPROM_CTL(sc, RAL_EEPROM_C);
 
-	return le16toh(val);
+	return val;
 }
 
 /*
@@ -1404,15 +1398,15 @@ ral_decryption_intr(struct ral_softc *sc)
 			uint32_t tsf_lo, tsf_hi;
 
 			/* get timestamp (low and high 32 bits) */
-			tsf_lo = RAL_READ(sc, RAL_CSR16);
 			tsf_hi = RAL_READ(sc, RAL_CSR17);
+			tsf_lo = RAL_READ(sc, RAL_CSR16);
 
 			tap->wr_tsf =
 			    htole64(((uint64_t)tsf_hi << 32) | tsf_lo);
 			tap->wr_flags = 0;
-			tap->wr_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-			tap->wr_chan_flags =
-			    htole16(ic->ic_ibss_chan->ic_flags);
+			tap->wr_rate = ral_rxrate(desc);
+			tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
+			tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 			tap->wr_antenna = sc->rx_ant;
 			tap->wr_antsignal = desc->rssi;
 
@@ -1584,7 +1578,39 @@ ral_intr(void *arg)
 #define RAL_CTS_SIZE	14	/* 10 + 4(FCS) */
 
 #define RAL_SIFS		10	/* us */
+
 #define RAL_TXRX_TURNAROUND	10	/* us */
+
+/*
+ * This function is only used by the Rx radiotap code.
+ */
+static uint8_t
+ral_rxrate(struct ral_rx_desc *desc)
+{
+	if (le32toh(desc->flags) & RAL_RX_OFDM) {
+		/* reverse function of ral_plcp_signal */
+		switch (desc->rate) {
+		case 0xb:	return 12;
+		case 0xf:	return 18;
+		case 0xa:	return 24;
+		case 0xe:	return 36;
+		case 0x9:	return 48;
+		case 0xd:	return 72;
+		case 0x8:	return 96;
+		case 0xc:	return 108;
+		}
+	} else {
+		if (desc->rate == 10)
+			return 2;
+		if (desc->rate == 20)
+			return 4;
+		if (desc->rate == 55)
+			return 11;
+		if (desc->rate == 110)
+			return 22;
+	}
+	return 2;	/* should not get there */
+}
 
 /*
  * Return the expected ack rate for a frame transmitted at rate `rate'.
@@ -1683,25 +1709,22 @@ ral_setup_tx_desc(struct ral_softc *sc, struct ral_tx_desc *desc,
 	desc->flags |= htole32(len << 16);
 	desc->flags |= encrypt ? htole32(RAL_TX_CIPHER_BUSY) :
 	    htole32(RAL_TX_BUSY | RAL_TX_VALID);
-	if (RAL_RATE_IS_OFDM(rate))
-		desc->flags |= htole32(RAL_TX_OFDM);
 
 	desc->physaddr = htole32(physaddr);
-	desc->wme = htole16(RAL_AIFSN(3) | RAL_LOGCWMIN(4) | RAL_LOGCWMAX(6));
+	desc->wme = htole16(RAL_AIFSN(2) | RAL_LOGCWMIN(3) | RAL_LOGCWMAX(8));
 
-	/*
-	 * Fill PLCP fields.
-	 */
+	/* setup PLCP fields */
+	desc->plcp_signal  = ral_plcp_signal(rate);
 	desc->plcp_service = 4;
 
-	len += 4; /* account for FCS */
+	len += IEEE80211_CRC_LEN;
 	if (RAL_RATE_IS_OFDM(rate)) {
-		/* IEEE Std 802.11a-1999, pp. 14 */
+		desc->flags |= htole32(RAL_TX_OFDM);
+
 		plcp_length = len & 0xfff;
 		desc->plcp_length_hi = plcp_length >> 6;
 		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
-		/* IEEE Std 802.11b-1999, pp. 16 */
 		plcp_length = (16 * len + rate - 1) / rate;
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
@@ -1710,11 +1733,10 @@ ral_setup_tx_desc(struct ral_softc *sc, struct ral_tx_desc *desc,
 		}
 		desc->plcp_length_hi = plcp_length >> 8;
 		desc->plcp_length_lo = plcp_length & 0xff;
-	}
 
-	desc->plcp_signal = ral_plcp_signal(rate);
-	if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
-		desc->plcp_signal |= 0x08;
+		if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
+			desc->plcp_signal |= 0x08;
+	}
 }
 
 static int
@@ -1745,8 +1767,8 @@ ral_tx_bcn(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
@@ -1801,8 +1823,8 @@ ral_tx_mgt(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
@@ -1927,7 +1949,7 @@ ral_tx_data(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		uint16_t dur;
 		int rtsrate, ackrate;
 
-		rtsrate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 4;
+		rtsrate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 2;
 		ackrate = ral_ack_rate(ic, rate);
 
 		dur = ral_txtime(m0->m_pkthdr.len + 4, rate, ic->ic_flags) +
@@ -2016,8 +2038,8 @@ ral_tx_data(struct ral_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
@@ -2291,7 +2313,6 @@ ral_rf_write(struct ral_softc *sc, uint8_t reg, uint32_t val)
 static void
 ral_set_chan(struct ral_softc *sc, struct ieee80211_channel *c)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t power, tmp;
 	u_int i, chan;
@@ -2359,16 +2380,12 @@ ral_set_chan(struct ral_softc *sc, struct ieee80211_channel *c)
 
 	/* dual-band RF */
 	case RAL_RF_5222:
-		for (i = 0; i < N(ral_rf5222); i++)
-			if (ral_rf5222[i].chan == chan)
-				break;
+		for (i = 0; ral_rf5222[i].chan != chan; i++);
 
-		if (i < N(ral_rf5222)) {
-			ral_rf_write(sc, RAL_RF1, ral_rf5222[i].r1);
-			ral_rf_write(sc, RAL_RF2, ral_rf5222[i].r2);
-			ral_rf_write(sc, RAL_RF3, power << 7 | 0x00040);
-			ral_rf_write(sc, RAL_RF4, ral_rf5222[i].r4);
-		}
+		ral_rf_write(sc, RAL_RF1, ral_rf5222[i].r1);
+		ral_rf_write(sc, RAL_RF2, ral_rf5222[i].r2);
+		ral_rf_write(sc, RAL_RF3, power << 7 | 0x00040);
+		ral_rf_write(sc, RAL_RF4, ral_rf5222[i].r4);
 		break;
 	}
 
@@ -2385,7 +2402,6 @@ ral_set_chan(struct ral_softc *sc, struct ieee80211_channel *c)
 		/* clear CRC errors */
 		RAL_READ(sc, RAL_CNT0);
 	}
-#undef N
 }
 
 #if 0
@@ -2500,6 +2516,24 @@ ral_update_slot(struct ifnet *ifp)
 	RAL_WRITE(sc, RAL_CSR19, tmp);
 
 	DPRINTF(("setting slottime to %uus\n", slottime));
+}
+
+static void
+ral_set_basicrates(struct ral_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	/* update basic rate set */
+	if (ic->ic_curmode == IEEE80211_MODE_11B) {
+		/* 11b basic rates: 1, 2Mbps */
+		RAL_WRITE(sc, RAL_ARSP_PLCP_1, 0x3);
+	} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
+		/* 11a basic rates: 6, 12, 24Mbps */
+		RAL_WRITE(sc, RAL_ARSP_PLCP_1, 0x150);
+	} else {
+		/* 11g basic rates: 1, 2, 5.5, 11, 6, 12, 24Mbps */
+		RAL_WRITE(sc, RAL_ARSP_PLCP_1, 0x15f);
+	}
 }
 
 static void
@@ -2755,8 +2789,6 @@ ral_init(void *priv)
 	}
 
 	/* set default BSS channel */
-	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
-	ic->ic_curchan = ic->ic_ibss_chan;
 	ral_set_chan(sc, ic->ic_curchan);
 
 	/* kick Rx */
