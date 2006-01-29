@@ -88,6 +88,11 @@
 #define PCIM_MFDEV		0x80
 #define PCIR_BIST	0x0f
 
+/* Capability Register Offsets */
+
+#define	PCICAP_ID	0x0
+#define	PCICAP_NEXTPTR	0x1
+
 /* Capability Identification Numbers */
 
 #define PCIY_PMG	0x01	/* PCI Power Management */
@@ -111,11 +116,24 @@
 
 #define PCIR_BARS	0x10
 #define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
-#define PCIR_CARDBUSCIS	0x28
+#define PCI_RID2BAR(rid) (((rid)-PCIR_BARS)/4)
+#define PCIR_CIS	0x28
+#define PCIM_CIS_ASI_MASK	0x7
+#define PCIM_CIS_ASI_TUPLE	0
+#define PCIM_CIS_ASI_BAR0	1
+#define PCIM_CIS_ASI_BAR1	2
+#define PCIM_CIS_ASI_BAR2	3
+#define PCIM_CIS_ASI_BAR3	4
+#define PCIM_CIS_ASI_BAR4	5
+#define PCIM_CIS_ASI_BAR5	6
+#define PCIM_CIS_ASI_ROM	7
+#define PCIM_CIS_ADDR_MASK	0x0ffffff8
+#define PCIM_CIS_ROM_MASK	0xf0000000
 #define PCIR_SUBVEND_0	0x2c
 #define PCIR_SUBDEV_0	0x2e
 #define PCIR_BIOS	0x30
 #define PCIM_BIOS_ENABLE	0x01
+#define PCIM_BIOS_ADDR_MASK	0xfffff800
 #define	PCIR_CAP_PTR	0x34
 #define PCIR_INTLINE	0x3c
 #define PCIR_INTPIN	0x3d
@@ -154,6 +172,7 @@
 
 /* config registers for header type 2 (CardBus) devices */
 
+#define	PCIR_CAP_PTR_2	0x14
 #define PCIR_SECSTAT_2	0x16
 
 #define PCIR_PRIBUS_2	0x18
