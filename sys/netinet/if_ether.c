@@ -607,7 +607,7 @@ in_arpinput(m)
 	int carp_match = 0;
 #endif
 
-	if (ifp->if_bridge || ifp->if_type == IFT_BRIDGE)
+	if (ifp->if_bridge)
 		bridged = 1;
 
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
