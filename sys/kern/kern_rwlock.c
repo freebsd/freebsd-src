@@ -561,7 +561,8 @@ db_show_rwlock(struct lock_object *lock)
 	if (rw->rw_lock == RW_UNLOCKED)
 		db_printf("UNLOCKED\n");
 	else if (rw->rw_lock & RW_LOCK_READ)
-		db_printf("RLOCK: %d locks\n", RW_READERS(rw->rw_lock));
+		db_printf("RLOCK: %jd locks\n",
+		    (intmax_t)(RW_READERS(rw->rw_lock)));
 	else {
 		td = rw_owner(rw);
 		db_printf("WLOCK: %p (tid %d, pid %d, \"%s\")\n", td,
