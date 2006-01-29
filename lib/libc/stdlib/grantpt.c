@@ -100,8 +100,13 @@ __use_pts(void)
 
 	len = sizeof(use_pts);
 	error = sysctlbyname("kern.pts.enable", &use_pts, &len, NULL, 0);
-	if (error)
-		return (0);
+	if (error) {
+		struct stat sb;
+
+		if (stat("/dev/ptmx", &sb) != 0)
+			return (0);
+		use_pts = 1;
+	}
 	return (use_pts);
 }
 
