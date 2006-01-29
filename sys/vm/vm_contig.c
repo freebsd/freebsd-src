@@ -387,7 +387,9 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 	vm_offset_t size;
 	vm_paddr_t phys;
 	vm_page_t pga = vm_page_array;
-	int i, pass, pqtype, start;
+	static vm_pindex_t np = 0;
+	static vm_pindex_t start = 0;
+	int i, pass, pqtype;
 
 	size = npages << PAGE_SHIFT;
 	if (size == 0)
@@ -397,8 +399,22 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 	if ((boundary & (boundary - 1)) != 0)
 		panic("vm_page_alloc_contig: boundary must be a power of 2");
 
+	/*
+	 * Two simple optimizations.  First, don't scan high ordered pages
+	 * if they are outside of the requested address range.  Second, cache
+	 * the starting page index across calls and reuse it instead of
+	 * restarting the scan from the top.  This is conditional on the
+	 * requested number of pages being the same or greater than the
+	 * cached amount.
+	 */
 	for (pass = 0; pass < 2; pass++) {
-		start = vm_page_array_size - npages + 1;
+		if ((np == 0) || (np > npages)) {
+			if (atop(high) < vm_page_array_size)
+				start = atop(high) - npages + 1;
+			else
+				start = vm_page_array_size - npages + 1;
+		}
+		np = 0;
 		vm_page_lock_queues();
 retry:
 		start--;
@@ -496,6 +512,7 @@ cleanup_freed:
 		/*
 		 * We've found a contiguous chunk that meets are requirements.
 		 */
+		np = npages;
 		return (&pga[start]);
 	}
 	return (NULL);
