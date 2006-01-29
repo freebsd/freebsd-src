@@ -1490,8 +1490,10 @@ ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
 	}
 	if (ic->ic_flags & IEEE80211_F_WPA)
 		frm = ieee80211_add_wpa(frm, ic);
-	if (ic->ic_curmode == IEEE80211_MODE_11G)
+	if (ic->ic_curmode == IEEE80211_MODE_11G) {
+		bo->bo_erp = frm;
 		frm = ieee80211_add_erp(frm, ic);
+	}
 	efrm = ieee80211_add_xrates(frm, rs);
 	bo->bo_trailer_len = efrm - bo->bo_trailer;
 	m->m_pkthdr.len = m->m_len = efrm - mtod(m, u_int8_t *);
@@ -1616,10 +1618,13 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 			}
 			if (timlen != bo->bo_tim_len) {
 				/* copy up/down trailer */
-				ovbcopy(bo->bo_trailer, tie->tim_bitmap+timlen,
+				int adjust = tie->tim_bitmap+timlen
+					   - bo->bo_trailer;
+				ovbcopy(bo->bo_trailer, bo->bo_trailer+adjust,
 					bo->bo_trailer_len);
-				bo->bo_trailer = tie->tim_bitmap+timlen;
-				bo->bo_wme = bo->bo_trailer;
+				bo->bo_trailer += adjust;
+				bo->bo_wme += adjust;
+				bo->bo_erp += adjust;
 				bo->bo_tim_len = timlen;
 
 				/* update information element */
@@ -1646,6 +1651,13 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 			tie->tim_bitctl |= 1;
 		else
 			tie->tim_bitctl &= ~1;
+		if (ic->ic_flags_ext & IEEE80211_FEXT_ERPUPDATE) {
+			/*
+			 * ERP element needs updating.
+			 */
+			(void) ieee80211_add_erp(bo->bo_erp, ic);
+			ic->ic_flags_ext &= ~IEEE80211_FEXT_ERPUPDATE;
+		}
 	}
 	IEEE80211_BEACON_UNLOCK(ic);
 

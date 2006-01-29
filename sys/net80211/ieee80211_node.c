@@ -2026,6 +2026,8 @@ ieee80211_node_join_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 			ic->ic_flags |= IEEE80211_F_USEBARKER;
 			ic->ic_flags &= ~IEEE80211_F_SHPREAMBLE;
 		}
+		if (ic->ic_nonerpsta == 1)
+			ic->ic_flags_ext |= IEEE80211_FEXT_ERPUPDATE;
 	} else
 		ni->ni_flags |= IEEE80211_NODE_ERP;
 }
@@ -2141,6 +2143,7 @@ ieee80211_node_leave_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 				ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
 				ic->ic_flags &= ~IEEE80211_F_USEBARKER;
 			}
+			ic->ic_flags_ext |= IEEE80211_FEXT_ERPUPDATE;
 		}
 	}
 }
