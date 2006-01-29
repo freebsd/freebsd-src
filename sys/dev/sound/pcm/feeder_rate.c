@@ -28,17 +28,17 @@
  * 2005-06-11:
  * ==========
  *
- * *New* and rewritten soft sample rate converter supporting arbitary sample
- * rate, fine grained scalling/coefficients and unified up/down stereo
- * converter. Most of disclaimers from orion's previous version also applied
- * here, regarding with linear interpolation deficiencies, pre/post
- * anti-aliasing filtering issues. This version comes with much simpler and
+ * *New* and rewritten soft sample rate converter supporting arbitrary sample
+ * rates, fine grained scaling/coefficients and a unified up/down stereo
+ * converter. Most of the disclaimers from orion's notes also applies
+ * here, regarding linear interpolation deficiencies and pre/post
+ * anti-aliasing filtering issues. This version comes with a much simpler and
  * tighter interface, although it works almost exactly like the older one.
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                         *
  * This new implementation is fully dedicated in memory of Cameron Grant,  *
- * the creator of magnificent, highly addictive feeder infrastructure.     *
+ * the creator of the magnificent, highly addictive feeder infrastructure. *
  *                                                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
@@ -51,7 +51,7 @@
  * stage in the future.
  * 
  * Since this accuracy of interpolation is sensitive and examination
- * of the algorithm output is harder from the kernel, th code is
+ * of the algorithm output is harder from the kernel, the code is
  * designed to be compiled in the kernel and in a userland test
  * harness.  This is done by selectively including and excluding code
  * with several portions based on whether _KERNEL is defined.  It's a
@@ -69,6 +69,7 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define RATE_ASSERT(x, y) /* KASSERT(x,y) */
+#define RATE_TEST(x, y)  /* if (!(x)) printf y */
 #define RATE_TRACE(x...) /* printf(x) */
 
 MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
@@ -99,6 +100,7 @@ struct feed_rate_info {
 	uint32_t alpha;		/* interpolation distance */
 	uint32_t pos, bpos;	/* current sample / buffer positions */
 	uint32_t bufsz;		/* total buffer size */
+	uint32_t stray;		/* stray bytes */
 	int32_t  scale, roll;	/* scale / roll factor */
 	int16_t  *buffer;
 	uint32_t (*convert)(struct feed_rate_info *, int16_t *, uint32_t);
@@ -351,6 +353,7 @@ feed_rate_setup(struct pcm_feeder *f)
 	info->pos = 2;
 	info->bpos = 4;
 	info->alpha = 0;
+	info->stray = 0;
 	feed_rate_reset(info);
 	if (info->src == info->dst) {
 		/*
@@ -702,15 +705,22 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	 * sampling without causing missing samples or excessive buffer
 	 * feeding.
 	 */
-	RATE_ASSERT(count >= 4 && count % 4 == 0,
-		("%s: Count size not byte integral\n", __func__));
+	RATE_TEST(count >= 4 && (count & 3) == 0,
+		("%s: Count size not byte integral (%d)\n", __func__, count));
+	if (count < 4)
+		return 0;
 	count >>= 1;
+	count &= ~1;
 	slot = (((info->gx * (count >> 1)) + info->gy - info->alpha - 1) / info->gy) << 1;
+	RATE_TEST((slot & 1) == 0, ("%s: Slot count not sample integral (%d)\n",
+						__func__, slot));
 	/*
-	 * Optimize buffer feeding aggresively to ensure calculated slot
+	 * Optimize buffer feeding aggressively to ensure calculated slot
 	 * can be fitted nicely into available buffer free space, hence
 	 * avoiding multiple feeding.
 	 */
+	RATE_TEST(info->stray == 0, ("%s: [1] Stray bytes: %u\n",
+		__func__,info->stray));
 	if (info->pos != 2 && info->bpos - info->pos == 2 &&
 			info->bpos + slot > info->bufsz) {
 		/*
@@ -729,25 +739,33 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	i = 0;
 	for (;;) {
 		for (;;) {
-			fetch = info->bufsz - info->bpos;
+			fetch = (info->bufsz - info->bpos) << 1;
+			fetch -= info->stray;
 			RATE_ASSERT(fetch >= 0,
-				("%s: Buffer overrun: %d > %d\n",
+				("%s: [1] Buffer overrun: %d > %d\n",
 					__func__, info->bpos, info->bufsz));
-			if (slot < fetch)
-				fetch = slot;
+			if ((slot << 1) < fetch)
+				fetch = slot << 1;
 			if (fetch > 0) {
-				RATE_ASSERT(fetch % 2 == 0,
-					("%s: Fetch size not sample integral\n",
-					__func__));
+				RATE_ASSERT(((info->bpos << 1) - info->stray) >= 0 &&
+					((info->bpos << 1) - info->stray) < (info->bufsz << 1),
+					("%s: DANGER - BUFFER OVERRUN! bufsz=%d, pos=%d\n", __func__,
+					info->bufsz << 1, (info->bpos << 1) - info->stray));
 				fetch = FEEDER_FEED(f->source, c,
-						(uint8_t *)(info->buffer + info->bpos),
-						fetch << 1, source);
+						(uint8_t *)(info->buffer) + (info->bpos << 1) - info->stray,
+						fetch, source);
+				info->stray = 0;
 				if (fetch == 0)
 					break;
-				RATE_ASSERT(fetch % 4 == 0,
-					("%s: Fetch size not byte integral\n",
-					__func__));
+				RATE_TEST((fetch & 3) == 0,
+					("%s: Fetch size not byte integral (%d)\n",
+					__func__, fetch));
+				info->stray += fetch & 3;
+				RATE_TEST(info->stray == 0,
+					("%s: Stray bytes detected (%d)\n",
+					__func__, info->stray));
 				fetch >>= 1;
+				fetch &= ~1;
 				info->bpos += fetch;
 				slot -= fetch;
 				RATE_ASSERT(slot >= 0,
@@ -761,20 +779,21 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 				break;
 		}
 		if (info->pos == info->bpos) {
-			RATE_ASSERT(info->pos == 2,
+			RATE_TEST(info->pos == 2,
 				("%s: EOF while in progress\n", __func__));
 			break;
 		}
 		RATE_ASSERT(info->pos <= info->bpos,
-			("%s: Buffer overrun: %d > %d\n", __func__,
+			("%s: [2] Buffer overrun: %d > %d\n", __func__,
 			info->pos, info->bpos));
 		RATE_ASSERT(info->pos < info->bpos,
 			("%s: Zero buffer!\n", __func__));
-		RATE_ASSERT((info->bpos - info->pos) % 2 == 0,
-			("%s: Buffer not sample integral\n", __func__));
+		RATE_ASSERT(((info->bpos - info->pos) & 1) == 0,
+			("%s: Buffer not sample integral (%d)\n",
+			__func__, info->bpos - info->pos));
 		i += info->convert(info, dst + i, count - i);
 		RATE_ASSERT(info->pos <= info->bpos,
-				("%s: Buffer overrun: %d > %d\n",
+				("%s: [3] Buffer overrun: %d > %d\n",
 					__func__, info->pos, info->bpos));
 		if (info->pos == info->bpos) {
 			/*
@@ -782,6 +801,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			 * to beginning of buffer so next cycle can
 			 * interpolate using it.
 			 */
+			RATE_TEST(info->stray == 0, ("%s: [2] Stray bytes: %u\n", __func__, info->stray));
 			info->buffer[0] = info->buffer[info->pos - 2];
 			info->buffer[1] = info->buffer[info->pos - 1];
 			info->bpos = 2;
@@ -790,6 +810,10 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if (i == count)
 			break;
 	}
+#if 0
+	RATE_TEST(count == i, ("Expect: %u , Got: %u\n", count << 1, i << 1));
+#endif
+	RATE_TEST(info->stray == 0, ("%s: [3] Stray bytes: %u\n", __func__, info->stray));
 	return i << 1;
 }
 
