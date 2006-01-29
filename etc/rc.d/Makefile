@@ -9,7 +9,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	devd devfs dhclient \
 	dmesg dumpon \
 	early.sh encswap \
-	fsck \
+	fsck ftpd \
 	gbde geli geli2 \
 	hcsecd \
 	hostname \
