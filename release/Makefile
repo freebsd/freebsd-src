@@ -963,11 +963,11 @@ cdrom.2:
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
-	@echo "CD_VOLUME = 1" >> ${CD_DISC1}/cdrom.inf
 .if defined(SEPARATE_LIVEFS)
 	@cp -Rp ${CD_LIVEFS}/boot ${CD_DISC1}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 .endif
+	@echo "CD_VOLUME = 1" >> ${CD_DISC1}/cdrom.inf
 	@echo "Building CDROM disc2 filesystem image"
 	@mkdir -p ${CD_DISC2}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
