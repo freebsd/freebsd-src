@@ -30,7 +30,9 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-MKMODULESENV+=	MACHINE=pc98
+MACHINE=pc98
+
+MKMODULESENV+=	MACHINE=${MACHINE}
 
 %BEFORE_DEPEND
 
