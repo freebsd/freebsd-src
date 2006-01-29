@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2004, 2005
+ * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -391,7 +391,6 @@ ipw_detach(device_t dev)
 	if (ifp != NULL) {
 		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
-		if_free(ifp);
 	}
 
 	ipw_release(sc);
@@ -403,6 +402,8 @@ ipw_detach(device_t dev)
 
 	if (sc->mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+	if (ifp != NULL)
+		if_free(ifp);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -1009,21 +1010,61 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct mbuf *m;
+	struct mbuf *mnew, *m;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	bus_addr_t physaddr;
 	int error;
 
+	DPRINTFN(5, ("received frame len=%u, rssi=%u\n", le32toh(status->len),
+	    status->rssi));
+
 	if (le32toh(status->len) < sizeof (struct ieee80211_frame_min) ||
 	    le32toh(status->len) > MCLBYTES)
 		return;
 
+	/*
+	 * Try to allocate a new mbuf for this ring element and load it before
+	 * processing the current mbuf. If the ring element cannot be loaded,
+	 * drop the received packet and reuse the old mbuf. In the unlikely
+	 * case that the old mbuf can't be reloaded either, explicitly panic.
+	 */
+	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (mnew == NULL) {
+		ifp->if_ierrors++;
+		return;
+	}
+
 	bus_dmamap_sync(sc->rxbuf_dmat, sbuf->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->rxbuf_dmat, sbuf->map);
 
-	/* finalize mbuf */
+	error = bus_dmamap_load(sc->rxbuf_dmat, sbuf->map, mtod(mnew, void *),
+	    MCLBYTES, ipw_dma_map_addr, &physaddr, 0);
+	if (error != 0) {
+		m_freem(mnew);
+
+		/* try to reload the old mbuf */
+		error = bus_dmamap_load(sc->rxbuf_dmat, sbuf->map,
+		    mtod(sbuf->m, void *), MCLBYTES, ipw_dma_map_addr,
+		    &physaddr, 0);
+		if (error != 0) {
+			/* very unlikely that it will fail... */
+			panic("%s: could not load old rx mbuf",
+			    device_get_name(sc->sc_dev));
+		}
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/*
+	 * New mbuf successfully loaded, update Rx ring and continue
+	 * processing.
+	 */
 	m = sbuf->m;
+	sbuf->m = mnew;
+	sbd->bd->physaddr = htole32(physaddr);
+
+	/* finalize mbuf */
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = le32toh(status->len);
 
@@ -1049,28 +1090,6 @@ ipw_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
-
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL) {
-		device_printf(sc->sc_dev, "could not allocate rx mbuf\n");
-		sbuf->m = NULL;
-		return;
-	}
-
-	error = bus_dmamap_load(sc->rxbuf_dmat, sbuf->map, mtod(m, void *),
-	    MCLBYTES, ipw_dma_map_addr, &physaddr, 0);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not map rx DMA memory\n");
-		m_freem(m);
-		sbuf->m = NULL;
-		return;
-	}
-
-	sbuf->m = m;
-	sbd->bd->physaddr = htole32(physaddr);
-
-	DPRINTFN(5, ("received frame len=%u, rssi=%u\n", le32toh(status->len),
-	    status->rssi));
 
 	bus_dmamap_sync(sc->rbd_dmat, sc->rbd_map, BUS_DMASYNC_PREWRITE);
 }
@@ -1274,7 +1293,7 @@ ipw_cmd(struct ipw_softc *sc, uint32_t type, void *data, uint32_t len)
 	sc->cmd.subtype = 0;
 	sc->cmd.len = htole32(len);
 	sc->cmd.seq = 0;
-	bcopy(data, sc->cmd.data, len);
+	memcpy(sc->cmd.data, data, len);
 
 	sbd->type = IPW_SBD_TYPE_COMMAND;
 	sbd->bd->physaddr = htole32(physaddr);
@@ -1942,7 +1961,7 @@ ipw_config(struct ipw_softc *sc)
 			return error;
 	}
 
-	bzero(&security, sizeof security);
+	memset(&security, 0, sizeof security);
 	security.authmode = (ic->ic_bss->ni_authmode == IEEE80211_AUTH_SHARED) ?
 	    IPW_AUTH_SHARED : IPW_AUTH_OPEN;
 	security.ciphers = htole32(IPW_CIPHER_NONE);
@@ -1960,8 +1979,8 @@ ipw_config(struct ipw_softc *sc)
 
 			wepkey.idx = i;
 			wepkey.len = k->wk_keylen;
-			bzero(wepkey.key, sizeof wepkey.key);
-			bcopy(k->wk_key, wepkey.key, k->wk_keylen);
+			memset(wepkey.key, 0, sizeof wepkey.key);
+			memcpy(wepkey.key, k->wk_key, k->wk_keylen);
 			DPRINTF(("Setting wep key index %u len %u\n",
 			    wepkey.idx, wepkey.len));
 			error = ipw_cmd(sc, IPW_CMD_SET_WEP_KEY, &wepkey,
@@ -1987,7 +2006,7 @@ ipw_config(struct ipw_softc *sc)
 #if 0
 	struct ipw_wpa_ie ie;
 
-	bzero(&ie, sizeof ie);
+	memset(&ie, 0, sizeof ie);
 	ie.len = htole32(sizeof (struct ieee80211_ie_wpa));
 	DPRINTF(("Setting wpa ie\n"));
 	error = ipw_cmd(sc, IPW_CMD_SET_WPA_IE, &ie, sizeof ie);
@@ -2126,7 +2145,7 @@ ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	uint32_t i, size, buf[256];
 
 	if (!(sc->flags & IPW_FLAG_FW_INITED)) {
-		bzero(buf, sizeof buf);
+		memset(buf, 0, sizeof buf);
 		return SYSCTL_OUT(req, buf, sizeof buf);
 	}
 
