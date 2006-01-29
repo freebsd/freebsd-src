@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2004, 2005
+ * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,8 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 
-#include <dev/iwi/if_iwireg.h>
 #include <dev/iwi/if_iwivar.h>
+#include <dev/iwi/if_iwireg.h>
 
 #ifdef IWI_DEBUG
 #define DPRINTF(x)	do { if (iwi_debug > 0) printf x; } while (0)
@@ -195,20 +195,6 @@ static const struct ieee80211_rateset iwi_rateset_11b =
 
 static const struct ieee80211_rateset iwi_rateset_11g =
 	{ 12, { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 } };
-
-static __inline uint8_t
-MEM_READ_1(struct iwi_softc *sc, uint32_t addr)
-{
-	CSR_WRITE_4(sc, IWI_CSR_INDIRECT_ADDR, addr);
-	return CSR_READ_1(sc, IWI_CSR_INDIRECT_DATA);
-}
-
-static __inline uint32_t
-MEM_READ_4(struct iwi_softc *sc, uint32_t addr)
-{
-	CSR_WRITE_4(sc, IWI_CSR_INDIRECT_ADDR, addr);
-	return CSR_READ_4(sc, IWI_CSR_INDIRECT_DATA);
-}
 
 static int
 iwi_probe(device_t dev)
@@ -614,8 +600,8 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 	}
 
 	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, NULL,
-	    NULL, &ring->data_dmat);
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, IWI_MAX_NSEG - 2,
+	    MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
@@ -956,6 +942,10 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
+	enum ieee80211_state ostate;
+	uint32_t tmp;
+
+	ostate = ic->ic_state;
 
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
@@ -974,9 +964,13 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 	case IEEE80211_S_RUN:
 		if (ic->ic_opmode == IEEE80211_M_IBSS)
-			ieee80211_new_state(ic, IEEE80211_S_AUTH, -1);
+			iwi_auth_and_assoc(sc);
 		else if (ic->ic_opmode == IEEE80211_M_MONITOR)
 			iwi_set_chan(sc, ic->ic_ibss_chan);
+
+		/* assoc led on */
+		tmp = MEM_READ_4(sc, IWI_MEM_EVENT_CTL) & IWI_LED_MASK;
+		MEM_WRITE_4(sc, IWI_MEM_EVENT_CTL, tmp | IWI_LED_ASSOC);
 
 		return sc->sc_newstate(ic, nstate,
 		    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
@@ -986,10 +980,18 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 	case IEEE80211_S_INIT:
 		sc->flags &= ~IWI_FLAG_SCANNING;
+
+		if (ostate != IEEE80211_S_RUN)
+			break;
+
+		/* assoc led off */
+		tmp = MEM_READ_4(sc, IWI_MEM_EVENT_CTL) & IWI_LED_MASK;
+		MEM_WRITE_4(sc, IWI_MEM_EVENT_CTL, tmp & ~IWI_LED_ASSOC);
 		break;
 	}
 
 	ic->ic_state = nstate;
+
 	return 0;
 }
 
@@ -1321,15 +1323,8 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		}
 		break;
 
-	case IWI_NOTIF_TYPE_CALIBRATION:
-	case IWI_NOTIF_TYPE_BEACON:
-	case IWI_NOTIF_TYPE_NOISE:
-		DPRINTFN(5, ("Notification (%u)\n", notif->type));
-		break;
-
 	default:
-		device_printf(sc->sc_dev, "unknown notification type %u\n",
-		    notif->type);
+		DPRINTFN(5, ("Notification (%u)\n", notif->type));
 	}
 }
 
@@ -1624,7 +1619,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 #if 0
 	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
 		desc->wh.i_fc[1] |= IEEE80211_FC1_WEP;
-		desc->wep_txkey = ic->ic_crypto.cs_def_txkey;
+		desc->weptxkey = ic->ic_crypto.cs_def_txkey;
 	} else
 #endif
 		desc->flags |= IWI_DATA_FLAG_NO_WEP;
@@ -1910,9 +1905,9 @@ iwi_load_ucode(struct iwi_softc *sc, const char *name)
 	DELAY(5000);
 	MEM_WRITE_4(sc, 0x3000e0, 0);
 	DELAY(1000);
-	MEM_WRITE_4(sc, 0x300004, 1);
+	MEM_WRITE_4(sc, IWI_MEM_EVENT_CTL, 1);
 	DELAY(1000);
-	MEM_WRITE_4(sc, 0x300004, 0);
+	MEM_WRITE_4(sc, IWI_MEM_EVENT_CTL, 0);
 	DELAY(1000);
 	MEM_WRITE_1(sc, 0x200000, 0x00);
 	MEM_WRITE_1(sc, 0x200000, 0x40);
@@ -2278,6 +2273,7 @@ iwi_scan(struct iwi_softc *sc)
 	}
 	*(p - count) = IWI_CHAN_5GHZ | count;
 
+	p = (count > 0) ? p + 1 : scan.channels;
 	count = 0;
 	for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 		if (IEEE80211_IS_CHAN_2GHZ(&ic->ic_channels[i]) &&
@@ -2449,7 +2445,6 @@ iwi_init(void *priv)
 
 	default:
 		uc = fw = NULL;	/* should not get there */
-		break;
 	}
 
 	if (iwi_load_firmware(sc, "iwi-boot") != 0) {
@@ -2525,6 +2520,8 @@ iwi_stop(void *priv)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
+	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
+
 	iwi_stop_master(sc);
 
 	CSR_WRITE_4(sc, IWI_CSR_RST, IWI_RST_SOFT_RESET);
@@ -2540,8 +2537,6 @@ iwi_stop(void *priv)
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 }
 
 /*

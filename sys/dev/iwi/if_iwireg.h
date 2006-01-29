@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2004, 2005
+ * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -232,7 +232,7 @@ struct iwi_tx_desc {
 	uint8_t		xflags;
 #define IWI_DATA_XFLAG_QOS	0x10
 
-	uint8_t		wep_txkey;
+	uint8_t		weptxkey;
 	uint8_t		wepkey[IEEE80211_KEYBUF_SIZE];
 	uint8_t		rate;
 	uint8_t		antenna;
@@ -347,13 +347,13 @@ struct iwi_scan {
 #define IWI_CHAN_5GHZ	(0 << 6)
 #define IWI_CHAN_2GHZ	(1 << 6)
 
-	uint8_t		type[26];
+	uint8_t		type[27];
 #define IWI_SCAN_TYPE_PASSIVE	0x11
 #define IWI_SCAN_TYPE_DIRECTED	0x22
 #define IWI_SCAN_TYPE_BROADCAST	0x33
 #define IWI_SCAN_TYPE_BDIRECTED	0x44
 
-	uint8_t		reserved1[2];
+	uint8_t		reserved1;
 	uint16_t	reserved2;
 	uint16_t	passive;	/* dwell time */
 	uint16_t	directed;	/* dwell time */
@@ -405,7 +405,12 @@ struct iwi_wme_params {
 	uint16_t	burst[WME_NUM_AC];
 } __packed;
 
+#define IWI_MEM_EVENT_CTL	0x00300004
 #define IWI_MEM_EEPROM_CTL	0x00300040
+
+/* possible flags for register IWI_MEM_EVENT */
+#define IWI_LED_ASSOC	(1 << 5)
+#define IWI_LED_MASK	0xd9fffffb
 
 #define IWI_EEPROM_MAC	0x21
 
@@ -451,6 +456,14 @@ struct iwi_wme_params {
 /*
  * indirect memory space access macros
  */
+#define MEM_READ_1(sc, addr)						\
+	(CSR_WRITE_4((sc), IWI_CSR_INDIRECT_ADDR, (addr)),		\
+	 CSR_READ_1((sc), IWI_CSR_INDIRECT_DATA))
+
+#define MEM_READ_4(sc, addr)						\
+	(CSR_WRITE_4((sc), IWI_CSR_INDIRECT_ADDR, (addr)),		\
+	 CSR_READ_4((sc), IWI_CSR_INDIRECT_DATA))
+
 #define MEM_WRITE_1(sc, addr, val) do {					\
 	CSR_WRITE_4((sc), IWI_CSR_INDIRECT_ADDR, (addr));		\
 	CSR_WRITE_1((sc), IWI_CSR_INDIRECT_DATA, (val));		\
