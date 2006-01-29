@@ -2540,14 +2540,11 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 
 /*
  * Extend 15-bit time stamp from rx descriptor to
- * a full 64-bit TSF using the current h/w TSF.
+ * a full 64-bit TSF using the specified TSF.
  */
 static __inline u_int64_t
-ath_extend_tsf(struct ath_hal *ah, u_int32_t rstamp)
+ath_extend_tsf(u_int32_t rstamp, u_int64_t tsf)
 {
-	u_int64_t tsf;
-
-	tsf = ath_hal_gettsf64(ah);
 	if ((tsf & 0x7fff) < rstamp)
 		tsf -= 0x8000;
 	return ((tsf &~ 0x7fff) | rstamp);
@@ -2577,7 +2574,8 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (ic->ic_opmode == IEEE80211_M_IBSS &&
 		    ic->ic_state == IEEE80211_S_RUN) {
-			u_int64_t tsf = ath_extend_tsf(sc->sc_ah, rstamp);
+			u_int64_t tsf = ath_extend_tsf(rstamp,
+				ath_hal_gettsf64(sc->sc_ah));
 			/*
 			 * Handle ibss merge as needed; check the tsf on the
 			 * frame before attempting the merge.  The 802.11 spec
@@ -2616,6 +2614,40 @@ ath_setdefantenna(struct ath_softc *sc, u_int antenna)
 	sc->sc_rxotherant = 0;
 }
 
+static int
+ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
+	const struct ath_desc *ds, u_int64_t tsf, int16_t nf)
+{
+	u_int8_t rix;
+
+	KASSERT(sc->sc_drvbpf != NULL, ("no tap"));
+
+	/*
+	 * Discard anything shorter than an ack or cts.
+	 */
+	if (m->m_pkthdr.len < IEEE80211_ACK_LEN) {
+		DPRINTF(sc, ATH_DEBUG_RECV, "%s: runt packet %d\n",
+			__func__, m->m_pkthdr.len);
+		sc->sc_stats.ast_rx_tooshort++;
+		return 0;
+	}
+	sc->sc_rx_th.wr_tsf = htole64(
+		ath_extend_tsf(ds->ds_rxstat.rs_tstamp, tsf));
+	rix = ds->ds_rxstat.rs_rate;
+	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
+	if (ds->ds_rxstat.rs_status & HAL_RXERR_CRC)
+		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
+	/* XXX propagate other error flags from descriptor */
+	sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
+	sc->sc_rx_th.wr_antsignal = ds->ds_rxstat.rs_rssi + nf;
+	sc->sc_rx_th.wr_antnoise = nf;
+	sc->sc_rx_th.wr_antenna = ds->ds_rxstat.rs_antenna;
+
+	bpf_mtap2(sc->sc_drvbpf, &sc->sc_rx_th, sc->sc_rx_th_len, m);
+
+	return 1;
+}
+
 static void
 ath_rx_proc(void *arg, int npending)
 {
@@ -2634,10 +2666,14 @@ ath_rx_proc(void *arg, int npending)
 	int len, type;
 	u_int phyerr;
 	HAL_STATUS status;
+	int16_t nf;
+	u_int64_t tsf;
 
 	NET_LOCK_GIANT();		/* XXX */
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	nf = ath_hal_getchannoise(ah, &sc->sc_curchan);
+	tsf = ath_hal_gettsf64(ah);
 	do {
 		bf = STAILQ_FIRST(&sc->sc_rxbuf);
 		if (bf == NULL) {		/* NB: shouldn't happen */
@@ -2735,14 +2771,22 @@ ath_rx_proc(void *arg, int npending)
 			}
 			ifp->if_ierrors++;
 			/*
-			 * Reject error frames, we normally don't want
-			 * to see them in monitor mode (in monitor mode
-			 * allow through packets that have crypto problems).
+			 * When a tap is present pass error frames
+			 * that have been requested.  By default we
+			 * pass decrypt+mic errors but others may be
+			 * interesting (e.g. crc).
 			 */
-			if ((ds->ds_rxstat.rs_status &~
-				(HAL_RXERR_DECRYPT|HAL_RXERR_MIC)) ||
-			    sc->sc_ic.ic_opmode != IEEE80211_M_MONITOR)
-				goto rx_next;
+			if (sc->sc_drvbpf != NULL &&
+			    (ds->ds_rxstat.rs_status & sc->sc_monpass)) {
+				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+				    BUS_DMASYNC_POSTREAD);
+				/* NB: bpf needs the mbuf length setup */
+				len = ds->ds_rxstat.rs_datalen;
+				m->m_pkthdr.len = m->m_len = len;
+				(void) ath_rx_tap(sc, m, ds, tsf, nf);
+			}
+			/* XXX pass MIC errors up for s/w reclaculation */
+			goto rx_next;
 		}
 rx_accept:
 		/*
@@ -2763,29 +2807,9 @@ rx_accept:
 
 		sc->sc_stats.ast_ant_rx[ds->ds_rxstat.rs_antenna]++;
 
-		if (sc->sc_drvbpf) {
-			u_int8_t rix;
-
-			/*
-			 * Discard anything shorter than an ack or cts.
-			 */
-			if (len < IEEE80211_ACK_LEN) {
-				DPRINTF(sc, ATH_DEBUG_RECV,
-					"%s: runt packet %d\n",
-					__func__, len);
-				sc->sc_stats.ast_rx_tooshort++;
-				m_freem(m);
-				goto rx_next;
-			}
-			rix = ds->ds_rxstat.rs_rate;
-			sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
-			sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
-			sc->sc_rx_th.wr_antsignal = ds->ds_rxstat.rs_rssi;
-			sc->sc_rx_th.wr_antenna = ds->ds_rxstat.rs_antenna;
-			/* XXX TSF */
-
-			bpf_mtap2(sc->sc_drvbpf,
-				&sc->sc_rx_th, sc->sc_rx_th_len, m);
+		if (sc->sc_drvbpf != NULL && !ath_rx_tap(sc, m, ds, tsf, nf)) {
+			m_freem(m);		/* XXX reclaim */
+			goto rx_next;
 		}
 
 		/*
@@ -3442,6 +3466,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (ic->ic_rawbpf)
 		bpf_mtap(ic->ic_rawbpf, m0);
 	if (sc->sc_drvbpf) {
+		u_int64_t tsf = ath_hal_gettsf64(ah);
+
+		sc->sc_tx_th.wt_tsf = htole64(tsf);
 		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].txflags;
 		if (iswep)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
@@ -4024,6 +4051,10 @@ ath_calibrate(void *arg)
 			__func__, sc->sc_curchan.channel);
 		sc->sc_stats.ast_per_calfail++;
 	}
+	/*
+	 * Calibrate noise floor data again in case of change.
+	 */
+	ath_hal_process_noisefloor(ah);
 	callout_reset(&sc->sc_cal_ch, ath_calinterval * hz, ath_calibrate, sc);
 }
 
@@ -4138,6 +4169,11 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			break;
 		}
 
+		/*
+		 * Let the hal process statistics collected during a
+		 * scan so it can provide calibrated noise floor data.
+		 */
+		ath_hal_process_noisefloor(ah);
 		/*
 		 * Configure the beacon and sleep timers.
 		 */
@@ -4861,6 +4897,10 @@ ath_sysctlattach(struct ath_softc *sc)
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"tpc", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_tpc, "I", "enable/disable per-packet TPC");
+	sc->sc_monpass = HAL_RXERR_DECRYPT | HAL_RXERR_MIC;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"monpass", CTLFLAG_RW, &sc->sc_monpass, 0,
+		"mask of error frames to pass when monitoring");
 }
 
 static void
