@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2006
+.Dd January 21, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2889,6 +2889,27 @@ is set to
 these are the flags to pass to the
 .Xr sshd 8
 daemon.
+.It Va ftpd_program
+.Pq Vt str
+Path to the FTP server program
+.Pa ( /usr/libexec/ftpd
+is the default).
+.It Va ftpd_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to start
+.Xr ftpd 8
+as a stand-alone daemon at system boot time.
+.It Va ftpd_flags
+.Pq Vt str
+If
+.Va ftpd_enable
+is set to
+.Dq Li YES ,
+these are the additional flags to pass to the
+.Xr ftpd 8
+daemon.
 .It Va usbd_enable
 .Pq Vt bool
 If set to
@@ -3456,6 +3477,8 @@ device and the mount point will be changed.
 .Xr chown 8 ,
 .Xr cron 8 ,
 .Xr dhclient 8 ,
+.Xr ftpd 8 ,
+.Xr geli 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
 .Xr ipf 8 ,
