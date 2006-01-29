@@ -475,7 +475,7 @@ set80211bssid(const char *val, int d, int s, const struct afswtch *rafp)
 		char *temp;
 		struct sockaddr_dl sdl;
 
-		temp = malloc(strlen(val) + 1);
+		temp = malloc(strlen(val) + 2);
 		if (temp == NULL)
 			errx(1, "malloc failed");
 		temp[0] = ':';
