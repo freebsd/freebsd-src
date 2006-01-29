@@ -739,7 +739,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211com *ic)
 	 */
         if ((ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	     (wme->wme_flags & WME_F_AGGRMODE) == 0) ||
-	    (ic->ic_opmode != IEEE80211_M_HOSTAP &&
+	    (ic->ic_opmode == IEEE80211_M_STA &&
 	     (ic->ic_bss->ni_flags & IEEE80211_NODE_QOS) == 0) ||
 	    (ic->ic_flags & IEEE80211_F_WME) == 0) {
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
