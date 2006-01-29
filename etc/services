@@ -1917,6 +1917,8 @@ eppc		3031/tcp   #Remote AppleEvents/PPC Toolbox
 eppc		3031/udp   #Remote AppleEvents/PPC Toolbox
 NSWS		3049/tcp
 NSWS		3049/udp
+gds_db		3050/tcp   #InterBase Database Remote Protocol
+gds_db		3050/udp   #InterBase Database Remote Protocol
 sj3		3086/tcp   #SJ3 (kanji input)
 vmodem		3141/tcp
 vmodem		3141/udp
