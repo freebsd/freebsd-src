@@ -1865,7 +1865,7 @@ em_allocate_pci_resources(struct adapter * adapter)
 
 	if (adapter->hw.mac_type > em_82543) {
 		/* Figure our where our IO BAR is ? */
-		for (rid = PCIR_BAR(0); rid < PCIR_CARDBUSCIS;) {
+		for (rid = PCIR_BAR(0); rid < PCIR_CIS;) {
 			val = pci_read_config(dev, rid, 4);
 			if (E1000_BAR_TYPE(val) == E1000_BAR_TYPE_IO) {
 				adapter->io_rid = rid;
@@ -1876,7 +1876,7 @@ em_allocate_pci_resources(struct adapter * adapter)
 			if (E1000_BAR_MEM_TYPE(val) == E1000_BAR_MEM_TYPE_64BIT)
 				rid += 4;
 		}
-		if (rid >= PCIR_CARDBUSCIS) {
+		if (rid >= PCIR_CIS) {
 			printf("em%d: Unable to locate IO BAR\n", adapter->unit);
 			return (ENXIO);
 		}
