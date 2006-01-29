@@ -299,14 +299,18 @@ int
 chn_fmtscore(u_int32_t fmt)
 {
 	if (fmt & AFMT_32BIT)
-		return 32;
+		return 60;
 	if (fmt & AFMT_24BIT)
-		return 24;
+		return 50;
 	if (fmt & AFMT_16BIT)
-		return 16;
+		return 40;
 	if (fmt & (AFMT_U8|AFMT_S8))
-		return 8;
-	return 4;
+		return 30;
+	if (fmt & AFMT_MU_LAW)
+		return 20;
+	if (fmt & AFMT_A_LAW)
+		return 10;
+	return 0;
 }
 
 u_int32_t
@@ -322,7 +326,8 @@ chn_fmtbestbit(u_int32_t fmt, u_int32_t *fmts)
 		score2 = chn_fmtscore(fmts[i]);
 		if (oldscore == 0 || (score2 == score) ||
 			    (score2 > oldscore && score2 < score) ||
-			    (score2 < oldscore && score2 > score)) {
+			    (score2 < oldscore && score2 > score) ||
+			    (oldscore < score && score2 > oldscore)) {
 			best = fmts[i];
 			oldscore = score2;
 		}
@@ -344,7 +349,8 @@ chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts)
 			score2 = chn_fmtscore(fmts[i]);
 			if (oldscore == 0 || (score2 == score) ||
 				    (score2 > oldscore && score2 < score) ||
-				    (score2 < oldscore && score2 > score)) {
+				    (score2 < oldscore && score2 > score) ||
+				    (oldscore < score && score2 > oldscore)) {
 				best = fmts[i];
 				oldscore = score2;
 			}
@@ -369,9 +375,11 @@ chn_fmtbest(u_int32_t fmt, u_int32_t *fmts)
 			score = chn_fmtscore(fmt);
 			score1 = chn_fmtscore(best1);
 			score2 = chn_fmtscore(best2);
-			if (score2 == score)
+			if (score1 == score2 || score1 == score)
+				return best1;
+			else if (score2 == score)
 				return best2;
-			else if (score1 == score || score1 > score2)
+			else if (score1 > score2)
 				return best1;
 			return best2;
 		}
