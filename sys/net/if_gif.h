@@ -57,6 +57,7 @@ extern	void (*ng_gif_detach_p)(struct ifnet *ifp);
 
 struct gif_softc {
 	struct ifnet	*gif_ifp;
+	struct mtx	gif_mtx;
 	struct sockaddr	*gif_psrc; /* Physical src addr */
 	struct sockaddr	*gif_pdst; /* Physical dst addr */
 	union {
@@ -72,6 +73,12 @@ struct gif_softc {
 	LIST_ENTRY(gif_softc) gif_list; /* all gif's are linked */
 };
 #define	GIF2IFP(sc)	((sc)->gif_ifp)
+#define	GIF_LOCK_INIT(sc)	mtx_init(&(sc)->gif_mtx, "gif softc",	\
+				     NULL, MTX_DEF)
+#define	GIF_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->gif_mtx)
+#define	GIF_LOCK(sc)		mtx_lock(&(sc)->gif_mtx)
+#define	GIF_UNLOCK(sc)		mtx_unlock(&(sc)->gif_mtx)
+#define	GIF_LOCK_ASSERT(sc)	mtx_assert(&(sc)->gif_mtx, MA_OWNED)
 
 #define gif_ro gifsc_gifscr.gifscr_ro
 #ifdef INET6
@@ -94,7 +101,6 @@ struct etherip_header {
 #define ETHERIP_VERSION         0x03
 
 /* Prototypes */
-void gifattach0(struct gif_softc *);
 void gif_input(struct mbuf *, int, struct ifnet *);
 int gif_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 	       struct rtentry *);
