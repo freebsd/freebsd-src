@@ -97,6 +97,8 @@ in6_gif_output(ifp, family, m)
 	int proto, error;
 	u_int8_t itos, otos;
 
+	GIF_LOCK_ASSERT(sc);
+
 	if (sin6_src == NULL || sin6_dst == NULL ||
 	    sin6_src->sin6_family != AF_INET6 ||
 	    sin6_dst->sin6_family != AF_INET6) {
