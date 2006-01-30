@@ -452,8 +452,8 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	G_CONCAT_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
 	    md->md_id);
 
-	/* Two disks is minimum. */
-	if (md->md_all <= 1)
+	/* One disks is minimum. */
+	if (md->md_all < 1)
 		return (NULL);
 
 	/* Check for duplicate unit */
@@ -664,7 +664,7 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs <= 2) {
+	if (*nargs < 2) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
