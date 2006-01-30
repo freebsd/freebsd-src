@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd January 27, 2006
+.Dd January 30, 2006
 .Dt LIBDISK 3
 .Os
 .Sh NAME
@@ -117,12 +117,14 @@
 .Ft const char *
 .Fn slice_type_name "int type" "int subtype"
 .Sh DESCRIPTION
+.Bf Sy
 .Nm libdisk
-.Sy is just for the use of
+is just for the use of
 .Xr sysinstall 8 .
-.Sy You should consider using
+You should consider using
 .Xr libgeom 3
-.Sy instead.
+instead.
+.Ef
 .Pp
 The
 .Nm libdisk
