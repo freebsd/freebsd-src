@@ -183,7 +183,7 @@ struct rw_args {
 #endif
 
 #ifdef INVARIANTS
-#define	rw_assert(rw, what)	_rw_assert((sx), (what), LOCK_FILE, LOCK_LINE)
+#define	rw_assert(rw, what)	_rw_assert((rw), (what), LOCK_FILE, LOCK_LINE)
 #else
 #define	rw_assert(rw, what)
 #endif
