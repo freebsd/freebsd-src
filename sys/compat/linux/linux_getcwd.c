@@ -327,11 +327,8 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 	 */
 
 	error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (error) {
-		vrele(lvp);
-		lvp = NULL;
-		goto out;
-	}
+	if (error != 0)
+		panic("vn_lock LK_RETRY returned error %d", error);
 	if (bufp)
 		bp = *bpp;
 	/*
@@ -383,11 +380,8 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 			}
 			VREF(lvp);
 			error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
-			if (error != 0) {
-				vrele(lvp);
-				lvp = NULL;
-				goto out;
-			}
+			if (error != 0)
+				panic("vn_lock LK_RETRY returned %d", error);
 		}
 		error = linux_getcwd_scandir(&lvp, &uvp, &bp, bufp, td);
 		if (error)
