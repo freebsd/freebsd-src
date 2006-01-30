@@ -695,16 +695,9 @@ bge_newbuf_std(sc, i, m)
 	int			error;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
+		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
 		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
 		m_new = m;
@@ -2629,10 +2622,11 @@ bge_rxeof(sc)
 		m->m_pkthdr.rcvif = ifp;
 
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-				
+			if (cur_rx->bge_flags & BGE_RXBDFLAG_IP_CSUM) {
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+				if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
+					m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			}
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_TCP_UDP_CSUM &&
 			    m->m_pkthdr.len >= ETHER_MIN_NOPAD) {
 				m->m_pkthdr.csum_data =
