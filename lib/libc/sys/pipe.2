@@ -32,7 +32,7 @@
 .\"     @(#)pipe.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 30, 2006
 .Dt PIPE 2
 .Os
 .Sh NAME
@@ -98,6 +98,8 @@ system call will fail if:
 Too many descriptors are active.
 .It Bq Er ENFILE
 The system file table is full.
+.It Bq Er ENOMEM
+Not enough kernel memory to establish a pipe.
 .It Bq Er EFAULT
 The
 .Fa fildes
