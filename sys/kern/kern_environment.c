@@ -205,7 +205,8 @@ init_dynamic_kenv(void *data __unused)
 	char *cp;
 	int len, i;
 
-	kenvp = malloc(KENV_SIZE * sizeof(char *), M_KENV, M_WAITOK | M_ZERO);
+	kenvp = malloc((KENV_SIZE + 1) * sizeof(char *), M_KENV,
+		M_WAITOK | M_ZERO);
 	i = 0;
 	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
 		len = strlen(cp) + 1;
@@ -239,8 +240,8 @@ _getenv_dynamic(const char *name, int *idx)
 	sx_assert(&kenv_lock, SX_LOCKED);
 	len = strlen(name);
 	for (cp = kenvp[0], i = 0; cp != NULL; cp = kenvp[++i]) {
-		if ((cp[len] == '=') &&
-		    (strncmp(cp, name, len) == 0)) {
+		if ((strncmp(cp, name, len) == 0) &&
+		    (cp[len] == '=')) {
 			if (idx != NULL)
 				*idx = i;
 			return (cp + len + 1);
@@ -349,6 +350,12 @@ setenv(const char *name, const char *value)
 		/* We add the option if it wasn't found */
 		for (i = 0; (cp = kenvp[i]) != NULL; i++)
 			;
+		/* Bounds checking */
+		if (i < 0 || i >= KENV_SIZE) {
+			free(buf, M_KENV);
+			sx_xunlock(&kenv_lock);
+			return (-1);
+		}
 		kenvp[i] = buf;
 		kenvp[i + 1] = NULL;
 		sx_xunlock(&kenv_lock);
