@@ -854,6 +854,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			em_init(adapter);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	    }
 	default:
@@ -2193,8 +2194,8 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
 	if (adapter->hw.mac_type >= em_82543) {
-		ifp->if_capabilities |= IFCAP_HWCSUM;
-		ifp->if_capenable |= IFCAP_HWCSUM;
+		ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
+		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
 	/*

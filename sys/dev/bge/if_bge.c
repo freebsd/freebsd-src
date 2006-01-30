@@ -2194,7 +2194,7 @@ bge_attach(dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
-	    IFCAP_VLAN_MTU;
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -3519,6 +3519,7 @@ bge_ioctl(ifp, command, data)
 				ifp->if_hwassist = BGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist = 0;
+			VLAN_CAPABILITIES(ifp);
 		}
 		break;
 	default:
