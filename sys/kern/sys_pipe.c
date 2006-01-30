@@ -357,10 +357,11 @@ pipe(td, uap)
 	    NULL);
 
 	/* Only the forward direction pipe is backed by default */
-	if (pipe_create(rpipe, 1) || pipe_create(wpipe, 0)) {
+	if ((error = pipe_create(rpipe, 1)) != 0 ||
+	    (error = pipe_create(wpipe, 0)) != 0) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
-		return (ENFILE);
+		return (error);
 	}
 
 	rpipe->pipe_state |= PIPE_DIRECTOK;
