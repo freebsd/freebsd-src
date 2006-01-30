@@ -105,7 +105,6 @@ static device_attach_t dma_attach;
 static bus_print_child_t dma_print_child;
 static bus_probe_nomatch_t dma_probe_nomatch;
 static bus_get_resource_list_t dma_get_resource_list;
-static bus_setup_intr_t dma_setup_intr;
 static ofw_bus_get_devinfo_t dma_get_devinfo;
 
 static struct dma_devinfo *dma_setup_dinfo(device_t, struct dma_softc *,
@@ -124,7 +123,7 @@ static device_method_t dma_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	dma_print_child),
 	DEVMETHOD(bus_probe_nomatch,	dma_probe_nomatch),
-	DEVMETHOD(bus_setup_intr,	dma_setup_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
@@ -399,25 +398,6 @@ dma_get_resource_list(device_t dev, device_t child)
 
 	ddi = device_get_ivars(child);
 	return (&ddi->ddi_rl);
-}
-
-static int
-dma_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
-{
-	struct lsi64854_softc *sc;
-
-	sc = (struct lsi64854_softc *)device_get_softc(dev);
-	/* XXX - for now only le; do ESP later */
-	if (sc->sc_channel == L64854_CHANNEL_ENET) {
-		sc->sc_intrchain = intr;
-		sc->sc_intrchainarg = arg;
-		intr = (driver_intr_t *)lsi64854_enet_intr;
-		arg = sc;
-	}
-
-	return (BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-	    intr, arg, cookiep));
 }
 
 static const struct ofw_bus_devinfo *
