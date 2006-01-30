@@ -125,6 +125,9 @@ static device_method_t ebus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ebus_probe),
 	DEVMETHOD(device_attach,	ebus_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	ebus_print_child),
