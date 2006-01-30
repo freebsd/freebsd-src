@@ -55,7 +55,7 @@ struct g_command class_commands[] = {
 	    "[-v] prov ..."
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS,
-	    "[-v] name prov prov ..."
+	    "[-v] name prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
@@ -72,7 +72,7 @@ struct g_command class_commands[] = {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] name prov prov ..."
+	    "[-hv] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
@@ -118,7 +118,7 @@ concat_label(struct gctl_req *req)
 	int error, i, hardcode, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
-	if (nargs <= 2) {
+	if (nargs < 2) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
