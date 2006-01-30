@@ -90,7 +90,6 @@
 
 /*
  * gif_mtx protects the global gif_softc_list.
- * XXX: Per-softc locking is still required.
  */
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
@@ -154,21 +153,10 @@ gif_clone_create(ifc, unit)
 		return (ENOSPC);
 	}
 
+	GIF_LOCK_INIT(sc);
+
 	GIF2IFP(sc)->if_softc = sc;
 	if_initname(GIF2IFP(sc), ifc->ifc_name, unit);
-
-	gifattach0(sc);
-
-	mtx_lock(&gif_mtx);
-	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_list);
-	mtx_unlock(&gif_mtx);
-	return (0);
-}
-
-void
-gifattach0(sc)
-	struct gif_softc *sc;
-{
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
 
@@ -187,6 +175,12 @@ gifattach0(sc)
 	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	if (ng_gif_attach_p != NULL)
 		(*ng_gif_attach_p)(GIF2IFP(sc));
+
+	mtx_lock(&gif_mtx);
+	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_list);
+	mtx_unlock(&gif_mtx);
+
+	return (0);
 }
 
 static void
@@ -219,6 +213,8 @@ gif_clone_destroy(ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
+
+	GIF_LOCK_DESTROY(sc);
 
 	free(sc, M_GIF);
 }
@@ -411,6 +407,9 @@ gif_output(ifp, m, dst, rt)
 	m_tag_prepend(m, mtag);
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
+
+	GIF_LOCK(sc);
+
 	if (!(ifp->if_flags & IFF_UP) ||
 	    sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
 		m_freem(m);
@@ -460,7 +459,8 @@ gif_output(ifp, m, dst, rt)
   end:
 	if (error)
 		ifp->if_oerrors++;
-	return error;
+	GIF_UNLOCK(sc);
+	return (error);
 }
 
 void
@@ -827,10 +827,7 @@ gif_set_tunnel(ifp, src, dst)
 	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
 	struct sockaddr *osrc, *odst, *sa;
-	int s;
 	int error = 0; 
-
-	s = splnet();
 
 	mtx_lock(&gif_mtx);
 	LIST_FOREACH(sc2, &gif_softc_list, gif_list) {
@@ -925,7 +922,6 @@ gif_set_tunnel(ifp, src, dst)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	else
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	splx(s);
 
 	return 0;
 
@@ -934,7 +930,6 @@ gif_set_tunnel(ifp, src, dst)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	else
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	splx(s);
 
 	return error;
 }
@@ -944,9 +939,6 @@ gif_delete_tunnel(ifp)
 	struct ifnet *ifp;
 {
 	struct gif_softc *sc = ifp->if_softc;
-	int s;
-
-	s = splnet();
 
 	if (sc->gif_psrc) {
 		free((caddr_t)sc->gif_psrc, M_IFADDR);
@@ -968,5 +960,4 @@ gif_delete_tunnel(ifp)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	else
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	splx(s);
 }
