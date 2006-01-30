@@ -174,7 +174,7 @@ static moduledata_t " opt_m "_fw_mod = {\
 };\
 DECLARE_MODULE(" opt_m "_fw, " opt_m "_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
 MODULE_VERSION(" opt_m "_fw, 1);\
-MODULE_DEPEND(iwi_boot_fw, firmware, 1, 1, 1);\
+MODULE_DEPEND(" opt_m "_fw, firmware, 1, 1, 1);\
 ");
 
 if (opt_c)
