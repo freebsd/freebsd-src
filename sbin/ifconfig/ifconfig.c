@@ -535,6 +535,12 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 	if (afp->af_postproc != NULL)
 		afp->af_postproc(s, afp);
 	/*
+	 * Do deferred callbacks registered while processing
+	 * command-line arguments.
+	 */
+	for (cb = callbacks; cb != NULL; cb = cb->cb_next)
+		cb->cb_func(s, cb->cb_arg);
+	/*
 	 * Do deferred operations.
 	 */
 	if (clearaddr) {
@@ -567,13 +573,6 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
 			Perror("ioctl (SIOCAIFADDR)");
 	}
-
-	/*
-	 * Do deferred callbacks registered while processing
-	 * command-line arguments.
-	 */
-	for (cb = callbacks; cb != NULL; cb = cb->cb_next)
-		cb->cb_func(s, cb->cb_arg);
 
 	close(s);
 	return(0);
