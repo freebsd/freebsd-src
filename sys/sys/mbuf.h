@@ -337,6 +337,7 @@ extern uma_zone_t	zone_jumbo4;
 extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
+extern uma_zone_t	zone_mtag_vlan;
 
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
@@ -759,6 +760,10 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int, int);
 #define	PACKET_TAG_PF_TRANSLATE_LOCALHOST	26 /* PF translate localhost */
 #define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
 #define	PACKET_TAG_CARP                         28 /* CARP info */
+
+/* Specific cookies and tags. */
+#define	MTAG_VLAN				1035328035
+#define	MTAG_VLAN_TAG				0 /* tag of VLAN interface */
 
 /* Packet tag routines. */
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);

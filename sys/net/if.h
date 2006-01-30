@@ -191,6 +191,7 @@ struct if_data {
 #define	IFCAP_VLAN_HWTAGGING	0x0010	/* hardware VLAN tag support */
 #define	IFCAP_JUMBO_MTU		0x0020	/* 9000 byte MTU supported */
 #define	IFCAP_POLLING		0x0040	/* driver supports polling */
+#define	IFCAP_VLAN_HWCSUM	0x0080	/* can do IFCAP_HWCSUM on VLANs */
 
 #define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
 
