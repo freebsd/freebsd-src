@@ -104,6 +104,8 @@ in_gif_output(ifp, family, m)
 	int proto, error;
 	u_int8_t tos;
 
+	GIF_LOCK_ASSERT(sc);
+
 	if (sin_src == NULL || sin_dst == NULL ||
 	    sin_src->sin_family != AF_INET ||
 	    sin_dst->sin_family != AF_INET) {
