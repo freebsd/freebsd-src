@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -77,6 +78,8 @@ static const char notify = '!';
 static const char nomatch = '?';
 static const char attach = '+';
 static const char detach = '-';
+
+static struct pidfh *pfh;
 
 int Dflag;
 int dflag;
@@ -365,17 +368,32 @@ config::parse(void)
 }
 
 void
-config::drop_pidfile()
+config::open_pidfile()
 {
-	FILE *fp;
+	pid_t otherpid;
 	
 	if (_pidfile == "")
 		return;
-	fp = fopen(_pidfile.c_str(), "w");
-	if (fp == NULL)
-		return;
-	fprintf(fp, "%d\n", getpid());
-	fclose(fp);
+	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST)
+			errx(1, "devd already running, pid: %d", (int)otherpid);
+		warn("cannot open pid file");
+	}
+}
+
+void
+config::write_pidfile()
+{
+	
+	pidfile_write(pfh);
+}
+
+void
+config::remove_pidfile()
+{
+	
+	pidfile_remove(pfh);
 }
 
 void
@@ -749,8 +767,10 @@ event_loop(void)
 			if (rv == 0) {
 				if (Dflag)
 					fprintf(stderr, "Calling daemon\n");
+				cfg.remove_pidfile();
+				cfg.open_pidfile();
 				daemon(0, 0);
-				cfg.drop_pidfile();
+				cfg.write_pidfile();
 				once++;
 			}
 		}
@@ -931,8 +951,9 @@ main(int argc, char **argv)
 
 	cfg.parse();
 	if (!dflag && nflag) {
+		cfg.open_pidfile();
 		daemon(0, 0);
-		cfg.drop_pidfile();
+		cfg.write_pidfile();
 	}
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, gensighand);

@@ -7,8 +7,8 @@ WARNS?=	4
 
 NO_SHARED?=YES
 
-DPADD=	${LIBL}
-LDADD=	-ll
+DPADD=	${LIBL} ${LIBUTIL}
+LDADD=	-ll -lutil
 
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR}
