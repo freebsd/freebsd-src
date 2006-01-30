@@ -515,9 +515,9 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 		 * and are asserting a read lock, fail.  Also, if no one
 		 * has a lock at all, fail.
 		 */
-		if ((rw->rw_lock == RW_UNLOCKED ||
-		    !(rw->rw_lock & RW_LOCK_READ)) && (what == RA_RLOCKED ||
-		    (rw_owner(rw) != curthread)))
+		if (rw->rw_lock == RW_UNLOCKED ||
+		    (!(rw->rw_lock & RW_LOCK_READ) && (what == RA_RLOCKED ||
+		    rw_owner(rw) != curthread)))
 			panic("Lock %s not %slocked @ %s:%d\n",
 			    rw->rw_object.lo_name, (what == RA_RLOCKED) ?
 			    "read " : "", file, line);
