@@ -851,8 +851,8 @@ pty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	 * an open() or we won't create a device".
 	 */
 	pt->pt_devc = devc = make_dev_cred(&ptc_cdevsw, 
-	    NUM_TO_MINOR(pt->pt_num), cred, UID_ROOT, GID_WHEEL, 0666, "pty%d",
-	    pt->pt_num);
+	    NUM_TO_MINOR(pt->pt_num), cred, UID_ROOT, GID_WHEEL, 0666,
+	    "pty/%d", pt->pt_num);
 
 	dev_ref(devc);
 	devc->si_drv1 = pt;
