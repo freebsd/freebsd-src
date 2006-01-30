@@ -868,9 +868,9 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		flags &= ~FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, -1);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
 		VOP_UNLOCK(nd.ni_vp, 0, td);
