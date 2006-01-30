@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 	atexit(cleanup);
 
 	if (stat(iname, &sb) != 0) {
-		err(1, "%s", iname);
+		err(1, "stat(%s)", iname);
 		/* Not reached */
 	}
 	hdr.nblocks = sb.st_size / hdr.blksz;
@@ -137,13 +137,13 @@ int main(int argc, char **argv)
 
 	fdr = open(iname, O_RDONLY);
 	if (fdr < 0) {
-		err(1, "%s", iname);
+		err(1, "open(%s)", iname);
 		/* Not reached */
 	}
 	fdw = open(oname, O_WRONLY | O_TRUNC | O_CREAT,
 		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 	if (fdw < 0) {
-		err(1, "%s", oname);
+		err(1, "open(%s)", oname);
 		/* Not reached */
 	}
 	cleanfile = oname;
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
 				    DEV_BSIZE);
 		}
 		if (write(fdw, obuf, destlen) < 0) {
-			err(1, "%s", oname);
+			err(1, "write(%s)", oname);
 			/* Not reached */
 		}
 		toc[i] = htobe64(offset);
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 	/* Write headers into pre-allocated space */
 	lseek(fdw, 0, SEEK_SET);
 	if (writev(fdw, iov, 2) < 0) {
-		err(1, "%s", oname);
+		err(1, "writev(%s)", oname);
 		/* Not reached */
 	}
 	cleanfile = NULL;
