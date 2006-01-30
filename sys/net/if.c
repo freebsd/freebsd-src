@@ -1040,6 +1040,7 @@ if_route(struct ifnet *ifp, int flag, int fam)
 }
 
 void	(*vlan_link_state_p)(struct ifnet *, int);	/* XXX: private from if_vlan */
+void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
 
 /*
  * Handle a change in the interface link state. To avoid LORs
@@ -1075,7 +1076,7 @@ do_link_state_change(void *arg, int pending)
 	else
 		link = NOTE_LINKINV;
 	KNOTE_UNLOCKED(&ifp->if_klist, link);
-	if (ifp->if_nvlans != 0)
+	if (ifp->if_vlantrunk != NULL)
 		(*vlan_link_state_p)(ifp, link);
 
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&

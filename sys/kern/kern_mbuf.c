@@ -133,6 +133,7 @@ uma_zone_t	zone_jumbo4;
 uma_zone_t	zone_jumbo9;
 uma_zone_t	zone_jumbo16;
 uma_zone_t	zone_ext_refcnt;
+uma_zone_t	zone_mtag_vlan;
 
 /*
  * Local prototypes.
@@ -145,6 +146,7 @@ static void	mb_dtor_clust(void *, int, void *);
 static void	mb_dtor_pack(void *, int, void *);
 static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
+static int	mt_zinit_vlan(void *, int, int);
 
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
@@ -224,6 +226,12 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 	    NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+
+	zone_mtag_vlan = uma_zcreate("mtag_vlan",
+	    sizeof(struct m_tag) + sizeof(u_int),
+	    NULL, NULL,
+	    mt_zinit_vlan, NULL,
+	    UMA_ALIGN_INT, 0);
 
 	/* uma_prealloc() goes here... */
 
@@ -507,6 +515,23 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 #endif
 	}
 	/* m_ext is already initialized. */
+
+	return (0);
+}
+
+static void
+mt_vlan_free(struct m_tag *mtag)
+{
+	uma_zfree(zone_mtag_vlan, mtag);
+}
+
+static int
+mt_zinit_vlan(void *mem, int size, int how)
+{
+	struct m_tag *mtag = (struct m_tag *)mem;
+
+	m_tag_setup(mtag, MTAG_VLAN, MTAG_VLAN_TAG, sizeof(u_int));
+	mtag->m_tag_free = mt_vlan_free;
 
 	return (0);
 }

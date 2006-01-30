@@ -93,8 +93,6 @@ struct	vlanreq {
  * Note that a driver must indicate it supports hardware VLAN
  * tagging by marking IFCAP_VLAN_HWTAGGING in if_capabilities.
  */
-#define	MTAG_VLAN	1035328035
-#define	MTAG_VLAN_TAG	0		/* tag of VLAN interface */
 
 /*
  * This macro must expand to a lvalue so that it can be used
@@ -103,9 +101,8 @@ struct	vlanreq {
 #define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt) + 1))
 
 #define	VLAN_INPUT_TAG(_ifp, _m, _t) do {			\
-	struct m_tag *mtag;					\
-	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG,		\
-			   sizeof (u_int), M_NOWAIT);		\
+	struct m_tag *mtag = (struct m_tag *)			\
+	    uma_zalloc(zone_mtag_vlan, M_NOWAIT);		\
 	if (mtag != NULL) {					\
 		VLAN_TAG_VALUE(mtag) = (_t);			\
 		m_tag_prepend((_m), mtag);			\
@@ -120,6 +117,13 @@ struct	vlanreq {
 #define	VLAN_OUTPUT_TAG(_ifp, _m)				\
 	((_m)->m_flags & M_VLANTAG ?				\
 		m_tag_locate((_m), MTAG_VLAN, MTAG_VLAN_TAG, NULL) : NULL)
+
+#define	VLAN_CAPABILITIES(_ifp) do {				\
+	if ((_ifp)->if_vlantrunk != NULL) 			\
+		(*vlan_trunk_cap_p)(_ifp);			\
+} while (0)
+
+extern	void (*vlan_trunk_cap_p)(struct ifnet *);
 #endif /* _KERNEL */
 
 #endif /* _NET_IF_VLAN_VAR_H_ */

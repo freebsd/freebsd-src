@@ -623,7 +623,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 
 	if (!(ifp->if_bridge) &&
 	    !((ether_type == ETHERTYPE_VLAN || m->m_flags & M_VLANTAG) &&
-	    ifp->if_nvlans > 0)) {
+	    ifp->if_vlantrunk != NULL)) {
 #ifdef DEV_CARP
 		/*
 		 * XXX: Okay, we need to call carp_forus() and - if it is for
@@ -696,7 +696,7 @@ post_stats:
 		/*
 		 * If no VLANs are configured, drop.
 		 */
-		if (ifp->if_nvlans == 0) {
+		if (ifp->if_vlantrunk == NULL) {
 			ifp->if_noproto++;
 			m_freem(m);
 			return;
@@ -716,7 +716,7 @@ post_stats:
 	 */
 	switch (ether_type) {
 	case ETHERTYPE_VLAN:
-		if (ifp->if_nvlans != 0) {
+		if (ifp->if_vlantrunk != NULL) {
 			KASSERT(vlan_input_p,("ether_input: VLAN not loaded!"));
 			(*vlan_input_p)(ifp, m);
 		} else {
