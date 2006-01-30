@@ -113,6 +113,10 @@ ata_pci_probe(device_t dev)
 	if (!ata_ite_ident(dev))
 	    return ATA_PROBE_OK;
 	break;
+    case ATA_JMICRON_ID:
+	if (!ata_jmicron_ident(dev))
+	    return ATA_PROBE_OK;
+	break;
     case ATA_MARVELL_ID:
 	if (!ata_marvell_ident(dev))
 	    return ATA_PROBE_OK;
