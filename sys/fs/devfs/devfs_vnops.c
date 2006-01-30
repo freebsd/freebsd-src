@@ -233,12 +233,6 @@ devfs_close(struct vop_close_args *ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-
-	/*
-	 * This needs to be rewritten to take the vp interlock into
-	 * consideration.
-	 */
-
 	oldvp = NULL;
 	sx_xlock(&proctree_lock);
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
