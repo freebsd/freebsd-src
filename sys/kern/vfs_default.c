@@ -577,6 +577,7 @@ loop:
 		if (error)
 			allerror = error;
 
+		/* Do not turn this into vput.  td is not always curthread. */
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
 		MNT_ILOCK(mp);
