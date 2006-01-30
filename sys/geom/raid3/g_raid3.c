@@ -2819,7 +2819,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	uma_zone_set_max(sc->sc_zone_64k, g_raid3_n64k);
 	sc->sc_zone_16k = uma_zcreate("gr3:16k", 16384, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(sc->sc_zone_64k, g_raid3_n16k);
+	uma_zone_set_max(sc->sc_zone_16k, g_raid3_n16k);
 	sc->sc_zone_4k = uma_zcreate("gr3:4k", 4096, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(sc->sc_zone_4k, g_raid3_n4k);
