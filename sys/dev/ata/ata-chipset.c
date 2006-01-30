@@ -99,6 +99,7 @@ static int ata_intel_31244_command(struct ata_request *request);
 static void ata_intel_31244_reset(device_t dev);
 static int ata_ite_chipinit(device_t dev);
 static void ata_ite_setmode(device_t dev, int mode);
+static int ata_jmicron_chipinit(device_t dev);
 static int ata_marvell_chipinit(device_t dev);
 static int ata_marvell_allocate(device_t dev);
 static int ata_marvell_status(device_t dev);
@@ -236,7 +237,9 @@ ata_sata_phy_enable(struct ata_channel *ch)
 	}
 	ata_udelay(5000);
 	for (loop = 0; loop < 10; loop++) {
-	    ATA_IDX_OUTL(ch, ATA_SCONTROL, ATA_SC_DET_IDLE);
+	    ATA_IDX_OUTL(ch, ATA_SCONTROL, ATA_SC_DET_IDLE |
+					   ATA_SC_IPM_DIS_PARTIAL |
+					   ATA_SC_IPM_DIS_SLUMBER);
 	    ata_udelay(100);
 	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 0) {
 		ata_sata_connect(ch);
@@ -448,28 +451,29 @@ ata_ahci_status(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_connect_task *tp;
-    u_int32_t action, status, error, issued;
+    u_int32_t action, istatus, sstatus, error, issued;
     int offset = (ch->unit << 7);
     int tag = 0;
 
-    action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS) & (1 << ch->unit);
-
-    if (action) {
-	error = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SERR + offset);
-	status = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
+    if ((action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS)) & (1 << ch->unit)) {
+	istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
 	issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
+	sstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SSTS + offset);
+	error = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SERR + offset);
+
+	/* clear interrupt(s) */
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action);
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, istatus);
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_SERR + offset, error);
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, status);
 
 	/* do we have cold connect surprise */
-	if (status & ATA_AHCI_P_IX_CPD) {
-	    printf("ata_ahci_intr status=%08x error=%08x issued=%08x\n",
-		   status, error, issued);
+	if (istatus & ATA_AHCI_P_IX_CPD) {
+	    printf("ata_ahci_intr status=%08x sstatus=%08x error=%08x\n",
+		   istatus, sstatus, error);
 	}
 
 	/* check for and handle connect events */
-	if (((status & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC)) ==
-	     ATA_AHCI_P_IX_PC) &&
+	if ((istatus & ATA_AHCI_P_IX_PC) &&
 	    (tp = (struct ata_connect_task *)
 		  malloc(sizeof(struct ata_connect_task),
 			 M_ATA, M_NOWAIT | M_ZERO))) {
@@ -483,8 +487,9 @@ ata_ahci_status(device_t dev)
 	}
 
 	/* check for and handle disconnect events */
-	if (((status & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC)) ==
-	     ATA_AHCI_P_IX_PRC) &&
+	else if ((istatus & ATA_AHCI_P_IX_PRC) && 
+	    !((sstatus & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1 ||
+	      (sstatus & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2) &&
 	    (tp = (struct ata_connect_task *)
 		  malloc(sizeof(struct ata_connect_task),
 		       M_ATA, M_NOWAIT | M_ZERO))) {
@@ -496,9 +501,6 @@ ata_ahci_status(device_t dev)
 	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 	    taskqueue_enqueue(taskqueue_thread, &tp->task);
 	}
-
-	/* clear interrupt */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action);
 
 	/* do we have any device action ? */
 	if (!(issued & (1 << tag)))
@@ -902,11 +904,13 @@ ata_ali_chipinit(device_t dev)
 
     switch (ctlr->chip->cfg2) {
     case ALISATA:
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	ctlr->channels = ctlr->chip->cfg1;
 	ctlr->allocate = ata_ali_sata_allocate;
 	ctlr->setmode = ata_sata_setmode;
+
+	/* enable PCI interrupt */
+	pci_write_config(dev, PCIR_COMMAND,
+			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case ALINEW:
@@ -2040,6 +2044,84 @@ ata_ite_setmode(device_t dev, int mode)
 
 
 /*
+ * JMicron chipset support functions
+ */
+int
+ata_jmicron_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_chip_id *idx;
+    static struct ata_chip_id ids[] =
+    {{ ATA_JMB360, 0, 0, 0, ATA_SA300, "JMB360" },
+     { 0, 0, 0, 0, 0, 0}};
+    char buffer[64];
+
+    if (!(idx = ata_match_chip(dev, ids)))
+        return ENXIO;
+
+    sprintf(buffer, "JMicron %s %s controller",
+            idx->text, ata_mode2str(idx->max_dma));
+    device_set_desc_copy(dev, buffer);
+    ctlr->chip = idx;
+    ctlr->chipinit = ata_jmicron_chipinit;
+    return 0;
+}
+
+static int
+ata_jmicron_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (ata_setup_interrupt(dev))
+	return ENXIO;
+
+    ctlr->r_type2 = SYS_RES_MEMORY;
+    ctlr->r_rid2 = PCIR_BAR(5);
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						&ctlr->r_rid2, RF_ACTIVE)))
+	return ENXIO;
+
+
+    /* enable AHCI mode */
+    pci_write_config(dev, 0x41, 0xa1, 1);
+
+    /* reset AHCI controller */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
+    DELAY(1000000);
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
+	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
+	device_printf(dev, "AHCI controller reset failure\n");
+	return ENXIO;
+    }
+
+    /* enable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
+
+    /* get the number of HW channels */
+    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) +1;
+
+    ctlr->allocate = ata_ahci_allocate;
+    ctlr->reset = ata_ahci_reset;
+    ctlr->dmainit = ata_ahci_dmainit;
+    ctlr->setmode = ata_sata_setmode;
+
+    /* clear interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
+
+    /* enable AHCI interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
+
+    /* enable PCI interrupt */
+    pci_write_config(dev, PCIR_COMMAND,
+                     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+    return 0;
+}
+
+
+/*
  * Marvell chipset support functions
  */
 #define ATA_MV_HOST_BASE(ch) \
@@ -2128,6 +2210,7 @@ ata_marvell_chipinit(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x01d64, 0x000000ff/*HC0*/ | 0x0001fe00/*HC1*/ |
 	     /*(1<<19) | (1<<20) | (1<<21) |*/(1<<22) | (1<<24) | (0x7f << 25));
 
+    /* enable PCI interrupt */
     pci_write_config(dev, PCIR_COMMAND,
 		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     return 0;
@@ -4282,10 +4365,12 @@ ata_sis_chipinit(device_t dev)
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	    ctlr->allocate = ata_sis_allocate;
 	    ctlr->reset = ata_sis_reset;
+
+	    /* enable PCI interrupt */
+	    pci_write_config(dev, PCIR_COMMAND,
+			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
@@ -4471,10 +4556,12 @@ ata_via_chipinit(device_t dev)
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	    ctlr->allocate = ata_via_allocate;
 	    ctlr->reset = ata_via_reset;
+
+	    /* enable PCI interrupt */
+	    pci_write_config(dev, PCIR_COMMAND,
+			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
