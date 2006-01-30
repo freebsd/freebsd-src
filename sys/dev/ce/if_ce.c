@@ -256,6 +256,74 @@ static struct callout timeout_handle;
 
 static int ce_destroy = 0;
 
+#if __FreeBSD_version < 500000
+static int ce_open (dev_t dev, int oflags, int devtype, struct proc *p);
+static int ce_close (dev_t dev, int fflag, int devtype, struct proc *p);
+static int ce_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p);
+#else
+static int ce_open (struct cdev *dev, int oflags, int devtype, struct thread *td);
+static int ce_close (struct cdev *dev, int fflag, int devtype, struct thread *td);
+static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td);
+#endif
+#if __FreeBSD_version < 500000
+static struct cdevsw ce_cdevsw = {
+	ce_open,	ce_close,	noread,		nowrite,
+	ce_ioctl,	nopoll,		nommap,		nostrategy,
+	"ce",		CDEV_MAJOR,	nodump,		nopsize,
+	D_NAGGED,	-1
+	};
+#elif __FreeBSD_version == 500000
+static struct cdevsw ce_cdevsw = {
+	ce_open,	ce_close,	noread,		nowrite,
+	ce_ioctl,	nopoll,		nommap,		nostrategy,
+	"ce",		CDEV_MAJOR,	nodump,		nopsize,
+	D_NAGGED,
+	};
+#elif __FreeBSD_version <= 501000
+static struct cdevsw ce_cdevsw = {
+	.d_open	    = ce_open,
+	.d_close    = ce_close,
+	.d_read     = noread,
+	.d_write    = nowrite,
+	.d_ioctl    = ce_ioctl,
+	.d_poll     = nopoll,
+	.d_mmap	    = nommap,
+	.d_strategy = nostrategy,
+	.d_name     = "ce",
+	.d_maj	    = CDEV_MAJOR,
+	.d_dump     = nodump,
+	.d_flags    = D_NAGGED,
+};
+#elif __FreeBSD_version < 502103
+static struct cdevsw ce_cdevsw = {
+	.d_open     = ce_open,
+	.d_close    = ce_close,
+	.d_ioctl    = ce_ioctl,
+	.d_name     = "ce",
+	.d_maj	    = CDEV_MAJOR,
+	.d_flags    = D_NAGGED,
+};
+#elif __FreeBSD_version < 600000
+static struct cdevsw ce_cdevsw = {
+	.d_version  = D_VERSION,
+	.d_open     = ce_open,
+	.d_close    = ce_close,
+	.d_ioctl    = ce_ioctl,
+	.d_name     = "ce",
+	.d_maj	    = CDEV_MAJOR,
+	.d_flags    = D_NEEDGIANT,
+};
+#else /* __FreeBSD_version >= 600000 */
+static struct cdevsw ce_cdevsw = {
+	.d_version  = D_VERSION,
+	.d_open     = ce_open,
+	.d_close    = ce_close,
+	.d_ioctl    = ce_ioctl,
+	.d_name     = "ce",
+	.d_flags    = D_NEEDGIANT,
+};
+#endif
+
 /*
  * Print the mbuf chain, for debug purposes only.
  */
@@ -406,8 +474,6 @@ static void ce_intr (void *arg)
 		}
 	}
 }
-
-extern struct cdevsw ce_cdevsw;
 
 #if __FreeBSD_version >= 500000
 static void
@@ -1937,65 +2003,6 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	}
 	return ENOTTY;
 }
-
-#if __FreeBSD_version < 500000
-static struct cdevsw ce_cdevsw = {
-	ce_open,	ce_close,	noread,		nowrite,
-	ce_ioctl,	nopoll,		nommap,		nostrategy,
-	"ce",		CDEV_MAJOR,	nodump,		nopsize,
-	D_NAGGED,	-1
-	};
-#elif __FreeBSD_version == 500000
-static struct cdevsw ce_cdevsw = {
-	ce_open,	ce_close,	noread,		nowrite,
-	ce_ioctl,	nopoll,		nommap,		nostrategy,
-	"ce",		CDEV_MAJOR,	nodump,		nopsize,
-	D_NAGGED,
-	};
-#elif __FreeBSD_version <= 501000
-static struct cdevsw ce_cdevsw = {
-	.d_open	    = ce_open,
-	.d_close    = ce_close,
-	.d_read     = noread,
-	.d_write    = nowrite,
-	.d_ioctl    = ce_ioctl,
-	.d_poll     = nopoll,
-	.d_mmap	    = nommap,
-	.d_strategy = nostrategy,
-	.d_name     = "ce",
-	.d_maj	    = CDEV_MAJOR,
-	.d_dump     = nodump,
-	.d_flags    = D_NAGGED,
-};
-#elif __FreeBSD_version < 502103
-static struct cdevsw ce_cdevsw = {
-	.d_open     = ce_open,
-	.d_close    = ce_close,
-	.d_ioctl    = ce_ioctl,
-	.d_name     = "ce",
-	.d_maj	    = CDEV_MAJOR,
-	.d_flags    = D_NAGGED,
-};
-#elif __FreeBSD_version < 600000
-static struct cdevsw ce_cdevsw = {
-	.d_version  = D_VERSION,
-	.d_open     = ce_open,
-	.d_close    = ce_close,
-	.d_ioctl    = ce_ioctl,
-	.d_name     = "ce",
-	.d_maj	    = CDEV_MAJOR,
-	.d_flags    = D_NEEDGIANT,
-};
-#else /* __FreeBSD_version >= 600000 */
-static struct cdevsw ce_cdevsw = {
-	.d_version  = D_VERSION,
-	.d_open     = ce_open,
-	.d_close    = ce_close,
-	.d_ioctl    = ce_ioctl,
-	.d_name     = "ce",
-	.d_flags    = D_NEEDGIANT,
-};
-#endif
 
 #ifdef NETGRAPH
 #if __FreeBSD_version >= 500000
