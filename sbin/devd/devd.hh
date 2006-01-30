@@ -153,7 +153,9 @@ public:
 	void set_pidfile(const char *);
 	void reset();
 	void parse();
-	void drop_pidfile();
+	void open_pidfile();
+	void write_pidfile();
+	void remove_pidfile();
 	void push_var_table();
 	void pop_var_table();
 	void set_variable(const char *var, const char *val);
