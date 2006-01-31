@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #define NORIDHOST	"whois.norid.no"
 #define	IANAHOST	"whois.iana.org"
 #define GERMNICHOST	"de.whois-servers.net"
+#define FNICHOST	"whois.afrinic.net"
 #define	DEFAULT_PORT	"whois"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
@@ -86,7 +87,8 @@ __FBSDID("$FreeBSD$");
 
 #define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
 
-const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST, NULL };
+const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST,
+			   FNICHOST, NULL };
 const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
@@ -108,7 +110,7 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "aAbc:dgh:iIklmp:QrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "aAbc:dfgh:iIklmp:QrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
@@ -124,6 +126,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			host = DNICHOST;
+			break;
+		case 'f':
+			host = FNICHOST;
 			break;
 		case 'g':
 			host = GNICHOST;
@@ -356,7 +361,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-aAbdgiIklmQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-aAbdfgiIklmQrR6] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }

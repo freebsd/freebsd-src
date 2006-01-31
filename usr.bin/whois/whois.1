@@ -40,7 +40,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAbdgiIklmQrR6
+.Op Fl aAbdfgiIklmQrR6
 .Op Fl c Ar country-code | Fl h Ar host
 .Op Fl p Ar port
 .Ar name ...
@@ -58,7 +58,7 @@ Use the American Registry for Internet Numbers
 .Pq Tn ARIN
 database.
 It contains network numbers used in those parts of the world covered neither by
-.Tn APNIC
+.Tn APNIC , AfriNIC , LACNIC ,
 nor by
 .Tn RIPE .
 .Pp
@@ -87,6 +87,11 @@ Use the US Department of Defense
 database.
 It contains points of contact for subdomains of
 .Pa .MIL .
+.It Fl f
+Use the African Network Information Centre
+.Pq Tn AfriNIC
+database. It contains network numbers used in Africa and the islands of the
+western Indian Ocean.
 .It Fl g
 Use the US non-military federal government database, which contains points of
 contact for subdomains of
@@ -112,7 +117,7 @@ Registry for Internet Numbers
 If a query to
 .Tn ARIN
 references
-.Tn APNIC , LACNIC ,
+.Tn APNIC , AfriNIC , LACNIC ,
 or
 .Tn RIPE ,
 that server will be queried also, provided that the
