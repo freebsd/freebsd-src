@@ -1756,7 +1756,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 
 	    GET_TIME(now);
 
-	    TV_DELTA(rt->mfc_last_assert, now, delta);
+	    TV_DELTA(now, rt->mfc_last_assert, delta);
 
 	    if (delta > ASSERT_MSG_TIME) {
 		struct sockaddr_in k_igmpsrc = { sizeof k_igmpsrc, AF_INET };
