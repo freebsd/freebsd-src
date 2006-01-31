@@ -796,28 +796,21 @@ ip_next_mtu(mtu, dir)
 		65535, 32000, 17914, 8166, 4352, 2002, 1492, 1280, 1006, 508,
 		296, 68, 0
 	};
-	int i;
+	int i, size;
 
-	for (i = 0; i < (sizeof mtutab) / (sizeof mtutab[0]); i++) {
-		if (mtu >= mtutab[i])
-			break;
-	}
-
-	if (dir < 0) {
-		if (i == 0) {
-			return 0;
-		} else {
-			return mtutab[i - 1];
-		}
+	size = (sizeof mtutab) / (sizeof mtutab[0]);
+	if (dir >= 0) {
+		for (i = 0; i < size; i++)
+			if (mtu > mtutab[i])
+				return mtutab[i];
 	} else {
-		if (mtutab[i] == 0) {
-			return 0;
-		} else if(mtu > mtutab[i]) {
-			return mtutab[i];
-		} else {
-			return mtutab[i + 1];
-		}
+		for (i = size - 1; i >= 0; i--)
+			if (mtu < mtutab[i])
+				return mtutab[i];
+		if (mtu == mtutab[0])
+			return mtutab[0];
 	}
+	return 0;
 }
 
 
