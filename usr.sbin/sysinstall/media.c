@@ -122,6 +122,14 @@ cpioVerbosity()
     return "";
 }
 
+int
+mediaOpen(void)
+{
+    if (!mediaDevice || !mediaVerify() || !DEVICE_INIT(mediaDevice))
+	return DITEM_FAILURE;
+    return DITEM_SUCCESS;
+}
+
 void
 mediaClose(void)
 {
