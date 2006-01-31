@@ -533,8 +533,14 @@ verify_path(struct in_addr src, struct ifnet *ifp)
 	if (ro.ro_rt == NULL)
 		return 0;
 
-	/* if ifp is provided, check for equality with rtentry */
-	if (ifp != NULL && ro.ro_rt->rt_ifp != ifp) {
+	/*
+	 * If ifp is provided, check for equality with rtentry.
+	 * We should use rt->rt_ifa->ifa_ifp, instead of rt->rt_ifp,
+	 * in order to pass packets injected back by if_simloop():
+	 * if useloopback == 1 routing entry (via lo0) for our own address
+	 * may exist, so we need to handle routing assymetry.
+	 */
+	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
 		RTFREE(ro.ro_rt);
 		return 0;
 	}
