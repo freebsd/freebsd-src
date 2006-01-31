@@ -65,7 +65,9 @@
 
 /* Mode names */
 #define	NG_PPPOE_STANDARD	"standard"
-#define	NG_PPPOE_NONSTANDARD	"3Com"
+#define	NG_PPPOE_3COM		"3Com"
+#define	NG_PPPOE_NONSTANDARD	NG_PPPOE_3COM
+#define	NG_PPPOE_DLINK		"D-Link"
 
 /**********************************************************************
  * Netgraph commands understood by this node type.
@@ -180,8 +182,8 @@ struct ngpppoe_sts {
 
 #define ETHERTYPE_PPPOE_DISC	0x8863	/* pppoe discovery packets     */
 #define ETHERTYPE_PPPOE_SESS	0x8864	/* pppoe session packets       */
-#define ETHERTYPE_PPPOE_STUPID_DISC 0x3c12 /* pppoe discovery packets 3com? */
-#define ETHERTYPE_PPPOE_STUPID_SESS 0x3c13 /* pppoe session packets   3com? */
+#define ETHERTYPE_PPPOE_3COM_DISC 0x3c12 /* pppoe discovery packets 3com? */
+#define ETHERTYPE_PPPOE_3COM_SESS 0x3c13 /* pppoe session packets   3com? */
 #else
 #define PTT_EOL		(0x0000)
 #define PTT_SRV_NAME	(0x0101)
@@ -196,8 +198,8 @@ struct ngpppoe_sts {
 
 #define ETHERTYPE_PPPOE_DISC	0x6388	/* pppoe discovery packets     */
 #define ETHERTYPE_PPPOE_SESS	0x6488	/* pppoe session packets       */
-#define ETHERTYPE_PPPOE_STUPID_DISC 0x123c /* pppoe discovery packets 3com? */
-#define ETHERTYPE_PPPOE_STUPID_SESS 0x133c /* pppoe session packets   3com? */
+#define ETHERTYPE_PPPOE_3COM_DISC 0x123c /* pppoe discovery packets 3com? */
+#define ETHERTYPE_PPPOE_3COM_SESS 0x133c /* pppoe session packets   3com? */
 #endif
 
 struct pppoe_tag {
