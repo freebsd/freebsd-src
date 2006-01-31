@@ -634,8 +634,7 @@ eli_attach(struct gctl_req *req)
 }
 
 static void
-eli_setkey_attached(struct gctl_req *req, const char *prov,
- struct g_eli_metadata *md)
+eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 {
 	unsigned char key[G_ELI_USERKEYLEN];
 	intmax_t val;
@@ -767,7 +766,7 @@ eli_setkey(struct gctl_req *req)
 		return;
 
 	if (eli_is_attached(prov))
-		eli_setkey_attached(req, prov, &md);
+		eli_setkey_attached(req, &md);
 	else
 		eli_setkey_detached(req, prov, &md);
 }
