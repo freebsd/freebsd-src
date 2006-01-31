@@ -1,0 +1,86 @@
+OpenBSM 1.0
+
+  Introduction
+
+OpenBSM provides an open source implementation of Sun's BSM Audit API. 
+Originally created under contract to Apple Computer by McAfee Research, 
+this implementation is now maintained by volunteers and the generous 
+contribution of several organizations.  Coupled with a kernel audit 
+implementation, OpenBSM can be used to maintain system audit streams, and 
+is a foundation for an Audit-enabled system.
+
+  Contents
+
+OpenBSM consists of several directories:
+
+    bin/           Audit-related command line tools
+    bsm/           System include files for BSM
+    etc/           Sample /etc/security configuration files
+    libbsm/        Implementation of BSM library interfaces and man pages
+    man/           System call and configuration file man pages
+
+OpenBSM currently builds on FreeBSD and Darwin.  With Makefile adjustment
+and minor tweaks, it should build without problems on a broad range of
+POSIX-like systems.
+
+  Building
+
+OpenBSM is currently built using a series of BSD make files which should 
+work on both FreeBSD and Darwin.  One known issue is that versions of 
+Darwin prior to 10.3.8 have a nested include of "sys/audit.h" from 
+"sys/proc.h", which can result in type definition conflicts.  If running 
+with include files from an earlier version of Darwin, the nested include 
+must be manually removed in order that libbsm can be built, due to 
+potentially conflicting types resulting from an include of "sys/sysctl.h" 
+by that file.  On Darwin, the use of BSD make must be specified explicitly 
+by using "bsdmake" rather than "make", which on Darwin refers to GNU make.  
+Typical invocations from the OpenBSM tree root:
+
+FreeBSD
+
+    % make
+    # make install
+
+Darwin
+
+    % bsdmake
+    # bsdmake install
+
+  Credits
+
+The following organizations and individuals have contributed substantially 
+to the development of OpenBSM:
+
+    Apple Computer, Inc.
+    McAfee Research, McAfee, Inc.
+    SPARTA, Inc.
+    Robert Watson
+    Wayne Salamon
+    Suresh Krishnaswamy
+    Kevin Van Vechten
+    Tom Rhodes
+    Wojciech Koszek
+    Chunyang Yuan
+    Poul-Henning Kamp
+
+In addition, Coverity, Inc.'s Prevent(tm) static analysis tool and Gimpel
+Software's FlexeLint tool were used to identify a number of bugs in the
+OpenBSM implementation.
+
+  Contributions
+
+The TrustedBSD Project would appreciate the contribution of bug fixes, 
+enhancements, etc, under identically or substantially similar licenses to 
+those present on the remainder of the OpenBSM source code.
+
+  Location
+
+Information on OpenBSM may be found on the OpenBSM home page:
+
+    http://www.OpenBSM.org/
+
+Information on TrustedBSD may be found on the TrustedBSD home page:
+
+    http://www.TrustedBSD.org/
+
+$P4: //depot/projects/trustedbsd/openbsm/README#11 $
