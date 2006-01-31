@@ -92,13 +92,6 @@ Flags are set to 0 for cards not using a secondary
 .Tn DMA
 channel, or to 0x10 + C to specify channel C.
 .Pp
-The driver works best with
-.Tn WSS/MSS
-cards, which have a very clean
-architecture and an orthogonal set of features.
-They also happen to be
-among the cheapest audio cards on the market.
-.Pp
 The driver does its best to recognize the installed hardware and drive
 it correctly so the user is not required to add several lines in
 .Pa /boot/device.hints .
@@ -266,17 +259,6 @@ See
 for a complete list of the supported
 .Fn ioctl
 functions.
-.Sh HARDWARE
-The
-.Nm
-driver supports the following sound cards:
-.Pp
-.Bl -bullet -compact
-.It
-Creative Labs SoundBlaster PCI
-.It
-Intel 443MX, 810, 815, and 815E integrated sound devices
-.El
 .Sh FILES
 The
 .Nm
