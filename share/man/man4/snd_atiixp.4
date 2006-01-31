@@ -50,7 +50,8 @@ The
 bridge driver allows the generic audio driver,
 .Xr sound 4 ,
 to attach to ATI IXP audio devices.
-This driver supports 16bit playback and recording, and 32bit native playback.
+This driver supports 16bit playback and recording, and 32bit native playback
+and recording.
 .Sh HARDWARE
 The
 .Nm
@@ -81,7 +82,4 @@ driver
 does not support S/PDIF, but implementing it should be fairly easy if the
 right hardware is available.
 .Pp
-32bit recording is broken.
-Perhaps this hardware cannot do 32bit recording at all.
-If this is true, we can disable it entirely within the driver someday in the
-future.
+32bit native recording is broken on some hardware.
