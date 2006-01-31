@@ -99,7 +99,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 			t %= MINUTE;
 		}
 		if (t != 0)
-			p += sprintf(p, "%jd", t);
+			p += sprintf(p, "%jds", t);
 	} else  {
 		p += sprintf(p, "%jd", (intmax_t)t);
 	}
