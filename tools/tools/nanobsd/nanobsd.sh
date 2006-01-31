@@ -93,6 +93,12 @@ NANO_CONFSIZE=2048
 # If negative: max size possible
 NANO_DATASIZE=0
 
+# Size of the /etc ramdisk in 512 bytes sectors
+NANO_RAM_ETCSIZE=10240
+
+# Size of the /tmp+/var ramdisk in 512 bytes sectors
+NANO_RAM_TMPVARSIZE=10240
+
 # Media geometry, only relevant if bios doesn't understand LBA.
 NANO_SECTS=32
 NANO_HEADS=16
@@ -242,6 +248,9 @@ setup_nanobsd ( ) (
 		find $d -print | cpio -dumpl conf/base/
 	done
 
+	echo "$NANO_RAM_ETCSIZE" > conf/base/etc/md_size
+	echo "$NANO_RAM_TMPVARSIZE" > conf/base/var/md_size
+
 	# pick up config files from the special partition
 	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
 
@@ -379,6 +388,13 @@ create_i386_diskimage ( ) (
 	dd if=/dev/${MD}s1 of=${MAKEOBJDIRPREFIX}/_.disk.image bs=64k
 	mdconfig -d -u $MD
 	) > ${MAKEOBJDIRPREFIX}/_.di 2>&1
+)
+
+last_orders () (
+	# Redefine this function with any last orders you may have
+	# after the build completed, for instance to copy the finished
+	# image to a more convenient place:
+	# cp ${MAKEOBJDIRPREFIX}/_.disk.image /home/ftp/pub/nanobsd.disk
 )
 
 #######################################################################
@@ -550,5 +566,6 @@ run_customize
 setup_nanobsd
 prune_usr
 create_${NANO_ARCH}_diskimage
+last_orders
 
 echo "# NanoBSD image completed"
