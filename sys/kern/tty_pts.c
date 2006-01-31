@@ -265,7 +265,7 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 		ttyinitmode(tp, 1, 0);
 	else if (tp->t_state & TS_XCLUDE && suser(td)) {
 		return (EBUSY);
-	} else if (pt->pt_prison != td->td_ucred->cr_prison) {
+	} else if (pt->pt_prison != td->td_ucred->cr_prison && suser(td)) {
 		return (EBUSY);
 	}
 	if (tp->t_oproc)			/* Ctrlr still around. */
