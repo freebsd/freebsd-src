@@ -1,0 +1,12 @@
+- Teach praudit how to general XML format BSM streams.
+- Teach libbsm about any additional 64-bit token types that are present
+  in more recent Solaris versions.
+- Build a regression test suite for libbsm that generates each token
+  type and then compares the results with known good data.  Make sure to
+  test that things work properly with respect to endianness of the local
+  platform.
+- Document contents of libbsm "public" data structures in libbsm man pages.
+- The audit.log.5 man page is incomplete, as it does not describe all
+  token types.
+
+$P4: //depot/projects/trustedbsd/openbsm/TODO#4 $
