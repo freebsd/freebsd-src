@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG    = athdebug
-BINDIR	= /usr/local/bin
-NO_MAN	= noman
+PROG=	athdebug
+NO_MAN=
+BINDIR?=/usr/local/bin
 
 .include <bsd.prog.mk>
