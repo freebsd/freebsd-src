@@ -294,8 +294,8 @@ struct mfc {
  * note the convenient similarity to an IP packet
  */
 struct igmpmsg {
-    u_long	    unused1;
-    u_long	    unused2;
+    u_int32_t	    unused1;
+    u_int32_t	    unused2;
     u_char	    im_msgtype;			/* what type of message	    */
 #define IGMPMSG_NOCACHE		1	/* no MFC in the kernel		    */
 #define IGMPMSG_WRONGVIF	2	/* packet came from wrong interface */
