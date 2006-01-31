@@ -191,7 +191,7 @@ options 	ADAPTIVE_GIANT
 # MUTEX_NOINLINE forces mutex operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
 # shrink the size of the kernel text segment.  Note that this behavior is
-# already implied by the INVARIANT_SUPPORT, INVARIANTS, MUTEX_PROFILING,
+# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, MUTEX_PROFILING,
 # and WITNESS options.
 options 	MUTEX_NOINLINE
 
@@ -199,6 +199,13 @@ options 	MUTEX_NOINLINE
 # when a contested mutex is released rather than just awaking the highest
 # priority waiter.
 options 	MUTEX_WAKE_ALL
+
+# RWLOCK_NOINLINE forces rwlock operations to call functions to perform each
+# operation rather than inlining the simple cases.  This can be used to
+# shrink the size of the kernel text segment.  Note that this behavior is
+# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, MUTEX_PROFILING,
+# and WITNESS options.
+options 	RWLOCK_NOINLINE
 
 # SMP Debugging Options:
 #
