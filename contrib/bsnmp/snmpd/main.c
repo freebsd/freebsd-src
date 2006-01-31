@@ -1386,7 +1386,9 @@ main(int argc, char *argv[])
 					if (value == NULL)
 						syslog(LOG_ERR,
 						    "no value for 'trace'");
-					snmp_trace = strtoul(value, NULL, 0);
+					else
+						snmp_trace =
+						    strtoul(value, NULL, 0);
 					break;
 
 				  case -1:
