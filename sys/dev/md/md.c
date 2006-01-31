@@ -101,9 +101,19 @@ static int md_debug;
 SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
-/* Image gets put here: */
-static u_char mfs_root[MD_ROOT_SIZE*1024] = "MFS Filesystem goes here";
-static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
+/*
+ * Preloaded image gets put here.
+ * Applications that patch the object with the image can determine
+ * the size looking at the start and end markers (strings),
+ * so we want them contiguous.
+ */
+static struct {
+	u_char start[MD_ROOT_SIZE*1024];
+	u_char end[128];
+} mfs_root = {
+	.start = "MFS Filesystem goes here",
+	.end = "MFS Filesystem had better STOP here",
+};
 #endif
 
 static g_init_t g_md_init;
@@ -1139,7 +1149,7 @@ g_md_init(struct g_class *mp __unused)
 	g_topology_unlock();
 #ifdef MD_ROOT_SIZE
 	sx_xlock(&md_sx);
-	md_preloaded(mfs_root, MD_ROOT_SIZE * 1024);
+	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
 	sx_xunlock(&md_sx);
 #endif
 	/* XXX: are preload_* static or do they need Giant ? */
