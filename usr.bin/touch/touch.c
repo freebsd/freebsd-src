@@ -171,6 +171,7 @@ main(int argc, char *argv[])
 		if (timeset) {
 			rval = 1;
 			warn("%s", *argv);
+			continue;
 		}
 
 		/*
