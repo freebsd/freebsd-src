@@ -475,7 +475,7 @@ vendor LUWEN		0x0c76	Luwen
 vendor ZCOM		0x0cde	Z-Com
 vendor TANGTOP		0x0d3d	Tangtop
 vendor SMC3		0x0d5c	SMC
-vendor PNY		0x0d7d	PNY
+vendor ADDON		0x0d7d	Add-on Technology
 vendor ACDC		0x0d7e	ACDC
 vendor ABC		0x0d8c	ABC
 vendor MSI		0x0db0	Micro Star International
@@ -510,6 +510,7 @@ vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
 vendor CONCEPTRONIC	0x14b2	Conceptronic
 vendor SILICONPORTALS	0x1527	Silicon Portals
+vendor PNY		0x154b	PNY
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX
 vendor INSIDEOUT	0x1608	Inside Out Networks
@@ -595,6 +596,13 @@ product ACTIONTEC UAT1		0x7605	UAT1 Wireless Ethernet
 product ADMTEK PEGASUS		0x0986	AN986 Ethernet
 product ADMTEK PEGASUSII	0x8511	AN8511 Ethernet
 product ADMTEK PEGASUSII_2	0x8513	AN8513 Ethernet
+
+/* ADDON products */
+/* PNY OEMs these */
+product ADDON ATTACHE		0x1300	USB 2.0 Flash Drive
+product ADDON ATTACHE		0x1300	USB 2.0 Flash Drive
+product ADDON A256MB		0x1400	Attache 256MB USB 2.0 Flash Drive
+product ADDON DISKPRO512		0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB flash drive)
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet
@@ -1333,9 +1341,7 @@ product PLEXTOR 40_12_40U	0x0011	PlexWriter 40/12/40U
 product PLX TESTBOARD		0x9060	test board
 
 /* PNY products */
-product PNY ATTACHE		0x1300	USB 2.0 Flash Drive
-product PNY A256MB		0x1400	Attache 256MB USB 2.0 Flash Drive
-product PNY DISKPRO512		0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB flash drive)
+product PNY ATTACHE2		0x0010	USB 2.0 Flash Drive
 
 /* Primax products */
 product PRIMAX G2X300		0x0300	G2-200 scanner
