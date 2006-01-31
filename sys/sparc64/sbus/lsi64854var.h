@@ -69,10 +69,8 @@ struct lsi64854_softc {
 			 int, size_t *);	/* DMA setup */
 	int	(*intr)(void *);		/* interrupt handler */
 
-	driver_intr_t	*sc_intrchain;		/* next handler in intr chain */
-	void		*sc_intrchainarg;	/* arg for next intr handler */
-
 	u_int 			sc_dmactl;
+	int			sc_dodrain;
 };
 
 #define L64854_GCSR(sc)	\
@@ -109,6 +107,3 @@ struct lsi64854_softc {
 
 int	lsi64854_attach(struct lsi64854_softc *);
 int	lsi64854_detach(struct lsi64854_softc *);
-int	lsi64854_scsi_intr(void *);
-int	lsi64854_enet_intr(void *);
-int	lsi64854_pp_intr(void *);
