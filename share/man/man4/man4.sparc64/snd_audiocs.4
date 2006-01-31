@@ -25,15 +25,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2005
+.Dd December 15, 2005
 .Dt SND_AUDIOCS 4 sparc64
 .Os
 .Sh NAME
 .Nm snd_audiocs
 .Nd "Crystal Semiconductor CS4231 audio device driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_audiocs"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_audiocs_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
