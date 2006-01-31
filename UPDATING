@@ -13,6 +13,10 @@ portupgrade.
 	Its /etc/rc.conf.d configuration file has been `ppp' from
 	the beginning, and hence there is no need to touch it.
 
+20060113:
+	si(4)'s device files now contain the unit number.
+	Uses of {cua,tty}A[0-9a-f] should be replaced by {cua,tty}A0[0-9a-f].
+	
 20051230:
 	A lot of fixes and new features in the soundsystem. To get all
 	benefits, you may want to recompile mplayer (if installed) after
@@ -36,6 +40,10 @@ portupgrade.
 20051215:
 	The setkey(8) utility was moved from /usr/sbin/setkey to /sbin/setkey.
 	You may want to update scripts which depend on its location.
+
+20051108:
+	rp(4)'s device files now contain the unit number.
+	Uses of {cua,tty}R[0-9a-f] should be replaced by {cua,tty}R0[0-9a-f].
 
 20051101:
 	FreeBSD 6.0-RELEASE
