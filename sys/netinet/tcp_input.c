@@ -742,8 +742,15 @@ findpcb:
 	INP_LOCK(inp);
 
 	/* Check the minimum TTL for socket. */
-	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl)
-		goto drop;
+	if (inp->inp_ip_minttl != 0) {
+#ifdef INET6
+		if (isipv6 && inp->inp_ip_minttl > ip6->ip6_hlim)
+			goto drop;
+		else
+#endif
+		if (inp->inp_ip_minttl > ip->ip_ttl)
+			goto drop;
+	}
 
 	if (inp->inp_vflag & INP_TIMEWAIT) {
 		/*
