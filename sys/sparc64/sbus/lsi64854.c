@@ -86,12 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/esp/ncr53c9xreg.h>
 #include <dev/esp/ncr53c9xvar.h>
 
-void	lsi64854_reset(struct lsi64854_softc *);
-int	lsi64854_setup(struct lsi64854_softc *, caddr_t *, size_t *, int,
-	    size_t *);
-int	lsi64854_setup_pp(struct lsi64854_softc *, caddr_t *, size_t *, int,
-	    size_t *);
-
 #ifdef DEBUG
 #define LDB_SCSI	1
 #define LDB_ENET	2
@@ -104,6 +98,16 @@ int lsi64854debug = 0;
 #endif
 
 #define MAX_DMA_SZ	(16*1024*1024)
+
+static void	lsi64854_reset(struct lsi64854_softc *);
+static void	lsi64854_map_scsi(void *, bus_dma_segment_t *, int, int);
+static int	lsi64854_setup(struct lsi64854_softc *, caddr_t *, size_t *,
+		    int, size_t *);
+static int	lsi64854_scsi_intr(void *);
+static int	lsi64854_enet_intr(void *);
+static int	lsi64854_setup_pp(struct lsi64854_softc *, caddr_t *, size_t *,
+		    int, size_t *);
+static int	lsi64854_pp_intr(void *);
 
 /*
  * Finish attaching this DMA device.
@@ -129,6 +133,7 @@ lsi64854_attach(struct lsi64854_softc *sc)
 		sc->intr = lsi64854_enet_intr;
 		break;
 	case L64854_CHANNEL_PP:
+		sc->intr = lsi64854_pp_intr;
 		sc->setup = lsi64854_setup_pp;
 		break;
 	default:
@@ -264,7 +269,7 @@ lsi64854_detach(struct lsi64854_softc *sc)
 	L64854_SCSR(sc,csr);						\
 } while(0)
 
-void
+static void
 lsi64854_reset(struct lsi64854_softc *sc)
 {
 	uint32_t csr;
@@ -355,10 +360,11 @@ lsi64854_map_scsi(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 /*
  * setup a DMA transfer
  */
-int
+static int
 lsi64854_setup(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
     int datain, size_t *dmasize)
 {
+	long bcnt;
 	uint32_t csr;
 
 	DMA_FLUSH(sc, 0);
@@ -399,9 +405,8 @@ lsi64854_setup(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
 
 	if (sc->sc_rev == DMAREV_ESC) {
 		/* DMA ESC chip bug work-around */
-		long bcnt = sc->sc_dmasize;
-		long eaddr = bcnt + (long)*sc->sc_dmaaddr;
-		if ((eaddr & PAGE_MASK_8K) != 0)
+		bcnt = sc->sc_dmasize;
+		if (((bcnt + (long)*sc->sc_dmaaddr) & PAGE_MASK_8K) != 0)
 			bcnt = roundup(bcnt, PAGE_SIZE_8K);
 		bus_space_write_4(sc->sc_regt, sc->sc_regh, L64854_REG_CNT,
 		    bcnt);
@@ -431,7 +436,7 @@ lsi64854_setup(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
  *
  * return 1 if it was a DMA continue.
  */
-int
+static int
 lsi64854_scsi_intr(void *arg)
 {
 	struct lsi64854_softc *sc = arg;
@@ -551,13 +556,12 @@ lsi64854_scsi_intr(void *arg)
 /*
  * Pseudo (chained) interrupt to le driver to handle DMA errors.
  */
-int
+static int
 lsi64854_enet_intr(void *arg)
 {
 	struct lsi64854_softc *sc = arg;
 	uint32_t csr;
-	static int dodrain = 0;
-	int rv;
+	int i, rv;
 
 	csr = L64854_GCSR(sc);
 
@@ -570,20 +574,20 @@ lsi64854_enet_intr(void *arg)
 		/* Invalidate the queue; SLAVE_ERR bit is write-to-clear */
 		csr |= E_INVALIDATE|E_SLAVE_ERR;
 		L64854_SCSR(sc, csr);
-		DMA_RESET(sc);
-		dodrain = 1;
-		return (1);
+		/* Will be drained with the LE_C0_IDON interrupt. */
+		sc->sc_dodrain = 1;
+		return (-1);
 	}
 
-	if (dodrain) {	/* XXX - is this necessary with D_DSBL_WRINVAL on? */
-		int i = 10;
+	/* XXX - is this necessary with E_DSBL_WR_INVAL on? */
+	if (sc->sc_dodrain) {
+		i = 10;
 		csr |= E_DRAIN;
 		L64854_SCSR(sc, csr);
-		while (i-- > 0 && (L64854_GCSR(sc) & D_DRAINING))
+		while (i-- > 0 && (L64854_GCSR(sc) & E_DRAINING))
 			DELAY(1);
+		sc->sc_dodrain = 0;
 	}
-
-	(*sc->sc_intrchain)(sc->sc_intrchainarg);
 
 	return (rv);
 }
@@ -610,7 +614,7 @@ lsi64854_map_pp(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 /*
  * setup a DMA transfer
  */
-int
+static int
 lsi64854_setup_pp(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
     int datain, size_t *dmasize)
 {
@@ -666,7 +670,7 @@ lsi64854_setup_pp(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
 /*
  * Parallel port DMA interrupt.
  */
-int
+static int
 lsi64854_pp_intr(void *arg)
 {
 	struct lsi64854_softc *sc = arg;
@@ -688,7 +692,7 @@ lsi64854_pp_intr(void *arg)
 		/* Invalidate the queue; SLAVE_ERR bit is write-to-clear */
 		csr |= P_INVALIDATE|P_SLAVE_ERR;
 		L64854_SCSR(sc, csr);
-		return (1);
+		return (-1);
 	}
 
 	ret = (csr & P_INT_PEND) != 0;
