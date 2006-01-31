@@ -9,15 +9,13 @@
 # BEFORE:  DAEMON mountcritremote
 # KEYWORD: nojail
 
-#	it does not really require beforenetlkm.
-
 . /etc/rc.subr
 
 name="ipsec"
 rcvar=`set_rcvar`
 start_precmd="ipsec_prestart"
 start_cmd="ipsec_start"
-stop_precmd="test -f /etc/ipsec.conf"
+stop_precmd="test -f $ipsec_file"
 stop_cmd="ipsec_stop"
 reload_cmd="ipsec_reload"
 extra_commands="reload"
