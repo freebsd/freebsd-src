@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060201:
+	The kernel ABI to file system modules was changed on i386.
+	Please make sure that your kernel and modules are in sync.
+	
 20060118:
 	This actually occured some time ago, but installing the kernel
 	now also installs a bunch of symbol files for the kernel modules.
