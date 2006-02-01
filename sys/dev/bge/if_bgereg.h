@@ -2421,7 +2421,8 @@ struct bge_softc {
 	u_int32_t		bge_tx_buf_ratio;
 	int			bge_if_flags;
 	int			bge_txcnt;
-	int			bge_link;
+	int			bge_link;	/* link state */
+	int			bge_link_evt;	/* pending link event */
 	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
