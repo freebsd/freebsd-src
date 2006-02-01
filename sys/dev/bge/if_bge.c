@@ -2787,6 +2787,9 @@ bge_intr(xsc)
 	statusword =
 	    atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
 
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
+
 #ifdef notdef
 	/* Avoid this for now -- checking this register is expensive. */
 	/* Make sure this is really our interrupt. */
@@ -2798,7 +2801,7 @@ bge_intr(xsc)
 
 	if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5700_B1) ||
-	    statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
+	    statusword & BGE_STATFLAG_LINKSTATE_CHANGED || sc->bge_link_evt)
 		bge_link_upd(sc);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -2826,11 +2829,8 @@ bge_tick_locked(sc)
 	struct bge_softc *sc;
 {
 	struct mii_data *mii = NULL;
-	struct ifnet *ifp;
 
 	BGE_LOCK_ASSERT(sc);
-
-	ifp = sc->bge_ifp;
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5750)
@@ -2841,6 +2841,20 @@ bge_tick_locked(sc)
 	if (!sc->bge_tbi) {
 		mii = device_get_softc(sc->bge_miibus);
 		mii_tick(mii);
+	} else {
+		/*
+		 * Since in TBI mode auto-polling can't be used we should poll
+		 * link status manually. Here we register pending link event
+		 * and trigger interrupt.
+		 */
+#ifdef DEVICE_POLLING
+		/* In polling mode we poll link state in bge_poll_locked() */
+		if (!(sc->bge_ifp->if_capenable & IFCAP_POLLING))
+#endif
+		{
+		sc->bge_link_evt++;
+		BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
+		}
 	}
 
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
@@ -3725,6 +3739,9 @@ bge_link_upd(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
+	/* Clear 'pending link event' flag */
+	sc->bge_link_evt = 0;
+
 	/*
 	 * Process link state changes.
 	 * Grrr. The link status word in the status block does
@@ -3773,23 +3790,9 @@ bge_link_upd(sc)
 	} 
 
 	if (sc->bge_tbi) {
-		/*
-		 * Sometimes PCS encoding errors are detected in
-		 * TBI mode (on fiber NICs), and for some reason
-		 * the chip will signal them as link changes.
-		 * If we get a link change event, but the 'PCS
-		 * encoding error' bit in the MAC status register
-		 * is set, don't bother doing a link check.
-		 * This avoids spurious "link UP" messages
-		 * that sometimes appear on fiber NICs during
-		 * periods of heavy traffic. (There should be no
-		 * effect on copper NICs.)
-		 */
 		status = CSR_READ_4(sc, BGE_MAC_STS);
-		if (!(status & (BGE_MACSTAT_PORT_DECODE_ERROR|
-		    BGE_MACSTAT_MI_COMPLETE))) {
-			if (!sc->bge_link &&
-			    (status & BGE_MACSTAT_TBI_PCS_SYNCHED)) {
+		if (status & BGE_MACSTAT_TBI_PCS_SYNCHED) {
+			if (!sc->bge_link) {
 				sc->bge_link++;
 				if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
 					BGE_CLRBIT(sc, BGE_MAC_MODE,
@@ -3797,11 +3800,13 @@ bge_link_upd(sc)
 				CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
 				if (bootverbose)
 					if_printf(sc->bge_ifp, "link UP\n");
-			} else if (sc->bge_link) {
-				sc->bge_link = 0;
-				if (bootverbose)
-					if_printf(sc->bge_ifp, "link DOWN\n");
+				if_link_state_change(sc->bge_ifp, LINK_STATE_UP);
 			}
+		} else if (sc->bge_link) {
+			sc->bge_link = 0;
+			if (bootverbose)
+				if_printf(sc->bge_ifp, "link DOWN\n");
+			if_link_state_change(sc->bge_ifp, LINK_STATE_DOWN);
 		}
 	} else {
 		/* 
