@@ -196,6 +196,7 @@ MAN=	accept_filter.9 \
 	rtalloc.9 \
 	rtentry.9 \
 	runqueue.9 \
+	rwlock.9 \
 	sbuf.9 \
 	scheduler.9 \
 	securelevel_gt.9 \
