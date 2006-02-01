@@ -292,7 +292,7 @@ This works well with regard to threading scalability, but incurs some costs.
 There is a small fixed per-arena overhead, and additionally, arenas manage
 memory completely independently of each other, which means a small fixed
 increase in overall memory fragmentation.
-These overheads aren't generally an issue, given the number of arenas normally
+These overheads are not generally an issue, given the number of arenas normally
 used.
 Note that using substantially more arenas than the default is not likely to
 improve performance, mainly due to reduced cache performance.
