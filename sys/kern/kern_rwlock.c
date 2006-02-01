@@ -489,7 +489,7 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 }
 
 #ifdef INVARIANT_SUPPORT
-#ifndef INVARIANT_SUPPORT
+#ifndef INVARIANTS
 #undef _rw_assert
 #endif
 
