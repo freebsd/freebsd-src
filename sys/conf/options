@@ -60,6 +60,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 ADAPTIVE_GIANT	opt_adaptive_mutexes.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 ALQ
+AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
