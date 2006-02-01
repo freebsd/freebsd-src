@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2005
+.Dd February 1, 2006
 .Dt SX 9
 .Os
 .Sh NAME
@@ -210,6 +210,7 @@ end up sleeping while holding a mutex, which is not allowed.
 .Xr mtx_pool 9 ,
 .Xr mutex 9 ,
 .Xr panic 9 ,
+.Xr rwlock 9 ,
 .Xr sema 9
 .Sh BUGS
 Currently there is no way to assert that a lock is not held.
