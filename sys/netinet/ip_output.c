@@ -59,25 +59,19 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 
-#include <machine/in_cksum.h>
-
-static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
-
+#if defined(IPSEC) || defined(FAST_IPSEC)
+#include <netinet/ip_ipsec.h>
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#ifdef IPSEC_DEBUG
-#include <netkey/key_debug.h>
-#else
-#define	KEYDEBUG(lev,arg)
+#endif
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
 #endif
 #endif /*IPSEC*/
 
-#ifdef FAST_IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/xform.h>
-#include <netipsec/key.h>
-#endif /*FAST_IPSEC*/
+#include <machine/in_cksum.h>
+
+static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 #define print_ip(x, a, y)	 printf("%s %d.%d.%d.%d%s",\
 				x, (ntohl(a.s_addr)>>24)&0xFF,\
@@ -127,16 +121,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
 #endif
-#ifdef IPSEC
-	struct secpolicy *sp = NULL;
-#endif
-#ifdef FAST_IPSEC
-	struct secpolicy *sp = NULL;
-	struct tdb_ident *tdbi;
-	struct m_tag *mtag;
-	int s;
-#endif /* FAST_IPSEC */
-
 	M_ASSERTPKTHDR(m);
 
 	if (ro == NULL) {
@@ -405,254 +389,20 @@ again:
 	}
 
 sendit:
-#ifdef IPSEC
-	/* get SP for this packet */
-	if (inp == NULL)
-		sp = ipsec4_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
-		    flags, &error);
-	else
-		sp = ipsec4_getpolicybypcb(m, IPSEC_DIR_OUTBOUND, inp, &error);
-
-	if (sp == NULL) {
-		ipsecstat.out_inval++;
+#if defined(IPSEC) || defined(FAST_IPSEC)
+	switch(ip_ipsec_output(&m, inp, &flags, &error, &ro, &iproute, &dst, &ia, &ifp)) {
+	case 1:
 		goto bad;
-	}
-
-	error = 0;
-
-	/* check policy */
-	switch (sp->policy) {
-	case IPSEC_POLICY_DISCARD:
-		/*
-		 * This packet is just discarded.
-		 */
-		ipsecstat.out_polvio++;
-		goto bad;
-
-	case IPSEC_POLICY_BYPASS:
-	case IPSEC_POLICY_NONE:
-	case IPSEC_POLICY_TCP:
-		/* no need to do IPsec. */
-		goto skip_ipsec;
-	
-	case IPSEC_POLICY_IPSEC:
-		if (sp->req == NULL) {
-			/* acquire a policy */
-			error = key_spdacquire(sp);
-			goto bad;
-		}
-		break;
-
-	case IPSEC_POLICY_ENTRUST:
+	case -1:
+		goto done;
+	case 0:
 	default:
-		printf("ip_output: Invalid policy found. %d\n", sp->policy);
+		break;	/* Continue with packet processing. */
 	}
-    {
-	struct ipsec_output_state state;
-	bzero(&state, sizeof(state));
-	state.m = m;
-	if (flags & IP_ROUTETOIF) {
-		state.ro = &iproute;
-		bzero(&iproute, sizeof(iproute));
-	} else
-		state.ro = ro;
-	state.dst = (struct sockaddr *)dst;
-
-	ip->ip_sum = 0;
-
-	/*
-	 * XXX
-	 * delayed checksums are not currently compatible with IPsec
-	 */
-	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		in_delayed_cksum(m);
-		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-	}
-
-	ip->ip_len = htons(ip->ip_len);
-	ip->ip_off = htons(ip->ip_off);
-
-	error = ipsec4_output(&state, sp, flags);
-
-	m = state.m;
-	if (flags & IP_ROUTETOIF) {
-		/*
-		 * if we have tunnel mode SA, we may need to ignore
-		 * IP_ROUTETOIF.
-		 */
-		if (state.ro != &iproute || state.ro->ro_rt != NULL) {
-			flags &= ~IP_ROUTETOIF;
-			ro = state.ro;
-		}
-	} else
-		ro = state.ro;
-	dst = (struct sockaddr_in *)state.dst;
-	if (error) {
-		/* mbuf is already reclaimed in ipsec4_output. */
-		m = NULL;
-		switch (error) {
-		case EHOSTUNREACH:
-		case ENETUNREACH:
-		case EMSGSIZE:
-		case ENOBUFS:
-		case ENOMEM:
-			break;
-		default:
-			printf("ip4_output (ipsec): error code %d\n", error);
-			/*fall through*/
-		case ENOENT:
-			/* don't show these error codes to the user */
-			error = 0;
-			break;
-		}
-		goto bad;
-	}
-
-	/* be sure to update variables that are affected by ipsec4_output() */
+	/* Update variables that are affected by ipsec4_output(). */
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
-	if (ro->ro_rt == NULL) {
-		if ((flags & IP_ROUTETOIF) == 0) {
-			printf("ip_output: "
-				"can't update route after IPsec processing\n");
-			error = EHOSTUNREACH;	/*XXX*/
-			goto bad;
-		}
-	} else {
-		if (state.encap) {
-			ia = ifatoia(ro->ro_rt->rt_ifa);
-			ifp = ro->ro_rt->rt_ifp;
-		}
-	}
-    }
-
-	/* make it flipped, again. */
-	ip->ip_len = ntohs(ip->ip_len);
-	ip->ip_off = ntohs(ip->ip_off);
-skip_ipsec:
-#endif /*IPSEC*/
-#ifdef FAST_IPSEC
-	/*
-	 * Check the security policy (SP) for the packet and, if
-	 * required, do IPsec-related processing.  There are two
-	 * cases here; the first time a packet is sent through
-	 * it will be untagged and handled by ipsec4_checkpolicy.
-	 * If the packet is resubmitted to ip_output (e.g. after
-	 * AH, ESP, etc. processing), there will be a tag to bypass
-	 * the lookup and related policy checking.
-	 */
-	mtag = m_tag_find(m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
-	s = splnet();
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
-		if (sp == NULL)
-			error = -EINVAL;	/* force silent drop */
-		m_tag_delete(m, mtag);
-	} else {
-		sp = ipsec4_checkpolicy(m, IPSEC_DIR_OUTBOUND, flags,
-					&error, inp);
-	}
-	/*
-	 * There are four return cases:
-	 *    sp != NULL	 	    apply IPsec policy
-	 *    sp == NULL, error == 0	    no IPsec handling needed
-	 *    sp == NULL, error == -EINVAL  discard packet w/o error
-	 *    sp == NULL, error != 0	    discard packet, report error
-	 */
-	if (sp != NULL) {
-		/* Loop detection, check if ipsec processing already done */
-		KASSERT(sp->req != NULL, ("ip_output: no ipsec request"));
-		for (mtag = m_tag_first(m); mtag != NULL;
-		     mtag = m_tag_next(m, mtag)) {
-			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
-				continue;
-			if (mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_DONE &&
-			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
-				continue;
-			/*
-			 * Check if policy has an SA associated with it.
-			 * This can happen when an SP has yet to acquire
-			 * an SA; e.g. on first reference.  If it occurs,
-			 * then we let ipsec4_process_packet do its thing.
-			 */
-			if (sp->req->sav == NULL)
-				break;
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			if (tdbi->spi == sp->req->sav->spi &&
-			    tdbi->proto == sp->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &sp->req->sav->sah->saidx.dst,
-				 sizeof (union sockaddr_union)) == 0) {
-				/*
-				 * No IPsec processing is needed, free
-				 * reference to SP.
-				 *
-				 * NB: null pointer to avoid free at
-				 *     done: below.
-				 */
-				KEY_FREESP(&sp), sp = NULL;
-				splx(s);
-				goto spd_done;
-			}
-		}
-
-		/*
-		 * Do delayed checksums now because we send before
-		 * this is done in the normal processing path.
-		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in_delayed_cksum(m);
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		}
-
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
-
-		/* NB: callee frees mbuf */
-		error = ipsec4_process_packet(m, sp->req, flags, 0);
-		/*
-		 * Preserve KAME behaviour: ENOENT can be returned
-		 * when an SA acquire is in progress.  Don't propagate
-		 * this to user-level; it confuses applications.
-		 *
-		 * XXX this will go away when the SADB is redone.
-		 */
-		if (error == ENOENT)
-			error = 0;
-		splx(s);
-		goto done;
-	} else {
-		splx(s);
-
-		if (error != 0) {
-			/*
-			 * Hack: -EINVAL is used to signal that a packet
-			 * should be silently discarded.  This is typically
-			 * because we asked key management for an SA and
-			 * it was delayed (e.g. kicked up to IKE).
-			 */
-			if (error == -EINVAL)
-				error = 0;
-			goto bad;
-		} else {
-			/* No IPsec processing for this packet. */
-		}
-#ifdef notyet
-		/*
-		 * If deferred crypto processing is needed, check that
-		 * the interface supports it.
-		 */ 
-		mtag = m_tag_find(m, PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED, NULL);
-		if (mtag != NULL && (ifp->if_capenable & IFCAP_IPSEC) == 0) {
-			/* notify IPsec to do its own crypto */
-			ipsp_skipcrypto_unmark((struct tdb_ident *)(mtag + 1));
-			error = EHOSTUNREACH;
-			goto bad;
-		}
-#endif
-	}
-spd_done:
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (inet_pfil_hook.ph_busy_count == -1)
@@ -760,12 +510,10 @@ passout:
 			ia->ia_ifa.if_opackets++;
 			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
 		}
-
 #ifdef IPSEC
 		/* clean ipsec history once it goes out of the node */
 		ipsec_delaux(m);
 #endif
-
 #ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
 			m = m_fragment(m, M_DONTWAIT, mbuf_frag_size);
@@ -838,17 +586,6 @@ done:
 	if (ro == &iproute && ro->ro_rt) {
 		RTFREE(ro->ro_rt);
 	}
-#ifdef IPSEC
-	if (sp != NULL) {
-		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP ip_output call free SP:%p\n", sp));
-		key_freesp(sp);
-	}
-#endif
-#ifdef FAST_IPSEC
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-#endif
 	return (error);
 bad:
 	m_freem(m);
