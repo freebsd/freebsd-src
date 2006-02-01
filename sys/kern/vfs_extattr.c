@@ -759,11 +759,13 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 		return (error);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	FILEDESC_LOCK_FAST(fdp);
 	vp = fdp->fd_cdir;
 	fdp->fd_cdir = nd.ni_vp;
 	FILEDESC_UNLOCK_FAST(fdp);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
@@ -891,6 +893,7 @@ change_root(vp, td)
 {
 	struct filedesc *fdp;
 	struct vnode *oldvp;
+	int vfslocked;
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
@@ -912,7 +915,9 @@ change_root(vp, td)
 		VREF(fdp->fd_jdir);
 	}
 	FILEDESC_UNLOCK(fdp);
+	vfslocked = VFS_LOCK_GIANT(oldvp->v_mount);
 	vrele(oldvp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 }
 
