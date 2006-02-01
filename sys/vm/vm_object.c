@@ -349,19 +349,19 @@ void
 vm_object_reference(vm_object_t object)
 {
 	struct vnode *vp;
-	int flags;
 
 	if (object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
+		int vfslocked;
+
 		vp = object->handle;
-		VI_LOCK(vp);
 		VM_OBJECT_UNLOCK(object);
-		for (flags = LK_INTERLOCK; vget(vp, flags, curthread);
-		     flags = 0)
-			printf("vm_object_reference: delay in vget\n");
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vget(vp, LK_RETRY, curthread);
+		VFS_UNLOCK_GIANT(vfslocked);
 	} else
 		VM_OBJECT_UNLOCK(object);
 }
