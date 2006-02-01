@@ -2520,6 +2520,11 @@ bge_rxeof(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
+	/* Nothing to do */
+	if (sc->bge_rx_saved_considx ==
+	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx)
+		return;
+
 	ifp = sc->bge_ifp;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
@@ -2666,8 +2671,6 @@ bge_rxeof(sc)
 		CSR_WRITE_4(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
 	if (jumbocnt)
 		CSR_WRITE_4(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
-
-	return;
 }
 
 static void
@@ -2678,6 +2681,11 @@ bge_txeof(sc)
 	struct ifnet *ifp;
 
 	BGE_LOCK_ASSERT(sc);
+
+	/* Nothing to do */
+	if (sc->bge_tx_saved_considx ==
+	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx)
+		return;
 
 	ifp = sc->bge_ifp;
 
@@ -2712,8 +2720,6 @@ bge_txeof(sc)
 
 	if (cur_tx != NULL)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
