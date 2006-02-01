@@ -262,6 +262,7 @@ ng_sppp_constructor (node_p node)
 
 	/* Link them together */
 	ifp->if_softc = priv;
+	priv->ifp = ifp;
 
 	/* Get an interface unit number */
 	if ((error = ng_sppp_get_unit(&priv->unit)) != 0) {
