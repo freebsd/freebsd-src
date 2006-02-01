@@ -95,6 +95,7 @@ static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *);
 static void	v_decr_usecount(struct vnode *);
 static void	v_decr_useonly(struct vnode *);
+static void	v_upgrade_usecount(struct vnode *);
 static void	vfree(struct vnode *);
 static void	vnlru_free(int);
 static void	vdestroy(struct vnode *);
@@ -1862,6 +1863,24 @@ v_incr_usecount(struct vnode *vp)
 }
 
 /*
+ * Turn a holdcnt into a use+holdcnt such that only one call to
+ * v_decr_usecount is needed.
+ */
+static void
+v_upgrade_usecount(struct vnode *vp)
+{
+
+	CTR3(KTR_VFS, "v_upgrade_usecount: vp %p holdcnt %d usecount %d\n",
+	    vp, vp->v_holdcnt, vp->v_usecount);
+	vp->v_usecount++;
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
+		dev_lock();
+		vp->v_rdev->si_usecount++;
+		dev_unlock();
+	}
+}
+
+/*
  * Decrement the vnode use and hold count along with the driver's usecount
  * if this is a chardev.  The vdropl() below releases the vnode interlock
  * as it may free the vnode.
@@ -1916,7 +1935,7 @@ v_decr_useonly(struct vnode *vp)
  * been changed to a new filesystem type).
  */
 int
-vget( struct vnode *vp, int flags, struct thread *td)
+vget(struct vnode *vp, int flags, struct thread *td)
 {
 	int oweinact;
 	int oldflags;
@@ -1925,6 +1944,7 @@ vget( struct vnode *vp, int flags, struct thread *td)
 	error = 0;
 	oldflags = flags;
 	oweinact = 0;
+	VFS_ASSERT_GIANT(vp->v_mount);
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 	/*
@@ -1941,28 +1961,24 @@ vget( struct vnode *vp, int flags, struct thread *td)
 		flags |= LK_EXCLUSIVE;
 		oweinact = 1;
 	}
-	v_incr_usecount(vp);
+	vholdl(vp);
 	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
-		VI_LOCK(vp);
-		/*
-		 * must expand vrele here because we do not want
-		 * to call VOP_INACTIVE if the reference count
-		 * drops back to zero since it was never really
-		 * active.
-		 */
-		v_decr_usecount(vp);
+		vdrop(vp);
 		return (error);
 	}
+	VI_LOCK(vp);
+	/* Upgrade our holdcnt to a usecount. */
+	v_upgrade_usecount(vp);
 	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
 		panic("vget: vn_lock failed to return ENOENT\n");
 	if (oweinact) {
-		VI_LOCK(vp);
 		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 		if ((oldflags & LK_TYPE_MASK) == 0)
 			VOP_UNLOCK(vp, 0, td);
-	}
+	} else
+		VI_UNLOCK(vp);
 	return (0);
 }
 
@@ -2010,6 +2026,7 @@ vrele(struct vnode *vp)
 	struct thread *td = curthread;	/* XXX */
 
 	KASSERT(vp != NULL, ("vrele: null vp"));
+	VFS_ASSERT_GIANT(vp->v_mount);
 
 	VI_LOCK(vp);
 
@@ -2061,6 +2078,7 @@ vput(struct vnode *vp)
 
 	KASSERT(vp != NULL, ("vput: null vp"));
 	ASSERT_VOP_LOCKED(vp, "vput");
+	VFS_ASSERT_GIANT(vp->v_mount);
 	VI_LOCK(vp);
 	/* Skip this v_writecount check if we're going to panic below. */
 	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
