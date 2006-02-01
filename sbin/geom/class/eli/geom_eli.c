@@ -303,7 +303,10 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 	g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
 	str = gctl_get_ascii(req, new ? "newkeyfile" : "keyfile");
-	if (str[0] != '\0') {
+	if (str[0] == '\0' && nopassphrase) {
+		gctl_error(req, "No key components given.");
+		return (NULL);
+	} else if (str[0] != '\0') {
 		char buf[MAXPHYS];
 		ssize_t done;
 		int fd;
