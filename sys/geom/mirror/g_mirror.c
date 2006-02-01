@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -848,7 +848,7 @@ g_mirror_done(struct bio *bp)
 	struct g_mirror_softc *sc;
 
 	sc = bp->bio_from->geom->softc;
-	bp->bio_cflags |= G_MIRROR_BIO_FLAG_REGULAR; 
+	bp->bio_cflags |= G_MIRROR_BIO_FLAG_REGULAR;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	wakeup(sc);
