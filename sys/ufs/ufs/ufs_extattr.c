@@ -469,8 +469,8 @@ ufs_extattr_autostart(struct mount *mp, struct thread *td)
 	}
 	if (rvp == attr_dvp) {
 		/* Should never happen. */
-		vrele(attr_dvp);
 		vput(rvp);
+		vrele(attr_dvp);
 		return (EINVAL);
 	}
 	vrele(rvp);
