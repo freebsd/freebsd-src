@@ -2732,31 +2732,33 @@ static void
 bge_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bge_softc *sc = ifp->if_softc;
+	uint32_t statusword;
 
 	BGE_LOCK_ASSERT(sc);
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
+
+	statusword = atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
+
+	/* Note link event. It will be processed by POLL_AND_CHECK_STATUS cmd */
+	if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
+		sc->bge_link_evt++;
+
+	if (cmd == POLL_AND_CHECK_STATUS)
+		if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+		    sc->bge_chipid != BGE_CHIPID_BCM5700_B1) ||
+		    sc->bge_link_evt || sc->bge_tbi)
+			bge_link_upd(sc);
 
 	sc->rxcycles = count;
 	bge_rxeof(sc);
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
-
-	if (cmd == POLL_AND_CHECK_STATUS) {
-		uint32_t statusword;
-
-		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-		    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
-
-	    	statusword = atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
-
-		if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
-		    sc->bge_chipid != BGE_CHIPID_BCM5700_B1) ||
-		    statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
-			bge_link_upd(sc);
-
-		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-		    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
-	}
 }
 #endif /* DEVICE_POLLING */
 
