@@ -194,6 +194,15 @@ agp_i810_find_bridge(device_t dev)
 	return 0;
 }
 
+static void
+agp_i810_identify(driver_t *driver, device_t parent)
+{
+
+	if (device_find_child(parent, "agp", -1) == NULL &&
+	    agp_i810_match(parent))
+		device_add_child(parent, "agp", -1);
+}
+
 static int
 agp_i810_probe(device_t dev)
 {
@@ -799,6 +808,7 @@ agp_i810_unbind_memory(device_t dev, struct agp_memory *mem)
 
 static device_method_t agp_i810_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	agp_i810_identify),
 	DEVMETHOD(device_probe,		agp_i810_probe),
 	DEVMETHOD(device_attach,	agp_i810_attach),
 	DEVMETHOD(device_detach,	agp_i810_detach),
