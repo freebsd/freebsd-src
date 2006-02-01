@@ -97,7 +97,7 @@ int vnode_pbuf_freecnt;
 
 /* Create the VM system backing object for this vnode */
 int
-vnode_create_vobject(struct vnode *vp, size_t isize, struct thread *td)
+vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 {
 	vm_object_t object;
 	vm_ooffset_t size = isize;
