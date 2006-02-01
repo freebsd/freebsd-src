@@ -70,13 +70,6 @@ vga_pci_attach(device_t dev)
 
 	bus_generic_probe(dev);
 
-	/*
-	 * If AGP capabilities are present on this device, then create
-	 * an AGP child.
-	 */
-	if (pci_find_extcap(dev, PCIY_AGP, NULL) == 0)
-		device_add_child(dev, "agp", -1);
-
 	/* Always create a drm child for now to make it easier on drm. */
 	device_add_child(dev, "drm", -1);
 	bus_generic_attach(dev);
