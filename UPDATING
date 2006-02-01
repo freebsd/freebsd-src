@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20060201:	p26	FreeBSD-SA-06:08.sack
+	Avoid an infinite loop in sack scoreboard processing which can
+	result from memory exhaustion.
+
 20060125:	p25	FreeBSD-SA-06:07.pf
 	Correct an error in pf handling of IP packet fragments which
 	could result in a kernel panic. [06:07]
