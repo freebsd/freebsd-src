@@ -1185,11 +1185,11 @@ restart:
 	vp = nd.ni_vp;
 	if (vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(vp);
 		if (vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	} else {
@@ -1288,11 +1288,11 @@ restart:
 	vfslocked = NDHASGIANT(&nd);
 	if (nd.ni_vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(nd.ni_vp);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	}
@@ -1425,11 +1425,11 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
 		if (nd.ni_vp != NULL) {
-			vrele(nd.ni_vp);
 			if (nd.ni_dvp == nd.ni_vp)
 				vrele(nd.ni_dvp);
 			else
 				vput(nd.ni_dvp);
+			vrele(nd.ni_vp);
 			error = EEXIST;
 		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td))
 		    == 0) {
@@ -1502,11 +1502,11 @@ restart:
 	vfslocked = NDHASGIANT(&nd);
 	if (nd.ni_vp) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(nd.ni_vp);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		error = EEXIST;
 		goto out;
@@ -1573,12 +1573,12 @@ restart:
 
 	if (nd.ni_vp != NULLVP || !(nd.ni_cnd.cn_flags & ISWHITEOUT)) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		if (nd.ni_vp)
-			vrele(nd.ni_vp);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		if (nd.ni_vp)
+			vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	}
@@ -1650,11 +1650,11 @@ restart:
 	if (error == 0) {
 		if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 			NDFREE(&nd, NDF_ONLY_PNBUF);
+			vput(nd.ni_dvp);
 			if (vp == nd.ni_dvp)
 				vrele(vp);
 			else
 				vput(vp);
-			vput(nd.ni_dvp);
 			VFS_UNLOCK_GIANT(vfslocked);
 			if ((error = vn_start_write(NULL, &mp,
 			    V_XSLEEP | PCATCH)) != 0)
@@ -1675,11 +1675,11 @@ out:
 		vn_finished_write(mp);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(nd.ni_dvp);
 	if (vp == nd.ni_dvp)
 		vrele(vp);
 	else
 		vput(vp);
-	vput(nd.ni_dvp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -3322,7 +3322,6 @@ restart:
 	vp = nd.ni_vp;
 	if (vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(vp);
 		/*
 		 * XXX namei called with LOCKPARENT but not LOCKLEAF has
 		 * the strange behaviour of leaving the vnode unlocked
@@ -3332,6 +3331,7 @@ restart:
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	}
@@ -3429,11 +3429,11 @@ restart:
 #endif
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
+		vput(vp);
 		if (nd.ni_dvp == vp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
-		vput(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			return (error);
@@ -3445,11 +3445,11 @@ restart:
 	vn_finished_write(mp);
 out:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(vp);
 	if (nd.ni_dvp == vp)
 		vrele(nd.ni_dvp);
 	else
 		vput(nd.ni_dvp);
-	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
