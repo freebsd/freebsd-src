@@ -56,7 +56,7 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 	 * Walk through the standard places that superblocks hide and look
 	 * for UFS magic. If we find magic, then check that the size in the
 	 * superblock corresponds to the size of the underlying provider.
-	 * Finally, look for a volume label and create an appropriate 
+	 * Finally, look for a volume label and create an appropriate
 	 * provider based on that.
 	 */
 	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {

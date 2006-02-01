@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -323,9 +323,9 @@ g_eli_orphan(struct g_consumer *cp)
  * BIO_READ : G_ELI_START -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  * BIO_WRITE: G_ELI_START -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
-static void     
+static void
 g_eli_start(struct bio *bp)
-{       
+{
 	struct g_eli_softc *sc;
 	struct bio *cbp;
 
@@ -395,7 +395,7 @@ g_eli_worker(void *arg)
 	if (sc->sc_crypto == G_ELI_CRYPTO_SW && g_eli_threads == 0)
 		sched_bind(curthread, wr->w_number);
 	mtx_unlock_spin(&sched_lock);
- 
+
 	G_ELI_DEBUG(1, "Thread %s started.", curthread->td_proc->p_comm);
 
 	for (;;) {

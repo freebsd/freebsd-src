@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -595,9 +595,9 @@ g_raid3_destroy_device(struct g_raid3_softc *sc)
 		g_raid3_disconnect_consumer(sc, cp);
 	sc->sc_sync.ds_geom->softc = NULL;
 	g_wither_geom(sc->sc_sync.ds_geom, ENXIO);
-	uma_zdestroy(sc->sc_zone_64k); 
-	uma_zdestroy(sc->sc_zone_16k); 
-	uma_zdestroy(sc->sc_zone_4k); 
+	uma_zdestroy(sc->sc_zone_64k);
+	uma_zdestroy(sc->sc_zone_16k);
+	uma_zdestroy(sc->sc_zone_4k);
 	mtx_destroy(&sc->sc_queue_mtx);
 	mtx_destroy(&sc->sc_events_mtx);
 	G_RAID3_DEBUG(0, "Device %s destroyed.", gp->name);
@@ -818,12 +818,12 @@ g_raid3_unidle(struct g_raid3_softc *sc)
 	g_topology_unlock();
 }
 
-/*      
+/*
  * Return 1 if we should check if RAID3 device is idling.
  */
-static int      
+static int
 g_raid3_check_idle(struct g_raid3_softc *sc)
-{   
+{
 	struct g_raid3_disk *disk;
 	u_int i;
 
@@ -831,17 +831,17 @@ g_raid3_check_idle(struct g_raid3_softc *sc)
 		return (0);
 	if (sc->sc_provider != NULL && sc->sc_provider->acw == 0)
 		return (0);
-	/* 
+	/*
 	 * Check if there are no in-flight requests.
-	 */	 
+	 */
 	for (i = 0; i < sc->sc_ndisks; i++) {
 		disk = &sc->sc_disks[i];
 		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
 			continue;
 		if (disk->d_consumer->index > 0)
 			return (0);
-	}	   
-	return (1); 
+	}
+	return (1);
 }
 
 /*
@@ -1201,7 +1201,7 @@ g_raid3_done(struct bio *bp)
 	struct g_raid3_softc *sc;
 
 	sc = bp->bio_from->geom->softc;
-	bp->bio_cflags |= G_RAID3_BIO_CFLAG_REGULAR; 
+	bp->bio_cflags |= G_RAID3_BIO_CFLAG_REGULAR;
 	G_RAID3_LOGREQ(3, bp, "Regular request done (error=%d).", bp->bio_error);
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_insert_head(&sc->sc_queue, bp);
@@ -1678,7 +1678,7 @@ g_raid3_can_destroy(struct g_raid3_softc *sc)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
- 
+
 	g_topology_assert();
 	gp = sc->sc_geom;
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
@@ -1694,11 +1694,11 @@ g_raid3_can_destroy(struct g_raid3_softc *sc)
 	    sc->sc_name);
 	return (1);
 }
- 
+
 static int
 g_raid3_try_destroy(struct g_raid3_softc *sc)
 {
- 
+
 	if (sc->sc_rootmount != NULL) {
 		G_RAID3_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
 		    sc->sc_rootmount);
@@ -2253,11 +2253,11 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 					continue;
 				}
 				disk->d_flags |=
-				    G_RAID3_DISK_FLAG_SYNCHRONIZING; 
+				    G_RAID3_DISK_FLAG_SYNCHRONIZING;
 			}
 		} else if (ndisks == sc->sc_ndisks && ndirty > 1) {
 			disk = &sc->sc_disks[sc->sc_ndisks - 1];
-			disk->d_flags |= G_RAID3_DISK_FLAG_SYNCHRONIZING; 
+			disk->d_flags |= G_RAID3_DISK_FLAG_SYNCHRONIZING;
 		}
 
 		sc->sc_syncid = syncid;
@@ -2828,9 +2828,9 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	if (error != 0) {
 		G_RAID3_DEBUG(1, "Cannot create kernel thread for %s.",
 		    sc->sc_name);
-		uma_zdestroy(sc->sc_zone_64k); 
-		uma_zdestroy(sc->sc_zone_16k); 
-		uma_zdestroy(sc->sc_zone_4k); 
+		uma_zdestroy(sc->sc_zone_64k);
+		uma_zdestroy(sc->sc_zone_16k);
+		uma_zdestroy(sc->sc_zone_4k);
 		g_destroy_geom(sc->sc_sync.ds_geom);
 		mtx_destroy(&sc->sc_events_mtx);
 		mtx_destroy(&sc->sc_queue_mtx);

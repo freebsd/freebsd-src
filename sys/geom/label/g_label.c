@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -302,7 +302,7 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 	/*
 	 * arg1 is the name of provider.
 	 */
-	name = gctl_get_asciiparam(req, "arg1"); 
+	name = gctl_get_asciiparam(req, "arg1");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%d' argument", 1);
 		return;
@@ -313,12 +313,12 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 	if (pp == NULL) {
 		G_LABEL_DEBUG(1, "Provider %s is invalid.", name);
 		gctl_error(req, "Provider %s is invalid.", name);
-		return; 
+		return;
 	}
 	/*
 	 * arg0 is the label.
 	 */
-	name = gctl_get_asciiparam(req, "arg0"); 
+	name = gctl_get_asciiparam(req, "arg0");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%d' argument", 0);
 		return;
@@ -390,7 +390,7 @@ g_label_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param); 
+		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
@@ -399,7 +399,7 @@ g_label_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		if (gp == NULL) {
 			G_LABEL_DEBUG(1, "Label %s is invalid.", name);
 			gctl_error(req, "Label %s is invalid.", name);
-			return; 
+			return;
 		}
 		error = g_label_destroy(gp, *force);
 		if (error != 0) {
