@@ -139,7 +139,7 @@ struct ip_fw_chain {
 	rw_init(&(_chain)->rwmtx, "IPFW static rules")
 #define	IPFW_LOCK_DESTROY(_chain)	rw_destroy(&(_chain)->rwmtx)
 #define	IPFW_WLOCK_ASSERT(_chain)	do {				\
-	rw_assert(rw, RA_WLOCKED);					\
+	rw_assert(&(_chain)->rwmtx, RA_WLOCKED);					\
 	NET_ASSERT_GIANT();						\
 } while (0)
 
