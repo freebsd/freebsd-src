@@ -101,9 +101,12 @@ pcf_isa_probe(device_t dev)
 	u_long		start, count;
 	u_int		rid = 0, port, error;
 
-	bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count);
-	
+	/* skip PnP probes */
+	if (isa_get_logicalid(dev))
+		return (ENXIO);
+
 	/* The port address must be explicitly specified */
+	bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count);
 	if ((error = resource_int_value(PCF_NAME, 0, "port", &port) != 0))
 		return (error);
 
