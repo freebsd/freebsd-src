@@ -7,9 +7,8 @@
 .Nm en
 .Nd "device driver for Midway-based ATM interfaces"
 .Sh SYNOPSIS
-To compile support for the
-.Nm
-driver into your kernel, place the following lines in your
+To compile this driver into the kernel,
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device en"
@@ -17,9 +16,8 @@ kernel configuration file:
 .Cd "device utopia"
 .Ed
 .Pp
-Alternatively, to load the
-.Nm
-driver at boot time, place the following liness in
+Alternatively, to load the driver as a
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_en_load="YES"
