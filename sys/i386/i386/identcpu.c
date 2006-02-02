@@ -1627,8 +1627,8 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 	case 0x82:
 		/* 2nd-level cache: 256-KB, 8-way set associative,
 		 * 32 byte line size */
-		if (*size < 128) {
-			*size = 128;
+		if (*size < 256) {
+			*size = 256;
 			*ways = 8;
 		}
 		break;
