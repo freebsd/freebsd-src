@@ -226,7 +226,6 @@ vlan_freehash(struct ifvlantrunk *trunk)
 #ifdef INVARIANTS
 	int i;
 
-	TRUNK_LOCK_ASSERT(trunk);	/* XXX just unhook trunk first? */
 	KASSERT(trunk->hwidth > 0, ("%s: hwidth not positive", __func__));
 	for (i = 0; i < (1 << trunk->hwidth); i++)
 		KASSERT(LIST_EMPTY(&trunk->hash[i]),
@@ -913,15 +912,18 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag)
 	if (p->if_vlantrunk == NULL) {
 		trunk = malloc(sizeof(struct ifvlantrunk),
 		    M_VLAN, M_WAITOK | M_ZERO);
-		VLAN_LOCK();
-		if (p->if_vlantrunk != NULL) {
-			/* A race that that is very unlikely to be hit. */
-			free(trunk, M_VLAN);
-			goto exists;
-		}
 #ifndef VLAN_ARRAY
 		vlan_inithash(trunk);
 #endif
+		VLAN_LOCK();
+		if (p->if_vlantrunk != NULL) {
+			/* A race that that is very unlikely to be hit. */
+#ifndef VLAN_ARRAY
+			vlan_freehash(trunk);
+#endif
+			free(trunk, M_VLAN);
+			goto exists;
+		}
 		TRUNK_LOCK_INIT(trunk);
 		LIST_INSERT_HEAD(&trunk_list, trunk, trunk_entry);
 		TRUNK_LOCK(trunk);
