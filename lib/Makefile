@@ -22,7 +22,7 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
+SUBDIR=	${_csu} libbsm libcom_err libcrypt libkvm msun libmd libncurses \
 	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
 	${_libypclnt} libalias libarchive ${_libatm} \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
