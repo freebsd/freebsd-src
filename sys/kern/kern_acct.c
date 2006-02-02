@@ -143,7 +143,7 @@ acct(struct thread *td, struct acct_args *uap)
 	 * appending and make sure it's a 'normal'.  While we could
 	 * conditionally acquire Giant here, we're actually interacting with
 	 * vnodes from possibly two file systems, making the logic a bit
-	 * complicated.  For now, use Giant unconditionally. 
+	 * complicated.  For now, use Giant unconditionally.
 	 */
 	mtx_lock(&Giant);
 	if (uap->path != NULL) {
