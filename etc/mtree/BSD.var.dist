@@ -16,6 +16,8 @@
 /set uname=root
     ..
 /set mode=0750
+    audit
+    ..
     backups
     ..
     crash
