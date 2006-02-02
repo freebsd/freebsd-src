@@ -36,7 +36,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <sys/condvar.h>	/* XXX */
+#include <sys/rwlock.h>
 
 struct mbuf;
 struct ifnet;
@@ -67,14 +67,8 @@ struct pfil_head {
 	pfil_list_t	ph_in;
 	pfil_list_t	ph_out;
 	int		ph_type;
-	/*
-	 * Locking: use a busycounter per pfil_head.
-	 * Use ph_busy_count = -1 to indicate pfil_head is empty.
-	 */
-	int		ph_busy_count;	/* count of threads with read lock */
-	int		ph_want_write;	/* want write lock flag */
-	struct cv	ph_cv;		/* for waking up writers */
-	struct mtx	ph_mtx;		/* mutex on locking state */
+	int		ph_nhooks;
+	struct rwlock	ph_mtx;
 	union {
 		u_long		phu_val;
 		void		*phu_ptr;
@@ -97,11 +91,17 @@ int	pfil_head_unregister(struct pfil_head *);
 
 struct pfil_head *pfil_head_get(int, u_long);
 
+#define	PFIL_HOOKED(p) (&(p)->ph_nhooks > 0)
+#define PFIL_RLOCK(p) rw_rlock(&(p)->ph_mtx)
+#define PFIL_WLOCK(p) rw_wlock(&(p)->ph_mtx)
+#define PFIL_RUNLOCK(p) rw_runlock(&(p)->ph_mtx)
+#define PFIL_WUNLOCK(p) rw_wunlock(&(p)->ph_mtx)
+#define PFIL_LIST_LOCK() mtx_lock(&pfil_global_lock)
+#define PFIL_LIST_UNLOCK() mtx_unlock(&pfil_global_lock)
+
 static __inline struct packet_filter_hook *
 pfil_hook_get(int dir, struct pfil_head *ph)
 {
-	KASSERT(ph->ph_busy_count > 0, 
-	    ("pfil_hook_get: called on unbusy pfil_head"));
 	if (dir == PFIL_IN)
 		return (TAILQ_FIRST(&ph->ph_in));
 	else if (dir == PFIL_OUT)

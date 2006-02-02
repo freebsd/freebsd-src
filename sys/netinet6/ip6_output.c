@@ -889,7 +889,7 @@ again:
 	}
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (inet6_pfil_hook.ph_busy_count == -1)
+	if (!PFIL_HOOKED(&inet6_pfil_hook))
 		goto passout;
 
 	odst = ip6->ip6_dst;
