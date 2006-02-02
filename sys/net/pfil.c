@@ -32,7 +32,9 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
@@ -57,57 +59,6 @@ static int pfil_list_remove(pfil_list_t *,
 LIST_HEAD(, pfil_head) pfil_head_list =
     LIST_HEAD_INITIALIZER(&pfil_head_list);
 
-static __inline void
-PFIL_RLOCK(struct pfil_head *ph)
-{
-	mtx_lock(&ph->ph_mtx);
-	ph->ph_busy_count++;
-	mtx_unlock(&ph->ph_mtx);
-}
-
-static __inline void
-PFIL_RUNLOCK(struct pfil_head *ph)
-{
-	mtx_lock(&ph->ph_mtx);
-	ph->ph_busy_count--;
-	if (ph->ph_busy_count == 0 && ph->ph_want_write)
-		cv_signal(&ph->ph_cv);
-	mtx_unlock(&ph->ph_mtx);
-}
-
-static __inline void
-PFIL_WLOCK(struct pfil_head *ph)
-{
-	mtx_lock(&ph->ph_mtx);
-	ph->ph_want_write = 1;
-	while (ph->ph_busy_count > 0)
-		cv_wait(&ph->ph_cv, &ph->ph_mtx);
-}
-
-static __inline int
-PFIL_TRY_WLOCK(struct pfil_head *ph)
-{
-	mtx_lock(&ph->ph_mtx);
-	ph->ph_want_write = 1;
-	if (ph->ph_busy_count > 0) {
-		ph->ph_want_write = 0;
-		mtx_unlock(&ph->ph_mtx);
-		return EBUSY;
-	}
-	return 0;
-}
-
-static __inline void
-PFIL_WUNLOCK(struct pfil_head *ph)
-{
-	ph->ph_want_write = 0;
-	cv_signal(&ph->ph_cv);
-	mtx_unlock(&ph->ph_mtx);
-}
-
-#define PFIL_LIST_LOCK() mtx_lock(&pfil_global_lock)
-#define PFIL_LIST_UNLOCK() mtx_unlock(&pfil_global_lock)
-
 /*
  * pfil_run_hooks() runs the specified packet filter hooks.
  */
@@ -119,20 +70,8 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	struct mbuf *m = *mp;
 	int rv = 0;
 
-	if (ph->ph_busy_count == -1)
-		return (0);
-	/*
-	 * Prevent packet filtering from starving the modification of
-	 * the packet filters. We would prefer a reader/writer locking
-	 * mechanism with guaranteed ordering, though.
-	 */
-	if (ph->ph_want_write) {
-		m_freem(*mp);
-		*mp = NULL;
-		return (ENOBUFS);
-	}
-
 	PFIL_RLOCK(ph);
+	KASSERT(ph->ph_nhooks >= 0, ("Pfil hook count dropped < 0"));
 	for (pfh = pfil_hook_get(dir, ph); pfh != NULL;
 	     pfh = TAILQ_NEXT(pfh, pfil_link)) {
 		if (pfh->pfil_func != NULL) {
@@ -165,16 +104,9 @@ pfil_head_register(struct pfil_head *ph)
 		}
 	PFIL_LIST_UNLOCK();
 
-	if (mtx_initialized(&ph->ph_mtx)) {	/* should not happen */
-		KASSERT((0), ("%s: allready initialized!", __func__));
-		return EBUSY;
-	} else {
-		ph->ph_busy_count = -1;
-		ph->ph_want_write = 1;
-		mtx_init(&ph->ph_mtx, "pfil_head_mtx", NULL, MTX_DEF);
-		cv_init(&ph->ph_cv, "pfil_head_cv");
-		mtx_lock(&ph->ph_mtx);			/* XXX: race? */
-	}
+	rw_init(&ph->ph_mtx, "PFil hook read/write mutex");
+	PFIL_WLOCK(ph);
+	ph->ph_nhooks = 0;
 
 	TAILQ_INIT(&ph->ph_in);
 	TAILQ_INIT(&ph->ph_out);
@@ -182,9 +114,9 @@ pfil_head_register(struct pfil_head *ph)
 	PFIL_LIST_LOCK();
 	LIST_INSERT_HEAD(&pfil_head_list, ph, ph_list);
 	PFIL_LIST_UNLOCK();
-	
+
 	PFIL_WUNLOCK(ph);
-	
+
 	return (0);
 }
 
@@ -205,14 +137,13 @@ pfil_head_unregister(struct pfil_head *ph)
 	LIST_REMOVE(ph, ph_list);
 	PFIL_LIST_UNLOCK();
 
-	PFIL_WLOCK(ph);			/* XXX: may sleep (cv_wait)! */
+	PFIL_WLOCK(ph);
 	
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_in, pfil_link, pfnext)
 		free(pfh, M_IFADDR);
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_link, pfnext)
 		free(pfh, M_IFADDR);
-	cv_destroy(&ph->ph_cv);
-	mtx_destroy(&ph->ph_mtx);
+	rw_destroy(&ph->ph_mtx);
 	
 	return (0);
 }
@@ -269,13 +200,7 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct in
 	}
 
 	/* Lock */
-	if (flags & PFIL_WAITOK)
-		PFIL_WLOCK(ph);
-	else {
-		err = PFIL_TRY_WLOCK(ph);
-		if (err)
-			goto error;
-	}
+	PFIL_WLOCK(ph);
 
 	/* Add */
 	if (flags & PFIL_IN) {
@@ -284,6 +209,7 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct in
 		err = pfil_list_add(&ph->ph_in, pfh1, flags & ~PFIL_OUT);
 		if (err)
 			goto done;
+		ph->ph_nhooks++;
 	}
 	if (flags & PFIL_OUT) {
 		pfh2->pfil_func = func;
@@ -294,9 +220,9 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct in
 				pfil_list_remove(&ph->ph_in, func, arg);
 			goto done;
 		}
+		ph->ph_nhooks++;
 	}
 
-	ph->ph_busy_count = 0;
 	PFIL_WUNLOCK(ph);
 
 	return 0;
@@ -320,22 +246,18 @@ pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct
 {
 	int err = 0;
 
-	if (flags & PFIL_WAITOK)
-		PFIL_WLOCK(ph);
-	else {
-		err = PFIL_TRY_WLOCK(ph);
-		if (err)
-			return err;
-	}
+	PFIL_WLOCK(ph);
 
-	if (flags & PFIL_IN)
+	if (flags & PFIL_IN) {
 		err = pfil_list_remove(&ph->ph_in, func, arg);
-	if ((err == 0) && (flags & PFIL_OUT))
+		if (err == 0)
+			ph->ph_nhooks--;
+	}
+	if ((err == 0) && (flags & PFIL_OUT)) {
 		err = pfil_list_remove(&ph->ph_out, func, arg);
-
-	if (TAILQ_EMPTY(&ph->ph_in) && TAILQ_EMPTY(&ph->ph_out))
-		ph->ph_busy_count = -1;
-
+		if (err == 0)
+			ph->ph_nhooks--;
+	}
 	PFIL_WUNLOCK(ph);
 	
 	return err;

@@ -414,7 +414,7 @@ ip6_input(m)
 	odst = ip6->ip6_dst;
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (inet6_pfil_hook.ph_busy_count == -1)
+	if (!PFIL_HOOKED(&inet6_pfil_hook))
 		goto passin;
 
 	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL))
