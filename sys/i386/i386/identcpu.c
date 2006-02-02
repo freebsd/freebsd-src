@@ -1233,6 +1233,7 @@ print_INTEL_info(void)
 {
 	u_int regs[4];
 	u_int rounds, regnum;
+	u_int nwaycode, nway;
 
 	do_cpuid(0x2, regs);
 
@@ -1266,8 +1267,13 @@ print_INTEL_info(void)
 
 	if (cpu_exthigh >= 0x80000006) {
 		do_cpuid(0x80000006, regs);
+		nwaycode = (regs[2] >> 12) & 0x0f;
+		if (nwaycode >= 0x02 && nwaycode <= 0x08)
+			nway = 1 << (nwaycode / 2);
+		else
+			nway = 0;
 		printf("\nL2 cache: %u kbytes, %u-way associative, %u bytes/line",
-		    regs[2] & 0xffff, (regs[2] >> 16) & 0xff, regs[2] >> 24);
+		    (regs[2] >> 16) & 0xffff, nway, regs[2] & 0xff);
 	}
 
 	printf("\n");
