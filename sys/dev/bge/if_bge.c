@@ -1099,7 +1099,7 @@ bge_chipinit(sc)
 	 */
 	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_DMA_SWAP_OPTIONS|
 	    BGE_MODECTL_MAC_ATTN_INTR|BGE_MODECTL_HOST_SEND_BDS|
-	    BGE_MODECTL_TX_NO_PHDR_CSUM|BGE_MODECTL_RX_NO_PHDR_CSUM);
+	    BGE_MODECTL_TX_NO_PHDR_CSUM);
 
 	/*
 	 * Disable memory write invalidate.  Apparently it is not supported
@@ -2636,7 +2636,8 @@ bge_rxeof(sc)
 			    m->m_pkthdr.len >= ETHER_MIN_NOPAD) {
 				m->m_pkthdr.csum_data =
 				    cur_rx->bge_tcp_udp_csum;
-				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			}
 		}
 
