@@ -50,9 +50,11 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/jail.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -131,54 +133,20 @@ struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
-	struct mtx	mtx;		/* lock guarding rule list */
-	int		busy_count;	/* busy count for rw locks */
-	int		want_write;
-	struct cv	cv;
+	struct rwlock	rwmtx;
 };
 #define	IPFW_LOCK_INIT(_chain) \
-	mtx_init(&(_chain)->mtx, "IPFW static rules", NULL, \
-		MTX_DEF | MTX_RECURSE)
-#define	IPFW_LOCK_DESTROY(_chain)	mtx_destroy(&(_chain)->mtx)
+	rw_init(&(_chain)->rwmtx, "IPFW static rules")
+#define	IPFW_LOCK_DESTROY(_chain)	rw_destroy(&(_chain)->rwmtx)
 #define	IPFW_WLOCK_ASSERT(_chain)	do {				\
-	mtx_assert(&(_chain)->mtx, MA_OWNED);				\
+	rw_assert(rw, RA_WLOCKED);					\
 	NET_ASSERT_GIANT();						\
 } while (0)
 
-static __inline void
-IPFW_RLOCK(struct ip_fw_chain *chain)
-{
-	mtx_lock(&chain->mtx);
-	chain->busy_count++;
-	mtx_unlock(&chain->mtx);
-}
-
-static __inline void
-IPFW_RUNLOCK(struct ip_fw_chain *chain)
-{
-	mtx_lock(&chain->mtx);
-	chain->busy_count--;
-	if (chain->busy_count == 0 && chain->want_write)
-		cv_signal(&chain->cv);
-	mtx_unlock(&chain->mtx);
-}
-
-static __inline void
-IPFW_WLOCK(struct ip_fw_chain *chain)
-{
-	mtx_lock(&chain->mtx);
-	chain->want_write++;
-	while (chain->busy_count > 0)
-		cv_wait(&chain->cv, &chain->mtx);
-}
-
-static __inline void
-IPFW_WUNLOCK(struct ip_fw_chain *chain)
-{
-	chain->want_write--;
-	cv_signal(&chain->cv);
-	mtx_unlock(&chain->mtx);
-}
+#define IPFW_RLOCK(p) rw_rlock(&(p)->rwmtx)
+#define IPFW_RUNLOCK(p) rw_runlock(&(p)->rwmtx)
+#define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
+#define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
 
 /*
  * list of rules for layer 3
@@ -4155,9 +4123,6 @@ ipfw_init(void)
 #endif
 
 	layer3_chain.rules = NULL;
-	layer3_chain.want_write = 0;
-	layer3_chain.busy_count = 0;
-	cv_init(&layer3_chain.cv, "Condition variable for IPFW rw locks");
 	IPFW_LOCK_INIT(&layer3_chain);
 	ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule zone",
 	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
