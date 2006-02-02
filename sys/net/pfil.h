@@ -36,6 +36,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/lock.h>
 #include <sys/rwlock.h>
 
 struct mbuf;
