@@ -723,8 +723,13 @@ done1:
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
-	if (textvp != NULL)
+	if (textvp != NULL) {
+		int tvfslocked;
+
+		tvfslocked = VFS_LOCK_GIANT(textvp->v_mount);
 		vrele(textvp);
+		VFS_UNLOCK_GIANT(tvfslocked);
+	}
 	if (ndp->ni_vp && error != 0)
 		vrele(ndp->ni_vp);
 #ifdef KTRACE
