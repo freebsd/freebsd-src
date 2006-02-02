@@ -33,18 +33,16 @@
 .Nm nve
 .Nd "NVIDIA nForce MCP Networking Adapter device driver"
 .Sh SYNOPSIS
-To compile support for the
-.Nm
-driver into your kernel, place the following lines in your
+To compile this driver into the kernel,
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device miibus"
 .Cd "device nve"
 .Ed
 .Pp
-Alternatively, to load the
-.Nm
-driver at boot time, place the following line in
+Alternatively, to load the driver as a
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_nve_load="YES"
