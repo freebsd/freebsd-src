@@ -403,7 +403,7 @@ tooshort:
 	 */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (inet_pfil_hook.ph_busy_count == -1)
+	if (!PFIL_HOOKED(&inet_pfil_hook))
 		goto passin;
 
 	odst = ip->ip_dst;

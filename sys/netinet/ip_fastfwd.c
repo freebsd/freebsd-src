@@ -345,7 +345,7 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Run through list of ipfilter hooks for input packets
 	 */
-	if (inet_pfil_hook.ph_busy_count == -1)
+	if (!PFIL_HOOKED(&inet_pfil_hook))
 		goto passin;
 
 	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
@@ -430,7 +430,7 @@ passin:
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	if (inet_pfil_hook.ph_busy_count == -1)
+	if (!PFIL_HOOKED(&inet_pfil_hook))
 		goto passout;
 
 	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
