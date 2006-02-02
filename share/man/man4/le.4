@@ -79,17 +79,24 @@ driver also supports PCnet adapters based on the
 .Tn AMD 79C9xx
 family of chips, which are single-chip implementations of a
 .Tn LANCE
-chip and
+chip and a DMA engine.
+This includes a superset of the
 .Tn PCI
-bus interface.
-This includes most of the adapters which are also supported by the
+bus Ethernet chip sets supported by the
 .Xr pcn 4
 driver.
 The
 .Nm
-driver does not support all features of these adapters however, thus the
+driver treats all of these
+.Tn PCI
+bus Ethernet chip sets as an
+.Tn AMD Am79C970 PCnet-PCI
+and does not support the additional features like the MII bus and burst mode of
+.Tn AMD Am79C971 PCnet-FAST
+and greater chip sets.
+Thus the
 .Xr pcn 4
-driver should be preferred.
+driver should be preferred for the latter.
 .Pp
 The
 .Nm
