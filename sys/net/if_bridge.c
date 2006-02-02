@@ -1531,9 +1531,9 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 		return;
 	}
 
-	if (inet_pfil_hook.ph_busy_count >= 0
+	if (PFIL_HOOKED(&inet_pfil_hook)
 #ifdef INET6
-	    || inet6_pfil_hook.ph_busy_count >= 0
+	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    ) {
 		if (bridge_pfil(&m, sc->sc_ifp, ifp, PFIL_OUT) != 0)
@@ -1800,9 +1800,9 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	}
 
 	/* run the packet filter */
-	if (inet_pfil_hook.ph_busy_count >= 0
+	if (PFIL_HOOKED(&inet_pfil_hook)
 #ifdef INET6
-	    || inet6_pfil_hook.ph_busy_count >= 0
+	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    ) {
 		BRIDGE_UNLOCK(sc);
@@ -1857,9 +1857,9 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 
 	BRIDGE_UNLOCK(sc);
 
-	if (inet_pfil_hook.ph_busy_count >= 0
+	if (PFIL_HOOKED(&inet_pfil_hook)
 #ifdef INET6
-	    || inet6_pfil_hook.ph_busy_count >= 0
+	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    ) {
 		if (bridge_pfil(&m, sc->sc_ifp, dst_if, PFIL_OUT) != 0)
@@ -2055,9 +2055,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	}
 
 	/* Filter on the bridge interface before broadcasting */
-	if (runfilt && (inet_pfil_hook.ph_busy_count >= 0
+	if (runfilt && (PFIL_HOOKED(&inet_pfil_hook)
 #ifdef INET6
-	    || inet6_pfil_hook.ph_busy_count >= 0
+	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    )) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
@@ -2102,9 +2102,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		 * pointer so we do not redundantly filter on the bridge for
 		 * each interface we broadcast on.
 		 */
-		if (runfilt && (inet_pfil_hook.ph_busy_count >= 0
+		if (runfilt && (PFIL_HOOKED(&inet_pfil_hook)
 #ifdef INET6
-		    || inet6_pfil_hook.ph_busy_count >= 0
+		    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 		    )) {
 			if (bridge_pfil(&mc, NULL, dst_if, PFIL_OUT) != 0)
