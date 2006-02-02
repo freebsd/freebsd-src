@@ -12,6 +12,10 @@ SUBDIR=	ac \
 	${_apmd} \
 	${_arlcontrol} \
 	arp \
+	audit \
+	auditd \
+	auditon \
+	auditreduce \
 	${_asf} \
 	${_atm} \
 	${_authpf} \
@@ -120,6 +124,7 @@ SUBDIR=	ac \
 	pppd \
 	pppstats \
 	${_praliases} \
+	praudit \
 	procctl \
 	pstat \
 	pw \
