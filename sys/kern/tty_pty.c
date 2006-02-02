@@ -180,7 +180,7 @@ static void
 pty_maybe_destroy_slave(struct ptsc *pt)
 {
 
-	if (pt->pt_devc_open == 0 && pt->pt_devs_open == 0)
+	if (0 && pt->pt_devc_open == 0 && pt->pt_devs_open == 0)
 		pty_destroy_slave(pt);
 }
 
