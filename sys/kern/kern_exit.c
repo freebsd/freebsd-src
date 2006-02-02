@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
@@ -826,6 +828,9 @@ loop:
 			vm_waitproc(p);
 #ifdef MAC
 			mac_destroy_proc(p);
+#endif
+#ifdef AUDIT
+			audit_proc_free(p);
 #endif
 			KASSERT(FIRST_THREAD_IN_PROC(p),
 			    ("kern_wait: no residual thread!"));
