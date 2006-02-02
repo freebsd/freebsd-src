@@ -347,6 +347,9 @@ hint.mse.0.irq="13"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
+# ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
+#       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
+#       NETGRAPH_CRONYX is configured)
 # cp:   Cronyx Tau-PCI sync single/dual/four port
 #       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
@@ -368,6 +371,7 @@ hint.mse.0.irq="13"
 # Order for ISA/EISA devices is important here
 
 device		ar
+device		ce
 device		cp
 device		cs
 device		ed
