@@ -4,7 +4,7 @@
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
 
-; Columns: number [M]type nargs name alt{name,tag,rtyp}/comments
+; Columns: number audit [M]type name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
 ;	audit	the audit event associated with the system call
 ;		A value of AUE_NULL means no auditing, but it also means that
@@ -780,21 +780,21 @@
 				    const struct timespec *timeout); }
 443	AUE_NULL	MSTD	{ int thr_wake(long id); }
 444	AUE_NULL	MSTD	{ int kldunloadf(int fileid, int flags); }
-445	AUE_NULL	MNOSTD	{ int audit(const void *record, \
+445	AUE_AUDIT	MSTD	{ int audit(const void *record, \
 				    u_int length); }
-446	AUE_NULL	MNOSTD	{ int auditon(int cmd, void *data, \
+446	AUE_AUDITON	MSTD	{ int auditon(int cmd, void *data, \
 				    u_int length); }
-447	AUE_NULL	MNOSTD	{ int getauid(uid_t *auid); }
-448	AUE_NULL	MNOSTD	{ int setauid(uid_t *auid); }
-449	AUE_NULL	MNOSTD	{ int getaudit(struct auditinfo *auditinfo); }
-450	AUE_NULL	MNOSTD	{ int setaudit(struct auditinfo *auditinfo); }
-451	AUE_NULL	MNOSTD	{ int getaudit_addr( \
+447	AUE_GETAUID	MSTD	{ int getauid(uid_t *auid); }
+448	AUE_SETAUID	MSTD	{ int setauid(uid_t *auid); }
+449	AUE_GETAUDIT	MSTD	{ int getaudit(struct auditinfo *auditinfo); }
+450	AUE_SETAUDIT	MSTD	{ int setaudit(struct auditinfo *auditinfo); }
+451	AUE_GETAUDIT_ADDR	MSTD	{ int getaudit_addr( \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
-452	AUE_NULL	MNOSTD	{ int setaudit_addr( \
+452	AUE_SETAUDIT_ADDR	MSTD	{ int setaudit_addr( \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
-453	AUE_NULL	MNOSTD	{ int auditctl(int cmd, char *path); }
+453	AUE_AUDITCTL	MSTD	{ int auditctl(char *path); }
 454	AUE_NULL	MSTD	{ int _umtx_op(struct umtx *umtx, int op, \
 				    long id, void *uaddr, void *uaddr2); }
 455	AUE_NULL	MSTD	{ int thr_new(struct thr_param *param, \
