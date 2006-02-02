@@ -1443,6 +1443,7 @@ setPQL2_INTEL(int *const size, int *const ways)
 {
 	u_int rounds, regnum;
 	u_int regs[4];
+	u_int nwaycode;
 
 	do_cpuid(0x2, regs);
 	rounds = (regs[0] & 0xff) - 1;
@@ -1483,9 +1484,13 @@ setPQL2_INTEL(int *const size, int *const ways)
 
 	if (cpu_exthigh >= 0x80000006) {
 		do_cpuid(0x80000006, regs);
-		if (*size < (regs[2] & 0xffff)) {
-			*size = regs[2] & 0xffff;
-			*ways = (regs[2] >> 16) & 0xff;
+		if (*size < ((regs[2] >> 16) & 0xffff)) {
+			*size = (regs[2] >> 16) & 0xffff;
+			nwaycode = (regs[2] >> 12) & 0x0f;
+			if (nwaycode >= 0x02 && nwaycode <= 0x08)
+				*ways = 1 << (nwaycode / 2);
+			else
+				*ways = 0;
 		}
         }
 }
