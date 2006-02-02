@@ -1015,6 +1015,16 @@ audit_proc_alloc(struct proc *p)
 	//printf("audit_proc_alloc: pid %d p_au %p\n", p->p_pid, p->p_au);
 }
 
+/*
+ * Allocate storage for a new thread.
+ */
+void
+audit_thread_alloc(struct thread *td)
+{
+
+	td->td_ar = NULL;
+}
+
 /* 
  * Initialize the audit information for the a process, presumably the first 
  * process in the system.
