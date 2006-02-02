@@ -14,7 +14,6 @@ SUBDIR=	ac \
 	arp \
 	audit \
 	auditd \
-	auditon \
 	auditreduce \
 	${_asf} \
 	${_atm} \
