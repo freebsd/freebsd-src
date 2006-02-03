@@ -12,7 +12,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	fsck ftpd \
 	gbde geli geli2 \
 	hcsecd \
-	hostname \
+	hostapd hostname \
 	ike \
 	inetd initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \

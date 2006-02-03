@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: hostapd
+# REQUIRE: mountcritremote
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="hostapd"
+command="/usr/sbin/${name}"
+rcvar=`set_rcvar`
+
+conf_file="/etc/${name}.conf"
+
+command_args="-B ${conf_file}"
+required_files="${conf_file}"
+
+load_rc_config ${name}
+run_rc_command "$1"
