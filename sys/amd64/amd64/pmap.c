@@ -183,8 +183,8 @@ static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
  * Data for the pv entry allocation mechanism
  */
 static uma_zone_t pvzone;
-static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
+static int shpgperproc = PMAP_SHPGPERPROC;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -563,7 +563,6 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
-	int shpgperproc = PMAP_SHPGPERPROC;
 
 	/*
 	 * Initialize the address space (zone) for the pv entries.  Set a
@@ -571,13 +570,43 @@ pmap_init(void)
 	 * numbers of pv entries.
 	 */
 	pvzone = uma_zcreate("PV ENTRY", sizeof(struct pv_entry), NULL, NULL, 
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
+
+SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+static int
+pmap_pventry_proc(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error == 0 && req->newptr) {
+		shpgperproc = (pv_entry_max - cnt.v_page_count) / maxproc;
+		pv_entry_high_water = 9 * (pv_entry_max / 10);
+	}
+	return (error);
+}
+SYSCTL_PROC(_vm_pmap, OID_AUTO, pv_entry_max, CTLTYPE_INT|CTLFLAG_RW, 
+    &pv_entry_max, 0, pmap_pventry_proc, "IU", "Max number of PV entries");
+
+static int
+pmap_shpgperproc_proc(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error == 0 && req->newptr) {
+		pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+		pv_entry_high_water = 9 * (pv_entry_max / 10);
+	}
+	return (error);
+}
+SYSCTL_PROC(_vm_pmap, OID_AUTO, shpgperproc, CTLTYPE_INT|CTLFLAG_RW, 
+    &shpgperproc, 0, pmap_shpgperproc_proc, "IU", "Page share factor per proc");
 
 
 /***************************************************
@@ -1452,8 +1481,9 @@ get_pv_entry(pmap_t locked_pmap)
 	 * mappings to active pages.
 	 */
 	if (ratecheck(&lastprint, &printinterval))
-		printf("Approaching the limit on PV entries, "
-		    "increase the vm.pmap.shpgperproc tunable.\n");
+		printf("Approaching the limit on PV entries, consider "
+		    "increasing sysctl vm.pmap.shpgperproc or "
+		    "vm.pmap.pv_entry_max\n");
 	vpq = &vm_page_queues[PQ_INACTIVE];
 retry:
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
