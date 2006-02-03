@@ -370,4 +370,4 @@ union dscrptr {
 #define	GETICB(ad_type, fentry, offset)	\
 	(struct ad_type *)&fentry->data[offset]
 
-#define	GETICBLEN(ad_type, icb)	((struct ad_type *)(icb))->len
+#define	GETICBLEN(ad_type, icb)	le32toh(((struct ad_type *)(icb))->len)
