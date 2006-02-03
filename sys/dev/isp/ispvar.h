@@ -53,7 +53,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	9
+#define	ISP_CORE_VERSION_MINOR	10
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -790,8 +790,6 @@ int isp_async(struct ispsoftc *, ispasync_t, void *);
  *
  * Each platform must also provide the following macros/defines:
  *
- *
- *	INLINE		-	platform specific define for 'inline' functions
  *
  *	ISP_DAC_SUPPORTED -	Is DAC (Dual Address Cycle) is supported?
  *				Basically means whether or not DMA for PCI
