@@ -3439,7 +3439,7 @@ bge_ioctl(ifp, command, data)
 			 * instead of reinitializing the entire NIC. Doing
 			 * a full re-init means reloading the firmware and
 			 * waiting for it to start up, which may take a
-			 * second or two.
+			 * second or two.  Similarly for ALLMULTI.
 			 */
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -3451,6 +3451,9 @@ bge_ioctl(ifp, command, data)
 			    sc->bge_if_flags & IFF_PROMISC) {
 				BGE_CLRBIT(sc, BGE_RX_MODE,
 				    BGE_RXMODE_RX_PROMISC);
+			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+			    (ifp->if_flags ^ sc->bge_if_flags) & IFF_ALLMULTI) {
+				bge_setmulti(sc);
 			} else
 				bge_init_locked(sc);
 		} else {
