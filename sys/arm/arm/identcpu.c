@@ -266,7 +266,7 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "ARM7",	"CPU_ARM7" },		/* CPU_CLASS_ARM7 */
 	{ "ARM7TDMI",	"CPU_ARM7TDMI" },	/* CPU_CLASS_ARM7TDMI */
 	{ "ARM8",	"CPU_ARM8" },		/* CPU_CLASS_ARM8 */
-	{ "ARM9TDMI",	NULL },			/* CPU_CLASS_ARM9TDMI */
+	{ "ARM9TDMI",	"CPU_ARM9TDMI" },	/* CPU_CLASS_ARM9TDMI */
 	{ "ARM9E-S",	NULL },			/* CPU_CLASS_ARM9ES */
 	{ "ARM10E",	"CPU_ARM10" },		/* CPU_CLASS_ARM10E */
 	{ "SA-1",	"CPU_SA110" },		/* CPU_CLASS_SA1 */
@@ -325,7 +325,7 @@ identify_arm_cpu(void)
 	for (i = 0; cpuids[i].cpuid != 0; i++)
 		if (cpuids[i].cpuid == (cpuid & CPU_ID_CPU_MASK)) {
 			cpu_class = cpuids[i].cpu_class;
-			printf("%s %s (%s core)\n",
+			printf("CPU: %s %s (%s core)\n",
 			    cpuids[i].cpu_name,
 			    cpuids[i].cpu_steppings[cpuid &
 			    CPU_ID_REVISION_MASK],
@@ -335,6 +335,7 @@ identify_arm_cpu(void)
 	if (cpuids[i].cpuid == 0)
 		printf("unknown CPU (ID = 0x%x)\n", cpuid);
 
+	printf(" ");
 	switch (cpu_class) {
 	case CPU_CLASS_ARM6:
 	case CPU_CLASS_ARM7:
@@ -374,24 +375,24 @@ identify_arm_cpu(void)
 	if (ctrl & CPU_CONTROL_BPRD_ENABLE)
 		printf(" branch prediction enabled");
 
+	printf("\n");
 	/* Print cache info. */
 	if (arm_picache_line_size == 0 && arm_pdcache_line_size == 0)
 		return;
 	
 	if (arm_pcache_unified) {
- 		printf("%dKB/%dB %d-way %s unified cache\n",
+ 		printf("  %dKB/%dB %d-way %s unified cache\n",
 		    arm_pdcache_size / 1024,
 		    arm_pdcache_line_size, arm_pdcache_ways,
 		    wtnames[arm_pcache_type]);
 	} else {
-		printf("%dKB/%dB %d-way Instruction cache\n",
+		printf("  %dKB/%dB %d-way Instruction cache\n",
 		    arm_picache_size / 1024,
 		    arm_picache_line_size, arm_picache_ways);
-		printf("%dKB/%dB %d-way %s Data cache\n",
+		printf("  %dKB/%dB %d-way %s Data cache\n",
 		    arm_pdcache_size / 1024,
 		    arm_pdcache_line_size, arm_pdcache_ways,
 		    wtnames[arm_pcache_type]);                
 	}
-	printf("\n");
 }
 
