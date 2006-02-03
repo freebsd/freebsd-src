@@ -136,7 +136,7 @@ static int
 isp_sbus_attach(device_t dev)
 {
 	struct resource *regs;
-	int tval, iqd, isp_debug, role, rid, ispburst, freq;
+	int tval, iqd, isp_debug, role, rid, ispburst;
 	struct isp_sbussoftc *sbs;
 	struct ispsoftc *isp = NULL;
 	int locksetup = 0;
@@ -203,16 +203,12 @@ isp_sbus_attach(device_t dev)
 	isp->isp_role = role;
 	isp->isp_dev = dev;
 
-	freq = sbus_get_clockfreq(dev);
-	if (freq) {
-		/*
-		 * Convert from HZ to MHz, rounding up.
-		 */
-		freq = (freq + 500000)/1000000;
-	} else {
-		freq = 25;
-	}
-	sbs->sbus_mdvec.dv_clock = freq << 8;
+	/*
+	 * Get the clock frequency and convert it from HZ to MHz,
+	 * rounding up. This defaults to 25MHz if there isn't a
+	 * device specific one in the OFW device tree.
+	 */
+	sbs->sbus_mdvec.dv_clock = (sbus_get_clockfreq(dev) + 500000)/1000000;
 
 	/*
 	 * Now figure out what the proper burst sizes, etc., to use.
