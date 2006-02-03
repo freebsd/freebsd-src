@@ -45,7 +45,6 @@
 
 #include <sys/file.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 
 /*
  * Audit subsystem condition flags.  The audit_enabled flag is set and
