@@ -6,4 +6,6 @@
 
 branches	= RELENG_6_0, RELENG_6
 platforms	= alpha, amd64, i386/i386, i386/pc98, sparc64
+cflags		= -O2 -pipe
+coptflags	= %%CFLAGS%%
 recipient	= %%SENDER%%,<stable@freebsd.org>,<%%arch%%@freebsd.org>
