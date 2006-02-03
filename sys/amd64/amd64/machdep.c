@@ -1561,16 +1561,17 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_rbp = tp->tf_rbp;
 	mcp->mc_rbx = tp->tf_rbx;
 	mcp->mc_rcx = tp->tf_rcx;
+	mcp->mc_rflags = tp->tf_rflags;
 	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_rax = 0;
 		mcp->mc_rdx = 0;
+		mcp->mc_rflags &= ~PSL_C;
 	} else {
 		mcp->mc_rax = tp->tf_rax;
 		mcp->mc_rdx = tp->tf_rdx;
 	}
 	mcp->mc_rip = tp->tf_rip;
 	mcp->mc_cs = tp->tf_cs;
-	mcp->mc_rflags = tp->tf_rflags;
 	mcp->mc_rsp = tp->tf_rsp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
