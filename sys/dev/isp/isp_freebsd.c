@@ -223,7 +223,7 @@ isp_attach(struct ispsoftc *isp)
 
 }
 
-static INLINE void
+static __inline void
 isp_freeze_loopdown(struct ispsoftc *isp, char *msg)
 {
 	if (isp->isp_osinfo.simqfrozen == 0) {
@@ -593,11 +593,11 @@ isp_intr_enable(void *arg)
 
 #ifdef	ISP_TARGET_MODE
 
-static INLINE int is_lun_enabled(struct ispsoftc *, int, lun_id_t);
-static INLINE int are_any_luns_enabled(struct ispsoftc *, int);
-static INLINE tstate_t *get_lun_statep(struct ispsoftc *, int, lun_id_t);
-static INLINE void rls_lun_statep(struct ispsoftc *, tstate_t *);
-static INLINE atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
+static __inline int is_lun_enabled(struct ispsoftc *, int, lun_id_t);
+static __inline int are_any_luns_enabled(struct ispsoftc *, int);
+static __inline tstate_t *get_lun_statep(struct ispsoftc *, int, lun_id_t);
+static __inline void rls_lun_statep(struct ispsoftc *, tstate_t *);
+static __inline atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
 static cam_status
 create_lun_state(struct ispsoftc *, int, struct cam_path *, tstate_t **);
 static void destroy_lun_state(struct ispsoftc *, tstate_t *);
@@ -614,7 +614,7 @@ static int isp_handle_platform_ctio(struct ispsoftc *, void *);
 static int isp_handle_platform_notify_scsi(struct ispsoftc *, in_entry_t *);
 static int isp_handle_platform_notify_fc(struct ispsoftc *, in_fcentry_t *);
 
-static INLINE int
+static __inline int
 is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr;
@@ -630,7 +630,7 @@ is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
 	return (0);
 }
 
-static INLINE int
+static __inline int
 are_any_luns_enabled(struct ispsoftc *isp, int port)
 {
 	int lo, hi;
@@ -649,7 +649,7 @@ are_any_luns_enabled(struct ispsoftc *isp, int port)
 	return (0);
 }
 
-static INLINE tstate_t *
+static __inline tstate_t *
 get_lun_statep(struct ispsoftc *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr = NULL;
@@ -677,14 +677,14 @@ get_lun_statep(struct ispsoftc *isp, int bus, lun_id_t lun)
 	return (tptr);
 }
 
-static INLINE void
+static __inline void
 rls_lun_statep(struct ispsoftc *isp, tstate_t *tptr)
 {
 	if (tptr->hold)
 		tptr->hold--;
 }
 
-static INLINE atio_private_data_t *
+static __inline atio_private_data_t *
 isp_get_atpd(struct ispsoftc *isp, int tag)
 {
 	atio_private_data_t *atp;
@@ -742,7 +742,7 @@ create_lun_state(struct ispsoftc *isp, int bus,
 	return (CAM_REQ_CMP);
 }
 
-static INLINE void
+static __inline void
 destroy_lun_state(struct ispsoftc *isp, tstate_t *tptr)
 {
 	int hfx;
