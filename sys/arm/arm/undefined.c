@@ -277,11 +277,11 @@ undefinedinstruction(trapframe_t *frame)
 	if ((fault_code & FAULT_USER) == 0) {
 		if (fault_instruction == KERNEL_BREAKPOINT) {
 #ifdef KDB
-		kdb_trap(T_BREAKPOINT, 0, frame);
+			kdb_trap(T_BREAKPOINT, 0, frame);
 #else
-		printf("No debugger in kernel.\n");
+			printf("No debugger in kernel.\n");
 #endif
-		return;
+			return;
 		} else
 			panic("Undefined instruction in kernel.\n");
 	}
