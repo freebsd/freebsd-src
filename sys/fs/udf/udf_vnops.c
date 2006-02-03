@@ -1090,7 +1090,7 @@ udf_bmap_internal(struct udf_node *node, off_t offset, daddr_t *sector,
 		} while(offset >= icblen);
 
 		lsector = (offset  >> udfmp->bshift) +
-		    ((struct short_ad *)(icb))->pos;
+		    le32toh(((struct short_ad *)(icb))->pos);
 
 		*max_size = GETICBLEN(short_ad, icb);
 

@@ -293,7 +293,7 @@ udf_checktag(struct desc_tag *tag, uint16_t id)
 
 	itag = (uint8_t *)tag;
 
-	if (tag->id != id)
+	if (le16toh(tag->id) != id)
 		return (EINVAL);
 
 	for (i = 0; i < 15; i++)
