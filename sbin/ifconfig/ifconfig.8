@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2005
+.Dd February 2, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1287,6 +1287,31 @@ clears its VLAN tag, flags and its link address and shuts the interface down.
 The
 .Ar iface
 argument is useless and hence deprecated.
+.El
+.Pp
+The following parameters are specific to
+.Xr carp 4
+interfaces:
+.Bl -tag -width indent
+.It Cm advbase Ar seconds
+Specifies the base of the advertisement interval in seconds.
+The acceptable values are 1 to 255.
+The default value is 1.
+.\" The default value is
+.\" .Dv CARP_DFLTINTV .
+.It Cm advskew Ar interval
+Specifies the skew to add to the base advertisement interval to
+make one host advertise slower than another host.
+It is specified in 1/256 of seconds.
+The acceptable values are 1 to 254.
+The default value is 0.
+.It Cm pass Ar phrase
+Set the authentication key to
+.Ar phrase .
+.It Cm vhid Ar n
+Set the virtual host ID.
+This is a required setting.
+Acceptable values are 1 to 255.
 .El
 .Pp
 The
