@@ -991,6 +991,9 @@ options 	P1003_1B_MQUEUE
 #####################################################################
 # SECURITY POLICY PARAMETERS
 
+# Support for BSM audit
+options 	AUDIT
+
 # Support for Mandatory Access Control (MAC):
 options 	MAC
 options 	MAC_BIBA
