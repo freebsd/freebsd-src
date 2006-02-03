@@ -215,6 +215,7 @@ static int	bridge_rtdaddr(struct bridge_softc *, const uint8_t *);
 static int	bridge_rtable_init(struct bridge_softc *);
 static void	bridge_rtable_fini(struct bridge_softc *);
 
+static int	bridge_rtnode_addr_cmp(const uint8_t *, const uint8_t *);
 static struct bridge_rtnode *bridge_rtnode_lookup(struct bridge_softc *,
 		    const uint8_t *);
 static int	bridge_rtnode_insert(struct bridge_softc *,
@@ -2195,7 +2196,8 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 		}
 	}
 
-	brt->brt_ifp = dst_if;
+	if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
+		brt->brt_ifp = dst_if;
 	if ((flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
 		brt->brt_expire = time_uptime + sc->sc_brttimeout;
 	if (setflags)
@@ -2426,6 +2428,18 @@ bridge_rthash(struct bridge_softc *sc, const uint8_t *addr)
 
 #undef mix
 
+static int
+bridge_rtnode_addr_cmp(const uint8_t *a, const uint8_t *b)
+{
+	int i, d;
+
+	for (i = 0, d = 0; i < ETHER_ADDR_LEN && d == 0; i++) {
+		d = ((int)a[i]) - ((int)b[i]);
+	}
+
+	return (d);
+}
+
 /*
  * bridge_rtnode_lookup:
  *
@@ -2442,7 +2456,7 @@ bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr)
 
 	hash = bridge_rthash(sc, addr);
 	LIST_FOREACH(brt, &sc->sc_rthash[hash], brt_hash) {
-		dir = memcmp(addr, brt->brt_addr, ETHER_ADDR_LEN);
+		dir = bridge_rtnode_addr_cmp(addr, brt->brt_addr);
 		if (dir == 0)
 			return (brt);
 		if (dir > 0)
@@ -2476,7 +2490,7 @@ bridge_rtnode_insert(struct bridge_softc *sc, struct bridge_rtnode *brt)
 	}
 
 	do {
-		dir = memcmp(brt->brt_addr, lbrt->brt_addr, ETHER_ADDR_LEN);
+		dir = bridge_rtnode_addr_cmp(brt->brt_addr, lbrt->brt_addr);
 		if (dir == 0)
 			return (EEXIST);
 		if (dir > 0) {
