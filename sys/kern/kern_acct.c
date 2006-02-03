@@ -48,23 +48,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/acct.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sysproto.h>
-#include <sys/proc.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
-#include <sys/vnode.h>
-#include <sys/fcntl.h>
-#include <sys/syslog.h>
-#include <sys/kernel.h>
-#include <sys/sx.h>
-#include <sys/sysent.h>
-#include <sys/sysctl.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
-#include <sys/acct.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
 #include <sys/tty.h>
+#include <sys/vnode.h>
 
 /*
  * The routines implemented in this file are described in:
