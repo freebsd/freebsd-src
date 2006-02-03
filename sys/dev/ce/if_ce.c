@@ -70,9 +70,12 @@ __FBSDID("$FreeBSD$");
 #   define PP_CISCO IFF_LINK2
 #   if __FreeBSD_version < 500000
 #	include <bpf.h>
+#	define NBPFILTER NBPF
+#   else
+#	include "opt_bpf.h"
+#	define NBPFILTER DEV_BPF
 #   endif
 #   include <net/bpf.h>
-#   define NBPFILTER NBPF
 #endif
 #include <dev/cx/machdep.h>
 #include <dev/ce/ceddk.h>
