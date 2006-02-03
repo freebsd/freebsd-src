@@ -153,7 +153,8 @@ makefile(void)
 			do_clean(ofp);
 		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
 			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
-			if (versreq != CONFIGVERS) {
+			if (MAJOR_VERS(versreq) != MAJOR_VERS(CONFIGVERS) ||
+			    versreq > CONFIGVERS) {
 				fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
 				fprintf(stderr, "config version = %d, ", CONFIGVERS);
 				fprintf(stderr, "version required = %d\n\n", versreq);
