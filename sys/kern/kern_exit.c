@@ -417,6 +417,9 @@ retry:
 	LIST_REMOVE(p, p_hash);
 	sx_xunlock(&allproc_lock);
 
+	/*
+	 * Reparent all of our children to init.
+	 */
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
