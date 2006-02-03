@@ -195,8 +195,6 @@ void dummynet_drain(void);
 static ip_dn_io_t dummynet_io;
 static void dn_rule_delete(void *);
 
-int if_tx_rdy(struct ifnet *ifp);
-
 /*
  * Heap management functions.
  *
@@ -800,42 +798,6 @@ dummynet(void * __unused unused)
     DUMMYNET_UNLOCK();
 
     callout_reset(&dn_timeout, 1, dummynet, NULL);
-}
-
-/*
- * called by an interface when tx_rdy occurs.
- */
-int
-if_tx_rdy(struct ifnet *ifp)
-{
-    struct dn_pipe *pipe;
-    int i;
-
-    DUMMYNET_LOCK();
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(pipe, &pipehash[i], next)
-		if (pipe->ifp == ifp)
-			break;
-    if (pipe == NULL) {
-	for (i = 0; i < HASHSIZE; i++)
-		SLIST_FOREACH(pipe, &pipehash[i], next)
-			if (!strcmp(pipe->if_name, ifp->if_xname) ) {
-				pipe->ifp = ifp ;
-				DPRINTF(("dummynet: ++ tx rdy from %s (now found)\n",
-				    ifp->if_xname));
-				break;
-			}
-    }
-
-    if (pipe != NULL) {
-	DPRINTF(("dummynet: ++ tx rdy from %s - qlen %d\n", ifp->if_xname,
-		ifp->if_snd.ifq_len));
-	pipe->numbytes = 0; /* Mark ready for I/O. */
-	ready_event_wfq(pipe);
-    }
-    DUMMYNET_UNLOCK();
-
-    return 0;
 }
 
 /*
