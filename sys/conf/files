@@ -667,6 +667,7 @@ dev/ips/ips_pci.c		optional ips pci
 dev/ipw/if_ipw.c		optional ipw
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
+dev/isp/isp_library.c		optional isp
 dev/isp/isp_pci.c		optional isp pci
 dev/isp/isp_sbus.c		optional isp sbus
 dev/isp/isp_target.c		optional isp
