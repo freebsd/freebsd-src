@@ -711,10 +711,12 @@ fchdir(td, uap)
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	FILEDESC_LOCK_FAST(fdp);
 	vpold = fdp->fd_cdir;
 	fdp->fd_cdir = vp;
 	FILEDESC_UNLOCK_FAST(fdp);
+	vfslocked = VFS_LOCK_GIANT(vpold->v_mount);
 	vrele(vpold);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
