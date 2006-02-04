@@ -1129,8 +1129,11 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	u_int32_t len;
 	int i, error, ns;
 	bus_size_t slim;	/* segment size */
-	bus_size_t llim;	/* low limit of unavailable dma */
-	bus_size_t hlim;	/* low limit of unavailable dma */
+	
+	/* XXX Should be bus_size_t, but i386/PAE is broken */
+	bus_addr_t llim;	/* low limit of unavailable dma */
+	bus_addr_t hlim;	/* low limit of unavailable dma */
+
 	struct imush im;
 
 	/*
