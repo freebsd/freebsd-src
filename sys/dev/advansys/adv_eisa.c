@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 /* 
  * The overrun buffer shared amongst all EISA adapters.
  */
-static	u_int8_t*	overrun_buf;
+static	void*		overrun_buf;
 static	bus_dma_tag_t	overrun_dmat;
 static	bus_dmamap_t	overrun_dmamap;
 static	bus_addr_t	overrun_physbase;
@@ -264,7 +264,7 @@ adv_eisa_attach(device_t dev)
 			goto bad;
        		}
 		if (bus_dmamem_alloc(overrun_dmat,
-				     (void **)&overrun_buf,
+				     &overrun_buf,
 				     BUS_DMA_NOWAIT,
 				     &overrun_dmamap) != 0) {
 			bus_dma_tag_destroy(overrun_dmat);
