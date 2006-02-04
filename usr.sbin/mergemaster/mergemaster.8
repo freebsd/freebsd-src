@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2001
+.Dd February 4, 2006
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Op Fl d
 .Op Fl u Ar N
 .Op Fl w Ar N
+.Op Fl A Ar architecture
 .Op Fl D Ar /path
 .Sh DESCRIPTION
 The
@@ -235,6 +236,10 @@ Supply an alternate screen width to the
 .Xr sdiff 1
 command in numbers of columns.
 The default is 80.
+.It Fl A Ar architecture
+Specify an alternative
+.Ev TARGET_ARCH
+architecture name.
 .It Fl D Ar /path
 Specify the destination directory for the installed files.
 .El
