@@ -27,4 +27,8 @@
 
 void	login_fbtab(char *, uid_t, gid_t);
 
-extern	char **environ;
+void	au_login_success(void);
+void	au_login_fail(char *errmsg, int na);
+
+extern char		**environ;
+extern struct passwd	*pwd;
