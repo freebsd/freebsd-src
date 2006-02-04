@@ -683,7 +683,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_ADDR)) {
-			tok = au_to_arg32(1, "arg", (u_int32_t)ar->ar_arg_addr);
+			tok = au_to_arg32(1, "arg",
+			    (u_int32_t)(uintptr_t)ar->ar_arg_addr);
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
@@ -732,7 +733,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_LOADSHFILE:
 		if (ARG_IS_VALID(kar, ARG_ADDR)) {
 			tok = au_to_arg32(4, "base addr",
-			    (u_int32_t)ar->ar_arg_addr);
+			    (u_int32_t)(uintptr_t)ar->ar_arg_addr);
 			kau_write(rec, tok);
 		}
 		UPATH1_VNODE1_TOKENS;
@@ -766,7 +767,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_MINHERIT:
 		if (ARG_IS_VALID(kar, ARG_ADDR)) {
 			tok = au_to_arg32(1, "addr",
-			    (u_int32_t)ar->ar_arg_addr);
+			    (u_int32_t)(uintptr_t)ar->ar_arg_addr);
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_LEN)) {
@@ -832,7 +833,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_RESETSHFILE:
 		if (ARG_IS_VALID(kar, ARG_ADDR)) {
 			tok = au_to_arg32(1, "base addr",
-			    (u_int32_t)ar->ar_arg_addr);
+			    (u_int32_t)(uintptr_t)ar->ar_arg_addr);
 			kau_write(rec, tok);
 		}
 		break;
@@ -870,7 +871,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		if (ARG_IS_VALID(kar, ARG_ADDR)) {
 			tok = au_to_arg32(3, "addr",
-			    (u_int32_t)ar->ar_arg_addr);
+			    (u_int32_t)(uintptr_t)ar->ar_arg_addr);
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
@@ -1044,7 +1045,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		if (ARG_IS_VALID(kar, ARG_SVIPC_ADDR)) {
 			tok = au_to_arg32(2, "shmaddr",
-			    (int)ar->ar_arg_svipc_addr);
+			    (int)(uintptr_t)ar->ar_arg_svipc_addr);
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_SVIPC_PERM)) {
@@ -1083,7 +1084,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_SHMDT:
 		if (ARG_IS_VALID(kar, ARG_SVIPC_ADDR)) {
 			tok = au_to_arg32(1, "shmaddr",
-			    (int)ar->ar_arg_svipc_addr);
+			    (int)(uintptr_t)ar->ar_arg_svipc_addr);
 			kau_write(rec, tok);
 		}
 		break;
