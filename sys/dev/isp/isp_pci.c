@@ -46,12 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#ifdef	ISP_TARGET_MODE
-#ifdef	PAE
-#error	"PAE and ISP_TARGET_MODE not supported yet"
-#endif
-#endif
-
 #include <dev/isp/isp_freebsd.h>
 
 static u_int16_t isp_pci_rd_reg(struct ispsoftc *, int);
@@ -877,7 +871,7 @@ isp_pci_intr(void *arg)
 	bus_space_write_2(pcs->pci_st, pcs->pci_sh, off, v)
 
 
-static INLINE int
+static __inline int
 isp_pci_rd_debounced(struct ispsoftc *isp, int off, u_int16_t *rp)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
@@ -1128,7 +1122,9 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	caddr_t base;
 	u_int32_t len;
 	int i, error, ns;
-	bus_size_t alim, slim, xlim;
+	bus_size_t slim;	/* segment size */
+	bus_addr_t llim;	/* low limit of unavailable dma */
+	bus_addr_t hlim;	/* high limit of unavailable dma */
 	struct imush im;
 
 	/*
@@ -1139,19 +1135,19 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 #ifdef	ISP_DAC_SUPPORTED
-	alim = BUS_SPACE_UNRESTRICTED;
-	xlim = BUS_SPACE_MAXADDR_32BIT;
+	llim = hlim = BUS_SPACE_MAXADDR;
 #else
-	xlim = alim = BUS_SPACE_MAXADDR_32BIT;
+	llim = BUS_SPACE_MAXADDR_32BIT;
+	hlim = BUS_SPACE_MAXADDR;
 #endif
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
-		slim = BUS_SPACE_MAXADDR_32BIT;
+		slim = (bus_size_t) (1ULL << 32);
 	} else {
-		slim = BUS_SPACE_MAXADDR_24BIT;
+		slim = (1 << 24);
 	}
 
 	ISP_UNLOCK(isp);
-	if (bus_dma_tag_create(NULL, 1, slim+1, alim, alim,
+	if (bus_dma_tag_create(NULL, 1, slim, llim, hlim,
 	    NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, 
 	    busdma_lock_mutex, &Giant, &pcs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
@@ -1198,7 +1194,11 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, xlim, xlim,
+	/*
+	 * Create a tag for the control spaces- force it to within 32 bits.
+	 */
+	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, len, ns, slim, 0, busdma_lock_mutex, &Giant,
 	    &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
@@ -1675,7 +1675,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 static void dma2(void *, bus_dma_segment_t *, int, int);
 
-#ifdef	PAE
+#if	defined(ISP_DAC_SUPPORTED) && (ISP_64BIT_CORRECTLY_DONE)
 #define	LOWD(x)		((uint32_t) x)
 #define	HIWD(x)		((uint32_t) (x >> 32))
 
