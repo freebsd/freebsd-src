@@ -155,6 +155,8 @@ main(int argc, char *argv[])
 	procargs(argc, argv);
 	if (getpwd() == NULL && iflag)
 		out2str("sh: cannot determine working directory\n");
+	if (getpwd() != NULL)
+		setvar ("PWD", getpwd(), VEXPORT);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
