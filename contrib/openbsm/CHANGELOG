@@ -1,4 +1,11 @@
-OpenBSM 1.0
+OpenBSM 1.0 alpha 2
+
+- Man page formatting improvements.
+- A number of new audit event identifiers for FreeBSD, Linux, and POSIX.1b
+  events.
+- Remove 'tfm' class, unused in OpenBSM.
+
+OpenBSM 1.0 alpha 1
 
 - Import of Darwin74 BSM drop
 - Use 'syslog' for audit log warnings, rather than echoing to a file in
@@ -64,6 +71,5 @@ OpenBSM 1.0
 - Annotate BSM events with origin OS and compatibility information.
 - auditd(8), audit(8) added to the OpenBSM distribution.  auditd extended
   to support reloading of kernel event table.
-- Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/CHANGELOG#6 $
+$P4: //depot/projects/trustedbsd/openbsm/CHANGELOG#7 $
