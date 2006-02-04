@@ -506,7 +506,7 @@ ASR_fillMessage(void *Message, u_int16_t size)
 	return (Message_Ptr);
 } /* ASR_fillMessage */
 
-#define	EMPTY_QUEUE (-1L)
+#define	EMPTY_QUEUE (0xffffffff)
 
 static __inline U32
 ASR_getMessage(Asr_softc_t *sc)
@@ -580,8 +580,8 @@ ASR_resetIOP(Asr_softc_t *sc)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp(sc,
-				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
+	if ((Old = ASR_initiateCp(sc, (PI2O_MESSAGE_FRAME)Message_Ptr)) !=
+	     0xffffffff) {
 		/*
 		 * Wait for a response (Poll), timeouts are dangerous if
 		 * the card is truly responsive. We assume response in 2s.
@@ -631,8 +631,8 @@ ASR_getStatus(Asr_softc_t *sc, PI2O_EXEC_STATUS_GET_REPLY buffer)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp(sc,
-				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
+	if ((Old = ASR_initiateCp(sc, (PI2O_MESSAGE_FRAME)Message_Ptr)) != 
+	    0xffffffff) {
 		/*
 		 *	Wait for a response (Poll), timeouts are dangerous if
 		 * the card is truly responsive. We assume response in 50ms.
@@ -1896,8 +1896,8 @@ ASR_initOutBound(Asr_softc_t *sc)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp(sc,
-				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
+	if ((Old = ASR_initiateCp(sc, (PI2O_MESSAGE_FRAME)Message_Ptr)) != 
+	    0xffffffff) {
 		u_long size, addr;
 
 		/*
