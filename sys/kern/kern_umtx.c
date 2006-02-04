@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #define UMTX_PRIVATE	0
 #define UMTX_SHARED	1
 
-#define UMTX_STATIC_SHARED
-
 struct umtx_key {
 	int	type;
 	union {
@@ -108,10 +106,6 @@ static int umtxq_sleep(struct thread *td, struct umtx_key *key,
 	int prio, const char *wmesg, int timo);
 static int umtxq_count(struct umtx_key *key);
 static int umtxq_signal(struct umtx_key *key, int nr_wakeup);
-#ifdef UMTX_DYNAMIC_SHARED
-static void fork_handler(void *arg, struct proc *p1, struct proc *p2,
-	int flags);
-#endif
 static int umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2);
 static int umtx_key_get(struct thread *td, struct umtx *umtx,
 	struct umtx_key *key);
@@ -142,9 +136,6 @@ umtxq_init_chains(void *arg __unused)
 		LIST_INIT(&umtxq_chains[i].uc_queue);
 		umtxq_chains[i].uc_flags = 0;
 	}
-#ifdef UMTX_DYNAMIC_SHARED
-	EVENTHANDLER_REGISTER(process_fork, fork_handler, 0, 10000);
-#endif
 }
 
 static inline int
@@ -301,7 +292,6 @@ umtxq_sleep(struct thread *td, struct umtx_key *key, int priority,
 static int
 umtx_key_get(struct thread *td, struct umtx *umtx, struct umtx_key *key)
 {
-#if defined(UMTX_DYNAMIC_SHARED) || defined(UMTX_STATIC_SHARED)
 	vm_map_t map;
 	vm_map_entry_t entry;
 	vm_pindex_t pindex;
@@ -314,20 +304,7 @@ umtx_key_get(struct thread *td, struct umtx *umtx, struct umtx_key *key)
 	    &wired) != KERN_SUCCESS) {
 		return EFAULT;
 	}
-#endif
 
-#if defined(UMTX_DYNAMIC_SHARED)
-	key->type = UMTX_SHARED;
-	key->info.shared.offset = entry->offset + entry->start - 
-		(vm_offset_t)umtx;
-	/*
-	 * Add object reference, if we don't do this, a buggy application
-	 * deallocates the object, the object will be reused by other
-	 * applications, then unlock will wake wrong thread.
-	 */
-	vm_object_reference(key->info.shared.object);
-	vm_map_lookup_done(map, entry);
-#elif defined(UMTX_STATIC_SHARED)
 	if (VM_INHERIT_SHARE == entry->inheritance) {
 		key->type = UMTX_SHARED;
 		key->info.shared.offset = entry->offset + entry->start -
@@ -339,11 +316,6 @@ umtx_key_get(struct thread *td, struct umtx *umtx, struct umtx_key *key)
 		key->info.private.pid  = td->td_proc->p_pid;
 	}
 	vm_map_lookup_done(map, entry);
-#else
-	key->type = UMTX_PRIVATE;
-	key->info.private.umtx = umtx;
-	key->info.private.pid  = td->td_proc->p_pid;
-#endif
 	return (0);
 }
 
@@ -372,74 +344,6 @@ umtxq_queue_me(struct thread *td, struct umtx *umtx, struct umtx_q *uq)
 	umtxq_unlock(&uq->uq_key);
 	return (0);
 }
-
-#if defined(UMTX_DYNAMIC_SHARED)
-static void
-fork_handler(void *arg, struct proc *p1, struct proc *p2, int flags)
-{
-	vm_map_t map;
-	vm_map_entry_t entry;
-	vm_object_t object;
-	vm_pindex_t pindex;
-	vm_prot_t prot;
-	boolean_t wired;
-	struct umtx_key key;
-	LIST_HEAD(, umtx_q) workq;
-	struct umtx_q *uq;
-	struct thread *td;
-	int onq;
-
-	LIST_INIT(&workq);
-
-	/* Collect threads waiting on umtxq */
-	PROC_LOCK(p1);
-	FOREACH_THREAD_IN_PROC(p1, td) {
-		if (td->td_flags & TDF_UMTXQ) {
-			uq = td->td_umtxq;
-			if (uq)
-				LIST_INSERT_HEAD(&workq, uq, uq_rqnext);
-		}
-	}
-	PROC_UNLOCK(p1);
-
-	LIST_FOREACH(uq, &workq, uq_rqnext) {
-		map = &p1->p_vmspace->vm_map;
-		if (vm_map_lookup(&map, uq->uq_addr, VM_PROT_WRITE,
-		    &entry, &object, &pindex, &prot, &wired) != KERN_SUCCESS) {
-			continue;
-		}
-		key.type = UMTX_SHARED;
-		key.info.shared.object = object;
-		key.info.shared.offset = entry->offset + entry->start -
-			uq->uq_addr;
-		if (umtx_key_match(&key, &uq->uq_key)) {
-			vm_map_lookup_done(map, entry);
-			continue;
-		}
-		
-		umtxq_lock(&uq->uq_key);
-		umtxq_busy(&uq->uq_key);
-		if (uq->uq_thread->td_flags & TDF_UMTXQ) {
-			umtxq_remove(uq);
-			onq = 1;
-		} else
-			onq = 0;
-		umtxq_unbusy(&uq->uq_key);
-		umtxq_unlock(&uq->uq_key);
-		if (onq) {
-			vm_object_deallocate(uq->uq_key.info.shared.object);
-			uq->uq_key = key;
-			umtxq_lock(&uq->uq_key);
-			umtxq_busy(&uq->uq_key);
-			umtxq_insert(uq);
-			umtxq_unbusy(&uq->uq_key);
-			umtxq_unlock(&uq->uq_key);
-			vm_object_reference(uq->uq_key.info.shared.object);
-		}
-		vm_map_lookup_done(map, entry);
-	}
-}
-#endif
 
 static int
 _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
