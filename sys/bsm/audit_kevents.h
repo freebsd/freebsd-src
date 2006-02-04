@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#15 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#18 $
  * $FreeBSD$
  */
 
@@ -46,7 +46,6 @@
  * been inserted for the Darwin variants.  If necessary, other tags will be
  * added in the future.
  */
-
 #define	AUE_NULL		0
 #define	AUE_EXIT		1
 #define	AUE_FORK		2
@@ -359,7 +358,32 @@
 #define	AUE_KQUEUE		377	/* FreeBSD-specific. */
 #define	AUE_KEVENT		378	/* FreeBSD-specific. */
 #define	AUE_FSYNC		379
-#define AUE_NMOUNT		380	/* FreeBSD-specific. */
+#define	AUE_NMOUNT		380	/* FreeBSD-specific. */
+#define	AUE_BDFLUSH		381	/* Linux-specific. */
+#define	AUE_SETFSUID		382	/* Linux-specific. */
+#define	AUE_GETFSUID		383	/* Linux-specific. */
+#define	AUE_PERSONALITY		384	/* Linux-specific. */
+#define	AUE_SCHED_GETSCHEDULER	385	/* POSIX.1b. */
+#define	AUE_SCHED_SETSCHEDULER	386	/* POSIX.1b. */
+#define	AUE_PRCTL		387	/* Linux-specific. */
+#define	AUE_GETCWD		388	/* FreeBSD/Linux-specific. */
+#define	AUE_CAPGET		389	/* Linux-specific. */
+#define	AUE_CAPSET		390	/* Linux-specific. */
+#define	AUE_PIVOT_ROOT		391	/* Linux-specific. */
+#define	AUE_RTPRIO		392	/* FreeBSD-specific. */
+#define	AUE_SCHED_GETPARAM	393	/* POSIX.1b. */
+#define	AUE_SCHED_SETPARAM	394	/* POSIX.1b. */
+#define	AUE_SCHED_GET_PRIORITY_MAX	395	/* POSIX.1b. */
+#define	AUE_SCHED_GET_PRIORITY_MIN	396	/* POSIX.1b. */
+#define	AUE_SCHED_RR_GET_INTERVAL	397	/* POSIX.1b. */
+#define	AUE_ACL_GET_FILE		398	/* FreeBSD. */
+#define	AUE_ACL_SET_FILE		399	/* FreeBSD. */
+#define	AUE_ACL_GET_FD			400	/* FreeBSD. */
+#define	AUE_ACL_SET_FD			401	/* FreeBSD. */
+#define	AUE_ACL_DELETE_FILE		402	/* FreeBSD. */
+#define	AUE_ACL_DELETE_FD		403	/* FreeBSD. */
+#define	AUE_ACL_CHECK_FILE		404	/* FreeBSD. */
+#define	AUE_ACL_CHECK_FD		405	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -405,6 +429,7 @@
 #define	AUE_O_RECVFROM		AUE_RECVFROM	/* Darwin */
 #define	AUE_O_SETREUID		AUE_SETREUID	/* Darwin */
 #define	AUE_O_SETREGID		AUE_SETREGID	/* Darwin */
+#define	AUE_O_GETDIRENTRIES	AUE_GETDIRENTRIES	/* Darwin */
 #define	AUE_O_TRUNCATE		AUE_TRUNCATE	/* Darwin */
 #define	AUE_O_FTRUNCATE		AUE_FTRUNCATE	/* Darwin */
 #define	AUE_O_GETPEERNAME	AUE_NULL	/* Darwin */
@@ -468,6 +493,8 @@
 #define	AUE_MUNLOCKALL		AUE_NULL
 #define	AUE_PREAD		AUE_NULL
 #define	AUE_PWRITE		AUE_NULL
+#define	AUE_PREADV		AUE_NULL
+#define	AUE_PWRITEV		AUE_NULL
 #define	AUE_SBRK		AUE_NULL
 #define	AUE_SELECT		AUE_NULL
 #define	AUE_SEMDESTROY		AUE_NULL
