@@ -72,8 +72,12 @@ uart_ebus_probe(device_t dev)
 
 	nm = ofw_bus_get_name(dev);
 	cmpt = ofw_bus_get_compat(dev);
-	if (!strcmp(nm, "su") || !strcmp(nm, "su_pnp") || (cmpt != NULL &&
-	    (!strcmp(cmpt, "su") || !strcmp(cmpt, "su16550")))) {
+	if (cmpt == NULL)
+		cmpt = "";
+	if (!strcmp(nm, "lom-console") || !strcmp(nm, "su") ||
+	    !strcmp(nm, "su_pnp") || !strcmp(cmpt, "rsc-console") ||
+	    !strcmp(cmpt, "rsc-control") || !strcmp(cmpt, "su") ||
+	    !strcmp(cmpt, "su16550")) {
 		/*
 		 * On AXi and AXmp boards the NS16550 (used to connect
 		 * keyboard/mouse) share their IRQ lines with the i8042.
@@ -95,7 +99,7 @@ uart_ebus_probe(device_t dev)
 		sc->sc_class = &uart_ns8250_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
-	if (!strcmp(nm, "se") || (cmpt != NULL && !strcmp(cmpt, "sab82532"))) {
+	if (!strcmp(nm, "se") || !strcmp(cmpt, "sab82532")) {
 		sc->sc_class = &uart_sab82532_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 1));
 	}
