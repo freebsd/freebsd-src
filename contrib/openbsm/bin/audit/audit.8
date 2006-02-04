@@ -29,7 +29,7 @@
 .\" 
 .\" @APPLE_BSD_LICENSE_HEADER_END@
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#2 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#4 $
 .\"
 .Dd Jan 24, 2004
 .Dt AUDIT 8
@@ -44,10 +44,11 @@
 .Sh DESCRIPTION
 The
 .Nm 
-utility controls the state of auditing system. The optional
+utility controls the state of the audit system.
+The optional
 .Ar file
 operand specifies the location of the audit control input file (default
-/etc/security/audit_control).  
+.Pa /etc/security/audit_control ).
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -56,10 +57,11 @@ Forces the audit system to close the existing audit log file and rotate to
 a new log file in a location specified in the audit control file.
 .It Fl s
 Specifies that the audit system should [re]synchronize its
-configuration from the audit control file.  A new log file will be
-created.
+configuration from the audit control file.
+A new log file will be created.
 .It Fl t
-Specifies that the audit system should terminate.  Log files are closed
+Specifies that the audit system should terminate.
+Log files are closed
 and renamed to indicate the time of the shutdown.
 .El
 .Sh NOTES
