@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#6 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#7 $
 .\"
 .Dd May 1, 2005
 .Dt AUDIT.LOG 5
@@ -304,7 +304,8 @@ or
 .It Li "Terminal Machine Address" Ta "4 bytes" Ta "IP address of machine"
 .El
 .Ss Expanded Process Token
-The .Dv expanded process
+The
+.Dv expanded process
 token contains the contents of the
 .Dv process
 token, with the addition of a machine address type and variable length
@@ -411,7 +412,8 @@ token ...
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"
-.It Li XXXXX
+.It Li "object ID type" Ta "1 byte" Ta "Object ID"
+.It Li "Object ID" Ta "4 bytes" Ta "Object ID"
 .El
 .Ss Text Token
 The
@@ -591,6 +593,7 @@ token ...
 .It Li XXXXX
 .El
 .Sh SEE ALSO
+.Xr audit 8,
 .Xr libbsm 3
 .Sh AUTHORS
 The Basic Security Module (BSM) interface to audit records and audit event
