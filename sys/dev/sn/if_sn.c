@@ -405,7 +405,7 @@ startagain:
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded (A)\n");
 		++ifp->if_oerrors;
-		IF_DRV_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		m_freem(m);
 		goto readcheck;
 	}
@@ -498,7 +498,7 @@ startagain:
 	 * Get the packet from the kernel.  This will include the Ethernet
 	 * frame header, MAC Addresses etc.
 	 */
-	IF_DRV_DEQUEUE(&ifp->if_snd, m);
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 
 	/*
 	 * Push out the data to the card.
@@ -621,7 +621,7 @@ snresume(struct ifnet *ifp)
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded (B)\n");
 		++ifp->if_oerrors;
-		IF_DRV_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		m_freem(m);
 		return;
 	}
@@ -697,7 +697,7 @@ snresume(struct ifnet *ifp)
 	 * Get the packet from the kernel.  This will include the Ethernet
 	 * frame header, MAC Addresses etc.
 	 */
-	IF_DRV_DEQUEUE(&ifp->if_snd, m);
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 
 	/*
 	 * Push out the data to the card.
