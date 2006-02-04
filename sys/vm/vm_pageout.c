@@ -849,7 +849,6 @@ rescan0:
 			/*
 			 * Invalid pages can be easily freed
 			 */
-			pmap_remove_all(m);
 			vm_page_free(m);
 			cnt.v_dfree++;
 			--page_shortage;
