@@ -409,13 +409,15 @@ crom_add_quad(struct crom_chunk *chunk, uint32_t entry)
 int
 crom_add_entry(struct crom_chunk *chunk, int key, int val)
 {
-	struct csrreg *reg;
-	uint32_t i;
+	union
+	{
+		struct csrreg reg;
+		uint32_t i;
+	} foo;
 	
-	reg = (struct csrreg *)&i;
-	reg->key = key;
-	reg->val = val;
-	return(crom_add_quad(chunk, (uint32_t) i));
+	foo.reg.key = key;
+	foo.reg.val = val;
+	return (crom_add_quad(chunk, foo.i));
 }
 
 int
