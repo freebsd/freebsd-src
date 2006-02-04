@@ -470,13 +470,18 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
      	 * we start with the new ioctl interface.
      	 */
     	case AIONWRITE:	/* how many bytes can write ? */
-		CHN_LOCK(wrch);
+		if (wrch) {
+			CHN_LOCK(wrch);
 /*
 		if (wrch && wrch->bufhard.dl)
 			while (chn_wrfeed(wrch) == 0);
 */
-		*arg_i = wrch? sndbuf_getfree(wrch->bufsoft) : 0;
-		CHN_UNLOCK(wrch);
+			*arg_i = sndbuf_getfree(wrch->bufsoft);
+			CHN_UNLOCK(wrch);
+		} else {
+			*arg_i = 0;
+			ret = EINVAL;
+		}
 		break;
 
     	case AIOSSIZE:     /* set the current blocksize */
@@ -623,8 +628,10 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 */
 			*arg_i = sndbuf_getready(rdch->bufsoft);
 			CHN_UNLOCK(rdch);
-		} else
+		} else {
 			*arg_i = 0;
+			ret = EINVAL;
+		}
 		break;
 
     	case FIOASYNC: /*set/clear async i/o */
@@ -658,9 +665,14 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
     	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
 		chn = wrch ? wrch : rdch;
-		CHN_LOCK(chn);
-		*arg_i = sndbuf_getblksz(chn->bufsoft);
-		CHN_UNLOCK(chn);
+		if (chn) {
+			CHN_LOCK(chn);
+			*arg_i = sndbuf_getblksz(chn->bufsoft);
+			CHN_UNLOCK(chn);
+		} else {
+			*arg_i = 0;
+			ret = EINVAL;
+		}
 		break ;
 
     	case SNDCTL_DSP_SETBLKSIZE:
@@ -724,9 +736,14 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 
     	case SOUND_PCM_READ_RATE:
 		chn = wrch ? wrch : rdch;
-		CHN_LOCK(chn);
-		*arg_i = chn->speed;
-		CHN_UNLOCK(chn);
+		if (chn) {
+			CHN_LOCK(chn);
+			*arg_i = chn->speed;
+			CHN_UNLOCK(chn);
+		} else {
+			*arg_i = 0;
+			ret = EINVAL;
+		}
 		break;
 
     	case SNDCTL_DSP_STEREO:
@@ -777,16 +794,26 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 
     	case SOUND_PCM_READ_CHANNELS:
 		chn = wrch ? wrch : rdch;
-		CHN_LOCK(chn);
-		*arg_i = (chn->format & AFMT_STEREO) ? 2 : 1;
-		CHN_UNLOCK(chn);
+		if (chn) {
+			CHN_LOCK(chn);
+			*arg_i = (chn->format & AFMT_STEREO) ? 2 : 1;
+			CHN_UNLOCK(chn);
+		} else {
+			*arg_i = 0;
+			ret = EINVAL;
+		}
 		break;
 
     	case SNDCTL_DSP_GETFMTS:	/* returns a mask of supported fmts */
 		chn = wrch ? wrch : rdch;
-		CHN_LOCK(chn);
-		*arg_i = chn_getformats(chn);
-		CHN_UNLOCK(chn);
+		if (chn) {
+			CHN_LOCK(chn);
+			*arg_i = chn_getformats(chn);
+			CHN_UNLOCK(chn);
+		} else {
+			*arg_i = 0;
+			ret = EINVAL;
+		}
 		break ;
 
     	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */
@@ -942,18 +969,23 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 
     	case SOUND_PCM_READ_BITS:
 		chn = wrch ? wrch : rdch;
-		CHN_LOCK(chn);
-		if (chn->format & AFMT_8BIT)
-        		*arg_i = 8;
-		else if (chn->format & AFMT_16BIT)
-        		*arg_i = 16;
-		else if (chn->format & AFMT_24BIT)
-        		*arg_i = 24;
-		else if (chn->format & AFMT_32BIT)
-        		*arg_i = 32;
-		else
+		if (chn) {
+			CHN_LOCK(chn);
+			if (chn->format & AFMT_8BIT)
+				*arg_i = 8;
+			else if (chn->format & AFMT_16BIT)
+				*arg_i = 16;
+			else if (chn->format & AFMT_24BIT)
+				*arg_i = 24;
+			else if (chn->format & AFMT_32BIT)
+				*arg_i = 32;
+			else
+				ret = EINVAL;
+			CHN_UNLOCK(chn);
+		} else {
+			*arg_i = 0;
 			ret = EINVAL;
-		CHN_UNLOCK(chn);
+		}
 		break;
 
     	case SNDCTL_DSP_SETTRIGGER:
