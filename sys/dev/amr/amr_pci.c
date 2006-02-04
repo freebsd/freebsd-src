@@ -481,7 +481,7 @@ amr_pci_intr(void *arg)
 static void
 amr_pci_free(struct amr_softc *sc)
 {
-    u_int8_t	*p
+    void *p
 
     debug_called(1);
 
@@ -500,8 +500,7 @@ amr_pci_free(struct amr_softc *sc)
 	bus_dma_tag_destroy(sc->amr_sg_dmat);
 
     /* free and destroy DMA memory and tag for mailbox */
-    /* XXX Brain damaged GCC Alert! */
-    p = (u_int8_t *)(uintptr_t)(volatile void *)sc->amr_mailbox64;
+    p = (void *)(uintptr_t)(volatile void *)sc->amr_mailbox64;
     if (sc->amr_mailbox) {
 	bus_dmamem_free(sc->amr_mailbox_dmat, p, sc->amr_mailbox_dmamap);
     }
@@ -543,7 +542,7 @@ static int
 amr_sglist_map(struct amr_softc *sc)
 {
     size_t	segsize;
-    u_int8_t	*p;
+    void	*p;
     int		error;
 
     debug_called(1);
@@ -630,7 +629,7 @@ static int
 amr_setup_mbox(struct amr_softc *sc)
 {
     int		error;
-    u_int8_t	*p;
+    void	*p;
     
     debug_called(1);
 
