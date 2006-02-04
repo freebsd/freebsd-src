@@ -208,11 +208,11 @@ _gss_load_mech(void)
 			continue;
 		p = buf;
 		name = strsep(&p, "\t\n ");
-		if (p) while (isspace(p)) p++;
+		if (p) while (isspace(*p)) p++;
 		oid = strsep(&p, "\t\n ");
-		if (p) while (isspace(p)) p++;
+		if (p) while (isspace(*p)) p++;
 		lib = strsep(&p, "\t\n ");
-		if (p) while (isspace(p)) p++;
+		if (p) while (isspace(*p)) p++;
 		kobj = strsep(&p, "\t\n ");
 		if (!name || !oid || !lib || !kobj)
 			continue;
