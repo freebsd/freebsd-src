@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#include <security/audit/audit.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -184,7 +185,9 @@ ia32_syscall(struct trapframe frame)
 
 		STOPEVENT(p, S_SCE, narg);
 
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, args64);
+		AUDIT_SYSCALL_EXIT(error, td);
 	}
 
 	switch (error) {
