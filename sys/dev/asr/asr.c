@@ -316,6 +316,11 @@ union asr_ccb {
 	struct ccb_setasync csa;
 };
 
+struct Asr_status_mem {
+	I2O_EXEC_STATUS_GET_REPLY	status;
+	U32				rstatus;
+};
+
 /**************************************************************************
 ** ASR Host Adapter structure - One Structure For Each Host Adapter That **
 **  Is Configured Into The System.  The Structure Supplies Configuration **
@@ -335,9 +340,10 @@ typedef struct Asr_softc {
 	LIST_HEAD(,ccb_hdr)	ha_ccb;	       /* ccbs in use		   */
 
 	bus_dma_tag_t		ha_parent_dmat;
-	bus_dma_tag_t		ha_status_dmat;
-	bus_dmamap_t		ha_status_dmamap;
-	u_int32_t	      * ha_status;
+	bus_dma_tag_t		ha_statusmem_dmat;
+	bus_dmamap_t		ha_statusmem_dmamap;
+	struct Asr_status_mem * ha_statusmem;
+	u_int32_t		ha_rstatus_phys;
 	u_int32_t		ha_status_phys;
 	struct cam_path	      * ha_path[MAX_CHANNEL+1];
 	struct cam_sim	      * ha_sim[MAX_CHANNEL+1];
@@ -564,10 +570,7 @@ ASR_initiateCp(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 static U32
 ASR_resetIOP(Asr_softc_t *sc)
 {
-	struct resetMessage {
-		I2O_EXEC_IOP_RESET_MESSAGE M;
-		U32			   R;
-	} Message;
+	I2O_EXEC_IOP_RESET_MESSAGE	 Message;
 	PI2O_EXEC_IOP_RESET_MESSAGE	 Message_Ptr;
 	U32			       * Reply_Ptr;
 	U32				 Old;
@@ -581,10 +584,10 @@ ASR_resetIOP(Asr_softc_t *sc)
 	/*
 	 *  Reset the Reply Status
 	 */
-	Reply_Ptr = sc->ha_status;
+	Reply_Ptr = &sc->ha_statusmem->rstatus;
 	*Reply_Ptr = 0;
 	I2O_EXEC_IOP_RESET_MESSAGE_setStatusWordLowAddress(Message_Ptr,
-	    sc->ha_status_phys);
+	    sc->ha_rstatus_phys);
 	/*
 	 *	Send the Message out
 	 */
@@ -614,10 +617,11 @@ ASR_resetIOP(Asr_softc_t *sc)
  *	Get the curent state of the adapter
  */
 static PI2O_EXEC_STATUS_GET_REPLY
-ASR_getStatus(Asr_softc_t *sc, PI2O_EXEC_STATUS_GET_REPLY buffer)
+ASR_getStatus(Asr_softc_t *sc)
 {
 	I2O_EXEC_STATUS_GET_MESSAGE	Message;
 	PI2O_EXEC_STATUS_GET_MESSAGE	Message_Ptr;
+	PI2O_EXEC_STATUS_GET_REPLY	buffer;
 	U32				Old;
 
 	/*
@@ -628,13 +632,14 @@ ASR_getStatus(Asr_softc_t *sc, PI2O_EXEC_STATUS_GET_REPLY buffer)
 	I2O_EXEC_STATUS_GET_MESSAGE_setFunction(Message_Ptr,
 	    I2O_EXEC_STATUS_GET);
 	I2O_EXEC_STATUS_GET_MESSAGE_setReplyBufferAddressLow(Message_Ptr,
-	    KVTOPHYS((void *)buffer));
+	    sc->ha_status_phys);
 	/* This one is a Byte Count */
 	I2O_EXEC_STATUS_GET_MESSAGE_setReplyBufferLength(Message_Ptr,
 	    sizeof(I2O_EXEC_STATUS_GET_REPLY));
 	/*
 	 *  Reset the Reply Status
 	 */
+	buffer = &sc->ha_statusmem->status;
 	bzero(buffer, sizeof(I2O_EXEC_STATUS_GET_REPLY));
 	/*
 	 *	Send the Message out
@@ -2313,7 +2318,10 @@ asr_status_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	 * The status word can be at a 64-bit address, but the existing
 	 * accessor macros simply cannot manipulate 64-bit addresses.
 	 */
-	sc->ha_status_phys = (u_int32_t)segs[0].ds_addr;
+	sc->ha_status_phys = (u_int32_t)segs[0].ds_addr +
+	    offsetof(struct Asr_status_mem, status);
+	sc->ha_rstatus_phys = (u_int32_t)segs[0].ds_addr +
+	    offsetof(struct Asr_status_mem, rstatus);
 }
 
 static int
@@ -2343,26 +2351,26 @@ asr_alloc_dma(Asr_softc_t *sc)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       sizeof(uint32_t),	/* maxsize */
+			       sizeof(sc->ha_statusmem),/* maxsize */
 			       1,			/* nsegments */
-			       sizeof(uint32_t),	/* maxsegsize */
+			       sizeof(sc->ha_statusmem),/* maxsegsize */
 			       0,			/* flags */
 			       NULL, NULL,		/* lockfunc, lockarg */
-			       &sc->ha_status_dmat)) {
+			       &sc->ha_statusmem_dmat)) {
 		device_printf(dev, "Cannot allocate status DMA tag\n");
 		bus_dma_tag_destroy(sc->ha_parent_dmat);
 		return (ENOMEM);
 	}
 
-	if (bus_dmamem_alloc(sc->ha_status_dmat, (void **)&sc->ha_status,
-	    BUS_DMA_NOWAIT, &sc->ha_status_dmamap)) {
+	if (bus_dmamem_alloc(sc->ha_statusmem_dmat, (void **)&sc->ha_statusmem,
+	    BUS_DMA_NOWAIT, &sc->ha_statusmem_dmamap)) {
 		device_printf(dev, "Cannot allocate status memory\n");
-		bus_dma_tag_destroy(sc->ha_status_dmat);
+		bus_dma_tag_destroy(sc->ha_statusmem_dmat);
 		bus_dma_tag_destroy(sc->ha_parent_dmat);
 		return (ENOMEM);
 	}
-	(void)bus_dmamap_load(sc->ha_status_dmat, sc->ha_status_dmamap,
-	    sc->ha_status, sizeof(sc->ha_status), asr_status_cb, sc, 0);
+	(void)bus_dmamap_load(sc->ha_statusmem_dmat, sc->ha_statusmem_dmamap,
+	    sc->ha_statusmem, sizeof(sc->ha_statusmem), asr_status_cb, sc, 0);
 
 	return (0);
 }
@@ -2371,13 +2379,14 @@ static void
 asr_release_dma(Asr_softc_t *sc)
 {
 
-	if (sc->ha_status_phys != 0)
-		bus_dmamap_unload(sc->ha_status_dmat, sc->ha_status_dmamap);
-	if (sc->ha_status != NULL)
-		bus_dmamem_free(sc->ha_status_dmat, sc->ha_status,
-		    sc->ha_status_dmamap);
-	if (sc->ha_status_dmat != NULL)
-		bus_dma_tag_destroy(sc->ha_status_dmat);
+	if (sc->ha_rstatus_phys != 0)
+		bus_dmamap_unload(sc->ha_statusmem_dmat,
+		    sc->ha_statusmem_dmamap);
+	if (sc->ha_statusmem != NULL)
+		bus_dmamem_free(sc->ha_statusmem_dmat, sc->ha_statusmem,
+		    sc->ha_statusmem_dmamap);
+	if (sc->ha_statusmem_dmat != NULL)
+		bus_dma_tag_destroy(sc->ha_statusmem_dmat);
 	if (sc->ha_parent_dmat != NULL)
 		bus_dma_tag_destroy(sc->ha_parent_dmat);
 }
@@ -2438,15 +2447,9 @@ asr_attach(device_t dev)
 		asr_release_dma(sc);
 		return (EIO);
 	}
-	if ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
-	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_NOWAIT)) == NULL) {
-		device_printf(dev, "Cannot allocate memory\n");
-		asr_release_dma(sc);
-		return (ENOMEM);
-	}
-	if (ASR_getStatus(sc, status) == NULL) {
+	status = &sc->ha_statusmem->status;
+	if (ASR_getStatus(sc) == NULL) {
 		device_printf(dev, "could not initialize hardware\n");
-		free(status, M_TEMP);
 		asr_release_dma(sc);
 		return(ENODEV);
 	}
@@ -2487,7 +2490,6 @@ asr_attach(device_t dev)
 	    2)) > MAX_INBOUND_SIZE) {
 		size = MAX_INBOUND_SIZE;
 	}
-	free(status, M_TEMP);
 	sc->ha_SgSize = (size - sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
 	  + sizeof(I2O_SG_ELEMENT)) / sizeof(I2O_SGE_SIMPLE_ELEMENT);
 
@@ -3205,15 +3207,16 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	}
 
 	case I2O_EXEC_STATUS_GET:
-	{	I2O_EXEC_STATUS_GET_REPLY status;
+	{	PI2O_EXEC_STATUS_GET_REPLY status;
 
-		if (ASR_getStatus(sc, &status) == NULL) {
+		status = &sc->ha_statusmem->status;
+		if (ASR_getStatus(sc) == NULL) {
 			debug_usr_cmd_printf ("getStatus failed\n");
 			return (ENXIO);
 		}
 		ReplySizeInBytes = sizeof(status);
 		debug_usr_cmd_printf ("getStatus done\n");
-		return (copyout ((caddr_t)&status, (caddr_t)Reply,
+		return (copyout ((caddr_t)status, (caddr_t)Reply,
 		  ReplySizeInBytes));
 	}
 
