@@ -80,8 +80,8 @@ typedef	   signed short	  S16;
 typedef	   unsigned char  U8;
 typedef	   unsigned short U16;
 
-typedef	   unsigned long  U32;
-typedef	   unsigned short S32;
+typedef	   u_int32_t U32;
+typedef	   int32_t  S32;
 
 
 /* Bitfields */
