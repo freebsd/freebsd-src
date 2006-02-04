@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
+#include <security/audit/audit.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -823,10 +824,15 @@ syscall(frame)
 
 		if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 			mtx_lock(&Giant);
+			AUDIT_SYSCALL_ENTER(code, td);
 			error = (*callp->sy_call)(td, argp);
+			AUDIT_SYSCALL_EXIT(error, td);
 			mtx_unlock(&Giant);
-		} else
+		} else {
+			AUDIT_SYSCALL_ENTER(code, td);
 			error = (*callp->sy_call)(td, argp);
+			AUDIT_SYSCALL_EXIT(error, td);
+		}
 	}
 
 	switch (error) {
