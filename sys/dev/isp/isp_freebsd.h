@@ -61,9 +61,8 @@
 #include "opt_ddb.h"
 #include "opt_isp.h"
 
-#ifdef	PAE
-#define	ISP_DAC_SUPPORTED	1
-#endif
+/* disabled until done correctly */
+/* #define	ISP_DAC_SUPPORTED	1 */
 
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
