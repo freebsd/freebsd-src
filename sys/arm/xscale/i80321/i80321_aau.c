@@ -183,6 +183,7 @@ aau_bzero(void *dst, int len, int flags)
 	desc = sc->aauring[0].desc;
 	if (flags & IS_PHYSICAL) {
 		desc->local_addr = (vm_paddr_t)dst;
+		desc->next_desc = 0;
 		desc->count = len;
 		desc->descr_ctrl = 2 << 1 | 1 << 31; /* Fill, enable dest write */
 		bus_dmamap_sync(sc->dmatag, sc->aauring[0].map, 
