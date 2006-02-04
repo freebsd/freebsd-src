@@ -111,7 +111,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 
-
 #include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>
 
@@ -205,7 +204,10 @@ sn_attach(device_t dev)
 	ifp->if_ioctl = snioctl;
 	ifp->if_watchdog = snwatchdog;
 	ifp->if_init = sninit;
+	ifp->if_baudrate = 10000000;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_timer = 0;
 
 	ether_ifattach(ifp, eaddr);
@@ -403,7 +405,7 @@ startagain:
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded (A)\n");
 		++ifp->if_oerrors;
-		IF_DEQUEUE(&ifp->if_snd, m);
+		IF_DRV_DEQUEUE(&ifp->if_snd, m);
 		m_freem(m);
 		goto readcheck;
 	}
@@ -496,7 +498,7 @@ startagain:
 	 * Get the packet from the kernel.  This will include the Ethernet
 	 * frame header, MAC Addresses etc.
 	 */
-	IF_DEQUEUE(&ifp->if_snd, m);
+	IF_DRV_DEQUEUE(&ifp->if_snd, m);
 
 	/*
 	 * Push out the data to the card.
@@ -619,7 +621,7 @@ snresume(struct ifnet *ifp)
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded (B)\n");
 		++ifp->if_oerrors;
-		IF_DEQUEUE(&ifp->if_snd, m);
+		IF_DRV_DEQUEUE(&ifp->if_snd, m);
 		m_freem(m);
 		return;
 	}
@@ -695,7 +697,7 @@ snresume(struct ifnet *ifp)
 	 * Get the packet from the kernel.  This will include the Ethernet
 	 * frame header, MAC Addresses etc.
 	 */
-	IF_DEQUEUE(&ifp->if_snd, m);
+	IF_DRV_DEQUEUE(&ifp->if_snd, m);
 
 	/*
 	 * Push out the data to the card.
@@ -1142,20 +1144,7 @@ snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		SN_UNLOCK(sc);
 		break;
 
-#ifdef notdef
-	case SIOCGHWADDR:
-		bcopy((caddr_t) sc->sc_addr, (caddr_t) & ifr->ifr_data,
-		      sizeof(sc->sc_addr));
-		break;
-#endif
-
 	case SIOCADDMULTI:
-		/* update multicast filter list. */
-		SN_LOCK(sc);
-		sn_setmcast(sc);
-		error = 0;
-		SN_UNLOCK(sc);
-		break;
 	case SIOCDELMULTI:
 		/* update multicast filter list. */
 		SN_LOCK(sc);
@@ -1164,7 +1153,6 @@ snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		SN_UNLOCK(sc);
 		break;
 	default:
-		error = EINVAL;
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
