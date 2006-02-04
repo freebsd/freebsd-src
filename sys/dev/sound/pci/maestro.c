@@ -1928,18 +1928,19 @@ agg_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, irqid, irq);
 	if (reg != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT, regid, reg);
-	if (ess->stat != NULL)
-		dma_free(ess->stat_dmat, ess->stat);
-	if (ess->stat_dmat != NULL)
-		bus_dma_tag_destroy(ess->stat_dmat);
-	if (ess->buf_dmat != NULL)
-		bus_dma_tag_destroy(ess->buf_dmat);
+	if (ess != NULL) {
+		if (ess->stat != NULL)
+			dma_free(ess->stat_dmat, ess->stat);
+		if (ess->stat_dmat != NULL)
+			bus_dma_tag_destroy(ess->stat_dmat);
+		if (ess->buf_dmat != NULL)
+			bus_dma_tag_destroy(ess->buf_dmat);
 #ifdef USING_MUTEX
-	if (mtx_initialized(&ess->lock))
-		mtx_destroy(&ess->lock);
+		if (mtx_initialized(&ess->lock))
+			mtx_destroy(&ess->lock);
 #endif
-	if (ess != NULL)
 		free(ess, M_DEVBUF);
+	}
 
 	return ret;
 }
