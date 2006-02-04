@@ -61,7 +61,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 	struct timeval *tv;
 	struct timespec *ts;
 	time_t *tp;
-	intmax_t t;
+	intmax_t t, tx;
 	int i, prec, nsec;
 
 	prec = 0;
@@ -82,6 +82,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 
 	p = buf;
 	if (pi->alt) {
+		tx = t;
 		if (t >= YEAR) {
 			p += sprintf(p, "%jdy", t / YEAR);
 			t %= YEAR;
@@ -98,7 +99,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 			p += sprintf(p, "%jdm", t / MINUTE);
 			t %= MINUTE;
 		}
-		if (t != 0)
+		if (t != 0 || tx == 0)
 			p += sprintf(p, "%jds", t);
 	} else  {
 		p += sprintf(p, "%jd", (intmax_t)t);
