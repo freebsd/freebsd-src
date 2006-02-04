@@ -802,13 +802,6 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
       				ex_init(sc);
 			}
 			break;
-#ifdef NODEF
-		case SIOCGHWADDR:
-			DODEBUG(Start_End, printf("SIOCGHWADDR"););
-			bcopy((caddr_t)sc->sc_addr, (caddr_t)&ifr->ifr_data,
-			      sizeof(sc->sc_addr));
-			break;
-#endif
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
 			ex_init(sc);
