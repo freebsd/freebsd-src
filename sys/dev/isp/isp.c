@@ -1688,6 +1688,12 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		return (-1);
 	}
 	fcp->isp_loopid = mbs.param[1];
+	if (fcp->isp_loopid == 0xffff) {	/* happens with 2k login f/w */
+		fcp->isp_loopid = MAX_FC_TARG-1;
+	} else if (fcp->isp_loopid >= MAX_FC_TARG) {
+		isp_prt(isp, ISP_LOGWARN, "bad initiator loopid (0x%x)", fcp->isp_loopid);
+		fcp->isp_loopid = MAX_FC_TARG-1;
+	}
 	if (IS_2200(isp) || IS_23XX(isp)) {
 		int topo = (int) mbs.param[6];
 		if (topo < TOPO_NL_PORT || topo > TOPO_PTP_STUB)
@@ -1697,10 +1703,9 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		fcp->isp_topo = TOPO_NL_PORT;
 	}
 	/*
-	 * XXX: We can get the AL_PA (low 8 bits) from here.
-	 * XXX: Where do we get the upper 16 bits?
+	 * Get the port id.
 	 */
-	fcp->isp_portid = mbs.param[2] & 0xff;
+	fcp->isp_portid = mbs.param[2] | (mbs.param[3] << 16);
 
 	/*
 	 * Check to see if we're on a fabric by trying to see if we
@@ -2064,6 +2069,10 @@ isp_pdb_sync(struct ispsoftc *isp)
 				 */
 				if (mbs.param[1] != 0) {
 					loopid = mbs.param[1];
+					if (loopid >= MAX_FC_TARG) {
+						loopid = MAX_FC_TARG;
+						break;
+					}
 					isp_prt(isp, ISP_LOGINFO, retained,
 					    loopid, (int) (lp - fcp->portdb),
 					    lp->portid);
