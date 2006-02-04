@@ -40,8 +40,8 @@
 /* flags */
 #define VEXPORT		0x01	/* variable is exported */
 #define VREADONLY	0x02	/* variable cannot be modified */
-#define VSTRFIXED	0x04	/* variable struct is staticly allocated */
-#define VTEXTFIXED	0x08	/* text is staticly allocated */
+#define VSTRFIXED	0x04	/* variable struct is statically allocated */
+#define VTEXTFIXED	0x08	/* text is statically allocated */
 #define VSTACK		0x10	/* text is allocated on the stack */
 #define VUNSET		0x20	/* the variable is not set */
 #define VNOFUNC		0x40	/* don't call the callback function */
