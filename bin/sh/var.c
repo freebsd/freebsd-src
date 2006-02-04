@@ -124,7 +124,7 @@ STATIC int varequal(char *, char *);
 STATIC int localevar(char *);
 
 /*
- * Initialize the varable symbol tables and import the environment
+ * Initialize the variable symbol tables and import the environment.
  */
 
 #ifdef mkinit
@@ -208,7 +208,7 @@ setvarsafe(char *name, char *val, int flags)
 }
 
 /*
- * Set the value of a variable.  The flags argument is tored with the
+ * Set the value of a variable.  The flags argument is stored with the
  * flags of the variable.  If val is NULL, the variable is unset.
  */
 
