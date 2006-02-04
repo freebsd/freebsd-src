@@ -46,12 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#ifdef	ISP_TARGET_MODE
-#ifdef	PAE
-#error	"PAE and ISP_TARGET_MODE not supported yet"
-#endif
-#endif
-
 #include <dev/isp/isp_freebsd.h>
 
 static u_int16_t isp_pci_rd_reg(struct ispsoftc *, int);
@@ -1129,11 +1123,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	u_int32_t len;
 	int i, error, ns;
 	bus_size_t slim;	/* segment size */
-	
-	/* XXX Should be bus_size_t, but i386/PAE is broken */
 	bus_addr_t llim;	/* low limit of unavailable dma */
-	bus_addr_t hlim;	/* low limit of unavailable dma */
-
+	bus_addr_t hlim;	/* high limit of unavailable dma */
 	struct imush im;
 
 	/*
@@ -1684,7 +1675,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 static void dma2(void *, bus_dma_segment_t *, int, int);
 
-#ifdef	PAE
+#if	defined(ISP_DAC_SUPPORTED) && (ISP_64BIT_CORRECTLY_DONE)
 #define	LOWD(x)		((uint32_t) x)
 #define	HIWD(x)		((uint32_t) (x >> 32))
 
