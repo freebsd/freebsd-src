@@ -27,10 +27,13 @@
  * $FreeBSD$
  */
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/eventhandler.h>
 #include <sys/reboot.h>
 #include <machine/xbox.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include "opt_global.h"
 
 #ifndef I686_CPU
@@ -49,12 +52,35 @@ xbox_poweroff(void* junk, int howto)
 static void
 xbox_init(void)
 {
+	char* ptr;
+
 	if (!arch_i386_is_xbox)
 		return;
 
 	/* register our poweroff function */
 	EVENTHANDLER_REGISTER (shutdown_final, xbox_poweroff, NULL,
 	                       SHUTDOWN_PRI_LAST);
+
+	/*
+	 * Some XBOX loaders, such as Cromwell, have a flaw which cause the
+	 * nve(4) driver to fail attaching to the NIC.
+	 *
+	 * This is because they leave the NIC running; this will cause the
+	 * Nvidia driver to fail as the NIC does not return any sensible
+	 * values and thus fails attaching (using an error 0x5, this means
+	 * it cannot find a valid PHY)
+	 *
+	 * We bluntly tell the NIC to stop whatever it's doing; this makes
+	 * nve(4) attach correctly. As the NIC always resides at
+	 * 0xfef00000-0xfef003ff on an XBOX, we simply hardcode this address.
+	 */
+	ptr = pmap_mapdev (0xfef00000, 0x400);
+	*(uint32_t*)(ptr + 0x188) = 0; /* clear adapter control field */
+	pmap_unmapdev ((vm_offset_t)ptr, 0x400);
 }
 
-SYSINIT(xbox, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, xbox_init, NULL)
+/*
+ * This must be called before the drivers, as the if_nve(4) driver will fail
+ * if we do not do this in advance.
+ */
+SYSINIT(xbox, SI_SUB_DRIVERS, SI_ORDER_FIRST, xbox_init, NULL)

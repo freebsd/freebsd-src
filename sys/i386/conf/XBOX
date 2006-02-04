@@ -101,3 +101,5 @@ device		rue		# RealTek RTL8150 USB Ethernet
 
 device		sound
 device		snd_ich		# nForce audio
+
+device		nve		# nVidia nForce MCP on-board Ethernet Networking
