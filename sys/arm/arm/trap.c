@@ -119,6 +119,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/proc.h>
 #include <machine/swi.h>
 
+#include <security/audit/audit.h>
+
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
@@ -927,7 +929,9 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		td->td_retval[1] = 0;
 		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
 		PTRACESTOP_SC(p, td, S_PT_SCE);
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, args);
+		AUDIT_SYSCALL_EXIT(error, td);
 	}
 	switch (error) {
 	case 0: 
