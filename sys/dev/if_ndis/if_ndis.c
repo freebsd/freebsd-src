@@ -552,6 +552,21 @@ ndis_attach(dev)
 	sc->ndis_block->nmb_ethrxdone_func = ndis_rxeof_done_wrap;
 	sc->ndis_block->nmb_tdcond_func = ndis_rxeof_xfr_done_wrap;
 
+	/* Override the status handler so we can detect link changes. */
+	sc->ndis_block->nmb_status_func = ndis_linksts_wrap;
+	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done_wrap;
+
+	/* Set up work item handlers. */
+	sc->ndis_tickitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndis_startitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndis_resetitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	sc->ndis_inputitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
+	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
+
+        /* make sure drv flags are all cleared before initing the NIC. */
+
+        ifp->if_drv_flags = 0;
+
 	/* Call driver's init routine. */
 	if (ndis_init_nic(sc)) {
 		device_printf (dev, "init handler failed\n");
@@ -901,18 +916,6 @@ got_crypto:
 		ifmedia_set(&sc->ifmedia, IFM_ETHER|IFM_AUTO);
 		ether_ifattach(ifp, eaddr);
 	}
-
-	/* Override the status handler so we can detect link changes. */
-	sc->ndis_block->nmb_status_func = ndis_linksts_wrap;
-	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done_wrap;
-
-	/* Set up work item handlers. */
-	sc->ndis_tickitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
-	sc->ndis_startitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
-	sc->ndis_resetitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
-	sc->ndis_inputitem = IoAllocateWorkItem(sc->ndis_block->nmb_deviceobj);
-	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
-
 
 fail:
 	if (error)
@@ -1317,6 +1320,23 @@ ndis_rxeof(adapter, packets, pktcnt)
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	ifp = sc->ifp;
 
+	/*
+	 * There's a slim chance the driver may indicate some packets
+	 * before we're completely ready to handle them. If we detect this,
+	 * we need to return them to the miniport and ignore them.
+	 */
+
+        if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		for (i = 0; i < pktcnt; i++) {
+			p = packets[i];
+			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS) {
+				p->np_refcnt++;
+				ndis_return_packet(p, block);
+			}
+		}
+		return;
+        }
+
 	for (i = 0; i < pktcnt; i++) {
 		p = packets[i];
 		/* Stash the softc here so ptom can use it. */
@@ -1324,7 +1344,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 		if (ndis_ptom(&m0, p)) {
 			device_printf (sc->ndis_dev, "ptom failed\n");
 			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
-				ndis_return_packet(sc, p);
+				ndis_return_packet(p, block);
 		} else {
 #ifdef notdef
 			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES) {
@@ -1380,7 +1400,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 			}
 
 			KeAcquireSpinLockAtDpcLevel(&sc->ndis_rxlock);
-			_IF_ENQUEUE(&sc->ndis_rxqueue, m);
+			_IF_ENQUEUE(&sc->ndis_rxqueue, m0);
 			KeReleaseSpinLockFromDpcLevel(&sc->ndis_rxlock);
 			IoQueueWorkItem(sc->ndis_inputitem,
 			    (io_workitem_func)ndis_inputtask_wrap,
