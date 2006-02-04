@@ -401,7 +401,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		}
 	}
 	if (all) {
-		for (l = limits; l->name; l++) { 
+		for (l = limits; l->name; l++) {
 			char optbuf[40];
 			if (getrlimit(l->cmd, &limit) < 0)
 				error("can't get limit: %s", strerror(errno));

@@ -118,7 +118,7 @@ onint(void)
 	 * This doesn't seem to be needed, since main() emits a newline.
 	 */
 #if 0
-	if (tcgetpgrp(0) == getpid())	
+	if (tcgetpgrp(0) == getpid())
 		write(STDERR_FILENO, "\n", 1);
 #endif
 	if (rootshell && iflag)
