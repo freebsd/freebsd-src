@@ -916,12 +916,6 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			epinit_locked(sc);
 		EP_UNLOCK(sc);
 		break;
-#ifdef notdef
-	case SIOCGHWADDR:
-		bcopy((caddr_t)sc->sc_addr, (caddr_t)&ifr->ifr_data,
-		    sizeof(sc->sc_addr));
-		break;
-#endif
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/*
