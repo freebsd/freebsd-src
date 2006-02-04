@@ -582,10 +582,10 @@ an_init_mpi350_desc(struct an_softc *sc)
 		an_rx_desc.an_phys = sc->an_rx_buffer[desc].an_dma_paddr;
 
 		for (i = 0; i < sizeof(an_rx_desc) / 4; i++)
-			CSR_MEM_AUX_WRITE_4(sc, AN_RX_DESC_OFFSET 
-					    + (desc * sizeof(an_rx_desc))
-					    + (i * 4),
-					    ((u_int32_t*)&an_rx_desc)[i]);
+			CSR_MEM_AUX_WRITE_4(sc, AN_RX_DESC_OFFSET
+			    + (desc * sizeof(an_rx_desc))
+			    + (i * 4),
+			    ((u_int32_t *)(void *)&an_rx_desc)[i]);
 	}
 
 	/*
@@ -613,9 +613,9 @@ an_init_mpi350_desc(struct an_softc *sc)
 
 		for (i = 0; i < sizeof(an_tx_desc) / 4; i++)
 			CSR_MEM_AUX_WRITE_4(sc, AN_TX_DESC_OFFSET
-					    + (desc * sizeof(an_tx_desc))
-					    + (i * 4),
-					    ((u_int32_t*)&an_tx_desc)[i]);
+			    + (desc * sizeof(an_tx_desc))
+			    + (i * 4),
+			    ((u_int32_t *)(void *)&an_tx_desc)[i]);
 	}
 
 	/*
@@ -641,7 +641,7 @@ an_init_mpi350_desc(struct an_softc *sc)
 
 	for (i = 0; i < sizeof(an_rid_desc) / 4; i++)
 		CSR_MEM_AUX_WRITE_4(sc, AN_HOST_DESC_OFFSET + i * 4, 
-				    ((u_int32_t*)&an_rid_desc)[i]);
+				    ((u_int32_t *)(void *)&an_rid_desc)[i]);
 
 	return(0);
 }
@@ -1002,7 +1002,7 @@ an_rxeof(struct an_softc *sc)
 	} else { /* MPI-350 */
 		for (count = 0; count < AN_MAX_RX_DESC; count++){
 			for (i = 0; i < sizeof(an_rx_desc) / 4; i++)
-				((u_int32_t*)&an_rx_desc)[i] 
+				((u_int32_t *)(void *)&an_rx_desc)[i] 
 					= CSR_MEM_AUX_READ_4(sc, 
 						AN_RX_DESC_OFFSET 
 						+ (count * sizeof(an_rx_desc))
@@ -1075,10 +1075,10 @@ an_rxeof(struct an_softc *sc)
 			
 				for (i = 0; i < sizeof(an_rx_desc) / 4; i++)
 					CSR_MEM_AUX_WRITE_4(sc, 
-						AN_RX_DESC_OFFSET 
-						+ (count * sizeof(an_rx_desc))
-						+ (i * 4),
-						((u_int32_t*)&an_rx_desc)[i]);
+					    AN_RX_DESC_OFFSET 
+					    + (count * sizeof(an_rx_desc))
+					    + (i * 4),
+					    ((u_int32_t *)(void *)&an_rx_desc)[i]);
 				
 			} else {
 				printf("an%d: Didn't get valid RX packet "
@@ -1430,7 +1430,7 @@ an_read_record(struct an_softc *sc, struct an_ltv_gen *ltv)
 
 		for (i = 0; i < sizeof(an_rid_desc) / 4; i++)
 			CSR_MEM_AUX_WRITE_4(sc, AN_HOST_DESC_OFFSET + i * 4, 
-					    ((u_int32_t*)&an_rid_desc)[i]);
+			    ((u_int32_t *)(void *)&an_rid_desc)[i]);
 
 		if (an_cmd_struct(sc, &cmd, &reply)
 		    || reply.an_status & AN_CMD_QUAL_MASK) {
@@ -1539,7 +1539,7 @@ an_write_record(struct an_softc *sc, struct an_ltv_gen *ltv)
 
 		for (i = 0; i < sizeof(an_rid_desc) / 4; i++)
 			CSR_MEM_AUX_WRITE_4(sc, AN_HOST_DESC_OFFSET + i * 4, 
-					    ((u_int32_t*)&an_rid_desc)[i]);
+			    ((u_int32_t *)(void *)&an_rid_desc)[i]);
 
 		DELAY(100000);
 
@@ -2728,7 +2728,7 @@ an_start(struct ifnet *ifp)
 				    /* zero for now */ 
 				    + (0 * sizeof(an_tx_desc))
 				    + (i * 4),
-				    ((u_int32_t*)&an_tx_desc)[i]);
+				    ((u_int32_t *)(void *)&an_tx_desc)[i]);
 			}
 
 			/*
