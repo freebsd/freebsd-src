@@ -4467,7 +4467,7 @@ malloc_init_hard(void)
 	}
 
 	/* Determine how many arenas to use. */
-	narenas = 1;
+	narenas = ncpus;
 	if (opt_narenas_lshift > 0)
 		narenas <<= opt_narenas_lshift;
 
