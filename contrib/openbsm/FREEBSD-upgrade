@@ -1,0 +1,19 @@
+Upgrade Instructions for OpenBSM
+--------------------------------
+
+Currently this is very straight forward:
+
+  cd ~/p4/projects/trustedbsd/openbsm
+  cvs -d rwatson@repoman.FreeBSD.org -q import src/contrib/openbsm \
+        TrustedBSD OPENBSM_1_0_ALPHA_1
+
+Replacing the version string as required.  Use the "-n" argument to CVS to
+do a test run.
+
+Right now, no local FreeBSD modification or configuration is required.  In
+future OpenBSM versions, this is likely to change.
+
+After importing OpenBSM, make sure to propagate any changes to files that
+appear in both contrib/openbsm/bsm and sys/bsm.
+
+$FreeBSD$
