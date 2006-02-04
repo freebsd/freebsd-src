@@ -123,6 +123,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/stat.h>
+#include <sys/bus_dma.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -156,13 +157,13 @@
 
 #define	osdSwap4(x) ((u_long)ntohl((u_long)(x)))
 #define	KVTOPHYS(x) vtophys(x)
-#include	"dev/asr/dptalign.h"
-#include	"dev/asr/i2oexec.h"
-#include	"dev/asr/i2obscsi.h"
-#include	"dev/asr/i2odpt.h"
-#include	"dev/asr/i2oadptr.h"
+#include	<dev/asr/dptalign.h>
+#include	<dev/asr/i2oexec.h>
+#include	<dev/asr/i2obscsi.h>
+#include	<dev/asr/i2odpt.h>
+#include	<dev/asr/i2oadptr.h>
 
-#include	"dev/asr/sys_info.h"
+#include	<dev/asr/sys_info.h>
 
 __FBSDID("$FreeBSD$");
 
@@ -322,6 +323,7 @@ union asr_ccb {
 ***************************************************************************/
 
 typedef struct Asr_softc {
+	device_t		ha_dev;
 	u_int16_t		ha_irq;
 	u_long			ha_Base;       /* base port for each board */
 	bus_size_t		ha_blinkLED;
@@ -331,6 +333,12 @@ typedef struct Asr_softc {
 	bus_space_tag_t		ha_frame_btag;
 	I2O_IOP_ENTRY		ha_SystemTable;
 	LIST_HEAD(,ccb_hdr)	ha_ccb;	       /* ccbs in use		   */
+
+	bus_dma_tag_t		ha_parent_dmat;
+	bus_dma_tag_t		ha_status_dmat;
+	bus_dmamap_t		ha_status_dmamap;
+	u_int32_t	      * ha_status;
+	u_int32_t		ha_status_phys;
 	struct cam_path	      * ha_path[MAX_CHANNEL+1];
 	struct cam_sim	      * ha_sim[MAX_CHANNEL+1];
 	struct resource	      * ha_mem_res;
@@ -561,7 +569,7 @@ ASR_resetIOP(Asr_softc_t *sc)
 		U32			   R;
 	} Message;
 	PI2O_EXEC_IOP_RESET_MESSAGE	 Message_Ptr;
-	U32		      * volatile Reply_Ptr;
+	U32			       * Reply_Ptr;
 	U32				 Old;
 
 	/*
@@ -573,10 +581,10 @@ ASR_resetIOP(Asr_softc_t *sc)
 	/*
 	 *  Reset the Reply Status
 	 */
-	*(Reply_Ptr = (U32 *)((char *)Message_Ptr
-	  + sizeof(I2O_EXEC_IOP_RESET_MESSAGE))) = 0;
+	Reply_Ptr = sc->ha_status;
+	*Reply_Ptr = 0;
 	I2O_EXEC_IOP_RESET_MESSAGE_setStatusWordLowAddress(Message_Ptr,
-	  KVTOPHYS((void *)Reply_Ptr));
+	    sc->ha_status_phys);
 	/*
 	 *	Send the Message out
 	 */
@@ -2291,6 +2299,89 @@ asr_pci_map_int(device_t dev, Asr_softc_t *sc)
 	return (1);
 } /* asr_pci_map_int */
 
+static void
+asr_status_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	Asr_softc_t *sc;
+
+	if (error)
+		return;
+
+	sc = (Asr_softc_t *)arg;
+
+	/* XXX
+	 * The status word can be at a 64-bit address, but the existing
+	 * accessor macros simply cannot manipulate 64-bit addresses.
+	 */
+	sc->ha_status_phys = (u_int32_t)segs[0].ds_addr;
+}
+
+static int
+asr_alloc_dma(Asr_softc_t *sc)
+{
+	device_t dev;
+
+	dev = sc->ha_dev;
+
+	if (bus_dma_tag_create(NULL,			/* parent */
+			       1, 0,			/* algnmnt, boundary */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			       BUS_SPACE_MAXADDR,	/* highaddr */
+			       NULL, NULL,		/* filter, filterarg */
+			       BUS_SPACE_MAXSIZE_32BIT, /* maxsize */
+			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
+			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+			       0,			/* flags */
+			       NULL, NULL,		/* lockfunc, lockarg */
+			       &sc->ha_parent_dmat)) {
+		device_printf(dev, "Cannot allocate parent DMA tag\n");
+		return (ENOMEM);
+	}
+
+	if (bus_dma_tag_create(sc->ha_parent_dmat,	/* parent */
+			       1, 0,			/* algnmnt, boundary */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			       BUS_SPACE_MAXADDR,	/* highaddr */
+			       NULL, NULL,		/* filter, filterarg */
+			       sizeof(uint32_t),	/* maxsize */
+			       1,			/* nsegments */
+			       sizeof(uint32_t),	/* maxsegsize */
+			       0,			/* flags */
+			       NULL, NULL,		/* lockfunc, lockarg */
+			       &sc->ha_status_dmat)) {
+		device_printf(dev, "Cannot allocate status DMA tag\n");
+		bus_dma_tag_destroy(sc->ha_parent_dmat);
+		return (ENOMEM);
+	}
+
+	if (bus_dmamem_alloc(sc->ha_status_dmat, (void **)&sc->ha_status,
+	    BUS_DMA_NOWAIT, &sc->ha_status_dmamap)) {
+		device_printf(dev, "Cannot allocate status memory\n");
+		bus_dma_tag_destroy(sc->ha_status_dmat);
+		bus_dma_tag_destroy(sc->ha_parent_dmat);
+		return (ENOMEM);
+	}
+	(void)bus_dmamap_load(sc->ha_status_dmat, sc->ha_status_dmamap,
+	    sc->ha_status, sizeof(sc->ha_status), asr_status_cb, sc, 0);
+
+	return (0);
+}
+
+static void
+asr_release_dma(Asr_softc_t *sc)
+{
+
+	if (sc->ha_status_phys != 0)
+		bus_dmamap_unload(sc->ha_status_dmat, sc->ha_status_dmamap);
+	if (sc->ha_status != NULL)
+		bus_dmamem_free(sc->ha_status_dmat, sc->ha_status,
+		    sc->ha_status_dmamap);
+	if (sc->ha_status_dmat != NULL)
+		bus_dma_tag_destroy(sc->ha_status_dmat);
+	if (sc->ha_parent_dmat != NULL)
+		bus_dma_tag_destroy(sc->ha_parent_dmat);
+}
+
 /*
  *	Attach the devices, and virtual devices to the driver list.
  */
@@ -2302,9 +2393,11 @@ asr_attach(device_t dev)
 	Asr_softc_t		 *sc, **ha;
 	struct scsi_inquiry_data *iq;
 	int			 bus, size, unit;
+	int			 error;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+	sc->ha_dev = dev;
 
 	if (Asr_softc == NULL) {
 		/*
@@ -2336,19 +2429,25 @@ asr_attach(device_t dev)
 	sc->ha_pciBusNum = pci_get_bus(dev);
 	sc->ha_pciDeviceNum = (pci_get_slot(dev) << 3) | pci_get_function(dev);
 
+	if ((error = asr_alloc_dma(sc)) != 0)
+		return (error);
+
 	/* Check if the device is there? */
 	if (ASR_resetIOP(sc) == 0) {
 		device_printf(dev, "Cannot reset adapter\n");
+		asr_release_dma(sc);
 		return (EIO);
 	}
 	if ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
 	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_NOWAIT)) == NULL) {
 		device_printf(dev, "Cannot allocate memory\n");
+		asr_release_dma(sc);
 		return (ENOMEM);
 	}
 	if (ASR_getStatus(sc, status) == NULL) {
 		device_printf(dev, "could not initialize hardware\n");
 		free(status, M_TEMP);
+		asr_release_dma(sc);
 		return(ENODEV);
 	}
 	sc->ha_SystemTable.OrganizationID = status->OrganizationID;
@@ -2362,6 +2461,7 @@ asr_attach(device_t dev)
 
 	if (!asr_pci_map_int(dev, (void *)sc)) {
 		device_printf(dev, "could not map interrupt\n");
+		asr_release_dma(sc);
 		return(ENXIO);
 	}
 
@@ -2415,6 +2515,7 @@ asr_attach(device_t dev)
 		}
 	} else {
 		device_printf(dev, "failed to initialize\n");
+		asr_release_dma(sc);
 		return(ENXIO);
 	}
 	/*
