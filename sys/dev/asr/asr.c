@@ -2337,12 +2337,19 @@ asr_attach(device_t dev)
 	sc->ha_pciDeviceNum = (pci_get_slot(dev) << 3) | pci_get_function(dev);
 
 	/* Check if the device is there? */
-	if ((ASR_resetIOP(sc) == 0) ||
-	    ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
-	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL) ||
-	    (ASR_getStatus(sc, status) == NULL)) {
+	if (ASR_resetIOP(sc) == 0) {
+		device_printf(dev, "Cannot reset adapter\n");
+		return (EIO);
+	}
+	if ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
+	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_NOWAIT)) == NULL) {
+		device_printf(dev, "Cannot allocate memory\n");
+		return (ENOMEM);
+	}
+	if (ASR_getStatus(sc, status) == NULL) {
 		device_printf(dev, "could not initialize hardware\n");
-		return(ENODEV);	/* Get next, maybe better luck */
+		free(status, M_TEMP);
+		return(ENODEV);
 	}
 	sc->ha_SystemTable.OrganizationID = status->OrganizationID;
 	sc->ha_SystemTable.IOP_ID = status->IOP_ID;
