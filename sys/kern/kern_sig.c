@@ -2203,7 +2203,10 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			p->p_flag &= ~P_STOPPED_SIG;
 			if (p->p_numthreads == p->p_suspcount) {
 				p->p_flag |= P_CONTINUED;
+				p->p_xstat = SIGCONT;
+				PROC_LOCK(p->p_pptr);
 				childproc_continued(p);
+				PROC_UNLOCK(p->p_pptr);
 			}
 			if (action == SIG_DFL) {
 				sigqueue_delete(sigqueue, sig);
@@ -2658,7 +2661,6 @@ void
 thread_stopped(struct proc *p)
 {
 	struct proc *p1 = curthread->td_proc;
-	struct sigacts *ps;
 	int n;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -2670,23 +2672,8 @@ thread_stopped(struct proc *p)
 		mtx_unlock_spin(&sched_lock);
 		p->p_flag &= ~P_WAITED;
 		PROC_LOCK(p->p_pptr);
-		/*
-		 * Wake up parent sleeping in kern_wait(), also send
-		 * SIGCHLD to parent, but SIGCHLD does not guarantee
-		 * that parent will awake, because parent may masked
-		 * the signal.
-		 */
-		p->p_pptr->p_flag |= P_STATCHILD;
-		wakeup(p->p_pptr);
-		ps = p->p_pptr->p_sigacts;
-		mtx_lock(&ps->ps_mtx);
-		if ((ps->ps_flag & PS_NOCLDSTOP) == 0) {
-			mtx_unlock(&ps->ps_mtx);
-			childproc_stopped(p,
-				(p->p_flag & P_TRACED) ?
-					CLD_TRAPPED : CLD_STOPPED);
-		} else
-			mtx_unlock(&ps->ps_mtx);
+		childproc_stopped(p, (p->p_flag & P_TRACED) ?
+			CLD_TRAPPED : CLD_STOPPED);
 		PROC_UNLOCK(p->p_pptr);
 		mtx_lock_spin(&sched_lock);
 	}
@@ -2865,11 +2852,11 @@ sigexit(td, sig)
 }
 
 /*
- * Send queued SIGCHLD to parent when child process is stopped
- * or exited.
+ * Send queued SIGCHLD to parent when child process's state
+ * is changed.
  */
-void
-childproc_stopped(struct proc *p, int reason)
+static void
+sigparent(struct proc *p, int reason, int status)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_LOCK_ASSERT(p->p_pptr, MA_OWNED);
@@ -2877,7 +2864,7 @@ childproc_stopped(struct proc *p, int reason)
 	if (p->p_ksi != NULL) {
 		p->p_ksi->ksi_signo  = SIGCHLD;
 		p->p_ksi->ksi_code   = reason;
-		p->p_ksi->ksi_status = p->p_xstat;
+		p->p_ksi->ksi_status = status;
 		p->p_ksi->ksi_pid    = p->p_pid;
 		p->p_ksi->ksi_uid    = p->p_ucred->cr_ruid;
 		if (KSI_ONQ(p->p_ksi))
@@ -2886,26 +2873,42 @@ childproc_stopped(struct proc *p, int reason)
 	tdsignal(p->p_pptr, NULL, SIGCHLD, p->p_ksi);
 }
 
+static void
+childproc_jobstate(struct proc *p, int reason, int status)
+{
+	struct sigacts *ps;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(p->p_pptr, MA_OWNED);
+
+	/*
+	 * Wake up parent sleeping in kern_wait(), also send
+	 * SIGCHLD to parent, but SIGCHLD does not guarantee
+	 * that parent will awake, because parent may masked
+	 * the signal.
+	 */
+	p->p_pptr->p_flag |= P_STATCHILD;
+	wakeup(p->p_pptr);
+
+	ps = p->p_pptr->p_sigacts;
+	mtx_lock(&ps->ps_mtx);
+	if ((ps->ps_flag & PS_NOCLDSTOP) == 0) {
+		mtx_unlock(&ps->ps_mtx);
+		sigparent(p, reason, status);
+	} else
+		mtx_unlock(&ps->ps_mtx);
+}
+
+void
+childproc_stopped(struct proc *p, int reason)
+{
+	childproc_jobstate(p, reason, p->p_xstat);
+}
+
 void
 childproc_continued(struct proc *p)
 {
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_LOCK_ASSERT(p->p_pptr, MA_NOTOWNED);
-
-	PROC_LOCK(p->p_pptr);
-	if (p->p_ksi != NULL) {
-		p->p_ksi->ksi_signo  = SIGCHLD;
-		p->p_ksi->ksi_code   = CLD_CONTINUED; 
-		p->p_ksi->ksi_status = SIGCONT;
-		p->p_ksi->ksi_pid    = p->p_pid;
-		p->p_ksi->ksi_uid    = p->p_ucred->cr_ruid;
-		if (KSI_ONQ(p->p_ksi)) {
-			PROC_UNLOCK(p->p_pptr);
-			return;
-		}
-	}
-	tdsignal(p->p_pptr, NULL, SIGCHLD, p->p_ksi);
-	PROC_UNLOCK(p->p_pptr);
+	childproc_jobstate(p, CLD_CONTINUED, SIGCONT);
 }
 
 void
@@ -2918,8 +2921,12 @@ childproc_exited(struct proc *p)
 	if (WCOREDUMP(status))
 		reason = CLD_DUMPED;
 	else if (WIFSIGNALED(status))
-		reason = CLD_KILLED;	
-	childproc_stopped(p, reason);
+		reason = CLD_KILLED;
+	/*
+	 * XXX avoid calling wakeup(p->p_pptr), the work is
+	 * done in exit1().
+	 */
+	sigparent(p, reason, status);
 }
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};
