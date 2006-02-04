@@ -100,7 +100,7 @@ STATIC char *evalvar(char *, int);
 STATIC int varisset(char *, int);
 STATIC void varvalue(char *, int, int);
 STATIC void recordregion(int, int, int);
-STATIC void removerecordregions(int); 
+STATIC void removerecordregions(int);
 STATIC void ifsbreakup(char *, struct arglist *);
 STATIC void expandmeta(struct strlist *, int);
 STATIC void expmeta(char *, char *);
@@ -309,7 +309,7 @@ lose:
 }
 
 
-STATIC void 
+STATIC void
 removerecordregions(int endoff)
 {
 	if (ifslastp == NULL)
@@ -332,7 +332,7 @@ removerecordregions(int endoff)
 		}
 		return;
 	}
-	
+
 	ifslastp = &ifsfirst;
 	while (ifslastp->next && ifslastp->next->begoff < endoff)
 		ifslastp=ifslastp->next;
@@ -576,7 +576,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 			}
 			loc--;
 			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) { 
+			    *(loc - 1) == CTLESC) {
 				for (q = startp; q < loc; q++)
 					if (*q == CTLESC)
 						q++;
@@ -750,9 +750,9 @@ record:
 		if (!set) {
 			if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
 				varflags &= ~VSNUL;
-				/* 
-				 * Remove any recorded regions beyond 
-				 * start of variable 
+				/*
+				 * Remove any recorded regions beyond
+				 * start of variable
 				 */
 				removerecordregions(startloc);
 				goto again;
@@ -972,7 +972,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 		do {
 			p = string + ifsp->begoff;
 			nulonly = ifsp->nulonly;
-			ifs = nulonly ? nullstr : 
+			ifs = nulonly ? nullstr :
 				( ifsset() ? ifsval() : " \t\n" );
 			ifsspc = 0;
 			while (p < string + ifsp->endoff) {

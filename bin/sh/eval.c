@@ -671,15 +671,15 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			if (strncmp(sp->text, PATH, sizeof(PATH) - 1) == 0) {
 				path = sp->text + sizeof(PATH) - 1;
-				/* 
+				/*
 				 * On `PATH=... command`, we need to make
 				 * sure that the command isn't using the
 				 * non-updated hash table of the outer PATH
-				 * setting and we need to make sure that 
+				 * setting and we need to make sure that
 				 * the hash table isn't filled with items
 				 * from the temporary setting.
 				 *
-				 * It would be better to forbit using and 
+				 * It would be better to forbit using and
 				 * updating the table while this command
 				 * runs, by the command finding mechanism
 				 * is heavily integrated with hash handling,
