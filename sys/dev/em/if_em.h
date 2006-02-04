@@ -50,8 +50,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/kthread.h>
-#include <sys/proc.h>
-#include <sys/sched.h>
 
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -341,7 +339,6 @@ struct adapter {
 	struct task	link_task;
 	struct task	rxtx_task;
 	struct taskqueue *tq;		/* private task queue */
-	struct proc	*tqproc;	/* thread handling sc_tq */
 
 	/* Info about the board itself */
 	u_int32_t       part_num;
