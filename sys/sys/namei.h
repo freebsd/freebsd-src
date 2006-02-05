@@ -139,7 +139,9 @@ struct nameidata {
 #define	NOMACCHECK	0x0800000 /* do not perform MAC checks */
 #define	MPSAFE		0x1000000 /* namei() must acquire Giant if needed. */
 #define	GIANTHELD	0x2000000 /* namei() is holding giant. */
-#define	PARAMASK	0x3fffe00 /* mask of parameter descriptors */
+#define	AUDITVNODE1	0x4000000 /* audit the looked up vnode information */
+#define	AUDITVNODE2 	0x8000000 /* audit the looked up vnode information */
+#define	PARAMASK	0xffffe00 /* mask of parameter descriptors */
 
 #define	NDHASGIANT(NDP)	(((NDP)->ni_cnd.cn_flags & GIANTHELD) != 0)
 
