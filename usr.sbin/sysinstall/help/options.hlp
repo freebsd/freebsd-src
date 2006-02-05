@@ -15,6 +15,20 @@ NFS Slow:     User is using a slow PC or Ethernet card
     the PC from becoming swamped with data.
 
 
+NFS TCP:      Use TCP for the NFS mount
+
+    This option can be used if your NFS server supports TCP
+    connections; not all do!  This may be useful if your NFS server
+    is at a remote site in which case it may offer some additional
+    stability.
+
+
+NFS version 3:   Use NFS version 3
+
+    This option forces the use of NFS version 3 and is on by default.
+    If your NFS server only supports NFS version 2, disable this option.
+
+
 Debugging:    Turn on the extra debugging flag
 
     This turns on a lot of extra noise over on the second screen
@@ -23,6 +37,14 @@ Debugging:    Turn on the extra debugging flag
     attempting to reproduce the problem.  It will provide a lot of
     extra debugging at the failure point and may be very helpful to
     the developers in tracking such problems down!
+
+
+No Warnings:  Disable some warnings
+
+    This flag tells sysinstall, and particularly the disk editing
+    routines, that you consider yourself to know what you are
+    doing and disables various warning.  It is not recommended that
+    you enable this option.
 
 
 Yes To All:   Assume "Yes" answers to all non-critical dialogs
@@ -34,25 +56,26 @@ Yes To All:   Assume "Yes" answers to all non-critical dialogs
     installs.
 
 
+DHCP:         Enable DHCP configuration of interfaces
+
+    This option specifies whether DHCP configuration of interfaces
+    may be attempted.  The default setting is to interactively ask
+    the user.
+
+
+IPv6:         Enable IPv6 router solicitation configuration
+
+    This option specifies whether automatic configuration of IPv6
+    interfaces may be attempted.  This uses the router solicitation
+    method of automatic configuration.  The default setting is to
+    interactively ask the user.
+
+
 FTP username:  Specify username and password instead of anonymous.
 
     By default, the installation attempts to log in as the
     anonymous user.  If you wish to log in as someone else,
     specify the username and password with this option.
-
-
-Install Root:  Specify some directory other than / as your "root".
-
-    This should be left as / unless you have a really good reason to
-    change it.  One good reason might be if you were installing to a
-    disk other than your own, as might happen if you needed to prepare a
-    disk for another machine which couldn't load FreeBSD directly
-    for some reason.
-
-    Note:  If you set this option, you will only be able to install
-    packages if the bin distribution is also installed (usually
-    the case anyway) since /usr/sbin/pkg_add will otherwise not be
-    found after the chroot() call.
 
 
 Editor:  Specify which screen editor to use.
@@ -91,6 +114,20 @@ Release Name:  Which release to attempt to load from installation media.
     with an older release (say, on CDROM).
 
 
+Install Root:  Specify some directory other than / as your "root".
+
+    This should be left as / unless you have a really good reason to
+    change it.  One good reason might be if you were installing to a
+    disk other than your own, as might happen if you needed to prepare a
+    disk for another machine which couldn't load FreeBSD directly
+    for some reason.
+
+    Note:  If you set this option, you will only be able to install
+    packages if the bin distribution is also installed (usually
+    the case anyway) since /usr/sbin/pkg_add will otherwise not be
+    found after the chroot() call.
+
+
 Browser Package:  Which package to load for an HTML browser.
 
     By default, this is set to links but may also be set to any other
@@ -101,7 +138,7 @@ Browser Package:  Which package to load for an HTML browser.
 
 Browser Exec:  Which binary to run for the HTML browser.
 
-    The full pathname to the main executable in Browser Package
+    The full pathname to the main executable in Browser Package.
 
 
 Media Type:   Which media type is being used.
@@ -114,9 +151,29 @@ Media Type:   Which media type is being used.
 Package Temp:  Where package temporary files should go
 
    Some packages, like emacs, can use a LOT of temporary space - up to
-   20 or 30MB.  If you are going to configure a small / directory (and
-   hence a small /tmp) then you may wish to set this to point at another
-   location (say, /usr/tmp).
+   20 or 30MB.  If you are going to configure a small / directory and no
+   seperate /var (and hence a small /var/tmp), then you may wish to set
+   this to point at another location (say, /usr/tmp).
+
+
+Newfs Args:    Specify default arguments to newfs(8)
+
+   The default parameters used to build new filesystems.
+   If you will be running a service that creates millions of small
+   files or need to specify different default parameters for any
+   other reason, you may do so here.
+
+
+Fixit Console: The location of the fixit console
+
+    Specifies where sysinstall should start the fixit shell for
+    interactive repair.  Valid arguments are "serial" for a serial
+    port, or "standard" for VTY4.
+
+
+Re-scan Devices:  
+
+   Reprobe the system for devices.
 
 
 Use Defaults:  Use default values.
