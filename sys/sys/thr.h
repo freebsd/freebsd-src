@@ -60,7 +60,7 @@ void thr_exit(long *state);
 int thr_kill(long id, int sig);
 int thr_suspend(const struct timespec *timeout);
 int thr_wake(long id);
-
+int thr_set_name(long id, const char *name);
 #endif /* !_KERNEL */
 
 #endif /* ! _SYS_THR_H_ */
