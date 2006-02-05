@@ -154,17 +154,16 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
+	    "ldr	%1, [%2]\n"
 	    "cmp	%1, %3\n"
-	    "streq	%4, %2\n"
+	    "streq	%4, [%2]\n"
 	    "2:\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
 	    "moveq	%1, #1\n"
 	    "movne	%1, #0\n"
 	    : "=r" (ras_start), "=r" (done)
-	    ,"=m" (*p), "+r" (cmpval), "+r" (newval)
-	    : "m" (*p));
+	    ,"+r" (p), "+r" (cmpval), "+r" (newval));
 	return (done);
 }
 
@@ -180,14 +179,13 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
+	    "ldr	%1, [%2]\n"
 	    "add	%1, %1, %3\n"
-	    "str	%1, %2\n"
+	    "str	%1, [%2]\n"
 	    "2:\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
-	    : "=r" (ras_start), "=r" (start), "=m" (*p), "+r" (val)
-	    : "m" (*p));
+	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val));
 }
 
 static __inline void
@@ -202,15 +200,14 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
+	    "ldr	%1, [%2]\n"
 	    "sub	%1, %1, %3\n"
-	    "str	%1, %2\n"
+	    "str	%1, [%2]\n"
 	    "2:\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
 
-	    : "=r" (ras_start), "=r" (start), "=m" (*p), "+r" (val)
-	    : "m" (*p));
+	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val));
 }
 
 static __inline void
@@ -225,15 +222,14 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
+	    "ldr	%1, [%2]\n"
 	    "orr	%1, %1, %3\n"
-	    "str	%1, %2\n"
+	    "str	%1, [%2]\n"
 	    "2:\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
 
-	    : "=r" (ras_start), "=r" (start), "=m" (*address), "+r" (setmask)
-	    : "m" (*address));
+	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (setmask));
 }
 
 static __inline void
@@ -248,14 +244,13 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
+	    "ldr	%1, [%2]\n"
 	    "bic	%1, %1, %3\n"
-	    "str	%1, %2\n"
+	    "str	%1, [%2]\n"
 	    "2:\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
-	    : "=r" (ras_start), "=r" (start), "=m" (*address), "+r" (clearmask)
-	    : "m" (*address));
+	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (clearmask));
 
 }
 
@@ -271,14 +266,13 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
+	    "ldr	%1, [%2]\n"
 	    "add	%3, %1, %3\n"
-	    "str	%3, %2\n"
+	    "str	%3, [%2]\n"
 	    "2:\n"
 	    "mov	%3, #0\n"
 	    "str	%3, [%0]\n"
-	    : "=r" (ras_start), "=r" (start), "=m" (*p), "+r" (v)
-	    : "m" (*p));
+	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (v));
 	return (start);
 }
 
