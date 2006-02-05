@@ -177,10 +177,7 @@ void
 _thr_free(struct pthread *curthread, struct pthread *thread)
 {
 	DBG_MSG("Freeing thread %p\n", thread);
-	if (thread->name) {
-		free(thread->name);
-		thread->name = NULL;
-	}
+
 	/*
 	 * Always free tcb, as we only know it is part of RTLD TLS
 	 * block, but don't know its detail and can not assume how
