@@ -17,7 +17,7 @@
 7	AUE_NULL	STD	{ int xenix_rdchk(int fd); }
 8	AUE_NULL	UNIMPL	nosys
 9	AUE_NULL	UNIMPL	nosys
-10	AUE_NULL	MSTD	{ int xenix_chsize(int fd, long size); }
+10	AUE_FTRUNCATE	MSTD	{ int xenix_chsize(int fd, long size); }
 11	AUE_NULL	MSTD	{ int xenix_ftime(struct timeb *tp); }
 12	AUE_NULL	MSTD	{ int xenix_nap(int millisec); }
 13	AUE_NULL	UNIMPL	xenix_sdget
@@ -43,10 +43,10 @@
 33	AUE_NULL	UNIMPL	xenix_execseg
 34	AUE_NULL	UNIMPL	xenix_unexecseg
 35	AUE_NULL	UNIMPL	nosys
-36	AUE_NULL	MNOPROTO	{ int select(u_int nd, fd_set *in, \
+36	AUE_SELECT	MNOPROTO	{ int select(u_int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    struct timeval *tv); }
-37	AUE_NULL	MSTD	{ int xenix_eaccess(char *path, int flags); }
+37	AUE_EACCESS	MSTD	{ int xenix_eaccess(char *path, int flags); }
 38	AUE_NULL	UNIMPL	xenix_paccess
 39	AUE_NULL	MSTD	{ int ibcs2_sigaction(int sig, \
 				    struct ibcs2_sigaction *act, \
@@ -56,22 +56,22 @@
 				    ibcs2_sigset_t *oset); }
 41	AUE_NULL	MSTD	{ int ibcs2_sigpending(ibcs2_sigset_t *mask); }
 42	AUE_NULL	MSTD	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
-43	AUE_NULL	STD	{ int ibcs2_getgroups(int gidsetsize, \
+43	AUE_GETGROUPS	STD	{ int ibcs2_getgroups(int gidsetsize, \
 				    ibcs2_gid_t *gidset); }
-44	AUE_NULL	STD	{ int ibcs2_setgroups(int gidsetsize, \
+44	AUE_SETGROUPS	STD	{ int ibcs2_setgroups(int gidsetsize, \
 				    ibcs2_gid_t *gidset); }
 45	AUE_NULL	MSTD	{ int ibcs2_sysconf(int name); }
-46	AUE_NULL	MSTD	{ int ibcs2_pathconf(char *path, int name); }
-47	AUE_NULL	MSTD	{ int ibcs2_fpathconf(int fd, int name); }
-48	AUE_NULL	MSTD	{ int ibcs2_rename(char *from, char *to); }
+46	AUE_PATHCONF	MSTD	{ int ibcs2_pathconf(char *path, int name); }
+47	AUE_FPATHCONF	MSTD	{ int ibcs2_fpathconf(int fd, int name); }
+48	AUE_RENAME	MSTD	{ int ibcs2_rename(char *from, char *to); }
 49	AUE_NULL	UNIMPL	nosys
 50	AUE_NULL	MSTD	{ int xenix_utsname(long addr); }
 51	AUE_NULL	UNIMPL	nosys
 52	AUE_NULL	UNIMPL	nosys
 53	AUE_NULL	UNIMPL	nosys
 54	AUE_NULL	UNIMPL	nosys
-55	AUE_NULL	MNOPROTO	{ int getitimer(u_int which, \
+55	AUE_GETITIMER	MNOPROTO	{ int getitimer(u_int which, \
 				    struct itimerval *itv); }
-56	AUE_NULL	MNOPROTO	{ int setitimer(u_int which, \
+56	AUE_SETITIMER	MNOPROTO	{ int setitimer(u_int which, \
 				    struct itimerval *itv, \
 				    struct itimerval *otv); }
