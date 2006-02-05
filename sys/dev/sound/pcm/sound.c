@@ -862,6 +862,10 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 
 		SLIST_FOREACH(sce, &d->channels, link) {
 			c = sce->channel;
+
+			KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
+				("hosed pcm channel setup"));
+
 			sbuf_printf(s, "\n\t");
 
 			/* it would be better to indent child channels */
@@ -877,24 +881,22 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				sbuf_printf(s, ", pid %d", c->pid);
 			sbuf_printf(s, "\n\t");
 
-			if (c->bufhard != NULL && c->bufsoft != NULL) {
-				sbuf_printf(s, "interrupts %d, ", c->interrupts);
-				if (c->direction == PCMDIR_REC)
-					sbuf_printf(s, "overruns %d, hfree %d, sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
-						c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft),
-						sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
-						sndbuf_getblkcnt(c->bufhard),
-						sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
-						sndbuf_getblkcnt(c->bufsoft));
-				else
-					sbuf_printf(s, "underruns %d, ready %d [b:%d/%d/%d|bs:%d/%d/%d]",
-						c->xruns, sndbuf_getready(c->bufsoft),
-						sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
-						sndbuf_getblkcnt(c->bufhard),
-						sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
-						sndbuf_getblkcnt(c->bufsoft));
-				sbuf_printf(s, "\n\t");
-			}
+			sbuf_printf(s, "interrupts %d, ", c->interrupts);
+			if (c->direction == PCMDIR_REC)
+				sbuf_printf(s, "overruns %d, hfree %d, sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
+					c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft),
+					sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
+					sndbuf_getblkcnt(c->bufhard),
+					sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
+					sndbuf_getblkcnt(c->bufsoft));
+			else
+				sbuf_printf(s, "underruns %d, ready %d [b:%d/%d/%d|bs:%d/%d/%d]",
+					c->xruns, sndbuf_getready(c->bufsoft),
+					sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
+					sndbuf_getblkcnt(c->bufhard),
+					sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
+					sndbuf_getblkcnt(c->bufsoft));
+			sbuf_printf(s, "\n\t");
 
 			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "hardware" : "userland");
 			sbuf_printf(s, " -> ");
