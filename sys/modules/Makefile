@@ -13,7 +13,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	${_amd} \
 	amr \
-	an \
+	${_an} \
 	${_aout} \
 	${_apm} \
 	${_ar} \
@@ -318,6 +318,7 @@ _3dfx=		3dfx
 _agp=		agp
 _aic=		aic
 _amd=		amd
+_an=		an
 _aout=		aout
 _apm=		apm
 _ar=		ar
@@ -428,8 +429,9 @@ _sppp=		sppp
 
 .if ${MACHINE_ARCH} == "amd64"
 _aac=		aac
-#_acpi=		acpi		# doesn't work on amd64 yet
+#_acpi=		acpi		# doesn't work on amd64 yet as module
 _agp=		agp
+_an=		an
 _arcmsr=	arcmsr
 _ath_hal=	ath_hal
 _ciss=		ciss
@@ -469,6 +471,7 @@ _aic=		aic
 #_ar=		ar	not 64-bit clean
 _arcnet=	arcnet
 _asr=		asr
+_an=		an
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
@@ -496,6 +499,7 @@ _xe=		xe
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
+_an=		an
 _gem=		gem
 _smbfs=		smbfs
 .endif
