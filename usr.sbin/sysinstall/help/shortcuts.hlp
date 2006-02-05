@@ -1,11 +1,11 @@
-/stand/sysinstall now supports command-line "shortcuts" which can
+sysinstall now supports command-line "shortcuts" which can
 often replace outdated commands, like pkg_manage.  Multiple commands
 can be invoked in sequence, and variables may be set on-the-fly to
 customize the installation program's behavior in various ways.
 
 Syntax:
 
-/stand/sysinstall [var=value ..] [command ..]
+/usr/sbin/sysinstall [var=value ..] [command ..]
 
 Where "var" can be one or more of:
 
@@ -15,7 +15,7 @@ browserBinary           Which doc browser to use (default: links)
 browserPackage          Which package to get browser from (default: links)
 cpioVerbose             How verbose to be with cpio: high, medium or low
 debug                   Extra debugging?
-disk                    Which disk to operate on (wd0, da0, etc).
+disk                    Which disk to operate on (ad0, da0, etc).
 domainname              Domain name
 editor                  Which screen editor to use
 ifconfig_<iface>        For each <iface> in network_devices
@@ -59,9 +59,12 @@ And "command" can be one or more of:
 addUser                 Add a new user to the system
 addGroup                Add a new group to the system
 configAnonFTP           Configure system for anonymous FTP
-configGated             Configure and install gated
+configInetd             Configure the inetd super-server
 configNFSServer         Configure host as an NFS server
+configNTP               Configure host as an NTP client
 configPackages          Browse / install packages
+configRouter            Configure a routing daemon
+configUsers             Add users and/or groups to the system
 diskPartitionEditor     Partition a new or existing disk
 diskPartitionWrite      Write out any changed partition information
 diskLabelEditor         Label/Newfs/Mount new or existing filesystems
@@ -81,34 +84,34 @@ distExtractAll          Extract all selected distributions
 docBrowser              Browse documentation
 installCommit           Commit any pending installation operations
 installExpress          Express installation
+installStandard         Standard installation
 installUpgrade          Upgrade installation
-installFixup            Go into "fixit" mode
 mediaSetCDROM           Select CDROM media
 mediaSetFloppy          Select floppy media
 mediaSetDOS             Select DOS media
-mediaSetTape            Select tape media
 mediaSetFTP             Select FTP media
 mediaSetFTPPassive      Select FTP media in passive mode
-mediaSetUFS             Select UFS media
 mediaSetNFS             Select NFS media
-mediaSetFtpUserPass     Prompt for FTP username and password
+mediaSetTape            Select tape media
+mediaSetUFS             Select UFS media
+mediaSetFTPUserPass     Prompt for FTP username and password
 mediaSetCPIOVerbosity   Prompt for CPIO verbosity
 mediaGetType            Prompt for media type
 optionsEditor           Go to options editor
-register                Go to registration editor.
+tcpMenuSelect           Configure TCP/IP networking
 
 Examples:
 
-/stand/sysinstall       mediaSetFTP configPackages
+/usr/sbin/sysinstall       mediaSetFTP configPackages
 
 Selects an FTP site and then goes to the package configuration menu.
 
 
-/stand/sysinstall       disk=da0 diskPartitionEditor
+/usr/sbin/sysinstall       disk=da0 diskPartitionEditor
 
 Invokes the disk partition editor on disk da0.
 
 
-If /stand/sysinstall is linked to another filename, say
+If /usr/sbin/sysinstall is linked to another filename, say
 `/usr/local/bin/configPackages', then the basename will be used
 as an implicit command name.
