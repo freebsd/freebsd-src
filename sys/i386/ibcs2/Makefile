@@ -3,7 +3,7 @@
 # $FreeBSD$
 
 all:
-	@echo "make sysent.c, isc_sysent.c or xenix_sysent.c only"
+	@echo "make sysent, isc_sysent or xenix_sysent only"
 
 sysent:  ibcs2_sysent.c ibcs2_syscall.h ibcs2_proto.h
 
