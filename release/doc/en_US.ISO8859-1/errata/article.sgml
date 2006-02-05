@@ -121,49 +121,49 @@
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
 		>06:07.pf</ulink></entry>
-	    <entry>25&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>25&nbsp;January&nbsp;2006</entry>
 	    <entry><para>IP fragment handling panic in &man.pf.4;</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:06.kmem.asc"
 		>06:06.kmem</ulink></entry>
-	    <entry>25&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>25&nbsp;January&nbsp;2006</entry>
 	    <entry><para>Local kernel memory disclosure</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:05.80211.asc"
 		>06:05.80211</ulink></entry>
-	    <entry>18&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>18&nbsp;January&nbsp;2006</entry>
 	    <entry><para>IEEE 802.11 buffer overflow</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:04.ipfw.asc"
 		>06:04.ipfw</ulink></entry>
-	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>11&nbsp;January&nbsp;2006</entry>
 	    <entry><para>&man.ipfw.4; IP fragment denial of service</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
 		>06:03.cpio</ulink></entry>
-	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>11&nbsp;January&nbsp;2006</entry>
 	    <entry><para>Multiple vulnerabilities in &man.cpio.1;</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc"
 		>06:02.eex</ulink></entry>
-	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>11&nbsp;January&nbsp;2006</entry>
 	    <entry><para>&man.ee.1; temporary file privilege escalation</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc"
 		>06:01.texindex</ulink></entry>
-	    <entry>11&nbsp;Janurary&nbsp;2006</entry>
+	    <entry>11&nbsp;January&nbsp;2006</entry>
 	    <entry><para>Texindex temporary file privilege escalation</para></entry>
 	  </row>
 	</tbody>
