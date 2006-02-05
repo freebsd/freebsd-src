@@ -108,6 +108,10 @@
 #include <net/if_pfsync.h>
 #endif /* NPFSYNC > 0 */
 
+#ifdef __FreeBSD__
+#include <net/if_pflog.h>
+#endif
+
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet/in_pcb.h>
@@ -230,6 +234,7 @@ static struct cdevsw pf_cdevsw = {
 
 static volatile int pf_pfil_hooked = 0;
 struct mtx pf_task_mtx;
+pflog_packet_t *pflog_packet_ptr = NULL;
 
 void
 init_pf_mutex(void)
