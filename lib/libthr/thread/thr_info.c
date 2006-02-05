@@ -44,18 +44,27 @@ __weak_reference(_pthread_set_name_np, pthread_set_name_np);
 void
 _pthread_set_name_np(pthread_t thread, char *name)
 {
-#if 0
 	struct pthread *curthread = _get_curthread();
+	int ret = 0;
 
-	if (thread != NULL && thread->magic == THR_MAGIC) {
-		THR_THREAD_LOCK(curthread, thread);
-		if (thread->name != NULL) {
-			free(thread->name);
-			thread->name = NULL;
+	if (curthread == thread) {
+		if (thr_set_name(thread->tid, name))
+			ret = errno;
+	} else {
+		if (_thr_ref_add(curthread, thread, 0) == 0) {
+			THR_LOCK(thread);
+			if (thread->state != PS_DEAD) {
+				if (thr_set_name(thread->tid, name))
+					ret = errno;
+			}
+			THR_UNLOCK(thread);
+			_thr_ref_delete(curthread, thread);
+		} else {
+			ret = ESRCH;
 		}
-		if (name != NULL)
-			thread->name = strdup(name);
-		THR_THREAD_UNLOCK(curthread, thread);
 	}
+#if 0
+	/* XXX should return error code. */
+	return (ret);
 #endif
 }
