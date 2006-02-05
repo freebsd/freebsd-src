@@ -43,14 +43,8 @@ FreeBSD server or workstation, not a typical `home PC'.
 The flags field has the following legend:
 
         '='  -- This slice is properly aligned.
-        '>'  -- This slice doesn't end before cylinder 1024
-        'R'  -- This slice contains the root (/) filesystem
-        'B'  -- Slice employs BAD144 bad-spot handling
-        'C'  -- This is the FreeBSD 2.0-compatibility slice (default)
         'A'  -- This slice is marked active.
-
-If you select a slice for Bad144 handling, it will be scanned
-for bad blocks before any new filesystems are made on it.
+        'R'  -- This slice contains the root (/) filesystem
 
 If no slice is marked Active, you will need to either install
 a Boot Manager (the option for which will be presented later in the
