@@ -416,7 +416,7 @@ in6_gif_attach(sc)
 	struct gif_softc *sc;
 {
 	sc->encap_cookie6 = encap_attach_func(AF_INET6, -1, gif_encapcheck,
-	    (struct protosw *)&in6_gif_protosw, sc);
+	    (void *)&in6_gif_protosw, sc);
 	if (sc->encap_cookie6 == NULL)
 		return EEXIST;
 	return 0;
