@@ -407,3 +407,32 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 	PROC_UNLOCK(p);
 	return (0);
 }
+
+int
+thr_set_name(struct thread *td, struct thr_set_name_args *uap)
+{
+	struct proc *p = td->td_proc;
+	char name[MAXCOMLEN + 1];
+	struct thread *ttd;
+	int error;
+
+	error = 0;
+	name[0] = '\0';
+	if (uap->name != NULL) {
+		error = copyinstr(uap->name, name, sizeof(name),
+			NULL);
+		if (error)
+			return (error);
+	}
+	PROC_LOCK(p);
+	if (uap->id == td->td_tid)
+		ttd = td;
+	else
+		ttd = thread_find(p, uap->id);
+	if (ttd != NULL)
+		strcpy(ttd->td_name, name);
+	else 
+		error = ESRCH;
+	PROC_UNLOCK(p);
+	return (error);
+}
