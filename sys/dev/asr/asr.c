@@ -538,7 +538,7 @@ ASR_getMessage(Asr_softc_t *sc)
 static U32
 ASR_initiateCp(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 {
-	U32	Mask = -1L;
+	U32	Mask = 0xffffffff;
 	U32	MessageOffset;
 	u_int	Delay = 1500;
 
@@ -609,7 +609,7 @@ ASR_resetIOP(Asr_softc_t *sc)
 		KASSERT(*Reply_Ptr != 0, ("*Reply_Ptr == 0"));
 		return(*Reply_Ptr);
 	}
-	KASSERT(Old != -1L, ("Old == -1"));
+	KASSERT(Old != 0xffffffff, ("Old == -1"));
 	return (0);
 } /* ASR_resetIOP */
 
