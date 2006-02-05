@@ -10,7 +10,7 @@
  *
  * My contributions are in the public domain.
  *
- * Parts of this file are also blatently stolen from Poul-Henning Kamp's
+ * Parts of this file are also blatantly stolen from Poul-Henning Kamp's
  * previous version of sysinstall, and as such fall under his "BEERWARE license"
  * so buy him a beer if you like it!  Buy him a beer for me, too!
  * Heck, get him completely drunk and send me pictures! :-)
