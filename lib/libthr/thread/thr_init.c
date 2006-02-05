@@ -384,7 +384,7 @@ init_main_thread(struct pthread *thread)
 	thread->magic = THR_MAGIC;
 
 	thread->cancelflags = PTHREAD_CANCEL_ENABLE | PTHREAD_CANCEL_DEFERRED;
-	thread->name = strdup("initial thread");
+	thr_set_name(thread->tid, "initial thread");
 
 	/* Default the priority of the initial thread: */
 	thread->base_priority = THR_DEFAULT_PRIORITY;
@@ -414,7 +414,6 @@ init_private(void)
 	_thr_umtx_init(&_thr_event_lock);
 	_thr_spinlock_init();
 	_thr_list_init();
-	_thr_timer_init();
 
 	/*
 	 * Avoid reinitializing some things if they don't need to be,
