@@ -180,6 +180,7 @@ void			 audit_proc_fork(struct proc *parent,
 					 struct proc *child);
 void			 audit_proc_free(struct proc *p);
 void			 audit_thread_alloc(struct thread *td);
+void			 audit_thread_free(struct thread *td);
 
 /*
  * Define a macro to wrap the audit_arg_* calls by checking the global
