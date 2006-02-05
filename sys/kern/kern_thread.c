@@ -172,7 +172,9 @@ thread_dtor(void *mem, int size, void *arg)
 		/* NOTREACHED */
 	}
 #endif
-
+#ifdef AUDIT
+	audit_thread_free(td);
+#endif
 	free_unr(tid_unrhdr, td->td_tid);
 	sched_newthread(td);
 }
