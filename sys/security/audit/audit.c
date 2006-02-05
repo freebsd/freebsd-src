@@ -1025,6 +1025,16 @@ audit_thread_alloc(struct thread *td)
 	td->td_ar = NULL;
 }
 
+/*
+ * Thread destruction.
+ */
+void
+audit_thread_free(struct thread *td)
+{
+
+	KASSERT(td->td_ar == NULL, ("audit_thread_free: td_ar != NULL"));
+}
+
 /* 
  * Initialize the audit information for the a process, presumably the first 
  * process in the system.
