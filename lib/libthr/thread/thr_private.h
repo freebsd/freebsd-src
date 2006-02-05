@@ -338,7 +338,6 @@ struct pthread {
 	 */
 #define	THR_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
-	char			*name;
 
 	/*
 	 * Lock for accesses to this thread structure.
