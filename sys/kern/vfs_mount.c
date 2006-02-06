@@ -405,6 +405,24 @@ nmount(td, uap)
  * Various utility functions
  */
 
+void
+vfs_ref(struct mount *mp)
+{
+
+	MNT_ILOCK(mp);
+	MNT_REF(mp);
+	MNT_IUNLOCK(mp);
+}
+
+void
+vfs_rel(struct mount *mp)
+{
+
+	MNT_ILOCK(mp);
+	MNT_REL(mp);
+	MNT_IUNLOCK(mp);
+}
+
 /*
  * Allocate and initialize the mount point struct.
  */
@@ -420,9 +438,10 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
 	(void) vfs_busy(mp, LK_NOWAIT, 0, td);
+	mp->mnt_ref = 0;
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
-	vfsp->vfc_refcount++;
+	vfsp->vfc_refcount++;	/* XXX Unlocked */
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
@@ -445,8 +464,19 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 static void
 vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
+	int i;
 
 	MNT_ILOCK(mp);
+	for (i = 0; mp->mnt_ref && i < 3; i++)
+		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
+	/*
+	 * This will always cause a 3 second delay in rebooting due to
+	 * refs on the root mountpoint that never go away.  Most of these
+	 * are held by init which never exits.
+	 */
+	if (i == 3 && (!rebooting || bootverbose))
+		printf("Mount point %s had %d dangling refs\n",
+		    mp->mnt_stat.f_mntonname, mp->mnt_ref);
 	if (mp->mnt_holdcnt != 0) {
 		printf("Waiting for mount point to be unheld\n");
 		while (mp->mnt_holdcnt != 0) {
@@ -1305,8 +1335,8 @@ devfs_fixup(struct thread *td)
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	VOP_UNLOCK(vp, 0, td);
-	vfs_unbusy(mp, td);
 	vput(dvp);
+	vfs_unbusy(mp, td);
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
 	kern_unlink(td, "/dev/dev", UIO_SYSSPACE);

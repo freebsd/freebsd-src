@@ -785,6 +785,8 @@ vdestroy(struct vnode *vp)
 		mtx_destroy(&vp->v_pollinfo->vpi_lock);
 		uma_zfree(vnodepoll_zone, vp->v_pollinfo);
 	}
+	if (vp->v_mount)
+		vfs_rel(vp->v_mount);
 #ifdef INVARIANTS
 	/* XXX Elsewhere we can detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
@@ -918,7 +920,6 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	else if (mp == NULL)
 		printf("NULL mp in getnewvnode()\n");
 #endif
-	delmntque(vp);
 	if (mp != NULL) {
 		insmntque(vp, mp);
 		bo->bo_bsize = mp->mnt_stat.f_iosize;
@@ -939,15 +940,15 @@ delmntque(struct vnode *vp)
 {
 	struct mount *mp;
 
-	if (vp->v_mount == NULL)
-		return;
 	mp = vp->v_mount;
+	if (mp == NULL)
+		return;
 	MNT_ILOCK(mp);
-	vp->v_mount = NULL;
 	VNASSERT(mp->mnt_nvnodelistsize > 0, vp,
 		("bad mount point vnode list size"));
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	mp->mnt_nvnodelistsize--;
+	/* mnt ref is released in vdestroy. */
 	MNT_IUNLOCK(mp);
 }
 
@@ -960,12 +961,13 @@ insmntque(struct vnode *vp, struct mount *mp)
 
 	vp->v_mount = mp;
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
-	MNT_ILOCK(vp->v_mount);
+	MNT_ILOCK(mp);
+	MNT_REF(mp);
 	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	VNASSERT(mp->mnt_nvnodelistsize >= 0, vp,
 		("neg mount point vnode list size"));
 	mp->mnt_nvnodelistsize++;
-	MNT_IUNLOCK(vp->v_mount);
+	MNT_IUNLOCK(mp);
 }
 
 /*

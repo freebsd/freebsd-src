@@ -134,21 +134,30 @@ struct vfsopt;
  * array of operations and an instance record.  The filesystems are
  * put on a doubly linked list.
  *
+ * Lock reference:
+ * 	m - mountlist_mtx
+ *	i - interlock
+ *	l - mnt_lock
+ *
+ * Unmarked fields are considered stable as long as a ref is held.
+ *
  */
 struct mount {
-	TAILQ_ENTRY(mount) mnt_list;		/* mount list */
+	TAILQ_ENTRY(mount) mnt_list;		/* (m) mount list */
 	struct vfsops	*mnt_op;		/* operations on fs */
 	struct vfsconf	*mnt_vfc;		/* configuration info */
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnode	*mnt_syncer;		/* syncer vnode */
-	struct vnodelst	mnt_nvnodelist;		/* list of vnodes this mount */
 	struct lock	mnt_lock;		/* mount structure lock */
 	struct mtx	mnt_mtx;		/* mount structure interlock */
-	int		mnt_writeopcount;	/* write syscalls in progress */
+	int		mnt_ref;		/* (i) Reference count */
+	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
+	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
+	int		mnt_writeopcount;	/* (i) write syscalls pending */
+	int		mnt_kern_flag;		/* (i) kernel only flags */
 	u_int		mnt_flag;		/* flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
-	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	struct ucred	*mnt_cred;		/* credentials of mounter */
@@ -158,7 +167,6 @@ struct mount {
 	struct netexport *mnt_export;		/* export list */
 	struct label	*mnt_mntlabel;		/* MAC label for the mount */
 	struct label	*mnt_fslabel;		/* MAC label for the fs */
-	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
 	u_int		mnt_hashseed;		/* Random seed for vfs_hash */
 	int		mnt_markercnt;		/* marker vnodes in use */
 	int		mnt_holdcnt;		/* hold count */
@@ -186,6 +194,12 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
+#define	MNT_REF(mp)	(mp)->mnt_ref++
+#define	MNT_REL(mp)	do {						\
+	(mp)->mnt_ref--;						\
+	if ((mp)->mnt_ref == 0)						\
+		wakeup((mp));						\
+} while (0)
 
 #endif /* _KERNEL */
 
@@ -629,9 +643,7 @@ int	vfs_filteropt(struct vfsoptlist *, const char **legal);
 int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
-int	vfs_lock(struct mount *);         /* lock a vfs */
 void	vfs_msync(struct mount *, int);
-void	vfs_unlock(struct mount *);       /* unlock a vfs */
 int	vfs_busy(struct mount *, int, struct mtx *, struct thread *);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
@@ -643,6 +655,8 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_ref(struct mount *);
+void	vfs_rel(struct mount *);
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *, struct thread *);
 void	vfs_unmountall(void);
