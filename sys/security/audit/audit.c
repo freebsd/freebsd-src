@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1999-2005 Apple Computer, Inc.
+ * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,13 +57,16 @@
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
+#include <bsm/audit.h>
+#include <bsm/audit_kevents.h>
+
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
-#include <bsm/audit.h>
-#include <bsm/audit_kevents.h>
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
+
+#include <vm/uma.h>
 
 /*
  * The AUDIT_EXCESSIVELY_VERBOSE define enables a number of
@@ -77,8 +81,8 @@
 #define	AUDIT_PRINTF(X)
 #endif
 
+static uma_zone_t audit_record_zone;
 static MALLOC_DEFINE(M_AUDITPROC, "audit_proc", "Audit process storage");
-static MALLOC_DEFINE(M_AUDITREC, "audit_rec", "Audit event records");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
@@ -193,25 +197,58 @@ static struct cv			audit_fail_cv;
 static int			audit_file_rotate_wait;
 
 /*
- * Perform a deep free of an audit record (core record and referenced objects)
+ * Construct an audit record for the passed thread.
  */
-static void
-audit_record_free(struct kaudit_record *ar)
+static int
+audit_record_ctor(void *mem, int size, void *arg, int flags)
 {
+	struct kaudit_record *ar;
+	struct thread *td;
 
-	if (ar->k_ar.ar_arg_upath1 != NULL) {
+	KASSERT(sizeof(*ar) == size, ("audit_record_ctor: wrong size"));
+
+	td = arg;
+	ar = mem;
+	bzero(ar, sizeof(*ar));
+	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
+	nanotime(&ar->k_ar.ar_starttime);
+
+	/*
+	 * Export the subject credential.
+	 *
+	 * XXXAUDIT: td_ucred access is OK without proc lock, but some other
+	 * fields here may require the proc lock.
+	 */
+	cru2x(td->td_ucred, &ar->k_ar.ar_subj_cred);
+	ar->k_ar.ar_subj_ruid = td->td_ucred->cr_ruid;
+	ar->k_ar.ar_subj_rgid = td->td_ucred->cr_rgid;
+	ar->k_ar.ar_subj_egid = td->td_ucred->cr_groups[0];
+	ar->k_ar.ar_subj_auid = td->td_proc->p_au->ai_auid;
+	ar->k_ar.ar_subj_asid = td->td_proc->p_au->ai_asid;
+	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
+	ar->k_ar.ar_subj_amask = td->td_proc->p_au->ai_mask;
+	ar->k_ar.ar_subj_term = td->td_proc->p_au->ai_termid;
+	bcopy(td->td_proc->p_comm, ar->k_ar.ar_subj_comm, MAXCOMLEN);
+
+	return (0);
+}
+
+static void
+audit_record_dtor(void *mem, int size, void *arg)
+{
+	struct kaudit_record *ar;
+
+	KASSERT(sizeof(*ar) == size, ("audit_record_dtor: wrong size"));
+
+	ar = mem;
+	if (ar->k_ar.ar_arg_upath1 != NULL)
 		free(ar->k_ar.ar_arg_upath1, M_AUDITPATH);
-	}
-	if (ar->k_ar.ar_arg_upath2 != NULL) {
+	if (ar->k_ar.ar_arg_upath2 != NULL)
 		free(ar->k_ar.ar_arg_upath2, M_AUDITPATH);
-	}
-	if (ar->k_ar.ar_arg_text != NULL) {
+	if (ar->k_ar.ar_arg_text != NULL)
 		free(ar->k_ar.ar_arg_text, M_AUDITTEXT);
-	}
-	if (ar->k_udata != NULL) {
+	if (ar->k_udata != NULL)
 		free(ar->k_udata, M_AUDITDATA);
-	}
-	free(ar, M_AUDITREC);
 }
 
 /*
@@ -503,58 +540,39 @@ audit_worker(void *arg)
 		}
 
 		/*
-		 * If we have records, but there's no active vnode to
-		 * write to, drain the record queue.  Generally, we
-		 * prevent the unnecessary allocation of records
-		 * elsewhere, but we need to allow for races between
-		 * conditional allocation and queueing.  Go back to
-		 * waiting when we're done.
-		 *
-		 * XXX: We go out of our way to avoid calling 
-		 * audit_record_free().
-		 * with the audit_mtx held, to avoid a lock order reversal
-		 * as free() may grab Giant.  This should be fixed at
-		 * some point.
+		 * If we have records, but there's no active vnode to write
+		 * to, drain the record queue.  Generally, we prevent the
+		 * unnecessary allocation of records elsewhere, but we need
+		 * to allow for races between conditional allocation and
+		 * queueing.  Go back to waiting when we're done.
 		 */
 		if (audit_vp == NULL) {
 			while ((ar = TAILQ_FIRST(&audit_q))) {
 				TAILQ_REMOVE(&audit_q, ar, k_q);
+				uma_zfree(audit_record_zone, ar);
 				audit_q_len--;
+				/*
+				 * XXXRW: Why broadcast if we hold the
+				 * mutex and know that audit_vp is NULL?
+				 */
 				if (audit_q_len <= audit_qctrl.aq_lowater)
 					cv_broadcast(&audit_commit_cv);
-
-				TAILQ_INSERT_TAIL(&ar_worklist, ar, k_q);
 			}
-			mtx_unlock(&audit_mtx);
-			while ((ar = TAILQ_FIRST(&ar_worklist))) {
-				TAILQ_REMOVE(&ar_worklist, ar, k_q);
-				audit_record_free(ar);
-			}
-			mtx_lock(&audit_mtx);
 			continue;
 		}
 
 		/*
-		 * We have both records to write and an active vnode
-		 * to write to.  Dequeue a record, and start the write.
-		 * Eventually, it might make sense to dequeue several
-		 * records and perform our own clustering, if the lower
-		 * layers aren't doing it automatically enough.
-		 *
-		 * XXX: We go out of our way to avoid calling
-		 * audit_record_free()
-		 * with the audit_mtx held, to avoid a lock order reversal
-		 * as free() may grab Giant.  This should be fixed at
-		 * some point.
-		 *
-		 * XXXAUDIT: free() no longer grabs Giant.
+		 * We have both records to write and an active vnode to write
+		 * to.  Dequeue a record, and start the write.  Eventually,
+		 * it might make sense to dequeue several records and perform
+		 * our own clustering, if the lower layers aren't doing it
+		 * automatically enough.
 		 */
 		while ((ar = TAILQ_FIRST(&audit_q))) {
 			TAILQ_REMOVE(&audit_q, ar, k_q);
 			audit_q_len--;
 			if (audit_q_len <= audit_qctrl.aq_lowater)
 				cv_broadcast(&audit_commit_cv);
-
 			TAILQ_INSERT_TAIL(&ar_worklist, ar, k_q);
 		}
 
@@ -571,7 +589,7 @@ audit_worker(void *arg)
 					printf("audit_worker: write error %d\n",
 					    error);
 			}
-			audit_record_free(ar);
+			uma_zfree(audit_record_zone, ar);
 		}
 		mtx_lock(&audit_mtx);
 	}
@@ -616,6 +634,10 @@ audit_init(void)
 	cv_init(&audit_replacement_cv, "audit_replacement_cv");
 	cv_init(&audit_commit_cv, "audit_commit_cv");
 	cv_init(&audit_fail_cv, "audit_fail_cv");
+
+	audit_record_zone = uma_zcreate("audit_record_zone",
+	    sizeof(struct kaudit_record), audit_record_ctor,
+	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	/* Initialize the BSM audit subsystem. */
 	kau_init();
@@ -734,64 +756,23 @@ audit_new(int event, struct thread *td)
 	struct kaudit_record *ar;
 	int no_record;
 
-	/*
-	 * Eventually, there may be certain classes of events that
-	 * we will audit regardless of the audit state at the time
-	 * the record is created.  These events will generally
-	 * correspond to changes in the audit state.  The dummy
-	 * code below is from our first prototype, but may also
-	 * be used in the final version (with modified event numbers).
-	 */
-#if 0
-	if (event != AUDIT_EVENT_FILESTOP && event != AUDIT_EVENT_FILESTART) {
-#endif
-		mtx_lock(&audit_mtx);
-		no_record = (audit_suspended || !audit_enabled);
-		mtx_unlock(&audit_mtx);
-		if (no_record)
-			return (NULL);
-#if 0
-	}
-#endif
+	mtx_lock(&audit_mtx);
+	no_record = (audit_suspended || !audit_enabled);
+	mtx_unlock(&audit_mtx);
+	if (no_record)
+		return (NULL);
 
 	/*
-	 * Initialize the audit record header.
-	 * XXX: We may want to fail-stop if allocation fails.
 	 * XXX: The number of outstanding uncommitted audit records is
-	 * limited by the number of concurrent threads servicing system
+	 * limited to the number of concurrent threads servicing system
 	 * calls in the kernel.
 	 */
-
-	ar = malloc(sizeof(*ar), M_AUDITREC, M_WAITOK);
-	if (ar == NULL)
-		return NULL;
+	ar = uma_zalloc_arg(audit_record_zone, td, M_WAITOK);
+	ar->k_ar.ar_event = event;
 
 	mtx_lock(&audit_mtx);
 	audit_pre_q_len++;
 	mtx_unlock(&audit_mtx);
-
-	bzero(ar, sizeof(*ar));
-	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
-	ar->k_ar.ar_event = event;
-	nanotime(&ar->k_ar.ar_starttime);
-
-	/*
-	 * Export the subject credential.
-	 *
-	 * XXXAUDIT: td_ucred access is OK without proc lock, but some other
-	 * fields here may require the proc lock.
-	 */
-	cru2x(td->td_ucred, &ar->k_ar.ar_subj_cred);
-	ar->k_ar.ar_subj_ruid = td->td_ucred->cr_ruid;
-	ar->k_ar.ar_subj_rgid = td->td_ucred->cr_rgid;
-	ar->k_ar.ar_subj_egid = td->td_ucred->cr_groups[0];
-	ar->k_ar.ar_subj_auid = td->td_proc->p_au->ai_auid;
-	ar->k_ar.ar_subj_asid = td->td_proc->p_au->ai_asid;
-	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
-	ar->k_ar.ar_subj_amask = td->td_proc->p_au->ai_mask;
-	ar->k_ar.ar_subj_term = td->td_proc->p_au->ai_termid;
-
-	bcopy(td->td_proc->p_comm, ar->k_ar.ar_subj_comm, MAXCOMLEN);
 
 	return (ar);
 }
@@ -850,11 +831,15 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	if (au_preselect(ar->k_ar.ar_event, aumask, sorf) != 0)
 		ar->k_ar_commit |= AR_COMMIT_KERNEL;
 
+	/*
+	 * XXXRW: Why is this necessary?  Should we ever accept a record that
+	 * we're not willing to commit?
+	 */
 	if ((ar->k_ar_commit & (AR_COMMIT_USER | AR_COMMIT_KERNEL)) == 0) {
 		mtx_lock(&audit_mtx);
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
-		audit_record_free(ar);
+		uma_zfree(audit_record_zone, ar);
 		return;
 	}
 
@@ -880,7 +865,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	if (audit_suspended || !audit_enabled) {
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
-		audit_record_free(ar);
+		uma_zfree(audit_record_zone, ar);
 		return;
 	}
 	
