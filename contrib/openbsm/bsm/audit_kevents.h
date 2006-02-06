@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_kevents.h#34 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_kevents.h#37 $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_
@@ -360,7 +360,7 @@
 #define	AUE_NMOUNT		380	/* FreeBSD-specific. */
 #define	AUE_BDFLUSH		381	/* Linux-specific. */
 #define	AUE_SETFSUID		382	/* Linux-specific. */
-#define	AUE_GETFSUID		383	/* Linux-specific. */
+#define	AUE_SETFSGID		383	/* Linux-specific. */
 #define	AUE_PERSONALITY		384	/* Linux-specific. */
 #define	AUE_SCHED_GETSCHEDULER	385	/* POSIX.1b. */
 #define	AUE_SCHED_SETSCHEDULER	386	/* POSIX.1b. */
@@ -383,6 +383,7 @@
 #define	AUE_ACL_DELETE_FD		403	/* FreeBSD. */
 #define	AUE_ACL_CHECK_FILE		404	/* FreeBSD. */
 #define	AUE_ACL_CHECK_FD		405	/* FreeBSD. */
+#define	AUE_SYSARCH			406	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -428,6 +429,7 @@
 #define	AUE_O_RECVFROM		AUE_RECVFROM	/* Darwin */
 #define	AUE_O_SETREUID		AUE_SETREUID	/* Darwin */
 #define	AUE_O_SETREGID		AUE_SETREGID	/* Darwin */
+#define	AUE_O_GETDIRENTRIES	AUE_GETDIRENTRIES	/* Darwin */
 #define	AUE_O_TRUNCATE		AUE_TRUNCATE	/* Darwin */
 #define	AUE_O_FTRUNCATE		AUE_FTRUNCATE	/* Darwin */
 #define	AUE_O_GETPEERNAME	AUE_NULL	/* Darwin */

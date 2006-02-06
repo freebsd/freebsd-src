@@ -25,9 +25,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#8 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#10 $
 .\"
-.Dd Jan 24, 2004
+.Dd January 24, 2004
 .Dt AUDITREDUCE 1
 .Os
 .Sh NAME
@@ -124,7 +124,8 @@ Select records containing the given shared memory id.
 .Sh Examples
 .Pp
 To select all records associated with effective user ID root from the audit
-log /var/audit/20031016184719.20031017122634:
+log
+.Pa /var/audit/20031016184719.20031017122634 :
 .Pp
 .Nm
 -e root /var/audit/20031016184719.20031017122634
@@ -136,9 +137,9 @@ events from that log:
 .Nm
 -m AUE_SETLOGIN /var/audit/20031016184719.20031017122634
 .Sh SEE ALSO
+.Xr praudit 1 ,
 .Xr audit_control 5 ,
-.Xr audit_event 5 ,
-.Xr praudit 1
+.Xr audit_event 5
 .Sh AUTHORS
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.

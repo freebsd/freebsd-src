@@ -25,9 +25,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_user.5#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_user.5#7 $
 .\"
-.Dd Jan 24, 2004
+.Dd February 5, 2006
 .Dt AUDIT_USER 5
 .Os
 .Sh NAME
@@ -44,9 +44,11 @@ These settings take effect when the user logs in.
 .Pp
 Each line maps a user name to a list of classes that should be audited and a
 list of classes that should not be audited. 
-Entries are of the form of
-.Dl username:alwaysaudit:neveraudit ,
-where
+Entries are of the form:
+.Pp
+.Dl username:alwaysaudit:neveraudit
+.Pp
+In the format above,
 .Vt alwaysaudit
 is a set of event classes that are always audited, and
 .Vt neveraudit
@@ -64,8 +66,8 @@ root:lo,ad:no
 jdoe:-fc,ad:+fw
 .Ed
 .Pp
-These settings would cause login and administrative events that succeed on
-behalf of user root to be audited.
+These settings would cause login/logout and administrative events that
+succeed on behalf of user root to be audited.
 No failure events are audited.
 For the user
 .Em jdoe ,

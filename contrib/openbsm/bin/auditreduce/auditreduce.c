@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#13 $
  */
 
 /* 
@@ -529,7 +529,7 @@ main(int argc, char **argv)
 	FILE *fp;
 	int i;
 	char *objval, *converr;
-	char ch;
+	int ch;
 	char timestr[128];
 	char *fname;
 

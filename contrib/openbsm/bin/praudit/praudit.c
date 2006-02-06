@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#7 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#9 $
  */
 
 /*
@@ -105,7 +105,7 @@ print_tokens(FILE *fp)
 int
 main(int argc, char **argv)
 {
-	char ch;
+	int ch;
 	int i;
 	FILE *fp;
 

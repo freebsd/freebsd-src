@@ -25,9 +25,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#9 $
 .\"
-.Dd Jan 24, 2004
+.Dd January 4, 2006
 .Dt AUDIT_CONTROL 5
 .Os
 .Sh NAME
@@ -38,7 +38,9 @@ The
 .Nm
 file contains several audit system parameters.
 Each line of this file is of the form:
-.Dl parameter:value.
+.Pp
+.Dl parameter:value
+.Pp
 The parameters are:
 .Bl -tag -width Ds
 .It Pa dir
@@ -63,13 +65,15 @@ When the free space falls below this limit a warning will be issued.
 Not currently used as the value of 20 percent is chosen by the kernel.
 .El
 .Sh AUDIT FLAGS
-Audit flags are a comma delimited list of audit classes as defined in the
-audit_class file.
+Audit flags are a comma-delimited list of audit classes as defined in the
+.Pa audit_class
+file.
 See
 .Xr audit_class 5
 for details.
 Event classes may be preceded by a prefix which changes their interpretation.
 The following prefixes may be used for each class:
+.Pp
 .Bl -tag -width Ds -compact -offset indent
 .It +
 Record successful events
@@ -78,9 +82,9 @@ Record failed events
 .It ^
 Record both successful and failed events
 .It ^+
-Don't record successful events
+Do not record successful events
 .It ^-
-Don't record failed events
+Do not record failed events
 .El
 .Sh DEFAULT
 The following settings appear in the default
@@ -88,7 +92,7 @@ The following settings appear in the default
 file:
 .Bd -literal -offset indent
 dir:/var/audit
-flags:lo,ad,-all,^-fc,^-cl
+flags:lo
 minfree:20
 naflags:lo
 .Ed
@@ -96,17 +100,16 @@ naflags:lo
 The
 .Va flags
 parameter above specifies the system-wide mask corresponding to login/logout
-events, administrative events, and all failures except for failures in creating
-or closing files.
+events.
 .Sh FILES
 .Bl -tag -width "/etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control
 .El
 .Sh SEE ALSO
-.Xr audit 1 ,
-.Xr auditd 8 ,
 .Xr audit_class 5 ,
-.Xr audit_user 5
+.Xr audit_user 5 ,
+.Xr audit 8 ,
+.Xr auditd 8
 .Sh AUTHORS
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
