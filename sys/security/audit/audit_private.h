@@ -297,4 +297,9 @@ void			 audit_shutdown(void *arg, int howto);
 void			 audit_rotate_vnode(struct ucred *cred,
 			    struct vnode *vp);
 
+/*
+ * Audit pipe functions.
+ */
+void			 audit_pipe_submit(void *record, u_int record_len);
+
 #endif /* ! _BSM_AUDIT_PRIVATE_H */
