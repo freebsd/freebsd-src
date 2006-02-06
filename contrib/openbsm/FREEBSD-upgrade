@@ -4,7 +4,7 @@ Upgrade Instructions for OpenBSM
 Currently this is very straight forward:
 
   cd ~/p4/projects/trustedbsd/openbsm
-  cvs -d rwatson@repoman.FreeBSD.org -q import src/contrib/openbsm \
+  cvs -d rwatson@repoman.FreeBSD.org:/home/ncvs -q import src/contrib/openbsm \
         TrustedBSD OPENBSM_1_0_ALPHA_1
 
 Replacing the version string as required.  Use the "-n" argument to CVS to
