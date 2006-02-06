@@ -216,7 +216,7 @@ xenix_eaccess(struct thread *td, struct xenix_eaccess_args *uap)
 		bsd_flags |= X_OK;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_access(td, path, UIO_SYSSPACE, bsd_flags);
+	error = kern_eaccess(td, path, UIO_SYSSPACE, bsd_flags);
 	free(path, M_TEMP);
         return (error);
 }

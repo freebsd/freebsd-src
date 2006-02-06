@@ -1915,18 +1915,24 @@ eaccess(td, uap)
 		int flags;
 	} */ *uap;
 {
+
+	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->flags));
+}
+
+int
+kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int flags)
+{
 	struct nameidata nd;
 	struct vnode *vp;
 	int vfslocked;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
 	vfslocked = NDHASGIANT(&nd);
-	error = vn_access(vp, uap->flags, td->td_ucred, td);
+	error = vn_access(vp, flags, td->td_ucred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
