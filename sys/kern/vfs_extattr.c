@@ -318,14 +318,16 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	struct file *fp;
 	struct mount *mp;
 	struct statfs *sp, sb;
+	struct vnode *vp;
 	int error;
 
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
-	mp = fp->f_vnode->v_mount;
+	vp = fp->f_vnode;
+	mp = vp->v_mount;
 	fdrop(fp, td);
-	if (mp == NULL)
+	if (vp->v_iflag & VI_DOOMED)
 		return (EBADF);
 	mtx_lock(&Giant);
 #ifdef MAC
