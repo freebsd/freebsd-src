@@ -25,9 +25,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_event.5#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_event.5#8 $
 .\"
-.Dd Jan 24, 2004
+.Dd January 24, 2004
 .Dt AUDIT_EVENT 5
 .Os
 .Sh NAME
@@ -38,11 +38,15 @@ The
 .Nm 
 file contains descriptions of the auditable events on the system.
 Each line maps an audit event number to a name, a description, and a class.
-Entries are of the form
-.Dl eventnum:eventname:description:eventclass .
+Entries are of the form:
+.Pp
+.Dl eventnum:eventname:description:eventclass
+.Pp
 Each
 .Vt eventclass
-should have a corresponding entry in the audit_class file.
+should have a corresponding entry in the
+.Pa audit_class
+file.
 See 
 .Xr audit_class 5
 for details.

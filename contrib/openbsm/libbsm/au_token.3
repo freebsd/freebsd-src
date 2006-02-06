@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#4 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#5 $
 .\"
 .Dd April 19, 2005
 .Dt AU_TOKEN 3
@@ -179,10 +179,10 @@
 .Fn au_to_trailer "int rec_size"
 .Sh DESCRIPTION
 These interfaces support the allocation of BSM audit tokens, represented by
-.Dt token_t ,
+.Ft token_t ,
 for various data types.
 .Sh RETURN VALUES
-On sucess, a pointer to a
+On success, a pointer to a
 .Vt token_t
 will be returned; the allocated
 .Vt token_t

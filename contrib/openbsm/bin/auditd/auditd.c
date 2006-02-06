@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#11 $
  */
 
 #include <sys/dirent.h>
@@ -46,6 +46,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -171,6 +172,34 @@ close_lastfile(char *TS)
 }
 
 /*
+ * Create the new audit file with appropriate permissions and ownership.  Try
+ * to clean up if something goes wrong.
+ */
+static int
+#ifdef AUDIT_REVIEW_GROUP
+open_trail(const char *fname, uid_t uid, gid_t gid)
+#else
+open_trail(const char *fname)
+#endif
+{
+	int error, fd;
+
+	fd = open(fname, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
+	if (fd < 0)
+		return (-1);
+#ifdef AUDIT_REVIEW_GROUP
+	if (fchown(fd, uid, gid) < 0) {
+		error = errno;
+		close(fd);
+		(void)unlink(fname);
+		errno = error;
+		return (-1);
+	}
+#endif
+	return (fd);
+}
+
+/*
  * Create the new file name, swap with existing audit file.
  */
 static int
@@ -180,13 +209,34 @@ swap_audit_file(void)
 	char *fn;
 	char TS[POSTFIX_LEN];
 	struct dir_ent *dirent;
-	int fd;
+#ifdef AUDIT_REVIEW_GROUP
+	struct group *grp;
+	gid_t gid;
+	uid_t uid;
+#endif
+	int error, fd;
 
 	if (getTSstr(TS, POSTFIX_LEN) != 0)
 		return (-1);
 
 	strcpy(timestr, TS);
 	strcat(timestr, NOT_TERMINATED);
+
+#ifdef AUDIT_REVIEW_GROUP
+	/*
+	 * XXXRW: Currently, this code falls back to the daemon gid, which is
+	 * likely the wheel group.  Is there a better way to deal with this?
+	 */
+	grp = getgrnam(AUDIT_REVIEW_GROUP);
+	if (grp == NULL) {
+		syslog(LOG_INFO,
+		    "Audit review group '%s' not available, using daemon gid",
+		    AUDIT_REVIEW_GROUP);
+		gid = -1;
+	} else
+		gid = grp->gr_gid;
+	uid = getuid();
+#endif
 
 	/* Try until we succeed. */
 	while ((dirent = TAILQ_FIRST(&dir_q))) {
@@ -201,20 +251,27 @@ swap_audit_file(void)
 		 * kernel if all went well.
 		 */
 		syslog(LOG_INFO, "New audit file is %s\n", fn);
-		fd = open(fn, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
+#ifdef AUDIT_REVIEW_GROUP
+		fd = open_trail(fn, uid, gid);
+#else
+		fd = open_trail(fn);
+#endif
 		if (fd < 0)
-			perror("File open");
-		else if (auditctl(fn) != 0) {
-			syslog(LOG_ERR,
-			    "auditctl failed setting log file! : %s\n",
-			    strerror(errno));
-			close(fd);
-		} else {
-			/* Success. */
-			close_lastfile(TS);
-			lastfile = fn;
-			close(fd);
-			return (0);
+			warn("open(%s)", fn);
+		if (fd >= 0) {
+			error = auditctl(fn);
+			if (error) {
+				syslog(LOG_ERR,
+				    "auditctl failed setting log file! : %s\n",
+				    strerror(errno));
+				close(fd);
+			} else {
+				/* Success. */
+				close_lastfile(TS);
+				lastfile = fn;
+				close(fd);
+				return (0);
+			}
 		}
 
 		/*
@@ -708,7 +765,7 @@ setup(void)
 int
 main(int argc, char **argv)
 {
-	char ch;
+	int ch;
 	int debug = 0;
 	int rc;
 
