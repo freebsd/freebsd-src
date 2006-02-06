@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#7 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#8 $
 .\"
 .Dd May 1, 2005
 .Dt AUDIT.LOG 5
@@ -204,7 +204,7 @@ The
 token contains an IP packet header in network byte order.
 An
 .Dv ip
-token can be cread using
+token can be created using
 .Xr au_to_ip 3 .
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
@@ -249,7 +249,7 @@ token contains a pathname.
 A
 .Dv path
 token can be created using
-.Xr auto_path 3 .
+.Xr au_to_path 3 .
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"
@@ -262,7 +262,7 @@ The
 token contains a set of nul-terminated path names.
 The
 .Xr libbsm 3
-API cannot currently create an
+API cannot currently create a
 .Dv path_attr
 token.
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
@@ -283,7 +283,7 @@ token, which describes the subject performing an auditable event.
 This includes both the traditional
 .Ux
 security properties, such as user IDs and group IDs, but also audit
-information such as the audit user ID and sesion.
+information such as the audit user ID and session.
 A
 .Dv process
 token can be created using
@@ -310,12 +310,12 @@ token contains the contents of the
 .Dv process
 token, with the addition of a machine address type and variable length
 address storage capable of containing IPv6 addresses.
-A
+An
 .Dv expanded process
 token can be created using
 .Xr au_to_process32_ex 3
 or
-.Xr au_to_process64 3 .
+.Xr au_to_process64_ex 3 .
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"
@@ -385,7 +385,7 @@ token consists of the same elements as the
 .Dv subject
 token, with the addition of type/length and variable size machine address
 information in the terminal ID.
-A
+An
 .Dv expanded subject
 token can be created using
 .Xr au_to_subject32_ex 3
@@ -412,7 +412,7 @@ token ...
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"
-.It Li "object ID type" Ta "1 byte" Ta "Object ID"
+.It Li "Object ID type" Ta "1 byte" Ta "Object ID"
 .It Li "Object ID" Ta "4 bytes" Ta "Object ID"
 .El
 .Ss Text Token
@@ -438,7 +438,7 @@ included with the attribute block for a file; optional
 .Dv path
 tokens may also be present in an audit record indicating which path, if any,
 was used to reach the object.
-A
+An
 .Dv attribute
 token can be created using
 .Xr au_to_attr32 3
@@ -593,8 +593,8 @@ token ...
 .It Li XXXXX
 .El
 .Sh SEE ALSO
-.Xr audit 8,
-.Xr libbsm 3
+.Xr libbsm 3 ,
+.Xr audit 8
 .Sh AUTHORS
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.

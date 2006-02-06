@@ -1,7 +1,7 @@
 #
 # OpenBSM libbsm
 #
-# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile#11 $
+# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile#13 $
 #
 
 LIB=		bsm
@@ -35,7 +35,9 @@ MAN=	libbsm.3							\
 
 MLINKS=	libbsm.3 bsm.3							\
 	au_class.3 getauclassent.3					\
+	au_class.3 getauclassent_r.3					\
 	au_class.3 getauclassnam.3					\
+	au_class.3 getauclassnam_r.3					\
 	au_class.3 setauclass.3						\
 	au_class.3 endauclass.3						\
 	au_control.3 setac.3						\
@@ -47,9 +49,13 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_event.3 setauevent.3						\
 	au_event.3 endauevent.3						\
 	au_event.3 getauevent.3						\
+	au_event.3 getauevent_r.3					\
 	au_event.3 getauevnam.3						\
+	au_event.3 getauevnam_r.3					\
 	au_event.3 getauevnum.3						\
+	au_event.3 getauevnum_r.3					\
 	au_event.3 getauevnonam.3					\
+	au_event.3 getauevnonam_r.3					\
 	au_io.3	au_fetch_tok.3						\
 	au_io.3	au_print_tok.3						\
 	au_io.3	au_read_rec.3						\
