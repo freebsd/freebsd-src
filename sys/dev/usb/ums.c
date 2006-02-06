@@ -117,7 +117,7 @@ struct ums_softc {
 #define UMS_SPUR_BUT_UP	0x02	/* spurious button up events */
 #define UMS_T		0x04	/* aa direction available (tilt) */
 	int nbuttons;
-#define MAX_BUTTONS	7	/* chosen because sc_buttons is u_char */
+#define MAX_BUTTONS	31	/* chosen because sc_buttons is int */
 
 	u_char		qbuf[QUEUE_BUFSIZE];	/* must be divisable by 3&4 */
 	u_char		dummy[100];	/* XXX just for safety and for now */
@@ -425,7 +425,7 @@ ums_intr(xfer, addr, status)
 	struct ums_softc *sc = addr;
 	u_char *ibuf;
 	int dx, dy, dz, dt;
-	u_char buttons = 0;
+	int buttons = 0;
 	int i;
 
 #define UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
