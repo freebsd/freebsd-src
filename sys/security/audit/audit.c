@@ -372,6 +372,14 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 	 * we ignore errors.
 	 */
 	if (ar->k_ar_commit & AR_COMMIT_USER) {
+		/*
+		 * Try submitting the record to any active audit pipes.
+		 */
+		audit_pipe_submit((void *)ar->k_udata, ar->k_ulen);
+
+		/*
+		 * And to disk.
+		 */
 		ret = vn_rdwr(UIO_WRITE, vp, (void *)ar->k_udata, ar->k_ulen,
 		          (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, cred, NULL,
 			  NULL, td); 
@@ -407,6 +415,11 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 		ret = EINVAL;
 		goto out;
 	}
+
+	/*
+	 * Try submitting the record to any active audit pipes.
+	 */
+	audit_pipe_submit((void *)bsm->data, bsm->len);
 	
 	/*
 	 * XXX
