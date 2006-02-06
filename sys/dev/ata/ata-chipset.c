@@ -1897,7 +1897,7 @@ ata_intel_31244_status(device_t dev)
     }
 
     /* any drive action to take care of ? */
-    return 1;
+    return ata_pci_status(dev);
 }
 
 static int
