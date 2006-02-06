@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#18 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#20 $
  * $FreeBSD$
  */
 
@@ -361,7 +361,7 @@
 #define	AUE_NMOUNT		380	/* FreeBSD-specific. */
 #define	AUE_BDFLUSH		381	/* Linux-specific. */
 #define	AUE_SETFSUID		382	/* Linux-specific. */
-#define	AUE_GETFSUID		383	/* Linux-specific. */
+#define	AUE_SETFSGID		383	/* Linux-specific. */
 #define	AUE_PERSONALITY		384	/* Linux-specific. */
 #define	AUE_SCHED_GETSCHEDULER	385	/* POSIX.1b. */
 #define	AUE_SCHED_SETSCHEDULER	386	/* POSIX.1b. */
@@ -384,6 +384,7 @@
 #define	AUE_ACL_DELETE_FD		403	/* FreeBSD. */
 #define	AUE_ACL_CHECK_FILE		404	/* FreeBSD. */
 #define	AUE_ACL_CHECK_FD		405	/* FreeBSD. */
+#define	AUE_SYSARCH			406	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
