@@ -62,13 +62,15 @@ to monitor for audit events, such as requests to cycle the log, low disk
 space conditions, and requests to terminate auditing.
 This device is not intended for use by applications.
 .Ss Audit Pipe Special Devices
-The kernel audit facility also a clonable special device,
+The kernel audit facility also provides a clonable special device,
 .Pa /dev/auditpipe ,
 which allows appropriately privileged applications to gain direct access to
 the BSM audit stream without accessing audit trail files.
 As audit trail files are owned by the audit daemon until terminated, they
 are an unreliable way for applications to access live audit data; this
-special device inserts a "tee" in the audit event stream.
+special device inserts a
+.Qq tee
+in the audit event stream.
 This facility is appropriate for use by live monitoring tools, including
 intrusion detection.
 As the device is clonable, more than one instance of the device may be opened
