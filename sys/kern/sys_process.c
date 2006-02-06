@@ -985,6 +985,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		} else {
 			pl->pl_flags = 0;
 		}
+		pl->pl_sigmask = td2->td_sigmask;
+		pl->pl_siglist = td2->td_siglist;
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (0);
