@@ -471,6 +471,10 @@ thread_exit(void)
 	    (long)p->p_pid, p->p_comm);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
 
+#ifdef AUDIT
+	AUDIT_SYSCALL_EXIT(0, td);
+#endif
+
 	if (td->td_standin != NULL) {
 		/*
 		 * Note that we don't need to free the cred here as it
