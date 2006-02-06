@@ -514,7 +514,7 @@ dirloop:
 			if ((dp->v_vflag & VV_ROOT) == 0 ||
 			    (cnp->cn_flags & NOCROSSMOUNT))
 				break;
-			if (dp->v_mount == NULL) {	/* forced unmount */
+			if (dp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				error = EBADF;
 				goto bad;
 			}
@@ -659,7 +659,7 @@ unionlookup:
 	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
-		if (dp->v_mount == NULL) {
+		if (dp->v_iflag & VI_DOOMED) {
 			/* We can't know whether the directory was mounted with
 			 * NOSYMFOLLOW, so we can't follow safely. */
 			error = EBADF;
