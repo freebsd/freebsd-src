@@ -824,7 +824,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	}
 	while (vp != rdir && vp != rootvnode) {
 		if (vp->v_vflag & VV_ROOT) {
-			if (vp->v_mount == NULL) {	/* forced unmount */
+			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				error = EBADF;
 				break;
 			}
