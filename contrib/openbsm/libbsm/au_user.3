@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_user.3#3 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_user.3#4 $
 .\"
 .Dd April 19, 2005
 .Dt AU_USER 3
@@ -72,7 +72,7 @@ and events never to audit
 .Dv au_never .
 .Pp
 .Fn getauuserent
-return the next user found in the
+returns the next user found in the
 .Xr audit_user 5
 database, or the first if the function has not yet been called.
 .Dv NULL
@@ -96,7 +96,7 @@ closes the
 database, if open.
 .Pp
 .Nm au_user_mask
-calculate a new session audit mask to be returned via
+calculates a new session audit mask to be returned via
 .Dv mask_p
 for the user identified by
 .Dv username .
