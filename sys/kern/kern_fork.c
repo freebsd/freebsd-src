@@ -805,14 +805,11 @@ fork_exit(callout, arg, frame)
 	 * Check if a kernel thread misbehaved and returned from its main
 	 * function.
 	 */
-	PROC_LOCK(p);
 	if (p->p_flag & P_KTHREAD) {
-		PROC_UNLOCK(p);
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
 		    p->p_comm, p->p_pid);
 		kthread_exit(0);
 	}
-	PROC_UNLOCK(p);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
