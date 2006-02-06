@@ -62,17 +62,23 @@ to monitor for audit events, such as requests to cycle the log, low disk
 space conditions, and requests to terminate auditing.
 This device is not intended for use by applications.
 .Ss Audit Pipe Special Devices
-The kernel audit facility also provides a clonable special device,
+While audit trail files maintained by
+.Xr auditd 8
+provide a reliable long-term store for audit log information, current log
+files are owned by the audit daemon until terminated making them somewhat
+unwieldy for live montoring applications such as host-based intrusion
+detection.
+For example, the log may be cycled and new records written to a new file
+without notice to applications that may be accessing the file.
+.Pp
+The audit facility provides an audit pipe facility for applications requiring
+direct access to live BSM audit data for the purposes of real-time
+monitoring.
+Audit pipes are available via a clonable special device,
 .Pa /dev/auditpipe ,
-which allows appropriately privileged applications to gain direct access to
-the BSM audit stream without accessing audit trail files.
-As audit trail files are owned by the audit daemon until terminated, they
-are an unreliable way for applications to access live audit data; this
-special device inserts a
+subject to the permissions on the device node, and provide a 
 .Qq tee
-in the audit event stream.
-This facility is appropriate for use by live monitoring tools, including
-intrusion detection.
+of the audit event stream.
 As the device is clonable, more than one instance of the device may be opened
 at a time; each device instance will provide access to all records.
 .Pp
