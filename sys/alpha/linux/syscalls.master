@@ -462,7 +462,7 @@
 323	AUE_NULL	MSTD	{ int linux_times(struct l_times_argv *buf); }
 324	AUE_PERSONALITY	MSTD	{ int linux_personality(l_ulong per); }
 325	AUE_SETFSUID	MSTD	{ int linux_setfsuid(l_uid_t uid); }
-326	AUE_GETFSUID	MSTD	{ int linux_setfsgid(l_gid_t gid); }
+326	AUE_SETFSGID	MSTD	{ int linux_setfsgid(l_gid_t gid); }
 327	AUE_NULL	MSTD	{ int linux_ustat(l_dev_t dev, \
 				    struct l_ustat *ubuf); }
 328	AUE_STATFS	MSTD	{ int linux_statfs(char *path, \
