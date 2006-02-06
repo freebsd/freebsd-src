@@ -81,7 +81,6 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
-	exec_free_args(&eargs);
 	return (error);
 }
 

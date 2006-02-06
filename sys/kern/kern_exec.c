@@ -86,6 +86,7 @@ static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int do_execve(struct thread *td, struct image_args *args,
     struct mac *mac_p);
+static void exec_free_args(struct image_args *);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
@@ -181,12 +182,8 @@ execve(td, uap)
 
 	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
-
 	if (error == 0)
 		error = kern_execve(td, &args, NULL);
-
-	exec_free_args(&args);
-
 	return (error);
 }
 
@@ -218,12 +215,8 @@ __mac_execve(td, uap)
 
 	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
-
 	if (error == 0)
 		error = kern_execve(td, &args, uap->mac_p);
-
-	exec_free_args(&args);
-
 	return (error);
 #else
 	return (ENOSYS);
@@ -776,19 +769,6 @@ exec_fail:
 	p->p_flag &= ~P_INEXEC;
 	PROC_UNLOCK(p);
 
-	if (imgp->vmspace_destroyed) {
-		/* sorry, no more process anymore. exit gracefully */
-#ifdef MAC
-		mac_execve_exit(imgp);
-		if (interplabel != NULL)
-			mac_vnode_label_free(interplabel);
-#endif
-		VFS_UNLOCK_GIANT(vfslocked);
-		exec_free_args(args);
-		exit1(td, W_EXITCODE(0, SIGABRT));
-		/* NOT REACHED */
-		error = 0;
-	}
 done2:
 #ifdef MAC
 	mac_execve_exit(imgp);
@@ -796,6 +776,13 @@ done2:
 		mac_vnode_label_free(interplabel);
 #endif
 	VFS_UNLOCK_GIANT(vfslocked);
+	exec_free_args(args);
+
+	if (error && imgp->vmspace_destroyed) {
+		/* sorry, no more process anymore. exit gracefully */
+		exit1(td, W_EXITCODE(0, SIGABRT));
+		/* NOT REACHED */
+	}
 	return (error);
 }
 
@@ -1036,7 +1023,7 @@ exec_copyin_args(struct image_args *args, char *fname,
 	return (0);
 }
 
-void
+static void
 exec_free_args(struct image_args *args)
 {
 
