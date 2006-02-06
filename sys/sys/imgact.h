@@ -76,7 +76,6 @@ void	exec_setregs(struct thread *, u_long, u_long, u_long);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, char *, enum uio_seg,
 	char **, char **);
-void	exec_free_args(struct image_args *);
 #endif
 
 #endif /* !_SYS_IMGACT_H_ */

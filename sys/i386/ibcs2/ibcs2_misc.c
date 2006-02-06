@@ -207,7 +207,6 @@ ibcs2_execv(td, uap)
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
-	exec_free_args(&eargs);
 	return (error);
 }
 
@@ -227,7 +226,6 @@ ibcs2_execve(td, uap)
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
-	exec_free_args(&eargs);
 	return (error);
 }
 
