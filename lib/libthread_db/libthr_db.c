@@ -474,6 +474,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 
 	TDBG_FUNC();
 
+	bzero(info, sizeof(*info));
 	ret = pt_validate(th);
 	if (ret)
 		return (ret);
