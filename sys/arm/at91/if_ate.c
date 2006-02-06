@@ -181,13 +181,13 @@ ate_attach(device_t dev)
 
 	ate_get_mac(sc, eaddr);
 
+	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
 		device_printf(dev, "Cannot find my PHY.\n");
 		err = ENXIO;
 		goto out;
 	}
 
-	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -611,6 +611,8 @@ ate_intr(void *xsc)
 					    BUS_DMASYNC_PREWRITE);
 					continue;
 				}
+				mb->m_len = sc->rx_descs[i].status & 
+				    ETH_LEN_MASK;
 				/*
 				 * For the last buffer, set the wrap bit so
 				 * the controller restarts from the first
@@ -817,7 +819,7 @@ atestop(struct ate_softc *sc)
 	/*
 	 * Enable some parts of the MAC that are needed always (like the
 	 * MII bus.  This turns off the RE and TE bits, which will remain
-	 * off until atestart() is called to turn them on.  With RE and TE
+	 * off until ateinit() is called to turn them on.  With RE and TE
 	 * turned off, there's no DMA to worry about after this write.
 	 */
 	WR4(sc, ETH_CTL, ETH_CTL_MPE);
