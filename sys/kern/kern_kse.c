@@ -266,7 +266,6 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 		    args.argv, args.envp);
 		if (error == 0)
 			error = kern_execve(td, &iargs, NULL);
-		exec_free_args(&iargs);
 		if (error == 0) {
 			PROC_LOCK(p);
 			SIGSETOR(td->td_siglist, args.sigpend);

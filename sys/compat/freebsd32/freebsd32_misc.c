@@ -324,7 +324,6 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
-	exec_free_args(&eargs);
 	return (error);
 }
 
