@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#5 $
  */
 
 #ifndef _AUDITD_H_
@@ -42,6 +42,13 @@
 
 #define	MAX_DIR_SIZE	255
 #define	AUDITD_NAME	"auditd"
+
+/*
+ * If defined, then the audit daemon will attempt to chown newly created logs
+ * to this group.  Otherwise, they will be the default for the user running
+ * auditd, likely the audit group.
+ */
+#define	AUDIT_REVIEW_GROUP	"audit"
 
 #define	POSTFIX_LEN		16
 #define	NOT_TERMINATED	".not_terminated"

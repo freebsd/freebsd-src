@@ -25,9 +25,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_class.5#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_class.5#7 $
 .\"
-.Dd Jan 24, 2004
+.Dd January 24, 2004
 .Dt AUDIT_CLASS 5
 .Os
 .Sh NAME
@@ -40,8 +40,9 @@ file contains descriptions of the auditable event classes on the system.
 Each auditable event is a member of an event class.
 Each line maps an audit event 
 mask (bitmap) to a class and a description.
-Entries are of the form 
-.Dl classmask:eventclass:description.
+Entries are of the form:
+.Pp
+.Dl classmask:eventclass:description
 .Pp
 Example entries in this file are:
 .Bd -literal -offset indent
