@@ -508,12 +508,6 @@ retry:
 			psignal(p->p_pptr, p->p_sigparent);
 	}
 	PROC_UNLOCK(p->p_pptr);
-
-	/*
-	 * If this is a kthread, then wakeup anyone waiting for it to exit.
-	 */
-	if (p->p_flag & P_KTHREAD)
-		wakeup(p);
 	PROC_UNLOCK(p);
 
 	/*

@@ -129,11 +129,23 @@ kthread_exit(int ecode)
 
 	td = curthread;
 	p = td->td_proc;
+
+	/*
+	 * Reparent curthread from proc0 to init so that the zombie
+	 * is harvested.
+	 */
 	sx_xlock(&proctree_lock);
 	PROC_LOCK(p);
 	proc_reparent(p, initproc);
 	PROC_UNLOCK(p);
 	sx_xunlock(&proctree_lock);
+
+	/*
+	 * Wakeup anyone waiting for us to exit.
+	 */
+	wakeup(p);
+
+	/* Buh-bye! */
 	exit1(td, W_EXITCODE(ecode, 0));
 }
 
