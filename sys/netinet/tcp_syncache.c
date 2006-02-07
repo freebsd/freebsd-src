@@ -1386,6 +1386,7 @@ syncookie_lookup(inc, th, so)
 	 * Fill in the syncache values.
 	 * XXX duplicate code from syncache_add
 	 */
+	bzero(sc, sizeof(*sc));
 	sc->sc_ipopts = NULL;
 	sc->sc_inc.inc_fport = inc->inc_fport;
 	sc->sc_inc.inc_lport = inc->inc_lport;
