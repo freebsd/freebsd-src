@@ -147,6 +147,7 @@ static void ate_deactivate(device_t dev);
 static int ate_ifmedia_upd(struct ifnet *ifp);
 static void ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 static void ate_get_mac(struct ate_softc *sc, u_char *eaddr);
+static void ate_set_mac(struct ate_softc *sc, u_char *eaddr);
 
 /*
  * The AT91 family of products has the ethernet called EMAC.  However,
@@ -180,6 +181,7 @@ ate_attach(device_t dev)
 	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
 	ate_get_mac(sc, eaddr);
+	ate_set_mac(sc, eaddr);
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
@@ -537,6 +539,15 @@ ate_tick(void *xsc)
 	 * Schedule another timeout one second from now.
 	 */
 	callout_reset(&sc->tick_ch, hz, ate_tick, sc);
+}
+
+static void
+ate_set_mac(struct ate_softc *sc, u_char *eaddr)
+{
+	WR4(sc, ETH_SA1L, (eaddr[3] << 24) | (eaddr[2] << 16) |
+	    (eaddr[1] << 8) | eaddr[0]);
+	WR4(sc, ETH_SA1H, (eaddr[5] << 8) | (eaddr[4]));
+
 }
 
 static void
