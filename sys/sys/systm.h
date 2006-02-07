@@ -238,6 +238,9 @@ int	setenv(const char *name, const char *value);
 int	unsetenv(const char *name);
 int	testenv(const char *name);
 
+extern uint64_t	(*cpu_ticks)(void);
+extern uint64_t	(*cpu_tickrate)(void);
+
 #ifdef APM_FIXUP_CALLTODO
 struct timeval;
 void	adjust_timeout_calltodo(struct timeval *time_change);

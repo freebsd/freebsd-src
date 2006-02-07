@@ -131,6 +131,7 @@ sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
 #endif
 		return SYSCTL_OUT(req, &boottime, sizeof(boottime));
 }
+
 /*
  * Return the difference between the timehands' counter value now and what
  * was when we copied it to the timehands' offset_count.
@@ -782,3 +783,23 @@ inittimecounter(void *dummy)
 }
 
 SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL)
+
+static
+uint64_t
+tc_cpu_ticks(void)
+{
+	static uint64_t base;
+	static unsigned last;
+	uint64_t u;
+	struct timecounter *tc;
+
+	tc = timehands->th_counter;
+	u = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
+	if (u < last)
+		base += tc->tc_counter_mask + 1;
+	last = u;
+	return (u + base);
+}
+
+uint64_t (*cpu_ticks)(void) = tc_cpu_ticks;
+uint64_t (*cpu_tickrate)(void) = tc_getfrequency;
