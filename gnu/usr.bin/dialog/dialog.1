@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .TH DIALOG 1 "2 October 1998"
 .SH NAME
 dialog \- display dialog boxes from shell scripts
@@ -59,7 +60,7 @@ to be displayed by pressing ? or F1.
 .TP
 .B Box Options
 .TP
-.BI \-\-yesno " text height width"
+.BI \-\-yesno " text height width \fR[ \fByes \fR| \fBno \fR]"
 .RB A " yes/no" " dialog box of size"
 .I height
 rows by
@@ -80,6 +81,8 @@ asking questions that require the user to answer either yes or no.
 .RB "The dialog box has a" " Yes" " button and a " No
 button, in which the user can switch between by pressing the
 .IR TAB " key."
+.RB A " Yes" " button is selected by default unless" " no"
+is specified.
 .TP
 .BI \-\-msgbox " text height width"
 .RB A " message" " box is very similar to a" " yes/no" " box."
