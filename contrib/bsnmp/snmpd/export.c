@@ -121,6 +121,30 @@ string_get(struct snmp_value *value, const u_char *ptr, ssize_t len)
 }
 
 /*
+ * Get a string value for a response packet but cut it if it is too long.
+ */
+int
+string_get_max(struct snmp_value *value, const u_char *ptr, ssize_t len,
+    size_t maxlen)
+{
+
+	if (ptr == NULL) {
+		value->v.octetstring.len = 0;
+		value->v.octetstring.octets = NULL;
+		return (SNMP_ERR_NOERROR);
+	}
+	if (len == -1)
+		len = strlen(ptr);
+	if ((size_t)len > maxlen)
+		len = maxlen;
+	value->v.octetstring.len = (u_long)len;
+	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL)
+		return (SNMP_ERR_RES_UNAVAIL);
+	memcpy(value->v.octetstring.octets, ptr, (size_t)len);
+	return (SNMP_ERR_NOERROR);
+}
+
+/*
  * Support for IPADDRESS
  *
  * Save the old IP address in scratch->int1 and set the new one.
