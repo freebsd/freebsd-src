@@ -1,4 +1,5 @@
-# GENERIC -- Generic kernel configuration file for FreeBSD/arm
+# SKYEYE -- Kernel configuration for running the skyeye simulator
+# simulating the Atmel AT91RM9200.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
