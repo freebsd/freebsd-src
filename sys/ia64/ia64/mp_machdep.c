@@ -138,7 +138,7 @@ ia64_ap_startup(void)
 	spinlock_exit();
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 
-	binuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchtime, cpu_ticks());
 	PCPU_SET(switchticks, ticks);
 
 	ia64_set_tpr(0);

@@ -624,7 +624,6 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	struct thread *td0;
 	struct tty *tp;
 	struct session *sp;
-	struct timeval tv;
 	struct ucred *cred;
 	struct sigacts *ps;
 
@@ -695,8 +694,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
-	bintime2timeval(&p->p_rux.rux_runtime, &tv);
-	kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+	kp->ki_runtime = p->p_rux.rux_runtime * 1000000 / cpu_tickrate();
 	mtx_unlock_spin(&sched_lock);
 	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
 		kp->ki_start = p->p_stats->p_start;

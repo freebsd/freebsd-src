@@ -65,6 +65,20 @@ SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_ticks, CTLFLAG_RD, &adjust_ticks,
 
 static void tick_hardclock(struct trapframe *);
 
+static uint64_t
+tick_cputicks(void)
+{
+
+	return (rd(tick));
+}
+
+static uint64_t
+tick_cputickrate(void)
+{
+
+	return (tick_freq);
+}
+
 void
 cpu_initclocks(void)
 {
@@ -156,6 +170,9 @@ tick_init(u_long clock)
 	 * handled.
 	 */
 	tick_stop();
+
+	cpu_ticks = tick_cputicks;
+	cpu_tickrate = tick_cputickrate;
 }
 
 void
