@@ -1,4 +1,5 @@
-# GENERIC -- Generic kernel configuration file for FreeBSD/arm
+# KB920X -- Custom kernel configuration for the KB9200, 9201 and 9202
+# AT91RM9200 evaluation boards from kwikbyte.com.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
