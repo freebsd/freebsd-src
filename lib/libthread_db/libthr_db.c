@@ -469,6 +469,7 @@ static td_err_e
 pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 {
 	const td_thragent_t *ta = th->th_ta;
+	struct ptrace_lwpinfo linfo;
 	int state;
 	int ret;
 
@@ -496,6 +497,11 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	info->ti_tid = th->th_tid;
 	info->ti_thread = th->th_thread;
 	info->ti_ta_p = th->th_ta;
+	ret = ps_linfo(ta->ph, th->th_tid, &linfo);
+	if (ret == PS_OK) {
+		info->ti_sigmask = linfo.pl_sigmask;
+		info->ti_pending = linfo.pl_siglist;
+	}	
 	if (state == ta->thread_state_running)
 		info->ti_state = TD_THR_RUN;
 	else if (state == ta->thread_state_zoombie)
