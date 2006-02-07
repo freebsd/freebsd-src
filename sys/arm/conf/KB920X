@@ -69,7 +69,8 @@ device		ether
 device		nexus
 device		uart
 device		ate
-device		miibus
+device		mii
+device		lxtphy
 
 # Debugging for use in -current
 #options 	INVARIANTS		#Enable calls of extra sanity checking
