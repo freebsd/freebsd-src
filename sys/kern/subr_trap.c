@@ -238,7 +238,7 @@ ast(struct trapframe *framep)
 		PROC_LOCK(p);
 		lim_rlimit(p, RLIMIT_CPU, &rlim);
 		mtx_lock_spin(&sched_lock);
-		if (p->p_rux.rux_runtime.sec >= rlim.rlim_max) {
+		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
 			mtx_unlock_spin(&sched_lock);
 			killproc(p, "exceeded maximum CPU limit");
 		} else {

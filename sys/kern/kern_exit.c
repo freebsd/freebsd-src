@@ -110,7 +110,7 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
-	struct bintime new_switchtime;
+	uint64_t new_switchtime;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
@@ -543,9 +543,8 @@ retry:
 	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
-	binuptime(&new_switchtime);
-	bintime_add(&p->p_rux.rux_runtime, &new_switchtime);
-	bintime_sub(&p->p_rux.rux_runtime, PCPU_PTR(switchtime));
+	new_switchtime = cpu_ticks();
+	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 	cnt.v_swtch++;

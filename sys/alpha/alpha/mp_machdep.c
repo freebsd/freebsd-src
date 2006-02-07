@@ -225,7 +225,7 @@ smp_init_secondary(void)
 	spinlock_exit();
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 
-	binuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchtime, cpu_ticks());
 	PCPU_SET(switchticks, ticks);
 
 	cpu_throw(NULL, choosethread());	/* doesn't return */

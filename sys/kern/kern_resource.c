@@ -704,7 +704,7 @@ calcru(p, up, sp)
 	struct timeval *up;
 	struct timeval *sp;
 {
-	struct bintime bt;
+	uint64_t bt;
 	struct rusage_ext rux;
 	struct thread *td;
 	int bt_valid;
@@ -712,6 +712,7 @@ calcru(p, up, sp)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	bt_valid = 0;
+	bt = 0;
 	mtx_lock_spin(&sched_lock);
 	rux = p->p_rux;
 	FOREACH_THREAD_IN_PROC(p, td) {
@@ -725,12 +726,16 @@ calcru(p, up, sp)
 			KASSERT(td->td_oncpu != NOCPU,
 			    ("%s: running thread has no CPU", __func__));
 			if (!bt_valid) {
-				binuptime(&bt);
+				bt = cpu_ticks();
 				bt_valid = 1;
 			}
-			bintime_add(&rux.rux_runtime, &bt);
-			bintime_sub(&rux.rux_runtime,
-			    &pcpu_find(td->td_oncpu)->pc_switchtime);
+			/*
+			 * XXX: Doesn't this mean that this quantum will
+			 * XXX: get counted twice if calcru() is called
+			 * XXX: from SIGINFO ?
+			 */
+			rux.rux_runtime +=
+			    (bt - pcpu_find(td->td_oncpu)->pc_switchtime);
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
@@ -758,7 +763,6 @@ calcru1(p, ruxp, up, sp)
 	struct timeval *up;
 	struct timeval *sp;
 {
-	struct timeval tv;
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
 
@@ -770,8 +774,7 @@ calcru1(p, ruxp, up, sp)
 		st = 1;
 		tt = 1;
 	}
-	bintime2timeval(&ruxp->rux_runtime, &tv);
-	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+	tu = (ruxp->rux_runtime * 1000000LL) / cpu_tickrate();
 	ptu = ruxp->rux_uu + ruxp->rux_su + ruxp->rux_iu;
 	if (tu < ptu) {
 		printf(
@@ -884,7 +887,7 @@ ruadd(ru, rux, ru2, rux2)
 	register long *ip, *ip2;
 	register int i;
 
-	bintime_add(&rux->rux_runtime, &rux2->rux_runtime);
+	rux->rux_runtime += rux2->rux_runtime;
 	rux->rux_uticks += rux2->rux_uticks;
 	rux->rux_sticks += rux2->rux_sticks;
 	rux->rux_iticks += rux2->rux_iticks;
