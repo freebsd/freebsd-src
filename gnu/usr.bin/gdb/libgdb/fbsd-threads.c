@@ -1685,3 +1685,17 @@ ps_lcontinue(struct ps_prochandle *ph, lwpid_t lwpid)
     return PS_ERR;
   return PS_OK;   
 }
+
+ps_err_e
+ps_linfo(struct ps_prochandle *ph, lwpid_t lwpid, void *info)
+{
+  if (fbsd_thread_core) {
+    /* XXX should verify lwpid and make a pseudo lwp info */
+    memset(info, 0, sizeof(struct ptrace_lwpinfo));
+    return PS_OK;
+  }
+
+  if (ptrace (PT_LWPINFO, lwpid, info, sizeof(struct ptrace_lwpinfo)) == -1)
+    return PS_ERR;
+  return PS_OK;
+}
