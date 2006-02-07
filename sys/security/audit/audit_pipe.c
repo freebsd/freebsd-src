@@ -198,6 +198,7 @@ audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 		ape_remove = TAILQ_FIRST(&ap->ap_queue);
 		TAILQ_REMOVE(&ap->ap_queue, ape_remove, ape_queue);
 		audit_pipe_entry_free(ape_remove);
+		ap->ap_qlen--;
 		ap->ap_drops++;
 		audit_pipe_drops++;
 	}
