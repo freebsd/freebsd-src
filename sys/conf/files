@@ -55,7 +55,7 @@ emu10k1-alsa%diked.h		optional snd_emu10k1 pci			   \
 	compile-with	"CC=${CC} AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
-miidevs.h			optional miibus				   \
+miidevs.h			optional miibus | mii			   \
 	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	   \
 	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
 	no-obj no-implicit-rule before-depend				   \
@@ -695,31 +695,35 @@ dev/mcd/mcd.c			optional mcd isa nowerror
 dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
 dev/mem/memdev.c		optional mem
-dev/mii/acphy.c			optional miibus
-dev/mii/amphy.c			optional miibus
-dev/mii/bmtphy.c		optional miibus
-dev/mii/brgphy.c		optional miibus
-dev/mii/ciphy.c			optional miibus
-dev/mii/e1000phy.c		optional miibus
-dev/mii/exphy.c			optional miibus
-dev/mii/inphy.c			optional miibus
-dev/mii/lxtphy.c		optional miibus
-dev/mii/mii.c			optional miibus
-dev/mii/mii_physubr.c		optional miibus
-dev/mii/miibus_if.m		optional miibus
-dev/mii/mlphy.c			optional miibus
-dev/mii/nsgphy.c		optional miibus
-dev/mii/nsphy.c			optional miibus
-dev/mii/pnaphy.c		optional miibus
-dev/mii/qsphy.c			optional miibus
-dev/mii/rgephy.c		optional miibus
-dev/mii/rlphy.c			optional miibus
-dev/mii/ruephy.c		optional miibus
-dev/mii/tdkphy.c		optional miibus
-dev/mii/tlphy.c			optional miibus
-dev/mii/ukphy.c			optional miibus
-dev/mii/ukphy_subr.c		optional miibus
-dev/mii/xmphy.c			optional miibus
+dev/mii/acphy.c			optional miibus | acphy
+dev/mii/amphy.c			optional miibus | amphy
+dev/mii/bmtphy.c		optional miibus | bmtphy
+dev/mii/brgphy.c		optional miibus | brgphy
+dev/mii/ciphy.c			optional miibus | ciphy
+dev/mii/e1000phy.c		optional miibus | e1000phy
+# XXX only xl cards?
+dev/mii/exphy.c			optional miibus | exphy
+# XXX only fxp cards?
+dev/mii/inphy.c			optional miibus | inphy
+dev/mii/lxtphy.c		optional miibus | lxtphy
+dev/mii/mii.c			optional miibus | mii
+dev/mii/mii_physubr.c		optional miibus | mii
+dev/mii/miibus_if.m		optional miibus | mii
+dev/mii/mlphy.c			optional miibus | mlphy
+dev/mii/nsgphy.c		optional miibus | nsgphy
+dev/mii/nsphy.c			optional miibus | nsphy
+dev/mii/pnaphy.c		optional miibus | pnaphy
+dev/mii/qsphy.c			optional miibus | qsphy
+dev/mii/rgephy.c		optional miibus | rgephy
+# XXX rl and re only?
+dev/mii/rlphy.c			optional miibus | rlphy
+# XXX rue only?
+dev/mii/ruephy.c		optional miibus | ruephy
+dev/mii/tdkphy.c		optional miibus | tdkphy
+dev/mii/tlphy.c			optional miibus | tlphy
+dev/mii/ukphy.c			optional miibus | mii
+dev/mii/ukphy_subr.c		optional miibus | mii
+dev/mii/xmphy.c			optional miibus | xmphy
 dev/mk48txx/mk48txx.c		optional mk48txx
 dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
