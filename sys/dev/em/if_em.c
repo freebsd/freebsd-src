@@ -1101,6 +1101,7 @@ em_handle_rxtx(void *context, int pending)
 	struct adapter	*adapter = context;
 	struct ifnet	*ifp;
 
+	NET_LOCK_GIANT();
 	ifp = adapter->ifp;
 
 	/*
@@ -1120,7 +1121,7 @@ em_handle_rxtx(void *context, int pending)
 	}
 
 	em_enable_intr(adapter);
-	return;
+	NET_UNLOCK_GIANT();
 }
 #endif
 
