@@ -122,8 +122,29 @@ SYSCTL_INT(_kern, OID_AUTO, acct_resume, CTLFLAG_RW,
 	&acctresume, 0, "percentage of free disk space above which accounting resumes");
 
 static int acctchkfreq = 15;	/* frequency (in seconds) to check space */
-SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
-	&acctchkfreq, 0, "frequency for checking the free space");
+
+static int
+sysctl_acct_chkfreq(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	/* Write out the old value. */
+	error = SYSCTL_OUT(req, &acctchkfreq, sizeof(int));
+	if (error || req->newptr == NULL)
+		return (error);
+
+	/* Read in and verify the new value. */
+	error = SYSCTL_IN(req, &value, sizeof(int));
+	if (error)
+		return (error);
+	if (value <= 0)
+		return (EINVAL);
+	acctchkfreq = value;
+	return (0);
+}
+SYSCTL_PROC(_kern, OID_AUTO, acct_chkfreq, CTLTYPE_INT|CTLFLAG_RW,
+    &acctchkfreq, 0, sysctl_acct_chkfreq, "I",
+    "frequency for checking the free space");
 
 SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
 	"Accounting suspended or not");
