@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/acct.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -83,12 +85,9 @@ __FBSDID("$FreeBSD$");
  * was provided by UCB with the 4.4BSD-Lite release
  */
 static comp_t	encode_comp_t(u_long, u_long);
-static void	acctwatch(void *);
-
-/*
- * Accounting callout used for periodic scheduling of acctwatch.
- */
-static struct	callout acctwatch_callout;
+static void	acctwatch(void);
+static void	acct_thread(void *);
+static int	acct_disable(struct thread *);
 
 /*
  * Accounting vnode pointer, saved vnode pointer, and flags for each.
@@ -102,6 +101,14 @@ static int		 acct_flags;
 static struct sx	 acct_sx;
 
 SX_SYSINIT(acct, &acct_sx, "acct_sx");
+
+/*
+ * State of the accounting kthread.
+ */
+static int		 acct_state;
+
+#define	ACCT_RUNNING	1	/* Accounting kthread is running. */
+#define	ACCT_EXITREQ	2	/* Accounting kthread should exit. */
 
 /*
  * Values associated with enabling and disabling accounting
@@ -188,16 +195,13 @@ acct(struct thread *td, struct acct_args *uap)
 	 * enabled.
 	 */
 	acct_suspended = 0;
-	if (acct_vp != NULL) {
-		callout_stop(&acctwatch_callout);
-		error = vn_close(acct_vp, acct_flags, acct_cred, td);
-		crfree(acct_cred);
-		acct_vp = NULL;
-		acct_cred = NULL;
-		acct_flags = 0;
-		log(LOG_NOTICE, "Accounting disabled\n");
-	}
+	if (acct_vp != NULL)
+		error = acct_disable(td);
 	if (uap->path == NULL) {
+		if (acct_state & ACCT_RUNNING) {
+			acct_state |= ACCT_EXITREQ;
+			wakeup(&acct_state);
+		}
 		sx_xunlock(&acct_sx);
 		goto done;
 	}
@@ -209,12 +213,50 @@ acct(struct thread *td, struct acct_args *uap)
 	acct_vp = nd.ni_vp;
 	acct_cred = crhold(td->td_ucred);
 	acct_flags = flags;
-	callout_init(&acctwatch_callout, CALLOUT_MPSAFE);
+	if (acct_state & ACCT_RUNNING)
+		acct_state &= ~ACCT_EXITREQ;
+	else {
+		/*
+		 * Try to start up an accounting kthread.  We may start more
+		 * than one, but if so the extras will commit suicide as
+		 * soon as they start up.
+		 */
+		error = kthread_create(acct_thread, NULL, NULL, 0, 0,
+		    "accounting");
+		if (error) {
+			(void) vn_close(acct_vp, acct_flags, acct_cred, td);
+			crfree(acct_cred);
+			acct_vp = NULL;
+			acct_cred = NULL;
+			acct_flags = 0;
+			sx_xunlock(&acct_sx);
+			log(LOG_NOTICE, "Unable to start accounting thread\n");
+			goto done;
+		}
+	}
 	sx_xunlock(&acct_sx);
 	log(LOG_NOTICE, "Accounting enabled\n");
-	acctwatch(NULL);
 done:
 	mtx_unlock(&Giant);
+	return (error);
+}
+
+/*
+ * Disable currently in-progress accounting by closing the vnode, dropping
+ * our reference to the credential, and clearing the vnode's flags.
+ */
+static int
+acct_disable(struct thread *td)
+{
+	int error;
+
+	sx_assert(&acct_sx, SX_XLOCKED);
+	error = vn_close(acct_vp, acct_flags, acct_cred, td);
+	crfree(acct_cred);
+	acct_vp = NULL;
+	acct_cred = NULL;
+	acct_flags = 0;
+	log(LOG_NOTICE, "Accounting disabled\n");
 	return (error);
 }
 
@@ -376,31 +418,41 @@ encode_comp_t(u_long s, u_long us)
  */
 /* ARGSUSED */
 static void
-acctwatch(void *a)
+acctwatch(void)
 {
 	struct statfs sb;
 	int vfslocked;
 
-	sx_xlock(&acct_sx);
-	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
-	if (acct_vp->v_type == VBAD) {
-		(void) vn_close(acct_vp, acct_flags, acct_cred, NULL);
-		VFS_UNLOCK_GIANT(vfslocked);
-		crfree(acct_cred);
-		acct_vp = NULL;
-		acct_cred = NULL;
-		acct_flags = 0;
-		sx_xunlock(&acct_sx);
-		log(LOG_NOTICE, "Accounting disabled\n");
+	sx_assert(&acct_sx, SX_XLOCKED);
+
+	/*
+	 * If accounting was disabled before our kthread was scheduled,
+	 * then acct_vp might be NULL.  If so, just ask our kthread to
+	 * exit and return.
+	 */
+	if (acct_vp == NULL) {
+		acct_state |= ACCT_EXITREQ;
 		return;
 	}
+
+	/*
+	 * If our vnode is no longer valid, tear it down and signal the
+	 * accounting thread to die.
+	 */
+	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
+	if (acct_vp->v_type == VBAD) {
+		(void) acct_disable(NULL);
+		VFS_UNLOCK_GIANT(vfslocked);
+		acct_state |= ACCT_EXITREQ;
+		return;
+	}
+
 	/*
 	 * Stopping here is better than continuing, maybe it will be VBAD
 	 * next time around.
 	 */
 	if (VFS_STATFS(acct_vp->v_mount, &sb, curthread) < 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
-		sx_xunlock(&acct_sx);
 		return;
 	}
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -417,6 +469,54 @@ acctwatch(void *a)
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
 	}
-	callout_reset(&acctwatch_callout, acctchkfreq * hz, acctwatch, NULL);
+}
+
+/*
+ * The main loop for the dedicated kernel thread that periodically calls
+ * acctwatch().
+ */
+static void
+acct_thread(void *dummy)
+{
+	u_char pri;
+
+	/* This is a low-priority kernel thread. */
+	pri = PRI_MAX_KERN;
+	mtx_lock_spin(&sched_lock);
+	sched_prio(curthread, pri);
+	mtx_unlock_spin(&sched_lock);
+
+	/* If another accounting kthread is already running, just die. */
+	sx_xlock(&acct_sx);
+	if (acct_state & ACCT_RUNNING) {
+		sx_xunlock(&acct_sx);
+		kthread_exit(0);
+	}
+	acct_state |= ACCT_RUNNING;
+
+	/* Loop until we are asked to exit. */
+	while (!(acct_state & ACCT_EXITREQ)) {
+
+		/* Perform our periodic checks. */
+		acctwatch();
+
+		/*
+		 * We check this flag again before sleeping since the
+		 * acctwatch() might have shut down accounting and asked us
+		 * to exit.
+		 */
+		if (!(acct_state & ACCT_EXITREQ)) {
+			sx_xunlock(&acct_sx);
+			tsleep(&acct_state, pri, "-", acctchkfreq * hz);
+			sx_xlock(&acct_sx);
+		}
+	}
+
+	/*
+	 * Acknowledge the exit request and shutdown.  We clear both the
+	 * exit request and running flags.
+	 */
+	acct_state = 0;
 	sx_xunlock(&acct_sx);
+	kthread_exit(0);
 }
