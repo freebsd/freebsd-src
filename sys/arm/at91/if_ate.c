@@ -569,7 +569,8 @@ ate_intr(void *xsc)
 	status = RD4(sc, ETH_ISR);
 	if (status == 0)
 		return;
-	printf("IT IS %x\n", RD4(sc, ETH_RSR));
+	printf("IT IS %x %x\n", RD4(sc, ETH_RSR), RD4(sc, ETH_CTL));
+
 	if (status & ETH_ISR_RCOM) {
 		bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 		    BUS_DMASYNC_POSTREAD);
@@ -613,6 +614,8 @@ ate_intr(void *xsc)
 				}
 				mb->m_len = sc->rx_descs[i].status & 
 				    ETH_LEN_MASK;
+				mb->m_pkthdr.len = mb->m_len;
+				mb->m_pkthdr.rcvif = sc->ifp;
 				/*
 				 * For the last buffer, set the wrap bit so
 				 * the controller restarts from the first
