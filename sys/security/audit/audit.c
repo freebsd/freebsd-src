@@ -282,7 +282,9 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 	if (ret)
 		goto out;
 
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	ret = VOP_GETATTR(vp, &vattr, cred, td);
+	VOP_UNLOCK(vp, 0, td);
 	if (ret)
 		goto out;
 
