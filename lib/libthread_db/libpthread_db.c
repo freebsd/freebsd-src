@@ -264,8 +264,8 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 				return (P2T(ret));
 		}
 		/* check lwp */
-		ret = ptrace(PT_GETREGS, ta->map[id].lwp, (caddr_t)&gregs, 0);
-		if (ret != 0) {
+		ret = ps_lgetregs(ta->ph, ta->map[id].lwp, gregs);
+		if (ret != PS_OK) {
 			/* no longer exists */
 			ta->map[id].type = PT_NONE;
 			return (TD_NOTHR);
