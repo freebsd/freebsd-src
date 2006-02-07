@@ -44,7 +44,7 @@ ports-${__target}:
 
 kernel-all: ${KERNEL_KO}
 
-kernel-cleandir: kernel-clean
+kernel-cleandir: kernel-clean kernel-cleandepend
 
 kernel-clobber:
 	find . -maxdepth 1 ! -type d ! -name version -delete
