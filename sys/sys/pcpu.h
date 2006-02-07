@@ -60,7 +60,7 @@ struct pcpu {
 	struct thread	*pc_fpcurthread;	/* Fp state owner */
 	struct thread	*pc_deadthread;		/* Zombie thread or NULL */
 	struct pcb	*pc_curpcb;		/* Current pcb */
-	struct bintime	pc_switchtime;	
+	uint64_t	pc_switchtime;	
 	int		pc_switchticks;
 	u_int		pc_cpuid;		/* This cpu number */
 	cpumask_t	pc_cpumask;		/* This cpu mask */

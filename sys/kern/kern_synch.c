@@ -355,7 +355,7 @@ wakeup_one(ident)
 void
 mi_switch(int flags, struct thread *newtd)
 {
-	struct bintime new_switchtime;
+	uint64_t new_switchtime;
 	struct thread *td;
 	struct proc *p;
 
@@ -384,9 +384,8 @@ mi_switch(int flags, struct thread *newtd)
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
 	 */
-	binuptime(&new_switchtime);
-	bintime_add(&p->p_rux.rux_runtime, &new_switchtime);
-	bintime_sub(&p->p_rux.rux_runtime, PCPU_PTR(switchtime));
+	new_switchtime = cpu_ticks();
+	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
 
 	td->td_generation++;	/* bump preempt-detect counter */
 
@@ -405,7 +404,7 @@ mi_switch(int flags, struct thread *newtd)
 	 * it reaches the max, arrange to kill the process in ast().
 	 */
 	if (p->p_cpulimit != RLIM_INFINITY &&
-	    p->p_rux.rux_runtime.sec >= p->p_cpulimit) {
+	    p->p_rux.rux_runtime >= p->p_cpulimit * cpu_tickrate()) {
 		p->p_sflag |= PS_XCPU;
 		td->td_flags |= TDF_ASTPENDING;
 	}

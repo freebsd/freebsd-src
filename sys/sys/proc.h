@@ -505,7 +505,7 @@ struct ksegrp {
  * Locking: (cj) means (j) for p_rux and (c) for p_crux.
  */
 struct rusage_ext {
-	struct bintime	rux_runtime;    /* (cj) Real time. */
+	u_int64_t	rux_runtime;    /* (cj) Real time. */
 	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
 	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
 	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */

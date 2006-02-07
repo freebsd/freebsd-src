@@ -459,11 +459,10 @@ proc0_post(void *dummy __unused)
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		microuptime(&p->p_stats->p_start);
-		p->p_rux.rux_runtime.sec = 0;
-		p->p_rux.rux_runtime.frac = 0;
+		p->p_rux.rux_runtime = 0;
 	}
 	sx_sunlock(&allproc_lock);
-	binuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchtime, cpu_ticks());
 	PCPU_SET(switchticks, ticks);
 
 	/*
