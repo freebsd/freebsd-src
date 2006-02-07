@@ -528,7 +528,7 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 		} else {
 			struct ptrace_lwpinfo pl;
 
-			if (ptrace(PT_LWPINFO, lwp, (caddr_t) &pl, sizeof(pl)))
+			if (ps_linfo(ta->ph, lwp, (caddr_t)&pl))
 				return (TD_ERR);
 			if (suspend) {
 				if (!(pl.pl_flags & PL_FLAG_BOUND))
