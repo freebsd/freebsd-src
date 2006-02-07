@@ -1006,7 +1006,7 @@ rn_walktree_from(h, a, m, f, w)
 			rn = rn->rn_parent;
 
 			/* if went up beyond last, stop */
-			if (rn->rn_bit < lastb) {
+			if (rn->rn_bit <= lastb) {
 				stopping = 1;
 				/* printf("up too far\n"); */
 				/*
@@ -1018,6 +1018,14 @@ rn_walktree_from(h, a, m, f, w)
 				 */
 			}
 		}
+		
+		/* 
+		 * At the top of the tree, no need to traverse the right
+		 * half, prevent the traversal of the entire tree in the
+		 * case of default route.
+		 */
+		if (rn->rn_parent->rn_flags & RNF_ROOT)
+			stopping = 1;
 
 		/* Find the next *leaf* since next node might vanish, too */
 		for (rn = rn->rn_parent->rn_right; rn->rn_bit >= 0;)
