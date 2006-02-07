@@ -179,9 +179,6 @@ deviceTry(struct _devname dev, char *try, int i)
 {
     int fd;
     char unit[80];
-    mode_t m;
-    dev_t d;
-    int fail;
 
     snprintf(unit, sizeof unit, dev.name, i);
     snprintf(try, FILENAME_MAX, "/dev/%s", unit);
@@ -191,26 +188,10 @@ deviceTry(struct _devname dev, char *try, int i)
     if (fd >= 0) {
 	if (isDebug())
 	    msgDebug("deviceTry: open of %s succeeded on first try.\n", try);
-	return fd;
-    }
-    m = 0640 | S_IFCHR;
-    d = makedev(dev.major, dev.minor + (i * dev.delta));
-    if (isDebug())
-	msgDebug("deviceTry: Making %s device for %s [%d, %d]\n", m & S_IFCHR ? "raw" : "block", try, dev.major, dev.minor + (i * dev.delta));
-    fail = mknod(try, m, d);
-    fd = open(try, O_RDONLY);
-    if (fd >= 0) {
+    } else {
 	if (isDebug())
-	    msgDebug("deviceTry: open of %s succeeded on second try.\n", try);
-	return fd;
+	    msgDebug("deviceTry: open of %s failed.\n", try);
     }
-    else if (!fail)
-	(void)unlink(try);
-    /* Don't try a "make-under" here since we're using a fixit floppy in this case */
-    snprintf(try, FILENAME_MAX, "/mnt/dev/%s", unit);
-    fd = open(try, O_RDONLY);
-    if (isDebug())
-	msgDebug("deviceTry: final attempt for %s returns %d\n", try, fd);
     return fd;
 }
 
@@ -371,29 +352,7 @@ skipif:
 		break;
 
 	    case DEVICE_TYPE_DISK:
-		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0 && RunningAsInit) {
-		    dev_t d;
-		    mode_t m;
-		    int s, fail;
-		    char unit[80], slice[80];
-
-		    close(fd);
-		    /* Make associated slice entries */
-		    for (s = 1; s < 8; s++) {
-			snprintf(unit, sizeof unit, device_names[i].name, j);
-			snprintf(slice, sizeof slice, "/dev/%ss%d", unit, s);
-			d = makedev(device_names[i].major, device_names[i].minor +
-				    (j * device_names[i].delta) + (s * SLICE_DELTA));
-			m = 0640 | S_IFCHR;
-			fail = mknod(slice, m, d);
-			fd = open(slice, O_RDONLY);
-			if (fd >= 0)
-			    close(fd);
-			else if (!fail)
-			    (void)unlink(slice);
-		    }
-		}
+		/* nothing to do */
 		break;
 
 	    case DEVICE_TYPE_FLOPPY:

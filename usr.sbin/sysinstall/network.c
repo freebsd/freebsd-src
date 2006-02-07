@@ -301,7 +301,7 @@ startPPP(Device *devp)
     variable_set2(VAR_PPP_ENABLE, "YES", 0);
     variable_set2(VAR_PPP_PROFILE, "install", 0);
 
-    if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
+    if (!Fake && !file_readable("/dev/tun0")) {
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
 	restorescr(w);
 	return 0;
