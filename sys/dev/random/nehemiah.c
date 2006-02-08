@@ -41,12 +41,13 @@ __FBSDID("$FreeBSD$");
 #define CIPHER_BLOCK_SIZE	16
 
 static void random_nehemiah_init(void);
+static void random_nehemiah_deinit(void);
 static int random_nehemiah_read(void *, int);
 
 struct random_systat random_nehemiah = {
 	.ident = "Hardware, VIA Nehemiah",
 	.init = random_nehemiah_init,
-	.deinit = (random_deinit_func_t *)random_null_func,
+	.deinit = random_nehemiah_deinit,
 	.read = random_nehemiah_read,
 	.write = (random_write_func_t *)random_null_func,
 	.reseed = (random_reseed_func_t *)random_null_func,
@@ -80,6 +81,8 @@ static uint8_t in[RANDOM_BLOCK_SIZE+7]	__aligned(16);
 static uint8_t out[RANDOM_BLOCK_SIZE+7]	__aligned(16);
 
 static union VIA_ACE_CW acw		__aligned(16);
+
+static struct mtx random_nehemiah_mtx;
 
 /* ARGSUSED */
 static __inline size_t
@@ -126,6 +129,14 @@ random_nehemiah_init(void)
 {
 	acw.raw = 0ULL;
 	acw.field.round_count = 12;
+	
+	mtx_init(&random_nehemiah_mtx, "random nehemiah", NULL, MTX_DEF);
+}
+
+void
+random_nehemiah_deinit(void)
+{
+	mtx_destroy(&random_nehemiah_mtx);
 }
 
 static int
@@ -134,6 +145,8 @@ random_nehemiah_read(void *buf, int c)
 	int i;
 	size_t count, ret;
 	uint8_t *p;
+
+	mtx_lock(&random_nehemiah_mtx);
 
 	/* Get a random AES key */
 	count = 0;
@@ -174,5 +187,6 @@ random_nehemiah_read(void *buf, int c)
 	c = MIN(RANDOM_BLOCK_SIZE, c);
 	memcpy(buf, out, (size_t)c);
 
+	mtx_unlock(&random_nehemiah_mtx);
 	return (c);
 }
