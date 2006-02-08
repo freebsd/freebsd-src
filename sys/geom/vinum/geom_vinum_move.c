@@ -113,7 +113,7 @@ gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char 
 
 	cp = cursd->consumer;
 
-	if (cp->acr || cp->acw || cp->ace) {
+	if (cp != NULL && (cp->acr || cp->acw || cp->ace)) {
 		gctl_error(req, "subdisk '%s' is busy", cursd->name);
 		return (-1);
 	}
@@ -178,7 +178,8 @@ gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char 
 	}
 
 	/* Replace the old sd by the new one. */
-	g_detach(cp);
+	if (cp != NULL)
+		g_detach(cp);
 	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
 		if (s == cursd) {
 			p->sdcount--;
@@ -196,13 +197,15 @@ gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char 
 	gv_drive_modify(d);
 
 	/* And reconnect the consumer ... */
-	newsd->consumer = cp;
-	err = g_attach(cp, newsd->provider);
-	if (err) {
-		g_destroy_consumer(cp);
-		gctl_error(req, "proposed move would create a loop in GEOM "
-		    "config");
-		return (err);
+	if (cp != NULL) {
+		newsd->consumer = cp;
+		err = g_attach(cp, newsd->provider);
+		if (err) {
+			g_destroy_consumer(cp);
+			gctl_error(req, "proposed move would create a loop "
+			    "in GEOM config");
+			return (err);
+		}
 	}
 
 	LIST_INSERT_HEAD(&sc->subdisks, newsd, sd);
