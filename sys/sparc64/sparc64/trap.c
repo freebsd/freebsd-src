@@ -230,7 +230,6 @@ trap(struct trapframe *tf)
 {
 	struct thread *td;
 	struct proc *p;
-	u_int sticks;
 	int error;
 	int sig;
 	ksiginfo_t ksi;
@@ -248,7 +247,7 @@ trap(struct trapframe *tf)
 		KASSERT(td->td_proc != NULL, ("trap: curproc NULL"));
 
 		p = td->td_proc;
-		sticks = td->td_sticks;
+		td->td_pticks = 0;
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
@@ -293,7 +292,7 @@ trap(struct trapframe *tf)
 			trapsignal(td, &ksi);
 		}
 
-		userret(td, tf, sticks);
+		userret(td, tf);
 		mtx_assert(&Giant, MA_NOTOWNED);
  	} else {
 		KASSERT((tf->tf_type & T_KERNEL) != 0,
@@ -502,7 +501,6 @@ syscall(struct trapframe *tf)
 	register_t args[8];
 	register_t *argp;
 	struct proc *p;
-	u_int sticks;
 	u_long code;
 	u_long tpc;
 	int reg;
@@ -523,7 +521,7 @@ syscall(struct trapframe *tf)
 	reg = 0;
 	regcnt = REG_MAXARGS;
 
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	td->td_frame = tf;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
@@ -646,7 +644,7 @@ syscall(struct trapframe *tf)
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(td, tf, sticks);
+	userret(td, tf);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

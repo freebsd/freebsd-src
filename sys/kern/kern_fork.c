@@ -825,7 +825,7 @@ fork_return(td, frame)
 	struct trapframe *frame;
 {
 
-	userret(td, frame, 0);
+	userret(td, frame);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);
