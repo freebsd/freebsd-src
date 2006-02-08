@@ -282,7 +282,7 @@ struct thread {
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
 	struct kse_upcall *td_upcall;	/* (k + j) Upcall structure. */
-	u_int64_t	td_sticks;	/* (k) Statclock hits in system mode. */
+	u_int		td_pticks;	/* (k) Statclock hits for profiling */
 	u_int		td_uuticks;	/* (k) Statclock hits (usr), for UTS. */
 	u_int		td_usticks;	/* (k) Statclock hits (sys), for UTS. */
 	int		td_intrval;	/* (j) Return value of TDF_INTERRUPT. */
@@ -902,7 +902,7 @@ extern	void (*cpu_idle_hook)(void);	/* Hook to machdep CPU idler. */
 void	cpu_switch(struct thread *old, struct thread *new);
 void	cpu_throw(struct thread *old, struct thread *new) __dead2;
 void	unsleep(struct thread *);
-void	userret(struct thread *, struct trapframe *, u_int);
+void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;

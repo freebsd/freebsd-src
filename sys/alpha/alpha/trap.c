@@ -259,7 +259,6 @@ trap(a0, a1, a2, entry, framep)
 	register struct proc *p;
 	register int i;
 	u_int64_t ucode;
-	u_int sticks;
 	int user;
 #ifdef SMP
 	register_t s;
@@ -302,12 +301,11 @@ trap(a0, a1, a2, entry, framep)
 	CTR5(KTR_TRAP, "%s trap: pid %d, (%lx, %lx, %lx)",
 	    user ? "user" : "kernel", p->p_pid, a0, a1, a2);
 	if (user)  {
-		sticks = td->td_sticks;
+		td->td_pticks = 0;
 		td->td_frame = framep;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
 	} else {
-		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 	}
@@ -595,7 +593,7 @@ trap(a0, a1, a2, entry, framep)
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
-		userret(td, framep, sticks);
+		userret(td, framep);
 		mtx_assert(&Giant, MA_NOTOWNED);
 	}
 	return;
@@ -632,7 +630,6 @@ syscall(code, framep)
 	struct proc *p;
 	int error = 0;
 	u_int64_t opc;
-	u_int sticks;
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
 #ifdef SMP
@@ -664,7 +661,7 @@ syscall(code, framep)
 	PCPU_LAZY_INC(cnt.v_syscall);
 	td->td_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 	if (p->p_flag & P_SA)
@@ -773,7 +770,7 @@ syscall(code, framep)
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
 
-	userret(td, framep, sticks);
+	userret(td, framep);
 	
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

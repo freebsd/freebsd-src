@@ -440,7 +440,7 @@ statclock(int usermode)
 		} else {
 			if (p->p_flag & P_SA)
 				thread_statclock(0);
-			td->td_sticks++;
+			td->td_pticks++;
 			p->p_rux.rux_sticks++;
 			if (td != PCPU_GET(idlethread))
 				cp_time[CP_SYS]++;

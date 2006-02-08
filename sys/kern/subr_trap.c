@@ -74,10 +74,7 @@ __FBSDID("$FreeBSD$");
  * MPSAFE
  */
 void
-userret(td, frame, oticks)
-	struct thread *td;
-	struct trapframe *frame;
-	u_int oticks;
+userret(struct thread *td, struct trapframe *frame)
 {
 	struct proc *p = td->td_proc;
 
@@ -127,10 +124,8 @@ userret(td, frame, oticks)
 	 * Charge system time if profiling.
 	 */
 	if (p->p_flag & P_PROFIL) {
-		quad_t ticks;
 
-		ticks = td->td_sticks - oticks;
-		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
+		addupc_task(td, TRAPF_PC(frame), td->td_pticks * psratio);
 	}
 
 	/*
@@ -153,7 +148,6 @@ ast(struct trapframe *framep)
 	struct proc *p;
 	struct ksegrp *kg;
 	struct rlimit rlim;
-	u_int sticks;
 	int sflag;
 	int flags;
 	int sig;
@@ -173,7 +167,7 @@ ast(struct trapframe *framep)
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	td->td_frame = framep;
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 
 	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
 		thread_user_enter(td);
@@ -276,6 +270,6 @@ ast(struct trapframe *framep)
 		PROC_UNLOCK(p);
 	}
 
-	userret(td, framep, sticks);
+	userret(td, framep);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
