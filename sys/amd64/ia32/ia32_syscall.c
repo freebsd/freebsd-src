@@ -96,7 +96,6 @@ ia32_syscall(struct trapframe frame)
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	register_t orig_tf_rflags;
-	u_int sticks;
 	int error;
 	int narg;
 	u_int32_t args[8];
@@ -110,7 +109,7 @@ ia32_syscall(struct trapframe frame)
 	 */
 	PCPU_LAZY_INC(cnt.v_syscall);
 
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	td->td_frame = &frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
@@ -241,7 +240,7 @@ ia32_syscall(struct trapframe frame)
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(td, &frame, sticks);
+	userret(td, &frame);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
