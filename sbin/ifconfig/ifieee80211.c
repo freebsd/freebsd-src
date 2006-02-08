@@ -880,7 +880,7 @@ list_scan(int s)
 		vp = (u_int8_t *)(sr+1);
 		printf("%-*.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
 			, ssidmax
-			  , copy_essid(ssid, sizeof(ssid), vp, sr->isr_ssid_len)
+			  , copy_essid(ssid, ssidmax, vp, sr->isr_ssid_len)
 			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
 			, ieee80211_mhz2ieee(sr->isr_freq)
