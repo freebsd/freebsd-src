@@ -59,13 +59,17 @@ static void random_kthread(void *);
 static void 
 random_harvest_internal(u_int64_t, const void *, u_int,
     u_int, u_int, enum esource);
+static int random_yarrow_poll(int event,struct thread *td);
+static int random_yarrow_block(int flag);
 
 struct random_systat random_yarrow = {
 	.ident = "Software, Yarrow",
 	.init = random_yarrow_init,
 	.deinit = random_yarrow_deinit,
+	.block = random_yarrow_block,
 	.read = random_yarrow_read,
 	.write = random_yarrow_write,
+	.poll = random_yarrow_poll,
 	.reseed = random_yarrow_reseed,
 	.seeded = 1,
 };
@@ -366,3 +370,41 @@ random_yarrow_unblock(void)
 		wakeup(&random_systat);
 	}
 }
+
+static int
+random_yarrow_poll(int events, struct thread *td)
+{
+	int revents = 0;
+	mtx_lock(&random_reseed_mtx);
+
+	if (random_systat.seeded)
+		revents = events & (POLLIN | POLLRDNORM);
+	else
+		selrecord(td, &random_systat.rsel);
+	
+	mtx_unlock(&random_reseed_mtx);
+	return revents;
+}
+
+static int
+random_yarrow_block(int flag)
+{
+	int error = 0;
+
+	mtx_lock(&random_reseed_mtx);
+
+	/* Blocking logic */
+	while (random_systat.seeded && !error) {
+		if (flag & O_NONBLOCK)
+			error = EWOULDBLOCK;
+		else {
+			printf("Entropy device is blocking.\n");
+			error = msleep(&random_systat,
+			    &random_reseed_mtx,
+			    PUSER | PCATCH, "block", 0);
+		}
+	}
+	mtx_unlock(&random_reseed_mtx);
+
+	return error;
+}	
