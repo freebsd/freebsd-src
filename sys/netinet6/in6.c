@@ -568,7 +568,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCGIFSTAT_ICMP6:
 		if (ifp == NULL)
 			return EINVAL;
-		bzero(&ifr->ifr_ifru.ifru_stat,
+		bzero(&ifr->ifr_ifru.ifru_icmp6stat,
 		    sizeof(ifr->ifr_ifru.ifru_icmp6stat));
 		ifr->ifr_ifru.ifru_icmp6stat =
 		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->icmp6_ifstat;
