@@ -255,7 +255,8 @@ syncache_init(void)
 	 * older one.
 	 */
 	tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 
+	    UMA_ZONE_NOFREE | UMA_ZONE_ZINIT);
 	uma_zone_set_max(tcp_syncache.zone, tcp_syncache.cache_limit);
 	tcp_syncache.cache_limit -= 1;
 }
@@ -915,7 +916,6 @@ syncache_add(inc, to, th, sop, m)
 	/*
 	 * Fill in the syncache values.
 	 */
-	bzero(sc, sizeof(*sc));
 	sc->sc_tp = tp;
 	sc->sc_inp_gencnt = tp->t_inpcb->inp_gencnt;
 	sc->sc_ipopts = ipopts;
@@ -1386,7 +1386,6 @@ syncookie_lookup(inc, th, so)
 	 * Fill in the syncache values.
 	 * XXX duplicate code from syncache_add
 	 */
-	bzero(sc, sizeof(*sc));
 	sc->sc_ipopts = NULL;
 	sc->sc_inc.inc_fport = inc->inc_fport;
 	sc->sc_inc.inc_lport = inc->inc_lport;
