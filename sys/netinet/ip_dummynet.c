@@ -116,12 +116,15 @@ MALLOC_DEFINE(M_DUMMYNET, "dummynet", "dummynet heap");
 
 static struct dn_heap ready_heap, extract_heap, wfq_ready_heap ;
 
-static int heap_init(struct dn_heap *h, int size) ;
-static int heap_insert (struct dn_heap *h, dn_key key1, void *p);
-static void heap_extract(struct dn_heap *h, void *obj);
-
-static void transmit_event(struct dn_pipe *pipe);
-static void ready_event(struct dn_flow_queue *q);
+static int	heap_init(struct dn_heap *h, int size);
+static int	heap_insert (struct dn_heap *h, dn_key key1, void *p);
+static void	heap_extract(struct dn_heap *h, void *obj);
+static void	transmit_event(struct dn_pipe *pipe, struct mbuf **head,
+		    struct mbuf **tail);
+static void	ready_event(struct dn_flow_queue *q, struct mbuf **head,
+		    struct mbuf **tail);
+static void	ready_event_wfq(struct dn_pipe *p, struct mbuf **head,
+		    struct mbuf **tail);
 
 #define	HASHSIZE	16
 #define	HASH(num)	((((num) >> 8) ^ ((num) >> 4) ^ (num)) & 0x0f)
@@ -192,11 +195,10 @@ static int ip_dn_ctl(struct sockopt *sopt);
 
 static void dummynet(void *);
 static void dummynet_flush(void);
+static void dummynet_send(struct mbuf *);
 void dummynet_drain(void);
 static ip_dn_io_t dummynet_io;
 static void dn_rule_delete(void *);
-
-int if_tx_rdy(struct ifnet *ifp);
 
 /*
  * Heap management functions.
@@ -439,110 +441,37 @@ dn_tag_get(struct mbuf *m)
  * invocations of the procedures.
  */
 static void
-transmit_event(struct dn_pipe *pipe)
+transmit_event(struct dn_pipe *pipe, struct mbuf **head, struct mbuf **tail)
 {
-    struct mbuf *m ;
-    struct dn_pkt_tag *pkt ;
-    struct ip *ip;
+	struct mbuf *m;
+	struct dn_pkt_tag *pkt;
 
-    DUMMYNET_LOCK_ASSERT();
+	DUMMYNET_LOCK_ASSERT();
 
-    while ( (m = pipe->head) ) {
-	pkt = dn_tag_get(m);
-	if ( !DN_KEY_LEQ(pkt->output_time, curr_time) )
-	    break;
-	/*
-	 * first unlink, then call procedures, since ip_input() can invoke
-	 * ip_output() and viceversa, thus causing nested calls
-	 */
-	pipe->head = m->m_nextpkt ;
-	m->m_nextpkt = NULL;
+	while ((m = pipe->head) != NULL) {
+		pkt = dn_tag_get(m);
+		if (!DN_KEY_LEQ(pkt->output_time, curr_time))
+			break;
 
-	/* XXX: drop the lock for now to avoid LOR's */
-	DUMMYNET_UNLOCK();
-	switch (pkt->dn_dir) {
-	case DN_TO_IP_OUT:
-	    (void)ip_output(m, NULL, NULL, pkt->flags, NULL, NULL);
-	    break ;
-
-	case DN_TO_IP_IN :
-	    ip = mtod(m, struct ip *);
-	    ip->ip_len = htons(ip->ip_len);
-	    ip->ip_off = htons(ip->ip_off);
-	    ip_input(m) ;
-	    break ;
-
-#ifdef INET6
-	case DN_TO_IP6_IN:
-	    ip6_input(m) ;
-	    break ;
-
-	case DN_TO_IP6_OUT:
-	    (void)ip6_output(m, NULL, NULL, pkt->flags, NULL, NULL, NULL);
-	    break ;
-#endif
-
-	case DN_TO_IFB_FWD:
-	    if (bridge_dn_p != NULL)
-	        ((*bridge_dn_p)(m, pkt->ifp));
-	    else
-		printf("dummynet: if_bridge not loaded\n");
-
-	    break;
-
-	case DN_TO_BDG_FWD :
-	    /*
-	     * The bridge requires/assumes the Ethernet header is
-	     * contiguous in the first mbuf header.  Insure this is true.
-	     */
-	    if (BDG_LOADED) {
-		if (m->m_len < ETHER_HDR_LEN &&
-		    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		    printf("dummynet/bridge: pullup fail, dropping pkt\n");
-		    break;
-		}
-		m = bdg_forward_ptr(m, pkt->ifp);
-	    } else {
-		/* somebody unloaded the bridge module. Drop pkt */
-		/* XXX rate limit */
-		printf("dummynet: dropping bridged packet trapped in pipe\n");
-	    }
-	    if (m)
-		m_freem(m);
-	    break;
-
-	case DN_TO_ETH_DEMUX:
-	    /*
-	     * The Ethernet code assumes the Ethernet header is
-	     * contiguous in the first mbuf header.  Insure this is true.
-	     */
-	    if (m->m_len < ETHER_HDR_LEN &&
-		(m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		printf("dummynet/ether: pullup fail, dropping pkt\n");
-		break;
-	    }
-	    ether_demux(m->m_pkthdr.rcvif, m); /* which consumes the mbuf */
-	    break ;
-
-	case DN_TO_ETH_OUT:
-	    ether_output_frame(pkt->ifp, m);
-	    break;
-
-	default:
-	    printf("dummynet: bad switch %d!\n", pkt->dn_dir);
-	    m_freem(m);
-	    break ;
+		pipe->head = m->m_nextpkt;
+		if (*tail != NULL)
+			(*tail)->m_nextpkt = m;
+		else
+			*head = m;
+		*tail = m;
 	}
-	DUMMYNET_LOCK();
-    }
-    /* if there are leftover packets, put into the heap for next event */
-    if ( (m = pipe->head) ) {
-	pkt = dn_tag_get(m) ;
-	/* XXX should check errors on heap_insert, by draining the
-	 * whole pipe p and hoping in the future we are more successful
-	 */
-	heap_insert(&extract_heap, pkt->output_time, pipe ) ;
-    }
+	if (*tail != NULL)
+		(*tail)->m_nextpkt = NULL;
+
+	/* If there are leftover packets, put into the heap for next event. */
+	if ((m = pipe->head) != NULL) {
+		pkt = dn_tag_get(m);
+		/*
+		 * XXX: Should check errors on heap_insert, by draining the
+		 * whole pipe p and hoping in the future we are more successful.
+		 */
+		heap_insert(&extract_heap, pkt->output_time, pipe);
+	}
 }
 
 /*
@@ -586,7 +515,7 @@ move_pkt(struct mbuf *pkt, struct dn_flow_queue *q,
  * if there are leftover packets reinsert the pkt in the scheduler.
  */
 static void
-ready_event(struct dn_flow_queue *q)
+ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
 {
     struct mbuf *pkt;
     struct dn_pipe *p = q->fs->pipe ;
@@ -636,11 +565,11 @@ ready_event(struct dn_flow_queue *q)
 	q->numbytes = 0;
     }
     /*
-     * If the delay line was empty call transmit_event(p) now.
+     * If the delay line was empty call transmit_event() now.
      * Otherwise, the scheduler will take care of it.
      */
     if (p_was_empty)
-	transmit_event(p);
+	transmit_event(p, head, tail);
 }
 
 /*
@@ -652,7 +581,7 @@ ready_event(struct dn_flow_queue *q)
  * there is an additional delay.
  */
 static void
-ready_event_wfq(struct dn_pipe *p)
+ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 {
     int p_was_empty = (p->head == NULL) ;
     struct dn_heap *sch = &(p->scheduler_heap);
@@ -760,11 +689,11 @@ ready_event_wfq(struct dn_pipe *p)
 	 */
     }
     /*
-     * If the delay line was empty call transmit_event(p) now.
+     * If the delay line was empty call transmit_event() now.
      * Otherwise, the scheduler will take care of it.
      */
     if (p_was_empty)
-	transmit_event(p);
+	transmit_event(p, head, tail);
 }
 
 /*
@@ -774,6 +703,7 @@ ready_event_wfq(struct dn_pipe *p)
 static void
 dummynet(void * __unused unused)
 {
+    struct mbuf *head = NULL, *tail = NULL;
     struct dn_pipe *pipe;
     struct dn_heap *heaps[3];
     struct dn_heap *h;
@@ -795,16 +725,16 @@ dummynet(void * __unused unused)
 	    p = h->p[0].object ; /* store a copy before heap_extract */
 	    heap_extract(h, NULL); /* need to extract before processing */
 	    if (i == 0)
-		ready_event(p) ;
+		ready_event(p, &head, &tail);
 	    else if (i == 1) {
 		struct dn_pipe *pipe = p;
 		if (pipe->if_name[0] != '\0')
 		    printf("dummynet: bad ready_event_wfq for pipe %s\n",
 			pipe->if_name);
 		else
-		    ready_event_wfq(p) ;
+		    ready_event_wfq(p, &head, &tail);
 	    } else
-		transmit_event(p);
+		transmit_event(p, &head, &tail);
 	}
     }
     /* Sweep pipes trying to expire idle flow_queues. */
@@ -821,43 +751,98 @@ dummynet(void * __unused unused)
 
     DUMMYNET_UNLOCK();
 
+    if (head != NULL)
+	dummynet_send(head);
+
     callout_reset(&dn_timeout, 1, dummynet, NULL);
 }
 
-/*
- * called by an interface when tx_rdy occurs.
- */
-int
-if_tx_rdy(struct ifnet *ifp)
+static void
+dummynet_send(struct mbuf *m)
 {
-    struct dn_pipe *pipe;
-    int i;
+	struct dn_pkt_tag *pkt;
+	struct mbuf *n;
+	struct ip *ip;
 
-    DUMMYNET_LOCK();
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(pipe, &pipehash[i], next)
-		if (pipe->ifp == ifp)
+	for (; m != NULL; m = n) {
+		n = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		pkt = dn_tag_get(m);
+		switch (pkt->dn_dir) {
+		case DN_TO_IP_OUT:
+			ip_output(m, NULL, NULL, pkt->flags, NULL, NULL);
+			break ;
+		  case DN_TO_IP_IN :
+			ip = mtod(m, struct ip *);
+			ip->ip_len = htons(ip->ip_len);
+			ip->ip_off = htons(ip->ip_off);
+			ip_input(m);
 			break;
-    if (pipe == NULL) {
-	for (i = 0; i < HASHSIZE; i++)
-		SLIST_FOREACH(pipe, &pipehash[i], next)
-			if (!strcmp(pipe->if_name, ifp->if_xname) ) {
-				pipe->ifp = ifp ;
-				DPRINTF(("dummynet: ++ tx rdy from %s (now found)\n",
-				    ifp->if_xname));
+#ifdef INET6
+		case DN_TO_IP6_IN:
+			ip6_input(m);
+			break;
+
+		case DN_TO_IP6_OUT:
+			ip6_output(m, NULL, NULL, pkt->flags, NULL, NULL, NULL);
+			break;
+#endif
+		case DN_TO_IFB_FWD:
+			if (bridge_dn_p != NULL)
+				((*bridge_dn_p)(m, pkt->ifp));
+			else
+				printf("dummynet: if_bridge not loaded\n");
+
+			break;
+		case DN_TO_BDG_FWD :
+			/*
+			 * The bridge requires/assumes the Ethernet header is
+			 * contiguous in the first mbuf header.  Ensure this
+			 * is true.
+			 */
+			if (BDG_LOADED) {
+				if (m->m_len < ETHER_HDR_LEN &&
+				    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
+					printf("dummynet/bridge: pullup fail, "
+					    "dropping pkt\n");
+					break;
+				}
+				m = bdg_forward_ptr(m, pkt->ifp);
+			} else {
+				/*
+				 * somebody unloaded the bridge module.
+				 * Drop pkt
+				 */
+				/* XXX rate limit */
+				printf("dummynet: dropping bridged packet "
+				    "trapped in pipe\n");
+			}
+			if (m)
+				m_freem(m);
+			break;
+		case DN_TO_ETH_DEMUX:
+			/*
+			 * The Ethernet code assumes the Ethernet header is
+			 * contiguous in the first mbuf header.
+			 * Insure this is true.
+			 */
+			if (m->m_len < ETHER_HDR_LEN &&
+			    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
+				printf("dummynet/ether: pullup failed, "
+				    "dropping packet\n");
 				break;
 			}
-    }
-
-    if (pipe != NULL) {
-	DPRINTF(("dummynet: ++ tx rdy from %s - qlen %d\n", ifp->if_xname,
-		ifp->if_snd.ifq_len));
-	pipe->numbytes = 0; /* Mark ready for I/O. */
-	ready_event_wfq(pipe);
-    }
-    DUMMYNET_UNLOCK();
-
-    return 0;
+			ether_demux(m->m_pkthdr.rcvif, m);
+			break;
+		case DN_TO_ETH_OUT:
+			ether_output_frame(pkt->ifp, m);
+			break;
+		default:
+			printf("dummynet: bad switch %d!\n", pkt->dn_dir);
+			m_freem(m);
+			break;
+		}
+	}
 }
 
 /*
@@ -1178,6 +1163,7 @@ locate_pipe(int pipe_nr)
 static int
 dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 {
+    struct mbuf *head = NULL, *tail = NULL;
     struct dn_pkt_tag *pkt;
     struct m_tag *mtag;
     struct dn_flow_set *fs = NULL;
@@ -1282,7 +1268,7 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	    t = SET_TICKS(m, q, pipe);
 	q->sched_time = curr_time ;
 	if (t == 0)	/* must process it now */
-	    ready_event( q );
+	    ready_event(q, &head, &tail);
 	else
 	    heap_insert(&ready_heap, curr_time + t , q );
     } else {
@@ -1333,12 +1319,14 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 		DPRINTF(("dummynet: waking up pipe %d at %d\n",
 			pipe->pipe_nr, (int)(q->F >> MY_M)));
 		pipe->sched_time = curr_time ;
-		ready_event_wfq(pipe);
+		ready_event_wfq(pipe, &head, &tail);
 	    }
 	}
     }
 done:
     DUMMYNET_UNLOCK();
+    if (head != NULL)
+	dummynet_send(head);
     return 0;
 
 dropit:
