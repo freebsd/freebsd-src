@@ -205,7 +205,6 @@ ia32_trap(int vector, struct trapframe *tf)
 	struct thread *td;
 	uint64_t ucode;
 	int sig;
-	u_int sticks;
 	ksiginfo_t ksi;
 
 	KASSERT(TRAPF_USERMODE(tf), ("%s: In kernel mode???", __func__));
@@ -215,7 +214,7 @@ ia32_trap(int vector, struct trapframe *tf)
 
 	td = curthread;
 	td->td_frame = tf;
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	p = td->td_proc;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
@@ -297,7 +296,7 @@ ia32_trap(int vector, struct trapframe *tf)
 	trapsignal(td, &ksi);
 
 out:
-	userret(td, tf, sticks);
+	userret(td, tf);
 	mtx_assert(&Giant, MA_NOTOWNED);
 	do_ast(tf);
 }

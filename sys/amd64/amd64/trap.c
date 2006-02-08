@@ -162,7 +162,6 @@ trap(frame)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	u_int sticks = 0;
 	int i = 0, ucode = 0, type, code;
 	register_t addr = 0;
 	ksiginfo_t ksi;
@@ -254,7 +253,7 @@ trap(frame)
         if (ISPL(frame.tf_cs) == SEL_UPL) {
 		/* user trap */
 
-		sticks = td->td_sticks;
+		td->td_pticks = 0;
 		td->td_frame = &frame;
 		addr = frame.tf_rip;
 		if (td->td_ucred != p->p_ucred) 
@@ -524,7 +523,7 @@ trap(frame)
 #endif
 
 user:
-	userret(td, &frame, sticks);
+	userret(td, &frame);
 	mtx_assert(&Giant, MA_NOTOWNED);
 userout:
 out:
@@ -731,7 +730,6 @@ syscall(frame)
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	register_t orig_tf_rflags;
-	u_int sticks;
 	int error;
 	int narg;
 	register_t args[8];
@@ -757,7 +755,7 @@ syscall(frame)
 
 	reg = 0;
 	regcnt = 6;
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	td->td_frame = &frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
@@ -885,7 +883,7 @@ syscall(frame)
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(td, &frame, sticks);
+	userret(td, &frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);

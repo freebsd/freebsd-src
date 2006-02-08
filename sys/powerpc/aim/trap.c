@@ -143,7 +143,7 @@ trap(struct trapframe *frame)
 	struct thread	*td;
 	struct proc	*p;
 	int		sig, type, user;
-	u_int		sticks, ucode;
+	u_int		ucode;
 	ksiginfo_t	ksi;
 
 	PCPU_LAZY_INC(cnt.v_trap);
@@ -154,13 +154,12 @@ trap(struct trapframe *frame)
 	type = ucode = frame->exc;
 	sig = 0;
 	user = frame->srr1 & PSL_PR;
-	sticks = 0;
 
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", p->p_comm,
 	    trapname(type), user ? "user" : "kernel");
 
 	if (user) {
-		sticks = td->td_sticks;
+		td->td_pticks = 0;
 		td->td_frame = frame;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
@@ -263,7 +262,7 @@ trap(struct trapframe *frame)
 		trapsignal(td, &ksi);
 	}
 
-	userret(td, frame, sticks);
+	userret(td, frame);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 

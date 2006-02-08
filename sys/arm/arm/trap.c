@@ -234,7 +234,6 @@ data_abort_handler(trapframe_t *tf)
 	vm_prot_t ftype;
 	void *onfault;
 	vm_offset_t va;
-	u_int sticks = 0;
 	int error = 0;
 	struct ksig ksig;
 	struct proc *p;
@@ -261,7 +260,8 @@ data_abort_handler(trapframe_t *tf)
 	user = TRAP_USERMODE(tf);
 
 	if (user) {
-		sticks = td->td_sticks;                                                         td->td_frame = tf;		
+		td->td_pticks = 0;
+		td->td_frame = tf;		
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
 		if (td->td_pflags & TDP_SA)
@@ -465,7 +465,7 @@ do_trapsignal:
 out:
 	/* If returning to user mode, make sure to invoke userret() */
 	if (user)
-		userret(td, tf, sticks);
+		userret(td, tf);
 }
 
 /*
@@ -707,7 +707,6 @@ prefetch_abort_handler(trapframe_t *tf)
 	struct vm_map *map;
 	vm_offset_t fault_pc, va;
 	int error = 0;
-	u_int sticks = 0;
 	struct ksig ksig;
 
 
@@ -754,7 +753,7 @@ prefetch_abort_handler(trapframe_t *tf)
 	/* Prefetch aborts cannot happen in kernel mode */
 	if (__predict_false(!TRAP_USERMODE(tf)))
 		dab_fatal(tf, 0, tf->tf_pc, NULL, &ksig);
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 
 
 	/* Ok validate the address, can only execute in USER space */
@@ -809,7 +808,7 @@ do_trapsignal:
 	call_trapsignal(td, ksig.signb, ksig.code);
 
 out:
-	userret(td, tf, sticks);
+	userret(td, tf);
 
 }
 
@@ -871,10 +870,9 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	register_t *ap, *args, copyargs[MAXARGS];
 	struct sysent *callp;
 	int locked = 0;
-	u_int sticks = 0;
 
 	PCPU_LAZY_INC(cnt.v_syscall);
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	if (td->td_ucred != td->td_proc->p_ucred)
 		cred_update_thread(td);
 	switch (insn & SWI_OS_MASK) {
@@ -883,11 +881,11 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		break;
 	default:
 		call_trapsignal(td, SIGILL, 0);
-		userret(td, frame, td->td_sticks);
+		userret(td, frame);
 		return;
 	}
 	code = insn & 0x000fffff;                
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	ap = &frame->tf_r0;
 	if (code == SYS_syscall) {
 		code = *ap++;
@@ -973,7 +971,7 @@ bad:
 		mtx_unlock(&Giant);
 	
 	
-	userret(td, frame, sticks);
+	userret(td, frame);
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 	
@@ -995,6 +993,7 @@ swi_handler(trapframe_t *frame)
 
 	td->td_frame = frame;
 	
+	td->td_pticks = 0;
 	if (td->td_proc->p_flag & P_SA)
 		thread_user_enter(td);
 	/*
@@ -1003,7 +1002,7 @@ swi_handler(trapframe_t *frame)
 	 */
 	if (__predict_false(((frame->tf_pc - INSN_SIZE) & 3) != 0)) {
 		call_trapsignal(td, SIGILL, 0);
-		userret(td, frame, td->td_sticks);
+		userret(td, frame);
 		return;
 	}
 	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);

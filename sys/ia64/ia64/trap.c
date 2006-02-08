@@ -360,7 +360,6 @@ trap(int vector, struct trapframe *tf)
 	struct thread *td;
 	uint64_t ucode;
 	int error, sig, user;
-	u_int sticks;
 	ksiginfo_t ksi;
 
 	user = TRAPF_USERMODE(tf) ? 1 : 0;
@@ -373,12 +372,11 @@ trap(int vector, struct trapframe *tf)
 
 	if (user) {
 		ia64_set_fpsr(IA64_FPSR_DEFAULT);
-		sticks = td->td_sticks;
+		td->td_pticks = 0;
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
 	} else {
-		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 #ifdef KDB
@@ -877,7 +875,7 @@ trap(int vector, struct trapframe *tf)
 
 out:
 	if (user) {
-		userret(td, tf, sticks);
+		userret(td, tf);
 		mtx_assert(&Giant, MA_NOTOWNED);
 		do_ast(tf);
 	}
@@ -943,7 +941,6 @@ syscall(struct trapframe *tf)
 	struct thread *td;
 	uint64_t *args;
 	int code, error;
-	u_int sticks;
 
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 
@@ -956,7 +953,7 @@ syscall(struct trapframe *tf)
 	td->td_frame = tf;
 	p = td->td_proc;
 
-	sticks = td->td_sticks;
+	td->td_pticks = 0;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 	if (p->p_flag & P_SA)
@@ -1030,7 +1027,7 @@ syscall(struct trapframe *tf)
 		}
 	}
 
-	userret(td, tf, sticks);
+	userret(td, tf);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
