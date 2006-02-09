@@ -164,6 +164,8 @@ struct ath_txq {
 	(_tq)->axq_depth--; \
 } while (0)
 
+struct ath_tx99;
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
@@ -185,6 +187,7 @@ struct ath_softc {
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
+	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */
 	void			(*sc_setdefantenna)(struct ath_softc *, u_int);
 	unsigned int		sc_invalid : 1,	/* disable hardware accesses */
 				sc_mrretry : 1,	/* multi-rate retry support */
