@@ -200,6 +200,7 @@ struct ath_softc {
 				sc_ledstate: 1,	/* LED on/off state */
 				sc_blinking: 1,	/* LED blink operation active */
 				sc_mcastkey: 1,	/* mcast key cache search */
+				sc_syncbeacon:1,/* sync/resync beacon timers */
 				sc_hasclrkey:1;	/* CLR key supported */
 						/* rate tables */
 	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
