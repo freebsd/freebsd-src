@@ -55,6 +55,7 @@
 #define	ATH_TXBUF	100		/* number of TX buffers */
 #define	ATH_TXDESC	10		/* number of descriptors per buffer */
 #define	ATH_TXMAXTRY	11		/* max number of transmit attempts */
+#define	ATH_TXMGTTRY	4		/* xmit attempts for mgt/ctl frames */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
 #define	ATH_BEACON_AIFS_DEFAULT	 0	/* default aifs for ap beacon q */
