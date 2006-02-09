@@ -85,6 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/ath/ah_desc.h>
 #include <contrib/dev/ath/ah_devid.h>		/* XXX for softled */
 
+#ifdef ATH_TX99_DIAG
+#include <dev/ath/ath_tx99/ath_tx99.h>
+#endif
+
 /* unaligned little endian access */
 #define LE_READ_2(p)							\
 	((u_int16_t)							\
@@ -633,6 +637,10 @@ ath_detach(struct ath_softc *sc)
 	 * Other than that, it's straightforward...
 	 */
 	ieee80211_ifdetach(&sc->sc_ic);
+#ifdef ATH_TX99_DIAG
+	if (sc->sc_tx99 != NULL)
+		sc->sc_tx99->detach(sc->sc_tx99);
+#endif
 	ath_rate_detach(sc->sc_rc);
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
@@ -927,6 +935,11 @@ ath_init(void *arg)
 	 * immediately call back to us to send mgmt frames.
 	 */
 	ath_chan_change(sc, ic->ic_curchan);
+#ifdef ATH_TX99_DIAG
+	if (sc->sc_tx99 != NULL)
+		sc->sc_tx99->start(sc->sc_tx99);
+	else
+#endif
 	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
@@ -963,6 +976,10 @@ ath_stop_locked(struct ifnet *ifp)
 		 * Note that some of this work is not possible if the
 		 * hardware is gone (invalid).
 		 */
+#ifdef ATH_TX99_DIAG
+		if (sc->sc_tx99 != NULL)
+			sc->sc_tx99->stop(sc->sc_tx99);
+#endif
 		ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		ifp->if_timer = 0;
