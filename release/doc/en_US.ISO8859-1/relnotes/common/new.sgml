@@ -525,8 +525,11 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>libpcap</application> has been updated
-      to v0.9.1 (release).</para>
+    <para><application>BIND</application> has been updated from 9.3.1
+      to 9.3.2. &merged;</para>
+
+    <para><application>IPFilter</application> has been updated from
+      4.1.8 to 4.1.10.</para>
 
     <para><application>OpenSSH</application> has been updated from
       version 4.0p1 to version 4.2p1.</para>
@@ -534,8 +537,10 @@
     <para><application>sendmail</application> has been updated from
       version 8.13.3 to version 8.13.4.</para>
 
-    <para><application>tcpdump</application> has been updated
-      to v3.9.1 (release).</para>
+    <para>The timezone database has been updated from the
+      <application>tzdata2005l</application> release to the
+      <application>tzdata2005r</application> release. &merged;</para>
+
   </sect2>
 
   <sect2 id="ports">
