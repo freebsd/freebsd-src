@@ -143,11 +143,14 @@ struct ath_txq {
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
+	char			axq_name[12];	/* e.g. "ath0_txq4" */
 };
 
-#define	ATH_TXQ_LOCK_INIT(_sc, _tq) \
-	mtx_init(&(_tq)->axq_lock, \
-		device_get_nameunit((_sc)->sc_dev), "xmit q", MTX_DEF)
+#define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
+	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
+		device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
+	mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, "ath_txq", MTX_DEF); \
+} while (0);
 #define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
@@ -251,6 +254,7 @@ struct ath_softc {
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
+	char			sc_txname[12];	/* e.g. "ath0_buf" */
 	int			sc_tx_timer;	/* transmit timeout */
 	u_int			sc_txqsetup;	/* h/w queues setup */
 	u_int			sc_txintrperiod;/* tx interrupt batching */
@@ -289,9 +293,11 @@ struct ath_softc {
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 
-#define	ATH_TXBUF_LOCK_INIT(_sc) \
-	mtx_init(&(_sc)->sc_txbuflock, \
-		device_get_nameunit((_sc)->sc_dev), "xmit buf q", MTX_DEF)
+#define	ATH_TXBUF_LOCK_INIT(_sc) do { \
+	snprintf((_sc)->sc_txname, sizeof((_sc)->sc_txname), "%s_buf", \
+		device_get_nameunit((_sc)->sc_dev)); \
+	mtx_init(&(_sc)->sc_txbuflock, (_sc)->sc_txname, "ath_buf", MTX_DEF); \
+} while (0)
 #define	ATH_TXBUF_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_LOCK(_sc)		mtx_lock(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txbuflock)
