@@ -213,7 +213,9 @@ struct ath_softc {
 		u_int16_t	ledoff;		/* softled off time */
 	} sc_hwmap[32];				/* h/w rate ix mappings */
 	u_int8_t		sc_minrateix;	/* min h/w rate index */
+	u_int8_t		sc_mcastrix;	/* mcast h/w rate index */
 	u_int8_t		sc_protrix;	/* protection rate index */
+	u_int			sc_mcastrate;	/* ieee rate for mcastrateix */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 	u_int			sc_keymax;	/* size of key cache */
