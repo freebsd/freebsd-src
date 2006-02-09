@@ -1235,34 +1235,23 @@ print_INTEL_info(void)
 	u_int rounds, regnum;
 	u_int nwaycode, nway;
 
-	do_cpuid(0x2, regs);
+	if (cpu_high >= 2) {
+		rounds = 0;
+		do {
+			do_cpuid(0x2, regs);
+			if (rounds == 0 && (rounds = (regs[0] & 0xff)) == 0)
+				break;	/* we have a buggy CPU */
 
-	rounds = (regs[0] & 0xff) - 1;
-
-	for (regnum = 0; regnum <= 3; ++regnum) {
-		if ((regs[regnum] & (1<<31)) == 0) {
-			if (regnum != 0)
-				print_INTEL_TLB(regs[regnum] & 0xff);
-			print_INTEL_TLB((regs[regnum] >> 8) & 0xff);
-			print_INTEL_TLB((regs[regnum] >> 16) & 0xff);
-			print_INTEL_TLB((regs[regnum] >> 24) & 0xff);
-		}
-	}
-
-	while (rounds > 0) {
-		do_cpuid(0x2, regs);
-
-		for (regnum = 0; regnum <= 3; ++regnum) {
-			if ((regs[regnum] & (1<<31)) == 0) {
+			for (regnum = 0; regnum <= 3; ++regnum) {
+				if (regs[regnum] & (1<<31))
+					continue;
 				if (regnum != 0)
 					print_INTEL_TLB(regs[regnum] & 0xff);
 				print_INTEL_TLB((regs[regnum] >> 8) & 0xff);
 				print_INTEL_TLB((regs[regnum] >> 16) & 0xff);
 				print_INTEL_TLB((regs[regnum] >> 24) & 0xff);
 			}
-		}
-
-		--rounds;
+		} while (--rounds > 0);
 	}
 
 	if (cpu_exthigh >= 0x80000006) {
@@ -1451,28 +1440,16 @@ setPQL2_INTEL(int *const size, int *const ways)
 	u_int regs[4];
 	u_int nwaycode;
 
-	do_cpuid(0x2, regs);
-	rounds = (regs[0] & 0xff) - 1;
+	if (cpu_high >= 2) {
+		rounds = 0;
+		do {
+			do_cpuid(0x2, regs);
+			if (rounds == 0 && (rounds = (regs[0] & 0xff)) == 0)
+				break;	/* we have a buggy CPU */
 
-	for (regnum = 0; regnum <= 3; ++regnum) {
-		if ((regs[regnum] & (1<<31)) == 0) {
-			if (regnum != 0)
-				get_INTEL_TLB(regs[regnum] & 0xff,
-				    size, ways);
-			get_INTEL_TLB((regs[regnum] >> 8) & 0xff,
-			    size, ways);
-			get_INTEL_TLB((regs[regnum] >> 16) & 0xff,
-			    size, ways);
-			get_INTEL_TLB((regs[regnum] >> 24) & 0xff,
-			    size, ways);
-		}
-	}
-
-	while (rounds > 0) {
-		do_cpuid(0x2, regs);
-
-		for (regnum = 0; regnum <= 3; ++regnum) {
-			if ((regs[regnum] & (1<<31)) == 0) {
+			for (regnum = 0; regnum <= 3; ++regnum) {
+				if (regs[regnum] & (1<<31))
+					continue;
 				if (regnum != 0)
 					get_INTEL_TLB(regs[regnum] & 0xff,
 					    size, ways);
@@ -1482,11 +1459,9 @@ setPQL2_INTEL(int *const size, int *const ways)
 				    size, ways);
 				get_INTEL_TLB((regs[regnum] >> 24) & 0xff,
 				    size, ways);
-                        }
-                }
-
-                --rounds;
-        }
+			}
+		} while (--rounds > 0);
+	}
 
 	if (cpu_exthigh >= 0x80000006) {
 		do_cpuid(0x80000006, regs);
