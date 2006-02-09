@@ -1122,7 +1122,7 @@ ath_start(struct ifnet *ifp)
 			STAILQ_REMOVE_HEAD(&sc->sc_txbuf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 		if (bf == NULL) {
-			DPRINTF(sc, ATH_DEBUG_ANY, "%s: out of xmit buffers\n",
+			DPRINTF(sc, ATH_DEBUG_XMIT, "%s: out of xmit buffers\n",
 				__func__);
 			sc->sc_stats.ast_tx_qstop++;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1138,9 +1138,10 @@ ath_start(struct ifnet *ifp)
 			 * No data frames go out unless we're associated.
 			 */
 			if (ic->ic_state != IEEE80211_S_RUN) {
-				DPRINTF(sc, ATH_DEBUG_ANY,
-					"%s: ignore data packet, state %u\n",
-					__func__, ic->ic_state);
+				DPRINTF(sc, ATH_DEBUG_XMIT,
+				    "%s: discard data packet, state %s\n",
+				    __func__,
+				    ieee80211_state_name[ic->ic_state]);
 				sc->sc_stats.ast_tx_discard++;
 				ATH_TXBUF_LOCK(sc);
 				STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
@@ -1196,7 +1197,7 @@ ath_start(struct ifnet *ifp)
 			 */
 			m = ieee80211_encap(ic, m, ni);
 			if (m == NULL) {
-				DPRINTF(sc, ATH_DEBUG_ANY,
+				DPRINTF(sc, ATH_DEBUG_XMIT,
 					"%s: encapsulation failure\n",
 					__func__);
 				sc->sc_stats.ast_tx_encap++;
@@ -4096,12 +4097,14 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	hchan.channel = chan->ic_freq;
 	hchan.channelFlags = ath_chan2flags(ic, chan);
 
-	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %u (%u MHz) -> %u (%u MHz)\n",
+	DPRINTF(sc, ATH_DEBUG_RESET,
+	    "%s: %u (%u MHz, hal flags 0x%x) -> %u (%u MHz, hal flags 0x%x)\n",
 	    __func__,
 	    ath_hal_mhz2ieee(sc->sc_curchan.channel,
 		sc->sc_curchan.channelFlags),
-	    	sc->sc_curchan.channel,
-	    ath_hal_mhz2ieee(hchan.channel, hchan.channelFlags), hchan.channel);
+	    	sc->sc_curchan.channel, sc->sc_curchan.channelFlags,
+	    ath_hal_mhz2ieee(hchan.channel, hchan.channelFlags),
+	        hchan.channel, hchan.channelFlags);
 	if (hchan.channel != sc->sc_curchan.channel ||
 	    hchan.channelFlags != sc->sc_curchan.channelFlags) {
 		HAL_STATUS status;
@@ -4116,9 +4119,10 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_draintxq(sc);		/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, &hchan, AH_TRUE, &status)) {
-			if_printf(ic->ic_ifp, "ath_chan_set: unable to reset "
-				"channel %u (%u Mhz)\n",
-				ieee80211_chan2ieee(ic, chan), chan->ic_freq);
+			if_printf(ic->ic_ifp, "%s: unable to reset "
+			    "channel %u (%u Mhz, flags 0x%x hal flags 0x%x)\n",
+			    __func__, ieee80211_chan2ieee(ic, chan),
+			    chan->ic_freq, chan->ic_flags, hchan.channelFlags);
 			return EIO;
 		}
 		sc->sc_curchan = hchan;
@@ -4130,7 +4134,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 */
 		if (ath_startrecv(sc) != 0) {
 			if_printf(ic->ic_ifp,
-				"ath_chan_set: unable to restart recv logic\n");
+				"%s: unable to restart recv logic\n", __func__);
 			return EIO;
 		}
 
@@ -4171,14 +4175,13 @@ ath_calibrate(void *arg)
 
 	sc->sc_stats.ast_per_cal++;
 
-	DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: channel %u/%x\n",
-		__func__, sc->sc_curchan.channel, sc->sc_curchan.channelFlags);
-
 	if (ath_hal_getrfgain(ah) == HAL_RFGAIN_NEED_CHANGE) {
 		/*
 		 * Rfgain is out of bounds, reset the chip
 		 * to load new gain values.
 		 */
+		DPRINTF(sc, ATH_DEBUG_CALIBRATE,
+			"%s: rfgain change\n", __func__);
 		sc->sc_stats.ast_per_rfgain++;
 		ath_reset(sc->sc_ifp);
 	}
@@ -4676,7 +4679,7 @@ ath_printrxbuf(struct ath_buf *bf, int done)
 	int i;
 
 	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf("R%d (%p %p) %08x %08x %08x %08x %08x %08x %c\n",
+		printf("R%d (%p %p) L:%08x D:%08x %08x %08x %08x %08x %c\n",
 		    i, ds, (struct ath_desc *)bf->bf_daddr + i,
 		    ds->ds_link, ds->ds_data,
 		    ds->ds_ctl0, ds->ds_ctl1,
@@ -4692,7 +4695,7 @@ ath_printtxbuf(struct ath_buf *bf, int done)
 	int i;
 
 	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf("T%d (%p %p) %08x %08x %08x %08x %08x %08x %08x %08x %c\n",
+		printf("T%d (%p %p) L:%08x D:%08x %08x %08x %08x %08x %08x %08x %c\n",
 		    i, ds, (struct ath_desc *)bf->bf_daddr + i,
 		    ds->ds_link, ds->ds_data,
 		    ds->ds_ctl0, ds->ds_ctl1,
