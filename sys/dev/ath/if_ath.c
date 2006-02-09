@@ -2127,11 +2127,14 @@ ath_beacon_free(struct ath_softc *sc)
 static void
 ath_beacon_config(struct ath_softc *sc)
 {
-#define	TSF_TO_TU(_h,_l)	(((_h) << 22) | ((_l) >> 10))
+#define	TSF_TO_TU(_h,_l) \
+	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
+#define	FUDGE	2
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = ic->ic_bss;
-	u_int32_t nexttbtt, intval;
+	u_int32_t nexttbtt, intval, tsftu;
+	u_int64_t tsf;
 
 	/* extract tstamp from last beacon and convert to TU */
 	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
@@ -2146,8 +2149,6 @@ ath_beacon_config(struct ath_softc *sc)
 		__func__, nexttbtt, intval, ni->ni_intval);
 	if (ic->ic_opmode == IEEE80211_M_STA) {
 		HAL_BEACON_STATE bs;
-		u_int64_t tsf;
-		u_int32_t tsftu;
 		int dtimperiod, dtimcount;
 		int cfpperiod, cfpcount;
 
@@ -2163,13 +2164,12 @@ ath_beacon_config(struct ath_softc *sc)
 			dtimcount = 0;		/* XXX? */
 		cfpperiod = 1;			/* NB: no PCF support yet */
 		cfpcount = 0;
-#define	FUDGE	2
 		/*
 		 * Pull nexttbtt forward to reflect the current
 		 * TSF and calculate dtim+cfp state for the result.
 		 */
 		tsf = ath_hal_gettsf64(ah);
-		tsftu = TSF_TO_TU((u_int32_t)(tsf>>32), (u_int32_t)tsf) + FUDGE;
+		tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
 		do {
 			nexttbtt += intval;
 			if (--dtimcount < 0) {
@@ -2178,7 +2178,6 @@ ath_beacon_config(struct ath_softc *sc)
 					cfpcount = cfpperiod - 1;
 			}
 		} while (nexttbtt < tsftu);
-#undef FUDGE
 		memset(&bs, 0, sizeof(bs));
 		bs.bs_intval = intval;
 		bs.bs_nexttbtt = nexttbtt;
@@ -2260,6 +2259,17 @@ ath_beacon_config(struct ath_softc *sc)
 			intval |= HAL_BEACON_ENA;
 			if (!sc->sc_hasveol)
 				sc->sc_imask |= HAL_INT_SWBA;
+			if ((intval & HAL_BEACON_RESET_TSF) == 0) {
+				/*
+				 * Pull nexttbtt forward to reflect
+				 * the current TSF.
+				 */
+				tsf = ath_hal_gettsf64(ah);
+				tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
+				do {
+					nexttbtt += intval;
+				} while (nexttbtt < tsftu);
+			}
 			ath_beaconq_config(sc);
 		} else if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 			/*
@@ -2280,6 +2290,8 @@ ath_beacon_config(struct ath_softc *sc)
 		if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol)
 			ath_beacon_proc(sc, 0);
 	}
+	sc->sc_syncbeacon = 0;
+#undef FUDGE
 #undef TSF_TO_TU
 }
 
@@ -2630,6 +2642,14 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 	case IEEE80211_FC0_SUBTYPE_BEACON:
 		/* update rssi statistics for use by the hal */
 		ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
+		if (sc->sc_syncbeacon &&
+		    ni == ic->ic_bss && ic->ic_state == IEEE80211_S_RUN) {
+			/*
+			 * Resync beacon timers using the tsf of the beacon
+			 * frame we just received.
+			 */
+			ath_beacon_config(sc);
+		}
 		/* fall thru... */
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (ic->ic_opmode == IEEE80211_M_IBSS &&
@@ -4296,9 +4316,16 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			if (error != 0)
 				goto bad;
 			/*
-			 * Configure the beacon and sleep timers.
+			 * If joining an adhoc network defer beacon timer
+			 * configuration to the next beacon frame so we
+			 * have a current TSF to use.  Otherwise we're
+			 * starting an ibss/bss so there's no need to delay.
 			 */
-			ath_beacon_config(sc);
+			if (ic->ic_opmode == IEEE80211_M_IBSS &&
+			    ic->ic_bss->ni_tstamp.tsf != 0)
+				sc->sc_syncbeacon = 1;
+			else
+				ath_beacon_config(sc);
 			break;
 		case IEEE80211_M_STA:
 			/*
@@ -4309,9 +4336,11 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			    ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE)
 				ath_setup_stationkey(ni);
 			/*
-			 * Configure the beacon and sleep timers.
+			 * Defer beacon timer configuration to the next
+			 * beacon frame so we have a current TSF to use
+			 * (any TSF collected when scanning is likely old).
 			 */
-			ath_beacon_config(sc);
+			sc->sc_syncbeacon = 1;
 			break;
 		default:
 			break;
