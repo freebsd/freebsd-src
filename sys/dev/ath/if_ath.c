@@ -1823,10 +1823,10 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct mbuf *m = bf->bf_m;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_node *an = ATH_NODE(ni);
 	struct ath_desc *ds;
 	int flags, antenna;
-	u_int8_t rate;
+	const HAL_RATE_TABLE *rt;
+	u_int8_t rix, rate;
 
 	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: m %p len %u\n",
 		__func__, m, m->m_len);
@@ -1858,10 +1858,11 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 	 * Calculate rate code.
 	 * XXX everything at min xmit rate
 	 */
+	rix = sc->sc_minrateix;
+	rt = sc->sc_currates;
+	rate = rt->info[rix].rateCode;
 	if (USE_SHPREAMBLE(ic))
-		rate = an->an_tx_mgtratesp;
-	else
-		rate = an->an_tx_mgtrate;
+		rate |= rt->info[rix].shortPreamble;
 	ath_hal_setuptxdesc(ah, ds
 		, m->m_len + IEEE80211_CRC_LEN	/* frame length */
 		, sizeof(struct ieee80211_frame)/* header length */
@@ -3299,12 +3300,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			atype = HAL_PKT_TYPE_ATIM;
 		else
 			atype = HAL_PKT_TYPE_NORMAL;	/* XXX */
-		rix = 0;			/* XXX lowest rate */
-		try0 = ATH_TXMAXTRY;
+		rix = sc->sc_minrateix;
+		txrate = rt->info[rix].rateCode;
 		if (shortPreamble)
-			txrate = an->an_tx_mgtratesp;
-		else
-			txrate = an->an_tx_mgtrate;
+			txrate |= rt->info[rix].shortPreamble;
+		try0 = ATH_TXMAXTRY;
 		/* NB: force all management frames to highest queue */
 		if (ni->ni_flags & IEEE80211_NODE_QOS) {
 			/* NB: force all management frames to highest queue */
@@ -3315,12 +3315,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		break;
 	case IEEE80211_FC0_TYPE_CTL:
 		atype = HAL_PKT_TYPE_PSPOLL;	/* stop setting of duration */
-		rix = 0;			/* XXX lowest rate */
-		try0 = ATH_TXMAXTRY;
+		rix = sc->sc_minrateix;
+		txrate = rt->info[rix].rateCode;
 		if (shortPreamble)
-			txrate = an->an_tx_mgtratesp;
-		else
-			txrate = an->an_tx_mgtrate;
+			txrate |= rt->info[rix].shortPreamble;
+		try0 = ATH_TXMAXTRY;
 		/* NB: force all ctl frames to highest queue */
 		if (ni->ni_flags & IEEE80211_NODE_QOS) {
 			/* NB: force all ctl frames to highest queue */
@@ -4499,6 +4498,8 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	 * XXX select protection rate index from rate table.
 	 */
 	sc->sc_protrix = (mode == IEEE80211_MODE_11G ? 1 : 0);
+	/* rate index used to send management frames */
+	sc->sc_minrateix = 0;
 	/* NB: caller is responsible for reseting rate control state */
 #undef N
 }
