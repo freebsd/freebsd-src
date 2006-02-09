@@ -255,8 +255,7 @@ syncache_init(void)
 	 * older one.
 	 */
 	tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 
-	    UMA_ZONE_NOFREE | UMA_ZONE_ZINIT);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcp_syncache.zone, tcp_syncache.cache_limit);
 	tcp_syncache.cache_limit -= 1;
 }
@@ -883,7 +882,7 @@ syncache_add(inc, to, th, sop, m)
 		return (1);
 	}
 
-	sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
+	sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		/*
 		 * The zone allocator couldn't provide more entries.
@@ -905,7 +904,7 @@ syncache_add(inc, to, th, sop, m)
 		}
 		sc->sc_tp->ts_recent = ticks;
 		syncache_drop(sc, NULL);
-		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
+		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
 			if (ipopts)
 				(void) m_free(ipopts);
@@ -1379,7 +1378,7 @@ syncookie_lookup(inc, th, so)
 		return (NULL);
 	data = data >> SYNCOOKIE_WNDBITS;
 
-	sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
+	sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (NULL);
 	/*
