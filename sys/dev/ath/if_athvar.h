@@ -164,6 +164,7 @@ struct ath_txq {
 	(_tq)->axq_depth--; \
 } while (0)
 
+struct taskqueue;
 struct ath_tx99;
 
 struct ath_softc {
@@ -184,6 +185,7 @@ struct ath_softc {
 	bus_space_handle_t	sc_sh;		/* bus space handle */
 	bus_dma_tag_t		sc_dmat;	/* bus DMA tag */
 	struct mtx		sc_mtx;		/* master lock (recursive) */
+	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */

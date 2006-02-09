@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
+#include <sys/kthread.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
  
@@ -381,6 +383,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ATH_TXBUF_LOCK_INIT(sc);
 
+	sc->sc_tq = taskqueue_create("ath_taskq", M_NOWAIT,
+		taskqueue_thread_enqueue, &sc->sc_tq);
+	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
+		"%s taskq", ifp->if_xname);
+
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
 	TASK_INIT(&sc->sc_fataltask, 0, ath_fatal_proc, sc);
@@ -643,6 +650,7 @@ ath_detach(struct ath_softc *sc)
 	if (sc->sc_tx99 != NULL)
 		sc->sc_tx99->detach(sc->sc_tx99);
 #endif
+	taskqueue_free(sc->sc_tq);
 	ath_rate_detach(sc->sc_rc);
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
@@ -740,11 +748,11 @@ ath_intr(void *arg)
 		 */
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		taskqueue_enqueue(taskqueue_swi, &sc->sc_fataltask);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
 	} else if (status & HAL_INT_RXORN) {
 		sc->sc_stats.ast_rxorn++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		taskqueue_enqueue(taskqueue_swi, &sc->sc_rxorntask);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxorntask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -770,12 +778,12 @@ ath_intr(void *arg)
 			ath_hal_updatetxtriglevel(ah, AH_TRUE);
 		}
 		if (status & HAL_INT_RX)
-			taskqueue_enqueue(taskqueue_swi, &sc->sc_rxtask);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
 		if (status & HAL_INT_TX)
-			taskqueue_enqueue(taskqueue_swi, &sc->sc_txtask);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
-			taskqueue_enqueue(taskqueue_swi, &sc->sc_bmisstask);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);
 		}
 		if (status & HAL_INT_MIB) {
 			sc->sc_stats.ast_mib++;
@@ -1963,7 +1971,7 @@ ath_beacon_proc(void *arg, int pending)
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
 		if (sc->sc_bmisscount > 3)		/* NB: 3 is a guess */
-			taskqueue_enqueue(taskqueue_swi, &sc->sc_bstucktask);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
 		return;
 	}
 	if (sc->sc_bmisscount != 0) {
