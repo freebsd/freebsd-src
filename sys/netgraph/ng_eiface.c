@@ -217,43 +217,37 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		return;
 
-	/* Don't do anything if output is active */
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
-		return;
+	for (;;) {
+		/*
+		 * Grab a packet to transmit.
+		 */
+		IF_DEQUEUE(&ifp->if_snd, m);
 
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		/* If there's nothing to send, break. */
+		if (m == NULL)
+			break;
 
-	/*
-	 * Grab a packet to transmit.
-	 */
-	IF_DEQUEUE(&ifp->if_snd, m);
+		/*
+		 * Berkeley packet filter.
+		 * Pass packet to bpf if there is a listener.
+		 * XXX is this safe? locking?
+		 */
+		BPF_MTAP(ifp, m);
 
-	/* If there's nothing to send, return. */
-	if (m == NULL) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		return;
-	}
+		/* Copy length before the mbuf gets invalidated */
+		len = m->m_pkthdr.len;
 
-	/*
-	 * Berkeley packet filter.
-	 * Pass packet to bpf if there is a listener.
-	 * XXX is this safe? locking?
-	 */
-	BPF_MTAP(ifp, m);
+		/*
+		 * Send packet; if hook is not connected, mbuf will get
+		 * freed.
+		 */
+		NG_SEND_DATA_ONLY(error, priv->ether, m);
 
-	/* Copy length before the mbuf gets invalidated */
-	len = m->m_pkthdr.len;
-
-	/*
-	 * Send packet; if hook is not connected, mbuf will get
-	 * freed.
-	 */
-	NG_SEND_DATA_ONLY(error, priv->ether, m);
-
-	/* Update stats */
-	if (error == 0) {
-		ifp->if_obytes += len;
-		ifp->if_opackets++;
+		/* Update stats */
+		if (error == 0) {
+			ifp->if_obytes += len;
+			ifp->if_opackets++;
+		}
 	}
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -279,6 +273,12 @@ ng_eiface_start(struct ifnet *ifp)
 {
 
 	const priv_p priv = (priv_p)ifp->if_softc;
+
+	/* Don't do anything if output is active */
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+		return;
+
+	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	ng_send_fn(priv->node, NULL, &ng_eiface_start2, ifp, 0);
 }
