@@ -2861,10 +2861,10 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20377,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20377" },
      { ATA_PDC20378,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20378" },
      { ATA_PDC20379,  0, PRMIO, PRCMBO,  ATA_SA150, "PDC20379" },
-     { ATA_PDC20571,  0, PRMIO, PRSATA2, ATA_SA150, "PDC20571" },
+     { ATA_PDC20571,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20571" },
      { ATA_PDC20575,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20575" },
      { ATA_PDC20579,  0, PRMIO, PRCMBO2, ATA_SA150, "PDC20579" },
-     { ATA_PDC20771,  0, PRMIO, PRSATA2, ATA_SA300, "PDC20771" },
+     { ATA_PDC20771,  0, PRMIO, PRCMBO2, ATA_SA300, "PDC20771" },
      { ATA_PDC40775,  0, PRMIO, PRCMBO2, ATA_SA300, "PDC40775" },
      { ATA_PDC20617,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20617" },
      { ATA_PDC20618,  0, PRMIO, PRPATA,  ATA_UDMA6, "PDC20618" },
@@ -2925,6 +2925,7 @@ static int
 ata_promise_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int fake_reg, stat_reg;
 
     if (ata_setup_interrupt(dev))
 	return ENXIO;
@@ -2962,8 +2963,7 @@ ata_promise_chipinit(device_t dev)
 						    &ctlr->r_rid2, RF_ACTIVE)))
 	    goto failnfree;
 
-	switch (ctlr->chip->cfg2) {
-	case PRSX4X: {
+	if (ctlr->chip->cfg2 == PRSX4X) {
 	    struct ata_promise_sx4 *hpkt;
 	    u_int32_t dimm = ATA_INL(ctlr->r_res2, 0x000c0080);
 
@@ -2998,58 +2998,55 @@ ata_promise_chipinit(device_t dev)
 	    ctlr->setmode = ata_promise_setmode;
 	    ctlr->channels = 4;
 	    return 0;
-	    }
-	case PRPATA:
-	case PRCMBO:
-	case PRSATA:
-	    /* 
-	     * older "mio" type controllers need an interrupt intercept
-	     * function to compensate for the "reset on read" type interrupt
-	     * status register they have.
-	     */
-	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
+	}
+
+	/* mio type controllers need an interrupt intercept */
+	if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
 		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
 			       ata_promise_mio_intr, ctlr, &ctlr->handle)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto failnfree;
-	    }
-	    /* prime fake interrupt register */
-	    ATA_OUTL(ctlr->r_res2, 0x060, 0xffffffff);
+	}
+
+	switch (ctlr->chip->cfg2) {
+	case PRPATA:
+	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x01) > 0) +
+			     ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 2;
+	    goto sata150;
+	case PRCMBO:
+	    ctlr->channels = 3;
+	    goto sata150;
+	case PRSATA:
+	    ctlr->channels = 4;
+sata150:
+	    fake_reg = 0x60;
+	    stat_reg = 0x6c;
+	    break;
+
+	case PRCMBO2: 
+	    ctlr->channels = 3;
+	    goto sataii;
+	case PRSATA2:
+	default:
+	    ctlr->channels = 4;
+sataii:
+	    fake_reg = 0x54;
+	    stat_reg = 0x60;
 	    break;
 	}
 
+	/* prime fake interrupt register */
+	ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
+
+	/* clear SATA status */
+	ATA_OUTL(ctlr->r_res2, stat_reg, 0x000000ff);
 
 	ctlr->allocate = ata_promise_mio_allocate;
 	ctlr->reset = ata_promise_mio_reset;
 	ctlr->dmainit = ata_promise_mio_dmainit;
 	ctlr->setmode = ata_promise_mio_setmode;
 
-	switch (ctlr->chip->cfg2) {
-	case PRPATA:
-	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x01) > 0) +
-			     ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 2;
-	    return 0;
-
-	case PRCMBO:
-	    ATA_OUTL(ctlr->r_res2, 0x06c, 0x000000ff);
-	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 3;
-	    return 0;
-
-	case PRSATA:
-	    ATA_OUTL(ctlr->r_res2, 0x06c, 0x000000ff);
-	    ctlr->channels = 4;
-	    return 0;
-
-	case PRCMBO2:
-	    ATA_OUTL(ctlr->r_res2, 0x060, 0x000000ff);
-	    ctlr->channels = 3;
-	    return 0;
-
-	case PRSATA2:
-	    ATA_OUTL(ctlr->r_res2, 0x060, 0x000000ff);
-	    ctlr->channels = 4;
-	    return 0;
-	}
+	return 0;
     }
 
 failnfree:
@@ -3297,7 +3294,21 @@ ata_promise_mio_intr(void *data)
 {
     struct ata_pci_controller *ctlr = data;
     struct ata_channel *ch;
-    int unit;
+    u_int32_t vector;
+    int unit, fake_reg;
+
+    switch (ctlr->chip->cfg2) {
+    case PRPATA:
+    case PRCMBO:
+    case PRSATA:
+	fake_reg = 0x60;
+	break;
+    case PRCMBO2: 
+    case PRSATA2:
+    default:
+	fake_reg = 0x54;
+	break;
+    }
 
     /*
      * since reading interrupt status register on early "mio" chips
@@ -3306,13 +3317,16 @@ ata_promise_mio_intr(void *data)
      * store the bits in an unused register in the chip so we can read
      * it from there safely to get around this "feature".
      */
-    ATA_OUTL(ctlr->r_res2, 0x060, ATA_INL(ctlr->r_res2, 0x040));
+    vector = ATA_INL(ctlr->r_res2, 0x040);
+    ATA_OUTL(ctlr->r_res2, 0x040, vector);
+    ATA_OUTL(ctlr->r_res2, fake_reg, vector);
 
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if ((ch = ctlr->interrupt[unit].argument))
 	    ctlr->interrupt[unit].function(ch);
     }
-    ATA_OUTL(ctlr->r_res2, 0x060, 0xffffffff);
+
+    ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
 }
 
 static int
@@ -3321,36 +3335,29 @@ ata_promise_mio_status(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_connect_task *tp;
-    u_int32_t vector, status;
+    u_int32_t fake_reg, stat_reg, vector, status;
 
     switch (ctlr->chip->cfg2) {
     case PRPATA:
-    case PRSATA:
     case PRCMBO:
-	/* read and acknowledge interrupt */
-	vector = ATA_INL(ctlr->r_res2, 0x0060);
-
-	/* read and clear interface status */
-	status = ATA_INL(ctlr->r_res2, 0x006c);
-	ATA_OUTL(ctlr->r_res2, 0x006c, status & (0x00000011 << ch->unit));
+    case PRSATA:
+	fake_reg = 0x60;
+	stat_reg = 0x6c;
 	break;
-
+    case PRCMBO2: 
     case PRSATA2:
-    case PRCMBO2:
-critical_enter();
-	/* read and acknowledge interrupt */
-	vector = ATA_INL(ctlr->r_res2, 0x0040);
-	ATA_OUTL(ctlr->r_res2, 0x0040, (1 << (ch->unit + 1)));
-
-	/* read and clear interface status */
-	status = ATA_INL(ctlr->r_res2, 0x0060);
-	ATA_OUTL(ctlr->r_res2, 0x0060, status & (0x00000011 << ch->unit));
-critical_exit();
-	break;
-
     default:
-	return 0;
+	fake_reg = 0x54;
+	stat_reg = 0x60;
+	break;
     }
+
+    /* read and acknowledge interrupt */
+    vector = ATA_INL(ctlr->r_res2, fake_reg);
+
+    /* read and clear interface status */
+    status = ATA_INL(ctlr->r_res2, stat_reg);
+    ATA_OUTL(ctlr->r_res2, stat_reg, status & (0x00000011 << ch->unit));
 
     /* check for and handle disconnect events */
     if ((status & (0x00000001 << ch->unit)) &&
