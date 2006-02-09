@@ -46,6 +46,7 @@ struct ath_stats {
 	u_int32_t	ast_watchdog;	/* device reset by watchdog */
 	u_int32_t	ast_hardware;	/* fatal hardware error interrupts */
 	u_int32_t	ast_bmiss;	/* beacon miss interrupts */
+	u_int32_t	ast_bmiss_phantom;/* beacon miss interrupts */
 	u_int32_t	ast_bstuck;	/* beacon stuck interrupts */
 	u_int32_t	ast_rxorn;	/* rx overrun interrupts */
 	u_int32_t	ast_rxeol;	/* rx eol interrupts */

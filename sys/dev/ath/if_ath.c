@@ -832,15 +832,29 @@ ath_bmiss_proc(void *arg, int pending)
 	KASSERT(ic->ic_opmode == IEEE80211_M_STA,
 		("unexpect operating mode %u", ic->ic_opmode));
 	if (ic->ic_state == IEEE80211_S_RUN) {
+		u_int64_t lastrx = sc->sc_lastrx;
+		u_int64_t tsf = ath_hal_gettsf64(sc->sc_ah);
+		u_int bmisstimeout =
+			ic->ic_bmissthreshold * ic->ic_bss->ni_intval * 1024;
+
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: tsf %llu lastrx %lld (%llu) bmiss %u\n",
+		    __func__, (unsigned long long) tsf,
+		    (unsigned long long)(tsf - lastrx),
+		    (unsigned long long) lastrx, bmisstimeout);
 		/*
-		 * Rather than go directly to scan state, try to
-		 * reassociate first.  If that fails then the state
-		 * machine will drop us into scanning after timing
-		 * out waiting for a probe response.
+		 * Workaround phantom bmiss interrupts by sanity-checking
+		 * the time of our last rx'd frame.  If it is within the
+		 * beacon miss interval then ignore the interrupt.  If it's
+		 * truly a bmiss we'll get another interrupt soon and that'll
+		 * be dispatched up for processing.
 		 */
-		NET_LOCK_GIANT();
-		ieee80211_new_state(ic, IEEE80211_S_ASSOC, -1);
-		NET_UNLOCK_GIANT();
+		if (tsf - lastrx > bmisstimeout) {
+			NET_LOCK_GIANT();
+			ieee80211_beacon_miss(ic);
+			NET_UNLOCK_GIANT();
+		} else
+			sc->sc_stats.ast_bmiss_phantom++;
 	}
 }
 
@@ -2708,7 +2722,7 @@ ath_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
-	int len, type;
+	int len, type, ngood;
 	u_int phyerr;
 	HAL_STATUS status;
 	int16_t nf;
@@ -2717,6 +2731,7 @@ ath_rx_proc(void *arg, int npending)
 	NET_LOCK_GIANT();		/* XXX */
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	ngood = 0;
 	nf = ath_hal_getchannoise(ah, &sc->sc_curchan);
 	tsf = ath_hal_gettsf64(ah);
 	do {
@@ -2924,12 +2939,22 @@ rx_accept:
 			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
 				ath_led_event(sc, ATH_LED_POLL);
 		}
+		/*
+		 * Arrange to update the last rx timestamp only for
+		 * frames from our ap when operating in station mode.
+		 * This assumes the rx key is always setup when associated.
+		 */
+		if (ic->ic_opmode == IEEE80211_M_STA &&
+		    ds->ds_rxstat.rs_keyix != HAL_RXKEYIX_INVALID)
+			ngood++;
 rx_next:
 		STAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
 	} while (ath_rxbuf_init(sc, bf) == 0);
 
 	/* rx signal state monitoring */
 	ath_hal_rxmonitor(ah, &sc->sc_halstats);
+	if (ngood)
+		sc->sc_lastrx = tsf;
 
 	NET_UNLOCK_GIANT();		/* XXX */
 #undef PA2DESC
@@ -3666,7 +3691,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 /*
  * Process completed xmit descriptors from the specified queue.
  */
-static void
+static int
 ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -3675,13 +3700,14 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_desc *ds, *ds0;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
-	int sr, lr, pri;
+	int sr, lr, pri, nacked;
 	HAL_STATUS status;
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
 		__func__, txq->axq_qnum,
 		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
+	nacked = 0;
 	for (;;) {
 		ATH_TXQ_LOCK(txq);
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
@@ -3738,8 +3764,15 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * Hand the descriptor to the rate control algorithm.
 			 */
 			if ((ds->ds_txstat.ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_flags & HAL_TXDESC_NOACK) == 0)
+			    (bf->bf_flags & HAL_TXDESC_NOACK) == 0) {
+				/*
+				 * If frame was ack'd update the last rx time
+				 * used to workaround phantom bmiss interrupts.
+				 */
+				if (ds->ds_txstat.ts_status == 0)
+					nacked++;
 				ath_rate_tx_complete(sc, an, ds, ds0);
+			}
 			/*
 			 * Reclaim reference to node.
 			 *
@@ -3760,6 +3793,14 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 	}
+	return nacked;
+}
+
+static __inline int
+txqactive(struct ath_hal *ah, int qnum)
+{
+	/* XXX not yet */
+	return 1;
 }
 
 /*
@@ -3772,7 +3813,10 @@ ath_tx_proc_q0(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 
-	ath_tx_processq(sc, &sc->sc_txq[0]);
+	if (txqactive(sc->sc_ah, 0) && ath_tx_processq(sc, &sc->sc_txq[0]))
+		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
+	if (txqactive(sc->sc_ah, sc->sc_cabq->axq_qnum))
+		ath_tx_processq(sc, sc->sc_cabq);
 	ath_tx_processq(sc, sc->sc_cabq);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
@@ -3792,15 +3836,24 @@ ath_tx_proc_q0123(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	int nacked;
 
 	/*
 	 * Process each active queue.
 	 */
-	ath_tx_processq(sc, &sc->sc_txq[0]);
-	ath_tx_processq(sc, &sc->sc_txq[1]);
-	ath_tx_processq(sc, &sc->sc_txq[2]);
-	ath_tx_processq(sc, &sc->sc_txq[3]);
-	ath_tx_processq(sc, sc->sc_cabq);
+	nacked = 0;
+	if (txqactive(sc->sc_ah, 0))
+		nacked += ath_tx_processq(sc, &sc->sc_txq[0]);
+	if (txqactive(sc->sc_ah, 1))
+		nacked += ath_tx_processq(sc, &sc->sc_txq[1]);
+	if (txqactive(sc->sc_ah, 2))
+		nacked += ath_tx_processq(sc, &sc->sc_txq[2]);
+	if (txqactive(sc->sc_ah, 3))
+		nacked += ath_tx_processq(sc, &sc->sc_txq[3]);
+	if (txqactive(sc->sc_ah, sc->sc_cabq->axq_qnum))
+		ath_tx_processq(sc, sc->sc_cabq);
+	if (nacked)
+		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
@@ -3819,15 +3872,17 @@ ath_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
-	int i;
+	int i, nacked;
 
 	/*
 	 * Process each active queue.
 	 */
-	/* XXX faster to read ISR_S0_S and ISR_S1_S to determine q's? */
+	nacked = 0;
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_processq(sc, &sc->sc_txq[i]);
+		if (ATH_TXQ_SETUP(sc, i) && txqactive(sc->sc_ah, i))
+			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
+	if (nacked)
+		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
