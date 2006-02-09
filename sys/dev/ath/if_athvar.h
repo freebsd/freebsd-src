@@ -75,8 +75,6 @@
 /* driver-specific node state */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
-	u_int8_t	an_tx_mgtrate;	/* h/w rate for management/ctl frames */
-	u_int8_t	an_tx_mgtratesp;/* short preamble h/w rate for " " */
 	u_int32_t	an_avgrssi;	/* average rssi over all rx frames */
 	HAL_NODE_STATS	an_halstats;	/* rssi statistics used by hal */
 	/* variable-length rate control state follows */
@@ -206,6 +204,7 @@ struct ath_softc {
 		u_int16_t	ledon;		/* softled on time */
 		u_int16_t	ledoff;		/* softled off time */
 	} sc_hwmap[32];				/* h/w rate ix mappings */
+	u_int8_t		sc_minrateix;	/* min h/w rate index */
 	u_int8_t		sc_protrix;	/* protection rate index */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
