@@ -200,6 +200,15 @@ static	int ath_regdomain = 0;			/* regulatory domain */
 SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
 	    0, "regulatory domain");
 
+static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
+SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RD, &ath_rxbuf,
+	    0, "rx buffers allocated");
+TUNABLE_INT("hw.ath.rxbuf", &ath_rxbuf);
+static	int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
+SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RD, &ath_txbuf,
+	    0, "tx buffers allocated");
+TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
+
 #ifdef AR_DEBUG
 static	int ath_debug = 0;
 SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
@@ -2378,12 +2387,12 @@ ath_desc_alloc(struct ath_softc *sc)
 	int error;
 
 	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
-			"rx", ATH_RXBUF, 1);
+			"rx", ath_rxbuf, 1);
 	if (error != 0)
 		return error;
 
 	error = ath_descdma_setup(sc, &sc->sc_txdma, &sc->sc_txbuf,
-			"tx", ATH_TXBUF, ATH_TXDESC);
+			"tx", ath_txbuf, ATH_TXDESC);
 	if (error != 0) {
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 		return error;
@@ -4981,5 +4990,9 @@ ath_announce(struct ath_softc *sc)
 			sc->sc_cabq->axq_qnum);
 		if_printf(ifp, "Use hw queue %u for beacons\n", sc->sc_bhalq);
 	}
+	if (ath_rxbuf != ATH_RXBUF)
+		if_printf(ifp, "using %u rx buffers\n", ath_rxbuf);
+	if (ath_txbuf != ATH_TXBUF)
+		if_printf(ifp, "using %u tx buffers\n", ath_txbuf);
 #undef HAL_MODE_DUALBAND
 }
