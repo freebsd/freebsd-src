@@ -4916,6 +4916,21 @@ ath_sysctl_tpc(SYSCTL_HANDLER_ARGS)
 	return !ath_hal_settpc(sc->sc_ah, tpc) ? EINVAL : 0;
 }
 
+static int
+ath_sysctl_regdomain(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	u_int32_t rd;
+	int error;
+
+	if (!ath_hal_getregdomain(sc->sc_ah, &rd))
+		return EINVAL;
+	error = sysctl_handle_int(oidp, &rd, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return !ath_hal_setregdomain(sc->sc_ah, rd) ? EINVAL : 0;
+}
+
 static void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -4927,10 +4942,9 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"countrycode", CTLFLAG_RD, &sc->sc_countrycode, 0,
 		"EEPROM country code");
-	ath_hal_getregdomain(sc->sc_ah, &sc->sc_regdomain);
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"regdomain", CTLFLAG_RD, &sc->sc_regdomain, 0,
-		"EEPROM regdomain code");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"regdomain", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_regdomain, "I", "EEPROM regdomain code");
 	sc->sc_debug = ath_debug;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
