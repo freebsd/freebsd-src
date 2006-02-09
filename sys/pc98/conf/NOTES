@@ -740,7 +740,6 @@ nodevice	ahd
 nodevice	mpt
 nodevice	trm
 nodevice	wds
-nodevice	asr
 nodevice	dpt
 nodevice	ciss
 nodevice	iir
