@@ -2562,7 +2562,6 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 			sc->sc_stats.ast_rx_nombuf++;
 			return ENOMEM;
 		}
-		bf->bf_m = m;
 		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat,
@@ -2574,10 +2573,12 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 			    "%s: bus_dmamap_load_mbuf_sg failed; error %d\n",
 			    __func__, error);
 			sc->sc_stats.ast_rx_busdma++;
+			m_freem(m);
 			return error;
 		}
 		KASSERT(bf->bf_nseg == 1,
 			("multi-segment packet; nseg %u", bf->bf_nseg));
+		bf->bf_m = m;
 	}
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREREAD);
 
@@ -2761,15 +2762,21 @@ ath_rx_proc(void *arg, int npending)
 			if_printf(ifp, "%s: no buffer!\n", __func__);
 			break;
 		}
+		m = bf->bf_m;
+		if (m == NULL) {		/* NB: shouldn't happen */
+			/*
+			 * If mbuf allocation failed previously there
+			 * will be no mbuf; try again to re-populate it.
+			 */ 
+			/* XXX make debug msg */
+			if_printf(ifp, "%s: no mbuf!\n", __func__);
+			STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
+			goto rx_next;
+		}
 		ds = bf->bf_desc;
 		if (ds->ds_link == bf->bf_daddr) {
 			/* NB: never process the self-linked entry at the end */
 			break;
-		}
-		m = bf->bf_m;
-		if (m == NULL) {		/* NB: shouldn't happen */
-			if_printf(ifp, "%s: no mbuf!\n", __func__);
-			continue;
 		}
 		/* XXX sync descriptor memory */
 		/*
