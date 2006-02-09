@@ -501,6 +501,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		  IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
 		| IEEE80211_C_HOSTAP		/* hostap mode */
 		| IEEE80211_C_MONITOR		/* monitor mode */
+		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
@@ -573,6 +574,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	/* call MI attach routine. */
 	ieee80211_ifattach(ic);
+	sc->sc_opmode = ic->ic_opmode;
 	/* override default methods */
 	ic->ic_node_alloc = ath_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
@@ -883,7 +885,7 @@ ath_init(void *arg)
 	 */
 	sc->sc_curchan.channel = ic->ic_curchan->ic_freq;
 	sc->sc_curchan.channelFlags = ath_chan2flags(ic, ic->ic_curchan);
-	if (!ath_hal_reset(ah, ic->ic_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
+	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
 			status);
 		goto done;
@@ -1053,7 +1055,7 @@ ath_reset(struct ifnet *ifp)
 	ath_draintxq(sc);		/* stop xmit side */
 	ath_stoprecv(sc);		/* stop recv side */
 	/* NB: indicate channel change so we do a full reset */
-	if (!ath_hal_reset(ah, ic->ic_opmode, &sc->sc_curchan, AH_TRUE, &status))
+	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_TRUE, &status))
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	ath_update_txpow(sc);		/* update tx power state */
@@ -1234,6 +1236,18 @@ ath_media_change(struct ifnet *ifp)
 
 	error = ieee80211_media_change(ifp);
 	if (error == ENETRESET) {
+		struct ath_softc *sc = ifp->if_softc;
+		struct ieee80211com *ic = &sc->sc_ic;
+
+		if (ic->ic_opmode == IEEE80211_M_AHDEMO) {
+			/* 
+			 * Adhoc demo mode is just ibss mode w/o beacons
+			 * (mostly).  The hal knows nothing about it;
+			 * tell it we're operating in ibss mode.
+			 */
+			sc->sc_opmode = HAL_M_IBSS;
+		} else
+			sc->sc_opmode = ic->ic_opmode;
 		if (IS_UP(ifp))
 			ath_init(ifp->if_softc);	/* XXX lose error */
 		error = 0;
@@ -4038,7 +4052,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* clear pending tx frames */
 		ath_stoprecv(sc);		/* turn off frame recv */
-		if (!ath_hal_reset(ah, ic->ic_opmode, &hchan, AH_TRUE, &status)) {
+		if (!ath_hal_reset(ah, sc->sc_opmode, &hchan, AH_TRUE, &status)) {
 			if_printf(ic->ic_ifp, "ath_chan_set: unable to reset "
 				"channel %u (%u Mhz)\n",
 				ieee80211_chan2ieee(ic, chan), chan->ic_freq);
@@ -4215,6 +4229,10 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			error = ath_beacon_alloc(sc, ni);
 			if (error != 0)
 				goto bad;
+			/*
+			 * Configure the beacon and sleep timers.
+			 */
+			ath_beacon_config(sc);
 			break;
 		case IEEE80211_M_STA:
 			/*
@@ -4224,6 +4242,10 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			    sc->sc_hasclrkey &&
 			    ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE)
 				ath_setup_stationkey(ni);
+			/*
+			 * Configure the beacon and sleep timers.
+			 */
+			ath_beacon_config(sc);
 			break;
 		default:
 			break;
@@ -4234,10 +4256,6 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		 * scan so it can provide calibrated noise floor data.
 		 */
 		ath_hal_process_noisefloor(ah);
-		/*
-		 * Configure the beacon and sleep timers.
-		 */
-		ath_beacon_config(sc);
 		/*
 		 * Reset rssi stats; maybe not the best place...
 		 */
