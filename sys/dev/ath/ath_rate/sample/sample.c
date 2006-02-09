@@ -144,28 +144,11 @@ rate_to_ndx(struct sample_node *sn, int rate) {
 	return -1;
 }
 
-/*
- * Setup rate codes for management/control frames.  We force
- * all such frames to the lowest rate.
- */
-static void
-ath_rate_setmgtrates(struct ath_softc *sc, struct ath_node *an)
-{
-	const HAL_RATE_TABLE *rt = sc->sc_currates;
-
-	/* setup rates for management frames */
-	/* XXX management/control frames always go at lowest speed */
-	an->an_tx_mgtrate = rt->info[0].rateCode;
-	an->an_tx_mgtratesp = an->an_tx_mgtrate
-			    | rt->info[0].shortPreamble;
-}
-
 void
 ath_rate_node_init(struct ath_softc *sc, struct ath_node *an)
 {
 	DPRINTF(sc, "%s:\n", __func__);
 	/* NB: assumed to be zero'd by caller */
-	ath_rate_setmgtrates(sc, an);
 }
 
 void
