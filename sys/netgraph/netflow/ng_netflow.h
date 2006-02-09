@@ -34,7 +34,7 @@
 #define NG_NETFLOW_NODE_TYPE	"netflow"
 #define NGM_NETFLOW_COOKIE	1137078102
 
-#define	NG_NETFLOW_MAXIFACES	512
+#define	NG_NETFLOW_MAXIFACES	2048
 
 /* Hook names */
 
@@ -219,13 +219,9 @@ typedef struct ng_netflow_ifinfo *ifinfo_p;
 /* Structure describing our flow engine */
 struct netflow {
 	node_p			node;		/* link to the node itself */
-
-	struct ng_netflow_iface	ifaces[NG_NETFLOW_MAXIFACES];	/* incoming */
 	hook_p			export;		/* export data goes there */
 
 	struct ng_netflow_info	info;
-	uint32_t		flow_seq;	/* current flow sequence */
-
 	struct callout		exp_callout;	/* expiry periodic job */
 
 	/*
@@ -236,8 +232,8 @@ struct netflow {
 #define	CACHESIZE			(65536*4)
 #define	CACHELOWAT			(CACHESIZE * 3/4)
 #define	CACHEHIGHWAT			(CACHESIZE * 9/10)
-	uma_zone_t			zone;
-	struct flow_hash_entry		*hash;
+	uma_zone_t		zone;
+	struct flow_hash_entry	*hash;
 
 	/*
 	 * NetFlow data export
@@ -250,8 +246,11 @@ struct netflow {
 	 * current incomplete datagram is sent. 
 	 * export_mtx is used for attaching/detaching.
 	 */
-	item_p				export_item;
-	struct mtx			export_mtx;
+	item_p			export_item;
+	struct mtx		export_mtx;
+	uint32_t		flow_seq;	/* current flow sequence */
+
+	struct ng_netflow_iface	ifaces[NG_NETFLOW_MAXIFACES];
 };
 
 typedef struct netflow *priv_p;
