@@ -170,7 +170,6 @@ struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
 	struct ieee80211com	sc_ic;		/* IEEE 802.11 common */
-	int			sc_regdomain;
 	int			sc_countrycode;
 	int			sc_debug;
 	void			(*sc_recv_mgmt)(struct ieee80211com *,
@@ -448,6 +447,8 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_CIPHER, _cipher, NULL) == HAL_OK)
 #define	ath_hal_getregdomain(_ah, _prd) \
 	ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd))
+#define	ath_hal_setregdomain(_ah, _rd) \
+	((*(_ah)->ah_setRegulatoryDomain)((_ah), (_rd), NULL))
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
 #define	ath_hal_tkipsplit(_ah) \
