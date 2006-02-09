@@ -3304,7 +3304,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		 * Adjust the packet + header lengths for the crypto
 		 * additions and calculate the h/w key index.  When
 		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so skb->len above will
+		 * added to it prior to entry so m0->m_pkthdr.len above will
 		 * account for it. Otherwise we need to add it to the
 		 * packet length.
 		 */
@@ -3471,17 +3471,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			if (try0 != ATH_TXMAXTRY)
 				ismrr = 1;
 		}
-		/*
-		 * Default all non-QoS traffic to the background queue.
-		 */
-		if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
-			pri = M_WME_GETAC(m0);
-			if (cap->cap_wmeParams[pri].wmep_noackPolicy) {
-				flags |= HAL_TXDESC_NOACK;
-				sc->sc_stats.ast_tx_noack++;
-			}
-		} else
-			pri = WME_AC_BE;
+		pri = M_WME_GETAC(m0);
+		if (cap->cap_wmeParams[pri].wmep_noackPolicy)
+			flags |= HAL_TXDESC_NOACK;
 		break;
 	default:
 		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
@@ -3507,12 +3499,13 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	if (ismcast) {
 		flags |= HAL_TXDESC_NOACK;	/* no ack on broad/multicast */
-		sc->sc_stats.ast_tx_noack++;
 	} else if (pktlen > ic->ic_rtsthreshold) {
 		flags |= HAL_TXDESC_RTSENA;	/* RTS based on frame length */
 		cix = rt->info[rix].controlRate;
 		sc->sc_stats.ast_tx_rts++;
 	}
+	if (flags & HAL_TXDESC_NOACK)		/* NB: avoid double counting */
+		sc->sc_stats.ast_tx_noack++;
 
 	/*
 	 * If 802.11g protection is enabled, determine whether
