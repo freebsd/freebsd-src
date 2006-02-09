@@ -3143,7 +3143,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
-	int i, error, iswep, ismcast, keyix, hdrlen, pktlen, try0;
+	int i, error, iswep, ismcast, ismrr;
+	int keyix, hdrlen, pktlen, try0;
 	u_int8_t rix, txrate, ctsrate;
 	u_int8_t cix = 0xff;		/* NB: silence compiler */
 	struct ath_desc *ds, *ds0;
@@ -3285,6 +3286,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 
 	an = ATH_NODE(ni);
 	flags = HAL_TXDESC_CLRDMASK;		/* XXX needed for crypto errs */
+	ismrr = 0;				/* default no multi-rate retry*/
 	/*
 	 * Calculate Atheros packet type from IEEE80211 packet header,
 	 * setup for rate calculations, and select h/w transmit queue.
@@ -3304,7 +3306,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		txrate = rt->info[rix].rateCode;
 		if (shortPreamble)
 			txrate |= rt->info[rix].shortPreamble;
-		try0 = ATH_TXMAXTRY;
+		try0 = ATH_TXMGTTRY;
 		/* NB: force all management frames to highest queue */
 		if (ni->ni_flags & IEEE80211_NODE_QOS) {
 			/* NB: force all management frames to highest queue */
@@ -3319,7 +3321,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		txrate = rt->info[rix].rateCode;
 		if (shortPreamble)
 			txrate |= rt->info[rix].shortPreamble;
-		try0 = ATH_TXMAXTRY;
+		try0 = ATH_TXMGTTRY;
 		/* NB: force all ctl frames to highest queue */
 		if (ni->ni_flags & IEEE80211_NODE_QOS) {
 			/* NB: force all ctl frames to highest queue */
@@ -3336,6 +3338,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		ath_rate_findrate(sc, an, shortPreamble, pktlen,
 			&rix, &try0, &txrate);
 		sc->sc_txrate = txrate;			/* for LED blinking */
+		if (try0 != ATH_TXMAXTRY)
+			ismrr = 1;
 		/*
 		 * Default all non-QoS traffic to the background queue.
 		 */
@@ -3454,7 +3458,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		/*
 		 * Must disable multi-rate retry when using RTS/CTS.
 		 */
-		try0 = ATH_TXMAXTRY;
+		ismrr = 0;
+		try0 = ATH_TXMGTTRY;		/* XXX */
 	} else
 		ctsrate = 0;
 
@@ -3525,7 +3530,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * when the hardware supports multi-rate retry and
 	 * we don't use it.
 	 */
-	if (try0 != ATH_TXMAXTRY)
+	if (ismrr)
 		ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
 
 	/*
