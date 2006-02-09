@@ -256,6 +256,7 @@ struct ath_softc {
 	struct task		sc_rxorntask;	/* rxorn int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
 	u_int8_t		sc_rxotherant;	/* rx's on non-default antenna*/
+	u_int64_t		sc_lastrx;	/* tsf at last rx'd frame */
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
