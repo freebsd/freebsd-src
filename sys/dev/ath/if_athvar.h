@@ -81,7 +81,6 @@
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int32_t	an_avgrssi;	/* average rssi over all rx frames */
-	HAL_NODE_STATS	an_halstats;	/* rssi statistics used by hal */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -280,6 +279,7 @@ struct ath_softc {
 	} sc_updateslot;			/* slot time update fsm */
 
 	struct callout		sc_cal_ch;	/* callout handle for cals */
+	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
 	struct callout		sc_scan_ch;	/* callout handle for scan */
 };
 #define	sc_tx_th		u_tx_rt.th
