@@ -778,8 +778,7 @@ ath_intr(void *arg)
 			 * Let the hal handle the event.  We assume it will
 			 * clear whatever condition caused the interrupt.
 			 */
-			ath_hal_mibevent(ah,
-				&ATH_NODE(sc->sc_ic.ic_bss)->an_halstats);
+			ath_hal_mibevent(ah, &sc->sc_halstats);
 			ath_hal_intrset(ah, sc->sc_imask);
 		}
 	}
@@ -2434,9 +2433,6 @@ ath_node_alloc(struct ieee80211_node_table *nt)
 		return NULL;
 	}
 	an->an_avgrssi = ATH_RSSI_DUMMY_MARKER;
-	an->an_halstats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
-	an->an_halstats.ns_avgrssi = ATH_RSSI_DUMMY_MARKER;
-	an->an_halstats.ns_avgtxrssi = ATH_RSSI_DUMMY_MARKER;
 	ath_rate_node_init(sc, an);
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: an %p\n", __func__, an);
@@ -2579,7 +2575,7 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_BEACON:
 		/* update rssi statistics for use by the hal */
-		ATH_RSSI_LPF(ATH_NODE(ni)->an_halstats.ns_avgbrssi, rssi);
+		ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
 		/* fall thru... */
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (ic->ic_opmode == IEEE80211_M_IBSS &&
@@ -2856,6 +2852,7 @@ rx_accept:
 		 */
 		an = ATH_NODE(ni);
 		ATH_RSSI_LPF(an->an_avgrssi, ds->ds_rxstat.rs_rssi);
+		ATH_RSSI_LPF(sc->sc_halstats.ns_avgrssi, ds->ds_rxstat.rs_rssi);
 		/*
 		 * Send frame up for processing.
 		 */
@@ -2893,7 +2890,7 @@ rx_next:
 	} while (ath_rxbuf_init(sc, bf) == 0);
 
 	/* rx signal state monitoring */
-	ath_hal_rxmonitor(ah, &ATH_NODE(ic->ic_bss)->an_halstats);
+	ath_hal_rxmonitor(ah, &sc->sc_halstats);
 
 	NET_UNLOCK_GIANT();		/* XXX */
 #undef PA2DESC
@@ -3680,7 +3677,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 					sc->sc_stats.ast_tx_altrate++;
 				sc->sc_stats.ast_tx_rssi =
 					ds->ds_txstat.ts_rssi;
-				ATH_RSSI_LPF(an->an_halstats.ns_avgtxrssi,
+				ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
 					ds->ds_txstat.ts_rssi);
 				pri = M_WME_GETAC(bf->bf_m);
 				if (pri >= WME_AC_VO)
@@ -4224,6 +4221,12 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		 * Configure the beacon and sleep timers.
 		 */
 		ath_beacon_config(sc);
+		/*
+		 * Reset rssi stats; maybe not the best place...
+		 */
+		sc->sc_halstats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
+		sc->sc_halstats.ns_avgrssi = ATH_RSSI_DUMMY_MARKER;
+		sc->sc_halstats.ns_avgtxrssi = ATH_RSSI_DUMMY_MARKER;
 	} else {
 		ath_hal_intrset(ah,
 			sc->sc_imask &~ (HAL_INT_SWBA | HAL_INT_BMISS));
