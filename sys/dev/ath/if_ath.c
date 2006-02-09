@@ -3144,6 +3144,20 @@ bad:
 	return NULL;
 }
 
+/*
+ * Return h/w rate index for an IEEE rate (w/o basic rate bit).
+ */
+static int
+ath_tx_findrix(const HAL_RATE_TABLE *rt, int rate)
+{
+	int i;
+
+	for (i = 0; i < rt->rateCount; i++)
+		if ((rt->info[i].dot11Rate & IEEE80211_RATE_VAL) == rate)
+			return i;
+	return 0;		/* NB: lowest rate */
+}
+
 static int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
@@ -3342,13 +3356,32 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	case IEEE80211_FC0_TYPE_DATA:
 		atype = HAL_PKT_TYPE_NORMAL;		/* default */
 		/*
-		 * Data frames; consult the rate control module.
+		 * Data frames: multicast frames go out at a fixed rate,
+		 * otherwise consult the rate control module for the
+		 * rate to use.
 		 */
-		ath_rate_findrate(sc, an, shortPreamble, pktlen,
-			&rix, &try0, &txrate);
-		sc->sc_txrate = txrate;			/* for LED blinking */
-		if (try0 != ATH_TXMAXTRY)
-			ismrr = 1;
+		if (ismcast) {
+			/*
+			 * Check mcast rate setting in case it's changed.
+			 * XXX move out of fastpath
+			 */
+			if (ic->ic_mcast_rate != sc->sc_mcastrate) {
+				sc->sc_mcastrix =
+					ath_tx_findrix(rt, ic->ic_mcast_rate);
+				sc->sc_mcastrate = ic->ic_mcast_rate;
+			}
+			rix = sc->sc_mcastrix;
+			txrate = rt->info[rix].rateCode;
+			if (shortPreamble)
+				txrate |= rt->info[rix].shortPreamble;
+			try0 = 1;
+		} else {
+			ath_rate_findrate(sc, an, shortPreamble, pktlen,
+				&rix, &try0, &txrate);
+			sc->sc_txrate = txrate;		/* for LED blinking */
+			if (try0 != ATH_TXMAXTRY)
+				ismrr = 1;
+		}
 		/*
 		 * Default all non-QoS traffic to the background queue.
 		 */
@@ -4514,6 +4547,12 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	sc->sc_protrix = (mode == IEEE80211_MODE_11G ? 1 : 0);
 	/* rate index used to send management frames */
 	sc->sc_minrateix = 0;
+	/*
+	 * Setup multicast rate state.
+	 */
+	/* XXX layering violation */
+	sc->sc_mcastrix = ath_tx_findrix(rt, sc->sc_ic.ic_mcast_rate);
+	sc->sc_mcastrate = sc->sc_ic.ic_mcast_rate;
 	/* NB: caller is responsible for reseting rate control state */
 #undef N
 }
