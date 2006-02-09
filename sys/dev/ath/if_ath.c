@@ -4451,51 +4451,59 @@ ath_update_txpow(struct ath_softc *sc)
 	ic->ic_bss->ni_txpower = txpow;
 }
 
+static void
+rate_setup(struct ath_softc *sc,
+	const HAL_RATE_TABLE *rt, struct ieee80211_rateset *rs)
+{
+	int i, maxrates;
+
+	if (rt->rateCount > IEEE80211_RATE_MAXSIZE) {
+		DPRINTF(sc, ATH_DEBUG_ANY,
+			"%s: rate table too small (%u > %u)\n",
+		       __func__, rt->rateCount, IEEE80211_RATE_MAXSIZE);
+		maxrates = IEEE80211_RATE_MAXSIZE;
+	} else
+		maxrates = rt->rateCount;
+	for (i = 0; i < maxrates; i++)
+		rs->rs_rates[i] = rt->info[i].dot11Rate;
+	rs->rs_nrates = maxrates;
+}
+
 static int
 ath_rate_setup(struct ath_softc *sc, u_int mode)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 	const HAL_RATE_TABLE *rt;
-	struct ieee80211_rateset *rs;
-	int i, maxrates;
 
 	switch (mode) {
 	case IEEE80211_MODE_11A:
-		sc->sc_rates[mode] = ath_hal_getratetable(ah, HAL_MODE_11A);
+		rt = ath_hal_getratetable(ah, HAL_MODE_11A);
 		break;
 	case IEEE80211_MODE_11B:
-		sc->sc_rates[mode] = ath_hal_getratetable(ah, HAL_MODE_11B);
+		rt = ath_hal_getratetable(ah, HAL_MODE_11B);
 		break;
 	case IEEE80211_MODE_11G:
-		sc->sc_rates[mode] = ath_hal_getratetable(ah, HAL_MODE_11G);
+		rt = ath_hal_getratetable(ah, HAL_MODE_11G);
 		break;
 	case IEEE80211_MODE_TURBO_A:
-		sc->sc_rates[mode] = ath_hal_getratetable(ah, HAL_MODE_TURBO);
+		/* XXX until static/dynamic turbo is fixed */
+		rt = ath_hal_getratetable(ah, HAL_MODE_TURBO);
 		break;
 	case IEEE80211_MODE_TURBO_G:
-		sc->sc_rates[mode] = ath_hal_getratetable(ah, HAL_MODE_108G);
+		rt = ath_hal_getratetable(ah, HAL_MODE_108G);
 		break;
 	default:
 		DPRINTF(sc, ATH_DEBUG_ANY, "%s: invalid mode %u\n",
 			__func__, mode);
 		return 0;
 	}
-	rt = sc->sc_rates[mode];
-	if (rt == NULL)
-		return 0;
-	if (rt->rateCount > IEEE80211_RATE_MAXSIZE) {
-		DPRINTF(sc, ATH_DEBUG_ANY,
-			"%s: rate table too small (%u > %u)\n",
-			__func__, rt->rateCount, IEEE80211_RATE_MAXSIZE);
-		maxrates = IEEE80211_RATE_MAXSIZE;
+	sc->sc_rates[mode] = rt;
+	if (rt != NULL) {
+		rate_setup(sc, rt, &ic->ic_sup_rates[mode]);
+		return 1;
 	} else
-		maxrates = rt->rateCount;
-	rs = &ic->ic_sup_rates[mode];
-	for (i = 0; i < maxrates; i++)
-		rs->rs_rates[i] = rt->info[i].dot11Rate;
-	rs->rs_nrates = maxrates;
-	return 1;
+		return 0;
 }
 
 static void
