@@ -203,6 +203,7 @@ struct ath_softc {
 	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
+	HAL_OPMODE		sc_opmode;	/* current operating mode */
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
 	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
