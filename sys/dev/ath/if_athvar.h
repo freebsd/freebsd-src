@@ -51,8 +51,12 @@
 
 #define	ATH_TIMEOUT		1000
 
+#ifndef ATH_RXBUF
 #define	ATH_RXBUF	40		/* number of RX buffers */
+#endif
+#ifndef ATH_TXBUF
 #define	ATH_TXBUF	100		/* number of TX buffers */
+#endif
 #define	ATH_TXDESC	10		/* number of descriptors per buffer */
 #define	ATH_TXMAXTRY	11		/* max number of transmit attempts */
 #define	ATH_TXMGTTRY	4		/* xmit attempts for mgt/ctl frames */
