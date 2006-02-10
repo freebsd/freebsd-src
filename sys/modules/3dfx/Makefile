@@ -18,7 +18,9 @@ TDFX_OPTS=	"\#define TDFX_LINUX"
 # Uncomment this for debugging messages
 #CFLAGS+=	-DDEBUG
 
+.if !defined(KERNBUILDDIR)
 opt_tdfx.h:
 	echo $(TDFX_OPTS) > opt_tdfx.h
+.endif
 
 .include <bsd.kmod.mk>

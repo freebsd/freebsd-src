@@ -9,7 +9,6 @@ SRCS=	bktr_core.c bktr_os.c bktr_audio.c bktr_tuner.c bktr_card.c msp34xx.c \
 	opt_devfs.h opt_bktr.h bus_if.h device_if.h \
 	pci_if.h
 
-opt_bktr.h:
-	echo "#define BKTR_FREEBSD_MODULE 1" > opt_bktr.h
+CFLAGS+= -DBKTR_FREEBSD_MODULE
 
 .include <bsd.kmod.mk>
