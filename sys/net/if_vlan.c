@@ -503,7 +503,7 @@ static moduledata_t vlan_mod = {
 };
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-MODULE_VERSION(if_vlan, 1);
+MODULE_VERSION(if_vlan, 3);
 MODULE_DEPEND(if_vlan, miibus, 1, 1, 1);
 
 static struct ifnet *
