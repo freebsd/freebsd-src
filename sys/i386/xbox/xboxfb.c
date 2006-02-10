@@ -69,11 +69,6 @@
 #define CHAR_HEIGHT	16
 #define CHAR_WIDTH	10
 
-#define RAM_SIZE	(arch_i386_xbox_memsize * 1024 * 1024)
-#define FB_SIZE		(0x400000)
-#define FB_START	(0xf0000000 | (RAM_SIZE - FB_SIZE))
-#define FB_START_PTR	(0xFD600800)
-
 /* colours */
 #define CONSOLE_COL	0xFF88FF88	/* greenish */
 #define NORM_COL	0xFFAAAAAA	/* grayish */
@@ -179,14 +174,14 @@ xcon_real_putc(int basecol, int c)
 	}
 
 scroll:
-	if (((xcon_yoffs + CHAR_HEIGHT) * SCREEN_WIDTH * SCREEN_BPP) > (FB_SIZE - SCREEN_SIZE)) {
+	if (((xcon_yoffs + CHAR_HEIGHT) * SCREEN_WIDTH * SCREEN_BPP) > (XBOX_FB_SIZE - SCREEN_SIZE)) {
 		/* we are about to run out of video memory, so move everything
 		 * back to the beginning of the video memory */
 		memcpy ((char*)xcon_map,
 		        (char*)(xcon_map + (xcon_yoffs * SCREEN_WIDTH * SCREEN_BPP)),
 		        SCREEN_SIZE);
 		xcon_y -= xcon_yoffs; xcon_yoffs = 0;
-		*xcon_memstartptr = FB_START;
+		*xcon_memstartptr = XBOX_FB_START;
 	}
 
 	/* we achieve much faster scrolling by just altering the video memory
@@ -195,7 +190,7 @@ scroll:
 	while ((xcon_y - xcon_yoffs) >= SCREEN_HEIGHT) {
 		xcon_yoffs += CHAR_HEIGHT;
 		memset ((char*)(xcon_map + (xcon_y * SCREEN_WIDTH * SCREEN_BPP)), 0, CHAR_HEIGHT * SCREEN_WIDTH * SCREEN_BPP);
-		*xcon_memstartptr = FB_START + (xcon_yoffs * SCREEN_WIDTH * SCREEN_BPP);
+		*xcon_memstartptr = XBOX_FB_START + (xcon_yoffs * SCREEN_WIDTH * SCREEN_BPP);
 	}
 }
 
@@ -226,12 +221,12 @@ xcon_init(struct consdev* cp)
 	 * and stored in a more sensible location ... but since we're not fully
 	 * initialized, this is our only way to go :-(
 	 */
-	for (i = 0; i < (FB_SIZE / PAGE_SIZE); i++) {
-		pmap_kenter (((i + 1) * PAGE_SIZE), FB_START + (i * PAGE_SIZE));
+	for (i = 0; i < (XBOX_FB_SIZE / PAGE_SIZE); i++) {
+		pmap_kenter (((i + 1) * PAGE_SIZE), XBOX_FB_START + (i * PAGE_SIZE));
 	}
-	pmap_kenter ((i + 1) * PAGE_SIZE, FB_START_PTR - FB_START_PTR % PAGE_SIZE);
+	pmap_kenter ((i + 1) * PAGE_SIZE, XBOX_FB_START_PTR - XBOX_FB_START_PTR % PAGE_SIZE);
 	xcon_map = (char*)PAGE_SIZE;
-	xcon_memstartptr = (int*)((i + 1) * PAGE_SIZE + FB_START_PTR % PAGE_SIZE); 
+	xcon_memstartptr = (int*)((i + 1) * PAGE_SIZE + XBOX_FB_START_PTR % PAGE_SIZE); 
 
 	/* clear the screen */
 	iptr = (int*)xcon_map;
@@ -310,15 +305,15 @@ xboxfb_drvinit (void* unused)
 	 * mapping for us.
 	 */
 	dev = make_dev (&xboxfb_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s", "xboxfb");
-	xcon_map = pmap_mapdev (FB_START, FB_SIZE);
-	xcon_memstartptr = (int*)pmap_mapdev (FB_START_PTR, PAGE_SIZE);
-	*xcon_memstartptr = FB_START;
+	xcon_map = pmap_mapdev (XBOX_FB_START, XBOX_FB_SIZE);
+	xcon_memstartptr = (int*)pmap_mapdev (XBOX_FB_START_PTR, PAGE_SIZE);
+	*xcon_memstartptr = XBOX_FB_START;
 
 	/* ditch all ugly previous mappings */
-	for (i = 0; i < (FB_SIZE / PAGE_SIZE); i++) {
+	for (i = 0; i < (XBOX_FB_SIZE / PAGE_SIZE); i++) {
 		pmap_kremove (((i + 1) * PAGE_SIZE));
 	}
-	pmap_kremove (PAGE_SIZE + FB_SIZE);
+	pmap_kremove (PAGE_SIZE + XBOX_FB_SIZE);
 
 	/* probe for a keyboard */
 	xboxfb_timer (NULL);
