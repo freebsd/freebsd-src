@@ -15,6 +15,7 @@ SRCS+=	sio_cbus.c
 SRCS+=	sio_isa.c
 .endif
 
+.if !defined(KERNBUILDDIR)
 opt_compat.h:
 	echo "#define COMPAT_43 1" > ${.TARGET}
 
@@ -22,6 +23,7 @@ opt_compat.h:
 opt_sio.h:
 	echo "#define COM_MULTIPORT 1" > ${.TARGET}
 	echo "#define COM_ESP 1" >> ${.TARGET}
+.endif
 .endif
 
 .include <bsd.kmod.mk>

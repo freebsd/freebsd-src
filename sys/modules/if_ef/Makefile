@@ -16,6 +16,7 @@ ETHER_SNAP=
 CFLAGS+= -DEF_DEBUG
 .endif
 
+.if !defined(KERNBUILDDIR)
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
@@ -28,5 +29,6 @@ opt_ef.h:
 	echo "#define ${frame} 1" >> opt_ef.h
 .endif
 .endfor
+.endif
 
 .include <bsd.kmod.mk>

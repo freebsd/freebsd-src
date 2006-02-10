@@ -6,7 +6,9 @@
 KMOD=	kbdmux
 SRCS=	kbdmux.c opt_kbd.h
 
+.if !defined(KERNBUILDDIR)
 opt_kbd.h:
 	echo "#define KBD_INSTALL_CDEV 1" > ${.TARGET}
+.endif
 
 .include <bsd.kmod.mk>

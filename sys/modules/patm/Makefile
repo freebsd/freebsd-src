@@ -12,10 +12,12 @@ SRCS=	if_patm.c if_patm_attach.c if_patm_ioctl.c if_patm_intr.c \
 CFLAGS+= -DENABLE_BPF
 # CFLAGS+= -DPATM_DEBUG=0x0 -DINVARIANT_SUPPORT -DINVARIANTS -DDIAGNOSTIC
 
+.if !defined(KERNBUILDDIR)
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
 opt_natm.h:
 	echo "#define NATM 1" > opt_natm.h
+.endif
 
 .include <bsd.kmod.mk>

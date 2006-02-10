@@ -63,6 +63,7 @@ DBSRC+=	dbinput.c dbstats.c dbutils.c dbxface.c
 DBSRC+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 DBSRC+=	dmresrcs.c dmutils.c dmwalk.c
 
+.if !defined(KERNBUILDDIR)
 .if ACPI_MAX_THREADS
 CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 .endif
@@ -77,6 +78,7 @@ opt_ddb.h: Makefile
 .else
 opt_ddb.h: Makefile
 	echo -n > ${.TARGET}
+.endif
 .endif
 
 # Machine-specific code such as sleep/wakeup

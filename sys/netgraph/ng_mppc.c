@@ -63,7 +63,13 @@
 #include "opt_netgraph.h"
 
 #if !defined(NETGRAPH_MPPC_COMPRESSION) && !defined(NETGRAPH_MPPC_ENCRYPTION)
+#ifdef KLD_MODULE
+/* XXX NETGRAPH_MPPC_COMPRESSION isn't functional yet */
+#define NETGRAPH_MPPC_ENCRYPTION
+#else
+/* This case is indicative of an error in sys/conf files */
 #error Need either NETGRAPH_MPPC_COMPRESSION or NETGRAPH_MPPC_ENCRYPTION
+#endif
 #endif
 
 #ifdef NG_SEPARATE_MALLOC
