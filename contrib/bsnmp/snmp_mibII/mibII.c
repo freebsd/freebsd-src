@@ -306,15 +306,17 @@ mib_fetch_ifmib(struct mibif *ifp)
 		return (-1);
 	}
 
-	if (ifp->trap_enable) {
-		if (!(oldmib.ifmd_flags & IFF_UP)) {
-			if (ifp->mib.ifmd_flags & IFF_UP)
-				link_trap(ifp, 1);
-		} else {
-			if (!(ifp->mib.ifmd_flags & IFF_UP))
-				link_trap(ifp, 0);
-		}
-	}
+	/*
+	 * Quoting RFC2863, 3.1.15: "... LinkUp and linkDown traps are
+	 * generated just after ifOperStatus leaves, or just before it
+	 * enters, the down state, respectively;"
+	 */
+	if (ifp->trap_enable && ifp->mib.ifmd_data.ifi_link_state !=
+	    oldmib.ifmd_data.ifi_link_state &&
+	    (ifp->mib.ifmd_data.ifi_link_state == LINK_STATE_DOWN ||
+	    oldmib.ifmd_data.ifi_link_state == LINK_STATE_DOWN))
+		link_trap(ifp, ifp->mib.ifmd_data.ifi_link_state ==
+		    LINK_STATE_UP ? 1 : 0);
 
 	ifp->flags &= ~(MIBIF_HIGHSPEED | MIBIF_VERYHIGHSPEED);
 	if (ifp->mib.ifmd_data.ifi_baudrate > 20000000) {
@@ -625,6 +627,7 @@ mibif_create(u_int sysindex, const char *name)
 		ifp->counter_disc = get_ticks();
 	}
 	ifp->index = map->ifindex;
+	ifp->mib.ifmd_data.ifi_link_state = LINK_STATE_UNKNOWN;
 
 	INSERT_OBJECT_INT(ifp, &mibif_list);
 	mib_if_number++;
