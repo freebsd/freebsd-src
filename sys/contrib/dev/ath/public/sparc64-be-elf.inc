@@ -33,29 +33,26 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/mips-be-elf.inc#19 $
+# $Id: powerpc-be-elf.inc,v 1.1 2004/12/19 23:23:21 sam Exp $
 #
 
 #
-# Configuration for building big-endian MIPS2 using the 5.01
-# linux-mips.org toolchain (manually moved to /pub/gnu from
-# /pub/gnu/local where rpm --prefix=/pub/gnu bogusly installs them).
+# Compilation configuration for building big-endian Sparc64 w/ elf.
 #
-# Known to work on:
-#	AMD Au1500
-
+# Built with GNU cross-devel tools:
 #
-# http://www.linux-mips.org/toolchain.html
+# PREFIX=/pub/gnu
+# BINUTILS=binutils-2.14
+# GCC=gcc-3.3.2
+# target=sparc64-elf
 #
-# /pub/gnu/bin/mips-linux-gcc -v
-# Reading specs from /pub/gnu/bin/../lib/gcc-lib/mips-linux/2.96-mips3264-000710/specs
-# gcc version 2.96-mips3264-000710
-# /pub/gnu/bin/mips-linux-as -v
-# GNU assembler version 2.12.90.0.7 (mips-linux) using BFD version 2.12.90.0.7 20020423
-
+# ${BINUTILS}/configure --target=$target --prefix=${PREFIX}
+# ${GCC}/configure --target=$target   --prefix=${PREFIX} \
+#	--enable-languages=c   --with-gnu-as --with-gnu-ld \
+#	--with-newlib   --with-gxx-include-dir=${PREFIX}/$target/include
 #
 ifndef TOOLPREFIX
-TOOLPREFIX=	/pub/gnu/bin/mips-linux-
+TOOLPREFIX=	/pub/gnu/bin/sparc64-elf-
 endif
 #
 CC=	${TOOLPREFIX}gcc
@@ -64,7 +61,17 @@ STRIP=	${TOOLPREFIX}strip
 OBJCOPY=${TOOLPREFIX}objcopy
 NM=	${TOOLPREFIX}nm
 
+#
+# Force register read/write operations to go through a function.
+#
+AH_REGOPS_FUNC=1
+
 LDOPTS=	-EB
 COPTS+=	-DAH_BYTE_ORDER=AH_BIG_ENDIAN
-COPTS+=	-G 0 -EB -mno-abicalls -fno-pic -mips2 -Wa,--trap \
-	-fno-strict-aliasing -fno-common -fomit-frame-pointer -mlong-calls
+#
+# NB: this should come from inttypes.h but can't until we cleanp
+#     the definition of va_list on linux
+#
+COPTS+=	-DAH_WORDSIZE=64
+COPTS+= -mcmodel=medlow
+COPTS+= -mno-fpu

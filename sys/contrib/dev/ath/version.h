@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: version.h,v 1.93 2004/12/07 18:55:19 sam Exp $
+ * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/version.h#135 $
  */
-#define	ATH_HAL_VERSION	"0.9.14.9"
+#define	ATH_HAL_VERSION	"0.9.16.16"
