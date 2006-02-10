@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
+# Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: x86_64-elf.inc,v 1.2 2004/08/02 23:40:09 sam Exp $
+# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/x86_64-elf.inc#20 $
 #
 
 #
@@ -52,6 +52,11 @@ OBJCOPY=${TOOLPREFIX}objcopy
 NM=	${TOOLPREFIX}nm
 
 COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
+#
+# NB: this should come from inttypes.h but can't until we cleanp
+#     the definition of va_list on linux
+#
+COPTS+=	-DAH_WORDSIZE=64
 COPTS+=	-mcmodel=kernel -mno-red-zone
 ifndef CONFIG_FRAME_POINTER
 COPTS+=	-fomit-frame-pointer
