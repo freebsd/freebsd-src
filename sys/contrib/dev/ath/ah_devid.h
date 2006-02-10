@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2004 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_devid.h,v 1.12 2004/10/21 22:48:57 sam Exp $
+ * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/ah_devid.h#19 $
  */
 
 #ifndef _DEV_ATH_DEVID_H_
@@ -68,6 +68,9 @@
 #define AR5212_AR5312_REV2      0x0052          /* AR5312 WMAC (AP31) */
 #define AR5212_AR5312_REV7      0x0057          /* AR5312 WMAC (AP30-040) */
 #define AR5212_AR2313_REV8      0x0058          /* AR2313 WMAC (AP43-030) */
+#define AR5212_AR2315_REV6      0x0086          /* AR2315 WMAC (AP51-Light) */
+#define AR5212_AR2315_REV7      0x0087          /* AR2315 WMAC (AP51-Full) */
+#define AR5212_AR2317_REV1      0x0091          /* AR2317 WMAC (AP61) */
 
 /* AR5212 compatible devid's also attach to 5212 */
 #define	AR5212_DEVID_0014	0x0014
@@ -77,6 +80,9 @@
 #define	AR5212_DEVID_0018	0x0018
 #define	AR5212_DEVID_0019	0x0019
 #define AR5212_AR2413      	0x001a          /* AR2413 aka Griffin-lite */
+#define AR5212_AR5413		0x001b          /* Eagle */
+#define AR5212_AR5424		0x001c          /* Condor (PCI express) */
+#define AR5212_DEVID_FF19	0xff19          /* XXX PCI express */
 
 /* AR5213 */
 #define	AR5213_SREV_1_0		0x0055
