@@ -182,9 +182,11 @@ ast(struct trapframe *framep)
 	mtx_lock_spin(&sched_lock);
 	flags = td->td_flags;
 	sflag = p->p_sflag;
-	p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND | PS_XCPU);
+	if (p->p_sflag & (PS_ALRMPEND | PS_PROFPEND | PS_XCPU))
+		p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND | PS_XCPU);
 #ifdef MAC
-	p->p_sflag &= ~PS_MACPEND;
+	if (p->p_sflag & PS_MACPEND)
+		p->p_sflag &= ~PS_MACPEND;
 #endif
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
 	    TDF_NEEDRESCHED | TDF_INTERRUPT);
