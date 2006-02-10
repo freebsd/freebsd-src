@@ -291,6 +291,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	 * call exit() in the trampoline when it returns.
 	 */
 	if (p->p_numthreads != 1) {
+		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
