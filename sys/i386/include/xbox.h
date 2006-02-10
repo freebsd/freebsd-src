@@ -34,6 +34,11 @@
 #define XBOX_LED_FLASHRED	0xa0
 #define XBOX_LED_FLASHGREEN	0x03
 
+#define XBOX_RAM_SIZE		(arch_i386_xbox_memsize * 1024 * 1024)
+#define XBOX_FB_SIZE		(0x400000)
+#define XBOX_FB_START		(0xf0000000 | (XBOX_RAM_SIZE - XBOX_FB_SIZE))
+#define XBOX_FB_START_PTR	(0xFD600800)
+
 extern int arch_i386_is_xbox;
 extern uint32_t arch_i386_xbox_memsize; /* Megabytes */
 

@@ -1637,10 +1637,8 @@ getmemsize(int first)
 		 * We queried the memory size before, so chop off 4MB for
 		 * the framebuffer and inform the OS of this.
 		 */
-		extmem = (arch_i386_xbox_memsize - 4) * 1024;
-		basemem = 0;
 		physmap[0] = 0;
-		physmap[1] = extmem * 1024;
+		physmap[1] = (arch_i386_xbox_memsize * 1024 * 1024) - XBOX_FB_SIZE;
 		physmap_idx = 0;
 		goto physmap_done;
 	}
