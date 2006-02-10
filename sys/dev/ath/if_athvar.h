@@ -235,6 +235,9 @@ struct ath_softc {
 	u_int16_t		sc_ledoff;	/* off time for current blink */
 	struct callout		sc_ledtimer;	/* led off timer */
 
+	u_int			sc_rfsilentpin;	/* GPIO pin for rfkill int */
+	u_int			sc_rfsilentpol;	/* pin setting for rfkill on */
+
 	struct bpf_if		*sc_drvbpf;
 	union {
 		struct ath_tx_radiotap_header th;
@@ -255,6 +258,7 @@ struct ath_softc {
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	struct task		sc_rxorntask;	/* rxorn int processing */
+	struct task		sc_radartask;	/* radar processing */
 	u_int8_t		sc_defant;	/* current default antenna */
 	u_int8_t		sc_rxotherant;	/* rx's on non-default antenna*/
 	u_int64_t		sc_lastrx;	/* tsf at last rx'd frame */
@@ -286,8 +290,11 @@ struct ath_softc {
 	} sc_updateslot;			/* slot time update fsm */
 
 	struct callout		sc_cal_ch;	/* callout handle for cals */
+	int			sc_calinterval;	/* current polling interval */
+	int			sc_caltries;	/* cals at current interval */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
 	struct callout		sc_scan_ch;	/* callout handle for scan */
+	struct callout		sc_dfs_ch;	/* callout handle for dfs */
 };
 #define	sc_tx_th		u_tx_rt.th
 #define	sc_rx_th		u_rx_rt.th
@@ -343,8 +350,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getPendingInterrupts)((_ah), (_pmask)))
 #define	ath_hal_updatetxtriglevel(_ah, _inc) \
 	((*(_ah)->ah_updateTxTrigLevel)((_ah), (_inc)))
-#define	ath_hal_setpower(_ah, _mode, _sleepduration) \
-	((*(_ah)->ah_setPowerMode)((_ah), (_mode), AH_TRUE, (_sleepduration)))
+#define	ath_hal_setpower(_ah, _mode) \
+	((*(_ah)->ah_setPowerMode)((_ah), (_mode), AH_TRUE))
 #define	ath_hal_keycachesize(_ah) \
 	((*(_ah)->ah_getKeyCacheSize)((_ah)))
 #define	ath_hal_keyreset(_ah, _ix) \
@@ -385,8 +392,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_startTxDma)((_ah), (_q)))
 #define	ath_hal_setchannel(_ah, _chan) \
 	((*(_ah)->ah_setChannel)((_ah), (_chan)))
-#define	ath_hal_calibrate(_ah, _chan) \
-	((*(_ah)->ah_perCalibration)((_ah), (_chan)))
+#define	ath_hal_calibrate(_ah, _chan, _iqcal) \
+	((*(_ah)->ah_perCalibration)((_ah), (_chan), (_iqcal)))
 #define	ath_hal_setledstate(_ah, _state) \
 	((*(_ah)->ah_setLedState)((_ah), (_state)))
 #define	ath_hal_beaconinit(_ah, _nextb, _bperiod) \
@@ -428,8 +435,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getDefAntenna)((_ah)))
 #define	ath_hal_setdefantenna(_ah, _ant) \
 	((*(_ah)->ah_setDefAntenna)((_ah), (_ant)))
-#define	ath_hal_rxmonitor(_ah, _arg) \
-	((*(_ah)->ah_rxMonitor)((_ah), (_arg)))
+#define	ath_hal_rxmonitor(_ah, _arg, _chan) \
+	((*(_ah)->ah_rxMonitor)((_ah), (_arg), (_chan)))
 #define	ath_hal_mibevent(_ah, _stats) \
 	((*(_ah)->ah_procMibEvent)((_ah), (_stats)))
 #define	ath_hal_setslottime(_ah, _us) \
@@ -451,7 +458,7 @@ void	ath_intr(void *);
 #define	ath_hal_ciphersupported(_ah, _cipher) \
 	(ath_hal_getcapability(_ah, HAL_CAP_CIPHER, _cipher, NULL) == HAL_OK)
 #define	ath_hal_getregdomain(_ah, _prd) \
-	ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd))
+	(ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd)) == HAL_OK)
 #define	ath_hal_setregdomain(_ah, _rd) \
 	((*(_ah)->ah_setRegulatoryDomain)((_ah), (_rd), NULL))
 #define	ath_hal_getcountrycode(_ah, _pcc) \
@@ -502,6 +509,24 @@ void	ath_intr(void *);
 #else
 #define	ath_hal_getmcastkeysearch(_ah)	0
 #endif
+#define	ath_hal_hasrfsilent(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 0, NULL) == HAL_OK)
+#define	ath_hal_getrfkill(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 1, NULL) == HAL_OK)
+#define	ath_hal_setrfkill(_ah, _onoff) \
+	ath_hal_setcapability(_ah, HAL_CAP_RFSILENT, 1, _onoff, NULL)
+#define	ath_hal_getrfsilent(_ah, _prfsilent) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 2, _prfsilent) == HAL_OK)
+#define	ath_hal_setrfsilent(_ah, _rfsilent) \
+	ath_hal_setcapability(_ah, HAL_CAP_RFSILENT, 2, _rfsilent, NULL)
+#define	ath_hal_gettpack(_ah, _ptpack) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TPC_ACK, 0, _ptpack) == HAL_OK)
+#define	ath_hal_settpack(_ah, _tpack) \
+	ath_hal_setcapability(_ah, HAL_CAP_TPC_ACK, 0, _tpack, NULL)
+#define	ath_hal_gettpcts(_ah, _ptpcts) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TPC_CTS, 0, _ptpcts) == HAL_OK)
+#define	ath_hal_settpcts(_ah, _tpcts) \
+	ath_hal_setcapability(_ah, HAL_CAP_TPC_CTS, 0, _tpcts, NULL)
 #if HAL_ABI_VERSION < 0x05120700
 #define	ath_hal_process_noisefloor(_ah)
 #define	ath_hal_getchannoise(_ah, _c)	(-96)
@@ -511,17 +536,24 @@ void	ath_intr(void *);
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #endif
+#if HAL_ABI_VERSION < 0x05122200
+#define	HAL_TXQ_TXOKINT_ENABLE	TXQ_FLAG_TXOKINT_ENABLE
+#define	HAL_TXQ_TXERRINT_ENABLE	TXQ_FLAG_TXERRINT_ENABLE
+#define	HAL_TXQ_TXDESCINT_ENABLE TXQ_FLAG_TXDESCINT_ENABLE
+#define	HAL_TXQ_TXEOLINT_ENABLE	TXQ_FLAG_TXEOLINT_ENABLE
+#define	HAL_TXQ_TXURNINT_ENABLE	TXQ_FLAG_TXURNINT_ENABLE
+#endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
 #define	ath_hal_rxprocdesc(_ah, _ds, _dspa, _dsnext) \
-	((*(_ah)->ah_procRxDesc)((_ah), (_ds), (_dspa), (_dsnext)))
+	((*(_ah)->ah_procRxDesc)((_ah), (_ds), (_dspa), (_dsnext), 0))
 #define	ath_hal_setuptxdesc(_ah, _ds, _plen, _hlen, _atype, _txpow, \
 		_txr0, _txtr0, _keyix, _ant, _flags, \
 		_rtsrate, _rtsdura) \
 	((*(_ah)->ah_setupTxDesc)((_ah), (_ds), (_plen), (_hlen), (_atype), \
 		(_txpow), (_txr0), (_txtr0), (_keyix), (_ant), \
-		(_flags), (_rtsrate), (_rtsdura)))
+		(_flags), (_rtsrate), (_rtsdura), 0, 0, 0))
 #define	ath_hal_setupxtxdesc(_ah, _ds, \
 		_txr1, _txtr1, _txr2, _txtr2, _txr3, _txtr3) \
 	((*(_ah)->ah_setupXTxDesc)((_ah), (_ds), \
@@ -530,10 +562,25 @@ void	ath_intr(void *);
 	((*(_ah)->ah_fillTxDesc)((_ah), (_ds), (_l), (_first), (_last), (_ds0)))
 #define	ath_hal_txprocdesc(_ah, _ds) \
 	((*(_ah)->ah_procTxDesc)((_ah), (_ds)))
+#define	ath_hal_gettxintrtxqs(_ah, _txqs) \
+	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio)))
 #define ath_hal_gpioset(_ah, _gpio, _b) \
         ((*(_ah)->ah_gpioSet)((_ah), (_gpio), (_b)))
+#define ath_hal_gpioget(_ah, _gpio) \
+        ((*(_ah)->ah_gpioGet)((_ah), (_gpio)))
+#define ath_hal_gpiosetintr(_ah, _gpio, _b) \
+        ((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
+
+#define ath_hal_radar_event(_ah) \
+	((*(_ah)->ah_radarHaveEvent)((_ah)))
+#define ath_hal_procdfs(_ah, _chan) \
+	((*(_ah)->ah_processDfs)((_ah), (_chan)))
+#define ath_hal_checknol(_ah, _chan, _nchans) \
+	((*(_ah)->ah_dfsNolCheck)((_ah), (_chan), (_nchans)))
+#define ath_hal_radar_wait(_ah, _chan) \
+	((*(_ah)->ah_radarWait)((_ah), (_chan)))
 
 #endif /* _DEV_ATH_ATHVAR_H */
