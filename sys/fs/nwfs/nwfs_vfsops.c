@@ -31,10 +31,6 @@
  *
  * $FreeBSD$
  */
-#include "opt_ncp.h"
-#ifndef NCP
-#error "NWFS requires NCP protocol"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>

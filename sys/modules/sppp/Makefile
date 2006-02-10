@@ -15,6 +15,7 @@ EXPORT_SYMS=	sppp_attach	\
 		sppp_isempty	\
 		sppp_flush
 
+.if !defined(KERNBUILDDIR)
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
@@ -23,5 +24,6 @@ opt_inet6.h:
 
 opt_ipx.h:
 	echo "#define IPX 1" > opt_ipx.h
+.endif
 
 .include <bsd.kmod.mk>
