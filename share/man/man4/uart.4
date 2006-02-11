@@ -104,6 +104,23 @@ applications.
 System devices, with the notable exception of serial consoles, generally
 have specialized kernel interfaces.
 .\"
+.Sh HARDWARE
+The
+.Nm
+driver supports the following classes of UARTs:
+.Pp
+.Bl -bullet -compact
+.It
+NS8250: standard hardware based on the 8250, 16450, 16550, 16650, 16750 or
+the 16950 UARTs
+.It
+SAB82532: Siemens SAB 82532 based serial communications controllers in
+asynchronuous mode.
+.It
+Z8530: Zilog 8530 based serial communications controllers in asynchronuous
+mode.
+.El
+.\"
 .Sh SEE ALSO
 .Xr puc 4
 .\"
