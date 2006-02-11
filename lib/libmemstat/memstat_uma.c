@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
