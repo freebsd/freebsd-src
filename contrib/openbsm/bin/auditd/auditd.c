@@ -30,14 +30,14 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#12 $
  */
 
+#include <sys/types.h>
 #include <sys/dirent.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include <bsm/audit.h>
