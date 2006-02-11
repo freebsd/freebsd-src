@@ -1059,6 +1059,7 @@ audit_proc_init(struct proc *p)
 	    p->p_pid));
 	//printf("audit_proc_init: pid %d p_au %p\n", p->p_pid, p->p_au);
 	bzero(p->p_au, sizeof(*(p)->p_au));
+	p->p_au->ai_auid = AU_DEFAUDITID;
 }
 
 /* 
