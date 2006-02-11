@@ -69,13 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_cam.h>
 #include <dev/mpt/mpt_raid.h>
 
-#if __FreeBSD_version < 500000  
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#else
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#endif
 
 #ifndef	PCI_VENDOR_LSI
 #define	PCI_VENDOR_LSI			0x1000
@@ -105,10 +98,41 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_LSI_1030		0x0030
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_SAS1064
+#define PCI_PRODUCT_LSI_SAS1064		0x0050
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1064A
+#define PCI_PRODUCT_LSI_SAS1064A	0x005C
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1064E
+#define PCI_PRODUCT_LSI_SAS1064E	0x0056
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1066
+#define PCI_PRODUCT_LSI_SAS1066		0x005E
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1066E
+#define PCI_PRODUCT_LSI_SAS1066E	0x005A
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1068
+#define PCI_PRODUCT_LSI_SAS1068		0x0054
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1068E
+#define PCI_PRODUCT_LSI_SAS1068E	0x0058
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1078
+#define PCI_PRODUCT_LSI_SAS1078		0x0060
+#endif
+
 #ifndef	PCIM_CMD_SERRESPEN
 #define	PCIM_CMD_SERRESPEN	0x0100
 #endif
-
 
 
 #define	MPT_IO_BAR	0
@@ -166,6 +190,16 @@ mpt_pci_probe(device_t dev)
 		break;
 	case PCI_PRODUCT_LSI_1030:
 		desc = "LSILogic 1030 Ultra4 Adapter";
+		break;
+	case PCI_PRODUCT_LSI_SAS1064:
+	case PCI_PRODUCT_LSI_SAS1064A:
+	case PCI_PRODUCT_LSI_SAS1064E:
+	case PCI_PRODUCT_LSI_SAS1066:
+	case PCI_PRODUCT_LSI_SAS1066E:
+	case PCI_PRODUCT_LSI_SAS1068:
+	case PCI_PRODUCT_LSI_SAS1068E:
+	case PCI_PRODUCT_LSI_SAS1078:
+		desc = "LSILogic SAS Adapter";
 		break;
 	default:
 		return (ENXIO);
@@ -268,6 +302,16 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_FC929:
 		mpt->is_fc = 1;
 		break;
+	case PCI_PRODUCT_LSI_SAS1064:
+	case PCI_PRODUCT_LSI_SAS1064A:
+	case PCI_PRODUCT_LSI_SAS1064E:
+	case PCI_PRODUCT_LSI_SAS1066:
+	case PCI_PRODUCT_LSI_SAS1066E:
+	case PCI_PRODUCT_LSI_SAS1068:
+	case PCI_PRODUCT_LSI_SAS1068E:
+	case PCI_PRODUCT_LSI_SAS1078:
+		mpt->is_sas = 1;
+		break;
 	default:
 		break;
 	}
@@ -276,10 +320,13 @@ mpt_pci_attach(device_t dev)
 	mpt->raid_resync_rate = MPT_RAID_RESYNC_RATE_DEFAULT;
 	mpt->raid_mwce_setting = MPT_RAID_MWCE_DEFAULT;
 	mpt->raid_queue_depth = MPT_RAID_QUEUE_DEPTH_DEFAULT;
+	mpt->verbose = MPT_PRT_NONE;
 	mpt_set_options(mpt);
-	mpt->verbose = MPT_PRT_INFO;
-	mpt->verbose += (bootverbose != 0)? 1 : 0;
-
+	if (mpt->verbose == MPT_PRT_NONE) {
+		mpt->verbose = MPT_PRT_WARN;
+		/* Print INFO level (if any) if bootverbose is set */
+		mpt->verbose += (bootverbose != 0)? 1 : 0;
+	}
 	/* Make sure memory access decoders are enabled */
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if ((cmd & PCIM_CMD_MEMEN) == 0) {
@@ -313,7 +360,8 @@ mpt_pci_attach(device_t dev)
 
 	/*
 	 * Set up register access.  PIO mode is required for
-	 * certain reset operations.
+	 * certain reset operations (but must be disabled for
+	 * some cards otherwise).
 	 */
 	mpt->pci_pio_rid = PCIR_BAR(MPT_IO_BAR);
 	mpt->pci_pio_reg = bus_alloc_resource(dev, SYS_RES_IOPORT,
@@ -331,6 +379,10 @@ mpt_pci_attach(device_t dev)
 			&mpt->pci_mem_rid, 0, ~0, 0, RF_ACTIVE);
 	if (mpt->pci_reg == NULL) {
 		device_printf(dev, "Unable to memory map registers.\n");
+		if (mpt->is_sas) {
+			device_printf(dev, "Giving Up.\n");
+			goto bad;
+		}
 		device_printf(dev, "Falling back to PIO mode.\n");
 		mpt->pci_st = mpt->pci_pio_st;
 		mpt->pci_sh = mpt->pci_pio_sh;
@@ -384,8 +436,14 @@ mpt_pci_attach(device_t dev)
 
 	mpt_read_config_regs(mpt);
 
+	/*
+	 * Disable PIO until we need it
+	 */
+	pci_disable_io(dev, SYS_RES_IOPORT);
+
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
+
 		MPT_LOCK(mpt);
 		if (mpt_attach(mpt) != 0) {
 			MPT_UNLOCK(mpt);
@@ -497,7 +555,7 @@ mpt_pci_shutdown(device_t dev)
 static int
 mpt_dma_mem_alloc(struct mpt_softc *mpt)
 {
-	int i, error;
+	int i, error, nsegs;
 	uint8_t *vptr;
 	uint32_t pptr, end;
 	size_t len;
@@ -526,13 +584,13 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 #endif
 
 	/*
-	 * Create a parent dma tag for this device
+	 * Create a parent dma tag for this device.
 	 *
-	 * Align at byte boundaries, limit to 32-bit addressing
-	 * (The chip supports 64-bit addressing, but this driver doesn't)
+	 * Align at byte boundaries, limit to 32-bit addressing for
+	 * request/reply queues.
 	 */
 	if (mpt_dma_tag_create(mpt, /*parent*/NULL, /*alignment*/1,
-	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*nsegments*/BUS_SPACE_MAXSIZE_32BIT,
@@ -543,9 +601,9 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	}
 
 	/* Create a child tag for reply buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 2 * PAGE_SIZE,
+	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+	    NULL, NULL, 2 * PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->reply_dmat) != 0) {
 		device_printf(dev, "cannot create a dma tag for replies\n");
 		return (1);
@@ -554,8 +612,9 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	/* Allocate some DMA accessable memory for replies */
 	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
 	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
-		device_printf(dev, "cannot allocate %lu bytes of reply memory\n",
-		     (u_long)PAGE_SIZE);
+		device_printf(dev,
+		    "cannot allocate %lu bytes of reply memory\n",
+		    (u_long) (2 * PAGE_SIZE));
 		return (1);
 	}
 
@@ -564,7 +623,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 	/* Load and lock it into "bus space" */
 	bus_dmamap_load(mpt->reply_dmat, mpt->reply_dmap, mpt->reply,
-	    PAGE_SIZE, mpt_map_rquest, &mi, 0);
+	    2 * PAGE_SIZE, mpt_map_rquest, &mi, 0);
 
 	if (mi.error) {
 		device_printf(dev,
@@ -574,9 +633,16 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	mpt->reply_phys = mi.phys;
 
 	/* Create a child tag for data buffers */
+
+	/*
+	 * XXX: we should say that nsegs is 'unrestricted, but that
+	 * XXX: tickles a horrible bug in the busdma code. Instead,
+	 * XXX: we'll derive a reasonable segment limit from MAXPHYS
+	 */
+	nsegs = (MAXPHYS / PAGE_SIZE) + 1;
 	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MAXBSIZE, MPT_SGL_MAX, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, MAXBSIZE, nsegs, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->buffer_dmat) != 0) {
 		device_printf(dev,
 		    "cannot create a dma tag for data buffers\n");
@@ -585,7 +651,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 	/* Create a child tag for request buffers */
 	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->request_dmat) != 0) {
 		device_printf(dev, "cannot create a dma tag for requests\n");
