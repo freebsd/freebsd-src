@@ -776,16 +776,27 @@ g_raid3_bump_genid(struct g_raid3_softc *sc)
 	}
 }
 
-static void
-g_raid3_idle(struct g_raid3_softc *sc)
+static int
+g_raid3_idle(struct g_raid3_softc *sc, int from_access)
 {
 	struct g_raid3_disk *disk;
 	u_int i;
+	int timeout;
 
-	if (sc->sc_provider == NULL || sc->sc_provider->acw == 0)
-		return;
+	if (sc->sc_provider == NULL)
+		return (0);
+	if (sc->sc_idle)
+		return (0);
+	if (sc->sc_writes > 0)
+		return (0);
+	if (!from_access && sc->sc_provider->acw > 0) {
+		timeout = g_raid3_idletime - (time_second - sc->sc_last_write);
+		if (timeout > 0)
+			return (timeout);
+	}
 	sc->sc_idle = 1;
-	g_topology_lock();
+	if (!from_access)
+		g_topology_lock();
 	for (i = 0; i < sc->sc_ndisks; i++) {
 		disk = &sc->sc_disks[i];
 		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
@@ -795,7 +806,9 @@ g_raid3_idle(struct g_raid3_softc *sc)
 		disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
 		g_raid3_update_metadata(disk);
 	}
-	g_topology_unlock();
+	if (!from_access)
+		g_topology_unlock();
+	return (0);
 }
 
 static void
@@ -805,6 +818,7 @@ g_raid3_unidle(struct g_raid3_softc *sc)
 	u_int i;
 
 	sc->sc_idle = 0;
+	sc->sc_last_write = time_second;
 	g_topology_lock();
 	for (i = 0; i < sc->sc_ndisks; i++) {
 		disk = &sc->sc_disks[i];
@@ -816,32 +830,6 @@ g_raid3_unidle(struct g_raid3_softc *sc)
 		g_raid3_update_metadata(disk);
 	}
 	g_topology_unlock();
-}
-
-/*
- * Return 1 if we should check if RAID3 device is idling.
- */
-static int
-g_raid3_check_idle(struct g_raid3_softc *sc)
-{
-	struct g_raid3_disk *disk;
-	u_int i;
-
-	if (sc->sc_idle)
-		return (0);
-	if (sc->sc_provider != NULL && sc->sc_provider->acw == 0)
-		return (0);
-	/*
-	 * Check if there are no in-flight requests.
-	 */
-	for (i = 0; i < sc->sc_ndisks; i++) {
-		disk = &sc->sc_disks[i];
-		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
-			continue;
-		if (disk->d_consumer->index > 0)
-			return (0);
-	}
-	return (1);
 }
 
 /*
@@ -1048,6 +1036,7 @@ g_raid3_scatter(struct bio *pbp)
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
 		    cp->acr, cp->acw, cp->ace));
 		cp->index++;
+		sc->sc_writes++;
 		g_io_request(cbp, cp);
 	}
 }
@@ -1219,9 +1208,11 @@ g_raid3_regular_request(struct bio *cbp)
 
 	g_topology_assert_not();
 
-	cbp->bio_from->index--;
 	pbp = cbp->bio_parent;
 	sc = pbp->bio_to->geom->softc;
+	cbp->bio_from->index--;
+	if (cbp->bio_cmd == BIO_WRITE)
+		sc->sc_writes--;
 	disk = cbp->bio_from->private;
 	if (disk == NULL) {
 		g_topology_lock();
@@ -1538,6 +1529,8 @@ g_raid3_register_request(struct bio *pbp)
 
 		if (sc->sc_idle)
 			g_raid3_unidle(sc);
+		else
+			sc->sc_last_write = time_second;
 
 		ndisks = sc->sc_ndisks;
 
@@ -1738,6 +1731,7 @@ g_raid3_worker(void *arg)
 	struct g_raid3_event *ep;
 	struct bio *bp;
 	u_int nreqs;
+	int timeout;
 
 	sc = arg;
 	mtx_lock_spin(&sched_lock);
@@ -1792,6 +1786,11 @@ g_raid3_worker(void *arg)
 			continue;
 		}
 		/*
+		 * Check if we can mark array as CLEAN and if we can't take
+		 * how much seconds should we wait.
+		 */
+		timeout = g_raid3_idle(sc, 0);
+		/*
 		 * Now I/O requests.
 		 */
 		/* Get first request from the queue. */
@@ -1838,29 +1837,9 @@ g_raid3_worker(void *arg)
 			goto sleep;
 		}
 		if (bp == NULL) {
-			if (g_raid3_check_idle(sc)) {
-				u_int idletime;
-
-				idletime = g_raid3_idletime;
-				if (idletime == 0)
-					idletime = 1;
-				idletime *= hz;
-				if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "r3:w1", idletime) == EWOULDBLOCK) {
-					G_RAID3_DEBUG(5, "%s: I'm here 3.",
-					    __func__);
-					/*
-					 * No I/O requests in 'idletime'
-					 * seconds, so mark components as clean.
-					 */
-					g_raid3_idle(sc);
-				}
-				G_RAID3_DEBUG(5, "%s: I'm here 4.", __func__);
-			} else {
-				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "r3:w2", 0);
-				G_RAID3_DEBUG(5, "%s: I'm here 5.", __func__);
-			}
+			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "r3:w1",
+			    timeout * hz);
+			G_RAID3_DEBUG(5, "%s: I'm here 4.", __func__);
 			continue;
 		}
 		nreqs++;
@@ -1910,31 +1889,20 @@ sleep:
 	}
 }
 
-/*
- * Open disk's consumer if needed.
- */
 static void
-g_raid3_update_access(struct g_raid3_disk *disk)
+g_raid3_update_idle(struct g_raid3_softc *sc, struct g_raid3_disk *disk)
 {
-	struct g_provider *pp;
 
 	g_topology_assert();
-
-	pp = disk->d_softc->sc_provider;
-	if (pp == NULL)
-		return;
-	if (pp->acw > 0) {
-		if ((disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) == 0) {
-			G_RAID3_DEBUG(1, "Disk %s (device %s) marked as dirty.",
-			    g_raid3_get_diskname(disk), disk->d_softc->sc_name);
-			disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
-		}
-	} else if (pp->acw == 0) {
-		if ((disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) != 0) {
-			G_RAID3_DEBUG(1, "Disk %s (device %s) marked as clean.",
-			    g_raid3_get_diskname(disk), disk->d_softc->sc_name);
-			disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
-		}
+	if (!sc->sc_idle && (disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) == 0) {
+		G_RAID3_DEBUG(1, "Disk %s (device %s) marked as dirty.",
+		    g_raid3_get_diskname(disk), disk->d_softc->sc_name);
+		disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
+	} else if (sc->sc_idle &&
+	    (disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) != 0) {
+		G_RAID3_DEBUG(1, "Disk %s (device %s) marked as clean.",
+		    g_raid3_get_diskname(disk), disk->d_softc->sc_name);
+		disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
 	}
 }
 
@@ -2436,8 +2404,7 @@ again:
 		disk->d_state = state;
 		disk->d_sync.ds_offset = 0;
 		disk->d_sync.ds_offset_done = 0;
-		g_raid3_update_access(disk);
-		g_raid3_update_metadata(disk);
+		g_raid3_update_idle(sc, disk);
 		G_RAID3_DEBUG(0, "Device %s: provider %s activated.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
 		break;
@@ -2716,9 +2683,7 @@ static int
 g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 {
 	struct g_raid3_softc *sc;
-	struct g_raid3_disk *disk;
 	int dcr, dcw, dce;
-	u_int n;
 
 	g_topology_assert();
 	G_RAID3_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
@@ -2737,25 +2702,8 @@ g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 		else
 			return (ENXIO);
 	}
-	for (n = 0; n < sc->sc_ndisks; n++) {
-		disk = &sc->sc_disks[n];
-		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
-			continue;
-		/*
-		 * Mark disk as dirty on open and unmark on close.
-		 */
-		if (pp->acw == 0 && dcw > 0) {
-			G_RAID3_DEBUG(1, "Disk %s (device %s) marked as dirty.",
-			    g_raid3_get_diskname(disk), sc->sc_name);
-			disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
-			g_raid3_update_metadata(disk);
-		} else if (pp->acw > 0 && dcw == 0) {
-			G_RAID3_DEBUG(1, "Disk %s (device %s) marked as clean.",
-			    g_raid3_get_diskname(disk), sc->sc_name);
-			disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
-			g_raid3_update_metadata(disk);
-		}
-	}
+	if (dcw == 0 && !sc->sc_idle)
+		g_raid3_idle(sc, 1);
 	return (0);
 }
 
@@ -2792,7 +2740,9 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	sc->sc_round_robin = 0;
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_id = 0;
-	sc->sc_idle = 0;
+	sc->sc_idle = 1;
+	sc->sc_last_write = time_second;
+	sc->sc_writes = 0;
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		sc->sc_disks[n].d_softc = sc;
 		sc->sc_disks[n].d_no = n;
