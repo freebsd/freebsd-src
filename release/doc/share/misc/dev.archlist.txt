@@ -137,6 +137,7 @@ trm	i386,amd64
 twa	i386,amd64
 twe	i386,amd64
 txp	i386,pc98,alpha,ia64,amd64
+uart	alpha,amd64,i386,ia64,sparc64
 ubsa	i386,pc98,amd64
 ubsec	i386,pc98,amd64
 ubser	i386,pc98,amd64
