@@ -283,6 +283,9 @@ struct thread {
 	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
 	struct kse_upcall *td_upcall;	/* (k + j) Upcall structure. */
 	u_int		td_pticks;	/* (k) Statclock hits for profiling */
+	u_int		td_sticks;	/* (k) Statclock hits in system mode. */
+	u_int		td_iticks;	/* (k) Statclock hits in intr mode. */
+	u_int		td_uticks;	/* (k) Statclock hits in user mode. */
 	u_int		td_uuticks;	/* (k) Statclock hits (usr), for UTS. */
 	u_int		td_usticks;	/* (k) Statclock hits (sys), for UTS. */
 	int		td_intrval;	/* (j) Return value of TDF_INTERRUPT. */

@@ -69,8 +69,6 @@ static struct mtx uihashtbl_mtx;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
-static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
-		    struct timeval *up, struct timeval *sp);
 static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
 
@@ -694,57 +692,6 @@ getrlimit(td, uap)
 	return (error);
 }
 
-/*
- * Transform the running time and tick information in proc p into user,
- * system, and interrupt time usage.
- */
-void
-calcru(p, up, sp)
-	struct proc *p;
-	struct timeval *up;
-	struct timeval *sp;
-{
-	uint64_t bt;
-	struct rusage_ext rux;
-	struct thread *td;
-	int bt_valid;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	bt_valid = 0;
-	bt = 0;
-	mtx_lock_spin(&sched_lock);
-	rux = p->p_rux;
-	FOREACH_THREAD_IN_PROC(p, td) {
-		if (TD_IS_RUNNING(td)) {
-			/*
-			 * Adjust for the current time slice.  This is
-			 * actually fairly important since the error here is
-			 * on the order of a time quantum which is much
-			 * greater than the precision of binuptime().
-			 */
-			KASSERT(td->td_oncpu != NOCPU,
-			    ("%s: running thread has no CPU", __func__));
-			if (!bt_valid) {
-				bt = cpu_ticks();
-				bt_valid = 1;
-			}
-			/*
-			 * XXX: Doesn't this mean that this quantum will
-			 * XXX: get counted twice if calcru() is called
-			 * XXX: from SIGINFO ?
-			 */
-			rux.rux_runtime +=
-			    (bt - pcpu_find(td->td_oncpu)->pc_switchtime);
-		}
-	}
-	mtx_unlock_spin(&sched_lock);
-	calcru1(p, &rux, up, sp);
-	p->p_rux.rux_uu = rux.rux_uu;
-	p->p_rux.rux_su = rux.rux_su;
-	p->p_rux.rux_iu = rux.rux_iu;
-}
-
 void
 calccru(p, up, sp)
 	struct proc *p;
@@ -753,35 +700,52 @@ calccru(p, up, sp)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	calcru1(p, &p->p_crux, up, sp);
+	calcru(p, up, sp);
 }
 
-static void
-calcru1(p, ruxp, up, sp)
-	struct proc *p;
-	struct rusage_ext *ruxp;
-	struct timeval *up;
-	struct timeval *sp;
+/*
+ * Transform the running time and tick information in proc p into user,
+ * system, and interrupt time usage.  If appropriate, include the current
+ * time slice on this CPU.
+ */
+
+void
+calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
+	struct thread *td;
+	struct rusage_ext *ruxp = &p->p_rux;
+	uint64_t u;
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_lock_spin(&sched_lock);
+	if (curthread->td_proc == p) {
+		td = curthread;
+		u = cpu_ticks();
+		ruxp->rux_runtime += (u - PCPU_GET(switchtime));
+		PCPU_SET(switchtime, u);
+		ruxp->rux_uticks += td->td_uticks;
+		td->td_uticks = 0;
+		ruxp->rux_iticks += td->td_iticks;
+		td->td_iticks = 0;
+		ruxp->rux_sticks += td->td_sticks;
+		td->td_sticks = 0;
+	}
 
 	ut = ruxp->rux_uticks;
 	st = ruxp->rux_sticks;
 	it = ruxp->rux_iticks;
+	tu = ruxp->rux_runtime;
+	mtx_unlock_spin(&sched_lock);
+	tu = cputick2usec(tu);
 	tt = ut + st + it;
 	if (tt == 0) {
 		st = 1;
 		tt = 1;
 	}
-	tu = (ruxp->rux_runtime * 1000000LL) / cpu_tickrate();
 	ptu = ruxp->rux_uu + ruxp->rux_su + ruxp->rux_iu;
-	if (tu < ptu) {
-		printf(
-"calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
-		    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
-		tu = ptu;
-	}
 	if ((int64_t)tu < 0) {
 		printf("calcru: negative runtime of %jd usec for pid %d (%s)\n",
 		    (intmax_t)tu, p->p_pid, p->p_comm);
@@ -792,7 +756,17 @@ calcru1(p, ruxp, up, sp)
 	uu = (tu * ut) / tt;
 	su = (tu * st) / tt;
 	iu = tu - uu - su;
-
+	if (tu < ptu) {
+		printf(
+"calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
+		    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
+		printf("u %ju:%ju/%ju s %ju:%ju/%ju i %ju:%ju/%ju\n",
+		    (uintmax_t)ut, (uintmax_t)ruxp->rux_uu, uu,
+		    (uintmax_t)st, (uintmax_t)ruxp->rux_su, su,
+		    (uintmax_t)it, (uintmax_t)ruxp->rux_iu, iu);
+		tu = ptu;
+	}
+#if 0
 	/* Enforce monotonicity. */
 	if (uu < ruxp->rux_uu || su < ruxp->rux_su || iu < ruxp->rux_iu) {
 		if (uu < ruxp->rux_uu)
@@ -814,6 +788,9 @@ calcru1(p, ruxp, up, sp)
 		KASSERT(iu >= ruxp->rux_iu,
 		    ("calcru: monotonisation botch 2"));
 	}
+	KASSERT(uu + su + iu <= tu,
+	    ("calcru: monotisation botch 3"));
+#endif
 	ruxp->rux_uu = uu;
 	ruxp->rux_su = su;
 	ruxp->rux_iu = iu;
