@@ -44,7 +44,7 @@ struct cs_softc {
 	int isa_config;                 /* ISA configuration */
 	int chip_type;			/* Type of chip */
 
-	u_char	enaddr[6];
+	u_char	enaddr[ETHER_ADDR_LEN];
 
 	struct ifmedia media;		/* Media information */
 
