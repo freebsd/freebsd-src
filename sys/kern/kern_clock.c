@@ -415,7 +415,7 @@ statclock(int usermode)
 		 */
 		if (p->p_flag & P_SA)
 			thread_statclock(1);
-		p->p_rux.rux_uticks++;
+		td->td_uticks++;
 		if (p->p_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
@@ -435,13 +435,13 @@ statclock(int usermode)
 		 */
 		if ((td->td_pflags & TDP_ITHREAD) ||
 		    td->td_intr_nesting_level >= 2) {
-			p->p_rux.rux_iticks++;
+			td->td_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
 			if (p->p_flag & P_SA)
 				thread_statclock(0);
 			td->td_pticks++;
-			p->p_rux.rux_sticks++;
+			td->td_sticks++;
 			if (td != PCPU_GET(idlethread))
 				cp_time[CP_SYS]++;
 			else

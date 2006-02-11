@@ -86,6 +86,7 @@ init_TSC(void)
 	tsc_freq = tscval[1] - tscval[0];
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
+	set_cputicker(rdtsc, tsc_freq, 1);
 }
 
 
