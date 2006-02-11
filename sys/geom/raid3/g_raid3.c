@@ -70,6 +70,9 @@ static u_int g_raid3_syncs_per_sec = 1000;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, syncs_per_sec, CTLFLAG_RW,
     &g_raid3_syncs_per_sec, 0,
     "Number of synchronizations requests per second");
+static u_int g_raid3_disconnect_on_failure = 1;
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
+    &g_raid3_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 
 static u_int g_raid3_n64k = 50;
 TUNABLE_INT("kern.geom.raid3.n64k", &g_raid3_n64k);
@@ -647,9 +650,23 @@ g_raid3_write_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	g_topology_lock();
 	free(sector, M_RAID3);
 	if (error != 0) {
-		disk->d_softc->sc_bump_id = G_RAID3_BUMP_GENID;
-		g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
-		    G_RAID3_EVENT_DONTWAIT);
+		if ((disk->d_flags & G_RAID3_DISK_FLAG_BROKEN) == 0) {												      
+			G_RAID3_DEBUG(0, "Cannot write metadata on %s "												     
+			    "(device=%s, error=%d).",															
+			    g_raid3_get_diskname(disk), sc->sc_name, error);												
+			disk->d_flags |= G_RAID3_DISK_FLAG_BROKEN;													  
+		} else {																		     
+			G_RAID3_DEBUG(1, "Cannot write metadata on %s "												     
+			    "(device=%s, error=%d).",															
+			    g_raid3_get_diskname(disk), sc->sc_name, error);												
+		}																			    
+		if (g_raid3_disconnect_on_failure &&															
+		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE) {
+			sc->sc_bump_id |= G_RAID3_BUMP_GENID;												    
+			g_raid3_event_send(disk,															    
+			    G_RAID3_DISK_STATE_DISCONNECTED,														
+			    G_RAID3_EVENT_DONTWAIT);															
+		}		 
 	}
 	return (error);
 }
@@ -1069,18 +1086,6 @@ g_raid3_gather(struct bio *pbp)
 		/*
 		 * Found failed request.
 		 */
-		G_RAID3_LOGREQ(0, cbp, "Request failed.");
-		disk = cbp->bio_caller2;
-		if (disk != NULL) {
-			/*
-			 * Actually this is pointless to bump genid,
-			 * because whole device is fucked up.
-			 */
-			sc->sc_bump_id |= G_RAID3_BUMP_GENID;
-			g_raid3_event_send(disk,
-			    G_RAID3_DISK_STATE_DISCONNECTED,
-			    G_RAID3_EVENT_DONTWAIT);
-		}
 		if (fbp == NULL) {
 			if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_DEGRADED) != 0) {
 				/*
@@ -1098,6 +1103,24 @@ g_raid3_gather(struct bio *pbp)
 			 */
 			if (pbp->bio_error == 0)
 				pbp->bio_error = fbp->bio_error;
+		}
+		disk = cbp->bio_caller2;
+		if (disk == NULL)
+			continue;
+		if ((disk->d_flags & G_RAID3_DISK_FLAG_BROKEN) == 0) {
+			disk->d_flags |= G_RAID3_DISK_FLAG_BROKEN;
+			G_RAID3_LOGREQ(0, cbp, "Request failed (error=%d).",
+			    cbp->bio_error);
+		} else {
+			G_RAID3_LOGREQ(1, cbp, "Request failed (error=%d).",
+			    cbp->bio_error);
+		}
+		if (g_raid3_disconnect_on_failure &&
+		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE) {
+			sc->sc_bump_id |= G_RAID3_BUMP_GENID;
+			g_raid3_event_send(disk,
+			    G_RAID3_DISK_STATE_DISCONNECTED,
+			    G_RAID3_EVENT_DONTWAIT);
 		}
 	}
 	if (pbp->bio_error != 0)
@@ -1238,22 +1261,42 @@ g_raid3_regular_request(struct bio *cbp)
 
 		pbp->bio_completed = pbp->bio_length;
 		while ((cbp = G_RAID3_HEAD_BIO(pbp)) != NULL) {
-			if (cbp->bio_error != 0) {
-				disk = cbp->bio_caller2;
-				if (disk != NULL) {
-					sc->sc_bump_id |= G_RAID3_BUMP_GENID;
-					g_raid3_event_send(disk,
-					    G_RAID3_DISK_STATE_DISCONNECTED,
-					    G_RAID3_EVENT_DONTWAIT);
-				}
-				if (error == 0)
-					error = cbp->bio_error;
-				else if (pbp->bio_error == 0) {
-					/*
-					 * Next failed request, that's too many.
-					 */
-					pbp->bio_error = error;
-				}
+			if (cbp->bio_error == 0) {
+				g_raid3_destroy_bio(sc, cbp);
+				continue;
+			}
+
+			if (error == 0)
+				error = cbp->bio_error;
+			else if (pbp->bio_error == 0) {
+				/*
+				 * Next failed request, that's too many.
+				 */
+				pbp->bio_error = error;
+			}
+
+			disk = cbp->bio_caller2;
+			if (disk == NULL) {
+				g_raid3_destroy_bio(sc, cbp);
+				continue;
+			}
+
+			if ((disk->d_flags & G_RAID3_DISK_FLAG_BROKEN) == 0) {
+				disk->d_flags |= G_RAID3_DISK_FLAG_BROKEN;
+				G_RAID3_LOGREQ(0, cbp,
+				    "Request failed (error=%d).",
+				    cbp->bio_error);
+			} else {
+				G_RAID3_LOGREQ(1, cbp,
+				    "Request failed (error=%d).",
+				    cbp->bio_error);
+			}
+			if (g_raid3_disconnect_on_failure &&
+			    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE) {
+				sc->sc_bump_id |= G_RAID3_BUMP_GENID;
+				g_raid3_event_send(disk,
+				    G_RAID3_DISK_STATE_DISCONNECTED,
+				    G_RAID3_EVENT_DONTWAIT);
 			}
 			g_raid3_destroy_bio(sc, cbp);
 		}
@@ -2999,6 +3042,7 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			ADD_FLAG(G_RAID3_DISK_FLAG_SYNCHRONIZING,
 			    "SYNCHRONIZING");
 			ADD_FLAG(G_RAID3_DISK_FLAG_FORCE_SYNC, "FORCE_SYNC");
+			ADD_FLAG(G_RAID3_DISK_FLAG_BROKEN, "BROKEN");
 #undef	ADD_FLAG
 		}
 		sbuf_printf(sb, "</Flags>\n");
