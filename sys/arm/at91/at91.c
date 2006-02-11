@@ -302,7 +302,7 @@ at91_attach(device_t dev)
 	at91_add_child(dev, 10, "at91_spi", 0, AT91RM92_BASE +	// SPI
 	    AT91RM92_SPI_BASE, AT91RM92_SPI_SIZE, AT91RM92_IRQ_SPI);
 	// Not sure that the following belongs on this bus.
-	at91_add_child(dev, 10, "ohci", 0, AT91RM92_BASE +	// UHP
+	at91_add_child(dev, 10, "ohci", 0, 			// UHP
 	    AT91RM92_OHCI_BASE, AT91RM92_OHCI_SIZE, AT91RM92_IRQ_UHP);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
