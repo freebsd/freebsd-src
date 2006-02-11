@@ -218,11 +218,9 @@ mbpr(void *kvmd, u_long mbaddr)
 	    "(current/cache/total)\n", bytes_inuse / 1024,
 	    bytes_incache / 1024, bytes_total / 1024);
 
-#if 0
 	printf("%llu/%llu/%llu requests for mbufs denied (mbufs/clusters/"
 	    "mbuf+clusters)\n", mbuf_failures, cluster_failures,
 	    packet_failures);
-#endif
 
 	if (live) {
 		mlen = sizeof(mbstat);
