@@ -1088,7 +1088,7 @@ g_raid3_gather(struct bio *pbp)
 				 * accept any failures.
 				 */
 				if (pbp->bio_error == 0)
-					pbp->bio_error = fbp->bio_error;
+					pbp->bio_error = cbp->bio_error;
 			} else {
 				fbp = cbp;
 			}
