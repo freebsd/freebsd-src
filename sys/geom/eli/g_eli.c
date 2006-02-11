@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/uio.h>
+#include <sys/vnode.h>
 
 #include <vm/uma.h>
 
@@ -73,8 +74,6 @@ static u_int g_eli_threads = 0;
 TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
     "Number of threads doing crypto work");
-
-static int g_eli_do_taste = 0;
 
 static int g_eli_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -909,7 +908,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
-	if (!g_eli_do_taste || g_eli_tries == 0)
+	if (rootvnode != NULL || g_eli_tries == 0)
 		return (NULL);
 
 	G_ELI_DEBUG(3, "Tasting %s.", pp->name);
@@ -1062,31 +1061,6 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<Cipher>%s</Cipher>\n", indent,
 	    g_eli_algo2str(sc->sc_algo));
 }
-
-static void
-g_eli_on_boot_start(void *dummy __unused)
-{
-
-	/* This prevents from tasting when module is loaded after boot. */
-	if (cold) {
-		G_ELI_DEBUG(1, "Start tasting.");
-		g_eli_do_taste = 1;
-	} else {
-		G_ELI_DEBUG(1, "Tasting not started.");
-	}
-}
-SYSINIT(geli_boot_start, SI_SUB_TUNABLES, SI_ORDER_ANY, g_eli_on_boot_start, NULL)
-
-static void
-g_eli_on_boot_end(void *dummy __unused)
-{
-
-	if (g_eli_do_taste) {
-		G_ELI_DEBUG(1, "Tasting no more.");
-		g_eli_do_taste = 0;
-	}
-}
-SYSINIT(geli_boot_end, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, g_eli_on_boot_end, NULL)
 
 DECLARE_GEOM_CLASS(g_eli_class, g_eli);
 MODULE_DEPEND(geom_eli, crypto, 1, 1, 1);
