@@ -799,6 +799,7 @@ in_rtchange(inp, errno)
 /*
  * Lookup a PCB based on the local address and port.
  */
+#define INP_LOOKUP_MAPPED_PCB_COST	3
 struct inpcb *
 in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	struct inpcbinfo *pcbinfo;
@@ -807,7 +808,12 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	int wild_okay;
 {
 	register struct inpcb *inp;
-	int matchwild = 3, wildcard;
+#ifdef INET6
+	int matchwild = 3 + INP_LOOKUP_MAPPED_PCB_COST;
+#else
+	int matchwild = 3;
+#endif
+	int wildcard;
 	u_short lport = lport_arg;
 
 	if (!wild_okay) {
@@ -861,6 +867,21 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 #ifdef INET6
 				if ((inp->inp_vflag & INP_IPV4) == 0)
 					continue;
+				/*
+				 * We never select the PCB that has
+				 * INP_IPV6 flag and is bound to :: if
+				 * we have another PCB which is bound
+				 * to 0.0.0.0.  If a PCB has the
+				 * INP_IPV6 flag, then we set its cost
+				 * higher than IPv4 only PCBs.
+				 *
+				 * Note that the case only happens
+				 * when a socket is bound to ::, under
+				 * the condition that the use of the
+				 * mapped address is allowed.
+				 */
+				if ((inp->inp_vflag & INP_IPV6) != 0)
+					wildcard += INP_LOOKUP_MAPPED_PCB_COST;
 #endif
 				if (inp->inp_faddr.s_addr != INADDR_ANY)
 					wildcard++;
@@ -885,6 +906,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		return (match);
 	}
 }
+#undef INP_LOOKUP_MAPPED_PCB_COST
 
 /*
  * Lookup PCB in hash list.
