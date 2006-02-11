@@ -1062,13 +1062,34 @@ product KENSINGTON ORBIT	0x1003	Orbit USB/PS2 trackball
 product KENSINGTON TURBOBALL	0x1005	TurboBall
 
 /* Keyspan products */
-product KEYSPAN USA28		0x0101	USA-28 serial
-product KEYSPAN USA28X		0x0102	USA-28X serial
-product KEYSPAN USA19		0x0103	USA-19 serial
-product KEYSPAN USA18X		0x0105	USA-18X serial
-product KEYSPAN USA19W		0x0106	USA-19W serial
-product KEYSPAN USA49W		0x0109	USA-49W serial
-product KEYSPAN USA19QW		0x0118	USA-19QW serial
+product KEYSPAN USA28_NF	0x0101	USA-28 serial adapter (no firmware)
+product KEYSPAN USA28X_NF	0x0102	USA-28X serial adapter (no firmware)
+product KEYSPAN USA19_NF	0x0103	USA-19 serial adapter (no firmware)
+product KEYSPAN USA18_NF	0x0104	USA-18 serial adapter (no firmware)
+product KEYSPAN USA18X_NF	0x0105	USA-18X serial adapter (no firmware)
+product KEYSPAN USA19W_NF	0x0106	USA-19W serial adapter (no firmware)
+product KEYSPAN USA19		0x0107	USA-19 serial adapter
+product KEYSPAN USA19W		0x0108	USA-19W serial adapter
+product KEYSPAN USA49W_NF	0x0109	USA-49W serial adapter (no firmware)
+product KEYSPAN USA49W		0x010a	USA-49W serial adapter
+product KEYSPAN USA19QI_NF	0x010b	USA-19QI serial adapter (no firmware)
+product KEYSPAN USA19QI		0x010c	USA-19QI serial adapter
+product KEYSPAN USA19Q_NF	0x010d	USA-19Q serial adapter (no firmware)
+product KEYSPAN USA19Q		0x010e	USA-19Q serial adapter
+product KEYSPAN USA28		0x010f	USA-28 serial adapter
+product KEYSPAN USA28XXB	0x0110	USA-28X/XB serial adapter
+product KEYSPAN USA18		0x0111	USA-18 serial adapter
+product KEYSPAN USA18X		0x0112	USA-18X serial adapter
+product KEYSPAN USA28XB_NF	0x0113	USA-28XB serial adapter (no firmware)
+product KEYSPAN USA28XA_NF	0x0114	USA-28XB serial adapter (no firmware)
+product KEYSPAN USA28XA		0x0115	USA-28XA serial adapter
+product KEYSPAN USA18XA_NF	0x0116	USA-18XA serial adapter (no firmware)
+product KEYSPAN USA18XA		0x0117	USA-18XA serial adapter
+product KEYSPAN USA19QW_NF	0x0118	USA-19WQ serial adapter (no firmware)
+product KEYSPAN USA19QW		0x0119	USA-19WQ serial adapter
+product KEYSPAN USA19HA		0x0121	USA-19HS serial adapter
+product KEYSPAN UIA10		0x0201	UIA-10 remote control
+product KEYSPAN UIA11		0x0202	UIA-11 remote control
 
 /* Kingston products */
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
