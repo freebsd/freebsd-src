@@ -26,15 +26,12 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#9 $
  */
-
-#ifdef __APPLE__
 
 /*
  * Based on sample code from Marc Majka.
  */
-#include <notify.h>
 #include <string.h>	/* strerror() */
 #include <sys/errno.h>	/* errno */
 #include <bsm/libbsm.h>
@@ -42,6 +39,8 @@
 #include <syslog.h>	/* syslog() */
 #include <stdarg.h>	/* syslog() */
 
+#ifdef __APPLE__
+#include <notify.h>
 /* If 1, assumes a kernel that sends the right notification. */
 #define	AUDIT_NOTIFICATION_ENABLED	1
 
@@ -145,5 +144,25 @@ au_get_state(void)
 		return (AUC_AUDITING);
 	}
 }
+#endif	/* !__APPLE__ */
 
-#endif /* !__APPLE__ */
+int
+cannot_audit(int val __unused)
+{
+#ifdef __APPLE__
+	return (!(au_get_state() == AUC_AUDITING));
+#else
+	unsigned long au_cond;
+
+	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+		if (errno != ENOSYS) {
+			syslog(LOG_ERR, "Audit status check failed (%s)",
+			    strerror(errno));
+		}
+		return (1);
+	}
+	if (au_cond == AUC_NOAUDIT || au_cond == AUC_DISABLED)
+		return (1);
+	return (0);
+#endif	/* !__APPLE__ */
+}

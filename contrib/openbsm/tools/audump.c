@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#5 $
  */
 
 #include <bsm/libbsm.h>
@@ -41,7 +41,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: dump [class|class_r|control|event|event_r|"
+	fprintf(stderr, "usage: audump [class|class_r|control|event|event_r|"
 	    "user|user_r]\n");
 	exit(-1);
 }

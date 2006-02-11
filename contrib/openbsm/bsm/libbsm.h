@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#16 $
  */
 
 #ifndef _LIBBSM_H_
@@ -44,11 +44,12 @@
 #include <sys/cdefs.h>
 #include <sys/queue.h>
 
+#include <stdint.h>		/* Required for audit.h. */
+
 #include <bsm/audit.h>
 #include <bsm/audit_record.h>
 
 #include <stdio.h>
-#include <stdint.h>
 
 #ifdef __APPLE__
 #include <mach/mach.h>		/* audit_token_t */
@@ -871,7 +872,7 @@ int	au_get_state(void);
 __END_DECLS
 
 /* OpenSSH compatibility */
-#define	cannot_audit(x)	(!(au_get_state() == AUC_AUDITING))
+int	cannot_audit(int);
 
 __BEGIN_DECLS
 /*
