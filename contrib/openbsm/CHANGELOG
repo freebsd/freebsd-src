@@ -1,3 +1,15 @@
+OpenBSM 1.0 alpha 4
+
+- Remove "audit" user example from audit_user, as it's not present on most
+  systems.
+- Add cannot_audit() function non-Darwin systems that wraps auditon();
+  required by OpenSSH BSM support.  Convert Darwin cannot_audit() into a
+  function rather than a macro.
+- Library build fixed on Darwin following include file tweaks.  The native
+  Darwin sys/audit.h conflicts with bsm/audit.h due to duplicate types, so
+  for now we force bsm_wrappers.c to not perform a nested include of
+  sys/audit.h.
+
 OpenBSM 1.0 alpha 3
 
 - Man page formatting, cross reference, mlinks, and accuracy improvements.
@@ -82,4 +94,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/CHANGELOG#10 $
+$P4: //depot/projects/trustedbsd/openbsm/CHANGELOG#12 $
