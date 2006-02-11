@@ -172,8 +172,6 @@ static const struct Error_Map IOC_SCSITMType[] = {
 { -1, 0 },
 };
 
-static void mpt_dump_sgl(SGE_IO_UNION *sgl);
-
 static char *
 mpt_ioc_status(int code)
 {
@@ -527,7 +525,12 @@ mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *orig_msg)
 	for (i = 0; i < msg->CDBLength; i++)
 		printf("%02x ", msg->CDB[i]);
 	printf("\n");
-	mpt_dump_sgl(&orig_msg->SGL);
+
+	if ((msg->Control & MPI_SCSIIO_CONTROL_DATADIRECTION_MASK) !=
+	   MPI_SCSIIO_CONTROL_NODATATRANSFER ) {
+		mpt_dump_sgl(&orig_msg->SGL,
+		    ((char *)&orig_msg->SGL)-(char *)orig_msg);
+	}
 }
 
 static void
@@ -625,35 +628,69 @@ mpt_req_state(mpt_req_state_t state)
 			 "REQ_STATE", state, NULL, 80);
 }
 
-static void
-mpt_dump_sgl(SGE_IO_UNION *su)
+#define	LAST_SGE	(		\
+	MPI_SGE_FLAGS_END_OF_LIST |	\
+	MPI_SGE_FLAGS_END_OF_BUFFER|	\
+	MPI_SGE_FLAGS_LAST_ELEMENT) 
+void
+mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 {
 	SGE_SIMPLE32 *se = (SGE_SIMPLE32 *) su;
-	int iCount, flags;
+	const char allfox[4] = { 0xff, 0xff, 0xff, 0xff };
+	void *nxtaddr = se;
+	void *lim;
+	int flags;
 
-	iCount = MPT_SGL_MAX;
+	/*
+	 * Can't be any bigger than this.
+	 */
+	lim = &((char *)se)[MPT_REQUEST_AREA - offset];
+
 	do {
 		int iprt;
 
 		printf("\t");
+		if (memcmp(se, allfox, 4) == 0) {
+			uint32_t *nxt = (uint32_t *)se;
+			printf("PAD  %p\n", se);
+			nxtaddr = nxt + 1;
+			se = nxtaddr;
+			flags = 0;
+			continue;
+		}
+		nxtaddr = se + 1;
 		flags = MPI_SGE_GET_FLAGS(se->FlagsLength);
 		switch (flags & MPI_SGE_FLAGS_ELEMENT_MASK) {
 		case MPI_SGE_FLAGS_SIMPLE_ELEMENT:
-		{
-			printf("SE32 %p: Addr=0x%0x FlagsLength=0x%0x\n",
-			    se, se->Address, se->FlagsLength);
+			if (flags & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
+				SGE_SIMPLE64 *se64 = (SGE_SIMPLE64 *)se;
+				printf("SE64 %p: Addr=0x%08x%08x FlagsLength"
+				    "=0x%0x\n", se64, se64->Address.High,
+				    se64->Address.Low, se64->FlagsLength);
+				nxtaddr = se64 + 1;
+			} else {
+				printf("SE32 %p: Addr=0x%0x FlagsLength=0x%0x"
+	                            "\n", se, se->Address, se->FlagsLength);
+			}
 			printf(" ");
 			break;
-		}
 		case MPI_SGE_FLAGS_CHAIN_ELEMENT:
-		{
-			SGE_CHAIN32 *ce = (SGE_CHAIN32 *) se;
-			printf("CE32 %p: Addr=0x%0x NxtChnO=0x%x Flgs=0x%x "
-			    "Len=0x%0x\n", ce, ce->Address, ce->NextChainOffset,
-			    ce->Flags, ce->Length);
+			if (flags & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
+				SGE_CHAIN64 *ce64 = (SGE_CHAIN64 *) se;
+				printf("CE64 %p: Addr=0x%08x%08x NxtChnO=0x%x "
+				    "Flgs=0x%x Len=0x%0x\n", ce64,
+				    ce64->Address.High, ce64->Address.Low,
+				    ce64->NextChainOffset,
+				    ce64->Flags, ce64->Length);
+				nxtaddr = ce64 + 1;
+			} else {
+				SGE_CHAIN32 *ce = (SGE_CHAIN32 *) se;
+				printf("CE32 %p: Addr=0x%0x NxtChnO=0x%x "
+				    " Flgs=0x%x Len=0x%0x\n", ce, ce->Address,
+				    ce->NextChainOffset, ce->Flags, ce->Length);
+			}
 			flags = 0;
 			break;
-		}
 		case MPI_SGE_FLAGS_TRANSACTION_ELEMENT:
 			printf("TE32 @ %p\n", se);
 			flags = 0;
@@ -678,9 +715,11 @@ mpt_dump_sgl(SGE_IO_UNION *su)
 #undef MPT_PRINT_FLAG
 		if (iprt)
 			printf("\n");
-		se++;
-		iCount -= 1;
-	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && iCount != 0);
+		se = nxtaddr;
+		if ((flags & LAST_SGE) == LAST_SGE) {
+			break;
+		}
+	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && nxtaddr < lim);
 }
 
 void
