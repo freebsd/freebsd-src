@@ -60,15 +60,15 @@ SYSCTL_UINT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
 static u_int g_eli_tries = 3;
 TUNABLE_INT("kern.geom.eli.tries", &g_eli_tries);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RW, &g_eli_tries, 0,
-    "Number of tries when asking for passphrase");
+    "Number of tries for entering the passphrase");
 static u_int g_eli_visible_passphrase = 0;
 TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
     &g_eli_visible_passphrase, 0,
-    "Turn on echo when entering passphrase (debug purposes only!!)");
+    "Turn on echo when entering the passphrase (for debug purposes only!!)");
 u_int g_eli_overwrites = 5;
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
-    0, "Number of overwrites on-disk keys when destroying");
+    0, "Number of times on-disk keys should be overwritten when destroying them");
 static u_int g_eli_threads = 0;
 TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
@@ -121,7 +121,7 @@ g_eli_crypto_rerun(struct cryptop *crp)
 			break;
 	}
 	KASSERT(wr != NULL, ("Invalid worker (%u).", bp->bio_pflags));
-	G_ELI_DEBUG(1, "Reruning crypto %s request (sid: %ju -> %ju).",
+	G_ELI_DEBUG(1, "Rerunning crypto %s request (sid: %ju -> %ju).",
 	    bp->bio_cmd == BIO_READ ? "READ" : "WRITE", (uintmax_t)wr->w_sid,
 	    (uintmax_t)crp->crp_sid);
 	wr->w_sid = crp->crp_sid;
@@ -767,10 +767,10 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		if (error != 0) {
 			free(wr, M_ELI);
 			if (req != NULL) {
-				gctl_error(req, "Cannot setup crypto session "
+				gctl_error(req, "Cannot set up crypto session "
 				    "for %s (error=%d).", bpp->name, error);
 			} else {
-				G_ELI_DEBUG(1, "Cannot setup crypto session "
+				G_ELI_DEBUG(1, "Cannot set up crypto session "
 				    "for %s (error=%d).", bpp->name, error);
 			}
 			goto failed;
@@ -853,7 +853,7 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
 			G_ELI_DEBUG(1, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			    "cannot be definitely removed.", pp->name);
 		} else {
 			G_ELI_DEBUG(1,
 			    "Device %s is still open (r%dw%de%d).", pp->name,
