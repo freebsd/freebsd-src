@@ -162,19 +162,6 @@ mbpr(void *kvmd, u_long mbaddr)
 	printf("%llu mbuf tags in use\n", tag_count);
 #endif
 
-	if (live) {
-		mlen = sizeof(nsfbufs);
-		if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL,
-		    0) &&
-		    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused,
-		    &mlen, NULL, 0) &&
-		    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak,
-		    &mlen, NULL, 0)) {
-			printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
-			    nsfbufsused, nsfbufspeak, nsfbufs);
-		}
-	}
-
 	/*-
 	 * Calculate in-use bytes as:
 	 * - straight mbuf memory
@@ -223,6 +210,15 @@ mbpr(void *kvmd, u_long mbaddr)
 	    packet_failures);
 
 	if (live) {
+		mlen = sizeof(nsfbufs);
+		if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL,
+		    0) &&
+		    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused,
+		    &mlen, NULL, 0) &&
+		    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak,
+		    &mlen, NULL, 0))
+			printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
+			    nsfbufsused, nsfbufspeak, nsfbufs);
 		mlen = sizeof(mbstat);
 		if (sysctlbyname("kern.ipc.mbstat", &mbstat, &mlen, NULL, 0)) {
 			warn("kern.ipc.mbstat");
