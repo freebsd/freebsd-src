@@ -86,13 +86,21 @@
 #include <sys/bus.h>
 #include <sys/module.h>
 
-#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
 
+#if __FreeBSD_version < 500000  
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+#else
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#endif
+
+#include <machine/bus.h>
 #include "opt_ddb.h"
 
 /**************************** Register Definitions ****************************/
@@ -247,6 +255,7 @@ struct req_entry {
 	bus_addr_t	req_pbuf;	/* Physical Address of Entry */
 	bus_addr_t	sense_pbuf;	/* Physical Address of sense data */
 	bus_dmamap_t	dmap;		/* DMA map for data buffer */
+	struct req_entry *chain;	/* for SGE overallocations */
 };
 
 /**************************** Handler Registration ****************************/
@@ -376,7 +385,8 @@ struct mpt_softc {
 	struct mtx		mpt_lock;
 #endif
 	uint32_t		mpt_pers_mask;
-	uint32_t		: 15,
+	uint32_t		: 14,
+		is_sas		: 1,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
@@ -397,6 +407,7 @@ struct mpt_softc {
 	uint16_t	request_frame_size;
 	uint8_t		mpt_max_devices;
 	uint8_t		mpt_max_buses;
+	uint8_t		ioc_facts_flags;
 
 	/*
 	 * Port Facts
@@ -486,6 +497,11 @@ struct mpt_softc {
 	uint8_t		       *request;	/* KVA of Request memory */
 	bus_addr_t		request_phys;	/* BusADdr of request memory */
 
+	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
+
+	/*
+	 * Hardware management
+	 */
 	u_int			reset_cnt;
 
 	/*
@@ -658,11 +674,11 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 }
 /*********************** Reply Frame/Request Management ***********************/
 /* Max MPT Reply we are willing to accept (must be power of 2) */
-#define MPT_REPLY_SIZE   	128
+#define MPT_REPLY_SIZE   	256
 
-#define MPT_MAX_REQUESTS(mpt)	((mpt)->is_fc ? 1024 : 256)
-#define MPT_REQUEST_AREA 512
-#define MPT_SENSE_SIZE    32	/* included in MPT_REQUEST_SIZE */
+#define MPT_MAX_REQUESTS(mpt)	512
+#define MPT_REQUEST_AREA	512
+#define MPT_SENSE_SIZE		32	/* included in MPT_REQUEST_AREA */
 #define MPT_REQ_MEM_SIZE(mpt)	(MPT_MAX_REQUESTS(mpt) * MPT_REQUEST_AREA)
 
 #define MPT_CONTEXT_CB_SHIFT	(16)
@@ -714,33 +730,25 @@ mpt_pop_reply_queue(struct mpt_softc *mpt)
 void mpt_complete_request_chain(struct mpt_softc *mpt,
 				struct req_queue *chain, u_int iocstatus);
 /************************** Scatter Gather Managment **************************/
-/*
- * We cannot tell prior to getting IOC facts how big the IOC's request
- * area is. Because of this we cannot tell at compile time how many
- * simple SG elements we can fit within an IOC request prior to having
- * to put in a chain element.
- * 
- * Experimentally we know that the Ultra4 parts have a 96 byte request
- * element size and the Fibre Channel units have a 144 byte request
- * element size. Therefore, if we have 512-32 (== 480) bytes of request
- * area to play with, we have room for between 3 and 5 request sized
- * regions- the first of which is the command  plus a simple SG list,
- * the rest of which are chained continuation SG lists. Given that the
- * normal request we use is 48 bytes w/o the first SG element, we can
- * assume we have 480-48 == 432 bytes to have simple SG elements and/or
- * chain elements. If we assume 32 bit addressing, this works out to
- * 54 SG or chain elements. If we assume 5 chain elements, then we have
- * a maximum of 49 seperate actual SG segments.
- */
-#define MPT_SGL_MAX		49
-
+/* MPT_RQSL- size of request frame, in bytes */
 #define	MPT_RQSL(mpt)		(mpt->request_frame_size << 2)
-#define	MPT_NSGL(mpt)		(MPT_RQSL(mpt) / sizeof (SGE_SIMPLE32))
 
-#define	MPT_NSGL_FIRST(mpt)				\
-	(((mpt->request_frame_size << 2) -		\
-	sizeof (MSG_SCSI_IO_REQUEST) -			\
-	sizeof (SGE_IO_UNION)) / sizeof (SGE_SIMPLE32))
+/* MPT_NSGL- how many SG entries can fit in a request frame size */
+#define	MPT_NSGL(mpt)		(MPT_RQSL(mpt) / sizeof (SGE_IO_UNION))
+
+/* MPT_NRFM- how many request frames can fit in each request alloc we make */
+#define	MPT_NRFM(mpt)		(MPT_REQUEST_AREA / MPT_RQSL(mpt))
+
+/*
+ * MPT_NSGL_FIRST- # of SG elements that can fit after
+ * an I/O request but still within the request frame.
+ * Do this safely based upon SGE_IO_UNION.
+ *
+ * Note that the first element is *within* the SCSI request.
+ */
+#define	MPT_NSGL_FIRST(mpt)	\
+    ((MPT_RQSL(mpt) - sizeof (MSG_SCSI_IO_REQUEST) + sizeof (SGE_IO_UNION)) / \
+    sizeof (SGE_IO_UNION))
 
 /***************************** IOC Initialization *****************************/
 int mpt_reset(struct mpt_softc *, int /*reinit*/);
@@ -763,7 +771,8 @@ enum {
 	MPT_PRT_WARN,
 	MPT_PRT_INFO,
 	MPT_PRT_DEBUG,
-	MPT_PRT_TRACE
+	MPT_PRT_TRACE,
+	MPT_PRT_NONE=100
 };
 
 #define mpt_lprt(mpt, level, ...)		\
@@ -850,4 +859,5 @@ void mpt_req_state(mpt_req_state_t state);
 void mpt_print_config_request(void *vmsg);
 void mpt_print_request(void *vmsg);
 void mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *msg);
+void mpt_dump_sgl(SGE_IO_UNION *se, int offset);
 #endif /* _MPT_H_ */
