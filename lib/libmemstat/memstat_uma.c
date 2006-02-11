@@ -52,6 +52,8 @@ static struct nlist namelist[] = {
 	{ .n_name = "_uma_kegs" },
 #define	X_MP_MAXID	1
 	{ .n_name = "_mp_maxid" },
+#define	X_ALL_CPUS	2
+	{ .n_name = "_all_cpus" },
 	{ .n_name = "" },
 };
 
@@ -309,6 +311,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 	struct uma_keg *kzp, kz;
 	int hint_dontsearch, i, mp_maxid, ret;
 	char name[MEMTYPE_MAXNAME];
+	__cpumask_t all_cpus;
 	kvm_t *kvm;
 
 	kvm = (kvm_t *)kvm_handle;
@@ -328,6 +331,11 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 	ret = kread_symbol(kvm, X_UMA_KEGS, &uma_kegs, sizeof(uma_kegs), 0);
+	if (ret != 0) {
+		list->mtl_error = ret;
+		return (-1);
+	}
+	ret = kread_symbol(kvm, X_ALL_CPUS, &all_cpus, sizeof(all_cpus), 0);
 	if (ret != 0) {
 		list->mtl_error = ret;
 		return (-1);
@@ -378,6 +386,8 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {
+				if ((all_cpus & (1 << i)) == 0)
+					continue;
 				ucp = &uz.uz_cpu[i];
 				mtp->mt_numallocs += ucp->uc_allocs;
 				mtp->mt_numfrees += ucp->uc_frees;
