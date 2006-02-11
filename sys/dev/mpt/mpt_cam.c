@@ -350,11 +350,16 @@ mpt_timeout(void *arg)
 static void
 mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
-	request_t *req;
+	request_t *req, *trq;
+	char *mpt_off;
 	union ccb *ccb;
 	struct mpt_softc *mpt;
+	int seg, first_lim;
+	uint32_t flags, nxt_off;
+	bus_dmasync_op_t op;
 	MSG_SCSI_IO_REQUEST *mpt_req;
-	SGE_SIMPLE32 *se;
+	SGE_SIMPLE64 *se;
+	SGE_CHAIN64 *ce;
 
 	req = (request_t *)arg;
 	ccb = req->ccb;
@@ -362,20 +367,30 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 	req = ccb->ccb_h.ccb_req_ptr;
 	mpt_req = req->req_vbuf;
+	mpt_off = req->req_vbuf;
 
-	if (error == 0 && nseg > MPT_SGL_MAX) {
+	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
 		error = EFBIG;
 	}
 
+bad:
 	if (error != 0) {
-		if (error != EFBIG)
+		/* if (error != EFBIG) */
 			mpt_prt(mpt, "bus_dmamap_load returned %d\n", error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ccb->ccb_h.status = CAM_DEV_QFRZN;
-			if (error == EFBIG)
+			if (error == EFBIG) {
 				ccb->ccb_h.status |= CAM_REQ_TOO_BIG;
-			else
+			} else if (error == ENOMEM) {
+				if (mpt->outofbeer == 0) {
+					mpt->outofbeer = 1;
+					xpt_freeze_simq(mpt->sim, 1);
+					mpt_lprt(mpt, MPT_PRT_DEBUG,
+					    "FREEZEQ\n");
+				}
+				ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+			} else
 				ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -385,135 +400,233 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
-	
-	if (nseg > MPT_NSGL_FIRST(mpt)) {
-		int i, nleft = nseg;
-		uint32_t flags;
-		bus_dmasync_op_t op;
-		SGE_CHAIN32 *ce;
 
-		mpt_req->DataLength = ccb->csio.dxfer_len;
-		flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
-			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+	/*
+	 * No data to transfer?
+	 * Just make a single simple SGL with zero length.
+	 */
 
-		se = (SGE_SIMPLE32 *) &mpt_req->SGL;
-		for (i = 0; i < MPT_NSGL_FIRST(mpt) - 1; i++, se++, dm_segs++) {
-			uint32_t tf;
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		int tidx = ((char *)&mpt_req->SGL) - mpt_off;
+		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
+	}
 
-			bzero(se, sizeof (*se));
-			se->Address = dm_segs->ds_addr;
-			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
-			tf = flags;
-			if (i == MPT_NSGL_FIRST(mpt) - 2) {
-				tf |= MPI_SGE_FLAGS_LAST_ELEMENT;
-			}
-			MPI_pSGE_SET_FLAGS(se, tf);
-			nleft -= 1;
-		}
-
-		/*
-		 * Tell the IOC where to find the first chain element
-		 */
-		mpt_req->ChainOffset = ((char *)se - (char *)mpt_req) >> 2;
-
-		/*
-		 * Until we're finished with all segments...
-		 */
-		while (nleft) {
-			int ntodo;
-			/*
-			 * Construct the chain element that point to the
-			 * next segment.
-			 */
-			ce = (SGE_CHAIN32 *) se++;
-			if (nleft > MPT_NSGL(mpt)) {
-				ntodo = MPT_NSGL(mpt) - 1;
-				ce->NextChainOffset = (MPT_RQSL(mpt) -
-				    sizeof (SGE_SIMPLE32)) >> 2;
-				ce->Length = MPT_NSGL(mpt) *
-				    sizeof (SGE_SIMPLE32);
-			} else {
-				ntodo = nleft;
-				ce->NextChainOffset = 0;
-				ce->Length = ntodo * sizeof (SGE_SIMPLE32);
-			}
-			ce->Address = req->req_pbuf +
-			    ((char *)se - (char *)mpt_req);
-			ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
-			for (i = 0; i < ntodo; i++, se++, dm_segs++) {
-				uint32_t tf;
-
-				bzero(se, sizeof (*se));
-				se->Address = dm_segs->ds_addr;
-				MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
-				tf = flags;
-				if (i == ntodo - 1) {
-					tf |= MPI_SGE_FLAGS_LAST_ELEMENT;
-					if (ce->NextChainOffset == 0) {
-						tf |=
-						    MPI_SGE_FLAGS_END_OF_LIST |
-						    MPI_SGE_FLAGS_END_OF_BUFFER;
-					}
-				}
-				MPI_pSGE_SET_FLAGS(se, tf);
-				nleft -= 1;
-			}
-
-		}
-
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-			op = BUS_DMASYNC_PREREAD;
-		else
-			op = BUS_DMASYNC_PREWRITE;
-		if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
-			bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
-		}
-	} else if (nseg > 0) {
-		int i;
-		uint32_t flags;
-		bus_dmasync_op_t op;
-
-		mpt_req->DataLength = ccb->csio.dxfer_len;
-		flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
-			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
-
-		/* Copy the segments into our SG list */
-		se = (SGE_SIMPLE32 *) &mpt_req->SGL;
-		for (i = 0; i < nseg; i++, se++, dm_segs++) {
-			uint32_t tf;
-
-			bzero(se, sizeof (*se));
-			se->Address = dm_segs->ds_addr;
-			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
-			tf = flags;
-			if (i == nseg - 1) {
-				tf |=
-				    MPI_SGE_FLAGS_LAST_ELEMENT |
-				    MPI_SGE_FLAGS_END_OF_BUFFER |
-				    MPI_SGE_FLAGS_END_OF_LIST;
-			}
-			MPI_pSGE_SET_FLAGS(se, tf);
-		}
-
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-			op = BUS_DMASYNC_PREREAD;
-		else
-			op = BUS_DMASYNC_PREWRITE;
-		if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
-			bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
-		}
-	} else {
-		se = (SGE_SIMPLE32 *) &mpt_req->SGL;
-		/*
-		 * No data to transfer so we just make a single simple SGL
-		 * with zero length.
-		 */
-		MPI_pSGE_SET_FLAGS(se,
+	if (nseg == 0) {
+		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) &mpt_req->SGL;
+		MPI_pSGE_SET_FLAGS(se1,
 		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 		    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
+		goto out;
 	}
+
+	mpt_req->DataLength = ccb->csio.dxfer_len;
+	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_64_BIT_ADDRESSING;
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+		flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+		op = BUS_DMASYNC_PREREAD;
+	} else {
+		op = BUS_DMASYNC_PREWRITE;
+	}
+	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
+		bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
+	}
+
+	/*
+	 * Okay, fill in what we can at the end of the command frame.
+	 * If we have up to MPT_NSGL_FIRST, we can fit them all into
+	 * the command frame.
+	 *
+	 * Otherwise, we fill up through MPT_NSGL_FIRST less one
+	 * SIMPLE64 pointers and start doing CHAIN64 entries after
+	 * that.
+	 */
+
+	if (nseg < MPT_NSGL_FIRST(mpt)) {
+		first_lim = nseg;
+	} else {
+		/*
+		 * Leave room for CHAIN element
+		 */
+		first_lim = MPT_NSGL_FIRST(mpt) - 1;
+	}
+
+	se = (SGE_SIMPLE64 *) &mpt_req->SGL;
+	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
+		uint32_t tf;
+
+		bzero(se, sizeof (*se));
+		se->Address.Low = dm_segs->ds_addr;
+		if (sizeof(bus_addr_t) > 4) {
+			se->Address.High = ((uint64_t) dm_segs->ds_addr) >> 32;
+		}
+		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
+		tf = flags;
+		if (seg == first_lim - 1) {
+			tf |= MPI_SGE_FLAGS_LAST_ELEMENT;
+		}
+		if (seg == nseg - 1) {
+			tf |=	MPI_SGE_FLAGS_END_OF_LIST |
+				MPI_SGE_FLAGS_END_OF_BUFFER;
+		}
+		MPI_pSGE_SET_FLAGS(se, tf);
+	}
+
+	if (seg == nseg) {
+		goto out;
+	}
+
+	/*
+	 * Tell the IOC where to find the first chain element.
+	 */
+	mpt_req->ChainOffset = ((char *)se - (char *)mpt_req) >> 2;
+	nxt_off = MPT_RQSL(mpt);
+	trq = req;
+
+	/*
+	 * Make up the rest of the data segments out of a chain element
+	 * (contiained in the current request frame) which points to
+	 * SIMPLE64 elements in the next request frame, possibly ending
+	 * with *another* chain element (if there's more).
+	 */
+	while (seg < nseg) {
+		int this_seg_lim;
+		uint32_t tf, cur_off;
+		bus_addr_t chain_list_addr;
+
+		/*
+		 * Point to the chain descriptor. Note that the chain
+		 * descriptor is at the end of the *previous* list (whether
+		 * chain or simple).
+		 */
+		ce = (SGE_CHAIN64 *) se;
+
+		/*
+		 * Before we change our current pointer, make  sure we won't
+		 * overflow the request area with this frame. Note that we
+		 * test against 'greater than' here as it's okay in this case
+		 * to have next offset be just outside the request area.
+		 */
+		if ((nxt_off + MPT_RQSL(mpt)) > MPT_REQUEST_AREA) {
+			nxt_off = MPT_REQUEST_AREA;
+			goto next_chain;
+		}
+
+		/*
+		 * Set our SGE element pointer to the beginning of the chain
+		 * list and update our next chain list offset.
+		 */
+		se = (SGE_SIMPLE64 *) &mpt_off[nxt_off];
+		cur_off = nxt_off;
+		nxt_off += MPT_RQSL(mpt);
+
+		/*
+		 * Now initialized the chain descriptor.
+		 */
+		bzero(ce, sizeof (SGE_CHAIN64));
+
+		/*
+		 * Get the physical address of the chain list.
+		 */
+		chain_list_addr = trq->req_pbuf;
+		chain_list_addr += cur_off;
+		if (sizeof (bus_addr_t) > 4) {
+			ce->Address.High =
+			    (uint32_t) ((uint64_t)chain_list_addr >> 32);
+		}
+		ce->Address.Low = (uint32_t) chain_list_addr;
+		ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT |
+			    MPI_SGE_FLAGS_64_BIT_ADDRESSING;
+
+		/*
+		 * If we have more than a frame's worth of segments left,
+		 * set up the chain list to have the last element be another
+		 * chain descriptor.
+		 */
+		if ((nseg - seg) > MPT_NSGL(mpt)) {
+			this_seg_lim = seg + MPT_NSGL(mpt) - 1;
+			/*
+			 * The length of the chain is the length in bytes of the
+			 * number of segments plus the next chain element.
+			 *
+			 * The next chain descriptor offset is the length,
+			 * in words, of the number of segments.
+			 */
+			ce->Length = (this_seg_lim - seg) *
+			    sizeof (SGE_SIMPLE64);
+			ce->NextChainOffset = ce->Length >> 2;
+			ce->Length += sizeof (SGE_CHAIN64);
+		} else {
+			this_seg_lim = nseg;
+			ce->Length = (this_seg_lim - seg) *
+			    sizeof (SGE_SIMPLE64);
+		}
+
+		/*
+		 * Fill in the chain list SGE elements with our segment data.
+		 *
+		 * If we're the last element in this chain list, set the last
+		 * element flag. If we're the completely last element period,
+		 * set the end of list and end of buffer flags.
+		 */
+		while (seg < this_seg_lim) {
+			bzero(se, sizeof (*se));
+			se->Address.Low = dm_segs->ds_addr;
+			if (sizeof (bus_addr_t) > 4) {
+				se->Address.High =
+				    ((uint64_t)dm_segs->ds_addr) >> 32;
+			}
+			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
+			tf = flags;
+			if (seg ==  this_seg_lim - 1) {
+				tf |=	MPI_SGE_FLAGS_LAST_ELEMENT;
+			}
+			if (seg == nseg - 1) {
+				tf |=	MPI_SGE_FLAGS_END_OF_LIST |
+					MPI_SGE_FLAGS_END_OF_BUFFER;
+			}
+			MPI_pSGE_SET_FLAGS(se, tf);
+			se++;
+			seg++;
+			dm_segs++;
+		}
+
+    next_chain:
+		/*
+		 * If we have more segments to do and we've used up all of
+		 * the space in a request area, go allocate another one
+		 * and chain to that.
+		 */
+		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
+			request_t *nrq = mpt_get_request(mpt, FALSE);
+
+			if (nrq == NULL) {
+				error = ENOMEM;
+				goto bad;
+			}
+
+			/*
+			 * Append the new request area on the tail of our list.
+			 */
+			if ((trq = req->chain) == NULL) {
+				req->chain = nrq;
+			} else {
+				while (trq->chain != NULL) {
+					trq = trq->chain;
+				}
+				trq->chain = nrq;
+			}
+			trq = nrq;
+			mpt_off = trq->req_vbuf;
+			mpt_req = trq->req_vbuf;
+			if (mpt->verbose >= MPT_PRT_DEBUG) {
+				memset(mpt_off, 0xff, MPT_REQUEST_AREA);
+			}
+			nxt_off = 0;
+		}
+	}
+out:
 
 	/*
 	 * Last time we need to check if this CCB needs to be aborted.
@@ -537,8 +650,14 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	} else {
 		callout_handle_init(&ccb->ccb_h.timeout_ch);
 	}
-	if (mpt->verbose >= MPT_PRT_DEBUG)
-		mpt_print_scsi_io_request(mpt_req);
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		int nc = 0;
+		mpt_print_scsi_io_request(req->req_vbuf);
+		for (trq = req->chain; trq; trq = trq->chain) {
+			printf("  Additional Chain Area %d\n", nc++);
+			mpt_dump_sgl(trq->req_vbuf, 0);
+		}
+	}
 	mpt_send_cmd(mpt, req);
 	MPTLOCK_2_CAMLOCK(mpt);
 }
@@ -578,6 +697,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	if (raid_passthru) {
 		status = mpt_raid_quiesce_disk(mpt, mpt->raid_disks + ccb->ccb_h.target_id,
 		     request_t *req)
+	}
 #endif 
 
 	/*
@@ -646,7 +766,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_UNTAGGED;
 	}
 
-	if (mpt->is_fc == 0) {
+	if (mpt->is_fc == 0 && mpt->is_sas == 0) {
 		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_NO_DISCONNECT;
 		}
@@ -716,9 +836,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				/* Just use the segments provided */
 				segs = (struct bus_dma_segment *)csio->data_ptr;
-				mpt_execute_req(req, segs, csio->sglist_cnt,
-				    (csio->sglist_cnt < MPT_SGL_MAX)?
-				    0 : EFBIG);
+				mpt_execute_req(req, segs, csio->sglist_cnt, 0);
 			}
 		}
 	} else {
@@ -771,6 +889,8 @@ static int
 mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	      MSG_EVENT_NOTIFY_REPLY *msg)
 {
+	mpt_lprt(mpt, MPT_PRT_ALWAYS, "mpt_cam_event: 0x%x\n",
+                 msg->Event & 0xFF);
 	switch(msg->Event & 0xFF) {
 	case MPI_EVENT_UNIT_ATTENTION:
 		mpt_prt(mpt, "Bus: 0x%02x TargetID: 0x%02x\n",
@@ -874,6 +994,17 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	case MPI_EVENT_LOGOUT:
 		mpt_prt(mpt, "FC Logout Port: %d N_PortID: %02x\n",
 		    (msg->Data[1] >> 8) & 0xff, msg->Data[0]);
+		break;
+	case MPI_EVENT_EVENT_CHANGE:
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "mpt_cam_event: MPI_EVENT_EVENT_CHANGE\n");
+		break;
+	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
+		/*
+		 * Devices are attachin'.....
+		 */
+		mpt_prt(mpt,
+		    "mpt_cam_event: MPI_EVENT_SAS_DEVICE_STATUS_CHANGE\n");
 		break;
 	default:
 		return (/*handled*/0);
@@ -1282,7 +1413,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		if (mpt->is_fc == 0) {
+		if (mpt->is_fc == 0 && mpt->is_sas == 0) {
 			uint8_t dval = 0;
 			u_int period = 0, offset = 0;
 #ifndef	CAM_NEW_TRAN_CODE
@@ -1413,6 +1544,30 @@ mpt_prt(mpt, "Set sync Failed!\n");
 			fc->valid = CTS_FC_VALID_SPEED;
 			fc->bitrate = 100000;	/* XXX: Need for 2Gb/s */
 			/* XXX: need a port database for each target */
+#endif
+		} else if (mpt->is_sas) {
+#ifndef	CAM_NEW_TRAN_CODE
+			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
+			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+			/*
+			 * How do you measure the width of a high
+			 * speed serial bus? Well, in bytes.
+			 *
+			 * Offset and period make no sense, though, so we set
+			 * (above) a 'base' transfer speed to be gigabit.
+			 */
+			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+#else
+			struct ccb_trans_settings_sas *sas =
+			    &cts->xport_specific.sas;
+
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_3;
+			cts->transport = XPORT_SAS;
+			cts->transport_version = 0;
+
+			sas->valid = CTS_SAS_VALID_SPEED;
+			sas->bitrate = 300000;	/* XXX: Default 3Gbps */
 #endif
 		} else {
 #ifdef	CAM_NEW_TRAN_CODE
@@ -1572,16 +1727,25 @@ mpt_prt(mpt, "Set sync Failed!\n");
 			cpi->hba_inquiry = PI_TAG_ABLE;
 			if (mpt->is_fc) {
 				cpi->base_transfer_speed = 100000;
+			} else if (mpt->is_sas) {
+				cpi->base_transfer_speed = 300000;
 			} else {
 				cpi->base_transfer_speed = 3300;
 				cpi->hba_inquiry |=
 				    PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			}
 		} else if (mpt->is_fc) {
+/* XXX SHOULD BE BASED UPON IOC FACTS XXX */
 			cpi->max_target = 255;
 			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->initiator_id = cpi->max_target + 1;
 			cpi->base_transfer_speed = 100000;
+			cpi->hba_inquiry = PI_TAG_ABLE;
+		} else if (mpt->is_sas) {
+			cpi->max_target = 63;	/* XXX */
+			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->initiator_id = cpi->max_target;
+			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
 			cpi->initiator_id = mpt->mpt_ini_id;

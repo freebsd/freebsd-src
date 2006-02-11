@@ -88,6 +88,7 @@ static mpt_reply_handler_t mpt_handshake_reply_handler;
 static mpt_reply_handler_t mpt_event_reply_handler;
 static void mpt_send_event_ack(struct mpt_softc *mpt, request_t *ack_req,
 			       MSG_EVENT_NOTIFY_REPLY *msg, uint32_t context);
+static int mpt_send_event_request(struct mpt_softc *mpt, int onoff);
 static int mpt_soft_reset(struct mpt_softc *mpt);
 static void mpt_hard_reset(struct mpt_softc *mpt);
 static int mpt_configure_ioc(struct mpt_softc *mpt);
@@ -277,8 +278,9 @@ mpt_stdattach(struct mpt_softc *mpt)
 }
 
 int
-mpt_stdevent(struct mpt_softc *mpt, request_t *req, MSG_EVENT_NOTIFY_REPLY *rep)
+mpt_stdevent(struct mpt_softc *mpt, request_t *req, MSG_EVENT_NOTIFY_REPLY *msg)
 {
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_stdevent: 0x%x\n", msg->Event & 0xFF);
 	/* Event was not for us. */
 	return (0);
 }
@@ -468,10 +470,17 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 		MPT_PERS_FOREACH(mpt, pers)
 			handled += pers->event(mpt, req, msg);
 
-		if (handled == 0)
+		if (handled == 0 && mpt->mpt_pers_mask == 0) {
+			mpt_lprt(mpt, MPT_PRT_WARN,
+				"No Handlers For Any Event Notify Frames. "
+				"Event %#x (ACK %sequired).\n",
+				msg->Event, msg->AckRequired? "r" : "not r");
+		} else if (handled == 0) {
 			mpt_prt(mpt,
-				"Unhandled Event Notify Frame. Event %#x.\n",
-				msg->Event);
+				"Unhandled Event Notify Frame. Event %#x "
+				"(ACK %sequired).\n",
+				msg->Event, msg->AckRequired? "r" : "not r");
+		}
 
 		if (msg->AckRequired) {
 			request_t *ack_req;
@@ -525,6 +534,8 @@ static int
 mpt_core_event(struct mpt_softc *mpt, request_t *req,
 	       MSG_EVENT_NOTIFY_REPLY *msg)
 {
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_core_event: 0x%x\n",
+                 msg->Event & 0xFF);
 	switch(msg->Event & 0xFF) {
 	case MPI_EVENT_NONE:
 		break;
@@ -546,6 +557,8 @@ mpt_core_event(struct mpt_softc *mpt, request_t *req,
 		 * This is just an acknowledgement
 		 * of our mpt_send_event_request.
 		 */
+		break;
+	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
 		break;
 	default:
 		return (/*handled*/0);
@@ -922,12 +935,17 @@ mpt_reset(struct mpt_softc *mpt, int reinit)
 void
 mpt_free_request(struct mpt_softc *mpt, request_t *req)
 {
+	request_t *nxt;
 	struct mpt_evtf_record *record;
 	uint32_t reply_baddr;
 	
 	if (req == NULL || req != &mpt->request_pool[req->index]) {
 		panic("mpt_free_request bad req ptr\n");
 		return;
+	}
+	if ((nxt = req->chain) != NULL) {
+		req->chain = NULL;
+		mpt_free_request(mpt, nxt);	/* NB: recursion */
 	}
 	req->ccb = NULL;
 	req->state = REQ_STATE_FREE;
@@ -964,6 +982,7 @@ retry:
 		    ("mpt_get_request: corrupted request free list\n"));
 		TAILQ_REMOVE(&mpt->request_free_list, req, links);
 		req->state = REQ_STATE_ALLOCATED;
+		req->chain = NULL;
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);
@@ -979,17 +998,19 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 	uint32_t *pReq;
 
 	pReq = req->req_vbuf;
-	mpt_lprt(mpt, MPT_PRT_TRACE, "Send Request %d (0x%x):\n",
-		 req->index, req->req_pbuf);
-	mpt_lprt(mpt, MPT_PRT_TRACE, "%08x %08x %08x %08x\n",
-		 pReq[0], pReq[1], pReq[2], pReq[3]);
-	mpt_lprt(mpt, MPT_PRT_TRACE, "%08x %08x %08x %08x\n",
-		 pReq[4], pReq[5], pReq[6], pReq[7]);
-	mpt_lprt(mpt, MPT_PRT_TRACE, "%08x %08x %08x %08x\n",
-		 pReq[8], pReq[9], pReq[10], pReq[11]);
-	mpt_lprt(mpt, MPT_PRT_TRACE, "%08x %08x %08x %08x\n",
-		 pReq[12], pReq[13], pReq[14], pReq[15]);
-
+	if (mpt->verbose > MPT_PRT_TRACE) {
+		int offset;
+		mpt_prt(mpt, "Send Request %d (0x%x):",
+		    req->index, req->req_pbuf);
+		for (offset = 0; offset < mpt->request_frame_size; offset++) {
+			if ((offset & 0x7) == 0) {
+				mpt_prtc(mpt, "\n");
+				mpt_prt(mpt, " ");
+			}
+			mpt_prtc(mpt, " %08x", pReq[offset]);
+		}
+		mpt_prtc(mpt, "\n");
+	}
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 	    BUS_DMASYNC_PREWRITE);
 	req->state |= REQ_STATE_QUEUED;
@@ -1028,11 +1049,11 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 		timeout = (time_ms * hz) / 1000;
 	else
 		timeout = time_ms * 2;
-	saved_cnt = mpt->reset_cnt;
 	req->state |= REQ_STATE_NEED_WAKEUP;
 	mask &= ~REQ_STATE_NEED_WAKEUP;
+	saved_cnt = mpt->reset_cnt;
 	while ((req->state & mask) != state
-	    && mpt->reset_cnt == saved_cnt) {
+            && mpt->reset_cnt == saved_cnt) {
 
 		if (sleep_ok != 0) {
 			error = mpt_sleep(mpt, req, PUSER, "mptreq", timeout);
@@ -1052,7 +1073,7 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 	req->state &= ~REQ_STATE_NEED_WAKEUP;
 	if (mpt->reset_cnt != saved_cnt)
 		return (EIO);
-	if (time_ms && timeout == 0)
+	if (time_ms && timeout <= 0)
 		return (ETIMEDOUT);
 	return (0);
 }
@@ -1245,12 +1266,20 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	init.Function = MPI_FUNCTION_IOC_INIT;
 	if (mpt->is_fc) {
 		init.MaxDevices = 255;
+	} else if (mpt->is_sas) {
+		init.MaxDevices = mpt->mpt_max_devices;
 	} else {
 		init.MaxDevices = 16;
 	}
 	init.MaxBuses = 1;
-	init.ReplyFrameSize = MPT_REPLY_SIZE;
+
+	init.MsgVersion = htole16(MPI_VERSION);
+	init.HeaderVersion = htole16(MPI_HEADER_VERSION);
+	init.ReplyFrameSize = htole16(MPT_REPLY_SIZE);
 	init.MsgContext = htole32(MPT_REPLY_HANDLER_HANDSHAKE);
+	if (mpt->ioc_facts_flags & MPI_IOCFACTS_FLAGS_REPLY_FIFO_HOST_SIGNAL) {
+		init.Flags |= MPI_IOCINIT_FLAGS_REPLY_FIFO_HOST_SIGNAL;
+	}
 
 	if ((error = mpt_send_handshake_cmd(mpt, sizeof init, &init)) != 0) {
 		return(error);
@@ -1826,9 +1855,9 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 
 	mpt_send_cmd(mpt, req);
 	error = mpt_wait_req(mpt, req, REQ_STATE_DONE, REQ_STATE_DONE,
-	    /*sleep_ok*/FALSE, /*time_ms*/500);
+	    /*sleep_ok*/FALSE, /*time_ms*/mpt->is_sas? 30000 : 3000);
 	if (error != 0) {
-		mpt_prt(mpt, "port enable timed out");
+		mpt_prt(mpt, "port enable timed out\n");
 		return (-1);
 	}
 	mpt_free_request(mpt, req);
@@ -1919,6 +1948,7 @@ mpt_attach(struct mpt_softc *mpt)
 			pers->use_count++;
 		}
 	}
+
 	return (0);
 }
 
@@ -2060,11 +2090,13 @@ mpt_diag_outsl(struct mpt_softc *mpt, uint32_t addr,
 	uint32_t *data_end;
 
 	data_end = data + (roundup2(len, sizeof(uint32_t)) / 4);
+	pci_enable_io(mpt->dev, SYS_RES_IOPORT);
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_ADDR, addr);
 	while (data != data_end) {
 		mpt_pio_write(mpt, MPT_OFFSET_DIAG_DATA, *data);
 		data++;
 	}
+	pci_disable_io(mpt->dev, SYS_RES_IOPORT);
 }
 
 static int
@@ -2102,6 +2134,7 @@ mpt_download_fw(struct mpt_softc *mpt)
 			       ext->ImageSize);
 	}
 
+	pci_enable_io(mpt->dev, SYS_RES_IOPORT);
 	/* Setup the address to jump to on reset. */
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_ADDR, fw_hdr->IopResetRegAddr);
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_DATA, fw_hdr->IopResetVectorValue);
@@ -2115,6 +2148,8 @@ mpt_download_fw(struct mpt_softc *mpt)
 	data = mpt_pio_read(mpt, MPT_OFFSET_DIAG_DATA) | MPT_DIAG_MEM_CFG_BADFL;
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_ADDR, MPT_DIAG_MEM_CFG_BASE);
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_DATA, data);
+
+	pci_disable_io(mpt->dev, SYS_RES_IOPORT);
 
 	/*
 	 * Re-enable the processor and clear the boot halt flag.
@@ -2138,6 +2173,7 @@ mpt_configure_ioc(struct mpt_softc *mpt)
         MSG_IOC_FACTS_REPLY facts;
 	int try;
 	int needreset;
+	uint32_t max_chain_depth;
 
 	needreset = 0;
 	for (try = 0; try < MPT_MAX_TRYS; try++) {
@@ -2166,22 +2202,64 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 
 		mpt->mpt_global_credits = le16toh(facts.GlobalCredits);
 		mpt->request_frame_size = le16toh(facts.RequestFrameSize);
+		mpt->ioc_facts_flags = facts.Flags;
 		mpt_prt(mpt, "MPI Version=%d.%d.%d.%d\n",
 			    le16toh(facts.MsgVersion) >> 8,
 			    le16toh(facts.MsgVersion) & 0xFF,
 			    le16toh(facts.HeaderVersion) >> 8,
 			    le16toh(facts.HeaderVersion) & 0xFF);
+
+		/*
+		 * Now that we know request frame size, we can calculate
+		 * the actual (reasonable) segment limit for read/write I/O.
+		 *
+		 * This limit is constrained by:
+		 *
+		 *  + The size of each area we allocate per command (and how
+                 *    many chain segments we can fit into it).
+                 *  + The total number of areas we've set up.
+		 *  + The actual chain depth the card will allow.
+		 *
+		 * The first area's segment count is limited by the I/O request
+		 * at the head of it. We cannot allocate realistically more
+		 * than MPT_MAX_REQUESTS areas. Therefore, to account for both
+		 * conditions, we'll just start out with MPT_MAX_REQUESTS-2.
+		 *
+		 */
+		max_chain_depth = facts.MaxChainDepth;
+
+		/* total number of request areas we (can) allocate */
+		mpt->max_seg_cnt = MPT_MAX_REQUESTS(mpt) - 2;
+
+		/* converted to the number of chain areas possible */
+		mpt->max_seg_cnt *= MPT_NRFM(mpt);
+
+		/* limited by the number of chain areas the card will support */
+		if (mpt->max_seg_cnt > max_chain_depth) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "chain depth limited to %u (from %u)\n",
+			    max_chain_depth, mpt->max_seg_cnt);
+			mpt->max_seg_cnt = max_chain_depth;
+		}
+
+		/* converted to the number of simple sges in chain segments. */
+		mpt->max_seg_cnt *= (MPT_NSGL(mpt) - 1);
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "Maximum Segment Count: %u\n", mpt->max_seg_cnt);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 			 "MsgLength=%u IOCNumber = %d\n",
 			 facts.MsgLength, facts.IOCNumber);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "IOCFACTS: GlobalCredits=%d BlockSize=%u "
-			 "Request Frame Size %u\n", mpt->mpt_global_credits,
-			 facts.BlockSize * 8, mpt->request_frame_size * 8);
+			 "IOCFACTS: GlobalCredits=%d BlockSize=%u bytes "
+			 "Request Frame Size %u bytes Max Chain Depth %u\n",
+                         mpt->mpt_global_credits, facts.BlockSize,
+                         mpt->request_frame_size << 2, max_chain_depth);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 			 "IOCFACTS: Num Ports %d, FWImageSize %d, "
 			 "Flags=%#x\n", facts.NumberOfPorts,
 			 le32toh(facts.FWImageSize), facts.Flags);
+
 
 		if ((facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT) != 0) {
 			struct mpt_map_info mi;
@@ -2249,6 +2327,7 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		mpt->mpt_port_type = pfp.PortType;
 		mpt->mpt_proto_flags = pfp.ProtocolFlags;
 		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&
+		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_SAS &&
 		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_FC) {
 			mpt_prt(mpt, "Unsupported Port Type (%x)\n",
 			    pfp.PortType);
@@ -2260,10 +2339,16 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		}
 		if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_FC) {
 			mpt->is_fc = 1;
+			mpt->is_sas = 0;
+		} else if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_SAS) {
+			mpt->is_fc = 0;
+			mpt->is_sas = 1;
 		} else {
 			mpt->is_fc = 0;
+			mpt->is_sas = 0;
 		}
 		mpt->mpt_ini_id = pfp.PortSCSIID;
+		mpt->mpt_max_devices = pfp.MaxDevices;
 
 		if (mpt_enable_ioc(mpt) != 0) {
 			mpt_prt(mpt, "Unable to initialize IOC\n");
@@ -2280,7 +2365,7 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		 */
 		mpt_read_config_info_ioc(mpt);
 
-		if (mpt->is_fc == 0) {
+		if (mpt->is_fc == 0 && mpt->is_sas == 0) {
 			if (mpt_read_config_info_spi(mpt)) {
 				return (EIO);
 			}
@@ -2310,7 +2395,7 @@ mpt_enable_ioc(struct mpt_softc *mpt)
 	uint32_t pptr;
 	int val;
 
-	if (mpt_send_ioc_init(mpt, MPT_DB_INIT_HOST) != MPT_OK) {
+	if (mpt_send_ioc_init(mpt, MPI_WHOINIT_HOST_DRIVER) != MPT_OK) {
 		mpt_prt(mpt, "mpt_send_ioc_init failed\n");
 		return (EIO);
 	}
@@ -2321,7 +2406,7 @@ mpt_enable_ioc(struct mpt_softc *mpt)
 		mpt_prt(mpt, "IOC failed to go to run state\n");
 		return (ENXIO);
 	}
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "IOC now at RUNSTATE");
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "IOC now at RUNSTATE\n");
 
 	/*
 	 * Give it reply buffers
@@ -2342,14 +2427,14 @@ mpt_enable_ioc(struct mpt_softc *mpt)
 	mpt_send_event_request(mpt, 1);
 
 	/*
-	 * Now enable the port
+	 * Enable the port
 	 */
 	if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
 		mpt_prt(mpt, "failed to enable port 0\n");
 		return (ENXIO);
 	}
-
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "enabled port 0\n");
+
 
 	return (0);
 }
