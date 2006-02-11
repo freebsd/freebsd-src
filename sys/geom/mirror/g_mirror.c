@@ -70,6 +70,11 @@ static u_int g_mirror_syncs_per_sec = 1000;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, syncs_per_sec, CTLFLAG_RW,
     &g_mirror_syncs_per_sec, 0,
     "Number of synchronizations requests per second");
+static u_int g_mirror_disconnect_on_failure = 1;
+TUNABLE_INT("kern.geom.mirror.disconnect_on_failure",
+    &g_mirror_disconnect_on_failure);
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
+    &g_mirror_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
@@ -625,9 +630,23 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 	g_topology_lock();
 	free(sector, M_MIRROR);
 	if (error != 0) {
-		disk->d_softc->sc_bump_id |= G_MIRROR_BUMP_GENID;
-		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
-		    G_MIRROR_EVENT_DONTWAIT);
+		if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
+			disk->d_flags |= G_MIRROR_DISK_FLAG_BROKEN;
+			G_MIRROR_DEBUG(0, "Cannot write metadata on %s "
+			    "(device=%s, error=%d).",
+			    g_mirror_get_diskname(disk), sc->sc_name, error);
+		} else {
+			G_MIRROR_DEBUG(1, "Cannot write metadata on %s "
+			    "(device=%s, error=%d).",
+			    g_mirror_get_diskname(disk), sc->sc_name, error);
+		}
+		if (g_mirror_disconnect_on_failure &&
+		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 1) {
+			sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
+			g_mirror_event_send(disk,
+			    G_MIRROR_DISK_STATE_DISCONNECTED,
+			    G_MIRROR_EVENT_DONTWAIT);
+		}
 	}
 	return (error);
 }
@@ -884,13 +903,25 @@ g_mirror_regular_request(struct bio *bp)
 	} else if (bp->bio_error != 0) {
 		if (pbp->bio_error == 0)
 			pbp->bio_error = bp->bio_error;
-		G_MIRROR_LOGREQ(0, bp, "Request failed (error=%d).",
-		    bp->bio_error);
 		if (disk != NULL) {
-			sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
-			g_mirror_event_send(disk,
-			    G_MIRROR_DISK_STATE_DISCONNECTED,
-			    G_MIRROR_EVENT_DONTWAIT);
+			if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
+				disk->d_flags |= G_MIRROR_DISK_FLAG_BROKEN;
+				G_MIRROR_LOGREQ(0, bp,
+				    "Request failed (error=%d).",
+				    bp->bio_error);
+			} else {
+				G_MIRROR_LOGREQ(1, bp,
+				    "Request failed (error=%d).",
+				    bp->bio_error);
+			}
+			if (g_mirror_disconnect_on_failure &&
+			    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 1)
+			{
+				sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
+				g_mirror_event_send(disk,
+				    G_MIRROR_DISK_STATE_DISCONNECTED,
+				    G_MIRROR_EVENT_DONTWAIT);
+			}
 		}
 		switch (pbp->bio_cmd) {
 		case BIO_DELETE:
@@ -904,7 +935,11 @@ g_mirror_regular_request(struct bio *bp)
 
 	switch (pbp->bio_cmd) {
 	case BIO_READ:
-		if (pbp->bio_children == pbp->bio_inbed) {
+		if (pbp->bio_inbed < pbp->bio_children)
+			break;
+		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 1)
+			g_io_deliver(pbp, pbp->bio_error);
+		else {
 			pbp->bio_error = 0;
 			mtx_lock(&sc->sc_queue_mtx);
 			bioq_disksort(&sc->sc_queue, pbp);
@@ -2739,6 +2774,7 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			ADD_FLAG(G_MIRROR_DISK_FLAG_SYNCHRONIZING,
 			    "SYNCHRONIZING");
 			ADD_FLAG(G_MIRROR_DISK_FLAG_FORCE_SYNC, "FORCE_SYNC");
+			ADD_FLAG(G_MIRROR_DISK_FLAG_BROKEN, "BROKEN");
 #undef	ADD_FLAG
 		}
 		sbuf_printf(sb, "</Flags>\n");
