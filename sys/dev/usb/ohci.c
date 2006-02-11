@@ -1145,23 +1145,23 @@ ohci_dumpregs(ohci_softc_t *sc)
 
 Static int ohci_intr1(ohci_softc_t *);
 
-int
+void
 ohci_intr(void *p)
 {
 	ohci_softc_t *sc = p;
 
 	if (sc == NULL || sc->sc_dying)
-		return (0);
+		return;
 
 	/* If we get an interrupt while polling, then just ignore it. */
 	if (sc->sc_bus.use_polling) {
 #ifdef DIAGNOSTIC
 		printf("ohci_intr: ignored interrupt while polling\n");
 #endif
-		return (0);
+		return;
 	}
 
-	return (ohci_intr1(sc));
+	ohci_intr1(sc);
 }
 
 Static int

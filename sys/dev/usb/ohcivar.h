@@ -164,7 +164,7 @@ struct ohci_xfer {
 #define OXFER(xfer) ((struct ohci_xfer *)(xfer))
 
 usbd_status	ohci_init(ohci_softc_t *);
-int		ohci_intr(void *);
+void		ohci_intr(void *);
 int	 	ohci_detach(ohci_softc_t *, int);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int		ohci_activate(device_ptr_t, enum devact);
