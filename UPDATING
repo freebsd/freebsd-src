@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060211:
+	An IPv6 support of ipfw was enabled by default.  If you don't
+	want to filter an IPv6 by ipfw, please add following line into
+	your ipfw rule:
+
+		pass ip6 from any to any
+
 20060122:
 	/etc/rc.d/ppp-user has been renamed to /etc/rc.d/ppp.
 	Its /etc/rc.conf.d configuration file has been `ppp' from
