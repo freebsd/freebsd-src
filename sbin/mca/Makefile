@@ -1,6 +1,6 @@
 # $FreeBSD$
 PROG=	mca
 WARNS?=	4
-NO_MAN=
+MAN=	mca.8
 
 .include <bsd.prog.mk>
