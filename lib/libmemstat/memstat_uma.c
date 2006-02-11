@@ -397,8 +397,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 					    &ub, sizeof(ub), 0);
 					if (ret != 0) {
 						_memstat_mtl_empty(list);
-						list->mtl_error =
-						    MEMSTAT_ERROR_NOMEMORY;
+						list->mtl_error = ret;
 						return (-1);
 					}
 					mtp->mt_free += ub.ub_cnt;
@@ -408,8 +407,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 					    &ub, sizeof(ub), 0);
 					if (ret != 0) {
 						_memstat_mtl_empty(list);
-						list->mtl_error =
-						    MEMSTAT_ERROR_NOMEMORY;
+						list->mtl_error = ret;
 						return (-1);
 					}
 					mtp->mt_free += ub.ub_cnt;
