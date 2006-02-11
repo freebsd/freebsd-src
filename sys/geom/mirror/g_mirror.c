@@ -755,15 +755,26 @@ g_mirror_bump_genid(struct g_mirror_softc *sc)
 	}
 }
 
-static void
-g_mirror_idle(struct g_mirror_softc *sc)
+static int
+g_mirror_idle(struct g_mirror_softc *sc, int from_access)
 {
 	struct g_mirror_disk *disk;
+	int timeout;
 
-	if (sc->sc_provider == NULL || sc->sc_provider->acw == 0)
-		return;
+	if (sc->sc_provider == NULL)
+		return (0);
+	if (sc->sc_idle)
+		return (0);
+	if (sc->sc_writes > 0)
+		return (0);
+	if (!from_access && sc->sc_provider->acw > 0) {
+		timeout = g_mirror_idletime - (time_second - sc->sc_last_write);
+		if (timeout > 0)
+			return (timeout);
+	}
 	sc->sc_idle = 1;
-	g_topology_lock();
+	if (!from_access)
+		g_topology_lock();
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
@@ -772,7 +783,9 @@ g_mirror_idle(struct g_mirror_softc *sc)
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
 	}
-	g_topology_unlock();
+	if (!from_access)
+		g_topology_unlock();
+	return (0);
 }
 
 static void
@@ -781,6 +794,7 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 	struct g_mirror_disk *disk;
 
 	sc->sc_idle = 0;
+	sc->sc_last_write = time_second;
 	g_topology_lock();
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
@@ -791,30 +805,6 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 		g_mirror_update_metadata(disk);
 	}
 	g_topology_unlock();
-}
-
-/*
- * Return 1 if we should check if mirror is idling.
- */
-static int
-g_mirror_check_idle(struct g_mirror_softc *sc)
-{
-	struct g_mirror_disk *disk;
-
-	if (sc->sc_idle)
-		return (0);
-	if (sc->sc_provider != NULL && sc->sc_provider->acw == 0)
-		return (0);
-	/*
-	 * Check if there are no in-flight requests.
-	 */
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
-			continue;
-		if (disk->d_consumer->index > 0)
-			return (0);
-	}
-	return (1);
 }
 
 static __inline int
@@ -864,9 +854,11 @@ g_mirror_regular_request(struct bio *bp)
 
 	g_topology_assert_not();
 
-	bp->bio_from->index--;
 	pbp = bp->bio_parent;
 	sc = pbp->bio_to->geom->softc;
+	bp->bio_from->index--;
+	if (bp->bio_cmd == BIO_WRITE)
+		sc->sc_writes--;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
 		g_topology_lock();
@@ -1340,6 +1332,9 @@ g_mirror_register_request(struct bio *bp)
 
 		if (sc->sc_idle)
 			g_mirror_unidle(sc);
+		else
+			sc->sc_last_write = time_second;
+
 		/*
 		 * Allocate all bios before sending any request, so we can
 		 * return ENOMEM in nice and clean way.
@@ -1392,6 +1387,7 @@ g_mirror_register_request(struct bio *bp)
 			cp = cbp->bio_caller1;
 			cbp->bio_caller1 = NULL;
 			cp->index++;
+			sc->sc_writes++;
 			g_io_request(cbp, cp);
 		}
 		/*
@@ -1475,6 +1471,7 @@ g_mirror_worker(void *arg)
 	struct g_mirror_event *ep;
 	struct bio *bp;
 	u_int nreqs;
+	int timeout;
 
 	sc = arg;
 	mtx_lock_spin(&sched_lock);
@@ -1529,6 +1526,11 @@ g_mirror_worker(void *arg)
 			continue;
 		}
 		/*
+		 * Check if we can mark array as CLEAN and if we can't take
+		 * how much seconds should we wait.
+		 */
+		timeout = g_mirror_idle(sc, 0);
+		/*
 		 * Now I/O requests.
 		 */
 		/* Get first request from the queue. */
@@ -1581,29 +1583,9 @@ g_mirror_worker(void *arg)
 			goto sleep;
 		}
 		if (bp == NULL) {
-			if (g_mirror_check_idle(sc)) {
-				u_int idletime;
-
-				idletime = g_mirror_idletime;
-				if (idletime == 0)
-					idletime = 1;
-				idletime *= hz;
-				if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "m:w1", idletime) == EWOULDBLOCK) {
-					G_MIRROR_DEBUG(5, "%s: I'm here 3.",
-					    __func__);
-					/*
-					 * No I/O requests in 'idletime' seconds,
-					 * so mark components as clean.
-					 */
-					g_mirror_idle(sc);
-				}
-				G_MIRROR_DEBUG(5, "%s: I'm here 4.", __func__);
-			} else {
-				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "m:w2", 0);
-				G_MIRROR_DEBUG(5, "%s: I'm here 5.", __func__);
-			}
+			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
+			    timeout * hz);
+			G_MIRROR_DEBUG(5, "%s: I'm here 4.", __func__);
 			continue;
 		}
 		nreqs++;
@@ -1647,35 +1629,20 @@ sleep:
 	}
 }
 
-/*
- * Open disk's consumer if needed.
- */
 static void
-g_mirror_update_access(struct g_mirror_disk *disk)
+g_mirror_update_idle(struct g_mirror_softc *sc, struct g_mirror_disk *disk)
 {
-	struct g_provider *pp;
 
 	g_topology_assert();
-
-	pp = disk->d_softc->sc_provider;
-	if (pp == NULL)
-		return;
-	if (pp->acw > 0) {
-		if ((disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0) {
-			G_MIRROR_DEBUG(1,
-			    "Disk %s (device %s) marked as dirty.",
-			    g_mirror_get_diskname(disk),
-			    disk->d_softc->sc_name);
-			disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
-		}
-	} else if (pp->acw == 0) {
-		if ((disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) != 0) {
-			G_MIRROR_DEBUG(1,
-			    "Disk %s (device %s) marked as clean.",
-			    g_mirror_get_diskname(disk),
-			    disk->d_softc->sc_name);
-			disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
-		}
+	if (!sc->sc_idle && (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0) {
+		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as dirty.",
+		    g_mirror_get_diskname(disk), disk->d_softc->sc_name);
+		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
+	} else if (sc->sc_idle &&
+	    (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) != 0) {
+		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as clean.",
+		    g_mirror_get_diskname(disk), disk->d_softc->sc_name);
+		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 	}
 }
 
@@ -2196,8 +2163,7 @@ again:
 		disk->d_state = state;
 		disk->d_sync.ds_offset = 0;
 		disk->d_sync.ds_offset_done = 0;
-		g_mirror_update_access(disk);
-		g_mirror_update_metadata(disk);
+		g_mirror_update_idle(sc, disk);
 		G_MIRROR_DEBUG(0, "Device %s: provider %s activated.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 		break;
@@ -2477,7 +2443,6 @@ static int
 g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 {
 	struct g_mirror_softc *sc;
-	struct g_mirror_disk *disk;
 	int dcr, dcw, dce;
 
 	g_topology_assert();
@@ -2496,26 +2461,8 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 		else
 			return (ENXIO);
 	}
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
-			continue;
-		/*
-		 * Mark disk as dirty on open and unmark on close.
-		 */
-		if (pp->acw == 0 && dcw > 0) {
-			G_MIRROR_DEBUG(1,
-			    "Disk %s (device %s) marked as dirty.",
-			    g_mirror_get_diskname(disk), sc->sc_name);
-			disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
-			g_mirror_update_metadata(disk);
-		} else if (pp->acw > 0 && dcw == 0) {
-			G_MIRROR_DEBUG(1,
-			    "Disk %s (device %s) marked as clean.",
-			    g_mirror_get_diskname(disk), sc->sc_name);
-			disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
-			g_mirror_update_metadata(disk);
-		}
-	}
+	if (dcw == 0 && !sc->sc_idle)
+		g_mirror_idle(sc, 1);
 	return (0);
 }
 
@@ -2551,7 +2498,9 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	sc->sc_ndisks = md->md_all;
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_id = 0;
-	sc->sc_idle = 0;
+	sc->sc_idle = 1;
+	sc->sc_last_write = time_second;
+	sc->sc_writes = 0;
 	bioq_init(&sc->sc_queue);
 	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
 	LIST_INIT(&sc->sc_disks);
