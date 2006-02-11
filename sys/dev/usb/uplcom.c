@@ -224,6 +224,9 @@ static const struct uplcom_product {
 	uint16_t	product;
 	int32_t		release;	 /* release is a 16bit entity,
 					  * if -1 is specified we "don't care"
+					  * This is a floor value.  The table
+					  * must have newer revs before older
+					  * revs (and -1 last).
 					  */
 	char		chiptype;
 } uplcom_products [] = {
@@ -320,7 +323,7 @@ USB_MATCH(uplcom)
 	for (i = 0; uplcom_products[i].vendor != 0; i++) {
 		if (uplcom_products[i].vendor == uaa->vendor &&
 		    uplcom_products[i].product == uaa->product &&
-		    (uplcom_products[i].release == uaa->release ||
+		    (uplcom_products[i].release <= uaa->release ||
 		     uplcom_products[i].release == -1)) {
 			return (UMATCH_VENDOR_PRODUCT);
 		}
