@@ -186,6 +186,8 @@ struct g_mirror_softc {
 	int		sc_bump_id;
 	struct g_mirror_device_sync sc_sync;
 	int		sc_idle;	/* DIRTY flags removed. */
+	time_t		sc_last_write;
+	u_int		sc_writes;
 
 	TAILQ_HEAD(, g_mirror_event) sc_events;
 	struct mtx	sc_events_mtx;
