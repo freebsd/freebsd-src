@@ -39,27 +39,27 @@
 The
 .Nm
 daemon controls link keys and PIN codes for Bluetooth devices.
-It opens raw HCI socket and listens for the
+It opens a raw HCI socket and listens for
 .Dv Link_Key_Request ,
 .Dv PIN_Code_Request
 and
 .Dv Link_Key_Notification
 HCI events.
 .Pp
-Once
+Once a
 .Dv Link_Key_Request
 or
 .Dv PIN_Code_Request
-HCI event is received, the daemon will
-scan configuration file for matching entry.
+HCI event is received, the daemon scans the configuration file for a
+matching entry.
 The remote device BD_ADDR is used as a key.
 If no matching entry was found, the default entry will be used.
 If no default entry was found then it is assumed that no link key and no
 PIN code exists.
-For any given entry, link key takes precedence over PIN code.
-If link key was not specified, it means device must generate link key from
-PIN code.
-If entry was found and the link key (or PIN code) exists then the
+For any given entry, the link key takes precedence over the PIN code.
+If a link key was not specified, the device must generate the link key from
+the PIN code.
+If an entry was found and the link key (or PIN code) exists, the
 .Dv Link_Key_Request_Reply
 (or
 .Dv PIN_Code_Request_Reply )
@@ -74,33 +74,34 @@ The
 .Nm
 daemon also handles HCI
 .Dv Link_Key_Notification
-event and caches link keys created from the PIN codes in the memory.
+events and caches link keys created from the PIN codes in memory.
 To preserve link keys between restarts the
 .Nm
 daemon dumps link keys for all entries in the
 .Pa /var/db/hcsecd.keys
 link keys file.
-If exists, the link keys file gets processed by
+If it exists, the link keys file gets processed by the
 .Nm
 daemon after it processes its main configuration file.
-The link keys file gets written every time
+The link keys file gets written every time the
 .Nm
-daemon is gracefully shutdown.
-It is possible to force
+daemon shuts down gracefully.
+It is possible to force the
 .Nm
-daemon to re-read its main configuration file and dump link keys file by sending
+daemon to re-read its main configuration file and dump the link keys file by
+sending the
 .Dv HUP
 signal to the
 .Nm
 process.
-User is not expected to modify link keys file by hand.
+The user is expected to not modify the link keys file by hand.
 .Pp
 The command line options are as follows:
 .Bl -tag -width indent
 .It Fl d
 Do not detach from the controlling terminal.
 .It Fl f Ar configfile
-Specify name of the configuration file.
+Specify the name of the configuration file.
 The default is
 .Pa /etc/bluetooth/hcsecd.conf .
 .It Fl h
@@ -121,8 +122,7 @@ Display usage message and exit.
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
 .Sh BUGS
-Currently there is no way to select link key or PIN code based on which local
-device received the request.
-Everything is based on remote device BD_ADDR.
-Also might implement interface for external helpers to obtain link keys and
-PIN codes.
+Currently there is no way to select the link key or the PIN code based on
+which local device received the request.
+Everything is based on the remote device BD_ADDR.
+An interface for external helpers to obtain link keys and PIN codes is missing.
