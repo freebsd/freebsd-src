@@ -429,8 +429,9 @@ quotaon(td, mp, type, fname)
 		quotaoff(td, mp, type);
 	ump->um_qflags[type] |= QTF_OPENING;
 	mp->mnt_flag |= MNT_QUOTA;
-	ASSERT_VOP_LOCKED(vp, "quotaon");
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	vp->v_vflag |= VV_SYSTEM;
+	VOP_UNLOCK(vp, 0, td);
 	*vpp = vp;
 	/*
 	 * Save the credential of the process that turned on quotas.
