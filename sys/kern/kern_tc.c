@@ -116,6 +116,7 @@ TC_STATS(nsetclock);
 #undef TC_STATS
 
 static void tc_windup(void);
+static void cpu_tick_calibrate(int);
 
 static int
 sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
@@ -364,6 +365,7 @@ tc_setclock(struct timespec *ts)
 	struct timespec ts2;
 	struct bintime bt, bt2;
 
+	cpu_tick_calibrate(1);
 	nsetclock++;
 	binuptime(&bt2);
 	timespec2bintime(ts, &bt);
@@ -380,6 +382,7 @@ tc_setclock(struct timespec *ts)
 		    (intmax_t)ts2.tv_sec, ts2.tv_nsec,
 		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 	}
+	cpu_tick_calibrate(1);
 }
 
 /*
@@ -476,8 +479,8 @@ tc_windup(void)
 	 *	 x = a * 2^32 / 10^9 = a * 4.294967296
 	 *
 	 * The range of th_adjustment is +/- 5000PPM so inside a 64bit int
-	 * we can only multiply by about 850 without overflowing, but that
-	 * leaves suitably precise fractions for multiply before divide.
+	 * we can only multiply by about 850 without overflowing, that
+	 * leaves no suitably precise fractions for multiply before divide.
 	 *
 	 * Divide before multiply with a fraction of 2199/512 results in a
 	 * systematic undercompensation of 10PPM of th_adjustment.  On a
@@ -750,11 +753,16 @@ void
 tc_ticktock(void)
 {
 	static int count;
+	static time_t last_calib;
 
 	if (++count < tc_tick)
 		return;
 	count = 0;
 	tc_windup();
+	if (time_uptime != last_calib && !(time_uptime & 0xf)) {
+		cpu_tick_calibrate(0);
+		last_calib = time_uptime;
+	}
 }
 
 static void
@@ -784,13 +792,18 @@ inittimecounter(void *dummy)
 
 SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL)
 
+/* Cpu tick handling -------------------------------------------------*/
+
+static int cpu_tick_variable;
+static uint64_t	cpu_tick_frequency;
+
 static
 uint64_t
 tc_cpu_ticks(void)
 {
 	static uint64_t base;
 	static unsigned last;
-	uint64_t u;
+	unsigned u;
 	struct timecounter *tc;
 
 	tc = timehands->th_counter;
@@ -801,5 +814,120 @@ tc_cpu_ticks(void)
 	return (u + base);
 }
 
-uint64_t (*cpu_ticks)(void) = tc_cpu_ticks;
-uint64_t (*cpu_tickrate)(void) = tc_getfrequency;
+/*
+ * This function gets called ever 16 seconds on only one designated
+ * CPU in the system from hardclock() via tc_ticktock().
+ *
+ * Whenever the real time clock is stepped we get called with reset=1
+ * to make sure we handle suspend/resume and similar events correctly.
+ */
+
+static void
+cpu_tick_calibrate(int reset)
+{
+	static uint64_t c_last;
+	uint64_t c_this, c_delta;
+	static struct bintime  t_last;
+	struct bintime t_this, t_delta;
+
+	if (reset) {
+		/* The clock was stepped, abort & reset */
+		t_last.sec = 0;
+		return;
+	}
+
+	/* we don't calibrate fixed rate cputicks */
+	if (!cpu_tick_variable)
+		return;
+
+	getbinuptime(&t_this);
+	c_this = cpu_ticks();
+	if (t_last.sec != 0) {
+		c_delta = c_this - c_last;
+		t_delta = t_this;
+		bintime_sub(&t_delta, &t_last);
+		if (0 && bootverbose) {
+			struct timespec ts;
+			bintime2timespec(&t_delta, &ts);
+			printf("%ju  %ju.%016jx %ju.%09ju",
+			    (uintmax_t)c_delta >> 4,
+			    (uintmax_t)t_delta.sec, (uintmax_t)t_delta.frac,
+			    (uintmax_t)ts.tv_sec, (uintmax_t)ts.tv_nsec);
+		}
+		/*
+		 * Validate that 16 +/- 1/256 seconds passed. 
+		 * After division by 16 this gives us a precision of
+		 * roughly 250PPM which is sufficient
+		 */
+		if (t_delta.sec > 16 || (
+		    t_delta.sec == 16 && t_delta.frac >= (0x01LL << 56))) {
+			/* too long */
+			if (0 && bootverbose)
+				printf("\ttoo long\n");
+		} else if (t_delta.sec < 15 ||
+		    (t_delta.sec == 15 && t_delta.frac <= (0xffLL << 56))) {
+			/* too short */
+			if (0 && bootverbose)
+				printf("\ttoo short\n");
+		} else {
+			/* just right */
+			c_delta >>= 4;
+			if (c_delta  > cpu_tick_frequency) {
+				if (0 && bootverbose)
+					printf("\thigher\n");
+				cpu_tick_frequency = c_delta;
+			} else {
+				if (0 && bootverbose)
+					printf("\tlower\n");
+			}
+		}
+	}
+	c_last = c_this;
+	t_last = t_this;
+}
+
+void
+set_cputicker(cpu_tick_f *func, uint64_t freq, unsigned var)
+{
+
+	if (func == NULL) {
+		cpu_ticks = tc_cpu_ticks;
+	} else {
+		cpu_tick_frequency = freq;
+		cpu_tick_variable = var;
+		cpu_ticks = func;
+	}
+}
+
+uint64_t
+cpu_tickrate(void)
+{
+
+	if (cpu_ticks == tc_cpu_ticks) 
+		return (tc_getfrequency());
+	return (cpu_tick_frequency);
+}
+
+/*
+ * We need to be slightly careful converting cputicks to microseconds.
+ * There is plenty of margin in 64 bits of microseconds (half a million
+ * years) and in 64 bits at 4 GHz (146 years), but if we do a multiply
+ * before divide conversion (to retain precision) we find that the
+ * margin shrinks to 1.5 hours (one millionth of 146y).
+ * With a three prong approach we never loose significant bits, no
+ * matter what the cputick rate and length of timeinterval is.
+ */
+
+uint64_t
+cputick2usec(uint64_t tick)
+{
+
+	if (tick > 18446744073709551LL)		/* floor(2^64 / 1000) */
+		return (tick / (cpu_tickrate() / 1000000LL));
+	else if (tick > 18446744073709LL)	/* floor(2^64 / 1000000) */
+		return ((tick * 1000LL) / (cpu_tickrate() / 1000LL));
+	else
+		return ((tick * 1000000LL) / cpu_tickrate());
+}
+
+cpu_tick_f	*cpu_ticks = tc_cpu_ticks;

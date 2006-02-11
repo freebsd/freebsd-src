@@ -110,6 +110,20 @@ static struct timecounter geode_timecounter = {
 	1000
 };
 
+static uint64_t
+geode_cputicks(void)
+{
+	unsigned c;
+	static unsigned last;
+	static uint64_t offset;
+
+	c = inl(geode_counter);
+	if (c < last)
+		offset += (1LL << 32);
+	last = c;
+	return (offset | c);
+}
+
 /*
  * The GEODE watchdog runs from a 32kHz frequency.  One period of that is
  * 31250 nanoseconds which we round down to 2^14 nanoseconds.  The watchdog
@@ -176,6 +190,7 @@ geode_probe(device_t self)
 			tc_init(&geode_timecounter);
 			EVENTHANDLER_REGISTER(watchdog_list, geode_watchdog,
 			    NULL, 0);
+			set_cputicker(geode_cputicks, 27000000, 0);
 		}
 	} else if (pci_get_devid(self) == 0x0510100b) {
 		gpio = pci_read_config(self, PCIR_BAR(0), 4);

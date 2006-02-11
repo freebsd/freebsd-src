@@ -386,6 +386,12 @@ mi_switch(int flags, struct thread *newtd)
 	 */
 	new_switchtime = cpu_ticks();
 	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
+	p->p_rux.rux_uticks += td->td_uticks;
+	td->td_uticks = 0;
+	p->p_rux.rux_iticks += td->td_iticks;
+	td->td_iticks = 0;
+	p->p_rux.rux_sticks += td->td_sticks;
+	td->td_sticks = 0;
 
 	td->td_generation++;	/* bump preempt-detect counter */
 

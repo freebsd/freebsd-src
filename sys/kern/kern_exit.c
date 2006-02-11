@@ -545,6 +545,9 @@ retry:
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	new_switchtime = cpu_ticks();
 	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
+	p->p_rux.rux_uticks += td->td_uticks;
+	p->p_rux.rux_sticks += td->td_sticks;
+	p->p_rux.rux_iticks += td->td_iticks;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 	cnt.v_swtch++;

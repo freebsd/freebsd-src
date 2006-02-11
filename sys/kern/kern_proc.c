@@ -694,7 +694,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
-	kp->ki_runtime = p->p_rux.rux_runtime * 1000000 / cpu_tickrate();
+	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	mtx_unlock_spin(&sched_lock);
 	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
 		kp->ki_start = p->p_stats->p_start;
