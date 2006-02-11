@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -890,6 +891,64 @@ g_eli_destroy_geom(struct gctl_req *req __unused,
 	return (g_eli_destroy(sc, 0));
 }
 
+static int
+g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
+{
+	u_char *keyfile, *data, *size;
+	char *file, name[64];
+	int i;
+
+	for (i = 0; ; i++) {
+		snprintf(name, sizeof(name), "%s:geli_keyfile%d", provider, i);
+		keyfile = preload_search_by_type(name);
+		if (keyfile == NULL)
+			return (i);	/* Return number of loaded keyfiles. */
+		data = preload_search_info(keyfile, MODINFO_ADDR);
+		if (data == NULL) {
+			G_ELI_DEBUG(0, "Cannot find key file data for %s.",
+			    name);
+			return (0);
+		}
+		data = *(void **)data;
+		size = preload_search_info(keyfile, MODINFO_SIZE);
+		if (size == NULL) {
+			G_ELI_DEBUG(0, "Cannot find key file size for %s.",
+			    name);
+			return (0);
+		}
+		file = preload_search_info(keyfile, MODINFO_NAME);
+		if (file == NULL) {
+			G_ELI_DEBUG(0, "Cannot find key file name for %s.",
+			    name);
+			return (0);
+		}
+		G_ELI_DEBUG(1, "Loaded keyfile %s for %s (type: %s).", file,
+		    provider, name);
+		g_eli_crypto_hmac_update(ctx, data, *(size_t *)size);
+	}
+}
+
+static void
+g_eli_keyfiles_clear(const char *provider)
+{
+	u_char *keyfile, *data, *size;
+	char name[64];
+	int i;
+
+	for (i = 0; ; i++) {
+		snprintf(name, sizeof(name), "%s:geli_keyfile%d", provider, i);
+		keyfile = preload_search_by_type(name);
+		if (keyfile == NULL)
+			return;
+		data = preload_search_info(keyfile, MODINFO_ADDR);
+		size = preload_search_info(keyfile, MODINFO_SIZE);
+		if (data == NULL || size == NULL)
+			continue;
+		data = *(void **)data;
+		bzero(data, *(size_t *)size);
+	}
+}
+
 /*
  * Tasting is only made on boot.
  * We detect providers which should be attached before root is mounted.
@@ -902,7 +961,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct hmac_ctx ctx;
 	char passphrase[256];
 	u_char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
-	u_int nkey, i;
+	u_int i, nkey, nkeyfiles, tries;
 	int error;
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
@@ -934,25 +993,52 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		G_ELI_DEBUG(0, "No valid keys on %s.", pp->name);
 		return (NULL);
 	}
+	if (md.md_iterations == -1) {
+		/* If there is no passphrase, we try only once. */
+		tries = 1;
+	} else {
+		/* Ask for the passphrase no more than g_eli_tries times. */
+		tries = g_eli_tries;
+	}
 
-	/*
-	 * Ask for the passphrase no more than g_eli_tries times.
-	 */
-	for (i = 0; i < g_eli_tries; i++) {
-		printf("Enter passphrase for %s: ", pp->name);
-		gets(passphrase, sizeof(passphrase), g_eli_visible_passphrase);
-		KASSERT(md.md_iterations >= 0, ("md_iterations = %d for %s",
-		    (int)md.md_iterations, pp->name));
+	for (i = 0; i < tries; i++) {
+		g_eli_crypto_hmac_init(&ctx, NULL, 0);
+
+		/*
+		 * Load all key files.
+		 */
+		nkeyfiles = g_eli_keyfiles_load(&ctx, pp->name);
+
+		if (nkeyfiles == 0 && md.md_iterations == -1) {
+			/*
+			 * No key files and no passphrase, something is
+			 * definitely wrong here.
+			 * geli(8) doesn't allow for such situation, so assume
+			 * that there was really no passphrase and in that case
+			 * key files are no properly defined in loader.conf.
+			 */
+			G_ELI_DEBUG(0,
+			    "Found no key files in loader.conf for %s.",
+			    pp->name);
+			return (NULL);
+		}
+
+		/* Ask for the passphrase if defined. */
+		if (md.md_iterations >= 0) {
+			printf("Enter passphrase for %s: ", pp->name);
+			gets(passphrase, sizeof(passphrase),
+			    g_eli_visible_passphrase);
+		}
+
 		/*
 		 * Prepare Derived-Key from the user passphrase.
 		 */
-		g_eli_crypto_hmac_init(&ctx, NULL, 0);
 		if (md.md_iterations == 0) {
 			g_eli_crypto_hmac_update(&ctx, md.md_salt,
 			    sizeof(md.md_salt));
 			g_eli_crypto_hmac_update(&ctx, passphrase,
 			    strlen(passphrase));
-		} else {
+		} else if (md.md_iterations > 0) {
 			u_char dkey[G_ELI_USERKEYLEN];
 
 			pkcs5v2_genkey(dkey, sizeof(dkey), md.md_salt,
@@ -960,6 +1046,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
 			bzero(dkey, sizeof(dkey));
 		}
+
 		g_eli_crypto_hmac_final(&ctx, key, 0);
 
 		/*
@@ -968,25 +1055,25 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
 		bzero(key, sizeof(key));
 		if (error == -1) {
-			if (i == g_eli_tries - 1) {
-				i++;
-				break;
+			if (i == tries - 1) {
+				G_ELI_DEBUG(0,
+				    "Wrong key for %s. No tries left.",
+				    pp->name);
+				g_eli_keyfiles_clear(pp->name);
+				return (NULL);
 			}
 			G_ELI_DEBUG(0, "Wrong key for %s. Tries left: %u.",
-			    pp->name, g_eli_tries - i - 1);
+			    pp->name, tries - i - 1);
 			/* Try again. */
 			continue;
 		} else if (error > 0) {
 			G_ELI_DEBUG(0, "Cannot decrypt Master Key for %s (error=%d).",
 			    pp->name, error);
+			g_eli_keyfiles_clear(pp->name);
 			return (NULL);
 		}
 		G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
 		break;
-	}
-	if (i == g_eli_tries) {
-		G_ELI_DEBUG(0, "Wrong key for %s. No tries left.", pp->name);
-		return (NULL);
 	}
 
 	/*
