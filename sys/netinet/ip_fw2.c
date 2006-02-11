@@ -37,12 +37,12 @@
 #include "opt_ip6fw.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
-#include "opt_inet6.h"
-#include "opt_ipsec.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
 #endif
+#include "opt_inet6.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
