@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/man/Makefile#5 $
+# $P4: //depot/projects/trustedbsd/openbsm/man/Makefile#7 $
 #
 
 MAN=	audit.2								\
@@ -15,5 +15,8 @@ MAN=	audit.2								\
 	audit_event.5							\
 	audit_user.5							\
 	audit_warn.5
+
+MLINKS= getaudit.2 getaudit_addr.2					\
+	setaudit.2 setaudit_addr.2
 
 .include <bsd.prog.mk>
