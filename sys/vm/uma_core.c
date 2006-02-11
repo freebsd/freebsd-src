@@ -3012,6 +3012,8 @@ restart:
 				bzero(&ups, sizeof(ups));
 				if (kz->uk_flags & UMA_ZFLAG_INTERNAL)
 					goto skip;
+				if (CPU_ABSENT(i))
+					goto skip;
 				cache = &z->uz_cpu[i];
 				if (cache->uc_allocbucket != NULL)
 					ups.ups_cache_free +=
