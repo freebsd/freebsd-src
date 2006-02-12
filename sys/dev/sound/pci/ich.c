@@ -677,7 +677,6 @@ static int
 ich_init(struct sc_info *sc)
 {
 	u_int32_t stat;
-	int sz;
 
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD, 4);
 	DELAY(600000);
@@ -700,15 +699,6 @@ ich_init(struct sc_info *sc)
 		return ENXIO;
 	if (sc->hasmic && ich_resetchan(sc, 2))
 		return ENXIO;
-
-	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl, BUS_DMA_NOWAIT, &sc->dtmap))
-		return ENOSPC;
-
-	sz = sizeof(struct ich_desc) * ICH_DTBL_LENGTH * 3;
-	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl, sz, ich_setmap, sc, 0)) {
-		bus_dmamem_free(sc->dmat, (void **)&sc->dtbl, sc->dtmap);
-		return ENOSPC;
-	}
 
 	return 0;
 }
@@ -828,6 +818,15 @@ ich_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl,
+		    BUS_DMA_NOWAIT, &sc->dtmap))
+		goto bad;
+
+	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl,
+		    sizeof(struct ich_desc) * ICH_DTBL_LENGTH * 3,
+		    ich_setmap, sc, 0))
+		goto bad;
+
 	sc->codec = AC97_CREATE(dev, sc, ich_ac97);
 	if (sc->codec == NULL)
 		goto bad;
@@ -895,6 +894,10 @@ bad:
 	if (sc->nabmbar)
 		bus_release_resource(dev, sc->regtype,
 		    sc->nabmbarid, sc->nabmbar);
+	if (sc->dtmap)
+		bus_dmamap_unload(sc->dmat, sc->dtmap);
+	if (sc->dmat)
+		bus_dma_tag_destroy(sc->dmat);
 	if (sc->ich_lock)
 		snd_mtxfree(sc->ich_lock);
 	free(sc, M_DEVBUF);
@@ -916,6 +919,7 @@ ich_pci_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	bus_release_resource(dev, sc->regtype, sc->nambarid, sc->nambar);
 	bus_release_resource(dev, sc->regtype, sc->nabmbarid, sc->nabmbar);
+	bus_dmamap_unload(sc->dmat, sc->dtmap);
 	bus_dma_tag_destroy(sc->dmat);
 	snd_mtxfree(sc->ich_lock);
 	free(sc, M_DEVBUF);
@@ -987,24 +991,21 @@ ich_pci_resume(device_t dev)
 	}
 	/* Reinit mixer */
 	ich_pci_codec_reset(sc);
+	ICH_UNLOCK(sc);
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
     	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
-		ICH_UNLOCK(sc);
 		return ENXIO;
 	}
 	/* Re-start DMA engines */
 	for (i = 0 ; i < 3; i++) {
 		struct sc_chinfo *ch = &sc->ch[i];
 		if (sc->ch[i].run_save) {
-			ICH_UNLOCK(sc);
 			ichchan_setblocksize(0, ch, ch->blksz);
 			ichchan_setspeed(0, ch, ch->spd);
 			ichchan_trigger(0, ch, PCMTRIG_START);
-			ICH_LOCK(sc);
 		}
 	}
-	ICH_UNLOCK(sc);
 	return 0;
 }
 
