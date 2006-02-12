@@ -48,6 +48,9 @@ pkg_stop()
 		find_local_scripts_old
 		for script in `reverse_list ${slist} ${zlist}`; do
 			if [ -x "${script}" ]; then
+				if [ `sysctl -n debug.bootverbose` -eq 1 ]; then
+					echo "==>" ${script}
+				fi
 				(set -T
 				trap 'exit 1' 2
 				${script} stop)
