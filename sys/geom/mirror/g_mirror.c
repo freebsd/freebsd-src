@@ -2188,9 +2188,7 @@ again:
 		    g_mirror_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
-		if (disk->d_state == G_MIRROR_DISK_STATE_NEW)
-			disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
-		else if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
+		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
 			disk->d_flags &= ~G_MIRROR_DISK_FLAG_SYNCHRONIZING;
 			disk->d_flags &= ~G_MIRROR_DISK_FLAG_FORCE_SYNC;
 			g_mirror_sync_stop(disk, 0);
@@ -2199,6 +2197,7 @@ again:
 		disk->d_sync.ds_offset = 0;
 		disk->d_sync.ds_offset_done = 0;
 		g_mirror_update_idle(sc, disk);
+		g_mirror_update_metadata(disk);
 		G_MIRROR_DEBUG(0, "Device %s: provider %s activated.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 		break;
