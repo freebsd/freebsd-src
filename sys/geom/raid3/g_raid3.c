@@ -809,7 +809,7 @@ g_raid3_idle(struct g_raid3_softc *sc, int from_access)
 	if (sc->sc_writes > 0)
 		return (0);
 	if (!from_access && sc->sc_provider->acw > 0) {
-		timeout = g_raid3_idletime - (time_second - sc->sc_last_write);
+		timeout = g_raid3_idletime - (time_uptime - sc->sc_last_write);
 		if (timeout > 0)
 			return (timeout);
 	}
@@ -837,7 +837,7 @@ g_raid3_unidle(struct g_raid3_softc *sc)
 	u_int i;
 
 	sc->sc_idle = 0;
-	sc->sc_last_write = time_second;
+	sc->sc_last_write = time_uptime;
 	g_topology_lock();
 	for (i = 0; i < sc->sc_ndisks; i++) {
 		disk = &sc->sc_disks[i];
@@ -1575,7 +1575,7 @@ g_raid3_register_request(struct bio *pbp)
 		if (sc->sc_idle)
 			g_raid3_unidle(sc);
 		else
-			sc->sc_last_write = time_second;
+			sc->sc_last_write = time_uptime;
 
 		ndisks = sc->sc_ndisks;
 
@@ -2786,7 +2786,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_id = 0;
 	sc->sc_idle = 1;
-	sc->sc_last_write = time_second;
+	sc->sc_last_write = time_uptime;
 	sc->sc_writes = 0;
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		sc->sc_disks[n].d_softc = sc;
