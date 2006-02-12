@@ -261,11 +261,12 @@ show_version(Package plist, const char *latest, const char *source)
 	return;
     if (ShowOrigin != FALSE)
 	strlcpy(tmp, plist.origin, PATH_MAX);
-    else
+    else {
 	strlcpy(tmp, plist.name, PATH_MAX);
-    if (!Verbose) {
-	if ((ch = strrchr(tmp, '-')) != NULL)
-	    ch[0] = '\0';
+	if (!Verbose) {
+	    if ((ch = strrchr(tmp, '-')) != NULL)
+		ch[0] = '\0';
+	}
     }
     if (latest == NULL) {
 	if (source == NULL && OUTPUT('!')) {
