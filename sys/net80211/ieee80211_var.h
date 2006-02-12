@@ -158,6 +158,7 @@ struct ieee80211com {
 	u_int16_t		ic_txmax;	/* max tx retry count */
 	u_int16_t		ic_txlifetime;	/* tx lifetime */
 	u_int16_t		ic_txpowlimit;	/* global tx power limit */
+	u_int16_t		ic_pad0;	/* was ic_bmisstimeout */
 	u_int16_t		ic_nonerpsta;	/* # non-ERP stations */
 	u_int16_t		ic_longslotsta;	/* # long slot time stations */
 	int			ic_mgt_timer;	/* mgmt timeout */
@@ -203,6 +204,7 @@ struct ieee80211com {
 	 */
 	const struct ieee80211_aclator *ic_acl;
 	void			*ic_as;
+	u_int32_t		ic_pad[64];	/* future expansion */
 };
 
 #define	IEEE80211_ADDR_EQ(a1,a2)	(memcmp(a1,a2,IEEE80211_ADDR_LEN) == 0)
