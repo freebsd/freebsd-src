@@ -71,6 +71,8 @@ SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, syncs_per_sec, CTLFLAG_RW,
     &g_raid3_syncs_per_sec, 0,
     "Number of synchronizations requests per second");
 static u_int g_raid3_disconnect_on_failure = 1;
+TUNABLE_INT("kern.geom.raid3.disconnect_on_failure",
+    &g_raid3_disconnect_on_failure);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
     &g_raid3_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 
