@@ -2651,21 +2651,17 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 }
 
-/* umass_cam_poll
- *	all requests are handled through umass_cam_action, requests
- *	are never pending. So, nothing to do here.
- */
 Static void
 umass_cam_poll(struct cam_sim *sim)
 {
-#ifdef USB_DEBUG
 	struct umass_softc *sc = (struct umass_softc *) sim->softc;
 
 	DPRINTF(UDMASS_SCSI, ("%s: CAM poll\n",
 		USBDEVNAME(sc->sc_dev)));
-#endif
 
-	/* nop */
+	usbd_set_polling(sc->sc_udev, 1);
+	usbd_dopoll(sc->iface);
+	usbd_set_polling(sc->sc_udev, 0);
 }
 
 
