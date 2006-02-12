@@ -500,7 +500,7 @@ soabort(so)
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		sotryfree(so);	/* note: does not decrement the ref count */
-		return error;
+		return (error);
 	}
 	return (0);
 }
@@ -1688,7 +1688,7 @@ sooptcopyin(sopt, buf, len, minlen)
 		return (copyin(sopt->sopt_val, buf, valsize));
 
 	bcopy(sopt->sopt_val, buf, valsize);
-	return 0;
+	return (0);
 }
 
 /*
@@ -1921,7 +1921,7 @@ sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 		else
 			bcopy(buf, sopt->sopt_val, valsize);
 	}
-	return error;
+	return (error);
 }
 
 int
@@ -2117,7 +2117,7 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 		m_prev->m_next = m;
 		m_prev = m;
 	}
-	return 0;
+	return (0);
 }
 
 /* XXX; copyin sopt data into mbuf chain for (__FreeBSD__ < 3) routines. */
@@ -2127,7 +2127,7 @@ soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 	struct mbuf *m0 = m;
 
 	if (sopt->sopt_val == NULL)
-		return 0;
+		return (0);
 	while (m != NULL && sopt->sopt_valsize >= m->m_len) {
 		if (sopt->sopt_td != NULL) {
 			int error;
@@ -2146,7 +2146,7 @@ soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 	}
 	if (m != NULL) /* should be allocated enoughly at ip6_sooptmcopyin() */
 		panic("ip6_sooptmcopyin");
-	return 0;
+	return (0);
 }
 
 /* XXX; copyout mbuf chain data into soopt for (__FreeBSD__ < 3) routines. */
@@ -2157,7 +2157,7 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 	size_t valsize = 0;
 
 	if (sopt->sopt_val == NULL)
-		return 0;
+		return (0);
 	while (m != NULL && sopt->sopt_valsize >= m->m_len) {
 		if (sopt->sopt_td != NULL) {
 			int error;
@@ -2181,7 +2181,7 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 		return(EINVAL);
 	}
 	sopt->sopt_valsize = valsize;
-	return 0;
+	return (0);
 }
 
 void
