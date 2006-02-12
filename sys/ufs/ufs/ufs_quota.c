@@ -536,8 +536,9 @@ again:
 	}
 	MNT_IUNLOCK(mp);
 	dqflush(qvp);
-	ASSERT_VOP_LOCKED(qvp, "quotaoff");
+	vn_lock(qvp, LK_EXCLUSIVE | LK_RETRY, td);
 	qvp->v_vflag &= ~VV_SYSTEM;
+	VOP_UNLOCK(qvp, 0, td);
 	error = vn_close(qvp, FREAD|FWRITE, td->td_ucred, td);
 	ump->um_quotas[type] = NULLVP;
 	crfree(ump->um_cred[type]);
