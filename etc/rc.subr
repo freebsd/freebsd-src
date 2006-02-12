@@ -1329,13 +1329,22 @@ geli_make_list()
 
 	# Create list of GELI providers from fstab.
 	while read provider mountpoint type options rest ; do
+		case ":${options}" in
+		:*noauto*)
+			noauto=yes
+			;;
+		*)
+			noauto=no
+			;;
+		esac
+
 		case ":${provider}" in
 		:#*)
 			continue
 			;;
 		*.eli)
 			# Skip swap devices.
-			if [ "${type}" = "swap" -o "${options}" = "sw" ]; then
+			if [ "${type}" = "swap" -o "${options}" = "sw" -o "${noauto}" = "yes" ]; then
 				continue
 			fi
 			devices="${devices} ${provider}"
