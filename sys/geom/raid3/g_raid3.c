@@ -2439,9 +2439,7 @@ again:
 		    g_raid3_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
-		if (disk->d_state == G_RAID3_DISK_STATE_NEW)
-			disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
-		else if (disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
+		if (disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
 			disk->d_flags &= ~G_RAID3_DISK_FLAG_SYNCHRONIZING;
 			disk->d_flags &= ~G_RAID3_DISK_FLAG_FORCE_SYNC;
 			g_raid3_sync_stop(sc, 0);
@@ -2450,6 +2448,7 @@ again:
 		disk->d_sync.ds_offset = 0;
 		disk->d_sync.ds_offset_done = 0;
 		g_raid3_update_idle(sc, disk);
+		g_raid3_update_metadata(disk);
 		G_RAID3_DEBUG(0, "Device %s: provider %s activated.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
 		break;
