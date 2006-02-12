@@ -238,6 +238,7 @@ struct ieee80211_beacon_offsets {
 	u_int16_t	bo_tim_len;	/* atim/dtim length in bytes */
 	u_int16_t	bo_trailer_len;	/* trailer length in bytes */
 	u_int8_t	*bo_erp;	/* start of ERP element */
+	void		*bo_pad[8];	/* future expansion */
 };
 struct mbuf *ieee80211_beacon_alloc(struct ieee80211com *,
 		struct ieee80211_node *, struct ieee80211_beacon_offsets *);

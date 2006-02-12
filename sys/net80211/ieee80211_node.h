@@ -147,6 +147,7 @@ struct ieee80211_node {
 	int			ni_txrate;	/* index to ni_rates[] */
 	struct	ifqueue		ni_savedq;	/* ps-poll queue */
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
+	u_int32_t		ni_pad[8];	/* future expansion */
 };
 MALLOC_DECLARE(M_80211_NODE);
 
