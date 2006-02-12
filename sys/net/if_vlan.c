@@ -69,6 +69,7 @@
 #endif
 
 #define VLANNAME	"vlan"
+#define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
 
 struct vlan_mc_entry {
 	struct ether_addr		mc_addr;
@@ -394,6 +395,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 	ifp->if_start = vlan_start;
 	ifp->if_ioctl = vlan_ioctl;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_flags = VLAN_IFFLAGS;
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
@@ -674,6 +676,8 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 
 	if (p->if_type != IFT_ETHER)
 		return (EPROTONOSUPPORT);
+	if ((p->if_flags & VLAN_IFFLAGS) != VLAN_IFFLAGS)
+		return (EPROTONOSUPPORT);
 	if (ifv->ifv_p)
 		return (EBUSY);
 
@@ -718,8 +722,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	 * Copy only a selected subset of flags from the parent.
 	 * Other flags are none of our business.
 	 */
-#define VLAN_COPY_FLAGS \
-    (IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX | IFF_POINTOPOINT)
+#define VLAN_COPY_FLAGS (IFF_SIMPLEX)
 	ifp->if_flags &= ~VLAN_COPY_FLAGS;
 	ifp->if_flags |= p->if_flags & VLAN_COPY_FLAGS;
 #undef VLAN_COPY_FLAGS
