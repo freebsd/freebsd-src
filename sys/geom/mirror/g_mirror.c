@@ -787,7 +787,7 @@ g_mirror_idle(struct g_mirror_softc *sc, int from_access)
 	if (sc->sc_writes > 0)
 		return (0);
 	if (!from_access && sc->sc_provider->acw > 0) {
-		timeout = g_mirror_idletime - (time_second - sc->sc_last_write);
+		timeout = g_mirror_idletime - (time_uptime - sc->sc_last_write);
 		if (timeout > 0)
 			return (timeout);
 	}
@@ -813,7 +813,7 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 	struct g_mirror_disk *disk;
 
 	sc->sc_idle = 0;
-	sc->sc_last_write = time_second;
+	sc->sc_last_write = time_uptime;
 	g_topology_lock();
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
@@ -1368,7 +1368,7 @@ g_mirror_register_request(struct bio *bp)
 		if (sc->sc_idle)
 			g_mirror_unidle(sc);
 		else
-			sc->sc_last_write = time_second;
+			sc->sc_last_write = time_uptime;
 
 		/*
 		 * Allocate all bios before sending any request, so we can
@@ -2534,7 +2534,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_id = 0;
 	sc->sc_idle = 1;
-	sc->sc_last_write = time_second;
+	sc->sc_last_write = time_uptime;
 	sc->sc_writes = 0;
 	bioq_init(&sc->sc_queue);
 	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
