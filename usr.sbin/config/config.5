@@ -164,7 +164,7 @@ and return to the current file after
 is successfully processed.
 .\" -------- MACHINE --------
 .Pp
-.It Ic machine Ar arch
+.It Ic machine Ar arch Op Ar basearch
 Specifies the architecture of the machine the kernel is being
 compiled for.
 Legal values for
@@ -187,6 +187,17 @@ The IBM PowerPC architecture.
 .It Cm sparc64
 The Sun Sparc64 architecture.
 .El
+.Pp
+If argument
+.Ar basearch
+is specified, it points
+.Xr config 8
+to the base architecture of the machine.
+Currently the
+.Cm pc98
+architecture requires its base architecture
+to be set to
+.Cm i386 .
 .Pp
 A kernel configuration file may have only one
 .Ic machine
