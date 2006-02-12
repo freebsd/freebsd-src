@@ -387,7 +387,7 @@ typedef struct Asr_softc {
 	struct cdev *ha_devt;
 } Asr_softc_t;
 
-static Asr_softc_t * Asr_softc;
+static Asr_softc_t *Asr_softc_list;
 
 /*
  *	Prototypes of the routines we have in this object.
@@ -1970,7 +1970,7 @@ ASR_setSysTab(Asr_softc_t *sc)
 	  sizeof(I2O_SET_SYSTAB_HEADER), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
 		return (ENOMEM);
 	}
-	for (ha = Asr_softc; ha; ha = ha->ha_next) {
+	for (ha = Asr_softc_list; ha; ha = ha->ha_next) {
 		++SystemTable->NumberEntries;
 	}
 	if ((Message_Ptr = (PI2O_EXEC_SYS_TAB_SET_MESSAGE)malloc (
@@ -2001,7 +2001,7 @@ ASR_setSysTab(Asr_softc_t *sc)
 	      &(Message_Ptr->StdMessageFrame)) & 0xF0) >> 2));
 	SG(sg, 0, I2O_SGL_FLAGS_DIR, SystemTable, sizeof(I2O_SET_SYSTAB_HEADER));
 	++sg;
-	for (ha = Asr_softc; ha; ha = ha->ha_next) {
+	for (ha = Asr_softc_list; ha; ha = ha->ha_next) {
 		SG(sg, 0,
 		  ((ha->ha_next)
 		    ? (I2O_SGL_FLAGS_DIR)
@@ -2408,7 +2408,7 @@ asr_attach(device_t dev)
 	unit = device_get_unit(dev);
 	sc->ha_dev = dev;
 
-	if (Asr_softc == NULL) {
+	if (Asr_softc_list == NULL) {
 		/*
 		 *	Fixup the OS revision as saved in the dptsig for the
 		 *	engine (dptioctl.h) to pick up.
@@ -2420,7 +2420,7 @@ asr_attach(device_t dev)
 	 */
 	LIST_INIT(&(sc->ha_ccb));
 	/* Link us into the HA list */
-	for (ha = &Asr_softc; *ha; ha = &((*ha)->ha_next));
+	for (ha = &Asr_softc_list; *ha; ha = &((*ha)->ha_next));
 		*(ha) = sc;
 
 	/*
