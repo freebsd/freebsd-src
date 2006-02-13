@@ -203,39 +203,6 @@ the contents of the
 .Va kern.module_path
 .Xr sysctl 8
 are used.
-.It Va pccard_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable PCCARD support at boot time.
-.It Va pccard_mem
-.Pq Vt str
-Set to PCCARD controller memory address or
-.Dq Li DEFAULT
-for the default value.
-.It Va pccard_beep
-.Pq Vt int
-If 0,
-set the PCCARD controller to silent mode.
-If 1,
-set it to beep mode.
-If 2,
-set it to melody mode.
-.It Va pccard_conf
-.Pq Vt str
-Path to the configuration file for the
-.Xr pccardd 8
-daemon (e.g.\&
-.Pa /etc/pccard.conf.sample ) .
-.It Va pccardd_flags
-.Pq Vt str
-If
-.Va pccard_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr pccardd 8
-daemon.
 .It Va powerd_enable
 .Pq Vt bool
 If set to
