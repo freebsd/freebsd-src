@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #define PTM_PREFIX	"pty"	/* pseudo tty master naming convention */
 #define PTS_PREFIX	"tty"	/* pseudo tty slave naming convention */
-#define NEWPTS_PREFIX	"pts/"
+#define NEWPTS_PREFIX	"pts"
 #define PTMX		"ptmx"
 
 /*
