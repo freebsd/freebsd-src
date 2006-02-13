@@ -785,6 +785,11 @@ thread_single(int mode)
 					break;
 				}
 			}
+#ifdef SMP
+			else if (TD_IS_RUNNING(td2) && td != td2) {
+				forward_signal(td2);
+			}
+#endif
 		}
 		if (mode == SINGLE_EXIT)
 			remaining = p->p_numthreads;
