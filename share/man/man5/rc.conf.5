@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2006
+.Dd February 13, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1448,8 +1448,11 @@ these are the flags to pass to
 This is the default path to the
 .Xr named 8
 daemon's PID file.
-Change it if you change the location in
+This must match the location in
 .Xr named.conf 5 .
+.It Va named_uid
+.Pq Vt str
+The user that the named process should be run as.
 .It Va named_chrootdir
 .Pq Vt str
 The root directory for a name server run in a
