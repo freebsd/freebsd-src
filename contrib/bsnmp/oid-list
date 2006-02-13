@@ -11,6 +11,7 @@ enterprises
     1		BEGEMOT
       1		BEGEMOT-SNMPD
       2		BEGEMOT-NETGRAPH	snmpd netgraph module
+      3		BEGEMOT-IP		snmpd mibII module
       100	BEGEMOT-ILMID		snmpd ILMID module
       101	BEGEMOT-ATM		snmpd ATM module
       200	BEGEMOT-PF		snmpd PF module (phillip@freebsd.org)
