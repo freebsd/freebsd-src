@@ -463,19 +463,20 @@ op_ifxtable(struct snmp_context *ctx, struct snmp_value *value,
 	  case LEAF_ifHCInOctets:
 		if (!(ifp->flags & MIBIF_HIGHSPEED))
 			goto again;
-		value->v.counter64 = ifp->hc_inoctets;
+		value->v.counter64 = MIBIF_PRIV(ifp)->hc_inoctets;
 		break;
 
 	  case LEAF_ifHCInUcastPkts:
 		if (!(ifp->flags & (MIBIF_VERYHIGHSPEED|MIBIF_HIGHSPEED)))
 			goto again;
-		value->v.counter64 = ifp->hc_ipackets - ifp->hc_imcasts;
+		value->v.counter64 = MIBIF_PRIV(ifp)->hc_ipackets -
+		    MIBIF_PRIV(ifp)->hc_imcasts;
 		break;
 
 	  case LEAF_ifHCInMulticastPkts:
 		if (!(ifp->flags & (MIBIF_VERYHIGHSPEED|MIBIF_HIGHSPEED)))
 			goto again;
-		value->v.counter64 = ifp->hc_imcasts;
+		value->v.counter64 = MIBIF_PRIV(ifp)->hc_imcasts;
 		break;
 
 	  case LEAF_ifHCInBroadcastPkts:
@@ -487,19 +488,20 @@ op_ifxtable(struct snmp_context *ctx, struct snmp_value *value,
 	  case LEAF_ifHCOutOctets:
 		if (!(ifp->flags & MIBIF_HIGHSPEED))
 			goto again;
-		value->v.counter64 = ifp->hc_outoctets;
+		value->v.counter64 = MIBIF_PRIV(ifp)->hc_outoctets;
 		break;
 
 	  case LEAF_ifHCOutUcastPkts:
 		if (!(ifp->flags & (MIBIF_VERYHIGHSPEED|MIBIF_HIGHSPEED)))
 			goto again;
-		value->v.counter64 = ifp->hc_opackets - ifp->hc_omcasts;
+		value->v.counter64 = MIBIF_PRIV(ifp)->hc_opackets -
+		    MIBIF_PRIV(ifp)->hc_omcasts;
 		break;
 
 	  case LEAF_ifHCOutMulticastPkts:
 		if (!(ifp->flags & (MIBIF_VERYHIGHSPEED|MIBIF_HIGHSPEED)))
 			goto again;
-		value->v.counter64 = ifp->hc_omcasts;
+		value->v.counter64 = MIBIF_PRIV(ifp)->hc_omcasts;
 		break;
 
 	  case LEAF_ifHCOutBroadcastPkts:
