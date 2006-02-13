@@ -128,6 +128,7 @@ MAN=	aac.4 \
 	kld.4 \
 	ktr.4 \
 	kue.4 \
+	le.4 \
 	led.4 \
 	lge.4 \
 	lo.4 \
