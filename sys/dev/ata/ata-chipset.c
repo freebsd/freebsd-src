@@ -1658,6 +1658,18 @@ ata_intel_chipinit(device_t dev)
 						       RF_ACTIVE))) {
 		/* is AHCI or RAID mode enabled in BIOS ? */
 		if (pci_read_config(dev, 0x90, 1) & 0xc0) {
+
+		    /* reset AHCI controller */
+		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+		    ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
+		    DELAY(1000000);
+		    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
+			bus_release_resource(dev, ctlr->r_type2, 
+					     ctlr->r_rid2, ctlr->r_res2);
+			device_printf(dev, "AHCI controller reset failure\n");
+			return ENXIO;
+    		    }
+
 		    /* enable AHCI mode */
 		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
 
