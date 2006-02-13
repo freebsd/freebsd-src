@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 #	$FreeBSD$
 
+.include <bsd.init.mk>
+
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	a.out.5 \
@@ -66,7 +68,7 @@ MLINKS+=quota.user.5 quota.group.5
 MLINKS+=resolver.5 resolv.conf.5
 MLINKS+=utmp.5 lastlog.5 utmp.5 wtmp.5
 
-.if defined(YES_HESIOD)
+.if ${FBSD_MK_HESIOD} == "yes"
 MAN+=	hesiod.conf.5 
 .endif
 
