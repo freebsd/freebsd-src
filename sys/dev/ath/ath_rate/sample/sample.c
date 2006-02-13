@@ -654,8 +654,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		 * A fixed rate is to be used; ic_fixed_rate is an
 		 * index into the supported rate set.  Convert this
 		 * to the index into the negotiated rate set for
-		 * the node.  We know the rate is there because the
-		 * rate set is checked when the station associates.
+		 * the node.
 		 */
 		const struct ieee80211_rateset *rs =
 			&ic->ic_sup_rates[ic->ic_curmode];
@@ -666,7 +665,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			;
 		KASSERT(srate >= 0,
 			("fixed rate %d not in rate set", ic->ic_fixed_rate));
-                sn->static_rate_ndx = srate;
+		sn->static_rate_ndx = srate;
 	}
 
         DPRINTF(sc, "%s: %s size 1600 rate/tt", __func__, ether_sprintf(ni->ni_macaddr));
