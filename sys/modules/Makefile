@@ -115,6 +115,7 @@ SUBDIR=	${_3dfx} \
 	${_ipfilter} \
 	ipfw \
 	ip_mroute_mod \
+	${_ipmi} \
 	${_ips} \
 	ipw \
 	isp \
@@ -348,6 +349,7 @@ _ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
 _io=		io
+_ipmi=		ipmi
 _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
@@ -448,6 +450,7 @@ _ida=		ida
 _if_ndis=	if_ndis
 _iir=		iir
 _io=		io
+_ipmi=		ipmi
 _ips=		ips
 #_lnc=		lnc
 _mly=		mly
