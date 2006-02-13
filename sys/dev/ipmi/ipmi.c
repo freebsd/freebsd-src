@@ -1056,7 +1056,7 @@ ipmi_detach(device_t dev)
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef IMPI_DEBUG
 static void
 dump_buf(u_char *data, int len){
 	char buf[20];
