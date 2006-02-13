@@ -126,6 +126,7 @@ SUBDIR=	${_3dfx} \
 	joy \
 	kbdmux \
 	kue \
+	le \
 	lge \
 	libalias \
 	libiconv \
