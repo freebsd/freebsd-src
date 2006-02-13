@@ -2229,7 +2229,7 @@ DMenu MenuSecurity = {
       { " LOMAC",         "Use Low Watermark Mandatory Access Control at boot",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "lomac_enable=YES" },
 #endif
-      { " NFS port",	"Require that the NFS clients used reserved ports",
+      { " NFS port",	"Require that the NFS clients use reserved ports",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "nfs_reserved_port_only=YES" },
       { NULL } },
 };
