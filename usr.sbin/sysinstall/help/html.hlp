@@ -4,7 +4,7 @@ resources such as the FreeBSD Handbook & FreeBSD FAQ
 
      file:/usr/share/doc/
 
-If you've loaded the doc distribution.
+if you've loaded the doc distribution.
 
 The default browser package used is links (a text based
 browser which can render tables), which will be
