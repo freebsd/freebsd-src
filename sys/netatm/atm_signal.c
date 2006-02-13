@@ -74,8 +74,7 @@ static struct stack_defn	*atm_stack_head = NULL;
  *
  */
 int
-atm_sigmgr_register(smp)
-	struct sigmgr	*smp;
+atm_sigmgr_register(struct sigmgr *smp)
 {
 	struct sigmgr	*smp2;
 	int		s = splnet();
@@ -124,8 +123,7 @@ atm_sigmgr_register(smp)
  *
  */
 int
-atm_sigmgr_deregister(smp)
-	struct sigmgr	*smp;
+atm_sigmgr_deregister(struct sigmgr *smp)
 {
 	int		found, s = splnet();
 
@@ -164,9 +162,7 @@ atm_sigmgr_deregister(smp)
  *
  */
 int
-atm_sigmgr_attach(pip, proto)
-	struct atm_pif	*pip;
-	u_char		proto;
+atm_sigmgr_attach(struct atm_pif *pip, u_char proto)
 {
 	struct atm_pif	*tp;
 	struct sigmgr	*smp;
@@ -258,8 +254,7 @@ atm_sigmgr_attach(pip, proto)
  *
  */
 int
-atm_sigmgr_detach(pip)
-	struct atm_pif	*pip;
+atm_sigmgr_detach(struct atm_pif *pip)
 {
 	struct atm_pif	*tp;
 	struct atm_nif	*nip;
@@ -326,8 +321,7 @@ atm_sigmgr_detach(pip)
  *
  */
 int
-atm_stack_register(sdp)
-	struct stack_defn	*sdp;
+atm_stack_register(struct stack_defn *sdp)
 {
 	struct stack_defn	*tdp;
 	int	s = splnet();
@@ -376,8 +370,7 @@ atm_stack_register(sdp)
  *
  */
 int
-atm_stack_deregister(sdp)
-	struct stack_defn	*sdp;
+atm_stack_deregister(struct stack_defn *sdp)
 {
 	int	found, s = splnet();
 
@@ -422,10 +415,8 @@ atm_stack_deregister(sdp)
  *
  */
 int
-atm_create_stack(cvp, tlp, upf)
-	Atm_connvc		*cvp;
-	struct stack_list	*tlp;
-	void			(*upf)(int, void *, intptr_t, intptr_t);
+atm_create_stack(Atm_connvc *cvp, struct stack_list *tlp,
+    void (*upf)(int, void *, intptr_t, intptr_t))
 {
 	struct stack_defn	*sdp, usd;
 	struct stack_inst	svs;
@@ -518,4 +509,3 @@ atm_create_stack(cvp, tlp, upf)
 
 	return (0);
 }
-
