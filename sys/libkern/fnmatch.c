@@ -51,9 +51,7 @@ __FBSDID("$FreeBSD$");
 static int rangematch(const char *, char, int, char **);
 
 int
-fnmatch(pattern, string, flags)
-	const char *pattern, *string;
-	int flags;
+fnmatch(const char *pattern, const char *string, int flags)
 {
 	const char *stringstart;
 	char *newp;
@@ -156,11 +154,7 @@ fnmatch(pattern, string, flags)
 }
 
 static int
-rangematch(pattern, test, flags, newp)
-	const char *pattern;
-	char test;
-	int flags;
-	char **newp;
+rangematch(const char *pattern, char test, int flags, char **newp)
 {
 	int negate, ok;
 	char c, c2;
