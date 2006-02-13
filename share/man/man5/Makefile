@@ -68,7 +68,7 @@ MLINKS+=quota.user.5 quota.group.5
 MLINKS+=resolver.5 resolv.conf.5
 MLINKS+=utmp.5 lastlog.5 utmp.5 wtmp.5
 
-.if ${FBSD_MK_HESIOD} == "yes"
+.if defined(YES_HESIOD)
 MAN+=	hesiod.conf.5 
 .endif
 
