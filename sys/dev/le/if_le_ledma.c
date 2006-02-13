@@ -91,6 +91,7 @@ struct le_dma_softc {
 	bus_addr_t		sc_laddr;	/* LANCE DMA address */
 
 	struct lsi64854_softc	*sc_dma;	/* pointer to DMA engine */
+	int			sc_dodrain;
 };
 
 static device_probe_t le_dma_probe;
@@ -258,7 +259,46 @@ le_dma_hwintr(struct lance_softc *sc)
 	struct le_dma_softc *lesc = (struct le_dma_softc *)sc;
 	struct lsi64854_softc *dma = lesc->sc_dma;
 
+#if 0
 	return (DMA_INTR(dma));
+#else
+	/*
+	 * Inlined version of lsi64854_enet_intr() from rev. 1.8 of
+	 * sys/sparc64/sbus/lsi64854.c in order to not break the API
+	 * of the LSI64854 driver in RELENG_6.
+	 */
+	uint32_t csr;
+	int i, rv;
+
+	csr = L64854_GCSR(dma);
+
+	/* If the DMA logic shows an interrupt, claim it */
+	rv = ((csr & E_INT_PEND) != 0) ? 1 : 0;
+
+	if (csr & (E_ERR_PEND|E_SLAVE_ERR)) {
+		device_printf(dma->sc_dev, "error: csr=%b\n", csr,
+		    EDMACSR_BITS);
+		csr &= ~L64854_EN_DMA;	/* Stop DMA */
+		/* Invalidate the queue; SLAVE_ERR bit is write-to-clear */
+		csr |= E_INVALIDATE|E_SLAVE_ERR;
+		L64854_SCSR(dma, csr);
+		/* Will be drained with the LE_C0_IDON interrupt. */
+		lesc->sc_dodrain = 1;
+		return (-1);
+	}
+
+	/* XXX - is this necessary with E_DSBL_WR_INVAL on? */
+	if (lesc->sc_dodrain) {
+		i = 10;
+		csr |= E_DRAIN;
+		L64854_SCSR(dma, csr);
+		while (i-- > 0 && (L64854_GCSR(dma) & E_DRAINING))
+			DELAY(1);
+		lesc->sc_dodrain = 0;
+	}
+
+	return (rv);
+#endif
 }
 
 static void
