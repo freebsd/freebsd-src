@@ -230,6 +230,23 @@
       (50 udpMIB
       )
   ))
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+	  (3 begemotIp
+	    (1 begemotIpObjects
+	      (1 begemotMib2
+		(1 begemotIfMaxspeed COUNTER64 op_begemot_mibII GET)
+		(2 begemotIfPoll TIMETICKS op_begemot_mibII GET)
+		(3 begemotIfForcePoll TIMETICKS op_begemot_mibII GET SET)
+	      )
+	    )
+	  )
+        )
+      )
+    )
+  )
   (6 snmpV2
     (3 snmpModules
       (1 snmpMIB
