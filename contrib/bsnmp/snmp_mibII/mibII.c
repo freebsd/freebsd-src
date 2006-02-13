@@ -105,6 +105,18 @@ struct clockinfo clockinfo;
 /* list of all New if registrations */
 static struct newifreg_list newifreg_list = TAILQ_HEAD_INITIALIZER(newifreg_list);
 
+/* baud rate of fastest interface */
+uint64_t mibif_maxspeed;
+
+/* user-forced update interval */
+u_int mibif_force_hc_update_interval;
+
+/* current update interval */
+u_int mibif_hc_update_interval;
+
+/* HC update timer handle */
+static void *hc_update_timer;
+
 /*****************************/
 
 static const struct asn_oid oid_ifMIB = OIDX_ifMIB;
@@ -280,16 +292,15 @@ link_trap(struct mibif *ifp, int up)
 	    (struct snmp_value *)NULL);
 }
 
-/*
- * Fetch new MIB data.
+/**
+ * Fetch the GENERIC IFMIB and update the HC counters
  */
-int
-mib_fetch_ifmib(struct mibif *ifp)
+static int
+fetch_generic_mib(struct mibif *ifp, const struct ifmibdata *old)
 {
 	int name[6];
 	size_t len;
-	void *newmib;
-	struct ifmibdata oldmib = ifp->mib;
+	struct mibif_private *p = ifp->private;
 
 	name[0] = CTL_NET;
 	name[1] = PF_LINK;
@@ -305,6 +316,113 @@ mib_fetch_ifmib(struct mibif *ifp)
 			    ifp->name);
 		return (-1);
 	}
+
+	/*
+	 * Assume that one of the two following compounds is optimized away
+	 */
+	if (ULONG_MAX >= 0xffffffffffffffffULL) {
+		p->hc_inoctets = ifp->mib.ifmd_data.ifi_ibytes;
+		p->hc_outoctets = ifp->mib.ifmd_data.ifi_obytes;
+		p->hc_omcasts = ifp->mib.ifmd_data.ifi_omcasts;
+		p->hc_opackets = ifp->mib.ifmd_data.ifi_opackets;
+		p->hc_imcasts = ifp->mib.ifmd_data.ifi_imcasts;
+		p->hc_ipackets = ifp->mib.ifmd_data.ifi_ipackets;
+
+	} else if (ULONG_MAX >= 0xffffffff) {
+
+#define	UPDATE(HC, MIB)							\
+		if (old->ifmd_data.MIB > ifp->mib.ifmd_data.MIB)	\
+			p->HC += (0x100000000ULL +			\
+			    ifp->mib.ifmd_data.MIB) -			\
+			    old->ifmd_data.MIB;				\
+		else							\
+			p->HC += ifp->mib.ifmd_data.MIB -		\
+			    old->ifmd_data.MIB;
+
+		UPDATE(hc_inoctets, ifi_ibytes)
+		UPDATE(hc_outoctets, ifi_obytes)
+		UPDATE(hc_omcasts, ifi_omcasts)
+		UPDATE(hc_opackets, ifi_opackets)
+		UPDATE(hc_imcasts, ifi_imcasts)
+		UPDATE(hc_ipackets, ifi_ipackets)
+
+#undef	UPDATE
+	} else
+		abort();
+	return (0);
+}
+
+/**
+ * Update the 64-bit interface counters
+ */
+static void
+update_hc_counters(void *arg __unused)
+{
+	struct mibif *ifp;
+	struct ifmibdata oldmib;
+
+	TAILQ_FOREACH(ifp, &mibif_list, link) {
+		oldmib = ifp->mib;
+		(void)fetch_generic_mib(ifp, &oldmib);
+	}
+}
+
+/**
+ * Recompute the poll timer for the HC counters
+ */
+void
+mibif_reset_hc_timer(void)
+{
+	u_int ticks;
+
+	if ((ticks = mibif_force_hc_update_interval) == 0) {
+		if (mibif_maxspeed <= 10000000) {
+			/* at 10Mbps overflow needs 3436 seconds */
+			ticks = 3000 * 100;	/* 50 minutes */
+		} else if (mibif_maxspeed <= 100000000) {
+			/* at 100Mbps overflow needs 343 seconds */
+			ticks = 300 * 100;	/* 5 minutes */
+		} else if (mibif_maxspeed < 650000000) {
+			/* at 622Mbps overflow needs 53 seconds */
+			ticks = 40 * 100;	/* 40 seconds */
+		} else if (mibif_maxspeed <= 1000000000) {
+			/* at 1Gbps overflow needs  34 seconds */
+			ticks = 20 * 100;	/* 20 seconds */
+		} else {
+			/* at 10Gbps overflow needs 3.4 seconds */
+			ticks = 100;		/* 1 seconds */
+		}
+	}
+
+	if (ticks == mibif_hc_update_interval)
+		return;
+
+	if (hc_update_timer != NULL) {
+		timer_stop(hc_update_timer);
+		hc_update_timer = NULL;
+	}
+	update_hc_counters(NULL);
+	if ((hc_update_timer = timer_start_repeat(ticks * 10, ticks * 10,
+	    update_hc_counters, NULL, module)) == NULL) {
+		syslog(LOG_ERR, "timer_start(%u): %m", ticks);
+		return;
+	}
+	mibif_hc_update_interval = ticks;
+}
+
+/*
+ * Fetch new MIB data.
+ */
+int
+mib_fetch_ifmib(struct mibif *ifp)
+{
+	int name[6];
+	size_t len;
+	void *newmib;
+	struct ifmibdata oldmib = ifp->mib;
+
+	if (fetch_generic_mib(ifp, &oldmib) == -1)
+		return (-1);
 
 	/*
 	 * Quoting RFC2863, 3.1.15: "... LinkUp and linkDown traps are
@@ -324,10 +442,19 @@ mib_fetch_ifmib(struct mibif *ifp)
 		if (ifp->mib.ifmd_data.ifi_baudrate > 650000000)
 			ifp->flags |= MIBIF_VERYHIGHSPEED;
 	}
+	if (ifp->mib.ifmd_data.ifi_baudrate > mibif_maxspeed) {
+		mibif_maxspeed = ifp->mib.ifmd_data.ifi_baudrate;
+		mibif_reset_hc_timer();
+	}
 
 	/*
 	 * linkspecific MIB
 	 */
+	name[0] = CTL_NET;
+	name[1] = PF_LINK;
+	name[2] = NETLINK_GENERIC;
+	name[3] = IFMIB_IFDATA;
+	name[4] = ifp->sysindex;
 	name[5] = IFDATA_LINKSPECIFIC;
 	if (sysctl(name, 6, NULL, &len, NULL, 0) == -1) {
 		syslog(LOG_WARNING, "sysctl linkmib estimate (%s): %m",
@@ -519,6 +646,7 @@ get_physaddr(struct mibif *ifp, struct sockaddr_dl *sdl, u_char *ptr)
 static void
 mibif_free(struct mibif *ifp)
 {
+	struct mibif *ifp1;
 	struct mibindexmap *map;
 	struct mibifa *ifa, *ifa1;
 	struct mibrcvaddr *rcv, *rcv1;
@@ -531,6 +659,18 @@ mibif_free(struct mibif *ifp)
 	(void)mib_ifstack_delete(NULL, ifp);
 
 	TAILQ_REMOVE(&mibif_list, ifp, link);
+
+	/* if this was the fastest interface - recompute this */
+	if (ifp->mib.ifmd_data.ifi_baudrate == mibif_maxspeed) {
+		mibif_maxspeed = ifp->mib.ifmd_data.ifi_baudrate;
+		TAILQ_FOREACH(ifp1, &mibif_list, link)
+			if (ifp1->mib.ifmd_data.ifi_baudrate > mibif_maxspeed)
+				mibif_maxspeed =
+				    ifp1->mib.ifmd_data.ifi_baudrate;
+		mibif_reset_hc_timer();
+	}
+
+	free(ifp->private);
 	if (ifp->physaddr != NULL)
 		free(ifp->physaddr);
 	if (ifp->specmib != NULL)
@@ -589,6 +729,13 @@ mibif_create(u_int sysindex, const char *name)
 		return (NULL);
 	}
 	memset(ifp, 0, sizeof(*ifp));
+	if ((ifp->private = malloc(sizeof(struct mibif_private))) == NULL) {
+		syslog(LOG_WARNING, "%s: %m", __func__);
+		free(ifp);
+		return (NULL);
+	}
+	memset(ifp->private, 0, sizeof(struct mibif_private));
+
 	ifp->sysindex = sysindex;
 	strcpy(ifp->name, name);
 	strcpy(ifp->descr, name);

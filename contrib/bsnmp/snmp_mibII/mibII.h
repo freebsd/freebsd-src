@@ -56,7 +56,6 @@
 #include "snmp_mibII.h"
 #include "mibII_tree.h"
 
-
 /*
  * Interface list and flags.
  */
@@ -66,12 +65,19 @@ enum {
 	MIBIF_HIGHSPEED		= 0x0002,
 	MIBIF_VERYHIGHSPEED	= 0x0004,
 };
-#define hc_inoctets	mib.ifmd_data.ifi_ibytes
-#define hc_outoctets	mib.ifmd_data.ifi_obytes
-#define hc_omcasts	mib.ifmd_data.ifi_omcasts
-#define hc_opackets	mib.ifmd_data.ifi_opackets
-#define hc_imcasts	mib.ifmd_data.ifi_imcasts
-#define hc_ipackets	mib.ifmd_data.ifi_ipackets
+
+/*
+ * Private mibif data - hang off from the mibif.
+ */
+struct mibif_private {
+	uint64_t	hc_inoctets;
+	uint64_t	hc_outoctets;
+	uint64_t	hc_omcasts;
+	uint64_t	hc_opackets;
+	uint64_t	hc_imcasts;
+	uint64_t	hc_ipackets;
+};
+#define	MIBIF_PRIV(IFP) ((struct mibif_private *)((IFP)->private))
 
 /*
  * Interface addresses.
@@ -192,6 +198,18 @@ extern uint64_t mibarpticks;
 
 /* info on system clocks */
 extern struct clockinfo clockinfo;
+
+/* baud rate of fastest interface */
+extern uint64_t mibif_maxspeed;
+
+/* user-forced update interval */
+extern u_int mibif_force_hc_update_interval;
+
+/* current update interval */
+extern u_int mibif_hc_update_interval;
+
+/* re-compute update interval */
+void mibif_reset_hc_timer(void);
 
 /* get interfaces and interface addresses. */
 void mib_fetch_interfaces(void);

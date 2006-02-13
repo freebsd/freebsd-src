@@ -79,6 +79,9 @@ struct mibif {
 
 	/* to be set by ifType specific modules. This is ifSpecific. */
 	struct asn_oid	spec_oid;
+
+	/* private data - don't touch */
+	void		*private;
 };
 
 /*
