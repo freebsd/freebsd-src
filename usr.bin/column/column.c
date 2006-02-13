@@ -141,7 +141,7 @@ main(int argc, char **argv)
 	if (!entries)
 		exit(eval);
 
-	maxlength = roundup(maxlength, TAB);
+	maxlength = roundup(maxlength + TAB, TAB);
 	if (tflag)
 		maketbl();
 	else if (maxlength >= termwidth)
@@ -171,7 +171,7 @@ c_columnate(void)
 			endcol = maxlength;
 			putwchar('\n');
 		} else {
-			while ((cnt = roundup(chcnt, TAB)) <= endcol) {
+			while ((cnt = roundup(chcnt + TAB, TAB)) <= endcol) {
 				(void)putwchar('\t');
 				chcnt = cnt;
 			}
@@ -199,7 +199,7 @@ r_columnate(void)
 			chcnt += width(list[base]);
 			if ((base += numrows) >= entries)
 				break;
-			while ((cnt = roundup(chcnt, TAB)) <= endcol) {
+			while ((cnt = roundup(chcnt + TAB, TAB)) <= endcol) {
 				(void)putwchar('\t');
 				chcnt = cnt;
 			}
