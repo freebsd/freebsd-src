@@ -3,7 +3,7 @@ This menu allows you to configure the Securelevel mechanism in FreeBSD.
 Securelevels may be used to limit the privileges assigned to the
 root user in multi-user mode, which in turn may limit the effects of
 a root compromise, at the cost of reducing administrative functions.
-Refer to the init(8) manual page for complete details.
+Refer to the security(7) manual page for complete details.
 
    -1    Permanently insecure mode - always run the system in level 0
          mode.  This is the default initial value.
@@ -21,7 +21,7 @@ Refer to the init(8) manual page for complete details.
          be opened for writing (except by mount(2)) whether mounted or
          not.  This level precludes tampering with file systems by
          unmounting them, but also inhibits running newfs(8) while the
-         system is multi- user.
+         system is multi-user.
 
          In addition, kernel time changes are restricted to less than
          or equal to one second.  Attempts to change the time by more
