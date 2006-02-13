@@ -66,9 +66,6 @@ archdep_start()
 		osf1_compat
 		unaligned_warnings
 		;;
-	ia64)
-		unaligned_warnings
-		;;
 	esac
 	echo '.'
 }
