@@ -145,8 +145,7 @@ static __inline struct ksem *id_to_sem(semid_t id);
 
 static __inline
 struct ksem *
-id_to_sem(id)
-	semid_t id;
+id_to_sem(semid_t id)
 {
 	struct ksem *ks;
 
@@ -161,8 +160,7 @@ id_to_sem(id)
 }
 
 static struct ksem *
-sem_lookup_byname(name)
-	const char *name;
+sem_lookup_byname(const char *name)
 {
 	struct ksem *ks;
 
@@ -174,12 +172,8 @@ sem_lookup_byname(name)
 }
 
 static int
-sem_create(td, name, ksret, mode, value)
-	struct thread *td;
-	const char *name;
-	struct ksem **ksret;
-	mode_t mode;
-	unsigned int value;
+sem_create(struct thread *td, const char *name, struct ksem **ksret,
+    mode_t mode, unsigned int value)
 {
 	struct ksem *ret;
 	struct proc *p;
@@ -246,9 +240,7 @@ struct ksem_init_args {
 int ksem_init(struct thread *td, struct ksem_init_args *uap);
 #endif
 int
-ksem_init(td, uap)
-	struct thread *td;
-	struct ksem_init_args *uap;
+ksem_init(struct thread *td, struct ksem_init_args *uap)
 {
 	int error;
 
@@ -257,11 +249,7 @@ ksem_init(td, uap)
 }
 
 static int
-kern_sem_init(td, dir, value, idp)
-	struct thread *td;
-	int dir;
-	unsigned int value;
-	semid_t *idp;
+kern_sem_init(struct thread *td, int dir, unsigned int value, semid_t *idp)
 {
 	struct ksem *ks;
 	semid_t id;
@@ -300,9 +288,7 @@ struct ksem_open_args {
 int ksem_open(struct thread *td, struct ksem_open_args *uap);
 #endif
 int
-ksem_open(td, uap)
-	struct thread *td;
-	struct ksem_open_args *uap;
+ksem_open(struct thread *td, struct ksem_open_args *uap)
 {
 	char name[SEM_MAX_NAMELEN + 1];
 	size_t done;
@@ -319,14 +305,8 @@ ksem_open(td, uap)
 }
 
 static int
-kern_sem_open(td, dir, name, oflag, mode, value, idp)
-	struct thread *td;
-	int dir;
-	const char *name;
-	int oflag;
-	mode_t mode;
-	unsigned int value;
-	semid_t *idp;
+kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
+    mode_t mode, unsigned int value, semid_t *idp)
 {
 	struct ksem *ksnew, *ks;
 	int error;
@@ -433,9 +413,7 @@ err_open:
 }
 
 static int
-sem_perm(td, ks)
-	struct thread *td;
-	struct ksem *ks;
+sem_perm(struct thread *td, struct ksem *ks)
 {
 	struct ucred *uc;
 
@@ -466,9 +444,7 @@ sem_free(struct ksem *ks)
 static __inline struct kuser *sem_getuser(struct proc *p, struct ksem *ks);
 
 static __inline struct kuser *
-sem_getuser(p, ks)
-	struct proc *p;
-	struct ksem *ks;
+sem_getuser(struct proc *p, struct ksem *ks)
 {
 	struct kuser *k;
 
@@ -479,9 +455,7 @@ sem_getuser(p, ks)
 }
 
 static int
-sem_hasopen(td, ks)
-	struct thread *td;
-	struct ksem *ks;
+sem_hasopen(struct thread *td, struct ksem *ks)
 {
 	
 	return ((ks->ks_name == NULL && sem_perm(td, ks) == 0)
@@ -489,9 +463,7 @@ sem_hasopen(td, ks)
 }
 
 static int
-sem_leave(p, ks)
-	struct proc *p;
-	struct ksem *ks;
+sem_leave(struct proc *p, struct ksem *ks)
 {
 	struct kuser *k;
 
@@ -538,9 +510,7 @@ int ksem_unlink(struct thread *td, struct ksem_unlink_args *uap);
 #endif
 	
 int
-ksem_unlink(td, uap)
-	struct thread *td;
-	struct ksem_unlink_args *uap;
+ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
 	char name[SEM_MAX_NAMELEN + 1];
 	size_t done;
@@ -552,9 +522,7 @@ ksem_unlink(td, uap)
 }
 
 static int
-kern_sem_unlink(td, name)
-	struct thread *td;
-	const char *name;
+kern_sem_unlink(struct thread *td, const char *name)
 {
 	struct ksem *ks;
 	int error;
@@ -597,9 +565,7 @@ ksem_close(struct thread *td, struct ksem_close_args *uap)
 }
 
 static int
-kern_sem_close(td, id)
-	struct thread *td;
-	semid_t id;
+kern_sem_close(struct thread *td, semid_t id)
 {
 	struct ksem *ks;
 	int error;
@@ -621,18 +587,14 @@ struct ksem_post_args {
 int ksem_post(struct thread *td, struct ksem_post_args *uap);
 #endif
 int
-ksem_post(td, uap)
-	struct thread *td;
-	struct ksem_post_args *uap;
+ksem_post(struct thread *td, struct ksem_post_args *uap)
 {
 
 	return (kern_sem_post(td, uap->id));
 }
 
 static int
-kern_sem_post(td, id)
-	struct thread *td;
-	semid_t id;
+kern_sem_post(struct thread *td, semid_t id)
 {
 	struct ksem *ks;
 	int error;
@@ -669,9 +631,7 @@ int ksem_wait(struct thread *td, struct ksem_wait_args *uap);
 #endif
 
 int
-ksem_wait(td, uap)
-	struct thread *td;
-	struct ksem_wait_args *uap;
+ksem_wait(struct thread *td, struct ksem_wait_args *uap)
 {
 
 	return (kern_sem_wait(td, uap->id, 0, NULL));
@@ -685,9 +645,7 @@ struct ksem_timedwait_args {
 int ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap);
 #endif
 int
-ksem_timedwait(td, uap)
-	struct thread *td;
-	struct ksem_timedwait_args *uap;
+ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
 {
 	struct timespec abstime;
 	struct timespec *ts;
@@ -714,20 +672,15 @@ struct ksem_trywait_args {
 int ksem_trywait(struct thread *td, struct ksem_trywait_args *uap);
 #endif
 int
-ksem_trywait(td, uap)
-	struct thread *td;
-	struct ksem_trywait_args *uap;
+ksem_trywait(struct thread *td, struct ksem_trywait_args *uap)
 {
 
 	return (kern_sem_wait(td, uap->id, 1, NULL));
 }
 
 static int
-kern_sem_wait(td, id, tryflag, abstime)
-	struct thread *td;
-	semid_t id;
-	int tryflag;
-	struct timespec *abstime;
+kern_sem_wait(struct thread *td, semid_t id, int tryflag,
+    struct timespec *abstime)
 {
 	struct timespec ts1, ts2;
 	struct timeval tv;
@@ -800,9 +753,7 @@ struct ksem_getvalue_args {
 int ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap);
 #endif
 int
-ksem_getvalue(td, uap)
-	struct thread *td;
-	struct ksem_getvalue_args *uap;
+ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 {
 	struct ksem *ks;
 	int error, val;
@@ -833,9 +784,7 @@ struct ksem_destroy_args {
 int ksem_destroy(struct thread *td, struct ksem_destroy_args *uap);
 #endif
 int
-ksem_destroy(td, uap)
-	struct thread *td;
-	struct ksem_destroy_args *uap;
+ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 {
 	struct ksem *ks;
 	int error;
@@ -868,8 +817,7 @@ err:
  * many to allocate when forking.
  */
 static int
-sem_count_proc(p)
-	struct proc *p;
+sem_count_proc(struct proc *p)
 {
 	struct ksem *ks;
 	struct kuser *ku;
@@ -903,11 +851,7 @@ sem_count_proc(p)
  * then we enter the semaphores and release the temporary references.
  */
 static void
-sem_forkhook(arg, p1, p2, flags)
-	void *arg;
-	struct proc *p1;
-	struct proc *p2;
-	int flags;
+sem_forkhook(void *arg, struct proc *p1, struct proc *p2, int flags)
 {
 	struct ksem *ks, **sem_array;
 	int count, i, new_count;
@@ -975,9 +919,7 @@ race_lost:
 }
 
 static void
-sem_exithook(arg, p)
-	void *arg;
-	struct proc *p;
+sem_exithook(void *arg, struct proc *p)
 {
 	struct ksem *ks, *ksnext;
 
