@@ -33,6 +33,7 @@ display_usage () {
   echo "  -d  Add date and time to directory name (e.g., /var/tmp/temproot.`date +%m%d.%H.%M`)"
   echo "  -u N  Specify a numeric umask"
   echo "  -w N  Specify a screen width in columns to sdiff"
+  echo "  -A architecture  Alternative architecture name to pass to make"
   echo '  -D /path/directory  Specify the destination directory to install files to'
   echo ''
 }
@@ -238,8 +239,11 @@ fi
 
 # Check the command line options
 #
-while getopts ":ascrvhipCPm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
+while getopts ":ascrvhipCPm:t:du:w:D:A:" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
+  A)
+    ARCHSTRING='MACHINE_ARCH='${OPTARG}
+    ;;
   s)
     STRICT=yes
     unset DIFF_OPTIONS
@@ -503,14 +507,14 @@ case "${RERUN}" in
       case "${DESTDIR}" in
       '') ;;
       *)
-      make DESTDIR=${DESTDIR} distrib-dirs
+      make DESTDIR=${DESTDIR} ${ARCHSTRING} distrib-dirs
         ;;
       esac
-      make DESTDIR=${TEMPROOT} distrib-dirs &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make obj &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make all &&
-      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make DESTDIR=${TEMPROOT} \
-          distribution;} ||
+      make DESTDIR=${TEMPROOT} ${ARCHSTRING} distrib-dirs &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} obj &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} all &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make ${ARCHSTRING} \
+	  DESTDIR=${TEMPROOT} distribution;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
