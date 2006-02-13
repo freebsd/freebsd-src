@@ -90,7 +90,8 @@ static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
 static int	issignal(struct thread *p);
 static int	sigprop(int sig);
-static void	tdsigwakeup(struct thread *td, int sig, sig_t action);
+static void	tdsigwakeup(struct thread *, int, sig_t);
+static void	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
@@ -2046,7 +2047,6 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
 	sig_t action;
 	sigqueue_t *sigqueue;
-	struct thread *td0;
 	int prop;
 	struct sigacts *ps;
 	int ret = 0;
@@ -2276,15 +2276,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
 			mtx_lock_spin(&sched_lock);
-			FOREACH_THREAD_IN_PROC(p, td0) {
-				if (TD_IS_SLEEPING(td0) &&
-				    (td0->td_flags & TDF_SINTR) &&
-				    !TD_IS_SUSPENDED(td0)) {
-					thread_suspend_one(td0);
-				} else {
-					td0->td_flags |= TDF_ASTPENDING;
-				}
-			}
+			sig_suspend_threads(td, p, 1);
 			if (p->p_numthreads == p->p_suspcount) {
 				/*
 				 * only thread sending signal to another
@@ -2397,11 +2389,34 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 	}
 }
 
+static void
+sig_suspend_threads(struct thread *td, struct proc *p, int sending)
+{
+	struct thread *td2;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	FOREACH_THREAD_IN_PROC(p, td2) {
+		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
+		    (td2->td_flags & TDF_SINTR) &&
+		    !TD_IS_SUSPENDED(td2)) {
+			thread_suspend_one(td2);
+		} else {
+			if (sending || td != td2)
+				td2->td_flags |= TDF_ASTPENDING;
+#ifdef SMP
+			if (TD_IS_RUNNING(td2) && td2 != td)
+				forward_signal(td2);
+#endif
+		}
+	}
+}
+
 int
 ptracestop(struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
-	struct thread *td0;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
@@ -2426,15 +2441,7 @@ ptracestop(struct thread *td, int sig)
 		p->p_xthread = td;
 		p->p_flag |= (P_STOPPED_SIG|P_STOPPED_TRACE);
 		mtx_lock_spin(&sched_lock);
-		FOREACH_THREAD_IN_PROC(p, td0) {
-			if (TD_IS_SLEEPING(td0) &&
-			    (td0->td_flags & TDF_SINTR) &&
-			    !TD_IS_SUSPENDED(td0)) {
-				thread_suspend_one(td0);
-			} else if (td != td0) {
-				td0->td_flags |= TDF_ASTPENDING;
-			}
-		}
+		sig_suspend_threads(td, p, 0);
 stopme:
 		thread_stopped(p);
 		thread_suspend_one(td);
@@ -2476,7 +2483,6 @@ issignal(td)
 	struct sigacts *ps;
 	sigset_t sigpending;
 	int sig, prop, newsig;
-	struct thread *td0;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
@@ -2602,15 +2608,7 @@ issignal(td)
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
 				mtx_lock_spin(&sched_lock);
-				FOREACH_THREAD_IN_PROC(p, td0) {
-					if (TD_IS_SLEEPING(td0) &&
-					    (td0->td_flags & TDF_SINTR) &&
-					    !TD_IS_SUSPENDED(td0)) {
-						thread_suspend_one(td0);
-					} else if (td != td0) {
-						td0->td_flags |= TDF_ASTPENDING;
-					}
-				}
+				sig_suspend_threads(td, p, 0);
 				thread_stopped(p);
 				thread_suspend_one(td);
 				PROC_UNLOCK(p);
