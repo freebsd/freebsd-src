@@ -17,3 +17,5 @@ FTP Root Directory:
 Upload subdirectory:
 
         Where files uploaded by anonymous FTP users will go.
+        If you do not wish to allow anonymous uploads, then this
+        field should be blank - note that this is not the default!
