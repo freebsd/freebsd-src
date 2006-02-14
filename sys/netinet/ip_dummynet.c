@@ -769,7 +769,7 @@ dummynet_send(struct mbuf *m)
 		pkt = dn_tag_get(m);
 		switch (pkt->dn_dir) {
 		case DN_TO_IP_OUT:
-			ip_output(m, NULL, NULL, pkt->flags, NULL, NULL);
+			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
 		  case DN_TO_IP_IN :
 			ip = mtod(m, struct ip *);
@@ -783,7 +783,7 @@ dummynet_send(struct mbuf *m)
 			break;
 
 		case DN_TO_IP6_OUT:
-			ip6_output(m, NULL, NULL, pkt->flags, NULL, NULL, NULL);
+			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
 			break;
 #endif
 		case DN_TO_IFB_FWD:
@@ -1129,7 +1129,6 @@ locate_pipe(int pipe_nr)
  * ifp		the 'ifp' parameter from the caller.
  *		NULL in ip_input, destination interface in ip_output,
  * rule		matching rule, in case of multiple passes
- * flags	flags from the caller, only used in ip_output
  *
  */
 static int
@@ -1213,8 +1212,6 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
     pkt->dn_dir = dir ;
 
     pkt->ifp = fwa->oif;
-    if (dir == DN_TO_IP_OUT || dir == DN_TO_IP6_OUT)
-	pkt->flags = fwa->flags;
 
     if (q->head == NULL)
 	q->head = m;
