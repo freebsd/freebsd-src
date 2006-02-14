@@ -500,7 +500,6 @@ USB_ATTACH(axe)
 	ifp->if_start = axe_start;
 	ifp->if_watchdog = axe_watchdog;
 	ifp->if_init = axe_init;
-	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	sc->axe_qdat.ifp = ifp;
