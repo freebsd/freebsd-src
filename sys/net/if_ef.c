@@ -495,7 +495,7 @@ ef_load(void)
 {
 	struct ifnet *ifp;
 	struct efnet *efp;
-	struct ef_link *efl = NULL;
+	struct ef_link *efl = NULL, *efl_temp;
 	int error = 0, d;
 
 	IFNET_RLOCK();
@@ -533,7 +533,7 @@ ef_load(void)
 	if (error) {
 		if (efl)
 			SLIST_INSERT_HEAD(&efdev, efl, el_next);
-		SLIST_FOREACH(efl, &efdev, el_next) {
+		SLIST_FOREACH_SAFE(efl, &efdev, el_next, efl_temp) {
 			for (d = 0; d < EF_NFT; d++)
 				if (efl->el_units[d]) {
 					if (efl->el_units[d]->ef_pifp != NULL)
