@@ -41,42 +41,44 @@
 .In netinet6/ipsec.h
 .Sh DESCRIPTION
 .Nm
-is a security protocol in Internet Protocol layer.
+is a security protocol implemented within the Internet Protocol layer
+of the TCP/IP stack.
 .Nm
 is defined for both IPv4 and IPv6
 .Xr ( inet 4
 and
 .Xr inet6 4 ) .
 .Nm
-consists of two sub-protocols, namely
-ESP
-(encapsulated security payload)
-and AH
-(authentication header).
-ESP protects IP payload from wire-tapping by encrypting it by
+contains two protocols, 
+ESP, the encapsulated security payload protocol and
+AH, the authentication header protocol.
+ESP prevents unauthorized parties from reading the payload of an IP packet
+by encrypting it using
 secret key cryptography algorithms.
-AH guarantees integrity of IP packet
-and protects it from intermediate alteration or impersonation,
-by attaching cryptographic checksum computed by one-way hash functions.
+AH both authenticates guarantees the integrity of an IP packet
+by attaching a cryptographic checksum computed using one-way hash functions.
 .Nm
-has two operation modes: transport mode and tunnel mode.
-Transport mode is for protecting peer-to-peer communication between end nodes.
-Tunnel mode includes IP-in-IP encapsulation operation
-and is designed for security gateways, like VPN configurations.
+has operates in one of two modes: transport mode or tunnel mode.
+Transport mode is used to protect peer-to-peer communication between end nodes.
+Tunnel mode encapsulates IP packets within other IP packets
+and is designed for security gateways such as VPN endpoints.
 .\"
 .Ss Kernel interface
 .Nm
-is controlled by key management engine and policy engine,
-in the operating system kernel.
+is controlled by a key management and policy engine,
+that reside in the operating system kernel.  Key management
+is the process of associating keys with security associations, also
+know as SAs.  Policy management dictates when new security
+associations created or destroyed.
 .Pp
-Key management engine can be accessed from the userland by using
+The key management engine can be accessed from userland by using
 .Dv PF_KEY
 sockets.
 The
 .Dv PF_KEY
 socket API is defined in RFC2367.
 .Pp
-Policy engine can be controlled by extended part of
+The policy engine is controlled by an extension to the
 .Dv PF_KEY
 API,
 .Xr setsockopt 2
@@ -84,48 +86,41 @@ operations, and
 .Xr sysctl 3
 interface.
 The kernel implements
-extended version of
+an extended version of the
 .Dv PF_KEY
-interface, and allows you to define IPsec policy like per-packet filters.
+interface, and allows the programmer to define IPsec policies
+which are similar to the per-packet filters.  The
 .Xr setsockopt 2
 interface is used to define per-socket behavior, and
 .Xr sysctl 3
 interface is used to define host-wide default behavior.
 .Pp
-The kernel code does not implement dynamic encryption key exchange protocol
-like IKE
+The kernel code does not implement a dynamic encryption key exchange protocol
+such as IKE
 (Internet Key Exchange).
-That should be implemented as userland programs
-(usually as daemons),
-by using the above described APIs.
+Key exchange protocols are beyond what is necessary in the kernel and
+should be implemented as daemon processes which call the
+.Nm APIs.
 .\"
 .Ss Policy management
-The kernel implements experimental policy management code.
-You can manage the IPsec policy in two ways.
-One is to configure per-socket policy using
-.Xr setsockopt 2 .
-The other is to configure kernel packet filter-based policy using
+IPSec policies can be managed in one of two ways, either by 
+configuring per-socket policies using the
+.Xr setsockopt 2 
+system calls, or by configuring kernel level packet filter-based
+policies using the
 .Dv PF_KEY
-interface, via
-.Xr setkey 8 .
-In both cases, IPsec policy must be specified with syntax described in
+interface, via the
+.Xr setkey 8 
+command.
+In either cases, IPsec policies must be specified using the syntax described in
 .Xr ipsec_set_policy 3 .
-.Pp
-With
-.Xr setsockopt 2 ,
-you can define IPsec policy in per-socket basis.
-You can enforce particular IPsec policy onto packets that go through
-particular socket.
-.Pp
-With
+Please refer to the
 .Xr setkey 8
-you can define IPsec policy against packets,
-using sort of packet filtering rule.
-Refer to
-.Xr setkey 8
-on how to use it.
+man page for instructionson its use.
 .Pp
-In the latter case,
+When setting policies using the
+.Xr setkey 8
+command the
 .Dq Li default
 policy is allowed for use with
 .Xr setkey 8 .
