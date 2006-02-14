@@ -1,6 +1,7 @@
 #!/bin/sh -
 #
 # $FreeBSD$
+# This file requires sysutils/makefs to run
 #
 # The new PicoBSD build script. Invoked as
 #
@@ -111,34 +112,33 @@ set_defaults() {
     o_do_modules=""		# do not build modules
 
     SRC="/usr/src"		# default location for sources
-    c_startdir=`pwd`	# directory where we start
-			# used to lookup config and create BUILDDIR
+    c_startdir=`pwd`		# directory where we start
+				# used to lookup config and create BUILDDIR
 
+    # XXX 6.x/7.x have a single /boot/boot block, which is the concatenation
+    # of the old two. For the time being, we keep these, but this should
+    # be fixed at some point.
+
+    # blocks
     c_boot1=/boot/boot1		# boot blocks (in case you want custom ones)
     c_boot2=/boot/boot2
 
     c_reply=${c_reply:-`mktemp "/tmp/reply.XXXXXXXXXX"`}
-    			# file where User replies will be put
+    				# file where User replies will be put
     c_mnt=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
-    			# mountpoint used to build memory filesystems
-    c_fs=fs.PICOBSD	# filename used for the memory filesystem
-    c_img=picobsd.bin	# filename used for the picobsd image
+    				# mountpoint used to build memory filesystems
+    c_fs=fs.PICOBSD		# filename used for the memory filesystem
+    c_img=picobsd.bin		# filename used for the picobsd image
 
     # select the right memory disk name
     case `uname -r` in
-	5.*)
-	    l_vn="md"
-	    l_makedev="${SRC}/etc/MAKEDEV"
+	7.*|6.*|5.*)
+	    l_label="bsdlabel"
 	    ;;
 	*)
-	    l_vn="vn"
-	    l_makedev="/dev/MAKEDEV"
+	    l_label="disklabel"
 	    ;;
     esac
-    l_newfs="-m 0 -o space -f 512 -b 4096"
-    # Find a suitable vnode
-    l_vnum=`mount | awk "/${l_vn}/ { num++ } END { printf \"%d\", num }"`
-    l_vndev=${l_vn}${l_vnum}
 
     set -e
 
@@ -146,15 +146,21 @@ set_defaults() {
     #trap fail 3
     #trap fail 6
     trap fail 15
-    free_vnode			# cleanup old vnodes
 }
 
 create_includes_and_libraries2() {
+    local no
     log "create_includes_and_libraries2() for ${SRC}"
+    if [ ${OSVERSION} -ge 600000 ] ; then
+	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R"
+    else
+	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
+    fi
     MAKEOBJDIRPREFIX=${l_objtree}
     export MAKEOBJDIRPREFIX
     ( cd ${SRC};
-    make -DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R -DPICOBSD buildworld
+    # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
+    make _+_= $no toolchain
     )
 }
 
@@ -178,11 +184,12 @@ create_includes_and_libraries() {
 
     (cd ${SRC}
 	# $e is the invocation of make with correct environment
+	# XXX check the NO* options below, maybe system dependent.
 	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
 	    BINOWN=`id -un` BINGRP=`id -gn` \
 	    DESTDIR=${l_usrtree}/.. \
 	    make -m ${SRC}/share/mk \
-		-DNO_HTML -DNO_INFO -DNO_MAN -DNO_SHARE -DNO_FSCHG "
+		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
 	log "do a 'make obj' in a few places."
 	# This is very version-specific... The following works for 5.0
 	for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
@@ -190,7 +197,7 @@ create_includes_and_libraries() {
 	    (cd ${i}; eval $e obj)
 	done
 	log "now make the static libraries"
-	eval $e -DNO_PROFILE -DNO_PIC libraries
+	eval $e -DNOPROFILE -DNOPIC libraries
 	(cd ${SRC}/usr.sbin/config
 	eval $e		# build binary
 	eval $e	install	# install it
@@ -237,18 +244,6 @@ clean_tree() {
 	exit 3
     fi
     rm -rf ${BUILDDIR}
-}
-
-# free as much as possible from the vnode
-free_vnode() {
-    log "free_vnode() ${l_vndev} "
-    umount ${c_mnt}    2> /dev/null || true
-    umount /dev/${l_vndev}       2> /dev/null || true
-    if [ "${l_vn}" = "vn" ] ; then
-	vnconfig -u ${l_vndev} 2> /dev/null || true
-    else
-	mdconfig -d -u ${l_vnum} 2> /dev/null || true
-    fi
 }
 
 # prepare a message to be printed in the dialog menus.
@@ -433,7 +428,7 @@ do_install() {
 
     if [ "${o_interactive}" = "NO" ] ; then
 	echo "+++ Build completed +++"
-	cat .build.reply
+	cat .build.reply || true
 	return
     fi
     dialog --title "Build ${THETYPE} completed" --inputbox \
@@ -529,30 +524,6 @@ populate_floppy_fs() {		# OK
     ) || true
 }
 
-create_mfs() {		# OK
-    log "create_mfs() Preparing MFS filesystem..."
-
-    free_vnode
-
-    # zero-fill the MFS image
-    init_fs_image ${BUILDDIR}/${c_fs} ${MFS_SIZE}
-
-    log "Labeling MFS image"
-    # Disklabel "auto" behaves strangely for sizes < 1024K. Basically
-    # it fails to install a label on the system. On the other hand,
-    # if you provide a specific disk type, the boot code is not
-    # installed so you have more space on the disk...
-    # For small image sizes, use std disktypes
-    if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw ${l_vndev} fd${MFS_SIZE} || fail $? mfs_disklabel
-    else
-	disklabel -rw ${l_vndev} auto || fail $? mfs_disklabel
-    fi
-    newfs -i ${mfs_inodes} ${l_newfs} /dev/${l_vndev}c > /dev/null
-    mount /dev/${l_vndev}c ${c_mnt} || fail $? no_mount
-    log "`df /dev/${l_vndev}c`"
-}
-
 # Populate the memory filesystem with binaries and non-variable
 # configuration files.
 # First do an mtree pass, then create directory links and device entries,
@@ -564,16 +535,10 @@ populate_mfs_tree() {
     local a dst
 
     log "populate_mfs_tree()"
-    early_mfs_mount=0
-    if [ "${early_mfs_mount}" = "1" ] ; then
-	create_mfs
-        dst=${c_mnt}
-    else
-	dst=${BUILDDIR}/mfs.tree
-	# clean relics from old compilations.
-	rm -rf ${dst} || true
-	mkdir ${dst}
-    fi
+    dst=${BUILDDIR}/mfs.tree
+    # clean relics from old compilations.
+    rm -rf ${dst} || true
+    mkdir ${dst}
 
     log "pwd=`pwd`, Populating MFS tree..."
 
@@ -636,38 +601,23 @@ populate_mfs_tree() {
 
     if [ "${o_all_in_mfs}" = "yes" ]; then
 	log "Copy generic floppy_tree into MFS..."
-	cp -Rp ${BUILDDIR}/floppy.tree/* ${dst}/fd
+	# this may fail in case the floppy is empty
+	cp -Rp ${BUILDDIR}/floppy.tree/* ${dst}/fd || true
     fi
-
-    [ "`id -u`" = "0" ] || cat <<__EOF
-
-### -------------------------------------------------------------------
-###
-### WARNING: You are not running with root permissions, so the next
-### stages are likely to fail because they call commands such as
-### chown, {vn|md}config, mount/umount which need adequate rights.
-###
-### The results of the compilation so far is in directory
-###  ${BUILDDIR}
-### which has the following content:
-
-`ls -l ${BUILDDIR}`
-
-###
-### -------------------------------------------------------------------
-
-__EOF
 
     if [ "${o_no_devfs}" != "" ] ; then
 	# create device entries using MAKEDEV
 	(cd ${dst}/dev
-	ln -s ${l_makedev} ; chmod 555 MAKEDEV
-	./MAKEDEV ${MY_DEVS}
+	ln -s ${SRC}/etc/MAKEDEV ; chmod 555 MAKEDEV
+	# log `pwd`
+	sh ./MAKEDEV ${MY_DEVS}
 	rm MAKEDEV
 	)
     fi
-    log "Fixing permissions"
-    (cd ${dst}; chown -R root . )
+    if [ "`id -u`" = "0" ] ; then
+	log "Fixing permissions"
+	(cd ${dst}; chown -R root . )
+    fi
 
     if [ -n "${import_files}" ] ; then
 	log "importing ${import_files} into mfs"
@@ -679,22 +629,19 @@ __EOF
 	rm ${dst}/my_copy_of_tar
     fi
 
-    if [ "${early_mfs_mount}" != "1" ] ; then
-	create_mfs
-	log "Copy mfs tree into file"
-	(cd ${dst} ; tar cf - . ) | ( cd ${c_mnt} ; tar xf - )
-    fi
-    # now umount and fsck the filesystem.
-    log "Status of mfs image"
-    df -ik ${c_mnt}
-    umount ${c_mnt}
-    fsck -p /dev/${l_vndev}c
-    free_vnode
+    (cd ${BUILDDIR}
+	# override the owner
+	echo "/set uid=0 gid=0" > mtree.out
+	mtree -c -p ${dst} -k "" >> mtree.out
+	log "mtre.out at ${BUILDDIR}/mtree.out"
+	makefs -t ffs -o bsize=4096 -o fsize=512 \
+		-s ${MFS_SIZE}k -f 100 -F mtree.out ${c_fs} ${dst}
+	ls -l ${c_fs} )
+    log "done mfs image"
 }
 
 final_cleanup() {
     log "final_cleanup()"
-    free_vnode
     rm -rf ${c_mnt} ${c_reply} 2> /dev/null || true
     rm -f ${c_reply}
 }
@@ -710,25 +657,11 @@ fail() {
     where=$3
     echo "---> fail: Error <${errno}> error code <${errcode}> in <${where}>"
     case ${errcode} in
-    no_vnconfig)
-	echo "Error in vnconfig on /dev/${l_vndev}..."
-	echo "Either you are not running as root or your running kernel"
-	echo "does not have the ${l_vn}(4) device."
-	;;
-    mfs_disklabel)
-	echo "Error while labeling ${c_fs} size ${MFS_SIZE}"
-	;;
-    no_mount)
-	echo "Error while mounting ${c_fs} (/dev/${l_vndev}c) on ${c_mnt}"
-	;;
     mtree)
 	echo "Error while making hierarchy in ${c_mnt}"
 	;;
     crunch)
 	echo "Error while building ${name}."
-	;;
-    floppy_disklabel)
-	echo "Error while doing disklabel on of floppy.img size $fd_size"
 	;;
     missing_kernel)
 	echo "Error: you must build PICOBSD${suffix} kernel first"
@@ -762,90 +695,91 @@ fail() {
     exit 2
 }
 
-#
-# Create a zero-filled disk image with a boot sector, and vnconfig it.
-#
-
-init_fs_image() { # filename size_in_kbytes
-    local imgname imgsize
-
-    log "init_fs_image() $1 $2"
-    imgname=$1 ; imgsize=$2
-    dd if=/dev/zero of=${imgname} count=${imgsize} bs=1k 2> /dev/null
-    dd if=${c_boot1}  of=${imgname} conv=notrunc 2> /dev/null
-
-    if [ "${l_vn}" = "vn" ] ; then
-	vnconfig -c -s labels ${l_vndev} ${imgname} || fail $? no_vnconfig
-    else
-	mdconfig -a -t vnode -u ${l_vnum} -f ${imgname} || fail $? no_vnconfig
-    fi
-}
-
-
 fill_floppy_image() {
-    local blocks sectors dst
+    local blocks dst mfs_start mfs_end mfs_size img_size
 
     log "fill_floppy_image()"
     dst=${c_mnt}	# where to create the image
 
     log "Preparing ${fd_size}kB floppy filesystem..."
 
-    # correct block and number of sectors according to size.
-    blocks=${fd_size}; sectors=18
+    # correct blocks according to size.
+    blocks=${fd_size};
     if [ "${blocks}" = "1720" ]; then
-	blocks=1722 ; sectors=21
+	blocks=1722
     elif [ "${blocks}" = "1480" ]; then
-	blocks=1476 ;
+	blocks=1476
     fi
 
-    init_fs_image ${BUILDDIR}/${c_img} ${blocks}
-
     log "Labeling floppy image"
+    log "patch ${c_boot2} to boot /kernel right away"
     b2=${BUILDDIR}/boot2 # modified boot2
-    cp ${c_boot2} ${b2}
+    cp -f ${c_boot2} ${b2}
     chmod 0644 ${b2}
+
     set `strings -at d ${b2} | grep "/boot/loader"`
-    echo -e "/kernel\0\0\0\0\0" | dd of=${b2} obs=$1 oseek=1 conv=notrunc
+    echo -e "/kernel\0\0\0\0\0" | \
+	dd of=${b2} obs=$1 oseek=1 conv=notrunc 2>/dev/null
     chmod 0444 ${b2}
 
-    # create a disklabel ...
-    disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} auto || \
-	fail $?  floppy_disklabel
-
-    # and copy partition c: into partition a: using some sed magic
-    disklabel ${l_vndev} | sed -e '/  c:/{p;s/c:/a:/;}' | \
-	disklabel -R ${l_vndev} /dev/stdin
-
-    log "Newfs floppy image"
-    newfs -i ${fd_inodes} ${l_newfs} /dev/${l_vndev}a > /dev/null
-
-    log "Mounting floppy image"
-    mount /dev/${l_vndev}a ${dst}
-
+    dst=${BUILDDIR}/image.tree
+    rm -rf ${dst}
+    mkdir -p ${dst}
     (
     cd ${BUILDDIR}
+    set 0 0 # reset variables
     # $1 takes the offset of the MFS filesystem
     set `strings -at d kernel | grep "MFS Filesystem goes here"`
-    mfs_ofs=$(($1 + 8192))
-    log "Preload kernel with file ${c_fs} at ${mfs_ofs}"
-    dd if=${c_fs} ibs=8192 iseek=1 of=kernel obs=${mfs_ofs} \
-	oseek=1 conv=notrunc
+    mfs_start=$1
+    set 0 0 # reset variables
+    set `strings -at d kernel | grep "MFS Filesystem had better"`
+    mfs_end=$1
+    mfs_size="$((${mfs_end} - ${mfs_start}))"
+    set -- `ls -l ${c_fs}`; imgsize="$5"
+    if [ ${mfs_start} -gt 0 -a ${mfs_size} -ge ${imgsize} ] ; then
+	mfs_ofs=$((${mfs_start} + 8192))
+	log "Preload kernel with file ${c_fs} at ${mfs_ofs}"
+	dd if=${c_fs} ibs=8192 iseek=1 of=kernel obs=${mfs_ofs} \
+	    oseek=1 conv=notrunc 2> /dev/null
+    else
+    	log "not loading mfs, size ${mfs_size} img ${imgsize}"
+    fi
     log "Compress with kgzip and copy to floppy image"
     kgzip -o kernel.gz kernel
     cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
 
-    log "now transfer floppy tree if needed"
+    log "Now transfer floppy tree if not already in MFS image"
     # now transfer the floppy tree. If it is already in mfs, dont bother.
     if [ "${o_all_in_mfs}" != "yes" ] ; then
 	cp -Rp floppy.tree/* ${dst} || \
 		fail $? no_space "copying floppy tree"
     fi
     )
-    (log "Fixing permissions"; cd ${dst}; chown -R root *)
-    # rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
+    (cd ${BUILDDIR}
+    makefs -t ffs -o bsize=4096 -o fsize=512 \
+	-s ${blocks}k -f 50 ${c_img} ${dst}
+    # ${l_label} -f `pwd`/${c_img}
+    ${l_label} -w -f `pwd`/${c_img} auto # write in a label
+    # copy partition c: into a: with some sed magic
+    ${l_label} -f `pwd`/${c_img} | sed -e '/  c:/{p;s/c:/a:/;}' | \
+	${l_label} -R -f `pwd`/${c_img} /dev/stdin
+    ${l_label} -f `pwd`/${c_img}
+    ls -l ${c_img}
+	logverbose "after disklabel"
+	 )
+    # dump the primary and secondary boot
+    # XXX primary is 512 bytes
+    dd if=${c_boot1} of=${BUILDDIR}/${c_img} conv=notrunc 2>/dev/null
+    # XXX secondary starts after the 0x114 = dec 276 bytes of the label
+    # so we skip 276 from the source, and 276+512=788 from dst
+    # the old style blocks used 512 and 1024 respectively
 
-    df -ik ${dst} | colrm 70 > .build.reply
-    free_vnode
+    dd if=${b2} iseek=1 ibs=276 2> /dev/null | \
+	dd of=${BUILDDIR}/${c_img} oseek=1 obs=788 conv=notrunc 2>/dev/null
+    logverbose "done floppy image"
+    # XXX (log "Fixing permissions"; cd ${dst}; chown -R root *)
+    rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
+    # df -ik ${dst} | colrm 70 > .build.reply
     rm -rf ${dst}
     rm ${BUILDDIR}/kernel.gz ${BUILDDIR}/${c_fs}
 }
