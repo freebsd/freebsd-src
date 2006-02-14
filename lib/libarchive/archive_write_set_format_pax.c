@@ -67,7 +67,8 @@ static int		 archive_write_pax_finish_entry(struct archive *);
 static int		 archive_write_pax_header(struct archive *,
 			     struct archive_entry *);
 static char		*build_pax_attribute_name(char *dest, const char *src);
-static char		*build_ustar_entry_name(char *dest, const char *src, const char *insert);
+static char		*build_ustar_entry_name(char *dest, const char *src,
+			     size_t src_length, const char *insert);
 static char		*format_int(char *dest, int64_t);
 static int		 has_non_ASCII(const wchar_t *);
 static int		 write_nulls(struct archive *, size_t);
@@ -390,7 +391,7 @@ archive_write_pax_header(struct archive *a,
 	if (suffix_start == NULL || suffix_start - p > 155 || has_non_ASCII(wp)) {
 		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
-		    build_ustar_entry_name(ustar_entry_name, p, NULL));
+		    build_ustar_entry_name(ustar_entry_name, p, strlen(p), NULL));
 		need_extension = 1;
 	}
 
@@ -787,13 +788,13 @@ archive_write_pax_header(struct archive *a,
  * parts 1 & 2, but does store the '/' separating parts 2 & 3.
  */
 static char *
-build_ustar_entry_name(char *dest, const char *src, const char *insert)
+build_ustar_entry_name(char *dest, const char *src, size_t src_length,
+    const char *insert)
 {
 	const char *prefix, *prefix_end;
 	const char *suffix, *suffix_end;
 	const char *filename, *filename_end;
 	char *p;
-	size_t s;
 	int need_slash = 0; /* Was there a trailing slash? */
 	size_t suffix_length = 99;
 	int insert_length;
@@ -806,14 +807,14 @@ build_ustar_entry_name(char *dest, const char *src, const char *insert)
 		insert_length = strlen(insert) + 2;
 
 	/* Step 0: Quick bailout in a common case. */
-	s = strlen(src);
-	if (s < 100 && insert == NULL) {
-		strcpy(dest, src);
+	if (src_length < 100 && insert == NULL) {
+		strncpy(dest, src, src_length);
+		dest[src_length] = '\0';
 		return (dest);
 	}
 
 	/* Step 1: Locate filename and enforce the length restriction. */
-	filename_end = src + s;
+	filename_end = src + src_length;
 	/* Remove trailing '/' chars and '/.' pairs. */
 	for (;;) {
 		if (filename_end > src && filename_end[-1] == '/') {
@@ -881,8 +882,7 @@ build_ustar_entry_name(char *dest, const char *src, const char *insert)
 		p += suffix_end - suffix;
 	}
 	if (insert != NULL) {
-		if (prefix_end > prefix || suffix_end > suffix)
-			*p++ = '/';
+		/* Note: assume insert does not have leading or trailing '/' */
 		strcpy(p, insert);
 		p += strlen(insert);
 		*p++ = '/';
@@ -915,7 +915,7 @@ build_ustar_entry_name(char *dest, const char *src, const char *insert)
 static char *
 build_pax_attribute_name(char *dest, const char *src)
 {
-	char *p;
+	const char *p;
 
 	/* Handle the null filename case. */
 	if (src == NULL || *src == '\0') {
@@ -924,36 +924,37 @@ build_pax_attribute_name(char *dest, const char *src)
 	}
 
 	/* Prune final '/' and other unwanted final elements. */
-	p = dest + strlen(dest);
+	p = src + strlen(src);
 	for (;;) {
 		/* Ends in "/", remove the '/' */
-		if (p > dest && p[-1] == '/') {
-			*--p = '\0';
+		if (p > src && p[-1] == '/') {
+			--p;
 			continue;
 		}
 		/* Ends in "/.", remove the '.' */
-		if (p > dest + 1 && p[-1] == '.'
+		if (p > src + 1 && p[-1] == '.'
 		    && p[-2] == '/') {
-			*--p = '\0';
+			--p;
 			continue;
 		}
 		break;
 	}
 
-	/* Pathological case: After above, there was nothing left. */
-	if (p == dest) {
+	/* Pathological case: After above, there was nothing left.
+	 * This includes "/." "/./." "/.//./." etc. */
+	if (p == src) {
 		strcpy(dest, "/PaxHeader/rootdir");
 		return (dest);
 	}
 
-	/* Convert unadorned "." into "dot" */
-	if (*src == '.' && src[1] == '\0') {
+	/* Convert unadorned "." into a suitable filename. */
+	if (*src == '.' && p == src + 1) {
 		strcpy(dest, "PaxHeader/currentdir");
 		return (dest);
 	}
 
 	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
-	build_ustar_entry_name(dest, src, "PaxHeader");
+	build_ustar_entry_name(dest, src, p - src, "PaxHeader");
 
 	return (dest);
 }
