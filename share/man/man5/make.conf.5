@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2005
+.Dd February 14, 2006
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -435,18 +435,13 @@ will not be able to change users' groups.
 Set this to install
 .Xr ssh 1
 with the set-user-ID bit turned on.
-.It Va ENABLE_WPA_SUPPLICANT_EAPOL
+.It Va NO_WPA_SUPPLICANT_EAPOL
 .Pq Vt str
 Build
 .Xr wpa_supplicant 8
-with support for the IEEE 802.1X protocol and with
+without support for the IEEE 802.1X protocol and without
 support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
 protocols (usable only via 802.1X).
-This option is ignored if
-.Va NO_CRYPT
-or
-.Va NO_OPENSSL
-are set.
 .It Va MAKE_IDEA
 .Pq Vt bool
 Set to build the IDEA encryption code.
