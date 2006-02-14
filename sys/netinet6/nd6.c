@@ -578,8 +578,7 @@ nd6_timer(ignored_arg)
 
 			if (regen)
 				goto addrloop; /* XXX: see below */
-		}
-		if (IFA6_IS_DEPRECATED(ia6)) {
+		} else if (IFA6_IS_DEPRECATED(ia6)) {
 			int oldflags = ia6->ia6_flags;
 
 			ia6->ia6_flags |= IN6_IFF_DEPRECATED;
