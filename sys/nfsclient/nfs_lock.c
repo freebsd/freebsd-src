@@ -230,7 +230,6 @@ nfs_dolock(struct vop_advlock_args *ap)
 	struct vnode *vp;
 	int error;
 	struct flock *fl;
-	int ioflg;
 	struct proc *p;
 
 	td = curthread;
@@ -310,10 +309,8 @@ nfs_dolock(struct vop_advlock_args *ap)
 			if (error == EWOULDBLOCK) {
 				/*
 				 * We timed out, so we rewrite the request
-				 * to the fifo, but only if it isn't already
-				 * full.
+				 * to the fifo.
 				 */
-				ioflg |= IO_NDELAY;
 				continue;
 			}
 
