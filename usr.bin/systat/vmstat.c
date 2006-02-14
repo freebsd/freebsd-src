@@ -179,25 +179,25 @@ closekre(w)
 /*
  * These constants define where the major pieces are laid out
  */
-#define STATROW		 0	/* uses 1 row and 68 cols */
+#define STATROW		 0	/* uses 1 row and 67 cols */
 #define STATCOL		 2
-#define MEMROW		 2	/* uses 4 rows and 31 cols */
+#define MEMROW		 2	/* uses 4 rows and 45 cols */
 #define MEMCOL		 0
-#define PAGEROW		 2	/* uses 4 rows and 26 cols */
+#define PAGEROW		 2	/* uses 4 rows and 27 cols */
 #define PAGECOL		46
 #define INTSROW		 6	/* uses all rows to bottom and 17 cols */
 #define INTSCOL		63
-#define PROCSROW	 7	/* uses 2 rows and 20 cols */
+#define PROCSROW	 7	/* uses 2 rows and 18 cols */
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 30 cols */
 #define GENSTATCOL	20
-#define VMSTATROW	 6	/* uses 17 rows and 12 cols */
-#define VMSTATCOL	48
+#define VMSTATROW	 6	/* uses 17-18 rows and 12-15 cols */
+#define VMSTATCOL	48	/* actually 50-51 for some fields */
 #define GRAPHROW	10	/* uses 3 rows and 51 cols */
 #define GRAPHCOL	 0
-#define NAMEIROW	14	/* uses 3 rows and 38 cols */
+#define NAMEIROW	14	/* uses 3 rows and 37 cols */
 #define NAMEICOL	 0
-#define DISKROW		18	/* uses 5 rows and 50 cols (for 9 drives) */
+#define DISKROW		18	/* uses 5 rows and 47 cols (for 7 drives) */
 #define DISKCOL		 0
 
 #define	DRIVESPACE	 7	/* max # for space */
