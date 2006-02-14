@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <kvm.h>
 #include <nlist.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -306,7 +307,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 	LIST_HEAD(, uma_keg) uma_kegs;
 	struct memory_type *mtp;
 	struct uma_bucket *ubp, ub;
-	struct uma_cache *ucp;
+	struct uma_cache *ucp, *ucp_array;
 	struct uma_zone *uzp, uz;
 	struct uma_keg *kzp, kz;
 	int hint_dontsearch, i, mp_maxid, ret;
@@ -340,10 +341,16 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		list->mtl_error = ret;
 		return (-1);
 	}
+	ucp_array = malloc(sizeof(struct uma_cache) * (mp_maxid + 1));
+	if (ucp_array == NULL) {
+		list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
+		return (-1);
+	}
 	for (kzp = LIST_FIRST(&uma_kegs); kzp != NULL; kzp =
 	    LIST_NEXT(&kz, uk_link)) {
 		ret = kread(kvm, kzp, &kz, sizeof(kz), 0);
 		if (ret != 0) {
+			free(ucp_array);
 			_memstat_mtl_empty(list);
 			list->mtl_error = ret;
 			return (-1);
@@ -352,6 +359,16 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		    LIST_NEXT(&uz, uz_link)) {
 			ret = kread(kvm, uzp, &uz, sizeof(uz), 0);
 			if (ret != 0) {
+				free(ucp_array);
+				_memstat_mtl_empty(list);
+				list->mtl_error = ret;
+				return (-1);
+			}
+			ret = kread(kvm, uzp, ucp_array,
+			    sizeof(struct uma_cache) * (mp_maxid + 1),
+			    offsetof(struct uma_zone, uz_cpu[0]));
+			if (ret != 0) {
+				free(ucp_array);
 				_memstat_mtl_empty(list);
 				list->mtl_error = ret;
 				return (-1);
@@ -359,6 +376,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			ret = kread_string(kvm, uz.uz_name, name,
 			    MEMTYPE_MAXNAME);
 			if (ret != 0) {
+				free(ucp_array);
 				_memstat_mtl_empty(list);
 				list->mtl_error = ret;
 				return (-1);
@@ -372,6 +390,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 				mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
 				    name);
 			if (mtp == NULL) {
+				free(ucp_array);
 				_memstat_mtl_empty(list);
 				list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 				return (-1);
@@ -388,7 +407,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			for (i = 0; i < mp_maxid + 1; i++) {
 				if ((all_cpus & (1 << i)) == 0)
 					continue;
-				ucp = &uz.uz_cpu[i];
+				ucp = &ucp_array[i];
 				mtp->mt_numallocs += ucp->uc_allocs;
 				mtp->mt_numfrees += ucp->uc_frees;
 
@@ -396,6 +415,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 					ret = kread(kvm, ucp->uc_allocbucket,
 					    &ub, sizeof(ub), 0);
 					if (ret != 0) {
+						free(ucp_array);
 						_memstat_mtl_empty(list);
 						list->mtl_error = ret;
 						return (-1);
@@ -406,6 +426,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 					ret = kread(kvm, ucp->uc_freebucket,
 					    &ub, sizeof(ub), 0);
 					if (ret != 0) {
+						free(ucp_array);
 						_memstat_mtl_empty(list);
 						list->mtl_error = ret;
 						return (-1);
@@ -439,5 +460,6 @@ skip_percpu:
 			mtp->mt_free += mtp->mt_zonefree;
 		}
 	}
+	free(ucp_array);
 	return (0);
 }
