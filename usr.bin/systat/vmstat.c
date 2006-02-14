@@ -381,8 +381,10 @@ labelkre()
 #define Z(fld)	{t = s.nchstats.fld; s.nchstats.fld -= s1.nchstats.fld; \
 	if(state == TIME) s1.nchstats.fld = t;}
 #define PUTRATE(fld, l, c, w) \
+do { \
 	Y(fld); \
-	putint((int)((float)s.fld/etime + 0.5), l, c, w)
+	putint((int)((float)s.fld/etime + 0.5), l, c, w); \
+} while (0)
 #define MAXFAIL 5
 
 static	char cpuchar[CPUSTATES] = { '=' , '+', '>', '-', ' ' };
