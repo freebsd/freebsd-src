@@ -19,7 +19,7 @@ CFLAGS+= -g
 DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 
-.if defined(ENABLE_WPA_SUPPLICANT_EAPOL)
+.if !defined(NO_WPA_SUPPLICANT_EAPOL)
 SRCS+=	eapol_sm.c eap.c
 CFLAGS+= -DIEEE8021X_EAPOL
 
