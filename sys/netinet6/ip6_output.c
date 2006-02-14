@@ -3299,7 +3299,7 @@ ip6_setpktopt(optname, buf, len, opt, priv, sticky, cmsg, uproto)
 		/* turn off the previous option, then set the new option. */
 		ip6_clearpktopts(opt, optname);
 		*newdest = malloc(destlen, M_IP6OPT, M_NOWAIT);
-		if (newdest == NULL)
+		if (*newdest == NULL)
 			return (ENOBUFS);
 		bcopy(dest, *newdest, destlen);
 
