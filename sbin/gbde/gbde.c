@@ -134,14 +134,16 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-"usage: gbde attach destination [-l lockfile] [-p pass-phrase]\n"
+"usage: gbde attach destination [-k keyfile] [-l lockfile] [-p pass-phrase]\n"
 "       gbde detach destination\n"
-"       gbde init destination [-i] [-f filename] [-L new-lockfile]\n"
-"            [-P new-pass-phrase]\n"
-"       gbde setkey destination [-n key] [-l lockfile] [-p pass-phrase]\n"
+"       gbde init destination [-i] [-f filename] [-K new-keyfile]\n"
 "            [-L new-lockfile] [-P new-pass-phrase]\n"
-"       gbde nuke destination [-n key] [-l lockfile] [-p pass-phrase]\n"
-"       gbde destroy destination [-l lockfile] [-p pass-phrase]\n");
+"       gbde setkey destination [-n key]\n"
+"            [-k keyfile] [-l lockfile] [-p pass-phrase]\n"
+"            [-K new-keyfile] [-L new-lockfile] [-P new-pass-phrase]\n"
+"       gbde nuke destination [-n key]\n"
+"            [-k keyfile] [-l lockfile] [-p pass-phrase]\n"
+"       gbde destroy destination [-k keyfile] [-l lockfile] [-p pass-phrase]\n");
 	exit(1);
 }
 
@@ -195,42 +197,67 @@ reset_passphrase(struct g_bde_softc *sc)
 }
 
 static void
-setup_passphrase(struct g_bde_softc *sc, int sure, const char *input)
+setup_passphrase(struct g_bde_softc *sc, int sure, const char *input,
+    const char *keyfile)
 {
-	char buf1[BUFSIZ], buf2[BUFSIZ], *p;
+	char buf1[BUFSIZ + SHA512_DIGEST_LENGTH];
+	char buf2[BUFSIZ + SHA512_DIGEST_LENGTH];
+	char *p;
+	int kfd, klen, bpos = 0;
+
+	if (keyfile != NULL) {
+		/* Read up to BUFSIZ bytes from keyfile */
+		kfd = open(keyfile, O_RDONLY, 0);
+		if (kfd < 0)
+			err(1, "%s", keyfile);
+		klen = read(kfd, buf1, BUFSIZ);
+		if (klen == -1)
+			err(1, "%s", keyfile);
+		close(kfd);
+
+		/* Prepend the passphrase with the hash of the key read */
+		g_bde_hash_pass(sc, buf1, klen);
+		memcpy(buf1, sc->sha2, SHA512_DIGEST_LENGTH);
+		memcpy(buf2, sc->sha2, SHA512_DIGEST_LENGTH);
+		bpos = SHA512_DIGEST_LENGTH;
+	}
 
 	if (input != NULL) {
-		g_bde_hash_pass(sc, input, strlen(input));
+		if (strlen(input) >= BUFSIZ)
+			errx(1, "Passphrase too long");
+		strcpy(buf1 + bpos, input);
+
+		g_bde_hash_pass(sc, buf1, strlen(buf1 + bpos) + bpos);
 		memcpy(sha2, sc->sha2, SHA512_DIGEST_LENGTH);
 		return;
 	}
 	for (;;) {
 		p = readpassphrase(
 		    sure ? "Enter new passphrase:" : "Enter passphrase: ",
-		    buf1, sizeof buf1,
+		    buf1 + bpos, sizeof buf1 - bpos,
 		    RPP_ECHO_OFF | RPP_REQUIRE_TTY);
 		if (p == NULL)
 			err(1, "readpassphrase");
 
 		if (sure) {
 			p = readpassphrase("Reenter new passphrase: ",
-			    buf2, sizeof buf2,
+			    buf2 + bpos, sizeof buf2 - bpos,
 			    RPP_ECHO_OFF | RPP_REQUIRE_TTY);
 			if (p == NULL)
 				err(1, "readpassphrase");
 
-			if (strcmp(buf1, buf2)) {
+			if (strcmp(buf1 + bpos, buf2 + bpos)) {
 				printf("They didn't match.\n");
 				continue;
 			}
 		}
-		if (strlen(buf1) < 3) {
+		if (strlen(buf1 + bpos) < 3) {
 			printf("Too short passphrase.\n");
 			continue;
 		}
 		break;
 	}
-	g_bde_hash_pass(sc, buf1, strlen(buf1));
+	g_bde_hash_pass(sc, buf1, strlen(buf1 + bpos) + bpos);
 	memcpy(sha2, sc->sha2, SHA512_DIGEST_LENGTH);
 }
 
@@ -708,6 +735,7 @@ int
 main(int argc, char **argv)
 {
 	const char *opts;
+	const char *k_opt, *K_opt;
 	const char *l_opt, *L_opt;
 	const char *p_opt, *P_opt;
 	const char *f_opt;
@@ -730,26 +758,26 @@ main(int argc, char **argv)
 	doopen = 0;
 	if (!strcmp(argv[1], "attach")) {
 		action = ACT_ATTACH;
-		opts = "l:p:";
+		opts = "k:l:p:";
 	} else if (!strcmp(argv[1], "detach")) {
 		action = ACT_DETACH;
 		opts = "";
 	} else if (!strcmp(argv[1], "init")) {
 		action = ACT_INIT;
 		doopen = 1;
-		opts = "f:iL:P:";
+		opts = "f:iK:L:P:";
 	} else if (!strcmp(argv[1], "setkey")) {
 		action = ACT_SETKEY;
 		doopen = 1;
-		opts = "l:L:n:p:P:";
+		opts = "k:K:l:L:n:p:P:";
 	} else if (!strcmp(argv[1], "destroy")) {
 		action = ACT_DESTROY;
 		doopen = 1;
-		opts = "l:p:";
+		opts = "k:l:p:";
 	} else if (!strcmp(argv[1], "nuke")) {
 		action = ACT_NUKE;
 		doopen = 1;
-		opts = "l:n:p:";
+		opts = "k:l:n:p:";
 	} else {
 		usage();
 	}
@@ -762,6 +790,8 @@ main(int argc, char **argv)
 
 	p_opt = NULL;
 	P_opt = NULL;
+	k_opt = NULL;
+	K_opt = NULL;
 	l_opt = NULL;
 	L_opt = NULL;
 	f_opt = NULL;
@@ -775,6 +805,12 @@ main(int argc, char **argv)
 			break;
 		case 'i':
 			i_opt = !i_opt;
+		case 'k':
+			k_opt = optarg;
+			break;
+		case 'K':
+			K_opt = optarg;
+			break;
 		case 'l':
 			l_opt = optarg;
 			break;
@@ -819,7 +855,7 @@ main(int argc, char **argv)
 	gl = &sc.key;
 	switch(action) {
 	case ACT_ATTACH:
-		setup_passphrase(&sc, 0, p_opt);
+		setup_passphrase(&sc, 0, p_opt, k_opt);
 		cmd_attach(&sc, dest, l_opt);
 		break;
 	case ACT_DETACH:
@@ -827,26 +863,26 @@ main(int argc, char **argv)
 		break;
 	case ACT_INIT:
 		cmd_init(gl, dfd, f_opt, i_opt, L_opt);
-		setup_passphrase(&sc, 1, P_opt);
+		setup_passphrase(&sc, 1, P_opt, K_opt);
 		cmd_write(gl, &sc, dfd, 0, L_opt);
 		break;
 	case ACT_SETKEY:
-		setup_passphrase(&sc, 0, p_opt);
+		setup_passphrase(&sc, 0, p_opt, k_opt);
 		cmd_open(&sc, dfd, l_opt, &nkey);
 		if (n_opt == 0)
 			n_opt = nkey + 1;
-		setup_passphrase(&sc, 1, P_opt);
+		setup_passphrase(&sc, 1, P_opt, K_opt);
 		cmd_write(gl, &sc, dfd, n_opt - 1, L_opt);
 		break;
 	case ACT_DESTROY:
-		setup_passphrase(&sc, 0, p_opt);
+		setup_passphrase(&sc, 0, p_opt, k_opt);
 		cmd_open(&sc, dfd, l_opt, &nkey);
 		cmd_destroy(gl, nkey);
 		reset_passphrase(&sc);
 		cmd_write(gl, &sc, dfd, nkey, l_opt);
 		break;
 	case ACT_NUKE:
-		setup_passphrase(&sc, 0, p_opt);
+		setup_passphrase(&sc, 0, p_opt, k_opt);
 		cmd_open(&sc, dfd, l_opt, &nkey);
 		if (n_opt == 0)
 			n_opt = nkey + 1;
