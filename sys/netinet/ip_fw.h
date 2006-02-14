@@ -510,8 +510,6 @@ struct ip_fw_args {
 	struct ip_fw	*rule;		/* matching rule		*/
 	struct ether_header *eh;	/* for bridged packets		*/
 
-	int flags;			/* for dummynet			*/
-
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
 	u_int32_t	cookie;		/* a cookie depending on rule action */
 	struct inpcb	*inp;
