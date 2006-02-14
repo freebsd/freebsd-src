@@ -180,14 +180,14 @@ closekre(w)
  * These constants define where the major pieces are laid out
  */
 #define STATROW		 0	/* uses 1 row and 67 cols */
-#define STATCOL		 2
+#define STATCOL		 0
 #define MEMROW		 2	/* uses 4 rows and 45 cols */
 #define MEMCOL		 0
 #define PAGEROW		 2	/* uses 4 rows and 27 cols */
-#define PAGECOL		46
+#define PAGECOL		47
 #define INTSROW		 6	/* uses all rows to bottom and 16 cols */
 #define INTSCOL		64
-#define PROCSROW	 7	/* uses 2 rows and 18 cols */
+#define PROCSROW	 6	/* uses 3 rows and 19 cols */
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 29 cols */
 #define GENSTATCOL	21
@@ -286,7 +286,7 @@ labelkre()
 	int i, j;
 
 	clear();
-	mvprintw(STATROW, STATCOL + 4, "users    Load");
+	mvprintw(STATROW, STATCOL + 6, "users    Load");
 	mvprintw(MEMROW, MEMCOL, "Mem:KB    REAL            VIRTUAL");
 	mvprintw(MEMROW + 1, MEMCOL, "        Tot   Share      Tot    Share");
 	mvprintw(MEMROW + 2, MEMCOL, "Act");
@@ -294,8 +294,8 @@ labelkre()
 
 	mvprintw(MEMROW + 1, MEMCOL + 41, "Free");
 
-	mvprintw(PAGEROW, PAGECOL,     "        VN PAGER  SWAP PAGER ");
-	mvprintw(PAGEROW + 1, PAGECOL, "        in  out     in  out ");
+	mvprintw(PAGEROW, PAGECOL,     "         VN PAGER   SWAP PAGER");
+	mvprintw(PAGEROW + 1, PAGECOL, "         in   out     in   out");
 	mvprintw(PAGEROW + 2, PAGECOL, "count");
 	mvprintw(PAGEROW + 3, PAGECOL, "pages");
 
@@ -325,7 +325,8 @@ labelkre()
 
 	mvprintw(GRAPHROW, GRAPHCOL,
 		"  . %%Sys    . %%Intr   . %%User   . %%Nice   . %%Idle");
-	mvprintw(PROCSROW, PROCSCOL, "Proc:r  p  d  s  w");
+	mvprintw(PROCSROW, PROCSCOL, "Proc:");
+	mvprintw(PROCSROW + 1, PROCSCOL, "  r   p   d   s   w");
 	mvprintw(GRAPHROW + 1, GRAPHCOL,
 		"|    |    |    |    |    |    |    |    |    |    |");
 
@@ -467,11 +468,11 @@ showkre()
 			addch(cpuchar[lc]);
 	}
 
-	putint(ucount(), STATROW, STATCOL, 3);
-	putfloat(avenrun[0], STATROW, STATCOL + 18, 5, 2, 0);
-	putfloat(avenrun[1], STATROW, STATCOL + 24, 5, 2, 0);
-	putfloat(avenrun[2], STATROW, STATCOL + 30, 5, 2, 0);
-	mvaddstr(STATROW, STATCOL + 53, buf);
+	putint(ucount(), STATROW, STATCOL, 5);
+	putfloat(avenrun[0], STATROW, STATCOL + 20, 5, 2, 0);
+	putfloat(avenrun[1], STATROW, STATCOL + 26, 5, 2, 0);
+	putfloat(avenrun[2], STATROW, STATCOL + 32, 5, 2, 0);
+	mvaddstr(STATROW, STATCOL + 55, buf);
 #define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
 	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 4, 7);
 	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 12, 7);
@@ -482,11 +483,11 @@ showkre()
 	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 20, 8);
 	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 29, 8);
 	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 38, 7);
-	putint(total.t_rq - 1, PROCSROW + 1, PROCSCOL + 3, 3);
-	putint(total.t_pw, PROCSROW + 1, PROCSCOL + 6, 3);
-	putint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
-	putint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
-	putint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
+	putint(total.t_rq - 1, PROCSROW + 2, PROCSCOL, 3);
+	putint(total.t_pw, PROCSROW + 2, PROCSCOL + 4, 3);
+	putint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
+	putint(total.t_sl, PROCSROW + 2, PROCSCOL + 12, 3);
+	putint(total.t_sw, PROCSROW + 2, PROCSCOL + 16, 3);
 	if (extended_vm_stats == 0)
 		PUTRATE(v_zfod, VMSTATROW + 0, VMSTATCOL, 9);
 	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 9 - 3);
@@ -522,14 +523,14 @@ showkre()
 	putint(s.desiredvnodes, VMSTATROW + 15, VMSTATCOL, 9);
 	putint(s.numvnodes, VMSTATROW + 16, VMSTATCOL, 9);
 	putint(s.freevnodes, VMSTATROW + 17, VMSTATCOL, 9);
-	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 4);
-	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 11, 4);
-	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
-	PUTRATE(v_swapout, PAGEROW + 2, PAGECOL + 23, 4);
-	PUTRATE(v_vnodepgsin, PAGEROW + 3, PAGECOL + 6, 4);
-	PUTRATE(v_vnodepgsout, PAGEROW + 3, PAGECOL + 11, 4);
-	PUTRATE(v_swappgsin, PAGEROW + 3, PAGECOL + 17, 5);
-	PUTRATE(v_swappgsout, PAGEROW + 3, PAGECOL + 23, 4);
+	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
+	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 12, 5);
+	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 19, 5);
+	PUTRATE(v_swapout, PAGEROW + 2, PAGECOL + 25, 5);
+	PUTRATE(v_vnodepgsin, PAGEROW + 3, PAGECOL + 6, 5);
+	PUTRATE(v_vnodepgsout, PAGEROW + 3, PAGECOL + 12, 5);
+	PUTRATE(v_swappgsin, PAGEROW + 3, PAGECOL + 19, 5);
+	PUTRATE(v_swappgsout, PAGEROW + 3, PAGECOL + 25, 5);
 	PUTRATE(v_swtch, GENSTATROW + 1, GENSTATCOL, 4);
 	PUTRATE(v_trap, GENSTATROW + 1, GENSTATCOL + 5, 4);
 	PUTRATE(v_syscall, GENSTATROW + 1, GENSTATCOL + 10, 4);
