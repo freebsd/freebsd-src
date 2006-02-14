@@ -208,7 +208,7 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	struct ifnet *ifp = arg1;
 	const priv_p priv = (priv_p)ifp->if_softc;
-	int len, error = 0;
+	int error = 0;
 	struct mbuf *m;
 
 	/* Check interface flags */
@@ -234,9 +234,6 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		 */
 		BPF_MTAP(ifp, m);
 
-		/* Copy length before the mbuf gets invalidated */
-		len = m->m_pkthdr.len;
-
 		/*
 		 * Send packet; if hook is not connected, mbuf will get
 		 * freed.
@@ -244,10 +241,10 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		NG_SEND_DATA_ONLY(error, priv->ether, m);
 
 		/* Update stats */
-		if (error == 0) {
-			ifp->if_obytes += len;
+		if (error == 0)
 			ifp->if_opackets++;
-		}
+		else
+			ifp->if_oerrors++;
 	}
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
