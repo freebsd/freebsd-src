@@ -186,7 +186,7 @@ closekre(w)
 #define PAGEROW		 2	/* uses 4 rows and 26 cols */
 #define PAGECOL		46
 #define INTSROW		 6	/* uses all rows to bottom and 17 cols */
-#define INTSCOL		61
+#define INTSCOL		63
 #define PROCSROW	 7	/* uses 2 rows and 20 cols */
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 30 cols */
@@ -299,8 +299,8 @@ labelkre()
 	mvprintw(PAGEROW + 2, PAGECOL, "count");
 	mvprintw(PAGEROW + 3, PAGECOL, "pages");
 
-	mvprintw(INTSROW, INTSCOL + 3, " Interrupts");
-	mvprintw(INTSROW + 1, INTSCOL + 9, "total");
+	mvprintw(INTSROW, INTSCOL + 2, "Interrupts");
+	mvprintw(INTSROW + 1, INTSCOL + 7, "total");
 
 	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "cow");
 	mvprintw(VMSTATROW + 2, VMSTATCOL + 10, "wire");
@@ -371,7 +371,7 @@ labelkre()
 	for (i = 0; i < nintr; i++) {
 		if (intrloc[i] == 0)
 			continue;
-		mvprintw(intrloc[i], INTSCOL + 9, "%-10.10s", intrname[i]);
+		mvprintw(intrloc[i], INTSCOL + 7, "%-10.10s", intrname[i]);
 	}
 }
 
@@ -435,15 +435,15 @@ showkre()
 				intrbuffer[k++] = intrname[i][j];
 			}
 			intrbuffer[k] = '\0';
-			mvprintw(intrloc[i], INTSCOL + 9, "%-10.10s",
+			mvprintw(intrloc[i], INTSCOL + 7, "%-10.10s",
 				intrbuffer);
 		}
 		X(intrcnt);
 		l = (int)((float)s.intrcnt[i]/etime + 0.5);
 		inttotal += l;
-		putint(l, intrloc[i], INTSCOL + 2, 6);
+		putint(l, intrloc[i], INTSCOL, 6);
 	}
-	putint(inttotal, INTSROW + 1, INTSCOL + 2, 6);
+	putint(inttotal, INTSROW + 1, INTSCOL, 6);
 	Z(ncs_goodhits); Z(ncs_badhits); Z(ncs_miss);
 	Z(ncs_long); Z(ncs_pass2); Z(ncs_2passes); Z(ncs_neghits);
 	s.nchcount = nchtotal.ncs_goodhits + nchtotal.ncs_badhits +
