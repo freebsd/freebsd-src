@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int	fflag;				/* Unlink existing files. */
+int	Fflag;				/* Remove empty directories also. */
 int	hflag;				/* Check new name for symlink first. */
 int	iflag;				/* Interactive mode. */
 int	sflag;				/* Symbolic, not hard, link. */
@@ -91,8 +92,11 @@ main(int argc, char *argv[])
 		exit(linkit(argv[0], argv[1], 0));
 	}
 
-	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
+	while ((ch = getopt(argc, argv, "Ffhinsv")) != -1)
 		switch (ch) {
+		case 'F':
+			Fflag = 1;
+			break;
 		case 'f':
 			fflag = 1;
 			iflag = 0;
@@ -121,6 +125,10 @@ main(int argc, char *argv[])
 
 	linkf = sflag ? symlink : link;
 	linkch = sflag ? '-' : '=';
+	if (sflag == 0)
+		Fflag = 0;
+	if (Fflag == 1 && iflag == 0)
+		fflag = 1;
 
 	switch(argc) {
 	case 0:
@@ -200,7 +208,12 @@ linkit(const char *target, const char *source, int isdir)
 	 * and interactively if -i was specified.
 	 */
 	if (fflag && exists) {
-		if (unlink(source)) {
+		if (Fflag && S_ISDIR(sb.st_mode)) {
+			if (rmdir(source)) {
+				warn("%s", source);
+				return (1);
+			}
+		} else if (unlink(source)) {
 			warn("%s", source);
 			return (1);
 		}
@@ -216,7 +229,12 @@ linkit(const char *target, const char *source, int isdir)
 			return (1);
 		}
 
-		if (unlink(source)) {
+		if (Fflag && S_ISDIR(sb.st_mode)) {
+			if (rmdir(source)) {
+				warn("%s", source);
+				return (1);
+			}
+		} else if (unlink(source)) {
 			warn("%s", source);
 			return (1);
 		}
@@ -236,8 +254,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ln [-fhinsv] source_file [target_file]",
-	    "       ln [-fhinsv] source_file ... target_dir",
+	    "usage: ln [-Ffhinsv] source_file [target_file]",
+	    "       ln [-Ffhinsv] source_file ... target_dir",
 	    "       link source_file target_file");
 	exit(1);
 }
