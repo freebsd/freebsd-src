@@ -1487,7 +1487,6 @@ sk_attach(dev)
 	ifp->if_start = sk_start;
 	ifp->if_watchdog = sk_watchdog;
 	ifp->if_init = sk_init;
-	ifp->if_baudrate = 1000000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SK_TX_RING_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SK_TX_RING_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);

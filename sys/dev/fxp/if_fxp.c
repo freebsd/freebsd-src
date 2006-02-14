@@ -758,7 +758,6 @@ fxp_attach(device_t dev)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = 100000000;
 	ifp->if_init = fxp_init;
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
