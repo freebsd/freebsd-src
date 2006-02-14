@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #define RP_DEVICE_ID_4J		0x0007
 #define RP_DEVICE_ID_6M		0x000C
 #define RP_DEVICE_ID_4M		0x000D
+#define RP_DEVICE_ID_UPCI_32	0x0801
 #define RP_DEVICE_ID_UPCI_8O	0x0805
 
 /**************************************************************************
@@ -179,6 +180,7 @@ rp_pciattach(device_t dev)
 	ctlp->bus_ctlp = NULL;
 
 	switch (pci_get_device(dev)) {
+	case RP_DEVICE_ID_UPCI_32:
 	case RP_DEVICE_ID_UPCI_8O:
 		ctlp->io_rid[0] = PCIR_BAR(2);
 		break;
