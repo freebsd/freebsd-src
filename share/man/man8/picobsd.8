@@ -1,15 +1,15 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd March 9, 2002
+.Dd January 31, 2006
 .Os
 .Dt PICOBSD 8
 .Sh NAME
 .Nm picobsd
-.Nd floppy disk based FreeBSD system
+.Nd building small FreeBSD disk images
 .Sh SYNOPSIS
 .Nm
 .Op Ar options
-.Op Ar floppy-type Op Ar site-name
+.Op Ar config-name Op Ar site-name
 .Sh DESCRIPTION
 The
 .Nm
@@ -17,7 +17,8 @@ utility is a script which produces a minimal implementation of
 .Fx
 (historically called
 .Nm PicoBSD )
-which typically fits on one floppy disk, or can be downloaded as a
+which typically fits on a small media such as a floppy disk,
+or can be downloaded as a
 single image file from some media such as CDROM, flash memory, or through
 .Xr etherboot .
 .Pp
@@ -29,7 +30,8 @@ cross-build images with different source trees than the one
 in the server, it can be extremely useful to developers to
 test their code without having to reinstall the system.
 .Pp
-The boot media (typically a floppy disk) contains a boot loader and a
+The boot media (historically a floppy disk, but also small
+CDROM or USB keys) contains a boot loader and a
 compressed kernel which includes a memory file system.
 Depending on the media, it might also contain a number of
 additional files, which can be updated at run time, and are
@@ -55,7 +57,9 @@ Use the source tree at
 .Ar SRC_PATH
 instead the one at
 .Pa /usr/src .
-This can be useful for cross-building floppy images.
+This can be useful for cross-building
+.Nm
+images.
 When using this option, you must also create and initialize the subtree at
 .Ao Ar SRC_PATH Ac Ns Pa /../usr
 with the correct header files, libraries, and tools (such as the
@@ -84,12 +88,12 @@ subtree as necessary to subsequently build
 images.
 .It Fl -modules
 Also build kernel modules.
-These are not stored on the floppy
+These are not stored on the
+.Nm
 image but are left available in the build directory.
 .It Fl n
-Make the script non-interactive.
-Do not show the initial menu, and
-proceed to the build process without requiring user input.
+Make the script non-interactive, skipping the initial menu
+and proceeding with the build process without requiring user input.
 .It Fl v
 Make the script verbose, showing
 commands to be executed and waiting for user
@@ -109,14 +113,16 @@ as a fully functional system.
 .It Fl -no_all_in_mfs
 Leaves files contained in the
 .Pa floppy.tree
-on the floppy image, so they can be loaded separately
+on the
+.Nm
+image, so they can be loaded separately
 from the kernel (and updated individually to
-customize the floppy image).
+customize the image).
 .It Fl -floppy_size Ar size
-Set the size of the floppy image.
-Values other
-than 1440 can be used for images that are burned
-into a CDROM.
+Set the size of the disk image.
+Typical values for a floppy disk are 1440 or 2880,
+but other values can be used for other media (flash memories,
+CDROM, network booted kernels).
 .It Fl c , clean
 Clean the product of previous builds.
 .El
@@ -152,57 +158,26 @@ sources reside in the hierarchy
 .Pa /usr/src/release/picobsd .
 In the following discussion, all relative path names are relative to this
 directory.
-The
-.Nm
-build process has changed slightly over time, in order to cope
-with the unavoidable increase of code size, which requires more and more
-tricks to cram as much as possible onto the floppies.
-Starting from
-.Fx 4.3 ,
-the supported build script is
+.Pp
+The supported build script is
 .Pa /usr/src/release/picobsd/build/picobsd
-which can be run from anywhere.
+which can be run from anywhere, and relies on the
+.Xr sysutils/makefs
+port to build a filesystem without requiring
+.Xr mdconfig
+or root privileges to mount a filesystem.
 When run in interactive mode (the default without the
-.Fl -n
+.Fl n
 option), the script will let you configure the various parameters
-used to build the floppy image.
-The following kinds of floppy are envisaged, and we try to keep them
-functional and fitting in the 1.44MB floppy despite the unavoidable
-increases in the size of the kernel and its applications:
-.Bl -hang -width ".Pa bridge"
-.It Pa bridge
-configuration suitable for bridges, routers and firewalls.
-.El
+used to build the PicoBSD image. An image is configured
+using the files and directories described below.
+The base system contains a template, called
+.Pa bridge
+for historical reasons, 
+that can be used as a base for building various kinds
+of network appliances.
 .Pp
-The following configurations are also present but for reference
-only.
-Many of them are irremediably out of date and no effort
-is done to keep them in good shape:
-.Bl -hang -width ".Pa bridge"
-.It Pa dial
-configuration suitable for dial-out
-.Pq Xr ppp 8
-networking.
-.It Pa isp
-configuration suitable for dial-in
-.Pq Xr ppp 8
-networking.
-.It Pa net
-configuration suitable for general networking.
-.It Pa router
-configuration suitable for use as a router.
-This particular configuration
-aims to work on minimal hardware.
-.El
-.Pp
-These configurations serve only as examples for
-your own modification.
-Not all of them have been tested,
-and you might need small tweaks to the configuration
-files to make them work or even fit into the
-available disk space as code size increases.
-.Pp
-You can define your own floppy type, by creating a directory
+You can define your own PicoBSD configuration, by creating a directory
 with a name of your choice (e.g.\&
 .Pa FOO )
 which contains
@@ -343,8 +318,6 @@ More information on the build process can be found in the
 comments in the
 .Nm
 script.
-Sample configurations can be found in
-.Pa /usr/src/release/picobsd/ Ns Ao Ar floppy-type Ac Ns Pa /
 .Sh USING ALTERNATE SOURCE TREES
 The build script can be instructed to use an alternate source tree
 using the
@@ -380,7 +353,7 @@ a new image can be produced by simply running
 .Dl "picobsd --src FOO/src -n -v bridge"
 .Pp
 whereas if the change affects include files or libraries
-you first need to update them, e.g.\& by running first
+you first need to update them, e.g.\& by re-running
 .Pp
 .Dl "picobsd --src FOO/src --init  # this is needed only once"
 .Pp
@@ -665,19 +638,6 @@ Man page and
 created by
 .An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
-In order to build
-.Nm ,
-the kernel of the system on which it is built must have the
-.Xr vn 4
-driver installed.
-.Pp
-The build process must be run as
-.Dq root
-because of the need of running
-.Xr mdconfig 8 Ns / Ns Xr vnconfig 8
-and
-.Xr mount 8 .
-.Pp
 Building
 .Nm
 is still a black art.
