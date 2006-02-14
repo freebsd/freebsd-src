@@ -138,7 +138,6 @@ static int	amr_wait_command(struct amr_command *ac) __unused;
 static int	amr_mapcmd(struct amr_command *ac);
 static void	amr_unmapcmd(struct amr_command *ac);
 static int	amr_start(struct amr_command *ac);
-static int	amr_start1(struct amr_softc *sc, struct amr_command *ac);
 static void	amr_complete(void *context, int pending);
 static void	amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
 static void	amr_setup_dma64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
@@ -152,12 +151,12 @@ static void	amr_periodic(void *data);
 /*
  * Interface-specific shims
  */
-static int	amr_quartz_submit_command(struct amr_softc *sc);
+static int	amr_quartz_submit_command(struct amr_command *ac);
 static int	amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave);
 static int	amr_quartz_poll_command(struct amr_command *ac);
 static int	amr_quartz_poll_command1(struct amr_softc *sc, struct amr_command *ac);
 
-static int	amr_std_submit_command(struct amr_softc *sc);
+static int	amr_std_submit_command(struct amr_command *ac);
 static int	amr_std_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave);
 static int	amr_std_poll_command(struct amr_command *ac);
 static void	amr_std_attach_mailbox(struct amr_softc *sc);
@@ -1474,17 +1473,21 @@ amr_quartz_poll_command1(struct amr_softc *sc, struct amr_command *ac)
 
     AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_SUBMIT);
 
-    while(sc->amr_mailbox->mb_nstatus == 0xFF);
-    while(sc->amr_mailbox->mb_status == 0xFF);
+    while(sc->amr_mailbox->mb_nstatus == 0xFF)
+	DELAY(1);
+    while(sc->amr_mailbox->mb_status == 0xFF)
+	DELAY(1);
     ac->ac_status=sc->amr_mailbox->mb_status;
     error = (ac->ac_status !=AMR_STATUS_SUCCESS) ? 1:0;
-    while(sc->amr_mailbox->mb_poll != 0x77);
+    while(sc->amr_mailbox->mb_poll != 0x77)
+	DELAY(1);
     sc->amr_mailbox->mb_poll = 0;
     sc->amr_mailbox->mb_ack = 0x77;
 
     /* acknowledge that we have the commands */
     AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_ACK);
-    while(AMR_QGET_IDB(sc) & AMR_QIDB_ACK);
+    while(AMR_QGET_IDB(sc) & AMR_QIDB_ACK)
+	DELAY(1);
     mtx_unlock(&sc->amr_hw_lock);
 
     /* unmap the command's data buffer */
@@ -1677,7 +1680,7 @@ amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 
     ac->ac_flags |= AMR_CMD_MAPPED;
 
-    if (amr_start1(sc, ac) == EBUSY) {
+    if (sc->amr_submit_command(ac) == EBUSY) {
 	amr_freeslot(ac);
 	amr_requeue_ready(ac);
     }
@@ -1746,7 +1749,7 @@ amr_setup_ccb64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 
     ac->ac_flags |= AMR_CMD_MAPPED;
 
-    if (amr_start1(sc, ac) == EBUSY) {
+    if (sc->amr_submit_command(ac) == EBUSY) {
 	amr_freeslot(ac);
 	amr_requeue_ready(ac);
     }
@@ -1796,7 +1799,7 @@ amr_mapcmd(struct amr_command *ac)
 	    }
      }
    } else {
-    	if (amr_start1(sc, ac) == EBUSY) {
+    	if (sc->amr_submit_command(ac) == EBUSY) {
 	    amr_freeslot(ac);
 	    amr_requeue_ready(ac);
 	}
@@ -1875,7 +1878,7 @@ amr_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
     }
     ac->ac_flags |= AMR_CMD_MAPPED;
 
-    if (amr_start1(sc, ac) == EBUSY) {
+    if (sc->amr_submit_command(ac) == EBUSY) {
 	amr_freeslot(ac);
 	amr_requeue_ready(ac);
     }
@@ -1915,43 +1918,6 @@ amr_start(struct amr_command *ac)
     }
 
     return (error);
-}
-
-
-static int
-amr_start1(struct amr_softc *sc, struct amr_command *ac)
-{
-    int		i = 0;
-  
-    mtx_lock(&sc->amr_hw_lock);
-    while (sc->amr_mailbox->mb_busy && (i++ < 10))
-        DELAY(1);
-    if (sc->amr_mailbox->mb_busy) {
-	mtx_unlock(&sc->amr_hw_lock);
-        return (EBUSY);
-    }
-
-    /* 
-     * Save the slot number so that we can locate this command when complete.
-     * Note that ident = 0 seems to be special, so we don't use it.
-     */
-    ac->ac_mailbox.mb_ident = ac->ac_slot + 1; /* will be coppied into mbox */
-    bcopy(&ac->ac_mailbox, (void *)(uintptr_t)(volatile void *)sc->amr_mailbox, 14);
-    sc->amr_mailbox->mb_busy = 1;
-    sc->amr_mailbox->mb_poll = 0;
-    sc->amr_mailbox->mb_ack  = 0;
-    sc->amr_mailbox64->sg64_hi = ac->ac_sg64_hi;
-    sc->amr_mailbox64->sg64_lo = ac->ac_sg64_lo;
-
-    if (sc->amr_submit_command(sc)) {
-	/* the controller wasn't ready to take the command, forget that we tried to post it */
-	sc->amr_mailbox->mb_busy = 0;
-	mtx_unlock(&sc->amr_hw_lock);
-	return (EBUSY);
-    }
-
-    mtx_unlock(&sc->amr_hw_lock);
-    return(0);
 }
 
 /********************************************************************************
@@ -2188,26 +2154,59 @@ amr_freecmd_cluster(struct amr_command_cluster *acc)
  * Tell the controller that the mailbox contains a valid command
  */
 static int
-amr_quartz_submit_command(struct amr_softc *sc)
+amr_quartz_submit_command(struct amr_command *ac)
 {
-    debug_called(3);
+    struct amr_softc	*sc = ac->ac_sc;
+    int			i = 0;
+  
+    mtx_lock(&sc->amr_hw_lock);
+    while (sc->amr_mailbox->mb_busy && (i++ < 10))
+        DELAY(1);
+    if (sc->amr_mailbox->mb_busy) {
+	mtx_unlock(&sc->amr_hw_lock);
+	return (EBUSY);
+    }
 
-#if 0
-    if (AMR_QGET_IDB(sc) & AMR_QIDB_SUBMIT)
-	return(EBUSY);
-#endif
+    /* 
+     * Save the slot number so that we can locate this command when complete.
+     * Note that ident = 0 seems to be special, so we don't use it.
+     */
+    ac->ac_mailbox.mb_ident = ac->ac_slot + 1; /* will be coppied into mbox */
+    bcopy(&ac->ac_mailbox, (void *)(uintptr_t)(volatile void *)sc->amr_mailbox, 14);
+    sc->amr_mailbox->mb_busy = 1;
+    sc->amr_mailbox->mb_poll = 0;
+    sc->amr_mailbox->mb_ack  = 0;
+    sc->amr_mailbox64->sg64_hi = ac->ac_sg64_hi;
+    sc->amr_mailbox64->sg64_lo = ac->ac_sg64_lo;
+
     AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_SUBMIT);
+    mtx_unlock(&sc->amr_hw_lock);
     return(0);
 }
 
 static int
-amr_std_submit_command(struct amr_softc *sc)
+amr_std_submit_command(struct amr_command *ac)
 {
-    debug_called(3);
+    struct amr_softc	*sc = ac->ac_sc;
+  
+    mtx_lock(&sc->amr_hw_lock);
+    if (AMR_SGET_MBSTAT(sc) & AMR_SMBOX_BUSYFLAG) {
+	mtx_unlock(&sc->amr_hw_lock);
+	return (EBUSY);
+    }
 
-    if (AMR_SGET_MBSTAT(sc) & AMR_SMBOX_BUSYFLAG)
-	return(EBUSY);
+    /* 
+     * Save the slot number so that we can locate this command when complete.
+     * Note that ident = 0 seems to be special, so we don't use it.
+     */
+    ac->ac_mailbox.mb_ident = ac->ac_slot + 1; /* will be coppied into mbox */
+    bcopy(&ac->ac_mailbox, (void *)(uintptr_t)(volatile void *)sc->amr_mailbox, 14);
+    sc->amr_mailbox->mb_busy = 1;
+    sc->amr_mailbox->mb_poll = 0;
+    sc->amr_mailbox->mb_ack  = 0;
+
     AMR_SPOST_COMMAND(sc);
+    mtx_unlock(&sc->amr_hw_lock);
     return(0);
 }
 
@@ -2234,13 +2233,13 @@ amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 	AMR_QPUT_ODB(sc, AMR_QODB_READY);
 
 	while ((nstatus = sc->amr_mailbox->mb_nstatus) == 0xff)
-	    cpu_spinwait();
+	    DELAY(1);
 	sc->amr_mailbox->mb_nstatus = 0xff;
 
 	/* wait until fw wrote out all completions */
 	for (i = 0; i < nstatus; i++) {
 	    while ((completed[i] = sc->amr_mailbox->mb_completed[i]) == 0xff)
-		cpu_spinwait();
+		DELAY(1);
 	    sc->amr_mailbox->mb_completed[i] = 0xff;
 	}
 
