@@ -112,6 +112,15 @@ static	char		sc_malloc = FALSE;
 static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	int		enable_bell = TRUE; /* enable beeper */
+
+#ifndef SC_DISABLE_REBOOT
+static  int		enable_reboot = TRUE; /* enable keyboard reboot */
+#endif
+
+#ifndef SC_DISABLE_KDBKEY
+static  int		enable_kdbkey = TRUE; /* enable keyboard debug */
+#endif
+
 static	long        	scrn_blank_time = 0;    /* screen saver timeout value */
 #ifdef DEV_SPLASH
 static	int     	scrn_blanked;		/* # of blanked screen */
@@ -127,6 +136,14 @@ SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
 SYSCTL_INT(_hw_syscons, OID_AUTO, bell, CTLFLAG_RW, &enable_bell, 
     0, "enable bell");
+#ifndef SC_DISABLE_REBOOT
+SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_reboot, CTLFLAG_RW|CTLFLAG_SECURE, &enable_reboot,
+    0, "enable keyboard reboot");
+#endif
+#ifndef SC_DISABLE_KDBKEY
+SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_debug, CTLFLAG_RW|CTLFLAG_SECURE, &enable_kdbkey,
+    0, "enable keyboard debug");
+#endif
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
 #endif
@@ -3274,19 +3291,22 @@ next_code:
 
 	    case RBT:
 #ifndef SC_DISABLE_REBOOT
-		shutdown_nice(0);
+		if (enable_reboot)
+			shutdown_nice(0);
 #endif
 		break;
 
 	    case HALT:
 #ifndef SC_DISABLE_REBOOT
-		shutdown_nice(RB_HALT);
+		if (enable_reboot)
+			shutdown_nice(RB_HALT);
 #endif
 		break;
 
 	    case PDWN:
 #ifndef SC_DISABLE_REBOOT
-		shutdown_nice(RB_HALT|RB_POWEROFF);
+		if (enable_reboot)
+			shutdown_nice(RB_HALT|RB_POWEROFF);
 #endif
 		break;
 
@@ -3299,7 +3319,8 @@ next_code:
 
 	    case DBG:
 #ifndef SC_DISABLE_KDBKEY
-		kdb_enter("manual escape to debugger");
+		if (enable_kdbkey)
+			kdb_enter("manual escape to debugger");
 #endif
 		break;
 
