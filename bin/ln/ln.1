@@ -32,7 +32,7 @@
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd February 14, 2006
 .Dt LN 1
 .Os
 .Sh NAME
@@ -41,11 +41,11 @@
 .Nd make links
 .Sh SYNOPSIS
 .Nm
-.Op Fl fhinsv
+.Op Fl Ffhinsv
 .Ar source_file
 .Op Ar target_file
 .Nm
-.Op Fl fhinsv
+.Op Fl Ffhinsv
 .Ar source_file ...
 .Ar target_dir
 .Nm link
@@ -76,6 +76,24 @@ then unlink it so that the link may occur.
 option overrides any previous
 .Fl i
 options.)
+.It Fl F
+If the target file already exists and is a directory, then remove it
+so that the link may occur.
+The
+.Fl F
+option should be used with either
+.Fl f
+or
+.Fl i
+options.
+If none is specified,
+.Fl f
+is implied.
+The
+.Fl F
+option is a no-op unless
+.Fl s
+option is specified.
 .It Fl h
 If the
 .Ar target_file
@@ -179,6 +197,12 @@ options are non-standard and their use in scripts is not recommended.
 They are provided solely for compatibility with other
 .Nm
 implementations.
+.Pp
+The
+.Fl F
+option is
+.Fx
+extention and should not be used in portable scripts.
 .Sh SEE ALSO
 .Xr link 2 ,
 .Xr lstat 2 ,
