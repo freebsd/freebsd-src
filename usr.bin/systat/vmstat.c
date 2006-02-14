@@ -460,8 +460,6 @@ showkre()
 		f1 = cputime(i);
 		f2 += f1;
 		l = (int) ((f2 + 1.0) / 2.0) - psiz;
-		if (f1 > 99.9)
-			f1 = 99.9;	/* no room to display 100.0 */
 		putfloat(f1, GRAPHROW, GRAPHCOL + 10 * lc, 4, 1, 0);
 		move(GRAPHROW + 2, psiz);
 		psiz += l;
