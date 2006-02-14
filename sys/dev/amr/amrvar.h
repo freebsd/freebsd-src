@@ -231,7 +231,7 @@ struct amr_softc
 #define AMR_IS_40LD(sc)		((sc)->amr_type & AMR_TYPE_40LD)
 #define AMR_TYPE_SG64		(1<<2)
 #define AMR_IS_SG64(sc)		((sc)->amr_type & AMR_TYPE_SG64)
-    int				(* amr_submit_command)(struct amr_softc *sc);
+    int				(* amr_submit_command)(struct amr_command *ac);
     int				(* amr_get_work)(struct amr_softc *sc, struct amr_mailbox *mbsave);
     int				(*amr_poll_command)(struct amr_command *ac);
     int				(*amr_poll_command1)(struct amr_softc *sc, struct amr_command *ac);
