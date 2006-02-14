@@ -109,7 +109,7 @@ ia64_mca_save_state(int type)
 		mtx_unlock_spin(&mca_info_block_lock);
 
 		totsz = sizeof(struct sysctl_oid) + recsz + 32;
-		oidp = malloc(totsz, M_MCA, M_WAITOK|M_ZERO);
+		oidp = malloc(totsz, M_MCA, M_NOWAIT|M_ZERO);
 		state = (char*)(oidp + 1);
 		name = state + recsz;
 		sprintf(name, "%lld", (long long)seqnr);
