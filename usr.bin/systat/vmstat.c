@@ -487,15 +487,14 @@ showkre()
 	putint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
 	putint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
 	putint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
-	if (extended_vm_stats == 0) {
-		PUTRATE(v_zfod, VMSTATROW + 0, VMSTATCOL + 4, 5);
-	}
-	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 6);
-	putint(pgtokb(s.v_wire_count), VMSTATROW + 2, VMSTATCOL, 9);
+	if (extended_vm_stats == 0)
+		PUTRATE(v_zfod, VMSTATROW + 0, VMSTATCOL, 9);
+	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 9 - 3);
+	putint(pgtokb(s.v_wire_count), VMSTATROW + 2, VMSTATCOL + 3, 9 - 3);
 	putint(pgtokb(s.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
-	putint(pgtokb(s.v_inactive_count), VMSTATROW + 4, VMSTATCOL, 9);
-	putint(pgtokb(s.v_cache_count), VMSTATROW + 5, VMSTATCOL, 9);
-	putint(pgtokb(s.v_free_count), VMSTATROW + 6, VMSTATCOL, 9);
+	putint(pgtokb(s.v_inactive_count), VMSTATROW + 4, VMSTATCOL + 2, 9 - 2);
+	putint(pgtokb(s.v_cache_count), VMSTATROW + 5, VMSTATCOL + 3, 9 - 3);
+	putint(pgtokb(s.v_free_count), VMSTATROW + 6, VMSTATCOL + 3, 9 - 3);
 	PUTRATE(v_dfree, VMSTATROW + 7, VMSTATCOL, 9);
 	PUTRATE(v_pfree, VMSTATROW + 8, VMSTATCOL, 9);
 	PUTRATE(v_reactivated, VMSTATROW + 9, VMSTATCOL, 9);
