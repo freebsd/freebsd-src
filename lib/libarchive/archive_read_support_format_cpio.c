@@ -336,11 +336,17 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 		/* TODO: Abort here? */
 	}
 
+	st->st_dev = makedev(
+		atol16(header->c_devmajor, sizeof(header->c_devmajor)),
+		atol16(header->c_devminor, sizeof(header->c_devminor)));
 	st->st_ino = atol16(header->c_ino, sizeof(header->c_ino));
 	st->st_mode = atol16(header->c_mode, sizeof(header->c_mode));
 	st->st_uid = atol16(header->c_uid, sizeof(header->c_uid));
 	st->st_gid = atol16(header->c_gid, sizeof(header->c_gid));
 	st->st_nlink = atol16(header->c_nlink, sizeof(header->c_nlink));
+	st->st_rdev = makedev(
+		atol16(header->c_rdevmajor, sizeof(header->c_rdevmajor)),
+		atol16(header->c_rdevminor, sizeof(header->c_rdevminor)));
 	st->st_mtime = atol16(header->c_mtime, sizeof(header->c_mtime));
 	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
 	/* Pad name to 2 more than a multiple of 4. */
