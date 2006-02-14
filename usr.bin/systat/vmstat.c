@@ -185,12 +185,12 @@ closekre(w)
 #define MEMCOL		 0
 #define PAGEROW		 2	/* uses 4 rows and 27 cols */
 #define PAGECOL		46
-#define INTSROW		 6	/* uses all rows to bottom and 17 cols */
-#define INTSCOL		63
+#define INTSROW		 6	/* uses all rows to bottom and 16 cols */
+#define INTSCOL		64
 #define PROCSROW	 7	/* uses 2 rows and 18 cols */
 #define PROCSCOL	 0
-#define GENSTATROW	 7	/* uses 2 rows and 30 cols */
-#define GENSTATCOL	20
+#define GENSTATROW	 7	/* uses 2 rows and 29 cols */
+#define GENSTATCOL	21
 #define VMSTATROW	 6	/* uses 17-18 rows and 12-15 cols */
 #define VMSTATCOL	48	/* actually 50-51 for some fields */
 #define GRAPHROW	10	/* uses 3 rows and 51 cols */
@@ -299,8 +299,8 @@ labelkre()
 	mvprintw(PAGEROW + 2, PAGECOL, "count");
 	mvprintw(PAGEROW + 3, PAGECOL, "pages");
 
-	mvprintw(INTSROW, INTSCOL + 2, "Interrupts");
-	mvprintw(INTSROW + 1, INTSCOL + 7, "total");
+	mvprintw(INTSROW, INTSCOL + 1, "Interrupts");
+	mvprintw(INTSROW + 1, INTSCOL + 6, "total");
 
 	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "cow");
 	mvprintw(VMSTATROW + 2, VMSTATCOL + 10, "wire");
@@ -311,7 +311,7 @@ labelkre()
 	mvprintw(VMSTATROW + 7, VMSTATCOL + 10, "daefr");
 	mvprintw(VMSTATROW + 8, VMSTATCOL + 10, "prcfr");
 	mvprintw(VMSTATROW + 9, VMSTATCOL + 10, "react");
-	mvprintw(VMSTATROW + 10, VMSTATCOL + 10, "pdwake");
+	mvprintw(VMSTATROW + 10, VMSTATCOL + 10, "pdwak");
 	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "pdpgs");
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "intrn");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "buf");
@@ -321,7 +321,7 @@ labelkre()
 	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "numvnodes");
 	mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "freevnodes");
 
-	mvprintw(GENSTATROW, GENSTATCOL, "  Csw  Trp  Sys  Int  Sof  Flt");
+	mvprintw(GENSTATROW, GENSTATCOL, " Csw  Trp  Sys  Int  Sof  Flt");
 
 	mvprintw(GRAPHROW, GRAPHCOL,
 		"  . %%Sys    . %%Intr   . %%User   . %%Nice   . %%Idle");
@@ -336,7 +336,7 @@ labelkre()
 	mvprintw(DISKROW + 1, DISKCOL, "KB/t");
 	mvprintw(DISKROW + 2, DISKCOL, "tps");
 	mvprintw(DISKROW + 3, DISKCOL, "MB/s");
-	mvprintw(DISKROW + 4, DISKCOL, "%% busy");
+	mvprintw(DISKROW + 4, DISKCOL, "%%busy");
 	/*
 	 * For now, we don't support a fourth disk statistic.  So there's
 	 * no point in providing a label for it.  If someone can think of a
@@ -371,7 +371,7 @@ labelkre()
 	for (i = 0; i < nintr; i++) {
 		if (intrloc[i] == 0)
 			continue;
-		mvprintw(intrloc[i], INTSCOL + 7, "%-10.10s", intrname[i]);
+		mvprintw(intrloc[i], INTSCOL + 6, "%-10.10s", intrname[i]);
 	}
 }
 
@@ -437,15 +437,15 @@ showkre()
 				intrbuffer[k++] = intrname[i][j];
 			}
 			intrbuffer[k] = '\0';
-			mvprintw(intrloc[i], INTSCOL + 7, "%-10.10s",
+			mvprintw(intrloc[i], INTSCOL + 6, "%-10.10s",
 				intrbuffer);
 		}
 		X(intrcnt);
 		l = (int)((float)s.intrcnt[i]/etime + 0.5);
 		inttotal += l;
-		putint(l, intrloc[i], INTSCOL, 6);
+		putint(l, intrloc[i], INTSCOL, 5);
 	}
-	putint(inttotal, INTSROW + 1, INTSCOL, 6);
+	putint(inttotal, INTSROW + 1, INTSCOL, 5);
 	Z(ncs_goodhits); Z(ncs_badhits); Z(ncs_miss);
 	Z(ncs_long); Z(ncs_pass2); Z(ncs_2passes); Z(ncs_neghits);
 	s.nchcount = nchtotal.ncs_goodhits + nchtotal.ncs_badhits +
@@ -470,20 +470,20 @@ showkre()
 	}
 
 	putint(ucount(), STATROW, STATCOL, 3);
-	putfloat(avenrun[0], STATROW, STATCOL + 17, 6, 2, 0);
-	putfloat(avenrun[1], STATROW, STATCOL + 23, 6, 2, 0);
-	putfloat(avenrun[2], STATROW, STATCOL + 29, 6, 2, 0);
+	putfloat(avenrun[0], STATROW, STATCOL + 18, 5, 2, 0);
+	putfloat(avenrun[1], STATROW, STATCOL + 24, 5, 2, 0);
+	putfloat(avenrun[2], STATROW, STATCOL + 30, 5, 2, 0);
 	mvaddstr(STATROW, STATCOL + 53, buf);
 #define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
-	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 8);
-	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 11, 8);
-	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 19, 9);
-	putint(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 28, 9);
-	putint(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 3, 8);
-	putint(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 11, 8);
-	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 19, 9);
-	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 28, 9);
-	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 37, 8);
+	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 4, 7);
+	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 12, 7);
+	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 20, 8);
+	putint(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 29, 8);
+	putint(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 4, 7);
+	putint(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 12, 7);
+	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 20, 8);
+	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 29, 8);
+	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 38, 7);
 	putint(total.t_rq - 1, PROCSROW + 1, PROCSCOL + 3, 3);
 	putint(total.t_pw, PROCSROW + 1, PROCSCOL + 6, 3);
 	putint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
@@ -524,20 +524,20 @@ showkre()
 	putint(s.desiredvnodes, VMSTATROW + 15, VMSTATCOL, 9);
 	putint(s.numvnodes, VMSTATROW + 16, VMSTATCOL, 9);
 	putint(s.freevnodes, VMSTATROW + 17, VMSTATCOL, 9);
-	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
-	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
+	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 4);
+	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 11, 4);
 	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
-	PUTRATE(v_swapout, PAGEROW + 2, PAGECOL + 22, 5);
-	PUTRATE(v_vnodepgsin, PAGEROW + 3, PAGECOL + 5, 5);
-	PUTRATE(v_vnodepgsout, PAGEROW + 3, PAGECOL + 10, 5);
+	PUTRATE(v_swapout, PAGEROW + 2, PAGECOL + 23, 4);
+	PUTRATE(v_vnodepgsin, PAGEROW + 3, PAGECOL + 6, 4);
+	PUTRATE(v_vnodepgsout, PAGEROW + 3, PAGECOL + 11, 4);
 	PUTRATE(v_swappgsin, PAGEROW + 3, PAGECOL + 17, 5);
-	PUTRATE(v_swappgsout, PAGEROW + 3, PAGECOL + 22, 5);
-	PUTRATE(v_swtch, GENSTATROW + 1, GENSTATCOL, 5);
-	PUTRATE(v_trap, GENSTATROW + 1, GENSTATCOL + 5, 5);
-	PUTRATE(v_syscall, GENSTATROW + 1, GENSTATCOL + 10, 5);
-	PUTRATE(v_intr, GENSTATROW + 1, GENSTATCOL + 15, 5);
-	PUTRATE(v_soft, GENSTATROW + 1, GENSTATCOL + 20, 5);
-	PUTRATE(v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
+	PUTRATE(v_swappgsout, PAGEROW + 3, PAGECOL + 23, 4);
+	PUTRATE(v_swtch, GENSTATROW + 1, GENSTATCOL, 4);
+	PUTRATE(v_trap, GENSTATROW + 1, GENSTATCOL + 5, 4);
+	PUTRATE(v_syscall, GENSTATROW + 1, GENSTATCOL + 10, 4);
+	PUTRATE(v_intr, GENSTATROW + 1, GENSTATCOL + 15, 4);
+	PUTRATE(v_soft, GENSTATROW + 1, GENSTATCOL + 20, 4);
+	PUTRATE(v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 4);
 	mvprintw(DISKROW, DISKCOL + 5, "                              ");
 	for (i = 0, lc = 0; i < num_devices && lc < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
@@ -560,12 +560,12 @@ showkre()
 		}
 	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 9);
 	putint((nchtotal.ncs_goodhits + nchtotal.ncs_neghits),
-	   NAMEIROW + 2, NAMEICOL + 9, 9);
+	   NAMEIROW + 2, NAMEICOL + 10, 8);
 #define nz(x)	((x) ? (x) : 1)
 	putfloat((nchtotal.ncs_goodhits+nchtotal.ncs_neghits) *
 	   100.0 / nz(s.nchcount),
 	   NAMEIROW + 2, NAMEICOL + 19, 4, 0, 1);
-	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 23, 9);
+	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 24, 8);
 	putfloat(nchtotal.ncs_pass2 * 100.0 / nz(s.nchcount),
 	   NAMEIROW + 2, NAMEICOL + 33, 4, 0, 1);
 #undef nz
