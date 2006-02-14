@@ -665,10 +665,11 @@ release.6:
 	  -czf ${RD}/dists/ports/ports.tgz -C /usr ports
 	@cp ${.CURDIR}/scripts/ports-install.sh ${RD}/dists/ports/install.sh
 	@(cd ${RD}/dists/ports; \
-	  rm -f .CHECKSUM.MD5 CHECKSUM.SHA256; \
+	  rm -f CHECKSUM.MD5 CHECKSUM.SHA256; \
 	  md5 * > .CHECKSUM.MD5; \
-	  sha256 * > CHECKSUM.SHA256; \
-	  mv .CHECKSUM.MD5 CHECKSUM.MD5)
+	  sha256 * > .CHECKSUM.SHA256; \
+	  mv .CHECKSUM.MD5 CHECKSUM.MD5; \
+	  mv .CHECKSUM.SHA256 CHECKSUM.SHA256)
 	@echo "ports distribution is finished."
 .endif
 	touch ${.TARGET}
@@ -700,10 +701,11 @@ release.7:
 	done
 .endif
 	(cd ${RD}/dists/src; \
-	  rm -f .CHECKSUM.MD5 CHECKSUM.SHA256; \
+	  rm -f CHECKSUM.MD5 CHECKSUM.SHA256; \
 	  md5 * > .CHECKSUM.MD5; \
-	  sha256 * > CHECKSUM.SHA256; \
-	  mv .CHECKSUM.MD5 CHECKSUM.MD5)
+	  sha256 * > .CHECKSUM.SHA256; \
+	  mv .CHECKSUM.MD5 CHECKSUM.MD5; \
+	  mv .CHECKSUM.SHA256 CHECKSUM.SHA256)
 	@echo "src distribution is finished."
 .endif
 	touch ${.TARGET}
@@ -1105,10 +1107,11 @@ doTARBALL:
 			true; \
 		fi; \
 		( cd ${RD}/dists/${TD}; \
-		rm -f .CHECKSUM.MD5 CHECKSUM.SHA256; \
+		rm -f CHECKSUM.MD5 CHECKSUM.SHA256; \
 		md5 * > .CHECKSUM.MD5; \
-		sha256 * > CHECKSUM.SHA256; \
-		mv .CHECKSUM.MD5 CHECKSUM.MD5) \
+		sha256 * > .CHECKSUM.SHA256; \
+		mv .CHECKSUM.MD5 CHECKSUM.MD5; \
+		mv .CHECKSUM.SHA256 CHECKSUM.SHA256) \
 	)
 
 doRELEASE: release.1 release.2 ${DOCREL} release.3 release.4 \
