@@ -670,6 +670,7 @@ static void
 putint(n, l, lc, w)
 	int n, l, lc, w;
 {
+	int snr;
 	char b[128];
 
 	move(l, lc);
@@ -678,11 +679,16 @@ putint(n, l, lc, w)
 			addch(' ');
 		return;
 	}
-	snprintf(b, sizeof(b), "%*d", w, n);
-	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*dk", w - 1, n / 1000);
-	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
+	snr = snprintf(b, sizeof(b), "%*d", w, n);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*dk", w - 1, n / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
+	if (snr != w) {
+		while (w-- > 0)
+			addch('*');
+		return;
+	}
 	addstr(b);
 }
 
@@ -691,6 +697,7 @@ putfloat(f, l, lc, w, d, nz)
 	double f;
 	int l, lc, w, d, nz;
 {
+	int snr;
 	char b[128];
 
 	move(l, lc);
@@ -699,10 +706,10 @@ putfloat(f, l, lc, w, d, nz)
 			addch(' ');
 		return;
 	}
-	snprintf(b, sizeof(b), "%*.*f", w, d, f);
-	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*.0f", w, f);
-	if ((int)strlen(b) > w) {
+	snr = snprintf(b, sizeof(b), "%*.*f", w, d, f);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0f", w, f);
+	if (snr != w) {
 		while (--w >= 0)
 			addch('*');
 		return;
@@ -715,6 +722,7 @@ putlongdouble(f, l, lc, w, d, nz)
 	long double f;
 	int l, lc, w, d, nz;
 {
+	int snr;
 	char b[128];
 
 	move(l, lc);
@@ -723,10 +731,10 @@ putlongdouble(f, l, lc, w, d, nz)
 			addch(' ');
 		return;
 	}
-	sprintf(b, "%*.*Lf", w, d, f);
-	if ((int)strlen(b) > w)
-		sprintf(b, "%*.0Lf", w, f);
-	if ((int)strlen(b) > w) {
+	snr = snprintf(b, sizeof(b), "%*.*Lf", w, d, f);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0Lf", w, f);
+	if (snr != w) {
 		while (--w >= 0)
 			addch('*');
 		return;
