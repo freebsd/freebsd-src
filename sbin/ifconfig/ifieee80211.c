@@ -475,7 +475,7 @@ set80211bssid(const char *val, int d, int s, const struct afswtch *rafp)
 		char *temp;
 		struct sockaddr_dl sdl;
 
-		temp = malloc(strlen(val) + 2);
+		temp = malloc(strlen(val) + 2); /* ':' and '\0' */
 		if (temp == NULL)
 			errx(1, "malloc failed");
 		temp[0] = ':';
@@ -601,7 +601,7 @@ set80211macmac(int s, int op, const char *val)
 	char *temp;
 	struct sockaddr_dl sdl;
 
-	temp = malloc(strlen(val) + 1);
+	temp = malloc(strlen(val) + 2); /* ':' and '\0' */
 	if (temp == NULL)
 		errx(1, "malloc failed");
 	temp[0] = ':';
@@ -633,7 +633,7 @@ DECL_CMD_FUNC(set80211kickmac, val, d)
 	struct sockaddr_dl sdl;
 	struct ieee80211req_mlme mlme;
 
-	temp = malloc(strlen(val) + 1);
+	temp = malloc(strlen(val) + 2); /* ':' and '\0' */
 	if (temp == NULL)
 		errx(1, "malloc failed");
 	temp[0] = ':';
