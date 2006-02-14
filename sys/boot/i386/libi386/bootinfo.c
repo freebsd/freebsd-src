@@ -47,11 +47,14 @@ static struct
     {"boot_askname",	RB_ASKNAME},
     {"boot_cdrom",	RB_CDROM},
     {"boot_ddb",	RB_KDB},
+    {"boot_dfltroot",	RB_DFLTROOT},
     {"boot_gdb",	RB_GDB},
+    {"boot_multicons",	RB_MULTIPLE},
+    {"boot_mute",	RB_MUTE},
+    {"boot_pause",	RB_PAUSE},
+    {"boot_serial",	RB_SERIAL},
     {"boot_single",	RB_SINGLE},
     {"boot_verbose",	RB_VERBOSE},
-    {"boot_multicons",	RB_MULTIPLE},
-    {"boot_serial",	RB_SERIAL},
     {NULL,	0}
 };
 
@@ -148,6 +151,16 @@ bi_getboothowto(char *kargs)
     free(string);
 
     return(howto);
+}
+
+void
+bi_setboothowto(int howto)
+{
+    int		i;
+
+    for (i = 0; howto_names[i].ev != NULL; i++)
+	if (howto & howto_names[i].mask)
+	    setenv(howto_names[i].ev, "YES", 1);
 }
 
 /*
