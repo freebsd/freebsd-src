@@ -475,7 +475,7 @@ set80211bssid(const char *val, int d, int s, const struct afswtch *rafp)
 		char *temp;
 		struct sockaddr_dl sdl;
 
-		temp = malloc(strlen(val) + 1);
+		temp = malloc(strlen(val) + 2); /* ':' and '\0' */
 		if (temp == NULL)
 			errx(1, "malloc failed");
 		temp[0] = ':';
@@ -601,7 +601,7 @@ set80211macmac(int s, int op, const char *val)
 	char *temp;
 	struct sockaddr_dl sdl;
 
-	temp = malloc(strlen(val) + 1);
+	temp = malloc(strlen(val) + 2); /* ':' and '\0' */
 	if (temp == NULL)
 		errx(1, "malloc failed");
 	temp[0] = ':';
@@ -633,7 +633,7 @@ DECL_CMD_FUNC(set80211kickmac, val, d)
 	struct sockaddr_dl sdl;
 	struct ieee80211req_mlme mlme;
 
-	temp = malloc(strlen(val) + 1);
+	temp = malloc(strlen(val) + 2); /* ':' and '\0' */
 	if (temp == NULL)
 		errx(1, "malloc failed");
 	temp[0] = ':';
@@ -666,6 +666,12 @@ static void
 set80211burst(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	set80211(s, IEEE80211_IOC_BURST, d, 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211mcastrate, val, d)
+{
+	set80211(s, IEEE80211_IOC_MCAST_RATE, (int) 2*atof(val), 0, NULL);
 }
 
 static
@@ -840,9 +846,9 @@ list_scan(int s)
 {
 	uint8_t buf[24*1024];
 	struct ieee80211req ireq;
-	char ssid[14];
+	char ssid[IEEE80211_NWID_LEN+1];
 	uint8_t *cp;
-	int len;
+	int len, ssidmax;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
@@ -855,8 +861,9 @@ list_scan(int s)
 	if (len < sizeof(struct ieee80211req_scan_result))
 		return;
 
-	printf("%-14.14s  %-17.17s  %4s %4s  %-5s %3s %4s\n"
-		, "SSID"
+	ssidmax = verbose ? IEEE80211_NWID_LEN : 14;
+	printf("%-*.*s  %-17.17s  %4s %4s  %-5s %3s %4s\n"
+		, ssidmax, ssidmax, "SSID"
 		, "BSSID"
 		, "CHAN"
 		, "RATE"
@@ -871,9 +878,10 @@ list_scan(int s)
 
 		sr = (struct ieee80211req_scan_result *) cp;
 		vp = (u_int8_t *)(sr+1);
-		printf("%-14.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
-			, copy_essid(ssid, sizeof(ssid), vp, sr->isr_ssid_len)
-				, ssid
+		printf("%-*.*s  %s  %3d  %3dM %2d:%-2d  %3d %-4.4s"
+			, ssidmax
+			  , copy_essid(ssid, ssidmax, vp, sr->isr_ssid_len)
+			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
 			, ieee80211_mhz2ieee(sr->isr_freq)
 			, getmaxrate(sr->isr_rates, sr->isr_nrates)
@@ -1619,6 +1627,17 @@ ieee80211_status(int s)
 			LINE_CHECK("%crtsthreshold %d", spacer, ireq.i_val);
 	}
 
+	ireq.i_type = IEEE80211_IOC_MCAST_RATE;
+	if (ioctl(s, SIOCG80211, &ireq) != -1) {
+		if (ireq.i_val != 2*1 || verbose) {
+			if (ireq.i_val == 11)
+				LINE_CHECK("%cmcastrate 5.5", spacer);
+			else
+				LINE_CHECK("%cmcastrate %d", spacer,
+					ireq.i_val/2);
+		}
+	}
+
 	ireq.i_type = IEEE80211_IOC_FRAGTHRESHOLD;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val != IEEE80211_FRAG_MAX || verbose)
@@ -1927,6 +1946,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("mac:kick",		set80211kickmac),
 	DEF_CMD("pureg",	1,	set80211pureg),
 	DEF_CMD("-pureg",	0,	set80211pureg),
+	DEF_CMD_ARG("mcastrate",	set80211mcastrate),
 	DEF_CMD_ARG("fragthreshold",	set80211fragthreshold),
 	DEF_CMD("burst",	1,	set80211burst),
 	DEF_CMD("-burst",	0,	set80211burst),
