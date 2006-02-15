@@ -25,6 +25,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#ifdef	__FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+#endif
 
 /*
  * Bug fixes gratefully acknowledged from:
@@ -38,9 +42,6 @@
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -112,9 +113,9 @@ static void isp_handle_ctio2(struct ispsoftc *, ct2_entry_t *);
  */
 
 int
-isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
+isp_target_notify(struct ispsoftc *isp, void *vptr, uint16_t *optrp)
 {
-	u_int16_t status, seqid;
+	uint16_t status, seqid;
 	union {
 		at_entry_t	*atiop;
 		at2_entry_t	*at2iop;
@@ -146,7 +147,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 #define	nacke_fcp	unp.nacke_fcp
 #define	hdrp		unp.hp
 	} unp;
-	u_int8_t local[QENTRY_LEN];
+	uint8_t local[QENTRY_LEN];
 	int bus, type, rval = 1;
 
 	type = isp_get_response_type(isp, (isphdr_t *)vptr);
@@ -303,10 +304,10 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
  */
 int
 isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
-    int cmd_cnt, int inot_cnt, u_int32_t opaque)
+    int cmd_cnt, int inot_cnt, uint32_t opaque)
 {
 	lun_entry_t el;
-	u_int16_t nxti, optr;
+	uint16_t nxti, optr;
 	void *outp;
 
 
@@ -359,8 +360,8 @@ int
 isp_target_put_entry(struct ispsoftc *isp, void *ap)
 {
 	void *outp;
-	u_int16_t nxti, optr;
-	u_int8_t etype = ((isphdr_t *) ap)->rqs_entry_type;
+	uint16_t nxti, optr;
+	uint8_t etype = ((isphdr_t *) ap)->rqs_entry_type;
 
 	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {
 		isp_prt(isp, ISP_LOGWARN,
@@ -406,9 +407,9 @@ isp_target_put_atio(struct ispsoftc *isp, void *arg)
 		atun._atio2.at_header.rqs_entry_type = RQSTYPE_ATIO2;
 		atun._atio2.at_header.rqs_entry_count = 1;
 		if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
-			atun._atio2.at_scclun = (u_int16_t) aep->at_scclun;
+			atun._atio2.at_scclun = (uint16_t) aep->at_scclun;
 		} else {
-			atun._atio2.at_lun = (u_int8_t) aep->at_lun;
+			atun._atio2.at_lun = (uint8_t) aep->at_lun;
 		}
 		if (IS_2KLOGIN(isp)) {
 			atun._atio2e.at_iid = ((at2e_entry_t *)aep)->at_iid;
@@ -452,7 +453,7 @@ isp_target_put_atio(struct ispsoftc *isp, void *arg)
  */
 
 int
-isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
+isp_endcmd(struct ispsoftc *isp, void *arg, uint32_t code, uint16_t hdl)
 {
 	int sts;
 	union {
@@ -609,7 +610,7 @@ static void
 isp_got_msg(struct ispsoftc *isp, in_entry_t *inp)
 {
 	tmd_notify_t nt;
-	u_int8_t status = inp->in_status & ~QLTM_SVALID;
+	uint8_t status = inp->in_status & ~QLTM_SVALID;
 
 	MEMZERO(&nt, sizeof (nt));
 	nt.nt_hba = isp;
@@ -689,7 +690,7 @@ isp_got_msg_fc(struct ispsoftc *isp, in_fcentry_t *inp)
 
 	if (inp->in_status != IN_MSG_RECEIVED) {
 		isp_prt(isp, ISP_LOGINFO, f2, "immediate notify status",
-		    inp->in_status, nt.nt_lun, (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid,
+		    inp->in_status, nt.nt_lun, (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid,
 		    inp->in_task_flags,  inp->in_seqid);
 		isp_notify_ack(isp, inp);
 		return;
@@ -697,27 +698,27 @@ isp_got_msg_fc(struct ispsoftc *isp, in_fcentry_t *inp)
 
 	if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK SET",
-		    (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_ABORT_TASK_SET;
 	} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR TASK SET",
-		    (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_CLEAR_TASK_SET;
 	} else if (inp->in_task_flags & TASK_FLAGS_LUN_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "LUN RESET",
-		    (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_LUN_RESET;
 	} else if (inp->in_task_flags & TASK_FLAGS_TARGET_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "TARGET RESET",
-		    (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_TARGET_RESET;
 	} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_ACA) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR ACA",
-		    (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_CLEAR_ACA;
 	} else {
 		isp_prt(isp, ISP_LOGWARN, f2, "task flag",
-		    inp->in_status, nt.nt_lun, (u_int32_t) (nt.nt_iid >> 32), (u_int32_t) nt.nt_iid,
+		    inp->in_status, nt.nt_lun, (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid,
 		    inp->in_task_flags,  inp->in_seqid);
 		isp_notify_ack(isp, inp);
 		return;
@@ -729,7 +730,7 @@ void
 isp_notify_ack(struct ispsoftc *isp, void *arg)
 {
 	char storage[QENTRY_LEN];
-	u_int16_t nxti, optr;
+	uint16_t nxti, optr;
 	void *outp;
 
 	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {

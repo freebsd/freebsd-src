@@ -30,13 +30,13 @@
 #ifndef	_ISP_LIBRARY_H
 #define	_ISP_LIBRARY_H
 
-extern int isp_save_xs(ispsoftc_t *, XS_T *, u_int16_t *);
-extern XS_T *isp_find_xs(ispsoftc_t *, u_int16_t);
-extern u_int16_t isp_find_handle(ispsoftc_t *, XS_T *);
-extern int isp_handle_index(u_int16_t);
-extern u_int16_t isp_index_handle(int);
-extern void isp_destroy_handle(ispsoftc_t *, u_int16_t);
-extern int isp_getrqentry(ispsoftc_t *, u_int16_t *, u_int16_t *, void **);
+extern int isp_save_xs(ispsoftc_t *, XS_T *, uint16_t *);
+extern XS_T *isp_find_xs(ispsoftc_t *, uint16_t);
+extern uint16_t isp_find_handle(ispsoftc_t *, XS_T *);
+extern int isp_handle_index(uint16_t);
+extern uint16_t isp_index_handle(int);
+extern void isp_destroy_handle(ispsoftc_t *, uint16_t);
+extern int isp_getrqentry(ispsoftc_t *, uint16_t *, uint16_t *, void **);
 extern void isp_print_qentry (ispsoftc_t *, char *, int, void *);
 extern void isp_print_bytes(ispsoftc_t *, char *, int, void *);
 extern int isp_fc_runstate(ispsoftc_t *, int);
@@ -95,12 +95,18 @@ isp_get_ga_nxt_response(ispsoftc_t *, sns_ga_nxt_rsp_t *,
     sns_ga_nxt_rsp_t *);
 
 #ifdef	ISP_TARGET_MODE
+#if	defined(__NetBSD__) || defined(__OpenBSD__)
+#include <dev/ic/isp_target.h>
+#elif 	defined(__FreeBSD__)
 #include <dev/isp/isp_target.h>
+#else
+#include "isp_target.h"
+#endif
 
-extern int isp_save_xs_tgt(ispsoftc_t *, void *, u_int16_t *);
-extern void *isp_find_xs_tgt(ispsoftc_t *, u_int16_t);
-extern u_int16_t isp_find_tgt_handle(ispsoftc_t *, void *);
-extern void isp_destroy_tgt_handle(ispsoftc_t *, u_int16_t);
+extern int isp_save_xs_tgt(ispsoftc_t *, void *, uint16_t *);
+extern void *isp_find_xs_tgt(ispsoftc_t *, uint16_t);
+extern uint16_t isp_find_tgt_handle(ispsoftc_t *, void *);
+extern void isp_destroy_tgt_handle(ispsoftc_t *, uint16_t);
 
 extern void
 isp_put_atio(ispsoftc_t *, at_entry_t *, at_entry_t *);

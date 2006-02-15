@@ -48,19 +48,19 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/isp/isp_freebsd.h>
 
-static u_int16_t isp_pci_rd_reg(struct ispsoftc *, int);
-static void isp_pci_wr_reg(struct ispsoftc *, int, u_int16_t);
-static u_int16_t isp_pci_rd_reg_1080(struct ispsoftc *, int);
-static void isp_pci_wr_reg_1080(struct ispsoftc *, int, u_int16_t);
+static uint16_t isp_pci_rd_reg(struct ispsoftc *, int);
+static void isp_pci_wr_reg(struct ispsoftc *, int, uint16_t);
+static uint16_t isp_pci_rd_reg_1080(struct ispsoftc *, int);
+static void isp_pci_wr_reg_1080(struct ispsoftc *, int, uint16_t);
 static int
-isp_pci_rd_isr(struct ispsoftc *, u_int16_t *, u_int16_t *, u_int16_t *);
+isp_pci_rd_isr(struct ispsoftc *, uint16_t *, uint16_t *, uint16_t *);
 static int
-isp_pci_rd_isr_2300(struct ispsoftc *, u_int16_t *, u_int16_t *, u_int16_t *);
+isp_pci_rd_isr_2300(struct ispsoftc *, uint16_t *, uint16_t *, uint16_t *);
 static int isp_pci_mbxdma(struct ispsoftc *);
 static int
-isp_pci_dmasetup(struct ispsoftc *, XS_T *, ispreq_t *, u_int16_t *, u_int16_t);
+isp_pci_dmasetup(struct ispsoftc *, XS_T *, ispreq_t *, uint16_t *, uint16_t);
 static void
-isp_pci_dmateardown(struct ispsoftc *, XS_T *, u_int16_t);
+isp_pci_dmateardown(struct ispsoftc *, XS_T *, uint16_t);
 
 static void isp_pci_reset1(struct ispsoftc *);
 static void isp_pci_dumpregs(struct ispsoftc *, const char *);
@@ -377,7 +377,7 @@ isp_pci_attach(device_t dev)
 {
 	struct resource *regs, *irq;
 	int tval, rtp, rgd, iqd, m1, m2, isp_debug, role;
-	u_int32_t data, cmd, linesz, psize, basetype;
+	uint32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp = NULL;
 	struct ispmdvec *mdvp;
@@ -845,7 +845,7 @@ static void
 isp_pci_intr(void *arg)
 {
 	struct ispsoftc *isp = arg;
-	u_int16_t isr, sema, mbox;
+	uint16_t isr, sema, mbox;
 
 	ISP_LOCK(isp);
 	isp->isp_intcnt++;
@@ -872,10 +872,10 @@ isp_pci_intr(void *arg)
 
 
 static __inline int
-isp_pci_rd_debounced(struct ispsoftc *isp, int off, u_int16_t *rp)
+isp_pci_rd_debounced(struct ispsoftc *isp, int off, uint16_t *rp)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
-	u_int16_t val0, val1;
+	uint16_t val0, val1;
 	int i = 0;
 
 	do {
@@ -890,11 +890,11 @@ isp_pci_rd_debounced(struct ispsoftc *isp, int off, u_int16_t *rp)
 }
 
 static int
-isp_pci_rd_isr(struct ispsoftc *isp, u_int16_t *isrp,
-    u_int16_t *semap, u_int16_t *mbp)
+isp_pci_rd_isr(struct ispsoftc *isp, uint16_t *isrp,
+    uint16_t *semap, uint16_t *mbp)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
-	u_int16_t isr, sema;
+	uint16_t isr, sema;
 
 	if (IS_2100(isp)) {
 		if (isp_pci_rd_debounced(isp, BIU_ISR, &isr)) {
@@ -927,11 +927,11 @@ isp_pci_rd_isr(struct ispsoftc *isp, u_int16_t *isrp,
 }
 
 static int
-isp_pci_rd_isr_2300(struct ispsoftc *isp, u_int16_t *isrp,
-    u_int16_t *semap, u_int16_t *mbox0p)
+isp_pci_rd_isr_2300(struct ispsoftc *isp, uint16_t *isrp,
+    uint16_t *semap, uint16_t *mbox0p)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
-	u_int32_t r2hisr;
+	uint32_t r2hisr;
 
 	if (!(BXR2(pcs, IspVirt2Off(isp, BIU_ISR) & BIU2100_ISR_RISC_INT))) {
 		*isrp = 0;
@@ -979,10 +979,10 @@ isp_pci_rd_isr_2300(struct ispsoftc *isp, u_int16_t *isrp,
 	}
 }
 
-static u_int16_t
+static uint16_t
 isp_pci_rd_reg(struct ispsoftc *isp, int regoff)
 {
-	u_int16_t rv;
+	uint16_t rv;
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int oldconf = 0;
 
@@ -1002,7 +1002,7 @@ isp_pci_rd_reg(struct ispsoftc *isp, int regoff)
 }
 
 static void
-isp_pci_wr_reg(struct ispsoftc *isp, int regoff, u_int16_t val)
+isp_pci_wr_reg(struct ispsoftc *isp, int regoff, uint16_t val)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int oldconf = 0;
@@ -1021,15 +1021,15 @@ isp_pci_wr_reg(struct ispsoftc *isp, int regoff, u_int16_t val)
 	}
 }
 
-static u_int16_t
+static uint16_t
 isp_pci_rd_reg_1080(struct ispsoftc *isp, int regoff)
 {
-	u_int16_t rv, oc = 0;
+	uint16_t rv, oc = 0;
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
 	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
-		u_int16_t tc;
+		uint16_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
@@ -1053,14 +1053,14 @@ isp_pci_rd_reg_1080(struct ispsoftc *isp, int regoff)
 }
 
 static void
-isp_pci_wr_reg_1080(struct ispsoftc *isp, int regoff, u_int16_t val)
+isp_pci_wr_reg_1080(struct ispsoftc *isp, int regoff, uint16_t val)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int oc = 0;
 
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
 	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
-		u_int16_t tc;
+		uint16_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
@@ -1120,7 +1120,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *)isp;
 	caddr_t base;
-	u_int32_t len;
+	uint32_t len;
 	int i, error, ns;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
@@ -1134,15 +1134,19 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		return (0);
 	}
 
-#ifdef	ISP_DAC_SUPPORTED
-	llim = hlim = BUS_SPACE_MAXADDR;
-#else
-	llim = BUS_SPACE_MAXADDR_32BIT;
 	hlim = BUS_SPACE_MAXADDR;
-#endif
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
 		slim = (bus_size_t) (1ULL << 32);
+#ifdef	ISP_TARGET_MODE
+		/*
+		 * XXX: Until Fixed Soon
+		 */
+		llim = BUS_SPACE_MAXADDR_32BIT;
+#else
+		llim = BUS_SPACE_MAXADDR;
+#endif
 	} else {
+		llim = BUS_SPACE_MAXADDR_32BIT;
 		slim = (1 << 24);
 	}
 
@@ -1274,9 +1278,9 @@ typedef struct {
 	struct ispsoftc *isp;
 	void *cmd_token;
 	void *rq;
-	u_int16_t *nxtip;
-	u_int16_t optr;
-	u_int error;
+	uint16_t *nxtip;
+	uint16_t optr;
+	int error;
 } mush_t;
 
 #define	MUSHERR_NOQENTRIES	-2
@@ -1312,9 +1316,9 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct isp_pcisoftc *pcs;
 	bus_dmamap_t *dp;
 	ct_entry_t *cto, *qe;
-	u_int8_t scsi_status;
-	u_int16_t curi, nxti, handle;
-	u_int32_t sflags;
+	uint8_t scsi_status;
+	uint16_t curi, nxti, handle;
+	uint32_t sflags;
 	int32_t resid;
 	int nth_ctio, nctios, send_status;
 
@@ -1553,7 +1557,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct ccb_scsiio *csio;
 	struct ispsoftc *isp;
 	ct2_entry_t *cto, *qe;
-	u_int16_t curi, nxti;
+	uint16_t curi, nxti;
 	int segcnt;
 
 	mp = (mush_t *) arg;
@@ -1623,7 +1627,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	while (segcnt < nseg) {
-		u_int16_t curip;
+		uint16_t curip;
 		int seg;
 		ispcontreq_t local, *crq = &local, *qep;
 
@@ -1673,14 +1677,11 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 }
 #endif
 
+static void dma2_a64(void *, bus_dma_segment_t *, int, int);
 static void dma2(void *, bus_dma_segment_t *, int, int);
 
-#if	defined(ISP_DAC_SUPPORTED) && (ISP_64BIT_CORRECTLY_DONE)
-#define	LOWD(x)		((uint32_t) x)
-#define	HIWD(x)		((uint32_t) (x >> 32))
-
 static void
-dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+dma2_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
 	mush_t *mp;
 	struct ispsoftc *isp;
@@ -1690,7 +1691,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dma_segment_t *eseg;
 	ispreq64_t *rq;
 	int seglim, datalen;
-	u_int16_t nxti;
+	uint16_t nxti;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1756,16 +1757,16 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		if (IS_FC(isp)) {
 			ispreqt3_t *rq3 = (ispreqt3_t *)rq;
 			rq3->req_dataseg[rq3->req_seg_count].ds_base =
-			    LOWD(dm_segs->ds_addr);
+			    DMA_LO32(dm_segs->ds_addr);
 			rq3->req_dataseg[rq3->req_seg_count].ds_basehi =
-			    HIWD(dm_segs->ds_addr);
+			    DMA_HI32(dm_segs->ds_addr);
 			rq3->req_dataseg[rq3->req_seg_count].ds_count =
 			    dm_segs->ds_len;
 		} else {
 			rq->req_dataseg[rq->req_seg_count].ds_base =
-			    LOWD(dm_segs->ds_addr);
+			    DMA_LO32(dm_segs->ds_addr);
 			rq->req_dataseg[rq->req_seg_count].ds_basehi =
-			    HIWD(dm_segs->ds_addr);
+			    DMA_HI32(dm_segs->ds_addr);
 			rq->req_dataseg[rq->req_seg_count].ds_count =
 			    dm_segs->ds_len;
 		}
@@ -1775,7 +1776,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	while (datalen > 0 && dm_segs != eseg) {
-		u_int16_t onxti;
+		uint16_t onxti;
 		ispcontreq64_t local, *crq = &local, *cqe;
 
 		cqe = (ispcontreq64_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, nxti);
@@ -1794,9 +1795,9 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		seglim = 0;
 		while (datalen > 0 && seglim < ISP_CDSEG64 && dm_segs != eseg) {
 			crq->req_dataseg[seglim].ds_base =
-			    LOWD(dm_segs->ds_addr);
+			    DMA_LO32(dm_segs->ds_addr);
 			crq->req_dataseg[seglim].ds_basehi =
-			    HIWD(dm_segs->ds_addr);
+			    DMA_HI32(dm_segs->ds_addr);
 			crq->req_dataseg[seglim].ds_count =
 			    dm_segs->ds_len;
 			rq->req_seg_count++;
@@ -1809,7 +1810,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 	*mp->nxtip = nxti;
 }
-#else
+
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
@@ -1821,7 +1822,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dma_segment_t *eseg;
 	ispreq_t *rq;
 	int seglim, datalen;
-	u_int16_t nxti;
+	uint16_t nxti;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1886,12 +1887,12 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		if (IS_FC(isp)) {
 			ispreqt2_t *rq2 = (ispreqt2_t *)rq;
 			rq2->req_dataseg[rq2->req_seg_count].ds_base =
-			    dm_segs->ds_addr;
+			    DMA_LO32(dm_segs->ds_addr);
 			rq2->req_dataseg[rq2->req_seg_count].ds_count =
 			    dm_segs->ds_len;
 		} else {
 			rq->req_dataseg[rq->req_seg_count].ds_base =
-				dm_segs->ds_addr;
+				DMA_LO32(dm_segs->ds_addr);
 			rq->req_dataseg[rq->req_seg_count].ds_count =
 				dm_segs->ds_len;
 		}
@@ -1901,7 +1902,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	while (datalen > 0 && dm_segs != eseg) {
-		u_int16_t onxti;
+		uint16_t onxti;
 		ispcontreq_t local, *crq = &local, *cqe;
 
 		cqe = (ispcontreq_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, nxti);
@@ -1920,7 +1921,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		seglim = 0;
 		while (datalen > 0 && seglim < ISP_CDSEG && dm_segs != eseg) {
 			crq->req_dataseg[seglim].ds_base =
-			    dm_segs->ds_addr;
+			    DMA_LO32(dm_segs->ds_addr);
 			crq->req_dataseg[seglim].ds_count =
 			    dm_segs->ds_len;
 			rq->req_seg_count++;
@@ -1933,11 +1934,10 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 	*mp->nxtip = nxti;
 }
-#endif
 
 static int
 isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
-	u_int16_t *nxtip, u_int16_t optr)
+	uint16_t *nxtip, uint16_t optr)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *)isp;
 	ispreq_t *qep;
@@ -1967,7 +1967,11 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 		}
 	} else
 #endif
-	eptr = dma2;
+	if (sizeof (bus_addr_t) > 4) {
+		eptr = dma2_a64;
+	} else {
+		eptr = dma2;
+	}
 
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE ||
@@ -2066,7 +2070,7 @@ mbxsync:
 }
 
 static void
-isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
+isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, uint16_t handle)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *)isp;
 	bus_dmamap_t *dp = &pcs->dmaps[isp_handle_index(handle)];

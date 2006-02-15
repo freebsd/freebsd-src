@@ -61,9 +61,6 @@
 #include "opt_ddb.h"
 #include "opt_isp.h"
 
-/* disabled until done correctly */
-/* #define	ISP_DAC_SUPPORTED	1 */
-
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
  */
@@ -82,16 +79,16 @@
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY
 #endif
 
-typedef void ispfwfunc(int, int, int, u_int16_t **);
+typedef void ispfwfunc(int, int, int, uint16_t **);
 
 #ifdef	ISP_TARGET_MODE
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	256
 typedef struct {
-	u_int32_t	orig_datalen;
-	u_int32_t	bytes_xfered;
-	u_int32_t	last_xframt;
-	u_int32_t	tag	: 16,
+	uint32_t	orig_datalen;
+	uint32_t	bytes_xfered;
+	uint32_t	last_xframt;
+	uint32_t	tag	: 16,
 			lun	: 13,	/* not enough */
 			state	: 3;
 } atio_private_data_t;
@@ -109,7 +106,7 @@ typedef struct tstate {
 	struct ccb_hdr_slist inots;
 	lun_id_t lun;
 	int bus;
-	u_int32_t hold;
+	uint32_t hold;
 	int atio_count;
 	int inot_count;
 } tstate_t;
@@ -123,16 +120,16 @@ typedef struct tstate {
 
 struct isposinfo {
 	struct ispsoftc *	next;
-	u_int64_t		default_port_wwn;
-	u_int64_t		default_node_wwn;
-	u_int32_t		default_id;
+	uint64_t		default_port_wwn;
+	uint64_t		default_node_wwn;
+	uint32_t		default_id;
 	device_t		dev;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	struct intr_config_hook	ehook;
-	u_int8_t		: 1,
+	uint8_t			: 1,
 		fcbsy		: 1,
 		ktmature	: 1,
 		mboxwaiting	: 1,
@@ -148,7 +145,7 @@ struct isposinfo {
 #ifdef	ISP_TARGET_MODE
 #define	TM_WILDCARD_ENABLED	0x02
 #define	TM_TMODE_ENABLED	0x01
-	u_int8_t		tmflags[2];	/* two busses */
+	uint8_t			tmflags[2];	/* two busses */
 #define	NLEACT	4
 	union ccb *		leact[NLEACT];
 	tstate_t		tsdflt[2];	/* two busses */
@@ -249,6 +246,7 @@ default:							\
 #endif
 
 #define	XS_T			struct ccb_scsiio
+#define	XS_DMA_ADDR_T		bus_addr_t
 #define	XS_ISP(ccb)		((struct ispsoftc *) (ccb)->ccb_h.spriv_ptr1)
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
@@ -323,20 +321,20 @@ default:							\
 	*(d) = (isp->isp_bustype == ISP_BT_SBUS)? s : bswap16(s)
 #define	ISP_IOXPUT_32(isp, s, d)				\
 	*(d) = (isp->isp_bustype == ISP_BT_SBUS)? s : bswap32(s)
-#define	ISP_IOXGET_8(isp, s, d)		d = (*((u_int8_t *)s))
+#define	ISP_IOXGET_8(isp, s, d)		d = (*((uint8_t *)s))
 #define	ISP_IOXGET_16(isp, s, d)				\
 	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
-	*((u_int16_t *)s) : bswap16(*((u_int16_t *)s))
+	*((uint16_t *)s) : bswap16(*((uint16_t *)s))
 #define	ISP_IOXGET_32(isp, s, d)				\
 	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
-	*((u_int32_t *)s) : bswap32(*((u_int32_t *)s))
+	*((uint32_t *)s) : bswap32(*((uint32_t *)s))
 #else
 #define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOXPUT_16(isp, s, d)	*(d) = bswap16(s)
 #define	ISP_IOXPUT_32(isp, s, d)	*(d) = bswap32(s)
-#define	ISP_IOXGET_8(isp, s, d)		d = (*((u_int8_t *)s))
-#define	ISP_IOXGET_16(isp, s, d)	d = bswap16(*((u_int16_t *)s))
-#define	ISP_IOXGET_32(isp, s, d)	d = bswap32(*((u_int32_t *)s))
+#define	ISP_IOXGET_8(isp, s, d)		d = (*((uint8_t *)s))
+#define	ISP_IOXGET_16(isp, s, d)	d = bswap16(*((uint16_t *)s))
+#define	ISP_IOXGET_32(isp, s, d)	d = bswap32(*((uint32_t *)s))
 #endif
 #define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)	*rp = bswap16(*rp)
 #else
@@ -356,6 +354,10 @@ default:							\
 #include <dev/isp/ispreg.h>
 #include <dev/isp/ispvar.h>
 #include <dev/isp/ispmbox.h>
+
+#ifdef	ISP_TARGET_MODE
+#include <dev/isp/isp_tpublic.h>
+#endif
 
 void isp_prt(struct ispsoftc *, int level, const char *, ...)
 	__printflike(3, 4);
@@ -434,7 +436,7 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 		int lim = ((isp->isp_mbxwrk0)? 240 : 60) * 10000;
 		int j;
 		for (j = 0; j < lim; j++) {
-			u_int16_t isr, sema, mbox;
+			uint16_t isr, sema, mbox;
 			if (isp->isp_mboxbsy == 0) {
 				break;
 			}
@@ -454,11 +456,11 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 	}
 }
 
-static __inline u_int64_t nanotime_sub(struct timespec *, struct timespec *);
-static __inline u_int64_t
+static __inline uint64_t nanotime_sub(struct timespec *, struct timespec *);
+static __inline uint64_t
 nanotime_sub(struct timespec *b, struct timespec *a)
 {
-	u_int64_t elapsed;
+	uint64_t elapsed;
 	struct timespec x = *b;
 	timespecsub(&x, a);
 	elapsed = GET_NANOSEC(&x);

@@ -46,15 +46,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/isp/isp_freebsd.h>
 
-static u_int16_t isp_sbus_rd_reg(struct ispsoftc *, int);
-static void isp_sbus_wr_reg(struct ispsoftc *, int, u_int16_t);
+static uint16_t isp_sbus_rd_reg(struct ispsoftc *, int);
+static void isp_sbus_wr_reg(struct ispsoftc *, int, uint16_t);
 static int
-isp_sbus_rd_isr(struct ispsoftc *, u_int16_t *, u_int16_t *, u_int16_t *);
+isp_sbus_rd_isr(struct ispsoftc *, uint16_t *, uint16_t *, uint16_t *);
 static int isp_sbus_mbxdma(struct ispsoftc *);
 static int
-isp_sbus_dmasetup(struct ispsoftc *, XS_T *, ispreq_t *, u_int16_t *, u_int16_t);
+isp_sbus_dmasetup(struct ispsoftc *, XS_T *, ispreq_t *, uint16_t *, uint16_t);
 static void
-isp_sbus_dmateardown(struct ispsoftc *, XS_T *, u_int16_t);
+isp_sbus_dmateardown(struct ispsoftc *, XS_T *, uint16_t);
 
 static void isp_sbus_reset1(struct ispsoftc *);
 static void isp_sbus_dumpregs(struct ispsoftc *, const char *);
@@ -374,7 +374,7 @@ static void
 isp_sbus_intr(void *arg)
 {
 	struct ispsoftc *isp = arg;
-	u_int16_t isr, sema, mbox;
+	uint16_t isr, sema, mbox;
 
 	ISP_LOCK(isp);
 	isp->isp_intcnt++;
@@ -397,11 +397,11 @@ isp_sbus_intr(void *arg)
 	bus_space_read_2(sbc->sbus_st, sbc->sbus_sh, off)
 
 static int
-isp_sbus_rd_isr(struct ispsoftc *isp, u_int16_t *isrp,
-    u_int16_t *semap, u_int16_t *mbp)
+isp_sbus_rd_isr(struct ispsoftc *isp, uint16_t *isrp,
+    uint16_t *semap, uint16_t *mbp)
 {
 	struct isp_sbussoftc *sbc = (struct isp_sbussoftc *) isp;
-	u_int16_t isr, sema;
+	uint16_t isr, sema;
 
 	isr = BXR2(sbc, IspVirt2Off(isp, BIU_ISR));
 	sema = BXR2(sbc, IspVirt2Off(isp, BIU_SEMA));
@@ -418,10 +418,10 @@ isp_sbus_rd_isr(struct ispsoftc *isp, u_int16_t *isrp,
 	return (1);
 }
 
-static u_int16_t
+static uint16_t
 isp_sbus_rd_reg(struct ispsoftc *isp, int regoff)
 {
-	u_int16_t rval;
+	uint16_t rval;
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *) isp;
 	int offset = sbs->sbus_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
 	offset += (regoff & 0xff);
@@ -432,7 +432,7 @@ isp_sbus_rd_reg(struct ispsoftc *isp, int regoff)
 }
 
 static void
-isp_sbus_wr_reg(struct ispsoftc *isp, int regoff, u_int16_t val)
+isp_sbus_wr_reg(struct ispsoftc *isp, int regoff, uint16_t val)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *) isp;
 	int offset = sbs->sbus_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
@@ -475,7 +475,7 @@ isp_sbus_mbxdma(struct ispsoftc *isp)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	caddr_t base;
-	u_int32_t len;
+	uint32_t len;
 	int i, error, ns;
 	struct imush im;
 
@@ -585,9 +585,9 @@ typedef struct {
 	struct ispsoftc *isp;
 	void *cmd_token;
 	void *rq;
-	u_int16_t *nxtip;
-	u_int16_t optr;
-	u_int error;
+	uint16_t *nxtip;
+	uint16_t optr;
+	int error;
 } mush_t;
 
 #define	MUSHERR_NOQENTRIES	-2
@@ -606,7 +606,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dma_segment_t *eseg;
 	ispreq_t *rq;
 	int seglim, datalen;
-	u_int16_t nxti;
+	uint16_t nxti;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -666,7 +666,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	while (datalen > 0 && dm_segs != eseg) {
-		u_int16_t onxti;
+		uint16_t onxti;
 		ispcontreq_t local, *crq = &local, *cqe;
 
 		cqe = (ispcontreq_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, nxti);
@@ -701,7 +701,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 static int
 isp_sbus_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
-	u_int16_t *nxtip, u_int16_t optr)
+	uint16_t *nxtip, uint16_t optr)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	ispreq_t *qep;
@@ -802,7 +802,7 @@ mbxsync:
 }
 
 static void
-isp_sbus_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
+isp_sbus_dmateardown(struct ispsoftc *isp, XS_T *xs, uint16_t handle)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	bus_dmamap_t *dp = &sbs->dmaps[isp_handle_index(handle)];
