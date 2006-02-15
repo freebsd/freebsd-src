@@ -222,7 +222,7 @@ static void	em_set_promisc(struct em_softc *);
 static void	em_disable_promisc(struct em_softc *);
 static void	em_set_multi(struct em_softc *);
 static void	em_print_hw_stats(struct em_softc *);
-static void	em_print_link_status(struct em_softc *);
+static void	em_update_link_status(struct em_softc *);
 static int	em_get_buf(int i, struct em_softc *, struct mbuf *);
 static void	em_enable_vlans(struct em_softc *);
 static void	em_disable_vlans(struct em_softc *);
@@ -534,19 +534,7 @@ em_attach(device_t dev)
 	em_clear_hw_cntrs(&sc->hw);
 	em_update_stats_counters(sc);
 	sc->hw.get_link_status = 1;
-	em_check_for_link(&sc->hw);
-
-	if (bootverbose) {
-		/* Print the link status */
-		if (sc->link_active == 1) {
-			em_get_speed_and_duplex(&sc->hw, &sc->link_speed,
-			    &sc->link_duplex);
-			device_printf(dev, "Speed:%d Mbps  Duplex:%s\n",
-			    sc->link_speed, sc->link_duplex == FULL_DUPLEX ?
-			    "Full" : "Half");
-		} else
-			device_printf(dev, "Speed:N/A  Duplex:N/A\n");
-	}
+	em_update_link_status(sc);
 
 	/* Identify 82544 on PCIX */
 	em_get_bus_info(&sc->hw);
@@ -972,6 +960,7 @@ em_init_locked(struct em_softc *sc)
 		device_printf(dev, "Unable to initialize the hardware\n");
 		return;
 	}
+	em_update_link_status(sc);
 
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		em_enable_vlans(sc);
@@ -1051,7 +1040,7 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			callout_stop(&sc->timer);
 			sc->hw.get_link_status = 1;
 			em_check_for_link(&sc->hw);
-			em_print_link_status(sc);
+			em_update_link_status(sc);
 			callout_reset(&sc->timer, hz, em_local_timer, sc);
 		}
 	}
@@ -1088,7 +1077,7 @@ em_handle_link(void *context, int pending)
 	callout_stop(&sc->timer);
 	sc->hw.get_link_status = 1;
 	em_check_for_link(&sc->hw);
-	em_print_link_status(sc);
+	em_update_link_status(sc);
 	callout_reset(&sc->timer, hz, em_local_timer, sc);
 	EM_UNLOCK(sc);
 }
@@ -1223,7 +1212,7 @@ em_intr(void *arg)
 			callout_stop(&sc->timer);
 			sc->hw.get_link_status = 1;
 			em_check_for_link(&sc->hw);
-			em_print_link_status(sc);
+			em_update_link_status(sc);
 			callout_reset(&sc->timer, hz, em_local_timer, sc);
 		}
 
@@ -1259,19 +1248,7 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	INIT_DEBUGOUT("em_media_status: begin");
 
 	em_check_for_link(&sc->hw);
-	if (E1000_READ_REG(&sc->hw, STATUS) & E1000_STATUS_LU) {
-		if (sc->link_active == 0) {
-			em_get_speed_and_duplex(&sc->hw, &sc->link_speed,
-			    &sc->link_duplex);
-			sc->link_active = 1;
-		}
-	} else {
-		if (sc->link_active == 1) {
-			sc->link_speed = 0;
-			sc->link_duplex = 0;
-			sc->link_active = 0;
-		}
-	}
+	em_update_link_status(sc);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
@@ -1802,7 +1779,7 @@ em_local_timer(void *arg)
 	EM_LOCK(sc);
 
 	em_check_for_link(&sc->hw);
-	em_print_link_status(sc);
+	em_update_link_status(sc);
 	em_update_stats_counters(sc);
 	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
 		em_print_hw_stats(sc);
@@ -1814,7 +1791,7 @@ em_local_timer(void *arg)
 }
 
 static void
-em_print_link_status(struct em_softc *sc)
+em_update_link_status(struct em_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
 	device_t dev = sc->dev;
@@ -2110,16 +2087,6 @@ em_hardware_init(struct em_softc *sc)
 	}
 
 	em_check_for_link(&sc->hw);
-	if (E1000_READ_REG(&sc->hw, STATUS) & E1000_STATUS_LU)
-		sc->link_active = 1;
-	else
-		sc->link_active = 0;
-
-	if (sc->link_active)
-		em_get_speed_and_duplex(&sc->hw, &sc->link_speed,
-		    &sc->link_duplex);
-	else
-		sc->link_speed = sc->link_duplex = 0;
 
 	return (0);
 }
