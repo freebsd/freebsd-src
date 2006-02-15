@@ -124,7 +124,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 {
 	struct thread *td;
 	struct proc *p;
-	int catch, rval, sig, flags;
+	int catch, rval, flags;
 	WITNESS_SAVE_DECL(mtx);
 
 	td = curthread;
@@ -205,10 +205,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	sleepq_add(ident, mtx, wmesg, flags);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
-	if (catch) {
-		sig = sleepq_catch_signals(ident);
-	} else
-		sig = 0;
 
 	/*
 	 * Adjust this thread's priority.
@@ -218,7 +214,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	mtx_unlock_spin(&sched_lock);
 
 	if (timo && catch)
-		rval = sleepq_timedwait_sig(ident, sig != 0);
+		rval = sleepq_timedwait_sig(ident);
 	else if (timo)
 		rval = sleepq_timedwait(ident);
 	else if (catch)
@@ -227,8 +223,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 		sleepq_wait(ident);
 		rval = 0;
 	}
-	if (rval == 0 && catch)
-		rval = sleepq_calc_signal_retval(sig);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(0, 0);

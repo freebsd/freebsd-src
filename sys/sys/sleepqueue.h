@@ -87,12 +87,10 @@ struct thread;
 #define	SLEEPQ_INTERRUPTIBLE	0x100		/* Sleep is interruptible. */
 
 void	init_sleepqueues(void);
-void	sleepq_abort(struct thread *td);
+void	sleepq_abort(struct thread *td, int intrval);
 void	sleepq_add(void *, struct mtx *, const char *, int);
 struct sleepqueue *sleepq_alloc(void);
 void	sleepq_broadcast(void *, int, int);
-int	sleepq_calc_signal_retval(int sig);
-int	sleepq_catch_signals(void *wchan);
 void	sleepq_free(struct sleepqueue *);
 void	sleepq_lock(void *);
 struct sleepqueue *sleepq_lookup(void *);
@@ -101,7 +99,7 @@ void	sleepq_remove(struct thread *, void *);
 void	sleepq_signal(void *, int, int);
 void	sleepq_set_timeout(void *wchan, int timo);
 int	sleepq_timedwait(void *wchan);
-int	sleepq_timedwait_sig(void *wchan, int signal_caught);
+int	sleepq_timedwait_sig(void *wchan);
 void	sleepq_wait(void *);
 int	sleepq_wait_sig(void *wchan);
 
