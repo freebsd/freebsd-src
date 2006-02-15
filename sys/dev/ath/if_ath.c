@@ -256,8 +256,8 @@ enum {
 	if (sc->sc_debug & ATH_DEBUG_KEYCACHE)			\
 		ath_keyprint(__func__, ix, hk, mac);		\
 } while (0)
-static	void ath_printrxbuf(struct ath_buf *bf, int);
-static	void ath_printtxbuf(struct ath_buf *bf, int);
+static	void ath_printrxbuf(struct ath_buf *bf, u_int ix, int);
+static	void ath_printtxbuf(struct ath_buf *bf, u_int qnum, u_int ix, int done);
 #else
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
@@ -2829,7 +2829,7 @@ ath_rx_proc(void *arg, int npending)
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link));
 #ifdef AR_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
-			ath_printrxbuf(bf, status == HAL_OK); 
+			ath_printrxbuf(bf, 0, status == HAL_OK); 
 #endif
 		if (status == HAL_EINPROGRESS)
 			break;
@@ -3779,7 +3779,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		status = ath_hal_txprocdesc(ah, ds);
 #ifdef AR_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-			ath_printtxbuf(bf, status == HAL_OK);
+			ath_printtxbuf(bf, txq->axq_qnum, 0, status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
 			ATH_TXQ_UNLOCK(txq);
@@ -3958,12 +3958,13 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
+	u_int ix;
 
 	/*
 	 * NB: this assumes output has been stopped and
 	 *     we do not need to block ath_tx_tasklet
 	 */
-	for (;;) {
+	for (ix = 0;; ix++) {
 		ATH_TXQ_LOCK(txq);
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
@@ -3975,7 +3976,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		ATH_TXQ_UNLOCK(txq);
 #ifdef AR_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET)
-			ath_printtxbuf(bf,
+			ath_printtxbuf(bf, txq->axq_qnum, ix,
 				ath_hal_txprocdesc(ah, bf->bf_desc) == HAL_OK);
 #endif /* AR_DEBUG */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
@@ -4053,15 +4054,18 @@ ath_stoprecv(struct ath_softc *sc)
 #ifdef AR_DEBUG
 	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {
 		struct ath_buf *bf;
+		u_int ix;
 
 		printf("%s: rx queue %p, link %p\n", __func__,
 			(caddr_t)(uintptr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
+		ix = 0;
 		STAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 			struct ath_desc *ds = bf->bf_desc;
 			HAL_STATUS status = ath_hal_rxprocdesc(ah, ds,
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link));
 			if (status == HAL_OK || (sc->sc_debug & ATH_DEBUG_FATAL))
-				ath_printrxbuf(bf, status == HAL_OK);
+				ath_printrxbuf(bf, ix, status == HAL_OK);
+			ix++;
 		}
 	}
 #endif
@@ -4843,34 +4847,37 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 
 #ifdef AR_DEBUG
 static void
-ath_printrxbuf(struct ath_buf *bf, int done)
+ath_printrxbuf(struct ath_buf *bf, u_int ix, int done)
 {
 	struct ath_desc *ds;
 	int i;
 
 	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf("R%d (%p %p) L:%08x D:%08x %08x %08x %08x %08x %c\n",
-		    i, ds, (struct ath_desc *)bf->bf_daddr + i,
+		printf("R[%2u] (DS.V:%p DS.P:%p) L:%08x D:%08x%s\n"
+		       "      %08x %08x %08x %08x\n",
+		    ix, ds, (struct ath_desc *)bf->bf_daddr + i,
 		    ds->ds_link, ds->ds_data,
+		    !done ? "" : (ds->ds_rxstat.rs_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1],
-		    !done ? ' ' : (ds->ds_rxstat.rs_status == 0) ? '*' : '!');
+		    ds->ds_hw[0], ds->ds_hw[1]);
 	}
 }
 
 static void
-ath_printtxbuf(struct ath_buf *bf, int done)
+ath_printtxbuf(struct ath_buf *bf, u_int qnum, u_int ix, int done)
 {
 	struct ath_desc *ds;
 	int i;
 
+	printf("Q%u[%3u]", qnum, ix);
 	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf("T%d (%p %p) L:%08x D:%08x %08x %08x %08x %08x %08x %08x %c\n",
-		    i, ds, (struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data,
+		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:04%x%s\n"
+		       "        %08x %08x %08x %08x %08x %08x\n",
+		    ds, (struct ath_desc *)bf->bf_daddr + i,
+		    ds->ds_link, ds->ds_data, bf->bf_flags,
+		    !done ? "" : (ds->ds_txstat.ts_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3],
-		    !done ? ' ' : (ds->ds_txstat.ts_status == 0) ? '*' : '!');
+		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
 	}
 }
 #endif /* AR_DEBUG */
