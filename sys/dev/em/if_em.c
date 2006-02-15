@@ -954,6 +954,7 @@ em_init_locked(struct em_softc *sc)
 	
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(IF_LLADDR(sc->ifp), sc->hw.mac_addr, ETHER_ADDR_LEN);
+	em_init_rx_addrs(&sc->hw);
 
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		em_enable_vlans(sc);
