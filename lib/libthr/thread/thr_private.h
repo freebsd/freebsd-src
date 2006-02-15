@@ -649,6 +649,8 @@ extern umtx_t	_rwlock_static_lock __hidden;
 extern umtx_t	_keytable_lock __hidden;
 extern umtx_t	_thr_list_lock __hidden;
 extern umtx_t	_thr_event_lock __hidden;
+extern pthread_mutex_t	_thr_once_lock __hidden;
+extern pthread_cond_t	_thr_once_cv __hidden;
 
 /*
  * Function prototype definitions.
