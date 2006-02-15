@@ -347,6 +347,15 @@ struct	ifconf {
 #define	ifc_req	ifc_ifcu.ifcu_req	/* array of structures returned */
 };
 
+#if defined (__amd64__) || defined (COMPAT_32BIT)
+struct ifconf32 {
+	int	ifc_len;		/* size of associated buffer */
+	union {
+		u_int	ifcu_buf;
+		u_int	ifcu_req;
+	} ifc_ifcu;
+};
+#endif
 
 /*
  * Structure for SIOC[AGD]LIFADDR
