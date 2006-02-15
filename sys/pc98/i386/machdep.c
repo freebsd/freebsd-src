@@ -2541,10 +2541,12 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esi = tp->tf_esi;
 	mcp->mc_ebp = tp->tf_ebp;
 	mcp->mc_isp = tp->tf_isp;
+	mcp->mc_eflags = tp->tf_eflags;
 	mcp->mc_ebx = tp->tf_ebx;
 	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_eax = 0;
 		mcp->mc_edx = 0;
+		mcp->mc_eflags &= ~PSL_C;
 	} else {
 		mcp->mc_eax = tp->tf_eax;
 		mcp->mc_edx = tp->tf_edx;
@@ -2552,7 +2554,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_ecx = tp->tf_ecx;
 	mcp->mc_eip = tp->tf_eip;
 	mcp->mc_cs = tp->tf_cs;
-	mcp->mc_eflags = tp->tf_eflags;
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
