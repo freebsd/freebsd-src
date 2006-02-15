@@ -92,7 +92,7 @@ static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
 static int	issignal(struct thread *p);
 static int	sigprop(int sig);
-static void	tdsigwakeup(struct thread *, int, sig_t);
+static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
@@ -2056,6 +2056,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	sigqueue_t *sigqueue;
 	int prop;
 	struct sigacts *ps;
+	int intrval;
 	int ret = 0;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -2116,6 +2117,10 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		action = SIG_CATCH;
 	else
 		action = SIG_DFL;
+	if (SIGISMEMBER(ps->ps_sigintr, sig))
+		intrval = EINTR;
+	else
+		intrval = ERESTART;
 	mtx_unlock(&ps->ps_mtx);
 
 	if (prop & SA_CONT)
@@ -2260,7 +2265,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 */
 		mtx_lock_spin(&sched_lock);
 		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR))
-			sleepq_abort(td);
+			sleepq_abort(td, intrval);
 		mtx_unlock_spin(&sched_lock);
 		goto out;
 		/*
@@ -2270,7 +2275,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	} else if (p->p_state == PRS_NORMAL) {
 		if (p->p_flag & P_TRACED || action == SIG_CATCH) {
 			mtx_lock_spin(&sched_lock);
-			tdsigwakeup(td, sig, action);
+			tdsigwakeup(td, sig, action, intrval);
 			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
@@ -2315,7 +2320,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 
 runfast:
 	mtx_lock_spin(&sched_lock);
-	tdsigwakeup(td, sig, action);
+	tdsigwakeup(td, sig, action, intrval);
 	thread_unsuspend(p);
 	mtx_unlock_spin(&sched_lock);
 out:
@@ -2330,7 +2335,7 @@ out:
  * out of any sleep it may be in etc.
  */
 static void
-tdsigwakeup(struct thread *td, int sig, sig_t action)
+tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 {
 	struct proc *p = td->td_proc;
 	register int prop;
@@ -2382,7 +2387,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 		if (td->td_priority > PUSER)
 			sched_prio(td, PUSER);
 
-		sleepq_abort(td);
+		sleepq_abort(td, intrval);
 	} else {
 		/*
 		 * Other states do nothing with the signal immediately,
