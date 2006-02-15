@@ -328,8 +328,8 @@ struct ifmedia_description {
 	{ IFM_1000_T,	"1000baseTX" },					\
 	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_HPNA_1,	"homePNA" },					\
-	{ IFM_10GBASE_SR, "10GBASE-SR" },				\
-	{ IFM_10GBASE_LR, "10GBASE-LR" },				\
+	{ IFM_10G_LR,	"10Gbase-LR" },					\
+	{ IFM_10G_SR,	"10Gbase-SR" },					\
 	{ 0, NULL },							\
 }
 
