@@ -5030,7 +5030,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return copyout(&sc->sc_stats,
 				ifr->ifr_data, sizeof (sc->sc_stats));
 	case SIOCGATHDIAG:
+		ATH_UNLOCK(sc);
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
+		ATH_LOCK(sc);
 		break;
 	default:
 		error = ieee80211_ioctl(ic, cmd, data);
