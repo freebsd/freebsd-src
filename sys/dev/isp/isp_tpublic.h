@@ -133,10 +133,10 @@ typedef struct tmd_notify {
 typedef struct {
 	void *			en_private;	/* for outer layer usage */
 	void *			en_hba;		/* HBA tag */
-	u_int64_t		en_iid;		/* initiator ID */
-	u_int64_t		en_tgt;		/* target id */
-	u_int64_t		en_lun;		/* logical unit */
-	u_int8_t		en_chan;	/* channel on card */
+	uint64_t		en_iid;		/* initiator ID */
+	uint64_t		en_tgt;		/* target id */
+	uint64_t		en_lun;		/* logical unit */
+	uint8_t			en_chan;	/* channel on card */
 	int32_t			en_error;
 } enadis_t;
 
@@ -278,32 +278,32 @@ typedef struct tmd_cmd {
 	void *			cd_private;	/* private data pointer */
 	void *			cd_hba;		/* HBA tag */
 	void *			cd_data;	/* 'pointer' to data */
-	u_int64_t		cd_iid;		/* initiator ID */
-	u_int64_t		cd_tgt;		/* target id */
-	u_int64_t		cd_lun;		/* logical unit */
-	u_int32_t		cd_tagval;	/* tag value */
-	u_int32_t		cd_lflags;	/* flags lower level sets */
-	u_int32_t		cd_hflags;	/* flags higher level sets */
-	u_int32_t		cd_totlen;	/* total data requirement */
-	u_int32_t		cd_resid;	/* total data residual */
-	u_int32_t		cd_xfrlen;	/* current data requirement */
+	uint64_t		cd_iid;		/* initiator ID */
+	uint64_t		cd_tgt;		/* target id */
+	uint64_t		cd_lun;		/* logical unit */
+	uint32_t		cd_tagval;	/* tag value */
+	uint32_t		cd_lflags;	/* flags lower level sets */
+	uint32_t		cd_hflags;	/* flags higher level sets */
+	uint32_t		cd_totlen;	/* total data requirement */
+	uint32_t		cd_resid;	/* total data residual */
+	uint32_t		cd_xfrlen;	/* current data requirement */
 	int32_t			cd_error;	/* current error */
-	u_int32_t
+	uint32_t
 		cd_scsi_status	: 16,	/* closing SCSI status */
 				: 7,
 	    	cd_chan		: 1,	/* channel on card */
 				: 2,
 		cd_tagtype	: 6;	/* tag type */
-	u_int8_t		cd_senselen;
-	u_int8_t		cd_cdblen;
-	u_int8_t		cd_sense[TMD_SENSELEN];
-	u_int8_t		cd_cdb[TMD_CDBLEN];	/* Command */
+	uint8_t			cd_senselen;
+	uint8_t			cd_cdblen;
+	uint8_t			cd_sense[TMD_SENSELEN];
+	uint8_t			cd_cdb[TMD_CDBLEN];	/* Command */
 	union {
 		void *		ptrs[QCDS / sizeof (void *)];
-		u_int64_t	llongs[QCDS / sizeof (u_int64_t)];
-		u_int32_t	longs[QCDS / sizeof (u_int32_t)];
-		u_int16_t	shorts[QCDS / sizeof (u_int16_t)];
-		u_int8_t	bytes[QCDS];
+		uint64_t	llongs[QCDS / sizeof (uint64_t)];
+		uint32_t	longs[QCDS / sizeof (uint32_t)];
+		uint16_t	shorts[QCDS / sizeof (uint16_t)];
+		uint8_t		bytes[QCDS];
 	} cd_lreserved[2], cd_hreserved[2];
 } tmd_cmd_t;
 

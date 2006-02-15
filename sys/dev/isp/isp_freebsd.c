@@ -46,7 +46,7 @@ ispfwfunc *isp_get_firmware_p = NULL;
 
 static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
-static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
+static void isp_cam_async(void *, uint32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);
 static timeout_t isp_watchdog;
 static void isp_kthread(void *);
@@ -258,7 +258,7 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 #ifdef	ISP_FW_CRASH_DUMP
 	case ISP_GET_FW_CRASH_DUMP:
 	{
-		u_int16_t *ptr = FCPARAM(isp)->isp_dump_data;
+		uint16_t *ptr = FCPARAM(isp)->isp_dump_data;
 		size_t sz;
 
 		retval = 0;
@@ -452,7 +452,7 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 	case ISP_SET_FC_PARAM:
 	{
 		struct isp_fc_param *f = (struct isp_fc_param *) addr;
-		u_int32_t param = f->parameter;
+		uint32_t param = f->parameter;
 
 		if (!IS_FC(isp)) {
 			retval = EINVAL;
@@ -508,7 +508,7 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 	{
 		int needmarker;
 		struct isp_fc_tsk_mgmt *fct = (struct isp_fc_tsk_mgmt *) addr;
-		u_int16_t loopid;
+		uint16_t loopid;
 		mbreg_t mbs;
 
 		if (IS_SCSI(isp)) {
@@ -783,7 +783,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 {
 	struct ccb_en_lun *cel = &ccb->cel;
 	tstate_t *tptr;
-	u_int32_t seq;
+	uint32_t seq;
 	int bus, cmd, av, wildcard, tm_on;
 	lun_id_t lun;
 	target_id_t tgt;
@@ -1026,7 +1026,7 @@ isp_ledone(struct ispsoftc *isp, lun_entry_t *lep)
 {
 	const char lfmt[] = "lun %d now %sabled for target mode on channel %d";
 	union ccb *ccb;
-	u_int32_t seq;
+	uint32_t seq;
 	tstate_t *tptr;
 	int av;
 	struct ccb_en_lun *cel;
@@ -1201,9 +1201,9 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 {
 	void *qe;
 	struct ccb_scsiio *cso = &ccb->csio;
-	u_int16_t *hp, save_handle;
-	u_int16_t nxti, optr;
-	u_int8_t local[QENTRY_LEN];
+	uint16_t *hp, save_handle;
+	uint16_t nxti, optr;
+	uint8_t local[QENTRY_LEN];
 
 
 	if (isp_getrqentry(isp, &nxti, &optr, &qe)) {
@@ -1311,7 +1311,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		cto->ct_lun = ccb->ccb_h.target_lun;
 		cto->ct_fwhandle = AT_GET_HANDLE(cso->tag_id);
 		if (AT_HAS_TAG(cso->tag_id)) {
-			cto->ct_tag_val = (u_int8_t) AT_GET_TAG(cso->tag_id);
+			cto->ct_tag_val = (uint8_t) AT_GET_TAG(cso->tag_id);
 			cto->ct_flags |= CT_TQAE;
 		}
 		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
@@ -1385,7 +1385,7 @@ isp_target_putback_atio(union ccb *ccb)
 {
 	struct ispsoftc *isp;
 	struct ccb_scsiio *cso;
-	u_int16_t nxti, optr;
+	uint16_t nxti, optr;
 	void *qe;
 
 	isp = XS_ISP(ccb);
@@ -1697,7 +1697,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 {
 	union ccb *ccb;
 	int sentstatus, ok, notify_cam, resid = 0;
-	u_int16_t tval;
+	uint16_t tval;
 
 	/*
 	 * CTIO and CTIO2 are close enough....
@@ -1868,7 +1868,7 @@ isp_handle_platform_notify_fc(struct ispsoftc *isp, in_fcentry_t *inp)
 #endif
 
 static void
-isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
+isp_cam_async(void *cbarg, uint32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_sim *sim;
 	struct ispsoftc *isp;
@@ -1878,7 +1878,7 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 	switch (code) {
 	case AC_LOST_DEVICE:
 		if (IS_SCSI(isp)) {
-			u_int16_t oflags, nflags;
+			uint16_t oflags, nflags;
 			sdparam *sdp = isp->isp_param;
 			int tgt;
 
@@ -1916,7 +1916,7 @@ static void
 isp_poll(struct cam_sim *sim)
 {
 	struct ispsoftc *isp = cam_sim_softc(sim);
-	u_int16_t isr, sema, mbox;
+	uint16_t isr, sema, mbox;
 
 	ISP_LOCK(isp);
 	if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
@@ -1931,7 +1931,7 @@ isp_watchdog(void *arg)
 {
 	XS_T *xs = arg;
 	struct ispsoftc *isp = XS_ISP(xs);
-	u_int32_t handle;
+	uint32_t handle;
 	int iok;
 
 	/*
@@ -1944,7 +1944,7 @@ isp_watchdog(void *arg)
 	isp->isp_osinfo.intsok = 0;
 	handle = isp_find_handle(isp, xs);
 	if (handle) {
-		u_int16_t isr, sema, mbox;
+		uint16_t isr, sema, mbox;
 
 		if (XS_CMD_DONE_P(xs)) {
 			isp_prt(isp, ISP_LOGDEBUG1,
@@ -1989,7 +1989,7 @@ isp_watchdog(void *arg)
 			XS_CMD_C_WDOG(xs);
 			isp_done(xs);
 		} else {
-			u_int16_t nxti, optr;
+			uint16_t nxti, optr;
 			ispreq_t local, *mp= &local, *qe;
 
 			XS_CMD_C_WDOG(xs);
@@ -2137,7 +2137,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-				u_int64_t ticks = (u_int64_t) hz;
+				uint64_t ticks = (uint64_t) hz;
 				if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
 					ticks = 60 * 1000 * ticks;
 				else
@@ -2211,7 +2211,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 		for (i = 0; isp->isp_osinfo.leact[seq] && i < 30 * 1000; i++) {
-			u_int16_t isr, sema, mbox;
+			uint16_t isr, sema, mbox;
 			if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
 				isp_intr(isp, isr, sema, mbox);
 			}
@@ -2345,7 +2345,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if (IS_SCSI(isp)) {
 #ifndef	CAM_NEW_TRAN_CODE
 			sdparam *sdp = isp->isp_param;
-			u_int16_t *dptr;
+			uint16_t *dptr;
 
 			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 
@@ -2408,7 +2408,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			struct ccb_trans_settings_spi *spi =
 			    &cts->xport_specific.spi;
 			sdparam *sdp = isp->isp_param;
-			u_int16_t *dptr;
+			uint16_t *dptr;
 
 			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 			sdp += bus;
@@ -2522,7 +2522,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 #endif
 			sdparam *sdp = isp->isp_param;
 			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
-			u_int16_t dval, pval, oval;
+			uint16_t dval, pval, oval;
 
 			sdp += bus;
 
@@ -2920,10 +2920,10 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		isp_prt(isp, ISP_LOGINFO, fmt, tgt, lp->loopid, lp->portid,
 		    roles[lp->roles & 0x3],
 		    (lp->valid)? "Arrived" : "Departed",
-		    (u_int32_t) (lp->port_wwn >> 32),
-		    (u_int32_t) (lp->port_wwn & 0xffffffffLL),
-		    (u_int32_t) (lp->node_wwn >> 32),
-		    (u_int32_t) (lp->node_wwn & 0xffffffffLL));
+		    (uint32_t) (lp->port_wwn >> 32),
+		    (uint32_t) (lp->port_wwn & 0xffffffffLL),
+		    (uint32_t) (lp->node_wwn >> 32),
+		    (uint32_t) (lp->node_wwn & 0xffffffffLL));
 
 		ISPLOCK_2_CAMLOCK(isp);
 		if (xpt_create_path(&tmppath, NULL, cam_sim_path(isp->isp_sim),
@@ -3114,7 +3114,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 #endif
 	case ISPASYNC_FW_CRASH:
 	{
-		u_int16_t mbox1, mbox6;
+		uint16_t mbox1, mbox6;
 		mbox1 = ISP_READ(isp, OUTMAILBOX1);
 		if (IS_DUALBUS(isp)) { 
 			mbox6 = ISP_READ(isp, OUTMAILBOX6);
