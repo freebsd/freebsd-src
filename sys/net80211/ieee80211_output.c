@@ -142,7 +142,7 @@ ieee80211_send_setup(struct ieee80211com *ic,
  */
 static int
 ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
-    struct mbuf *m, int type)
+    struct mbuf *m, int type, int timer)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_frame *wh;
@@ -192,7 +192,13 @@ ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
 #endif
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 	IF_ENQUEUE(&ic->ic_mgtq, m);
-	ifp->if_timer = 1;
+	if (timer) {
+		/*
+		 * Set the mgt frame timeout.
+		 */
+		ic->ic_mgt_timer = timer;
+		ifp->if_timer = 1;
+	}
 	if_start(ifp);
 	return 0;
 }
@@ -1366,12 +1372,8 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		senderr(EINVAL, is_tx_unknownmgt);
 		/* NOTREACHED */
 	}
-
-	ret = ieee80211_mgmt_output(ic, ni, m, type);
-	if (ret == 0) {
-		if (timer)
-			ic->ic_mgt_timer = timer;
-	} else {
+	ret = ieee80211_mgmt_output(ic, ni, m, type, timer);
+	if (ret != 0) {
 bad:
 		ieee80211_free_node(ni);
 	}
