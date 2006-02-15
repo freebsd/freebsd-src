@@ -40,8 +40,8 @@ __weak_reference(_pthread_once, pthread_once);
 #define	ONCE_IN_PROGRESS	0x02
 #define	ONCE_MASK		0x03
 
-pthread_mutex_t		_thr_once_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t		_thr_once_cv = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t		_thr_once_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t		_thr_once_cv = PTHREAD_COND_INITIALIZER;
 
 /*
  * POSIX:
@@ -91,3 +91,9 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 	return (0);
 }
 
+void
+_thr_once_init()
+{
+	_thr_once_lock = PTHREAD_MUTEX_INITIALIZER;
+	_thr_once_cv = PTHREAD_COND_INITIALIZER;
+}

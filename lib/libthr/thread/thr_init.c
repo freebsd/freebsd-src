@@ -412,8 +412,7 @@ init_private(void)
 	_thr_umtx_init(&_keytable_lock);
 	_thr_umtx_init(&_thr_atfork_lock);
 	_thr_umtx_init(&_thr_event_lock);
-	_thr_once_lock = PTHREAD_MUTEX_INITIALIZER;
-	_thr_once_cv = PTHREAD_COND_INITIALIZER;
+	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();
 
