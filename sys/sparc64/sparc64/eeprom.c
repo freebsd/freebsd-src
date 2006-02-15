@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/idprom.h>
 #include <machine/resource.h>
+#include <machine/ver.h>
 
 #include <sys/rman.h>
 
@@ -146,10 +147,27 @@ eeprom_attach(device_t dev)
 		goto fail_res;
 	}
 
-	/* Our TOD clock year 0 is 1968 */
+	/* Our TOD clock year 0 is 1968. */
 	sc->sc_year0 = 1968;
 	/* Use default register read/write functions. */
 	sc->sc_flag = 0;
+	/*
+	 * Generally, if the `eeprom' node has a `watchdog-enable' property
+	 * this indicates that the watchdog part of the MK48T59 is usable,
+	 * i.e. its RST pin is connected to the WDR input of the CPUs or
+	 * something. The `eeprom' nodes of E250, E450 and the clock board
+	 * variant in Exx00 have such properties. For E250 and E450 the
+	 * watchdog just works, for Exx00 the delivery of the reset signal
+	 * apparently has to be additionally enabled elsewhere...
+	 * The OFW environment variable `watchdog-reboot?' is ignored for
+	 * these watchdogs as they always trigger a system reset when they
+	 * time out and can't be made to issue a break to the boot monitor
+	 * instead.
+	 */
+	if (OF_getproplen(ofw_bus_get_node(dev), "watchdog-enable") != -1 &&
+	    (strcmp(sparc64_model, "SUNW,Ultra-250") == 0 ||
+	    strcmp(sparc64_model, "SUNW,Ultra-4") == 0))
+		sc->sc_flag |= MK48TXX_WDOG_REGISTER | MK48TXX_WDOG_ENABLE_WDS;
 	if ((error = mk48txx_attach(dev)) != 0) {
 		device_printf(dev, "cannot attach time of day clock\n");
 		goto fail_res;
