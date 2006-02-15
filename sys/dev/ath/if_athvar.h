@@ -251,8 +251,6 @@ struct ath_softc {
 	int			sc_rx_th_len;
 	u_int			sc_monpass;	/* frames to pass in mon.mode */
 
-	struct task		sc_fataltask;	/* fatal int processing */
-
 	struct ath_descdma	sc_rxdma;	/* RX descriptos */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
@@ -419,6 +417,8 @@ void	ath_intr(void *);
 #define	ath_hal_getdiagstate(_ah, _id, _indata, _insize, _outdata, _outsize) \
 	((*(_ah)->ah_getDiagState)((_ah), (_id), \
 		(_indata), (_insize), (_outdata), (_outsize)))
+#define	ath_hal_getfatalstate(_ah, _outdata, _outsize) \
+	ath_hal_getdiagstate(_ah, 27, NULL, 0, (void **)(_outdata), _outsize)
 #define	ath_hal_setuptxqueue(_ah, _type, _irq) \
 	((*(_ah)->ah_setupTxQueue)((_ah), (_type), (_irq)))
 #define	ath_hal_resettxqueue(_ah, _q) \
