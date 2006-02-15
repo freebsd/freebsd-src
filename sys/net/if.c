@@ -192,6 +192,10 @@ netioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		 */
 		if (cmd == SIOCGIFCONF)
 			return (ifconf(cmd, data));	/* XXX remove cmd */
+#ifdef __amd64__
+		if (cmd == SIOCGIFCONF32)
+			return (ifconf(cmd, data));	/* XXX remove cmd */
+#endif
 		return (EOPNOTSUPP);
 	}
 
@@ -1489,6 +1493,9 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	switch (cmd) {
 	case SIOCGIFCONF:
 	case OSIOCGIFCONF:
+#ifdef __amd64__
+	case SIOCGIFCONF32:
+#endif
 		return (ifconf(cmd, data));
 	}
 	ifr = (struct ifreq *)data;
@@ -1702,12 +1709,23 @@ static int
 ifconf(u_long cmd, caddr_t data)
 {
 	struct ifconf *ifc = (struct ifconf *)data;
+#ifdef __amd64__
+	struct ifconf32 *ifc32 = (struct ifconf32 *)data;
+	struct ifconf ifc_swab;
+#endif
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 	struct sbuf *sb;
 	int error, full = 0, valid_len, max_len;
 
+#ifdef __amd64__
+	if (cmd == SIOCGIFCONF32) {
+		ifc_swab.ifc_len = ifc32->ifc_len;
+		ifc_swab.ifc_buf = (caddr_t)(uintptr_t)ifc32->ifc_buf;
+		ifc = &ifc_swab;
+	}
+#endif
 	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
 	max_len = MAXPHYS - 1;
 
@@ -1796,6 +1814,10 @@ again:
 	}
 
 	ifc->ifc_len = valid_len;
+#ifdef __amd64__
+	if (cmd == SIOCGIFCONF32)
+		ifc32->ifc_len = valid_len;
+#endif
 	sbuf_finish(sb);
 	error = copyout(sbuf_data(sb), ifc->ifc_req, ifc->ifc_len);
 	sbuf_delete(sb);
