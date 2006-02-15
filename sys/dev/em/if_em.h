@@ -146,7 +146,7 @@ POSSIBILITY OF SUCH DAMAGE.
  * This parameter controls when the driver calls the routine to reclaim
  * transmit descriptors.
  */
-#define EM_TX_CLEANUP_THRESHOLD		(adapter->num_tx_desc / 8)
+#define EM_TX_CLEANUP_THRESHOLD		(sc->num_tx_desc / 8)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
@@ -217,6 +217,140 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define EM_MAX_SCATTER            64
 
+typedef enum _XSUM_CONTEXT_T {
+	OFFLOAD_NONE,
+	OFFLOAD_TCP_IP,
+	OFFLOAD_UDP_IP
+} XSUM_CONTEXT_T;
+
+struct em_softc sc;		/* XXX: ugly forward declaration */
+struct em_int_delay_info {
+	struct em_softc *sc;	/* XXX: ugly pointer */
+	int offset;		/* Register offset to read/write */
+	int value;		/* Current value in usecs */
+};
+
+/*
+ * Bus dma allocation structure used by
+ * em_dma_malloc() and em_dma_free().
+ */
+struct em_dma_alloc {
+	bus_addr_t		dma_paddr;
+	caddr_t			dma_vaddr;
+	bus_dma_tag_t		dma_tag;
+	bus_dmamap_t		dma_map;
+	bus_dma_segment_t	dma_seg;
+	int			dma_nseg;
+};
+
+/* Driver softc. */
+struct em_softc {
+	struct ifnet	*ifp;
+	struct em_hw	hw;
+
+	/* FreeBSD operating-system-specific structures. */
+	struct em_osdep osdep;
+	struct device	*dev;
+	struct resource *res_memory;
+	struct resource	*res_ioport;
+	struct resource	*res_interrupt;
+	void		*int_handler_tag;
+	struct ifmedia	media;
+	struct callout	timer;
+	struct callout	tx_fifo_timer;
+	int		io_rid;
+	struct mtx	mtx;
+	int		em_insert_vlan_header;
+	struct task	link_task;
+	struct task	rxtx_task;
+	struct taskqueue *tq;		/* private task queue */
+
+	/* Info about the board itself */
+	uint32_t	part_num;
+	uint8_t		link_active;
+	uint16_t	link_speed;
+	uint16_t	link_duplex;
+	uint32_t	smartspeed;
+	struct em_int_delay_info tx_int_delay;
+	struct em_int_delay_info tx_abs_int_delay;
+	struct em_int_delay_info rx_int_delay;
+	struct em_int_delay_info rx_abs_int_delay;
+
+	XSUM_CONTEXT_T  active_checksum_context;
+
+	/*
+	 * Transmit definitions
+	 *
+	 * We have an array of num_tx_desc descriptors (handled
+	 * by the controller) paired with an array of tx_buffers
+	 * (at tx_buffer_area).
+	 * The index of the next available descriptor is next_avail_tx_desc.
+	 * The number of remaining tx_desc is num_tx_desc_avail.
+	 */
+	struct em_dma_alloc	txdma;		/* bus_dma glue for tx desc */
+	struct em_tx_desc	*tx_desc_base;
+	uint32_t		next_avail_tx_desc;
+	uint32_t		oldest_used_tx_desc;
+	volatile uint16_t	num_tx_desc_avail;
+        uint16_t		num_tx_desc;
+        uint32_t		txd_cmd;
+	struct em_buffer	*tx_buffer_area;
+	bus_dma_tag_t		txtag;		/* dma tag for tx */
+
+	/* 
+	 * Receive definitions
+	 *
+	 * we have an array of num_rx_desc rx_desc (handled by the
+	 * controller), and paired with an array of rx_buffers
+	 * (at rx_buffer_area).
+	 * The next pair to check on receive is at offset next_rx_desc_to_check
+	 */
+	struct em_dma_alloc	rxdma;		/* bus_dma glue for rx desc */
+	struct em_rx_desc	*rx_desc_base;
+	uint32_t		next_rx_desc_to_check;
+	uint32_t		rx_buffer_len;
+	uint16_t		num_rx_desc;
+	int			rx_process_limit;
+	struct em_buffer	*rx_buffer_area;
+	bus_dma_tag_t		rxtag;
+
+	/* First/last mbuf pointers, for collecting multisegment RX packets. */
+	struct mbuf	       *fmp;
+	struct mbuf	       *lmp;
+
+	/* Misc stats maintained by the driver */
+	unsigned long	dropped_pkts;
+	unsigned long	mbuf_alloc_failed;
+	unsigned long	mbuf_cluster_failed;
+	unsigned long	no_tx_desc_avail1;
+	unsigned long	no_tx_desc_avail2;
+	unsigned long	no_tx_map_avail;
+        unsigned long	no_tx_dma_setup;
+	unsigned long	watchdog_events;
+	unsigned long	rx_overruns;
+
+	/* Used in for 82547 10Mb Half workaround */
+	#define EM_PBA_BYTES_SHIFT	0xA
+	#define EM_TX_HEAD_ADDR_SHIFT	7
+	#define EM_PBA_TX_MASK		0xFFFF0000
+	#define EM_FIFO_HDR		0x10
+
+	#define EM_82547_PKT_THRESH	0x3e0
+
+	uint32_t	tx_fifo_size;
+	uint32_t	tx_fifo_head;
+	uint32_t	tx_fifo_head_addr;
+	uint64_t	tx_fifo_reset_cnt;
+	uint64_t	tx_fifo_wrk_cnt;
+	uint32_t	tx_head_addr;
+
+        /* For 82544 PCIX Workaround */
+	boolean_t       pcix_82544;
+	boolean_t       in_detach;
+
+	struct em_hw_stats stats;
+};
+
 /* ******************************************************************************
  * vendor_info_array
  *
@@ -238,32 +372,6 @@ struct em_buffer {
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
 
-/*
- * Bus dma allocation structure used by
- * em_dma_malloc and em_dma_free.
- */
-struct em_dma_alloc {
-        bus_addr_t              dma_paddr;
-        caddr_t                 dma_vaddr;
-        bus_dma_tag_t           dma_tag;
-        bus_dmamap_t            dma_map;
-        bus_dma_segment_t       dma_seg;
-        int                     dma_nseg;
-};
-
-typedef enum _XSUM_CONTEXT_T {
-	OFFLOAD_NONE,
-	OFFLOAD_TCP_IP,
-	OFFLOAD_UDP_IP
-} XSUM_CONTEXT_T;
-
-struct adapter;
-struct em_int_delay_info {
-	struct adapter *adapter;	/* Back-pointer to the adapter struct */
-	int offset;			/* Register offset to read/write */
-	int value;			/* Current value in usecs */
-};
-
 /* For 82544 PCIX  Workaround */
 typedef struct _ADDRESS_LENGTH_PAIR
 {
@@ -277,115 +385,6 @@ typedef struct _DESCRIPTOR_PAIR
     u_int32_t   elements;
 } DESC_ARRAY, *PDESC_ARRAY;
 
-/* Our adapter structure */
-struct adapter {
-	struct ifnet   *ifp;
-	struct em_hw    hw;
-
-	/* FreeBSD operating-system-specific structures */
-	struct em_osdep osdep;
-	struct device   *dev;
-	struct resource *res_memory;
-	struct resource *res_ioport;
-	struct resource *res_interrupt;
-	void            *int_handler_tag;
-	struct ifmedia  media;
-	struct callout	timer;
-	struct callout	tx_fifo_timer;
-	int             io_rid;
-	u_int8_t        unit;
-	struct mtx	mtx;
-	int		em_insert_vlan_header;
-	struct task	link_task;
-	struct task	rxtx_task;
-	struct taskqueue *tq;		/* private task queue */
-
-	/* Info about the board itself */
-	u_int32_t       part_num;
-	u_int8_t        link_active;
-	u_int16_t       link_speed;
-	u_int16_t       link_duplex;
-	u_int32_t       smartspeed;
-	struct em_int_delay_info tx_int_delay;
-	struct em_int_delay_info tx_abs_int_delay;
-	struct em_int_delay_info rx_int_delay;
-	struct em_int_delay_info rx_abs_int_delay;
-
-	XSUM_CONTEXT_T  active_checksum_context;
-
-	/*
-         * Transmit definitions
-         *
-         * We have an array of num_tx_desc descriptors (handled
-         * by the controller) paired with an array of tx_buffers
-         * (at tx_buffer_area).
-         * The index of the next available descriptor is next_avail_tx_desc.
-         * The number of remaining tx_desc is num_tx_desc_avail.
-         */
-	struct em_dma_alloc txdma;              /* bus_dma glue for tx desc */
-        struct em_tx_desc *tx_desc_base;
-        u_int32_t          next_avail_tx_desc;
-	u_int32_t          oldest_used_tx_desc;
-        volatile u_int16_t num_tx_desc_avail;
-        u_int16_t          num_tx_desc;
-        u_int32_t          txd_cmd;
-        struct em_buffer   *tx_buffer_area;
-	bus_dma_tag_t      txtag;               /* dma tag for tx */
-
-	/* 
-	 * Receive definitions
-         *
-         * we have an array of num_rx_desc rx_desc (handled by the
-         * controller), and paired with an array of rx_buffers
-         * (at rx_buffer_area).
-         * The next pair to check on receive is at offset next_rx_desc_to_check
-         */
-	struct em_dma_alloc rxdma;              /* bus_dma glue for rx desc */
-        struct em_rx_desc *rx_desc_base;
-        u_int32_t          next_rx_desc_to_check;
-        u_int32_t          rx_buffer_len;
-        u_int16_t          num_rx_desc;
-        int                rx_process_limit;
-        struct em_buffer   *rx_buffer_area;
-	bus_dma_tag_t      rxtag;
-
-	/* Jumbo frame */
-	struct mbuf        *fmp;
-	struct mbuf        *lmp;
-
-	/* Misc stats maintained by the driver */
-	unsigned long   dropped_pkts;
-	unsigned long   mbuf_alloc_failed;
-	unsigned long   mbuf_cluster_failed;
-	unsigned long   no_tx_desc_avail1;
-	unsigned long   no_tx_desc_avail2;
-	unsigned long   no_tx_map_avail;
-        unsigned long   no_tx_dma_setup;
-	unsigned long	watchdog_events;
-	unsigned long	rx_overruns;
-
-	/* Used in for 82547 10Mb Half workaround */
-	#define EM_PBA_BYTES_SHIFT	0xA
-	#define EM_TX_HEAD_ADDR_SHIFT	7
-	#define EM_PBA_TX_MASK		0xFFFF0000
-	#define EM_FIFO_HDR              0x10
-
-	#define EM_82547_PKT_THRESH      0x3e0
-
-	u_int32_t       tx_fifo_size;
-	u_int32_t       tx_fifo_head;
-	u_int32_t       tx_fifo_head_addr;
-	u_int64_t       tx_fifo_reset_cnt;
-	u_int64_t       tx_fifo_wrk_cnt;
-	u_int32_t       tx_head_addr;
-
-        /* For 82544 PCIX Workaround */
-        boolean_t       pcix_82544;
-	boolean_t       in_detach;
-
-	struct em_hw_stats stats;
-};
-
 #define	EM_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define	EM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
@@ -393,4 +392,4 @@ struct adapter {
 #define	EM_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
 #define	EM_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
-#endif                                                  /* _EM_H_DEFINED_ */
+#endif /* _EM_H_DEFINED_ */
