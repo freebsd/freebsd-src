@@ -223,7 +223,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 			else
 				td2->td_intrval = ERESTART;
 			if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR))
-				sleepq_abort(td2);
+				sleepq_abort(td2, td2->td_intrval);
 			mtx_unlock_spin(&sched_lock);
 		}
 		PROC_UNLOCK(p);
