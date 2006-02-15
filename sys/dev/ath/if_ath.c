@@ -394,7 +394,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
-	TASK_INIT(&sc->sc_fataltask, 0, ath_fatal_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_radartask, 0, ath_radar_proc, sc);
@@ -745,15 +744,9 @@ ath_intr(void *arg)
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
 	status &= sc->sc_imask;			/* discard unasked for bits */
 	if (status & HAL_INT_FATAL) {
-		/*
-		 * Fatal errors are unrecoverable.  Typically
-		 * these are caused by DMA errors.  Unfortunately
-		 * the exact reason is not (presently) returned
-		 * by the hal.
-		 */
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
+		ath_fatal_proc(sc, 0);
 	} else if (status & HAL_INT_RXORN) {
 		sc->sc_stats.ast_rxorn++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
@@ -812,8 +805,21 @@ ath_fatal_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	u_int32_t *state;
+	u_int32_t len;
 
 	if_printf(ifp, "hardware error; resetting\n");
+	/*
+	 * Fatal errors are unrecoverable.  Typically these
+	 * are caused by DMA errors.  Collect h/w state from
+	 * the hal so we can diagnose what's going on.
+	 */
+	if (ath_hal_getfatalstate(sc->sc_ah, &state, &len)) {
+		KASSERT(len >= 6*sizeof(u_int32_t), ("len %u bytes", len));
+		if_printf(ifp, "0x%08x 0x%08x 0x%08x, 0x%08x 0x%08x 0x%08x\n",
+		    state[0], state[1] , state[2], state[3],
+		    state[4], state[5]);
+	}
 	ath_reset(ifp);
 }
 
