@@ -64,18 +64,22 @@ __FBSDID("$FreeBSD$");
 #define RBX_NOINTR	0x1c	/* -n */
 /* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
 #define RBX_DUAL	0x1d	/* -D */
-#define RBX_PROBEKBD	0x1e	/* -P */
 /* 0x1f is reserved for log2(RB_BOOTINFO). */
 
 /* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
-#define RBX_MASK	0x2005ffff
+#define RBX_MASK	(OPT_SET(RBX_ASKNAME) | OPT_SET(RBX_SINGLE) | \
+			OPT_SET(RBX_DFLTROOT) | OPT_SET(RBX_KDB ) | \
+			OPT_SET(RBX_CONFIG) | OPT_SET(RBX_VERBOSE) | \
+			OPT_SET(RBX_SERIAL) | OPT_SET(RBX_CDROM) | \
+			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
+			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
-#define NOPT		13
+#define NOPT		12
 #define NDEV		3
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
@@ -90,11 +94,12 @@ __FBSDID("$FreeBSD$");
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
 
-#define OPT_CHECK(opt)	((opts >> (opt)) & 1)
+#define OPT_SET(opt)	(1 << (opt))
+#define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCgmnPpqrsv"; /* Also 'S' */
+static const char optstr[NOPT] = "DhaCgmnpqrsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -103,7 +108,6 @@ static const unsigned char flags[NOPT] = {
     RBX_GDB,
     RBX_MUTE,
     RBX_NOINTR,
-    RBX_PROBEKBD,
     RBX_PAUSE,
     RBX_QUIET,
     RBX_DFLTROOT,
@@ -126,6 +130,7 @@ static struct dsk {
 static char cmd[512];
 static char kname[1024];
 static uint32_t opts;
+static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
@@ -396,34 +401,48 @@ static int
 parse()
 {
     char *arg = cmd;
-    char *p, *q;
+    char *ep, *p, *q;
+    const char *cp;
     unsigned int drv;
-    int c, i;
+    int c, i, j;
 
     while ((c = *arg++)) {
 	if (c == ' ' || c == '\t' || c == '\n')
 	    continue;
 	for (p = arg; *p && *p != '\n' && *p != ' ' && *p != '\t'; p++);
+	ep = p;
 	if (*p)
 	    *p++ = 0;
 	if (c == '-') {
 	    while ((c = *arg++)) {
+		if (c == 'P') {
+		    if (*(uint8_t *)PTOV(0x496) & 0x10) {
+			cp = "yes";
+		    } else {
+			opts |= OPT_SET(RBX_DUAL) | OPT_SET(RBX_SERIAL);
+			cp = "no";
+		    }
+		    printf("Keyboard: %s\n", cp);
+		    continue;
+		} else if (c == 'S') {
+		    j = 0;
+		    while ((unsigned int)(i = *arg++ - '0') <= 9)
+			j = j * 10 + i;
+		    if (j > 0 && i == -'0') {
+			comspeed = j;
+			break;
+		    }
+		    /* Fall through to error below ('S' not in optstr[]). */
+		}
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
-		opts ^= 1 << flags[i];
+		opts ^= OPT_SET(flags[i]);
 	    }
-	    if (opts & 1 << RBX_PROBEKBD) {
-		i = *(uint8_t *)PTOV(0x496) & 0x10;
-		printf("Keyboard: %s\n", i ? "yes" : "no");
-		if (!i)
-		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
-		opts &= ~(1 << RBX_PROBEKBD);
-	    }
-	    ioctrl = opts & 1 << RBX_DUAL ? (IO_SERIAL|IO_KEYBOARD) :
-		     opts & 1 << RBX_SERIAL ? IO_SERIAL : IO_KEYBOARD;
+	    ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
+		     OPT_CHECK(RBX_SERIAL) ? IO_SERIAL : IO_KEYBOARD;
 	    if (ioctrl & IO_SERIAL)
-	        sio_init();
+	        sio_init(115200 / comspeed);
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
 	    if (*q) {
@@ -465,7 +484,7 @@ parse()
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-	    if ((i = p - arg - !*(p - 1))) {
+	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(kname))
 		    return -1;
 		memcpy(kname, arg, i + 1);
