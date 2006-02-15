@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003, 2004 Marcel Moolenaar
+ * Copyright (c) 2004 - 2006 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,12 +46,18 @@ bus_space_tag_t uart_bus_space_mem;
 static struct bus_space_tag bst_store[3];
 
 /*
- * Determine which channel of a SCC a device referenced by an alias is.
- * The information present in the OF device tree only allows to do this
- * for "ttyX" aliases. If a device is a channel of a SCC its property
- * in the /aliases node looks like one of these:
+ * Determine which channel of a SCC a device referenced by a full device
+ * path or as an alias is (in the latter case we try to look up the device
+ * path via the /aliases node).
+ * Only the device paths of devices which are used for TTYs really allow
+ * to do this as they look like these (taken from /aliases nodes):
  * ttya:  '/central/fhc/zs@0,902000:a'
  * ttyc:  '/pci@1f,0/pci@1,1/ebus@1/se@14,400000:a'
+ * Additionally, for device paths of SCCs which are connected to a RSC
+ * (Remote System Control) device we can hardcode the appropriate channel.
+ * Such device paths look like these:
+ * rsc:   '/pci@1f,4000/ebus@1/se@14,200000:ssp'
+ * ttyc:  '/pci@1f,4000/ebus@1/se@14,200000:ssp'
  */
 static int
 uart_cpu_channel(char *dev)
@@ -58,15 +65,20 @@ uart_cpu_channel(char *dev)
 	char alias[64];
 	phandle_t aliases;
 	int len;
+	const char *p;
 
 	strcpy(alias, dev);
 	if ((aliases = OF_finddevice("/aliases")) != -1)
-		OF_getprop(aliases, dev, alias, sizeof(alias));
+		(void)OF_getprop(aliases, dev, alias, sizeof(alias));
 	len = strlen(alias);
-	if (len < 2 || alias[len - 2] != ':' || alias[len - 1] < 'a' ||
-	    alias[len - 1] > 'b')
+	if ((p = rindex(alias, ':')) == NULL)
 		return (0);
-	return (alias[len - 1] - 'a' + 1);
+	p++;
+	if (p - alias == len - 1 && (*p == 'a' || *p == 'b'))
+		return (*p - 'a' + 1);
+	if (strcmp(p, "ssp") == 0)
+		return (1);
+	return (0);
 }
 
 int
@@ -216,7 +228,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		compat[0] = '\0';
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
-	if (!strcmp(buf, "se")) {
+	if (!strcmp(buf, "se") || !strcmp(compat, "sab82532")) {
 		di->ops = uart_sab82532_ops;
 		/* SAB82532 are only known to be used for TTYs. */
 		if ((di->bas.chan = uart_cpu_channel(dev)) == 0)
@@ -237,7 +249,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		}
 		di->bas.regshft = 1;
 		addr += 4 - 4 * (di->bas.chan - 1);
-	} else if (!strcmp(buf, "su") || !strcmp(buf, "su_pnp") ||
+	} else if (!strcmp(buf, "lom-console") || !strcmp(buf, "su") ||
+	    !strcmp(buf, "su_pnp") || !strcmp(compat, "rsc-console") ||
 	    !strcmp(compat, "su") || !strcmp(compat, "su16550")) {
 		di->ops = uart_ns8250_ops;
 		di->bas.chan = 0;
@@ -251,13 +264,16 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/* Get the line settings. */
 	if (devtype == UART_DEV_KEYBOARD)
 		di->baudrate = 1200;
+	else if (!strcmp(compat, "rsc-console"))
+		di->baudrate = 115200;
 	else
 		di->baudrate = 9600;
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 	snprintf(buf, sizeof(buf), "%s-mode", dev);
-	if (OF_getprop(options, buf, buf, sizeof(buf)) == -1)
+	if (OF_getprop(options, buf, buf, sizeof(buf)) == -1 &&
+	    OF_getprop(input, "ssp-console-modes", buf, sizeof(buf)) == -1)
 		return (0);
 	if (sscanf(buf, "%d,%d,%c,%d,%c", &baud, &bits, &par, &stop, &flag)
 	    != 5)
