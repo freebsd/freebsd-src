@@ -1807,11 +1807,12 @@ em_update_link_status(struct em_softc *sc)
 				    "Full Duplex" : "Half Duplex"));
 			sc->link_active = 1;
 			sc->smartspeed = 0;
+			ifp->if_baudrate = sc->link_speed * 1000000;
 			if_link_state_change(ifp, LINK_STATE_UP);
 		}
 	} else {
 		if (sc->link_active == 1) {
-			sc->link_speed = 0;
+			ifp->if_baudrate = sc->link_speed = 0;
 			sc->link_duplex = 0;
 			if (bootverbose)
 				device_printf(dev, "Link is Down\n");
@@ -2107,7 +2108,6 @@ em_setup_interface(device_t dev, struct em_softc *sc)
 		panic("%s: can not if_alloc()", device_get_nameunit(dev));
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = 1000000000;
 	ifp->if_init =  em_init;
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
