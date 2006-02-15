@@ -82,7 +82,7 @@ struct em_osdep
 	bus_space_handle_t mem_bus_space_handle;
 	bus_space_tag_t    io_bus_space_tag;
 	bus_space_handle_t io_bus_space_handle;
-	struct device     *dev;
+	device_t 	   dev;
 };
 
 #define E1000_WRITE_FLUSH(hw) E1000_READ_REG(hw, STATUS)
