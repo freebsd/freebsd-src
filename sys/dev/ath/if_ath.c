@@ -3860,7 +3860,7 @@ txqactive(struct ath_hal *ah, int qnum)
 {
 	u_int32_t txqs = 1<<qnum;
 	ath_hal_gettxintrtxqs(ah, &txqs);
-	return 1;
+	return (txqs & (1<<qnum));
 }
 
 /*
