@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2006
+.Dd February 15, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -987,12 +987,12 @@ specified station will be allowed or denied.
 .It Cm mac:allow
 Set the ACL policy to permit association only by
 stations registered in the database.
-.It Cm mac:del
+.It Cm mac:del Ar address
 Delete the specified MAC address from the database.
 .It Cm mac:deny
 Set the ACL policy to deny association only by
 stations registered in the database.
-.It Cm mac:kick
+.It Cm mac:kick Ar address
 Force the specified station to be deauthenticated.
 This typically is done to block a station after updating the
 address database.
