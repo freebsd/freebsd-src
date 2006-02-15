@@ -3766,7 +3766,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
-			txq->axq_link = NULL;
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
@@ -3782,6 +3781,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
+		if (txq->axq_depth == 0)
+			txq->axq_link = NULL;
 		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
