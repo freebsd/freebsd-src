@@ -98,6 +98,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ic->ic_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	ic->ic_fixed_rate = IEEE80211_FIXED_RATE_NONE;
 	ic->ic_bmiss_max = IEEE80211_BMISS_MAX;
+	callout_init(&ic->ic_swbmiss, CALLOUT_MPSAFE);
 	ic->ic_mcast_rate = IEEE80211_MCAST_RATE_DEFAULT;
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 	ic->ic_roaming = IEEE80211_ROAMING_AUTO;
@@ -855,6 +856,26 @@ ieee80211_beacon_miss(struct ieee80211com *ic)
 	ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
 }
 
+/*
+ * Software beacon miss handling.  Check if any beacons
+ * were received in the last period.  If not post a
+ * beacon miss; otherwise reset the counter.
+ */
+static void
+ieee80211_swbmiss(void *arg)
+{
+	struct ieee80211com *ic = arg;
+
+	if (ic->ic_swbmiss_count == 0) {
+		ieee80211_beacon_miss(ic);
+		if (ic->ic_bmiss_count == 0)	/* don't re-arm timer */
+			return;
+	} else
+		ic->ic_swbmiss_count = 0;
+	callout_reset(&ic->ic_swbmiss, ic->ic_swbmiss_period,
+		ieee80211_swbmiss, ic);
+}
+
 static void
 sta_disassoc(void *arg, struct ieee80211_node *ni)
 {
@@ -888,6 +909,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 		ieee80211_state_name[ostate], ieee80211_state_name[nstate]);
 	ic->ic_state = nstate;			/* state transition */
 	ni = ic->ic_bss;			/* NB: no reference held */
+	if (ic->ic_flags_ext & IEEE80211_FEXT_SWBMISS)
+		callout_stop(&ic->ic_swbmiss);
 	switch (nstate) {
 	case IEEE80211_S_INIT:
 		switch (ostate) {
@@ -1092,6 +1115,20 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 					arg == IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 			if_start(ifp);		/* XXX not authorized yet */
 			break;
+		}
+		if (ostate != IEEE80211_S_RUN &&
+		    ic->ic_opmode == IEEE80211_M_STA &&
+		    (ic->ic_flags_ext & IEEE80211_FEXT_SWBMISS)) {
+			/*
+			 * Start s/w beacon miss timer for devices w/o
+			 * hardware support.  We fudge a bit here since
+			 * we're doing this in software.
+			 */
+			ic->ic_swbmiss_period = IEEE80211_TU_TO_TICKS(
+				2 * ic->ic_bmissthreshold * ni->ni_intval);
+			ic->ic_swbmiss_count = 0;
+			callout_reset(&ic->ic_swbmiss, ic->ic_swbmiss_period,
+				ieee80211_swbmiss, ic);
 		}
 		/*
 		 * Start/stop the authenticator when operating as an
