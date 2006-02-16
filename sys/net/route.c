@@ -744,7 +744,10 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 
 	case RTM_ADD:
 		if ((flags & RTF_GATEWAY) && !gateway)
-			panic("rtrequest: GATEWAY but no gateway");
+			senderr(EINVAL);
+		if (dst && gateway && (dst->sa_family != gateway->sa_family) && 
+		    (gateway->sa_family != AF_UNSPEC) && (gateway->sa_family != AF_LINK))
+			senderr(EINVAL);
 
 		if (info->rti_ifa == NULL && (error = rt_getifa(info)))
 			senderr(error);
