@@ -63,26 +63,6 @@
 #include <netinet/tcp_debug.h>
 #endif
 
-static int
-sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
-{
-	int error, s, tt;
-
-	tt = *(int *)oidp->oid_arg1;
-	s = (int)((int64_t)tt * 1000 / hz);
-
-	error = sysctl_handle_int(oidp, &s, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	tt = (int)((int64_t)s * hz / 1000);
-	if (tt < 1)
-		return (EINVAL);
-
-	*(int *)oidp->oid_arg1 = tt;
-	return (0);
-}
-
 int	tcp_keepinit;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_keepinit, 0, sysctl_msec_to_ticks, "I", "");
