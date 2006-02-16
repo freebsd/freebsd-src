@@ -348,9 +348,10 @@ set(int argc, char **argv)
 	} else {
 		struct ether_addr *ea1 = ether_aton(eaddr);
 
-		if (ea1 == NULL)
+		if (ea1 == NULL) {
 			warnx("invalid Ethernet address '%s'", eaddr);
-		else {
+			return (1);
+		} else {
 			*ea = *ea1;
 			sdl_m.sdl_alen = ETHER_ADDR_LEN;
 		}
