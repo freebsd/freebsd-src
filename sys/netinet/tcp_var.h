@@ -199,6 +199,7 @@ struct tcpcb {
 	tcp_seq sack_newdata;		/* New data xmitted in this recovery
 					   episode starts at this seq number */
 	struct sackhint	sackhint;	/* SACK scoreboard hint */
+	int	t_rttlow;		/* smallest observerved RTT */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
