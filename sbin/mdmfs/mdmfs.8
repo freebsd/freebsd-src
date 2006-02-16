@@ -41,6 +41,7 @@ driver
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
 .Op Fl d Ar rotdelay
+.Op Fl E Ar path-mdconfig
 .Op Fl e Ar maxbpg
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
@@ -62,6 +63,7 @@ driver
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
 .Op Fl d Ar rotdelay
+.Op Fl E Ar path-mdconfig
 .Op Fl e Ar maxbpg
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
@@ -149,6 +151,12 @@ disk transfer on the same cylinder.
 Modern disks with read/write-behind achieve higher performance without
 this feature,
 so it is best to leave it at 0 milliseconds.
+.It Fl E Ar path-mdconfig
+Use
+.Ar path-mdconfig
+as a location of the
+.Xr mdconfig 8
+utility.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can allocate
 out of a cylinder group before it is forced to begin allocating
