@@ -595,9 +595,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EINVAL;
 			break;
 		}
-		sc->g_src = (satosin((struct sockadrr *)&lifr->addr))->sin_addr;
+		sc->g_src = (satosin(&lifr->addr))->sin_addr;
 		sc->g_dst =
-		    (satosin((struct sockadrr *)&lifr->dstaddr))->sin_addr;
+		    (satosin(&lifr->dstaddr))->sin_addr;
 		goto recompute;
 	case SIOCDIFPHYADDR:
 		if ((error = suser(curthread)) != 0)
