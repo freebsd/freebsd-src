@@ -100,6 +100,10 @@ static void ata_intel_31244_reset(device_t dev);
 static int ata_ite_chipinit(device_t dev);
 static void ata_ite_setmode(device_t dev, int mode);
 static int ata_jmicron_chipinit(device_t dev);
+static int ata_jmicron_allocate(device_t dev);
+static void ata_jmicron_reset(device_t dev);
+static void ata_jmicron_dmainit(device_t dev);
+static void ata_jmicron_setmode(device_t dev, int mode);
 static int ata_marvell_chipinit(device_t dev);
 static int ata_marvell_allocate(device_t dev);
 static int ata_marvell_status(device_t dev);
@@ -2065,6 +2069,7 @@ ata_jmicron_ident(device_t dev)
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_JMB360, 0, 0, 0, ATA_SA300, "JMB360" },
+     { ATA_JMB363, 0, 1, 0, ATA_SA300, "JMB363" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -2087,49 +2092,110 @@ ata_jmicron_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
+    /* set controller configuration to a setup we support */
+    pci_write_config(dev, 0x40, 0x80c0a131, 4);
+
+    ctlr->allocate = ata_jmicron_allocate;
+    ctlr->reset = ata_jmicron_reset;
+    ctlr->dmainit = ata_jmicron_dmainit;
+    ctlr->setmode = ata_jmicron_setmode;
+
     ctlr->r_type2 = SYS_RES_MEMORY;
     ctlr->r_rid2 = PCIR_BAR(5);
-    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						&ctlr->r_rid2, RF_ACTIVE)))
-	return ENXIO;
+    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						&ctlr->r_rid2, RF_ACTIVE))) {
+	/* reset AHCI controller */
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
+	DELAY(1000000);
+	if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
+	    bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2,ctlr->r_res2);
+	    device_printf(dev, "AHCI controller reset failure\n");
+	    return ENXIO;
+	}
 
+	/* enable AHCI mode */
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
 
-    /* enable AHCI mode */
-    pci_write_config(dev, 0x41, 0xa1, 1);
+	/* get the number of HW channels */
+	ctlr->channels =
+	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1;
 
-    /* reset AHCI controller */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
-    DELAY(1000000);
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
-	device_printf(dev, "AHCI controller reset failure\n");
-	return ENXIO;
+	/* clear interrupts */
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
+
+	/* enable AHCI interrupts */
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
+
+	/* enable PCI interrupt */
+	pci_write_config(dev, PCIR_COMMAND,
+			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     }
 
-    /* enable AHCI mode */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
-
-    /* get the number of HW channels */
-    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) +1;
-
-    ctlr->allocate = ata_ahci_allocate;
-    ctlr->reset = ata_ahci_reset;
-    ctlr->dmainit = ata_ahci_dmainit;
-    ctlr->setmode = ata_sata_setmode;
-
-    /* clear interrupts */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
-
-    /* enable AHCI interrupts */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
-
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-                     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+    /* add in PATA channel(s) */
+    ctlr->channels += ctlr->chip->cfg1;
     return 0;
+}
+
+static int
+ata_jmicron_allocate(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
+    if (ch->unit >= 2) {
+	ch->unit -= 2;
+	error = ata_pci_allocate(dev);
+	ch->unit += 2;
+    }
+    else
+	error = ata_ahci_allocate(dev);
+    return error;
+}
+
+static void
+ata_jmicron_reset(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ch->unit >= 2)
+	ata_generic_reset(dev);
+    else
+	ata_ahci_reset(dev);
+}
+
+static void
+ata_jmicron_dmainit(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ch->unit >= 2)
+	ata_pci_dmainit(dev);
+    else
+	ata_ahci_dmainit(dev);
+}
+
+static void
+ata_jmicron_setmode(device_t dev, int mode)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+
+    if (ch->unit >= 2) {
+	struct ata_device *atadev = device_get_softc(dev);
+
+	/* check for 80pin cable present */
+	if (pci_read_config(dev, 0x40, 1) & 0x08)
+	    mode = ata_limit_mode(dev, mode, ATA_UDMA2);
+	else
+	    mode = ata_limit_mode(dev, mode, ATA_UDMA6);
+
+	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
+	    atadev->mode = mode;
+    }
+    else
+	ata_sata_setmode(dev, mode);
 }
 
 
