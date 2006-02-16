@@ -290,10 +290,11 @@ OLD_FILES+=usr/share/man/man1/symorder.1.gz
 # 200308XX
 OLD_FILES+=usr/sbin/amldb
 OLD_FILES+=usr/share/man/man8/amldb.8.gz
+# 200307XX
+OLD_FILES+=sbin/mount_nwfs
+OLD_FILES+=sbin/mount_portalfs
+OLD_FILES+=sbin/mount_smbfs
 # 200306XX
-OLD_FILES+=bin/mount_nwfs
-OLD_FILES+=bin/mount_portalfs
-OLD_FILES+=bin/mount_smbfs
 OLD_FILES+=usr/sbin/dev_mkdb
 OLD_FILES+=usr/share/man/man8/dev_mkdb.8.gz
 # 200304XX
