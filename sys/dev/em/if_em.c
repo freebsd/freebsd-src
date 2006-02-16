@@ -873,7 +873,7 @@ em_watchdog(struct ifnet *ifp)
 		return;
 	}
 
-	if (em_check_for_link(&adapter->hw))
+	if (!em_check_for_link(&adapter->hw))
 		printf("em%d: watchdog timeout -- resetting\n", adapter->unit);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -2603,7 +2603,7 @@ em_clean_transmit_interrupts(struct adapter * adapter)
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
                 if (num_avail == adapter->num_tx_desc)
                         ifp->if_timer = 0;
-                else if (num_avail == adapter->num_tx_desc_avail)
+                else if (num_avail != adapter->num_tx_desc_avail)
                         ifp->if_timer = EM_TX_TIMEOUT;
         }
         adapter->num_tx_desc_avail = num_avail;
