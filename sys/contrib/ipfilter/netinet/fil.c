@@ -1057,6 +1057,7 @@ int out;
 	if (fr_makefrip(hlen, ip, fin) == -1)
 		return -1;
 
+	m = *fin->fin_mp;
 #ifdef _KERNEL
 # ifdef	USE_INET6
 	if (v == 6) {
