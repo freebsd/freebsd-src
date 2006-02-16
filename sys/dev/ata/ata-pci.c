@@ -59,9 +59,6 @@ static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 #define IOMASK                  0xfffffffc
 #define ATA_PROBE_OK            -10
 
-/* prototypes */
-static void ata_pci_dmainit(device_t);
-
 int
 ata_legacy(device_t dev)
 {
@@ -505,7 +502,7 @@ ata_pci_dmareset(device_t dev)
     ch->dma->unload(dev);
 }
 
-static void
+void
 ata_pci_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
