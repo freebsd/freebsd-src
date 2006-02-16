@@ -327,8 +327,8 @@ enable_thread_event (td_thragent_t *thread_agent, int event, CORE_ADDR *bp)
 
   /* Set up the breakpoint.  */
   (*bp) = gdbarch_convert_from_func_ptr_addr (current_gdbarch,
-				      (CORE_ADDR)notify.u.bptaddr,
-				      &current_target);
+            extract_typed_address(&notify.u.bptaddr, builtin_type_void_func_ptr),
+            &current_target);
   create_thread_event_breakpoint ((*bp));
 
   return TD_OK;
@@ -1198,6 +1198,7 @@ fbsd_thread_get_local_address(ptid_t ptid, struct objfile *objfile,
   td_thrhandle_t th;
   void *address;
   CORE_ADDR lm;
+  void *lm2;
   int ret, is_library = (objfile->flags & OBJF_SHARED);
 
   if (IS_THREAD (ptid))
@@ -1222,7 +1223,8 @@ fbsd_thread_get_local_address(ptid_t ptid, struct objfile *objfile,
       ret = td_ta_map_id2thr_p (thread_agent, GET_THREAD(ptid), &th);
 
       /* get the address of the variable. */
-      ret = td_thr_tls_get_addr_p (&th, (void *)lm, offset, &address);
+      store_typed_address(&lm2, builtin_type_void_data_ptr, lm);
+      ret = td_thr_tls_get_addr_p (&th, lm2, offset, &address);
 
       if (ret != TD_OK)
         {
@@ -1239,7 +1241,7 @@ fbsd_thread_get_local_address(ptid_t ptid, struct objfile *objfile,
         }
 
       /* Cast assuming host == target. */
-      return (CORE_ADDR) address;
+      return extract_typed_address(&address, builtin_type_void_data_ptr);
     }
   return (0);
 }
@@ -1250,7 +1252,8 @@ tsd_cb (thread_key_t key, void (*destructor)(void *), void *ignore)
   struct minimal_symbol *ms;
   char *name;
 
-  ms = lookup_minimal_symbol_by_pc ((CORE_ADDR)destructor);
+  ms = lookup_minimal_symbol_by_pc (
+	extract_typed_address(&destructor, builtin_type_void_func_ptr));
   if (!ms)
     name = "???";
   else
@@ -1509,19 +1512,22 @@ ps_pglobal_lookup (struct ps_prochandle *ph, const char *obj,
    const char *name, psaddr_t *sym_addr)
 {
   struct minimal_symbol *ms;
+  CORE_ADDR addr;
 
   ms = lookup_minimal_symbol (name, NULL, NULL);
   if (ms == NULL)
     return PS_NOSYM;
 
-  *sym_addr = (psaddr_t) SYMBOL_VALUE_ADDRESS (ms);
+  addr = SYMBOL_VALUE_ADDRESS (ms);
+  store_typed_address(sym_addr, builtin_type_void_data_ptr, addr);
   return PS_OK;
 }
 
 ps_err_e
 ps_pread (struct ps_prochandle *ph, psaddr_t addr, void *buf, size_t len)
 {
-  int err = target_read_memory ((CORE_ADDR) addr, buf, len);
+  int err = target_read_memory (
+    extract_typed_address(&addr, builtin_type_void_data_ptr), buf, len);
   return (err == 0 ? PS_OK : PS_ERR);
 }
 
@@ -1529,7 +1535,8 @@ ps_err_e
 ps_pwrite (struct ps_prochandle *ph, psaddr_t addr, const void *buf,
             size_t len)
 {
-  int err = target_write_memory ((CORE_ADDR) addr, (void *)buf, len);
+  int err = target_write_memory (
+    extract_typed_address(&addr, builtin_type_void_data_ptr), (void *)buf, len);
   return (err == 0 ? PS_OK : PS_ERR);
 }
 
