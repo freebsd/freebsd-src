@@ -591,29 +591,23 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			    &in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (laddr.s_addr == INADDR_ANY) {
-		struct route sro;
-
-		bzero(&sro, sizeof(sro));
 		ia = (struct in_ifaddr *)0;
 		/*
 		 * If route is known our src addr is taken from the i/f,
 		 * else punt.
+		 *
+		 * Find out route to destination
 		 */
-		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0) {
-			/* Find out route to destination */
-			sro.ro_dst.sa_family = AF_INET;
-			sro.ro_dst.sa_len = sizeof(struct sockaddr_in);
-			((struct sockaddr_in *)&sro.ro_dst)->sin_addr = faddr;
-			rtalloc_ign(&sro, RTF_CLONING);
-		}
+		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
+			ia = ip_rtaddr(faddr);
 		/*
-		 * If we found a route, use the address
-		 * corresponding to the outgoing interface.
+		 * If we found a route, use the address corresponding to
+		 * the outgoing interface.
+		 * 
+		 * Otherwise assume faddr is reachable on a directly connected
+		 * network and try to find a corresponding interface to take
+		 * the source address from.
 		 */
-		if (sro.ro_rt) {
-			ia = ifatoia(sro.ro_rt->rt_ifa);
-			RTFREE(sro.ro_rt);
-		}
 		if (ia == 0) {
 			bzero(&sa, sizeof(sa));
 			sa.sin_addr = faddr;
