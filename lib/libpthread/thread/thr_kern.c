@@ -1337,6 +1337,7 @@ kseg_gc(struct pthread *curthread)
 
 	if (free_kseg_count <= MAX_CACHED_KSEGS)
 		return; 
+	TAILQ_INIT(&worklist);
 	crit = _kse_critical_enter();
 	KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
 	while (free_kseg_count > MAX_CACHED_KSEGS) {
