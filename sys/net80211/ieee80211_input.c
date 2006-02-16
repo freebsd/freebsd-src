@@ -1901,6 +1901,9 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			/* record tsf of last beacon */
 			memcpy(ni->ni_tstamp.data, scan.tstamp,
 				sizeof(ni->ni_tstamp));
+			/* count beacon frame for s/w bmiss handling */
+			ic->ic_swbmiss_count++;
+			ic->ic_bmiss_count = 0;
 			if (ni->ni_erp != scan.erp) {
 				IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
 				    "[%s] erp change: was 0x%x, now 0x%x\n",
@@ -1944,7 +1947,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			if (ic->ic_flags & IEEE80211_F_SCAN)
 				ieee80211_add_scan(ic, &scan, wh,
 					subtype, rssi, rstamp);
-			ic->ic_bmiss_count = 0;
 			return;
 		}
 		/*
