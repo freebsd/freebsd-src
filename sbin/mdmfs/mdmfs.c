@@ -68,6 +68,7 @@ static	bool norun;		/* Actually run the helper programs? */
 static	int unit;      		/* The unit we're working with. */
 static	const char *mdname;	/* Name of memory disk device (e.g., "md"). */
 static	size_t mdnamelen;	/* Length of mdname. */
+static	const char *path_mdconfig =_PATH_MDCONFIG;
 
 static void	 argappend(char **, const char *, ...) __printflike(2, 3);
 static void	 debugprintf(const char *, ...) __printflike(1, 2);
@@ -122,7 +123,7 @@ main(int argc, char **argv)
 		compat = true;
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:e:F:f:hi:LlMm:Nn:O:o:p:PSs:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:Nn:O:o:Pp:Ss:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -145,6 +146,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			argappend(&newfs_arg, "-d %s", optarg);
+			break;
+		case 'E':
+			path_mdconfig = optarg;
 			break;
 		case 'e':
 			argappend(&newfs_arg, "-e %s", optarg);
@@ -355,7 +359,7 @@ do_mdconfig_attach(const char *args, const enum md_types mdtype)
 	default:
 		abort();
 	}
-	rv = run(NULL, "%s -a %s%s -u %s%d", _PATH_MDCONFIG, ta, args,
+	rv = run(NULL, "%s -a %s%s -u %s%d", path_mdconfig, ta, args,
 	    mdname, unit);
 	if (rv)
 		errx(1, "mdconfig (attach) exited with error code %d", rv);
@@ -389,7 +393,7 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	default:
 		abort();
 	}
-	rv = run(&fd, "%s -a %s%s", _PATH_MDCONFIG, ta, args);
+	rv = run(&fd, "%s -a %s%s", path_mdconfig, ta, args);
 	if (rv)
 		errx(1, "mdconfig (attach) exited with error code %d", rv);
 
@@ -428,7 +432,7 @@ do_mdconfig_detach(void)
 {
 	int rv;
 
-	rv = run(NULL, "%s -d -u %s%d", _PATH_MDCONFIG, mdname, unit);
+	rv = run(NULL, "%s -d -u %s%d", path_mdconfig, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
 		warnx("mdconfig (detach) exited with error code %d (ignored)",
 		      rv);
@@ -676,14 +680,14 @@ usage(void)
 	if (!compat)
 		fprintf(stderr,
 "usage: %s [-DLlMNPSUX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
-"\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
-"\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
+"\t[-d rotdelay] [-E path-mdconfig] [-e maxbpg] [-F file] [-f frag-size]\n"
+"\t[-i bytes] [-m percent-free] [-n rotational-positions] [-O optimization]\n"
 "\t[-o mount-options] [-p permissions] [-s size] [-v version]\n"
 "\t[-w user:group] md-device mount-point\n", name);
 	fprintf(stderr,
 "usage: %s -C [-lNU] [-a maxcontig] [-b block-size] [-c cylinders]\n"
-"\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
-"\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
+"\t[-d rotdelay] [-E path-mdconfig] [-e maxbpg] [-F file] [-f frag-size]\n"
+"\t[-i bytes] [-m percent-free] [-n rotational-positions] [-O optimization]\n"
 "\t[-o mount-options] [-s size] [-v version] md-device mount-point\n", name);
 	exit(1);
 }
