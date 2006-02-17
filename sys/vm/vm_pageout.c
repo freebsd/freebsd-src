@@ -931,8 +931,14 @@ rescan0:
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 				mp = NULL;
-				if (vp->v_type == VREG)
-					vn_start_write(vp, &mp, V_NOWAIT);
+				if (vp->v_type == VREG &&
+				    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+					++pageout_lock_miss;
+					if (object->flags & OBJ_MIGHTBEDIRTY)
+						vnodes_skipped++;
+					VM_OBJECT_UNLOCK(object);
+					continue;
+				}
 				vm_page_unlock_queues();
 				VI_LOCK(vp);
 				VM_OBJECT_UNLOCK(object);
