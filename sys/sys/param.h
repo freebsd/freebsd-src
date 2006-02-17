@@ -147,7 +147,7 @@
 
 #define MCLBYTES	(1 << MCLSHIFT)	/* size of an mbuf cluster */
 
-#define	MJUM4BYTES	(4 * 1024)	/* jumbo cluster 4k */
+#define	MJUMPAGESIZE	PAGE_SIZE	/* jumbo cluster 4k */
 #define	MJUM9BYTES	(9 * 1024)	/* jumbo cluster 9k */
 #define	MJUM16BYTES	(16 * 1024)	/* jumbo cluster 16k */
 
