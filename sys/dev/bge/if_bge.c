@@ -3382,6 +3382,7 @@ bge_ifmedia_upd(ifp)
 		return(0);
 	}
 
+	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
@@ -3682,9 +3683,17 @@ bge_stop(sc)
 
 	sc->bge_tx_saved_considx = BGE_TXCONS_UNSET;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	/*
+	 * We can't just call bge_link_upd() cause chip is almost stopped so
+	 * bge_link_upd -> bge_tick_locked -> bge_stats_update sequence may
+	 * lead to hardware deadlock. So we just clearing MAC's link state
+	 * (PHY may still have link UP).
+	 */
+	if (bootverbose && sc->bge_link)
+		if_printf(sc->bge_ifp, "link DOWN\n");
+	sc->bge_link = 0;
 
-	return;
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 /*
@@ -3817,7 +3826,8 @@ bge_link_upd(sc)
 				if_printf(sc->bge_ifp, "link DOWN\n");
 			if_link_state_change(sc->bge_ifp, LINK_STATE_DOWN);
 		}
-	} else {
+	/* Discard link events for MII/GMII cards if MI auto-polling disabled */
+	} else if (CSR_READ_4(sc, BGE_MI_MODE) & BGE_MIMODE_AUTOPOLL) {
 		/* 
 		 * Some broken BCM chips have BGE_STATFLAG_LINKSTATE_CHANGED bit
 		 * in status word always set. Workaround this bug by reading
@@ -3847,7 +3857,7 @@ bge_link_upd(sc)
 		}
 	}
 
-	/* Clear the interrupt */
+	/* Clear the attention */
 	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 	    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
 	    BGE_MACSTAT_LINK_CHANGED);
