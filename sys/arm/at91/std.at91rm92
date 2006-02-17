@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-files	"../at91/files.at91rm92"
-cpu	CPU_ARM9
