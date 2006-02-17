@@ -42,7 +42,6 @@ struct ng_ipfw_tag {
 	int		dir;
 #define	NG_IPFW_OUT	0
 #define	NG_IPFW_IN	1
-	int		flags;		/* flags, for ip_output (IPv6 ?) */
 };
 
 #define	TAGSIZ	(sizeof(struct ng_ipfw_tag) - sizeof(struct m_tag))
