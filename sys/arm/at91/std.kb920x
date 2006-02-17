@@ -1,5 +1,5 @@
 #$FreeBSD$
-include "../at91/std.at91rm92"
+include "../at91/std.at91"
 files	"../at91/files.kb920x"
 
 makeoptions	KERNPHYSADDR=0x20000000
