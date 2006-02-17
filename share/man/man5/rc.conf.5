@@ -594,7 +594,7 @@ by default.
 Set it to
 .Dq Li YES
 to enable
-.Xr ipnat 1
+.Xr ipnat 8
 network address translation.
 See
 .Va ipfilter_enable
@@ -603,7 +603,7 @@ for a detailed discussion.
 .It Va ipnat_program
 .Pq Vt str
 Path to
-.Xr ipnat 1
+.Xr ipnat 8
 (default
 .Pa /sbin/ipnat ) .
 .\" ----- ipnat_rules setting -----------------------------------
@@ -615,14 +615,14 @@ by default.
 This variable contains the name of the file
 holding the network address translation definition.
 This file is expected to be readable for the
-.Xr ipnat 1
+.Xr ipnat 8
 command to execute.
 .\" ----- ipnat_flags setting -----------------------------------
 .It Va ipnat_flags
 .Pq Vt str
 Empty by default.
 This variable contains flags passed to the
-.Xr ipnat 1
+.Xr ipnat 8
 program.
 .\" ----- ipmon_enable setting ----------------------------------
 .It Va ipmon_enable
@@ -637,7 +637,7 @@ to enable
 monitoring (logging
 .Xr ipf 8
 and
-.Xr ipnat 1
+.Xr ipnat 8
 events).
 Setting this variable needs setting
 .Va ipfilter_enable
