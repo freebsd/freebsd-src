@@ -240,7 +240,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -s $$path ${.TARGET}
+	ln -sf $$path ${.TARGET}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS}
 
@@ -299,7 +299,7 @@ CFLAGS+=	-I${KERNBUILDDIR}
 CLEANFILES+=	${_src}
 .if !target(${_src})
 ${_src}:
-	ln -s ${KERNBUILDDIR}/${_src} ${.TARGET}
+	ln -sf ${KERNBUILDDIR}/${_src} ${.TARGET}
 .endif
 .endfor
 .else
