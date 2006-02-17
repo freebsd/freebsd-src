@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2005
+.Dd January 14, 2006
 .Dt ACPI_IBM 4 i386
 .Os
 .Sh NAME
@@ -135,10 +135,10 @@ Access IBM Button
 .Ss Xr led 4 Ss Interface
 The
 .Nm
-driver provides an
+driver provides a
 .Xr led 4
-interface for the Thinklight.
-The Thinklight can be made to blink by writing
+interface for the ThinkLight.
+The ThinkLight can be made to blink by writing
 .Tn ASCII
 strings to the
 .Pa /dev/led/thinklight
@@ -269,8 +269,28 @@ Toggle Bluetooth chip activity.
 (read-only)
 Indicates whether the WLAN chip is active or not.
 .It Va dev.acpi_ibm.0.fan
-(read-only)
-Indicates whether the fan is on or off.
+Indicates whether the fan is in automatic (1) or manual (0) mode.
+Default is automatic mode.
+This sysctl should be used with extreme precaution, since disabling automatic
+fan control might overheat the ThinkPad and lead to permanent damage if the
+.Va fan_level
+is not set accordingly.
+.It Va dev.acpi_ibm.0.fan_level
+Indicates at what speed the fan should run when being in manual mode.
+Values are ranging from 0 (off) to 7 (max).
+The resulting speed differs from model to model.
+On a T41p this is as follows:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 0
+off
+.It Li 1, 2
+~3000 RPM
+.It Li 3, 4, 5
+~3600 RPM
+.It Li 6, 7
+~4300 RPM
+.El
 .It Va dev.acpi_ibm.0.fan_speed
 (read-only)
 Fan speed in rounds per minute.
@@ -307,6 +327,13 @@ UltraBay battery
 .Pp
 Defaults for these sysctls can be set in
 .Xr sysctl.conf 5 .
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/thinklight"
+.It Pa /dev/led/thinklight
+ThinkLight
+.Xr led 4
+device node
+.El
 .Sh EXAMPLES
 The following can be added to
 .Xr devd.conf 5
@@ -396,15 +423,9 @@ then
 fi
 exit 0
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /dev/led/thinklight"
-.It Pa /dev/led/thinklight
-Thinklight
-.Xr led 4
-device node
-.El
 .Sh SEE ALSO
 .Xr acpi 4 ,
+.Xr led 4 ,
 .Xr sysctl.conf 5 ,
 .Xr devd 8 ,
 .Xr sysctl 8
