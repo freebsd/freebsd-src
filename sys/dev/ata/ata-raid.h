@@ -68,13 +68,14 @@ struct ar_softc {
 #define AR_F_HPTV3_RAID         0x0008
 #define AR_F_INTEL_RAID         0x0010
 #define AR_F_ITE_RAID           0x0020
-#define AR_F_LSIV2_RAID         0x0040
-#define AR_F_LSIV3_RAID         0x0080
-#define AR_F_NVIDIA_RAID        0x0100
-#define AR_F_PROMISE_RAID       0x0200
-#define AR_F_SII_RAID           0x0400
-#define AR_F_SIS_RAID           0x0800
-#define AR_F_VIA_RAID           0x1000
+#define AR_F_JMICRON_RAID       0x0040
+#define AR_F_LSIV2_RAID         0x0080
+#define AR_F_LSIV3_RAID         0x0100
+#define AR_F_NVIDIA_RAID        0x0200
+#define AR_F_PROMISE_RAID       0x0400
+#define AR_F_SII_RAID           0x0800
+#define AR_F_SIS_RAID           0x1000
+#define AR_F_VIA_RAID           0x2000
 #define AR_F_FORMAT_MASK        0x1fff
 
     u_int               generation;
@@ -396,6 +397,50 @@ struct ite_raid_conf {
     u_int32_t           dummy_7[4];
     u_int32_t           filler_20[104];
 } __packed;
+
+
+/* JMicron Technology Corp Metadata */
+#define JMICRON_LBA(dev) \
+	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
+#define	JM_MAX_DISKS		8
+
+struct jmicron_raid_conf {
+    u_int8_t            signature[2];
+#define JMICRON_MAGIC		"JM"
+
+    u_int16_t           version;
+#define JMICRON_VERSION		0x0001
+
+    u_int16_t           checksum;
+    u_int8_t		filler_1[10];
+    u_int32_t           disk_id;
+    u_int32_t           offset;
+    u_int32_t           disk_sectors_high;
+    u_int16_t           disk_sectors_low;
+    u_int8_t		filler_2[2];
+    u_int8_t            name[16];
+    u_int8_t            type;
+#define	JM_T_RAID0		0
+#define	JM_T_RAID1		1
+#define	JM_T_RAID01		2
+#define	JM_T_JBOD		3
+#define	JM_T_RAID5		5
+
+    u_int8_t            stripe_shift;
+    u_int16_t           flags;
+#define	JM_F_READY		0x0001
+#define JM_F_BOOTABLE		0x0002
+#define JM_F_BAD		0x0004
+#define JM_F_ACTIVE		0c0010
+#define JM_F_UNSYNC		0c0020
+#define JM_F_NEWEST		0c0040
+
+    u_int8_t		filler_3[4];
+    u_int32_t           spare[2];
+    u_int32_t           disks[JM_MAX_DISKS];
+    u_int8_t		filler_4[32];
+    u_int8_t		filler_5[384];
+};
 
 
 /* LSILogic V2 MegaRAID Metadata */

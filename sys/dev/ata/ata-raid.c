@@ -71,6 +71,8 @@ static int ata_raid_hptv3_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_intel_write_meta(struct ar_softc *rdp);
 static int ata_raid_ite_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_jmicron_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_jmicron_write_meta(struct ar_softc *rdp);
 static int ata_raid_lsiv2_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_lsiv3_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_nvidia_read_meta(device_t dev, struct ar_softc **raidp);
@@ -95,6 +97,7 @@ static void ata_raid_hptv2_print_meta(struct hptv2_raid_conf *meta);
 static void ata_raid_hptv3_print_meta(struct hptv3_raid_conf *meta);
 static void ata_raid_intel_print_meta(struct intel_raid_conf *meta);
 static void ata_raid_ite_print_meta(struct ite_raid_conf *meta);
+static void ata_raid_jmicron_print_meta(struct jmicron_raid_conf *meta);
 static void ata_raid_lsiv2_print_meta(struct lsiv2_raid_conf *meta);
 static void ata_raid_lsiv3_print_meta(struct lsiv3_raid_conf *meta);
 static void ata_raid_nvidia_print_meta(struct nvidia_raid_conf *meta);
@@ -937,6 +940,11 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 		rdp->disks[disk].sectors = ITE_LBA(rdp->disks[disk].dev);
 		break;
 
+	    case ATA_JMICRON_ID:
+		ctlr = AR_F_JMICRON_RAID;
+		rdp->disks[disk].sectors = JMICRON_LBA(rdp->disks[disk].dev);
+		break;
+
 	    case 0:     /* XXX SOS cover up for bug in our PCI code */
 	    case ATA_PROMISE_ID:        
 		ctlr = AR_F_PROMISE_RAID;
@@ -1070,6 +1078,10 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 
     case AR_F_ITE_RAID:
 	rdp->interleave = min(max(2, rdp->interleave), 128); /*+*/
+	break;
+
+    case AR_F_JMICRON_RAID:
+	rdp->interleave = min(max(8, rdp->interleave), 256); /*+*/
 	break;
 
     case AR_F_LSIV2_RAID:
@@ -1274,6 +1286,11 @@ ata_raid_read_metadata(device_t subdisk)
 		return 0;
 	    break;
 
+	case ATA_JMICRON_ID:
+	    if (ata_raid_jmicron_read_meta(subdisk, ata_raid_arrays))
+		return 0;
+	    break;
+
 	case ATA_NVIDIA_ID:
 	    if (ata_raid_nvidia_read_meta(subdisk, ata_raid_arrays))
 		return 0;
@@ -1338,6 +1355,9 @@ ata_raid_write_metadata(struct ar_softc *rdp)
 
     case AR_F_INTEL_RAID:
 	return ata_raid_intel_write_meta(rdp);
+
+    case AR_F_JMICRON_RAID:
+	return ata_raid_jmicron_write_meta(rdp);
 
     case AR_F_SIS_RAID:
 	return ata_raid_sis_write_meta(rdp);
@@ -1408,6 +1428,11 @@ ata_raid_wipe_metadata(struct ar_softc *rdp)
 	    case AR_F_ITE_RAID:
 		lba = ITE_LBA(rdp->disks[disk].dev);
 		size = sizeof(struct ite_raid_conf);
+		break;
+
+	    case AR_F_JMICRON_RAID:
+		lba = JMICRON_LBA(rdp->disks[disk].dev);
+		size = sizeof(struct jmicron_raid_conf);
 		break;
 
 	    case AR_F_LSIV2_RAID:
@@ -2390,6 +2415,231 @@ ata_raid_ite_read_meta(device_t dev, struct ar_softc **raidp)
 ite_out:
     free(meta, M_AR);
     return retval;
+}
+
+/* JMicron Technology Corp Metadata */
+static int
+ata_raid_jmicron_read_meta(device_t dev, struct ar_softc **raidp)
+{
+    struct ata_raid_subdisk *ars = device_get_softc(dev);
+    device_t parent = device_get_parent(dev);
+    struct jmicron_raid_conf *meta;
+    struct ar_softc *raid = NULL;
+    u_int16_t checksum, *ptr;
+    u_int64_t disk_size;
+    int count, array, disk, total_disks, retval = 0;
+
+    if (!(meta = (struct jmicron_raid_conf *)
+	  malloc(sizeof(struct jmicron_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, JMICRON_LBA(parent),
+		    meta, sizeof(struct jmicron_raid_conf), ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent,
+			  "JMicron read metadata failed\n");
+    }
+
+    /* check for JMicron signature */
+    if (strncmp(meta->signature, JMICRON_MAGIC, 2)) {
+	if (testing || bootverbose)
+	    device_printf(parent, "JMicron check1 failed\n");
+	goto jmicron_out;
+    }
+
+    /* calculate checksum and compare for valid */
+    for (checksum = 0, ptr = (u_int16_t *)meta, count = 0; count < 64; count++)
+	checksum += *ptr++;
+    if (checksum) {  
+	if (testing || bootverbose)
+	    device_printf(parent, "JMicron check2 failed\n");
+	goto jmicron_out;
+    }
+
+    if (testing || bootverbose)
+	ata_raid_jmicron_print_meta(meta);
+
+    /* now convert JMicron meta into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+jmicron_next:
+	if (!raidp[array]) {
+	    raidp[array] = 
+		(struct ar_softc *)malloc(sizeof(struct ar_softc), M_AR,
+					  M_NOWAIT | M_ZERO);
+	    if (!raidp[array]) {
+		device_printf(parent, "failed to allocate metadata storage\n");
+		goto jmicron_out;
+	    }
+	}
+	raid = raidp[array];
+	if (raid->format && (raid->format != AR_F_JMICRON_RAID))
+	    continue;
+
+	for (total_disks = 0, disk = 0; disk < JM_MAX_DISKS; disk++) {
+	    if (meta->disks[disk]) {
+		if (raid->format == AR_F_JMICRON_RAID) {
+		    if (bcmp(&meta->disks[disk], 
+			raid->disks[disk].serial, sizeof(u_int32_t))) {
+			array++;
+			goto jmicron_next;
+		    }
+		}
+		else 
+		    bcopy(&meta->disks[disk],
+			  raid->disks[disk].serial, sizeof(u_int32_t));
+		total_disks++;
+	    }
+	}
+	/* handle spares XXX SOS */
+
+	switch (meta->type) {
+	case JM_T_RAID0:
+	    raid->type = AR_T_RAID0;
+	    raid->width = total_disks;
+	    break;
+
+	case JM_T_RAID1:
+	    raid->type = AR_T_RAID1;
+	    raid->width = 1;
+	    break;
+
+	case JM_T_RAID01:
+	    raid->type = AR_T_RAID01;
+	    raid->width = total_disks / 2;
+	    break;
+
+	case JM_T_RAID5:
+	    raid->type = AR_T_RAID5;
+	    raid->width = total_disks;
+	    break;
+
+	case JM_T_JBOD:
+	    raid->type = AR_T_SPAN;
+	    raid->width = 1;
+	    break;
+
+	default:
+	    device_printf(parent,
+			  "JMicron unknown RAID type 0x%02x\n", meta->type);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    goto jmicron_out;
+	}
+	disk_size = (meta->disk_sectors_high << 16) + meta->disk_sectors_low;
+	raid->format = AR_F_JMICRON_RAID;
+	strncpy(raid->name, meta->name, sizeof(meta->name));
+	raid->generation = 0;
+	raid->interleave = 2 << meta->stripe_shift;
+	raid->total_disks = total_disks;
+	raid->total_sectors = disk_size * (raid->width-(raid->type==AR_RAID5));
+	raid->heads = 255;
+	raid->sectors = 63;
+	raid->cylinders = raid->total_sectors / (63 * 255);
+	raid->offset_sectors = meta->offset * 16;
+	raid->rebuild_lba = 0;
+	raid->lun = array;
+
+	for (disk = 0; disk < raid->total_disks; disk++) {
+	    if (meta->disks[disk] == meta->disk_id) {
+		raid->disks[disk].dev = parent;
+		raid->disks[disk].sectors = disk_size;
+		raid->disks[disk].flags =
+		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
+		ars->raid[raid->volume] = raid;
+		ars->disk_number[raid->volume] = disk;
+		retval = 1;
+		break;
+	    }
+	}
+	break;
+    }
+jmicron_out:
+    free(meta, M_AR);
+    return retval;
+}
+
+static int
+ata_raid_jmicron_write_meta(struct ar_softc *rdp)
+{
+    struct jmicron_raid_conf *meta;
+    u_int64_t disk_sectors;
+    int disk, error = 0;
+
+    if (!(meta = (struct jmicron_raid_conf *)
+	  malloc(sizeof(struct jmicron_raid_conf), M_AR, M_NOWAIT | M_ZERO))) {
+	printf("ar%d: failed to allocate metadata storage\n", rdp->lun);
+	return ENOMEM;
+    }
+
+    rdp->generation++;
+    switch (rdp->type) {
+    case AR_T_JBOD:
+	meta->type = JM_T_JBOD;
+	break;
+
+    case AR_T_RAID0:
+	meta->type = JM_T_RAID0;
+	break;
+
+    case AR_T_RAID1:
+	meta->type = JM_T_RAID1;
+	break;
+
+    case AR_T_RAID5:
+	meta->type = JM_T_RAID5;
+	break;
+
+    case AR_T_RAID01:
+	meta->type = JM_T_RAID01;
+	break;
+
+    default:
+	free(meta, M_AR);
+	return ENODEV;
+    }
+    bcopy(JMICRON_MAGIC, meta->signature, sizeof(JMICRON_MAGIC));
+    meta->version = JMICRON_VERSION;
+    meta->offset = rdp->offset_sectors / 16;
+    disk_sectors = rdp->total_sectors / (rdp->width - (rdp->type == AR_RAID5));
+    meta->disk_sectors_low = disk_sectors & 0xffff;
+    meta->disk_sectors_high = disk_sectors >> 16;
+    strncpy(meta->name, rdp->name, sizeof(meta->name));
+    meta->stripe_shift = ffs(rdp->interleave) - 2;
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].serial[0])
+	    bcopy(rdp->disks[disk].serial,&meta->disks[disk],sizeof(u_int32_t));
+	else
+	    meta->disks[disk] = (u_int32_t)(uintptr_t)rdp->disks[disk].dev;
+    }
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (rdp->disks[disk].dev) {
+	    u_int16_t checksum = 0, *ptr;
+	    int count;
+
+	    meta->disk_id = meta->disks[disk];
+	    meta->checksum = 0;
+	    for (ptr = (u_int16_t *)meta, count = 0; count < 64; count++)
+		checksum += *ptr++;
+	    meta->checksum -= checksum;
+
+	    if (testing || bootverbose)
+		ata_raid_jmicron_print_meta(meta);
+
+	    if (ata_raid_rw(rdp->disks[disk].dev,
+			    JMICRON_LBA(rdp->disks[disk].dev),
+			    meta, sizeof(struct jmicron_raid_conf),
+			    ATA_R_WRITE | ATA_R_DIRECT)) {
+		device_printf(rdp->disks[disk].dev, "write metadata failed\n");
+		error = EIO;
+	    }
+	}
+    }
+    /* handle spares XXX SOS */
+
+    free(meta, M_AR);
+    return error;
 }
 
 /* LSILogic V2 MegaRAID Metadata */
@@ -3600,6 +3850,7 @@ via_out:
     free(meta, M_AR);
     return retval;
 }
+
 static int
 ata_raid_via_write_meta(struct ar_softc *rdp)
 {
@@ -3931,6 +4182,7 @@ ata_raid_format(struct ar_softc *rdp)
     case AR_F_HPTV3_RAID:       return "HighPoint v3 RocketRAID";
     case AR_F_INTEL_RAID:       return "Intel MatrixRAID";
     case AR_F_ITE_RAID:         return "Integrated Technology Express";
+    case AR_F_JMICRON_RAID:     return "JMicron Technology Corp";
     case AR_F_LSIV2_RAID:       return "LSILogic v2 MegaRAID";
     case AR_F_LSIV3_RAID:       return "LSILogic v3 MegaRAID";
     case AR_F_NVIDIA_RAID:      return "nVidia MediaShield";
@@ -4297,6 +4549,48 @@ ata_raid_ite_print_meta(struct ite_raid_conf *meta)
     printf("array_width         %u\n", meta->array_width);
     printf("disk_number         %u\n", meta->disk_number);
     printf("disk_sectors        %u\n", meta->disk_sectors);
+    printf("=================================================\n");
+}
+
+static char *
+ata_raid_jmicron_type(int type)
+{
+    static char buffer[16];
+
+    switch (type) {
+    case JM_T_RAID0:	return "RAID0";
+    case JM_T_RAID1:	return "RAID1";
+    case JM_T_RAID01:	return "RAID0+1";
+    case JM_T_JBOD:	return "JBOD";
+    case JM_T_RAID5:	return "RAID5";
+    default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
+			return buffer;
+    }
+}
+
+static void
+ata_raid_jmicron_print_meta(struct jmicron_raid_conf *meta)
+{
+    int i;
+
+    printf("***** ATA JMicron Technology Corp Metadata ******\n");
+    printf("signature           %.2s\n", meta->signature);
+    printf("version             0x%04x\n", meta->version);
+    printf("checksum            0x%04x\n", meta->checksum);
+    printf("disk_id             0x%08x\n", meta->disk_id);
+    printf("offset              0x%08x\n", meta->offset);
+    printf("disk_sectors_low    0x%08x\n", meta->disk_sectors_low);
+    printf("disk_sectors_high   0x%08x\n", meta->disk_sectors_high);
+    printf("name                %.16s\n", meta->name);
+    printf("type                %s\n", ata_raid_jmicron_type(meta->type));
+    printf("stripe_shift        %d\n", meta->stripe_shift);
+    printf("flags               0x%04x\n", meta->flags);
+    printf("spare:\n");
+    for (i=0; i < 2 && meta->spare[i]; i++)
+	printf("    %d                  0x%08x\n", i, meta->spare[i]);
+    printf("disks:\n");
+    for (i=0; i < 8 && meta->disks[i]; i++)
+	printf("    %d                  0x%08x\n", i, meta->disks[i]);
     printf("=================================================\n");
 }
 
