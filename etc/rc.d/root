@@ -34,7 +34,9 @@ root_start()
 
 	# If we booted a special kernel remove the record
 	# so we will boot the default kernel next time.
-	/sbin/nextboot -D
+	if [ -x /sbin/nextboot ]; then
+		/sbin/nextboot -D
+	fi
 }
 
 load_rc_config $name
