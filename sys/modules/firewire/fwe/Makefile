@@ -12,4 +12,3 @@ SRCS	= bus_if.h device_if.h \
 #CFLAGS += -DDEVICE_POLLING
 
 .include <bsd.kmod.mk>
-

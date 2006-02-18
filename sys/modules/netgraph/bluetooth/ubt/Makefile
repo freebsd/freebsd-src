@@ -10,4 +10,3 @@ KMOD=		ng_ubt
 SRCS=		ng_ubt.c bus_if.h device_if.h opt_usb.h usbdevs.h
 
 .include <bsd.kmod.mk>
-
