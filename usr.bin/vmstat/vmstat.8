@@ -32,7 +32,7 @@
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2003
+.Dd February 11, 2005
 .Dt VMSTAT 8
 .Os
 .Sh NAME
@@ -183,7 +183,7 @@ any
 .Fl p
 argument will be included in the
 .Nm
-output, up to three devices, or the maximum number of devices specified
+output, up to two devices, or the maximum number of devices specified
 by the user.
 .It Fl s
 Display the contents of the
@@ -262,9 +262,9 @@ Disk operations per second (this field is system dependent).
 Typically paging will be split across the available drives.
 The header of the field is the first two characters of the disk name and
 the unit number.
-If more than three disk drives are configured in the system,
+If more than two disk drives are configured in the system,
 .Nm
-displays only the first three drives, unless the user specifies the
+displays only the first two drives, unless the user specifies the
 .Fl n
 argument to increase the number of drives displayed.
 This will probably
@@ -276,7 +276,7 @@ The
 .Nm
 utility
 defaults to show disks first, and then various other random devices in the
-system to add up to three devices, if there are that many devices in the
+system to add up to two devices, if there are that many devices in the
 system.
 If devices are specified on the command line, or if a device type
 matching pattern is specified (see above),
@@ -317,7 +317,7 @@ apparent which are recomputed every second.
 .Pp
 The command:
 .Dl vmstat -p da -p cd -w 1
-will tell vmstat to select the first three direct access or CDROM devices
+will tell vmstat to select the first two direct access or CDROM devices
 and display statistics on those devices, as well as other systems
 statistics every second.
 .Sh FILES
