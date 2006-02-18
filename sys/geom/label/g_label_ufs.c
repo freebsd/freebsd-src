@@ -52,6 +52,10 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 	g_topology_assert_not();
 	pp = cp->provider;
 	label[0] = '\0';
+
+	if (SBLOCKSIZE % cp->provider->sectorsize != 0)
+		return (0);
+
 	/*
 	 * Walk through the standard places that superblocks hide and look
 	 * for UFS magic. If we find magic, then check that the size in the
@@ -61,17 +65,15 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 	 */
 	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
 		/*
-		 * Take care not to issue an invalid I/O request.  The
-		 * offset and size of the superblock candidate must be
-		 * multiples of the provider's sector size, otherwise an
-		 * FFS can't exist on the provider anyway.
+		 * Take care not to issue an invalid I/O request. The offset of
+		 * the superblock candidate must be multiples of the provider's
+		 * sector size, otherwise an FFS can't exist on the provider
+		 * anyway.
 		 */
-		if (superblock % cp->provider->sectorsize != 0 ||
-		    SBLOCKSIZE % cp->provider->sectorsize != 0)
+		if (superblock % cp->provider->sectorsize != 0)
 			continue;
 
-		fs = (struct fs *)g_read_data(cp, superblock, SBLOCKSIZE,
-		    NULL);
+		fs = (struct fs *)g_read_data(cp, superblock, SBLOCKSIZE, NULL);
 		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */
