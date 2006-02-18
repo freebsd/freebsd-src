@@ -1079,11 +1079,14 @@ delete-old-files:
 .for file in ${OLD_FILES}
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
-                ||  ([ -f "${DESTDIR}/${file}" ] \
-                        && echo "Removing schg flag on ${DESTDIR}/${file}" \
-                        && chflags noschg "${DESTDIR}/${file}" \
-                        && rm ${RM_I} "${DESTDIR}/${file}"))
+	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
+		rm ${RM_I} "${DESTDIR}/${file}" || true; \
+		if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then\
+			echo "Removing schg flag on ${DESTDIR}/${file}"; \
+			chflags noschg "${DESTDIR}/${file}"; \
+			rm ${RM_I} "${DESTDIR}/${file}"; \
+		fi; \
+	fi
 .endfor
 # Remove catpages without corresponding manpages.
 	@3<&0; \
@@ -1100,7 +1103,9 @@ delete-old-files:
 check-old-files:
 	@echo ">>> Checking for old files"
 .for file in ${OLD_FILES}
-	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
+	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
+		 echo "${DESTDIR}/${file}"; \
+	fi
 .endfor
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d | \
@@ -1116,32 +1121,49 @@ delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
 .for file in ${OLD_LIBS}
-	@[ ! -f "${DESTDIR}/${file}" ] || (rm ${RM_I} "${DESTDIR}/${file}" \
-		||  ([ -f "${DESTDIR}/${file}" ] \
-			&& echo "Removing schg flag on ${DESTDIR}/${file}" \
-			&& chflags noschg "${DESTDIR}/${file}" \
-			&& rm ${RM_I} "${DESTDIR}/${file}"))
+	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
+		rm ${RM_I} "${DESTDIR}/${file}" || true; \
+		if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then\
+			echo "Removing schg flag on ${DESTDIR}/${file}"; \
+			chflags noschg "${DESTDIR}/${file}"; \
+			rm ${RM_I} "${DESTDIR}/${file}"; \
+		fi; \
+	fi
 .endfor
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
 .for file in ${OLD_LIBS}
-	@[ ! -f "${DESTDIR}/${file}" ] || echo "${DESTDIR}/${file}"
+	@if [ -f "${DESTDIR}/${file}" -o -L "${DESTDIR}/${file}" ]; then \
+		echo "${DESTDIR}/${file}"; \
+	fi
 .endfor
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
 .for dir in ${OLD_DIRS}
 # Don't fail if an old directory isn't empty.
-	@[ ! -d "${DESTDIR}/${dir}" ] || (rmdir -v "${DESTDIR}/${dir}" || true)
+	@if [ -d "${DESTDIR}/${dir}" ]; then \
+		rmdir -v "${DESTDIR}/${dir}" || true; \
+	else \
+		if [ -L "${DESTDIR}/${dir}" ]; then \
+			echo "${DESTDIR}/${dir} is a link, please remove everything manually."; \
+		fi; \
+	fi
 .endfor
 	@echo ">>> Old directories removed"
 
 check-old-dirs:
 	@echo ">>> Checking for old directories"
 .for dir in ${OLD_DIRS}
-	@[ ! -d "${DESTDIR}/${dir}" ] || echo "${DESTDIR}/${dir}"
+	@if [ -d "${DESTDIR}/${dir}" ]; then \
+		echo "${DESTDIR}/${dir}"; \
+	else \
+		if [ -L "${DESTDIR}/${dir}" ]; then \
+			echo "${DESTDIR}/${dir} is a link, please remove everything manually."; \
+		fi; \
+	fi
 .endfor
 
 delete-old: delete-old-files delete-old-dirs
