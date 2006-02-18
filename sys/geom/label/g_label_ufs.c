@@ -54,7 +54,7 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 	label[0] = '\0';
 
 	if (SBLOCKSIZE % cp->provider->sectorsize != 0)
-		return (0);
+		return;
 
 	/*
 	 * Walk through the standard places that superblocks hide and look
