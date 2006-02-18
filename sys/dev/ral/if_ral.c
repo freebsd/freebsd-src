@@ -531,6 +531,7 @@ ral_detach(device_t dev)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
+	ral_stop(sc);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->rssadapt_ch);
 
