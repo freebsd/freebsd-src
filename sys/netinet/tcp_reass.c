@@ -65,8 +65,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>	/* for ICMP_BANDLIM		*/
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM		*/
+#include <netinet/ip_icmp.h>	/* required for icmp_var.h */
+#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #include <netinet/ip6.h>
