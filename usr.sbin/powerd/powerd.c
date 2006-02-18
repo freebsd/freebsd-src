@@ -433,6 +433,10 @@ main(int argc, char * argv[])
 
 	mode = mode_none;
 
+	/* Make sure the cpufreq module is loaded */
+	if (!kld_isloaded("cpu/p4tcc") && kld_load("cpufreq") == -1)
+		err(1, "failed to load cpufreq module");
+
 	/* Poll interval is in units of ms. */
 	poll_ival *= 1000;
 
