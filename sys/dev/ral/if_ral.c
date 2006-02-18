@@ -461,6 +461,8 @@ ral_attach(device_t dev)
 	ic->ic_node_alloc = ral_node_alloc;
 	ic->ic_updateslot = ral_update_slot;
 	ic->ic_reset = ral_reset;
+	/* enable s/w bmiss handling in sta mode */
+	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;
 
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
