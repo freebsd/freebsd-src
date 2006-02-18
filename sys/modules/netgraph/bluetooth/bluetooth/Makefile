@@ -9,4 +9,3 @@ KMOD=		ng_bluetooth
 SRCS=		ng_bluetooth.c
 
 .include <bsd.kmod.mk>
-

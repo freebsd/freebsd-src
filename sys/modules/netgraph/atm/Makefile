@@ -10,4 +10,3 @@ SUBDIR=			\
 	uni
 
 .include <bsd.subdir.mk>
-
