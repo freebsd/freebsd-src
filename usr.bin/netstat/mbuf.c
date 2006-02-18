@@ -203,6 +203,10 @@ mbpr(void *kvmd, u_long mbaddr)
 	    cluster_count - packet_free, cluster_free + packet_free,
 	    cluster_count + cluster_free, cluster_limit);
 
+	printf("%llu/%llu mbuf+clusters of packet zone in use "
+	    "(current/cache)\n",
+	    packet_count, packet_free);
+
 	printf("%llu/%llu/%llu/%llu %lluk (page size) jumbo clusters in use "
 	    "(current/cache/total/max)\n",
 	    jumbop_count, jumbop_free, jumbop_count + jumbop_free,
