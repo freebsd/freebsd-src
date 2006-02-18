@@ -82,6 +82,10 @@ OLD_FILES+=usr/libexec/getNAME
 OLD_FILES+=bin/vinum
 OLD_FILES+=sbin/vinum
 OLD_FILES+=usr/share/man/man8/vinum.8.gz
+# 200411XX: libxpg4 removal
+OLD_FILES+=usr/lib/libxpg4.a
+OLD_FILES+=usr/lib/libxpg4.so
+OLD_FILES+=usr/lib/libxpg4_p.a
 # 20041109: replaced by em(4)
 OLD_FILES+=usr/share/man/man4/gx.4.gz
 OLD_FILES+=usr/share/man/man4/if_gx.4.gz
@@ -89,7 +93,7 @@ OLD_FILES+=usr/share/man/man4/if_gx.4.gz
 OLD_FILES+=usr/bin/dnskeygen
 OLD_FILES+=usr/bin/dnsquery
 OLD_FILES+=usr/lib/libisc.a
-OLD_FILEs+=usr/lib/libisc.so
+OLD_FILES+=usr/lib/libisc.so
 OLD_FILES+=usr/lib/libisc_p.a
 OLD_FILES+=usr/libexec/named-xfer
 OLD_FILES+=usr/sbin/named.restart
@@ -563,7 +567,6 @@ OLD_FILES+=usr/bin/gprof4
 # 200201XX
 OLD_FILES+=usr/sbin/linux
 # 2001XXXX
-OLD_FILES+=etc/security
 OLD_FILES+=usr/bin/joy
 OLD_FILES+=usr/sbin/ibcs2
 OLD_FILES+=usr/sbin/svr4
@@ -2759,6 +2762,8 @@ OLD_LIBS+=usr/lib/snmp_netgraph.so.2
 OLD_LIBS+=usr/lib/snmp_pf.so.2
 # 2005XXXX: not ready for primetime yet
 OLD_LIBS+=usr/lib/libautofs.so.1
+# 200411XX: libxpg4 removal
+OLD_LIBS+=usr/lib/libxpg4.so.3
 # 200410XX: libm compatibility fix
 OLD_LIBS+=lib/libm.so.2
 # 20041001: version bump
