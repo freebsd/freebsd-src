@@ -12,4 +12,3 @@ SRCS	= bus_if.h device_if.h \
 	  iec13213.h
 
 .include <bsd.kmod.mk>
-

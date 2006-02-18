@@ -12,4 +12,3 @@ SUBDIR=	\
 	ubtbcmfw
 
 .include <bsd.subdir.mk>
-

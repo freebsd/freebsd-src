@@ -52,4 +52,3 @@ SRCS+=	nfs_diskless.c
 .endif
 
 .include <bsd.kmod.mk>
-
