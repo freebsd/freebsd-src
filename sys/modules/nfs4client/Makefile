@@ -34,4 +34,3 @@ opt_inet6.h:
 .endif
 
 .include <bsd.kmod.mk>
-

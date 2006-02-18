@@ -72,4 +72,3 @@ SRCS+= tw_cl_fwimg.c
 .endif
 
 .include <bsd.kmod.mk>
-

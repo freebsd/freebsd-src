@@ -10,4 +10,3 @@ KMOD=		ng_h4
 SRCS=		ng_h4.c
 
 .include <bsd.kmod.mk>
-
