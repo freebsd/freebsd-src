@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002, 2003 Gordon Tetlow
+ * Copyright (c) 2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -77,26 +78,19 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */
-		if (fs->fs_magic == FS_UFS1_MAGIC) {
-			G_LABEL_DEBUG(1, "UFS1 file system detected on %s.",
-			    pp->name);
-			if (fs->fs_old_size * fs->fs_fsize !=
-			    (int32_t)pp->mediasize) {
-				g_free(fs);
-				continue;
-			}
-		} else if (fs->fs_magic == FS_UFS2_MAGIC) {
-			G_LABEL_DEBUG(1, "UFS2 file system detected on %s.",
-			    pp->name);
-			if (fs->fs_fsize <= 0 ||
-			    pp->mediasize / fs->fs_fsize != fs->fs_size) {
-				g_free(fs);
-				continue;
-			}
-		} else {
+		if (fs->fs_magic != FS_UFS1_MAGIC &&
+		    fs->fs_magic != FS_UFS2_MAGIC) {
 			g_free(fs);
 			continue;
 		}
+		if (fs->fs_sblockloc != superblock || fs->fs_ncg < 1 ||
+		    fs->fs_bsize < MINBSIZE ||
+		    fs->fs_bsize < sizeof(struct fs)) {
+			g_free(fs);
+			continue;
+		}
+		G_LABEL_DEBUG(1, "%s file system detected on %s.",
+		    fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2", pp->name);
 		/* Check for volume label */
 		if (fs->fs_volname[0] == '\0') {
 			g_free(fs);
