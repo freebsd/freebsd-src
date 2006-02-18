@@ -69,6 +69,12 @@ mbpr(void *kvmd, u_long mbaddr)
 	u_int64_t cluster_failures, cluster_size;
 	u_int64_t packet_count, packet_bytes, packet_free, packet_failures;
 	u_int64_t tag_count, tag_bytes;
+	u_int64_t jumbop_count, jumbop_bytes, jumbop_limit, jumbop_free;
+	u_int64_t jumbop_failures, jumbop_size;
+	u_int64_t jumbo9_count, jumbo9_bytes, jumbo9_limit, jumbo9_free;
+	u_int64_t jumbo9_failures, jumbo9_size;
+	u_int64_t jumbo16_count, jumbo16_bytes, jumbo16_limit, jumbo16_free;
+	u_int64_t jumbo16_failures, jumbo16_size;
 	u_int64_t bytes_inuse, bytes_incache, bytes_total;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
 	struct mbstat mbstat;
@@ -149,6 +155,45 @@ mbpr(void *kvmd, u_long mbaddr)
 	tag_count = memstat_get_count(mtp);
 	tag_bytes = memstat_get_bytes(mtp);
 
+	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBOP_MEM_NAME);
+	if (mtp == NULL) {
+		warnx("memstat_mtl_find: zone %s not found",
+		    MBUF_JUMBOP_MEM_NAME);
+		goto out;
+	}
+	jumbop_count = memstat_get_count(mtp);
+	jumbop_bytes = memstat_get_bytes(mtp);
+	jumbop_limit = memstat_get_countlimit(mtp);
+	jumbop_free = memstat_get_free(mtp);
+	jumbop_failures = memstat_get_failures(mtp);
+	jumbop_size = memstat_get_size(mtp);
+
+	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBO9_MEM_NAME);
+	if (mtp == NULL) {
+		warnx("memstat_mtl_find: zone %s not found",
+		    MBUF_JUMBO9_MEM_NAME);
+		goto out;
+	}
+	jumbo9_count = memstat_get_count(mtp);
+	jumbo9_bytes = memstat_get_bytes(mtp);
+	jumbo9_limit = memstat_get_countlimit(mtp);
+	jumbo9_free = memstat_get_free(mtp);
+	jumbo9_failures = memstat_get_failures(mtp);
+	jumbo9_size = memstat_get_size(mtp);
+
+	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBO16_MEM_NAME);
+	if (mtp == NULL) {
+		warnx("memstat_mtl_find: zone %s not found",
+		    MBUF_JUMBO16_MEM_NAME);
+		goto out;
+	}
+	jumbo16_count = memstat_get_count(mtp);
+	jumbo16_bytes = memstat_get_bytes(mtp);
+	jumbo16_limit = memstat_get_countlimit(mtp);
+	jumbo16_free = memstat_get_free(mtp);
+	jumbo16_failures = memstat_get_failures(mtp);
+	jumbo16_size = memstat_get_size(mtp);
+
 	printf("%llu/%llu/%llu mbufs in use (current/cache/total)\n",
 	    mbuf_count + packet_count, mbuf_free + packet_free,
 	    mbuf_count + packet_count + mbuf_free + packet_free);
@@ -157,6 +202,21 @@ mbpr(void *kvmd, u_long mbaddr)
 	    "(current/cache/total/max)\n",
 	    cluster_count - packet_free, cluster_free + packet_free,
 	    cluster_count + cluster_free, cluster_limit);
+
+	printf("%llu/%llu/%llu/%llu %lluk (page size) jumbo clusters in use "
+	    "(current/cache/total/max)\n",
+	    jumbop_count, jumbop_free, jumbop_count + jumbop_free,
+	    jumbop_limit, jumbop_size / 1024);
+
+	printf("%llu/%llu/%llu/%llu 9k jumbo clusters in use "
+	    "(current/cache/total/max)\n",
+	    jumbo9_count, jumbo9_free, jumbo9_count + jumbo9_free,
+	    jumbo9_limit);
+
+	printf("%llu/%llu/%llu/%llu 16k jumbo clusters in use "
+	    "(current/cache/total/max)\n",
+	    jumbo16_count, jumbo16_free, jumbo16_count + jumbo16_free,
+	    jumbo16_limit);
 
 #if 0
 	printf("%llu mbuf tags in use\n", tag_count);
@@ -178,7 +238,10 @@ mbpr(void *kvmd, u_long mbaddr)
 	    (packet_count * cluster_size) +	/* clusters in packets */
 	    /* other clusters */
 	    ((cluster_count - packet_count - packet_free) * cluster_size) +
-	    tag_bytes;
+	    tag_bytes +
+	    (jumbop_count * jumbop_size) +	/* jumbo clusters */
+	    (jumbo9_count * jumbo9_size) +
+	    (jumbo16_count * jumbo16_size);
 
 	/*
 	 * Calculate in-cache bytes as:
@@ -192,7 +255,10 @@ mbpr(void *kvmd, u_long mbaddr)
 	    (mbuf_free * mbuf_size) +		/* straight free mbufs */
 	    (packet_free * mbuf_size) +		/* mbufs in free packets */
 	    (packet_free * cluster_size) +	/* clusters in free packets */
-	    (cluster_free * cluster_size);	/* free clusters */
+	    (cluster_free * cluster_size) +	/* free clusters */
+	    (jumbop_free * jumbop_size) +	/* jumbo clusters */
+	    (jumbo9_free * jumbo9_size) +
+	    (jumbo16_free * jumbo16_size);
 
 	/*
 	 * Total is bytes in use + bytes in cache.  This doesn't take into
@@ -208,6 +274,10 @@ mbpr(void *kvmd, u_long mbaddr)
 	printf("%llu/%llu/%llu requests for mbufs denied (mbufs/clusters/"
 	    "mbuf+clusters)\n", mbuf_failures, cluster_failures,
 	    packet_failures);
+
+	printf("%llu/%llu/%llu requests for jumbo clusters denied "
+	    "(%lluk/9k/16k)\n", jumbop_failures, jumbo9_failures,
+	    jumbo16_failures, jumbop_size / 1024);
 
 	if (live) {
 		mlen = sizeof(nsfbufs);
