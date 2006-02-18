@@ -65,13 +65,14 @@ int	m_defragrandomfailures;
  * sysctl(8) exported objects
  */
 SYSCTL_DECL(_kern_ipc);
-SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RW,
-	   &max_linkhdr, 0, "");
-SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RW,
-	   &max_protohdr, 0, "");
-SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
-SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
-	   &max_datalen, 0, "");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RD,
+	   &max_linkhdr, 0, "Size of largest link layer header");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RD,
+	   &max_protohdr, 0, "Size of largest protocol layer header");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RD,
+	   &max_hdr, 0, "Size of largest link plus protocol header");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RD,
+	   &max_datalen, 0, "Minimum space left in mbuf after max_hdr");
 #ifdef MBUF_STRESS_TEST
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragpackets, CTLFLAG_RD,
 	   &m_defragpackets, 0, "");
