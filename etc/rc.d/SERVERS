@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: SERVERS
-# REQUIRE: mountcritremote
+# REQUIRE: mountcritremote abi
 
 #	This is a dummy dependency, for early-start servers relying on
 #	some basic configuration.

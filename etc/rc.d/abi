@@ -4,8 +4,7 @@
 #
 
 # PROVIDE: abi
-# REQUIRE: LOGIN
-# BEFORE:  securelevel
+# REQUIRE: archdep
 # KEYWORD: nojail
 
 . /etc/rc.subr
