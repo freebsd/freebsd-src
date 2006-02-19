@@ -161,6 +161,7 @@ struct ata_connect_task {
 
 #define ATA_JMICRON_ID		0x197b
 #define ATA_JMB360		0x2360197b
+#define ATA_JMB363		0x2363197b
 
 #define ATA_MARVELL_ID          0x11ab
 #define ATA_M88SX5040           0x504011ab
@@ -401,6 +402,7 @@ int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int f
 int ata_pci_allocate(device_t dev);
 void ata_pci_hw(device_t dev);
 int ata_pci_status(device_t dev);
+void ata_pci_dmainit(device_t);
 
 
 /* global prototypes ata-chipset.c */

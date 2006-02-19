@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/ata.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
@@ -57,9 +58,6 @@ static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 /* misc defines */
 #define IOMASK                  0xfffffffc
 #define ATA_PROBE_OK            -10
-
-/* prototypes */
-static void ata_pci_dmainit(device_t);
 
 int
 ata_legacy(device_t dev)
@@ -443,7 +441,7 @@ ata_pci_status(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (!ata_legacy(device_get_parent(dev)) &&
+    if ((dumping || !ata_legacy(device_get_parent(dev))) &&
 	ch->dma && ((ch->flags & ATA_ALWAYS_DMASTAT) ||
 		    (ch->dma->flags & ATA_DMA_ACTIVE))) {
 	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
@@ -504,7 +502,7 @@ ata_pci_dmareset(device_t dev)
     ch->dma->unload(dev);
 }
 
-static void
+void
 ata_pci_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
