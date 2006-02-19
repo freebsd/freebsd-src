@@ -70,12 +70,30 @@ NLSLINKS_de_DE.ISO8859-1= de_AT.ISO8859-1 de_AT.ISO8859-15 de_CH.ISO8859-1 \
 NLSLINKS_it_IT.ISO8859-1= it_CH.ISO8859-1 it_CH.ISO8859-15 it_IT.ISO8859-15
 NLSLINKS_es_ES.ISO8859-1= es_ES.ISO8859-15
 
+.if defined(NO_NLS_CATALOGS) || defined(RESCUE)
+CFLAGS+= -DNO_NLS_CATALOGS
+.else
+CFLAGS+= -DHAVE_ICONV
+SRCS+=	iconv_stub.c
+# Folloing links can be installed from ports/shells/tcsh_nls:
+# NLSLINKS_de_DE.ISO8859-1 += de_AT.UTF-8 de_CH.UTF-8 de_DE.UTF-8
+# NLSLINKS_el_GR.ISO8859-7 = el_GR.UTF-8
+# NLSLINKS_es_ES.ISO8859-1 += es_ES.UTF-8
+# NLSLINKS_et_EE.ISO8859-15 = et_EE.UTF-8
+# NLSLINKS_fi_FI.ISO8859-1 += fi_FI.UTF-8
+# NLSLINKS_fr_FR.ISO8859-1 += fr_BE.UTF-8 fr_CA.UTF-8 fr_CH.UTF-8 fr_FR.UTF-8
+# NLSLINKS_it_IT.ISO8859-1 += it_CH.UTF-8 it_IT.UTF-8
+# NLSLINKS_ja_JP.eucJP = ja_JP.SJIS ja_JP.UTF-8
+# NLSLINKS_ru_RU.KOI8-R = ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5 ru_RU.UTF-8
+# NLSLINKS_uk_UA.KOI8-U = uk_UA.ISO8859-5 uk_UA.UTF-8
+.endif
+
 NLSNAME= tcsh
 
 .for catalog in ${CATALOGS}
 NLS+=		${catalog:C/.*://}
 NLSSRCDIR_${catalog:C/.*://}= ${TCSHDIR}/nls/${catalog:C/:.*//}
-NLSSRCFILES_${catalog:C/.*://}!= cd ${NLSSRCDIR_${catalog:C/.*://}}; echo set[0-9]*
+NLSSRCFILES_${catalog:C/.*://}!= cd ${NLSSRCDIR_${catalog:C/.*://}}; echo charset set[0-9]*
 .endfor
 
 csh.1: tcsh.man

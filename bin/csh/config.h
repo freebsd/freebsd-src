@@ -205,3 +205,7 @@
 
 #include "config_p.h"
 #include "config_f.h"
+
+#ifndef NO_NLS_CATALOGS
+#define NLS_CATALOGS
+#endif
