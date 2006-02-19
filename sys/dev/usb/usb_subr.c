@@ -780,6 +780,18 @@ usbd_setup_pipe(usbd_device_handle dev, usbd_interface_handle iface,
 		return (err);
 	}
 
+	if (dev->quirks->uq_flags & UQ_OPEN_CLEARSTALL) {
+		/* Clear any stall and make sure DATA0 toggle will be used next. */
+		if (UE_GET_ADDR(ep->edesc->bEndpointAddress) != USB_CONTROL_ENDPOINT) {
+			err = usbd_clear_endpoint_stall(p);
+			if (err && err != USBD_STALLED && err != USBD_TIMEOUT) {
+				printf("usbd_setup_pipe: failed to start "
+				    "endpoint, %s\n", usbd_errstr(err));
+				return (err);
+			}
+		}
+	}
+
 	*pipe = p;
 	return (USBD_NORMAL_COMPLETION);
 }
