@@ -236,6 +236,7 @@ check_process()
 #		`basename procname`
 #		`basename procname` + ":"
 #		"(" + `basename procname` + ")"
+#		"[" + `basename procname` + "]"
 #
 #	If interpreter != ".", read the first line of procname, remove the
 #	leading #!, normalise whitespace, append procname, and attempt to
