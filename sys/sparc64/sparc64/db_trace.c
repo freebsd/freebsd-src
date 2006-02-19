@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,6 +49,11 @@
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_watch.h>
+
+extern char tl_trap_begin[];
+extern char tl_trap_end[];
+extern char tl_text_begin[];
+extern char tl_text_end[];
 
 #define	INKERNEL(va) \
 	((va) >= VM_MIN_KERNEL_ADDRESS && (va) <= VM_MAX_KERNEL_ADDRESS)
@@ -259,8 +265,10 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 			name = "(null)";
 		fp = (struct frame *)(db_get_value((db_addr_t)&fp->fr_fp,
 		   sizeof(fp->fr_fp), FALSE) + SPOFF);
-		if (bcmp(name, "tl0_", 4) == 0 ||
-		    bcmp(name, "tl1_", 4) == 0) {
+		if ((value > (u_long)tl_trap_begin &&
+		    value < (u_long)tl_trap_end) ||
+		    (value > (u_long)tl_text_begin &&
+		    value < (u_long)tl_text_end)) {
 			tf = (struct trapframe *)(fp + 1);
 			npc = db_get_value((db_addr_t)&tf->tf_tpc,
 			    sizeof(tf->tf_tpc), FALSE);
@@ -306,6 +314,12 @@ stack_save(struct stack *st)
 	while (1) {
 		callpc = fp->fr_pc;
 		if (!INKERNEL(callpc))
+			break;
+		/* Don't bother traversing trap frames. */
+		if ((callpc > (u_long)tl_trap_begin &&
+		    callpc < (u_long)tl_trap_end) ||
+		    (callpc > (u_long)tl_text_begin &&
+		    callpc < (u_long)tl_text_end))
 			break;
 		if (stack_put(st, callpc) == -1)
 			break;
