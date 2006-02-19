@@ -166,6 +166,10 @@ __FBSDID("$FreeBSD$");
 	ldx	[ASP_REG + 0], %g1 ; \
 	inc	16, ASP_REG
 
+	.globl	tl_text_begin
+tl_text_begin:
+	nop
+
 ENTRY(tl1_kstack_fault)
 	rdpr	%tl, %g1
 1:	cmp	%g1, 2
@@ -1818,6 +1822,10 @@ END(tl1_spill_topcb)
 	.endm
 
 	.sect	.trap
+	.globl	tl_trap_begin
+tl_trap_begin:
+	nop
+
 	.align	0x8000
 	.globl	tl0_base
 
@@ -2014,6 +2022,10 @@ tl1_breakpoint:
 	tl1_gen		T_RSTRWP_PHYS			! 0x302
 	tl1_gen		T_RSTRWP_VIRT			! 0x303
 	tl1_reserved	252				! 0x304-0x3ff
+
+	.globl	tl_trap_end
+tl_trap_end:
+	nop
 
 /*
  * User trap entry point.
@@ -2900,6 +2912,10 @@ ENTRY(tl1_intr)
 
 	retry
 END(tl1_intr)
+
+	.globl	tl_text_end
+tl_text_end:
+	nop
 
 /*
  * Freshly forked processes come here when switched to for the first time.
