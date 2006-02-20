@@ -137,7 +137,7 @@ CLEANFILES+=	${KMOD:S/$/.c/}
 .for _firmw in ${FIRMWS}
 ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
-	@if [ -e ${.CURDIR}/${_firmw:C/\:.*$//} ]; then		\
+	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary ${LDFLAGS} -r -d -o ${.TARGET}	\
 		    ${_firmw:C/\:.*$//};			\
 	else							\
