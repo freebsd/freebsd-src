@@ -2093,6 +2093,10 @@ re_init_locked(sc)
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
 	u_int32_t		rxcfg = 0;
+	union {
+		uint32_t align_dummy;
+		u_char eaddr[ETHER_ADDR_LEN];
+	} eaddr;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -2119,11 +2123,13 @@ re_init_locked(sc)
 	 * documentation doesn't mention it, we need to enter "Config
 	 * register write enable" mode to modify the ID registers.
 	 */
+	/* Copy MAC address on stack to align. */
+	bcopy(IF_LLADDR(ifp), eaddr.eaddr, ETHER_ADDR_LEN);
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
 	CSR_WRITE_STREAM_4(sc, RL_IDR0,
-	    *(u_int32_t *)(&IF_LLADDR(sc->rl_ifp)[0]));
+	    *(u_int32_t *)(&eaddr.eaddr[0]));
 	CSR_WRITE_STREAM_4(sc, RL_IDR4,
-	    *(u_int32_t *)(&IF_LLADDR(sc->rl_ifp)[4]));
+	    *(u_int32_t *)(&eaddr.eaddr[4]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/*
