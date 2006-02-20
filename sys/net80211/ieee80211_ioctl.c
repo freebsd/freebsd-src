@@ -1655,7 +1655,7 @@ static int
 ieee80211_ioctl_setoptie(struct ieee80211com *ic, struct ieee80211req *ireq)
 {
 	int error;
-	void *ie;
+	void *ie, *oie;
 
 	/*
 	 * NB: Doing this for ap operation could be useful (e.g. for
@@ -1667,15 +1667,25 @@ ieee80211_ioctl_setoptie(struct ieee80211com *ic, struct ieee80211req *ireq)
 		return EINVAL;
 	if (ireq->i_len > IEEE80211_MAX_OPT_IE)
 		return EINVAL;
-	MALLOC(ie, void *, ireq->i_len, M_DEVBUF, M_NOWAIT);
-	if (ie == NULL)
-		return ENOMEM;
-	error = copyin(ireq->i_data, ie, ireq->i_len);
+	if (ireq->i_len > 0) {
+		MALLOC(ie, void *, ireq->i_len, M_DEVBUF, M_NOWAIT);
+		if (ie == NULL)
+			return ENOMEM;
+		error = copyin(ireq->i_data, ie, ireq->i_len);
+		if (error) {
+			FREE(ie, M_DEVBUF);
+			return error;
+		}
+	} else {
+		ie = NULL;
+		ireq->i_len = 0;
+	}
 	/* XXX sanity check data? */
-	if (ic->ic_opt_ie != NULL)
-		FREE(ic->ic_opt_ie, M_DEVBUF);
+	oie = ic->ic_opt_ie;
 	ic->ic_opt_ie = ie;
 	ic->ic_opt_ie_len = ireq->i_len;
+	if (oie != NULL)
+		FREE(oie, M_DEVBUF);
 	return 0;
 }
 
