@@ -158,6 +158,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	my \
+	${_myri10ge} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
@@ -353,6 +354,7 @@ _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
 _mse=		mse
+_myri10ge=	myri10ge
 _ncp=		ncp
 _ncv=		ncv
 _ndis=		ndis
@@ -454,6 +456,7 @@ _ipmi=		ipmi
 _ips=		ips
 #_lnc=		lnc
 _mly=		mly
+_myri10ge=	myri10ge
 _ndis=		ndis
 _nve=		nve
 _safe=		safe
