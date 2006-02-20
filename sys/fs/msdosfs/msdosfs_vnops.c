@@ -221,7 +221,7 @@ msdosfs_open(ap)
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
-	vnode_create_vobject(ap->a_vp, dep->de_FileSize, ap->a_td);
+	vnode_create_vobject_off(ap->a_vp, dep->de_FileSize, ap->a_td);
 	return 0;
 }
 

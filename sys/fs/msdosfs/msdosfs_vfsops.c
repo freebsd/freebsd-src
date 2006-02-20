@@ -929,7 +929,7 @@ msdosfs_fhtovp(mp, fhp, vpp)
 		return (error);
 	}
 	*vpp = DETOV(dep);
-	vnode_create_vobject(*vpp, dep->de_FileSize, curthread);
+	vnode_create_vobject_off(*vpp, dep->de_FileSize, curthread);
 	return (0);
 }
 
