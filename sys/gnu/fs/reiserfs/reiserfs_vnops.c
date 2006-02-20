@@ -154,7 +154,7 @@ reiserfs_open(struct vop_open_args *ap)
 	    (ap->a_mode & (FWRITE | O_APPEND)) == FWRITE)
 		return (EPERM);
 
-	vnode_create_vobject(ap->a_vp, VTOI(ap->a_vp)->i_size, ap->a_td);
+	vnode_create_vobject_off(ap->a_vp, VTOI(ap->a_vp)->i_size, ap->a_td);
 
 	return (0);
 }

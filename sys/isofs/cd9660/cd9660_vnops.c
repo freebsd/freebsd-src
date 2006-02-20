@@ -170,7 +170,7 @@ cd9660_open(ap)
 {
 	struct iso_node *ip = VTOI(ap->a_vp);
 
-	vnode_create_vobject(ap->a_vp, ip->i_size, ap->a_td);
+	vnode_create_vobject_off(ap->a_vp, ip->i_size, ap->a_td);
 	return 0;
 }
 

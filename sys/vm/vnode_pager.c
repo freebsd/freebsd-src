@@ -95,9 +95,30 @@ struct pagerops vnodepagerops = {
 
 int vnode_pbuf_freecnt;
 
-/* Create the VM system backing object for this vnode */
+/*
+ * Compatibility function for RELENG_6, in which vnode_create_vobject()
+ * takes file size as size_t due to an oversight.  The type may not just
+ * change to off_t because the ABI to 3rd party modules must be preserved
+ * for RELENG_6 lifetime.
+ */
 int
-vnode_create_vobject(struct vnode *vp, size_t isize, struct thread *td)
+vnode_create_vobject(struct vnode *vp, size_t isize __unused, struct thread *td)
+{
+
+	/*
+	 * Size of 0 will indicate to vnode_create_vobject_off()
+	 * VOP_GETATTR() is to be called to get the actual size.
+	 */
+	return (vnode_create_vobject_off(vp, 0, td));
+}
+
+/*
+ * Create the VM system backing object for this vnode -- for RELENG_6 only.
+ * In HEAD, vnode_create_vobject() has been fixed to take file size as off_t
+ * and so it can be used as is.
+ */
+int
+vnode_create_vobject_off(struct vnode *vp, off_t isize, struct thread *td)
 {
 	vm_object_t object;
 	vm_ooffset_t size = isize;

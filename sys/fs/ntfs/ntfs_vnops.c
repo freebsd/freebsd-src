@@ -441,7 +441,7 @@ ntfs_open(ap)
 	printf("ntfs_open: %d\n",ip->i_number);
 #endif
 
-	vnode_create_vobject(ap->a_vp, VTOF(ap->a_vp)->f_size, ap->a_td);
+	vnode_create_vobject_off(ap->a_vp, VTOF(ap->a_vp)->f_size, ap->a_td);
 
 	/*
 	 * Files marked append-only must be opened for appending.
