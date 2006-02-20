@@ -126,10 +126,10 @@ suspend_common(struct pthread *curthread, struct pthread *thread,
 	while (thread->state != PS_DEAD &&
 	      !(thread->flags & THR_FLAGS_SUSPENDED)) {
 		thread->flags |= THR_FLAGS_NEED_SUSPEND;
+		tmp = thread->cycle;
 		THR_THREAD_UNLOCK(curthread, thread);
 		_thr_send_sig(thread, SIGCANCEL);
 		if (waitok) {
-			tmp = thread->cycle;
 			_thr_umtx_wait(&thread->cycle, tmp, NULL);
 			THR_THREAD_LOCK(curthread, thread);
 		} else {
