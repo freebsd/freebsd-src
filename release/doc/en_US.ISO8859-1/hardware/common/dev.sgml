@@ -246,6 +246,8 @@
 
     &hwlist.my;
 
+    &hwlist.myri10ge;
+
     &hwlist.nge;
 
     &hwlist.nve;
