@@ -214,7 +214,7 @@ smbfs_open(ap)
 	}
 	if (error == 0) {
 		np->n_flag |= NOPEN;
-		vnode_create_vobject(ap->a_vp, vattr.va_size, ap->a_td);
+		vnode_create_vobject_off(ap->a_vp, vattr.va_size, ap->a_td);
 	}
 	smbfs_attr_cacheremove(vp);
 	return error;

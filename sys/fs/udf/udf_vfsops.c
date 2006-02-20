@@ -692,7 +692,7 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 	}
 
 	*vpp = nvp;
-	vnode_create_vobject(*vpp, 0, curthread);
+	vnode_create_vobject_off(*vpp, 0, curthread);
 	return (0);
 }
 
