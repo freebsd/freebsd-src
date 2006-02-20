@@ -354,7 +354,6 @@ _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
 _mse=		mse
-_myri10ge=	myri10ge
 _ncp=		ncp
 _ncv=		ncv
 _ndis=		ndis
@@ -403,6 +402,7 @@ _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
 _mly=		mly
+_myri10ge=	myri10ge
 _nve=		nve
 .if !defined(NO_CRYPT) || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
