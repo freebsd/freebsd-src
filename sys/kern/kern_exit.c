@@ -540,8 +540,6 @@ retry:
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
 
-	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
-
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	new_switchtime = cpu_ticks();
 	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
@@ -551,6 +549,9 @@ retry:
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 	cnt.v_swtch++;
+
+	/* Add our usage into the usage of all our children. */
+	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	sched_exit(p->p_pptr, td);
 
