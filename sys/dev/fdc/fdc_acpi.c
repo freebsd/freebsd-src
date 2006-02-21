@@ -98,7 +98,6 @@ fdc_acpi_attach(device_t dev)
 	device_t bus;
 	int error, fde_count, i;
 	ACPI_OBJECT *obj, *pkg;
-	ACPI_HANDLE h;
 	uint32_t fde[ACPI_FDC_MAXDEVS];
 
 	/* Get our softc and use the same accessor as ISA. */
@@ -107,7 +106,6 @@ fdc_acpi_attach(device_t dev)
 
 	/* Initialize variables and get a temporary buffer for _FDE. */
 	error = ENXIO;
-	h = acpi_get_handle(dev);
 	buf.Length = ACPI_FDC_BUFLEN;
 	buf.Pointer = malloc(buf.Length, M_TEMP, M_NOWAIT | M_ZERO);
 	if (buf.Pointer == NULL)
