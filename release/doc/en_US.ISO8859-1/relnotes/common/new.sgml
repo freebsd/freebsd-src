@@ -532,10 +532,10 @@
       4.1.8 to 4.1.10.</para>
 
     <para><application>OpenSSH</application> has been updated from
-      version 4.0p1 to version 4.2p1.</para>
+      version 4.0p1 to version 4.2p1. &merged;</para>
 
     <para><application>sendmail</application> has been updated from
-      version 8.13.3 to version 8.13.4.</para>
+      version 8.13.3 to version 8.13.4. &merged;</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
@@ -623,6 +623,26 @@
 	  changed.</para>
       </listitem>
     </itemizedlist>
+
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.10.2 to 2.12.3. &merged;</para>
+
+    <para>The supported version of
+      the <application>KDE</application> desktop environment
+      (<filename role="package">x11/kde2</filename>) has been
+      updated from 3.4.2 to 3.5.1. &merged;</para>
+
+    <para>The supported version of
+      the <application>Perl</application> interpreter
+      (<filename role="package">lang/perl5.8</filename>) has been updated
+      from 5.8.7 to 5.8.8. &merged;</para>
+
+    <para>The supported version of
+      the <application>&xorg;</application> windowing system
+      (<filename role="package">x11/xorg</filename>) has been updated
+      from 6.8.2 to 6.9.0. &merged;</para>
   </sect2>
 
   <sect2 id="doc">
