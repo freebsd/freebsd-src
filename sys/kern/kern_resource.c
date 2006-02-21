@@ -69,6 +69,8 @@ static struct mtx uihashtbl_mtx;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
+static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
+		    struct timeval *up, struct timeval *sp);
 static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
 
@@ -692,6 +694,10 @@ getrlimit(td, uap)
 	return (error);
 }
 
+/*
+ * Transform the running time and tick information for childern of proc p
+ * into user, system, and interrupt time usage.
+ */
 void
 calccru(p, up, sp)
 	struct proc *p;
@@ -700,7 +706,7 @@ calccru(p, up, sp)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	calcru(p, up, sp);
+	calcru1(p, &p->p_crux, up, sp);
 }
 
 /*
@@ -708,37 +714,54 @@ calccru(p, up, sp)
  * system, and interrupt time usage.  If appropriate, include the current
  * time slice on this CPU.
  */
-
 void
 calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
 	struct thread *td;
-	struct rusage_ext *ruxp = &p->p_rux;
+	struct rusage_ext rux;
 	uint64_t u;
-	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
-	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
+
+	/*
+	 * If we are getting stats for the current process, then add in the
+	 * stats that this thread has accumulated in its current time slice.
+	 * We reset the thread and CPU state as if we had performed a context
+	 * switch right here.
+	 */
 	if (curthread->td_proc == p) {
 		td = curthread;
 		u = cpu_ticks();
-		ruxp->rux_runtime += (u - PCPU_GET(switchtime));
+		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
 		PCPU_SET(switchtime, u);
-		ruxp->rux_uticks += td->td_uticks;
+		p->p_rux.rux_uticks += td->td_uticks;
 		td->td_uticks = 0;
-		ruxp->rux_iticks += td->td_iticks;
+		p->p_rux.rux_iticks += td->td_iticks;
 		td->td_iticks = 0;
-		ruxp->rux_sticks += td->td_sticks;
+		p->p_rux.rux_sticks += td->td_sticks;
 		td->td_sticks = 0;
 	}
+	rux = p->p_rux;
+	mtx_unlock_spin(&sched_lock);
+	calcru1(p, &rux, up, sp);
+	p->p_rux.rux_uu = rux.rux_uu;
+	p->p_rux.rux_su = rux.rux_su;
+	p->p_rux.rux_iu = rux.rux_iu;
+}
+
+static void
+calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
+    struct timeval *sp)
+{
+	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
+	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
 
 	ut = ruxp->rux_uticks;
 	st = ruxp->rux_sticks;
 	it = ruxp->rux_iticks;
 	tu = ruxp->rux_runtime;
-	mtx_unlock_spin(&sched_lock);
 	tu = cputick2usec(tu);
 	tt = ut + st + it;
 	if (tt == 0) {
