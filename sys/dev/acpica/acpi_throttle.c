@@ -345,10 +345,8 @@ acpi_throttle_quirks(struct acpi_throttle_softc *sc)
 static int
 acpi_thr_settings(device_t dev, struct cf_setting *sets, int *count)
 {
-	struct acpi_throttle_softc *sc;
 	int i, speed;
 
-	sc = device_get_softc(dev);
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
 	if (*count < CPU_MAX_SPEED)
