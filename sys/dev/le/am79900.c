@@ -399,10 +399,7 @@ am79900_tint(struct lance_softc *sc)
 
 	sc->sc_first_td = bix;
 
-	am79900_start_locked(sc);
-
-	if (sc->sc_no_td == 0)
-		ifp->if_timer = 0;
+	ifp->if_timer = sc->sc_no_td > 0 ? 5 : 0;
 }
 
 /*
@@ -433,6 +430,18 @@ am79900_intr(void *arg)
 		LE_UNLOCK(sc);
 		return;
 	}
+
+	/*
+	 * Clear interrupt source flags and turn off interrupts. If we
+	 * don't clear these flags before processing their sources we
+	 * could completely miss some interrupt events as the the NIC
+	 * can change these flags while we're in this handler. We turn
+	 * of interrupts while processing them so we don't get another
+	 * one while we still process the previous one in ifp->if_input()
+	 * with the driver lock dropped.
+	 */
+	(*sc->sc_wrcsr)(sc, LE_CSR0, isr & ~(LE_C0_INEA | LE_C0_TDMD |
+	    LE_C0_STOP | LE_C0_STRT | LE_C0_INIT));
 
 	if (isr & LE_C0_ERR) {
 		if (isr & LE_C0_BABL) {
@@ -488,16 +497,11 @@ am79900_intr(void *arg)
 	if (isr & LE_C0_TINT)
 		am79900_tint(sc);
 
-	/*
-	 * Note that since we drop the driver lock in lance_read() we might
-	 * get another interrupt while in ifp->if_input(). Consequently we
-	 * don't want to acknowledge a receive interrupt before it's fully
-	 * serviced. We could acknowledge interrupts of other types earlier
-	 * but that won't buy us much as as the driver lock is held until
-	 * the end of this ISR.
-	 */
-	(*sc->sc_wrcsr)(sc, LE_CSR0, isr & (LE_C0_INEA | LE_C0_BABL |
-	    LE_C0_MISS | LE_C0_MERR | LE_C0_RINT | LE_C0_TINT | LE_C0_IDON));
+	/* Enable interrupts again. */
+	(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_INEA);
+
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		am79900_start_locked(sc);
 
 	LE_UNLOCK(sc);
 }
@@ -513,7 +517,7 @@ am79900_start_locked(struct lance_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct letmd tmd;
 	struct mbuf *m;
-	int bix, len, rp;
+	int bix, enq, len, rp;
 
 	LE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -522,6 +526,7 @@ am79900_start_locked(struct lance_softc *sc)
 		return;
 
 	bix = sc->sc_last_td;
+	enq = 0;
 
 	for (; sc->sc_no_td < sc->sc_ntbuf &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
@@ -555,8 +560,6 @@ am79900_start_locked(struct lance_softc *sc)
 			if_printf(ifp, "packet length %d\n", len);
 #endif
 
-		ifp->if_timer = 5;
-
 		/*
 		 * Init transmit registers, and set transmit start flag.
 		 */
@@ -573,6 +576,7 @@ am79900_start_locked(struct lance_softc *sc)
 #endif
 
 		(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_INEA | LE_C0_TDMD);
+		enq++;
 
 		if (++bix == sc->sc_ntbuf)
 			bix = 0;
@@ -584,6 +588,9 @@ am79900_start_locked(struct lance_softc *sc)
 	}
 
 	sc->sc_last_td = bix;
+
+	if (enq > 0)
+		ifp->if_timer = 5;
 }
 
 #ifdef LEDEBUG
