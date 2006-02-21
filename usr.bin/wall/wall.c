@@ -81,6 +81,19 @@ int nobanner;
 int mbufsize;
 char *mbuf;
 
+static int
+ttystat(char *line, int sz)
+{
+	struct stat sb;
+	char ttybuf[MAXPATHLEN];
+
+	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
+	if (stat(ttybuf, &sb) == 0) {
+		return (0);
+	} else
+		return (-1);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -139,6 +152,8 @@ main(int argc, char *argv[])
 	/* NOSTRICT */
 	while (fread((char *)&utmp, sizeof(utmp), 1, fp) == 1) {
 		if (!utmp.ut_name[0])
+			continue;
+		if (ttystat(utmp.ut_line, UT_LINESIZE) != 0)
 			continue;
 		if (grouplist) {
 			ingroup = 0;
