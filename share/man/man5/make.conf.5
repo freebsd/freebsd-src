@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2005
+.Dd February 14, 2006
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -450,6 +450,13 @@ will not be able to change users' groups.
 Set this to install
 .Xr ssh 1
 with the set-user-ID bit turned on.
+.It Va NO_WPA_SUPPLICANT_EAPOL
+.Pq Vt bool
+Build
+.Xr wpa_supplicant 8
+without support for the IEEE 802.1X protocol and without
+support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
+protocols (usable only via 802.1X).
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
@@ -858,14 +865,6 @@ for simple printers, or
 .Dq Li ps
 for postscript or graphics printers with a ghostscript
 filter, or both.
-.It Va ENABLE_WPA_SUPPLICANT_EAPOL
-.Pq Vt str
-Build
-.Xr wpa_supplicant 8
-with support for the IEEE 802.1X protocol and with
-support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
-protocols (usable only via 802.1X).
-This option is ignored if NO_CRYPTO or NO_OPENSSL are configured.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
