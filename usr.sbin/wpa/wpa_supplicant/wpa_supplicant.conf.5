@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2005
+.Dd February 14, 2006
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -248,11 +248,11 @@ If not set this defaults to all available methods compiled in to
 .Xr wpa_supplicant 8 .
 Note that by default
 .Xr wpa_supplicant 8
-is not compiled with EAP support; see
+is compiled with EAP support; see
 .Xr make.conf 5
 for the
-.Va ENABLE_WPA_SUPPLICANT_EAPOL
-configuration variable.
+.Va NO_WPA_SUPPLICANT_EAPOL
+configuration variable that can be used to disable EAP support.
 .It Va identity
 Identity string for EAP.
 .It Va anonymous_identity
