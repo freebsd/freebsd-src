@@ -366,6 +366,8 @@ tname(KINFO *k, VARENT *ve)
 		if (strncmp(ttname, "tty", 3) == 0 ||
 		    strncmp(ttname, "cua", 3) == 0)
 			ttname += 3;
+		if (strncmp(ttname, "pts/", 4) == 0)
+			ttname += 4;
 		(void)printf("%*.*s%c", v->width - 1, v->width - 1, ttname,
 		    k->ki_p->ki_kiflag & KI_CTTY ? ' ' : '-');
 	}
