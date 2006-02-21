@@ -541,6 +541,8 @@ ed98_alloc_port(device_t dev, int rid)
 	sc->port_rid = rid;
 	sc->port_res = res;
 	sc->port_used = n;
+	sc->port_bst = rman_get_bustag(res);
+	sc->port_bsh = rman_get_bushandle(res);
 
 	/* Re-map i/o table if needed */
 	switch (sc->type) {
