@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -203,14 +204,31 @@ row(struct utmp *ut)
 	putchar('\n');
 }
 
+static int
+ttystat(char *line, int sz)
+{
+	struct stat sb;
+	char ttybuf[MAXPATHLEN];
+
+	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
+	if (stat(ttybuf, &sb) == 0) {
+		return (0);
+	} else
+		return (-1);
+}
+
 static void
 process_utmp(FILE *fp)
 {
 	struct utmp ut;
 
-	while (fread(&ut, sizeof(ut), 1, fp) == 1)
-		if (*ut.ut_name != '\0')
-			row(&ut);
+	while (fread(&ut, sizeof(ut), 1, fp) == 1) {
+		if (*ut.ut_name == '\0')
+			continue;
+		if (ttystat(ut.ut_line, UT_LINESIZE) != 0)
+			continue;
+		row(&ut);
+	}
 }
 
 static void
