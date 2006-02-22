@@ -311,13 +311,14 @@ tree_next(struct tree *t)
 				t->tree_errno = errno;
 				return (t->visit_type = TREE_ERROR_DIR);
 			}
+			t->depth++;
 			t->d = opendir(".");
 			if (t->d == NULL) {
+				tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
 				t->tree_errno = errno;
 				return (t->visit_type = TREE_ERROR_DIR);
 			}
-			t->depth++;
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
 			t->basename = ".";
