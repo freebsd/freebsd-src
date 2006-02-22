@@ -356,6 +356,12 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			break;
 		}
 
+		/* Exiting processes can't be debugged. */
+		if ((p->p_flag & P_WEXIT) != 0) {
+			error = ESRCH;
+			goto fail;
+		}
+
 		if ((error = p_candebug(td, p)) != 0)
 			goto fail;
 

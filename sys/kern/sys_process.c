@@ -212,30 +212,24 @@ proc_sstep(struct thread *td)
 int
 proc_rwmem(struct proc *p, struct uio *uio)
 {
-	struct vmspace *vm;
 	vm_map_t map;
 	vm_object_t backing_object, object = NULL;
 	vm_offset_t pageno = 0;		/* page number */
 	vm_prot_t reqprot;
-	int error, refcnt, writing;
+	int error, writing;
 
 	/*
-	 * if the vmspace is in the midst of being deallocated or the
-	 * process is exiting, don't try to grab anything.  The page table
-	 * usage in that process can be messed up.
+	 * Assert that someone has locked this vmspace.  (Should be
+	 * curthread but we can't assert that.)  This keeps the process
+	 * from exiting out from under us until this operation completes.
 	 */
-	vm = p->p_vmspace;
-	if ((p->p_flag & P_WEXIT))
-		return (EFAULT);
-	do {
-		if ((refcnt = vm->vm_refcnt) < 1)
-			return (EFAULT);
-	} while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt + 1));
+	KASSERT(p->p_lock >= 1, ("%s: process %p (pid %d) not held", __func__,
+	    p, p->p_pid));
 
 	/*
 	 * The map we want...
 	 */
-	map = &vm->vm_map;
+	map = &p->p_vmspace->vm_map;
 
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
@@ -338,7 +332,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 
 	} while (error == 0 && uio->uio_resid > 0);
 
-	vmspace_free(vm);
 	return (error);
 }
 
@@ -558,6 +551,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 	}
 	AUDIT_ARG(process, p);
+
+	if ((p->p_flag & P_WEXIT) != 0) {
+		error = ESRCH;
+		goto fail;
+	}
 	if ((error = p_cansee(td, p)) != 0)
 		goto fail;
 
@@ -665,11 +663,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 	}
 
+	/* Keep this process around until we finish this request. */
+	_PHOLD(p);
+
 #ifdef FIX_SSTEP
 	/*
 	 * Single step fixup ala procfs
 	 */
-	FIX_SSTEP(td2);			/* XXXKSE */
+	FIX_SSTEP(td2);
 #endif
 
 	/*
@@ -683,9 +684,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
-		PROC_UNLOCK(p);
-		sx_xunlock(&proctree_lock);
-		return (0);
+		break;
 
 	case PT_ATTACH:
 		/* security check done above */
@@ -701,40 +700,24 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		goto sendsig;	/* in PT_CONTINUE below */
 
 	case PT_CLEARSTEP:
-		_PHOLD(p);
 		error = ptrace_clear_single_step(td2);
-		_PRELE(p);
-		if (error)
-			goto fail;
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_SETSTEP:
-		_PHOLD(p);
 		error = ptrace_single_step(td2);
-		_PRELE(p);
-		if (error)
-			goto fail;
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_SUSPEND:
-		_PHOLD(p);
 		mtx_lock_spin(&sched_lock);
 		td2->td_flags |= TDF_DBSUSPEND;
 		mtx_unlock_spin(&sched_lock);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_RESUME:
-		_PHOLD(p);
 		mtx_lock_spin(&sched_lock);
 		td2->td_flags &= ~TDF_DBSUSPEND;
 		mtx_unlock_spin(&sched_lock);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_STEP:
 	case PT_CONTINUE:
@@ -745,20 +728,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* Zero means do not send any signal */
 		if (data < 0 || data > _SIG_MAXSIG) {
 			error = EINVAL;
-			goto fail;
+			break;
 		}
-
-		_PHOLD(p);
 
 		switch (req) {
 		case PT_STEP:
-			PROC_UNLOCK(p);
 			error = ptrace_single_step(td2);
-			if (error) {
-				PRELE(p);
-				goto fail_noproc;
-			}
-			PROC_LOCK(p);
+			if (error)
+				goto out;
 			break;
 		case PT_TO_SCE:
 			p->p_stops |= S_PT_SCE;
@@ -772,15 +749,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		if (addr != (void *)1) {
-			PROC_UNLOCK(p);
 			error = ptrace_set_pc(td2, (u_long)(uintfptr_t)addr);
-			if (error) {
-				PRELE(p);
-				goto fail_noproc;
-			}
-			PROC_LOCK(p);
+			if (error)
+				break;
 		}
-		_PRELE(p);
 
 		if (req == PT_DETACH) {
 			/* reset process parent */
@@ -810,8 +782,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 	sendsig:
-		if (proctree_locked)
+		if (proctree_locked) {
 			sx_xunlock(&proctree_lock);
+			proctree_locked = 0;
+		}
 		/* deliver or queue signal */
 		mtx_lock_spin(&sched_lock);
 		td2->td_flags &= ~TDF_XSIG;
@@ -842,8 +816,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (data)
 			psignal(p, data);
 
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_WRITE_I:
 	case PT_WRITE_D:
@@ -879,10 +852,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 		if (!write)
 			td->td_retval[0] = tmp;
-		return (error);
+		PROC_LOCK(p);
+		break;
 
 	case PT_IO:
-		PROC_UNLOCK(p);
 #ifdef COMPAT_IA32
 		if (wrap32) {
 			piod32 = addr;
@@ -918,8 +891,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			uio.uio_rw = UIO_WRITE;
 			break;
 		default:
-			return (EINVAL);
+			error = EINVAL;
+			goto out;
 		}
+		PROC_UNLOCK(p);
 		error = proc_rwmem(p, &uio);
 #ifdef COMPAT_IA32
 		if (wrap32)
@@ -927,59 +902,43 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		else
 #endif
 			piod->piod_len -= uio.uio_resid;
-		return (error);
+		PROC_LOCK(p);
+		break;
 
 	case PT_KILL:
 		data = SIGKILL;
 		goto sendsig;	/* in PT_CONTINUE above */
 
 	case PT_SETREGS:
-		_PHOLD(p);
 		error = PROC_WRITE(regs, td2, addr);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (error);
+		break;
 
 	case PT_GETREGS:
-		_PHOLD(p);
 		error = PROC_READ(regs, td2, addr);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (error);
+		break;
 
 	case PT_SETFPREGS:
-		_PHOLD(p);
 		error = PROC_WRITE(fpregs, td2, addr);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (error);
+		break;
 
 	case PT_GETFPREGS:
-		_PHOLD(p);
 		error = PROC_READ(fpregs, td2, addr);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (error);
+		break;
 
 	case PT_SETDBREGS:
-		_PHOLD(p);
 		error = PROC_WRITE(dbregs, td2, addr);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (error);
+		break;
 
 	case PT_GETDBREGS:
-		_PHOLD(p);
 		error = PROC_READ(dbregs, td2, addr);
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (error);
+		break;
 
 	case PT_LWPINFO:
-		if (data == 0 || data > sizeof(*pl))
-			return (EINVAL);
+		if (data == 0 || data > sizeof(*pl)) {
+			error = EINVAL;
+			break;
+		}
 		pl = addr;
-		_PHOLD(p);
 		pl->pl_lwpid = td2->td_tid;
 		if (td2->td_flags & TDF_XSIG)
 			pl->pl_event = PL_EVENT_SIGNAL;
@@ -994,19 +953,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
-		_PRELE(p);
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_GETNUMLWPS:
 		td->td_retval[0] = p->p_numthreads;
-		PROC_UNLOCK(p);
-		return (0);
+		break;
 
 	case PT_GETLWPLIST:
 		if (data <= 0) {
-			PROC_UNLOCK(p);
-			return (EINVAL);
+			error = EINVAL;
+			break;
 		}
 		num = imin(p->p_numthreads, data);
 		PROC_UNLOCK(p);
@@ -1025,27 +981,27 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		free(buf, M_TEMP);
 		if (!error)
 			td->td_retval[0] = num;
- 		return (error);
+		PROC_LOCK(p);
+		break;
 
 	default:
 #ifdef __HAVE_PTRACE_MACHDEP
 		if (req >= PT_FIRSTMACH) {
-			_PHOLD(p);
 			PROC_UNLOCK(p);
 			error = cpu_ptrace(td2, req, addr, data);
-			PRELE(p);
-			return (error);
-		}
+			PROC_LOCK(p);
+		} else
 #endif
+			/* Unknown request. */
+			error = EINVAL;
 		break;
 	}
 
-	/* Unknown request. */
-	error = EINVAL;
-
+out:
+	/* Drop our hold on this process now that the request has completed. */
+	_PRELE(p);
 fail:
 	PROC_UNLOCK(p);
-fail_noproc:
 	if (proctree_locked)
 		sx_xunlock(&proctree_lock);
 	return (error);

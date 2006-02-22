@@ -1756,6 +1756,8 @@ ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
 {
 	struct iovec iov;
 	struct uio uio;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
 	iov.iov_base = (caddr_t) v;
 	iov.iov_len = sizeof(u_int32_t);
 	uio.uio_iov = &iov;
@@ -1773,6 +1775,8 @@ ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
 {
 	struct iovec iov;
 	struct uio uio;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
 	iov.iov_base = (caddr_t) &v;
 	iov.iov_len = sizeof(u_int32_t);
 	uio.uio_iov = &iov;
@@ -1836,6 +1840,8 @@ ptrace_read_register(struct thread *td, int regno)
 static int
 ptrace_clear_bpt(struct thread *td, struct mdbpt *bpt)
 {
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
 	return ptrace_write_int(td, bpt->addr, bpt->contents);
 }
 
@@ -1844,6 +1850,8 @@ ptrace_set_bpt(struct thread *td, struct mdbpt *bpt)
 {
 	int error;
 	u_int32_t bpins = 0x00000080;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
 	error = ptrace_read_int(td, bpt->addr, &bpt->contents);
 	if (error)
 		return error;
@@ -1853,12 +1861,20 @@ ptrace_set_bpt(struct thread *td, struct mdbpt *bpt)
 int
 ptrace_clear_single_step(struct thread *td)
 {
+	struct proc *p;
+
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (td->td_md.md_flags & MDTD_STEP2) {
+		PROC_UNLOCK(p);
 		ptrace_clear_bpt(td, &td->td_md.md_sstep[1]);
 		ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
+		PROC_LOCK(p);
 		td->td_md.md_flags &= ~MDTD_STEP2;
 	} else if (td->td_md.md_flags & MDTD_STEP1) {
+		PROC_UNLOCK(p);
 		ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
+		PROC_LOCK(p);
 		td->td_md.md_flags &= ~MDTD_STEP1;
 	}
 	return 0;
@@ -1867,6 +1883,7 @@ ptrace_clear_single_step(struct thread *td)
 int
 ptrace_single_step(struct thread *td)
 {
+	struct proc *p;
 	int error;
 	vm_offset_t pc = td->td_frame->tf_regs[FRAME_PC];
 	alpha_instruction ins;
@@ -1876,9 +1893,11 @@ ptrace_single_step(struct thread *td)
 	if (td->td_md.md_flags & (MDTD_STEP1|MDTD_STEP2))
 		panic("ptrace_single_step: step breakpoints not removed");
 
+	p = td->td_proc;
+	PROC_UNLOCK(p);
 	error = ptrace_read_int(td, pc, &ins.bits);
 	if (error)
-		return (error);
+		goto out;
 
 	switch (ins.branch_format.opcode) {
 
@@ -1918,18 +1937,20 @@ ptrace_single_step(struct thread *td)
 	td->td_md.md_sstep[0].addr = addr[0];
 	error = ptrace_set_bpt(td, &td->td_md.md_sstep[0]);
 	if (error)
-		return (error);
+		goto out;
 	if (count == 2) {
 		td->td_md.md_sstep[1].addr = addr[1];
 		error = ptrace_set_bpt(td, &td->td_md.md_sstep[1]);
 		if (error) {
 			ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
-			return (error);
+			goto out;
 		}
 		td->td_md.md_flags |= MDTD_STEP2;
 	} else
 		td->td_md.md_flags |= MDTD_STEP1;
 
+out:
+	PROC_LOCK(p);
 	return (error);
 }
 
