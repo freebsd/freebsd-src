@@ -375,8 +375,8 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 bad:
 	if (error != 0) {
-		/* if (error != EFBIG) */
-			mpt_prt(mpt, "bus_dmamap_load returned %d\n", error);
+		if (error != EFBIG && error != ENOMEM)
+			mpt_prt(mpt, "mpt_execute_req: err %d\n", error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ccb->ccb_h.status = CAM_DEV_QFRZN;
