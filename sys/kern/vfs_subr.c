@@ -337,8 +337,10 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 	int lkflags;
 
 	MNT_ILOCK(mp);
+	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		if (flags & LK_NOWAIT) {
+			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
 		}
@@ -351,7 +353,9 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 		 * wakeup needs to be done is at the release of the
 		 * exclusive lock at the end of dounmount.
 		 */
-		msleep(mp, MNT_MTX(mp), PVFS|PDROP, "vfs_busy", 0);
+		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
+		MNT_REL(mp);
+		MNT_IUNLOCK(mp);
 		if (interlkp)
 			mtx_lock(interlkp);
 		return (ENOENT);
@@ -361,6 +365,7 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 	lkflags = LK_SHARED | LK_INTERLOCK;
 	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
 		panic("vfs_busy: unexpected lock failure");
+	vfs_rel(mp);
 	return (0);
 }
 
