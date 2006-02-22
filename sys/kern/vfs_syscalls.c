@@ -245,21 +245,22 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	struct statfs *sp, sb;
 	int error;
 	struct nameidata nd;
-	int vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW|LOCKLEAF|MPSAFE, pathseg, path, td);
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	error = namei(&nd);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
+	}
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vrele(nd.ni_vp);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
-		vput(nd.ni_vp);
-		VFS_UNLOCK_GIANT(vfslocked);
+		mtx_unlock(&Giant);
 		return (error);
 	}
 #endif
@@ -270,16 +271,17 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	vput(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
+	mtx_unlock(&Giant);
 	*buf = *sp;
 	return (0);
 }
@@ -317,26 +319,21 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	struct mount *mp;
 	struct statfs *sp, sb;
 	struct vnode *vp;
-	int vfslocked;
 	int error;
 
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	/* Lock the vnode to prevent the mount from going away. */
-	error = vn_lock(vp, LK_EXCLUSIVE, td);
-	fdrop(fp, td);
-	if (error) {
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (EBADF);
-	}
 	mp = vp->v_mount;
+	fdrop(fp, td);
+	if (vp->v_iflag & VI_DOOMED)
+		return (EBADF);
+	mtx_lock(&Giant);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
-		VFS_UNLOCK_GIANT(vfslocked);
+		mtx_unlock(&Giant);
 		return (error);
 	}
 #endif
@@ -348,16 +345,17 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	VOP_UNLOCK(vp, 0, td);
-	VFS_UNLOCK_GIANT(vfslocked);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
+	mtx_unlock(&Giant);
 	*buf = *sp;
 	return (0);
 }
@@ -693,7 +691,6 @@ fchdir(td, uap)
 #endif
 	else
 		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
-	/* XXX Unref'd mp access. */
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		int tvfslocked;
 		if (vfs_busy(mp, 0, 0, td))
@@ -4246,16 +4243,13 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	}
 	mp = vp->v_mount;
 	sp = &mp->mnt_stat;
+	vput(vp);
 	error = prison_canseemount(td->td_ucred, mp);
-	if (error) {
-		vput(vp);
-		mtx_unlock(&Giant);
+	if (error)
 		return (error);
-	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
-		vput(vp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
@@ -4267,7 +4261,6 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	vput(vp);
 	mtx_unlock(&Giant);
 	if (error)
 		return (error);
