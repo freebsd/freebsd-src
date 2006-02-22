@@ -99,7 +99,11 @@ Sleeps at most
 \&/ hz seconds (0 means no timeout).
 If the
 .Va Giant
-lock is not held, then
+lock is not held and
+.Fa mtx
+is
+.Dv NULL ,
+then
 .Fa timo
 must be non-zero.
 If
