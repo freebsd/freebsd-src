@@ -101,8 +101,8 @@ sleepinit(void)
 }
 
 /*
- * General sleep call.  Suspends the current process until a wakeup is
- * performed on the specified identifier.  The process will then be made
+ * General sleep call.  Suspends the current thread until a wakeup is
+ * performed on the specified identifier.  The thread will then be made
  * runnable with the specified priority.  Sleeps at most timo/hz seconds
  * (0 means no timeout).  If pri includes PCATCH flag, signals are checked
  * before and after sleeping, else signals are not checked.  Returns 0 if
@@ -111,9 +111,9 @@ sleepinit(void)
  * call should be restarted if possible, and EINTR is returned if the system
  * call should be interrupted by the signal (return EINTR).
  *
- * The mutex argument is exited before the caller is suspended, and
- * entered before msleep returns.  If priority includes the PDROP
- * flag the mutex is not entered before returning.
+ * The mutex argument is unlocked before the caller is suspended, and
+ * re-locked before msleep returns.  If priority includes the PDROP
+ * flag the mutex is not re-locked before returning.
  */
 int
 msleep(ident, mtx, priority, wmesg, timo)
