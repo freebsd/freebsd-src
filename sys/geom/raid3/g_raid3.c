@@ -1204,9 +1204,9 @@ finish:
 			G_RAID3_LOGREQ(0, pbp, "Request failed.");
 	}
 	pbp->bio_pflags &= ~G_RAID3_BIO_PFLAG_MASK;
-	g_io_deliver(pbp, pbp->bio_error);
 	while ((cbp = G_RAID3_HEAD_BIO(pbp)) != NULL)
 		g_raid3_destroy_bio(sc, cbp);
+	g_io_deliver(pbp, pbp->bio_error);
 }
 
 static void
