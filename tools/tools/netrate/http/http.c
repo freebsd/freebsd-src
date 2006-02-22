@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,41 +27,62 @@
  */
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 
 #include <netinet/in.h>
 
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
+
+static int	threaded;		/* 1 for threaded, 0 for forked. */
+static int	numthreads;		/* Number of threads/procs. */
+static int	numseconds;		/* Length of test. */
 
 /*
  * Simple, multi-threaded HTTP benchmark.  Fetches a single URL using the
  * specified parameters, and after a period of execution, reports on how it
  * worked out.
  */
-#define	THREADS	128
-#define	SECONDS	20
+#define	MAXTHREADS	128
+#define	DEFAULTTHREADS	32
+#define	DEFAULTSECONDS	20
 #define	BUFFER	(48*1024)
 #define	QUIET	1
 
 struct http_worker_description {
 	pthread_t	hwd_thread;
+	pid_t		hwd_pid;
 	uintmax_t	hwd_count;
 	uintmax_t	hwd_errorcount;
+	int		hwd_start_signal_barrier;
 };
 
-static struct sockaddr_in		 sin;
-static char				*path;
-static struct http_worker_description	 hwd[THREADS];
-static int				 run_done;
-static pthread_barrier_t		 start_barrier;
+static struct state {
+	struct sockaddr_in		 sin;
+	char				*path;
+	struct http_worker_description	 hwd[MAXTHREADS];
+	int				 run_done;
+	pthread_barrier_t		 start_barrier;
+} *statep;
+
+int curthread;
+
+/*
+ * Borrowed from sys/param.h>
+ */
+#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))	/* to any y */
 
 /*
  * Given a partially processed URL, fetch it from the specified host.
@@ -81,12 +102,16 @@ http_fetch(struct sockaddr_in *sin, char *path, int quiet)
 		return (-1);
 	}
 
+	/* XXX: Mark non-blocking. */
+
 	if (connect(sock, (struct sockaddr *)sin, sizeof(*sin)) < 0) {
 		if (!quiet)
 			warn("connect");
 		close(sock);
 		return (-1);
 	}
+
+	/* XXX: select for connection. */
 
 	/* Send a request. */
 	snprintf(buffer, BUFFER, "GET %s HTTP/1.0\n\n", path);
@@ -123,74 +148,210 @@ http_fetch(struct sockaddr_in *sin, char *path, int quiet)
 	return (0);
 }
 
+static void
+killall(void)
+{
+	int i;
+
+	for (i = 0; i < numthreads; i++) {
+		if (statep->hwd[i].hwd_pid != 0)
+			kill(statep->hwd[i].hwd_pid, SIGTERM);
+	}
+}
+
+static void
+signal_handler(int signum)
+{
+
+	statep->hwd[curthread].hwd_start_signal_barrier = 1;
+}
+
+static void
+signal_barrier_wait(void)
+{
+
+	/* Wait for EINTR. */
+	if (signal(SIGHUP, signal_handler) == SIG_ERR)
+		err(-1, "signal");
+	while (1) {
+		sleep(100);
+		if (statep->hwd[curthread].hwd_start_signal_barrier)
+			break;
+	}
+}
+
+static void
+signal_barrier_wakeup(void)
+{
+	int i;
+
+	for (i = 0; i < numthreads; i++) {
+		if (statep->hwd[i].hwd_pid != 0)
+			kill(statep->hwd[i].hwd_pid, SIGHUP);
+	}
+}
+
 static void *
 http_worker(void *arg)
 {
 	struct http_worker_description *hwdp;
 	int ret;
 
-	ret = pthread_barrier_wait(&start_barrier);
-	if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD)
-		err(-1, "pthread_barrier_wait");
+	if (threaded) {
+		ret = pthread_barrier_wait(&statep->start_barrier);
+		if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD)
+			err(-1, "pthread_barrier_wait");
+	} else {
+		signal_barrier_wait();
+	}
 
 	hwdp = arg;
-	while (!run_done) {
-		if (http_fetch(&sin, path, QUIET) < 0) {
+	while (!statep->run_done) {
+		if (http_fetch(&statep->sin, statep->path, QUIET) < 0) {
 			hwdp->hwd_errorcount++;
 			continue;
 		}
 		/* Don't count transfers that didn't finish in time. */
-		if (!run_done)
+		if (!statep->run_done)
 			hwdp->hwd_count++;
 	}
 
-	return (NULL);
+	if (threaded)
+		return (NULL);
+	else
+		exit(0);
+}
+
+static void
+usage(void)
+{
+
+	fprintf(stderr,
+	    "http [-n numthreads] [-s seconds] [-t] ip port path\n");
+	exit(EX_USAGE);
+}
+
+static void
+main_sighup(int signum)
+{
+
+	killall();
 }
 
 int
 main(int argc, char *argv[])
 {
+	int ch, error, i;
+	char *pagebuffer;
 	uintmax_t total;
-	int i;
+	size_t len;
+	pid_t pid;
 
-	if (argc != 4)
-		errx(-1, "usage: http [ip] [port] [path]");
+	numthreads = DEFAULTTHREADS;
+	numseconds = DEFAULTSECONDS;
+	while ((ch = getopt(argc, argv, "n:s:t")) != -1) {
+		switch (ch) {
+		case 'n':
+			numthreads = atoi(optarg);
+			break;
 
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = inet_addr(argv[1]);
-	sin.sin_port = htons(atoi(argv[2]));
-	path = argv[3];
+		case 's':
+			numseconds = atoi(optarg);
+			break;
+
+		case 't':
+			threaded = 1;
+			break;
+
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 3)
+		usage();
+
+	len = roundup(sizeof(struct state), getpagesize());
+	pagebuffer = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+	if (pagebuffer == MAP_FAILED)
+		err(-1, "mmap");
+	if (minherit(pagebuffer, len, INHERIT_SHARE) < 0)
+		err(-1, "minherit");
+	statep = (struct state *)pagebuffer;
+
+	bzero(&statep->sin, sizeof(statep->sin));
+	statep->sin.sin_len = sizeof(statep->sin);
+	statep->sin.sin_family = AF_INET;
+	statep->sin.sin_addr.s_addr = inet_addr(argv[0]);
+	statep->sin.sin_port = htons(atoi(argv[1]));
+	statep->path = argv[2];
 
 	/*
 	 * Do one test retrieve so we can report the error from it, if any.
 	 */
-	if (http_fetch(&sin, path, 0) < 0)
+	if (http_fetch(&statep->sin, statep->path, 0) < 0)
 		exit(-1);
 
-	if (pthread_barrier_init(&start_barrier, NULL, THREADS) < 0)
-		err(-1, "pthread_mutex_init");
+	if (threaded) {
+		if (pthread_barrier_init(&statep->start_barrier, NULL,
+		    numthreads) < 0)
+			err(-1, "pthread_mutex_init");
+	}
 
-	for (i = 0; i < THREADS; i++) {
-		hwd[i].hwd_count = 0;
-		if (pthread_create(&hwd[i].hwd_thread, NULL, http_worker,
-		    &hwd[i]) < 0)
-			err(-1, "pthread_create");
+	for (i = 0; i < numthreads; i++) {
+		statep->hwd[i].hwd_count = 0;
+		if (threaded) {
+			if (pthread_create(&statep->hwd[i].hwd_thread, NULL,
+			    http_worker, &statep->hwd[i]) < 0)
+				err(-1, "pthread_create");
+		} else {
+			curthread = i;
+			pid = fork();
+			if (pid < 0) {
+				error = errno;
+				killall();
+				errno = error;
+				err(-1, "fork");
+			}
+			if (pid == 0) {
+				http_worker(&statep->hwd[i]);
+				printf("Doh\n");
+				exit(0);
+			}
+			statep->hwd[i].hwd_pid = pid;
+		}
 	}
-	sleep(SECONDS);
-	run_done = 1;
-	for (i = 0; i < THREADS; i++) {
-		if (pthread_join(hwd[i].hwd_thread, NULL) < 0)
-			err(-1, "pthread_join");
+	if (!threaded) {
+		signal(SIGHUP, main_sighup);
+		sleep(2);
+		signal_barrier_wakeup();
 	}
+	sleep(numseconds);
+	statep->run_done = 1;
+	if (!threaded)
+		sleep(2);
+	for (i = 0; i < numthreads; i++) {
+		if (threaded) {
+			if (pthread_join(statep->hwd[i].hwd_thread, NULL)
+			    < 0)
+				err(-1, "pthread_join");
+		} else {
+			pid = waitpid(statep->hwd[i].hwd_pid, NULL, 0);
+			if (pid == statep->hwd[i].hwd_pid)
+				statep->hwd[i].hwd_pid = 0;
+		}
+	}
+	if (!threaded)
+		killall();
 	total = 0;
-	for (i = 0; i < THREADS; i++)
-		total += hwd[i].hwd_count;
-	printf("%ju transfers/second\n", total / SECONDS);
+	for (i = 0; i < numthreads; i++)
+		total += statep->hwd[i].hwd_count;
+	printf("%ju transfers/second\n", total / numseconds);
 	total = 0;
-	for (i = 0; i < THREADS; i++)
-		total += hwd[i].hwd_errorcount;
-	printf("%ju errors/second\n", total / SECONDS);
+	for (i = 0; i < numthreads; i++)
+		total += statep->hwd[i].hwd_errorcount;
+	printf("%ju errors/second\n", total / numseconds);
 	return (0);
 }
