@@ -1117,6 +1117,9 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 			return (error);
 	}
 
+	if (vp->v_bufobj.bo_bsize == 0)
+		return (-1);
+
  	if (cb->aio_nbytes % vp->v_bufobj.bo_bsize)
 		return (-1);
 
