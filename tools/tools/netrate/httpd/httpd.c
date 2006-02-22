@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,32 @@
  */
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 
 #include <netinet/in.h>
 
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
+static int	threaded;		/* 1 for threaded, 0 for forked. */
+
 /*
- * Simple, multi-threaded HTTP server.  Very dumb.
+ * Simple, multi-threaded/multi-process HTTP server.  Very dumb.
  *
  * If a path is specified as an argument, only that file is served.  If no
  * path is specified, httpd will create one file to send per server thread.
@@ -60,15 +67,31 @@
 #define	HTTP_CONNECTION	"Connection: close\n"
 #define	HTTP_CONTENT	"Content-Type: text/html\n\n"
 
-struct httpd_thread_state {
-	pthread_t	hts_thread;
-	int		hts_fd;
-} hts[THREADS];
+/*
+ * In order to support both multi-threaded and multi-process operation but
+ * use a single shared memory statistics model, we create a page-aligned
+ * statistics buffer.  For threaded operation, it's just shared memory due to
+ * threading; for multi-process operation, we mark it as INHERIT_SHARE, so we
+ * must put it in page-aligned memory that isn't shared with other memory, or
+ * risk accidental sharing of other statep.
+ */
+static struct state {
+	struct httpd_thread_statep {
+		pthread_t	hts_thread;	/* Multi-thread. */
+		pid_t		hts_pid;	/* Multi-process. */
+		int		hts_fd;
+	} hts[THREADS];
 
-static const char	*path;
-static int		 data_file;
-static int		 listen_sock;
-static struct utsname	 utsname;
+	const char	*path;
+	int		 data_file;
+	int		 listen_sock;
+	struct utsname	 utsname;
+} *statep;
+
+/*
+ * Borrowed from sys/param.h.
+ */
+#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))	/* to any y */
 
 /*
  * Given an open client socket, process its request.  No notion of timeout.
@@ -115,8 +138,8 @@ http_serve(int sock, int fd)
 	header_iovec[0].iov_len = strlen(HTTP_OK);
 	header_iovec[1].iov_base = HTTP_SERVER1;
 	header_iovec[1].iov_len = strlen(HTTP_SERVER1);
-	header_iovec[2].iov_base = utsname.sysname;
-	header_iovec[2].iov_len = strlen(utsname.sysname);
+	header_iovec[2].iov_base = statep->utsname.sysname;
+	header_iovec[2].iov_len = strlen(statep->utsname.sysname);
 	header_iovec[3].iov_base = HTTP_SERVER2;
 	header_iovec[3].iov_len = strlen(HTTP_SERVER2);
 	header_iovec[4].iov_base = HTTP_CONNECTION;
@@ -137,18 +160,37 @@ http_serve(int sock, int fd)
 static void *
 httpd_worker(void *arg)
 {
-	struct httpd_thread_state *htsp;
+	struct httpd_thread_statep *htsp;
 	int sock;
 
 	htsp = arg;
 
 	while (1) {
-		sock = accept(listen_sock, NULL, NULL);
+		sock = accept(statep->listen_sock, NULL, NULL);
 		if (sock < 0)
 			continue;
 		(void)http_serve(sock, htsp->hts_fd);
 		close(sock);
 	}
+}
+
+static void
+killall(void)
+{
+	int i;
+
+	for (i = 0; i < THREADS; i++) {
+		if (statep->hts[i].hts_pid != 0)
+			(void)kill(statep->hts[i].hts_pid, SIGTERM);
+	}
+}
+
+static void
+usage(void)
+{
+
+	fprintf(stderr, "httpd [-t] port [path]\n");
+	exit(EX_USAGE);
 }
 
 int
@@ -157,45 +199,70 @@ main(int argc, char *argv[])
 	u_char filebuffer[FILESIZE];
 	char temppath[PATH_MAX];
 	struct sockaddr_in sin;
+	int ch, error, i;
+	char *pagebuffer;
 	ssize_t len;
-	int i;
+	pid_t pid;
 
-	if (argc != 2 && argc != 3)
-		errx(-1, "usage: http port [path]");
 
-	if (uname(&utsname) < 0)
+	while ((ch = getopt(argc, argv, "t")) != -1) {
+		switch (ch) {
+		case 't':
+			threaded = 1;
+			break;
+
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 1 && argc != 2)
+		usage();
+
+	len = roundup(sizeof(struct state), getpagesize());
+	pagebuffer = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+	if (pagebuffer == MAP_FAILED)
+		err(-1, "mmap");
+	if (minherit(pagebuffer, len, INHERIT_SHARE) < 0)
+		err(-1, "minherit");
+	statep = (struct state *)pagebuffer;
+
+	if (uname(&statep->utsname) < 0)
 		err(-1, "utsname");
 
-	listen_sock = socket(PF_INET, SOCK_STREAM, 0);
-	if (listen_sock < 0)
+	statep->listen_sock = socket(PF_INET, SOCK_STREAM, 0);
+	if (statep->listen_sock < 0)
 		err(-1, "socket(PF_INET, SOCK_STREAM)");
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(atoi(argv[1]));
+	sin.sin_port = htons(atoi(argv[0]));
 
 	/*
 	 * If a path is specified, use it.  Otherwise, create temporary files
 	 * with some data for each thread.
 	 */
-	path = argv[2];
-	if (path != NULL) {
-		data_file = open(path, O_RDONLY);
-		if (data_file < 0)
-			err(-1, "open: %s", path);
+	statep->path = argv[1];
+	if (statep->path != NULL) {
+		statep->data_file = open(statep->path, O_RDONLY);
+		if (statep->data_file < 0)
+			err(-1, "open: %s", statep->path);
 		for (i = 0; i < THREADS; i++)
-			hts[i].hts_fd = data_file;
+			statep->hts[i].hts_fd = statep->data_file;
 	} else {
 		memset(filebuffer, 'A', FILESIZE - 1);
 		filebuffer[FILESIZE - 1] = '\n';
 		for (i = 0; i < THREADS; i++) {
 			snprintf(temppath, PATH_MAX, "/tmp/httpd.XXXXXXXXXXX");
-			hts[i].hts_fd = mkstemp(temppath);
-			if (hts[i].hts_fd < 0)
+			statep->hts[i].hts_fd = mkstemp(temppath);
+			if (statep->hts[i].hts_fd < 0)
 				err(-1, "mkstemp");
 			(void)unlink(temppath);
-			len = write(hts[i].hts_fd, filebuffer, FILESIZE);
+			len = write(statep->hts[i].hts_fd, filebuffer,
+			    FILESIZE);
 			if (len < 0)
 				err(-1, "write");
 			if (len < FILESIZE)
@@ -203,21 +270,44 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (bind(listen_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	if (bind(statep->listen_sock, (struct sockaddr *)&sin,
+	    sizeof(sin)) < 0)
 		err(-1, "bind");
 
-	if (listen(listen_sock, -1) < 0)
+	if (listen(statep->listen_sock, -1) < 0)
 		err(-1, "listen");
 
 	for (i = 0; i < THREADS; i++) {
-		if (pthread_create(&hts[i].hts_thread, NULL, httpd_worker,
-		    &hts[i]) < 0)
-			err(-1, "pthread_create");
+		if (threaded) {
+			if (pthread_create(&statep->hts[i].hts_thread, NULL,
+			    httpd_worker, &statep->hts[i]) < 0)
+				err(-1, "pthread_create");
+		} else {
+			pid = fork();
+			if (pid < 0) {
+				error = errno;
+				killall();
+				errno = error;
+				err(-1, "fork");
+			}
+			if (pid == 0)
+				httpd_worker(&statep->hts[i]);
+			statep->hts[i].hts_pid = pid;
+		}
 	}
 
 	for (i = 0; i < THREADS; i++) {
-		if (pthread_join(hts[i].hts_thread, NULL) < 0)
-			err(-1, "pthread_join");
+		if (threaded) {
+			if (pthread_join(statep->hts[i].hts_thread, NULL)
+			    < 0)
+				err(-1, "pthread_join");
+		} else {
+			pid = waitpid(statep->hts[i].hts_pid, NULL, 0);
+			if (pid == statep->hts[i].hts_pid)
+				statep->hts[i].hts_pid = 0;
+		}
 	}
+	if (!threaded)
+		killall();
 	return (0);
 }
