@@ -245,9 +245,8 @@ out:
 	 * What does it mean to single step a threaded program?
 	 */
 	case PROCFS_CTL_STEP:
-		PROC_UNLOCK(p);
 		error = proc_sstep(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
-		PRELE(p);
+		PROC_UNLOCK(p);
 		if (error)
 			return (error);
 		break;
