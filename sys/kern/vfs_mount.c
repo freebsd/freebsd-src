@@ -466,6 +466,7 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
 	int i;
 
+	vfs_unbusy(mp, td);
 	MNT_ILOCK(mp);
 	for (i = 0; mp->mnt_ref && i < 3; i++)
 		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
@@ -501,7 +502,6 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
-	vfs_unbusy(mp,td);
 	lockdestroy(&mp->mnt_lock);
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
@@ -741,7 +741,6 @@ vfs_domount(
 	struct nameidata nd;
 
 	mtx_assert(&Giant, MA_OWNED);
-
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
@@ -770,6 +769,18 @@ vfs_domount(
 	 */
 	if (suser(td) != 0)
 		fsflags |= MNT_NOSUID | MNT_USER;
+
+	/* Load KLDs before we lock the covered vnode to avoid reversals. */
+	vfsp = NULL;
+	if ((fsflags & MNT_UPDATE) == 0) {
+		/* Don't try to load KLDs if we're mounting the root. */
+		if (fsflags & MNT_ROOTFS)
+			vfsp = vfs_byname(fstype);
+		else
+			vfsp = vfs_byname_kld(fstype, td, &error);
+		if (vfsp == NULL)
+			return (ENODEV);
+	}
 	/*
 	 * Get vnode to be covered
 	 */
@@ -847,19 +858,6 @@ vfs_domount(
 		if (vp->v_type != VDIR) {
 			vput(vp);
 			return (ENOTDIR);
-		}
-		/* Don't try to load KLDs if we're mounting the root. */
-		if (fsflags & MNT_ROOTFS) {
-			if ((vfsp = vfs_byname(fstype)) == NULL) {
-				vput(vp);
-				return (ENODEV);
-			}
-		} else {
-			vfsp = vfs_byname_kld(fstype, td, &error);
-			if (vfsp == NULL) {
-				vput(vp);
-				return (error);
-			}
 		}
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_MOUNT) != 0 ||
@@ -1069,9 +1067,13 @@ dounmount(mp, flags, td)
 
 	mtx_assert(&Giant, MA_OWNED);
 
+	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
+		vn_lock(coveredvp, LK_EXCLUSIVE | LK_RETRY, td);
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		MNT_IUNLOCK(mp);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
@@ -1086,6 +1088,8 @@ dounmount(mp, flags, td)
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (error);
 	}
 	vn_start_write(NULL, &mp, V_WAIT);
@@ -1141,17 +1145,19 @@ dounmount(mp, flags, td)
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
-	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
-		coveredvp->v_mountedhere = NULL;
 	mtx_unlock(&mountlist_mtx);
+	if (coveredvp != NULL) {
+		coveredvp->v_mountedhere = NULL;
+		vput(coveredvp);
+	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
 	vfs_mount_destroy(mp, td);
-	if (coveredvp != NULL)
-		vrele(coveredvp);
 	return (0);
 }
 
