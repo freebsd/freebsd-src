@@ -218,13 +218,13 @@ static struct fileops		mqueueops;
  */
 #ifdef notyet
 static struct mqfs_node	*mqfs_create_dir(struct mqfs_node *parent,
-	const char *name, int namelen);
+	const char *name, int namelen, struct ucred *cred, int mode);
 static struct mqfs_node	*mqfs_create_link(struct mqfs_node *parent,
-	const char *name, int namelen);
+	const char *name, int namelen, struct ucred *cred, int mode);
 #endif
 
 static struct mqfs_node	*mqfs_create_file(struct mqfs_node *parent,
-	const char *name, int namelen);
+	const char *name, int namelen, struct ucred *cred, int mode);
 static int	mqfs_destroy(struct mqfs_node *mn);
 static void	mqfs_fileno_alloc(struct mqfs_info *mi, struct mqfs_node *mn);
 static void	mqfs_fileno_free(struct mqfs_info *mi, struct mqfs_node *mn);
@@ -407,6 +407,42 @@ mqfs_add_node(struct mqfs_node *parent, struct mqfs_node *node)
 	return (0);
 }
 
+static struct mqfs_node *
+mqfs_create_node(const char *name, int namelen, struct ucred *cred, int mode,
+	int nodetype)
+{
+	struct mqfs_node *node;
+
+	node = mqnode_alloc();
+	strncpy(node->mn_name, name, namelen);
+	node->mn_type = nodetype;
+	node->mn_refcount = 1;
+	getnanotime(&node->mn_birth);
+	node->mn_ctime = node->mn_atime = node->mn_mtime
+		= node->mn_birth;
+	node->mn_uid = cred->cr_uid;
+	node->mn_gid = cred->cr_gid;
+	node->mn_mode = mode;
+	return (node);
+}
+
+/*
+ * Create a file
+ */
+static struct mqfs_node *
+mqfs_create_file(struct mqfs_node *parent, const char *name, int namelen,
+	struct ucred *cred, int mode)
+{
+	struct mqfs_node *node;
+
+	node = mqfs_create_node(name, namelen, cred, mode, mqfstype_file);
+	if (mqfs_add_node(parent, node) != 0) {
+		mqnode_free(node);
+		return (NULL);
+	}
+	return (node);
+}
+
 /*
  * Add . and .. to a directory
  */
@@ -443,63 +479,42 @@ mqfs_fixup_dir(struct mqfs_node *parent)
  * Create a directory
  */
 static struct mqfs_node *
-mqfs_create_dir(struct mqfs_node *parent, const char *name, int namelen)
+mqfs_create_dir(struct mqfs_node *parent, const char *name, int namelen,
+	struct ucred *cred, int mode)
 {
-	struct mqfs_node *dir;
+	struct mqfs_node *node;
 
-	dir = mqnode_alloc();
-	strncpy(dir->mn_name, name, namelen);
-	dir->mn_type = mqfstype_dir;
-	dir->mn_refcount = 1;
-	if (mqfs_add_node(parent, dir) != 0) {
-		mqnode_free(dir);
+	node = mqfs_create_node(name, namelen, cred, mode, mqfstype_dir);
+	if (mqfs_add_node(parent, node) != 0) {
+		mqnode_free(node);
 		return (NULL);
 	}
 
-	if (mqfs_fixup_dir(dir) != 0) {
-		mqfs_destroy(dir);
+	if (mqfs_fixup_dir(node) != 0) {
+		mqfs_destroy(node);
 		return (NULL);
 	}
-
-	return (dir);
+	return (node);
 }
 
 /*
  * Create a symlink
  */
 static struct mqfs_node *
-mqfs_create_link(struct mqfs_node *parent, const char *name, int namelen)
+mqfs_create_link(struct mqfs_node *parent, const char *name, int namelen,
+	struct ucred *cred, int mode)
 {
 	struct mqfs_node *node;
 
-	node = mqfs_create_file(parent, name, namelen);
-	if (node == NULL)
-		return (NULL);
-	node->mn_type = mqfstype_symlink;
-	return (node);
-}
-
-#endif
-
-/*
- * Create a file
- */
-static struct mqfs_node *
-mqfs_create_file(struct mqfs_node *parent, const char *name, int namelen)
-{
-	struct mqfs_node *node;
-
-	node = mqnode_alloc();
-	strncpy(node->mn_name, name, namelen);
-	node->mn_type = mqfstype_file;
-	node->mn_refcount = 1;
-
+	node = mqfs_create_node(name, namelen, cred, mode, mqfstype_symlink);
 	if (mqfs_add_node(parent, node) != 0) {
 		mqnode_free(node);
 		return (NULL);
 	}
 	return (node);
 }
+
+#endif
 
 /*
  * Destroy a node or a tree of nodes
@@ -621,14 +636,11 @@ mqfs_init(struct vfsconf *vfc)
 	mi = &mqfs_data;
 	sx_init(&mi->mi_lock, "mqfs lock");
 	/* set up the root diretory */
-	root = mqnode_alloc();
-	root->mn_type = mqfstype_root;
-	root->mn_refcount = 1;
-	root->mn_name[0] = '/';
+	root = mqfs_create_node("/", 1, curthread->td_ucred, 01777,
+		mqfstype_root);
 	root->mn_info = mi;
 	LIST_INIT(&root->mn_children);
 	LIST_INIT(&root->mn_vnodes);
-	root->mn_mode = 01777;
 	mi->mi_root = root;
 	mqfs_fileno_init(mi);
 	mqfs_fileno_alloc(mi, root);
@@ -912,16 +924,20 @@ mqfs_create(struct vop_create_args *ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("%s: no name", __func__);
 #endif
-	pn = mqfs_create_file(pd, cnp->cn_nameptr, cnp->cn_namelen);
-	pn->mn_mode = ap->a_vap->va_mode;
-	pn->mn_uid = cnp->cn_cred->cr_uid;
-	pn->mn_gid = cnp->cn_cred->cr_gid;
-	pn->mn_data = mq;
-	getnanotime(&pn->mn_birth);
-	pn->mn_ctime = pn->mn_atime = pn->mn_mtime = pn->mn_birth;
-	/* node attribute */
-	error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
+	pn = mqfs_create_file(pd, cnp->cn_nameptr, cnp->cn_namelen,
+		cnp->cn_cred, ap->a_vap->va_mode);
+	if (pn == NULL)
+		error = ENOSPC;
+	else {
+		error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
+		if (error)
+			mqfs_destroy(pn);
+		else
+			pn->mn_data = mq;
+	}
 	sx_xunlock(&mqfs->mi_lock);
+	if (error)
+		mqueue_free(mq);
 	return (error);
 }
 
@@ -1399,14 +1415,12 @@ mqfs_mkdir(struct vop_mkdir_args *ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("%s: no name", __func__);
 #endif
-	pn = mqfs_create_dir(pd, cnp->cn_nameptr, cnp->cn_namelen);
-	pn->mn_mode = ap->a_vap->va_mode;
-	pn->mn_uid = cnp->cn_cred->cr_uid;
-	pn->mn_gid = cnp->cn_cred->cr_gid;
-	getnanotime(&pn->mn_birth);
-	pn->mn_ctime = pn->mn_atime = pn->mn_mtime = pn->mn_birth;
-	/* node attribute */
-	error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
+	pn = mqfs_create_dir(pd, cnp->cn_nameptr, cnp->cn_namelen,
+		ap->a_vap->cn_cred, ap->a_vap->va_mode);
+	if (pn == NULL)
+		error = ENOSPC;
+	else
+		error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
 	sx_xunlock(&mqfs->mi_lock);
 	return (error);
 }
@@ -1936,7 +1950,8 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 				error = ENFILE;
 			} else {
 				pn = mqfs_create_file(mqfs_data.mi_root,
-				         path + 1, len - 1);
+				         path + 1, len - 1, td->td_ucred,
+					 cmode);
 				if (pn == NULL) {
 					error = ENOSPC;
 					mqueue_free(mq);
@@ -1946,12 +1961,6 @@ mq_open(struct thread *td, struct mq_open_args *uap)
 
 		if (error == 0) {
 			pn->mn_data = mq;
-			getnanotime(&pn->mn_birth);
-			pn->mn_ctime = pn->mn_atime = pn->mn_mtime
-			  = pn->mn_birth;
-			pn->mn_uid = td->td_ucred->cr_uid;
-			pn->mn_gid = td->td_ucred->cr_gid;
-			pn->mn_mode = cmode;
 		}
 	} else {
 		if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) {
