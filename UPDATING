@@ -15,6 +15,15 @@ portupgrade.
 
 		pass ip6 from any to any
 
+20060210:
+	Now most modules get their build-time options from the kernel
+	configuration file.  A few modules still have fixed options
+	due to their non-conformant implementation, but they will be
+	corrected eventually.  You may need to review the options of
+	the modules in use, explicitly specify the non-default options
+	in the kernel configuration file, and rebuild the kernel and
+	modules afterwards.
+
 20060122:
 	/etc/rc.d/ppp-user has been renamed to /etc/rc.d/ppp.
 	Its /etc/rc.conf.d configuration file has been `ppp' from
