@@ -41,6 +41,7 @@ kttcp		An in-kernel version of the ttcp network performance tool
 mfc		Merge a directory from HEAD to a branch where it does not
 		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
+ncpus		Count the number of processors
 pciid		Generate src/share/misc/pci_vendors.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 portsinfo 	Generate list of new ports for last two weeks.
