@@ -99,6 +99,10 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid, struct proc **p)
 	if (pid != NO_PID) {
 		if ((proc = pfind(pid)) == NULL)
 			PFS_RETURN (0);
+		if (proc->p_flag & P_WEXIT) {
+			PROC_UNLOCK(proc);
+			PFS_RETURN (0);
+		}
 		if (p_cansee(td, proc) != 0 ||
 		    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn))) {
 			PROC_UNLOCK(proc);
@@ -706,6 +710,10 @@ pfs_readlink(struct vop_readlink_args *va)
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			PFS_RETURN (EIO);
+		if (proc->p_flag & P_WEXIT) {
+			PROC_UNLOCK(proc);
+			PFS_RETURN (EIO);
+		}
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
