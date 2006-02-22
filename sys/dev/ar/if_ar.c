@@ -258,7 +258,7 @@ ar_attach(device_t device)
 	
 	arc_init(hc);
 
-	if(BUS_SETUP_INTR(device_get_parent(device), device, hc->res_irq,
+	if(bus_setup_intr(device, hc->res_irq,
 	    INTR_TYPE_NET, arintr, hc, &hc->intr_cookie) != 0)
 		return (1);
 
@@ -285,7 +285,7 @@ ar_attach(device_t device)
 #ifndef	NETGRAPH
 		ifp = SC2IFP(sc) = if_alloc(IFT_PPP);
 		if (ifp == NULL) {
-			if (BUS_TEARDOWN_INTR(device_get_parent(device), device,
+			if (bus_teardown_intr(device,
 			    hc->res_irq, hc->intr_cookie) != 0) {
 				printf("intr teardown failed.. continuing\n");
 			}
@@ -351,11 +351,10 @@ ar_attach(device_t device)
 int
 ar_detach(device_t device)
 {
-	device_t parent = device_get_parent(device);
 	struct ar_hardc *hc = device_get_softc(device);
 
 	if (hc->intr_cookie != NULL) {
-		if (BUS_TEARDOWN_INTR(parent, device,
+		if (bus_teardown_intr(device,
 			hc->res_irq, hc->intr_cookie) != 0) {
 				printf("intr teardown failed.. continuing\n");
 		}
