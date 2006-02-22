@@ -567,7 +567,7 @@ null_lock(struct vop_lock_args *ap)
 				panic("Unsupported lock request %d\n",
 				    ap->a_flags);
 			}
-			VOP_LOCK(lvp, LK_RELEASE, td);
+			VOP_UNLOCK(lvp, 0, td);
 			error = vop_stdlock(ap);
 		}
 		vdrop(lvp);
@@ -652,23 +652,23 @@ null_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *lowervp = xp->null_lowervp;
 	struct lock *vnlock;
 
+	if (lowervp)
+		null_hashrem(xp);
 	/*
 	 * Use the interlock to protect the clearing of v_data to
 	 * prevent faults in null_lock().
 	 */
 	VI_LOCK(vp);
 	vp->v_data = NULL;
+	vp->v_object = NULL;
 	vnlock = vp->v_vnlock;
 	vp->v_vnlock = &vp->v_lock;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE|LK_INTERLOCK, VI_MTX(vp), curthread);
-	if (lowervp)
-		null_hashrem(xp);
-
-	vp->v_object = NULL;
 	if (lowervp) {
+		lockmgr(vp->v_vnlock,
+		    LK_EXCLUSIVE|LK_INTERLOCK, VI_MTX(vp), curthread);
 		vput(lowervp);
 	} else
-		lockmgr(vnlock, LK_RELEASE, NULL, curthread);
+		panic("null_reclaim: reclaiming an node with now lowervp");
 	FREE(xp, M_NULLFSNODE);
 
 	return (0);
@@ -678,6 +678,7 @@ static int
 null_print(struct vop_print_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+
 	printf("\tvp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
 	return (0);
 }
