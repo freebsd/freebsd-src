@@ -1969,7 +1969,6 @@ ppc_attach(device_t dev)
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
 	device_t ppbus;
-	device_t parent = device_get_parent(dev);
 
 	device_printf(dev, "%s chipset (%s) in %s mode%s\n",
 		      ppc_models[ppc->ppc_model], ppc_avms[ppc->ppc_avm],
