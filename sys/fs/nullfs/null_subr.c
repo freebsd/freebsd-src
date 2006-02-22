@@ -107,6 +107,9 @@ null_hashget(mp, lowervp)
 	struct null_node_hashhead *hd;
 	struct null_node *a;
 	struct vnode *vp;
+	int error;
+
+	ASSERT_VOP_LOCKED(lowervp, "null_hashget");
 
 	/*
 	 * Find hash base, and then search the (two-way) linked
@@ -115,31 +118,27 @@ null_hashget(mp, lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
-loop:
 	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
 			VI_LOCK(vp);
-			/*
-			 * If the nullfs node is being recycled we have
-			 * to wait until it finishes prior to scanning
-			 * again.
-			 */
 			mtx_unlock(&null_hashmtx);
-			if ((vp->v_iflag & VI_DOOMED) != 0) {
-				/* Wait for recycling to finish. */
-				VOP_LOCK(vp, LK_EXCLUSIVE|LK_INTERLOCK, td);
-				VOP_UNLOCK(vp, 0, td);
-				goto loop;
-			}
 			/*
 			 * We need to clear the OWEINACT flag here as this
 			 * may lead vget() to try to lock our vnode which
 			 * is already locked via lowervp.
 			 */
 			vp->v_iflag &= ~VI_OWEINACT;
-			vget(vp, LK_INTERLOCK, td);
+			error = vget(vp, LK_INTERLOCK, td);
+			/*
+			 * Since we have the lower node locked the nullfs
+			 * node can not be in the process of recycling.  If
+			 * it had been recycled before we grabed the lower
+			 * lock it would not have been found on the hash.
+			 */
+			if (error)
+				panic("null_hashget: vget error %d", error);
 			return (vp);
 		}
 	}
@@ -160,28 +159,24 @@ null_hashins(mp, xp)
 	struct null_node_hashhead *hd;
 	struct null_node *oxp;
 	struct vnode *ovp;
+	int error;
 
 	hd = NULL_NHASH(xp->null_lowervp);
-loop:
 	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(oxp, hd, null_hash) {
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
+			/*
+			 * See null_hashget for a description of this
+			 * operation.
+			 */
 			ovp = NULLTOV(oxp);
 			VI_LOCK(ovp);
-			/*
-			 * If the nullfs node is being recycled we have
-			 * to wait until it finishes prior to scanning
-			 * again.
-			 */
 			mtx_unlock(&null_hashmtx);
-			if ((ovp->v_iflag & VI_DOOMED) != 0) {
-				VOP_LOCK(ovp, LK_EXCLUSIVE|LK_INTERLOCK, td);
-				VOP_UNLOCK(ovp, 0, td);
-				goto loop;
-			}
-			ovp->v_iflag &= ~VI_OWEINACT; /* see hashget comment */
-			vget(ovp, LK_INTERLOCK, td);
+			ovp->v_iflag &= ~VI_OWEINACT;
+			error = vget(ovp, LK_INTERLOCK, td);
+			if (error)
+				panic("null_hashins: vget error %d", error);
 			return (ovp);
 		}
 	}
