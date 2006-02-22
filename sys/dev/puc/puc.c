@@ -198,15 +198,13 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	sc->irqres = res;
 	sc->irqrid = rid;
 #ifdef PUC_FASTINTR
-	irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
+	irq_setup = bus_setup_intr(dev, res,
 	    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->intr_cookie);
 	if (irq_setup == 0)
 		sc->fastintr = INTR_FAST;
 	else
-		irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
-		    INTR_TYPE_TTY, puc_intr, sc, &sc->intr_cookie);
 #else
-	irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
+	irq_setup = bus_setup_intr(dev, res,
 	    INTR_TYPE_TTY, puc_intr, sc, &sc->intr_cookie);
 #endif
 	if (irq_setup != 0)
