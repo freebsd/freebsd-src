@@ -1,0 +1,136 @@
+.\"-
+.\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_user.3#4 $
+.\"
+.Dd April 19, 2005
+.Dt AU_USER 3
+.Os
+.Sh NAME
+.Nm setauuser ,
+.Nm endauuser ,
+.Nm getauuserent ,
+.Nm getauuserent_r ,
+.Nm getauusernam ,
+.Nm getauusernam_r ,
+.Nm au_user_mask ,
+.Nm getfauditflags
+.Nd "Look up information from the audit_user database"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In libbsm.h
+.Ft void
+.Fn setauuser "void"
+.Ft void
+.Fn endauuser "void"
+.Ft struct au_user_ent *
+.Fn getauuserent "void"
+.Ft struct au_user_ent *
+.Fn getauuserent_r "struct au_user_ent *u" "void"
+.Ft struct au_user_ent *
+.Fn getauusernam "const char *name"
+.Ft struct au_user_ent *
+.Fn getauusernam_r "struct au_user_ent *u" "const char *name"
+.Ft int
+.Fn au_user_mask "char *username" "au_mask_t *mask_p"
+.Ft int
+.Fn getfauditflags "au_mask_t *usremask" "au_mask_t *usrdmask" "au_mask_t *lastmask"
+.Sh DESCRIPTION
+These interfaces may be used to look up information from the
+.Xr audit_user 5
+database, which describes per-user audit configuration.
+Audit user entries are described by a
+.Vt au_user_ent ,
+which stores the user's name in
+.Dv au_name ,
+events to always audit in
+.Dv au_always ,
+and events never to audit
+.Dv au_never .
+.Pp
+.Fn getauuserent
+returns the next user found in the
+.Xr audit_user 5
+database, or the first if the function has not yet been called.
+.Dv NULL
+will be returned if no further records are available.
+.Pp
+.Fn getauusernam
+looks up a user by name.
+.Dv NULL
+will be returned if no matching class can be found.
+.Pp
+.Fn setauuser
+resets the iterator through the
+.Xr audit_user 5
+database, causing the next call to
+.Fn getauuserent
+to start again from the beginning of the file.
+.Pp
+.Fn endauuser
+closes the
+.Xr audit_user 5
+database, if open.
+.Pp
+.Nm au_user_mask
+calculates a new session audit mask to be returned via
+.Dv mask_p
+for the user identified by
+.Dv username .
+If the user audit configuration is not found, the default system audit
+properties returned by
+.Xr getacflg 3 .
+The resulting mask may be set via a call to
+.Xr setaudit 3
+or related variants.
+.Pp
+.Nm getfauditflags
+XXXXXXXXXXXXXXXXX
+.Sh SEE ALSO
+.Xr libbsm 3 ,
+.Xr getacflg 3 ,
+.Xr setaudit 3 ,
+.Xr audit_user 5
+.Sh AUTHORS
+This software was created by Robert Watson, Wayne Salamon, and Suresh
+Krishnaswamy for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh BUGS
+These routines cannot currently distinguish between an entry not being found
+and an error accessing the database.
+The implementation should be changed to return an error via
+.Va errno
+when
+.Dv NULL
+is returned.
