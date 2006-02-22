@@ -193,7 +193,7 @@ pcf_ebus_attach(device_t dev)
 	pcf_rst_card(dev, IIC_FASTEST, own_addr, NULL);
 
 	if (sc->res_irq) {
-		rv = BUS_SETUP_INTR(device_get_parent(dev), dev, sc->res_irq,
+		rv = bus_setup_intr(dev, sc->res_irq,
 		    INTR_TYPE_NET /* | INTR_ENTROPY */, pcf_intr, sc,
 		    &sc->intr_cookie);
 		if (rv) {
@@ -241,7 +241,7 @@ pcf_ebus_detach(device_t dev)
 		return (rv);
 
 	if (sc->res_irq != 0) {
-		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, sc->res_irq,
+		bus_teardown_intr(dev, sc->res_irq,
 		    sc->intr_cookie);
 		bus_deactivate_resource(dev, SYS_RES_IRQ, sc->rid_irq,
 		    sc->res_irq);

@@ -342,7 +342,7 @@ lpt_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, LPT_NAME, 0);
+	dev = device_find_child(parent, LPT_NAME, -1);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, LPT_NAME, -1);
 }
@@ -744,7 +744,7 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	/* if interrupts are working, register the handler */
 	if (sc->sc_irq & LP_USE_IRQ) {
 		/* register our interrupt handler */
-		err = BUS_SETUP_INTR(ppbus, lptdev, sc->intr_resource,
+		err = bus_setup_intr(lptdev, sc->intr_resource,
 			       INTR_TYPE_TTY, lpt_intr, lptdev,
 			       &sc->intr_cookie);
 		if (err) {

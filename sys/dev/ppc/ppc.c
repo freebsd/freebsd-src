@@ -1997,8 +1997,8 @@ ppc_attach(device_t dev)
 	/* register the ppc interrupt handler as default */
 	if (ppc->res_irq) {
 		/* default to the tty mask for registration */	/* XXX */
-		if (BUS_SETUP_INTR(parent, dev, ppc->res_irq, INTR_TYPE_TTY,
-					    ppcintr, dev, &ppc->intr_cookie) == 0) {
+		if (bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
+		    ppcintr, dev, &ppc->intr_cookie) == 0) {
 
 			/* remember the ppcintr is registered */
 			ppc->ppc_registered = 1;

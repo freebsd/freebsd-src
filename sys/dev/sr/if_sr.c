@@ -389,7 +389,7 @@ sr_attach(device_t device)
 	src_init(hc);
 	sr_init_sca(hc);
 
-	if (BUS_SETUP_INTR(device_get_parent(device), device, hc->res_irq,
+	if (bus_setup_intr(device, hc->res_irq,
 	    INTR_TYPE_NET, srintr, hc, &hc->intr_cookie) != 0)
 		goto errexit;
 
@@ -462,11 +462,10 @@ errexit:
 int
 sr_detach(device_t device)
 {
-	device_t parent = device_get_parent(device);
 	struct sr_hardc *hc = device_get_softc(device);
 
 	if (hc->intr_cookie != NULL) {
-		if (BUS_TEARDOWN_INTR(parent, device,
+		if (bus_teardown_intr(device,
 			hc->res_irq, hc->intr_cookie) != 0) {
 				printf("intr teardown failed.. continuing\n");
 		}

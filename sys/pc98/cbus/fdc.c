@@ -654,8 +654,7 @@ fdc_release_resources(struct fdc_data *fdc)
 
 	dev = fdc->fdc_dev;
 	if (fdc->fdc_intr) {
-		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
-		    fdc->fdc_intr);
+		bus_teardown_intr(dev, fdc->res_irq, fdc->fdc_intr);
 		fdc->fdc_intr = NULL;
 	}
 	if (fdc->res_irq != 0) {
@@ -823,7 +822,7 @@ fdc_attach(device_t dev)
 
 	fdc = device_get_softc(dev);
 	fdc->fdc_dev = dev;
-	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
+	error = bus_setup_intr(dev, fdc->res_irq,
 			       INTR_TYPE_BIO | INTR_ENTROPY, fdc_intr, fdc,
 			       &fdc->fdc_intr);
 	if (error) {
