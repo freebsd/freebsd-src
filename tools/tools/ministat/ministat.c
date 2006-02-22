@@ -17,7 +17,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <sys/queue.h>
+#include <sys/ttycom.h>
 
 #define NSTUDENT 100
 #define NCONF 6
@@ -503,7 +505,7 @@ usage(char const *whine)
 
 	fprintf(stderr, "%s\n", whine);
 	fprintf(stderr,
-	    "Usage: ministat [ -c confidence ] [-ns] [file [file ...]]\n");
+	    "Usage: ministat [ -c confidence ] [-ns] [-w width] [file [file ...]]\n");
 	fprintf(stderr, "\tconfidence = {");
 	for (i = 0; i < NCONF; i++) {
 		fprintf(stderr, "%s%g%%",
@@ -513,6 +515,7 @@ usage(char const *whine)
 	fprintf(stderr, "}\n");
 	fprintf(stderr, "\t-n : print summary statistics only, no graph/test\n");
 	fprintf(stderr, "\t-s : print avg/median/stddev bars on separate lines\n");
+	fprintf(stderr, "\t-w : width of graph/test output (default 74 or terminal width)\n");
 	exit (2);
 }
 
@@ -526,9 +529,20 @@ main(int argc, char **argv)
 	int c, i, ci;
 	int flag_s = 0;
 	int flag_n = 0;
+	int termwidth = 74;
+
+	if (isatty(STDOUT_FILENO)) {
+		struct winsize wsz;
+
+		if ((p = getenv("COLUMNS")) != NULL && *p != '\0')
+			termwidth = atoi(p);
+		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &wsz) != -1 &&
+			 wsz.ws_col > 0)
+			termwidth = wsz.ws_col - 2;
+	}
 
 	ci = -1;
-	while ((c = getopt(argc, argv, "c:sn")) != -1)
+	while ((c = getopt(argc, argv, "c:snw:")) != -1)
 		switch (c) {
 		case 'c':
 			a = strtod(optarg, &p);
@@ -545,6 +559,13 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			flag_s = 1;
+			break;
+		case 'w':
+			termwidth = strtol(optarg, &p, 10);
+			if (p != NULL && *p != '\0')
+				usage("Invalid width, not a number.");
+			if (termwidth < 0)
+				usage("Unable to move beyond left margin.");
 			break;
 		default:
 			usage("Unknown option");
@@ -570,7 +591,7 @@ main(int argc, char **argv)
 	}
 
 	if (!flag_n) {
-		SetupPlot(74, flag_s, nds);
+		SetupPlot(termwidth, flag_s, nds);
 		for (i = 0; i < nds; i++)
 			DimPlot(ds[i]);
 		for (i = 0; i < nds; i++)
