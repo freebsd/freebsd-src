@@ -332,11 +332,11 @@ uart_bus_attach(device_t dev)
 	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_ires != NULL) {
-		error = BUS_SETUP_INTR(device_get_parent(dev), dev,
+		error = bus_setup_intr(dev,
 		    sc->sc_ires, INTR_TYPE_TTY | INTR_FAST, uart_intr,
 		    sc, &sc->sc_icookie);
 		if (error)
-			error = BUS_SETUP_INTR(device_get_parent(dev), dev,
+			error = bus_setup_intr(dev,
 			    sc->sc_ires, INTR_TYPE_TTY | INTR_MPSAFE,
 			    uart_intr, sc, &sc->sc_icookie);
 		else

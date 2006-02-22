@@ -135,7 +135,7 @@ ppi_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, "ppi", 0);
+	dev = device_find_child(parent, "ppi", -1);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, "ppi", -1);
 }
@@ -276,7 +276,7 @@ ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #ifdef PERIPH_1284
 		if (ppi->intr_resource) {
 			/* register our interrupt handler */
-			BUS_SETUP_INTR(device_get_parent(ppidev), ppidev, ppi->intr_resource,
+			bus_setup_intr(ppidev, ppi->intr_resource,
 				       INTR_TYPE_TTY, ppiintr, dev, &ppi->intr_cookie);
 		}
 #endif /* PERIPH_1284 */

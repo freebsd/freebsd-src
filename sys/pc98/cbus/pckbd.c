@@ -136,8 +136,7 @@ pckbdattach(device_t dev)
 	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (res == NULL)
 		return ENXIO;
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
-		       pckbd_isa_intr, kbd, &ih);
+	bus_setup_intr(dev, res, INTR_TYPE_TTY, pckbd_isa_intr, kbd, &ih);
 
 	return 0;
 }

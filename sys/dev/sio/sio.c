@@ -1074,11 +1074,11 @@ determined_type: ;
 	rid = 0;
 	com->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (com->irqres) {
-		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
+		ret = bus_setup_intr(dev, com->irqres,
 				     INTR_TYPE_TTY | INTR_FAST,
 				     siointr, com, &com->cookie);
 		if (ret) {
-			ret = BUS_SETUP_INTR(device_get_parent(dev), dev,
+			ret = bus_setup_intr(dev,
 					     com->irqres, INTR_TYPE_TTY,
 					     siointr, com, &com->cookie);
 			if (ret == 0)
