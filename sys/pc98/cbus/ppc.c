@@ -2024,7 +2024,6 @@ ppc_attach(device_t dev)
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
 	device_t ppbus;
-	device_t parent = device_get_parent(dev);
 
 	device_printf(dev, "%s chipset (%s) in %s mode%s\n",
 		      ppc_models[ppc->ppc_model], ppc_avms[ppc->ppc_avm],
@@ -2052,7 +2051,7 @@ ppc_attach(device_t dev)
 	/* register the ppc interrupt handler as default */
 	if (ppc->res_irq) {
 		/* default to the tty mask for registration */	/* XXX */
-		if (BUS_SETUP_INTR(parent, dev, ppc->res_irq, INTR_TYPE_TTY,
+		if (bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
 					    ppcintr, dev, &ppc->intr_cookie) == 0) {
 
 			/* remember the ppcintr is registered */

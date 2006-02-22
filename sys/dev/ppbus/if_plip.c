@@ -357,7 +357,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	    }
 
 	    /* attach our interrupt handler, later detached when the bus is released */
-	    if ((error = BUS_SETUP_INTR(ppbus, dev, sc->res_irq,
+	    if ((error = bus_setup_intr(dev, sc->res_irq,
 					INTR_TYPE_NET, lp_intr, dev, &ih))) {
 		ppb_release_bus(ppbus, dev);
 		return (error);
