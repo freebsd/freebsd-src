@@ -98,7 +98,6 @@ kthread_create(void (*func)(void *), void *arg,
 	mtx_lock(&p2->p_sigacts->ps_mtx);
 	p2->p_sigacts->ps_flag |= PS_NOCLDWAIT;
 	mtx_unlock(&p2->p_sigacts->ps_mtx);
-	_PHOLD(p2);
 	PROC_UNLOCK(p2);
 
 	/* set up arg0 for 'ps', et al */
