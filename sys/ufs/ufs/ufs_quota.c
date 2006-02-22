@@ -750,7 +750,7 @@ again:
 			MNT_ILOCK(mp);
 			continue;
 		}
-		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
+		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
 		if (error) {
 			MNT_ILOCK(mp);
 			if (error == ENOENT) {
