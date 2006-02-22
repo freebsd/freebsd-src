@@ -695,8 +695,8 @@ getrlimit(td, uap)
 }
 
 /*
- * Transform the running time and tick information for childern of proc p
- * into user, system, and interrupt time usage.
+ * Transform the running time and tick information for children of proc p
+ * into user and system time usage.
  */
 void
 calccru(p, up, sp)
@@ -710,15 +710,15 @@ calccru(p, up, sp)
 }
 
 /*
- * Transform the running time and tick information in proc p into user,
- * system, and interrupt time usage.  If appropriate, include the current
- * time slice on this CPU.
+ * Transform the running time and tick information in proc p into user
+ * and system time usage.  If appropriate, include the current time slice
+ * on this CPU.
  */
 void
 calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
-	struct thread *td;
 	struct rusage_ext rux;
+	struct thread *td;
 	uint64_t u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -811,8 +811,7 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 		KASSERT(iu >= ruxp->rux_iu,
 		    ("calcru: monotonisation botch 2"));
 	}
-	KASSERT(uu + su + iu <= tu,
-	    ("calcru: monotisation botch 3"));
+	KASSERT(uu + su + iu <= tu, ("calcru: monotisation botch 3"));
 #endif
 	ruxp->rux_uu = uu;
 	ruxp->rux_su = su;
