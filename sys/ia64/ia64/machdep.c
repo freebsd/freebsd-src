@@ -1097,6 +1097,7 @@ ia64_flush_dirty(struct thread *td, struct _special *r)
 		r->rnat = (bspst > kstk && (bspst & 0x1ffL) < (kstk & 0x1ffL))
 		    ? *(uint64_t*)(kstk | 0x1f8L) : rnat;
 	} else {
+		PHOLD(td->td_proc);
 		iov.iov_base = (void*)(uintptr_t)kstk;
 		iov.iov_len = r->ndirty;
 		uio.uio_iov = &iov;
@@ -1114,6 +1115,7 @@ ia64_flush_dirty(struct thread *td, struct _special *r)
 		 */
 		if (uio.uio_resid != 0 && error == 0)
 			error = ENOSPC;
+		PRELE(td->td_proc);
 	}
 
 	r->bspstore += r->ndirty;

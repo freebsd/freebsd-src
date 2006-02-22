@@ -403,8 +403,12 @@ trap(a0, a1, a2, entry, framep)
 		case ALPHA_IF_CODE_BUGCHK:
 			if (td->td_md.md_flags & (MDTD_STEP1|MDTD_STEP2)) {
 				mtx_lock(&Giant);
+				PROC_LOCK(p);
+				_PHOLD(p);
 				ptrace_clear_single_step(td);
 				td->td_frame->tf_regs[FRAME_PC] -= 4;
+				_PRELE(p);
+				PROC_UNLOCK(p);
 				mtx_unlock(&Giant);
 			}
 			ucode = a0;		/* trap type */
