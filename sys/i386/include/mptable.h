@@ -139,7 +139,8 @@ typedef struct BASETABLE_ENTRY {
 	char    name[16];
 }       basetable_entry;
 
+#ifdef _KERNEL
 int	mptable_pci_probe_table(int bus);
 int	mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin);
-
+#endif
 #endif /* !__MACHINE_MPTABLE_H__ */
