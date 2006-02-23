@@ -1190,6 +1190,7 @@ device		nmdm		#back-to-back tty devices
 device		md		#Memory/malloc disk
 device		snp		#Snoop device - to look at pty/vty/etc..
 device		ccd		#Concatenated disk driver
+device		firmware	#firmware(9) support
 
 # Kernel side iconv library
 options 	LIBICONV
