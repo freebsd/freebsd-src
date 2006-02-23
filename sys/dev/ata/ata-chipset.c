@@ -4075,7 +4075,6 @@ ata_cmd_allocate(device_t dev)
     /* setup the usual register normal pci style */
     if (ata_pci_allocate(dev))
 	return ENXIO;
-    ata_pci_allocate(dev);
 
     if (ctlr->chip->cfg2 & SIIINTR)
 	ch->hw.status = ata_cmd_status;
