@@ -338,6 +338,7 @@ struct ata_composite {
 /* structure used to queue an ATA/ATAPI request */
 struct ata_request {
     device_t                    dev;            /* device handle */
+    device_t                    parent;         /* channel handle */
     union {
 	struct {
 	    u_int8_t            command;        /* command reg */
