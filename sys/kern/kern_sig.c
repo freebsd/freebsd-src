@@ -2670,13 +2670,12 @@ issignal(td)
 void
 thread_stopped(struct proc *p)
 {
-	struct proc *p1 = curthread->td_proc;
 	int n;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	n = p->p_suspcount;
-	if (p == p1)
+	if (p == curproc)
 		n++;
 	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
 		mtx_unlock_spin(&sched_lock);
