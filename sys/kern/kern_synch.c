@@ -164,22 +164,11 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (TD_ON_SLEEPQ(td))
 		sleepq_remove(td, td->td_wchan);
 
+	flags = SLEEPQ_MSLEEP;
+	if (catch)
+		flags |= SLEEPQ_INTERRUPTIBLE;
+
 	sleepq_lock(ident);
-	if (catch) {
-		/*
-		 * Don't bother sleeping if we are exiting and not the exiting
-		 * thread or if our thread is marked as interrupted.
-		 */
-		mtx_lock_spin(&sched_lock);
-		rval = thread_sleep_check(td);
-		mtx_unlock_spin(&sched_lock);
-		if (rval != 0) {
-			sleepq_release(ident);
-			if (mtx != NULL && priority & PDROP)
-				mtx_unlock(mtx);
-			return (rval);
-		}
-	}
 	CTR5(KTR_PROC, "msleep: thread %p (pid %ld, %s) on %s (%p)",
 	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
 
@@ -199,9 +188,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	flags = SLEEPQ_MSLEEP;
-	if (catch)
-		flags |= SLEEPQ_INTERRUPTIBLE;
 	sleepq_add(ident, mtx, wmesg, flags);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
