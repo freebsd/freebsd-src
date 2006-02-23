@@ -790,8 +790,6 @@ vdestroy(struct vnode *vp)
 		mtx_destroy(&vp->v_pollinfo->vpi_lock);
 		uma_zfree(vnodepoll_zone, vp->v_pollinfo);
 	}
-	if (vp->v_mount)
-		vfs_rel(vp->v_mount);
 #ifdef INVARIANTS
 	/* XXX Elsewhere we can detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
@@ -949,11 +947,12 @@ delmntque(struct vnode *vp)
 	if (mp == NULL)
 		return;
 	MNT_ILOCK(mp);
+	vp->v_mount = NULL;
 	VNASSERT(mp->mnt_nvnodelistsize > 0, vp,
 		("bad mount point vnode list size"));
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	mp->mnt_nvnodelistsize--;
-	/* mnt ref is released in vdestroy. */
+	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 }
 
