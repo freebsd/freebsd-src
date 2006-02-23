@@ -90,6 +90,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "ifconfig.h"
 
@@ -1315,25 +1316,38 @@ printcipher(int s, struct ieee80211req *ireq, int keylenop)
 #endif
 
 #define	MAXCOL	78
-int	col;
-char	spacer;
+static	int col;
+static	char spacer;
 
-#define	LINE_BREAK() do {			\
-	if (spacer != '\t') {			\
-		printf("\n");			\
-		spacer = '\t';			\
-	}					\
-	col = 8;	/* 8-col tab */		\
-} while (0)
-#define	LINE_CHECK(fmt, ...) do {		\
-	col += sizeof(fmt)-2;			\
-	if (col > MAXCOL) {			\
-		LINE_BREAK();			\
-		col += sizeof(fmt)-2;		\
-	}					\
-	printf(fmt, __VA_ARGS__);		\
-	spacer = ' ';				\
-} while (0)
+static void
+LINE_BREAK(void)
+{
+	if (spacer != '\t') {
+		printf("\n");
+		spacer = '\t';
+	}
+	col = 8;	/* 8-col tab */
+}
+
+static void
+LINE_CHECK(const char *fmt, ...)
+{
+	char buf[80];
+	va_list ap;
+	int n;
+
+	va_start(ap, fmt);
+	n = vsnprintf(buf+1, sizeof(buf)-1, fmt, ap);
+	va_end(ap);
+	col += 1+n;
+	if (col > MAXCOL) {
+		LINE_BREAK();
+		col += n;
+	}
+	buf[0] = spacer;
+	printf("%s", buf);
+	spacer = ' ';
+}
 
 static void
 printkey(const struct ieee80211req_key *ik)
@@ -1349,34 +1363,29 @@ printkey(const struct ieee80211req_key *ik)
 	switch (ik->ik_type) {
 	case IEEE80211_CIPHER_WEP:
 		/* compatibility */
-		LINE_CHECK("%cwepkey %u:%s", spacer, ik->ik_keyix+1,
+		LINE_CHECK("wepkey %u:%s", ik->ik_keyix+1,
 		    keylen <= 5 ? "40-bit" :
 		    keylen <= 13 ? "104-bit" : "128-bit");
 		break;
 	case IEEE80211_CIPHER_TKIP:
 		if (keylen > 128/8)
 			keylen -= 128/8;	/* ignore MIC for now */
-		LINE_CHECK("%cTKIP %u:%u-bit",
-			spacer, ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("TKIP %u:%u-bit", ik->ik_keyix+1, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_OCB:
-		LINE_CHECK("%cAES-OCB %u:%u-bit",
-			spacer, ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("AES-OCB %u:%u-bit", ik->ik_keyix+1, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_CCM:
-		LINE_CHECK("%cAES-CCM %u:%u-bit",
-			spacer, ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("AES-CCM %u:%u-bit", ik->ik_keyix+1, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_CKIP:
-		LINE_CHECK("%cCKIP %u:%u-bit",
-			spacer, ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("CKIP %u:%u-bit", ik->ik_keyix+1, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_NONE:
-		LINE_CHECK("%cNULL %u:%u-bit",
-			spacer, ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("NULL %u:%u-bit", ik->ik_keyix+1, 8*keylen);
 		break;
 	default:
-		LINE_CHECK("%cUNKNOWN (0x%x) %u:%u-bit", spacer,
+		LINE_CHECK("UNKNOWN (0x%x) %u:%u-bit",
 			ik->ik_type, ik->ik_keyix+1, 8*keylen);
 		break;
 	}
@@ -1475,16 +1484,16 @@ ieee80211_status(int s)
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		switch (ireq.i_val) {
 			case IEEE80211_AUTH_NONE:
-				LINE_CHECK("%cauthmode NONE", spacer);
+				LINE_CHECK("authmode NONE");
 				break;
 			case IEEE80211_AUTH_OPEN:
-				LINE_CHECK("%cauthmode OPEN", spacer);
+				LINE_CHECK("authmode OPEN");
 				break;
 			case IEEE80211_AUTH_SHARED:
-				LINE_CHECK("%cauthmode SHARED", spacer);
+				LINE_CHECK("authmode SHARED");
 				break;
 			case IEEE80211_AUTH_8021X:
-				LINE_CHECK("%cauthmode 802.1x", spacer);
+				LINE_CHECK("authmode 802.1x");
 				break;
 			case IEEE80211_AUTH_WPA:
 				ireq.i_type = IEEE80211_IOC_WPA;
@@ -1494,24 +1503,22 @@ ieee80211_status(int s)
 					wpa = 1;	/* default to WPA1 */
 				switch (wpa) {
 				case 2:
-					LINE_CHECK("%cauthmode WPA2/802.11i",
-						spacer);
+					LINE_CHECK("authmode WPA2/802.11i");
 					break;
 				case 3:
-					LINE_CHECK("%cauthmode WPA1+WPA2/802.11i",
-						spacer);
+					LINE_CHECK("authmode WPA1+WPA2/802.11i");
 					break;
 				default:
-					LINE_CHECK("%cauthmode WPA", spacer);
+					LINE_CHECK("authmode WPA");
 					break;
 				}
 				break;
 			case IEEE80211_AUTH_AUTO:
-				LINE_CHECK("%cauthmode AUTO", spacer);
+				LINE_CHECK("authmode AUTO");
 				break;
 			default:
-				LINE_CHECK("%cauthmode UNKNOWN (0x%x)",
-					spacer, ireq.i_val);
+				LINE_CHECK("authmode UNKNOWN (0x%x)",
+					ireq.i_val);
 				break;
 		}
 	}
@@ -1524,17 +1531,16 @@ ieee80211_status(int s)
 		wepmode = ireq.i_val;
 		switch (wepmode) {
 			case IEEE80211_WEP_OFF:
-				LINE_CHECK("%cprivacy OFF", spacer);
+				LINE_CHECK("privacy OFF");
 				break;
 			case IEEE80211_WEP_ON:
-				LINE_CHECK("%cprivacy ON", spacer);
+				LINE_CHECK("privacy ON");
 				break;
 			case IEEE80211_WEP_MIXED:
-				LINE_CHECK("%cprivacy MIXED", spacer);
+				LINE_CHECK("privacy MIXED");
 				break;
 			default:
-				LINE_CHECK("%cprivacy UNKNOWN (0x%x)",
-					spacer, wepmode);
+				LINE_CHECK("privacy UNKNOWN (0x%x)", wepmode);
 				break;
 		}
 
@@ -1549,9 +1555,9 @@ ieee80211_status(int s)
 			goto end;
 		}
 		if (ireq.i_val != -1)
-			LINE_CHECK("%cdeftxkey %d", spacer, ireq.i_val+1);
+			LINE_CHECK("deftxkey %d", ireq.i_val+1);
 		else if (wepmode != IEEE80211_WEP_OFF || verbose)
-			LINE_CHECK("%cdeftxkey UNDEF", spacer);
+			LINE_CHECK("deftxkey UNDEF");
 
 		ireq.i_type = IEEE80211_IOC_NUMWEPKEYS;
 		if (ioctl(s, SIOCG80211, &ireq) < 0) {
@@ -1588,85 +1594,79 @@ ieee80211_status(int s)
 		if (ireq.i_val != IEEE80211_POWERSAVE_OFF || verbose) {
 			switch (ireq.i_val) {
 				case IEEE80211_POWERSAVE_OFF:
-					LINE_CHECK("%cpowersavemode OFF",
-						spacer);
+					LINE_CHECK("powersavemode OFF");
 					break;
 				case IEEE80211_POWERSAVE_CAM:
-					LINE_CHECK("%cpowersavemode CAM",
-						spacer);
+					LINE_CHECK("powersavemode CAM");
 					break;
 				case IEEE80211_POWERSAVE_PSP:
-					LINE_CHECK("%cpowersavemode PSP",
-						spacer);
+					LINE_CHECK("powersavemode PSP");
 					break;
 				case IEEE80211_POWERSAVE_PSP_CAM:
-					LINE_CHECK("%cpowersavemode PSP-CAM",
-						spacer);
+					LINE_CHECK("powersavemode PSP-CAM");
 					break;
 			}
 			ireq.i_type = IEEE80211_IOC_POWERSAVESLEEP;
 			if (ioctl(s, SIOCG80211, &ireq) != -1)
-				LINE_CHECK("%cpowersavesleep %d",
-					spacer, ireq.i_val);
+				LINE_CHECK("powersavesleep %d", ireq.i_val);
 		}
 	}
 
 	ireq.i_type = IEEE80211_IOC_TXPOWMAX;
 	if (ioctl(s, SIOCG80211, &ireq) != -1)
-		LINE_CHECK("%ctxpowmax %d", spacer, ireq.i_val);
+		LINE_CHECK("txpowmax %d", ireq.i_val);
 
 	if (verbose) {
 		ireq.i_type = IEEE80211_IOC_TXPOWER;
 		if (ioctl(s, SIOCG80211, &ireq) != -1)
-			LINE_CHECK("%ctxpower %d", spacer, ireq.i_val);
+			LINE_CHECK("txpower %d", ireq.i_val);
 	}
 
 	ireq.i_type = IEEE80211_IOC_RTSTHRESHOLD;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val != IEEE80211_RTS_MAX || verbose)
-			LINE_CHECK("%crtsthreshold %d", spacer, ireq.i_val);
+			LINE_CHECK("rtsthreshold %d", ireq.i_val);
 	}
 
 	ireq.i_type = IEEE80211_IOC_MCAST_RATE;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val != 2*1 || verbose) {
 			if (ireq.i_val == 11)
-				LINE_CHECK("%cmcastrate 5.5", spacer);
+				LINE_CHECK("mcastrate 5.5");
 			else
-				LINE_CHECK("%cmcastrate %d", spacer,
-					ireq.i_val/2);
+				LINE_CHECK("mcastrate %d", ireq.i_val/2);
 		}
 	}
 
 	ireq.i_type = IEEE80211_IOC_FRAGTHRESHOLD;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val != IEEE80211_FRAG_MAX || verbose)
-			LINE_CHECK("%cfragthreshold %d", spacer, ireq.i_val);
+			LINE_CHECK("fragthreshold %d", ireq.i_val);
 	}
 
 	if (IEEE80211_IS_CHAN_G(c) || IEEE80211_IS_CHAN_PUREG(c) || verbose) {
 		ireq.i_type = IEEE80211_IOC_PUREG;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (ireq.i_val)
-				LINE_CHECK("%cpureg", spacer);
+				LINE_CHECK("pureg");
 			else if (verbose)
-				LINE_CHECK("%c-pureg", spacer);
+				LINE_CHECK("-pureg");
 		}
 		ireq.i_type = IEEE80211_IOC_PROTMODE;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			switch (ireq.i_val) {
 				case IEEE80211_PROTMODE_OFF:
-					LINE_CHECK("%cprotmode OFF", spacer);
+					LINE_CHECK("protmode OFF");
 					break;
 				case IEEE80211_PROTMODE_CTS:
-					LINE_CHECK("%cprotmode CTS", spacer);
+					LINE_CHECK("protmode CTS");
 					break;
 				case IEEE80211_PROTMODE_RTSCTS:
-					LINE_CHECK("%cprotmode RTSCTS", spacer);
+					LINE_CHECK("protmode RTSCTS");
 					break;
 				default:
-					LINE_CHECK("%cprotmode UNKNOWN (0x%x)",
-						spacer, ireq.i_val);
+					LINE_CHECK("protmode UNKNOWN (0x%x)",
+						ireq.i_val);
 					break;
 			}
 		}
@@ -1676,57 +1676,57 @@ ieee80211_status(int s)
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		wme = ireq.i_val;
 		if (wme)
-			LINE_CHECK("%cwme", spacer);
+			LINE_CHECK("wme");
 		else if (verbose)
-			LINE_CHECK("%c-wme", spacer);
+			LINE_CHECK("-wme");
 	} else
 		wme = 0;
 
 	ireq.i_type = IEEE80211_IOC_BURST;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val)
-			LINE_CHECK("%cburst", spacer);
+			LINE_CHECK("burst");
 		else if (verbose)
-			LINE_CHECK("%c-burst", spacer);
+			LINE_CHECK("-burst");
 	}
 
 	if (opmode == IEEE80211_M_HOSTAP) {
 		ireq.i_type = IEEE80211_IOC_HIDESSID;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (ireq.i_val)
-				LINE_CHECK("%cssid HIDE", spacer);
+				LINE_CHECK("ssid HIDE");
 			else if (verbose)
-				LINE_CHECK("%cssid SHOW", spacer);
+				LINE_CHECK("ssid SHOW");
 		}
 
 		ireq.i_type = IEEE80211_IOC_APBRIDGE;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (!ireq.i_val)
-				LINE_CHECK("%c-apbridge", spacer);
+				LINE_CHECK("-apbridge");
 			else if (verbose)
-				LINE_CHECK("%capbridge", spacer);
+				LINE_CHECK("apbridge");
 		}
 
 		ireq.i_type = IEEE80211_IOC_DTIM_PERIOD;
 		if (ioctl(s, SIOCG80211, &ireq) != -1)
-			LINE_CHECK("%cdtimperiod %u", spacer, ireq.i_val);
+			LINE_CHECK("dtimperiod %u", ireq.i_val);
 	} else {
 		ireq.i_type = IEEE80211_IOC_ROAMING;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (ireq.i_val != IEEE80211_ROAMING_AUTO || verbose) {
 				switch (ireq.i_val) {
 				case IEEE80211_ROAMING_DEVICE:
-					LINE_CHECK("%croaming DEVICE", spacer);
+					LINE_CHECK("roaming DEVICE");
 					break;
 				case IEEE80211_ROAMING_AUTO:
-					LINE_CHECK("%croaming AUTO", spacer);
+					LINE_CHECK("roaming AUTO");
 					break;
 				case IEEE80211_ROAMING_MANUAL:
-					LINE_CHECK("%croaming MANUAL", spacer);
+					LINE_CHECK("roaming MANUAL");
 					break;
 				default:
-					LINE_CHECK("%croaming UNKNOWN (0x%x)",
-						spacer, ireq.i_val);
+					LINE_CHECK("roaming UNKNOWN (0x%x)",
+						ireq.i_val);
 					break;
 				}
 			}
@@ -1735,9 +1735,9 @@ ieee80211_status(int s)
 	ireq.i_type = IEEE80211_IOC_BEACON_INTERVAL;
 	if (ioctl(s, SIOCG80211, &ireq) != -1) {
 		if (ireq.i_val)
-			LINE_CHECK("%cbintval %u", spacer, ireq.i_val);
+			LINE_CHECK("bintval %u", ireq.i_val);
 		else if (verbose)
-			LINE_CHECK("%cbintval %u", spacer, ireq.i_val);
+			LINE_CHECK("bintval %u", ireq.i_val);
 	}
 
 	if (wme && verbose) {
@@ -1749,9 +1749,9 @@ ieee80211_status(int s)
 		ireq.i_type = IEEE80211_IOC_COUNTERMEASURES;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (ireq.i_val)
-				LINE_CHECK("%ccountermeasures", spacer);
+				LINE_CHECK("countermeasures");
 			else if (verbose)
-				LINE_CHECK("%c-countermeasures", spacer);
+				LINE_CHECK("-countermeasures");
 		}
 #if 0
 		/* XXX not interesting with WPA done in user space */
@@ -1761,21 +1761,21 @@ ieee80211_status(int s)
 
 		ireq.i_type = IEEE80211_IOC_MCASTCIPHER;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
-			printf("%cmcastcipher ", spacer);
+			LINE_CHECK("mcastcipher ");
 			printcipher(s, &ireq, IEEE80211_IOC_MCASTKEYLEN);
 			spacer = ' ';
 		}
 
 		ireq.i_type = IEEE80211_IOC_UCASTCIPHER;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
-			printf("%cucastcipher ", spacer);
+			LINE_CHECK("ucastcipher ");
 			printcipher(s, &ireq, IEEE80211_IOC_UCASTKEYLEN);
 		}
 
 		if (wpa & 2) {
 			ireq.i_type = IEEE80211_IOC_RSNCAPS;
 			if (ioctl(s, SIOCG80211, &ireq) != -1) {
-				printf("%cRSN caps 0x%x", spacer, ireq.i_val);
+				LINE_CHECK("RSN caps 0x%x", ireq.i_val);
 				spacer = ' ';
 			}
 		}
