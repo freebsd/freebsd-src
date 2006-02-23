@@ -1421,7 +1421,7 @@ after_listen:
 			 *        SYN-SENT* -> SYN-RECEIVED*
 			 * If there was no CC option, clear cached CC value.
 			 */
-			tp->t_flags |= TF_ACKNOW;
+			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 			callout_stop(tp->tt_rexmt);
 			tp->t_state = TCPS_SYN_RECEIVED;
 		}
