@@ -403,12 +403,12 @@ sleepq_catch_signals(void *wchan)
 		MPASS(ret == EINTR || ret == ERESTART);
 	} else {
 		PROC_UNLOCK(p);
-		/*
-		 * If there were pending signals and this thread is still
-		 * on the sleep queue, remove it from the sleep queue.
-		 */
 		mtx_lock_spin(&sc->sc_lock);
 	}
+	/*
+	 * There were pending signals and this thread is still
+	 * on the sleep queue, remove it from the sleep queue.
+	 */
 	sq = sleepq_lookup(wchan);
 	mtx_lock_spin(&sched_lock);
 	if (TD_ON_SLEEPQ(td))
