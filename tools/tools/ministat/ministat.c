@@ -202,15 +202,26 @@ Avg(struct dataset *ds)
 static double
 Median(struct dataset *ds)
 {
-	int i;
-	struct point *pp;
+	int even, i;
+	struct point *p1, *p2;
 
-	i = ds->n / 2;
-	TAILQ_FOREACH(pp, &ds->list, list) {
-		if (i--)
-			continue;
-		return (pp->val);
+	if ((ds->n % 2) == 1) {
+		i = (ds->n / 2) + 1;
+		even = 0;
+	} else {
+		i = ds->n / 2;
+		even = 1;
 	}
+	TAILQ_FOREACH(p1, &ds->list, list) {
+		--i;
+		if (i == 0)
+			break;
+	}
+	if (even) {
+		p2 = TAILQ_NEXT(p1, list);
+		return ((p2->val + p1->val) / 2);
+	}
+	return (p1->val);
 }
 
 static double
