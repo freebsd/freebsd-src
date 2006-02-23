@@ -2437,7 +2437,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 		assoc.auth = ic->ic_crypto.cs_def_txkey << 4 | IWI_AUTH_SHARED;
 	if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL)
 		assoc.policy |= htole16(IWI_POLICY_WME);
-	if (ic->ic_opt_ie != NULL)
+	if (ic->ic_flags & IEEE80211_F_WPA)
 		assoc.policy |= htole16(IWI_POLICY_WPA);
 	memcpy(assoc.tstamp, ni->ni_tstamp.data, 8);
 
