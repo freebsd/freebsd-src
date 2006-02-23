@@ -192,18 +192,6 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	sleepq_lock(cvp);
 
-	/*
-	 * Don't bother sleeping if we are exiting and not the exiting
-	 * thread or if our thread is marked as interrupted.
-	 */
-	mtx_lock_spin(&sched_lock);
-	rval = thread_sleep_check(td);
-	mtx_unlock_spin(&sched_lock);
-	if (rval != 0) {
-		sleepq_release(cvp);
-		return (rval);
-	}
-
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
@@ -314,18 +302,6 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	}
 
 	sleepq_lock(cvp);
-
-	/*
-	 * Don't bother sleeping if we are exiting and not the exiting
-	 * thread or if our thread is marked as interrupted.
-	 */
-	mtx_lock_spin(&sched_lock);
-	rval = thread_sleep_check(td);
-	mtx_unlock_spin(&sched_lock);
-	if (rval != 0) {
-		sleepq_release(cvp);
-		return (rval);
-	}
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
