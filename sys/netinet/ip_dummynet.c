@@ -29,9 +29,7 @@
 
 #define	DUMMYNET_DEBUG
 
-#if !defined(KLD_MODULE)
 #include "opt_inet6.h"
-#endif
 
 /*
  * This module implements IP dummynet, a bandwidth limiter/delay emulator
