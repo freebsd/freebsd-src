@@ -249,19 +249,20 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 
 	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, pathseg, path, td);
 	error = namei(&nd);
 	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
 	}
 	mp = nd.ni_vp->v_mount;
-	sp = &mp->mnt_stat;
+	vfs_ref(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(nd.ni_vp);
+	vput(nd.ni_vp);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
@@ -269,10 +270,12 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
 	 */
+	sp = &mp->mnt_stat;
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	vfs_rel(mp);
 	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
@@ -327,32 +330,40 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
+	mtx_lock(&Giant);
 	vp = fp->f_vnode;
-#ifdef AUDIT
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef AUDIT
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
-	VOP_UNLOCK(vp, 0, td);
 #endif
 	mp = vp->v_mount;
+	if (mp)
+		vfs_ref(mp);
+	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
-	if (vp->v_iflag & VI_DOOMED)
+	if (vp->v_iflag & VI_DOOMED) {
+		if (mp)
+			vfs_rel(mp);
+		mtx_unlock(&Giant);
 		return (EBADF);
-	mtx_lock(&Giant);
+	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
 #endif
-	sp = &mp->mnt_stat;
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
 	 */
+	sp = &mp->mnt_stat;
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	vfs_rel(mp);
 	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
@@ -4312,14 +4323,20 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 		return (error);
 	}
 	mp = vp->v_mount;
-	sp = &mp->mnt_stat;
+	if (mp)
+		vfs_ref(mp);
 	vput(vp);
+	if (mp == NULL)
+		return (EBADF);
 	error = prison_canseemount(td->td_ucred, mp);
-	if (error)
+	if (error) {
+		vfs_rel(mp);
 		return (error);
+	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
@@ -4327,10 +4344,12 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
 	 */
+	sp = &mp->mnt_stat;
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	vfs_rel(mp);
 	mtx_unlock(&Giant);
 	if (error)
 		return (error);
