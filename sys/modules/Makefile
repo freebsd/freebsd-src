@@ -158,7 +158,6 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	my \
-	${_myri10ge} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
@@ -402,7 +401,6 @@ _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
 _mly=		mly
-_myri10ge=	myri10ge
 _nve=		nve
 .if !defined(NO_CRYPT) || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
@@ -456,7 +454,6 @@ _ipmi=		ipmi
 _ips=		ips
 #_lnc=		lnc
 _mly=		mly
-_myri10ge=	myri10ge
 _ndis=		ndis
 _nve=		nve
 _safe=		safe
