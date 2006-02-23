@@ -250,7 +250,6 @@ struct fd_data {
 #define FD_NO_TRACK	 -2
 	int	options;	/* FDOPT_* */
 	struct	callout toffhandle;
-	struct	callout tohandle;
 	struct g_geom *fd_geom;
 	struct g_provider *fd_provider;
 	device_t dev;
@@ -617,7 +616,7 @@ fd_turnon(void *arg)
 	int once;
 
 	fd = arg;
-	mtx_lock(&fd->fdc->fdc_mtx);
+	mtx_assert(&fd->fdc->fdc_mtx, MA_OWNED);
 	fd->flags &= ~FD_MOTORWAIT;
 	fd->flags |= FD_MOTOR;
 	once = 0;
@@ -628,7 +627,6 @@ fd_turnon(void *arg)
 		bioq_disksort(&fd->fdc->head, bp);
 		once = 1;
 	}
-	mtx_unlock(&fd->fdc->fdc_mtx);
 	if (once)
 		wakeup(&fd->fdc->head);
 }
@@ -647,7 +645,7 @@ fd_motor(struct fd_data *fd, int turnon)
 		fdc->fdout |= (FDO_MOEN0 << fd->fdsu);
 		callout_reset(&fd->toffhandle, hz, fd_turnon, fd);
 	} else {
-		callout_drain(&fd->toffhandle);
+		callout_stop(&fd->toffhandle);
 		fd->flags &= ~(FD_MOTOR|FD_MOTORWAIT);
 		fdc->fdout &= ~(FDO_MOEN0 << fd->fdsu);
 	}
@@ -659,9 +657,8 @@ fd_turnoff(void *xfd)
 {
 	struct fd_data *fd = xfd;
 
-	mtx_lock(&fd->fdc->fdc_mtx);
+	mtx_assert(&fd->fdc->fdc_mtx, MA_OWNED);
 	fd_motor(fd, 0);
-	mtx_unlock(&fd->fdc->fdc_mtx);
 }
 
 /*
@@ -1199,7 +1196,7 @@ fd_enqueue(struct fd_data *fd, struct bio *bp)
 	mtx_lock(&fdc->fdc_mtx);
 	/* If we go from idle, cancel motor turnoff */
 	if (fd->fd_iocount++ == 0)
-		callout_drain(&fd->toffhandle);
+		callout_stop(&fd->toffhandle);
 	if (fd->flags & FD_MOTOR) {
 		/* The motor is on, send it directly to the controller */
 		bioq_disksort(&fdc->head, bp);
@@ -1939,8 +1936,7 @@ done:
 	fd->fdc = fdc;
 	fd->fdsu = fdsu;
 	fd->options = 0;
-	callout_init(&fd->toffhandle, 1);
-	callout_init(&fd->tohandle, 1);
+	callout_init_mtx(&fd->toffhandle, &fd->fdc->fdc_mtx, 0);
 
 	/* initialize densities for subdevices */
 	fdsettype(fd, fd_native_types[fd->type]);
