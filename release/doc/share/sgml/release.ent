@@ -18,10 +18,6 @@
      edge. -->
 <!ENTITY release.prev.stable "6.0-RELEASE">
 
-<!-- The previous historical release.  Used only to tell what was
-     the cutoff point for "historic" release notes. -->
-<!ENTITY release.prev.historic "6.0-RELEASE">
-
 <!-- The next version to be released, usually used for snapshots. -->
 <!ENTITY release.next "6.1-RELEASE">
 
@@ -40,9 +36,9 @@
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
-<!ENTITY release.manpath.xfree86       "4.4.0">
-<!ENTITY release.manpath.xorg          "6.8.2">
-<!ENTITY release.manpath.netbsd        "2.0.2">
+<!ENTITY release.manpath.xfree86       "4.5.0">
+<!ENTITY release.manpath.xorg          "6.9.0">
+<!ENTITY release.manpath.netbsd        "3.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
 <!ENTITY release.manpath.freebsd       "6.0-stable">
 
