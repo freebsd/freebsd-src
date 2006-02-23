@@ -94,6 +94,7 @@ MAN=	accept_filter.9 \
 	EVENTHANDLER.9 \
 	extattr.9 \
 	fetch.9 \
+	firmware.9 \
 	g_access.9 \
 	g_attach.9 \
 	g_bio.9 \

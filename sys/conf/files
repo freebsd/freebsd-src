@@ -1256,6 +1256,7 @@ kern/subr_clock.c		optional genclock
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
+kern/subr_firmware.c		optional firmware
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard
 kern/subr_kobj.c		standard
