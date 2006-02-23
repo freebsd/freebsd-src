@@ -387,23 +387,33 @@ sleepq_catch_signals(void *wchan)
 		mtx_unlock(&ps->ps_mtx);
 	}
 
-	if (ret) {
+	if (ret == 0) {
+		mtx_lock_spin(&sc->sc_lock);
+		/*
+		 * Lock sched_lock before unlocking proc lock,
+		 * without this, we could lose a race.
+		 */
+		mtx_lock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+		if (!(td->td_flags & TDF_INTERRUPT))
+			return (0);
+		/* KSE threads tried unblocking us. */
+		ret = td->td_intrval;
+		mtx_unlock_spin(&sched_lock);
+		MPASS(ret == EINTR || ret == ERESTART);
+	} else {
 		PROC_UNLOCK(p);
 		/*
-		 * If there were pending signals and this thread is still on
-		 * the sleep queue, remove it from the sleep queue.
+		 * If there were pending signals and this thread is still
+		 * on the sleep queue, remove it from the sleep queue.
 		 */
 		mtx_lock_spin(&sc->sc_lock);
-		sq = sleepq_lookup(wchan);
-		mtx_lock_spin(&sched_lock);
-		if (TD_ON_SLEEPQ(td))
-			sleepq_resume_thread(sq, td, -1);
-		td->td_flags &= ~TDF_SINTR;
-	} else {
-		mtx_lock_spin(&sc->sc_lock);
-		mtx_lock_spin(&sched_lock);
-		PROC_UNLOCK(p);
 	}
+	sq = sleepq_lookup(wchan);
+	mtx_lock_spin(&sched_lock);
+	if (TD_ON_SLEEPQ(td))
+		sleepq_resume_thread(sq, td, -1);
+	td->td_flags &= ~TDF_SINTR;
 	return (ret);
 }
 
