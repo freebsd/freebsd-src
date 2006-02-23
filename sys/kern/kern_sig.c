@@ -1189,35 +1189,40 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		}
 	}
 
-again:
+restart:
 	for (i = 1; i <= _SIG_MAXSIG; ++i) {
 		if (!SIGISMEMBER(waitset, i))
 			continue;
-		if (SIGISMEMBER(td->td_sigqueue.sq_signals, i)) {
-			SIGFILLSET(td->td_sigmask);
-			SIG_CANTMASK(td->td_sigmask);
-			SIGDELSET(td->td_sigmask, i);
-			mtx_lock(&ps->ps_mtx);
-			sig = cursig(td);
-			i = 0;
-			mtx_unlock(&ps->ps_mtx);
-		} else if (SIGISMEMBER(p->p_sigqueue.sq_signals, i)) {
-			if (p->p_flag & P_SA) {
-				p->p_flag |= P_SIGEVENT;
-				wakeup(&p->p_siglist);
-			}
-			sigqueue_move(&p->p_sigqueue, &td->td_sigqueue, i);
-			SIGFILLSET(td->td_sigmask);
-			SIG_CANTMASK(td->td_sigmask);
-			SIGDELSET(td->td_sigmask, i);
-			mtx_lock(&ps->ps_mtx);
-			sig = cursig(td);
-			i = 0;
-			mtx_unlock(&ps->ps_mtx);
+		if (!SIGISMEMBER(td->td_sigqueue.sq_signals, i)) {
+			if (SIGISMEMBER(p->p_sigqueue.sq_signals, i)) {
+				if (p->p_flag & P_SA) {
+					p->p_flag |= P_SIGEVENT;
+					wakeup(&p->p_siglist);
+				}
+				sigqueue_move(&p->p_sigqueue,
+					&td->td_sigqueue, i);
+			} else
+				continue;
 		}
+
+		SIGFILLSET(td->td_sigmask);
+		SIG_CANTMASK(td->td_sigmask);
+		SIGDELSET(td->td_sigmask, i);
+		mtx_lock(&ps->ps_mtx);
+		sig = cursig(td);
+		mtx_unlock(&ps->ps_mtx);
 		if (sig)
 			goto out;
+		else {
+			/*
+			 * Because cursig() may have stopped current thread,
+			 * after it is resumed, things may have already been 
+			 * changed, it should rescan any pending signals.
+			 */
+			goto restart;
+		}
 	}
+
 	if (error)
 		goto out;
 
@@ -1255,30 +1260,37 @@ again:
 			error = 0;
 		}
 	}
-	goto again;
+	goto restart;
 
 out:
+	td->td_sigmask = savedmask;
+	signotify(td);
 	if (sig) {
-		sig_t action;
-
 		ksiginfo_init(ksi);
 		sigqueue_get(&td->td_sigqueue, sig, ksi);
 		ksi->ksi_signo = sig;
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
 		error = 0;
-		mtx_lock(&ps->ps_mtx);
-		action = ps->ps_sigact[_SIG_IDX(sig)];
-		mtx_unlock(&ps->ps_mtx);
+
 #ifdef KTRACE
-		if (KTRPOINT(td, KTR_PSIG))
+		if (KTRPOINT(td, KTR_PSIG)) {
+			sig_t action;
+
+			mtx_lock(&ps->ps_mtx);
+			action = ps->ps_sigact[_SIG_IDX(sig)];
+			mtx_unlock(&ps->ps_mtx);
 			ktrpsig(sig, action, &td->td_sigmask, 0);
+		}
 #endif
 		_STOPEVENT(p, S_SIG, sig);
 
+		if (sig == SIGKILL) {
+			p->p_code = ksi->ksi_code;
+			p->p_sig = sig;
+			sigexit(td, sig);
+		}
 	}
-	td->td_sigmask = savedmask;
-	signotify(td);
 	PROC_UNLOCK(p);
 	return (error);
 }
