@@ -701,8 +701,8 @@ printcpuinfo(void)
 				"\003RSVD2"	/* "Reserved" bit 2 */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
-				"\006<b5>"	/* Machine specific registers */
-				"\007<b6>"	/* Physical address extension */
+				"\006VMX"	/* Virtual Machine Extensions */
+				"\007<b6>"
 				"\010EST"	/* Enhanced SpeedStep */
 				"\011TM2"	/* Thermal Monitor 2 */
 				"\012<b9>"
