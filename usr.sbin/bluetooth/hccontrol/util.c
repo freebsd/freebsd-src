@@ -148,18 +148,33 @@ char const * const
 hci_ver2str(int ver)
 {
 	static char const * const	t[] = {
-		/* 0x00 */ "v1.0B",
-		/* 0x01 */ "v1.1"
+		/* 0x00 */ "Bluetooth HCI Specification 1.0B",
+		/* 0x01 */ "Bluetooth HCI Specification 1.1",
+		/* 0x02 */ "Bluetooth HCI Specification 1.2",
+		/* 0x03 */ "Bluetooth HCI Specification 2.0"
 	};
 
 	return (ver >= SIZE(t)? "?" : t[ver]);
 } /* hci_ver2str */
 
 char const * const
+hci_lmpver2str(int ver)
+{
+	static char const * const	t[] = {
+		/* 0x00 */ "Bluetooth LMP 1.0",
+		/* 0x01 */ "Bluetooth LMP 1.1",
+		/* 0x02 */ "Bluetooth LMP 1.2",
+		/* 0x03 */ "Bluetooth LMP 2.0"
+	};
+
+	return (ver >= SIZE(t)? "?" : t[ver]);
+} /* hci_lmpver2str */
+
+char const * const
 hci_manufacturer2str(int m)
 {
 	static char const * const	t[] = {
-		/* 0000 */ "Ericsson Mobile Communications",
+		/* 0000 */ "Ericsson Technology Licensing",
 		/* 0001 */ "Nokia Mobile Phones",
 		/* 0002 */ "Intel Corp.",
 		/* 0003 */ "IBM Corp.",
@@ -177,7 +192,7 @@ hci_manufacturer2str(int m)
 		/* 0015 */ "Broadcom Corporation",
 		/* 0016 */ "Mitel Semiconductor",
 		/* 0017 */ "Widcomm, Inc.",
-		/* 0018 */ "Telencomm Inc.",
+		/* 0018 */ "Zeevo, Inc.",
 		/* 0019 */ "Atmel Corporation",
 		/* 0020 */ "Mitsubishi Electric Corporation",
 		/* 0021 */ "RTX Telecom A/S",
@@ -206,7 +221,24 @@ hci_manufacturer2str(int m)
 		/* 0044 */ "Macronix International Co. Ltd.",
 		/* 0045 */ "GCT Semiconductor",
 		/* 0046 */ "Norwood Systems",
-		/* 0047 */ "MewTel Technology Inc."
+		/* 0047 */ "MewTel Technology Inc.",
+		/* 0048 */ "ST Microelectronics",
+		/* 0049 */ "Synopsys",
+		/* 0050 */ "Red-M (Communications) Ltd",
+		/* 0051 */ "Commil Ltd",
+		/* 0052 */ "Computer Access Technology Corporation (CATC)",
+		/* 0053 */ "Eclipse (HQ Espana) S.L.",
+		/* 0054 */ "Renesas Technology Corp.",
+		/* 0055 */ "Mobilian Corporation",
+		/* 0056 */ "Terax",
+		/* 0057 */ "Integrated System Solution Corp.",
+		/* 0058 */ "Matsushita Electric Industrial Co., Ltd.",
+		/* 0059 */ "Gennum Corporation",
+		/* 0060 */ "Research In Motion",
+		/* 0061 */ "IPextreme, Inc.",
+		/* 0062 */ "Systems and Chips, Inc",
+		/* 0063 */ "Bluetooth SIG, Inc",
+		/* 0064 */ "Seiko Epson Corporation"
         };
 
 	return (m >= SIZE(t)? "?" : t[m]);
