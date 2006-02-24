@@ -15,4 +15,8 @@ SRCS=	uart_bus_acpi.c ${uart_bus_ebus} uart_bus_isa.c uart_bus_pccard.c \
 SRCS+=	bus_if.h card_if.h device_if.h isa_if.h ${ofw_bus_if} pci_if.h \
 	power_if.h uart_if.h pccarddevs.h
 
+MFILES= dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
+	dev/ofw/ofw_bus_if.m dev/uart/uart_if.m isa/isa_if.m kern/bus_if.m \
+	kern/device_if.m
+
 .include <bsd.kmod.mk>
