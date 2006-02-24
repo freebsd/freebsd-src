@@ -53,7 +53,7 @@ puc_sbus_probe(device_t dev)
 	nm = ofw_bus_get_name(dev);
 	if (!strcmp(nm, "zs")) {
 		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
-		return (0);
+		return (BUS_PROBE_LOW_PRIORITY);
 	}
 	return (ENXIO);
 }
