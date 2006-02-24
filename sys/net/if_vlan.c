@@ -379,9 +379,10 @@ trunk_destroy(struct ifvlantrunk *trunk)
 #ifndef VLAN_ARRAY
 	vlan_freehash(trunk);
 #endif
-	TRUNK_LOCK_DESTROY(trunk);
-	LIST_REMOVE(trunk, trunk_entry);
 	trunk->parent->if_vlantrunk = NULL;
+	LIST_REMOVE(trunk, trunk_entry);
+	TRUNK_UNLOCK(trunk);
+	TRUNK_LOCK_DESTROY(trunk);
 	free(trunk, M_VLAN);
 }
 
