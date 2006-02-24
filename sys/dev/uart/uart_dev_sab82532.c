@@ -546,15 +546,15 @@ sab82532_bus_ipend(struct uart_softc *sc)
 
 	ipend = 0;
 	if (isr1 & SAB_ISR1_BRKT)
-		ipend |= UART_IPEND_BREAK;
+		ipend |= SER_INT_BREAK;
 	if (isr0 & SAB_ISR0_RFO)
-		ipend |= UART_IPEND_OVERRUN;
+		ipend |= SER_INT_OVERRUN;
 	if (isr0 & (SAB_ISR0_TCD|SAB_ISR0_RPF))
-		ipend |= UART_IPEND_RXREADY;
+		ipend |= SER_INT_RXREADY;
 	if ((isr0 & SAB_ISR0_CDSC) || (isr1 & SAB_ISR1_CSC))
-		ipend |= UART_IPEND_SIGCHG;
+		ipend |= SER_INT_SIGCHG;
 	if (isr1 & SAB_ISR1_ALLS)
-		ipend |= UART_IPEND_TXIDLE;
+		ipend |= SER_INT_TXIDLE;
 
 	return (ipend);
 }

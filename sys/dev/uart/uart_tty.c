@@ -307,12 +307,12 @@ uart_tty_intr(void *arg)
 		return;
 
 	pend = atomic_readandclear_32(&sc->sc_ttypend);
-	if (!(pend & UART_IPEND_MASK))
+	if (!(pend & SER_INT_MASK))
 		return;
 
 	tp = sc->sc_u.u_tty.tp;
 
-	if (pend & UART_IPEND_RXREADY) {
+	if (pend & SER_INT_RXREADY) {
 		while (!uart_rx_empty(sc) && !(tp->t_state & TS_TBLOCK)) {
 			xc = uart_rx_get(sc);
 			c = xc & 0xff;
@@ -324,13 +324,13 @@ uart_tty_intr(void *arg)
 		}
 	}
 
-	if (pend & UART_IPEND_BREAK) {
+	if (pend & SER_INT_BREAK) {
 		if (tp != NULL && !(tp->t_iflag & IGNBRK))
 			ttyld_rint(tp, 0);
 	}
 
-	if (pend & UART_IPEND_SIGCHG) {
-		sig = pend & UART_IPEND_SIGMASK;
+	if (pend & SER_INT_SIGCHG) {
+		sig = pend & SER_INT_SIGMASK;
 		if (sig & SER_DDCD)
 			ttyld_modem(tp, sig & SER_DCD);
 		if ((sig & SER_DCTS) && (tp->t_cflag & CCTS_OFLOW) &&
@@ -343,7 +343,7 @@ uart_tty_intr(void *arg)
 		}
 	}
 
-	if (pend & UART_IPEND_TXIDLE) {
+	if (pend & SER_INT_TXIDLE) {
 		tp->t_state &= ~TS_BUSY;
 		ttyld_start(tp);
 	}

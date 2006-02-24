@@ -556,17 +556,17 @@ ns8250_bus_ipend(struct uart_softc *sc)
 		lsr = uart_getreg(bas, REG_LSR);
 		mtx_unlock_spin(&sc->sc_hwmtx);
 		if (lsr & LSR_OE)
-			ipend |= UART_IPEND_OVERRUN;
+			ipend |= SER_INT_OVERRUN;
 		if (lsr & LSR_BI)
-			ipend |= UART_IPEND_BREAK;
+			ipend |= SER_INT_BREAK;
 		if (lsr & LSR_RXRDY)
-			ipend |= UART_IPEND_RXREADY;
+			ipend |= SER_INT_RXREADY;
 	} else {
 		mtx_unlock_spin(&sc->sc_hwmtx);
 		if (iir & IIR_TXRDY)
-			ipend |= UART_IPEND_TXIDLE;
+			ipend |= SER_INT_TXIDLE;
 		else
-			ipend |= UART_IPEND_SIGCHG;
+			ipend |= SER_INT_SIGCHG;
 	}
 	return ((sc->sc_leaving) ? 0 : ipend);
 }
