@@ -305,7 +305,7 @@ z8530_bus_attach(struct uart_softc *sc)
 		z8530->tpc = z8530_setup(bas, 9600, 8, 1, UART_PARITY_NONE);
 		z8530->tpc &= ~(TPC_DTR|TPC_RTS);
 	}
-	z8530->txidle = 1;	/* Report UART_IPEND_TXIDLE. */
+	z8530->txidle = 1;	/* Report SER_INT_TXIDLE. */
 
 	sc->sc_rxfifosz = 3;
 	sc->sc_txfifosz = 1;
@@ -418,14 +418,14 @@ z8530_bus_ipend(struct uart_softc *sc)
 	}
 
 	if (ip & IP_RIA)
-		ipend |= UART_IPEND_RXREADY;
+		ipend |= SER_INT_RXREADY;
 
 	if (ip & IP_TIA) {
 		uart_setreg(bas, REG_CTRL, CR_RSTTXI);
 		uart_barrier(bas);
 		if (z8530->txidle) {
-			ipend |= UART_IPEND_TXIDLE;
-			z8530->txidle = 0;	/* Mask UART_IPEND_TXIDLE. */
+			ipend |= SER_INT_TXIDLE;
+			z8530->txidle = 0;	/* Mask SER_INT_TXIDLE. */
 		}
 	}
 
@@ -434,18 +434,18 @@ z8530_bus_ipend(struct uart_softc *sc)
 		uart_barrier(bas);
 		bes = uart_getmreg(bas, RR_BES);
 		if (bes & BES_BRK)
-			ipend |= UART_IPEND_BREAK;
+			ipend |= SER_INT_BREAK;
 		sig = sc->sc_hwsig;
 		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
 		SIGCHG(bes & BES_SYNC, sig, SER_DSR, SER_DDSR);
 		if (sig & UART_SIGMASK_DELTA)
-			ipend |= UART_IPEND_SIGCHG;
+			ipend |= SER_INT_SIGCHG;
 		src = uart_getmreg(bas, RR_SRC);
 		if (src & SRC_OVR) {
 			uart_setreg(bas, REG_CTRL, CR_RSTERR);
 			uart_barrier(bas);
-			ipend |= UART_IPEND_OVERRUN;
+			ipend |= SER_INT_OVERRUN;
 		}
 	}
 
@@ -586,7 +586,7 @@ z8530_bus_transmit(struct uart_softc *sc)
 	uart_setreg(bas, REG_DATA, sc->sc_txbuf[0]);
 	uart_barrier(bas);
 	sc->sc_txbusy = 1;
-	z8530->txidle = 1;	/* Report UART_IPEND_TXIDLE again. */
+	z8530->txidle = 1;	/* Report SER_INT_TXIDLE again. */
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
