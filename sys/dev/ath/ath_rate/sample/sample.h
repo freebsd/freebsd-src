@@ -90,7 +90,7 @@ struct sample_node {
 
 	int current_rate[NUM_PACKET_SIZE_BINS];
 	int packets_since_switch[NUM_PACKET_SIZE_BINS];
-	unsigned jiffies_since_switch[NUM_PACKET_SIZE_BINS];
+	unsigned ticks_since_switch[NUM_PACKET_SIZE_BINS];
 
 	int packets_since_sample[NUM_PACKET_SIZE_BINS];
 	unsigned sample_tt[NUM_PACKET_SIZE_BINS];
@@ -186,8 +186,8 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 				int length, 
 				int rix, int short_retries, int long_retries) {
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	int rts, cts;
 	
-	/* pg 205 ieee.802.11.pdf */
 	unsigned t_slot = 20;
 	unsigned t_difs = 50; 
 	unsigned t_sifs = 10; 
@@ -196,16 +196,43 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	int x = 0;
 	int cw = WIFI_CW_MIN;
 	int cix = rt->info[rix].controlRate;
-	int rts = 0;
-	int cts = 0;
 	
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
-	if (rt->info[rix].phy == IEEE80211_T_OFDM) {
-		t_slot = 9;
-		t_sifs = 9;
-		t_difs = 28;
+	if (!rt->info[rix].rateKbps) {
+		printf("rix %d (%d) bad ratekbps %d mode %u",
+		       rix, rt->info[rix].dot11Rate,
+		       rt->info[rix].rateKbps,
+		       sc->sc_curmode);
+
+		return 0;
 	}
+	/* 
+	 * XXX getting mac/phy level timings should be fixed for turbo
+	 * rates, and there is probably a way to get this from the
+	 * hal...
+	 */
+	switch (rt->info[rix].phy) {
+	case IEEE80211_T_OFDM:
+		t_slot = 9;
+		t_sifs = 16;
+		t_difs = 28;
+		/* fall through */
+	case IEEE80211_T_TURBO:
+		t_slot = 9;
+		t_sifs = 8;
+		t_difs = 28;
+		break;
+	case IEEE80211_T_DS:
+		/* fall through to default */
+	default:
+		/* pg 205 ieee.802.11.pdf */
+		t_slot = 20;
+		t_difs = 50;
+		t_sifs = 10;
+	}
+
+	rts = cts = 0;
 
 	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
 	    rt->info[rix].phy == IEEE80211_T_OFDM) {
@@ -218,13 +245,22 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 
 	}
 
-	if (length > ic->ic_rtsthreshold) {
+	if (0 /*length > ic->ic_rtsthreshold */) {
 		rts = 1;
 	}
 
 	if (rts || cts) {
 		int ctsrate = rt->info[cix].rateCode;
 		int ctsduration = 0;
+
+		if (!rt->info[cix].rateKbps) {
+			printf("cix %d (%d) bad ratekbps %d mode %u",
+			       cix, rt->info[cix].dot11Rate,
+			       rt->info[cix].rateKbps,
+			       sc->sc_curmode);
+			return 0;
+		}
+
 		ctsrate |= rt->info[cix].shortPreamble;
 		if (rts)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
@@ -238,7 +274,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		tt += (short_retries + 1) * ctsduration;
 	}
 	tt += t_difs;
-	tt += (long_retries+1)*(t_sifs + rt->info[cix].spAckDuration);
+	tt += (long_retries+1)*(t_sifs + rt->info[rix].spAckDuration);
 	tt += (long_retries+1)*ath_hal_computetxtime(sc->sc_ah, rt, length, 
 						rix, AH_TRUE);
 	for (x = 0; x <= short_retries + long_retries; x++) {

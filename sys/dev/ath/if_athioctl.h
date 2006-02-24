@@ -46,6 +46,7 @@ struct ath_stats {
 	u_int32_t	ast_watchdog;	/* device reset by watchdog */
 	u_int32_t	ast_hardware;	/* fatal hardware error interrupts */
 	u_int32_t	ast_bmiss;	/* beacon miss interrupts */
+	u_int32_t	ast_bmiss_phantom;/* beacon miss interrupts */
 	u_int32_t	ast_bstuck;	/* beacon stuck interrupts */
 	u_int32_t	ast_rxorn;	/* rx overrun interrupts */
 	u_int32_t	ast_rxeol;	/* rx eol interrupts */
@@ -105,6 +106,7 @@ struct ath_stats {
 	u_int32_t	ast_ant_txswitch;/* tx antenna switches */
 	u_int32_t	ast_ant_rx[8];	/* rx frames with antenna */
 	u_int32_t	ast_ant_tx[8];	/* tx frames with antenna */
+	u_int32_t	ast_pad[32];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
