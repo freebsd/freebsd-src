@@ -66,6 +66,7 @@ uart_ebus_probe(device_t dev)
 	const char *nm, *cmpt;
 	struct uart_softc *sc;
 	struct uart_devinfo dummy;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->sc_class = NULL;
@@ -101,7 +102,8 @@ uart_ebus_probe(device_t dev)
 	}
 	if (!strcmp(nm, "se") || !strcmp(cmpt, "sab82532")) {
 		sc->sc_class = &uart_sab82532_class;
-		return (uart_bus_probe(dev, 0, 0, 0, 1));
+		error = uart_bus_probe(dev, 0, 0, 0, 1);
+		return ((error <= 0) ? BUS_PROBE_GENERIC : error);
 	}
 
 	return (ENXIO);
