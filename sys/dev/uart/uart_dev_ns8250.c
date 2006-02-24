@@ -460,7 +460,7 @@ ns8250_bus_getsig(struct uart_softc *sc)
 		SIGCHG(msr & MSR_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(msr & MSR_DCD, sig, SER_DCD, SER_DDCD);
 		SIGCHG(msr & MSR_RI,  sig, SER_RI,  SER_DRI);
-		new = sig & ~UART_SIGMASK_DELTA;
+		new = sig & ~SER_MASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
 }
