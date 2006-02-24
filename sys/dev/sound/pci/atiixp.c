@@ -614,7 +614,7 @@ atiixp_chan_getptr(kobj_t obj, void *data)
 	}
 #endif
 
-	return (retry > 0) ? ptr & ~align : 0;
+	return (retry > 0) ? ptr : 0;
 }
 
 static struct pcmchan_caps *
