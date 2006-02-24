@@ -274,10 +274,10 @@ sunkbd_uart_intr(void *arg)
 		return;
 
 	pend = atomic_readandclear_32(&sc->sc_uart->sc_ttypend);
-	if (!(pend & UART_IPEND_MASK))
+	if (!(pend & SER_INT_MASK))
 		return;
 
-	if (pend & UART_IPEND_RXREADY) {
+	if (pend & SER_INT_RXREADY) {
 		if (KBD_IS_ACTIVE(&sc->sc_kbd) && KBD_IS_BUSY(&sc->sc_kbd)) {
 			sc->sc_kbd.kb_callback.kc_func(&sc->sc_kbd,
 			    KBDIO_KEYINPUT, sc->sc_kbd.kb_callback.kc_arg);
