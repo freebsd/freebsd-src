@@ -470,7 +470,7 @@ sab82532_bus_getsig(struct uart_softc *sc)
 		}
 		SIGCHG(pvr, sig, SER_DSR, SER_DDSR);
 		mtx_unlock_spin(&sc->sc_hwmtx);
-		new = sig & ~UART_SIGMASK_DELTA;
+		new = sig & ~SER_MASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
 }

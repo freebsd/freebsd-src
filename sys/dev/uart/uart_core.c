@@ -171,7 +171,7 @@ uart_intr_sigchg(struct uart_softc *sc)
 
 	do {
 		old = sc->sc_ttypend;
-		new = old & ~UART_SIGMASK_STATE;
+		new = old & ~SER_MASK_STATE;
 		new |= sig & SER_INT_SIGMASK;
 		new |= SER_INT_SIGCHG;
 	} while (!atomic_cmpset_32(&sc->sc_ttypend, old, new));
