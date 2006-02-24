@@ -162,11 +162,11 @@ ENTRY(_amd64_restore_context)
 	cmpq	$0, %rdi		/* check for null pointer */
 	jne	1f
 	movq	$-1, %rax
-	jmp	7f
+	jmp	2f
 1:	cmpq	$MC_SIZE, MC_LEN_OFFSET(%rdi)	/* is context valid? */
 	je	2f
 	movq	$-1, %rax		/* bzzzt, invalid context */
-	jmp	7f
+	ret
 2:	movq	MC_RCX(%rdi), %rcx
 	movq	MC_R8(%rdi), %r8
 	movq	MC_R9(%rdi), %r9
@@ -213,6 +213,5 @@ ENTRY(_amd64_restore_context)
 	popq	%rsi			/* restore rsi, rdx, and rdi */
 	popq	%rdx
 	popq	%rdi
-	leaq	(8 + REDZONE)(%rsp), %rsp
-	jmp	*-(8 + REDZONE)(%rsp)	/* jump to return address */
-7:	ret
+	ret	$REDZONE
+
