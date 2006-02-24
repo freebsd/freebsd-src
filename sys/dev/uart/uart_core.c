@@ -90,7 +90,7 @@ uart_intr_break(struct uart_softc *sc)
 	}
 #endif
 	if (sc->sc_opened)
-		atomic_set_32(&sc->sc_ttypend, UART_IPEND_BREAK);
+		atomic_set_32(&sc->sc_ttypend, SER_INT_BREAK);
 }
 
 /*
@@ -116,7 +116,7 @@ uart_intr_overrun(struct uart_softc *sc)
 		UART_RECEIVE(sc);
 		if (uart_rx_put(sc, UART_STAT_OVERRUN))
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
-		atomic_set_32(&sc->sc_ttypend, UART_IPEND_RXREADY);
+		atomic_set_32(&sc->sc_ttypend, SER_INT_RXREADY);
 	}
 	UART_FLUSH(sc, UART_FLUSH_RECEIVER);
 }
@@ -142,7 +142,7 @@ uart_intr_rxready(struct uart_softc *sc)
 	}
 #endif
 	if (sc->sc_opened)
-		atomic_set_32(&sc->sc_ttypend, UART_IPEND_RXREADY);
+		atomic_set_32(&sc->sc_ttypend, SER_INT_RXREADY);
 	else
 		sc->sc_rxput = sc->sc_rxget;	/* Ignore received data. */
 }
@@ -172,8 +172,8 @@ uart_intr_sigchg(struct uart_softc *sc)
 	do {
 		old = sc->sc_ttypend;
 		new = old & ~UART_SIGMASK_STATE;
-		new |= sig & UART_IPEND_SIGMASK;
-		new |= UART_IPEND_SIGCHG;
+		new |= sig & SER_INT_SIGMASK;
+		new |= SER_INT_SIGCHG;
 	} while (!atomic_cmpset_32(&sc->sc_ttypend, old, new));
 }
 
@@ -185,7 +185,7 @@ uart_intr_txidle(struct uart_softc *sc)
 {
 	if (sc->sc_txbusy) {
 		sc->sc_txbusy = 0;
-		atomic_set_32(&sc->sc_ttypend, UART_IPEND_TXIDLE);
+		atomic_set_32(&sc->sc_ttypend, SER_INT_TXIDLE);
 	}
 }
 
@@ -202,15 +202,15 @@ uart_intr(void *arg)
 		ipend = UART_IPEND(sc);
 		if (ipend == 0)
 			break;
-		if (ipend & UART_IPEND_OVERRUN)
+		if (ipend & SER_INT_OVERRUN)
 			uart_intr_overrun(sc);
-		if (ipend & UART_IPEND_BREAK)
+		if (ipend & SER_INT_BREAK)
 			uart_intr_break(sc);
-		if (ipend & UART_IPEND_RXREADY)
+		if (ipend & SER_INT_RXREADY)
 			uart_intr_rxready(sc);
-		if (ipend & UART_IPEND_SIGCHG)
+		if (ipend & SER_INT_SIGCHG)
 			uart_intr_sigchg(sc);
-		if (ipend & UART_IPEND_TXIDLE)
+		if (ipend & SER_INT_TXIDLE)
 			uart_intr_txidle(sc);
 	} while (1);
 

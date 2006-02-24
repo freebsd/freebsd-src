@@ -42,21 +42,6 @@
 #define	UART_FLUSH_RECEIVER	UART_DRAIN_RECEIVER
 #define	UART_FLUSH_TRANSMITTER	UART_DRAIN_TRANSMITTER
 
-/*
- * Interrupt sources (in priority order). See also uart_core.c
- * Note that the low order 16 bits are used to pass modem signals
- * from the hardware interrupt handler to the software interrupt
- * handler.
- */
-#define	UART_IPEND_OVERRUN	0x010000
-#define	UART_IPEND_BREAK	0x020000
-#define	UART_IPEND_RXREADY	0x040000
-#define	UART_IPEND_SIGCHG	0x080000
-#define	UART_IPEND_TXIDLE	0x100000
-
-#define	UART_IPEND_MASK		0x1f0000
-#define	UART_IPEND_SIGMASK	0x00ffff
-
 /* Received character status bits. */
 #define	UART_STAT_BREAK		0x0100
 #define	UART_STAT_FRAMERR	0x0200
