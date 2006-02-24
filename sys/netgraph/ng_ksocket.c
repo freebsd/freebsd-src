@@ -1120,6 +1120,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 		 * Also, do not trust that soreceive() will clear m_nextpkt
 		 * for us (e.g. kern/84952, kern/82413).
 		 */
+		m->m_pkthdr.csum_flags = 0;
 		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next) {
 			m->m_pkthdr.len += n->m_len;
 			n->m_nextpkt = NULL;
