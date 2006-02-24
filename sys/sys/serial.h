@@ -40,25 +40,25 @@
  * that identity is enforced with CTASSERT at the bottom of kern/tty.c
  * Both the modem bits and delta bits must fit in 16 bit.
  */
-#define		SER_DTR	0x0001		/* data terminal ready */
-#define		SER_RTS	0x0002		/* request to send */
-#define		SER_STX	0x0004		/* secondary transmit */
-#define		SER_SRX	0x0008		/* secondary receive */
-#define		SER_CTS	0x0010		/* clear to send */
-#define		SER_DCD	0x0020		/* data carrier detect */
-#define		SER_RI 	0x0040		/* ring indicate */
-#define		SER_DSR	0x0080		/* data set ready */
+#define	SER_DTR		0x0001		/* data terminal ready */
+#define	SER_RTS		0x0002		/* request to send */
+#define	SER_STX		0x0004		/* secondary transmit */
+#define	SER_SRX		0x0008		/* secondary receive */
+#define	SER_CTS		0x0010		/* clear to send */
+#define	SER_DCD		0x0020		/* data carrier detect */
+#define	SER_RI	 	0x0040		/* ring indicate */
+#define	SER_DSR		0x0080		/* data set ready */
 
 /* Delta bits, used to indicate which signals should/was affected */
-#define		SER_DELTA(x)	((x) << 8)
+#define	SER_DELTA(x)	((x) << 8)
 
-#define		SER_DDTR SER_DELTA(SER_DTR)
-#define		SER_DRTS SER_DELTA(SER_RTS)
-#define		SER_DSTX SER_DELTA(SER_STX)
-#define		SER_DSRX SER_DELTA(SER_SRX)
-#define		SER_DCTS SER_DELTA(SER_CTS)
-#define		SER_DDCD SER_DELTA(SER_DCD)
-#define		SER_DRI  SER_DELTA(SER_RI)
-#define		SER_DDSR SER_DELTA(SER_DSR)
+#define	SER_DDTR	SER_DELTA(SER_DTR)
+#define	SER_DRTS	SER_DELTA(SER_RTS)
+#define	SER_DSTX	SER_DELTA(SER_STX)
+#define	SER_DSRX	SER_DELTA(SER_SRX)
+#define	SER_DCTS	SER_DELTA(SER_CTS)
+#define	SER_DDCD	SER_DELTA(SER_DCD)
+#define	SER_DRI		SER_DELTA(SER_RI)
+#define	SER_DDSR	SER_DELTA(SER_DSR)
 
 #endif /* !_SYS_SERIAL_H_ */
