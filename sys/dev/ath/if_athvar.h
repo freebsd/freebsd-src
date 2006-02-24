@@ -100,7 +100,8 @@ struct ath_node {
 struct ath_buf {
 	STAILQ_ENTRY(ath_buf)	bf_list;
 	int			bf_nseg;
-	int			bf_flags;	/* tx descriptor flags */
+	u_int16_t		bf_txflags;	/* tx descriptor flags */
+	u_int16_t		bf_flags;	/* see below */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
 	bus_dmamap_t		bf_dmamap;	/* DMA map for mbuf chain */
@@ -111,6 +112,8 @@ struct ath_buf {
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
+
+#define	ATH_FLAG_BUSY		0x0001		/* tx descriptor owned by h/w */
 
 /*
  * DMA state for tx/rx descriptors.
@@ -137,7 +140,7 @@ struct ath_descdma {
  */
 struct ath_txq {
 	u_int			axq_qnum;	/* hardware q number */
-	u_int			axq_depth;	/* queue depth (stat only) */
+	int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
