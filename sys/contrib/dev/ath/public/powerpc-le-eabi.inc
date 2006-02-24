@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
+# Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: powerpc-le-eabi.inc,v 1.9 2004/09/11 22:02:02 sam Exp $
+# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/powerpc-le-eabi.inc#25 $
 #
 
 #

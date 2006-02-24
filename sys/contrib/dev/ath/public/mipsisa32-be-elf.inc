@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
+# Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: mipsisa32-be-elf.inc,v 1.10 2004/10/13 21:32:04 sam Exp $
+# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/mipsisa32-be-elf.inc#26 $
 #
 
 #
