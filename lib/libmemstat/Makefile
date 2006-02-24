@@ -3,6 +3,8 @@
 WARNS?=		3
 LIB=		memstat
 SHLIB_MAJOR=	1
+DPADD=		${LIBKVM}
+LDADD=		-lkvm
 SRCS+=		memstat.c
 SRCS+=		memstat_all.c
 SRCS+=		memstat_malloc.c
