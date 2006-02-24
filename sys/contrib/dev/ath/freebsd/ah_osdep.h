@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2004 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.h,v 1.16 2004/09/16 23:23:02 sam Exp $
+ * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/freebsd/ah_osdep.h#17 $
  */
 #ifndef _ATH_AH_OSDEP_H_
 #define _ATH_AH_OSDEP_H_
