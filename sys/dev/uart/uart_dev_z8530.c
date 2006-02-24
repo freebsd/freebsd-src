@@ -354,7 +354,7 @@ z8530_bus_getsig(struct uart_softc *sc)
 		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
 		SIGCHG(bes & BES_SYNC, sig, SER_DSR, SER_DDSR);
-		new = sig & ~UART_SIGMASK_DELTA;
+		new = sig & ~SER_MASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
 }
@@ -439,7 +439,7 @@ z8530_bus_ipend(struct uart_softc *sc)
 		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
 		SIGCHG(bes & BES_SYNC, sig, SER_DSR, SER_DDSR);
-		if (sig & UART_SIGMASK_DELTA)
+		if (sig & SER_MASK_DELTA)
 			ipend |= SER_INT_SIGCHG;
 		src = uart_getmreg(bas, RR_SRC);
 		if (src & SRC_OVR) {
