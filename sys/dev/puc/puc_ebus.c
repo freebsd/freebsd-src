@@ -54,7 +54,7 @@ puc_ebus_probe(device_t dev)
 	cmpt = ofw_bus_get_compat(dev);
 	if (!strcmp(nm, "se") || (cmpt != NULL && !strcmp(cmpt, "sab82532"))) {
 		device_set_desc(dev, "Siemens SAB 82532 dual channel SCC");
-		return (0);
+		return (BUS_PROBE_LOW_PRIORITY);
 	}
 	return (ENXIO);
 }
