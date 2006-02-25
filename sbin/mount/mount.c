@@ -189,10 +189,11 @@ main(int argc, char *argv[])
 	struct statfs *mntbuf;
 	FILE *mountdfp;
 	pid_t pid;
-	int all, ch, i, init_flags, mntsize, rval, have_fstab;
+	int all, ch, i, init_flags, mntsize, rval, have_fstab, ro;
 	char *cp, *ep, *options;
 
 	all = init_flags = 0;
+	ro = 0;
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
@@ -220,6 +221,7 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			options = catopt(options, "ro");
+			ro = 1;
 			break;
 		case 't':
 			if (vfslist != NULL)
@@ -248,6 +250,9 @@ main(int argc, char *argv[])
 	(strcmp(type, FSTAB_RO) &&					\
 	    strcmp(type, FSTAB_RW) && strcmp(type, FSTAB_RQ))
 
+	if ((init_flags & MNT_UPDATE) && (ro == 0))
+		options = catopt(options, "noro");
+ 
 	rval = 0;
 	switch (argc) {
 	case 0:
@@ -462,14 +467,6 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 
 	if (mntopts == NULL)
 		mntopts = "";
-	if (options == NULL) {
-		if (*mntopts == '\0') {
-			options = "rw";
-		} else {
-			options = mntopts;
-			mntopts = "";
-		}
-	}
 	optbuf = catopt(strdup(mntopts), options);
 
 	if (strcmp(name, "/") == 0)
@@ -783,8 +780,7 @@ flags2opts(flags)
 
 	res = NULL;
 
-	res = catopt(res, (flags & MNT_RDONLY) ? "ro" : "rw");
-
+	if (flags & MNT_RDONLY)		res = catopt(res, "ro");
 	if (flags & MNT_SYNCHRONOUS)	res = catopt(res, "sync");
 	if (flags & MNT_NOEXEC)		res = catopt(res, "noexec");
 	if (flags & MNT_NOSUID)		res = catopt(res, "nosuid");
