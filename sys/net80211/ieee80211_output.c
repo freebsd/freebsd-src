@@ -1041,6 +1041,32 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 }
 
 /*
+ * Calculate capability information for mgt frames.
+ */
+static u_int16_t
+getcapinfo(struct ieee80211com *ic, struct ieee80211_channel *chan)
+{
+	u_int16_t capinfo;
+
+	KASSERT(ic->ic_opmode != IEEE80211_M_STA, ("station mode"));
+
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP)
+		capinfo = IEEE80211_CAPINFO_ESS;
+	else if (ic->ic_opmode == IEEE80211_M_IBSS)
+		capinfo = IEEE80211_CAPINFO_IBSS;
+	else
+		capinfo = 0;
+	if (ic->ic_flags & IEEE80211_F_PRIVACY)
+		capinfo |= IEEE80211_CAPINFO_PRIVACY;
+	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+	    IEEE80211_IS_CHAN_2GHZ(chan))
+		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
+	if (ic->ic_flags & IEEE80211_F_SHSLOT)
+		capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+	return capinfo;
+}
+
+/*
  * Send a management frame.  The node is for the destination (or ic_bss
  * when in station mode).  Nodes other than ic_bss have their reference
  * count bumped to reflect our use for an indeterminant time.
@@ -1108,17 +1134,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		frm += 8;
 		*(u_int16_t *)frm = htole16(ic->ic_bss->ni_intval);
 		frm += 2;
-		if (ic->ic_opmode == IEEE80211_M_IBSS)
-			capinfo = IEEE80211_CAPINFO_IBSS;
-		else
-			capinfo = IEEE80211_CAPINFO_ESS;
-		if (ic->ic_flags & IEEE80211_F_PRIVACY)
-			capinfo |= IEEE80211_CAPINFO_PRIVACY;
-		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
-			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
-		if (ic->ic_flags & IEEE80211_F_SHSLOT)
-			capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+		capinfo = getcapinfo(ic, ic->ic_curchan);
 		*(u_int16_t *)frm = htole16(capinfo);
 		frm += 2;
 
@@ -1259,11 +1275,9 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		if (m == NULL)
 			senderr(ENOMEM, is_tx_nobuf);
 
-		capinfo = 0;
-		if (ic->ic_opmode == IEEE80211_M_IBSS)
-			capinfo |= IEEE80211_CAPINFO_IBSS;
-		else		/* IEEE80211_M_STA */
-			capinfo |= IEEE80211_CAPINFO_ESS;
+		KASSERT(ic->ic_opmode == IEEE80211_M_STA,
+		    ("wrong mode %u", ic->ic_opmode));
+		capinfo = IEEE80211_CAPINFO_ESS;
 		if (ic->ic_flags & IEEE80211_F_PRIVACY)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
 		/*
@@ -1323,14 +1337,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		if (m == NULL)
 			senderr(ENOMEM, is_tx_nobuf);
 
-		capinfo = IEEE80211_CAPINFO_ESS;
-		if (ic->ic_flags & IEEE80211_F_PRIVACY)
-			capinfo |= IEEE80211_CAPINFO_PRIVACY;
-		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
-			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
-		if (ic->ic_flags & IEEE80211_F_SHSLOT)
-			capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+		capinfo = getcapinfo(ic, ic->ic_curchan);
 		*(u_int16_t *)frm = htole16(capinfo);
 		frm += 2;
 
@@ -1439,17 +1446,7 @@ ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
 	frm += 8;
 	*(u_int16_t *)frm = htole16(ni->ni_intval);
 	frm += 2;
-	if (ic->ic_opmode == IEEE80211_M_IBSS)
-		capinfo = IEEE80211_CAPINFO_IBSS;
-	else
-		capinfo = IEEE80211_CAPINFO_ESS;
-	if (ic->ic_flags & IEEE80211_F_PRIVACY)
-		capinfo |= IEEE80211_CAPINFO_PRIVACY;
-	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
-		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
-	if (ic->ic_flags & IEEE80211_F_SHSLOT)
-		capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+	capinfo = getcapinfo(ic, ni->ni_chan);
 	bo->bo_caps = (u_int16_t *)frm;
 	*(u_int16_t *)frm = htole16(capinfo);
 	frm += 2;
@@ -1472,7 +1469,7 @@ ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
 		*frm++ = 2;
 		*frm++ = 0; *frm++ = 0;		/* TODO: ATIM window */
 		bo->bo_tim_len = 0;
-	} else {
+	} else if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 		struct ieee80211_tim_ie *tie = (struct ieee80211_tim_ie *) frm;
 
 		tie->tim_ie = IEEE80211_ELEMID_TIM;
@@ -1527,17 +1524,7 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 	IEEE80211_BEACON_LOCK(ic);
 	/* XXX faster to recalculate entirely or just changes? */
-	if (ic->ic_opmode == IEEE80211_M_IBSS)
-		capinfo = IEEE80211_CAPINFO_IBSS;
-	else
-		capinfo = IEEE80211_CAPINFO_ESS;
-	if (ic->ic_flags & IEEE80211_F_PRIVACY)
-		capinfo |= IEEE80211_CAPINFO_PRIVACY;
-	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
-		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
-	if (ic->ic_flags & IEEE80211_F_SHSLOT)
-		capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+	capinfo = getcapinfo(ic, ni->ni_chan);
 	*bo->bo_caps = htole16(capinfo);
 
 	if (ic->ic_flags & IEEE80211_F_WME) {
