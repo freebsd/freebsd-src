@@ -160,6 +160,11 @@ ata_detach(device_t dev)
     if (!ch->r_irq)
 	return ENXIO;
 
+    /* grap the channel lock so no new requests gets launched */
+    mtx_lock(&ch->state_mtx);
+    ch->state |= ATA_STALL_QUEUE;
+    mtx_unlock(&ch->state_mtx);
+
     /* detach & delete all children */
     if (!device_get_children(dev, &children, &nchildren)) {
 	for (i = 0; i < nchildren; i++)
@@ -196,9 +201,14 @@ ata_reinit(device_t dev)
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	tsleep(&dev, PRIBIO, "atarini", 1);
 
-    /* unconditionally grap the channel lock */
+    /* catch eventual request in ch->running */
     mtx_lock(&ch->state_mtx);
-    ch->state = ATA_STALL_QUEUE;
+    if ((request = ch->running))
+	callout_stop(&request->callout);
+    ch->running = NULL;
+
+    /* unconditionally grap the channel lock */
+    ch->state |= ATA_STALL_QUEUE;
     mtx_unlock(&ch->state_mtx);
 
     /* reset the controller HW, the channel and device(s) */
@@ -208,48 +218,32 @@ ata_reinit(device_t dev)
     if (!device_get_children(dev, &children, &nchildren)) {
 	mtx_lock(&Giant);       /* newbus suckage it needs Giant */
 	for (i = 0; i < nchildren; i++) {
-	    if (children[i] && device_is_attached(children[i]))
-		if (ATA_REINIT(children[i])) {
-		    /*
-		     * if we have a running request and its device matches
-		     * this child we need to inform the request that the 
-		     * device is gone and remove it from ch->running
-		     */
-		    mtx_lock(&ch->state_mtx);
-		    if (ch->running && ch->running->dev == children[i]) {
-			callout_stop(&ch->running->callout);
-			request = ch->running;
-			ch->running = NULL;
-		    }
-		    else
-			request = NULL;
-		    mtx_unlock(&ch->state_mtx);
+	    /* did any children go missing ? */
+	    if (children[i] && device_is_attached(children[i]) &&
+		ATA_REINIT(children[i])) {
+		/*
+		 * if we had a running request and its device matches
+		 * this child we need to inform the request that the 
+		 * device is gone.
+		 */
+		if (request && request->dev == children[i]) {
+		    request->result = ENXIO;
+		    device_printf(request->dev, "FAILURE - device detached\n");
 
-		    if (request) {
-			request->result = ENXIO;
-			device_printf(request->dev,
-				      "FAILURE - device detached\n");
-
-			/* if not timeout finish request here */
-			if (!(request->flags & ATA_R_TIMEOUT))
+		    /* if not timeout finish request here */
+		    if (!(request->flags & ATA_R_TIMEOUT))
 			    ata_finish(request);
-		    }
-		    device_delete_child(dev, children[i]);
+		    request = NULL;
 		}
+		device_delete_child(dev, children[i]);
+	    }
 	}
 	free(children, M_TEMP);
 	mtx_unlock(&Giant);     /* newbus suckage dealt with, release Giant */
     }
 
-    /* catch request in ch->running if we havn't already */
-    mtx_lock(&ch->state_mtx);
-    if ((request = ch->running))
-	callout_stop(&request->callout);
-    ch->running = NULL;
-    mtx_unlock(&ch->state_mtx);
-
-    /* if we got one put it on the queue again */
-    if (request) {
+    /* if we still have a good request put it on the queue again */
+    if (request && !(request->flags & ATA_R_TIMEOUT)) {
 	device_printf(request->dev,
 		      "WARNING - %s requeued due to channel reset",
 		      ata_cmd2str(request));
@@ -335,7 +329,7 @@ ata_interrupt(void *data)
 	ATA_DEBUG_RQ(request, "interrupt");
 
 	/* safetycheck for the right state */
-	if (ch->state != ATA_ACTIVE && ch->state != ATA_STALL_QUEUE) {
+	if (ch->state == ATA_IDLE) {
 	    device_printf(request->dev, "interrupt on idle channel ignored\n");
 	    break;
 	}

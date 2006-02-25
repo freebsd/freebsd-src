@@ -61,7 +61,7 @@ ata_queue_request(struct ata_request *request)
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))
 	sema_init(&request->done, 0, "ATA request done");
 
-    /* in ATA_STALL_QUEUE state we call HW directly (used only during reinit) */
+    /* in ATA_STALL_QUEUE state we call HW directly */
     if ((ch->state & ATA_STALL_QUEUE) && (request->flags & ATA_R_CONTROL)) {
 	mtx_lock(&ch->state_mtx);
 	ch->running = request;
@@ -505,7 +505,6 @@ ata_fail_requests(device_t dev)
     if ((request = ch->running) && (!dev || request->dev == dev)) {
 	callout_stop(&request->callout);
 	ch->running = NULL;
-	ch->state = ATA_IDLE;
 	request->result = ENXIO;
 	TAILQ_INSERT_TAIL(&fail_requests, request, chain);
     }
@@ -527,9 +526,6 @@ ata_fail_requests(device_t dev)
         TAILQ_REMOVE(&fail_requests, request, chain);
         ata_finish(request);
     }
-
-    /* we might have work for the other device on this channel */
-    ata_start(ch->dev);
 }
 
 static u_int64_t
