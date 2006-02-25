@@ -3049,6 +3049,9 @@ ohci_device_bulk_start(usbd_xfer_handle xfer)
 
 	splx(s);
 
+	if (sc->sc_bus.use_polling)
+		ohci_waitintr(sc, xfer);
+
 	return (USBD_IN_PROGRESS);
 }
 
