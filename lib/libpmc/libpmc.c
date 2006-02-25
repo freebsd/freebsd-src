@@ -319,6 +319,7 @@ static struct pmc_event_alias k8_aliases[] = {
 	EV_ALIAS("ic-misses",		"k8-ic-miss"),
 	EV_ALIAS("instructions", 	"k8-fr-retired-x86-instructions"),
 	EV_ALIAS("interrupts",		"k8-fr-taken-hardware-interrupts"),
+	EV_ALIAS("unhalted-cycles",	"k8-bu-cpu-clk-unhalted"),
 	EV_ALIAS(NULL, NULL)
 };
 
@@ -682,6 +683,7 @@ static struct pmc_event_alias p4_aliases[] = {
 	EV_ALIAS("cycles",		"tsc"),
 	EV_ALIAS("instructions",
 	    "p4-instr-retired,mask=nbogusntag+nbogustag"),
+	EV_ALIAS("unhalted-cycles",	"p4-global-power-events"),
 	EV_ALIAS(NULL, NULL)
 };
 
@@ -1316,6 +1318,7 @@ static struct pmc_event_alias p6_aliases[] = {
 	EV_ALIAS("ic-misses",		"p6-ifu-ifetch-miss"),
 	EV_ALIAS("instructions",	"p6-inst-retired"),
 	EV_ALIAS("interrupts",		"p6-hw-int-rx"),
+	EV_ALIAS("unhalted-cycles",	"p6-cpu-clk-unhalted"),
 	EV_ALIAS(NULL, NULL)
 };
 
