@@ -978,8 +978,9 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 				else
 					printf(".");
 			}
-			printf("|\n");
+			printf("|");
 		}
+		printf("\n");
 	}
 }
 
