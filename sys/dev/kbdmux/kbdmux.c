@@ -250,7 +250,7 @@ kbdmux_kbd_event(keyboard_t *kbd, int event, void *arg)
 		while (KBDMUX_CHECK_CHAR(kbd)) {
 			c = KBDMUX_READ_CHAR(kbd, 0);
 			if (c == NOKEY)
-				continue;
+				break;
 			if (c == ERRKEY)
 				continue; /* XXX ring bell */
 			if (!KBD_IS_BUSY(kbd))
