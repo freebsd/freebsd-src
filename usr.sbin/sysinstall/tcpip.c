@@ -488,7 +488,7 @@ tcpOpenDialog(Device *devp)
     dialog_clear_norefresh();
 
     /* Modify the help line for PLIP config */
-    if (!strncmp(devp->name, "lp", 2))
+    if (!strncmp(devp->name, "plip", 4))
 	layout[LAYOUT_EXTRAS].help = 
          "For PLIP configuration, you must enter the peer's IP address here.";
 

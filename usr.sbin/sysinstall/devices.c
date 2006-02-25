@@ -136,7 +136,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"xl",		"3COM 3c90x / 3c90xB PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16			},
     { DEVICE_TYPE_NETWORK,	"fwe",		"FireWire Ethernet emulation"					},
-    { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
+    { DEVICE_TYPE_NETWORK,	"plip",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
     { DEVICE_TYPE_NETWORK,	"disc",		"Software discard network interface"				},
 #ifdef PC98
