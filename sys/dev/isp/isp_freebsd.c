@@ -351,6 +351,7 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 		ISP_LOCK(isp);
 		lp = &FCPARAM(isp)->portdb[ifc->loopid];
 		if (lp->valid) {
+			ifc->role = lp->roles;
 			ifc->loopid = lp->loopid;
 			ifc->portid = lp->portid;
 			ifc->node_wwn = lp->node_wwn;
