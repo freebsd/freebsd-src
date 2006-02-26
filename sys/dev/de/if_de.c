@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <pci/dc21040reg.h>
+#include <dev/de/dc21040reg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -113,7 +113,7 @@ __FBSDID("$FreeBSD$");
 
 #define	TULIP_HZ	10
 
-#include <pci/if_devar.h>
+#include <dev/de/if_devar.h>
 
 #define	SYNC_NONE	0
 #define	SYNC_RX		1
