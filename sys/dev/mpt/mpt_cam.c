@@ -2038,10 +2038,17 @@ mpt_recover_commands(struct mpt_softc *mpt)
 	int		    error;
 
 	MPT_LOCK(mpt);
+	if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
+		/*
+		 * No work to do- leave.
+		 */
+		mpt_prt(mpt, "mpt_recover_commands: no requests.\n");
+                MPT_UNLOCK(mpt);
+		return;
+	}
 
 	/*
-	 * Flush any commands whose completion coincides
-	 * with their timeout.
+	 * Flush any commands whose completion coincides with their timeout.
 	 */
 	mpt_intr(mpt);
 
@@ -2088,7 +2095,7 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		}
 
 		error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
-		    REQ_STATE_DONE, /*sleep_ok*/TRUE, /*time_ms*/5000);
+		    REQ_STATE_DONE, /*sleep_ok*/TRUE, /*time_ms*/500);
 
 		status = mpt->tmf_req->IOCStatus;
 		if (error != 0) {
@@ -2097,7 +2104,7 @@ mpt_recover_commands(struct mpt_softc *mpt)
 			 * If we've errored out and the transaction is still
 			 * pending, reset the controller.
 			 */
-			mpt_prt(mpt, "mpt_recover_commands: Abort timed-out."
+			mpt_prt(mpt, "mpt_recover_commands: Abort timed-out. "
 				"Resetting controller\n");
 			mpt_reset(mpt, /*reinit*/TRUE);
 			continue;
