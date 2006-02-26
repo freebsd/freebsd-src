@@ -9,7 +9,7 @@
 .Sh SYNOPSIS
 .Nm
 .\" !PC98 .Op Fl BIaistu
-.Op Fl Bastu
+.Op Fl BIastu
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
@@ -67,6 +67,12 @@ Ignored
 if
 .Fl f
 is given.
+.It Fl I
+Initialize the partition table.  One
+.Fx
+slice covering the entire disk will be created.
+Some space at the start of the disk will reserved for the IPL program
+and the pc98 partition table itself.
 .It Fl f Ar configfile
 Set partition values using the file
 .Ar configfile .
