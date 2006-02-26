@@ -545,6 +545,9 @@ aio_free_entry(struct aiocblist *aiocbe)
 	ki->kaio_count--;
 	MPASS(ki->kaio_count >= 0);
 
+	TAILQ_REMOVE(&ki->kaio_done, aiocbe, plist);
+	TAILQ_REMOVE(&ki->kaio_all, aiocbe, allist);
+
 	lj = aiocbe->lio;
 	if (lj) {
 		lj->lioj_count--;
@@ -559,21 +562,12 @@ aio_free_entry(struct aiocblist *aiocbe)
 		}
 	}
 
-	TAILQ_REMOVE(&ki->kaio_done, aiocbe, plist);
-	TAILQ_REMOVE(&ki->kaio_all, aiocbe, allist);
-
 	/* aiocbe is going away, we need to destroy any knotes */
 	knlist_delete(&aiocbe->klist, curthread, 1);
 	sigqueue_take(&aiocbe->ksi);
 
  	MPASS(aiocbe->bp == NULL);
 	aiocbe->jobstate = JOBST_NULL;
-
-	/* Wake up anyone who has interest to do cleanup work. */
-	if (ki->kaio_flags & (KAIO_WAKEUP | KAIO_RUNDOWN)) {
-		ki->kaio_flags &= ~KAIO_WAKEUP;
-		wakeup(&p->p_aioinfo);
-	}
 	PROC_UNLOCK(p);
 
 	/*
@@ -624,9 +618,9 @@ aio_proc_rundown(void *arg, struct proc *p)
 		return;
 
 	PROC_LOCK(p);
+	ki->kaio_flags |= KAIO_RUNDOWN;
 
 restart:
-	ki->kaio_flags |= KAIO_RUNDOWN;
 
 	/*
 	 * Try to cancel all pending requests. This code simulates
@@ -818,10 +812,13 @@ aio_bio_done_notify(struct proc *userp, struct aiocblist *aiocbe, int type)
 		aiocbe->jobflags |= AIOCBLIST_DONE;
 	} else {
 		aiocbe->jobflags |= AIOCBLIST_BUFDONE;
-		ki->kaio_buffer_count--;
 	}
 	TAILQ_INSERT_TAIL(&ki->kaio_done, aiocbe, plist);
 	aiocbe->jobstate = JOBST_JOBFINISHED;
+
+	if (ki->kaio_flags & KAIO_RUNDOWN)
+		goto notification_done;
+
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL ||
 	    aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_THREAD_ID)
 		aio_sendsig(userp, &aiocbe->uaiocb.aio_sigevent, &aiocbe->ksi);
@@ -841,7 +838,9 @@ aio_bio_done_notify(struct proc *userp, struct aiocblist *aiocbe, int type)
 			lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
 		}
 	}
-	if (ki->kaio_flags & (KAIO_RUNDOWN|KAIO_WAKEUP)) {
+
+notification_done:
+	if (ki->kaio_flags & KAIO_WAKEUP) {
 		ki->kaio_flags &= ~KAIO_WAKEUP;
 		wakeup(&userp->p_aioinfo);
 	}
@@ -876,7 +875,7 @@ aio_daemon(void *_id)
 	 */
 	aiop = uma_zalloc(aiop_zone, M_WAITOK);
 	aiop->aiothread = td;
-	aiop->aiothreadflags |= AIOP_FREE;
+	aiop->aiothreadflags = AIOP_FREE;
 
 	/*
 	 * Place thread (lightweight process) onto the AIO free thread list.
@@ -968,10 +967,6 @@ aio_daemon(void *_id)
 			PROC_LOCK(userp);
 			TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
 			aio_bio_done_notify(userp, aiocbe, DONE_QUEUE);
-			if (aiocbe->jobflags & AIOCBLIST_RUNDOWN) {
-				wakeup(aiocbe);
-				aiocbe->jobflags &= ~AIOCBLIST_RUNDOWN;
-			}
 			PROC_UNLOCK(userp);
 
 			mtx_lock(&aio_job_mtx);
@@ -1940,7 +1935,7 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 	for (i = 0; i < uap->nent; i++) {
 		iocb = (struct aiocb *)(intptr_t)fuword(&cbptr[i]);
 		if (((intptr_t)iocb != -1) && ((intptr_t)iocb != 0)) {
-			error = aio_aqueue(td, iocb, lj, 0, oldsigev);
+			error = aio_aqueue(td, iocb, lj, LIO_NOP, oldsigev);
 			if (error != 0)
 				nerror++;
 		}
@@ -2011,10 +2006,12 @@ biohelper(void *context, int pending)
 	struct aiocblist *aiocbe = context;
 	struct buf *bp;
 	struct proc *userp;
+	struct kaioinfo *ki;
 	int nblks;
 
 	bp = aiocbe->bp;
 	userp = aiocbe->userproc;
+	ki = userp->p_aioinfo;
 	PROC_LOCK(userp);
 	aiocbe->uaiocb._aiocb_private.status -= bp->b_resid;
 	aiocbe->uaiocb._aiocb_private.error = 0;
@@ -2027,6 +2024,7 @@ biohelper(void *context, int pending)
 		aiocbe->inputcharge += nblks;
 	aiocbe->bp = NULL;
 	TAILQ_REMOVE(&userp->p_aioinfo->kaio_bufqueue, aiocbe, plist);
+	ki->kaio_buffer_count--;
 	aio_bio_done_notify(userp, aiocbe, DONE_BUF);
 	PROC_UNLOCK(userp);
 
@@ -2077,7 +2075,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		ki->kaio_flags |= KAIO_WAKEUP;
 		error = msleep(&p->p_aioinfo, &p->p_mtx, PRIBIO | PCATCH,
 		    "aiowc", timo);
-		if (error == ERESTART)
+		if (timo && error == ERESTART)
 			error = EINTR;
 		if (error)
 			break;
