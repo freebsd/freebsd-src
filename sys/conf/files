@@ -507,6 +507,7 @@ dev/dc/pnphy.c			optional dc pci
 dev/dcons/dcons.c		optional dcons
 dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
+dev/de/if_de.c			optional de pci
 dev/digi/CX.c			optional digi_CX
 dev/digi/CX_PCI.c		optional digi_CX_PCI
 dev/digi/EPCX.c			optional digi_EPCX
@@ -1812,7 +1813,6 @@ pci/agp_if.m			optional agp pci
 pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
-pci/if_de.c			optional de pci
 pci/if_mn.c			optional mn pci
 pci/if_pcn.c			optional pcn pci
 pci/if_rl.c			optional rl pci
