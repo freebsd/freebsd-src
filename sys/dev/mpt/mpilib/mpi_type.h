@@ -77,6 +77,12 @@ typedef unsigned char   U8;
 typedef signed   short  S16;
 typedef unsigned short  U16;
 
+#ifdef	__FreeBSD__
+
+typedef int32_t  S32;
+typedef uint32_t U32;
+
+#else
 
 #if defined(unix) || defined(__arm) || defined(ALPHA) || defined(__PPC__) || defined(__ppc)
 
@@ -88,6 +94,7 @@ typedef unsigned short  U16;
     typedef signed   long  S32;
     typedef unsigned long  U32;
 
+#endif
 #endif
 
 
