@@ -353,10 +353,10 @@ mpt_print_reply_hdr(MSG_DEFAULT_REPLY *msg)
 {
 	printf("%s Reply @ %p\n", mpt_ioc_function(msg->Function), msg);
 	printf("\tIOC Status    %s\n", mpt_ioc_status(msg->IOCStatus));
-	printf("\tIOCLogInfo    0x%08lx\n", msg->IOCLogInfo);
+	printf("\tIOCLogInfo    0x%08x\n", msg->IOCLogInfo);
 	printf("\tMsgLength     0x%02x\n", msg->MsgLength);
 	printf("\tMsgFlags      0x%02x\n", msg->MsgFlags);
-	printf("\tMsgContext    0x%08lx\n", msg->MsgContext);
+	printf("\tMsgContext    0x%08x\n", msg->MsgContext);
 }
 
 static void
@@ -379,18 +379,18 @@ mpt_print_ioc_facts(MSG_IOC_FACTS_REPLY *msg)
 	printf("\tFlags         %d\n",		msg->Flags);
 	printf("\tReplyQueueDepth %d\n",	msg->ReplyQueueDepth);
 	printf("\tReqFrameSize  0x%04x\n",	msg->RequestFrameSize);
-	printf("\tFW Version    0x%08lx\n",	msg->FWVersion.Word);
+	printf("\tFW Version    0x%08x\n",	msg->FWVersion.Word);
 	printf("\tProduct ID    0x%04x\n",	msg->ProductID);
 	printf("\tCredits       0x%04x\n",	msg->GlobalCredits);
 	printf("\tPorts         %d\n",		msg->NumberOfPorts);
 	printf("\tEventState    0x%02x\n",	msg->EventState);
-	printf("\tHostMFA_HA    0x%08lx\n",	msg->CurrentHostMfaHighAddr);
-	printf("\tSenseBuf_HA   0x%08lx\n",
+	printf("\tHostMFA_HA    0x%08x\n",	msg->CurrentHostMfaHighAddr);
+	printf("\tSenseBuf_HA   0x%08x\n",
 	    msg->CurrentSenseBufferHighAddr);
 	printf("\tRepFrameSize  0x%04x\n",	msg->CurReplyFrameSize);
 	printf("\tMaxDevices    0x%02x\n",	msg->MaxDevices);
 	printf("\tMaxBuses      0x%02x\n",	msg->MaxBuses);
-	printf("\tFWImageSize   0x%04lx\n",	msg->FWImageSize);
+	printf("\tFWImageSize   0x%04x\n",	msg->FWImageSize);
 }
 
 static void
@@ -409,9 +409,9 @@ mpt_print_scsi_io_reply(MSG_SCSI_IO_REPLY *msg)
 	printf("\tCDBLength     %d\n", msg->CDBLength);
 	printf("\tSCSI Status:  %s\n", mpt_scsi_status(msg->SCSIStatus));
 	printf("\tSCSI State:   %s\n", mpt_scsi_state(msg->SCSIState));
-	printf("\tTransferCnt   0x%04lx\n", msg->TransferCount);
-	printf("\tSenseCnt      0x%04lx\n", msg->SenseCount);
-	printf("\tResponseInfo  0x%08lx\n", msg->ResponseInfo);
+	printf("\tTransferCnt   0x%04x\n", msg->TransferCount);
+	printf("\tSenseCnt      0x%04x\n", msg->SenseCount);
+	printf("\tResponseInfo  0x%08x\n", msg->ResponseInfo);
 }
 
 
@@ -421,41 +421,51 @@ mpt_print_event_notice(MSG_EVENT_NOTIFY_REPLY *msg)
 {
 	mpt_print_reply_hdr((MSG_DEFAULT_REPLY *)msg);
 	printf("\tEvent:        %s\n", mpt_ioc_event(msg->Event));
-	printf("\tEventContext  0x%04lx\n", msg->EventContext);
+	printf("\tEventContext  0x%04x\n", msg->EventContext);
 	printf("\tAckRequired     %d\n", msg->AckRequired);
 	printf("\tEventDataLength %d\n", msg->EventDataLength);
 	printf("\tContinuation    %d\n", msg->MsgFlags & 0x80);
 	switch(msg->Event) {
 	case MPI_EVENT_LOG_DATA:
-		printf("\tEvtLogData:   0x%04lx\n", msg->Data[0]);
+		printf("\tEvtLogData:   0x%04x\n", msg->Data[0]);
 		break;
 
 	case MPI_EVENT_UNIT_ATTENTION:
-		printf("\tTargetID:     0x%04lx\n", msg->Data[0] & 0xff);
-		printf("\tBus:          0x%04lx\n", (msg->Data[0] >> 8) & 0xff);
+		printf("\tTargetID:     0x%04x\n",
+			msg->Data[0] & 0xff);
+		printf("\tBus:          0x%04x\n",
+			(msg->Data[0] >> 8) & 0xff);
 		break;
 
 	case MPI_EVENT_IOC_BUS_RESET:
 	case MPI_EVENT_EXT_BUS_RESET:
 	case MPI_EVENT_RESCAN:
-		printf("\tPort:           %ld\n", (msg->Data[0] >> 8) & 0xff);
+		printf("\tPort:           %d\n",
+			(msg->Data[0] >> 8) & 0xff);
 		break;
 
 	case MPI_EVENT_LINK_STATUS_CHANGE:
-		printf("\tLinkState:    %ld\n", msg->Data[0] & 0xff);
-		printf("\tPort:         %ld\n", (msg->Data[1] >> 8) & 0xff);
+		printf("\tLinkState:    %d\n",
+			msg->Data[0] & 0xff);
+		printf("\tPort:         %d\n",
+			(msg->Data[1] >> 8) & 0xff);
 		break;
 
 	case MPI_EVENT_LOOP_STATE_CHANGE:
-		printf("\tType:         %ld\n", (msg->Data[0] >> 16) & 0xff);
-		printf("\tChar3:      0x%02lx\n", (msg->Data[0] >> 8) & 0xff);
-		printf("\tChar4:      0x%02lx\n", (msg->Data[0]     ) & 0xff);
-		printf("\tPort:         %ld\n", (msg->Data[1] >> 8) & 0xff);
+		printf("\tType:         %d\n",
+			(msg->Data[0] >> 16) & 0xff);
+		printf("\tChar3:      0x%02x\n",
+			(msg->Data[0] >> 8) & 0xff);
+		printf("\tChar4:      0x%02x\n",
+			(msg->Data[0]     ) & 0xff);
+		printf("\tPort:         %d\n",
+			(msg->Data[1] >> 8) & 0xff);
 		break;
 
 	case MPI_EVENT_LOGOUT:
-		printf("\tN_PortId:   0x%04lx\n", msg->Data[0]);
-		printf("\tPort:         %ld\n", (msg->Data[1] >> 8) & 0xff);
+		printf("\tN_PortId:   0x%04x\n", msg->Data[0]);
+		printf("\tPort:         %d\n",
+			(msg->Data[1] >> 8) & 0xff);
 		break;
 	}
 
@@ -497,7 +507,7 @@ mpt_print_request_hdr(MSG_REQUEST_HEADER *req)
 	printf("%s @ %p\n", mpt_ioc_function(req->Function), req);
 	printf("\tChain Offset  0x%02x\n", req->ChainOffset);
 	printf("\tMsgFlags      0x%02x\n", req->MsgFlags);
-	printf("\tMsgContext    0x%08lx\n", req->MsgContext);
+	printf("\tMsgContext    0x%08x\n", req->MsgContext);
 }
 
 void
@@ -512,7 +522,7 @@ mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *orig_msg)
 	printf("\tTargetID            %d\n", msg->TargetID);
 	printf("\tSenseBufferLength   %d\n", msg->SenseBufferLength);
 	printf("\tLUN:              0x%0x\n", msg->LUN[1]);
-	printf("\tControl           0x%08lx ", msg->Control);
+	printf("\tControl           0x%08x ", msg->Control);
 #define MPI_PRINT_FIELD(x)						\
 	case MPI_SCSIIO_CONTROL_ ## x :					\
 		printf(" " #x " ");					\
@@ -541,8 +551,8 @@ mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *orig_msg)
 	printf("\n");
 #undef MPI_PRINT_FIELD
 
-	printf("\tDataLength\t0x%08lx\n", msg->DataLength);
-	printf("\tSenseBufAddr\t0x%08lx\n", msg->SenseBufferLowAddr);
+	printf("\tDataLength\t0x%08x\n", msg->DataLength);
+	printf("\tSenseBufAddr\t0x%08x\n", msg->SenseBufferLowAddr);
 	printf("\tCDB[0:%d]\t", msg->CDBLength);
 	for (i = 0; i < msg->CDBLength; i++)
 		printf("%02x ", msg->CDB[i]);
@@ -561,7 +571,7 @@ mpt_print_scsi_tmf_request(MSG_SCSI_TASK_MGMT *msg)
 	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
 	printf("\tLun             0x%02x\n", msg->LUN[1]);
 	printf("\tTaskType        %s\n", mpt_scsi_tm_type(msg->TaskType));
-	printf("\tTaskMsgContext  0x%08lx\n", msg->TaskMsgContext);
+	printf("\tTaskMsgContext  0x%08x\n", msg->TaskMsgContext);
 }
 
 void
@@ -686,12 +696,12 @@ mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 		case MPI_SGE_FLAGS_SIMPLE_ELEMENT:
 			if (flags & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
 				SGE_SIMPLE64 *se64 = (SGE_SIMPLE64 *)se;
-				printf("SE64 %p: Addr=0x%08lx%08lx FlagsLength"
-				    "=0x%lx\n", se64, se64->Address.High,
+				printf("SE64 %p: Addr=0x%08x%08x FlagsLength"
+				    "=0x%0x\n", se64, se64->Address.High,
 				    se64->Address.Low, se64->FlagsLength);
 				nxtaddr = se64 + 1;
 			} else {
-				printf("SE32 %p: Addr=0x%08lx FlagsLength=0x%lx"
+				printf("SE32 %p: Addr=0x%0x FlagsLength=0x%0x"
 	                            "\n", se, se->Address, se->FlagsLength);
 			}
 			printf(" ");
@@ -699,16 +709,16 @@ mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 		case MPI_SGE_FLAGS_CHAIN_ELEMENT:
 			if (flags & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
 				SGE_CHAIN64 *ce64 = (SGE_CHAIN64 *) se;
-				printf("CE64 %p: Addr=0x%08lx%08lx NxtChnO="
-				    "0x%x Flgs=0x%x Len=0x%x\n", ce64,
+				printf("CE64 %p: Addr=0x%08x%08x NxtChnO=0x%x "
+				    "Flgs=0x%x Len=0x%0x\n", ce64,
 				    ce64->Address.High, ce64->Address.Low,
 				    ce64->NextChainOffset,
 				    ce64->Flags, ce64->Length);
 				nxtaddr = ce64 + 1;
 			} else {
 				SGE_CHAIN32 *ce = (SGE_CHAIN32 *) se;
-				printf("CE32 %p: Addr=0x%08lx NxtChnO=0x%x "
-				    " Flgs=0x%x Len=0x%x\n", ce, ce->Address,
+				printf("CE32 %p: Addr=0x%0x NxtChnO=0x%x "
+				    " Flgs=0x%x Len=0x%0x\n", ce, ce->Address,
 				    ce->NextChainOffset, ce->Flags, ce->Length);
 			}
 			flags = 0;

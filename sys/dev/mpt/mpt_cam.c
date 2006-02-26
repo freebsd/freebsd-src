@@ -974,7 +974,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 				if ((msg->Data[0] & 0xff) == 0xF7) {
 					printf("Device needs AL_PA\n");
 				} else {
-					printf("Device %02lx doesn't like "
+					printf("Device %02x doesn't like "
 					    "FC performance\n",
 					    msg->Data[0] & 0xFF);
 				}
@@ -985,14 +985,14 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 					    "receiver prior to acquiring "
 					    "AL_PA\n");
 				} else {
-					printf("Device %02lx detected loop "
+					printf("Device %02x detected loop "
 					    "failure at its receiver\n", 
 					    msg->Data[0] & 0xFF);
 				}
 				break;
 			default:
-				printf("Device %02lx requests that device "
-				    "%02lx reset itself\n", 
+				printf("Device %02x requests that device "
+				    "%02x reset itself\n", 
 				    msg->Data[0] & 0xFF,
 				    (msg->Data[0] >> 8) & 0xFF);
 				break;
