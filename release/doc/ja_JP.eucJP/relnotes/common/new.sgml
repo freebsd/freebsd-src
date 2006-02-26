@@ -107,14 +107,14 @@
 <![ %no.include.historic; [
     &release.prev; 以降に新たに追加・変更された
     ユーザに影響する機能について説明します。
-    これには他のブランチ (&os; &release.prev.historic; 以降) へと
+    これには他のブランチ (&os; &release.prev; 以降) へと
     最近マージされた機能に加えて、&release.branch; ブランチ
     に固有の項目も含まれます。
 ]]>
   </para>
 
   <para>リリースノートには、
-    &release.prev.historic; 以降に出されたセキュリティ勧告、
+    &release.prev; 以降に出されたセキュリティ勧告、
     新しいドライバやハードウェア対応、
     新しいコマンドやオプション、重要なバグフィックスや寄贈ソフトウェア
     のアップグレード、
