@@ -1,15 +1,14 @@
 .\" $FreeBSD$
 .\"
-.Dd October 4, 1996
+.Dd February 26, 2006
 .Dt FDISK 8
 .Os
 .Sh NAME
 .Nm fdisk
-.Nd PC partition table maintenance program
+.Nd NEC PC-98x1 partition table maintenance program
 .Sh SYNOPSIS
 .Nm
-.\" !PC98 .Op Fl BIaistu
-.Op Fl BIastu
+.Op Fl BIaistuv
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
@@ -99,18 +98,12 @@ when
 is used, you are not asked if you really want to write the partition
 table (as you are in the interactive mode).
 Use with caution!
-.\" !PC98
-.\" .It Fl i
-.\" Initialize sector 0 of the disk.  This implies
-.\" .Fl u ,
-.\" unless
-.\" .Fl f
-.\" is given.
-.\" .It Fl I
-.\" Initialize the contents of sector 0
-.\" with one
-/\" .Fx
-/\" slice covering the entire disk.
+.It Fl i
+Initialize sector 0 of the disk.  This implies
+.Fl u ,
+unless
+.Fl f
+is given.
 .It Fl s
 Print summary information and exit.
 .It Fl t
@@ -233,8 +226,8 @@ and saved in the bootblock.
 .El
 .Pp
 The flags
-.\" .Fl i
-.\" or
+.Fl i
+or
 .Fl u
 are used to indicate that the partition data is to be updated, unless the
 .Fl f
