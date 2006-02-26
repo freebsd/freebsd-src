@@ -1308,9 +1308,6 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	init.HeaderVersion = htole16(MPI_HEADER_VERSION);
 	init.ReplyFrameSize = htole16(MPT_REPLY_SIZE);
 	init.MsgContext = htole32(MPT_REPLY_HANDLER_HANDSHAKE);
-	if (mpt->ioc_facts_flags & MPI_IOCFACTS_FLAGS_REPLY_FIFO_HOST_SIGNAL) {
-		init.Flags |= MPI_IOCINIT_FLAGS_REPLY_FIFO_HOST_SIGNAL;
-	}
 
 	if ((error = mpt_send_handshake_cmd(mpt, sizeof init, &init)) != 0) {
 		return(error);
@@ -1886,7 +1883,8 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 
 	mpt_send_cmd(mpt, req);
 	error = mpt_wait_req(mpt, req, REQ_STATE_DONE, REQ_STATE_DONE,
-	    /*sleep_ok*/FALSE, /*time_ms*/mpt->is_sas? 30000 : 3000);
+	    /*sleep_ok*/FALSE,
+	    /*time_ms*/(mpt->is_sas || mpt->is_fc)? 30000 : 3000);
 	if (error != 0) {
 		mpt_prt(mpt, "port enable timed out\n");
 		return (-1);
