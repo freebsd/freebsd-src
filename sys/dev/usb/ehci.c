@@ -1390,7 +1390,7 @@ ehci_open(usbd_pipe_handle pipe)
 	if (sc->sc_dying)
 		return (USBD_IOERROR);
 
-	epipe->nexttoggle = 0;
+	epipe->nexttoggle = pipe->endpoint->savedtoggle;
 
 	if (addr == sc->sc_addr) {
 		switch (ed->bEndpointAddress) {
@@ -2479,6 +2479,8 @@ ehci_close_pipe(usbd_pipe_handle pipe, ehci_soft_qh_t *head)
 	ehci_rem_qh(sc, sqh, head);
 	splx(s);
 	ehci_free_sqh(sc, epipe->sqh);
+
+	pipe->endpoint->savedtoggle = epipe->nexttoggle;
 }
 
 /*
