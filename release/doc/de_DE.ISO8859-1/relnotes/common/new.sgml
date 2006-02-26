@@ -123,13 +123,13 @@
     &Auml;nderungen in &os; seit &release.prev;.  Dazu geh&ouml;ren
     sowohl die &Auml;nderungen, die nur &release.prev; betreffen,
     als auch &Auml;nderungen in den anderen Entwicklungszweigen
-    seit &os; &release.prev.historic;.  Letztere sind als &merged;
+    seit &os; &release.prev;.  Letztere sind als &merged;
     gekennzeichnet.
 ]]>
   </para>
 
   <para>Die Eintr&auml;ge umfassen alle Sicherheitshinweise, die nach
-    dem Erscheinen von &release.prev.historic; herausgegeben wurden,
+    dem Erscheinen von &release.prev; herausgegeben wurden,
     neue Treiber bzw.  Unterst&uuml;tzung f&uuml;r neue Hardware, neue
     Befehle oder Optionen, die Behebung wichtiger Fehler, und
     Aktualisierungen von zus&auml;tzlicher Software.  Sie k&ouml;nnen
