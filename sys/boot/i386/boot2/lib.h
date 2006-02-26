@@ -17,7 +17,7 @@
  * $FreeBSD$
  */
 
-void sio_init(void);
+void sio_init(int);
 void sio_flush(void);
 void sio_putc(int);
 int sio_getc(void);

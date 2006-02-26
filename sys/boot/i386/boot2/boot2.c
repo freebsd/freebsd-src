@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #define RBX_NOINTR	0x1c	/* -n */
 /* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
 #define RBX_DUAL	0x1d	/* -D */
-#define RBX_PROBEKBD	0x1e	/* -P */
 /* 0x1f is reserved for log2(RB_BOOTINFO). */
 
 /* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
@@ -91,7 +90,7 @@ __FBSDID("$FreeBSD$");
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCgmnPprsv";
+static const char optstr[NOPT] = "DhaCgmnprsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -100,7 +99,6 @@ static const unsigned char flags[NOPT] = {
     RBX_GDB,
     RBX_MUTE,
     RBX_NOINTR,
-    RBX_PROBEKBD,
     RBX_PAUSE,
     RBX_DFLTROOT,
     RBX_SINGLE,
@@ -122,6 +120,7 @@ static struct dsk {
 static char cmd[512];
 static char kname[1024];
 static uint32_t opts;
+static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
@@ -390,34 +389,48 @@ static int
 parse()
 {
     char *arg = cmd;
-    char *p, *q;
+    char *ep, *p, *q;
+    const char *cp;
     unsigned int drv;
-    int c, i;
+    int c, i, j;
 
     while ((c = *arg++)) {
 	if (c == ' ' || c == '\t' || c == '\n')
 	    continue;
 	for (p = arg; *p && *p != '\n' && *p != ' ' && *p != '\t'; p++);
+	ep = p;
 	if (*p)
 	    *p++ = 0;
 	if (c == '-') {
 	    while ((c = *arg++)) {
+		if (c == 'P') {
+		    if (*(uint8_t *)PTOV(0x496) & 0x10) {
+			cp = "yes";
+		    } else {
+			opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
+			cp = "no";
+		    }
+		    printf("Keyboard: %s\n", cp);
+		    continue;
+		} else if (c == 'S') {
+		    j = 0;
+		    while ((unsigned int)(i = *arg++ - '0') <= 9)
+			j = j * 10 + i;
+		    if (j > 0 && i == -'0') {
+			comspeed = j;
+			break;
+		    }
+		    /* Fall through to error below ('S' not in optstr[]). */
+		}
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
 		opts ^= 1 << flags[i];
 	    }
-	    if (opts & 1 << RBX_PROBEKBD) {
-		i = *(uint8_t *)PTOV(0x496) & 0x10;
-		printf("Keyboard: %s\n", i ? "yes" : "no");
-		if (!i)
-		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
-		opts &= ~(1 << RBX_PROBEKBD);
-	    }
 	    ioctrl = opts & 1 << RBX_DUAL ? (IO_SERIAL|IO_KEYBOARD) :
 		     opts & 1 << RBX_SERIAL ? IO_SERIAL : IO_KEYBOARD;
 	    if (ioctrl & IO_SERIAL)
-	        sio_init();
+	        sio_init(115200 / comspeed);
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
 	    if (*q) {
@@ -459,7 +472,7 @@ parse()
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-	    if ((i = p - arg - !*(p - 1))) {
+	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(kname))
 		    return -1;
 		memcpy(kname, arg, i + 1);
