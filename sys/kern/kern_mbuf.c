@@ -74,20 +74,20 @@ __FBSDID("$FreeBSD$");
  *  [ Cluster Zone  ]   [     Zone     ]   [ Mbuf Master Zone ]
  *        |                       \________         |
  *  [ Cluster Keg   ]                      \       /
- *        |    	                         [ Mbuf Keg   ] 
+ *        |    	                         [ Mbuf Keg   ]
  *  [ Cluster Slabs ]                         |
  *        |                              [ Mbuf Slabs ]
  *         \____________(VM)_________________/
  *
  *
- * Whenever a object is allocated with uma_zalloc() out of the
+ * Whenever an object is allocated with uma_zalloc() out of
  * one of the Zones its _ctor_ function is executed.  The same
- * for any deallocation through uma_zfree() the _dror_ function
+ * for any deallocation through uma_zfree() the _dtor_ function
  * is executed.
- * 
+ *
  * Caches are per-CPU and are filled from the Master Zone.
  *
- * Whenever a object is allocated from the underlying global
+ * Whenever an object is allocated from the underlying global
  * memory pool it gets pre-initialized with the _zinit_ functions.
  * When the Keg's are overfull objects get decomissioned with
  * _zfini_ functions and free'd back to the global memory pool.
@@ -188,7 +188,7 @@ mbuf_init(void *dummy)
 	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
 	    mb_dtor_pack, mb_zinit_pack, mb_zfini_pack, zone_mbuf);
 
-	/* Make jumbo frame zone too. 4k, 9k and 16k. */
+	/* Make jumbo frame zone too. Page size, 9k and 16k. */
 	zone_jumbop = uma_zcreate(MBUF_JUMBOP_MEM_NAME, MJUMPAGESIZE,
 	    mb_ctor_clust, mb_dtor_clust,
 #ifdef INVARIANTS
@@ -291,7 +291,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 
 	/*
 	 * The mbuf is initialized later.  The caller has the
-	 * responseability to setup any MAC labels too.
+	 * responsibility to setup any MAC labels too.
 	 */
 	if (type == MT_NOINIT)
 		return (0);
