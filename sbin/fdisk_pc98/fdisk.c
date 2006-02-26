@@ -103,6 +103,7 @@ typedef struct cmd {
 } CMD;
 
 static int B_flag  = 0;		/* replace boot code */
+static int I_flag  = 0;		/* Inizialize disk to defaults */
 static int a_flag  = 0;		/* set active partition */
 static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
@@ -170,6 +171,7 @@ static int decimal(const char *str, int *num, int deflt);
 static const char *get_type(int type);
 static void usage(void);
 static int string(const char *str, char **ans);
+static void reset_boot(void);
 
 int
 main(int argc, char *argv[])
@@ -179,10 +181,13 @@ main(int argc, char *argv[])
 	int	partition = -1;
 	struct	pc98_partition *partp;
 
-	while ((c = getopt(argc, argv, "Ba:f:istuv12345678")) != -1)
+	while ((c = getopt(argc, argv, "BIa:f:istuv12345678")) != -1)
 		switch (c) {
 		case 'B':
 			B_flag = 1;
+			break;
+		case 'I':
+			I_flag = 1;
 			break;
 		case 'a':
 			a_flag = 1;
@@ -249,20 +254,44 @@ main(int argc, char *argv[])
 			err(1, "read_s0");
 		printf("%s: %d cyl %d hd %d sec\n", disk, dos_cyls, dos_heads,
 		    dos_sectors);
-		printf("Part  %11s %11s SID\n", "Start", "Size");
+		printf("Part  %11s %11s %4s %4s\n", "Start", "Size", "MID",
+		    "SID");
 		for (i = 0; i < NDOSPART; i++) {
 			partp = ((struct pc98_partition *) &mboot.parts) + i;
 			if (partp->dp_sid == 0)
 				continue;
-			printf("%4d: %11u %11u 0x%02x\n", i + 1,
+			printf("%4d: %11u %11u 0x%02x 0x%02x\n", i + 1,
 			    partp->dp_scyl * cylsecs,
 			    (partp->dp_ecyl - partp->dp_scyl + 1) * cylsecs,
-				partp->dp_sid);
+			    partp->dp_mid, partp->dp_sid);
 		}
 		exit(0);
 	}
 
 	printf("******* Working on device %s *******\n",disk);
+
+	if (I_flag) {
+		read_s0();
+		reset_boot();
+		partp = (struct pc98_partition *) (&mboot.parts[0]);
+		partp->dp_mid = DOSMID_386BSD;
+		partp->dp_sid = DOSSID_386BSD;
+		/* Start c/h/s. */
+		partp->dp_scyl = partp->dp_ipl_cyl = 1;
+		partp->dp_shd = partp->dp_ipl_head = 1;
+		partp->dp_ssect = partp->dp_ipl_sct = 0;
+
+		/* End c/h/s. */
+		partp->dp_ecyl = dos_cyls - 1;
+		partp->dp_ehd = dos_cylsecs / dos_sectors;
+		partp->dp_esect = dos_sectors;
+
+		if (v_flag)
+			print_s0(-1);
+		if (!t_flag)
+			write_s0();
+		exit(0);
+	}
 
 	if (f_flag) {
 	    if (v_flag)
@@ -315,7 +344,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s%s",
-		"usage: fdisk [-Baistu] [-12345678] [disk]\n",
+		"usage: fdisk [-BIaistu] [-12345678] [disk]\n",
  		"       fdisk -f configfile [-itv] [disk]\n");
         exit(1);
 }
@@ -571,7 +600,7 @@ open_disk(int flag)
 	}
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
-	rwmode = a_flag || B_flag || flag ? O_RDWR : O_RDONLY;
+	rwmode = I_flag || a_flag || B_flag || flag ? O_RDWR : O_RDONLY;
 	fd = open(disk, rwmode);
 	if (fd == -1 && errno == EPERM && rwmode == O_RDWR)
 		fd = open(disk, O_RDONLY);
@@ -604,8 +633,9 @@ write_disk(off_t sector, void *buf)
 	struct gctl_req *grq;
 	const char *q;
 	char fbuf[BUFSIZ];
-	int i, fdw;
+	int i, fdw, sz;
 
+	sz = secsize > MIN_SEC_SIZE ? secsize : MIN_SEC_SIZE * 2;
 	grq = gctl_get_handle();
 	gctl_ro_param(grq, "verb", -1, "write PC98");
 	gctl_ro_param(grq, "class", -1, "PC98");
@@ -615,17 +645,18 @@ write_disk(off_t sector, void *buf)
 	else
 		q++;
 	gctl_ro_param(grq, "geom", -1, q);
-	gctl_ro_param(grq, "data", secsize, buf);
+	gctl_ro_param(grq, "data", sz, buf);
 	q = gctl_issue(grq);
 	if (q == NULL) {
 		gctl_free(grq);
 		return(0);
 	}
-	warnx("%s", q);
+	warnx("Geom problem: %s", q);
 	gctl_free(grq);
 
-	error = pwrite(fd, buf, secsize, (sector * 512));
-	if (error == secsize)
+	warnx("Warning: Partitioning via geom failed, trying raw write");
+	error = pwrite(fd, buf, sz, sector * 512);
+	if (error == sz)
 		return (0);
 
 	for (i = 0; i < NDOSPART; i++) {
@@ -858,4 +889,17 @@ get_rootdisk(void)
 	s[rm[1].rm_eo - rm[1].rm_so] = 0;
 
 	return s;
+}
+
+static void
+reset_boot(void)
+{
+	int i;
+	struct pc98_partition *partp;
+
+	init_boot();
+	for (i = 1; i <= NDOSPART; i++) {
+		partp = ((struct pc98_partition *) &mboot.parts) + i - 1;
+		bzero((char *)partp, sizeof (struct pc98_partition));
+	}
 }
