@@ -28,8 +28,8 @@
  * Id: if_devar.h,v 1.28 1997/07/03 16:55:07 thomas Exp
  */
 
-#ifndef _DEVAR_H
-#define _DEVAR_H
+#ifndef DEV_DE_IF_DEVAR_H
+#define DEV_DE_IF_DEVAR_H
 
 typedef bus_addr_t tulip_csrptr_t;
 
@@ -934,4 +934,4 @@ TULIP_PERFREAD(void)
 #define	TULIP_UNLOCK(sc)	mtx_unlock(TULIP_MUTEX(sc))
 #define	TULIP_LOCK_ASSERT(sc)	mtx_assert(TULIP_MUTEX(sc), MA_OWNED)
 
-#endif	/* _DEVAR_H */
+#endif	/* DEV_DE_IF_DEVAR_H */
