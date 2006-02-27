@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
 
 #ifndef MAXHOSTNAMELEN
 #define	MAXHOSTNAMELEN 64
@@ -112,7 +113,6 @@ rpc_call(host, prognum, versnum, procnum, inproc, in, outproc, out, nettype)
 	enum clnt_stat clnt_stat;
 	struct timeval timeout, tottimeout;
 	static thread_key_t rpc_call_key;
-	extern mutex_t tsd_lock;
 	int main_thread = 1;
 
 	if ((main_thread = thr_main())) {

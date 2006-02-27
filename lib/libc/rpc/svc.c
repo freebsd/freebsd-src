@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 #define	RQCRED_SIZE	400		/* this size is excessive */
 
@@ -83,9 +84,6 @@ static struct svc_callout {
 	char		   *sc_netid;
 	void		    (*sc_dispatch)(struct svc_req *, SVCXPRT *);
 } *svc_head;
-
-extern rwlock_t svc_lock;
-extern rwlock_t svc_fd_lock;
 
 static struct svc_callout *svc_find(rpcprog_t, rpcvers_t,
     struct svc_callout **, char *);

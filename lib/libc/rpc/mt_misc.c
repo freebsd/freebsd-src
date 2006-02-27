@@ -11,6 +11,25 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
+
+/* Take these objects out of the application namespace. */
+#define	svc_lock		__svc_lock
+#define	svc_fd_lock		__svc_fd_lock
+#define	rpcbaddr_cache_lock	__rpcbaddr_cache_lock
+#define	authdes_ops_lock	__authdes_ops_lock
+#define	authnone_lock		__authnone_lock
+#define	authsvc_lock		__authsvc_lock
+#define	clnt_fd_lock		__clnt_fd_lock
+#define	clntraw_lock		__clntraw_lock
+#define	dupreq_lock		__dupreq_lock
+#define	loopnconf_lock		__loopnconf_lock
+#define	ops_lock		__ops_lock
+#define	proglst_lock		__proglst_lock
+#define	rpcsoc_lock		__rpcsoc_lock
+#define	svcraw_lock		__svcraw_lock
+#define	tsd_lock		__tsd_lock
+#define	xprtlist_lock		__xprtlist_lock
 
 /* protects the services list (svc.c) */
 pthread_rwlock_t	svc_lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -21,21 +40,11 @@ pthread_rwlock_t	svc_fd_lock = PTHREAD_RWLOCK_INITIALIZER;
 /* protects the RPCBIND address cache */
 pthread_rwlock_t	rpcbaddr_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 
-/* protects authdes cache (svcauth_des.c) */
-pthread_mutex_t	authdes_lock = PTHREAD_MUTEX_INITIALIZER;
-
 /* serializes authdes ops initializations */
 pthread_mutex_t authdes_ops_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* protects des stats list */
 pthread_mutex_t svcauthdesstats_lock = PTHREAD_MUTEX_INITIALIZER;
-
-#ifdef KERBEROS
-/* auth_kerb.c serialization */
-pthread_mutex_t authkerb_lock = PTHREAD_MUTEX_INITIALIZER;
-/* protects kerb stats list */
-pthread_mutex_t svcauthkerbstats_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif /* KERBEROS */
 
 /* auth_none.c serialization */
 pthread_mutex_t	authnone_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -49,26 +58,14 @@ pthread_mutex_t	clnt_fd_lock = PTHREAD_MUTEX_INITIALIZER;
 /* clnt_raw.c serialization */
 pthread_mutex_t	clntraw_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* domainname and domain_fd (getdname.c) and default_domain (rpcdname.c) */
-pthread_mutex_t	dname_lock = PTHREAD_MUTEX_INITIALIZER;
-
 /* dupreq variables (svc_dg.c) */
 pthread_mutex_t	dupreq_lock = PTHREAD_MUTEX_INITIALIZER;
-
-/* protects first_time and hostname (key_call.c) */
-pthread_mutex_t	keyserv_lock = PTHREAD_MUTEX_INITIALIZER;
-
-/* serializes rpc_trace() (rpc_trace.c) */
-pthread_mutex_t	libnsl_trace_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* loopnconf (rpcb_clnt.c) */
 pthread_mutex_t	loopnconf_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* serializes ops initializations */
 pthread_mutex_t	ops_lock = PTHREAD_MUTEX_INITIALIZER;
-
-/* protects ``port'' static in bindresvport() */
-pthread_mutex_t	portnum_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* protects proglst list (svc_simple.c) */
 pthread_mutex_t	proglst_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -84,9 +81,6 @@ pthread_mutex_t	tsd_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* xprtlist (svc_generic.c) */
 pthread_mutex_t	xprtlist_lock = PTHREAD_MUTEX_INITIALIZER;
-
-/* serializes calls to public key routines */
-pthread_mutex_t serialize_pkey = PTHREAD_MUTEX_INITIALIZER;
 
 #undef	rpc_createerr
 

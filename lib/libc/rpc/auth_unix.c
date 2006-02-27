@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/auth.h>
 #include <rpc/auth_unix.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
 
 /* auth_unix.c */
 static void authunix_nextverf (AUTH *);
@@ -356,7 +357,6 @@ static struct auth_ops *
 authunix_ops()
 {
 	static struct auth_ops ops;
-	extern mutex_t ops_lock;
 
 	/* VARIABLES PROTECTED BY ops_lock: ops */
 

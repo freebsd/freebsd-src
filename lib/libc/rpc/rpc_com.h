@@ -74,8 +74,6 @@ int __rpc_socktype2seman(int);
 void *rpc_nullproc(CLIENT *);
 int __rpc_sockisbound(int);
 
-struct netbuf *__rpcb_findaddr(rpcprog_t, rpcvers_t, const struct netconfig *,
-    const char *, CLIENT **);
 struct netbuf *__rpcb_findaddr_timed(rpcprog_t, rpcvers_t,
     const struct netconfig *, const char *host, CLIENT **clpp,
     struct timeval *tp);

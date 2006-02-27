@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include "un-namespace.h"
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 
 #define	RPC_MAX_BACKOFF		30 /* seconds */
@@ -92,7 +93,6 @@ static void clnt_dg_destroy(CLIENT *);
  *	at a time.
  */
 static int	*dg_fd_locks;
-extern mutex_t clnt_fd_lock;
 static cond_t	*dg_cv;
 #define	release_fd_lock(fd, mask) {		\
 	mutex_lock(&clnt_fd_lock);	\
@@ -754,7 +754,6 @@ static struct clnt_ops *
 clnt_dg_ops()
 {
 	static struct clnt_ops ops;
-	extern mutex_t	ops_lock;
 	sigset_t mask;
 	sigset_t newmask;
 

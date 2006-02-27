@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <stdlib.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
 
 /*
  * svcauthsw is the bdevsw of server side authentication.
@@ -100,7 +101,6 @@ _authenticate(rqst, msg)
 	int cred_flavor;
 	struct authsvc *asp;
 	enum auth_stat dummy;
-	extern mutex_t authsvc_lock;
 
 /* VARIABLES PROTECTED BY authsvc_lock: asp, Auths */
 
@@ -172,7 +172,6 @@ svc_auth_reg(cred_flavor, handler)
 	enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *);
 {
 	struct authsvc *asp;
-	extern mutex_t authsvc_lock;
 
 	switch (cred_flavor) {
 	    case AUTH_NULL:

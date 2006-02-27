@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 extern int __svc_vc_setflag(SVCXPRT *, int);
 
@@ -89,7 +90,6 @@ svc_create(dispatch, prognum, versnum, nettype)
 	SVCXPRT *xprt;
 	struct netconfig *nconf;
 	void *handle;
-	extern mutex_t xprtlist_lock;
 
 /* VARIABLES PROTECTED BY xprtlist_lock: xprtlist */
 
