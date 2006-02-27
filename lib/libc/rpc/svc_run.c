@@ -52,13 +52,13 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 void
 svc_run()
 {
 	fd_set readfds, cleanfds;
 	struct timeval timeout;
-	extern rwlock_t svc_fd_lock;
 
 	timeout.tv_sec = 30;
 	timeout.tv_usec = 0;
@@ -92,8 +92,6 @@ svc_run()
 void
 svc_exit()
 {
-	extern rwlock_t svc_fd_lock;
-
 	rwlock_wrlock(&svc_fd_lock);
 	FD_ZERO(&svc_fdset);
 	rwlock_unlock(&svc_fd_lock);

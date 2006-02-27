@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 static struct timeval tottimeout = { 60, 0 };
 static const struct timeval rmttimeout = { 3, 0 };
@@ -165,7 +166,6 @@ __rpc_control(request, info)
  * block all clnt_create's if we are trying to connect to a host that's down,
  * since the lock will be held all during that time.
  */
-extern rwlock_t	rpcbaddr_cache_lock;
 
 /*
  * The routines check_cache(), add_cache(), delete_cache() manage the
@@ -448,7 +448,6 @@ local_rpcb()
 	CLIENT *client;
 	static struct netconfig *loopnconf;
 	static char *hostname;
-	extern mutex_t loopnconf_lock;
 	int sock;
 	size_t tsize;
 	struct netbuf nbuf;
@@ -675,7 +674,7 @@ got_entry(relp, nconf)
  * Quick check to see if rpcbind is up.  Tries to connect over
  * local transport.
  */
-bool_t
+static bool_t
 __rpcbind_is_up()
 {
 	struct netconfig *nconf;
