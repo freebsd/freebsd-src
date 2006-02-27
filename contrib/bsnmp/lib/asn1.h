@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/asn1.h,v 1.19 2005/10/04 11:21:31 brandt_h Exp $
+ * $Begemot: bsnmp/lib/asn1.h,v 1.20 2005/10/05 16:43:11 brandt_h Exp $
  *
  * ASN.1 for SNMP
  */
