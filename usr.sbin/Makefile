@@ -22,6 +22,7 @@ SUBDIR=	ac \
 	${_boot0cfg} \
 	${_boot98cfg} \
 	bootparamd \
+	bsnmpd \
 	${_btxld} \
 	burncd \
 	cdcontrol \
