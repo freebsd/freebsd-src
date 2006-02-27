@@ -334,7 +334,7 @@ struct thread {
 #define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
 #define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
 #define	TDF_SELECT	0x00000040 /* Selecting; wakeup/waiting danger. */
-#define	TDF_UNUSED7	0x00000080 /* --available -- */
+#define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
 #define	TDF_TSNOBLOCK	0x00000100 /* Don't block on a turnstile due to race. */
 #define	TDF_UNUSED9	0x00000200 /* --available -- */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
