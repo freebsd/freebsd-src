@@ -16,7 +16,7 @@ PPP_IPX?=	0	# 0/1 - requires IPX to be configured in kernel
 SRCS+=	bsd_comp.c
 .endif
 .if ${PPP_DEFLATE} > 0
-SRCS+=	ppp_deflate.c zlib.c
+SRCS+=	ppp_deflate.c
 .endif
 
 .if !defined(KERNBUILDDIR)
