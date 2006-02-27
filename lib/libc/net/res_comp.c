@@ -246,10 +246,10 @@ res_dnok(dn)
 #ifdef BIND_4_COMPAT
 /*
  * This module must export the following externally-visible symbols:
- *    ___putlong
- *    ___putshort
- *    __getlong
- *    __getshort
+ *    __putlong
+ *    __putshort
+ *    _getlong
+ *    _getshort
  * Note that one _ comes from C and the others come from us.
  */
 void __putlong(u_int32_t src, u_char *dst) { ns_put32(src, dst); }
