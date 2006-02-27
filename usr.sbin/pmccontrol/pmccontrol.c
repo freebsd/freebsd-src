@@ -237,7 +237,7 @@ pmcc_do_list_state(void)
 	ncpu = pc->pm_ncpu;
 
 	for (c = cpu = 0; cpu < ncpu; cpu++) {
-#if	i386
+#if	defined(__i386__) || defined(__amd64__)
 		if (pc->pm_cputype == PMC_CPU_INTEL_PIV &&
 		    (logical_cpus_mask & (1 << cpu)))
 			continue; /* skip P4-style 'logical' cpus */
