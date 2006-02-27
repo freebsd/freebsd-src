@@ -741,7 +741,7 @@ thread_single(int mode)
 						thread_unsuspend_one(td2);
 					if (TD_ON_SLEEPQ(td2) &&
 					    (td2->td_flags & TDF_SINTR))
-						sleepq_abort(td2);
+						sleepq_abort(td2, EINTR);
 					break;
 				case SINGLE_BOUNDARY:
 					if (TD_IS_SUSPENDED(td2) &&
@@ -749,7 +749,7 @@ thread_single(int mode)
 						thread_unsuspend_one(td2);
 					if (TD_ON_SLEEPQ(td2) &&
 					    (td2->td_flags & TDF_SINTR))
-						sleepq_abort(td2);
+						sleepq_abort(td2, ERESTART);
 					break;
 				default:	
 					if (TD_IS_SUSPENDED(td2))
@@ -764,6 +764,11 @@ thread_single(int mode)
 					break;
 				}
 			}
+#ifdef SMP
+			else if (TD_IS_RUNNING(td2) && td != td2) {
+				forward_signal(td2);
+			}
+#endif
 		}
 		if (mode == SINGLE_EXIT)
 			remaining = p->p_numthreads;
@@ -868,12 +873,12 @@ thread_suspend_check(int return_instead)
 				return (0);	/* Exempt from stopping. */
 		}
 		if ((p->p_flag & P_SINGLE_EXIT) && return_instead)
-			return (1);
+			return (EINTR);
 
 		/* Should we goto user boundary if we didn't come from there? */
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
 		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
-			return (1);
+			return (ERESTART);
 
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
