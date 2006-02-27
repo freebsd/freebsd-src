@@ -147,7 +147,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 {
 	struct thread *td;
 	struct proc *p;
-	int rval, sig;
+	int rval;
 	WITNESS_SAVE_DECL(mp);
 
 	td = curthread;
@@ -173,28 +173,13 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	sleepq_lock(cvp);
 
-	/*
-	 * Don't bother sleeping if we are exiting and not the exiting
-	 * thread or if our thread is marked as interrupted.
-	 */
-	mtx_lock_spin(&sched_lock);
-	rval = thread_sleep_check(td);
-	mtx_unlock_spin(&sched_lock);
-	if (rval != 0) {
-		sleepq_release(cvp);
-		return (rval);
-	}
-
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
 	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE);
-	sig = sleepq_catch_signals(cvp);
 	rval = sleepq_wait_sig(cvp);
-	if (rval == 0)
-		rval = sleepq_calc_signal_retval(sig);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -273,7 +258,6 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	struct thread *td;
 	struct proc *p;
 	int rval;
-	int sig;
 	WITNESS_SAVE_DECL(mp);
 
 	td = curthread;
@@ -300,18 +284,6 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 
 	sleepq_lock(cvp);
 
-	/*
-	 * Don't bother sleeping if we are exiting and not the exiting
-	 * thread or if our thread is marked as interrupted.
-	 */
-	mtx_lock_spin(&sched_lock);
-	rval = thread_sleep_check(td);
-	mtx_unlock_spin(&sched_lock);
-	if (rval != 0) {
-		sleepq_release(cvp);
-		return (rval);
-	}
-
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
@@ -319,10 +291,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE);
 	sleepq_set_timeout(cvp, timo);
-	sig = sleepq_catch_signals(cvp);
-	rval = sleepq_timedwait_sig(cvp, sig != 0);
-	if (rval == 0)
-		rval = sleepq_calc_signal_retval(sig);
+	rval = sleepq_timedwait_sig(cvp);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
