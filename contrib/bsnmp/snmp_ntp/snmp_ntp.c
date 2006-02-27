@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_ntp/snmp_ntp.c,v 1.7 2005/10/04 11:21:36 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_ntp/snmp_ntp.c,v 1.9 2005/10/06 07:15:01 brandt_h Exp $
  *
  * NTP interface for SNMPd.
  */
@@ -51,19 +51,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "support.h"
 #include "snmpmod.h"
 #include "ntp_tree.h"
 #include "ntp_oid.h"
-
-#if !defined(INT32_MIN)
-#define	INT32_MIN	(-0x7fffffff-1)
-#endif
-#if !defined(INT32_MAX)
-#define	INT32_MAX	(0x7fffffff)
-#endif
-#if !defined(UINT32_MAX)
-#define	UINT32_MAX	(0xffffffff)
-#endif
 
 #define	NTPC_MAX	576
 #define	NTPC_VERSION	3
