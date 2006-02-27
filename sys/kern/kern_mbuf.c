@@ -291,7 +291,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 
 	/*
 	 * The mbuf is initialized later.  The caller has the
-	 * responsibility to setup any MAC labels too.
+	 * responsibility to set up any MAC labels too.
 	 */
 	if (type == MT_NOINIT)
 		return (0);
