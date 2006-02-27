@@ -246,11 +246,20 @@ kbdmux_kbd_event(keyboard_t *kbd, int event, void *arg)
 
 		KBDMUX_LOCK(state);
 
-		/* read all chars from the keyboard */
+		/*
+		 * Read all chars from the keyboard
+		 *
+		 * Turns out that atkbd(4) check_char() method may return
+		 * "true" while read_char() method returns NOKEY. If this
+		 * happens we could stuck in the loop below. Avoid this
+		 * by breaking out of the loop if read_char() method returns
+		 * NOKEY.
+		 */
+
 		while (KBDMUX_CHECK_CHAR(kbd)) {
 			c = KBDMUX_READ_CHAR(kbd, 0);
 			if (c == NOKEY)
-				continue;
+				break;
 			if (c == ERRKEY)
 				continue; /* XXX ring bell */
 			if (!KBD_IS_BUSY(kbd))
@@ -1128,8 +1137,8 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
-        case PIO_KEYMAPENT:	/* set keyboard translation table entry */
-        case PIO_DEADKEYMAP:	/* set accent key translation table */
+	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
+	case PIO_DEADKEYMAP:	/* set accent key translation table */
 		KBDMUX_LOCK(state);
                 state->ks_accents = 0;
 
