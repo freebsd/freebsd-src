@@ -59,7 +59,8 @@ hci_read_local_version_information(int s, int argc, char **argv)
 		hci_ver2str(rp.hci_version), rp.hci_version);
 	fprintf(stdout, "HCI revision: %#04x\n",
 		le16toh(rp.hci_revision));
-	fprintf(stdout, "LMP version: %#02x\n", rp.lmp_version);
+	fprintf(stdout, "LMP version: %s [%#02x]\n",
+		hci_lmpver2str(rp.lmp_version), rp.lmp_version);
 	fprintf(stdout, "LMP sub-version: %#04x\n", 
 		le16toh(rp.lmp_subversion));
 	fprintf(stdout, "Manufacturer: %s [%#04x]\n", 
