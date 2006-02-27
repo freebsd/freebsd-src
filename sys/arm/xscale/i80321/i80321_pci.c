@@ -376,8 +376,10 @@ i80321_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &sc->sc_io_rman;
 		bt = sc->sc_pciio;
 		bh = sc->sc_io;
-		start = start - 0x90000000 + sc->sc_io;
-		end = end - 0x90000000 + sc->sc_io;
+		if (start < sc->sc_io) {
+			start = start - 0x90000000 + sc->sc_io;
+			end = end - 0x90000000 + sc->sc_io;
+		}
 		break;
 	default:
 		return (NULL);
