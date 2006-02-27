@@ -359,9 +359,9 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	   
 	mtx_lock_spin(&sc->sc_hwmtx);
 	if (csr & USART_CSR_TXRDY && sc->sc_txbusy)
-		ipend |= UART_IPEND_TXIDLE;
+		ipend |= SER_INT_TXIDLE;
 	if (csr & USART_CSR_RXRDY)
-		ipend |= UART_IPEND_RXREADY;
+		ipend |= SER_INT_RXREADY;
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (ipend);
 }
@@ -388,7 +388,7 @@ at91_usart_bus_getsig(struct uart_softc *sc)
 		sig |= SER_DSR;
 	if (csr & USART_CSR_RI)
 		sig |= SER_RI;
-	new = sig & ~UART_SIGMASK_DELTA;
+	new = sig & ~SER_MASK_DELTA;
 	sc->sc_hwsig = new;
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (sig);
