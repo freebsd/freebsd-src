@@ -92,24 +92,21 @@
 #include <dialog.h>
 
 void Usage(char *name);
+void EndDialog(int cls);
 
 int main(int argc, char *argv[])
 {
-  int offset = 0, clear_screen = 0, end_common_opts = 0, retval;
+  int offset = 0, clear_screen = 0, end_common_opts = 0, default_yesno = 1, retval;
   unsigned char *title = NULL;
   unsigned char result[MAX_LEN];
   char *hline = NULL, *hfile = NULL;
 
-  if (argc < 2) {
+  if (argc < 2)
     Usage(argv[0]);
-    exit(-1);
-  }
   else if (!strcmp(argv[1], "--create-rc")) {
 #ifdef HAVE_NCURSES
-    if (argc != 3) {
+    if (argc != 3)
       Usage(argv[0]);
-      exit(-1);
-    }
     dialog_create_rc(argv[2]);
     return 0;
 #else
@@ -120,20 +117,16 @@ int main(int argc, char *argv[])
 
   while (offset < argc-1 && !end_common_opts) {    /* Common options */
     if (!strcmp(argv[offset+1], "--title")) {
-      if (argc-offset < 3 || title != NULL) {    /* No two "--title" please! */
+      if (argc-offset < 3 || title != NULL)      /* No two "--title" please! */
         Usage(argv[0]);
-        exit(-1);
-      }
       else {
         title = argv[offset+2];
         offset += 2;
       }
     }
     else if (!strcmp(argv[offset+1], "--hline")) {
-      if (argc-offset < 3 || hline != NULL) {    /* No two "--hline" please! */
+      if (argc-offset < 3 || hline != NULL)      /* No two "--hline" please! */
         Usage(argv[0]);
-        exit(-1);
-      }
       else {
 	hline = argv[offset+2];
 	use_helpline(hline);
@@ -141,10 +134,8 @@ int main(int argc, char *argv[])
       }
     }
     else if (!strcmp(argv[offset+1], "--hfile")) {
-      if (argc-offset < 3 || hfile != NULL) {    /* No two "--hfile" please! */
+      if (argc-offset < 3 || hfile != NULL)      /* No two "--hfile" please! */
         Usage(argv[0]);
-        exit(-1);
-      }
       else {
 	hfile = argv[offset+2];
 	use_helpfile(hfile);
@@ -152,10 +143,8 @@ int main(int argc, char *argv[])
       }
     }
     else if (!strcmp(argv[offset+1], "--clear")) {
-      if (clear_screen) {    /* Hey, "--clear" can't appear twice! */
+      if (clear_screen)      /* Hey, "--clear" can't appear twice! */
         Usage(argv[0]);
-        exit(-1);
-      }
       else if (argc == 2) {    /* we only want to clear the screen */
         init_dialog();
 	dialog_update();    /* init_dialog() will clear the screen for us */
@@ -171,93 +160,81 @@ int main(int argc, char *argv[])
       end_common_opts = 1;
   }
 
-  if (argc-1 == offset) {    /* no more options */
+  if (argc-1 == offset)      /* no more options */
     Usage(argv[0]);
-    exit(-1);
-  }
 
   /* Box options */
 
   if (!strcmp(argv[offset+1], "--yesno")) {
-    if (argc-offset != 5) {
+    if (argc-offset != 5 && argc-offset != 6)
       Usage(argv[0]);
-      exit(-1);
+    if (argc-offset == 6) {
+      if (!strcmp(argv[offset+5], "yes"))
+        default_yesno = 1;
+      else if (!strcmp(argv[offset+5], "no"))
+        default_yesno = 0;
+      else
+        Usage(argv[0]);
     }
     init_dialog();
-    retval = dialog_yesno(title, argv[offset+2], atoi(argv[offset+3]),
-                          atoi(argv[offset+4]));
+    if (default_yesno == 1)
+      retval = dialog_yesno(title, argv[offset+2], atoi(argv[offset+3]),
+                            atoi(argv[offset+4]));
+    else
+      retval = dialog_noyes(title, argv[offset+2], atoi(argv[offset+3]),
+                            atoi(argv[offset+4]));
 
     dialog_update();
-    if (clear_screen)    /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--msgbox")) {
-    if (argc-offset != 5) {
+    if (argc-offset != 5)
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_msgbox(title, argv[offset+2], atoi(argv[offset+3]),
                            atoi(argv[offset+4]), 1);
 
     dialog_update();
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--prgbox")) {
-    if (argc-offset != 5) {
+    if (argc-offset != 5)
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_prgbox(title, argv[offset+2], atoi(argv[offset+3]),
 			   atoi(argv[offset+4]), TRUE, TRUE);
 
     dialog_update();
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return WEXITSTATUS(retval);
   }
   else if (!strcmp(argv[offset+1], "--infobox")) {
-    if (argc-offset != 5) {
+    if (argc-offset != 5)
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_msgbox(title, argv[offset+2], atoi(argv[offset+3]),
                            atoi(argv[offset+4]), 0);
 
     dialog_update();
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--textbox")) {
-    if (argc-offset != 5) {
+    if (argc-offset != 5)
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_textbox(title, argv[offset+2], atoi(argv[offset+3]),
                             atoi(argv[offset+4]));
 
     dialog_update();
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--menu")) {
-    if (argc-offset < 8 || ((argc-offset) % 2)) {
+    if (argc-offset < 8 || ((argc-offset) % 2))
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_menu(title, argv[offset+2], atoi(argv[offset+3]),
                          atoi(argv[offset+4]), atoi(argv[offset+5]),
@@ -266,16 +243,12 @@ int main(int argc, char *argv[])
     dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--checklist")) {
-    if (argc-offset < 9 || ((argc-offset-6) % 3)) {
+    if (argc-offset < 9 || ((argc-offset-6) % 3))
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_checklist(title, argv[offset+2], atoi(argv[offset+3]),
                               atoi(argv[offset+4]), atoi(argv[offset+5]),
@@ -297,16 +270,12 @@ int main(int argc, char *argv[])
 	h = s;
       }
     }
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--radiolist")) {
-    if (argc-offset < 9 || ((argc-offset-6) % 3)) {
+    if (argc-offset < 9 || ((argc-offset-6) % 3))
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_radiolist(title, argv[offset+2], atoi(argv[offset+3]),
                               atoi(argv[offset+4]), atoi(argv[offset+5]),
@@ -315,16 +284,12 @@ int main(int argc, char *argv[])
     dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--inputbox")) {
-    if (argc-offset != 5 && argc-offset != 6) {
+    if (argc-offset != 5 && argc-offset != 6)
       Usage(argv[0]);
-      exit(-1);
-    }
     if (argc-offset == 6)
       strcpy(result, argv[offset+5]);
     else
@@ -336,18 +301,14 @@ int main(int argc, char *argv[])
     dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }
 /* ftree and tree options */
   else if (!strcmp(argv[offset+1], "--ftree")) {
   	unsigned char *tresult;
-    if (argc-offset != 8) {
+    if (argc-offset != 8)
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_ftree(argv[offset+2], *argv[offset+3],
     	title, argv[offset+4], atoi(argv[offset+5]), atoi(argv[offset+6]),
@@ -359,17 +320,13 @@ int main(int argc, char *argv[])
     	fputs(tresult, stderr);
     	free(tresult);
     }
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }  
   else if (!strcmp(argv[offset+1], "--tree")) {
   	unsigned char *tresult;
-    if (argc-offset < 8) {
+    if (argc-offset < 8)
       Usage(argv[0]);
-      exit(-1);
-    }
     init_dialog();
     retval = dialog_tree((unsigned char **)argv+offset+7, argc-offset-7,
 	*argv[offset+2], title, argv[offset+3], atoi(argv[offset+4]),
@@ -379,14 +336,13 @@ int main(int argc, char *argv[])
     if (!retval)
     	fputs(tresult, stderr);
 
-    if (clear_screen)   /* clear screen before exit */
-      dialog_clear();
-    end_dialog();
+    EndDialog(clear_screen);
     return retval;
   }    
 
   Usage(argv[0]);
-  exit(-1);
+
+  return 0;
 }
 /* End of main() */
 
@@ -411,7 +367,7 @@ void Usage(char *name)
 \n\
 \nBox options:\
 \n\
-\n  --yesno     <text> <height> <width>\
+\n  --yesno     <text> <height> <width> [yes|no]\
 \n  --msgbox    <text> <height> <width>\
 \n  --prgbox    \"<command line>\" <height> <width>\
 \n  --infobox   <text> <height> <width>\
@@ -422,5 +378,17 @@ void Usage(char *name)
 \n  --radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>...\
 \n  --ftree     <file> <FS> <text> <height> <width> <menu height>\
 \n  --tree      <FS> <text> <height> <width> <menu height> <item1>...\n", VERSION, name, name, name);
+  exit(-1);
 }
 /* End of Usage() */
+
+/*
+ * End dialog
+ */
+void EndDialog(int cls)
+{
+    if (cls)	/* clear screen before exit */
+      dialog_clear();
+    end_dialog();
+}
+/* End of Dialog() */
