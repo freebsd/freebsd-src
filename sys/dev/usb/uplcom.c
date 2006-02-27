@@ -263,6 +263,8 @@ static const struct uplcom_product {
 	{ USB_VENDOR_HAL, USB_PRODUCT_HAL_IMR001, -1, TYPE_PL2303 },
 	/* Sitecom USB to Serial */
 	{ USB_VENDOR_SITECOM, USB_PRODUCT_SITECOM_SERIAL, -1, TYPE_PL2303 },
+	/* Tripp-Lite U209-000-R */
+	{ USB_VENDOR_TRIPPLITE, USB_PRODUCT_TRIPPLITE_U209, -1, TYPE_PL2303X },
 	{ 0, 0 }
 };
 
