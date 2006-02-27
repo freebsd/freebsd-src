@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.9 2005/10/04 08:46:54 brandt_h Exp $
+.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.12 2006/02/27 09:50:03 brandt_h Exp $
 .\"
-.Dd October 4, 2005
-.Dt SNMPD 1
+.Dd February 27, 2006
+.Dt BSNMPD 1
 .Os
 .Sh NAME
 .Nm bsnmpd
@@ -49,7 +49,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon servers the internet SNMP (Simple Network Management Protocol).
+daemon server the internet SNMP (Simple Network Management Protocol).
 It is intended to serve only the absolute basic MIBs and implement all other
 MIBs through loadable modules.
 In this way the
@@ -258,9 +258,14 @@ This is the default search path for system include files.
 .It Pa @MIBSPATH@BEGEMOT-MIB.txt
 .It Pa @MIBSPATH@BEGEMOT-SNMPD.txt
 The definitions for the MIBs implemented in the daemon.
+.It Pa /etc/hosts.allow, /etc/hosts.deny
+Access controls that should be enforced by TCP wrappers should be defined here.
+Further details are described in
+.Xr hosts_access 5 .
 .El
 .Sh SEE ALSO
-.Xr gensnmptree 1
+.Xr gensnmptree 1 ,
+.Xr hosts_access 5
 .Sh STANDARDS
 The
 .Nm

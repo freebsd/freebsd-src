@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/export.c,v 1.7 2004/08/06 08:47:11 brandt Exp $
+ * $Begemot: bsnmp/snmpd/export.c,v 1.8 2006/02/14 09:04:20 brandt_h Exp $
  *
  * Support functions for modules.
  */
