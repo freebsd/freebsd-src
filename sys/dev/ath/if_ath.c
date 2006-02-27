@@ -1155,16 +1155,12 @@ ath_start(struct ifnet *ifp)
 		 */
 		ATH_TXBUF_LOCK(sc);
 		bf = STAILQ_FIRST(&sc->sc_txbuf);
-		if (bf != NULL) {
-			if (bf->bf_flags & ATH_FLAG_BUSY)
-				bf = NULL;
-			else
-				STAILQ_REMOVE_HEAD(&sc->sc_txbuf, bf_list);
-		}
+		if (bf != NULL)
+			STAILQ_REMOVE_HEAD(&sc->sc_txbuf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 		if (bf == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: no available xmit buffers\n", __func__);
+			DPRINTF(sc, ATH_DEBUG_XMIT, "%s: out of xmit buffers\n",
+				__func__);
 			sc->sc_stats.ast_tx_qstop++;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -1185,14 +1181,14 @@ ath_start(struct ifnet *ifp)
 				    ieee80211_state_name[ic->ic_state]);
 				sc->sc_stats.ast_tx_discard++;
 				ATH_TXBUF_LOCK(sc);
-				STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+				STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 				ATH_TXBUF_UNLOCK(sc);
 				break;
 			}
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);	/* XXX: LOCK */
 			if (m == NULL) {
 				ATH_TXBUF_LOCK(sc);
-				STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+				STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 				ATH_TXBUF_UNLOCK(sc);
 				break;
 			}
@@ -1279,7 +1275,7 @@ ath_start(struct ifnet *ifp)
 			ifp->if_oerrors++;
 	reclaim:
 			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 			ATH_TXBUF_UNLOCK(sc);
 			if (ni != NULL)
 				ieee80211_free_node(ni);
@@ -2415,7 +2411,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
 	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
 
-	/* allocate buffers */
+	/* allocate rx buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
 	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
@@ -3691,7 +3687,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		, ctsrate		/* rts/cts rate */
 		, ctsduration		/* rts/cts duration */
 	);
-	bf->bf_txflags = flags;
+	bf->bf_flags = flags;
 	/*
 	 * Setup the multi-rate retry state only when we're
 	 * going to use it.  This assumes ath_hal_setuptxdesc
@@ -3762,7 +3758,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ath_buf *bf, *last;
+	struct ath_buf *bf;
 	struct ath_desc *ds, *ds0;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
@@ -3794,14 +3790,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
-		if (txq->axq_depth > 0) {
-			/*
-			 * More frames follow.  Mark the buffer busy
-			 * so it's not re-used while the hardware may
-			 * still re-read the link field.
-			 */
-			bf->bf_flags |= ATH_FLAG_BUSY;
-		} else
+		if (txq->axq_depth == 0)
 			txq->axq_link = NULL;
 		ATH_TXQ_UNLOCK(txq);
 
@@ -3838,7 +3827,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * Hand the descriptor to the rate control algorithm.
 			 */
 			if ((ds->ds_txstat.ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
+			    (bf->bf_flags & HAL_TXDESC_NOACK) == 0) {
 				/*
 				 * If frame was ack'd update the last rx time
 				 * used to workaround phantom bmiss interrupts.
@@ -3864,9 +3853,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		bf->bf_node = NULL;
 
 		ATH_TXBUF_LOCK(sc);
-		last = STAILQ_LAST(&sc->sc_txbuf, ath_buf, bf_list);
-		if (last != NULL)
-			last->bf_flags &= ~ATH_FLAG_BUSY;
 		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 	}
@@ -3982,18 +3968,17 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 
 	/*
 	 * NB: this assumes output has been stopped and
-	 *     we do not need to block ath_tx_proc
+	 *     we do not need to block ath_tx_tasklet
 	 */
 	for (ix = 0;; ix++) {
 		ATH_TXQ_LOCK(txq);
 		bf = STAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
+			txq->axq_link = NULL;
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
-		if (txq->axq_depth == 0)
-			txq->axq_link = NULL;
 		ATH_TXQ_UNLOCK(txq);
 #ifdef AR_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET)
@@ -4011,16 +3996,10 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			 */
 			ieee80211_free_node(ni);
 		}
-		bf->bf_flags &= ~ATH_FLAG_BUSY;
 		ATH_TXBUF_LOCK(sc);
 		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 	}
-	ATH_TXBUF_LOCK(sc);
-	bf = STAILQ_FIRST(&sc->sc_txbuf);
-	if (bf != NULL)
-		bf->bf_flags &= ~ATH_FLAG_BUSY;
-	ATH_TXBUF_UNLOCK(sc);
 }
 
 static void
@@ -4898,10 +4877,10 @@ ath_printtxbuf(struct ath_buf *bf, u_int qnum, u_int ix, int done)
 
 	printf("Q%u[%3u]", qnum, ix);
 	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%x TF:%04x%s\n"
+		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:04%x%s\n"
 		       "        %08x %08x %08x %08x %08x %08x\n",
 		    ds, (struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data, bf->bf_flags, bf->bf_txflags,
+		    ds->ds_link, ds->ds_data, bf->bf_flags,
 		    !done ? "" : (ds->ds_txstat.ts_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
 		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
