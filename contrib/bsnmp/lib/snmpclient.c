@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.c,v 1.34 2005/10/04 14:32:42 brandt_h Exp $
+ * $Begemot: bsnmp/lib/snmpclient.c,v 1.36 2005/10/06 07:14:58 brandt_h Exp $
  *
  * Support functions for SNMP clients.
  */
@@ -63,14 +63,6 @@
 #include "snmp.h"
 #include "snmpclient.h"
 #include "snmppriv.h"
-
-#if !defined(INT32_MAX)
-#define	INT32_MAX	(0x7fffffff)
-#endif
-#if !defined(UINT32_MAX)
-#define	UINT32_MAX	(0xffffffff)
-#endif
-
 
 /* global context */
 struct snmp_client snmp_client;

@@ -26,11 +26,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_route.c,v 1.7 2005/06/09 12:36:53 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_route.c,v 1.9 2005/10/06 07:15:00 brandt_h Exp $
  *
  * Routing table
  */
+#include "support.h"
+
+#ifdef HAVE_SYS_TREE_H
 #include <sys/tree.h>
+#else
+#include "tree.h"
+#endif
+
 #include "mibII.h"
 #include "mibII_oid.h"
 
