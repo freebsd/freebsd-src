@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/nettype.h>
 #include "un-namespace.h"
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 struct handle {
 	NCONF_HANDLE *nhandle;
@@ -236,7 +237,6 @@ __rpc_getconfip(nettype)
 	struct netconfig *dummy;
 	int main_thread;
 	static thread_key_t tcp_key, udp_key;
-	extern mutex_t tsd_lock;
 
 	if ((main_thread = thr_main())) {
 		netid_udp = netid_udp_main;

@@ -74,8 +74,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "rpc_com.h"
-
-extern mutex_t	rpcsoc_lock;
+#include "mt_misc.h"
 
 static CLIENT *clnt_com_create(struct sockaddr_in *, rpcprog_t, rpcvers_t,
     int *, u_int, u_int, char *);
@@ -399,7 +398,6 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	void	       *resultsp;	/* pointer to results */
 	resultproc_t	eachresult;	/* call with each result obtained */
 {
-	extern mutex_t tsd_lock;
 
 	if (thr_main())
 		clnt_broadcast_result_main = eachresult;

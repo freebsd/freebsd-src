@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/raw.h>
 #include "un-namespace.h"
-
-extern mutex_t clntraw_lock;
+#include "mt_misc.h"
 
 #define MCALL_MSG_SIZE 24
 
@@ -296,7 +295,6 @@ static struct clnt_ops *
 clnt_raw_ops()
 {
 	static struct clnt_ops ops;
-	extern mutex_t  ops_lock;
 
 	/* VARIABLES PROTECTED BY ops_lock: ops */
 

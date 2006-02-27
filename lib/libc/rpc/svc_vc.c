@@ -68,9 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 
 #include "rpc_com.h"
+#include "mt_misc.h"
 #include "un-namespace.h"
-
-extern rwlock_t svc_fd_lock;
 
 static SVCXPRT *makefd_xprt(int, u_int, u_int);
 static bool_t rendezvous_request(SVCXPRT *, struct rpc_msg *);
@@ -672,7 +671,6 @@ svc_vc_ops(xprt)
 {
 	static struct xp_ops ops;
 	static struct xp_ops2 ops2;
-	extern mutex_t ops_lock;
 
 /* VARIABLES PROTECTED BY ops_lock: ops, ops2 */
 
@@ -697,7 +695,6 @@ svc_vc_rendezvous_ops(xprt)
 {
 	static struct xp_ops ops;
 	static struct xp_ops2 ops2;
-	extern mutex_t ops_lock;
 
 	mutex_lock(&ops_lock);
 	if (ops.xp_recv == NULL) {

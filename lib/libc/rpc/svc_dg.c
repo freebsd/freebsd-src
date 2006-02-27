@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 #define	su_data(xprt)	((struct svc_dg_data *)(xprt->xp_p2))
 #define	rpc_buffer(xprt) ((xprt)->xp_p1)
@@ -306,7 +307,6 @@ svc_dg_ops(xprt)
 {
 	static struct xp_ops ops;
 	static struct xp_ops2 ops2;
-	extern mutex_t ops_lock;
 
 /* VARIABLES PROTECTED BY ops_lock: ops */
 
@@ -391,8 +391,6 @@ struct cl_cache {
 #define	CACHE_LOC(transp, xid)	\
 	(xid % (SPARSENESS * ((struct cl_cache *) \
 		su_data(transp)->su_cache)->uc_size))
-
-extern mutex_t	dupreq_lock;
 
 /*
  * Enable use of the cache. Returns 1 on success, 0 on failure.

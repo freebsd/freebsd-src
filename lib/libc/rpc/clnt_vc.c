@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include "un-namespace.h"
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 #define MCALL_MSG_SIZE 24
 
@@ -129,7 +130,6 @@ struct ct_data {
  *      should be the first thing fixed.  One step at a time.
  */
 static int      *vc_fd_locks;
-extern mutex_t  clnt_fd_lock;
 static cond_t   *vc_cv;
 #define release_fd_lock(fd, mask) {	\
 	mutex_lock(&clnt_fd_lock);	\
@@ -753,7 +753,6 @@ static struct clnt_ops *
 clnt_vc_ops()
 {
 	static struct clnt_ops ops;
-	extern mutex_t  ops_lock;
 	sigset_t mask, newmask;
 
 	/* VARIABLES PROTECTED BY ops_lock: ops */

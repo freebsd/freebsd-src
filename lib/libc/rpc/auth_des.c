@@ -52,6 +52,7 @@
 #undef NIS
 #include <rpcsvc/nis.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = 	"@(#)auth_des.c	2.2 88/07/29 4.0 RPCSRC; from 1.9 88/02/08 SMI";
@@ -481,7 +482,6 @@ static struct auth_ops *
 authdes_ops(void)
 {
 	static struct auth_ops ops;
-	extern mutex_t authdes_ops_lock;
 
 	/* VARIABLES PROTECTED BY ops_lock: ops */
  

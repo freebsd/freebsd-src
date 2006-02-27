@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/raw.h>
 #include <stdlib.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
 
 #ifndef UDPMSGSIZE
 #define	UDPMSGSIZE 8800
@@ -69,8 +70,6 @@ static struct svc_raw_private {
 	XDR	xdr_stream;
 	char	verf_body[MAX_AUTH_BYTES];
 } *svc_raw_private;
-
-extern mutex_t	svcraw_lock;
 
 static enum xprt_stat svc_raw_stat(SVCXPRT *);
 static bool_t svc_raw_recv(SVCXPRT *, struct rpc_msg *);
@@ -239,7 +238,6 @@ svc_raw_ops(xprt)
 {
 	static struct xp_ops ops;
 	static struct xp_ops2 ops2;
-	extern mutex_t ops_lock;
 
 /* VARIABLES PROTECTED BY ops_lock: ops */
 

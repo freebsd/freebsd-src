@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "rpc_com.h"
+#include "mt_misc.h"
 
 static void universal(struct svc_req *, SVCXPRT *);
 
@@ -106,8 +107,6 @@ rpc_reg(prognum, versnum, procnum, progname, inproc, outproc, nettype)
 	struct netconfig *nconf;
 	int done = FALSE;
 	void *handle;
-	extern mutex_t proglst_lock;
-
 
 
 	if (procnum == NULLPROC) {
@@ -250,7 +249,6 @@ universal(rqstp, transp)
 	char *outdata;
 	char *xdrbuf;
 	struct proglst *pl;
-	extern mutex_t proglst_lock;
 
 	/*
 	 * enforce "procnum 0 is echo" convention
