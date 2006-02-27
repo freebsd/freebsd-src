@@ -1,3 +1,29 @@
+1.12
+	A couple of man page fixes from various submitters.
+
+	Make default communities NULL for security.
+
+	Fix a core dump when -d tracing suboption has no argument (thanks
+	to Shteryana Shopova).
+
+	Fix bug in parsing the include path in the daemon.
+
+	Fix an uninitialize structure field in gensnmptree (thanks to
+	jasone@freebsdorg)
+
+	64bit HC counters in the IF-MIB by polling the OS periodically.
+
+	Fix link traps to be more RFC conform (thanks to glebius@freebsd.org)
+
+	Add fallback definition for SA_SIZE() to support.h.
+
+	Move the porting definitions for U?INT32_{MIN,MAX} into support.h.
+
+	Include a sys/tree.h from FreeBSD-current and add autoconf
+	check for it.
+
+1.11a	Fix build of modules when stdint.h is included after asn1.h
+
 1.11	Make the Mib2 routing table use red-black tree. This vastly
 	reduces loading and access time. Load the table only every 10
 	minutes. In the meantime process message from the routing socket

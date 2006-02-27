@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.16 2005/11/02 12:07:40 brandt_h Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.17 2006/02/14 09:04:19 brandt_h Exp $
  *
  * Interfaces group.
  */

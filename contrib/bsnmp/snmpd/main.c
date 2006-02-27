@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.97 2005/10/04 14:32:45 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.100 2006/02/14 09:04:20 brandt_h Exp $
  *
  * SNMPd main stuff.
  */
@@ -52,14 +52,11 @@
 #include <tcpd.h>
 #endif
 
+#include "support.h"
 #include "snmpmod.h"
 #include "snmpd.h"
 #include "tree.h"
 #include "oid.h"
-
-#if !defined(INT32_MAX)
-#define	INT32_MAX	(0x7fffffff)
-#endif
 
 #define	PATH_PID	"/var/run/%s.pid"
 #define PATH_CONFIG	"/etc/%s.config"
@@ -1387,8 +1384,8 @@ main(int argc, char *argv[])
 						syslog(LOG_ERR,
 						    "no value for 'trace'");
 					else
-						snmp_trace =
-						    strtoul(value, NULL, 0);
+						snmp_trace = strtoul(value,
+						    NULL, 0);
 					break;
 
 				  case -1:
