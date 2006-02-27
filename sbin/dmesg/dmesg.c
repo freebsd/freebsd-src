@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/sysctl.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -177,7 +178,7 @@ main(int argc, char *argv[])
 		nextp++;
 
 		/* Skip ^<[0-9]+> syslog sequences. */
-		if (*p == '<') {
+		if (*p == '<' && isdigit(*(p+1))) {
 			errno = 0;
 			pri = strtol(p + 1, &q, 10);
 			if (*q == '>' && pri >= 0 && pri < INT_MAX &&
