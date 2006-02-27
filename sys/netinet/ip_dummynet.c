@@ -453,7 +453,7 @@ transmit_event(struct dn_pipe *pipe)
 	DUMMYNET_UNLOCK();
 	switch (pkt->dn_dir) {
 	case DN_TO_IP_OUT:
-	    (void)ip_output(m, NULL, NULL, pkt->flags, NULL, NULL);
+	    (void)ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 	    break ;
 
 	case DN_TO_IP_IN :
@@ -1128,7 +1128,6 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
  *		NULL in ip_input, destination interface in ip_output,
  *		real_dst in bdg_forward
  * rule		matching rule, in case of multiple passes
- * flags	flags from the caller, only used in ip_output
  *
  */
 static int
@@ -1212,8 +1211,6 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     pkt->dn_dir = dir ;
 
     pkt->ifp = fwa->oif;
-    if (dir == DN_TO_IP_OUT)
-	pkt->flags = fwa->flags;
     if (q->head == NULL)
 	q->head = m;
     else
