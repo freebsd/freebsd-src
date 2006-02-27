@@ -867,35 +867,38 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, siginfo_t *info,
 		}
 	}
 
-again:
+restart:
 	for (i = 1; i <= _SIG_MAXSIG; ++i) {
 		if (!SIGISMEMBER(waitset, i))
 			continue;
-		if (SIGISMEMBER(td->td_siglist, i)) {
-			SIGFILLSET(td->td_sigmask);
-			SIG_CANTMASK(td->td_sigmask);
-			SIGDELSET(td->td_sigmask, i);
-			mtx_lock(&ps->ps_mtx);
-			sig = cursig(td);
-			i = 0;
-			mtx_unlock(&ps->ps_mtx);
-		} else if (SIGISMEMBER(p->p_siglist, i)) {
-			if (p->p_flag & P_SA) {
-				p->p_flag |= P_SIGEVENT;
-				wakeup(&p->p_siglist);
-			}
-			SIGDELSET(p->p_siglist, i);
-			SIGADDSET(td->td_siglist, i);
-			SIGFILLSET(td->td_sigmask);
-			SIG_CANTMASK(td->td_sigmask);
-			SIGDELSET(td->td_sigmask, i);
-			mtx_lock(&ps->ps_mtx);
-			sig = cursig(td);
-			i = 0;
-			mtx_unlock(&ps->ps_mtx);
+		if (!SIGISMEMBER(td->td_siglist, i)) {
+			if (SIGISMEMBER(p->p_siglist, i)) {
+				if (p->p_flag & P_SA) {
+					p->p_flag |= P_SIGEVENT;
+					wakeup(&p->p_siglist);
+				}
+				SIGDELSET(p->p_siglist, i);
+				SIGADDSET(td->td_siglist, i);
+			} else
+				continue;
 		}
+
+		SIGFILLSET(td->td_sigmask);
+		SIG_CANTMASK(td->td_sigmask);
+		SIGDELSET(td->td_sigmask, i);
+		mtx_lock(&ps->ps_mtx);
+		sig = cursig(td);
+		mtx_unlock(&ps->ps_mtx);
 		if (sig)
 			goto out;
+		else {
+			/*
+			 * Because cursig() may have stopped current thread,
+			 * after it is resumed, things may have already been 
+			 * changed, it should rescan any pending signals.
+			 */
+			goto restart;
+		}
 	}
 	if (error)
 		goto out;
@@ -934,28 +937,35 @@ again:
 			error = 0;
 		}
 	}
-	goto again;
+	goto restart;
 
 out:
 	td->td_sigmask = savedmask;
 	signotify(td);
 	if (sig) {
-		sig_t action;
-
-		error = 0;
-		mtx_lock(&ps->ps_mtx);
-		action = ps->ps_sigact[_SIG_IDX(sig)];
-		mtx_unlock(&ps->ps_mtx);
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_PSIG))
-			ktrpsig(sig, action, &td->td_sigmask, 0);
-#endif
-		_STOPEVENT(p, S_SIG, sig);
-
 		SIGDELSET(td->td_siglist, sig);
 		bzero(info, sizeof(*info));
 		info->si_signo = sig;
 		info->si_code = 0;
+		error = 0;
+
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_PSIG))  {
+			sig_t action;
+
+			mtx_lock(&ps->ps_mtx);
+			action = ps->ps_sigact[_SIG_IDX(sig)];
+			mtx_unlock(&ps->ps_mtx);
+			ktrpsig(sig, action, &td->td_sigmask, 0);
+		}
+#endif
+		_STOPEVENT(p, S_SIG, sig);
+
+		if (sig == SIGKILL) {
+			p->p_code = 0;
+			p->p_sig = sig;
+			sigexit(td, sig);
+		}
 	}
 	PROC_UNLOCK(p);
 	return (error);
