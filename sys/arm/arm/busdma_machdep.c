@@ -189,7 +189,8 @@ _busdma_alloc_dmamap(void)
 
 	mtx_lock(&busdma_mtx);
 	map = TAILQ_FIRST(&dmamap_freelist);
-	TAILQ_REMOVE(&dmamap_freelist, map, freelist);
+	if (map)
+		TAILQ_REMOVE(&dmamap_freelist, map, freelist);
 	mtx_unlock(&busdma_mtx);
 	if (!map) {
 		map = malloc(sizeof(*map), M_DEVBUF, M_NOWAIT);
