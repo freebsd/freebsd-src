@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/config.c,v 1.24 2005/10/04 11:21:37 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/config.c,v 1.25 2006/02/14 09:04:20 brandt_h Exp $
  *
  * Parse configuration file.
  */
