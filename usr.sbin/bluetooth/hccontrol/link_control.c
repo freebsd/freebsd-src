@@ -729,7 +729,8 @@ again:
 
 		fprintf(stdout, "Connection handle: %d\n",
 			le16toh(ep->con_handle));
-		fprintf(stdout, "LMP version: %#02x\n", ep->lmp_version);
+		fprintf(stdout, "LMP version: %s [%#02x]\n",
+			hci_lmpver2str(ep->lmp_version), ep->lmp_version);
 		fprintf(stdout, "LMP sub-version: %#04x\n",
 			le16toh(ep->lmp_subversion));
 		fprintf(stdout, "Manufacturer: %s [%#04x]\n",
