@@ -1587,6 +1587,9 @@ product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
 product TREK THUMBDRIVE		0x1111	ThumbDrive
 product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 
+/* Tripp-Lite products */
+product TRIPPLITE U209		0x2008	Serial
+
 /* Trumpion products */
 product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
 
