@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/fcntl.h>
 #include "un-namespace.h"
+#include "mt_misc.h"
 
 
 #define	KEY_TIMEOUT	5	/* per-try timeout in seconds */
@@ -307,7 +308,6 @@ int	vers;
 	int main_thread;
 	int fd;
 	static thread_key_t key_call_key;
-	extern mutex_t tsd_lock;
 
 #define	TOTAL_TIMEOUT	30	/* total timeout talking to keyserver */
 #define	TOTAL_TRIES	5	/* Number of tries */

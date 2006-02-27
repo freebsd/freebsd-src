@@ -63,7 +63,7 @@ int (*__getpublickey_LOCAL)() = 0;
 /*
  * Get somebody's public key
  */
-int
+static int
 __getpublickey_real(netname, publickey)
 	char *netname;
 	char *publickey;
