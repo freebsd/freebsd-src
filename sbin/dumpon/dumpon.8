@@ -107,15 +107,6 @@ performs a
 on
 .Pa /dev/null
 and thus instructs the kernel not to save crash dumps.
-.Pp
-Since
-.Nm
-cannot be used during kernel initialization, the
-.Va dumpdev
-variable of
-.Xr loader 8
-must be used to enable dumps for system panics which occur
-during kernel initialization.
 .Sh FILES
 .Bl -tag -width "/dev/{ad,da}?s?b" -compact
 .It Pa /dev/{ad,da}?s?b
@@ -128,7 +119,6 @@ boot-time system configuration
 .Xr rc.conf 5 ,
 .Xr config 8 ,
 .Xr init 8 ,
-.Xr loader 8 ,
 .Xr rc 8 ,
 .Xr savecore 8 ,
 .Xr swapon 8 ,
