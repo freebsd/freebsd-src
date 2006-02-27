@@ -166,22 +166,6 @@ static void Perror(FILE *, char *, int);
     }
 #endif
 
-void
-res_send_setqhook(hook)
-	res_send_qhook hook;
-{
-
-	Qhook = hook;
-}
-
-void
-res_send_setrhook(hook)
-	res_send_rhook hook;
-{
-
-	Rhook = hook;
-}
-
 static struct sockaddr * get_nsaddr(size_t);
 
 /*
