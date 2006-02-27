@@ -494,7 +494,6 @@ __CONCAT(dname,_attach)(device_t self)
 	do { \
 		sc->sc_dev = self; \
 		device_set_desc_copy(self, devinfo); \
-		device_printf(self, "%s\n", devinfo); \
 	} while (0);
 
 #define USB_DETACH(dname) \
@@ -541,4 +540,3 @@ SYSCTL_DECL(_hw_usb);
 #endif /* __FreeBSD__ */
 
 #endif /* _USB_PORT_H */
-
