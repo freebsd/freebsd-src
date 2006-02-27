@@ -204,6 +204,13 @@
       could cause a crash under certain circumstances, has been fixed.
       For more details see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>.</para>
+
+    <para>An error in Selective Acknowledgement (SACK) support in the
+      TCP/IP stack, which could cause an infinite loop upon reception
+      of a particular series of packets, has been corrected.  More
+      details are contained in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:08.sack.asc">FreeBSD-SA-06:08.sack</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -357,8 +364,25 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.10.2 to 2.12.3.</para>
 
+    <para>The supported version of
+      the <application>KDE</application> desktop environment
+      (<filename role="package">x11/kde2</filename>) has been
+      updated from 3.4.2 to 3.5.1.</para>
+
+    <para>The supported version of
+      the <application>Perl</application> interpreter
+      (<filename role="package">lang/perl5.8</filename>) has been updated
+      from 5.8.7 to 5.8.8.</para>
+
+    <para>The supported version of
+      the <application>&xorg;</application> windowing system
+      (<filename role="package">x11/xorg</filename>) has been updated
+      from 6.8.2 to 6.9.0.</para>
   </sect2>
 
   <sect2 id="doc">
