@@ -63,6 +63,12 @@ static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
 static struct mtx intr_table_lock;
 
+#ifdef SMP
+static int assign_cpu;
+
+static void	intr_assign_next_cpu(struct intsrc *isrc);
+#endif
+
 static void	intr_init(void *__dummy);
 static void	intrcnt_setname(const char *name, int index);
 static void	intrcnt_updatename(struct intsrc *is);
@@ -93,6 +99,7 @@ intr_register_source(struct intsrc *isrc)
 	}
 	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
+	isrc->is_enabled = 0;
 	mtx_unlock_spin(&intr_table_lock);
 	return (0);
 }
@@ -118,7 +125,17 @@ intr_add_handler(const char *name, int vector, driver_intr_t handler,
 	    intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		intrcnt_updatename(isrc);
-		isrc->is_pic->pic_enable_intr(isrc);
+		mtx_lock_spin(&intr_table_lock);
+		if (!isrc->is_enabled) {
+			isrc->is_enabled = 1;
+#ifdef SMP
+			if (assign_cpu)
+				intr_assign_next_cpu(isrc);
+#endif
+			mtx_unlock_spin(&intr_table_lock);
+			isrc->is_pic->pic_enable_intr(isrc);
+		} else
+			mtx_unlock_spin(&intr_table_lock);
 		isrc->is_pic->pic_enable_source(isrc);
 	}
 	return (error);
@@ -334,4 +351,77 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 		if (*isrc != NULL)
 			db_dump_intr_event((*isrc)->is_event, verbose);
 }
+#endif
+
+#ifdef SMP
+/*
+ * Support for balancing interrupt sources across CPUs.  For now we just
+ * allocate CPUs round-robin.
+ */
+
+static u_int cpu_apic_ids[MAXCPU];
+static int current_cpu, num_cpus;
+
+static void
+intr_assign_next_cpu(struct intsrc *isrc)
+{
+	struct pic *pic;
+	u_int apic_id;
+
+	/*
+	 * Assign this source to a local APIC in a round-robin fashion.
+	 */
+	pic = isrc->is_pic;
+	apic_id = cpu_apic_ids[current_cpu];
+	current_cpu++;
+	if (current_cpu >= num_cpus)
+		current_cpu = 0;
+	if (bootverbose) {
+		printf("INTR: Assigning IRQ %d", pic->pic_vector(isrc));
+		printf(" to local APIC %u\n", apic_id);
+	}
+	pic->pic_assign_cpu(isrc, apic_id);
+}
+
+/*
+ * Add a local APIC ID to our list of valid local APIC IDs that can
+ * be destinations of interrupts.
+ */
+void
+intr_add_cpu(u_int apic_id)
+{
+
+	if (bootverbose)
+		printf("INTR: Adding local APIC %d as a target\n", apic_id);
+	if (num_cpus >= MAXCPU)
+		panic("WARNING: Local APIC IDs exhausted!");
+	cpu_apic_ids[num_cpus] = apic_id;
+	num_cpus++;
+}
+
+/*
+ * Distribute all the interrupt sources among the available CPUs once the
+ * AP's have been launched.
+ */
+static void
+intr_shuffle_irqs(void *arg __unused)
+{
+	struct intsrc *isrc;
+	int i;
+
+	/* Don't bother on UP. */
+	if (num_cpus <= 1)
+		return;
+
+	/* Round-robin assign each enabled source a CPU. */
+	mtx_lock_spin(&intr_table_lock);
+	assign_cpu = 1;
+	for (i = 0; i < NUM_IO_INTS; i++) {
+		isrc = interrupt_sources[i];
+		if (isrc != NULL && isrc->is_enabled)
+			intr_assign_next_cpu(isrc);
+	}
+	mtx_unlock_spin(&intr_table_lock);
+}
+SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs, NULL)
 #endif

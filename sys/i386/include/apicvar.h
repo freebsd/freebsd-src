@@ -180,7 +180,6 @@ void	apic_register_enumerator(struct apic_enumerator *enumerator);
 void	*ioapic_create(uintptr_t addr, int32_t id, int intbase);
 int	ioapic_disable_pin(void *cookie, u_int pin);
 int	ioapic_get_vector(void *cookie, u_int pin);
-int	ioapic_next_logical_cluster(void);
 void	ioapic_register(void *cookie);
 int	ioapic_remap_vector(void *cookie, u_int pin, int vector);
 int	ioapic_set_bus(void *cookie, u_int pin, int bus_type);
