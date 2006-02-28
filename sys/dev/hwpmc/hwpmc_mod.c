@@ -1486,17 +1486,19 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		}
 
 		/*
-		 * If this process is the target of a PMC, check if the new
-		 * credentials are compatible with the owner's permissions.
+		 * If the process being exec'ed is not the target of any
+		 * PMC, we are done.
 		 */
-
-		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL)
+		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL) {
+			if (freepath)
+				FREE(freepath, M_TEMP);
 			break;
+		}
 
 		/*
 		 * Log the exec event to all monitoring owners.  Skip
 		 * owners who have already recieved the event because
-		 * the have system sampling PMCs active.
+		 * they had system sampling PMCs active.
 		 */
 		for (ri = 0; ri < md->pmd_npmc; ri++)
 			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
@@ -3954,7 +3956,8 @@ pmc_initialize(void)
 	}
 
 	if (pmc_nsamples <= 0 || pmc_nsamples > 65535) {
-		(void) printf("hwpmc: tunable nsamples=%d out of range.\n", pmc_nsamples);
+		(void) printf("hwpmc: tunable nsamples=%d out of range.\n",
+		    pmc_nsamples);
 		pmc_nsamples = PMC_NSAMPLES;
 	}
 
@@ -3995,8 +3998,7 @@ pmc_initialize(void)
 		    M_WAITOK|M_ZERO);
 
 		sb->ps_read = sb->ps_write = sb->ps_samples;
-		sb->ps_fence = sb->ps_samples + pmc_nsamples
-;
+		sb->ps_fence = sb->ps_samples + pmc_nsamples;
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
 
@@ -4146,6 +4148,17 @@ pmc_cleanup(void)
 	    ("[pmc,%d] Global SS owner list not empty", __LINE__));
 	KASSERT(pmc_ss_count == 0,
 	    ("[pmc,%d] Global SS count not empty", __LINE__));
+
+	/* free the per-cpu sample buffers */
+	for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		if (pmc_cpu_is_disabled(cpu))
+			continue;
+		KASSERT(pmc_pcpu[cpu]->pc_sb != NULL,
+		    ("[pmc,%d] Null cpu sample buffer cpu=%d", __LINE__,
+			cpu));
+		FREE(pmc_pcpu[cpu]->pc_sb, M_PMC);
+		pmc_pcpu[cpu]->pc_sb = NULL;
+	}
 
  	/* do processor dependent cleanup */
 	PMCDBG(MOD,INI,3, "%s", "md cleanup");
