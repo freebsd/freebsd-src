@@ -1427,37 +1427,83 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	return (ftruncate(td, &ap));
 }
 
+struct sf_hdtr32 {
+	uint32_t headers;
+	int hdr_cnt;
+	uint32_t trailers;
+	int trl_cnt;
+};
+
+static int
+freebsd32_do_sendfile(struct thread *td,
+    struct freebsd32_sendfile_args *uap, int compat)
+{
+	struct sendfile_args ap;
+	struct sf_hdtr32 hdtr32;
+	struct sf_hdtr hdtr;
+	struct uio *hdr_uio, *trl_uio;
+	struct iovec32 *iov32;
+	int error;
+
+	hdr_uio = trl_uio = NULL;
+
+	ap.fd = uap->fd;
+	ap.s = uap->s;
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.nbytes = uap->nbytes;
+	ap.hdtr = (struct sf_hdtr *)uap->hdtr;		/* XXX not used */
+	ap.sbytes = uap->sbytes;
+	ap.flags = uap->flags;
+
+	if (uap->hdtr != NULL) {
+		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
+		if (error)
+			goto out;
+		PTRIN_CP(hdtr32, hdtr, headers);
+		CP(hdtr32, hdtr, hdr_cnt);
+		PTRIN_CP(hdtr32, hdtr, trailers);
+		CP(hdtr32, hdtr, trl_cnt);
+
+		if (hdtr.headers != NULL) {
+			iov32 = (struct iovec32 *)(uintptr_t)hdtr32.headers;
+			error = freebsd32_copyinuio(iov32,
+			    hdtr32.hdr_cnt, &hdr_uio);
+			if (error)
+				goto out;
+		}
+		if (hdtr.trailers != NULL) {
+			iov32 = (struct iovec32 *)(uintptr_t)hdtr32.trailers;
+			error = freebsd32_copyinuio(iov32,
+			    hdtr32.trl_cnt, &trl_uio);
+			if (error)
+				goto out;
+		}
+	}
+
+	error = kern_sendfile(td, &ap, hdr_uio, trl_uio, compat);
+out:
+	if (hdr_uio)
+		free(hdr_uio, M_IOV);
+	if (trl_uio)
+		free(trl_uio, M_IOV);
+	return (error);
+}
+
 #ifdef COMPAT_FREEBSD4
 int
 freebsd4_freebsd32_sendfile(struct thread *td,
     struct freebsd4_freebsd32_sendfile_args *uap)
 {
-	struct freebsd4_sendfile_args ap;
-
-	ap.fd = uap->fd;
-	ap.s = uap->s;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
-	ap.nbytes = uap->nbytes;	/* XXX check */
-	ap.hdtr = uap->hdtr;		/* XXX check */
-	ap.sbytes = uap->sbytes;	/* XXX FIXME!! */
-	ap.flags = uap->flags;
-	return (freebsd4_sendfile(td, &ap));
+	return (freebsd32_do_sendfile(td,
+	    (struct freebsd32_sendfile_args *)uap, 1));
 }
 #endif
 
 int
 freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 {
-	struct sendfile_args ap;
 
-	ap.fd = uap->fd;
-	ap.s = uap->s;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
-	ap.nbytes = uap->nbytes;	/* XXX check */
-	ap.hdtr = uap->hdtr;		/* XXX check */
-	ap.sbytes = uap->sbytes;	/* XXX FIXME!! */
-	ap.flags = uap->flags;
-	return (sendfile(td, &ap));
+	return (freebsd32_do_sendfile(td, uap, 0));
 }
 
 struct stat32 {
