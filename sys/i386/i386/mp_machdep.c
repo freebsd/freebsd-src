@@ -217,7 +217,7 @@ static volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
 
-static void	set_logical_apic_ids(void);
+static void	set_interrupt_apic_ids(void);
 static int	start_all_aps(void);
 static void	install_ap_tramp(void);
 static int	start_ap(int apic_id);
@@ -454,7 +454,7 @@ cpu_mp_start(void)
 			hyperthreading_cpus = logical_cpus;
 	}
 
-	set_logical_apic_ids();
+	set_interrupt_apic_ids();
 }
 
 
@@ -645,33 +645,29 @@ init_secondary(void)
  */
 
 /*
- * Set the APIC logical IDs.
- *
- * We want to cluster logical CPU's within the same APIC ID cluster.
- * Since logical CPU's are aligned simply filling in the clusters in
- * APIC ID order works fine.  Note that this does not try to balance
- * the number of CPU's in each cluster. (XXX?)
+ * We tell the I/O APIC code about all the CPUs we want to receive
+ * interrupts.  If we don't want certain CPUs to receive IRQs we
+ * can simply not tell the I/O APIC code about them in this function.
+ * We also do not tell it about the BSP since it tells itself about
+ * the BSP internally to work with UP kernels and on UP machines.
  */
 static void
-set_logical_apic_ids(void)
+set_interrupt_apic_ids(void)
 {
-	u_int apic_id, cluster, cluster_id;
+	u_int apic_id;
 
-	/* Force us to allocate cluster 0 at the start. */
-	cluster = -1;
-	cluster_id = APIC_MAX_INTRACLUSTER_ID;
 	for (apic_id = 0; apic_id < MAXCPU; apic_id++) {
 		if (!cpu_info[apic_id].cpu_present)
 			continue;
-		if (cluster_id == APIC_MAX_INTRACLUSTER_ID) {
-			cluster = ioapic_next_logical_cluster();
-			cluster_id = 0;
-		} else
-			cluster_id++;
-		if (bootverbose)
-			printf("APIC ID: physical %u, logical %u:%u\n",
-			    apic_id, cluster, cluster_id);
-		lapic_set_logical_id(apic_id, cluster, cluster_id);
+		if (cpu_info[apic_id].cpu_bsp)
+			continue;
+#if 0
+		/* Don't let hyperthreads service interrupts. */
+		if (hyperthreading_cpus > 1 &&
+		    apic_id % hyperthreading_cpus != 0)
+			continue;
+#endif
+		intr_add_cpu(apic_id);
 	}
 }
 

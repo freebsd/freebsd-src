@@ -108,8 +108,8 @@ inthand_t
 #define	ATPIC(io, base, eoi, imenptr)					\
      	{ { atpic_enable_source, atpic_disable_source, (eoi),		\
 	    atpic_enable_intr, atpic_vector, atpic_source_pending, NULL, \
-	    atpic_resume, atpic_config_intr }, (io), (base),		\
-	    IDT_IO_INTS + (base), (imenptr) }
+	    atpic_resume, atpic_config_intr, atpic_assign_cpu }, (io),  \
+	    (base), IDT_IO_INTS + (base), (imenptr) }
 
 #define	INTSRC(irq)							\
 	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
@@ -142,6 +142,7 @@ static void atpic_resume(struct intsrc *isrc);
 static int atpic_source_pending(struct intsrc *isrc);
 static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol);
+static void atpic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void i8259_init(struct atpic *pic, int slave);
 
 static struct atpic atpics[] = {
@@ -350,6 +351,17 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	ai->at_trigger = trig;
 	mtx_unlock_spin(&icu_lock);
 	return (0);
+}
+
+static void
+atpic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+{
+
+	/*
+	 * 8259A's are only used in UP in which case all interrupts always
+	 * go to the sole CPU and this function shouldn't even be called.
+	 */
+	panic("%s: bad cookie", __func__);
 }
 
 static void
