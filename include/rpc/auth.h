@@ -299,7 +299,7 @@ __END_DECLS
  */
 __BEGIN_DECLS
 extern int getpublickey (const char *, char *);
-extern int getpublicandprivatekey (char *, char *);
+extern int getpublicandprivatekey (const char *, char *);
 extern int getsecretkey (char *, char *, char *);
 __END_DECLS
 
