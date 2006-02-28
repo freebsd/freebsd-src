@@ -42,12 +42,12 @@
 int fixitTtyWhich(dialogMenuItem *);
 
 static char *
-varCheck(Option opt)
+varCheck(Option *opt)
 {
     char *cp = NULL;
 
-    if (opt.aux)
-	cp = variable_get((char *)opt.aux);
+    if (opt->aux)
+	cp = variable_get((char *)opt->aux);
     if (!cp)
 	return "NO";
     return cp;
@@ -55,13 +55,13 @@ varCheck(Option opt)
 
 /* Show our little logo */
 static char *
-resetLogo(char *str)
+resetLogo(Option *opt)
 {
     return "[RESET!]";
 }
 
 static char *
-mediaCheck(Option opt)
+mediaCheck(Option *opt)
 {
     if (mediaDevice) {
 	switch(mediaDevice->type) {
@@ -155,10 +155,10 @@ static Option Options[] = {
 { "Fixit Console",	"Which tty to use for the Fixit action.",
       OPT_IS_FUNC,	fixitTtyWhich,		VAR_FIXIT_TTY,		varCheck	},
 { "Re-scan Devices",	"Re-run sysinstall's initial device probe",
-      OPT_IS_FUNC,	deviceRescan },
+      OPT_IS_FUNC,	deviceRescan,		NULL,			NULL		},
 { "Use Defaults",	"Reset all values to startup defaults",
-      OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
-{ NULL },
+      OPT_IS_FUNC,	installVarDefaults,	NULL,			resetLogo	},
+{ NULL, NULL, 0, NULL, NULL, NULL },
 };
 
 #define OPT_START_ROW	4
@@ -183,7 +183,7 @@ value_of(Option opt)
     case OPT_IS_FUNC:
     case OPT_IS_VAR:
 	if (opt.check)
-	    return opt.check(opt);
+	    return opt.check(&opt);
 	else
 	    return "<*>";
     }
@@ -216,7 +216,7 @@ fire(Option opt)
 	    variable_set2(opt.aux, "YES", 0);
     }
     if (opt.check)
-	opt.check(opt);
+	opt.check(&opt);
     refresh();
     return status;
 }

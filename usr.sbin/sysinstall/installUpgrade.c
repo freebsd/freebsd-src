@@ -122,10 +122,10 @@ static HitList etc_files [] = {
    { JUST_COPY,		"syslog.conf",		TRUE, NULL },
    { JUST_COPY,		"ttys",			TRUE, NULL },
    { JUST_COPY,		"uucp",			TRUE, NULL },
-   { 0 },
+   { 0,			NULL,			FALSE, NULL },
 };
 
-void
+static void
 traverseHitlist(HitList *h)
 {
     system("rm -rf /etc/upgrade");
