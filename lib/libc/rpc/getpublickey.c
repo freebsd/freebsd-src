@@ -65,7 +65,7 @@ int (*__getpublickey_LOCAL)() = 0;
  */
 static int
 __getpublickey_real(netname, publickey)
-	char *netname;
+	const char *netname;
 	char *publickey;
 {
 	char lookup[3 * HEXKEYBYTES];
@@ -92,7 +92,7 @@ __getpublickey_real(netname, publickey)
 
 int
 getpublicandprivatekey(key, ret)
-	char *key;
+	const char *key;
 	char *ret;
 {
 	char buf[1024];	/* big enough */
