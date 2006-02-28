@@ -778,12 +778,6 @@ findpcb:
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
 
-	/* Unscale the window into a 32-bit value. */
-	if ((thflags & TH_SYN) == 0)
-		tiwin = th->th_win << tp->snd_scale;
-	else
-		tiwin = th->th_win;
-
 #ifdef MAC
 	INP_LOCK_ASSERT(inp);
 	if (mac_check_inpcb_deliver(inp, m))
@@ -842,7 +836,7 @@ findpcb:
 					/*
 					 * Could not complete 3-way handshake,
 					 * connection is being closed down, and
-					 * syncache will free mbuf.
+					 * syncache has free'd mbuf.
 					 */
 					INP_UNLOCK(inp);
 					INP_INFO_WUNLOCK(&tcbinfo);
@@ -863,11 +857,6 @@ findpcb:
 				tp->snd_up = tp->snd_una;
 				tp->snd_max = tp->snd_nxt = tp->iss + 1;
 				tp->last_ack_sent = tp->rcv_nxt;
-				/*
-				 * RFC1323: The window in SYN & SYN/ACK
-				 * segments is never scaled.
-				 */
-				tp->snd_wnd = tiwin;	/* unscaled */
 				goto after_listen;
 			}
 			if (thflags & TH_RST) {
@@ -988,12 +977,12 @@ findpcb:
 			}
 			/*
 			 * Segment passed TAO tests.
+			 * XXX: Can't happen at the moment.
 			 */
 			INP_UNLOCK(inp);
 			inp = sotoinpcb(so);
 			INP_LOCK(inp);
 			tp = intotcpcb(inp);
-			tp->snd_wnd = tiwin;
 			tp->t_starttime = ticks;
 			tp->t_state = TCPS_ESTABLISHED;
 
@@ -1008,6 +997,7 @@ findpcb:
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
+			tiwin = th->th_win << tp->snd_scale;
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			goto trimthenstep6;
@@ -1088,15 +1078,25 @@ after_listen:
 		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
 
 	/*
+	 * Unscale the window into a 32-bit value.
+	 * This value is bogus for the TCPS_SYN_SENT state
+	 * and is overwritten later.
+	 */
+	tiwin = th->th_win << tp->snd_scale;
+
+	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
 	 * for incoming connections is handled in tcp_syncache.
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
 	tcp_dooptions(&to, optp, optlen, thflags & TH_SYN);
 	if (tp->t_state == TCPS_SYN_SENT && (thflags & TH_SYN)) {
-		if (to.to_flags & TOF_SCALE) {
+		if ((to.to_flags & TOF_SCALE) &&
+		    (tp->t_flags & TF_REQ_SCALE)) {
 			tp->t_flags |= TF_RCVD_SCALE;
-			tp->requested_s_scale = to.to_requested_s_scale;
+			tp->snd_scale = to.to_requested_s_scale;
+			tp->snd_wnd = th->th_win << tp->snd_scale;
+			tiwin = tp->snd_wnd;
 		}
 		if (to.to_flags & TOF_TS) {
 			tp->t_flags |= TF_RCVD_TSTMP;
@@ -1365,7 +1365,9 @@ after_listen:
 		}
 		if ((thflags & TH_SYN) == 0)
 			goto drop;
-		tp->snd_wnd = th->th_win;	/* initial send window */
+
+		/* Initial send window, already scaled. */
+		tp->snd_wnd = th->th_win;
 
 		tp->irs = th->th_seq;
 		tcp_rcvseqinit(tp);
@@ -1380,7 +1382,6 @@ after_listen:
 			/* Do window scaling on this connection? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
-				tp->snd_scale = tp->requested_s_scale;
 				tp->rcv_scale = tp->request_r_scale;
 			}
 			tp->rcv_adv += tp->rcv_wnd;
@@ -1793,8 +1794,8 @@ trimthenstep6:
 		/* Do window scaling? */
 		if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 			(TF_RCVD_SCALE|TF_REQ_SCALE)) {
-			tp->snd_scale = tp->requested_s_scale;
 			tp->rcv_scale = tp->request_r_scale;
+			tp->snd_wnd = tiwin;
 		}
 		/*
 		 * Make transitions:
@@ -2035,8 +2036,8 @@ trimthenstep6:
 			/* Do window scaling? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
-				tp->snd_scale = tp->requested_s_scale;
 				tp->rcv_scale = tp->request_r_scale;
+				/* Send window already scaled. */
 			}
 		}
 
