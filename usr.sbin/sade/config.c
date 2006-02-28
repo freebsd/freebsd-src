@@ -616,43 +616,6 @@ configSecurity(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
-static void
-write_root_xprofile(char *str)
-{
-    FILE *fp;
-    int len;
-    char **cp;
-    static char *flist[] = { /* take care of both xdm and startx */
-	"/root/.xinitrc",
-	"/root/.xsession",
-	"/usr/share/skel/dot.xinitrc",
-	"/usr/share/skel/dot.xsession",
-	NULL,
-    };
-
-    len = strlen(str);
-    for (cp = flist; *cp; cp++) {
-	fp = fopen(*cp, "w");
-	if (fp) {
-	    fwrite(str, 1, len, fp);
-	    fchmod(fileno(fp), 0755);
-	    fclose(fp);
-	}
-    }
-}
-
-static int
-gotit(char *fname)
-{
-    char tmp[FILENAME_MAX];
-
-    snprintf(tmp, sizeof tmp, "/usr/X11R6/bin/%s", fname);
-    if (file_executable(tmp))
-	return TRUE;
-    snprintf(tmp, sizeof tmp, "/usr/local/bin/%s", fname);
-    return file_executable(tmp);
-}
-
 int
 configResolv(dialogMenuItem *ditem)
 {

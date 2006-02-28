@@ -95,6 +95,7 @@ handle_intr(int sig)
     restorescr(save);
 }
 
+#if 0
 /*
  * Harvest children if we are init.
  */
@@ -107,6 +108,7 @@ reap_children(int sig)
 	;
     errno = errbak;
 }
+#endif
 
 /* Expand a file into a convenient location, nuking it each time */
 static char *
