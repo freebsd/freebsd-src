@@ -1,6 +1,8 @@
-/*-
+/*
  * vkbd.c
- *
+ */
+
+/*-
  * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -64,6 +66,13 @@ MALLOC_DEFINE(M_VKBD, KEYBOARD_NAME, "Virtual AT keyboard");
  *****************************************************************************
  *****************************************************************************/
 
+/*
+ * XXX
+ * For now rely on Giant mutex to protect our data structures.
+ * Just like the rest of keyboard drivers and syscons(4) do.
+ */
+
+#if 0 /* not yet */
 #define VKBD_LOCK_DECL		struct mtx ks_lock
 #define VKBD_LOCK_INIT(s)	mtx_init(&(s)->ks_lock, "vkbd_lock", NULL, MTX_DEF|MTX_RECURSE)
 #define VKBD_LOCK_DESTROY(s)	mtx_destroy(&(s)->ks_lock)
@@ -72,6 +81,15 @@ MALLOC_DEFINE(M_VKBD, KEYBOARD_NAME, "Virtual AT keyboard");
 #define VKBD_LOCK_ASSERT(s, w)	mtx_assert(&(s)->ks_lock, w)
 #define VKBD_SLEEP(s, f, d, t) \
 	msleep(&(s)->f, &(s)->ks_lock, PCATCH | (PZERO + 1), d, t)
+#else
+#define VKBD_LOCK_DECL
+#define VKBD_LOCK_INIT(s)
+#define VKBD_LOCK_DESTROY(s)
+#define VKBD_LOCK(s)
+#define VKBD_UNLOCK(s)
+#define VKBD_LOCK_ASSERT(s, w)
+#define VKBD_SLEEP(s, f, d, t)	tsleep(&(s)->f, PCATCH | (PZERO + 1), d, t)
+#endif
 
 #define VKBD_KEYBOARD(d) \
 	kbd_get_keyboard(kbd_find_keyboard(KEYBOARD_NAME, dev2unit(d)))
