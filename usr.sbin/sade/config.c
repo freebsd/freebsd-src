@@ -506,6 +506,21 @@ configNTP(dialogMenuItem *self)
 }
 
 int
+configCountry(dialogMenuItem *self)
+{
+    int choice, scroll, curr, max;
+
+    WINDOW *w = savescr();
+
+    dialog_clear_norefresh();
+    dmenuSetDefaultItem(&MenuCountry, NULL, NULL,
+	VAR_COUNTRY "=" DEFAULT_COUNTRY, &choice, &scroll, &curr, &max);
+    dmenuOpen(&MenuCountry, &choice, &scroll, &curr, &max, FALSE);
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
 configUsers(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
