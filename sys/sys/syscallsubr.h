@@ -45,6 +45,7 @@ struct sockaddr;
 struct stat;
 struct kevent;
 struct kevent_copyops;
+struct sendfile_args;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -122,6 +123,8 @@ int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 	    struct timespec *ts);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
+int	kern_sendfile(struct thread *td, struct sendfile_args *uap,
+	    struct uio *hdr_uio, struct uio *trl_uio, int compat);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
