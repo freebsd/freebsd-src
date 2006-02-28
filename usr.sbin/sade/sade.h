@@ -268,6 +268,9 @@ typedef struct _layout {
     void        *obj;           /* The obj pointer returned by libdialog */
 } Layout;
 
+/* Layout array terminator. */
+#define	LAYOUT_END		{ 0, 0, 0, 0, NULL, NULL, NULL, 0, NULL }
+
 typedef enum {
     DEVICE_TYPE_NONE,
     DEVICE_TYPE_DISK,
@@ -355,7 +358,7 @@ typedef struct _opt {
     enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FUNC, OPT_IS_VAR } type;
     void *data;
     void *aux;
-    char *(*check)();
+    char *(*check)(struct _opt *);
 } Option;
 
 /* Weird index nodey things we use for keeping track of package information */

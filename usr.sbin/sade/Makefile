@@ -96,7 +96,7 @@ keymap.h:
 		echo -n '	{ "'$$map'", ' >> keymap.tmp ; \
 		echo "&keymap_$$map }," | tr '[-.]' '_' >> keymap.tmp ; \
 	done
-	( echo "	{ 0 }"; echo "};" ; echo "" ) >> keymap.tmp
+	( echo "	{ NULL, NULL }"; echo "};" ; echo "" ) >> keymap.tmp
 	mv keymap.tmp keymap.h
 
 countries.h: ${.CURDIR}/../../share/misc/iso3166

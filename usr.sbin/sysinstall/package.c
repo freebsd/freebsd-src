@@ -115,7 +115,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 {
     char path[MAXPATHLEN];
     const char *PkgExts[] = { "", ".tbz", ".tbz2", ".tgz" };
-    int ext, last_msg, pathend, ret;
+    int last_msg, pathend, ret;
+    size_t ext;
     FILE *fp;
 
     last_msg = 0;

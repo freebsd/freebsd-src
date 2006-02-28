@@ -15,7 +15,7 @@
 #include <err.h>
 #include <libdisk.h>
 
-int
+static int
 scan_block(int fd, daddr_t block)
 {
     u_char foo[512];
@@ -27,7 +27,7 @@ scan_block(int fd, daddr_t block)
     return 0;
 }
 
-void
+static void
 Scan_Disk(Disk *d)
 {
     char device[64];

@@ -36,7 +36,7 @@
 
 extern const char *ftp_dirs[]; /* defined in ftp.c */
 
-Boolean
+static Boolean
 checkAccess(Boolean proxyCheckOnly)
 {
 /* 

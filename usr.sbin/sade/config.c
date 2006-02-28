@@ -268,7 +268,7 @@ configFstab(dialogMenuItem *self)
  * returns number of lines read.  line contents
  * are malloc'd and must be freed by the caller.
  */
-int
+static int
 readConfig(char *config, char **lines, int max)
 {
     FILE *fp;
@@ -602,17 +602,6 @@ configSecurelevelNetworkSecure(dialogMenuItem *self)
 
     variable_set2("kern_securelevel_enable", "YES", 1);
     variable_set2("kern_securelevel", "3", 1);
-    return DITEM_SUCCESS;
-}
-
-int
-configSecurity(dialogMenuItem *self)
-{
-    WINDOW *w = savescr();
-
-    dialog_clear_norefresh();
-    dmenuOpenSimple(&MenuSecurity, FALSE);
-    restorescr(w);
     return DITEM_SUCCESS;
 }
 
