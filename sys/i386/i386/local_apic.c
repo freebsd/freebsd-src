@@ -218,6 +218,7 @@ lapic_init(uintptr_t addr)
 
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
+	intr_add_cpu(PCPU_GET(apic_id));
 
 	/* Local APIC timer interrupt. */
 	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYS386IGT, SEL_KPL,
@@ -281,7 +282,7 @@ void
 lapic_setup(void)
 {
 	struct lapic *la;
-	u_int32_t value, maxlvt;
+	u_int32_t maxlvt;
 	register_t eflags;
 	char buf[MAXCOMLEN + 1];
 
@@ -292,19 +293,6 @@ lapic_setup(void)
 
 	/* Initialize the TPR to allow all interrupts. */
 	lapic_set_tpr(0);
-
-	/* Use the cluster model for logical IDs. */
-	value = lapic->dfr;
-	value &= ~APIC_DFR_MODEL_MASK;
-	value |= APIC_DFR_MODEL_CLUSTER;
-	lapic->dfr = value;
-
-	/* Set this APIC's logical ID. */
-	value = lapic->ldr;
-	value &= ~APIC_ID_MASK;
-	value |= (la->la_cluster << APIC_ID_CLUSTER_SHIFT |
-	    1 << la->la_cluster_id) << APIC_ID_SHIFT;
-	lapic->ldr = value;
 
 	/* Setup spurious vector and enable the local APIC. */
 	lapic_enable();
