@@ -331,5 +331,5 @@ acpi_detect(void)
 	}
 	ncpu = 0;
 	acpi_handle_rsdt(rsdp);
-	return (ncpu);
+	return (ncpu == 0 ? 1 : ncpu);
 }
