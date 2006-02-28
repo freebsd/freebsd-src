@@ -1588,6 +1588,12 @@ ieee80211_ioctl_setkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 		if (kid >= IEEE80211_WEP_NKID)
 			return EINVAL;
 		wk = &ic->ic_nw_keys[kid];
+		/*
+		 * Global slots start off w/o any assigned key index.
+		 * Force one here for consistency with IEEE80211_IOC_WEPKEY.
+		 */
+		if (wk->wk_keyix == IEEE80211_KEYIX_NONE)
+			wk->wk_keyix = kid;
 		ni = NULL;
 	}
 	error = 0;
