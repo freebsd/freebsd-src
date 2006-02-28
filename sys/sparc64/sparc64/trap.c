@@ -596,7 +596,7 @@ syscall(struct trapframe *tf)
 
 		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, argp);
-		AUDIT_SYSCALL_EXIT(code, td);
+		AUDIT_SYSCALL_EXIT(error, td);
 
 		CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
 		    error, syscallnames[code], td->td_retval[0],
