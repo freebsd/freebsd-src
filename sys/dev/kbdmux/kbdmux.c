@@ -522,6 +522,10 @@ kbdmux_term(keyboard_t *kbd)
 	KBDMUX_LOCK_DESTROY(state);
 	bzero(state, sizeof(*state));
 	free(state, M_KBDMUX);
+
+	free(kbd->kb_keymap, M_KBDMUX);
+	free(kbd->kb_accentmap, M_KBDMUX);
+	free(kbd->kb_fkeytab, M_KBDMUX);
 	free(kbd, M_KBDMUX);
 
 	return (0);
