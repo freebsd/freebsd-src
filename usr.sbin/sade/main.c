@@ -158,6 +158,10 @@ main(int argc, char **argv)
 	systemShutdown(status);
     }
 
+    /* Get user's country and keymap */
+    if (RunningAsInit)
+	configCountry(NULL);
+
     /* Begin user dialog at outer menu */
     dialog_clear();
     while (1) {
