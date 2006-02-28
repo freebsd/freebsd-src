@@ -676,17 +676,17 @@ For example, the CPU might be used to setup the contents of a buffer
 that is to be DMA'ed into a device.
 To ensure that the data are visible via the device's mapping of that
 memory, the buffer must be loaded and a dma sync operation of
-.Dv BUS_DMASYNC_PREREAD
+.Dv BUS_DMASYNC_PREWRITE
 must be performed.
 Additional sync operations must be performed after every CPU write
 to this memory if additional DMA reads are to be performed.
 Conversely, for the DMA write case, the buffer must be loaded,
 and a dma sync operation of
-.Dv BUS_DMASYNC_PREWRITE
+.Dv BUS_DMASYNC_PREREAD
 must be performed.
 The CPU will only be able to see the results of this DMA write
 once the DMA has completed and a
-.Dv BUS_DMASYNC_POSTWRITE
+.Dv BUS_DMASYNC_POSTREAD
 operation has been performed.
 .Pp
 If DMA read and write operations are not preceded and followed by the
