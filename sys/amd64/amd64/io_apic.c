@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #define	IRQ_SMI			(NUM_IO_INTS + 3)
 #define	IRQ_DISABLED		(NUM_IO_INTS + 4)
 
-#define	DEST_NONE		-1
-
 #define	TODO		printf("%s: not implemented!\n", __func__)
 
 static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
@@ -82,10 +80,10 @@ struct ioapic_intsrc {
 	u_int io_irq;
 	u_int io_intpin:8;
 	u_int io_vector:8;
+	u_int io_cpu:8;
 	u_int io_activehi:1;
 	u_int io_edgetrigger:1;
 	u_int io_masked:1;
-	int io_dest:5;
 	int io_bus:4;
 };
 
@@ -114,7 +112,7 @@ static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
 static void	ioapic_suspend(struct intsrc *isrc);
 static void	ioapic_resume(struct intsrc *isrc);
-static void	ioapic_program_destination(struct ioapic_intsrc *intpin);
+static void	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
@@ -122,10 +120,10 @@ struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_eoi_source, ioapic_enable_intr,
 			       ioapic_vector, ioapic_source_pending,
 			       ioapic_suspend, ioapic_resume,
-			       ioapic_config_intr };
-	
-static int bsp_id, current_cluster, logical_clusters, next_ioapic_base;
-static u_int next_id, program_logical_dest;
+			       ioapic_config_intr, ioapic_assign_cpu };
+
+static int next_ioapic_base;
+static u_int next_id;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 static int enable_extint;
@@ -273,14 +271,8 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	}
 
 	/* Set the destination. */
-	if (intpin->io_dest == DEST_NONE) {
-		low = IOART_DESTPHY;
-		high = bsp_id << APIC_ID_SHIFT;
-	} else {
-		low = IOART_DESTLOG;
-		high = (intpin->io_dest << APIC_ID_CLUSTER_SHIFT |
-		    APIC_ID_CLUSTER_ID) << APIC_ID_SHIFT;
-	}
+	low = IOART_DESTPHY;
+	high = intpin->io_cpu << APIC_ID_SHIFT;
 
 	/* Program the rest of the low word. */
 	if (intpin->io_edgetrigger)
@@ -312,7 +304,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	default:
 		KASSERT(intpin->io_vector != 0, ("No vector for IRQ %u",
 		    intpin->io_irq));
-		low |= IOART_DELLOPRI | intpin->io_vector;
+		low |= IOART_DELFIXED | intpin->io_vector;
 	}
 
 	/* Write the values to the APIC. */
@@ -325,44 +317,19 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	mtx_unlock_spin(&icu_lock);
 }
 
-/*
- * Program an individual intpin's logical destination.
- */
 static void
-ioapic_program_destination(struct ioapic_intsrc *intpin)
+ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 {
-	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
+	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
+	struct ioapic *io = (struct ioapic *)isrc->is_pic;
 
-	KASSERT(intpin->io_dest != DEST_NONE,
-	    ("intpin not assigned to a cluster"));
+	intpin->io_cpu = apic_id;
 	if (bootverbose) {
-		printf("ioapic%u: routing intpin %u (", io->io_id,
-		    intpin->io_intpin);
+		printf("ioapic%u: Assigning ", io->io_id);
 		ioapic_print_irq(intpin);
-		printf(") to cluster %u\n", intpin->io_dest);
+		printf(" to local APIC %u\n", intpin->io_cpu);
 	}
 	ioapic_program_intpin(intpin);
-}
-
-static void
-ioapic_assign_cluster(struct ioapic_intsrc *intpin)
-{
-
-	/*
-	 * Assign this intpin to a logical APIC cluster in a
-	 * round-robin fashion.  We don't actually use the logical
-	 * destination for this intpin until after all the CPU's
-	 * have been started so that we don't end up with interrupts
-	 * that don't go anywhere.  Another alternative might be to
-	 * start up the CPU's earlier so that they can handle interrupts
-	 * sooner.
-	 */
-	intpin->io_dest = current_cluster;
-	current_cluster++;
-	if (current_cluster >= logical_clusters)
-		current_cluster = 0;
-	if (program_logical_dest)
-		ioapic_program_destination(intpin);
 }
 
 static void
@@ -371,14 +338,10 @@ ioapic_enable_intr(struct intsrc *isrc)
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = (struct ioapic *)isrc->is_pic;
 
-	if (intpin->io_dest == DEST_NONE) {
+	if (intpin->io_vector == 0) {
 		/*
 		 * Allocate an APIC vector for this interrupt pin.  Once
-		 * we have a vector we program the interrupt pin.  Note
-		 * that after we have booted ioapic_assign_cluster()
-		 * will program the interrupt pin again, but it doesn't
-		 * hurt to do that and trying to avoid that adds needless
-		 * complication.
+		 * we have a vector we program the interrupt pin.
 		 */
 		intpin->io_vector = apic_alloc_vector(intpin->io_irq);
 		if (bootverbose) {
@@ -388,7 +351,6 @@ ioapic_enable_intr(struct intsrc *isrc)
 			printf(") to vector %u\n", intpin->io_vector);
 		}
 		ioapic_program_intpin(intpin);
-		ioapic_assign_cluster(intpin);
 		apic_enable_vector(intpin->io_vector);
 	}
 }
@@ -466,22 +428,6 @@ ioapic_resume(struct intsrc *isrc)
 {
 
 	ioapic_program_intpin((struct ioapic_intsrc *)isrc);
-}
-
-/*
- * Allocate and return a logical cluster ID.  Note that the first time
- * this is called, it returns cluster 0.  ioapic_enable_intr() treats
- * the two cases of logical_clusters == 0 and logical_clusters == 1 the
- * same: one cluster of ID 0 exists.  The logical_clusters == 0 case is
- * for UP kernels, which should never call this function.
- */
-int
-ioapic_next_logical_cluster(void)
-{
-
-	if (logical_clusters >= APIC_MAX_CLUSTER)
-		panic("WARNING: Local APIC cluster IDs exhausted!");
-	return (logical_clusters++);
 }
 
 /*
@@ -568,11 +514,10 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		}
 
 		/*
-		 * Route interrupts to the BSP by default using physical
-		 * addressing.  Vectored interrupts get readdressed using
-		 * logical IDs to CPU clusters when they are enabled.
+		 * Route interrupts to the BSP by default.  Interrupts may
+		 * be routed to other CPUs later after they are enabled.
 		 */
-		intpin->io_dest = DEST_NONE;
+		intpin->io_cpu = PCPU_GET(apic_id);
 		if (bootverbose && intpin->io_irq != IRQ_DISABLED) {
 			printf("ioapic%u: intpin %d -> ",  io->io_id, i);
 			ioapic_print_irq(intpin);
@@ -778,29 +723,9 @@ ioapic_register(void *cookie)
 	printf("ioapic%u <Version %u.%u> irqs %u-%u on motherboard\n",
 	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
 	    io->io_intbase + io->io_numintr - 1);
-	bsp_id = PCPU_GET(apic_id);
 
 	/* Register valid pins as interrupt sources. */
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
 		if (pin->io_irq < NUM_IO_INTS)
 			intr_register_source(&pin->io_intsrc);
 }
-
-/*
- * Program all the intpins to use logical destinations once the AP's
- * have been launched.
- */
-static void
-ioapic_set_logical_destinations(void *arg __unused)
-{
-	struct ioapic *io;
-	int i;
-
-	program_logical_dest = 1;
-	STAILQ_FOREACH(io, &ioapic_list, io_next)
-	    for (i = 0; i < io->io_numintr; i++)
-		    if (io->io_pins[i].io_dest != DEST_NONE)
-			    ioapic_program_destination(&io->io_pins[i]);
-}
-SYSINIT(ioapic_destinations, SI_SUB_SMP, SI_ORDER_SECOND,
-    ioapic_set_logical_destinations, NULL)
