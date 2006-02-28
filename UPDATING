@@ -8,6 +8,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060127:
+	The i386 loader(8) now defaults to the serial speed set by the
+	previous boot stage, if the comconsole is already in use.  If
+	you've changed BOOT_COMCONSOLE_SPEED in make.conf(5) and
+	installed a new loader, but have not rebuilt and reinstalled the
+	boot blocks, then your loader will leave the console at 9600
+	baud.  Either install the new boot blocks, or set
+	comconsole_speed in loader.conf(5).  Note that the new boot
+	blocks also support a -S<speed> flag described in boot(8).
+
 20060111:
 	Bug fixes to the trimdomain(3) function in libutil may result in
 	slight changes to the host names appearing in log files under
