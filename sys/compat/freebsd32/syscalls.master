@@ -566,7 +566,7 @@
 ; XXX note - bigendian is different
 336	AUE_SENDFILE	MCOMPAT4 { int freebsd32_sendfile(int fd, int s, \
 				    u_int32_t offsetlo, u_int32_t offsethi, \
-				    size_t nbytes, struct sf_hdtr *hdtr, \
+				    size_t nbytes, struct sf_hdtr32 *hdtr, \
 				    off_t *sbytes, int flags); }
 337	AUE_NULL	MNOPROTO	{ int kldsym(int fileid, int cmd, \
 				    void *data); }
@@ -666,7 +666,7 @@
 				    int count); }
 393	AUE_NULL	MSTD	{ int freebsd32_sendfile(int fd, int s, \
 				    u_int32_t offsetlo, u_int32_t offsethi, \
-				    size_t nbytes, struct sf_hdtr *hdtr, \
+				    size_t nbytes, struct sf_hdtr32 *hdtr, \
 				    off_t *sbytes, int flags); }
 394	AUE_NULL	UNIMPL	mac_syscall
 395	AUE_GETFSSTAT	MNOPROTO	{ int getfsstat(struct statfs *buf, \
