@@ -311,10 +311,11 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 	if (bcmp(addr, "\xff\xff\xff\xff\xff\xff", IEEE80211_ADDR_LEN) == 0) {
 		wk.ik_flags |= IEEE80211_KEY_GROUP;
 		wk.ik_keyix = key_idx;
-		if (set_tx)
-			wk.ik_flags |= IEEE80211_KEY_DEFAULT;
-	} else
-		wk.ik_keyix = IEEE80211_KEYIX_NONE;
+	} else {
+		wk.ik_keyix = (key_idx == 0 ? IEEE80211_KEYIX_NONE : key_idx);
+	}
+	if (wk.ik_keyix != IEEE80211_KEYIX_NONE && set_tx)
+		wk.ik_flags |= IEEE80211_KEY_DEFAULT;
 	wk.ik_keylen = key_len;
 	memcpy(&wk.ik_keyrsc, seq, seq_len);
 	memcpy(wk.ik_keydata, key, key_len);
