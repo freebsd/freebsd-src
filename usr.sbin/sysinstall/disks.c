@@ -180,7 +180,7 @@ print_chunks(Disk *d, int u)
 }
 
 static void
-print_command_summary()
+print_command_summary(void)
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk   G = set Drive Geometry   C = Create Slice   F = `DD' mode");
