@@ -188,6 +188,7 @@ static void	bstp_forward_delay_timer_expiry(struct bridge_softc *,
 static void	bstp_topology_change_timer_expiry(struct bridge_softc *);
 static void	bstp_tcn_timer_expiry(struct bridge_softc *);
 static void	bstp_hello_timer_expiry(struct bridge_softc *);
+static int	bstp_addr_cmp(const uint8_t *, const uint8_t *);
 
 static void
 bstp_transmit_config(struct bridge_softc *sc, struct bridge_iflist *bif)
@@ -269,13 +270,13 @@ bstp_send_config_bpdu(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	bpdu.cbu_rootpathcost = htonl(cu->cu_root_path_cost);
 
-	bpdu.cbu_bridgepri = htons(cu->cu_rootid >> 48);
-	bpdu.cbu_bridgeaddr[0] = cu->cu_rootid >> 40;
-	bpdu.cbu_bridgeaddr[1] = cu->cu_rootid >> 32;
-	bpdu.cbu_bridgeaddr[2] = cu->cu_rootid >> 24;
-	bpdu.cbu_bridgeaddr[3] = cu->cu_rootid >> 16;
-	bpdu.cbu_bridgeaddr[4] = cu->cu_rootid >> 8;
-	bpdu.cbu_bridgeaddr[5] = cu->cu_rootid >> 0;
+	bpdu.cbu_bridgepri = htons(cu->cu_bridge_id >> 48);
+	bpdu.cbu_bridgeaddr[0] = cu->cu_bridge_id >> 40;
+	bpdu.cbu_bridgeaddr[1] = cu->cu_bridge_id >> 32;
+	bpdu.cbu_bridgeaddr[2] = cu->cu_bridge_id >> 24;
+	bpdu.cbu_bridgeaddr[3] = cu->cu_bridge_id >> 16;
+	bpdu.cbu_bridgeaddr[4] = cu->cu_bridge_id >> 8;
+	bpdu.cbu_bridgeaddr[5] = cu->cu_bridge_id >> 0;
 
 	bpdu.cbu_portid = htons(cu->cu_port_id);
 	bpdu.cbu_messageage = htons(cu->cu_message_age);
@@ -835,10 +836,23 @@ bstp_hold_timer_expiry(struct bridge_softc *sc, struct bridge_iflist *bif)
 		bstp_transmit_config(sc, bif);
 }
 
+static int
+bstp_addr_cmp(const uint8_t *a, const uint8_t *b)
+{
+	int i, d;
+
+	for (i = 0, d = 0; i < ETHER_ADDR_LEN && d == 0; i++) {
+		d = ((int)a[i]) - ((int)b[i]);
+	}
+
+	return (d);
+}
+
 void
 bstp_initialization(struct bridge_softc *sc)
 {
 	struct bridge_iflist *bif, *mif;
+	u_char *e_addr;
 
 	BRIDGE_LOCK_ASSERT(sc);
 
@@ -855,8 +869,8 @@ bstp_initialization(struct bridge_softc *sc)
 			mif = bif;
 			continue;
 		}
-		if (memcmp(IF_LLADDR(bif->bif_ifp),
-		    IF_LLADDR(mif->bif_ifp), ETHER_ADDR_LEN) < 0) {
+		if (bstp_addr_cmp(IF_LLADDR(bif->bif_ifp),
+		    IF_LLADDR(mif->bif_ifp)) < 0) {
 			mif = bif;
 			continue;
 		}
@@ -866,14 +880,15 @@ bstp_initialization(struct bridge_softc *sc)
 		return;
 	}
 
+	e_addr = IF_LLADDR(mif->bif_ifp);
 	sc->sc_bridge_id =
 	    (((uint64_t)sc->sc_bridge_priority) << 48) |
-	    (((uint64_t)IF_LLADDR(mif->bif_ifp)[0]) << 40) |
-	    (((uint64_t)IF_LLADDR(mif->bif_ifp)[1]) << 32) |
-	    (IF_LLADDR(mif->bif_ifp)[2] << 24) |
-	    (IF_LLADDR(mif->bif_ifp)[3] << 16) |
-	    (IF_LLADDR(mif->bif_ifp)[4] << 8) |
-	    (IF_LLADDR(mif->bif_ifp)[5]);
+	    (((uint64_t)e_addr[0]) << 40) |
+	    (((uint64_t)e_addr[1]) << 32) |
+	    (((uint64_t)e_addr[2]) << 24) |
+	    (((uint64_t)e_addr[3]) << 16) |
+	    (((uint64_t)e_addr[4]) << 8) |
+	    (((uint64_t)e_addr[5]));
 
 	sc->sc_designated_root = sc->sc_bridge_id;
 	sc->sc_root_path_cost = 0;
