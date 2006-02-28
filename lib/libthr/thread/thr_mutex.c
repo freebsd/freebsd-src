@@ -102,98 +102,49 @@ static int
 mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr, int private)
 {
+	static const struct pthread_mutex_attr default_attr = {
+		.m_type         = PTHREAD_MUTEX_DEFAULT,
+		.m_protocol     = PTHREAD_PRIO_NONE,
+		.m_ceiling      = THR_MAX_PRIORITY,
+		.m_flags        = 0
+	};
+	const struct pthread_mutex_attr *attr;
 	struct pthread_mutex *pmutex;
-	enum pthread_mutextype type;
-	int		protocol;
-	int		ceiling;
-	int		flags;
-	int		ret = 0;
 
-	/* Check if default mutex attributes: */
-	if (mutex_attr == NULL || *mutex_attr == NULL) {
-		/* Default to a (error checking) POSIX mutex: */
-		type = PTHREAD_MUTEX_ERRORCHECK;
-		protocol = PTHREAD_PRIO_NONE;
-		ceiling = THR_MAX_PRIORITY;
-		flags = 0;
+	if (mutex_attr == NULL) {
+		attr = &default_attr;
+	} else {
+		attr = *mutex_attr;
+		if (attr->m_type < PTHREAD_MUTEX_ERRORCHECK ||
+		    attr->m_type >= PTHREAD_MUTEX_TYPE_MAX)
+			return (EINVAL);
+		if (attr->m_protocol < PTHREAD_PRIO_NONE ||
+		    attr->m_protocol > PTHREAD_PRIO_PROTECT)
+			return (EINVAL);
 	}
 
-	/* Check mutex type: */
-	else if (((*mutex_attr)->m_type < PTHREAD_MUTEX_ERRORCHECK) ||
-	    ((*mutex_attr)->m_type >= PTHREAD_MUTEX_TYPE_MAX))
-		/* Return an invalid argument error: */
-		ret = EINVAL;
+	if ((pmutex = (pthread_mutex_t)
+		malloc(sizeof(struct pthread_mutex))) == NULL)
+		return (ENOMEM);
 
-	/* Check mutex protocol: */
-	else if (((*mutex_attr)->m_protocol < PTHREAD_PRIO_NONE) ||
-	    ((*mutex_attr)->m_protocol > PTHREAD_PRIO_PROTECT))
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-
-	else {
-		/* Use the requested mutex type and protocol: */
-		type = (*mutex_attr)->m_type;
-		protocol = (*mutex_attr)->m_protocol;
-		ceiling = (*mutex_attr)->m_ceiling;
-		flags = (*mutex_attr)->m_flags;
-	}
-
-	/* Check no errors so far: */
-	if (ret == 0) {
-		if ((pmutex = (pthread_mutex_t)
-		    malloc(sizeof(struct pthread_mutex))) == NULL) {
-			ret = ENOMEM;
-		} else {
-			_thr_umtx_init(&pmutex->m_lock);
-			/* Set the mutex flags: */
-			pmutex->m_flags = flags;
-
-			/* Process according to mutex type: */
-			switch (type) {
-			/* case PTHREAD_MUTEX_DEFAULT: */
-			case PTHREAD_MUTEX_ERRORCHECK:
-			case PTHREAD_MUTEX_NORMAL:
-				/* Nothing to do here. */
-				break;
-
-			/* Single UNIX Spec 2 recursive mutex: */
-			case PTHREAD_MUTEX_RECURSIVE:
-				/* Reset the mutex count: */
-				pmutex->m_count = 0;
-				break;
-
-			/* Trap invalid mutex types: */
-			default:
-				/* Return an invalid argument error: */
-				ret = EINVAL;
-				break;
-			}
-			if (ret == 0) {
-				/* Initialise the rest of the mutex: */
-				TAILQ_INIT(&pmutex->m_queue);
-				pmutex->m_flags |= MUTEX_FLAGS_INITED;
-				if (private)
-					pmutex->m_flags |= MUTEX_FLAGS_PRIVATE;
-				pmutex->m_owner = NULL;
-				pmutex->m_type = type;
-				pmutex->m_protocol = protocol;
-				pmutex->m_refcount = 0;
-				if (protocol == PTHREAD_PRIO_PROTECT)
-					pmutex->m_prio = ceiling;
-				else
-					pmutex->m_prio = -1;
-				pmutex->m_saved_prio = 0;
-				MUTEX_INIT_LINK(pmutex);
-				*mutex = pmutex;
-			} else {
-				/* Free the mutex lock structure: */
-				MUTEX_DESTROY(pmutex);
-				*mutex = NULL;
-			}
-		}
-	}
-	/* Return the completion status: */
-	return (ret);
+	_thr_umtx_init(&pmutex->m_lock);
+	pmutex->m_type = attr->m_type;
+	pmutex->m_protocol = attr->m_protocol;
+	TAILQ_INIT(&pmutex->m_queue);
+	pmutex->m_owner = NULL;
+	pmutex->m_flags = attr->m_flags | MUTEX_FLAGS_INITED;
+	if (private)
+		pmutex->m_flags |= MUTEX_FLAGS_PRIVATE;
+	pmutex->m_count = 0;
+	pmutex->m_refcount = 0;
+	if (attr->m_protocol == PTHREAD_PRIO_PROTECT)
+		pmutex->m_prio = attr->m_ceiling;
+	else
+		pmutex->m_prio = -1;
+	pmutex->m_saved_prio = 0;
+	MUTEX_INIT_LINK(pmutex);
+	*mutex = pmutex;
+	return (0);
 }
 
 static int
