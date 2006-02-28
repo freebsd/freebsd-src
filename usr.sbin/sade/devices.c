@@ -50,9 +50,6 @@
 #include <ctype.h>
 #include <libdisk.h>
 
-/* how much to bias minor number for a given /dev/<ct#><un#>s<s#> slice */
-#define SLICE_DELTA	(0x10000)
-
 static Device *Devices[DEV_MAX];
 static int numDevs;
 
@@ -60,28 +57,28 @@ static struct _devname {
     DeviceType type;
     char *name;
     char *description;
-    int major, minor, delta, max;
+    int max;
 } device_names[] = {
-    { DEVICE_TYPE_CDROM,	"cd%d",		"SCSI CDROM drive",	15, 2, 8, 4 				},
-    { DEVICE_TYPE_CDROM,	"mcd%d",	"Mitsumi (old model) CDROM drive",	29, 0, 8, 4	 	},
-    { DEVICE_TYPE_CDROM,	"scd%d",	"Sony CDROM drive - CDU31/33A type",	45, 0, 8, 4 		},
+    { DEVICE_TYPE_CDROM,	"cd%d",		"SCSI CDROM drive",	4 },
+    { DEVICE_TYPE_CDROM,	"mcd%d",	"Mitsumi (old model) CDROM drive", 4 },
+    { DEVICE_TYPE_CDROM,	"scd%d",	"Sony CDROM drive - CDU31/33A type", 4 },
 #ifdef notdef
-    { DEVICE_TYPE_CDROM,	"matcd%d",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4 		},
+    { DEVICE_TYPE_CDROM,	"matcd%d",	"Matsushita CDROM ('sound blaster' type)", 4 },
 #endif
-    { DEVICE_TYPE_CDROM,	"acd%d",	"ATAPI/IDE CDROM",	117, 0, 8, 4				},
-    { DEVICE_TYPE_TAPE, 	"sa%d",		"SCSI tape drive",	14, 0, 16, 4				},
-    { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4				},
-    { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16			},
-    { DEVICE_TYPE_DISK, 	"ad%d",		"ATA/IDE disk device",	116, 65538, 8, 16			},
-    { DEVICE_TYPE_DISK, 	"ar%d",		"ATA/IDE RAID device",	157, 65538, 8, 16			},
-    { DEVICE_TYPE_DISK, 	"afd%d",	"ATAPI/IDE floppy device",	118, 65538, 8, 4		},
-    { DEVICE_TYPE_DISK, 	"mlxd%d",	"Mylex RAID disk",	131, 65538, 8, 4			},
-    { DEVICE_TYPE_DISK, 	"amrd%d",	"AMI MegaRAID drive",	133, 65538, 8, 4			},
-    { DEVICE_TYPE_DISK, 	"idad%d",	"Compaq RAID array",	109, 65538, 8, 4			},
-    { DEVICE_TYPE_DISK, 	"twed%d",	"3ware ATA RAID array",	147, 65538, 8, 4			},
-    { DEVICE_TYPE_DISK, 	"aacd%d",	"Adaptec FSA RAID array", 151, 65538, 8, 4			},
-    { DEVICE_TYPE_DISK, 	"ipsd%d",	"IBM ServeRAID RAID array", 176, 65538, 8, 4			},
-    { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	9, 0, 64, 4				},
+    { DEVICE_TYPE_CDROM,	"acd%d",	"ATAPI/IDE CDROM",	4 },
+    { DEVICE_TYPE_TAPE, 	"sa%d",		"SCSI tape drive",	4 },
+    { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	4 },
+    { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	16 },
+    { DEVICE_TYPE_DISK, 	"ad%d",		"ATA/IDE disk device",	16 },
+    { DEVICE_TYPE_DISK, 	"ar%d",		"ATA/IDE RAID device",	16 },
+    { DEVICE_TYPE_DISK, 	"afd%d",	"ATAPI/IDE floppy device", 4 },
+    { DEVICE_TYPE_DISK, 	"mlxd%d",	"Mylex RAID disk",	4 },
+    { DEVICE_TYPE_DISK, 	"amrd%d",	"AMI MegaRAID drive",	4 },
+    { DEVICE_TYPE_DISK, 	"idad%d",	"Compaq RAID array",	4 },
+    { DEVICE_TYPE_DISK, 	"twed%d",	"3ware ATA RAID array",	4 },
+    { DEVICE_TYPE_DISK, 	"aacd%d",	"Adaptec FSA RAID array", 4 },
+    { DEVICE_TYPE_DISK, 	"ipsd%d",	"IBM ServeRAID RAID array", 4 },
+    { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	4 },
     { DEVICE_TYPE_NETWORK,	"an",		"Aironet 4500/4800 802.11 wireless adapter"			},
     { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"axe",		"ASIX Electronics USB ethernet adapter"					},
@@ -135,7 +132,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"wx",		"Intel Gigabit Ethernet (82452) card"			},
     { DEVICE_TYPE_NETWORK,	"xe",		"Xircom/Intel EtherExpress Pro100/16 ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"xl",		"3COM 3c90x / 3c90xB PCI ethernet card"				},
-    { DEVICE_TYPE_NETWORK,	"cuad%d",	"%s on device %s (COM%d)",	28, 128, 1, 16			},
+    { DEVICE_TYPE_NETWORK,	"cuad%d",	"%s on device %s (COM%d)", 16 },
     { DEVICE_TYPE_NETWORK,	"fwe",		"FireWire Ethernet emulation"					},
     { DEVICE_TYPE_NETWORK,	"plip",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
