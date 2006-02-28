@@ -1741,6 +1741,41 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 	return (do_sendfile(td, uap, 0));
 }
 
+static int
+do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
+{
+	struct sf_hdtr hdtr;
+	struct uio *hdr_uio, *trl_uio;
+	int error;
+
+	hdr_uio = trl_uio = NULL;
+
+	if (uap->hdtr != NULL) {
+		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
+		if (error)
+			goto out;
+		if (hdtr.headers != NULL) {
+			error = copyinuio(hdtr.headers, hdtr.hdr_cnt, &hdr_uio);
+			if (error)
+				goto out;
+		}
+		if (hdtr.trailers != NULL) {
+			error = copyinuio(hdtr.trailers, hdtr.trl_cnt, &trl_uio);
+			if (error)
+				goto out;
+
+		}
+	}
+
+	error = kern_sendfile(td, uap, hdr_uio, trl_uio, compat);
+out:
+	if (hdr_uio)
+		free(hdr_uio, M_IOV);
+	if (trl_uio)
+		free(trl_uio, M_IOV);
+	return (error);
+}
+
 #ifdef COMPAT_FREEBSD4
 int
 freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
@@ -1759,8 +1794,9 @@ freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 }
 #endif /* COMPAT_FREEBSD4 */
 
-static int
-do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
+int
+kern_sendfile(struct thread *td, struct sendfile_args *uap,
+    struct uio *hdr_uio, struct uio *trl_uio, int compat)
 {
 	struct vnode *vp;
 	struct vm_object *obj;
@@ -1768,9 +1804,6 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct mbuf *m, *m_header = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
-	struct writev_args nuap;
-	struct sf_hdtr hdtr;
-	struct uio *hdr_uio = NULL;
 	off_t off, xfsize, hdtr_size, sbytes = 0;
 	int error, headersize = 0, headersent = 0;
 
@@ -1817,27 +1850,16 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	 * If specified, get the pointer to the sf_hdtr struct for
 	 * any headers/trailers.
 	 */
-	if (uap->hdtr != NULL) {
-		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
-		if (error)
-			goto done;
-		/*
-		 * Send any headers.
-		 */
-		if (hdtr.headers != NULL) {
-			error = copyinuio(hdtr.headers, hdtr.hdr_cnt, &hdr_uio);
-			if (error)
+	if (hdr_uio != NULL) {
+		hdr_uio->uio_td = td;
+		hdr_uio->uio_rw = UIO_WRITE;
+		if (hdr_uio->uio_resid > 0) {
+			m_header = m_uiotombuf(hdr_uio, M_DONTWAIT, 0, 0);
+			if (m_header == NULL)
 				goto done;
-			hdr_uio->uio_td = td;
-			hdr_uio->uio_rw = UIO_WRITE;
-			if (hdr_uio->uio_resid > 0) {
-				m_header = m_uiotombuf(hdr_uio, M_DONTWAIT, 0, 0);
-				if (m_header == NULL)
-					goto done;
-				headersize = m_header->m_pkthdr.len;
-				if (compat)
-					sbytes += headersize;
-			}
+			headersize = m_header->m_pkthdr.len;
+			if (compat)
+				sbytes += headersize;
 		}
 	}
 
@@ -2112,17 +2134,14 @@ retry_space:
 	/*
 	 * Send trailers. Wimp out and use writev(2).
 	 */
-	if (uap->hdtr != NULL && hdtr.trailers != NULL) {
-			nuap.fd = uap->s;
-			nuap.iovp = hdtr.trailers;
-			nuap.iovcnt = hdtr.trl_cnt;
-			error = writev(td, &nuap);
-			if (error)
-				goto done;
-			if (compat)
-				sbytes += td->td_retval[0];
-			else
-				hdtr_size += td->td_retval[0];
+	if (trl_uio != NULL) {
+		error = kern_writev(td, uap->s, trl_uio);
+		if (error)
+			goto done;
+		if (compat)
+			sbytes += td->td_retval[0];
+		else
+			hdtr_size += td->td_retval[0];
 	}
 
 done:
@@ -2149,8 +2168,6 @@ done:
 		vrele(vp);
 	if (so)
 		fputsock(so);
-	if (hdr_uio != NULL)
-		free(hdr_uio, M_IOV);
 	if (m_header)
 		m_freem(m_header);
 
