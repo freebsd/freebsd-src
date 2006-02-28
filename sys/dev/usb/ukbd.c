@@ -1145,9 +1145,7 @@ ukbd_check_char(keyboard_t *kbd)
 	state = (ukbd_state_t *)kbd->kb_data;
 	if (!(state->ks_flags & COMPOSE) && (state->ks_composed_char > 0))
 		return TRUE;
-	if (state->ks_inputs > 0)
-		return TRUE;
-	return FALSE;
+	return ukbd_check(kbd);
 }
 
 /* some useful control functions */
