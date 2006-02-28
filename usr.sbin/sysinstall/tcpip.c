@@ -104,7 +104,7 @@ static Layout layout[] = {
     { 19, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-    { 0 },
+    LAYOUT_END,
 };
 
 #define _validByte(b) ((b) >= 0 && (b) <= 255)
@@ -177,7 +177,7 @@ static int
 verifyNetmask(const char *netmask, unsigned long *out)
 {
     unsigned long mask;
-    unsigned long tmp;
+    long tmp;
     char *endptr;
 
     if (netmask[0] == '0' && (netmask[1] == 'x' || netmask[1] == 'X')) {
@@ -187,9 +187,10 @@ verifyNetmask(const char *netmask, unsigned long *out)
             return 0;
     } else {
         /* Parse out quad decimal mask */
-        mask = strtoul(netmask, &endptr, 10);
-        if (!_validByte(mask) || *endptr++ != '.')
+        tmp = strtoul(netmask, &endptr, 10);
+        if (!_validByte(tmp) || *endptr++ != '.')
             return 0;
+	mask = tmp;
         tmp = strtoul(endptr, &endptr, 10);
         if (!_validByte(tmp) || *endptr++ != '.')
             return 0;

@@ -60,7 +60,7 @@ static void	index_recorddeps(Boolean add, PkgNodePtr root, IndexEntryPtr ie);
 PkgNode Top, Plist;
 
 /* Smarter strdup */
-inline char *
+static inline char *
 _strdup(char *ptr)
 {
     return ptr ? strdup(ptr) : NULL;
@@ -289,7 +289,7 @@ readline(FILE *fp, char *buf, int max)
  * lines without a set number of '|' delimited fields.
  */
 
-int
+static int
 index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *rdeps, int *volume)
 {
     char line[10240 + 2048 * 7];
@@ -437,7 +437,7 @@ index_sort(PkgNodePtr top)
 }
 
 /* Delete an entry out of the list it's in (only the plist, at present) */
-void
+static void
 index_delete(PkgNodePtr n)
 {
     if (n->next) {
@@ -482,7 +482,7 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
     return p;
 }
 
-int
+static int
 pkg_checked(dialogMenuItem *self)
 {
     ListPtrsPtr lists = (ListPtrsPtr)self->aux;
@@ -502,7 +502,7 @@ pkg_checked(dialogMenuItem *self)
 	return FALSE;
 }
 
-int
+static int
 pkg_fire(dialogMenuItem *self)
 {
     int ret;
@@ -561,7 +561,7 @@ pkg_fire(dialogMenuItem *self)
     return ret;
 }
 
-void
+static void
 pkg_selected(dialogMenuItem *self, int is_selected)
 {
     PkgNodePtr kp = self->data;
@@ -575,7 +575,8 @@ int
 index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 {
     struct ListPtrs lists;
-    int n, rval, maxname;
+    size_t maxname;
+    int n, rval;
     int curr, max;
     PkgNodePtr kp;
     dialogMenuItem *nitems;
@@ -592,7 +593,7 @@ index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scr
 
     /* Figure out if this menu is full of "leaves" or "branches" */
     for (kp = top->kids; kp && kp->name; kp = kp->next) {
-	int len;
+	size_t len;
 
 	++n;
 	if (kp->type == PACKAGE && plist) {

@@ -325,7 +325,8 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, hbuf[MAXHOSTNAMELEN], *hostname, *dir;
     struct addrinfo hints, *res;
-    int af, urllen;
+    int af;
+    size_t urllen;
     extern int FtpPort;
     static Device *networkDev = NULL;
 
@@ -554,7 +555,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device *networkDev = NULL;
     char *cp, *idx;
     char hostname[MAXPATHLEN];
-    int pathlen;
+    size_t pathlen;
 
     mediaClose();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
