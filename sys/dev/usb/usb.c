@@ -961,6 +961,7 @@ Static void
 usb_cold_explore(void *arg)
 {
 	struct usb_softc *sc;
+	int s;
 
 	KASSERT(cold || TAILQ_EMPTY(&usb_coldexplist),
 	    ("usb_cold_explore: busses to explore when !cold"));
@@ -968,15 +969,17 @@ usb_cold_explore(void *arg)
 		sc = TAILQ_FIRST(&usb_coldexplist);
 		TAILQ_REMOVE(&usb_coldexplist, sc, sc_coldexplist);
 
-/* 		sc->sc_bus->use_polling++; */
+		s = splusb();
+		sc->sc_bus->use_polling++;
 		sc->sc_port.device->hub->explore(sc->sc_bus->root_hub);
-/* 		sc->sc_bus->use_polling--; */
+		sc->sc_bus->use_polling--;
+		splx(s);
 	}
 }
 
 DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, ehci, usb_driver, usb_devclass, 0, 0);
-SYSINIT(usb_cold_explore, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
+SYSINIT(usb_cold_explore, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
     usb_cold_explore, NULL);
 #endif
