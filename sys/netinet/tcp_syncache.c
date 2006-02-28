@@ -682,7 +682,7 @@ syncache_socket(sc, lso, m)
 		tp->t_flags |= TF_NOOPT;
 	if (sc->sc_flags & SCF_WINSCALE) {
 		tp->t_flags |= TF_REQ_SCALE|TF_RCVD_SCALE;
-		tp->requested_s_scale = sc->sc_requested_s_scale;
+		tp->snd_scale = sc->sc_requested_s_scale;
 		tp->request_r_scale = sc->sc_request_r_scale;
 	}
 	if (sc->sc_flags & SCF_TIMESTAMP) {
