@@ -2063,6 +2063,7 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		 */
 		mpt_prt(mpt, "Timedout requests already complete. "
                        "Interrupts may not be functioning.\n");
+                mpt_enable_ints(mpt);
                 MPT_UNLOCK(mpt);
                 return;
 	}
