@@ -97,6 +97,7 @@
 #define VAR_BOOTMGR			"bootManager"
 #define VAR_BROWSER_BINARY		"browserBinary"
 #define VAR_BROWSER_PACKAGE		"browserPackage"
+#define VAR_COUNTRY			"country"
 #define VAR_CPIO_VERBOSITY		"cpioVerbose"
 #define VAR_DEBUG			"debug"
 #define VAR_DESKSTYLE			"_deskStyle"
@@ -198,6 +199,11 @@
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
 
+#ifdef PC98
+#define DEFAULT_COUNTRY		"jp"
+#else
+#define DEFAULT_COUNTRY		"us"
+#endif
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
 /* One MB worth of blocks */
@@ -414,6 +420,7 @@ extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XOrgDists;		/* Which X.Org dists we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
+extern DMenu		MenuCountry;		/* Country menu				*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuFixit;		/* Fixit repair menu				*/
 #if defined(__i386__) || defined(__amd64__)
@@ -522,6 +529,7 @@ extern int	configNTP(dialogMenuItem *self);
 #ifdef __alpha__
 extern int	configOSF1(dialogMenuItem *self);
 #endif
+extern int	configCountry(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
@@ -605,11 +613,16 @@ extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
 extern int	dmenuExit(dialogMenuItem *tmp);
 extern int	dmenuISetVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
+extern int	dmenuSetCountryVariable(dialogMenuItem *tmp);
 extern int	dmenuSetKmapVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariables(dialogMenuItem *tmp);
 extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
+extern int	dmenuFindItem(DMenu *menu, const char *prompt, const char *title, void *data);
+extern void	dmenuSetDefaultIndex(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
+extern int	dmenuSetDefaultItem(DMenu *menu, const char *prompt, const char *title, void *data,
+				    int *choice, int *scroll, int *curr, int *max);
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean buttons);
 extern Boolean	dmenuOpenSimple(DMenu *menu, Boolean buttons);
 extern int	dmenuVarCheck(dialogMenuItem *item);
@@ -677,6 +690,7 @@ extern Boolean	copySelf(void);
 extern int	kget(char *out);
 
 /* keymap.c */
+extern int	keymapMenuSelect(dialogMenuItem *self);
 extern int	loadKeymap(const char *lang);
 
 /* label.c */

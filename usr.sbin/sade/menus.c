@@ -203,6 +203,7 @@ DMenu MenuIndex = {
     NULL,
     { { " Anon FTP",		"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
       { " Commit",		"Commit any pending actions (dangerous!)", NULL, installCustomCommit },
+      { " Country",		"Set the system's country",		NULL, configCountry },
 #ifdef WITH_SYSCONS
       { " Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
 #endif
@@ -273,7 +274,7 @@ DMenu MenuIndex = {
 #ifndef PC98
       { " Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
 #endif
-      { " Syscons, Keymap",	"The console keymap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+      { " Syscons, Keymap",	"The console keymap configuration menu.", NULL, keymapMenuSelect },
       { " Syscons, Keyrate",	"The console key rate configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { " Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
 #ifndef PC98
@@ -290,6 +291,9 @@ DMenu MenuIndex = {
       { " X.Org, Server",	"X.Org Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXOrgSelectServer },
       { NULL } },
 };
+
+/* The country menu */
+#include "countries.h"
 
 /* The initial installation menu */
 DMenu MenuInitial = {
@@ -310,7 +314,7 @@ DMenu MenuInitial = {
       { "Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "Doc",	"Installation instructions, README, etc.",	NULL, dmenuSubmenu, NULL, &MenuDocumentation },
 #ifdef WITH_SYSCONS
-      { "Keymap",	"Select keyboard type",				NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+      { "Keymap",	"Select keyboard type",				NULL, keymapMenuSelect },
 #endif
       { "Options",	"View/Set various installation options",	NULL, optionsEditor },
       { "Fixit",	"Repair mode with CDROM/DVD/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
