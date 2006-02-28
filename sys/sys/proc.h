@@ -792,7 +792,8 @@ MALLOC_DECLARE(M_ZOMBIE);
 } while (0)
 #define	_PHOLD(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
-	KASSERT(!((p)->p_flag & P_WEXIT), ("PHOLD of exiting process"));\
+	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
+	    ("PHOLD of exiting process"));				\
 	(p)->p_lock++;							\
 	if (((p)->p_sflag & PS_INMEM) == 0)				\
 		faultin((p));						\
