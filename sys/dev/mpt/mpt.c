@@ -28,7 +28,7 @@
 /*-
  * Copyright (c) 2002, 2006 by Matthew Jacob
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -42,7 +42,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -63,7 +63,7 @@
  * Copyright (c) 2005, WHEEL Sp. z o.o.
  * Copyright (c) 2004, 2005 Justin T. Gibbs
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -77,7 +77,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -669,14 +669,14 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 
 	bzero(&ioc_status_frame, sizeof(ioc_status_frame));
 	ioc_status_frame.MsgLength = roundup2(sizeof(ioc_status_frame), 4);
-	ioc_status_frame.IOCStatus = iocstatus; 
+	ioc_status_frame.IOCStatus = iocstatus;
 	while((req = TAILQ_FIRST(chain)) != NULL) {
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
-		ioc_status_frame.Function = msg_hdr->Function; 
-		ioc_status_frame.MsgContext = msg_hdr->MsgContext; 
+		ioc_status_frame.Function = msg_hdr->Function;
+		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
 		cb_index = MPT_CONTEXT_TO_CBI(le32toh(msg_hdr->MsgContext));
 		mpt_reply_handlers[cb_index](mpt, req, &ioc_status_frame);
 	}
@@ -844,7 +844,7 @@ mpt_disable_diag_mode(struct mpt_softc *mpt)
 }
 
 /* This is a magic diagnostic reset that resets all the ARM
- * processors in the chip. 
+ * processors in the chip.
  */
 static void
 mpt_hard_reset(struct mpt_softc *mpt)
@@ -935,30 +935,58 @@ mpt_reset(struct mpt_softc *mpt, int reinit)
 {
 	struct	mpt_personality *pers;
 	int	ret;
-
-	/* Try a soft reset */
-	if ((ret = mpt_soft_reset(mpt)) != MPT_OK) {
-		/* Failed; do a hard reset */
-		mpt_hard_reset(mpt);
-
-		/* Wait for the IOC to reload and come out of reset state */
-		ret = mpt_wait_state(mpt, MPT_DB_STATE_READY);
-		if (ret != MPT_OK)
-			mpt_prt(mpt, "failed to reset device\n");
-	}
+	int	retry_cnt = 0;
 
 	/*
-	 * Invoke reset handlers.  We bump the reset count so
-	 * that mpt_wait_req() understands that regardless of
-	 * the specified wait condition, it should stop its wait.
+	 * Try a soft reset. If that fails, get out the big hammer.
 	 */
-	mpt->reset_cnt++;
-	MPT_PERS_FOREACH(mpt, pers)
-		pers->reset(mpt, ret);
+ again:
+	if ((ret = mpt_soft_reset(mpt)) != MPT_OK) {
+		int	cnt;
+		for (cnt = 0; cnt < 5; cnt++) {
+			/* Failed; do a hard reset */
+			mpt_hard_reset(mpt);
 
-	if (reinit != 0)
-		mpt_enable_ioc(mpt);
+			/*
+			 * Wait for the IOC to reload
+			 * and come out of reset state
+			 */
+			ret = mpt_wait_state(mpt, MPT_DB_STATE_READY);
+			if (ret == MPT_OK) {
+				break;
+			}
+			/*
+			 * Okay- try to check again...
+			 */
+			ret = mpt_wait_state(mpt, MPT_DB_STATE_READY);
+			if (ret == MPT_OK) {
+				break;
+			}
+			mpt_prt(mpt, "mpt_reset: failed hard reset (%d:%d)\n",
+			    retry_cnt, cnt);
+		}
+	}
 
+	if (retry_cnt == 0) {
+		/*
+		 * Invoke reset handlers.  We bump the reset count so
+		 * that mpt_wait_req() understands that regardless of
+		 * the specified wait condition, it should stop its wait.
+		 */
+		mpt->reset_cnt++;
+		MPT_PERS_FOREACH(mpt, pers)
+			pers->reset(mpt, ret);
+	}
+
+	if (reinit != 0) {
+		ret = mpt_enable_ioc(mpt);
+		if (ret == MPT_OK) {
+			mpt_enable_ints(mpt);
+		}
+	}
+	if (ret != MPT_OK && retry_cnt++ < 2) {
+		goto again;
+	}
 	return ret;
 }
 
@@ -1166,7 +1194,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 	for (i = 0; i < len; i++) {
 		mpt_write(mpt, MPT_OFFSET_DOORBELL, *data32++);
 		if (mpt_wait_db_ack(mpt) != MPT_OK) {
-			mpt_prt(mpt, 
+			mpt_prt(mpt,
 				"mpt_send_handshake_cmd timeout! index = %d\n",
 				i);
 			return (ETIMEDOUT);
@@ -1363,12 +1391,13 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 		    int sleep_ok, int timeout_ms)
 {
 	request_t  *req;
+	MSG_CONFIG *cfgp;
 	int	    error;
 
 	req = mpt_get_request(mpt, sleep_ok);
 	if (req == NULL) {
 		mpt_prt(mpt, "mpt_read_cfg_header: Get request failed!\n");
-		return (-1);
+		return (ENOMEM);
 	}
 
 	error = mpt_issue_cfg_req(mpt, req, MPI_CONFIG_ACTION_PAGE_HEADER,
@@ -1376,20 +1405,28 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 				  PageType, PageAddress, /*addr*/0, /*len*/0,
 				  sleep_ok, timeout_ms);
 	if (error != 0) {
+		mpt_free_request(mpt, req);
 		mpt_prt(mpt, "read_cfg_header timed out\n");
-		return (-1);
+		return (ETIMEDOUT);
 	}
 
-        if ((req->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
-		mpt_prt(mpt, "mpt_read_cfg_header: Config Info Status %x\n",
-			req->IOCStatus);
-		error = -1;
-	} else {
-		MSG_CONFIG *cfgp;
-
+        switch (req->IOCStatus & MPI_IOCSTATUS_MASK) {
+	case MPI_IOCSTATUS_SUCCESS:
 		cfgp = req->req_vbuf;
 		bcopy(&cfgp->Header, rslt, sizeof(*rslt));
 		error = 0;
+		break;
+	case MPI_IOCSTATUS_CONFIG_INVALID_PAGE:
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "Invalid Page Type %d Number %d Addr 0x%0x\n",
+		    PageType, PageNumber, PageAddress);
+		error = EINVAL;
+		break;
+	default:
+		mpt_prt(mpt, "mpt_read_cfg_header: Config Info Status %x\n",
+			req->IOCStatus);
+		error = EIO;
+		break;
 	}
 	mpt_free_request(mpt, req);
 	return (error);
@@ -1495,8 +1532,13 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_IOC,
 				 /*PageNumber*/2, /*PageAddress*/0, &hdr,
 				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	/*
+	 * If it's an invalid page, so what? Not a supported function....
+	 */
+	if (rv == EINVAL)
+		return (0);
 	if (rv)
-		return (EIO);
+		return (rv);
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %x, "
 		 "num %x, type %x\n", hdr.PageVersion,
@@ -1939,7 +1981,7 @@ void
 mpt_disable_ints(struct mpt_softc *mpt)
 {
 	/* Mask all interrupts */
-	mpt_write(mpt, MPT_OFFSET_INTR_MASK, 
+	mpt_write(mpt, MPT_OFFSET_INTR_MASK,
 	    MPT_INTR_REPLY_MASK | MPT_INTR_DB_MASK);
 }
 
@@ -1949,7 +1991,7 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "debug", CTLFLAG_RW, &mpt->verbose, 0,
 		       "Debugging/Verbose level");
 }
@@ -2213,7 +2255,7 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		 * Force reset if initialization failed previously.
 		 * Note that a hard_reset of the second channel of a '929
 		 * will stop operation of the first channel.  Hopefully, if the
-		 * first channel is ok, the second will not require a hard 
+		 * first channel is ok, the second will not require a hard
 		 * reset.
 		 */
 		if (needreset || (mpt_rd_db(mpt) & MPT_DB_STATE_MASK) !=
@@ -2442,8 +2484,8 @@ mpt_enable_ioc(struct mpt_softc *mpt)
 	 *
 	 * Do *not* exceed global credits.
 	 */
-	for (val = 0, pptr = mpt->reply_phys; 
-	    (pptr + MPT_REPLY_SIZE) < (mpt->reply_phys + PAGE_SIZE); 
+	for (val = 0, pptr = mpt->reply_phys;
+	    (pptr + MPT_REPLY_SIZE) < (mpt->reply_phys + PAGE_SIZE);
 	     pptr += MPT_REPLY_SIZE) {
 		mpt_free_reply(mpt, pptr);
 		if (++val == mpt->mpt_global_credits - 1)
@@ -2465,5 +2507,5 @@ mpt_enable_ioc(struct mpt_softc *mpt)
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "enabled port 0\n");
 
 
-	return (0);
+	return (MPT_OK);
 }
