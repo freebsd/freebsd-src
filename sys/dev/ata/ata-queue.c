@@ -55,12 +55,13 @@ ata_queue_request(struct ata_request *request)
 
     /* mark request as virgin (this might be a ATA_R_REQUEUE) */
     request->result = request->status = request->error = 0;
+    request->parent = device_get_parent(request->dev);
     callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
 
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))
 	sema_init(&request->done, 0, "ATA request done");
 
-    /* in ATA_STALL_QUEUE state we call HW directly (used only during reinit) */
+    /* in ATA_STALL_QUEUE state we call HW directly */
     if ((ch->state & ATA_STALL_QUEUE) && (request->flags & ATA_R_CONTROL)) {
 	mtx_lock(&ch->state_mtx);
 	ch->running = request;
@@ -94,12 +95,14 @@ ata_queue_request(struct ata_request *request)
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
 	ATA_DEBUG_RQ(request, "wait for completition");
-	while (!dumping &&
-	       sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	if (!dumping &&
+	    sema_timedwait(&request->done, request->timeout * hz * 4)) {
 	    device_printf(request->dev,
-		"req=%p %s semaphore timeout !! DANGER Will Robinson !!\n",
-		      request, ata_cmd2str(request));
-	    ata_start(ch->dev);
+			  "WARNING - %s taskqueue timeout "
+			  "- completing request directly\n",
+			  ata_cmd2str(request));
+	    request->flags |= ATA_R_DANGER1;
+	    ata_completed(request, 0);
 	}
 	sema_destroy(&request->done);
     }
@@ -218,7 +221,7 @@ ata_start(device_t dev)
 void
 ata_finish(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_channel *ch = device_get_softc(request->parent);
 
     /*
      * if in ATA_STALL_QUEUE state or request has ATA_R_DIRECT flags set
@@ -247,9 +250,20 @@ static void
 ata_completed(void *context, int dummy)
 {
     struct ata_request *request = (struct ata_request *)context;
-    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_device *atadev = device_get_softc(request->dev);
     struct ata_composite *composite;
+
+    if (request->flags & ATA_R_DANGER2) {
+	device_printf(request->dev,
+		      "WARNING - %s freeing taskqueue zombie request\n",
+		      ata_cmd2str(request));
+	request->flags &= ~(ATA_R_DANGER1 | ATA_R_DANGER2);
+	ata_free_request(request);
+	return;
+    }
+    if (request->flags & ATA_R_DANGER1)
+	request->flags |= ATA_R_DANGER2
 
     ATA_DEBUG_RQ(request, "completed entered");
 
@@ -466,7 +480,7 @@ ata_completed(void *context, int dummy)
 void
 ata_timeout(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_channel *ch = device_get_softc(request->parent);
 
     //request->flags |= ATA_R_DEBUG;
     ATA_DEBUG_RQ(request, "timeout");
@@ -479,7 +493,6 @@ ata_timeout(struct ata_request *request)
      */
     if (ch->state == ATA_ACTIVE) {
 	request->flags |= ATA_R_TIMEOUT;
-	ch->running = NULL;
 	mtx_unlock(&ch->state_mtx);
 	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	ata_finish(request);
@@ -493,34 +506,39 @@ void
 ata_fail_requests(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_request *request;
+    struct ata_request *request, *tmp;
+    TAILQ_HEAD(, ata_request) fail_requests;
+    TAILQ_INIT(&fail_requests);
 
-    /* do we have any outstanding request to care about ?*/
+    /* grap all channel locks to avoid races */
+    mtx_lock(&ch->queue_mtx);
     mtx_lock(&ch->state_mtx);
+
+    /* do we have any running request to care about ? */
     if ((request = ch->running) && (!dev || request->dev == dev)) {
 	callout_stop(&request->callout);
 	ch->running = NULL;
-    }
-    else
-	request = NULL;
-    mtx_unlock(&ch->state_mtx);
-    if (request)  {
 	request->result = ENXIO;
-	ata_finish(request);
+	TAILQ_INSERT_TAIL(&fail_requests, request, chain);
     }
 
     /* fail all requests queued on this channel for device dev if !NULL */
-    mtx_lock(&ch->queue_mtx);
-    while ((request = TAILQ_FIRST(&ch->ata_queue))) {
+    TAILQ_FOREACH_SAFE(request, &ch->ata_queue, chain, tmp) {
 	if (!dev || request->dev == dev) {
 	    TAILQ_REMOVE(&ch->ata_queue, request, chain);
-	    mtx_unlock(&ch->queue_mtx);
 	    request->result = ENXIO;
-	    ata_finish(request);
-	    mtx_lock(&ch->queue_mtx);
+	    TAILQ_INSERT_TAIL(&fail_requests, request, chain);
 	}
     }
+
+    mtx_unlock(&ch->state_mtx);
     mtx_unlock(&ch->queue_mtx);
+   
+    /* finish up all requests collected above */
+    TAILQ_FOREACH_SAFE(request, &fail_requests, chain, tmp) {
+        TAILQ_REMOVE(&fail_requests, request, chain);
+        ata_finish(request);
+    }
 }
 
 static u_int64_t
