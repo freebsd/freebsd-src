@@ -1,12 +1,13 @@
 /*
  * DDK (Driver Development Kit) for Cronyx Tau32-PCI adapter.
  *
- * Copyright (C) 2003-2005 Cronyx Engineering, http://www.cronyx.ru
+ * Copyright (C) 2003-2006 Cronyx Engineering, http://www.cronyx.ru
  * All rights reserved.
  *
  * Author: Leo Yuriev <ly@cronyx.ru>, http://leo.yuriev.ru
  *
- * $Cronyx: tau32-ddk.h,v 1.6 2005/07/15 15:01:26 rik Exp $
+ * $Cronyx: tau32-ddk.h,v 1.2 2006/02/01 09:14:40 ly Exp $
+ * $Rik: tau32-ddk.h,v 1.7 2006/02/28 22:33:29 rik Exp $
  * $FreeBSD$
  */
 
@@ -209,7 +210,8 @@ typedef unsigned __int8 TAU32_CrossMatrix[TAU32_CROSS_WIDTH];
 #define TAU32_unframed			TAU32_unframed_2048
 #define TAU32_framed_no_cas		(6ul << 4)
 #define TAU32_framed_cas_set		(7ul << 4)
-#define TAU32_framed_cas_cross		(8ul << 4)
+#define TAU32_framed_cas_pass		(8ul << 4)
+#define TAU32_framed_cas_cross		(9ul << 4)
 #define TAU32_framing_mode_mask		0x000000F0ul
 #define TAU32_monitor			0x00000100ul
 #define TAU32_higain			0x00000200ul
@@ -230,9 +232,9 @@ typedef unsigned __int8 TAU32_CrossMatrix[TAU32_CROSS_WIDTH];
 #define TAU32_tx_ami			0x01000000ul
 #define TAU32_rx_ami			0x02000000ul
 #define TAU32_ja_tx			0x04000000ul
-#define TAU32_crc4_mf_tx_only		0x08000000ul
-#define TAU32_crc4_mf_rx_only		0x10000000ul
-#define TAU32_crc4_mf			(TAU32_crc4_mf_rx_only | TAU32_crc4_mf_tx_only)
+#define TAU32_crc4_mf_tx		0x08000000ul
+#define TAU32_crc4_mf_rx		0x10000000ul
+#define TAU32_crc4_mf			(TAU32_crc4_mf_rx | TAU32_crc4_mf_tx)
 
 /* TAU32_SA_CROSS_VALUES */
 #define TAU32_SaDisable	 0u
@@ -272,10 +274,10 @@ typedef struct tag_TAU32_SaCross
 #define TAU32_FLOFM	 TAU32_RDMA
 
 /* TAU32_STATUS */
-#define TAU32_FRCAS		 0x0001u /* CAS framer searching for CAS MF */
-#define TAU32_CMWAITING	 0x0002u /* Connection memory swap waiting */
-#define TAU32_CMPENDING	 0x0004u /* Connection memory swap pending */
-#define TAU32_LED		   0x0008u /* Let status (on/off) */
+#define TAU32_FRLOFM		0x0001u /* CAS framer searching for CAS MF */
+#define TAU32_CMWAITING		0x0002u /* Connection memory swap waiting */
+#define TAU32_CMPENDING		0x0004u /* Connection memory swap pending */
+#define TAU32_LED		0x0008u /* Led status (on/off) */
 
 typedef struct tag_TAU32_Controller TAU32_Controller;
 typedef struct tag_TAU32_UserRequest TAU32_UserRequest;
