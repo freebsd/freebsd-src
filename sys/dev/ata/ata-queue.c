@@ -95,12 +95,14 @@ ata_queue_request(struct ata_request *request)
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
 	ATA_DEBUG_RQ(request, "wait for completition");
-	while (!dumping &&
-	       sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	if (!dumping &&
+	    sema_timedwait(&request->done, request->timeout * hz * 4)) {
 	    device_printf(request->dev,
-		"req=%p %s semaphore timeout !! DANGER Will Robinson !!\n",
-		      request, ata_cmd2str(request));
-	    ata_start(ch->dev);
+			  "WARNING - %s taskqueue timeout "
+			  "- completing request directly\n",
+			  ata_cmd2str(request));
+	    request->flags |= ATA_R_DANGER1;
+	    ata_completed(request, 0);
 	}
 	sema_destroy(&request->done);
     }
@@ -251,6 +253,17 @@ ata_completed(void *context, int dummy)
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_device *atadev = device_get_softc(request->dev);
     struct ata_composite *composite;
+
+    if (request->flags & ATA_R_DANGER2) {
+	device_printf(request->dev,
+		      "WARNING - %s freeing taskqueue zombie request\n",
+		      ata_cmd2str(request));
+	request->flags &= ~(ATA_R_DANGER1 | ATA_R_DANGER2);
+	ata_free_request(request);
+	return;
+    }
+    if (request->flags & ATA_R_DANGER1)
+	request->flags |= ATA_R_DANGER2
 
     ATA_DEBUG_RQ(request, "completed entered");
 

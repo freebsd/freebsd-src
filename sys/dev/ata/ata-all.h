@@ -372,6 +372,8 @@ struct ata_request {
 #define         ATA_R_DIRECT            0x00001000
 
 #define         ATA_R_DEBUG             0x10000000
+#define         ATA_R_DANGER1           0x20000000
+#define         ATA_R_DANGER2           0x40000000
 
     u_int8_t                    status;         /* ATA status */
     u_int8_t                    error;          /* ATA error */
@@ -569,8 +571,10 @@ int ata_generic_command(struct ata_request *request);
 /* macros for alloc/free of struct ata_request */
 extern uma_zone_t ata_request_zone;
 #define ata_alloc_request() uma_zalloc(ata_request_zone, M_NOWAIT | M_ZERO)
-#define ata_free_request(request) uma_zfree(ata_request_zone, request)
-
+#define ata_free_request(request) { \
+	if (!(request->flags & ATA_R_DANGER2)) \
+	    uma_zfree(ata_request_zone, request); \
+	}
 /* macros for alloc/free of struct ata_composite */
 extern uma_zone_t ata_composite_zone;
 #define ata_alloc_composite() uma_zalloc(ata_composite_zone, M_NOWAIT | M_ZERO)
