@@ -210,6 +210,7 @@ extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
+void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
@@ -525,6 +526,12 @@ struct arm_small_page {
 };
 
 #endif
+
+#define ARM_NOCACHE_KVA_SIZE 0x600000
+extern vm_offset_t arm_nocache_startaddr;
+void *arm_remap_nocache(void *, vm_size_t);
+void arm_unmap_nocache(void *, vm_size_t);
+
 extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */
 

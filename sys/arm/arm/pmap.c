@@ -2553,9 +2553,12 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = lastaddr;
 	kernel_vm_end = pmap_curmaxkvaddr;
+	arm_nocache_startaddr = lastaddr;
+
 #ifdef ARM_USE_SMALL_ALLOC
 	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	alloc_firstaddr = alloc_curaddr = lastaddr;
+	alloc_firstaddr = alloc_curaddr = arm_nocache_startaddr +
+	    ARM_NOCACHE_KVA_SIZE;
 #endif
 }
 
@@ -2913,6 +2916,13 @@ void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	pmap_kenter_internal(va, pa, KENTER_CACHE);
+}
+
+void
+pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
+{
+
+	pmap_kenter_internal(va, pa, 0);
 }
 
 void
