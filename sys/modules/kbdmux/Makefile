@@ -4,7 +4,7 @@
 .PATH: ${.CURDIR}/../../dev/kbdmux
 
 KMOD=	kbdmux
-SRCS=	kbdmux.c opt_kbd.h
+SRCS=	kbdmux.c opt_kbd.h bus_if.h device_if.h
 
 .if !defined(KERNBUILDDIR)
 opt_kbd.h:
