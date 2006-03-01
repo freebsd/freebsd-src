@@ -193,6 +193,11 @@ static int	tcp_inflight_debug = 0;
 SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
 
+static int	tcp_inflight_rttthresh;
+SYSCTL_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks, "I",
+    "RTT threshold below which inflight will deactivate itself");
+
 static int	tcp_inflight_min = 6144;
 SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, min, CTLFLAG_RW,
     &tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
@@ -253,6 +258,7 @@ tcp_init()
 	tcp_msl = TCPTV_MSL;
 	tcp_rexmit_min = TCPTV_MIN;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
+	tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 
 	INP_INFO_LOCK_INIT(&tcbinfo, "tcp");
 	LIST_INIT(&tcb);
@@ -1937,7 +1943,7 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	 * If inflight_enable is disabled in the middle of a tcp connection,
 	 * make sure snd_bwnd is effectively disabled.
 	 */
-	if (tcp_inflight_enable == 0) {
+	if (tcp_inflight_enable == 0 || tp->t_rttlow < tcp_inflight_rttthresh) {
 		tp->snd_bwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 		tp->snd_bandwidth = 0;
 		return;
