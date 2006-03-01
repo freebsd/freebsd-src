@@ -435,7 +435,6 @@ typedef struct callout usb_callout_t;
 	do { \
 		struct usb_attach_arg *uaap = device_get_ivars(dev); \
 		device_detach(dev); \
-		free(uaap->ifaces, M_USB); \
 		free(uaap, M_USB); \
 		device_delete_child(device_get_parent(dev), dev); \
 	} while (0);
