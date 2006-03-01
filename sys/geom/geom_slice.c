@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_slice.h>
 #include <machine/stdarg.h>
 
-static g_orphan_t g_slice_orphan;
 static g_access_t g_slice_access;
 static g_start_t g_slice_start;
 
@@ -484,7 +483,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	return (gp);
 }
 
-static void
+void
 g_slice_orphan(struct g_consumer *cp)
 {
 
