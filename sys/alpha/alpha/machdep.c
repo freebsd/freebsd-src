@@ -251,7 +251,7 @@ cpu_startup(dummy)
 #endif
 	printf("real memory  = %ld (%ld MB)\n", alpha_ptob(Maxmem),
 	    alpha_ptob(Maxmem) / 1048576);
-	realmem = alpha_ptob(Maxmem);
+	realmem = Maxmem;
 
 	/*
 	 * Display any holes after the first chunk of extended memory.

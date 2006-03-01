@@ -201,7 +201,7 @@ cpu_startup(void *arg)
 		physsz += sparc64_memreg[i].mr_size;
 	printf("real memory  = %lu (%lu MB)\n", physsz,
 	    physsz / (1024 * 1024));
-	realmem = (long)physsz;
+	realmem = (long)physsz / PAGE_SIZE;
 
 	vm_ksubmap_init(&kmi);
 
