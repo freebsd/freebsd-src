@@ -62,28 +62,21 @@ static struct sigev_thread_node *sigev_thread_create(pthread_attr_t *);
 static void *sigev_service_loop(void *);
 
 #pragma weak pthread_create
-
-__weak_reference(__sigev_stub_zero, pthread_attr_getschedpolicy);
-__weak_reference(__sigev_stub_zero, pthread_attr_getinheritsched);
-__weak_reference(__sigev_stub_zero, pthread_attr_getschedparam);
-__weak_reference(__sigev_stub_zero, pthread_attr_getscope);
-__weak_reference(__sigev_stub_zero, pthread_attr_getstacksize);
-__weak_reference(__sigev_stub_zero, pthread_attr_getstackaddr);
-__weak_reference(__sigev_stub_zero, pthread_attr_getguardsize);
-__weak_reference(__sigev_stub_zero, pthread_attr_init);
-__weak_reference(__sigev_stub_zero, pthread_attr_setscope);
-__weak_reference(__sigev_stub_zero, pthread_attr_setdetachstate);
-__weak_reference(__sigev_stub_zero, pthread_atfork);
-__weak_reference(__sigev_stub_zero, _pthread_once);
-__weak_reference(__sigev_stub_zero, pthread_cleanup_push);
-__weak_reference(__sigev_stub_zero, pthread_cleanup_pop);
-__weak_reference(__sigev_stub_zero, pthread_setcancelstate);
-
-int
-__sigev_stub_zero(void)
-{
-	return (0);
-}
+#pragma weak pthread_attr_getschedpolicy
+#pragma weak pthread_attr_getinheritsched
+#pragma weak pthread_attr_getschedparam
+#pragma weak pthread_attr_getscope
+#pragma weak pthread_attr_getstacksize
+#pragma weak pthread_attr_getstackaddr
+#pragma weak pthread_attr_getguardsize
+#pragma weak pthread_attr_init
+#pragma weak pthread_attr_setscope
+#pragma weak pthread_attr_setdetachstate
+#pragma weak pthread_atfork
+#pragma weak _pthread_once
+#pragma weak pthread_cleanup_push
+#pragma weak pthread_cleanup_pop
+#pragma weak pthread_setcancelstate
 
 static __inline void
 attr2sna(pthread_attr_t *attr, struct sigev_thread_attr *sna)
