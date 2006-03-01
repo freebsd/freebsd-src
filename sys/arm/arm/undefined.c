@@ -212,7 +212,7 @@ undefinedinstruction(trapframe_t *frame)
 		ksi.ksi_code = ILL_ILLADR;
 		ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
 		trapsignal(td, &ksi);
-		userret(td, frame, 0);
+		userret(td, frame);
 		return;
 	}
 
@@ -317,6 +317,6 @@ undefinedinstruction(trapframe_t *frame)
 	}
 
 #else
-	userret(td, frame, 0);
+	userret(td, frame);
 #endif
 }
