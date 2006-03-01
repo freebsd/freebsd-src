@@ -34,6 +34,7 @@
 #include "opt_kbd.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
@@ -368,6 +369,9 @@ kbdmux_configure(int flags)
 static int
 kbdmux_probe(int unit, void *arg, int flags)
 {
+	if (resource_disabled(KEYBOARD_NAME, unit))
+		return (ENXIO);
+
 	return (0);
 }
 
