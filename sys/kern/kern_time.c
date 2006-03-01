@@ -85,7 +85,7 @@ static int	itimer_init(void *, int, int);
 static void	itimer_fini(void *, int);
 static void	itimer_enter(struct itimer *);
 static void	itimer_leave(struct itimer *);
-static struct itimer *itimer_find(struct proc *, timer_t, int);
+static struct itimer *itimer_find(struct proc *, int, int);
 static void	itimers_alloc(struct proc *);
 static void	itimers_event_hook(void *arg, struct proc *p);
 static int	realtimer_create(struct itimer *);
@@ -97,8 +97,8 @@ static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
 static void	realtimer_event_hook(struct proc *, clockid_t, int event);
 static int	kern_timer_create(struct thread *, clockid_t,
-			struct sigevent *, timer_t *, timer_t);
-static int	kern_timer_delete(struct thread *, timer_t);
+			struct sigevent *, int *, int);
+static int	kern_timer_delete(struct thread *, int);
 
 int		register_posix_clock(int, struct kclock *);
 void		itimer_fire(struct itimer *it);
@@ -947,18 +947,18 @@ itimer_leave(struct itimer *it)
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct timer_create_args {
+struct ktimer_create_args {
 	clockid_t clock_id;
 	struct sigevent * evp;
-	timer_t * timerid;
+	int * timerid;
 };
 #endif
 
 int
-timer_create(struct thread *td, struct timer_create_args *uap)
+ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 {
 	struct sigevent *evp1, ev;
-	timer_t id;
+	int id;
 	int error;
 
 	if (uap->evp != NULL) {
@@ -972,7 +972,7 @@ timer_create(struct thread *td, struct timer_create_args *uap)
 	error = kern_timer_create(td, uap->clock_id, evp1, &id, -1);
 
 	if (error == 0) {
-		error = copyout(&id, uap->timerid, sizeof(timer_t));
+		error = copyout(&id, uap->timerid, sizeof(int));
 		if (error != 0)
 			kern_timer_delete(td, id);
 	}
@@ -981,7 +981,7 @@ timer_create(struct thread *td, struct timer_create_args *uap)
 
 static int
 kern_timer_create(struct thread *td, clockid_t clock_id,
-	struct sigevent *evp, timer_t *timerid, timer_t preset_id)
+	struct sigevent *evp, int *timerid, int preset_id)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1089,19 +1089,19 @@ out:
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct timer_delete_args {
-	timer_t timerid;
+struct ktimer_delete_args {
+	int timerid;
 };
 #endif
 
 int
-timer_delete(struct thread *td, struct timer_delete_args *uap)
+ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
 {
 	return (kern_timer_delete(td, uap->timerid));
 }
 
 static struct itimer *
-itimer_find(struct proc *p, timer_t timerid, int include_deleting)
+itimer_find(struct proc *p, int timerid, int include_deleting)
 {
 	struct itimer *it;
 
@@ -1119,7 +1119,7 @@ itimer_find(struct proc *p, timer_t timerid, int include_deleting)
 }
 
 static int
-kern_timer_delete(struct thread *td, timer_t timerid)
+kern_timer_delete(struct thread *td, int timerid)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1151,8 +1151,8 @@ kern_timer_delete(struct thread *td, timer_t timerid)
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct timer_settime_args {
-	timer_t timerid;
+struct ktimer_settime_args {
+	int timerid;
 	int flags;
 	const struct itimerspec * value;
 	struct itimerspec * ovalue;
@@ -1160,7 +1160,7 @@ struct timer_settime_args {
 #endif
 
 int
-timer_settime(struct thread *td, struct timer_settime_args *uap)
+ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1195,14 +1195,14 @@ timer_settime(struct thread *td, struct timer_settime_args *uap)
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct timer_gettime_args {
-	timer_t timerid;
+struct ktimer_gettime_args {
+	int timerid;
 	struct itimerspec * value;
 };
 #endif
 
 int
-timer_gettime(struct thread *td, struct timer_gettime_args *uap)
+ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1229,12 +1229,12 @@ timer_gettime(struct thread *td, struct timer_gettime_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct timer_getoverrun_args {
-	timer_t timerid;
+	int timerid;
 };
 #endif
 
 int
-timer_getoverrun(struct thread *td, struct timer_getoverrun_args *uap)
+ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1348,7 +1348,7 @@ realtimer_clocktime(clockid_t id, struct timespec *ts)
 }
 
 int
-itimer_accept(struct proc *p, timer_t timerid, ksiginfo_t *ksi)
+itimer_accept(struct proc *p, int timerid, ksiginfo_t *ksi)
 {
 	struct itimer *it;
 
