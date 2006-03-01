@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 FILES=	README
 
 # dist sample files
