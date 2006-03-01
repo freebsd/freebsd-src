@@ -229,5 +229,6 @@ __mq_unlink(const char *path)
 int
 __mq_oshandle(mqd_t mqd)
 {
-	return mqd->oshandle;
+
+	return (mqd->oshandle);
 }
