@@ -93,6 +93,8 @@ struct bus_dmamap {
         bus_dma_tag_t	dmat;
 	int		flags;
 	void 		*buffer;
+	void		*origbuffer;
+	void		*allocbuffer;
 	TAILQ_ENTRY(bus_dmamap)	freelist;
 	int		len;
 };
@@ -416,6 +418,23 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		*mapp = NULL;
                 return (ENOMEM);
 	}
+	if (flags & BUS_DMA_COHERENT) {
+		void *tmpaddr = arm_remap_nocache(
+		    (void *)((vm_offset_t)*vaddr &~ PAGE_MASK),
+		    dmat->maxsize + ((vm_offset_t)*vaddr & PAGE_MASK));
+
+		if (tmpaddr) {
+			tmpaddr = (void *)((vm_offset_t)(tmpaddr) +
+			    ((vm_offset_t)*vaddr & PAGE_MASK));
+			newmap->origbuffer = *vaddr;
+			newmap->allocbuffer = tmpaddr;
+			cpu_idcache_wbinv_range((vm_offset_t)*vaddr, 
+			    dmat->maxsize);
+			*vaddr = tmpaddr;
+		} else
+			newmap->origbuffer = newmap->allocbuffer = NULL;
+	} else 
+		newmap->origbuffer = newmap->allocbuffer = NULL;
         return (0);
 }
 
@@ -426,6 +445,12 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
+	if (map->allocbuffer) {
+		KASSERT(map->allocbuffer == vaddr,
+		    ("Trying to freeing the wrong DMA buffer"));
+		vaddr = map->origbuffer;
+		arm_unmap_nocache(map->allocbuffer, dmat->maxsize);
+	}
         if (dmat->maxsize <= PAGE_SIZE)
 		free(vaddr, M_DEVBUF);
         else {
