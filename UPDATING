@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060301:	p5	FreeBSD-SA-06:10.nfs
+	Correct a remote kernel panic when processing zero-length RPC
+	records via TCP.
+
 20060125:	p4	FreeBSD-SA-06:06.kmem, FreeBSD-SA-06:07.pf
 	Make sure buffers in if_bridge are fully initialized before
 	copying them to userland.  Correct a logic error which could
