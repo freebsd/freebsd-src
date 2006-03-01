@@ -34,6 +34,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 
 #include <net/ppp_defs.h>
@@ -676,3 +677,4 @@ z_incomp(arg, mi)
     state->stats.unc_bytes += rlen;
     state->stats.unc_packets++;
 }
+MODULE_DEPEND(ppp_deflate, zlib, 1, 1, 1);
