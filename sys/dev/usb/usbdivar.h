@@ -51,6 +51,7 @@ struct usbd_pipe;
 struct usbd_endpoint {
 	usb_endpoint_descriptor_t *edesc;
 	int			refcnt;
+	int			savedtoggle;
 };
 
 struct usbd_bus_methods {
