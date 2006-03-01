@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -55,7 +55,7 @@ struct g_command class_commands[] = {
 	    "[-v] prov ..."
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS,
-	    "[-v] name prov prov ..."
+	    "[-v] name prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
@@ -72,7 +72,7 @@ struct g_command class_commands[] = {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] name prov prov ..."
+	    "[-hv] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
@@ -118,7 +118,7 @@ concat_label(struct gctl_req *req)
 	int error, i, hardcode, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
-	if (nargs <= 2) {
+	if (nargs < 2) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
@@ -199,15 +199,15 @@ concat_clear(struct gctl_req *req)
 			continue;
 		}
 		if (verbose)
-			printf("Metadata cleared on %s.\n", name); 
+			printf("Metadata cleared on %s.\n", name);
 	}
 }
 
-static void 
+static void
 concat_metadata_dump(const struct g_concat_metadata *md)
 {
 
-	printf("         Magic string: %s\n", md->md_magic); 
+	printf("         Magic string: %s\n", md->md_magic);
 	printf("     Metadata version: %u\n", (u_int)md->md_version);
 	printf("          Device name: %s\n", md->md_name);
 	printf("            Device ID: %u\n", (u_int)md->md_id);

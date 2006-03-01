@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2005
+.Dd February 11, 2006
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -172,7 +172,7 @@ destroy his keys,
 it is possible to get the data back by restoring keys from the backup.
 .It
 Providers can be configured to automatically detach on last close
-(so users don't have to remember to detach providers after unmounting
+(so users do not have to remember to detach providers after unmounting
 the file systems).
 .It
 Allows to attach a provider with a random, one-time key - useful for swap
@@ -250,7 +250,7 @@ Additional options include:
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl d
 If specified, a decrypted provider will be detached automatically on last close.
-This can help with short memory - user doesn't have to remember to detach the
+This can help with short memory - user does not have to remember to detach the
 provider after unmounting the file system.
 It only works when the provider was opened for writing, so it will not work if
 the file system on the provider is mounted read-only.
@@ -511,10 +511,46 @@ Encrypted swap partition setup:
 # geli onetime -d -a 3des ad0s1b
 # swapon /dev/ad0s1b.eli
 .Ed
+.Pp
+The example below shows how to configure two providers which will be attached
+on boot (before the root file system is mounted).
+One of them is using passphrase and three keyfiles and the other is using only a
+keyfile:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/dev/da0 bs=1m
+# dd if=/dev/random of=/boot/keys/da0.key0 bs=32k count=1
+# dd if=/dev/random of=/boot/keys/da0.key1 bs=32k count=1
+# dd if=/dev/random of=/boot/keys/da0.key2 bs=32k count=1
+# cat /boot/keys/da0.key0 /boot/keys/da0.key1 /boot/keys/da0.key2 | geli init -b -K - da0
+Enter new passphrase:
+Reenter new passphrase:
+# dd if=/dev/random of=/dev/da1s3a bs=1m
+# dd if=/dev/random of=/boot/keys/da1s3a.key bs=128k count=1
+# geli init -b -P -K /boot/keys/da1s3a.key da1s3a
+.Ed
+.Pp
+The providers are initialized, now we have to add those lines to
+.Pa /boot/loader.conf :
+.Bd -literal -offset indent
+geli_da0_keyfile0_load="YES"
+geli_da0_keyfile0_type="da0:geli_keyfile0"
+geli_da0_keyfile0_name="/boot/keys/da0.key0"
+geli_da0_keyfile1_load="YES"
+geli_da0_keyfile1_type="da0:geli_keyfile1"
+geli_da0_keyfile1_name="/boot/keys/da0.key1"
+geli_da0_keyfile2_load="YES"
+geli_da0_keyfile2_type="da0:geli_keyfile2"
+geli_da0_keyfile2_name="/boot/keys/da0.key2"
+
+geli_da1s3a_keyfile0_load="YES"
+geli_da1s3a_keyfile0_type="da1s3a:geli_keyfile0"
+geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"
+.Ed
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,
 .Xr geom 4 ,
+.Xr loader.conf 5 ,
 .Xr gbde 8 ,
 .Xr geom 8 ,
 .Xr crypto 9
