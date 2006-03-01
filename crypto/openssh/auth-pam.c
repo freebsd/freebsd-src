@@ -94,10 +94,17 @@ static mysig_t sshpam_oldsig;
 static void 
 sshpam_sigchld_handler(int sig)
 {
+	signal(SIGCHLD, SIG_DFL);
 	if (cleanup_ctxt == NULL)
 		return;	/* handler called after PAM cleanup, shouldn't happen */
-	if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, 0) == -1)
-		return;	/* couldn't wait for process */
+	if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, WNOHANG)
+	     <= 0) {
+		/* PAM thread has not exitted, privsep slave must have */
+		kill(cleanup_ctxt->pam_thread, SIGTERM);
+		if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, 0)
+		    <= 0)
+			return; /* could not wait */
+	}
 	if (WIFSIGNALED(sshpam_thread_status) &&
 	    WTERMSIG(sshpam_thread_status) == SIGTERM)
 		return;	/* terminated by pthread_cancel */
