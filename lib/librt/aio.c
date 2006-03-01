@@ -71,7 +71,7 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 {
 	struct sigev_node *sn;
 	struct sigevent saved_ev;
-	int ret;
+	int ret, err;
 
 	if (iocb->aio_sigevent.sigev_notify != SIGEV_THREAD) {
 		ret = sysfunc(iocb);
@@ -104,9 +104,11 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 	iocb->aio_sigevent = saved_ev;
 
 	if (ret != 0) {
+		err = errno;
 		__sigev_list_lock();
 		__sigev_delete_node(sn);
 		__sigev_list_unlock();
+		errno = err;
 	}
 	return (ret);
 }
@@ -114,25 +116,30 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 int
 __aio_read(struct aiocb *iocb)
 {
+
 	return aio_io(iocb, &__sys_aio_read);
 }
 
 int
 __aio_write(struct aiocb *iocb)
 {
+
 	return aio_io(iocb, &__sys_aio_write);
 }
 
 int
 __aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout)
 {
+	int err;
 	int ret = __sys_aio_waitcomplete(iocbp, timeout);
 
 	if (*iocbp) {
 		if ((*iocbp)->aio_sigevent.sigev_notify == SIGEV_THREAD) {
+			err = errno;
 			__sigev_list_lock();
 			__sigev_delete(SI_ASYNCIO, (sigev_id_t)(*iocbp));
 			__sigev_list_unlock();
+			errno = err;
 		}
 	}
 
@@ -142,15 +149,14 @@ __aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout)
 int
 __aio_return(struct aiocb *iocb)
 {
-	int ret = __sys_aio_return(iocb);
-	int err = __sys_aio_error(iocb);
 
-	if (err != EINPROGRESS &&
-	    iocb->aio_sigevent.sigev_notify == SIGEV_THREAD) {
+	if (iocb->aio_sigevent.sigev_notify == SIGEV_THREAD) {
+		if (__sys_aio_error(iocb) == EINPROGRESS)
+			return (EINPROGRESS);
 		__sigev_list_lock();
 		__sigev_delete(SI_ASYNCIO, (sigev_id_t)iocb);
 		__sigev_list_unlock();
 	}
 
-	return (ret);
+	return __sys_aio_return(iocb);
 }
