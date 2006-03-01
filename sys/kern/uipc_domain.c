@@ -149,6 +149,8 @@ net_init_domain(struct domain *dp)
 	 */
 	max_hdr = max_linkhdr + max_protohdr;
 	max_datalen = MHLEN - max_hdr;
+	if (max_datalen < 1)
+		panic("%s: max_datalen < 1", __func__);
 }
 
 /*
