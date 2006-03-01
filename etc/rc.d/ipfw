@@ -41,7 +41,7 @@ ipfw_start()
 		fi
 		. "${firewall_script}"
 		echo -n 'Firewall rules loaded'
-	elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
+	elif [ "`ipfw list 65535`" = "65535 deny ip from any to any" ]; then
 		echo 'Warning: kernel has firewall functionality, but' \
 		    ' firewall rules are not enabled.'
 		echo '           All ip services are disabled.'
