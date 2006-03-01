@@ -42,7 +42,8 @@
 #include "un-namespace.h"
 
 extern int	__sys_kmq_notify(int, const struct sigevent *);
-extern int	__sys_kmq_open(const char *, int, mode_t);
+extern int	__sys_kmq_open(const char *, int, mode_t,
+		    const struct mq_attr *);
 extern int	__sys_kmq_setattr(int, const struct mq_attr *__restrict,
 		    struct mq_attr *__restrict);
 extern ssize_t	__sys_kmq_timedreceive(int, char *__restrict, size_t,
@@ -79,7 +80,8 @@ __weak_reference(__mq_receive, mq_receive);
 __weak_reference(__mq_receive, _mq_receive);
 
 mqd_t
-__mq_open(const char *name, int oflag, mode_t mode)
+__mq_open(const char *name, int oflag, mode_t mode,
+	const struct mq_attr *attr)
 {
 	struct __mq *mq;
 	int err;
@@ -88,7 +90,7 @@ __mq_open(const char *name, int oflag, mode_t mode)
 	if (mq == NULL)
 		return (NULL);
 
-	mq->oshandle = __sys_kmq_open(name, oflag, mode);
+	mq->oshandle = __sys_kmq_open(name, oflag, mode, attr);
 	if (mq->oshandle != -1) {
 		mq->node = NULL;
 		return (mq);
