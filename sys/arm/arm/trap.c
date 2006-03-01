@@ -929,7 +929,8 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, args);
 		AUDIT_SYSCALL_EXIT(error, td);
-		KASSERT(td->td_ar == NULL, ("lol"));
+		KASSERT(td->td_ar == NULL, 
+		    ("returning from syscall with td_ar set!"));
 	}
 	switch (error) {
 	case 0: 
