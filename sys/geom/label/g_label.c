@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -99,26 +99,21 @@ g_label_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
 }
 
 static void
-g_label_orphan(struct g_consumer *cp __unused)
+g_label_orphan(struct g_consumer *cp)
 {
 
-	KASSERT(1 == 0, ("%s called?", __func__));
+	G_LABEL_DEBUG(0, "Label %s removed.",
+	    LIST_FIRST(&cp->geom->provider)->name);
+	g_slice_orphan(cp);
 }
 
 static void
-g_label_start(struct bio *bp __unused)
+g_label_spoiled(struct g_consumer *cp)
 {
 
-	KASSERT(1 == 0, ("%s called?", __func__));
-}
-
-static int
-g_label_access(struct g_provider *pp __unused, int dr __unused, int dw __unused,
-    int de __unused)
-{
-
-	KASSERT(1 == 0, ("%s called", __func__));
-	return (EOPNOTSUPP);
+	G_LABEL_DEBUG(0, "Label %s removed.",
+	    LIST_FIRST(&cp->geom->provider)->name);
+	g_slice_spoiled(cp);
 }
 
 static struct g_geom *
@@ -156,6 +151,8 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 			gctl_error(req, "Cannot create slice %s.", label);
 		return (NULL);
 	}
+	gp->orphan = g_label_orphan;
+	gp->spoiled = g_label_spoiled;
 	g_access(cp, -1, 0, 0);
 	g_slice_config(gp, 0, G_SLICE_CONFIG_SET, (off_t)0, mediasize,
 	    pp->sectorsize, name);
@@ -211,6 +208,29 @@ g_label_read_metadata(struct g_consumer *cp, struct g_label_metadata *md)
 	return (0);
 }
 
+static void
+g_label_orphan_taste(struct g_consumer *cp __unused)
+{
+
+	KASSERT(1 == 0, ("%s called?", __func__));
+}
+
+static void
+g_label_start_taste(struct bio *bp __unused)
+{
+
+	KASSERT(1 == 0, ("%s called?", __func__));
+}
+
+static int
+g_label_access_taste(struct g_provider *pp __unused, int dr __unused,
+    int dw __unused, int de __unused)
+{
+
+	KASSERT(1 == 0, ("%s called", __func__));
+	return (EOPNOTSUPP);
+}
+
 static struct g_geom *
 g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
@@ -228,9 +248,9 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 
 	gp = g_new_geomf(mp, "label:taste");
-	gp->start = g_label_start;
-	gp->access = g_label_access;
-	gp->orphan = g_label_orphan;
+	gp->start = g_label_start_taste;
+	gp->access = g_label_access_taste;
+	gp->orphan = g_label_orphan_taste;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	if (g_access(cp, 1, 0, 0) != 0)
@@ -302,7 +322,7 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 	/*
 	 * arg1 is the name of provider.
 	 */
-	name = gctl_get_asciiparam(req, "arg1"); 
+	name = gctl_get_asciiparam(req, "arg1");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%d' argument", 1);
 		return;
@@ -313,12 +333,12 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 	if (pp == NULL) {
 		G_LABEL_DEBUG(1, "Provider %s is invalid.", name);
 		gctl_error(req, "Provider %s is invalid.", name);
-		return; 
+		return;
 	}
 	/*
 	 * arg0 is the label.
 	 */
-	name = gctl_get_asciiparam(req, "arg0"); 
+	name = gctl_get_asciiparam(req, "arg0");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%d' argument", 0);
 		return;
@@ -390,7 +410,7 @@ g_label_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param); 
+		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
@@ -399,7 +419,7 @@ g_label_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		if (gp == NULL) {
 			G_LABEL_DEBUG(1, "Label %s is invalid.", name);
 			gctl_error(req, "Label %s is invalid.", name);
-			return; 
+			return;
 		}
 		error = g_label_destroy(gp, *force);
 		if (error != 0) {

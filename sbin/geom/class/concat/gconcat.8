@@ -35,7 +35,7 @@
 .Cm create
 .Op Fl v
 .Ar name
-.Ar prov prov ...
+.Ar prov ...
 .Nm
 .Cm destroy
 .Op Fl fv
@@ -44,7 +44,7 @@
 .Cm label
 .Op Fl hv
 .Ar name
-.Ar prov prov ...
+.Ar prov ...
 .Nm
 .Cm stop
 .Op Fl fv
@@ -168,10 +168,21 @@ umount /mnt
 gconcat stop data
 gconcat unload
 .Ed
+.Pp
+Configure concatenated provider on one disk only.
+Create file system.
+Add two more disks and extend existing file system.
+.Bd -literal -offset indent
+gconcat label data /dev/da0
+newfs /dev/concat/data
+gconcat label data /dev/da0 /dev/da1 /dev/da2
+growfs /dev/concat/data
+.Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr loader.conf 5 ,
 .Xr geom 8 ,
+.Xr growfs 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
 .Xr sysctl 8 ,

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -303,7 +303,10 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 	g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
 	str = gctl_get_ascii(req, new ? "newkeyfile" : "keyfile");
-	if (str[0] != '\0') {
+	if (str[0] == '\0' && nopassphrase) {
+		gctl_error(req, "No key components given.");
+		return (NULL);
+	} else if (str[0] != '\0') {
 		char buf[MAXPHYS];
 		ssize_t done;
 		int fd;
@@ -498,7 +501,7 @@ eli_init(struct gctl_req *req)
 	unsigned secsize;
 	off_t mediasize;
 	intmax_t val;
-	int error, nargs, boot;
+	int error, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
@@ -518,26 +521,8 @@ eli_init(struct gctl_req *req)
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_ELI_VERSION;
 	md.md_flags = 0;
-	boot = gctl_get_int(req, "boot");
-	if (boot) {
-		int nonewpassphrase;
-
-		/* Part of key cannot be read on boot from a file. */
-		str = gctl_get_ascii(req, "newkeyfile");
-		if (str[0] != '\0') {
-			gctl_error(req,
-			    "Options -b and -K are mutually exclusive.");
-			return;
-		}
-		/* Key has to be given as a passphrase on boot. */
-		nonewpassphrase = gctl_get_int(req, "nonewpassphrase");
-		if (nonewpassphrase) {
-			gctl_error(req,
-			    "Options -b and -P are mutually exclusive.");
-			return;
-		}
+	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
-	}
 	str = gctl_get_ascii(req, "algo");
 	md.md_algo = g_eli_str2algo(str);
 	if (md.md_algo < CRYPTO_ALGORITHM_MIN ||
@@ -555,6 +540,20 @@ eli_init(struct gctl_req *req)
 	md.md_provsize = mediasize;
 
 	val = gctl_get_intmax(req, "iterations");
+	if (val != -1) {
+		int nonewpassphrase;
+
+		/*
+		 * Don't allow to set iterations when there will be no
+		 * passphrase.
+		 */
+		nonewpassphrase = gctl_get_int(req, "nonewpassphrase");
+		if (nonewpassphrase) {
+			gctl_error(req,
+			    "Options -i and -P are mutually exclusive.");
+			return;
+		}
+	}
 	md.md_iterations = val;
 
 	val = gctl_get_intmax(req, "sectorsize");
@@ -1092,7 +1091,7 @@ eli_clear(struct gctl_req *req)
 			continue;
 		}
 		if (verbose)
-			printf("Metadata cleared on %s.\n", name); 
+			printf("Metadata cleared on %s.\n", name);
 	}
 }
 
