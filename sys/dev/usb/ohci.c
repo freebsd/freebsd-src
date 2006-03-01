@@ -2161,7 +2161,9 @@ ohci_open(usbd_pipe_handle pipe)
 			(dev->speed == USB_SPEED_LOW ? OHCI_ED_SPEED : 0) |
 			fmt |
 			OHCI_ED_SET_MAXP(UGETW(ed->wMaxPacketSize)));
-		sed->ed.ed_headp = sed->ed.ed_tailp = htole32(tdphys);
+		sed->ed.ed_headp = htole32(tdphys |
+		    (pipe->endpoint->savedtoggle ? OHCI_TOGGLECARRY : 0));
+		sed->ed.ed_tailp = htole32(tdphys);
 
 		switch (xfertype) {
 		case UE_CONTROL:
@@ -2247,6 +2249,8 @@ ohci_close_pipe(usbd_pipe_handle pipe, ohci_soft_ed_t *head)
 	/* Make sure the host controller is not touching this ED */
 	usb_delay_ms(&sc->sc_bus, 1);
 	splx(s);
+	pipe->endpoint->savedtoggle =
+	    (le32toh(sed->ed.ed_headp) & OHCI_TOGGLECARRY) ? 1 : 0;
 	ohci_free_sed(sc, opipe->sed);
 }
 
