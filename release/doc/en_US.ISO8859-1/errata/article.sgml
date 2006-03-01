@@ -114,6 +114,20 @@
 
 	<tbody>
 	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
+		>06:10.nfs</ulink></entry>
+	    <entry>1&nbsp;March&nbsp;2006</entry>
+	    <entry><para>Remote denial of service in NFS server</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:09.openssh.asc"
+		>06:09.openssh</ulink></entry>
+	    <entry>1&nbsp;March&nbsp;2006</entry>
+	    <entry><para>Remote denial of service in OpenSSH</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
 		>06:07.pf</ulink></entry>
 	    <entry>25&nbsp;January&nbsp;2006</entry>
