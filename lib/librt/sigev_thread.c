@@ -417,9 +417,10 @@ sigev_service_loop(void *arg)
 			__sigev_list_unlock();
 			sn->sn_dispatch(sn, &si);
 			after_dispatch(tn);
-		} else 
+		} else  {
 			tn->tn_cur = NULL;
-		__sigev_list_unlock();
+			__sigev_list_unlock();
+		}
 	}
 	pthread_cleanup_pop(0);
 	return (0);
