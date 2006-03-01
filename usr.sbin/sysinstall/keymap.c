@@ -50,6 +50,7 @@ struct keymapInfo {
  * the language name only.
  */
 
+#ifdef WITH_SYSCONS
 static int
 keymapSetDefault(const char *prefix)
 {
@@ -113,6 +114,7 @@ keymapMenuSelect(dialogMenuItem *self)
 	return dmenuOpenSimple(&MenuSysconsKeymap, FALSE) ? DITEM_SUCCESS :
 	    DITEM_FAILURE;
 }
+#endif
 
 /*
  * Return values:
