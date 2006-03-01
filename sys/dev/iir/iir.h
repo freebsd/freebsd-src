@@ -612,20 +612,19 @@ struct gdt_softc {
     bus_addr_t sc_dpmembase;
     bus_dma_tag_t sc_parent_dmat;
     bus_dma_tag_t sc_buffer_dmat;
-    bus_dma_tag_t sc_gccb_dmat;
-    bus_dmamap_t sc_gccb_dmamap;
-    bus_addr_t sc_gccb_busbase;
+    bus_dma_tag_t sc_gcscratch_dmat;
+    bus_dmamap_t sc_gcscratch_dmamap;
+    bus_addr_t sc_gcscratch_busbase;
 
     struct gdt_ccb *sc_gccbs;
+    u_int8_t  *sc_gcscratch;
     SLIST_HEAD(, gdt_ccb) sc_free_gccb, sc_pending_gccb;
     TAILQ_HEAD(, ccb_hdr) sc_ccb_queue;
     TAILQ_HEAD(, gdt_ucmd) sc_ucmd_queue;
 
     u_int16_t sc_ic_all_size;
-    u_int16_t sc_cmd_len;
     u_int16_t sc_cmd_off;
     u_int16_t sc_cmd_cnt;
-    u_int8_t sc_cmd[GDT_CMD_SZ];
 
     u_int32_t sc_info;
     u_int32_t sc_info2;
@@ -679,13 +678,13 @@ struct gdt_softc {
  * controller.
  */
 struct gdt_ccb {
-    u_int8_t    gc_scratch[GDT_SCRATCH_SZ];
+    u_int8_t    *gc_scratch;
+    bus_addr_t  gc_scratch_busbase;
     union ccb   *gc_ccb;
     gdt_ucmd_t  *gc_ucmd;
     bus_dmamap_t gc_dmamap;
     int         gc_map_flag;
     int         gc_timeout;
-    int         gc_state;
     u_int8_t    gc_service;
     u_int8_t    gc_cmd_index;
     u_int8_t    gc_flags;
@@ -694,6 +693,8 @@ struct gdt_ccb {
 #define GDT_GCF_SCREEN          2
 #define GDT_GCF_SCSI            3
 #define GDT_GCF_IOCTL           4
+    u_int16_t	gc_cmd_len;
+    u_int8_t	gc_cmd[GDT_CMD_SZ];
     SLIST_ENTRY(gdt_ccb) sle;
 };
 
