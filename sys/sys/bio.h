@@ -78,6 +78,11 @@ struct bio {
 
 	bio_task_t *bio_task;		/* Task_queue handler */
 	void	*bio_task_arg;		/* Argument to above */
+#ifdef DIAGNOSTIC
+	void	*_bio_caller1;
+	void	*_bio_caller2;
+	uint8_t	_bio_cflags;
+#endif
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
