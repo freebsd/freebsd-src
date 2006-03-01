@@ -822,6 +822,32 @@ sysctl_handle_int(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+
+/*
+ * Based on on sysctl_handle_int() convert milliseconds into ticks.
+ */
+
+int
+sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
+{
+	int error, s, tt;
+
+	tt = *(int *)oidp->oid_arg1;
+	s = (int)((int64_t)tt * 1000 / hz);
+
+	error = sysctl_handle_int(oidp, &s, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	tt = (int)((int64_t)s * hz / 1000);
+	if (tt < 1)
+		return (EINVAL);
+
+	*(int *)oidp->oid_arg1 = tt;
+	return (0);
+}
+
+
 /*
  * Handle a long, signed or unsigned.  arg1 points to it.
  */
