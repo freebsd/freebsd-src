@@ -239,7 +239,7 @@ static	int transflag;		/* NB: for debugging only */
 	}
 
 #ifdef VIRTUAL_HOSTING
-static void	 inithosts(void);
+static void	 inithosts(int);
 static void	 selecthost(union sockunion *);
 #endif
 static void	 ack(char *);
@@ -423,10 +423,6 @@ main(int argc, char *argv[], char **envp)
 		}
 	}
 
-#ifdef VIRTUAL_HOSTING
-	inithosts();
-#endif
-
 	if (daemon_mode) {
 		int *ctl_sock, fd, maxfd = -1, nfds, i;
 		fd_set defreadfds, readfds;
@@ -455,6 +451,10 @@ main(int argc, char *argv[], char **envp)
 
 		sa.sa_handler = reapchild;
 		(void)sigaction(SIGCHLD, &sa, NULL);
+
+#ifdef VIRTUAL_HOSTING
+		inithosts(family);
+#endif
 
 		/*
 		 * Open a socket, bind it to the FTP port, and start
@@ -525,6 +525,15 @@ main(int argc, char *argv[], char **envp)
 			syslog(LOG_ERR, "getpeername (%s): %m",argv[0]);
 			exit(1);
 		}
+
+#ifdef VIRTUAL_HOSTING
+		if (his_addr.su_family == AF_INET6 &&
+		    IN6_IS_ADDR_V4MAPPED(&his_addr.su_sin6.sin6_addr))
+			family = AF_INET;
+		else
+			family = his_addr.su_family;
+		inithosts(family);
+#endif
 	}
 
 gotchild:
@@ -663,7 +672,7 @@ sigquit(int signo)
  */
 
 static void
-inithosts(void)
+inithosts(int family)
 {
 	int insert;
 	size_t len;
@@ -688,8 +697,9 @@ inithosts(void)
 	hrp->hostinfo = NULL;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = family;
+	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(hrp->hostname, NULL, &hints, &res) == 0)
 		hrp->hostinfo = res;
 	hrp->statfile = _PATH_FTPDSTATFILE;
@@ -759,9 +769,9 @@ inithosts(void)
 						/* NOTREACHED */
 					}
 
-			hints.ai_flags = 0;
-			hints.ai_family = AF_UNSPEC;
 			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = family;
+			hints.ai_socktype = SOCK_STREAM;
 			if (getaddrinfo(vhost, NULL, &hints, &res) != 0)
 				goto nextline;
 			for (ai = res; ai != NULL && ai->ai_addr != NULL;
