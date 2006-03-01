@@ -282,6 +282,21 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	KASSERT(bp->bio_data != NULL, ("NULL bp->data in g_io_request"));
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("consumer not attached in g_io_request"));
+#ifdef DIAGNOSTIC
+	KASSERT(bp->bio_driver1 == NULL,
+	    ("bio_driver1 used by the consumer (geom %s)", cp->geom->name));
+	KASSERT(bp->bio_driver2 == NULL,
+	    ("bio_driver2 used by the consumer (geom %s)", cp->geom->name));
+	KASSERT(bp->bio_pflags == 0,
+	    ("bio_pflags used by the consumer (geom %s)", cp->geom->name));
+	/*
+	 * Remember consumer's private fields, so we can detect if they were
+	 * modified by the provider.
+	 */
+	bp->_bio_caller1 = bp->bio_caller1;
+	bp->_bio_caller2 = bp->bio_caller2;
+	bp->_bio_cflags = bp->bio_cflags;
+#endif
 
 	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
 		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
@@ -336,6 +351,14 @@ g_io_deliver(struct bio *bp, int error)
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
 	KASSERT(pp != NULL, ("NULL bio_to in g_io_deliver"));
+#ifdef DIAGNOSTIC
+	KASSERT(bp->bio_caller1 == bp->_bio_caller1,
+	    ("bio_caller1 used by the provider %s", pp->name));
+	KASSERT(bp->bio_caller2 == bp->_bio_caller2,
+	    ("bio_caller2 used by the provider %s", pp->name));
+	KASSERT(bp->bio_cflags == bp->_bio_cflags,
+	    ("bio_cflags used by the provider %s", pp->name));
+#endif
 	cp = bp->bio_from;
 	if (cp == NULL) {
 		bp->bio_error = error;
