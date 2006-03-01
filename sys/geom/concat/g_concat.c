@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/concat/g_concat.h>
 
 
-static MALLOC_DEFINE(M_CONCAT, "concat data", "GEOM_CONCAT Data");
+static MALLOC_DEFINE(M_CONCAT, "concat_data", "GEOM_CONCAT Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW, 0, "GEOM_CONCAT stuff");
@@ -452,8 +452,8 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	G_CONCAT_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
 	    md->md_id);
 
-	/* Two disks is minimum. */
-	if (md->md_all <= 1)
+	/* One disks is minimum. */
+	if (md->md_all < 1)
 		return (NULL);
 
 	/* Check for duplicate unit */
@@ -664,7 +664,7 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs <= 2) {
+	if (*nargs < 2) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
