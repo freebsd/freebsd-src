@@ -1893,7 +1893,7 @@ notifier_remove(struct proc *p, struct mqueue *mq, int fd)
  * Syscall to open a message queue
  */
 int
-mq_open(struct thread *td, struct mq_open_args *uap)
+kmq_open(struct thread *td, struct kmq_open_args *uap)
 {
 	char path[MQFS_NAMELEN + 1];
 	struct mq_attr attr, *pattr;
@@ -2007,7 +2007,7 @@ mq_open(struct thread *td, struct mq_open_args *uap)
  * Syscall to unlink a message queue
  */
 int
-mq_unlink(struct thread *td, struct mq_unlink_args *uap)
+kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 {
 	char path[MQFS_NAMELEN+1];
 	struct mqfs_node *pn;
@@ -2083,7 +2083,7 @@ getmq_write(struct thread *td, int fd, struct file **fpp,
  * Syscall
  */
 int
-mq_setattr(struct thread *td, struct mq_setattr_args *uap)
+kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 {
 	struct mqueue *mq;
 	struct file *fp;
@@ -2120,7 +2120,7 @@ mq_setattr(struct thread *td, struct mq_setattr_args *uap)
  * Syscall
  */
 int
-mq_timedreceive(struct thread *td, struct mq_timedreceive_args *uap)
+kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 {
 	struct mqueue *mq;
 	struct file *fp;
@@ -2141,7 +2141,7 @@ mq_timedreceive(struct thread *td, struct mq_timedreceive_args *uap)
  * Syscall
  */
 int
-mq_timedsend(struct thread *td, struct mq_timedsend_args *uap)
+kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 {
 	struct mqueue *mq;
 	struct file *fp;
@@ -2161,7 +2161,7 @@ mq_timedsend(struct thread *td, struct mq_timedsend_args *uap)
  * Syscall
  */
 int
-mq_notify(struct thread *td, struct mq_notify_args *uap)
+kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 {
 	struct sigevent ev;
 	struct filedesc *fdp;
@@ -2471,12 +2471,12 @@ static struct vfsops mqfs_vfsops = {
 	.vfs_statfs		= mqfs_statfs,
 };
 
-SYSCALL_MODULE_HELPER(mq_open);
-SYSCALL_MODULE_HELPER(mq_setattr);
-SYSCALL_MODULE_HELPER(mq_timedsend);
-SYSCALL_MODULE_HELPER(mq_timedreceive);
-SYSCALL_MODULE_HELPER(mq_notify);
-SYSCALL_MODULE_HELPER(mq_unlink);
+SYSCALL_MODULE_HELPER(kmq_open);
+SYSCALL_MODULE_HELPER(kmq_setattr);
+SYSCALL_MODULE_HELPER(kmq_timedsend);
+SYSCALL_MODULE_HELPER(kmq_timedreceive);
+SYSCALL_MODULE_HELPER(kmq_notify);
+SYSCALL_MODULE_HELPER(kmq_unlink);
 
 VFS_SET(mqfs_vfsops, mqueuefs, VFCF_SYNTHETIC);
 MODULE_VERSION(mqueuefs, 1);

@@ -438,15 +438,15 @@
 				    const struct timespec *tp); }
 234	AUE_NULL	MSTD	{ int clock_getres(clockid_t clock_id, \
 				    struct timespec *tp); }
-235	AUE_NULL	MSTD	{ int timer_create(clockid_t clock_id, \
-				    struct sigevent *evp, timer_t *timerid); }
-236	AUE_NULL	MSTD	{ int timer_delete(timer_t timerid); }
-237	AUE_NULL	MSTD	{ int timer_settime(timer_t timerid, int flags, \
+235	AUE_NULL	MSTD	{ int ktimer_create(clockid_t clock_id, \
+				    struct sigevent *evp, int *timerid); }
+236	AUE_NULL	MSTD	{ int ktimer_delete(int timerid); }
+237	AUE_NULL	MSTD	{ int ktimer_settime(int timerid, int flags, \
 				    const struct itimerspec *value, \
 				    struct itimerspec *ovalue); }
-238	AUE_NULL	MSTD	{ int timer_gettime(timer_t timerid, struct \
+238	AUE_NULL	MSTD	{ int ktimer_gettime(int timerid, struct \
 				    itimerspec *value); }
-239	AUE_NULL	MSTD	{ int timer_getoverrun(timer_t timerid); }
+239	AUE_NULL	MSTD	{ int ktimer_getoverrun(int timerid); }
 240	AUE_NULL	MSTD	{ int nanosleep(const struct timespec *rqtp, \
 				    struct timespec *rmtp); }
 241	AUE_NULL	UNIMPL	nosys
@@ -799,22 +799,22 @@
 455	AUE_NULL	MSTD	{ int thr_new(struct thr_param *param, \
 				    int param_size); }
 456	AUE_NULL	MSTD	{ int sigqueue(pid_t pid, int signum, void *value); }
-457	AUE_NULL	MNOSTD	{ int mq_open(const char *path, int flags, \
+457	AUE_NULL	MNOSTD	{ int kmq_open(const char *path, int flags, \
 				    mode_t mode, const struct mq_attr *attr); }
-458	AUE_NULL	MNOSTD	{ int mq_setattr(mqd_t mqd,		\
+458	AUE_NULL	MNOSTD	{ int kmq_setattr(int mqd,		\
 				    const struct mq_attr *attr,		\
 				    struct mq_attr *oattr); }
-459	AUE_NULL	MNOSTD	{ int mq_timedreceive(mqd_t mqd,	\
+459	AUE_NULL	MNOSTD	{ int kmq_timedreceive(int mqd,	\
 				    char *msg_ptr, size_t msg_len,	\
 				    unsigned *msg_prio,			\
 				    const struct timespec *abs_timeout); }
-460	AUE_NULL	MNOSTD  { int mq_timedsend(mqd_t mqd,		\
+460	AUE_NULL	MNOSTD  { int kmq_timedsend(int mqd,		\
 				    const char *msg_ptr, size_t msg_len,\
 				    unsigned msg_prio,			\
 				    const struct timespec *abs_timeout);}
-461	AUE_NULL	MNOSTD	{ int mq_notify(mqd_t mqd,		\
+461	AUE_NULL	MNOSTD	{ int kmq_notify(int mqd,		\
 				    const struct sigevent *sigev); }
-462	AUE_NULL	MNOSTD	{ int mq_unlink(const char *path); }
+462	AUE_NULL	MNOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	MSTD	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL	MSTD	{ int thr_set_name(long id, const char *name); }
 ; Please copy any additions and changes to the following compatability tables:
