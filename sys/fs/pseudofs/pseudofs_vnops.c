@@ -81,13 +81,14 @@ SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
 #endif
 
 /*
- * Returns non-zero if given file is visible to given process
+ * Returns non-zero if given file is visible to given process.  If the 'p'
+ * parameter is non-NULL, then it will hold a pointer to the process the
+ * given file belongs to on return and the process will be locked.
  */
 static int
-pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid)
+pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid, struct proc **p)
 {
 	struct proc *proc;
-	int r;
 
 	PFS_TRACE(("%s (pid: %d, req: %d)",
 	    pn->pn_name, pid, td->td_proc->p_pid));
@@ -95,16 +96,23 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid)
 	if (pn->pn_flags & PFS_DISABLED)
 		PFS_RETURN (0);
 
-	r = 1;
 	if (pid != NO_PID) {
 		if ((proc = pfind(pid)) == NULL)
 			PFS_RETURN (0);
 		if (p_cansee(td, proc) != 0 ||
-		    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn)))
-			r = 0;
-		PROC_UNLOCK(proc);
-	}
-	PFS_RETURN (r);
+		    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn))) {
+			PROC_UNLOCK(proc);
+			PFS_RETURN (0);
+		}
+		if (p) {
+			/* We return with the process locked to avoid races. */
+			*p = proc;
+		} else
+			PROC_UNLOCK(proc);
+	} else
+		if (p)
+			*p = NULL;
+	PFS_RETURN (1);
 }
 
 /*
@@ -176,7 +184,7 @@ pfs_getattr(struct vop_getattr_args *va)
 
 	PFS_TRACE((pn->pn_name));
 
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (ENOENT);
 
 	VATTR_NULL(vap);
@@ -206,9 +214,7 @@ pfs_getattr(struct vop_getattr_args *va)
 		break;
 	}
 
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			PFS_RETURN (ENOENT);
+	if (proc != NULL) {
 		vap->va_uid = proc->p_ucred->cr_ruid;
 		vap->va_gid = proc->p_ucred->cr_rgid;
 		if (pn->pn_attr != NULL)
@@ -231,7 +237,7 @@ pfs_ioctl(struct vop_ioctl_args *va)
 	struct vnode *vn = va->a_vp;
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
-	struct proc *proc = NULL;
+	struct proc *proc;
 	int error;
 
 	PFS_TRACE(("%s: %lx", pn->pn_name, va->a_command));
@@ -246,13 +252,10 @@ pfs_ioctl(struct vop_ioctl_args *va)
 	 * This is necessary because process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 
-	/* XXX duplicates bits of pfs_visible() */
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			PFS_RETURN (EIO);
+	if (proc != NULL) {
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -274,28 +277,25 @@ pfs_getextattr(struct vop_getextattr_args *va)
 	struct vnode *vn = va->a_vp;
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
-	struct proc *proc = NULL;
+	struct proc *proc;
 	int error;
 
 	PFS_TRACE((pn->pn_name));
-
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
-		PFS_RETURN (ENOENT);
-
-	if (pn->pn_getextattr == NULL)
-		PFS_RETURN (EOPNOTSUPP);
 
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 
-	/* XXX duplicates bits of pfs_visible() */
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			PFS_RETURN (EIO);
+	if (pn->pn_getextattr == NULL) {
+		if (proc != NULL)
+			PROC_UNLOCK(proc);
+		PFS_RETURN (EOPNOTSUPP);
+	}
+
+	if (proc != NULL) {
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -347,8 +347,8 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	if (cnp->cn_namelen >= PFS_NAMELEN)
 		PFS_RETURN (ENOENT);
 
-	/* check that parent directory is visisble... */
-	if (!pfs_visible(curthread, pd, pvd->pvd_pid))
+	/* check that parent directory is visible... */
+	if (!pfs_visible(curthread, pd, pvd->pvd_pid, NULL))
 		PFS_RETURN (ENOENT);
 
 	/* self */
@@ -404,7 +404,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
  got_pnode:
 	if (pn != pd->pn_parent && !pn->pn_parent)
 		pn->pn_parent = pd;
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid)) {
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, NULL)) {
 		error = ENOENT;
 		goto failed;
 	}
@@ -447,7 +447,7 @@ pfs_open(struct vop_open_args *va)
 	 * XXX and the only consequence of that race is an EIO further
 	 * XXX down the line.
 	 */
-	if (!pfs_visible(va->a_td, pn, pvd->pvd_pid))
+	if (!pfs_visible(va->a_td, pn, pvd->pvd_pid, NULL))
 		PFS_RETURN (ENOENT);
 
 	/* check if the requested mode is permitted */
@@ -472,7 +472,7 @@ pfs_read(struct vop_read_args *va)
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
-	struct proc *proc = NULL;
+	struct proc *proc;
 	struct sbuf *sb = NULL;
 	int error;
 	unsigned int buflen, offset, resid;
@@ -492,13 +492,10 @@ pfs_read(struct vop_read_args *va)
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 
-	/* XXX duplicates bits of pfs_visible() */
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			PFS_RETURN (EIO);
+	if (proc != NULL) {
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -554,7 +551,7 @@ static int
 pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
 	    struct pfs_node **pn, struct proc **p)
 {
-	sx_assert(&allproc_lock, SX_LOCKED);
+	sx_assert(&allproc_lock, SX_SLOCKED);
  again:
 	if (*pn == NULL) {
 		/* first node */
@@ -577,7 +574,7 @@ pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
 	if ((*pn) == NULL)
 		return (-1);
 
-	if (!pfs_visible(td, *pn, *p ? (*p)->p_pid : pid))
+	if (!pfs_visible(td, *pn, *p ? (*p)->p_pid : pid, NULL))
 		goto again;
 
 	return (0);
@@ -609,7 +606,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	uio = va->a_uio;
 
 	/* check if the directory is visible to the caller */
-	if (!pfs_visible(curthread, pd, pid))
+	if (!pfs_visible(curthread, pd, pid, NULL))
 		PFS_RETURN (ENOENT);
 
 	/* only allow reading entire entries */
@@ -764,7 +761,7 @@ pfs_write(struct vop_write_args *va)
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
-	struct proc *proc = NULL;
+	struct proc *proc;
 	struct sbuf sb;
 	int error;
 
@@ -783,13 +780,10 @@ pfs_write(struct vop_write_args *va)
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 
-	/* XXX duplicates bits of pfs_visible() */
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-			PFS_RETURN (EIO);
+	if (proc != NULL) {
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
