@@ -50,31 +50,23 @@ int
 __printf_render_quote(struct __printf_io *io, const struct printf_info *pi __unused, const void *const *arg)
 {
 	const char *str, *p, *t, *o;
-	char *q, *r;
+	char r[5];
 	int i, ret;
 
 	str = *((const char *const *)arg[0]);
 	if (str == NULL)
 		return (__printf_out(io, pi, "\"(null)\"", 8));
-	i = 0;
 	if (*str == '\0')
-		i++;
-	else if (*str == '#')
-		i++;
-	else {
-		for (p = str; *p; p++)
-			if (isspace(*p) || *p == '\\' || *p == '"')
-				i++;
-	}
+		return (__printf_out(io, pi, "\"\"", 2));
+
+	for (i = 0, p = str; *p; p++)
+		if (isspace(*p) || *p == '\\' || *p == '"')
+			i++;
 	if (!i) 
 		return (__printf_out(io, pi, str, strlen(str)));
 	
-	q = malloc(strlen(str) * 5);
-	assert(q != NULL);
-	r = q;
 	ret = __printf_out(io, pi, "\"", 1);
-	t = str;
-	for (p = str; *p; p++) {
+	for (t = p = str; *p; p++) {
 		o = NULL;
 		if (*p == '\\')
 			o = "\\\\";
@@ -91,14 +83,12 @@ __printf_render_quote(struct __printf_io *io, const struct printf_info *pi __unu
 		else if (isspace(*p)) {
 			sprintf(r, "\\%03o", *p);
 			o = r;
-			r += strlen(r) + 1;
 		} else
 			continue;
-		if (p != t) {
+		if (p != t)
 			ret += __printf_out(io, pi, t, p - t);
-			t = p + 1;
-		}
 		ret += __printf_out(io, pi, o, strlen(o));
+		t = p + 1;
 	}
 	if (p != t)
 		ret += __printf_out(io, pi, t, p - t);
