@@ -122,7 +122,7 @@ i80321_aau_attach(device_t dev)
 	    &Giant, &softc->dmatag))
 		panic("Couldn't create a dma tag");
 	if (bus_dmamem_alloc(softc->dmatag, (void **)&aaudescs,
-    	    BUS_DMA_NOWAIT, &softc->aauring[0].map))
+    	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &softc->aauring[0].map))
 		panic("Couldn't alloc dma memory");
 
 	for (int i = 0; i < AAU_RING_SIZE; i++) {
