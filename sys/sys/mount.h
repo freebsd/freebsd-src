@@ -683,10 +683,6 @@ vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
 vfs_sysctl_t		vfs_stdsysctl;
 
-/* XXX - these should be indirect functions!!! */
-int	softdep_fsync(struct vnode *);
-int	softdep_process_worklist(struct mount *);
-
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>

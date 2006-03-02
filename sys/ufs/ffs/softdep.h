@@ -135,6 +135,7 @@
  * and the macros below changed to use it.
  */
 struct worklist {
+	struct mount		*wk_mp;		/* Mount we live in */
 	LIST_ENTRY(worklist)	wk_list;	/* list of work requests */
 	unsigned short		wk_type;	/* type of request */
 	unsigned short		wk_state;	/* state flags */
@@ -142,7 +143,6 @@ struct worklist {
 #define WK_DATA(wk) ((void *)(wk))
 #define WK_PAGEDEP(wk) ((struct pagedep *)(wk))
 #define WK_INODEDEP(wk) ((struct inodedep *)(wk))
-#define WK_NEWBLK(wk) ((struct newblk *)(wk))
 #define WK_BMSAFEMAP(wk) ((struct bmsafemap *)(wk))
 #define WK_ALLOCDIRECT(wk) ((struct allocdirect *)(wk))
 #define WK_INDIRDEP(wk) ((struct indirdep *)(wk))
@@ -190,7 +190,6 @@ struct pagedep {
 	struct	worklist pd_list;	/* page buffer */
 #	define	pd_state pd_list.wk_state /* check for multiple I/O starts */
 	LIST_ENTRY(pagedep) pd_hash;	/* hashed lookup */
-	struct	mount *pd_mnt;		/* associated mount point */
 	ino_t	pd_ino;			/* associated file */
 	ufs_lbn_t pd_lbn;		/* block within file */
 	struct	dirremhd pd_dirremhd;	/* dirrem's waiting for page */
@@ -415,7 +414,6 @@ struct allocindir {
 struct freefrag {
 	struct	worklist ff_list;	/* id_inowait or delayed worklist */
 #	define	ff_state ff_list.wk_state /* owning user; should be uid_t */
-	struct	mount *ff_mnt;		/* associated mount point */
 	ufs2_daddr_t ff_blkno;		/* fragment physical block number */
 	long	ff_fragsize;		/* size of fragment being deleted */
 	ino_t	ff_inum;		/* owning inode number */
@@ -433,7 +431,6 @@ struct freeblks {
 	ino_t	fb_previousinum;	/* inode of previous owner of blocks */
 	uid_t	fb_uid;			/* uid of previous owner of blocks */
 	struct	vnode *fb_devvp;	/* filesystem device vnode */
-	struct	mount *fb_mnt;		/* associated mount point */
 	long	fb_oldextsize;		/* previous ext data size */
 	off_t	fb_oldsize;		/* previous file size */
 	ufs2_daddr_t fb_chkcnt;		/* used to check cnt of blks released */
@@ -453,7 +450,6 @@ struct freefile {
 	mode_t	fx_mode;		/* mode of inode */
 	ino_t	fx_oldinum;		/* inum of the unlinked file */
 	struct	vnode *fx_devvp;	/* filesystem device vnode */
-	struct	mount *fx_mnt;		/* associated mount point */
 };
 
 /*
@@ -555,7 +551,6 @@ struct dirrem {
 	struct	worklist dm_list;	/* delayed worklist */
 #	define	dm_state dm_list.wk_state /* state of the old directory entry */
 	LIST_ENTRY(dirrem) dm_next;	/* pagedep's list of dirrem's */
-	struct	mount *dm_mnt;		/* associated mount point */
 	ino_t	dm_oldinum;		/* inum of the removed dir entry */
 	union {
 	struct	pagedep *dmu_pagedep;	/* pagedep dependency for remove */
