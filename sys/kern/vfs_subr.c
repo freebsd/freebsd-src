@@ -2531,7 +2531,7 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
-			if (VOP_ISLOCKED(vp, NULL))
+			if (vp->v_type != VMARKER && VOP_ISLOCKED(vp, NULL))
 				vprint("", vp);
 		}
 		nmp = TAILQ_NEXT(mp, mnt_list);
