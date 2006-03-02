@@ -785,9 +785,11 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 				isrc = intr_lookup_source(irq);
 				if (isrc == NULL || verbose == 0)
 					db_printf("IRQ %u\n", irq);
+#if 0
 				else
 					db_dump_intr_event(isrc->is_event,
 					    verbose == 2);
+#endif
 			} else
 				db_printf("IRQ %u ???\n", irq);
 		}
