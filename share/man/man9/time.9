@@ -43,8 +43,8 @@
 .In sys/time.h
 .Pp
 .Vt extern struct timeval boottime ;
-.Vt extern struct time_t time_second ;
-.Vt extern struct timeval time_uptime ;
+.Vt extern time_t time_second ;
+.Vt extern time_t time_uptime ;
 .Sh DESCRIPTION
 The
 .Va boottime
@@ -71,7 +71,6 @@ and
 functions can be used to get the current time more accurately and in an
 atomic manner.
 Similarly, the
-The
 .Xr binuptime 9 ,
 .Xr getbinuptime 9 ,
 .Xr microuptime 9 ,
