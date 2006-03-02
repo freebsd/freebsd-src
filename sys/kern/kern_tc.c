@@ -829,6 +829,7 @@ cpu_tick_calibrate(int reset)
 	uint64_t c_this, c_delta;
 	static struct bintime  t_last;
 	struct bintime t_this, t_delta;
+	uint32_t divi;
 
 	if (reset) {
 		/* The clock was stepped, abort & reset */
@@ -846,13 +847,9 @@ cpu_tick_calibrate(int reset)
 		c_delta = c_this - c_last;
 		t_delta = t_this;
 		bintime_sub(&t_delta, &t_last);
-		if (0 && bootverbose) {
-			struct timespec ts;
-			bintime2timespec(&t_delta, &ts);
-			printf("%ju  %ju.%016jx %ju.%09ju",
-			    (uintmax_t)c_delta >> 4,
-			    (uintmax_t)t_delta.sec, (uintmax_t)t_delta.frac,
-			    (uintmax_t)ts.tv_sec, (uintmax_t)ts.tv_nsec);
+		if (bootverbose) {
+			printf("%ju.%016jx ",
+			    (uintmax_t)t_delta.sec, (uintmax_t)t_delta.frac);
 		}
 		/*
 		 * Validate that 16 +/- 1/256 seconds passed. 
@@ -862,22 +859,37 @@ cpu_tick_calibrate(int reset)
 		if (t_delta.sec > 16 || (
 		    t_delta.sec == 16 && t_delta.frac >= (0x01LL << 56))) {
 			/* too long */
-			if (0 && bootverbose)
+			if (bootverbose)
 				printf("\ttoo long\n");
 		} else if (t_delta.sec < 15 ||
 		    (t_delta.sec == 15 && t_delta.frac <= (0xffLL << 56))) {
 			/* too short */
-			if (0 && bootverbose)
+			if (bootverbose)
 				printf("\ttoo short\n");
 		} else {
 			/* just right */
-			c_delta >>= 4;
+			/*
+			 * Headroom:
+			 * 	2^(64-20) / 16[s] =
+			 * 	2^(44) / 16[s] =
+			 * 	17.592.186.044.416 / 16 =
+			 * 	1.099.511.627.776 [Hz]
+			 */
+			divi = t_delta.sec << 20;
+			divi |= t_delta.frac >> (64 - 20);
+			c_delta <<= 20;
+			if (bootverbose)
+				printf(" %ju / %ju",
+				    (uintmax_t)c_delta, (uintmax_t)divi);
+			c_delta /= divi;
+			if (bootverbose)
+				printf(" = %ju", c_delta);
 			if (c_delta  > cpu_tick_frequency) {
-				if (0 && bootverbose)
+				if (bootverbose)
 					printf("\thigher\n");
 				cpu_tick_frequency = c_delta;
 			} else {
-				if (0 && bootverbose)
+				if (bootverbose)
 					printf("\tlower\n");
 			}
 		}
