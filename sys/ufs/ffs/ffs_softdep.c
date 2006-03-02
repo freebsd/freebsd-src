@@ -705,12 +705,12 @@ softdep_flush(void)
 static int
 softdep_speedup(void)
 {
-	ACQUIRE_LOCK(&lk);
+
+	mtx_assert(&lk, MA_OWNED);
 	if (req_pending == 0) {
 		req_pending = 1;
 		wakeup(&req_pending);
 	}
-	FREE_LOCK(&lk);
 
 	return speedup_syncer();
 }
@@ -5551,14 +5551,18 @@ softdep_slowdown(vp)
 {
 	int max_softdeps_hard;
 
+	ACQUIRE_LOCK(&lk);
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (num_dirrem < max_softdeps_hard / 2 &&
 	    num_inodedep < max_softdeps_hard &&
-	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps)
+	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps) {
+		FREE_LOCK(&lk);
   		return (0);
+	}
 	if (VFSTOUFS(vp->v_mount)->um_numindirdeps >= maxindirdeps)
 		softdep_speedup();
 	stat_sync_limit_hit += 1;
+	FREE_LOCK(&lk);
 	return (1);
 }
 
