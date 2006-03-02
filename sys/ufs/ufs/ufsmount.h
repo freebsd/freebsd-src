@@ -33,6 +33,8 @@
 #ifndef _UFS_UFS_UFSMOUNT_H_
 #define _UFS_UFS_UFSMOUNT_H_
 
+#include <sys/buf.h>	/* XXX For struct workhead. */
+
 /*
  * Arguments to mount UFS-based filesystems
  */
@@ -71,6 +73,11 @@ struct ufsmount {
 	u_long	um_seqinc;			/* inc between seq blocks */
 	struct	mtx um_lock;			/* Protects ufsmount & fs */
 	long	um_numindirdeps;		/* outstanding indirdeps */
+	struct workhead softdep_workitem_pending; /* softdep work queue */
+	struct worklist *softdep_worklist_tail;	/* Tail pointer for above */
+	int	softdep_on_worklist;		/* Items on the worklist */
+	int	softdep_deps;			/* Total dependency count */
+	int	softdep_req;			/* Wakeup when deps hits 0. */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */
@@ -112,6 +119,7 @@ struct ufsmount {
 
 /* Convert mount ptr to ufsmount ptr. */
 #define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
+#define	UFSTOVFS(ump)	(ump)->um_mountp
 
 /*
  * Macros to access filesystem parameters in the ufsmount structure.
