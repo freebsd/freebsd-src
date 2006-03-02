@@ -253,6 +253,7 @@ void
 sigqueue_init(sigqueue_t *list, struct proc *p)
 {
 	SIGEMPTYSET(list->sq_signals);
+	SIGEMPTYSET(list->sq_kill);
 	TAILQ_INIT(&list->sq_list);
 	list->sq_proc = p;
 	list->sq_flags = SQ_INIT;
@@ -275,6 +276,11 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	if (!SIGISMEMBER(sq->sq_signals, signo))
 		return (0);
+
+	if (SIGISMEMBER(sq->sq_kill, signo)) {
+		count++;
+		SIGDELSET(sq->sq_kill, signo);
+	}
 
 	for (ksi = TAILQ_FIRST(&sq->sq_list); ksi != NULL; ksi = next) {
 		next = TAILQ_NEXT(ksi, ksi_link);
@@ -317,7 +323,7 @@ sigqueue_take(ksiginfo_t *ksi)
 		if (kp->ksi_signo == ksi->ksi_signo)
 			break;
 	}
-	if (kp == NULL)
+	if (kp == NULL && !SIGISMEMBER(sq->sq_kill, ksi->ksi_signo))
 		SIGDELSET(sq->sq_signals, ksi->ksi_signo);
 }
 
@@ -330,8 +336,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	KASSERT(sq->sq_flags & SQ_INIT, ("sigqueue not inited"));
 	
-	if (signo == SIGKILL || signo == SIGSTOP || si == NULL)
+	if (signo == SIGKILL || signo == SIGSTOP || si == NULL) {
+		SIGADDSET(sq->sq_kill, signo);
 		goto out_set_bit;
+	}
 
 	/* directly insert the ksi, don't copy it */
 	if (si->ksi_flags & KSI_INS) {
@@ -340,8 +348,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		goto out_set_bit;
 	}
 
-	if (__predict_false(ksiginfo_zone == NULL))
+	if (__predict_false(ksiginfo_zone == NULL)) {
+		SIGADDSET(sq->sq_kill, signo);
 		goto out_set_bit;
+	}
 	
 	if (p != NULL && p->p_pendingcnt >= max_pending_per_proc) {
 		signal_overflow++;
@@ -359,6 +369,8 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 	}
 
 	if ((si->ksi_flags & KSI_TRAP) != 0) {
+		if (ret != 0)
+			SIGADDSET(sq->sq_kill, signo);
 		ret = 0;
 		goto out_set_bit;
 	}
@@ -390,6 +402,7 @@ sigqueue_flush(sigqueue_t *sq)
 	}
 
 	SIGEMPTYSET(sq->sq_signals);
+	SIGEMPTYSET(sq->sq_kill);
 }
 
 void
@@ -401,6 +414,7 @@ sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 
 	TAILQ_FOREACH(ksi, &sq->sq_list, ksi_link)
 		SIGADDSET(*set, ksi->ksi_signo);
+	SIGSETOR(*set, sq->sq_kill);
 }
 
 void
@@ -434,6 +448,11 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 	}
 
 	/* Move pending bits to target list */
+	tmp = src->sq_kill;
+	SIGSETAND(tmp, set);
+	SIGSETOR(dst->sq_kill, tmp);
+	SIGSETNAND(src->sq_kill, tmp);
+
 	tmp = src->sq_signals;
 	SIGSETAND(tmp, set);
 	SIGSETOR(dst->sq_signals, tmp);
@@ -471,6 +490,7 @@ sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 				p->p_pendingcnt--;
 		}
 	}
+	SIGSETNAND(sq->sq_kill, *set);
 	SIGSETNAND(sq->sq_signals, *set);
 	/* Finally, rescan queue and set pending bits for it */
 	sigqueue_collect_set(sq, &sq->sq_signals);
