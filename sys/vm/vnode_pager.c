@@ -1017,11 +1017,9 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	VM_OBJECT_UNLOCK(object);
 	if (vp->v_type != VREG)
 		mp = NULL;
-	(void)vn_start_write(vp, &mp, V_WAIT);
 	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
 	KASSERT(rtval != EOPNOTSUPP, 
 	    ("vnode_pager: stale FS putpages\n"));
-	vn_finished_write(mp);
 	VM_OBJECT_LOCK(object);
 }
 
