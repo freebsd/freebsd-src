@@ -30,12 +30,14 @@
  * Features
  *	* 16bit playback / recording
  *	* 32bit native playback - yay!
+ *	* 32bit native recording (seems broken on few hardwares)
  *
  * Issues / TODO:
  *	* SPDIF
  *	* Support for more than 2 channels.
  *	* VRA ? VRM ? DRA ?
- *	* 32bit native recording (seems broken, disabled)
+ *	* 32bit native recording seems broken on few hardwares, most
+ *	  probably because of incomplete VRA/DRA cleanup.
  *
  *
  * Thanks goes to:
@@ -65,10 +67,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 
 struct atiixp_dma_op {
-	uint32_t addr;
-	uint16_t status;
-	uint16_t size;
-	uint32_t next;
+	volatile uint32_t addr;
+	volatile uint16_t status;
+	volatile uint16_t size;
+	volatile uint32_t next;
 };
 
 struct atiixp_info;
@@ -468,8 +470,7 @@ atiixp_chan_setformat(kobj_t obj, void *data, uint32_t format)
 	if (ch->dir == PCMDIR_REC) {
 		value = atiixp_rd(sc, ATI_REG_CMD);
 		value &= ~ATI_REG_CMD_INTERLEAVE_IN;
-		if (ch->caps_32bit == 0 ||
-				(format & (AFMT_8BIT|AFMT_16BIT)) != 0)
+		if ((format & AFMT_32BIT) == 0)
 			value |= ATI_REG_CMD_INTERLEAVE_IN;
 		atiixp_wr(sc, ATI_REG_CMD, value);
 	} else {
@@ -482,8 +483,7 @@ atiixp_chan_setformat(kobj_t obj, void *data, uint32_t format)
 		atiixp_wr(sc, ATI_REG_OUT_DMA_SLOT, value);
 		value = atiixp_rd(sc, ATI_REG_CMD);
 		value &= ~ATI_REG_CMD_INTERLEAVE_OUT;
-		if (ch->caps_32bit == 0 ||
-				(format & (AFMT_8BIT|AFMT_16BIT)) != 0)
+		if ((format & AFMT_32BIT) == 0)
 			value |= ATI_REG_CMD_INTERLEAVE_OUT;
 		atiixp_wr(sc, ATI_REG_CMD, value);
 		value = atiixp_rd(sc, ATI_REG_6CH_REORDER);
@@ -585,13 +585,36 @@ atiixp_chan_getptr(kobj_t obj, void *data)
 {
 	struct atiixp_chinfo *ch = data;
 	struct atiixp_info *sc = ch->parent;
-	uint32_t ptr;
+	uint32_t addr, align, retry, sz;
+	volatile uint32_t ptr;
+
+	addr = sndbuf_getbufaddr(ch->buffer);
+	align = (ch->fmt & AFMT_32BIT) ? 7 : 3;
+	retry = 100;
+	sz = sndbuf_getblksz(ch->buffer) * ch->dma_segs;
 
 	atiixp_lock(sc);
-	ptr = atiixp_rd(sc, ch->dma_dt_cur_bit);
+	do {
+		ptr = atiixp_rd(sc, ch->dma_dt_cur_bit);
+		if (ptr < addr)
+			continue;
+		ptr -= addr;
+		if (ptr < sz && !(ptr & align))
+			break;
+	} while (--retry);
 	atiixp_unlock(sc);
 
-	return ptr;
+#if 0
+	if (retry != 100) {
+		device_printf(sc->dev,
+		    "%saligned hwptr: dir=PCMDIR_%s ptr=%u fmt=0x%08x retry=%d\n",
+		    (ptr & align) ? "un" : "",
+		    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC", ptr,
+		    ch->fmt, 100 - retry);
+	}
+#endif
+
+	return (retry > 0) ? ptr : 0;
 }
 
 static struct pcmchan_caps *
@@ -709,6 +732,7 @@ static void
 atiixp_chip_post_init(void *arg)
 {
 	struct atiixp_info *sc = (struct atiixp_info *)arg;
+	uint32_t subdev;
 	int i, timeout, found;
 	char status[SND_STATUSLEN];
 
@@ -775,6 +799,15 @@ atiixp_chip_post_init(void *arg)
 	sc->codec = AC97_CREATE(sc->dev, sc, atiixp_ac97);
 	if (sc->codec == NULL)
 		goto postinitbad;
+
+	subdev = (pci_get_subdevice(sc->dev) << 16) | pci_get_subvendor(sc->dev);
+	switch (subdev) {
+	case 0x2043161f:	/* Maxselect x710s - http://maxselect.ru/ */
+		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
+		break;
+	default:
+		break;
+	}
 
 	mixer_init(sc->dev, ac97_getmixerclass(), sc->codec);
 
@@ -893,14 +926,25 @@ atiixp_pci_attach(device_t dev)
 			i = ATI_IXP_DMA_CHSEGS_MIN;
 		if (i > ATI_IXP_DMA_CHSEGS_MAX)
 			i = ATI_IXP_DMA_CHSEGS_MAX;
-		/* round the value */
-		sc->dma_segs = i & ~1;
+		sc->dma_segs = i;
 	}
+
+	/*
+	 * round the value to the nearest ^2
+	 */
+	i = 0;
+	while (sc->dma_segs >> i)
+		i++;
+	sc->dma_segs = 1 << (i - 1);
+	if (sc->dma_segs < ATI_IXP_DMA_CHSEGS_MIN)
+		sc->dma_segs = ATI_IXP_DMA_CHSEGS_MIN;
+	else if (sc->dma_segs > ATI_IXP_DMA_CHSEGS_MAX)
+		sc->dma_segs = ATI_IXP_DMA_CHSEGS_MAX;
 
 	/*
 	 * DMA tag for scatter-gather buffers and link pointers
 	 */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/sc->bufsz, /*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
