@@ -14,6 +14,9 @@ FILES=	100.clean-disks \
 	400.status-disks \
 	405.status-ata-raid \
 	406.status-gmirror \
+	407.status-graid3 \
+	408.status-gstripe \
+	409.status-gconcat \
 	420.status-network \
 	430.status-rwho \
 	440.status-mailq \
