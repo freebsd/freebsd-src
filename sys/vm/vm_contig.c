@@ -91,6 +91,7 @@ vm_contig_launder_page(vm_page_t m)
 	vm_object_t object;
 	vm_page_t m_tmp;
 	struct vnode *vp;
+	struct mount *mp;
 
 	object = m->object;
 	if (!VM_OBJECT_TRYLOCK(object))
@@ -109,12 +110,14 @@ vm_contig_launder_page(vm_page_t m)
 			vp = object->handle;
 			vm_object_reference_locked(object);
 			VM_OBJECT_UNLOCK(object);
+			(void) vn_start_write(vp, &mp, V_WAIT);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 			VM_OBJECT_LOCK(object);
 			vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(object);
 			VOP_UNLOCK(vp, 0, curthread);
 			vm_object_deallocate(object);
+			vn_finished_write(mp);
 			vm_page_lock_queues();
 			return (0);
 		} else if (object->type == OBJT_SWAP ||
