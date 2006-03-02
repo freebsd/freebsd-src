@@ -993,6 +993,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 {
 	vm_object_t backing_object;
 	struct vnode *vp;
+	struct mount *mp;
 	int flags;
 
 	if (object == NULL)
@@ -1023,6 +1024,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		int vfslocked;
 		vp = object->handle;
 		VM_OBJECT_UNLOCK(object);
+		(void) vn_start_write(vp, &mp, V_WAIT);
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
@@ -1035,6 +1037,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		VM_OBJECT_UNLOCK(object);
 		VOP_UNLOCK(vp, 0, curthread);
 		VFS_UNLOCK_GIANT(vfslocked);
+		vn_finished_write(mp);
 		VM_OBJECT_LOCK(object);
 	}
 	if ((object->type == OBJT_VNODE ||
