@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2005
+.Dd March 2, 2006
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -78,7 +78,9 @@ In addition,
 .Nm
 attempts to read
 .Pa default.rc
-before reading the actual configuration file; thus, that file may be
+and
+.Pa site.rc
+before reading the actual configuration file; thus, these files may be
 used to specify default values shared by multiple configurations.
 .Pp
 The configuration consists of a list of single- or multiple-value
