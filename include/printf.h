@@ -29,6 +29,8 @@
 #ifndef _PRINTF_H_
 #define _PRINTF_H_
 
+#include <wchar.h>
+
 /*
  * The API defined by glibc allows a renderer to take multiple arguments
  * This is obviously usable for things like (ptr+len) pairs etc.
