@@ -474,6 +474,7 @@ sub tbmaster($) {
 
     clearconf();
     readconf('default.rc');
+    readconf('site.rc');
     readconf("$config.rc")
 	or die("$config.rc: $!\n");
     $CONFIG{'CONFIG'} = $config;
