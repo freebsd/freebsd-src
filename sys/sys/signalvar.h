@@ -238,8 +238,9 @@ typedef struct ksiginfo {
 #define	KSI_ONQ(ksi)	((ksi)->ksi_sigq != NULL)
 
 typedef struct sigqueue {
-	sigset_t	sq_signals;
-	TAILQ_HEAD(, ksiginfo)	sq_list;
+	sigset_t	sq_signals;	/* All pending signals. */
+	sigset_t	sq_kill;	/* Legacy depth 1 queue. */
+	TAILQ_HEAD(, ksiginfo)	sq_list;/* Queued signal info. */
 	struct proc	*sq_proc;
 	int		sq_flags;
 } sigqueue_t;
