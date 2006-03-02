@@ -501,8 +501,9 @@ options		LIBALIAS
 
 # altq(9). Enable the base part of the hooks with the ALTQ option.
 # Individual disciplines must be built into the base system and can not be
-# loaded as modules at this point. In order to build a SMP kernel you must
-# also have the ALTQ_NOPCC option.
+# loaded as modules at this point. ALTQ requires a stable TSC so if yours is
+# broken or changes with CPU throttling then you must also have the ALTQ_NOPCC
+# option.
 options 	ALTQ
 options 	ALTQ_CBQ	# Class Bases Queueing
 options 	ALTQ_RED	# Random Early Detection
@@ -510,7 +511,7 @@ options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
 options 	ALTQ_PRIQ	# Priority Queueing
-options 	ALTQ_NOPCC	# Required for SMP build
+options 	ALTQ_NOPCC	# Required if the TSC is unusable
 options 	ALTQ_DEBUG
 
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
