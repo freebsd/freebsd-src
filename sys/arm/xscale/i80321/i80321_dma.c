@@ -127,7 +127,7 @@ i80321_dma_attach(device_t dev)
 		panic("Couldn't create a dma tag");
 	DMA_REG_WRITE(softc, 0, 0);
 	if (bus_dmamem_alloc(softc->dmatag, (void **)&dmadescs,
-    	    BUS_DMA_NOWAIT, &softc->dmaring[0].map))
+    	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &softc->dmaring[0].map))
 		panic("Couldn't alloc dma memory");
 	for (int i = 0; i < DMA_RING_SIZE; i++) {
 		if (i > 0)
