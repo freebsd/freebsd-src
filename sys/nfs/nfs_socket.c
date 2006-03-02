@@ -2192,7 +2192,7 @@ nfsrv_getstream(slp, waitflag)
 			slp->ns_flag |= SLP_LASTFRAG;
 		else
 			slp->ns_flag &= ~SLP_LASTFRAG;
-		if (slp->ns_reclen > NFS_MAXPACKET) {
+		if (slp->ns_reclen > NFS_MAXPACKET || slp->ns_reclen <= 0) {
 			slp->ns_flag &= ~SLP_GETSTREAM;
 			return (EPERM);
 		}

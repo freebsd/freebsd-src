@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20060302:	p38	FreeBSD-SA-06:10.nfs
+	Correct a remote kernel panic when processing zero-length RPC
+	records via TCP.
+
 20060118:	p37	FreeBSD-SA-06:01.texindex, FreeBSD-SA-06:02.ee,
 			FreeBSD-SA-06:03.cpio
 	Correct insecure temporary file usage in texindex. [06:01]
