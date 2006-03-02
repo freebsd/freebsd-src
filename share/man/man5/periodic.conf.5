@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2006
+.Dd February 19, 2006
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -350,6 +350,33 @@ if you want to run
 .Nm gmirror status
 on your
 .Xr gmirror 8
+devices.
+.It Va daily_status_graid3_enable
+.Pq Vt bool
+Set to
+.Dq YES
+if you want to run
+.Nm graid3 status
+on your
+.Xr graid3 8
+devices.
+.It Va daily_status_gstripe_enable
+.Pq Vt bool
+Set to
+.Dq YES
+if you want to run
+.Nm gstripe status
+on your
+.Xr gstripe 8
+devices.
+.It Va daily_status_gconcat_enable
+.Pq Vt bool
+Set to
+.Dq YES
+if you want to run
+.Nm gconcat status
+on your
+.Xr gconcat 8
 devices.
 .It Va daily_status_network_enable
 .Pq Vt bool
