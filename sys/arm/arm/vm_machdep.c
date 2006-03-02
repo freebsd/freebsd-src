@@ -368,8 +368,10 @@ cpu_exit(struct thread *td)
 {
 }
 
+#define BITS_PER_INT	(8 * sizeof(int))
 vm_offset_t arm_nocache_startaddr;
-static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * 32)];
+static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * 
+    BITS_PER_INT)];
 
 /*
  * Functions to map and unmap memory non-cached into KVA the kernel won't try 
@@ -387,18 +389,19 @@ arm_remap_nocache(void *addr, vm_size_t size)
 	int i, j;
 	
 	size = round_page(size);
-	for (i = 0; i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * 32),
+	for (i = 0; i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT),
 	    ARM_TP_ADDRESS); i++) {
-		if (!(arm_nocache_allocated[i / 32] & (1 << (i % 32)))) {
+		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i % 
+		    BITS_PER_INT)))) {
 			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
-				if (arm_nocache_allocated[j / 32] &
-				    (1 << (j % 32)))
+				if (arm_nocache_allocated[j / BITS_PER_INT] &
+				    (1 << (j % BITS_PER_INT)))
 					break;
 			if (j == i + (size / (PAGE_SIZE)))
 				break;
 		}
 	}
-	if (i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * 32), 
+	if (i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT), 
 	    ARM_TP_ADDRESS)) {
 		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
 		void *ret = (void *)tomap;
@@ -407,7 +410,8 @@ arm_remap_nocache(void *addr, vm_size_t size)
 		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
 		    physaddr += PAGE_SIZE, i++) {
 			pmap_kenter_nocache(tomap, physaddr);
-			arm_nocache_allocated[i / 32] |= 1 << (i % 32);
+			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i % 
+			    BITS_PER_INT);
 		}
 		return (ret);
 	}
@@ -423,7 +427,8 @@ arm_unmap_nocache(void *addr, vm_size_t size)
 	size = round_page(size);
 	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
 	for (; size > 0; size -= PAGE_SIZE, i++)
-		arm_nocache_allocated[i / 32] &= ~(1 << (i % 32));
+		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i % 
+		    BITS_PER_INT));
 }
 
 #ifdef ARM_USE_SMALL_ALLOC
