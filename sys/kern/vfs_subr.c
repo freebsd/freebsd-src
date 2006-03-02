@@ -270,9 +270,6 @@ static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
 
-/* Hook for calling soft updates. */
-int (*softdep_process_worklist_hook)(struct mount *);
-
 /*
  * Macros to control when a vnode is freed and recycled.  All require
  * the vnode interlock.
@@ -1675,13 +1672,6 @@ sched_sync(void)
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
 		mtx_unlock(&sync_mtx);
-
-		/*
-		 * Do soft update processing.
-		 */
-		if (softdep_process_worklist_hook != NULL)
-			(*softdep_process_worklist_hook)(NULL);
-
 		/*
 		 * The variable rushjob allows the kernel to speed up the
 		 * processing of the filesystem syncer process. A rushjob
