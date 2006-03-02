@@ -131,6 +131,7 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	struct bufobj *bo;
+	int vfslocked;
 	int error;
 
 	g_topology_assert();
@@ -147,7 +148,9 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 		g_wither_geom(gp, ENXIO);
 		return (error);
 	}
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vnode_create_vobject(vp, pp->mediasize, curthread);
+	VFS_UNLOCK_GIANT(vfslocked);
 	*cpp = cp;
 	bo = &vp->v_bufobj;
 	bo->bo_ops = g_vfs_bufops;
