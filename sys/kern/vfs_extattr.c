@@ -666,9 +666,9 @@ cvtstatfs(nsp, osp)
 	bcopy(nsp->f_fstypename, osp->f_fstypename,
 	    MIN(MFSNAMELEN, OMNAMELEN));
 	bcopy(nsp->f_mntonname, osp->f_mntonname,
-	    MIN(MFSNAMELEN, OMNAMELEN));
+	    MIN(MNAMELEN, OMNAMELEN));
 	bcopy(nsp->f_mntfromname, osp->f_mntfromname,
-	    MIN(MFSNAMELEN, OMNAMELEN));
+	    MIN(MNAMELEN, OMNAMELEN));
 	osp->f_fsid = nsp->f_fsid;
 }
 #endif /* COMPAT_FREEBSD4 */
