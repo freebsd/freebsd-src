@@ -239,7 +239,7 @@ isp_freeze_loopdown(struct ispsoftc *isp, char *msg)
 }
 
 static int
-ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 {
 	struct ispsoftc *isp;
 	int nr, retval = ENOTTY;
@@ -254,7 +254,7 @@ ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 	if (isp == NULL)
 		return (ENXIO);
 	
-	switch (cmd) {
+	switch (c) {
 #ifdef	ISP_FW_CRASH_DUMP
 	case ISP_GET_FW_CRASH_DUMP:
 	{
@@ -1187,7 +1187,7 @@ isp_abort_tgt_ccb(struct ispsoftc *isp, union ccb *ccb)
 	}
 	rls_lun_statep(isp, tptr);
 	if (found) {
-		*ctr--;
+		(*ctr)--;
 		accb->ccb_h.status = CAM_REQ_ABORTED;
 		xpt_done(accb);
 		return (CAM_REQ_CMP);
