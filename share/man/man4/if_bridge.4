@@ -149,6 +149,14 @@ all additional members are required to have exactly the same value.
 .Pp
 The TXCSUM capability is disabled for any interface added to the bridge, this
 is restored when the interface is removed again.
+.Pp
+The bridge supports monitor mode where the packets are discarded after
+.Xr bpf 4
+processing, the bridge will not process or forward the packets further.
+This can be used to multiplex the input of two or more interfaces into a single
+bpf stream.
+This is useful for reconstructing the traffic for network taps
+that transmit the RX/TX signals out through two separate interfaces.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
