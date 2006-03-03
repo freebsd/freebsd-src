@@ -450,9 +450,10 @@ SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw, CTLTYPE_INT|CTLFLAG_RW,
 static int
 bridge_clone_create(struct if_clone *ifc, int unit)
 {
-	struct bridge_softc *sc;
-	struct ifnet *ifp;
+	struct bridge_softc *sc, *sc2;
+	struct ifnet *bifp, *ifp;
 	u_char eaddr[6];
+	int retry;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	BRIDGE_LOCK_INIT(sc);
@@ -496,11 +497,25 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	/*
 	 * Generate a random ethernet address and use the private AC:DE:48
 	 * OUI code.
+	 *
+	 * Since we are using random ethernet addresses for the bridge, it is
+	 * possible that we might have address collisions, so make sure that
+	 * this hardware address isn't already in use on another bridge.
 	 */
-	arc4rand(eaddr, ETHER_ADDR_LEN, 1);
-	eaddr[0] = 0xAC;
-	eaddr[1] = 0xDE;
-	eaddr[2] = 0x48;
+	for (retry = 1; retry != 0;) {
+		arc4rand(eaddr, ETHER_ADDR_LEN, 1);
+		eaddr[0] = 0xAC;
+		eaddr[1] = 0xDE;
+		eaddr[2] = 0x48;
+		retry = 0;
+		mtx_lock(&bridge_list_mtx);
+		LIST_FOREACH(sc2, &bridge_list, sc_list) {
+			bifp = sc2->sc_ifp;
+			if (memcmp(eaddr, IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
+				retry = 1;
+		}
+		mtx_unlock(&bridge_list_mtx);
+	}
 
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
