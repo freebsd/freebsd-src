@@ -622,6 +622,7 @@ malloc_uninit(void *data)
 	struct malloc_type_internal *mtip;
 	struct malloc_type_stats *mtsp;
 	struct malloc_type *mtp, *temp;
+	uma_slab_t slab;
 	long temp_allocs, temp_bytes;
 	int i;
 
@@ -658,7 +659,8 @@ malloc_uninit(void *data)
 		    temp_allocs, temp_bytes);
 	}
 
-	uma_zfree(mt_zone, mtip);
+	slab = vtoslab((vm_offset_t) mtip & (~UMA_SLAB_MASK));
+	uma_zfree_arg(mt_zone, mtip, slab);
 }
 
 struct malloc_type *
