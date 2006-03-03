@@ -72,6 +72,14 @@ If this occurs, the original values will be restored once the condition
 has passed (e.g., the system has cooled sufficiently).
 If a sysctl cannot be set due to an override condition, it will return
 .Er EPERM .
+.Pp
+The frequency cannot be changed if TSC is in use as the timecounter.
+This is because the timecounter system needs to use a source that has a
+constant rate. The timecounter source can be changed with the
+.Pa kern.timecounter.hardware
+sysctl. Available modes are in
+.Pa kern.timecounter.choice
+sysctl entry.
 .Bl -tag -width indent
 .It Va dev.cpu.%d.freq
 Current active CPU frequency in MHz.
