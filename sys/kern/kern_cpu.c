@@ -222,6 +222,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	struct cf_saved_freq *saved_freq, *curr_freq;
 	struct pcpu *pc;
 	int cpu_id, error, i;
+	static int once;
 
 	sc = device_get_softc(dev);
 	error = 0;
@@ -233,8 +234,14 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 * If it is, then return EBUSY and refuse to change the
 	 * clock speed.
 	 */
-	if (strcmp(timecounter->tc_name, "TSC") == 0)
+	if (strcmp(timecounter->tc_name, "TSC") == 0) {
+		if (!once) {
+			printf("cpufreq: frequency change with timecounter"
+				" TSC not allowed, see cpufreq(4)\n");
+			once = 1;
+		}
 		return (EBUSY);
+	}
 
 	CF_MTX_LOCK(&sc->lock);
 
