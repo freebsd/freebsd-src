@@ -41,7 +41,12 @@
 #ifndef _CODA_HEADER_
 #define _CODA_HEADER_
 
-#include "opt_coda.h"	/* for COMPAT_CODA_5 option */
+#include "opt_coda.h"	/* for CODA_COMPAT_5 option */
+
+/* Avoid CODA_COMPAT_5 redefinition in coda5 module */
+#if defined (CODA5_MODULE) && !defined(CODA_COMPAT_5)
+#define CODA_COMPAT_5
+#endif
 
 /* Catch new _KERNEL defn for NetBSD */
 #ifdef __NetBSD__

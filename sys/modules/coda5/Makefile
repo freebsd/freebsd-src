@@ -8,6 +8,6 @@ SRCS=	vnode_if.h \
 	coda_venus.c coda_vfsops.c coda_vnops.c \
 	opt_coda.h
 
-CFLAGS+= -DCODA_COMPAT_5
+CFLAGS+= -DCODA5_MODULE
 
 .include <bsd.kmod.mk>
