@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Rink Springer
+ * Copyright (c) 2005, 2006 Rink Springer <rink@il.fontys.nl>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,23 +28,23 @@
  */
 
 /*
- * This will handles video output using the XBOX' frame buffer. It assumes
- * the graphics have been set up by Cromwell. This driver uses all video memory
- * to avoid expensive memcpy()'s.
+ * This is the syscon(4)-ized version of the Xbox Frame Buffer driver. It
+ * supports about all features required, such as mouse support.
  *
- * It is usuable as console (to see the initial boot) as well as for interactive
- * use. The latter is handeled using kbd_*() functionality. Keyboard hotplug is
- * fully supported, the console will periodically rescan if no keyboard was
- * found.
- *
+ * A lot of functions that are not useful to us have not been implemented.
+ * It appears that some functions are never called, but these implementations
+ * are here nevertheless.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <vm/vm_param.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
 #include <sys/cons.h>
+#include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/consio.h>
+#include <sys/limits.h>
 #include <sys/tty.h>
 #include <sys/kbio.h>
 #include <sys/fbio.h>
@@ -53,342 +53,603 @@
 #include <vm/pmap.h>
 #include <machine/bus.h>
 #include <machine/xbox.h>
+#include <machine/legacyvar.h>
 #include <dev/fb/fbreg.h>
 #include <dev/fb/gfb.h>
+#include <dev/syscons/syscons.h>
+
+struct xboxfb_softc {
+	video_adapter_t	sc_va;
+
+	/* screen height (pixels) */
+	uint32_t sc_height;
+
+	/* screen width (pixels) */
+	uint32_t sc_width;
+
+	/* pointer to the actual XBOX video memory */
+	char* sc_framebuffer;
+
+	/* pointer to the font used */
+	struct gfb_font* sc_font;
+};
 
 #define SCREEN_WIDTH	640
 #define SCREEN_HEIGHT	480
-#define SCREEN_BPP	4
-#define SCREEN_SIZE	(SCREEN_WIDTH*SCREEN_HEIGHT*SCREEN_BPP)
 
-/* FONT_xxx declares the dimensions of the charachter structure, CHAR_xxx is how
- * they appear on-screen. Having slightly more spacing improves readability.  */
-#define FONT_HEIGHT	16
-#define FONT_WIDTH	8
-
-#define CHAR_HEIGHT	16
-#define CHAR_WIDTH	10
-
-/* colours */
-#define CONSOLE_COL	0xFF88FF88	/* greenish */
-#define NORM_COL	0xFFAAAAAA	/* grayish */
-#define BLACK_COL	0x00000000	/* black */
-
-static int xcon_x     = 0;
-static int xcon_y     = 0;
-static int xcon_yoffs = 0;
+#define XBOXFB_DRIVER_NAME "xboxsc"
 
 extern struct gfb_font bold8x16;
 
-static char* xcon_map;
-static int* xcon_memstartptr;
+static vi_probe_t xboxfb_probe;
+static vi_init_t xboxfb_init;
+static vi_get_info_t xboxfb_get_info;
+static vi_query_mode_t xboxfb_query_mode;
+static vi_set_mode_t xboxfb_set_mode;
+static vi_save_font_t xboxfb_save_font;
+static vi_load_font_t xboxfb_load_font;
+static vi_show_font_t xboxfb_show_font;
+static vi_save_palette_t xboxfb_save_palette;
+static vi_load_palette_t xboxfb_load_palette;
+static vi_set_border_t xboxfb_set_border;
+static vi_save_state_t xboxfb_save_state;
+static vi_load_state_t xboxfb_load_state;
+static vi_set_win_org_t xboxfb_set_win_org;
+static vi_read_hw_cursor_t xboxfb_read_hw_cursor;
+static vi_set_hw_cursor_t xboxfb_set_hw_cursor;
+static vi_set_hw_cursor_shape_t xboxfb_set_hw_cursor_shape;
+static vi_blank_display_t xboxfb_blank_display;
+static vi_mmap_t xboxfb_mmap;
+static vi_ioctl_t xboxfb_ioctl;
+static vi_clear_t xboxfb_clear;
+static vi_fill_rect_t xboxfb_fill_rect;
+static vi_bitblt_t xboxfb_bitblt;
+static vi_diag_t xboxfb_diag;
+static vi_save_cursor_palette_t xboxfb_save_cursor_palette;
+static vi_load_cursor_palette_t xboxfb_load_cursor_palette;
+static vi_copy_t xboxfb_copy;
+static vi_putp_t xboxfb_putp;
+static vi_putc_t xboxfb_putc;
+static vi_puts_t xboxfb_puts;
+static vi_putm_t xboxfb_putm;
 
-static struct tty* xboxfb_tp = NULL;
-static struct keyboard* xbfb_kbd = NULL;
-static int xbfb_keyboard = -1;
-static d_open_t xboxfb_dev_open;
-static d_close_t xboxfb_dev_close;
-static int xboxfb_kbdevent(keyboard_t* thiskbd, int event, void* arg);
-
-static struct cdevsw xboxfb_cdevsw = {
-	.d_version = D_VERSION,
-	.d_open    = xboxfb_dev_open,
-	.d_close   = xboxfb_dev_close,
-	.d_name    = "xboxfb",
-	.d_flags   = D_TTY | D_NEEDGIANT,
+static video_switch_t xboxvidsw = {
+	.probe                = xboxfb_probe,
+	.init                 = xboxfb_init,
+	.get_info             = xboxfb_get_info,
+	.query_mode           = xboxfb_query_mode,
+	.set_mode             = xboxfb_set_mode,
+	.save_font            = xboxfb_save_font,
+	.load_font            = xboxfb_load_font,
+	.show_font            = xboxfb_show_font,
+	.save_palette         = xboxfb_save_palette,
+	.load_palette         = xboxfb_load_palette,
+	.set_border           = xboxfb_set_border,
+	.save_state           = xboxfb_save_state,
+	.load_state           = xboxfb_load_state,
+	.set_win_org          = xboxfb_set_win_org,
+	.read_hw_cursor       = xboxfb_read_hw_cursor,
+	.set_hw_cursor        = xboxfb_set_hw_cursor,
+	.set_hw_cursor_shape  = xboxfb_set_hw_cursor_shape,
+	.blank_display        = xboxfb_blank_display,
+	.mmap                 = xboxfb_mmap,
+	.ioctl                = xboxfb_ioctl,
+	.clear                = xboxfb_clear,
+	.fill_rect            = xboxfb_fill_rect,
+	.bitblt               = xboxfb_bitblt,
+	NULL,
+	NULL,
+	.diag                 = xboxfb_diag,
+	.save_cursor_palette  = xboxfb_save_cursor_palette,
+	.load_cursor_palette  = xboxfb_load_cursor_palette,
+	.copy                 = xboxfb_copy,
+	.putp                 = xboxfb_putp,
+	.putc                 = xboxfb_putc,
+	.puts                 = xboxfb_puts,
+	.putm                 = xboxfb_putm
 };
 
-static void
-xcon_probe(struct consdev* cp)
-{
-	if (arch_i386_is_xbox)
-		cp->cn_pri = CN_REMOTE;
-	else
-		cp->cn_pri = CN_DEAD;
-}
+static int xboxfb_configure(int flags);
+VIDEO_DRIVER(xboxsc, xboxvidsw, xboxfb_configure);
+
+static vr_init_t xbr_init;
+static vr_clear_t xbr_clear;
+static vr_draw_border_t xbr_draw_border;
+static vr_draw_t xbr_draw;
+static vr_set_cursor_t xbr_set_cursor;
+static vr_draw_cursor_t xbr_draw_cursor;
+static vr_blink_cursor_t xbr_blink_cursor;
+static vr_set_mouse_t xbr_set_mouse;
+static vr_draw_mouse_t xbr_draw_mouse;
+
+/*
+ * We use our own renderer; this is because we must emulate a hardware
+ * cursor.
+ */
+static sc_rndr_sw_t xboxrend = {
+	xbr_init,
+	xbr_clear,
+	xbr_draw_border,
+	xbr_draw,
+	xbr_set_cursor,
+	xbr_draw_cursor,
+	xbr_blink_cursor,
+	xbr_set_mouse,
+	xbr_draw_mouse
+};
+RENDERER(xboxsc, 0, xboxrend, gfb_set);
+
+static struct xboxfb_softc xboxfb_sc;
+
+/* color mappings, from dev/fb/creator.c */
+static const uint32_t cmap[] = {
+	0x00000000,			/* black */
+	0x000000ff,			/* blue */
+	0x0000ff00,			/* green */
+	0x0000c0c0,			/* cyan */
+	0x00ff0000,			/* red */
+	0x00c000c0,			/* magenta */
+	0x00c0c000,			/* brown */
+	0x00c0c0c0,			/* light grey */
+	0x00808080,			/* dark grey */
+	0x008080ff,			/* light blue */
+	0x0080ff80,			/* light green */
+	0x0080ffff,			/* light cyan */
+	0x00ff8080,			/* light red */
+	0x00ff80ff,			/* light magenta */
+	0x00ffff80,			/* yellow */
+	0x00ffffff			/* white */
+};
+
+/* mouse pointer from dev/syscons/scgfbrndr.c */
+static u_char mouse_pointer[16] = {
+        0x00, 0x40, 0x60, 0x70, 0x78, 0x7c, 0x7e, 0x68,
+        0x0c, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00
+};
 
 static int
-xcon_getc(struct consdev* cp)
+xboxfb_init(int unit, video_adapter_t* adp, int flags)
 {
-	return 0;
-}
-
-static int
-xcon_checkc(struct consdev* cp)
-{
-	return 0;
-}
-
-static void
-xcon_real_putc(int basecol, int c)
-{
-	int i, j, ch = c, col;
-	char mask;
-	int* ptri = (int*)xcon_map;
-
-	/* special control chars */
-	switch (ch) {
-	case '\r': /* carriage return */
-		xcon_x = 0;
-		return;
-	case '\n': /* newline */
-		xcon_y += CHAR_HEIGHT;
-		goto scroll;
-	case 7: /* beep */
-		return;
-	case 8: /* backspace */
-		if (xcon_x > 0) {
-			xcon_x -= CHAR_WIDTH;
-		} else {
-			if (xcon_y > CHAR_HEIGHT) {
-				xcon_y -= CHAR_HEIGHT;
-				xcon_x = (SCREEN_WIDTH - CHAR_WIDTH);
-			}
-		}
-		return;
-	case 9: /* tab */
-		xcon_real_putc (basecol, ' ');
-		while ((xcon_x % (8 * CHAR_WIDTH)) != 0) {
-			xcon_real_putc (basecol, ' ');
-		}
-		return;
-	}
-	ptri += (xcon_y * SCREEN_WIDTH) + xcon_x;
-
-	/* we plot the font pixel-by-pixel. bit 7 is skipped as it renders the
-	 * console unreadable ... */
-	for (i = 0; i < FONT_HEIGHT; i++) {
-		mask = 0x40;
-		for (j = 0; j < FONT_WIDTH; j++) {
-			col = (bold8x16.data[(ch * FONT_HEIGHT) + i] & mask) ? basecol : BLACK_COL;
-			*ptri++ = col;
-			mask >>= 1;
-		}
-		ptri += (SCREEN_WIDTH - FONT_WIDTH);
-	}
-
-	xcon_x += CHAR_WIDTH;
-	if (xcon_x >= SCREEN_WIDTH) {
-		xcon_x = 0;
-		xcon_y += CHAR_HEIGHT;
-	}
-
-scroll:
-	if (((xcon_yoffs + CHAR_HEIGHT) * SCREEN_WIDTH * SCREEN_BPP) > (XBOX_FB_SIZE - SCREEN_SIZE)) {
-		/* we are about to run out of video memory, so move everything
-		 * back to the beginning of the video memory */
-		memcpy ((char*)xcon_map,
-		        (char*)(xcon_map + (xcon_yoffs * SCREEN_WIDTH * SCREEN_BPP)),
-		        SCREEN_SIZE);
-		xcon_y -= xcon_yoffs; xcon_yoffs = 0;
-		*xcon_memstartptr = XBOX_FB_START;
-	}
-
-	/* we achieve much faster scrolling by just altering the video memory
-	 * address base. once all memory is used, we return to the beginning
-	 * again */
-	while ((xcon_y - xcon_yoffs) >= SCREEN_HEIGHT) {
-		xcon_yoffs += CHAR_HEIGHT;
-		memset ((char*)(xcon_map + (xcon_y * SCREEN_WIDTH * SCREEN_BPP)), 0, CHAR_HEIGHT * SCREEN_WIDTH * SCREEN_BPP);
-		*xcon_memstartptr = XBOX_FB_START + (xcon_yoffs * SCREEN_WIDTH * SCREEN_BPP);
-	}
-}
-
-static void
-xcon_putc(struct consdev* cp, int c)
-{
-	xcon_real_putc (CONSOLE_COL, c);
-}
-
-static void
-xcon_init(struct consdev* cp)
-{
+	struct xboxfb_softc* sc = &xboxfb_sc;
+	video_info_t* vi;
 	int i;
 	int* iptr;
 
-	/* Don't init the framebuffer on non-XBOX-es */
-	if (!arch_i386_is_xbox)
-		return;
+	vi = &adp->va_info;
 
-	/*
-	 * We must make a mapping from video framebuffer memory to real. This is
-	 * very crude:  we map the entire videomemory to PAGE_SIZE! Since our
-	 * kernel lives at it's relocated address range (0xc0xxxxxx), it won't
-	 * care.
-	 *
-	 * We use address PAGE_SIZE and up so we can still trap NULL pointers.
-	 * Once xboxfb_drvinit() is called, the mapping will be done via the OS
-	 * and stored in a more sensible location ... but since we're not fully
-	 * initialized, this is our only way to go :-(
-	 */
-	for (i = 0; i < (XBOX_FB_SIZE / PAGE_SIZE); i++) {
-		pmap_kenter (((i + 1) * PAGE_SIZE), XBOX_FB_START + (i * PAGE_SIZE));
-	}
-	pmap_kenter ((i + 1) * PAGE_SIZE, XBOX_FB_START_PTR - XBOX_FB_START_PTR % PAGE_SIZE);
-	xcon_map = (char*)PAGE_SIZE;
-	xcon_memstartptr = (int*)((i + 1) * PAGE_SIZE + XBOX_FB_START_PTR % PAGE_SIZE); 
+	vid_init_struct (adp, XBOXFB_DRIVER_NAME, -1, unit);
+	sc->sc_height = SCREEN_HEIGHT;
+	sc->sc_width = SCREEN_WIDTH;
+	sc->sc_font = &bold8x16;
+	if (!(adp->va_flags & V_ADP_INITIALIZED)) {
+		/*
+		 * We must make a mapping from video framebuffer memory
+		 * to real. This is very crude:  we map the entire
+		 * videomemory to PAGE_SIZE! Since our kernel lives at
+		 * it's relocated address range (0xc0xxxxxx), it won't
+		 * care.
+		 *
+		 * We use address PAGE_SIZE and up so we can still trap
+		 * NULL pointers.  Once the real init is called, the
+		 * mapping will be done via the OS and stored in a more
+		 * sensible location ... but since we're not fully
+		 * initialized, this is our only way to go :-(
+		 */
+		for (i = 0; i < (XBOX_FB_SIZE / PAGE_SIZE); i++) {
+			pmap_kenter (((i + 1) * PAGE_SIZE), XBOX_FB_START + (i * PAGE_SIZE));
+		}
+		pmap_kenter ((i + 1) * PAGE_SIZE, XBOX_FB_START_PTR - XBOX_FB_START_PTR % PAGE_SIZE);
+		sc->sc_framebuffer = (char*)PAGE_SIZE;
 
-	/* clear the screen */
-	iptr = (int*)xcon_map;
-	for (i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++)
-		*iptr++ = BLACK_COL;
+		/* ensure the framebuffer is where we want it to be */
+		*(uint32_t*)((i + 1) * PAGE_SIZE + XBOX_FB_START_PTR % PAGE_SIZE) = XBOX_FB_START;
 
-	sprintf(cp->cn_name, "xboxfb");
-	cp->cn_tp = xboxfb_tp;
-}
+		/* clear the screen */
+		iptr = (uint32_t*)sc->sc_framebuffer;
+		for (i = 0; i < sc->sc_height * sc->sc_width; i++)
+			*iptr++ = cmap[0];
 
-static void
-xboxfb_timer(void* arg)
-{
-	int i;
-
-	if (xbfb_kbd != NULL)
-		return;
-
-	i = kbd_allocate ("*", 0, (void*)&xbfb_keyboard, xboxfb_kbdevent, NULL);
-	if (i != -1) {
-		/* allocation was successfull; xboxfb_kbdevent() is called to
-		 * feed the keystrokes to the tty driver */
-		xbfb_kbd = kbd_get_keyboard (i);
-		xbfb_keyboard = i;
-		return;
+		/* don't ever do this again! */
+		adp->va_flags |= V_ADP_INITIALIZED;
 	}
 
-	/* probe again in a few */
-	timeout (xboxfb_timer, NULL, hz / 10);
+	vi->vi_mode = M_TEXT_80x25;
+	vi->vi_cwidth = sc->sc_font->width;
+	vi->vi_cheight = sc->sc_font->height;
+	vi->vi_height = (sc->sc_height / vi->vi_cheight);
+	vi->vi_width = (sc->sc_width / vi->vi_cwidth);
+	vi->vi_flags = V_INFO_COLOR | V_INFO_LINEAR;
+	vi->vi_mem_model = V_INFO_MM_DIRECT;
+
+	adp->va_flags |= V_ADP_COLOR;
+
+	if (vid_register(adp) < 0)
+		return (ENXIO);
+
+	adp->va_flags |= V_ADP_REGISTERED;
+
+	return 0;
 }
 
 static int
-xboxfb_kbdevent(keyboard_t* thiskbd, int event, void* arg)
+xboxfb_probe(int unit, video_adapter_t** adp, void* arg, int flags)
 {
-	int c;
+	return 0;
+}
 
-	if (event == KBDIO_UNLOADING) {
-		/* keyboard was unplugged; clean up and enable probing */
-		xbfb_kbd = NULL;
-		xbfb_keyboard = -1;
-		kbd_release (thiskbd, (void*)&xbfb_keyboard);
-		timeout (xboxfb_timer, NULL, hz / 10);
+static int
+xboxfb_configure(int flags)
+{
+	struct xboxfb_softc* sc = &xboxfb_sc;
+
+	/* Don't init the framebuffer on non-XBOX-es */
+	if (!arch_i386_is_xbox)
 		return 0;
+
+	/*
+	 * If we do only a probe, we are in such an early boot stadium
+	 * that we cannot yet do a 'clean' initialization.
+	 */
+	if (flags & VIO_PROBE_ONLY) {
+		xboxfb_init(0, &sc->sc_va, 0);
+		return 1;
 	}
 
-	for (;;) {
-		c = (kbdsw[xbfb_kbd->kb_index])->read_char (xbfb_kbd, 0);
-		if (c == NOKEY)
-			return 0;
+	/* Do a clean mapping of the framebuffer memory */
+	sc->sc_framebuffer = pmap_mapdev (XBOX_FB_START, XBOX_FB_SIZE);
+	return 1;
+}
 
-		/* only feed non-special keys to an open console */
-		if (c != ERRKEY) {
-			if ((KEYFLAGS(c)) == 0x0)
-				if (xboxfb_tp->t_state & TS_ISOPEN)
-					ttyld_rint (xboxfb_tp, KEYCHAR(c));
+static void
+sc_identify(driver_t* driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, INT_MAX, SC_DRIVER_NAME, 0);
+}
+
+static int
+sc_probe(device_t dev)
+{
+	device_set_desc(dev, "XBox System console");
+	return (sc_probe_unit(device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD));
+}
+
+static int sc_attach(device_t dev)
+{
+	return (sc_attach_unit(device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD));
+}
+
+static device_method_t sc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	sc_identify),
+	DEVMETHOD(device_probe,		sc_probe),
+	DEVMETHOD(device_attach,	sc_attach),
+	{ 0, 0 }
+};
+
+static driver_t xboxfb_sc_driver = {
+	SC_DRIVER_NAME,
+	sc_methods,
+	sizeof(sc_softc_t)
+};
+
+static devclass_t sc_devclass;
+
+DRIVER_MODULE(sc, legacy, xboxfb_sc_driver, sc_devclass, 0, 0);
+
+static void
+xbr_init(scr_stat* scp)
+{
+}
+
+static void
+xbr_clear(scr_stat* scp, int c, int attr)
+{
+}
+
+static void
+xbr_draw_border(scr_stat* scp, int color)
+{
+}
+
+static void
+xbr_draw(scr_stat* scp, int from, int count, int flip)
+{
+	video_adapter_t* adp = scp->sc->adp;
+	int i, c, a;
+
+	if (!flip) {
+		/* Normal printing */
+		(*vidsw[scp->sc->adapter]->puts)(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
+	} else {	
+		/* This is for selections and such: invert the color attribute */
+		for (i = count; i-- > 0; ++from) {
+			c = sc_vtb_getc(&scp->vtb, from);
+			a = sc_vtb_geta(&scp->vtb, from) >> 8;
+			(*vidsw[scp->sc->adapter]->putc)(adp, from, c, (a >> 4) | ((a & 0xf) << 4));
 		}
 	}
-
-	return 0;
 }
 
 static void
-xboxfb_drvinit (void* unused)
+xbr_set_cursor(scr_stat* scp, int base, int height, int blink)
 {
-	struct cdev* dev;
+}
+
+static void
+xbr_draw_cursor(scr_stat* scp, int at, int blink, int on, int flip)
+{
+	struct xboxfb_softc* sc = &xboxfb_sc;
+	video_adapter_t* adp = scp->sc->adp;
+	uint32_t* ptri = (uint32_t*)sc->sc_framebuffer;
+	int row, col, i, j;
+
+	if (scp->curs_attr.height <= 0)
+		return;
+
+	/* calculate the coordinates in the video buffer */
+	row = (at / adp->va_info.vi_width) * adp->va_info.vi_cheight;
+	col = (at % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
+	ptri += (row * sc->sc_width) + col;
+
+	/* our cursor consists of simply inverting the char under it */
+	for (i = 0; i < adp->va_info.vi_cheight; i++) {
+		for (j = 0; j < adp->va_info.vi_cwidth; j++) {
+			*ptri++ ^= 0x00FFFFFF;
+		}
+		ptri += (sc->sc_width - adp->va_info.vi_cwidth);
+	}
+}
+
+static void
+xbr_blink_cursor(scr_stat* scp, int at, int flip)
+{
+}
+
+static void
+xbr_set_mouse(scr_stat* scp)
+{
+}
+
+static void
+xbr_draw_mouse(scr_stat* scp, int x, int y, int on)
+{
+	(*vidsw[scp->sc->adapter]->putm)(scp->sc->adp, x, y, mouse_pointer, 0xffffffff, 16, 8);
+
+}
+
+static int
+xboxfb_get_info(video_adapter_t *adp, int mode, video_info_t *info)
+{
+	bcopy(&adp->va_info, info, sizeof(*info));
+	return (0);
+}
+
+static int
+xboxfb_query_mode(video_adapter_t *adp, video_info_t *info)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_set_mode(video_adapter_t *adp, int mode)
+{
+	return (0);
+}
+
+static int
+xboxfb_save_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_load_font(video_adapter_t *adp, int page, int size, int width,
+    u_char *data, int c, int count)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_show_font(video_adapter_t *adp, int page)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_save_palette(video_adapter_t *adp, u_char *palette)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_load_palette(video_adapter_t *adp, u_char *palette)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_set_border(video_adapter_t *adp, int border)
+{
+	return (0);
+}
+
+static int
+xboxfb_save_state(video_adapter_t *adp, void *p, size_t size)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_load_state(video_adapter_t *adp, void *p)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_set_win_org(video_adapter_t *adp, off_t offset)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
+{
+	*col = 0;
+	*row = 0;
+	return (0);
+}
+
+static int
+xboxfb_set_hw_cursor(video_adapter_t *adp, int col, int row)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
+    int celsize, int blink)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_blank_display(video_adapter_t *adp, int mode)
+{
+	return (0);
+}
+
+static int
+xboxfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
+    int prot)
+{
+	return (EINVAL);
+}
+
+static int
+xboxfb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
+{
+	return (fb_commonioctl(adp, cmd, data));
+}
+
+static int
+xboxfb_clear(video_adapter_t *adp)
+{
+	return (0);
+}
+
+static int
+xboxfb_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
+{
+	return (0);
+}
+
+static int
+xboxfb_bitblt(video_adapter_t *adp, ...)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_diag(video_adapter_t *adp, int level)
+{
+	video_info_t info;
+
+	fb_dump_adp_info(adp->va_name, adp, level);
+	xboxfb_get_info(adp, 0, &info);
+	fb_dump_mode_info(adp->va_name, adp, &info, level);
+	return (0);
+}
+
+static int
+xboxfb_save_cursor_palette(video_adapter_t *adp, u_char *palette)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_load_cursor_palette(video_adapter_t *adp, u_char *palette)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_copy(video_adapter_t *adp, vm_offset_t src, vm_offset_t dst, int n)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_putp(video_adapter_t *adp, vm_offset_t off, u_int32_t p, u_int32_t a,
+    int size, int bpp, int bit_ltor, int byte_ltor)
+{
+	return (ENODEV);
+}
+
+static int
+xboxfb_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
+{
+	int row, col;
+	int i, j;
+	struct xboxfb_softc* sc = &xboxfb_sc;
+	uint32_t* ptri = (uint32_t*)sc->sc_framebuffer;
+	uint8_t* fontdata;
+	uint32_t clr;
+	uint8_t mask;
+
+	/* calculate the position in the frame buffer */
+	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
+	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
+	fontdata = &sc->sc_font->data[c * adp->va_info.vi_cheight];
+	ptri += (row * sc->sc_width) + col;
+
+	/* Place the character on the screen, pixel by pixel */
+	for (j = 0; j < adp->va_info.vi_cheight; j++) {
+		mask = 0x80;
+		for (i = 0; i < adp->va_info.vi_cwidth; i++) {
+			clr = (*fontdata & mask) ? cmap[a & 0xf] : cmap[(a >> 4) & 0xf];
+			*ptri++ = clr;
+			mask >>= 1;
+		}
+		ptri += (sc->sc_width - adp->va_info.vi_cwidth);
+		fontdata++;
+	}
+	return (0);
+}
+
+static int
+xboxfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
+{
 	int i;
 
-	/* Don't init the framebuffer on non-XBOX-es */
-	if (!arch_i386_is_xbox)
-		return;
-
-	/*
-	 * When this function is called, the OS is capable of doing
-	 * device-memory mappings using pmap_mapdev(). Therefore, we ditch the
-	 * ugly PAGE_SIZE-based mapping and ask the OS to create a decent
-	 * mapping for us.
-	 */
-	dev = make_dev (&xboxfb_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s", "xboxfb");
-	xcon_map = pmap_mapdev (XBOX_FB_START, XBOX_FB_SIZE);
-	xcon_memstartptr = (int*)pmap_mapdev (XBOX_FB_START_PTR, PAGE_SIZE);
-	*xcon_memstartptr = XBOX_FB_START;
-
-	/* ditch all ugly previous mappings */
-	for (i = 0; i < (XBOX_FB_SIZE / PAGE_SIZE); i++) {
-		pmap_kremove (((i + 1) * PAGE_SIZE));
+	for (i = 0; i < len; i++) {
+		(*vidsw[adp->va_index]->putc)(adp, off + i, s[i] & 0xff,
+		    (s[i] & 0xff00) >> 8);
 	}
-	pmap_kremove (PAGE_SIZE + XBOX_FB_SIZE);
-
-	/* probe for a keyboard */
-	xboxfb_timer (NULL);
-	xboxfb_tp = ttyalloc();
-}
-
-static void
-xboxfb_tty_start(struct tty* tp)
-{
-	struct clist* cl;
-	int len, i;
-	u_char buf[128];
-	
-	if (tp->t_state & TS_BUSY)
-		return;
-
-	/* simply feed all outstanding tty data to real_putc() */
-	tp->t_state |= TS_BUSY;
-	cl = &tp->t_outq;
-	len = q_to_b(cl, buf, 128);
-	for (i = 0; i < len; i++)
-		xcon_real_putc(NORM_COL, buf[i]);
-	tp->t_state &= ~TS_BUSY;
-}
-
-static void
-xboxfb_tty_stop(struct tty* tp, int flag) {
-	if (tp->t_state & TS_BUSY)
-		if ((tp->t_state & TS_TTSTOP) == 0)
-			tp->t_state |= TS_FLUSH;
+	return (0);
 }
 
 static int
-xboxfb_tty_param(struct tty* tp, struct termios* t)
+xboxfb_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
+    u_int32_t pixel_mask, int size, int width)
 {
-	return 0;
-}
+	struct xboxfb_softc* sc = &xboxfb_sc;
+	uint32_t* ptri = (uint32_t*)sc->sc_framebuffer;
+	int i, j;	
 
-static int
-xboxfb_dev_open(struct cdev* dev, int flag, int mode, struct thread* td)
-{
-	struct tty* tp;
+	if (x < 0 || y < 0 || x + width > sc->sc_width || y + (2 * size) > sc->sc_height)
+		return 0;
 
-	tp = dev->si_tty = xboxfb_tp;
+	ptri += (y * sc->sc_width) + x;
 
-	tp->t_oproc = xboxfb_tty_start;
-	tp->t_param = xboxfb_tty_param;
-	tp->t_stop = xboxfb_tty_stop;
-	tp->t_dev = dev;
-
-	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_CARR_ON;
-		ttychars(tp);
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_cflag = TTYDEF_CFLAG | CLOCAL;
-		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-		ttsetwater(tp);
+	/* plot the mousecursor wherever the user wants it */
+	for (j = 0; j < size; j++) {
+		for (i = width; i > 0; i--) {
+			if (pixel_image[j] & (1 << i))
+				*ptri = cmap[0xf];
+			ptri++;
+		}
+		ptri += (sc->sc_width - width);
 	}
-
-	return ttyld_open (tp, dev);
+	return (0);
 }
-
-static int
-xboxfb_dev_close(struct cdev* dev, int flag, int mode, struct thread* td)
-{
-	struct tty* tp;
-
-	tp = xboxfb_tp;
-	ttyld_close (tp, flag);
-	tty_close(tp);
-	return 0;
-}
-
-SYSINIT(xboxfbdev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, xboxfb_drvinit, NULL)
-
-CONS_DRIVER(xcon, xcon_probe, xcon_init, NULL, xcon_getc, xcon_checkc, xcon_putc, NULL);

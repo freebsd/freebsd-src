@@ -12,6 +12,8 @@ options 	DDB
 
 options		XBOX			# kernel is for XBOX
 device		xboxfb			# frame buffer support (REQUIRED!)
+device		sc			# syscons
+device		fb
 
 # no support yet for root device name fetching
 options		ROOTDEVNAME=\"ufs:ad0s1a\"
