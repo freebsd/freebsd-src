@@ -204,7 +204,7 @@ rcsdatetotm(const char *revdate, struct tm *tm)
 	if (cp == NULL)
 		return (-1);
 	len = cp - revdate;
-	if (len == 4)
+	if (len >= 4)
 		cp = strptime(revdate, "%Y.%m.%d.%H.%M.%S", tm);
 	else if (len == 2)
 		cp = strptime(revdate, "%y.%m.%d.%H.%M.%S", tm);
