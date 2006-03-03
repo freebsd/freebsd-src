@@ -754,8 +754,13 @@ putfsent(ent)
 	char *opts;
 
 	opts = flags2opts(ent->f_flags);
+
+	/*
+	 * "rw" is not a real mount option; this is why we print NULL as "rw"
+	 * if opts is still NULL here.
+	 */
 	printf("%s\t%s\t%s %s", ent->f_mntfromname, ent->f_mntonname,
-	    ent->f_fstypename, opts);
+	    ent->f_fstypename, opts ? opts : "rw");
 	free(opts);
 
 	if ((fst = getfsspec(ent->f_mntfromname)))
