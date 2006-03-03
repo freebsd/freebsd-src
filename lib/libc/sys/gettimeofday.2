@@ -82,8 +82,12 @@ as:
 .Pp
 .Bd -literal
 struct timeval {
-	long	tv_sec;		/* seconds since Jan. 1, 1970 */
-	long	tv_usec;	/* and microseconds */
+#ifdef __alpha__
+	long		tv_sec;		/* seconds */
+#else
+	time_t		tv_sec;		/* seconds */
+#endif
+	suseconds_t	tv_usec;	/* and microseconds */
 };
 
 struct timezone {
