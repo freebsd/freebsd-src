@@ -720,5 +720,8 @@ LOOKUP_SHARED		opt_vfs.h
 # HWPMC options
 HWPMC_HOOKS
 
+# XBOX options for FreeBSD/i386, but some files are MI
+XBOX			opt_xbox.h
+
 # XFS
 XFS
