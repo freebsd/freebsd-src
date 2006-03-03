@@ -70,12 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
-/* This must come first */
-#include "opt_tdfx.h"
-#ifdef TDFX_LINUX
-#include <dev/tdfx/tdfx_linux.h>
-#endif
-
 #include <dev/tdfx/tdfx_io.h>
 #include <dev/tdfx/tdfx_vars.h>
 #include <dev/tdfx/tdfx_pci.h>
@@ -97,11 +91,6 @@ static device_method_t tdfx_methods[] = {
 };
 
 MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerator(s)");
-
-#ifdef TDFX_LINUX
-MODULE_DEPEND(tdfx, linux, 1, 1, 1);
-LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
-#endif
 
 /* Char. Dev. file operations structure */
 static struct cdevsw tdfx_cdev = {
@@ -822,33 +811,6 @@ tdfx_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 	return 0;
 }
 
-#ifdef TDFX_LINUX
-/*
- * Linux emulation IOCTL for /dev/tdfx
- */
-static int
-linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
-{
-   int error = 0;
-   u_long cmd = args->cmd & 0xffff;
-
-   /* The structure passed to ioctl has two shorts, one int
-      and one void*. */
-   char d_pio[2*sizeof(short) + sizeof(int) + sizeof(void*)];
-
-   struct file *fp;
-
-   if ((error = fget(td, args->fd, &fp)) != 0)
-	   return (error);
-   /* We simply copy the data and send it right to ioctl */
-   copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));
-   error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, td->td_ucred, td);
-   fdrop(fp, td);
-   return error;
-}
-#endif /* TDFX_LINUX */
-
-
 /* This is the device driver struct. This is sent to the driver subsystem to
  * register the method structure and the info strcut space for this particular
  * instance of the driver.
@@ -861,3 +823,4 @@ static driver_t tdfx_driver = {
 
 /* Tell Mr. Kernel about us! */
 DRIVER_MODULE(tdfx, pci, tdfx_driver, tdfx_devclass, 0, 0);
+MODULE_VERSION(tdfx, 1);
