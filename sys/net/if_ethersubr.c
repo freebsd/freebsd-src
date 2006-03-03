@@ -549,14 +549,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 */
 	BPF_MTAP(ifp, m);
 
-	if (ifp->if_flags & IFF_MONITOR) {
-		/*
-		 * Interface marked for monitoring; discard packet.
-		 */
-		m_freem(m);
-		return;
-	}
-
 	/* If the CRC is still on the packet, trim it off. */
 	if (m->m_flags & M_HASFCS) {
 		m_adj(m, -ETHER_CRC_LEN);
@@ -564,6 +556,14 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	ifp->if_ibytes += m->m_pkthdr.len;
+
+	if (ifp->if_flags & IFF_MONITOR) {
+		/*
+		 * Interface marked for monitoring; discard packet.
+		 */
+		m_freem(m);
+		return;
+	}
 
 	/* Handle ng_ether(4) processing, if any */
 	if (IFP2AC(ifp)->ac_netgraph != NULL) {
