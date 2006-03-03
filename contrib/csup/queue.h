@@ -107,7 +107,7 @@ struct {								\
 #define	STAILQ_LAST(head, type, field)					\
 	(STAILQ_EMPTY((head)) ?						\
 		NULL :							\
-	        ((struct type *)					\
+	        ((struct type *)(void *)				\
 		((char *)((head)->stqh_last) - __offsetof(struct type, field))))
 
 #undef STAILQ_NEXT
