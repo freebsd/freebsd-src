@@ -4,7 +4,7 @@
 .PATH:  ${.CURDIR}/../../dev/ce
 KMOD	= if_ce
 SRCS	= if_ce.c ceddk.c tau32-ddk.c
-SRCS   += opt_netgraph.h opt_ng_cronyx.h device_if.h bus_if.h \
+SRCS   += opt_bpf.h opt_netgraph.h opt_ng_cronyx.h device_if.h bus_if.h \
 	  pci_if.h
 NO_MAN=
 
