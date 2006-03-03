@@ -2335,7 +2335,10 @@ re_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFCAP:
 	    {
-		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		int mask, reinit;
+
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		reinit = 0;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -2359,16 +2362,19 @@ re_ioctl(ifp, command, data)
 		}
 #endif /* DEVICE_POLLING */
 		if (mask & IFCAP_HWCSUM) {
-			RL_LOCK(sc);
-			ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_HWCSUM;
+			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (ifp->if_capenable & IFCAP_TXCSUM)
 				ifp->if_hwassist = RE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist = 0;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				re_init_locked(sc);
-			RL_UNLOCK(sc);
+			reinit = 1;
 		}
+		if (mask & IFCAP_VLAN_HWTAGGING) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			reinit = 1;
+		}
+		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING)
+			re_init(sc);
 	    }
 		break;
 	default:
