@@ -1799,6 +1799,18 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 		dst_if = NULL;
 	}
 
+	/*
+	 * If we have a destination interface which is a member of our bridge,
+	 * OR this is a unicast packet, push it through the bpf(4) machinery.
+	 * For broadcast or multicast packets, don't bother because it will
+	 * be reinjected into ether_input. We do this before we pass the packets
+	 * through the pfil(9) framework, as it is possible that pfil(9) will
+	 * drop the packet, or possibly modify it, making it difficult to debug
+	 * firewall issues on the bridge.
+	 */
+	if (dst_if != NULL || (m->m_flags & (M_BCAST | M_MCAST)) == 0)
+		BPF_MTAP(ifp, m);
+
 	/* run the packet filter */
 	if (PFIL_HOOKED(&inet_pfil_hook)
 #ifdef INET6
@@ -1814,13 +1826,6 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	}
 
 	if (dst_if == NULL) {
-		/*
-		 * Tap off packets passing the bridge. Broadcast packets will
-		 * already be tapped as they are reinjected into ether_input.
-		 */
-		if ((m->m_flags & (M_BCAST|M_MCAST)) == 0)
-			BPF_MTAP(ifp, m);
-
 		bridge_broadcast(sc, src_if, m, 1);
 		return;
 	}
@@ -1851,9 +1856,6 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 			return;
 		}
 	}
-
-	/* tap off packets passing the bridge */
-	BPF_MTAP(ifp, m);
 
 	BRIDGE_UNLOCK(sc);
 
@@ -1891,6 +1893,20 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	bifp = sc->sc_ifp;
 
+	/*
+	 * Implement support for bridge monitoring. If this flag has been
+	 * set on this interface, discard the packet once we push it through
+	 * the bpf(4) machinery, but before we do, increment the byte and
+	 * packet counters associated with this interface.
+	 */
+	if ((bifp->if_flags & IFF_MONITOR) != 0) {
+		m->m_pkthdr.rcvif  = bifp;
+		BPF_MTAP(bifp, m);
+		bifp->if_ipackets++;
+		bifp->if_ibytes += m->m_pkthdr.len;
+		m_free(m);
+		return (NULL);
+	}
 	BRIDGE_LOCK(sc);
 	bif = bridge_lookup_member_if(sc, ifp);
 	if (bif == NULL) {
