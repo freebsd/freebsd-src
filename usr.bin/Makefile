@@ -41,7 +41,7 @@ SUBDIR=	alias \
 	compile_et \
 	compress \
 	csplit \
-	csup \
+	${_csup} \
 	ctags \
 	cut \
 	${_dig} \
@@ -258,6 +258,7 @@ _calendar=	calendar
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
+_csup=		csup
 .endif
 
 .if defined(YES_HESIOD)
