@@ -41,6 +41,7 @@ SUBDIR=	alias \
 	compile_et \
 	compress \
 	csplit \
+	csup \
 	ctags \
 	cut \
 	${_dig} \
