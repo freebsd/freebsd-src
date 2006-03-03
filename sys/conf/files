@@ -914,6 +914,7 @@ dev/syscons/rain/rain_saver.c	optional rain_saver
 dev/syscons/snake/snake_saver.c	optional snake_saver
 dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/warp/warp_saver.c	optional warp_saver
+dev/tdfx/tdfx_linux.c		optional tdfx_linux tdfx compat_linux
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
 dev/trm/trm.c			optional trm
