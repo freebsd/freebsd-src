@@ -1277,100 +1277,106 @@ print_INTEL_TLB(u_int data)
 	default:
 		break;
 	case 0x1:
-		printf("\nInstruction TLB: 4-KBPages, 4-way set associative, 32 entries");
+		printf("\nInstruction TLB: 4 KB pages, 4-way set associative, 32 entries");
 		break;
 	case 0x2:
-		printf("\nInstruction TLB: 4-MB Pages, fully associative, 2 entries");
+		printf("\nInstruction TLB: 4 MB pages, fully associative, 2 entries");
 		break;
 	case 0x3:
-		printf("\nData TLB: 4-KB Pages, 4-way set associative, 64 entries");
+		printf("\nData TLB: 4 KB pages, 4-way set associative, 64 entries");
 		break;
 	case 0x4:
-		printf("\nData TLB: 4-MB Pages, 4-way set associative, 8 entries");
+		printf("\nData TLB: 4 MB Pages, 4-way set associative, 8 entries");
 		break;
 	case 0x6:
-		printf("\n1st-level instruction cache: 8-KB, 4-way set associative, 32-byte line size");
+		printf("\n1st-level instruction cache: 8 KB, 4-way set associative, 32 byte line size");
 		break;
 	case 0x8:
-		printf("\n1st-level instruction cache: 16-KB, 4-way set associative, 32-byte line size");
+		printf("\n1st-level instruction cache: 16 KB, 4-way set associative, 32 byte line size");
 		break;
 	case 0xa:
-		printf("\n1st-level data cache: 8-KB, 2-way set associative, 32-byte line size");
+		printf("\n1st-level data cache: 8 KB, 2-way set associative, 32 byte line size");
 		break;
 	case 0xc:
-		printf("\n1st-level data cache: 16-KB, 4-way set associative, 32-byte line size");
+		printf("\n1st-level data cache: 16 KB, 4-way set associative, 32 byte line size");
 		break;
 	case 0x22:
-		printf("\n3rd-level cache: 512 KB, 4-way set associative, sectored cache, 64-byte line size");
+		printf("\n3rd-level cache: 512 KB, 4-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x23:
-		printf("\n3rd-level cache: 1-MB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n3rd-level cache: 1 MB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x25:
-		printf("\n3rd-level cache: 2-MB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n3rd-level cache: 2 MB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x29:
-		printf("\n3rd-level cache: 4-MB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n3rd-level cache: 4 MB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x2c:
-		printf("\n1st-level data cache: 32-KB, 8-way set associative, 64-byte line size");
+		printf("\n1st-level data cache: 32 KB, 8-way set associative, 64 byte line size");
 		break;
 	case 0x30:
-		printf("\n1st-level instruction cache: 32-KB, 8-way set associative, 64-byte line size");
+		printf("\n1st-level instruction cache: 32 KB, 8-way set associative, 64 byte line size");
 		break;
 	case 0x39:
-		printf("\n2nd-level cache: 128-KB, 4-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 128 KB, 4-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x3b:
-		printf("\n2nd-level cache: 128-KB, 2-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 128 KB, 2-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x3c:
-		printf("\n2nd-level cache: 256-KB, 4-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 256 KB, 4-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x41:
-		printf("\n2nd-level cache: 128-KB, 4-way set associative, 32-byte line size");
+		printf("\n2nd-level cache: 128 KB, 4-way set associative, 32 byte line size");
 		break;
 	case 0x42:
-		printf("\n2nd-level cache: 256-KB, 4-way set associative, 32-byte line size");
+		printf("\n2nd-level cache: 256 KB, 4-way set associative, 32 byte line size");
 		break;
 	case 0x43:
-		printf("\n2nd-level cache: 512-KB, 4-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 512 KB, 4-way set associative, 32 byte line size");
 		break;
 	case 0x44:
-		printf("\n2nd-level cache: 1-MB, 4-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 1 MB, 4-way set associative, 32 byte line size");
 		break;
 	case 0x45:
-		printf("\n2nd-level cache: 2-MB, 4-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 2 MB, 4-way set associative, 32 byte line size");
+		break;
+	case 0x46:
+		printf("\n3rd-level cache: 4 MB, 4-way set associative, 64 byte line size");
+		break;
+	case 0x47:
+		printf("\n3rd-level cache: 8 MB, 8-way set associative, 64 byte line size");
 		break;
 	case 0x50:
-		printf("\nInstruction TLB: 4-KB, 2-MB or 4-MB pages, fully associative, 64 entries");
+		printf("\nInstruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 64 entries");
 		break;
 	case 0x51:
-		printf("\nInstruction TLB: 4-KB, 2-MB or 4-MB pages, fully associative, 128 entries");
+		printf("\nInstruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 128 entries");
 		break;
 	case 0x52:
-		printf("\nInstruction TLB: 4-KB, 2-MB or 4-MB pages, fully associative, 256 entries");
+		printf("\nInstruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 256 entries");
 		break;
 	case 0x5b:
-		printf("\nData TLB: 4-KB or 4-MB pages, fully associative, 64 entries");
+		printf("\nData TLB: 4 KB or 4 MB pages, fully associative, 64 entries");
 		break;
 	case 0x5c:
-		printf("\nData TLB: 4-KB or 4-MB pages, fully associative, 128 entries");
+		printf("\nData TLB: 4 KB or 4 MB pages, fully associative, 128 entries");
 		break;
 	case 0x5d:
-		printf("\nData TLB: 4-KB or 4-MB pages, fully associative, 256 entries");
+		printf("\nData TLB: 4 KB or 4 MB pages, fully associative, 256 entries");
 		break;
 	case 0x60:
-		printf("\n1st-level data cache: 16-KB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n1st-level data cache: 16 KB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x66:
-		printf("\n1st-level data cache: 8-KB, 4-way set associative, sectored cache, 64-byte line size");
+		printf("\n1st-level data cache: 8 KB, 4-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x67:
-		printf("\n1st-level data cache: 16-KB, 4-way set associative, sectored cache, 64-byte line size");
+		printf("\n1st-level data cache: 16 KB, 4-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x68:
-		printf("\n1st-level data cache: 32-KB, 4 way set associative, sectored cache, 64-byte line size");
+		printf("\n1st-level data cache: 32 KB, 4 way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x70:
 		printf("\nTrace cache: 12K-uops, 8-way set associative");
@@ -1381,41 +1387,50 @@ print_INTEL_TLB(u_int data)
 	case 0x72:
 		printf("\nTrace cache: 32K-uops, 8-way set associative");
 		break;
+	case 0x78:
+		printf("\n2nd-level cache: 1 MB, 4-way set associative, 64-byte line size");
+		break;
 	case 0x79:
-		printf("\n2nd-level cache: 128-KB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 128 KB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x7a:
-		printf("\n2nd-level cache: 256-KB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 256 KB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x7b:
-		printf("\n2nd-level cache: 512-KB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 512 KB, 8-way set associative, sectored cache, 64 byte line size");
 		break;
 	case 0x7c:
-		printf("\n2nd-level cache: 1-MB, 8-way set associative, sectored cache, 64-byte line size");
+		printf("\n2nd-level cache: 1 MB, 8-way set associative, sectored cache, 64 byte line size");
+		break;
+	case 0x7d:
+		printf("\n2nd-level cache: 2-MB, 8-way set associative, 64-byte line size");
+		break;
+	case 0x7f:
+		printf("\n2nd-level cache: 512-KB, 2-way set associative, 64-byte line size");
 		break;
 	case 0x82:
-		printf("\n2nd-level cache: 256-KB, 8-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 256 KB, 8-way set associative, 32 byte line size");
 		break;
 	case 0x83:
-		printf("\n2nd-level cache: 512-KB, 8-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 512 KB, 8-way set associative, 32 byte line size");
 		break;
 	case 0x84:
-		printf("\n2nd-level cache: 1-MB, 8-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 1 MB, 8-way set associative, 32 byte line size");
 		break;
 	case 0x85:
-		printf("\n2nd-level cache: 2-MB, 8-way set associative, 32 byte line size");
+		printf("\n2nd-level cache: 2 MB, 8-way set associative, 32 byte line size");
 		break;
 	case 0x86:
-		printf("\n2nd-level cache: 512-KB, 4-way set associative, 64 byte line size");
+		printf("\n2nd-level cache: 512 KB, 4-way set associative, 64 byte line size");
 		break;
 	case 0x87:
-		printf("\n2nd-level cache: 1-MB, 8-way set associative, 64 byte line size");
+		printf("\n2nd-level cache: 1 MB, 8-way set associative, 64 byte line size");
 		break;
 	case 0xb0:
-		printf("\nInstruction TLB: 4-KB Pages, 4-way set associative, 128 entries");
+		printf("\nInstruction TLB: 4 KB Pages, 4-way set associative, 128 entries");
 		break;
 	case 0xb3:
-		printf("\nData TLB: 4-KB Pages, 4-way set associative, 128 entries");
+		printf("\nData TLB: 4 KB Pages, 4-way set associative, 128 entries");
 		break;
 	}
 }
@@ -1484,78 +1499,78 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		break;
 	case 0x22:
 		/* 3rd-level cache: 512 KB, 4-way set associative,
-		 * sectored cache, 64-byte line size */
+		 * sectored cache, 64 byte line size */
 		if (*size < 512) {
 			*size = 512;
 			*ways = 4;
 		}
 		break;
 	case 0x23:
-		/* 3rd-level cache: 1-MB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 3rd-level cache: 1 MB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 1024) {
 			*size = 1024;
 			*ways = 8;
 		}
 		break;
 	case 0x25:
-		/* 3rd-level cache: 2-MB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 3rd-level cache: 2 MB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 2048) {
 			*size = 2048;
 			*ways = 8;
 		}
 		break;
 	case 0x29:
-		/* 3rd-level cache: 4-MB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 3rd-level cache: 4 MB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 4096) {
 			*size = 4096;
 			*ways = 8;
 		}
 		break;
 	case 0x39:
-		/* 2nd-level cache: 128-KB, 4-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 128 KB, 4-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 128) {
 			*size = 128;
 			*ways = 4;
 		}
 		break;
 	case 0x3b:
-		/* 2nd-level cache: 128-KB, 2-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 128 KB, 2-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 128) {
 			*size = 128;
 			*ways = 2;
 		}
 		break;
 	case 0x3c:
-		/* 2nd-level cache: 256-KB, 4-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 256 KB, 4-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 256) {
 			*size = 256;
 			*ways = 4;
 		}
 		break;
 	case 0x41:
-		/* 2nd-level cache: 128-KB, 4-way set associative,
-		 * 32-byte line size */
+		/* 2nd-level cache: 128 KB, 4-way set associative,
+		 * 32 byte line size */
 		if (*size < 128) {
 			*size = 128;
 			*ways = 4;
 		}
 		break;
 	case 0x42:
-		/* 2nd-level cache: 256-KB, 4-way set associative,
-		 * 32-byte line size */
+		/* 2nd-level cache: 256 KB, 4-way set associative,
+		 * 32 byte line size */
 		if (*size < 256) {
 			*size = 256;
 			*ways = 4;
 		}
 		break;
 	case 0x43:
-		/* 2nd-level cache: 512-KB, 4-way set associative,
+		/* 2nd-level cache: 512 KB, 4-way set associative,
 		 * 32 byte line size */
 		if (*size < 512) {
 			*size = 512;
@@ -1563,7 +1578,7 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x44:
-		/* 2nd-level cache: 1-MB, 4-way set associative,
+		/* 2nd-level cache: 1 MB, 4-way set associative,
 		 * 32 byte line size */
 		if (*size < 1024) {
 			*size = 1024;
@@ -1571,47 +1586,87 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x45:
-		/* 2nd-level cache: 2-MB, 4-way set associative,
+		/* 2nd-level cache: 2 MB, 4-way set associative,
 		 * 32 byte line size */
 		if (*size < 2048) {
 			*size = 2048;
 			*ways = 4;
 		}
 		break;
+	case 0x46:
+		/* 3rd-level cache: 4 MB, 4-way set associative,
+		 * 64 byte line size */
+		if (*size < 4096) {
+			*size = 4096;
+			*ways = 4;
+		}
+		break;
+	case 0x47:
+		/* 3rd-level cache: 8 MB, 8-way set associative,
+		 * 64 byte line size */
+		if (*size < 8192) {
+			*size = 8192;
+			*ways = 8;
+		}
+		break;
+	case 0x78:
+		/* 2nd-level cache: 1 MB, 4-way set associative,
+		 * 64-byte line size */
+		if (*size < 1024) {
+			*size = 1024;
+			*ways = 4;
+		}
+		break;
 	case 0x79:
-		/* 2nd-level cache: 128-KB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 128 KB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 128) {
 			*size = 128;
 			*ways = 8;
 		}
 		break;
 	case 0x7a:
-		/* 2nd-level cache: 256-KB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 256 KB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 256) {
 			*size = 256;
 			*ways = 8;
 		}
 		break;
 	case 0x7b:
-		/* 2nd-level cache: 512-KB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 512 KB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 512) {
 			*size = 512;
 			*ways = 8;
 		}
 		break;
 	case 0x7c:
-		/* 2nd-level cache: 1-MB, 8-way set associative,
-		 * sectored cache, 64-byte line size */
+		/* 2nd-level cache: 1 MB, 8-way set associative,
+		 * sectored cache, 64 byte line size */
 		if (*size < 1024) {
 			*size = 1024;
 			*ways = 8;
 		}
 		break;
+	case 0x7d:
+		/* 2nd-level cache: 2 MB, 8-way set associative,
+		 * 64-byte line size */
+		if (*size < 2048) {
+			*size = 2048;
+			*ways = 8;
+		}
+		break;
+	case 0x7f:
+		/* 2nd-level cache: 512 KB, 2-way set associative,
+		 * 64-byte line size */
+		if (*size < 512) {
+			*size = 512;
+			*ways = 2;
+		}
+		break;
 	case 0x82:
-		/* 2nd-level cache: 256-KB, 8-way set associative,
+		/* 2nd-level cache: 256 KB, 8-way set associative,
 		 * 32 byte line size */
 		if (*size < 256) {
 			*size = 256;
@@ -1619,7 +1674,7 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x83:
-		/* 2nd-level cache: 512-KB, 8-way set associative,
+		/* 2nd-level cache: 512 KB, 8-way set associative,
 		 * 32 byte line size */
 		if (*size < 512) {
 			*size = 512;
@@ -1627,7 +1682,7 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x84:
-		/* 2nd-level cache: 1-MB, 8-way set associative,
+		/* 2nd-level cache: 1 MB, 8-way set associative,
 		 * 32 byte line size */
 		if (*size < 1024) {
 			*size = 1024;
@@ -1635,7 +1690,7 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x85:
-		/* 2nd-level cache: 2-MB, 8-way set associative,
+		/* 2nd-level cache: 2 MB, 8-way set associative,
 		 * 32 byte line size */
 		if (*size < 2048) {
 			*size = 2048;
@@ -1643,7 +1698,7 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x86:
-		/* 2nd-level cache: 512-KB, 4-way set associative,
+		/* 2nd-level cache: 512 KB, 4-way set associative,
 		 * 64 byte line size */
 		if (*size < 512) {
 			*size = 512;
@@ -1651,7 +1706,7 @@ get_INTEL_TLB(u_int data, int *const size, int *const ways)
 		}
 		break;
 	case 0x87:
-		/* 2nd-level cache: 1-MB, 8-way set associative,
+		/* 2nd-level cache: 1 MB, 8-way set associative,
 		 * 64 byte line size */
 		if (*size < 1024) {
 			*size = 512;
