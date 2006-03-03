@@ -53,10 +53,10 @@ static void shsec_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
 	{ "clear", G_FLAG_VERBOSE, shsec_main, G_NULL_OPTS,
-	    "clear [-v] prov ..."
+	    "[-v] prov ..."
 	},
 	{ "dump", 0, shsec_main, G_NULL_OPTS,
-	    "dump prov ..."
+	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, shsec_main,
 	    {
