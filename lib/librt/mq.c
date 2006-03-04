@@ -119,7 +119,7 @@ __mq_close(mqd_t mqd)
 typedef void (*mq_func)(union sigval val);
 
 static void
-mq_dispatch(struct sigev_node *sn, siginfo_t *si)
+mq_dispatch(struct sigev_node *sn)
 {
 	mq_func f = sn->sn_func;
 
@@ -127,7 +127,7 @@ mq_dispatch(struct sigev_node *sn, siginfo_t *si)
 	 * Check generation before calling user function,
 	 * this should avoid expired notification.
 	 */
-	if (sn->sn_gen == si->si_value.sival_int)
+	if (sn->sn_gen == sn->sn_info.si_value.sival_int)
 		f(sn->sn_value);
 }
 
@@ -156,7 +156,7 @@ __mq_notify(mqd_t mqd, const struct sigevent *evp)
 		return (-1);
 	}
 
-	sn = __sigev_alloc(SI_MESGQ, evp);
+	sn = __sigev_alloc(SI_MESGQ, evp, mqd->node, 1);
 	if (sn == NULL) {
 		errno = EAGAIN;
 		return (-1);
