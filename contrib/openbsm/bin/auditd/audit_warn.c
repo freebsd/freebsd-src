@@ -30,12 +30,14 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#5 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#6 $
  */
 
 #include <sys/types.h>
-#include <unistd.h>
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "auditd.h"
 

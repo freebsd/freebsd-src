@@ -30,11 +30,17 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#18 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#22 $
  */
 
 #include <sys/types.h>
+
+#include <config/config.h>
+#ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
+#else
+#include <compat/queue.h>
+#endif
 
 #include <bsm/audit_internal.h>
 #include <bsm/libbsm.h>
@@ -256,11 +262,13 @@ au_teardown(au_record_t *rec)
 	pthread_mutex_unlock(&mutex);
 }
 
+#ifdef HAVE_AUDIT_SYSCALLS
 /*
  * Add the header token, identify any missing tokens.  Write out the tokens to
  * the record memory and finally, call audit.
  */
-int au_close(int d, int keep, short event)
+int
+au_close(int d, int keep, short event)
 {
 	au_record_t *rec;
 	size_t tot_rec_size;
@@ -308,6 +316,7 @@ cleanup:
 	au_teardown(rec);
 	return (retval);
 }
+#endif /* HAVE_AUDIT_SYSCALLS */
 
 /*
  * au_close(), except onto an in-memory buffer.  Buffer size as an argument,
