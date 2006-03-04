@@ -66,16 +66,16 @@ __weak_reference(__timer_settime, _timer_settime);
 __weak_reference(__timer_getoverrun, timer_getoverrun);
 __weak_reference(__timer_getoverrun, _timer_getoverrun);
 
-typedef void (*timer_func)(union sigval val, int timerid, int overrun);
+typedef void (*timer_func)(union sigval val, int overrun);
 
 static void
-timer_dispatch(struct sigev_node *sn, siginfo_t *si)
+timer_dispatch(struct sigev_node *sn)
 {
 	timer_func f = sn->sn_func;
 
 	/* I want to avoid expired notification. */
-	if (si->si_value.sival_int == sn->sn_gen)
-		f(sn->sn_value, si->si_timerid, si->si_overrun);
+	if (sn->sn_info.si_value.sival_int == sn->sn_gen)
+		f(sn->sn_value, sn->sn_info.si_overrun);
 }
 
 int
@@ -108,7 +108,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 		return (-1);
 	}
 
-	sn = __sigev_alloc(SI_TIMER, evp);
+	sn = __sigev_alloc(SI_TIMER, evp, NULL, 0);
 	if (sn == NULL) {
 		errno = EAGAIN;
 		return (-1);
