@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2005
+.Dd March 3, 2006
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -120,6 +120,39 @@ clear the user immutable flag (owner or super-user only)
 clear the nodump flag (owner or super-user only)
 .El
 .Pp
+A few of the octal values include:
+.Bl -tag -offset indent -width ".Ar 10"
+.It Li 0
+Clear all file flags.
+.It Li 1
+Translates to the
+.Ar nodump
+keyword.
+.It Li 2
+Translates to the
+.Ar uchg
+keyword.
+.It Li 3
+Translates to the
+.Ar uchg , nodump
+keywords.
+.It Li 4
+Translates to the
+.Ar uappnd
+keyword.
+.It Li 10
+Translates to the
+.Ar opaque
+keyword.
+.It Li 20
+translates to the
+uunlnk
+keyword.
+.El
+.Pp
+Other combinations of keywords may be placed by using
+the octets assigned; however, these are the most notable.
+.Pp
 Unless the
 .Fl H ,
 .Fl L ,
@@ -140,6 +173,14 @@ In addition, these options override each other and the
 command's actions are determined by the last one specified.
 .Pp
 You can use "ls -lo" to see the flags of existing files.
+.Pp
+Note that the ability to change certain flags is dependent
+on the current kernel
+.Em securelevel
+setting.
+See
+.Xr security 7
+for more information on this setting.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
@@ -147,6 +188,7 @@ You can use "ls -lo" to see the flags of existing files.
 .Xr chflags 2 ,
 .Xr stat 2 ,
 .Xr fts 3 ,
+.Xr security 7 ,
 .Xr symlink 7
 .Sh HISTORY
 The
