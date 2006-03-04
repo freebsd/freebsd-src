@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#22 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#24 $
  * $FreeBSD$
  */
 
@@ -258,24 +258,10 @@ struct auditpinfo_addr {
 };
 typedef	struct auditpinfo_addr	auditpinfo_addr_t;
 
-/* Token and record structures. */
-
-struct au_token {
-	u_char			*t_data;
-	size_t			 len;
-	TAILQ_ENTRY(au_token)	 tokens;
-};
+/*
+ * Contents of token_t are opaque outside of libbsm.
+ */
 typedef	struct au_token	token_t;
-
-struct au_record {
-	char			 used;		/* Record currently in use? */
-	int			 desc;		/* Descriptor for record. */
-	TAILQ_HEAD(, au_token)	 token_q;	/* Queue of BSM tokens. */
-	u_char			*data;
-	size_t			 len;
-	LIST_ENTRY(au_record)	 au_rec_q;
-};
-typedef	struct au_record	au_record_t;
 
 /*
  * Kernel audit queue control parameters.
@@ -328,6 +314,9 @@ struct au_evclass_map {
 };
 typedef	struct au_evclass_map	au_evclass_map_t;
 
+/*
+ * Audit system calls.
+ */
 #if !defined(_KERNEL) && !defined(KERNEL)
 int	audit(const void *, int);
 int	auditon(int, void *, int);
