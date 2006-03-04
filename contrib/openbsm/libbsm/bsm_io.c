@@ -31,15 +31,32 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#29 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#34 $
  */
 
 #include <sys/types.h>
-#ifdef __APPLE__
-#include <compat/endian.h>
-#else /* !__APPLE__ */
+
+#include <config/config.h>
+#ifdef HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
-#endif /* __APPLE__*/
+#else /* !HAVE_SYS_ENDIAN_H */
+#ifdef HAVE_MACHINE_ENDIAN_H
+#include <machine/endian.h>
+#else /* !HAVE_MACHINE_ENDIAN_H */
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#else /* !HAVE_ENDIAN_H */
+#error "No supported endian.h"
+#endif /* !HAVE_ENDIAN_H */
+#endif /* !HAVE_MACHINE_ENDIAN_H */
+#include <compat/endian.h>
+#endif /* !HAVE_SYS_ENDIAN_H */
+#ifdef HAVE_FULL_QUEUE_H
+#include <sys/queue.h>
+#else /* !HAVE_FULL_QUEUE_H */
+#include <compat/queue.h>
+#endif /* !HAVE_FULL_QUEUE_H */
+
 #include <sys/stat.h>
 #include <sys/socket.h>
 
@@ -381,10 +398,7 @@ print_ip_ex_address(FILE *fp, u_int32_t type, u_int32_t *ipaddr)
 		break;
 
 	case AU_IPv6:
-		ipv6.__u6_addr.__u6_addr32[0] = ipaddr[0];
-		ipv6.__u6_addr.__u6_addr32[1] = ipaddr[1];
-		ipv6.__u6_addr.__u6_addr32[2] = ipaddr[2];
-		ipv6.__u6_addr.__u6_addr32[3] = ipaddr[3];
+		bcopy(ipaddr, &ipv6, sizeof(ipv6));
 		fprintf(fp, "%s", inet_ntop(AF_INET6, &ipv6, dst,
 		    INET6_ADDRSTRLEN));
 		break;

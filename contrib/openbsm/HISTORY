@@ -1,0 +1,127 @@
+OpenBSM 1.0 alpha 5
+
+- Update install notes to indicate /etc files are to be installed manually.
+- On systems without LOG_SECURITY, use LOG_AUTH.
+- Convert to autoconf/automake in order to move to a more portable (not
+  BSD-specific) build infrastructure, and more easy conditional building of
+  components.  Currently, the primary feature loss is that automake does
+  not have native support for manual symlinks.  This will be addressed in a
+  future OpenBSM release.
+- Add compat/queue.h, to be used on systems dated BSD queue macro libraries
+  (as found on Linux).
+- Rename CHANGELOG to HISTORY, as our change log doesn't follow some of the
+  existing conventions for a CHANGELOG.
+- Some private data structures moved from audit.h to audit_internal.h to
+  prevent inappropriate use by applications and name space pollution.
+- Improved detection and use of endian macros using autoconf.
+- Avoid non-portable use of struct in6_addr, which is largely opaque.
+- Avoid leaking BSD kernel socket related token code to user space in
+  bsm_token.c.
+- Teach System V IPC calls to look for Linux naming variations for certain
+  struct ipc_perm fields.
+- Test for audit system calls, and if not present, don't build
+  bsm_wrappers.c, bsm_notify.c, audit(8), and auditd(8), which rely on
+  those system calls.
+- au_close() is not implemented on systems that don't have audit system
+  calls, but au_close_buffer() is.
+- Work around missing BSDisms in bsm_wrapper.c.
+- Fix nested includes so including libbsm.h in an application on Linux
+  picks up the necessary definitions.
+
+OpenBSM 1.0 alpha 4
+
+- Remove "audit" user example from audit_user, as it's not present on most
+  systems.
+- Add cannot_audit() function non-Darwin systems that wraps auditon();
+  required by OpenSSH BSM support.  Convert Darwin cannot_audit() into a
+  function rather than a macro.
+- Library build fixed on Darwin following include file tweaks.  The native
+  Darwin sys/audit.h conflicts with bsm/audit.h due to duplicate types, so
+  for now we force bsm_wrappers.c to not perform a nested include of
+  sys/audit.h.
+
+OpenBSM 1.0 alpha 3
+
+- Man page formatting, cross reference, mlinks, and accuracy improvements.
+- auditd and tools now compile and run on FreeBSD/arm.
+- auditd will now fchown() the trail file to the audit review group, if
+  defined at compile-time.
+- Added AUE_SYSARCH for FreeBSD.
+- Definition of AUE_SETFSGID fixed for Linux.
+
+OpenBSM 1.0 alpha 2
+
+- Man page formatting improvements.
+- A number of new audit event identifiers for FreeBSD, Linux, and POSIX.1b
+  events.
+- Remove 'tfm' class, unused in OpenBSM.
+
+OpenBSM 1.0 alpha 1
+
+- Import of Darwin74 BSM drop
+- Use 'syslog' for audit log warnings, rather than echoing to a file in
+  audit_warn.
+- Compile using BSD make infrastructure.
+- Integrate bsm/ include files from Darwin74 XNU drop into OpenBSM.
+- Narrow set of symbols and defines that are exposed in user space: don't
+  compile in code relying on kernel-only types such as 'struct socket'.
+- Add README, including basic build documentation.
+- Compilation of Apple-specific notify and Machroutines now #ifdef __APPLE__.
+- Staticize libbsm global variables to avoid leakage into application.
+- Add free_au_user_ent() so that au_user_ent's don't have to be leaked.
+- Clean up bogus nul-termination checks in libbsm.
+- Add libbsm API man pages: au_class.3 au_control.3 au_event.3
+  au_free_token.3 au_io.3 au_mask.3 au_token.3 au_user.3 libbsm.3.
+- Add man pages for BSM system calls: audit.2 auditctl.2 auditon.2 getaudit.2
+  getauid.2 setaudit.2 setauid.2
+- Modify various libbsm interfaces to more consistently return 'errno' values
+  on failure.
+- Break out au_close() into constituent parts, allowing records to be written
+  to memory as well as files.
+- Prefix various defines with 'BSM_' to reduce name space pollution.
+- Added audit_internal.h, which can be used by a kernel audit implementation
+  wanting to rely on libbsm components.
+- Build with warnings, and eliminate warnings.
+- Make libbsm endian-independent, storing and reading BSM are big endian
+  (network byte order) rather than native byte order.  More consistently
+  print IP addresses using the IP address print routine.  These changes
+  make use of sys/endian.h from *BSD; since this isn't present on Darwin,
+  add it to OpenBSM as compat/endian.h, which is used only on Darwin.
+- Import of Darwin80 BSM drop, including 64-bit file IDs, better
+  documentation of private APIs, and bug fixes.
+- White space cleanup.
+- Add audit.log.5, a first cut at a man page documenting the BSM file format.
+- Teach au_read_rec() to recognize stand-alone file tokens, which are present
+  at the beginning and end of Solaris audit trails.  Technically, these
+  appear to violate the high level BSM spec, which suggests that all tokens
+  are present in records, but need to be supported.
+- Implement HEADER64, ATTR64, SUBJECT64 token types, which make it possible
+  to run praudit(1) on basic Solaris BSM streams.
+- Switched to Solaris spelling of token names; Darwin spellings are now
+  deprecated and will be removed in a future version of OpenBSM.
+- Adopt Solaris model for representing IPv4 and IPv6 addresses.
+- Prefer C99 types.
+- Attempt to universally adopt the BSD style(9) coding style for
+  consistency.
+- auditreduce(1) now has a usage message.
+- Update support for auditctl(2) system call to support FreeBSD.
+- Add support for /dev/audit as the trigger source on FreeBSD.
+- Add additional event types for Darwin, FreeBSD, and Solaris.  Annotate
+  conflicts (there are a few, unfortunately).  Correct spellings, comment,
+  sort, etc.  These include {get,set}res[ug]id(), sendfile(), lchflags(),
+  eaccess(), kqueue(), kevent(), poll(), lchmod().
+- Relicensed under a BSD license, many thanks to Apple, Inc!
+- Many bug fixes, cleanups, thread safety in the class, control, event,
+  and user system audit databases.  Annotate some persisting atomicity
+  bugs associated with the API and implementation.
+- Add audump test tool.
+- Adopt OpenSolaris BSM API memory semantics: caller allocates memory,
+  or static memory is returned for non-_r() versions of API calls.
+  _free() calls dropped as a result, and source code compatibility with
+  OpenSolaris improved significantly.
+- Annotate BSM events with origin OS and compatibility information.
+- auditd(8), audit(8) added to the OpenBSM distribution.  auditd extended
+  to support reloading of kernel event table.
+- Allow comments in /etc/security configuration files.
+
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#2 $

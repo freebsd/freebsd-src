@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#16 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#18 $
  */
 
 #ifdef __APPLE__
@@ -35,6 +35,11 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
+
+#ifdef __APPLE__
+#include <sys/queue.h>		/* Our bsm/audit.h doesn't include queue.h. */
+#endif
+
 #include <sys/sysctl.h>
 
 #include <bsm/libbsm.h>
@@ -56,7 +61,11 @@ audit_set_terminal_port(dev_t *p)
 	if (p == NULL)
 		return (kAUBadParamErr);
 
+#ifdef NODEV
 	*p = NODEV;
+#else
+	*p = -1;
+#endif
 
 	/* for /usr/bin/login, try fstat() first */
 	if (fstat(STDIN_FILENO, &st) != 0) {
@@ -78,6 +87,8 @@ audit_set_terminal_port(dev_t *p)
 int
 audit_set_terminal_host(uint32_t *m)
 {
+
+#ifdef KERN_HOSTID
 	int name[2] = { CTL_KERN, KERN_HOSTID };
 	size_t len;
 
@@ -90,6 +101,10 @@ audit_set_terminal_host(uint32_t *m)
 		return (kAUSysctlErr);
 	}
 	return (kAUNoErr);
+#else
+	*m = -1;
+	return (kAUNoErr);
+#endif
 }
 
 int
