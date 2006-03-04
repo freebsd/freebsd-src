@@ -2405,7 +2405,9 @@ res_searchN(name, target)
 	HEADER *hp = (HEADER *)(void *)target->answer;	/*XXX*/
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
-	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
+	int got_nodata = 0, got_servfail = 0, root_on_list = 0;
+	int tried_as_is = 0;
+	int searched = 0;
 	char abuf[MAXDNAME];
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
@@ -2429,13 +2431,14 @@ res_searchN(name, target)
 		return (res_queryN(cp, target));
 
 	/*
-	 * If there are dots in the name already, let's just give it a try
-	 * 'as is'.  The threshold can be set with the "ndots" option.
+	 * If there are enough dots in the name, let's just give it a
+	 * try 'as is'. The threshold can be set with the "ndots" option.
+	 * Also, query 'as is', if there is a trailing dot in the name.
 	 */
 	saved_herrno = -1;
-	if (dots >= _res.ndots) {
+	if (dots >= _res.ndots || trailing_dot) {
 		ret = res_querydomainN(name, NULL, target);
-		if (ret > 0)
+		if (ret > 0 || trailing_dot)
 			return (ret);
 		saved_herrno = h_errno;
 		tried_as_is++;
@@ -2454,6 +2457,14 @@ res_searchN(name, target)
 		for (domain = (const char * const *)_res.dnsrch;
 		   *domain && !done;
 		   domain++) {
+			searched = 1;
+
+			if (domain[0][0] == '\0' ||
+			    (domain[0][0] == '.' && domain[0][1] == '\0'))
+				root_on_list++;
+
+			if (root_on_list && tried_as_is)
+				continue;
 
 			ret = res_querydomainN(name, *domain, target);
 			if (ret > 0)
@@ -2505,11 +2516,11 @@ res_searchN(name, target)
 	}
 
 	/*
-	 * if we have not already tried the name "as is", do that now.
-	 * note that we do this regardless of how many dots were in the
-	 * name or whether it ends with a dot.
+	 * If the query has not already been tried as is then try it
+	 * unless RES_NOTLDQUERY is set and there were no dots.
 	 */
-	if (!tried_as_is && (dots || !(_res.options & RES_NOTLDQUERY))) {
+	if ((dots || !searched || !(_res.options & RES_NOTLDQUERY)) &&
+	    !(tried_as_is || root_on_list)) {
 		ret = res_querydomainN(name, NULL, target);
 		if (ret > 0)
 			return (ret);
