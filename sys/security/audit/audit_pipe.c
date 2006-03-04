@@ -180,6 +180,7 @@ audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 	ape = malloc(sizeof(*ape), M_AUDIT_PIPE_ENTRY, M_NOWAIT | M_ZERO);
 	if (ape == NULL) {
 		ap->ap_drops++;
+		audit_pipe_drops++;
 		return;
 	}
 
