@@ -120,8 +120,8 @@ pid_t otherpid, childpid;
 pfh = pidfile_open("/var/run/daemon.pid", 0600, &otherpid);
 if (pfh == NULL) {
 	if (errno == EEXIST) {
-		errx(EXIT_FAILURE, "Daemon already running, pid: %d.",
-		    (int)otherpid);
+		errx(EXIT_FAILURE, "Daemon already running, pid: %jd.",
+		    (intmax_t)otherpid);
 	}
 	/* If we cannot create pidfile from other reasons, only warn. */
 	warn("Cannot open or create pidfile");
@@ -147,7 +147,7 @@ for (;;) {
 		/* Do child work. */
 		break;
 	default:
-		syslog(LOG_INFO, "Child %d started.", (int)childpid);
+		syslog(LOG_INFO, "Child %jd started.", (intmax_t)childpid);
 		break;
 	}
 }
