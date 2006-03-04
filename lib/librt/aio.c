@@ -59,7 +59,7 @@ extern int __sys_aio_return(struct aiocb *iocb);
 extern int __sys_aio_error(struct aiocb *iocb);
 
 static void
-aio_dispatch(struct sigev_node *sn, siginfo_t *si)
+aio_dispatch(struct sigev_node *sn)
 {
 	aio_func f = sn->sn_func;
 
@@ -84,7 +84,7 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 		return (-1);
 	}
 
-	sn = __sigev_alloc(SI_ASYNCIO, &iocb->aio_sigevent);
+	sn = __sigev_alloc(SI_ASYNCIO, &iocb->aio_sigevent, NULL, 1);
 	if (sn == NULL) {
 		errno = EAGAIN;
 		return (-1);
