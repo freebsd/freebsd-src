@@ -120,7 +120,7 @@ MODULE_DEPEND(bge, pci, 1, 1, 1);
 MODULE_DEPEND(bge, ether, 1, 1, 1);
 MODULE_DEPEND(bge, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 /*
@@ -1099,7 +1099,7 @@ bge_chipinit(sc)
 	 */
 	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_DMA_SWAP_OPTIONS|
 	    BGE_MODECTL_MAC_ATTN_INTR|BGE_MODECTL_HOST_SEND_BDS|
-	    BGE_MODECTL_TX_NO_PHDR_CSUM|BGE_MODECTL_RX_NO_PHDR_CSUM);
+	    BGE_MODECTL_TX_NO_PHDR_CSUM);
 
 	/*
 	 * Disable memory write invalidate.  Apparently it is not supported
@@ -2520,6 +2520,11 @@ bge_rxeof(sc)
 
 	BGE_LOCK_ASSERT(sc);
 
+	/* Nothing to do */
+	if (sc->bge_rx_saved_considx ==
+	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx)
+		return;
+
 	ifp = sc->bge_ifp;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
@@ -2631,7 +2636,8 @@ bge_rxeof(sc)
 			    m->m_pkthdr.len >= ETHER_MIN_NOPAD) {
 				m->m_pkthdr.csum_data =
 				    cur_rx->bge_tcp_udp_csum;
-				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			}
 		}
 
@@ -2666,8 +2672,6 @@ bge_rxeof(sc)
 		CSR_WRITE_4(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
 	if (jumbocnt)
 		CSR_WRITE_4(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
-
-	return;
 }
 
 static void
@@ -2678,6 +2682,11 @@ bge_txeof(sc)
 	struct ifnet *ifp;
 
 	BGE_LOCK_ASSERT(sc);
+
+	/* Nothing to do */
+	if (sc->bge_tx_saved_considx ==
+	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx)
+		return;
 
 	ifp = sc->bge_ifp;
 
@@ -2712,8 +2721,6 @@ bge_txeof(sc)
 
 	if (cur_tx != NULL)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
@@ -2732,31 +2739,33 @@ static void
 bge_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bge_softc *sc = ifp->if_softc;
+	uint32_t statusword;
 
 	BGE_LOCK_ASSERT(sc);
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
+
+	statusword = atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
+
+	/* Note link event. It will be processed by POLL_AND_CHECK_STATUS cmd */
+	if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
+		sc->bge_link_evt++;
+
+	if (cmd == POLL_AND_CHECK_STATUS)
+		if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+		    sc->bge_chipid != BGE_CHIPID_BCM5700_B1) ||
+		    sc->bge_link_evt || sc->bge_tbi)
+			bge_link_upd(sc);
 
 	sc->rxcycles = count;
 	bge_rxeof(sc);
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
-
-	if (cmd == POLL_AND_CHECK_STATUS) {
-		uint32_t statusword;
-
-		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-		    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
-
-	    	statusword = atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
-
-		if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
-		    sc->bge_chipid != BGE_CHIPID_BCM5700_B1) ||
-		    statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
-			bge_link_upd(sc);
-
-		bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-		    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
-	}
 }
 #endif /* DEVICE_POLLING */
 
@@ -3373,6 +3382,7 @@ bge_ifmedia_upd(ifp)
 		return(0);
 	}
 
+	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
@@ -3672,9 +3682,17 @@ bge_stop(sc)
 
 	sc->bge_tx_saved_considx = BGE_TXCONS_UNSET;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	/*
+	 * We can't just call bge_link_upd() cause chip is almost stopped so
+	 * bge_link_upd -> bge_tick_locked -> bge_stats_update sequence may
+	 * lead to hardware deadlock. So we just clearing MAC's link state
+	 * (PHY may still have link UP).
+	 */
+	if (bootverbose && sc->bge_link)
+		if_printf(sc->bge_ifp, "link DOWN\n");
+	sc->bge_link = 0;
 
-	return;
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 /*
@@ -3807,7 +3825,8 @@ bge_link_upd(sc)
 				if_printf(sc->bge_ifp, "link DOWN\n");
 			if_link_state_change(sc->bge_ifp, LINK_STATE_DOWN);
 		}
-	} else {
+	/* Discard link events for MII/GMII cards if MI auto-polling disabled */
+	} else if (CSR_READ_4(sc, BGE_MI_MODE) & BGE_MIMODE_AUTOPOLL) {
 		/* 
 		 * Some broken BCM chips have BGE_STATFLAG_LINKSTATE_CHANGED bit
 		 * in status word always set. Workaround this bug by reading
@@ -3837,7 +3856,7 @@ bge_link_upd(sc)
 		}
 	}
 
-	/* Clear the interrupt */
+	/* Clear the attention */
 	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 	    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
 	    BGE_MACSTAT_LINK_CHANGED);
