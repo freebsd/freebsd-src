@@ -202,8 +202,8 @@ The format is:
 
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
-  a:    81920        0    4.2BSD     1024  8192    16
-  b:   160000    81920      swap
+  a:    81920       16    4.2BSD     1024  8192    16
+  b:   160000    81936      swap
   c:  1173930        0    unused        0     0         # "raw" part, don't edit
 .Ed
 .Pp
@@ -232,8 +232,8 @@ drivedata: 0
 
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
-  a:    81920        0    4.2BSD     1024  8192    16
-  b:   160000    81920      swap
+  a:    81920       16    4.2BSD     1024  8192    16
+  b:   160000    81936      swap
   c:  1173930        0    unused        0     0         # "raw" part, don't edit
 .Ed
 .Pp
@@ -468,7 +468,7 @@ which could be used as a source file for
 
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
-  a:   400M        0    4.2BSD     4096 16384    75 	# (Cyl.    0 - 812*)
+  a:   400M       16    4.2BSD     4096 16384    75 	# (Cyl.    0 - 812*)
   b:     1G        *      swap
   c:      *        *    unused
   e: 204800        *    4.2BSD
