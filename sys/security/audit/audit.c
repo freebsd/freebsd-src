@@ -58,6 +58,7 @@
 #include <sys/vnode.h>
 
 #include <bsm/audit.h>
+#include <bsm/audit_internal.h>
 #include <bsm/audit_kevents.h>
 
 #include <netinet/in.h>
