@@ -112,17 +112,36 @@ get_inode(fd,super,ino)
 	ino_t ino;
 {
 	static caddr_t ipbuf;
+	static struct cg *cgp;
 	static ino_t last;
+	static int cg;
+	struct ufs2_dinode *di2;
 	
 	if (fd < 0) {		/* flush cache */
 		if (ipbuf) {
 			free(ipbuf);
 			ipbuf = 0;
+			if (super->fs_magic == FS_UFS2_MAGIC) {
+				free(cgp);
+				cgp = 0;
+			}
 		}
 		return 0;
 	}
 	
 	if (!ipbuf || ino < last || ino >= last + INOCNT(super)) {
+		if (super->fs_magic == FS_UFS2_MAGIC &&
+		    (!cgp || cg != ino_to_cg(super, ino))) {
+			cg = ino_to_cg(super, ino);
+			if (!cgp && !(cgp = malloc(super->fs_cgsize)))
+				errx(1, "allocate cg");
+			if (lseek(fd, (off_t)cgtod(super, cg) << super->fs_fshift, 0) < 0)
+				err(1, "lseek cg");
+			if (read(fd, cgp, super->fs_cgsize) != super->fs_cgsize)
+				err(1, "read cg");
+			if (!cg_chkmagic(cgp))
+				errx(1, "cg has bad magic");
+		}
 		if (!ipbuf
 		    && !(ipbuf = malloc(INOSZ(super))))
 			errx(1, "allocate inodes");
@@ -135,8 +154,11 @@ get_inode(fd,super,ino)
 	if (super->fs_magic == FS_UFS1_MAGIC)
 		return ((union dinode *)
 		    &((struct ufs1_dinode *)ipbuf)[ino % INOCNT(super)]);
-	return ((union dinode *)
-	    &((struct ufs2_dinode *)ipbuf)[ino % INOCNT(super)]);
+	di2 = &((struct ufs2_dinode *)ipbuf)[ino % INOCNT(super)];
+	/* If the inode is unused, it might be unallocated too, so zero it. */
+	if (isclr(cg_inosused(cgp), ino % super->fs_ipg))
+		bzero(di2, sizeof (*di2));
+	return ((union dinode *)di2);
 }
 
 #ifdef	COMPAT
@@ -194,8 +216,14 @@ isfree(super, dp)
 	case IFDIR:
 	case IFREG:
 		return 0;
-	default:
+	case IFCHR:
+	case IFBLK:
+	case IFSOCK:
+	case IFWHT:
+	case 0:
 		return 1;
+	default:
+		errx(1, "unknown IFMT 0%o", DIP(super, dp, di_mode) & IFMT);
 	}
 #endif
 }
