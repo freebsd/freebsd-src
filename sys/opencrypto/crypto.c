@@ -252,6 +252,7 @@ static moduledata_t crypto_mod = {
 };
 MODULE_VERSION(crypto, 1);
 DECLARE_MODULE(crypto, crypto_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+MODULE_DEPEND(crypto, zlib, 1, 1, 1);
 
 /*
  * Create a new session.
