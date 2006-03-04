@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#13 $
  */
 
 #include <sys/types.h>
@@ -795,7 +795,11 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifdef LOG_SECURITY
 	openlog("auditd", LOG_CONS | LOG_PID, LOG_SECURITY);
+#else
+	openlog("auditd", LOG_CONS | LOG_PID, LOG_AUTH);
+#endif
 	syslog(LOG_INFO, "starting...\n");
 
 	if (debug == 0 && daemon(0, 0) == -1) {

@@ -27,11 +27,17 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_mask.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_mask.c#13 $
  */
 
 #include <sys/types.h>
+
+#include <config/config.h>
+#ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
+#else /* !HAVE_FULL_QUEUE_H */
+#include <compat/queue.h>
+#endif /* !HAVE_FULL_QUEUE_H */
 
 #include <bsm/libbsm.h>
 
