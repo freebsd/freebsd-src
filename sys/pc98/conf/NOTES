@@ -316,11 +316,10 @@ device		npx
 # the tdfx DRI module from XFree86 and is completely unrelated.
 #
 # To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well, or you will not have the dependencies.  The other option
-# is to load both as modules.
+# config as well.  The other option is to load both as modules.
 
 device		tdfx			# Enable 3Dfx Voodoo support
-options 	TDFX_LINUX		# Enable Linuxulator support
+device		tdfx_linux		# Enable Linuxulator support
 
 # Direct Rendering modules for 3D acceleration.
 device		drm		# DRM core module required by DRM drivers
