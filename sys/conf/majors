@@ -165,7 +165,7 @@ maj 	name		comments
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
 183	*smapi		SMAPI BIOS interface <mdodd>
 184	dcons		Dumb console driver <simokawa>
-185	ce		Cronyx Tau-32 E1 adapter <rik@cronyx.ru>
+185	*ce		Cronyx Tau32-PCI E1 adapter <rik@cronyx.ru>
 186	sx		Specialix I/O8+ driver <frank@exit.com>
 187	aoe		ATA over Ethernet <sah@softcardsystems.com>
 188	*pbio		8255A mode 0 (Advantech PCL-724 and compatibles)  <dds>

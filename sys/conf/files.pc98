@@ -88,6 +88,9 @@ crypto/des/des_setkey.c			optional	crypto
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa
+dev/ce/ceddk.c			optional	ce
+dev/ce/if_ce.c			optional	ce
+dev/ce/tau32-ddk.c		optional	ce
 dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa

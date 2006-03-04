@@ -166,6 +166,7 @@
 #	cp*	Control devices for Cronyx/Tau-PCI adapters
 #	ct*	Control devices for Cronyx/Tau adapters
 #	cx*	Control devices for Cronyx/Sigma adapters
+#	ce*	Control devices for Cronyx/Tau32-PCI adapters
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -356,6 +357,7 @@ all)
 	sh MAKEDEV cp					# cdev, Cronyx/Tau-PCI
 	sh MAKEDEV ct					# cdev, Cronyx/Tau
 	sh MAKEDEV cx ttyx ttyy ttyz cuax cuay cuaz	# cdev, Cronyx/Sigma
+	sh MAKEDEV ce					# cdev, Cronyx/Tau32-PCI
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1651,6 +1653,22 @@ card*)
 	chmod 644 card$unit
 	;;
 
+ce*)
+	unit=`expr $i : 'c.\(.*\)'`
+	if [ ! $unit ]; then
+		unit=0
+		while [ $unit -lt 128 ]
+		do
+			mknod ${i}${unit} c 185 $unit
+			chmod 644 ${i}${unit}
+			unit=$(($unit + 1))
+		done
+	else 
+			mknod ${i} c 185 $unit
+			chmod 644 ${i}
+	fi
+	;;
+	
 cp*)
 	unit=`expr $i : 'c.\(.*\)'`
 	if [ ! $unit ]; then

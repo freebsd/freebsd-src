@@ -94,6 +94,9 @@ dev/ar/if_ar_isa.c		optional	ar isa
 dev/arl/if_arl.c		optional	arl
 dev/arl/if_arl_isa.c		optional	arl isa
 dev/dgb/dgm.c			optional	dgm
+dev/ce/ceddk.c			optional	ce
+dev/ce/if_ce.c			optional	ce
+dev/ce/tau32-ddk.c		optional	ce
 dev/cm/if_cm_isa.c		optional	cm isa
 dev/cp/cpddk.c			optional	cp
 dev/cp/if_cp.c			optional	cp

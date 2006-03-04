@@ -1466,6 +1466,9 @@ options 	PUC_FASTINTR
 #
 # ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (requires sppp)
 # arl:	Aironet Arlan 655 wireless adapters.
+# ce: Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
+#     with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
+#     NETGRAPH_CRONYX is configured)
 # cm: Arcnet SMC COM90c26 / SMC COM90c56
 #     (and SMC COM90c66 in '56 compatibility mode) adapters.
 # cp: Cronyx Tau-PCI sync single/dual/four port
@@ -1505,6 +1508,7 @@ options 	PUC_FASTINTR
 #
 device ar0 at isa? port 0x300 irq 10 iomem 0xd0000
 device arl0 at isa? irq 9 iomem 0xd0000
+device ce
 device cm0 at isa? port 0x2e0 irq 9 iomem 0xdc000
 device cp
 device cs0 at isa? port 0x300
