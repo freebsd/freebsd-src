@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#5 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#6 $
  */
 /*
  * Program to trigger the audit daemon with a message that is either:
@@ -44,7 +44,7 @@
 #include <sys/queue.h>
 #include <sys/uio.h>
 
-#include <bsm/audit.h>
+#include <bsm/libbsm.h>
 
 #include <fcntl.h>
 #include <stdio.h>
