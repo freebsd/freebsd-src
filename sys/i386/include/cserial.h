@@ -4,8 +4,11 @@
  * Copyright (C) 1997-2002 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
- * Copyright (C) 2001-2003 Cronyx Engineering.
- * Author: Roman Kurakin, <rik@cronyx.ru>
+ * Copyright (C) 2001-2005 Cronyx Engineering.
+ * Author: Roman Kurakin, <rik@FreeBSD.org>
+ *
+ * Copyright (C) 2004-2005 Cronyx Engineering.
+ * Author: Leo Yuriev, <ly@cronyx.ru>
  *
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -14,7 +17,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Cronyx Id: cserial.h,v 1.1.2.4 2003/11/12 17:11:08 rik Exp $
+ * Cronyx Id: cserial.h,v 1.4.2.2 2005/11/09 13:01:35 rik Exp $
  * $FreeBSD$
  */
 
@@ -86,12 +89,15 @@ struct e3_statistics {
 #define ER_SCC_FRAMING	7		/* subchannel framing error */
 #define ER_SCC_OVERFLOW	8		/* subchannel receive buffer overflow */
 #define ER_SCC_OVERRUN	9		/* subchannel receiver overrun */
+#define ER_SCC_UNDERRUN	10		/* subchannel transmiter underrun */
+#define ER_BUS		11		/* system bus is too busy (e.g PCI) */
 
 /*
  * E1 channel status.
  */
 #define E1_NOALARM	0x0001          /* no alarm present */
 #define E1_FARLOF	0x0002          /* receiving far loss of framing */
+#define E1_CRC4E	0x0004		/* crc4 errors */
 #define E1_AIS		0x0008          /* receiving all ones */
 #define E1_LOF		0x0020          /* loss of framing */
 #define E1_LOS		0x0040          /* loss of signal */
@@ -125,6 +131,7 @@ struct e3_statistics {
 
 #define SERIAL_ASYNC		1
 #define SERIAL_HDLC		2
+#define SERIAL_RAW		3
 
 /*
  * Get/clear the channel statistics.
@@ -173,6 +180,7 @@ struct e3_statistics {
 #define SERIAL_GETCLK		_IOR ('x', 9, int)
 #define SERIAL_SETCLK		_IOW ('x', 9, int)
 
+#define E1CLK_RECOVERY		-1
 #define E1CLK_INTERNAL		0
 #define E1CLK_RECEIVE		1
 #define E1CLK_RECEIVE_CHAN0	2
@@ -363,9 +371,50 @@ struct dxc_table {			/* cross-connector parameters */
 #define SERIAL_SETRLOOP		_IOW ('x', 39, int)
 
 /*
+ * G.703 line code
+ */
+#define SERIAL_GETLCODE		_IOR ('x', 40, int)
+#define SERIAL_SETLCODE		_IOW ('x', 40, int)
+
+/*
+ * MTU
+ */
+#define SERIAL_GETMTU		_IOR ('x', 41, int)
+#define SERIAL_SETMTU		_IOW ('x', 41, int)
+
+/*
+ * Receive Queue Length
+ */
+#define SERIAL_GETRQLEN		_IOR ('x', 42, int)
+#define SERIAL_SETRQLEN		_IOW ('x', 42, int)
+
+#ifdef __KERNEL__
+#ifdef CRONYX_LYSAP
+#	define LYSAP_PEER_ADD		_IOWR('x', 101, lysap_peer_config_t)
+#	define LYSAP_PEER_REMOVE	_IOW('x', 102, unsigned)
+#	define LYSAP_PEER_INFO		_IOWR('x', 103, lysap_peer_info_t)
+#	define LYSAP_PEER_COUNT		_IOR('x', 104, unsigned)
+#	define LYSAP_PEER_ENUM		_IOWR('x', 105, unsigned)
+#	define LYSAP_PEER_CLEAR		_IOW('x', 106, unsigned)
+
+#	define LYSAP_CHAN_ADD		_IOWR('x', 111, lysap_channel_config_t)
+#	define LYSAP_CHAN_REMOVE	_IO('x', 112)
+#	define LYSAP_CHAN_INFO		_IOR('x', 113, lysap_channel_info_t)
+#	define LYSAP_CHAN_COUNT		_IOR('x', 114, unsigned)
+#	define LYSAP_CHAN_ENUM		_IOWR('x', 115, unsigned)
+#	define LYSAP_CHAN_CLEAR		_IO('x', 116)
+#	include "lysap-linux.h"
+#else /* CRONYX_LYSAP */
+	typedef struct _lysap_channel_t lysap_channel_t;
+	typedef struct _lysap_channel_config_t lysap_channel_config_t;
+	typedef struct _LYSAP_DeviceInterfaceConfig LYSAP_DeviceInterfaceConfig;
+	typedef struct _LYSAP_ChannelConfig LYSAP_ChannelConfig;
+	typedef struct _lysap_buf_t lysap_buf_t;
+#endif /* !CRONYX_LYSAP */
+
+/*
  * Dynamic binder interface.
  */
-#ifdef __KERNEL__
 typedef struct _chan_t chan_t;
 typedef struct _proto_t proto_t;
 
@@ -418,6 +467,21 @@ struct _chan_t {
 
 	/* Control interface */
 	int (*control) (chan_t *h, unsigned int cmd, unsigned long arg);
+
+	/* LYSAP interface */
+	struct lysap_t
+	{
+		lysap_channel_t *link;
+		int (*inspect_config)(chan_t *h, lysap_channel_config_t *,
+			LYSAP_DeviceInterfaceConfig *, LYSAP_ChannelConfig *);
+		unsigned long (*probe_freq)(chan_t *h, unsigned long freq);
+		unsigned long (*set_freq)(chan_t *h, unsigned long freq);
+		unsigned (*get_status)(chan_t *h);
+		int (*transmit) (chan_t *h, lysap_buf_t *b);
+		lysap_buf_t* (*alloc_buf) (chan_t *h, unsigned len);
+		int (*set_clock_master)(chan_t *h, int enable);
+		unsigned long (*get_master_freq)(chan_t *h);
+	} lysap;
 };
 
 /*
@@ -445,5 +509,11 @@ struct _proto_t {
 	int (*attach) (chan_t *h);
 	int (*detach) (chan_t *h);
 	int (*control) (chan_t *h, unsigned int cmd, unsigned long arg);
+
+	/* LYSAP interface */
+	void (*transmit_error) (chan_t *h, int errcode);
+	void (*lysap_notify_receive) (chan_t *h, lysap_buf_t *b);
+	void (*lysap_notify_transmit) (chan_t *h);
+	lysap_buf_t* (*lysap_get_data)(chan_t *h);
 };
 #endif /* KERNEL */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2006
+.Dd March 4, 2006
 .Dt CE 4 i386
 .Os
 .Sh NAME
@@ -36,13 +36,6 @@ place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ce"
-.Ed
-.Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_ce_load="YES"
 .Ed
 .Pp
 Additional options:
@@ -102,7 +95,8 @@ driver was added in
 .Fx 6.2 ,
 .Fx 5.5
 and
-.Fx 4.11 .
+.Fx 4.11
+stable.
 The
 .Nm
 driver for previous versions of
