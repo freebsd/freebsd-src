@@ -502,12 +502,12 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 			handled += pers->event(mpt, req, msg);
 
 		if (handled == 0 && mpt->mpt_pers_mask == 0) {
-			mpt_lprt(mpt, MPT_PRT_WARN,
+			mpt_lprt(mpt, MPT_PRT_INFO,
 				"No Handlers For Any Event Notify Frames. "
 				"Event %#x (ACK %sequired).\n",
 				msg->Event, msg->AckRequired? "r" : "not r");
 		} else if (handled == 0) {
-			mpt_prt(mpt,
+			mpt_lprt(mpt, MPT_PRT_WARN,
 				"Unhandled Event Notify Frame. Event %#x "
 				"(ACK %sequired).\n",
 				msg->Event, msg->AckRequired? "r" : "not r");
