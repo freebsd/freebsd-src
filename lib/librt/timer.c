@@ -125,6 +125,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	}
 	sn->sn_dispatch = timer_dispatch;
 	sn->sn_id = timer->oshandle;
+	timer->node = sn;
 	__sigev_list_lock();
 	__sigev_register(sn);
 	__sigev_list_unlock();
