@@ -663,11 +663,11 @@ cvtstatfs(nsp, osp)
 	osp->f_asyncwrites = MIN(nsp->f_asyncwrites, LONG_MAX);
 	osp->f_syncreads = MIN(nsp->f_syncreads, LONG_MAX);
 	osp->f_asyncreads = MIN(nsp->f_asyncreads, LONG_MAX);
-	bcopy(nsp->f_fstypename, osp->f_fstypename,
-	    MIN(MFSNAMELEN, OMNAMELEN));
-	bcopy(nsp->f_mntonname, osp->f_mntonname,
+	strlcpy(osp->f_fstypename, nsp->f_fstypename,
+	    MIN(MFSNAMELEN, OMFSNAMELEN));
+	strlcpy(osp->f_mntonname, nsp->f_mntonname,
 	    MIN(MNAMELEN, OMNAMELEN));
-	bcopy(nsp->f_mntfromname, osp->f_mntfromname,
+	strlcpy(osp->f_mntfromname, nsp->f_mntfromname,
 	    MIN(MNAMELEN, OMNAMELEN));
 	osp->f_fsid = nsp->f_fsid;
 }
