@@ -30,16 +30,12 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/security/audit/audit_bsm_token.c#7 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/security/audit/audit_bsm_token.c#9 $
  * $FreeBSD$
  */
 
 #include <sys/types.h>
-#ifdef __APPLE__
-#include <compat/endian.h>
-#else /* !__APPLE__ */
 #include <sys/endian.h>
-#endif /* __APPLE__*/
 #include <sys/socket.h>
 #include <sys/time.h>
 
@@ -327,10 +323,7 @@ au_to_in_addr_ex(struct in6_addr *internet_addr)
 
 	ADD_U_CHAR(dptr, AUT_IN_ADDR_EX);
 	ADD_U_INT32(dptr, type);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[0]);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[1]);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[2]);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[3]);
+	ADD_MEM(dptr, internet_addr, sizeof(*internet_addr));
 
 	return (t);
 }
@@ -865,10 +858,7 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	ADD_U_CHAR(dptr, so->sin6_family);
 
 	ADD_U_INT16(dptr, so->sin6_port);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[0]);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[1]);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[2]);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[3]);
+	ADD_MEM(dptr, &so->sin6_addr, sizeof(so->sin6_addr));
 
 	return (t);
 
@@ -992,7 +982,7 @@ au_to_subject_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    tid));
 }
 
-#if !defined(_KERNEL) && !defined(KERNEL)
+#if !defined(_KERNEL) && !defined(KERNEL) && defined(HAVE_AUDIT_SYSCALLS)
 /*
  * Collects audit information for the current process
  * and creates a subject token from it

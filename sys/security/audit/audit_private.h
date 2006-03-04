@@ -233,6 +233,7 @@ struct kaudit_record	*audit_new(int event, struct thread *td);
  * Functions relating to the conversion of internal kernel audit records to
  * the BSM file format.
  */
+struct au_record;
 int			 kaudit_to_bsm(struct kaudit_record *kar,
 			    struct au_record **pau);
 int			 bsm_rec_verify(void *rec);
@@ -259,7 +260,6 @@ void			 kau_init(void);
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <security/audit/audit.h>
 
 /*
  * Some of the BSM tokenizer functions take different parameters in the
