@@ -2623,6 +2623,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		args.oif = ifp;
 		args.next_hop = NULL;
 		args.eh = &eh2;
+		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
 		i = ip_fw_chk_ptr(&args);
 		*mp = args.m;
 

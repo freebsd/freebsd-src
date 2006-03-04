@@ -448,6 +448,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	args.rule = *rule;	/* matching rule to restart		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
+	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
 	i = ip_fw_chk_ptr(&args);
 	m = args.m;
 	if (m != NULL) {
