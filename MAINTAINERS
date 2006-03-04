@@ -26,6 +26,8 @@ POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
 MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
+contrib/openbsm	rwatson	Pre-commit review requested.
+sys/security/audit	rwatson	Pre-commit review requested.
 ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
