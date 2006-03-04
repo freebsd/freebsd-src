@@ -812,7 +812,7 @@ tc_cpu_ticks(void)
 	tc = timehands->th_counter;
 	u = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
 	if (u < last)
-		base += tc->tc_counter_mask + 1;
+		base += (uint64_t)tc->tc_counter_mask + 1;
 	last = u;
 	return (u + base);
 }
