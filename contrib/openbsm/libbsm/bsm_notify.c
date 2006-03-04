@@ -26,18 +26,30 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#9 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#11 $
  */
 
 /*
  * Based on sample code from Marc Majka.
  */
-#include <string.h>	/* strerror() */
-#include <sys/errno.h>	/* errno */
+#include <sys/types.h>
+
+#include <config/config.h>
+#ifdef HAVE_FULL_QUEUE_H
+#include <sys/queue.h>
+#else /* !HAVE_FULL_QUEUE_H */
+#include <compat/queue.h>
+#endif /* !HAVE_FULL_QUEUE_H */
+
+#include <bsm/audit_internal.h>
 #include <bsm/libbsm.h>
-#include <stdint.h>	/* uint32_t */
-#include <syslog.h>	/* syslog() */
-#include <stdarg.h>	/* syslog() */
+
+#include <errno.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <string.h>
+#include <syslog.h>
+
 
 #ifdef __APPLE__
 #include <notify.h>

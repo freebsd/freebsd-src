@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#15 $
  */
 
 #include <bsm/libbsm.h>

@@ -30,15 +30,32 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#34 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#43 $
  */
 
 #include <sys/types.h>
-#ifdef __APPLE__
-#include <compat/endian.h>
-#else /* !__APPLE__ */
+
+#include <config/config.h>
+#ifdef HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
-#endif /* __APPLE__*/
+#else /* !HAVE_SYS_ENDIAN_H */
+#ifdef HAVE_MACHINE_ENDIAN_H
+#include <machine/endian.h>
+#else /* !HAVE_MACHINE_ENDIAN_H */
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#else /* !HAVE_ENDIAN_H */
+#error "No supported endian.h"
+#endif /* !HAVE_ENDIAN_H */
+#endif /* !HAVE_MACHINE_ENDIAN_H */
+#include <compat/endian.h>
+#endif /* !HAVE_SYS_ENDIAN_H */
+#ifdef HAVE_FULL_QUEUE_H
+#include <sys/queue.h>
+#else /* !HAVE_FULL_QUEUE_H */
+#include <compat/queue.h>
+#endif /* !HAVE_FULL_QUEUE_H */
+
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
@@ -352,10 +369,7 @@ au_to_in_addr_ex(struct in6_addr *internet_addr)
 
 	ADD_U_CHAR(dptr, AUT_IN_ADDR_EX);
 	ADD_U_INT32(dptr, type);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[0]);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[1]);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[2]);
-	ADD_U_INT32(dptr, internet_addr->__u6_addr.__u6_addr32[3]);
+	ADD_MEM(dptr, internet_addr, sizeof(*internet_addr));
 
 	return (t);
 }
@@ -448,9 +462,18 @@ au_to_ipc_perm(struct ipc_perm *perm)
 	ADD_U_INT16(dptr, perm->mode);
 
 	ADD_U_INT16(dptr, pad0);
-	ADD_U_INT16(dptr, perm->seq);
 
+#ifdef HAVE_IPC_PERM___SEQ
+	ADD_U_INT16(dptr, perm->__seq);
+#else
+	ADD_U_INT16(dptr, perm->seq);
+#endif
+
+#ifdef HAVE_IPC_PERM___KEY
+	ADD_U_INT32(dptr, perm->__key);
+#else
 	ADD_U_INT32(dptr, perm->key);
+#endif
 
 	return (t);
 }
@@ -781,50 +804,6 @@ au_to_seq(long audit_count)
 
 /*
  * token ID                1 byte
- * socket type             2 bytes
- * local port              2 bytes
- * local Internet address  4 bytes
- * remote port             2 bytes
- * remote Internet address 4 bytes
- */
-token_t *
-au_to_socket(struct socket *so)
-{
-
-	errno = ENOTSUP;
-	return (NULL);
-}
-
-/*
- * token ID                1 byte
- * socket type             2 bytes
- * local port              2 bytes
- * address type/length     4 bytes
- * local Internet address  4 bytes/16 bytes (IPv4/IPv6 address)
- * remote port             4 bytes
- * address type/length     4 bytes
- * remote Internet address 4 bytes/16 bytes (IPv4/IPv6 address)
- */
-token_t *
-au_to_socket_ex_32(u_int16_t lp, u_int16_t rp, struct sockaddr *la,
-    struct sockaddr *ra)
-{
-
-	errno = ENOTSUP;
-	return (NULL);
-}
-
-token_t *
-au_to_socket_ex_128(u_int16_t lp, u_int16_t rp, struct sockaddr *la,
-    struct sockaddr *ra)
-{
-
-	errno = ENOTSUP;
-	return (NULL);
-}
-
-/*
- * token ID                1 byte
  * socket family           2 bytes
  * path                    104 bytes
  */
@@ -898,10 +877,7 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	ADD_U_CHAR(dptr, so->sin6_family);
 
 	ADD_U_INT16(dptr, so->sin6_port);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[0]);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[1]);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[2]);
-	ADD_U_INT32(dptr, so->sin6_addr.__u6_addr.__u6_addr32[3]);
+	ADD_MEM(dptr, &so->sin6_addr, sizeof(so->sin6_addr));
 
 	return (t);
 
@@ -1031,7 +1007,7 @@ au_to_subject_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    tid));
 }
 
-#if !defined(_KERNEL) && !defined(KERNEL)
+#if !defined(_KERNEL) && !defined(KERNEL) && defined(HAVE_AUDIT_SYSCALLS)
 /*
  * Collects audit information for the current process
  * and creates a subject token from it
