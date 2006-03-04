@@ -362,13 +362,14 @@ tc_getfrequency(void)
 void
 tc_setclock(struct timespec *ts)
 {
-	struct timespec ts2;
+	struct timespec tbef, taft;
 	struct bintime bt, bt2;
 
 	cpu_tick_calibrate(1);
 	nsetclock++;
-	binuptime(&bt2);
+	nanotime(&tbef);
 	timespec2bintime(ts, &bt);
+	binuptime(&bt2);
 	bintime_sub(&bt, &bt2);
 	bintime_add(&bt2, &boottimebin);
 	boottimebin = bt;
@@ -376,10 +377,12 @@ tc_setclock(struct timespec *ts)
 
 	/* XXX fiddle all the little crinkly bits around the fiords... */
 	tc_windup();
+	nanotime(&taft);
 	if (timestepwarnings) {
-		bintime2timespec(&bt2, &ts2);
-		log(LOG_INFO, "Time stepped from %jd.%09ld to %jd.%09ld\n",
-		    (intmax_t)ts2.tv_sec, ts2.tv_nsec,
+		log(LOG_INFO,
+		    "Time stepped from %jd.%09ld to %jd.%09ld (%jd.%09ld)\n",
+		    (intmax_t)tbef.tv_sec, tbef.tv_nsec,
+		    (intmax_t)taft.tv_sec, taft.tv_nsec,
 		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 	}
 	cpu_tick_calibrate(1);
