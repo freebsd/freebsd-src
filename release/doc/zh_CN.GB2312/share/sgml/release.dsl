@@ -1,4 +1,4 @@
-<!-- Original Revision: 1.8.2.1 -->
+<!-- Original Revision: 1.8 -->
 <!-- $FreeBSD$ -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -43,8 +43,8 @@
 		(literal (entity-text "release.branch"))
 		(literal " 的用户都应该订阅 ")
                 (literal "<")
-		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
-                  (literal "stable@FreeBSD.org"))
+		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
+                  (literal "current@FreeBSD.org"))
                 (literal "> 邮件列表。")))
 
             (make element gi: "p"

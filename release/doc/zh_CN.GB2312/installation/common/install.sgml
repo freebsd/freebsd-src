@@ -2,7 +2,7 @@
 
 The FreeBSD Simplified Chinese Project
 
-Original Revision: 1.31
+Original Revision: 1.32
 $FreeBSD$
 
 install.sgml
@@ -185,7 +185,7 @@ from {alpha,i386}/INSTALL.TXT.
   <para arch="i386,alpha,pc98">工作正常，这取决于您的硬件和操作系统环境
   (不同版本的 UNIX 对软驱有不同的命名)。</para>
 
-  <para arch="amd64">&os;/&arch; 不支持软盘安装。</para>
+  <para arch="amd64,sparc64">&os;/&arch; 不支持软盘安装。</para>
   </sect2>
 
   <sect2 id="start-installation">
