@@ -365,7 +365,7 @@ ad_describe(device_t dev)
 	strncpy(product, atadev->param.model, 40);
     }
 
-    device_printf(dev, "%lluMB <%s%s %.8s> at ata%d-%s %s%s\n",
+    device_printf(dev, "%juMB <%s%s %.8s> at ata%d-%s %s%s\n",
 		  (unsigned long long)(adp->total_secs / (1048576 / DEV_BSIZE)),
 		  vendor, product, atadev->param.revision,
 		  device_get_unit(ch->dev),
@@ -373,7 +373,7 @@ ad_describe(device_t dev)
 		  (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
 		  ata_mode2str(atadev->mode));
     if (bootverbose) {
-	device_printf(dev, "%llu sectors [%lldC/%dH/%dS] "
+	device_printf(dev, "%ju sectors [%juC/%dH/%dS] "
 		      "%d sectors/interrupt %d depth queue\n",
 		      (unsigned long long)adp->total_secs,
 		      (unsigned long long)(adp->total_secs /
