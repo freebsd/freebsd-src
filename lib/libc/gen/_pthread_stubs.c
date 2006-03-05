@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <signal.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include "libc_private.h"
 
@@ -52,39 +53,72 @@ static int		stub_main(void);
 static void 		*stub_null(void);
 static struct pthread	*stub_self(void);
 static int		stub_zero(void);
+static int		stub_true(void);
+static void		stub_exit(void);
 
 #define	PJT_DUAL_ENTRY(entry)	\
 	(pthread_func_t)entry, (pthread_func_t)entry
 
 pthread_func_entry_t __thr_jtable[PJT_MAX] = {
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_BROADCAST */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_SIGNAL */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_WAIT */
-	{PJT_DUAL_ENTRY(stub_null)},	/* PJT_GETSPECIFIC */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_KEY_CREATE */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_KEY_DELETE */
-	{PJT_DUAL_ENTRY(stub_main)},	/* PJT_MAIN_NP */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_LOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_TRYLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_UNLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_SETTYPE */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_ONCE */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_RDLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_TRYRDLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_TRYWRLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_UNLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_RWLOCK_WRLOCK */
-	{PJT_DUAL_ENTRY(stub_self)},	/* PJT_SELF */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_SETSPECIFIC */
-	{PJT_DUAL_ENTRY(stub_zero)}	/* PJT_SIGMASK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATFORK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_DESTROY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETDETACHSTATE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETGUARDSIZE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETINHERITSCHED */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSCHEDPARAM */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSCHEDPOLICY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSCOPE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSTACKADDR */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSTACKSIZE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_INIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETDETACHSTATE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETGUARDSIZE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETINHERITSCHED */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSCHEDPARAM */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSCHEDPOLICY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSCOPE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSTACKADDR */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSTACKSIZE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CANCEL */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_POP */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_PUSH */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_BROADCAST */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_DESTROY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_INIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_SIGNAL */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_TIMEDWAIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_WAIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_DETACH */
+	{PJT_DUAL_ENTRY(stub_true)},    /* PJT_EQUAL */
+	{PJT_DUAL_ENTRY(stub_exit)},    /* PJT_EXIT */
+	{PJT_DUAL_ENTRY(stub_null)},    /* PJT_GETSPECIFIC */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_JOIN */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KEY_CREATE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KEY_DELETE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KILL */
+	{PJT_DUAL_ENTRY(stub_main)},    /* PJT_MAIN_NP */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEXATTR_DESTROY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEXATTR_INIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEXATTR_SETTYPE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_DESTROY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_INIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_LOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_TRYLOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_UNLOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ONCE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_DESTROY */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_INIT */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_RDLOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_TRYRDLOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_TRYWRLOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_UNLOCK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_WRLOCK */
+	{PJT_DUAL_ENTRY(stub_self)},    /* PJT_SELF */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETCANCELSTATE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETCANCELTYPE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETSPECIFIC */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SIGMASK */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_TESTCANCEL */
 };
 
 /*
@@ -200,6 +234,37 @@ STUB_FUNC1(pthread_rwlock_wrlock, PJT_RWLOCK_WRLOCK, int, void *)
 STUB_FUNC(pthread_self,		PJT_SELF, pthread_t)
 STUB_FUNC2(pthread_setspecific, PJT_SETSPECIFIC, int, pthread_key_t, void *)
 STUB_FUNC3(pthread_sigmask, PJT_SIGMASK, int, int, void *, void *)
+STUB_FUNC3(pthread_atfork, PJT_ATFORK, int, void *, void *, void*)
+STUB_FUNC1(pthread_attr_destroy, PJT_ATTR_DESTROY, int, void *);
+STUB_FUNC2(pthread_attr_getdetachstate, PJT_ATTR_GETDETACHSTATE, int, void *, void *)
+STUB_FUNC2(pthread_attr_getguardsize, PJT_ATTR_GETGUARDSIZE, int, void *, void *)
+STUB_FUNC2(pthread_attr_getstackaddr, PJT_ATTR_GETSTACKADDR, int, void *, void *)
+STUB_FUNC2(pthread_attr_getstacksize, PJT_ATTR_GETSTACKSIZE, int, void *, void *)
+STUB_FUNC2(pthread_attr_getinheritsched, PJT_ATTR_GETINHERITSCHED, int, void *, void *)
+STUB_FUNC2(pthread_attr_getschedparam, PJT_ATTR_GETSCHEDPARAM, int, void *, void *)
+STUB_FUNC2(pthread_attr_getschedpolicy, PJT_ATTR_GETSCHEDPOLICY, int, void *, void *)
+STUB_FUNC2(pthread_attr_getscope, PJT_ATTR_GETSCOPE, int, void *, void *)
+STUB_FUNC1(pthread_attr_init, PJT_ATTR_INIT, int, void *)
+STUB_FUNC2(pthread_attr_setdetachstate, PJT_ATTR_SETDETACHSTATE, int, void *, int)
+STUB_FUNC2(pthread_attr_setguardsize, PJT_ATTR_SETGUARDSIZE, int, void *, size_t)
+STUB_FUNC2(pthread_attr_setstackaddr, PJT_ATTR_SETSTACKADDR, int, void *, void *)
+STUB_FUNC2(pthread_attr_setstacksize, PJT_ATTR_SETSTACKSIZE, int, void *, size_t)
+STUB_FUNC2(pthread_attr_setinheritsched, PJT_ATTR_SETINHERITSCHED, int, void *, int)
+STUB_FUNC2(pthread_attr_setschedparam, PJT_ATTR_SETSCHEDPARAM, int, void *, void *)
+STUB_FUNC2(pthread_attr_setschedpolicy, PJT_ATTR_SETSCHEDPOLICY, int, void *, int)
+STUB_FUNC2(pthread_attr_setscope, PJT_ATTR_SETSCOPE, int, void *, int)
+STUB_FUNC1(pthread_cancel, PJT_CANCEL, int, void *)
+STUB_FUNC1(pthread_cleanup_pop, PJT_CLEANUP_POP, int, int)
+STUB_FUNC2(pthread_cleanup_push, PJT_CLEANUP_PUSH, void, void *, void *)
+STUB_FUNC3(pthread_cond_timedwait, PJT_COND_TIMEDWAIT, int, void *, void *, void *)
+STUB_FUNC1(pthread_detach, PJT_DETACH, int, void *)
+STUB_FUNC2(pthread_equal, PJT_EQUAL, int, void *, void *)
+STUB_FUNC1(pthread_exit, PJT_EXIT, void, void *)
+STUB_FUNC2(pthread_join, PJT_JOIN, int, void *, void *)
+STUB_FUNC2(pthread_kill, PJT_KILL, int, void *, int)
+STUB_FUNC2(pthread_setcancelstate, PJT_SETCANCELSTATE, int, int, void *)
+STUB_FUNC2(pthread_setcanceltype, PJT_SETCANCELTYPE, int, int, void *)
+STUB_FUNC(pthread_testcancel, PJT_TESTCANCEL, void)
 
 static int
 stub_zero(void)
@@ -223,4 +288,16 @@ static int
 stub_main(void)
 {
 	return (-1);
+}
+
+static int
+stub_true(void)
+{
+	return (1);
+}
+
+static void
+stub_exit(void)
+{
+	exit(0);
 }
