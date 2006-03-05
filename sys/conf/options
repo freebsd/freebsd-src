@@ -242,8 +242,7 @@ UFS_DIRHASH	opt_ufs.h
 NFS_ROOT	opt_nfsroot.h
 
 # SMB/CIFS requester
-NETSMB			opt_netsmb.h
-NETSMBCRYPTO		opt_netsmb.h
+NETSMB		opt_netsmb.h
 
 # Experimental support for large MS-DOS filesystems; SEE WARNING IN "NOTES"!
 MSDOSFS_LARGE	opt_msdosfs.h
