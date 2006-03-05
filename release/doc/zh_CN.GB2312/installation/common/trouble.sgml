@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.19
+	Original Revision: 1.20
 	$FreeBSD$
 
 	This file contains the comments of the old TROUBLE.TXT file.
@@ -59,7 +59,7 @@
   <sect2>
     <title>&arch.print; 架构上常见的问题</title>
 
-    <qandaset arch="i386,amd64">
+    <qandaset arch="i386">
       <qandaentry>
         <question>
           <para>我的计算机在启动并检测硬件时停住了，
@@ -82,20 +82,6 @@
             要了解关于启动加载器的进一步详情， 请参考
             &os; 使用手册。</para>
         </answer>
-      </qandaentry>
-      <qandaentry arch="amd64">
-        <question>
-          <para>我的系统使用 nVidia nForce3 Pro-150 芯片组，
-	    在启动快结束时系统突然停止相应或开始丢失中断。</para>
-	</question>
-	<answer>
-	  <para>这种芯片组的 APIC 以及配套的 BIOS 在本次 release
-	    时仍然有很多问题。 尽管按照上面的方法禁止掉 ACPI 能够让系统正常工作，
-	    您可能会希望通过设置 <quote>hint.apic.0.disabled</quote>
-	    这样较为缓和的选项来达到目的。 如果在 BIOS 中存在这样的选项，
-	    请尝试关闭 APIC 支持。 不幸的是， 一些机器并没有这样的选项。
-	  </para>
-	</answer>
       </qandaentry>
       <qandaentry arch="i386,pc98,alpha,sparc64">
         <question>
