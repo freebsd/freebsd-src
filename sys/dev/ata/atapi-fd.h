@@ -27,7 +27,7 @@
  */
 
 /* ATAPI Rewriteable drive Capabilities and Mechanical Status Page */
-struct afd_cappage {
+struct afd_capabilities {
     u_int16_t   data_length;
     u_int8_t    medium_type;
 #define MFD_2DD_UN              0x10
@@ -66,8 +66,21 @@ struct afd_cappage {
     u_int8_t    reserved30[2];
 };
 
+struct afd_capacity {
+    u_int32_t	capacity;
+    u_int32_t	blocksize;
+};
+
+struct afd_capacity_big {
+    u_int64_t	capacity;
+    u_int32_t	blocksize;
+};
+
 struct afd_softc {
-    struct afd_cappage          cap;            /* capabilities page info */
-    struct disk                 *disk;          /* virtual drives */
+    u_int64_t	mediasize;
+    u_int32_t	heads;
+    u_int32_t	sectors;
+    u_int32_t	sectorsize;
+    struct disk *disk;          		/* virtual drives */
 };
 
