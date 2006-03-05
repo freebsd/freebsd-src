@@ -59,10 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 
-#include <dev/rt61/if_ralrate.h>
-#include <dev/rt61/rt2661reg.h>
-#include <dev/rt61/rt2661var.h>
-#include <dev/rt61/rt2661_ucode.h>
+#include <dev/ral/if_ralrate.h>
+#include <dev/ral/rt2661reg.h>
+#include <dev/ral/rt2661var.h>
+#include <dev/ral/rt2661_ucode.h>
 
 #ifdef RAL_DEBUG
 #define DPRINTF(x)	do { if (ral_debug > 0) printf x; } while (0)

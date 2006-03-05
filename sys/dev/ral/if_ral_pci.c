@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/rt61/if_ralrate.h>
-#include <dev/rt61/rt2560var.h>
-#include <dev/rt61/rt2661var.h>
+#include <dev/ral/if_ralrate.h>
+#include <dev/ral/rt2560var.h>
+#include <dev/ral/rt2661var.h>
 
 MODULE_DEPEND(ral, pci, 1, 1, 1);
 MODULE_DEPEND(ral, wlan, 1, 1, 1);
