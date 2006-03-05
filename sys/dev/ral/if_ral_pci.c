@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -21,7 +21,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * PCI front-end for the Ralink RT2500 driver.
+ * PCI/Cardbus front-end for the Ralink RT2560/RT2561/RT2561S/RT2661 driver.
  */
 
 #include <sys/param.h>
@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/ral/if_ralrate.h>
-#include <dev/ral/if_ralreg.h>
-#include <dev/ral/if_ralvar.h>
+#include <dev/rt61/if_ralrate.h>
+#include <dev/rt61/rt2560var.h>
+#include <dev/rt61/rt2661var.h>
 
 MODULE_DEPEND(ral, pci, 1, 1, 1);
 MODULE_DEPEND(ral, wlan, 1, 1, 1);
@@ -69,13 +69,57 @@ struct ral_pci_ident {
 };
 
 static const struct ral_pci_ident ral_pci_ids[] = {
-	{ 0x1814, 0x0201, "Ralink Technology RT2500" },
+	{ 0x1814, 0x0201, "Ralink Technology RT2560" },
+	{ 0x1814, 0x0301, "Ralink Technology RT2561S" },
+	{ 0x1814, 0x0302, "Ralink Technology RT2561" },
+	{ 0x1814, 0x0401, "Ralink Technology RT2661" },
 
 	{ 0, 0, NULL }
 };
 
+static struct ral_opns {
+	int	(*attach)(device_t, int);
+	int	(*detach)(void *);
+	void	(*shutdown)(void *);
+	void	(*suspend)(void *);
+	void	(*resume)(void *);
+	void	(*intr)(void *);
+
+}  ral_rt2560_opns = {
+	rt2560_attach,
+	rt2560_detach,
+	rt2560_shutdown,
+	rt2560_suspend,
+	rt2560_resume,
+	rt2560_intr
+
+}, ral_rt2661_opns = {
+	rt2661_attach,
+	rt2661_detach,
+	rt2661_shutdown,
+	rt2661_suspend,
+	rt2661_resume,
+	rt2661_intr
+};
+
+struct ral_pci_softc {
+	union {
+		struct rt2560_softc sc_rt2560;
+		struct rt2661_softc sc_rt2661;
+	} u;
+
+	struct ral_opns		*sc_opns;
+	int			irq_rid;
+	int			mem_rid;
+	struct resource		*irq;
+	struct resource		*mem;
+	void			*sc_ih;
+};
+
 static int ral_pci_probe(device_t);
 static int ral_pci_attach(device_t);
+static int ral_pci_detach(device_t);
+static int ral_pci_shutdown(device_t);
 static int ral_pci_suspend(device_t);
 static int ral_pci_resume(device_t);
 
@@ -83,7 +127,8 @@ static device_method_t ral_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ral_pci_probe),
 	DEVMETHOD(device_attach,	ral_pci_attach),
-	DEVMETHOD(device_detach,	ral_detach),
+	DEVMETHOD(device_detach,	ral_pci_detach),
+	DEVMETHOD(device_shutdown,	ral_pci_shutdown),
 	DEVMETHOD(device_suspend,	ral_pci_suspend),
 	DEVMETHOD(device_resume,	ral_pci_resume),
 
@@ -93,8 +138,10 @@ static device_method_t ral_pci_methods[] = {
 static driver_t ral_pci_driver = {
 	"ral",
 	ral_pci_methods,
-	sizeof (struct ral_softc)
+	sizeof (struct ral_pci_softc)
 };
+
+static devclass_t ral_devclass;
 
 DRIVER_MODULE(ral, pci, ral_pci_driver, ral_devclass, 0, 0);
 DRIVER_MODULE(ral, cardbus, ral_pci_driver, ral_devclass, 0, 0);
@@ -120,6 +167,8 @@ ral_pci_probe(device_t dev)
 static int
 ral_pci_attach(device_t dev)
 {
+	struct ral_pci_softc *psc = device_get_softc(dev);
+	struct rt2560_softc *sc = &psc->u.sc_rt2560;
 	int error;
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
@@ -131,23 +180,77 @@ ral_pci_attach(device_t dev)
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
-	error = ral_alloc(dev, RAL_PCI_BAR0);
+	psc->sc_opns = (pci_get_device(dev) == 0x0201) ? &ral_rt2560_opns :
+	    &ral_rt2661_opns;
+
+	psc->mem_rid = RAL_PCI_BAR0;
+	psc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &psc->mem_rid,
+	    RF_ACTIVE);
+	if (psc->mem == NULL) {
+		device_printf(dev, "could not allocate memory resource\n");
+		return ENXIO;
+	}
+
+	sc->sc_st = rman_get_bustag(psc->mem);
+	sc->sc_sh = rman_get_bushandle(psc->mem);
+
+	psc->irq_rid = 0;
+	psc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &psc->irq_rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (psc->irq == NULL) {
+		device_printf(dev, "could not allocate interrupt resource\n");
+		return ENXIO;
+	}
+
+	error = (*psc->sc_opns->attach)(dev, pci_get_device(dev));
 	if (error != 0)
 		return error;
 
-	error = ral_attach(dev);
-	if (error != 0)
-		ral_free(dev);
+	/*
+	 * Hook our interrupt after all initialization is complete.
+	 */
+	error = bus_setup_intr(dev, psc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    psc->sc_opns->intr, psc, &psc->sc_ih);
+	if (error != 0) {
+		device_printf(dev, "could not set up interrupt\n");
+		return error;
+	}
 
-	return error;
+	return 0;
+}
+
+static int
+ral_pci_detach(device_t dev)
+{
+	struct ral_pci_softc *psc = device_get_softc(dev);
+
+	(*psc->sc_opns->detach)(psc);
+
+	bus_generic_detach(dev);
+	bus_teardown_intr(dev, psc->irq, psc->sc_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, psc->irq_rid, psc->irq);
+
+	bus_release_resource(dev, SYS_RES_MEMORY, psc->mem_rid, psc->mem);
+
+	return 0;
+}
+
+static int
+ral_pci_shutdown(device_t dev)
+{
+	struct ral_pci_softc *psc = device_get_softc(dev);
+
+	(*psc->sc_opns->shutdown)(psc);
+
+	return 0;
 }
 
 static int
 ral_pci_suspend(device_t dev)
 {
-	struct ral_softc *sc = device_get_softc(dev);
+	struct ral_pci_softc *psc = device_get_softc(dev);
 
-	ral_stop(sc);
+	(*psc->sc_opns->suspend)(psc);
 
 	return 0;
 }
@@ -155,14 +258,9 @@ ral_pci_suspend(device_t dev)
 static int
 ral_pci_resume(device_t dev)
 {
-	struct ral_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ic.ic_ifp;
+	struct ral_pci_softc *psc = device_get_softc(dev);
 
-	if (ifp->if_flags & IFF_UP) {
-		ifp->if_init(ifp->if_softc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ifp->if_start(ifp);
-	}
+	(*psc->sc_opns->resume)(psc);
 
 	return 0;
 }
