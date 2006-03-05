@@ -12,7 +12,7 @@ src/lib/libbsm/*           Build for OpenBSM library
 
 OpenBSM is normally built using an integrated autoconf/automake build
 system.  For the purposes of tight integration with FreeBSD, we use an
-adapted BSD make (bmake) build system loosely based on the autmake
+adapted BSD make (bmake) build system loosely based on the automake
 setup.  We also rely on a static config.h generated when OpenBSM is
 imported, rather than re-configuring every build.  This leads to a
 more reproduceable build environment, and avoids dependence on things
