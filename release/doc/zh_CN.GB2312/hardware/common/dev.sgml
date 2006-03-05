@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.282.2.3
+	Original Revision: 1.296
 -->
 
 <!--
@@ -85,12 +85,6 @@
     &hwlist.amd;
 
     &hwlist.amr;
-      <note>
-	<para arch="i386,amd64">能够支持从这些控制器启动。 不支持 EISA
-	适配器。</para>
-
-	<para arch="alpha">由于 SRM 的限制， 不支持从这些控制器启动。</para>
-      </note>
 
     &hwlist.arcmsr;
 
@@ -103,6 +97,12 @@
     &hwlist.ct;
 
     &hwlist.dpt;
+      <note>
+	<para arch="i386,amd64">支持从这种控制器启动。 但 EISA
+	卡目前并不支持。</para>
+
+	<para arch="alpha">由于 SRM 的限制， 不支持从这种控制器启动。</para>
+      </note>
 
     &hwlist.esp;
 
@@ -202,19 +202,19 @@
 
     &hwlist.bge;
 
-    &hwlist.cue;
+    &hwlist.cdce;
 
     <para arch="i386,amd64">基于 Crystal Semiconductor CS89x0 的 NIC
     (&man.cs.4; 驱动程序)
     </para>
+
+    &hwlist.cue;
 
     &hwlist.dc;
 
     &hwlist.de;
 
     &hwlist.ed;
-
-    &hwlist.el;
 
     &hwlist.em;
 
@@ -241,6 +241,8 @@
     &hwlist.lnc;
 
     &hwlist.my;
+
+    &hwlist.myri10ge;
 
     &hwlist.nge;
 
@@ -350,6 +352,8 @@
 
   <sect2 id="misc-network">
     <title>其他网络设备</title>
+
+    &hwlist.ce;
 
     &hwlist.cx;
 
@@ -465,13 +469,9 @@
   <sect2 id="serial">
     <title>串口</title>
 
-    <para arch="i386,alpha,ia64,amd64"><quote>PC 标准</quote>基于 8250, 16450, 以及 16550 的串口 (&man.sio.4; 驱动程序)</para>
+    <para arch="i386,alpha,amd64"><quote>PC 标准</quote> 基于 8250、 16450， 以及基于 16550 的串口 (&man.sio.4; 驱动程序)</para>
 
-    <para arch="sparc64">基于 SAB82532 的串口芯片，
-      只能用作控制台 (&man.sab.4; 驱动程序)</para>
-
-    <para arch="sparc64">基于 Zilog 8530 的双工通用异步收发报机，
-      只能用作控制台 (zs 驱动程序)</para>
+    &hwlist.uart;
 
     <para arch="i386,alpha,amd64">使用共享 IRQ 的 AST 4 口串口卡</para>
 
@@ -530,7 +530,7 @@
 	  <para>Decision Computers PCCOM 4-多口串口 和 双口 RS232/422/485</para>
 	</listitem>
 	<listitem arch="ia64">
-	  <para>Diva Serial (GSP) 多口 UART (仅限于开发分支)</para>
+	  <para>Diva Serial (GSP) 多口 UART</para>
 	</listitem>
 	<listitem arch="i386,amd64">
 	  <para>Dolphin Peripherals 4025/4035/4036</para>
@@ -593,9 +593,10 @@
 
     &hwlist.sr;
 
-    <para arch="i386,amd64">Specialix SI/XIO/SX 多口串口卡, 同时包括较旧的
-    SIHOST2.x 和新式的 <quote>增强型</quote> (基于 transputer 的，
-    也称为 JET) 宿主卡 (支持ISA, EISA 和 PCI)
+    <para arch="i386,amd64">支持 Specialix SI/XIO/SX 多口串口卡, 同时包括较旧的
+    SIHOST2.x 以及 <quote>增强型</quote> (基于 transputer，
+    也就是 JET 的) 宿主卡 (ISA、 EISA 和 PCI 接口)
+    注意， 最新的 SX+ PCI 卡目前还不支持。
     (&man.si.4; 驱动程序)</para>
 
     <para arch="pc98">内置串口 (&man.sio.4; 驱动程序)
@@ -658,6 +659,8 @@
 
     &hwlist.snd.als4000;
 
+    &hwlist.snd.atiixp;
+
     &hwlist.snd.audiocs;
 
     &hwlist.snd.cmi;
@@ -683,6 +686,8 @@
     &hwlist.snd.maestro;
 
     &hwlist.snd.maestro3;
+
+    &hwlist.snd.mss;
 
     &hwlist.snd.neomagic;
 
@@ -736,17 +741,17 @@
   <sect2 id="usb">
     <title>USB 设备</title>
 
-    <para arch="alpha,i386,pc98,amd64">&os; 能够支持一系列 USB 外设；
+    <para arch="alpha,i386,ia64,pc98,amd64">&os; 能够支持一系列 USB 外设；
     已知能够正确使用的设备在这节列出。 由于 USB 设备天生的通用性，
     除了少量比较有个性的设备之外， 同一类型的设备几乎都能被支持，
     即使在这里没有明确地列出。</para>
 
-    <note arch="alpha,i386,pc98,amd64">
+    <note arch="alpha,i386,ia64,pc98,amd64">
       <para>USB 以太网适配器可以在 <link
       linkend="ethernet">以太网接口</link> 一节找到。</para>
     </note>
 
-    <note arch="alpha,i386,pc98,amd64">
+    <note arch="alpha,i386,ia64,pc98,amd64">
       <para>USB 蓝牙适配器可以在 <link
       linkend="bluetooth">蓝牙</link> 一节找到。</para>
     </note>
@@ -758,9 +763,9 @@
     <para arch="i386,ia64,pc98,amd64">采用 EHCI 接口的 USB 2.0
       控制器 (&man.ehci.4; 驱动程序)</para>
 
-    <para arch="i386,pc98,alpha,amd64">集线器
+    <para arch="i386,ia64,pc98,alpha,amd64">集线器
     </para>
-    <para arch="i386,pc98,alpha,amd64">键盘 (&man.ukbd.4; 驱动程序)
+    <para arch="i386,ia64,pc98,alpha,amd64">键盘 (&man.ukbd.4; 驱动程序)
     </para>
     <para arch="i386,pc98,amd64">其他
       <itemizedlist>
@@ -786,7 +791,7 @@
 
     &hwlist.umodem;
 
-    <para arch="i386,pc98,alpha,amd64">鼠标器 (&man.ums.4; 驱动程序)
+    <para arch="i386,ia64,pc98,alpha,amd64">鼠标器 (&man.ums.4; 驱动程序)
     </para>
 
     &hwlist.ulpt;
@@ -857,7 +862,7 @@
 
     <para arch="i386,pc98,alpha,amd64">软驱 (&man.fdc.4; 驱动程序)</para>
 
-    <para arch="i386,alpha,ia64,amd64">VGA-兼容 显示卡
+    <para arch="i386,alpha,amd64">VGA-兼容 显示卡
       (&man.vga.4; 驱动程序)
 
       <note>
@@ -873,13 +878,13 @@
         <listitem arch="i386,alpha">
 	  <para>AT-风格的 键盘 (&man.atkbd.4; 驱动程序)</para>
 	</listitem>
-        <listitem arch="i386,alpha,ia64,amd64">
+        <listitem arch="i386,alpha,amd64">
 	  <para>PS/2 键盘 (&man.atkbd.4; 驱动程序)</para>
 	</listitem>
         <listitem arch="pc98">
 	  <para>标准键盘</para>
 	</listitem>
-        <listitem arch="i386,pc98,alpha,amd64">
+        <listitem arch="i386,pc98,alpha,ia64,amd64">
 	  <para>USB 键盘 (&man.ukbd.4; 驱动程序)</para>
 	</listitem>
       </itemizedlist>
@@ -890,14 +895,14 @@
         <listitem arch="i386,pc98,amd64">
 	  <para>总线鼠标和兼容设备 (&man.mse.4; 驱动程序)</para>
 	</listitem>
-        <listitem arch="i386,alpha,ia64,amd64">
+        <listitem arch="i386,alpha,amd64">
 	  <para>PS/2 鼠标和兼容设备， 也包括一系列笔记本定点设备
 	    (&man.psm.4; 驱动程序)</para>
 	</listitem>
         <listitem>
 	  <para>串口鼠标和兼容设备</para>
 	</listitem>
-        <listitem arch="i386,pc98,alpha,amd64">
+        <listitem arch="i386,pc98,alpha,ia64,amd64">
 	  <para>USB 鼠标 (&man.ums.4; 驱动程序)</para>
 	</listitem>
       </itemizedlist>
