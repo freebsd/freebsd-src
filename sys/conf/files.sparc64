@@ -20,7 +20,7 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 #
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
 crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
-						netsmbcrypto
+						netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
