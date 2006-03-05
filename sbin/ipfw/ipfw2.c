@@ -3590,8 +3590,8 @@ add_proto0(ipfw_insn *cmd, char *av, u_char *protop)
 	char *ep;
 	int proto;
 
-	proto = strtol(av, &ep, 0);
-	if (*ep != '\0' || proto < 0) {
+	proto = strtol(av, &ep, 10);
+	if (*ep != '\0' || proto <= 0) {
 		if ((pe = getprotobyname(av)) == NULL)
 			return NULL;
 		proto = pe->p_proto;
@@ -3607,7 +3607,7 @@ add_proto(ipfw_insn *cmd, char *av, u_char *protop)
 {
 	u_char proto = IPPROTO_IP;
 
-	if (_substrcmp(av, "all") == 0)
+	if (_substrcmp(av, "all") == 0 || strcmp(av, "ip") == 0)
 		; /* do not set O_IP4 nor O_IP6 */
 	else if (strcmp(av, "ip4") == 0)
 		/* explicit "just IPv4" rule */
