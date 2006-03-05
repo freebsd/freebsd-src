@@ -19,15 +19,12 @@ SRCS=	vnode_if.h \
 	smbfs_vfsops.c smbfs_node.c smbfs_io.c smbfs_vnops.c \
 	smbfs_subr.c smbfs_smb.c
 
-NETSMBCRYPTO=
-
-.if defined(NETSMBCRYPTO)
+# NETSMBCRYPTO
 SRCS+=	des_ecb.c des_setkey.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	des_enc.S
 .else
 SRCS+=	des_enc.c
-.endif
 .endif
 
 # Build with IPX support (1|0)
@@ -51,12 +48,6 @@ opt_inet.h:
 .if ${SMB_IPX} > 0
 opt_ipx.h:
 	echo "#define IPX 1" > ${.TARGET}
-.endif
-
-# XXX netsmb should be a separate module
-.if defined(NETSMBCRYPTO)
-opt_netsmb.h:
-	echo "#define NETSMBCRYPTO 1" > ${.TARGET}
 .endif
 .endif
 

@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060305:
+	The NETSMBCRYPTO kernel option has been retired because its
+	functionality is always included in NETSMB and smbfs.ko now.
+
 20060303:
 	The TDFX_LINUX kernel option was retired and replaced by the
 	tdfx_linux device.  The latter can be loaded as a kernel module.

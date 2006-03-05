@@ -489,9 +489,7 @@ options 	NETATALKDEBUG		#Appletalk debugging
 # SMB/CIFS requester
 # NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
 # options.
-# NETSMBCRYPTO enables support for encrypted passwords.
 options 	NETSMB			#SMB/CIFS requester
-options 	NETSMBCRYPTO		#encrypted password support for SMB
 
 # mchain library. It can be either loaded as KLD or compiled into kernel
 options 	LIBMCHAIN
