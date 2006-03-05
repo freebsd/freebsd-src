@@ -664,6 +664,7 @@ ata_cmd2str(struct ata_request *request)
 	case 0x5b: return ("CLOSE_TRACK/SESSION");
 	case 0x5c: return ("READ_BUFFER_CAPACITY");
 	case 0x5d: return ("SEND_CUE_SHEET");
+        case 0x96: return ("SERVICE_ACTION_IN");
 	case 0xa1: return ("BLANK_CMD");
 	case 0xa3: return ("SEND_KEY");
 	case 0xa4: return ("REPORT_KEY");
