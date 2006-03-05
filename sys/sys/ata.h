@@ -284,6 +284,7 @@ struct ata_params {
 #define ATAPI_SPACE                     0x11    /* space command */
 #define         ATAPI_SP_FM             0x01
 #define         ATAPI_SP_EOD            0x03
+#define ATAPI_INQUIRY			0x12	/* get inquiry data */
 #define ATAPI_MODE_SELECT               0x15    /* mode select */
 #define ATAPI_ERASE                     0x19    /* erase */
 #define ATAPI_MODE_SENSE                0x1a    /* mode sense */
@@ -318,6 +319,7 @@ struct ata_params {
 #define ATAPI_CLOSE_TRACK               0x5b    /* close track/session */
 #define ATAPI_READ_BUFFER_CAPACITY      0x5c    /* get buffer capicity */
 #define ATAPI_SEND_CUE_SHEET            0x5d    /* send CUE sheet */
+#define ATAPI_SERVICE_ACTION_IN         0x96	/* get service data */
 #define ATAPI_BLANK                     0xa1    /* blank the media */
 #define ATAPI_SEND_KEY                  0xa3    /* send DVD key structure */
 #define ATAPI_REPORT_KEY                0xa4    /* get DVD key structure */
