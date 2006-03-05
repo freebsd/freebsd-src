@@ -334,8 +334,8 @@ contrib/pf/net/pf_osfp.c	optional pf \
 contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional crypto | ipsec ipsec_esp
-crypto/des/des_ecb.c		optional crypto | ipsec ipsec_esp | netsmbcrypto
-crypto/des/des_setkey.c		optional crypto | ipsec ipsec_esp | netsmbcrypto
+crypto/des/des_ecb.c		optional crypto | ipsec ipsec_esp | netsmb
+crypto/des/des_setkey.c		optional crypto | ipsec ipsec_esp | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 					 ipsec | random | wlan_ccmp
