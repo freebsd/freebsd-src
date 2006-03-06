@@ -82,6 +82,7 @@
 
 #define	DBG_MUTEX	0x0001
 #define	DBG_SIG		0x0002
+#define	DBG_INFO_DUMP	0x0004
 
 #ifdef _PTHREADS_INVARIANTS
 #define THR_ASSERT(cond, msg) do {	\
