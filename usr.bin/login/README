@@ -3,8 +3,9 @@ Wietse Venema's logdaemon package.
 
 
 The following defines can be used:
-1) LOGIN_ACCESS to allow access control on a per tty/user combination
-2) LOGALL to log all logins
+
+- LOGALL to log all logins
+
 
 -Guido
 
