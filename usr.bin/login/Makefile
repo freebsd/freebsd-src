@@ -6,7 +6,7 @@ SRCS=	login.c login_audit.c login_fbtab.c
 CFLAGS+=-DLOGALL
 DPADD=	${LIBUTIL} ${LIBPAM}
 LDADD=	-lutil ${MINUSLPAM} -lbsm
-MAN=	login.1 login.access.5
+
 .if !defined(NO_SETUID_LOGIN)
 BINOWN=	root
 BINMODE=4555
