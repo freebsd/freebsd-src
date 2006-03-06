@@ -36,7 +36,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46Acdknosuv
+.Op Fl 46ACcdknosuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -157,6 +157,9 @@ option is also specified.
 Specify one specific IP address or hostname to bind to.
 If a hostname is specified,
 the IPv4 or IPv6 address which corresponds to it is used.
+.It Fl C
+Create log files that do not exist (permission is set to
+.Li 0600 ) .
 .It Fl c
 Disable the compression of repeated instances of the same line
 into a single line of the form
@@ -283,7 +286,9 @@ include file
 .Pp
 For security reasons,
 .Nm
-will not append to log files that do not exist;
+will not append to log files that do not exist (unless
+.Fl C
+option is specified);
 therefore, they must be created manually before running
 .Nm .
 .Sh FILES
