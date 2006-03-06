@@ -321,6 +321,7 @@ ieee80211_next_scan(struct ieee80211com *ic)
 	 * flushing anything queued in the driver and below.
 	 */
 	ic->ic_mgt_timer = 0;
+	ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 
 	chan = ic->ic_curchan;
 	do {
@@ -345,6 +346,31 @@ ieee80211_next_scan(struct ieee80211com *ic)
 	} while (chan != ic->ic_curchan);
 	ieee80211_end_scan(ic);
 	return 0;
+}
+
+/*
+ * Probe the curent channel, if allowed, while scanning.
+ * If the channel is not marked passive-only then send
+ * a probe request immediately.  Otherwise mark state and
+ * listen for beacons on the channel; if we receive something
+ * then we'll transmit a probe request.
+ */
+void
+ieee80211_probe_curchan(struct ieee80211com *ic, int force)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+
+	if ((ic->ic_curchan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0 || force) {
+		/*
+		 * XXX send both broadcast+directed probe request
+		 */
+		ieee80211_send_probereq(ic->ic_bss,
+			ic->ic_myaddr, ifp->if_broadcastaddr,
+			ifp->if_broadcastaddr,
+			ic->ic_des_essid, ic->ic_des_esslen,
+			ic->ic_opt_ie, ic->ic_opt_ie_len);
+	} else
+		ic->ic_flags_ext |= IEEE80211_FEXT_PROBECHAN;
 }
 
 static __inline void
@@ -596,6 +622,7 @@ ieee80211_cancel_scan(struct ieee80211com *ic)
 		(ic->ic_flags & IEEE80211_F_ASCAN) ?  "active" : "passive");
 
 	ic->ic_flags &= ~(IEEE80211_F_SCAN | IEEE80211_F_ASCAN);
+	ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 }
 
 /*
