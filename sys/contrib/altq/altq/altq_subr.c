@@ -910,7 +910,8 @@ init_machclk(void)
 #endif
 #ifdef __i386__
 	/* check if TSC is available */
-	if (machclk_usepcc == 1 && (cpu_feature & CPUID_TSC) == 0)
+	if (machclk_usepcc == 1 && ((cpu_feature & CPUID_TSC) == 0 ||
+	    tsc_is_broken))
 		machclk_usepcc = 0;
 #endif
 
