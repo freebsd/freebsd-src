@@ -38,6 +38,5 @@
 
 #define	_PATH_HUSHLOGIN		".hushlogin"
 #define	_PATH_MOTDFILE		"/etc/motd"
-#define _PATH_LOGACCESS		"/etc/login.access"
 #define _PATH_FBTAB		"/etc/fbtab"
 #define _PATH_LOGINDEVPERM	"/etc/logindevperm"
