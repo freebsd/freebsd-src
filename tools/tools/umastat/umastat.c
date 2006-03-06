@@ -326,7 +326,7 @@ main(int argc, char *argv[])
 	 * it is statically declared as an array of size 1, so we need to
 	 * provide additional space.
 	 */
-	uzp_userspace_len = sizeof(struct uma_zone) + (mp_maxid - 1) *
+	uzp_userspace_len = sizeof(struct uma_zone) + mp_maxid *
 	    sizeof(struct uma_cache);
 	uzp_userspace = malloc(uzp_userspace_len);
 	if (uzp_userspace == NULL)
