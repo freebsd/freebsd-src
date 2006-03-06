@@ -9,6 +9,8 @@ int
 main(int argc, char *argv[])
 {
 	printf("acpi: %d\n", acpi_detect());
+#if defined(__amd64__) || defined(__i386__)
 	printf("mptable: %d\n", biosmptable_detect());
+#endif
 	return 0;
 }
