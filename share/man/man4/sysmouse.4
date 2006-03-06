@@ -358,7 +358,7 @@ to pass mouse data to the console driver.
 .Pp
 .Bl -tag -width MOUSE_MOVEABS -compact
 .It Dv MOUSE_ACTION
-.It Dv MOUSE_MOTIONEVENT
+.It Dv MOUSE_MOTION_EVENT
 These operations take the information in
 .Dv u.data
 and act upon it.
@@ -369,7 +369,7 @@ driver if it is open.
 also processes button press actions and sends signal to the process if
 requested or performs cut and paste operations
 if the current console is a text interface.
-.It Dv MOUSE_BUTTONEVENT
+.It Dv MOUSE_BUTTON_EVENT
 .Dv u.data
 specifies a button and its click count.
 The console driver will
@@ -377,9 +377,9 @@ use this information for signal delivery if requested or
 for cut and paste operations if the console is in text mode.
 .El
 .Pp
-.Dv MOUSE_MOTIONEVENT
+.Dv MOUSE_MOTION_EVENT
 and
-.Dv MOUSE_BUTTONEVENT
+.Dv MOUSE_BUTTON_EVENT
 are newer interface and are designed to be used together.
 They are intended to replace functions performed by
 .Dv MOUSE_ACTION
