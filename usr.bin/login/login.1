@@ -78,13 +78,11 @@ The
 option disables this behavior.
 .El
 .Pp
-If the file
-.Pa /etc/login.access
-exists,
-.Nm
-checks to see if the user and host pair are specifically allowed or denied
-access.
-Login access may also be controlled via the login class, which provides
+Login access can be controlled via
+.Xr login.access 5
+or the login class in
+.Xr login.conf 5 ,
+which provides
 allow and deny records based on time, tty and remote host name.
 .Pp
 If the file
@@ -132,11 +130,9 @@ Failure to determine the current auditing state will
 result in an error exit from
 .Nm .
 .Sh FILES
-.Bl -tag -width ".Pa /etc/login.access" -compact
+.Bl -tag -width ".Pa /etc/login.conf" -compact
 .It Pa /etc/fbtab
 changes device protections
-.It Pa /etc/login.access
-login access control table
 .It Pa /etc/login.conf
 login class capabilities database
 .It Pa /etc/motd
