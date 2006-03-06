@@ -286,6 +286,7 @@ static int	family = PF_INET; /* protocol family (IPv4 only) */
 static int	send_to_all;	/* send message to all IPv4/IPv6 addresses */
 static int	use_bootfile;	/* log entire bootfile for every kern msg */
 static int	no_compress;	/* don't compress messages (1=pipes, 2=all) */
+static int	logflags = O_WRONLY|O_APPEND; /* flags used to open log files */
 
 static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
@@ -350,7 +351,7 @@ main(int argc, char *argv[])
 	socklen_t len;
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "46Aa:b:cdf:kl:m:nop:P:sS:uv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:b:cCdf:kl:m:nop:P:sS:uv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -372,6 +373,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			no_compress++;
+			break;
+		case 'C':
+			logflags |= O_CREAT;
 			break;
 		case 'd':		/* debug */
 			Debug++;
@@ -689,7 +693,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-46Acdknosuv] [-a allowed_peer]",
+		"usage: syslogd [-46ACcdknosuv] [-a allowed_peer]",
 		"               [-b bind address] [-f config_file]",
 		"               [-l log_socket] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]");
@@ -1886,7 +1890,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		break;
 
 	case '/':
-		if ((f->f_file = open(p, O_WRONLY|O_APPEND, 0)) < 0) {
+		if ((f->f_file = open(p, logflags, 0600)) < 0) {
 			f->f_type = F_UNUSED;
 			logerror(p);
 			break;
