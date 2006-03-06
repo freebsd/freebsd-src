@@ -121,32 +121,32 @@ clear the nodump flag (owner or super-user only)
 .El
 .Pp
 A few of the octal values include:
-.Bl -tag -offset indent -width ".Ar 10"
+.Bl -tag -offset indent -width ".Li 10"
 .It Li 0
 Clear all file flags.
 .It Li 1
 Translates to the
-.Ar nodump
+.Cm nodump
 keyword.
 .It Li 2
 Translates to the
-.Ar uchg
+.Cm uchg
 keyword.
 .It Li 3
 Translates to the
-.Ar uchg , nodump
+.Cm uchg , nodump
 keywords.
 .It Li 4
 Translates to the
-.Ar uappnd
+.Cm uappnd
 keyword.
 .It Li 10
 Translates to the
-.Ar opaque
+.Cm opaque
 keyword.
 .It Li 20
 translates to the
-uunlnk
+.Cm uunlnk
 keyword.
 .El
 .Pp
@@ -176,7 +176,7 @@ You can use "ls -lo" to see the flags of existing files.
 .Pp
 Note that the ability to change certain flags is dependent
 on the current kernel
-.Em securelevel
+.Va securelevel
 setting.
 See
 .Xr security 7
