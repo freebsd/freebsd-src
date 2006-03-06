@@ -174,6 +174,11 @@ main(int argc, char *argv[])
 		usage();
 	}
 
+	if (getenv("DONTSTRIP") != NULL) {
+		warnx("DONTSTRIP set - will not strip installed binaries");
+		dostrip = 0;
+	}
+
 	/* must have at least two arguments, except when creating directories */
 	if (argc == 0 || (argc == 1 && !dodir))
 		usage();
