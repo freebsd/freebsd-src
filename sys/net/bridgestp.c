@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #define	BSTP_MESSAGE_AGE_INCR	(1 * 256)	/* in 256ths of a second */
 #define	BSTP_TICK_VAL		(1 * 256)	/* in 256ths of a second */
+#define	BSTP_LINK_TIMER		(BSTP_TICK_VAL * 15)
 
 /*
  * Because BPDU's do not make nicely aligned structures, two different
@@ -916,6 +917,7 @@ bstp_initialization(struct bridge_softc *sc)
 	bstp_port_state_selection(sc);
 	bstp_config_bpdu_generation(sc);
 	bstp_timer_start(&sc->sc_hello_timer, 0);
+	bstp_timer_start(&sc->sc_link_timer, 0);
 }
 
 void
@@ -1121,20 +1123,15 @@ bstp_tick(void *arg)
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-#if 0
-	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-		if ((bif->bif_flags & IFBIF_STP) == 0)
-			continue;
-		/*
-		 * XXX This can cause a lag in "link does away"
-		 * XXX and "spanning tree gets updated".  We need
-		 * XXX come sort of callback from the link state
-		 * XXX update code to kick spanning tree.
-		 * XXX --thorpej@NetBSD.org
-		 */
-		bstp_ifupdstatus(sc, bif);
+	/* slow timer to catch missed link events */
+	if (bstp_timer_expired(&sc->sc_link_timer, BSTP_LINK_TIMER)) {
+		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+			if ((bif->bif_flags & IFBIF_STP) == 0)
+				continue;
+			bstp_ifupdstatus(sc, bif);
+		}
+		bstp_timer_start(&sc->sc_link_timer, 0);
 	}
-#endif
 
 	if (bstp_timer_expired(&sc->sc_hello_timer, sc->sc_hello_time))
 		bstp_hello_timer_expiry(sc);
