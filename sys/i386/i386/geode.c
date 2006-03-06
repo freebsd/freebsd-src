@@ -165,8 +165,12 @@ geode_watchdog(void *foo __unused, u_int cmd, int *error)
 static void
 advantech_watchdog(void *foo __unused, u_int cmd, int *error)
 {
-	outb(0x0443, (cmd & WD_INTERVAL) ? 1 : 0);
-	*error = 0;
+	if (cmd && (cmd & WD_INTERVAL) <= WD_TO_1SEC) {
+		outb(0x0443, 1);
+		*error = 0;
+	} else {
+		outb(0x0443, 0);
+	}
 }
 
 static int
