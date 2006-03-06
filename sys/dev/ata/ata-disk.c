@@ -366,7 +366,7 @@ ad_describe(device_t dev)
     }
 
     device_printf(dev, "%juMB <%s%s %.8s> at ata%d-%s %s%s\n",
-		  (unsigned long long)(adp->total_secs / (1048576 / DEV_BSIZE)),
+		  (uintmax_t)(adp->total_secs / (1048576 / DEV_BSIZE)),
 		  vendor, product, atadev->param.revision,
 		  device_get_unit(ch->dev),
 		  (atadev->unit == ATA_MASTER) ? "master" : "slave",
@@ -375,8 +375,8 @@ ad_describe(device_t dev)
     if (bootverbose) {
 	device_printf(dev, "%ju sectors [%juC/%dH/%dS] "
 		      "%d sectors/interrupt %d depth queue\n",
-		      (unsigned long long)adp->total_secs,
-		      (unsigned long long)(adp->total_secs /
+		      (uintmax_t)adp->total_secs,
+		      (uintmax_t)(adp->total_secs /
 					   (adp->heads * adp->sectors)),
 		      adp->heads, adp->sectors, atadev->max_iosize / DEV_BSIZE,
 		      adp->num_tags + 1);
