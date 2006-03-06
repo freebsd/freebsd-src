@@ -978,19 +978,11 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			break;
 		case IEEE80211_S_SCAN:
 			/*
-			 * Scan next. If doing an active scan and the
-			 * channel is not marked passive-only then send
-			 * a probe request.  Otherwise just listen for
-			 * beacons on the channel.
+			 * Scan next. If doing an active scan probe
+			 * for the requested ap (if any).
 			 */
-			if ((ic->ic_flags & IEEE80211_F_ASCAN) &&
-			    (ic->ic_curchan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0) {
-				ieee80211_send_probereq(ni,
-					ic->ic_myaddr, ifp->if_broadcastaddr,
-					ifp->if_broadcastaddr,
-					ic->ic_des_essid, ic->ic_des_esslen,
-					ic->ic_opt_ie, ic->ic_opt_ie_len);
-			}
+			if (ic->ic_flags & IEEE80211_F_ASCAN)
+				ieee80211_probe_curchan(ic, 0);
 			break;
 		case IEEE80211_S_RUN:
 			/* beacon miss */
