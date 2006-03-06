@@ -38,6 +38,7 @@
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
@@ -56,11 +57,7 @@ static int addr_size;
 
 static int ncpu;
 
-static int
-max(int a, int b)
-{
-	return a < b ? b : a;
-}
+int acpi_detect(void);
 
 static void
 acpi_handle_apic(struct ACPIsdt *sdp)
