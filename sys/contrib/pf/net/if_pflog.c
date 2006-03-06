@@ -358,9 +358,15 @@ pflog_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		LIST_INIT(&pflog_list);
 		if_clone_attach(&pflog_cloner);
+		PF_LOCK();
+		pflog_packet_ptr = pflog_packet;
+		PF_UNLOCK();
 		break;
 
 	case MOD_UNLOAD:
+		PF_LOCK();
+		pflog_packet_ptr = NULL;
+		PF_UNLOCK();
 		if_clone_detach(&pflog_cloner);
 		while (!LIST_EMPTY(&pflog_list))
 			pflog_clone_destroy(SCP2IFP(LIST_FIRST(&pflog_list)));
@@ -384,4 +390,5 @@ static moduledata_t pflog_mod = {
 
 DECLARE_MODULE(pflog, pflog_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(pflog, PFLOG_MODVER);
+MODULE_DEPEND(pflog, pf, PF_MODVER, PF_MODVER, PF_MODVER);
 #endif /* __FreeBSD__ */

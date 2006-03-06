@@ -70,10 +70,24 @@ struct old_pfloghdr {
 
 #ifdef _KERNEL
 
+#ifdef __FreeBSD__
+/* XXX */
+#include <net/pfvar.h>
+
+typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
+    u_int8_t, u_int8_t, struct pf_rule *, struct pf_rule *,
+    struct pf_ruleset *);
+extern pflog_packet_t *pflog_packet_ptr;
+#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g) do {		\
+	if (pflog_packet_ptr != NULL)			\
+		pflog_packet_ptr(i,a,b,c,d,e,f,g);	\
+} while (0)
+#else
 #if NPFLOG > 0
 #define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g) pflog_packet(i,a,b,c,d,e,f,g)
 #else
 #define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g)	((void)0)
 #endif /* NPFLOG > 0 */
+#endif /* __FreeBSD__ */
 #endif /* _KERNEL */
 #endif /* _NET_IF_PFLOG_H_ */

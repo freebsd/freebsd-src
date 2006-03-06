@@ -182,6 +182,7 @@ SUBDIR=	${_3dfx} \
 	pcn \
 	${_pecoff} \
 	${_pf} \
+	${_pflog} \
 	plip \
 	${_pmc} \
 	portalfs \
@@ -308,6 +309,7 @@ _ipfilter=	ipfilter
 
 .if !defined(NO_PF) || defined(ALL_MODULES)
 _pf=		pf
+_pflog=		pflog
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
