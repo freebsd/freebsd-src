@@ -24,10 +24,10 @@ pflog_prestart()
 {
 	# load pflog kernel module if needed
 	if ! kldstat -q -m pflog; then
-		if kldload pf; then
-			info 'pf module loaded.'
+		if kldload pflog; then
+			info 'pflog module loaded.'
 		else
-			warn 'pf module failed to load.'
+			warn 'pflog module failed to load.'
 			return 1
 		fi
 	fi
