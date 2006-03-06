@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 1997
+.Dd February 26, 2006
 .Dt INET_NET 3
 .Os
 .Sh NAME
@@ -88,10 +88,12 @@ It will be set to
 .Er ENOENT
 if the Internet network number was not valid).
 .Pp
-The only value for
+The currently supported values for
 .Fa af
-currently supported is
-.Dv AF_INET .
+are
+.Dv AF_INET
+and
+.Dv AF_INET6 .
 The
 .Fa size
 argument
@@ -149,6 +151,10 @@ may be decimal, octal, or hexadecimal, as specified
 in the C language (i.e., a leading 0x or 0X implies
 hexadecimal; otherwise, a leading 0 implies octal;
 otherwise, the number is interpreted as decimal).
+.\"
+.\" .Sh NETWORK NUMBERS (IP VERSION 6)
+.\" XXX - document this!
+.\"
 .Sh SEE ALSO
 .Xr byteorder 3 ,
 .Xr inet 3 ,
