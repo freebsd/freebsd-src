@@ -170,11 +170,10 @@ device		agp
 # the tdfx DRI module from XFree86 and is completely unrelated.
 #
 # To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well, or you will not have the dependencies.  The other option
-# is to load both as modules.
+# config as well.  The other option is to load both as modules.
 
 device		tdfx			# Enable 3Dfx Voodoo support
-#XXX#options 	TDFX_LINUX		# Enable Linuxulator support
+#XXX#device 	tdfx_linux		# Enable Linuxulator support
 
 #
 # ACPI support using the Intel ACPI Component Architecture reference
