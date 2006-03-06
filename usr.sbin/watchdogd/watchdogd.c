@@ -218,7 +218,7 @@ usage()
 	if (is_daemon)
 		fprintf(stderr, "usage: watchdogd [-d] [-e cmd] [-I file]\n");
 	else
-		fprintf(stderr, "usage: watchdog [-d] [-t]\n");
+		fprintf(stderr, "usage: watchdog [-d] [-t timeout]\n");
 	exit(EX_USAGE);
 }
 
