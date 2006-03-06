@@ -92,7 +92,7 @@
 #define	LOCALDOMAINPARTS	2	/* min levels in name that is "local" */
 
 #define	RES_TIMEOUT		5	/* min. seconds between retries */
-#define	RES_DFLRETRY		4	/* retries per each name server */
+#define	RES_DFLRETRY		2	/* retries per each name server */
 #define	MAXRESOLVSORT		10	/* number of net to sort on */
 #define	RES_MAXNDOTS		15	/* should reflect bit field size */
 #define	RES_MAXRETRANS		30	/* only for resolv.conf/RES_OPTIONS */
