@@ -189,6 +189,15 @@ environment variable and if present,
 uses the assigned value as the program to run if and when the
 .Fl s
 option has been specified.
+.Pp
+If the
+.Ev DONTSTRIP
+environment variable is present
+.Nm
+will ignore any specification of the
+.Fl s
+option.
+This is mainly for use in debugging The FreeBSD Ports Collection.
 .Sh FILES
 .Bl -tag -width INS@XXXX -compact
 .It Pa INS@XXXX
