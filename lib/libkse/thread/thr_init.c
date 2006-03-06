@@ -518,6 +518,8 @@ init_private(void)
 	else if (getenv("LIBPTHREAD_PROCESS_SCOPE") != NULL)
 		_thread_scope_system = -1;
 #endif
+	if (getenv("LIBPTHREAD_DEBUG") != NULL)
+		_thr_debug_flags |= DBG_INFO_DUMP;
 
 	/*
 	 * _thread_list_lock and _kse_count are initialized
