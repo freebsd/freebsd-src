@@ -1,34 +1,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "config_types.h"
+
 typedef u8 macaddr[ETH_ALEN];
 
-struct hostapd_radius_server {
-	/* MIB prefix for shared variables:
-	 * @ = radiusAuth or radiusAcc depending on the type of the server */
-	struct in_addr addr; /* @ServerAddress */
-	int port; /* @ClientServerPortNumber */
-	u8 *shared_secret;
-	size_t shared_secret_len;
-
-	/* Dynamic (not from configuration file) MIB data */
-	int index; /* @ServerIndex */
-	int round_trip_time; /* @ClientRoundTripTime; in hundredths of a
-			      * second */
-	u32 requests; /* @Client{Access,}Requests */
-	u32 retransmissions; /* @Client{Access,}Retransmissions */
-	u32 access_accepts; /* radiusAuthClientAccessAccepts */
-	u32 access_rejects; /* radiusAuthClientAccessRejects */
-	u32 access_challenges; /* radiusAuthClientAccessChallenges */
-	u32 responses; /* radiusAccClientResponses */
-	u32 malformed_responses; /* @ClientMalformed{Access,}Responses */
-	u32 bad_authenticators; /* @ClientBadAuthenticators */
-	u32 timeouts; /* @ClientTimeouts */
-	u32 unknown_types; /* @ClientUnknownTypes */
-	u32 packets_dropped; /* @ClientPacketsDropped */
-	/* @ClientPendingRequests: length of hapd->radius->msgs for matching
-	 * msg_type */
-};
+struct hostapd_radius_servers;
 
 #define PMK_LEN 32
 struct hostapd_wpa_psk {
@@ -80,26 +57,21 @@ struct hostapd_config {
 	char *dump_log_name; /* file name for state dump (SIGUSR1) */
 
 	int ieee802_1x; /* use IEEE 802.1X */
-	int eap_authenticator; /* Use internal EAP authenticator instead of
-				* external RADIUS server */
+	int eap_server; /* Use internal EAP server instead of external
+			 * RADIUS server */
 	struct hostapd_eap_user *eap_user;
 	char *eap_sim_db;
-	struct in_addr own_ip_addr;
+	struct hostapd_ip_addr own_ip_addr;
 	char *nas_identifier;
-	/* RADIUS Authentication and Accounting servers in priority order */
-	struct hostapd_radius_server *auth_servers, *auth_server;
-	int num_auth_servers;
-	struct hostapd_radius_server *acct_servers, *acct_server;
-	int num_acct_servers;
+	struct hostapd_radius_servers *radius;
 
-	int radius_retry_primary_interval;
-	int radius_acct_interim_interval;
 #define HOSTAPD_SSID_LEN 32
 	char ssid[HOSTAPD_SSID_LEN + 1];
 	size_t ssid_len;
 	int ssid_set;
 	char *eap_req_id_text; /* optional displayable message sent with
 				* EAP Request-Identity */
+	size_t eap_req_id_text_len;
 	int eapol_key_index_workaround;
 
 	size_t default_wep_key_len;
@@ -153,14 +125,24 @@ struct hostapd_config {
 
 	char *ctrl_interface; /* directory for UNIX domain sockets */
 	gid_t ctrl_interface_gid;
+	int ctrl_interface_gid_set;
 
 	char *ca_cert;
 	char *server_cert;
 	char *private_key;
 	char *private_key_passwd;
+	int check_crl;
 
 	char *radius_server_clients;
 	int radius_server_auth_port;
+	int radius_server_ipv6;
+
+	char *test_socket; /* UNIX domain socket path for driver_test */
+
+	int use_pae_group_addr; /* Whether to send EAPOL frames to PAE group
+				 * address instead of individual address
+				 * (for driver_wired.c).
+				 */
 };
 
 

@@ -1,6 +1,5 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / common helper functions, etc.
+ * wpa_supplicant/hostapd / common helper functions, etc.
  * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,6 +21,10 @@
 #include <ctype.h>
 #include <time.h>
 #include <sys/time.h>
+#ifdef CONFIG_NATIVE_WINDOWS
+#include <winsock2.h>
+#include <wincrypt.h>
+#endif /* CONFIG_NATIVE_WINDOWS */
 
 #include "common.h"
 
@@ -34,12 +37,17 @@ int wpa_debug_timestamp = 0;
 int hostapd_get_rand(u8 *buf, size_t len)
 {
 #ifdef CONFIG_NATIVE_WINDOWS
-	int i;
-	/* FIX: use more secure pseudo random number generator */
-	for (i = 0; i < len; i++) {
-		buf[i] = rand();
-	}
-	return 0;
+	HCRYPTPROV prov;
+	BOOL ret;
+
+	if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL,
+				 CRYPT_VERIFYCONTEXT))
+		return -1;
+
+	ret = CryptGenRandom(prov, len, buf);
+	CryptReleaseContext(prov, 0);
+
+	return ret ? 0 : -1;
 #else /* CONFIG_NATIVE_WINDOWS */
 	FILE *f;
 	size_t rc;
@@ -93,6 +101,12 @@ static int hex2byte(const char *hex)
 }
 
 
+/**
+ * hwaddr_aton - Convert ASCII string to MAC address
+ * @txt: MAC address as a string (e.g., "00:11:22:33:44:55")
+ * @addr: Buffer for the MAC address (ETH_ALEN = 6 bytes)
+ * Returns: 0 on success, -1 on failure (e.g., string not a MAC address)
+ */
 int hwaddr_aton(const char *txt, u8 *addr)
 {
 	int i;
@@ -115,6 +129,14 @@ int hwaddr_aton(const char *txt, u8 *addr)
 }
 
 
+/**
+ * hexstr2bin - Convert ASCII hex string into binary data
+ * @hex: ASCII hex string (e.g., "01ab")
+ * @buf: Buffer for the binary data
+ * @len: Length of the text to convert in bytes (of buf); hex will be double
+ * this size
+ * Returns: 0 on success, -1 on failure (invalid hex string)
+ */
 int hexstr2bin(const char *hex, u8 *buf, size_t len)
 {
 	int i, a;
@@ -171,6 +193,15 @@ char * rel2abs_path(const char *rel_path)
 }
 
 
+/**
+ * inc_byte_array - Increment arbitrary length byte array by one
+ * @counter: Pointer to byte array
+ * @len: Length of the counter in bytes
+ *
+ * This function increments the last byte of the counter by one and continues
+ * rolling over to more significant bytes if the byte was incremented from
+ * 0xff to 0x00.
+ */
 void inc_byte_array(u8 *counter, size_t len)
 {
 	int pos = len - 1;
@@ -201,7 +232,9 @@ void fprint_char(FILE *f, char c)
 }
 
 
-static void wpa_debug_print_timestamp(void)
+#ifndef CONFIG_NO_STDOUT_DEBUG
+
+void wpa_debug_print_timestamp(void)
 {
 	struct timeval tv;
 	char buf[16];
@@ -218,6 +251,17 @@ static void wpa_debug_print_timestamp(void)
 }
 
 
+/**
+ * wpa_printf - conditional printf
+ * @level: priority level (MSG_*) of the message
+ * @fmt: printf format string, followed by optional arguments
+ *
+ * This function is used to print conditional debugging and error messages. The
+ * output may be directed to stdout, stderr, and/or syslog based on
+ * configuration.
+ *
+ * Note: New line '\n' is added to the end of the text when printing to stdout.
+ */
 void wpa_printf(int level, char *fmt, ...)
 {
 	va_list ap;
@@ -240,7 +284,9 @@ static void _wpa_hexdump(int level, const char *title, const u8 *buf,
 		return;
 	wpa_debug_print_timestamp();
 	printf("%s - hexdump(len=%lu):", title, (unsigned long) len);
-	if (show) {
+	if (buf == NULL) {
+		printf(" [NULL]");
+	} else if (show) {
 		for (i = 0; i < len; i++)
 			printf(" %02x", buf[i]);
 	} else {
@@ -273,6 +319,11 @@ static void _wpa_hexdump_ascii(int level, const char *title, const u8 *buf,
 	wpa_debug_print_timestamp();
 	if (!show) {
 		printf("%s - hexdump_ascii(len=%lu): [REMOVED]\n",
+		       title, (unsigned long) len);
+		return;
+	}
+	if (buf == NULL) {
+		printf("%s - hexdump_ascii(len=%lu): [NULL]\n",
 		       title, (unsigned long) len);
 		return;
 	}
@@ -311,6 +362,8 @@ void wpa_hexdump_ascii_key(int level, const char *title, const u8 *buf,
 {
 	_wpa_hexdump_ascii(level, title, buf, len, wpa_debug_show_keys);
 }
+
+#endif /* CONFIG_NO_STDOUT_DEBUG */
 
 
 #ifdef CONFIG_NATIVE_WINDOWS

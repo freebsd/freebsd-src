@@ -9,6 +9,7 @@ struct radius_server_conf {
 	void *hostapd_conf;
 	void *eap_sim_db_priv;
 	void *ssl_ctx;
+	int ipv6;
 };
 
 
