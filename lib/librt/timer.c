@@ -33,12 +33,10 @@
 
 #include "namespace.h"
 #include <errno.h>
-#include <pthread.h>
 #include <stddef.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 #include "sigev_thread.h"
 #include "un-namespace.h"
 

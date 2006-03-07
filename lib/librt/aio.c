@@ -34,10 +34,8 @@
 
 #include "namespace.h"
 #include <errno.h>
-#include <pthread.h>
 #include <stddef.h>
 #include <signal.h>
-#include <unistd.h>
 #include "sigev_thread.h"
 #include "un-namespace.h"
 
@@ -92,7 +90,6 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 	
 	saved_ev = iocb->aio_sigevent;
 	sn->sn_id = (sigev_id_t)iocb;
-	sn->sn_flags |= SNF_ONESHOT;
 	__sigev_get_sigevent(sn, &iocb->aio_sigevent, sn->sn_id);
 
 	__sigev_list_lock();
