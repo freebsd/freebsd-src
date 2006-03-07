@@ -31,6 +31,7 @@
 #include "wpa.h"
 #include "radius_client.h"
 #include "driver.h"
+#include "hostap_common.h"
 
 
 int ap_for_each_sta(struct hostapd_data *hapd,
@@ -49,7 +50,7 @@ int ap_for_each_sta(struct hostapd_data *hapd,
 }
 
 
-struct sta_info* ap_get_sta(hostapd *hapd, u8 *sta)
+struct sta_info * ap_get_sta(struct hostapd_data *hapd, const u8 *sta)
 {
 	struct sta_info *s;
 
@@ -317,7 +318,7 @@ void ap_sta_no_session_timeout(hostapd *hapd, struct sta_info *sta)
 }
 
 
-struct sta_info * ap_sta_add(struct hostapd_data *hapd, u8 *addr)
+struct sta_info * ap_sta_add(struct hostapd_data *hapd, const u8 *addr)
 {
 	struct sta_info *sta;
 
@@ -339,7 +340,7 @@ struct sta_info * ap_sta_add(struct hostapd_data *hapd, u8 *addr)
 		return NULL;
 	}
 	memset(sta, 0, sizeof(struct sta_info));
-	sta->acct_interim_interval = hapd->conf->radius_acct_interim_interval;
+	sta->acct_interim_interval = hapd->conf->radius->acct_interim_interval;
 
 	/* initialize STA info data */
 	eloop_register_timeout(AP_MAX_INACTIVITY, 0, ap_handle_timer,

@@ -11,14 +11,14 @@ struct driver_ops {
 	void (*wireless_event_deinit)(void *priv);
 
 	/**
-	 * set_8021x - enable/disable 802.1x support
+	 * set_8021x - enable/disable IEEE 802.1X support
 	 * @priv: driver private data
 	 * @enabled: 1 = enable, 0 = disable
 	 *
 	 * Returns: 0 on success, -1 on failure
 	 *
-	 * Configure the kernel driver to enable/disable 802.1x support.
-	 * This may be an empty function if 802.1x support is always enabled.
+	 * Configure the kernel driver to enable/disable 802.1X support.
+	 * This may be an empty function if 802.1X support is always enabled.
 	 */
 	int (*set_ieee8021x)(void *priv, int enabled);
 
@@ -49,6 +49,7 @@ struct driver_ops {
 	int (*sta_remove)(void *priv, u8 *addr);
 	int (*get_ssid)(void *priv, u8 *buf, int len);
 	int (*set_ssid)(void *priv, u8 *buf, int len);
+	int (*set_countermeasures)(void *priv, int enabled);
 	int (*send_mgmt_frame)(void *priv, const void *msg, size_t len,
 			       int flags);
 	int (*set_assoc_ap)(void *priv, u8 *addr);
@@ -226,6 +227,14 @@ hostapd_set_assoc_ap(struct hostapd_data *hapd, u8 *addr)
 	if (hapd->driver == NULL || hapd->driver->set_assoc_ap == NULL)
 		return 0;
 	return hapd->driver->set_assoc_ap(hapd->driver, addr);
+}
+
+static inline int 
+hostapd_set_countermeasures(struct hostapd_data *hapd, int enabled)
+{
+	if (hapd->driver == NULL || hapd->driver->set_countermeasures == NULL)
+		return 0;
+	return hapd->driver->set_countermeasures(hapd->driver, enabled);
 }
 
 static inline int
