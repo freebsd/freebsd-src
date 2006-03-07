@@ -170,13 +170,15 @@ amr_linux_ioctl(d_thread_t *p, struct linux_ioctl_args *args)
 	devclass_t		devclass;
 	struct amr_softc	*sc;
 	struct amr_linux_ioctl	ali;
-	int			adapter;
+	int			adapter, error;
 
 	devclass = devclass_find("amr");
 	if (devclass == NULL)
 		return (ENOENT);
 
-	copyin((caddr_t)args->arg, &ali, sizeof(ali));
+	error = copyin((caddr_t)args->arg, &ali, sizeof(ali));
+	if (error)
+		return (error);
 	if (ali.ui.fcs.opcode == 0x82)
 		adapter = 0;
 	else
