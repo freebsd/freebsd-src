@@ -270,6 +270,8 @@ OLD_FILES+=usr/share/man/man8/raidctl.8.gz
 OLD_FILES+=usr/lib/libkse.a
 OLD_FILES+=usr/lib/libkse.so
 .endif
+# 20040119: installed as `isdntel' in newer systems
+OLD_FILES+=etc/isdn/isdntel.sh
 # 200XYYZZ: /lib transition clitches
 OLD_FILES+=lib/libalias.so
 OLD_FILES+=lib/libatm.so
