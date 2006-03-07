@@ -33,34 +33,43 @@ CONFIG_IAPP=y
 # WPA2/IEEE 802.11i RSN pre-authentication
 CONFIG_RSN_PREAUTH=y
 
-# Integrated EAP authenticator
+# Integrated EAP server
 CONFIG_EAP=y
 
-# EAP-MD5 for the integrated EAP authenticator
+# EAP-MD5 for the integrated EAP server
 CONFIG_EAP_MD5=y
 
-# EAP-TLS for the integrated EAP authenticator
+# EAP-TLS for the integrated EAP server
 CONFIG_EAP_TLS=y
 
-# EAP-MSCHAPv2 for the integrated EAP authenticator
+# EAP-MSCHAPv2 for the integrated EAP server
 CONFIG_EAP_MSCHAPV2=y
 
-# EAP-PEAP for the integrated EAP authenticator
+# EAP-PEAP for the integrated EAP server
 CONFIG_EAP_PEAP=y
 
-# EAP-GTC for the integrated EAP authenticator
+# EAP-GTC for the integrated EAP server
 CONFIG_EAP_GTC=y
 
-# EAP-TTLS for the integrated EAP authenticator
+# EAP-TTLS for the integrated EAP server
 CONFIG_EAP_TTLS=y
 
-# EAP-SIM for the integrated EAP authenticator
+# EAP-SIM for the integrated EAP server
 #CONFIG_EAP_SIM=y
+
+# EAP-PAX for the integrated EAP server
+#CONFIG_EAP_PAX=y
+
+# EAP-PSK for the integrated EAP server (this is _not_ needed for WPA-PSK)
+#CONFIG_EAP_PSK=y
 
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
 CONFIG_PKCS12=y
 
 # RADIUS authentication server. This provides access to the integrated EAP
-# authenticator from external hosts using RADIUS.
+# server from external hosts using RADIUS.
 #CONFIG_RADIUS_SERVER=y
+
+# Build IPv6 support for RADIUS operations
+CONFIG_IPV6=y
