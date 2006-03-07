@@ -66,8 +66,17 @@ static u8 * eap_identity_buildReq(struct eap_sm *sm, void *priv, int id,
 	struct eap_identity_data *data = priv;
 	struct eap_hdr *req;
 	u8 *pos;
+	const char *req_data;
+	size_t req_data_len;
 
-	*reqDataLen = sizeof(*req) + 1;
+	if (sm->eapol_cb->get_eap_req_id_text) {
+		req_data = sm->eapol_cb->get_eap_req_id_text(sm->eapol_ctx,
+							     &req_data_len);
+	} else {
+		req_data = NULL;
+		req_data_len = 0;
+	}
+	*reqDataLen = sizeof(*req) + 1 + req_data_len;
 	req = malloc(*reqDataLen);
 	if (req == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-Identity: Failed to allocate "
@@ -80,7 +89,9 @@ static u8 * eap_identity_buildReq(struct eap_sm *sm, void *priv, int id,
 	req->identifier = id;
 	req->length = htons(*reqDataLen);
 	pos = (u8 *) (req + 1);
-	*pos = EAP_TYPE_IDENTITY;
+	*pos++ = EAP_TYPE_IDENTITY;
+	if (req_data)
+		memcpy(pos, req_data, req_data_len);
 
 	return (u8 *) req;
 }

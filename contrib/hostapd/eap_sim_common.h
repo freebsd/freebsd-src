@@ -1,3 +1,17 @@
+/*
+ * WPA Supplicant / EAP-SIM/AKA shared routines
+ * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
+ */
+
 #ifndef EAP_SIM_COMMON_H
 #define EAP_SIM_COMMON_H
 
@@ -16,11 +30,11 @@
 #define AKA_AUTN_LEN 16
 
 void eap_sim_derive_keys(const u8 *mk, u8 *k_encr, u8 *k_aut, u8 *msk);
-void eap_sim_derive_keys_reauth(unsigned int _counter,
+void eap_sim_derive_keys_reauth(u16 _counter,
 				const u8 *identity, size_t identity_len,
 				const u8 *nonce_s, const u8 *mk, u8 *msk);
-int eap_sim_verify_mac(const u8 *k_aut, u8 *req, size_t req_len, u8 *mac,
-		       u8 *extra, size_t extra_len);
+int eap_sim_verify_mac(const u8 *k_aut, const u8 *req, size_t req_len,
+		       const u8 *mac, const u8 *extra, size_t extra_len);
 void eap_sim_add_mac(const u8 *k_aut, u8 *msg, size_t msg_len, u8 *mac,
 		     const u8 *extra, size_t extra_len);
 
@@ -65,19 +79,20 @@ enum eap_sim_id_req {
 
 
 struct eap_sim_attrs {
-	u8 *rand, *autn, *mac, *iv, *encr_data, *version_list, *nonce_s;
-	u8 *next_pseudonym, *next_reauth_id;
-	u8 *nonce_mt, *identity;
+	const u8 *rand, *autn, *mac, *iv, *encr_data, *version_list, *nonce_s;
+	const u8 *next_pseudonym, *next_reauth_id;
+	const u8 *nonce_mt, *identity;
 	size_t num_chal, version_list_len, encr_data_len;
 	size_t next_pseudonym_len, next_reauth_id_len, identity_len;
 	enum eap_sim_id_req id_req;
 	int notification, counter, selected_version, client_error_code;
 };
 
-int eap_sim_parse_attr(u8 *start, u8 *end, struct eap_sim_attrs *attr,
-		       int aka, int encr);
-int eap_sim_parse_encr(const u8 *k_encr, u8 *encr_data, size_t encr_data_len,
-		       const u8 *iv, struct eap_sim_attrs *attr, int aka);
+int eap_sim_parse_attr(const u8 *start, const u8 *end,
+		       struct eap_sim_attrs *attr, int aka, int encr);
+u8 * eap_sim_parse_encr(const u8 *k_encr, const u8 *encr_data,
+			size_t encr_data_len, const u8 *iv,
+			struct eap_sim_attrs *attr, int aka);
 
 
 struct eap_sim_msg;

@@ -47,7 +47,8 @@ enum { EAPOL_KEY_TYPE_RC4 = 1, EAPOL_KEY_TYPE_RSN = 2,
        EAPOL_KEY_TYPE_WPA = 254 };
 
 
-void ieee802_1x_receive(hostapd *hapd, u8 *sa, u8 *buf, size_t len);
+void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
+			size_t len);
 void ieee802_1x_new_station(hostapd *hapd, struct sta_info *sta);
 void ieee802_1x_free_station(struct sta_info *sta);
 
@@ -69,7 +70,8 @@ void ieee802_1x_deinit(hostapd *hapd);
 int ieee802_1x_tx_status(hostapd *hapd, struct sta_info *sta, u8 *buf,
 			 size_t len, int ack);
 u8 * ieee802_1x_get_identity(struct eapol_state_machine *sm, size_t *len);
-u8 * ieee802_1x_get_radius_class(struct eapol_state_machine *sm, size_t *len);
+u8 * ieee802_1x_get_radius_class(struct eapol_state_machine *sm, size_t *len,
+				 int idx);
 u8 * ieee802_1x_get_key_crypt(struct eapol_state_machine *sm, size_t *len);
 void ieee802_1x_notify_port_enabled(struct eapol_state_machine *sm,
 				    int enabled);
@@ -82,5 +84,11 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 void hostapd_get_ntp_timestamp(u8 *buf);
 void ieee802_1x_finished(struct hostapd_data *hapd, struct sta_info *sta,
 			 int success);
+
+struct radius_class_data;
+
+void ieee802_1x_free_radius_class(struct radius_class_data *class);
+int ieee802_1x_copy_radius_class(struct radius_class_data *dst,
+				 struct radius_class_data *src);
 
 #endif /* IEEE802_1X_H */

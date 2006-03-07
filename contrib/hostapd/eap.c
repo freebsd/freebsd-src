@@ -24,6 +24,7 @@
 #include "sta_info.h"
 #include "eap_i.h"
 
+#define EAP_MAX_AUTH_ROUNDS 50
 
 extern const struct eap_method eap_method_identity;
 #ifdef EAP_MD5
@@ -50,6 +51,12 @@ extern const struct eap_method eap_method_ttls;
 #ifdef EAP_SIM
 extern const struct eap_method eap_method_sim;
 #endif /* EAP_SIM */
+#ifdef EAP_PAX
+extern const struct eap_method eap_method_pax;
+#endif /* EAP_PAX */
+#ifdef EAP_PSK
+extern const struct eap_method eap_method_psk;
+#endif /* EAP_PSK */
 
 static const struct eap_method *eap_methods[] =
 {
@@ -78,6 +85,12 @@ static const struct eap_method *eap_methods[] =
 #ifdef EAP_SIM
 	&eap_method_sim,
 #endif /* EAP_SIM */
+#ifdef EAP_PAX
+	&eap_method_pax,
+#endif /* EAP_PAX */
+#ifdef EAP_PSK
+	&eap_method_psk,
+#endif /* EAP_PSK */
 };
 #define NUM_EAP_METHODS (sizeof(eap_methods) / sizeof(eap_methods[0]))
 
@@ -197,6 +210,7 @@ int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,
 SM_STATE(EAP, DISABLED)
 {
 	SM_ENTRY(EAP, DISABLED);
+	sm->num_rounds = 0;
 }
 
 
@@ -232,6 +246,7 @@ SM_STATE(EAP, INITIALIZE)
 			sm->currentId = sm->respId;
 		}
 	}
+	sm->num_rounds = 0;
 }
 
 
@@ -288,6 +303,7 @@ SM_STATE(EAP, RECEIVED)
 
 	/* parse rxResp, respId, respMethod */
 	eap_sm_parseEapResp(sm, sm->eapRespData, sm->eapRespDataLen);
+	sm->num_rounds++;
 }
 
 
@@ -503,7 +519,15 @@ SM_STEP(EAP)
 		SM_ENTER_GLOBAL(EAP, INITIALIZE);
 	else if (!eapol_get_bool(sm, EAPOL_portEnabled))
 		SM_ENTER_GLOBAL(EAP, DISABLED);
-	else switch (sm->EAP_state) {
+	else if (sm->num_rounds > EAP_MAX_AUTH_ROUNDS) {
+		if (sm->num_rounds == EAP_MAX_AUTH_ROUNDS + 1) {
+			wpa_printf(MSG_DEBUG, "EAP: more than %d "
+				   "authentication rounds - abort",
+				   EAP_MAX_AUTH_ROUNDS);
+			sm->num_rounds++;
+			SM_ENTER_GLOBAL(EAP, FAILURE);
+		}
+	} else switch (sm->EAP_state) {
 	case EAP_INITIALIZE:
 		if (sm->backend_auth) {
 			if (!sm->rxResp)
@@ -908,4 +932,13 @@ void eap_sm_deinit(struct eap_sm *sm)
 	free(sm->identity);
 	eap_user_free(sm->user);
 	free(sm);
+}
+
+
+void eap_sm_notify_cached(struct eap_sm *sm)
+{
+	if (sm == NULL)
+		return;
+
+	sm->EAP_state = EAP_SUCCESS;
 }

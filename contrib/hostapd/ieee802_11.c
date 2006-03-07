@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
 
@@ -34,6 +35,7 @@
 #include "wpa.h"
 #include "accounting.h"
 #include "driver.h"
+#include "hostap_common.h"
 
 
 static u8 * hostapd_eid_supp_rates(hostapd *hapd, u8 *eid)
@@ -175,7 +177,7 @@ ParseRes ieee802_11_parse_elems(struct hostapd_data *hapd, u8 *start,
 }
 
 
-static void ieee802_11_print_ssid(u8 *ssid, u8 len)
+static void ieee802_11_print_ssid(const u8 *ssid, u8 len)
 {
 	int i;
 	for (i = 0; i < len; i++) {
@@ -199,7 +201,8 @@ static void ieee802_11_sta_authenticate(void *eloop_ctx, void *timeout_ctx)
 
 	printf("Authenticate with AP " MACSTR " SSID=",
 	       MAC2STR(hapd->conf->assoc_ap_addr));
-	ieee802_11_print_ssid(hapd->assoc_ap_ssid, hapd->assoc_ap_ssid_len);
+	ieee802_11_print_ssid((u8 *) hapd->assoc_ap_ssid,
+			      hapd->assoc_ap_ssid_len);
 	printf(" (as station)\n");
 
 	memset(&mgmt, 0, sizeof(mgmt));
@@ -236,7 +239,8 @@ static void ieee802_11_sta_associate(void *eloop_ctx, void *timeout_ctx)
 
 	printf("Associate with AP " MACSTR " SSID=",
 	       MAC2STR(hapd->conf->assoc_ap_addr));
-	ieee802_11_print_ssid(hapd->assoc_ap_ssid, hapd->assoc_ap_ssid_len);
+	ieee802_11_print_ssid((u8 *) hapd->assoc_ap_ssid,
+			      hapd->assoc_ap_ssid_len);
 	printf(" (as station)\n");
 
 	memset(mgmt, 0, sizeof(*mgmt));
@@ -475,7 +479,7 @@ static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
 	sta->flags &= ~WLAN_STA_PREAUTH;
 	ieee802_1x_notify_pre_auth(sta->eapol_sm, 0);
 
-	if (hapd->conf->radius_acct_interim_interval == 0 &&
+	if (hapd->conf->radius->acct_interim_interval == 0 &&
 	    acct_interim_interval)
 		sta->acct_interim_interval = acct_interim_interval;
 	if (res == HOSTAPD_ACL_ACCEPT_TIMEOUT)
@@ -1091,10 +1095,7 @@ static void handle_assoc_cb(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 	}
 
 	wpa_sm_event(hapd, sta, WPA_ASSOC);
-	if (new_assoc)
-		hostapd_new_assoc_sta(hapd, sta);
-	else
-		wpa_sm_event(hapd, sta, WPA_REAUTH);
+	hostapd_new_assoc_sta(hapd, sta, !new_assoc);
 
 	ieee802_1x_notify_port_enabled(sta->eapol_sm, 1);
 
@@ -1139,6 +1140,7 @@ static void ieee80211_tkip_countermeasures_stop(void *eloop_ctx,
 {
 	struct hostapd_data *hapd = eloop_ctx;
 	hapd->tkip_countermeasures = 0;
+	hostapd_set_countermeasures(hapd, 0);
 	hostapd_logger(hapd, NULL, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_INFO, "TKIP countermeasures ended");
 }
@@ -1154,6 +1156,7 @@ static void ieee80211_tkip_countermeasures_start(struct hostapd_data *hapd)
 	if (hapd->wpa_auth)
 		hapd->wpa_auth->dot11RSNATKIPCounterMeasuresInvoked++;
 	hapd->tkip_countermeasures = 1;
+	hostapd_set_countermeasures(hapd, 1);
 	wpa_gtk_rekey(hapd);
 	eloop_cancel_timeout(ieee80211_tkip_countermeasures_stop, hapd, NULL);
 	eloop_register_timeout(60, 0, ieee80211_tkip_countermeasures_stop,
