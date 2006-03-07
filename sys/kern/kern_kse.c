@@ -148,7 +148,9 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 			td->td_mailbox = uap->tmbx;
 			td->td_pflags |= TDP_CAN_UNBIND;
 		}
+		PROC_LOCK(td->td_proc);
 		if (td->td_proc->p_flag & P_TRACED) {
+			_PHOLD(td->td_proc);
 			if (tmbx.tm_dflags & TMDF_SSTEP)
 				ptrace_single_step(td);
 			else
@@ -160,7 +162,9 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 					ku->ku_flags |= KUF_DOUPCALL;
 				mtx_unlock_spin(&sched_lock);
 			}
+			_PRELE(td->td_proc);
 		}
+		PROC_UNLOCK(td->td_proc);
 	}
 	return ((error == 0) ? EJUSTRETURN : error);
 }
@@ -782,8 +786,13 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			 */
 			cpu_set_upcall_kse(newtd, newku->ku_func,
 				newku->ku_mailbox, &newku->ku_stack);
-			if (p->p_flag & P_TRACED)
+			PROC_LOCK(p);
+			if (p->p_flag & P_TRACED) {
+				_PHOLD(p);
 				ptrace_clear_single_step(newtd);
+				_PRELE(p);
+			}
+			PROC_UNLOCK(p);
 		}
 	}
 	
@@ -1376,8 +1385,13 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		if (!(ku->ku_mflags & KMF_NOUPCALL)) {
 			cpu_set_upcall_kse(td, ku->ku_func, ku->ku_mailbox,
 				&ku->ku_stack);
-			if (p->p_flag & P_TRACED)
+			PROC_LOCK(p);
+			if (p->p_flag & P_TRACED) {
+				_PHOLD(p);
 				ptrace_clear_single_step(td);
+				_PRELE(p);
+			}
+			PROC_UNLOCK(p);
 			error = suword32(&ku->ku_mailbox->km_lwp,
 					td->td_tid);
 			if (error)
