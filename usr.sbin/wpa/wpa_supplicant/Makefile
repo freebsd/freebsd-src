@@ -5,8 +5,8 @@ WPA_SUPPLICANT_DISTDIR?= ${.CURDIR}/../../../contrib/wpa_supplicant
 
 PROG=	wpa_supplicant
 SRCS=	config.c eloop.c common.c md5.c rc4.c sha1.c aes_wrap.c \
-	wpa_supplicant.c wpa.c \
-	ctrl_iface.c l2_packet.c drivers.c driver_freebsd.c \
+	wpa_supplicant.c events.c wpa.c preauth.c \
+	ctrl_iface.c l2_packet.c main.c drivers.c driver_freebsd.c \
 	driver_ndis.c driver_ndis_.c Packet32.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
@@ -19,6 +19,10 @@ CFLAGS+= -g
 DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 
+# NB: we only support wpa_supplicant.conf file
+SRCS+=	config_file.c base64.c
+CFLAGS+=-DCONFIG_BACKEND_FILE
+
 .if !defined(NO_WPA_SUPPLICANT_EAPOL)
 SRCS+=	eapol_sm.c eap.c
 CFLAGS+= -DIEEE8021X_EAPOL
@@ -26,7 +30,8 @@ CFLAGS+= -DIEEE8021X_EAPOL
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 CFLAGS+=-DEAP_TLS -DEAP_PEAP -DEAP_MSCHAPv2 -DEAP_LEAP -DEAP_PSK \
 	-DEAP_TLV -DEAP_TLS_FUNCS
-SRCS+=	eap_tls.c eap_peap.c eap_mschapv2.c eap_leap.c eap_psk.c \
+SRCS+=	eap_tls.c eap_peap.c eap_mschapv2.c eap_leap.c \
+	eap_psk.c eap_psk_common.c \
 	eap_tlv.c eap_tls_common.c tls_openssl.c ms_funcs.c crypto.c
 
 CFLAGS+=-DEAP_TTLS -DEAP_MD5
