@@ -1,6 +1,15 @@
 /*
  * WPA Supplicant - test code
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2006, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
  *
  * IEEE 802.1X Supplicant test code (to be used in place of wpa_supplicant.c.
  * Not used in production version.
@@ -13,9 +22,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <signal.h>
+#ifndef CONFIG_NATIVE_WINDOWS
 #include <netinet/in.h>
-#include <assert.h>
 #include <arpa/inet.h>
+#endif /* CONFIG_NATIVE_WINDOWS */
+#include <assert.h>
 
 #include "common.h"
 #include "config.h"
@@ -34,139 +45,147 @@
 
 extern int wpa_debug_level;
 extern int wpa_debug_show_keys;
-static int eapol_test_num_reauths = 0;
-static int no_mppe_keys = 0;
-static int num_mppe_ok = 0, num_mppe_mismatch = 0;
+
+struct wpa_driver_ops *wpa_supplicant_drivers[] = { };
+
+
+struct eapol_test_data {
+	struct wpa_supplicant *wpa_s;
+
+	int eapol_test_num_reauths;
+	int no_mppe_keys;
+	int num_mppe_ok, num_mppe_mismatch;
+
+	u8 radius_identifier;
+	struct radius_msg *last_recv_radius;
+	struct in_addr own_ip_addr;
+	struct radius_client_data *radius;
+	struct hostapd_radius_servers *radius_conf;
+
+	u8 *last_eap_radius; /* last received EAP Response from Authentication
+			      * Server */
+	size_t last_eap_radius_len;
+
+	u8 authenticator_pmk[PMK_LEN];
+	size_t authenticator_pmk_len;
+	int radius_access_accept_received;
+	int radius_access_reject_received;
+	int auth_timed_out;
+
+	u8 *eap_identity;
+	size_t eap_identity_len;
+};
+
+static struct eapol_test_data eapol_test;
+
 
 static void send_eap_request_identity(void *eloop_ctx, void *timeout_ctx);
 
 
-void wpa_msg(struct wpa_supplicant *wpa_s, int level, char *fmt, ...)
+void hostapd_logger(void *ctx, u8 *addr, unsigned int module, int level,
+		    char *fmt, ...)
 {
+	char *format;
+	int maxlen;
 	va_list ap;
-	char *buf;
-	const int buflen = 2048;
-	int len;
 
-	buf = malloc(buflen);
-	if (buf == NULL) {
-		printf("Failed to allocate message buffer for:\n");
-		va_start(ap, fmt);
-		vprintf(fmt, ap);
-		printf("\n");
-		va_end(ap);
+	maxlen = strlen(fmt) + 100;
+	format = malloc(maxlen);
+	if (!format)
 		return;
-	}
+
 	va_start(ap, fmt);
-	len = vsnprintf(buf, buflen, fmt, ap);
+
+
+	if (addr)
+		snprintf(format, maxlen, "STA " MACSTR ": %s",
+			 MAC2STR(addr), fmt);
+	else
+		snprintf(format, maxlen, "%s", fmt);
+
+	vprintf(format, ap);
+	printf("\n");
+
+	free(format);
+
 	va_end(ap);
-	wpa_printf(level, "%s", buf);
-	wpa_supplicant_ctrl_iface_send(wpa_s, level, buf, len);
-	free(buf);
 }
 
 
-void wpa_supplicant_event(struct wpa_supplicant *wpa_s, wpa_event_type event,
-			  union wpa_event_data *data)
+const char * hostapd_ip_txt(const struct hostapd_ip_addr *addr, char *buf,
+			    size_t buflen)
 {
+	if (buflen == 0 || addr == NULL)
+		return NULL;
+
+	if (addr->af == AF_INET) {
+		snprintf(buf, buflen, "%s", inet_ntoa(addr->u.v4));
+	} else {
+		buf[0] = '\0';
+	}
+#ifdef CONFIG_IPV6
+	if (addr->af == AF_INET6) {
+		if (inet_ntop(AF_INET6, &addr->u.v6, buf, buflen) == NULL)
+			buf[0] = '\0';
+	}
+#endif /* CONFIG_IPV6 */
+
+	return buf;
 }
 
 
-int rsn_preauth_init(struct wpa_supplicant *wpa_s, u8 *dst)
-{
-	return -1;
-}
-
-
-void rsn_preauth_deinit(struct wpa_supplicant *wpa_s)
-{
-}
-
-
-int pmksa_cache_list(struct wpa_supplicant *wpa_s, char *buf, size_t len)
-{
-	return 0;
-}
-
-
-int wpa_get_mib(struct wpa_supplicant *wpa_s, char *buf, size_t buflen)
-{
-	return 0;
-}
-
-
-void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec)
-{
-}
-
-
-const char * wpa_ssid_txt(u8 *ssid, size_t ssid_len)
-{
-	return NULL;
-}
-
-
-int wpa_supplicant_reload_configuration(struct wpa_supplicant *wpa_s)
-{
-	return -1;
-}
-
-
-static void ieee802_1x_encapsulate_radius(struct wpa_supplicant *wpa_s,
-					  u8 *eap, size_t len)
+static void ieee802_1x_encapsulate_radius(struct eapol_test_data *e,
+					  const u8 *eap, size_t len)
 {
 	struct radius_msg *msg;
 	char buf[128];
-	struct eap_hdr *hdr;
-	u8 *pos;
+	const struct eap_hdr *hdr;
+	const u8 *pos;
 
 	wpa_printf(MSG_DEBUG, "Encapsulating EAP message into a RADIUS "
 		   "packet");
 
-	wpa_s->radius_identifier = radius_client_get_id(wpa_s);
+	e->radius_identifier = radius_client_get_id(e->radius);
 	msg = radius_msg_new(RADIUS_CODE_ACCESS_REQUEST,
-			     wpa_s->radius_identifier);
+			     e->radius_identifier);
 	if (msg == NULL) {
 		printf("Could not create net RADIUS packet\n");
 		return;
 	}
 
-	radius_msg_make_authenticator(msg, (u8 *) wpa_s, sizeof(*wpa_s));
+	radius_msg_make_authenticator(msg, (u8 *) e, sizeof(*e));
 
-	hdr = (struct eap_hdr *) eap;
-	pos = (u8 *) (hdr + 1);
+	hdr = (const struct eap_hdr *) eap;
+	pos = (const u8 *) (hdr + 1);
 	if (len > sizeof(*hdr) && hdr->code == EAP_CODE_RESPONSE &&
 	    pos[0] == EAP_TYPE_IDENTITY) {
 		pos++;
-		free(wpa_s->eap_identity);
-		wpa_s->eap_identity_len = len - sizeof(*hdr) - 1;
-		wpa_s->eap_identity = malloc(wpa_s->eap_identity_len);
-		if (wpa_s->eap_identity) {
-			memcpy(wpa_s->eap_identity, pos,
-			       wpa_s->eap_identity_len);
+		free(e->eap_identity);
+		e->eap_identity_len = len - sizeof(*hdr) - 1;
+		e->eap_identity = malloc(e->eap_identity_len);
+		if (e->eap_identity) {
+			memcpy(e->eap_identity, pos, e->eap_identity_len);
 			wpa_hexdump(MSG_DEBUG, "Learned identity from "
 				    "EAP-Response-Identity",
-				    wpa_s->eap_identity,
-				    wpa_s->eap_identity_len);
+				    e->eap_identity, e->eap_identity_len);
 		}
 	}
 
-	if (wpa_s->eap_identity &&
+	if (e->eap_identity &&
 	    !radius_msg_add_attr(msg, RADIUS_ATTR_USER_NAME,
-				 wpa_s->eap_identity,
-				 wpa_s->eap_identity_len)) {
+				 e->eap_identity, e->eap_identity_len)) {
 		printf("Could not add User-Name\n");
 		goto fail;
 	}
 
 	if (!radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
-				 (u8 *) &wpa_s->own_ip_addr, 4)) {
+				 (u8 *) &e->own_ip_addr, 4)) {
 		printf("Could not add NAS-IP-Address\n");
 		goto fail;
 	}
 
 	snprintf(buf, sizeof(buf), RADIUS_802_1X_ADDR_FORMAT,
-		 MAC2STR(wpa_s->own_addr));
+		 MAC2STR(e->wpa_s->own_addr));
 	if (!radius_msg_add_attr(msg, RADIUS_ATTR_CALLING_STATION_ID,
 				 (u8 *) buf, strlen(buf))) {
 		printf("Could not add Calling-Station-Id\n");
@@ -201,9 +220,9 @@ static void ieee802_1x_encapsulate_radius(struct wpa_supplicant *wpa_s,
 
 	/* State attribute must be copied if and only if this packet is
 	 * Access-Request reply to the previous Access-Challenge */
-	if (wpa_s->last_recv_radius && wpa_s->last_recv_radius->hdr->code ==
+	if (e->last_recv_radius && e->last_recv_radius->hdr->code ==
 	    RADIUS_CODE_ACCESS_CHALLENGE) {
-		int res = radius_msg_copy_attr(msg, wpa_s->last_recv_radius,
+		int res = radius_msg_copy_attr(msg, e->last_recv_radius,
 					       RADIUS_ATTR_STATE);
 		if (res < 0) {
 			printf("Could not copy State attribute from previous "
@@ -216,7 +235,7 @@ static void ieee802_1x_encapsulate_radius(struct wpa_supplicant *wpa_s,
 		}
 	}
 
-	radius_client_send(wpa_s, msg, RADIUS_AUTH, wpa_s->own_addr);
+	radius_client_send(e->radius, msg, RADIUS_AUTH, e->wpa_s->own_addr);
 	return;
 
  fail:
@@ -225,15 +244,32 @@ static void ieee802_1x_encapsulate_radius(struct wpa_supplicant *wpa_s,
 }
 
 
-static int eapol_test_eapol_send(void *ctx, int type, u8 *buf, size_t len)
+static int eapol_test_eapol_send(void *ctx, int type, const u8 *buf,
+				 size_t len)
 {
-	struct wpa_supplicant *wpa_s = ctx;
-	printf("WPA: wpa_eapol_send(type=%d len=%d)\n", type, len);
+	/* struct wpa_supplicant *wpa_s = ctx; */
+	printf("WPA: eapol_test_eapol_send(type=%d len=%d)\n", type, len);
 	if (type == IEEE802_1X_TYPE_EAP_PACKET) {
 		wpa_hexdump(MSG_DEBUG, "TX EAP -> RADIUS", buf, len);
-		ieee802_1x_encapsulate_radius(wpa_s, buf, len);
+		ieee802_1x_encapsulate_radius(&eapol_test, buf, len);
 	}
 	return 0;
+}
+
+
+static void eapol_test_set_config_blob(void *ctx,
+				       struct wpa_config_blob *blob)
+{
+	struct wpa_supplicant *wpa_s = ctx;
+	wpa_config_set_blob(wpa_s->conf, blob);
+}
+
+
+static const struct wpa_config_blob *
+eapol_test_get_config_blob(void *ctx, const char *name)
+{
+	struct wpa_supplicant *wpa_s = ctx;
+	return wpa_config_get_blob(wpa_s->conf, name);
 }
 
 
@@ -245,40 +281,40 @@ static void eapol_test_eapol_done_cb(void *ctx)
 
 static void eapol_sm_reauth(void *eloop_ctx, void *timeout_ctx)
 {
-	struct wpa_supplicant *wpa_s = eloop_ctx;
+	struct eapol_test_data *e = eloop_ctx;
 	printf("\n\n\n\n\neapol_test: Triggering EAP reauthentication\n\n");
-	wpa_s->radius_access_accept_received = 0;
-	send_eap_request_identity(eloop_ctx, timeout_ctx);
+	e->radius_access_accept_received = 0;
+	send_eap_request_identity(e->wpa_s, NULL);
 }
 
 
-static int eapol_test_compare_pmk(struct wpa_supplicant *wpa_s)
+static int eapol_test_compare_pmk(struct eapol_test_data *e)
 {
 	u8 pmk[PMK_LEN];
 	int ret = 1;
 
-	if (eapol_sm_get_key(wpa_s->eapol, pmk, PMK_LEN) == 0) {
+	if (eapol_sm_get_key(e->wpa_s->eapol, pmk, PMK_LEN) == 0) {
 		wpa_hexdump(MSG_DEBUG, "PMK from EAPOL", pmk, PMK_LEN);
-		if (memcmp(pmk, wpa_s->authenticator_pmk, PMK_LEN) != 0)
+		if (memcmp(pmk, e->authenticator_pmk, PMK_LEN) != 0)
 			printf("WARNING: PMK mismatch\n");
-		else if (wpa_s->radius_access_accept_received)
+		else if (e->radius_access_accept_received)
 			ret = 0;
-	} else if (wpa_s->authenticator_pmk_len == 16 &&
-		   eapol_sm_get_key(wpa_s->eapol, pmk, 16) == 0) {
+	} else if (e->authenticator_pmk_len == 16 &&
+		   eapol_sm_get_key(e->wpa_s->eapol, pmk, 16) == 0) {
 		wpa_hexdump(MSG_DEBUG, "LEAP PMK from EAPOL", pmk, 16);
-		if (memcmp(pmk, wpa_s->authenticator_pmk, 16) != 0)
+		if (memcmp(pmk, e->authenticator_pmk, 16) != 0)
 			printf("WARNING: PMK mismatch\n");
-		else if (wpa_s->radius_access_accept_received)
+		else if (e->radius_access_accept_received)
 			ret = 0;
-	} else if (wpa_s->radius_access_accept_received && no_mppe_keys) {
+	} else if (e->radius_access_accept_received && e->no_mppe_keys) {
 		/* No keying material expected */
 		ret = 0;
 	}
 
 	if (ret)
-		num_mppe_mismatch++;
-	else if (!no_mppe_keys)
-		num_mppe_ok++;
+		e->num_mppe_mismatch++;
+	else if (!e->no_mppe_keys)
+		e->num_mppe_ok++;
 
 	return ret;
 }
@@ -286,20 +322,20 @@ static int eapol_test_compare_pmk(struct wpa_supplicant *wpa_s)
 
 static void eapol_sm_cb(struct eapol_sm *eapol, int success, void *ctx)
 {
-	struct wpa_supplicant *wpa_s = ctx;
+	struct eapol_test_data *e = ctx;
 	printf("eapol_sm_cb: success=%d\n", success);
-	eapol_test_num_reauths--;
-	if (eapol_test_num_reauths < 0)
+	e->eapol_test_num_reauths--;
+	if (e->eapol_test_num_reauths < 0)
 		eloop_terminate();
 	else {
-		eapol_test_compare_pmk(wpa_s);
-		eloop_register_timeout(0, 100000, eapol_sm_reauth,
-				       wpa_s, NULL);
+		eapol_test_compare_pmk(e);
+		eloop_register_timeout(0, 100000, eapol_sm_reauth, e, NULL);
 	}
 }
 
 
-static int test_eapol(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
+static int test_eapol(struct eapol_test_data *e, struct wpa_supplicant *wpa_s,
+		      struct wpa_ssid *ssid)
 {
 	struct eapol_config eapol_conf;
 	struct eapol_ctx *ctx;
@@ -314,10 +350,16 @@ static int test_eapol(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 	ctx->msg_ctx = wpa_s;
 	ctx->scard_ctx = wpa_s->scard;
 	ctx->cb = eapol_sm_cb;
-	ctx->cb_ctx = wpa_s;
+	ctx->cb_ctx = e;
+	ctx->eapol_send_ctx = wpa_s;
 	ctx->preauth = 0;
 	ctx->eapol_done_cb = eapol_test_eapol_done_cb;
 	ctx->eapol_send = eapol_test_eapol_send;
+	ctx->set_config_blob = eapol_test_set_config_blob;
+	ctx->get_config_blob = eapol_test_get_config_blob;
+	ctx->opensc_engine_path = wpa_s->conf->opensc_engine_path;
+	ctx->pkcs11_engine_path = wpa_s->conf->pkcs11_engine_path;
+	ctx->pkcs11_module_path = wpa_s->conf->pkcs11_module_path;
 
 	wpa_s->eapol = eapol_sm_init(ctx);
 	if (wpa_s->eapol == NULL) {
@@ -344,22 +386,25 @@ static int test_eapol(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 }
 
 
-static void test_eapol_clean(struct wpa_supplicant *wpa_s)
+static void test_eapol_clean(struct eapol_test_data *e,
+			     struct wpa_supplicant *wpa_s)
 {
-	radius_client_deinit(wpa_s);
-	free(wpa_s->last_eap_radius);
-	if (wpa_s->last_recv_radius) {
-		radius_msg_free(wpa_s->last_recv_radius);
-		free(wpa_s->last_recv_radius);
+	radius_client_deinit(e->radius);
+	free(e->last_eap_radius);
+	if (e->last_recv_radius) {
+		radius_msg_free(e->last_recv_radius);
+		free(e->last_recv_radius);
 	}
-	free(wpa_s->eap_identity);
-	wpa_s->eap_identity = NULL;
+	free(e->eap_identity);
+	e->eap_identity = NULL;
 	eapol_sm_deinit(wpa_s->eapol);
 	wpa_s->eapol = NULL;
-	if (wpa_s->auth_server) {
-		free(wpa_s->auth_server->shared_secret);
-		free(wpa_s->auth_server);
+	if (e->radius_conf && e->radius_conf->auth_server) {
+		free(e->radius_conf->auth_server->shared_secret);
+		free(e->radius_conf->auth_server);
 	}
+	free(e->radius_conf);
+	e->radius_conf = NULL;
 	scard_deinit(wpa_s->scard);
 	wpa_supplicant_ctrl_iface_deinit(wpa_s);
 	wpa_config_free(wpa_s->conf);
@@ -393,9 +438,9 @@ static void send_eap_request_identity(void *eloop_ctx, void *timeout_ctx)
 
 static void eapol_test_timeout(void *eloop_ctx, void *timeout_ctx)
 {
-	struct wpa_supplicant *wpa_s = eloop_ctx;
+	struct eapol_test_data *e = eloop_ctx;
 	printf("EAPOL test timed out\n");
-	wpa_s->auth_timed_out = 1;
+	e->auth_timed_out = 1;
 	eloop_terminate();
 }
 
@@ -418,7 +463,7 @@ static char *eap_type_text(u8 type)
 }
 
 
-static void ieee802_1x_decapsulate_radius(struct wpa_supplicant *wpa_s)
+static void ieee802_1x_decapsulate_radius(struct eapol_test_data *e)
 {
 	u8 *eap;
 	size_t len;
@@ -427,10 +472,10 @@ static void ieee802_1x_decapsulate_radius(struct wpa_supplicant *wpa_s)
 	char buf[64];
 	struct radius_msg *msg;
 
-	if (wpa_s->last_recv_radius == NULL)
+	if (e->last_recv_radius == NULL)
 		return;
 
-	msg = wpa_s->last_recv_radius;
+	msg = e->last_recv_radius;
 
 	eap = radius_msg_get_eap(msg, &len);
 	if (eap == NULL) {
@@ -439,9 +484,9 @@ static void ieee802_1x_decapsulate_radius(struct wpa_supplicant *wpa_s)
 		 * attribute */
 		wpa_printf(MSG_DEBUG, "could not extract "
 			       "EAP-Message from RADIUS message");
-		free(wpa_s->last_eap_radius);
-		wpa_s->last_eap_radius = NULL;
-		wpa_s->last_eap_radius_len = 0;
+		free(e->last_eap_radius);
+		e->last_eap_radius = NULL;
+		e->last_eap_radius_len = 0;
 		return;
 	}
 
@@ -487,10 +532,9 @@ static void ieee802_1x_decapsulate_radius(struct wpa_supplicant *wpa_s)
 
 	/* sta->eapol_sm->be_auth.idFromServer = hdr->identifier; */
 
-	if (wpa_s->last_eap_radius)
-		free(wpa_s->last_eap_radius);
-	wpa_s->last_eap_radius = eap;
-	wpa_s->last_eap_radius_len = len;
+	free(e->last_eap_radius);
+	e->last_eap_radius = eap;
+	e->last_eap_radius_len = len;
 
 	{
 		struct ieee802_1x_hdr *hdr;
@@ -500,14 +544,14 @@ static void ieee802_1x_decapsulate_radius(struct wpa_supplicant *wpa_s)
 		hdr->type = IEEE802_1X_TYPE_EAP_PACKET;
 		hdr->length = htons(len);
 		memcpy((u8 *) (hdr + 1), eap, len);
-		eapol_sm_rx_eapol(wpa_s->eapol, wpa_s->bssid,
+		eapol_sm_rx_eapol(e->wpa_s->eapol, e->wpa_s->bssid,
 				  (u8 *) hdr, sizeof(*hdr) + len);
 		free(hdr);
 	}
 }
 
 
-static void ieee802_1x_get_keys(struct wpa_supplicant *wpa_s,
+static void ieee802_1x_get_keys(struct eapol_test_data *e,
 				struct radius_msg *msg, struct radius_msg *req,
 				u8 *shared_secret, size_t shared_secret_len)
 {
@@ -529,11 +573,11 @@ static void ieee802_1x_get_keys(struct wpa_supplicant *wpa_s,
 		if (keys->recv) {
 			wpa_hexdump(MSG_DEBUG, "MS-MPPE-Recv-Key (crypt)",
 				    keys->recv, keys->recv_len);
-			wpa_s->authenticator_pmk_len =
+			e->authenticator_pmk_len =
 				keys->recv_len > PMK_LEN ? PMK_LEN :
 				keys->recv_len;
-			memcpy(wpa_s->authenticator_pmk, keys->recv,
-			       wpa_s->authenticator_pmk_len);
+			memcpy(e->authenticator_pmk, keys->recv,
+			       e->authenticator_pmk_len);
 		}
 
 		free(keys->send);
@@ -545,11 +589,12 @@ static void ieee802_1x_get_keys(struct wpa_supplicant *wpa_s,
 
 /* Process the RADIUS frames from Authentication Server */
 static RadiusRxResult
-ieee802_1x_receive_auth(struct wpa_supplicant *wpa_s,
-			struct radius_msg *msg, struct radius_msg *req,
+ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
 			u8 *shared_secret, size_t shared_secret_len,
 			void *data)
 {
+	struct eapol_test_data *e = data;
+
 	/* RFC 2869, Ch. 5.13: valid Message-Authenticator attribute MUST be
 	 * present when packet contains an EAP-Message attribute */
 	if (msg->hdr->code == RADIUS_CODE_ACCESS_REJECT &&
@@ -560,7 +605,7 @@ ieee802_1x_receive_auth(struct wpa_supplicant *wpa_s,
 			      "Access-Reject without Message-Authenticator "
 			      "since it does not include EAP-Message\n");
 	} else if (radius_msg_verify(msg, shared_secret, shared_secret_len,
-				     req)) {
+				     req, 1)) {
 		printf("Incoming RADIUS packet did not have correct "
 		       "Message-Authenticator - dropped\n");
 		return RADIUS_RX_UNKNOWN;
@@ -573,31 +618,31 @@ ieee802_1x_receive_auth(struct wpa_supplicant *wpa_s,
 		return RADIUS_RX_UNKNOWN;
 	}
 
-	wpa_s->radius_identifier = -1;
+	e->radius_identifier = -1;
 	wpa_printf(MSG_DEBUG, "RADIUS packet matching with station");
 
-	if (wpa_s->last_recv_radius) {
-		radius_msg_free(wpa_s->last_recv_radius);
-		free(wpa_s->last_recv_radius);
+	if (e->last_recv_radius) {
+		radius_msg_free(e->last_recv_radius);
+		free(e->last_recv_radius);
 	}
 
-	wpa_s->last_recv_radius = msg;
+	e->last_recv_radius = msg;
 
 	switch (msg->hdr->code) {
 	case RADIUS_CODE_ACCESS_ACCEPT:
-		wpa_s->radius_access_accept_received = 1;
-		ieee802_1x_get_keys(wpa_s, msg, req, shared_secret,
+		e->radius_access_accept_received = 1;
+		ieee802_1x_get_keys(e, msg, req, shared_secret,
 				    shared_secret_len);
 		break;
 	case RADIUS_CODE_ACCESS_REJECT:
-		wpa_s->radius_access_reject_received = 1;
+		e->radius_access_reject_received = 1;
 		break;
 	}
 
-	ieee802_1x_decapsulate_radius(wpa_s);
+	ieee802_1x_decapsulate_radius(e);
 
 	if ((msg->hdr->code == RADIUS_CODE_ACCESS_ACCEPT &&
-	     eapol_test_num_reauths < 0) ||
+	     e->eapol_test_num_reauths < 0) ||
 	    msg->hdr->code == RADIUS_CODE_ACCESS_REJECT) {
 		eloop_terminate();
 	}
@@ -606,77 +651,8 @@ ieee802_1x_receive_auth(struct wpa_supplicant *wpa_s,
 }
 
 
-static void wpa_supplicant_imsi_identity(struct wpa_supplicant *wpa_s,
-					 struct wpa_ssid *ssid)
-{
-	int aka = 0;
-	u8 *pos = ssid->eap_methods;
-
-	while (pos && *pos != EAP_TYPE_NONE) {
-		if (*pos == EAP_TYPE_AKA) {
-			aka = 1;
-			break;
-		}
-		pos++;
-	}
-
-	if (ssid->identity == NULL && wpa_s->imsi) {
-		ssid->identity = malloc(1 + wpa_s->imsi_len);
-		if (ssid->identity) {
-			ssid->identity[0] = aka ? '0' : '1';
-			memcpy(ssid->identity + 1, wpa_s->imsi,
-			       wpa_s->imsi_len);
-			ssid->identity_len = 1 + wpa_s->imsi_len;
-			wpa_hexdump_ascii(MSG_DEBUG, "permanent identity from "
-					  "IMSI", ssid->identity,
-					  ssid->identity_len);
-		}
-	}
-}
-
-
-static void wpa_supplicant_scard_init(struct wpa_supplicant *wpa_s,
-				      struct wpa_ssid *ssid)
-{
-	char buf[100];
-	size_t len;
-
-	if (ssid->pcsc == NULL)
-		return;
-	if (wpa_s->scard != NULL) {
-		wpa_supplicant_imsi_identity(wpa_s, ssid);
-		return;
-	}
-	wpa_printf(MSG_DEBUG, "Selected network is configured to use SIM - "
-		   "initialize PCSC");
-	wpa_s->scard = scard_init(SCARD_TRY_BOTH, ssid->pin);
-	if (wpa_s->scard == NULL) {
-		wpa_printf(MSG_WARNING, "Failed to initialize SIM "
-			   "(pcsc-lite)");
-		/* TODO: what to do here? */
-		return;
-	}
-	eapol_sm_register_scard_ctx(wpa_s->eapol, wpa_s->scard);
-
-	len = sizeof(buf);
-	if (scard_get_imsi(wpa_s->scard, buf, &len)) {
-		wpa_printf(MSG_WARNING, "Failed to get IMSI from SIM");
-		/* TODO: what to do here? */
-		return;
-	}
-
-	wpa_hexdump(MSG_DEBUG, "IMSI", (u8 *) buf, len);
-	free(wpa_s->imsi);
-	wpa_s->imsi = malloc(len);
-	if (wpa_s->imsi) {
-		memcpy(wpa_s->imsi, buf, len);
-		wpa_s->imsi_len = len;
-		wpa_supplicant_imsi_identity(wpa_s, ssid);
-	}
-}
-
-
-static void wpa_init_conf(struct wpa_supplicant *wpa_s, const char *authsrv,
+static void wpa_init_conf(struct eapol_test_data *e,
+			  struct wpa_supplicant *wpa_s, const char *authsrv,
 			  int port, const char *secret)
 {
 	struct hostapd_radius_server *as;
@@ -684,24 +660,43 @@ static void wpa_init_conf(struct wpa_supplicant *wpa_s, const char *authsrv,
 
 	wpa_s->bssid[5] = 1;
 	wpa_s->own_addr[5] = 2;
-	wpa_s->own_ip_addr.s_addr = htonl((127 << 24) | 1);
+	e->own_ip_addr.s_addr = htonl((127 << 24) | 1);
 	strncpy(wpa_s->ifname, "test", sizeof(wpa_s->ifname));
 
-	wpa_s->num_auth_servers = 1;
+	e->radius_conf = malloc(sizeof(struct hostapd_radius_servers));
+	assert(e->radius_conf != NULL);
+	memset(e->radius_conf, 0, sizeof(struct hostapd_radius_servers));
+	e->radius_conf->num_auth_servers = 1;
 	as = malloc(sizeof(struct hostapd_radius_server));
 	assert(as != NULL);
-	inet_aton(authsrv, &as->addr);
+	memset(as, 0, sizeof(*as));
+#ifdef CONFIG_NATIVE_WINDOWS
+	{
+		int a[4];
+		u8 *pos;
+		sscanf(authsrv, "%d.%d.%d.%d", &a[0], &a[1], &a[2], &a[3]);
+		pos = (u8 *) &as->addr.u.v4;
+		*pos++ = a[0];
+		*pos++ = a[1];
+		*pos++ = a[2];
+		*pos++ = a[3];
+	}
+#else /* CONFIG_NATIVE_WINDOWS */
+	inet_aton(authsrv, &as->addr.u.v4);
+#endif /* CONFIG_NATIVE_WINDOWS */
+	as->addr.af = AF_INET;
 	as->port = port;
 	as->shared_secret = (u8 *) strdup(secret);
 	as->shared_secret_len = strlen(secret);
-	wpa_s->auth_server = wpa_s->auth_servers = as;
+	e->radius_conf->auth_server = as;
+	e->radius_conf->auth_servers = as;
+	e->radius_conf->msg_dumps = 1;
 
+	e->radius = radius_client_init(wpa_s, e->radius_conf);
+	assert(e->radius != NULL);
 
-	res = radius_client_init(wpa_s);
-	assert(res == 0);
-
-	res = radius_client_register(wpa_s, RADIUS_AUTH,
-				     ieee802_1x_receive_auth, NULL);
+	res = radius_client_register(e->radius, RADIUS_AUTH,
+				     ieee802_1x_receive_auth, e);
 	assert(res == 0);
 }
 
@@ -736,9 +731,14 @@ static int scard_test(void)
 	unsigned char aka_ik[IK_LEN];
 	unsigned char aka_ck[CK_LEN];
 
-	scard = scard_init(SCARD_TRY_BOTH, "1234");
+	scard = scard_init(SCARD_TRY_BOTH);
 	if (scard == NULL)
 		return -1;
+	if (scard_set_pin(scard, "1234")) {
+		wpa_printf(MSG_WARNING, "PIN validation failed");
+		scard_deinit(scard);
+		return -1;
+	}
 
 	len = sizeof(imsi);
 	if (scard_get_imsi(scard, imsi, &len))
@@ -827,9 +827,14 @@ static int scard_get_triplets(int argc, char *argv[])
 		wpa_debug_level = 99;
 	}
 
-	scard = scard_init(SCARD_GSM_SIM_ONLY, argv[0]);
+	scard = scard_init(SCARD_GSM_SIM_ONLY);
 	if (scard == NULL) {
 		printf("Failed to open smartcard connection\n");
+		return -1;
+	}
+	if (scard_set_pin(scard, argv[0])) {
+		wpa_printf(MSG_WARNING, "PIN validation failed");
+		scard_deinit(scard);
 		return -1;
 	}
 
@@ -877,7 +882,7 @@ static void eapol_test_terminate(int sig, void *eloop_ctx,
 static void usage(void)
 {
 	printf("usage:\n"
-	       "eapol_test [-n] -c<conf> [-a<AS IP>] [-p<AS port>] "
+	       "eapol_test [-nWS] -c<conf> [-a<AS IP>] [-p<AS port>] "
 	       "[-s<AS secret>] [-r<count>]\n"
 	       "eapol_test scard\n"
 	       "eapol_test sim <PIN> <num triplets> [debug]\n"
@@ -891,6 +896,8 @@ static void usage(void)
 	       "  -s<AS secret> = shared secret with the authentication "
 	       "server, default 'radius'\n"
 	       "  -r<count> = number of re-authentications\n"
+	       "  -W = wait for a control interface monitor before starting\n"
+	       "  -S = save configuration after authentiation\n"
 	       "  -n = no MPPE keys expected\n");
 }
 
@@ -898,17 +905,27 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	struct wpa_supplicant wpa_s;
-	int c, ret = 1;
+	int c, ret = 1, wait_for_monitor = 0, save_config = 0;
 	char *as_addr = "127.0.0.1";
 	int as_port = 1812;
 	char *as_secret = "radius";
 	char *conf = NULL;
 
+#ifdef CONFIG_NATIVE_WINDOWS
+	WSADATA wsaData;
+	if (WSAStartup(MAKEWORD(2, 0), &wsaData)) {
+		printf("Could not find a usable WinSock.dll\n");
+		return -1;
+	}
+#endif /* CONFIG_NATIVE_WINDOWS */
+
+	memset(&eapol_test, 0, sizeof(eapol_test));
+
 	wpa_debug_level = 0;
 	wpa_debug_show_keys = 1;
 
 	for (;;) {
-		c = getopt(argc, argv, "a:c:np:r:s:");
+		c = getopt(argc, argv, "a:c:np:r:s:SW");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -919,16 +936,22 @@ int main(int argc, char *argv[])
 			conf = optarg;
 			break;
 		case 'n':
-			no_mppe_keys++;
+			eapol_test.no_mppe_keys++;
 			break;
 		case 'p':
 			as_port = atoi(optarg);
 			break;
 		case 'r':
-			eapol_test_num_reauths = atoi(optarg);
+			eapol_test.eapol_test_num_reauths = atoi(optarg);
 			break;
 		case 's':
 			as_secret = optarg;
+			break;
+		case 'S':
+			save_config++;
+			break;
+		case 'W':
+			wait_for_monitor++;
 			break;
 		default:
 			usage();
@@ -954,6 +977,7 @@ int main(int argc, char *argv[])
 	eloop_init(&wpa_s);
 
 	memset(&wpa_s, 0, sizeof(wpa_s));
+	eapol_test.wpa_s = &wpa_s;
 	wpa_s.conf = wpa_config_read(conf);
 	if (wpa_s.conf == NULL) {
 		printf("Failed to parse configuration file '%s'.\n", conf);
@@ -964,7 +988,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	wpa_init_conf(&wpa_s, as_addr, as_port, as_secret);
+	wpa_init_conf(&eapol_test, &wpa_s, as_addr, as_port, as_secret);
 	if (wpa_supplicant_ctrl_iface_init(&wpa_s)) {
 		printf("Failed to initialize control interface '%s'.\n"
 		       "You may have another eapol_test process already "
@@ -976,37 +1000,50 @@ int main(int argc, char *argv[])
 		       wpa_s.conf->ctrl_interface);
 		return -1;
 	}
-	wpa_supplicant_scard_init(&wpa_s, wpa_s.conf->ssid);
-
-	if (test_eapol(&wpa_s, wpa_s.conf->ssid))
+	if (wpa_supplicant_scard_init(&wpa_s, wpa_s.conf->ssid))
 		return -1;
 
-	eloop_register_timeout(30, 0, eapol_test_timeout, &wpa_s, NULL);
+	if (test_eapol(&eapol_test, &wpa_s, wpa_s.conf->ssid))
+		return -1;
+
+	if (wait_for_monitor)
+		wpa_supplicant_ctrl_iface_wait(&wpa_s);
+
+	eloop_register_timeout(30, 0, eapol_test_timeout, &eapol_test, NULL);
 	eloop_register_timeout(0, 0, send_eap_request_identity, &wpa_s, NULL);
 	eloop_register_signal(SIGINT, eapol_test_terminate, NULL);
 	eloop_register_signal(SIGTERM, eapol_test_terminate, NULL);
+#ifndef CONFIG_NATIVE_WINDOWS
 	eloop_register_signal(SIGHUP, eapol_test_terminate, NULL);
+#endif /* CONFIG_NATIVE_WINDOWS */
 	eloop_run();
 
-	if (eapol_test_compare_pmk(&wpa_s) == 0)
+	if (eapol_test_compare_pmk(&eapol_test) == 0)
 		ret = 0;
-	if (wpa_s.auth_timed_out)
+	if (eapol_test.auth_timed_out)
 		ret = -2;
-	if (wpa_s.radius_access_reject_received)
+	if (eapol_test.radius_access_reject_received)
 		ret = -3;
 
-	test_eapol_clean(&wpa_s);
+	if (save_config)
+		wpa_config_write(conf, wpa_s.conf);
+
+	test_eapol_clean(&eapol_test, &wpa_s);
 
 	eloop_destroy();
 
 	printf("MPPE keys OK: %d  mismatch: %d\n",
-	       num_mppe_ok, num_mppe_mismatch);
-	if (num_mppe_mismatch)
+	       eapol_test.num_mppe_ok, eapol_test.num_mppe_mismatch);
+	if (eapol_test.num_mppe_mismatch)
 		ret = -4;
 	if (ret)
 		printf("FAILURE\n");
 	else
 		printf("SUCCESS\n");
+
+#ifdef CONFIG_NATIVE_WINDOWS
+	WSACleanup();
+#endif /* CONFIG_NATIVE_WINDOWS */
 
 	return ret;
 }
