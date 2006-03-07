@@ -361,7 +361,7 @@ mpt_timeout(void *arg)
 
 	MPT_LOCK(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
-	mpt_prt(mpt, "Request %p Timed out.\n", req);
+	mpt_prt(mpt, "Request %p:serno Timed out.\n", req, req->serno);
 	if ((req->state & REQ_STATE_QUEUED) == REQ_STATE_QUEUED) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		TAILQ_INSERT_TAIL(&mpt->request_timeout_list, req, links);
@@ -1138,8 +1138,8 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 	MSG_SCSI_TASK_MGMT_REPLY *tmf_reply;
 	u_int			  status;
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "TMF Complete: req %p, reply %p\n",
-		 req, reply_frame);
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "TMF Complete: req %p:serno, reply %p\n",
+		 req, req->serno, reply_frame);
 	KASSERT(req == mpt->tmf_req, ("TMF Reply not using mpt->tmf_req"));
 
 	tmf_reply = (MSG_SCSI_TASK_MGMT_REPLY *)reply_frame;
@@ -2075,9 +2075,9 @@ mpt_recover_commands(struct mpt_softc *mpt)
 	 */
 	while ((req = TAILQ_FIRST(&mpt->request_timeout_list)) != NULL) {
 		u_int status;
+		u_int32_t serno = req->serno;
 
-		mpt_prt(mpt, "Attempting to Abort Req %p\n", req);
-
+		mpt_prt(mpt, "Attempting to Abort Req %p:%u\n", req, serno);
 		ccb = req->ccb;
 		mpt_set_ccb_status(ccb, CAM_CMD_TIMEOUT);
 		error = mpt_scsi_send_tmf(mpt,
@@ -2087,6 +2087,8 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		    htole32(req->index | scsi_io_handler_id), /*sleep_ok*/TRUE);
 
 		if (error != 0) {
+			mpt_prt(mpt, "Abort Req %p:%u failed to start TMF\n",
+			    req, serno);
 			/*
 			 * mpt_scsi_send_tmf hard resets on failure, so no
 			 * need to do so here.  Our queue should be emptied
@@ -2105,8 +2107,8 @@ mpt_recover_commands(struct mpt_softc *mpt)
 			 * If we've errored out and the transaction is still
 			 * pending, reset the controller.
 			 */
-			mpt_prt(mpt, "mpt_recover_commands: Abort timed-out. "
-				"Resetting controller\n");
+			mpt_prt(mpt, "Abort Req %p:%d timed-out. "
+			    "Resetting controller\n", req, serno);
 			mpt_reset(mpt, /*reinit*/TRUE);
 			continue;
 		}
@@ -2119,8 +2121,9 @@ mpt_recover_commands(struct mpt_softc *mpt)
 			continue;
 
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "mpt_recover_commands: Abort Failed "
-			 "with status 0x%x\n.  Resetting bus", status);
+			 "Abort Req %p: %u Failed "
+			 "with status 0x%x\n.  Resetting bus.",
+			 req, serno, status);
 
 		/*
 		 * If the abort attempt fails for any reason, reset the bus.
