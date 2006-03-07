@@ -800,8 +800,7 @@ SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL)
 static int cpu_tick_variable;
 static uint64_t	cpu_tick_frequency;
 
-static
-uint64_t
+static uint64_t
 tc_cpu_ticks(void)
 {
 	static uint64_t base;
