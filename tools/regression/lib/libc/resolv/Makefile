@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.1 2004/05/13 19:17:12 christos Exp $
 # $FreeBSD$
 
-NOMAN=		# defined
+NO_MAN=		# defined
 
 PROG=		resolv
 
