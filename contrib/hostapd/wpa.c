@@ -36,6 +36,8 @@
 #include "eloop.h"
 #include "sta_info.h"
 #include "l2_packet.h"
+#include "accounting.h"
+#include "hostap_common.h"
 
 
 static void wpa_send_eapol_timeout(void *eloop_ctx, void *timeout_ctx);
@@ -103,7 +105,7 @@ static const u8 RSN_KEY_DATA_PMKID[] = { 0x00, 0x0f, 0xac, 4 };
  * Authenticated Key Management Suite Count (2 octets, little endian)
  *    (default: 1)
  * Authenticated Key Management Suite List (4 * n octets)
- *    (default: unspec 802.1x)
+ *    (default: unspec 802.1X)
  * WPA Capabilities (2 octets, little endian) (default: 0)
  */
 
@@ -125,7 +127,7 @@ struct wpa_ie_hdr {
  * Authenticated Key Management Suite Count (2 octets, little endian)
  *    (default: 1)
  * Authenticated Key Management Suite List (4 * n octets)
- *    (default: unspec 802.1x)
+ *    (default: unspec 802.1X)
  * RSN Capabilities (2 octets, little endian) (default: 0)
  * PMKID Count (2 octets) (default: 0)
  * PMKID List (16 * n octets)
@@ -398,8 +400,8 @@ static void wpa_rekey_gtk(void *eloop_ctx, void *timeout_ctx)
 
 #ifdef CONFIG_RSN_PREAUTH
 
-static void rsn_preauth_receive(void *ctx, unsigned char *src_addr,
-				unsigned char *buf, size_t len)
+static void rsn_preauth_receive(void *ctx, const u8 *src_addr,
+				const u8 *buf, size_t len)
 {
 	struct rsn_preauth_interface *piface = ctx;
 	struct hostapd_data *hapd = piface->hapd;
@@ -482,13 +484,12 @@ static int rsn_preauth_iface_add(struct hostapd_data *hapd, const char *ifname)
 	}
 
 	piface->l2 = l2_packet_init(piface->ifname, NULL, ETH_P_PREAUTH,
-				    rsn_preauth_receive, piface);
+				    rsn_preauth_receive, piface, 1);
 	if (piface->l2 == NULL) {
 		printf("Failed to open register layer 2 access to "
 		       "ETH_P_PREAUTH\n");
 		goto fail2;
 	}
-	l2_packet_set_rx_l2_hdr(piface->l2, 1);
 
 	piface->next = hapd->preauth_iface;
 	hapd->preauth_iface = piface;
@@ -553,6 +554,16 @@ static int rsn_preauth_iface_init(struct hostapd_data *hapd)
 }
 
 
+static void rsn_preauth_finished_cb(void *eloop_ctx, void *timeout_ctx)
+{
+	struct hostapd_data *hapd = eloop_ctx;
+	struct sta_info *sta = timeout_ctx;
+	wpa_printf(MSG_DEBUG, "RSN: Removing pre-authentication STA entry for "
+		   MACSTR, MAC2STR(sta->addr));
+	ap_free_sta(hapd, sta);
+}
+
+
 void rsn_preauth_finished(struct hostapd_data *hapd, struct sta_info *sta,
 			  int success)
 {
@@ -567,7 +578,11 @@ void rsn_preauth_finished(struct hostapd_data *hapd, struct sta_info *sta,
 		pmksa_cache_add(hapd, sta, key, dot11RSNAConfigPMKLifetime);
 	}
 
-	ap_free_sta(hapd, sta);
+	/*
+	 * Finish STA entry removal from timeout in order to avoid freeing
+	 * STA data before the caller has finished processing.
+	 */
+	eloop_register_timeout(0, 0, rsn_preauth_finished_cb, hapd, sta);
 }
 
 
@@ -600,8 +615,8 @@ void rsn_preauth_send(struct hostapd_data *hapd, struct sta_info *sta,
 	ethhdr->h_proto = htons(ETH_P_PREAUTH);
 	memcpy(ethhdr + 1, buf, len);
 
-	if (l2_packet_send(piface->l2, (u8 *) ethhdr, sizeof(*ethhdr) + len) <
-	    0) {
+	if (l2_packet_send(piface->l2, sta->addr, ETH_P_PREAUTH, (u8 *) ethhdr,
+			   sizeof(*ethhdr) + len) < 0) {
 		printf("Failed to send preauth packet using l2_packet_send\n");
 	}
 	free(ethhdr);
@@ -615,6 +630,10 @@ static inline int rsn_preauth_iface_init(struct hostapd_data *hapd)
 }
 
 static inline void rsn_preauth_iface_deinit(struct hostapd_data *hapd)
+{
+}
+
+static void rsn_preauth_finished_cb(void *eloop_ctx, void *timeout_ctx)
 {
 }
 
@@ -809,6 +828,16 @@ static void rsn_pmkid(const u8 *pmk, const u8 *aa, const u8 *spa, u8 *pmkid)
 static void pmksa_cache_set_expiration(struct hostapd_data *hapd);
 
 
+static void _pmksa_cache_free_entry(struct rsn_pmksa_cache *entry)
+{
+	if (entry == NULL)
+		return;
+	free(entry->identity);
+	ieee802_1x_free_radius_class(&entry->radius_class);
+	free(entry);
+}
+
+
 static void pmksa_cache_free_entry(struct hostapd_data *hapd,
 				   struct rsn_pmksa_cache *entry)
 {
@@ -848,7 +877,7 @@ static void pmksa_cache_free_entry(struct hostapd_data *hapd,
 		prev = pos;
 		pos = pos->next;
 	}
-	free(entry);
+	_pmksa_cache_free_entry(entry);
 }
 
 
@@ -884,6 +913,54 @@ static void pmksa_cache_set_expiration(struct hostapd_data *hapd)
 }
 
 
+static void pmksa_cache_from_eapol_data(struct rsn_pmksa_cache *entry,
+					struct eapol_state_machine *eapol)
+{
+	if (eapol == NULL)
+		return;
+
+	if (eapol->identity) {
+		entry->identity = malloc(eapol->identity_len);
+		if (entry->identity) {
+			entry->identity_len = eapol->identity_len;
+			memcpy(entry->identity, eapol->identity,
+			       eapol->identity_len);
+		}
+	}
+
+	ieee802_1x_copy_radius_class(&entry->radius_class,
+				     &eapol->radius_class);
+}
+
+
+static void pmksa_cache_to_eapol_data(struct rsn_pmksa_cache *entry,
+				      struct eapol_state_machine *eapol)
+{
+	if (entry == NULL || eapol == NULL)
+		return;
+
+	if (entry->identity) {
+		free(eapol->identity);
+		eapol->identity = malloc(entry->identity_len);
+		if (eapol->identity) {
+			eapol->identity_len = entry->identity_len;
+			memcpy(eapol->identity, entry->identity,
+			       entry->identity_len);
+		}
+		wpa_hexdump_ascii(MSG_DEBUG, "STA identity from PMKSA",
+				  eapol->identity, eapol->identity_len);
+	}
+
+	ieee802_1x_free_radius_class(&eapol->radius_class);
+	ieee802_1x_copy_radius_class(&eapol->radius_class,
+				     &entry->radius_class);
+	if (eapol->radius_class.attr) {
+		wpa_printf(MSG_DEBUG, "Copied %lu Class attribute(s) from "
+			   "PMKSA", (unsigned long) eapol->radius_class.count);
+	}
+}
+
+
 void pmksa_cache_add(struct hostapd_data *hapd, struct sta_info *sta, u8 *pmk,
 		     int session_timeout)
 {
@@ -905,6 +982,7 @@ void pmksa_cache_add(struct hostapd_data *hapd, struct sta_info *sta, u8 *pmk,
 		entry->expiration += dot11RSNAConfigPMKLifetime;
 	entry->akmp = WPA_KEY_MGMT_IEEE8021X;
 	memcpy(entry->spa, sta->addr, ETH_ALEN);
+	pmksa_cache_from_eapol_data(entry, sta->eapol_sm);
 
 	/* Replace an old entry for the same STA (if found) with the new entry
 	 */
@@ -961,7 +1039,7 @@ static void pmksa_cache_free(struct hostapd_data *hapd)
 	while (entry) {
 		prev = entry;
 		entry = entry->next;
-		free(prev);
+		_pmksa_cache_free_entry(prev);
 	}
 	eloop_cancel_timeout(pmksa_cache_expire, hapd, NULL);
 	for (i = 0; i < PMKID_HASH_SIZE; i++)
@@ -1001,7 +1079,7 @@ struct wpa_ie_data {
 };
 
 
-static int wpa_parse_wpa_ie_wpa(u8 *wpa_ie, size_t wpa_ie_len,
+static int wpa_parse_wpa_ie_wpa(const u8 *wpa_ie, size_t wpa_ie_len,
 				struct wpa_ie_data *data)
 {
 	struct wpa_ie_hdr *hdr;
@@ -1080,7 +1158,7 @@ static int wpa_parse_wpa_ie_wpa(u8 *wpa_ie, size_t wpa_ie_len,
 }
 
 
-static int wpa_parse_wpa_ie_rsn(u8 *rsn_ie, size_t rsn_ie_len,
+static int wpa_parse_wpa_ie_rsn(const u8 *rsn_ie, size_t rsn_ie_len,
 				struct wpa_ie_data *data)
 {
 	struct rsn_ie_hdr *hdr;
@@ -1174,7 +1252,7 @@ static int wpa_parse_wpa_ie_rsn(u8 *rsn_ie, size_t rsn_ie_len,
 
 
 int wpa_validate_wpa_ie(struct hostapd_data *hapd, struct sta_info *sta,
-			u8 *wpa_ie, size_t wpa_ie_len, int version)
+			const u8 *wpa_ie, size_t wpa_ie_len, int version)
 {
 	struct wpa_ie_data data;
 	int ciphers, key_mgmt, res, i;
@@ -1374,6 +1452,7 @@ void wpa_free_station(struct sta_info *sta)
 
 	eloop_cancel_timeout(wpa_send_eapol_timeout, sm->hapd, sta);
 	eloop_cancel_timeout(wpa_sm_call_step, sm->hapd, sta->wpa_sm);
+	eloop_cancel_timeout(rsn_preauth_finished_cb, sm->hapd, sta);
 	free(sm->last_rx_eapol_key);
 	free(sm);
 	sta->wpa_sm = NULL;
@@ -2090,6 +2169,7 @@ SM_STATE(WPA_PTK, INITPMK)
 	if (sm->sta->pmksa) {
 		wpa_printf(MSG_DEBUG, "WPA: PMK from PMKSA cache");
 		memcpy(sm->PMK, sm->sta->pmksa->pmk, WPA_PMK_LEN);
+		pmksa_cache_to_eapol_data(sm->sta->pmksa, sm->sta->eapol_sm);
 	} else if ((key = ieee802_1x_get_key_crypt(sm->sta->eapol_sm, &len))) {
 		wpa_printf(MSG_DEBUG, "WPA: PMK from EAPOL state machine "
 			   "(len=%lu)", (unsigned long) len);
@@ -2296,6 +2376,8 @@ SM_STATE(WPA_PTK, PTKINITDONE)
 		       HOSTAPD_LEVEL_INFO, "pairwise key handshake completed "
 		       "(%s)",
 		       sm->sta->wpa == WPA_VERSION_WPA ? "WPA" : "RSN");
+	if (sm->sta->wpa_key_mgmt == WPA_KEY_MGMT_PSK)
+		accounting_sta_start(sm->hapd, sm->sta);
 }
 
 
