@@ -250,7 +250,11 @@ undefinedinstruction(trapframe_t *frame)
 		    break;
 
 	if (fault_code & FAULT_USER && fault_instruction == PTRACE_BREAKPOINT) {
+		PROC_LOCK(td->td_proc);
+		_PHOLD(td->td_proc);
 		ptrace_clear_single_step(td);
+		_PRELE(td->td_proc);
+		PROC_UNLOCK(td->td_proc);
 		return;
 	}
 

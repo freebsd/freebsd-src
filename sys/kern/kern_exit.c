@@ -171,7 +171,29 @@ retry:
 		 */
 	}
 
+	/*
+	 * Wakeup anyone in procfs' PIOCWAIT.  They should have a hold
+	 * on our vmspace, so we should block below until they have
+	 * released their reference to us.  Note that if they have
+	 * requested S_EXIT stops we will block here until they ack
+	 * via PIOCCONT.
+	 */
+	_STOPEVENT(p, S_EXIT, rv);
+
+	/*
+	 * Note that we are exiting and do another wakeup of anyone in
+	 * PIOCWAIT in case they aren't listening for S_EXIT stops or
+	 * decided to wait again after we told them we are exiting.
+	 */
 	p->p_flag |= P_WEXIT;
+	wakeup(&p->p_stype);
+
+	/*
+	 * Wait for any processes that have a hold on our vmspace to
+	 * release their reference.
+	 */
+	while (p->p_lock > 0)
+		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 	PROC_UNLOCK(p);
 
 	/* Are we a task leader? */
@@ -188,11 +210,6 @@ retry:
 			msleep(p, &ppeers_lock, PWAIT, "exit1", 0);
 		mtx_unlock(&ppeers_lock);
 	}
-
-	PROC_LOCK(p);
-	_STOPEVENT(p, S_EXIT, rv);
-	wakeup(&p->p_stype);	/* Wakeup anyone in procfs' PIOCWAIT */
-	PROC_UNLOCK(p);
 
 	/*
 	 * Check if any loadable modules need anything done at process exit.
