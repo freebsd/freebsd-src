@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -89,8 +90,6 @@ static int clock_year_offset = 0;
 
 device_t clockdev;
 int clockinitted;
-int tickfix;
-int tickfixinterval;
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
@@ -103,15 +102,8 @@ static	int	beeping = 0;
 #define TIMER_FREQ   1193182
 #endif
 u_int32_t timer_freq = TIMER_FREQ;
-int	timer0_max_count;
-
-static	u_int32_t i8254_lastcount;
-static	u_int32_t i8254_offset;
-static	int	i8254_ticked;
-static	int	clkintr_pending = 0;
 
 extern int cycles_per_sec;
-extern int ncpus;
 
 static timecounter_get_t	i8254_get_timecount;
 static timecounter_get_t	alpha_get_timecount;
@@ -128,7 +120,7 @@ static struct timecounter alpha_timecounter = {
 static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
-	~0u,			/* counter_mask */
+	0xffff,			/* counter_mask */
 	0,			/* frequency */
 	"i8254"			/* name */
 };
@@ -142,22 +134,6 @@ static struct timecounter i8254_timecounter = {
 /* static	u_char	timer0_state; */
 static	u_char	timer2_state;
 
-/*
- * Algorithm for missed clock ticks from Linux/alpha.
- */
-
-/*
- * Shift amount by which scaled_ticks_per_cycle is scaled.  Shifting
- * by 48 gives us 16 bits for HZ while keeping the accuracy good even
- * for large CPU clock rates.
- */
-#define FIX_SHIFT	48
-
-static u_int64_t scaled_ticks_per_cycle;
-static u_int32_t max_cycles_per_tick;
-static u_int32_t last_time;
-
-static void handleclock(int usermode, uintfptr_t pc);
 static void calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc,
     u_int32_t *timer);
 static void set_timer_freq(u_int freq, int intr_freq);
@@ -206,7 +182,6 @@ clockattach(device_t dev)
 			       freq, timer_freq);
 	}
 	set_timer_freq(timer_freq, hz);
-	i8254_timecounter.tc_frequency = timer_freq;
 
 out:
 #ifdef EVCNT_COUNTERS
@@ -235,20 +210,11 @@ out:
 void
 cpu_initclocks()
 {
-	u_int32_t freq;
 
 	if (clockdev == NULL)
 		panic("cpu_initclocks: no clock attached");
 
 	tick = 1000000 / hz;	/* number of microseconds between interrupts */
-	tickfix = 1000000 - (hz * tick);
-	if (tickfix) {
-		int ftp;
-
-		ftp = min(ffs(tickfix), ffs(hz));
-		tickfix >>= (ftp - 1);
-		tickfixinterval = hz >> (ftp - 1);
-        }
 
 	/*
 	 * Establish the clock interrupt; it's a special case.
@@ -262,24 +228,18 @@ cpu_initclocks()
 	 * hardclock, which would then fall over because p->p_stats
 	 * isn't set at that time.
 	 */
-	freq = cycles_per_sec;
-	last_time = alpha_rpcc();
-	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
-	max_cycles_per_tick = 2*freq / hz;
 
 	/*
 	 * XXX: TurboLaser doesn't have an i8254 counter.
 	 * XXX: A replacement is needed, and another method
 	 * XXX: of determining this would be nice.
 	 */
-	if (hwrpb->rpb_type != ST_DEC_21000) {
+	if (hwrpb->rpb_type != ST_DEC_21000)
 		tc_init(&i8254_timecounter);
-		platform.clockintr = handleclock;
-	} else
-		platform.clockintr = hardclock;
+	platform.clockintr = hardclock;
 
-	if (ncpus == 1) {
-		alpha_timecounter.tc_frequency = freq;
+	if (mp_ncpus == 1) {
+		alpha_timecounter.tc_frequency = cycles_per_sec;
 		tc_init(&alpha_timecounter);
 	}
 
@@ -375,7 +335,7 @@ calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 		if (count == 0)
 			goto fail;
 		if (count > prev_count)
-			tot_count += prev_count - (count - timer0_max_count);
+			tot_count += prev_count - (count - 0xffff);
 		else
 			tot_count += prev_count - count;
 		prev_count = count;
@@ -410,38 +370,14 @@ fail:
 static void
 set_timer_freq(u_int freq, int intr_freq)
 {
-	int new_timer0_max_count;
 
 	mtx_lock_spin(&clock_lock);
 	timer_freq = freq;
-	new_timer0_max_count = TIMER_DIV(intr_freq);
-	if (new_timer0_max_count != timer0_max_count) {
-		timer0_max_count = new_timer0_max_count;
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, timer0_max_count & 0xff);
-		outb(TIMER_CNTR0, timer0_max_count >> 8);
-	}
+	i8254_timecounter.tc_frequency = timer_freq;
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+	outb(TIMER_CNTR0, 0);
+	outb(TIMER_CNTR0, 0);
 	mtx_unlock_spin(&clock_lock);
-}
-
-static void
-handleclock(int usermode, uintfptr_t pc)
-{
-
-	KASSERT(hwrpb->rpb_type != ST_DEC_21000,
-	    ("custom clock handler called on TurboLaser"));
-	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		mtx_lock_spin(&clock_lock);
-		if (i8254_ticked)
-			i8254_ticked = 0;
-		else {
-			i8254_offset += timer0_max_count;
-			i8254_lastcount = 0;
-		}
-		clkintr_pending = 0;
-		mtx_unlock_spin(&clock_lock);
-	}
-	hardclock(usermode, pc);
 }
 
 void
@@ -609,29 +545,8 @@ resettodr()
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
 {
-	u_int count;
-	u_int high, low;
 
-	mtx_lock_spin(&clock_lock);
-
-	/* Select timer0 and latch counter value. */
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-
-	low = inb(TIMER_CNTR0);
-	high = inb(TIMER_CNTR0);
-	count = timer0_max_count - ((high << 8) | low);
-	if (count < i8254_lastcount ||
-	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20) && (inb(IO_ICU1) & 1)))
-	    )) {
-		i8254_ticked = 1;
-		i8254_offset += timer0_max_count;
-	}
-	i8254_lastcount = count;
-	count += i8254_offset;
-
-	mtx_unlock_spin(&clock_lock);
-	return (count);
+	return (0xffff - get_8254_ctr());
 }
 
 static unsigned
