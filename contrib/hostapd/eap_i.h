@@ -100,6 +100,8 @@ struct eap_sm {
 	void *eap_sim_db_priv;
 	Boolean backend_auth;
 	Boolean update_user;
+
+	int num_rounds;
 };
 
 const struct eap_method * eap_sm_get_eap_methods(int method);

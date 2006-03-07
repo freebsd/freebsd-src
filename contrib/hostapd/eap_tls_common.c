@@ -38,8 +38,7 @@ int eap_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 		return -1;
 	}
 
-	if (tls_connection_set_verify(sm->ssl_ctx, data->conn, verify_peer,
-				      NULL)) {
+	if (tls_connection_set_verify(sm->ssl_ctx, data->conn, verify_peer)) {
 		wpa_printf(MSG_INFO, "SSL: Failed to configure verification "
 			   "of TLS peer certificate");
 		tls_connection_deinit(sm->ssl_ctx, data->conn);
@@ -185,6 +184,13 @@ int eap_tls_process_helper(struct eap_sm *sm, struct eap_ssl_data *data,
 		wpa_printf(MSG_DEBUG, "SSL: No data to be sent out");
 		free(data->tls_out);
 		data->tls_out = NULL;
+
+		if (tls_connection_get_read_alerts(sm->ssl_ctx, data->conn)) {
+			wpa_printf(MSG_DEBUG, "SSL: Remote end sent a fatal "
+				   "alert - abort handshake");
+			return -1;
+		}
+
 		return 1;
 	}
 

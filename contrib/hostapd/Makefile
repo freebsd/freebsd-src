@@ -60,6 +60,7 @@ CFLAGS += -DCONFIG_DRIVER_BSD
 OBJS += driver_bsd.o
 CONFIG_L2_PACKET=y
 CONFIG_DNET_PCAP=y
+CONFIG_L2_FREEBSD=y
 endif
 
 ifdef CONFIG_DRIVER_TEST
@@ -68,13 +69,20 @@ OBJS += driver_test.o
 endif
 
 ifdef CONFIG_L2_PACKET
-OBJS += $(DIR_WPA_SUPPLICANT)/l2_packet.o
-endif
-
 ifdef CONFIG_DNET_PCAP
 CFLAGS += -DUSE_DNET_PCAP
-LIBS +=-ldnet -lpcap
+ifdef CONFIG_L2_FREEBSD
+LIBS += -lpcap
+OBJS += $(DIR_WPA_SUPPLICANT)/l2_packet_freebsd.o
+else
+LIBS += -ldnet -lpcap
+OBJS += $(DIR_WPA_SUPPLICANT)/l2_packet_pcap.o
 endif
+else
+OBJS += $(DIR_WPA_SUPPLICANT)/l2_packet_linux.o
+endif
+endif
+
 
 ifdef CONFIG_EAP_MD5
 CFLAGS += -DEAP_MD5
@@ -120,13 +128,23 @@ OBJS += eap_sim.o $(DIR_WPA_SUPPLICANT)/eap_sim_common.o
 OBJS += eap_sim_db.o
 endif
 
+ifdef CONFIG_EAP_PAX
+CFLAGS += -DEAP_PAX
+OBJS += eap_pax.o $(DIR_WPA_SUPPLICANT)/eap_pax_common.o
+endif
+
+ifdef CONFIG_EAP_PSK
+CFLAGS += -DEAP_PSK
+OBJS += eap_psk.o $(DIR_WPA_SUPPLICANT)/eap_psk_common.o
+endif
+
 ifdef CONFIG_EAP_TLV
 CFLAGS += -DEAP_TLV
 OBJS += eap_tlv.o
 endif
 
 ifdef CONFIG_EAP
-CFLAGS += -DEAP_AUTHENTICATOR
+CFLAGS += -DEAP_SERVER
 OBJS += eap.o eap_identity.o
 endif
 
@@ -154,6 +172,10 @@ endif
 ifdef CONFIG_RADIUS_SERVER
 CFLAGS += -DRADIUS_SERVER
 OBJS += radius_server.o
+endif
+
+ifdef CONFIG_IPV6
+CFLAGS += -DCONFIG_IPV6
 endif
 
 ALL=hostapd hostapd_cli
@@ -224,8 +246,8 @@ ifdef CONFIG_DRIVER_TEST
 endif
 	echo '}'					>> driver_conf.c
 
-hostapd_cli: hostapd_cli.o hostapd_ctrl.o
-	$(CC) -o hostapd_cli hostapd_cli.o hostapd_ctrl.o
+hostapd_cli: hostapd_cli.o $(DIR_WPA_SUPPLICANT)/wpa_ctrl.o
+	$(CC) -o hostapd_cli hostapd_cli.o $(DIR_WPA_SUPPLICANT)/wpa_ctrl.o
 
 clean:
 	rm -f core *~ *.o hostapd hostapd_cli *.d driver_conf.c

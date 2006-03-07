@@ -63,7 +63,8 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_CONNECT_INFO = 77,
        RADIUS_ATTR_EAP_MESSAGE = 79,
        RADIUS_ATTR_MESSAGE_AUTHENTICATOR = 80,
-       RADIUS_ATTR_ACCT_INTERIM_INTERVAL = 85
+       RADIUS_ATTR_ACCT_INTERIM_INTERVAL = 85,
+       RADIUS_ATTR_NAS_IPV6_ADDRESS = 95
 };
 
 
@@ -168,16 +169,16 @@ int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
 void radius_msg_finish_acct(struct radius_msg *msg, u8 *secret,
 			    size_t secret_len);
 struct radius_attr_hdr *radius_msg_add_attr(struct radius_msg *msg, u8 type,
-					    u8 *data, size_t data_len);
+					    const u8 *data, size_t data_len);
 struct radius_msg *radius_msg_parse(const u8 *data, size_t len);
-int radius_msg_add_eap(struct radius_msg *msg, u8 *data, size_t data_len);
+int radius_msg_add_eap(struct radius_msg *msg, const u8 *data,
+		       size_t data_len);
 u8 *radius_msg_get_eap(struct radius_msg *msg, size_t *len);
-int radius_msg_verify(struct radius_msg *msg, u8 *secret, size_t secret_len,
-		      struct radius_msg *sent_msg);
+int radius_msg_verify(struct radius_msg *msg, const u8 *secret,
+		      size_t secret_len, struct radius_msg *sent_msg,
+		      int auth);
 int radius_msg_verify_msg_auth(struct radius_msg *msg, const u8 *secret,
 			       size_t secret_len, const u8 *req_auth);
-int radius_msg_verify_acct(struct radius_msg *msg, u8 *secret,
-			   size_t secret_len, struct radius_msg *sent_msg);
 int radius_msg_copy_attr(struct radius_msg *dst, struct radius_msg *src,
 			 u8 type);
 void radius_msg_make_authenticator(struct radius_msg *msg,
@@ -219,6 +220,7 @@ static inline int radius_msg_get_attr_int32(struct radius_msg *msg, u8 type,
 	return 0;
 }
 int radius_msg_get_attr_ptr(struct radius_msg *msg, u8 type, u8 **buf,
-			    size_t *len);
+			    size_t *len, const u8 *start);
+int radius_msg_count_attr(struct radius_msg *msg, u8 type, int min_len);
 
 #endif /* RADIUS_H */
