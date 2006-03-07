@@ -53,29 +53,27 @@ static void eap_gtc_deinit(struct eap_sm *sm, void *priv)
 
 static u8 * eap_gtc_process(struct eap_sm *sm, void *priv,
 			    struct eap_method_ret *ret,
-			    u8 *reqData, size_t reqDataLen,
+			    const u8 *reqData, size_t reqDataLen,
 			    size_t *respDataLen)
 {
 	struct eap_gtc_data *data = priv;
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_hdr *req, *resp;
-	u8 *pos, *password;
-	size_t password_len, len, msg_len;
+	const struct eap_hdr *req;
+	struct eap_hdr *resp;
+	const u8 *pos, *password;
+	u8 *rpos;
+	size_t password_len, len;
 
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
-	if (reqDataLen < sizeof(*req) + 1 || *pos != EAP_TYPE_GTC ||
-	    (len = be_to_host16(req->length)) > reqDataLen) {
-		wpa_printf(MSG_INFO, "EAP-GTC: Invalid frame");
+	pos = eap_hdr_validate(EAP_TYPE_GTC, reqData, reqDataLen, &len);
+	if (pos == NULL) {
 		ret->ignore = TRUE;
 		return NULL;
 	}
-	pos++;
-	msg_len = len - sizeof(*req) - 1;
-	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-GTC: Request message",
-			  pos, msg_len);
+	req = (const struct eap_hdr *) reqData;
+
+	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-GTC: Request message", pos, len);
 	if (data->prefix &&
-	    (msg_len < 10 || memcmp(pos, "CHALLENGE=", 10) != 0)) {
+	    (len < 10 || memcmp(pos, "CHALLENGE=", 10) != 0)) {
 		wpa_printf(MSG_DEBUG, "EAP-GTC: Challenge did not start with "
 			   "expected prefix");
 
@@ -90,16 +88,15 @@ static u8 * eap_gtc_process(struct eap_sm *sm, void *priv,
 		resp->code = EAP_CODE_RESPONSE;
 		resp->identifier = req->identifier;
 		resp->length = host_to_be16(*respDataLen);
-		pos = (u8 *) (resp + 1);
-		*pos++ = EAP_TYPE_GTC;
+		rpos = (u8 *) (resp + 1);
+		*rpos++ = EAP_TYPE_GTC;
 		return (u8 *) resp;
 	}
 
 	if (config == NULL ||
 	    (config->password == NULL && config->otp == NULL)) {
 		wpa_printf(MSG_INFO, "EAP-GTC: Password not configured");
-		eap_sm_request_otp(sm, config, (char *) pos,
-				   len - sizeof(*req) - 1);
+		eap_sm_request_otp(sm, config, (const char *) pos, len);
 		ret->ignore = TRUE;
 		return NULL;
 	}
@@ -128,16 +125,16 @@ static u8 * eap_gtc_process(struct eap_sm *sm, void *priv,
 	resp->code = EAP_CODE_RESPONSE;
 	resp->identifier = req->identifier;
 	resp->length = host_to_be16(*respDataLen);
-	pos = (u8 *) (resp + 1);
-	*pos++ = EAP_TYPE_GTC;
+	rpos = (u8 *) (resp + 1);
+	*rpos++ = EAP_TYPE_GTC;
 	if (data->prefix) {
-		memcpy(pos, "RESPONSE=", 9);
-		pos += 9;
-		memcpy(pos, config->identity, config->identity_len);
-		pos += config->identity_len;
-		*pos++ = '\0';
+		memcpy(rpos, "RESPONSE=", 9);
+		rpos += 9;
+		memcpy(rpos, config->identity, config->identity_len);
+		rpos += config->identity_len;
+		*rpos++ = '\0';
 	}
-	memcpy(pos, password, password_len);
+	memcpy(rpos, password, password_len);
 	wpa_hexdump_ascii_key(MSG_MSGDUMP, "EAP-GTC: Response",
 			      (u8 *) (resp + 1) + 1,
 			      *respDataLen - sizeof(struct eap_hdr) - 1);

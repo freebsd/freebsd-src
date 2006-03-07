@@ -1,0 +1,288 @@
+/**
+\page testing_tools Testing and development tools
+
+[ \ref eapol_test "eapol_test" |
+\ref preauth_test "preauth_test" |
+\ref driver_test "driver_test" |
+\ref unit_tests "Unit tests" ]
+
+%wpa_supplicant source tree includes number of testing and development
+tools that make it easier to test the programs without having to setup
+a full test setup with wireless cards. In addition, these tools can be
+used to implement automatic tests suites.
+
+\section eapol_test eapol_test - EAP peer and RADIUS client testing
+
+eapol_test is a program that links together the same EAP peer
+implementation that %wpa_supplicant is using and the RADIUS
+authentication client code from hostapd. In addition, it has minimal
+glue code to combine these two components in similar ways to IEEE
+802.1X/EAPOL Authenticator state machines. In other words, it
+integrates IEEE 802.1X Authenticator (normally, an access point) and
+IEEE 802.1X Supplicant (normally, a wireless client) together to
+generate a single program that can be used to test EAP methods without
+having to setup an access point and a wireless client.
+
+The main uses for eapol_test are in interoperability testing of EAP
+methods against RADIUS servers and in development testing for new EAP
+methods. It can be easily used to automate EAP testing for
+interoperability and regression since the program can be run from
+shell scripts without require additional test components apart from a
+RADIUS server. For example, the automated EAP tests described in
+eap_testing.txt are implemented with eapol_test. Similarly, eapol_test
+could be used to implement an automated regression test suite for a
+RADIUS authentication server.
+
+eapol_test uses the same build time configuration file, .config, as
+%wpa_supplicant. This file is used to select which EAP methods are
+included in eapol_test. This program is not built with the default
+Makefile target, so a separate make command needs to be used to
+compile the tool:
+
+\verbatim
+make eapol_test
+\endverbatim
+
+The resulting eapol_test binary has following command like options:
+
+\verbatim
+usage:
+eapol_test [-nW] -c<conf> [-a<AS IP>] [-p<AS port>] [-s<AS secret>] [-r<count>]
+eapol_test scard
+eapol_test sim <PIN> <num triplets> [debug]
+
+options:
+  -c<conf> = configuration file
+  -a<AS IP> = IP address of the authentication server, default 127.0.0.1
+  -p<AS port> = UDP port of the authentication server, default 1812
+  -s<AS secret> = shared secret with the authentication server, default 'radius'
+  -r<count> = number of re-authentications
+  -W = wait for a control interface monitor before starting
+  -n = no MPPE keys expected
+\endverbatim
+
+
+As an example,
+\verbatim
+eapol_test -ctest.conf -a127.0.0.1 -p1812 -ssecret -r1
+\endverbatim
+tries to complete EAP authentication based on the network
+configuration from test.conf against the RADIUS server running on the
+local host. A re-authentication is triggered to test fast
+re-authentication. The configuration file uses the same format for
+network blocks as %wpa_supplicant.
+
+
+\section preauth_test preauth_test - WPA2 pre-authentication and EAP peer testing
+
+preauth_test is similar to eapol_test in the sense that in combines
+EAP peer implementation with something else, in this case, with WPA2
+pre-authentication. This tool can be used to test pre-authentication
+based on the code that %wpa_supplicant is using. As such, it tests
+both the %wpa_supplicant implementation and the functionality of an
+access point.
+
+preauth_test is built with:
+
+\verbatim
+make preauth_test
+\endverbatim
+
+and it uses following command line arguments:
+
+\verbatim
+usage: preauth_test <conf> <target MAC address> <ifname>
+\endverbatim
+
+For example,
+\verbatim
+preauth_test test.conf 02:11:22:33:44:55 eth0
+\endverbatim
+would use network configuration from test.conf to try to complete
+pre-authentication with AP using BSSID 02:11:22:33:44:55. The
+pre-authentication packets would be sent using the eth0 interface.
+
+
+\section driver_test driver_test - driver interface for testing wpa_supplicant
+
+%wpa_supplicant was designed to support number of different ways to
+communicate with a network device driver. This design uses \ref
+driver_wrapper "driver interface API" and number of driver interface
+implementations. One of these is driver_test.c, i.e., a test driver
+interface that is actually not using any drivers. Instead, it provides
+a mechanism for running %wpa_supplicant without having to have a
+device driver or wireless LAN hardware for that matter.
+
+driver_test can be used to talk directly with hostapd's driver_test
+component to create a test setup where one or more clients and access
+points can be tested within one test host and without having to have
+multiple wireless cards. This makes it easier to test the core code in
+%wpa_supplicant, and hostapd for that matter. Since driver_test uses
+the same driver API than any other driver interface implementation,
+the core code of %wpa_supplicant and hostapd can be tested with the
+same coverage as one would get when using real wireless cards. The
+only area that is not tested is the driver interface implementation
+(driver_*.c).
+
+Having the possibility to use simulated network components makes it
+much easier to do development testing while adding new features and to
+reproduce reported bugs. As such, it is often easiest to just do most
+of the development and bug fixing without using real hardware. Once
+the driver_test setup has been used to implement a new feature or fix
+a bug, the end result can be verified with wireless LAN cards. In many
+cases, this may even be unnecessary, depending on what area the
+feature/bug is relating to. Of course, changes to driver interfaces
+will still require use of real hardware.
+
+Since multiple components can be run within a single host, testing of
+complex network configuration, e.g., large number of clients
+association with an access point, becomes quite easy. All the tests
+can also be automated without having to resort to complex test setup
+using remote access to multiple computers.
+
+driver_test can be included in the %wpa_supplicant build in the same
+way as any other driver interface, i.e., by adding the following line
+into .config:
+
+\verbatim
+CONFIG_DRIVER_TEST=y
+\endverbatim
+
+When running %wpa_supplicant, the test interface is selected by using
+\a -Dtest command line argument. The interface name (\a -i argument)
+can be selected arbitrarily, i.e., it does not need to match with any
+existing network interface. The interface name is used to generate a
+MAC address, so when using multiple clients, each should use a
+different interface, e.g., \a sta1, \a sta2, and so on.
+
+%wpa_supplicant and hostapd are configured in the same way as they
+would be for normal use. Following example shows a simple test setup
+for WPA-PSK.
+
+hostapd is configured with following psk-test.conf configuration file:
+
+\verbatim
+driver=test
+
+interface=ap1
+logger_stdout=-1
+logger_stdout_level=0
+debug=2
+dump_file=/tmp/hostapd.dump
+
+test_socket=/tmp/Test/ap1
+
+ssid=jkm-test-psk
+
+wpa=1
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=TKIP
+wpa_passphrase=12345678
+\endverbatim
+
+and started with following command:
+
+\verbatim
+hostapd psk-test.conf
+\endverbatim
+
+%wpa_supplicant uses following configuration file:
+
+\verbatim
+driver_param=test_socket=/tmp/Test/ap1
+
+network={
+    ssid="jkm-test-psk"
+    key_mgmt=WPA-PSK
+    psk="12345678"
+}
+\endverbatim
+
+%wpa_supplicant can then be started with following command:
+
+\verbatim
+wpa_supplicant -Dtest -cpsk-test.conf -ista1 -ddK
+\endverbatim
+
+If run without debug information, i.e., with
+
+\verbatim
+wpa_supplicant -Dtest -cpsk-test.conf -ista1
+\endverbatim
+
+%wpa_supplicant completes authentication and prints following events:
+
+\verbatim
+Trying to associate with 02:b8:a6:62:08:5a (SSID='jkm-test-psk' freq=0 MHz)
+Associated with 02:b8:a6:62:08:5a
+WPA: Key negotiation completed with 02:b8:a6:62:08:5a [PTK=TKIP GTK=TKIP]
+CTRL-EVENT-CONNECTED - Connection to 02:b8:a6:62:08:5a completed (auth)
+\endverbatim
+
+If test setup is using multiple clients, it is possible to run
+multiple %wpa_supplicant processes. Alternatively, the support for
+multiple interfaces can be used with just one process to save some
+resources on single-CPU systems. For example, following command runs
+two clients:
+
+\verbatim
+./wpa_supplicant -Dtest -cpsk-test.conf -ista1 \
+	-N -Dtest -cpsk-test.conf -ista2
+\endverbatim
+
+This shows following event log:
+
+\verbatim
+Trying to associate with 02:b8:a6:62:08:5a (SSID='jkm-test-psk' freq=0 MHz)
+Associated with 02:b8:a6:62:08:5a
+WPA: Key negotiation completed with 02:b8:a6:62:08:5a [PTK=TKIP GTK=TKIP]
+CTRL-EVENT-CONNECTED - Connection to 02:b8:a6:62:08:5a completed (auth)
+Trying to associate with 02:b8:a6:62:08:5a (SSID='jkm-test-psk' freq=0 MHz)
+Associated with 02:b8:a6:62:08:5a
+WPA: Key negotiation completed with 02:b8:a6:62:08:5a [PTK=TKIP GTK=TKIP]
+CTRL-EVENT-CONNECTED - Connection to 02:b8:a6:62:08:5a completed (auth)
+\endverbatim
+
+hostapd shows this with following events:
+
+\verbatim
+ap1: STA 02:b5:64:63:30:63 IEEE 802.11: associated
+ap1: STA 02:b5:64:63:30:63 WPA: pairwise key handshake completed (WPA)
+ap1: STA 02:b5:64:63:30:63 WPA: group key handshake completed (WPA)
+ap1: STA 02:2a:c4:18:5b:f3 IEEE 802.11: associated
+ap1: STA 02:2a:c4:18:5b:f3 WPA: pairwise key handshake completed (WPA)
+ap1: STA 02:2a:c4:18:5b:f3 WPA: group key handshake completed (WPA)
+\endverbatim
+
+By default, driver_param is simulating a driver that uses the WPA/RSN
+IE generated by %wpa_supplicant. Driver-generated IE and AssocInfo
+events can be tested by adding \a use_associnfo=1 to the \a driver_param
+line in the configuration file. For example:
+
+\verbatim
+driver_param=test_socket=/tmp/Test/ap1 use_associnfo=1
+\endverbatim
+
+
+\section unit_tests Unit tests
+
+Number of the components (.c files) used in %wpa_supplicant define
+their own unit tests for automated validation of the basic
+functionality. Most of the tests for cryptographic algorithms are
+using standard test vectors to validate functionality. These tests can
+be useful especially when verifying port to a new CPU target.
+
+In most cases, these tests are implemented in the end of the same file
+with functions that are normally commented out, but ca be included by
+defining a pre-processor variable when building the file separately.
+The details of the needed build options are included in the Makefile
+(test-* targets). All automated unit tests can be run with
+
+\verbatim
+make tests
+\endverbatim
+
+This make target builds and runs each test and terminates with zero
+exit code if all tests were completed successfully.
+
+*/

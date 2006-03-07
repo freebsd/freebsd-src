@@ -1,3 +1,17 @@
+/*
+ * WPA Supplicant / PC/SC smartcard interface for USIM, GSM SIM
+ * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
+ */
+
 #ifndef PCSC_FUNCS_H
 #define PCSC_FUNCS_H
 
@@ -27,9 +41,10 @@ typedef enum {
 
 
 #ifdef PCSC_FUNCS
-struct scard_data * scard_init(scard_sim_type sim_type, char *pin);
+struct scard_data * scard_init(scard_sim_type sim_type);
 void scard_deinit(struct scard_data *scard);
 
+int scard_set_pin(struct scard_data *scard, const char *pin);
 int scard_get_imsi(struct scard_data *scard, char *imsi, size_t *len);
 int scard_gsm_auth(struct scard_data *scard, unsigned char *rand,
 		   unsigned char *sres, unsigned char *kc);
@@ -39,8 +54,9 @@ int scard_umts_auth(struct scard_data *scard, unsigned char *rand,
 
 #else /* PCSC_FUNCS */
 
-#define scard_init(s, p) NULL
+#define scard_init(s) NULL
 #define scard_deinit(s) do { } while (0)
+#define scard_set_pin(s, p) -1
 #define scard_get_imsi(s, i, l) -1
 #define scard_gsm_auth(s, r, s2, k) -1
 #define scard_umts_auth(s, r, a, r2, rl, i, c, a2) -1
