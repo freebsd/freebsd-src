@@ -32,9 +32,8 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <setjmp.h>
 
-struct sigev_thread_node;
+struct sigev_thread;
 struct sigev_node;
 
 typedef uintptr_t	sigev_id_t;
@@ -42,8 +41,6 @@ typedef void		(*sigev_dispatch_t)(struct sigev_node *);
 
 struct sigev_node {
 	LIST_ENTRY(sigev_node)		sn_link;
-	LIST_ENTRY(sigev_node)		sn_allist;
-	TAILQ_ENTRY(sigev_node)		sn_actq;
 	int				sn_type;
 	sigev_id_t			sn_id;
 	sigev_dispatch_t		sn_dispatch;
@@ -51,51 +48,38 @@ struct sigev_node {
 	void 				*sn_func;
 	int				sn_flags;
 	int				sn_gen;
-	int				sn_usethreadpool;
 	siginfo_t			sn_info;
-	struct sigev_thread_node *	sn_tn;
+	pthread_attr_t			sn_attr;
+	struct sigev_thread		*sn_tn;
 };
 
-struct sigev_thread_attr {
-	int	sna_policy;
-	int	sna_inherit;
-	int	sna_prio;
-	size_t	sna_stacksize;
-	void	*sna_stackaddr;
-	size_t	sna_guardsize;
-};
 
-struct sigev_thread_node {
-	TAILQ_ENTRY(sigev_thread_node)	tn_link;
+struct sigev_thread {
+	LIST_ENTRY(sigev_thread)	tn_link;
 	pthread_t			tn_thread;
 	struct sigev_node		*tn_cur;
-	struct sigev_thread_attr	tn_sna;
 	int				tn_refcount;
 	long				tn_lwpid;
-	jmp_buf				tn_jbuf;
+	pthread_cond_t			tn_cv;
 };
 
 #define	SNF_WORKING		0x01
 #define	SNF_REMOVED		0x02
-#define	SNF_ONESHOT		0x04
-#define	SNF_ACTQ		0x08
-#define	SNF_THREADPOOL		0x10
+#define	SNF_SYNC		0x04
 
-#define	SIGEV_SIGSERVICE	(SIGTHR+1)
+#define	SIGSERVICE		(SIGTHR+1)
 
 int	__sigev_check_init();
 struct sigev_node *__sigev_alloc(int, const struct sigevent *,
-	struct sigev_node *, int usethreadpool);
+	struct sigev_node *, int);
 struct sigev_node *__sigev_find(int, sigev_id_t);
 void	__sigev_get_sigevent(struct sigev_node *, struct sigevent *,
 		sigev_id_t);
 int	__sigev_register(struct sigev_node *);
 int	__sigev_delete(int, sigev_id_t);
 int	__sigev_delete_node(struct sigev_node *);
-int	__sigev_list_lock(void);
-int	__sigev_list_unlock(void);
-int	__sigev_thread_list_lock(void);
-int	__sigev_thread_list_unlock(void);
+void	__sigev_list_lock(void);
+void	__sigev_list_unlock(void);
 void	__sigev_free(struct sigev_node *);
 
 #endif
