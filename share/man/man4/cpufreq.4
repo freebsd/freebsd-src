@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2005
+.Dd March 03, 2006
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -75,9 +75,11 @@ If a sysctl cannot be set due to an override condition, it will return
 .Pp
 The frequency cannot be changed if TSC is in use as the timecounter.
 This is because the timecounter system needs to use a source that has a
-constant rate. The timecounter source can be changed with the
+constant rate.
+The timecounter source can be changed with the
 .Pa kern.timecounter.hardware
-sysctl. Available modes are in
+sysctl.
+Available modes are in
 .Pa kern.timecounter.choice
 sysctl entry.
 .Bl -tag -width indent
