@@ -50,7 +50,9 @@ CONFIG_DRIVER_HOSTAP=y
 #CFLAGS += -I../madwifi/wpa
 
 # Driver interface for Prism54 driver
-CONFIG_DRIVER_PRISM54=y
+# (Note: Prism54 is not yet supported, i.e., this will not work as-is and is
+# for developers only)
+#CONFIG_DRIVER_PRISM54=y
 
 # Driver interface for ndiswrapper
 #CONFIG_DRIVER_NDISWRAPPER=y
@@ -88,6 +90,9 @@ CONFIG_DRIVER_WEXT=y
 # Driver interface for development testing
 #CONFIG_DRIVER_TEST=y
 
+# Driver interface for wired Ethernet drivers
+CONFIG_DRIVER_WIRED=y
+
 # Enable IEEE 802.1X Supplicant (automatically included if any EAP method is
 # included)
 CONFIG_IEEE8021X_EAPOL=y
@@ -119,6 +124,9 @@ CONFIG_EAP_OTP=y
 # EAP-PSK (experimental; this is _not_ needed for WPA-PSK)
 #CONFIG_EAP_PSK=y
 
+# EAP-PAX
+#CONFIG_EAP_PAX=y
+
 # LEAP
 CONFIG_EAP_LEAP=y
 
@@ -128,6 +136,10 @@ CONFIG_EAP_LEAP=y
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
 CONFIG_PKCS12=y
+
+# Smartcard support (i.e., private key on a smartcard), e.g., with openssl
+# engine.
+CONFIG_SMARTCARD=y
 
 # PC/SC interface for smartcards (USIM, GSM SIM)
 # Enable this if EAP-SIM or EAP-AKA is included
@@ -143,12 +155,22 @@ CONFIG_PKCS12=y
 # Include control interface for external programs, e.g, wpa_cli
 CONFIG_CTRL_IFACE=y
 
-# Include interface for using external supplicant (Xsupplicant) for EAP
-# authentication
-#CONFIG_XSUPPLICANT_IFACE=y
-
 # Include support for GNU Readline and History Libraries in wpa_cli.
 # When building a wpa_cli binary for distribution, please note that these
 # libraries are licensed under GPL and as such, BSD license may not apply for
 # the resulting binary.
 #CONFIG_READLINE=y
+
+# Remove debugging code that is printing out debug message to stdout.
+# This can be used to reduce the size of the wpa_supplicant considerably
+# if debugging code is not needed. The size reduction can be around 35%
+# (e.g., 90 kB).
+#CONFIG_NO_STDOUT_DEBUG=y
+
+# Remove WPA support, e.g., for wired-only IEEE 802.1X supplicant, to save
+# 35-50 kB in code size.
+#CONFIG_NO_WPA=y
+
+# Select configuration backend:
+# file = text file (e.g., wpa_supplicant.conf)
+CONFIG_BACKEND=file

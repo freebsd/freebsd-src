@@ -1,50 +1,21 @@
+/*
+ * wpa_supplicant - Internal definitions
+ * Copyright (c) 2003-2006, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
+ */
+
 #ifndef WPA_SUPPLICANT_I_H
 #define WPA_SUPPLICANT_I_H
 
 #include "driver.h"
-
-#ifdef EAPOL_TEST
-#include <netinet/in.h>
-
-struct hostapd_radius_server {
-	struct in_addr addr;
-	int port;
-	u8 *shared_secret;
-	size_t shared_secret_len;
-};
-#endif /* EAPOL_TEST */
-
-#define PMKID_LEN 16
-struct rsn_pmksa_cache {
-	struct rsn_pmksa_cache *next;
-	u8 pmkid[PMKID_LEN];
-	u8 pmk[PMK_LEN];
-	size_t pmk_len;
-	time_t expiration;
-	int akmp; /* WPA_KEY_MGMT_* */
-	u8 aa[ETH_ALEN];
-};
-
-struct rsn_pmksa_candidate {
-	struct rsn_pmksa_candidate *next;
-	u8 bssid[ETH_ALEN];
-	int priority;
-};
-
-
-struct wpa_ptk {
-	u8 mic_key[16]; /* EAPOL-Key MIC Key (MK) */
-	u8 encr_key[16]; /* EAPOL-Key Encryption Key (EK) */
-	u8 tk1[16]; /* Temporal Key 1 (TK1) */
-	union {
-		u8 tk2[16]; /* Temporal Key 2 (TK2) */
-		struct {
-			u8 tx_mic_key[8];
-			u8 rx_mic_key[8];
-		} auth;
-	} u;
-} __attribute__ ((packed));
-
 
 struct wpa_blacklist {
 	struct wpa_blacklist *next;
@@ -53,41 +24,154 @@ struct wpa_blacklist {
 };
 
 
+struct wpa_scan_result;
+struct wpa_sm;
+struct wpa_supplicant;
+
+/**
+ * struct wpa_interface - Parameters for wpa_supplicant_add_iface()
+ */
+struct wpa_interface {
+	/**
+	 * confname - Configuration name (file or profile) name
+	 *
+	 * This can also be %NULL when a configuration file is not used. In
+	 * that case, ctrl_interface must be set to allow the interface to be
+	 * configured.
+	 */
+	const char *confname;
+
+	/**
+	 * ctrl_interface - Control interface parameter
+	 *
+	 * If a configuration file is not used, this variable can be used to
+	 * set the ctrl_interface parameter that would have otherwise been read
+	 * from the configuration file. If both confname and ctrl_interface are
+	 * set, ctrl_interface is used to override the value from configuration
+	 * file.
+	 */
+	const char *ctrl_interface;
+
+	/**
+	 * driver - Driver interface name, or %NULL to use the default driver
+	 */
+	const char *driver;
+
+	/**
+	 * driver_param - Driver interface parameters
+	 *
+	 * If a configuration file is not used, this variable can be used to
+	 * set the driver_param parameters that would have otherwise been read
+	 * from the configuration file. If both confname and driver_param are
+	 * set, driver_param is used to override the value from configuration
+	 * file.
+	 */
+	const char *driver_param;
+
+	/**
+	 * ifname - Interface name
+	 */
+	const char *ifname;
+};
+
+/**
+ * struct wpa_params - Parameters for wpa_supplicant_init()
+ */
+struct wpa_params {
+	/**
+	 * daemonize - Run %wpa_supplicant in the background
+	 */
+	int daemonize;
+
+	/**
+	 * wait_for_interface - Wait for the network interface to appear
+	 *
+	 * If set, %wpa_supplicant will wait until all the configured network
+	 * interfaces are available before starting processing. Please note
+	 * that in many cases, a better alternative would be to start
+	 * %wpa_supplicant without network interfaces and add the interfaces
+	 * dynamically whenever they become available.
+	 */
+	int wait_for_interface;
+
+	/**
+	 * wait_for_monitor - Wait for a monitor program before starting
+	 */
+	int wait_for_monitor;
+
+	/**
+	 * pid_file - Path to a PID (process ID) file
+	 *
+	 * If this and daemonize are set, process ID of the background process
+	 * will be written to the specified file.
+	 */
+	char *pid_file;
+
+	/**
+	 * wpa_debug_level - Debugging verbosity level (e.g., MSG_INFO)
+	 */
+	int wpa_debug_level;
+
+	/**
+	 * wpa_debug_show_keys - Whether keying material is included in debug
+	 *
+	 * This parameter can be used to allow keying material to be included
+	 * in debug messages. This is a security risk and this option should
+	 * not be enabled in normal configuration. If needed during
+	 * development or while troubleshooting, this option can provide more
+	 * details for figuring out what is happening.
+	 */
+	int wpa_debug_show_keys;
+
+	/**
+	 * wpa_debug_timestamp - Whether to include timestamp in debug messages
+	 */
+	int wpa_debug_timestamp;
+
+	/**
+	 * ctrl_interface - Global ctrl_iface path/parameter
+	 */
+	char *ctrl_interface;
+};
+
+/**
+ * struct wpa_global - Internal, global data for all %wpa_supplicant interfaces
+ *
+ * This structure is initialized by calling wpa_supplicant_init() when starting
+ * %wpa_supplicant.
+ */
+struct wpa_global {
+	struct wpa_supplicant *ifaces;
+	struct wpa_params params;
+	int ctrl_sock;
+};
+
+/**
+ * struct wpa_supplicant - Internal data for wpa_supplicant interface
+ *
+ * This structure contains the internal data for core wpa_supplicant code. This
+ * should be only used directly from the core code. However, a pointer to this
+ * data is used from other files as an arbitrary context pointer in calls to
+ * core functions.
+ */
 struct wpa_supplicant {
-	struct wpa_supplicant *head;
+	struct wpa_global *global;
 	struct wpa_supplicant *next;
 	struct l2_packet_data *l2;
 	unsigned char own_addr[ETH_ALEN];
 	char ifname[100];
-#ifdef CONFIG_XSUPPLICANT_IFACE
-	int dot1x_s; /* socket for connection to Xsupplicant */
-	int ext_pmk_received; /* 1 = PMK was received from Xsupplicant */
-#endif /* CONFIG_XSUPPLICANT_IFACE */
 
-	u8 pmk[PMK_LEN];
-	size_t pmk_len;
-	u8 snonce[WPA_NONCE_LEN];
-	u8 anonce[WPA_NONCE_LEN]; /* ANonce from the last 1/4 msg */
-	struct wpa_ptk ptk, tptk;
-	int ptk_set, tptk_set;
-	int renew_snonce;
 	char *confname;
 	struct wpa_config *conf;
-	u8 request_counter[WPA_REPLAY_COUNTER_LEN];
 	int countermeasures;
 	time_t last_michael_mic_error;
-	u8 rx_replay_counter[WPA_REPLAY_COUNTER_LEN];
-	int rx_replay_counter_set;
 	u8 bssid[ETH_ALEN];
 	int reassociate; /* reassociation requested */
+	int disconnected; /* all connections disabled; i.e., do no reassociate
+			   * before this has been cleared */
 	struct wpa_ssid *current_ssid;
-	u8 *ap_wpa_ie, *ap_rsn_ie;
-	size_t ap_wpa_ie_len, ap_rsn_ie_len;
-	u8 *assoc_wpa_ie;
-	size_t assoc_wpa_ie_len;
 
 	/* Selected configuration (based on Beacon/ProbeResp WPA IE) */
-	int proto;
 	int pairwise_cipher;
 	int group_cipher;
 	int key_mgmt;
@@ -108,34 +192,20 @@ struct wpa_supplicant {
 	struct wpa_driver_ops *driver;
 	int interface_removed; /* whether the network interface has been
 				* removed */
+	struct wpa_sm *wpa;
 	struct eapol_sm *eapol;
 
 	int ctrl_sock; /* UNIX domain socket for control interface or -1 if
 			* not used */
 	struct wpa_ctrl_dst *ctrl_dst;
 
-	enum {
-		WPA_DISCONNECTED, WPA_SCANNING, WPA_ASSOCIATING,
-		WPA_ASSOCIATED, WPA_4WAY_HANDSHAKE, WPA_GROUP_HANDSHAKE,
-		WPA_COMPLETED
-	} wpa_state;
-
-	struct rsn_pmksa_cache *pmksa; /* PMKSA cache */
-	int pmksa_count; /* number of entries in PMKSA cache */
-	struct rsn_pmksa_cache *cur_pmksa; /* current PMKSA entry */
-	struct rsn_pmksa_candidate *pmksa_candidates;
-
-	struct l2_packet_data *l2_preauth;
-	u8 preauth_bssid[ETH_ALEN]; /* current RSN pre-auth peer or
-				     * 00:00:00:00:00:00 if no pre-auth is
-				     * in progress */
-	struct eapol_sm *preauth_eapol;
+	wpa_states wpa_state;
+	int new_connection;
+	int reassociated_connection;
 
 	int eapol_received; /* number of EAPOL packets received after the
 			     * previous association event */
 
-	u8 *imsi;
-	size_t imsi_len;
 	struct scard_data *scard;
 
 	unsigned char last_eapol_src[ETH_ALEN];
@@ -144,136 +214,61 @@ struct wpa_supplicant {
 
 	struct wpa_blacklist *blacklist;
 
-#ifdef EAPOL_TEST
-	u8 radius_identifier;
-	struct radius_msg *last_recv_radius;
-	struct in_addr own_ip_addr;
-	struct radius_client_data *radius;
-
-	/* RADIUS Authentication and Accounting servers in priority order */
-	struct hostapd_radius_server *auth_servers, *auth_server;
-	int num_auth_servers;
-	struct hostapd_radius_server *acct_servers, *acct_server;
-	int num_acct_servers;
-
-	int radius_retry_primary_interval;
-	int radius_acct_interim_interval;
-
-	u8 *last_eap_radius; /* last received EAP Response from Authentication
-			      * Server */
-	size_t last_eap_radius_len;
-
-	u8 authenticator_pmk[PMK_LEN];
-	size_t authenticator_pmk_len;
-	int radius_access_accept_received;
-	int radius_access_reject_received;
-	int auth_timed_out;
-
-	u8 *eap_identity;
-	size_t eap_identity_len;
-#endif /* EAPOL_TEST */
+	int scan_req; /* manual scan request; this forces a scan even if there
+		       * are no enabled networks in the configuration */
 };
 
 
 /* wpa_supplicant.c */
-void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx);
-
-void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec);
-
 void wpa_supplicant_cancel_scan(struct wpa_supplicant *wpa_s);
-
-void wpa_supplicant_disassociate(struct wpa_supplicant *wpa_s,
-				 int reason_code);
-void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
-				   int reason_code);
-
-void wpa_supplicant_req_auth_timeout(struct wpa_supplicant *wpa_s,
-				     int sec, int usec);
-
-void wpa_supplicant_cancel_auth_timeout(struct wpa_supplicant *wpa_s);
 
 int wpa_supplicant_reload_configuration(struct wpa_supplicant *wpa_s);
 
-int wpa_supplicant_get_beacon_ie(struct wpa_supplicant *wpa_s);
-
-
-/* wpa.c */
-void wpa_supplicant_key_request(struct wpa_supplicant *wpa_s,
-				int error, int pairwise);
-
-struct wpa_ie_data {
-	int proto;
-	int pairwise_cipher;
-	int group_cipher;
-	int key_mgmt;
-	int capabilities;
-	int num_pmkid;
-	u8 *pmkid;
-};
-
-int wpa_parse_wpa_ie(struct wpa_supplicant *wpa_s, u8 *wpa_ie,
-		     size_t wpa_ie_len, struct wpa_ie_data *data);
-
-int wpa_gen_wpa_ie(struct wpa_supplicant *wpa_s, u8 *wpa_ie);
-
-void wpa_supplicant_rx_eapol(void *ctx, unsigned char *src_addr,
-			     unsigned char *buf, size_t len);
-
+const char * wpa_supplicant_state_txt(int state);
+int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s,
+			       int wait_for_interface);
+struct wpa_blacklist * wpa_blacklist_get(struct wpa_supplicant *wpa_s,
+					 const u8 *bssid);
+int wpa_blacklist_add(struct wpa_supplicant *wpa_s, const u8 *bssid);
+int wpa_blacklist_del(struct wpa_supplicant *wpa_s, const u8 *bssid);
+void wpa_blacklist_clear(struct wpa_supplicant *wpa_s);
+int wpa_supplicant_set_suites(struct wpa_supplicant *wpa_s,
+			      struct wpa_scan_result *bss,
+			      struct wpa_ssid *ssid,
+			      u8 *wpa_ie, size_t *wpa_ie_len);
+void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
+			      struct wpa_scan_result *bss,
+			      struct wpa_ssid *ssid);
+void wpa_supplicant_set_non_wpa_policy(struct wpa_supplicant *wpa_s,
+				       struct wpa_ssid *ssid);
+void wpa_supplicant_initiate_eapol(struct wpa_supplicant *wpa_s);
+int wpa_supplicant_get_scan_results(struct wpa_supplicant *wpa_s);
+void wpa_clear_keys(struct wpa_supplicant *wpa_s, const u8 *addr);
+void wpa_supplicant_req_auth_timeout(struct wpa_supplicant *wpa_s,
+				     int sec, int usec);
+void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s, wpa_states state);
 struct wpa_ssid * wpa_supplicant_get_ssid(struct wpa_supplicant *wpa_s);
+void wpa_supplicant_cancel_auth_timeout(struct wpa_supplicant *wpa_s);
+void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
+				   int reason_code);
+void wpa_supplicant_disassociate(struct wpa_supplicant *wpa_s,
+				 int reason_code);
+void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec);
 
-void pmksa_cache_free(struct wpa_supplicant *wpa_s);
-struct rsn_pmksa_cache * pmksa_cache_get(struct wpa_supplicant *wpa_s,
-					 u8 *aa, u8 *pmkid);
-int pmksa_cache_list(struct wpa_supplicant *wpa_s, char *buf, size_t len);
-void pmksa_candidate_free(struct wpa_supplicant *wpa_s);
+void wpa_show_license(void);
 
-int wpa_get_mib(struct wpa_supplicant *wpa_s, char *buf, size_t buflen);
+struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
+						 struct wpa_interface *iface);
+int wpa_supplicant_remove_iface(struct wpa_global *global,
+				struct wpa_supplicant *wpa_s);
+struct wpa_supplicant * wpa_supplicant_get_iface(struct wpa_global *global,
+						 const char *ifname);
+struct wpa_global * wpa_supplicant_init(struct wpa_params *params);
+int wpa_supplicant_run(struct wpa_global *global);
+void wpa_supplicant_deinit(struct wpa_global *global);
 
-struct wpa_scan_result;
-#ifdef IEEE8021X_EAPOL
-int rsn_preauth_init(struct wpa_supplicant *wpa_s, u8 *dst);
-void rsn_preauth_deinit(struct wpa_supplicant *wpa_s);
-void rsn_preauth_scan_results(struct wpa_supplicant *wpa_s,
-			      struct wpa_scan_result *results, int count);
-void pmksa_candidate_add(struct wpa_supplicant *wpa_s, const u8 *bssid,
-			 int prio);
-#else /* IEEE8021X_EAPOL */
-static inline int rsn_preauth_init(struct wpa_supplicant *wpa_s, u8 *dst)
-{
-	return -1;
-}
-
-static inline void rsn_preauth_deinit(struct wpa_supplicant *wpa_s)
-{
-}
-static inline void rsn_preauth_scan_results(struct wpa_supplicant *wpa_s,
-					    struct wpa_scan_result *results,
-					    int count)
-{
-}
-
-static inline void pmksa_candidate_add(struct wpa_supplicant *wpa_s,
-				       const u8 *bssid,
-				       int prio)
-{
-}
-#endif /* IEEE8021X_EAPOL */
-
-void wpa_supplicant_notify_eapol_done(void *ctx);
-
-/**
- * wpa_eapol_send - send IEEE 802.1X EAPOL packet to the Authenticator
- * @ctx: pointer to wpa_supplicant data
- * @type: IEEE 802.1X packet type (IEEE802_1X_TYPE_*)
- * @buf: EAPOL payload (after IEEE 802.1X header)
- * @len: EAPOL payload length
- *
- * This function adds Ethernet and IEEE 802.1X header and sends the EAPOL frame
- * to the current Authenticator or in case of pre-authentication, to the peer
- * of the authentication.
- */
-int wpa_eapol_send(void *ctx, int type, u8 *buf, size_t len);
-int wpa_eapol_send_preauth(void *ctx, int type, u8 *buf, size_t len);
+int wpa_supplicant_scard_init(struct wpa_supplicant *wpa_s,
+			      struct wpa_ssid *ssid);
 
 
 /* driver_ops */
@@ -290,6 +285,14 @@ static inline void wpa_drv_deinit(struct wpa_supplicant *wpa_s)
 {
 	if (wpa_s->driver->deinit)
 		wpa_s->driver->deinit(wpa_s->drv_priv);
+}
+
+static inline int wpa_drv_set_param(struct wpa_supplicant *wpa_s,
+				    const char *param)
+{
+	if (wpa_s->driver->set_param)
+		return wpa_s->driver->set_param(wpa_s->drv_priv, param);
+	return 0;
 }
 
 static inline int wpa_drv_set_drop_unencrypted(struct wpa_supplicant *wpa_s,
@@ -381,6 +384,7 @@ static inline int wpa_drv_set_key(struct wpa_supplicant *wpa_s, wpa_alg alg,
 				   const u8 *key, size_t key_len)
 {
 	if (wpa_s->driver->set_key) {
+		wpa_s->keys_cleared = 0;
 		return wpa_s->driver->set_key(wpa_s->drv_priv, alg, addr,
 					      key_idx, set_tx, seq, seq_len,
 					      key, key_len);
@@ -465,6 +469,16 @@ static inline const u8 * wpa_drv_get_mac_addr(struct wpa_supplicant *wpa_s)
 		return wpa_s->driver->get_mac_addr(wpa_s->drv_priv);
 	}
 	return NULL;
+}
+
+static inline int wpa_drv_send_eapol(struct wpa_supplicant *wpa_s,
+				     const u8 *dst, u16 proto,
+				     const u8 *data, size_t data_len)
+{
+	if (wpa_s->driver->send_eapol)
+		return wpa_s->driver->send_eapol(wpa_s->drv_priv, dst, proto,
+						 data, data_len);
+	return -1;
 }
 
 #endif /* WPA_SUPPLICANT_I_H */

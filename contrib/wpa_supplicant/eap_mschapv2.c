@@ -21,6 +21,7 @@
 #include "wpa_supplicant.h"
 #include "config_ssid.h"
 #include "ms_funcs.h"
+#include "wpa_ctrl.h"
 
 
 struct eap_mschapv2_hdr {
@@ -71,6 +72,9 @@ struct eap_mschapv2_data {
 	u8 master_key[16];
 	int master_key_valid;
 	int success;
+
+	u8 *prev_challenge;
+	size_t prev_challenge_len;
 };
 
 
@@ -114,6 +118,7 @@ static void eap_mschapv2_deinit(struct eap_sm *sm, void *priv)
 	struct eap_mschapv2_data *data = priv;
 	free(data->peer_challenge);
 	free(data->auth_challenge);
+	free(data->prev_challenge);
 	free(data);
 }
 
@@ -121,7 +126,7 @@ static void eap_mschapv2_deinit(struct eap_sm *sm, void *priv)
 static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 				   struct eap_mschapv2_data *data,
 				   struct eap_method_ret *ret,
-				   struct eap_mschapv2_hdr *req,
+				   const struct eap_mschapv2_hdr *req,
 				   size_t *respDataLen)
 {
 	struct wpa_ssid *config = eap_get_config(sm);
@@ -130,6 +135,9 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 	size_t len, challenge_len, username_len;
 	struct eap_mschapv2_hdr *resp;
 	u8 password_hash[16], password_hash_hash[16];
+
+	if (config == NULL)
+		return NULL;
 
 	/* MSCHAPv2 does not include optional domain name in the
 	 * challenge-response calculation, so remove domain prefix
@@ -150,26 +158,31 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 	challenge_len = *pos++;
 	if (challenge_len != 16) {
 		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Invalid challenge length "
-			   "%d", challenge_len);
+			   "%lu", (unsigned long) challenge_len);
 		ret->ignore = TRUE;
 		return NULL;
 	}
 
 	if (len < 10 || len - 10 < challenge_len) {
 		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Too short challenge"
-			   " packet: len=%lu challenge_len=%d",
-			   (unsigned long) len, challenge_len);
+			   " packet: len=%lu challenge_len=%lu",
+			   (unsigned long) len, (unsigned long) challenge_len);
 		ret->ignore = TRUE;
 		return NULL;
 	}
 
-	challenge = pos;
+	if (data->passwd_change_challenge_valid) {
+		wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: Using challenge from the "
+			   "failure message");
+		challenge = data->passwd_change_challenge;
+	} else
+		challenge = pos;
 	pos += challenge_len;
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-MSCHAPV2: Authentication Servername",
 		    pos, len - challenge_len - 10);
 
 	ret->ignore = FALSE;
-	ret->methodState = METHOD_CONT;
+	ret->methodState = METHOD_MAY_CONT;
 	ret->decision = DECISION_FAIL;
 	ret->allowNotifications = TRUE;
 
@@ -187,9 +200,17 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 	resp->type = EAP_TYPE_MSCHAPV2;
 	resp->op_code = MSCHAPV2_OP_RESPONSE;
 	resp->mschapv2_id = req->mschapv2_id;
+	if (data->prev_error) {
+		/*
+		 * TODO: this does not seem to be enough when processing two
+		 * or more failure messages. IAS did not increment mschapv2_id
+		 * in its own packets, but it seemed to expect the peer to
+		 * increment this for all packets(?).
+		 */
+		resp->mschapv2_id++;
+	}
 	ms_len = *respDataLen - 5;
-	resp->ms_length[0] = ms_len >> 8;
-	resp->ms_length[1] = ms_len & 0xff;
+	WPA_PUT_BE16(resp->ms_length, ms_len);
 	pos = (u8 *) (resp + 1);
 	*pos++ = MSCHAPV2_RESP_LEN; /* Value-Size */
 
@@ -243,6 +264,8 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 	pos++; /* Flag / reserved, must be zero */
 
 	memcpy(pos, config->identity, config->identity_len);
+	wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: TX identifier %d mschapv2_id %d "
+		   "(response)", resp->identifier, resp->mschapv2_id);
 	return (u8 *) resp;
 }
 
@@ -250,16 +273,17 @@ static u8 * eap_mschapv2_challenge(struct eap_sm *sm,
 static u8 * eap_mschapv2_success(struct eap_sm *sm,
 				 struct eap_mschapv2_data *data,
 				 struct eap_method_ret *ret,
-				 struct eap_mschapv2_hdr *req,
+				 const struct eap_mschapv2_hdr *req,
 				 size_t *respDataLen)
 {
 	struct eap_mschapv2_hdr *resp;
-	u8 *pos, recv_response[20];
+	const u8 *pos;
+	u8 recv_response[20];
 	int len, left;
 
 	wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: Received success");
 	len = be_to_host16(req->length);
-	pos = (u8 *) (req + 1);
+	pos = (const u8 *) (req + 1);
 	if (!data->auth_response_valid || len < sizeof(*req) + 42 ||
 	    pos[0] != 'S' || pos[1] != '=' ||
 	    hexstr2bin((char *) (pos + 2), recv_response, 20) ||
@@ -298,6 +322,21 @@ static u8 * eap_mschapv2_success(struct eap_sm *sm,
 	ret->decision = DECISION_UNCOND_SUCC;
 	ret->allowNotifications = FALSE;
 	data->success = 1;
+
+	if (data->prev_error == ERROR_PASSWD_EXPIRED) {
+		struct wpa_ssid *config = eap_get_config(sm);
+		if (config && config->new_password) {
+			wpa_msg(sm->msg_ctx, MSG_INFO,
+				WPA_EVENT_PASSWORD_CHANGED
+				"EAP-MSCHAPV2: Password changed successfully");
+			data->prev_error = 0;
+			free(config->password);
+			config->password = config->new_password;
+			config->new_password = NULL;
+			config->password_len = config->new_password_len;
+			config->new_password_len = 0;
+		}
+	}
 
 	return (u8 *) resp;
 }
@@ -382,27 +421,152 @@ static int eap_mschapv2_failure_txt(struct eap_sm *sm,
 		"EAP-MSCHAPV2: failure message: '%s' (retry %sallowed, error "
 		"%d)",
 		msg, retry == 1 ? "" : "not ", data->prev_error);
-	if (retry == 1 && config) {
+	if (data->prev_error == ERROR_PASSWD_EXPIRED &&
+	    data->passwd_change_version == 3 && config) {
+		if (config->new_password == NULL) {
+			wpa_msg(sm->msg_ctx, MSG_INFO,
+				"EAP-MSCHAPV2: Password expired - password "
+				"change required");
+			eap_sm_request_new_password(sm, config);
+		}
+	} else if (retry == 1 && config) {
 		/* TODO: could prevent the current password from being used
 		 * again at least for some period of time */
-		eap_sm_request_identity(sm, config);
+		if (!config->mschapv2_retry)
+			eap_sm_request_identity(sm, config);
 		eap_sm_request_password(sm, config);
+		config->mschapv2_retry = 1;
 	} else if (config) {
 		/* TODO: prevent retries using same username/password */
+		config->mschapv2_retry = 0;
 	}
 
 	return retry == 1;
 }
 
 
+static u8 * eap_mschapv2_change_password(struct eap_sm *sm,
+					 struct eap_mschapv2_data *data,
+					 struct eap_method_ret *ret,
+					 const struct eap_mschapv2_hdr *req,
+					 size_t *respDataLen)
+{
+	struct eap_mschapv2_hdr *resp;
+	int ms_len, i;
+	u8 *peer_challenge, *username, *pos;
+	size_t username_len;
+	struct wpa_ssid *config = eap_get_config(sm);
+
+	if (config == NULL || config->identity == NULL ||
+	    config->new_password == NULL || config->password == NULL)
+		return NULL;
+
+	/*
+	 * MSCHAPv2 does not include optional domain name in the
+	 * challenge-response calculation, so remove domain prefix
+	 * (if present).
+	 */
+	username = config->identity;
+	username_len = config->identity_len;
+	for (i = 0; i < username_len; i++) {
+		if (username[i] == '\\') {
+			username_len -= i + 1;
+			username += i + 1;
+			break;
+		}
+	}
+
+	ret->ignore = FALSE;
+	ret->methodState = METHOD_MAY_CONT;
+	ret->decision = DECISION_COND_SUCC;
+	ret->allowNotifications = TRUE;
+
+	*respDataLen = 591;
+	resp = malloc(*respDataLen);
+	if (resp == NULL) {
+		return NULL;
+	}
+
+	resp->code = EAP_CODE_RESPONSE;
+	resp->identifier = req->identifier;
+	resp->length = host_to_be16((u16) *respDataLen);
+	resp->type = EAP_TYPE_MSCHAPV2;
+	resp->op_code = MSCHAPV2_OP_CHANGE_PASSWORD;
+	resp->mschapv2_id = req->mschapv2_id + 1;
+	ms_len = *respDataLen - 5;
+	WPA_PUT_BE16(resp->ms_length, ms_len);
+	pos = (u8 *) (resp + 1);
+
+	/* Encrypted-Password */
+	new_password_encrypted_with_old_nt_password_hash(
+		config->new_password, config->new_password_len,
+		config->password, config->password_len, pos);
+	pos += 516;
+
+	/* Encrypted-Hash */
+	old_nt_password_hash_encrypted_with_new_nt_password_hash(
+		config->new_password, config->new_password_len,
+		config->password, config->password_len, pos);
+	pos += 16;
+
+	/* Peer-Challenge */
+	peer_challenge = pos;
+	if (hostapd_get_rand(peer_challenge, 16)) {
+		free(resp);
+		return NULL;
+	}
+	pos += 16;
+
+	/* Reserved, must be zero */
+	memset(pos, 0, 8);
+	pos += 8;
+
+	/* NT-Response */
+	wpa_hexdump(MSG_DEBUG, "EAP-MSCHAPV2: auth_challenge",
+		    data->passwd_change_challenge, PASSWD_CHANGE_CHAL_LEN);
+	wpa_hexdump(MSG_DEBUG, "EAP-MSCHAPV2: peer_challenge",
+		    peer_challenge, 16);
+	wpa_hexdump_ascii(MSG_DEBUG, "EAP-MSCHAPV2: username",
+			  username, username_len);
+	wpa_hexdump_ascii_key(MSG_DEBUG, "EAP-MSCHAPV2: new password",
+			      config->new_password, config->new_password_len);
+	generate_nt_response(data->passwd_change_challenge, peer_challenge,
+			     username, username_len,
+			     config->new_password, config->new_password_len,
+			     pos);
+	wpa_hexdump(MSG_DEBUG, "EAP-MSCHAPV2: NT-Response", pos, 24);
+
+	/* Authenticator response is not really needed yet, but calculate it
+	 * here so that challenges need not be saved. */
+	generate_authenticator_response(config->new_password,
+					config->new_password_len,
+					peer_challenge,
+					data->passwd_change_challenge,
+					username, username_len, pos,
+					data->auth_response);
+	data->auth_response_valid = 1;
+
+	pos += 24;
+
+	/* Flags */
+	*pos++ = 0;
+	*pos++ = 0;
+
+	wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: TX identifier %d mschapv2_id %d "
+		   "(change pw)", resp->identifier, resp->mschapv2_id);
+
+	return (u8 *) resp;
+}
+
+
 static u8 * eap_mschapv2_failure(struct eap_sm *sm,
 				 struct eap_mschapv2_data *data,
 				 struct eap_method_ret *ret,
-				 struct eap_mschapv2_hdr *req,
+				 const struct eap_mschapv2_hdr *req,
 				 size_t *respDataLen)
 {
 	struct eap_mschapv2_hdr *resp;
-	u8 *msdata = (u8 *) (req + 1);
+	const u8 *msdata = (const u8 *) (req + 1);
 	char *buf;
 	int len = be_to_host16(req->length) - sizeof(*req);
 	int retry = 0;
@@ -423,10 +587,19 @@ static u8 * eap_mschapv2_failure(struct eap_sm *sm,
 	ret->decision = DECISION_FAIL;
 	ret->allowNotifications = FALSE;
 
-	if (retry) {
+	if (data->prev_error == ERROR_PASSWD_EXPIRED &&
+	    data->passwd_change_version == 3) {
+		struct wpa_ssid *config = eap_get_config(sm);
+		if (config && config->new_password)
+			return eap_mschapv2_change_password(sm, data, ret, req,
+							    respDataLen);
+		if (config && config->pending_req_new_password)
+			return NULL;
+	} else if (retry && data->prev_error == ERROR_AUTHENTICATION_FAILURE) {
 		/* TODO: could try to retry authentication, e.g, after having
 		 * changed the username/password. In this case, EAP MS-CHAP-v2
 		 * Failure Response would not be sent here. */
+		return NULL;
 	}
 
 	*respDataLen = 6;
@@ -447,13 +620,15 @@ static u8 * eap_mschapv2_failure(struct eap_sm *sm,
 
 static u8 * eap_mschapv2_process(struct eap_sm *sm, void *priv,
 				 struct eap_method_ret *ret,
-				 u8 *reqData, size_t reqDataLen,
+				 const u8 *reqData, size_t reqDataLen,
 				 size_t *respDataLen)
 {
 	struct eap_mschapv2_data *data = priv;
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_mschapv2_hdr *req;
-	int ms_len, len;
+	const struct eap_mschapv2_hdr *req;
+	int ms_len, using_prev_challenge = 0;
+	const u8 *pos;
+	size_t len;
 
 	if (config == NULL || config->identity == NULL) {
 		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Identity not configured");
@@ -469,19 +644,28 @@ static u8 * eap_mschapv2_process(struct eap_sm *sm, void *priv,
 		return NULL;
 	}
 
-	req = (struct eap_mschapv2_hdr *) reqData;
-	len = be_to_host16(req->length);
-	if (len < sizeof(*req) + 2 || req->type != EAP_TYPE_MSCHAPV2 ||
-	    len > reqDataLen) {
-		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Invalid frame");
+	if (config->mschapv2_retry && data->prev_challenge &&
+	    data->prev_error == ERROR_AUTHENTICATION_FAILURE) {
+		wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: Replacing pending packet "
+			   "with the previous challenge");
+
+		reqData = data->prev_challenge;
+		reqDataLen = data->prev_challenge_len;
+		using_prev_challenge = 1;
+		config->mschapv2_retry = 0;
+	}
+
+	pos = eap_hdr_validate(EAP_TYPE_MSCHAPV2, reqData, reqDataLen, &len);
+	if (pos == NULL || len < 5) {
 		ret->ignore = TRUE;
 		return NULL;
 	}
-
-	ms_len = ((int) req->ms_length[0] << 8) | req->ms_length[1];
+	req = (const struct eap_mschapv2_hdr *) reqData;
+	len = be_to_host16(req->length);
+	ms_len = WPA_GET_BE16(req->ms_length);
 	if (ms_len != len - 5) {
-		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Invalid header: len=%d "
-			   "ms_len=%d", len, ms_len);
+		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Invalid header: len=%lu "
+			   "ms_len=%d", (unsigned long) len, ms_len);
 		if (sm->workaround) {
 			/* Some authentication servers use invalid ms_len,
 			 * ignore it for interoperability. */
@@ -493,8 +677,19 @@ static u8 * eap_mschapv2_process(struct eap_sm *sm, void *priv,
 		}
 	}
 
+	wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: RX identifier %d mschapv2_id %d",
+		   req->identifier, req->mschapv2_id);
+
 	switch (req->op_code) {
 	case MSCHAPV2_OP_CHALLENGE:
+		if (!using_prev_challenge) {
+			free(data->prev_challenge);
+			data->prev_challenge = malloc(len);
+			if (data->prev_challenge) {
+				data->prev_challenge_len = len;
+				memcpy(data->prev_challenge, reqData, len);
+			}
+		}
 		return eap_mschapv2_challenge(sm, data, ret, req, respDataLen);
 	case MSCHAPV2_OP_SUCCESS:
 		return eap_mschapv2_success(sm, data, ret, req, respDataLen);
