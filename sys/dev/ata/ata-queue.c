@@ -306,7 +306,7 @@ ata_completed(void *context, int dummy)
 	    request->result = EIO;
 	}
     }
-    else {
+    else if (!(request->flags & ATA_R_ATAPI) ){
 	/* if this is a soft ECC error warn about it */
 	/* XXX SOS we could do WARF here */
 	if ((request->status & (ATA_S_CORR | ATA_S_ERROR)) == ATA_S_CORR) {
