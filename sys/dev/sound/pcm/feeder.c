@@ -385,10 +385,8 @@ chn_fmtbest(u_int32_t fmt, u_int32_t *fmts)
 		}
 	} else if (best2 == 0)
 		return best1;
-	else if (best1 == 0)
+	else
 		return best2;
-
-	return best1;
 }
 
 u_int32_t
