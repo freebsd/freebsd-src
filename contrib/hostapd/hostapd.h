@@ -13,8 +13,19 @@
 #ifndef ETH_P_ALL
 #define ETH_P_ALL 0x0003
 #endif
+#ifndef ETH_P_PAE
+#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
+#endif /* ETH_P_PAE */
 
-#include "hostap_common.h"
+#ifndef BIT
+#define BIT(x) (1 << (x))
+#endif
+
+#ifndef MAC2STR
+#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+#endif
+
 #include "config.h"
 
 struct ieee8023_hdr {
@@ -118,9 +129,10 @@ struct hostapd_data {
 	struct radius_server_data *radius_srv;
 };
 
-void hostapd_new_assoc_sta(hostapd *hapd, struct sta_info *sta);
-void hostapd_logger(hostapd *hapd, u8 *addr, unsigned int module, int level,
-		    char *fmt, ...) __attribute__ ((format (printf, 5, 6)));
+void hostapd_new_assoc_sta(hostapd *hapd, struct sta_info *sta, int reassoc);
+void hostapd_logger(struct hostapd_data *hapd, const u8 *addr,
+		    unsigned int module, int level, const char *fmt,
+		    ...) __attribute__ ((format (printf, 5, 6)));
 
 
 #define HOSTAPD_DEBUG(level, args...) \
@@ -130,5 +142,8 @@ do { \
 } while (0)
 
 #define HOSTAPD_DEBUG_COND(level) (hapd->conf->debug >= (level))
+
+const char * hostapd_ip_txt(const struct hostapd_ip_addr *addr, char *buf,
+			    size_t buflen);
 
 #endif /* HOSTAPD_H */

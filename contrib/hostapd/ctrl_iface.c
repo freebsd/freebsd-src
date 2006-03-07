@@ -315,7 +315,8 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 		}
 	}
 
-	if (chown(hapd->conf->ctrl_interface, 0,
+	if (hapd->conf->ctrl_interface_gid_set &&
+	    chown(hapd->conf->ctrl_interface, 0,
 		  hapd->conf->ctrl_interface_gid) < 0) {
 		perror("chown[ctrl_interface]");
 		return -1;
@@ -342,7 +343,8 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 		goto fail;
 	}
 
-	if (chown(fname, 0, hapd->conf->ctrl_interface_gid) < 0) {
+	if (hapd->conf->ctrl_interface_gid_set &&
+	    chown(fname, 0, hapd->conf->ctrl_interface_gid) < 0) {
 		perror("chown[ctrl_interface/ifname]");
 		goto fail;
 	}

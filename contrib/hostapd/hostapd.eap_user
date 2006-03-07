@@ -9,7 +9,7 @@
 # phase 1 and another with the same username for phase 2.
 #
 # EAP-TLS, EAP-PEAP, EAP-TTLS, and EAP-SIM do not use password option.
-# EAP-MD5, EAP-MSCHAPV2, and EAP-GTC require a password.
+# EAP-MD5, EAP-MSCHAPV2, EAP-GTC, EAP-PAX, and EAP-PSK require a password.
 # EAP-PEAP and EAP-TTLS require Phase 2 configuration.
 #
 # * can be used as a wildcard to match any user identity. The main purposes for
@@ -33,6 +33,10 @@
 "example user"	TLS
 "DOMAIN\user"	MSCHAPV2	"password"
 "gtc user"	GTC	"password"
+"pax user"	PAX	"unknown"
+"pax.user@example.com"	PAX	0123456789abcdef0123456789abcdef
+"psk user"	PSK	"unknown"
+"psk.user@example.com"	PSK	0123456789abcdef0123456789abcdef
 "ttls"		TTLS
 "not anonymous"	PEAP
 *		PEAP,TTLS,TLS,SIM

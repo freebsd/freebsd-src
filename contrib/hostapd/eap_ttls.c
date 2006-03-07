@@ -23,6 +23,7 @@
 #include "eap_tls_common.h"
 #include "ms_funcs.h"
 #include "md5.h"
+#include "crypto.h"
 #include "tls.h"
 #include "eap_ttls.h"
 
@@ -567,8 +568,9 @@ static void eap_ttls_process_phase2_chap(struct eap_sm *sm,
 					 const u8 *password,
 					 size_t password_len)
 {
-	MD5_CTX context;
 	u8 *chal, hash[MD5_MAC_LEN];
+	const u8 *addr[3];
+	size_t len[3];
 
 	if (challenge == NULL || password == NULL ||
 	    challenge_len != EAP_TTLS_CHAP_CHALLENGE_LEN ||
@@ -609,11 +611,13 @@ static void eap_ttls_process_phase2_chap(struct eap_sm *sm,
 	free(chal);
 
 	/* MD5(Ident + Password + Challenge) */
-	MD5Init(&context);
-	MD5Update(&context, password, 1);
-	MD5Update(&context, sm->user->password, sm->user->password_len);
-	MD5Update(&context, challenge, challenge_len);
-	MD5Final(hash, &context);
+	addr[0] = password;
+	len[0] = 1;
+	addr[1] = sm->user->password;
+	len[1] = sm->user->password_len;
+	addr[2] = challenge;
+	len[2] = challenge_len;
+	md5_vector(3, addr, len, hash);
 
 	if (memcmp(hash, password + 1, EAP_TTLS_CHAP_PASSWORD_LEN) == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/CHAP: Correct user password");
@@ -1127,6 +1131,12 @@ static void eap_ttls_process(struct eap_sm *sm, void *priv,
 		wpa_printf(MSG_DEBUG, "EAP-TTLS: Unexpected state %d in %s",
 			   data->state, __func__);
 		break;
+	}
+
+	if (tls_connection_get_write_alerts(sm->ssl_ctx, data->ssl.conn) > 1) {
+		wpa_printf(MSG_INFO, "EAP-TTLS: Locally detected fatal error "
+			   "in TLS processing");
+		eap_ttls_state(data, FAILURE);
 	}
 }
 

@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 #include "eloop.h"
 #include "hostapd.h"
@@ -43,6 +44,7 @@
 #include "tls.h"
 #include "eap_sim_db.h"
 #include "version.h"
+#include "hostap_common.h"
 
 
 struct hapd_interfaces {
@@ -58,8 +60,8 @@ extern int wpa_debug_show_keys;
 extern int wpa_debug_timestamp;
 
 
-void hostapd_logger(hostapd *hapd, u8 *addr, unsigned int module, int level,
-		    char *fmt, ...)
+void hostapd_logger(struct hostapd_data *hapd, const u8 *addr,
+		    unsigned int module, int level, const char *fmt, ...)
 {
 	char *format, *module_str;
 	int maxlen;
@@ -71,8 +73,6 @@ void hostapd_logger(hostapd *hapd, u8 *addr, unsigned int module, int level,
 	format = malloc(maxlen);
 	if (!format)
 		return;
-
-	va_start(ap, fmt);
 
 	if (hapd && hapd->conf) {
 		conf_syslog_level = hapd->conf->logger_syslog_level;
@@ -125,7 +125,10 @@ void hostapd_logger(hostapd *hapd, u8 *addr, unsigned int module, int level,
 			 module_str, module_str ? ": " : "", fmt);
 
 	if ((conf_stdout & module) && level >= conf_stdout_level) {
+		wpa_debug_print_timestamp();
+		va_start(ap, fmt);
 		vprintf(format, ap);
+		va_end(ap);
 		printf("\n");
 	}
 
@@ -149,12 +152,34 @@ void hostapd_logger(hostapd *hapd, u8 *addr, unsigned int module, int level,
 			priority = LOG_INFO;
 			break;
 		}
+		va_start(ap, fmt);
 		vsyslog(priority, format, ap);
+		va_end(ap);
 	}
 
 	free(format);
+}
 
-	va_end(ap);
+
+const char * hostapd_ip_txt(const struct hostapd_ip_addr *addr, char *buf,
+			    size_t buflen)
+{
+	if (buflen == 0 || addr == NULL)
+		return NULL;
+
+	if (addr->af == AF_INET) {
+		snprintf(buf, buflen, "%s", inet_ntoa(addr->u.v4));
+	} else {
+		buf[0] = '\0';
+	}
+#ifdef CONFIG_IPV6
+	if (addr->af == AF_INET6) {
+		if (inet_ntop(AF_INET6, &addr->u.v6, buf, buflen) == NULL)
+			buf[0] = '\0';
+	}
+#endif /* CONFIG_IPV6 */
+
+	return buf;
 }
 
 
@@ -175,20 +200,30 @@ static void hostapd_deauth_all_stas(hostapd *hapd)
 
 
 /* This function will be called whenever a station associates with the AP */
-void hostapd_new_assoc_sta(hostapd *hapd, struct sta_info *sta)
+void hostapd_new_assoc_sta(hostapd *hapd, struct sta_info *sta, int reassoc)
 {
+	if (hapd->tkip_countermeasures) {
+		hostapd_sta_deauth(hapd, sta->addr,
+				   WLAN_REASON_MICHAEL_MIC_FAILURE);
+		return;
+	}
+
 	/* IEEE 802.11F (IAPP) */
 	if (hapd->conf->ieee802_11f)
 		iapp_new_station(hapd->iapp, sta);
 
-	/* Start accounting here, if IEEE 802.1X is not used. IEEE 802.1X code
-	 * will start accounting after the station has been authorized. */
-	if (!hapd->conf->ieee802_1x)
+	/* Start accounting here, if IEEE 802.1X and WPA are not used.
+	 * IEEE 802.1X/WPA code will start accounting after the station has
+	 * been authorized. */
+	if (!hapd->conf->ieee802_1x && !hapd->conf->wpa)
 		accounting_sta_start(hapd, sta);
 
-	/* Start IEEE 802.1x authentication process for new stations */
+	/* Start IEEE 802.1X authentication process for new stations */
 	ieee802_1x_new_station(hapd, sta);
-	wpa_new_station(hapd, sta);
+	if (reassoc)
+		wpa_sm_event(hapd, sta, WPA_REAUTH);
+	else
+		wpa_new_station(hapd, sta);
 }
 
 
@@ -438,7 +473,9 @@ static int hostapd_setup_interface(struct hostapd_data *hapd)
 		return -1;
 	}
 
-	hapd->radius = radius_client_init(hapd);
+	if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MSGDUMPS))
+		conf->radius->msg_dumps = 1;
+	hapd->radius = radius_client_init(hapd, conf->radius);
 	if (hapd->radius == NULL) {
 		printf("RADIUS client initialization failed.\n");
 		return -1;
@@ -451,6 +488,7 @@ static int hostapd_setup_interface(struct hostapd_data *hapd)
 		srv.hostapd_conf = conf;
 		srv.eap_sim_db_priv = hapd->eap_sim_db_priv;
 		srv.ssl_ctx = hapd->ssl_ctx;
+		srv.ipv6 = conf->radius_server_ipv6;
 		hapd->radius_srv = radius_server_init(&srv);
 		if (hapd->radius_srv == NULL) {
 			printf("RADIUS server initialization failed.\n");
@@ -580,8 +618,8 @@ static void show_version(void)
 {
 	fprintf(stderr,
 		"hostapd v" VERSION_STR "\n"
-		"Host AP user space daemon for management functionality of "
-		"Host AP kernel driver\n"
+		"User space daemon for IEEE 802.11 AP management,\n"
+		"IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator\n"
 		"Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi> "
 		"and contributors\n");
 }
@@ -592,7 +630,7 @@ static void usage(void)
 	show_version();
 	fprintf(stderr,
 		"\n"
-		"usage: hostapd [-hdB] <configuration file(s)>\n"
+		"usage: hostapd [-hdBKt] <configuration file(s)>\n"
 		"\n"
 		"options:\n"
 		"   -h   show this usage\n"
@@ -634,9 +672,9 @@ static hostapd * hostapd_init(const char *config_file)
 	}
 
 #ifdef EAP_TLS_FUNCS
-	if (hapd->conf->eap_authenticator &&
+	if (hapd->conf->eap_server &&
 	    (hapd->conf->ca_cert || hapd->conf->server_cert)) {
-		hapd->ssl_ctx = tls_init();
+		hapd->ssl_ctx = tls_init(NULL);
 		if (hapd->ssl_ctx == NULL) {
 			printf("Failed to initialize TLS\n");
 			goto fail;
@@ -657,6 +695,12 @@ static hostapd * hostapd_init(const char *config_file)
 					   hapd->conf->private_key_passwd)) {
 			printf("Failed to load private key (%s)\n",
 			       hapd->conf->private_key);
+			goto fail;
+		}
+		if (tls_global_set_verify(hapd->ssl_ctx,
+					  hapd->conf->check_crl)) {
+			printf("Failed to enable check_crl\n");
+			goto fail;
 		}
 	}
 #endif /* EAP_TLS_FUNCS */

@@ -51,6 +51,7 @@ struct wired_driver_data {
 
 	int sock; /* raw packet socket for driver access */
 	int dhcp_sock; /* socket for dhcp packets */
+	int use_pae_group_addr;
 };
 
 static const struct driver_ops wired_driver_ops;
@@ -95,7 +96,7 @@ static void wired_possible_new_sta(struct hostapd_data *hapd, u8 *addr)
 		      MACSTR " - adding a new STA\n", MAC2STR(addr));
 	sta = ap_sta_add(hapd, addr);
 	if (sta) {
-		hostapd_new_assoc_sta(hapd, sta);
+		hostapd_new_assoc_sta(hapd, sta, 0);
 		accounting_sta_get_id(hapd, sta);
 	} else {
 		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "Failed to add STA entry "
@@ -309,7 +310,7 @@ static int wired_send_eapol(void *priv, u8 *addr,
 			    u8 *data, size_t data_len, int encrypt)
 {
 	struct wired_driver_data *drv = priv;
-
+	u8 pae_group_addr[ETH_ALEN] = WIRED_EAPOL_MULTICAST_GROUP;
 	struct ieee8023_hdr *hdr;
 	size_t len;
 	u8 *pos;
@@ -324,7 +325,8 @@ static int wired_send_eapol(void *priv, u8 *addr,
 	}
 
 	memset(hdr, 0, len);
-	memcpy(hdr->dest, addr, ETH_ALEN);
+	memcpy(hdr->dest, drv->use_pae_group_addr ? pae_group_addr : addr,
+	       ETH_ALEN);
 	memcpy(hdr->src, drv->hapd->own_addr, ETH_ALEN);
 	hdr->ethertype = htons(ETH_P_PAE);
 
@@ -357,6 +359,7 @@ static int wired_driver_init(struct hostapd_data *hapd)
 	memset(drv, 0, sizeof(*drv));
 	drv->ops = wired_driver_ops;
 	drv->hapd = hapd;
+	drv->use_pae_group_addr = hapd->conf->use_pae_group_addr;
 
 	if (wired_init_sockets(drv))
 		return -1;
