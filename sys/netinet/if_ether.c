@@ -631,7 +631,7 @@ in_arpinput(m)
 	 * XXX: This is really ugly!
 	 */
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
-		if (((bridged && ia->ia_ifp->if_type != IFT_BRIDGE) ||
+		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
 		    (ia->ia_ifp == ifp)) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
@@ -645,7 +645,7 @@ in_arpinput(m)
 #endif
 	}
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
-		if (((bridged && ia->ia_ifp->if_type != IFT_BRIDGE) ||
+		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
 		    (ia->ia_ifp == ifp)) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
