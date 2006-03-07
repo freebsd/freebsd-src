@@ -280,6 +280,7 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
+	uint32_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
@@ -430,6 +431,7 @@ struct mpt_softc {
 		bus		: 1;	/* FC929/1030 have two busses */
 
 	u_int			verbose;
+	uint32_t	cmd_serno;
 
 	/*
 	 * IOC Facts
