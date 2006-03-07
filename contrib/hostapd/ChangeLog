@@ -1,18 +1,102 @@
 ChangeLog for hostapd
 
-2005-06-10 - v0.3.9
+2006-02-08 - v0.4.8
+	* fixed stdarg use in hostapd_logger(): if both stdout and syslog
+	  logging was enabled, hostapd could trigger a segmentation fault in
+	  vsyslog on some CPU -- C library combinations
+
+2005-11-20 - v0.4.7 (beginning of 0.4.x stable releases)
+	* driver_wired: fixed EAPOL sending to optionally use PAE group address
+	  as the destination instead of supplicant MAC address; this is
+	  disabled by default, but should be enabled with use_pae_group_addr=1
+	  in configuration file if the wired interface is used by only one
+	  device at the time (common switch configuration)
+	* driver_madwifi: configure driver to use TKIP countermeasures in order
+	  to get correct behavior (IEEE 802.11 association failing; previously,
+	  association succeeded, but hostpad forced disassociation immediately)
+	* driver_madwifi: added support for madwifi-ng
+
+2005-10-27 - v0.4.6
+	* added support for replacing user identity from EAP with RADIUS
+	  User-Name attribute from Access-Accept message, if that is included,
+	  for the RADIUS accounting messages (e.g., for EAP-PEAP/TTLS to get
+	  tunneled identity into accounting messages when the RADIUS server
+	  does not support better way of doing this with Class attribute)
+	* driver_madwifi: fixed EAPOL packet receive for configuration where
+	  ath# is part of a bridge interface
+	* added a configuration file and log analyzer script for logwatch
+	* fixed EAPOL state machine step function to process all state
+	  transitions before processing new events; this resolves a race
+	  condition in which EAPOL-Start message could trigger hostapd to send
+	  two EAP-Response/Identity frames to the authentication server
+
+2005-09-25 - v0.4.5
+	* added client CA list to the TLS certificate request in order to make
+	  it easier for the client to select which certificate to use
+	* added experimental support for EAP-PSK
+	* added support for WE-19 (hostap, madwifi)
+
+2005-08-21 - v0.4.4
+	* fixed build without CONFIG_RSN_PREAUTH
+	* fixed FreeBSD build
+
+2005-06-26 - v0.4.3
+	* fixed PMKSA caching to copy User-Name and Class attributes so that
+	  RADIUS accounting gets correct information
+	* start RADIUS accounting only after successful completion of WPA
+	  4-Way Handshake if WPA-PSK is used
+	* fixed PMKSA caching for the case where STA (re)associates without
+	  first disassociating
+
+2005-06-12 - v0.4.2
+	* EAP-PAX is now registered as EAP type 46
+	* fixed EAP-PAX MAC calculation
+	* fixed EAP-PAX CK and ICK key derivation
+	* renamed eap_authenticator configuration variable to eap_server to
+	  better match with RFC 3748 (EAP) terminology
+	* driver_test: added support for testing hostapd with wpa_supplicant
+	  by using test driver interface without any kernel drivers or network
+	  cards
+
+2005-05-22 - v0.4.1
+	* fixed RADIUS server initialization when only auth or acct server
+	  is configured and the other one is left empty
+	* driver_madwifi: added support for RADIUS accounting
+	* driver_madwifi: added preliminary support for compiling against 'BSD'
+	  branch of madwifi CVS tree
+	* driver_madwifi: fixed pairwise key removal to allow WPA reauth
+	  without disassociation
+	* added support for reading additional certificates from PKCS#12 files
+	  and adding them to the certificate chain
+	* fixed RADIUS Class attribute processing to only use Access-Accept
+	  packets to update Class; previously, other RADIUS authentication
+	  packets could have cleared Class attribute
+	* added support for more than one Class attribute in RADIUS packets
+	* added support for verifying certificate revocation list (CRL) when
+	  using integrated EAP authenticator for EAP-TLS; new hostapd.conf
+	  options 'check_crl'; CRL must be included in the ca_cert file for now
+
+2005-04-25 - v0.4.0 (beginning of 0.4.x development releases)
+	* added support for including network information into
+	  EAP-Request/Identity message (ASCII-0 (nul) in eap_message)
+	  (e.g., to implement draft-adrange-eap-network-discovery-07.txt)
 	* fixed a bug which caused some RSN pre-authentication cases to use
 	  freed memory and potentially crash hostapd
 	* fixed private key loading for cases where passphrase is not set
+	* added support for sending TLS alerts and aborting authentication
+	  when receiving a TLS alert
 	* fixed WPA2 to add PMKSA cache entry when using integrated EAP
 	  authenticator
-	* driver_madwifi: fixed pairwise key removal to allow WPA reauth
-	  without disassociation
-	* fixed RADIUS attribute Class processing to only use Access-Accept
-	  packets to update Class; previously, other RADIUS authentication
-	  packets could have cleared Class attribute
 	* fixed PMKSA caching (EAP authentication was not skipped correctly
 	  with the new state machine changes from IEEE 802.1X draft)
+	* added support for RADIUS over IPv6; own_ip_addr, auth_server_addr,
+	  and acct_server_addr can now be IPv6 addresses (CONFIG_IPV6=y needs
+	  to be added to .config to include IPv6 support); for RADIUS server,
+	  radius_server_ipv6=1 needs to be set in hostapd.conf and addresses
+	  in RADIUS clients file can then use IPv6 format
+	* added experimental support for EAP-PAX
+	* replaced hostapd control interface library (hostapd_ctrl.[ch]) with
+	  the same implementation that wpa_supplicant is using (wpa_ctrl.[ch])
 
 2005-02-12 - v0.3.7 (beginning of 0.3.x stable releases)
 

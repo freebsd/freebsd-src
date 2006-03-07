@@ -1,5 +1,5 @@
 /*
- * Event loop
+ * Event loop based on select() loop
  * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -294,9 +294,15 @@ int eloop_register_signal(int sig,
 
 void eloop_run(void)
 {
-	fd_set rfds;
+	fd_set *rfds;
 	int i, res;
 	struct timeval tv, now;
+
+	rfds = malloc(sizeof(*rfds));
+	if (rfds == NULL) {
+		printf("eloop_run - malloc failed\n");
+		return;
+	}
 
 	while (!eloop.terminate &&
 		(eloop.timeout || eloop.reader_count > 0)) {
@@ -312,13 +318,14 @@ void eloop_run(void)
 #endif
 		}
 
-		FD_ZERO(&rfds);
+		FD_ZERO(rfds);
 		for (i = 0; i < eloop.reader_count; i++)
-			FD_SET(eloop.readers[i].sock, &rfds);
-		res = select(eloop.max_sock + 1, &rfds, NULL, NULL,
+			FD_SET(eloop.readers[i].sock, rfds);
+		res = select(eloop.max_sock + 1, rfds, NULL, NULL,
 			     eloop.timeout ? &tv : NULL);
 		if (res < 0 && errno != EINTR) {
 			perror("select");
+			free(rfds);
 			return;
 		}
 		eloop_process_pending_signals();
@@ -342,7 +349,7 @@ void eloop_run(void)
 			continue;
 
 		for (i = 0; i < eloop.reader_count; i++) {
-			if (FD_ISSET(eloop.readers[i].sock, &rfds)) {
+			if (FD_ISSET(eloop.readers[i].sock, rfds)) {
 				eloop.readers[i].handler(
 					eloop.readers[i].sock,
 					eloop.readers[i].eloop_data,
@@ -350,6 +357,8 @@ void eloop_run(void)
 			}
 		}
 	}
+
+	free(rfds);
 }
 
 

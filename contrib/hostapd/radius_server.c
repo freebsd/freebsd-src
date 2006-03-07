@@ -53,6 +53,10 @@ struct radius_client {
 	struct radius_client *next;
 	struct in_addr addr;
 	struct in_addr mask;
+#ifdef CONFIG_IPV6
+	struct in6_addr addr6;
+	struct in6_addr mask6;
+#endif /* CONFIG_IPV6 */
 	char *shared_secret;
 	int shared_secret_len;
 	struct radius_session *sessions;
@@ -67,6 +71,7 @@ struct radius_server_data {
 	int num_sess;
 	void *eap_sim_db_priv;
 	void *ssl_ctx;
+	int ipv6;
 };
 
 
@@ -87,12 +92,33 @@ static void radius_server_session_timeout(void *eloop_ctx, void *timeout_ctx);
 
 
 static struct radius_client *
-radius_server_get_client(struct radius_server_data *data, struct in_addr *addr)
+radius_server_get_client(struct radius_server_data *data, struct in_addr *addr,
+			 int ipv6)
 {
 	struct radius_client *client = data->clients;
 
 	while (client) {
-		if ((client->addr.s_addr & client->mask.s_addr) ==
+#ifdef CONFIG_IPV6
+		if (ipv6) {
+			struct in6_addr *addr6;
+			int i;
+
+			addr6 = (struct in6_addr *) addr;
+			for (i = 0; i < 16; i++) {
+				if ((addr6->s6_addr[i] &
+				     client->mask6.s6_addr[i]) !=
+				    (client->addr6.s6_addr[i] &
+				     client->mask6.s6_addr[i])) {
+					i = 17;
+					break;
+				}
+			}
+			if (i == 16) {
+				break;
+			}
+		}
+#endif /* CONFIG_IPV6 */
+		if (!ipv6 && (client->addr.s_addr & client->mask.s_addr) ==
 		    (addr->s_addr & client->mask.s_addr)) {
 			break;
 		}
@@ -321,14 +347,15 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 static int radius_server_reject(struct radius_server_data *data,
 				struct radius_client *client,
 				struct radius_msg *request,
-				struct sockaddr_in *from)
+				struct sockaddr *from, socklen_t fromlen,
+				const char *from_addr, int from_port)
 {
 	struct radius_msg *msg;
 	int ret = 0;
 	struct eap_hdr eapfail;
 
 	RADIUS_DEBUG("Reject invalid request from %s:%d",
-		     inet_ntoa(from->sin_addr), ntohs(from->sin_port));
+		     from_addr, from_port);
 
 	msg = radius_msg_new(RADIUS_CODE_ACCESS_REJECT,
 			     request->hdr->identifier);
@@ -371,8 +398,9 @@ static int radius_server_reject(struct radius_server_data *data,
 
 static int radius_server_request(struct radius_server_data *data,
 				 struct radius_msg *msg,
-				 struct sockaddr_in *from,
-				 struct radius_client *client)
+				 struct sockaddr *from, socklen_t fromlen,
+				 struct radius_client *client,
+				 const char *from_addr, int from_port)
 {
 	u8 *eap = NULL;
 	size_t eap_len;
@@ -400,13 +428,15 @@ static int radius_server_request(struct radius_server_data *data,
 		RADIUS_DEBUG("Request for session 0x%x", sess->sess_id);
 	} else if (state_included) {
 		RADIUS_DEBUG("State attribute included but no session found");
-		radius_server_reject(data, client, msg, from);
+		radius_server_reject(data, client, msg, from, fromlen,
+				     from_addr, from_port);
 		return -1;
 	} else {
 		sess = radius_server_get_new_session(data, client, msg);
 		if (sess == NULL) {
 			RADIUS_DEBUG("Could not create a new session");
-			radius_server_reject(data, client, msg, from);
+			radius_server_reject(data, client, msg, from, fromlen,
+					     from_addr, from_port);
 			return -1;
 		}
 	}
@@ -414,7 +444,7 @@ static int radius_server_request(struct radius_server_data *data,
 	eap = radius_msg_get_eap(msg, &eap_len);
 	if (eap == NULL) {
 		RADIUS_DEBUG("No EAP-Message in RADIUS packet from %s",
-			     inet_ntoa(from->sin_addr));
+			     from_addr);
 		return -1;
 	}
 
@@ -425,6 +455,13 @@ static int radius_server_request(struct radius_server_data *data,
 	} else {
 		resp_id = 0;
 	}
+
+	/* FIX: if Code is Request, Success, or Failure, send Access-Reject;
+	 * RFC3579 Sect. 2.6.2.
+	 * Include EAP-Response/Nak with no preferred method if
+	 * code == request.
+	 * If code is not 1-4, discard the packet silently.
+	 * Or is this already done by the EAP state machine? */
 
 	eap_set_eapRespData(sess->eap, eap, eap_len);
 	free(eap);
@@ -460,14 +497,13 @@ static int radius_server_request(struct radius_server_data *data,
 	sess->eapReqDataLen = 0;
 
 	if (reply) {
-		RADIUS_DEBUG("Reply to %s:%d", inet_ntoa(from->sin_addr),
-			     ntohs(from->sin_port));
+		RADIUS_DEBUG("Reply to %s:%d", from_addr, from_port);
 		if (wpa_debug_level <= MSG_MSGDUMP) {
 			radius_msg_dump(reply);
 		}
 
 		res = sendto(data->auth_sock, reply->buf, reply->buf_used, 0,
-			     (struct sockaddr *) from, sizeof(*from));
+			     (struct sockaddr *) from, fromlen);
 		if (res < 0) {
 			perror("sendto[RADIUS SRV]");
 		}
@@ -489,11 +525,13 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 {
 	struct radius_server_data *data = eloop_ctx;
 	u8 *buf = NULL;
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	socklen_t fromlen;
 	int len;
-	struct radius_client *client;
+	struct radius_client *client = NULL;
 	struct radius_msg *msg = NULL;
+	char abuf[50];
+	int from_port = 0;
 
 	buf = malloc(RADIUS_MAX_MSG_LEN);
 	if (buf == NULL) {
@@ -508,14 +546,36 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 		goto fail;
 	}
 
-	RADIUS_DEBUG("Received %d bytes from %s:%d",
-		     len, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+#ifdef CONFIG_IPV6
+	if (data->ipv6) {
+		struct sockaddr_in6 *from6 = (struct sockaddr_in6 *) &from;
+		if (inet_ntop(AF_INET6, &from6->sin6_addr, abuf, sizeof(abuf))
+		    == NULL)
+			abuf[0] = '\0';
+		from_port = ntohs(from6->sin6_port);
+		RADIUS_DEBUG("Received %d bytes from %s:%d",
+			     len, abuf, from_port);
+
+		client = radius_server_get_client(data,
+						  (struct in_addr *)
+						  &from6->sin6_addr, 1);
+	}
+#endif /* CONFIG_IPV6 */
+
+	if (!data->ipv6) {
+		struct sockaddr_in *from4 = (struct sockaddr_in *) &from;
+		snprintf(abuf, sizeof(abuf), "%s", inet_ntoa(from4->sin_addr));
+		from_port = ntohs(from4->sin_port);
+		RADIUS_DEBUG("Received %d bytes from %s:%d",
+			     len, abuf, from_port);
+
+		client = radius_server_get_client(data, &from4->sin_addr, 0);
+	}
+
 	RADIUS_DUMP("Received data", buf, len);
 
-	client = radius_server_get_client(data, &from.sin_addr);
 	if (client == NULL) {
-		RADIUS_DEBUG("Unknown client %s - packet ignored",
-			     inet_ntoa(from.sin_addr));
+		RADIUS_DEBUG("Unknown client %s - packet ignored", abuf);
 		goto fail;
 	}
 
@@ -539,12 +599,12 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 
 	if (radius_msg_verify_msg_auth(msg, (u8 *) client->shared_secret,
 				       client->shared_secret_len, NULL)) {
-		RADIUS_DEBUG("Invalid Message-Authenticator from %s",
-			     inet_ntoa(from.sin_addr));
+		RADIUS_DEBUG("Invalid Message-Authenticator from %s", abuf);
 		goto fail;
 	}
 
-	radius_server_request(data, msg, &from, client);
+	radius_server_request(data, msg, (struct sockaddr *) &from, fromlen,
+			      client, abuf, from_port);
 
 fail:
 	if (msg) {
@@ -579,6 +639,33 @@ static int radius_server_open_socket(int port)
 }
 
 
+#ifdef CONFIG_IPV6
+static int radius_server_open_socket6(int port)
+{
+	int s;
+	struct sockaddr_in6 addr;
+
+	s = socket(PF_INET6, SOCK_DGRAM, 0);
+	if (s < 0) {
+		perror("socket[IPv6]");
+		return -1;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sin6_family = AF_INET6;
+	memcpy(&addr.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+	addr.sin6_port = htons(port);
+	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+		perror("bind");
+		close(s);
+		return -1;
+	}
+
+	return s;
+}
+#endif /* CONFIG_IPV6 */
+
+
 static void radius_server_free_sessions(struct radius_server_data *data,
 					struct radius_session *sessions)
 {
@@ -611,7 +698,7 @@ static void radius_server_free_clients(struct radius_server_data *data,
 
 
 static struct radius_client *
-radius_server_read_clients(const char *client_file)
+radius_server_read_clients(const char *client_file, int ipv6)
 {
 	FILE *f;
 	const int buf_size = 1024;
@@ -619,6 +706,9 @@ radius_server_read_clients(const char *client_file)
 	struct radius_client *clients, *tail, *entry;
 	int line = 0, mask, failed = 0, i;
 	struct in_addr addr;
+#ifdef CONFIG_IPV6
+	struct in6_addr addr6;
+#endif /* CONFIG_IPV6 */
 	unsigned int val;
 
 	f = fopen(client_file, "r");
@@ -638,6 +728,7 @@ radius_server_read_clients(const char *client_file)
 		/* Configuration file format:
 		 * 192.168.1.0/24 secret
 		 * 192.168.1.2 secret
+		 * fe80::211:22ff:fe33:4455/64 secretipv6
 		 */
 		line++;
 		buf[buf_size - 1] = '\0';
@@ -650,7 +741,9 @@ radius_server_read_clients(const char *client_file)
 			continue;
 
 		pos = buf;
-		while ((*pos >= '0' && *pos <= '9') || *pos == '.') {
+		while ((*pos >= '0' && *pos <= '9') || *pos == '.' ||
+		       (*pos >= 'a' && *pos <= 'f') || *pos == ':' ||
+		       (*pos >= 'A' && *pos <= 'F')) {
 			pos++;
 		}
 
@@ -663,20 +756,36 @@ radius_server_read_clients(const char *client_file)
 			char *end;
 			*pos++ = '\0';
 			mask = strtol(pos, &end, 10);
-			if ((pos == end) || (mask < 0 || mask > 32)) {
+			if ((pos == end) ||
+			    (mask < 0 || mask > (ipv6 ? 128 : 32))) {
 				failed = 1;
 				break;
 			}
 			pos = end;
 		} else {
-			mask = 32;
+			mask = ipv6 ? 128 : 32;
 			*pos++ = '\0';
 		}
 
-		if (inet_aton(buf, &addr) == 0) {
+		if (!ipv6 && inet_aton(buf, &addr) == 0) {
 			failed = 1;
 			break;
 		}
+#ifdef CONFIG_IPV6
+		if (ipv6 && inet_pton(AF_INET6, buf, &addr6) <= 0) {
+			if (inet_pton(AF_INET, buf, &addr) <= 0) {
+				failed = 1;
+				break;
+			}
+			/* Convert IPv4 address to IPv6 */
+			if (mask <= 32)
+				mask += (128 - 32);
+			memset(addr6.s6_addr, 0, 10);
+			addr6.s6_addr[10] = 0xff;
+			addr6.s6_addr[11] = 0xff;
+			memcpy(addr6.s6_addr + 12, (char *) &addr.s_addr, 4);
+		}
+#endif /* CONFIG_IPV6 */
 
 		while (*pos == ' ' || *pos == '\t') {
 			pos++;
@@ -701,10 +810,25 @@ radius_server_read_clients(const char *client_file)
 		}
 		entry->shared_secret_len = strlen(entry->shared_secret);
 		entry->addr.s_addr = addr.s_addr;
-		val = 0;
-		for (i = 0; i < mask; i++)
-			val |= 1 << (31 - i);
-		entry->mask.s_addr = htonl(val);
+		if (!ipv6) {
+			val = 0;
+			for (i = 0; i < mask; i++)
+				val |= 1 << (31 - i);
+			entry->mask.s_addr = htonl(val);
+		}
+#ifdef CONFIG_IPV6
+		if (ipv6) {
+			int offset = mask / 8;
+
+			memcpy(entry->addr6.s6_addr, addr6.s6_addr, 16);
+			memset(entry->mask6.s6_addr, 0xff, offset);
+			val = 0;
+			for (i = 0; i < (mask % 8); i++)
+				val |= 1 << (7 - i);
+			if (offset < 16)
+				entry->mask6.s6_addr[offset] = val;
+		}
+#endif /* CONFIG_IPV6 */
 
 		if (tail == NULL) {
 			clients = tail = entry;
@@ -732,6 +856,14 @@ radius_server_init(struct radius_server_conf *conf)
 {
 	struct radius_server_data *data;
 
+#ifndef CONFIG_IPV6
+	if (conf->ipv6) {
+		fprintf(stderr, "RADIUS server compiled without IPv6 "
+			"support.\n");
+		return NULL;
+	}
+#endif /* CONFIG_IPV6 */
+
 	data = malloc(sizeof(*data));
 	if (data == NULL) {
 		return NULL;
@@ -740,14 +872,21 @@ radius_server_init(struct radius_server_conf *conf)
 	data->hostapd_conf = conf->hostapd_conf;
 	data->eap_sim_db_priv = conf->eap_sim_db_priv;
 	data->ssl_ctx = conf->ssl_ctx;
+	data->ipv6 = conf->ipv6;
 
-	data->clients = radius_server_read_clients(conf->client_file);
+	data->clients = radius_server_read_clients(conf->client_file,
+						   conf->ipv6);
 	if (data->clients == NULL) {
 		printf("No RADIUS clients configured.\n");
 		radius_server_deinit(data);
 		return NULL;
 	}
 
+#ifdef CONFIG_IPV6
+	if (conf->ipv6)
+		data->auth_sock = radius_server_open_socket6(conf->auth_port);
+	else
+#endif /* CONFIG_IPV6 */
 	data->auth_sock = radius_server_open_socket(conf->auth_port);
 	if (data->auth_sock < 0) {
 		printf("Failed to open UDP socket for RADIUS authentication "

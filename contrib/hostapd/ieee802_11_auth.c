@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -27,6 +28,7 @@
 #include "radius.h"
 #include "radius_client.h"
 #include "eloop.h"
+#include "hostap_common.h"
 
 #define RADIUS_ACL_TIMEOUT 30
 
@@ -121,17 +123,27 @@ static int hostapd_radius_acl_query(hostapd *hapd, u8 *addr,
 
 	if (!radius_msg_add_attr_user_password(
 		    msg, (u8 *) buf, strlen(buf),
-		    hapd->conf->auth_server->shared_secret,
-		    hapd->conf->auth_server->shared_secret_len)) {
+		    hapd->conf->radius->auth_server->shared_secret,
+		    hapd->conf->radius->auth_server->shared_secret_len)) {
 		printf("Could not add User-Password\n");
 		goto fail;
 	}
 
-	if (!radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
-				 (u8 *) &hapd->conf->own_ip_addr, 4)) {
+	if (hapd->conf->own_ip_addr.af == AF_INET &&
+	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
+				 (u8 *) &hapd->conf->own_ip_addr.u.v4, 4)) {
 		printf("Could not add NAS-IP-Address\n");
 		goto fail;
 	}
+
+#ifdef CONFIG_IPV6
+	if (hapd->conf->own_ip_addr.af == AF_INET6 &&
+	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IPV6_ADDRESS,
+				 (u8 *) &hapd->conf->own_ip_addr.u.v6, 16)) {
+		printf("Could not add NAS-IPv6-Address\n");
+		goto fail;
+	}
+#endif /* CONFIG_IPV6 */
 
 	if (hapd->conf->nas_identifier &&
 	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IDENTIFIER,
@@ -221,7 +233,7 @@ int hostapd_allowed_address(hostapd *hapd, u8 *addr, u8 *msg, size_t len,
 			query = query->next;
 		}
 
-		if (!hapd->conf->auth_server)
+		if (!hapd->conf->radius->auth_server)
 			return HOSTAPD_ACL_REJECT;
 
 		/* No entry in the cache - query external RADIUS server */
@@ -356,8 +368,7 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "Found matching Access-Request "
 		      "for RADIUS message (id=%d)\n", query->radius_id);
 
-	if (radius_msg_verify_acct(msg, shared_secret, shared_secret_len,
-				   req)) {
+	if (radius_msg_verify(msg, shared_secret, shared_secret_len, req, 0)) {
 		printf("Incoming RADIUS packet did not have correct "
 		       "authenticator - dropped\n");
 		return RADIUS_RX_INVALID_AUTHENTICATOR;
