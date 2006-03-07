@@ -38,8 +38,8 @@ static void * eap_tls_init(struct eap_sm *sm)
 	struct eap_tls_data *data;
 	struct wpa_ssid *config = eap_get_config(sm);
 	if (config == NULL ||
-	    (sm->init_phase2 ? config->private_key2 : config->private_key)
-	    == NULL) {
+	    ((sm->init_phase2 ? config->private_key2 : config->private_key)
+	    == NULL && config->engine == 0)) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Private key not configured");
 		return NULL;
 	}
@@ -52,6 +52,18 @@ static void * eap_tls_init(struct eap_sm *sm)
 	if (eap_tls_ssl_init(sm, &data->ssl, config)) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
 		eap_tls_deinit(sm, data);
+		if (config->engine) {
+			wpa_printf(MSG_DEBUG, "EAP-TLS: Requesting Smartcard "
+				   "PIN");
+			eap_sm_request_pin(sm, config);
+			sm->ignore = TRUE;
+		} else if (config->private_key && !config->private_key_passwd)
+		{
+			wpa_printf(MSG_DEBUG, "EAP-TLS: Requesting private "
+				   "key passphrase");
+			eap_sm_request_passphrase(sm, config);
+			sm->ignore = TRUE;
+		}
 		return NULL;
 	}
 
@@ -72,61 +84,23 @@ static void eap_tls_deinit(struct eap_sm *sm, void *priv)
 
 static u8 * eap_tls_process(struct eap_sm *sm, void *priv,
 			    struct eap_method_ret *ret,
-			    u8 *reqData, size_t reqDataLen,
+			    const u8 *reqData, size_t reqDataLen,
 			    size_t *respDataLen)
 {
-	struct eap_hdr *req;
-	int left, res;
-	unsigned int tls_msg_len;
-	u8 flags, *pos, *resp, id;
+	struct wpa_ssid *config = eap_get_config(sm);
+	const struct eap_hdr *req;
+	size_t left;
+	int res;
+	u8 flags, *resp, id;
+	const u8 *pos;
 	struct eap_tls_data *data = priv;
 
-	if (tls_get_errors(sm->ssl_ctx)) {
-		wpa_printf(MSG_INFO, "EAP-TLS: TLS errors detected");
-		ret->ignore = TRUE;
+	pos = eap_tls_process_init(sm, &data->ssl, EAP_TYPE_TLS, ret,
+				   reqData, reqDataLen, &left, &flags);
+	if (pos == NULL)
 		return NULL;
-	}
-
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
-	if (reqDataLen < sizeof(*req) + 2 || *pos != EAP_TYPE_TLS) {
-		wpa_printf(MSG_INFO, "EAP-TLS: Invalid frame");
-		ret->ignore = TRUE;
-		return NULL;
-	}
+	req = (const struct eap_hdr *) reqData;
 	id = req->identifier;
-	pos++;
-	flags = *pos++;
-	left = be_to_host16(req->length) - sizeof(struct eap_hdr) - 2;
-	wpa_printf(MSG_DEBUG, "EAP-TLS: Received packet(len=%lu) - "
-		   "Flags 0x%02x", (unsigned long) reqDataLen, flags);
-	if (flags & EAP_TLS_FLAGS_LENGTH_INCLUDED) {
-		if (left < 4) {
-			wpa_printf(MSG_INFO, "EAP-TLS: Short frame with TLS "
-				   "length");
-			ret->ignore = TRUE;
-			return NULL;
-		}
-		tls_msg_len = (pos[0] << 24) | (pos[1] << 16) | (pos[2] << 8) |
-			pos[3];
-		wpa_printf(MSG_DEBUG, "EAP-TLS: TLS Message Length: %d",
-			   tls_msg_len);
-		if (data->ssl.tls_in_left == 0) {
-			data->ssl.tls_in_total = tls_msg_len;
-			data->ssl.tls_in_left = tls_msg_len;
-			free(data->ssl.tls_in);
-			data->ssl.tls_in = NULL;
-			data->ssl.tls_in_len = 0;
-		}
-		pos += 4;
-		left -= 4;
-	}
-
-	ret->ignore = FALSE;
-
-	ret->methodState = METHOD_CONT;
-	ret->decision = DECISION_COND_SUCC;
-	ret->allowNotifications = TRUE;
 
 	if (flags & EAP_TLS_FLAGS_START) {
 		wpa_printf(MSG_DEBUG, "EAP-TLS: Start");
@@ -142,6 +116,11 @@ static u8 * eap_tls_process(struct eap_sm *sm, void *priv,
 		wpa_printf(MSG_DEBUG, "EAP-TLS: TLS processing failed");
 		ret->methodState = METHOD_MAY_CONT;
 		ret->decision = DECISION_FAIL;
+		if (resp) {
+			/* This is likely an alert message, so send it instead
+			 * of just ACKing the error. */
+			return resp;
+		}
 		return eap_tls_build_ack(&data->ssl, respDataLen, id,
 					 EAP_TYPE_TLS, 0);
 	}
@@ -166,6 +145,16 @@ static u8 * eap_tls_process(struct eap_sm *sm, void *priv,
 		return eap_tls_build_ack(&data->ssl, respDataLen, id,
 					 EAP_TYPE_TLS, 0);
 	}
+
+	if (res == -1) {
+		/* The TLS handshake failed. So better forget the old PIN.
+		 * It may be wrong, we can't be sure but trying the wrong one
+		 * again might block it on the card - so better ask the user
+		 * again */
+		free(config->pin);
+		config->pin = NULL;
+	}
+
 	return resp;
 }
 

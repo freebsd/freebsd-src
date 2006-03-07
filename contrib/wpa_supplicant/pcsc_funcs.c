@@ -86,8 +86,8 @@ struct scard_data {
 	long ctx;
 	long card;
 	unsigned long protocol;
-	SCARD_IO_REQUEST recv_pci;
 	sim_types sim_type;
+	int pin1_required;
 };
 
 
@@ -96,7 +96,7 @@ static int _scard_select_file(struct scard_data *scard, unsigned short file_id,
 			      sim_types sim_type, unsigned char *aid);
 static int scard_select_file(struct scard_data *scard, unsigned short file_id,
 			     unsigned char *buf, size_t *buf_len);
-static int scard_verify_pin(struct scard_data *scard, char *pin);
+static int scard_verify_pin(struct scard_data *scard, const char *pin);
 
 
 static int scard_parse_fsp_templ(unsigned char *buf, size_t buf_len,
@@ -183,7 +183,7 @@ static int scard_pin_needed(struct scard_data *scard,
 }
 
 
-struct scard_data * scard_init(scard_sim_type sim_type, char *pin)
+struct scard_data * scard_init(scard_sim_type sim_type)
 {
 	long ret, len;
 	struct scard_data *scard;
@@ -294,20 +294,8 @@ struct scard_data * scard_init(scard_sim_type sim_type, char *pin)
 
 	/* Verify whether CHV1 (PIN1) is needed to access the card. */
 	if (scard_pin_needed(scard, buf, blen)) {
+		scard->pin1_required = 1;
 		wpa_printf(MSG_DEBUG, "PIN1 needed for SIM access");
-		if (pin == NULL) {
-			wpa_printf(MSG_INFO, "No PIN configured for SIM "
-				   "access");
-			/* TODO: ask PIN from user through a frontend (e.g.,
-			 * wpa_cli) */
-			goto failed;
-		}
-		if (scard_verify_pin(scard, pin)) {
-			wpa_printf(MSG_INFO, "PIN verification failed for "
-				"SIM access");
-			/* TODO: what to do? */
-			goto failed;
-		}
 	}
 
 	return scard;
@@ -316,6 +304,29 @@ failed:
 	free(readers);
 	scard_deinit(scard);
 	return NULL;
+}
+
+
+int scard_set_pin(struct scard_data *scard, const char *pin)
+{
+	if (scard == NULL)
+		return -1;
+
+	/* Verify whether CHV1 (PIN1) is needed to access the card. */
+	if (scard->pin1_required) {
+		if (pin == NULL) {
+			wpa_printf(MSG_DEBUG, "No PIN configured for SIM "
+				   "access");
+			return -1;
+		}
+		if (scard_verify_pin(scard, pin)) {
+			wpa_printf(MSG_INFO, "PIN verification failed for "
+				"SIM access");
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 
@@ -360,7 +371,7 @@ static long scard_transmit(struct scard_data *scard,
 			    scard->protocol == SCARD_PROTOCOL_T1 ?
 			    SCARD_PCI_T1 : SCARD_PCI_T0,
 			    send, (unsigned long) send_len,
-			    &scard->recv_pci, recv, &rlen);
+			    NULL, recv, &rlen);
 	*recv_len = rlen;
 	if (ret == SCARD_S_SUCCESS) {
 		wpa_hexdump(MSG_DEBUG, "SCARD: scard_transmit: recv",
@@ -498,7 +509,7 @@ static int scard_read_file(struct scard_data *scard,
 }
 
 
-static int scard_verify_pin(struct scard_data *scard, char *pin)
+static int scard_verify_pin(struct scard_data *scard, const char *pin)
 {
 	long ret;
 	unsigned char resp[3];
@@ -621,7 +632,7 @@ int scard_gsm_auth(struct scard_data *scard, unsigned char *rand,
 		memcpy(cmd + 6, rand, 16);
 	}
 	len = sizeof(resp);
-	ret = scard_transmit(scard, cmd, sizeof(cmd), resp, &len);
+	ret = scard_transmit(scard, cmd, cmdlen, resp, &len);
 	if (ret != SCARD_S_SUCCESS)
 		return -2;
 
