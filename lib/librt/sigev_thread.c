@@ -374,10 +374,6 @@ sigev_service_loop(void *arg)
 	_pthread_cond_broadcast(&tn->tn_cv);
 	__sigev_list_unlock();
 
-	/*
-	 * Service thread should not be killed by callback, if user
-	 * attempts to do so, the thread will be restarted.
-	 */
 	sigemptyset(&set);
 	sigaddset(&set, SIGSERVICE);
 	for (;;) {
