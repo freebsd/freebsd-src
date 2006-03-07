@@ -131,7 +131,7 @@ m_getm(struct mbuf *m, int len, int how, short type)
 		cur = (cur->m_next = mb);
 	}
 	if (rem > 0) {
-		mb = (rem > MINCLSIZE) ?
+		mb = (rem >= MINCLSIZE) ?
 		    m_getcl(how, type, 0) : m_get(how, type);
 		if (mb == NULL)
 			goto failed;
