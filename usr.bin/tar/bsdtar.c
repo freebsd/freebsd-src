@@ -689,9 +689,7 @@ usage(struct bsdtar *bsdtar)
 static void
 version(void)
 {
-	printf("bsdtar %s, ", PACKAGE_VERSION);
-	printf("%s\n", archive_version());
-	printf("Copyright (C) 2003-2005 Tim Kientzle\n");
+	printf("bsdtar %s - %s\n", PACKAGE_VERSION, archive_version());
 	exit(1);
 }
 
@@ -757,8 +755,7 @@ long_help(struct bsdtar *bsdtar)
 		} else
 			putchar(*p);
 	}
-	fprintf(stdout, "\n%s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-	fprintf(stdout, "%s\n", archive_version());
+	version();
 }
 
 static int
