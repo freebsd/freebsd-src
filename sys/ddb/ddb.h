@@ -55,20 +55,23 @@ typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 typedef void db_page_calloutfcn_t(void *arg);
 
 #define DB_COMMAND(cmd_name, func_name) \
-	DB_SET(cmd_name, func_name, db_cmd_set, 0, NULL)
+	DB_FUNC(cmd_name, func_name, db_cmd_set, 0, NULL)
 #define DB_SHOW_COMMAND(cmd_name, func_name) \
-	DB_SET(cmd_name, func_name, db_show_cmd_set, 0, NULL)
+	DB_FUNC(cmd_name, func_name, db_show_cmd_set, 0, NULL)
 
-#define DB_SET(cmd_name, func_name, set, flag, more)		\
-static db_cmdfcn_t	func_name;				\
-								\
-static const struct command __CONCAT(func_name,_cmd) = {	\
+#define	DB_SET(cmd_name, func_name, set, flag, more)		\
+static const struct command __CONCAT(cmd_name,_cmd) = {		\
 	__STRING(cmd_name),					\
 	func_name,						\
 	flag,							\
 	more							\
 };								\
-TEXT_SET(set, __CONCAT(func_name,_cmd));			\
+TEXT_SET(set, __CONCAT(cmd_name,_cmd))
+
+#define DB_FUNC(cmd_name, func_name, set, flag, more)		\
+static db_cmdfcn_t	func_name;				\
+								\
+DB_SET(cmd_name, func_name, set, flag, more);			\
 								\
 static void							\
 func_name(addr, have_addr, count, modif)			\
@@ -149,6 +152,14 @@ db_page_calloutfcn_t db_simple_pager;
 /*
  * Command table.
  */
+struct command;
+
+struct command_table {
+	struct command *table;
+	struct command **aux_tablep;
+	struct command **aux_tablep_end;
+};
+
 struct command {
 	char *	name;		/* command name */
 	db_cmdfcn_t *fcn;	/* function to call */
@@ -157,7 +168,7 @@ struct command {
 #define	CS_MORE		0x2	/* standard syntax, but may have other words
 				 * at end */
 #define	CS_SET_DOT	0x100	/* set dot after command */
-	struct command *more;	/* another level of command */
+	struct command_table *more; /* another level of command */
 };
 
 #endif /* !_DDB_DDB_H_ */
