@@ -158,8 +158,6 @@ static int		rt2661_prepare_beacon(struct rt2661_softc *);
 static void		rt2661_enable_tsf_sync(struct rt2661_softc *);
 static int		rt2661_get_rssi(struct rt2661_softc *, uint8_t);
 
-devclass_t rt2661_devclass;
-
 /*
  * Supported rates for 802.11a/b/g modes (in 500Kbps unit).
  */
@@ -312,7 +310,9 @@ rt2661_attach(device_t dev, int id)
 	    IEEE80211_C_TXPMGT |	/* tx power management */
 	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
 	    IEEE80211_C_SHSLOT |	/* short slot time supported */
+#ifdef notyet
 	    IEEE80211_C_WME |		/* 802.11e */
+#endif
 	    IEEE80211_C_WPA;		/* 802.11i */
 
 	if (sc->rf_rev == RT2661_RF_5225 || sc->rf_rev == RT2661_RF_5325) {
@@ -1268,7 +1268,6 @@ rt2661_intr(void *arg)
 
 #define RAL_SIFS	10	/* us */
 
-
 /*
  * This function is only used by the Rx radiotap code. It returns the rate at
  * which a given frame was received.
@@ -2059,7 +2058,6 @@ rt2661_enable_mrr(struct rt2661_softc *sc)
 
 	RAL_WRITE(sc, RT2661_TXRX_CSR4, tmp);
 }
-
 
 static void
 rt2661_set_txpreamble(struct rt2661_softc *sc)
