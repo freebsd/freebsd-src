@@ -38,7 +38,9 @@
 	u_int64_t	pc_idlepcbphys;		/* pa of pc_idlepcb */	\
 	u_int64_t	pc_pending_ipis;	/* pending IPI's */	\
 	u_int32_t	pc_next_asn;		/* next ASN to alloc */	\
-	u_int32_t	pc_current_asngen	/* ASN rollover check */
+	u_int32_t	pc_current_asngen;	/* ASN rollover check */ \
+	u_int32_t	pc_last_pcc_cnt;	/* Previous PCC_CNT value */ \
+	u_int32_t	pc_pcc_base		/* Hi word of cycle count. */
 
 struct pcpu;
 
