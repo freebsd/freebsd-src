@@ -22,7 +22,7 @@
 #include "eap_tlv.h"
 
 
-u8 * eap_tlv_build_nak(int id, int nak_type, size_t *resp_len)
+u8 * eap_tlv_build_nak(int id, u16 nak_type, size_t *resp_len)
 {
 	struct eap_hdr *hdr;
 	u8 *pos;
@@ -48,14 +48,13 @@ u8 * eap_tlv_build_nak(int id, int nak_type, size_t *resp_len)
 	*pos++ = 0;
 	*pos++ = 0;
 	/* NAK-Type */
-	*pos++ = nak_type >> 8;
-	*pos++ = nak_type & 0xff;
+	WPA_PUT_BE16(pos, nak_type);
 
 	return (u8 *) hdr;
 }
 
 
-u8 * eap_tlv_build_result(int id, int status, size_t *resp_len)
+u8 * eap_tlv_build_result(int id, u16 status, size_t *resp_len)
 {
 	struct eap_hdr *hdr;
 	u8 *pos;
@@ -76,33 +75,32 @@ u8 * eap_tlv_build_result(int id, int status, size_t *resp_len)
 	*pos++ = 0;
 	*pos++ = 2;
 	/* Status */
-	*pos++ = status >> 8;
-	*pos++ = status & 0xff;
+	WPA_PUT_BE16(pos, status);
 
 	return (u8 *) hdr;
 }
 
 
 int eap_tlv_process(struct eap_sm *sm, struct eap_method_ret *ret,
-		    struct eap_hdr *hdr, u8 **resp, size_t *resp_len)
+		    const struct eap_hdr *hdr, u8 **resp, size_t *resp_len)
 {
 	size_t left;
-	u8 *pos;
-	u8 *result_tlv = NULL;
+	const u8 *pos;
+	const u8 *result_tlv = NULL;
 	size_t result_tlv_len = 0;
 	int tlv_type, mandatory, tlv_len;
 
 	/* Parse TLVs */
 	left = be_to_host16(hdr->length) - sizeof(struct eap_hdr) - 1;
-	pos = (u8 *) (hdr + 1);
+	pos = (const u8 *) (hdr + 1);
 	pos++;
 	wpa_hexdump(MSG_DEBUG, "EAP-TLV: Received TLVs", pos, left);
 	while (left >= 4) {
 		mandatory = !!(pos[0] & 0x80);
-		tlv_type = pos[0] & 0x3f;
-		tlv_type = (tlv_type << 8) | pos[1];
-		tlv_len = ((int) pos[2] << 8) | pos[3];
-		pos += 4;
+		tlv_type = WPA_GET_BE16(pos) & 0x3fff;
+		pos += 2;
+		tlv_len = WPA_GET_BE16(pos);
+		pos += 2;
 		left -= 4;
 		if (tlv_len > left) {
 			wpa_printf(MSG_DEBUG, "EAP-TLV: TLV underrun "
@@ -150,7 +148,7 @@ int eap_tlv_process(struct eap_sm *sm, struct eap_method_ret *ret,
 				   (unsigned long) result_tlv_len);
 			return -1;
 		}
-		status = ((int) result_tlv[0] << 8) | result_tlv[1];
+		status = WPA_GET_BE16(result_tlv);
 		if (status == EAP_TLV_RESULT_SUCCESS) {
 			wpa_printf(MSG_INFO, "EAP-TLV: TLV Result - Success "
 				   "- EAP-TLV/Phase2 Completed");

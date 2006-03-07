@@ -1,5 +1,5 @@
 /*
- * WPA Supplicant - wpa_supplicant control interface library
+ * wpa_supplicant/hostapd control interface library
  * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #ifndef CONFIG_NATIVE_WINDOWS
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <sys/un.h>
 #endif /* CONFIG_NATIVE_WINDOWS */
 
@@ -29,6 +30,15 @@
 #endif /* CONFIG_NATIVE_WINDOWS */
 
 
+/**
+ * struct wpa_ctrl - Internal structure for control interface library
+ *
+ * This structure is used by the wpa_supplicant/hostapd control interface
+ * library to store internal data. Programs using the library should not touch
+ * this data directly. They can only use the pointer to the data structure as
+ * an identifier for the control interface connection and use this as one of
+ * the arguments for most of the control interface library functions.
+ */
 struct wpa_ctrl {
 	int s;
 #ifdef CONFIG_CTRL_IFACE_UDP
@@ -72,7 +82,7 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 
 	ctrl->dest.sin_family = AF_INET;
 	ctrl->dest.sin_addr.s_addr = htonl((127 << 24) | 1);
-	ctrl->dest.sin_port = htons(9877);
+	ctrl->dest.sin_port = htons(WPA_CTRL_IFACE_PORT);
 	if (connect(ctrl->s, (struct sockaddr *) &ctrl->dest,
 		    sizeof(ctrl->dest)) < 0) {
 		perror("connect");
@@ -123,7 +133,7 @@ void wpa_ctrl_close(struct wpa_ctrl *ctrl)
 }
 
 
-int wpa_ctrl_request(struct wpa_ctrl *ctrl, char *cmd, size_t cmd_len,
+int wpa_ctrl_request(struct wpa_ctrl *ctrl, const char *cmd, size_t cmd_len,
 		     char *reply, size_t *reply_len,
 		     void (*msg_cb)(char *msg, size_t len))
 {
@@ -152,7 +162,7 @@ int wpa_ctrl_request(struct wpa_ctrl *ctrl, char *cmd, size_t cmd_len,
 				if (msg_cb) {
 					/* Make sure the message is nul
 					 * terminated. */
-					if (res == *reply_len)
+					if ((size_t) res == *reply_len)
 						res = (*reply_len) - 1;
 					reply[res] = '\0';
 					msg_cb(reply, res);
