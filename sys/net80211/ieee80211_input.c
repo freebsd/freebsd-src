@@ -674,7 +674,7 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 		struct mbuf *m1 = NULL;
 
 		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-			m1 = m_copypacket(m, M_DONTWAIT);
+			m1 = m_dup(m, M_DONTWAIT);
 			if (m1 == NULL)
 				ifp->if_oerrors++;
 			else
