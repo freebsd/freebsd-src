@@ -44,6 +44,7 @@ SUBDIR=	${_3dfx} \
 	cd9660 \
 	cd9660_iconv \
 	cdce \
+	${_ce} \
 	${_ciss} \
 	${_cm} \
 	coda \
@@ -297,6 +298,7 @@ _arcnet=	arcnet
 _ath_hal=	ath_hal
 _awi=		awi
 _bktr=		bktr
+_ce=		ce
 _coff=		coff
 _cp=		cp
 _cpufreq=	cpufreq
