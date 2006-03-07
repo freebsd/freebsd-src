@@ -137,6 +137,7 @@ static	u_char	timer2_state;
 static void calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc,
     u_int32_t *timer);
 static void set_timer_freq(u_int freq, int intr_freq);
+static uint64_t read_cycle_count(void);
 
 void
 clockattach(device_t dev)
@@ -152,6 +153,7 @@ clockattach(device_t dev)
 
 	calibrate_clocks(cycles_per_sec, &pcc, &freq);
 	cycles_per_sec = pcc;
+	set_cputicker(read_cycle_count, cycles_per_sec, 0);
 
 	/*
 	 * XXX: TurboLaser doesn't have an i8254 counter.
@@ -553,6 +555,30 @@ static unsigned
 alpha_get_timecount(struct timecounter* tc)
 {
 	return alpha_rpcc();
+}
+
+/*
+ * The RPCC register actually consists of two halves.  The lower half
+ * is a raw 32-bit counter that wraps.  The upper half is defined in
+ * the Digital UNIX PAL as being a raw per-process cycle count mod 2^32
+ * that is updated on each call to swpctx.  In order to produce a 64-bit
+ * counter, we just use the lower half and simulate the upper 32-bits.
+ * The architecture guarantees that there will always be at least one
+ * clock interrupt in between overlaps in the lower half, so as long as
+ * we call this function every clock interrupt we should not miss any
+ * overlaps.
+ */
+uint64_t
+read_cycle_count(void)
+{
+	unsigned pcc_cnt;
+
+	/* Assert a critical section? */
+	pcc_cnt = alpha_rpcc() & 0xffffffff;
+	if (pcc_cnt < PCPU_GET(last_pcc_cnt))
+		PCPU_SET(pcc_base, PCPU_GET(pcc_base) + 1);
+	PCPU_SET(last_pcc_cnt, pcc_cnt);
+	return (pcc_cnt | ((uint64_t)PCPU_GET(pcc_base) << 32));
 }
 
 int
