@@ -10,6 +10,8 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -698,6 +700,16 @@ wpa_supplicant_event_michael_mic_failure(struct wpa_supplicant *wpa_s,
 }
 
 
+static int any_interfaces(struct wpa_supplicant *head)
+{
+	struct wpa_supplicant *wpa_s;
+
+	for (wpa_s = head; wpa_s != NULL; wpa_s = wpa_s->next)
+		if (!wpa_s->interface_removed)
+			return 1;
+	return 0;
+}
+
 static void
 wpa_supplicant_event_interface_status(struct wpa_supplicant *wpa_s,
 				      union wpa_event_data *data)
@@ -722,6 +734,9 @@ wpa_supplicant_event_interface_status(struct wpa_supplicant *wpa_s,
 		wpa_supplicant_mark_disassoc(wpa_s);
 		l2_packet_deinit(wpa_s->l2);
 		wpa_s->l2 = NULL;
+		/* check if last interface */
+		if (!any_interfaces(wpa_s->global->ifaces))
+			eloop_terminate();
 		break;
 	}
 }

@@ -1,4 +1,18 @@
-/* $FreeBSD$ */
+/*
+ * wpa_supplicant/hostapd / common helper functions, etc.
+ * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
+ *
+ * $FreeBSD$
+ */
 
 #ifndef COMMON_H
 #define COMMON_H
@@ -6,8 +20,9 @@
 #ifdef __linux__
 #include <endian.h>
 #include <byteswap.h>
-#endif
-#ifdef __FreeBSD__
+#endif /* __linux__ */
+
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/types.h>
 #include <sys/endian.h>
 #define __BYTE_ORDER	_BYTE_ORDER
@@ -16,10 +31,9 @@
 #define bswap_16 bswap16
 #define bswap_32 bswap32
 #define bswap_64 bswap64
-#endif
+#endif /* defined(__FreeBSD__) || defined(__NetBSD__) */
 
 #ifdef CONFIG_NATIVE_WINDOWS
-#include <winsock.h>
 #include <winsock2.h>
 
 static inline int daemon(int nochdir, int noclose)
@@ -55,6 +69,18 @@ struct timezone {
 };
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
+
+static inline long int random(void)
+{
+	return rand();
+}
+
+typedef int gid_t;
+typedef int socklen_t;
+
+#ifndef MSG_DONTWAIT
+#define MSG_DONTWAIT 0 /* not supported */
+#endif
 
 #endif /* CONFIG_NATIVE_WINDOWS */
 
@@ -106,6 +132,21 @@ static inline unsigned int wpa_swap_32(unsigned int v)
 
 #endif /* __CYGWIN__ */
 
+/* Macros for handling unaligned 16-bit variables */
+#define WPA_GET_BE16(a) ((u16) (((a)[0] << 8) | (a)[1]))
+#define WPA_PUT_BE16(a, val)			\
+	do {					\
+		(a)[0] = ((u16) (val)) >> 8;	\
+		(a)[1] = ((u16) (val)) & 0xff;	\
+	} while (0)
+
+#define WPA_GET_LE16(a) ((u16) (((a)[1] << 8) | (a)[0]))
+#define WPA_PUT_LE16(a, val)			\
+	do {					\
+		(a)[1] = ((u16) (val)) >> 8;	\
+		(a)[0] = ((u16) (val)) & 0xff;	\
+	} while (0)
+
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
@@ -136,6 +177,26 @@ void fprint_char(FILE *f, char c);
 
 enum { MSG_MSGDUMP, MSG_DEBUG, MSG_INFO, MSG_WARNING, MSG_ERROR };
 
+#ifdef CONFIG_NO_STDOUT_DEBUG
+
+#define wpa_debug_print_timestamp() do { } while (0)
+#define wpa_printf(args...) do { } while (0)
+#define wpa_hexdump(args...) do { } while (0)
+#define wpa_hexdump_key(args...) do { } while (0)
+#define wpa_hexdump_ascii(args...) do { } while (0)
+#define wpa_hexdump_ascii_key(args...) do { } while (0)
+
+#else /* CONFIG_NO_STDOUT_DEBUG */
+
+/**
+ * wpa_debug_printf_timestamp - Print timestamp for debug output
+ *
+ * This function prints a timestamp in <seconds from 1970>.<microsoconds>
+ * format if debug output has been configured to include timestamps in debug
+ * messages.
+ */
+void wpa_debug_print_timestamp(void);
+
 /**
  * wpa_printf - conditional printf
  * @level: priority level (MSG_*) of the message
@@ -155,11 +216,11 @@ __attribute__ ((format (printf, 2, 3)));
  * @level: priority level (MSG_*) of the message
  * @title: title of for the message
  * @buf: data buffer to be dumped
- * @len: length of the @buf
+ * @len: length of the buf
  *
  * This function is used to print conditional debugging and error messages. The
  * output may be directed to stdout, stderr, and/or syslog based on
- * configuration. The contents of @buf is printed out has hex dump.
+ * configuration. The contents of buf is printed out has hex dump.
  */
 void wpa_hexdump(int level, const char *title, const u8 *buf, size_t len);
 
@@ -168,11 +229,11 @@ void wpa_hexdump(int level, const char *title, const u8 *buf, size_t len);
  * @level: priority level (MSG_*) of the message
  * @title: title of for the message
  * @buf: data buffer to be dumped
- * @len: length of the @buf
+ * @len: length of the buf
  *
  * This function is used to print conditional debugging and error messages. The
  * output may be directed to stdout, stderr, and/or syslog based on
- * configuration. The contents of @buf is printed out has hex dump. This works
+ * configuration. The contents of buf is printed out has hex dump. This works
  * like wpa_hexdump(), but by default, does not include secret keys (passwords,
  * etc.) in debug output.
  */
@@ -183,11 +244,11 @@ void wpa_hexdump_key(int level, const char *title, const u8 *buf, size_t len);
  * @level: priority level (MSG_*) of the message
  * @title: title of for the message
  * @buf: data buffer to be dumped
- * @len: length of the @buf
+ * @len: length of the buf
  *
  * This function is used to print conditional debugging and error messages. The
  * output may be directed to stdout, stderr, and/or syslog based on
- * configuration. The contents of @buf is printed out has hex dump with both
+ * configuration. The contents of buf is printed out has hex dump with both
  * the hex numbers and ASCII characters (for printable range) are shown. 16
  * bytes per line will be shown.
  */
@@ -199,17 +260,20 @@ void wpa_hexdump_ascii(int level, const char *title, const u8 *buf,
  * @level: priority level (MSG_*) of the message
  * @title: title of for the message
  * @buf: data buffer to be dumped
- * @len: length of the @buf
+ * @len: length of the buf
  *
  * This function is used to print conditional debugging and error messages. The
  * output may be directed to stdout, stderr, and/or syslog based on
- * configuration. The contents of @buf is printed out has hex dump with both
+ * configuration. The contents of buf is printed out has hex dump with both
  * the hex numbers and ASCII characters (for printable range) are shown. 16
  * bytes per line will be shown. This works like wpa_hexdump_ascii(), but by
  * default, does not include secret keys (passwords, etc.) in debug output.
  */
 void wpa_hexdump_ascii_key(int level, const char *title, const u8 *buf,
 			   size_t len);
+
+#endif /* CONFIG_NO_STDOUT_DEBUG */
+
 
 #ifdef EAPOL_TEST
 #define WPA_ASSERT(a)						       \
