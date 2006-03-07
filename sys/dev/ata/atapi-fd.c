@@ -181,7 +181,7 @@ afd_open(struct disk *dp)
     atadev->flags &= ~ATA_D_MEDIA_CHANGED;
 
     if (!fdp->mediasize)
-	return EIO;
+	return ENXIO;
 
     fdp->disk->d_sectorsize = fdp->sectorsize;
     fdp->disk->d_mediasize = fdp->mediasize;
@@ -308,10 +308,12 @@ afd_sense(device_t dev)
 		        0, 0, 0, 0, sizeof(struct afd_capabilities) >> 8,
 		        sizeof(struct afd_capabilities) & 0xff,
 			0, 0, 0, 0, 0, 0, 0 };
+    int timeout = 20;
     int count;
 
-    afd_test_ready(dev);
-    fdp->mediasize = 0;
+    /* wait for device to get ready */
+    while (afd_test_ready(dev) && timeout--)
+	DELAY(100000);
 
     /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
     if (!strncmp(atadev->param.model, "IOMEGA Clik!", 12)) {
@@ -361,6 +363,7 @@ afd_sense(device_t dev)
 	    return 0;
 	}
     }
+    fdp->mediasize = 0;
     return 1;
 }
 
