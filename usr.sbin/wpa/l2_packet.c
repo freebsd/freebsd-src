@@ -31,6 +31,8 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "common.h"
 #include "eloop.h"
@@ -40,11 +42,11 @@ struct l2_packet_data {
 	pcap_t *pcap;
 	char ifname[100];
 	u8 own_addr[ETH_ALEN];
-	void (*rx_callback)(void *ctx, unsigned char *src_addr,
-			    unsigned char *buf, size_t len);
+	void (*rx_callback)(void *ctx, const u8 *src_addr,
+			    const u8 *buf, size_t len);
 	void *rx_callback_ctx;
-	int rx_l2_hdr; /* whether to include layer 2 (Ethernet) header in calls
-			* to rx_callback */
+	int l2_hdr; /* whether to include layer 2 (Ethernet) header data
+		     * buffers */
 };
 
 int
@@ -54,16 +56,65 @@ l2_packet_get_own_addr(struct l2_packet_data *l2, u8 *addr)
 	return 0;
 }
 
-void
-l2_packet_set_rx_l2_hdr(struct l2_packet_data *l2, int rx_l2_hdr)
+int
+l2_packet_get_ip_addr(struct l2_packet_data *l2, char *buf, size_t len)
 {
-	l2->rx_l2_hdr = rx_l2_hdr;
+	pcap_if_t *devs, *dev;
+	struct pcap_addr *addr;
+	struct sockaddr_in *saddr;
+	int found = 0;
+	char err[PCAP_ERRBUF_SIZE + 1];
+
+	if (pcap_findalldevs(&devs, err) < 0) {
+		wpa_printf(MSG_DEBUG, "pcap_findalldevs: %s\n", err);
+		return -1;
+	}
+
+	for (dev = devs; dev && !found; dev = dev->next) {
+		if (strcmp(dev->name, l2->ifname) != 0)
+			continue;
+
+		addr = dev->addresses;
+		while (addr) {
+			saddr = (struct sockaddr_in *) addr->addr;
+			if (saddr && saddr->sin_family == AF_INET) {
+				snprintf(buf, len, "%s",
+					 inet_ntoa(saddr->sin_addr));
+				found = 1;
+				break;
+			}
+			addr = addr->next;
+		}
+	}
+
+	pcap_freealldevs(devs);
+
+	return found ? 0 : -1;
+}
+
+void
+l2_packet_notify_auth_start(struct l2_packet_data *l2)
+{
 }
 
 int
-l2_packet_send(struct l2_packet_data *l2, u8 *buf, size_t len)
+l2_packet_send(struct l2_packet_data *l2,
+	const u8 *dst_addr, u16 proto, const u8 *buf, size_t len)
 {
-	return pcap_inject(l2->pcap, buf, len);
+	if (!l2->l2_hdr) {
+		int ret;
+		struct l2_ethhdr *eth = malloc(sizeof(*eth) + len);
+		if (eth == NULL)
+			return -1;
+		memcpy(eth->h_dest, dst_addr, ETH_ALEN);
+		memcpy(eth->h_source, l2->own_addr, ETH_ALEN);
+		eth->h_proto = htons(proto);
+		memcpy(eth + 1, buf, len);
+		ret = pcap_inject(l2->pcap, (u8 *) eth, len + sizeof(*eth));
+		free(eth);
+		return ret;
+	} else
+		return pcap_inject(l2->pcap, buf, len);
 }
 
 
@@ -84,7 +135,7 @@ l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		return;
 
 	ethhdr = (struct l2_ethhdr *) packet;
-	if (l2->rx_l2_hdr) {
+	if (l2->l2_hdr) {
 		buf = (unsigned char *) ethhdr;
 		len = hdr.caplen;
 	} else {
@@ -198,9 +249,9 @@ eth_get(const char *device, u8 ea[ETH_ALEN])
 
 struct l2_packet_data *
 l2_packet_init(const char *ifname, const u8 *own_addr, unsigned short protocol,
-	void (*rx_callback)(void *ctx, unsigned char *src_addr,
-			    unsigned char *buf, size_t len),
-	void *rx_callback_ctx)
+	void (*rx_callback)(void *ctx, const u8 *src_addr,
+			    const u8 *buf, size_t len),
+	void *rx_callback_ctx, int l2_hdr)
 {
 	struct l2_packet_data *l2;
 
@@ -211,6 +262,7 @@ l2_packet_init(const char *ifname, const u8 *own_addr, unsigned short protocol,
 	strncpy(l2->ifname, ifname, sizeof(l2->ifname));
 	l2->rx_callback = rx_callback;
 	l2->rx_callback_ctx = rx_callback_ctx;
+	l2->l2_hdr = l2_hdr;
 
 	if (eth_get(l2->ifname, l2->own_addr) < 0) {
 		fprintf(stderr, "Failed to get link-level address for "
