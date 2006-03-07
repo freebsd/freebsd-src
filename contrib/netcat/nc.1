@@ -389,17 +389,17 @@ Open a UDP connection to port 53 of hostname:
 Open a TCP connection to port 42 of example.host using 10.1.2.3 as the
 IP for the local end of the connection:
 .Pp
-.Dl "nc -E example.host 42"
+.Dl $ nc -s 10.1.2.3 example.host 42
 .Pp
 Open a TCP connection to port 42 of example.host using IPsec ESP for
 incoming and outgoing traffic.
 .Pp
-.Dl "nc -e 'out ipsec esp/transport//require' example.host 42"
+.Dl $ nc -E example.host 42
 .Pp
 Open a TCP connection to port 42 of example.host using IPsec ESP for
 outgoing traffic only.
 .Pp
-.Dl $ nc -s 10.1.2.3 example.host 42
+.Dl $ nc -e 'out ipsec esp/transport//require' example.host 42
 .Pp
 Send UDP packets to ports 20-30 of example.host, and report which ones
 responded with an ICMP packet after three seconds:
