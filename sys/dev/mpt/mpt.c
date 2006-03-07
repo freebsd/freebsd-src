@@ -1006,6 +1006,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 		req->chain = NULL;
 		mpt_free_request(mpt, nxt);	/* NB: recursion */
 	}
+	req->serno = 0;
 	req->ccb = NULL;
 	req->state = REQ_STATE_FREE;
 	if (LIST_EMPTY(&mpt->ack_frames)) {
@@ -1042,6 +1043,9 @@ retry:
 		TAILQ_REMOVE(&mpt->request_free_list, req, links);
 		req->state = REQ_STATE_ALLOCATED;
 		req->chain = NULL;
+		if ((req->serno = ++(mpt->cmd_serno)) == 0) {
+			req->serno = ++(mpt->cmd_serno);
+		}
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);
