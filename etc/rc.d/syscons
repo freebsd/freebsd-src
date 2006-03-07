@@ -34,6 +34,8 @@
 . /etc/rc.subr
 
 name="syscons"
+extra_commands="setkeyboard"
+setkeyboard_cmd="syscons_setkeyboard"
 start_precmd="syscons_precmd"
 start_cmd="syscons_start"
 
@@ -41,6 +43,21 @@ start_cmd="syscons_start"
 #
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
+
+syscons_setkeyboard()
+{
+	kbd=$1
+                
+	if [ -z "${kbd}" ]; then
+		return 1
+	fi
+
+	# Check if the kbdmux(4) is the current active keyboard
+	kbdcontrol -i < ${kbddev} | grep kbdmux > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		kbdcontrol -k ${kbd} < ${kbddev} > /dev/null 2>&1
+	fi
+}
 
 syscons_precmd()
 {
@@ -62,8 +79,7 @@ syscons_start()
 	# keyboard
 	#
 	if [ -n "${keyboard}" ]; then
-		echo -n ' keyboard';	kbdcontrol < ${kbddev} \
-		    -k "${keyboard}" >/dev/null
+		echo -n ' keyboard';	syscons_setkeyboard ${keyboard}
 	fi
 
 	# keymap
@@ -207,4 +223,5 @@ syscons_start()
 }
 
 load_rc_config $name
-run_rc_command "$1"
+run_rc_command $*
+
