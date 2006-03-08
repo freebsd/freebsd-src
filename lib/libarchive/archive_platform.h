@@ -38,7 +38,7 @@
 #define	ARCHIVE_PLATFORM_H_INCLUDED
 
 #if HAVE_CONFIG_H
-#include "config.h"
+#include "../config.h"
 #else
 
 /* A default configuration for FreeBSD, used if there is no config.h. */
