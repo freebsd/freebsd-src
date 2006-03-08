@@ -314,9 +314,7 @@ findvar(char *p, int user, char **header)
 		 */
 		rflen = strlen(v->alias) + strlen(hp) + 2;
 		realfmt = malloc(rflen);
-		strlcpy(realfmt, v->alias, rflen);
-		strlcat(realfmt, "=", rflen);
-		strlcat(realfmt, hp, rflen);
+		snprintf(realfmt, rflen, "%s=%s", v->alias, hp);
 		parsefmt(realfmt, user);
 		return ((VAR *)NULL);
 	}
