@@ -16,6 +16,10 @@
 /set uname=root
     ..
 /set mode=0750
+/set gname=audit
+    audit
+    ..
+/set gname=wheel
     backups
     ..
     crash
