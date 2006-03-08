@@ -940,9 +940,6 @@ acd_read_toc(device_t dev)
     int8_t ccb[16];
     int track, ntracks, len;
 
-    if (!(atadev->flags & ATA_D_MEDIA_CHANGED))
-	return;
-
     atadev->flags &= ~ATA_D_MEDIA_CHANGED;
     bzero(&cdp->toc, sizeof(cdp->toc));
     cdp->disk_size = -1;                        /* hack for GEOM SOS */
