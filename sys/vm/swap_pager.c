@@ -1588,7 +1588,7 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
  *	XXX - The code to page the whole block in doesn't work, so we
  *	      revert to the one-by-one behavior for now.  Sigh.
  */
-static __inline void
+static inline void
 swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;

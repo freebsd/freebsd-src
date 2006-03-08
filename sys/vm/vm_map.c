@@ -280,7 +280,7 @@ vm_init2(void)
 	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
-static __inline void
+static inline void
 vmspace_dofree(struct vmspace *vm)
 {
 	CTR1(KTR_VM, "vmspace_free: %p", vm);
@@ -560,7 +560,7 @@ vm_map_entry_create(vm_map_t map)
  *	Set the expected access behavior, either normal, random, or
  *	sequential.
  */
-static __inline void
+static inline void
 vm_map_entry_set_behavior(vm_map_entry_t entry, u_char behavior)
 {
 	entry->eflags = (entry->eflags & ~MAP_ENTRY_BEHAV_MASK) |
@@ -572,7 +572,7 @@ vm_map_entry_set_behavior(vm_map_entry_t entry, u_char behavior)
  *
  *	Set the max_free field in a vm_map_entry.
  */
-static __inline void
+static inline void
 vm_map_entry_set_max_free(vm_map_entry_t entry)
 {
 
