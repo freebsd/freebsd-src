@@ -1397,12 +1397,22 @@ pmap_growkernel(vm_offset_t addr)
 		while (pdir_pde(PTD, kernel_vm_end)) {
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 			nkpt++;
+			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
+				kernel_vm_end = kernel_map->max_offset;
+				break;
+			}
 		}
 	}
 	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
+	if (addr - 1 >= kernel_map->max_offset)
+		addr = kernel_map->max_offset;
 	while (kernel_vm_end < addr) {
 		if (pdir_pde(PTD, kernel_vm_end)) {
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
+				kernel_vm_end = kernel_map->max_offset;
+				break;
+			}
 			continue;
 		}
 
@@ -1428,6 +1438,10 @@ pmap_growkernel(vm_offset_t addr)
 		}
 		mtx_unlock_spin(&allpmaps_lock);
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
+			kernel_vm_end = kernel_map->max_offset;
+			break;
+		}
 	}
 }
 
