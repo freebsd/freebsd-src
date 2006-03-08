@@ -29,11 +29,12 @@ case "$daily_status_mailq_enable" in
 			sort |
 			uniq -c |
 			sort -nr |
-			awk '$1 > 1 {print $1, $2}';;
+			awk '$1 >= 1 {print $1, $2}';;
 		*)
 		    mailq;;
-	    esac | tee /dev/stderr | fgrep -v 'mqueue is empty' | wc -l)
-	    [ $rc -gt 1 ] && rc=1 || rc=0
+	    esac | tee /dev/stderr |
+	    egrep -v '(mqueue is empty|Total requests)' | wc -l)
+	    [ $rc -gt 0 ] && rc=1 || rc=0
 
 	    case "$daily_status_include_submit_mailq" in
 	    [Yy][Ee][Ss])
@@ -49,11 +50,12 @@ case "$daily_status_mailq_enable" in
 				sort |
 				uniq -c |
 				sort -nr |
-				awk '$1 > 1 {print $1, $2}';;
+				awk '$1 >= 1 {print $1, $2}';;
 			*)
 			    mailq -Ac;;
-		    esac | tee /dev/stderr | fgrep -v 'mqueue is empty' | wc -l)
-		    [ $rc_submit -gt 1 ] && rc=1
+		    esac | tee /dev/stderr |
+		    egrep -v '(mqueue is empty|Total requests)' | wc -l)
+		    [ $rc_submit -gt 0 ] && rc=1
 		fi;;
 	    esac
 	fi;;
