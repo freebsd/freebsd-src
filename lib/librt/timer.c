@@ -121,6 +121,7 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 		errno = err;
 		return (-1);
 	}
+	sn->sn_flags |= SNF_SYNC;
 	sn->sn_dispatch = timer_dispatch;
 	sn->sn_id = timer->oshandle;
 	timer->node = sn;
