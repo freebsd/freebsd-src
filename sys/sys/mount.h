@@ -171,6 +171,8 @@ struct mount {
 	int		mnt_markercnt;		/* marker vnodes in use */
 	int		mnt_holdcnt;		/* hold count */
 	int		mnt_holdcntwaiters;	/* waits on hold count */
+	int		mnt_secondary_writes;   /* (i) # of secondary writes */
+	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 };
 
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
@@ -192,6 +194,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 	} while (0)
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
+#define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 #define	MNT_REF(mp)	(mp)->mnt_ref++
@@ -331,6 +334,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define MNT_WAIT	1	/* synchronously wait for I/O to complete */
 #define MNT_NOWAIT	2	/* start all I/O, but do not wait for it */
 #define MNT_LAZY	3	/* push data not written by filesystem syncer */
+#define MNT_SUSPEND	4	/* Suspend file system after sync */
 
 /*
  * Generic file handle

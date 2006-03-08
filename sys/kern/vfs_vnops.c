@@ -951,6 +951,58 @@ vn_write_suspend_wait(vp, mp, flags)
 }
 
 /*
+ * Secondary suspension. Used by operations such as vop_inactive
+ * routines that are needed by the higher level functions. These
+ * are allowed to proceed until all the higher level functions have
+ * completed (indicated by mnt_writeopcount dropping to zero). At that
+ * time, these operations are halted until the suspension is over.
+ */
+int
+vn_start_secondary_write(vp, mpp, flags)
+	struct vnode *vp;
+	struct mount **mpp;
+	int flags;
+{
+	struct mount *mp;
+	int error;
+
+ retry:
+	if (vp != NULL) {
+		if ((error = VOP_GETWRITEMOUNT(vp, mpp)) != 0) {
+			*mpp = NULL;
+			if (error != EOPNOTSUPP)
+				return (error);
+			return (0);
+		}
+	}
+	/*
+	 * If we are not suspended or have not yet reached suspended
+	 * mode, then let the operation proceed.
+	 */
+	if ((mp = *mpp) == NULL)
+		return (0);
+	MNT_ILOCK(mp);
+	if ((mp->mnt_kern_flag & MNTK_SUSPENDED) == 0) {
+		mp->mnt_secondary_writes++;
+		mp->mnt_secondary_accwrites++;
+		MNT_IUNLOCK(mp);
+		return (0);
+	}
+	if (flags & V_NOWAIT) {
+		MNT_IUNLOCK(mp);
+		return (EWOULDBLOCK);
+	}
+	/*
+	 * Wait for the suspension to finish.
+	 */
+	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
+		       (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
+	if (error == 0)
+		goto retry;
+	return (error);
+}
+
+/*
  * Filesystem write operation has completed. If we are suspending and this
  * operation is the last one, notify the suspender that the suspension is
  * now in effect.
@@ -970,6 +1022,30 @@ vn_finished_write(mp)
 		wakeup(&mp->mnt_writeopcount);
 	MNT_IUNLOCK(mp);
 }
+
+
+/*
+ * Filesystem secondary write operation has completed. If we are
+ * suspending and this operation is the last one, notify the suspender
+ * that the suspension is now in effect.
+ */
+void
+vn_finished_secondary_write(mp)
+	struct mount *mp;
+{
+	if (mp == NULL)
+		return;
+	MNT_ILOCK(mp);
+	mp->mnt_secondary_writes--;
+	if (mp->mnt_secondary_writes < 0)
+		panic("vn_finished_secondary_write: neg cnt");
+	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0 &&
+	    mp->mnt_secondary_writes <= 0)
+		wakeup(&mp->mnt_secondary_writes);
+	MNT_IUNLOCK(mp);
+}
+
+
 
 /*
  * Request a filesystem to suspend write operations.
@@ -991,12 +1067,11 @@ vfs_write_suspend(mp)
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
 	else
 		MNT_IUNLOCK(mp);
-	if ((error = VFS_SYNC(mp, MNT_WAIT, td)) != 0) {
+	if ((error = VFS_SYNC(mp, MNT_SUSPEND, td)) != 0) {
 		vfs_write_resume(mp);
 		return (error);
 	}
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_SUSPENDED;
 unlock:
 	MNT_IUNLOCK(mp);
 	return (error);

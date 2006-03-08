@@ -94,6 +94,10 @@ extern struct vop_vector ffs_fifoops2;
 /*
  * Soft update function prototypes.
  */
+
+int	softdep_check_suspend(struct mount *, struct vnode *,
+	  int, int, int, int);
+void	softdep_get_depcounts(struct mount *, int *, int *);
 void	softdep_initialize(void);
 void	softdep_uninitialize(void);
 int	softdep_mount(struct vnode *, struct mount *, struct fs *,
