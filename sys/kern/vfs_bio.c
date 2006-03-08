@@ -1285,6 +1285,11 @@ brelse(struct buf *bp)
 			vfs_vmio_release(bp);
 		}
 
+	} else if ((bp->b_flags & (B_INVAL | B_RELBUF)) != 0) {
+		if (bp->b_bufsize != 0)
+			allocbuf(bp, 0);
+		if (bp->b_vp != NULL)
+			brelvp(bp);
 	}
 			
 	if (BUF_REFCNT(bp) > 1) {
