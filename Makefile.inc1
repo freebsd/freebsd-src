@@ -500,7 +500,7 @@ installcheck_DESTDIR:
 # Checks to be sure system is ready for installworld
 #
 CHECK_UIDS=
-CHECK_GIDS=
+CHECK_GIDS=	audit
 .if !defined(NO_SENDMAIL)
 CHECK_UIDS+=	smmsp
 CHECK_GIDS+=	smmsp
