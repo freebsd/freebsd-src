@@ -78,8 +78,13 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 		if (fs == NULL)
 			continue;
 		/* Check for magic and make sure things are the right size */
-		if (fs->fs_magic != FS_UFS1_MAGIC &&
-		    fs->fs_magic != FS_UFS2_MAGIC) {
+		if (fs->fs_magic == FS_UFS1_MAGIC &&
+		    fs->fs_old_size * fs->fs_fsize == (int32_t)pp->mediasize) {
+		    	/* Valid UFS1. */
+		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
+		    pp->mediasize / fs->fs_fsize == fs->fs_size) {
+		    	/* Valid UFS2. */
+		} else {
 			g_free(fs);
 			continue;
 		}
