@@ -73,13 +73,13 @@ static void bpack(int8_t *, int8_t *, int);
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
+struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
 uma_zone_t ata_request_zone;
 uma_zone_t ata_composite_zone;
 int ata_wc = 1;
 
 /* local vars */
-static struct intr_config_hook *ata_delayed_attach = NULL;
 static int ata_dma = 1;
 static int atapi_dma = 1;
 
