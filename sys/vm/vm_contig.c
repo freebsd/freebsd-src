@@ -105,6 +105,10 @@ vm_contig_launder_page(vm_page_t m)
 	if (m->dirty == 0 && m->hold_count == 0)
 		pmap_remove_all(m);
 	if (m->dirty) {
+		if ((object->flags & OBJ_DEAD) != 0) {
+			VM_OBJECT_UNLOCK(object);
+			return (EAGAIN);
+		}
 		if (object->type == OBJT_VNODE) {
 			vm_page_unlock_queues();
 			vp = object->handle;
