@@ -28,6 +28,7 @@ libarchive_la_SOURCES=					\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_iso9660.c		\
 	archive_read_support_format_tar.c		\
+	archive_read_support_format_tp.c		\
 	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string.h				\
@@ -47,7 +48,7 @@ libarchive_la_SOURCES=					\
 	archive_write_set_format_ustar.c
 
 libarchive_la_LIBADD=-lz -lbz2
-libarchive_la_LDFLAGS= -version-info $(LIBTOOL_VERSION)
+libarchive_la_LDFLAGS= -version-info $(ARCHIVE_LIBTOOL_VERSION)
 
 dist_man_MANS=	archive_entry.3				\
 	archive_read.3					\
@@ -61,5 +62,11 @@ distclean-local:
 	-rm -rf autom4te.cache/
 	-rm -f *~
 
-maintainer-clean-local:
-	make -f Makefile.freebsd maintainer-clean
+#
+# Soon... The test framework is just getting started and still
+# needs lots of work...
+#
+EXTRA_DIST= test version
+dist-hook:
+	rm -f $(distdir)/test/*.out
+	rm -f $(distdir)/test/*~
