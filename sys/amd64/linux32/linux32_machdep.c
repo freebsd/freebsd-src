@@ -130,7 +130,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	    copystr(fname, args->fname, PATH_MAX, &length) :
 	    copyinstr(fname, args->fname, PATH_MAX, &length);
 	if (error != 0)
-		return (error);
+		goto err_exit;
 
 	/*
 	 * extract arguments first
@@ -139,16 +139,16 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	for (;;) {
 		error = copyin(p32++, &arg, sizeof(arg));
 		if (error)
-			return (error);
+			goto err_exit;
 		if (arg == 0)
 			break;
 		argp = PTRIN(arg);
 		error = copyinstr(argp, args->endp, args->stringspace, &length);
 		if (error) {
 			if (error == ENAMETOOLONG)
-				return (E2BIG);
-			else
-				return (error);
+				error = E2BIG;
+			
+			goto err_exit;
 		}
 		args->stringspace -= length;
 		args->endp += length;
@@ -165,7 +165,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 		for (;;) {
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
-				return (error);
+				goto err_exit;
 			if (arg == 0)
 				break;
 			envp = PTRIN(arg);
@@ -173,9 +173,8 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 			    &length);
 			if (error) {
 				if (error == ENAMETOOLONG)
-					return (E2BIG);
-				else
-					return (error);
+					error = E2BIG;
+				goto err_exit;
 			}
 			args->stringspace -= length;
 			args->endp += length;
@@ -184,6 +183,12 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	}
 
 	return (0);
+
+err_exit:
+	kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
+	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
+	args->buf = NULL;
+	return (error);
 }
 
 int

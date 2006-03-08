@@ -243,6 +243,7 @@ kern_execve(td, args, mac_p)
 		PROC_LOCK(p);
 		if (thread_single(SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p);
+	       		exec_free_args(args);
 			return (ERESTART);	/* Try again later. */
 		}
 		PROC_UNLOCK(p);
@@ -980,19 +981,21 @@ exec_copyin_args(struct image_args *args, char *fname,
 	    copystr(fname, args->fname, PATH_MAX, &length) :
 	    copyinstr(fname, args->fname, PATH_MAX, &length);
 	if (error != 0)
-		return (error);
+		goto err_exit;
 
 	/*
 	 * extract arguments first
 	 */
 	while ((argp = (caddr_t) (intptr_t) fuword(argv++))) {
-		if (argp == (caddr_t) -1)
-			return (EFAULT);
+		if (argp == (caddr_t) -1) {
+			error = EFAULT;
+			goto err_exit;
+		}
 		if ((error = copyinstr(argp, args->endp,
 		    args->stringspace, &length))) {
-			if (error == ENAMETOOLONG)
-				return (E2BIG);
-			return (error);
+			if (error == ENAMETOOLONG) 
+				error = E2BIG;
+			goto err_exit;
 		}
 		args->stringspace -= length;
 		args->endp += length;
@@ -1006,13 +1009,15 @@ exec_copyin_args(struct image_args *args, char *fname,
 	 */
 	if (envv) {
 		while ((envp = (caddr_t)(intptr_t)fuword(envv++))) {
-			if (envp == (caddr_t)-1)
-				return (EFAULT);
+			if (envp == (caddr_t)-1) {
+				error = EFAULT;
+				goto err_exit;
+			}
 			if ((error = copyinstr(envp, args->endp,
 			    args->stringspace, &length))) {
 				if (error == ENAMETOOLONG)
-					return (E2BIG);
-				return (error);
+					error = E2BIG;
+				goto err_exit;
 			}
 			args->stringspace -= length;
 			args->endp += length;
@@ -1021,6 +1026,10 @@ exec_copyin_args(struct image_args *args, char *fname,
 	}
 
 	return (0);
+
+err_exit:
+	exec_free_args(args);
+	return (error);
 }
 
 static void
