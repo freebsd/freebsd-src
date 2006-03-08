@@ -498,6 +498,16 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 		}
 		printf("mount point write ops completed\n");
 	}
+	if (mp->mnt_secondary_writes > 0) {
+		printf("Waiting for mount point secondary write ops\n");
+		while (mp->mnt_secondary_writes > 0) {
+			mp->mnt_kern_flag |= MNTK_SUSPEND;
+			msleep(&mp->mnt_secondary_writes,
+			       MNT_MTX(mp),
+			       PZERO, "mntdestroy3", 0);
+		}
+		printf("mount point secondary write ops completed\n");
+	}
 	MNT_IUNLOCK(mp);
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
@@ -508,10 +518,13 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 		wakeup(mp);
 	if (mp->mnt_writeopcount != 0)
 		panic("vfs_mount_destroy: nonzero writeopcount");
+	if (mp->mnt_secondary_writes != 0)
+		panic("vfs_mount_destroy: nonzero secondary_writes");
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	mp->mnt_writeopcount = -1000;
 	mp->mnt_nvnodelistsize = -1000;
+	mp->mnt_secondary_writes = -1000;
 	MNT_IUNLOCK(mp);
 	mtx_destroy(&mp->mnt_mtx);
 #ifdef MAC

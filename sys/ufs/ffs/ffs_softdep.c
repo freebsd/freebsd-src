@@ -346,6 +346,68 @@ softdep_request_cleanup(fs, vp)
 	return (0);
 }
 
+int
+softdep_check_suspend(struct mount *mp,
+		      struct vnode *devvp,
+		      int softdep_deps,
+		      int softdep_accdeps,
+		      int secondary_writes,
+		      int secondary_accwrites)
+{
+	struct bufobj *bo;
+	int error;
+	
+	(void) softdep_deps,
+	(void) softdep_accdeps;
+
+	ASSERT_VI_LOCKED(devvp, "softdep_check_suspend");
+	bo = &devvp->v_bufobj;
+
+	for (;;) {
+		if (!MNT_ITRYLOCK(mp)) {
+			VI_UNLOCK(devvp);
+			MNT_ILOCK(mp);
+			MNT_IUNLOCK(mp);
+			VI_LOCK(devvp);
+			continue;
+		}
+		if (mp->mnt_secondary_writes != 0) {
+			VI_UNLOCK(devvp);
+			msleep(&mp->mnt_secondary_writes,
+			       MNT_MTX(mp),
+			       (PUSER - 1) | PDROP, "secwr", 0);
+			VI_LOCK(devvp);
+			continue;
+		}
+		break;
+	}
+
+	/*
+	 * Reasons for needing more work before suspend:
+	 * - Dirty buffers on devvp.
+	 * - Secondary writes occurred after start of vnode sync loop
+	 */
+	error = 0;
+	if (bo->bo_numoutput > 0 ||
+	    bo->bo_dirty.bv_cnt > 0 ||
+	    secondary_writes != 0 ||
+	    mp->mnt_secondary_writes != 0 ||
+	    secondary_accwrites != mp->mnt_secondary_accwrites)
+		error = EAGAIN;
+	VI_UNLOCK(devvp);
+	return (error);
+}
+
+void
+softdep_get_depcounts(struct mount *mp,
+		      int *softdepactivep,
+		      int *softdepactiveaccp)
+{
+	(void) mp;
+	*softdepactivep = 0;
+	*softdepactiveaccp = 0;
+}
+
 #else
 /*
  * These definitions need to be adapted to the system to which
@@ -500,6 +562,7 @@ static	int softdep_count_dependencies(struct buf *bp, int);
 static struct mtx lk;
 MTX_SYSINIT(softdep_lock, &lk, "Softdep Lock", MTX_DEF);
 
+#define TRY_ACQUIRE_LOCK(lk)		mtx_trylock(lk)
 #define ACQUIRE_LOCK(lk)		mtx_lock(lk)
 #define FREE_LOCK(lk)			mtx_unlock(lk)
 
@@ -588,6 +651,7 @@ workitem_alloc(item, type, mp)
 	item->wk_state = 0;
 	ACQUIRE_LOCK(&lk);
 	VFSTOUFS(mp)->softdep_deps++;
+	VFSTOUFS(mp)->softdep_accdeps++;
 	FREE_LOCK(&lk);
 }
 
@@ -873,7 +937,7 @@ process_worklist_item(mp, flags)
 	}
 	ump->softdep_on_worklist -= 1;
 	FREE_LOCK(&lk);
-	if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+	if (vn_start_secondary_write(NULL, &mp, V_NOWAIT))
 		panic("process_worklist_item: suspended filesystem");
 	matchcnt++;
 	switch (wk->wk_type) {
@@ -903,6 +967,7 @@ process_worklist_item(mp, flags)
 		    "softdep", TYPENAME(wk->wk_type));
 		/* NOTREACHED */
 	}
+	vn_finished_secondary_write(mp);
 	ACQUIRE_LOCK(&lk);
 	return (matchcnt);
 }
@@ -5998,6 +6063,98 @@ getdirtybuf(bp, mtx, waitfor)
 	}
 	bremfree(bp);
 	return (bp);
+}
+
+
+/*
+ * Check if it is safe to suspend the file system now.  On entry,
+ * the vnode interlock for devvp should be held.  Return 0 with
+ * the mount interlock held if the file system can be suspended now,
+ * otherwise return EAGAIN with the mount interlock held.
+ */
+int
+softdep_check_suspend(struct mount *mp,
+		      struct vnode *devvp,
+		      int softdep_deps,
+		      int softdep_accdeps,
+		      int secondary_writes,
+		      int secondary_accwrites)
+{
+	struct bufobj *bo;
+	struct ufsmount *ump;
+	int error;
+
+	ASSERT_VI_LOCKED(devvp, "softdep_check_suspend");
+	ump = VFSTOUFS(mp);
+	bo = &devvp->v_bufobj;
+
+	for (;;) {
+		if (!TRY_ACQUIRE_LOCK(&lk)) {
+			VI_UNLOCK(devvp);
+			ACQUIRE_LOCK(&lk);
+			FREE_LOCK(&lk);
+			VI_LOCK(devvp);
+			continue;
+		}
+		if (!MNT_ITRYLOCK(mp)) {
+			FREE_LOCK(&lk);
+			VI_UNLOCK(devvp);
+			MNT_ILOCK(mp);
+			MNT_IUNLOCK(mp);
+			VI_LOCK(devvp);
+			continue;
+		}
+		if (mp->mnt_secondary_writes != 0) {
+			FREE_LOCK(&lk);
+			VI_UNLOCK(devvp);
+			msleep(&mp->mnt_secondary_writes,
+			       MNT_MTX(mp),
+			       (PUSER - 1) | PDROP, "secwr", 0);
+			VI_LOCK(devvp);
+			continue;
+		}
+		break;
+	}
+
+	/*
+	 * Reasons for needing more work before suspend:
+	 * - Dirty buffers on devvp.
+	 * - Softdep activity occurred after start of vnode sync loop
+	 * - Secondary writes occurred after start of vnode sync loop
+	 */
+	error = 0;
+	if (bo->bo_numoutput > 0 ||
+	    bo->bo_dirty.bv_cnt > 0 ||
+	    softdep_deps != 0 ||
+	    ump->softdep_deps != 0 ||
+	    softdep_accdeps != ump->softdep_accdeps ||
+	    secondary_writes != 0 ||
+	    mp->mnt_secondary_writes != 0 ||
+	    secondary_accwrites != mp->mnt_secondary_accwrites)
+		error = EAGAIN;
+	FREE_LOCK(&lk);
+	VI_UNLOCK(devvp);
+	return (error);
+}
+
+
+/*
+ * Get the number of dependency structures for the file system, both
+ * the current number and the total number allocated.  These will
+ * later be used to detect that softdep processing has occurred.
+ */
+void
+softdep_get_depcounts(struct mount *mp,
+		      int *softdep_depsp,
+		      int *softdep_accdepsp)
+{
+	struct ufsmount *ump;
+
+	ump = VFSTOUFS(mp);
+	ACQUIRE_LOCK(&lk);
+	*softdep_depsp = ump->softdep_deps;
+	*softdep_accdepsp = ump->softdep_accdeps;
+	FREE_LOCK(&lk);
 }
 
 /*

@@ -77,6 +77,7 @@ struct ufsmount {
 	struct worklist *softdep_worklist_tail;	/* Tail pointer for above */
 	int	softdep_on_worklist;		/* Items on the worklist */
 	int	softdep_deps;			/* Total dependency count */
+	int	softdep_accdeps;		/* accumulated dep count */
 	int	softdep_req;			/* Wakeup when deps hits 0. */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
