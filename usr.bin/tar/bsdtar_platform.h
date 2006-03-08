@@ -36,7 +36,7 @@
 #define	BSDTAR_PLATFORM_H_INCLUDED
 
 #if HAVE_CONFIG_H
-#include "config.h"
+#include "../config.h"
 #else
 
 #ifdef __FreeBSD__
