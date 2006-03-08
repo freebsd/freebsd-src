@@ -309,11 +309,16 @@ afd_sense(device_t dev)
 		        sizeof(struct afd_capabilities) & 0xff,
 			0, 0, 0, 0, 0, 0, 0 };
     int timeout = 20;
-    int count;
+    int error, count;
+
+    fdp->mediasize = 0;
 
     /* wait for device to get ready */
-    while (afd_test_ready(dev) && timeout--)
+    while ((error = afd_test_ready(dev)) && timeout--) {
 	DELAY(100000);
+    }
+    if (error == ENODEV)
+	return 1;
 
     /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
     if (!strncmp(atadev->param.model, "IOMEGA Clik!", 12)) {
@@ -363,7 +368,6 @@ afd_sense(device_t dev)
 	    return 0;
 	}
     }
-    fdp->mediasize = 0;
     return 1;
 }
 
