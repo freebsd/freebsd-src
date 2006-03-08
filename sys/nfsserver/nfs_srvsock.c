@@ -699,6 +699,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	    STAILQ_FIRST(&slp->ns_rec) == NULL)
 		return (ENOBUFS);
 	rec = STAILQ_FIRST(&slp->ns_rec);
+	KASSERT(rec->nr_packet != NULL, ("nfsrv_dorec: missing mbuf"));
 	STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
 	nam = rec->nr_address;
 	m = rec->nr_packet;
