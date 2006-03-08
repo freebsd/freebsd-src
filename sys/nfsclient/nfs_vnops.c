@@ -2312,7 +2312,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			    /* Just skip over the file handle */
 			    tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			    i = fxdr_unsigned(int, *tl);
-			    nfsm_adv(nfsm_rndup(i));
+			    if (i) {
+				tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
+				fhsize = fxdr_unsigned(int, *tl);
+				nfsm_adv(nfsm_rndup(fhsize));
+			    }
 			}
 			if (newvp != NULLVP) {
 			    if (newvp == vp)
