@@ -603,6 +603,7 @@ int	vrecycle(struct vnode *vp, struct thread *td);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);
+void	vn_finished_secondary_write(struct mount *mp);
 int	vn_isdisk(struct vnode *vp, int *errp);
 int	vn_lock(struct vnode *vp, int flags, struct thread *td);
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
@@ -620,6 +621,8 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
+int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,
+	    int flags);
 int	vn_write_suspend_wait(struct vnode *vp, struct mount *mp,
 	    int flags);
 int	vn_writechk(struct vnode *vp);
