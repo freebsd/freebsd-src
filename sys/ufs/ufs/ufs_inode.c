@@ -73,7 +73,9 @@ ufs_inactive(ap)
 	struct thread *td = ap->a_td;
 	mode_t mode;
 	int error = 0;
+	struct mount *mp;
 
+	mp = NULL;
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_inactive: pushing active", vp);
 	/*
@@ -84,7 +86,7 @@ ufs_inactive(ap)
 	if (ip->i_effnlink == 0 && DOINGSOFTDEP(vp))
 		softdep_releasefile(ip);
 	if (ip->i_nlink <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
@@ -111,10 +113,14 @@ ufs_inactive(ap)
 	}
 	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
 		if ((ip->i_flag & (IN_CHANGE | IN_UPDATE | IN_MODIFIED)) == 0 &&
-		    vn_write_suspend_wait(vp, NULL, V_NOWAIT)) {
+		    mp == NULL &&
+		    vn_start_secondary_write(vp, &mp, V_NOWAIT)) {
+			mp = NULL;
 			ip->i_flag &= ~IN_ACCESS;
 		} else {
-			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+			if (mp == NULL)
+				(void) vn_start_secondary_write(vp, &mp,
+								V_WAIT);
 			UFS_UPDATE(vp, 0);
 		}
 	}
@@ -125,6 +131,8 @@ out:
 	 */
 	if (ip->i_mode == 0)
 		vrecycle(vp, td);
+	if (mp != NULL)
+		vn_finished_secondary_write(mp);
 	return (error);
 }
 

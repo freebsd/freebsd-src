@@ -2052,12 +2052,19 @@ vrele(struct vnode *vp)
 	 * We must call VOP_INACTIVE with the node locked. Mark
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
+	vp->v_iflag |= VI_OWEINACT;
 	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
 		VI_LOCK(vp);
-		vinactive(vp, td);
+		if (vp->v_usecount > 0)
+			vp->v_iflag &= ~VI_OWEINACT;
+		if (vp->v_iflag & VI_OWEINACT)
+			vinactive(vp, td);
 		VOP_UNLOCK(vp, 0, td);
-	} else
+	} else {
 		VI_LOCK(vp);
+		if (vp->v_usecount > 0)
+			vp->v_iflag &= ~VI_OWEINACT;
+	}
 	vdropl(vp);
 }
 
@@ -2104,9 +2111,14 @@ vput(struct vnode *vp)
 	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
 		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
 		VI_LOCK(vp);
-		if (error)
+		if (error) {
+			if (vp->v_usecount > 0)
+				vp->v_iflag &= ~VI_OWEINACT;
 			goto done;
+		}
 	}
+	if (vp->v_usecount > 0)
+		vp->v_iflag &= ~VI_OWEINACT;
 	if (vp->v_iflag & VI_OWEINACT)
 		vinactive(vp, td);
 	VOP_UNLOCK(vp, 0, td);
@@ -2368,6 +2380,7 @@ vgonel(struct vnode *vp)
 	struct thread *td;
 	int oweinact;
 	int active;
+	struct mount *mp;
 
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
@@ -2396,8 +2409,9 @@ vgonel(struct vnode *vp)
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
 	 */
+	mp = NULL;
 	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
-		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
 	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
 		vinvalbuf(vp, 0, td, 0, 0);
 
@@ -2418,6 +2432,8 @@ vgonel(struct vnode *vp)
 	 */
 	if (VOP_RECLAIM(vp, td))
 		panic("vgone: cannot reclaim");
+	if (mp != NULL)
+		vn_finished_secondary_write(mp);
 	VNASSERT(vp->v_object == NULL, vp,
 	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
 	/*
