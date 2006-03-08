@@ -247,5 +247,7 @@ cmd="$1"
 if [ $# -gt 0 ]; then
 	shift
 fi
-[ -n "$*" ] && jail_list="$*"
+if [ -n "$*" ]; then
+	jail_list="$*"
+fi
 run_rc_command "${cmd}"
