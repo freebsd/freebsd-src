@@ -152,6 +152,7 @@ unlock_map(struct faultstate *fs)
 static void
 unlock_and_deallocate(struct faultstate *fs)
 {
+	boolean_t firstobjneedgiant;
 
 	vm_object_pip_wakeup(fs->object);
 	VM_OBJECT_UNLOCK(fs->object);
@@ -164,6 +165,7 @@ unlock_and_deallocate(struct faultstate *fs)
 		VM_OBJECT_UNLOCK(fs->first_object);
 		fs->first_m = NULL;
 	}
+	firstobjneedgiant = (fs->first_object->flags & OBJ_NEEDGIANT) != 0;
 	vm_object_deallocate(fs->first_object);
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
@@ -174,7 +176,7 @@ unlock_and_deallocate(struct faultstate *fs)
 		fs->vp = NULL;
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
-	if (fs->first_object->flags & OBJ_NEEDGIANT)
+	if (firstobjneedgiant)
 		VM_UNLOCK_GIANT();
 }
 
