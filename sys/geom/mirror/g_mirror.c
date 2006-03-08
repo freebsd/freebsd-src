@@ -985,6 +985,38 @@ g_mirror_sync_done(struct bio *bp)
 }
 
 static void
+g_mirror_kernel_dump(struct bio *bp)
+{
+	struct g_mirror_softc *sc;
+	struct g_mirror_disk *disk;
+	struct bio *cbp;
+	struct g_kerneldump *gkd;
+
+	/*
+	 * We configure dumping to the first component, because this component
+	 * will be used for reading with 'prefer' balance algorithm.
+	 * If the component with the higest priority is currently disconnected
+	 * we will not be able to read the dump after the reboot if it will be
+	 * connected and synchronized later. Can we do something better?
+	 */
+	sc = bp->bio_to->geom->softc;
+	disk = LIST_FIRST(&sc->sc_disks);
+
+	gkd = (struct g_kerneldump *)bp->bio_data;
+	if (gkd->length > bp->bio_to->mediasize)
+		gkd->length = bp->bio_to->mediasize;
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
+	}
+	cbp->bio_done = g_std_done;
+	g_io_request(cbp, disk->d_consumer);
+	G_MIRROR_DEBUG(1, "Kernel dump will go to %s.",
+	    g_mirror_get_diskname(disk));
+}
+
+static void
 g_mirror_start(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
@@ -1005,6 +1037,11 @@ g_mirror_start(struct bio *bp)
 	case BIO_DELETE:
 		break;
 	case BIO_GETATTR:
+		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+			g_mirror_kernel_dump(bp);
+			return;
+		}
+		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
