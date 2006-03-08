@@ -422,7 +422,6 @@ notfound:
 				enduseful = slotoffset + slotsize;
 		}
 		dp->i_endoff = roundup2(enduseful, DIRBLKSIZ);
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		/*
 		 * We return with the directory locked, so that
 		 * the parameters we set up above will still be
