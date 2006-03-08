@@ -181,11 +181,9 @@ fdesc_lookup(ap)
 		goto bad;
 	}
 
-	VOP_UNLOCK(dvp, 0, td);
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
 		VREF(dvp);
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		return (0);
 	}
 
@@ -216,12 +214,12 @@ fdesc_lookup(ap)
 	if (error)
 		goto bad;
 	VTOFDESC(fvp)->fd_fd = fd;
-	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (fvp != dvp)
+		vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = fvp;
 	return (0);
 
 bad:
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = NULL;
 	return (error);
 }
