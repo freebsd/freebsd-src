@@ -130,7 +130,7 @@ struct faultstate {
 	struct vnode *vp;
 };
 
-static __inline void
+static inline void
 release_page(struct faultstate *fs)
 {
 	vm_page_lock_queues();
@@ -140,7 +140,7 @@ release_page(struct faultstate *fs)
 	fs->m = NULL;
 }
 
-static __inline void
+static inline void
 unlock_map(struct faultstate *fs)
 {
 	if (fs->lookup_still_valid) {

@@ -980,7 +980,7 @@ vm_page_activate(vm_page_t m)
  *	The page queues must be locked.
  *	This routine may not block.
  */
-static __inline void
+static inline void
 vm_page_free_wakeup(void)
 {
 
@@ -1220,7 +1220,7 @@ vm_page_unwire(vm_page_t m, int activate)
  *
  * This routine may not block.
  */
-static __inline void
+static inline void
 _vm_page_deactivate(vm_page_t m, int athead)
 {
 
@@ -1449,7 +1449,7 @@ retrylookup:
  *
  * Inputs are required to range within a page.
  */
-__inline int
+inline int
 vm_page_bits(int base, int size)
 {
 	int first_bit;

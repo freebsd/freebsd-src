@@ -304,7 +304,7 @@ vm_pageq_remove(vm_page_t m)
  *	This routine may only be called from the vm_pageq_find()
  *	function in this file.
  */
-static __inline vm_page_t
+static inline vm_page_t
 _vm_pageq_find(int basequeue, int index)
 {
 	int i;
