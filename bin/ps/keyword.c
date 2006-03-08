@@ -295,8 +295,9 @@ parsefmt(const char *p, int user)
 static VAR *
 findvar(char *p, int user, char **header)
 {
+	size_t rflen;
 	VAR *v, key;
-	char *hp;
+	char *hp, *realfmt;
 
 	hp = strchr(p, '=');
 	if (hp)
@@ -306,11 +307,17 @@ findvar(char *p, int user, char **header)
 	v = bsearch(&key, var, sizeof(var)/sizeof(VAR) - 1, sizeof(VAR), vcmp);
 
 	if (v && v->alias) {
-		if (hp) {
-			warnx("%s: illegal keyword specification", p);
-			eval = 1;
-		}
-		parsefmt(v->alias, user);
+		/*
+		 * XXX - This processing will not be correct for any alias
+		 * which expands into a list of format keywords.  Presently
+		 * there are no aliases which do that.
+		 */
+		rflen = strlen(v->alias) + strlen(hp) + 2;
+		realfmt = malloc(rflen);
+		strlcpy(realfmt, v->alias, rflen);
+		strlcat(realfmt, "=", rflen);
+		strlcat(realfmt, hp, rflen);
+		parsefmt(realfmt, user);
 		return ((VAR *)NULL);
 	}
 	if (!v) {
