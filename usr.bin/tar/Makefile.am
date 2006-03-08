@@ -14,8 +14,7 @@ bsdtar_SOURCES=				\
 		tree.h			\
 		util.c			\
 		write.c
-bsdtar_LDADD=	-larchive -lbz2 -lz
-
+bsdtar_LDADD= -L../libarchive -larchive -lbz2 -lz
+bsdtar_CPPFLAGS= -I../libarchive
 dist_man_MANS=	bsdtar.1
-
-DISTCLEANFILES=	getdate.c getdate.h
+EXTRA_DIST= test/test.sh
