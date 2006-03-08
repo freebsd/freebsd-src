@@ -12,7 +12,7 @@
 #include <support/kdb.h>
 
 #ifdef DDB
-DB_SET(xfs, xfs_ddb_cmd, db_cmd_set, CS_MORE, NULL)
+DB_FUNC(xfs, xfs_ddb_cmd, db_cmd_set, CS_MORE, NULL)
 {
 	db_error("No commands registered.\n");
 }
