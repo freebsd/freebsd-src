@@ -297,6 +297,8 @@ For partition
 .Ql c ,
 .Cm *
 will be interpreted as an offset of 0.
+The first partition should start at offset 16, because the first 16 sectors are
+reserved for metadata.
 .It Ar fstype
 Describes the purpose of the partition.
 The example shows all currently used partition types.
