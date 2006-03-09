@@ -409,7 +409,9 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 		goto enable_fail;
 	}
 	if ((cpi.target_sprt & PIT_PROCESSOR) == 0) {
-		printf("controller does not support target mode\n");
+		cpi.dev_name[DEV_IDLEN-1] = 0;
+		printf("controller %s%d does not support target mode\n",
+		    cpi.dev_name, cpi.unit_number);
 		status = CAM_FUNC_NOTAVAIL;
 		goto enable_fail;
 	}
