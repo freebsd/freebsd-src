@@ -779,7 +779,11 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 	uu = (tu * ut) / tt;
 	su = (tu * st) / tt;
 	iu = tu - uu - su;
-	if (tu < ptu) {
+	if (tu + 3 > ptu) {
+		/* Numeric slop for low counts */
+	} else if (101 * tu > 100 * ptu) {
+		/* 1% slop for large counts */
+	} else {
 		printf(
 "calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
 		    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
