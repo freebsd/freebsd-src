@@ -330,6 +330,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 	vm_object_t backing_object, object;
 	vm_ooffset_t offset;
 	struct vnode *vp;
+	struct mount *mp;
 
 	if (!mac_mmap_revocation)
 		return;
@@ -407,6 +408,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 				 * copy-on-write.
 				 */
 				vm_object_reference(object);
+				(void) vn_start_write(vp, &mp, V_WAIT);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 				VM_OBJECT_LOCK(object);
 				vm_object_page_clean(object,
@@ -416,6 +418,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 				    OBJPC_SYNC);
 				VM_OBJECT_UNLOCK(object);
 				VOP_UNLOCK(vp, 0, td);
+				vn_finished_write(mp);
 				vm_object_deallocate(object);
 				/*
 				 * Why bother if there's no read permissions
