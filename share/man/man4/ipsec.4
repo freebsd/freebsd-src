@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 11, 2005
+.Dd February 14, 2006
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -40,42 +40,44 @@
 .In netinet6/ipsec.h
 .Sh DESCRIPTION
 .Nm
-is a security protocol in Internet Protocol layer.
+is a security protocol implemented within the Internet Protocol layer
+of the TCP/IP stack.
 .Nm
 is defined for both IPv4 and IPv6
 .Xr ( inet 4
 and
 .Xr inet6 4 ) .
 .Nm
-consists of two sub-protocols, namely
-ESP
-(encapsulated security payload)
-and AH
-(authentication header).
-ESP protects IP payload from wire-tapping by encrypting it by
+contains two protocols, 
+ESP, the encapsulated security payload protocol and
+AH, the authentication header protocol.
+ESP prevents unauthorized parties from reading the payload of an IP packet
+by encrypting it using
 secret key cryptography algorithms.
-AH guarantees integrity of IP packet
-and protects it from intermediate alteration or impersonation,
-by attaching cryptographic checksum computed by one-way hash functions.
+AH both authenticates guarantees the integrity of an IP packet
+by attaching a cryptographic checksum computed using one-way hash functions.
 .Nm
-has two operation modes: transport mode and tunnel mode.
-Transport mode is for protecting peer-to-peer communication between end nodes.
-Tunnel mode includes IP-in-IP encapsulation operation
-and is designed for security gateways, like VPN configurations.
+has operates in one of two modes: transport mode or tunnel mode.
+Transport mode is used to protect peer-to-peer communication between end nodes.
+Tunnel mode encapsulates IP packets within other IP packets
+and is designed for security gateways such as VPN endpoints.
 .\"
 .Ss Kernel interface
 .Nm
-is controlled by key management engine and policy engine,
-in the operating system kernel.
+is controlled by a key management and policy engine,
+that reside in the operating system kernel.  Key management
+is the process of associating keys with security associations, also
+know as SAs.  Policy management dictates when new security
+associations created or destroyed.
 .Pp
-Key management engine can be accessed from the userland by using
+The key management engine can be accessed from userland by using
 .Dv PF_KEY
 sockets.
 The
 .Dv PF_KEY
 socket API is defined in RFC2367.
 .Pp
-Policy engine can be controlled by extended part of
+The policy engine is controlled by an extension to the
 .Dv PF_KEY
 API,
 .Xr setsockopt 2
@@ -83,65 +85,58 @@ operations, and
 .Xr sysctl 3
 interface.
 The kernel implements
-extended version of
+an extended version of the
 .Dv PF_KEY
-interface, and allows you to define IPsec policy like per-packet filters.
+interface, and allows the programmer to define IPsec policies
+which are similar to the per-packet filters.  The
 .Xr setsockopt 2
 interface is used to define per-socket behavior, and
 .Xr sysctl 3
 interface is used to define host-wide default behavior.
 .Pp
-The kernel code does not implement dynamic encryption key exchange protocol
-like IKE
+The kernel code does not implement a dynamic encryption key exchange protocol
+such as IKE
 (Internet Key Exchange).
-That should be implemented as userland programs
-(usually as daemons),
-by using the above described APIs.
+Key exchange protocols are beyond what is necessary in the kernel and
+should be implemented as daemon processes which call the
+.Nm APIs.
 .\"
 .Ss Policy management
-The kernel implements experimental policy management code.
-You can manage the IPsec policy in two ways.
-One is to configure per-socket policy using
-.Xr setsockopt 2 .
-The other is to configure kernel packet filter-based policy using
+IPsec policies can be managed in one of two ways, either by 
+configuring per-socket policies using the
+.Xr setsockopt 2 
+system calls, or by configuring kernel level packet filter-based
+policies using the
 .Dv PF_KEY
-interface, via
-.Xr setkey 8 .
-In both cases, IPsec policy must be specified with syntax described in
+interface, via the
+.Xr setkey 8 
+command.
+In either case, IPsec policies must be specified using the syntax described in
 .Xr ipsec_set_policy 3 .
-.Pp
-With
-.Xr setsockopt 2 ,
-you can define IPsec policy in per-socket basis.
-You can enforce particular IPsec policy onto packets that go through
-particular socket.
-.Pp
-With
+Please refer to the
 .Xr setkey 8
-you can define IPsec policy against packets,
-using sort of packet filtering rule.
-Refer to
-.Xr setkey 8
-on how to use it.
+man page for instructions on its use.
 .Pp
-In the latter case,
+When setting policies using the
+.Xr setkey 8
+command the
 .Dq Li default
-policy is allowed for use with
-.Xr setkey 8 .
-By configuring policy to
-.Li default ,
-you can refer system-wide
-.Xr sysctl 8
-variable for default settings.
-The following variables are available.
+option you can have the system use its default policy, explained
+below, for processing packets.
+The following sysctl variables are available for configuring the
+system's IPsec behavior.  The variables can have one of two values.
+A
 .Li 1
 means
 .Dq Li use ,
-and
+which means that if there is a security association then use it but if
+there is not then the packets are not processed by IPsec.  The value
 .Li 2
-means
-.Dq Li require
-in the syntax.
+is synonymous with
+.Dq Li require ,
+which requires that a security association must exist for the packets
+to move, and not be dropped.  These terms are defined in
+.Xr ipsec_set_policy 8 .
 .Bl -column net.inet6.ipsec6.esp_trans_deflev integerxxx
 .It Sy "Name	Type	Changeable"
 .It "net.inet.ipsec.esp_trans_deflev	integer	yes"
@@ -154,8 +149,9 @@ in the syntax.
 .It "net.inet6.ipsec6.ah_net_deflev	integer	yes"
 .El
 .Pp
-If kernel finds no matching policy system wide default value is applied.
-System wide default is specified by the following
+If the kernel does not find a matching, system wide, policy then the
+default value is applied.  The system wide default policy is specified
+by the following
 .Xr sysctl 8
 variables.
 .Li 0
@@ -174,7 +170,7 @@ means
 .Ss Miscellaneous sysctl variables
 The following variables are accessible via
 .Xr sysctl 8 ,
-for tweaking kernel IPsec behavior:
+for tweaking the kernel's IPsec behavior:
 .Bl -column net.inet6.ipsec6.inbonud_call_ike integerxxx
 .It Sy "Name	Type	Changeable"
 .It "net.inet.ipsec.ah_cleartos	integer	yes"
@@ -189,28 +185,29 @@ for tweaking kernel IPsec behavior:
 The variables are interpreted as follows:
 .Bl -tag -width 6n
 .It Li ipsec.ah_cleartos
-If set to non-zero, the kernel clears type-of-service field in the IPv4 header
+If set to non-zero, the kernel clears the type-of-service field in the IPv4 header
 during AH authentication data computation.
-The variable is for tweaking AH behavior to interoperate with devices that
+This variable is used to get current systems to inter-operate with devices that
 implement RFC1826 AH.
 It should be set to non-zero
 (clear the type-of-service field)
 for RFC2402 conformance.
 .It Li ipsec.ah_offsetmask
-During AH authentication data computation, the kernel will include
+During AH authentication data computation, the kernel will include a
 16bit fragment offset field
 (including flag bits)
-in IPv4 header, after computing logical AND with the variable.
-The variable is for tweaking AH behavior to interoperate with devices that
+in the IPv4 header, after computing logical AND with the variable.
+The variable is used for inter-operating with devices that
 implement RFC1826 AH.
 It should be set to zero
 (clear the fragment offset field during computation)
 for RFC2402 conformance.
 .It Li ipsec.dfbit
-The variable configures the kernel behavior on IPv4 IPsec tunnel encapsulation.
-If set to 0, DF bit on the outer IPv4 header will be cleared.
-1 means that the outer DF bit is set regardless from the inner DF bit.
-2 means that the DF bit is copied from the inner header to the outer.
+This variable configures the kernel behavior on IPv4 IPsec tunnel encapsulation.
+If set to 0, the DF bit on the outer IPv4 header will be cleared while
+1 means that the outer DF bit is set regardless from the inner DF bit and
+2 indicates that the DF bit is copied from the inner header to the
+outer one.
 The variable is supplied to conform to RFC2401 chapter 6.1.
 .It Li ipsec.ecn
 If set to non-zero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
@@ -225,36 +222,31 @@ If set to non-zero, debug messages will be generated via
 .Xr syslog 3 .
 .El
 .Pp
-Variables under
+Variables under the
 .Li net.inet6.ipsec6
-tree has similar meaning as the
-.Li net.inet.ipsec
-counterpart.
+tree have similar meanings to those described above.
 .\"
 .Sh PROTOCOLS
 The
 .Nm
-protocol works like plug-in to
+protocol acts as a plug-in to the
 .Xr inet 4
 and
 .Xr inet6 4
-protocols.
-Therefore,
-.Nm
-supports most of the protocols defined upon those IP-layer protocols.
-Some of the protocols, like
+protocols and therefore supports most of the protocols defined upon
+those IP-layer protocols.  The
 .Xr icmp 4
-or
-.Xr icmp6 4 ,
-may behave differently with
-.Nm .
-This is because
+and
+.Xr icmp6 4 
+protocols may behave differently with
+.Nm 
+because
 .Nm
 can prevent
 .Xr icmp 4
 or
 .Xr icmp6 4
-routines from looking into IP payload.
+routines from looking into the IP payload.
 .\"
 .Sh SEE ALSO
 .Xr ioctl 2 ,
@@ -300,17 +292,17 @@ The implementation described herein appeared in WIDE/KAME IPv6/IPsec stack.
 .Sh BUGS
 The IPsec support is subject to change as the IPsec protocols develop.
 .Pp
-There is no single standard for policy engine API,
+There is no single standard for the policy engine API,
 so the policy engine API described herein is just for KAME implementation.
 .Pp
 AH and tunnel mode encapsulation may not work as you might expect.
 If you configure inbound
 .Dq require
-policy against AH tunnel or any IPsec encapsulating policy with AH
+policy with an AH tunnel or any IPsec encapsulating policy with AH
 (like
 .Dq Li esp/tunnel/A-B/use ah/transport/A-B/require ) ,
 tunnelled packets will be rejected.
-This is because we enforce policy check on inner packet on reception,
+This is because the policy check is enforced on the inner packet on reception,
 and AH authenticates encapsulating
 (outer)
 packet, not the encapsulated
@@ -320,18 +312,12 @@ packet
 The issue will be solved when we revamp our policy engine to keep all the
 packet decapsulation history.
 .Pp
-Under certain condition,
-truncated result may be raised from the kernel
-against
+When a large database of security associations or policies is present
+in the kernel the
 .Dv SADB_DUMP
 and
 .Dv SADB_SPDDUMP
-operation on
+operations on
 .Dv PF_KEY
-socket.
-This occurs if there are too many database entries in the kernel
-and socket buffer for the
-.Dv PF_KEY
-socket is insufficient.
-If you manipulate many IPsec key/policy database entries,
-increase the size of socket buffer.
+sockets may fail due to lack of space.  Increasing the socket buffer
+size may alleviate this problem.
