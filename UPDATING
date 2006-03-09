@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060309:
+	The support for Linux applications the 3dfx kernel module used
+	to provide is in a separate module named 3dfx_linux now.  The
+	latter will pull in 3dfx.ko and linux.ko through its dependencies
+	when loaded.
+
 20060211:
 	An IPv6 support of ipfw was enabled by default.  If you don't
 	want to filter an IPv6 by ipfw, please add following line into
