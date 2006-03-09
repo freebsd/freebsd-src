@@ -177,10 +177,9 @@ DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 # Build and package both GENERIC and SMP kernels if the target
 # has both configuration files.  Otherwise only GENERIC is done.
 #
+KERNELS+=	GENERIC
 .if !exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
-KERNELS?=	GENERIC
-.else
-KERNELS?=	GENERIC SMP
+KERNELS+=	SMP
 .endif
 
 # mountpoint for filesystems.
