@@ -2408,6 +2408,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 	case PMC_OP_CONFIGURELOG:
 	{
+		struct pmc *pm;
 		struct pmc_owner *po;
 		struct pmc_op_configurelog cl;
 		struct proc *p;
@@ -2436,8 +2437,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 			pmclog_process_closelog(po);
 			error = pmclog_flush(po);
-			if (error == 0)
+			if (error == 0) {
+				LIST_FOREACH(pm, &po->po_pmcs, pm_next)
+				    if (pm->pm_flags & PMC_F_NEEDS_LOGFILE)
+					    pmc_stop(pm);
 				error = pmclog_deconfigure_log(po);
+			}
 		} else
 			error = EINVAL;
 	}
