@@ -101,6 +101,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 	int error;
 	int upgraded;
 	struct bufobj *bo;
+	struct mount *mp;
 
 	/* Check for dirty mmap, pending writes and dirty buffers */
 	spl = splbio();
@@ -112,7 +113,15 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		splx(spl);
 		VI_UNLOCK(vp);
 		
-		if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
+		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+			if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE)
+				upgraded = 1;
+			else
+				upgraded = 0;
+			VOP_UNLOCK(vp, 0, td);
+			(void) vn_start_write(vp, &mp, V_WAIT);
+			VOP_LOCK(vp, LK_EXCLUSIVE, td);
+		} else if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
 			upgraded = 1;
 			/* Upgrade to exclusive lock, this might block */
 			VOP_LOCK(vp, LK_UPGRADE, td);
@@ -161,6 +170,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		VI_UNLOCK(vp);
 		if (upgraded != 0)
 			VOP_LOCK(vp, LK_DOWNGRADE, td);
+		vn_finished_write(mp);
 	} else {
 		splx(spl);
 		VI_UNLOCK(vp);
