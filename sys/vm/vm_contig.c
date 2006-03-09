@@ -104,15 +104,21 @@ vm_contig_launder_page(vm_page_t m)
 	if (m->dirty == 0 && m->hold_count == 0)
 		pmap_remove_all(m);
 	if (m->dirty) {
+		if ((object->flags & OBJ_DEAD) != 0) {
+			VM_OBJECT_UNLOCK(object);
+			return (EAGAIN);
+		}
 		if (object->type == OBJT_VNODE) {
 			vm_page_unlock_queues();
 			vp = object->handle;
+			vm_object_reference_locked(object);
 			VM_OBJECT_UNLOCK(object);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 			VM_OBJECT_LOCK(object);
 			vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(object);
 			VOP_UNLOCK(vp, 0, curthread);
+			vm_object_deallocate(object);
 			vm_page_lock_queues();
 			return (0);
 		} else if (object->type == OBJT_SWAP ||
