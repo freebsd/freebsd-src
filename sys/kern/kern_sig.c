@@ -1303,13 +1303,8 @@ out:
 			ktrpsig(sig, action, &td->td_sigmask, 0);
 		}
 #endif
-		_STOPEVENT(p, S_SIG, sig);
-
-		if (sig == SIGKILL) {
-			p->p_code = ksi->ksi_code;
-			p->p_sig = sig;
+		if (sig == SIGKILL)
 			sigexit(td, sig);
-		}
 	}
 	PROC_UNLOCK(p);
 	return (error);
