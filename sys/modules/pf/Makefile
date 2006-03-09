@@ -11,9 +11,6 @@ SRCS = 	pf.c pf_if.c pf_subr.c pf_osfp.c pf_ioctl.c pf_norm.c pf_table.c \
 CFLAGS+=  -I${.CURDIR}/../../contrib/pf
 
 .if !defined(KERNBUILDDIR)
-opt_pf.h:
-	echo "#define DEV_PF 1" > opt_pf.h
-
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
