@@ -413,6 +413,7 @@ typedef enum __ns_class {
 #define	ns_name_pack		__ns_name_pack
 #define	ns_name_compress	__ns_name_compress
 #define	ns_name_uncompress	__ns_name_uncompress
+#define	ns_name_skip		__ns_name_skip
 
 __BEGIN_DECLS
 u_int		ns_get16(const u_char *);
