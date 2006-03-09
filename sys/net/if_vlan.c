@@ -1315,10 +1315,8 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error)
 			break;
 		if (vlr.vlr_parent[0] == '\0') {
-			VLAN_LOCK();
 			vlan_unconfig(ifp);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			VLAN_UNLOCK();
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
