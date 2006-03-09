@@ -941,6 +941,16 @@ rescan0:
 			}
 
 			/*
+			 * Following operations may unlock
+			 * vm_page_queue_mtx, invalidating the 'next'
+			 * pointer.  To prevent an inordinate number
+			 * of restarts we use our marker to remember
+			 * our place.
+			 *
+			 */
+			TAILQ_INSERT_AFTER(&vm_page_queues[PQ_INACTIVE].pl,
+					   m, &marker, pageq);
+			/*
 			 * The object is already known NOT to be dead.   It
 			 * is possible for the vget() to block the whole
 			 * pageout daemon, but the new low-memory handling
@@ -971,8 +981,8 @@ rescan0:
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					VM_OBJECT_UNLOCK(object);
-					continue;
+					vp = NULL;
+					goto unlock_and_continue;
 				}
 				vm_page_unlock_queues();
 				VI_LOCK(vp);
@@ -985,8 +995,8 @@ rescan0:
 					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					VM_OBJECT_UNLOCK(object);
-					continue;
+					vp = NULL;
+					goto unlock_and_continue;
 				}
 				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
@@ -999,7 +1009,8 @@ rescan0:
 				 */
 				if (m->queue != PQ_INACTIVE ||
 				    m->object != object ||
-				    object->handle != vp) {
+				    object->handle != vp ||
+				    TAILQ_NEXT(m, pageq) != &marker) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					goto unlock_and_continue;
@@ -1033,21 +1044,14 @@ rescan0:
 			 * laundry.  If it is still in the laundry, then we
 			 * start the cleaning operation. 
 			 *
-			 * This operation may cluster, invalidating the 'next'
-			 * pointer.  To prevent an inordinate number of
-			 * restarts we use our marker to remember our place.
-			 *
 			 * decrement page_shortage on success to account for
 			 * the (future) cleaned page.  Otherwise we could wind
 			 * up laundering or cleaning too many pages.
 			 */
-			TAILQ_INSERT_AFTER(&vm_page_queues[PQ_INACTIVE].pl, m, &marker, pageq);
 			if (vm_pageout_clean(m) != 0) {
 				--page_shortage;
 				--maxlaunder;
 			}
-			next = TAILQ_NEXT(&marker, pageq);
-			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
 unlock_and_continue:
 			VM_OBJECT_UNLOCK(object);
 			if (vp) {
@@ -1056,6 +1060,9 @@ unlock_and_continue:
 				vn_finished_write(mp);
 				vm_page_lock_queues();
 			}
+			next = TAILQ_NEXT(&marker, pageq);
+			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl,
+				     &marker, pageq);
 			continue;
 		}
 		VM_OBJECT_UNLOCK(object);
