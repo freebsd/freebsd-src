@@ -133,7 +133,7 @@ static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
 	((u_int32_t)		\
 	 (IOART_INTMSET |	\
 	  IOART_DESTPHY |	\
-	  IOART_DELFIXED))
+	  IOART_DELLOPRI))
 
 #define DEFAULT_ISA_FLAGS	\
 	((u_int32_t)		\
@@ -141,7 +141,7 @@ static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
 	  IOART_TRGREDG |	\
 	  IOART_INTAHI |	\
 	  IOART_DESTPHY |	\
-	  IOART_DELFIXED))
+	  IOART_DELLOPRI))
 
 void
 io_apic_set_id(int apic, int id)
@@ -297,7 +297,7 @@ io_apic_setup(int apic)
 	  IOART_TRGREDG |	\
 	  IOART_INTAHI |	\
 	  IOART_DESTPHY |	\
-	  IOART_DELFIXED))
+	  IOART_DELLOPRI))
 
 /*
  * Setup the source of External INTerrupts.
