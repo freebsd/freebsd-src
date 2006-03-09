@@ -281,7 +281,7 @@ ata_completed(void *context, int dummy)
 			      ata_cmd2str(request), request->retries,
 			      request->retries == 1 ? "y" : "ies");
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
 	    }
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_DEBUG);
@@ -298,8 +298,7 @@ ata_completed(void *context, int dummy)
 		    device_printf(request->dev, "FAILURE - %s timed out",
 				  ata_cmd2str(request));
 		    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-			printf(" LBA=%llu",
-			       (unsigned long long)request->u.ata.lba);
+			printf(" LBA=%ju", request->u.ata.lba);
 		    printf("\n");
 		}
 	    }
@@ -314,7 +313,7 @@ ata_completed(void *context, int dummy)
 			  "WARNING - %s soft error (ECC corrected)",
 			  ata_cmd2str(request));
 	    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		printf(" LBA=%ju", request->u.ata.lba);
 	    printf("\n");
 	}
 
@@ -325,7 +324,7 @@ ata_completed(void *context, int dummy)
 			      "WARNING - %s UDMA ICRC error (retrying request)",
 			      ata_cmd2str(request));
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
 		request->flags |= (ATA_R_AT_HEAD | ATA_R_REQUEUE);
 		ata_queue_request(request);
@@ -353,7 +352,7 @@ ata_completed(void *context, int dummy)
 		    (request->dmastat & ATA_BMSTAT_ERROR))
 		    printf(" dma=0x%02x", request->dmastat);
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
 	    }
 	    request->result = EIO;

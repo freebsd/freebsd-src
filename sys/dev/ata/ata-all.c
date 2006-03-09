@@ -248,7 +248,7 @@ ata_reinit(device_t dev)
 		      "WARNING - %s requeued due to channel reset",
 		      ata_cmd2str(request));
 	if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-	    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+	    printf(" LBA=%ju", request->u.ata.lba);
 	printf("\n");
 	request->flags |= ATA_R_REQUEUE;
 	ata_queue_request(request);
