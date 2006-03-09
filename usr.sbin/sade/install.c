@@ -909,9 +909,11 @@ installFixupKernel(dialogMenuItem *self, int dists)
 	 *     already and the /boot/kernel we remove is empty.
 	 */
 	vsystem("rm -rf /boot/kernel");
+#if WITH_SMP
 	if (dists & DIST_KERNEL_SMP)
 		vsystem("mv /boot/SMP /boot/kernel");
 	else
+#endif
 		vsystem("mv /boot/GENERIC /boot/kernel");
     }
     return DITEM_SUCCESS | DITEM_RESTORE;
