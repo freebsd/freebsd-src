@@ -883,7 +883,7 @@ cpu_tick_calibrate(int reset)
 			c_delta /= divi;
 			if (c_delta  > cpu_tick_frequency) {
 				if (bootverbose)
-					printf("cpu_tick increased to %ju Hz",
+					printf("cpu_tick increased to %ju Hz\n",
 					    c_delta);
 				cpu_tick_frequency = c_delta;
 			}
