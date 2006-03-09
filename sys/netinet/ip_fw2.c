@@ -1879,8 +1879,6 @@ dump_table(struct ip_fw_chain *ch, ipfw_table *tbl)
 {
 	struct radix_node_head *rnh;
 
-	IPFW_WLOCK_ASSERT(ch);
-
 	if (tbl->tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
 	rnh = ch->tables[tbl->tbl];
@@ -4053,9 +4051,10 @@ ipfw_ctl(struct sockopt *sopt)
 			    sizeof(tbl))))
 				break;
 			IPFW_RLOCK(&layer3_chain);
-			if ((error = count_table(&layer3_chain, tbl, &cnt)))
-				break;
+			error = count_table(&layer3_chain, tbl, &cnt);
 			IPFW_RUNLOCK(&layer3_chain);
+			if (error)
+				break;
 			error = sooptcopyout(sopt, &cnt, sizeof(cnt));
 		}
 		break;
@@ -4081,14 +4080,13 @@ ipfw_ctl(struct sockopt *sopt)
 			}
 			tbl->size = (size - sizeof(*tbl)) /
 			    sizeof(ipfw_table_entry);
-			IPFW_WLOCK(&layer3_chain);
+			IPFW_RLOCK(&layer3_chain);
 			error = dump_table(&layer3_chain, tbl);
+			IPFW_RUNLOCK(&layer3_chain);
 			if (error) {
-				IPFW_WUNLOCK(&layer3_chain);
 				free(tbl, M_TEMP);
 				break;
 			}
-			IPFW_WUNLOCK(&layer3_chain);
 			error = sooptcopyout(sopt, tbl, size);
 			free(tbl, M_TEMP);
 		}
