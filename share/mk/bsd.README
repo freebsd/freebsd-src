@@ -309,7 +309,7 @@ To build foo from foo.c with a manual page foo.2, add the line:
 
 If foo does not have a manual page at all, add the line:
 
-	NO_MAN=	noman
+	MAN=
 
 If foo has multiple source files, add the line:
 
