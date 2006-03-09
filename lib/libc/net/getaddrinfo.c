@@ -2478,6 +2478,17 @@ res_searchN(name, target)
 		ret = res_querydomainN(name, NULL, target);
 		if (ret > 0 || trailing_dot)
 			return (ret);
+		if (errno == ECONNREFUSED) {
+			h_errno = TRY_AGAIN;
+			return (-1);
+		}
+		switch (h_errno) {
+		case NO_DATA:
+		case HOST_NOT_FOUND:
+			break;
+		default:
+			return (-1);
+		}
 		saved_herrno = h_errno;
 		tried_as_is++;
 	}
@@ -2553,6 +2564,14 @@ res_searchN(name, target)
 		}
 	}
 
+	switch (h_errno) {
+	case NO_DATA:
+	case HOST_NOT_FOUND:
+		break;
+	default:
+		goto giveup;
+	}
+
 	/*
 	 * If the query has not already been tried as is then try it
 	 * unless RES_NOTLDQUERY is set and there were no dots.
@@ -2572,6 +2591,7 @@ res_searchN(name, target)
 	 * else send back meaningless h_errno, that being the one from
 	 * the last DNSRCH we did.
 	 */
+giveup:
 	if (saved_herrno != -1)
 		h_errno = saved_herrno;
 	else if (got_nodata)
