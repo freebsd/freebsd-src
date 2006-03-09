@@ -590,7 +590,7 @@ ROOTDEVNAME		opt_rootdevname.h
 FDC_DEBUG		opt_fdc.h
 PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
-TDFX_LINUX		opt_tdfx.h
+TDFX_LINUX		opt_dontuse.h
 
 KTR			opt_global.h
 KTR_ALQ			opt_ktr.h
