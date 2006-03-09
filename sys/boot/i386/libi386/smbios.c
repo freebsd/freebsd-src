@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2005, 2006 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 
 #include "btxv86.h"
+#include "libi386.h"
 
 /*
  * Detect SMBIOS and export information about the SMBIOS into the
@@ -54,21 +55,26 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS_SIG		"_SM_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
 
-static u_int8_t	smbios_enabled_sockets = 0;
-static u_int8_t	smbios_populated_sockets = 0;
+static uint8_t	smbios_enabled_sockets = 0;
+static uint8_t	smbios_populated_sockets = 0;
 
-static u_int8_t	*smbios_parse_table(const u_int8_t *dmi);
-static void	smbios_setenv(const char *env, const u_int8_t *dmi,
+static uint8_t	*smbios_parse_table(const uint8_t *dmi);
+static void	smbios_setenv(const char *name, const uint8_t *dmi,
 		    const int offset);
-static u_int8_t	smbios_checksum(const u_int8_t *addr, const u_int8_t len);
-static u_int8_t	*smbios_sigsearch(const caddr_t addr, const u_int32_t len);
+static uint8_t	smbios_checksum(const caddr_t addr, const uint8_t len);
+static uint8_t	*smbios_sigsearch(const caddr_t addr, const uint32_t len);
+
+#ifdef SHOW_SENSITIVE_INFO
+static void	smbios_setuuid(const char *name, const uint8_t *dmi,
+		    const int offset);
+#endif
 
 void
 smbios_detect(void)
 {
-	u_int8_t	*smbios, *dmi, *addr;
-	u_int16_t	i, length, count;
-	u_int32_t	paddr;
+	uint8_t		*smbios, *dmi, *addr;
+	uint16_t	i, length, count;
+	uint32_t	paddr;
 	char		buf[4];
 
 	/* locate and validate the SMBIOS */
@@ -76,9 +82,9 @@ smbios_detect(void)
 	if (smbios == NULL)
 		return;
 
-	length = *(u_int16_t *)(smbios + 0x16);	/* Structure Table Length */
-	paddr = *(u_int32_t *)(smbios + 0x18);	/* Structure Table Address */
-	count = *(u_int16_t *)(smbios + 0x1c);	/* No of SMBIOS Structures */
+	length = *(uint16_t *)(smbios + 0x16);	/* Structure Table Length */
+	paddr = *(uint32_t *)(smbios + 0x18);	/* Structure Table Address */
+	count = *(uint16_t *)(smbios + 0x1c);	/* No of SMBIOS Structures */
 
 	for (dmi = addr = PTOV(paddr), i = 0;
 	     dmi - addr < length && i < count; i++)
@@ -89,10 +95,10 @@ smbios_detect(void)
 	setenv("smbios.socket.populated", buf, 1);
 }
 
-static u_int8_t *
-smbios_parse_table(const u_int8_t *dmi)
+static uint8_t *
+smbios_parse_table(const uint8_t *dmi)
 {
-	u_int8_t	*dp;
+	uint8_t		*dp;
 
 	switch(dmi[0]) {
 	case 0:		/* Type 0: BIOS */
@@ -105,17 +111,28 @@ smbios_parse_table(const u_int8_t *dmi)
 		smbios_setenv("smbios.system.maker", dmi, 0x04);
 		smbios_setenv("smbios.system.product", dmi, 0x05);
 		smbios_setenv("smbios.system.version", dmi, 0x06);
+#ifdef SHOW_SENSITIVE_INFO
+		smbios_setenv("smbios.system.serial", dmi, 0x07);
+		smbios_setuuid("smbios.system.uuid", dmi, 0x08);
+#endif
 		break;
 
 	case 2:		/* Type 2: Base Board (or Module) */
 		smbios_setenv("smbios.planar.maker", dmi, 0x04);
 		smbios_setenv("smbios.planar.product", dmi, 0x05);
 		smbios_setenv("smbios.planar.version", dmi, 0x06);
+#ifdef SHOW_SENSITIVE_INFO
+		smbios_setenv("smbios.planar.serial", dmi, 0x07);
+#endif
 		break;
 
 	case 3:		/* Type 3: System Enclosure or Chassis */
 		smbios_setenv("smbios.chassis.maker", dmi, 0x04);
 		smbios_setenv("smbios.chassis.version", dmi, 0x06);
+#ifdef SHOW_SENSITIVE_INFO
+		smbios_setenv("smbios.chassis.serial", dmi, 0x07);
+		smbios_setenv("smbios.chassis.tag", dmi, 0x08);
+#endif
 		break;
 
 	case 4:		/* Type 4: Processor Information */
@@ -147,7 +164,7 @@ smbios_parse_table(const u_int8_t *dmi)
 	}
 	
 	/* find structure terminator */
-	dp = (u_int8_t *)(dmi + dmi[1]);
+	dp = __DECONST(uint8_t *, dmi + dmi[1]);
 	while (dp[0] != 0 || dp[1] != 0)
 		dp++;
 
@@ -155,42 +172,43 @@ smbios_parse_table(const u_int8_t *dmi)
 }
 
 static void
-smbios_setenv(const char *str, const u_int8_t *dmi, const int offset)
+smbios_setenv(const char *name, const uint8_t *dmi, const int offset)
 {
-	char		*cp;
+	char		*cp = __DECONST(char *, dmi + dmi[1]);
 	int		i;
 
 	/* skip undefined string */
 	if (dmi[offset] == 0)
 		return;
 
-	for (cp = (char *)(dmi + dmi[1]), i = 0; i < dmi[offset] - 1; i++)
+	for (i = 0; i < dmi[offset] - 1; i++)
 		cp += strlen(cp) + 1;
-	setenv(str, cp, 1);
+	setenv(name, cp, 1);
 }
 
-static u_int8_t
-smbios_checksum(const u_int8_t *addr, const u_int8_t len)
+static uint8_t
+smbios_checksum(const caddr_t addr, const uint8_t len)
 {
-	u_int8_t	sum;
+	const uint8_t	*cp = addr;
+	uint8_t		sum;
 	int		i;
 
 	for (sum = 0, i = 0; i < len; i++)
-		sum += addr[i];
+		sum += cp[i];
 
 	return(sum);
 }
 
-static u_int8_t *
-smbios_sigsearch(const caddr_t addr, const u_int32_t len)
+static uint8_t *
+smbios_sigsearch(const caddr_t addr, const uint32_t len)
 {
 	caddr_t		cp;
 
 	/* search on 16-byte boundaries */
-	for (cp = addr; cp - addr < len; cp += SMBIOS_STEP) {
+	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP) {
 		/* compare signature, validate checksum */
 		if (!strncmp(cp, SMBIOS_SIG, 4)) {
-			if (smbios_checksum(cp, *(cp + 0x05)))
+			if (smbios_checksum(cp, *(uint8_t *)(cp + 0x05)))
 				continue;
 			if (strncmp(cp + 0x10, SMBIOS_DMI_SIG, 5))
 				continue;
@@ -203,3 +221,29 @@ smbios_sigsearch(const caddr_t addr, const u_int32_t len)
 
 	return(NULL);
 }
+
+#ifdef SHOW_SENSITIVE_INFO
+static void
+smbios_setuuid(const char *name, const uint8_t *dmi, const int offset)
+{
+	const uint8_t	*idp = dmi + offset;
+	int		i, f = 0, z = 0;
+	char		uuid[37];
+
+	for (i = 0; i < 16; i++) {
+		if (idp[i] == 0xff)
+			f++;
+		if (idp[i] == 0x00)
+			z++;
+	}
+	if (f != 16 && z != 16) {
+		sprintf(uuid, "%02X%02X%02X%02X-"
+		    "%02X%02X-%02X%02X-%02X%02X-"
+		    "%02X%02X%02X%02X%02X%02X",
+		    idp[0], idp[1], idp[2], idp[3],
+		    idp[4], idp[5], idp[6], idp[7], idp[8], idp[9],
+		    idp[10], idp[11], idp[12], idp[13], idp[14], idp[15]);
+		setenv(name, uuid, 1);
+	}
+}
+#endif
