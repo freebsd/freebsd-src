@@ -9,9 +9,6 @@ SRCS = 	if_pflog.c \
 CFLAGS+=  -I${.CURDIR}/../../contrib/pf
 
 .if !defined(KERNBUILDDIR)
-opt_pf.h:
-	echo "#define DEV_PFLOG 1" > opt_pf.h
-
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
