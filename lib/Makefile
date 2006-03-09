@@ -31,7 +31,8 @@ SUBDIR=	${_csu} libbsm libcom_err libcrypt libkvm msun libmd libncurses \
 	libgssapi ${_libio} libipsec \
 	libipx libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
-	libpmc ${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
+	libpmc ${_libpthread} librt ${_libsdp} ${_libsm} ${_libsmb} \
+	${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
 	libugidfw ${_libusbhid} ${_libvgl} libwrap liby libz ${_bind}
 
