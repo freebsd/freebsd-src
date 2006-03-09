@@ -335,7 +335,7 @@ ata_interrupt(void *data)
 	}
 
 	/*
-	 * we have the HW locks, so end the tranaction for this request
+	 * we have the HW locks, so end the transaction for this request
 	 * if it finishes immediately otherwise wait for next interrupt
 	 */
 	if (ch->hw.end_transaction(request) == ATA_OP_FINISHED) {
