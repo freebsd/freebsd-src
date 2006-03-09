@@ -178,7 +178,7 @@ DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 # has both configuration files.  Otherwise only GENERIC is done.
 #
 KERNELS+=	GENERIC
-.if !exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
+.if exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
 KERNELS+=	SMP
 .endif
 
