@@ -270,10 +270,12 @@ ata_completed(void *context, int dummy)
     /* if we had a timeout, reinit channel and deal with the falldown */
     if (request->flags & ATA_R_TIMEOUT) {
 	/*
-	 * if reinit succeeds and the device doesn't get detached and
+	 * if the channel is still present and
+	 * reinit succeeds and
+	 * the device doesn't get detached and
 	 * there are retries left we reinject this request
 	 */
-	if (!ata_reinit(ch->dev) && !request->result &&
+	if (ch && !ata_reinit(ch->dev) && !request->result &&
 	    (request->retries-- > 0)) {
 	    if (!(request->flags & ATA_R_QUIET)) {
 		device_printf(request->dev,
@@ -473,7 +475,9 @@ ata_completed(void *context, int dummy)
     else
 	sema_post(&request->done);
 
-    ata_start(ch->dev);
+    /* only call ata_start if channel is present */
+    if (ch)
+	ata_start(ch->dev);
 }
 
 void
