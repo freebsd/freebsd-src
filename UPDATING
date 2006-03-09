@@ -27,10 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 
 20060303:
 	The TDFX_LINUX kernel option was retired and replaced by the
-	tdfx_linux device.  The latter can be loaded as a kernel module.
-	Loading it alone should suffice to get 3dfx support for Linux
-	apps because it will pull in tdfx.ko and linux.ko through its
-	dependencies.
+	tdfx_linux device.  The latter can be loaded as the 3dfx_linux.ko
+	kernel module.  Loading it alone should suffice to get 3dfx support
+	for Linux apps because it will pull in 3dfx.ko and linux.ko through
+	its dependencies.
 
 20060201:
 	The kernel ABI to file system modules was changed on i386.
