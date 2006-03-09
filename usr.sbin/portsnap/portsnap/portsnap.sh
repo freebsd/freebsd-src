@@ -328,7 +328,7 @@ fetch_pick_server() {
 # Issue the SRV query and pull out the Priority, Weight, and Target fields.
 	host -t srv "_http._tcp.${SERVERNAME}" |
 	    grep -E "^_http._tcp.${SERVERNAME} has SRV record" |
-	    cut -f 5,6,8 -d ' ' > serverlist
+	    cut -f 5,6,8 -d ' ' | sed -e 's/\.$//' > serverlist
 
 # If no records, give up -- we'll just use the server name we were given.
 	if [ `wc -l < serverlist` -eq 0 ]; then
