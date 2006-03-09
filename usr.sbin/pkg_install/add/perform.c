@@ -245,9 +245,9 @@ pkg_do(char *pkg)
      */
     if ((isinstalledpkg(Plist.name) > 0 ||
          matchbyorigin(Plist.origin, NULL) != NULL) && !Force) {
-	warnx("package '%s' or its older version already installed",
-	      Plist.name);
-	code = 1;
+	warnx("package '%s' or its older version already installed%s",
+	      Plist.name, FailOnAlreadyInstalled ? "" : " (ignored)");
+	code = FailOnAlreadyInstalled != FALSE;
 	goto success;	/* close enough for government work */
     }
 
