@@ -21,6 +21,11 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 CFLAGS+= -DDISK_DEBUG
 .endif
 
+.ifdef(BOOT_SENSITIVE_INFO)
+# Show serial numbers, UUID, and asset tag from loader
+CFLAGS+= -DSHOW_SENSITIVE_INFO
+.endif
+
 # Include simple terminal emulation (cons25-compatible)
 CFLAGS+= -DTERM_EMU
 

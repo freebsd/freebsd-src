@@ -100,9 +100,9 @@ int biospci_find_devclass(uint32_t class, int index);
 int biospci_write_config(uint32_t locator, int offset, int width, int val);
 int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
 
-void	biosacpi_detect();
+void	biosacpi_detect(void);
 
-void	smbios_detect();
+void	smbios_detect(void);
 
 void	gateA20(void);
 
