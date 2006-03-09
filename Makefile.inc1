@@ -824,6 +824,10 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 _pwd_mkdb=	usr.sbin/pwd_mkdb
 .endif
 
+.if ${BOOTSTRAPPING} < 700014
+_gensnmptree=	usr.sbin/bsnmpd/gensnmptree
+.endif
+
 bootstrap-tools:
 .for _tool in \
     ${_strfile} \
@@ -839,6 +843,7 @@ bootstrap-tools:
     usr.bin/rpcgen \
     usr.bin/xinstall \
     usr.sbin/config \
+    ${_gensnmptree} \
     ${_crunchgen} \
     ${_pwd_mkdb}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
