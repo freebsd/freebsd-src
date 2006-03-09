@@ -152,7 +152,7 @@ readenv(void)
 
 		/* Obtain username and password */
 		proxy_auth_user = strsep(&env_HTTP_PROXY_AUTH, ":");
-		proxy_auth_pass = strsep(&env_HTTP_PROXY_AUTH, ":");
+		proxy_auth_pass = env_HTTP_PROXY_AUTH;
 	}
 
 	if ((proxy_auth_user != NULL) && (proxy_auth_pass != NULL)) {
