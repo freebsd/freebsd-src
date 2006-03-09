@@ -849,10 +849,6 @@ cpu_tick_calibrate(int reset)
 		c_delta = c_this - c_last;
 		t_delta = t_this;
 		bintime_sub(&t_delta, &t_last);
-		if (bootverbose) {
-			printf("%ju.%016jx ",
-			    (uintmax_t)t_delta.sec, (uintmax_t)t_delta.frac);
-		}
 		/*
 		 * Validate that 16 +/- 1/256 seconds passed. 
 		 * After division by 16 this gives us a precision of
@@ -862,12 +858,16 @@ cpu_tick_calibrate(int reset)
 		    t_delta.sec == 16 && t_delta.frac >= (0x01LL << 56))) {
 			/* too long */
 			if (bootverbose)
-				printf("\ttoo long\n");
+				printf("%ju.%016jx too long\n",
+				    (uintmax_t)t_delta.sec,
+				    (uintmax_t)t_delta.frac);
 		} else if (t_delta.sec < 15 ||
 		    (t_delta.sec == 15 && t_delta.frac <= (0xffLL << 56))) {
 			/* too short */
 			if (bootverbose)
-				printf("\ttoo short\n");
+				printf("%ju.%016jx too short\n",
+				    (uintmax_t)t_delta.sec,
+				    (uintmax_t)t_delta.frac);
 		} else {
 			/* just right */
 			/*
@@ -880,19 +880,12 @@ cpu_tick_calibrate(int reset)
 			divi = t_delta.sec << 20;
 			divi |= t_delta.frac >> (64 - 20);
 			c_delta <<= 20;
-			if (bootverbose)
-				printf(" %ju / %ju",
-				    (uintmax_t)c_delta, (uintmax_t)divi);
 			c_delta /= divi;
-			if (bootverbose)
-				printf(" = %ju", c_delta);
 			if (c_delta  > cpu_tick_frequency) {
 				if (bootverbose)
-					printf("\thigher\n");
+					printf("cpu_tick increased to %ju Hz",
+					    c_delta);
 				cpu_tick_frequency = c_delta;
-			} else {
-				if (bootverbose)
-					printf("\tlower\n");
 			}
 		}
 	}
