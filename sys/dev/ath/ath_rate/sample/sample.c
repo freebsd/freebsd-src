@@ -734,7 +734,10 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		sn->stats[1][sn->num_rates-1].perfect_tx_time
 	);
 
-	ni->ni_txrate = sn->current_rate[0];
+        if (sn->static_rate_ndx != -1)
+		ni->ni_txrate = sn->static_rate_ndx;
+	else
+		ni->ni_txrate = sn->current_rate[0];
 #undef RATE
 }
 
