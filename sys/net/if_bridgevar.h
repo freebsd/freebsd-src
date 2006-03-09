@@ -301,6 +301,7 @@ struct bridge_softc {
 	LIST_HEAD(, bridge_rtnode) sc_rtlist;	/* list version of above */
 	uint32_t		sc_rthash_key;	/* key for hash */
 	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
+	struct bridge_timer	sc_link_timer;
 };
 
 #define BRIDGE_LOCK_INIT(_sc)		do {			\
