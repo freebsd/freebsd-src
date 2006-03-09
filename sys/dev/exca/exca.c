@@ -179,8 +179,11 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	struct mem_map_index_st *map;
 	struct pccard_mem_handle *mem;
 	uint32_t offset;
+#if 0
 	int mem8 = (mem->kind == PCCARD_A_MEM_ATTR);
-	mem8 = 1;
+#else
+	int mem8 = 1;
+#endif
 	
 	map = &mem_map_index[win];
 	mem = &sc->mem[win];
