@@ -625,7 +625,8 @@ ata_getparam(struct ata_device *atadev, int init)
 
 	if (bootverbose)
 	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
-		   ch->unit, atadev->unit == ATA_MASTER ? "master":"slave",
+		   device_get_unit(ch->dev),
+		   atadev->unit == ATA_MASTER ? "master" : "slave",
 		   ata_mode2str(ata_pmode(atacap)),
 		   ata_mode2str(ata_wmode(atacap)),
 		   ata_mode2str(ata_umode(atacap)),
