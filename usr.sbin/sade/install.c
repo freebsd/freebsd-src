@@ -1232,7 +1232,7 @@ installVarDefaults(dialogMenuItem *self)
 	variable_set2(SYSTEM_STATE,		"init", 0);
     variable_set2(VAR_NEWFS_ARGS,		"-b 16384 -f 2048", 0);
     variable_set2(VAR_CONSTERM,                 "NO", 0);
-#if defined(i386) || defined(amd64)
+#if (defined(__i386__) && !defined(PC98)) || defined(__amd64__)
     NCpus = acpi_detect();
     if (NCpus == -1)
 	NCpus = biosmptable_detect();
