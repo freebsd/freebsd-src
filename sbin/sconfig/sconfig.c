@@ -4,7 +4,7 @@
  * Copyright (C) 1997-2002 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
- * Copyright (C) 1999-2003 Cronyx Engineering.
+ * Copyright (C) 1999-2005 Cronyx Engineering.
  * Author: Roman Kurakin, <rik@cronyx.ru>
  *
  * This software is distributed with NO WARRANTIES, not even the implied
@@ -14,7 +14,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Cronyx Id: sconfig.c,v 1.2.2.4 2003/06/20 16:20:48 rik Exp $
+ * Cronyx Id: sconfig.c,v 1.4.2.2 2005/11/09 13:01:35 rik Exp $
  * $FreeBSD$
  */
 #include <stdio.h>
@@ -35,8 +35,8 @@
 
 int vflag, eflag, sflag, mflag, cflag, fflag, iflag, aflag, xflag;
 int tflag, uflag;
-char mask[48];
-int adapter_type;		/* 0-sigma, 1-tau, 2-tau */
+char mask[64];
+int adapter_type;		/* 0-sigma, 1-tau, 2-taupci, 3-tau32 */
 char chan_name[16];
 
 extern char *optarg;
@@ -47,7 +47,7 @@ usage (void)
 {
 	printf(
 "Serial Adapter Configuration Utility\n"
-"Copyright (C) 1998-1999 Cronyx Engineering Ltd.\n"
+"Copyright (C) 1998-2005 Cronyx Engineering.\n"
 "See also man sconfig (8)\n"
 "Usage:\n"
 "\tsconfig [-aimsxeftuc] [device [parameters ...]]\n"
@@ -103,10 +103,15 @@ usage (void)
 "\tscrambler={on,off}\t -- G.703 scrambling mode\n"
 "\tuse16={on,off}\t\t -- E1 timeslot 16 usage\n"
 "\tcrc4={on,off}\t\t -- E1 CRC4 mode\n"
+#ifdef __linux__
+"\tami={on,off}\t\t -- E1 AMI or HDB3 line code\n"
+"\tmtu={size}\t\t -- set MTU in bytes\n"
+#endif
 "\tsyn={int,rcv,rcvX}\t -- G.703 transmit clock\n"
 "\tts=...\t\t\t -- E1 timeslots\n"
 "\tpass=...\t\t -- E1 subchannel timeslots\n"
 "\tdir=<num>\t\t -- connect channel to link<num>\n"
+/*"\trqken={size}\t\t -- set receive queue length in packets\n"*/
 /*"\tcablen={on,off}\t\t -- T3/STS-1 high transmitter output for long cable\n"*/
 "\tdebug={0,1,2}\t\t -- enable/disable debug messages\n"
 	);
@@ -343,6 +348,8 @@ format_e1_status (unsigned long status)
 {
 	static char buf [80];
 
+	if (status == 0)
+		return "n/a";
 	if (status & E1_NOALARM)
 		return "Ok";
 	buf[0] = 0;
@@ -350,6 +357,7 @@ format_e1_status (unsigned long status)
 	if (status & E1_AIS)     strcat (buf, ",AIS");
 	if (status & E1_LOF)     strcat (buf, ",LOF");
 	if (status & E1_LOMF)    strcat (buf, ",LOMF");
+	if (status & E1_CRC4E)   strcat (buf, ",CRC4E");
 	if (status & E1_FARLOF)  strcat (buf, ",FARLOF");
 	if (status & E1_AIS16)   strcat (buf, ",AIS16");
 	if (status & E1_FARLOMF) strcat (buf, ",FARLOMF");
@@ -562,16 +570,16 @@ print_chan (int fd)
 	char cfg;
 	int loop, dpll, nrzi, invclk, clk, higain, phony, use16, crc4;
 	int level, keepalive, debug, port, invrclk, invtclk, unfram, monitor;
-	int cable, dir, scrambler;
-	int cablen, rloop;
+	int cable, dir, scrambler, ami, mtu;
+	int cablen, rloop, rqlen;
 	long baud, timeslots, subchan;
 	int protocol_valid, baud_valid, loop_valid, use16_valid, crc4_valid;
 	int dpll_valid, nrzi_valid, invclk_valid, clk_valid, phony_valid;
 	int timeslots_valid, subchan_valid, higain_valid, level_valid;
 	int keepalive_valid, debug_valid, cfg_valid, port_valid;
 	int invrclk_valid, invtclk_valid, unfram_valid, monitor_valid;
-	int cable_valid, dir_valid, scrambler_valid;
-	int cablen_valid, rloop_valid;
+	int cable_valid, dir_valid, scrambler_valid, ami_valid, mtu_valid;
+	int cablen_valid, rloop_valid, rqlen_valid;
 
 	protocol_valid  = ioctl (fd, SERIAL_GETPROTO, &protocol) >= 0;
 	cfg_valid       = ioctl (fd, SERIAL_GETCFG, &cfg) >= 0;
@@ -591,6 +599,7 @@ print_chan (int fd)
 	monitor_valid   = ioctl (fd, SERIAL_GETMONITOR, &monitor) >= 0;
 	use16_valid     = ioctl (fd, SERIAL_GETUSE16, &use16) >= 0;
 	crc4_valid      = ioctl (fd, SERIAL_GETCRC4, &crc4) >= 0;
+	ami_valid	= ioctl (fd, SERIAL_GETLCODE, &ami) >= 0;
 	level_valid     = ioctl (fd, SERIAL_GETLEVEL, &level) >= 0;
 	keepalive_valid = ioctl (fd, SERIAL_GETKEEPALIVE, &keepalive) >= 0;
 	debug_valid     = ioctl (fd, SERIAL_GETDEBUG, &debug) >= 0;
@@ -600,6 +609,8 @@ print_chan (int fd)
 	scrambler_valid	= ioctl (fd, SERIAL_GETSCRAMBLER, &scrambler) >= 0;
 	cablen_valid	= ioctl (fd, SERIAL_GETCABLEN, &cablen) >= 0;
 	rloop_valid	= ioctl (fd, SERIAL_GETRLOOP, &rloop) >= 0;
+	mtu_valid	= ioctl (fd, SERIAL_GETMTU, &mtu) >= 0;
+	rqlen_valid	= ioctl (fd, SERIAL_GETRQLEN, &rqlen) >= 0;
 
 	printf ("%s", chan_name);
 	if (port_valid)
@@ -645,6 +656,12 @@ print_chan (int fd)
 		else
 			printf (" extclock");
 	}
+	if (mtu_valid)
+		printf (" mtu=%d", mtu);
+
+	if (aflag && rqlen_valid)
+		printf (" rqlen=%d", rqlen);
+
 	if (clk_valid)
 		switch (clk) {
 		case E1CLK_INTERNAL:	  printf (" syn=int");     break;
@@ -685,6 +702,8 @@ print_chan (int fd)
 			printf (" loop=%s", loop ? "on" : "off");
 		if (rloop_valid)
 			printf (" rloop=%s", rloop ? "on" : "off");
+		if (ami_valid)
+			printf (" ami=%s", ami ? "on" : "off");
 	}
 	if (timeslots_valid)
 		printf (" ts=%s", format_timeslots (timeslots));
@@ -698,10 +717,10 @@ print_chan (int fd)
 static void
 setup_chan (int fd, int argc, char **argv)
 {
-	int i, mode, loop, nrzi, dpll, invclk, phony, use16, crc4, unfram;
+	int i, mode, loop, nrzi, dpll, invclk, phony, use16, crc4, unfram, ami;
 	int higain, clk, keepalive, debug, port, dlci, invrclk, invtclk;
 	int monitor, dir, scrambler, rloop, cablen;
-	long baud, timeslots;
+	long baud, timeslots, mtu, rqlen;
 
 	for (i=0; i<argc; ++i) {
 		if (argv[i][0] >= '0' && argv[i][0] <= '9') {
@@ -732,7 +751,7 @@ setup_chan (int fd, int argc, char **argv)
 		} else if (strcasecmp ("sync", argv[i]) == 0) {
 			mode = SERIAL_HDLC;
 			if (ioctl (fd, SERIAL_SETMODE, &mode) >= 0)
-				ioctl (fd, SERIAL_SETPROTO, "sync\0\0");
+				ioctl (fd, SERIAL_SETPROTO, "sync\0\0\0");
 		} else if (strcasecmp ("cisco", argv[i]) == 0) {
 			mode = SERIAL_HDLC;
 			ioctl (fd, SERIAL_SETMODE, &mode);
@@ -748,7 +767,7 @@ setup_chan (int fd, int argc, char **argv)
 		} else if (strcasecmp ("packet", argv[i]) == 0) {
 			mode = SERIAL_HDLC;
 			ioctl (fd, SERIAL_SETMODE, &mode);
-			ioctl (fd, SERIAL_SETPROTO, "packet\0\0\0\0");
+			ioctl (fd, SERIAL_SETPROTO, "packet\0");
 		} else if (strcasecmp ("ppp", argv[i]) == 0) {
 			/* check that ppp line discipline is present */
 			if (ppp_ok ()) {
@@ -763,6 +782,10 @@ setup_chan (int fd, int argc, char **argv)
 			mode = SERIAL_HDLC;
 			ioctl (fd, SERIAL_SETMODE, &mode);
 			ioctl (fd, SERIAL_SETPROTO, "fr\0\0\0\0\0");
+		} else if (strcasecmp ("zaptel", argv[i]) == 0) {
+			mode = SERIAL_HDLC;
+			ioctl (fd, SERIAL_SETMODE, &mode);
+			ioctl (fd, SERIAL_SETPROTO, "zaptel\0");
 		} else if (strncasecmp ("debug=", argv[i], 6) == 0) {
 			debug = strtol (argv[i]+6, 0, 10);
 			ioctl (fd, SERIAL_SETDEBUG, &debug);
@@ -808,6 +831,15 @@ setup_chan (int fd, int argc, char **argv)
 		} else if (strncasecmp ("crc4=", argv[i], 5) == 0) {
 			crc4 = (strcasecmp ("on", argv[i] + 5) == 0);
 			ioctl (fd, SERIAL_SETCRC4, &crc4);
+		} else if (strncasecmp ("ami=", argv[i], 4) == 0) {
+			ami = (strcasecmp ("on", argv[i] + 4) == 0);
+			ioctl (fd, SERIAL_SETLCODE, &ami);
+		} else if (strncasecmp ("mtu=", argv[i], 4) == 0) {
+			mtu = strtol (argv[i] + 4, 0, 10);
+			ioctl (fd, SERIAL_SETMTU, &mtu);
+		} else if (strncasecmp ("rqlen=", argv[i], 6) == 0) {
+			rqlen = strtol (argv[i] + 6, 0, 10);
+			ioctl (fd, SERIAL_SETRQLEN, &rqlen);
 		} else if (strcasecmp ("syn=int", argv[i]) == 0) {
 			clk = E1CLK_INTERNAL;
 			ioctl (fd, SERIAL_SETCLK, &clk);
@@ -881,7 +913,7 @@ get_mask (void)
 	}
 	close (fd);
 #else
-	int fd, fd1, fd2, i;
+	int fd, fd1, fd2, fd3, i;
 	char buf [80];
 
 	for (i=0, fd=-1; i<12 && fd<0; i++) {
@@ -899,7 +931,13 @@ get_mask (void)
 		fd2 = open (buf, 0);
 	}
 
-	if ((fd < 0) && (fd1 < 0) && (fd2 < 0)) {
+	/* Try only one */
+	for (i=0, fd3=-1; i<1 && fd3<0; i++) {
+		sprintf (buf, "/dev/ce%d", i*4);
+		fd3 = open (buf, 0);
+	}
+
+	if ((fd < 0) && (fd1 < 0) && (fd2 < 0) && (fd3 < 0)) {
 		fprintf (stderr, "No Cronyx adapters installed\n");
 		exit (-1);
 	}
@@ -927,6 +965,14 @@ get_mask (void)
 		}
 		close (fd2);
 	}
+
+	if (fd3 >= 0) {
+		if (ioctl (fd3, SERIAL_GETREGISTERED, (mask+48)) < 0) {
+			perror ("getting list of channels");
+			exit (-1);
+		}
+		close (fd3);
+	}
 #endif
 }
 
@@ -949,6 +995,9 @@ open_chan_ctl (int num)
 	case 2:
 		sprintf (device, "/dev/cp%d", num);
 		break;
+	case 3:
+		sprintf (device, "/dev/ce%d", num);
+		break;
 	}
 #endif
 	fd = open (device, 0);
@@ -967,6 +1016,7 @@ open_chan_ctl (int num)
 	case 0: sprintf (chan_name, "cx%d", num); break;
 	case 1: sprintf (chan_name, "ct%d", num); break;
 	case 2: sprintf (chan_name, "cp%d", num); break;
+	case 3: sprintf (chan_name, "ce%d", num); break;
 	}
 #endif
 	return fd;
@@ -1033,7 +1083,7 @@ main (int argc, char **argv)
 		need_header = 1;
 		adapter_type = 0;
 #ifndef __linux__
-		for (; adapter_type < 3; ++adapter_type)
+		for (; adapter_type < 4; ++adapter_type)
 #endif
 		{
 		for (chan_num=0; chan_num<MAXCHAN; ++chan_num)
@@ -1082,6 +1132,8 @@ main (int argc, char **argv)
 		adapter_type = 1;
 	else if (strncasecmp ("cp", argv[0], 2)==0)
 		adapter_type = 2;
+	else if (strncasecmp ("ce", argv[0], 2)==0)
+		adapter_type = 3;
 	else {
 		fprintf (stderr, "Wrong channel name\n");
 		exit (-1);
