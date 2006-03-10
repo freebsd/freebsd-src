@@ -32,6 +32,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	for Linux apps because it will pull in 3dfx.ko and linux.ko through
 	its dependencies.
 
+20060204:
+	The 'audit' group was added to support the new auditing functionality
+	in the base system.  Be sure to follow the directions for updating,
+	including the requirement to run mergemaster -p.
+
 20060201:
 	The kernel ABI to file system modules was changed on i386.
 	Please make sure that your kernel and modules are in sync.
@@ -167,6 +172,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	accordingly.  If you use DHCP to configure your interfaces, you
 	must now run devd.  Also, DNS updating was lost so you will need
 	to find a workaround if you use this feature.
+
+	The '_dhcp' user was added to support the OpenBSD dhclient.  Be
+	sure to run mergemaster -p (like you are supposed to do every time
+	anyway).
 
 20050605:
 	if_bridge was added to the tree. This has changed struct ifnet.
