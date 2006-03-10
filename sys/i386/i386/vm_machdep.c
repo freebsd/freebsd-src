@@ -172,9 +172,9 @@ cpu_fork(td1, p2, td2, flags)
 	}
 
 	/* Ensure that p1's pcb is up to date. */
-#ifdef DEV_NPX
 	if (td1 == curthread)
 		td1->td_pcb->pcb_gs = rgs();
+#ifdef DEV_NPX
 	savecrit = intr_disable();
 	if (PCPU_GET(fpcurthread) == td1)
 		npxsave(&td1->td_pcb->pcb_save);
@@ -233,7 +233,6 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_ebx = (int)td2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
 	pcb2->pcb_psl = PSL_KERNEL;		/* ints disabled */
-	pcb2->pcb_gs = rgs();
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
