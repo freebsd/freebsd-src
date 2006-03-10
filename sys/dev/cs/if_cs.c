@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
@@ -1051,11 +1052,28 @@ cs_reset(struct cs_softc *sc)
 	cs_init(sc);
 }
 
+static uint16_t
+cs_hash_index(struct sockaddr_dl *addr)
+{
+	uint32_t crc;
+	uint16_t idx;
+	caddr_t lla;
+
+	lla = LLADDR(addr);
+	crc = ether_crc32_le(lla, ETHER_ADDR_LEN);
+	idx = crc >> 26;
+
+	return (idx);
+}
+
 static void
 cs_setmode(struct cs_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
 	int rx_ctl;
+	uint16_t af[4];
+	uint16_t port, mask, index;
+	struct ifnet *ifp = sc->ifp;
+	struct ifmultiaddr *ifma;
 
 	/* Stop the receiver while changing filters */
 	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) & ~SERIAL_RX_ON);
@@ -1063,26 +1081,46 @@ cs_setmode(struct cs_softc *sc)
 	if (ifp->if_flags & IFF_PROMISC) {
 		/* Turn on promiscuous mode. */
 		rx_ctl = RX_OK_ACCEPT | RX_PROM_ACCEPT;
-	} else {
-		if (ifp->if_flags & IFF_MULTICAST) {
-			/* Allow receiving frames with multicast addresses */
-			rx_ctl = RX_IA_ACCEPT | RX_BROADCAST_ACCEPT |
-				 RX_OK_ACCEPT | RX_MULTCAST_ACCEPT;
-			/*
-			 * Here the reconfiguration of chip's multicast
-			 * filters should be done but I've no idea about
-			 * hash transformation in this chip. If you can
-			 * add this code or describe me the transformation
-			 * I'd be very glad.
-			 */
+	} else if (ifp->if_flags & IFF_MULTICAST) {
+		/* Allow receiving frames with multicast addresses */
+		rx_ctl = RX_IA_ACCEPT | RX_BROADCAST_ACCEPT |
+			 RX_OK_ACCEPT | RX_MULTCAST_ACCEPT;
+
+		/* Start with an empty filter */
+		af[0] = af[1] = af[2] = af[3] = 0x0000;
+
+		if (ifp->if_flags & IFF_ALLMULTI) {
+			/* Accept all multicast frames */
+			af[0] = af[1] = af[2] = af[3] = 0xffff;
 		} else {
-			/*
-			 * Receive only good frames addressed for us and
-			 * good broadcasts.
+			/* 
+			 * Set up the filter to only accept multicast
+			 * frames we're interested in.
 			 */
-			rx_ctl = RX_IA_ACCEPT | RX_BROADCAST_ACCEPT |
-				 RX_OK_ACCEPT;
+			IF_ADDR_LOCK(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				struct sockaddr_dl *dl =
+				    (struct sockaddr_dl *)ifma->ifma_addr;
+
+				index = cs_hash_index(dl);
+				port = (u_int16_t) (index >> 4);
+				mask = (u_int16_t) (1 << (index & 0xf));
+				af[port] |= mask;
+			}
+			IF_ADDR_UNLOCK(ifp);
 		}
+
+		cs_writereg(sc, PP_LAF + 0, af[0]);
+		cs_writereg(sc, PP_LAF + 2, af[1]);
+		cs_writereg(sc, PP_LAF + 4, af[2]);
+		cs_writereg(sc, PP_LAF + 6, af[3]);
+	} else {
+		/*
+		 * Receive only good frames addressed for us and
+		 * good broadcasts.
+		 */
+		rx_ctl = RX_IA_ACCEPT | RX_BROADCAST_ACCEPT |
+			 RX_OK_ACCEPT;
 	}
 
 	/* Set up the filter */
