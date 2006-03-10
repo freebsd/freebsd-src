@@ -12,6 +12,7 @@ MAN=	acpi_asus.4 \
 	apm.4 \
 	ar.4 \
 	arl.4 \
+	ce.4 \
 	cp.4 \
 	CPU_ELAN.4 \
 	cs.4 \

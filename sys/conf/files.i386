@@ -150,6 +150,9 @@ dev/atkbdc/atkbdc.c		optional atkbdc
 dev/atkbdc/atkbdc_isa.c		optional atkbdc isa
 dev/atkbdc/atkbdc_subr.c	optional atkbdc
 dev/atkbdc/psm.c		optional psm atkbdc
+dev/ce/ceddk.c			optional ce
+dev/ce/if_ce.c			optional ce
+dev/ce/tau32-ddk.c		optional ce
 dev/cm/if_cm_isa.c		optional cm isa
 dev/cp/cpddk.c			optional cp
 dev/cp/if_cp.c			optional cp
