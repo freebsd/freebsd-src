@@ -2,15 +2,9 @@
 # $FreeBSD$
 
 PROG=	rpcinfo
-SRCS=	rpcinfo.c rpc_generic.c
+SRCS=	rpcinfo.c
 MAN=	rpcinfo.8
 
-LIBCDIR=	${.CURDIR}/../../lib/libc
-LIBCRPCDIR=	${LIBCDIR}/rpc
-LIBCINCLUDE=	${LIBCDIR}/include
-
-CFLAGS+=	-I${LIBCRPCDIR} -I${LIBCINCLUDE} -DPORTMAP -DINET6
-
-.PATH:	${LIBCRPCDIR}
+CFLAGS+=	-DPORTMAP -DINET6
 
 .include <bsd.prog.mk>
