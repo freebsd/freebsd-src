@@ -151,7 +151,8 @@ static int	iwi_scan(struct iwi_softc *);
 static int	iwi_auth_and_assoc(struct iwi_softc *);
 static void	iwi_init(void *);
 static void	iwi_stop(void *);
-static int	iwi_read_firmware(const char *, caddr_t *, size_t *);
+static int	iwi_read_firmware(struct iwi_softc *, const char *, caddr_t *,
+		    size_t *);
 static int	iwi_sysctl_stats(SYSCTL_HANDLER_ARGS);
 static int	iwi_sysctl_radio(SYSCTL_HANDLER_ARGS);
 
@@ -810,7 +811,7 @@ iwi_resume(device_t dev)
 	struct iwi_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
 
-	IWI_LOCK(sc);
+	mtx_lock(&sc->sc_mtx);
 
 	pci_write_config(dev, 0x41, 0, 1);
 
@@ -820,7 +821,7 @@ iwi_resume(device_t dev)
 			ifp->if_start(ifp);
 	}
 
-	IWI_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mtx);
 
 	return 0;
 }
@@ -858,18 +859,18 @@ iwi_media_change(struct ifnet *ifp)
 	struct iwi_softc *sc = ifp->if_softc;
 	int error;
 
-	IWI_LOCK(sc);
+	mtx_lock(&sc->sc_mtx);
 
 	error = ieee80211_media_change(ifp);
 	if (error != ENETRESET) {
-		IWI_UNLOCK(sc);
+		mtx_unlock(&sc->sc_mtx);
 		return error;
 	}
 
 	if ((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 		iwi_init(sc);
 
-	IWI_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mtx);
 
 	return 0;
 }
@@ -1411,10 +1412,10 @@ iwi_intr(void *arg)
 	struct iwi_softc *sc = arg;
 	uint32_t r;
 
-	IWI_LOCK(sc);
+	mtx_lock(&sc->sc_mtx);
 
 	if ((r = CSR_READ_4(sc, IWI_CSR_INTR)) == 0 || r == 0xffffffff) {
-		IWI_UNLOCK(sc);
+		mtx_unlock(&sc->sc_mtx);
 		return;
 	}
 
@@ -1462,7 +1463,7 @@ iwi_intr(void *arg)
 	/* re-enable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, IWI_INTR_MASK);
 
-	IWI_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mtx);
 }
 
 static int
@@ -1659,10 +1660,10 @@ iwi_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	int ac;
 
-	IWI_LOCK(sc);
+	mtx_lock(&sc->sc_mtx);
 
 	if (ic->ic_state != IEEE80211_S_RUN) {
-		IWI_UNLOCK(sc);
+		mtx_unlock(&sc->sc_mtx);
 		return;
 	}
 
@@ -1725,7 +1726,7 @@ iwi_start(struct ifnet *ifp)
 		ifp->if_timer = 1;
 	}
 
-	IWI_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mtx);
 }
 
 static void
@@ -1734,7 +1735,7 @@ iwi_watchdog(struct ifnet *ifp)
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	IWI_LOCK(sc);
+	mtx_lock(&sc->sc_mtx);
 
 	ifp->if_timer = 0;
 
@@ -1744,7 +1745,7 @@ iwi_watchdog(struct ifnet *ifp)
 			ifp->if_oerrors++;
 			ifp->if_flags &= ~IFF_UP;
 			iwi_stop(sc);
-			IWI_UNLOCK(sc);
+			mtx_unlock(&sc->sc_mtx);
 			return;
 		}
 		ifp->if_timer = 1;
@@ -1752,7 +1753,7 @@ iwi_watchdog(struct ifnet *ifp)
 
 	ieee80211_watchdog(ic);
 
-	IWI_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mtx);
 }
 
 static int
@@ -1762,7 +1763,7 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error = 0;
 
-	IWI_LOCK(sc);
+	mtx_lock(&sc->sc_mtx);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -1787,7 +1788,7 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = 0;
 	}
 
-	IWI_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mtx);
 
 	return error;
 }
@@ -1866,9 +1867,7 @@ iwi_load_ucode(struct iwi_softc *sc, const char *name)
 	size_t size;
 	int i, ntries, error;
 
-	IWI_UNLOCK(sc);
-	error = iwi_read_firmware(name, &uc, &size);
-	IWI_LOCK(sc);
+	error = iwi_read_firmware(sc, name, &uc, &size);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not read ucode image\n");
 		goto fail1;
@@ -1961,9 +1960,7 @@ iwi_load_firmware(struct iwi_softc *sc, const char *name)
 	int ntries, error;
 
 	/* read firmware image from filesystem */
-	IWI_UNLOCK(sc);
-	error = iwi_read_firmware(name, &fw, &size);
-	IWI_LOCK(sc);
+	error = iwi_read_firmware(sc, name, &fw, &size);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not read firmware image\n");
 		goto fail1;
@@ -1977,12 +1974,16 @@ iwi_load_firmware(struct iwi_softc *sc, const char *name)
 	fw += sizeof (struct iwi_firmware_hdr);
 	size -= sizeof (struct iwi_firmware_hdr);
 
+	/* drop the driver's lock before doing any DMA operation */
+	mtx_unlock(&sc->sc_mtx);
+
 	/* allocate DMA memory for mapping firmware image */
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, size, 1, size, 0, NULL, NULL, &dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not create firmware DMA tag\n");
+		mtx_lock(&sc->sc_mtx);
 		goto fail2;
 	}
 
@@ -1990,6 +1991,7 @@ iwi_load_firmware(struct iwi_softc *sc, const char *name)
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not allocate firmware DMA memory\n");
+		mtx_lock(&sc->sc_mtx);
 		goto fail3;
 	}
 
@@ -1997,6 +1999,7 @@ iwi_load_firmware(struct iwi_softc *sc, const char *name)
 	    &physaddr, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not load firmware DMA map\n");
+		mtx_lock(&sc->sc_mtx);
 		goto fail4;
 	}
 
@@ -2005,6 +2008,9 @@ iwi_load_firmware(struct iwi_softc *sc, const char *name)
 
 	/* make sure the adapter will get up-to-date values */
 	bus_dmamap_sync(dmat, map, BUS_DMASYNC_PREWRITE);
+
+	/* reacquire the driver's lock before kicking the hardware */
+	mtx_lock(&sc->sc_mtx);
 
 	/* tell the adapter where the command blocks are stored */
 	MEM_WRITE_4(sc, 0x3000a0, 0x27000);
@@ -2418,7 +2424,28 @@ iwi_init(void *priv)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_rx_data *data;
 	const char *uc, *fw;
-	int i;
+	int owned, i;
+
+	/*
+	 * iwi_init() is exposed through ifp->if_init so it might be called
+	 * without the driver's lock held.  Since msleep() doesn't like
+	 * being called on a recursed mutex, we acquire the driver's lock
+	 * only if we're not already holding it.
+	 */
+	if (!(owned = mtx_owned(&sc->sc_mtx)))
+		mtx_lock(&sc->sc_mtx);
+
+	/*
+	 * Avoid re-entrant calls.  We need to release the mutex in iwi_init()
+	 * when loading the firmware and allocating DMA memory and we don't
+	 * want to be called during these operations.
+	 */
+	if (sc->flags & IWI_FLAG_INIT_LOCKED) {
+		if (!owned)
+			mtx_unlock(&sc->sc_mtx);
+		return;
+	}
+	sc->flags |= IWI_FLAG_INIT_LOCKED;
 
 	iwi_stop(sc);
 
@@ -2507,10 +2534,18 @@ iwi_init(void *priv)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
+	sc->flags &=~ IWI_FLAG_INIT_LOCKED;
+
+	if (!owned)
+		mtx_unlock(&sc->sc_mtx);
+
 	return;
 
 fail:	ifp->if_flags &= ~IFF_UP;
 	iwi_stop(sc);
+	sc->flags &=~ IWI_FLAG_INIT_LOCKED;
+	if (!owned)
+		mtx_unlock(&sc->sc_mtx);
 }
 
 static void
@@ -2519,6 +2554,8 @@ iwi_stop(void *priv)
 	struct iwi_softc *sc = priv;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
+
+	mtx_lock(&sc->sc_mtx);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 
@@ -2537,6 +2574,8 @@ iwi_stop(void *priv)
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
+	mtx_unlock(&sc->sc_mtx);
 }
 
 /*
@@ -2544,7 +2583,8 @@ iwi_stop(void *priv)
  * Must be called from a process context.
  */
 static int
-iwi_read_firmware(const char *name, caddr_t *bufp, size_t *len)
+iwi_read_firmware(struct iwi_softc *sc, const char *name, caddr_t *bufp,
+    size_t *len)
 {
 	char path[64];
 	struct thread *td = curthread;
@@ -2556,6 +2596,9 @@ iwi_read_firmware(const char *name, caddr_t *bufp, size_t *len)
 	int vfslocked, error;
 
 	snprintf(path, sizeof path, "/boot/firmware/%s.fw", name);
+
+	/* drop the driver's lock before doing VFS operations */
+	mtx_unlock(&sc->sc_mtx);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE, path,
 	    td);
@@ -2598,12 +2641,15 @@ iwi_read_firmware(const char *name, caddr_t *bufp, size_t *len)
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 
+	/* reacquire the driver's lock */
+	mtx_lock(&sc->sc_mtx);
+
 	return 0;
 
 fail3:	free(buf, M_DEVBUF);
 fail2:	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-fail1:
+fail1:	mtx_lock(&sc->sc_mtx);
 	return error;
 }
 
