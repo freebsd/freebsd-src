@@ -85,24 +85,24 @@ The flags are specified as an octal number or a comma separated list
 of keywords.
 The following keywords are currently defined:
 .Pp
-.Bl -tag -offset indent -width ".Ar opaque"
-.It Ar arch , archived
+.Bl -tag -offset indent -width ".Cm opaque"
+.It Cm arch , archived
 set the archived flag (super-user only)
-.It Ar opaque
+.It Cm opaque
 set the opaque flag (owner or super-user only)
-.It Ar nodump
+.It Cm nodump
 set the nodump flag (owner or super-user only)
-.It Ar sappnd , sappend
+.It Cm sappnd , sappend
 set the system append-only flag (super-user only)
-.It Ar schg , schange , simmutable
+.It Cm schg , schange , simmutable
 set the system immutable flag (super-user only)
-.It Ar sunlnk , sunlink
+.It Cm sunlnk , sunlink
 set the system undeletable flag (super-user only)
-.It Ar uappnd , uappend
+.It Cm uappnd , uappend
 set the user append-only flag (owner or super-user only)
-.It Ar uchg , uchange , uimmutable
+.It Cm uchg , uchange , uimmutable
 set the user immutable flag (owner or super-user only)
-.It Ar uunlnk , uunlink
+.It Cm uunlnk , uunlink
 set the user undeletable flag (owner or super-user only)
 .El
 .Pp
@@ -114,9 +114,9 @@ from a keyword causes the flag to be cleared.
 For example:
 .Pp
 .Bl -tag -offset indent -width "nouchg" -compact
-.It Ar nouchg
+.It Cm nouchg
 clear the user immutable flag (owner or super-user only)
-.It Ar dump
+.It Cm dump
 clear the nodump flag (owner or super-user only)
 .El
 .Pp
