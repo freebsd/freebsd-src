@@ -1143,7 +1143,6 @@ ffs_sync(mp, waitfor, td)
 	}
 	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
 	MNT_ILOCK(mp);
-	MNT_REF(mp);
 loop:
 	/* Grab snapshot of secondary write counts */
 	secondary_writes = mp->mnt_secondary_writes;
@@ -1187,7 +1186,6 @@ loop:
 		vput(vp);
 		MNT_ILOCK(mp);
 	}
-	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 	/*
 	 * Force stale filesystem control information to be flushed.
