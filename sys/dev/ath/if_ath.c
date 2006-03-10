@@ -261,8 +261,12 @@ static	void ath_printtxbuf(struct ath_buf *bf, u_int qnum, u_int ix, int done);
 #else
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
-#define	DPRINTF(m, fmt, ...)
-#define	KEYPRINTF(sc, k, ix, mac)
+#define	DPRINTF(sc, m, fmt, ...) do {				\
+	(void) sc;						\
+} while (0)
+#define	KEYPRINTF(sc, k, ix, mac) do {				\
+	(void) sc;						\
+} while (0)
 #endif
 
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
@@ -3952,7 +3956,9 @@ ath_tx_proc(void *arg, int npending)
 static void
 ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
+#ifdef AR_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
+#endif
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	u_int ix;
@@ -5268,11 +5274,12 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"regdomain", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_regdomain, "I", "EEPROM regdomain code");
+#ifdef	AR_DEBUG
 	sc->sc_debug = ath_debug;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
 		"control debugging printfs");
-
+#endif
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_slottime, "I", "802.11 slot time (us)");
