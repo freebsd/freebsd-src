@@ -464,7 +464,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 */
 	td->td_frame->tf_ebp = 0; 
 	td->td_frame->tf_esp =
-	    (int)stack->ss_sp + stack->ss_size - 16;
+	    (((int)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
 	td->td_frame->tf_eip = (int)entry;
 
 	/*
