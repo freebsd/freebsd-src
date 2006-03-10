@@ -233,8 +233,10 @@ smbios_setuuid(const char *name, const uint8_t *dmi, const int offset)
 	for (i = 0; i < 16; i++) {
 		if (idp[i] == 0xff)
 			f++;
-		if (idp[i] == 0x00)
+		else if (idp[i] == 0x00)
 			z++;
+		else
+			break;
 	}
 	if (f != 16 && z != 16) {
 		sprintf(uuid, "%02X%02X%02X%02X-"
