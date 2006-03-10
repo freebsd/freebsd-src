@@ -45,7 +45,7 @@ LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 # that is painful because of media changes and the structure of
 # sysinstall so for now it's a priori.
 #
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE} == "i386" || ${MACHINE_ARCH} == "amd64"
 SRCS+=	acpi.c biosmptable.c
 # NB: HEAD has SMP in GENERIC so only one kernel
 #CFLAGS+=-DWITH_SMP	
