@@ -305,7 +305,7 @@ static struct sigev_thread *
 sigev_thread_create(int usedefault)
 {
 	struct sigev_thread *tn;
-	sigset_t set;
+	sigset_t set, oset;
 	int ret;
 
 	if (usedefault && sigev_default_thread) {
@@ -326,13 +326,16 @@ sigev_thread_create(int usedefault)
 	LIST_INSERT_HEAD(&sigev_threads, tn, tn_link);
 	__sigev_list_unlock();
 
-	sigemptyset(&set);
-	sigaddset(&set, SIGSERVICE);
-
-	_sigprocmask(SIG_BLOCK, &set, NULL);
+	sigfillset(&set);	/* SIGSERVICE is masked. */
+	sigdelset(&set, SIGBUS);
+	sigdelset(&set, SIGILL);
+	sigdelset(&set, SIGFPE);
+	sigdelset(&set, SIGSEGV);
+	sigdelset(&set, SIGTRAP);
+	_sigprocmask(SIG_SETMASK, &set, &oset);
 	ret = pthread_create(&tn->tn_thread, &sigev_default_attr,
 		 sigev_service_loop, tn);
-	_sigprocmask(SIG_UNBLOCK, &set, NULL);
+	_sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (ret != 0) {
 		__sigev_list_lock();
