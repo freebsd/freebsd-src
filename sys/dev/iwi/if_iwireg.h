@@ -130,7 +130,9 @@
 /* firmware binary image header */
 struct iwi_firmware_hdr {
 	uint32_t	version;
-	uint32_t	mode;
+	uint32_t	bootsz;
+	uint32_t	ucodesz;
+	uint32_t	fwsz;
 } __packed;
 
 struct iwi_hdr {
