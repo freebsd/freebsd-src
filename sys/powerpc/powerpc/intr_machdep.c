@@ -85,7 +85,7 @@ MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 static int	intr_initialized = 0;
 
 static u_int		intr_nirq;
-static struct		intr_handler *intr_handlers;
+static struct		ppc_intr_handler *intr_handlers;
 
 static struct		mtx intr_table_lock;
 
@@ -100,7 +100,7 @@ static void		(*irq_enable)(uintptr_t);
 static void		(*irq_disable)(uintptr_t);
 
 static void intrcnt_setname(const char *name, int index);
-static void intrcnt_updatename(struct intr_handler *ih);
+static void intrcnt_updatename(struct ppc_intr_handler *ih);
 
 static void
 intrcnt_setname(const char *name, int index)
@@ -110,18 +110,18 @@ intrcnt_setname(const char *name, int index)
 }
 
 static void
-intrcnt_updatename(struct intr_handler *ih)
+intrcnt_updatename(struct ppc_intr_handler *ih)
 {
-	intrcnt_setname(ih->ih_ithd->it_td->td_proc->p_comm, ih->ih_index);
+	intrcnt_setname(ih->ih_event->ie_fullname, ih->ih_index);
 }
 
 static void
-intrcnt_register(struct intr_handler *ih)
+intrcnt_register(struct ppc_intr_handler *ih)
 {
 	char straystr[MAXCOMLEN + 1];
 
-	KASSERT(ih->ih_ithd != NULL,
-		("%s: intr_handler with no ithread", __func__));
+	KASSERT(ih->ih_event != NULL,
+		("%s: ppc_intr_handler with no event", __func__));
 
 	ih->ih_index = intrcnt_index;
 	intrcnt_index += 2;
@@ -145,7 +145,7 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
 	intr_initialized++;
 
 	intr_nirq = nirq;
-	intr_handlers = malloc(nirq * sizeof(struct intr_handler), M_INTR,
+	intr_handlers = malloc(nirq * sizeof(struct ppc_intr_handler), M_INTR,
 	    M_NOWAIT|M_ZERO);
 	if (intr_handlers == NULL)
 		panic("intr_init: unable to allocate interrupt handler array");
@@ -172,7 +172,7 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
 	irq_enable = irq_e;
 	irq_disable = irq_d;
 
-	mtx_init(&intr_table_lock, "ithread table lock", NULL, MTX_SPIN);
+	mtx_init(&intr_table_lock, "intr table", NULL, MTX_SPIN);
 }
 
 void
@@ -195,10 +195,10 @@ int
 inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
     int flags, void **cookiep)
 {
-	struct	intr_handler *ih;
-	struct	ithd *ithd, *orphan;
+	struct	ppc_intr_handler *ih;
+	struct	intr_event *event, *orphan;
 	int	error = 0;
-	int	created_ithd = 0;
+	int	created_event = 0;
 
 	/*
 	 * Work around a race where more than one CPU may be registering
@@ -206,30 +206,33 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 	 */
 	ih = &intr_handlers[irq];
 	mtx_lock_spin(&intr_table_lock);
-	ithd = ih->ih_ithd;
+	event = ih->ih_event;
 	mtx_unlock_spin(&intr_table_lock);
-	if (ithd == NULL) {
-		error = ithread_create(&ithd, irq, 0, irq_disable,
-		    irq_enable, "irq%d:", irq);
+	if (event == NULL) {
+		error = intr_event_create(&event, (void *)irq, 0,
+		    (void (*)(void *))irq_enable, "irq%d:", irq);
 		if (error)
 			return (error);
 
 		mtx_lock_spin(&intr_table_lock);
 
-		if (ih->ih_ithd == NULL) {
-			ih->ih_ithd = ithd;
-			created_ithd++;
+		if (ih->ih_event == NULL) {
+			ih->ih_event = event;
+			created_event++;
 			mtx_unlock_spin(&intr_table_lock);
 		} else {
-			orphan = ithd;
-			ithd = ih->ih_ithd;
+			orphan = event;
+			event = ih->ih_event;
 			mtx_unlock_spin(&intr_table_lock);
-			ithread_destroy(orphan);
+			intr_event_destroy(orphan);
 		}
 	}
 
-	error = ithread_add_handler(ithd, name, handler, arg,
-	    ithread_priority(flags), flags, cookiep);
+	/* XXX: Should probably fix support for multiple FAST. */
+	if (flags & INTR_FAST)
+		flags |= INTR_EXCL;
+	error = intr_event_add_handler(event, name, handler, arg,
+	    intr_priority(flags), flags, cookiep);
 
 	if ((flags & INTR_FAST) == 0 || error) {
 		intr_setup(irq, sched_ithd, ih, flags);
@@ -250,17 +253,17 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 int
 inthand_remove(u_int irq, void *cookie)
 {
-	struct	intr_handler *ih;
+	struct	ppc_intr_handler *ih;
 	int	error;
 
-	error = ithread_remove_handler(cookie);
+	error = intr_event_remove_handler(cookie);
 
 	if (error == 0) {
 		ih = &intr_handlers[irq];
 
 		mtx_lock_spin(&intr_table_lock);
 
-		if (ih->ih_ithd == NULL) {
+		if (ih->ih_event == NULL) {
 			intr_setup(irq, intr_stray_handler, ih, 0);
 		} else {
 			intr_setup(irq, sched_ithd, ih, 0);
@@ -286,9 +289,9 @@ intr_handle(u_int irq)
 static void
 intr_stray_handler(void *cookie)
 {
-	struct	intr_handler *ih;
+	struct	ppc_intr_handler *ih;
 
-	ih = (struct intr_handler *)cookie;
+	ih = (struct ppc_intr_handler *)cookie;
 
 	if (*intr_handlers[ih->ih_irq].ih_straycount < MAX_STRAY_LOG) {
 		printf("stray irq %d\n", ih->ih_irq);
@@ -303,12 +306,12 @@ intr_stray_handler(void *cookie)
 static void
 sched_ithd(void *cookie)
 {
-	struct	intr_handler *ih;
+	struct	ppc_intr_handler *ih;
 	int	error;
 
-	ih = (struct intr_handler *)cookie;
+	ih = (struct ppc_intr_handler *)cookie;
 
-	error = ithread_schedule(ih->ih_ithd);
+	error = intr_event_schedule_thread(ih->ih_event);
 
 	if (error == EINVAL)
 		intr_stray_handler(ih);

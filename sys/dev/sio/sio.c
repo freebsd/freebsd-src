@@ -1055,9 +1055,9 @@ determined_type: ;
 	printf("\n");
 
 	if (sio_fast_ih == NULL) {
-		swi_add(&tty_ithd, "sio", siopoll, NULL, SWI_TTY, 0,
+		swi_add(&tty_intr_event, "sio", siopoll, NULL, SWI_TTY, 0,
 		    &sio_fast_ih);
-		swi_add(&clk_ithd, "sio", siopoll, NULL, SWI_CLOCK, 0,
+		swi_add(&clk_intr_event, "sio", siopoll, NULL, SWI_CLOCK, 0,
 		    &sio_slow_ih);
 	}
 
