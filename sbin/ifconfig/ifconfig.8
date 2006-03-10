@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2006
+.Dd February 27, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -650,14 +650,33 @@ To re-enable the broadcast of the SSID etc., use
 Display the list of channels available for use taking into account
 any restrictions set with the
 .Cm chanlist
-and
-.Cm channel
-directives.
+directive.
+See the description of
+.Cm list chan
+for more information.
 .It Cm list caps
 Display the adaptor's capabilities, including the operating
 modes supported.
 .It Cm list chan
 Display the list of channels available for use.
+Channels are shown with their IEEE channel number, equivalent
+frequency, and usage modes.
+Channels identified as
+.Ql 11g
+are also usable in
+.Ql 11b
+mode.
+Channels identified as
+.Ql 11a Turbo
+may be used only for Atheros' Static Turbo mode
+.Pq specified with Cm mediaopt turbo .
+Channels marked with a
+.Ql *
+have a regulatory constraint that they be passively scanned.
+This means a station is not permitted to transmit on the channel until
+it identifies the channel is being used for 802.11 communication;
+typically by hearing a beacon frame from an access point operating
+on the channel.
 .Cm list freq
 is another way of requesting this information.
 .It Cm list mac
