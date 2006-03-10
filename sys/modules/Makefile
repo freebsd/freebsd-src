@@ -48,6 +48,7 @@ SUBDIR=	${_3dfx} \
 	cd9660 \
 	cd9660_iconv \
 	cdce \
+	${_ce} \
 	${_ciss} \
 	${_cm} \
 	coda \
@@ -330,6 +331,7 @@ _awi=		awi
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
+_ce=		ce
 _coff=		coff
 _cp=		cp
 _cpufreq=	cpufreq
