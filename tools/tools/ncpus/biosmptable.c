@@ -33,12 +33,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <paths.h>
-#include <err.h>
-
+#include <sys/types.h>
 #include <machine/mptable.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <paths.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define MPFPS_SIG "_MP_"
 #define MPCTH_SIG "PCMP"
@@ -52,12 +56,13 @@ static mpcth_t biosmptable_check_mpcth(off_t addr);
 static int memopen(void);
 static void memclose(void);
 
+int biosmptable_detect(void);
+
 int
 biosmptable_detect(void)
 {
     mpfps_t mpfps;
     mpcth_t mpcth;
-    char buf[16];
     char *entry_type_p;
     proc_entry_ptr proc;
     int ncpu, i;
@@ -145,8 +150,8 @@ memclose(void)
 static int
 memread(off_t addr, void* entry, size_t size)
 {
-    if (pread(pfd, entry, size, addr) != size) {
-	warn("pread (%lu @ 0x%lx)", size, addr);
+    if ((size_t)pread(pfd, entry, size, addr) != size) {
+	warn("pread (%zu @ 0x%jx)", size, (intmax_t)addr);
 	return 0;
     }
     return 1;
@@ -225,7 +230,7 @@ biosmptable_check_mpcth(off_t addr)
 
     /* mpcth must be in the first 1MB */
     if ((u_int32_t)addr >= 1024 * 1024) {
-	warnx("bad mpcth address (0x%lx)\n", addr);
+	warnx("bad mpcth address (0x%jx)\n", (intmax_t)addr);
 	return (NULL);
     }
 
@@ -242,7 +247,7 @@ biosmptable_check_mpcth(off_t addr)
 	goto bad;
     }
     table_length = mpcth->base_table_length;
-    mpcth = (mpcth_t) realloc(mpcth, table_length);
+    mpcth = realloc(mpcth, table_length);
     if (mpcth == NULL) {
 	warnx("unable to realloc space for mpcth (len %u)", table_length);
 	return  (NULL);
