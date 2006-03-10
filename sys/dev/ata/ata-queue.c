@@ -270,10 +270,12 @@ ata_completed(void *context, int dummy)
     /* if we had a timeout, reinit channel and deal with the falldown */
     if (request->flags & ATA_R_TIMEOUT) {
 	/*
-	 * if reinit succeeds and the device doesn't get detached and
+	 * if the channel is still present and
+	 * reinit succeeds and
+	 * the device doesn't get detached and
 	 * there are retries left we reinject this request
 	 */
-	if (!ata_reinit(ch->dev) && !request->result &&
+	if (ch && !ata_reinit(ch->dev) && !request->result &&
 	    (request->retries-- > 0)) {
 	    if (!(request->flags & ATA_R_QUIET)) {
 		device_printf(request->dev,
@@ -281,7 +283,7 @@ ata_completed(void *context, int dummy)
 			      ata_cmd2str(request), request->retries,
 			      request->retries == 1 ? "y" : "ies");
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
 	    }
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_DEBUG);
@@ -298,15 +300,14 @@ ata_completed(void *context, int dummy)
 		    device_printf(request->dev, "FAILURE - %s timed out",
 				  ata_cmd2str(request));
 		    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-			printf(" LBA=%llu",
-			       (unsigned long long)request->u.ata.lba);
+			printf(" LBA=%ju", request->u.ata.lba);
 		    printf("\n");
 		}
 	    }
 	    request->result = EIO;
 	}
     }
-    else {
+    else if (!(request->flags & ATA_R_ATAPI) ){
 	/* if this is a soft ECC error warn about it */
 	/* XXX SOS we could do WARF here */
 	if ((request->status & (ATA_S_CORR | ATA_S_ERROR)) == ATA_S_CORR) {
@@ -314,7 +315,7 @@ ata_completed(void *context, int dummy)
 			  "WARNING - %s soft error (ECC corrected)",
 			  ata_cmd2str(request));
 	    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		printf(" LBA=%ju", request->u.ata.lba);
 	    printf("\n");
 	}
 
@@ -325,7 +326,7 @@ ata_completed(void *context, int dummy)
 			      "WARNING - %s UDMA ICRC error (retrying request)",
 			      ata_cmd2str(request));
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
 		request->flags |= (ATA_R_AT_HEAD | ATA_R_REQUEUE);
 		ata_queue_request(request);
@@ -353,7 +354,7 @@ ata_completed(void *context, int dummy)
 		    (request->dmastat & ATA_BMSTAT_ERROR))
 		    printf(" dma=0x%02x", request->dmastat);
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
 	    }
 	    request->result = EIO;
@@ -474,7 +475,9 @@ ata_completed(void *context, int dummy)
     else
 	sema_post(&request->done);
 
-    ata_start(ch->dev);
+    /* only call ata_start if channel is present */
+    if (ch)
+	ata_start(ch->dev);
 }
 
 void
@@ -664,6 +667,7 @@ ata_cmd2str(struct ata_request *request)
 	case 0x5b: return ("CLOSE_TRACK/SESSION");
 	case 0x5c: return ("READ_BUFFER_CAPACITY");
 	case 0x5d: return ("SEND_CUE_SHEET");
+        case 0x96: return ("SERVICE_ACTION_IN");
 	case 0xa1: return ("BLANK_CMD");
 	case 0xa3: return ("SEND_KEY");
 	case 0xa4: return ("REPORT_KEY");
