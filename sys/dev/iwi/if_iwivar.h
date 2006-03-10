@@ -121,6 +121,7 @@ struct iwi_softc {
 	uint32_t		flags;
 #define IWI_FLAG_FW_INITED	(1 << 0)
 #define IWI_FLAG_SCANNING	(1 << 1)
+#define IWI_FLAG_INIT_LOCKED	(1 << 2)
 
 	struct iwi_cmd_ring	cmdq;
 	struct iwi_tx_ring	txq[WME_NUM_AC];
@@ -157,5 +158,3 @@ struct iwi_softc {
 	int			sc_txtap_len;
 };
 
-#define IWI_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
-#define IWI_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
