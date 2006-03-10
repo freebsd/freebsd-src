@@ -132,7 +132,7 @@ struct iwi_firmware_hdr {
 	uint32_t	version;
 	uint32_t	bootsz;
 	uint32_t	ucodesz;
-	uint32_t	fwsz;
+	uint32_t	mainsz;
 } __packed;
 
 struct iwi_hdr {

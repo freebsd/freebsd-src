@@ -401,7 +401,7 @@ iwi_attach(device_t dev)
 	 */
 	sc->dwelltime = 100;
 	sc->bluetooth = 1;
-	sc->antenna = 0;
+	sc->antenna = 2;
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "radio",
@@ -419,12 +419,14 @@ iwi_attach(device_t dev)
 	    "channel dwell time (ms) for AP/station scanning");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "bluetooth",
-	    CTLFLAG_RW, &sc->bluetooth, 0, "bluetooth coexistence");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "bluetooth", CTLFLAG_RW, &sc->bluetooth, 0,
+	    "bluetooth coexistence");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "antenna",
-	    CTLFLAG_RW, &sc->antenna, 0, "antenna (0=auto)");
+	    CTLFLAG_RW, &sc->antenna, 0,
+	    "antenna (0=auto,1=A,3=B,2=diversity)");
 
 	/*
 	 * Hook our interrupt after all initialization is complete.
@@ -1417,11 +1419,14 @@ iwi_intr(void *arg)
 
 	/* disable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, 0);
+	/* acknowledge interrupts */
+	CSR_WRITE_4(sc, IWI_CSR_INTR, r);
 
 	if (r & (IWI_INTR_FATAL_ERROR | IWI_INTR_PARITY_ERROR)) {
 		device_printf(sc->sc_dev, "fatal error\n");
 		sc->sc_ic.ic_ifp->if_flags &= ~IFF_UP;
 		iwi_stop(sc);
+		r = 0;	/* don't process more interrupts */
 	}
 
 	if (r & IWI_INTR_FW_INITED) {
@@ -1433,6 +1438,7 @@ iwi_intr(void *arg)
 		DPRINTF(("radio transmitter turned off\n"));
 		sc->sc_ic.ic_ifp->if_flags &= ~IFF_UP;
 		iwi_stop(sc);
+		r = 0;	/* don't process more interrupts */
 	}
 
 	if (r & IWI_INTR_CMD_DONE)
@@ -1452,9 +1458,6 @@ iwi_intr(void *arg)
 
 	if (r & IWI_INTR_RX_DONE)
 		iwi_rx_intr(sc);
-
-	/* acknowledge interrupts */
-	CSR_WRITE_4(sc, IWI_CSR_INTR, r);
 
 	/* re-enable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, IWI_INTR_MASK);
@@ -2451,7 +2454,7 @@ iwi_init(void *priv)
 	hdr = (const struct iwi_firmware_hdr *)fp->data;
 
 	if (fp->datasize < sizeof *hdr + le32toh(hdr->bootsz) +
-	    le32toh(hdr->ucodesz) + le32toh(hdr->fwsz)) {
+	    le32toh(hdr->ucodesz) + le32toh(hdr->mainsz)) {
 		device_printf(sc->sc_dev,
 		    "firmware image too short: %d bytes\n", fp->datasize);
 		goto fail2;
@@ -2500,7 +2503,7 @@ iwi_init(void *priv)
 
 	fw = (const char *)fp->data + sizeof *hdr + le32toh(hdr->bootsz) +
 	    le32toh(hdr->ucodesz);
-	if (iwi_load_firmware(sc, fw, le32toh(hdr->fwsz)) != 0) {
+	if (iwi_load_firmware(sc, fw, le32toh(hdr->mainsz)) != 0) {
 		device_printf(sc->sc_dev, "could not load main firmware\n");
 		goto fail2;
 	}
