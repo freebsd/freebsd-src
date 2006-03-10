@@ -3854,7 +3854,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 static __inline int
 txqactive(struct ath_hal *ah, int qnum)
 {
-	/* XXX not yet */
+	u_int32_t txqs = 1<<qnum;
+	ath_hal_gettxintrtxqs(ah, &txqs);
 	return 1;
 }
 
