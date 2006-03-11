@@ -72,6 +72,7 @@
 
 #define	IEEE80211_BMISS_MAX	2	/* maximum consecutive bmiss allowed */
 #define	IEEE80211_SWBMISS_THRESHOLD 50	/* s/w bmiss threshold (TU's) */
+#define	IEEE80211_HWBMISS_DEFAULT 7	/* h/w bmiss threshold (beacons) */
 
 #define	IEEE80211_PS_SLEEP	0x1	/* STA is in power saving mode */
 #define	IEEE80211_PS_MAX_QUEUE	50	/* maximum saved packets */
