@@ -514,7 +514,7 @@ struct rusage_ext {
 	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
 	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
 	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
-	u_int64_t	rux_iu;         /* (c) Previous intr time in usec. */
+	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
 };
 
 /*
