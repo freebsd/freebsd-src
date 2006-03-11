@@ -97,6 +97,7 @@ upd7210intr(void *arg)
 	isr1 = upd7210_rd(u, ISR1);
 	isr2 = upd7210_rd(u, ISR2);
 	if (u->busy == 0 || u->irq == NULL || !u->irq(u, 1)) {
+#if 0
 		printf("upd7210intr [%02x %02x %02x",
 		    upd7210_rd(u, DIR), isr1, isr2);
 		printf(" %02x %02x %02x %02x %02x] ",
@@ -107,6 +108,7 @@ upd7210intr(void *arg)
 		    upd7210_rd(u, ADR1));
 		upd7210_print_isr(isr1, isr2);
 		printf("\n");
+#endif
 	}
 	mtx_unlock(&u->mutex);
 }
