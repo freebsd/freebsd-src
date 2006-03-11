@@ -8,7 +8,6 @@ SCRIPTS=	answer			\
 		tell			\
 		tell-record		\
 		unknown_incoming
-SCRIPTS_NAME_isdntel.sh= isdntel.sh
 
 FILES=		holidays.D		\
 		isdnd.rates.A		\
