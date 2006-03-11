@@ -743,83 +743,84 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		p->p_rux.rux_sticks += td->td_sticks;
 		td->td_sticks = 0;
 	}
+	/* Work on a copy of p_rux so we can let go of sched_lock */
 	rux = p->p_rux;
 	mtx_unlock_spin(&sched_lock);
 	calcru1(p, &rux, up, sp);
+	/* Update the result from the p_rux copy */
 	p->p_rux.rux_uu = rux.rux_uu;
 	p->p_rux.rux_su = rux.rux_su;
-	p->p_rux.rux_iu = rux.rux_iu;
+	p->p_rux.rux_tu = rux.rux_tu;
 }
 
 static void
 calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
     struct timeval *sp)
 {
-	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
-	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
+	/* {user, system, interrupt, total} {ticks, usec}: */
+	u_int64_t ut, uu, st, su, it, tt, tu;
 
 	ut = ruxp->rux_uticks;
 	st = ruxp->rux_sticks;
 	it = ruxp->rux_iticks;
-	tu = ruxp->rux_runtime;
-	tu = cputick2usec(tu);
 	tt = ut + st + it;
 	if (tt == 0) {
+		/* Avoid divide by zero */
 		st = 1;
 		tt = 1;
 	}
-	ptu = ruxp->rux_uu + ruxp->rux_su + ruxp->rux_iu;
+	tu = cputick2usec(ruxp->rux_runtime);
 	if ((int64_t)tu < 0) {
+		/* XXX: this should be an assert /phk */
 		printf("calcru: negative runtime of %jd usec for pid %d (%s)\n",
 		    (intmax_t)tu, p->p_pid, p->p_comm);
-		tu = ptu;
+		tu = ruxp->rux_tu;
 	}
 
-	/* Subdivide tu. */
-	uu = (tu * ut) / tt;
-	su = (tu * st) / tt;
-	iu = tu - uu - su;
-	if (tu + 3 > ptu) {
-		/* Numeric slop for low counts */
-	} else if (101 * tu > 100 * ptu) {
-		/* 1% slop for large counts */
-	} else {
-		printf(
-"calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
-		    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
-		printf("u %ju:%ju/%ju s %ju:%ju/%ju i %ju:%ju/%ju\n",
-		    (uintmax_t)ut, (uintmax_t)ruxp->rux_uu, uu,
-		    (uintmax_t)st, (uintmax_t)ruxp->rux_su, su,
-		    (uintmax_t)it, (uintmax_t)ruxp->rux_iu, iu);
-		tu = ptu;
-	}
-#if 0
-	/* Enforce monotonicity. */
-	if (uu < ruxp->rux_uu || su < ruxp->rux_su || iu < ruxp->rux_iu) {
+	if (tu >= ruxp->rux_tu) {
+		/*
+		 * The normal case, time increased.
+		 * Enforce monotonicity of bucketed numbers.
+		 */
+		uu = (tu * ut) / tt;
 		if (uu < ruxp->rux_uu)
 			uu = ruxp->rux_uu;
-		else if (uu + ruxp->rux_su + ruxp->rux_iu > tu)
-			uu = tu - ruxp->rux_su - ruxp->rux_iu;
-		if (st == 0)
+		su = (tu * st) / tt;
+		if (su < ruxp->rux_su)
 			su = ruxp->rux_su;
-		else {
-			su = ((tu - uu) * st) / (st + it);
-			if (su < ruxp->rux_su)
-				su = ruxp->rux_su;
-			else if (uu + su + ruxp->rux_iu > tu)
-				su = tu - uu - ruxp->rux_iu;
-		}
-		KASSERT(uu + su + ruxp->rux_iu <= tu,
-		    ("calcru: monotonisation botch 1"));
-		iu = tu - uu - su;
-		KASSERT(iu >= ruxp->rux_iu,
-		    ("calcru: monotonisation botch 2"));
+	} else if (tu + 3 > ruxp->rux_tu || 101 * tu > 100 * ruxp->rux_tu) {
+		/* 
+		 * When we calibrate the cputicker, it is not uncommon to
+		 * see the presumably fixed frequency increase slightly over
+		 * time as a result of thermal stabilization and NTP
+		 * discipline (of the reference clock).  We therefore ignore
+		 * a bit of backwards slop because we  expect to catch up
+ 		 * shortly.  We use a 3 microsecond limit to catch low
+		 * counts and a 1% limit for high counts.
+		 */
+		uu = ruxp->rux_uu;
+		su = ruxp->rux_su;
+		tu = ruxp->rux_tu;
+	} else { /* tu < ruxp->rux_tu */
+		/*
+		 * What happene here was likely that a laptop, which ran at
+		 * a reduced clock frequency at boot, kicked into high gear.
+		 * The wisdom of spamming this message in that case is
+		 * dubious, but it might also be indicative of something
+		 * serious, so lets keep it and hope laptops can be made
+		 * more truthful about their CPU speed via ACPI.
+		 */
+		printf("calcru: runtime went backwards from %ju usec "
+		    "to %ju usec for pid %d (%s)\n",
+		    (uintmax_t)ruxp->rux_tu, (uintmax_t)tu,
+		    p->p_pid, p->p_comm);
+		uu = (tu * ut) / tt;
+		su = (tu * st) / tt;
 	}
-	KASSERT(uu + su + iu <= tu, ("calcru: monotisation botch 3"));
-#endif
+
 	ruxp->rux_uu = uu;
 	ruxp->rux_su = su;
-	ruxp->rux_iu = iu;
+	ruxp->rux_tu = tu;
 
 	up->tv_sec = uu / 1000000;
 	up->tv_usec = uu % 1000000;
@@ -896,7 +897,7 @@ ruadd(ru, rux, ru2, rux2)
 	rux->rux_iticks += rux2->rux_iticks;
 	rux->rux_uu += rux2->rux_uu;
 	rux->rux_su += rux2->rux_su;
-	rux->rux_iu += rux2->rux_iu;
+	rux->rux_tu += rux2->rux_tu;
 	if (ru->ru_maxrss < ru2->ru_maxrss)
 		ru->ru_maxrss = ru2->ru_maxrss;
 	ip = &ru->ru_first;
