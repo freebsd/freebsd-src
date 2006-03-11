@@ -89,6 +89,7 @@ SYSCTL_INT(_debug, OID_AUTO, iwi, CTLFLAG_RW, &iwi_debug, 0, "iwi debug level");
 
 MODULE_DEPEND(iwi, pci,  1, 1, 1);
 MODULE_DEPEND(iwi, wlan, 1, 1, 1);
+MODULE_DEPEND(iwi, firmware, 1, 1, 1);
 
 struct iwi_ident {
 	uint16_t	vendor;
