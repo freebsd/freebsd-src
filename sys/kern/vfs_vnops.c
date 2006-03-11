@@ -982,7 +982,7 @@ vn_start_secondary_write(vp, mpp, flags)
 	if ((mp = *mpp) == NULL)
 		return (0);
 	MNT_ILOCK(mp);
-	if ((mp->mnt_kern_flag & MNTK_SUSPENDED) == 0) {
+	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
 		mp->mnt_secondary_accwrites++;
 		MNT_IUNLOCK(mp);
@@ -1087,7 +1087,8 @@ vfs_write_resume(mp)
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
-		mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPENDED);
+		mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPEND2 |
+				       MNTK_SUSPENDED);
 		wakeup(&mp->mnt_writeopcount);
 		wakeup(&mp->mnt_flag);
 	}

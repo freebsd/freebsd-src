@@ -159,6 +159,7 @@ static int snapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
 static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
     struct fs *, ufs_lbn_t, int);
 static int readblock(struct vnode *vp, struct buf *, ufs2_daddr_t);
+static void process_deferred_inactive(struct mount *);
 
 /*
  * To ensure the consistency of snapshots across crashes, we must
@@ -268,10 +269,12 @@ restart:
 	}
 	VOP_LEASE(nd.ni_dvp, td, KERNCRED, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
+	vhold(nd.ni_dvp);
 	vput(nd.ni_dvp);
 	if (error) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vn_finished_write(wrtmp);
+		vdrop(nd.ni_dvp);
 		return (error);
 	}
 	vp = nd.ni_vp;
@@ -496,7 +499,9 @@ loop:
 		VI_LOCK(xvp);
 		MNT_IUNLOCK(mp);
 		if ((xvp->v_iflag & VI_DOOMED) ||
-		    xvp->v_usecount == 0 || xvp->v_type == VNON ||
+		    (xvp->v_usecount == 0 &&
+		     (xvp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == 0) ||
+		    xvp->v_type == VNON ||
 		    (VTOI(xvp)->i_flags & SF_SNAPSHOT)) {
 			VI_UNLOCK(xvp);
 			MNT_ILOCK(mp);
@@ -511,22 +516,36 @@ loop:
 			MNT_ILOCK(mp);
 			continue;
 		}
+		vholdl(xvp);
 		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0) {
 			MNT_ILOCK(mp);
 			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			vdrop(xvp);
 			goto loop;
 		}
+		VI_LOCK(xvp);
+		if (xvp->v_usecount == 0 &&
+		    (xvp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == 0) {
+			VI_UNLOCK(xvp);
+			VOP_UNLOCK(xvp, 0, td);
+			vdrop(xvp);
+			MNT_ILOCK(mp);
+			continue;
+		}
+		VI_UNLOCK(xvp);
 		if (snapdebug)
 			vprint("ffs_snapshot: busy vnode", xvp);
 		if (VOP_GETATTR(xvp, &vat, td->td_ucred, td) == 0 &&
 		    vat.va_nlink > 0) {
 			VOP_UNLOCK(xvp, 0, td);
+			vdrop(xvp);
 			MNT_ILOCK(mp);
 			continue;
 		}
 		xp = VTOI(xvp);
 		if (ffs_checkfreefile(copy_fs, vp, xp->i_number)) {
 			VOP_UNLOCK(xvp, 0, td);
+			vdrop(xvp);
 			MNT_ILOCK(mp);
 			continue;
 		}
@@ -557,6 +576,7 @@ loop:
 			error = ffs_freefile(ump, copy_fs, vp, xp->i_number,
 			    xp->i_mode);
 		VOP_UNLOCK(xvp, 0, td);
+		vdrop(xvp);
 		if (error) {
 			free(copy_fs->fs_csp, M_UFSMNT);
 			bawrite(sbp);
@@ -567,6 +587,7 @@ loop:
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
+	vdrop(nd.ni_dvp);
 	/*
 	 * If there already exist snapshots on this filesystem, grab a
 	 * reference to their shared lock. If this is the first snapshot
@@ -783,6 +804,7 @@ out:
 	else
 		VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(wrtmp);
+	process_deferred_inactive(mp);
 	return (error);
 }
 
@@ -2237,4 +2259,69 @@ readblock(vp, bp, lbn)
 	return (bp->b_error);
 }
 
+
+/*
+ * Process file deletes that were deferred by ufs_inactive() due to
+ * the file system being suspended.
+ */
+static void
+process_deferred_inactive(struct mount *mp)
+{
+	struct vnode *vp, *mvp;
+	struct thread *td;
+	int error;
+
+	td = curthread;
+	(void) vn_start_secondary_write(NULL, &mp, V_WAIT);
+	MNT_ILOCK(mp);
+ loop:
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
+		VI_LOCK(vp);
+		if ((vp->v_iflag & (VI_DOOMED | VI_OWEINACT)) != VI_OWEINACT ||
+		    vp->v_usecount > 0 ||
+		    vp->v_type == VNON) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		MNT_IUNLOCK(mp);
+		vholdl(vp);
+		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+		if (error != 0) {
+			vdrop(vp);
+			MNT_ILOCK(mp);
+			if (error == ENOENT)
+				continue;	/* vnode recycled */
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			goto loop;
+		}
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_OWEINACT) == 0) {
+			VI_UNLOCK(vp);
+			VOP_UNLOCK(vp, 0, td);
+			vdrop(vp);
+			MNT_ILOCK(mp);
+			continue;
+		}
+		
+		VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
+			 ("process_deferred_inactive: "
+			  "recursed on VI_DOINGINACT"));
+		vp->v_iflag |= VI_DOINGINACT;
+		vp->v_iflag &= ~VI_OWEINACT;
+		VI_UNLOCK(vp);
+		(void) VOP_INACTIVE(vp, td);
+		VI_LOCK(vp);
+		VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
+			 ("process_deferred_inactive: lost VI_DOINGINACT"));
+		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
+			 ("process_deferred_inactive: got VI_OWEINACT"));
+		vp->v_iflag &= ~VI_DOINGINACT;
+		VI_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, td);
+		vdrop(vp);
+		MNT_ILOCK(mp);
+	}
+	MNT_IUNLOCK(mp);
+	vn_finished_secondary_write(mp);
+}
 #endif

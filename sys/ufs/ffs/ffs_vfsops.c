@@ -1224,7 +1224,7 @@ loop:
 					  secondary_accwrites) != 0)
 			goto loop;	/* More work needed */
 		mtx_assert(MNT_MTX(mp), MA_OWNED);
-		mp->mnt_kern_flag |= MNTK_SUSPENDED;
+		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
 		MNT_IUNLOCK(mp);
 		suspended = 1;
 	} else
