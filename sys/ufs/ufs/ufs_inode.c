@@ -86,7 +86,32 @@ ufs_inactive(ap)
 	if (ip->i_effnlink == 0 && DOINGSOFTDEP(vp))
 		softdep_releasefile(ip);
 	if (ip->i_nlink <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
+	loop:
+		if (vn_start_secondary_write(vp, &mp, V_NOWAIT) != 0) {
+			/* Cannot delete file while file system is suspended */
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
+				/* Cannot return before file is deleted */
+				(void) vn_start_secondary_write(vp, &mp,
+								V_WAIT);
+			} else {
+				MNT_ILOCK(mp);
+				if ((mp->mnt_kern_flag &
+				     (MNTK_SUSPEND2 | MNTK_SUSPENDED)) == 0) {
+					MNT_IUNLOCK(mp);
+					goto loop;
+				}
+				/*
+				 * Fail to inactivate vnode now and
+				 * let ffs_snapshot() clean up after
+				 * it has resumed the file system.
+				 */
+				VI_LOCK(vp);
+				vp->v_iflag |= VI_OWEINACT;
+				VI_UNLOCK(vp);
+				MNT_IUNLOCK(mp);
+				return (0);
+			}
+		}
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
