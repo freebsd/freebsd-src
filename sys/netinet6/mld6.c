@@ -327,7 +327,8 @@ mld6_input(m, off)
 	 *
 	 * In Non-Listener state, we simply don't have a membership record.
 	 * In Delaying Listener state, our timer is running (in6m->in6m_timer)
-	 * In Idle Listener state, our timer is not running (in6m->in6m_timer==0)
+	 * In Idle Listener state, our timer is not running 
+	 * (in6m->in6m_timer==IN6M_TIMER_UNDEF)
 	 *
 	 * The flag is in6m->in6m_state, it is set to MLD_OTHERLISTENER if
 	 * we have heard a report from another member, or MLD_IREPORTEDLAST
@@ -395,7 +396,7 @@ mld6_input(m, off)
 					in6m->in6m_timer = 0; /* reset timer */
 					in6m->in6m_state = MLD_IREPORTEDLAST;
 				}
-				else if (in6m->in6m_timer == 0 || /*idle state*/
+				else if (in6m->in6m_timer == IN6M_TIMER_UNDEF ||
 				    mld_timerresid(in6m) > (u_long)timer) {
 					in6m->in6m_timer = arc4random() %
 					    (int)((long)(timer * hz) / 1000);
