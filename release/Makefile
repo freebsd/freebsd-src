@@ -177,9 +177,10 @@ DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 # Build and package both GENERIC and SMP kernels if the target
 # has both configuration files.  Otherwise only GENERIC is done.
 #
-KERNELS+=	GENERIC
 .if exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
-KERNELS+=	SMP
+KERNELS_BASE?=	GENERIC SMP
+.else
+KERNELS_BASE?=	GENERIC
 .endif
 
 # mountpoint for filesystems.
@@ -482,6 +483,7 @@ release rerelease:
 	FTP_PROXY \
 	HTTP_PROXY \
 	KERNELS \
+	KERNELS_BASE \
 	KERNEL_FLAGS \
 	MAKE_FLOPPIES \
 	MAKE_ISOS \
@@ -588,8 +590,8 @@ release.1:
 		    -p ${RD}/trees/$$i/var > /dev/null ; \
 	done
 	mkdir ${RD}/kernels
-	for i in ${KERNELS}; do \
-		mkdir ${RD}/kernels/$${i}; \
+	for i in ${KERNELS_BASE} ${KERNELS}; do \
+		mkdir -p ${RD}/kernels/$${i}; \
 	done
 	touch ${.TARGET}
 
@@ -602,7 +604,7 @@ release.2:
 
 # Make and install the generic kernel(s).
 release.3:
-.for kernel in ${KERNELS}
+.for kernel in ${KERNELS_BASE} ${KERNELS}
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${KERNEL_FLAGS} \
  	    KERNCONF=${kernel} kernel \
@@ -665,7 +667,7 @@ release.6:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
-	@for i in ${KERNELS} ; \
+	@for i in ${KERNELS_BASE} ${KERNELS} ; \
 	do \
 		if [ -d ${RD}/kernels/$${i} ] ; then \
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
