@@ -2447,7 +2447,7 @@ iwi_init(void *priv)
 
 	if (fp->datasize < sizeof *hdr) {
 		device_printf(sc->sc_dev,
-		    "firmware image too short: %d bytes\n", fp->datasize);
+		    "firmware image too short: %zu bytes\n", fp->datasize);
 		goto fail2;
 	}
 
@@ -2456,7 +2456,7 @@ iwi_init(void *priv)
 	if (fp->datasize < sizeof *hdr + le32toh(hdr->bootsz) +
 	    le32toh(hdr->ucodesz) + le32toh(hdr->mainsz)) {
 		device_printf(sc->sc_dev,
-		    "firmware image too short: %d bytes\n", fp->datasize);
+		    "firmware image too short: %zu bytes\n", fp->datasize);
 		goto fail2;
 	}
 
