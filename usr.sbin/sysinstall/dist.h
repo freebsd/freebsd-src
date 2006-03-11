@@ -19,6 +19,7 @@
 #ifdef __amd64__
 #define DIST_LIB32		0x01000
 #endif
+#define	DIST_KERNEL		0x02000
 #define DIST_ALL		0xFFFFF
 
 /* Subtypes for SRC distribution */
@@ -70,6 +71,11 @@
 #define DIST_XORG_ALL		\
 	(DIST_XORG_MISC_ALL | DIST_XORG_SERVER_ALL | DIST_XORG_FONTS_ALL)
 
+/* Subtypes for KERNEL distribution */
+#define DIST_KERNEL_GENERIC	0x00001
+#define DIST_KERNEL_SMP		0x00002
+#define DIST_KERNEL_ALL		0xFFFFF
+
 /* Canned distribution sets */
 
 #define _DIST_XORG_FONTS_BASE \
@@ -77,7 +83,7 @@
 	 DIST_XORG_FONTS_TT)
 
 #define _DIST_USER \
-	( DIST_BASE | DIST_DOC | DIST_MANPAGES | DIST_DICT )
+	( DIST_BASE | DIST_KERNEL | DIST_DOC | DIST_MANPAGES | DIST_DICT )
 
 #define _DIST_DEVELOPER \
 	( _DIST_USER | DIST_PROFLIBS | DIST_INFO | DIST_SRC )

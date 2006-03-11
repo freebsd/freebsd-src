@@ -173,6 +173,16 @@ ARCH_DISTS?=	lib32
 .endif
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 
+#
+# Build and package both GENERIC and SMP kernels if the target
+# has both configuration files.  Otherwise only GENERIC is done.
+#
+.if exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
+KERNELS_BASE?=	GENERIC SMP
+.else
+KERNELS_BASE?=	GENERIC
+.endif
+
 # mountpoint for filesystems.
 MNT=			/mnt
 
@@ -467,6 +477,7 @@ release rerelease:
 	FTP_PROXY \
 	HTTP_PROXY \
 	KERNELS \
+	KERNELS_BASE \
 	KERNEL_FLAGS \
 	MAKE_FLOPPIES \
 	MAKE_ISOS \
@@ -561,7 +572,6 @@ release.1:
 	mkdir ${RD}/floppies
 .endif
 	mkdir ${RD}/trees
-	mkdir ${RD}/kernels
 	for i in ${DISTRIBUTIONS}; do \
 		mkdir ${RD}/trees/$$i && \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
@@ -572,6 +582,10 @@ release.1:
 		    -p ${RD}/trees/$$i/usr/include > /dev/null && \
 		mtree -deU -f ${MTREEFILES}/BSD.var.dist \
 		    -p ${RD}/trees/$$i/var > /dev/null ; \
+	done
+	mkdir ${RD}/kernels
+	for i in ${KERNELS_BASE} ${KERNELS}; do \
+		mkdir -p ${RD}/kernels/$${i}; \
 	done
 	touch ${.TARGET}
 
@@ -584,21 +598,12 @@ release.2:
 
 # Make and install the generic kernel(s).
 release.3:
-.for kernel in ${KERNELS}
-	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
-	    KERNCONF=${kernel} INSTKERNNAME=${kernel} kernel \
-	    DESTDIR=${RD}/trees/base
-.endfor
-	# Install a standard boot kernel+modules.
+.for kernel in ${KERNELS_BASE} ${KERNELS}
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${KERNEL_FLAGS} \
-	    kernel \
-	    DESTDIR=${RD}/trees/base; \
-	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
-	    reinstallkernel -DINSTALL_DEBUG \
-	    DESTDIR=${RD}/trees/base
+ 	    KERNCONF=${kernel} kernel \
+ 	    DESTDIR=${RD}/kernels KODIR=/${kernel}
+.endfor
 	touch ${.TARGET}
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -653,6 +658,15 @@ release.6:
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				SD=${RD}/trees/$${i} \
 				TN=$$i TD=$$i ARG="." && \
+			echo "$${i} distribution is finished."; \
+		fi ; \
+	done
+	@for i in ${KERNELS_BASE} ${KERNELS} ; \
+	do \
+		if [ -d ${RD}/kernels/$${i} ] ; then \
+			cd ${.CURDIR} && $(MAKE) doTARBALL \
+				SD=${RD}/kernels \
+				TN=$$i TD=kernels ARG="$$i" && \
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
@@ -788,7 +802,7 @@ SMALLMFSROOTFLOPPYSET=	${RD}/floppyset/mfsroot-small/mfsroot.gz
 
 # Build boot and install floppies.
 floppies.1:
-	@gzip -9nc ${RD}/trees/base/boot/kernel/kernel > ${RD}/kernels/kernel.gz
+	@gzip -9nc ${RD}/kernels/GENERIC/kernel > ${RD}/kernels/kernel.gz
 	@echo "Making the kernel boot floppies..."
 	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern \
 	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz
@@ -918,6 +932,8 @@ cdrom.1:
 			    find . -depth -print | cpio -dumpl ${CD_LIVEFS} ) ; \
 		fi \
 	done
+	@echo "Copy GENERIC kernel to boot area"
+	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_LIVEFS}/boot/kernel
 	@rm -f ${CD_LIVEFS}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_LIVEFS}/.profile
 	@ln -sf /rescue ${CD_LIVEFS}/stand
