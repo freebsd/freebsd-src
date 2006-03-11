@@ -47,8 +47,9 @@ LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 #
 .if ${MACHINE} == "i386" || ${MACHINE_ARCH} == "amd64"
 SRCS+=	acpi.c biosmptable.c
-# NB: HEAD has SMP in GENERIC so only one kernel
-#CFLAGS+=-DWITH_SMP	
+.if exists(${.CURDIR}/../../sys/${MACHINE}/conf/SMP)
+CFLAGS+=-DWITH_SMP	
+.endif
 DPADD+=	${LIBDEVINFO}
 LDADD+=	-ldevinfo
 .endif
