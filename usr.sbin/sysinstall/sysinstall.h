@@ -107,6 +107,7 @@
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_SRC			"distSRC"
 #define VAR_DIST_X11			"distX11"
+#define VAR_DIST_KERNEL			"distKernel"
 #define VAR_DEDICATE_DISK		"dedicateDisk"
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
@@ -147,6 +148,7 @@
 #define VAR_MOUSED_PORT			"moused_port"
 #define VAR_MOUSED_TYPE			"moused_type"
 #define VAR_NAMESERVER			"nameserver"
+#define	VAR_NCPUS			"ncpus"
 #define VAR_NETINTERACTIVE		"netInteractive"
 #define VAR_NETMASK			"netmask"
 #define VAR_NETWORK_DEVICE		"netDev"
@@ -418,6 +420,7 @@ extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XOrgDists;		/* Which X.Org dists we want			*/
+extern unsigned int	KernelDists;		/* Which kernel dists we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuCountry;		/* Country menu				*/
@@ -467,6 +470,7 @@ extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
+extern DMenu		MenuKernelDistributions;/* Kernel distribution menu			*/
 extern DMenu		MenuXOrg;		/* X.Org main menu				*/
 extern DMenu		MenuXOrgSelect;		/* X.Org distribution selection menu		*/
 extern DMenu		MenuXOrgSelectCore;	/* X.Org core distribution menu			*/
@@ -479,6 +483,7 @@ extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern DMenu		MenuXOrgConfig;		/* Select X.Org configuration tool		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
+extern int		NCpus;			/* # cpus on machine */
 
 /* Important chunks. */
 extern Chunk *HomeChunk;
@@ -496,6 +501,9 @@ extern void display_helpfile(void);
 extern void display_helpline(WINDOW *w, int y, int width);
 
 /*** Prototypes ***/
+
+/* acpi.c */
+extern int	acpi_detect(void);
 
 /* anonFTP.c */
 extern int	configAnonFTP(dialogMenuItem *self);
@@ -603,6 +611,7 @@ extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
 extern int	distSetXOrg(dialogMenuItem *self);
+extern int	distSetKernel(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
 
 /* dmenu.c */
@@ -680,6 +689,7 @@ extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
 extern int	installFixupBase(dialogMenuItem *self);
+extern int	installFixupKernel(dialogMenuItem *self, int dists);
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
@@ -781,6 +791,9 @@ extern int	kldBrowser(dialogMenuItem *self);
 extern int	mousedTest(dialogMenuItem *self);
 extern int	mousedDisable(dialogMenuItem *self);
 extern int      setMouseFlags(dialogMenuItem *self);
+
+/* mptable.c */
+extern int	biosmptable_detect(void);
 
 /* msg.c */
 extern Boolean	isDebug(void);

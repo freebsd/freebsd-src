@@ -57,6 +57,22 @@ clearSrc(dialogMenuItem *self)
 }
 
 static int
+setKernel(dialogMenuItem *self)
+{
+    Dists |= DIST_KERNEL;
+    KernelDists = DIST_KERNEL_ALL;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearKernel(dialogMenuItem *self)
+{
+    Dists &= ~DIST_KERNEL;
+    KernelDists = 0;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
 setX11Misc(dialogMenuItem *self)
 {
     XOrgDists |= DIST_XORG_MISC_ALL;
@@ -160,7 +176,8 @@ checkDistEverything(dialogMenuItem *self)
 {
     return Dists == DIST_ALL &&
 	_IS_SET(SrcDists, DIST_SRC_ALL) &&
-	_IS_SET(XOrgDists, DIST_XORG_ALL);
+	_IS_SET(XOrgDists, DIST_XORG_ALL) &&
+	_IS_SET(KernelDists, DIST_KERNEL_ALL);
 }
 
 static int
@@ -178,6 +195,12 @@ x11FlagCheck(dialogMenuItem *item)
 	Dists &= ~DIST_XORG;
 
     return Dists & DIST_XORG;
+}
+
+static int
+kernelFlagCheck(dialogMenuItem *item)
+{
+    return KernelDists;
 }
 
 static int
@@ -965,6 +988,8 @@ DMenu MenuSubDistributions = {
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
       { " base",	"Binary base distribution (required)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BASE },
+      { " kernels",	"Binary kernel distributions (required)",
+	kernelFlagCheck,distSetKernel },
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
@@ -991,6 +1016,27 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { " X.Org",	"The X.Org distribution",
 	x11FlagCheck,	distSetXOrg },
+      { NULL } },
+};
+
+DMenu MenuKernelDistributions = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "Select the operating system kernels you wish to install.",
+    "Please check off those kernels you wish to install.\n",
+    NULL,
+    NULL,
+    { { "X Exit", "Exit this menu (returning to previous)",
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { "All",		"Select all of the below",
+	NULL,		setKernel, NULL, NULL, ' ', ' ', ' ' },
+      { "Reset",	"Reset all of the below",
+	NULL,		clearKernel, NULL, NULL, ' ', ' ', ' ' },
+      { " GENERIC",	"GENERIC kernel configuration",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &KernelDists, '[', 'X', ']', DIST_KERNEL_GENERIC },
+#ifdef WITH_SMP
+      { " SMP",		"GENERIC symmetric multiprocessor kernel configuration",
+	dmenuFlagCheck,	dmenuSetFlag,	NULL, &KernelDists, '[', 'X', ']', DIST_KERNEL_SMP },
+#endif
       { NULL } },
 };
 
