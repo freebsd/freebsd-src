@@ -599,15 +599,9 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		}
 	}
 
-	if (dirp) {
-		vrele(dirp);
-		dirp = NULL;
-	}
-
 	/*
 	 * Resources at this point:
 	 *	ndp->ni_vp	may not be NULL
-	 *
 	 */
 
 	if (error) {
@@ -621,15 +615,6 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 	/*
-	 * Clear out some resources prior to potentially blocking.  This
-	 * is not as critical as ni_dvp resources in other routines, but
-	 * it helps.
-	 */
-	vrele(ndp->ni_startdir);
-	ndp->ni_startdir = NULL;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-
-	/*
 	 * Get underlying attribute, then release remaining resources ( for
 	 * the same potential blocking reason ) and reply.
 	 */
@@ -641,8 +626,12 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = VOP_GETATTR(vp, vap, cred, td);
 
 	vput(vp);
-	mtx_unlock(&Giant);	/* VFS */
+	vrele(ndp->ni_startdir);
+	vrele(dirp);
 	ndp->ni_vp = NULL;
+	ndp->ni_startdir = NULL;
+	dirp = NULL;
+	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_reply(NFSX_SRVFH(v3) + NFSX_POSTOPORFATTR(v3) + NFSX_POSTOPATTR(v3));
 	if (error) {
@@ -662,17 +651,19 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 nfsmout:
 	NFSD_LOCK_ASSERT();
-	NFSD_UNLOCK();
-	mtx_lock(&Giant);	/* VFS */
-	if (ndp->ni_vp)
-		vput(ndp->ni_vp);
-	if (dirp)
-		vrele(dirp);
+	if (ndp->ni_vp || dirp || ndp->ni_startdir) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
+		if (ndp->ni_vp)
+			vput(ndp->ni_vp);
+		if (dirp)
+			vrele(dirp);
+		if (ndp->ni_startdir)
+			vrele(ndp->ni_startdir);
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (ndp->ni_startdir)
-		vrele(ndp->ni_startdir);
-	mtx_unlock(&Giant);	/* VFS */
-	NFSD_LOCK();
 	return (error);
 }
 
