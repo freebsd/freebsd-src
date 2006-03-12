@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (c) 2004, 2005
+ * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -117,6 +117,7 @@ struct iwi_softc {
 
 	struct mtx		sc_mtx;
 	struct unrhdr		*sc_unr;
+	struct task		sc_init_task;
 
 	uint32_t		flags;
 #define IWI_FLAG_FW_INITED	(1 << 0)
