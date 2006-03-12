@@ -354,6 +354,8 @@
   <sect2 id="misc-network">
     <title>Miscellaneous Networks</title>
 
+    &hwlist.ce;
+
     &hwlist.cx;
 
     &hwlist.cp;

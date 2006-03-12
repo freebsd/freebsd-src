@@ -235,6 +235,10 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
+      <para arch="i386,pc98">The &man.ce.4; driver has been added to
+        support Cronyx Tau32-PCI adapters.
+        </para>
+
       <para></para>
 
       <sect4 id="mm">
