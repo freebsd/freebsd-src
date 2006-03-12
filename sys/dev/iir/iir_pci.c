@@ -386,9 +386,9 @@ gdt_pci_enable_intr(struct gdt_softc *gdt)
  */
 
 void
-gdt_mpr_copy_cmd(struct gdt_softc *gdt, struct gdt_ccb *ccb)
+gdt_mpr_copy_cmd(struct gdt_softc *gdt, struct gdt_ccb *gccb)
 {
-    u_int16_t cp_count = roundup(gdt->sc_cmd_len, sizeof (u_int32_t));
+    u_int16_t cp_count = roundup(gccb->gc_cmd_len, sizeof (u_int32_t));
     u_int16_t dp_offset = gdt->sc_cmd_off;
     u_int16_t cmd_no = gdt->sc_cmd_cnt++;
 
@@ -396,15 +396,15 @@ gdt_mpr_copy_cmd(struct gdt_softc *gdt, struct gdt_ccb *ccb)
 
     gdt->sc_cmd_off += cp_count;
 
+    bus_space_write_region_4(gdt->sc_dpmemt, gdt->sc_dpmemh,
+                             GDT_MPR_IC + GDT_DPR_CMD + dp_offset, 
+                             (u_int32_t *)gccb->gc_cmd, cp_count >> 2);
     bus_space_write_2(gdt->sc_dpmemt, gdt->sc_dpmemh,
                       GDT_MPR_IC + GDT_COMM_QUEUE + cmd_no * GDT_COMM_Q_SZ + GDT_OFFSET,
                       htole16(GDT_DPMEM_COMMAND_OFFSET + dp_offset));
     bus_space_write_2(gdt->sc_dpmemt, gdt->sc_dpmemh,
                       GDT_MPR_IC + GDT_COMM_QUEUE + cmd_no * GDT_COMM_Q_SZ + GDT_SERV_ID,
-                      htole16(ccb->gc_service));
-    bus_space_write_region_4(gdt->sc_dpmemt, gdt->sc_dpmemh,
-                             GDT_MPR_IC + GDT_DPR_CMD + dp_offset, 
-                             (u_int32_t *)gdt->sc_cmd, cp_count >> 2);
+                      htole16(gccb->gc_service));
 }
 
 u_int8_t
@@ -421,6 +421,8 @@ gdt_mpr_intr(struct gdt_softc *gdt, struct gdt_intr_ctx *ctx)
     int i;
 
     GDT_DPRINTF(GDT_D_INTR, ("gdt_mpr_intr(%p) ", gdt));
+
+    bus_space_write_1(gdt->sc_dpmemt, gdt->sc_dpmemh, GDT_MPR_EDOOR, 0xff);
 
     if (ctx->istatus & 0x80) {          /* error flag */
         ctx->istatus &= ~0x80;
@@ -452,7 +454,6 @@ gdt_mpr_intr(struct gdt_softc *gdt, struct gdt_intr_ctx *ctx)
             }
         }
     }
-    bus_space_write_1(gdt->sc_dpmemt, gdt->sc_dpmemh, GDT_MPR_EDOOR, 0xff);
     bus_space_write_1(gdt->sc_dpmemt, gdt->sc_dpmemh, GDT_MPR_SEMA1, 0);
 }
 
