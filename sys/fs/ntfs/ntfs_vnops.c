@@ -248,6 +248,11 @@ ntfs_reclaim(ap)
 	if (ntfs_prtactive && vrefcnt(vp) != 0)
 		vprint("ntfs_reclaim: pushing active", vp);
 
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+
 	if ((error = ntfs_ntget(ip)) != 0)
 		return (error);
 	
@@ -255,7 +260,6 @@ ntfs_reclaim(ap)
 	ntfs_frele(fp);
 	ntfs_ntput(ip);
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
 
 	return (0);
 }
