@@ -30,14 +30,6 @@
 #define	_SYS_HASH_H_
 #include <sys/types.h>
 
-/*
- * Note: SMALL_KERNEL might be used to shrink these, right now I
- * do not see the point, as my kernel did not grow appreciably when
- * I switched to these from other inline code.  This may have to be
- * revisited when/if these functions become more prevalent in the
- * kernel.
- */
-
 /* Convenience */
 #ifndef	HASHINIT
 #define	HASHINIT	5381
