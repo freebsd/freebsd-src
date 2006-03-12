@@ -720,6 +720,7 @@ softdep_flush(void)
 	struct mount *mp;
 	struct thread *td;
 	int remaining;
+	int vfslocked;
 
 	td = curthread;
 	td->td_pflags |= TDP_NORUNNINGBUF;
@@ -749,8 +750,10 @@ softdep_flush(void)
 				continue;
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
 				continue;
+			vfslocked = VFS_LOCK_GIANT(mp);
 			softdep_process_worklist(mp, 0);
 			remaining += VFSTOUFS(mp)->softdep_on_worklist;
+			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp, td);
