@@ -549,6 +549,10 @@ msdosfs_reclaim(ap)
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("msdosfs_reclaim(): pushing active", vp);
 	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+	/*
 	 * Remove the denode from its hash chain.
 	 */
 	vfs_hash_remove(vp);
@@ -560,7 +564,6 @@ msdosfs_reclaim(ap)
 #endif
 	FREE(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
 
 	return (0);
 }

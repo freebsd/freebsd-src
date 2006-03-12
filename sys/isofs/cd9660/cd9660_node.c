@@ -98,6 +98,10 @@ cd9660_reclaim(ap)
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("cd9660_reclaim: pushing active", vp);
 	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
+	/*
 	 * Remove the inode from its hash chain.
 	 */
 	vfs_hash_remove(vp);
@@ -109,7 +113,6 @@ cd9660_reclaim(ap)
 		vrele(ip->i_mnt->im_devvp);
 	FREE(vp->v_data, M_ISOFSNODE);
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
 	return (0);
 }
 
