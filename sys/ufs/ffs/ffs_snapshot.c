@@ -404,14 +404,7 @@ restart:
 			break;
 		vn_start_write(NULL, &wrtmp, V_WAIT);
 	}
-	/*
-	 * Wait for all dependency processing to finish after the sync
-	 * triggered by vfs_write_suspend().
-	 */
-	error = softdep_waitidle(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (error)
-		goto out1;
 	if (collectsnapstats)
 		nanotime(&starttime);
 	/*
