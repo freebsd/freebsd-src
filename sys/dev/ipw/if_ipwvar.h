@@ -1,7 +1,7 @@
 /*      $FreeBSD$	*/
 
 /*-
- * Copyright (c) 2004, 2005
+ * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,13 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-struct ipw_firmware {
-	void	*main;
-	int	main_size;
-	void	*ucode;
-	int	ucode_size;
-};
 
 #define IPW_MAX_NSEG	1
 
@@ -91,11 +84,11 @@ struct ipw_softc {
 	device_t			sc_dev;
 
 	struct mtx			sc_mtx;
+	struct task			sc_init_task;
 
-	struct ipw_firmware		fw;
 	uint32_t			flags;
-#define IPW_FLAG_FW_CACHED		(1 << 0)
-#define IPW_FLAG_FW_INITED		(1 << 1)
+#define IPW_FLAG_FW_INITED		(1 << 0)
+#define IPW_FLAG_INIT_LOCKED		(1 << 1)
 #define IPW_FLAG_HAS_RADIO_SWITCH	(1 << 2)
 #define	IPW_FLAG_FW_WARNED		(1 << 3)
 
@@ -166,9 +159,3 @@ struct ipw_softc {
 #define sc_txtap	sc_txtapu.th
 	int				sc_txtap_len;
 };
-
-#define SIOCSLOADFW	 _IOW('i', 137, struct ifreq)
-#define SIOCSKILLFW	 _IOW('i', 138, struct ifreq)
-
-#define IPW_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
-#define IPW_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
