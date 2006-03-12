@@ -2101,6 +2101,18 @@
   <sect2>
     <title>Miscellaneous Networks</title>
 
+    <para arch="i386">Cronyx Tau32-PCI synchronous serial adapters for PCI bus
+      (&man.ce.4; driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Cronyx Tau32-PCI (dual fractional/unframed E1)</para>
+	</listitem>
+	<listitem>
+	  <para>Cronyx Tau32-PCI/Lite (on fractional/unframed E1)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Cronyx Sigma synchronous / asynchronous serial
       adapters with V.35/RS-232/RS-530/RS-449 interfaces (&man.cx.4; driver)
       <itemizedlist>
