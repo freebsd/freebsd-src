@@ -457,8 +457,10 @@ g_gatec_create(void)
 	snprintf(ggioc.gctl_info, sizeof(ggioc.gctl_info), "%s:%u %s", host,
 	    port, path);
 	g_gate_ioctl(G_GATE_CMD_CREATE, &ggioc);
-	if (unit == -1)
+	if (unit == -1) {
 		printf("%s%u\n", G_GATE_PROVIDER_NAME, ggioc.gctl_unit);
+		fflush(stdout);
+	}
 	unit = ggioc.gctl_unit;
 
 	mydaemon();
