@@ -683,16 +683,40 @@ null_print(struct vop_print_args *ap)
 	return (0);
 }
 
+/* ARGSUSED */
+static int
+null_getwritemount(struct vop_getwritemount_args *ap)
+{
+	struct null_node *xp;
+	struct vnode *lowervp;
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	VI_LOCK(vp);
+	xp = VTONULL(vp);
+	if (xp && (lowervp = xp->null_lowervp)) {
+		VI_LOCK_FLAGS(lowervp, MTX_DUPOK);
+		VI_UNLOCK(vp);
+		vholdl(lowervp);
+		VI_UNLOCK(lowervp);
+		VOP_GETWRITEMOUNT(lowervp, ap->a_mpp);
+		vdrop(lowervp);
+	} else {
+		VI_UNLOCK(vp);
+		*(ap->a_mpp) = NULL;
+	}
+	return (0);
+}
+
 /*
  * Global vfs data structures
  */
 struct vop_vector null_vnodeops = {
 	.vop_bypass =		null_bypass,
-
 	.vop_access =		null_access,
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_getattr =		null_getattr,
-	.vop_getwritemount =	vop_stdgetwritemount,
+	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_islocked =		null_islocked,
 	.vop_lock =		null_lock,
