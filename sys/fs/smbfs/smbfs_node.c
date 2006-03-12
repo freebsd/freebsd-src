@@ -319,6 +319,10 @@ smbfs_reclaim(ap)
 	KASSERT((np->n_flag & NOPEN) == 0, ("file not closed before reclaim"));
 
 	smbfs_hash_lock(smp, td);
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
 
 	dvp = (np->n_parent && (np->n_flag & NREFPARENT)) ?
 	    np->n_parent : NULL;
@@ -330,7 +334,6 @@ smbfs_reclaim(ap)
 		smp->sm_root = NULL;
 	}
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
 	smbfs_hash_unlock(smp, td);
 	if (np->n_name)
 		smbfs_name_free(np->n_name);
