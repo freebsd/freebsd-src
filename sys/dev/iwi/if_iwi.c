@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -148,6 +150,7 @@ static int	iwi_config(struct iwi_softc *);
 static int	iwi_set_chan(struct iwi_softc *, struct ieee80211_channel *);
 static int	iwi_scan(struct iwi_softc *);
 static int	iwi_auth_and_assoc(struct iwi_softc *);
+static void	iwi_init_task(void *, int);
 static void	iwi_init(void *);
 static void	iwi_stop(void *);
 static int	iwi_sysctl_stats(SYSCTL_HANDLER_ARGS);
@@ -227,6 +230,8 @@ iwi_attach(device_t dev)
 	    MTX_DEF | MTX_RECURSE);
 
 	sc->sc_unr = new_unrhdr(0, IWI_MAX_IBSSNODE, &sc->sc_mtx);
+
+	TASK_INIT(&sc->sc_init_task, 0, iwi_init_task, sc);
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		device_printf(dev, "chip is in D%d power mode "
@@ -1169,7 +1174,8 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	DPRINTFN(5, ("received frame len=%u chan=%u rssi=%u\n",
 	    le16toh(frame->len), frame->chan, frame->rssi_dbm));
 
-	if (le16toh(frame->len) < sizeof (struct ieee80211_frame))
+	if (le16toh(frame->len) < sizeof (struct ieee80211_frame) ||
+	    le16toh(frame->len) > MCLBYTES)
 		return;
 
 	/*
@@ -1420,20 +1426,18 @@ iwi_intr(void *arg)
 
 	/* disable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, 0);
+
 	/* acknowledge interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR, r);
 
 	if (r & (IWI_INTR_FATAL_ERROR | IWI_INTR_PARITY_ERROR)) {
-		device_printf(sc->sc_dev, "fatal error\n");
-		sc->sc_ic.ic_ifp->if_flags &= ~IFF_UP;
-		iwi_stop(sc);
+		device_printf(sc->sc_dev, "firmware error\n");
+		taskqueue_enqueue_fast(taskqueue_fast, &sc->sc_init_task);
 		r = 0;	/* don't process more interrupts */
 	}
 
-	if (r & IWI_INTR_FW_INITED) {
-		if (!(r & (IWI_INTR_FATAL_ERROR | IWI_INTR_PARITY_ERROR)))
-			wakeup(sc);
-	}
+	if (r & IWI_INTR_FW_INITED)
+		wakeup(sc);
 
 	if (r & IWI_INTR_RADIO_OFF) {
 		DPRINTF(("radio transmitter turned off\n"));
@@ -1743,8 +1747,8 @@ iwi_watchdog(struct ifnet *ifp)
 		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
 			ifp->if_oerrors++;
-			ifp->if_flags &= ~IFF_UP;
-			iwi_stop(sc);
+			taskqueue_enqueue_fast(taskqueue_fast,
+			    &sc->sc_init_task);
 			mtx_unlock(&sc->sc_mtx);
 			return;
 		}
@@ -2378,6 +2382,16 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	return iwi_cmd(sc, IWI_CMD_ASSOCIATE, &assoc, sizeof assoc, 1);
 }
 
+/*
+ * Handler for sc_init_task.  This is a simple wrapper around iwi_init().
+ * It is called on firmware panics or on watchdog timeouts.
+ */
+static void
+iwi_init_task(void *context, int pending)
+{
+	iwi_init(context);
+}
+
 static void
 iwi_init(void *priv)
 {
@@ -2392,9 +2406,9 @@ iwi_init(void *priv)
 
 	/*
 	 * iwi_init() is exposed through ifp->if_init so it might be called
-	 * without the driver's lock held.  Since msleep() doesn't like
-	 * being called on a recursed mutex, we acquire the driver's lock
-	 * only if we're not already holding it.
+	 * without the driver's lock held.  Since msleep() doesn't like being
+	 * called on a recursed mutex, we acquire the driver's lock only if
+	 * we're not already holding it.
 	 */
 	if (!(owned = mtx_owned(&sc->sc_mtx)))
 		mtx_lock(&sc->sc_mtx);
@@ -2420,13 +2434,13 @@ iwi_init(void *priv)
 
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
-		imagename = "iwi-bss";
+		imagename = "iwi_bss";
 		break;
 	case IEEE80211_M_IBSS:
-		imagename = "iwi-ibss";
+		imagename = "iwi_ibss";
 		break;
 	case IEEE80211_M_MONITOR:
-		imagename = "iwi-monitor";
+		imagename = "iwi_monitor";
 		break;
 	default:
 		imagename = NULL;	/* should not get there */
@@ -2509,11 +2523,12 @@ iwi_init(void *priv)
 		goto fail2;
 	}
 
+	firmware_put(fp, FIRMWARE_UNLOAD);
 	sc->flags |= IWI_FLAG_FW_INITED;
 
 	if (iwi_config(sc) != 0) {
 		device_printf(sc->sc_dev, "device configuration failed\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
