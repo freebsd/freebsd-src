@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060127: revert libdisk to static-only
+OLD_FILES+=usr/lib/libdisk.so
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
 OLD_FILES+=rescue/nextboot.sh
 # 20051214: usbd(8) removed
@@ -2650,6 +2652,8 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 
+# 20060127: revert libdisk to static-only
+OLD_LIBS+=usr/lib/libdisk.so.3
 # 20050722: bump for 6.0-RELEASE
 OLD_LIBS+=lib/libalias.so.4
 OLD_LIBS+=lib/libatm.so.2
