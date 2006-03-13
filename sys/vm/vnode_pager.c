@@ -303,21 +303,13 @@ vnode_pager_haspage(object, pindex, before, after)
 	 * If no vp or vp is doomed or marked transparent to VM, we do not
 	 * have the page.
 	 */
-	if (vp == NULL)
+	if (vp == NULL || vp->v_iflag & VI_DOOMED)
 		return FALSE;
-
-	VI_LOCK(vp);
-	if (vp->v_iflag & VI_DOOMED) {
-		VI_UNLOCK(vp);
-		return FALSE;
-	}
-	VI_UNLOCK(vp);
 	/*
-	 * If filesystem no longer mounted or offset beyond end of file we do
+	 * If the offset is beyond end of file we do
 	 * not have the page.
 	 */
-	if ((vp->v_mount == NULL) ||
-	    (IDX_TO_OFF(pindex) >= object->un_pager.vnp.vnp_size))
+	if (IDX_TO_OFF(pindex) >= object->un_pager.vnp.vnp_size)
 		return FALSE;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
@@ -482,7 +474,7 @@ vnode_pager_addr(vp, address, run)
 	if (address < 0)
 		return -1;
 
-	if (vp->v_mount == NULL)
+	if (vp->v_iflag & VI_DOOMED)
 		return -1;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
@@ -523,7 +515,7 @@ vnode_pager_input_smlfs(object, m)
 	int error = 0;
 
 	vp = object->handle;
-	if (vp->v_mount == NULL)
+	if (vp->v_iflag & VI_DOOMED)
 		return VM_PAGER_BAD;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
@@ -737,7 +729,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 
 	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
 	    ("vnode_pager_generic_getpages does not support devices"));
-	if (vp->v_mount == NULL)
+	if (vp->v_iflag & VI_DOOMED)
 		return VM_PAGER_BAD;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
