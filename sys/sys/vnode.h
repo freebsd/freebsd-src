@@ -160,10 +160,6 @@ struct vnode {
 	struct	lock v_lock;			/* u (if fs don't have one) */
 	struct	mtx v_interlock;		/* lock for "i" things */
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
-#ifdef	DEBUG_LOCKS
-	const char *filename;			/* Source file doing locking */
-	int line;				/* Line number doing locking */
-#endif
 	int	v_holdcnt;			/* i prevents recycling. */
 	int	v_usecount;			/* i ref count of users */
 	u_long	v_iflag;			/* i vnode flags (see below) */
@@ -565,7 +561,6 @@ struct vattr;
 struct vnode;
 
 extern int	(*lease_check_hook)(struct vop_lease_args *);
-extern int	(*softdep_process_worklist_hook)(struct mount *);
 
 /* cache_* may belong in namei.h. */
 void	cache_enter(struct vnode *dvp, struct vnode *vp,
@@ -614,13 +609,9 @@ int	vrecycle(struct vnode *vp, struct thread *td);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);
+void	vn_finished_secondary_write(struct mount *mp);
 int	vn_isdisk(struct vnode *vp, int *errp);
 int	vn_lock(struct vnode *vp, int flags, struct thread *td);
-#ifdef	DEBUG_LOCKS
-int	debug_vn_lock(struct vnode *vp, int flags, struct thread *p,
-	    const char *filename, int line);
-#define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
-#endif
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred, int fdidx);
@@ -636,6 +627,8 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, caddr_t base,
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
+int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,
+	    int flags);
 int	vn_write_suspend_wait(struct vnode *vp, struct mount *mp,
 	    int flags);
 int	vn_writechk(struct vnode *vp);
