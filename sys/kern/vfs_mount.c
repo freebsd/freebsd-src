@@ -402,6 +402,24 @@ nmount(td, uap)
  * Various utility functions
  */
 
+void
+vfs_ref(struct mount *mp)
+{
+
+	MNT_ILOCK(mp);
+	MNT_REF(mp);
+	MNT_IUNLOCK(mp);
+}
+
+void
+vfs_rel(struct mount *mp)
+{
+
+	MNT_ILOCK(mp);
+	MNT_REL(mp);
+	MNT_IUNLOCK(mp);
+}
+
 /*
  * Allocate and initialize the mount point struct.
  */
@@ -417,9 +435,10 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
 	(void) vfs_busy(mp, LK_NOWAIT, 0, td);
+	mp->mnt_ref = 0;
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
-	vfsp->vfc_refcount++;
+	vfsp->vfc_refcount++;	/* XXX Unlocked */
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
@@ -443,8 +462,20 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 static void
 vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
+	int i;
 
+	vfs_unbusy(mp, td);
 	MNT_ILOCK(mp);
+	for (i = 0; mp->mnt_ref && i < 3; i++)
+		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
+	/*
+	 * This will always cause a 3 second delay in rebooting due to
+	 * refs on the root mountpoint that never go away.  Most of these
+	 * are held by init which never exits.
+	 */
+	if (i == 3 && (!rebooting || bootverbose))
+		printf("Mount point %s had %d dangling refs\n",
+		    mp->mnt_stat.f_mntonname, mp->mnt_ref);
 	if (mp->mnt_holdcnt != 0) {
 		printf("Waiting for mount point to be unheld\n");
 		while (mp->mnt_holdcnt != 0) {
@@ -465,21 +496,33 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 		}
 		printf("mount point write ops completed\n");
 	}
+	if (mp->mnt_secondary_writes > 0) {
+		printf("Waiting for mount point secondary write ops\n");
+		while (mp->mnt_secondary_writes > 0) {
+			mp->mnt_kern_flag |= MNTK_SUSPEND;
+			msleep(&mp->mnt_secondary_writes,
+			       MNT_MTX(mp),
+			       PZERO, "mntdestroy3", 0);
+		}
+		printf("mount point secondary write ops completed\n");
+	}
 	MNT_IUNLOCK(mp);
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
-	vfs_unbusy(mp,td);
 	lockdestroy(&mp->mnt_lock);
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup(mp);
 	if (mp->mnt_writeopcount != 0)
 		panic("vfs_mount_destroy: nonzero writeopcount");
+	if (mp->mnt_secondary_writes != 0)
+		panic("vfs_mount_destroy: nonzero secondary_writes");
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	mp->mnt_writeopcount = -1000;
 	mp->mnt_nvnodelistsize = -1000;
+	mp->mnt_secondary_writes = -1000;
 	MNT_IUNLOCK(mp);
 	mtx_destroy(&mp->mnt_mtx);
 #ifdef MAC
@@ -682,7 +725,6 @@ vfs_domount(
 	struct nameidata nd;
 
 	mtx_assert(&Giant, MA_OWNED);
-
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
@@ -711,6 +753,18 @@ vfs_domount(
 	 */
 	if (suser(td) != 0)
 		fsflags |= MNT_NOSUID | MNT_USER;
+
+	/* Load KLDs before we lock the covered vnode to avoid reversals. */
+	vfsp = NULL;
+	if ((fsflags & MNT_UPDATE) == 0) {
+		/* Don't try to load KLDs if we're mounting the root. */
+		if (fsflags & MNT_ROOTFS)
+			vfsp = vfs_byname(fstype);
+		else
+			vfsp = vfs_byname_kld(fstype, td, &error);
+		if (vfsp == NULL)
+			return (ENODEV);
+	}
 	/*
 	 * Get vnode to be covered
 	 */
@@ -788,19 +842,6 @@ vfs_domount(
 		if (vp->v_type != VDIR) {
 			vput(vp);
 			return (ENOTDIR);
-		}
-		/* Don't try to load KLDs if we're mounting the root. */
-		if (fsflags & MNT_ROOTFS) {
-			if ((vfsp = vfs_byname(fstype)) == NULL) {
-				vput(vp);
-				return (ENODEV);
-			}
-		} else {
-			vfsp = vfs_byname_kld(fstype, td, &error);
-			if (vfsp == NULL) {
-				vput(vp);
-				return (error);
-			}
 		}
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_MOUNT) != 0 ||
@@ -1014,9 +1055,13 @@ dounmount(mp, flags, td)
 
 	mtx_assert(&Giant, MA_OWNED);
 
+	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
+		vn_lock(coveredvp, LK_EXCLUSIVE | LK_RETRY, td);
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		MNT_IUNLOCK(mp);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
@@ -1031,6 +1076,8 @@ dounmount(mp, flags, td)
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (error);
 	}
 	vn_start_write(NULL, &mp, V_WAIT);
@@ -1086,17 +1133,19 @@ dounmount(mp, flags, td)
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
-	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
-		coveredvp->v_mountedhere = NULL;
 	mtx_unlock(&mountlist_mtx);
+	if (coveredvp != NULL) {
+		coveredvp->v_mountedhere = NULL;
+		vput(coveredvp);
+	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
 	vfs_mount_destroy(mp, td);
-	if (coveredvp != NULL)
-		vrele(coveredvp);
 	return (0);
 }
 
@@ -1278,8 +1327,8 @@ devfs_fixup(struct thread *td)
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	VOP_UNLOCK(vp, 0, td);
-	vfs_unbusy(mp, td);
 	vput(dvp);
+	vfs_unbusy(mp, td);
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
 	kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
