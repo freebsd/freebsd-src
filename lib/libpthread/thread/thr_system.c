@@ -35,6 +35,9 @@
 
 extern int __system(const char *);
 
+LT10_COMPAT_PRIVATE(_system);
+LT10_COMPAT_DEFAULT(system);
+
 __weak_reference(_system, system);
 
 int

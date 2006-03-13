@@ -33,6 +33,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_aio_suspend);
+LT10_COMPAT_DEFAULT(aio_suspend);
+
 __weak_reference(_aio_suspend, aio_suspend);
 
 int

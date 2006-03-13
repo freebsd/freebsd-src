@@ -11,6 +11,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__msync);
+LT10_COMPAT_DEFAULT(msync);
+
 __weak_reference(__msync, msync);
 
 int

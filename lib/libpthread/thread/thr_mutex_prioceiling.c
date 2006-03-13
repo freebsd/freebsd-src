@@ -37,6 +37,15 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_pthread_mutexattr_getprioceiling);
+LT10_COMPAT_DEFAULT(pthread_mutexattr_getprioceiling);
+LT10_COMPAT_PRIVATE(_pthread_mutexattr_setprioceiling);
+LT10_COMPAT_DEFAULT(pthread_mutexattr_setprioceiling);
+LT10_COMPAT_PRIVATE(_pthread_mutex_getprioceiling);
+LT10_COMPAT_DEFAULT(pthread_mutex_getprioceiling);
+LT10_COMPAT_PRIVATE(_pthread_mutex_setprioceiling);
+LT10_COMPAT_DEFAULT(pthread_mutex_setprioceiling);
+
 __weak_reference(_pthread_mutexattr_getprioceiling, pthread_mutexattr_getprioceiling);
 __weak_reference(_pthread_mutexattr_setprioceiling, pthread_mutexattr_setprioceiling);
 __weak_reference(_pthread_mutex_getprioceiling, pthread_mutex_getprioceiling);

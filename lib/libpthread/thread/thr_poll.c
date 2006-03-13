@@ -41,6 +41,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__poll);
+LT10_COMPAT_DEFAULT(poll);
+
 __weak_reference(__poll, poll);
 
 int

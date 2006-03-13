@@ -37,6 +37,11 @@
 
 static void suspend_common(struct pthread *thread);
 
+LT10_COMPAT_PRIVATE(_pthread_suspend_np);
+LT10_COMPAT_DEFAULT(pthread_suspend_np);
+LT10_COMPAT_PRIVATE(_pthread_suspend_all_np);
+LT10_COMPAT_DEFAULT(pthread_suspend_all_np);
+
 __weak_reference(_pthread_suspend_np, pthread_suspend_np);
 __weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
 

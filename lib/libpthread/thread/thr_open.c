@@ -40,6 +40,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__open);
+LT10_COMPAT_DEFAULT(open);
+
 __weak_reference(__open, open);
 
 int

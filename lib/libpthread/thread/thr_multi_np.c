@@ -34,6 +34,11 @@
 #include <pthread.h>
 #include <pthread_np.h>
 
+#include "thr_private.h"
+
+LT10_COMPAT_PRIVATE(_pthread_multi_np);
+LT10_COMPAT_DEFAULT(pthread_multi_np);
+
 __weak_reference(_pthread_multi_np, pthread_multi_np);
 
 int

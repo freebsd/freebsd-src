@@ -39,6 +39,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_sigprocmask);
+LT10_COMPAT_DEFAULT(sigprocmask);
+
 __weak_reference(_sigprocmask, sigprocmask);
 
 int
