@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
+#include <sys/stack.h>
 #include <sys/sysent.h>
 
 #include <machine/cpu.h>
@@ -167,7 +168,8 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 /*
  * Stack trace.
  */
-#define	INKERNEL(va)	(((vm_offset_t)(va)) >= USRSTACK)
+#define	INKERNEL(va)	(((vm_offset_t)(va)) >= USRSTACK && \
+	    ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
 
 struct i386_frame {
 	struct i386_frame	*f_frame;
@@ -498,6 +500,32 @@ db_trace_thread(struct thread *thr, int count)
 	ctx = kdb_thr_ctx(thr);
 	return (db_backtrace(thr, NULL, (struct i386_frame *)ctx->pcb_ebp,
 		    ctx->pcb_eip, count));
+}
+
+void
+stack_save(struct stack *st)
+{
+	struct i386_frame *frame;
+	vm_offset_t callpc;
+	register_t ebp;
+
+	stack_zero(st);
+	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
+	frame = (struct i386_frame *)ebp;
+	while (1) {
+		if (!INKERNEL(frame))
+			break;
+		callpc = frame->f_retaddr;
+		if (!INKERNEL(callpc))
+			break;
+		if (stack_put(st, callpc) == -1)
+			break;
+		if (frame->f_frame <= frame ||
+		    (vm_offset_t)frame->f_frame >=
+		    (vm_offset_t)ebp + KSTACK_PAGES * PAGE_SIZE)
+			break;
+		frame = frame->f_frame;
+	}
 }
 
 int
