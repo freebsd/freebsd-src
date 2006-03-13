@@ -110,7 +110,7 @@ FBSD_1.0 {
 	__ns_name_pack;
 	__ns_name_uncompress;
 	__ns_name_compress;
-	ns_name_skip;	# Why is this not defined in <include/arpa/nameser.h>
+	__ns_name_skip;
 	__ns_get16;
 	__ns_get32;
 	__ns_put16;
