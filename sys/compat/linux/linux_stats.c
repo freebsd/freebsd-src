@@ -299,54 +299,6 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 #endif
 
 	return (EOPNOTSUPP);
-
-#ifdef not_that_way
-	struct l_ustat lu;
-	struct cdev *dev;
-	struct vnode *vp;
-	struct statfs *stat;
-	int error;
-
-
-	/*
-	 * lu.f_fname and lu.f_fpack are not used. They are always zeroed.
-	 * lu.f_tinode and lu.f_tfree are set from the device's super block.
-	 */
-	bzero(&lu, sizeof(lu));
-
-	/*
-	 * XXX - Don't return an error if we can't find a vnode for the
-	 * device. Our struct cdev *is 32-bits whereas Linux only has a 16-bits
-	 * struct cdev *. The struct cdev *that is used now may as well be a truncated
-	 * struct cdev *returned from previous syscalls. Just return a bzeroed
-	 * ustat in that case.
-	 *
-	 * XXX: findcdev() SHALL not be used this way.  Somebody (TM) will
-	 *	have to find a better way.  It may be that we should stick
-	 *	a dev_t into struct mount, and walk the mountlist for a
-	 *	perfect match and failing that try again looking for a
-	 *	minor-truncated match.
-	 */
-	dev = findcdev(makedev(args->dev >> 8, args->dev & 0xFF));
-	if (dev != NULL && vfinddev(dev, &vp)) {
-		if (vp->v_mount == NULL)
-			return (EINVAL);
-#ifdef MAC
-		error = mac_check_mount_stat(td->td_ucred, vp->v_mount);
-		if (error)
-			return (error);
-#endif
-		stat = &(vp->v_mount->mnt_stat);
-		error = VFS_STATFS(vp->v_mount, stat, td);
-		if (error)
-			return (error);
-
-		lu.f_tfree = stat->f_bfree;
-		lu.f_tinode = stat->f_ffree;
-	}
-
-	return (copyout(&lu, args->ubuf, sizeof(lu)));
-#endif
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
