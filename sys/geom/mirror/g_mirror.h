@@ -100,12 +100,12 @@ extern u_int g_mirror_debug;
  */
 struct g_mirror_disk_sync {
 	struct g_consumer *ds_consumer;	/* Consumer connected to our mirror. */
-	off_t		 ds_offset;	/* Offset of next request to send. */
-	off_t		 ds_offset_done; /* Offset of already synchronized
+	off_t		  ds_offset;	/* Offset of next request to send. */
+	off_t		  ds_offset_done; /* Offset of already synchronized
 					   region. */
-	off_t		 ds_resync;	/* Resynchronize from this offset. */
-	u_int		 ds_syncid;	/* Disk's synchronization ID. */
-	u_char		*ds_data;
+	u_int		  ds_syncid;	/* Disk's synchronization ID. */
+	u_int		  ds_inflight;	/* Number of in-flight sync requests. */
+	struct bio	**ds_bios;	/* BIOs for synchronization I/O. */
 };
 
 /*
@@ -174,9 +174,18 @@ struct g_mirror_softc {
 
 	uint32_t	sc_id;		/* Mirror unique ID. */
 
+	struct sx	 sc_lock;
 	struct bio_queue_head sc_queue;
 	struct mtx	 sc_queue_mtx;
 	struct proc	*sc_worker;
+	struct bio_queue_head sc_regular_delayed; /* Delayed I/O requests due
+						     collision with sync
+						     requests. */
+	struct bio_queue_head sc_inflight; /* In-flight regular write
+					      requests. */
+	struct bio_queue_head sc_sync_delayed; /* Delayed sync requests due
+						  collision with regular
+						  requests. */
 
 	LIST_HEAD(, g_mirror_disk) sc_disks;
 	u_int		sc_ndisks;	/* Number of disks. */
