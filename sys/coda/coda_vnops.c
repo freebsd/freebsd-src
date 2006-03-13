@@ -1289,21 +1289,18 @@ coda_rename(struct vop_rename_args *ap)
     /* XXX - do we need to call cache pureg on the moved vnode? */
     cache_purge(ap->a_fvp);
 
-    /* It seems to be incumbent on us to drop locks on all four vnodes */
-    /* From-vnodes are not locked, only ref'd.  To-vnodes are locked. */
-
-    vrele(ap->a_fvp);
+    /* Release parents first, then children. */
     vrele(odvp);
-
     if (ap->a_tvp) {
-	if (ap->a_tvp == ndvp) {
-	    vrele(ap->a_tvp);
-	} else {
-	    vput(ap->a_tvp);
-	}
-    }
+	if (ap->a_tvp == ndvp)
+	    vrele(ndvp);
+	else
+	    vput(ndvp);
+	vput(ap->a_tvp);
+    } else
+	vput(ndvp);
+    vrele(ap->a_fvp);
 
-    vput(ndvp);
     return(error);
 }
 
