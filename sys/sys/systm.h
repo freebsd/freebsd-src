@@ -49,6 +49,7 @@ extern int securelevel;		/* system security level (see init(8)) */
 extern int suser_enabled;	/* suser() is permitted to return 0 */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
+extern int rebooting;		/* boot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
