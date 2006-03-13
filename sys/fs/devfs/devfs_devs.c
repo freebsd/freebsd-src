@@ -239,8 +239,10 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de)
 		de->de_symlink = NULL;
 	}
 	if (de->de_vnode != NULL) {
+		vhold(de->de_vnode);
 		de->de_vnode->v_data = NULL;
 		vgone(de->de_vnode);
+		vdrop(de->de_vnode);
 		de->de_vnode = NULL;
 	}
 #ifdef MAC
