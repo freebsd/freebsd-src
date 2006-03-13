@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\" 	All rights reserved.
@@ -26,9 +29,9 @@
 .\"
 .\" Author: Hartmut Brandt <harti@freebsd.org>
 .\"
-.\" $Begemot: libunimsg/man/unisap.3,v 1.4 2005/05/23 12:00:10 brandt_h Exp $
+.\" $Begemot: libunimsg/man/unisap.3,v 1.5 2005/06/15 11:37:11 brandt_h Exp $
 .\"
-.Dd May 23, 2005
+.Dd June 14, 2005
 .Dt UNISAP 3
 .Os
 .Sh NAME
@@ -88,9 +91,10 @@ The
 .Nm
 library contains functions to handle Service Access Points (SAP) and SAP Vector
 Elements (SVE) as specified in the ATM Forum ATM API Semantic Description.
-SAPs are the analog of TCP and UDP ports in the ATM world. As usually in ATM
-they are a couple of orders of magnitude more complex as their Internet
-equivalent. See the ATM Forum document for a description.
+SAPs are the analog of TCP and UDP ports in the ATM world.
+As usually in ATM they are a couple of orders of magnitude more complex as
+their Internet equivalent.
+See the ATM Forum document for a description.
 .Pp
 A SAP is a data structure:
 .Bd -literal -offset indent
@@ -104,8 +108,10 @@ struct uni_sap {
 .Ed
 .Pp
 that consists of 5 elements matching different information elements in
-the SETUP message. Each of these elements has a tag that defines how
-the SVE is to be matched with the information element. The tag is one of
+the SETUP message.
+Each of these elements has a tag that defines how the SVE is to be matched
+with the information element.
+The tag is one of
 .Bl -tag -width ".Dv UNISVE_PRESENT"
 .It Dv UNISVE_ABSENT
 The information element has to absent from the SETUP message.
@@ -123,7 +129,7 @@ struct unisve_addr {
 	enum unisve_tag	tag;
 	enum uni_addr_type type;/* type of address */
 	enum uni_addr_plan plan;/* addressing plan */
-	u_int32_t	len;	/* length of address */
+	uint32_t	len;	/* length of address */
 	u_char		addr[UNI_ADDR_MAXLEN];
 };
 .Ed
@@ -142,7 +148,7 @@ In case of ATME addresses the selector byte is matched by a
 .Bd -literal -offset indent
 struct unisve_selector {
 	enum unisve_tag	tag;
-	u_int8_t	selector;
+	uint8_t		selector;
 };
 .Ed
 .Pp
@@ -152,12 +158,13 @@ is the selector byte that must match the 20th byte of the ATME calling address
 from the SETUP message.
 .Pp
 The BLLI information element is matched by two SVEs: one for layer 2 options
-and one for layer 3 options. The layer 2 SVE is:
+and one for layer 3 options.
+The layer 2 SVE is:
 .Bd -literal -offset indent
 struct unisve_blli_id2 {
 	enum unisve_tag	tag;
-	u_int8_t	proto:5;/* the protocol */
-	u_int8_t	user:7;	/* user specific protocol */
+	uint8_t		proto:5;/* the protocol */
+	uint8_t		user:7;	/* user specific protocol */
 };
 .Ed
 .Pp
@@ -171,12 +178,12 @@ The layer 3 SVE is:
 .Bd -literal -offset indent
 struct unisve_blli_id3 {
 	enum unisve_tag	tag;
-	u_int8_t	proto:5;/* L3 protocol */
-	u_int8_t	user:7;	/* user specific protocol */
-	u_int8_t	ipi:8;	/* ISO/IEC TR 9557 IPI */
-	u_int32_t	oui:24;	/* IEEE 802.1 OUI */
-	u_int32_t	pid:16;	/* IEEE 802.1 PID */
-	u_int32_t	noipi;	/* ISO/IEC TR 9557 per frame */
+	uint8_t		proto:5;/* L3 protocol */
+	uint8_t		user:7;	/* user specific protocol */
+	uint8_t		ipi:8;	/* ISO/IEC TR 9557 IPI */
+	uint32_t	oui:24;	/* IEEE 802.1 OUI */
+	uint32_t	pid:16;	/* IEEE 802.1 PID */
+	uint32_t	noipi;	/* ISO/IEC TR 9557 per frame */
 };
 .Ed
 For the exact rules how matching occures refer to the source code or the
@@ -187,13 +194,14 @@ Finally the BHLI information element is matched with a
 struct unisve_bhli {
 	enum unisve_tag	tag;
 	enum uni_bhli	type;	/* type of info */
-	u_int32_t	len;	/* length of info */
-	u_int8_t	info[8];/* info itself */
+	uint32_t	len;	/* length of info */
+	uint8_t		info[8];/* info itself */
 };
 .Ed
 .Pp
 For each SVE type there is a function that checks whether the SVE is correct
-specified. The functions
+specified.
+The functions
 .Fn unisve_check_addr ,
 .Fn unisve_check_selector ,
 .Fn unisve_check_blli_id2 ,
@@ -227,21 +235,23 @@ that evaluates to a comma separated list of strings that can be used
 to initializes an array of char pointers to map the error codes into
 human readable strings.
 .Pp
-The ATM Forum document defines the concept of overlaping SAPs. This basically
-means, that an incoming SETUP could match more than one SAP (and more than
-one application) to receive the SETUP. For each SVE type there is a function
-that checks whether two SVEs overlap and there is a function that checks whether
-two SAPs overlap. The functions
+The ATM Forum document defines the concept of overlaping SAPs.
+This basically means, that an incoming SETUP could match more than one SAP
+(and more than one application) to receive the SETUP.
+For each SVE type there is a function that checks whether two SVEs overlap
+and there is a function that checks whether two SAPs overlap.
+The functions
 .Fn unisve_overlap_addr ,
 .Fn unisve_overlap_selector ,
 .Fn unisve_overlap_blli_id2 ,
 .Fn unisve_overlap_blli_id3 ,
 .Fn unisve_overlap_bhli , and
 .Fn unisve_overlap_sap
-return 1 if the SVEs or SAPs overlap and 0 if they do not. They assume, that
-the SAPs are correct.
+return 1 if the SVEs or SAPs overlap and 0 if they do not.
+They assume, that the SAPs are correct.
 .Pp
-The ATM Forum document specifies a catch-all SAP. The function
+The ATM Forum document specifies a catch-all SAP.
+The function
 .Fn unisve_is_catchall
 returns 1 if the SAP is the catch-all SAP and 0 otherwise.
 .Pp
