@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 __weak_reference(_atomic_lock_stub, _atomic_lock);
 __weak_reference(_spinlock_stub, _spinlock);
-__weak_reference(_spinlock_stub, _spinunlock);
+__weak_reference(_spinunlock_stub, _spinunlock);
 __weak_reference(_spinlock_debug_stub, _spinlock_debug);
 
 
