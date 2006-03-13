@@ -178,7 +178,7 @@ g_clone_bio(struct bio *bp)
 	if (KTR_COMPILE & KTR_GEOM) {
 		struct stack st;
 
-		CTR2(KTR_GEOM, "g_close_bio(%p): %p", bp, bp2);
+		CTR2(KTR_GEOM, "g_clone_bio(%p): %p", bp, bp2);
 		stack_save(&st);
 		CTRSTACK(KTR_GEOM, &st, 3, 0);
 	}
