@@ -43,6 +43,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__select);
+LT10_COMPAT_DEFAULT(select);
+
 __weak_reference(__select, select);
 
 int 

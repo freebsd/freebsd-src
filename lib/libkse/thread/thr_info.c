@@ -44,6 +44,9 @@
 #define NELEMENTS(arr)	(sizeof(arr) / sizeof(arr[0]))
 #endif
 
+LT10_COMPAT_PRIVATE(_pthread_set_name_np);
+LT10_COMPAT_DEFAULT(pthread_set_name_np);
+
 static void	dump_thread(int fd, pthread_t pthread, int long_version);
 
 __weak_reference(_pthread_set_name_np, pthread_set_name_np);

@@ -35,6 +35,9 @@
 
 extern int __pause(void);
 
+LT10_COMPAT_PRIVATE(_pause);
+LT10_COMPAT_DEFAULT(pause);
+
 __weak_reference(_pause, pause);
 
 int
