@@ -599,15 +599,9 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		}
 	}
 
-	if (dirp) {
-		vrele(dirp);
-		dirp = NULL;
-	}
-
 	/*
 	 * Resources at this point:
 	 *	ndp->ni_vp	may not be NULL
-	 *
 	 */
 
 	if (error) {
@@ -621,15 +615,6 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 	/*
-	 * Clear out some resources prior to potentially blocking.  This
-	 * is not as critical as ni_dvp resources in other routines, but
-	 * it helps.
-	 */
-	vrele(ndp->ni_startdir);
-	ndp->ni_startdir = NULL;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-
-	/*
 	 * Get underlying attribute, then release remaining resources ( for
 	 * the same potential blocking reason ) and reply.
 	 */
@@ -641,8 +626,12 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = VOP_GETATTR(vp, vap, cred, td);
 
 	vput(vp);
-	mtx_unlock(&Giant);	/* VFS */
+	vrele(ndp->ni_startdir);
+	vrele(dirp);
 	ndp->ni_vp = NULL;
+	ndp->ni_startdir = NULL;
+	dirp = NULL;
+	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_reply(NFSX_SRVFH(v3) + NFSX_POSTOPORFATTR(v3) + NFSX_POSTOPATTR(v3));
 	if (error) {
@@ -662,17 +651,19 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 nfsmout:
 	NFSD_LOCK_ASSERT();
-	NFSD_UNLOCK();
-	mtx_lock(&Giant);	/* VFS */
-	if (dirp)
-		vrele(dirp);
+	if (ndp->ni_vp || dirp || ndp->ni_startdir) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
+		if (ndp->ni_vp)
+			vput(ndp->ni_vp);
+		if (dirp)
+			vrele(dirp);
+		if (ndp->ni_startdir)
+			vrele(ndp->ni_startdir);
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (ndp->ni_startdir)
-		vrele(ndp->ni_startdir);
-	if (ndp->ni_vp)
-		vput(ndp->ni_vp);
-	mtx_unlock(&Giant);	/* VFS */
-	NFSD_LOCK();
 	return (error);
 }
 
@@ -2004,13 +1995,6 @@ nfsmout:
 	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
-	if (nd.ni_startdir) {
-		vrele(nd.ni_startdir);
-		nd.ni_startdir = NULL;
-	}
-	if (dirp)
-		vrele(dirp);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -2019,6 +2003,13 @@ nfsmout:
 	}
 	if (nd.ni_vp)
 		vput(nd.ni_vp);
+	if (nd.ni_startdir) {
+		vrele(nd.ni_startdir);
+		nd.ni_startdir = NULL;
+	}
+	if (dirp)
+		vrele(dirp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vn_finished_write(mp);
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
@@ -2162,18 +2153,6 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 */
 out:
 	NFSD_UNLOCK_ASSERT();
-	if (nd.ni_startdir) {
-		vrele(nd.ni_startdir);
-		nd.ni_startdir = NULL;
-	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (nd.ni_dvp) {
-		if (nd.ni_dvp == nd.ni_vp)
-			vrele(nd.ni_dvp);
-		else
-			vput(nd.ni_dvp);
-		nd.ni_dvp = NULL;
-	}
 	vp = nd.ni_vp;
 	if (!error) {
 		bzero((caddr_t)fhp, sizeof(nfh));
@@ -2182,11 +2161,23 @@ out:
 		if (!error)
 			error = VOP_GETATTR(vp, vap, cred, td);
 	}
+	if (nd.ni_dvp) {
+		if (nd.ni_dvp == nd.ni_vp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
+		nd.ni_dvp = NULL;
+	}
 	if (vp) {
 		vput(vp);
 		vp = NULL;
 		nd.ni_vp = NULL;
 	}
+	if (nd.ni_startdir) {
+		vrele(nd.ni_startdir);
+		nd.ni_startdir = NULL;
+	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
@@ -2214,11 +2205,6 @@ nfsmout:
 	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
-	if (dirp)
-		vrele(dirp);
-	if (nd.ni_startdir)
-		vrele(nd.ni_startdir);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -2227,6 +2213,11 @@ nfsmout:
 	}
 	if (nd.ni_vp)
 		vput(nd.ni_vp);
+	if (dirp)
+		vrele(dirp);
+	if (nd.ni_startdir)
+		vrele(nd.ni_startdir);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vn_finished_write(mp);
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
@@ -2577,11 +2568,6 @@ nfsmout:
 	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
-	if (tdirp)
-		vrele(tdirp);
-	if (tond.ni_startdir)
-		vrele(tond.ni_startdir);
-	NDFREE(&tond, NDF_ONLY_PNBUF);
 	if (tond.ni_dvp) {
 		if (tond.ni_dvp == tond.ni_vp)
 			vrele(tond.ni_dvp);
@@ -2590,7 +2576,11 @@ nfsmout:
 	}
 	if (tond.ni_vp)
 		vput(tond.ni_vp);
-
+	if (tdirp)
+		vrele(tdirp);
+	if (tond.ni_startdir)
+		vrele(tond.ni_startdir);
+	NDFREE(&tond, NDF_ONLY_PNBUF);
 	/*
 	 * Clear out fromnd related fields
 	 */
@@ -2751,8 +2741,6 @@ nfsmout:
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (dirp)
-		vrele(dirp);
 	if (vp)
 		vput(vp);
 	if (nd.ni_dvp) {
@@ -2761,6 +2749,8 @@ nfsmout:
 		else
 			vput(nd.ni_dvp);
 	}
+	if (dirp)
+		vrele(dirp);
 	if (nd.ni_vp)
 		vrele(nd.ni_vp);
 	vn_finished_write(mp);
@@ -3117,8 +3107,6 @@ nfsmout:
 	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
-	if (dirp)
-		vrele(dirp);
 	if (nd.ni_dvp) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == nd.ni_vp && vpexcl)
@@ -3132,6 +3120,8 @@ nfsmout:
 		else
 			vrele(nd.ni_vp);
 	}
+	if (dirp)
+		vrele(dirp);
 	vn_finished_write(mp);
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
@@ -3259,8 +3249,6 @@ nfsmout:
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (dirp)
-		vrele(dirp);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -3269,6 +3257,8 @@ nfsmout:
 	}
 	if (nd.ni_vp)
 		vput(nd.ni_vp);
+	if (dirp)
+		vrele(dirp);
 
 	vn_finished_write(mp);
 	mtx_unlock(&Giant);	/* VFS */
