@@ -16,3 +16,5 @@ SRCS+=		fpgetround.c fpsetround.c fpgetmask.c fpsetmask.c \
 SRCS+=		eqsf2.c nesf2.c gtsf2.c gesf2.c ltsf2.c lesf2.c negsf2.c \
 		eqdf2.c nedf2.c gtdf2.c gedf2.c ltdf2.c ledf2.c negdf2.c \
 		unordsf2.c unorddf2.c
+
+SYM_MAPS+=	${.CURDIR}/softfloat/Symbol.map

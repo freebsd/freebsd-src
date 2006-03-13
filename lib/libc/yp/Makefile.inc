@@ -7,6 +7,8 @@
 SRCS+=	xdryp.c yp.h yp_xdr.c yplib.c
 CLEANFILES+=	yp.h yp_xdr.c
 
+SYM_MAPS+=	${.CURDIR}/yp/Symbol.map
+
 RPCSRC=	${DESTDIR}/usr/include/rpcsvc/yp.x
 RPCGEN=	rpcgen -C
 

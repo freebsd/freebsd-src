@@ -43,6 +43,8 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 
 SRCS+=	${SASM} ${SPSEUDO}
 
+SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
+
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
 

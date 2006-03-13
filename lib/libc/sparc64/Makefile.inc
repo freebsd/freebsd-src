@@ -13,3 +13,4 @@ NO_QUAD=
 # Long double is quad precision
 GDTOASRCS+=strtopQ.c
 MDSRCS+=machdep_ldisQ.c
+SYM_MAPS+=${.CURDIR}/sparc64/Symbol.map

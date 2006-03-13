@@ -11,3 +11,4 @@ NO_QUAD=
 # Long double is 80 bits
 GDTOASRCS+=strtopx.c
 MDSRCS+=machdep_ldisx.c
+SYM_MAPS+=${.CURDIR}/amd64/Symbol.map

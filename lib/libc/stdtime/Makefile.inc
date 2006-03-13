@@ -6,6 +6,8 @@
 SRCS+=	asctime.c difftime.c localtime.c strftime.c strptime.c timelocal.c \
 	time32.c
 
+SYM_MAPS+= ${.CURDIR}/stdtime/Symbol.map
+
 MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3
 MAN+=	tzfile.5
 
