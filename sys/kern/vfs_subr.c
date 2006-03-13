@@ -95,6 +95,7 @@ static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *);
 static void	v_decr_usecount(struct vnode *);
 static void	v_decr_useonly(struct vnode *);
+static void	v_upgrade_usecount(struct vnode *);
 static void	vfree(struct vnode *);
 static void	vnlru_free(int);
 static void	vdestroy(struct vnode *);
@@ -269,9 +270,6 @@ static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
 
-/* Hook for calling soft updates. */
-int (*softdep_process_worklist_hook)(struct mount *);
-
 /*
  * Macros to control when a vnode is freed and recycled.  All require
  * the vnode interlock.
@@ -339,8 +337,10 @@ vfs_busy(mp, flags, interlkp, td)
 	int lkflags;
 
 	MNT_ILOCK(mp);
+	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		if (flags & LK_NOWAIT) {
+			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
 		}
@@ -353,7 +353,9 @@ vfs_busy(mp, flags, interlkp, td)
 		 * wakeup needs to be done is at the release of the
 		 * exclusive lock at the end of dounmount.
 		 */
-		msleep(mp, MNT_MTX(mp), PVFS|PDROP, "vfs_busy", 0);
+		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
+		MNT_REL(mp);
+		MNT_IUNLOCK(mp);
 		if (interlkp)
 			mtx_lock(interlkp);
 		return (ENOENT);
@@ -363,6 +365,7 @@ vfs_busy(mp, flags, interlkp, td)
 	lkflags = LK_SHARED | LK_INTERLOCK;
 	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
 		panic("vfs_busy: unexpected lock failure");
+	vfs_rel(mp);
 	return (0);
 }
 
@@ -928,7 +931,6 @@ getnewvnode(tag, mp, vops, vpp)
 	else if (mp == NULL)
 		printf("NULL mp in getnewvnode()\n");
 #endif
-	delmntque(vp);
 	if (mp != NULL) {
 		insmntque(vp, mp);
 		bo->bo_bsize = mp->mnt_stat.f_iosize;
@@ -949,15 +951,16 @@ delmntque(struct vnode *vp)
 {
 	struct mount *mp;
 
-	if (vp->v_mount == NULL)
-		return;
 	mp = vp->v_mount;
+	if (mp == NULL)
+		return;
 	MNT_ILOCK(mp);
 	vp->v_mount = NULL;
 	VNASSERT(mp->mnt_nvnodelistsize > 0, vp,
 		("bad mount point vnode list size"));
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	mp->mnt_nvnodelistsize--;
+	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 }
 
@@ -970,12 +973,13 @@ insmntque(struct vnode *vp, struct mount *mp)
 
 	vp->v_mount = mp;
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
-	MNT_ILOCK(vp->v_mount);
+	MNT_ILOCK(mp);
+	MNT_REF(mp);
 	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	VNASSERT(mp->mnt_nvnodelistsize >= 0, vp,
 		("neg mount point vnode list size"));
 	mp->mnt_nvnodelistsize++;
-	MNT_IUNLOCK(vp->v_mount);
+	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -1679,13 +1683,6 @@ sched_sync(void)
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
 		mtx_unlock(&sync_mtx);
-
-		/*
-		 * Do soft update processing.
-		 */
-		if (softdep_process_worklist_hook != NULL)
-			(*softdep_process_worklist_hook)(NULL);
-
 		/*
 		 * The variable rushjob allows the kernel to speed up the
 		 * processing of the filesystem syncer process. A rushjob
@@ -1873,6 +1870,24 @@ v_incr_usecount(struct vnode *vp)
 }
 
 /*
+ * Turn a holdcnt into a use+holdcnt such that only one call to
+ * v_decr_usecount is needed.
+ */
+static void
+v_upgrade_usecount(struct vnode *vp)
+{
+
+	CTR3(KTR_VFS, "v_upgrade_usecount: vp %p holdcnt %d usecount %d\n",
+	    vp, vp->v_holdcnt, vp->v_usecount);
+	vp->v_usecount++;
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
+		dev_lock();
+		vp->v_rdev->si_usecount++;
+		dev_unlock();
+	}
+}
+
+/*
  * Decrement the vnode use and hold count along with the driver's usecount
  * if this is a chardev.  The vdropl() below releases the vnode interlock
  * as it may free the vnode.
@@ -1927,10 +1942,7 @@ v_decr_useonly(struct vnode *vp)
  * been changed to a new filesystem type).
  */
 int
-vget(vp, flags, td)
-	struct vnode *vp;
-	int flags;
-	struct thread *td;
+vget(struct vnode *vp, int flags, struct thread *td)
 {
 	int oweinact;
 	int oldflags;
@@ -1939,6 +1951,7 @@ vget(vp, flags, td)
 	error = 0;
 	oldflags = flags;
 	oweinact = 0;
+	VFS_ASSERT_GIANT(vp->v_mount);
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 	/*
@@ -1955,28 +1968,24 @@ vget(vp, flags, td)
 		flags |= LK_EXCLUSIVE;
 		oweinact = 1;
 	}
-	v_incr_usecount(vp);
+	vholdl(vp);
 	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
-		VI_LOCK(vp);
-		/*
-		 * must expand vrele here because we do not want
-		 * to call VOP_INACTIVE if the reference count
-		 * drops back to zero since it was never really
-		 * active.
-		 */
-		v_decr_usecount(vp);
+		vdrop(vp);
 		return (error);
 	}
+	VI_LOCK(vp);
+	/* Upgrade our holdcnt to a usecount. */
+	v_upgrade_usecount(vp);
 	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
 		panic("vget: vn_lock failed to return ENOENT\n");
 	if (oweinact) {
-		VI_LOCK(vp);
 		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 		if ((oldflags & LK_TYPE_MASK) == 0)
 			VOP_UNLOCK(vp, 0, td);
-	}
+	} else
+		VI_UNLOCK(vp);
 	return (0);
 }
 
@@ -2025,6 +2034,7 @@ vrele(vp)
 	struct thread *td = curthread;	/* XXX */
 
 	KASSERT(vp != NULL, ("vrele: null vp"));
+	VFS_ASSERT_GIANT(vp->v_mount);
 
 	VI_LOCK(vp);
 
@@ -2054,12 +2064,19 @@ vrele(vp)
 	 * We must call VOP_INACTIVE with the node locked. Mark
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
+	vp->v_iflag |= VI_OWEINACT;
 	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
 		VI_LOCK(vp);
-		vinactive(vp, td);
+		if (vp->v_usecount > 0)
+			vp->v_iflag &= ~VI_OWEINACT;
+		if (vp->v_iflag & VI_OWEINACT)
+			vinactive(vp, td);
 		VOP_UNLOCK(vp, 0, td);
-	} else
+	} else {
 		VI_LOCK(vp);
+		if (vp->v_usecount > 0)
+			vp->v_iflag &= ~VI_OWEINACT;
+	}
 	vdropl(vp);
 }
 
@@ -2077,6 +2094,7 @@ vput(vp)
 
 	KASSERT(vp != NULL, ("vput: null vp"));
 	ASSERT_VOP_LOCKED(vp, "vput");
+	VFS_ASSERT_GIANT(vp->v_mount);
 	VI_LOCK(vp);
 	/* Skip this v_writecount check if we're going to panic below. */
 	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
@@ -2106,9 +2124,14 @@ vput(vp)
 	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
 		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
 		VI_LOCK(vp);
-		if (error)
+		if (error) {
+			if (vp->v_usecount > 0)
+				vp->v_iflag &= ~VI_OWEINACT;
 			goto done;
+		}
 	}
+	if (vp->v_usecount > 0)
+		vp->v_iflag &= ~VI_OWEINACT;
 	if (vp->v_iflag & VI_OWEINACT)
 		vinactive(vp, td);
 	VOP_UNLOCK(vp, 0, td);
@@ -2374,6 +2397,7 @@ vgonel(struct vnode *vp)
 	struct thread *td;
 	int oweinact;
 	int active;
+	struct mount *mp;
 
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
@@ -2402,8 +2426,9 @@ vgonel(struct vnode *vp)
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
 	 */
+	mp = NULL;
 	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
-		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
 	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
 		vinvalbuf(vp, 0, td, 0, 0);
 
@@ -2424,6 +2449,8 @@ vgonel(struct vnode *vp)
 	 */
 	if (VOP_RECLAIM(vp, td))
 		panic("vgone: cannot reclaim");
+	if (mp != NULL)
+		vn_finished_secondary_write(mp);
 	VNASSERT(vp->v_object == NULL, vp,
 	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
 	/*
