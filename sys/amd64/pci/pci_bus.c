@@ -326,10 +326,10 @@ static device_method_t legacy_pcib_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t pcib_devclass;
+static devclass_t hostb_devclass;
 
 DEFINE_CLASS_0(pcib, legacy_pcib_driver, legacy_pcib_methods, 1);
-DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, hostb_devclass, 0, 0);
 
 
 /*
