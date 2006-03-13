@@ -1,4 +1,4 @@
-Updating Information for FreeBSD STABLE users
+nUpdating Information for FreeBSD STABLE users
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
@@ -29,6 +29,11 @@ portupgrade.
 	the modules in use, explicitly specify the non-default options
 	in the kernel configuration file, and rebuild the kernel and
 	modules afterwards.
+
+20060204:
+	The 'audit' group was added to support the new auditing functionality
+	in the base system.  Be sure to follow the directions for updating,
+	including the requirement to run mergemaster -p.
 
 20060127:
 	The i386 loader(8) now defaults to the serial speed set by the
