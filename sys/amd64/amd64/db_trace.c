@@ -192,6 +192,7 @@ struct amd64_frame {
 #define	TRAP		1
 #define	INTERRUPT	2
 #define	SYSCALL		3
+#define	TRAP_INTERRUPT	5
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct amd64_frame *);
@@ -326,6 +327,12 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xfast_syscall") == 0)
 			frame_type = SYSCALL;
+		/* XXX: These are interrupts with trap frames. */
+		else if (strcmp(name, "Xtimerint") == 0 ||
+		    strcmp(name, "Xcpustop") == 0 ||
+		    strcmp(name, "Xrendezvous") == 0 ||
+		    strcmp(name, "Xipi_intr_bitmap_handler") == 0)
+			frame_type = TRAP_INTERRUPT;
 	}
 
 	/*
@@ -357,6 +364,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			db_printf("--- syscall");
 			decode_syscall(tf->tf_rax, td);
 			break;
+		case TRAP_INTERRUPT:
 		case INTERRUPT:
 			db_printf("--- interrupt");
 			break;
