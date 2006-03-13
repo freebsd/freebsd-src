@@ -748,7 +748,7 @@ again:
 			MNT_ILOCK(mp);
 			continue;
 		}
-		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
+		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
 		if (error) {
 			MNT_ILOCK(mp);
 			if (error == ENOENT) {
@@ -978,14 +978,16 @@ dqsync(vp, dq)
 	struct iovec aiov;
 	struct uio auio;
 	int error;
+	struct mount *mp;
 
+	mp = NULL;
 	if (dq == NODQUOT)
 		panic("dqsync: dquot");
 	if ((dq->dq_flags & DQ_MOD) == 0)
 		return (0);
 	if ((dqvp = dq->dq_ump->um_quotas[dq->dq_type]) == NULLVP)
 		panic("dqsync: file");
-	(void) vn_write_suspend_wait(dqvp, NULL, V_WAIT);
+	(void) vn_start_secondary_write(dqvp, &mp, V_WAIT);
 	if (vp != dqvp)
 		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY, td);
 	while (dq->dq_flags & DQ_LOCK) {
@@ -994,6 +996,7 @@ dqsync(vp, dq)
 		if ((dq->dq_flags & DQ_MOD) == 0) {
 			if (vp != dqvp)
 				VOP_UNLOCK(dqvp, 0, td);
+			vn_finished_secondary_write(mp);
 			return (0);
 		}
 	}
@@ -1015,6 +1018,7 @@ dqsync(vp, dq)
 	dq->dq_flags &= ~(DQ_MOD|DQ_LOCK|DQ_WANT);
 	if (vp != dqvp)
 		VOP_UNLOCK(dqvp, 0, td);
+	vn_finished_secondary_write(mp);
 	return (error);
 }
 
