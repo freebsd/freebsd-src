@@ -5,4 +5,6 @@
 
 SRCS+=	msgcat.c
 
+SYM_MAPS+=${.CURDIR}/nls/Symbol.map
+
 MAN+=	catclose.3 catgets.3 catopen.3

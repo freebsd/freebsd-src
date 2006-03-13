@@ -33,6 +33,8 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	usleep.c utime.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
 
+SYM_MAPS+=${.CURDIR}/gen/Symbol.map
+
 # machine-dependent gen sources
 .if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
 .include "${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc"

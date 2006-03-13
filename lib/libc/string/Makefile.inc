@@ -20,6 +20,8 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c ffsl.c fls.c flsl.c index.c memccpy.c \
 	wmemcmp.c \
 	wmemcpy.c wmemmove.c wmemset.c
 
+SYM_MAPS+=	${.CURDIR}/string/Symbol.map
+
 
 # machine-dependent string sources
 .if exists(${.CURDIR}/${MACHINE_ARCH}/string/Makefile.inc)

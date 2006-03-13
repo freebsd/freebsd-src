@@ -6,6 +6,8 @@
 
 SRCS+=	gmon.c mcount.c
 
+SYM_MAPS+=${.CURDIR}/gmon/Symbol.map
+
 MAN+=	moncontrol.3
 
 MLINKS+=moncontrol.3 monstartup.3
