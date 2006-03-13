@@ -110,12 +110,13 @@ extern u_int g_raid3_debug;
  */
 struct g_raid3_disk_sync {
 	struct g_consumer *ds_consumer;	/* Consumer connected to our device. */
-	off_t		 ds_offset;	/* Offset of next request to send. */
-	off_t		 ds_offset_done; /* Offset of already synchronized
+	off_t		  ds_offset;	/* Offset of next request to send. */
+	off_t		  ds_offset_done; /* Offset of already synchronized
 					   region. */
-	off_t		 ds_resync;	/* Resynchronize from this offset. */
-	u_int		 ds_syncid;	/* Disk's synchronization ID. */
-	u_char		*ds_data;
+	off_t		  ds_resync;	/* Resynchronize from this offset. */
+	u_int		  ds_syncid;	/* Disk's synchronization ID. */
+	u_int		  ds_inflight;	/* Number of in-flight sync requests. */
+	struct bio	**ds_bios;	/* BIOs for synchronization I/O. */
 };
 
 /*
@@ -169,6 +170,23 @@ struct g_raid3_event {
 /* Bump genid immediately. */
 #define	G_RAID3_BUMP_GENID	0x2
 
+enum g_raid3_zones {
+	G_RAID3_ZONE_64K,
+	G_RAID3_ZONE_16K,
+	G_RAID3_ZONE_4K,
+	G_RAID3_NUM_ZONES
+};
+
+static __inline enum g_raid3_zones
+g_raid3_zone(size_t nbytes) {
+	if (nbytes > 16384)
+		return (G_RAID3_ZONE_64K);
+	else if (nbytes > 4096)
+		return (G_RAID3_ZONE_16K);
+	else
+		return (G_RAID3_ZONE_4K);
+};
+
 struct g_raid3_softc {
 	u_int		sc_state;	/* Device state. */
 	uint64_t	sc_mediasize;	/* Device size. */
@@ -180,18 +198,31 @@ struct g_raid3_softc {
 
 	uint32_t	sc_id;		/* Device unique ID. */
 
+	struct sx	 sc_lock;
 	struct bio_queue_head sc_queue;
 	struct mtx	 sc_queue_mtx;
 	struct proc	*sc_worker;
+	struct bio_queue_head sc_regular_delayed; /* Delayed I/O requests due
+						     collision with sync
+						     requests. */
+	struct bio_queue_head sc_inflight; /* In-flight regular write
+					      requests. */
+	struct bio_queue_head sc_sync_delayed; /* Delayed sync requests due
+						  collision with regular
+						  requests. */
 
 	struct g_raid3_disk *sc_disks;
 	u_int		sc_ndisks;	/* Number of disks. */
 	u_int		sc_round_robin;
 	struct g_raid3_disk *sc_syncdisk;
 
-	uma_zone_t	sc_zone_64k;
-	uma_zone_t	sc_zone_16k;
-	uma_zone_t	sc_zone_4k;
+	struct g_raid3_zone {
+		uma_zone_t	sz_zone;
+		size_t		sz_inuse;
+		size_t		sz_max;
+		u_int		sz_requested;
+		u_int		sz_failed;
+	} sc_zones[G_RAID3_NUM_ZONES];
 
 	u_int		sc_genid;	/* Generation ID. */
 	u_int		sc_syncid;	/* Synchronization ID. */
