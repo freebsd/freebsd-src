@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -810,9 +811,11 @@ unp_detach(struct unpcb *unp)
 		FREE(unp->unp_addr, M_SONAME);
 	uma_zfree(unp_zone, unp);
 	if (vp) {
-		mtx_lock(&Giant);
+		int vfslocked;
+
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vrele(vp);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (local_unp_rights)
 		taskqueue_enqueue(taskqueue_thread, &unp_gc_task);
