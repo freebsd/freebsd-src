@@ -112,7 +112,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	/*
 	 * Find lower node
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT|LOCKLEAF,
+	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF,
 		UIO_SYSSPACE, target, td);
 	error = namei(ndp);
 	/*
@@ -129,9 +129,6 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 * Sanity check on lower vnode
 	 */
 	lowerrootvp = ndp->ni_vp;
-
-	vrele(ndp->ni_dvp);
-	ndp->ni_dvp = NULLVP;
 
 	/*
 	 * Check multi null mount to avoid `lock against myself' panic.
