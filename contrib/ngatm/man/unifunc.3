@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\" 	All rights reserved.
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: libunimsg/man/unifunc.3,v 1.5 2005/05/23 12:04:55 brandt_h Exp $
+.\" $Begemot: libunimsg/man/unifunc.3,v 1.6 2005/06/15 11:37:09 brandt_h Exp $
 .\"
-.Dd May 23, 2005
+.Dd June 14, 2005
 .Dt UNIFUNC 3
 .Os
 .Sh NAME
@@ -142,8 +145,8 @@ in the buffer left for a complete IE header.
 .Pp
 The function
 .Fn uni_decode_ie_body
-decodes the body of an information element. It is passed the buffer with the
-message
+decodes the body of an information element.
+It is passed the buffer with the message
 .Fa buf ,
 the information element type
 .Fa type
@@ -215,7 +218,7 @@ a human readable form.
 This is intended mainly for debugging.
 Some fields of the library context are used to control how the printing is done
 (see
-.Xr unistruct 3 ).
+.Xr unistruct 3 ) .
 Each of the function takes a
 .Fa buf
 and a
