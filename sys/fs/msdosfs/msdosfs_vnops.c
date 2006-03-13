@@ -1122,10 +1122,10 @@ abortit:
 		 */
 		if (doingdirectory)
 			panic("rename: lost dir entry");
-		vrele(ap->a_fvp);
 		if (newparent)
 			VOP_UNLOCK(tdvp, 0, td);
 		vrele(tdvp);
+		vrele(ap->a_fvp);
 		return 0;
 	}
 	xp = VTODE(fvp);
@@ -1143,10 +1143,10 @@ abortit:
 	if (xp != ip) {
 		if (doingdirectory)
 			panic("rename: lost dir entry");
-		vrele(ap->a_fvp);
 		VOP_UNLOCK(fvp, 0, td);
 		if (newparent)
 			VOP_UNLOCK(fdvp, 0, td);
+		vrele(ap->a_fvp);
 		xp = NULL;
 	} else {
 		vrele(fvp);
