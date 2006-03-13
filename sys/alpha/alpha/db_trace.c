@@ -47,7 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
+#include <sys/linker.h>
 #include <sys/proc.h>
+#include <sys/stack.h>
 #include <sys/sysent.h>
 
 #include <machine/db_machdep.h>
@@ -346,6 +348,45 @@ db_trace_thread(struct thread *thr, int count)
 	ctx = kdb_thr_ctx(thr);
 	return (db_backtrace(thr, ctx->pcb_hw.apcb_ksp, ctx->pcb_context[7],
 		    count));
+}
+
+void
+stack_save(struct stack *st)
+{
+	struct prologue_info pi;
+	linker_symval_t symval;
+	c_linker_sym_t sym;
+	vm_offset_t callpc, frame;
+	long offset;
+	register_t pc, sp;
+
+	stack_zero(st);
+	__asm __volatile(
+		"	mov $30,%0 \n"
+		"	lda %1,1f \n"
+		"1:\n"
+		: "=r" (sp), "=r" (pc));
+	callpc = (vm_offset_t)pc;
+	frame = (vm_offset_t)sp;
+	while (1) {
+		/*
+		 * search_symbol/symbol_values are slow
+		 */
+		if (linker_ddb_search_symbol((caddr_t)callpc, &sym, &offset) != 0)
+			break;
+		if (linker_ddb_symbol_values(sym, &symval) != 0)
+			break;
+		if (callpc < (vm_offset_t)symval.value)
+			break;
+		if (stack_put(st, callpc) == -1)
+			break;
+		if (decode_prologue(callpc, (db_addr_t)symval.value, &pi))
+			break;
+		if ((pi.pi_regmask & (1 << 26)) == 0)
+			break;
+		callpc = *(vm_offset_t *)(frame + pi.pi_reg_offset[26]);
+		frame += pi.pi_frame_size;
+	}
 }
 
 int
