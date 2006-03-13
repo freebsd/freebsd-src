@@ -1022,30 +1022,6 @@ thread_single_end(void)
 	mtx_unlock_spin(&sched_lock);
 }
 
-/*
- * Called before going into an interruptible sleep to see if we have been
- * interrupted or requested to exit.
- */
-int
-thread_sleep_check(struct thread *td)
-{
-	struct proc *p;
-
-	p = td->td_proc;
-	mtx_assert(&sched_lock, MA_OWNED);
-	if (p->p_flag & P_HADTHREADS) {
-		if (p->p_singlethread != td) {
-			if (p->p_flag & P_SINGLE_EXIT)
-				return (EINTR);
-			if (p->p_flag & P_SINGLE_BOUNDARY)
-				return (ERESTART);
-		}
-		if (td->td_flags & TDF_INTERRUPT)
-			return (td->td_intrval);
-	}
-	return (0);
-}
-
 struct thread *
 thread_find(struct proc *p, lwpid_t tid)
 {
