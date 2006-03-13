@@ -540,6 +540,7 @@ static int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
+	struct vfsopt *opt;
 	char *fstype, *fspath, *errmsg;
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
 
@@ -583,62 +584,44 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	 * logic based on MNT_UPDATE.  This is very important
 	 * when we want to update the root filesystem.
 	 */ 
-	if (vfs_getopt(optlist, "update", NULL, NULL) == 0)
-		fsflags |= MNT_UPDATE;
-
-	if (vfs_getopt(optlist, "async", NULL, NULL) == 0)
-		fsflags |= MNT_ASYNC;
-
-	if (vfs_getopt(optlist, "force", NULL, NULL) == 0)
-		fsflags |= MNT_FORCE;
-
-	if (vfs_getopt(optlist, "multilabel", NULL, NULL) == 0)
-		fsflags |= MNT_MULTILABEL;
-
-	if (vfs_getopt(optlist, "noasync", NULL, NULL) == 0)
-		fsflags &= ~MNT_ASYNC;
-
-	if (vfs_getopt(optlist, "noatime", NULL, NULL) == 0)
-		fsflags |= MNT_NOATIME;
-
-	if (vfs_getopt(optlist, "noclusterr", NULL, NULL) == 0)
-		fsflags |= MNT_NOCLUSTERR;
-
-	if (vfs_getopt(optlist, "noclusterw", NULL, NULL) == 0)
-		fsflags |= MNT_NOCLUSTERW;
-
-	if (vfs_getopt(optlist, "noexec", NULL, NULL) == 0)
-		fsflags |= MNT_NOEXEC;
-
-	if (vfs_getopt(optlist, "nosuid", NULL, NULL) == 0)
-		fsflags |= MNT_NOSUID;
-
-	if (vfs_getopt(optlist, "nosymfollow", NULL, NULL) == 0)
-		fsflags |= MNT_NOSYMFOLLOW;
-
-	if (vfs_getopt(optlist, "noro", NULL, NULL) == 0)
-		fsflags &= ~MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "ro", NULL, NULL) == 0)
-		fsflags |= MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "rdonly", NULL, NULL) == 0)
-		fsflags |= MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "rw", NULL, NULL) == 0)
-		fsflags &= ~MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "snapshot", NULL, NULL) == 0)
-		fsflags |= MNT_SNAPSHOT;
-
-	if (vfs_getopt(optlist, "suiddir", NULL, NULL) == 0)
-		fsflags |= MNT_SUIDDIR;
-
-	if (vfs_getopt(optlist, "sync", NULL, NULL) == 0)
-		fsflags |= MNT_SYNCHRONOUS;
-
-	if (vfs_getopt(optlist, "union", NULL, NULL) == 0)
-		fsflags |= MNT_UNION;
+	TAILQ_FOREACH(opt, optlist, link) {
+		if (strcmp(opt->name, "update") == 0)
+			fsflags |= MNT_UPDATE;
+		else if (strcmp(opt->name, "async") == 0)
+			fsflags |= MNT_ASYNC;
+		else if (strcmp(opt->name, "force") == 0)
+			fsflags |= MNT_FORCE;
+		else if (strcmp(opt->name, "multilabel") == 0)
+			fsflags |= MNT_MULTILABEL;
+		else if (strcmp(opt->name, "noasync") == 0)
+			fsflags &= ~MNT_ASYNC;
+		else if (strcmp(opt->name, "noatime") == 0)
+			fsflags |= MNT_NOATIME;
+		else if (strcmp(opt->name, "noclusterr") == 0)
+			fsflags |= MNT_NOCLUSTERR;
+		else if (strcmp(opt->name, "noclusterw") == 0)
+			fsflags |= MNT_NOCLUSTERW;
+		else if (strcmp(opt->name, "noexec") == 0)
+			fsflags |= MNT_NOEXEC;
+		else if (strcmp(opt->name, "nosuid") == 0)
+			fsflags |= MNT_NOSUID;
+		else if (strcmp(opt->name, "nosymfollow") == 0)
+			fsflags |= MNT_NOSYMFOLLOW;
+		else if (strcmp(opt->name, "noro") == 0 ||
+		    strcmp(opt->name, "rw") == 0)
+			fsflags &= ~MNT_RDONLY;
+		else if (strcmp(opt->name, "ro") == 0 ||
+		    strcmp(opt->name, "rdonly") == 0)
+			fsflags |= MNT_RDONLY;
+		else if (strcmp(opt->name, "snapshot") == 0)
+			fsflags |= MNT_SNAPSHOT;
+		else if (strcmp(opt->name, "suiddir") == 0)
+			fsflags |= MNT_SUIDDIR;
+		else if (strcmp(opt->name, "sync") == 0)
+			fsflags |= MNT_SYNCHRONOUS;
+		else if (strcmp(opt->name, "union") == 0)
+			fsflags |= MNT_UNION;
+	}
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
