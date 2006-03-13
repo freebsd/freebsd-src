@@ -188,11 +188,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 	jmp	doreti
 
 /*
- * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
- *
- *  - Signals its receipt.
- *  - Waits for permission to restart.
- *  - Signals its restart.
+ * Executed by a CPU when it receives an IPI_STOP from another CPU.
  */
 	.text
 	SUPERALIGN_TEXT
