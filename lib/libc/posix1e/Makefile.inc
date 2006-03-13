@@ -22,6 +22,8 @@ SRCS+=	acl_calc_mask.c			\
 	mac_get.c			\
 	mac_set.c
 
+SYM_MAPS+=${.CURDIR}/posix1e/Symbol.map
+
 MAN+=	acl.3				\
 	acl_add_perm.3			\
 	acl_calc_mask.3			\

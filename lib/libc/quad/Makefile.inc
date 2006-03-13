@@ -17,3 +17,5 @@ SRCS+=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c fixdfdi.c \
 	xordi3.c
 
 .endif
+
+SYM_MAP+=${.CURDIR}/quad/Symbol.map

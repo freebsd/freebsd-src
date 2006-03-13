@@ -21,6 +21,8 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
 	res_init.c res_mkquery.c res_mkupdate.c res_query.c res_send.c \
 	res_update.c rthdr.c send.c sockatmark.c vars.c
 
+SYM_MAPS+=${.CURDIR}/net/Symbol.map
+
 CFLAGS+=-DINET6 -I${.OBJDIR}
 
 YFLAGS+=-p_nsyy
