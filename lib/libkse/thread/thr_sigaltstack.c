@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_sigaltstack);
+LT10_COMPAT_DEFAULT(sigaltstack);
+
 __weak_reference(_sigaltstack, sigaltstack);
 
 int

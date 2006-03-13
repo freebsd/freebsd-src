@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__accept);
+LT10_COMPAT_DEFAULT(accept);
+
 __weak_reference(__accept, accept);
 
 int

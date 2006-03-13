@@ -35,6 +35,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_pthread_attr_setstackaddr);
+LT10_COMPAT_DEFAULT(pthread_attr_setstackaddr);
+
 __weak_reference(_pthread_attr_setstackaddr, pthread_attr_setstackaddr);
 
 int

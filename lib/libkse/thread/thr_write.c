@@ -40,6 +40,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__write);
+LT10_COMPAT_DEFAULT(write);
+
 __weak_reference(__write, write);
 
 ssize_t

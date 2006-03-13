@@ -34,6 +34,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_pthread_equal);
+LT10_COMPAT_DEFAULT(pthread_equal);
+
 __weak_reference(_pthread_equal, pthread_equal);
 
 int

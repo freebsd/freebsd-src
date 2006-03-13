@@ -36,6 +36,10 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__nanosleep);
+LT10_COMPAT_PRIVATE(_nanosleep);
+LT10_COMPAT_DEFAULT(nanosleep);
+
 __weak_reference(__nanosleep, nanosleep);
 
 int

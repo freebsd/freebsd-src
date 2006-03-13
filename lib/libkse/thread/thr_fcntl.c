@@ -38,6 +38,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__fcntl);
+LT10_COMPAT_DEFAULT(fcntl);
+
 __weak_reference(__fcntl, fcntl);
 
 int

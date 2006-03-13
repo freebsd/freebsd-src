@@ -37,6 +37,11 @@
 
 static struct kse_mailbox *resume_common(struct pthread *);
 
+LT10_COMPAT_PRIVATE(_pthread_resume_np);
+LT10_COMPAT_DEFAULT(pthread_resume_np);
+LT10_COMPAT_PRIVATE(_pthread_resume_all_np);
+LT10_COMPAT_DEFAULT(pthread_resume_all_np);
+
 __weak_reference(_pthread_resume_np, pthread_resume_np);
 __weak_reference(_pthread_resume_all_np, pthread_resume_all_np);
 

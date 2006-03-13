@@ -36,6 +36,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_sigaction);
+LT10_COMPAT_DEFAULT(sigaction);
+
 __weak_reference(_sigaction, sigaction);
 
 int

@@ -33,6 +33,9 @@
 #include <errno.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_raise);
+LT10_COMPAT_DEFAULT(raise);
+
 __weak_reference(_raise, raise);
 
 int

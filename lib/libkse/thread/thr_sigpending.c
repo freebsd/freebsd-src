@@ -39,6 +39,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_sigpending);
+LT10_COMPAT_DEFAULT(sigpending);
+
 __weak_reference(_sigpending, sigpending);
 
 int
