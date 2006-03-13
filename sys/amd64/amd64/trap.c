@@ -872,7 +872,6 @@ syscall(frame)
 	 */
 	if (orig_tf_rflags & PSL_T) {
 		frame.tf_rflags &= ~PSL_T;
-
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGTRAP;
 		ksi.ksi_code = TRAP_TRACE;
