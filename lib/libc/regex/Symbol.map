@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+FBSD_1.0 {
+	regcomp;
+	regerror;
+	regexec;
+	regfree;
+};

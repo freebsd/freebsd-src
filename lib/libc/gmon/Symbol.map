@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+FBSD_1.0 {
+	monstartup;
+	moncontrol;
+	mexitcount;
+};
+
+FBSDprivate {
+	.mcount;	# ???
+	_gmonparam;
+	_mcleanup;
+};
