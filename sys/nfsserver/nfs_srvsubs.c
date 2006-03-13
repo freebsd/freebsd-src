@@ -830,8 +830,8 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			if (ndp->ni_pathlen > 1)
 				uma_zfree(namei_zone, cp);
 		badlink2:
-			vrele(ndp->ni_dvp);
 			vput(ndp->ni_vp);
+			vrele(ndp->ni_dvp);
 			break;
 		}
 		linklen = MAXPATHLEN - auio.uio_resid;
