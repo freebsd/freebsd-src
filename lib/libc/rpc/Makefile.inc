@@ -25,6 +25,8 @@ SRCS+=	rtime.c
 # generated sources
 SRCS+=  crypt_clnt.c crypt_xdr.c crypt.h
 
+SYM_MAPS+=${.CURDIR}/rpc/Symbol.map
+
 CFLAGS+= -DBROKEN_DES -DPORTMAP -DDES_BUILTIN
 CFLAGS+= -I${.CURDIR}/rpc
 

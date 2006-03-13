@@ -9,3 +9,5 @@ CFLAGS+=-D__DBINTERFACE_PRIVATE
 .include "${.CURDIR}/db/man/Makefile.inc"
 .include "${.CURDIR}/db/mpool/Makefile.inc"
 .include "${.CURDIR}/db/recno/Makefile.inc"
+
+SYM_MAPS+=${.CURDIR}/db/Symbol.map

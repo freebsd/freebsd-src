@@ -13,6 +13,8 @@ MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	strtol.c strtoll.c strtoq.c strtoul.c strtoull.c strtoumax.c strtouq.c \
 	system.c tdelete.c tfind.c tsearch.c twalk.c
 
+SYM_MAPS+= ${.CURDIR}/stdlib/Symbol.map
+
 # machine-dependent stdlib sources
 .if exists(${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc)
 .include "${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc"

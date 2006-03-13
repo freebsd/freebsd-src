@@ -22,6 +22,8 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	wcstoul.c wcstoull.c wcstoumax.c wctob.c wctomb.c wctrans.c wctype.c \
 	wcwidth.c
 
+SYM_MAPS+=${.CURDIR}/locale/Symbol.map
+
 MAN+=	btowc.3 \
 	ctype.3 digittoint.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	isdigit.3 isgraph.3 isideogram.3 islower.3 isphonogram.3 isprint.3 \
