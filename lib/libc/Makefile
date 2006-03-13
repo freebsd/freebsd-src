@@ -18,6 +18,8 @@ CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
 PRECIOUSLIB=
+VERSION_DEF=Versions.def
+VERSION_MAP=Version.map
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
@@ -94,7 +96,19 @@ libkern.${MACHINE_ARCH}:: ${KMSRCS}
 	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${MACHINE_ARCH}
 .endif
 
+${VERSION_MAP}: ${SYM_MAPS}
+	awk -v vfile=${.CURDIR}/Versions.def -f ${.CURDIR}/version_gen.awk \
+	    ${SYM_MAPS} > ${.TARGET}
+
+        
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/}
+
+.if defined(SYMVER_ENABLED)
+CFLAGS+= -DSYMBOL_VERSIONING
+LDFLAGS= -Wl,--version-script=${.OBJDIR}/${VERSION_MAP}
+
+${SHLIB_NAME}: ${VERSION_MAP}
+.endif
