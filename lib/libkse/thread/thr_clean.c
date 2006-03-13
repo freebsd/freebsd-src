@@ -37,6 +37,11 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_pthread_cleanup_push);
+LT10_COMPAT_DEFAULT(pthread_cleanup_push);
+LT10_COMPAT_PRIVATE(_pthread_cleanup_pop);
+LT10_COMPAT_DEFAULT(pthread_cleanup_pop);
+
 __weak_reference(_pthread_cleanup_push, pthread_cleanup_push);
 __weak_reference(_pthread_cleanup_pop, pthread_cleanup_pop);
 

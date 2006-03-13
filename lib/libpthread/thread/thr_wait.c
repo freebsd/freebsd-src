@@ -34,6 +34,9 @@
 
 extern int __wait(int *);
 
+LT10_COMPAT_PRIVATE(_wait);
+LT10_COMPAT_DEFAULT(wait);
+
 __weak_reference(_wait, wait);
 
 pid_t

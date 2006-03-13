@@ -35,6 +35,9 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__fsync);
+LT10_COMPAT_DEFAULT(fsync);
+
 __weak_reference(__fsync, fsync);
 
 int

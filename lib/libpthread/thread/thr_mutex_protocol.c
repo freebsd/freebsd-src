@@ -37,6 +37,11 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_pthread_mutexattr_getprotocol);
+LT10_COMPAT_DEFAULT(pthread_mutexattr_getprotocol);
+LT10_COMPAT_PRIVATE(_pthread_mutexattr_setprotocol);
+LT10_COMPAT_DEFAULT(pthread_mutexattr_setprotocol);
+
 __weak_reference(_pthread_mutexattr_getprotocol, pthread_mutexattr_getprotocol);
 __weak_reference(_pthread_mutexattr_setprotocol, pthread_mutexattr_setprotocol);
 

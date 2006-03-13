@@ -31,6 +31,9 @@
 #include <sys/queue.h>
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_pthread_atfork);
+LT10_COMPAT_DEFAULT(pthread_atfork);
+
 __weak_reference(_pthread_atfork, pthread_atfork);
 
 int

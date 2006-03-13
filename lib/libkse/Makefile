@@ -31,10 +31,13 @@ CFLAGS+=-D_LOCK_DEBUG
 # however it is no longer strictly conformed to POSIX
 # CFLAGS+=-DSYSTEM_SCOPE_ONLY
 
-LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map
+LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map -Wl,-zmuldefs
 
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
+.if defined(SYMVER_ENABLED)
+CFLAGS+=-DSYMBOL_VERSIONING
+.endif
 
 PRECIOUSLIB=
 

@@ -41,6 +41,10 @@
 
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(__sigsuspend);
+LT10_COMPAT_PRIVATE(_sigsuspend);
+LT10_COMPAT_DEFAULT(sigsuspend);
+
 __weak_reference(__sigsuspend, sigsuspend);
 
 int

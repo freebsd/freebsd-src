@@ -43,6 +43,14 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
+LT10_COMPAT_PRIVATE(_sem_init);
+LT10_COMPAT_DEFAULT(sem_init);
+LT10_COMPAT_PRIVATE(_sem_wait);
+LT10_COMPAT_DEFAULT(sem_wait);
+LT10_COMPAT_PRIVATE(_sem_timedwait);
+LT10_COMPAT_DEFAULT(sem_timedwait);
+LT10_COMPAT_PRIVATE(_sem_post);
+LT10_COMPAT_DEFAULT(sem_post);
 
 extern int pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 extern int pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *,
