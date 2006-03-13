@@ -1,4 +1,7 @@
 .\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
 .\" Copyright (c) 2001-2003
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\" 	All rights reserved.
@@ -26,9 +29,9 @@
 .\"
 .\" Author: Hartmut Brandt <harti@freebsd.org>
 .\"
-.\" $Begemot: libunimsg/man/unimsg.3,v 1.3 2005/05/23 12:00:09 brandt_h Exp $
+.\" $Begemot: libunimsg/man/unimsg.3,v 1.4 2005/06/15 11:37:10 brandt_h Exp $
 .\"
-.Dd May 23, 2005
+.Dd June 14, 2005
 .Dt UNIMSG 3
 .Os
 .Sh NAME
@@ -87,10 +90,11 @@ Begemot ATM signalling library
 .Ft struct uni_msg *
 .Fn uni_msg_dup "const struct uni_msg *msg"
 .Sh DESCRIPTION
-These functions are used to manipulate variable sized message. They are
+These functions are used to manipulate variable sized message.
+They are
 inspired by BSD mbufs and SysV stream buffers, but somewhat simplified because
-signalling generally is a low bandwidth task. All the functions operation on
-a
+signalling generally is a low bandwidth task.
+All the functions operation on a
 .Li uni_msg
 data structure:
 .Bd -literal -offset indent
@@ -107,7 +111,8 @@ The field
 points to the begin of a memory block that is used to store the actual message
 and the field
 .Fa b_lim
-points just to the first byte behind that buffer. This buffer is allocated
+points just to the first byte behind that buffer.
+This buffer is allocated
 separate from the structure itself and the user calling any of the above
 functions with a non const
 .Vt struct uni_msg
@@ -124,8 +129,8 @@ the allocated buffer.
 There are several functions and macros that return various sizes and lengths.
 The macro
 .Fn uni_msg_len
-returns the actual size of the message (the number of used bytes). The
-macro
+returns the actual size of the message (the number of used bytes).
+The macro
 .Fn uni_msg_space
 returns the number of bytes that are left unused behind the used space.
 The macro
@@ -140,20 +145,21 @@ Two functions may be used to create new messages: The function
 .Fn uni_msg_alloc
 allocates the message structure and a buffer to hold at least
 .Ar space
-bytes (In fact it allocates a couple of bytes more). If the allocation fails
-NULL is returned. The pointers are setup so that there is no leading space
-in the buffer.
+bytes (In fact it allocates a couple of bytes more).
+If the allocation fails NULL is returned.
+The pointers are setup so that there is no leading space in the buffer.
 The function
 .Fn uni_msg_build
-constructs a new message from a variable number of buffers. The arguments
-are pairs of
+constructs a new message from a variable number of buffers.
+The arguments are pairs of
 .Vt void *
 pointers to buffers and
 .Vt size_t
-buffer sizes, terminated by a NULL pointer. The function computes the total
-resulting message size, allocates a message and copies all the buffers
-into the message. The message is built to have no leading space. If the
-allocation fails, NULL is returned.
+buffer sizes, terminated by a NULL pointer.
+The function computes the total resulting message size, allocates a message
+and copies all the buffers into the message.
+The message is built to have no leading space.
+If the allocation fails, NULL is returned.
 .Pp
 The function
 .Fn uni_msg_destroy
@@ -169,16 +175,20 @@ The function
 .Fn uni_msg_extend
 extends the message buffer to have space for at least
 .Ar bytes
-additional byte at the end. The leading space does not change. This function
-may reallocate the message buffer. The function returns 0 on success and ENOMEM
-if the reallocation fails. In this case the message buffer is not changed.
+additional byte at the end.
+The leading space does not change.
+This function may reallocate the message buffer.
+The function returns 0 on success and ENOMEM if the reallocation fails.
+In this case the message buffer is not changed.
 The macro
 .Fn uni_msg_ensure
 checks whether the message has space for additional
 .Ar bytes
-bytes. If not it calls
+bytes.
+If not it calls
 .Fn uni_msg_extend
-to make the message buffer larger. The macro returns 0 on success or ENOMEM
+to make the message buffer larger.
+The macro returns 0 on success or ENOMEM
 if there is not enough space and the reallocation fails.
 In this case the message buffer is not changed.
 The function
@@ -194,17 +204,20 @@ appends one byte to the message and the function
 .Fn uni_msg_append32
 appends a 32-bit value in network byte order to the message
 .Fa ( b_wptr
-needs not to be aligned). All three functions call
+needs not to be aligned).
+All three functions call
 .Fn uni_msg_ensure
-to make sure, that the buffer contents fit into the message. They
-return 0 on success and ENOMEM if the buffer is too small and the reallocation
-fails. In this case the message buffer is not changed.
+to make sure, that the buffer contents fit into the message.
+They return 0 on success and ENOMEM if the buffer is too small and
+the reallocation fails.
+In this case the message buffer is not changed.
 .Pp
 A number of functions can be used to retrieve parts of the message.
 The function
 .Fn uni_msg_strip32
 returns the last four bytes of the message as a 32-bit integer assumed to
-be in network byte order. It adjusts
+be in network byte order.
+It adjusts
 .Fa b_wptr
 to remove these four bytes from the message.
 .Fa b_wptr
@@ -212,7 +225,8 @@ does not need to be aligned.
 The function
 .Fn uni_msg_get32
 returns the first four bytes of the message as a 32-bit integer assumed to
-be in network byte order. It adjusts
+be in network byte order.
+It adjusts
 .Fa b_rptr
 to remove these four bytes from the message.
 .Fa b_rptr
@@ -221,12 +235,13 @@ The function
 .Fn uni_msg_trail32
 returns the
 .Fa n 'th
-32-bit integer from the buffer counted from the end of the buffer. The
-integer is assumed to be in network byte order. A value of -1 for
+32-bit integer from the buffer counted from the end of the buffer.
+The integer is assumed to be in network byte order.
+A value of -1 for
 .Fa n
 returns the last four bytes of the buffer, a value of -2 the four bytes
-just before the last four bytes and so on. All three functions do not check
-that the message is large enough.
+just before the last four bytes and so on.
+All three functions do not check that the message is large enough.
 .Sh SEE ALSO
 .Xr libunimsg 3 ,
 .Xr mbuf 9
