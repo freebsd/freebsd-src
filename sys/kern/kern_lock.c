@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#ifdef DEBUG_LOCKS
+#include <sys/stack.h>
+#endif
 
 /*
  * Locking primitives implementation.
@@ -139,20 +142,11 @@ acquire(struct lock **lkpp, int extflags, int wanted)
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
-#ifndef	DEBUG_LOCKS
 lockmgr(lkp, flags, interlkp, td)
-#else
-debuglockmgr(lkp, flags, interlkp, td, name, file, line)
-#endif
 	struct lock *lkp;
 	u_int flags;
 	struct mtx *interlkp;
 	struct thread *td;
-#ifdef	DEBUG_LOCKS
-	const char *name;	/* Name of lock function */
-	const char *file;	/* Name of file call is from */
-	int line;		/* Line number in file */
-#endif
 {
 	int error;
 	struct thread *thr;
@@ -166,15 +160,16 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
-#ifdef DEBUG_LOCKS
-	CTR6(KTR_LOCK,
-	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
-	    "td == %p %s:%d", lkp, lkp->lk_wmesg, flags, td, file, line);
-#else
 	CTR6(KTR_LOCK,
 	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), owner == %p, exclusivecount == %d, flags == 0x%x, "
 	    "td == %p", lkp, lkp->lk_wmesg, lkp->lk_lockholder,
 	    lkp->lk_exclusivecount, flags, td);
+#ifdef DEBUG_LOCKS
+	{
+		struct stack stack; /* XXX */
+		stack_save(&stack);
+		CTRSTACK(KTR_LOCK, &stack, 0, 1);
+	}
 #endif
 
 	if (flags & LK_INTERLOCK) {
@@ -219,10 +214,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 				break;
 			sharelock(td, lkp, 1);
 #if defined(DEBUG_LOCKS)
-			lkp->lk_slockholder = thr;
-			lkp->lk_sfilename = file;
-			lkp->lk_slineno = line;
-			lkp->lk_slockername = name;
+			stack_save(&lkp->lk_stack);
 #endif
 			break;
 		}
@@ -305,9 +297,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			lkp->lk_exclusivecount = 1;
 			COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
-			lkp->lk_filename = file;
-			lkp->lk_lineno = line;
-			lkp->lk_lockername = name;
+			stack_save(&lkp->lk_stack);
 #endif
 			break;
 		}
@@ -366,9 +356,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
-			lkp->lk_filename = file;
-			lkp->lk_lineno = line;
-			lkp->lk_lockername = name;
+		stack_save(&lkp->lk_stack);
 #endif
 		break;
 
@@ -413,9 +401,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
-			lkp->lk_filename = file;
-			lkp->lk_lineno = line;
-			lkp->lk_lockername = name;
+		stack_save(&lkp->lk_stack);
 #endif
 		break;
 
@@ -509,13 +495,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_lockholder = LK_NOPROC;
 	lkp->lk_newlock = NULL;
 #ifdef DEBUG_LOCKS
-	lkp->lk_filename = "none";
-	lkp->lk_lockername = "never exclusive locked";
-	lkp->lk_lineno = 0;
-	lkp->lk_slockholder = LK_NOPROC;
-	lkp->lk_sfilename = "none";
-	lkp->lk_slockername = "never share locked";
-	lkp->lk_slineno = 0;
+	stack_zero(&lkp->lk_stack);
 #endif
 }
 
@@ -591,4 +571,7 @@ lockmgr_printinfo(lkp)
 		    lkp->lk_lockholder, lkp->lk_lockholder->td_proc->p_pid);
 	if (lkp->lk_waitcount > 0)
 		printf(" with %d pending", lkp->lk_waitcount);
+#ifdef DEBUG_LOCKS
+	stack_print(&lkp->lk_stack);
+#endif
 }
