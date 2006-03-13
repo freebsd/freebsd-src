@@ -247,19 +247,20 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 
 	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, pathseg, path, td);
 	error = namei(&nd);
 	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
 	}
 	mp = nd.ni_vp->v_mount;
-	sp = &mp->mnt_stat;
+	vfs_ref(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(nd.ni_vp);
+	vput(nd.ni_vp);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
@@ -267,10 +268,12 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
 	 */
+	sp = &mp->mnt_stat;
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	vfs_rel(mp);
 	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
@@ -318,33 +321,46 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	struct file *fp;
 	struct mount *mp;
 	struct statfs *sp, sb;
+	struct vnode *vp;
 	int error;
 
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
 	mtx_lock(&Giant);
-	mp = fp->f_vnode->v_mount;
+	vp = fp->f_vnode;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef AUDIT
+	AUDIT_ARG(vnode, vp, ARG_VNODE1);
+#endif
+	mp = vp->v_mount;
+	if (mp)
+		vfs_ref(mp);
+	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
-	if (mp == NULL) {
+	if (vp->v_iflag & VI_DOOMED) {
+		if (mp)
+			vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (EBADF);
 	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
 #endif
-	sp = &mp->mnt_stat;
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
 	 */
+	sp = &mp->mnt_stat;
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	vfs_rel(mp);
 	if (error) {
 		mtx_unlock(&Giant);
 		return (error);
@@ -713,10 +729,12 @@ fchdir(td, uap)
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	FILEDESC_LOCK_FAST(fdp);
 	vpold = fdp->fd_cdir;
 	fdp->fd_cdir = vp;
 	FILEDESC_UNLOCK_FAST(fdp);
+	vfslocked = VFS_LOCK_GIANT(vpold->v_mount);
 	vrele(vpold);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
@@ -761,11 +779,13 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 		return (error);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	FILEDESC_LOCK_FAST(fdp);
 	vp = fdp->fd_cdir;
 	fdp->fd_cdir = nd.ni_vp;
 	FILEDESC_UNLOCK_FAST(fdp);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
@@ -893,6 +913,7 @@ change_root(vp, td)
 {
 	struct filedesc *fdp;
 	struct vnode *oldvp;
+	int vfslocked;
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
@@ -914,7 +935,9 @@ change_root(vp, td)
 		VREF(fdp->fd_jdir);
 	}
 	FILEDESC_UNLOCK(fdp);
+	vfslocked = VFS_LOCK_GIANT(oldvp->v_mount);
 	vrele(oldvp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 }
 
@@ -1187,11 +1210,11 @@ restart:
 	vp = nd.ni_vp;
 	if (vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(vp);
 		if (vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	} else {
@@ -1290,11 +1313,11 @@ restart:
 	vfslocked = NDHASGIANT(&nd);
 	if (nd.ni_vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(nd.ni_vp);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	}
@@ -1427,11 +1450,11 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
 		if (nd.ni_vp != NULL) {
-			vrele(nd.ni_vp);
 			if (nd.ni_dvp == nd.ni_vp)
 				vrele(nd.ni_dvp);
 			else
 				vput(nd.ni_dvp);
+			vrele(nd.ni_vp);
 			error = EEXIST;
 		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td))
 		    == 0) {
@@ -1504,11 +1527,11 @@ restart:
 	vfslocked = NDHASGIANT(&nd);
 	if (nd.ni_vp) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(nd.ni_vp);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		error = EEXIST;
 		goto out;
@@ -1575,12 +1598,12 @@ restart:
 
 	if (nd.ni_vp != NULLVP || !(nd.ni_cnd.cn_flags & ISWHITEOUT)) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		if (nd.ni_vp)
-			vrele(nd.ni_vp);
 		if (nd.ni_vp == nd.ni_dvp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		if (nd.ni_vp)
+			vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	}
@@ -1652,11 +1675,11 @@ restart:
 	if (error == 0) {
 		if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 			NDFREE(&nd, NDF_ONLY_PNBUF);
+			vput(nd.ni_dvp);
 			if (vp == nd.ni_dvp)
 				vrele(vp);
 			else
 				vput(vp);
-			vput(nd.ni_dvp);
 			VFS_UNLOCK_GIANT(vfslocked);
 			if ((error = vn_start_write(NULL, &mp,
 			    V_XSLEEP | PCATCH)) != 0)
@@ -1677,11 +1700,11 @@ out:
 		vn_finished_write(mp);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(nd.ni_dvp);
 	if (vp == nd.ni_dvp)
 		vrele(vp);
 	else
 		vput(vp);
-	vput(nd.ni_dvp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -3324,7 +3347,6 @@ restart:
 	vp = nd.ni_vp;
 	if (vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(vp);
 		/*
 		 * XXX namei called with LOCKPARENT but not LOCKLEAF has
 		 * the strange behaviour of leaving the vnode unlocked
@@ -3334,6 +3356,7 @@ restart:
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
+		vrele(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EEXIST);
 	}
@@ -3431,11 +3454,11 @@ restart:
 #endif
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
+		vput(vp);
 		if (nd.ni_dvp == vp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
-		vput(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			return (error);
@@ -3447,11 +3470,11 @@ restart:
 	vn_finished_write(mp);
 out:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(vp);
 	if (nd.ni_dvp == vp)
 		vrele(nd.ni_dvp);
 	else
 		vput(nd.ni_dvp);
-	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -4229,14 +4252,20 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 		return (error);
 	}
 	mp = vp->v_mount;
-	sp = &mp->mnt_stat;
+	if (mp)
+		vfs_ref(mp);
 	vput(vp);
+	if (mp == NULL)
+		return (EBADF);
 	error = prison_canseemount(td->td_ucred, mp);
-	if (error)
+	if (error) {
+		vfs_rel(mp);
 		return (error);
+	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
@@ -4244,10 +4273,12 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
 	 */
+	sp = &mp->mnt_stat;
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	vfs_rel(mp);
 	mtx_unlock(&Giant);
 	if (error)
 		return (error);
