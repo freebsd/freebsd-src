@@ -297,16 +297,11 @@ ipw_attach(device_t dev)
 	/* set supported .11b rates */
 	ic->ic_sup_rates[IEEE80211_MODE_11B] = ipw_rateset_11b;
 
-	/* set supported .11b channels (read from EEPROM) */
-	if ((val = ipw_read_prom_word(sc, IPW_EEPROM_CHANNEL_LIST)) == 0)
-		val = 0x7ff; /* default to channels 1-11 */
-	val <<= 1;
-	for (i = 1; i < 16; i++) {
-		if (val & (1 << i)) {
-			ic->ic_channels[i].ic_freq =
-			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_B;
-		}
+	/* set supported .11b channels */
+	for (i = 1; i < 14; i++) {
+		ic->ic_channels[i].ic_freq =
+		    ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
+		ic->ic_channels[i].ic_flags = IEEE80211_CHAN_B;
 	}
 
 	/* check support for radio transmitter switch in EEPROM */
