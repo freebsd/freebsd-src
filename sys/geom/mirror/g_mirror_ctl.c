@@ -51,7 +51,7 @@ g_mirror_find_device(struct g_class *mp, const char *name)
 	struct g_mirror_softc *sc;
 	struct g_geom *gp;
 
-	g_topology_assert();
+	g_topology_lock();
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
@@ -60,9 +60,12 @@ g_mirror_find_device(struct g_class *mp, const char *name)
 			continue;
 		if (strcmp(gp->name, name) == 0 ||
 		    strcmp(sc->sc_name, name) == 0) {
+			g_topology_unlock();
+			sx_xlock(&sc->sc_lock);
 			return (sc);
 		}
 	}
+	g_topology_unlock();
 	return (NULL);
 }
 
@@ -71,7 +74,7 @@ g_mirror_find_disk(struct g_mirror_softc *sc, const char *name)
 {
 	struct g_mirror_disk *disk;
 
-	g_topology_assert();
+	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_consumer == NULL)
 			continue;
@@ -94,7 +97,6 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	uint8_t balance;
 	int *nargs, *autosync, *noautosync, *hardcode, *dynamic, do_sync = 0;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -109,38 +111,11 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 0);
 		return;
 	}
-	sc = g_mirror_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	if (g_mirror_ndisks(sc, -1) < sc->sc_ndisks) {
-		gctl_error(req, "Not all disks connected.");
-		return;
-	}
 	balancep = gctl_get_asciiparam(req, "balance");
 	if (balancep == NULL) {
 		gctl_error(req, "No '%s' argument.", "balance");
 		return;
 	}
-	if (strcmp(balancep, "none") == 0)
-		balance = sc->sc_balance;
-	else {
-		if (balance_id(balancep) == -1) {
-			gctl_error(req, "Invalid balance algorithm.");
-			return;
-		}
-		balance = balance_id(balancep);
-	}
-	slicep = gctl_get_paraml(req, "slice", sizeof(*slicep));
-	if (slicep == NULL) {
-		gctl_error(req, "No '%s' argument.", "slice");
-		return;
-	}
-	if (*slicep == -1)
-		slice = sc->sc_slice;
-	else
-		slice = *slicep;
 	autosync = gctl_get_paraml(req, "autosync", sizeof(*autosync));
 	if (autosync == NULL) {
 		gctl_error(req, "No '%s' argument.", "autosync");
@@ -161,11 +136,6 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "dynamic");
 		return;
 	}
-	if (sc->sc_balance == balance && sc->sc_slice == slice && !*autosync &&
-	    !*noautosync && !*hardcode && !*dynamic) {
-		gctl_error(req, "Nothing has changed.");
-		return;
-	}
 	if (*autosync && *noautosync) {
 		gctl_error(req, "'%s' and '%s' specified.", "autosync",
 		    "noautosync");
@@ -174,6 +144,43 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	if (*hardcode && *dynamic) {
 		gctl_error(req, "'%s' and '%s' specified.", "hardcode",
 		    "dynamic");
+		return;
+	}
+	sc = g_mirror_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		return;
+	}
+	if (strcmp(balancep, "none") == 0)
+		balance = sc->sc_balance;
+	else {
+		if (balance_id(balancep) == -1) {
+			gctl_error(req, "Invalid balance algorithm.");
+			sx_xunlock(&sc->sc_lock);
+			return;
+		}
+		balance = balance_id(balancep);
+	}
+	slicep = gctl_get_paraml(req, "slice", sizeof(*slicep));
+	if (slicep == NULL) {
+		gctl_error(req, "No '%s' argument.", "slice");
+		sx_xunlock(&sc->sc_lock);
+		return;
+	}
+	if (*slicep == -1)
+		slice = sc->sc_slice;
+	else
+		slice = *slicep;
+	if (g_mirror_ndisks(sc, -1) < sc->sc_ndisks) {
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Not all disks connected. Try 'forget' command "
+		    "first.");
+		return;
+	}
+	if (sc->sc_balance == balance && sc->sc_slice == slice && !*autosync &&
+	    !*noautosync && !*hardcode && !*dynamic) {
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Nothing has changed.");
 		return;
 	}
 	sc->sc_balance = balance;
@@ -205,6 +212,7 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			}
 		}
 	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -219,7 +227,6 @@ g_mirror_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 	int error, *nargs;
 	u_int i;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -239,7 +246,6 @@ g_mirror_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		return;
 	}
-
 	for (i = 1; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -261,7 +267,7 @@ g_mirror_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req,
 			    "Provider %s is the last active provider in %s.",
 			    name, sc->sc_geom->name);
-			return;
+			break;
 		}
 		/*
 		 * Do rebuild by resetting syncid, disconnecting the disk and
@@ -272,7 +278,9 @@ g_mirror_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 			disk->d_flags |= G_MIRROR_DISK_FLAG_FORCE_SYNC;
 		g_mirror_update_metadata(disk);
 		pp = disk->d_consumer->provider;
+		g_topology_lock();
 		error = g_mirror_read_metadata(disk->d_consumer, &md);
+		g_topology_unlock();
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
 		    G_MIRROR_EVENT_WAIT);
 		if (error != 0) {
@@ -287,6 +295,7 @@ g_mirror_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 			continue;
 		}
 	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -308,7 +317,6 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		struct g_consumer	*consumer;
 	} *disks;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -345,10 +353,12 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	}
 	if (g_mirror_ndisks(sc, -1) < sc->sc_ndisks) {
 		gctl_error(req, "Not all disks connected.");
+		sx_xunlock(&sc->sc_lock);
 		return;
 	}
 
 	disks = g_malloc(sizeof(*disks) * (*nargs), M_WAITOK | M_ZERO);
+	g_topology_lock();
 	for (i = 1, n = 0; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -394,6 +404,8 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		n++;
 	}
 	if (n == 0) {
+		g_topology_unlock();
+		sx_xunlock(&sc->sc_lock);
 		g_free(disks);
 		return;
 	}
@@ -431,8 +443,10 @@ again:
 			goto again;
 		}
 	}
+	g_topology_unlock();
 	if (i == 0) {
 		/* All writes failed. */
+		sx_xunlock(&sc->sc_lock);
 		g_free(disks);
 		return;
 	}
@@ -442,6 +456,7 @@ again:
 	/*
 	 * Release provider and wait for retaste.
 	 */
+	g_topology_lock();
 	for (i = 0; i < n; i++) {
 		if (disks[i].consumer == NULL)
 			continue;
@@ -449,6 +464,8 @@ again:
 		g_detach(disks[i].consumer);
 		g_destroy_consumer(disks[i].consumer);
 	}
+	g_topology_unlock();
+	sx_xunlock(&sc->sc_lock);
 	g_free(disks);
 }
 
@@ -462,7 +479,6 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 	int *nargs;
 	u_int i;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -483,10 +499,11 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (g_mirror_ndisks(sc, -1) < sc->sc_ndisks) {
-		gctl_error(req, "Not all disks connected.");
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Not all disks connected. Try 'forget' command "
+		    "first.");
 		return;
 	}
-
 	for (i = 1; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -500,8 +517,9 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 			continue;
 		}
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DESTROY,
-		    G_MIRROR_EVENT_WAIT);
+		    G_MIRROR_EVENT_DONTWAIT);
 	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -514,7 +532,6 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 	int *nargs;
 	u_int i;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -534,7 +551,6 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		return;
 	}
-
 	for (i = 1; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -552,8 +568,9 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		g_mirror_update_metadata(disk);
 		sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
-		    G_MIRROR_EVENT_WAIT);
+		    G_MIRROR_EVENT_DONTWAIT);
 	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -566,7 +583,6 @@ g_mirror_ctl_forget(struct gctl_req *req, struct g_class *mp)
 	int *nargs;
 	u_int i;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -590,6 +606,7 @@ g_mirror_ctl_forget(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		if (g_mirror_ndisks(sc, -1) == sc->sc_ndisks) {
+			sx_xunlock(&sc->sc_lock);
 			G_MIRROR_DEBUG(1,
 			    "All disks connected in %s, skipping.",
 			    sc->sc_name);
@@ -599,6 +616,7 @@ g_mirror_ctl_forget(struct gctl_req *req, struct g_class *mp)
 		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 			g_mirror_update_metadata(disk);
 		}
+		sx_xunlock(&sc->sc_lock);
 	}
 }
 
@@ -610,8 +628,6 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	char param[16];
 	u_int i;
-
-	g_topology_assert();
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -644,8 +660,10 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
 			    sc->sc_geom->name, error);
+			sx_xunlock(&sc->sc_lock);
 			return;
 		}
+		/* No need to unlock, because lock is already dead. */
 	}
 }
 
@@ -666,6 +684,7 @@ g_mirror_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		return;
 	}
 
+	g_topology_unlock();
 	if (strcmp(verb, "configure") == 0)
 		g_mirror_ctl_configure(req, mp);
 	else if (strcmp(verb, "rebuild") == 0)
@@ -682,4 +701,5 @@ g_mirror_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_mirror_ctl_stop(req, mp);
 	else
 		gctl_error(req, "Unknown verb.");
+	g_topology_lock();
 }
