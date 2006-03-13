@@ -254,12 +254,7 @@ vop_stdlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-#ifndef	DEBUG_LOCKS
 	return (lockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp), ap->a_td));
-#else
-	return (debuglockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp),
-	    ap->a_td, "vop_stdlock", vp->filename, vp->line));
-#endif
 }
 
 /* See above. */
