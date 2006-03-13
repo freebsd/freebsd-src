@@ -48,6 +48,7 @@ static vop_open_t	dead_open;
 static vop_poll_t	dead_poll;
 static vop_read_t	dead_read;
 static vop_write_t	dead_write;
+static vop_getwritemount_t dead_getwritemount;
 
 struct vop_vector dead_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -57,6 +58,7 @@ struct vop_vector dead_vnodeops = {
 	.vop_bmap =		dead_bmap,
 	.vop_create =		VOP_PANIC,
 	.vop_getattr =		VOP_EBADF,
+	.vop_getwritemount =	dead_getwritemount,
 	.vop_inactive =		VOP_NULL,
 	.vop_ioctl =		dead_ioctl,
 	.vop_link =		VOP_PANIC,
@@ -77,6 +79,18 @@ struct vop_vector dead_vnodeops = {
 	.vop_symlink =		VOP_PANIC,
 	.vop_write =		dead_write,
 };
+
+/* ARGSUSED */
+static int
+dead_getwritemount(ap)
+	struct vop_getwritemount_args /* {
+		struct vnode *a_vp;
+		struct mount **a_mpp;
+	} */ *ap;
+{
+	*(ap->a_mpp) = NULL;
+	return (0);
+}
 
 /*
  * Trivial lookup routine that always fails.
