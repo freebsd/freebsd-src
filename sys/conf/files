@@ -11,7 +11,7 @@ acpi_quirks.h			optional acpi				   \
 	clean		"acpi_quirks.h"
 aicasm				optional ahc | ahd			   \
 	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
-	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
+	compile-with	"CC='${CC}' ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm* y.tab.h"
 aic7xxx_seq.h			optional ahc				   \
@@ -52,7 +52,7 @@ aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	no-implicit-rule local
 emu10k1-alsa%diked.h		optional snd_emu10k1 pci			   \
 	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
-	compile-with	"CC=${CC} AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
 miidevs.h			optional miibus | mii			   \
