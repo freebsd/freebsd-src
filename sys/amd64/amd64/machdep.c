@@ -247,8 +247,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	char *sp;
 	struct trapframe *regs;
-	int oonstack;
 	int sig;
+	int oonstack;
 
 	td = curthread;
 	p = td->td_proc;
