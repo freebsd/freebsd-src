@@ -1283,7 +1283,7 @@ g_mirror_sync_request(struct bio *bp)
 			/* Don't send more synchronization requests. */
 			sync->ds_inflight--;
 			if (sync->ds_bios != NULL) {
-				i = (int)bp->bio_caller1;
+				i = (int)(uintptr_t)bp->bio_caller1;
 				sync->ds_bios[i] = NULL;
 			}
 			free(bp->bio_data, M_MIRROR);
@@ -1897,7 +1897,7 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 		bp->bio_done = g_mirror_sync_done;
 		bp->bio_from = disk->d_sync.ds_consumer;
 		bp->bio_to = sc->sc_provider;
-		bp->bio_caller1 = (void *)i;
+		bp->bio_caller1 = (void *)(uintptr_t)i;
 	}
 
 	/* Increase the number of disks in SYNCHRONIZING state. */
