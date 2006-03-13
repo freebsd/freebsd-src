@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
@@ -742,9 +743,11 @@ ktrops(td, p, ops, facs, vp)
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
 	if (tracevp != NULL) {
-		mtx_lock(&Giant);
+		int vfslocked;
+
+		vfslocked = VFS_LOCK_GIANT(tracevp->v_mount);
 		vrele(tracevp);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (tracecred != NULL)
 		crfree(tracecred);
