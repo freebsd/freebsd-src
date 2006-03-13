@@ -10,6 +10,7 @@
 */gensnmptree/Makefile.in
 */lib/Makefile.in
 */snmp_mibII/Makefile.in
+*/snmp_mibII/tree.h
 */snmp_ntp/Makefile.in
 */snmpd/Makefile.in
 */snmpd/.gdbinit
