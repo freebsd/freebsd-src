@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-#define NAMEI_DIAGNOSTIC 1
+#define	NAMEI_DIAGNOSTIC 1
 #undef NAMEI_DIAGNOSTIC
 
 /*
@@ -352,11 +352,13 @@ lookup(ndp)
 	struct thread *td = cnp->cn_thread;
 	int vfslocked;
 	int tvfslocked;
+	int dvfslocked;
 
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
 	vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+	dvfslocked = 0;
 	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	KASSERT(cnp->cn_nameiop == LOOKUP || wantparent,
@@ -498,7 +500,7 @@ dirloop:
 			if ((dp->v_vflag & VV_ROOT) == 0 ||
 			    (cnp->cn_flags & NOCROSSMOUNT))
 				break;
-			if (dp->v_mount == NULL) {	/* forced unmount */
+			if (dp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				error = EBADF;
 				goto bad;
 			}
@@ -623,9 +625,8 @@ unionlookup:
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
 		vput(dp);
-		tvfslocked = VFS_LOCK_GIANT(mp);
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = tvfslocked;
+		dvfslocked = vfslocked;
+		vfslocked = VFS_LOCK_GIANT(mp);
 		VOP_UNLOCK(ndp->ni_dvp, 0, td);
 		error = VFS_ROOT(mp, cnp->cn_lkflags, &tdp, td);
 		VOP_LOCK(ndp->ni_dvp, cnp->cn_lkflags | LK_RETRY, td);
@@ -644,7 +645,7 @@ unionlookup:
 	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
-		if (dp->v_mount == NULL) {
+		if (dp->v_iflag & VI_DOOMED) {
 			/* We can't know whether the directory was mounted with
 			 * NOSYMFOLLOW, so we can't follow safely. */
 			error = EBADF;
@@ -687,6 +688,8 @@ nextname:
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
+		VFS_UNLOCK_GIANT(dvfslocked);
+		dvfslocked = 0;
 		goto dirloop;
 	}
 	/*
@@ -706,13 +709,17 @@ nextname:
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
+		VFS_UNLOCK_GIANT(dvfslocked);
+		dvfslocked = 0;
 	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp)
 		VOP_UNLOCK(ndp->ni_dvp, 0, td);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
 success:
-	if (vfslocked)
+	if (vfslocked && dvfslocked)
+		VFS_UNLOCK_GIANT(dvfslocked);	/* Only need one */
+	if (vfslocked || dvfslocked)
 		ndp->ni_cnd.cn_flags |= GIANTHELD;
 	return (0);
 
@@ -725,6 +732,7 @@ bad:
 	if (!dpunlocked)
 		vput(dp);
 	VFS_UNLOCK_GIANT(vfslocked);
+	VFS_UNLOCK_GIANT(dvfslocked);
 	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	ndp->ni_vp = NULL;
 	return (error);
