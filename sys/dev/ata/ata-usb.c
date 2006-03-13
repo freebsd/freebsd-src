@@ -823,11 +823,8 @@ ata_usbchannel_end_transaction(struct ata_request *request)
 	    *ptr = ntohs(*ptr);
 	request->result = 0;
     }
-    if (request->u.atapi.ccb[0] == ATAPI_REQUEST_SENSE) {
-	request->u.atapi.sense_key = request->u.atapi.sense_data.sense_key;
-	if ((request->u.atapi.sense_key & ATA_E_MASK) == ATA_E_NM)
-	    request->result = ENODEV;
-    }
+    if (request->u.atapi.ccb[0] == ATAPI_REQUEST_SENSE)
+	request->u.atapi.sense_key = request->u.atapi.sense_data.sense_key << 4;
     return ATA_OP_FINISHED;
 }
 
