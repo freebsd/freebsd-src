@@ -351,19 +351,19 @@ void
 vm_object_reference(vm_object_t object)
 {
 	struct vnode *vp;
-	int flags;
 
 	if (object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
+		int vfslocked;
+
 		vp = object->handle;
-		VI_LOCK(vp);
 		VM_OBJECT_UNLOCK(object);
-		for (flags = LK_INTERLOCK; vget(vp, flags, curthread);
-		     flags = 0)
-			printf("vm_object_reference: delay in vget\n");
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vget(vp, LK_RETRY, curthread);
+		VFS_UNLOCK_GIANT(vfslocked);
 	} else
 		VM_OBJECT_UNLOCK(object);
 }
@@ -1700,7 +1700,9 @@ vm_object_collapse(vm_object_t object)
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
 			 */
-			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
+			if (object->resident_page_count != object->size &&
+			    vm_object_backing_scan(object,
+			    OBSC_TEST_ALL_SHADOWED) == 0) {
 				VM_OBJECT_UNLOCK(backing_object);
 				break;
 			}
