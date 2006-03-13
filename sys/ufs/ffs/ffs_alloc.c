@@ -1348,7 +1348,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_blkmapdep(bp, fs, bprev);
+		softdep_setup_blkmapdep(bp, UFSTOVFS(ump), bprev);
 	bdwrite(bp);
 	return (bprev);
 
@@ -1454,7 +1454,7 @@ ffs_alloccg(ip, cg, bpref, size)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_blkmapdep(bp, fs, blkno);
+		softdep_setup_blkmapdep(bp, UFSTOVFS(ump), blkno);
 	bdwrite(bp);
 	return (blkno);
 
@@ -1523,7 +1523,7 @@ gotit:
 	/* XXX Fixme. */
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_blkmapdep(bp, fs, blkno);
+		softdep_setup_blkmapdep(bp, UFSTOVFS(ump), blkno);
 	UFS_LOCK(ump);
 	return (blkno);
 }
