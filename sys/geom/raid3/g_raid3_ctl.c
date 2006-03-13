@@ -51,7 +51,7 @@ g_raid3_find_device(struct g_class *mp, const char *name)
 	struct g_raid3_softc *sc;
 	struct g_geom *gp;
 
-	g_topology_assert();
+	g_topology_lock();
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
@@ -60,9 +60,12 @@ g_raid3_find_device(struct g_class *mp, const char *name)
 			continue;
 		if (strcmp(gp->name, name) == 0 ||
 		    strcmp(sc->sc_name, name) == 0) {
+			g_topology_unlock();
+			sx_xlock(&sc->sc_lock);
 			return (sc);
 		}
 	}
+	g_topology_unlock();
 	return (NULL);
 }
 
@@ -72,7 +75,7 @@ g_raid3_find_disk(struct g_raid3_softc *sc, const char *name)
 	struct g_raid3_disk *disk;
 	u_int n;
 
-	g_topology_assert();
+	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
 		if (disk->d_state == G_RAID3_DISK_STATE_NODISK)
@@ -107,20 +110,6 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	}
 	if (*nargs != 1) {
 		gctl_error(req, "Invalid number of arguments.");
-		return;
-	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	sc = g_raid3_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	if (g_raid3_ndisks(sc, -1) < sc->sc_ndisks) {
-		gctl_error(req, "Not all disks connected.");
 		return;
 	}
 	autosync = gctl_get_paraml(req, "autosync", sizeof(*autosync));
@@ -174,6 +163,21 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Nothing has changed.");
 		return;
 	}
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
+	sc = g_raid3_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		return;
+	}
+	if (g_raid3_ndisks(sc, -1) < sc->sc_ndisks) {
+		gctl_error(req, "Not all disks connected.");
+		sx_xunlock(&sc->sc_lock);
+		return;
+	}
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOAUTOSYNC) != 0) {
 		if (*autosync) {
 			sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
@@ -223,6 +227,7 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			}
 		}
 	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -235,7 +240,6 @@ g_raid3_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	int error, *nargs;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -258,16 +262,19 @@ g_raid3_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 	name = gctl_get_asciiparam(req, "arg1");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%u' argument.", 1);
+		sx_xunlock(&sc->sc_lock);
 		return;
 	}
 	disk = g_raid3_find_disk(sc, name);
 	if (disk == NULL) {
 		gctl_error(req, "No such provider: %s.", name);
+		sx_xunlock(&sc->sc_lock);
 		return;
 	}
 	if (disk->d_state == G_RAID3_DISK_STATE_ACTIVE &&
 	    g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) < sc->sc_ndisks) {
 		gctl_error(req, "There is one stale disk already.", name);
+		sx_xunlock(&sc->sc_lock);
 		return;
 	}
 	/*
@@ -279,18 +286,20 @@ g_raid3_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 		disk->d_flags |= G_RAID3_DISK_FLAG_FORCE_SYNC;
 	g_raid3_update_metadata(disk);
 	pp = disk->d_consumer->provider;
+	g_topology_lock();
 	error = g_raid3_read_metadata(disk->d_consumer, &md);
+	g_topology_unlock();
 	g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
 	    G_RAID3_EVENT_WAIT);
 	if (error != 0) {
 		gctl_error(req, "Cannot read metadata from %s.", pp->name);
+		sx_xunlock(&sc->sc_lock);
 		return;
 	}
 	error = g_raid3_add_disk(sc, pp, &md);
-	if (error != 0) {
+	if (error != 0)
 		gctl_error(req, "Cannot reconnect component %s.", pp->name);
-		return;
-	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -301,8 +310,6 @@ g_raid3_ctl_stop(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	char param[16];
 	u_int i;
-
-	g_topology_assert();
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -335,8 +342,10 @@ g_raid3_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
 			    sc->sc_geom->name, error);
+			sx_xunlock(&sc->sc_lock);
 			return;
 		}
+		/* No need to unlock, because lock is already dead. */
 	}
 }
 
@@ -363,7 +372,6 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	intmax_t *no;
 	int *hardcode, *nargs, error;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -373,33 +381,9 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	sc = g_raid3_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	no = gctl_get_paraml(req, "number", sizeof(*no));
-	if (no == NULL) {
-		gctl_error(req, "No '%s' argument.", "no");
-		return;
-	}
-	if (*no >= sc->sc_ndisks) {
-		gctl_error(req, "Invalid component number.");
-		return;
-	}
 	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
 	if (hardcode == NULL) {
 		gctl_error(req, "No '%s' argument.", "hardcode");
-		return;
-	}
-	disk = &sc->sc_disks[*no];
-	if (disk->d_state != G_RAID3_DISK_STATE_NODISK) {
-		gctl_error(req, "Component %u is already connected.", *no);
 		return;
 	}
 	name = gctl_get_asciiparam(req, "arg1");
@@ -407,21 +391,67 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 1);
 		return;
 	}
+	no = gctl_get_paraml(req, "number", sizeof(*no));
+	if (no == NULL) {
+		gctl_error(req, "No '%s' argument.", "no");
+		return;
+	}
+	g_topology_lock();
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
+		g_topology_unlock();
 		gctl_error(req, "Invalid provider.");
 		return;
 	}
+	gp = g_new_geomf(mp, "raid3:insert");
+	gp->orphan = g_raid3_ctl_insert_orphan;
+	cp = g_new_consumer(gp);
+	error = g_attach(cp, pp);
+	if (error != 0) {
+		g_topology_unlock();
+		gctl_error(req, "Cannot attach to %s.", pp->name);
+		goto end;
+	}
+	error = g_access(cp, 0, 1, 1);
+	if (error != 0) {
+		g_topology_unlock();
+		gctl_error(req, "Cannot access %s.", pp->name);
+		goto end;
+	}
+	g_topology_unlock();
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		goto end;
+	}
+	sc = g_raid3_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		goto end;
+	}
+	if (*no >= sc->sc_ndisks) {
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Invalid component number.");
+		goto end;
+	}
+	disk = &sc->sc_disks[*no];
+	if (disk->d_state != G_RAID3_DISK_STATE_NODISK) {
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Component %u is already connected.", *no);
+		goto end;
+	}
 	if (((sc->sc_sectorsize / (sc->sc_ndisks - 1)) % pp->sectorsize) != 0) {
+		sx_xunlock(&sc->sc_lock);
 		gctl_error(req,
 		    "Cannot insert provider %s, because of its sector size.",
 		    pp->name);
-		return;
+		goto end;
 	}
 	compsize = sc->sc_mediasize / (sc->sc_ndisks - 1);
 	if (compsize > pp->mediasize - pp->sectorsize) {
+		sx_xunlock(&sc->sc_lock);
 		gctl_error(req, "Provider %s too small.", pp->name);
-		return;
+		goto end;
 	}
 	if (compsize < pp->mediasize - pp->sectorsize) {
 		gctl_error(req,
@@ -429,20 +459,8 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		    pp->name, (intmax_t)compsize,
 		    (intmax_t)(pp->mediasize - pp->sectorsize));
 	}
-	gp = g_new_geomf(mp, "raid3:insert");
-	gp->orphan = g_raid3_ctl_insert_orphan;
-	cp = g_new_consumer(gp);
-	error = g_attach(cp, pp);
-	if (error != 0) {
-		gctl_error(req, "Cannot attach to %s.", pp->name);
-		goto end;
-	}
-	error = g_access(cp, 0, 1, 1);
-	if (error != 0) {
-		gctl_error(req, "Cannot access %s.", pp->name);
-		goto end;
-	}
 	g_raid3_fill_metadata(disk, &md);
+	sx_xunlock(&sc->sc_lock);
 	md.md_syncid = 0;
         md.md_dflags = 0;
 	if (*hardcode)
@@ -452,20 +470,20 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	md.md_provsize = pp->mediasize;
 	sector = g_malloc(pp->sectorsize, M_WAITOK);
 	raid3_metadata_encode(&md, sector);
-	g_topology_unlock();
 	error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
 	    pp->sectorsize);
-	g_topology_lock();
 	g_free(sector);
 	if (error != 0)
 		gctl_error(req, "Cannot store metadata on %s.", pp->name);
 end:
+	g_topology_lock();
 	if (cp->acw > 0)
 		g_access(cp, 0, -1, -1);
 	if (cp->provider != NULL)
 		g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
+	g_topology_unlock();
 }
 
 static void
@@ -477,7 +495,6 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 	intmax_t *no;
 	int *nargs;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -485,6 +502,11 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 	}
 	if (*nargs != 1) {
 		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	no = gctl_get_paraml(req, "number", sizeof(*no));
+	if (no == NULL) {
+		gctl_error(req, "No '%s' argument.", "no");
 		return;
 	}
 	name = gctl_get_asciiparam(req, "arg0");
@@ -497,12 +519,8 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		return;
 	}
-	no = gctl_get_paraml(req, "number", sizeof(*no));
-	if (no == NULL) {
-		gctl_error(req, "No '%s' argument.", "no");
-		return;
-	}
 	if (*no >= sc->sc_ndisks) {
+		sx_xunlock(&sc->sc_lock);
 		gctl_error(req, "Invalid component number.");
 		return;
 	}
@@ -517,7 +535,7 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		    sc->sc_ndisks) {
 			gctl_error(req, "Cannot replace component number %u.",
 			    *no);
-			return;
+			break;
 		}
 		/* FALLTHROUGH */
 	case G_RAID3_DISK_STATE_STALE:
@@ -528,15 +546,16 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		} else {
 			g_raid3_event_send(disk,
 			    G_RAID3_DISK_STATE_DISCONNECTED,
-			    G_RAID3_EVENT_WAIT);
+			    G_RAID3_EVENT_DONTWAIT);
 		}
 		break;
 	case G_RAID3_DISK_STATE_NODISK:
 		break;
 	default:
 		gctl_error(req, "Cannot replace component number %u.", *no);
-		return;
+		break;
 	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 void
@@ -556,6 +575,7 @@ g_raid3_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		return;
 	}
 
+	g_topology_unlock();
 	if (strcmp(verb, "configure") == 0)
 		g_raid3_ctl_configure(req, mp);
 	else if (strcmp(verb, "insert") == 0)
@@ -568,4 +588,5 @@ g_raid3_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_raid3_ctl_stop(req, mp);
 	else
 		gctl_error(req, "Unknown verb.");
+	g_topology_lock();
 }
