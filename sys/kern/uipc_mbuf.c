@@ -1406,7 +1406,7 @@ m_print(const struct mbuf *m, int maxlen)
 		    "\11proto5\10proto4\7proto3\6proto2\5proto1\4rdonly"
 		    "\3eor\2pkthdr\1ext", pdata ? "" : "\n");
 		if (pdata)
-			printf(", %*D\n", m2->m_len, (u_char *)m2->m_data, "-");
+			printf(", %*D\n", pdata, (u_char *)m2->m_data, "-");
 		if (len != -1)
 			len -= m2->m_len;
 		m2 = m2->m_next;
