@@ -51,7 +51,7 @@ strtonum(const char *numstr, long long minval, long long maxval,
 		error = INVALID;
 	else {
 		ll = strtoll(numstr, &ep, 10);
-		if (numstr == ep || *ep != '\0')
+		if (errno == EINVAL || numstr == ep || *ep != '\0')
 			error = INVALID;
 		else if ((ll == LLONG_MIN && errno == ERANGE) || ll < minval)
 			error = TOOSMALL;
