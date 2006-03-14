@@ -29,10 +29,10 @@
 #include <sys/types.h>
 
 #include <assert.h>
-#include <fnmatch.h>
 #include <regex.h>
 #include <stdlib.h>
 
+#include "fnmatch.h"
 #include "globtree.h"
 #include "misc.h"
 

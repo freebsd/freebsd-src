@@ -34,6 +34,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -62,6 +63,24 @@ struct backoff_timer {
 
 static void	bt_update(struct backoff_timer *);
 static void	bt_addjitter(struct backoff_timer *);
+
+int
+asciitoint(const char *s, int *val, int base)
+{
+	char *end;
+	long longval;
+
+	errno = 0;
+	longval = strtol(s, &end, base);
+	if (errno || *end != '\0')
+		return (-1);
+	if (longval > INT_MAX || longval < INT_MIN) {
+		errno = ERANGE;
+		return (-1);
+	}
+	*val = longval;
+	return (0);
+}
 
 int
 lprintf(int level, const char *fmt, ...)
