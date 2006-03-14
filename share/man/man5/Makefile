@@ -65,6 +65,7 @@ MLINKS+=hosts.equiv.5 rhosts.5
 MLINKS+=msdosfs.5 msdos.5
 MLINKS+=passwd.5 master.passwd.5
 MLINKS+=quota.user.5 quota.group.5
+MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
 MLINKS+=utmp.5 lastlog.5 utmp.5 wtmp.5
 
