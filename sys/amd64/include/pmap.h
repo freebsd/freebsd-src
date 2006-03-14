@@ -176,7 +176,7 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
  * the corresponding pde that in turn maps it.
  */
 pt_entry_t *vtopte(vm_offset_t);
-#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
+#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
