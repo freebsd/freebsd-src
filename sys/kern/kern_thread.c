@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sched.h>
@@ -454,6 +455,7 @@ thread_free(struct thread *td)
 void
 thread_exit(void)
 {
+	uint64_t new_switchtime;
 	struct thread *td;
 	struct proc *p;
 	struct ksegrp	*kg;
@@ -494,8 +496,24 @@ thread_exit(void)
 	/*
 	 * The thread is exiting. scheduler can release its stuff
 	 * and collect stats etc.
+	 * XXX this is not very right, since PROC_UNLOCK may still
+	 * need scheduler stuff.
 	 */
 	sched_thread_exit(td);
+
+	/* Do the same timestamp bookkeeping that mi_switch() would do. */
+	new_switchtime = cpu_ticks();
+	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
+	p->p_rux.rux_uticks += td->td_uticks;
+	p->p_rux.rux_sticks += td->td_sticks;
+	p->p_rux.rux_iticks += td->td_iticks;
+	PCPU_SET(switchtime, new_switchtime);
+	PCPU_SET(switchticks, ticks);
+	cnt.v_swtch++;
+
+	/* Add our usage into the usage of all our children. */
+	if (p->p_numthreads == 1)
+		ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/*
 	 * The last thread is left attached to the process
