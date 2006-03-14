@@ -64,7 +64,7 @@ static void	smbios_setenv(const char *name, const uint8_t *dmi,
 static uint8_t	smbios_checksum(const caddr_t addr, const uint8_t len);
 static uint8_t	*smbios_sigsearch(const caddr_t addr, const uint32_t len);
 
-#ifdef SHOW_SENSITIVE_INFO
+#ifdef SMBIOS_SERIAL_NUMBERS
 static void	smbios_setuuid(const char *name, const uint8_t *dmi,
 		    const int offset);
 #endif
@@ -111,7 +111,7 @@ smbios_parse_table(const uint8_t *dmi)
 		smbios_setenv("smbios.system.maker", dmi, 0x04);
 		smbios_setenv("smbios.system.product", dmi, 0x05);
 		smbios_setenv("smbios.system.version", dmi, 0x06);
-#ifdef SHOW_SENSITIVE_INFO
+#ifdef SMBIOS_SERIAL_NUMBERS
 		smbios_setenv("smbios.system.serial", dmi, 0x07);
 		smbios_setuuid("smbios.system.uuid", dmi, 0x08);
 #endif
@@ -121,7 +121,7 @@ smbios_parse_table(const uint8_t *dmi)
 		smbios_setenv("smbios.planar.maker", dmi, 0x04);
 		smbios_setenv("smbios.planar.product", dmi, 0x05);
 		smbios_setenv("smbios.planar.version", dmi, 0x06);
-#ifdef SHOW_SENSITIVE_INFO
+#ifdef SMBIOS_SERIAL_NUMBERS
 		smbios_setenv("smbios.planar.serial", dmi, 0x07);
 #endif
 		break;
@@ -129,7 +129,7 @@ smbios_parse_table(const uint8_t *dmi)
 	case 3:		/* Type 3: System Enclosure or Chassis */
 		smbios_setenv("smbios.chassis.maker", dmi, 0x04);
 		smbios_setenv("smbios.chassis.version", dmi, 0x06);
-#ifdef SHOW_SENSITIVE_INFO
+#ifdef SMBIOS_SERIAL_NUMBERS
 		smbios_setenv("smbios.chassis.serial", dmi, 0x07);
 		smbios_setenv("smbios.chassis.tag", dmi, 0x08);
 #endif
@@ -222,7 +222,7 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 	return(NULL);
 }
 
-#ifdef SHOW_SENSITIVE_INFO
+#ifdef SMBIOS_SERIAL_NUMBERS
 static void
 smbios_setuuid(const char *name, const uint8_t *dmi, const int offset)
 {
