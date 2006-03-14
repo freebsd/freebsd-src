@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2004, Maxime Henrion <mux@FreeBSD.org>
+ * Copyright (c) 2006, Maxime Henrion <mux@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,25 +25,17 @@
  *
  * $FreeBSD$
  */
-#ifndef _TOKEN_H_
-#define _TOKEN_H_
+#ifndef _IDCACHE_H_
+#define _IDCACHE_H_
 
-void	yyerror(const char *);
-int	yylex(void);
-int	yyparse(void);
+#include <sys/types.h>
 
-/* Parsing tokens. */
-#define PT_BASE 		0
-#define PT_DATE 		1
-#define PT_HOST 		2
-#define PT_PREFIX 		3
-#define PT_RELEASE		4
-#define PT_TAG			5
-#define PT_UMASK		6
-#define PT_COMPRESS		7
-#define PT_DELETE		8
-#define PT_USE_REL_SUFFIX	9
-#define PT_LIST			10
-#define PT_NORSYNC		11
+void	 idcache_init(void);
+void	 idcache_fini(void);
 
-#endif /* !_TOKEN_H_ */
+char	*getuserbyid(uid_t);
+char	*getgroupbyid(gid_t);
+int	 getuidbyname(const char *, uid_t *);
+int	 getgidbyname(const char *, gid_t *);
+
+#endif /* !_IDCACHE_H_ */

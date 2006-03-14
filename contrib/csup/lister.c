@@ -145,6 +145,7 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 	struct attrstack *as;
 	struct statusrec *sr;
 	struct fattr *fa;
+	size_t i;
 	int depth, error, ret, prunedepth;
 
 	wr = l->wr;
@@ -203,7 +204,7 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 		return (LISTER_ERR_WRITE);
 	return (0);
 bad:
-	while (depth-- > 0) {
+	for (i = 0; i < attrstack_size(as); i++) {
 		fa = attrstack_pop(as);
 		fattr_free(fa);
 	}

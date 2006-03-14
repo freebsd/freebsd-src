@@ -54,11 +54,13 @@
 #define	UPDATER_ERR_PROTO	(-1)	/* Protocol error. */
 #define	UPDATER_ERR_MSG		(-2)	/* Error is in updater->errmsg. */
 #define	UPDATER_ERR_READ	(-3)	/* Error reading from server. */
+#define	UPDATER_ERR_DELETELIM	(-4)	/* File deletion limit exceeded. */
 
 /* Everything needed to update a file. */
 struct file_update {
 	struct statusrec srbuf;
 	char *destpath;
+	char *temppath;
 	char *coname;		/* Points somewhere in destpath. */
 	char *wantmd5;
 	struct coll *coll;
@@ -74,6 +76,7 @@ struct updater {
 	struct config *config;
 	struct stream *rd;
 	char *errmsg;
+	int deletecount;
 };
 
 static struct file_update	*fup_new(struct coll *, struct status *);
@@ -84,14 +87,13 @@ static void	 fup_free(struct file_update *);
 static void	 updater_prunedirs(char *, char *);
 static int	 updater_batch(struct updater *, int);
 static int	 updater_docoll(struct updater *, struct file_update *, int);
-static void	 updater_delete(struct file_update *);
+static int	 updater_delete(struct updater *, struct file_update *);
+static void	 updater_deletefile(const char *);
 static int	 updater_checkout(struct updater *, struct file_update *, int);
 static int	 updater_setattrs(struct updater *, struct file_update *,
 		     char *, char *, char *, char *, char *, struct fattr *);
-static void	 updater_checkmd5(struct updater *, struct file_update *,
-		     const char *, int);
 static int	 updater_updatefile(struct updater *, struct file_update *fup,
-		     const char *, const char *);
+		     const char *, int);
 static int	 updater_diff(struct updater *, struct file_update *);
 static int	 updater_diff_batch(struct updater *, struct file_update *);
 static int	 updater_diff_apply(struct updater *, struct file_update *,
@@ -133,6 +135,10 @@ fup_cleanup(struct file_update *fup)
 	if (fup->destpath != NULL) {
 		free(fup->destpath);
 		fup->destpath = NULL;
+	}
+	if (fup->temppath != NULL) {
+		free(fup->temppath);
+		fup->temppath = NULL;
 	}
 	fup->coname = NULL;
 	if (fup->author != NULL) {
@@ -188,6 +194,7 @@ updater(void *arg)
 	up->config = args->config;
 	up->rd = args->rd;
 	up->errmsg = NULL;
+	up->deletecount = 0;
 
 	error = updater_batch(up, 0);
 
@@ -217,6 +224,11 @@ updater(void *arg)
 			    "Network read failure: %s", strerror(errno));
 		}
 		args->status = STATUS_TRANSIENTFAILURE;
+		break;
+	case UPDATER_ERR_DELETELIM:
+		xasprintf(&args->errmsg, "Updater failed: "
+		    "File deletion limit exceeded");
+		args->status = STATUS_FAILURE;
 		break;
 	default:
 		assert(error == 0);
@@ -261,12 +273,11 @@ updater_batch(struct updater *up, int isfixups)
 			stream_filter_start(rd, STREAM_FILTER_ZLIB, NULL);
 
 		st = status_open(coll, coll->co_scantime, &errmsg);
-		fup = fup_new(coll, st);
 		if (st == NULL) {
-			fup_free(fup);
 			up->errmsg = errmsg;
 			return (UPDATER_ERR_MSG);
 		}
+		fup = fup_new(coll, st);
 		error = updater_docoll(up, fup, isfixups);
 		status_close(st, &errmsg);
 		fup_free(fup);
@@ -360,8 +371,11 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			/* Theoritically, the file does not exist on the client.
 			   Just to make sure, we'll delete it here, if it
 			   exists. */
-			if (access(fup->destpath, F_OK) == 0)
-				updater_delete(fup);
+			if (access(fup->destpath, F_OK) == 0) {
+				error = updater_delete(up, fup);
+				if (error)
+					return (error);
+			}
 
 			sr = &srbuf;
 			sr->sr_type = SR_CHECKOUTDEAD;
@@ -410,6 +424,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 				return (UPDATER_ERR_PROTO);
 
 			fup->wantmd5 = xstrdup(wantmd5);
+			fup->temppath = tempname(fup->destpath);
 			error = updater_diff(up, fup);
 			if (error)
 				return (error);
@@ -426,7 +441,9 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			error = fup_prepare(fup, name);
 			if (error)
 				return (UPDATER_ERR_PROTO);
-			updater_delete(fup);
+			error = updater_delete(up, fup);
+			if (error)
+				return (error);
 			sr = &srbuf;
 			sr->sr_type = SR_CHECKOUTDEAD;
 			sr->sr_file = name;
@@ -478,6 +495,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			error = fup_prepare(fup, name);
 			if (error)
 				return (UPDATER_ERR_PROTO);
+			fup->temppath = tempname(fup->destpath);
 			if (*cmd == 'Y')
 				error = updater_checkout(up, fup, 1);
 			else
@@ -493,7 +511,9 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			error = fup_prepare(fup, name);
 			if (error)
 				return (UPDATER_ERR_PROTO);
-			updater_delete(fup);
+			error = updater_delete(up, fup);
+			if (error)
+				return (error);
 			error = status_delete(fup->st, name, 0);
 			if (error) {
 				up->errmsg = status_errmsg(fup->st);
@@ -518,26 +538,38 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 }
 
 /* Delete file. */
-static void
-updater_delete(struct file_update *fup)
+static int
+updater_delete(struct updater *up, struct file_update *fup)
 {
+	struct config *config;
 	struct coll *coll;
-	int error;
 
-	/* XXX - delete limit handling */
+	config = up->config;
 	coll = fup->coll;
 	if (coll->co_options & CO_DELETE) {
 		lprintf(1, " Delete %s\n", fup->coname);
-		error = fattr_delete(fup->destpath);
-		if (error) {
-			lprintf(-1, "Cannot delete \"%s\": %s\n",
-			    fup->destpath, strerror(errno));
-			return;
-		}
+		if (config->deletelim >= 0 &&
+		    up->deletecount >= config->deletelim)
+			return (UPDATER_ERR_DELETELIM);
+		up->deletecount++;
+		updater_deletefile(fup->destpath);
 		if (coll->co_options & CO_CHECKOUTMODE)
 			updater_prunedirs(coll->co_prefix, fup->destpath);
 	} else {
 		lprintf(1," NoDelete %s\n", fup->coname);
+	}
+	return (0);
+}
+
+static void
+updater_deletefile(const char *path)
+{
+	int error;
+
+	error = fattr_delete(path);
+	if (error && errno != ENOENT) {
+		lprintf(-1, "Cannot delete \"%s\": %s\n",
+		    path, strerror(errno));
 	}
 }
 
@@ -613,34 +645,9 @@ updater_setattrs(struct updater *up, struct file_update *fup, char *name,
 	return (0);
 }
 
-/*
- * Check that the file we created/updated has a correct MD5 checksum.
- * If it doesn't and that this is not a fixup update, add a fixup
- * request to checkout the whole file.  If it's already a fixup update,
- * we just fail.
- */
-static void
-updater_checkmd5(struct updater *up, struct file_update *fup, const char *md5,
-    int isfixup)
-{
-	struct statusrec *sr;
-
-	sr = &fup->srbuf;
-	if (strcmp(fup->wantmd5, md5) == 0)
-		return;
-	if (isfixup) {
-		lprintf(-1, "%s: Checksum mismatch -- file not updated\n",
-		    fup->destpath);
-		return;
-	}
-	lprintf(-1, "%s: Checksum mismatch -- will transfer entire file\n",
-	    fup->destpath);
-	fixups_put(up->config->fixups, fup->coll, sr->sr_file);
-}
-
 static int
-updater_updatefile(struct updater *up, struct file_update *fup, const char *to,
-    const char *from)
+updater_updatefile(struct updater *up, struct file_update *fup,
+    const char *md5, int isfixup)
 {
 	struct coll *coll;
 	struct status *st;
@@ -652,16 +659,27 @@ updater_updatefile(struct updater *up, struct file_update *fup, const char *to,
 	sr = &fup->srbuf;
 	st = fup->st;
 
-	fattr_umask(sr->sr_clientattr, coll->co_umask);
-	rv = fattr_install(sr->sr_clientattr, to, from);
-	if (rv == -1) {
-		if (from == NULL)
-			xasprintf(&up->errmsg, "Cannot install \"%s\": %s",
-			    to, strerror(errno));
+	if (strcmp(fup->wantmd5, md5) != 0) {
+		if (isfixup) {
+			lprintf(-1, "%s: Checksum mismatch -- "
+			    "file not updated\n", fup->destpath);
+		} else {
+			lprintf(-1, "%s: Checksum mismatch -- "
+			    "will transfer entire file\n", fup->destpath);
+			fixups_put(up->config->fixups, fup->coll, sr->sr_file);
+		}
+		if (coll->co_options & CO_KEEPBADFILES)
+			lprintf(-1, "Bad version saved in %s\n", fup->temppath);
 		else
-			xasprintf(&up->errmsg,
-			    "Cannot install \"%s\" to \"%s\": %s",
-			    from, to, strerror(errno));
+			updater_deletefile(fup->temppath);
+		return (0);
+	}
+
+	fattr_umask(sr->sr_clientattr, coll->co_umask);
+	rv = fattr_install(sr->sr_clientattr, fup->destpath, fup->temppath);
+	if (rv == -1) {
+		xasprintf(&up->errmsg, "Cannot install \"%s\" to \"%s\": %s",
+		    fup->temppath, fup->destpath, strerror(errno));
 		return (UPDATER_ERR_MSG);
 	}
 
@@ -676,9 +694,9 @@ updater_updatefile(struct updater *up, struct file_update *fup, const char *to,
 	 * server.  This is important for preserving hard links in mirror
 	 * mode.
 	 */
-	fileattr = fattr_frompath(to, FATTR_NOFOLLOW);
+	fileattr = fattr_frompath(fup->destpath, FATTR_NOFOLLOW);
 	if (fileattr == NULL) {
-		xasprintf(&up->errmsg, "Cannot stat \"%s\": %s", to,
+		xasprintf(&up->errmsg, "Cannot stat \"%s\": %s", fup->destpath,
 		    strerror(errno));
 		return (UPDATER_ERR_MSG);
 	}
@@ -715,10 +733,9 @@ updater_diff(struct updater *up, struct file_update *fup)
 	struct statusrec *sr;
 	struct fattr *fa, *tmp;
 	char *author, *path, *revnum, *revdate;
-	char *line, *cmd, *temppath;
+	char *line, *cmd;
 	int error;
 
-	temppath = NULL;
 	coll = fup->coll;
 	sr = &fup->srbuf;
 	path = fup->destpath;
@@ -728,18 +745,14 @@ updater_diff(struct updater *up, struct file_update *fup)
 		if (strcmp(line, ".") == 0)
 			break;
 		cmd = proto_get_ascii(&line);
-		if (cmd == NULL || strcmp(cmd, "D") != 0) {
-			error = UPDATER_ERR_PROTO;
-			goto bad;
-		}
+		if (cmd == NULL || strcmp(cmd, "D") != 0)
+			return (UPDATER_ERR_PROTO);
 		revnum = proto_get_ascii(&line);
 		proto_get_ascii(&line); /* XXX - diffbase */
 		revdate = proto_get_ascii(&line);
 		author = proto_get_ascii(&line);
-		if (author == NULL || line != NULL) {
-			error = UPDATER_ERR_PROTO;
-			goto bad;
-		}
+		if (author == NULL || line != NULL)
+			return (UPDATER_ERR_PROTO);
 		if (sr->sr_revnum != NULL)
 			free(sr->sr_revnum);
 		if (sr->sr_revdate != NULL)
@@ -755,36 +768,32 @@ updater_diff(struct updater *up, struct file_update *fup)
 			if (fup->orig == NULL) {
 				xasprintf(&up->errmsg, "%s: Cannot open: %s",
 				    path, strerror(errno));
-				error = UPDATER_ERR_MSG;
-				goto bad;
+				return (UPDATER_ERR_MSG);
 			}
 		} else {
 			/* Subsequent patches. */
 			stream_close(fup->orig);
 			fup->orig = fup->to;
 			stream_rewind(fup->orig);
-			unlink(temppath);
-			free(temppath);
+			unlink(fup->temppath);
+			free(fup->temppath);
+			fup->temppath = tempname(path);
 		}
-		temppath = tempname(path);
-		fup->to = stream_open_file(temppath,
-		    O_RDWR | O_CREAT | O_EXCL, 0600);
+		fup->to = stream_open_file(fup->temppath,
+		    O_RDWR | O_CREAT | O_TRUNC, 0600);
 		if (fup->to == NULL) {
 			xasprintf(&up->errmsg, "%s: Cannot open: %s",
-			    temppath, strerror(errno));
-			error = UPDATER_ERR_MSG;
-			goto bad;
+			    fup->temppath, strerror(errno));
+			return (UPDATER_ERR_MSG);
 		}
 		lprintf(2, "  Add delta %s %s %s\n", sr->sr_revnum,
 		    sr->sr_revdate, fup->author);
 		error = updater_diff_batch(up, fup);
 		if (error)
-			goto bad;
+			return (error);
 	}
-	if (line == NULL) {
-		error = UPDATER_ERR_READ;
-		goto bad;
-	}
+	if (line == NULL)
+		return (UPDATER_ERR_READ);
 
 	fa = fattr_frompath(path, FATTR_FOLLOW);
 	tmp = fattr_forcheckout(sr->sr_serverattr, coll->co_umask);
@@ -793,24 +802,13 @@ updater_diff(struct updater *up, struct file_update *fup)
 	fattr_maskout(fa, FA_MODTIME);
 	sr->sr_clientattr = fa;
 
-	error = updater_updatefile(up, fup, path, temppath);
-	if (error)
-		goto bad;
-
-	if (MD5_File(path, md5) == -1) {
+	if (MD5_File(fup->temppath, md5) == -1) {
 		xasprintf(&up->errmsg,
 		    "Cannot calculate checksum for \"%s\": %s",
 		    path, strerror(errno));
-		error = UPDATER_ERR_MSG;
-		goto bad;
+		return (UPDATER_ERR_MSG);
 	}
-	updater_checkmd5(up, fup, md5, 0);
-	free(temppath);
-	return (0);
-bad:
-	assert(error);
-	if (temppath != NULL)
-		free(temppath);
+	error = updater_updatefile(up, fup, md5, 0);
 	return (error);
 }
 
@@ -934,10 +932,11 @@ updater_checkout(struct updater *up, struct file_update *fup, int isfixup)
 		return (UPDATER_ERR_MSG);
 	}
 
-	to = stream_open_file(path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	to = stream_open_file(fup->temppath,
+	    O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (to == NULL) {
 		xasprintf(&up->errmsg, "%s: Cannot create: %s",
-		    path, strerror(errno));
+		    fup->temppath, strerror(errno));
 		return (UPDATER_ERR_MSG);
 	}
 	stream_filter_start(to, STREAM_FILTER_MD5, md5);
@@ -980,14 +979,14 @@ updater_checkout(struct updater *up, struct file_update *fup, int isfixup)
 	fup->wantmd5 = proto_get_ascii(&line);
 	if (fup->wantmd5 == NULL || line != NULL || strcmp(cmd, "5") != 0)
 		return (UPDATER_ERR_PROTO);
-	updater_checkmd5(up, fup, md5, isfixup);
+	error = updater_updatefile(up, fup, md5, isfixup);
 	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
-	error = updater_updatefile(up, fup, path, NULL);
 	if (error)
 		return (error);
 	return (0);
 bad:
-	xasprintf(&up->errmsg, "%s: Cannot write: %s", path, strerror(errno));
+	xasprintf(&up->errmsg, "%s: Cannot write: %s", fup->temppath,
+	    strerror(errno));
 	return (UPDATER_ERR_MSG);
 }
 

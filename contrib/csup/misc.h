@@ -99,6 +99,7 @@ struct backoff_timer;
 struct pattlist;
 struct tm;
 
+int	 asciitoint(const char *, int *, int);
 int	 lprintf(int, const char *, ...) __printflike(2, 3);
 int	 MD5_File(char *, char *);
 void	 MD5_End(char *, MD5_CTX *);
@@ -125,4 +126,5 @@ struct backoff_timer	*bt_new(time_t, time_t, float, float);
 time_t			 bt_get(struct backoff_timer *);
 void			 bt_pause(struct backoff_timer *);
 void			 bt_free(struct backoff_timer *);
+
 #endif /* !_MISC_H_ */
