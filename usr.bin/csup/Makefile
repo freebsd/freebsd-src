@@ -11,6 +11,7 @@ SRCS=	attrstack.c \
 	fixups.c \
 	fnmatch.c \
 	globtree.c \
+	idcache.c \
 	keyword.c \
 	lister.c \
 	main.c \
