@@ -1749,8 +1749,7 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * could halt the system by setting a breakpoint in the kernel
 		 * (if ddb was enabled).  Thus, we need to check to make sure
 		 * that no breakpoints are being enabled for addresses outside
-		 * process's address space, unless, perhaps, we were called by
-		 * uid 0.
+		 * process's address space.
 		 *
 		 * XXX - what about when the watched area of the user's
 		 * address space is written into from within the kernel
@@ -1758,27 +1757,25 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * from within kernel mode?
 		 */
 
-		if (suser(td) != 0) {
-			if (dbregs->dr[7] & 0x3) {
-				/* dr0 is enabled */
-				if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-			if (dbregs->dr[7] & 0x3<<2) {
-				/* dr1 is enabled */
-				if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-			if (dbregs->dr[7] & 0x3<<4) {
-				/* dr2 is enabled */
-				if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-			if (dbregs->dr[7] & 0x3<<6) {
-				/* dr3 is enabled */
-				if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
+		if (dbregs->dr[7] & 0x3) {
+			/* dr0 is enabled */
+			if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
+				return (EINVAL);
+		}
+		if (dbregs->dr[7] & 0x3<<2) {
+			/* dr1 is enabled */
+			if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
+				return (EINVAL);
+		}
+		if (dbregs->dr[7] & 0x3<<4) {
+			/* dr2 is enabled */
+			if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
+				return (EINVAL);
+		}
+		if (dbregs->dr[7] & 0x3<<6) {
+			/* dr3 is enabled */
+			if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
+				return (EINVAL);
 		}
 
 		pcb->pcb_dr0 = dbregs->dr[0];
