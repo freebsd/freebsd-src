@@ -271,6 +271,8 @@ int	 sradixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 void	 sranddev(void);
 void	 srandomdev(void);
+long long
+	strtonum(const char *, long long, long long, const char **);
 
 /* Deprecated interfaces, to be removed in FreeBSD 6.0. */
 __int64_t

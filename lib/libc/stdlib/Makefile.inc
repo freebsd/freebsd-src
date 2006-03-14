@@ -10,8 +10,8 @@ MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c malloc.c \
 	merge.c putenv.c qsort.c qsort_r.c radixsort.c rand.c random.c \
 	reallocf.c realpath.c remque.c setenv.c strfmon.c strtoimax.c \
-	strtol.c strtoll.c strtoq.c strtoul.c strtoull.c strtoumax.c strtouq.c \
-	system.c tdelete.c tfind.c tsearch.c twalk.c
+	strtol.c strtoll.c strtoq.c strtoul.c strtonum.c strtoull.c strtoumax.c \
+	strtouq.c system.c tdelete.c tfind.c tsearch.c twalk.c
 
 SYM_MAPS+= ${.CURDIR}/stdlib/Symbol.map
 
@@ -25,7 +25,8 @@ MAN+=	a64l.3 abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	hcreate.3 imaxabs.3 imaxdiv.3 insque.3 labs.3 ldiv.3 llabs.3 lldiv.3 \
 	lsearch.3 malloc.3 memory.3 posix_memalign.3 qsort.3 radixsort.3 \
 	rand.3 random.3 \
-	realpath.3 strfmon.3 strtod.3 strtol.3 strtoul.3 system.3 tsearch.3
+	realpath.3 strfmon.3 strtod.3 strtol.3 strtonum.3 strtoul.3 system.3 \
+	tsearch.3
 
 MLINKS+=a64l.3 l64a.3 a64l.3 l64a_r.3
 MLINKS+=atol.3 atoll.3
