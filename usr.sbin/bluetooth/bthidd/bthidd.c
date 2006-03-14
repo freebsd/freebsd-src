@@ -49,13 +49,15 @@ static int	write_pid_file	(char const *file);
 static int	remove_pid_file	(char const *file);
 static int	elapsed		(int tval);
 static void	sighandler	(int s);
+static void	sighup		(int s);
 static void	usage		(void);
 
 /*
  * bthidd
  */
 
-static int	done = 0; /* are we done? */
+static int	done = 0;	/* are we done? */
+static int	reload = 0;	/* reload config file */
 
 int
 main(int argc, char *argv[])
@@ -137,8 +139,14 @@ main(int argc, char *argv[])
 	sa.sa_handler = sighandler;
 
 	if (sigaction(SIGTERM, &sa, NULL) < 0 ||
-	    sigaction(SIGHUP, &sa, NULL) < 0 ||
 	    sigaction(SIGINT, &sa, NULL) < 0) {
+		syslog(LOG_CRIT, "Could not install signal handlers. %s (%d)",
+			strerror(errno), errno);
+		exit(1);
+	}
+
+	sa.sa_handler = sighup;
+	if (sigaction(SIGHUP, &sa, NULL) < 0) {
 		syslog(LOG_CRIT, "Could not install signal handlers. %s (%d)",
 			strerror(errno), errno);
 		exit(1);
@@ -169,6 +177,15 @@ main(int argc, char *argv[])
 
 		if (server_do(&srv) < 0)
 			break;
+
+		if (reload) {
+			if (write_hids_file() < 0 ||
+			    read_config_file() < 0 ||
+			    read_hids_file() < 0)
+				break;
+
+			reload = 0;
+		}
 	}
 
 	server_shutdown(&srv);
@@ -241,7 +258,7 @@ elapsed(int tval)
 }
 
 /*
- * Signal handler
+ * Signal handlers
  */
 
 static void
@@ -249,6 +266,13 @@ sighandler(int s)
 {
 	syslog(LOG_NOTICE, "Got signal %d, total number of signals %d",
 		s, ++ done);
+}
+
+static void
+sighup(int s)
+{
+	syslog(LOG_NOTICE, "Got SIGHUP: reload config");
+	reload = 1;
 }
 
 /*
