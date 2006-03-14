@@ -35,7 +35,6 @@
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
-#include <limits.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
@@ -228,7 +227,7 @@ proto_negproto(struct config *config)
 	stream_flush(s);
 	line = stream_getln(s, NULL);
 	cmd = proto_get_ascii(&line);
-	if (line == NULL)
+	if (cmd == NULL || line == NULL)
 		goto bad;
 	if (strcmp(cmd, "!") == 0) {
 		msg = proto_get_rest(&line);
@@ -256,13 +255,20 @@ static int
 proto_login(struct config *config)
 {
 	struct stream *s;
-	char host[MAXHOSTNAMELEN];
-	char *line, *cmd, *realm, *challenge, *msg;
+	char hostbuf[MAXHOSTNAMELEN];
+	char *line, *login, *host, *cmd, *realm, *challenge, *msg;
+	int error;
 
 	s = config->server;
-	gethostname(host, sizeof(host));
-	host[sizeof(host) - 1] = '\0';
-	proto_printf(s, "USER %s %s\n", getlogin(), host);
+	error = gethostname(hostbuf, sizeof(hostbuf));
+	hostbuf[sizeof(hostbuf) - 1] = '\0';
+	if (error)
+		host = NULL;
+	else
+		host = hostbuf;
+	login = getlogin();
+	proto_printf(s, "USER %s %s\n", login != NULL ? login : "?",
+	    host != NULL ? host : "?");
 	stream_flush(s);
 	line = stream_getln(s, NULL);
 	cmd = proto_get_ascii(&line);
@@ -279,6 +285,8 @@ proto_login(struct config *config)
 	stream_flush(s);
 	line = stream_getln(s, NULL);
 	cmd = proto_get_ascii(&line);
+	if (cmd == NULL || line == NULL)
+		goto bad;
 	if (strcmp(cmd, "OK") == 0)
 		return (STATUS_SUCCESS);
 	if (strcmp(cmd, "!") == 0) {
@@ -371,9 +379,11 @@ proto_xchgcoll(struct config *config)
 	}
 	proto_printf(s, ".\n");
 	stream_flush(s);
+
 	STAILQ_FOREACH(coll, &config->colls, co_next) {
 		if (coll->co_options & CO_SKIP)
 			continue;
+		coll->co_norsync = globtree_false();
 		line = stream_getln(s, NULL);
 		if (line == NULL)
 			goto bad;
@@ -430,7 +440,21 @@ proto_xchgcoll(struct config *config)
 				    ident);
 				if (error)
 					goto bad;
-			}
+			} else if (strcmp(cmd, "NORS") == 0) {
+				pat = proto_get_ascii(&line);
+				if (pat == NULL || line != NULL)
+					goto bad;
+				coll->co_norsync = globtree_or(coll->co_norsync,
+				    globtree_match(pat, FNM_PATHNAME));
+			} else if (strcmp(cmd, "RNORS") == 0) {
+				pat = proto_get_ascii(&line);
+				if (pat == NULL || line != NULL)
+					goto bad;
+				coll->co_norsync = globtree_or(coll->co_norsync,
+				    globtree_match(pat, FNM_PATHNAME |
+				    FNM_LEADING_DIR));
+			} else
+				goto bad;
 		}
 		if (line == NULL)
 			goto bad;
@@ -904,22 +928,14 @@ proto_get_rest(char **s)
 int
 proto_get_int(char **s, int *val, int base)
 {
-	char *cp, *end;
-	long longval;
+	char *cp;
+	int error;
 
 	cp = proto_get_ascii(s);
 	if (cp == NULL)
 		return (-1);
-	errno = 0;
-	longval = strtol(cp, &end, base);
-	if (errno || *end != '\0')
-		return (-1);
-	if (longval > INT_MAX || longval < INT_MIN) {
-		errno = ERANGE;
-		return (-1);
-	}
-	*val = longval;
-	return (0);
+	error = asciitoint(cp, val, base);
+	return (error);
 }
 
 /*

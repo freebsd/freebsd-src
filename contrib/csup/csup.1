@@ -32,10 +32,11 @@
 .Nd network distribution package for CVS repositories
 .Sh SYNOPSIS
 .Nm
-.Op Fl 146svzZ
+.Op Fl 146ksvzZ
 .Op Fl A Ar addr
 .Op Fl b Ar base
 .Op Fl c Ar collDir
+.Op Fl d Ar delLimit
 .Op Fl h Ar host
 .Op Fl i Ar pattern
 .Op Fl l Ar lockfile
@@ -123,6 +124,13 @@ Specifies the subdirectory of
 where the information about the collections is maintained.
 The default is
 .Pa sup .
+.It Fl d Ar delLimit
+Specifies the maximum number of files that may be deleted in a
+single update run.
+Any attempt to exceed the limit results in a fatal error.
+This can provide some protection against temporary configuration
+mistakes on the server.
+The default limit is infinity.
 .It Fl h Ar host
 Specifies the server host to contact, overriding any
 .Cm host
@@ -148,6 +156,17 @@ is a standard file name pattern.
 It is interpreted relative to the collection's prefix directory.
 Slash characters are matched only by explicit slashes in the pattern.
 Leading periods in file name are not treated specially.
+.It Fl k
+Causes
+.Nm
+to keep the temporary copies of any incorrectly edited files, in the
+event of checksum mismatches.
+This option is for debugging, to help determine why the files were
+edited incorrectly.
+Regardless of whether this option is specified, the permanent versions
+of faulty files are replaced with correct versions obtained by
+transferring the files in their entirety.
+Such transfers are called fixups.
 .It Fl l Ar lockfile
 Creates and locks the
 .Ar lockfile
