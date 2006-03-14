@@ -130,7 +130,7 @@
 
 #ifdef LOCORE
 /*
- * Convenience macros for declaring interrupt entry points.
+ * Convenience macro for declaring interrupt entry points.
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
