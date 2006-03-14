@@ -86,6 +86,7 @@ struct coll {
 	struct pattlist *co_refusals;
 	struct globtree *co_dirfilter;
 	struct globtree *co_filefilter;
+	struct globtree *co_norsync;
 	const char *co_colldir;
 	char *co_listsuffix;
 	time_t co_scantime;		/* Set by the detailer thread. */
@@ -101,6 +102,7 @@ struct config {
 	char *host;
 	struct sockaddr *laddr;
 	socklen_t laddrlen;
+	int deletelim;
 	int socket;
 	struct chan *chan0;
 	struct chan *chan1;

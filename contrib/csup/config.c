@@ -53,6 +53,8 @@ extern FILE *yyin;
 static STAILQ_HEAD(, coll) colls;
 static struct coll *cur_coll;
 static struct coll *defaults;
+static struct coll *ovcoll;
+static int ovmask;
 static const char *cfgfile;
 
 /*
@@ -78,13 +80,14 @@ config_init(const char *file, struct coll *override, int overridemask)
 	mask = umask(0);
 	umask(mask);
 	defaults->co_umask = mask;
+	ovcoll = override;
+	ovmask = overridemask;
 
 	/* Extract a list of collections from the configuration file. */
 	cur_coll = coll_new(defaults);
 	yyin = fopen(file, "r");
 	if (yyin == NULL) {
-		lprintf(-1, "Cannot open \"%s\": %s\n", file,
-		    strerror(errno));
+		lprintf(-1, "Cannot open \"%s\": %s\n", file, strerror(errno));
 		goto bad;
 	}
 	cfgfile = file;
@@ -101,7 +104,6 @@ config_init(const char *file, struct coll *override, int overridemask)
 
 	/* Fixup the list of collections. */
 	STAILQ_FOREACH(coll, &config->colls, co_next) {
-		coll_override(coll, override, overridemask);
  		if (coll->co_base == NULL)
 			coll->co_base = xstrdup("/usr/local/etc/cvsup");
 		if (coll->co_colldir == NULL)
@@ -229,13 +231,27 @@ static int
 config_parse_refusefile(struct coll *coll, char *path)
 {
 	struct stream *rd;
-	char *line;
+	char *cp, *line, *pat;
 
 	rd = stream_open_file(path, O_RDONLY);
 	if (rd == NULL)
 		return (0);
-	while ((line = stream_getln(rd, NULL)) != NULL)
-		pattlist_add(coll->co_refusals, line);
+	while ((line = stream_getln(rd, NULL)) != NULL) {
+		pat = line;
+		for (;;) {
+			/* Trim leading whitespace. */
+			pat += strspn(pat, " \t");
+			if (pat[0] == '\0')
+				break;
+			cp = strpbrk(pat, " \t");
+			if (cp != NULL)
+				*cp = '\0';
+			pattlist_add(coll->co_refusals, pat);
+			if (cp == NULL)
+				break;
+			pat = cp + 1;
+		}
+	}
 	if (!stream_eof(rd)) {
 		stream_close(rd);
 		lprintf(-1, "Read failure from \"%s\": %s\n", path,
@@ -417,6 +433,7 @@ coll_add(char *name)
 	struct coll *coll;
 
 	cur_coll->co_name = name;
+	coll_override(cur_coll, ovcoll, ovmask);
 	if (cur_coll->co_release == NULL) {
 		lprintf(-1, "Release not specified for collection "
 		    "\"%s\"\n", cur_coll->co_name);
@@ -472,6 +489,8 @@ coll_free(struct coll *coll)
 		globtree_free(coll->co_dirfilter);
 	if (coll->co_dirfilter != NULL)
 		globtree_free(coll->co_filefilter);
+	if (coll->co_norsync != NULL)
+		globtree_free(coll->co_norsync);
 	if (coll->co_accepts != NULL)
 		pattlist_free(coll->co_accepts);
 	if (coll->co_refusals != NULL)
@@ -483,6 +502,7 @@ void
 coll_setopt(int opt, char *value)
 {
 	struct coll *coll;
+	int error, mask;
 
 	coll = cur_coll;
 	switch (opt) {
@@ -529,14 +549,14 @@ coll_setopt(int opt, char *value)
 		coll->co_listsuffix = value;
 		break;
 	case PT_UMASK:
-		errno = 0;
-		coll->co_umask = strtol(value, NULL, 8);
+		error = asciitoint(value, &mask, 8);
 		free(value);
-		if (errno) {
+		if (error) {
 			lprintf(-1, "Parse error in \"%s\": Invalid "
 			    "umask value\n", cfgfile);
 			exit(1);
 		}
+		coll->co_umask = mask;
 		break;
 	case PT_USE_REL_SUFFIX:
 		coll->co_options |= CO_USERELSUFFIX;
@@ -546,6 +566,9 @@ coll_setopt(int opt, char *value)
 		break;
 	case PT_COMPRESS:
 		coll->co_options |= CO_COMPRESS;
+		break;
+	case PT_NORSYNC:
+		coll->co_options |= CO_NORSYNC;
 		break;
 	}
 }
