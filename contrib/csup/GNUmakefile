@@ -12,8 +12,8 @@ GROUP?=	0
 UNAME=	$(shell uname -s)
 
 SRCS=	attrstack.c config.c detailer.c diff.c fattr.c fixups.c fnmatch.c \
-	globtree.c keyword.c lister.c main.c misc.c mux.c pathcomp.c parse.c \
-	proto.c status.c stream.c threads.c token.c updater.c
+	globtree.c idcache.c keyword.c lister.c main.c misc.c mux.c pathcomp.c \
+	parse.c proto.c status.c stream.c threads.c token.c updater.c
 OBJS=	$(SRCS:.c=.o)
 
 WARNS=	-Wall -W -Wno-unused-parameter -Wmissing-prototypes -Wpointer-arith \
@@ -22,10 +22,10 @@ WARNS=	-Wall -W -Wno-unused-parameter -Wmissing-prototypes -Wpointer-arith \
 	-Wnested-externs -Wredundant-decls -Wno-format-y2k
 
 CFLAGS+= -g -O -pipe -DNDEBUG -I$(PREFIX)/include
-ifeq ($(UNAME), "Linux")
+ifeq ($(UNAME), Linux)
 	CFLAGS+= -D_XOPEN_SOURCE -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
 endif
-ifeq ($(UNAME), "Darwin")
+ifeq ($(UNAME), Darwin)
 	CFLAGS+= -DHAVE_FFLAGS
 endif
 CFLAGS+= $(WARNS)

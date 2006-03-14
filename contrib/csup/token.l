@@ -56,6 +56,7 @@ release			{ yylval.i = PT_RELEASE; return NAME; }
 tag			{ yylval.i = PT_TAG; return NAME; }
 umask			{ yylval.i = PT_UMASK; return NAME; }
 list			{ yylval.i = PT_LIST; return NAME; }
+norsync			{ yylval.i = PT_NORSYNC; return NAME; }
 =			{ return EQUAL; }
 compress		{ yylval.i = PT_COMPRESS; return BOOLEAN; }
 delete			{ yylval.i = PT_DELETE; return BOOLEAN; }
