@@ -110,7 +110,6 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
-	uint64_t new_switchtime;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
@@ -556,19 +555,6 @@ retry:
 	mtx_lock_spin(&sched_lock);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
-
-	/* Do the same timestamp bookkeeping that mi_switch() would do. */
-	new_switchtime = cpu_ticks();
-	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
-	p->p_rux.rux_uticks += td->td_uticks;
-	p->p_rux.rux_sticks += td->td_sticks;
-	p->p_rux.rux_iticks += td->td_iticks;
-	PCPU_SET(switchtime, new_switchtime);
-	PCPU_SET(switchticks, ticks);
-	cnt.v_swtch++;
-
-	/* Add our usage into the usage of all our children. */
-	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	sched_exit(p->p_pptr, td);
 
