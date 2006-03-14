@@ -594,12 +594,12 @@ set_interrupt_apic_ids(void)
 			continue;
 		if (cpu_info[apic_id].cpu_bsp)
 			continue;
-#if 0
+
 		/* Don't let hyperthreads service interrupts. */
 		if (hyperthreading_cpus > 1 &&
 		    apic_id % hyperthreading_cpus != 0)
 			continue;
-#endif
+
 		intr_add_cpu(apic_id);
 	}
 }
