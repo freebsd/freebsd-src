@@ -1004,6 +1004,17 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 #endif
 }
 
+#ifdef BUS_SPACE_NO_LEGACY
+#undef inb
+#undef outb
+#define inb(a) compiler_error
+#define inw(a) compiler_error
+#define inl(a) compiler_error
+#define outb(a, b) compiler_error
+#define outw(a, b) compiler_error
+#define outl(a, b) compiler_error
+#endif
+
 #include <machine/bus_dma.h>
 
 /*
