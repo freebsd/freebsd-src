@@ -3,7 +3,7 @@
 #
 
 PROG=	shutdown
-NO_MAN=	yes
+NO_MAN=
 WARNS?=	2
 
 .include <bsd.prog.mk>

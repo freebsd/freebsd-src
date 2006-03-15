@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG    = wlanstats
-BINDIR	= /usr/local/bin
-NO_MAN	= noman
+PROG=	wlanstats
+BINDIR=	/usr/local/bin
+NO_MAN=
 
 .include <bsd.prog.mk>
