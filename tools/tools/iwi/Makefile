@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG    = iwistats
-NO_MAN	= noman
+PROG=	iwistats
+NO_MAN=
 
 .include <bsd.prog.mk>
