@@ -208,6 +208,7 @@ extern struct mtx accept_mtx;
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
+#define	SS_PROTOREF		0x400	/* strong protocol reference */
 
 /*
  * Socket state bits now stored in the socket buffer state field.
