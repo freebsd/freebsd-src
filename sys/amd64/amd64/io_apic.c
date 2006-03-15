@@ -323,7 +323,11 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 		low |= IOART_DELSMI;
 		break;
 	default:
-		low |= IOART_DELFIXED | apic_irq_to_idt(intpin->io_vector);
+		if (intpin->io_dest == DEST_NONE)
+			low |= IOART_DELFIXED;
+		else
+			low |= IOART_DELLOPRI;
+		low |= apic_irq_to_idt(intpin->io_vector);
 	}
 
 	/* Write the values to the APIC. */
