@@ -77,6 +77,7 @@ TGTS=	all all-man buildenv buildkernel buildworld check-old checkdpadd \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 distribute32 install32
+TGTS+=	${SUBDIR_TARGETS}
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
