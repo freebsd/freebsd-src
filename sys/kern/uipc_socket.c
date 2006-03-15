@@ -1,8 +1,8 @@
 /*-
- * Copyright (c) 2004 The FreeBSD Foundation
- * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2004 The FreeBSD Foundation
+ * Copyright (c) 2004-2006 Robert N. M. Watson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -346,7 +346,7 @@ sofree(so)
 	SOCK_LOCK_ASSERT(so);
 
 	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0 ||
-	    so->so_count != 0) {
+	    so->so_count != 0 || (so->so_state & SS_PROTOREF)) {
 		SOCK_UNLOCK(so);
 		ACCEPT_UNLOCK();
 		return;
