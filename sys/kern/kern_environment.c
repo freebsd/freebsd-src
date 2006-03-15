@@ -210,10 +210,10 @@ init_dynamic_kenv(void *data __unused)
 	i = 0;
 	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
 		len = strlen(cp) + 1;
-		kenvp[i] = malloc(len, M_KENV, M_WAITOK);
-		if (i < KENV_SIZE) 
+		if (i < KENV_SIZE) {
+			kenvp[i] = malloc(len, M_KENV, M_WAITOK);
 			strcpy(kenvp[i++], cp);
-		else
+		} else
 			printf(
 			    "WARNING: too many kenv strings, ignoring %s\n",
 			    cp);
