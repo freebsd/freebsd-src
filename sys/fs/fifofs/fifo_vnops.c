@@ -168,6 +168,7 @@ fifo_open(ap)
 		int  a_mode;
 		struct ucred *a_cred;
 		struct thread *a_td;
+		int a_fdidx;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
