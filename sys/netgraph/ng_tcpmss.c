@@ -368,6 +368,8 @@ ng_tcpmss_disconnect(hook_p hook)
 			priv->outHook = NULL;
 	}
 
+	FREE(NG_HOOK_PRIVATE(hook), M_NETGRAPH);
+
 	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 
