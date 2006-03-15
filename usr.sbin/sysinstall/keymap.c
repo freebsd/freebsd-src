@@ -103,8 +103,11 @@ keymapMenuSelect(dialogMenuItem *self)
 	if ((choice = keymapSetDefault(prefix)) == -1)
 	{
 	    snprintf(prefix, sizeof(prefix), "keymap=%s", lang);
-	    if ((choice = keymapSetDefault(prefix)) == -1)
-		choice = 0;
+	    if ((choice = keymapSetDefault(prefix)) == -1) {
+		    snprintf(prefix, sizeof(prefix), "keymap=us.iso", lang);
+		    if ((choice = keymapSetDefault(prefix)) == -1)
+			    choice = 0;
+	    }
 	}
 
 	dmenuSetDefaultIndex(&MenuSysconsKeymap, &choice, &scroll, &curr, &max);
