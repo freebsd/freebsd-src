@@ -116,6 +116,9 @@ sign(filename, type, userid, envp)
 	case TAG_X509:
 		success = retrieve_x509_marker(filename, &sign, userid);
 		break;
+	default:
+		success = 0;
+		fprintf(stderr, "Unknown type %d\n", type);
 	}
 
 	if (!success) {
