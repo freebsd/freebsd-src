@@ -4,8 +4,7 @@
 #
 
 # PROVIDE: archdep
-# REQUIRE: LOGIN
-# BEFORE: abi
+# REQUIRE: mountcritremote
 # KEYWORD: nojail
 
 . /etc/rc.subr
