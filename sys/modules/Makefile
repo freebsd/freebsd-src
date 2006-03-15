@@ -118,10 +118,10 @@ SUBDIR=	${_3dfx} \
 	ip_mroute_mod \
 	${_ipmi} \
 	${_ips} \
-	ipw \
+	${_ipw} \
 	isp \
 	ispfw \
-	iwi \
+	${_iwi} \
 	joy \
 	kbdmux \
 	kue \
@@ -352,6 +352,8 @@ _ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
 _io=		io
+_ipw=		ipw
+_iwi=		iwi
 _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
@@ -455,6 +457,8 @@ _iir=		iir
 _io=		io
 _ipmi=		ipmi
 _ips=		ips
+_ipw=		ipw
+_iwi=		iwi
 #_lnc=		lnc
 _mly=		mly
 _ndis=		ndis
