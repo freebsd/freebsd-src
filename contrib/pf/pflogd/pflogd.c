@@ -555,7 +555,7 @@ main(int argc, char **argv)
 	struct pcap_stat pstat;
 	int ch, np, Xflag = 0;
 	pcap_handler phandler = dump_packet;
-	char *errstr = NULL;
+	const char *errstr = NULL;
 
 #ifdef __FreeBSD__
 	/* another ?paranoid? safety measure we do not have */
