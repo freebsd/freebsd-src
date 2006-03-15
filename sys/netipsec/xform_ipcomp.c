@@ -385,7 +385,7 @@ ipcomp_output(
 	/* Update the counters */
 	ipcompstat.ipcomps_obytes += m->m_pkthdr.len - skip;
 
-	m = m_clone(m);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		ipcompstat.ipcomps_hdrops++;
 		DPRINTF(("%s: cannot clone mbuf chain, IPCA %s/%08lx\n",
