@@ -379,6 +379,7 @@ route_output(struct mbuf *m, struct socket *so)
 			RT_LOCK(saved_nrt);
 			rt_setmetrics(rtm->rtm_inits,
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
+			rtm->rtm_index = saved_nrt->rt_ifp->if_index;
 			RT_REMREF(saved_nrt);
 			saved_nrt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			RT_UNLOCK(saved_nrt);
@@ -480,6 +481,7 @@ route_output(struct mbuf *m, struct socket *so)
 			}
 			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
 			rtm->rtm_flags = rt->rt_flags;
+			rtm->rtm_use = 0;
 			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
 			break;
@@ -522,8 +524,14 @@ route_output(struct mbuf *m, struct socket *so)
 				        rt->rt_ifp = info.rti_ifp;
 				}
 			}
+			/* Allow some flags to be toggled on change. */
+			if (rtm->rtm_fmask & RTF_FMASK)
+				rt->rt_flags = (rt->rt_flags &
+				    ~rtm->rtm_fmask) |
+				    (rtm->rtm_flags & rtm->rtm_fmask);
 			rt_setmetrics(rtm->rtm_inits, &rtm->rtm_rmx,
 					&rt->rt_rmx);
+			rtm->rtm_index = rt->rt_ifp->if_index;
 			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
 			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
 			if (info.rti_info[RTAX_GENMASK])
