@@ -384,6 +384,21 @@ ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
 		/* XXX belongs in crypto code? */
 		needed_space += key->wk_cipher->ic_header;
 		/* XXX frags */
+		/*
+		 * When crypto is being done in the host we must insure
+		 * the data are writable for the cipher routines; clone
+		 * a writable mbuf chain.
+		 * XXX handle SWMIC specially
+		 */
+		if (key->wk_flags & (IEEE80211_KEY_SWCRYPT|IEEE80211_KEY_SWMIC)) {
+			m = m_unshare(m, M_NOWAIT);
+			if (m == NULL) {
+				IEEE80211_DPRINTF(ic, IEEE80211_MSG_OUTPUT,
+				    "%s: cannot get writable mbuf\n", __func__);
+				ic->ic_stats.is_tx_nobuf++; /* XXX new stat */
+				return NULL;
+			}
+		}
 	}
 	/*
 	 * We know we are called just before stripping an Ethernet
