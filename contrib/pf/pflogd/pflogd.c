@@ -569,35 +569,20 @@ main(int argc, char **argv)
 			Debug = 1;
 			break;
 		case 'd':
-#ifdef __OpenBSD__
 			delay = strtonum(optarg, 5, 60*60, &errstr);
 			if (errstr)
-#else
-			delay = strtol(optarg, &errstr, 10);
-			if ((delay < 5) || (delay > 60*60) ||
-			    ((errstr != NULL) && (*errstr != '\0')))
-#endif
 				usage();
 			break;
 		case 'f':
 			filename = optarg;
 			break;
 		case 's':
-#ifdef __OpenBSD__
 			snaplen = strtonum(optarg, 0, PFLOGD_MAXSNAPLEN,
 			    &errstr);
 			if (snaplen <= 0)
 				snaplen = DEF_SNAPLEN;
 			if (errstr)
 				snaplen = PFLOGD_MAXSNAPLEN;
-#else
-			snaplen = strtol(optarg, &errstr, 10);
-			if (snaplen <= 0)
-				snaplen = DEF_SNAPLEN;
-			if ((snaplen > PFLOGD_MAXSNAPLEN) ||
-			    ((errstr != NULL) && (*errstr != '\0')))
-				snaplen = PFLOGD_MAXSNAPLEN;
-#endif
 			break;
 		case 'x':
 			Xflag++;
