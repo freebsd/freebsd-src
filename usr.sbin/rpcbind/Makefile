@@ -13,7 +13,11 @@ SRCS=	check_bound.c rpcb_stat.c rpcb_svc_4.c rpcbind.c pmap_svc.c \
 	rpcb_svc.c rpcb_svc_com.c security.c warmstart.c util.c \
 	rpc_generic.c
 
-CFLAGS+= -I${LIBCRPCDIR} -I${LIBCINCLUDE} -DPORTMAP -DINET6 -DLIBWRAP
+CFLAGS+= -I${LIBCRPCDIR} -I${LIBCINCLUDE} -DPORTMAP -DLIBWRAP
+
+.if !defined(NO_INET6)
+CFLAGS+= -DINET6
+.endif
 
 DPADD=	${LIBWRAP} ${LIBUTIL}
 LDADD=	-lwrap -lutil
