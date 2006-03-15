@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG    = wlandebug
-BINDIR	= /usr/local/bin
-NO_MAN	= noman
+PROG=	wlandebug
+BINDIR=	/usr/local/bin
+NO_MAN=
 
 .include <bsd.prog.mk>

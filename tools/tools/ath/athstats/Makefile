@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG    = athstats
-BINDIR	= /usr/local/bin
-NO_MAN	= noman
+PROG=	athstats
+BINDIR=	/usr/local/bin
+NO_MAN=
 
 .include <bsd.prog.mk>

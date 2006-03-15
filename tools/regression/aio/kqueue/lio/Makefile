@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	lio_kqueue
-NO_MAN=	YES
+NO_MAN=
 
 .include <bsd.prog.mk>

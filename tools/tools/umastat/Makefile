@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	umastat
-NO_MAN=	
+NO_MAN=
 
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
