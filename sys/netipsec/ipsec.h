@@ -410,7 +410,6 @@ extern struct mbuf *ipsec_copypkt __P((struct mbuf *));
 
 extern	void m_checkalignment(const char* where, struct mbuf *m0,
 		int off, int len);
-extern	struct mbuf *m_clone(struct mbuf *m0);
 extern	struct mbuf *m_makespace(struct mbuf *m0, int skip, int hlen, int *off);
 extern	caddr_t m_pad(struct mbuf *m, int n);
 extern	int m_striphdr(struct mbuf *m, int skip, int hlen);
