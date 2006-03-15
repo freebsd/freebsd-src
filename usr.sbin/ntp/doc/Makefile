@@ -2,6 +2,7 @@
 
 FILESDIR=	${SHAREDIR}/doc/ntp
 
+.if !defined(NO_HTML)
 FILES=	accopt.html assoc.html audio.html authopt.html build.html \
 	clockopt.html \
 	config.html confopt.html copyright.html debug.html driver1.html \
@@ -18,6 +19,7 @@ FILES=	accopt.html assoc.html audio.html authopt.html build.html \
 	ntptrace.html parsedata.html parsenew.html patches.html porting.html \
 	pps.html prefer.html quick.html rdebug.html refclock.html \
 	release.html tickadj.html
+.endif
 
 MAN=	ntp.conf.5 ntp.keys.5
 MAN+=	ntpd.8 ntpdate.8 ntpdc.8 ntpq.8 ntptime.8 ntptrace.8
