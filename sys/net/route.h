@@ -169,6 +169,11 @@ struct ortentry {
 #define	RTF_MULTICAST	0x800000	/* route represents a mcast address */
 					/* 0x1000000 and up unassigned */
 
+/* Mask of RTF flags that are allowed to be modified by RTM_CHANGE. */
+#define RTF_FMASK	\
+	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \
+	 RTF_REJECT | RTF_STATIC)
+
 /*
  * Routing statistics.
  */
@@ -192,7 +197,8 @@ struct rt_msghdr {
 	pid_t	rtm_pid;	/* identify sender */
 	int	rtm_seq;	/* for sender to identify action */
 	int	rtm_errno;	/* why failed */
-	int	rtm_use;	/* from rtentry */
+	int	rtm_fmask;	/* bitmask used in RTM_CHANGE message */
+#define	rtm_use	rtm_fmask	/* deprecated, use rtm_rmx->rmx_pksent */
 	u_long	rtm_inits;	/* which metrics we are initializing */
 	struct	rt_metrics rtm_rmx; /* metrics themselves */
 };
