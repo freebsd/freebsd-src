@@ -942,7 +942,7 @@ ah_output(
 	/* Update the counters. */
 	ahstat.ahs_obytes += m->m_pkthdr.len - skip;
 
-	m = m_clone(m);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		DPRINTF(("%s: cannot clone mbuf chain, SA %s/%08lx\n", __func__,
 		    ipsec_address(&sav->sah->saidx.dst),

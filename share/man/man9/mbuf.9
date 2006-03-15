@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2005
+.Dd March 15, 2006
 .Dt MBUF 9
 .Os
 .\"
@@ -132,6 +132,8 @@
 .Fn m_getptr "struct mbuf *mbuf" "int loc" "int *off"
 .Ft struct mbuf *
 .Fn m_defrag "struct mbuf *m0" "int how"
+.Ft struct mbuf *
+.Fn m_unshare "struct mbuf *m0" "int how"
 .\"
 .Sh DESCRIPTION
 An
@@ -886,6 +888,26 @@ depending on the caller's preference.
 This function is especially useful in network drivers, where
 certain long mbuf chains must be shortened before being added
 to TX descriptor lists.
+.It Fn m_unshare m0 how
+Create a version of the specified mbuf chain whose
+contents can be safely modified without affecting other users.
+If allocation fails and this operation can not be completed,
+.Dv NULL
+will be returned.
+The original mbuf chain is always reclaimed and the reference
+count of any shared mbuf clusters is decremented.
+.Fa how
+should be either
+.Dv M_TRYWAIT
+or
+.Dv M_DONTWAIT ,
+depending on the caller's preference.
+As a side-effect of this process the returned
+mbuf chain may be compacted.
+.Pp
+This function is especially useful in the transmit path of
+network code, when data must be encrypted or otherwise
+altered prior to transmission.
 .El
 .Sh HARDWARE-ASSISTED CHECKSUM CALCULATION
 This section currently applies to TCP/IP only.
