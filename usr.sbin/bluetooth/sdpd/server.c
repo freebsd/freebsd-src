@@ -136,7 +136,7 @@ server_init(server_p srv, char const *control)
 	l2.l2cap_len = sizeof(l2);
 	l2.l2cap_family = AF_BLUETOOTH;
 	memcpy(&l2.l2cap_bdaddr, NG_HCI_BDADDR_ANY, sizeof(l2.l2cap_bdaddr));
-	l2.l2cap_psm = NG_L2CAP_PSM_SDP;
+	l2.l2cap_psm = htole16(NG_L2CAP_PSM_SDP);
 
 	if (bind(l2sock, (struct sockaddr *) &l2, sizeof(l2)) < 0) {
 		log_crit("Could not bind L2CAP socket. %s (%d)",
