@@ -434,7 +434,7 @@ soclose(so)
 			sp->so_qstate &= ~SQ_INCOMP;
 			sp->so_head = NULL;
 			ACCEPT_UNLOCK();
-			(void) soabort(sp);
+			soabort(sp);
 			ACCEPT_LOCK();
 		}
 		while ((sp = TAILQ_FIRST(&so->so_comp)) != NULL) {
@@ -443,7 +443,7 @@ soclose(so)
 			sp->so_qstate &= ~SQ_COMP;
 			sp->so_head = NULL;
 			ACCEPT_UNLOCK();
-			(void) soabort(sp);
+			soabort(sp);
 			ACCEPT_LOCK();
 		}
 		ACCEPT_UNLOCK();
@@ -489,7 +489,7 @@ discard:
  * it to acquire additional socket locks that may cause recursion or lock
  * order reversals.
  */
-int
+void
 soabort(so)
 	struct socket *so;
 {
@@ -500,9 +500,7 @@ soabort(so)
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		sotryfree(so);	/* note: does not decrement the ref count */
-		return (error);
 	}
-	return (0);
 }
 
 int

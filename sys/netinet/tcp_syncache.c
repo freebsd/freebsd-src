@@ -720,7 +720,7 @@ abort:
 	INP_UNLOCK(inp);
 abort2:
 	if (so != NULL)
-		(void) soabort(so);
+		soabort(so);
 	return (NULL);
 }
 
