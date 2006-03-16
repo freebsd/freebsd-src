@@ -158,6 +158,7 @@ static int
 do_aout_hdr(struct imgact_gzip * gz)
 {
 	int             error;
+	struct thread  *td = curthread;
 	struct vmspace *vmspace;
 	vm_offset_t     vmaddr;
 
@@ -226,9 +227,21 @@ do_aout_hdr(struct imgact_gzip * gz)
 	gz->file_end = gz->file_offset + gz->a_out.a_text + gz->a_out.a_data;
 
 	/*
+	 * Avoid a possible deadlock if the current address space is destroyed
+	 * and that address space maps the locked vnode.  In the common case,
+	 * the locked vnode's v_usecount is decremented but remains greater
+	 * than zero.  Consequently, the vnode lock is not needed by vrele().
+	 * However, in cases where the vnode lock is external, such as nullfs,
+	 * v_usecount may become zero.
+	 */
+	VOP_UNLOCK(gz->ip->vp, 0, td);
+
+	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
 	exec_new_vmspace(gz->ip, &aout_sysvec);
+
+	vn_lock(gz->ip->vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	vmspace = gz->ip->proc->p_vmspace;
 
