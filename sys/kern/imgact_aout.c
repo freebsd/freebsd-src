@@ -98,8 +98,8 @@ exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
 	const struct exec *a_out = (const struct exec *) imgp->image_header;
+	struct thread *td = curthread;
 	struct vmspace *vmspace;
-	struct vnode *vp;
 	vm_map_t map;
 	vm_object_t object;
 	vm_offset_t text_end, data_end;
@@ -186,16 +186,27 @@ exec_aout_imgact(imgp)
 	PROC_UNLOCK(imgp->proc);
 
 	/*
+	 * Avoid a possible deadlock if the current address space is destroyed
+	 * and that address space maps the locked vnode.  In the common case,
+	 * the locked vnode's v_usecount is decremented but remains greater
+	 * than zero.  Consequently, the vnode lock is not needed by vrele().
+	 * However, in cases where the vnode lock is external, such as nullfs,
+	 * v_usecount may become zero.
+	 */
+	VOP_UNLOCK(imgp->vp, 0, td);
+
+	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
 	exec_new_vmspace(imgp, &aout_sysvec);
+
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	/*
 	 * The vm space can be changed by exec_new_vmspace
 	 */
 	vmspace = imgp->proc->p_vmspace;
 
-	vp = imgp->vp;
 	object = imgp->object;
 	map = &vmspace->vm_map;
 	vm_map_lock(map);
