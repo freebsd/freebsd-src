@@ -9,7 +9,7 @@ FILES+=	bsd.lib.mk bsd.libnames.mk bsd.links.mk bsd.man.mk bsd.nls.mk
 FILES+=	bsd.obj.mk bsd.own.mk
 FILES+=	bsd.port.mk bsd.port.post.mk  bsd.port.pre.mk bsd.port.subdir.mk
 FILES+=	bsd.prog.mk bsd.snmpmod.mk bsd.subdir.mk bsd.sys.mk
-FILES+=	sys.mk
+FILES+=	sys.mk version_gen.awk
 NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
