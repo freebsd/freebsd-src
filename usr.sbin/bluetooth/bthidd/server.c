@@ -117,7 +117,7 @@ server_init(bthid_server_p srv)
 	l2addr.l2cap_len = sizeof(l2addr);
 	l2addr.l2cap_family = AF_BLUETOOTH;
 	memcpy(&l2addr.l2cap_bdaddr, &srv->bdaddr, sizeof(l2addr.l2cap_bdaddr));
-	l2addr.l2cap_psm =  0x11;
+	l2addr.l2cap_psm = htole16(0x11);
 
 	if (bind(srv->ctrl, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
 		syslog(LOG_ERR, "Could not bind control L2CAP socket. " \
@@ -151,7 +151,7 @@ server_init(bthid_server_p srv)
 		return (-1);
 	}
 
-	l2addr.l2cap_psm = 0x13;
+	l2addr.l2cap_psm = htole16(0x13);
 
 	if (bind(srv->intr, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
 		syslog(LOG_ERR, "Could not bind interrupt L2CAP socket. " \

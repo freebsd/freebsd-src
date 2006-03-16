@@ -231,7 +231,7 @@ client_socket(bdaddr_p bdaddr, int psm)
 	}
 
 	memcpy(&l2addr.l2cap_bdaddr, bdaddr, sizeof(l2addr.l2cap_bdaddr));
-	l2addr.l2cap_psm = psm;
+	l2addr.l2cap_psm = htole16(psm);
 
 	if (connect(s, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0 &&
 	    errno != EINPROGRESS) {
