@@ -1061,7 +1061,7 @@ addok:
 				SLIST_FOREACH(sce, &d->channels, link) {
 					CHN_LOCK(sce->channel);
 					if (sce->channel->direction == PCMDIR_PLAY &&
-							(sce->channel->flags & CHN_F_VIRTUAL))
+							(sce->channel->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)) == CHN_F_VIRTUAL)
 						c = sce->channel;
 					CHN_UNLOCK(sce->channel);
 				}
