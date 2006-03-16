@@ -29,6 +29,8 @@
 #ifndef _SYS_EVENT_H_
 #define _SYS_EVENT_H_
 
+#include <sys/queue.h> 
+
 #define EVFILT_READ		(-1)
 #define EVFILT_WRITE		(-2)
 #define EVFILT_AIO		(-3)	/* attached to aio requests */
@@ -114,13 +116,6 @@ struct kevent {
 #define NOTE_LINKDOWN	0x0002			/* link is down */
 #define NOTE_LINKINV	0x0004			/* link state is invalid */
 
-/*
- * This is currently visible to userland to work around broken
- * programs which pull in <sys/proc.h>.
- */
-#include <sys/queue.h> 
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
 struct knote;
 SLIST_HEAD(klist, knote);
 struct kqueue;
