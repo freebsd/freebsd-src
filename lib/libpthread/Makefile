@@ -31,11 +31,15 @@ CFLAGS+=-D_LOCK_DEBUG
 # however it is no longer strictly conformed to POSIX
 # CFLAGS+=-DSYSTEM_SCOPE_ONLY
 
-LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map -Wl,-zmuldefs
-
-# enable extra internal consistancy checks
+# Enable extra internal consistancy checks.
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
+
+VERSION_MAP=${.CURDIR}/pthread.map
+
 .if defined(SYMVER_ENABLED)
+# Remove this if library version is bumped and LIBPTHREAD_1_0
+# compatability hacks are removed (see thread/thr_private.h).
+LDFLAGS+=-Wl,-zmuldefs
 CFLAGS+=-DSYMBOL_VERSIONING
 .endif
 
