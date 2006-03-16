@@ -5,7 +5,6 @@ LDFLAGS= -Wl,-Bsymbolic
 LDADD=	-lkrb5 -lcrypto -lroken -lasn1 -lcom_err -lcrypt
 DPADD=	${LIBKRB5} ${LIBCRYPTO} ${LIBROKEN} ${LIBASN1} ${LIBCOM_ERR} \
 	${LIBCRYPT}
-NO_MAN=
 
 SRCS=	8003.c \
 	accept_sec_context.c \
