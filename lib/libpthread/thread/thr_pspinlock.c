@@ -26,10 +26,13 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <pthread.h>
-#include <atomic_ops.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "atomic_ops.h"
 #include "thr_private.h"
 
 #define SPIN_COUNT 10000

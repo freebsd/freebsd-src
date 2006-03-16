@@ -31,11 +31,14 @@
  *
  * $FreeBSD$
  */
-#include <signal.h>
+
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
-#include <sys/signalvar.h>
+
 #include "thr_private.h"
 
 __weak_reference(__sigsuspend, sigsuspend);
