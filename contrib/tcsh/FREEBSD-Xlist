@@ -5,5 +5,4 @@ $FreeBSD$
 */config/bsd
 */config/bsdreno
 */config/[c-z]*
-*/nls/*/charset
 */win32
