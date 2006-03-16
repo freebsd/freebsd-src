@@ -6,7 +6,6 @@ KMOD	= if_cp
 SRCS	= if_cp.c cpddk.c
 SRCS   += opt_netgraph.h opt_ng_cronyx.h device_if.h bus_if.h \
 	  pci_if.h
-NO_MAN=
 
 .if !defined(KERNBUILDDIR)
 PROTOS?=	-DINET
