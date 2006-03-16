@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/procfs.h>
 #include <sys/resourcevar.h>
+#include <sys/sf_buf.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
@@ -81,8 +82,7 @@ static Elf_Brandinfo *__elfN(get_brandinfo)(const Elf_Ehdr *hdr,
     const char *interp);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry, size_t pagesize);
-static int __elfN(load_section)(struct proc *p,
-    struct vmspace *vmspace, struct vnode *vp, vm_object_t object,
+static int __elfN(load_section)(struct vmspace *vmspace, vm_object_t object,
     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
     vm_prot_t prot, size_t pagesize);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
@@ -231,44 +231,31 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 
 static int
 __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
-	vm_prot_t max)
+    vm_offset_t start, vm_offset_t end, vm_prot_t prot)
 {
-	int error, rv;
+	struct sf_buf *sf;
+	int error;
 	vm_offset_t off;
-	vm_offset_t data_buf = 0;
 
 	/*
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
 	vm_map_lock(map);
-	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end), max,
-	    max, 0);
+	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end),
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
 
 	/*
 	 * Find the page from the underlying object.
 	 */
 	if (object) {
-		vm_object_reference(object);
-		rv = vm_map_find(exec_map,
-				 object,
-				 trunc_page(offset),
-				 &data_buf,
-				 PAGE_SIZE,
-				 TRUE,
-				 VM_PROT_READ,
-				 VM_PROT_ALL,
-				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
-			return (rv);
-		}
-
+		sf = vm_imgact_map_page(object, offset);
+		if (sf == NULL)
+			return (KERN_FAILURE);
 		off = offset - trunc_page(offset);
-		error = copyout((caddr_t)data_buf + off, (caddr_t)start,
+		error = copyout((caddr_t)sf_buf_kva(sf) + off, (caddr_t)start,
 		    end - start);
-		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
+		vm_imgact_unmap_page(sf);
 		if (error) {
 			return (KERN_FAILURE);
 		}
@@ -279,16 +266,16 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 static int
 __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
-	vm_prot_t max, int cow)
+    vm_offset_t start, vm_offset_t end, vm_prot_t prot, int cow)
 {
-	vm_offset_t data_buf, off;
+	struct sf_buf *sf;
+	vm_offset_t off;
 	vm_size_t sz;
 	int error, rv;
 
 	if (start != trunc_page(start)) {
 		rv = __elfN(map_partial)(map, object, offset, start,
-		    round_page(start), prot, max);
+		    round_page(start), prot);
 		if (rv)
 			return (rv);
 		offset += round_page(start) - start;
@@ -296,7 +283,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 	if (end != round_page(end)) {
 		rv = __elfN(map_partial)(map, object, offset +
-		    trunc_page(end) - start, trunc_page(end), end, prot, max);
+		    trunc_page(end) - start, trunc_page(end), end, prot);
 		if (rv)
 			return (rv);
 		end = trunc_page(end);
@@ -307,46 +294,37 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
 			 */
-			rv = vm_map_find(map, 0, 0, &start, end - start,
-			    FALSE, prot, max, 0);
+			rv = vm_map_find(map, NULL, 0, &start, end - start,
+			    FALSE, prot | VM_PROT_WRITE, VM_PROT_ALL, 0);
 			if (rv)
 				return (rv);
-			data_buf = 0;
-			while (start < end) {
-				vm_object_reference(object);
-				rv = vm_map_find(exec_map,
-						 object,
-						 trunc_page(offset),
-						 &data_buf,
-						 2 * PAGE_SIZE,
-						 TRUE,
-						 VM_PROT_READ,
-						 VM_PROT_ALL,
-						 (MAP_COPY_ON_WRITE
-						  | MAP_PREFAULT_PARTIAL));
-				if (rv != KERN_SUCCESS) {
-					vm_object_deallocate(object);
-					return (rv);
-				}
+			if (object == NULL)
+				return (KERN_SUCCESS);
+			for (; start < end; start += sz) {
+				sf = vm_imgact_map_page(object, offset);
+				if (sf == NULL)
+					return (KERN_FAILURE);
 				off = offset - trunc_page(offset);
 				sz = end - start;
-				if (sz > PAGE_SIZE)
-					sz = PAGE_SIZE;
-				error = copyout((caddr_t)data_buf + off,
+				if (sz > PAGE_SIZE - off)
+					sz = PAGE_SIZE - off;
+				error = copyout((caddr_t)sf_buf_kva(sf) + off,
 				    (caddr_t)start, sz);
-				vm_map_remove(exec_map, data_buf,
-				    data_buf + 2 * PAGE_SIZE);
+				vm_imgact_unmap_page(sf);
 				if (error) {
 					return (KERN_FAILURE);
 				}
-				start += sz;
+				offset += sz;
 			}
 			rv = KERN_SUCCESS;
 		} else {
+			vm_object_reference(object);
 			vm_map_lock(map);
 			rv = vm_map_insert(map, object, offset, start, end,
-			    prot, max, cow);
+			    prot, VM_PROT_ALL, cow);
 			vm_map_unlock(map);
+			if (rv != KERN_SUCCESS)
+				vm_object_deallocate(object);
 		}
 		return (rv);
 	} else {
@@ -355,19 +333,17 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 }
 
 static int
-__elfN(load_section)(struct proc *p, struct vmspace *vmspace,
-	struct vnode *vp, vm_object_t object, vm_offset_t offset,
+__elfN(load_section)(struct vmspace *vmspace,
+	vm_object_t object, vm_offset_t offset,
 	caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
 	size_t pagesize)
 {
+	struct sf_buf *sf;
 	size_t map_len;
 	vm_offset_t map_addr;
 	int error, rv, cow;
 	size_t copy_len;
 	vm_offset_t file_addr;
-	vm_offset_t data_buf = 0;
-
-	error = 0;
 
 	/*
 	 * It's necessary to fail if the filsz + offset taken from the
@@ -402,8 +378,6 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 		map_len = round_page_ps(offset + filsz, pagesize) - file_addr;
 
 	if (map_len != 0) {
-		vm_object_reference(object);
-
 		/* cow flags: don't dump readonly sections in core */
 		cow = MAP_COPY_ON_WRITE | MAP_PREFAULT |
 		    (prot & VM_PROT_WRITE ? 0 : MAP_DISABLE_COREDUMP);
@@ -414,12 +388,9 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 				      map_addr,		/* virtual start */
 				      map_addr + map_len,/* virtual end */
 				      prot,
-				      VM_PROT_ALL,
 				      cow);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
+		if (rv != KERN_SUCCESS)
 			return (EINVAL);
-		}
 
 		/* we can stop now if we've covered it all */
 		if (memsz == filsz) {
@@ -442,7 +413,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	/* This had damn well better be true! */
 	if (map_len != 0) {
 		rv = __elfN(map_insert)(&vmspace->vm_map, NULL, 0, map_addr,
-		    map_addr + map_len, VM_PROT_ALL, VM_PROT_ALL, 0);
+		    map_addr + map_len, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (EINVAL);
 		}
@@ -450,27 +421,17 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 
 	if (copy_len != 0) {
 		vm_offset_t off;
-		vm_object_reference(object);
-		rv = vm_map_find(exec_map,
-				 object,
-				 trunc_page(offset + filsz),
-				 &data_buf,
-				 PAGE_SIZE,
-				 TRUE,
-				 VM_PROT_READ,
-				 VM_PROT_ALL,
-				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
-			return (EINVAL);
-		}
+
+		sf = vm_imgact_map_page(object, offset + filsz);
+		if (sf == NULL)
+			return (EIO);
 
 		/* send the page fragment to user space */
 		off = trunc_page_ps(offset + filsz, pagesize) -
 		    trunc_page(offset + filsz);
-		error = copyout((caddr_t)data_buf + off, (caddr_t)map_addr,
-		    copy_len);
-		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
+		error = copyout((caddr_t)sf_buf_kva(sf) + off,
+		    (caddr_t)map_addr, copy_len);
+		vm_imgact_unmap_page(sf);
 		if (error) {
 			return (error);
 		}
@@ -483,7 +444,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	vm_map_protect(&vmspace->vm_map, trunc_page(map_addr),
 	    round_page(map_addr + map_len),  prot, FALSE);
 
-	return (error);
+	return (0);
 }
 
 /*
@@ -552,25 +513,20 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * Check permissions, modes, uid, etc on the file, and "open" it.
 	 */
 	error = exec_check_permissions(imgp);
-	if (error) {
-		VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
+	if (error)
 		goto fail;
-	}
 
 	error = exec_map_first_page(imgp);
+	if (error)
+		goto fail;
+
 	/*
 	 * Also make certain that the interpreter stays the same, so set
 	 * its VV_TEXT flag, too.
 	 */
-	if (error == 0)
-		nd->ni_vp->v_vflag |= VV_TEXT;
+	nd->ni_vp->v_vflag |= VV_TEXT;
 
 	imgp->object = nd->ni_vp->v_object;
-	vm_object_reference(imgp->object);
-
-	VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
-	if (error)
-		goto fail;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 	if ((error = __elfN(check_header)(hdr)) != 0)
@@ -604,8 +560,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if ((error = __elfN(load_section)(p, vmspace,
-			    nd->ni_vp, imgp->object, phdr[i].p_offset,
+			if ((error = __elfN(load_section)(vmspace,
+			    imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
 			    pagesize)) != 0)
@@ -626,11 +582,9 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 fail:
 	if (imgp->firstpage)
 		exec_unmap_first_page(imgp);
-	if (imgp->object)
-		vm_object_deallocate(imgp->object);
 
 	if (nd->ni_vp)
-		vrele(nd->ni_vp);
+		vput(nd->ni_vp);
 
 	VFS_UNLOCK_GIANT(vfslocked);
 	free(tempdata, M_TEMP);
@@ -643,7 +597,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	const Elf_Phdr *phdr;
-	Elf_Auxargs *elf_auxargs = NULL;
+	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
 	vm_prot_t prot;
 	u_long text_size = 0, data_size = 0, total_size = 0;
@@ -678,24 +632,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOEXEC);
 	}
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
-
-	/*
-	 * From this point on, we may have resources that need to be freed.
-	 */
-
-	VOP_UNLOCK(imgp->vp, 0, td);
-
 	for (i = 0; i < hdr->e_phnum; i++) {
-		switch (phdr[i].p_type) {
-	  	case PT_INTERP:	/* Path to interpreter */
+		if (phdr[i].p_type == PT_INTERP) {
+			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE) {
-				error = ENOEXEC;
-				goto fail;
-			}
+			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
+				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
-			break;
-		default:
 			break;
 		}
 	}
@@ -704,18 +647,27 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
-		error = ENOEXEC;
-		goto fail;
+		return (ENOEXEC);
 	}
-	if (hdr->e_type == ET_DYN && brand_info->brand != ELFOSABI_LINUX) {
-		error = ENOEXEC;
-		goto fail;
-	}
+	if (hdr->e_type == ET_DYN && brand_info->brand != ELFOSABI_LINUX)
+		return (ENOEXEC);
 	sv = brand_info->sysvec;
 	if (interp != NULL && brand_info->interp_newpath != NULL)
 		interp = brand_info->interp_newpath;
 
+	/*
+	 * Avoid a possible deadlock if the current address space is destroyed
+	 * and that address space maps the locked vnode.  In the common case,
+	 * the locked vnode's v_usecount is decremented but remains greater
+	 * than zero.  Consequently, the vnode lock is not needed by vrele().
+	 * However, in cases where the vnode lock is external, such as nullfs,
+	 * v_usecount may become zero.
+	 */
+	VOP_UNLOCK(imgp->vp, 0, td);
+
 	exec_new_vmspace(imgp, sv);
+
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	vmspace = imgp->proc->p_vmspace;
 
@@ -739,12 +691,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				prot |= VM_PROT_EXECUTE;
 #endif
 
-			if ((error = __elfN(load_section)(imgp->proc, vmspace,
-			    imgp->vp, imgp->object, phdr[i].p_offset,
+			if ((error = __elfN(load_section)(vmspace,
+			    imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
 			    sv->sv_pagesize)) != 0)
-  				goto fail;
+				return (error);
 
 			/*
 			 * If this segment contains the program headers,
@@ -811,8 +763,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	    text_size > maxtsiz ||
 	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM)) {
 		PROC_UNLOCK(imgp->proc);
-		error = ENOMEM;
-		goto fail;
+		return (ENOMEM);
 	}
 
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
@@ -833,23 +784,27 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->entry_addr = entry;
 
 	imgp->proc->p_sysent = sv;
-	if (interp != NULL && brand_info->emul_path != NULL &&
-	    brand_info->emul_path[0] != '\0') {
-		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		snprintf(path, MAXPATHLEN, "%s%s", brand_info->emul_path,
-		    interp);
-		error = __elfN(load_file)(imgp->proc, path, &addr,
-		    &imgp->entry_addr, sv->sv_pagesize);
-		free(path, M_TEMP);
-		if (error == 0)
-			interp = NULL;
-	}
 	if (interp != NULL) {
-		error = __elfN(load_file)(imgp->proc, interp, &addr,
-		    &imgp->entry_addr, sv->sv_pagesize);
+		VOP_UNLOCK(imgp->vp, 0, td);
+		if (brand_info->emul_path != NULL &&
+		    brand_info->emul_path[0] != '\0') {
+			path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+			snprintf(path, MAXPATHLEN, "%s%s",
+			    brand_info->emul_path, interp);
+			error = __elfN(load_file)(imgp->proc, path, &addr,
+			    &imgp->entry_addr, sv->sv_pagesize);
+			free(path, M_TEMP);
+			if (error == 0)
+				interp = NULL;
+		}
+		if (interp != NULL) {
+			error = __elfN(load_file)(imgp->proc, interp, &addr,
+			    &imgp->entry_addr, sv->sv_pagesize);
+		}
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error != 0) {
 			uprintf("ELF interpreter %s not found\n", interp);
-			goto fail;
+			return (error);
 		}
 	}
 
@@ -870,8 +825,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
 
-fail:
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
 }
 
