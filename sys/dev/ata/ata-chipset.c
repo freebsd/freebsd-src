@@ -2068,8 +2068,11 @@ ata_jmicron_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_JMB360, 0, 0, 0, ATA_SA300, "JMB360" },
-     { ATA_JMB363, 0, 1, 0, ATA_SA300, "JMB363" },
+    {{ ATA_JMB360, 0, 1, 0, ATA_SA300, "JMB360" },
+     { ATA_JMB361, 0, 1, 1, ATA_SA300, "JMB361" },
+     { ATA_JMB363, 0, 2, 1, ATA_SA300, "JMB363" },
+     { ATA_JMB365, 0, 1, 2, ATA_SA300, "JMB365" },
+     { ATA_JMB366, 0, 2, 2, ATA_SA300, "JMB366" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -2094,6 +2097,7 @@ ata_jmicron_chipinit(device_t dev)
 
     /* set controller configuration to a setup we support */
     pci_write_config(dev, 0x40, 0x80c0a131, 4);
+    pci_write_config(dev, 0x80, 0x01200000, 4);
 
     ctlr->allocate = ata_jmicron_allocate;
     ctlr->reset = ata_jmicron_reset;
@@ -2118,10 +2122,6 @@ ata_jmicron_chipinit(device_t dev)
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
 		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
 
-	/* get the number of HW channels */
-	ctlr->channels =
-	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1;
-
 	/* clear interrupts */
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
 
@@ -2134,21 +2134,22 @@ ata_jmicron_chipinit(device_t dev)
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     }
 
-    /* add in PATA channel(s) */
-    ctlr->channels += ctlr->chip->cfg1;
+    /* set the number of HW channels */ 
+    ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
     return 0;
 }
 
 static int
 ata_jmicron_allocate(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int error;
 
-    if (ch->unit >= 2) {
-	ch->unit -= 2;
+    if (ch->unit >= ctlr->chip->cfg1) {
+	ch->unit -= ctlr->chip->cfg1;
 	error = ata_pci_allocate(dev);
-	ch->unit += 2;
+	ch->unit += ctlr->chip->cfg1;
     }
     else
 	error = ata_ahci_allocate(dev);
@@ -2158,9 +2159,10 @@ ata_jmicron_allocate(device_t dev)
 static void
 ata_jmicron_reset(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ch->unit >= 2)
+    if (ch->unit >= ctlr->chip->cfg1)
 	ata_generic_reset(dev);
     else
 	ata_ahci_reset(dev);
@@ -2169,9 +2171,10 @@ ata_jmicron_reset(device_t dev)
 static void
 ata_jmicron_dmainit(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ch->unit >= 2)
+    if (ch->unit >= ctlr->chip->cfg1)
 	ata_pci_dmainit(dev);
     else
 	ata_ahci_dmainit(dev);
@@ -2180,9 +2183,10 @@ ata_jmicron_dmainit(device_t dev)
 static void
 ata_jmicron_setmode(device_t dev, int mode)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
 
-    if (ch->unit >= 2) {
+    if (ch->unit >= ctlr->chip->cfg1) {
 	struct ata_device *atadev = device_get_softc(dev);
 
 	/* check for 80pin cable present */
