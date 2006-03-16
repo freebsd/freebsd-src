@@ -104,7 +104,11 @@ keymapMenuSelect(dialogMenuItem *self)
 	{
 	    snprintf(prefix, sizeof(prefix), "keymap=%s", lang);
 	    if ((choice = keymapSetDefault(prefix)) == -1) {
-		    snprintf(prefix, sizeof(prefix), "keymap=us.iso", lang);
+#ifdef PC98
+		    snprintf(prefix, sizeof(prefix), "keymap=jp.pc98");
+#else
+		    snprintf(prefix, sizeof(prefix), "keymap=us.iso");
+#endif
 		    if ((choice = keymapSetDefault(prefix)) == -1)
 			    choice = 0;
 	    }
