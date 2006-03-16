@@ -505,8 +505,8 @@ vchan_create(struct pcm_channel *parent)
 			parent->flags &= ~CHN_F_HAS_VCHAN;
 			CHN_UNLOCK(parent);
 			free(pce, M_DEVBUF);
-			pcm_chn_remove(d, child);
-			pcm_chn_destroy(child);
+			if (pcm_chn_remove(d, child) == 0)
+				pcm_chn_destroy(child);
 			CHN_LOCK(parent);
 			return err;
 		}
@@ -544,14 +544,23 @@ vchan_destroy(struct pcm_channel *c)
 gotch:
 	SLIST_FOREACH(sce, &d->channels, link) {
 		if (sce->channel == c) {
-			if (sce->dsp_devt)
+			if (sce->dsp_devt) {
 				destroy_dev(sce->dsp_devt);
-			if (sce->dspW_devt)
+				sce->dsp_devt = NULL;
+			}
+			if (sce->dspW_devt) {
 				destroy_dev(sce->dspW_devt);
-			if (sce->audio_devt)
+				sce->dspW_devt = NULL;
+			}
+			if (sce->audio_devt) {
 				destroy_dev(sce->audio_devt);
-			if (sce->dspr_devt)
+				sce->audio_devt = NULL;
+			}
+			if (sce->dspr_devt) {
 				destroy_dev(sce->dspr_devt);
+				sce->dspr_devt = NULL;
+			}
+			d->devcount--;
 			break;
 		}
 	}

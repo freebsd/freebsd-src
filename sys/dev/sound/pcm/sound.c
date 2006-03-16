@@ -181,23 +181,23 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum)
 	}
 
 	/* no channel available */
-	if (direction == PCMDIR_PLAY) {
-		if ((d->vchancount > 0) && (d->vchancount < snd_maxautovchans)) {
-			/* try to create a vchan */
-			SLIST_FOREACH(sce, &d->channels, link) {
-				c = sce->channel;
-				CHN_LOCK(c);
-				if ((c->flags & CHN_F_HAS_VCHAN) &&
-						!SLIST_EMPTY(&c->children)) {
-					err = vchan_create(c);
-					CHN_UNLOCK(c);
-					if (!err)
-						return pcm_chnalloc(d, direction, pid, -1);
-					else
-						device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
-				} else
-					CHN_UNLOCK(c);
-			}
+	if (direction == PCMDIR_PLAY && d->vchancount > 0 &&
+			d->vchancount < snd_maxautovchans &&
+			d->devcount <= PCMMAXCHAN) {
+		/* try to create a vchan */
+		SLIST_FOREACH(sce, &d->channels, link) {
+			c = sce->channel;
+			CHN_LOCK(c);
+			if ((c->flags & CHN_F_HAS_VCHAN) &&
+					!SLIST_EMPTY(&c->children)) {
+				err = vchan_create(c);
+				CHN_UNLOCK(c);
+				if (!err)
+					return pcm_chnalloc(d, direction, pid, -1);
+				else
+					device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
+			} else
+				CHN_UNLOCK(c);
 		}
 	}
 
@@ -338,7 +338,7 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	v = snd_maxautovchans;
 	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
 	if (error == 0 && req->newptr != NULL) {
-		if (v < 0 || v >= SND_MAXVCHANS || pcm_devclass == NULL)
+		if (v < 0 || v > (PCMMAXCHAN + 1) || pcm_devclass == NULL)
 			return EINVAL;
 		if (v != snd_maxautovchans) {
 			for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
@@ -467,10 +467,31 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 
 	snd_mtxlock(d->lock);
 	sce->channel = ch;
-	sce->chan_num= d->devcount++;
 	if (SLIST_EMPTY(&d->channels)) {
 		SLIST_INSERT_HEAD(&d->channels, sce, link);
+		sce->chan_num = 0;
 	} else {
+		sce->chan_num = 0;
+retry_search:
+		SLIST_FOREACH(tmp, &d->channels, link) {
+			if (tmp == NULL)
+				continue;
+			if (sce->chan_num == tmp->chan_num) {
+				sce->chan_num++;
+				goto retry_search;
+			}
+		}
+		/*
+		 * Don't overflow PCMMKMINOR / PCMMAXCHAN.
+		 */
+		if (sce->chan_num > PCMMAXCHAN) {
+			snd_mtxunlock(d->lock);
+			device_printf(d->dev,
+				"%s: WARNING: sce->chan_num overflow! (%d)\n",
+				__func__, sce->chan_num);
+			free(sce, M_DEVBUF);
+			return E2BIG;
+		}
 		/*
 		 * Micro optimization, channel ordering:
 		 * hw,hw,hw,vch,vch,vch,rec
@@ -503,6 +524,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 			SLIST_INSERT_AFTER(after, sce, link);
 		}
 	}
+	d->devcount++;
 	snd_mtxunlock(d->lock);
 	sce->dsp_devt= make_dev(&dsp_cdevsw,
 			PCMMKMINOR(device, SND_DEV_DSP, sce->chan_num),
@@ -788,14 +810,23 @@ pcm_unregister(device_t dev)
 	}
 
 	SLIST_FOREACH(sce, &d->channels, link) {
-		if (sce->dsp_devt)
+		if (sce->dsp_devt) {
 			destroy_dev(sce->dsp_devt);
-		if (sce->dspW_devt)
+			sce->dsp_devt = NULL;
+		}
+		if (sce->dspW_devt) {
 			destroy_dev(sce->dspW_devt);
-		if (sce->audio_devt)
+			sce->dspW_devt = NULL;
+		}
+		if (sce->audio_devt) {
 			destroy_dev(sce->audio_devt);
-		if (sce->dspr_devt)
+			sce->audio_devt = NULL;
+		}
+		if (sce->dspr_devt) {
 			destroy_dev(sce->dspr_devt);
+			sce->dspr_devt = NULL;
+		}
+		d->devcount--;
 	}
 
 #ifdef SND_DYNSYSCTL
@@ -968,7 +999,8 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 
 	if (err == 0 && req->newptr != NULL) {
 
-		if (newcnt < 0 || newcnt > SND_MAXVCHANS)
+		if (newcnt < 0 || newcnt > (PCMMAXCHAN + 1) ||
+				(d->playcount + d->reccount + newcnt) > (PCMMAXCHAN + 1))
 			return E2BIG;
 
 		if (pcm_inprog(d, 1) != 1) {
@@ -1008,28 +1040,37 @@ next:
 addok:
 			c->flags |= CHN_F_BUSY;
 			while (err == 0 && newcnt > cnt) {
+				if (d->devcount > PCMMAXCHAN) {
+					device_printf(d->dev, "%s: Maximum channel reached.\n", __func__);
+					break;
+				}
 				err = vchan_create(c);
 				if (err == 0)
 					cnt++;
+				if (newcnt > cnt && err == E2BIG) {
+					device_printf(d->dev, "%s: err=%d Maximum channel reached.\n", __func__, err);
+					err = 0;
+					break;
+				}
 			}
 			CHN_UNLOCK(c);
 		} else if (newcnt < cnt) {
 			snd_mtxlock(d->lock);
 			while (err == 0 && newcnt < cnt) {
+				c = NULL;
 				SLIST_FOREACH(sce, &d->channels, link) {
-					c = sce->channel;
-					CHN_LOCK(c);
-					if (c->direction == PCMDIR_PLAY &&
-							(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)) == CHN_F_VIRTUAL)
-						goto remok;
-
-					CHN_UNLOCK(c);
+					CHN_LOCK(sce->channel);
+					if (sce->channel->direction == PCMDIR_PLAY &&
+							(sce->channel->flags & CHN_F_VIRTUAL))
+						c = sce->channel;
+					CHN_UNLOCK(sce->channel);
 				}
+				if (c != NULL)
+					goto remok;
 				snd_mtxunlock(d->lock);
 				pcm_inprog(d, -1);
 				return EINVAL;
 remok:
-				CHN_UNLOCK(c);
 				err = vchan_destroy(c);
 				if (err == 0)
 					cnt--;
