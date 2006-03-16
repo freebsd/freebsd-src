@@ -27,8 +27,6 @@ SRCS+= ${GENSRCS} ${OTHERSRCS} ${SECRPCSRCS}
 
 CLEANFILES+= ${GENSRCS}
 
-NO_MAN=
-
 .include <bsd.lib.mk>
 
 .SUFFIXES: .x _xdr.c
