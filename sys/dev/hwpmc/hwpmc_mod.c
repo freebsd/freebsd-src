@@ -3293,7 +3293,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if (prw.pm_flags & PMC_F_NEWVALUE)
 			PMCDBG(PMC,OPS,2, "rw id=%d new %jx -> old %jx",
 			    ri, prw.pm_value, oldvalue);
-		else
+		else if (prw.pm_flags & PMC_F_OLDVALUE)
 			PMCDBG(PMC,OPS,2, "rw id=%d -> old %jx", ri, oldvalue);
 #endif
 
