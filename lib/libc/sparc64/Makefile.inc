@@ -5,11 +5,6 @@
 
 .include "fpu/Makefile.inc"
 
-#
-# sparc64 is 64-bit, so it doesn't need quad functions.
-#
-NO_QUAD=
-
 # Long double is quad precision
 GDTOASRCS+=strtopQ.c
 MDSRCS+=machdep_ldisQ.c
