@@ -31,19 +31,20 @@
  *
  * $FreeBSD$
  */
+
+#include <sys/time.h>
+#include <sys/ioctl.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <sys/ioctl.h>
 #include <assert.h>
 #include <errno.h>
-#include "pthread.h"
 #include <sched.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
+#include "pthread.h"
 
 #if defined(_LIBC_R_)
 #include <pthread_np.h>
@@ -179,17 +180,17 @@ extern char *strtok_r(char *str, const char *sep, char **last);
  * Functions
  *----------------------------------------------------------*/
 
-#ifdef DEBUG
+#if defined(_LIBC_R_) && defined(DEBUG)
 static void
 kern_switch (pthread_t pthread_out, pthread_t pthread_in)
 {
 	if (pthread_out != NULL)
-		printf ("Swapping out thread 0x%x, ", (int) pthread_out);
+		printf ("Swapping out thread 0x%lx, ", (long) pthread_out);
 	else
 		printf ("Swapping out kernel thread, ");
 
 	if (pthread_in != NULL)
-		printf ("swapping in thread 0x%x\n", (int) pthread_in);
+		printf ("swapping in thread 0x%lx\n", (long) pthread_in);
 	else
 		printf ("swapping in kernel thread.\n");
 }
@@ -465,8 +466,8 @@ waiter (void *arg)
 		pthread_mutex_unlock (&waiter_mutex);
 	}
 
-	log_trace ("Thread %d: Exiting thread 0x%x\n", (int) statep->id,
-	    (int) pthread_self());
+	log_trace ("Thread %ld: Exiting thread 0x%lx\n", (long) statep->id,
+	    (long) pthread_self());
 	pthread_exit (arg);
 	return (NULL);
 }
@@ -512,8 +513,8 @@ lock_twice (void *arg)
 	if (statep->ret == 0)
 		pthread_mutex_unlock (statep->cmd.mutex);
 
-	log_trace ("Thread %d: Exiting thread 0x%x\n", (int) statep->id,
-	    (int) pthread_self());
+	log_trace ("Thread %ld: Exiting thread 0x%lx\n", (long) statep->id,
+	    (long) pthread_self());
 	pthread_exit (arg);
 	return (NULL);
 }
@@ -522,8 +523,8 @@ lock_twice (void *arg)
 static void
 sighandler (int signo)
 {
-	log ("Signal handler caught signal %d, thread id 0x%x\n",
-	    signo, (int) pthread_self());
+	log ("Signal handler caught signal %d, thread id 0x%lx\n",
+	    signo, (long) pthread_self());
 
 	if (signo == SIGINT)
 		done = 1;
@@ -1481,7 +1482,7 @@ int main (int argc, char *argv[])
 	/* Create a pipe to catch the results of thread wakeups. */
 	assert (pipe (pipefd) == 0);
 
-#ifdef DEBUG
+#if defined(_LIBC_R_) && defined(DEBUG)
 	assert (pthread_switch_add_np (kern_switch) == 0);
 #endif
 

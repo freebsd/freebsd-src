@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include "atomic_ops.h"
 #include "thr_private.h"
 #include "libc_private.h"
+#ifdef NOTYET
+#include "spinlock.h"
+#endif
 
 /* #define DEBUG_THREAD_KERN */
 #ifdef DEBUG_THREAD_KERN
@@ -210,9 +213,9 @@ _kse_single_thread(struct pthread *curthread)
 	struct kse *kse;
 	struct kse_group *kseg;
 	struct pthread *thread;
-	kse_critical_t crit;
-	int i;
 
+	_thr_spinlock_init();
+	*__malloc_lock = (spinlock_t)_SPINLOCK_INITIALIZER;
 	if (__isthreaded) {
 		_thr_rtld_fini();
 		_thr_signal_deinit();
@@ -222,7 +225,7 @@ _kse_single_thread(struct pthread *curthread)
 	 * Restore signal mask early, so any memory problems could
 	 * dump core.
 	 */ 
-	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
+	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	_thread_active_threads = 1;
 
 	/*
@@ -250,11 +253,8 @@ _kse_single_thread(struct pthread *curthread)
 	curthread->joiner = NULL;		/* no joining threads yet */
 	curthread->refcount = 0;
 	SIGEMPTYSET(curthread->sigpend);	/* clear pending signals */
-	if (curthread->specific != NULL) {
-		free(curthread->specific);
-		curthread->specific = NULL;
-		curthread->specific_data_count = 0;
-	}
+
+	/* Don't free thread-specific data as the caller may require it */
 
 	/* Free the free KSEs: */
 	while ((kse = TAILQ_FIRST(&free_kseq)) != NULL) {
@@ -316,6 +316,9 @@ _kse_single_thread(struct pthread *curthread)
 	 */
 	curthread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
 	curthread->attr.flags |= PTHREAD_SCOPE_PROCESS;
+
+	/* We're no longer part of any lists */
+	curthread->tlflags = 0;
 
 	/*
 	 * After a fork, we are still operating on the thread's original
@@ -1334,6 +1337,7 @@ kseg_gc(struct pthread *curthread)
 
 	if (free_kseg_count <= MAX_CACHED_KSEGS)
 		return; 
+	TAILQ_INIT(&worklist);
 	crit = _kse_critical_enter();
 	KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
 	while (free_kseg_count > MAX_CACHED_KSEGS) {
@@ -2365,6 +2369,11 @@ _thr_alloc(struct pthread *curthread)
 	if ((thread == NULL) &&
 	    ((thread = malloc(sizeof(struct pthread))) != NULL)) {
 		bzero(thread, sizeof(struct pthread));
+		thread->siginfo = calloc(_SIG_MAXSIG, sizeof(siginfo_t));
+		if (thread->siginfo == NULL) {
+			free(thread);
+			return (NULL);
+		}
 		if (curthread) {
 			_pthread_mutex_lock(&_tcb_mutex);
 			thread->tcb = _tcb_ctor(thread, 0 /* not initial tls */);
@@ -2373,25 +2382,22 @@ _thr_alloc(struct pthread *curthread)
 			thread->tcb = _tcb_ctor(thread, 1 /* initial tls */);
 		}
 		if (thread->tcb == NULL) {
+			free(thread->siginfo);
 			free(thread);
-			thread = NULL;
-		} else {
-			thread->siginfo = calloc(_SIG_MAXSIG,
-				sizeof(siginfo_t));
-			/*
-			 * Initialize thread locking.
-			 * Lock initializing needs malloc, so don't
-			 * enter critical region before doing this!
-			 */
-			if (_lock_init(&thread->lock, LCK_ADAPTIVE,
-			    _thr_lock_wait, _thr_lock_wakeup) != 0)
-				PANIC("Cannot initialize thread lock");
-			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-				_lockuser_init(&thread->lockusers[i],
-				    (void *)thread);
-				_LCK_SET_PRIVATE2(&thread->lockusers[i],
-				    (void *)thread);
-			}
+			return (NULL);
+		}
+		/*
+		 * Initialize thread locking.
+		 * Lock initializing needs malloc, so don't
+		 * enter critical region before doing this!
+		 */
+		if (_lock_init(&thread->lock, LCK_ADAPTIVE,
+		    _thr_lock_wait, _thr_lock_wakeup) != 0)
+			PANIC("Cannot initialize thread lock");
+		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+			_lockuser_init(&thread->lockusers[i], (void *)thread);
+			_LCK_SET_PRIVATE2(&thread->lockusers[i],
+			    (void *)thread);
 		}
 	}
 	return (thread);
