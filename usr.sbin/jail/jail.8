@@ -334,6 +334,7 @@ If you do decide to set this variable,
 it must be set before starting any jails, and once each boot.
 .Bd -literal -offset indent
 ifconfig ed0 inet alias 192.168.11.100/32
+mount_devfs devfs /data/jail/192.168.11.100/dev
 mount -t procfs proc /data/jail/192.168.11.100/proc
 jail /data/jail/192.168.11.100 testhostname 192.168.11.100 \\
 	/bin/sh /etc/rc
