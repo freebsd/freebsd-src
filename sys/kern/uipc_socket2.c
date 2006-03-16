@@ -266,7 +266,7 @@ sonewconn(head, connstatus)
 			sp->so_qstate &= ~SQ_INCOMP;
 			sp->so_head = NULL;
 			ACCEPT_UNLOCK();
-			(void) soabort(sp);
+			soabort(sp);
 			ACCEPT_LOCK();
 		}
 		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
