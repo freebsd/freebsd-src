@@ -93,8 +93,7 @@ def disc2_packages():
             # Formerly on disc3
             'security/portaudit'])
     if arch == 'i386':
-        pkgs.extend(['comms/ltmdm',
-                     'www/opera'])
+        pkgs.extend(['www/opera'])
     return pkgs
 
 # The list of desired packages
