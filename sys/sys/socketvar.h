@@ -487,7 +487,7 @@ int	sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
 int	sb_lock(struct sockbuf *sb);
-int	soabort(struct socket *so);
+void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 struct	socket *soalloc(int mflags);
 int	socheckuid(struct socket *so, uid_t uid);
