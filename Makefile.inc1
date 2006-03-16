@@ -1012,7 +1012,7 @@ _prebuild_libs+=	lib/libypclnt
 
 _generic_libs+=	usr.bin/lex/lib
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE} == "i386"
 _generic_libs+=	usr.sbin/pcvt/keycap
 .endif
 
