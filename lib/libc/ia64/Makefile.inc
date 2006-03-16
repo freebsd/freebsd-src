@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# Machine dependent definitions for the alpha architecture.
+# Machine dependent definitions for the ia64 architecture.
 #
 
 # Long double is 80 bits
