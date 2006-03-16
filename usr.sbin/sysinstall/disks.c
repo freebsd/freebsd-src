@@ -917,7 +917,7 @@ diskPartitionNonInteractive(Device *dev)
     }
 
 #ifdef PC98
-    if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256) {
+    if (d->bios_cyl >= 65536 || d->bios_hd > 16 || d->bios_sect >= 256) {
 #else
     if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 #endif
