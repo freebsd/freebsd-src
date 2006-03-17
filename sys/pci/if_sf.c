@@ -768,7 +768,6 @@ sf_attach(dev)
 	ifp->if_start = sf_start;
 	ifp->if_watchdog = sf_watchdog;
 	ifp->if_init = sf_init;
-	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SF_TX_DLIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SF_TX_DLIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);

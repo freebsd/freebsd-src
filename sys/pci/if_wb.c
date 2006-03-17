@@ -855,7 +855,6 @@ wb_attach(dev)
 	ifp->if_start = wb_start;
 	ifp->if_watchdog = wb_watchdog;
 	ifp->if_init = wb_init;
-	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = WB_TX_LIST_CNT - 1;
 
 	/*

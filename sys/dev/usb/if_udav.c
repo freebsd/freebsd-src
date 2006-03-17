@@ -415,7 +415,6 @@ USB_ATTACH(udav)
 	ifp->if_stop = udav_stop;
 #endif
 #if defined(__FreeBSD__)
-	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 #endif
 #if defined(__NetBSD__)
