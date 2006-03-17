@@ -37,18 +37,7 @@
  *   + Cache line sharing between arenas is avoided for internal data
  *     structures.
  *
- *   + Memory is managed in chunks, rather than as individual pages.
- *
- *   + Allocations are region-based; internal region size is a discrete
- *     multiple of a quantum that is appropriate for alignment constraints.
- *     This applies to allocations that are up to half the chunk size.
- *
- *   + Coalescence of regions is delayed in order to reduce overhead and
- *     fragmentation.
- *
- *   + realloc() always moves data, in order to reduce fragmentation.
- *
- *   + Red-black trees are used to sort large regions.
+ *   + Memory is managed in chunks and runs, rather than as individual pages.
  *
  *   + Data structures for huge allocations are stored separately from
  *     allocations, which reduces thrashing during low memory conditions.
@@ -189,17 +178,6 @@ __FBSDID("$FreeBSD$");
 #  define MALLOC_STATS
 #endif
 
-/*
- * Include redzones before/after every region, and check for buffer overflows.
- */
-#ifndef NO_MALLOC_EXTRAS
-#  define MALLOC_REDZONES
-#endif
-#ifdef MALLOC_REDZONES
-#  define MALLOC_RED_2POW	4
-#  define MALLOC_RED		((size_t)(1 << MALLOC_RED_2POW))
-#endif
-
 #ifndef MALLOC_DEBUG
 #  ifndef NDEBUG
 #    define NDEBUG
@@ -209,14 +187,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef MALLOC_DEBUG
    /* Disable inlining to make debugging easier. */
-#  define __inline
+#  define inline
 #endif
 
 /* Size of stack-allocated buffer passed to strerror_r(). */
 #define	STRERROR_BUF 64
-
-/* Number of quantum-spaced bins to store free regions in. */
-#define	NBINS 128
 
 /* Minimum alignment of allocations is 2^QUANTUM_2POW_MIN bytes. */
 #ifdef __i386__
@@ -266,10 +241,10 @@ __FBSDID("$FreeBSD$");
  *
  * chunksize limits:
  *
- *   pagesize <= chunk_size <= 2^29
+ *   2^(pagesize_2pow - 1 + RUN_MIN_REGS_2POW) <= chunk_size <= 2^28
  */
-#define	CHUNK_2POW_DEFAULT	24
-#define	CHUNK_2POW_MAX		29
+#define	CHUNK_2POW_DEFAULT	21
+#define	CHUNK_2POW_MAX		28
 
 /*
  * Maximum size of L1 cache line.  This is used to avoid cache line aliasing,
@@ -279,8 +254,39 @@ __FBSDID("$FreeBSD$");
 #define	CACHELINE_2POW 6
 #define	CACHELINE ((size_t)(1 << CACHELINE_2POW))
 
-/* Default number of regions to delay coalescence for. */
-#define NDELAY 256
+/* Minimum size class that is a power of 2, and smaller than the quantum. */
+#define TINY_MIN_2POW 1
+#define TINY_MIN (1 << TINY_MIN_2POW)
+
+/*
+ * Maximum size class that is a multiple of the quantum, but not (necessarily)
+ * a power of 2.  Above this size, allocations are rounded up to the nearest
+ * power of 2.
+ */
+#define SMALL_MAX_2POW_DEFAULT 9
+#define SMALL_MAX_DEFAULT (1 << SMALL_MAX_2POW_DEFAULT)
+
+/*
+ * Minimum number of regions that must fit into a run that serves quantum-size
+ * bin allocations.
+ *
+ * Note that if this is set too low, space will be wasted if there are size
+ * classes that are small enough that RUN_MIN_REGS regions don't fill a page.
+ * If this is set too high, then the overhead of searching through the bitmap
+ * that tracks region usage will become excessive.
+ */
+#define RUN_MIN_REGS_2POW 10
+#define RUN_MIN_REGS (1 << RUN_MIN_REGS_2POW)
+
+/*
+ * Maximum number of pages for a run that is used for bin allocations.
+ *
+ * Note that if this is set too low, then fragmentation for the largest bin
+ * size classes will be high.  If this is set too high, then even small
+ * programs will often have to allocate more than two chunks early on.
+ */
+#define RUN_MAX_PAGES_2POW 4
+#define RUN_MAX_PAGES (1 << RUN_MAX_PAGES_2POW)
 
 /******************************************************************************/
 
@@ -309,21 +315,20 @@ struct malloc_bin_stats_s {
 	 */
 	uint64_t	nrequests;
 
-	/*
-	 * Number of exact-fit allocations that were successfully serviced by
-	 * this bin.
-	 */
-	uint64_t	nserviced;
-
-	/* High-water marks for this bin. */
-	unsigned long	highcached;
+	/* Total number of runs created for this bin's size class. */
+	uint64_t	nruns;
 
 	/*
-	 * Current number of regions in this bin.  This number isn't needed
-	 * during normal operation, so is maintained here in order to allow
-	 * calculating the high water mark.
+	 * Total number of run promotions/demotions for this bin's size class.
 	 */
-	unsigned long	curcached;
+	uint64_t	npromote;
+	uint64_t	ndemote;
+
+	/* High-water mark for this bin. */
+	unsigned long	highruns;
+
+	/* Current number of runs in this bin. */
+	unsigned long	curruns;
 };
 
 typedef struct arena_stats_s arena_stats_t;
@@ -334,80 +339,7 @@ struct arena_stats_s {
 	uint64_t	ncalloc;
 	uint64_t	ndalloc;
 	uint64_t	nralloc;
-
-	/* Number of region splits. */
-	uint64_t	nsplit;
-
-	/* Number of region coalescences. */
-	uint64_t	ncoalesce;
-
-	/* Bin statistics. */
-	malloc_bin_stats_t bins[NBINS];
-
-	/* Split statistics. */
-	struct {
-		/*
-		 * Number of times a region is requested from the "split" field
-		 * of the arena.
-		 */
-		uint64_t	nrequests;
-
-		/*
-		 * Number of times the "split" field of the arena successfully
-		 * services requests.
-		 */
-		uint64_t	nserviced;
-	}	split;
-
-	/* Frag statistics. */
-	struct {
-		/* Number of times the "frag" field of the arena is refilled. */
-		uint64_t	nrefills;
-
-		/*
-		 * Number of times a region is requested from the "frag" field
-		 * of the arena.
-		 */
-		uint64_t	nrequests;
-
-		/*
-		 * Number of times the "frag" field of the arena successfully
-		 * services requests.
-		 */
-		uint64_t	nserviced;
-	}	frag;
-
-	/* large and large_regions statistics. */
-	struct {
-		/*
-		 * Number of allocation requests that were too large for a bin,
-		 * but not large enough for a hugh allocation.
-		 */
-		uint64_t	nrequests;
-
-		/*
-		 * Number of allocation requests that were successfully
-		 * serviced by large_regions.
-		 */
-		uint64_t	nserviced;
-
-		/*
-		 * High-water mark for large_regions (number of nodes in tree).
-		 */
-		unsigned long	highcached;
-
-		/*
-		 * Used only to store the current number of nodes, since this
-		 * number isn't maintained anywhere else.
-		 */
-		unsigned long	curcached;
-	}	large;
-
-	/* Huge allocation statistics. */
-	struct {
-		/* Number of huge allocation requests. */
-		uint64_t	nrequests;
-	}	huge;
+	uint64_t	nmadvise;
 };
 
 typedef struct chunk_stats_s chunk_stats_t;
@@ -433,21 +365,9 @@ struct chunk_stats_s {
  * Chunk data structures.
  */
 
-/* Needed by chunk data structures. */
-typedef struct	arena_s arena_t;
-
 /* Tree of chunks. */
 typedef struct chunk_node_s chunk_node_t;
 struct chunk_node_s {
-	/*
-	 * For an active chunk that is currently carved into regions by an
-	 * arena allocator, this points to the arena that owns the chunk.  We
-	 * set this pointer even for huge allocations, so that it is possible
-	 * to tell whether a huge allocation was done on behalf of a user
-	 * allocation request, or on behalf of an internal allocation request.
-	 */
-	arena_t *arena;
-
 	/* Linkage for the chunk tree. */
 	RB_ENTRY(chunk_node_s) link;
 
@@ -461,209 +381,210 @@ struct chunk_node_s {
 
 	/* Total chunk size. */
 	size_t	size;
-
-	/* Number of trailing bytes that are not used. */
-	size_t	extra;
 };
 typedef struct chunk_tree_s chunk_tree_t;
 RB_HEAD(chunk_tree_s, chunk_node_s);
 
 /******************************************************************************/
 /*
- * Region data structures.
- */
-
-typedef struct region_s region_t;
-
-/*
- * Tree of region headers, used for free regions that don't fit in the arena
- * bins.
- */
-typedef struct region_node_s region_node_t;
-struct region_node_s {
-	RB_ENTRY(region_node_s)	link;
-	region_t		*reg;
-};
-typedef struct region_tree_s region_tree_t;
-RB_HEAD(region_tree_s, region_node_s);
-
-typedef struct region_prev_s region_prev_t;
-struct region_prev_s {
-	uint32_t	size;
-};
-
-#define NEXT_SIZE_MASK 0x1fffffffU
-typedef struct {
-#ifdef MALLOC_REDZONES
-	char		prev_red[MALLOC_RED];
-#endif
-	/*
-	 * Typical bit pattern for bits:
-	 *
-	 *   pncsssss ssssssss ssssssss ssssssss
-	 *
-	 *   p : Previous free?
-	 *   n : Next free?
-	 *   c : Part of a range of contiguous allocations?
-	 *   s : Next size (number of quanta).
-	 *
-	 * It's tempting to use structure bitfields here, but the compiler has
-	 * to make assumptions that make the code slower than direct bit
-	 * manipulations, and these fields are manipulated a lot.
-	 */
-	uint32_t	bits;
-
-#ifdef MALLOC_REDZONES
-	size_t		next_exact_size;
-	char		next_red[MALLOC_RED];
-#endif
-} region_sep_t;
-
-typedef struct region_next_small_sizer_s region_next_small_sizer_t;
-struct region_next_small_sizer_s
-{
-	qr(region_t)	link;
-};
-
-typedef struct region_next_small_s region_next_small_t;
-struct region_next_small_s
-{
-	qr(region_t)	link;
-
-	/* Only accessed for delayed regions & footer invalid. */
-	uint32_t	slot;
-};
-
-typedef struct region_next_large_s region_next_large_t;
-struct region_next_large_s
-{
-	region_node_t	node;
-
-	/* Use for LRU vs MRU tree ordering. */
-	bool		lru;
-};
-
-typedef struct region_next_s region_next_t;
-struct region_next_s {
-	union {
-		region_next_small_t	s;
-		region_next_large_t	l;
-	}	u;
-};
-
-/*
- * Region separator, including prev/next fields that are only accessible when
- * the neighboring regions are free.
- */
-struct region_s {
-	/* This field must only be accessed if sep.prev_free is true. */
-	region_prev_t   prev;
-
-	/* Actual region separator that is always present between regions. */
-	region_sep_t    sep;
-
-	/*
-	 * These fields must only be accessed if sep.next_free or
-	 * sep.next_contig is true. 
-	 */
-	region_next_t   next;
-};
-
-/* Small variant of region separator, only used for size calculations. */
-typedef struct region_small_sizer_s region_small_sizer_t;
-struct region_small_sizer_s {
-	region_prev_t   prev;
-	region_sep_t    sep;
-	region_next_small_sizer_t   next;
-};
-
-/******************************************************************************/
-/*
  * Arena data structures.
  */
 
+typedef struct arena_s arena_t;
 typedef struct arena_bin_s arena_bin_t;
+
+typedef struct arena_chunk_map_s arena_chunk_map_t;
+struct arena_chunk_map_s {
+	bool		free:1;
+	bool		large:1;
+	unsigned	npages:15; /* Limiting factor for CHUNK_2POW_MAX. */
+	unsigned	pos:15;
+};
+
+/* Arena chunk header. */
+typedef struct arena_chunk_s arena_chunk_t;
+struct arena_chunk_s {
+	/* Arena that owns the chunk. */
+	arena_t *arena;
+
+	/* Linkage for the arena's chunk tree. */
+	RB_ENTRY(arena_chunk_s) link;
+
+	/*
+	 * Number of pages in use.  This is maintained in order to make
+	 * detection of empty chunks fast.
+	 */
+	uint32_t pages_used;
+
+	/*
+	 * Array of counters that keeps track of how many free runs of each
+	 * size are available in this chunk.  This table is sized at compile
+	 * time, which is wasteful.  However, due to unrelated rounding, this
+	 * doesn't actually waste any otherwise useful space.
+	 *
+	 *   index == 2^n pages
+	 *
+	 *   index | npages
+	 *   ------+-------
+	 *       0 |      1
+	 *       1 |      2
+	 *       2 |      4
+	 *       3 |      8
+	 *         :
+	 */
+	uint32_t nfree_runs[CHUNK_2POW_MAX/* - PAGE_SHIFT */];
+
+	/* Map of pages within chunk that keeps track of free/large/small. */
+	arena_chunk_map_t map[1]; /* Dynamically sized. */
+};
+typedef struct arena_chunk_tree_s arena_chunk_tree_t;
+RB_HEAD(arena_chunk_tree_s, arena_chunk_s);
+
+typedef struct arena_run_s arena_run_t;
+struct arena_run_s {
+#ifdef MALLOC_DEBUG
+	uint32_t		magic;
+#  define ARENA_RUN_MAGIC 0x384adf93
+#endif
+
+	/* Linkage for run rings. */
+	qr(arena_run_t)	link;
+
+	/* Bin this run is associated with. */
+	arena_bin_t	*bin;
+
+	/* Bitmask of in-use regions (0: in use, 1: free). */
+#define REGS_MASK_NELMS							\
+	((1 << (RUN_MIN_REGS_2POW + 1)) / (sizeof(unsigned) << 3))
+	unsigned	regs_mask[REGS_MASK_NELMS];
+
+	/* Index of first element that might have a free region. */
+	unsigned	regs_minelm;
+
+	/* Number of free regions in run. */
+	unsigned	nfree:(RUN_MIN_REGS_2POW + 1);
+
+	/*
+	 * Current quartile for this run, one of: {RUN_Q0, RUN_25, RUN_Q50,
+	 * RUN_Q75, RUN_Q100}.
+	 */
+#define RUN_Q0	    0
+#define RUN_Q25	    1
+#define RUN_Q50	    2
+#define RUN_Q75	    3
+#define RUN_Q100    4
+	unsigned	quartile:3;
+
+	/*
+	 * Limits on the number of free regions for the fullness quartile this
+	 * run is currently in.  If nfree goes outside these limits, the run
+	 * is moved to a different fullness quartile.
+	 */
+	unsigned	free_max:(RUN_MIN_REGS_2POW + 1);
+	unsigned	free_min:(RUN_MIN_REGS_2POW + 1);
+};
+
 struct arena_bin_s {
 	/*
-	 * Link into ring before the oldest free region and just after the
-	 * newest free region.
+	 * Current run being used to service allocations of this bin's size
+	 * class.
 	 */
-	region_t	regions;
+	arena_run_t	*runcur;
+
+	/*
+	 * Links into rings of runs, of various fullnesses.  A new run
+	 * conceptually starts off in runs0, and when it reaches 25% full, it
+	 * is moved to the runs25 ring.  For the run to be moved again, it must
+	 * become either empty or 50% full.  Thus, each ring contains runs that
+	 * are within 25% of the advertised fullness for the ring.  This
+	 * provides a low-overhead mechanism for segregating runs into
+	 * approximate fullness classes.
+	 *
+	 * These rings are useful when looking for an existing run
+	 * to use when runcur is no longer usable.  We look for usable runs in
+	 * the following order:
+	 *
+	 *   1) runs75
+	 *   2) runs50
+	 *   3) runs25
+	 *   4) runs100
+	 *
+	 * We never look in runs0 because it never has more than one run in it,
+	 * and in such cases runcur already points to that run.
+	 *
+	 * runs100 isn't a good place to look, because it contains runs that
+	 * may be completely full.  Still, we look there as a last resort in
+	 * order to avoid allocating a new run if at all possible.
+	 */
+	/* arena_run_t	runs0;       0% <= fullness <   25% */
+	arena_run_t	runs25;  /*  0% <  fullness <   50% */
+	arena_run_t	runs50;  /* 25% <  fullness <   75% */
+	arena_run_t	runs75;  /* 50% <  fullness <  100% */
+	arena_run_t	runs100; /* 75% <  fullness <= 100% */
+
+	/* Size of regions in a run for this bin's size class. */
+	size_t		reg_size;
+
+	/* Total size of a run for this bin's size class. */
+	size_t		run_size;
+
+	/* Total number of regions in a run for this bin's size class. */
+	uint32_t	nregs;
+
+	/* Offset of first region in a run for this bin's size class. */
+	uint32_t	reg0_offset;
+
+#ifdef MALLOC_STATS
+	/* Bin statistics. */
+	malloc_bin_stats_t stats;
+#endif
 };
 
 struct arena_s {
 #ifdef MALLOC_DEBUG
-	uint32_t	magic;
+	uint32_t		magic;
 #  define ARENA_MAGIC 0x947d3d24
 #endif
 
 	/* All operations on this arena require that mtx be locked. */
-	malloc_mutex_t	mtx;
-
-	/*
-	 * bins is used to store rings of free regions of the following sizes,
-	 * assuming a 16-byte quantum (sizes include region separators):
-	 *
-	 *   bins[i] | size |
-	 *   --------+------+
-	 *        0  |   32 |
-	 *        1  |   48 |
-	 *        2  |   64 |
-	 *           :      :
-	 *           :      :
-	 *   --------+------+
-	 */
-	arena_bin_t	bins[NBINS];
-
-	/*
-	 * A bitmask that corresponds to which bins have elements in them.
-	 * This is used when searching for the first bin that contains a free
-	 * region that is large enough to service an allocation request.
-	 */
-#define	BINMASK_NELMS (NBINS / (sizeof(int) << 3))
-	int		bins_mask[BINMASK_NELMS];
-
-	/*
-	 * Tree of free regions of the size range [bin_maxsize..~chunk).  These
-	 * are sorted primarily by size, and secondarily by LRU.
-	 */
-	region_tree_t	large_regions;
-
-	/*
-	 * If not NULL, a region that is not stored in bins or large_regions.
-	 * If large enough, this region is used instead of any region stored in
-	 * bins or large_regions, in order to reduce the number of insert/remove
-	 * operations, and in order to increase locality of allocation in
-	 * common cases.
-	 */
-	region_t	*split;
-
-	/*
-	 * If not NULL, a region that is not stored in bins or large_regions.
-	 * If large enough, this region is preferentially used for small
-	 * allocations over any region in large_regions, split, or over-fit
-	 * small bins.
-	 */
-	region_t	*frag;
-
-	/* Tree of chunks that this arena currenly owns. */
-	chunk_tree_t	chunks;
-	unsigned	nchunks;
-
-	/*
-	 * FIFO ring of free regions for which coalescence is delayed.  A slot
-	 * that contains NULL is considered empty.  opt_ndelay stores how many
-	 * elements there are in the FIFO.
-	 */
-	region_t	**delayed;
-	uint32_t	next_delayed; /* Next slot in delayed to use. */
+	malloc_mutex_t		mtx;
 
 #ifdef MALLOC_STATS
 	/* Total byte count of allocated memory, not including overhead. */
-	size_t		allocated;
+	size_t			allocated;
 
-	arena_stats_t stats;
+	arena_stats_t		stats;
 #endif
+
+	/*
+	 * Tree of chunks this arena manages.
+	 */
+	arena_chunk_tree_t	chunks;
+
+	/*
+	 * bins is used to store rings of free regions of the following sizes,
+	 * assuming a 16-byte quantum, 4kB pagesize, and default MALLOC_OPTIONS.
+	 *
+	 *   bins[i] | size |
+	 *   --------+------+
+	 *        0  |    2 |
+	 *        1  |    4 |
+	 *        2  |    8 |
+	 *   --------+------+
+	 *        3  |   16 |
+	 *        4  |   32 |
+	 *        5  |   48 |
+	 *        6  |   64 |
+	 *           :      :
+	 *           :      :
+	 *       33  |  496 |
+	 *       34  |  512 |
+	 *   --------+------+
+	 *       35  | 1024 |
+	 *       36  | 2048 |
+	 *   --------+------+
+	 */
+	arena_bin_t		bins[1]; /* Dynamically sized. */
 };
 
 /******************************************************************************/
@@ -679,16 +600,25 @@ static unsigned		ncpus;
 
 /* VM page size. */
 static unsigned		pagesize;
+static unsigned		pagesize_2pow;
+
+/* Various bin-related settings. */
+static size_t		bin_maxclass; /* Max size class for bins. */
+static unsigned		ntbins; /* Number of (2^n)-spaced tiny bins. */
+static unsigned		nqbins; /* Number of quantum-spaced bins. */
+static unsigned		npbins; /* Number of (2^n)-spaced bins. */
+static size_t		small_min;
+static size_t		small_max;
 
 /* Various quantum-related settings. */
 static size_t		quantum;
 static size_t		quantum_mask; /* (quantum - 1). */
-static size_t		bin_shift;
-static size_t		bin_maxsize;
 
 /* Various chunk-related settings. */
 static size_t		chunk_size;
 static size_t		chunk_size_mask; /* (chunk_size - 1). */
+static size_t		arena_maxclass; /* Max size class for arenas. */
+static unsigned		arena_chunk_maplen;
 
 /********/
 /*
@@ -718,8 +648,9 @@ static void		*brk_max;
  * Byte counters for allocated/total space used by the chunks in the huge
  * allocations tree.
  */
+static uint64_t		huge_nmalloc;
+static uint64_t		huge_ndalloc;
 static size_t		huge_allocated;
-static size_t		huge_total;
 #endif
 
 /*
@@ -736,7 +667,7 @@ static chunk_tree_t	old_chunks;
 /*
  * Current chunk that is being used for internal memory allocations.  This
  * chunk is carved up in cacheline-size quanta, so that there is no chance of
- * false cach sharing. 
+ * false cache line sharing. 
  * */
 static void		*base_chunk;
 static void		*base_next_addr;
@@ -782,16 +713,22 @@ static chunk_stats_t	stats_chunks;
  */
 const char	*_malloc_options;
 
+#ifndef NO_MALLOC_EXTRAS
 static bool	opt_abort = true;
 static bool	opt_junk = true;
+#else
+static bool	opt_abort = false;
+static bool	opt_junk = false;
+#endif
+static bool	opt_hint = false;
 static bool	opt_print_stats = false;
 static size_t	opt_quantum_2pow = QUANTUM_2POW_MIN;
+static size_t	opt_small_max_2pow = SMALL_MAX_2POW_DEFAULT;
 static size_t	opt_chunk_2pow = CHUNK_2POW_DEFAULT;
 static bool	opt_utrace = false;
 static bool	opt_sysv = false;
 static bool	opt_xmalloc = false;
 static bool	opt_zero = false;
-static uint32_t	opt_ndelay = NDELAY;
 static int32_t	opt_narenas_lshift = 0;
 
 typedef struct {
@@ -819,40 +756,29 @@ static void	*base_alloc(size_t size);
 static chunk_node_t *base_chunk_node_alloc(void);
 static void	base_chunk_node_dealloc(chunk_node_t *node);
 #ifdef MALLOC_STATS
-static void	stats_merge(arena_t *arena, arena_stats_t *stats_arenas);
-static void	stats_print(arena_stats_t *stats_arenas);
+static void	stats_print(arena_t *arena);
 #endif
 static void	*pages_map(void *addr, size_t size);
 static void	pages_unmap(void *addr, size_t size);
 static void	*chunk_alloc(size_t size);
 static void	chunk_dealloc(void *chunk, size_t size);
-static unsigned	arena_bins_search(arena_t *arena, size_t size);
-static bool	arena_coalesce(arena_t *arena, region_t **reg, size_t size);
-static void	arena_coalesce_hard(arena_t *arena, region_t *reg,
-		region_t *next, size_t size, bool split_adjacent);
-static void	arena_large_insert(arena_t *arena, region_t *reg, bool lru);
-static void	arena_large_cache(arena_t *arena, region_t *reg, bool lru);
-static void	arena_lru_cache(arena_t *arena, region_t *reg);
-static void	arena_delay_cache(arena_t *arena, region_t *reg);
-static region_t	*arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit);
-static region_t	*arena_split_reg_alloc(arena_t *arena, size_t size, bool fit);
-static void	arena_reg_fit(arena_t *arena, size_t size, region_t *reg,
-		bool restore_split);
-static region_t	*arena_large_reg_alloc(arena_t *arena, size_t size, bool fit);
-static region_t	*arena_chunk_reg_alloc(arena_t *arena, size_t size, bool fit);
+static void	arena_run_split(arena_t *arena, arena_run_t *run, bool large,
+    size_t size);
+static arena_chunk_t *arena_chunk_alloc(arena_t *arena);
+static void	arena_chunk_dealloc(arena_chunk_t *chunk);
+static void	arena_bin_run_refile(arena_t *arena, arena_bin_t *bin,
+    arena_run_t *run, size_t size, bool promote);
+static arena_run_t *arena_run_alloc(arena_t *arena, bool large, size_t size);
+static void	arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size);
+static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin,
+    size_t size);
+static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin,
+    size_t size);
 static void	*arena_malloc(arena_t *arena, size_t size);
-static void	*arena_palloc(arena_t *arena, size_t alignment, size_t size);
-static void	*arena_calloc(arena_t *arena, size_t num, size_t size);
 static size_t	arena_salloc(arena_t *arena, void *ptr);
-#ifdef MALLOC_REDZONES
-static void	redzone_check(void *ptr);
-#endif
 static void	arena_dalloc(arena_t *arena, void *ptr);
-#ifdef NOT_YET
-static void	*arena_ralloc(arena_t *arena, void *ptr, size_t size);
-#endif
 #ifdef MALLOC_STATS
-static bool	arena_stats(arena_t *arena, size_t *allocated, size_t *total);
+static size_t	arena_allocated(arena_t *arena);
 #endif
 static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
@@ -863,7 +789,7 @@ static void	*huge_malloc(arena_t *arena, size_t size);
 static void	huge_dalloc(void *ptr);
 static void	*imalloc(arena_t *arena, size_t size);
 static void	*ipalloc(arena_t *arena, size_t alignment, size_t size);
-static void	*icalloc(arena_t *arena, size_t num, size_t size);
+static void	*icalloc(arena_t *arena, size_t size);
 static size_t	isalloc(void *ptr);
 static void	idalloc(void *ptr);
 static void	*iralloc(arena_t *arena, void *ptr, size_t size);
@@ -889,7 +815,7 @@ malloc_mutex_init(malloc_mutex_t *a_mutex)
 	a_mutex->lock = lock;
 }
 
-static __inline void
+static inline void
 malloc_mutex_lock(malloc_mutex_t *a_mutex)
 {
 
@@ -897,7 +823,7 @@ malloc_mutex_lock(malloc_mutex_t *a_mutex)
 		_SPINLOCK(&a_mutex->lock);
 }
 
-static __inline void
+static inline void
 malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 {
 
@@ -933,27 +859,21 @@ malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 #define	QUANTUM_CEILING(a)						\
 	(((a) + quantum_mask) & ~quantum_mask)
 
-/* Return the offset within a chunk to the first region separator. */
-#define	CHUNK_REG_OFFSET						\
-	(QUANTUM_CEILING(sizeof(chunk_node_t) +				\
-	    sizeof(region_sep_t)) - offsetof(region_t, next))
-
-/*
- * Return how many bytes of usable space are needed for an allocation of size
- * bytes.  This value is not a multiple of quantum, since it doesn't include
- * the region separator.
- */
-static __inline size_t
-region_ceiling(size_t size)
+/* Compute the smallest power of 2 that is >= x. */
+static inline size_t
+pow2_ceil(size_t x)
 {
-	size_t quantum_size, min_reg_quantum;
-
-	quantum_size = QUANTUM_CEILING(size + sizeof(region_sep_t));
-	min_reg_quantum = QUANTUM_CEILING(sizeof(region_small_sizer_t));
-	if (quantum_size >= min_reg_quantum)
-		return (quantum_size);
-	else
-		return (min_reg_quantum);
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+#if (SIZEOF_PTR == 8)
+	x |= x >> 32;
+#endif
+	x++;
+	return (x);
 }
 
 static void
@@ -1066,199 +986,65 @@ base_chunk_node_dealloc(chunk_node_t *node)
 
 /******************************************************************************/
 
-/*
- * Note that no bitshifting is done for booleans in any of the bitmask-based
- * flag manipulation functions that follow; test for non-zero versus zero.
- */
-
-/**********************/
-static __inline uint32_t
-region_prev_free_get(region_sep_t *sep)
-{
-
-	return ((sep->bits) & 0x80000000U);
-}
-
-static __inline void
-region_prev_free_set(region_sep_t *sep)
-{
-
-	sep->bits = ((sep->bits) | 0x80000000U);
-}
-
-static __inline void
-region_prev_free_unset(region_sep_t *sep)
-{
-
-	sep->bits = ((sep->bits) & 0x7fffffffU);
-}
-
-/**********************/
-static __inline uint32_t
-region_next_free_get(region_sep_t *sep)
-{
-
-	return ((sep->bits) & 0x40000000U);
-}
-
-static __inline void
-region_next_free_set(region_sep_t *sep)
-{
-
-	sep->bits = ((sep->bits) | 0x40000000U);
-}
-
-static __inline void
-region_next_free_unset(region_sep_t *sep)
-{
-
-	sep->bits = ((sep->bits) & 0xbfffffffU);
-}
-
-/**********************/
-static __inline uint32_t
-region_next_contig_get(region_sep_t *sep)
-{
-
-	return ((sep->bits) & 0x20000000U);
-}
-
-static __inline void
-region_next_contig_set(region_sep_t *sep)
-{
-
-	sep->bits = ((sep->bits) | 0x20000000U);
-}
-
-static __inline void
-region_next_contig_unset(region_sep_t *sep)
-{
-
-	sep->bits = ((sep->bits) & 0xdfffffffU);
-}
-
-/********************/
-static __inline size_t
-region_next_size_get(region_sep_t *sep)
-{
-
-	return ((size_t)(((sep->bits) & NEXT_SIZE_MASK) << opt_quantum_2pow));
-}
-
-static __inline void
-region_next_size_set(region_sep_t *sep, size_t size)
-{
-	uint32_t bits;
-
-	assert(size % quantum == 0);
-
-	bits = sep->bits;
-	bits &= ~NEXT_SIZE_MASK;
-	bits |= (((uint32_t)size) >> opt_quantum_2pow);
-
-	sep->bits = bits;
-}
-
 #ifdef MALLOC_STATS
 static void
-stats_merge(arena_t *arena, arena_stats_t *stats_arenas)
+stats_print(arena_t *arena)
 {
 	unsigned i;
-
-	stats_arenas->nmalloc += arena->stats.nmalloc;
-	stats_arenas->npalloc += arena->stats.npalloc;
-	stats_arenas->ncalloc += arena->stats.ncalloc;
-	stats_arenas->ndalloc += arena->stats.ndalloc;
-	stats_arenas->nralloc += arena->stats.nralloc;
-
-	stats_arenas->nsplit += arena->stats.nsplit;
-	stats_arenas->ncoalesce += arena->stats.ncoalesce;
-
-	/* Split. */
-	stats_arenas->split.nrequests += arena->stats.split.nrequests;
-	stats_arenas->split.nserviced += arena->stats.split.nserviced;
-
-	/* Frag. */
-	stats_arenas->frag.nrefills += arena->stats.frag.nrefills;
-	stats_arenas->frag.nrequests += arena->stats.frag.nrequests;
-	stats_arenas->frag.nserviced += arena->stats.frag.nserviced;
-
-	/* Bins. */
-	for (i = 0; i < NBINS; i++) {
-		stats_arenas->bins[i].nrequests +=
-		    arena->stats.bins[i].nrequests;
-		stats_arenas->bins[i].nserviced +=
-		    arena->stats.bins[i].nserviced;
-		if (arena->stats.bins[i].highcached
-		    > stats_arenas->bins[i].highcached) {
-		    stats_arenas->bins[i].highcached
-			= arena->stats.bins[i].highcached;
-		}
-		stats_arenas->bins[i].curcached
-		    += arena->stats.bins[i].curcached;
-	}
-
-	/* large and large_regions. */
-	stats_arenas->large.nrequests += arena->stats.large.nrequests;
-	stats_arenas->large.nserviced += arena->stats.large.nserviced;
-	if (arena->stats.large.highcached > stats_arenas->large.highcached)
-		stats_arenas->large.highcached = arena->stats.large.highcached;
-	stats_arenas->large.curcached += arena->stats.large.curcached;
-
-	/* Huge allocations. */
-	stats_arenas->huge.nrequests += arena->stats.huge.nrequests;
-}
-
-static void
-stats_print(arena_stats_t *stats_arenas)
-{
-	unsigned i;
+	int gap_start;
 
 	malloc_printf("calls:\n");
-	malloc_printf(" %13s%13s%13s%13s%13s\n", "nmalloc", "npalloc",
-	    "ncalloc", "ndalloc", "nralloc");
-	malloc_printf(" %13llu%13llu%13llu%13llu%13llu\n",
-	    stats_arenas->nmalloc, stats_arenas->npalloc, stats_arenas->ncalloc,
-	    stats_arenas->ndalloc, stats_arenas->nralloc);
-
-	malloc_printf("region events:\n");
-	malloc_printf(" %13s%13s\n", "nsplit", "ncoalesce");
-	malloc_printf(" %13llu%13llu\n", stats_arenas->nsplit,
-	    stats_arenas->ncoalesce);
-
-	malloc_printf("cached split usage:\n");
-	malloc_printf(" %13s%13s\n", "nrequests", "nserviced");
-	malloc_printf(" %13llu%13llu\n", stats_arenas->split.nrequests,
-	    stats_arenas->split.nserviced);
-
-	malloc_printf("cached frag usage:\n");
-	malloc_printf(" %13s%13s%13s\n", "nrefills", "nrequests", "nserviced");
-	malloc_printf(" %13llu%13llu%13llu\n", stats_arenas->frag.nrefills,
-	    stats_arenas->frag.nrequests, stats_arenas->frag.nserviced);
+	malloc_printf(" %12s %12s %12s %12s %12s %12s\n", "nmalloc", "npalloc",
+	    "ncalloc", "ndalloc", "nralloc", "nmadvise");
+	malloc_printf(" %12llu %12llu %12llu %12llu %12llu %12llu\n",
+	    arena->stats.nmalloc, arena->stats.npalloc, arena->stats.ncalloc,
+	    arena->stats.ndalloc, arena->stats.nralloc, arena->stats.nmadvise);
 
 	malloc_printf("bins:\n");
-	malloc_printf(" %4s%7s%13s%13s%11s%11s\n", "bin", 
-	    "size", "nrequests", "nserviced", "highcached", "curcached");
-	for (i = 0; i < NBINS; i++) {
-		malloc_printf(
-		    " %4u%7u%13llu%13llu%11lu%11lu\n",
-		    i, ((i + bin_shift) << opt_quantum_2pow),
-		    stats_arenas->bins[i].nrequests,
-		    stats_arenas->bins[i].nserviced,
-		    stats_arenas->bins[i].highcached,
-		    stats_arenas->bins[i].curcached);
+	malloc_printf("%13s %1s %4s %5s %8s %9s %5s %6s %7s %6s %6s\n",
+	    "bin", "", "size", "nregs", "run_size", "nrequests", "nruns",
+	    "hiruns", "curruns", "npromo", "ndemo");
+	for (i = 0, gap_start = -1; i < ntbins + nqbins + npbins; i++) {
+		if (arena->bins[i].stats.nrequests == 0) {
+			if (gap_start == -1)
+				gap_start = i;
+		} else {
+			if (gap_start != -1) {
+				if (i > gap_start + 1) {
+					/* Gap of more than one size class. */
+					malloc_printf("[%u..%u]\n",
+					    gap_start, i - 1);
+				} else {
+					/* Gap of one size class. */
+					malloc_printf("[%u]\n", gap_start);
+				}
+				gap_start = -1;
+			}
+			malloc_printf(
+			    "%13u %1s %4u %5u %8u %9llu %5llu"
+			    " %6lu %7lu %6llu %6llu\n",
+			    i,
+			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" : "P",
+			    arena->bins[i].reg_size,
+			    arena->bins[i].nregs,
+			    arena->bins[i].run_size,
+			    arena->bins[i].stats.nrequests,
+			    arena->bins[i].stats.nruns,
+			    arena->bins[i].stats.highruns,
+			    arena->bins[i].stats.curruns,
+			    arena->bins[i].stats.npromote,
+			    arena->bins[i].stats.ndemote);
+		}
 	}
-
-	malloc_printf("large:\n");
-	malloc_printf(" %13s%13s%13s%13s\n", "nrequests", "nserviced",
-	    "highcached", "curcached");
-	malloc_printf(" %13llu%13llu%13lu%13lu\n",
-	    stats_arenas->large.nrequests, stats_arenas->large.nserviced,
-	    stats_arenas->large.highcached, stats_arenas->large.curcached);
-
-	malloc_printf("huge\n");
-	malloc_printf(" %13s\n", "nrequests");
-	malloc_printf(" %13llu\n", stats_arenas->huge.nrequests);
+	if (gap_start != -1) {
+		if (i > gap_start + 1) {
+			/* Gap of more than one size class. */
+			malloc_printf("[%u..%u]\n", gap_start, i - 1);
+		} else {
+			/* Gap of one size class. */
+			malloc_printf("[%u]\n", gap_start);
+		}
+	}
 }
 #endif
 
@@ -1267,74 +1053,26 @@ stats_print(arena_stats_t *stats_arenas)
  */
 /******************************************************************************/
 /*
- * Begin Mem.
+ * Begin chunk management functions.
  */
 
-static __inline int
+static inline int
 chunk_comp(chunk_node_t *a, chunk_node_t *b)
 {
-	int ret;
 
 	assert(a != NULL);
 	assert(b != NULL);
 
 	if ((uintptr_t)a->chunk < (uintptr_t)b->chunk)
-		ret = -1;
+		return (-1);
 	else if (a->chunk == b->chunk)
-		ret = 0;
+		return (0);
 	else
-		ret = 1;
-
-	return (ret);
+		return (1);
 }
 
 /* Generate red-black tree code for chunks. */
 RB_GENERATE_STATIC(chunk_tree_s, chunk_node_s, link, chunk_comp);
-
-static __inline int
-region_comp(region_node_t *a, region_node_t *b)
-{
-	int ret;
-	size_t size_a, size_b;
-
-	assert(a != NULL);
-	assert(b != NULL);
-
-	size_a = region_next_size_get(&a->reg->sep);
-	size_b = region_next_size_get(&b->reg->sep);
-	if (size_a < size_b)
-		ret = -1;
-	else if (size_a == size_b) {
-		if (a == b) {
-			/* Regions are equal with themselves. */
-			ret = 0;
-		} else {
-			if (a->reg->next.u.l.lru) {
-				/*
-				 * Oldest region comes first (secondary LRU
-				 * ordering).  a is guaranteed to be the search
-				 * key, which is how we can enforce this
-				 * secondary ordering.
-				 */
-				ret = 1;
-			} else {
-				/*
-				 * Oldest region comes last (secondary MRU
-				 * ordering).  a is guaranteed to be the search
-				 * key, which is how we can enforce this
-				 * secondary ordering.
-				 */
-				ret = -1;
-			}
-		}
-	} else
-		ret = 1;
-
-	return (ret);
-}
-
-/* Generate red-black tree code for regions. */
-RB_GENERATE_STATIC(region_tree_s, region_node_s, link, region_comp);
 
 static void *
 pages_map(void *addr, size_t size)
@@ -1407,12 +1145,9 @@ chunk_alloc(size_t size)
 {
 	void *ret, *chunk;
 	chunk_node_t *tchunk, *delchunk;
-	chunk_tree_t delchunks;
 
 	assert(size != 0);
 	assert(size % chunk_size == 0);
-
-	RB_INIT(&delchunks);
 
 	malloc_mutex_lock(&chunks_mtx);
 
@@ -1430,17 +1165,9 @@ chunk_alloc(size_t size)
 			delchunk = tchunk;
 			tchunk = RB_NEXT(chunk_tree_s, &old_chunks, delchunk);
 
-			/*
-			 * Remove delchunk from the tree, but keep track of the
-			 * address.
-			 */
+			/* Remove delchunk from the tree. */
 			RB_REMOVE(chunk_tree_s, &old_chunks, delchunk);
-
-			/*
-			 * Keep track of the node so that it can be deallocated
-			 * after chunks_mtx is released.
-			 */
-			RB_INSERT(chunk_tree_s, &delchunks, delchunk);
+			base_chunk_node_dealloc(delchunk);
 
 #ifdef USE_BRK
 			if ((uintptr_t)chunk >= (uintptr_t)brk_base
@@ -1540,18 +1267,6 @@ RETURN:
 #endif
 	malloc_mutex_unlock(&chunks_mtx);
 
-	/*
-	 * Deallocation of the chunk nodes must be done after releasing
-	 * chunks_mtx, in case deallocation causes a chunk to be unmapped.
-	 */
-	tchunk = RB_MIN(chunk_tree_s, &delchunks);
-	while (tchunk != NULL) {
-		delchunk = tchunk;
-		tchunk = RB_NEXT(chunk_tree_s, &delchunks, delchunk);
-		RB_REMOVE(chunk_tree_s, &delchunks, delchunk);
-		base_chunk_node_dealloc(delchunk);
-	}
-
 	assert(CHUNK_ADDR2BASE(ret) == ret);
 	return (ret);
 }
@@ -1577,10 +1292,8 @@ chunk_dealloc(void *chunk, size_t size)
 			 * it, so that the address range can be recycled if
 			 * memory usage increases later on.
 			 */
-			node->arena = NULL;
 			node->chunk = chunk;
 			node->size = size;
-			node->extra = 0;
 
 			RB_INSERT(chunk_tree_s, &old_chunks, node);
 		}
@@ -1602,1751 +1315,594 @@ chunk_dealloc(void *chunk, size_t size)
 #endif
 }
 
+/*
+ * End chunk management functions.
+ */
 /******************************************************************************/
 /*
- * arena.
+ * Begin arena.
  */
 
-static __inline void
-arena_mask_set(arena_t *arena, unsigned bin)
+static inline int
+arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
+{
+
+	assert(a != NULL);
+	assert(b != NULL);
+
+	if ((uintptr_t)a < (uintptr_t)b)
+		return (-1);
+	else if (a == b)
+		return (0);
+	else
+		return (1);
+}
+
+/* Generate red-black tree code for arena chunks. */
+RB_GENERATE_STATIC(arena_chunk_tree_s, arena_chunk_s, link, arena_chunk_comp);
+
+static inline void
+arena_run_mask_free_set(arena_run_t *run, unsigned reg)
 {
 	unsigned elm, bit;
 
-	assert(bin < NBINS);
+	assert(run->magic == ARENA_RUN_MAGIC);
+	assert(reg < run->bin->nregs);
 
-	elm = bin / (sizeof(int) << 3);
-	bit = bin - (elm * (sizeof(int) << 3));
-	assert((arena->bins_mask[elm] & (1 << bit)) == 0);
-	arena->bins_mask[elm] |= (1 << bit);
+	elm = reg / (sizeof(unsigned) << 3);
+	if (elm < run->regs_minelm)
+		run->regs_minelm = elm;
+	bit = reg - (elm * (sizeof(unsigned) << 3));
+	assert((run->regs_mask[elm] & (1 << bit)) == 0);
+	run->regs_mask[elm] |= (1 << bit);
 }
 
-static __inline void
-arena_mask_unset(arena_t *arena, unsigned bin)
+static inline void
+arena_run_mask_free_unset(arena_run_t *run, unsigned reg)
 {
 	unsigned elm, bit;
 
-	assert(bin < NBINS);
+	assert(run->magic == ARENA_RUN_MAGIC);
+	assert(reg < run->bin->nregs);
 
-	elm = bin / (sizeof(int) << 3);
-	bit = bin - (elm * (sizeof(int) << 3));
-	assert((arena->bins_mask[elm] & (1 << bit)) != 0);
-	arena->bins_mask[elm] ^= (1 << bit);
+	elm = reg / (sizeof(unsigned) << 3);
+	bit = reg - (elm * (sizeof(unsigned) << 3));
+	assert((run->regs_mask[elm] & (1 << bit)) != 0);
+	run->regs_mask[elm] ^= (1 << bit);
 }
 
-static unsigned
-arena_bins_search(arena_t *arena, size_t size)
+static inline unsigned
+arena_run_search(arena_run_t *run)
 {
-	unsigned minbin, i;
-	int bit;
+	unsigned i, mask, bit;
 
-	assert(QUANTUM_CEILING(size) == size);
-	assert((size >> opt_quantum_2pow) >= bin_shift);
+	assert(run->magic == ARENA_RUN_MAGIC);
 
-	if (size > bin_maxsize)
-		return (UINT_MAX);
-
-	minbin = (size >> opt_quantum_2pow) - bin_shift;
-	assert(minbin < NBINS);
-	for (i = minbin / (sizeof(int) << 3); i < BINMASK_NELMS; i++) {
-		bit = ffs(arena->bins_mask[i]
-		    & (UINT_MAX << (minbin % (sizeof(int) << 3))));
-		if (bit != 0) {
-			/* Usable allocation found. */
-			return ((i * (sizeof(int) << 3)) + bit - 1);
+	for (i = run->regs_minelm; i < REGS_MASK_NELMS; i++) {
+		mask = run->regs_mask[i];
+		if (mask != 0) {
+			bit = ffs(mask);
+			if (bit != 0) {
+				/* Usable allocation found. */
+				return ((i * (sizeof(unsigned) << 3))
+				    + bit - 1);
+			}
+		} else {
+			/* 
+			 * Make a note that nothing before this element
+			 * contains a free region.
+			 */
+			run->regs_minelm = i + 1;
 		}
 	}
 
 	return (UINT_MAX);
 }
 
-static __inline void
-arena_delayed_extract(arena_t *arena, region_t *reg)
-{
-
-	if (region_next_contig_get(&reg->sep)) {
-		uint32_t slot;
-
-		/* Extract this region from the delayed FIFO. */
-		assert(region_next_free_get(&reg->sep) == false);
-
-		slot = reg->next.u.s.slot;
-		assert(arena->delayed[slot] == reg);
-		arena->delayed[slot] = NULL;
-	}
-#ifdef MALLOC_DEBUG
-	else {
-		region_t *next;
-
-		assert(region_next_free_get(&reg->sep));
-
-		next = (region_t *) &((char *) reg)
-		    [region_next_size_get(&reg->sep)];
-		assert(region_prev_free_get(&next->sep));
-	}
-#endif
-}
-
-static __inline void
-arena_bin_extract(arena_t *arena, unsigned bin, region_t *reg)
-{
-	arena_bin_t *tbin;
-
-	assert(bin < NBINS);
-
-	tbin = &arena->bins[bin];
-
-	assert(qr_next(&tbin->regions, next.u.s.link) != &tbin->regions);
-#ifdef MALLOC_DEBUG
-	{
-		region_t *next;
-
-		next = (region_t *) &((char *) reg)
-		    [region_next_size_get(&reg->sep)];
-		if (region_next_free_get(&reg->sep)) {
-			assert(region_prev_free_get(&next->sep));
-			assert(region_next_size_get(&reg->sep)
-			    == next->prev.size);
-		} else {
-			assert(region_prev_free_get(&next->sep) == false);
-		}
-	}
-#endif
-	assert(region_next_size_get(&reg->sep)
-	    == ((bin + bin_shift) << opt_quantum_2pow));
-
-	qr_remove(reg, next.u.s.link);
-#ifdef MALLOC_STATS
-	arena->stats.bins[bin].curcached--;
-#endif
-	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
-		arena_mask_unset(arena, bin);
-
-	arena_delayed_extract(arena, reg);
-}
-
-static __inline void
-arena_extract(arena_t *arena, region_t *reg)
-{
-	size_t size;
-
-	assert(region_next_free_get(&reg->sep));
-#ifdef MALLOC_DEBUG
-	{
-		region_t *next;
-
-		next = (region_t *)&((char *)reg)
-		    [region_next_size_get(&reg->sep)];
-	}
-#endif
-
-	assert(reg != arena->split);
-	assert(reg != arena->frag);
-	if ((size = region_next_size_get(&reg->sep)) <= bin_maxsize) {
-		arena_bin_extract(arena, (size >> opt_quantum_2pow) - bin_shift,
-		    reg);
-	} else {
-		RB_REMOVE(region_tree_s, &arena->large_regions,
-		    &reg->next.u.l.node);
-#ifdef MALLOC_STATS
-		arena->stats.large.curcached--;
-#endif
-	}
-}
-
-/* Try to coalesce reg with its neighbors.  Return false if coalescing fails. */
-static bool
-arena_coalesce(arena_t *arena, region_t **reg, size_t size)
-{
-	bool ret;
-	region_t *prev, *treg, *next, *nextnext;
-	size_t tsize, prev_size, next_size;
-
-	ret = false;
-
-	treg = *reg;
-
-	/*
-	 * Keep track of the size while coalescing, then just set the size in
-	 * the header/footer once at the end of coalescing.
-	 */
-	assert(size == region_next_size_get(&(*reg)->sep));
-	tsize = size;
-
-	next = (region_t *)&((char *)treg)[tsize];
-	assert(region_next_free_get(&treg->sep));
-	assert(region_prev_free_get(&next->sep));
-	assert(region_next_size_get(&treg->sep) == next->prev.size);
-
-	if (region_prev_free_get(&treg->sep)) {
-		prev_size = treg->prev.size;
-		prev = (region_t *)&((char *)treg)[-prev_size];
-		assert(region_next_free_get(&prev->sep));
-
-		arena_extract(arena, prev);
-
-		tsize += prev_size;
-
-		treg = prev;
-
-#ifdef MALLOC_STATS
-		arena->stats.ncoalesce++;
-#endif
-		ret = true;
-	}
-	assert(region_prev_free_get(&treg->sep) == false);
-
-	if (region_next_free_get(&next->sep)) {
-		next_size = region_next_size_get(&next->sep);
-		nextnext = (region_t *)&((char *)next)[next_size];
-		assert(region_prev_free_get(&nextnext->sep));
-
-		assert(region_next_size_get(&next->sep) == nextnext->prev.size);
-
-		arena_extract(arena, next);
-
-		assert(region_next_size_get(&next->sep) == nextnext->prev.size);
-
-		tsize += next_size;
-
-#ifdef MALLOC_STATS
-		if (ret == false)
-			arena->stats.ncoalesce++;
-#endif
-		ret = true;
-
-		next = (region_t *)&((char *)treg)[tsize];
-	}
-	assert(region_next_free_get(&next->sep) == false);
-
-	/* Update header/footer. */
-	if (ret) {
-		region_next_size_set(&treg->sep, tsize);
-		next->prev.size = tsize;
-	}
-
-	/*
-	 * Now that coalescing with adjacent free regions is done, we need to
-	 * try to coalesce with "split" and "frag".  Those two regions are
-	 * marked as allocated, which is why this takes special effort.  There
-	 * are seven possible cases, but we want to make the (hopefully) common
-	 * case of no coalescence fast, so the checks are optimized for that
-	 * case.  The seven cases are:
-	 *
-	 *   /------\
-	 * 0 | treg | No coalescence needed.  Make this case fast.
-	 *   \------/
-	 *
-	 *   /------+------\
-	 * 1 | frag | treg |
-	 *   \------+------/
-	 *
-	 *   /------+------\
-	 * 2 | treg | frag |
-	 *   \------+------/
-	 *
-	 *   /-------+------\
-	 * 3 | split | treg |
-	 *   \-------+------/
-	 *
-	 *   /------+-------\
-	 * 4 | treg | split |
-	 *   \------+-------/
-	 *
-	 *   /------+------+-------\
-	 * 5 | frag | treg | split |
-	 *   \------+------+-------/
-	 *
-	 *   /-------+------+------\
-	 * 6 | split | treg | frag |
-	 *   \-------+------+------/
-	 */
-
-	if (arena->split == NULL) {
-		/* Cases 3-6 ruled out. */
-	} else if ((uintptr_t)next < (uintptr_t)arena->split) {
-		/* Cases 3-6 ruled out. */
-	} else {
-		region_t *split_next;
-		size_t split_size;
-
-		split_size = region_next_size_get(&arena->split->sep);
-		split_next = (region_t *)&((char *)arena->split)[split_size];
-
-		if ((uintptr_t)split_next < (uintptr_t)treg) {
-			/* Cases 3-6 ruled out. */
-		} else {
-			/*
-			 * Split is adjacent to treg.  Take the slow path and
-			 * coalesce.
-			 */
-
-			arena_coalesce_hard(arena, treg, next, tsize, true);
-
-			treg = NULL;
-#ifdef MALLOC_STATS
-			if (ret == false)
-				arena->stats.ncoalesce++;
-#endif
-			ret = true;
-			goto RETURN;
-		}
-	}
-
-	/* If we get here, then cases 3-6 have been ruled out. */
-	if (arena->frag == NULL) {
-		/* Cases 1-6 ruled out. */
-	} else if ((uintptr_t)next < (uintptr_t)arena->frag) {
-		/* Cases 1-6 ruled out. */
-	} else {
-		region_t *frag_next;
-		size_t frag_size;
-
-		frag_size = region_next_size_get(&arena->frag->sep);
-		frag_next = (region_t *)&((char *)arena->frag)[frag_size];
-
-		if ((uintptr_t)frag_next < (uintptr_t)treg) {
-			/* Cases 1-6 ruled out. */
-		} else {
-			/*
-			 * Frag is adjacent to treg.  Take the slow path and
-			 * coalesce.
-			 */
-
-			arena_coalesce_hard(arena, treg, next, tsize, false);
-
-			treg = NULL;
-#ifdef MALLOC_STATS
-			if (ret == false)
-				arena->stats.ncoalesce++;
-#endif
-			ret = true;
-			goto RETURN;
-		}
-	}
-
-	/* If we get here, no coalescence with "split" or "frag" was needed. */
-
-	/* Finish updating header. */
-	region_next_contig_unset(&treg->sep);
-
-	assert(region_next_free_get(&treg->sep));
-	assert(region_prev_free_get(&next->sep));
-	assert(region_prev_free_get(&treg->sep) == false);
-	assert(region_next_free_get(&next->sep) == false);
-
-RETURN:
-	if (ret)
-		*reg = treg;
-	return (ret);
-}
-
-/*
- * arena_coalesce() calls this function if it determines that a region needs to
- * be coalesced with "split" and/or "frag".
- */
 static void
-arena_coalesce_hard(arena_t *arena, region_t *reg, region_t *next, size_t size,
-    bool split_adjacent)
+arena_run_split(arena_t *arena, arena_run_t *run, bool large, size_t size)
 {
-	bool frag_adjacent;
-
-	assert(next == (region_t *)&((char *)reg)[size]);
-	assert(region_next_free_get(&reg->sep));
-	assert(region_next_size_get(&reg->sep) == size);
-	assert(region_prev_free_get(&next->sep));
-	assert(next->prev.size == size);
-
-	if (split_adjacent == false)
-		frag_adjacent = true;
-	else if (arena->frag != NULL) {
-		/* Determine whether frag will be coalesced with. */
-
-		if ((uintptr_t)next < (uintptr_t)arena->frag)
-			frag_adjacent = false;
-		else {
-			region_t *frag_next;
-			size_t frag_size;
-
-			frag_size = region_next_size_get(&arena->frag->sep);
-			frag_next = (region_t *)&((char *)arena->frag)
-			    [frag_size];
-
-			if ((uintptr_t)frag_next < (uintptr_t)reg)
-				frag_adjacent = false;
-			else
-				frag_adjacent = true;
-		}
-	} else
-		frag_adjacent = false;
-
-	if (split_adjacent && frag_adjacent) {
-		region_t *a;
-		size_t a_size, b_size;
-
-		/* Coalesce all three regions. */
-
-		if (arena->frag == next)
-			a = arena->split;
-		else {
-			a = arena->frag;
-			arena->split = a;
-		}
-		arena->frag = NULL;
-
-		a_size = region_next_size_get(&a->sep);
-		assert(a_size == (uintptr_t)reg - (uintptr_t)a);
-
-		b_size = region_next_size_get(&next->sep);
-
-		region_next_size_set(&a->sep, a_size + size + b_size);
-		assert(region_next_free_get(&a->sep) == false);
-	} else {
-		/* Coalesce two regions. */
-
-		if (split_adjacent) {
-			size += region_next_size_get(&arena->split->sep);
-			if (arena->split == next) {
-				/* reg comes before split. */
-				region_next_size_set(&reg->sep, size);
-				
-				assert(region_next_free_get(&reg->sep));
-				region_next_free_unset(&reg->sep);
-
-				arena->split = reg;
-			} else {
-				/* reg comes after split. */
-				region_next_size_set(&arena->split->sep, size);
-
-				assert(region_next_free_get(&arena->split->sep)
-				    == false);
-
-				assert(region_prev_free_get(&next->sep));
-				region_prev_free_unset(&next->sep);
-			}
-		} else {
-			assert(frag_adjacent);
-			size += region_next_size_get(&arena->frag->sep);
-			if (arena->frag == next) {
-				/* reg comes before frag. */
-				region_next_size_set(&reg->sep, size);
-
-				assert(region_next_free_get(&reg->sep));
-				region_next_free_unset(&reg->sep);
-
-				arena->frag = reg;
-			} else {
-				/* reg comes after frag. */
-				region_next_size_set(&arena->frag->sep, size);
-
-				assert(region_next_free_get(&arena->frag->sep)
-				    == false);
-
-				assert(region_prev_free_get(&next->sep));
-				region_prev_free_unset(&next->sep);
-			}
-		}
-	}
-}
-
-static __inline void
-arena_bin_append(arena_t *arena, unsigned bin, region_t *reg)
-{
-	arena_bin_t *tbin;
-
-	assert(bin < NBINS);
-	assert((region_next_size_get(&reg->sep) >> opt_quantum_2pow)
-	    >= bin_shift);
-	assert(region_next_size_get(&reg->sep)
-	    == ((bin + bin_shift) << opt_quantum_2pow));
-
-	tbin = &arena->bins[bin];
-
-	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
-		arena_mask_set(arena, bin);
-
-	qr_new(reg, next.u.s.link);
-	qr_before_insert(&tbin->regions, reg, next.u.s.link);
-#ifdef MALLOC_STATS
-	arena->stats.bins[bin].curcached++;
-
-	if (arena->stats.bins[bin].curcached
-	    > arena->stats.bins[bin].highcached) {
-		arena->stats.bins[bin].highcached
-		    = arena->stats.bins[bin].curcached;
-	}
-#endif
-}
-
-static __inline void
-arena_bin_push(arena_t *arena, unsigned bin, region_t *reg)
-{
-	arena_bin_t *tbin;
-
-	assert(bin < NBINS);
-	assert((region_next_size_get(&reg->sep) >> opt_quantum_2pow)
-	    >= bin_shift);
-	assert(region_next_size_get(&reg->sep)
-	    == ((bin + bin_shift) << opt_quantum_2pow));
-
-	tbin = &arena->bins[bin];
-
-	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
-		arena_mask_set(arena, bin);
-
-	region_next_contig_unset(&reg->sep);
-	qr_new(reg, next.u.s.link);
-	qr_after_insert(&tbin->regions, reg, next.u.s.link);
-#ifdef MALLOC_STATS
-	arena->stats.bins[bin].curcached++;
-
-	if (arena->stats.bins[bin].curcached
-	    > arena->stats.bins[bin].highcached) {
-		arena->stats.bins[bin].highcached
-		    = arena->stats.bins[bin].curcached;
-	}
-#endif
-}
-
-static __inline region_t *
-arena_bin_pop(arena_t *arena, unsigned bin)
-{
-	region_t *ret;
-	arena_bin_t *tbin;
-
-	assert(bin < NBINS);
-
-	tbin = &arena->bins[bin];
-
-	assert(qr_next(&tbin->regions, next.u.s.link) != &tbin->regions);
-
-	ret = qr_next(&tbin->regions, next.u.s.link);
-	assert(region_next_size_get(&ret->sep)
-	    == ((bin + bin_shift) << opt_quantum_2pow));
-	qr_remove(ret, next.u.s.link);
-#ifdef MALLOC_STATS
-	arena->stats.bins[bin].curcached--;
-#endif
-	if (qr_next(&tbin->regions, next.u.s.link) == &tbin->regions)
-		arena_mask_unset(arena, bin);
-
-	if (region_next_free_get(&ret->sep) == false) {
-		uint32_t slot;
-
-		assert(region_next_contig_get(&ret->sep));
-
-		/* Extract this region from the delayed FIFO. */
-		slot = ret->next.u.s.slot;
-		assert(arena->delayed[slot] == ret);
-		arena->delayed[slot] = NULL;
-	} else {
-		region_t *next;
-
-		/* Non-delayed region. */
-		region_next_free_unset(&ret->sep);
-
-		next = (region_t *)&((char *)ret)
-		    [(bin + bin_shift) << opt_quantum_2pow];
-		assert(next->prev.size == region_next_size_get(&ret->sep));
-		assert(region_prev_free_get(&next->sep));
-		region_prev_free_unset(&next->sep);
-	}
-
-	return (ret);
-}
-
-static void
-arena_large_insert(arena_t *arena, region_t *reg, bool lru)
-{
-
-	assert(region_next_free_get(&reg->sep));
-#ifdef MALLOC_DEBUG
-	{
-		region_t *next;
-
-		next = (region_t *)&((char *)reg)
-		    [region_next_size_get(&reg->sep)];
-		assert(region_prev_free_get(&next->sep));
-		assert(next->prev.size == region_next_size_get(&reg->sep));
-	}
-#endif
-
-	/* Coalescing should have already been done. */
-	assert(arena_coalesce(arena, &reg, region_next_size_get(&reg->sep))
-	    == false);
-
-	if (region_next_size_get(&reg->sep) < chunk_size
-	    - (CHUNK_REG_OFFSET + offsetof(region_t, next))) {
-		/*
-		 * Make sure not to cache a large region with the nextContig
-		 * flag set, in order to simplify the logic that determines
-		 * whether a region needs to be extracted from "delayed".
-		 */
-		region_next_contig_unset(&reg->sep);
-
-		/* Store the region in the large_regions tree. */
-		reg->next.u.l.node.reg = reg;
-		reg->next.u.l.lru = lru;
-
-		RB_INSERT(region_tree_s, &arena->large_regions,
-		    &reg->next.u.l.node);
-#ifdef MALLOC_STATS
-		arena->stats.large.curcached++;
-		if (arena->stats.large.curcached
-		    > arena->stats.large.highcached) {
-			arena->stats.large.highcached
-			    = arena->stats.large.curcached;
-		}
-#endif
-	} else {
-		chunk_node_t *node;
-
-		/*
-		 * This region now spans an entire chunk. Deallocate the chunk.
-		 *
-		 * Note that it is possible for allocation of a large region
-		 * from a pristine chunk, followed by deallocation of the
-		 * region, can cause the chunk to immediately be unmapped.
-		 * This isn't ideal, but 1) such scenarios seem unlikely, and
-		 * 2) delaying coalescence for large regions could cause
-		 * excessive fragmentation for common scenarios.
-		 */
-
-		node = (chunk_node_t *)CHUNK_ADDR2BASE(reg);
-		RB_REMOVE(chunk_tree_s, &arena->chunks, node);
-		arena->nchunks--;
-		assert(node->chunk == (chunk_node_t *)node);
-		chunk_dealloc(node->chunk, chunk_size);
-	}
-}
-
-static void
-arena_large_cache(arena_t *arena, region_t *reg, bool lru)
-{
-	size_t size;
-
-	/* Try to coalesce before storing this region anywhere. */
-	size = region_next_size_get(&reg->sep);
-	if (arena_coalesce(arena, &reg, size)) {
-		if (reg == NULL) {
-			/* Region no longer needs cached. */
-			return;
-		}
-		size = region_next_size_get(&reg->sep);
-	}
-
-	arena_large_insert(arena, reg, lru);
-}
-
-static void
-arena_lru_cache(arena_t *arena, region_t *reg)
-{
-	size_t size;
-
-	assert(region_next_free_get(&reg->sep));
-#ifdef MALLOC_DEBUG
-	{
-		region_t *next;
-
-		next = (region_t *)&((char *)reg)
-		    [region_next_size_get(&reg->sep)];
-		assert(region_prev_free_get(&next->sep));
-		assert(next->prev.size == region_next_size_get(&reg->sep));
-	}
-#endif
-	assert(region_next_size_get(&reg->sep) % quantum == 0);
-	assert(region_next_size_get(&reg->sep)
-	    >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
-
-	size = region_next_size_get(&reg->sep);
-	assert(arena_coalesce(arena, &reg, size) == false);
-	if (size <= bin_maxsize) {
-		arena_bin_append(arena, (size >> opt_quantum_2pow) - bin_shift,
-		    reg);
-	} else
-		arena_large_cache(arena, reg, true);
-}
-
-static __inline void
-arena_mru_cache(arena_t *arena, region_t *reg, size_t size)
-{
-
-	assert(region_next_free_get(&reg->sep));
-#ifdef MALLOC_DEBUG
-	{
-		region_t *next;
-
-		next = (region_t *)&((char *)reg)
-		    [region_next_size_get(&reg->sep)];
-		assert(region_prev_free_get(&next->sep));
-		assert(next->prev.size == region_next_size_get(&reg->sep));
-	}
-#endif
-	assert(region_next_size_get(&reg->sep) % quantum == 0);
-	assert(region_next_size_get(&reg->sep)
-	    >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
-	assert(size == region_next_size_get(&reg->sep));
-	assert(arena_coalesce(arena, &reg, size) == false);
-
-	if (size <= bin_maxsize) {
-		arena_bin_push(arena, (size >> opt_quantum_2pow) - bin_shift,
-		    reg);
-	} else
-		arena_large_cache(arena, reg, false);
-}
-
-static __inline void
-arena_undelay(arena_t *arena, uint32_t slot)
-{
-	region_t *reg, *next;
-	size_t size;
-
-	assert(slot == arena->next_delayed);
-	assert(arena->delayed[slot] != NULL);
-
-	/* Try to coalesce reg. */
-	reg = arena->delayed[slot];
-
-	size = region_next_size_get(&reg->sep);
-
-	assert(region_next_contig_get(&reg->sep));
-	assert(reg->next.u.s.slot == slot);
-
-	arena_bin_extract(arena, (size >> opt_quantum_2pow) - bin_shift, reg);
-
-	arena->delayed[slot] = NULL;
-
-	next = (region_t *) &((char *) reg)[size];
-
-	region_next_free_set(&reg->sep);
-	region_prev_free_set(&next->sep);
-	next->prev.size = size;
-
-	if (arena_coalesce(arena, &reg, size) == false) {
-		/* Coalescing failed.  Cache this region. */
-		arena_mru_cache(arena, reg, size);
-	} else {
-		/* Coalescing succeeded. */
-
-		if (reg == NULL) {
-			/* Region no longer needs undelayed. */
-			return;
-		}
-
-		if (region_next_size_get(&reg->sep) < chunk_size
-		    - (CHUNK_REG_OFFSET + offsetof(region_t, next))) {
-			/*
-			 * Insert coalesced region into appropriate bin (or
-			 * large_regions).
-			 */
-			arena_lru_cache(arena, reg);
-		} else {
-			chunk_node_t *node;
-
-			/*
-			 * This region now spans an entire chunk.  Deallocate
-			 * the chunk.
-			 */
-
-			node = (chunk_node_t *) CHUNK_ADDR2BASE(reg);
-			RB_REMOVE(chunk_tree_s, &arena->chunks, node);
-			arena->nchunks--;
-			assert(node->chunk == (chunk_node_t *) node);
-			chunk_dealloc(node->chunk, chunk_size);
-		}
-	}
-}
-
-static void
-arena_delay_cache(arena_t *arena, region_t *reg)
-{
-	region_t *next;
-	size_t size;
-
-	assert(region_next_free_get(&reg->sep) == false);
-	assert(region_next_size_get(&reg->sep) % quantum == 0);
-	assert(region_next_size_get(&reg->sep)
-	    >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
-
-	size = region_next_size_get(&reg->sep);
-	next = (region_t *)&((char *)reg)[size];
-	assert(region_prev_free_get(&next->sep) == false);
-
-	if (size <= bin_maxsize) {
-		if (region_next_contig_get(&reg->sep)) {
-			uint32_t slot;
-
-			/* Insert into delayed. */
-
-			/* Clear a slot, then put reg in it. */
-			slot = arena->next_delayed;
-			if (arena->delayed[slot] != NULL)
-				arena_undelay(arena, slot);
-			assert(slot == arena->next_delayed);
-			assert(arena->delayed[slot] == NULL);
-
-			reg->next.u.s.slot = slot;
-
-			arena->delayed[slot] = reg;
-
-			/* Update next_delayed. */
-			slot++;
-			slot &= (opt_ndelay - 1); /* Handle wrap-around. */
-			arena->next_delayed = slot;
-
-			arena_bin_append(arena, (size >> opt_quantum_2pow)
-			    - bin_shift, reg);
-		} else {
-			/*
-			 * This region was a fragment when it was allocated, so
-			 * don't delay coalescence for it.
-			 */
-
-			region_next_free_set(&reg->sep);
-			region_prev_free_set(&next->sep);
-			next->prev.size = size;
-
-			if (arena_coalesce(arena, &reg, size)) {
-				/* Coalescing succeeded. */
-
-				if (reg == NULL) {
-					/* Region no longer needs cached. */
-					return;
-				}
-
-				size = region_next_size_get(&reg->sep);
-			}
-
-			arena_mru_cache(arena, reg, size);
-		}
-	} else {
-		region_next_free_set(&reg->sep);
-		region_prev_free_set(&next->sep);
-		region_next_contig_unset(&reg->sep);
-		next->prev.size = size;
-
-		arena_large_cache(arena, reg, true);
-	}
-}
-
-static region_t *
-arena_frag_reg_alloc(arena_t *arena, size_t size, bool fit)
-{
-	region_t *ret;
-	size_t total_size
-#ifdef MALLOC_DEBUG
-	    = 0 /* for assert() below. */
-#endif
-	    ;
-	bool refill;
-
-	/* 
-	 * Clear frag if it is too small to carve a maximally sized small
-	 * region from. 
-	 */
-	if (arena->frag != NULL) {
-		if ((total_size = region_next_size_get(&arena->frag->sep)) 
-		    < size && size <= bin_maxsize) {
-			region_t *reg;
-
-			reg = arena->frag;
-			region_next_contig_set(&reg->sep);
-
-			arena->frag = NULL;
-
-			arena_delay_cache(arena, reg);
-			refill = true;
-		} else {
-			/*
-			 * No need to refill.  Note that total_size was set
-			 * above.
-			 */
-			refill = false;
-		}
-	} else
-		refill = true;
-
-	/*
-	 * Try to fill frag if it's empty.  Frag needs to be marked as
-	 * allocated.
-	 */
-	if (refill) {
-		region_node_t *node;
-
-		node = RB_MIN(region_tree_s, &arena->large_regions);
-		if (node != NULL) {
-			region_t *frag, *next;
-
-			RB_REMOVE(region_tree_s, &arena->large_regions, node);
-
-			frag = node->reg;
-#ifdef MALLOC_STATS
-			arena->stats.frag.nrefills++;
-#endif
-			assert(region_next_free_get(&frag->sep));
-			region_next_free_unset(&frag->sep);
-
-			total_size = region_next_size_get(&frag->sep);
-			next = (region_t *)&((char *)frag)[total_size];
-			assert(region_prev_free_get(&next->sep));
-			region_prev_free_unset(&next->sep);
-
-			arena->frag = frag;
-		} else {
-			unsigned bin;
-
-			/* Look in bins for a large enough region.  */
-			if ((bin = arena_bins_search(arena, size))
-			    != UINT_MAX) {
-				/* Use the smallest available region. */
-				arena->frag = arena_bin_pop(arena, bin);
-#ifdef MALLOC_STATS
-				arena->stats.frag.nrefills++;
-#endif
-				total_size =
-				    region_next_size_get(&arena->frag->sep);
-				assert(total_size >= size);
-			} else {
-				/* Unable to fill frag. */
-				return (NULL);
-			}
-		}
-	}
-	assert(arena->frag != NULL);
-	/* total_size has been set in all possible paths that lead to here. */
-	assert(total_size != 0);
-
-#ifdef MALLOC_STATS
-	arena->stats.frag.nrequests++;
-#endif
-
-	if (total_size < size) {
-		/* 
-		 * Frag isn't large enough to service this request.  Note that
-		 * this is only possible for a large request, since the refill
-		 * code always makes sure to refill frag if it's too small to
-		 * service a current small request.
-		 */
-		assert(size > bin_maxsize);
-		return (NULL);
-	}
-
-	if (fit) {
-		/*
-		 * Use frag, but try to use the beginning for smaller regions,
-		 * and the end for larger regions.  This reduces fragmentation
-		 * in some pathological use cases.  It tends to group
-		 * short-lived (smaller) regions, which increases the
-		 * effectiveness of coalescing.
-		 */
-
-		assert(size % quantum == 0);
-
-		if (total_size - size >=
-		    QUANTUM_CEILING(sizeof(region_small_sizer_t))) {
-			if (size <= bin_maxsize) {
-				region_t *next;
-
-				/* Carve space from the beginning of frag. */
-
-				/* ret. */
-				ret = arena->frag;
-				region_next_size_set(&ret->sep, size);
-				assert(region_next_free_get(&ret->sep)
-				    == false);
-
-				/* next. */
-				next = (region_t *)&((char *)ret)[size];
-				region_next_size_set(&next->sep,
-				    total_size - size);
-				assert(size >= QUANTUM_CEILING(sizeof(
-				    region_small_sizer_t)));
-				region_prev_free_unset(&next->sep);
-				region_next_free_unset(&next->sep);
-
-				/* Update frag. */
-				arena->frag = next;
-			} else {
-				region_t *prev;
-				size_t prev_size;
-
-				/* Carve space from the end of frag. */
-
-				/* prev. */
-				prev_size = total_size - size;
-				prev = arena->frag;
-				region_next_size_set(&prev->sep, prev_size);
-				assert(prev_size >= QUANTUM_CEILING(sizeof(
-				    region_small_sizer_t)));
-				assert(region_next_free_get(&prev->sep)
-				    == false);
-
-				/* ret. */
-				ret = (region_t *)&((char *)prev)[prev_size];
-				region_next_size_set(&ret->sep, size);
-				region_prev_free_unset(&ret->sep);
-				region_next_free_unset(&ret->sep);
+	arena_chunk_t *chunk;
+	unsigned run_ind, map_offset, total_pages, need_pages;
+	unsigned i, log2_run_pages, run_pages;
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
+	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
+	    >> pagesize_2pow);
+	assert(chunk->map[run_ind].free);
+	total_pages = chunk->map[run_ind].npages;
+	need_pages = (size >> pagesize_2pow);
 
 #ifdef MALLOC_DEBUG
-				{
-					region_t *next;
-
-					/* next. */
-					next = (region_t *)&((char *) ret)
-					    [region_next_size_get(&ret->sep)];
-					assert(region_prev_free_get(&next->sep)
-					    == false);
-				}
+	for (i = 0; i < total_pages; i++) {
+		assert(chunk->map[run_ind + i].free);
+		assert(chunk->map[run_ind + i].large == false);
+		assert(chunk->map[run_ind + i].npages == total_pages);
+		assert(chunk->map[run_ind + i].pos == i);
+	}
 #endif
-			}
-#ifdef MALLOC_STATS
-			arena->stats.nsplit++;
-#endif
-		} else {
-			/*
-			 * Frag is close enough to the right size that there
-			 * isn't enough room to create a neighboring region.
-			 */
 
-			/* ret. */
-			ret = arena->frag;
-			arena->frag = NULL;
-			assert(region_next_free_get(&ret->sep) == false);
+	/* Split enough pages from the front of run to fit allocation size. */
+	map_offset = run_ind;
+	for (i = 0; i < need_pages; i++) {
+		chunk->map[map_offset + i].free = false;
+		chunk->map[map_offset + i].large = large;
+		chunk->map[map_offset + i].npages = need_pages;
+		chunk->map[map_offset + i].pos = i;
+	}
 
-#ifdef MALLOC_DEBUG
-			{
-				region_t *next;
-
-				/* next. */
-				next = (region_t *)&((char *)ret)[total_size];
-				assert(region_prev_free_get(&next->sep)
-				    == false);
-			}
-#endif
+	/* Update map for trailing pages. */
+	map_offset += need_pages;
+	while (map_offset < run_ind + total_pages) {
+		log2_run_pages = ffs(map_offset) - 1;
+		run_pages = (1 << log2_run_pages);
+		for (i = 0; i < run_pages; i++) {
+			chunk->map[map_offset + i].free = true;
+			chunk->map[map_offset + i].large = false;
+			chunk->map[map_offset + i].npages = run_pages;
+			chunk->map[map_offset + i].pos = i;
 		}
-#ifdef MALLOC_STATS
-		arena->stats.frag.nserviced++;
-#endif
-	} else {
-		/* Don't fit to the allocation size. */
 
-		/* ret. */
-		ret = arena->frag;
-		arena->frag = NULL;
-		assert(region_next_free_get(&ret->sep) == false);
+		chunk->nfree_runs[log2_run_pages]++;
 
-#ifdef MALLOC_DEBUG
-		{
-			region_t *next;
-
-			/* next. */
-			next = (region_t *) &((char *) ret)[total_size];
-			assert(region_prev_free_get(&next->sep) == false);
-		}
-#endif
-	}
-	region_next_contig_set(&ret->sep);
-
-	return (ret);
-}
-
-static region_t *
-arena_split_reg_alloc(arena_t *arena, size_t size, bool fit)
-{
-
-	if (arena->split == NULL)
-		return (NULL);
-
-#ifdef MALLOC_STATS
-	arena->stats.split.nrequests++;
-#endif
-	if (region_next_size_get(&arena->split->sep) >= size) {
-		region_t *ret;
-
-		if (fit) {
-			size_t total_size;
-
-			/*
-			 * Use split, but try to use the beginning for smaller
-			 * regions, and the end for larger regions.  This
-			 * reduces fragmentation in some pathological use
-			 * cases.  It tends to group short-lived (smaller)
-			 * regions, which increases the effectiveness of
-			 * coalescing.
-			 */
-
-			total_size = region_next_size_get(&arena->split->sep);
-			assert(size % quantum == 0);
-
-			if (total_size - size >=
-			    QUANTUM_CEILING(sizeof(region_small_sizer_t))) {
-				if (size <= bin_maxsize) {
-					region_t *next;
-
-					/*
-					 * Carve space from the beginning of
-					 * split.
-					 */
-
-					/* ret. */
-					ret = arena->split;
-					region_next_size_set(&ret->sep, size);
-					assert(region_next_free_get(&ret->sep)
-					    == false);
-
-					/* next. */
-					next = (region_t *)&((char *)ret)[size];
-					region_next_size_set(&next->sep,
-					    total_size - size);
-					assert(size >= QUANTUM_CEILING(sizeof(
-					    region_small_sizer_t)));
-					region_prev_free_unset(&next->sep);
-					region_next_free_unset(&next->sep);
-
-					/* Update split. */
-					arena->split = next;
-				} else {
-					region_t *prev;
-					size_t prev_size;
-
-					/* Carve space from the end of split. */
-
-					/* prev. */
-					prev_size = total_size - size;
-					prev = arena->split;
-					region_next_size_set(&prev->sep,
-					    prev_size);
-					assert(prev_size >=
-					    QUANTUM_CEILING(sizeof(
-					    region_small_sizer_t)));
-					assert(region_next_free_get(
-					    &prev->sep) == false);
-
-					/* ret. */
-					ret = (region_t *)&((char *)
-					    prev)[prev_size];
-					region_next_size_set(&ret->sep, size);
-					region_prev_free_unset(&ret->sep);
-					region_next_free_unset(&ret->sep);
-
-#ifdef MALLOC_DEBUG
-					{
-				region_t *next;
-
-				/* next. */
-				next = (region_t *)&((char *)ret)
-				    [region_next_size_get(&ret->sep)];
-				assert(region_prev_free_get(&next->sep)
-				    == false);
-					}
-#endif
-				}
-#ifdef MALLOC_STATS
-				arena->stats.nsplit++;
-#endif
-			} else {
-				/*
-				 * Split is close enough to the right size that
-				 * there isn't enough room to create a
-				 * neighboring region.
-				 */
-
-				/* ret. */
-				ret = arena->split;
-				arena->split = NULL;
-				assert(region_next_free_get(&ret->sep)
-				    == false);
-
-#ifdef MALLOC_DEBUG
-				{
-					region_t *next;
-
-					/* next. */
-					next = (region_t *)&((char *)
-					    ret)[region_next_size_get(
-					    &ret->sep)];
-					assert(region_prev_free_get(&next->sep)
-					    == false);
-				}
-#endif
-			}
-#ifdef MALLOC_STATS
-			arena->stats.split.nserviced++;
-#endif
-		} else {
-			/* Don't fit to the allocation size. */
-
-			/* ret. */
-			ret = arena->split;
-			arena->split = NULL;
-			assert(region_next_free_get(&ret->sep) == false);
-
-#ifdef MALLOC_DEBUG
-			{
-				region_t *next;
-
-				/* next. */
-				next = (region_t *) &((char *) ret)
-				   [region_next_size_get(&ret->sep)];
-				assert(region_prev_free_get(&next->sep)
-				    == false);
-			}
-#endif
-		}
-		region_next_contig_set(&ret->sep);
-		return (ret);
-	}
-	/* If we get here, split has failed to service the request. */
-	
-	if (size <= bin_maxsize) {
-		region_t *reg;
-
-		/*
-		 * The split region is too small to service a small request.
-		 * Clear split.
-		 */
-
-		reg = arena->split;
-		region_next_contig_set(&reg->sep);
-
-		arena->split = NULL;
-
-		arena_delay_cache(arena, reg);
+		map_offset += run_pages;
 	}
 
-	return (NULL);
+	chunk->pages_used += (size >> pagesize_2pow);
 }
 
-/*
- * Split reg if necessary.  The region must be overly large enough to be able
- * to contain a trailing region.
- */
-static void
-arena_reg_fit(arena_t *arena, size_t size, region_t *reg, bool restore_split)
+static arena_chunk_t *
+arena_chunk_alloc(arena_t *arena)
 {
-	assert(QUANTUM_CEILING(size) == size);
-	assert(region_next_free_get(&reg->sep) == 0);
+	arena_chunk_t *chunk;
+	unsigned i, j, header_npages, pow2_header_npages, map_offset;
+	unsigned log2_run_pages, run_pages;
+	size_t header_size;
 
-	if (region_next_size_get(&reg->sep)
-	    >= size + QUANTUM_CEILING(sizeof(region_small_sizer_t))) {
-		size_t total_size;
-		region_t *next;
-
-		total_size = region_next_size_get(&reg->sep);
-
-		region_next_size_set(&reg->sep, size);
-
-		next = (region_t *) &((char *) reg)[size];
-		region_next_size_set(&next->sep, total_size - size);
-		assert(region_next_size_get(&next->sep)
-		    >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
-		region_prev_free_unset(&next->sep);
-
-		if (restore_split) {
-			/* Restore what's left to "split". */
-			region_next_free_unset(&next->sep);
-			arena->split = next;
-		} else if (arena->frag == NULL && total_size - size
-		    > bin_maxsize) {
-			/* This region is large enough to use for "frag". */
-			region_next_free_unset(&next->sep);
-			arena->frag = next;
-		} else {
-			region_t *nextnext;
-			size_t next_size;
-
-			region_next_free_set(&next->sep);
-
-			assert(region_next_size_get(&next->sep) == total_size
-			    - size);
-			next_size = total_size - size;
-			nextnext = (region_t *) &((char *) next)[next_size];
-			nextnext->prev.size = next_size;
-			assert(region_prev_free_get(&nextnext->sep) == false);
-			region_prev_free_set(&nextnext->sep);
-
-			if (arena_coalesce(arena, &next, next_size)) {
-				if (next != NULL) {
-					next_size = region_next_size_get(
-					    &next->sep);
-					arena_mru_cache(arena, next, next_size);
-				}
-			} else
-				arena_mru_cache(arena, next, next_size);
-		}
-#ifdef MALLOC_STATS
-		arena->stats.nsplit++;
-#endif
-	}
-}
-
-static __inline region_t *
-arena_bin_reg_alloc(arena_t *arena, size_t size, bool fit)
-{
-	region_t *ret, *header;
-	unsigned bin;
-
-	/*
-	 * Look for an exact fit in bins (region cached in smallest possible
-	 * bin).
-	 */
-	bin = (size >> opt_quantum_2pow) - bin_shift;
-#ifdef MALLOC_STATS
-	arena->stats.bins[bin].nrequests++;
-#endif
-	header = &arena->bins[bin].regions;
-	if (qr_next(header, next.u.s.link) != header) {
-		/* Exact fit. */
-		ret = arena_bin_pop(arena, bin);
-		assert(region_next_size_get(&ret->sep) >= size);
-#ifdef MALLOC_STATS
-		arena->stats.bins[bin].nserviced++;
-#endif
-		return (ret);
-	}
-
-	/* Look at frag to see whether it's large enough. */
-	ret = arena_frag_reg_alloc(arena, size, fit);
-	if (ret != NULL)
-		return (ret);
-
-	return (NULL);
-}
-
-/* Look in large_regions for a large enough region. */
-static region_t *
-arena_large_reg_alloc(arena_t *arena, size_t size, bool fit)
-{
-	region_t *ret, *next;
-	region_node_t *node;
-	region_t key;
-
-#ifdef MALLOC_STATS
-	arena->stats.large.nrequests++;
-#endif
-
-	key.next.u.l.node.reg = &key;
-	key.next.u.l.lru = true;
-	region_next_size_set(&key.sep, size);
-	node = RB_NFIND(region_tree_s, &arena->large_regions,
-	    &key.next.u.l.node);
-	if (node == NULL)
-		return (NULL);
-
-	/* Cached large region found. */
-	ret = node->reg;
-	assert(region_next_free_get(&ret->sep));
-
-	RB_REMOVE(region_tree_s, &arena->large_regions, node);
-#ifdef MALLOC_STATS
-	arena->stats.large.curcached--;
-#endif
-
-	region_next_free_unset(&ret->sep);
-
-	next = (region_t *)&((char *)ret)[region_next_size_get(&ret->sep)];
-	assert(region_prev_free_get(&next->sep));
-	region_prev_free_unset(&next->sep);
-
-	if (fit)
-		arena_reg_fit(arena, size, ret, false);
-
-#ifdef MALLOC_STATS
-	arena->stats.large.nserviced++;
-#endif
-
-	return (ret);
-}
-
-/* Allocate a new chunk and create a single region from it. */
-static region_t *
-arena_chunk_reg_alloc(arena_t *arena, size_t size, bool fit)
-{
-	region_t *ret;
-	chunk_node_t *chunk;
-
-	chunk = chunk_alloc(chunk_size);
+	chunk = (arena_chunk_t *)chunk_alloc(chunk_size);
 	if (chunk == NULL)
 		return (NULL);
 
-#ifdef MALLOC_DEBUG
-	{
-		chunk_node_t *tchunk;
-		chunk_node_t key;
-
-		key.chunk = chunk;
-		tchunk = RB_FIND(chunk_tree_s, &arena->chunks, &key);
-		assert(tchunk == NULL);
-	}
-#endif
 	chunk->arena = arena;
-	chunk->chunk = chunk;
-	chunk->size = chunk_size;
-	chunk->extra = 0;
 
-	RB_INSERT(chunk_tree_s, &arena->chunks, chunk);
-	arena->nchunks++;
-
-	/* Carve a region from the new chunk. */
-	ret = (region_t *) &((char *) chunk)[CHUNK_REG_OFFSET];
-	region_next_size_set(&ret->sep, chunk_size - (CHUNK_REG_OFFSET
-	    + offsetof(region_t, next)));
-	region_prev_free_unset(&ret->sep);
-	region_next_free_unset(&ret->sep);
+	RB_INSERT(arena_chunk_tree_s, &arena->chunks, chunk);
 
 	/*
-	 * Avoiding the following when possible is worthwhile, because it
-	 * avoids touching a page that for many applications would never be
-	 * touched otherwise.
+	 * Claim that no pages are in use, since the header is merely overhead.
 	 */
-#ifdef USE_BRK
-	if ((uintptr_t)ret >= (uintptr_t)brk_base
-	    && (uintptr_t)ret < (uintptr_t)brk_max) {
-		region_t *next;
+	chunk->pages_used = 0;
 
-		/*
-		 * This may be a re-used brk chunk, so we have no guarantee
-		 * that the memory is zero-filled.  Therefore manually create a
-		 * separator at the end of this new region (all zero bits).
-		 */
-		next = (region_t *)&((char *)ret)[region_next_size_get(
-		    &ret->sep)];
-		region_next_size_set(&next->sep, 0);
-		region_prev_free_unset(&next->sep);
-		region_next_free_unset(&next->sep);
-		region_next_contig_unset(&next->sep);
+	memset(&chunk->nfree_runs, 0, sizeof(chunk->nfree_runs));
+
+	header_size = (size_t)((uintptr_t)&chunk->map[arena_chunk_maplen]
+	    - (uintptr_t)chunk);
+	if (header_size % pagesize != 0) {
+		/* Round up to the nearest page boundary. */
+		header_size += pagesize - (header_size % pagesize);
 	}
+
+	header_npages = header_size / pagesize;
+	pow2_header_npages = pow2_ceil(header_npages);
+
+	/*
+	 * Iteratively mark runs as in use, until we've spoken for the entire
+	 * header.
+	 */
+	map_offset = 0;
+	for (i = 0; header_npages > 0; i++) {
+		if ((pow2_header_npages >> i) <= header_npages) {
+			for (j = 0; j < (pow2_header_npages >> i); j++) {
+				chunk->map[map_offset + j].free = false;
+				chunk->map[map_offset + j].large = false;
+				chunk->map[map_offset + j].npages =
+				    (pow2_header_npages >> i);
+				chunk->map[map_offset + j].pos = j;
+			}
+			header_npages -= (pow2_header_npages >> i);
+			map_offset += (pow2_header_npages >> i);
+		}
+	}
+
+	/*
+	 * Finish initializing map.  The chunk header takes up some space at
+	 * the beginning of the chunk, which we just took care of by
+	 * "allocating" the leading pages.
+	 */
+	while (map_offset < (chunk_size / pagesize)) {
+		log2_run_pages = ffs(map_offset) - 1;
+		run_pages = (1 << log2_run_pages);
+		for (i = 0; i < run_pages; i++) {
+			chunk->map[map_offset + i].free = true;
+			chunk->map[map_offset + i].large = false;
+			chunk->map[map_offset + i].npages = run_pages;
+			chunk->map[map_offset + i].pos = i;
+		}
+
+		chunk->nfree_runs[log2_run_pages]++;
+
+		map_offset += run_pages;
+	}
+
+	return (chunk);
+}
+
+static void
+arena_chunk_dealloc(arena_chunk_t *chunk)
+{
+
+	RB_REMOVE(arena_chunk_tree_s, &chunk->arena->chunks, chunk);
+
+	chunk_dealloc((void *)chunk, chunk_size);
+}
+
+static void
+arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
+    size_t size, bool promote)
+{
+
+	assert(bin == run->bin);
+
+	/* Determine whether to promote or demote run. */
+	if (promote) {
+		/* Promote. */
+		assert(run->free_min > run->nfree);
+		assert(run->quartile < RUN_Q100);
+		run->quartile++;
+#ifdef MALLOC_STATS
+		bin->stats.npromote++;
+#endif
+	} else {
+		/* Demote. */
+		assert(run->free_max < run->nfree);
+		assert(run->quartile > RUN_Q0);
+		run->quartile--;
+#ifdef MALLOC_STATS
+		bin->stats.ndemote++;
+#endif
+	}
+
+	/* Re-file run. */
+	qr_remove(run, link);
+	switch (run->quartile) {
+		case RUN_Q0:
+#ifdef MALLOC_STATS
+			bin->stats.curruns--;
+#endif
+			if (bin->runcur == run)
+				bin->runcur = NULL;
+#ifdef MALLOC_DEBUG
+			run->magic = 0;
+#endif
+			arena_run_dalloc(arena, run, bin->run_size);
+			break;
+		case RUN_Q25:
+			qr_before_insert(&bin->runs25, run, link);
+			run->free_max = run->bin->nregs - 1;
+			run->free_min = (run->bin->nregs >> 1) + 1;
+			break;
+		case RUN_Q50:
+			qr_before_insert(&bin->runs50, run, link);
+			run->free_max = ((run->bin->nregs >> 2) * 3) - 1;
+			run->free_min = (run->bin->nregs >> 2) + 1;
+			break;
+		case RUN_Q75:
+			qr_before_insert(&bin->runs75, run, link);
+			run->free_max = (run->bin->nregs >> 1) - 1;
+			run->free_min = 1;
+			break;
+		case RUN_Q100:
+			assert(bin->runcur == run);
+			bin->runcur = NULL;
+			qr_before_insert(&bin->runs100, run, link);
+			run->free_max = (run->bin->nregs >> 2) - 1;
+			run->free_min = 0;
+			break;
+		default:
+			assert(0);
+			break;
+	}
+}
+
+static arena_run_t *
+arena_run_alloc(arena_t *arena, bool large, size_t size)
+{
+	arena_run_t *run;
+	unsigned min_ind, i, j;
+	arena_chunk_t *chunk;
+#ifndef NDEBUG
+	int rep = 0;
 #endif
 
-	if (fit)
-		arena_reg_fit(arena, size, ret, (arena->split == NULL));
+	assert(size <= arena_maxclass);
+
+AGAIN:
+#ifndef NDEBUG
+	rep++;
+	assert(rep <= 2);
+#endif
+
+	min_ind = ffs(size / pagesize) - 1;
+	RB_FOREACH(chunk, arena_chunk_tree_s, &arena->chunks) {
+		for (i = min_ind;
+		    i < (opt_chunk_2pow - pagesize_2pow);
+		    i++) {
+			if (chunk->nfree_runs[i] > 0) {
+				arena_chunk_map_t *map = chunk->map;
+
+				/* Scan chunk's map for free run. */
+				for (j = 0; 
+				    j < arena_chunk_maplen;
+				    j += map[j].npages) {
+					if (map[j].free
+					    && map[j].npages == (1 << i))
+		{
+			run = (arena_run_t *)&((char *)chunk)[j
+			    << pagesize_2pow];
+
+			assert(chunk->nfree_runs[i] > 0);
+			chunk->nfree_runs[i]--;
+
+			/* Update page map. */
+			arena_run_split(arena, run, large, size);
+
+			return (run);
+		}
+				}
+				/* Not reached. */
+				assert(0);
+			}
+		}
+	}
+
+	/* No usable runs.  Allocate a new chunk, then try again. */
+	if (arena_chunk_alloc(arena) == NULL)
+		return (NULL);
+	goto AGAIN;
+}
+
+static void
+arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
+{
+	arena_chunk_t *chunk;
+	unsigned i, run_ind, buddy_ind, base_run_ind, run_pages, log2_run_pages;
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
+	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
+	    >> pagesize_2pow);
+	run_pages = (size >> pagesize_2pow);
+	log2_run_pages = ffs(run_pages) - 1;
+	assert(run_pages > 0);
+
+	/* Subtract pages from count of pages used in chunk. */
+	chunk->pages_used -= run_pages;
+
+	/* Mark run as deallocated. */
+	for (i = 0; i < run_pages; i++) {
+		chunk->map[run_ind + i].free = true;
+		chunk->map[run_ind + i].large = false;
+		chunk->map[run_ind + i].npages = run_pages;
+		chunk->map[run_ind + i].pos = i;
+	}
+
+	/*
+	 * Tell the kernel that we don't need the data in this run, but only
+	 * if requested via runtime configuration.
+	 */
+	if (opt_hint) {
+		madvise(run, size, MADV_FREE);
+#ifdef MALLOC_STATS
+		arena->stats.nmadvise += (size >> pagesize_2pow);
+#endif
+	}
+
+	/*
+	 * Iteratively coalesce with buddies.  Conceptually, the buddy scheme
+	 * induces a tree on the set of pages.  If we know the number of pages
+	 * in the subtree rooted at the current node, we can quickly determine
+	 * whether a run is the left or right buddy, and then calculate the
+	 * buddy's index.
+	 */
+	for (;
+	    (run_pages = (1 << log2_run_pages)) < arena_chunk_maplen;
+	    log2_run_pages++) {
+		if (((run_ind >> log2_run_pages) & 1) == 0) {
+			/* Current run precedes its buddy. */
+			buddy_ind = run_ind + run_pages;
+			base_run_ind = run_ind;
+		} else {
+			/* Current run follows its buddy. */
+			buddy_ind = run_ind - run_pages;
+			base_run_ind = buddy_ind;
+		}
+
+		if (chunk->map[buddy_ind].free == false
+		    || chunk->map[buddy_ind].npages != run_pages)
+			break;
+
+		assert(chunk->nfree_runs[log2_run_pages] > 0);
+		chunk->nfree_runs[log2_run_pages]--;
+
+		/* Coalesce. */
+		for (i = 0; i < (run_pages << 1); i++) {
+			chunk->map[base_run_ind + i].npages = (run_pages << 1);
+			chunk->map[base_run_ind + i].pos = i;
+		}
+
+		/* Update run_ind to be the begginning of the coalesced run. */
+		run_ind = base_run_ind;
+	}
+
+	/* Insert coalesced run into ring of free runs. */
+	chunk->nfree_runs[log2_run_pages]++;
+
+	/* Free pages, to the extent possible. */
+	if (chunk->pages_used == 0) {
+		/* This chunk is completely unused now, so deallocate it. */
+		arena_chunk_dealloc(chunk);
+	}
+}
+
+static arena_run_t *
+arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
+{
+	arena_run_t *run;
+	unsigned i, remainder;
+
+	/* Look for a usable run. */
+	if ((run = qr_next(&bin->runs75, link)) != &bin->runs75
+	    || (run = qr_next(&bin->runs50, link)) != &bin->runs50
+	    || (run = qr_next(&bin->runs25, link)) != &bin->runs25) {
+		/* Use a run that is guaranteed to have available space. */
+		qr_remove(run, link);
+		return (run);
+	}
+
+	/* Look for a run in runs100 that has available space. */
+	if ((run = qr_next(&bin->runs100, link)) != &bin->runs100) {
+		do {
+			if (run->nfree > 0) {
+				qr_remove(run, link);
+				return (run);
+			}
+
+			run = qr_next(run, link);
+		} while (run != &bin->runs100);
+	}
+
+	/* Allocate a new run. */
+	run = arena_run_alloc(arena, false, bin->run_size);
+	if (run == NULL)
+		return (NULL);
+
+	/* Initialize run internals. */
+	qr_new(run, link);
+	run->bin = bin;
+
+	for (i = 0; i < bin->nregs / (sizeof(unsigned) << 3); i++)
+		run->regs_mask[i] = UINT_MAX;
+	remainder = bin->nregs % (sizeof(unsigned) << 3);
+	if (remainder != 0) {
+		run->regs_mask[i] = (UINT_MAX >> ((sizeof(unsigned) << 3)
+		    - remainder));
+		i++;
+	}
+	for (; i < REGS_MASK_NELMS; i++)
+		run->regs_mask[i] = 0;
+
+	run->regs_minelm = 0;
+
+	run->nfree = bin->nregs;
+	run->quartile = RUN_Q0;
+	run->free_max = bin->nregs;
+	run->free_min = ((bin->nregs >> 2) * 3) + 1;
+#ifdef MALLOC_DEBUG
+	run->magic = ARENA_RUN_MAGIC;
+#endif
+
+#ifdef MALLOC_STATS
+	bin->stats.nruns++;
+	bin->stats.curruns++;
+	if (bin->stats.curruns > bin->stats.highruns)
+		bin->stats.highruns = bin->stats.curruns;
+#endif
+	return (run);
+}
+
+static inline void *
+arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
+    size_t size)
+{
+	void *ret;
+	unsigned regind;
+
+	assert(run->magic == ARENA_RUN_MAGIC);
+
+	regind = arena_run_search(run);
+	assert(regind != UINT_MAX);
+	assert(regind < bin->nregs);
+
+	ret = (void *)&((char *)run)[bin->reg0_offset + (bin->reg_size
+	    * regind)];
+	arena_run_mask_free_unset(run, regind);
+	run->nfree--;
+	if (run->nfree < run->free_min) {
+		/* Promote run to higher fullness quartile. */
+		arena_bin_run_refile(arena, bin, run, size, true);
+	}
 
 	return (ret);
 }
 
-/*
- * Find a region that is at least as large as aSize, and return a pointer to
- * the separator that precedes the region.  The return value is ready for use,
- * though it may be larger than is necessary if fit is false.
- */
-static __inline region_t *
-arena_reg_alloc(arena_t *arena, size_t size, bool fit)
+static void *
+arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin, size_t size)
 {
-	region_t *ret;
 
-	assert(QUANTUM_CEILING(size) == size);
-	assert(size >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
-	assert(size <= (chunk_size >> 1));
+	assert(bin->runcur == NULL || bin->runcur->quartile == RUN_Q100);
 
-	if (size <= bin_maxsize) {
-		ret = arena_bin_reg_alloc(arena, size, fit);
-		if (ret != NULL)
-			return (ret);
-	}
+	bin->runcur = arena_bin_nonfull_run_get(arena, bin, size);
+	if (bin->runcur == NULL)
+		return (NULL);
+	assert(bin->runcur->magic == ARENA_RUN_MAGIC);
 
-	ret = arena_large_reg_alloc(arena, size, fit);
-	if (ret != NULL)
-		return (ret);
-
-	ret = arena_split_reg_alloc(arena, size, fit);
-	if (ret != NULL)
-		return (ret);
-
-	/*
-	 * Only try allocating from frag here if size is large, since
-	 * arena_bin_reg_alloc() already falls back to allocating from frag for
-	 * small regions.
-	 */
-	if (size > bin_maxsize) {
-		ret = arena_frag_reg_alloc(arena, size, fit);
-		if (ret != NULL)
-			return (ret);
-	}
-
-	ret = arena_chunk_reg_alloc(arena, size, fit);
-	if (ret != NULL)
-		return (ret);
-
-	return (NULL);
+	return (arena_bin_malloc_easy(arena, bin, bin->runcur, size));
 }
 
 static void *
 arena_malloc(arena_t *arena, size_t size)
 {
 	void *ret;
-	region_t *reg;
-	size_t quantum_size;
 
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
 	assert(size != 0);
-	assert(region_ceiling(size) <= (chunk_size >> 1));
-
-	quantum_size = region_ceiling(size);
-	if (quantum_size < size) {
-		/* size is large enough to cause size_t wrap-around. */
-		return (NULL);
-	}
-	assert(quantum_size >= QUANTUM_CEILING(sizeof(region_small_sizer_t)));
+	assert(QUANTUM_CEILING(size) <= arena_maxclass);
 
 	malloc_mutex_lock(&arena->mtx);
-	reg = arena_reg_alloc(arena, quantum_size, true);
-	if (reg == NULL) {
-		malloc_mutex_unlock(&arena->mtx);
-		return (NULL);
+	if (size <= bin_maxclass) {
+		arena_bin_t *bin;
+		arena_run_t *run;
+
+		if (size < small_min) {
+			size = pow2_ceil(size);
+			bin = &arena->bins[ffs(size >> (TINY_MIN_2POW + 1))];
+#ifdef MALLOC_STATS
+			/* 
+			 * Bin calculation is always correct, but we may need to
+			 * fix size for the purposes of stats accuracy.
+			 */
+			if (size < (1 << TINY_MIN_2POW))
+				size = (1 << TINY_MIN_2POW);
+#endif
+		} else if (size <= small_max) {
+			size = QUANTUM_CEILING(size);
+			bin = &arena->bins[ntbins + (size >> opt_quantum_2pow)
+			    - 1];
+		} else {
+			size = pow2_ceil(size);
+			bin = &arena->bins[ntbins + nqbins
+			    + (ffs(size >> opt_small_max_2pow) - 2)];
+		}
+		assert(size == bin->reg_size);
+
+		if ((run = bin->runcur) != NULL && run->nfree > 0)
+			ret = arena_bin_malloc_easy(arena, bin, run, size);
+		else
+			ret = arena_bin_malloc_hard(arena, bin, size);
+
+#ifdef MALLOC_STATS
+		bin->stats.nrequests++;
+#endif
+	} else {
+		size = pow2_ceil(size);
+		ret = (void *)arena_run_alloc(arena, true, size);
 	}
 
 #ifdef MALLOC_STATS
-	arena->allocated += quantum_size;
+	if (ret != NULL)
+		arena->allocated += size;
 #endif
 
 	malloc_mutex_unlock(&arena->mtx);
-
-	ret = (void *)&reg->next;
-#ifdef MALLOC_REDZONES
-	{
-		region_t *next;
-		size_t total_size;
-
-		memset(reg->sep.next_red, 0xa5, MALLOC_RED);
-
-		/*
-		 * Unused trailing space in the region is considered part of the
-		 * trailing redzone.
-		 */
-		total_size = region_next_size_get(&reg->sep);
-		assert(total_size >= size);
-		memset(&((char *)ret)[size], 0xa5,
-		    total_size - size - sizeof(region_sep_t));
-
-		reg->sep.next_exact_size = size;
-
-		next = (region_t *)&((char *)reg)[total_size];
-		memset(next->sep.prev_red, 0xa5, MALLOC_RED);
-	}
-#endif
-	return (ret);
-}
-
-static void *
-arena_palloc(arena_t *arena, size_t alignment, size_t size)
-{
-	void *ret;
-
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
-
-	if (alignment <= quantum) {
-		/*
-		 * The requested alignment is always guaranteed, so use the
-		 * normal allocation function.
-		 */
-		ret = arena_malloc(arena, size);
-	} else {
-		region_t *reg, *old_split;
-		size_t quantum_size, alloc_size, offset, total_size;
-
-		/*
-		 * Allocate more space than necessary, then carve an aligned
-		 * region out of it.  The smallest allowable region is
-		 * potentially a multiple of the quantum size, so care must be
-		 * taken to carve things up such that all resulting regions are
-		 * large enough.
-		 */
-
-		quantum_size = region_ceiling(size);
-		if (quantum_size < size) {
-			/* size is large enough to cause size_t wrap-around. */
-			return (NULL);
-		}
-
-		/*
-		 * Calculate how large of a region to allocate.  There must be
-		 * enough space to advance far enough to have at least
-		 * sizeof(region_small_sizer_t) leading bytes, yet also land at
-		 * an alignment boundary.
-		 */
-		if (alignment >= sizeof(region_small_sizer_t)) {
-			alloc_size =
-			    QUANTUM_CEILING(sizeof(region_small_sizer_t))
-			    + alignment + quantum_size;
-		} else {
-			alloc_size =
-			    (QUANTUM_CEILING(sizeof(region_small_sizer_t)) << 1)
-			    + quantum_size;
-		}
-
-		if (alloc_size < quantum_size) {
-			/* size_t wrap-around occurred. */
-			return (NULL);
-		}
-
-		malloc_mutex_lock(&arena->mtx);
-		old_split = arena->split;
-		reg = arena_reg_alloc(arena, alloc_size, false);
-		if (reg == NULL) {
-			malloc_mutex_unlock(&arena->mtx);
-			return (NULL);
-		}
-		if (reg == old_split) {
-			/*
-			 * We requested a non-fit allocation that was serviced
-			 * by split, which means that we need to take care to
-			 * restore split in the arena_reg_fit() call later on.
-			 *
-			 * Do nothing; a non-NULL old_split will be used as the
-			 * signal to restore split.
-			 */
-		} else
-			old_split = NULL;
-
-		total_size = region_next_size_get(&reg->sep);
-
-		if (alignment > bin_maxsize || size > bin_maxsize) {
-			size_t split_size;
-			uintptr_t p;
-
-			/*
-			 * Put this allocation toward the end of reg, since
-			 * it is large, and we try to put all large regions at
-			 * the end of split regions.
-			 */
-			split_size = region_next_size_get(&reg->sep);
-			p = (uintptr_t)&((char *)&reg->next)[split_size];
-			p -= offsetof(region_t, next);
-			p -= size;
-			p &= ~(alignment - 1);
-			p -= offsetof(region_t, next);
-
-			offset = p - (uintptr_t)reg;
-		} else {
-			if ((((uintptr_t)&reg->next) & (alignment - 1)) != 0) {
-				uintptr_t p;
-
-				/*
-				 * reg is unaligned.  Calculate the offset into
-				 * reg to actually base the allocation at.
-				 */
-				p = ((uintptr_t)&reg->next + alignment)
-				    & ~(alignment - 1);
-				while (p - (uintptr_t)&reg->next
-				    < QUANTUM_CEILING(sizeof(
-				    region_small_sizer_t)))
-					p += alignment;
-				p -= offsetof(region_t, next);
-
-				offset = p - (uintptr_t)reg;
-			} else
-				offset = 0;
-		}
-		assert(offset % quantum == 0);
-		assert(offset < total_size);
-
-		if (offset != 0) {
-			region_t *prev;
-
-			/*
-			 * Move ret to an alignment boundary that is far enough
-			 * past the beginning of the allocation to leave a
-			 * leading free region, then trim the leading space.
-			 */
-
-			assert(offset >= QUANTUM_CEILING(
-			    sizeof(region_small_sizer_t)));
-			assert(offset + size <= total_size);
-
-			prev = reg;
-			reg = (region_t *)&((char *)prev)[offset];
-			assert(((uintptr_t)&reg->next & (alignment - 1)) == 0);
-
-			/* prev. */
-			region_next_size_set(&prev->sep, offset);
-			reg->prev.size = offset;
-
-			/* reg. */
-			region_next_size_set(&reg->sep, total_size - offset);
-			region_next_free_unset(&reg->sep);
-			if (region_next_contig_get(&prev->sep))
-				region_next_contig_set(&reg->sep);
-			else
-				region_next_contig_unset(&reg->sep);
-
-			if (old_split != NULL && (alignment > bin_maxsize
-			    || size > bin_maxsize)) {
-				/* Restore to split. */
-				region_prev_free_unset(&reg->sep);
-
-				arena->split = prev;
-				old_split = NULL;
-			} else {
-				region_next_free_set(&prev->sep);
-				region_prev_free_set(&reg->sep);
-
-				if (arena_coalesce(arena, &prev, offset)) {
-					if (prev != NULL) {
-						offset = region_next_size_get(
-						    &prev->sep);
-						arena_mru_cache(arena, prev, 
-						    offset);
-					}
-				} else
-					arena_mru_cache(arena, prev, offset);
-			}
-#ifdef MALLOC_STATS
-			arena->stats.nsplit++;
-#endif
-		}
-
-		arena_reg_fit(arena, quantum_size, reg, (old_split != NULL));
-
-#ifdef MALLOC_STATS
-		arena->allocated += quantum_size;
-#endif
-
-		malloc_mutex_unlock(&arena->mtx);
-
-		ret = (void *)&reg->next;
-#ifdef MALLOC_REDZONES
-		{
-			region_t *next;
-			size_t total_size;
-
-			memset(reg->sep.next_red, 0xa5, MALLOC_RED);
-
-			/*
-			 * Unused trailing space in the region is considered
-			 * part of the trailing redzone.
-			 */
-			total_size = region_next_size_get(&reg->sep);
-			assert(total_size >= size);
-			memset(&((char *)ret)[size], 0xa5,
-			    total_size - size - sizeof(region_sep_t));
-
-			reg->sep.next_exact_size = size;
-
-			next = (region_t *)&((char *)reg)[total_size];
-			memset(next->sep.prev_red, 0xa5, MALLOC_RED);
-		}
-#endif
-	}
-
-	assert(((uintptr_t)ret & (alignment - 1)) == 0);
-	return (ret);
-}
-
-static void *
-arena_calloc(arena_t *arena, size_t num, size_t size)
-{
-	void *ret;
-
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
-	assert(num * size != 0);
-
-	ret = arena_malloc(arena, num * size);
-	if (ret == NULL)
-		return (NULL);
-
-	memset(ret, 0, num * size);
 
 	return (ret);
 }
@@ -3355,7 +1911,9 @@ static size_t
 arena_salloc(arena_t *arena, void *ptr)
 {
 	size_t ret;
-	region_t *reg;
+	arena_chunk_t *chunk;
+	uint32_t pageind;
+	arena_chunk_map_t *mapelm;
 
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
@@ -3363,163 +1921,102 @@ arena_salloc(arena_t *arena, void *ptr)
 	assert(ptr != &nil);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
-	reg = (region_t *)&((char *)ptr)[-offsetof(region_t, next)];
+	malloc_mutex_lock(&arena->mtx);
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
+	mapelm = &chunk->map[pageind];
+	assert(mapelm->free == false);
+	if (mapelm->large == false) {
+		arena_run_t *run;
 
-	ret = region_next_size_get(&reg->sep);
+		pageind -= mapelm->pos;
+		mapelm = &chunk->map[pageind];
+		
+		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
+		assert(run->magic == ARENA_RUN_MAGIC);
+		ret = run->bin->reg_size;
+	} else
+		ret = mapelm->npages << pagesize_2pow;
+		
+	malloc_mutex_unlock(&arena->mtx);
 
 	return (ret);
 }
 
-#ifdef MALLOC_REDZONES
-static void
-redzone_check(void *ptr)
-{
-	region_t *reg, *next;
-	size_t size;
-	unsigned i, ncorruptions;
-
-	ncorruptions = 0;
-
-	reg = (region_t *)&((char *)ptr)[-offsetof(region_t, next)];
-	size = region_next_size_get(&reg->sep);
-	next = (region_t *)&((char *)reg)[size];
-
-	/* Leading redzone. */
-	for (i = 0; i < MALLOC_RED; i++) {
-		if ((unsigned char)reg->sep.next_red[i] != 0xa5) {
-			size_t offset = (size_t)MALLOC_RED - i;
-
-			ncorruptions++;
-			malloc_printf("%s: (malloc) Corrupted redzone %zu "
-			    "byte%s before %p (0x%x)\n", _getprogname(), 
-			    offset, offset > 1 ? "s" : "", ptr,
-			    (unsigned char)reg->sep.next_red[i]);
-		}
-	}
-	memset(&reg->sep.next_red, 0x5a, MALLOC_RED);
-
-	/* Bytes immediately trailing allocation. */
-	for (i = 0; i < size - reg->sep.next_exact_size - sizeof(region_sep_t);
-	    i++) {
-		if ((unsigned char)((char *)ptr)[reg->sep.next_exact_size + i]
-		    != 0xa5) {
-			size_t offset = (size_t)(i + 1);
-
-			ncorruptions++;
-			malloc_printf("%s: (malloc) Corrupted redzone %zu "
-			    "byte%s after %p (size %zu) (0x%x)\n",
-			    _getprogname(), offset, offset > 1 ? "s" : "", ptr,
-			    reg->sep.next_exact_size, (unsigned char)((char *)
-			    ptr)[reg->sep.next_exact_size + i]);
-		}
-	}
-	memset(&((char *)ptr)[reg->sep.next_exact_size], 0x5a,
-	    size - reg->sep.next_exact_size - sizeof(region_sep_t));
-
-	/* Trailing redzone. */
-	for (i = 0; i < MALLOC_RED; i++) {
-		if ((unsigned char)next->sep.prev_red[i] != 0xa5) {
-			size_t offset = (size_t)(size - reg->sep.next_exact_size
-			    - sizeof(region_sep_t) + i + 1);
-
-			ncorruptions++;
-			malloc_printf("%s: (malloc) Corrupted redzone %zu "
-			    "byte%s after %p (size %zu) (0x%x)\n",
-			    _getprogname(), offset, offset > 1 ? "s" : "", ptr,
-			    reg->sep.next_exact_size,
-			    (unsigned char)next->sep.prev_red[i]);
-		}
-	}
-	memset(&next->sep.prev_red, 0x5a, MALLOC_RED);
-
-	if (opt_abort && ncorruptions != 0)
-		abort();
-
-	reg->sep.next_exact_size = 0;
-}
-#endif
-
 static void
 arena_dalloc(arena_t *arena, void *ptr)
 {
-	region_t *reg;
+	arena_chunk_t *chunk;
+	unsigned pageind;
+	arena_chunk_map_t *mapelm;
+	size_t size;
 
 	assert(arena != NULL);
+	assert(arena->magic == ARENA_MAGIC);
 	assert(ptr != NULL);
 	assert(ptr != &nil);
-
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
-	reg = (region_t *)&((char *)ptr)[-offsetof(region_t, next)];
-
 	malloc_mutex_lock(&arena->mtx);
 
-#ifdef MALLOC_DEBUG
-	{
-		chunk_node_t *chunk, *node;
-		chunk_node_t key;
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
+	mapelm = &chunk->map[pageind];
+	assert(mapelm->free == false);
+	if (mapelm->large == false) {
+		arena_run_t *run;
+		unsigned regind;
 
-		chunk = CHUNK_ADDR2BASE(ptr);
-		assert(chunk->arena == arena);
+		pageind -= mapelm->pos;
+		mapelm = &chunk->map[pageind];
 
-		key.chunk = chunk;
-		node = RB_FIND(chunk_tree_s, &arena->chunks, &key);
-		assert(node == chunk);
+		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
+		assert(run->magic == ARENA_RUN_MAGIC);
+		size = run->bin->reg_size;
+
+		if (opt_junk)
+			memset(ptr, 0x5a, size);
+
+		regind = (unsigned)(((uintptr_t)ptr
+		    - (uintptr_t)&((char *)run)[run->bin->reg0_offset])
+		    / run->bin->reg_size);
+		arena_run_mask_free_set(run, regind);
+		run->nfree++;
+		if (run->nfree > run->free_max) {
+			/* Demote run to lower fullness quartile. */
+			arena_bin_run_refile(arena, run->bin, run, size, false);
+		}
+	} else {
+		size = mapelm->npages << pagesize_2pow;
+
+		if (opt_junk) {
+			memset(ptr, 0x5a, size);
+		}
+
+		arena_run_dalloc(arena, (arena_run_t *)ptr, size);
 	}
-#endif
-#ifdef MALLOC_REDZONES
-	redzone_check(ptr);
-#endif
 
 #ifdef MALLOC_STATS
-	arena->allocated -= region_next_size_get(&reg->sep);
+	arena->allocated -= size;
 #endif
-
-	if (opt_junk) {
-		memset(&reg->next, 0x5a,
-		    region_next_size_get(&reg->sep) - sizeof(region_sep_t));
-	}
-
-	arena_delay_cache(arena, reg);
 
 	malloc_mutex_unlock(&arena->mtx);
 }
 
-#ifdef NOT_YET
-static void *
-arena_ralloc(arena_t *arena, void *ptr, size_t size)
-{
-
-	/*
-	 * Arenas don't need to support ralloc, since all reallocation is done
-	 * by allocating new space and copying.  This function should never be
-	 * called.
-	 */
-	/* NOTREACHED */
-	assert(false);
-
-	return (NULL);
-}
-#endif
-
 #ifdef MALLOC_STATS
-static bool
-arena_stats(arena_t *arena, size_t *allocated, size_t *total)
+static size_t
+arena_allocated(arena_t *arena)
 {
+	size_t ret;
 
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
-	assert(allocated != NULL);
-	assert(total != NULL);
 
 	malloc_mutex_lock(&arena->mtx);
-	*allocated = arena->allocated;
-	*total = arena->nchunks * chunk_size;
+	ret = arena->allocated;
 	malloc_mutex_unlock(&arena->mtx);
 
-	return (false);
+	return (ret);
 }
 #endif
 
@@ -3527,35 +2024,128 @@ static bool
 arena_new(arena_t *arena)
 {
 	unsigned i;
+	arena_bin_t *bin;
+	size_t pow2_size, run_size;
 
 	malloc_mutex_init(&arena->mtx);
-
-	for (i = 0; i < NBINS; i++)
-		qr_new(&arena->bins[i].regions, next.u.s.link);
-
-	for (i = 0; i < BINMASK_NELMS; i++)
-		arena->bins_mask[i] = 0;
-
-	arena->split = NULL;
-	arena->frag = NULL;
-	RB_INIT(&arena->large_regions);
-
-	RB_INIT(&arena->chunks);
-	arena->nchunks = 0;
-
-	assert(opt_ndelay > 0);
-	arena->delayed = (region_t **)base_alloc(opt_ndelay
-	    * sizeof(region_t *));
-	if (arena->delayed == NULL)
-		return (true);
-	memset(arena->delayed, 0, opt_ndelay * sizeof(region_t *));
-	arena->next_delayed = 0;
 
 #ifdef MALLOC_STATS
 	arena->allocated = 0;
 
 	memset(&arena->stats, 0, sizeof(arena_stats_t));
 #endif
+
+	/* Initialize chunks. */
+	RB_INIT(&arena->chunks);
+
+	/* Initialize bins. */
+
+	/* (2^n)-spaced tiny bins. */
+	for (i = 0; i < ntbins; i++) {
+		bin = &arena->bins[i];
+		bin->runcur = NULL;
+		qr_new(&bin->runs25, link);
+		qr_new(&bin->runs50, link);
+		qr_new(&bin->runs75, link);
+		qr_new(&bin->runs100, link);
+
+		bin->reg_size = (1 << (TINY_MIN_2POW + i));
+
+		/* 
+		 * Calculate how large of a run to allocate.  Make sure that at
+		 * least RUN_MIN_REGS regions fit in the run.
+		 */
+		run_size = bin->reg_size << RUN_MIN_REGS_2POW;
+		if (run_size < pagesize)
+			run_size = pagesize;
+		else if (run_size > (pagesize << RUN_MAX_PAGES_2POW)) {
+			run_size = (pagesize << RUN_MAX_PAGES_2POW);
+			if (run_size > arena_maxclass)
+				run_size = arena_maxclass;
+		}
+		bin->run_size = run_size;
+
+		assert(run_size >= sizeof(arena_run_t));
+		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
+		if (bin->nregs > REGS_MASK_NELMS * (sizeof(unsigned) << 3)) {
+			/* Take care not to overflow regs_mask. */
+			bin->nregs = REGS_MASK_NELMS * (sizeof(unsigned) << 3);
+		}
+		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
+
+#ifdef MALLOC_STATS
+		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
+#endif
+	}
+
+	/* Quantum-spaced bins. */
+	for (; i < ntbins + nqbins; i++) {
+		bin = &arena->bins[i];
+		bin->runcur = NULL;
+		qr_new(&bin->runs25, link);
+		qr_new(&bin->runs50, link);
+		qr_new(&bin->runs75, link);
+		qr_new(&bin->runs100, link);
+
+		bin->reg_size = quantum * (i - ntbins + 1);
+
+		/* 
+		 * Calculate how large of a run to allocate.  Make sure that at
+		 * least RUN_MIN_REGS regions fit in the run.
+		 */
+		pow2_size = pow2_ceil(quantum * (i - ntbins + 1));
+		run_size = (pow2_size << RUN_MIN_REGS_2POW);
+		if (run_size < pagesize)
+			run_size = pagesize;
+		else if (run_size > (pagesize << RUN_MAX_PAGES_2POW)) {
+			run_size = (pagesize << RUN_MAX_PAGES_2POW);
+			if (run_size > arena_maxclass)
+				run_size = arena_maxclass;
+		}
+		bin->run_size = run_size;
+
+		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
+		assert(bin->nregs <= REGS_MASK_NELMS * (sizeof(unsigned) << 3));
+		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
+
+#ifdef MALLOC_STATS
+		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
+#endif
+	}
+
+	/* (2^n)-spaced bins. */
+	for (; i < ntbins + nqbins + npbins; i++) {
+		bin = &arena->bins[i];
+		bin->runcur = NULL;
+		qr_new(&bin->runs25, link);
+		qr_new(&bin->runs50, link);
+		qr_new(&bin->runs75, link);
+		qr_new(&bin->runs100, link);
+
+		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
+
+		/* 
+		 * Calculate how large of a run to allocate.  Make sure that at
+		 * least RUN_MIN_REGS regions fit in the run.
+		 */
+		run_size = bin->reg_size << RUN_MIN_REGS_2POW;
+		if (run_size < pagesize)
+			run_size = pagesize;
+		else if (run_size > (pagesize << RUN_MAX_PAGES_2POW)) {
+			run_size = (pagesize << RUN_MAX_PAGES_2POW);
+			if (run_size > arena_maxclass)
+				run_size = arena_maxclass;
+		}
+		bin->run_size = run_size;
+
+		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
+		assert(bin->nregs <= REGS_MASK_NELMS * (sizeof(unsigned) << 3));
+		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
+
+#ifdef MALLOC_STATS
+		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
+#endif
+	}
 
 #ifdef MALLOC_DEBUG
 	arena->magic = ARENA_MAGIC;
@@ -3570,7 +2160,9 @@ arenas_extend(unsigned ind)
 {
 	arena_t *ret;
 
-	ret = (arena_t *)base_alloc(sizeof(arena_t));
+	/* Allocate enough space for trailing bins. */
+	ret = (arena_t *)base_alloc(sizeof(arena_t)
+	    + (sizeof(arena_bin_t) * (ntbins + nqbins + npbins - 1)));
 	if (ret != NULL && arena_new(ret) == false) {
 		arenas[ind] = ret;
 		return (ret);
@@ -3596,14 +2188,14 @@ arenas_extend(unsigned ind)
  */
 /******************************************************************************/
 /*
- * Begin  general internal functions.
+ * Begin general internal functions.
  */
 
 /*
  * Choose an arena based on a per-thread value (fast-path code, calls slow-path
  * code if necessary.
  */
-static __inline arena_t *
+static inline arena_t *
 choose_arena(void)
 {
 	arena_t *ret;
@@ -3699,10 +2291,6 @@ huge_malloc(arena_t *arena, size_t size)
 
 	/* Allocate a chunk for this request. */
 
-#ifdef MALLOC_STATS
-	arena->stats.huge.nrequests++;
-#endif
-
 	chunk_size = CHUNK_CEILING(size);
 	if (chunk_size == 0) {
 		/* size is large enough to cause size_t wrap-around. */
@@ -3721,16 +2309,14 @@ huge_malloc(arena_t *arena, size_t size)
 	}
 
 	/* Insert node into chunks. */
-	node->arena = arena;
 	node->chunk = ret;
 	node->size = chunk_size;
-	node->extra = chunk_size - size;
 
 	malloc_mutex_lock(&chunks_mtx);
 	RB_INSERT(chunk_tree_s, &huge, node);
 #ifdef MALLOC_STATS
-	huge_allocated += size;
-	huge_total += chunk_size;
+	huge_nmalloc++;
+	huge_allocated += chunk_size;
 #endif
 	malloc_mutex_unlock(&chunks_mtx);
 
@@ -3753,13 +2339,9 @@ huge_dalloc(void *ptr)
 	RB_REMOVE(chunk_tree_s, &huge, node);
 
 #ifdef MALLOC_STATS
-	malloc_mutex_lock(&node->arena->mtx);
-	node->arena->stats.ndalloc++;
-	malloc_mutex_unlock(&node->arena->mtx);
-
 	/* Update counters. */
-	huge_allocated -= (node->size - node->extra);
-	huge_total -= node->size;
+	huge_ndalloc++;
+	huge_allocated -= node->size;
 #endif
 
 	malloc_mutex_unlock(&chunks_mtx);
@@ -3779,7 +2361,7 @@ imalloc(arena_t *arena, size_t size)
 	assert(arena->magic == ARENA_MAGIC);
 	assert(size != 0);
 
-	if (region_ceiling(size) <= (chunk_size >> 1))
+	if (size <= arena_maxclass)
 		ret = arena_malloc(arena, size);
 	else
 		ret = huge_malloc(arena, size);
@@ -3801,41 +2383,27 @@ static void *
 ipalloc(arena_t *arena, size_t alignment, size_t size)
 {
 	void *ret;
+	size_t pow2_size;
 
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
 
-	/*
-	 * The conditions that disallow calling arena_palloc() are quite
-	 * tricky.
-	 *
-	 * The first main clause of the conditional mirrors that in imalloc(),
-	 * and is necesary because arena_palloc() may in turn call
-	 * arena_malloc().
-	 *
-	 * The second and third clauses are necessary because we want to be
-	 * sure that it will not be necessary to allocate more than a
-	 * half-chunk region at any point during the creation of the aligned
-	 * allocation.  These checks closely mirror the calculation of
-	 * alloc_size in arena_palloc().
-	 *
-	 * Finally, the fourth clause makes explicit the constraint on what
-	 * alignments will be attempted via regions.  At first glance, this
-	 * appears unnecessary, but in actuality, it protects against otherwise
-	 * difficult-to-detect size_t wrap-around cases.
+	/* 
+	 * Round up to the nearest power of two that is >= alignment and
+	 * >= size. 
 	 */
-	if (region_ceiling(size) <= (chunk_size >> 1)
+	if (size > alignment)
+		pow2_size = pow2_ceil(size);
+	else
+		pow2_size = alignment;
+	pow2_size = QUANTUM_CEILING(pow2_size);
+	if (pow2_size < size) {
+		/* size_t overflow. */
+		return (NULL);
+	}
 
-	    && (alignment < sizeof(region_small_sizer_t)
-	    || (QUANTUM_CEILING(sizeof(region_small_sizer_t)) + alignment
-	    + (region_ceiling(size))) <= (chunk_size >> 1))
-
-	    && (alignment >= sizeof(region_small_sizer_t)
-	    || ((QUANTUM_CEILING(sizeof(region_small_sizer_t)) << 1)
-	    + (region_ceiling(size))) <= (chunk_size >> 1))
-
-	    && alignment <= (chunk_size >> 2))
-		ret = arena_palloc(arena, alignment, size);
+	if (pow2_size <= arena_maxclass)
+		ret = arena_malloc(arena, pow2_size);
 	else {
 		if (alignment <= chunk_size)
 			ret = huge_malloc(arena, size);
@@ -3901,16 +2469,13 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 			}
 
 			/* Insert node into chunks. */
-			node->arena = arena;
 			node->chunk = ret;
 			node->size = chunksize;
-			node->extra = node->size - size;
 
 			malloc_mutex_lock(&chunks_mtx);
 			RB_INSERT(chunk_tree_s, &huge, node);
 #ifdef MALLOC_STATS
 			huge_allocated += size;
-			huge_total += chunksize;
 #endif
 			malloc_mutex_unlock(&chunks_mtx);
 		}
@@ -3928,30 +2493,32 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 }
 
 static void *
-icalloc(arena_t *arena, size_t num, size_t size)
+icalloc(arena_t *arena, size_t size)
 {
 	void *ret;
 
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
-	assert(num * size != 0);
 
-	if (region_ceiling(num * size) <= (chunk_size >> 1))
-		ret = arena_calloc(arena, num, size);
-	else {
+	if (size <= arena_maxclass) {
+		ret = arena_malloc(arena, size);
+		if (ret == NULL)
+			return (NULL);
+		memset(ret, 0, size);
+	} else {
 		/*
 		 * The virtual memory system provides zero-filled pages, so
 		 * there is no need to do so manually.
 		 */
-		ret = huge_malloc(arena, num * size);
+		ret = huge_malloc(arena, size);
 #ifdef USE_BRK
 		if ((uintptr_t)ret >= (uintptr_t)brk_base
-		    && (uintptr_t)ret < (uintptr_t)brk_max) {
+				&& (uintptr_t)ret < (uintptr_t)brk_max) {
 			/* 
 			 * This may be a re-used brk chunk.  Therefore, zero
 			 * the memory.
 			 */
-			memset(ret, 0, num * size);
+			memset(ret, 0, size);
 		}
 #endif
 	}
@@ -3969,19 +2536,19 @@ static size_t
 isalloc(void *ptr)
 {
 	size_t ret;
-	chunk_node_t *node;
+	arena_chunk_t *chunk;
 
 	assert(ptr != NULL);
 	assert(ptr != &nil);
 
-	node = CHUNK_ADDR2BASE(ptr);
-	if (node != ptr) {
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	if (chunk != ptr) {
 		/* Region. */
-		assert(node->arena->magic == ARENA_MAGIC);
+		assert(chunk->arena->magic == ARENA_MAGIC);
 
-		ret = arena_salloc(node->arena, ptr);
+		ret = arena_salloc(chunk->arena, ptr);
 	} else {
-		chunk_node_t key;
+		chunk_node_t *node, key;
 
 		/* Chunk (huge allocation). */
 
@@ -3992,7 +2559,7 @@ isalloc(void *ptr)
 		node = RB_FIND(chunk_tree_s, &huge, &key);
 		assert(node != NULL);
 
-		ret = node->size - node->extra;
+		ret = node->size;
 
 		malloc_mutex_unlock(&chunks_mtx);
 	}
@@ -4003,20 +2570,20 @@ isalloc(void *ptr)
 static void
 idalloc(void *ptr)
 {
-	chunk_node_t *node;
+	arena_chunk_t *chunk;
 
 	assert(ptr != NULL);
 	assert(ptr != &nil);
 
-	node = CHUNK_ADDR2BASE(ptr);
-	if (node != ptr) {
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	if (chunk != ptr) {
 		/* Region. */
 #ifdef MALLOC_STATS
-		malloc_mutex_lock(&node->arena->mtx);
-		node->arena->stats.ndalloc++;
-		malloc_mutex_unlock(&node->arena->mtx);
+		malloc_mutex_lock(&chunk->arena->mtx);
+		chunk->arena->stats.ndalloc++;
+		malloc_mutex_unlock(&chunk->arena->mtx);
 #endif
-		arena_dalloc(node->arena, ptr);
+		arena_dalloc(chunk->arena, ptr);
 	} else
 		huge_dalloc(ptr);
 }
@@ -4035,7 +2602,7 @@ iralloc(arena_t *arena, void *ptr, size_t size)
 
 	oldsize = isalloc(ptr);
 
-	if (region_ceiling(size) <= (chunk_size >> 1)) {
+	if (size <= arena_maxclass) {
 		ret = arena_malloc(arena, size);
 		if (ret == NULL)
 			return (NULL);
@@ -4081,25 +2648,20 @@ static void
 istats(size_t *allocated, size_t *total)
 {
 	size_t tallocated, ttotal;
-	size_t rallocated, rtotal;
 	unsigned i;
 
 	tallocated = 0;
-	ttotal = base_total;
 
 	/* arenas. */
 	for (i = 0; i < narenas; i++) {
-		if (arenas[i] != NULL) {
-			arena_stats(arenas[i], &rallocated, &rtotal);
-			tallocated += rallocated;
-			ttotal += rtotal;
-		}
+		if (arenas[i] != NULL)
+			tallocated += arena_allocated(arenas[i]);
 	}
 
 	/* huge. */
 	malloc_mutex_lock(&chunks_mtx);
 	tallocated += huge_allocated;
-	ttotal += huge_total;
+	ttotal = stats_chunks.curchunks * chunk_size;
 	malloc_mutex_unlock(&chunks_mtx);
 
 	/* Return results. */
@@ -4116,14 +2678,12 @@ malloc_print_stats(void)
 		malloc_printf("___ Begin malloc statistics ___\n");
 		malloc_printf("Number of CPUs: %u\n", ncpus);
 		malloc_printf("Number of arenas: %u\n", narenas);
-		malloc_printf("Cache slots: %u\n", opt_ndelay);
 		malloc_printf("Chunk size: %zu (2^%zu)\n", chunk_size,
 		    opt_chunk_2pow);
 		malloc_printf("Quantum size: %zu (2^%zu)\n", quantum, 
 		    opt_quantum_2pow);
+		malloc_printf("Max small size: %zu\n", small_max);
 		malloc_printf("Pointer size: %u\n", sizeof(void *));
-		malloc_printf("Number of bins: %u\n", NBINS);
-		malloc_printf("Maximum bin size: %u\n", bin_maxsize);
 		malloc_printf("Assertions %s\n",
 #ifdef NDEBUG
 		    "disabled"
@@ -4131,13 +2691,6 @@ malloc_print_stats(void)
 		    "enabled"
 #endif
 		    );
-		malloc_printf("Redzone size: %u\n", 
-#ifdef MALLOC_REDZONES
-				MALLOC_RED
-#else
-				0
-#endif
-				);
 
 #ifdef MALLOC_STATS
 		{
@@ -4149,9 +2702,8 @@ malloc_print_stats(void)
 		}
 
 		{
-			arena_stats_t stats_arenas;
 			arena_t *arena;
-			unsigned i, narenas_used;
+			unsigned i;
 
 			/* Print chunk stats. */
 			{
@@ -4170,43 +2722,26 @@ malloc_print_stats(void)
 				    chunks_stats.curchunks);
 			}
 
+			/* Print chunk stats. */
+			malloc_printf("\nhuge:\n");
+			malloc_printf("%12s %12s %12s\n",
+			    "nmalloc", "ndalloc", "allocated");
+			malloc_printf("%12llu %12llu %12zu\n",
+			    huge_nmalloc, huge_ndalloc, huge_allocated);
+
 			/* Print stats for each arena. */
-			for (i = 0, narenas_used = 0; i < narenas; i++) {
+			for (i = 0; i < narenas; i++) {
 				arena = arenas[i];
 				if (arena != NULL) {
-					narenas_used++;
 					malloc_printf(
 					    "\narenas[%u] statistics:\n", i);
 					malloc_mutex_lock(&arena->mtx);
-					stats_print(&arena->stats);
+					stats_print(arena);
 					malloc_mutex_unlock(&arena->mtx);
 				} else {
 					malloc_printf("\narenas[%u] statistics:"
 					    " unused arena\n", i);
 				}
-			}
-
-			/*
-			 * Only print merged stats if multiple arenas were
-			 * used.
-			 */
-			if (narenas_used > 1) {
-				/* Merge arena stats from arenas. */
-				memset(&stats_arenas, 0, sizeof(arena_stats_t));
-				for (i = 0; i < narenas; i++) {
-					arena = arenas[i];
-					if (arena != NULL) {
-						malloc_mutex_lock(&arena->mtx);
-						stats_merge(arena,
-						    &stats_arenas);
-						malloc_mutex_unlock(
-						    &arena->mtx);
-					}
-				}
-
-				/* Print arena stats. */
-				malloc_printf("\nMerged arena statistics:\n");
-				stats_print(&stats_arenas);
 			}
 		}
 #endif /* #ifdef MALLOC_STATS */
@@ -4225,7 +2760,7 @@ malloc_print_stats(void)
  * since otherwise choose_arena() has no way to know whether it's safe
  * to call _pthread_self().
  */
-static __inline bool
+static inline bool
 malloc_init(void)
 {
 
@@ -4270,6 +2805,13 @@ malloc_init_hard(void)
 		result = sysconf(_SC_PAGESIZE);
 		assert(result != -1);
 		pagesize = (unsigned) result;
+
+		/*
+		 * We assume that pagesize is a power of 2 when calculating
+		 * pagesize_2pow.
+		 */
+		assert(((result - 1) & result) == 0);
+		pagesize_2pow = ffs(result) - 1;
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -4329,15 +2871,11 @@ malloc_init_hard(void)
 			case 'A':
 				opt_abort = true;
 				break;
-			case 'c':
-				opt_ndelay >>= 1;
-				if (opt_ndelay == 0)
-					opt_ndelay = 1;
+			case 'h':
+				opt_hint = false;
 				break;
-			case 'C':
-				opt_ndelay <<= 1;
-				if (opt_ndelay == 0)
-					opt_ndelay = 1;
+			case 'H':
+				opt_hint = true;
 				break;
 			case 'j':
 				opt_junk = false;
@@ -4346,7 +2884,12 @@ malloc_init_hard(void)
 				opt_junk = true;
 				break;
 			case 'k':
-				if ((1 << opt_chunk_2pow) > pagesize)
+				/*
+				 * Run fullness quartile limits don't have
+				 * enough resolution if there are too few
+				 * regions for the largest bin size classes.
+				 */
+				if (opt_chunk_2pow > pagesize_2pow + 3)
 					opt_chunk_2pow--;
 				break;
 			case 'K':
@@ -4370,8 +2913,16 @@ malloc_init_hard(void)
 					opt_quantum_2pow--;
 				break;
 			case 'Q':
-				if ((1 << opt_quantum_2pow) < pagesize)
+				if (opt_quantum_2pow < pagesize_2pow - 1)
 					opt_quantum_2pow++;
+				break;
+			case 's':
+				if (opt_small_max_2pow > QUANTUM_2POW_MIN)
+					opt_small_max_2pow--;
+				break;
+			case 'S':
+				if (opt_small_max_2pow < pagesize_2pow - 1)
+					opt_small_max_2pow++;
 				break;
 			case 'u':
 				opt_utrace = false;
@@ -4411,16 +2962,29 @@ malloc_init_hard(void)
 		atexit(malloc_print_stats);
 	}
 
+	/* Set variables according to the value of opt_small_max_2pow. */
+	if (opt_small_max_2pow < opt_quantum_2pow)
+		opt_small_max_2pow = opt_quantum_2pow;
+	small_max = (1 << opt_small_max_2pow);
+
+	/* Set bin-related variables. */
+	bin_maxclass = (pagesize >> 1);
+	ntbins = opt_quantum_2pow - TINY_MIN_2POW;
+	assert(ntbins <= opt_quantum_2pow);
+	nqbins = (small_max >> opt_quantum_2pow);
+	npbins = pagesize_2pow - opt_small_max_2pow - 1;
+
 	/* Set variables according to the value of opt_quantum_2pow. */
 	quantum = (1 << opt_quantum_2pow);
 	quantum_mask = quantum - 1;
-	bin_shift = ((QUANTUM_CEILING(sizeof(region_small_sizer_t))
-	    >> opt_quantum_2pow));
-	bin_maxsize = ((NBINS + bin_shift - 1) * quantum);
+	small_min = (quantum >> 1) + 1;
+	assert(small_min <= quantum);
 
 	/* Set variables according to the value of opt_chunk_2pow. */
 	chunk_size = (1 << opt_chunk_2pow);
 	chunk_size_mask = chunk_size - 1;
+	arena_chunk_maplen = (1 << (opt_chunk_2pow - pagesize_2pow));
+	arena_maxclass = (chunk_size >> 1);
 
 	UTRACE(0, 0, 0);
 
@@ -4429,7 +2993,7 @@ malloc_init_hard(void)
 #endif
 
 	/* Various sanity checks that regard configuration. */
-	assert(quantum >= 2 * sizeof(void *));
+	assert(quantum >= sizeof(void *));
 	assert(quantum <= pagesize);
 	assert(chunk_size >= pagesize);
 	assert(quantum * 4 <= chunk_size);
@@ -4443,8 +3007,9 @@ malloc_init_hard(void)
 	brk_max = (void *)((uintptr_t)brk_base + MAXDSIZ);
 #endif
 #ifdef MALLOC_STATS
+	huge_nmalloc = 0;
+	huge_ndalloc = 0;
 	huge_allocated = 0;
-	huge_total = 0;
 #endif
 	RB_INIT(&old_chunks);
 
@@ -4460,10 +3025,10 @@ malloc_init_hard(void)
 
 	if (ncpus > 1) {
 		/* 
-		 * For SMP systems, create twice as many arenas as there are
-		 * CPUs by default.
+		 * For SMP systems, create four times as many arenas as there
+		 * are CPUs by default.
 		 */
-		opt_narenas_lshift++;
+		opt_narenas_lshift += 2;
 	}
 
 	/* Determine how many arenas to use. */
@@ -4527,7 +3092,7 @@ malloc_init_hard(void)
 }
 
 /*
- * End library-internal functions.
+ * End general internal functions.
  */
 /******************************************************************************/
 /*
@@ -4651,7 +3216,7 @@ calloc(size_t num, size_t size)
 
 	arena = choose_arena();
 	if (arena != NULL)
-		ret = icalloc(arena, num, size);
+		ret = icalloc(arena, num * size);
 	else
 		ret = NULL;
 
