@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
@@ -38,7 +40,7 @@ SRCS+=		inet_pton.c \
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/nothreads/include
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
 
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/assertions.h \
 		${SRCDIR}/include/isc/base64.h \

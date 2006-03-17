@@ -1,6 +1,8 @@
 # Makefile for libpcap
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	pcap
 SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \
 	pcap.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
@@ -15,7 +17,7 @@ LFLAGS+=-Ppcapyy
 CFLAGS+=-DHAVE_CONFIG_H -Dyylval=pcapyylval -I${.CURDIR} -I.
 CFLAGS+=-D_U_="__attribute__((unused))"
 CFLAGS+=-DHAVE_SNPRINTF -DHAVE_VSNPRINTF
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
 

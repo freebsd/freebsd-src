@@ -1,8 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	newkey
 SRCS=	newkey.c generic.c update.c
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 CFLAGS+= -DYP
 .endif
 MAN=	newkey.8

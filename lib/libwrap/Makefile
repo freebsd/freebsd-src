@@ -2,6 +2,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 LIB=	wrap
 SHLIB_MAJOR= 4
 INCS=	tcpd.h
@@ -17,10 +19,10 @@ CFLAGS+=-DFACILITY=LOG_AUTH -DHOSTS_ACCESS -DNETGROUP -DDAEMON_UMASK=022 \
 	-DSEVERITY=LOG_INFO -DRFC931_TIMEOUT=10 \
 	-DHOSTS_DENY=\"/etc/hosts.deny\" -DHOSTS_ALLOW=\"/etc/hosts.allow\" \
 	-DSYS_ERRLIST_DEFINED -DALWAYS_HOSTNAME -DUSE_STRSEP -DPROCESS_OPTIONS
-.if defined(NO_NIS)
+.if ${MK_NIS} == "no"
 CFLAGS+= -DUSE_GETDOMAIN
 .endif
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
 

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR= bc \
 	${_binutils} \
 	${_cc} \
@@ -23,38 +25,38 @@ SUBDIR= bc \
 	${_texinfo}
  
 .if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
-NO_GDB=	# not yet
+MK_GDB=	no	# not yet
 .endif
 
-.if !defined(NO_CXX)
+.if ${MK_CXX} != "no"
 .if ${MACHINE_ARCH} != "powerpc"
 _gperf=		gperf
 .endif
-.if !defined(NO_GROFF)
+.if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
 .endif
 
-.if !defined(NO_CVS)
+.if ${MK_CVS} != "no"
 _cvs=		cvs
 .endif
 
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 _man=		man
 .endif
 
-.if !defined(NO_INFO)
+.if ${MK_INFO} != "no"
 _texinfo=	texinfo
 .endif
 
-.if !defined(NO_TOOLCHAIN)
+.if ${MK_TOOLCHAIN} != "no"
 _binutils=	binutils
 _cc=		cc
-.if !defined(NO_GDB)
+.if ${MK_GDB} != "no"
 _gdb=		gdb
 .endif
 .endif
-.if !defined(NO_RCS)
+.if ${MK_RCS} != "no"
 _rcs=		rcs
 .endif
 

@@ -46,7 +46,7 @@
 
    Note that we don't want to configure OpenSSH for Kerberos using
    configure since we have to be able to turn it on or off depending
-   on the value of NO_KERBEROS.  Our Makefiles take care of this.
+   on the value of MK_KERBEROS.  Our Makefiles take care of this.
 
 8) Commit the resulting config.h.  Make sure you don't accidentally
    commit any other files created by autoconf, autoheader or

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/telnet
 
@@ -27,12 +29,12 @@ CFLAGS+=	-DHAS_CGETENT
 .endif
 
 .if !defined(RELEASE_CRUNCH)
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c 
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DIPSEC
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
 LDADD+=		-lmp -lcrypto -lcrypt -lipsec ${MINUSLPAM}
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
 LDADD+=		-lkrb5 -lasn1 -lcom_err -lroken

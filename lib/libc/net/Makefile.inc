@@ -115,7 +115,7 @@ MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 ns_get16.3 resolver.3 ns_get32.3 \
 	resolver.3 ns_put16.3 resolver.3 ns_put32.3
 
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD} != "no"
 SRCS+=	hesiod.c 
 MAN+=	hesiod.3
 .endif

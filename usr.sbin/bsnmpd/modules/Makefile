@@ -1,8 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 
-.if !defined(NO_ATM)
+.if ${MK_ATM} != "no"
 _snmp_atm= snmp_atm
 .endif
 

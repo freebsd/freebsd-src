@@ -2,20 +2,10 @@
 # $FreeBSD$
 #
 # Make command line options:
-#	-DNO_DYNAMICROOT do not link /bin and /sbin dynamically
-#	-DNO_KERBEROS Do not build Heimdal (Kerberos 5)
-#	-DNO_RESCUE do not build rescue binaries
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
-#	-DNO_CRYPT will prevent building of crypt versions
-#	-DNO_MAN do not build the manual pages
-#	-DNO_NLS do not build Native Language Support files
 #	-DNO_PROFILE do not build profiled libraries
-#	-DNO_GAMES do not go into games subdir
 #	-DNO_SHARE do not go into share subdir
-#	-DNO_INFO do not make or install info files
-#	-DNO_LIBC_R do not build libc_r.
-#	-DNO_FORTRAN do not build g77 and related libraries.
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
@@ -34,6 +24,8 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
+.include <bsd.own.mk>
+
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
 # grow dependencies on include and lib than vice versa.
@@ -46,18 +38,18 @@
 # We must do etc last for install/distribute to work.
 #
 SUBDIR=	share/info include lib libexec bin
-.if !defined(NO_GAMES)
+.if ${MK_GAMES} != "no"
 SUBDIR+=games
 .endif
 SUBDIR+=gnu
-.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_KERBEROS} != "no"
 SUBDIR+=kerberos5
 .endif
-.if !defined(NO_RESCUE)
+.if ${MK_RESCUE} != "no"
 SUBDIR+=rescue
 .endif
 SUBDIR+=sbin
-.if !defined(NO_CRYPT)
+.if ${MK_CRYPT} != "no"
 SUBDIR+=secure
 .endif
 .if !defined(NO_SHARE)
@@ -186,8 +178,9 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		-DNO_HTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_NLS -DNO_PIC \
-		-DNO_PROFILE -DNO_SHARED -DNO_CPU_CFLAGS -DNO_WARNS
+		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
+		-DWITHOUT_NLS -DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		-DNO_CPU_CFLAGS -DNO_WARNS
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -196,7 +189,8 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS
 
 # cross-tools stage
-XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} -DNO_FORTRAN -DNO_GDB
+XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
+		-DWITHOUT_FORTRAN -DWITHOUT_GDB
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -241,7 +235,8 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNO_MAN -DNO_NLS -DNO_INFO -DNO_HTML
+		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_INFO \
+		-DWITHOUT_HTML
 LIB32IMAKE=	${LIB32MAKE:NINSTALL=*} -DNO_INCS
 .endif
 
@@ -318,7 +313,7 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if defined(WITH_BIND_LIBS) && !defined(NO_BIND)
+.if ${MK_BIND_LIBS} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 .endif
@@ -375,8 +370,8 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNO_FSCHG -DNO_HTML -DNO_INFO -DNO_LINT -DNO_MAN \
-	    -DNO_NLS -DNO_PROFILE libraries
+	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
+	    -DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -405,7 +400,7 @@ build32:
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= ${_t}
@@ -418,11 +413,11 @@ build32:
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 	cd ${.CURDIR}/gnu/lib; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
-.if !defined(NO_CRYPT)
+.if ${MK_CRYPT} != "no"
 	cd ${.CURDIR}/secure/lib; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
-.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/kerberos5/lib; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
@@ -450,7 +445,7 @@ distribute32 install32:
 .endif
 	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 	cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
-.if !defined(NO_CRYPT)
+.if ${MK_CRYPT} != "no"
 	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
@@ -507,11 +502,11 @@ installcheck_DESTDIR:
 #
 CHECK_UIDS=
 CHECK_GIDS=	audit
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 CHECK_UIDS+=	smmsp
 CHECK_GIDS+=	smmsp
 .endif
-.if !defined(NO_PF)
+.if ${MK_PF} != "no"
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
@@ -782,11 +777,11 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
-.if !defined(NO_GAMES)
+.if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
 .endif
 
-.if !defined(NO_CXX)
+.if ${MK_CXX} != "no"
 _gperf=		gnu/usr.bin/gperf
 .if ${BOOTSTRAPPING} < 700004
 _groff=		gnu/usr.bin/groff
@@ -815,7 +810,7 @@ _gencat=	usr.bin/gencat
 _mklocale=	usr.bin/mklocale
 .endif
 
-.if !defined(NO_RESCUE) && \
+.if ${MK_RESCUE} != "no" && \
     ${BOOTSTRAPPING} < 600008
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
@@ -865,11 +860,11 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_KERBEROS} != "no"
 _kerberos5_tools= kerberos5/tools
 .endif
 
-.if !defined(NO_RESCUE)
+.if ${MK_RESCUE} != "no"
 _rescue= rescue/rescue
 .endif
 
@@ -906,7 +901,7 @@ build-tools:
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
-.if !defined(NO_RESCUE) || defined(RELEASEDIR)
+.if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
 .if ${TARGET_ARCH} == "alpha"
@@ -969,7 +964,7 @@ _prebuild_libs=
 
 _generic_libs=	gnu/lib
 
-.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_KERBEROS} != "no"
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libkrb5
 _prebuild_libs+=	kerberos5/lib/libroken
@@ -987,14 +982,14 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
 _generic_libs+=	lib
 
-.if !defined(NO_CRYPT)
-.if !defined(NO_OPENSSL)
+.if ${MK_CRYPT} != "no"
+.if ${MK_OPENSSL} != "no"
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS} != "no"
 secure/lib/libssh__L: lib/libgssapi__L
 .endif
 .endif
@@ -1002,11 +997,11 @@ secure/lib/libssh__L: lib/libgssapi__L
 _generic_libs+=	secure/lib
 .endif
 
-.if defined(NO_CRYPT) || defined(NO_OPENSSL)
+.if ${MK_OPENSSL} == "no"
 lib/libradius__L: lib/libmd__L
 .endif
 
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 _prebuild_libs+=	lib/libypclnt
 .endif
 

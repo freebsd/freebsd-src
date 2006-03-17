@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR= lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on crypto, but not Kerberos.
@@ -7,7 +9,7 @@ SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\
 	bin/ed libexec/telnetd usr.bin/fetch usr.bin/telnet	\
 	usr.sbin/pkg_install usr.sbin/ppp usr.sbin/pppd		\
 	usr.sbin/tcpdump/tcpdump
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 SPROGS+=usr.sbin/sendmail
 .endif
 
@@ -26,11 +28,11 @@ secure:
 insecure:
 .for entry in ${SPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} -DNO_CRYPT cleandir; \
-	${MAKE} -DNO_CRYPT obj; \
-	${MAKE} -DNO_CRYPT depend; \
-	${MAKE} -DNO_CRYPT all; \
-	${MAKE} -DNO_CRYPT install
+	${MAKE} -DWITHOUT_CRYPT cleandir; \
+	${MAKE} -DWITHOUT_CRYPT obj; \
+	${MAKE} -DWITHOUT_CRYPT depend; \
+	${MAKE} -DWITHOUT_CRYPT all; \
+	${MAKE} -DWITHOUT_CRYPT install
 .endfor
 
 .include <bsd.subdir.mk>

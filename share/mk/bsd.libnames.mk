@@ -15,7 +15,7 @@ LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBBEGEMOT?=	${DESTDIR}${LIBDIR}/libbegemot.a
-.if !defined(NO_BIND) && defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 LIBBIND?=	${DESTDIR}${LIBDIR}/libbind.a
 LIBBIND9?=	${DESTDIR}${LIBDIR}/libbind9.a
 .endif
@@ -54,7 +54,7 @@ LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
-.if !defined(NO_BIND) && defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBISCCC?=	${DESTDIR}${LIBDIR}/libisccc.a
 LIBISCCFG?=	${DESTDIR}${LIBDIR}/libisccfg.a
@@ -68,7 +68,7 @@ LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 LIBLN?=		"don't use LIBLN, use LIBL"
-.if !defined(NO_BIND)
+.if ${MK_BIND} != "no"
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
 .endif
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
@@ -76,7 +76,7 @@ LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
 .endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
@@ -93,7 +93,7 @@ LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_KERBEROS} != "no"
 LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBROKEN} ${LIBCOM_ERR}
 MINUSLPAM+=	-lkrb5 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
@@ -102,11 +102,11 @@ LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
 		${LIBUTIL} ${LIBOPIE} ${LIBMD}
 MINUSLPAM+=	-lradius -ltacplus -lcrypt \
 		-lutil -lopie -lmd
-.if !defined(NO_OPENSSH) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSH} != "no"
 LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
 MINUSLPAM+=	-lssh -lcrypto -lcrypt
 .endif
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 LIBPAM+=	${LIBYPCLNT}
 MINUSLPAM+=	-lypclnt
 .endif

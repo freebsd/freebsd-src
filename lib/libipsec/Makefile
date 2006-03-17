@@ -27,12 +27,14 @@
 #
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	ipsec
 SHLIBDIR?= /lib
 SHLIB_MAJOR= 2
 CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=-DIPSEC_DEBUG -DIPSEC
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
 

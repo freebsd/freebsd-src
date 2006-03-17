@@ -1,11 +1,15 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
 # Moved to secure: bdes
 #
+
+.include <bsd.own.mk>
 
 SUBDIR=	alias \
 	apply \
@@ -232,59 +236,59 @@ SUBDIR=	alias \
 _truss=		truss
 .endif
 
-.if !defined(NO_ATM)
+.if ${MK_ATM} != "no"
 _atm=		atm
 .endif
 
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 _catman=	catman
 .endif
 
-.if !defined(NO_BIND) && !defined(NO_BIND_UTILS)
+.if ${MK_BIND_UTILS} != "no"
 _dig=		dig
 _host=		host
 _nslookup=	nslookup
 _nsupdate=	nsupdate
 .endif
 
-.if !defined(NO_BLUETOOTH)
+.if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth
 .endif
 
-.if !defined(NO_CALENDAR)
+.if ${MK_CALENDAR} != "no"
 _calendar=	calendar
 .endif
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
 _csup=		csup
 .endif
 
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD} != "no"
 _hesinfo=	hesinfo
 .endif
 
-.if !defined(NO_NETCAT)
+.if ${MK_NETCAT} != "no"
 _nc=		nc
 .endif
 
-.if !defined(NO_NIS) 
+.if ${MK_NIS} != "no"
 _ypcat=		ypcat
 _ypmatch=	ypmatch
 _ypwhich=	ypwhich
 .endif
 
-.if !defined(NO_RCMDS)
+.if ${MK_RCMDS} != "no"
 _rlogin=	rlogin
 _rsh=		rsh
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _vacation=	vacation
 .endif
 
-.if !defined(NO_TOOLCHAIN)
+.if ${MK_TOOLCHAIN} != "no"
 _c89=		c89
 _c99=		c99
 _gprof=		gprof
@@ -293,7 +297,7 @@ _xlint=		xlint
 _yacc=		yacc
 .endif
 
-.if !defined(NO_USB)
+.if ${MK_USB} != "no"
 _usbhidaction=	usbhidaction
 _usbhidctl=	usbhidctl
 .endif

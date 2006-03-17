@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
@@ -40,7 +42,7 @@ CFLAGS+=	-I${.CURDIR}
 DPADD=		${CRYPTO_DPADD}
 LDADD=		${CRYPTO_LDADD}
 
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 DNSINCS=	${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/adb.h \
 		${SRCDIR}/include/dns/bit.h \

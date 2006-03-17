@@ -1,7 +1,9 @@
 # Makefile for dialog
 # $FreeBSD$
 
-.if !defined (NO_EXAMPLES)
+.include <bsd.own.mk>
+
+.if ${MK_EXAMPLES} != "no"
 SUBDIR=	TESTS
 .endif
 

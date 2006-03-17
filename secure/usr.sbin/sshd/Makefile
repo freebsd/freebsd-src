@@ -1,6 +1,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	sshpty.c sshlogin.c servconf.c serverloop.c \
@@ -23,13 +25,13 @@ CFLAGS+=-I${SSHDIR}
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
 LDADD=	-lssh -lutil -lz -lwrap ${MINUSLPAM}
 
-.if !defined(NO_AUDIT)
+.if ${MK_AUDIT} != "no"
 CFLAGS+= -DUSE_BSM_AUDIT
 DPADD+=  ${LIBBSM}
 LDADD+=  -lbsm
 .endif
 
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
 DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
 LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lroken

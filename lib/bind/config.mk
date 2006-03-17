@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # BIND version number
 .if defined(BIND_DIR) && exists(${BIND_DIR}/version)
 .include	"${BIND_DIR}/version"
@@ -15,7 +17,7 @@ CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-DLIBINTERFACE=${LIBINTERFACE}
 CFLAGS+=	-DLIBREVISION=${LIBREVISION}
 CFLAGS+=	-DLIBAGE=${LIBAGE}
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 SHLIB_MAJOR=	${LIBINTERFACE}
 SHLIB_MINOR=	${LIBINTERFACE}
 .else
@@ -24,17 +26,17 @@ INTERNALLIB=
 .endif
 
 # GSSAPI support is incomplete in 9.3.0
-#.if !defined(NO_KERBEROS)
+#.if ${MK_KERBEROS} != "no"
 #CFLAGS+=	-DGSSAPI
 #.endif
 
 # Enable IPv6 support if available
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=	-DWANT_IPV6
 .endif
 
 # Enable crypto if available
-.if !defined(NO_CRYPT)
+.if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DOPENSSL
 .endif
 
@@ -61,7 +63,7 @@ CFLAGS+=	-I${LIB_BIND_DIR}
 .endif
 
 # Link against BIND libraries
-.if !defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} == "no"
 LIBBIND9=	${LIB_BIND_REL}/bind9/libbind9.a
 CFLAGS+=	-I${BIND_DIR}/lib/bind9/include
 LIBDNS=		${LIB_BIND_REL}/dns/libdns.a
@@ -84,14 +86,14 @@ CFLAGS+=	-I${BIND_DIR}/lib/lwres/unix/include \
 .endif
 BIND_DPADD=	${LIBBIND9} ${LIBDNS} ${LIBISCCC} ${LIBISCCFG} \
 		${LIBISC} ${LIBLWRES}
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
 .else
 BIND_LDADD=	${BIND_DPADD}
 .endif
 
 # Link against crypto library
-.if !defined(NO_CRYPT)
+.if ${MK_OPENSSL} != "no"
 CRYPTO_DPADD=	${LIBCRYPTO}
 CRYPTO_LDADD=	-lcrypto
 .endif

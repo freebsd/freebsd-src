@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	concat
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 SUBDIR+=eli
 .endif
 SUBDIR+=label

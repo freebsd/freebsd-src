@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 MAN=		assert.3 \
 		bitstring.3 \
 		end.3 \
@@ -144,7 +146,7 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 SPLAY_RIGHT.3 \
 		tree.3 SPLAY_ROOT.3
 
-.if !defined(NO_LIBC_R) || !defined(NO_LIBPTHREAD) || !defined(NO_LIBTHR)
+.if ${MK_LIBC_R} != "no" || ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
 PTHREAD_MAN=	pthread.3 \
 		pthread_atfork.3 \
 		pthread_attr.3 \

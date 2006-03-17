@@ -4,7 +4,7 @@
 .error bsd.incs.mk cannot be included directly.
 .endif
 
-.if !defined(NO_INCS) && !defined(NO_TOOLCHAIN)
+.if !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"
 
 INCSGROUPS?=	INCS
 
@@ -81,4 +81,4 @@ installincludes:
 realinstall: installincludes
 .ORDER: beforeinstall installincludes
 
-.endif # !defined(NO_INCS) && !defined(NO_TOOLCHAIN)
+.endif # !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"

@@ -1,9 +1,11 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR= 
-.if !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 SUBDIR+=libcrypto libssl
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 SUBDIR+=libssh
 .endif
 .endif

@@ -21,11 +21,11 @@ kerberize:
 dekerberize:
 .for entry in ${KPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} -DNO_KERBEROS cleandir; \
-	${MAKE} -DNO_KERBEROS obj; \
-	${MAKE} -DNO_KERBEROS depend; \
-	${MAKE} -DNO_KERBEROS all; \
-	${MAKE} -DNO_KERBEROS install
+	${MAKE} -DWITHOUT_KERBEROS cleandir; \
+	${MAKE} -DWITHOUT_KERBEROS obj; \
+	${MAKE} -DWITHOUT_KERBEROS depend; \
+	${MAKE} -DWITHOUT_KERBEROS all; \
+	${MAKE} -DWITHOUT_KERBEROS install
 .endfor
 
 .include <bsd.subdir.mk>

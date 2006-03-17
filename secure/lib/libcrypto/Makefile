@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=		crypto
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	4
@@ -164,7 +166,7 @@ SRCS+=	hmac.c
 INCS+=	hmac.h
 
 # idea
-.if defined(MAKE_IDEA)
+.if ${MK_IDEA} != "no"
 SRCS+=	i_cbc.c i_cfb64.c i_ecb.c i_ofb64.c i_skey.c
 INCS+=	idea.h
 .endif
@@ -313,7 +315,7 @@ opensslconf.h: opensslconf-${MACHINE_ARCH}.h
 	cp ${.ALLSRC} ${.TARGET}
 
 evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
-.if !defined(MAKE_IDEA)
+.if ${MK_IDEA} == "no"
 	sed '/^#ifndef OPENSSL_NO_IDEA$$/,/^#endif$$/d' ${.ALLSRC} > ${.TARGET}
 .else
 	cp ${.ALLSRC} ${.TARGET}
@@ -344,7 +346,7 @@ afterinstall:
 _bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
 
-.if defined(MAKE_IDEA)
+.if ${MK_IDEA} != "no"
 _ideapath=	${LCRYPTO_SRC}/crypto/idea
 .endif
 

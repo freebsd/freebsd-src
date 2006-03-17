@@ -1,6 +1,8 @@
 # Makefile for libdialog
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=    dialog
 INCS=	dialog.h
 MAN=	dialog.3
@@ -20,7 +22,7 @@ CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 DPADD=	${LIBNCURSES}
 LDADD=	-lncurses
 
-.if !defined(NO_HTML)
+.if ${MK_HTML} != "no"
 FILES=	${EXAMPLES:C;^;${.CURDIR}/TESTS/;}
 FILESDIR= ${SHAREDIR}/examples/libdialog
 .endif

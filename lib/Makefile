@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
 #
@@ -44,16 +46,16 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
-.if !defined(NO_ATM)
+.if ${MK_ATM} != "no"
 _libatm=	libatm
 _libngatm=	libngatm
 .endif
 
-.if !defined(NO_BIND)
+.if ${MK_BIND} != "no"
 _bind=		bind
 .endif
 
-.if !defined(NO_BLUETOOTH)
+.if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
 .endif
@@ -65,7 +67,7 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
-    ${MACHINE_ARCH} != "powerpc" && !defined(NO_LIBC_R)
+    ${MACHINE_ARCH} != "powerpc" && ${MK_LIBC_R} != "no"
 _libc_r=
 .endif
 
@@ -73,14 +75,14 @@ _libc_r=
 _libio=		libio
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _libmilter=	libmilter
 _libsm=		libsm
 _libsmdb=	libsmdb
 _libsmutil=	libsmutil
 .endif
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif
 
@@ -93,11 +95,11 @@ _libsmb=	libsmb
 _libsmb=	libsmb
 .endif
 
-.if !defined(NO_LIBPTHREAD)
+.if ${MK_LIBPTHREAD} != "no"
 _libpthread=	libpthread
 .endif
 
-.if !defined(NO_LIBTHR)
+.if ${MK_LIBTHR} != "no"
 _libthr= libthr
 .endif
 
@@ -105,15 +107,15 @@ _libthr= libthr
 _libthread_db= libthread_db
 .endif
 
-.if !defined(NO_USB)
+.if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 .endif
 
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 _libypclnt=	libypclnt
 .endif
 
-.if !defined(NO_GPIB)
+.if ${MK_GPIB} != "no"
 _libgpib=	libgpib
 .endif
 

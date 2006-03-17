@@ -1,6 +1,8 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/10/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # The following modules do not describe FreeBSD:
 # 14.uucpimpl, 15.uucpnet
 
@@ -24,7 +26,7 @@ SUBDIR=	title \
 	12.timed \
 	18.net
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _08.sendmailop=	08.sendmailop 
 .endif
 
