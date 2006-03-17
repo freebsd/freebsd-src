@@ -28,7 +28,7 @@
 '\"
 '\" $Begemot: libbegemot/rpoll.man,v 1.4 2004/09/21 15:59:00 brandt Exp $
 '\"
-.TH rpoll l "21 Oct 1996" "BEGEMOT" "BEGEMOT Library"
+.TH rpoll 3 "21 Oct 1996" "BEGEMOT" "BEGEMOT Library"
 .SH NAME
 rpoll - callback functions for file descriptors and timers
 .SH SYNOPSIS
@@ -81,11 +81,11 @@ is the file descriptor to watch,
 is an event mask.
 It may be any combination of
 .B POLL_IN
-to get informed, when input on the file descriptor is possible,
+to get informed when input on the file descriptor is possible,
 .B POLL_OUT
-to get informed, when output is possible or
+to get informed when output is possible or
 .B POLL_EXCEPT
-to get informed, when an exceptional condition occures.
+to get informed when an exceptional condition occures.
 An example of an exceptional condition is the arrival of urgent data.
 (Note, that an end of file condition is signaled via POLL_IN).
 .I func
