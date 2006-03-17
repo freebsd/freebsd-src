@@ -115,6 +115,7 @@ static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
+static int	nfs3_jukebox_delay = 10;
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -123,6 +124,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0,
 SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "number of times the nfs client has had to reconnect");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
+    "number of seconds to delay a retry after receiving EJUKEBOX");
 
 
 /*
@@ -907,9 +910,6 @@ nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag)
  *	  by mrep or error
  * nb: always frees up mreq mbuf list
  */
-/* XXX overloaded before */
-#define	NQ_TRYLATERDEL	15	/* Initial try later delay (sec) */
-
 int
 nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
     struct thread *td, struct ucred *cred, struct mbuf **mrp,
@@ -924,7 +924,6 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	time_t waituntil;
 	caddr_t dpos;
 	int s, error = 0, mrest_len, auth_len, auth_type;
-	int trylater_delay = NQ_TRYLATERDEL, trylater_cnt = 0;
 	struct timeval now;
 	u_int32_t *xidp;
 
@@ -1123,13 +1122,10 @@ tryagain:
 				error == NFSERR_TRYLATER) {
 				m_freem(mrep);
 				error = 0;
-				waituntil = time_second + trylater_delay;
+				waituntil = time_second + nfs3_jukebox_delay;
 				while (time_second < waituntil)
 					(void) tsleep(&lbolt,
 						PSOCK, "nqnfstry", 0);
-				trylater_delay *= nfs_backoff[trylater_cnt];
-				if (trylater_cnt < NFS_NBACKOFF - 1)
-					trylater_cnt++;
 				if (++nfs_xid == 0)
 					nfs_xid++;
 				rep->r_xid = *xidp = txdr_unsigned(nfs_xid);
