@@ -352,8 +352,6 @@ _ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
 _io=		io
-_ipw=		ipw
-_iwi=		iwi
 _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
@@ -405,6 +403,8 @@ _idt=		idt
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
+_ipw=		ipw
+_iwi=		iwi
 _mly=		mly
 _nve=		nve
 .if !defined(NO_CRYPT) || defined(ALL_MODULES)
