@@ -614,6 +614,7 @@ swi_remove(void *cookie)
 }
 
 /* ABI compatibility shim. */
+#undef ithread_remove_handler
 int	ithread_remove_handler(void *);
 
 int
