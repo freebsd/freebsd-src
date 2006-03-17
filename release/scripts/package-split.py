@@ -57,8 +57,6 @@ def disc2_packages():
             'devel/gmake',
             'editors/emacs',
             'editors/vim',
-            'editors/vim-lite',
-            'editors/xemacs',
             'emulators/mtools',
             'graphics/png',
             'graphics/xv',
@@ -70,7 +68,6 @@ def disc2_packages():
             'mail/popd',
             'mail/xfmail',
             'mail/postfix',
-            'net/cvsup',
             'net/cvsup-without-gui',
             'net/rsync',
             'net/samba',
@@ -92,9 +89,6 @@ def disc2_packages():
             'x11/rxvt',
             # Formerly on disc3
             'security/portaudit'])
-    if arch == 'i386':
-        pkgs.extend(['comms/ltmdm',
-                     'www/opera'])
     return pkgs
 
 # The list of desired packages
