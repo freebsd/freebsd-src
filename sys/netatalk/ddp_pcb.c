@@ -302,12 +302,11 @@ at_pcbdetach(struct socket *so, struct ddpcb *ddp)
      */
     DDP_LIST_XLOCK_ASSERT();
     DDP_LOCK_ASSERT(ddp);
+    KASSERT(so->so_pcb != NULL, ("at_pcbdetach: so_pcb == NULL"));
 
+    /* XXXRW: Why bother to disconnect it now? */
     soisdisconnected(so);
-    ACCEPT_LOCK();
-    SOCK_LOCK(so);
     so->so_pcb = NULL;
-    sotryfree(so);
 
     /* remove ddp from ddp_ports list */
     if (ddp->ddp_lsat.sat_port != ATADDR_ANYPORT &&
