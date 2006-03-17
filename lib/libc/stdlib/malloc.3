@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2006
+.Dd March 9, 2006
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -136,9 +136,11 @@ no action occurs.
 .Sh TUNING
 Once, when the first call is made to one of these memory allocation
 routines, various flags will be set or reset, which affect the
-workings of this allocation implementation.
+workings of this allocator implementation.
 .Pp
-The ``name'' of the file referenced by the symbolic link named
+The
+.Dq name
+of the file referenced by the symbolic link named
 .Pa /etc/malloc.conf ,
 the value of the environment variable
 .Ev MALLOC_OPTIONS ,
@@ -156,10 +158,15 @@ flags being set) become fatal.
 The process will call
 .Xr abort 3
 in these cases.
-.It C
-Increase/decrease the size of the cache by a factor of two.
-The default cache size is 256 objects for each arena.
-This option can be specified multiple times.
+.It H
+Use 
+.Xr madvise 2
+when pages within a chunk are no longer in use, but the chunk as a whole cannot
+yet be deallocated.
+This is primarily of use when swapping is a real possibility, due to the high
+overhead of the
+.Fn madvise
+system call.
 .It J
 Each byte of new memory allocated by
 .Fn malloc ,
@@ -176,12 +183,12 @@ will be initialized to 0x5a.
 This is intended for debugging and will impact performance negatively.
 .It K
 Increase/decrease the virtual memory chunk size by a factor of two.
-The default chunk size is 16 MB.
+The default chunk size is 2 MB.
 This option can be specified multiple times.
 .It N
 Increase/decrease the number of arenas by a factor of two.
-The default number of arenas is twice the number of CPUs, or one if there is a
-single CPU.
+The default number of arenas is four times the number of CPUs, or one if there
+is a single CPU.
 This option can be specified multiple times.
 .It P
 Various statistics are printed at program exit via an
@@ -195,6 +202,12 @@ as a performance tuning aid during application development.
 Increase/decrease the size of the allocation quantum by a factor of two.
 The default quantum is the minimum allowed by the architecture (typically 8 or
 16 bytes).
+This option can be specified multiple times.
+.It S
+Increase/decrease the size of the maximum size class that is a multiple of the
+quantum by a factor of two.
+Above this size, power-of-two spacing is used for size classes.
+The default value is 512 bytes.
 This option can be specified multiple times.
 .It U
 Generate
@@ -299,47 +312,35 @@ improve performance, mainly due to reduced cache performance.
 However, it may make sense to reduce the number of arenas if an application
 does not make much use of the allocation functions.
 .Pp
-This allocator uses a novel approach to object caching.
-For objects below a size threshold (use the
-.Dq P
-option to discover the threshold), full deallocation and attempted coalescence
-with adjacent memory regions are delayed.
-This is so that if the application requests an allocation of that size soon
-thereafter, the request can be met much more quickly.
-Most applications heavily use a small number of object sizes, so this caching
-has the potential to have a large positive performance impact.
-However, the effectiveness of the cache depends on the cache being large enough
-to absorb typical fluctuations in the number of allocated objects.
-If an application routinely fluctuates by thousands of objects, then it may
-make sense to increase the size of the cache.
-Conversely, if an application's memory usage fluctuates very little, it may
-make sense to reduce the size of the cache, so that unused regions can be
-coalesced sooner.
-.Pp
-This allocator is very aggressive about tightly packing objects in memory, even
-for objects much larger than the system page size.
-For programs that allocate objects larger than half the system page size, this
-has the potential to reduce memory footprint in comparison to other allocators.
-However, it has some side effects that are important to keep in mind.
-First, even multi-page objects can start at non-page-aligned addresses, since
-the implementation only guarantees quantum alignment.
-Second, this tight packing of objects can cause objects to share L1 cache
-lines, which can be a performance issue for multi-threaded applications.
-There are two ways to approach these issues.
-First,
-.Fn posix_memalign
-provides the ability to align allocations as needed.
-By aligning an allocation to at least the L1 cache line size, and padding the
-allocation request by one cache line unit, the programmer can rest assured that
-no cache line sharing will occur for the object.
-Second, the
+Chunks manage their pages by using a power-of-two buddy allocation strategy.
+Each chunk maintains a page map that makes it possible to determine the state
+of any page in the chunk in constant time.
+Allocations that are no larger than one half of a page are managed in groups by
+page
+.Dq runs .
+Each run maintains a bitmap that tracks which regions are in use.
+Allocation requests that are no more than half the quantum (see the
 .Dq Q
-option can be used to force all allocations to be aligned with the L1 cache
-lines.
-This approach should be used with care though, because although easy to
-implement, it means that all allocations must be at least as large as the
-quantum, which can cause severe internal fragmentation if the application
-allocates many small objects.
+option) are rounded up to the nearest power of two (typically 2, 4, or 8).
+Allocation requests that are more than half the quantum, but no more than the
+maximum quantum-multiple size class (see the
+.Dq S
+option) are rounded up to the nearest multiple of the quantum.
+Allocation requests that are larger than the maximum quantum-multiple size
+class, but no larger than one half of a page, are rounded up to the nearest
+power of two.
+Allocation requests that are larger than half of a page, but no larger than half
+of a chunk (see the 
+.Dq K
+option), are rounded up to the nearest run size.
+Allocation requests that are larger than half of a chunk are rounded up to the
+nearest multiple of the chunk size.
+.Pp
+Allocations are packed tightly together, which can be an issue for
+multi-threaded applications.
+If you need to assure that allocations do not suffer from cache line sharing,
+round your allocation requests up to the nearest multiple of the cache line
+size.
 .Sh DEBUGGING MALLOC PROBLEMS
 The first thing to do is to set the
 .Dq A
@@ -421,6 +422,7 @@ on calls to these functions:
 _malloc_options = "X";
 .Ed
 .Sh SEE ALSO
+.Xr madvise 2 ,
 .Xr mmap 2 ,
 .Xr alloca 3 ,
 .Xr atexit 3 ,
