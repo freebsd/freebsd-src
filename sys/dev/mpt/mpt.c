@@ -673,7 +673,7 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 	while((req = TAILQ_FIRST(chain)) != NULL) {
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
-
+		TAILQ_REMOVE(chain, req, links);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
