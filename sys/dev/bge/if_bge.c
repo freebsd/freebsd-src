@@ -2542,7 +2542,6 @@ bge_rxeof(sc)
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx) {
 		struct bge_rx_bd	*cur_rx;
 		u_int32_t		rxidx;
-		struct ether_header	*eh;
 		struct mbuf		*m = NULL;
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
@@ -2622,7 +2621,6 @@ bge_rxeof(sc)
 			m->m_data += ETHER_ALIGN;
 		}
 #endif
-		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
