@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LUKEMFTPD=	${.CURDIR}/../../contrib/lukemftpd
 .PATH: ${LUKEMFTPD}/src ${LUKEMFTPD}/libnetbsd
 
@@ -30,7 +32,7 @@ CFLAGS+= -DUSE_OPIE -DLOGIN_CAP
 DPADD+=	${LIBOPIE} ${LIBMD}
 LDADD+=	-lopie -lmd
 
-.if !defined(NO_PAM)
+.if ${MK_PAM_SUPPORT} != "no"
 CFLAGS+= -DUSE_PAM
 DPADD+=	${LIBPAM}
 LDADD+=	${MINUSLPAM}

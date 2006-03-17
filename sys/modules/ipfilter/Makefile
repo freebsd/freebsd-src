@@ -1,5 +1,7 @@
 # $FreeBSD$ 
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../contrib/ipfilter/netinet
 
 KMOD=	ipl
@@ -12,7 +14,7 @@ SRCS+=	opt_bpf.h opt_inet6.h
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > ${.TARGET}
 
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
 .endif

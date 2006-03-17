@@ -1,8 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 FILESDIR=	${SHAREDIR}/doc/ntp
 
-.if !defined(NO_HTML)
+.if ${MK_HTML} != "no"
 FILES=	accopt.html assoc.html audio.html authopt.html build.html \
 	clockopt.html \
 	config.html confopt.html copyright.html debug.html driver1.html \

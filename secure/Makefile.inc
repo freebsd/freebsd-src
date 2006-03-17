@@ -1,15 +1,17 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .if exists(${.CURDIR}/../../lib/libcrypt/obj)
 CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt/obj
 .else
 CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt
 .endif
 
-.if !defined(MAKE_IDEA)
+.if ${MK_IDEA} == "no"
 CFLAGS+= -DNO_IDEA
 .endif
 
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 SSHDIR=		${.CURDIR}/../../../crypto/openssh
 .endif

@@ -3,6 +3,8 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
+.include <bsd.own.mk>
+
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/telnetd
 
@@ -25,12 +27,12 @@ DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}
 
 .if !defined(RELEASE_CRUNCH)
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
 LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
 LDADD+=		-lkrb5 -lasn1 -lroken -lcom_err

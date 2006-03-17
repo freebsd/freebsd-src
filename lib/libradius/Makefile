@@ -24,6 +24,8 @@
 #
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h
@@ -31,7 +33,7 @@ CFLAGS+=	-Wall
 SHLIB_MAJOR=	2
 MAN=		libradius.3 radius.conf.5
 
-.if defined(NO_CRYPT) || defined(NO_OPENSSL)
+.if ${MK_OPENSSL} == "no"
 DPADD=		${LIBMD}
 LDADD=		-lmd
 .else

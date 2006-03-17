@@ -1,7 +1,10 @@
 # $FreeBSD$
 
-PROG=		skiload
 NO_MAN=
+
+.include <bsd.own.mk>
+
+PROG=		skiload
 NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
 STRIP=		# We must not strip skiload at install time.
 
@@ -16,7 +19,7 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
 LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
 CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_ARCH}

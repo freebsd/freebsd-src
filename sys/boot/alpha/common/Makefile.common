@@ -2,6 +2,8 @@
 #
 # Common Alpha loader build rules
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../common
 
 PROG=		${BOOT}.sym
@@ -15,7 +17,7 @@ SRCS+=		dev_net.c
 
 .PATH: ${.CURDIR}/../libalpha
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH

@@ -7,8 +7,10 @@
 #	Portions derived from amd/libamu/Makefile
 #	$NetBSD: Makefile,v 1.8 1998/08/08 22:33:37 christos Exp $
 
+.include <bsd.own.mk>
+
 SRCS=	config_local.h
-.if defined(NO_NIS)
+.if ${MK_NIS} == "no"
 SRCS+=	localconfig.h
 .endif
 CLEANFILES=	${SRCS}
@@ -21,7 +23,7 @@ config_local.h: newvers.sh
 
 localconfig.h:
 	@rm -f ${.TARGET}
-	@echo "/* NIS disabled by NO_NIS make.conf option */" >> ${.TARGET}
+	@echo "/* NIS disabled by WITHOUT_NIS src.conf option */" >> ${.TARGET}
 	@echo "#undef HAVE_MAP_NIS" >> ${.TARGET}
 
 .include <bsd.prog.mk>

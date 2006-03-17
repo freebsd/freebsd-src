@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
@@ -14,7 +16,7 @@ SRCS=		check.c getaddresses.c version.c
 
 CFLAGS+=	-I${SRCDIR}/include
 
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 INCS=		${SRCDIR}/include/bind9/check.h \
 		${SRCDIR}/include/bind9/getaddresses.h \
 		${SRCDIR}/include/bind9/version.h

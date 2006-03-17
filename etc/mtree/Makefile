@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 FILES=	${_BIND.chroot.dist} \
 	${_BIND.include.dist} \
 	BSD.include.dist \
@@ -10,9 +12,9 @@ FILES=	${_BIND.chroot.dist} \
 	BSD.x11-4.dist \
 	BSD.x11.dist
 
-.if !defined(NO_BIND)
+.if ${MK_BIND} != "no"
 _BIND.chroot.dist=	BIND.chroot.dist
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 _BIND.include.dist=	BIND.include.dist
 .endif
 .endif

@@ -1,8 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	lib add create delete info ${_sign} version
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 _sign=	sign
 .endif
 

@@ -2,6 +2,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 # Certain library entries have hard-coded references to
 # /bin, /sbin, etc, that require those entries to be
 # recompiled for use in /rescue.  This Makefile
@@ -30,10 +32,10 @@ CFLAGS+=	-DPOSIX_MISTAKE
 # libc/rpc/Makefile.inc
 CFLAGS+=	-DBROKEN_DES -DPORTMAP -DDES_BUILTIN
 # libc/Makefile
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 CFLAGS+=       -DYP
 .endif
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD} != "no"
 CFLAGS+=       -DHESIOD
 .endif
 CFLAGS+=	-I${.CURDIR}/../../lib/libc/include

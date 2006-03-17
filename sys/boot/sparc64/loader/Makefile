@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=		loader
 NEWVERSWHAT=	"bootstrap loader" sparc64
 INSTALLFLAGS=	-b
@@ -41,7 +43,7 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
 .endif
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/sparc64

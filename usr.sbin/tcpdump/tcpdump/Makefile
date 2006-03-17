@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 .PATH: ${TCPDUMP_DISTDIR}
 
@@ -35,7 +37,7 @@ CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -D_U_="__attribute__((unused))"
 
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	print-ip6.c print-ip6opts.c print-ripng.c print-icmp6.c \
 	print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-mobility.c
 CFLAGS+=	-DINET6
@@ -46,7 +48,7 @@ CFLAGS+=	-DLBL_ALIGN
 
 DPADD=	${LIBL} ${LIBPCAP}
 LDADD=	-ll -lpcap
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl -DHAVE_LIBCRYPTO -DHAVE_RC5_H -DHAVE_CAST_H -DHAVE_OPENSSL_EVP_H

@@ -1,13 +1,15 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/lib/lwres
 
 # Unlike other BIND libs, this should be installed unless the user says NO.
-.if !defined(NO_BIND_LIBS_LWRES)
-WITH_BIND_LIBS=
+.if ${MK_BIND_LIBS_LWRES} != "no"
+MK_BIND_LIBS=	yes
 .endif
 
 .include	"${LIB_BIND_DIR}/config.mk"
@@ -24,7 +26,7 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR}
 
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 MAN=		lwres.3 lwres_buffer.3 lwres_config.3 lwres_context.3 \
 		lwres_gabn.3 lwres_gai_strerror.3 lwres_getaddrinfo.3 \
 		lwres_gethostent.3 lwres_getipnode.3 lwres_getnameinfo.3 \

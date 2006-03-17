@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${CVSDIR}/src
@@ -31,7 +32,7 @@ CFLAGS+= -I${.CURDIR} -I../lib -DHAVE_CONFIG_H -I${CVSDIR}/src \
 DPADD=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
-.if !defined(NO_KERBEROS) && !defined(NO_OPENSSL) && !defined(NO_CRYPT)
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -DHAVE_GSSAPI -DENCRYPTION
 LDADD+= -lgssapi -lkrb5 -lasn1 -lcrypto -lroken -lcrypt -lcom_err
 DPADD+= ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBROKEN}

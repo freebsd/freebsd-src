@@ -1,7 +1,9 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
 # $FreeBSD$
 
-.if !defined(NO_SENDMAIL)
+.include <bsd.own.mk>
+
+.if ${MK_SENDMAIL} != "no"
 SUBDIR=	sendmail
 .endif
 
@@ -29,16 +31,16 @@ BSM_ETC_RESTRICTED_FILES=	${OPENBSMDIR}/etc/audit_control \
 BSM_ETC_EXEC_FILES=		${OPENBSMDIR}/etc/audit_warn
 BSM_ETC_DIR=			${DESTDIR}/etc/security
 
-.if !defined(NO_LPR)
+.if ${MK_LPR} != "no"
 BIN1+=	printcap
 .endif
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
 	${.CURDIR}/../crypto/openssh/moduli
 .endif
+.if ${MK_OPENSSL} != "no"
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 .endif
 
@@ -47,24 +49,24 @@ BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
 .endif
-.if !defined(NO_BIND)
+.if ${MK_BIND} != "no"
 MTREE+=	BIND.chroot.dist
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 MTREE+=	BIND.include.dist
 .endif
 .endif
 
-.if !defined(NO_BIND_ETC) && !defined(NO_BIND)
+.if ${MK_BIND_ETC} != "no"
 NAMEDB=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
 .endif
 
 PPPCNF=	ppp.conf
 
-.if defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
 .else
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
@@ -75,7 +77,7 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 FREEBSD=COPYRIGHT
 
 afterinstall:
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 	cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
 
@@ -125,21 +127,21 @@ distribution:
 	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
-.if !defined(NO_I4B)
+.if ${MK_I4B} != "no"
 	cd ${.CURDIR}/isdn; ${MAKE} install
 .endif
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 	cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
+.if ${MK_OPENSSL} != "no"
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.k5login ${DESTDIR}/root/.k5login;
@@ -156,17 +158,15 @@ distribution:
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-.if !defined(NO_BIND)
-.if !defined(NO_BIND_ETC)
+.if ${MK_BIND_ETC} != "no"
 	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/var/named/etc/namedb
 .endif
-.if !defined(NO_BIND_MTREE)
+.if ${MK_BIND_MTREE} != "no"
 	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
 		set -x; \
 		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
 	fi
-.endif
 .endif
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
@@ -195,17 +195,15 @@ distrib-dirs:
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
-.if !defined(NO_BIND)
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
 	    -p ${DESTDIR}/usr/include
 .endif
-.if !defined(NO_BIND_MTREE)
+.if ${MK_BIND_MTREE} != "no"
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
 	    -p ${DESTDIR}/var/named
 .endif
-.endif
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
