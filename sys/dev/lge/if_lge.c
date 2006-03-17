@@ -546,7 +546,6 @@ lge_attach(dev)
 	ifp->if_start = lge_start;
 	ifp->if_watchdog = lge_watchdog;
 	ifp->if_init = lge_init;
-	ifp->if_baudrate = 1000000000;
 	ifp->if_snd.ifq_maxlen = LGE_TX_LIST_CNT - 1;
 	ifp->if_capabilities = IFCAP_RXCSUM;
 	ifp->if_capenable = ifp->if_capabilities;

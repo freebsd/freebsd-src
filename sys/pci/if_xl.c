@@ -1493,7 +1493,6 @@ xl_attach(device_t dev)
 	ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
-	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, XL_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = XL_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1581,7 +1580,6 @@ xl_attach(device_t dev)
 	if (sc->xl_media & XL_MEDIAOPT_BFX) {
 		if (bootverbose)
 			device_printf(dev, "found 100baseFX\n");
-		ifp->if_baudrate = 100000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_FX, 0, NULL);
 	}
 

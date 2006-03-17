@@ -251,7 +251,6 @@ epic_attach(dev)
 	ifp->if_watchdog = epic_ifwatchdog;
 	ifp->if_init = epic_init;
 	ifp->if_timer = 0;
-	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
 
 	/* Enable busmastering. */
@@ -1210,13 +1209,6 @@ epic_miibus_statchg(dev)
 
 		CSR_WRITE_4(sc, MIICFG, sc->miicfg);
 	}
-
-	/* Update baudrate. */
-	if (IFM_SUBTYPE(media) == IFM_100_TX ||
-	    IFM_SUBTYPE(media) == IFM_100_FX)
-		sc->ifp->if_baudrate = 100000000;
-	else
-		sc->ifp->if_baudrate = 10000000;
 
 	epic_stop_activity(sc);
 	epic_set_tx_mode(sc);
