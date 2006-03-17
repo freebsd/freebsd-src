@@ -774,21 +774,21 @@
 				    const struct timespec *timeout); }
 443	AUE_NULL	MSTD	{ int thr_wake(long id); }
 444	AUE_NULL	MSTD	{ int kldunloadf(int fileid, int flags); }
-445	AUE_NULL	MNOSTD	{ int audit(const void *record, \
+445	AUE_NULL	MSTD	{ int audit(const void *record, \
 				    u_int length); }
-446	AUE_NULL	MNOSTD	{ int auditon(int cmd, void *data, \
+446	AUE_NULL	MSTD	{ int auditon(int cmd, void *data, \
 				    u_int length); }
-447	AUE_NULL	MNOSTD	{ int getauid(uid_t *auid); }
-448	AUE_NULL	MNOSTD	{ int setauid(uid_t *auid); }
-449	AUE_NULL	MNOSTD	{ int getaudit(struct auditinfo *auditinfo); }
-450	AUE_NULL	MNOSTD	{ int setaudit(struct auditinfo *auditinfo); }
-451	AUE_NULL	MNOSTD	{ int getaudit_addr( \
+447	AUE_NULL	MSTD	{ int getauid(uid_t *auid); }
+448	AUE_NULL	MSTD	{ int setauid(uid_t *auid); }
+449	AUE_NULL	MSTD	{ int getaudit(struct auditinfo *auditinfo); }
+450	AUE_NULL	MSTD	{ int setaudit(struct auditinfo *auditinfo); }
+451	AUE_NULL	MSTD	{ int getaudit_addr( \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
-452	AUE_NULL	MNOSTD	{ int setaudit_addr( \
+452	AUE_NULL	MSTD	{ int setaudit_addr( \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
-453	AUE_NULL	MNOSTD	{ int auditctl(int cmd, char *path); }
+453	AUE_NULL	MSTD	{ int auditctl(int cmd, char *path); }
 454	AUE_NULL	MSTD	{ int _umtx_op(struct umtx *umtx, int op, \
 				    long id, void *uaddr, void *uaddr2); }
 455	AUE_NULL	MSTD	{ int thr_new(struct thr_param *param, \
