@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BCDIR=	${.CURDIR}/../../../contrib/bc
 .PATH: ${BCDIR}/bc ${BCDIR}/lib ${BCDIR}/doc ${BCDIR}/Examples
 
@@ -11,7 +13,7 @@ CFLAGS+=-DHAVE_CONFIG_H
 DPADD=	${LIBREADLINE} ${LIBTERMCAP}
 LDADD=	-lreadline -ltermcap
 
-.if !defined (NO_EXAMPLES)
+.if ${MK_EXAMPLES} != "no"
 FILES=	ckbook.b pi.b primes.b twins.b
 FILESDIR=	${SHAREDIR}/examples/bc
 .endif

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../contrib/pf/net
 .PATH: ${.CURDIR}/../../contrib/pf/netinet
 
@@ -14,7 +16,7 @@ CFLAGS+=  -I${.CURDIR}/../../contrib/pf
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 opt_inet6.h:
 	echo "#define INET6 1" > opt_inet6.h
 .endif

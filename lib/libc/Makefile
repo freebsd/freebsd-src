@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 # $FreeBSD$
-#
+
+.include <bsd.own.mk>
+
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
 # not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
@@ -55,14 +57,14 @@ NOASM=
 .if ${MACHINE_ARCH} == "arm"
 .include "${.CURDIR}/softfloat/Makefile.inc"
 .endif
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
 .endif
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD} != "no"
 CFLAGS+= -DHESIOD
 .endif
-.if defined(NO_FP_LIBC)
+.if ${MK_FP_LIBC} == "no"
 CFLAGS+= -DNO_FLOATING_POINT
 .endif
 

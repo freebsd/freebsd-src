@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 NCURSES=${.CURDIR}/../../contrib/ncurses
 
 LIB=	ncurses
@@ -253,7 +255,7 @@ SYMLINKS+=libncurses_p.a ${LIBDIR}/libtinfo_p.a
 DOCSDIR= /usr/share/doc/ncurses
 DOCS=	ncurses-intro.html hackguide.html
 
-.if !defined(NO_HTML)
+.if ${MK_HTML} != "no"
 .PATH: ${NCURSES}/doc/html
 FILESGROUPS=	DOCS
 .endif

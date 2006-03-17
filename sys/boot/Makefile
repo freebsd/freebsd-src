@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.if !defined(NO_FORTH)
+.include <bsd.own.mk>
+
+.if ${MK_FORTH} != "no"
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
 .endif

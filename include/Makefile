@@ -3,6 +3,8 @@
 #
 # Doing a "make install" builds /usr/include.
 
+.include <bsd.own.mk>
+
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa gssapi protocols rpcsvc rpc
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
@@ -51,15 +53,15 @@ LSUBDIRS=	cam/scsi \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
-.if !defined(NO_GPIB)
+.if ${MK_GPIB} != "no"
 _dev_ieee488=	dev/ieee488
 .endif
 
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD} != "no"
 INCS+=	hesiod.h
 .endif
 
-.if !defined(NO_BLUETOOTH)
+.if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS=	netgraph/bluetooth/include
 .endif
 
@@ -115,7 +117,7 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR}
-.if defined(WITH_BIND_LIBS) && !defined(NO_BIND)
+.if ${MK_BIND_LIBS} != "no"
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR}
@@ -145,7 +147,7 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/altq
-.if !defined(NO_IPFILTER)
+.if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
@@ -217,7 +219,7 @@ symlinks:
 		ln -fs ../../../sys/contrib/altq/altq/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/altq; \
 	done
-.if !defined(NO_IPFILTER)
+.if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \

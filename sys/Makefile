@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # The boot loader
-.if !defined(NO_BOOT)
+.if ${MK_BOOT} != "no"
 .if ${MACHINE_ARCH} != "arm"
 SUBDIR=	boot
 .endif

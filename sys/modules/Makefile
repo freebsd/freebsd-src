@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
@@ -295,7 +297,7 @@ _vpo=		vpo
 _ufs=		ufs
 .endif
 
-.if !defined(NO_CRYPT) || defined(ALL_MODULES)
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
@@ -305,11 +307,11 @@ _random=	random
 .endif
 .endif
 
-.if !defined(NO_IPFILTER) || defined(ALL_MODULES)
+.if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
 .endif
 
-.if !defined(NO_PF) || defined(ALL_MODULES)
+.if ${MK_PF} != "no" || defined(ALL_MODULES)
 _pf=		pf
 _pflog=		pflog
 .endif
@@ -407,7 +409,7 @@ _ipw=		ipw
 _iwi=		iwi
 _mly=		mly
 _nve=		nve
-.if !defined(NO_CRYPT) || defined(ALL_MODULES)
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
 .endif

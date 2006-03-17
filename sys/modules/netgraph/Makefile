@@ -1,6 +1,8 @@
 # $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	async \
 	atm \
 	atmllc \
@@ -52,11 +54,11 @@ _sync_ar=	sync_ar
 _sync_sr=	sync_sr
 .endif
 
-.if !defined(NO_BLUETOOTH) || defined(ALL_MODULES)
+.if ${MK_BLUETOOTH} != "no" || defined(ALL_MODULES)
 _bluetooth=	bluetooth
 .endif
 
-.if !defined(NO_CRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
+.if ${MK_CRYPT} != "no" && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
 _mppc=		mppc
 .endif
 

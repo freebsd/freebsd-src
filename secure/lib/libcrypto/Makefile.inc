@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
 
@@ -7,7 +9,7 @@ CFLAGS+=	-DTERMIOS -DANSI_SOURCE
 CFLAGS+=	-I${LCRYPTO_SRC} -I${LCRYPTO_SRC}/crypto -I${.OBJDIR}
 CFLAGS+=	-DOPENSSL_THREADS
 
-.if !defined(MAKE_IDEA)
+.if ${MK_IDEA} == "no"
 CFLAGS+=	-DOPENSSL_NO_IDEA
 .endif
 

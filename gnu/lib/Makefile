@@ -1,18 +1,20 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR= csu libgcc libgcov libdialog libregex libreadline
 
 # libsupc++ uses libstdc++ headers, although 'make includes' should
 # have taken care of that already.
-.if !defined(NO_CXX)
+.if ${MK_CXX} != "no"
 SUBDIR+= libstdc++ libsupc++
 .endif
 
-.if !defined(NO_OBJC)
+.if ${MK_OBJC} != "no"
 SUBDIR+= libobjc
 .endif
 
-.if !defined(NO_FORTRAN)
+.if ${MK_FORTRAN} != "no"
 SUBDIR+= libg2c
 .endif
 

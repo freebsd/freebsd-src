@@ -18,8 +18,6 @@
 # NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
 # NLSOWN	National Language Support files owner. [${SHAREOWN}]
-#
-# NO_NLS	Do not make or install NLS files. [not set]
 
 .if !target(__<bsd.init.mk>__)
 .error bsd.nls.mk cannot be included directly.
@@ -32,7 +30,7 @@ GENCAT?=	gencat
 .msg.cat:
 	${GENCAT} ${.TARGET} ${.IMPSRC}
 
-.if defined(NLS) && !empty(NLS) && !defined(NO_NLS)
+.if defined(NLS) && !empty(NLS) && ${MK_NLS} != "no"
 
 #
 # .msg file pre-build rules
@@ -73,4 +71,4 @@ SYMLINKS+=	../${file:R}/${NLSNAME}.cat ${NLSDIR}/${dst}/${NLSNAME}.cat
 .endfor
 .endfor
 
-.endif # defined(NLS) && !empty(NLS) && !defined(NO_NLS)
+.endif # defined(NLS) && !empty(NLS) && ${MK_NLS} != "no"

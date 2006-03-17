@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	ssh
 SHLIB_MAJOR=	3
 SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
@@ -30,7 +32,7 @@ CFLAGS+= -I${SSHDIR}
 DPADD=	${LIBZ}
 LDADD=	-lz
 
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken

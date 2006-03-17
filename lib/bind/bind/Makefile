@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+#.include <bsd.own.mk>
+
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
@@ -62,7 +64,7 @@ SRCS+=		herror.c res_comp.c res_data.c \
 		res_mkquery.c res_mkupdate.c res_query.c \
 		res_send.c res_sendsigned.c res_update.c
 
-#.if defined(WITH_BIND_LIBS)
+#.if ${MK_BIND_LIBS} != "no"
 #INCS=		${SRCDIR}/include/isc/assertions.h \
 #		${SRCDIR}/include/isc/ctl.h \
 #		${SRCDIR}/include/isc/dst.h \

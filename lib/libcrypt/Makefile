@@ -2,6 +2,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 SHLIB_MAJOR=	3
 LIB=		crypt
 SHLIBDIR?=	/lib
@@ -15,7 +17,7 @@ MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil
 
 # Pull in the strong crypto, if it is present.
-.if exists(${.CURDIR}/../../secure/lib/libcrypt) && !defined(NO_CRYPT)
+.if exists(${.CURDIR}/../../secure/lib/libcrypt) && ${MK_CRYPT} != "no"
 .PATH:		${.CURDIR}/../../secure/lib/libcrypt
 SRCS+=		crypt-des.c crypt-blowfish.c blowfish.c
 CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH

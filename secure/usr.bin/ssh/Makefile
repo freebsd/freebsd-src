@@ -1,6 +1,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 PROG=	ssh
 CFLAGS+=-I${SSHDIR}
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
@@ -14,7 +16,7 @@ SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
 LDADD=	-lssh -lutil -lz
 
-.if !defined(NO_KERBEROS)
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
 DPADD+=	 ${LIBGSSAPI}
 LDADD+=	 -lgssapi

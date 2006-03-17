@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 WPA_SUPPLICANT_DISTDIR?= ${.CURDIR}/../../../contrib/wpa_supplicant
 .PATH: ${.CURDIR}/.. ${WPA_SUPPLICANT_DISTDIR}
 
@@ -23,11 +25,11 @@ LDADD+=	-lpcap
 SRCS+=	config_file.c base64.c
 CFLAGS+=-DCONFIG_BACKEND_FILE
 
-.if !defined(NO_WPA_SUPPLICANT_EAPOL)
+.if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
 SRCS+=	eapol_sm.c eap.c
 CFLAGS+= -DIEEE8021X_EAPOL
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 CFLAGS+=-DEAP_TLS -DEAP_PEAP -DEAP_MSCHAPv2 -DEAP_LEAP -DEAP_PSK \
 	-DEAP_TLV -DEAP_TLS_FUNCS
 SRCS+=	eap_tls.c eap_peap.c eap_mschapv2.c eap_leap.c \

@@ -1,10 +1,12 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	${_ggatec} \
 	${_ggated} \
 	ggatel
 
-.if !defined(NO_LIBPTHREAD)
+.if ${MK_LIBPTHREAD} != "no"
 _ggatec=	ggatec
 _ggated=	ggated
 .endif
