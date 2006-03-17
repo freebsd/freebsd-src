@@ -124,7 +124,7 @@ main(int argc, char *argv[])
 	printf("Address source is %u.%u:%u, address destination is %u.%u:%u\n",
 	    ntohs(sat_from.sat_addr.s_net), sat_from.sat_addr.s_node,
 	    sat_from.sat_port,
-	    ntohs(sat_to.sat_addr.s_net), sat_to.sat_addr.s_net,
+	    ntohs(sat_to.sat_addr.s_net), sat_to.sat_addr.s_node,
 	    sat_to.sat_port);
 
 	/*
