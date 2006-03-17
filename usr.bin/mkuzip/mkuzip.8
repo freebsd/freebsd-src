@@ -24,37 +24,36 @@ class
 .Sh DESCRIPTION
 The
 .Nm
-utility compresses a disk image file in such a way that the
+utility compresses a disk image file so that the
 .Xr geom_uzip 4
-class will be able to decompress resulting image in run-time.
-This allows for significant reduction of size of disk image at
+class will be able to decompress the resulting image at run-time.
+This allows for a significant reduction of size of disk image at
 the expense of some CPU time required to decompress the data each
 time it is read.
-Internally, operation is done in two phases as follows:
+.Nm
+works in two phases:
 .Bl -enum
 .It
 An
 .Ar infile
-image is split into clusters and each cluster compressed using
+image is split into clusters; each cluster is compressed using
 .Xr zlib 3 .
 .It
-Resulting set of compressed clusters along with headers allowing to
-independently locate each individual cluster is written into
-output file.
+The resulting set of compressed clusters along with headers that allow
+locating each individual cluster is written to the output file.
 .El
 .Pp
 The options are:
 .Bl -tag -width indent
 .It Fl o Ar outfile
-Name the output file
+Name of the output file
 .Ar outfile .
 The default is to use the input name with the suffix
 .Pa .uzip .
 .It Fl s Ar cluster_size
-Use
+Split the image into clusters of
 .Ar cluster_size
-as the size of chunks the file being split up into.
-Default value is 16384 bytes.
+bytes, 16384 bytes by default.
 The
 .Ar cluster_size
 should be a multiple of 512 bytes.
@@ -62,33 +61,33 @@ should be a multiple of 512 bytes.
 Display verbose messages.
 .El
 .Sh NOTES
-Compression ratio largely depends on the cluster size used.
+The compression ratio largely depends on the cluster size used.
+.\" The following two sentences are unclear: how can gzip(1) be
+.\" used in a comparable fashion, and wouldn't a gzip-compressed
+.\" image suffer from larger cluster sizes as well?
 For large cluster sizes (16K and higher), typical compression ratios
-are only 1-2% less than those achieved with the
-.Xr gzip 1
-utlity.
+are only 1-2% less than those achieved with
+.Xr gzip 1 .
 However, it should be kept in mind that larger cluster
 sizes lead to higher overhead in the
 .Xr geom_uzip 4
 class, as the class has to decompress the whole cluster even if
-only several bytes from that cluster have to be read.
+only a few bytes from that cluster have to be read.
 .Pp
-The
 .Nm
-inserts tiny shell script at the beginning of the generated image,
+inserts a short shell script at the beginning of the generated image,
 which makes it possible to
 .Dq run
 the image just like any other shell script.
-This script tries
-to load
+The script tries to load the
 .Xr geom_uzip 4
-class if it is not loaded, configure image as an
+class if it is not loaded, configure the image as an
 .Xr md 4
 disk device using
-.Xr mdconfig 8
-utility, and automatically mount it using
+.Xr mdconfig 8 ,
+and automatically mount it using
 .Xr mount_cd9660 8
-utility to the mount point provided as a first argument.
+on the mount point provided as the first argument to the script.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
