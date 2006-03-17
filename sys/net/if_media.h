@@ -104,6 +104,9 @@ void	ifmedia_set(struct ifmedia *ifm, int mword);
 int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 	    struct ifmedia *ifm, u_long cmd);
 
+/* Compute baudrate for a given media. */
+uint64_t	ifmedia_baudrate(int);
+
 #endif /*_KERNEL */
 
 /*
@@ -138,8 +141,8 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_1000_CX	15		/* 1000baseCX - 150ohm STP */
 #define	IFM_1000_T	16		/* 1000baseT - 4 pair cat 5 */
 #define	IFM_HPNA_1	17		/* HomePNA 1.0 (1Mb/s) */
-#define	IFM_10GBASE_SR	18		/* 10GBASE-SR 850nm Multi-mode Fiber */
-#define	IFM_10GBASE_LR	19		/* 10GBASE-LR 1310nm Single-mode Fiber */
+#define	IFM_10G_LR	18		/* 10GBase-LR 1310nm Single-mode */
+#define	IFM_10G_SR	19		/* 10GBase-SR 850nm Multi-mode */
 
 /* note 31 is the max! */
 
@@ -325,8 +328,8 @@ struct ifmedia_description {
 	{ IFM_1000_T,	"1000baseTX" },					\
 	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_HPNA_1,	"homePNA" },					\
-	{ IFM_10GBASE_SR, "10GBASE-SR" },				\
-	{ IFM_10GBASE_LR, "10GBASE-LR" },				\
+	{ IFM_10G_LR,	"10Gbase-LR" },					\
+	{ IFM_10G_SR,	"10Gbase-SR" },					\
 	{ 0, NULL },							\
 }
 
@@ -541,6 +544,61 @@ struct ifmedia_description {
 	{ IFM_FLAG2,	"flag2" },					\
 	{ IFM_LOOP,	"hw-loopback" },				\
 	{ 0, NULL },							\
+}
+
+/*
+ * Baudrate descriptions for the various media types.
+ */
+struct ifmedia_baudrate {
+	int		ifmb_word;		/* media word */
+	uint64_t	ifmb_baudrate;		/* corresponding baudrate */
+};
+
+#define IFM_BAUDRATE_DESCRIPTIONS {					\
+	{ IFM_ETHER | IFM_10_T,		IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_10_2,		IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_10_5,		IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_100_TX,	IF_Mbps(100) },			\
+	{ IFM_ETHER | IFM_100_FX,	IF_Mbps(100) },			\
+	{ IFM_ETHER | IFM_100_T4,	IF_Mbps(100) },			\
+	{ IFM_ETHER | IFM_100_VG,	IF_Mbps(100) },			\
+	{ IFM_ETHER | IFM_100_T2,	IF_Mbps(100) },			\
+	{ IFM_ETHER | IFM_1000_SX,	IF_Mbps(1000) },		\
+	{ IFM_ETHER | IFM_10_STP,	IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_10_FL,	IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_1000_LX,	IF_Mbps(1000) },		\
+	{ IFM_ETHER | IFM_1000_CX,	IF_Mbps(1000) },		\
+	{ IFM_ETHER | IFM_1000_T,	IF_Mbps(1000) },		\
+	{ IFM_ETHER | IFM_HPNA_1,	IF_Mbps(1) },			\
+	{ IFM_ETHER | IFM_10G_LR,	IF_Gbps(10ULL) },		\
+									\
+	{ IFM_TOKEN | IFM_TOK_STP4,	IF_Mbps(4) },			\
+	{ IFM_TOKEN | IFM_TOK_STP16,	IF_Mbps(16) },			\
+	{ IFM_TOKEN | IFM_TOK_UTP4,	IF_Mbps(4) },			\
+	{ IFM_TOKEN | IFM_TOK_UTP16,	IF_Mbps(16) },			\
+									\
+	{ IFM_FDDI | IFM_FDDI_SMF,	IF_Mbps(100) },			\
+	{ IFM_FDDI | IFM_FDDI_MMF,	IF_Mbps(100) },			\
+	{ IFM_FDDI | IFM_FDDI_UTP,	IF_Mbps(100) },			\
+									\
+	{ IFM_IEEE80211 | IFM_IEEE80211_FH1,	IF_Mbps(1) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_FH2,	IF_Mbps(2) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_DS2,	IF_Mbps(2) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_DS5,	IF_Kbps(5500) },	\
+	{ IFM_IEEE80211 | IFM_IEEE80211_DS11,	IF_Mbps(11) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_DS1,	IF_Mbps(1) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_DS22,	IF_Mbps(22) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM6,	IF_Mbps(6) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM9,	IF_Mbps(9) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM12,	IF_Mbps(12) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM18,	IF_Mbps(18) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM24,	IF_Mbps(24) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM36,	IF_Mbps(36) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM48,	IF_Mbps(48) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM54,	IF_Mbps(54) },		\
+	{ IFM_IEEE80211 | IFM_IEEE80211_OFDM72,	IF_Mbps(72) },		\
+									\
+	{ 0, 0 },							\
 }
 
 #endif	/* _NET_IF_MEDIA_H_ */

@@ -381,6 +381,28 @@ ifmedia_match(ifm, target, mask)
 	return match;
 }
 
+/*
+ * Compute the interface `baudrate' from the media, for the interface
+ * metrics (used by routing daemons).
+ */
+static const struct ifmedia_baudrate ifmedia_baudrate_descriptions[] =   
+    IFM_BAUDRATE_DESCRIPTIONS;
+
+uint64_t
+ifmedia_baudrate(int mword)
+{
+	int i;
+
+	for (i = 0; ifmedia_baudrate_descriptions[i].ifmb_word != 0; i++) {
+		if ((mword & (IFM_NMASK|IFM_TMASK)) ==
+		    ifmedia_baudrate_descriptions[i].ifmb_word)
+			return (ifmedia_baudrate_descriptions[i].ifmb_baudrate);
+	}
+
+	/* Not known. */
+	return (0);
+}
+ 
 #ifdef IFMEDIA_DEBUG
 struct ifmedia_description ifm_type_descriptions[] =
     IFM_TYPE_DESCRIPTIONS;

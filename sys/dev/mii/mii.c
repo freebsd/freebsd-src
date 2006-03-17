@@ -240,9 +240,20 @@ static void
 miibus_statchg(device_t dev)
 {
 	device_t		parent;
+	struct mii_data		*mii;
+	struct ifnet		*ifp;
 
 	parent = device_get_parent(dev);
 	MIIBUS_STATCHG(parent);
+
+	mii = device_get_softc(dev);
+
+	/*
+	 * Note that each NIC's softc must start with an ifnet pointer.
+	 * XXX: EVIL HACK!
+	 */
+	ifp = *(struct ifnet **)device_get_softc(parent);
+	ifp->if_baudrate = ifmedia_baudrate(mii->mii_media_active);
 	return;
 }
 
