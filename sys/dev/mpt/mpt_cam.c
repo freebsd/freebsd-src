@@ -1136,10 +1136,8 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 			   MSG_DEFAULT_REPLY *reply_frame)
 {
 	MSG_SCSI_TASK_MGMT_REPLY *tmf_reply;
-	u_int			  status;
+	uint16_t		  status;
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "TMF Complete: req %p:serno, reply %p\n",
-		 req, req->serno, reply_frame);
 	KASSERT(req == mpt->tmf_req, ("TMF Reply not using mpt->tmf_req"));
 
 	tmf_reply = (MSG_SCSI_TASK_MGMT_REPLY *)reply_frame;
@@ -1147,7 +1145,9 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 	/* Record status of TMF for any waiters. */
 	req->IOCStatus = tmf_reply->IOCStatus;
 	status = le16toh(tmf_reply->IOCStatus);
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "TMF Complete: status 0x%x\n", status);
+	mpt_lprt(mpt,
+	    (status == MPI_IOCSTATUS_SUCCESS)? MPT_PRT_DEBUG : MPT_PRT_ERROR,
+	    "TMF Complete: req %p:%u status 0x%x\n", req, req->serno, status);
 	TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
 		req->state |= REQ_STATE_DONE;
@@ -2010,7 +2010,7 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type,
 	tmf_req->LUN[1] = lun;
 	tmf_req->TaskMsgContext = abort_ctx;
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
+	mpt_lprt(mpt, MPT_PRT_INFO,
 		 "Issuing TMF %p with MsgContext of 0x%x\n", tmf_req,
 		 tmf_req->MsgContext);
 	if (mpt->verbose > MPT_PRT_DEBUG)
@@ -2116,6 +2116,7 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		/*
 		 * TMF is complete.
 		 */
+		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
 		mpt->tmf_req->state = REQ_STATE_FREE;
 		if ((status & MPI_IOCSTATUS_MASK) == MPI_SCSI_STATUS_SUCCESS)
 			continue;
