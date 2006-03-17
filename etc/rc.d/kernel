@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kernel
+# REQUIRE: mountcritremote
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="kernel"
+start_cmd="kernel_start"
+stop_cmd=":"
+
+kernel_start()
+{
+	bootdir=$(dirname $(sysctl -n kern.bootfile))
+	if [ ! -e /boot/kernel -o -h /boot/kernel ] ; then
+		ln -hfs ${bootdir} /boot/kernel
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
