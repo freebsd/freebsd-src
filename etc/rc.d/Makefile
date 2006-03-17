@@ -18,7 +18,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted isdnd \
 	jail \
-	kadmind kerberos keyserv kldxref kpasswdd \
+	kadmind kerberos kernel keyserv kldxref kpasswdd \
 	ldconfig local localpkg lpd \
 	mixer motd mountcritlocal mountcritremote \
 	mountd moused mroute6d mrouted msgs \
