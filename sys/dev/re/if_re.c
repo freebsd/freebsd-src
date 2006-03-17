@@ -1225,10 +1225,6 @@ re_attach(dev)
 #endif
 	ifp->if_watchdog = re_watchdog;
 	ifp->if_init = re_init;
-	if (sc->rl_type == RL_8169)
-		ifp->if_baudrate = 1000000000;
-	else
-		ifp->if_baudrate = 100000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd,  RL_IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);

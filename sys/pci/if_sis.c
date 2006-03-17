@@ -1197,7 +1197,6 @@ sis_attach(device_t dev)
 	ifp->if_start = sis_start;
 	ifp->if_watchdog = sis_watchdog;
 	ifp->if_init = sis_init;
-	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SIS_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);

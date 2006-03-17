@@ -701,7 +701,6 @@ vr_attach(dev)
 	ifp->if_start = vr_start;
 	ifp->if_watchdog = vr_watchdog;
 	ifp->if_init = vr_init;
-	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);

@@ -1088,7 +1088,6 @@ ste_attach(dev)
 	ifp->if_start = ste_start;
 	ifp->if_watchdog = ste_watchdog;
 	ifp->if_init = ste_init;
-	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, STE_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = STE_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
