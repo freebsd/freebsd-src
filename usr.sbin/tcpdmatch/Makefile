@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../contrib/tcp_wrappers
 
 PROG=	tcpdmatch
@@ -8,7 +10,7 @@ SRCS=	tcpdmatch.c fakelog.c inetcf.c scaffold.c
 
 CFLAGS+=-DREAL_DAEMON_DIR=\"/usr/libexec\" \
 	-DSEVERITY=LOG_INFO -DRFC931_TIMEOUT=10
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
 

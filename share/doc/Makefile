@@ -1,9 +1,11 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	${_bind9} IPv6 papers psd smm usd
 
-.if !defined(NO_BIND)
+.if ${MK_BIND} != "no"
 _bind9=	bind9
 .endif
 

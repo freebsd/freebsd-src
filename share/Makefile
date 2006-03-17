@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
 SUBDIR=	${_colldef} \
@@ -25,7 +27,7 @@ SUBDIR=	${_colldef} \
 	${_timedef} \
 	zoneinfo
 
-.if !defined(NO_LOCALES)
+.if ${MK_LOCALES} != "no"
 _colldef =	colldef
 _mklocale =	mklocale
 _monetdef =	monetdef
@@ -34,35 +36,35 @@ _numericdef =	numericdef
 _timedef =	timedef
 .endif
 
-.if !defined(NO_SYSCONS)
+.if ${MK_SYSCONS} != "no"
 _syscons=	syscons
 .endif
 
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 _man=		man
 .endif
 
-.if !defined(NO_GROFF)
+.if ${MK_GROFF} != "no"
 _me=		me
 .endif
 
-.if !defined(NO_EXAMPLES)
+.if ${MK_EXAMPLES} != "no"
 _examples=	examples
 .endif
 
-.if !defined(NO_I4B)
+.if ${MK_I4B} != "no"
 _isdn=		isdn
 .endif
 
-.if !defined(NO_DICT)
+.if ${MK_DICT} != "no"
 _dict=	 	dict
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _sendmail=	 sendmail
 .endif
 
-.if !defined(NO_SHAREDOCS)
+.if ${MK_SHAREDOCS} != "no"
 _doc=		doc
 .endif
 

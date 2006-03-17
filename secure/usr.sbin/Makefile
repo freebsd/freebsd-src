@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR= 
-.if !defined(NO_OPENSSH) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSH} != "no"
 SUBDIR+=sshd
 .endif
 

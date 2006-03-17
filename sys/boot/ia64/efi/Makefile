@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+NO_MAN=
+
+.include <bsd.own.mk>
+
 PROG=		loader.sym
 INTERNALPROG=
 SRCS=		conf.c dev_net.c efimd.c main.c start.S vers.c
-NO_MAN=
 
 CFLAGS+=	-DLOADER
 CFLAGS+=	-I${.CURDIR}/../../efi/include
@@ -11,7 +14,7 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
 CFLAGS+=	-I${.CURDIR}/../../efi/libefi
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl

@@ -9,6 +9,8 @@
 #	Portions derived from amd/libamu/Makefile
 #	$NetBSD: Makefile,v 1.8 1998/08/08 22:33:37 christos Exp $
 
+.include <bsd.own.mk>
+
 CFLAGS+= -I. -I${.CURDIR} 
 CFLAGS+= -I${.CURDIR}/../include
 .if exists(${.OBJDIR}/../include)
@@ -17,11 +19,11 @@ CFLAGS+= -I${.OBJDIR}/../include
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/include
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd
 CFLAGS+= -DHAVE_CONFIG_H
-.if defined(NO_NIS)
+.if ${MK_NIS} == "no"
 CFLAGS+= -DHAVE_LOCALCONFIG_H
 .endif
 
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD_SUPPORT} != "no"
 CFLAGS+= -DYES_HESIOD
 .endif
 

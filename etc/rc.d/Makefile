@@ -1,6 +1,8 @@
 # $NetBSD: Makefile,v 1.16 2001/01/14 15:37:22 minoura Exp $
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
 	apm apmd archdep atm1 atm2 atm3 auditd \
@@ -41,7 +43,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd
 
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 FILES+=	sshd
 .endif
 

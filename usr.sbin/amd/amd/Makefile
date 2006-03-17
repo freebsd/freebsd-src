@@ -6,6 +6,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../../contrib/amd/amd
 
 PROG=	amd
@@ -39,11 +41,11 @@ CLEANFILES+=	mount_xdr.c
 mount_xdr.c: ${MOUNT_X}
 	${RPCCOM} -c -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
-.if defined(YES_HESIOD)
+.if ${MK_HESIOD_SUPPORT} != "no"
 SRCS+=	info_hesiod.c
 .endif
 
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 SRCS+=	info_nis.c
 .endif
 

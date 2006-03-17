@@ -34,6 +34,8 @@
 #
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	pam_unix
 SRCS=	pam_unix.c
 MAN=	pam_unix.8
@@ -41,7 +43,7 @@ MAN=	pam_unix.8
 DPADD= ${LIBUTIL} ${LIBCRYPT}
 LDADD= -lutil -lcrypt
 
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 CFLAGS+= -DYP
 DPADD+= ${LIBYPCLNT}
 LDADD+= -lypclnt

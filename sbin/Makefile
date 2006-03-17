@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # XXX MISSING:		icheck ncheck
 
 SUBDIR=	adjkerntz \
@@ -92,24 +94,24 @@ SUBDIR=	adjkerntz \
 	tunefs \
 	umount \
 
-.if !defined(NO_ATM)
+.if ${MK_ATM} != "no"
 _atm=		atm
 .endif
 
-.if !defined(NO_CXX)
+.if ${MK_CXX} != "no"
 _devd=		devd
 .endif
 
-.if !defined(NO_IPFILTER)
+.if ${MK_IPFILTER} != "no"
 _ipf=		ipf
 .endif
 
-.if !defined(NO_PF)
+.if ${MK_PF} != "no"
 _pfctl=		pfctl
 _pflogd=	pflogd
 .endif
 
-.if !defined(NO_INET6)
+.if ${MK_INET6} != "no"
 _ip6fw=		ip6fw
 _ping6=		ping6
 .endif

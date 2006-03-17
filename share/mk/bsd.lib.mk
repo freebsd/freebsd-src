@@ -185,7 +185,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
 
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && !defined(NO_TOOLCHAIN)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 _LIBS+=		lib${LIB}_pic.a
 
 lib${LIB}_pic.a: ${SOBJS}
@@ -210,7 +210,7 @@ ${LINTLIB}: ${LINTOBJS}
 
 all: ${_LIBS}
 
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 all: _manpages
 .endif
 
@@ -272,7 +272,7 @@ _libinstall:
 .endif
 .endif
 .endif
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && !defined(NO_TOOLCHAIN)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
@@ -287,7 +287,7 @@ _libinstall:
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
 
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
@@ -299,7 +299,7 @@ lint: ${SRCS:M*.c}
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.if !defined(NO_MAN)
+.if ${MK_MAN} != "no"
 .include <bsd.man.mk>
 .endif
 

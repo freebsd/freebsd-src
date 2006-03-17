@@ -1,10 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=
-.if !defined(NO_OPENSSL)
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 SUBDIR+=sftp-server ssh-keysign
-.endif
 .endif
 
 .include <bsd.subdir.mk>

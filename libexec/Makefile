@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	atrun \
 	bootpd \
 	comsat \
@@ -32,12 +34,12 @@ SUBDIR=	atrun \
 	tftpd \
 	${_ypxfr}
 
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 _mknetid=	mknetid
 _ypxfr=		ypxfr
 .endif
 
-.if !defined(NO_PF)
+.if ${MK_PF} != "no"
 _ftp-proxy=	ftp-proxy
 .endif
 
@@ -45,12 +47,12 @@ _ftp-proxy=	ftp-proxy
 _rtld-elf=	rtld-elf
 .endif
 
-.if !defined(NO_RCMDS)
+.if ${MK_RCMDS} != "no"
 _rlogind=	rlogind
 _rshd=		rshd
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _mail.local=	mail.local
 _smrsh=	smrsh
 .endif

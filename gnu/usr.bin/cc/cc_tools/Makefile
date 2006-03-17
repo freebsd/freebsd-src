@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk
 # is such a !@#!*#% nightmare because of how it reprograms the dependencies,
@@ -197,7 +199,7 @@ CLEANFILES+=	gt-*.h gtype-*.h
 #-----------------------------------------------------------------------
 # Fortran build tools
 
-.if !defined(NO_FORTRAN)
+.if ${MK_FORTRAN} != "no"
 gen-time-stamp: fini
 fini: fini.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
@@ -295,15 +297,15 @@ GTFILES = $(srcdir)/input.h $(srcdir)/coretypes.h $(srcdir)/cpplib.h \
 #
 GTFILES_LANG_DIR_NAMES=
 
-.if !defined(NO_CXX)
+.if ${MK_CXX} != "no"
 GTFILES_LANG_DIR_NAMES+=	cp
 .endif
 
-.if !defined(NO_OBJC)
+.if ${MK_OBJC} != "no"
 GTFILES_LANG_DIR_NAMES+=	objc
 .endif
 
-.if !defined(NO_FORTRAN)
+.if ${MK_FORTRAN} != "no"
 GTFILES_LANG_DIR_NAMES+=	f
 .endif
 

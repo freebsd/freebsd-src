@@ -1,6 +1,10 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
+NO_MAN=
+
+.include <bsd.own.mk>
+
 PROG=	rescue
 BINDIR?=/rescue
 
@@ -68,7 +72,7 @@ CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
 	 realpath rm rmdir setfacl sh stty sync test
 CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 CRUNCH_LIBS+= -lcrypto
 .endif
 
@@ -81,11 +85,11 @@ CRUNCH_ALIAS_ln= link
 CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 
-.if !defined(NO_RCMDS)
+.if ${MK_RCMDS} != "no"
 CRUNCH_PROGS_bin+= rcp
 .endif
 
-.if !defined(NO_TCSH)
+.if ${MK_TCSH} != "no"
 CRUNCH_PROGS_bin+= csh
 CRUNCH_ALIAS_csh= -csh tcsh -tcsh
 CRUNCH_SUPPRESS_LINK_-csh= 1
@@ -114,16 +118,16 @@ CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	restore rcorder route routed rtquery rtsol savecore 		\
 	slattach spppcontrol startslip swapon sysctl tunefs umount 
 
-.if !defined(NO_ATM)
+.if ${MK_ATM} != "no"
 CRUNCH_PROGS_sbin+= atm atmconfig fore_dnld ilmid
 CRUNCH_LIBS+= -latm
 .endif
 
-.if !defined(NO_INET6)
+.if ${MK_INET6_SUPPORT} != "no"
 CRUNCH_PROGS_sbin+= ping6
 .endif
 
-.if !defined(NO_IPFILTER)
+.if ${MK_IPFILTER} != "no"
 CRUNCH_PROGS_sbin+= ipf
 .endif
 
@@ -221,7 +225,6 @@ CANONICALOBJDIR:= ${MAKEOBJDIRPREFIX}${.CURDIR}
 CANONICALOBJDIR:= /usr/obj${.CURDIR}
 .endif
 
-NO_MAN=
 CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 
 # Program names and their aliases contribute hardlinks to 'rescue' executable,

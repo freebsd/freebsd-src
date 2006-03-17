@@ -1,6 +1,8 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # XXX MISSING:		mkproto
 SUBDIR=	ac \
 	accton \
@@ -195,23 +197,22 @@ SUBDIR=	ac \
 _sysinstall=	sysinstall
 .endif
 
-.if !defined(NO_ATM)
+.if ${MK_ATM} != "no"
 _atm=		atm
 .endif
 
-.if !defined(NO_AUDIT)
+.if ${MK_AUDIT} != "no"
 _audit= 	audit
 _auditd=	auditd
 _auditreduce=	auditreduce
 _praudit=	praudit
 .endif
 
-.if !defined(NO_BIND)
-.if !defined(NO_BIND_DNSSEC) && !defined(NO_CRYPT)
+.if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif
-.if !defined(NO_BIND_NAMED)
+.if ${MK_BIND_NAMED} != "no"
 _named=			named
 _named-checkconf=	named-checkconf
 _named-checkzone=	named-checkzone
@@ -219,24 +220,23 @@ _named.reload=		named.reload
 _rndc=			rndc
 _rndc-confgen=		rndc-confgen
 .endif
-.endif
 
-.if !defined(NO_BLUETOOTH)
+.if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth
 .endif
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 _keyserv=	keyserv
 .endif
 
-.if !defined(NO_INET6)
+.if ${MK_INET6} != "no"
 _mld6query=	mld6query
 _rip6query=	rip6query
 _route6d=	route6d
 _traceroute6=	traceroute6
 .endif
 
-.if !defined(NO_NIS)
+.if ${MK_NIS} != "no"
 _rpc.yppasswdd=	rpc.yppasswdd
 _rpc.ypupdated=	rpc.ypupdated
 _rpc.ypxfrd=	rpc.ypxfrd
@@ -248,15 +248,15 @@ _ypserv=	ypserv
 _ypset=		ypset
 .endif
 
-.if !defined(NO_PF) && !defined(NO_AUTHPF)
+.if ${MK_AUTHPF} != "no"
 _authpf=	authpf
 .endif
 
-.if !defined(NO_LPR)
+.if ${MK_LPR} != "no"
 _lpr=		lpr
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _editmap=	editmap
 _mailstats=	mailstats
 _makemap=	makemap
@@ -264,7 +264,7 @@ _praliases=	praliases
 _sendmail=	sendmail
 .endif
 
-.if !defined(NO_USB)
+.if ${MK_USB} != "no"
 _usbdevs=	usbdevs
 .endif
 
@@ -277,7 +277,7 @@ _apm=		apm
 _apmd=		apmd
 _asf=		asf
 _btxld=		btxld
-.if !defined(NO_I4B)
+.if ${MK_I4B} != "no"
 _i4b=		i4b
 .endif
 _kgmon=		kgmon
@@ -289,19 +289,19 @@ _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pccard=	pccard
 _pnpinfo=	pnpinfo
-.if !defined(NO_LIBPTHREAD)
+.if ${MK_LIBPTHREAD} != "no"
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
 .if ${MACHINE} == "i386" 
-.if !defined(NO_ACPI)
+.if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
 _arlcontrol=	arlcontrol
 _boot0cfg=	boot0cfg
-.if !defined(NO_PCVT)
+.if ${MK_PCVT} != "no"
 _pcvt=		pcvt
 .endif
 _wlconfig=	wlconfig
@@ -313,7 +313,7 @@ _boot98cfg=	boot98cfg
 .if ${MACHINE_ARCH} == "alpha"
 _elf2exe=	elf2exe
 _pnpinfo=	pnpinfo
-.if !defined(NO_LIBC_R)
+.if ${MK_LIBC_R} != "no"
 _pppctl=	pppctl
 .endif
 .endif
@@ -322,7 +322,7 @@ _pppctl=	pppctl
 # mptable: broken (not 64 bit clean)
 # pnpinfo: crashes (not really useful anyway)
 .if ${MACHINE_ARCH} == "amd64"
-.if !defined(NO_ACPI)
+.if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
 _asf=		asf
@@ -334,7 +334,7 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
-.if !defined(NO_LIBPTHREAD)
+.if ${MK_LIBPTHREAD} != "no"
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
@@ -343,11 +343,11 @@ _zzz=		zzz
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-.if !defined(NO_ACPI)
+.if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
 _kgmon=		kgmon
-.if !defined(NO_LIBPTHREAD)
+.if ${MK_LIBPTHREAD} != "no"
 _pppctl=	pppctl
 .endif
 _zzz=		zzz
@@ -360,7 +360,7 @@ _mount_smbfs=	mount_smbfs
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump
-.if !defined(NO_LIBC_R)
+.if ${MK_LIBC_R} != "no"
 _pppctl=	pppctl
 .endif
 .endif

@@ -53,8 +53,6 @@
 #
 # MAKEINFOFLAGS		Options for ${MAKEINFO} command. [--no-split]
 #
-# NO_INFO	Do not make or install info files. [not set]
-#
 # NO_INFOCOMPRESS	If you do not want info files be
 #			compressed when they are installed. [not set]
 #
@@ -123,7 +121,7 @@ DVIPS2ASCII?=	dvips2ascii
 IFILENS+=	${INFO:S/$/.${_f}/}
 .endfor
 
-.if !defined(NO_INFO)
+.if ${MK_INFO} != "no"
 CLEANFILES+=	${IFILENS}
 .if !defined(NO_INFOCOMPRESS)
 CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
@@ -172,7 +170,7 @@ CLEANFILES+=	${INFO:S/$/-la.texi/}
 CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .endif
 
-.if !defined(NO_INFO) && defined(INFO)
+.if ${MK_INFO} != "no" && defined(INFO)
 install: ${INSTALLINFODIRS}
 .if !empty(IFILES:N*.html)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \

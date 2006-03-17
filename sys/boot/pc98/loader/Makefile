@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=		loader.sym
 INTERNALPROG=
 NEWVERSWHAT=	"bootstrap loader" pc98
@@ -19,7 +21,7 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386

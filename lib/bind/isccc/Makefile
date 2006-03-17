@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
@@ -16,7 +18,7 @@ SRCS=		alist.c base64.c cc.c ccmsg.c \
 
 CFLAGS+=	-I${SRCDIR}/include
 
-.if defined(WITH_BIND_LIBS)
+.if ${MK_BIND_LIBS} != "no"
 INCS=		${SRCDIR}/include/isccc/alist.h \
 		${SRCDIR}/include/isccc/base64.h \
 		${SRCDIR}/include/isccc/cc.h \

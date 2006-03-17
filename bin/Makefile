@@ -1,6 +1,8 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 5/31/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR= cat \
 	chflags \
 	chio \
@@ -37,15 +39,15 @@ SUBDIR= cat \
 	sync \
 	test
 
-.if !defined(NO_RCMDS)
+.if ${MK_RCMDS} != "no"
 _rcp=	rcp
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if ${MK_SENDMAIL} != "no"
 _rmail=	rmail
 .endif
 
-.if !defined(NO_TCSH)
+.if ${MK_TCSH} != "no"
 _csh=	csh
 .endif
 

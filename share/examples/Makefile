@@ -2,6 +2,8 @@
 #
 # Doing a make install builds /usr/share/examples
 
+.include <bsd.own.mk>
+
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
@@ -283,10 +285,10 @@ etc-examples:
 
 .if ${SHARED} != "symlinks"
 SUBDIR=	smbfs
-.if !defined(NO_IPFILTER)
+.if ${MK_IPFILTER} != "no"
 SUBDIR+=ipfilter
 .endif
-.if !defined(NO_PF)
+.if ${MK_PF} != "no"
 SUBDIR+=pf
 .endif
 .endif

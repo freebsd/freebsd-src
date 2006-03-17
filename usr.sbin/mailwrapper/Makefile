@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.if !defined(NO_MAILWRAPPER)
+.include <bsd.own.mk>
+
+.if ${MK_MAILWRAPPER} != "no"
 PROG=	mailwrapper
 MAN=	mailwrapper.8
 
@@ -8,19 +10,19 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 .endif
 
-.if !defined(NO_MAILWRAPPER) || !defined(NO_SENDMAIL)
+.if ${MK_MAILWRAPPER} != "no" || ${MK_SENDMAIL} != "no"
 SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
 		${BINDIR}/mailwrapper /usr/sbin/hoststat  \
 		${BINDIR}/mailwrapper /usr/sbin/purgestat \
 		${BINDIR}/mailwrapper /usr/bin/newaliases \
 		${BINDIR}/mailwrapper /usr/bin/mailq
 
-.if defined(NO_MAILWRAPPER) && !defined(NO_SENDMAIL)
+.if ${MK_MAILWRAPPER} == "no" && ${MK_SENDMAIL} != "no"
 SYMLINKS+=	/usr/libexec/sendmail/sendmail ${BINDIR}/mailwrapper
 .endif
 .endif
 
-.if !defined(NO_MAILWRAPPER)
+.if ${MK_MAILWRAPPER} != "no"
 .if !exists(${DESTDIR}/etc/mail/mailer.conf)
 FILES=		${.CURDIR}/../../etc/mail/mailer.conf
 FILESDIR=	/etc/mail

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # I once used this extensively, but no longer have a modem.  Feel free
 # to ask me questions about it, but I disclaim ownership now.  -Peter
 
@@ -30,7 +32,7 @@ DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 
 # MS-CHAP support.  Requires the DES library.
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 CFLAGS+= -DCHAPMS
 SRCS+=	chap_ms.c
 LDADD+=	-lcrypto

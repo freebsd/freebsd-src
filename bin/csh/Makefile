@@ -6,6 +6,8 @@
 #
 # To profile, put -DPROF in DEFS and -pg in CFLAGS, and recompile.
 
+.include <bsd.own.mk>
+
 TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
 
@@ -45,7 +47,7 @@ LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
 
 CLEANFILES= ${GENHDRS} gethost csh.1
 
-.if !defined(NO_EXAMPLES)
+.if ${MK_EXAMPLES} != "no"
 FILESDIR= ${SHAREDIR}/examples/tcsh
 FILES= complete.tcsh csh-mode.el
 .endif
@@ -70,7 +72,7 @@ NLSLINKS_de_DE.ISO8859-1= de_AT.ISO8859-1 de_AT.ISO8859-15 de_CH.ISO8859-1 \
 NLSLINKS_it_IT.ISO8859-1= it_CH.ISO8859-1 it_CH.ISO8859-15 it_IT.ISO8859-15
 NLSLINKS_es_ES.ISO8859-1= es_ES.ISO8859-15
 
-.if defined(NO_NLS_CATALOGS) || defined(RESCUE)
+.if ${MK_NLS_CATALOGS} == "no" || defined(RESCUE)
 CFLAGS+= -DNO_NLS_CATALOGS
 .else
 CFLAGS+= -DHAVE_ICONV

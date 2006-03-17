@@ -1,9 +1,11 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=
-.if !defined(NO_OPENSSL)
+.if ${MK_OPENSSL} != "no"
 SUBDIR+=bdes openssl
-.if !defined(NO_OPENSSH)
+.if ${MK_OPENSSH} != "no"
 SUBDIR+=scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan
 .endif
 .endif
