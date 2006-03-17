@@ -2,7 +2,7 @@
 /*-
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,6 @@ natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
     int error = 0;
 
     npcb = (struct natmpcb *)so->so_pcb;
-
     KASSERT(npcb == NULL, ("natm_usr_attach: so_pcb != NULL"));
 
     if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
@@ -116,27 +115,14 @@ static int
 natm_usr_detach(struct socket *so)
 {
     struct natmpcb *npcb;
-    int error = 0;
 
     NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL) {
-	/* XXXRW: Does this case ever actually happen? */
-	error = EINVAL;
-	goto out;
-    }
-
-    /*
-     * we turn on 'drain' *before* we sofree.
-     */
+    KASSERT(npcb != NULL, ("natm_usr_detach: npcb == NULL"));
     npcb_free(npcb, NPCB_DESTROY);	/* drain */
-    ACCEPT_LOCK();
-    SOCK_LOCK(so);
     so->so_pcb = NULL;
-    sotryfree(so);
- out:
     NATM_UNLOCK();
-    return (error);
+    return (0);
 }
 
 static int
@@ -151,11 +137,7 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
 
     NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL) {
-	/* XXXRW: Does this case ever actually happen? */
-	error = EINVAL;
-	goto out;
-    }
+    KASSERT(npcb != NULL, ("natm_usr_connect: npcb == NULL"));
 
     /*
      * validate nam and npcb
@@ -212,18 +194,14 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     if (ifp->if_ioctl == NULL || 
 	ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0) {
 	IFF_UNLOCKGIANT(ifp);
-	NATM_LOCK();
-	npcb_free(npcb, NPCB_REMOVE);
         error = EIO;
 	goto out;
     }
     IFF_UNLOCKGIANT(ifp);
 
-    NATM_LOCK();
     soisconnected(so);
 
  out:
-    NATM_UNLOCK();
     return (error);
 }
 
@@ -237,11 +215,7 @@ natm_usr_disconnect(struct socket *so)
 
     NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL) {
-	/* XXXRW: Does this case ever actually happen? */
-	error = EINVAL;
-	goto out;
-    }
+    KASSERT(npcb != NULL, ("natm_usr_disconnect: npcb == NULL"));
 
     if ((npcb->npcb_flags & NPCB_CONNECTED) == 0) {
         printf("natm: disconnected check\n");
@@ -263,7 +237,6 @@ natm_usr_disconnect(struct socket *so)
     }
     NATM_LOCK();
 
-    npcb_free(npcb, NPCB_REMOVE);
     soisdisconnected(so);
 
  out:
@@ -289,11 +262,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
 
     NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL) {
-	/* XXXRW: Does this case ever actually happen? */
-	error = EINVAL;
-	goto out;
-    }
+    KASSERT(npcb != NULL, ("natm_usr_send: npcb == NULL"));
 
     if (control && control->m_len) {
 	m_freem(control);
@@ -330,11 +299,7 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
 
     NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL) {
-	/* XXXRW: Does this case ever actually happen? */
-    	NATM_UNLOCK();
-	return (EINVAL);
-    }
+    KASSERT(npcb != NULL, ("natm_usr_peeraddr: npcb == NULL"));
 
     snatm = &ssnatm;
     bzero(snatm, sizeof(*snatm));
@@ -356,13 +321,8 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
     struct natmpcb *npcb;
     int error;
 
-    /*
-     * XXXRW: Does this case ever actually happen?  And does it even matter
-     * given that npcb is unused?
-     */
     npcb = (struct natmpcb *)so->so_pcb;
-    if (npcb == NULL)
-	return (EINVAL);
+    KASSERT(npcb != NULL, ("natm_usr_control: npcb == NULL"));
 
     if (ifp == NULL || ifp->if_ioctl == NULL)
 	return (EOPNOTSUPP);
@@ -376,7 +336,11 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 static int
 natm_usr_abort(struct socket *so)
 {
-    return (natm_usr_shutdown(so));
+    natm_usr_shutdown(so);
+    ACCEPT_LOCK();
+    SOCK_LOCK(so);
+    sotryfree(so);
+    return (0);
 }
 
 static int
