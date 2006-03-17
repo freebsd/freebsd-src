@@ -56,8 +56,7 @@ ddp_attach(struct socket *so, int proto, struct thread *td)
 	int		error = 0;
 	
 	ddp = sotoddpcb(so);
-	if (ddp != NULL)
-		return (EINVAL);
+	KASSERT(ddp == NULL, ("ddp_attach: ddp != NULL"));
 
 	/*
 	 * Allocate socket buffer space first so that it's present
@@ -79,8 +78,7 @@ ddp_detach(struct socket *so)
 	struct ddpcb	*ddp;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL)
-	    return (EINVAL);
+	KASSERT(ddp != NULL, ("ddp_detach: ddp == NULL"));
 
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
@@ -96,9 +94,7 @@ ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int		error = 0;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-	    return (EINVAL);
-	}
+	KASSERT(ddp != NULL, ("ddp_bind: ddp == NULL"));
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	error = at_pcbsetaddr(ddp, nam, td);
@@ -114,10 +110,7 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int		error = 0;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-	    return (EINVAL);
-	}
-
+	KASSERT(ddp != NULL, ("ddp_connect: ddp == NULL"));
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
@@ -141,9 +134,7 @@ ddp_disconnect(struct socket *so)
 	struct ddpcb	*ddp;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-	    return (EINVAL);
-	}
+	KASSERT(ddp != NULL, ("ddp_disconnect: ddp == NULL"));
 	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_addr.s_node == ATADDR_ANYNODE) {
 	    DDP_UNLOCK(ddp);
@@ -163,9 +154,7 @@ ddp_shutdown(struct socket *so)
 	struct ddpcb	*ddp;
 
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-		return (EINVAL);
-	}
+	KASSERT(ddp != NULL, ("ddp_shutdown: ddp == NULL"));
 	socantsendmore(so);
 	return (0);
 }
@@ -178,9 +167,7 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int		error = 0;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-		return (EINVAL);
-	}
+	KASSERT(ddp != NULL, ("ddp_send: ddp == NULL"));
 
     	if (control && control->m_len) {
 		return (EINVAL);
@@ -219,13 +206,12 @@ ddp_abort(struct socket *so)
 	struct ddpcb	*ddp;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-		return (EINVAL);
-	}
+	KASSERT(ddp != NULL, ("ddp_abort: ddp == NULL"));
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	at_pcbdetach(so, ddp);
 	DDP_LIST_XUNLOCK();
+	/* XXXRW: Should be calling sotryfree() here? */
 	return (0);
 }
 
