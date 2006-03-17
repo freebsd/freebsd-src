@@ -421,6 +421,13 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * TOSHIBA TransMemory USB sticks
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TOSHIBA", "TransMemory",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * PNY USB Flash keys
 		 * PR: usb/75578, usb/72344, usb/65436 
 		 */
