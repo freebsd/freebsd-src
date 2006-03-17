@@ -157,9 +157,7 @@ cd9660_rrip_slink(p,ana)
 
 		case ISO_SUSP_CFLAG_ROOT:
 			/* Inserting slash for ROOT */
-			/* start over from beginning(?) */
-			outbuf -= len;
-			len = 0;
+			/* Double slash, nothing really to do here. */
 			break;
 
 		case ISO_SUSP_CFLAG_VOLROOT:
