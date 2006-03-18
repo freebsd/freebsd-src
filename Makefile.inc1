@@ -1175,3 +1175,8 @@ check-old: check-old-files check-old-libs check-old-dirs
 
 .endif
 
+#
+# showconfig - show build configuration.
+#
+showconfig:
+	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 | grep ^MK_ | sort
