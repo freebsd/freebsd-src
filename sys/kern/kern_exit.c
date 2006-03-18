@@ -106,7 +106,6 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
-	struct bintime new_switchtime;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
@@ -452,7 +451,6 @@ retry:
 	p->p_xthread = td;
 	p->p_stats->p_ru.ru_nvcsw++;
 	*p->p_ru = p->p_stats->p_ru;
-	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/*
 	 * Notify interested parties of our demise.
@@ -534,14 +532,6 @@ retry:
 	mtx_lock_spin(&sched_lock);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
-
-	/* Do the same timestamp bookkeeping that mi_switch() would do. */
-	binuptime(&new_switchtime);
-	bintime_add(&p->p_rux.rux_runtime, &new_switchtime);
-	bintime_sub(&p->p_rux.rux_runtime, PCPU_PTR(switchtime));
-	PCPU_SET(switchtime, new_switchtime);
-	PCPU_SET(switchticks, ticks);
-	cnt.v_swtch++;
 
 	sched_exit(p->p_pptr, td);
 
