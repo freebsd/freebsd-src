@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
 
-DUMMY(stat);
 DUMMY(stime);
 DUMMY(fstat);
 DUMMY(olduname);
