@@ -11,8 +11,7 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, CPT_NOA, LIBCOMPAT,
-;		NODEF, NOARGS, NOPROTO
+;	type	one of STD, OBSOL, UNIMPL, NODEF, NOARGS, NOPROTO
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -22,8 +21,6 @@
 
 ; types:
 ;	STD	always included
-;	CPT_NOA	combines COMPAT with NOARGS
-;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	NOARGS	same as STD except do not create structure in sys/sysproto.h
 ;	NODEF	??
 ;	NOPROTO	same as STD except do not create structure or function in
@@ -31,7 +28,6 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
-#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
