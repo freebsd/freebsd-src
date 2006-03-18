@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -71,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/swap_pager.h>
 
 #include <posix4/sched.h>
-
-#include "opt_compat.h"
 
 #include <compat/linux/linux_sysproto.h>
 
@@ -1402,3 +1401,19 @@ linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 	td->td_retval[0] = 20 - td->td_retval[0];
 	return error;
 }
+
+int
+linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
+{
+	struct proc *p = td->td_proc;
+	int name[2];
+	int error;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTNAME;
+	if ((error = suser_cred(p->p_ucred, SUSER_ALLOWJAIL)))
+		return (error);
+	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname, 
+		 args->len, 0, 0));
+}
+

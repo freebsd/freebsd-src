@@ -11,7 +11,7 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	type	one of STD, OBSOL, UNIMPL
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	audit   the audit event associated with the system call
@@ -26,12 +26,9 @@
 
 ; types:
 ;	AUE_NULL	STD	always included
-;	COMPAT	included on COMPAT #ifdef
-;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	AUE_NULL	UNIMPL	not implemented, placeholder only
 
-#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -73,7 +70,7 @@
 				    l_uid16_t uid, l_gid16_t gid); }
 17	AUE_NULL	UNIMPL	break
 18	AUE_STAT	MSTD	{ int linux_stat(char *path, \
-				    struct ostat *up); }
+				    struct linux_stat *up); }
 19	AUE_LSEEK	MSTD	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				    l_int whence); }
 20	AUE_GETPID	MSTD	{ int linux_getpid(void); }
@@ -88,7 +85,7 @@
 				    l_long addr, l_long data); }
 27	AUE_NULL	MSTD	{ int linux_alarm(l_uint secs); }
 28	AUE_FSTAT	MSTD	{ int linux_fstat(l_uint fd, \
-				    struct ostat *up); }
+				    struct linux_stat *up); }
 29	AUE_NULL	MSTD	{ int linux_pause(void); }
 30	AUE_UTIME	MSTD	{ int linux_utime(char *fname, \
 				    struct l_utimbuf *times); }
@@ -144,9 +141,8 @@
 72	AUE_NULL	MSTD	{ int linux_sigsuspend(l_int hist0, \
 				    l_int hist1, l_osigset_t mask); }
 73	AUE_NULL	MSTD	{ int linux_sigpending(l_osigset_t *mask); }
-74	AUE_SYSCTL	MNOPROTO { int osethostname(char *hostname, \
-				    u_int len); } osethostname \
-				    sethostname_args int
+74	AUE_SYSCTL	MNOPROTO { int linux_sethostname(char *hostname, \
+				    u_int len); }
 75	AUE_SETRLIMIT	MSTD	{ int linux_setrlimit(l_uint resource, \
 				    struct l_rlimit *rlim); }
 76	AUE_GETRLIMIT	MSTD	{ int linux_old_getrlimit(l_uint resource, \
@@ -166,7 +162,7 @@
 82	AUE_SELECT	MSTD	{ int linux_old_select( \
 				    struct l_old_select_argv *ptr); }
 83	AUE_SYMLINK	MSTD	{ int linux_symlink(char *path, char *to); }
-84	AUE_STAT	MNOPROTO	{ int ostat(char *path, struct ostat *up); }
+84	AUE_STAT	MNOPROTO	{ int linux_stat(char *path, struct ostat *up); }
 85	AUE_READLINK	MSTD	{ int linux_readlink(char *name, char *buf, \
 				    l_int count); }
 86	AUE_USELIB	STD	{ int linux_uselib(char *library); }
@@ -179,7 +175,7 @@
 91	AUE_MUNMAP	MNOPROTO	{ int munmap(caddr_t addr, int len); }
 92	AUE_TRUNCATE	MSTD	{ int linux_truncate(char *path, \
 				    l_ulong length); }
-93	AUE_FTRUNCATE	MNOPROTO	{ int oftruncate(int fd, long length); }
+93	AUE_FTRUNCATE	MNOPROTO	{ int linux_ftruncate(int fd, long length); }
 94	AUE_FCHMOD	MNOPROTO	{ int fchmod(int fd, int mode); }
 95	AUE_FCHOWN	MNOPROTO	{ int fchown(int fd, int uid, int gid); }
 96	AUE_GETPRIORITY	MSTD	{ int linux_getpriority(int which, int who); }
