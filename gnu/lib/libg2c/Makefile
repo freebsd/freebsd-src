@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SRCDIR=	${.CURDIR}/../../../contrib/libf2c
 
 .PATH: ${SRCDIR} ${SRCDIR}/libU77 ${SRCDIR}/libF77 ${SRCDIR}/libI77
@@ -105,7 +107,7 @@ ${E77OBJS:.o=.So}: f2cext.c
 	    ${.ALLSRC:M*.c}
 .endif
 
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 ${E77OBJS:.o=.po}: f2cext.c
 	${CC} -p ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif

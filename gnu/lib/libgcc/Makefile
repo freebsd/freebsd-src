@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
@@ -197,7 +198,7 @@ ${OBJS_S}: libgcc2.c
 	${XCC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
 
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 ${OBJS_P}: libgcc2.c
 	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
@@ -214,7 +215,7 @@ ${ASM_S}: ${_lib1asmsrc}
 	    -o ${.TARGET} ${.ALLSRC:N*.h}
 .endif
 
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 ${ASM_P}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -p -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}

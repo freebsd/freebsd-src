@@ -245,7 +245,7 @@ SYMLINKS+=libncurses.so ${LIBDIR}/libtermlib.so
 SYMLINKS+=libncurses.so ${LIBDIR}/libmytinfo.so
 SYMLINKS+=libncurses.so ${LIBDIR}/libtinfo.so
 .endif
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libcurses_p.a
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libtermcap_p.a
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libtermlib_p.a

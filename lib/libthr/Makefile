@@ -7,6 +7,9 @@
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
+
+.include <bsd.own.mk>
+
 LIB=thr
 SHLIB_MAJOR= 2
 CFLAGS+=-DPTHREAD_KERNEL
@@ -40,7 +43,7 @@ SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${SHLIBDIR}/libpthread.so
 .endif
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 .endif
