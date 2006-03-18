@@ -360,7 +360,7 @@ labelkre()
 		 * room for extended VM stats
 		 */
 		mvprintw(VMSTATROW + 11, VMSTATCOL - 6, "zfod");
-		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "ofod");
+		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "ozfod");
 		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "%%slo-z");
 		mvprintw(VMSTATROW + 14, VMSTATCOL - 6, "tfree");
 		extended_vm_stats = 1;
