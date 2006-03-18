@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sched.h>
@@ -439,6 +440,7 @@ thread_free(struct thread *td)
 void
 thread_exit(void)
 {
+	struct bintime new_switchtime;
 	struct thread *td;
 	struct proc *p;
 	struct ksegrp	*kg;
@@ -476,6 +478,18 @@ thread_exit(void)
 	 * and collect stats etc.
 	 */
 	sched_thread_exit(td);
+
+	/* Do the same timestamp bookkeeping that mi_switch() would do. */
+	binuptime(&new_switchtime);
+	bintime_add(&p->p_rux.rux_runtime, &new_switchtime);
+	bintime_sub(&p->p_rux.rux_runtime, PCPU_PTR(switchtime));
+	PCPU_SET(switchtime, new_switchtime);
+	PCPU_SET(switchticks, ticks);
+	cnt.v_swtch++;
+
+	/* Add our usage into the usage of all our children. */
+	if (p->p_numthreads == 1)
+		ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
 
 	/*
 	 * The last thread is left attached to the process
