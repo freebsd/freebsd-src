@@ -561,6 +561,13 @@ init_secondary(void)
 		smp_active = 1;	 /* historic */
 	}
 
+	/*
+	 * Enable global pages TLB extension
+	 * This also implicitly flushes the TLB 
+	 */
+
+	load_cr4(rcr4() | CR4_PGE);
+
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
