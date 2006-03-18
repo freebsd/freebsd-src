@@ -763,7 +763,9 @@ void
 ehci_idone(struct ehci_xfer *ex)
 {
 	usbd_xfer_handle xfer = &ex->xfer;
+#ifdef USB_DEBUG
 	struct ehci_pipe *epipe = (struct ehci_pipe *)xfer->pipe;
+#endif
 	ehci_soft_qtd_t *sqtd, *lsqtd;
 	u_int32_t status = 0, nstatus = 0;
 	int actlen, cerr;
