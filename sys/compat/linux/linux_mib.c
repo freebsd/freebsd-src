@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include "opt_compat.h"
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #else
