@@ -217,8 +217,17 @@ fork1(td, flags, pages, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		vm_forkproc(td, NULL, NULL, flags);
+		if ((p1->p_flag & P_HADTHREADS) &&
+		    (flags & (RFCFDG | RFFDG))) {
+			PROC_LOCK(p1);
+			if (thread_single(SINGLE_BOUNDARY)) {
+				PROC_UNLOCK(p1);
+				return (ERESTART);
+			}
+			PROC_UNLOCK(p1);
+		}
 
+		vm_forkproc(td, NULL, NULL, flags);
 		/*
 		 * Close all file descriptors.
 		 */
@@ -234,6 +243,13 @@ fork1(td, flags, pages, procp)
 		 */
 		if (flags & RFFDG) 
 			fdunshare(p1, td);
+
+		if ((p1->p_flag & P_HADTHREADS) &&
+		    (flags & (RFCFDG | RFFDG))) {
+			PROC_LOCK(p1);
+			thread_single_end();
+			PROC_UNLOCK(p1);
+		}
 		*procp = NULL;
 		return (0);
 	}
