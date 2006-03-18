@@ -24,10 +24,8 @@
 
 /* TODO: (in no order)
  *
- * 5) Setup RX buffers in ateinit_locked
  * 8) Need to sync busdma goo in atestop
  * 9) atestop should maybe free the mbufs?
- * 10) On Rx, how do we get a new mbuf?
  *
  * 1) detach
  * 2) Free dma setup
@@ -74,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 #define ATE_MAX_TX_BUFFERS 2		/* We have ping-pong tx buffers */
-#define ATE_MAX_RX_BUFFERS 8
+#define ATE_MAX_RX_BUFFERS 64
 
 struct ate_softc
 {
@@ -341,8 +339,8 @@ ate_activate(device_t dev)
 	    &sc->sc_mtx, &sc->rx_desc_tag);
 	if (err != 0)
 		goto errout;
-	if (bus_dmamem_alloc(sc->rx_desc_tag, (void **)&sc->rx_descs, M_WAITOK,
-	    &sc->rx_desc_map) != 0)
+	if (bus_dmamem_alloc(sc->rx_desc_tag, (void **)&sc->rx_descs,
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &sc->rx_desc_map) != 0)
 		goto errout;
 	if (bus_dmamap_load(sc->rx_desc_tag, sc->rx_desc_map, 
 	    sc->rx_descs, ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t),
@@ -364,11 +362,14 @@ ate_activate(device_t dev)
 		 * restarts from the first descriptor.
 		 */
 		if (i == ATE_MAX_RX_BUFFERS - 1)
-			seg.ds_addr |= 1 << 1;
-		sc->rx_descs[i].addr = seg.ds_addr;
+			sc->rx_descs[i].addr = seg.ds_addr | ETH_WRAP_BIT;
+		else
+			sc->rx_descs[i].addr = seg.ds_addr;
 		sc->rx_descs[i].status = 0;
-		bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREWRITE);
+		/* Flush the memory in the mbuf */
+		bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREREAD);
 	}
+	/* Flush the memory for the EMAC rx descriptor */
 	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_PREWRITE);
 	/* Write the descriptor queue address. */
 	WR4(sc, ETH_RBQP, sc->rx_desc_phys);
@@ -576,75 +577,112 @@ ate_intr(void *xsc)
 	struct ate_softc *sc = xsc;
 	int status;
 	int i;
+	struct mbuf *mb, *tmp_mbuf;
+	bus_dma_segment_t seg;
+	int rx_stat;
+	int nsegs;
+
 		
 	status = RD4(sc, ETH_ISR);
 	if (status == 0)
 		return;
-	printf("IT IS %x %x\n", RD4(sc, ETH_RSR), RD4(sc, ETH_CTL));
-
 	if (status & ETH_ISR_RCOM) {
 		bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 		    BUS_DMASYNC_POSTREAD);
 		for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
-			if (sc->rx_descs[i].addr & ETH_CPU_OWNER) {
-				struct mbuf *mb = sc->rx_mbuf[i];
-				bus_dma_segment_t seg;
-				int rx_stat = sc->rx_descs[i].status;
-				int nsegs;
+			if ((sc->rx_descs[i].addr & ETH_CPU_OWNER) == 0)
+				continue;
 
-				printf("GOT ONE\n");
-				bus_dmamap_sync(sc->rxtag,
-				    sc->rx_map[i], BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(sc->rxtag,
-				    sc->rx_map[i]);
-				WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));
-				/*
-				 * Allocate a new buffer to replace this one.
-				 * if we cannot, then we drop this packet
-				 * and keep the old buffer we had.
-				 */
-				sc->rx_mbuf[i] = m_getcl(M_DONTWAIT, MT_DATA,
-				    M_PKTHDR);
-				if (!sc->rx_mbuf[i]) {
-					sc->rx_mbuf[i] = mb;
-					sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
-					bus_dmamap_sync(sc->rx_desc_tag,
-					    sc->rx_desc_map, 
-					    BUS_DMASYNC_PREWRITE);
-					continue;
-				}
-				if (bus_dmamap_load_mbuf_sg(sc->rxtag,
-				    sc->rx_map[i],
-				    sc->rx_mbuf[i], &seg, &nsegs, 0) != 0) {
-					sc->rx_mbuf[i] = mb;
-					sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
-					bus_dmamap_sync(sc->rx_desc_tag,
-					    sc->rx_desc_map,
-					    BUS_DMASYNC_PREWRITE);
-					continue;
-				}
-				mb->m_len = sc->rx_descs[i].status & 
-				    ETH_LEN_MASK;
-				mb->m_pkthdr.len = mb->m_len;
-				mb->m_pkthdr.rcvif = sc->ifp;
-				/*
-				 * For the last buffer, set the wrap bit so
-				 * the controller restarts from the first
-				 * descriptor.
-				 */
-				if (i == ATE_MAX_RX_BUFFERS - 1)
-					seg.ds_addr |= 1 << 1;
-				sc->rx_descs[i].addr = seg.ds_addr;
+			mb = sc->rx_mbuf[i];
+			rx_stat = sc->rx_descs[i].status;
+			if ((rx_stat & ETH_LEN_MASK) == 0) {
+				printf("ignoring bogus 0 len packet\n");
+				bus_dmamap_load_mbuf_sg(sc->rxtag,
+				    sc->rx_map[i], sc->rx_mbuf[i],
+				    &seg, &nsegs, 0);
 				sc->rx_descs[i].status = 0;
-				mb->m_len = rx_stat & ETH_LEN_MASK;
-				(*sc->ifp->if_input)(sc->ifp, mb);
-				break;
+				sc->rx_descs[i].addr = seg.ds_addr;
+				if (i == ATE_MAX_RX_BUFFERS - 1)
+					sc->rx_descs[i].addr |=
+					    ETH_WRAP_BIT;
+				/* Flush memory for mbuf */
+				bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
+				    BUS_DMASYNC_PREREAD);
+				/* Flush rx dtor table rx_descs */
+				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+				    BUS_DMASYNC_PREWRITE);
+				continue;
 			}
+
+			/* Flush memory for mbuf so we don't get stale bytes */
+			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
+			    BUS_DMASYNC_POSTREAD);
+			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));
+			/*
+			 * Allocate a new buffer to replace this one.
+			 * if we cannot, then we drop this packet
+			 * and keep the old buffer we had.  Once allocated
+			 * the new buffer is loaded for dma.
+			 */
+			sc->rx_mbuf[i] = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			if (!sc->rx_mbuf[i]) {
+				printf("Failed to get another mbuf -- discarding packet\n");
+				sc->rx_mbuf[i] = mb;
+				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
+				bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
+				    BUS_DMASYNC_PREREAD);
+				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+				    BUS_DMASYNC_PREWRITE);
+				continue;
+			}
+			sc->rx_mbuf[i]->m_len =
+			    sc->rx_mbuf[i]->m_pkthdr.len = MCLBYTES;
+			bus_dmamap_unload(sc->rxtag, sc->rx_map[i]);
+			if (bus_dmamap_load_mbuf_sg(sc->rxtag, sc->rx_map[i],
+			    sc->rx_mbuf[i], &seg, &nsegs, 0) != 0) {
+				printf("Failed to load mbuf -- discarding packet -- reload old?\n");
+				sc->rx_mbuf[i] = mb;
+				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
+				bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
+				    BUS_DMASYNC_PREREAD);
+				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+				    BUS_DMASYNC_PREWRITE);
+				continue;
+			}
+			/*
+			 * The length returned by the device includes the
+			 * ethernet CRC calculation for the packet, but
+			 * ifnet drivers are supposed to discard it.
+			 */
+			mb->m_len = (rx_stat & ETH_LEN_MASK) - ETHER_CRC_LEN;
+			mb->m_pkthdr.len = mb->m_len;
+			mb->m_pkthdr.rcvif = sc->ifp;
+			tmp_mbuf = m_devget(mtod(mb, caddr_t), mb->m_len,
+			  ETHER_ALIGN, sc->ifp, NULL);
+			m_free(mb);
+			/*
+			 * For the last buffer, set the wrap bit so
+			 * the controller restarts from the first
+			 * descriptor.
+			 */
+			sc->rx_descs[i].status = 0;
+			sc->rx_descs[i].addr = seg.ds_addr;
+			if (i == ATE_MAX_RX_BUFFERS - 1)
+				sc->rx_descs[i].addr |= ETH_WRAP_BIT;
+			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
+			    BUS_DMASYNC_PREREAD);
+			bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+			    BUS_DMASYNC_PREWRITE);
+			if (tmp_mbuf != NULL)
+				(*sc->ifp->if_input)(sc->ifp, tmp_mbuf);
 		}
 	}
 	if (status & ETH_ISR_TCOM) {
-		if (sc->sent_mbuf[0])
+		ATE_LOCK(sc);
+		if (sc->sent_mbuf[0]) {
 			m_freem(sc->sent_mbuf[0]);
+			sc->sent_mbuf[0] = NULL;
+		}
 		if (sc->sent_mbuf[1]) {
 			if (RD4(sc, ETH_TSR) & ETH_TSR_IDLE) {
 				m_freem(sc->sent_mbuf[1]);
@@ -659,8 +697,16 @@ ate_intr(void *xsc)
 			sc->sent_mbuf[0] = NULL;
 			sc->txcur = 0;
 		}
+		/*
+		 * We're no longer busy, so clear the busy flag and call the
+		 * start routine to xmit more packets.
+		 */
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		atestart_locked(sc->ifp);
+		ATE_UNLOCK(sc);
 	}
 	if (status & ETH_ISR_RBNA) {
+		printf("RBNA workaround\n");
 		/* Workaround Errata #11 */
 		WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) &~ ETH_CTL_RE);
 		WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETH_CTL_RE);
@@ -706,8 +752,7 @@ ateinit_locked(void *xsc)
 	WR4(sc, ETH_HSL, 0);
 
 	WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETH_CTL_TE | ETH_CTL_RE);
-	WR4(sc, ETH_IER, /*ETH_ISR_RCOM | ETH_ISR_TCOM | ETH_ISR_RBNA*/
-	    0xffffffff);
+	WR4(sc, ETH_IER, ETH_ISR_RCOM | ETH_ISR_TCOM | ETH_ISR_RBNA);
 
 	/*
 	 * Boot loader fills in MAC address.  If that's not the case, then
@@ -744,56 +789,50 @@ atestart_locked(struct ifnet *ifp)
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-outloop:
-	/*
-	 * check to see if there's room to put another packet into the
-	 * xmit queue.  The EMAC chip has a ping-pong buffer for xmit
-	 * packets.  We use OACTIVE to indicate "we can stuff more into
-	 * our buffers (clear) or not (set)."
-	 */
-	if (!(RD4(sc, ETH_TSR) & ETH_TSR_BNQ)) {
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		return;
-	}
-	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-	if (m == 0) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		return;
-	}
-	mdefrag = m_defrag(m, M_DONTWAIT);
-	if (mdefrag == NULL) {
-		m_freem(m);
-		return;
-	}
-	m = mdefrag;
+	while (sc->txcur < ATE_MAX_TX_BUFFERS) {
+		/*
+		 * check to see if there's room to put another packet into the
+		 * xmit queue.  The EMAC chip has a ping-pong buffer for xmit
+		 * packets.  We use OACTIVE to indicate "we can stuff more into
+		 * our buffers (clear) or not (set)."
+		 */
+		if (!(RD4(sc, ETH_TSR) & ETH_TSR_BNQ)) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			return;
+		}
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		if (m == 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+			return;
+		}
+		mdefrag = m_defrag(m, M_DONTWAIT);
+		if (mdefrag == NULL) {
+			m_freem(m);
+			return;
+		}
+		m = mdefrag;
+		if (bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txcur], m,
+		    segs, &nseg, 0) != 0) {
+			m_freem(m);
+			continue;
+		}
+		bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txcur],
+		    BUS_DMASYNC_PREWRITE);
 
-	if (bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txcur], m, segs,
-	    &nseg, 0) != 0) {
-		m_free(m);
-		goto outloop;
-	}
-	bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txcur], BUS_DMASYNC_PREWRITE);
-	sc->sent_mbuf[sc->txcur] = m;
-	sc->txcur++;
-	if (sc->txcur >= ATE_MAX_TX_BUFFERS)
-		sc->txcur = 0;
-
-	/*
-	 * tell the hardware to xmit the packet.
-	 */
-	WR4(sc, ETH_TAR, segs[0].ds_addr);
-	WR4(sc, ETH_TCR, segs[0].ds_len);
+		/*
+		 * tell the hardware to xmit the packet.
+		 */
+		WR4(sc, ETH_TAR, segs[0].ds_addr);
+		WR4(sc, ETH_TCR, segs[0].ds_len);
 	
-	/*
-	 * Tap off here if there is a bpf listener.
-	 */
-	BPF_MTAP(ifp, m);
+		/*
+		 * Tap off here if there is a bpf listener.
+		 */
+		BPF_MTAP(ifp, m);
 
-	/*
-	 * Once we've queued one packet, we'll do the rest via the ISR,
-	 * save off a pointer.
-	 */
-	sc->sent_mbuf[1] = m;
+		sc->sent_mbuf[sc->txcur] = m;
+		sc->txcur++;
+	}
 }
 
 static void
