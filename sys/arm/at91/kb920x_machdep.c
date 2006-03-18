@@ -146,25 +146,36 @@ static const struct pmap_devmap kb920x_devmap[] = {
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
 	 */
-	    {
-		    /*
-		     * This at least maps the interrupt controller, the UART
-		     * and the timer. Other devices should use newbus to
-		     * map their memory anyway.
-		     */
-		    0xfff00000,
-		    0xfff00000,
-		    0x100000,
-		    VM_PROT_READ|VM_PROT_WRITE,                             
-		    PTE_NOCACHE,
-	    },
-	    {
-		    0,
-		    0,
-		    0,
-		    0,
-		    0,
-	    }
+	{
+		/*
+		 * This at least maps the interrupt controller, the UART
+		 * and the timer. Other devices should use newbus to
+		 * map their memory anyway.
+		 */
+		0xfff00000,
+		0xfff00000,
+		0x100000,
+		VM_PROT_READ|VM_PROT_WRITE,                             
+		PTE_NOCACHE,
+	},
+	{
+		/*
+		 * Add the ohci controller, and anything else that might be
+		 * on this chip select for a VA/PA mapping.
+		 */
+		AT91RM92_OHCI_BASE,
+		AT91RM92_OHCI_BASE,
+		AT91RM92_OHCI_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,                             
+		PTE_NOCACHE,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+	}
 };
 
 #define SDRAM_START 0xa0000000
