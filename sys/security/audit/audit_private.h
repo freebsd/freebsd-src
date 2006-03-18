@@ -287,7 +287,7 @@ void		 canon_path(struct thread *td, char *path, char *cpath);
  * asynchronously.
  */
 void		 audit_trigger_init(void);
-void		 send_trigger(unsigned int trigger);
+int		 send_trigger(unsigned int trigger);
 
 /*
  * General audit related functions.
