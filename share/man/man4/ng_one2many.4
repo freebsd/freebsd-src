@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2001
+.Dd February 19, 2006
 .Dt NG_ONE2MANY 4
 .Os
 .Sh NAME
@@ -141,11 +141,12 @@ field are
 .Dv NG_ONE2MANY_XMIT_ROUNDROBIN
 (default) or
 .Dv NG_ONE2MANY_XMIT_ALL .
-The only valid setting for
+The valid settings for
 .Dv failAlg
-is
-.Dv NG_ONE2MANY_FAIL_MANUAL ;
-this is also the default setting.
+are
+.Dv NG_ONE2MANY_FAIL_MANUAL
+(default) or
+.Dv NG_ONE2MANY_FAIL_NOTIFY .
 .It Dv NGM_ONE2MANY_GET_CONFIG
 Returns the current node configuration in a
 .Dv "struct ng_one2many_link_config" .
