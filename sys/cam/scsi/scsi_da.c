@@ -422,6 +422,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * TOSHIBA TransMemory USB sticks
+		 * PR: kern/94660
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TOSHIBA", "TransMemory",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
