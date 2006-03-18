@@ -105,7 +105,9 @@
 __<bsd.own.mk>__:
 
 SRCCONF?=	/etc/src.conf
-.sinclude "${SRCCONF}"
+.if exists(${SRCCONF})
+.include "${SRCCONF}"
+.endif
 
 # Binaries
 BINOWN?=	root
