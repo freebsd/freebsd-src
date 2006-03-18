@@ -802,7 +802,8 @@ ata_usbchannel_end_transaction(struct ata_request *request)
     /* XXX SOS convert the request from the format used, only BBB for now*/
 
     /* ATA/ATAPI IDENTIFY needs special treatment */
-    if (request->u.atapi.ccb[0] == ATAPI_INQUIRY) {
+    if ((request->flags & ATA_R_ATAPI) &&
+	(request->u.atapi.ccb[0] == ATAPI_INQUIRY)) {
 	struct ata_device *atadev = device_get_softc(request->dev);
 	struct atapi_inquiry *inquiry = (struct atapi_inquiry *)request->data;
 	u_int16_t *ptr;
@@ -823,7 +824,8 @@ ata_usbchannel_end_transaction(struct ata_request *request)
 	    *ptr = ntohs(*ptr);
 	request->result = 0;
     }
-    if (request->u.atapi.ccb[0] == ATAPI_REQUEST_SENSE)
+    if ((request->flags & ATA_R_ATAPI) &&
+	(request->u.atapi.ccb[0] == ATAPI_REQUEST_SENSE))
 	request->u.atapi.sense_key = request->u.atapi.sense_data.sense_key << 4;
     return ATA_OP_FINISHED;
 }

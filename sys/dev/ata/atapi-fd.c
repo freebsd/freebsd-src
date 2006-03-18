@@ -317,7 +317,7 @@ afd_sense(device_t dev)
     while ((error = afd_test_ready(dev)) && timeout--) {
 	DELAY(100000);
     }
-    if (error == ENODEV)
+    if (error == EBUSY)
 	return 1;
 
     /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
