@@ -2439,7 +2439,8 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			error = pmclog_flush(po);
 			if (error == 0) {
 				LIST_FOREACH(pm, &po->po_pmcs, pm_next)
-				    if (pm->pm_flags & PMC_F_NEEDS_LOGFILE)
+				    if (pm->pm_flags & PMC_F_NEEDS_LOGFILE &&
+					pm->pm_state == PMC_STATE_RUNNING)
 					    pmc_stop(pm);
 				error = pmclog_deconfigure_log(po);
 			}
