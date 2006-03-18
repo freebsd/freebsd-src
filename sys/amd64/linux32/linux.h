@@ -197,6 +197,24 @@ struct l_newstat {
 	l_ulong		__unused5;
 } __packed;
 
+struct l_stat {
+       l_ushort        st_dev;
+       l_ulong         st_ino;
+       l_ushort        st_mode;
+       l_ushort        st_nlink;
+       l_ushort        st_uid;
+       l_ushort        st_gid;
+       l_ushort        st_rdev;
+       l_long          st_size;
+       struct l_timespec       st_atimespec;
+       struct l_timespec       st_mtimespec;
+       struct l_timespec       st_ctimespec;
+       l_long          st_blksize;
+       l_long          st_blocks;
+       l_ulong         st_flags;
+       l_ulong         st_gen;
+};
+
 struct l_stat64 {
 	l_ushort	st_dev;
 	u_char		__pad0[10];
