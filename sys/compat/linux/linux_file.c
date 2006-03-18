@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 
-#include "opt_compat.h"
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -666,6 +664,21 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	error = kern_truncate(td, path, UIO_SYSSPACE, args->length);
 	LFREEPATH(path);
 	return (error);
+}
+
+int
+linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
+{
+	struct ftruncate_args /* {
+		int fd;
+		int pad;
+		off_t length;
+		} */ nuap;
+	   
+	nuap.fd = args->fd;
+	nuap.pad = 0;
+	nuap.length = args->length;
+	return (ftruncate(td, &nuap));
 }
 
 int
