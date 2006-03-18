@@ -1257,9 +1257,6 @@ fdalloc(struct thread *td, int minfd, int *result)
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 
-	if (fdp->fd_freefile > minfd)
-		minfd = fdp->fd_freefile;	   
-
 	PROC_LOCK(p);
 	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
 	PROC_UNLOCK(p);
@@ -1289,6 +1286,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	    ("free descriptor isn't"));
 	fdp->fd_ofileflags[fd] = 0; /* XXX needed? */
 	fdused(fdp, fd);
+	fdp->fd_freefile = fd_first_free(fdp, fd, fdp->fd_nfiles);
 	*result = fd;
 	return (0);
 }
