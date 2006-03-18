@@ -359,8 +359,8 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 	    (unsigned long)
 	    ((audit_q_len + audit_pre_q_len + 1) * MAX_AUDIT_RECORD_SIZE) /
 	    mnt_stat->f_bsize >= (unsigned long)(mnt_stat->f_bfree)) {
-		printf(
-    "audit_worker: free space below size of audit queue, failing stop\n");
+		printf("audit_record_write: free space below size of audit "
+		    "queue, failing stop\n");
 		audit_in_failure = 1;
 	}
 
