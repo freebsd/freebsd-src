@@ -27,10 +27,11 @@
 #
 # $FreeBSD$
 
+SHLIBDIR?= /lib
+
 .include <bsd.own.mk>
 
 LIB=	ipsec
-SHLIBDIR?= /lib
 SHLIB_MAJOR= 2
 CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=-DIPSEC_DEBUG -DIPSEC
