@@ -30,7 +30,7 @@ SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${SHLIBDIR}/libpthread.so
 .endif
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 .endif
