@@ -122,14 +122,14 @@ audit_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (EOPNOTSUPP);
 }
 
-void
+int
 send_trigger(unsigned int trigger)
 {
 	struct trigger_info *ti;
 
 	/* If nobody's listening, we ain't talking. */
 	if (!audit_isopen)
-		return;
+		return (ENODEV);
 
 	/*
 	 * XXXAUDIT: Use a condition variable instead of msleep/wakeup?
@@ -140,6 +140,7 @@ send_trigger(unsigned int trigger)
 	TAILQ_INSERT_TAIL(&trigger_list, ti, list);
 	wakeup(&trigger_list);
 	mtx_unlock(&audit_trigger_mtx);
+	return (0);
 }
 
 static struct cdevsw audit_cdevsw = {

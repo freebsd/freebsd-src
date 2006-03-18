@@ -335,7 +335,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		if ((udata.au_trigger < AUDIT_TRIGGER_MIN) ||
 		    (udata.au_trigger > AUDIT_TRIGGER_MAX))
 			return (EINVAL);
-		send_trigger(udata.au_trigger);
+		return (send_trigger(udata.au_trigger));
 		break;
 	}
 	/* Copy data back to userspace for the GET comands */
