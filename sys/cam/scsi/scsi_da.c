@@ -437,7 +437,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * Genesys 6-in-1 Card Reader
-		 * No PR, reported by anders
+		 * PR: usb/94647
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "STORAGE DEVICE*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
