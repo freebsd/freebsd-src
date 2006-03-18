@@ -1,9 +1,10 @@
 # $FreeBSD$
 
+SHLIBDIR?=	/lib
+
 .include <bsd.own.mk>
 
 LIB=		crypto
-SHLIBDIR?=	/lib
 SHLIB_MAJOR=	4
 
 NO_LINT=
