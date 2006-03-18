@@ -73,7 +73,7 @@ TGTS=	all all-man buildenv buildkernel buildworld check-old checkdpadd \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installworld \
 	kernel-toolchain libraries lint maninstall \
-	obj objlink regress rerelease tags toolchain update \
+	obj objlink regress rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 distribute32 install32
