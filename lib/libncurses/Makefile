@@ -1,11 +1,12 @@
 # $FreeBSD$
 
+SHLIBDIR?= /lib
+
 .include <bsd.own.mk>
 
 NCURSES=${.CURDIR}/../../contrib/ncurses
 
 LIB=	ncurses
-SHLIBDIR?= /lib
 SHLIB_MAJOR=6
 
 # Should be elsewhere

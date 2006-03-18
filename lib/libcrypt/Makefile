@@ -2,11 +2,12 @@
 # $FreeBSD$
 #
 
+SHLIBDIR?=	/lib
+
 .include <bsd.own.mk>
 
 SHLIB_MAJOR=	3
 LIB=		crypt
-SHLIBDIR?=	/lib
 
 .PATH:		${.CURDIR}/../libmd
 SRCS=		crypt.c misc.c \
