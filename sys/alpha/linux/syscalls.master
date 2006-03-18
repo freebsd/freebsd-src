@@ -11,7 +11,7 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
+;	type	one of STD, OBSOL, UNIMPL, CPT_NOA, LIBCOMPAT,
 ;		NODEF, NOARGS, NOPROTO
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
@@ -22,7 +22,6 @@
 
 ; types:
 ;	STD	always included
-;	COMPAT	included on COMPAT #ifdef
 ;	CPT_NOA	combines COMPAT with NOARGS
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	NOARGS	same as STD except do not create structure in sys/sysproto.h
@@ -158,9 +157,7 @@
 85	AUE_NULL	UNIMPL
 86	AUE_GETITIMER	UNIMPL	osf_getitimer
 87	AUE_SYSCTL	MSTD	{ int linux_gethostname(void); }
-88	AUE_SYSCTL	MNOPROTO	{ int osethostname(char *hostname, \
-				    u_int len); } osethostname \
-				    sethostname_args int
+88	AUE_SYSCTL	MSTD	{ int linux_sethostname(char *hostname, u_int len); }
 89	AUE_GETDTABLESIZE	MSTD	{ int linux_getdtablesize(void); }
 90	AUE_DUP2	MNOPROTO	{ int dup2(u_int from, u_int to); }
 91	AUE_FSTAT	MSTD	{ int linux_newfstat(l_uint fd, \
@@ -226,7 +223,7 @@
 128	AUE_RENAME	MSTD	{ int linux_rename(char *from, char *to); }
 129	AUE_TRUNCATE	MSTD	{ int linux_truncate(char *path, \
 				    l_ulong length); }
-130	AUE_FTRUNCATE	MNOPROTO	{ int oftruncate(int fd, long length); }
+130	AUE_FTRUNCATE	MSTD	{ int linux_ftruncate(int fd, long length); }
 131	AUE_FLOCK	MNOPROTO	{ int flock(int fd, int how); }
 132	AUE_SETGID	MNOPROTO	{ int setgid(gid_t gid); }
 133	AUE_SENDTO	MSTD	{ int osf1_sendto(int s, caddr_t buf, \

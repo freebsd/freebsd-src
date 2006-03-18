@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -45,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
-
-#include "opt_compat.h"
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -185,6 +184,65 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 		error = newstat_copyout(&buf, args->buf);
 
 	return (error);
+}
+
+static int
+stat_copyout(struct stat *buf, void *ubuf)
+{
+	struct l_stat lbuf;
+	
+	bzero(&lbuf, sizeof(lbuf));
+	lbuf.st_dev = buf->st_dev;
+	lbuf.st_ino = buf->st_ino;
+	lbuf.st_mode = buf->st_mode;
+	lbuf.st_nlink = buf->st_nlink;
+	lbuf.st_uid = buf->st_uid;
+	lbuf.st_gid = buf->st_gid;
+	lbuf.st_rdev = buf->st_rdev;
+	if (buf->st_size < (quad_t)1 << 32)
+		lbuf.st_size = buf->st_size;
+	else
+		lbuf.st_size = -2;
+	lbuf.st_atime = buf->st_atime;
+	lbuf.st_mtime = buf->st_mtime;
+	lbuf.st_ctime = buf->st_ctime;
+	lbuf.st_blksize = buf->st_blksize;
+	lbuf.st_blocks = buf->st_blocks;
+	lbuf.st_flags = buf->st_flags;
+	lbuf.st_gen = buf->st_gen;
+
+	return (copyout(&lbuf, ubuf, sizeof(lbuf)));
+}
+
+int
+linux_stat(struct thread *td, struct linux_stat_args *args)
+{
+	struct stat buf;
+	int error;
+#ifdef DEBUG
+	if (ldebug(stat))
+	printf(ARGS(stat, "%s, *"), args->path);
+#endif
+	error = kern_stat(td, args->path, UIO_SYSSPACE, &buf);
+	if (error)
+		return (error);
+	return(stat_copyout(&buf, args->up));
+}
+
+int
+linux_lstat(struct thread *td, struct linux_lstat_args *args)
+{
+	struct stat buf;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(lstat))
+	printf(ARGS(lstat, "%s, *"), args->path);
+#endif
+	error = kern_lstat(td, args->path, UIO_SYSSPACE, &buf);
+	if (error)
+		return (error);
+	return(stat_copyout(&buf, args->up));
 }
 
 /* XXX - All fields of type l_int are defined as l_long on i386 */

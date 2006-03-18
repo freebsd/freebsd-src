@@ -11,7 +11,7 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	type	one of STD, OBSOL, UNIMPL
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -21,12 +21,9 @@
 
 ; types:
 ;	STD	always included
-;	COMPAT	included on COMPAT #ifdef
-;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
-#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -136,9 +133,8 @@
 72	AUE_NULL	MSTD	{ int linux_sigsuspend(l_int hist0, \
 				    l_int hist1, l_osigset_t mask); }
 73	AUE_NULL	MSTD	{ int linux_sigpending(l_osigset_t *mask); }
-74	AUE_NULL	MNOPROTO { int osethostname(char *hostname, \
-				    u_int len); } osethostname \
-				    sethostname_args int
+74	AUE_NULL	MSTD	{ int linux_sethostname(char *hostname, \
+				    u_int len); }
 75	AUE_NULL	MSTD	{ int linux_setrlimit(l_uint resource, \
 				    struct l_rlimit *rlim); }
 76	AUE_NULL	MSTD	{ int linux_old_getrlimit(l_uint resource, \
@@ -159,7 +155,7 @@
 				    struct l_old_select_argv *ptr); }
 83	AUE_NULL	MSTD	{ int linux_symlink(char *path, \
 				    char *to); }
-84	AUE_NULL	UNIMPL	ostat
+84	AUE_NULL	MSTD    { int linux_stat(char *path, struct l_stat *up); }
 85	AUE_NULL	MSTD	{ int linux_readlink(char *name, \
 				    char *buf, l_int count); }
 86	AUE_NULL	UNIMPL	linux_uselib
@@ -173,7 +169,7 @@
 91	AUE_NULL	MNOPROTO	{ int munmap(caddr_t addr, int len); }
 92	AUE_NULL	MSTD	{ int linux_truncate(char *path, \
 				    l_ulong length); }
-93	AUE_NULL	MNOPROTO	{ int oftruncate(int fd, long length); }
+93	AUE_NULL	MSTD	{ int linux_ftruncate(int fd, long length); }
 94	AUE_NULL	MNOPROTO	{ int fchmod(int fd, int mode); }
 95	AUE_NULL	MNOPROTO	{ int fchown(int fd, int uid, int gid); }
 96	AUE_NULL	MSTD	{ int linux_getpriority(int which, int who); }
