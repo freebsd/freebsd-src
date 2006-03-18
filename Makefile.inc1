@@ -4,7 +4,6 @@
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
-#	-DNO_PROFILE do not build profiled libraries
 #	-DNO_SHARE do not go into share subdir
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
@@ -179,7 +178,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
-		-DWITHOUT_NLS -DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		-DWITHOUT_NLS -DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS
 
 # build-tools stage
@@ -371,7 +370,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	    -DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE libraries
+	    -DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -461,7 +460,7 @@ WMAKE_TGTS+=	_cleanobj _obj _build-tools
 WMAKE_TGTS+=	_cross-tools
 .endif
 WMAKE_TGTS+=	_includes _libraries _depend everything
-.if ${TARGET_ARCH} == "amd64" && !defined(NO_LIB32)
+.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
 WMAKE_TGTS+=	build32
 .endif
 
@@ -562,7 +561,7 @@ reinstall:
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${TARGET_ARCH} == "amd64" && !defined(NO_LIB32)
+.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
@@ -571,7 +570,7 @@ redistribute:
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
-.if ${TARGET_ARCH} == "amd64" && !defined(NO_LIB32)
+.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 DISTRIBUTION=lib32
 .endif
 
