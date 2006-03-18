@@ -102,7 +102,8 @@ at91st_attach(device_t dev)
 	 * initializing clocks so that DELAY works.
 	 */
 	WR4(ST_RTMR, 1);
-
+	/* Disable all interrupts */
+	WR4(ST_IDR, 0xffffffff);
 	return (0);
 }
 
@@ -175,7 +176,7 @@ DELAY(int n)
 	uint32_t start, end, cur;
 
 	start = st_crtr();
-	n = (n * 1000000) / 32768;
+	n = (n * 1000) / 32768;
 	if (n <= 0)
 		n = 1;
 	end = (start + n) & ST_CRTR_MASK;
