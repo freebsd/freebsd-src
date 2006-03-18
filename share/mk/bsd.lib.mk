@@ -155,7 +155,7 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 
 .if !defined(INTERNALLIB)
 
-.if !defined(NO_PROFILE) && defined(LIB) && !empty(LIB)
+.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 
@@ -251,7 +251,7 @@ _libinstall:
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 .endif
-.if !defined(NO_PROFILE) && defined(LIB) && !empty(LIB)
+.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 .endif
@@ -330,7 +330,7 @@ clean:
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
 .endif
 .if !defined(INTERNALLIB)
-.if !defined(NO_PROFILE) && defined(LIB) && !empty(LIB)
+.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
 .endif
 .if defined(SHLIB_NAME) || \

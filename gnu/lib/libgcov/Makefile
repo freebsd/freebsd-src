@@ -1,12 +1,13 @@
 # $FreeBSD$
 
+NO_PROFILE=
+.include <bsd.own.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
 LIB=		gcov
-NO_PROFILE=
 
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
@@ -37,7 +38,7 @@ ${OBJS_S}: libgcov.c
 	${CC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
 
-.if !defined(NO_PROFILE)
+.if ${MK_PROFILE} != "no"
 ${OBJS_P}: libgcc2.c
 	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
