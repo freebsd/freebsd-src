@@ -305,7 +305,7 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 	 * then kindly suggest to the audit daemon to do something.
 	 */
 	if (mnt_stat->f_bfree < AUDIT_HARD_LIMIT_FREE_BLOCKS) {
-		send_trigger(AUDIT_TRIGGER_NO_SPACE);
+		(void)send_trigger(AUDIT_TRIGGER_NO_SPACE);
 		/* Hopefully userspace did something about all the previous
 		 * triggers that were sent prior to this critical condition.
 		 * If fail-stop is set, then we're done; goodnight Gracie.
@@ -328,7 +328,7 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 			temp = mnt_stat->f_blocks / (100 / 
 			    audit_qctrl.aq_minfree);
 			if (mnt_stat->f_bfree < temp)
-				send_trigger(AUDIT_TRIGGER_LOW_SPACE);
+				(void)send_trigger(AUDIT_TRIGGER_LOW_SPACE);
 		}
 
 	/* Check if the current log file is full; if so, call for
@@ -340,7 +340,7 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 	    (audit_file_rotate_wait == 0) && 
 	    (vattr.va_size >= audit_fstat.af_filesz)) {
 		audit_file_rotate_wait = 1;
-		send_trigger(AUDIT_TRIGGER_OPEN_NEW);
+		(void)send_trigger(AUDIT_TRIGGER_OPEN_NEW);
 	}
 
 	/*
