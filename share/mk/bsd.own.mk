@@ -183,7 +183,8 @@ COMPRESS_EXT?=	.gz
 # regardless of user's setting).
 #
 .for var in \
-    MAN
+    MAN \
+    PROFILE
 .if defined(NO_${var})
 WITHOUT_${var}=
 .endif
@@ -232,6 +233,7 @@ WITHOUT_${var}=
     IPFILTER \
     IPX \
     KERBEROS \
+    LIB32 \
     LIBC_R \
     LIBPTHREAD \
     LIBTHR \
@@ -248,7 +250,6 @@ WITHOUT_${var}=
     PAM \
     PCVT \
     PF \
-    PROFILE \
     RCMDS \
     RCS \
     RESCUE \
@@ -319,6 +320,7 @@ WITH_IDEA=
     IPFILTER \
     IPX \
     KERBEROS \
+    LIB32 \
     LIBC_R \
     LIBPTHREAD \
     LIBTHR \
@@ -336,6 +338,7 @@ WITH_IDEA=
     PAM \
     PCVT \
     PF \
+    PROFILE \
     RCMDS \
     RCS \
     RESCUE \
