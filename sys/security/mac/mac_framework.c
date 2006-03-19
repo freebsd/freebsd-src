@@ -1069,10 +1069,11 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 	vfslocked = NDHASGIANT(&nd);
 	if (error == 0) {
 		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
-		if (error == 0)
+		if (error == 0) {
 			error = vn_setlabel(nd.ni_vp, intlabel,
 			    td->td_ucred);
-		vn_finished_write(mp);
+			vn_finished_write(mp);
+		}
 	}
 
 	NDFREE(&nd, 0);
@@ -1122,10 +1123,11 @@ __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 	vfslocked = NDHASGIANT(&nd);
 	if (error == 0) {
 		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
-		if (error == 0)
+		if (error == 0) {
 			error = vn_setlabel(nd.ni_vp, intlabel,
 			    td->td_ucred);
-		vn_finished_write(mp);
+			vn_finished_write(mp);
+		}
 	}
 
 	NDFREE(&nd, 0);
