@@ -75,7 +75,7 @@ extern int	audit_suspended;
 #define ARG_AUID		0x0000000000000100ULL
 #define ARG_GID			0x0000000000000200ULL
 #define ARG_FD			0x0000000000000400ULL
-#define ARG_POSIX_IPC_PERM 	0x0000000000000800ULL
+#define ARG_POSIX_IPC_PERM	0x0000000000000800ULL
 #define ARG_FFLAGS		0x0000000000001000ULL
 #define ARG_MODE		0x0000000000002000ULL
 #define ARG_DEV			0x0000000000004000ULL
@@ -114,73 +114,65 @@ extern int	audit_suspended;
 #define ARG_NONE		0x0000000000000000ULL
 #define ARG_ALL			0xFFFFFFFFFFFFFFFFULL
 
-void			 audit_syscall_enter(unsigned short code,
-				struct thread *td);
-void			 audit_syscall_exit(int error, struct thread *td);
+void	 audit_syscall_enter(unsigned short code, struct thread *td);
+void	 audit_syscall_exit(int error, struct thread *td);
 
 /*
  * The remaining kernel functions are conditionally compiled in as they
- * are wrapped by a macro, and the macro should be the only place in 
+ * are wrapped by a macro, and the macro should be the only place in
  * the source tree where these functions are referenced.
  */
 #ifdef AUDIT
 struct ipc_perm;
 struct sockaddr;
 union auditon_udata;
-void			 audit_arg_addr(void * addr);
-void			 audit_arg_exit(int status, int retval);
-void			 audit_arg_len(int len);
-void			 audit_arg_fd(int fd);
-void			 audit_arg_fflags(int fflags);
-void			 audit_arg_gid(gid_t gid);
-void			 audit_arg_uid(uid_t uid);
-void			 audit_arg_egid(gid_t egid);
-void			 audit_arg_euid(uid_t euid);
-void			 audit_arg_rgid(gid_t rgid);
-void			 audit_arg_ruid(uid_t ruid);
-void			 audit_arg_sgid(gid_t sgid);
-void			 audit_arg_suid(uid_t suid);
-void			 audit_arg_groupset(gid_t *gidset, u_int gidset_size);
-void			 audit_arg_login(char *login);
-void			 audit_arg_ctlname(int *name, int namelen);
-void			 audit_arg_mask(int mask);
-void			 audit_arg_mode(mode_t mode);
-void			 audit_arg_dev(int dev);
-void			 audit_arg_value(long value);
-void			 audit_arg_owner(uid_t uid, gid_t gid);
-void			 audit_arg_pid(pid_t pid);
-void			 audit_arg_process(struct proc *p);
-void			 audit_arg_signum(u_int signum);
-void			 audit_arg_socket(int sodomain, int sotype, 
-						int soprotocol);
-void			 audit_arg_sockaddr(struct thread *td, 
-						struct sockaddr *so);
-void			 audit_arg_auid(uid_t auid);
-void			 audit_arg_auditinfo(struct auditinfo *au_info);
-void			 audit_arg_upath(struct thread *td, char *upath, 
-					 u_int64_t flags);
-void			 audit_arg_vnode(struct vnode *vp, u_int64_t flags);
-void			 audit_arg_text(char *text);
-void			 audit_arg_cmd(int cmd);
-void			 audit_arg_svipc_cmd(int cmd);
-void			 audit_arg_svipc_perm(struct ipc_perm *perm);
-void			 audit_arg_svipc_id(int id);
-void			 audit_arg_svipc_addr(void *addr);
-void			 audit_arg_posix_ipc_perm(uid_t uid, gid_t gid, 
-						 mode_t mode);
-void			 audit_arg_auditon(union auditon_udata *udata);
-void			 audit_arg_file(struct proc *p, struct file *fp);
-
-void			 audit_sysclose(struct thread *td, int fd);
-
-void			 audit_proc_alloc(struct proc *p);
-void			 audit_proc_kproc0(struct proc *p);
-void			 audit_proc_init(struct proc *p);
-void			 audit_proc_fork(struct proc *parent, 
-					 struct proc *child);
-void			 audit_proc_free(struct proc *p);
-void			 audit_thread_alloc(struct thread *td);
-void			 audit_thread_free(struct thread *td);
+void	 audit_arg_addr(void * addr);
+void	 audit_arg_exit(int status, int retval);
+void	 audit_arg_len(int len);
+void	 audit_arg_fd(int fd);
+void	 audit_arg_fflags(int fflags);
+void	 audit_arg_gid(gid_t gid);
+void	 audit_arg_uid(uid_t uid);
+void	 audit_arg_egid(gid_t egid);
+void	 audit_arg_euid(uid_t euid);
+void	 audit_arg_rgid(gid_t rgid);
+void	 audit_arg_ruid(uid_t ruid);
+void	 audit_arg_sgid(gid_t sgid);
+void	 audit_arg_suid(uid_t suid);
+void	 audit_arg_groupset(gid_t *gidset, u_int gidset_size);
+void	 audit_arg_login(char *login);
+void	 audit_arg_ctlname(int *name, int namelen);
+void	 audit_arg_mask(int mask);
+void	 audit_arg_mode(mode_t mode);
+void	 audit_arg_dev(int dev);
+void	 audit_arg_value(long value);
+void	 audit_arg_owner(uid_t uid, gid_t gid);
+void	 audit_arg_pid(pid_t pid);
+void	 audit_arg_process(struct proc *p);
+void	 audit_arg_signum(u_int signum);
+void	 audit_arg_socket(int sodomain, int sotype, int soprotocol);
+void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *so);
+void	 audit_arg_auid(uid_t auid);
+void	 audit_arg_auditinfo(struct auditinfo *au_info);
+void	 audit_arg_upath(struct thread *td, char *upath, u_int64_t flags);
+void	 audit_arg_vnode(struct vnode *vp, u_int64_t flags);
+void	 audit_arg_text(char *text);
+void	 audit_arg_cmd(int cmd);
+void	 audit_arg_svipc_cmd(int cmd);
+void	 audit_arg_svipc_perm(struct ipc_perm *perm);
+void	 audit_arg_svipc_id(int id);
+void	 audit_arg_svipc_addr(void *addr);
+void	 audit_arg_posix_ipc_perm(uid_t uid, gid_t gid, mode_t mode);
+void	 audit_arg_auditon(union auditon_udata *udata);
+void	 audit_arg_file(struct proc *p, struct file *fp);
+void	 audit_sysclose(struct thread *td, int fd);
+void	 audit_proc_alloc(struct proc *p);
+void	 audit_proc_kproc0(struct proc *p);
+void	 audit_proc_init(struct proc *p);
+void	 audit_proc_fork(struct proc *parent, struct proc *child);
+void	 audit_proc_free(struct proc *p);
+void	 audit_thread_alloc(struct thread *td);
+void	 audit_thread_free(struct thread *td);
 
 /*
  * Define a macro to wrap the audit_arg_* calls by checking the global
@@ -189,23 +181,23 @@ void			 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG(op, args...)	do {					\
 	if (audit_enabled)						\
 		audit_arg_ ## op (args);				\
-	} while (0)
+} while (0)
 
 #define AUDIT_SYSCALL_ENTER(code, td)	do {				\
 	if (audit_enabled) {						\
 		audit_syscall_enter(code, td);				\
 	}								\
-	} while (0)
+} while (0)
 
 /*
  * Wrap the audit_syscall_exit() function so that it is called only when
- * auditing is enabled, or we have a audit record on the thread. It is 
+ * auditing is enabled, or we have a audit record on the thread. It is
  * possible that an audit record was begun before auditing was turned off.
  */
 #define AUDIT_SYSCALL_EXIT(error, td)	do {				\
 	if (audit_enabled | (td->td_ar != NULL))			\
 		audit_syscall_exit(error, td);				\
-	} while (0)
+} while (0)
 
 /*
  * A Macro to wrap the audit_sysclose() function.
@@ -213,26 +205,25 @@ void			 audit_thread_free(struct thread *td);
 #define	AUDIT_SYSCLOSE(td, fd)	do {					\
 	if (audit_enabled)						\
 		audit_sysclose(td, fd);					\
-	} while (0)
+} while (0)
 
 #else /* !AUDIT */
 
-void			 audit_proc_init(struct proc *p);
-void			 audit_proc_fork(struct proc *parent, 
-					 struct proc *child);
-void			 audit_proc_free(struct proc *p);
+void	 audit_proc_init(struct proc *p);
+void	 audit_proc_fork(struct proc *parent, struct proc *child);
+void	 audit_proc_free(struct proc *p);
 
 #define AUDIT_ARG(op, args...)	do {					\
-	} while (0)
+} while (0)
 
 #define AUDIT_SYSCALL_ENTER(code, td)	do {				\
-	} while (0)
+} while (0)
 
 #define AUDIT_SYSCALL_EXIT(error, td)	do {				\
-	} while (0)
+} while (0)
 
 #define	AUDIT_SYSCLOSE(p, fd)	do {					\
-	} while (0)
+} while (0)
 
 #endif /* AUDIT */
 
