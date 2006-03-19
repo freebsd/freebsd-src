@@ -401,12 +401,12 @@ fdesc_setattr(ap)
 		return (error);
 	}
 	vp = fp->f_vnode;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) == 0) {
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
+		VOP_UNLOCK(vp, 0, ap->a_td);
 		vn_finished_write(mp);
 	}
-	VOP_UNLOCK(vp, 0, ap->a_td);
 	fdrop(fp, ap->a_td);
 	return (error);
 }
