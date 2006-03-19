@@ -1758,9 +1758,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 {
 	struct vnode *vp;
 	int error;
-#ifdef SOFTUPDATES
 	struct buf *tbp;
-#endif
 
 	vp = bo->__bo_vnode;
 	if (bp->b_iocmd == BIO_WRITE) {
