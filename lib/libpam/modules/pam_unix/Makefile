@@ -34,6 +34,7 @@
 #
 # $FreeBSD$
 
+NO_PROFILE=
 .include <bsd.own.mk>
 
 LIB=	pam_unix
