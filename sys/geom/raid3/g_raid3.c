@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@ TUNABLE_INT("kern.geom.raid3.disconnect_on_failure",
     &g_raid3_disconnect_on_failure);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
     &g_raid3_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
-static u_int g_raid3_syncreqs = 4;
+static u_int g_raid3_syncreqs = 2;
 TUNABLE_INT("kern.geom.raid3.sync_requests", &g_raid3_syncreqs);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_raid3_syncreqs, 0, "Parallel synchronization I/O requests.");
@@ -2271,7 +2271,7 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
 			state = G_RAID3_DISK_STATE_ACTIVE;
 		} else {
 			if ((sc->sc_flags &
-			     G_RAID3_DEVICE_FLAG_NOAUTOSYNC) == 0  ||
+			     G_RAID3_DEVICE_FLAG_NOAUTOSYNC) == 0 ||
 			    (disk->d_flags &
 			     G_RAID3_DISK_FLAG_FORCE_SYNC) != 0) {
 				/*
