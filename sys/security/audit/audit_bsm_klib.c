@@ -63,8 +63,8 @@ struct evclass_list {
 };
 
 static MALLOC_DEFINE(M_AUDITEVCLASS, "audit_evclass", "Audit event class");
-static struct mtx evclass_mtx;
-static struct evclass_list evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
+static struct mtx		evclass_mtx;
+static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
 
 /*
  * Look up the class for an audit event in the class mapping table.
@@ -90,14 +90,15 @@ out:
 	return (class);
 }
 
-/* 
+/*
  * Insert a event to class mapping. If the event already exists in the
  * mapping, then replace the mapping with the new one.
+ *
  * XXX There is currently no constraints placed on the number of mappings.
- *     May want to either limit to a number, or in terms of memory usage.
+ * May want to either limit to a number, or in terms of memory usage.
  */
 void
-au_evclassmap_insert(au_event_t event, au_class_t class) 
+au_evclassmap_insert(au_event_t event, au_class_t class)
 {
 	struct evclass_list *evcl;
 	struct evclass_elem *evc, *evc_new;
@@ -126,7 +127,7 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 }
 
 void
-au_evclassmap_init(void) 
+au_evclassmap_init(void)
 {
 	int i;
 
@@ -141,7 +142,7 @@ au_evclassmap_init(void)
 	 * native ABI system calls, as there may be audit events reachable
 	 * only through non-native system calls.  It also seems a shame to
 	 * frob the mutex this early.
-	 */ 
+	 */
 	for (i = 0; i < SYS_MAXSYSCALL; i++) {
 		if (sysent[i].sy_auevent != AUE_NULL)
 			au_evclassmap_insert(sysent[i].sy_auevent, AU_NULL);
@@ -163,31 +164,30 @@ au_preselect(au_event_t event, au_mask_t *mask_p, int sorf)
 
 	ae_class = au_event_class(event);
 
-	/* 
+	/*
 	 * Perform the actual check of the masks against the event.
 	 */
 	if (sorf & AU_PRS_SUCCESS)
 		effmask |= (mask_p->am_success & ae_class);
-                        
+
 	if (sorf & AU_PRS_FAILURE)
 		effmask |= (mask_p->am_failure & ae_class);
-        
+
 	if (effmask)
 		return (1);
-	else 
+	else
 		return (0);
 }
 
 /*
- * Convert sysctl names and present arguments to events
+ * Convert sysctl names and present arguments to events.
  */
 au_event_t
 ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 {
 
 	/* can't parse it - so return the worst case */
-	if ((valid_arg & (ARG_CTLNAME | ARG_LEN)) != 
-	                 (ARG_CTLNAME | ARG_LEN))
+	if ((valid_arg & (ARG_CTLNAME | ARG_LEN)) != (ARG_CTLNAME | ARG_LEN))
 		return (AUE_SYSCTL);
 
 	switch (name[0]) {
@@ -241,14 +241,17 @@ ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 }
 
 /*
- * Convert an open flags specifier into a specific type of open event for 
+ * Convert an open flags specifier into a specific type of open event for
  * auditing purposes.
  */
 au_event_t
-flags_and_error_to_openevent(int oflags, int error) {
+flags_and_error_to_openevent(int oflags, int error)
+{
 	au_event_t aevent;
 
-	/* Need to check only those flags we care about. */
+	/*
+	 * Need to check only those flags we care about.
+	 */
 	oflags = oflags & (O_RDONLY | O_CREAT | O_TRUNC | O_RDWR | O_WRONLY);
 
 	/*
@@ -310,7 +313,7 @@ flags_and_error_to_openevent(int oflags, int error) {
 	}
 
 #if 0
-	/* 
+	/*
 	 * Convert chatty errors to better matching events.
 	 * Failures to find a file are really just attribute
 	 * events - so recast them as such.
@@ -469,13 +472,12 @@ auditon_command_event(int cmd)
 	}
 }
 
-/* 
- * Create a canonical path from given path by prefixing either the
- * root directory, or the current working directory.
- * If the process working directory is NULL, we could use 'rootvnode'
- * to obtain the root directoty, but this results in a volfs name
- * written to the audit log. So we will leave the filename starting
- * with '/' in the audit log in this case.
+/*
+ * Create a canonical path from given path by prefixing either the root
+ * directory, or the current working directory.  If the process working
+ * directory is NULL, we could use 'rootvnode' to obtain the root directoty,
+ * but this results in a volfs name written to the audit log. So we will
+ * leave the filename starting with '/' in the audit log in this case.
  *
  * XXXRW: Since we combine two paths here, ideally a buffer of size
  * MAXPATHLEN * 2 would be passed in.
@@ -493,43 +495,43 @@ canon_path(struct thread *td, char *path, char *cpath)
 	bufp = path;
 	FILEDESC_LOCK(fdp);
 	if (*(path) == '/') {
-		while (*(bufp) == '/') 
-			bufp++;			/* skip leading '/'s	     */
-		/* If no process root, or it is the same as the system root,
+		while (*(bufp) == '/')
+			bufp++;			/* Skip leading '/'s. */
+		/*
+		 * If no process root, or it is the same as the system root,
 		 * audit the path as passed in with a single '/'.
 		 */
 		if ((fdp->fd_rdir == NULL) ||
-		    (fdp->fd_rdir == rootvnode)) {	
+		    (fdp->fd_rdir == rootvnode)) {
 			vnp = NULL;
-			bufp--;			/* restore one '/'	     */
+			bufp--;			/* Restore one '/'. */
 		} else {
-			vnp = fdp->fd_rdir;	/* use process root	     */
+			vnp = fdp->fd_rdir;	/* Use process root. */
 			vref(vnp);
 		}
 	} else {
-		vnp = fdp->fd_cdir;	/* prepend the current dir  */
+		vnp = fdp->fd_cdir;	/* Prepend the current dir. */
 		vref(vnp);
 		bufp = path;
 	}
 	FILEDESC_UNLOCK(fdp);
 	if (vnp != NULL) {
 		/*
-		 * XXX: vn_fullpath() on FreeBSD is "less reliable"
-		 * than vn_getpath() on Darwin, so this will need more
-		 * attention in the future.  Also, the question and
-		 * string bounding here seems a bit questionable and
-		 * will also require attention.
+		 * XXX: vn_fullpath() on FreeBSD is "less reliable" than
+		 * vn_getpath() on Darwin, so this will need more attention
+		 * in the future.  Also, the question and string bounding
+		 * here seems a bit questionable and will also require
+		 * attention.
 		 */
 		vfslocked = VFS_LOCK_GIANT(vnp->v_mount);
 		vn_lock(vnp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = vn_fullpath(td, vnp, &retbuf, &freebuf);
 		if (error == 0) {
-			/* Copy and free buffer allocated by vn_fullpath() */
+			/* Copy and free buffer allocated by vn_fullpath(). */
 			snprintf(cpath, MAXPATHLEN, "%s/%s", retbuf, bufp);
-			free(freebuf, M_TEMP); 
-		} else {
+			free(freebuf, M_TEMP);
+		} else
 			cpath[0] = '\0';
-		}
 		vput(vnp);
 		VFS_UNLOCK_GIANT(vfslocked);
 	} else {

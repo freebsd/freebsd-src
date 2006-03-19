@@ -66,8 +66,8 @@ MALLOC_DECLARE(M_AUDITTEXT);
 #endif
 
 /*
- * Audit control variables that are usually set/read via system calls
- * and used to control various aspects of auditing.
+ * Audit control variables that are usually set/read via system calls and
+ * used to control various aspects of auditing.
  */
 extern struct au_qctrl		audit_qctrl;
 extern struct audit_fstat	audit_fstat;
@@ -79,9 +79,9 @@ extern int			audit_fail_stop;
  * Success/failure conditions for the conversion of a kernel audit record to
  * BSM format.
  */
-#define	BSM_SUCCESS		0
-#define	BSM_FAILURE		1
-#define	BSM_NOAUDIT		2
+#define	BSM_SUCCESS	0
+#define	BSM_FAILURE	1
+#define	BSM_NOAUDIT	2
 
 /*
  * Defines for the kernel audit record k_ar_commit field.
@@ -97,13 +97,13 @@ extern int			audit_fail_stop;
  * This structure is converted to BSM format before being written to disk.
  */
 struct vnode_au_info {
-	mode_t		vn_mode;
-	uid_t		vn_uid;
-	gid_t		vn_gid;
-	dev_t		vn_dev;
-	long		vn_fsid;
-	long		vn_fileid;
-	long		vn_gen;
+	mode_t	vn_mode;
+	uid_t	vn_uid;
+	gid_t	vn_gid;
+	dev_t	vn_dev;
+	long	vn_fsid;
+	long	vn_fileid;
+	long	vn_gen;
 };
 
 struct groupset {
@@ -115,10 +115,10 @@ struct socket_au_info {
 	int 		so_domain;
 	int		so_type;
 	int		so_protocol;
-	in_addr_t	so_raddr;	/* remote address if INET socket */
-	in_addr_t	so_laddr;	/* local address if INET socket */
-	u_short		so_rport;	/* remote port */
-	u_short		so_lport;	/* local port */
+	in_addr_t	so_raddr;	/* Remote address if INET socket. */
+	in_addr_t	so_laddr;	/* Local address if INET socket. */
+	u_short		so_rport;	/* Remote port. */
+	u_short		so_lport;	/* Local port. */
 };
 
 union auditon_udata {
@@ -138,9 +138,9 @@ union auditon_udata {
 };
 
 struct posix_ipc_perm {
-	uid_t			pipc_uid;
-	gid_t			pipc_gid;
-	mode_t			pipc_mode;
+	uid_t	pipc_uid;
+	gid_t	pipc_gid;
+	mode_t	pipc_mode;
 };
 
 struct audit_record {
@@ -154,59 +154,59 @@ struct audit_record {
 	u_int64_t		ar_valid_arg;  /* Bitmask of valid arguments */
 
 	/* Audit subject information. */
-	struct xucred			ar_subj_cred;
-	uid_t				ar_subj_ruid;
-	gid_t				ar_subj_rgid;
-	gid_t				ar_subj_egid;
-	uid_t				ar_subj_auid; /* Audit user ID */
-	pid_t				ar_subj_asid; /* Audit session ID */
-	pid_t				ar_subj_pid;
-	struct au_tid			ar_subj_term;	
-	char				ar_subj_comm[MAXCOMLEN + 1];
-	struct au_mask			ar_subj_amask;
+	struct xucred		ar_subj_cred;
+	uid_t			ar_subj_ruid;
+	gid_t			ar_subj_rgid;
+	gid_t			ar_subj_egid;
+	uid_t			ar_subj_auid; /* Audit user ID */
+	pid_t			ar_subj_asid; /* Audit session ID */
+	pid_t			ar_subj_pid;
+	struct au_tid		ar_subj_term;
+	char			ar_subj_comm[MAXCOMLEN + 1];
+	struct au_mask		ar_subj_amask;
 
 	/* Operation arguments. */
-	uid_t				ar_arg_euid;
-	uid_t				ar_arg_ruid;
-	uid_t				ar_arg_suid;
-	gid_t				ar_arg_egid;
-	gid_t				ar_arg_rgid;
-	gid_t				ar_arg_sgid;
-	pid_t				ar_arg_pid;
-	pid_t				ar_arg_asid;
-	struct au_tid			ar_arg_termid;	
-	uid_t				ar_arg_uid;
-	uid_t				ar_arg_auid;
-	gid_t				ar_arg_gid;
-	struct groupset			ar_arg_groups;
-	int				ar_arg_fd;
-	int				ar_arg_fflags;
-	mode_t				ar_arg_mode;
-	int				ar_arg_dev;
-	long				ar_arg_value;
-	void *				ar_arg_addr;
-	int				ar_arg_len;
-	int				ar_arg_mask;
-	u_int				ar_arg_signum;
-	char				ar_arg_login[MAXLOGNAME];
-	int				ar_arg_ctlname[CTL_MAXNAME];
-	struct sockaddr			ar_arg_sockaddr;
-	struct socket_au_info		ar_arg_sockinfo;
-	char				*ar_arg_upath1;
-	char				*ar_arg_upath2;
-	char				*ar_arg_text;
-	struct au_mask			ar_arg_amask;
-	struct vnode_au_info		ar_arg_vnode1;
-	struct vnode_au_info		ar_arg_vnode2;
-	int				ar_arg_cmd;
-	int				ar_arg_svipc_cmd;
-	struct ipc_perm			ar_arg_svipc_perm;
-	int				ar_arg_svipc_id;
-	void *				ar_arg_svipc_addr;
-	struct posix_ipc_perm		ar_arg_pipc_perm;
-	union auditon_udata		ar_arg_auditon;
-	int				ar_arg_exitstatus;
-	int				ar_arg_exitretval;
+	uid_t			ar_arg_euid;
+	uid_t			ar_arg_ruid;
+	uid_t			ar_arg_suid;
+	gid_t			ar_arg_egid;
+	gid_t			ar_arg_rgid;
+	gid_t			ar_arg_sgid;
+	pid_t			ar_arg_pid;
+	pid_t			ar_arg_asid;
+	struct au_tid		ar_arg_termid;
+	uid_t			ar_arg_uid;
+	uid_t			ar_arg_auid;
+	gid_t			ar_arg_gid;
+	struct groupset		ar_arg_groups;
+	int			ar_arg_fd;
+	int			ar_arg_fflags;
+	mode_t			ar_arg_mode;
+	int			ar_arg_dev;
+	long			ar_arg_value;
+	void *			ar_arg_addr;
+	int			ar_arg_len;
+	int			ar_arg_mask;
+	u_int			ar_arg_signum;
+	char			ar_arg_login[MAXLOGNAME];
+	int			ar_arg_ctlname[CTL_MAXNAME];
+	struct sockaddr		ar_arg_sockaddr;
+	struct socket_au_info	ar_arg_sockinfo;
+	char			*ar_arg_upath1;
+	char			*ar_arg_upath2;
+	char			*ar_arg_text;
+	struct au_mask		ar_arg_amask;
+	struct vnode_au_info	ar_arg_vnode1;
+	struct vnode_au_info	ar_arg_vnode2;
+	int			ar_arg_cmd;
+	int			ar_arg_svipc_cmd;
+	struct ipc_perm		ar_arg_svipc_perm;
+	int			ar_arg_svipc_id;
+	void *			ar_arg_svipc_addr;
+	struct posix_ipc_perm	ar_arg_pipc_perm;
+	union auditon_udata	ar_arg_auditon;
+	int			ar_arg_exitstatus;
+	int			ar_arg_exitretval;
 };
 
 /*
@@ -221,16 +221,16 @@ struct audit_record {
 
 /*
  * In-kernel version of audit record; the basic record plus queue meta-data.
- * This record can also have a pointer set to some opaque data that will
- * be passed through to the audit writing mechanism.
+ * This record can also have a pointer set to some opaque data that will be
+ * passed through to the audit writing mechanism.
  */
 struct kaudit_record {
-	struct audit_record		k_ar;
-	u_int32_t			k_ar_commit;
-	void 				*k_udata;    /* user data */	
-	u_int				k_ulen;     /* user data length */	
-	struct uthread			*k_uthread; /* thread we are auditing */
-	TAILQ_ENTRY(kaudit_record)	k_q;
+	struct audit_record		 k_ar;
+	u_int32_t			 k_ar_commit;
+	void				*k_udata;	/* User data. */
+	u_int				 k_ulen;	/* User data length. */
+	struct uthread			*k_uthread;	/* Audited thread. */
+	TAILQ_ENTRY(kaudit_record)	 k_q;
 };
 TAILQ_HEAD(kaudit_queue, kaudit_record);
 
@@ -248,34 +248,33 @@ struct kaudit_record	*audit_new(int event, struct thread *td);
  * the BSM file format.
  */
 struct au_record;
-int			 kaudit_to_bsm(struct kaudit_record *kar,
-			    struct au_record **pau);
-int			 bsm_rec_verify(void *rec);
+int	 kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau);
+int	 bsm_rec_verify(void *rec);
 
 /*
  * Kernel versions of the libbsm audit record functions.
  */
-void			 kau_free(struct au_record *rec);
-void			 kau_init(void);
+void	 kau_free(struct au_record *rec);
+void	 kau_init(void);
 
 /*
  * Return values for pre-selection and post-selection decisions.
  */
-#define	AU_PRS_SUCCESS		1
-#define	AU_PRS_FAILURE		2
-#define	AU_PRS_BOTH		(AU_PRS_SUCCESS|AU_PRS_FAILURE)
+#define	AU_PRS_SUCCESS	1
+#define	AU_PRS_FAILURE	2
+#define	AU_PRS_BOTH	(AU_PRS_SUCCESS|AU_PRS_FAILURE)
 
 /*
  * Data structures relating to the kernel audit queue.  Ideally, these might
  * be abstracted so that only accessor methods are exposed.
  */
-extern struct mtx			audit_mtx;
-extern struct cv			audit_commit_cv;
-extern struct cv			audit_cv;
-extern struct kaudit_queue		audit_q;
-extern int				audit_q_len;
-extern int				audit_pre_q_len;
-extern int				audit_in_failure;
+extern struct mtx		audit_mtx;
+extern struct cv		audit_commit_cv;
+extern struct cv		audit_cv;
+extern struct kaudit_queue	audit_q;
+extern int			audit_q_len;
+extern int			audit_pre_q_len;
+extern int			audit_in_failure;
 
 /*
  * Flags to use on audit files when opening and closing.
@@ -289,8 +288,8 @@ extern int				audit_in_failure;
 
 /*
  * Some of the BSM tokenizer functions take different parameters in the
- * kernel implementations in order to save the copying of large kernel
- * data structures. The prototypes of these functions are declared here.
+ * kernel implementations in order to save the copying of large kernel data
+ * structures. The prototypes of these functions are declared here.
  */
 token_t		*kau_to_socket(struct socket_au_info *soi);
 
@@ -328,6 +327,6 @@ void			 audit_worker_init(void);
 /*
  * Audit pipe functions.
  */
-void			 audit_pipe_submit(void *record, u_int record_len);
+void	 audit_pipe_submit(void *record, u_int record_len);
 
 #endif /* ! _SECURITY_AUDIT_PRIVATE_H_ */
