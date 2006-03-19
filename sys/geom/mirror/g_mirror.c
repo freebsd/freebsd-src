@@ -67,7 +67,7 @@ TUNABLE_INT("kern.geom.mirror.disconnect_on_failure",
     &g_mirror_disconnect_on_failure);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
     &g_mirror_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
-static u_int g_mirror_syncreqs = 4;
+static u_int g_mirror_syncreqs = 2;
 TUNABLE_INT("kern.geom.mirror.sync_requests", &g_mirror_syncreqs);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_mirror_syncreqs, 0, "Parallel synchronization I/O requests.");
@@ -2041,7 +2041,7 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
 			state = G_MIRROR_DISK_STATE_ACTIVE;
 		} else {
 			if ((sc->sc_flags &
-			     G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) == 0  ||
+			     G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) == 0 ||
 			    (disk->d_flags &
 			     G_MIRROR_DISK_FLAG_FORCE_SYNC) != 0) {
 				/*
