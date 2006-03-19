@@ -248,6 +248,7 @@ WITHOUT_${var}=
     PAM \
     PCVT \
     PF \
+    PROFILE \
     RCMDS \
     RCS \
     RESCUE \
