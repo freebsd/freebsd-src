@@ -756,7 +756,9 @@ ufs_remove(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
 	int error;
+	struct thread *td;
 
+	td = curthread;
 	ip = VTOI(vp);
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 	    (VTOI(dvp)->i_flags & APPEND)) {
@@ -766,6 +768,20 @@ ufs_remove(ap)
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
 	if (ip->i_nlink <= 0)
 		vp->v_vflag |= VV_NOSYNC;
+	if ((ip->i_flags & SF_SNAPSHOT) != 0) {
+		/*
+		 * Avoid deadlock where another thread is trying to
+		 * update the inodeblock for dvp and is waiting on
+		 * snaplk.  Temporary unlock the vnode lock for the
+		 * unlinked file and sync the directory.  This should
+		 * allow vput() of the directory to not block later on
+		 * while holding the snapshot vnode locked, assuming
+		 * that the directory hasn't been unlinked too.
+		 */
+		VOP_UNLOCK(vp, 0, td);
+		(void) VOP_FSYNC(dvp, MNT_WAIT, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	}
 out:
 	return (error);
 }
