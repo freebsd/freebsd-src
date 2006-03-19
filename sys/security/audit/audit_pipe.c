@@ -457,6 +457,16 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			error = EINVAL;
 		break;
 
+	case AUDITPIPE_GET_QLIMIT_MIN:
+		*(u_int *)data = AUDIT_PIPE_QLIMIT_MIN;
+		error = 0;
+		break;
+
+	case AUDITPIPE_GET_QLIMIT_MAX:
+		*(u_int *)data = AUDIT_PIPE_QLIMIT_MAX;
+		error = 0;
+		break;
+
 	case AUDITPIPE_GET_INSERTS:
 		*(u_int *)data = ap->ap_inserts;
 		error = 0;
