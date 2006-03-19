@@ -34,8 +34,8 @@
  * within the audit implementation.
  */
 
-#ifndef _BSM_AUDIT_PRIVATE_H
-#define	_BSM_AUDIT_PRIVATE_H
+#ifndef _SECURITY_AUDIT_PRIVATE_H_
+#define	_SECURITY_AUDIT_PRIVATE_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -302,4 +302,4 @@ void			 audit_rotate_vnode(struct ucred *cred,
  */
 void			 audit_pipe_submit(void *record, u_int record_len);
 
-#endif /* ! _BSM_AUDIT_PRIVATE_H */
+#endif /* ! _SECURITY_AUDIT_PRIVATE_H_ */

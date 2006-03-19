@@ -34,8 +34,8 @@
  * necessary for the kernel as a whole to interact with the audit subsystem.
  */
 
-#ifndef _BSM_AUDIT_KERNEL_H
-#define	_BSM_AUDIT_KERNEL_H
+#ifndef _SECURITY_AUDIT_KERNEL_H_
+#define	_SEUCRITY_AUDIT_KERNEL_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -236,4 +236,4 @@ void			 audit_proc_free(struct proc *p);
 
 #endif /* AUDIT */
 
-#endif /* !_BSM_AUDIT_KERNEL_H */
+#endif /* !_SECURITY_AUDIT_KERNEL_H_ */
