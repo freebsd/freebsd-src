@@ -24,6 +24,7 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
+#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>

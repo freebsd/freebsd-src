@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 /* XXX we use functions that might not exist. */
+#include "opt_compat.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
