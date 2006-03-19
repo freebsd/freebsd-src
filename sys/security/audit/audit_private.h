@@ -53,6 +53,19 @@ MALLOC_DECLARE(M_AUDITTEXT);
 #endif
 
 /*
+ * The AUDIT_EXCESSIVELY_VERBOSE define enables a number of gratuitously
+ * noisy printf's to the console.  Due to the volume, it should be left off
+ * unless you want your system to churn a lot whenever the audit record flow
+ * gets high.
+ */
+//#define	AUDIT_EXCESSIVELY_VERBOSE
+#ifdef AUDIT_EXCESSIVELY_VERBOSE
+#define	AUDIT_PRINTF(x)	printf x
+#else
+#define	AUDIT_PRINTF(x)
+#endif
+
+/*
  * Audit control variables that are usually set/read via system calls
  * and used to control various aspects of auditing.
  */
@@ -213,19 +226,20 @@ struct audit_record {
  */
 struct kaudit_record {
 	struct audit_record		k_ar;
-	u_int32_t			k_ar_commit; 
+	u_int32_t			k_ar_commit;
 	void 				*k_udata;    /* user data */	
 	u_int				k_ulen;     /* user data length */	
 	struct uthread			*k_uthread; /* thread we are auditing */
 	TAILQ_ENTRY(kaudit_record)	k_q;
 };
+TAILQ_HEAD(kaudit_queue, kaudit_record);
 
 /*
  * Functions to manage the allocation, release, and commit of kernel audit
  * records.
  */
 void			 audit_abort(struct kaudit_record *ar);
-void			 audit_commit(struct kaudit_record *ar, int error, 
+void			 audit_commit(struct kaudit_record *ar, int error,
 			    int retval);
 struct kaudit_record	*audit_new(int event, struct thread *td);
 
@@ -251,7 +265,19 @@ void			 kau_init(void);
 #define	AU_PRS_FAILURE		2
 #define	AU_PRS_BOTH		(AU_PRS_SUCCESS|AU_PRS_FAILURE)
 
-/* 
+/*
+ * Data structures relating to the kernel audit queue.  Ideally, these might
+ * be abstracted so that only accessor methods are exposed.
+ */
+extern struct mtx			audit_mtx;
+extern struct cv			audit_commit_cv;
+extern struct cv			audit_cv;
+extern struct kaudit_queue		audit_q;
+extern int				audit_q_len;
+extern int				audit_pre_q_len;
+extern int				audit_in_failure;
+
+/*
  * Flags to use on audit files when opening and closing.
  */
 #define	AUDIT_OPEN_FLAGS	(FWRITE | O_APPEND)
@@ -293,9 +319,11 @@ int		 send_trigger(unsigned int trigger);
  * General audit related functions.
  */
 struct kaudit_record	*currecord(void);
+void			 audit_free(struct kaudit_record *ar);
 void			 audit_shutdown(void *arg, int howto);
 void			 audit_rotate_vnode(struct ucred *cred,
 			    struct vnode *vp);
+void			 audit_worker_init(void);
 
 /*
  * Audit pipe functions.
