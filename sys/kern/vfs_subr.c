@@ -3391,7 +3391,7 @@ vop_rename_pre(void *ap)
 	ASSERT_VI_UNLOCKED(a->a_fdvp, "VOP_RENAME");
 
 	/* Check the source (from). */
-	if (a->a_tdvp != a->a_fdvp)
+	if (a->a_tdvp != a->a_fdvp && a->a_tvp != a->a_fdvp)
 		ASSERT_VOP_UNLOCKED(a->a_fdvp, "vop_rename: fdvp locked");
 	if (a->a_tvp != a->a_fvp)
 		ASSERT_VOP_UNLOCKED(a->a_fvp, "vop_rename: tvp locked");
