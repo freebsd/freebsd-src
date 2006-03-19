@@ -46,13 +46,13 @@
 /*
  * MPSAFE
  *
- * System call to allow a user space application to submit a BSM audit
- * record to the kernel for inclusion in the audit log. This function
- * does little verification on the audit record that is submitted.
+ * System call to allow a user space application to submit a BSM audit record
+ * to the kernel for inclusion in the audit log. This function does little
+ * verification on the audit record that is submitted.
  *
- * XXXAUDIT: Audit preselection for user records does not currently
- * work, since we pre-select only based on the AUE_audit event type,
- * not the event type submitted as part of the user audit data.
+ * XXXAUDIT: Audit preselection for user records does not currently work,
+ * since we pre-select only based on the AUE_audit event type, not the event
+ * type submitted as part of the user audit data.
  */
 /* ARGSUSED */
 int
@@ -71,14 +71,16 @@ audit(struct thread *td, struct audit_args *uap)
 
 	ar = currecord();
 
-	/* If there's no current audit record (audit() itself not audited)
+	/*
+	 * If there's no current audit record (audit() itself not audited)
 	 * commit the user audit record.
 	 */
 	if (ar == NULL) {
 
-		/* This is not very efficient; we're required to allocate
-		 * a complete kernel audit record just so the user record
-		 * can tag along.
+		/*
+		 * This is not very efficient; we're required to allocate a
+		 * complete kernel audit record just so the user record can
+		 * tag along.
 		 *
 		 * XXXAUDIT: Maybe AUE_AUDIT in the system call context and
 		 * special pre-select handling?
@@ -89,7 +91,7 @@ audit(struct thread *td, struct audit_args *uap)
 		ar = td->td_ar;
 	}
 
-	if (uap->length > MAX_AUDIT_RECORD_SIZE) 
+	if (uap->length > MAX_AUDIT_RECORD_SIZE)
 		return (EINVAL);
 
 	rec = malloc(uap->length, M_AUDITDATA, M_WAITOK);
@@ -98,13 +100,14 @@ audit(struct thread *td, struct audit_args *uap)
 	if (error)
 		goto free_out;
 
-	/* Verify the record */
+	/* Verify the record. */
 	if (bsm_rec_verify(rec) == 0) {
 		error = EINVAL;
 		goto free_out;
 	}
 
-	/* Attach the user audit record to the kernel audit record. Because
+	/*
+	 * Attach the user audit record to the kernel audit record. Because
 	 * this system call is an auditable event, we will write the user
 	 * record along with the record for this audit event.
 	 *
@@ -117,8 +120,9 @@ audit(struct thread *td, struct audit_args *uap)
 	return (0);
 
 free_out:
-	/* audit_syscall_exit() will free the audit record on the thread
-	 * even if we allocated it above.
+	/*
+	 * audit_syscall_exit() will free the audit record on the thread even
+	 * if we allocated it above.
 	 */
 	free(rec, M_AUDITDATA);
 	return (error);
@@ -147,8 +151,10 @@ auditon(struct thread *td, struct auditon_args *uap)
 
 	memset((void *)&udata, 0, sizeof(udata));
 
+	/*
+	 * Some of the GET commands use the arguments too.
+	 */
 	switch (uap->cmd) {
-	/* Some of the GET commands use the arguments too */
 	case A_SETPOLICY:
 	case A_SETKMASK:
 	case A_SETQCTRL:
@@ -171,7 +177,8 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 	}
 
-	/* XXX Need to implement these commands by accessing the global
+	/*
+	 * XXX Need to implement these commands by accessing the global
 	 * values associated with the commands.
 	 *
 	 * XXXAUDIT: Locking?
@@ -251,9 +258,9 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_SETCOND:
-		if (udata.au_cond == AUC_NOAUDIT) 
+		if (udata.au_cond == AUC_NOAUDIT)
 			audit_suspended = 1;
-		if (udata.au_cond == AUC_AUDITING) 
+		if (udata.au_cond == AUC_AUDITING)
 			audit_suspended = 0;
 		if (udata.au_cond == AUC_DISABLED) {
 			audit_suspended = 1;
@@ -262,17 +269,17 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETCLASS:
-		udata.au_evclass.ec_class = 
-			au_event_class(udata.au_evclass.ec_number);
+		udata.au_evclass.ec_class = au_event_class(
+		    udata.au_evclass.ec_number);
 		break;
 
 	case A_SETCLASS:
 		au_evclassmap_insert(udata.au_evclass.ec_number,
-					udata.au_evclass.ec_class);
+		    udata.au_evclass.ec_class);
 		break;
 
 	case A_GETPINFO:
-		if (udata.au_aupinfo.ap_pid < 1) 
+		if (udata.au_aupinfo.ap_pid < 1)
 			return (EINVAL);
 
 		/* XXXAUDIT: p_cansee()? */
@@ -280,30 +287,29 @@ auditon(struct thread *td, struct auditon_args *uap)
 			return (EINVAL);
 
 		udata.au_aupinfo.ap_auid = tp->p_au->ai_auid;
-		udata.au_aupinfo.ap_mask.am_success = 
-			tp->p_au->ai_mask.am_success;
-		udata.au_aupinfo.ap_mask.am_failure = 
-			tp->p_au->ai_mask.am_failure;
-		udata.au_aupinfo.ap_termid.machine = 
-			tp->p_au->ai_termid.machine;
-		udata.au_aupinfo.ap_termid.port = 
-			tp->p_au->ai_termid.port;
+		udata.au_aupinfo.ap_mask.am_success =
+		    tp->p_au->ai_mask.am_success;
+		udata.au_aupinfo.ap_mask.am_failure =
+		    tp->p_au->ai_mask.am_failure;
+		udata.au_aupinfo.ap_termid.machine =
+		    tp->p_au->ai_termid.machine;
+		udata.au_aupinfo.ap_termid.port = tp->p_au->ai_termid.port;
 		udata.au_aupinfo.ap_asid = tp->p_au->ai_asid;
 		PROC_UNLOCK(tp);
 		break;
 
 	case A_SETPMASK:
-		if (udata.au_aupinfo.ap_pid < 1) 
+		if (udata.au_aupinfo.ap_pid < 1)
 			return (EINVAL);
 
 		/* XXXAUDIT: p_cansee()? */
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
 			return (EINVAL);
 
-		tp->p_au->ai_mask.am_success = 
-			udata.au_aupinfo.ap_mask.am_success;
-		tp->p_au->ai_mask.am_failure = 
-			udata.au_aupinfo.ap_mask.am_failure;
+		tp->p_au->ai_mask.am_success =
+		    udata.au_aupinfo.ap_mask.am_success;
+		tp->p_au->ai_mask.am_failure =
+		    udata.au_aupinfo.ap_mask.am_failure;
 		PROC_UNLOCK(tp);
 		break;
 
@@ -336,9 +342,11 @@ auditon(struct thread *td, struct auditon_args *uap)
 		    (udata.au_trigger > AUDIT_TRIGGER_MAX))
 			return (EINVAL);
 		return (send_trigger(udata.au_trigger));
-		break;
 	}
-	/* Copy data back to userspace for the GET comands */
+
+	/*
+	 * Copy data back to userspace for the GET comands.
+	 */
 	switch (uap->cmd) {
 	case A_GETPOLICY:
 	case A_GETKMASK:
@@ -361,7 +369,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 	return (0);
 }
 
-/* 
+/*
  * MPSAFE
  *
  * System calls to manage the user audit information.
@@ -378,8 +386,8 @@ getauid(struct thread *td, struct getauid_args *uap)
 		return (error);
 
 	/*
-	 * XXX:
-	 * Integer read on static pointer dereference: doesn't need locking?
+	 * XXX: Integer read on static pointer dereference: doesn't need
+	 * locking?
 	 */
 	PROC_LOCK(td->td_proc);
 	id = td->td_proc->p_au->ai_auid;
@@ -406,15 +414,15 @@ setauid(struct thread *td, struct setauid_args *uap)
 	audit_arg_auid(id);
 
 	/*
-	 * XXX:
-	 * Integer write on static pointer dereference: doesn't need locking?
+	 * XXX: Integer write on static pointer dereference: doesn't need
+	 * locking?
 	 *
 	 * XXXAUDIT: Might need locking to serialize audit events in the same
 	 * order as change events?  Or maybe that's an under-solveable
 	 * problem.
 	 *
 	 * XXXRW: Test privilege while holding the proc lock?
-	 */     
+	 */
 	PROC_LOCK(td->td_proc);
 	td->td_proc->p_au->ai_auid = id;
 	PROC_UNLOCK(td->td_proc);
@@ -424,7 +432,7 @@ setauid(struct thread *td, struct setauid_args *uap)
 
 /*
  * MPSAFE
- *  System calls to get and set process audit information.
+ * System calls to get and set process audit information.
  */
 /* ARGSUSED */
 int

@@ -391,7 +391,7 @@ void
 audit_arg_socket(int sodomain, int sotype, int soprotocol)
 {
 	struct kaudit_record *ar;
- 
+
 	ar = currecord();
 	if (ar == NULL)
 		return;
@@ -426,7 +426,7 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *so)
 		break;
 
 	case AF_UNIX:
-		audit_arg_upath(td, ((struct sockaddr_un *)so)->sun_path, 
+		audit_arg_upath(td, ((struct sockaddr_un *)so)->sun_path,
 				ARG_UPATH1);
 		ARG_SET_VALID(ar, ARG_SADDRUNIX);
 		break;
@@ -480,7 +480,7 @@ audit_arg_text(char *text)
 	/* Invalidate the text string */
 	ar->k_ar.ar_valid_arg &= (ARG_ALL ^ ARG_TEXT);
 	if (text == NULL)
-		return;	
+		return;
 
 	if (ar->k_ar.ar_arg_text == NULL)
 		ar->k_ar.ar_arg_text = malloc(MAXPATHLEN, M_AUDITTEXT,
@@ -525,8 +525,8 @@ audit_arg_svipc_perm(struct ipc_perm *perm)
 	if (ar == NULL)
 		return;
 
-	bcopy(perm, &ar->k_ar.ar_arg_svipc_perm, 
-		sizeof(ar->k_ar.ar_arg_svipc_perm));
+	bcopy(perm, &ar->k_ar.ar_arg_svipc_perm,
+	    sizeof(ar->k_ar.ar_arg_svipc_perm));
 	ARG_SET_VALID(ar, ARG_SVIPC_PERM);
 }
 
@@ -580,8 +580,8 @@ audit_arg_auditon(union auditon_udata *udata)
 	if (ar == NULL)
 		return;
 
-	bcopy((void *)udata, &ar->k_ar.ar_arg_auditon, 
-		sizeof(ar->k_ar.ar_arg_auditon));
+	bcopy((void *)udata, &ar->k_ar.ar_arg_auditon,
+	    sizeof(ar->k_ar.ar_arg_auditon));
 	ARG_SET_VALID(ar, ARG_AUDITON);
 }
 
@@ -628,20 +628,20 @@ audit_arg_file(struct proc *p, struct file *fp)
 			if (so->so_pcb == NULL)
 				return;
 			ar->k_ar.ar_arg_sockinfo.so_type =
-				so->so_type;
+			    so->so_type;
 			ar->k_ar.ar_arg_sockinfo.so_domain =
-				INP_SOCKAF(so);
+			    INP_SOCKAF(so);
 			ar->k_ar.ar_arg_sockinfo.so_protocol =
-				so->so_proto->pr_protocol;
+			    so->so_proto->pr_protocol;
 			pcb = (struct inpcb *)so->so_pcb;
 			ar->k_ar.ar_arg_sockinfo.so_raddr =
-				pcb->inp_faddr.s_addr;
+			    pcb->inp_faddr.s_addr;
 			ar->k_ar.ar_arg_sockinfo.so_laddr =
-				pcb->inp_laddr.s_addr;
+			    pcb->inp_laddr.s_addr;
 			ar->k_ar.ar_arg_sockinfo.so_rport =
-				pcb->inp_fport;
+			    pcb->inp_fport;
 			ar->k_ar.ar_arg_sockinfo.so_lport =
-				pcb->inp_lport;
+			    pcb->inp_lport;
 			ARG_SET_VALID(ar, ARG_SOCKINFO);
 		}
 		break;
@@ -653,11 +653,11 @@ audit_arg_file(struct proc *p, struct file *fp)
 
 }
 
-/* 
- * Store a path as given by the user process for auditing into the audit 
- * record stored on the user thread. This function will allocate the memory to 
- * store the path info if not already available. This memory will be 
- * freed when the audit record is freed.
+/*
+ * Store a path as given by the user process for auditing into the audit
+ * record stored on the user thread. This function will allocate the memory
+ * to store the path info if not already available. This memory will be freed
+ * when the audit record is freed.
  *
  * XXXAUDIT: Possibly assert that the memory isn't already allocated?
  */
@@ -667,7 +667,7 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
 	struct kaudit_record *ar;
 	char **pathp;
 
-	if (td == NULL || upath == NULL) 
+	if (td == NULL || upath == NULL)
 		return;		/* nothing to do! */
 
 	/*
@@ -696,8 +696,8 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
 }
 
 /*
- * Function to save the path and vnode attr information into the audit 
- * record. 
+ * Function to save the path and vnode attr information into the audit
+ * record.
  *
  * It is assumed that the caller will hold any vnode locks necessary to
  * perform a VOP_GETATTR() on the passed vnode.
@@ -734,7 +734,7 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 	ASSERT_VOP_LOCKED(vp, "audit_arg_vnode");
 
 	ar = currecord();
-	if (ar == NULL)	/* This will be the case for unaudited system calls */
+	if (ar == NULL)
 		return;
 
 	/*
@@ -777,9 +777,9 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 }
 
 /*
- * The close() system call uses it's own audit call to capture the 
- * path/vnode information because those pieces are not easily obtained
- * within the system call itself.
+ * The close() system call uses it's own audit call to capture the path/vnode
+ * information because those pieces are not easily obtained within the system
+ * call itself.
  */
 void
 audit_sysclose(struct thread *td, int fd)
@@ -800,4 +800,4 @@ audit_sysclose(struct thread *td, int fd)
 	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
-} 
+}
