@@ -1044,6 +1044,7 @@ ffs_flushfiles(mp, flags, td)
 		if ((error = vflush(mp, 0, SKIPSYSTEM | flags, td)) != 0)
 			return (error);
 		ffs_snapshot_unmount(mp);
+		flags |= FORCECLOSE;
 		/*
 		 * Here we fall through to vflush again to ensure
 		 * that we have gotten rid of all the system vnodes.
