@@ -775,6 +775,8 @@ static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin,
 static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin,
     size_t size);
 static void	*arena_malloc(arena_t *arena, size_t size);
+static void	*arena_ralloc(arena_t *arena, void *ptr, size_t size,
+    size_t oldsize);
 static size_t	arena_salloc(arena_t *arena, void *ptr);
 static void	arena_dalloc(arena_t *arena, void *ptr);
 #ifdef MALLOC_STATS
@@ -785,14 +787,15 @@ static arena_t	*arenas_extend(unsigned ind);
 #ifndef NO_TLS
 static arena_t	*choose_arena_hard(void);
 #endif
-static void	*huge_malloc(arena_t *arena, size_t size);
+static void	*huge_malloc(size_t size);
+static void	*huge_ralloc(void *ptr, size_t size, size_t oldsize);
 static void	huge_dalloc(void *ptr);
 static void	*imalloc(arena_t *arena, size_t size);
 static void	*ipalloc(arena_t *arena, size_t alignment, size_t size);
 static void	*icalloc(arena_t *arena, size_t size);
+static void	*iralloc(arena_t *arena, void *ptr, size_t size);
 static size_t	isalloc(void *ptr);
 static void	idalloc(void *ptr);
-static void	*iralloc(arena_t *arena, void *ptr, size_t size);
 #ifdef MALLOC_STATS
 static void	istats(size_t *allocated, size_t *total);
 #endif
@@ -1904,7 +1907,59 @@ arena_malloc(arena_t *arena, size_t size)
 
 	malloc_mutex_unlock(&arena->mtx);
 
+	if (opt_junk && ret != NULL)
+		memset(ret, 0xa5, size);
+	else if (opt_zero && ret != NULL)
+		memset(ret, 0, size);
 	return (ret);
+}
+
+static void *
+arena_ralloc(arena_t *arena, void *ptr, size_t size, size_t oldsize)
+{
+	void *ret;
+
+	/*
+	 * Avoid moving the allocation if the size class would not
+	 * change.
+	 */
+	if (size < small_min) {
+		if (oldsize < small_min &&
+		    ffs(pow2_ceil(size) >> (TINY_MIN_2POW + 1))
+		    == ffs(pow2_ceil(oldsize) >> (TINY_MIN_2POW + 1)))
+			goto IN_PLACE;
+	} else if (size <= small_max) {
+		if (oldsize >= small_min && oldsize <= small_max && 
+		    (QUANTUM_CEILING(size) >> opt_quantum_2pow)
+		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
+			goto IN_PLACE;
+	} else {
+		if (oldsize > small_max &&
+		    pow2_ceil(size) == pow2_ceil(oldsize))
+			goto IN_PLACE;
+	}
+
+	/*
+	 * If we get here, then size and oldsize are different enough
+	 * that we need to use a different size class.  In that case,
+	 * fall back to allocating new space and copying.
+	 */
+	ret = arena_malloc(arena, size);
+	if (ret == NULL)
+		return (NULL);
+
+	if (size < oldsize)
+		memcpy(ret, ptr, size);
+	else
+		memcpy(ret, ptr, oldsize);
+	idalloc(ptr);
+	return (ret);
+IN_PLACE:
+	if (opt_junk && size < oldsize)
+		memset(&((char *)ptr)[size], 0x5a, oldsize - size);
+	else if (opt_zero && size > oldsize)
+		memset(&((char *)ptr)[size], 0, size - oldsize);
+	return (ptr);
 }
 
 static size_t
@@ -1989,9 +2044,8 @@ arena_dalloc(arena_t *arena, void *ptr)
 	} else {
 		size = mapelm->npages << pagesize_2pow;
 
-		if (opt_junk) {
+		if (opt_junk)
 			memset(ptr, 0x5a, size);
-		}
 
 		arena_run_dalloc(arena, (arena_run_t *)ptr, size);
 	}
@@ -2058,11 +2112,10 @@ arena_new(arena_t *arena)
 		run_size = bin->reg_size << RUN_MIN_REGS_2POW;
 		if (run_size < pagesize)
 			run_size = pagesize;
-		else if (run_size > (pagesize << RUN_MAX_PAGES_2POW)) {
+		if (run_size > (pagesize << RUN_MAX_PAGES_2POW))
 			run_size = (pagesize << RUN_MAX_PAGES_2POW);
-			if (run_size > arena_maxclass)
-				run_size = arena_maxclass;
-		}
+		if (run_size > arena_maxclass)
+			run_size = arena_maxclass;
 		bin->run_size = run_size;
 
 		assert(run_size >= sizeof(arena_run_t));
@@ -2097,11 +2150,10 @@ arena_new(arena_t *arena)
 		run_size = (pow2_size << RUN_MIN_REGS_2POW);
 		if (run_size < pagesize)
 			run_size = pagesize;
-		else if (run_size > (pagesize << RUN_MAX_PAGES_2POW)) {
+		if (run_size > (pagesize << RUN_MAX_PAGES_2POW))
 			run_size = (pagesize << RUN_MAX_PAGES_2POW);
-			if (run_size > arena_maxclass)
-				run_size = arena_maxclass;
-		}
+		if (run_size > arena_maxclass)
+			run_size = arena_maxclass;
 		bin->run_size = run_size;
 
 		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
@@ -2131,11 +2183,10 @@ arena_new(arena_t *arena)
 		run_size = bin->reg_size << RUN_MIN_REGS_2POW;
 		if (run_size < pagesize)
 			run_size = pagesize;
-		else if (run_size > (pagesize << RUN_MAX_PAGES_2POW)) {
+		if (run_size > (pagesize << RUN_MAX_PAGES_2POW))
 			run_size = (pagesize << RUN_MAX_PAGES_2POW);
-			if (run_size > arena_maxclass)
-				run_size = arena_maxclass;
-		}
+		if (run_size > arena_maxclass)
+			run_size = arena_maxclass;
 		bin->run_size = run_size;
 
 		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
@@ -2283,7 +2334,7 @@ choose_arena_hard(void)
 #endif
 
 static void *
-huge_malloc(arena_t *arena, size_t size)
+huge_malloc(size_t size)
 {
 	void *ret;
 	size_t chunk_size;
@@ -2320,6 +2371,53 @@ huge_malloc(arena_t *arena, size_t size)
 #endif
 	malloc_mutex_unlock(&chunks_mtx);
 
+	if (opt_junk && ret != NULL)
+		memset(ret, 0xa5, chunk_size);
+	else if (opt_zero && ret != NULL)
+		memset(ret, 0, chunk_size);
+
+	return (ret);
+}
+
+static void *
+huge_ralloc(void *ptr, size_t size, size_t oldsize)
+{
+	void *ret;
+
+	/*
+	 * Avoid moving the allocation if the size class would not
+	 * change.
+	 */
+	if (oldsize > arena_maxclass &&
+	    CHUNK_CEILING(size) == CHUNK_CEILING(oldsize)) {
+		if (opt_junk && size < oldsize)
+			memset(&((char *)ptr)[size], 0x5a, oldsize - size);
+		else if (opt_zero && size > oldsize)
+			memset(&((char *)ptr)[size], 0, size - oldsize);
+		return (ptr);
+	}
+
+	/*
+	 * If we get here, then size and oldsize are different enough
+	 * that we need to use a different size class.  In that case,
+	 * fall back to allocating new space and copying.
+	 */
+	ret = huge_malloc(size);
+	if (ret == NULL)
+		return (NULL);
+
+	if (CHUNK_ADDR2BASE(ptr) == ptr) {
+		/* The old allocation is a chunk. */
+		if (size < oldsize)
+			memcpy(ret, ptr, size);
+		else
+			memcpy(ret, ptr, oldsize);
+	} else {
+		/* The old allocation is a region. */
+		assert(oldsize < size);
+		memcpy(ret, ptr, oldsize);
+	}
+	idalloc(ptr);
 	return (ret);
 }
 
@@ -2347,6 +2445,10 @@ huge_dalloc(void *ptr)
 	malloc_mutex_unlock(&chunks_mtx);
 
 	/* Unmap chunk. */
+#ifdef USE_BRK
+	if (opt_junk)
+		memset(node->chunk, 0x5a, node->size);
+#endif
 	chunk_dealloc(node->chunk, node->size);
 
 	base_chunk_node_dealloc(node);
@@ -2364,7 +2466,7 @@ imalloc(arena_t *arena, size_t size)
 	if (size <= arena_maxclass)
 		ret = arena_malloc(arena, size);
 	else
-		ret = huge_malloc(arena, size);
+		ret = huge_malloc(size);
 
 #ifdef MALLOC_STATS
 	malloc_mutex_lock(&arena->mtx);
@@ -2372,10 +2474,6 @@ imalloc(arena_t *arena, size_t size)
 	malloc_mutex_unlock(&arena->mtx);
 #endif
 
-	if (opt_junk) {
-		if (ret != NULL)
-			memset(ret, 0xa5, size);
-	}
 	return (ret);
 }
 
@@ -2406,7 +2504,7 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 		ret = arena_malloc(arena, pow2_size);
 	else {
 		if (alignment <= chunk_size)
-			ret = huge_malloc(arena, size);
+			ret = huge_malloc(size);
 		else {
 			size_t chunksize, alloc_size, offset;
 			chunk_node_t *node;
@@ -2478,6 +2576,11 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 			huge_allocated += size;
 #endif
 			malloc_mutex_unlock(&chunks_mtx);
+
+			if (opt_junk)
+				memset(ret, 0xa5, chunksize);
+			else if (opt_zero)
+				memset(ret, 0, chunksize);
 		}
 	}
 
@@ -2486,8 +2589,6 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 	arena->stats.npalloc++;
 	malloc_mutex_unlock(&arena->mtx);
 #endif
-	if (opt_junk)
-		memset(ret, 0xa5, size);
 	assert(((uintptr_t)ret & (alignment - 1)) == 0);
 	return (ret);
 }
@@ -2508,12 +2609,19 @@ icalloc(arena_t *arena, size_t size)
 	} else {
 		/*
 		 * The virtual memory system provides zero-filled pages, so
-		 * there is no need to do so manually.
+		 * there is no need to do so manually, unless opt_junk is
+		 * enabled, in which case huge_malloc() fills huge allocations
+		 * with junk.
 		 */
-		ret = huge_malloc(arena, size);
+		ret = huge_malloc(size);
+		if (ret == NULL)
+			return (NULL);
+
+		if (opt_junk)
+			memset(ret, 0, size);
 #ifdef USE_BRK
-		if ((uintptr_t)ret >= (uintptr_t)brk_base
-				&& (uintptr_t)ret < (uintptr_t)brk_max) {
+		else if ((uintptr_t)ret >= (uintptr_t)brk_base
+		    && (uintptr_t)ret < (uintptr_t)brk_max) {
 			/* 
 			 * This may be a re-used brk chunk.  Therefore, zero
 			 * the memory.
@@ -2529,6 +2637,33 @@ icalloc(arena_t *arena, size_t size)
 	malloc_mutex_unlock(&arena->mtx);
 #endif
 
+	return (ret);
+}
+
+static void *
+iralloc(arena_t *arena, void *ptr, size_t size)
+{
+	void *ret;
+	size_t oldsize;
+
+	assert(arena != NULL);
+	assert(arena->magic == ARENA_MAGIC);
+	assert(ptr != NULL);
+	assert(ptr != &nil);
+	assert(size != 0);
+
+	oldsize = isalloc(ptr);
+
+	if (size <= arena_maxclass)
+		ret = arena_ralloc(arena, ptr, size, oldsize);
+	else
+		ret = huge_ralloc(ptr, size, oldsize);
+
+#ifdef MALLOC_STATS
+	malloc_mutex_lock(&arena->mtx);
+	arena->stats.nralloc++;
+	malloc_mutex_unlock(&arena->mtx);
+#endif
 	return (ret);
 }
 
@@ -2586,61 +2721,6 @@ idalloc(void *ptr)
 		arena_dalloc(chunk->arena, ptr);
 	} else
 		huge_dalloc(ptr);
-}
-
-static void *
-iralloc(arena_t *arena, void *ptr, size_t size)
-{
-	void *ret;
-	size_t oldsize;
-
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
-	assert(ptr != NULL);
-	assert(ptr != &nil);
-	assert(size != 0);
-
-	oldsize = isalloc(ptr);
-
-	if (size <= arena_maxclass) {
-		ret = arena_malloc(arena, size);
-		if (ret == NULL)
-			return (NULL);
-		if (opt_junk)
-			memset(ret, 0xa5, size);
-
-		if (size < oldsize)
-			memcpy(ret, ptr, size);
-		else
-			memcpy(ret, ptr, oldsize);
-	} else {
-		ret = huge_malloc(arena, size);
-		if (ret == NULL)
-			return (NULL);
-		if (opt_junk)
-			memset(ret, 0xa5, size);
-
-		if (CHUNK_ADDR2BASE(ptr) == ptr) {
-			/* The old allocation is a chunk. */
-			if (size < oldsize)
-				memcpy(ret, ptr, size);
-			else
-				memcpy(ret, ptr, oldsize);
-		} else {
-			/* The old allocation is a region. */
-			assert(oldsize < size);
-			memcpy(ret, ptr, oldsize);
-		}
-	}
-
-	idalloc(ptr);
-
-#ifdef MALLOC_STATS
-	malloc_mutex_lock(&arena->mtx);
-	arena->stats.nralloc++;
-	malloc_mutex_unlock(&arena->mtx);
-#endif
-	return (ret);
 }
 
 #ifdef MALLOC_STATS
@@ -3132,8 +3212,7 @@ RETURN:
 			abort();
 		}
 		errno = ENOMEM;
-	} else if (opt_zero)
-		memset(ret, 0, size);
+	}
 
 	UTRACE(0, size, ret);
 	return (ret);
@@ -3180,8 +3259,7 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 		}
 		ret = ENOMEM;
 		goto RETURN;
-	} else if (opt_zero)
-		memset(result, 0, size);
+	}
 
 	*memptr = result;
 	ret = 0;
@@ -3229,12 +3307,6 @@ RETURN:
 			abort();
 		}
 		errno = ENOMEM;
-	} else if (opt_zero) {
-		/*
-		 * This has the side effect of faulting pages in, even if the
-		 * pages are pre-zeroed by the kernel.
-		 */
-		memset(ret, 0, num * size);
 	}
 
 	UTRACE(0, num * size, ret);
@@ -3266,15 +3338,6 @@ realloc(void *ptr, size_t size)
 					abort();
 				}
 				errno = ENOMEM;
-			} else if (opt_zero) {
-				size_t old_size;
-
-				old_size = isalloc(ptr);
-
-				if (old_size < size) {
-				    memset(&((char *)ret)[old_size], 0,
-					    size - old_size);
-				}
 			}
 		} else {
 			if (malloc_init())
@@ -3295,8 +3358,7 @@ realloc(void *ptr, size_t size)
 					abort();
 				}
 				errno = ENOMEM;
-			} else if (opt_zero)
-				memset(ret, 0, size);
+			}
 		}
 	} else {
 		if (ptr != &nil && ptr != NULL)
