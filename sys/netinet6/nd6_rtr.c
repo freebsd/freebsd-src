@@ -270,16 +270,7 @@ nd6_ra_input(m, off, icmp6len)
 	bzero(&dr0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
 	dr0.flags  = nd_ra->nd_ra_flags_reserved;
-	if (rtpref(&dr0) == RTPREF_RESERVED) {
-		/*
-		 * "reserved" router preference should be treated as
-		 * 0-lifetime.  Note that rtpref() covers the case that the
-		 * kernel is not configured to support the preference
-		 * extension.
-		 */
-		dr0.rtlifetime = 0;
-	} else
-		dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
+	dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
 	dr0.expire = time_second + dr0.rtlifetime;
 	dr0.ifp = ifp;
 	/* unspecified or not? (RFC 2461 6.3.4) */
@@ -720,9 +711,8 @@ rtpref(struct nd_defrouter *dr)
 	case ND_RA_FLAG_RTPREF_HIGH:
 		return (RTPREF_HIGH);
 	case ND_RA_FLAG_RTPREF_MEDIUM:
-		return (RTPREF_MEDIUM);
 	case ND_RA_FLAG_RTPREF_RSV:
-		return (RTPREF_RESERVED);
+		return (RTPREF_MEDIUM);
 	case ND_RA_FLAG_RTPREF_LOW:
 		return (RTPREF_LOW);
 	default:
