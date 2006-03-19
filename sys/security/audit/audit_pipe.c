@@ -48,6 +48,7 @@
 #include <sys/uio.h>
 
 #include <security/audit/audit.h>
+#include <security/audit/audit_ioctl.h>
 #include <security/audit/audit_private.h>
 
 /*
@@ -68,6 +69,7 @@ static MALLOC_DEFINE(M_AUDIT_PIPE_ENTRY, "audit_pipeent",
  * Audit pipe buffer parameters.
  */
 #define	AUDIT_PIPE_QLIMIT_DEFAULT	(32)
+#define	AUDIT_PIPE_QLIMIT_MIN		(0)
 #define	AUDIT_PIPE_QLIMIT_MAX		(1024)
 
 /*
@@ -379,8 +381,8 @@ audit_pipe_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 }
 
 /*
- * Audit pipe ioctl() routine.  Nothing for now, but eventually will allow
- * setting and retrieval of current queue depth, queue limit, flush, etc.
+ * Audit pipe ioctl() routine.  Handle file descriptor and audit pipe layer
+ * commands.
  *
  * Would be desirable to support filtering, although perhaps something simple
  * like an event mask, as opposed to something complicated like BPF.
@@ -433,6 +435,47 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	case FIOGETOWN:
 		*(int *)data = fgetown(&ap->ap_sigio);
 		error = 0;
+		break;
+
+	case AUDITPIPE_GET_QLEN:
+		*(u_int *)data = ap->ap_qlen;
+		error = 0;
+		break;
+
+	case AUDITPIPE_GET_QLIMIT:
+		*(u_int *)data = ap->ap_qlimit;
+		error = 0;
+		break;
+
+	case AUDITPIPE_SET_QLIMIT:
+		/* Lockless integer write. */
+		if (*(u_int *)data >= AUDIT_PIPE_QLIMIT_MIN ||
+		    *(u_int *)data <= AUDIT_PIPE_QLIMIT_MAX) {
+			ap->ap_qlimit = *(u_int *)data;
+			error = 0;
+		} else
+			error = EINVAL;
+		break;
+
+	case AUDITPIPE_GET_INSERTS:
+		*(u_int *)data = ap->ap_inserts;
+		error = 0;
+		break;
+
+	case AUDITPIPE_GET_READS:
+		*(u_int *)data = ap->ap_reads;
+		error = 0;
+		break;
+
+	case AUDITPIPE_GET_DROPS:
+		*(u_int *)data = ap->ap_drops;
+		error = 0;
+		break;
+
+	case AUDITPIPE_GET_TRUNCATES:
+		*(u_int *)data = ap->ap_truncates;
+		error = 0;
+		break;
 
 	default:
 		error = ENOTTY;
