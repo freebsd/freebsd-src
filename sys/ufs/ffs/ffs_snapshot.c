@@ -269,12 +269,11 @@ restart:
 	}
 	VOP_LEASE(nd.ni_dvp, td, KERNCRED, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
-	vhold(nd.ni_dvp);
-	vput(nd.ni_dvp);
+	VOP_UNLOCK(nd.ni_dvp, 0, td);
 	if (error) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vn_finished_write(wrtmp);
-		vdrop(nd.ni_dvp);
+		vrele(nd.ni_dvp);
 		return (error);
 	}
 	vp = nd.ni_vp;
@@ -580,7 +579,6 @@ loop:
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
-	vdrop(nd.ni_dvp);
 	/*
 	 * If there already exist snapshots on this filesystem, grab a
 	 * reference to their shared lock. If this is the first snapshot
@@ -796,6 +794,7 @@ out:
 		vput(vp);
 	else
 		VOP_UNLOCK(vp, 0, td);
+	vrele(nd.ni_dvp);
 	vn_finished_write(wrtmp);
 	process_deferred_inactive(mp);
 	return (error);
