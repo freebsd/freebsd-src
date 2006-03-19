@@ -68,7 +68,7 @@ static MALLOC_DEFINE(M_AUDIT_PIPE_ENTRY, "audit_pipeent",
 /*
  * Audit pipe buffer parameters.
  */
-#define	AUDIT_PIPE_QLIMIT_DEFAULT	(32)
+#define	AUDIT_PIPE_QLIMIT_DEFAULT	(128)
 #define	AUDIT_PIPE_QLIMIT_MIN		(0)
 #define	AUDIT_PIPE_QLIMIT_MAX		(1024)
 
