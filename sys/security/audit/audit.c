@@ -76,43 +76,43 @@ MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
 
 /*
- * Audit control settings that are set/read by system calls and are 
+ * Audit control settings that are set/read by system calls and are
  * hence non-static.
  */
-/* 
+/*
  * Define the audit control flags.
  */
-int				audit_enabled;
-int				audit_suspended;
+int			audit_enabled;
+int			audit_suspended;
 
 /*
  * Flags controlling behavior in low storage situations.
  * Should we panic if a write fails?  Should we fail stop
  * if we're out of disk space?
  */
-int				audit_panic_on_write_fail;
-int				audit_fail_stop;
+int			audit_panic_on_write_fail;
+int			audit_fail_stop;
 
 /*
  * Are we currently "failing stop" due to out of disk space?
  */
-int				 audit_in_failure;
+int			audit_in_failure;
 
 /*
- * Global audit statistiscs. 
+ * Global audit statistiscs.
  */
-struct audit_fstat 		audit_fstat;
+struct audit_fstat	audit_fstat;
 
 /*
  * Preselection mask for non-attributable events.
  */
-struct au_mask		 	audit_nae_mask;
+struct au_mask		audit_nae_mask;
 
 /*
  * Mutex to protect global variables shared between various threads and
  * processes.
  */
-struct mtx			audit_mtx;
+struct mtx		audit_mtx;
 
 /*
  * Queue of audit records ready for delivery to disk.  We insert new
@@ -122,21 +122,21 @@ struct mtx			audit_mtx;
  * not yet in the queue, which is needed to estimate the total
  * size of the combined set of records outstanding in the system.
  */
-struct kaudit_queue		audit_q;
-int				audit_q_len;
-int				audit_pre_q_len;
+struct kaudit_queue	audit_q;
+int			audit_q_len;
+int			audit_pre_q_len;
 
 /*
  * Audit queue control settings (minimum free, low/high water marks, etc.)
  */
-struct au_qctrl			audit_qctrl;
+struct au_qctrl		audit_qctrl;
 
 /*
  * Condition variable to signal to the worker that it has work to do:
  * either new records are in the queue, or a log replacement is taking
  * place.
  */
-struct cv			audit_cv;
+struct cv		audit_cv;
 
 /*
  * Condition variable to signal to the worker that it has work to do:
@@ -145,14 +145,14 @@ struct cv			audit_cv;
  *
  * XXXRW: This description is incorrect.
  */
-struct cv			audit_commit_cv;
+struct cv		audit_commit_cv;
 
-/* 
- * Condition variable for  auditing threads wait on when in fail-stop mode. 
- * Threads wait on this CV forever (and ever), never seeing the light of 
+/*
+ * Condition variable for  auditing threads wait on when in fail-stop mode.
+ * Threads wait on this CV forever (and ever), never seeing the light of
  * day again.
  */
-static struct cv		audit_fail_cv;
+static struct cv	audit_fail_cv;
 
 /*
  * Construct an audit record for the passed thread.
@@ -226,7 +226,7 @@ audit_init(void)
 	audit_in_failure = 0;
 
 	audit_fstat.af_filesz = 0;	/* '0' means unset, unbounded */
-	audit_fstat.af_currsz = 0; 
+	audit_fstat.af_currsz = 0;
 	audit_nae_mask.am_success = AU_NULL;
 	audit_nae_mask.am_failure = AU_NULL;
 
@@ -351,7 +351,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		aumask = &audit_nae_mask;
 	else
 		aumask = &ar->k_ar.ar_subj_amask;
-	
+
 	if (error)
 		sorf = AU_PRS_FAILURE;
 	else
@@ -361,7 +361,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 
 	case AUE_OPEN_RWTC:
 		/* The open syscall always writes a AUE_OPEN_RWTC event; change
-		 * it to the proper type of event based on the flags and the 
+		 * it to the proper type of event based on the flags and the
 		 * error value.
 		 */
 		ar->k_ar.ar_event = flags_and_error_to_openevent(
@@ -419,7 +419,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		uma_zfree(audit_record_zone, ar);
 		return;
 	}
-	
+
 	/*
 	 * Constrain the number of committed audit records based on
 	 * the configurable parameter.
@@ -478,9 +478,9 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 		aumask = &audit_nae_mask;
 	else
 		aumask = &td->td_proc->p_au->ai_mask;
-	
+
 	/*
-	 * Allocate an audit record, if preselection allows it, and store 
+	 * Allocate an audit record, if preselection allows it, and store
 	 * in the thread for later use.
 	 */
 	if (au_preselect(audit_event, aumask,
@@ -531,7 +531,7 @@ audit_syscall_exit(int error, struct thread *td)
 
 	audit_commit(td->td_ar, error, retval);
 	if (td->td_ar != NULL)
-		AUDIT_PRINTF(("audit record committed by pid %d\n", 
+		AUDIT_PRINTF(("audit record committed by pid %d\n",
 			td->td_proc->p_pid));
 	td->td_ar = NULL;
 
@@ -571,11 +571,11 @@ audit_thread_free(struct thread *td)
 	KASSERT(td->td_ar == NULL, ("audit_thread_free: td_ar != NULL"));
 }
 
-/* 
- * Initialize the audit information for the a process, presumably the first 
+/*
+ * Initialize the audit information for the a process, presumably the first
  * process in the system.
- * XXX It is not clear what the initial values should be for audit ID, 
- * session ID, etc. 
+ * XXX It is not clear what the initial values should be for audit ID,
+ * session ID, etc.
  */
 void
 audit_proc_kproc0(struct proc *p)
@@ -598,7 +598,7 @@ audit_proc_init(struct proc *p)
 	p->p_au->ai_auid = AU_DEFAUDITID;
 }
 
-/* 
+/*
  * Copy the audit info from the parent process to the child process when
  * a fork takes place.
  */
@@ -624,7 +624,7 @@ audit_proc_fork(struct proc *parent, struct proc *child)
 }
 
 /*
- * Free the auditing structure for the process. 
+ * Free the auditing structure for the process.
  */
 void
 audit_proc_free(struct proc *p)
