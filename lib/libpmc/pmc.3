@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2005 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2003-2006 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2005
+.Dd March 19, 2006
 .Os
 .Dt PMC 3
 .Sh NAME
@@ -454,6 +454,9 @@ Measure the number of instruction cache misses.
 Measure the number of instructions retired.
 .It Li interrupts
 Measure the number of interrupts seen.
+.It Li unhalted-cycles
+Measure the number of cycles the processor is not in a halted
+or sleep state.
 .El
 .Ss Time Stamp Counter (TSC)
 The timestamp counter is a monotonically non-decreasing counter that
