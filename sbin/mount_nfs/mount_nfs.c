@@ -244,9 +244,7 @@ set_flags(int* altflags, int* nfsflags, int dir)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 	struct nfs_args *nfsargsp;
@@ -463,9 +461,7 @@ main(argc, argv)
 }
 
 int
-getnfsargs(spec, nfsargsp)
-	char *spec;
-	struct nfs_args *nfsargsp;
+getnfsargs(char *spec, struct nfs_args *nfsargsp)
 {
 	struct addrinfo hints, *ai_nfs, *ai;
 	enum tryret ret;
@@ -819,7 +815,8 @@ returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
  * XXX there should be a library function for this.
  */
 char *
-netidbytype(int af, int sotype) {
+netidbytype(int af, int sotype)
+{
 	struct nc_protos *p;
 
 	for (p = nc_protos; p->netid != NULL; p++) {
@@ -838,7 +835,8 @@ netidbytype(int af, int sotype) {
  * work on failure.
  */
 struct netconfig *
-getnetconf_cached(const char *netid) {
+getnetconf_cached(const char *netid)
+{
 	static struct nc_entry {
 		struct netconfig *nconf;
 		struct nc_entry *next;
@@ -865,17 +863,13 @@ getnetconf_cached(const char *netid) {
  * xdr routines for mount rpc's
  */
 int
-xdr_dir(xdrsp, dirp)
-	XDR *xdrsp;
-	char *dirp;
+xdr_dir(XDR *xdrsp, char *dirp)
 {
 	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
 }
 
 int
-xdr_fh(xdrsp, np)
-	XDR *xdrsp;
-	struct nfhret *np;
+xdr_fh(XDR *xdrsp, struct nfhret *np)
 {
 	int i;
 	long auth, authcnt, authfnd = 0;
