@@ -208,7 +208,7 @@ lapic_init(uintptr_t addr)
 	/* Map the local APIC and setup the spurious interrupt handler. */
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
-	lapic = (lapic_t *)pmap_mapdev(addr, sizeof(lapic_t));
+	lapic = pmap_mapdev(addr, sizeof(lapic_t));
 	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Perform basic initialization of the BSP's local APIC. */
