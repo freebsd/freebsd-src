@@ -76,7 +76,7 @@ nfs_parse_options(const char *envopts, struct nfs_diskless *nd)
 			nd->root_args.flags |= NFSMNT_INT;
 		else if (strcmp(o, "conn") == 0)
 			nd->root_args.flags |= NFSMNT_NOCONN;
-		else if (strcmp(o, "lockd") == 0)
+		else if (strcmp(o, "nolockd") == 0)
 			nd->root_args.flags |= NFSMNT_NOLOCKD;
 		else
 			printf("nfs_diskless: unknown option: %s\n", o);
