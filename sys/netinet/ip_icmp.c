@@ -93,19 +93,19 @@ SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
 
 static int	drop_redirect = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW,
-	&drop_redirect, 0, "");
+	&drop_redirect, 0, "Ignore ICMP redirects");
 
 static int	log_redirect = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW,
-	&log_redirect, 0, "");
+	&log_redirect, 0, "Log ICMP redirects to the console");
 
 static int      icmplim = 200;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
-	&icmplim, 0, "");
+	&icmplim, 0, "Maximum number of ICMP responses per second");
 
 static int	icmplim_output = 1;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
-	&icmplim_output, 0, "");
+	&icmplim_output, 0, "Enable rate limiting of ICMP responses");
 
 static char	reply_src[IFNAMSIZ];
 SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_RW,
