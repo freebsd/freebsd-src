@@ -1,6 +1,8 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	ifconfig
 
 SRCS=	ifconfig.c		# base support
@@ -28,7 +30,7 @@ SRCS+=	ifpfsync.c		# pfsync(4) support
 
 SRCS+=	ifbridge.c		# bridge support
 
-.if !defined(RELEASE_CRUNCH)
+.if ${MK_IPX_SUPPORT} != "no" && !defined(RELEASE_CRUNCH)
 SRCS+=	af_ipx.c		# IPX support
 DPADD=	${LIBIPX}
 LDADD=	-lipx

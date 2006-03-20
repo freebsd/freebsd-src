@@ -963,6 +963,10 @@ _prebuild_libs=
 
 _generic_libs=	gnu/lib
 
+.if ${MK_IPX} != "no"
+_prebuild_libs+= lib/libipx
+.endif
+
 .if ${MK_KERBEROS} != "no"
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libkrb5
@@ -971,7 +975,7 @@ _generic_libs+=	kerberos5/lib
 .endif
 
 _prebuild_libs+= lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
-		lib/libipx lib/libkiconv lib/libkvm lib/libmd \
+		lib/libkiconv lib/libkvm lib/libmd \
 		lib/libncurses lib/libnetgraph lib/libopie lib/libpam \
 		lib/libradius \
 		lib/libsbuf lib/libtacplus lib/libutil \

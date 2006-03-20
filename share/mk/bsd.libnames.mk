@@ -53,7 +53,9 @@ LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
 LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
+.if ${MK_IPX} != "no"
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
+.endif
 .if ${MK_BIND_LIBS} != "no"
 LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBISCCC?=	${DESTDIR}${LIBDIR}/libisccc.a
@@ -81,7 +83,9 @@ LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
 .endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBMYTINFO?=	"don't use LIBMYTINFO, use LIBNCURSES"
+.if ${MK_NCP} != "no"
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
+.endif
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
