@@ -186,6 +186,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 	return (error);
 }
 
+#ifndef __alpha__
 static int
 stat_copyout(struct stat *buf, void *ubuf)
 {
@@ -244,6 +245,7 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 		return (error);
 	return(stat_copyout(&buf, args->up));
 }
+#endif
 
 /* XXX - All fields of type l_int are defined as l_long on i386 */
 struct l_statfs {

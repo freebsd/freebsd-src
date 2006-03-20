@@ -172,13 +172,13 @@
 				    int protocol); }
 98	AUE_CONNECT	MSTD	{ int linux_connect(l_int s, \
 				    struct l_sockaddr *name, l_int namelen); }
-99	AUE_ACCEPT	MNOPROTO	{ int oaccept(int s, caddr_t name, \
-				    int *anamelen); } accept accept_args int
+99	AUE_ACCEPT	MSTD	{ int linux_accept(l_int s, \
+				    struct linux_accept_args *args); }
 100	AUE_GETPRIORITY	MSTD	{ int linux_getpriority(int which, int who); }
-101	AUE_SEND	MNOPROTO	{ int osend(int s, caddr_t buf, int len, \
-				    int flags); }
-102	AUE_RECV	MNOPROTO { int orecv(int s, caddr_t buf, int len, \
-				    int flags); }
+101	AUE_SEND	MSTD	{ int linux_send(l_int s, \
+				    struct linux_send_args *args); }
+102	AUE_RECV	MSTD	{ int linux_recv(l_int s, \
+				    struct linux_recv_args *args); }
 103	AUE_NULL	MSTD	{ int osf1_sigreturn( \
 				    struct osigcontext *sigcntxp); }
 104	AUE_BIND	MNOPROTO	{ int bind(int s, caddr_t name, \
@@ -210,10 +210,8 @@
 122	AUE_SETTIMEOFDAY	UNIMPL	osf_settimeofday
 123	AUE_FCHOWN	NOPROTO	{ int fchown(int fd, int uid, int gid); }
 124	AUE_FCHMOD	NOPROTO	{ int fchmod(int fd, int mode); }
-125	AUE_RECVFROM	NOPROTO	{ int orecvfrom(int s, caddr_t buf, \
-				    size_t len, int flags, caddr_t from, \
-				    int *fromlenaddr); } recvfrom \
-				    recvfrom_args int
+125	AUE_RECVFROM	MSTD	{ int linux_recvfrom(l_int s, \
+				    struct linux_recvfrom_args *args); }
 126	AUE_SETREUID	MNOPROTO	{ int setreuid(int ruid, int euid); }
 127	AUE_SETREGID	MNOPROTO	{ int setregid(int rgid, int egid); }
 128	AUE_RENAME	MSTD	{ int linux_rename(char *from, char *to); }
@@ -233,8 +231,8 @@
 				    struct timeval *tptr); }
 139	AUE_NULL	UNIMPL
 140	AUE_NULL	UNIMPL
-141	AUE_GETPEERNAME	MNOPROTO	{ int ogetpeername(int fdes, caddr_t asa, \
-				    int *alen); }
+141	AUE_GETPEERNAME	MSTD	{ int linux_getpeername(l_int s, \
+				    struct linux_getpeername_args *args); }
 142	AUE_NULL	UNIMPL
 143	AUE_NULL	UNIMPL
 144	AUE_GETRLIMIT	MSTD	{ int linux_getrlimit(l_uint resource, \
@@ -245,9 +243,8 @@
 147	AUE_SETSID	MNOPROTO	{ int setsid(void); }
 148	AUE_QUOTACTL	MSTD	{ int linux_quotactl(void); }
 149	AUE_NULL	UNIMPL
-150	AUE_GETSOCKNAME	MNOPROTO	{ int ogetsockname(int fdec, caddr_t asa, \
-				    int *alen);} getsockname \
-				    getsockname_args int
+150	AUE_GETSOCKNAME	MSTD	{ int linux_getsockname(l_int s, \
+				    struct linux_getsockname_args *args);}
 151	AUE_NULL	UNIMPL
 152	AUE_NULL	UNIMPL
 153	AUE_NULL	UNIMPL
