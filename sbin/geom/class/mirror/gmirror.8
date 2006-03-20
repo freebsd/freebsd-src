@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2004
+.Dd March 8, 2006
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -282,11 +282,52 @@ gmirror deactivate data da1
 dd if=/dev/da1 of=/backup/data.img bs=1m
 gmirror activate data da1
 .Ed
+.Sh NOTES
+Doing kernel dumps to
+.Nm
+providers.
+.Pp
+This is possible, but some conditions have to be met.
+First of all, a kernel dump will go only to one component and
+.Nm
+always chooses the component with the highest priority.
+Reading a dump from the mirror on boot will only work if the prefer
+balance algorithm is used (that way
+.Nm
+will read only from the component with the highest priority).
+If you use a different balance algorithm, you should add:
+.Bd -literal -offset indent
+gmirror configure -b prefer data
+.Ed
+.Pp
+to the
+.Pa /etc/rc.early
+script and:
+.Bd -literal -offset indent
+gmirror configure -b round-robin data
+.Ed
+.Pp
+to the
+.Pa /etc/rc.local
+script.
+The decision which component to choose for dumping is made when
+.Xr dumpon 8
+is called.
+If on the next boot a component with a higher priority will be available,
+the prefer algorithm will choose to read from it and
+.Xr savecore 8
+will find nothing.
+If on the next boot a component with the highest priority will be synchronized,
+the prefer balance algorithm will read from the next one, thus will find nothing
+there.
+.Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
+.Xr dumpon 8 ,
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
+.Xr savecore 8 ,
 .Xr umount 8 ,
 .Xr vinum 8
 .Sh HISTORY
