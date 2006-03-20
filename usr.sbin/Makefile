@@ -65,7 +65,7 @@ SUBDIR=	ac \
 	iostat \
 	ip6addrctl \
 	ipfwpcap \
-	IPXrouted \
+	${_IPXrouted} \
 	jail \
 	jexec \
 	jls \
@@ -236,6 +236,10 @@ _route6d=	route6d
 _traceroute6=	traceroute6
 .endif
 
+.if ${MK_IPX} != "no"
+_IPXrouted=	IPXrouted
+.endif
+
 .if ${MK_NIS} != "no"
 _rpc.yppasswdd=	rpc.yppasswdd
 _rpc.ypupdated=	rpc.ypupdated
@@ -283,7 +287,9 @@ _i4b=		i4b
 _kgmon=		kgmon
 _kgzip=		kgzip
 _lptcontrol=	lptcontrol
+.if ${MK_NCP} != "no"
 _mount_nwfs=	mount_nwfs
+.endif
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
@@ -330,7 +336,9 @@ _boot0cfg=	boot0cfg
 _btxld=		btxld
 _kgmon=		kgmon
 _lptcontrol=	lptcontrol
+.if ${MK_NCP} != "no"
 _mount_nwfs=	mount_nwfs
+.endif
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
