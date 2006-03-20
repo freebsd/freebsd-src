@@ -303,8 +303,10 @@ _usbhidctl=	usbhidctl
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
+.if ${MK_NCP} != "no"
 _ncplist=	ncplist
 _ncplogin=	ncplogin
+.endif
 _smbutil=	smbutil
 .endif
 
@@ -313,8 +315,10 @@ _uac=		uac
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
+.if ${MK_NCP} != "no"
 _ncplist=	ncplist
 _ncplogin=	ncplogin
+.endif
 _smbutil=	smbutil
 .endif
 

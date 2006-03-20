@@ -328,6 +328,7 @@ WITH_IDEA=
     LPR \
     MAILWRAPPER \
     MAN \
+    NCP \
     NETCAT \
     NIS \
     NLS \
@@ -404,6 +405,10 @@ MK_KERBEROS:=	no
 
 .if ${MK_CXX} == "no"
 MK_COLLECT2:=	no
+.endif
+
+.if ${MK_IPX} == "no"
+MK_NCP:=	no
 .endif
 
 .if ${MK_OPENSSL} == "no"

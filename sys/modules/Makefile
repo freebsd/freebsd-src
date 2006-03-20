@@ -358,11 +358,15 @@ _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
 _mse=		mse
+.if ${MK_NCP} != "no"
 _ncp=		ncp
+.endif
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp
+.if ${MK_NCP} != "no"
 _nwfs=		nwfs
+.endif
 _oltr=		oltr
 _pccard=	pccard
 _pcfclock=	pcfclock
