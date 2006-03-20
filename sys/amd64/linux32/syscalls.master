@@ -64,7 +64,8 @@
 16	AUE_NULL	MSTD	{ int linux_lchown16(char *path, \
 				    l_uid16_t uid, l_gid16_t gid); }
 17	AUE_NULL	UNIMPL	break
-18	AUE_NULL	UNIMPL	stat
+18	AUE_NULL	MSTD	{ int linux_stat(char *path, \
+					struct linux_stat *up); }
 19	AUE_NULL	MSTD	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				    l_int whence); }
 20	AUE_NULL	MSTD	{ int linux_getpid(void); }
@@ -156,7 +157,7 @@
 				    struct l_old_select_argv *ptr); }
 83	AUE_NULL	MSTD	{ int linux_symlink(char *path, \
 				    char *to); }
-84	AUE_NULL	MSTD    { int linux_stat(char *path, struct l_stat *up); }
+84	AUE_NULL	MSTD    { int linux_lstat(char *path, struct linux_lstat *up); }
 85	AUE_NULL	MSTD	{ int linux_readlink(char *name, \
 				    char *buf, l_int count); }
 86	AUE_NULL	UNIMPL	linux_uselib
