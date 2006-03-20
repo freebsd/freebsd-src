@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2005
+.Dd March 20, 2006
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -203,6 +203,13 @@ step into the directory hierarchy pointed to by
 .Xr make 1
 variable
 .Va DESTDIR .
+.Pp
+If installing onto an NFS file system, make sure that
+.Xr rpc.lockd 8
+is running on both client and server.
+See
+.Xr rc.conf 5
+on how to make it start at boot time.
 .It Cm toolchain
 Create the build toolchain needed to build the rest of the system.
 For cross-architecture builds, this step creates a cross-toolchain.
