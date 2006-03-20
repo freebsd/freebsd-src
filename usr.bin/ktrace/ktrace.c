@@ -145,11 +145,14 @@ main(int argc, char *argv[])
 
 	omask = umask(S_IRWXG|S_IRWXO);
 	if (append) {
-		if ((fd = open(tracefile, O_CREAT | O_WRONLY, DEFFILEMODE)) < 0)
+		if ((fd = open(tracefile, O_CREAT | O_WRONLY | O_NONBLOCK,
+		    DEFFILEMODE)) < 0)
 			err(1, "%s", tracefile);
 		if (fstat(fd, &sb) != 0 || sb.st_uid != getuid())
 			errx(1, "refuse to append to %s not owned by you",
 			    tracefile);
+		if (!(S_ISREG(sb.st_mode)))
+			errx(1, "%s not regular file", tracefile);
 	} else {
 		if (unlink(tracefile) == -1 && errno != ENOENT)
 			err(1, "unlink %s", tracefile);
