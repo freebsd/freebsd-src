@@ -34,7 +34,8 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	termios.h ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
-	netipsec netipx netkey netnatm netncp netsmb nfs nfsclient nfsserver \
+	netipsec ${_netipx} netkey netnatm ${_netncp} netsmb \
+	nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
 LSUBDIRS=	cam/scsi \
@@ -42,7 +43,7 @@ LSUBDIRS=	cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/ofw \
 	dev/pbio dev/ppbus dev/smbus dev/speaker dev/usb dev/wi dev/utopia \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
-	fs/nwfs fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
+	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
 	fs/unionfs \
 	geom/concat geom/eli geom/gate geom/label geom/mirror geom/nop \
 	geom/raid3 geom/shsec geom/stripe \
@@ -64,6 +65,16 @@ INCS+=	hesiod.h
 
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS=	netgraph/bluetooth/include
+.endif
+
+# XXX unconditionally needed by <netsmb/netbios.h>
+#.if ${MK_IPX} != "no"
+_netipx=	netipx
+#.endif
+
+.if ${MK_NCP} != "no"
+_netncp=	netncp
+_fs_nwfs=	fs/nwfs
 .endif
 
 # Define SHARED to indicate whether you want symbolic links to the system

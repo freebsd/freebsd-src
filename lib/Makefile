@@ -31,7 +31,7 @@ SUBDIR=	${_csu} libbsm libcom_err libcrypt libkvm msun libmd libncurses \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
 	libgssapi ${_libio} libipsec \
-	libipx libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
+	${_libipx} libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	libpmc ${_libpthread} librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
@@ -60,8 +60,14 @@ _libbluetooth=	libbluetooth
 _libsdp=	libsdp
 .endif
 
+.if ${MK_IPX} != "no"
+_libipx=	libipx
+.endif
+
 .if ${MACHINE_ARCH} == "i386"
+.if ${MK_NCP} != "no"
 _libncp=	libncp
+.endif
 _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
@@ -87,7 +93,9 @@ _libmp=		libmp
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
+.if ${MK_NCP} != "no"
 _libncp=	libncp
+.endif
 _libsmb=	libsmb
 .endif
 
