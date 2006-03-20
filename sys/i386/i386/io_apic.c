@@ -446,7 +446,7 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 	uint32_t value;
 
 	/* Map the register window so we can access the device. */
-	apic = (ioapic_t *)pmap_mapdev(addr, IOAPIC_MEM_REGION);
+	apic = pmap_mapdev(addr, IOAPIC_MEM_REGION);
 	mtx_lock_spin(&icu_lock);
 	value = ioapic_read(apic, IOAPIC_VER);
 	mtx_unlock_spin(&icu_lock);
