@@ -40,17 +40,29 @@ convert_host_conf()
 {
     host_conf=$1; shift;
     nsswitch_conf=$1; shift;
-    awk '                                                                   \
-        /^[:blank:]*#/       { next }                                       \
-        /(hosts|local|file)/ { nsswitch[c] = "files"; c++; next }           \
-        /(dns|bind)/         { nsswitch[c] = "dns";   c++; next }           \
-        /nis/                { nsswitch[c] = "nis";   c++; next }           \
-        { printf "Warning: unrecognized line [%s]", $0 > "/dev/stderr" }    \
-        END {                                                               \
-                printf "hosts: ";                                           \
-                for (i in nsswitch) printf "%s ", nsswitch[i];              \
-                printf "\n";                                                \
-        }' < $host_conf > $nsswitch_conf
+
+    while read line; do
+	line=${line##[ 	]}
+	case $line in
+        hosts|local|file)
+		_nsswitch="${_nsswitch}${_nsswitch+ }files"
+		;;
+	dns|bind)
+		_nsswitch="${_nsswitch}${_nsswitch+ }dns"
+		;;
+	nis)
+		_nsswitch="${_nsswitch}${_nsswitch+ }nis"
+		;;
+	'#'*)
+		;;
+	*)
+        	printf "Warning: unrecognized line [%s]", $line > "/dev/stderr"
+		;;
+		
+	esac
+    done < $host_conf
+
+    echo "hosts: $_nsswitch" > $nsswitch_conf
 }
 
 generate_nsswitch_conf()
@@ -73,30 +85,47 @@ generate_host_conf()
     nsswitch_conf=$1; shift;
     host_conf=$1; shift;
 
-    awk '
-BEGIN {
-    xlat["files"] = "hosts";
-    xlat["dns"] = "bind";
-    xlat["nis"] = "nis";
-    cont = 0;
-}
-sub(/^[\t ]*hosts:/, "") || cont {
-    if (!cont)
-        srcs = ""
-    sub(/#.*/, "")
-    gsub(/[][]/, " & ")
-    cont = sub(/\\$/, "")
-    srcs = srcs " " $0
-}
-END {
-    print "# Auto-generated from nsswitch.conf, do not edit"
-    ns = split(srcs, s)
-    for (n = 1; n <= ns; ++n) {
-        if (s[n] in xlat)
-            print xlat[s[n]]
-    }
-}
-' <$nsswitch_conf >$host_conf
+    _cont=0
+    _sources=""
+    while read line; do
+	line=${line##[ 	]}
+	case $line in
+	hosts:*)
+		;;
+	*)
+		if [ $_cont -ne 1 ]; then
+			continue
+		fi
+		;;
+	esac
+	if [ "${line%\\}" = "${line}\\" ]; then
+		_cont=1
+	fi
+	line=${line#hosts:}
+	line=${line%\\}
+	line=${line%%#*}
+	_sources="${_sources}${_sources:+ }$line"
+    done < $nsswitch_conf
+
+    echo "# Auto-generated from nsswitch.conf, do not edit" > $host_conf
+    for _s in ${_sources}; do
+	case $_s in
+	files)
+		echo "hosts" >> $host_conf
+		;;
+	dns)
+		echo "dns" >> $host_conf
+		;;
+	nis)
+		echo "nis" >> $host_conf
+		;;
+	*=*)
+		;;
+	*)
+		printf "Warning: unrecognized source [%s]", $_s > "/dev/stderr"
+		;;
+	esac
+    done
 }
 
 nsswitch_start()
