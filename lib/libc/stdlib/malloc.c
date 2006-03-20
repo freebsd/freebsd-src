@@ -465,14 +465,15 @@ struct arena_run_s {
 	unsigned	nfree:(RUN_MIN_REGS_2POW + 1);
 
 	/*
-	 * Current quartile for this run, one of: {RUN_Q0, RUN_25, RUN_Q50,
-	 * RUN_Q75, RUN_Q100}.
+	 * Current quartile for this run, one of: {RUN_QEMPTY, RUN_Q0, RUN_25,
+	 * RUN_Q50, RUN_Q75, RUN_Q100}.
 	 */
-#define RUN_Q0	    0
-#define RUN_Q25	    1
-#define RUN_Q50	    2
-#define RUN_Q75	    3
-#define RUN_Q100    4
+#define RUN_QEMPTY	0
+#define RUN_Q0		1
+#define RUN_Q25		2
+#define RUN_Q50		3
+#define RUN_Q75		4
+#define RUN_Q100	5
 	unsigned	quartile:3;
 
 	/*
@@ -492,35 +493,38 @@ struct arena_bin_s {
 	arena_run_t	*runcur;
 
 	/*
-	 * Links into rings of runs, of various fullnesses.  A new run
-	 * conceptually starts off in runs0, and when it reaches 25% full, it
-	 * is moved to the runs25 ring.  For the run to be moved again, it must
-	 * become either empty or 50% full.  Thus, each ring contains runs that
-	 * are within 25% of the advertised fullness for the ring.  This
-	 * provides a low-overhead mechanism for segregating runs into
-	 * approximate fullness classes.
+	 * Links into rings of runs, of various fullnesses (names indicate
+	 * approximate lower bounds).  A new run conceptually starts off in
+	 * runsempty, and it isn't inserted into the runs0 ring until it
+	 * reaches 25% full (hysteresis mechanism).  For the run to be moved
+	 * again, it must become either empty or 50% full.  Thus, each ring
+	 * contains runs that are within 50% above the advertised fullness for
+	 * the ring.  This provides a low-overhead mechanism for segregating
+	 * runs into approximate fullness classes.
 	 *
-	 * These rings are useful when looking for an existing run
-	 * to use when runcur is no longer usable.  We look for usable runs in
-	 * the following order:
+	 * Conceptually, there is a runs100 that contains completely full runs.
+	 * Since we don't need to search for these runs though, no runs100 ring
+	 * is actually maintained.
 	 *
-	 *   1) runs75
-	 *   2) runs50
-	 *   3) runs25
-	 *   4) runs100
+	 * These rings are useful when looking for an existing run to use when
+	 * runcur is no longer usable.  We look for usable runs in the
+	 * following order:
 	 *
-	 * We never look in runs0 because it never has more than one run in it,
-	 * and in such cases runcur already points to that run.
+	 *   1) runs50
+	 *   2) runs25
+	 *   3) runs0
+	 *   4) runs75
 	 *
-	 * runs100 isn't a good place to look, because it contains runs that
-	 * may be completely full.  Still, we look there as a last resort in
-	 * order to avoid allocating a new run if at all possible.
+	 * runs75 isn't a good place to look, because it contains runs that
+	 * may be nearly completely full.  Still, we look there as a last
+	 * resort in order to avoid allocating a new run if at all possible.
 	 */
-	/* arena_run_t	runs0;       0% <= fullness <   25% */
-	arena_run_t	runs25;  /*  0% <  fullness <   50% */
-	arena_run_t	runs50;  /* 25% <  fullness <   75% */
-	arena_run_t	runs75;  /* 50% <  fullness <  100% */
-	arena_run_t	runs100; /* 75% <  fullness <= 100% */
+	/* arena_run_t	runsempty;  0% <= fullness <   25% */
+	arena_run_t	runs0;  /*  0% <  fullness <   50% */
+	arena_run_t	runs25; /* 25% <  fullness <   75% */
+	arena_run_t	runs50; /* 50% <  fullness <  100% */
+	arena_run_t	runs75; /* 75% <  fullness <  100% */
+	/* arena_run_t	runs100;          fullness == 100% */
 
 	/* Size of regions in a run for this bin's size class. */
 	size_t		reg_size;
@@ -1551,13 +1555,25 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 		assert(run->free_min > run->nfree);
 		assert(run->quartile < RUN_Q100);
 		run->quartile++;
+		if (run->quartile == RUN_Q75) {
+			/*
+			 * Skip RUN_Q75 during promotion from RUN_Q50.
+			 * Separate handling of RUN_Q75 and RUN_Q100 allows
+			 * us to keep completely full runs in RUN_Q100, thus
+			 * guaranteeing that runs in RUN_Q75 are only mostly
+			 * full.  This provides a method for avoiding a linear
+			 * search for non-full runs, which avoids some
+			 * pathological edge cases.
+			 */
+			run->quartile++;
+		}
 #ifdef MALLOC_STATS
 		bin->stats.npromote++;
 #endif
 	} else {
 		/* Demote. */
 		assert(run->free_max < run->nfree);
-		assert(run->quartile > RUN_Q0);
+		assert(run->quartile > RUN_QEMPTY);
 		run->quartile--;
 #ifdef MALLOC_STATS
 		bin->stats.ndemote++;
@@ -1567,7 +1583,7 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	/* Re-file run. */
 	qr_remove(run, link);
 	switch (run->quartile) {
-		case RUN_Q0:
+		case RUN_QEMPTY:
 #ifdef MALLOC_STATS
 			bin->stats.curruns--;
 #endif
@@ -1578,26 +1594,30 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 #endif
 			arena_run_dalloc(arena, run, bin->run_size);
 			break;
-		case RUN_Q25:
-			qr_before_insert(&bin->runs25, run, link);
+		case RUN_Q0:
+			qr_before_insert(&bin->runs0, run, link);
 			run->free_max = run->bin->nregs - 1;
 			run->free_min = (run->bin->nregs >> 1) + 1;
 			break;
-		case RUN_Q50:
-			qr_before_insert(&bin->runs50, run, link);
+		case RUN_Q25:
+			qr_before_insert(&bin->runs25, run, link);
 			run->free_max = ((run->bin->nregs >> 2) * 3) - 1;
 			run->free_min = (run->bin->nregs >> 2) + 1;
 			break;
+		case RUN_Q50:
+			qr_before_insert(&bin->runs50, run, link);
+			run->free_max = (run->bin->nregs >> 1) - 1;
+			run->free_min = 1;
+			break;
 		case RUN_Q75:
 			qr_before_insert(&bin->runs75, run, link);
-			run->free_max = (run->bin->nregs >> 1) - 1;
+			run->free_max = (run->bin->nregs >> 2) - 1;
 			run->free_min = 1;
 			break;
 		case RUN_Q100:
 			assert(bin->runcur == run);
 			bin->runcur = NULL;
-			qr_before_insert(&bin->runs100, run, link);
-			run->free_max = (run->bin->nregs >> 2) - 1;
+			run->free_max = 0;
 			run->free_min = 0;
 			break;
 		default:
@@ -1752,24 +1772,13 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 	unsigned i, remainder;
 
 	/* Look for a usable run. */
-	if ((run = qr_next(&bin->runs75, link)) != &bin->runs75
-	    || (run = qr_next(&bin->runs50, link)) != &bin->runs50
-	    || (run = qr_next(&bin->runs25, link)) != &bin->runs25) {
-		/* Use a run that is guaranteed to have available space. */
+	if ((run = qr_next(&bin->runs50, link)) != &bin->runs50
+	    || (run = qr_next(&bin->runs25, link)) != &bin->runs25
+	    || (run = qr_next(&bin->runs0, link)) != &bin->runs0
+	    || (run = qr_next(&bin->runs75, link)) != &bin->runs75) {
+		/* run is guaranteed to have available space. */
 		qr_remove(run, link);
 		return (run);
-	}
-
-	/* Look for a run in runs100 that has available space. */
-	if ((run = qr_next(&bin->runs100, link)) != &bin->runs100) {
-		do {
-			if (run->nfree > 0) {
-				qr_remove(run, link);
-				return (run);
-			}
-
-			run = qr_next(run, link);
-		} while (run != &bin->runs100);
 	}
 
 	/* Allocate a new run. */
@@ -1795,7 +1804,7 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 	run->regs_minelm = 0;
 
 	run->nfree = bin->nregs;
-	run->quartile = RUN_Q0;
+	run->quartile = RUN_QEMPTY;
 	run->free_max = bin->nregs;
 	run->free_min = ((bin->nregs >> 2) * 3) + 1;
 #ifdef MALLOC_DEBUG
@@ -1819,6 +1828,7 @@ arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	unsigned regind;
 
 	assert(run->magic == ARENA_RUN_MAGIC);
+	assert(run->nfree > 0);
 
 	regind = arena_run_search(run);
 	assert(regind != UINT_MAX);
@@ -1887,7 +1897,7 @@ arena_malloc(arena_t *arena, size_t size)
 		}
 		assert(size == bin->reg_size);
 
-		if ((run = bin->runcur) != NULL && run->nfree > 0)
+		if ((run = bin->runcur) != NULL)
 			ret = arena_bin_malloc_easy(arena, bin, run, size);
 		else
 			ret = arena_bin_malloc_hard(arena, bin, size);
@@ -2098,10 +2108,10 @@ arena_new(arena_t *arena)
 	for (i = 0; i < ntbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
+		qr_new(&bin->runs0, link);
 		qr_new(&bin->runs25, link);
 		qr_new(&bin->runs50, link);
 		qr_new(&bin->runs75, link);
-		qr_new(&bin->runs100, link);
 
 		bin->reg_size = (1 << (TINY_MIN_2POW + i));
 
@@ -2135,10 +2145,10 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
+		qr_new(&bin->runs0, link);
 		qr_new(&bin->runs25, link);
 		qr_new(&bin->runs50, link);
 		qr_new(&bin->runs75, link);
-		qr_new(&bin->runs100, link);
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
@@ -2169,10 +2179,10 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins + npbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
+		qr_new(&bin->runs0, link);
 		qr_new(&bin->runs25, link);
 		qr_new(&bin->runs50, link);
 		qr_new(&bin->runs75, link);
-		qr_new(&bin->runs100, link);
 
 		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
 
