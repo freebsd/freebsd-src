@@ -41,7 +41,7 @@ CLEANFILES+=	mount_xdr.c
 mount_xdr.c: ${MOUNT_X}
 	${RPCCOM} -c -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
-.if ${MK_HESIOD_SUPPORT} != "no"
+.if ${MK_HESIOD} != "no"
 SRCS+=	info_hesiod.c
 .endif
 
