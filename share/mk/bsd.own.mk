@@ -428,7 +428,6 @@ MK_GDB:=	no
 #
 .for var in \
     GNU \
-    HESIOD \
     INET6 \
     IPX \
     KERBEROS \

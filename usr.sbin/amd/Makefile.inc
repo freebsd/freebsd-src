@@ -23,7 +23,7 @@ CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -DHAVE_LOCALCONFIG_H
 .endif
 
-.if ${MK_HESIOD_SUPPORT} != "no"
+.if ${MK_HESIOD} != "no"
 CFLAGS+= -DYES_HESIOD
 .endif
 
