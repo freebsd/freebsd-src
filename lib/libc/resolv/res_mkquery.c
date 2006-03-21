@@ -72,6 +72,8 @@
 static const char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: res_mkquery.c,v 1.1.2.2.4.2 2004/03/16 12:34:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 #include <sys/types.h>
@@ -104,9 +106,9 @@ res_nmkquery(res_state statp,
 	     u_char *buf,		/* buffer to put query */
 	     int buflen)		/* size of buffer */
 {
-	register HEADER *hp;
-	register u_char *cp, *ep;
-	register int n;
+	HEADER *hp;
+	u_char *cp, *ep;
+	int n;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
 	UNUSED(newrr_in);
@@ -214,8 +216,8 @@ res_nopt(res_state statp,
 	 int buflen,		/* size of buffer */
 	 int anslen)		/* UDP answer buffer size */
 {
-	register HEADER *hp;
-	register u_char *cp, *ep;
+	HEADER *hp;
+	u_char *cp, *ep;
 	u_int16_t flags = 0;
 
 #ifdef DEBUG
@@ -234,6 +236,8 @@ res_nopt(res_state statp,
 
 	ns_put16(T_OPT, cp);	/* TYPE */
 	cp += INT16SZ;
+	if (anslen > 0xffff)
+		anslen = 0xffff;		/* limit to 16bit value */
 	ns_put16(anslen & 0xffff, cp);	/* CLASS = UDP payload size */
 	cp += INT16SZ;
 	*cp++ = NOERROR;	/* extended RCODE */

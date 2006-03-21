@@ -35,6 +35,8 @@
 static const char sccsid[] = "@(#)inet_ntoa.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: inet_ntoa.c,v 1.1 2001/03/29 06:31:38 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -60,3 +62,10 @@ inet_ntoa(struct in_addr in) {
 	(void) inet_ntop(AF_INET, &in, ret, sizeof ret);
 	return (ret);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_ntoa
+__weak_reference(__inet_ntoa, inet_ntoa);

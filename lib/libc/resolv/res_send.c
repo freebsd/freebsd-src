@@ -72,14 +72,19 @@
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.7 2005/08/15 02:04:41 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Send query to name server and wait for reply.
  */
 
 #include "port_before.h"
+#ifndef USE_KQUEUE
 #include "fd_setsize.h"
+#endif
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -103,12 +108,18 @@ static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.7 2005/08/15 02:04:41 m
 
 #include "port_after.h"
 
+#ifdef USE_KQUEUE
+#include <sys/event.h>
+#else
 #ifdef USE_POLL
 #ifdef HAVE_STROPTS_H
 #include <stropts.h>
 #endif
 #include <poll.h>
 #endif /* USE_POLL */
+#endif
+
+#include "un-namespace.h"
 
 /* Options.  Leave them on. */
 #define DEBUG
@@ -125,18 +136,22 @@ static int highestFD = 0;
 
 /* Forward. */
 
-static int		get_salen __P((const struct sockaddr *));
-static struct sockaddr * get_nsaddr __P((res_state, size_t));
+static int		get_salen(const struct sockaddr *);
+static struct sockaddr * get_nsaddr(res_state, size_t);
 static int		send_vc(res_state, const u_char *, int,
 				u_char *, int, int *, int);
-static int		send_dg(res_state, const u_char *, int,
+static int		send_dg(res_state,
+#ifdef USE_KQUEUE
+				int kq,
+#endif
+				const u_char *, int,
 				u_char *, int, int *, int,
 				int *, int *);
 static void		Aerror(const res_state, FILE *, const char *, int,
 			       const struct sockaddr *, int);
 static void		Perror(const res_state, FILE *, const char *, int);
 static int		sock_eq(struct sockaddr *, struct sockaddr *);
-#if defined(NEED_PSELECT) && !defined(USE_POLL)
+#if defined(NEED_PSELECT) && !defined(USE_POLL) && !defined(USE_KQUEUE)
 static int		pselect(int, void *, void *, void *,
 				struct timespec *,
 				const sigset_t *);
@@ -289,6 +304,9 @@ res_nsend(res_state statp,
 	  const u_char *buf, int buflen, u_char *ans, int anssiz)
 {
 	int gotsomewhere, terrno, try, v_circuit, resplen, ns, n;
+#ifdef USE_KQUEUE
+	int kq;
+#endif
 	char abuf[NI_MAXHOST];
 
 #ifdef USE_POLL
@@ -308,6 +326,13 @@ res_nsend(res_state statp,
 	v_circuit = (statp->options & RES_USEVC) || buflen > PACKETSZ;
 	gotsomewhere = 0;
 	terrno = ETIMEDOUT;
+
+#ifdef USE_KQUEUE
+	if ((kq = kqueue()) < 0) {
+		Perror(statp, stderr, "kqueue", errno);
+		return (-1);
+	}
+#endif
 
 	/*
 	 * If the ns_addr_list in the resolver context has changed, then
@@ -332,7 +357,7 @@ res_nsend(res_state statp,
 				if (EXT(statp).nssocks[ns] == -1)
 					continue;
 				peerlen = sizeof(peer);
-				if (getsockname(EXT(statp).nssocks[ns],
+				if (_getsockname(EXT(statp).nssocks[ns],
 				    (struct sockaddr *)&peer, &peerlen) < 0) {
 					needclose++;
 					break;
@@ -424,6 +449,9 @@ res_nsend(res_state statp,
 					res_nclose(statp);
 					goto next_ns;
 				case res_done:
+#ifdef USE_KQUEUE
+					_close(kq);
+#endif
 					return (resplen);
 				case res_modified:
 					/* give the hook another try */
@@ -457,7 +485,11 @@ res_nsend(res_state statp,
 			resplen = n;
 		} else {
 			/* Use datagrams. */
-			n = send_dg(statp, buf, buflen, ans, anssiz, &terrno,
+			n = send_dg(statp,
+#ifdef USE_KQUEUE
+				    kq,
+#endif
+				    buf, buflen, ans, anssiz, &terrno,
 				    ns, &v_circuit, &gotsomewhere);
 			if (n < 0)
 				goto fail;
@@ -516,11 +548,17 @@ res_nsend(res_state statp,
 			} while (!done);
 
 		}
+#ifdef USE_KQUEUE
+		_close(kq);
+#endif
 		return (resplen);
  next_ns: ;
 	   } /*foreach ns*/
 	} /*foreach retry*/
 	res_nclose(statp);
+#ifdef USE_KQUEUE
+	_close(kq);
+#endif
 	if (!v_circuit) {
 		if (!gotsomewhere)
 			errno = ECONNREFUSED;	/* no nameservers found */
@@ -531,6 +569,9 @@ res_nsend(res_state statp,
 	return (-1);
  fail:
 	res_nclose(statp);
+#ifdef USE_KQUEUE
+	_close(kq);
+#endif
 	return (-1);
 }
 
@@ -608,7 +649,7 @@ send_vc(res_state statp,
 		struct sockaddr_storage peer;
 		ISC_SOCKLEN_T size = sizeof peer;
 
-		if (getpeername(statp->_vcsock,
+		if (_getpeername(statp->_vcsock,
 				(struct sockaddr *)&peer, &size) < 0 ||
 		    !sock_eq((struct sockaddr *)&peer, nsap)) {
 			res_nclose(statp);
@@ -620,7 +661,7 @@ send_vc(res_state statp,
 		if (statp->_vcsock >= 0)
 			res_nclose(statp);
 
-		statp->_vcsock = socket(nsap->sa_family, SOCK_STREAM, 0);
+		statp->_vcsock = _socket(nsap->sa_family, SOCK_STREAM, 0);
 		if (statp->_vcsock > highestFD) {
 			res_nclose(statp);
 			errno = ENOTSOCK;
@@ -641,7 +682,7 @@ send_vc(res_state statp,
 			}
 		}
 		errno = 0;
-		if (connect(statp->_vcsock, nsap, nsaplen) < 0) {
+		if (_connect(statp->_vcsock, nsap, nsaplen) < 0) {
 			*terrno = errno;
 			Aerror(statp, stderr, "connect/vc", errno, nsap,
 			    nsaplen);
@@ -658,7 +699,7 @@ send_vc(res_state statp,
 	iov[0] = evConsIovec(&len, INT16SZ);
 	DE_CONST(buf, tmp);
 	iov[1] = evConsIovec(tmp, buflen);
-	if (writev(statp->_vcsock, iov, 2) != (INT16SZ + buflen)) {
+	if (_writev(statp->_vcsock, iov, 2) != (INT16SZ + buflen)) {
 		*terrno = errno;
 		Perror(statp, stderr, "write failed", errno);
 		res_nclose(statp);
@@ -670,7 +711,7 @@ send_vc(res_state statp,
  read_len:
 	cp = ans;
 	len = INT16SZ;
-	while ((n = read(statp->_vcsock, (char *)cp, (int)len)) > 0) {
+	while ((n = _read(statp->_vcsock, (char *)cp, (int)len)) > 0) {
 		cp += n;
 		if ((len -= n) == 0)
 			break;
@@ -716,7 +757,8 @@ send_vc(res_state statp,
 		return (0);
 	}
 	cp = ans;
-	while (len != 0 && (n = read(statp->_vcsock, (char *)cp, (int)len)) > 0){
+	while (len != 0 &&
+	    (n = _read(statp->_vcsock, (char *)cp, (int)len)) > 0) {
 		cp += n;
 		len -= n;
 	}
@@ -735,8 +777,8 @@ send_vc(res_state statp,
 		while (len != 0) {
 			char junk[PACKETSZ];
 
-			n = read(statp->_vcsock, junk,
-				 (len > sizeof junk) ? sizeof junk : len);
+			n = _read(statp->_vcsock, junk,
+			    (len > sizeof junk) ? sizeof junk : len);
 			if (n > 0)
 				len -= n;
 			else
@@ -767,6 +809,9 @@ send_vc(res_state statp,
 
 static int
 send_dg(res_state statp,
+#ifdef USE_KQUEUE
+	int kq,
+#endif
 	const u_char *buf, int buflen, u_char *ans, int anssiz,
 	int *terrno, int ns, int *v_circuit, int *gotsomewhere)
 {
@@ -778,17 +823,22 @@ send_dg(res_state statp,
 	struct sockaddr_storage from;
 	ISC_SOCKLEN_T fromlen;
 	int resplen, seconds, n, s;
+#ifdef USE_KQUEUE
+	struct kevent kv;
+#else
 #ifdef USE_POLL
 	int     polltimeout;
 	struct pollfd   pollfd;
 #else
 	fd_set dsmask;
 #endif
+#endif
 
 	nsap = get_nsaddr(statp, ns);
 	nsaplen = get_salen(nsap);
 	if (EXT(statp).nssocks[ns] == -1) {
-		EXT(statp).nssocks[ns] = socket(nsap->sa_family, SOCK_DGRAM, 0);
+		EXT(statp).nssocks[ns] = _socket(nsap->sa_family,
+		    SOCK_DGRAM, 0);
 		if (EXT(statp).nssocks[ns] > highestFD) {
 			res_nclose(statp);
 			errno = ENOTSOCK;
@@ -819,8 +869,16 @@ send_dg(res_state statp,
 		 * socket operation, and select returns if the
 		 * error message is received.  We can thus detect
 		 * the absence of a nameserver without timing out.
+		 *
+		 * When the option "insecure1" is specified, we'd
+		 * rather expect to see responses from an "unknown"
+		 * address.  In order to let the kernel accept such
+		 * responses, do not connect the socket here.
+		 * XXX: or do we need an explicit option to disable
+		 * connecting?
 		 */
-		if (connect(EXT(statp).nssocks[ns], nsap, nsaplen) < 0) {
+		if (!(statp->options & RES_INSECURE1) &&
+		    _connect(EXT(statp).nssocks[ns], nsap, nsaplen) < 0) {
 			Aerror(statp, stderr, "connect(dg)", errno, nsap,
 			    nsaplen);
 			res_nclose(statp);
@@ -832,13 +890,20 @@ send_dg(res_state statp,
 	}
 	s = EXT(statp).nssocks[ns];
 #ifndef CANNOT_CONNECT_DGRAM
-	if (send(s, (const char*)buf, buflen, 0) != buflen) {
+	if (statp->options & RES_INSECURE1) {
+		if (_sendto(s,
+		    (const char*)buf, buflen, 0, nsap, nsaplen) != buflen) {
+			Aerror(statp, stderr, "sendto", errno, nsap, nsaplen);
+			res_nclose(statp);
+			return (0);
+		}
+	} else if (send(s, (const char*)buf, buflen, 0) != buflen) {
 		Perror(statp, stderr, "send", errno);
 		res_nclose(statp);
 		return (0);
 	}
 #else /* !CANNOT_CONNECT_DGRAM */
-	if (sendto(s, (const char*)buf, buflen, 0, nsap, nsaplen) != buflen)
+	if (_sendto(s, (const char*)buf, buflen, 0, nsap, nsaplen) != buflen)
 	{
 		Aerror(statp, stderr, "sendto", errno, nsap, nsaplen);
 		res_nclose(statp);
@@ -862,13 +927,18 @@ send_dg(res_state statp,
 	now = evNowTime();
  nonow:
 #ifndef USE_POLL
-	FD_ZERO(&dsmask);
-	FD_SET(s, &dsmask);
 	if (evCmpTime(finish, now) > 0)
 		timeout = evSubTime(finish, now);
 	else
 		timeout = evConsTime(0, 0);
+#ifdef USE_KQUEUE
+	EV_SET(&kv, s, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, 0);
+	n = _kevent(kq, &kv, 1, &kv, 1, &timeout);
+#else
+	FD_ZERO(&dsmask);
+	FD_SET(s, &dsmask);
 	n = pselect(s + 1, &dsmask, NULL, NULL, &timeout, NULL);
+#endif
 #else
 	timeout = evSubTime(finish, now);
 	if (timeout.tv_sec < 0)
@@ -888,17 +958,21 @@ send_dg(res_state statp,
 	if (n < 0) {
 		if (errno == EINTR)
 			goto wait;
+#ifdef USE_KQUEUE
+		Perror(statp, stderr, "kevent", errno);
+#else
 #ifndef USE_POLL
 		Perror(statp, stderr, "select", errno);
 #else
 		Perror(statp, stderr, "poll", errno);
 #endif /* USE_POLL */
+#endif
 		res_nclose(statp);
 		return (0);
 	}
 	errno = 0;
 	fromlen = sizeof(from);
-	resplen = recvfrom(s, (char*)ans, anssiz,0,
+	resplen = _recvfrom(s, (char*)ans, anssiz,0,
 			   (struct sockaddr *)&from, &fromlen);
 	if (resplen <= 0) {
 		Perror(statp, stderr, "recvfrom", errno);
@@ -1061,7 +1135,7 @@ sock_eq(struct sockaddr *a, struct sockaddr *b) {
 	}
 }
 
-#if defined(NEED_PSELECT) && !defined(USE_POLL)
+#if defined(NEED_PSELECT) && !defined(USE_POLL) && !defined(USE_KQUEUE)
 /* XXX needs to move to the porting library. */
 static int
 pselect(int nfds, void *rfds, void *wfds, void *efds,

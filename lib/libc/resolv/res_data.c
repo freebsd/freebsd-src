@@ -18,6 +18,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: res_data.c,v 1.1.206.2 2004/03/16 12:34:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -33,14 +35,15 @@ static const char rcsid[] = "$Id: res_data.c,v 1.1.206.2 2004/03/16 12:34:18 mar
 #include <ctype.h>
 #include <netdb.h>
 #include <resolv.h>
+#ifndef _LIBC
 #include <res_update.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "port_after.h"
-#undef _res
 
 const char *_res_opcodes[] = {
 	"QUERY",
@@ -71,11 +74,6 @@ const char *_res_sectioncodes[] = {
 #endif
 
 #ifndef __BIND_NOSTATIC
-struct __res_state _res
-# if defined(__BIND_RES_TEXT)
-	= { RES_TIMEOUT, }	/* Motorola, et al. */
-# endif
-        ;
 
 /* Proto. */
 
@@ -107,7 +105,7 @@ res_init(void) {
 	if (!_res.retrans)
 		_res.retrans = RES_TIMEOUT;
 	if (!_res.retry)
-		_res.retry = 4;
+		_res.retry = RES_DFLRETRY;
 	if (!(_res.options & RES_INIT))
 		_res.options = RES_DEFAULT;
 
@@ -158,6 +156,7 @@ res_mkquery(int op,			/* opcode of query */
 			     newrr_in, buf, buflen));
 }
 
+#ifndef _LIBC
 int
 res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
@@ -167,6 +166,7 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 
 	return (res_nmkupdate(&_res, rrecp_in, buf, buflen));
 }
+#endif
 
 int
 res_query(const char *name,	/* domain name */
@@ -181,6 +181,7 @@ res_query(const char *name,	/* domain name */
 	return (res_nquery(&_res, name, class, type, answer, anslen));
 }
 
+#ifndef _LIBC
 void
 res_send_setqhook(res_send_qhook hook) {
 	_res.qhook = hook;
@@ -190,6 +191,7 @@ void
 res_send_setrhook(res_send_rhook hook) {
 	_res.rhook = hook;
 }
+#endif
 
 int
 res_isourserver(const struct sockaddr_in *inp) {
@@ -206,6 +208,7 @@ res_send(const u_char *buf, int buflen, u_char *ans, int anssiz) {
 	return (res_nsend(&_res, buf, buflen, ans, anssiz));
 }
 
+#ifndef _LIBC
 int
 res_sendsigned(const u_char *buf, int buflen, ns_tsig_key *key,
 	       u_char *ans, int anssiz)
@@ -217,12 +220,14 @@ res_sendsigned(const u_char *buf, int buflen, ns_tsig_key *key,
 
 	return (res_nsendsigned(&_res, buf, buflen, key, ans, anssiz));
 }
+#endif
 
 void
 res_close(void) {
 	res_nclose(&_res);
 }
 
+#ifndef _LIBC
 int
 res_update(ns_updrec *rrecp_in) {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
@@ -232,6 +237,7 @@ res_update(ns_updrec *rrecp_in) {
 
 	return (res_nupdate(&_res, rrecp_in, NULL));
 }
+#endif
 
 int
 res_search(const char *name,	/* domain name */
@@ -264,6 +270,12 @@ res_querydomain(const char *name,
 				 answer, anslen));
 }
 
+int
+res_opt(int n0, u_char *buf, int buflen, int anslen)
+{
+	return (res_nopt(&_res, n0, buf, buflen, anslen));
+}
+
 const char *
 hostalias(const char *name) {
 	static char abuf[MAXDNAME];
@@ -287,5 +299,26 @@ local_hostname_length(const char *hostname) {
 	return (0);
 }
 #endif /*ultrix*/
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef res_init
+__weak_reference(__res_init, res_init);
+#undef p_query
+__weak_reference(__p_query, p_query);
+#undef res_mkquery
+__weak_reference(__res_mkquery, res_mkquery);
+#undef res_query
+__weak_reference(__res_query, res_query);
+#undef res_send
+__weak_reference(__res_send, res_send);
+#undef res_close
+__weak_reference(__res_close, _res_close);
+#undef res_search
+__weak_reference(__res_search, res_search);
+#undef res_querydomain
+__weak_reference(__res_querydomain, res_querydomain);
 
 #endif

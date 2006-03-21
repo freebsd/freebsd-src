@@ -1,13 +1,18 @@
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <port_before.h>
 #ifdef DO_PTHREADS
 #include <pthread.h>
+#ifdef _LIBC
+#include <pthread_np.h>
+#endif
 #endif
 #include <errno.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
 #include <resolv_mt.h>
-#include <irs.h>
 #include <port_after.h>
 
 #ifdef DO_PTHREADS
@@ -40,6 +45,7 @@ _mtctxres_init(void) {
 }
 #endif
 
+#ifndef _LIBC
 /*
  * To support binaries that used the private MT-safe interface in
  * Solaris 8, we still need to provide the __res_enable_mt()
@@ -54,6 +60,7 @@ int
 __res_disable_mt(void) {
 	return (0);
 }
+#endif
 
 #ifdef DO_PTHREADS
 static int
@@ -98,6 +105,11 @@ mtctxres_t *
 ___mtctxres(void) {
 #ifdef DO_PTHREADS
 	mtctxres_t	*mt;
+
+#ifdef _LIBC
+	if (pthread_main_np() != 0)
+		return (&sharedctx);
+#endif
 
 	/*
 	 * This if clause should only be executed if we are linking
