@@ -212,7 +212,7 @@ struct sysctl_ctx_list *snd_sysctl_tree(device_t dev);
 struct sysctl_oid *snd_sysctl_tree_top(device_t dev);
 
 struct pcm_channel *pcm_getfakechan(struct snddev_info *d);
-struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum);
+int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction, pid_t pid, int chnum);
 int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 int pcm_inprog(struct snddev_info *d, int delta);
