@@ -52,9 +52,12 @@
 static const char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: herror.c,v 1.2.206.1 2004/03/09 08:33:54 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/uio.h>
@@ -66,7 +69,7 @@ static const char rcsid[] = "$Id: herror.c,v 1.2.206.1 2004/03/09 08:33:54 marka
 #include <resolv.h>
 #include <string.h>
 #include <unistd.h>
-#include <irs.h>
+#include "un-namespace.h"
 
 #include "port_after.h"
 
@@ -77,12 +80,10 @@ const char *h_errlist[] = {
 	"Unknown server error",			/* 3 NO_RECOVERY */
 	"No address associated with name",	/* 4 NO_ADDRESS */
 };
-int	h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
+const int h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
 
-#if !(__GLIBC__ > 2 || __GLIBC__ == 2 &&  __GLIBC_MINOR__ >= 3)
 #undef	h_errno
 int	h_errno;
-#endif
 
 /*
  * herror --
@@ -110,7 +111,7 @@ herror(const char *s) {
 	DE_CONST("\n", t);
 	v->iov_base = t;
 	v->iov_len = 1;
-	writev(STDERR_FILENO, iov, (v - iov) + 1);
+	_writev(STDERR_FILENO, iov, (v - iov) + 1);
 }
 
 /*

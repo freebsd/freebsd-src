@@ -18,6 +18,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: inet_net_pton.c,v 1.4.2.1.8.2 2004/03/17 00:29:47 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -27,7 +29,7 @@ static const char rcsid[] = "$Id: inet_net_pton.c,v 1.4.2.1.8.2 2004/03/17 00:29
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 
-#include <isc/assertions.h>
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -78,7 +80,7 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 			if (isupper(ch))
 				ch = tolower(ch);
 			n = strchr(xdigits, ch) - xdigits;
-			INSIST(n >= 0 && n <= 15);
+			assert(n >= 0 && n <= 15);
 			if (dirty == 0)
 				tmp = n;
 			else
@@ -101,7 +103,7 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 			tmp = 0;
 			do {
 				n = strchr(digits, ch) - digits;
-				INSIST(n >= 0 && n <= 9);
+				assert(n >= 0 && n <= 9);
 				tmp *= 10;
 				tmp += n;
 				if (tmp > 255)
@@ -130,7 +132,7 @@ inet_net_pton_ipv4(const char *src, u_char *dst, size_t size) {
 		bits = 0;
 		do {
 			n = strchr(digits, ch) - digits;
-			INSIST(n >= 0 && n <= 9);
+			assert(n >= 0 && n <= 9);
 			bits *= 10;
 			bits += n;
 		} while ((ch = *src++) != '\0' && isascii(ch) && isdigit(ch));
@@ -403,3 +405,10 @@ inet_net_pton(int af, const char *src, void *dst, size_t size) {
 		return (-1);
 	}
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_net_pton
+__weak_reference(__inet_net_pton, inet_net_pton);

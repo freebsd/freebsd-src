@@ -97,6 +97,8 @@
 static const char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: res_debug.c,v 1.3.2.5.4.6 2005/07/28 07:43:22 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -375,7 +377,7 @@ const struct res_sym __p_class_syms[] = {
 /*
  * Names of message sections.
  */
-const struct res_sym __p_default_section_syms[] = {
+static const struct res_sym __p_default_section_syms[] = {
 	{ns_s_qd,	"QUERY",	(char *)0},
 	{ns_s_an,	"ANSWER",	(char *)0},
 	{ns_s_ns,	"AUTHORITY",	(char *)0},
@@ -383,7 +385,7 @@ const struct res_sym __p_default_section_syms[] = {
 	{0,             (char *)0,	(char *)0}
 };
 
-const struct res_sym __p_update_section_syms[] = {
+static const struct res_sym __p_update_section_syms[] = {
 	{S_ZONE,	"ZONE",		(char *)0},
 	{S_PREREQ,	"PREREQUISITE",	(char *)0},
 	{S_UPDATE,	"UPDATE",	(char *)0},
@@ -470,7 +472,7 @@ const struct res_sym __p_type_syms[] = {
 /*
  * Names of DNS rcodes.
  */
-const struct res_sym __p_rcode_syms[] = {
+static const struct res_sym __p_rcode_syms[] = {
 	{ns_r_noerror,	"NOERROR",		"no error"},
 	{ns_r_formerr,	"FORMERR",		"format error"},
 	{ns_r_servfail,	"SERVFAIL",		"server failed"},
@@ -1161,3 +1163,22 @@ res_nametotype(const char *buf, int *successp) {
 		*successp = success;
 	return (result);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef fp_resstat
+__weak_reference(__fp_resstat, fp_resstat);
+#undef p_fqnname
+__weak_reference(__p_fqnname, p_fqnname);
+#undef sym_ston
+__weak_reference(__sym_ston, sym_ston);
+#undef sym_ntos
+__weak_reference(__sym_ntos, sym_ntos);
+#undef sym_ntop
+__weak_reference(__sym_ntop, sym_ntop);
+#undef dn_count_labels
+__weak_reference(__dn_count_labels, dn_count_labels);
+#undef p_secstodate
+__weak_reference(__p_secstodate, p_secstodate);
