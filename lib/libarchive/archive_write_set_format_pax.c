@@ -66,11 +66,13 @@ static int		 archive_write_pax_finish(struct archive *);
 static int		 archive_write_pax_finish_entry(struct archive *);
 static int		 archive_write_pax_header(struct archive *,
 			     struct archive_entry *);
+static char		*base64_encode(const char *src, size_t len);
 static char		*build_pax_attribute_name(char *dest, const char *src);
 static char		*build_ustar_entry_name(char *dest, const char *src,
 			     size_t src_length, const char *insert);
 static char		*format_int(char *dest, int64_t);
 static int		 has_non_ASCII(const wchar_t *);
+static char		*url_encode(const char *in);
 static int		 write_nulls(struct archive *, size_t);
 
 /*
@@ -142,7 +144,7 @@ add_pax_attr_time(struct archive_string *as, const char *key,
 	t = tmp + sizeof(tmp) - 1;
 
 	/* Skip trailing zeros in the fractional part. */
-	for(digit = 0, i = 10; i > 0 && digit == 0; i--) {
+	for (digit = 0, i = 10; i > 0 && digit == 0; i--) {
 		digit = nanos % 10;
 		nanos /= 10;
 	}
@@ -190,10 +192,10 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 	add_pax_attr(as, key, format_int(tmp + sizeof(tmp) - 1, value));
 }
 
-static void
-add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
+static char *
+utf8_encode(const wchar_t *wval)
 {
-	int	utf8len;
+	int utf8len;
 	const wchar_t *wp;
 	unsigned long wc;
 	char *utf8_value, *p;
@@ -217,8 +219,10 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 	}
 
 	utf8_value = malloc(utf8len + 1);
-	if (utf8_value == NULL)
+	if (utf8_value == NULL) {
 		__archive_errx(1, "Not enough memory for attributes");
+		return (NULL);
+	}
 
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
@@ -258,6 +262,16 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 	*p = '\0';
+
+	return (utf8_value);
+}
+
+static void
+add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
+{
+	char *utf8_value = utf8_encode(wval);
+	if (utf8_value == NULL)
+		return;
 	add_pax_attr(as, key, utf8_value);
 	free(utf8_value);
 }
@@ -309,6 +323,53 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	archive_strappend_char(as, '=');
 	archive_strcat(as, value);
 	archive_strappend_char(as, '\n');
+}
+
+static void
+archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
+{
+	struct archive_string s;
+	int i = archive_entry_xattr_reset(entry);
+
+	while (i--) {
+		const char *name;
+		const void *value;
+		char *encoded_value;
+		char *url_encoded_name = NULL, *encoded_name = NULL;
+		wchar_t *wcs_name = NULL;
+		size_t size;
+
+		archive_entry_xattr_next(entry, &name, &value, &size);
+		/* Name is URL-encoded, then converted to wchar_t,
+		 * then UTF-8 encoded. */
+		url_encoded_name = url_encode(name);
+		if (url_encoded_name != NULL) {
+			/* Convert narrow-character to wide-character. */
+			int wcs_length = strlen(url_encoded_name);
+			wcs_name = malloc((wcs_length + 1) * sizeof(wchar_t));
+			if (wcs_name == NULL)
+				__archive_errx(1, "No memory for xattr conversion");
+			mbstowcs(wcs_name, url_encoded_name, wcs_length);
+			wcs_name[wcs_length] = 0;
+			free(url_encoded_name); /* Done with this. */
+		}
+		if (wcs_name != NULL) {
+			encoded_name = utf8_encode(wcs_name);
+			free(wcs_name); /* Done with wchar_t name. */
+		}
+
+		encoded_value = base64_encode(value, size);
+
+		if (encoded_name != NULL && encoded_value != NULL) {
+			archive_string_init(&s);
+			archive_strcpy(&s, "LIBARCHIVE.xattr.");
+			archive_strcat(&s, encoded_name);
+			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
+			archive_string_free(&s);
+		}
+		free(encoded_name);
+		free(encoded_value);
+	}
 }
 
 /*
@@ -538,6 +599,10 @@ archive_write_pax_header(struct archive *a,
 		ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) > 0)
 		need_extension = 1;
 
+	/* If there are extended attributes, we need an extension */
+	if (!need_extension && archive_entry_xattr_count(entry_original) > 0)
+		need_extension = 1;
+
 	/*
 	 * The following items are handled differently in "pax
 	 * restricted" format.  In particular, in "pax restricted"
@@ -595,6 +660,9 @@ archive_write_pax_header(struct archive *a,
 		    st_main->st_ino);
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.nlink",
 		    st_main->st_nlink);
+
+		/* Store extended attributes */
+		archive_write_pax_header_xattrs(pax, entry_original);
 	}
 
 	/* Only regular files have data. */
@@ -1025,4 +1093,95 @@ has_non_ASCII(const wchar_t *wp)
 	while (*wp != L'\0' && *wp < 128)
 		wp++;
 	return (*wp != L'\0');
+}
+
+/*
+ * Used by extended attribute support; encodes the name
+ * so that there will be no '=' characters in the result.
+ */
+static char *
+url_encode(const char *in)
+{
+	const char *s;
+	char *d;
+	int out_len = 0;
+	char *out;
+
+	for (s = in; *s != '\0'; s++) {
+		if (*s < 33 || *s > 126 || *s == '%' || *s == '=')
+			out_len += 3;
+		else
+			out_len++;
+	}
+
+	out = (char *)malloc(out_len + 1);
+	if (out == NULL)
+		return (NULL);
+
+	for (s = in, d = out; *s != '\0'; s++) {
+		/* encode any non-printable ASCII character or '%' or '=' */
+		if (*s < 33 || *s > 126 || *s == '%' || *s == '=') {
+			/* URL encoding is '%' followed by two hex digits */
+			*d++ = '%';
+			*d++ = "0123456789ABCDEF"[0x0f & (*s >> 4)];
+			*d++ = "0123456789ABCDEF"[0x0f & *s];
+		} else {
+			*d++ = *s;
+		}
+	}
+	*d = '\0';
+	return (out);
+}
+
+/*
+ * Encode a sequence of bytes into a C string using base-64 encoding.
+ *
+ * Returns a null-terminated C string allocated with malloc(); caller
+ * is responsible for freeing the result.
+ */
+static char *
+base64_encode(const char *s, size_t len)
+{
+	static const char digits[64] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	int v;
+	char *d, *out;
+
+	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
+	out = malloc((len * 4 + 2) / 3 + 1);
+	if (out == NULL)
+		return (NULL);
+	d = out;
+
+	/* Convert each group of 3 bytes into 4 characters. */
+	while (len >= 3) {
+		v = (((int)s[0] << 16) & 0xff0000)
+		    | (((int)s[1] << 8) & 0xff00)
+		    | (((int)s[2]) & 0x00ff);
+		s += 3;
+		len -= 3;
+		*d++ = digits[(v >> 18) & 0x3f];
+		*d++ = digits[(v >> 12) & 0x3f];
+		*d++ = digits[(v >> 6) & 0x3f];
+		*d++ = digits[(v) & 0x3f];
+	}
+	/* Handle final group of 1 byte (2 chars) or 2 bytes (3 chars). */
+	switch (len) {
+	case 0: break;
+	case 1:
+		v = (((int)s[0] << 16) & 0xff0000);
+		*d++ = digits[(v >> 18) & 0x3f];
+		*d++ = digits[(v >> 12) & 0x3f];
+		break;
+	case 2:
+		v = (((int)s[0] << 16) & 0xff0000)
+		    | (((int)s[1] << 8) & 0xff00);
+		*d++ = digits[(v >> 18) & 0x3f];
+		*d++ = digits[(v >> 12) & 0x3f];
+		*d++ = digits[(v >> 6) & 0x3f];
+		break;
+	}
+	/* Add trailing NUL character so output is a valid C string. */
+	*d++ = '\0';
+	return (out);
 }
