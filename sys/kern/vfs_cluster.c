@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <sys/sysctl.h>
-int	softdep_wantrollbacks(struct buf *);
 
 #if defined(CLUSTERDEBUG)
 static int	rcluster= 0;
