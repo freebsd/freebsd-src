@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#include "res_update.h"
+
 /*
  * Separate a linked list of records into groups so that all records
  * in a group will belong to a single zone on the nameserver.
@@ -85,7 +87,7 @@ res_update(ns_updrec *rrecp_in) {
 	u_int32_t ttl;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
 		return (-1);
 	}
 

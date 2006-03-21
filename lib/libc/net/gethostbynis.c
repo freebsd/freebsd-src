@@ -67,19 +67,19 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		break;
 	default:
 		errno = EAFNOSUPPORT;
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
 
 	if (hed->yp_domain == (char *)NULL)
 		if (yp_get_default_domain (&hed->yp_domain)) {
-			h_errno = NETDB_INTERNAL;
+			RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 			return -1;
 		}
 
 	if (yp_match(hed->yp_domain, map, name, strlen(name), &result,
 	    &resultlen)) {
-		h_errno = HOST_NOT_FOUND;
+		RES_SET_H_ERRNO(hed->res, HOST_NOT_FOUND);
 		return -1;
 	}
 
@@ -101,7 +101,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		addrok = inet_aton(result, (struct in_addr *)hed->host_addr);
 		if (addrok != 1)
 			break;
-		if (_res.options & RES_USE_INET6) {
+		if (hed->res->options & RES_USE_INET6) {
 			_map_v4v6_address((char *)hed->host_addr,
 			    (char *)hed->host_addr);
 			af = AF_INET6;
@@ -113,7 +113,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		break;
 	}
 	if (addrok != 1) {
-		h_errno = HOST_NOT_FOUND;
+		RES_SET_H_ERRNO(hed->res, HOST_NOT_FOUND);
 		return -1;
 	}
 	he->h_addr_list[1] = NULL;
@@ -130,7 +130,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		*p++ = '\0';
 	size = strlen(cp) + 1;
 	if (ep - bp < size) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(hed->res, NO_RECOVERY);
 		return -1;
 	}
 	strlcpy(bp, cp, ep - bp);
@@ -204,15 +204,18 @@ _gethostbynisname(const char *name, int af)
 	struct hostdata *hd;
 	u_long oresopt;
 	int error;
+	res_state statp;
 
+	statp = __res_state();
 	if ((hd = __hostdata_init()) == NULL) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		return NULL;
 	}
-	oresopt = _res.options;
-	_res.options &= ~RES_USE_INET6;
+	hd->data.res = statp;
+	oresopt = statp->options;
+	statp->options &= ~RES_USE_INET6;
 	error = _gethostbynisname_r(name, af, &hd->host, &hd->data);
-	_res.options = oresopt;
+	statp->options = oresopt;
 	return (error == 0) ? &hd->host : NULL;
 #else
 	return NULL;
@@ -226,15 +229,18 @@ _gethostbynisaddr(const char *addr, int len, int af)
 	struct hostdata *hd;
 	u_long oresopt;
 	int error;
+	res_state statp;
 
+	statp = __res_state();
 	if ((hd = __hostdata_init()) == NULL) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		return NULL;
 	}
-	oresopt = _res.options;
-	_res.options &= ~RES_USE_INET6;
+	hd->data.res = statp;
+	oresopt = statp->options;
+	statp->options &= ~RES_USE_INET6;
 	error = _gethostbynisaddr_r(addr, len, af, &hd->host, &hd->data);
-	_res.options = oresopt;
+	statp->options = oresopt;
 	return (error == 0) ? &hd->host : NULL;
 #else
 	return NULL;
