@@ -72,11 +72,8 @@ DUMMY(pciconfig_iobase);
 DUMMY(pciconfig_read);
 DUMMY(pciconfig_write);
 DUMMY(pivot_root);
-DUMMY(recvmsg);
-DUMMY(sendmsg);
 DUMMY(sethae);
 DUMMY(sigaltstack);
 DUMMY(sigpending);
-DUMMY(socketpair);
 DUMMY(utimes);
 
