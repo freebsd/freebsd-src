@@ -21,6 +21,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060317:
+	Most world/kernel related NO_* build options changed names.
+	New knobs have common prefixes WITHOUT_*/WITH_* (modelled
+	after FreeBSD ports) and should be set in /etc/src.conf
+	(the src.conf(5) manpage is provided).  Full backwards
+	compatibility is maintained for the time being though it's
+	highly recommended to start moving old options out of the
+	system-wide /etc/make.conf file into the new /etc/src.conf
+	while also properly renaming them.  More conversions will
+	likely follow.  Posting to current@:
+
+	http://lists.freebsd.org/pipermail/freebsd-current/2006-March/061725.html
+
 20060305:
 	The NETSMBCRYPTO kernel option has been retired because its
 	functionality is always included in NETSMB and smbfs.ko now.
