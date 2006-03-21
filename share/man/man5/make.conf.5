@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2006
+.Dd March 21, 2006
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -435,94 +435,9 @@ will not be able to change users' groups.
 Set this to install
 .Xr ssh 1
 with the set-user-ID bit turned on.
-.It Va NO_WPA_SUPPLICANT_EAPOL
-.Pq Vt bool
-Build
-.Xr wpa_supplicant 8
-without support for the IEEE 802.1X protocol and without
-support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
-protocols (usable only via 802.1X).
-.It Va MAKE_IDEA
-.Pq Vt bool
-Set to build the IDEA encryption code.
-This code is patented in the USA and many European countries.
-It is
-.Em "YOUR RESPONSIBILITY"
-to determine if you can legally use IDEA.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
-.It Va NO_ACPI
-.Pq Vt bool
-Set to not build
-.Xr acpiconf 8 ,
-.Xr acpidump 8
-and related programs.
-.It Va NO_ATM
-.Pq Vt bool
-Set to not build
-programs and libraries related to ATM networking.
-.It Va NO_AUDIT
-.Pq Vt bool
-Set to not build audit support into system programs.
-.It Va NO_AUTHPF
-.Pq Vt bool
-Set to not build
-.Xr authpf 8 .
-.It Va NO_BIND
-.Pq Vt bool
-Setting this variable will prevent any part of BIND from being built,
-regardless of the presence of any of the other *_BIND_* variables below.
-.It Va NO_BIND_DNSSEC
-.Pq Vt bool
-Set to avoid building or installing the DNSSEC related binaries,
-.Xr dnssec-keygen 8
-and
-.Xr dnssec-signzone 8 .
-.It Va NO_BIND_ETC
-.Pq Vt bool
-Set to avoid installing the default files to
-.Pa /var/named/etc/namedb .
-.It Va NO_BIND_LIBS_LWRES
-.Pq Vt bool
-Set to avoid installing the lightweight resolver library in
-.Pa /usr/lib .
-The library that is private to the build system may still be built as needed.
-.It Va NO_BIND_MTREE
-.Pq Vt bool
-Set to avoid running
-.Xr mtree 8
-to create the chroot directory structure under
-.Pa /var/named ,
-and avoid creating an
-.Pa /etc/namedb
-symlink to the chroot directory.
-This option should typically be used together with
-.Vt NO_BIND_ETC .
-.It Va NO_BIND_NAMED
-.Pq Vt bool
-Set to avoid building or installing
-.Xr named 8 ,
-.Xr named.reload 8 ,
-.Xr named-checkconf 8 ,
-.Xr named-checkzone 8 ,
-.Xr rndc 8 ,
-and
-.Xr rndc-confgen 8 .
-.It Va NO_BIND_UTILS
-.Pq Vt bool
-Set to avoid building or installing the BIND userland utilities,
-.Xr dig 1 ,
-.Xr host 1 ,
-.Xr nslookup 1 ,
-and
-.Xr nsupdate 8 .
-.It Va NO_BLUETOOTH
-.Pq Vt bool
-Set to not build Bluetooth related kernel modules, programs and libraries.
-.It Va NO_BOOT
-.Pq Vt bool
-Set to not build the boot blocks and loader.
 .It Va NO_CLEAN
 .Pq Vt bool
 Set this to disable cleaning during
@@ -534,145 +449,9 @@ Set this to run
 .Dq Li "${MAKE} clean"
 instead of
 .Dq Li "${MAKE} cleandir" .
-.It Va NO_CRYPT
-.Pq Vt bool
-Set to not build any crypto code.
-.It Va NO_CVS
-.Pq Vt bool
-Set to not build CVS.
-.It Va NO_CXX
-.Pq Vt bool
-Set to not build
-.Xr g++ 1
-and related libraries.
-.It Va NO_DICT
-.Pq Vt bool
-Set to not build the Webster dictionary files.
-.It Va NO_DYNAMICROOT
-.Pq Vt bool
-Set this if you do not want to link
-.Pa /bin
-and
-.Pa /sbin
-dynamically.
-.It Va NO_FORTRAN
-.Pq Vt bool
-Set to not build
-.Xr g77 1
-and related libraries.
-.It Va NO_GAMES
-.Pq Vt bool
-Set to not build games.
-.It Va NO_GDB
-.Pq Vt bool
-Set to not build
-.Xr gdb 1 .
-.It Va NO_GPIB
-.Pq Vt bool
-Set to not build GPIB bus support.
-.It Va NO_I4B
-.Pq Vt bool
-Set to not build isdn4bsd package.
-.It Va NO_INET6
-.Pq Vt bool
-Set to not build
-programs and libraries related to IPv6 networking.
-.It Va NO_INFO
-.Pq Vt bool
-Set to not make or install
-.Xr info 5
-files.
-.It Va NO_IPFILTER
-.Pq Vt bool
-Set to not build IP Filter package.
-.It Va NO_KERBEROS
-.Pq Vt bool
-Set this if you do not want to build Kerberos 5 (KTH Heimdal).
-.It Va NO_LIBC_R
-.Pq Vt bool
-Set to not build
-.Nm libc_r
-(reentrant version of
-.Nm libc ) .
-.It Va NO_LIBPTHREAD
-.Pq Vt bool
-Set to not build the
-.Nm libpthread
-(M:N threading)
-library.
-.It Va NO_LIBTHR
-.Pq Vt bool
-Set to not build the
-.Nm libthr
-(1:1 threading)
-library.
-.It Va NO_LPR
-.Pq Vt bool
-Set to not build
-.Xr lpr 1
-and related programs.
-.It Va NO_MAILWRAPPER
-.Pq Vt bool
-Set to not build the
-.Xr mailwrapper 8
-MTA selector.
-.It Va NO_MAN
-.Pq Vt bool
-Set to not build manual pages.
 .It Va NO_MANCOMPRESS
 .Pq Vt bool
 Set to install manual pages uncompressed.
-.It Va NO_NETCAT
-.Pq Vt bool
-Set to not build
-.Xr nc 1
-utility.
-.It Va NO_NIS
-.Pq Vt bool
-Set to not build
-.Xr NIS 8
-support and related programs.
-If set, you might need to adopt your
-.Xr nsswitch.conf 5
-and remove
-.Sq nis
-entries.
-.It Va NO_NLS_CATALOGS
-.Pq Vt bool
-Set to not build NLS catalog support for
-.Xr csh 1 .
-.It Va NO_OBJC
-.Pq Vt bool
-Set to not build Objective C support.
-.It Va NO_OPENSSH
-.Pq Vt bool
-Set to not build OpenSSH.
-.It Va NO_OPENSSL
-.Pq Vt bool
-Set to not build OpenSSL (implies
-.Va NO_KERBEROS
-and
-.Va NO_OPENSSH ) .
-.It Va NO_PF
-.Pq Vt bool
-Set to not build PF firewall package.
-.It Va NO_PROFILE
-.Pq Vt bool
-Set to avoid compiling profiled libraries.
-.It Va NO_RCMDS
-.Pq Vt bool
-Disable building of the
-.Tn BSD
-r-commands.
-This includes
-.Xr rlogin 1 ,
-.Xr rsh 1 ,
-etc.
-.It Va NO_SENDMAIL
-.Pq Vt bool
-Set to not build
-.Xr sendmail 8
-and related programs.
 .It Va NO_SHARE
 .Pq Vt bool
 Set to not build in the
@@ -688,25 +467,6 @@ statically linked, this can be bad.
 If set, every utility that uses
 .Pa bsd.prog.mk
 will be linked statically.
-.It Va NO_SHAREDOCS
-.Pq Vt bool
-Set to not build the
-.Bx 4.4
-legacy docs.
-.It Va NO_TCSH
-.Pq Vt bool
-Set to not build and install
-.Pa /bin/csh
-(which is
-.Xr tcsh 1 ) .
-.It Va NO_TOOLCHAIN
-.Pq Vt bool
-Set to not build
-programs used for program development,
-compilers, debuggers etc.
-.It Va NO_USB
-.Pq Vt bool
-Set to not build USB-related programs and libraries.
 .It Va PPP_NO_NAT
 .Pq Vt bool
 Build
@@ -844,9 +604,6 @@ levels to a lower one.
 and above is known to trigger known optimizer bugs at various
 times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
-.It Va WITH_BIND_LIBS
-.Pq Vt bool
-Set to install BIND libraries and include files.
 .El
 .Ss "BUILDING DOCUMENTATION"
 .Pp
@@ -887,11 +644,10 @@ filter, or both.
 .Xr gcc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
+.Xr src.conf 5 ,
 .Xr environ 7 ,
 .Xr ports 7 ,
-.Xr lpd 8 ,
-.Xr sendmail 8 ,
-.Xr wpa_supplicant 8
+.Xr sendmail 8
 .Sh HISTORY
 The
 .Nm
