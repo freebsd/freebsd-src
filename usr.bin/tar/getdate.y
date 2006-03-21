@@ -23,8 +23,10 @@
 /* SUPPRESS 287 on yaccpar_sccsid *//* Unused static variable */
 /* SUPPRESS 288 on yyerrlab *//* Label unused */
 
-#include "bsdtar_platform.h"
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <ctype.h>
 #include <stdio.h>
