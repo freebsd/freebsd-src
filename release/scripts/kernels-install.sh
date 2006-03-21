@@ -37,7 +37,7 @@ if [ "$ans" = "y" ]; then
 	fi
 	# translate per Makefile:doTARBALL XXX are we sure to have tr+cut?
 	tn=`echo ${CONFIG} | tr 'A-Z' 'a-z' | cut -c1-8`
-	cat $tn.?? | tar --unlink -xpzf - -C ${DESTDIR:-/}
+	cat $tn.?? | tar --unlink -xpzf - -C $BOOT
 else
 	echo "Installation of $CONFIG kernel distribution not done." 
 fi
