@@ -85,8 +85,6 @@ __FBSDID("$FreeBSD$");
 #include "netdb_private.h"
 #include "res_config.h"
 
-extern int h_errno;
-
 #define BYADDR 0
 #define BYNAME 1
 
@@ -160,7 +158,7 @@ ipreverse(char *in, char *out)
 
 static int
 getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
-    struct netent_data *ned)
+    struct netent_data *ned, res_state statp)
 {
 
 	HEADER *hp;
@@ -195,9 +193,9 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 	cp = answer->buf + HFIXEDSZ;
 	if (!qdcount) {
 		if (hp->aa)
-			h_errno = HOST_NOT_FOUND;
+			RES_SET_H_ERRNO(statp, HOST_NOT_FOUND);
 		else
-			h_errno = TRY_AGAIN;
+			RES_SET_H_ERRNO(statp, TRY_AGAIN);
 		return -1;
 	}
 	while (qdcount-- > 0)
@@ -243,14 +241,14 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 			in = *ne->n_aliases;
 			n = strlen(ans) + 1;
 			if (ep - bp < n) {
-				h_errno = NETDB_INTERNAL;
+				RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 				errno = ENOBUFS;
 				return -1;
 			}
 			strlcpy(bp, ans, ep - bp);
 			ne->n_name = bp;
 			if (strlen(in) + 1 > sizeof(aux)) {
-				h_errno = NETDB_INTERNAL;
+				RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 				errno = ENOBUFS;
 				return -1;
 			}
@@ -261,7 +259,7 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 		ne->n_aliases++;
 		return 0;
 	}
-	h_errno = TRY_AGAIN;
+	RES_SET_H_ERRNO(statp, TRY_AGAIN);
 	return -1;
 }
 
@@ -277,6 +275,7 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 	querybuf *buf;
 	char qbuf[MAXDNAME];
 	uint32_t net2;
+	res_state statp;
 
 	net = va_arg(ap, uint32_t);
 	net_type = va_arg(ap, int);
@@ -285,6 +284,12 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 
 	if (net_type != AF_INET)
 		return NS_UNAVAIL;
+
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0 && res_ninit(statp) == -1) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		return NS_UNAVAIL;
+	}
 
 	for (nn = 4, net2 = net; net2; net2 >>= 8)
 		netbr[--nn] = net2 & 0xff;
@@ -305,26 +310,27 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 		break;
 	}
 	if ((buf = malloc(sizeof(*buf))) == NULL) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		return NS_NOTFOUND;
 	}
-	anslen = res_query(qbuf, C_IN, T_PTR, (u_char *)buf, sizeof(*buf));
+	anslen = res_nquery(statp, qbuf, C_IN, T_PTR, (u_char *)buf,
+	    sizeof(*buf));
 	if (anslen < 0) {
 		free(buf);
 #ifdef DEBUG
-		if (_res.options & RES_DEBUG)
-			printf("res_search failed\n");
+		if (statp->options & RES_DEBUG)
+			printf("res_nsearch failed\n");
 #endif
 		return NS_UNAVAIL;
 	} else if (anslen > sizeof(*buf)) {
 		free(buf);
 #ifdef DEBUG
-		if (_res.options & RES_DEBUG)
-			printf("res_search static buffer too small\n");
+		if (statp->options & RES_DEBUG)
+			printf("res_nsearch static buffer too small\n");
 #endif
 		return NS_UNAVAIL;
 	}
-	error = getnetanswer(buf, anslen, BYADDR, ne, ned);
+	error = getnetanswer(buf, anslen, BYADDR, ne, ned, statp);
 	free(buf);
 	if (error == 0) {
 		/* Strip trailing zeros */
@@ -345,38 +351,41 @@ _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 	int anslen, error;
 	querybuf *buf;
 	char qbuf[MAXDNAME];
+	res_state statp;
 
 	net = va_arg(ap, const char *);
 	ne = va_arg(ap, struct netent *);
 	ned = va_arg(ap, struct netent_data *);
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0 && res_ninit(statp) == -1) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		return NS_UNAVAIL;
 	}
 	if ((buf = malloc(sizeof(*buf))) == NULL) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		return NS_NOTFOUND;
 	}
 	strncpy(qbuf, net, sizeof(qbuf) - 1);
 	qbuf[sizeof(qbuf) - 1] = '\0';
-	anslen = res_search(qbuf, C_IN, T_PTR, (u_char *)buf, sizeof(*buf));
+	anslen = res_nsearch(statp, qbuf, C_IN, T_PTR, (u_char *)buf,
+	    sizeof(*buf));
 	if (anslen < 0) {
 		free(buf);
 #ifdef DEBUG
-		if (_res.options & RES_DEBUG)
-			printf("res_search failed\n");
+		if (statp->options & RES_DEBUG)
+			printf("res_nsearch failed\n");
 #endif
 		return NS_UNAVAIL;
 	} else if (anslen > sizeof(*buf)) {
 		free(buf);
 #ifdef DEBUG
-		if (_res.options & RES_DEBUG)
+		if (statp->options & RES_DEBUG)
 			printf("res_search static buffer too small\n");
 #endif
 		return NS_UNAVAIL;
 	}
-	error = getnetanswer(buf, anslen, BYNAME, ne, ned);
+	error = getnetanswer(buf, anslen, BYNAME, ne, ned, statp);
 	free(buf);
 	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 }
@@ -385,13 +394,21 @@ void
 _setnetdnsent(stayopen)
 	int stayopen;
 {
+	res_state statp;
+
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0 && res_ninit(statp) == -1)
+		return;
 	if (stayopen)
-		_res.options |= RES_STAYOPEN | RES_USEVC;
+		statp->options |= RES_STAYOPEN | RES_USEVC;
 }
 
 void
 _endnetdnsent()
 {
-	_res.options &= ~(RES_STAYOPEN | RES_USEVC);
-	res_close();
+	res_state statp;
+
+	statp = __res_state();
+	statp->options &= ~(RES_STAYOPEN | RES_USEVC);
+	res_nclose(statp);
 }

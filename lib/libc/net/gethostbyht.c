@@ -99,12 +99,12 @@ gethostent_p(struct hostent *he, struct hostent_data *hed, int mapped)
 	char hostbuf[BUFSIZ + 1];
 
 	if (!hed->hostf && !(hed->hostf = fopen(_PATH_HOSTS, "r"))) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
  again:
 	if (!(p = fgets(hostbuf, sizeof hostbuf, hed->hostf))) {
-		h_errno = HOST_NOT_FOUND;
+		RES_SET_H_ERRNO(hed->res, HOST_NOT_FOUND);
 		return -1;
 	}
 	if (*p == '#')
@@ -146,7 +146,7 @@ gethostent_p(struct hostent *he, struct hostent_data *hed, int mapped)
 		*p++ = '\0';
 	len = strlen(cp) + 1;
 	if (ep - bp < len) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(hed->res, NO_RECOVERY);
 		return -1;
 	}
 	strlcpy(bp, cp, ep - bp);
@@ -170,14 +170,19 @@ gethostent_p(struct hostent *he, struct hostent_data *hed, int mapped)
 		cp = p;
 	}
 	*q = NULL;
-	h_errno = NETDB_SUCCESS;
+	RES_SET_H_ERRNO(hed->res, NETDB_SUCCESS);
 	return 0;
 }
 
 int
 gethostent_r(struct hostent *he, struct hostent_data *hed)
 {
-	return gethostent_p(he, hed, _res.options & RES_USE_INET6);
+	hed->res = __res_state();
+	if ((hed->res->options & RES_INIT) == 0 && res_ninit(hed->res) == -1) {
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
+		return -1;
+	}
+	return gethostent_p(he, hed, hed->res->options & RES_USE_INET6);
 }
 
 struct hostent *
@@ -212,7 +217,7 @@ _ht_gethostbyname(void *rval, void *cb_data, va_list ap)
 		if (he->h_addrtype != af)
 			continue;
 		if (he->h_addrtype == AF_INET &&
-		    _res.options & RES_USE_INET6) {
+		    hed->res->options & RES_USE_INET6) {
 			_map_v4v6_address(he->h_addr, he->h_addr);
 			he->h_length = IN6ADDRSZ;
 			he->h_addrtype = AF_INET6;
@@ -248,7 +253,7 @@ _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	while ((error = gethostent_p(he, hed, 0)) == 0)
 		if (he->h_addrtype == af && !bcmp(he->h_addr, addr, len)) {
 			if (he->h_addrtype == AF_INET &&
-			    _res.options & RES_USE_INET6) {
+			    hed->res->options & RES_USE_INET6) {
 				_map_v4v6_address(he->h_addr, he->h_addr);
 				he->h_length = IN6ADDRSZ;
 				he->h_addrtype = AF_INET6;

@@ -36,6 +36,8 @@
 #define	_HOSTBUFSIZE	(8 * 1024)
 #define	_NETBUFSIZE	1025
 
+struct __res_state;
+
 struct hostent_data {
 	uint32_t host_addr[4];			/* IPv4 or IPv6 */
 	char *h_addr_ptrs[_MAXADDRS + 1];
@@ -43,6 +45,7 @@ struct hostent_data {
 	char hostbuf[_HOSTBUFSIZE];
 	FILE *hostf;
 	int stayopen;
+	struct __res_state *res;
 #ifdef YP
 	char *yp_domain;
 #endif

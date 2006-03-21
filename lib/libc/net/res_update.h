@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 1983, 1993
+/*-
+ * Copyright (c) 1983, 1987, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,37 +31,45 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)inet_ntoa.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/* $FreeBSD$ */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <string.h>
+#ifndef _RES_UPDATE_H_
+#define _RES_UPDATE_H_
 
 /*
- * Convert network-format internet address
- * to base 256 d.d.d.d representation.
+ * This RR-like structure is particular to UPDATE.
  */
-char *
-inet_ntoa(in)
-	struct in_addr in;
-{
-	static char ret[18];
+struct ns_updrec {
+	struct ns_updrec *r_prev;	/* prev record */
+	struct ns_updrec *r_next;	/* next record */
+	u_int8_t	r_section;	/* ZONE/PREREQUISITE/UPDATE */
+	char *		r_dname;	/* owner of the RR */
+	u_int16_t	r_class;	/* class number */
+	u_int16_t	r_type;		/* type number */
+	u_int32_t	r_ttl;		/* time to live */
+	u_char *	r_data;		/* rdata fields as text string */
+	u_int16_t	r_size;		/* size of r_data field */
+	int		r_opcode;	/* type of operation */
+	/* following fields for private use by the resolver/server routines */
+	struct ns_updrec *r_grpnext;	/* next record when grouped */
+	struct databuf *r_dp;		/* databuf to process */
+	struct databuf *r_deldp;	/* databuf's deleted/overwritten */
+	u_int16_t	r_zone;		/* zone number on server */
+};
+typedef struct ns_updrec ns_updrec;
 
-	strcpy(ret, "[inet_ntoa error]");
-	(void) inet_ntop(AF_INET, &in, ret, sizeof ret);
-	return (ret);
-}
+#define	res_freeupdrec	__res_freeupdrec
+#define	res_mkupdate	__res_mkupdate
+#define	res_mkupdrec	__res_mkupdrec
+#if 0
+#define	res_update	__res_update
+#endif
 
-/*
- * Weak aliases for applications that use certain private entry points,
- * and fail to include <arpa/inet.h>.
- */
-#undef inet_ntoa
-__weak_reference(__inet_ntoa, inet_ntoa);
+__BEGIN_DECLS
+void		res_freeupdrec(ns_updrec *);
+int		res_mkupdate(ns_updrec *, u_char *, int);
+ns_updrec *	res_mkupdrec(int, const char *, u_int, u_int, u_long);
+int		res_update(ns_updrec *);
+__END_DECLS
+
+#endif /* _RES_UPDATE_H_ */
