@@ -209,7 +209,6 @@ WITHOUT_${var}=
     BLUETOOTH \
     BOOT \
     CALENDAR \
-    COLLECT2 \
     CPP \
     CRYPT \
     CVS \
@@ -296,7 +295,6 @@ WITH_IDEA=
     BLUETOOTH \
     BOOT \
     CALENDAR \
-    COLLECT2 \
     CPP \
     CRYPT \
     CVS \
@@ -401,10 +399,6 @@ MK_BIND_UTILS:=	no
 MK_OPENSSL:=	no
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
-.endif
-
-.if ${MK_CXX} == "no"
-MK_COLLECT2:=	no
 .endif
 
 .if ${MK_IPX} == "no"
