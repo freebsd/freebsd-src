@@ -13,9 +13,9 @@ SUBDIR+= cpp
 
 .if ${MK_CXX} != "no"
 SUBDIR+= cc1plus c++ c++filt
-.if ${MK_COLLECT2} != "no"
+#.if ${MK_COLLECT2} != "no"
 #SUBDIR+= collect2
-.endif
+#.endif
 .endif
 
 .if ${MK_OBJC} != "no"
