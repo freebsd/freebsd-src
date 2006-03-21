@@ -364,7 +364,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 
 	/* If this is a directory, read in all of the entries right now. */
 	if (S_ISDIR(st.st_mode)) {
-		while(iso9660->entry_bytes_remaining > 0) {
+		while (iso9660->entry_bytes_remaining > 0) {
 			const void *block;
 			const unsigned char *p;
 			ssize_t step = iso9660->logical_block_size;
@@ -918,7 +918,7 @@ next_entry(struct iso9660 *iso9660)
 	    + iso9660->pending_files[0]->size;
 
 	/* Now, try to find an earlier one. */
-	for(i = 0; i < iso9660->pending_files_used; i++) {
+	for (i = 0; i < iso9660->pending_files_used; i++) {
 		/* Use the position of the file *end* as our comparison. */
 		uint64_t end_offset = iso9660->pending_files[i]->offset
 		    + iso9660->pending_files[i]->size;

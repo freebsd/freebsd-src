@@ -260,7 +260,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 	}
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strcmp(h,"TRAILER!!!")==0) {
+	if (namelength == 11 && strcmp(h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
 	    archive_set_error(a, 0, NULL);
 	    return (ARCHIVE_EOF);

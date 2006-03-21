@@ -229,4 +229,23 @@ int		 __archive_entry_acl_parse_w(struct archive_entry *,
 }
 #endif
 
+/*
+ * extended attributes
+ */
+
+void	 archive_entry_xattr_clear(struct archive_entry *);
+void	 archive_entry_xattr_add_entry(struct archive_entry *,
+	     const char *name, const void *value, size_t size);
+
+/*
+ * To retrieve the xattr list, first "reset", then repeatedly ask for the
+ * "next" entry.
+ */
+
+int	archive_entry_xattr_count(struct archive_entry *);
+int	archive_entry_xattr_reset(struct archive_entry *);
+int	archive_entry_xattr_next(struct archive_entry *,
+	     const char **name, const void **value, size_t *);
+
+
 #endif /* !ARCHIVE_ENTRY_H_INCLUDED */

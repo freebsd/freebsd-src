@@ -253,6 +253,7 @@ int		 archive_read_data_into_fd(struct archive *, int fd);
 #define	ARCHIVE_EXTRACT_UNLINK	(16) /* Default: don't unlink existing files */
 #define	ARCHIVE_EXTRACT_ACL	(32) /* Default: don't restore ACLs */
 #define	ARCHIVE_EXTRACT_FFLAGS	(64) /* Default: don't restore fflags */
+#define	ARCHIVE_EXTRACT_XATTR   (128) /* Default: don't restore xattrs */
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);

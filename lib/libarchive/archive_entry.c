@@ -59,13 +59,13 @@ static size_t wcslen(const wchar_t *s)
 static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
 {
 	wchar_t *dest = s1;
-	while((*s1 = *s2) != L'\0')
+	while ((*s1 = *s2) != L'\0')
 		++s1, ++s2;
 	return dest;
 }
-#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a),(b),(i)*sizeof(wchar_t))
+#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
 /* Good enough for simple equality testing, but not for sorting. */
-#define wmemcmp(a,b,i)  memcmp((a),(b),(i)*sizeof(wchar_t))
+#define wmemcmp(a,b,i)  memcmp((a), (b), (i) * sizeof(wchar_t))
 #endif
 
 #include "archive.h"
@@ -95,6 +95,14 @@ struct ae_acl {
 	int	permset;		/* r/w/x bits */
 	int	id;			/* uid/gid for user/group */
 	struct aes name;		/* uname/gname */
+};
+
+struct ae_xattr {
+	struct ae_xattr *next;
+
+	char	*name;
+	void	*value;
+	size_t	size;
 };
 
 static void	aes_clean(struct aes *);
@@ -170,6 +178,9 @@ struct archive_entry {
 	struct ae_acl	*acl_p;
 	int		 acl_state;	/* See acl_next for details. */
 	wchar_t		*acl_text_w;
+
+	struct ae_xattr *xattr_head;
+	struct ae_xattr *xattr_p;
 };
 
 static void
@@ -332,6 +343,7 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_symlink);
 	aes_clean(&entry->ae_uname);
 	archive_entry_acl_clear(entry);
+	archive_entry_xattr_clear(entry);
 	memset(entry, 0, sizeof(*entry));
 	return entry;
 }
@@ -358,6 +370,7 @@ archive_entry_clone(struct archive_entry *entry)
 	aes_copy(&entry2->ae_uname, &entry->ae_uname);
 
 	/* XXX TODO: Copy ACL data over as well. XXX */
+	/* XXX TODO: Copy xattr data over as well. XXX */
 	return (entry2);
 }
 
@@ -1054,7 +1067,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 			length ++; /* colon */
 			length += 3; /* rwx */
 			length += 1; /* colon */
-			length += max(sizeof(uid_t),sizeof(gid_t)) * 3 + 1;
+			length += max(sizeof(uid_t), sizeof(gid_t)) * 3 + 1;
 			length ++; /* newline */
 		}
 		ap = ap->next;
@@ -1344,6 +1357,98 @@ fail:
 		free(namebuff);
 	return (ARCHIVE_WARN);
 }
+
+/*
+ * extended attribute handling
+ */
+
+void
+archive_entry_xattr_clear(struct archive_entry *entry)
+{
+	struct ae_xattr	*xp;
+
+	while (entry->xattr_head != NULL) {
+		xp = entry->xattr_head->next;
+		free(entry->xattr_head->name);
+		free(entry->xattr_head->value);
+		free(entry->xattr_head);
+		entry->xattr_head = xp;
+	}
+
+	entry->xattr_head = NULL;
+}
+
+void
+archive_entry_xattr_add_entry(struct archive_entry *entry,
+	const char *name, const void *value, size_t size)
+{
+	struct ae_xattr	*xp;
+
+	for (xp = entry->xattr_head; xp != NULL; xp = xp->next)
+		;
+
+	if ((xp = malloc(sizeof(struct ae_xattr))) == NULL)
+		/* XXX Error XXX */
+		return;
+
+	xp->name = strdup(name);
+	if ((xp -> value = malloc(size)) != NULL) {
+		memcpy(xp -> value, value, size);
+		xp -> size = size;
+	} else
+		xp -> size = 0;
+
+	xp->next = entry->xattr_head;
+	entry->xattr_head = xp;
+}
+
+
+/*
+ * returns number of the extended attribute entries
+ */
+int
+archive_entry_xattr_count(struct archive_entry *entry)
+{
+	struct ae_xattr *xp;
+	int count = 0;
+
+	for (xp = entry->xattr_head; xp != NULL; xp = xp->next)
+		count++;
+
+	return count;
+}
+
+int
+archive_entry_xattr_reset(struct archive_entry * entry)
+{
+	entry->xattr_p = entry->xattr_head;
+
+	return archive_entry_xattr_count(entry);
+}
+
+int
+archive_entry_xattr_next(struct archive_entry * entry,
+	const char **name, const void **value, size_t *size)
+{
+	if (entry->xattr_p) {
+		*name = entry->xattr_p->name;	
+		*value = entry->xattr_p->value;	
+		*size = entry->xattr_p->size;
+
+		entry->xattr_p = entry->xattr_p->next;
+
+		return (ARCHIVE_OK);
+	} else {
+		*name = NULL;
+		*name = NULL;
+		*size = (size_t)0;
+		return (ARCHIVE_WARN);
+	}
+}
+
+/*
+ * end of xattr handling
+ */
 
 /*
  * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *wp is updated
