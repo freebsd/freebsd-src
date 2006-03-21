@@ -121,15 +121,16 @@ sync(td, uap)
 	struct sync_args *uap;
 {
 	struct mount *mp, *nmp;
+	int vfslocked;
 	int asyncflag;
 
-	mtx_lock(&Giant);
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
+		vfslocked = VFS_LOCK_GIANT(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
 			asyncflag = mp->mnt_flag & MNT_ASYNC;
@@ -139,22 +140,12 @@ sync(td, uap)
 			mp->mnt_flag |= asyncflag;
 			vn_finished_write(mp);
 		}
+		VFS_UNLOCK_GIANT(vfslocked);
 		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, td);
 	}
 	mtx_unlock(&mountlist_mtx);
-#if 0
-/*
- * XXX don't call vfs_bufstats() yet because that routine
- * was not imported in the Lite2 merge.
- */
-#ifdef DIAGNOSTIC
-	if (syncprt)
-		vfs_bufstats();
-#endif /* DIAGNOSTIC */
-#endif
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -188,28 +179,27 @@ quotactl(td, uap)
 	} */ *uap;
 {
 	struct mount *mp, *vmp;
+	int vfslocked;
 	int error;
 	struct nameidata nd;
 
 	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
-	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0) {
-		mtx_unlock(&Giant);
+	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE | AUDITVNODE1,
+	   UIO_USERSPACE, uap->path, td);
+	if ((error = namei(&nd)) != 0)
 		return (error);
-	}
+	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = vn_start_write(nd.ni_vp, &vmp, V_WAIT | PCATCH);
 	mp = nd.ni_vp->v_mount;
 	vrele(nd.ni_vp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
 	vn_finished_write(vmp);
-	mtx_unlock(&Giant);
+out:
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -245,16 +235,16 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 {
 	struct mount *mp;
 	struct statfs *sp, sb;
+	int vfslocked;
 	int error;
 	struct nameidata nd;
 
-	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	    pathseg, path, td);
 	error = namei(&nd);
-	if (error) {
-		mtx_unlock(&Giant);
+	if (error)
 		return (error);
-	}
+	vfslocked = NDHASGIANT(&nd);
 	mp = nd.ni_vp->v_mount;
 	vfs_ref(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -263,8 +253,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
 		vfs_rel(mp);
-		mtx_unlock(&Giant);
-		return (error);
+		goto out;
 	}
 #endif
 	/*
@@ -276,19 +265,18 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
 	vfs_rel(mp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
-	mtx_unlock(&Giant);
 	*buf = *sp;
-	return (0);
+out:
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
 
 /*
@@ -323,6 +311,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	struct file *fp;
 	struct mount *mp;
 	struct statfs *sp, sb;
+	int vfslocked;
 	struct vnode *vp;
 	int error;
 
@@ -330,8 +319,8 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
-	mtx_lock(&Giant);
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef AUDIT
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
@@ -344,15 +333,14 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	if (vp->v_iflag & VI_DOOMED) {
 		if (mp)
 			vfs_rel(mp);
-		mtx_unlock(&Giant);
-		return (EBADF);
+		error = EBADF;
+		goto out;
 	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
 		vfs_rel(mp);
-		mtx_unlock(&Giant);
-		return (error);
+		goto out;
 	}
 #endif
 	/*
@@ -364,19 +352,18 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
 	vfs_rel(mp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
-	mtx_unlock(&Giant);
 	*buf = *sp;
-	return (0);
+out:
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
 
 /*
@@ -415,6 +402,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	struct mount *mp, *nmp;
 	struct statfs *sfsp, *sp, sb;
 	size_t count, maxcount;
+	int vfslocked;
 	int error;
 
 	maxcount = bufsize / sizeof(struct statfs);
@@ -435,7 +423,6 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 		    M_WAITOK);
 	}
 	count = 0;
-	mtx_lock(&Giant);
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (prison_canseemount(td->td_ucred, mp) != 0) {
@@ -452,6 +439,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
+		vfslocked = VFS_LOCK_GIANT(mp);
 		if (sfsp && count < maxcount) {
 			sp = &mp->mnt_stat;
 			/*
@@ -469,6 +457,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			if (((flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
 			    (flags & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, td))) {
+				VFS_UNLOCK_GIANT(vfslocked);
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				vfs_unbusy(mp, td);
@@ -486,19 +475,19 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 				error = copyout(sp, sfsp, sizeof(*sp));
 				if (error) {
 					vfs_unbusy(mp, td);
-					mtx_unlock(&Giant);
+					VFS_UNLOCK_GIANT(vfslocked);
 					return (error);
 				}
 			}
 			sfsp++;
 		}
+		VFS_UNLOCK_GIANT(vfslocked);
 		count++;
 		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, td);
 	}
 	mtx_unlock(&mountlist_mtx);
-	mtx_unlock(&Giant);
 	if (sfsp && count > maxcount)
 		td->td_retval[0] = maxcount;
 	else
@@ -969,12 +958,8 @@ open(td, uap)
 		int mode;
 	} */ *uap;
 {
-	int error;
 
-	error = kern_open(td, uap->path, UIO_USERSPACE, uap->flags, uap->mode);
-	if (mtx_owned(&Giant))
-		printf("open: %s: %d\n", uap->path, error);
-	return (error);
+	return kern_open(td, uap->path, UIO_USERSPACE, uap->flags, uap->mode);
 }
 
 int
@@ -4060,6 +4045,7 @@ fhopen(td, uap)
 	register struct filedesc *fdp = p->p_fd;
 	int fmode, mode, error, type;
 	struct file *nfp;
+	int vfslocked;
 	int indx;
 
 	error = suser(td);
@@ -4073,12 +4059,13 @@ fhopen(td, uap)
 	if (error)
 		return(error);
 	/* find the mount point */
-	mtx_lock(&Giant);
+	vfslocked = 0;
 	mp = vfs_getvfs(&fhp.fh_fsid);
 	if (mp == NULL) {
 		error = ESTALE;
 		goto out;
 	}
+	vfslocked = VFS_LOCK_GIANT(mp);
 	/* now give me my vnode, it gets returned to me locked */
 	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
 	if (error)
@@ -4209,14 +4196,14 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	td->td_retval[0] = indx;
 	return (0);
 
 bad:
 	vput(vp);
 out:
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -4243,6 +4230,7 @@ fhstat(td, uap)
 	fhandle_t fh;
 	struct mount *mp;
 	struct vnode *vp;
+	int vfslocked;
 	int error;
 
 	error = suser(td);
@@ -4251,18 +4239,16 @@ fhstat(td, uap)
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
-	mtx_lock(&Giant);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL) {
-		mtx_unlock(&Giant);
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
-	}
+	vfslocked = VFS_LOCK_GIANT(mp);
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp))) {
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
 	error = copyout(&sb, uap->sb, sizeof(sb));
@@ -4307,39 +4293,36 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	struct statfs *sp;
 	struct mount *mp;
 	struct vnode *vp;
+	int vfslocked;
 	int error;
 
 	error = suser(td);
 	if (error)
 		return (error);
-	mtx_lock(&Giant);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL) {
-		mtx_unlock(&Giant);
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
-	}
+	vfslocked = VFS_LOCK_GIANT(mp);
 	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
 	if (error) {
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
+	sp = NULL;
 	mp = vp->v_mount;
 	if (mp)
 		vfs_ref(mp);
 	vput(vp);
-	if (mp == NULL)
+	if (mp == NULL) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (EBADF);
-	error = prison_canseemount(td->td_ucred, mp);
-	if (error) {
-		vfs_rel(mp);
-		return (error);
 	}
+	error = prison_canseemount(td->td_ucred, mp);
+	if (error)
+		goto out;
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		vfs_rel(mp);
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 #endif
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
@@ -4349,12 +4332,12 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+out:
 	vfs_rel(mp);
-	mtx_unlock(&Giant);
-	if (error)
-		return (error);
-	*buf = *sp;
-	return (0);
+	VFS_UNLOCK_GIANT(vfslocked);
+	if (sp)
+		*buf = *sp;
+	return (error);
 }
 
 /*
