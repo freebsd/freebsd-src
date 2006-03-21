@@ -441,8 +441,8 @@ patm_attach(device_t dev)
 #endif
 
 	patm_debug(sc, ATTACH, "attaching interrupt handler");
-	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET, patm_intr,
-	    sc, &sc->ih);
+	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET | INTR_MPSAFE,
+	    patm_intr, sc, &sc->ih);
 	if (error != 0) {
 		patm_printf(sc, "could not setup interrupt\n");
 		atm_ifdetach(sc->ifp);
