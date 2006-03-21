@@ -575,7 +575,7 @@ MAIN:{
 	    die("invalid lockfile\n");
 	}
 	$lockfile = $1;
-	$lock = open_locked($lockfile, O_CREAT, 0600)
+	$lock = open_locked($lockfile, O_WRONLY|O_CREAT, 0600)
 	    or die("unable to acquire lock on $lockfile\n");
 	# Lock will be released upon termination.
     }
