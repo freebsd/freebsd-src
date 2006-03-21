@@ -1209,6 +1209,7 @@ void
 rt2661_intr(void *arg)
 {
 	struct rt2661_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t r1, r2;
 
 	RAL_LOCK(sc);
@@ -1216,6 +1217,12 @@ rt2661_intr(void *arg)
 	/* disable MAC and MCU interrupts */
 	RAL_WRITE(sc, RT2661_INT_MASK_CSR, 0xffffff7f);
 	RAL_WRITE(sc, RT2661_MCU_INT_MASK_CSR, 0xffffffff);
+
+	/* don't re-enable interrupts if we're shutting down */
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		RAL_UNLOCK(sc);
+		return;
+	}
 
 	r1 = RAL_READ(sc, RT2661_INT_SOURCE_CSR);
 	RAL_WRITE(sc, RT2661_INT_SOURCE_CSR, r1);
@@ -1757,6 +1764,12 @@ rt2661_start(struct ifnet *ifp)
 	int ac;
 
 	RAL_LOCK(sc);
+
+	/* prevent management frames from being sent if we're not ready */
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		RAL_UNLOCK(sc);
+		return;
+	}
 
 	for (;;) {
 		IF_POLL(&ic->ic_mgtq, m0);
@@ -2469,6 +2482,8 @@ rt2661_init(void *priv)
 	uint32_t tmp, sta[3];
 	int i, ntries;
 
+	RAL_LOCK(sc);
+
 	rt2661_stop(sc);
 
 	/* initialize Tx rings */
@@ -2530,11 +2545,13 @@ rt2661_init(void *priv)
 	if (ntries == 1000) {
 		printf("timeout waiting for BBP/RF to wakeup\n");
 		rt2661_stop(sc);
+		RAL_UNLOCK(sc);
 		return;
 	}
 
 	if (rt2661_bbp_init(sc) != 0) {
 		rt2661_stop(sc);
+		RAL_UNLOCK(sc);
 		return;
 	}
 
@@ -2583,6 +2600,9 @@ rt2661_init(void *priv)
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 	} else
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+
+	RAL_UNLOCK(sc);
+#undef N
 }
 
 void
@@ -2611,8 +2631,12 @@ rt2661_stop(void *priv)
 	RAL_WRITE(sc, RT2661_MAC_CSR1, 0);
 
 	/* disable interrupts */
-	RAL_WRITE(sc, RT2661_INT_MASK_CSR, 0xffffff7f);
+	RAL_WRITE(sc, RT2661_INT_MASK_CSR, 0xffffffff);
 	RAL_WRITE(sc, RT2661_MCU_INT_MASK_CSR, 0xffffffff);
+
+	/* clear any pending interrupt */
+	RAL_WRITE(sc, RT2661_INT_SOURCE_CSR, 0xffffffff);
+	RAL_WRITE(sc, RT2661_MCU_INT_SOURCE_CSR, 0xffffffff);
 
 	/* reset Tx and Rx rings */
 	rt2661_reset_tx_ring(sc, &sc->txq[0]);

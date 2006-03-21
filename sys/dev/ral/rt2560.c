@@ -1368,12 +1368,19 @@ void
 rt2560_intr(void *arg)
 {
 	struct rt2560_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t r;
 
 	RAL_LOCK(sc);
 
 	/* disable interrupts */
 	RAL_WRITE(sc, RT2560_CSR8, 0xffffffff);
+
+	/* don't re-enable interrupts if we're shutting down */
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		RAL_UNLOCK(sc);
+		return;
+	}
 
 	r = RAL_READ(sc, RT2560_CSR7);
 	RAL_WRITE(sc, RT2560_CSR7, r);
@@ -1936,6 +1943,12 @@ rt2560_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 
 	RAL_LOCK(sc);
+
+	/* prevent management frames from being sent if we're not ready */
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		RAL_UNLOCK(sc);
+		return;
+	}
 
 	for (;;) {
 		IF_POLL(&ic->ic_mgtq, m0);
@@ -2592,6 +2605,8 @@ rt2560_init(void *priv)
 	uint32_t tmp;
 	int i;
 
+	RAL_LOCK(sc);
+
 	rt2560_stop(sc);
 
 	/* setup tx rings */
@@ -2634,6 +2649,7 @@ rt2560_init(void *priv)
 
 	if (rt2560_bbp_init(sc) != 0) {
 		rt2560_stop(sc);
+		RAL_UNLOCK(sc);
 		return;
 	}
 
@@ -2669,6 +2685,8 @@ rt2560_init(void *priv)
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 	} else
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+
+	RAL_UNLOCK(sc);
 #undef N
 }
 
@@ -2679,11 +2697,11 @@ rt2560_stop(void *priv)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
-	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
-
 	sc->sc_tx_timer = 0;
 	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
+	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 
 	/* abort Tx */
 	RAL_WRITE(sc, RT2560_TXCSR0, RT2560_ABORT_TX);
