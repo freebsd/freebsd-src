@@ -1920,7 +1920,7 @@ _dns_getaddrinfo(rv, cb_data, ap)
 	hostname = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
 
-	memset(&q, 0, sizeof(q2));
+	memset(&q, 0, sizeof(q));
 	memset(&q2, 0, sizeof(q2));
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
