@@ -87,7 +87,7 @@ typedef	__uint32_t	uint32_t;
 #define	_PATH_PROTOCOLS	"/etc/protocols"
 #define	_PATH_SERVICES	"/etc/services"
 
-#define	h_errno (*__h_error())
+#define	h_errno (*__h_errno())
 
 /*
  * Structures returned by network data base library.  All addresses are
@@ -257,7 +257,7 @@ void		setservent(int);
  */
 
 /* DO NOT USE THESE, THEY ARE SUBJECT TO CHANGE AND ARE NOT PORTABLE!!! */
-int	* __h_error(void);
+int	* __h_errno(void);
 __END_DECLS
 
 #endif /* !_NETDB_H_ */

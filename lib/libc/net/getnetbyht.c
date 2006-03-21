@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <netdb.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -111,7 +112,7 @@ again:
 	*cp++ = '\0';
 	len = strlen(p) + 1;
 	if (ep - bp < len) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(__res_state(), NO_RECOVERY);
 		return -1;
 	}
 	strlcpy(bp, p, ep - bp);

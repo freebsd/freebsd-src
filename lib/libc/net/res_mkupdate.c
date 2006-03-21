@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <ctype.h>
 
+#include "res_update.h"
 #include "res_config.h"
 
 static int getnum_str(u_char **, u_char *);
@@ -73,7 +74,7 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
 		return (-1);
 	}
 
