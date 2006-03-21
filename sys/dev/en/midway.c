@@ -1098,7 +1098,7 @@ en_start(struct ifnet *ifp)
 		tx = vc->txslot;
 
 		if (m->m_pkthdr.len > EN_TXSZ * 1024) {
-			DBG(sc, TX, ("tx%zu: packet larger than xmit buffer "
+			DBG(sc, TX, ("tx%td: packet larger than xmit buffer "
 			    "(%d > %d)\n", tx - sc->txslot, m->m_pkthdr.len,
 			    EN_TXSZ * 1024));
 			EN_UNLOCK(sc);
@@ -1109,7 +1109,7 @@ en_start(struct ifnet *ifp)
 
 		if (tx->mbsize > EN_TXHIWAT) {
 			EN_COUNT(sc->stats.txmbovr);
-			DBG(sc, TX, ("tx%d: buffer space shortage",
+			DBG(sc, TX, ("tx%td: buffer space shortage",
 			    tx - sc->txslot));
 			EN_UNLOCK(sc);
 			m_freem(m);
@@ -1120,7 +1120,7 @@ en_start(struct ifnet *ifp)
 		/* commit */
 		tx->mbsize += m->m_pkthdr.len;
 
-		DBG(sc, TX, ("tx%zu: VCI=%d, speed=0x%x, buflen=%d, mbsize=%d",
+		DBG(sc, TX, ("tx%td: VCI=%d, speed=0x%x, buflen=%d, mbsize=%d",
 		    tx - sc->txslot, vci, sc->vccs[vci]->txspeed,
 		    m->m_pkthdr.len, tx->mbsize));
 
@@ -1164,7 +1164,7 @@ en_loadvc(struct en_softc *sc, struct en_vcc *vc)
 
 	vc->rxslot->cur = vc->rxslot->start;
 
-	DBG(sc, VC, ("rx%d: assigned to VCI %d", vc->rxslot - sc->rxslot,
+	DBG(sc, VC, ("rx%td: assigned to VCI %d", vc->rxslot - sc->rxslot,
 	    vc->vcc.vci));
 }
 
@@ -1217,7 +1217,7 @@ en_open_vcc(struct en_softc *sc, struct atmio_openvcc *op)
 	slot->vcc = vc;
 
 	KASSERT (_IF_QLEN(&slot->indma) == 0 && _IF_QLEN(&slot->q) == 0,
-	    ("en_rxctl: left over mbufs on enable slot=%tu",
+	    ("en_rxctl: left over mbufs on enable slot=%td",
 	    vc->rxslot - sc->rxslot));
 
 	vc->txspeed = 0;
@@ -1819,7 +1819,7 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 	m = NULL;	/* assume "JK" trash DMA */
 	if (EN_DQ_LEN(drq) != 0) {
 		_IF_DEQUEUE(&slot->indma, m);
-		KASSERT(m != NULL, ("drqsync: %s: lost mbuf in slot %zu!",
+		KASSERT(m != NULL, ("drqsync: %s: lost mbuf in slot %td!",
 		    sc->ifp->if_xname, slot - sc->rxslot));
 		uma_zfree(sc->map_zone, (struct en_map *)m->m_pkthdr.rcvif);
 	}
@@ -1852,7 +1852,7 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 		ATM_PH_VPI(&ah) = 0;
 		ATM_PH_SETVCI(&ah, vc->vcc.vci);
 
-		DBG(sc, INTR, ("rx%zu: rxvci%d: atm_input, mbuf %p, len %d, "
+		DBG(sc, INTR, ("rx%td: rxvci%d: atm_input, mbuf %p, len %d, "
 		    "hand %p", slot - sc->rxslot, vc->vcc.vci, m,
 		    EN_DQ_LEN(drq), vc->rxhand));
 
@@ -3197,7 +3197,7 @@ en_dump_mregs(struct en_softc *sc)
 	printf("  rxvc slot mappings:");
 	for (cnt = 0 ; cnt < MID_N_VC ; cnt++)
 		if (sc->vccs[cnt]->rxslot != NULL)
-			printf("  %d->%zu", cnt,
+			printf("  %d->%td", cnt,
 			    sc->vccs[cnt]->rxslot - sc->rxslot);
 	printf("\n");
 }
@@ -3231,7 +3231,7 @@ en_dump_rx(struct en_softc *sc)
 
 	printf("  recv slots:\n");
 	for (slot = sc->rxslot ; slot < &sc->rxslot[sc->en_nrx]; slot++) {
-		printf("rx%zu: start/stop/cur=0x%x/0x%x/0x%x mode=0x%x ",
+		printf("rx%td: start/stop/cur=0x%x/0x%x/0x%x mode=0x%x ",
 		    slot - sc->rxslot, slot->start, slot->stop, slot->cur,
 		    slot->mode);
 		if (slot->vcc != NULL) {
