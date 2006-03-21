@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 static int wcscmp(const wchar_t *s1, const wchar_t *s2)
 {
 	int diff = *s1 - *s2;
-	while(*s1 && diff == 0)
+	while (*s1 && diff == 0)
 		diff = (int)*++s1 - (int)*++s2;
 	return diff;
 }
@@ -155,6 +155,7 @@ struct tar {
 
 static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
+static char	*base64_decode(const wchar_t *, size_t, size_t *);
 static int	gnu_read_sparse_data(struct archive *, struct tar *,
 		    const struct archive_entry_header_gnutar *header);
 static void	gnu_parse_sparse_data(struct archive *, struct tar *,
@@ -199,7 +200,10 @@ static int64_t	tar_atol256(const char *, unsigned);
 static int64_t	tar_atol8(const char *, unsigned);
 static int	tar_read_header(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *);
+static int	tohex(int c);
+static char	*url_decode(const char *);
 static int	utf8_decode(wchar_t *, const char *, size_t length);
+static char	*wide_to_narrow(const wchar_t *wval);
 
 /*
  * ANSI C99 defines constants for these, but not everyone supports
@@ -1154,7 +1158,42 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	return (err);
 }
 
+static int
+pax_attribute_xattr(struct archive_entry *entry,
+	wchar_t *name, wchar_t *value)
+{
+	char *name_decoded, *name_narrow;
+	void *value_decoded;
+	size_t value_len;
 
+	if (wcslen(name) < 18 || (wcsncmp(name, L"LIBARCHIVE.xattr.", 17)) != 0)
+		return 3;
+
+	name += 17;
+
+	/* URL-decode name */
+	name_narrow = wide_to_narrow(name);
+	if (name_narrow == NULL)
+		return 2;
+	name_decoded = url_decode(name_narrow);
+	free(name_narrow);
+	if (name_decoded == NULL)
+		return 2;
+
+	/* Base-64 decode value */
+	value_decoded = base64_decode(value, wcslen(value), &value_len);
+	if (value_decoded == NULL) {
+		free(name_decoded);
+		return 1;
+	}
+
+	archive_entry_xattr_add_entry(entry, name_decoded,
+		value_decoded, value_len);
+
+	free(name_decoded);
+	free(value_decoded);
+	return 0;
+}
 
 /*
  * Parse a single key=value attribute.  key/value pointers are
@@ -1184,6 +1223,8 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 		if (strcmp(key, "LIBARCHIVE.xxxxxxx")==0)
 			archive_entry_set_xxxxxx(entry, value);
 */
+		if (wcsncmp(key, L"LIBARCHIVE.xattr.", 17)==0)
+			pax_attribute_xattr(entry, key, value);
 		break;
 	case 'S':
 		/* We support some keys used by the "star" archiver */
@@ -1599,7 +1640,7 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 	int err;
 
 	err = 0;
-	while(length > 0) {
+	while (length > 0) {
 		n = UTF8_mbrtowc(dest, src, length);
 		if (n == 0)
 			break;
@@ -1720,4 +1761,160 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 #endif
 	}
         return (wch == L'\0' ? 0 : len);
+}
+
+
+/*
+ * base64_decode - Base64 decode
+ *
+ * This accepts most variations of base-64 encoding, including:
+ *    * with or without line breaks
+ *    * with or without the final group padded with '=' or '_' characters
+ * (The most economical Base-64 variant does not pad the last group and
+ * omits line breaks; RFC1341 used for MIME requires both.)
+ */
+static char *
+base64_decode(const wchar_t *src, size_t len, size_t *out_len)
+{
+	static const unsigned char digits[64] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static unsigned char decode_table[128];
+	char *out, *d;
+
+	/* If the decode table is not yet initialized, prepare it. */
+	if (decode_table[digits[1]] != 1) {
+		size_t i;
+		memset(decode_table, 0xff, sizeof(decode_table));
+		for (i = 0; i < sizeof(digits); i++)
+			decode_table[digits[i]] = i;
+	}
+
+	/* Allocate enough space to hold the entire output. */
+	/* Note that we may not use all of this... */
+	out = malloc((len * 3 + 3) / 4);
+	if (out == NULL) {
+		*out_len = 0;
+		return (NULL);
+	}
+	d = out;
+
+	while (len > 0) {
+		/* Collect the next group of (up to) four characters. */
+		int v = 0;
+		int group_size = 0;
+		while (group_size < 4 && len > 0) {
+			/* '=' or '_' padding indicates final group. */
+			if (*src == '=' || *src == '_') {
+				len = 0;
+				break;
+			}
+			/* Skip illegal characters (including line breaks) */
+			if (*src > 127 || *src < 32
+			    || decode_table[*src] == 0xff) {
+				len--;
+				src++;
+				continue;
+			}
+			v <<= 6;
+			v |= decode_table[*src++];
+			len --;
+			group_size++;
+		}
+		/* Align a short group properly. */
+		v <<= 6 * (4 - group_size);
+		/* Unpack the group we just collected. */
+		switch (group_size) {
+		case 4: d[2] = v & 0xff;
+			/* FALLTHROUGH */
+		case 3: d[1] = (v >> 8) & 0xff;
+			/* FALLTHROUGH */
+		case 2: d[0] = (v >> 16) & 0xff;
+			break;
+		case 1: /* this is invalid! */
+			break;
+		}
+		d += group_size * 3 / 4;
+	}
+
+	*out_len = d - out;
+	return (out);
+}
+
+/*
+ * This is a little tricky because the C99 standard wcstombs()
+ * function returns the number of bytes that were converted,
+ * not the number that should be converted.  As a result,
+ * we can never accurately size the output buffer (without
+ * doing a tedious output size calculation in advance).
+ * This approach (try a conversion, then try again if it fails)
+ * will almost always succeed on the first try, and is thus
+ * much faster, at the cost of sometimes requiring multiple
+ * passes while we expand the buffer.
+ */
+static char *
+wide_to_narrow(const wchar_t *wval)
+{
+	int converted_length;
+	/* Guess an output buffer size and try the conversion. */
+	int alloc_length = wcslen(wval) * 3;
+	char *mbs_val = malloc(alloc_length + 1);
+	if (mbs_val == NULL)
+		return (NULL);
+	converted_length = wcstombs(mbs_val, wval, alloc_length);
+
+	/* If we exhausted the buffer, resize and try again. */
+	while (converted_length >= alloc_length) {
+		free(mbs_val);
+		alloc_length *= 2;
+		mbs_val = malloc(alloc_length + 1);
+		if (mbs_val == NULL)
+			return (NULL);
+		converted_length = wcstombs(mbs_val, wval, alloc_length);
+	}
+
+	/* Ensure a trailing null and return the final string. */
+	mbs_val[alloc_length] = '\0';
+	return (mbs_val);
+}
+
+static char *
+url_decode(const char *in)
+{
+	char *out, *d;
+	const char *s;
+
+	out = malloc(strlen(in) + 1);
+	if (out == NULL)
+		return (NULL);
+	for (s = in, d = out; *s != '\0'; ) {
+		if (*s == '%') {
+			/* Try to convert % escape */
+			int digit1 = tohex(s[1]);
+			int digit2 = tohex(s[2]);
+			if (digit1 >= 0 && digit2 >= 0) {
+				/* Looks good, consume three chars */
+				s += 3;
+				/* Convert output */
+				*d++ = ((digit1 << 4) | digit2);
+				continue;
+			}
+			/* Else fall through and treat '%' as normal char */
+		}
+		*d++ = *s++;
+	}
+	*d = '\0';
+	return (out);
+}
+
+static int
+tohex(int c)
+{
+	if (c >= '0' && c <= '9')
+		return (c - '0');
+	else if (c >= 'A' && c <= 'F')
+		return (c - 'A' + 10);
+	else if (c >= 'a' && c <= 'f')
+		return (c - 'a' + 10);
+	else
+		return (-1);
 }
