@@ -262,7 +262,13 @@ _calendar=	calendar
 .if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
+.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if ${MK_LIBC_R} != "no"
 _csup=		csup
+.endif
+.elif ${MK_LIBPTHREAD} != "no"
+_csup=		csup
+.endif
 .endif
 
 .if ${MK_HESIOD} != "no"
