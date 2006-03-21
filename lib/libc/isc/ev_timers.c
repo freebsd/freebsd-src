@@ -22,15 +22,21 @@
 #if !defined(LINT) && !defined(CODECENTER)
 static const char rcsid[] = "$Id: ev_timers.c,v 1.2.2.1.4.5 2004/03/17 02:39:13 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Import. */
 
 #include "port_before.h"
+#ifndef _LIBC
 #include "fd_setsize.h"
+#endif
 
 #include <errno.h>
 
+#ifndef _LIBC
 #include <isc/assertions.h>
+#endif
 #include <isc/eventlib.h>
 #include "eventlib_p.h"
 
@@ -43,6 +49,9 @@ static const char rcsid[] = "$Id: ev_timers.c,v 1.2.2.1.4.5 2004/03/17 02:39:13 
 
 /* Forward. */
 
+#ifdef _LIBC
+static int	__evOptMonoTime;
+#else
 static int due_sooner(void *, void *);
 static void set_index(void *, int);
 static void free_timer(void *, void *);
@@ -58,6 +67,7 @@ typedef struct {
 	struct timespec	max_idle;
 	evTimer *	timer;
 } idle_timer;
+#endif
 
 /* Public. */
 
@@ -138,12 +148,14 @@ evUTCTime() {
 	return (evTimeSpec(now));
 }
 
+#ifndef _LIBC
 struct timespec
 evLastEventTime(evContext opaqueCtx) {
 	evContext_p *ctx = opaqueCtx.opaque;
 
 	return (ctx->lastEventTime);
 }
+#endif
 
 struct timespec
 evTimeSpec(struct timeval tv) {
@@ -154,6 +166,7 @@ evTimeSpec(struct timeval tv) {
 	return (ts);
 }
 
+#if !defined(USE_KQUEUE) || !defined(_LIBC)
 struct timeval
 evTimeVal(struct timespec ts) {
 	struct timeval tv;
@@ -162,7 +175,9 @@ evTimeVal(struct timespec ts) {
 	tv.tv_usec = ts.tv_nsec / 1000;
 	return (tv);
 }
+#endif
 
+#ifndef _LIBC
 int
 evSetTimer(evContext opaqueCtx,
 	   evTimerFunc func,
@@ -495,3 +510,4 @@ idle_timeout(evContext opaqueCtx,
 		this->timer->inter = evSubTime(this->max_idle, idle);
 	}
 }
+#endif

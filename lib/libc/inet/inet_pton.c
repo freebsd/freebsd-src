@@ -18,6 +18,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: inet_pton.c,v 1.2.206.2 2005/07/28 07:43:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 #include <sys/param.h>
@@ -35,8 +37,8 @@ static const char rcsid[] = "$Id: inet_pton.c,v 1.2.206.2 2005/07/28 07:43:18 ma
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
  */
 
-static int	inet_pton4 __P((const char *src, u_char *dst));
-static int	inet_pton6 __P((const char *src, u_char *dst));
+static int	inet_pton4(const char *src, u_char *dst);
+static int	inet_pton6(const char *src, u_char *dst);
 
 /* int
  * inet_pton(af, src, dst)
@@ -50,10 +52,7 @@ static int	inet_pton6 __P((const char *src, u_char *dst));
  *	Paul Vixie, 1996.
  */
 int
-inet_pton(af, src, dst)
-	int af;
-	const char *src;
-	void *dst;
+inet_pton(int af, const char * __restrict src, void * __restrict dst)
 {
 	switch (af) {
 	case AF_INET:
@@ -78,9 +77,7 @@ inet_pton(af, src, dst)
  *	Paul Vixie, 1996.
  */
 static int
-inet_pton4(src, dst)
-	const char *src;
-	u_char *dst;
+inet_pton4(const char *src, u_char *dst)
 {
 	static const char digits[] = "0123456789";
 	int saw_digit, octets, ch;
@@ -133,9 +130,7 @@ inet_pton4(src, dst)
  *	Paul Vixie, 1996.
  */
 static int
-inet_pton6(src, dst)
-	const char *src;
-	u_char *dst;
+inet_pton6(const char *src, u_char *dst)
 {
 	static const char xdigits_l[] = "0123456789abcdef",
 			  xdigits_u[] = "0123456789ABCDEF";
@@ -219,3 +214,10 @@ inet_pton6(src, dst)
 	memcpy(dst, tmp, NS_IN6ADDRSZ);
 	return (1);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_pton
+__weak_reference(__inet_pton, inet_pton);
