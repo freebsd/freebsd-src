@@ -44,44 +44,9 @@ start_cmd="syscons_start"
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
-syscons_setkeyboard()
+# helper
+syscons_configure_keyboard()
 {
-	kbd=$1
-                
-	if [ -z "${kbd}" ]; then
-		return 1
-	fi
-
-	# Check if the kbdmux(4) is the current active keyboard
-	kbdcontrol -i < ${kbddev} | grep kbdmux > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		kbdcontrol -k ${kbd} < ${kbddev} > /dev/null 2>&1
-	fi
-}
-
-syscons_precmd()
-{
-	if [ ! -c $kbddev ]
-	then
-		return 1
-	fi
-	if [ -x /usr/sbin/ispcvt ] && /usr/sbin/ispcvt
-	then
-		return 1
-	fi
-	return 0
-}
-
-syscons_start()
-{
-	echo -n 'Configuring syscons:'
-
-	# keyboard
-	#
-	if [ -n "${keyboard}" ]; then
-		echo -n ' keyboard';	syscons_setkeyboard ${keyboard}
-	fi
-
 	# keymap
 	#
 	case ${keymap} in
@@ -126,6 +91,60 @@ syscons_start()
 		done
 		;;
 	esac
+
+	# set this keyboard mode for all virtual terminals
+	#
+	if [ -n "${allscreens_kbdflags}" ]; then
+		echo -n ' allscreens_kbd'
+		for ttyv in /dev/ttyv*; do
+			kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
+		done
+	fi
+}
+
+syscons_setkeyboard()
+{
+	kbd=$1
+                
+	if [ -z "${kbd}" ]; then
+		return 1
+	fi
+
+	# Check if the kbdmux(4) is the current active keyboard
+	kbdcontrol -i < ${kbddev} | grep kbdmux > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		kbdcontrol -k ${kbd} < ${kbddev} > /dev/null 2>&1
+	fi
+
+	echo -n 'Configuring keyboard:'
+	syscons_configure_keyboard
+	echo '.'
+}
+
+syscons_precmd()
+{
+	if [ ! -c $kbddev ]
+	then
+		return 1
+	fi
+	if [ -x /usr/sbin/ispcvt ] && /usr/sbin/ispcvt
+	then
+		return 1
+	fi
+	return 0
+}
+
+syscons_start()
+{
+	echo -n 'Configuring syscons:'
+
+	# keyboard
+	#
+	if [ -n "${keyboard}" ]; then
+		echo -n ' keyboard';	syscons_setkeyboard ${keyboard}
+	fi
+
+	syscons_configure_keyboard
 
 	# cursor type
 	#
@@ -207,15 +226,6 @@ syscons_start()
 		echo -n ' allscreens'
 		for ttyv in /dev/ttyv*; do
 			vidcontrol ${allscreens_flags} < ${ttyv} > ${ttyv} 2>&1
-		done
-	fi
-
-	# set this keyboard mode for all virtual terminals
-	#
-	if [ -n "${allscreens_kbdflags}" ]; then
-		echo -n ' allscreens_kbd'
-		for ttyv in /dev/ttyv*; do
-			kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
 		done
 	fi
 
