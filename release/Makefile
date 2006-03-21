@@ -1117,7 +1117,8 @@ doTARBALL:
 		    > ${RD}/dists/${TD}/$$tn.inf && \
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
 			cp -p ${.CURDIR}/scripts/$${TD}-install.sh \
-			    ${RD}/dists/${TD}/install.sh; \
+			    ${RD}/dists/${TD}/install.sh && \
+			chmod +x ${RD}/dists/${TD}/install.sh; \
 		fi && \
 		if [ "${SD}" != "/usr/src" ]; then \
 			mtree -c -i -p ${SD}/${ARG} \
