@@ -52,6 +52,9 @@
 #undef	ASIZE
 #define	ASIZE(a)	(sizeof(a)/sizeof(a[0]))
 
+#undef	HID_BUT
+#define	HID_BUT(i)	((i) < 3 ? (((i) ^ 3) % 3) : (i))
+
 /*
  * Process data from control channel
  */
@@ -216,7 +219,7 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 			break;
 
 		case HUP_BUTTON:
-			mouse_butt |= (val << (usage - 1));
+			mouse_butt |= (val << HID_BUT(usage - 1));
 			mevents ++;
 			break;
 
