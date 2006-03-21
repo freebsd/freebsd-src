@@ -826,6 +826,7 @@ thread_single(int mode)
 		 * Wake us up when everyone else has suspended.
 		 * In the mean time we suspend as well.
 		 */
+		thread_stopped(p);
 		thread_suspend_one(td);
 		PROC_UNLOCK(p);
 		mi_switch(SW_VOL, NULL);
