@@ -29,8 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <archive.h>
-#include <archive_entry.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_GETOPT_LONG
@@ -410,6 +408,7 @@ main(int argc, char **argv)
 		case 'p': /* GNU tar, star */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_PERM;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 			break;
 		case 'r': /* SUSv2 */

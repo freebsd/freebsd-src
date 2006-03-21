@@ -130,7 +130,7 @@ tree_dump(struct tree *t, FILE *out)
 	fprintf(out, "\tpwd: "); fflush(stdout); system("pwd");
 	fprintf(out, "\taccess: %s\n", t->basename);
 	fprintf(out, "\tstack:\n");
-	for(te = t->stack; te != NULL; te = te->next) {
+	for (te = t->stack; te != NULL; te = te->next) {
 		fprintf(out, "\t\tte->name: %s%s%s\n", te->name,
 		    te->flags & needsPreVisit ? "" : " *",
 		    t->current == te ? " (current)" : "");
