@@ -3059,7 +3059,7 @@ fatm_attach(device_t dev)
 	bpfattach(ifp, DLT_ATM_RFC1483, sizeof(struct atmllc));
 #endif
 
-	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET | INTR_MPSAFE,
 	    fatm_intr, sc, &sc->ih);
 	if (error) {
 		if_printf(ifp, "couldn't setup irq\n");
