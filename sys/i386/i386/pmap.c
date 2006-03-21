@@ -3010,7 +3010,6 @@ pmap_mincore(pmap, addr)
 void
 pmap_activate(struct thread *td)
 {
-	struct proc *p = td->td_proc;
 	pmap_t	pmap, oldpmap;
 	u_int32_t  cr3;
 
@@ -3029,18 +3028,10 @@ pmap_activate(struct thread *td)
 #else
 	cr3 = vtophys(pmap->pm_pdir);
 #endif
-	/* XXXKSE this is wrong.
+	/*
 	 * pmap_activate is for the current thread on the current cpu
 	 */
-	if (p->p_flag & P_SA) {
-		/* Make sure all other cr3 entries are updated. */
-		/* what if they are running?  XXXKSE (maybe abort them) */
-		FOREACH_THREAD_IN_PROC(p, td) {
-			td->td_pcb->pcb_cr3 = cr3;
-		}
-	} else {
-		td->td_pcb->pcb_cr3 = cr3;
-	}
+	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
