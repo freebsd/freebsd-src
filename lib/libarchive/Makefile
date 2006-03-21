@@ -9,7 +9,7 @@ LDADD=	-lbz2 -lz
 #  Major: Bumped ONLY when API/ABI breakage happens.
 #  Minor: Bumped when significant new features are added (see SHLIB_MAJOR)
 #  Revision: Bumped on any notable change
-VERSION= 1.2.41
+VERSION= 1.2.51
 ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/\..*//'
 ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[0-9]*\.//' | sed -e 's/\..*//'
 
