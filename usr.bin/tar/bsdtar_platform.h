@@ -112,8 +112,14 @@
 #define	__FBSDID(a)     /* null */
 #endif
 
-#ifndef HAVE_LIBARCHIVE
-#error Configuration error: did not find libarchive.
+#ifdef HAVE_LIBARCHIVE
+/* If we're using the platform libarchive, include system headers. */
+#include <archive.h>
+#include <archive_entry.h>
+#else
+/* Otherwise, include user headers. */
+#include "archive.h"
+#include "archive_entry.h"
 #endif
 
 /*

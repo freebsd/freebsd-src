@@ -29,7 +29,7 @@
  * $FreeBSD$
  */
 
-#include <archive.h>
+#include "bsdtar_platform.h"
 #include <stdio.h>
 
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
