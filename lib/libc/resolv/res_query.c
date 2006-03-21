@@ -72,6 +72,8 @@
 static const char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: res_query.c,v 1.2.2.3.4.2 2004/03/16 12:34:19 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 #include <sys/types.h>
@@ -86,6 +88,7 @@ static const char rcsid[] = "$Id: res_query.c,v 1.2.2.3.4.2 2004/03/16 12:34:19 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "port_after.h"
 
 /* Options.  Leave them on. */
@@ -209,7 +212,6 @@ res_nsearch(res_state statp,
 	    int anslen)		/* size of answer */
 {
 	const char *cp, * const *domain;
-	HEADER *hp = (HEADER *) answer;
 	char tmp[NS_MAXDNAME];
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
@@ -242,6 +244,17 @@ res_nsearch(res_state statp,
 					 answer, anslen);
 		if (ret > 0 || trailing_dot)
 			return (ret);
+		if (errno == ECONNREFUSED) {
+			RES_SET_H_ERRNO(statp, TRY_AGAIN);
+			return (-1);
+		}
+		switch (statp->res_h_errno) {
+		case NO_DATA:
+		case HOST_NOT_FOUND:
+			break;
+		default:
+			return (-1);
+		}
 		saved_herrno = statp->res_h_errno;
 		tried_as_is++;
 	}
@@ -264,6 +277,9 @@ res_nsearch(res_state statp,
 			if (domain[0][0] == '\0' ||
 			    (domain[0][0] == '.' && domain[0][1] == '\0'))
 				root_on_list++;
+
+			if (root_on_list && tried_as_is)
+				continue;
 
 			ret = res_nquerydomain(statp, name, *domain,
 					       class, type,
@@ -297,11 +313,24 @@ res_nsearch(res_state statp,
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
-				if (hp->rcode == SERVFAIL) {
-					/* try next search element, if any */
-					got_servfail++;
-					break;
-				}
+				/*
+				 * This can occur due to a server failure
+				 * (that is, all listed servers have failed),
+				 * or all listed servers have timed out.
+				 * ((HEADER *)answer)->rcode may not be set
+				 * to SERVFAIL in the case of a timeout.
+				 *
+				 * Either way we must terminate the search
+				 * and return TRY_AGAIN in order to avoid
+				 * non-deterministic return codes.  For
+				 * example, loaded name servers or races
+				 * against network startup/validation (dhcp,
+				 * ppp, etc) can cause the search to timeout
+				 * on one search element, e.g. 'fu.bar.com',
+				 * and return a definitive failure on the
+				 * next search element, e.g. 'fu.'.
+				 */
+				got_servfail++;
 				/* FALLTHROUGH */
 			default:
 				/* anything else implies that we're done */
@@ -314,6 +343,14 @@ res_nsearch(res_state statp,
 			if ((statp->options & RES_DNSRCH) == 0U)
 				done++;
 		}
+	}
+
+	switch (statp->res_h_errno) {
+	case NO_DATA:
+	case HOST_NOT_FOUND:
+		break;
+	default:
+		goto giveup;
 	}
 
 	/*
@@ -335,6 +372,7 @@ res_nsearch(res_state statp,
 	 * else send back meaningless H_ERRNO, that being the one from
 	 * the last DNSRCH we did.
 	 */
+giveup:
 	if (saved_herrno != -1)
 		RES_SET_H_ERRNO(statp, saved_herrno);
 	else if (got_nodata)
@@ -400,6 +438,8 @@ res_hostalias(const res_state statp, const char *name, char *dst, size_t siz) {
 	FILE *fp;
 
 	if (statp->options & RES_NOALIASES)
+		return (NULL);
+	if (issetugid())
 		return (NULL);
 	file = getenv("HOSTALIASES");
 	if (file == NULL || (fp = fopen(file, "r")) == NULL)

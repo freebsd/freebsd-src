@@ -22,9 +22,13 @@
 #if !defined(LINT) && !defined(CODECENTER)
 static const char rcsid[] = "$Id: ev_streams.c,v 1.2.206.2 2004/03/17 00:29:51 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
+#ifndef _LIBC
 #include "fd_setsize.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -32,16 +36,20 @@ static const char rcsid[] = "$Id: ev_streams.c,v 1.2.206.2 2004/03/17 00:29:51 m
 #include <errno.h>
 
 #include <isc/eventlib.h>
+#ifndef _LIBC
 #include <isc/assertions.h>
+#endif
 #include "eventlib_p.h"
 
 #include "port_after.h"
 
+#ifndef _LIBC
 static int	copyvec(evStream *str, const struct iovec *iov, int iocnt);
 static void	consume(evStream *str, size_t bytes);
 static void	done(evContext opaqueCtx, evStream *str);
 static void	writable(evContext opaqueCtx, void *uap, int fd, int evmask);
 static void	readable(evContext opaqueCtx, void *uap, int fd, int evmask);
+#endif
 
 struct iovec
 evConsIovec(void *buf, size_t cnt) {
@@ -53,6 +61,7 @@ evConsIovec(void *buf, size_t cnt) {
 	return (ret);
 }
 
+#ifndef _LIBC
 int
 evWrite(evContext opaqueCtx, int fd, const struct iovec *iov, int iocnt,
 	evStreamFunc func, void *uap, evStreamID *id)
@@ -304,3 +313,4 @@ readable(evContext opaqueCtx, void *uap, int fd, int evmask) {
 	if (str->ioDone <= 0 || str->ioDone == str->ioTotal)
 		done(opaqueCtx, str);
 }
+#endif

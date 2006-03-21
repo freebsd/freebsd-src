@@ -18,6 +18,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.1.2.1.8.1 2004/03/09 08:33:32 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -39,10 +41,10 @@ static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.1.2.1.8.1 2004/03/09 08:33
 # define SPRINTF(x) ((size_t)sprintf x)
 #endif
 
-static char *	inet_net_ntop_ipv4 __P((const u_char *src, int bits,
-					char *dst, size_t size));
-static char *	inet_net_ntop_ipv6 __P((const u_char *src, int bits,
-					char *dst, size_t size));
+static char *	inet_net_ntop_ipv4(const u_char *src, int bits, char *dst,
+		    size_t size);
+static char *	inet_net_ntop_ipv6(const u_char *src, int bits, char *dst,
+		    size_t size);
 
 /*
  * char *
@@ -159,7 +161,7 @@ inet_net_ntop_ipv4(src, bits, dst, size)
  *	pointer to dst, or NULL if an error occurred (check errno).
  * note:
  *	network byte order assumed.  this means 192.5.5.240/28 has
- *	0x11110000 in its fourth octet.
+ *	0b11110000 in its fourth octet.
  * author:
  *	Vadim Kogan (UCB), June 2001
  *  Original version (IPv4) by Paul Vixie (ISC), July 1996
@@ -191,7 +193,7 @@ inet_net_ntop_ipv6(const u_char *src, int bits, char *dst, size_t size) {
 		*cp++ = ':';
 		*cp = '\0';
 	} else {
-		/* Copy src to private buffer.  Zero host part. */	
+		/* Copy src to private buffer.  Zero host part. */
 		p = (bits + 7) / 8;
 		memcpy(inbuf, src, p);
 		memset(inbuf + p, 0, 16 - p);
@@ -207,7 +209,7 @@ inet_net_ntop_ipv6(const u_char *src, int bits, char *dst, size_t size) {
 		words = (bits + 15) / 16;
 		if (words == 1)
 			words = 2;
-		
+
 		/* Find the longest substring of zero's */
 		zero_s = zero_l = tmp_zero_s = tmp_zero_l = 0;
 		for (i = 0; i < (words * 2); i += 2) {
@@ -268,10 +270,17 @@ inet_net_ntop_ipv6(const u_char *src, int bits, char *dst, size_t size) {
 	if (strlen(outbuf) + 1 > size)
 		goto emsgsize;
 	strcpy(dst, outbuf);
-	
+
 	return (dst);
 
 emsgsize:
 	errno = EMSGSIZE;
 	return (NULL);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_net_ntop
+__weak_reference(__inet_net_ntop, inet_net_ntop);

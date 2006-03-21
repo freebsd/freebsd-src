@@ -18,6 +18,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: inet_cidr_pton.c,v 1.2.2.1.8.2 2004/03/17 00:29:46 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -27,7 +29,7 @@ static const char rcsid[] = "$Id: inet_cidr_pton.c,v 1.2.2.1.8.2 2004/03/17 00:2
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 
-#include <isc/assertions.h>
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -92,7 +94,7 @@ inet_cidr_pton_ipv4(const char *src, u_char *dst, int *pbits, int ipv6) {
 		tmp = 0;
 		do {
 			n = strchr(digits, ch) - digits;
-			INSIST(n >= 0 && n <= 9);
+			assert(n >= 0 && n <= 9);
 			tmp *= 10;
 			tmp += n;
 			if (tmp > 255)

@@ -19,6 +19,7 @@
  * vix 09sep95 [initial]
  *
  * $Id: eventlib_p.h,v 1.3.2.1.4.3 2005/07/28 07:43:20 marka Exp $
+ * $FreeBSD$
  */
 
 #ifndef _EVENTLIB_P_H
@@ -38,9 +39,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <isc/heap.h>
+#ifndef _LIBC
 #include <isc/list.h>
+#include <isc/heap.h>
 #include <isc/memcluster.h>
+#endif
 
 #define	EV_MASK_ALL	(EV_READ | EV_WRITE | EV_EXCEPT)
 #define EV_ERR(e)		return (errno = (e), -1)
@@ -83,6 +86,7 @@ typedef struct evConn {
 	struct evConn *	next;
 } evConn;
 
+#ifndef _LIBC
 typedef struct evAccept {
 	int		fd;
 	union {
@@ -172,6 +176,7 @@ typedef struct evEvent_p {
 		struct {  const void *placeholder;  }		null;
 	} u;
 } evEvent_p;
+#endif
 
 #ifdef USE_POLL
 typedef struct { 
@@ -207,6 +212,7 @@ extern void		__fd_set(int fd, __evEmulMask *maskp);
 
 #endif /* USE_POLL */
 
+#ifndef _LIBC
 typedef struct {
 	/* Global. */
 	const evEvent_p	*cur;
@@ -271,6 +277,7 @@ void evDestroyTimers(const evContext_p *);
 /* ev_waits.c */
 #define evFreeWait __evFreeWait
 evWait *evFreeWait(evContext_p *ctx, evWait *old);
+#endif
 
 /* Global options */
 extern int	__evOptMonoTime;

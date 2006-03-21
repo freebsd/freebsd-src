@@ -18,6 +18,8 @@
 #ifndef lint
 static const char rcsid[] = "$Id: ns_samedomain.c,v 1.1.2.2.4.2 2004/03/16 12:34:17 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
@@ -28,6 +30,7 @@ static const char rcsid[] = "$Id: ns_samedomain.c,v 1.1.2.2.4.2 2004/03/16 12:34
 
 #include "port_after.h"
 
+#ifndef _LIBC
 /*
  * int
  * ns_samedomain(a, b)
@@ -149,6 +152,7 @@ int
 ns_subdomain(const char *a, const char *b) {
 	return (ns_samename(a, b) != 1 && ns_samedomain(a, b));
 }
+#endif
 
 /*
  * int
