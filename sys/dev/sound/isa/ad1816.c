@@ -580,6 +580,9 @@ ad1816_probe(device_t dev)
     	case 0x80719304: /* ADS7180 */
  		s = "AD1816";
  		break;
+    	case 0x50719304: /* ADS7150 */
+ 		s = "AD1815";
+ 		break;
     	}
 
     	if (s) {
