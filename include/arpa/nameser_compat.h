@@ -32,7 +32,7 @@
 
 /*
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	From: Id: nameser_compat.h,v 8.9 1998/03/20 23:25:10 halley Exp
+ *	$Id: nameser_compat.h,v 1.1.2.3.4.2 2004/07/01 04:43:41 marka Exp $
  * $FreeBSD$
  */
 
@@ -107,6 +107,7 @@ typedef struct {
 #define RRFIXEDSZ	NS_RRFIXEDSZ
 #define	INT32SZ		NS_INT32SZ
 #define	INT16SZ		NS_INT16SZ
+#define	INT8SZ		NS_INT8SZ
 #define	INADDRSZ	NS_INADDRSZ
 #define	IN6ADDRSZ	NS_IN6ADDRSZ
 #define	INDIR_MASK	NS_CMPRSFLGS
@@ -134,6 +135,10 @@ typedef struct {
 #define NXRRSET		ns_r_nxrrset
 #define NOTAUTH		ns_r_notauth
 #define NOTZONE		ns_r_notzone
+/*#define BADSIG		ns_r_badsig*/
+/*#define BADKEY		ns_r_badkey*/
+/*#define BADTIME		ns_r_badtime*/
+
 
 #define DELETE		ns_uop_delete
 #define ADD		ns_uop_add
@@ -173,7 +178,9 @@ typedef struct {
 #define	T_SRV		ns_t_srv
 #define T_ATMA		ns_t_atma
 #define T_NAPTR		ns_t_naptr
+#define T_A6		ns_t_a6
 #define T_OPT		ns_t_opt
+#define	T_TSIG		ns_t_tsig
 #define	T_IXFR		ns_t_ixfr
 #define T_AXFR		ns_t_axfr
 #define T_MAILB		ns_t_mailb

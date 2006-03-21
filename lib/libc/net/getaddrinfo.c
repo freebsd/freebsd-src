@@ -265,9 +265,9 @@ static struct policyqueue *match_addrselectpolicy(struct sockaddr *,
 static int matchlen(struct sockaddr *, struct sockaddr *);
 
 static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
-	const struct addrinfo *);
+	const struct addrinfo *, res_state);
 #if defined(RESOLVSORT)
-static int addr4sort(struct addrinfo *);
+static int addr4sort(struct addrinfo *, res_state);
 #endif
 static int _dns_getaddrinfo(void *, void *, va_list);
 static void _sethtent(FILE **);
@@ -280,10 +280,10 @@ static struct addrinfo *_yphostent(char *, const struct addrinfo *);
 static int _yp_getaddrinfo(void *, void *, va_list);
 #endif
 
-static int res_queryN(const char *, struct res_target *);
-static int res_searchN(const char *, struct res_target *);
+static int res_queryN(const char *, struct res_target *, res_state);
+static int res_searchN(const char *, struct res_target *, res_state);
 static int res_querydomainN(const char *, const char *,
-	struct res_target *);
+	struct res_target *, res_state);
 
 /* XXX macros that make external reference is BAD. */
 
@@ -1628,12 +1628,13 @@ static const char AskedForGot[] =
 #endif
 
 static struct addrinfo *
-getanswer(answer, anslen, qname, qtype, pai)
+getanswer(answer, anslen, qname, qtype, pai, res)
 	const querybuf *answer;
 	int anslen;
 	const char *qname;
 	int qtype;
 	const struct addrinfo *pai;
+	res_state res;
 {
 	struct addrinfo sentinel, *cur;
 	struct addrinfo ai;
@@ -1674,12 +1675,12 @@ getanswer(answer, anslen, qname, qtype, pai)
 	ep = hostbuf + sizeof hostbuf;
 	cp = answer->buf + HFIXEDSZ;
 	if (qdcount != 1) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(res, NO_RECOVERY);
 		return (NULL);
 	}
 	n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 	if ((n < 0) || !(*name_ok)(bp)) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(res, NO_RECOVERY);
 		return (NULL);
 	}
 	cp += n + QFIXEDSZ;
@@ -1690,7 +1691,7 @@ getanswer(answer, anslen, qname, qtype, pai)
 		 */
 		n = strlen(bp) + 1;		/* for the \0 */
 		if (n >= MAXHOSTNAMELEN) {
-			h_errno = NO_RECOVERY;
+			RES_SET_H_ERRNO(res, NO_RECOVERY);
 			return (NULL);
 		}
 		canonname = bp;
@@ -1817,10 +1818,10 @@ getanswer(answer, anslen, qname, qtype, pai)
 		 * We support only IPv4 address for backward
 		 * compatibility against gethostbyname(3).
 		 */
-		if (_res.nsort && qtype == T_A) {
-			if (addr4sort(&sentinel) < 0) {
+		if (res->nsort && qtype == T_A) {
+			if (addr4sort(&sentinel, res) < 0) {
 				freeaddrinfo(sentinel.ai_next);
-				h_errno = NO_RECOVERY;
+				RES_SET_H_ERRNO(res, NO_RECOVERY);
 				return NULL;
 			}
 		}
@@ -1829,11 +1830,11 @@ getanswer(answer, anslen, qname, qtype, pai)
 			(void)get_canonname(pai, sentinel.ai_next, qname);
 		else
 			(void)get_canonname(pai, sentinel.ai_next, canonname);
-		h_errno = NETDB_SUCCESS;
+		RES_SET_H_ERRNO(res, NETDB_SUCCESS);
 		return sentinel.ai_next;
 	}
 
-	h_errno = NO_RECOVERY;
+	RES_SET_H_ERRNO(res, NO_RECOVERY);
 	return NULL;
 }
 
@@ -1844,7 +1845,7 @@ struct addr_ptr {
 };
 
 static int
-addr4sort(struct addrinfo *sentinel)
+addr4sort(struct addrinfo *sentinel, res_state res)
 {
 	struct addrinfo *ai;
 	struct addr_ptr *addrs, addr;
@@ -1864,9 +1865,9 @@ addr4sort(struct addrinfo *sentinel)
 	i = 0;
 	for (ai = sentinel->ai_next; ai; ai = ai->ai_next) {
 		sin = (struct sockaddr_in *)ai->ai_addr;
-		for (j = 0; (unsigned)j < _res.nsort; j++) {
-			if (_res.sort_list[j].addr.s_addr == 
-			    (sin->sin_addr.s_addr & _res.sort_list[j].mask))
+		for (j = 0; (unsigned)j < res->nsort; j++) {
+			if (res->sort_list[j].addr.s_addr == 
+			    (sin->sin_addr.s_addr & res->sort_list[j].mask))
 				break;
 		}
 		addrs[i].ai = ai;
@@ -1916,6 +1917,7 @@ _dns_getaddrinfo(rv, cb_data, ap)
 	const struct addrinfo *pai;
 	struct addrinfo sentinel, *cur;
 	struct res_target q, q2;
+	res_state res;
 
 	hostname = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
@@ -1927,13 +1929,13 @@ _dns_getaddrinfo(rv, cb_data, ap)
 
 	buf = malloc(sizeof(*buf));
 	if (!buf) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		return NS_NOTFOUND;
 	}
 	buf2 = malloc(sizeof(*buf2));
 	if (!buf2) {
 		free(buf);
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		return NS_NOTFOUND;
 	}
 
@@ -1970,27 +1972,36 @@ _dns_getaddrinfo(rv, cb_data, ap)
 		free(buf2);
 		return NS_UNAVAIL;
 	}
-	if (res_searchN(hostname, &q) < 0) {
+
+	res = __res_state();
+	if ((res->options & RES_INIT) == 0 && res_ninit(res) == -1) {
+		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
+		free(buf);
+		free(buf2);
+		return NS_NOTFOUND;
+	}
+
+	if (res_searchN(hostname, &q, res) < 0) {
 		free(buf);
 		free(buf2);
 		return NS_NOTFOUND;
 	}
 	/* prefer IPv6 */
 	if (q.next) {
-		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai);
+		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai, res);
 		if (ai) {
 			cur->ai_next = ai;
 			while (cur && cur->ai_next)
 				cur = cur->ai_next;
 		}
 	}
-	ai = getanswer(buf, q.n, q.name, q.qtype, pai);
+	ai = getanswer(buf, q.n, q.name, q.qtype, pai, res);
 	if (ai)
 		cur->ai_next = ai;
 	free(buf);
 	free(buf2);
 	if (sentinel.ai_next == NULL)
-		switch (h_errno) {
+		switch (res->res_h_errno) {
 		case HOST_NOT_FOUND:
 			return NS_NOTFOUND;
 		case TRY_AGAIN:
@@ -2261,7 +2272,7 @@ _yp_getaddrinfo(rv, cb_data, ap)
 	}
 
 	if (sentinel.ai_next == NULL) {
-		h_errno = HOST_NOT_FOUND;
+		RES_SET_H_ERRNO(__res_state(), HOST_NOT_FOUND);
 		return NS_NOTFOUND;
 	}
 	*((struct addrinfo **)rv) = sentinel.ai_next;
@@ -2270,8 +2281,6 @@ _yp_getaddrinfo(rv, cb_data, ap)
 #endif
 
 /* resolver logic */
-
-extern const char *_res_hostalias(const char *, char *, size_t);
 
 /*
  * Formulate a normal query, send, and await answer.
@@ -2284,9 +2293,10 @@ extern const char *_res_hostalias(const char *, char *, size_t);
  * Caller must parse answer and determine whether it answers the question.
  */
 static int
-res_queryN(name, target)
+res_queryN(name, target, res)
 	const char *name;	/* domain name */
 	struct res_target *target;
+	res_state res;
 {
 	u_char *buf;
 	HEADER *hp;
@@ -2300,7 +2310,7 @@ res_queryN(name, target)
 
 	buf = malloc(MAXPACKET);
 	if (!buf) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		return -1;
 	}
 
@@ -2318,32 +2328,32 @@ res_queryN(name, target)
 		answer = t->answer;
 		anslen = t->anslen;
 #ifdef DEBUG
-		if (_res.options & RES_DEBUG)
+		if (res->options & RES_DEBUG)
 			printf(";; res_query(%s, %d, %d)\n", name, class, type);
 #endif
 
-		n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
+		n = res_nmkquery(res, QUERY, name, class, type, NULL, 0, NULL,
 		    buf, MAXPACKET);
-		if (n > 0 && (_res.options & RES_USE_EDNS0) != 0)
-			n = res_opt(n, buf, MAXPACKET, anslen);
+		if (n > 0 && (res->options & RES_USE_EDNS0) != 0)
+			n = res_nopt(res, n, buf, MAXPACKET, anslen);
 		if (n <= 0) {
 #ifdef DEBUG
-			if (_res.options & RES_DEBUG)
+			if (res->options & RES_DEBUG)
 				printf(";; res_query: mkquery failed\n");
 #endif
 			free(buf);
-			h_errno = NO_RECOVERY;
+			RES_SET_H_ERRNO(res, NO_RECOVERY);
 			return (n);
 		}
-		n = res_send(buf, n, answer, anslen);
+		n = res_nsend(res, buf, n, answer, anslen);
 #if 0
 		if (n < 0) {
 #ifdef DEBUG
-			if (_res.options & RES_DEBUG)
+			if (res->options & RES_DEBUG)
 				printf(";; res_query: send error\n");
 #endif
 			free(buf);
-			h_errno = TRY_AGAIN;
+			RES_SET_H_ERRNO(res, TRY_AGAIN);
 			return (n);
 		}
 #endif
@@ -2353,7 +2363,7 @@ res_queryN(name, target)
 		if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
 			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
-			if (_res.options & RES_DEBUG)
+			if (res->options & RES_DEBUG)
 				printf(";; rcode = %u, ancount=%u\n", hp->rcode,
 				    ntohs(hp->ancount));
 #endif
@@ -2370,19 +2380,19 @@ res_queryN(name, target)
 	if (ancount == 0) {
 		switch (rcode) {
 		case NXDOMAIN:
-			h_errno = HOST_NOT_FOUND;
+			RES_SET_H_ERRNO(res, HOST_NOT_FOUND);
 			break;
 		case SERVFAIL:
-			h_errno = TRY_AGAIN;
+			RES_SET_H_ERRNO(res, TRY_AGAIN);
 			break;
 		case NOERROR:
-			h_errno = NO_DATA;
+			RES_SET_H_ERRNO(res, NO_DATA);
 			break;
 		case FORMERR:
 		case NOTIMP:
 		case REFUSED:
 		default:
-			h_errno = NO_RECOVERY;
+			RES_SET_H_ERRNO(res, NO_RECOVERY);
 			break;
 		}
 		return (-1);
@@ -2397,9 +2407,10 @@ res_queryN(name, target)
  * is detected.  Error code, if any, is left in h_errno.
  */
 static int
-res_searchN(name, target)
+res_searchN(name, target, res)
 	const char *name;	/* domain name */
 	struct res_target *target;
+	res_state res;
 {
 	const char *cp, * const *domain;
 	HEADER *hp = (HEADER *)(void *)target->answer;	/*XXX*/
@@ -2410,13 +2421,8 @@ res_searchN(name, target)
 	int searched = 0;
 	char abuf[MAXDNAME];
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (-1);
-	}
-
 	errno = 0;
-	h_errno = HOST_NOT_FOUND;	/* default, if we never query */
+	RES_SET_H_ERRNO(res, HOST_NOT_FOUND); /* default, if we never query */
 	dots = 0;
 	for (cp = name; *cp; cp++)
 		dots += (*cp == '.');
@@ -2427,8 +2433,9 @@ res_searchN(name, target)
 	/*
 	 * if there aren't any dots, it could be a user-level alias
 	 */
-	if (!dots && (cp = _res_hostalias(name, abuf, sizeof(abuf))) != NULL)
-		return (res_queryN(cp, target));
+	if (!dots &&
+	    (cp = res_hostalias(res, name, abuf, sizeof(abuf))) != NULL)
+		return (res_queryN(cp, target, res));
 
 	/*
 	 * If there are enough dots in the name, let's just give it a
@@ -2436,22 +2443,22 @@ res_searchN(name, target)
 	 * Also, query 'as is', if there is a trailing dot in the name.
 	 */
 	saved_herrno = -1;
-	if (dots >= _res.ndots || trailing_dot) {
-		ret = res_querydomainN(name, NULL, target);
+	if (dots >= res->ndots || trailing_dot) {
+		ret = res_querydomainN(name, NULL, target, res);
 		if (ret > 0 || trailing_dot)
 			return (ret);
 		if (errno == ECONNREFUSED) {
-			h_errno = TRY_AGAIN;
+			RES_SET_H_ERRNO(res, TRY_AGAIN);
 			return (-1);
 		}
-		switch (h_errno) {
+		switch (res->res_h_errno) {
 		case NO_DATA:
 		case HOST_NOT_FOUND:
 			break;
 		default:
 			return (-1);
 		}
-		saved_herrno = h_errno;
+		saved_herrno = res->res_h_errno;
 		tried_as_is++;
 	}
 
@@ -2461,11 +2468,11 @@ res_searchN(name, target)
 	 *	- there is at least one dot, there is no trailing dot,
 	 *	  and RES_DNSRCH is set.
 	 */
-	if ((!dots && (_res.options & RES_DEFNAMES)) ||
-	    (dots && !trailing_dot && (_res.options & RES_DNSRCH))) {
+	if ((!dots && (res->options & RES_DEFNAMES)) ||
+	    (dots && !trailing_dot && (res->options & RES_DNSRCH))) {
 		int done = 0;
 
-		for (domain = (const char * const *)_res.dnsrch;
+		for (domain = (const char * const *)res->dnsrch;
 		   *domain && !done;
 		   domain++) {
 			searched = 1;
@@ -2477,7 +2484,7 @@ res_searchN(name, target)
 			if (root_on_list && tried_as_is)
 				continue;
 
-			ret = res_querydomainN(name, *domain, target);
+			ret = res_querydomainN(name, *domain, target, res);
 			if (ret > 0)
 				return (ret);
 
@@ -2495,11 +2502,11 @@ res_searchN(name, target)
 			 * fully-qualified.
 			 */
 			if (errno == ECONNREFUSED) {
-				h_errno = TRY_AGAIN;
+				RES_SET_H_ERRNO(res, TRY_AGAIN);
 				return (-1);
 			}
 
-			switch (h_errno) {
+			switch (res->res_h_errno) {
 			case NO_DATA:
 				got_nodata++;
 				/* FALLTHROUGH */
@@ -2521,12 +2528,12 @@ res_searchN(name, target)
 			 * if we got here for some reason other than DNSRCH,
 			 * we only wanted one iteration of the loop, so stop.
 			 */
-			if (!(_res.options & RES_DNSRCH))
+			if (!(res->options & RES_DNSRCH))
 			        done++;
 		}
 	}
 
-	switch (h_errno) {
+	switch (res->res_h_errno) {
 	case NO_DATA:
 	case HOST_NOT_FOUND:
 		break;
@@ -2538,9 +2545,9 @@ res_searchN(name, target)
 	 * If the query has not already been tried as is then try it
 	 * unless RES_NOTLDQUERY is set and there were no dots.
 	 */
-	if ((dots || !searched || !(_res.options & RES_NOTLDQUERY)) &&
+	if ((dots || !searched || !(res->options & RES_NOTLDQUERY)) &&
 	    !(tried_as_is || root_on_list)) {
-		ret = res_querydomainN(name, NULL, target);
+		ret = res_querydomainN(name, NULL, target, res);
 		if (ret > 0)
 			return (ret);
 	}
@@ -2555,11 +2562,11 @@ res_searchN(name, target)
 	 */
 giveup:
 	if (saved_herrno != -1)
-		h_errno = saved_herrno;
+		RES_SET_H_ERRNO(res, saved_herrno);
 	else if (got_nodata)
-		h_errno = NO_DATA;
+		RES_SET_H_ERRNO(res, NO_DATA);
 	else if (got_servfail)
-		h_errno = TRY_AGAIN;
+		RES_SET_H_ERRNO(res, TRY_AGAIN);
 	return (-1);
 }
 
@@ -2568,16 +2575,17 @@ giveup:
  * removing a trailing dot from name if domain is NULL.
  */
 static int
-res_querydomainN(name, domain, target)
+res_querydomainN(name, domain, target, res)
 	const char *name, *domain;
 	struct res_target *target;
+	res_state res;
 {
 	char nbuf[MAXDNAME];
 	const char *longname = nbuf;
 	size_t n, d;
 
 #ifdef DEBUG
-	if (_res.options & RES_DEBUG)
+	if (res->options & RES_DEBUG)
 		printf(";; res_querydomain(%s, %s)\n",
 			name, domain?domain:"<Nil>");
 #endif
@@ -2588,7 +2596,7 @@ res_querydomainN(name, domain, target)
 		 */
 		n = strlen(name);
 		if (n >= MAXDNAME) {
-			h_errno = NO_RECOVERY;
+			RES_SET_H_ERRNO(res, NO_RECOVERY);
 			return (-1);
 		}
 		if (n > 0 && name[--n] == '.') {
@@ -2600,10 +2608,10 @@ res_querydomainN(name, domain, target)
 		n = strlen(name);
 		d = strlen(domain);
 		if (n + d + 1 >= MAXDNAME) {
-			h_errno = NO_RECOVERY;
+			RES_SET_H_ERRNO(res, NO_RECOVERY);
 			return (-1);
 		}
 		snprintf(nbuf, sizeof(nbuf), "%s.%s", name, domain);
 	}
-	return (res_queryN(longname, target));
+	return (res_queryN(longname, target, res));
 }

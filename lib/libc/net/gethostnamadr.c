@@ -51,7 +51,6 @@ extern int _nis_gethostbyname(void *, void *, va_list);
 extern int _ht_gethostbyaddr(void *, void *, va_list);
 extern int _dns_gethostbyaddr(void *, void *, va_list);
 extern int _nis_gethostbyaddr(void *, void *, va_list);
-extern const char *_res_hostalias(const char *, char *, size_t);
 
 static int gethostbyname_internal(const char *, int, struct hostent *,
     struct hostent_data *);
@@ -112,11 +111,12 @@ gethostbyname_r(const char *name, struct hostent *he, struct hostent_data *hed)
 {
 	int error;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+	hed->res = __res_state();
+	if ((hed->res->options & RES_INIT) == 0 && res_ninit(hed->res) == -1) {
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
-	if (_res.options & RES_USE_INET6) {
+	if (hed->res->options & RES_USE_INET6) {
 		error = gethostbyname_internal(name, AF_INET6, he, hed);
 		if (error == 0)
 			return 0;
@@ -128,8 +128,9 @@ int
 gethostbyname2_r(const char *name, int af, struct hostent *he,
     struct hostent_data *hed)
 {
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+	hed->res = __res_state();
+	if ((hed->res->options & RES_INIT) == 0 && res_ninit(hed->res) == -1) {
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
 	return gethostbyname_internal(name, af, he, hed);
@@ -159,7 +160,7 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 		size = IN6ADDRSZ;
 		break;
 	default:
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		errno = EAFNOSUPPORT;
 		return -1;
 	}
@@ -173,7 +174,7 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 	 * function that looks up host names.
 	 */
 	if (!strchr(name, '.') &&
-	    (cp = _res_hostalias(name, abuf, sizeof abuf)))
+	    (cp = res_hostalias(hed->res, name, abuf, sizeof abuf)))
 		name = cp;
 
 	/*
@@ -191,7 +192,8 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 				 * done a lookup.
 				 */
 				if (inet_pton(af, name, hed->host_addr) <= 0) {
-					h_errno = HOST_NOT_FOUND;
+					RES_SET_H_ERRNO(hed->res,
+					    HOST_NOT_FOUND);
 					return -1;
 				}
 				strncpy(hed->hostbuf, name, MAXDNAME);
@@ -204,9 +206,9 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 				hed->h_addr_ptrs[0] = (char *)hed->host_addr;
 				hed->h_addr_ptrs[1] = NULL;
 				he->h_addr_list = hed->h_addr_ptrs;
-				if (_res.options & RES_USE_INET6)
+				if (hed->res->options & RES_USE_INET6)
 					_map_v4v6_hostent(he, &bp, ep);
-				h_errno = NETDB_SUCCESS;
+				RES_SET_H_ERRNO(hed->res, NETDB_SUCCESS);
 				return 0;
 			}
 			if (!isdigit((u_char)*cp) && *cp != '.')
@@ -224,7 +226,8 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 				 * done a lookup.
 				 */
 				if (inet_pton(af, name, hed->host_addr) <= 0) {
-					h_errno = HOST_NOT_FOUND;
+					RES_SET_H_ERRNO(hed->res,
+					    HOST_NOT_FOUND);
 					return -1;
 				}
 				strncpy(hed->hostbuf, name, MAXDNAME);
@@ -235,7 +238,7 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 				hed->h_addr_ptrs[0] = (char *)hed->host_addr;
 				hed->h_addr_ptrs[1] = NULL;
 				he->h_addr_list = hed->h_addr_ptrs;
-				h_errno = NETDB_SUCCESS;
+				RES_SET_H_ERRNO(hed->res, NETDB_SUCCESS);
 				return 0;
 			}
 			if (!isxdigit((u_char)*cp) && *cp != ':' && *cp != '.')
@@ -264,15 +267,16 @@ gethostbyaddr_r(const char *addr, int len, int af, struct hostent *he,
 		{ 0 }
 	};
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+	hed->res = __res_state();
+	if ((hed->res->options & RES_INIT) == 0 && res_ninit(hed->res) == -1) {
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
 
 	if (af == AF_INET6 && len == IN6ADDRSZ) {
 		addr6 = (const struct in6_addr *)(const void *)uaddr;
 		if (IN6_IS_ADDR_LINKLOCAL(addr6)) {
-			h_errno = HOST_NOT_FOUND;
+			RES_SET_H_ERRNO(hed->res, HOST_NOT_FOUND);
 			return -1;
 		}
 		if (IN6_IS_ADDR_V4MAPPED(addr6) ||
@@ -292,12 +296,12 @@ gethostbyaddr_r(const char *addr, int len, int af, struct hostent *he,
 		break;
 	default:
 		errno = EAFNOSUPPORT;
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
 	if (size != len) {
 		errno = EINVAL;
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(hed->res, NETDB_INTERNAL);
 		return -1;
 	}
 

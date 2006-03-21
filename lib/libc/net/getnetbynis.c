@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -88,7 +89,7 @@ _getnetbynis(const char *name, char *map, int af, struct netent *ne,
 	ep = ned->netbuf + sizeof ned->netbuf;
 	len = strlen(result) + 1;
 	if (ep - bp < len) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(__res_state(), NO_RECOVERY);
 		return -1;
 	}
 	strlcpy(bp, result, ep - bp);
