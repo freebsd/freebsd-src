@@ -809,13 +809,13 @@ extern struct hdrinfo	HdrInfo[];
 /* functions */
 extern void	addheader __P((char *, char *, int, ENVELOPE *));
 extern unsigned long	chompheader __P((char *, int, HDR **, ENVELOPE *));
-extern void	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
+extern bool	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
 extern HDR	*copyheader __P((HDR *, SM_RPOOL_T *));
 extern void	eatheader __P((ENVELOPE *, bool, bool));
 extern char	*hvalue __P((char *, HDR *));
 extern void	insheader __P((int, char *, char *, int, ENVELOPE *));
 extern bool	isheader __P((char *));
-extern void	putfromline __P((MCI *, ENVELOPE *));
+extern bool	putfromline __P((MCI *, ENVELOPE *));
 extern void	setupheaders __P((void));
 
 /*
@@ -870,9 +870,9 @@ struct envelope
 	short		e_sendmode;	/* message send mode */
 	short		e_errormode;	/* error return mode */
 	short		e_timeoutclass;	/* message timeout class */
-	void		(*e_puthdr)__P((MCI *, HDR *, ENVELOPE *, int));
+	bool		(*e_puthdr)__P((MCI *, HDR *, ENVELOPE *, int));
 					/* function to put header of message */
-	void		(*e_putbody)__P((MCI *, ENVELOPE *, char *));
+	bool		(*e_putbody)__P((MCI *, ENVELOPE *, char *));
 					/* function to put body of message */
 	ENVELOPE	*e_parent;	/* the message this one encloses */
 	ENVELOPE	*e_sibling;	/* the next envelope of interest */
@@ -965,8 +965,8 @@ extern void	dropenvelope __P((ENVELOPE *, bool, bool));
 extern ENVELOPE	*newenvelope __P((ENVELOPE *, ENVELOPE *, SM_RPOOL_T *));
 extern void	clrsessenvelope __P((ENVELOPE *));
 extern void	printenvflags __P((ENVELOPE *));
-extern void	putbody __P((MCI *, ENVELOPE *, char *));
-extern void	putheader __P((MCI *, HDR *, ENVELOPE *, int));
+extern bool	putbody __P((MCI *, ENVELOPE *, char *));
+extern bool	putheader __P((MCI *, HDR *, ENVELOPE *, int));
 
 /*
 **  Message priority classes.
@@ -1650,7 +1650,7 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 #define M87F_NO8TO7		0x0004	/* don't do 8->7 bit conversions */
 
 /* functions */
-extern void	mime7to8 __P((MCI *, HDR *, ENVELOPE *));
+extern bool	mime7to8 __P((MCI *, HDR *, ENVELOPE *));
 extern int	mime8to7 __P((MCI *, HDR *, ENVELOPE *, char **, int));
 
 /*
@@ -2145,7 +2145,6 @@ EXTERN bool	ColonOkInAddr;	/* single colon legal in address */
 #if !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_)
 EXTERN bool	ConfigFileRead;	/* configuration file has been read */
 #endif /* !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_) */
-EXTERN bool	volatile DataProgress;	/* have we sent anything since last check */
 EXTERN bool	DisConnected;	/* running with OutChannel redirect to transcript file */
 EXTERN bool	DontExpandCnames;	/* do not $[...$] expand CNAMEs */
 EXTERN bool	DontInitGroups;	/* avoid initgroups() because of NIS cost */
@@ -2519,8 +2518,8 @@ extern void	printopenfds __P((bool));
 extern void	printqueue __P((void));
 extern void	printrules __P((void));
 extern pid_t	prog_open __P((char **, int *, ENVELOPE *));
-extern void	putline __P((char *, MCI *));
-extern void	putxline __P((char *, size_t, MCI *, int));
+extern bool	putline __P((char *, MCI *));
+extern bool	putxline __P((char *, size_t, MCI *, int));
 extern void	queueup_macros __P((int, SM_FILE_T *, ENVELOPE *));
 extern void	readcf __P((char *, bool, ENVELOPE *));
 extern SIGFUNC_DECL	reapchild __P((int));
