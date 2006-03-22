@@ -177,12 +177,16 @@ static void
 at91_usart_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
+	int cr;
+
 	at91_usart_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Turn on rx and tx */
-	uart_setreg(bas, USART_CR, USART_CR_RSTRX | USART_CR_RSTTX);
+	cr = USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX;
+	uart_setreg(bas, USART_CR, cr);
 	uart_setreg(bas, USART_CR, USART_CR_RXEN | USART_CR_TXEN);
-	uart_setreg(bas, USART_IER, USART_CSR_TXRDY | USART_CSR_RXRDY);
+	uart_setreg(bas, USART_IER, USART_CSR_TXRDY | USART_CSR_RXRDY |
+	    USART_CSR_RXBRK);
 }
 
 /*
@@ -362,6 +366,12 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		ipend |= SER_INT_TXIDLE;
 	if (csr & USART_CSR_RXRDY)
 		ipend |= SER_INT_RXREADY;
+	if (csr & USART_CSR_RXBRK) {
+		unsigned int cr = USART_CR_RSTSTA;
+
+		ipend |= SER_INT_BREAK;
+		uart_setreg(&sc->sc_bas, USART_CR, cr);
+	}
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (ipend);
 }
