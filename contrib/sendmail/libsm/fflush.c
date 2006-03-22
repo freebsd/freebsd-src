@@ -145,6 +145,7 @@ sm_flush(fp, timeout)
 				return SM_IO_EOF;
 			}
 			SM_IO_WR_TIMEOUT(fp, fd, *timeout);
+			t = 0;
 		}
 	}
 	return 0;
