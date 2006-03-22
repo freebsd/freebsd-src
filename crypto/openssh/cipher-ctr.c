@@ -21,11 +21,10 @@ RCSID("$OpenBSD: cipher-ctr.c,v 1.6 2005/07/17 07:17:55 djm Exp $");
 #include "log.h"
 #include "xmalloc.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x00906000L
-#define SSH_OLD_EVP
-#endif
+/* compatibility with old or broken OpenSSL versions */
+#include "openbsd-compat/openssl-compat.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#ifdef USE_BUILTIN_RIJNDAEL
 #include "rijndael.h"
 #define AES_KEY rijndael_ctx
 #define AES_BLOCK_SIZE 16

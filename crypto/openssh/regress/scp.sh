@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.3 2004/07/08 12:59:35 dtucker Exp $
+#	$OpenBSD: scp.sh,v 1.7 2006/01/31 10:36:33 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
@@ -28,6 +28,11 @@ scpclean() {
 	mkdir ${DIR} ${DIR2}
 }
 
+verbose "$tid: simple copy local file to local file"
+scpclean
+$SCP $scpopts ${DATA} ${COPY} || fail "copy failed"
+cmp ${DATA} ${COPY} || fail "corrupted copy"
+
 verbose "$tid: simple copy local file to remote file"
 scpclean
 $SCP $scpopts ${DATA} somehost:${COPY} || fail "copy failed"
@@ -44,6 +49,12 @@ cp ${DATA} ${COPY}
 $SCP $scpopts ${COPY} somehost:${DIR} || fail "copy failed"
 cmp ${COPY} ${DIR}/copy || fail "corrupted copy"
 
+verbose "$tid: simple copy local file to local dir"
+scpclean
+cp ${DATA} ${COPY}
+$SCP $scpopts ${COPY} ${DIR} || fail "copy failed"
+cmp ${COPY} ${DIR}/copy || fail "corrupted copy"
+
 verbose "$tid: simple copy remote file to local dir"
 scpclean
 cp ${DATA} ${COPY}
@@ -57,12 +68,26 @@ cp ${DATA} ${DIR}/copy
 $SCP $scpopts -r ${DIR} somehost:${DIR2} || fail "copy failed"
 diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 
+verbose "$tid: recursive local dir to local dir"
+scpclean
+rm -rf ${DIR2}
+cp ${DATA} ${DIR}/copy
+$SCP $scpopts -r ${DIR} ${DIR2} || fail "copy failed"
+diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
+
 verbose "$tid: recursive remote dir to local dir"
 scpclean
 rm -rf ${DIR2}
 cp ${DATA} ${DIR}/copy
 $SCP $scpopts -r somehost:${DIR} ${DIR2} || fail "copy failed"
 diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
+
+verbose "$tid: shell metacharacters"
+scpclean
+(cd ${DIR} && \
+touch '`touch metachartest`' && \
+$SCP $scpopts *metachar* ${DIR2} 2>/dev/null; \
+[ ! -f metachartest ] ) || fail "shell metacharacters"
 
 if [ ! -z "$SUDO" ]; then
 	verbose "$tid: skipped file after scp -p with failed chown+utimes"
@@ -73,7 +98,7 @@ if [ ! -z "$SUDO" ]; then
 	chmod 660 ${DIR2}/copy
 	$SUDO chown root ${DIR2}/copy
 	$SCP -p $scpopts somehost:${DIR}/\* ${DIR2} >/dev/null 2>&1
-	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
+	$SUDO diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 	$SUDO rm ${DIR2}/copy
 fi
 
@@ -90,6 +115,13 @@ for i in 0 1 2 3 4; do
 	$SCP -r $scpopts somehost:${DATA} ${DIR2} >/dev/null 2>/dev/null
 	[ -d ${DIR}/dotpathdir ] && fail "allows dir creation outside of subdir"
 done
+
+verbose "$tid: detect non-directory target"
+scpclean
+echo a > ${COPY}
+echo b > ${COPY2}
+$SCP $scpopts ${DATA} ${COPY} ${COPY2}
+cmp ${COPY} ${COPY2} >/dev/null && fail "corrupt target"
 
 scpclean
 rm -f ${OBJ}/scp-ssh-wrapper.scp

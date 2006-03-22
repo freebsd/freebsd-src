@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.69 2005/06/08 03:50:00 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.72 2005/11/28 05:16:53 dtucker Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -118,6 +118,9 @@ keys for use by SSH protocol version 2.
 The type of key to be generated is specified with the
 .Fl t
 option.
+If invoked without any arguments,
+.Nm
+will generate an RSA key for use in SSH protocol 2 connections.
 .Pp
 .Nm
 is also used to generate groups for use in Diffie-Hellman group
@@ -187,9 +190,9 @@ command.
 Show the bubblebabble digest of specified private or public key file.
 .It Fl b Ar bits
 Specifies the number of bits in the key to create.
-Minimum is 512 bits.
+For RSA keys, the minimum size is 768 bits and the default is 2048 bits.
 Generally, 2048 bits is considered sufficient.
-The default is 2048 bits.
+DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
 .It Fl C Ar comment
 Provides a new comment.
 .It Fl c

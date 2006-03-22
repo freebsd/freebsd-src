@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.27 2005/02/27 11:33:30 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.28 2005/05/20 23:14:15 djm Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -24,6 +24,8 @@ if [ -x /usr/ucb/whoami ]; then
 	USER=`/usr/ucb/whoami`
 elif whoami >/dev/null 2>&1; then
 	USER=`whoami`
+elif logname >/dev/null 2>&1; then
+	USER=`logname`
 else
 	USER=`id -un`
 fi
@@ -194,6 +196,7 @@ trap fatal 3 2
 cat << EOF > $OBJ/sshd_config
 	StrictModes		no
 	Port			$PORT
+	AddressFamily		inet
 	ListenAddress		127.0.0.1
 	#ListenAddress		::1
 	PidFile			$PIDFILE
@@ -244,7 +247,7 @@ trace "generate keys"
 for t in rsa rsa1; do
 	# generate user key
 	rm -f $OBJ/$t
-	${SSHKEYGEN} -q -N '' -t $t  -f $OBJ/$t ||\
+	${SSHKEYGEN} -b 1024 -q -N '' -t $t  -f $OBJ/$t ||\
 		fail "ssh-keygen for $t failed"
 
 	# known hosts file for client

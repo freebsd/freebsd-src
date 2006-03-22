@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.128 2005/07/17 07:17:55 djm Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.135 2005/11/29 02:04:55 dtucker Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -35,8 +35,10 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.128 2005/07/17 07:17:55 djm Exp $");
 #endif
 #include "dns.h"
 
-/* Number of bits in the RSA/DSA key.  This value can be changed on the command line. */
-u_int32_t bits = 2048;
+/* Number of bits in the RSA/DSA key.  This value can be set on the command line. */
+#define DEFAULT_BITS		2048
+#define DEFAULT_BITS_DSA	1024
+u_int32_t bits = 0;
 
 /*
  * Flag indicating that we just want to change the passphrase.  This can be
@@ -1018,6 +1020,9 @@ main(int ac, char **av)
 	extern int optind;
 	extern char *optarg;
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	__progname = ssh_get_progname(av[0]);
 
 	SSLeay_add_all_algorithms();
@@ -1041,7 +1046,7 @@ main(int ac, char **av)
 	    "degiqpclBHvxXyF:b:f:t:U:D:P:N:C:r:g:R:T:G:M:S:a:W:")) != -1) {
 		switch (opt) {
 		case 'b':
-			bits = strtonum(optarg, 512, 32768, &errstr);
+			bits = strtonum(optarg, 768, 32768, &errstr);
 			if (errstr)
 				fatal("Bits has bad value %s (%s)",
 					optarg, errstr);
@@ -1214,8 +1219,10 @@ main(int ac, char **av)
 			    out_file, strerror(errno));
 			return (1);
 		}
+		if (bits == 0)
+			bits = DEFAULT_BITS;
 		if (gen_candidates(out, memory, bits, start) != 0)
-			fatal("modulus candidate generation failed\n");
+			fatal("modulus candidate generation failed");
 
 		return (0);
 	}
@@ -1238,21 +1245,24 @@ main(int ac, char **av)
 			    out_file, strerror(errno));
 		}
 		if (prime_test(in, out, trials, generator_wanted) != 0)
-			fatal("modulus screening failed\n");
+			fatal("modulus screening failed");
 		return (0);
 	}
 
 	arc4random_stir();
 
-	if (key_type_name == NULL) {
-		printf("You must specify a key type (-t).\n");
-		usage();
-	}
+	if (key_type_name == NULL)
+		key_type_name = "rsa";
+
 	type = key_type_from_name(key_type_name);
 	if (type == KEY_UNSPEC) {
 		fprintf(stderr, "unknown key type %s\n", key_type_name);
 		exit(1);
 	}
+	if (bits == 0)
+		bits = (type == KEY_DSA) ? DEFAULT_BITS_DSA : DEFAULT_BITS;
+	if (type == KEY_DSA && bits != 1024)
+		fatal("DSA keys must be 1024 bits");
 	if (!quiet)
 		printf("Generating public/private %s key pair.\n", key_type_name);
 	private = key_generate(type, bits);
@@ -1265,7 +1275,7 @@ main(int ac, char **av)
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which to save the key");
 
-	/* Create ~/.ssh directory if it doesn\'t already exist. */
+	/* Create ~/.ssh directory if it doesn't already exist. */
 	snprintf(dotsshdir, sizeof dotsshdir, "%s/%s", pw->pw_dir, _PATH_SSH_USER_DIR);
 	if (strstr(identity_file, dotsshdir) != NULL &&
 	    stat(dotsshdir, &st) < 0) {

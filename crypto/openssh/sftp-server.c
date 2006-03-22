@@ -14,13 +14,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.48 2005/06/17 02:44:33 djm Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.50 2006/01/02 01:20:31 djm Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
 #include "getput.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "misc.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -427,7 +428,7 @@ process_read(void)
 	len = get_int();
 
 	TRACE("read id %u handle %d off %llu len %d", id, handle,
-	    (u_int64_t)off, len);
+	    (unsigned long long)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
 		logit("read change len %d", len);
@@ -468,7 +469,7 @@ process_write(void)
 	data = get_string(&len);
 
 	TRACE("write id %u handle %d off %llu len %d", id, handle,
-	    (u_int64_t)off, len);
+	    (unsigned long long)off, len);
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
 		if (lseek(fd, off, SEEK_SET) < 0) {
@@ -945,7 +946,7 @@ process(void)
 		return;		/* Incomplete message. */
 	cp = buffer_ptr(&iqueue);
 	msg_len = GET_32BIT(cp);
-	if (msg_len > 256 * 1024) {
+	if (msg_len > SFTP_MAX_MSG_LENGTH) {
 		error("bad message ");
 		exit(11);
 	}
@@ -1035,6 +1036,9 @@ main(int ac, char **av)
 	fd_set *rset, *wset;
 	int in, out, max;
 	ssize_t len, olen, set_size;
+
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
 
 	/* XXX should use getopt */
 
