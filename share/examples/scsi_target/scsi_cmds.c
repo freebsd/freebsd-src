@@ -48,6 +48,9 @@
 typedef int targ_start_func(struct ccb_accept_tio *, struct ccb_scsiio *);
 typedef void targ_done_func(struct ccb_accept_tio *, struct ccb_scsiio *,
 			      io_ops);
+#ifndef	REPORT_LUNS
+#define	REPORT_LUNS	0xa0
+#endif
 
 struct targ_cdb_handlers {
 	u_int8_t	  cmd;
@@ -87,7 +90,7 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 	{ SYNCHRONIZE_CACHE,	tcmd_null_ok,		NULL },
 	{ MODE_SENSE_6,		tcmd_illegal_req,	NULL },
 	{ MODE_SELECT_6,	tcmd_illegal_req,	NULL },
-	/* XXX REPORT_LUNS should be handled here. */
+	{ REPORT_LUNS,		tcmd_illegal_req,	NULL },
 #ifdef READ_16
 	{ READ_16,		tcmd_rdwr,		tcmd_rdwr_done },
 	{ WRITE_16,		tcmd_rdwr,		tcmd_rdwr_done },
