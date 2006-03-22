@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-getpeereid.sh,v 1.1 2002/12/09 16:05:02 markus Exp $
+#	$OpenBSD: agent-getpeereid.sh,v 1.2 2005/11/14 21:25:56 grunk Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent attach from other uid"
@@ -27,7 +27,7 @@ else
 		fail "ssh-add failed with $r != 1"
 	fi
 
-	< /dev/null sudo -S -u ${UNPRIV} ssh-add -l > /dev/null 2>&1
+	< /dev/null ${SUDO} -S -u ${UNPRIV} ssh-add -l > /dev/null 2>&1
 	r=$?
 	if [ $r -lt 2 ]; then
 		fail "ssh-add did not fail for ${UNPRIV}: $r < 2"

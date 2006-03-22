@@ -1,3 +1,832 @@
+20060201
+ - (djm) [regress/test-exec.sh] Try 'logname' as well as 'whoami' to 
+   determine the user's login name - needed for regress tests on Solaris 
+   10 and OpenSolaris
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2006/02/01 09:06:50
+     [sshd.8]
+     - merge sections on protocols 1 and 2 into a single section
+     - remove configuration file section
+     ok markus
+   - jmc@cvs.openbsd.org 2006/02/01 09:11:41
+     [sshd.8]
+     small tweak;
+ - (djm) [contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Update versions ahead of release
+   - markus@cvs.openbsd.org 2006/02/01 11:27:22
+     [version.h]
+     openssh 4.3
+ - (djm) Release OpenSSH 4.3p1
+
+20060131
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2006/01/20 11:21:45
+     [ssh_config.5]
+     - word change, agreed w/ markus
+     - consistency fixes
+   - jmc@cvs.openbsd.org 2006/01/25 09:04:34
+     [sshd.8]
+     move the options description up the page, and a few additional tweaks
+     whilst in here;
+     ok markus
+   - jmc@cvs.openbsd.org 2006/01/25 09:07:22
+     [sshd.8]
+     move subsections to full sections;
+   - jmc@cvs.openbsd.org 2006/01/26 08:47:56
+     [ssh.1]
+     add a section on verifying host keys in dns;
+     written with a lot of help from jakob;
+     feedback dtucker/markus;
+     ok markus
+   - reyk@cvs.openbsd.org 2006/01/30 12:22:22
+     [channels.c]
+     mark channel as write failed or dead instead of read failed on error
+     of the channel output filter.
+     ok markus@
+   - jmc@cvs.openbsd.org 2006/01/30 13:37:49
+     [ssh.1]
+     remove an incorrect sentence;
+     reported by roumen petrov;
+     ok djm markus
+   - djm@cvs.openbsd.org 2006/01/31 10:19:02
+     [misc.c misc.h scp.c sftp.c]
+     fix local arbitrary command execution vulnerability on local/local and
+     remote/remote copies (CVE-2006-0225, bz #1094), patch by
+     t8m AT centrum.cz, polished by dtucker@ and myself; ok markus@
+   - djm@cvs.openbsd.org 2006/01/31 10:35:43
+     [scp.c]
+     "scp a b c" shouldn't clobber "c" when it is not a directory, report and
+     fix from biorn@; ok markus@
+ - (djm) Sync regress tests to OpenBSD:
+   - dtucker@cvs.openbsd.org 2005/03/10 10:20:39
+     [regress/forwarding.sh]
+     Regress test for ClearAllForwardings (bz #994); ok markus@
+   - dtucker@cvs.openbsd.org 2005/04/25 09:54:09
+     [regress/multiplex.sh]
+     Don't call cleanup in multiplex as test-exec will cleanup anyway
+     found by tim@, ok djm@
+     NB. ID sync only, we already had this
+   - djm@cvs.openbsd.org 2005/05/20 23:14:15
+     [regress/test-exec.sh]
+     force addressfamily=inet for tests, unbreaking dynamic-forward regress for
+     recently committed nc SOCKS5 changes
+   - djm@cvs.openbsd.org 2005/05/24 04:10:54
+     [regress/try-ciphers.sh]
+     oops, new arcfour modes here too
+   - markus@cvs.openbsd.org 2005/06/30 11:02:37
+     [regress/scp.sh]
+     allow SUDO=sudo; from Alexander Bluhm
+   - grunk@cvs.openbsd.org 2005/11/14 21:25:56
+     [regress/agent-getpeereid.sh]
+     all other scripts in this dir use $SUDO, not 'sudo', so pull this even
+     ok markus@
+   - dtucker@cvs.openbsd.org 2005/12/14 04:36:39
+     [regress/scp-ssh-wrapper.sh]
+     Fix assumption about how many args scp will pass; ok djm@
+     NB. ID sync only, we already had this
+   - djm@cvs.openbsd.org 2006/01/27 06:49:21
+     [scp.sh]
+     regress test for local to local scp copies; ok dtucker@
+   - djm@cvs.openbsd.org 2006/01/31 10:23:23
+     [scp.sh]
+     regression test for CVE-2006-0225 written by dtucker@
+   - djm@cvs.openbsd.org 2006/01/31 10:36:33
+     [scp.sh]
+     regress test for "scp a b c" where "c" is not a directory
+
+20060129
+ - (dtucker) [configure.ac opensshd.init.in] Bug #1144: Use /bin/sh for the
+   opensshd.init script interpretter if /sbin/sh does not exist.  ok tim@
+
+20060120
+ - (dtucker) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2006/01/15 17:37:05
+     [ssh.1]
+     correction from deraadt
+   - jmc@cvs.openbsd.org 2006/01/18 10:53:29
+     [ssh.1]
+     add a section on ssh-based vpn, based on reyk's README.tun;
+   - dtucker@cvs.openbsd.org 2006/01/20 00:14:55
+     [scp.1 ssh.1 ssh_config.5 sftp.1]
+     Document RekeyLimit.  Based on patch from jan.iven at cern.ch from mindrot
+     #1056 with feedback from jmc, djm and markus; ok jmc@ djm@
+
+20060114
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2006/01/06 13:27:32
+     [ssh.1]
+     weed out some duplicate info in the known_hosts FILES entries;
+     ok djm
+   - jmc@cvs.openbsd.org 2006/01/06 13:29:10
+     [ssh.1]
+     final round of whacking FILES for duplicate info, and some consistency
+     fixes;
+     ok djm
+   - jmc@cvs.openbsd.org 2006/01/12 14:44:12
+     [ssh.1]
+     split sections on tcp and x11 forwarding into two sections.
+     add an example in the tcp section, based on sth i wrote for ssh faq;
+     help + ok: djm markus dtucker
+   - jmc@cvs.openbsd.org 2006/01/12 18:48:48
+     [ssh.1]
+     refer to `TCP' rather than `TCP/IP' in the context of connection
+     forwarding;
+     ok markus
+   - jmc@cvs.openbsd.org 2006/01/12 22:20:00
+     [sshd.8]
+     refer to TCP forwarding, rather than TCP/IP forwarding;
+   - jmc@cvs.openbsd.org 2006/01/12 22:26:02
+     [ssh_config.5]
+     refer to TCP forwarding, rather than TCP/IP forwarding;
+   - jmc@cvs.openbsd.org 2006/01/12 22:34:12
+     [ssh.1]
+     back out a sentence - AUTHENTICATION already documents this;
+
+20060109
+ - (dtucker) [contrib/cygwin/ssh-host-config] Make sshd service depend on
+   tcpip service so it's always started after IP is up.  Patch from
+   vinschen at redhat.com.
+
+20060106
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2006/01/03 16:31:10
+     [ssh.1]
+     move FILES to a -compact list, and make each files an item in that list.
+     this avoids nastly line wrap when we have long pathnames, and treats
+     each file as a separate item;
+     remove the .Pa too, since it is useless.
+   - jmc@cvs.openbsd.org 2006/01/03 16:35:30
+     [ssh.1]
+     use a larger width for the ENVIRONMENT list;
+   - jmc@cvs.openbsd.org 2006/01/03 16:52:36
+     [ssh.1]
+     put FILES in some sort of order: sort by pathname
+   - jmc@cvs.openbsd.org 2006/01/03 16:55:18
+     [ssh.1]
+     tweak the description of ~/.ssh/environment
+   - jmc@cvs.openbsd.org 2006/01/04 18:42:46
+     [ssh.1]
+     chop out some duplication in the .{r,s}hosts/{h,sh}osts.equiv FILES
+     entries;
+     ok markus
+   - jmc@cvs.openbsd.org 2006/01/04 18:45:01
+     [ssh.1]
+     remove .Xr's to rsh(1) and telnet(1): they are hardly needed;
+   - jmc@cvs.openbsd.org 2006/01/04 19:40:24
+     [ssh.1]
+     +.Xr ssh-keyscan 1 ,
+   - jmc@cvs.openbsd.org 2006/01/04 19:50:09
+     [ssh.1]
+     -.Xr gzip 1 ,
+   - djm@cvs.openbsd.org 2006/01/05 23:43:53
+     [misc.c]
+     check that stdio file descriptors are actually closed before clobbering
+     them in sanitise_stdfd(). problems occurred when a lower numbered fd was
+     closed, but higher ones weren't. spotted by, and patch tested by
+     Frédéric Olivié
+
+20060103
+ - (djm) [channels.c] clean up harmless merge error, from reyk@
+
+20060103
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2006/01/02 17:09:49
+     [ssh_config.5 sshd_config.5]
+     some corrections from michael knudsen;
+
+20060102
+ - (djm) [README.tun] Add README.tun, missed during sync of tun(4) support
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2005/12/31 10:46:17
+     [ssh.1]
+     merge the "LOGIN SESSION AND REMOTE EXECUTION" and "SERVER
+     AUTHENTICATION" sections into "AUTHENTICATION";
+     some rewording done to make the text read better, plus some
+     improvements from djm;
+     ok djm
+   - jmc@cvs.openbsd.org 2005/12/31 13:44:04
+     [ssh.1]
+     clean up ENVIRONMENT a little;
+   - jmc@cvs.openbsd.org 2005/12/31 13:45:19
+     [ssh.1]
+     .Nm does not require an argument;
+   - stevesk@cvs.openbsd.org 2006/01/01 08:59:27
+     [includes.h misc.c]
+     move <net/if.h>; ok djm@
+   - stevesk@cvs.openbsd.org 2006/01/01 10:08:48
+     [misc.c]
+     no trailing "\n" for debug()
+   - djm@cvs.openbsd.org 2006/01/02 01:20:31
+     [sftp-client.c sftp-common.h sftp-server.c]
+     use a common max. packet length, no binary change
+   - reyk@cvs.openbsd.org 2006/01/02 07:53:44
+     [misc.c]
+     clarify tun(4) opening - set the mode and bring the interface up. also
+     (re)sets the tun(4) layer 2 LINK0 flag for existing tunnel interfaces.
+     suggested and ok by djm@
+   - jmc@cvs.openbsd.org 2006/01/02 12:31:06
+     [ssh.1]
+     start to cut some duplicate info from FILES;
+     help/ok djm
+
+20060101
+ - (djm) [Makefile.in configure.ac includes.h misc.c]
+         [openbsd-compat/port-tun.c openbsd-compat/port-tun.h] Add support
+         for tunnel forwarding for FreeBSD and NetBSD. NetBSD's support is
+         limited to IPv4 tunnels only, and most versions don't support the
+         tap(4) device at all.
+ - (djm) [configure.ac] Fix linux/if_tun.h test
+ - (djm) [openbsd-compat/port-tun.c] Linux needs linux/if.h too
+
+20051229
+ - (djm) OpenBSD CVS Sync
+   - stevesk@cvs.openbsd.org 2005/12/28 22:46:06
+     [canohost.c channels.c clientloop.c]
+     use 'break-in' for consistency; ok deraadt@ ok and input jmc@
+   - reyk@cvs.openbsd.org 2005/12/30 15:56:37
+     [channels.c channels.h clientloop.c]
+     add channel output filter interface.
+     ok djm@, suggested by markus@
+   - jmc@cvs.openbsd.org 2005/12/30 16:59:00
+     [sftp.1]
+     do not suggest that interactive authentication will work
+     with the -b flag;
+     based on a diff from john l. scarfone;
+     ok djm
+   - stevesk@cvs.openbsd.org 2005/12/31 01:38:45
+     [ssh.1]
+     document -MM; ok djm@
+ - (djm) [openbsd-compat/port-tun.c openbsd-compat/port-tun.h configure.ac]
+   [serverloop.c ssh.c openbsd-compat/Makefile.in]
+   [openbsd-compat/openbsd-compat.h] Implement tun(4) forwarding 
+   compatability support for Linux, diff from reyk@
+ - (djm) [configure.ac] Disable Linux tun(4) compat code if linux/tun.h does
+   not exist
+ - (djm) [configure.ac] oops, make that linux/if_tun.h
+
+20051229
+ - (tim) [buildpkg.sh.in] grep for $SSHDUID instead of $SSHDGID on /etc/passwd
+
+20051224
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2005/12/20 21:59:43
+     [ssh.1]
+     merge the sections on protocols 1 and 2 into one section on
+     authentication;
+     feedback djm dtucker
+     ok deraadt markus dtucker
+   - jmc@cvs.openbsd.org 2005/12/20 22:02:50
+     [ssh.1]
+     .Ss -> .Sh: subsections have not made this page more readable
+   - jmc@cvs.openbsd.org 2005/12/20 22:09:41
+     [ssh.1]
+     move info on ssh return values and config files up into the main
+     description;
+   - jmc@cvs.openbsd.org 2005/12/21 11:48:16
+     [ssh.1]
+     -L and -R descriptions are now above, not below, ~C description;
+   - jmc@cvs.openbsd.org 2005/12/21 11:57:25
+     [ssh.1]
+     options now described `above', rather than `later';
+   - jmc@cvs.openbsd.org 2005/12/21 12:53:31
+     [ssh.1]
+     -Y does X11 forwarding too;
+     ok markus
+   - stevesk@cvs.openbsd.org 2005/12/21 22:44:26
+     [sshd.8]
+     clarify precedence of -p, Port, ListenAddress; ok and help jmc@
+   - jmc@cvs.openbsd.org 2005/12/22 10:31:40
+     [ssh_config.5]
+     put the description of "UsePrivilegedPort" in the correct place;
+   - jmc@cvs.openbsd.org 2005/12/22 11:23:42
+     [ssh.1]
+     expand the description of -w somewhat;
+     help/ok reyk
+   - jmc@cvs.openbsd.org 2005/12/23 14:55:53
+     [ssh.1]
+     - sync the description of -e w/ synopsis
+     - simplify the description of -I
+     - note that -I is only available if support compiled in, and that it
+     isn't by default
+     feedback/ok djm@
+   - jmc@cvs.openbsd.org 2005/12/23 23:46:23
+     [ssh.1]
+     less mark up for -c;
+   - djm@cvs.openbsd.org 2005/12/24 02:27:41
+     [session.c sshd.c]
+     eliminate some code duplicated in privsep and non-privsep paths, and
+     explicitly clear SIGALRM handler; "groovy" deraadt@
+
+20051220
+ - (dtucker) OpenBSD CVS Sync
+   - reyk@cvs.openbsd.org 2005/12/13 15:03:02
+     [serverloop.c]
+     if forced_tun_device is not set, it is -1 and not SSH_TUNID_ANY
+   - jmc@cvs.openbsd.org 2005/12/16 18:07:08
+     [ssh.1]
+     move the option descriptions up the page: start of a restructure;
+     ok markus deraadt
+   - jmc@cvs.openbsd.org 2005/12/16 18:08:53
+     [ssh.1]
+     simplify a sentence;
+   - jmc@cvs.openbsd.org 2005/12/16 18:12:22
+     [ssh.1]
+     make the description of -c a little nicer;
+   - jmc@cvs.openbsd.org 2005/12/16 18:14:40
+     [ssh.1]
+     signpost the protocol sections;
+   - stevesk@cvs.openbsd.org 2005/12/17 21:13:05
+     [ssh_config.5 session.c]
+     spelling: fowarding, fowarded
+   - stevesk@cvs.openbsd.org 2005/12/17 21:36:42
+     [ssh_config.5]
+     spelling: intented -> intended
+   - dtucker@cvs.openbsd.org 2005/12/20 04:41:07
+     [ssh.c]
+     exit(255) on error to match description in ssh(1); bz #1137; ok deraadt@
+
+20051219
+ - (dtucker) [cipher-aes.c cipher-ctr.c cipher.c configure.ac
+   openbsd-compat/openssl-compat.h] Check for and work around broken AES
+   ciphers >128bit on (some) Solaris 10 systems.  ok djm@
+
+20051217
+ - (dtucker) [defines.h] HP-UX system headers define "YES" and "NO" which
+   scp.c also uses, so undef them here.
+ - (dtucker) [configure.ac openbsd-compat/bsd-snprintf.c] Bug #1133: Our
+   snprintf replacement can have a conflicting declaration in HP-UX's system
+   headers (const vs. no const) so we now check for and work around it.  Patch
+   from the dynamic duo of David Leonard and Ted Percival.
+
+20051214
+ - (dtucker) OpenBSD CVS Sync (regress/)
+   - dtucker@cvs.openbsd.org 2005/12/30 04:36:39
+     [regress/scp-ssh-wrapper.sh]
+     Fix assumption about how many args scp will pass; ok djm@
+
+20051213
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2005/11/30 11:18:27
+     [ssh.1]
+     timezone -> time zone
+   - jmc@cvs.openbsd.org 2005/11/30 11:45:20
+     [ssh.1]
+     avoid ambiguities in describing TZ;
+     ok djm@
+   - reyk@cvs.openbsd.org 2005/12/06 22:38:28
+     [auth-options.c auth-options.h channels.c channels.h clientloop.c]
+     [misc.c misc.h readconf.c readconf.h scp.c servconf.c servconf.h]
+     [serverloop.c sftp.c ssh.1 ssh.c ssh_config ssh_config.5 sshconnect.c]
+     [sshconnect.h sshd.8 sshd_config sshd_config.5]
+     Add support for tun(4) forwarding over OpenSSH, based on an idea and
+     initial channel code bits by markus@. This is a simple and easy way to
+     use OpenSSH for ad hoc virtual private network connections, e.g.
+     administrative tunnels or secure wireless access. It's based on a new
+     ssh channel and works similar to the existing TCP forwarding support,
+     except that it depends on the tun(4) network interface on both ends of
+     the connection for layer 2 or layer 3 tunneling. This diff also adds
+     support for LocalCommand in the ssh(1) client.
+     ok djm@, markus@, jmc@ (manpages), tested and discussed with others
+   - djm@cvs.openbsd.org 2005/12/07 03:52:22
+     [clientloop.c]
+     reyk forgot to compile with -Werror (missing header)
+   - jmc@cvs.openbsd.org 2005/12/07 10:52:13
+     [ssh.1]
+     - avoid line split in SYNOPSIS
+     - add args to -w
+     - kill trailing whitespace
+   - jmc@cvs.openbsd.org 2005/12/08 14:59:44
+     [ssh.1 ssh_config.5]
+     make `!command' a little clearer;
+     ok reyk
+   - jmc@cvs.openbsd.org 2005/12/08 15:06:29
+     [ssh_config.5]
+     keep options in order;
+   - reyk@cvs.openbsd.org 2005/12/08 18:34:11
+     [auth-options.c includes.h misc.c misc.h readconf.c servconf.c]
+     [serverloop.c ssh.c ssh_config.5 sshd_config.5 configure.ac]
+     two changes to the new ssh tunnel support. this breaks compatibility
+     with the initial commit but is required for a portable approach.
+     - make the tunnel id u_int and platform friendly, use predefined types.
+     - support configuration of layer 2 (ethernet) or layer 3
+     (point-to-point, default) modes. configuration is done using the
+     Tunnel (yes|point-to-point|ethernet|no) option is ssh_config(5) and
+     restricted by the PermitTunnel (yes|point-to-point|ethernet|no) option
+     in sshd_config(5).
+     ok djm@, man page bits by jmc@
+   - jmc@cvs.openbsd.org 2005/12/08 21:37:50
+     [ssh_config.5]
+     new sentence, new line;
+   - markus@cvs.openbsd.org 2005/12/12 13:46:18
+     [channels.c channels.h session.c]
+     make sure protocol messages for internal channels are ignored.
+     allow adjust messages for non-open channels; with and ok djm@
+ - (djm) [misc.c] Disable tunnel code for non-OpenBSD (for now), enable
+   again by providing a sys_tun_open() function for your platform and 
+   setting the CUSTOM_SYS_TUN_OPEN define. More work is required to match 
+   OpenBSD's tunnel protocol, which prepends the address family to the 
+   packet
+
+20051201
+ - (djm) [envpass.sh] Remove regress script that was accidentally committed 
+   in top level directory and not noticed for over a year :)
+
+20051129
+ - (tim) [ssh-keygen.c] Move DSA length test after setting default when
+   bits == 0.
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2005/11/29 02:04:55
+     [ssh-keygen.c]
+     Populate default key sizes before checking them; from & ok tim@
+ - (tim) [configure.ac sshd.8] Enable locked account check (a "*LK*" string)
+   for UnixWare.
+
+20051128
+ - (dtucker) [regress/yes-head.sh] Work around breakage caused by some
+   versions of GNU head.  Based on patch from zappaman at buraphalinux.org
+ - (dtucker) [includes.h] Bug #1122: __USE_GNU is a glibc internal macro, use
+   _GNU_SOURCE instead.  Patch from t8m at centrum.cz.
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2005/11/28 05:16:53
+     [ssh-keygen.1 ssh-keygen.c]
+     Enforce DSA key length of exactly 1024 bits to comply with FIPS-186-2,
+     increase minumum RSA key size to 768 bits and update man page to reflect
+     these.  Patch originally bz#1119 (senthilkumar_sen at hotpop.com),
+     ok djm@, grudging ok deraadt@.
+   - dtucker@cvs.openbsd.org 2005/11/28 06:02:56
+     [ssh-agent.1]
+     Update agent socket path templates to reflect reality, correct xref for
+     time formats.  bz#1121, patch from openssh at roumenpetrov.info, ok djm@
+
+20051126
+ - (dtucker) [configure.ac] Bug #1126: AIX 5.2 and 5.3 (and presumably newer,
+   when they're available) need the real UID set otherwise pam_chauthtok will
+   set ADMCHG after changing the password, forcing the user to change it
+   again immediately.
+
+20051125
+ - (dtucker) [configure.ac] Apply tim's fix for older systems where the
+   resolver state in resolv.h is "state" not "__res_state".  With slight
+   modification by me to also work on old AIXes.  ok djm@
+ - (dtucker) [progressmeter.c scp.c sftp-server.c] Use correct casts for
+   snprintf formats, fixes warnings on some 64 bit platforms.  Patch from
+   shaw at vranix.com, ok djm@
+
+20051124
+ - (djm) [configure.ac openbsd-compat/Makefile.in openbsd-compat/bsd-asprintf.c 
+   openbsd-compat/bsd-snprintf.c openbsd-compat/openbsd-compat.h] Add an 
+   asprintf() implementation, after syncing our {v,}snprintf() implementation
+   with some extra fixes from Samba's version. With help and debugging from 
+   dtucker and tim; ok dtucker@
+ - (dtucker) [configure.ac] Fix typos in comments and AC_SEARCH_LIB argument
+   order in Reliant Unix block.  Patch from johane at lysator.liu.se.
+ - (dtucker) [regress/test-exec.sh] Use 1024 bit keys since we generate so
+   many and use them only once.  Speeds up testing on older/slower hardware.
+
+20051122
+ - (dtucker) OpenBSD CVS Sync
+   - deraadt@cvs.openbsd.org 2005/11/12 18:37:59
+     [ssh-add.c]
+     space
+   - deraadt@cvs.openbsd.org 2005/11/12 18:38:15
+     [scp.c]
+     avoid close(-1), as in rcp; ok cloder
+   - millert@cvs.openbsd.org 2005/11/15 11:59:54
+     [includes.h]
+     Include sys/queue.h explicitly instead of assuming some other header
+     will pull it in.  At the moment it gets pulled in by sys/select.h
+     (which ssh has no business including) via event.h.  OK markus@
+     (ID sync only in -portable)
+   - dtucker@cvs.openbsd.org 2005/11/21 09:42:10
+     [auth-krb5.c]
+     Perform Kerberos calls even for invalid users to prevent leaking
+     information about account validity.  bz #975, patch originally from
+     Senthil Kumar, sanity checked by Simon Wilkinson, tested by djm@, biorn@,
+     ok markus@
+   - dtucker@cvs.openbsd.org 2005/11/22 03:36:03
+     [hostfile.c]
+     Correct format/arguments to debug call; spotted by shaw at vranix.com
+     ok djm@
+ - (dtucker) [loginrec.c] Add casts to prevent compiler warnings, patch
+   from shaw at vranix.com.
+
+20051120
+ - (dtucker) [openbsd-compat/openssl-compat.h] Add comment explaining what
+   is going on.
+
+20051112
+ - (dtucker) [openbsd-compat/getrrsetbyname.c] Restore Portable-specific
+   ifdef lost during sync.  Spotted by tim@.
+ - (dtucker) [openbsd-compat/{realpath.c,stroll.c,rresvport.c}] $OpenBSD tag.
+ - (dtucker) [configure.ac] Use "$AWK" instead of "awk" in gcc version test.
+ - (dtucker) [configure.ac] Remove duplicate utimes() check.  ok djm@
+ - (dtucker) [regress/reconfigure.sh] Fix potential race in the reconfigure
+   test: if sshd takes too long to reconfigure the subsequent connection will
+   fail.  Zap pidfile before HUPing sshd which will rewrite it when it's ready.
+
+20051110
+ - (dtucker) [openbsd-compat/setenv.c] Merge changes for __findenv from
+   OpenBSD getenv.c revs 1.4 - 1.8 (ANSIfication of arguments, removal of
+   "register").
+ - (dtucker) [openbsd-compat/setenv.c] Make __findenv static, remove
+   unnecessary prototype.
+ - (dtucker) [openbsd-compat/setenv.c] Sync changes from OpenBSD setenv.c
+   revs 1.7 - 1.9.
+ - (dtucker) [auth-krb5.c] Fix -Wsign-compare warning in non-Heimdal path.
+   Patch from djm@.
+ - (dtucker) [configure.ac] Disable pointer-sign warnings on gcc 4.0+
+   since they're not useful right now.  Patch from djm@.
+ - (dtucker) [openbsd-compat/getgrouplist.c] Sync OpenBSD revs 1.10 - 1.2 (ANSI
+   prototypes, removal of "register").
+ - (dtucker) [openbsd-compat/strlcat.c] Sync OpenBSD revs 1.11 - 1.12 (removal
+   of "register").
+ - (dtucker) [openbsd-compat/{LOTS}] Move the "OPENBSD ORIGINAL" markers to
+   after the copyright notices.  Having them at the top next to the CVSIDs
+   guarantees a conflict for each and every sync.
+ - (dtucker) [openbsd-compat/strlcpy.c] Update from OpenBSD 1.8 -> 1.10.
+ - (dtucker) [openbsd-compat/sigact.h] Add "OPENBSD ORIGINAL" marker.
+ - (dtucker) [openbsd-compat/strmode.c] Update from OpenBSD 1.5 -> 1.7.
+   Removal of rcsid, "whiteout" inode type.
+ - (dtucker) [openbsd-compat/basename.c] Update from OpenBSD 1.11 -> 1.14.
+   Removal of rcsid, will no longer strlcpy parts of the string.
+ - (dtucker) [openbsd-compat/strtoll.c] Update from OpenBSD 1.4 -> 1.5.
+ - (dtucker) [openbsd-compat/strtoul.c] Update from OpenBSD 1.5 -> 1.7.
+ - (dtucker) [openbsd-compat/readpassphrase.c] Update from OpenBSD 1.16 -> 1.18.
+ - (dtucker) [openbsd-compat/readpassphrase.h] Update from OpenBSD 1.3 -> 1.5.
+ - (dtucker) [openbsd-compat/glob.c] Update from OpenBSD 1.22 -> 1.25.
+ - (dtucker) [openbsd-compat/glob.h] Update from OpenBSD 1.8 -> 1.9.
+ - (dtucker) [openbsd-compat/getcwd.c] Update from OpenBSD 1.9 -> 1.14.
+ - (dtucker) [openbsd-compat/getcwd.c] Replace lstat with fstat to match up
+   with OpenBSD code since we don't support platforms without fstat any more.
+ - (dtucker) [openbsd-compat/inet_aton.c] Update from OpenBSD 1.7 -> 1.9.
+ - (dtucker) [openbsd-compat/inet_ntoa.c] Update from OpenBSD 1.4 -> 1.6.
+ - (dtucker) [openbsd-compat/inet_ntop.c] Update from OpenBSD 1.5 -> 1.7.
+ - (dtucker) [openbsd-compat/daemon.c] Update from OpenBSD 1.5 -> 1.6.
+ - (dtucker) [openbsd-compat/strsep.c] Update from OpenBSD 1.5 -> 1.6.
+ - (dtucker) [openbsd-compat/daemon.c] Update from OpenBSD 1.10 -> 1.13.
+ - (dtucker) [openbsd-compat/mktemp.c] Update from OpenBSD 1.17 -> 1.19.
+ - (dtucker) [openbsd-compat/rresvport.c] Update from OpenBSD 1.6 -> 1.8.
+ - (dtucker) [openbsd-compat/bindresvport.c] Add "OPENBSD ORIGINAL" marker.
+ - (dtucker) [openbsd-compat/bindresvport.c] Update from OpenBSD 1.16 -> 1.17.
+ - (dtucker) [openbsd-compat/sigact.c] Update from OpenBSD 1.3 -> 1.4.
+   Id and copyright sync only, there were no substantial changes we need.
+ - (dtucker) [openbsd-compat/bsd-closefrom.c openbsd-compat/base64.c]
+   -Wsign-compare fixes from djm.
+ - (dtucker) [openbsd-compat/sigact.h] Update from OpenBSD 1.2 -> 1.3.
+   Id and copyright sync only, there were no substantial changes we need.
+ - (dtucker) [configure.ac] Try to get the gcc version number in a way that
+   doesn't change between versions, and use a safer default.
+
+20051105
+ - (djm) OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2005/10/07 11:13:57
+     [ssh-keygen.c]
+     change DSA default back to 1024, as it's defined for 1024 bits only
+     and this causes interop problems with other clients.  moreover,
+     in order to improve the security of DSA you need to change more
+     components of DSA key generation (e.g. the internal SHA1 hash);
+     ok deraadt
+   - djm@cvs.openbsd.org 2005/10/10 10:23:08
+     [channels.c channels.h clientloop.c serverloop.c session.c]
+     fix regression I introduced in 4.2: X11 forwardings initiated after
+     a session has exited (e.g. "(sleep 5; xterm) &") would not start.
+     bz #1086 reported by t8m AT centrum.cz; ok markus@ dtucker@
+   - djm@cvs.openbsd.org 2005/10/11 23:37:37
+     [channels.c]
+     bz #1076 set SO_REUSEADDR on X11 forwarding listner sockets, preventing
+     bind() failure when a previous connection's listeners are in TIME_WAIT,
+     reported by plattner AT inf.ethz.ch; ok dtucker@
+   - stevesk@cvs.openbsd.org 2005/10/13 14:03:01
+     [auth2-gss.c gss-genr.c gss-serv.c]
+     remove unneeded #includes; ok markus@
+   - stevesk@cvs.openbsd.org 2005/10/13 14:20:37
+     [gss-serv.c]
+     spelling in comments
+   - stevesk@cvs.openbsd.org 2005/10/13 19:08:08
+     [gss-serv-krb5.c gss-serv.c]
+     unused declarations; ok deraadt@
+     (id sync only for gss-serv-krb5.c)
+   - stevesk@cvs.openbsd.org 2005/10/13 19:13:41
+     [dns.c]
+     unneeded #include, unused declaration, little knf; ok deraadt@
+   - stevesk@cvs.openbsd.org 2005/10/13 22:24:31
+     [auth2-gss.c gss-genr.c gss-serv.c monitor.c]
+     KNF; ok djm@
+   - stevesk@cvs.openbsd.org 2005/10/14 02:17:59
+     [ssh-keygen.c ssh.c sshconnect2.c]
+     no trailing "\n" for log functions; ok djm@
+   - stevesk@cvs.openbsd.org 2005/10/14 02:29:37
+     [channels.c clientloop.c]
+     free()->xfree(); ok djm@
+   - stevesk@cvs.openbsd.org 2005/10/15 15:28:12
+     [sshconnect.c]
+     make external definition static; ok deraadt@
+   - stevesk@cvs.openbsd.org 2005/10/17 13:45:05
+     [dns.c]
+     fix memory leaks from 2 sources:
+         1) key_fingerprint_raw()
+         2) malloc in dns_read_rdata()
+     ok jakob@
+   - stevesk@cvs.openbsd.org 2005/10/17 14:01:28
+     [dns.c]
+     remove #ifdef LWRES; ok jakob@
+   - stevesk@cvs.openbsd.org 2005/10/17 14:13:35
+     [dns.c dns.h]
+     more cleanups; ok jakob@
+   - djm@cvs.openbsd.org 2005/10/30 01:23:19
+     [ssh_config.5]
+     mention control socket fallback behaviour, reported by 
+     tryponraj AT gmail.com
+   - djm@cvs.openbsd.org 2005/10/30 04:01:03
+     [ssh-keyscan.c]
+     make ssh-keygen discard junk from server before SSH- ident, spotted by
+     dave AT cirt.net; ok dtucker@
+   - djm@cvs.openbsd.org 2005/10/30 04:03:24
+     [ssh.c]
+     fix misleading debug message; ok dtucker@
+   - dtucker@cvs.openbsd.org 2005/10/30 08:29:29
+     [canohost.c sshd.c]
+     Check for connections with IP options earlier and drop silently.  ok djm@
+   - jmc@cvs.openbsd.org 2005/10/30 08:43:47
+     [ssh_config.5]
+     remove trailing whitespace;
+   - djm@cvs.openbsd.org 2005/10/30 08:52:18
+     [clientloop.c packet.c serverloop.c session.c ssh-agent.c ssh-keygen.c]
+     [ssh.c sshconnect.c sshconnect1.c sshd.c]
+     no need to escape single quotes in comments, no binary change
+   - dtucker@cvs.openbsd.org 2005/10/31 06:15:04
+     [sftp.c]
+     Fix sorting with "ls -1" command. From Robert Tsai, "looks right" deraadt@
+   - djm@cvs.openbsd.org 2005/10/31 11:12:49
+     [ssh-keygen.1 ssh-keygen.c]
+     generate a protocol 2 RSA key by default
+   - djm@cvs.openbsd.org 2005/10/31 11:48:29
+     [serverloop.c]
+     make sure we clean up wtmp, etc. file when we receive a SIGTERM,
+     SIGINT or SIGQUIT when running without privilege separation (the
+     normal privsep case is already OK). Patch mainly by dtucker@ and
+     senthilkumar_sen AT hotpop.com; ok dtucker@
+   - jmc@cvs.openbsd.org 2005/10/31 19:55:25
+     [ssh-keygen.1]
+     grammar;
+   - dtucker@cvs.openbsd.org 2005/11/03 13:38:29
+     [canohost.c]
+     Cache reverse lookups with and without DNS separately; ok markus@
+   - djm@cvs.openbsd.org 2005/11/04 05:15:59
+     [kex.c kex.h kexdh.c kexdhc.c kexdhs.c kexgex.c kexgexc.c kexgexs.c]
+     remove hardcoded hash lengths in key exchange code, allowing
+     implementation of KEX methods with different hashes (e.g. SHA-256);
+     ok markus@ dtucker@ stevesk@
+   - djm@cvs.openbsd.org 2005/11/05 05:01:15
+     [bufaux.c]
+     Fix leaks in error paths, bz #1109 and #1110 reported by kremenek AT
+     cs.stanford.edu; ok dtucker@
+ - (dtucker) [README.platform] Add PAM section.
+ - (djm) [openbsd-compat/getrrsetbyname.c] Sync to latest OpenBSD version,
+   resolving memory leak bz#1111 reported by kremenek AT cs.stanford.edu;
+   ok dtucker@
+
+20051102
+ - (dtucker) [openbsd-compat/bsd-misc.c] Bug #1108: fix broken strdup().
+   Reported by olavi at ipunplugged.com and antoine.brodin at laposte.net
+   via FreeBSD.
+
+20051030
+ - (djm) [contrib/suse/openssh.spec contrib/suse/rc.
+   sshd contrib/suse/sysconfig.ssh] Bug #1106: Updated SuSE spec and init 
+   files from imorgan AT nas.nasa.gov
+ - (dtucker) [session.c] Bug #1045do not check /etc/nologin when PAM is
+   enabled, instead allow PAM to handle it.  Note that on platforms using PAM,
+   the pam_nologin module should be added to sshd's session stack in order to
+   maintain exising behaviour.  Based on patch and discussion from t8m at
+   centrum.cz, ok djm@
+
+20051025
+ - (dtucker) [configure.ac] Relocate LLONG_MAX calculation to after the
+   sizeof(long long) checks, to make fixing bug #1104 easier (no changes
+   yet).
+ - (dtucker) [configure.ac] Bug #1104: Tru64's printf family doesn't
+   understand "%lld", even though the compiler has "long long", so handle
+   it as a special case.  Patch tested by mcaskill.scott at epa.gov.
+ - (dtucker) [contrib/cygwin/ssh-user-config] Remove duplicate yes/no
+   prompt.  Patch from vinschen at redhat.com.
+
+20051017
+ - (dtucker) [configure.ac] Bug #1097: Fix configure for cross-compiling.
+   /etc/default/login report and testing from aabaker at iee.org, corrections
+   from tim@.
+
+20051009
+ - (dtucker) [configure.ac defines.h openbsd-compat/vis.{c,h}] Sync current
+   versions from OpenBSD.  ok djm@
+
+20051008
+ - (dtucker) [configure.ac] Bug #1098: define $MAIL for HP-UX; report from
+   brian.smith at agilent com.
+ - (djm) [configure.ac] missing 'test' call for -with-Werror test
+
+20051005
+ - (dtucker) [configure.ac sshd.8] Enable locked account check (a prepended
+   "*LOCKED*" string) for FreeBSD.  Patch jeremie at le-hen.org and
+   senthilkumar_sen at hotpop.com.
+
+20051003
+ - (dtucker) OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2005/09/07 08:53:53
+     [channels.c]
+     enforce chanid != NULL; ok djm
+   - markus@cvs.openbsd.org 2005/09/09 19:18:05
+     [clientloop.c]
+     typo; from mark at mcs.vuw.ac.nz, bug #1082
+   - djm@cvs.openbsd.org 2005/09/13 23:40:07
+     [sshd.c ssh.c misc.h sftp.c ssh-keygen.c ssh-keysign.c sftp-server.c
+     scp.c misc.c ssh-keyscan.c ssh-add.c ssh-agent.c]
+     ensure that stdio fds are attached; ok deraadt@
+   - djm@cvs.openbsd.org 2005/09/19 11:37:34
+     [ssh_config.5 ssh.1]
+     mention ability to specify bind_address for DynamicForward and -D options;
+     bz#1077 spotted by Haruyama Seigo
+   - djm@cvs.openbsd.org 2005/09/19 11:47:09
+     [sshd.c]
+     stop connection abort on rekey with delayed compression enabled when
+     post-auth privsep is disabled (e.g. when root is logged in); ok dtucker@
+   - djm@cvs.openbsd.org 2005/09/19 11:48:10
+     [gss-serv.c]
+     typo
+   - jmc@cvs.openbsd.org 2005/09/19 15:38:27
+     [ssh.1]
+     some more .Bk/.Ek to avoid ugly line split;
+   - jmc@cvs.openbsd.org 2005/09/19 15:42:44
+     [ssh.c]
+     update -D usage here too;
+   - djm@cvs.openbsd.org 2005/09/19 23:31:31
+     [ssh.1]
+     spelling nit from stevesk@
+   - djm@cvs.openbsd.org 2005/09/21 23:36:54
+     [sshd_config.5]
+     aquire -> acquire, from stevesk@
+   - djm@cvs.openbsd.org 2005/09/21 23:37:11
+     [sshd.c]
+     change label at markus@'s request
+   - jaredy@cvs.openbsd.org 2005/09/30 20:34:26
+     [ssh-keyscan.1]
+     deploy .An -nosplit; ok jmc
+   - dtucker@cvs.openbsd.org 2005/10/03 07:44:42
+     [canohost.c]
+     Relocate check_ip_options call to prevent logging of garbage for
+     connections with IP options set.  bz#1092 from David Leonard,
+     "looks good" deraadt@
+ - (dtucker) [regress/README.regress] Bug #989: Document limitation that scp
+   is required in the system path for the multiplex test to work.
+
+20050930
+ - (dtucker) [openbsd-compat/openbsd-compat.h] Bug #1096: Add prototype
+   for strtoll.  Patch from o.flebbe at science-computing.de.
+ - (dtucker) [monitor.c] Bug #1087: Send loginmsg to preauth privsep
+   child during PAM account check without clearing it.  This restores the
+   post-login warnings such as LDAP password expiry.  Patch from Tomas Mraz
+   with help from several others.
+
+20050929
+ - (dtucker) [monitor_wrap.c] Remove duplicate definition of loginmsg
+   introduced during sync.
+
+20050928
+ - (dtucker) [entropy.c] Use u_char for receiving RNG seed for consistency.
+ - (dtucker) [auth-pam.c] Bug #1028: send final non-query messages from
+   PAM via keyboard-interactive.  Patch tested by the folks at Vintela.
+
+20050927
+ - (dtucker) [entropy.c] Remove unnecessary tests for getuid and geteuid
+   calls, since they can't possibly fail.  ok djm@
+ - (dtucker) [entropy.c entropy.h sshd.c] Pass RNG seed to the reexec'ed
+   process when sshd relies on ssh-random-helper.  Should result in faster
+   logins on systems without a real random device or prngd.  ok djm@
+
+20050924
+ - (dtucker) [auth2.c] Move start_pam() calls out of if-else block to remove
+   duplicate call.  ok djm@
+
+20050922
+ - (dtucker) [configure.ac] Use -R linker flag for libedit too; patch from
+   skeleten at shillest.net.
+ - (dtucker) [configure.ac] Fix help for --with-opensc; patch from skeleten at
+   shillest.net.
+
+20050919
+ - (tim) [aclocal.m4 configure.ac] Delete acconfig.h and add templates to
+   AC_DEFINE and AC_DEFINE_UNQUOTED to quiet autoconf 2.59 warning messages.
+   ok dtucker@
+
+20050912
+ - (tim) [configure.ac] Bug 1078. Fix --without-kerberos5. Reported by
+   Mike Frysinger.
+
+20050908
+ - (tim) [defines.h openbsd-compat/port-uw.c] Add long password support to
+   OpenServer 6 and add osr5bigcrypt support so when someone migrates
+   passwords between UnixWare and OpenServer they will still work. OK dtucker@
+
 20050901
  - (djm) Update RPM spec file versions
 
@@ -2989,4 +3818,4 @@
    - (djm) Trim deprecated options from INSTALL. Mention UsePAM
    - (djm) Fix quote handling in sftp; Patch from admorten AT umich.edu
 
-$Id: ChangeLog,v 1.3887 2005/09/01 09:10:48 djm Exp $
+$Id: ChangeLog,v 1.4117.2.1 2006/02/01 11:33:14 djm Exp $
