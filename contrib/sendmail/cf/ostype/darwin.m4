@@ -10,9 +10,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: darwin.m4,v 8.3 2002/03/05 01:55:40 ca Exp $')
+VERSIONID(`$Id: darwin.m4,v 8.4 2005/06/30 01:16:04 ca Exp $')
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/var/log/sendmail.st')')dnl
 dnl turn on S flag for local mailer
 MODIFY_MAILER_FLAGS(`LOCAL', `+S')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/libexec/mail.local)')dnl
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -z -a$g $h!rmail ($u)')')dnl
+define(`confDONT_BLAME_SENDMAIL', `AssumeSafeChown,GroupWritableDirPathSafe')dnl

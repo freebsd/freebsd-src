@@ -1,10 +1,119 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1730 2005/03/28 00:31:23 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.1765 2006/03/08 02:15:03 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.13.6/8.13.6	2006/03/22
+	SECURITY: Replace unsafe use of setjmp(3)/longjmp(3) in the server
+		and client side of sendmail with timeouts in the libsm I/O
+		layer and fix problems in that code.  Also fix handling of
+		a buffer in sm_syslog() which could have been used as an
+		attack vector to exploit the unsafe handling of
+		setjmp(3)/longjmp(3) in combination with signals.
+		Problem detected by Mark Dowd of ISS X-Force.
+	Handle theoretical integer overflows that could triggered if
+		the server accepted headers larger than the maximum
+		(signed) integer value.  This is prevented in the default
+		configuration by restricting the size of a header, and on
+		most machines memory allocations would fail before reaching
+		those values.  Problems found by Phil Brass of ISS.
+	If a server returns 421 for an RSET command when trying to start
+		another transaction in a session while sending mail, do
+		not trigger an internal consistency check.  Problem found
+		by Allan E Johannesen of Worcester Polytechnic Institute.
+	If a server returns a 5xy error code (other than 501) in response
+		to a STARTTLS command despite the fact that it advertised
+		STARTTLS and that the code is not valid according to RFC
+		2487 treat it nevertheless as a permanent failure instead
+		of a protocol error (which has been changed to a
+		temporary error in 8.13.5).  Problem reported by Jeff
+		A. Earickson of Colby College.
+	Clear SMTP state after a HELO/EHLO command.  Patch from John
+		Myers of Proofpoint.
+	Observe MinQueueAge option when gathering entries from the queue
+		for sorting etc instead of waiting until the entries are
+		processed.  Patch from Brian Fundakowski Feldman.
+	Set up TLS session cache to properly handle clients that try to
+		resume a stored TLS session.
+	Properly count the number of (direct) child processes such that
+		a configured value (MaxDaemonChildren) is not exceeded.
+		Based on patch from Attila Bruncsak.
+	LIBMILTER: Remove superfluous backslash in macro definition
+		(libmilter.h).  Based on patch from Mike Kupfer of
+		Sun Microsystems.
+	LIBMILTER: Don't try to set SO_REUSEADDR on UNIX domain sockets.
+		This generates an error message from libmilter on
+		Solaris, though other systems appear to just discard the
+		request silently.
+	LIBMILTER: Deal with sigwait(2) implementations that return
+		-1 and set errno instead of returning an error code
+		directly.  Patch from Chris Adams of HiWAAY Informations
+		Services.
+	Portability:
+		Fix compilation checks for closefrom(3) and statvfs(2)
+		in NetBSD.  Problem noted by S. Moonesamy, patch from
+		Andrew Brown.
+
+8.13.5/8.13.5	2005/09/16
+	Store the filesystem identifier of the df/ subdirectory (if it
+		exists) in an internal structure instead of the base
+		directory.  This structure is used decide whether there
+		is enough free disk space when selecting a queue, hence
+		without this change queue selection could fail if a df/
+		subdirectory exists and is on a different filesystem
+		than the base directory.
+	Use the queue index of the df file (instead of the qf file) for
+		checking whether a link(2) operation can be used to split
+		an envelope across queue groups.  Problem found by
+		Werner Wiethege.
+	If the list of items in the queue is larger than the maximum
+		number of items to process, sort the queue first and
+		then cut the list off instead of the other way around.
+		Patch from Matej Vela of Rudjer Boskovic Institute.
+	Fix helpfile to show full entry for ETRN.  Problem noted by
+		Penelope Fudd, patch from Neil Rickert of Northern Illinois
+		University.
+	FallbackSmartHost should also be tried on temporary errors.
+		From John Beck of Sun Microsystems.
+	When a server responds with 421 to the STARTTLS command then treat
+		it as a temporary error, not as protocol error.  Problem
+		noted by Andrey J. Melnikoff.
+	Properly define two functions in libsm as static because their
+		prototype used static too.  Patch from Peter Klein.
+	Fix syntax errors in helpfile for MAIL and RCPT commands.
+	LIBMILTER: When smfi_replacebody() is called with bodylen equals
+		zero then do not silently ignore that call.  Patch from
+		Gurusamy Sarathy of Active State.
+	LIBMILTER: Recognize "421" also in a multi-line reply to terminate
+		the SMTP session with that error.  Fix from Brian Kantor.
+	Portability: New option HASSNPRINTF which can be set if the OS
+			has a properly working snprintf(3) to get rid
+			of the last two (safe) sprintf(3) calls in the
+			source code.
+		Add support for AIX 5.3.
+		Add support for SunOS 5.11 (aka Solaris 11).
+		Add support for Darwin 8.x.  Patch from Lyndon Nerenberg.
+		OpenBSD 3.7 has removed support for NETISO.
+	CONFIG: Add OSTYPE(freebsd6) for FreeBSD 6.X.
+		Set DontBlameSendmail to AssumeSafeChown and
+			GroupWritableDirPathSafe for OSTYPE(darwin).
+			Patch from Lyndon Nerenberg.
+		Some features still used 4.7.1 as enhanced status code which
+			was supposed to be eliminated in 8.13.0 because some
+			broken systems misinterpret it as a permanent error.
+			Patch from Matej Vela of Rudjer Boskovic Institute.
+		Some default values in a generated cf file did not match
+			the defaults in the sendmail binary.  Problem noted
+			by Mike Pechkin.
+	New Files:
+		cf/ostype/freebsd6.m4
+		devtools/OS/AIX.5.3
+		devtools/OS/Darwin.8.x
+		devtools/OS/SunOS.5.11
+		include/sm/time.h
 
 8.13.4/8.13.4	2005/03/27
 	The bug fixes in 8.13.3 for connection handling uncovered a

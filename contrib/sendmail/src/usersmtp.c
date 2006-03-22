@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,12 +13,11 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.463 2005/03/16 00:36:09 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.467 2006/03/19 06:07:56 ca Exp $")
 
 #include <sysexits.h>
 
 
-static void	datatimeout __P((int));
 static void	esmtp_check __P((char *, bool, MAILER *, MCI *, ENVELOPE *));
 static void	helo_options __P((char *, bool, MAILER *, MCI *, ENVELOPE *));
 static int	smtprcptstat __P((ADDRESS *, MAILER *, MCI *, ENVELOPE *));
@@ -34,7 +33,6 @@ extern void	sm_sasl_free __P((void *));
 **	This protocol is described in RFC821.
 */
 
-#define REPLYTYPE(r)	((r) / 100)		/* first digit of reply code */
 #define REPLYCLASS(r)	(((r) / 10) % 10)	/* second digit of reply code */
 #define SMTPCLOSING	421			/* "Service Shutting Down" */
 
@@ -2491,9 +2489,6 @@ smtprcptstat(to, m, mci, e)
 **		exit status corresponding to DATA command.
 */
 
-static jmp_buf	CtxDataTimeout;
-static SM_EVENT	*volatile DataTimeout = NULL;
-
 int
 smtpdata(m, mci, e, ctladdr, xstart)
 	MAILER *m;
@@ -2505,7 +2500,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	register int r;
 	int rstat;
 	int xstat;
-	time_t timeout;
+	int timeout;
 	char *enhsc;
 
 	/*
@@ -2629,43 +2624,22 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	**  factor.  The main thing is that it should not be infinite.
 	*/
 
-	if (setjmp(CtxDataTimeout) != 0)
-	{
-		mci->mci_errno = errno;
-		mci->mci_state = MCIS_ERROR;
-		mci_setstat(mci, EX_TEMPFAIL, "4.4.2", NULL);
-
-		/*
-		**  If putbody() couldn't finish due to a timeout,
-		**  rewind it here in the timeout handler.  See
-		**  comments at the end of putbody() for reasoning.
-		*/
-
-		if (e->e_dfp != NULL)
-			(void) bfrewind(e->e_dfp);
-
-		errno = mci->mci_errno;
-		syserr("451 4.4.1 timeout writing message to %s", CurHostName);
-		smtpquit(m, mci, e);
-		return EX_TEMPFAIL;
-	}
-
 	if (tTd(18, 101))
 	{
 		/* simulate a DATA timeout */
-		timeout = 1;
+		timeout = 10;
 	}
 	else
-		timeout = DATA_PROGRESS_TIMEOUT;
-
-	DataTimeout = sm_setevent(timeout, datatimeout, 0);
+		timeout = DATA_PROGRESS_TIMEOUT * 1000;
+	sm_io_setinfo(mci->mci_out, SM_IO_WHAT_TIMEOUT, &timeout);
 
 
 	/*
 	**  Output the actual message.
 	*/
 
-	(*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
+	if (!(*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER))
+		goto writeerr;
 
 	if (tTd(18, 101))
 	{
@@ -2673,14 +2647,13 @@ smtpdata(m, mci, e, ctladdr, xstart)
 		(void) sleep(2);
 	}
 
-	(*e->e_putbody)(mci, e, NULL);
+	if (!(*e->e_putbody)(mci, e, NULL))
+		goto writeerr;
 
 	/*
 	**  Cleanup after sending message.
 	*/
 
-	if (DataTimeout != NULL)
-		sm_clrevent(DataTimeout);
 
 #if PIPELINING
 	}
@@ -2720,7 +2693,9 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	}
 
 	/* terminate the message */
-	(void) sm_io_fprintf(mci->mci_out, SM_TIME_DEFAULT, ".%s", m->m_eol);
+	if (sm_io_fprintf(mci->mci_out, SM_TIME_DEFAULT, ".%s", m->m_eol) ==
+								SM_IO_EOF)
+		goto writeerr;
 	if (TrafficLogFile != NULL)
 		(void) sm_io_fprintf(TrafficLogFile, SM_TIME_DEFAULT,
 				     "%05d >>> .\n", (int) CurrentPid);
@@ -2771,51 +2746,27 @@ smtpdata(m, mci, e, ctladdr, xstart)
 			  shortenstring(SmtpReplyBuffer, 403));
 	}
 	return rstat;
-}
 
-static void
-datatimeout(ignore)
-	int ignore;
-{
-	int save_errno = errno;
+  writeerr:
+	mci->mci_errno = errno;
+	mci->mci_state = MCIS_ERROR;
+	mci_setstat(mci, EX_TEMPFAIL, "4.4.2", NULL);
 
 	/*
-	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
-	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
-	**	DOING.
+	**  If putbody() couldn't finish due to a timeout,
+	**  rewind it here in the timeout handler.  See
+	**  comments at the end of putbody() for reasoning.
 	*/
 
-	if (DataProgress)
-	{
-		time_t timeout;
+	if (e->e_dfp != NULL)
+		(void) bfrewind(e->e_dfp);
 
-		/* check back again later */
-		if (tTd(18, 101))
-		{
-			/* simulate a DATA timeout */
-			timeout = 1;
-		}
-		else
-			timeout = DATA_PROGRESS_TIMEOUT;
-
-		/* reset the timeout */
-		DataTimeout = sm_sigsafe_setevent(timeout, datatimeout, 0);
-		DataProgress = false;
-	}
-	else
-	{
-		/* event is done */
-		DataTimeout = NULL;
-	}
-
-	/* if no progress was made or problem resetting event, die now */
-	if (DataTimeout == NULL)
-	{
-		errno = ETIMEDOUT;
-		longjmp(CtxDataTimeout, 1);
-	}
-	errno = save_errno;
+	errno = mci->mci_errno;
+	syserr("451 4.4.1 timeout writing message to %s", CurHostName);
+	smtpquit(m, mci, e);
+	return EX_TEMPFAIL;
 }
+
 /*
 **  SMTPGETSTAT -- get status code from DATA in LMTP
 **
@@ -3021,6 +2972,8 @@ smtprset(m, mci, e)
 
 	if (mci->mci_state != MCIS_SSD && mci->mci_state != MCIS_CLOSED)
 		mci->mci_state = MCIS_OPEN;
+	else if (mci->mci_exitstat == EX_OK)
+		mci_setstat(mci, EX_TEMPFAIL, "4.5.0", NULL);
 }
 /*
 **  SMTPPROBE -- check the connection state

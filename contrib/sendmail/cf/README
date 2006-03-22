@@ -77,7 +77,7 @@ Let's examine a typical .mc file:
 
 	divert(-1)
 	#
-	# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+	# Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
 	#	All rights reserved.
 	# Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 	# Copyright (c) 1988, 1993
@@ -492,11 +492,12 @@ QPAGE_MAILER_QGRP	[undefined] The queue group for the qpage mailer.
 LOCAL_PROG_QGRP		[undefined] The queue group for the prog mailer.
 
 Note: to tweak Name_MAILER_FLAGS use the macro MODIFY_MAILER_FLAGS:
-MODIFY_MAILER_FLAGS(`Name', `change') where Name is the first part of
-the macro Name_MAILER_FLAGS and change can be: flags that should
-be used directly (thus overriding the default value), or if it
-starts with `+' (`-') then those flags are added to (removed from)
-the default value.  Example:
+MODIFY_MAILER_FLAGS(`Name', `change') where Name is the first part
+of the macro Name_MAILER_FLAGS (note: that means Name is entirely in
+upper case) and change can be: flags that should be used directly
+(thus overriding the default value), or if it starts with `+' (`-')
+then those flags are added to (removed from) the default value.
+Example:
 
 	MODIFY_MAILER_FLAGS(`LOCAL', `+e')
 
@@ -958,7 +959,7 @@ generics_entire_domain
 
 virtusertable	A domain-specific form of aliasing, allowing multiple
 		virtual domains to be hosted on one machine.  For example,
-		if the virtuser table contained:
+		if the virtuser table contains:
 
 			info@foo.com	foo-info
 			info@bar.com	bar-info
@@ -1186,7 +1187,7 @@ accept_unqualified_senders
 		Normally, MAIL FROM: commands in the SMTP session will be
 		refused if the connection is a network connection and the
 		sender address does not include a domain name.  If your
-		setup sends local mail unqualified (i.e., MAIL FROM: <joe>),
+		setup sends local mail unqualified (i.e., MAIL FROM:<joe>),
 		you will need to use this feature to accept unqualified
 		sender addresses.  Setting the DaemonPortOptions modifier
 		'u' overrides the default behavior, i.e., unqualified
@@ -1872,7 +1873,8 @@ sections below).
 See the file cf/sendmail.schema for the actual LDAP schemas.  Note that
 this schema (and therefore the lookups and examples below) is experimental
 at this point as it has had little public review.  Therefore, it may change
-in future versions.  Feedback via sendmail@sendmail.org is encouraged.
+in future versions.  Feedback via sendmail-YYYY@support.sendmail.org is
+encouraged (replace YYYY with the current year, e.g., 2005).
 
 -------
 Aliases
@@ -2336,7 +2338,7 @@ without any prior arrangement).  Along the same lines,
 	FEATURE(`relay_local_from')
 
 will allow relaying if the sender specifies a return path (i.e.
-MAIL FROM: <user@domain>) domain which is a local domain.  This is a
+MAIL FROM:<user@domain>) domain which is a local domain.  This is a
 dangerous feature as it will allow spammers to spam using your mail
 server by simply specifying a return address of user@your.domain.com.
 It should not be used unless absolutely necessary.
@@ -2357,7 +2359,7 @@ allow relaying for roaming users.
 
 
 If source routing is used in the recipient address (e.g.,
-RCPT TO: <user%site.com@othersite.com>), sendmail will check
+RCPT TO:<user%site.com@othersite.com>), sendmail will check
 user@site.com for relaying if othersite.com is an allowed relay host
 in either class {R}, class {m} if FEATURE(`relay_entire_domain') is used,
 or the access database if FEATURE(`access_db') is used.  To prevent
@@ -2522,15 +2524,30 @@ The value part of the map can contain:
 			it but causing the default action.
 	### any text	where ### is an RFC 821 compliant error code and
 			"any text" is a message to return for the command.
-			The string should be quoted to avoid surprises,
-			e.g., sendmail may remove spaces otherwise.
+			The entire string should be quoted to avoid
+			surprises:
+
+				"### any text"
+
+			Otherwise sendmail formats the text as email
+			addresses, e.g., it may remove spaces.
 			This type is deprecated, use one of the two
 			ERROR:  entries below instead.
 	ERROR:### any text
 			as above, but useful to mark error messages as such.
+			If quotes need to be used to avoid modifications
+			(see above), they should be placed like this:
+
+				ERROR:"### any text"
+
 	ERROR:D.S.N:### any text
 			where D.S.N is an RFC 1893 compliant error code
-			and the rest as above.
+			and the rest as above.  If quotes need to be used
+			to avoid modifications, they should be placed
+			like this:
+
+				ERROR:D.S.N:"### any text"
+
 	QUARANTINE:any text
 			Quarantine the message using the given text as the
 			quarantining reason.
@@ -2796,9 +2813,9 @@ That may cause problems with simple header checks due to the
 tokenization.  It might be simpler to use a regex map and apply it
 to $&{currHeader}.
 2. There are no default rulesets coming with this distribution of
-sendmail.  You can either write your own or you can search the
-WWW for examples, e.g.,  http://www.digitalanswers.org/check_local/
-3. When using a default ruleset for headers, the name of the header 
+sendmail.  You can write your own, can search the WWW for examples,
+or take a look at cf/cf/knecht.mc.
+3. When using a default ruleset for headers, the name of the header
 currently being checked can be found in the $&{hdr_name} macro.
 
 After all of the headers are read, the check_eoh ruleset will be called for
@@ -4011,12 +4028,17 @@ confDONT_INIT_GROUPS	DontInitGroups	[False] If set, the initgroups(3)
 					will only have their primary
 					(/etc/passwd) group permissions.
 confUNSAFE_GROUP_WRITES	UnsafeGroupWrites
-					[False] If set, group-writable
+					[True] If set, group-writable
 					:include: and .forward files are
 					considered "unsafe", that is, programs
 					and files cannot be directly referenced
 					from such files.  World-writable files
 					are always considered unsafe.
+					Notice: this option is deprecated and
+					will be removed in future versions;
+					Set GroupWritableForwardFileSafe
+					and GroupWritableIncludeFileSafe in
+					DontBlameSendmail if required.
 confCONNECT_ONLY_TO	ConnectOnlyTo	[undefined] override connection
 					address (for testing).
 confCONTROL_SOCKET_NAME	ControlSocketName
@@ -4183,7 +4205,7 @@ confNICE_QUEUE_RUN	NiceQueueRun	[undefined]  If set, the priority of
 confDIRECT_SUBMISSION_MODIFIERS	DirectSubmissionModifiers
 					[undefined] Defines {daemon_flags}
 					for direct submissions.
-confUSE_MSP		UseMSP		[false] Use as mail submission
+confUSE_MSP		UseMSP		[undefined] Use as mail submission
 					program, see sendmail/SECURITY.
 confDELIVER_BY_MIN	DeliverByMin	[0] Minimum time for Deliver By
 					SMTP Service Extension (RFC 2852).
@@ -4583,4 +4605,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.694 $, Last updated $Date: 2005/03/23 21:41:09 $
+$Revision: 8.704 $, Last updated $Date: 2006/02/15 05:49:31 $
