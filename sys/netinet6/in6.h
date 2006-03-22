@@ -74,7 +74,7 @@
  * has the table of implementation/integration differences.
  */
 #define __KAME__
-#define __KAME_VERSION		"20010528/FreeBSD"
+#define __KAME_VERSION		"FreeBSD"
 
 /*
  * Local port number conventions:
