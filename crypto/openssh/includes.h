@@ -1,4 +1,4 @@
-/*	$OpenBSD: includes.h,v 1.19 2005/05/19 02:42:26 djm Exp $	*/
+/*	$OpenBSD: includes.h,v 1.22 2006/01/01 08:59:27 stevesk Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -21,6 +21,8 @@
 __RCSID(msg)
 
 #include "config.h"
+
+#define _GNU_SOURCE /* activate extra prototypes for glibc */
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -68,7 +70,6 @@ __RCSID(msg)
 #ifdef HAVE_NEXT
 #  include <libc.h>
 #endif
-#define __USE_GNU /* before unistd.h, activate extra prototypes for glibc */
 #include <unistd.h> /* For STDIN_FILENO, etc */
 #include <termios.h> /* Struct winsize */
 

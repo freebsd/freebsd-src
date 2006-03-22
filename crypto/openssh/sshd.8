@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.208 2005/06/08 03:50:00 djm Exp $
+.\" $OpenBSD: sshd.8,v 1.215 2006/02/01 09:11:41 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD 8
@@ -57,16 +57,14 @@
 .Ek
 .Sh DESCRIPTION
 .Nm
-(SSH Daemon) is the daemon program for
+(OpenSSH Daemon) is the daemon program for
 .Xr ssh 1 .
 Together these programs replace rlogin and rsh, and
 provide secure encrypted communications between two untrusted hosts
 over an insecure network.
-The programs are intended to be as easy to
-install and use as possible.
 .Pp
 .Nm
-is the daemon that listens for connections from clients.
+listens for connections from clients.
 It is normally started at boot from
 .Pa /etc/rc.d/sshd .
 It forks a new
@@ -74,119 +72,13 @@ daemon for each incoming connection.
 The forked daemons handle
 key exchange, encryption, authentication, command execution,
 and data exchange.
-This implementation of
-.Nm
-supports both SSH protocol version 1 and 2 simultaneously.
-.Nm
-works as follows:
-.Ss SSH protocol version 1
-Each host has a host-specific RSA key
-(normally 2048 bits) used to identify the host.
-Additionally, when
-the daemon starts, it generates a server RSA key (normally 768 bits).
-This key is normally regenerated every hour if it has been used, and
-is never stored on disk.
-.Pp
-Whenever a client connects, the daemon responds with its public
-host and server keys.
-The client compares the
-RSA host key against its own database to verify that it has not changed.
-The client then generates a 256-bit random number.
-It encrypts this
-random number using both the host key and the server key, and sends
-the encrypted number to the server.
-Both sides then use this
-random number as a session key which is used to encrypt all further
-communications in the session.
-The rest of the session is encrypted
-using a conventional cipher, currently Blowfish or 3DES, with 3DES
-being used by default.
-The client selects the encryption algorithm
-to use from those offered by the server.
-.Pp
-Next, the server and the client enter an authentication dialog.
-The client tries to authenticate itself using
-.Em .rhosts
-authentication combined with RSA host
-authentication, RSA challenge-response authentication, or password
-based authentication.
-.Pp
-Regardless of the authentication type, the account is checked to
-ensure that it is accessible.  An account is not accessible if it is
-locked, listed in
-.Cm DenyUsers
-or its group is listed in
-.Cm DenyGroups
-\&.  The definition of a locked account is system dependant. Some platforms
-have their own account database (eg AIX) and some modify the passwd field (
-.Ql \&*LK\&*
-on Solaris,
-.Ql \&*
-on HP-UX, containing
-.Ql Nologin
-on Tru64 and a leading
-.Ql \&!!
-on Linux).  If there is a requirement to disable password authentication
-for the account while allowing still public-key, then the passwd field
-should be set to something other than these values (eg
-.Ql NP
-or
-.Ql \&*NP\&*
-).
-.Pp
-.Nm rshd ,
-.Nm rlogind ,
-and
-.Nm rexecd
-are disabled (thus completely disabling
-.Xr rlogin
-and
-.Xr rsh
-into the machine).
-.Ss SSH protocol version 2
-Version 2 works similarly:
-Each host has a host-specific key (RSA or DSA) used to identify the host.
-However, when the daemon starts, it does not generate a server key.
-Forward security is provided through a Diffie-Hellman key agreement.
-This key agreement results in a shared session key.
-.Pp
-The rest of the session is encrypted using a symmetric cipher, currently
-128-bit AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.
-The client selects the encryption algorithm
-to use from those offered by the server.
-Additionally, session integrity is provided
-through a cryptographic message authentication code
-(hmac-sha1 or hmac-md5).
-.Pp
-Protocol version 2 provides a public key based
-user (PubkeyAuthentication) or
-client host (HostbasedAuthentication) authentication method,
-conventional password authentication and challenge response based methods.
-.Ss Command execution and data forwarding
-If the client successfully authenticates itself, a dialog for
-preparing the session is entered.
-At this time the client may request
-things like allocating a pseudo-tty, forwarding X11 connections,
-forwarding TCP/IP connections, or forwarding the authentication agent
-connection over the secure channel.
-.Pp
-Finally, the client either requests a shell or execution of a command.
-The sides then enter session mode.
-In this mode, either side may send
-data at any time, and such data is forwarded to/from the shell or
-command on the server side, and the user terminal in the client side.
-.Pp
-When the user program terminates and all forwarded X11 and other
-connections have been closed, the server sends command exit status to
-the client, and both sides exit.
 .Pp
 .Nm
 can be configured using command-line options or a configuration file
 (by default
-.Xr sshd_config 5 ) .
-Command-line options override values specified in the
+.Xr sshd_config 5 ) ;
+command-line options override values specified in the
 configuration file.
-.Pp
 .Nm
 rereads its configuration file when it receives a hangup signal,
 .Dv SIGHUP ,
@@ -284,8 +176,12 @@ For full details of the options, and their values, see
 Specifies the port on which the server listens for connections
 (default 22).
 Multiple port options are permitted.
-Ports specified in the configuration file are ignored when a
-command-line port is specified.
+Ports specified in the configuration file with the
+.Cm Port
+option are ignored when a command-line port is specified.
+Ports specified using the
+.Cm ListenAddress
+option override command-line ports.
 .It Fl q
 Quiet mode.
 Nothing is sent to the system log.
@@ -320,7 +216,7 @@ from making DNS requests unless the authentication
 mechanism or configuration requires it.
 Authentication mechanisms that may require DNS include
 .Cm RhostsRSAAuthentication ,
-.Cm HostbasedAuthentication
+.Cm HostbasedAuthentication ,
 and using a
 .Cm from="pattern-list"
 option in a key file.
@@ -330,15 +226,114 @@ USER@HOST pattern in
 or
 .Cm DenyUsers .
 .El
-.Sh CONFIGURATION FILE
-.Nm
-reads configuration data from
-.Pa /etc/ssh/sshd_config
-(or the file specified with
-.Fl f
-on the command line).
-The file format and configuration options are described in
+.Sh AUTHENTICATION
+The OpenSSH SSH daemon supports SSH protocols 1 and 2.
+Both protocols are supported by default,
+though this can be changed via the
+.Cm Protocol
+option in
 .Xr sshd_config 5 .
+Protocol 2 supports both RSA and DSA keys;
+protocol 1 only supports RSA keys.
+For both protocols,
+each host has a host-specific key,
+normally 2048 bits,
+used to identify the host.
+.Pp
+Forward security for protocol 1 is provided through
+an additional server key,
+normally 768 bits,
+generated when the server starts.
+This key is normally regenerated every hour if it has been used, and
+is never stored on disk.
+Whenever a client connects, the daemon responds with its public
+host and server keys.
+The client compares the
+RSA host key against its own database to verify that it has not changed.
+The client then generates a 256-bit random number.
+It encrypts this
+random number using both the host key and the server key, and sends
+the encrypted number to the server.
+Both sides then use this
+random number as a session key which is used to encrypt all further
+communications in the session.
+The rest of the session is encrypted
+using a conventional cipher, currently Blowfish or 3DES, with 3DES
+being used by default.
+The client selects the encryption algorithm
+to use from those offered by the server.
+.Pp
+For protocol 2,
+forward security is provided through a Diffie-Hellman key agreement.
+This key agreement results in a shared session key.
+The rest of the session is encrypted using a symmetric cipher, currently
+128-bit AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.
+The client selects the encryption algorithm
+to use from those offered by the server.
+Additionally, session integrity is provided
+through a cryptographic message authentication code
+(hmac-sha1 or hmac-md5).
+.Pp
+Finally, the server and the client enter an authentication dialog.
+The client tries to authenticate itself using
+host-based authentication,
+public key authentication,
+challenge-response authentication,
+or password authentication.
+.Pp
+Regardless of the authentication type, the account is checked to
+ensure that it is accessible.  An account is not accessible if it is
+locked, listed in
+.Cm DenyUsers
+or its group is listed in
+.Cm DenyGroups
+\&.  The definition of a locked account is system dependant. Some platforms
+have their own account database (eg AIX) and some modify the passwd field (
+.Ql \&*LK\&*
+on Solaris and UnixWare,
+.Ql \&*
+on HP-UX, containing
+.Ql Nologin
+on Tru64,
+a leading
+.Ql \&*LOCKED\&*
+on FreeBSD and a leading
+.Ql \&!!
+on Linux).  If there is a requirement to disable password authentication
+for the account while allowing still public-key, then the passwd field
+should be set to something other than these values (eg
+.Ql NP
+or
+.Ql \&*NP\&*
+).
+.Pp
+System security is not improved unless
+.Nm rshd ,
+.Nm rlogind ,
+and
+.Nm rexecd
+are disabled (thus completely disabling
+.Xr rlogin
+and
+.Xr rsh
+into the machine).
+.Sh COMMAND EXECUTION AND DATA FORWARDING
+If the client successfully authenticates itself, a dialog for
+preparing the session is entered.
+At this time the client may request
+things like allocating a pseudo-tty, forwarding X11 connections,
+forwarding TCP connections, or forwarding the authentication agent
+connection over the secure channel.
+.Pp
+Finally, the client either requests a shell or execution of a command.
+The sides then enter session mode.
+In this mode, either side may send
+data at any time, and such data is forwarded to/from the shell or
+command on the server side, and the user terminal in the client side.
+.Pp
+When the user program terminates and all forwarded X11 and other
+connections have been closed, the server sends command exit status to
+the client, and both sides exit.
 .Sh LOGIN PROCESS
 When a user successfully logs in,
 .Nm
@@ -474,7 +469,7 @@ A quote may be included in the command by quoting it with a backslash.
 This option might be useful
 to restrict certain public keys to perform just a specific operation.
 An example might be a key that permits remote backups but nothing else.
-Note that the client may specify TCP/IP and/or X11
+Note that the client may specify TCP and/or X11
 forwarding unless they are explicitly prohibited.
 Note that this option applies to shell, command or subsystem execution.
 .It Cm environment="NAME=value"
@@ -491,7 +486,7 @@ This option is automatically disabled if
 .Cm UseLogin
 is enabled.
 .It Cm no-port-forwarding
-Forbids TCP/IP forwarding when this key is used for authentication.
+Forbids TCP forwarding when this key is used for authentication.
 Any port forward requests by the client will return an error.
 This might be used, e.g., in connection with the
 .Cm command
@@ -516,6 +511,12 @@ Multiple
 options may be applied separated by commas.
 No pattern matching is performed on the specified hostnames,
 they must be literal domains or addresses.
+.It Cm tunnel="n"
+Force a
+.Xr tun 4
+device on the server.
+Without this option, the next available device will be used if
+the client requests a tunnel.
 .El
 .Ss Examples
 1024 33 12121...312314325 ylo@foo.bar
@@ -525,6 +526,8 @@ from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23...2334 ylo@niksula
 command="dump /home",no-pty,no-port-forwarding 1024 33 23...2323 backup.hut.fi
 .Pp
 permitopen="10.2.1.55:80",permitopen="10.2.1.56:25" 1024 33 23...2323
+.Pp
+tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...== reyk@openbsd.org
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The
 .Pa /etc/ssh/ssh_known_hosts

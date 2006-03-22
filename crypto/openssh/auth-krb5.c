@@ -28,7 +28,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb5.c,v 1.15 2003/11/21 11:57:02 djm Exp $");
+RCSID("$OpenBSD: auth-krb5.c,v 1.16 2005/11/21 09:42:10 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -69,9 +69,6 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	krb5_error_code problem;
 	krb5_ccache ccache = NULL;
 	int len;
-
-	if (!authctxt->valid)
-		return (0);
 
 	temporarily_use_uid(authctxt->pw);
 
@@ -189,7 +186,7 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 		else
 			return (0);
 	}
-	return (1);
+	return (authctxt->valid ? 1 : 0);
 }
 
 void
@@ -219,7 +216,7 @@ ssh_krb5_cc_gen(krb5_context ctx, krb5_ccache *ccache) {
 
 	ret = snprintf(ccname, sizeof(ccname),
 	    "FILE:/tmp/krb5cc_%d_XXXXXXXXXX", geteuid());
-	if (ret == -1 || ret >= sizeof(ccname))
+	if (ret < 0 || (size_t)ret >= sizeof(ccname))
 		return ENOMEM;
 
 	old_umask = umask(0177);
