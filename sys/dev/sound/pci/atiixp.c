@@ -65,7 +65,6 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-
 struct atiixp_dma_op {
 	volatile uint32_t addr;
 	volatile uint16_t status;
@@ -126,9 +125,7 @@ struct atiixp_info {
 
 static uint32_t atiixp_fmt_32bit[] = {
 	AFMT_STEREO | AFMT_S16_LE,
-#ifdef AFMT_S32_LE
 	AFMT_STEREO | AFMT_S32_LE,
-#endif
 	0
 };
 
@@ -184,6 +181,7 @@ static void atiixp_intr(void *);
 static void atiixp_dma_cb(void *, bus_dma_segment_t *, int, int);
 static void atiixp_chip_pre_init(struct atiixp_info *);
 static void atiixp_chip_post_init(void *);
+static void atiixp_release_resource(struct atiixp_info *);
 static int  atiixp_pci_probe(device_t);
 static int  atiixp_pci_attach(device_t);
 static int  atiixp_pci_detach(device_t);
@@ -744,12 +742,9 @@ atiixp_chip_post_init(void *arg)
 	}
 
 	/* wait for the interrupts to happen */
-	timeout = 100;		/* 100.000 usec -> 0.1 sec */
-
+	timeout = 100;
 	while (--timeout) {
-		atiixp_unlock(sc);
-		DELAY(1000);
-		atiixp_lock(sc);
+		msleep(sc, sc->lock, PWAIT, "ixpslp", 1);
 		if (sc->codec_not_ready_bits)
 			break;
 	}
@@ -761,7 +756,7 @@ atiixp_chip_post_init(void *arg)
 			"WARNING: timeout during codec detection; "
 			"codecs might be present but haven't interrupted\n");
 		atiixp_unlock(sc);
-		return;
+		goto postinitbad;
 	}
 
 	found = 0;
@@ -793,7 +788,7 @@ atiixp_chip_post_init(void *arg)
 	atiixp_unlock(sc);
 
 	if (found == 0)
-		return;
+		goto postinitbad;
 
 	/* create/init mixer */
 	sc->codec = AC97_CREATE(sc->dev, sc, atiixp_ac97);
@@ -832,23 +827,46 @@ atiixp_chip_post_init(void *arg)
 	return;
 
 postinitbad:
-	if (sc->codec)
+	atiixp_release_resource(sc);
+}
+
+static void
+atiixp_release_resource(struct atiixp_info *sc)
+{
+	if (sc == NULL)
+		return;
+	if (sc->codec) {
 		ac97_destroy(sc->codec);
-	if (sc->ih)
+		sc->codec = NULL;
+	}
+	if (sc->ih) {
 		bus_teardown_intr(sc->dev, sc->irq, sc->ih);
-	if (sc->reg)
+		sc->ih = 0;
+	}
+	if (sc->reg) {
 		bus_release_resource(sc->dev, sc->regtype, sc->regid, sc->reg);
-	if (sc->irq)
+		sc->reg = 0;
+	}
+	if (sc->irq) {
 		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	if (sc->parent_dmat)
+		sc->irq = 0;
+	}
+	if (sc->parent_dmat) {
 		bus_dma_tag_destroy(sc->parent_dmat);
-	if (sc->sgd_dmamap)
+		sc->parent_dmat = 0;
+	}
+	if (sc->sgd_dmamap) {
 		bus_dmamap_unload(sc->sgd_dmat, sc->sgd_dmamap);
-	if (sc->sgd_dmat)
+		sc->sgd_dmamap = 0;
+	}
+	if (sc->sgd_dmat) {
 		bus_dma_tag_destroy(sc->sgd_dmat);
-	if (sc->lock)
+		sc->sgd_dmat = 0;
+	}
+	if (sc->lock) {
 		snd_mtxfree(sc->lock);
-	free(sc, M_DEVBUF);
+		sc->lock = NULL;
+	}
 }
 
 static int
@@ -992,24 +1010,7 @@ atiixp_pci_attach(device_t dev)
 	return 0;
 
 bad:
-	if (sc->codec)
-		ac97_destroy(sc->codec);
-	if (sc->ih)
-		bus_teardown_intr(dev, sc->irq, sc->ih);
-	if (sc->reg)
-		bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
-	if (sc->irq)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	if (sc->parent_dmat)
-		bus_dma_tag_destroy(sc->parent_dmat);
-	if (sc->sgd_dmamap)
-		bus_dmamap_unload(sc->sgd_dmat, sc->sgd_dmamap);
-	if (sc->sgd_dmat)
-		bus_dma_tag_destroy(sc->sgd_dmat);
-	if (sc->lock)
-		snd_mtxfree(sc->lock);
-	free(sc, M_DEVBUF);
-
+	atiixp_release_resource(sc);
 	return ENXIO;
 }
 
@@ -1019,23 +1020,18 @@ atiixp_pci_detach(device_t dev)
 	int r;
 	struct atiixp_info *sc;
 
-	r = pcm_unregister(dev);
-	if (r)
-		return r;
-
 	sc = pcm_getdevinfo(dev);
-
-	atiixp_disable_interrupts(sc);
-
-	bus_teardown_intr(dev, sc->irq, sc->ih);
-	bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
-	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	bus_dma_tag_destroy(sc->parent_dmat);
-	bus_dmamap_unload(sc->sgd_dmat, sc->sgd_dmamap);
-	bus_dma_tag_destroy(sc->sgd_dmat);
-	snd_mtxfree(sc->lock);
-	free(sc, M_DEVBUF);
-
+	if (sc != NULL) {
+		if (sc->codec != NULL) {
+			r = pcm_unregister(dev);
+			if (r)
+				return r;
+		}
+		sc->codec = NULL;
+		atiixp_disable_interrupts(sc);
+		atiixp_release_resource(sc);
+		free(sc, M_DEVBUF);
+	}
 	return 0;
 }
 
