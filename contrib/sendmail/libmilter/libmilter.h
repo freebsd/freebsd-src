@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -19,7 +19,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # define INIT(x)	= x
-SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.50 2003/12/11 18:14:34 ca Exp $")
+SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.51 2006/01/04 02:24:37 ca Exp $")
 #else /* _DEFINE */
 # define EXTERN extern
 # define INIT(x)
@@ -102,7 +102,7 @@ typedef pthread_mutex_t smutex_t;
 
 # define FD_WR_INIT(sd, wrs)			\
 		FD_ZERO(&(wrs));			\
-		FD_SET((unsigned int) (sd), &(wrs));	\
+		FD_SET((unsigned int) (sd), &(wrs))
 
 # define FD_IS_RD_EXC(sd, rds, excs) FD_ISSET(sd, &(excs))
 # define FD_IS_WR_RDY(sd, wrs) FD_ISSET((sd), &(wrs))

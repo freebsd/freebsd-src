@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.381 2005/02/04 22:01:45 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.383 2006/02/01 19:46:11 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -1337,7 +1337,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					/* $&{x} replacement */
 					char *mval = macvalue(rp[1], e);
 					char **xpvp;
-					int trsize = 0;
+					size_t trsize = 0;
 					static size_t pvpb1_size = 0;
 					static char **pvpb1 = NULL;
 					char pvpbuf[PSBUFSIZE];
@@ -1352,7 +1352,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					/* save the remainder of the input */
 					for (xpvp = pvp; *xpvp != NULL; xpvp++)
 						trsize += sizeof *xpvp;
-					if ((size_t) trsize > pvpb1_size)
+					if (trsize > pvpb1_size)
 					{
 						if (pvpb1 != NULL)
 							sm_free(pvpb1);
@@ -1407,7 +1407,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 		{
 			char **hbrvp;
 			char **xpvp;
-			int trsize;
+			size_t trsize;
 			char *replac;
 			int endtoken;
 			STAB *map;
@@ -1415,7 +1415,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			char **key_rvp;
 			char **arg_rvp;
 			char **default_rvp;
-			char cbuf[MAXNAME + 1];
+			char cbuf[MAXKEY];
 			char *pvpb1[MAXATOM + 1];
 			char *argvect[MAX_MAP_ARGS];
 			char pvpbuf[PSBUFSIZE];
@@ -1509,7 +1509,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				*++arg_rvp = NULL;
 
 			/* save the remainder of the input string */
-			trsize = (int) (avp - rvp + 1) * sizeof *rvp;
+			trsize = (avp - rvp + 1) * sizeof *rvp;
 			memmove((char *) pvpb1, (char *) rvp, trsize);
 
 			/* look it up */
@@ -2949,7 +2949,7 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	char *logid;
 {
 	char *volatile buf;
-	int bufsize;
+	size_t bufsize;
 	int saveexitstat;
 	int volatile rstat = EX_OK;
 	char **pvp;
@@ -3163,7 +3163,7 @@ rscap(rwset, p1, p2, e, pvp, pvpbuf, size)
 	int size;
 {
 	char *volatile buf;
-	int bufsize;
+	size_t bufsize;
 	int volatile rstat = EX_OK;
 	int rsno;
 	bool saveQuickAbort = QuickAbort;

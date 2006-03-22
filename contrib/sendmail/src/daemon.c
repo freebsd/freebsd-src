@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.658 2005/02/02 18:19:28 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.665 2006/03/02 19:12:00 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -34,7 +34,7 @@ SM_RCSID("@(#)$Id: daemon.c,v 8.658 2005/02/02 18:19:28 ca Exp $")
 #  include <openssl/rand.h>
 #endif /* STARTTLS */
 
-#include <sys/time.h>
+#include <sm/time.h>
 
 #if IP_SRCROUTE && NETINET
 # include <netinet/in_systm.h>
@@ -89,9 +89,6 @@ typedef struct daemon DAEMON_T;
 
 #define SAFE_NOTSET	(-1)	/* SuperSafe (per daemon) option not set */
 /* see also sendmail.h: SuperSafe values */
-
-#define DM_NOTSET	(-1)	/* DeliveryMode (per daemon) option not set */
-/* see also sendmail.h: values for e_sendmode -- send modes */
 
 static void		connecttimeout __P((int));
 static int		opendaemonsocket __P((DAEMON_T *, bool));
@@ -390,8 +387,8 @@ getrequests(e)
 #endif /* _FFR_QUEUE_RUN_PARANOIA */
 			}
 #if _FFR_QUEUE_RUN_PARANOIA
-			else if (QueueIntvl > 0 &&
-				 lastrun + QueueIntvl + 60 < now)
+			else if (CheckQueueRunners > 0 && QueueIntvl > 0 &&
+				 lastrun + QueueIntvl + CheckQueueRunners < now)
 			{
 
 				/*
@@ -764,7 +761,6 @@ getrequests(e)
 					set_delivery_mode(
 						Daemons[curdaemon].d_dm, e);
 #endif /* _FFR_DM_PER_DAEMON */
-					
 
 				sm_setproctitle(true, e, "startup with %s",
 						anynet_ntoa(&RealHostAddr));
@@ -1455,6 +1451,12 @@ setsockaddroptions(p, d)
 	if (d->d_addr.sa.sa_family == AF_UNSPEC)
 		d->d_addr.sa.sa_family = AF_INET;
 #endif /* NETINET */
+#if _FFR_SS_PER_DAEMON
+	d->d_supersafe = SAFE_NOTSET;
+#endif /* _FFR_SS_PER_DAEMON */
+#if _FFR_DM_PER_DAEMON
+	d->d_dm = DM_NOTSET;
+#endif /* _FFR_DM_PER_DAEMON */
 
 	while (p != NULL)
 	{
@@ -1476,12 +1478,6 @@ setsockaddroptions(p, d)
 			continue;
 		if (isascii(*f) && islower(*f))
 			*f = toupper(*f);
-#if _FFR_SS_PER_DAEMON
-		d->d_supersafe = SAFE_NOTSET;
-#endif /* _FFR_SS_PER_DAEMON */
-#if _FFR_DM_PER_DAEMON
-		d->d_dm = DM_NOTSET;
-#endif /* _FFR_DM_PER_DAEMON */
 
 		switch (*f)
 		{
@@ -1496,7 +1492,7 @@ setsockaddroptions(p, d)
 			  case SM_QUEUE:
 			  case SM_DEFER:
 			  case SM_DELIVER:
-			  case SM_FORK:	
+			  case SM_FORK:
 				d->d_dm = *v;
 				break;
 			  default:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfdef.h,v 8.21 2004/07/07 21:41:31 ca Exp $
+ *	$Id: mfdef.h,v 8.22 2005/08/05 21:49:04 ca Exp $
  */
 
 /*
@@ -61,6 +61,7 @@
 # define SMFIR_REPLBODY		'b'	/* replace body (chunk) */
 # define SMFIR_CONTINUE		'c'	/* continue */
 # define SMFIR_DISCARD		'd'	/* discard */
+# define SMFIR_CONN_FAIL	'f'	/* cause a connection failure */
 # define SMFIR_CHGHEADER	'm'	/* change header */
 # define SMFIR_PROGRESS		'p'	/* progress */
 # define SMFIR_REJECT		'r'	/* reject */
@@ -82,13 +83,17 @@
 # if _FFR_MILTER_NOHDR_RESP
 #  define SMFIP_NOHREPL  0x00000080L	/* No reply for headers */
 # endif /* _FFR_MILTER_NOHDR_RESP */
+# define SMFIP_NOUNKNOWN 0x00000100L	/* MTA should not send unknown command */
+# define SMFIP_NODATA    0x00000200L	/* MTA should not send DATA */
 
 # define SMFI_V1_PROT	0x0000003FL	/* The protocol of V1 filter */
 # define SMFI_V2_PROT	0x0000007FL	/* The protocol of V2 filter */
+
+/* Note: the "current" version is now determined dynamically in milter.c */
 # if _FFR_MILTER_NOHDR_RESP
-#  define SMFI_CURR_PROT 0x000000FFL	/* The current version */
+#  define SMFI_CURR_PROT 0x000000FFL
 # else /* _FFR_MILTER_NOHDR_RESP */
-#  define SMFI_CURR_PROT SMFI_V2_PROT	/* The current version */
+#  define SMFI_CURR_PROT SMFI_V2_PROT
 # endif /* _FFR_MILTER_NOHDR_RESP */
 
 #endif /* !_LIBMILTER_MFDEF_H */

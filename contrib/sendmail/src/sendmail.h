@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.993 2005/03/07 18:03:17 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1006 2006/02/27 17:49:09 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -809,13 +809,13 @@ extern struct hdrinfo	HdrInfo[];
 /* functions */
 extern void	addheader __P((char *, char *, int, ENVELOPE *));
 extern unsigned long	chompheader __P((char *, int, HDR **, ENVELOPE *));
-extern void	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
+extern bool	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
 extern HDR	*copyheader __P((HDR *, SM_RPOOL_T *));
 extern void	eatheader __P((ENVELOPE *, bool, bool));
 extern char	*hvalue __P((char *, HDR *));
 extern void	insheader __P((int, char *, char *, int, ENVELOPE *));
 extern bool	isheader __P((char *));
-extern void	putfromline __P((MCI *, ENVELOPE *));
+extern bool	putfromline __P((MCI *, ENVELOPE *));
 extern void	setupheaders __P((void));
 
 /*
@@ -870,9 +870,9 @@ struct envelope
 	short		e_sendmode;	/* message send mode */
 	short		e_errormode;	/* error return mode */
 	short		e_timeoutclass;	/* message timeout class */
-	void		(*e_puthdr)__P((MCI *, HDR *, ENVELOPE *, int));
+	bool		(*e_puthdr)__P((MCI *, HDR *, ENVELOPE *, int));
 					/* function to put header of message */
-	void		(*e_putbody)__P((MCI *, ENVELOPE *, char *));
+	bool		(*e_putbody)__P((MCI *, ENVELOPE *, char *));
 					/* function to put body of message */
 	ENVELOPE	*e_parent;	/* the message this one encloses */
 	ENVELOPE	*e_sibling;	/* the next envelope of interest */
@@ -965,8 +965,8 @@ extern void	dropenvelope __P((ENVELOPE *, bool, bool));
 extern ENVELOPE	*newenvelope __P((ENVELOPE *, ENVELOPE *, SM_RPOOL_T *));
 extern void	clrsessenvelope __P((ENVELOPE *));
 extern void	printenvflags __P((ENVELOPE *));
-extern void	putbody __P((MCI *, ENVELOPE *, char *));
-extern void	putheader __P((MCI *, HDR *, ENVELOPE *, int));
+extern bool	putbody __P((MCI *, ENVELOPE *, char *));
+extern bool	putheader __P((MCI *, HDR *, ENVELOPE *, int));
 
 /*
 **  Message priority classes.
@@ -1213,7 +1213,7 @@ MAP
 #define MF_REGEX_NOT	0x00040000	/* regular expression negation */
 #define MF_DEFER	0x00080000	/* don't lookup map in defer mode */
 #define MF_SINGLEMATCH	0x00100000	/* successful only if match one key */
-/*			0x00200000	   available for use */
+#define MF_SINGLEDN	0x00200000	/* only one match, but multi values */
 #define MF_FILECLASS	0x00400000	/* this is a file class map */
 #define MF_OPENBOGUS	0x00800000	/* open failed, don't call map_close */
 #define MF_CLOSING	0x01000000	/* map is being closed */
@@ -1542,9 +1542,13 @@ extern void	stabapply __P((void (*)(STAB *, int), int));
 /* values for e_sendmode -- send modes */
 #define SM_DELIVER	'i'		/* interactive delivery */
 #define SM_FORK		'b'		/* deliver in background */
+#if _FFR_DM_ONE
+#define SM_DM_ONE	'o' /* deliver first TA in background, then queue */
+#endif /* _FFR_DM_ONE */
 #define SM_QUEUE	'q'		/* queue, don't deliver */
 #define SM_DEFER	'd'		/* defer map lookups as well as queue */
 #define SM_VERIFY	'v'		/* verify only (used internally) */
+#define DM_NOTSET	(-1)	/* DeliveryMode (per daemon) option not set */
 
 #define WILL_BE_QUEUED(m)	((m) == SM_QUEUE || (m) == SM_DEFER)
 
@@ -1650,7 +1654,7 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 #define M87F_NO8TO7		0x0004	/* don't do 8->7 bit conversions */
 
 /* functions */
-extern void	mime7to8 __P((MCI *, HDR *, ENVELOPE *));
+extern bool	mime7to8 __P((MCI *, HDR *, ENVELOPE *));
 extern int	mime8to7 __P((MCI *, HDR *, ENVELOPE *, char **, int));
 
 /*
@@ -1820,11 +1824,12 @@ struct termescape
 #define TLS_I_SRV_CERT	 (TLS_I_CERT_EX | TLS_I_KEY_EX | \
 			  TLS_I_KEY_UNR | TLS_I_KEY_OUNR | \
 			  TLS_I_CERTP_EX | TLS_I_CERTF_EX | \
-			  TLS_I_USE_KEY | TLS_I_USE_CERT)
+			  TLS_I_USE_KEY | TLS_I_USE_CERT | TLS_I_CACHE)
 
 /* server requirements */
 #define TLS_I_SRV	(TLS_I_SRV_CERT | TLS_I_RSA_TMP | TLS_I_VRFY_PATH | \
-			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_DH512)
+			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_DH512 | \
+			 TLS_I_CACHE)
 
 /* client requirements */
 #define TLS_I_CLT	(TLS_I_KEY_UNR | TLS_I_KEY_OUNR)
@@ -1841,7 +1846,7 @@ extern void	setclttls __P((bool));
 extern bool	initsrvtls __P((bool));
 extern int	tls_get_info __P((SSL *, bool, char *, MACROS_T *, bool));
 extern int	endtls __P((SSL *, char *));
-extern void	tlslogerr __P((char *));
+extern void	tlslogerr __P((const char *));
 
 
 EXTERN char	*CACertPath;	/* path to CA certificates (dir. with hashes) */
@@ -2141,11 +2146,13 @@ extern unsigned char	tTdvect[100];	/* trace vector */
 
 EXTERN bool	AllowBogusHELO;	/* allow syntax errors on HELO command */
 EXTERN bool	CheckAliases;	/* parse addresses during newaliases */
+#if _FFR_QUEUE_RUN_PARANOIA
+EXTERN int	CheckQueueRunners; /* check whether queue runners are OK */
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
 EXTERN bool	ColonOkInAddr;	/* single colon legal in address */
 #if !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_)
 EXTERN bool	ConfigFileRead;	/* configuration file has been read */
 #endif /* !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_) */
-EXTERN bool	volatile DataProgress;	/* have we sent anything since last check */
 EXTERN bool	DisConnected;	/* running with OutChannel redirect to transcript file */
 EXTERN bool	DontExpandCnames;	/* do not $[...$] expand CNAMEs */
 EXTERN bool	DontInitGroups;	/* avoid initgroups() because of NIS cost */
@@ -2212,9 +2219,14 @@ EXTERN int	MaxHopCount;	/* max # of hops until bounce */
 EXTERN int	MaxMacroRecursion;	/* maximum depth of macro recursion */
 EXTERN int	MaxMimeFieldLength;	/* maximum MIME field length */
 EXTERN int	MaxMimeHeaderLength;	/* maximum MIME header length */
+EXTERN int	MaxNOOPCommands; /* max "noise" commands before slowdown */
 
 EXTERN int	MaxRcptPerMsg;	/* max recipients per SMTP message */
 EXTERN int	MaxRuleRecursion;	/* maximum depth of ruleset recursion */
+#if _FFR_MSG_ACCEPT
+EXTERN char	*MessageAccept;
+#endif /* _FFR_MSG_ACCEPT */
+
 EXTERN int	MimeMode;	/* MIME processing mode */
 EXTERN int	NoRecipientAction;
 
@@ -2229,6 +2241,11 @@ EXTERN int	NumFileSys;	/* number of queue file systems */
 EXTERN int	QueueLA;	/* load average starting forced queueing */
 EXTERN int	RefuseLA;	/* load average refusing connections */
 EXTERN time_t	RejectLogInterval;	/* time btwn log msgs while refusing */
+#if _FFR_MEMSTAT
+EXTERN long	QueueLowMem;	/* low memory starting forced queueing */
+EXTERN long	RefuseLowMem;	/* low memory refusing connections */
+EXTERN char	*MemoryResource;/* memory resource to look up */
+#endif /* _FFR_MEMSTAT */
 EXTERN int	SuperSafe;	/* be extra careful, even if expensive */
 EXTERN int	VendorCode;	/* vendor-specific operation enhancements */
 EXTERN int	Verbose;	/* set if blow-by-blow desired */
@@ -2371,6 +2388,7 @@ extern void	smtpquit __P((MAILER *, MCI *, ENVELOPE *));
 extern int	smtprcpt __P((ADDRESS *, MAILER *, MCI *, ENVELOPE *, ADDRESS *, time_t));
 extern void	smtprset __P((MAILER *, MCI *, ENVELOPE *));
 
+#define REPLYTYPE(r)	((r) / 100)		/* first digit of reply code */
 #define ISSMTPCODE(c)	(isascii(c[0]) && isdigit(c[0]) && \
 		    isascii(c[1]) && isdigit(c[1]) && \
 		    isascii(c[2]) && isdigit(c[2]))
@@ -2519,8 +2537,8 @@ extern void	printopenfds __P((bool));
 extern void	printqueue __P((void));
 extern void	printrules __P((void));
 extern pid_t	prog_open __P((char **, int *, ENVELOPE *));
-extern void	putline __P((char *, MCI *));
-extern void	putxline __P((char *, size_t, MCI *, int));
+extern bool	putline __P((char *, MCI *));
+extern bool	putxline __P((char *, size_t, MCI *, int));
 extern void	queueup_macros __P((int, SM_FILE_T *, ENVELOPE *));
 extern void	readcf __P((char *, bool, ENVELOPE *));
 extern SIGFUNC_DECL	reapchild __P((int));
@@ -2540,7 +2558,7 @@ extern bool	setvendor __P((char *));
 extern void	set_op_mode __P((int));
 extern void	setoption __P((int, char *, bool, bool, ENVELOPE *));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
-extern void	setuserenv __P((const char *, const char *));
+extern void	sm_setuserenv __P((const char *, const char *));
 extern void	settime __P((ENVELOPE *));
 extern char	*sfgets __P((char *, int, SM_FILE_T *, time_t, char *));
 extern char	*shortenstring __P((const char *, size_t));
