@@ -758,11 +758,11 @@ vn_poll(fp, events, active_cred, td)
 	struct thread *td;
 {
 	struct vnode *vp;
+	int vfslocked;
 	int error;
 
-	mtx_lock(&Giant);
-
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = mac_check_vnode_poll(active_cred, fp->f_cred, vp);
@@ -771,7 +771,7 @@ vn_poll(fp, events, active_cred, td)
 #endif
 
 	error = VOP_POLL(vp, events, fp->f_cred, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -1102,11 +1102,12 @@ vfs_write_resume(mp)
 static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
+	int vfslocked;
 	int error;
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = VOP_KQFILTER(fp->f_vnode, kn);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	return error;
 }
