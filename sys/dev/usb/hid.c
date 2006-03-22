@@ -371,14 +371,22 @@ hid_report_size(void *buf, int len, enum hid_kind k, u_int8_t *idp)
 {
 	struct hid_data *d;
 	struct hid_item h;
-	int size, id;
+	int hi, lo, size, id;
 
 	id = 0;
+	hi = lo = -1;
 	for (d = hid_start_parse(buf, len, 1<<k); hid_get_item(d, &h); )
-		if (h.report_ID != 0 && !id)
-			id = h.report_ID;
+		if (h.kind == k) {
+			if (h.report_ID != 0 && !id)
+				id = h.report_ID;
+			if (h.report_ID == id) {
+				if (lo < 0)
+					lo = h.loc.pos;
+				hi = h.loc.pos + h.loc.size * h.loc.count;
+			}
+		}
 	hid_end_parse(d);
-	size = h.loc.pos;
+	size = hi - lo;
 	if (id != 0) {
 		size += 8;
 		*idp = id;	/* XXX wrong */
