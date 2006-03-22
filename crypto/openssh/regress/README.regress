@@ -97,8 +97,12 @@ Known Issues.
   unless ssh-rand-helper is in pre-installed (the path to
   ssh-rand-helper is hard coded).
 
+- Similarly, if you do not have "scp" in your system's $PATH then the
+  multiplex scp tests will fail (since the system's shell startup scripts
+  will determine where the shell started by sshd will look for scp).
+
 - Recent GNU coreutils deprecate "head -[n]": this will cause the yes-head
   test to fail.  The old behaviour can be restored by setting (and
   exporting) _POSIX2_VERSION=199209 before running the tests.
 
-$Id: README.regress,v 1.9 2004/08/17 12:31:33 dtucker Exp $
+$Id: README.regress,v 1.10 2005/10/03 10:14:18 dtucker Exp $

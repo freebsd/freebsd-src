@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: hostfile.c,v 1.35 2005/07/27 10:39:03 dtucker Exp $");
+RCSID("$OpenBSD: hostfile.c,v 1.36 2005/11/22 03:36:03 dtucker Exp $");
 
 #include <resolv.h>
 #include <openssl/hmac.h>
@@ -88,8 +88,8 @@ extract_salt(const char *s, u_int l, char *salt, size_t salt_len)
 		return (-1);
 	}
 	if (ret != SHA_DIGEST_LENGTH) {
-		debug2("extract_salt: expected salt len %u, got %u",
-		    salt_len, ret);
+		debug2("extract_salt: expected salt len %d, got %d",
+		    SHA_DIGEST_LENGTH, ret);
 		return (-1);
 	}
 

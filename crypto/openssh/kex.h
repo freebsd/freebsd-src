@@ -1,4 +1,4 @@
-/*	$OpenBSD: kex.h,v 1.37 2005/07/25 11:59:39 markus Exp $	*/
+/*	$OpenBSD: kex.h,v 1.38 2005/11/04 05:15:59 djm Exp $	*/
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -31,9 +31,9 @@
 #include "cipher.h"
 #include "key.h"
 
-#define	KEX_DH1		"diffie-hellman-group1-sha1"
-#define	KEX_DH14	"diffie-hellman-group14-sha1"
-#define	KEX_DHGEX	"diffie-hellman-group-exchange-sha1"
+#define	KEX_DH1			"diffie-hellman-group1-sha1"
+#define	KEX_DH14		"diffie-hellman-group14-sha1"
+#define	KEX_DHGEX_SHA1		"diffie-hellman-group-exchange-sha1"
 
 #define COMP_NONE	0
 #define COMP_ZLIB	1
@@ -114,6 +114,7 @@ struct Kex {
 	Buffer	peer;
 	int	done;
 	int	flags;
+	const EVP_MD *evp_md;
 	char	*client_version_string;
 	char	*server_version_string;
 	int	(*verify_host_key)(Key *);
@@ -127,7 +128,7 @@ void	 kex_finish(Kex *);
 
 void	 kex_send_kexinit(Kex *);
 void	 kex_input_kexinit(int, u_int32_t, void *);
-void	 kex_derive_keys(Kex *, u_char *, BIGNUM *);
+void	 kex_derive_keys(Kex *, u_char *, u_int, BIGNUM *);
 
 Newkeys *kex_get_newkeys(int);
 
@@ -136,12 +137,13 @@ void	 kexdh_server(Kex *);
 void	 kexgex_client(Kex *);
 void	 kexgex_server(Kex *);
 
-u_char *
+void
 kex_dh_hash(char *, char *, char *, int, char *, int, u_char *, int,
-    BIGNUM *, BIGNUM *, BIGNUM *);
-u_char *
-kexgex_hash(char *, char *, char *, int, char *, int, u_char *, int,
-    int, int, int, BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *);
+    BIGNUM *, BIGNUM *, BIGNUM *, u_char **, u_int *);
+void
+kexgex_hash(const EVP_MD *, char *, char *, char *, int, char *,
+    int, u_char *, int, int, int, int, BIGNUM *, BIGNUM *, BIGNUM *, 
+    BIGNUM *, BIGNUM *, u_char **, u_int *);
 
 void
 derive_ssh1_session_id(BIGNUM *, BIGNUM *, u_int8_t[8], u_int8_t[16]);

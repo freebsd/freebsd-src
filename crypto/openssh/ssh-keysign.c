@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keysign.c,v 1.18 2004/08/23 14:29:23 dtucker Exp $");
+RCSID("$OpenBSD: ssh-keysign.c,v 1.19 2005/09/13 23:40:07 djm Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -147,6 +147,13 @@ main(int argc, char **argv)
 	char *host;
 	u_int slen, dlen;
 	u_int32_t rnd[256];
+
+	/* Ensure that stdin and stdout are connected */
+	if ((fd = open(_PATH_DEVNULL, O_RDWR)) < 2)
+		exit(1);
+	/* Leave /dev/null fd iff it is attached to stderr */
+	if (fd > 2)
+		close(fd);
 
 	key_fd[0] = open(_PATH_HOST_RSA_KEY_FILE, O_RDONLY);
 	key_fd[1] = open(_PATH_HOST_DSA_KEY_FILE, O_RDONLY);

@@ -334,7 +334,7 @@ cipher_get_keyiv(CipherContext *cc, u_char *iv, u_int len)
 		if ((u_int)evplen != len)
 			fatal("%s: wrong iv length %d != %d", __func__,
 			    evplen, len);
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#ifdef USE_BUILTIN_RIJNDAEL
 		if (c->evptype == evp_rijndael)
 			ssh_rijndael_iv(&cc->evp, 0, iv, len);
 		else
@@ -365,7 +365,7 @@ cipher_set_keyiv(CipherContext *cc, u_char *iv)
 		evplen = EVP_CIPHER_CTX_iv_length(&cc->evp);
 		if (evplen == 0)
 			return;
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#ifdef USE_BUILTIN_RIJNDAEL
 		if (c->evptype == evp_rijndael)
 			ssh_rijndael_iv(&cc->evp, 1, iv, evplen);
 		else

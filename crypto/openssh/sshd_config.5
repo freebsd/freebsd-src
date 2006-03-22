@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.44 2005/07/25 11:59:40 markus Exp $
+.\" $OpenBSD: sshd_config.5,v 1.48 2006/01/02 17:09:49 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
 .Os
@@ -181,7 +181,7 @@ The default is
     aes192-ctr,aes256-ctr''
 .Ed
 .It Cm ClientAliveCountMax
-Sets the number of client alive messages (see above) which may be
+Sets the number of client alive messages (see below) which may be
 sent without
 .Nm sshd
 receiving any messages back from the client.
@@ -203,7 +203,7 @@ server depend on knowing when a connection has become inactive.
 The default value is 3.
 If
 .Cm ClientAliveInterval
-(above) is set to 15, and
+(see below) is set to 15, and
 .Cm ClientAliveCountMax
 is left at the default, unresponsive ssh clients
 will be disconnected after approximately 45 seconds.
@@ -348,7 +348,7 @@ Kerberos servtab which allows the verification of the KDC's identity.
 Default is
 .Dq no .
 .It Cm KerberosGetAFSToken
-If AFS is active and the user has a Kerberos 5 TGT, attempt to aquire
+If AFS is active and the user has a Kerberos 5 TGT, attempt to acquire
 an AFS token before accessing the user's home directory.
 Default is
 .Dq no .
@@ -502,6 +502,18 @@ All other authentication methods are disabled for root.
 If this option is set to
 .Dq no
 root is not allowed to log in.
+.It Cm PermitTunnel
+Specifies whether
+.Xr tun 4
+device forwarding is allowed.
+The argument must be
+.Dq yes ,
+.Dq point-to-point ,
+.Dq ethernet
+or
+.Dq no .
+The default is
+.Dq no .
 .It Cm PermitUserEnvironment
 Specifies whether
 .Pa ~/.ssh/environment
