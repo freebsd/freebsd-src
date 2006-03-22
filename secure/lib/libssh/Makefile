@@ -20,7 +20,7 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
 
 # Portability layer
 SRCS+=	bsd-closefrom.c bsd-misc.c getrrsetbyname.c \
-	strtonum.c vis.c xcrypt.c xmmap.c
+	port-tun.c strtonum.c vis.c xcrypt.c xmmap.c
 # FreeBSD additions
 SRCS+=	version.c
 
