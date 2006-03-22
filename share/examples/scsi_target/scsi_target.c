@@ -890,7 +890,7 @@ get_ctio()
 	se = &c_descr->aiocb.aio_sigevent;
 	se->sigev_notify = SIGEV_KEVENT;
 	se->sigev_notify_kqueue = kq_fd;
-	se->sigev_value.sigval_ptr = ctio;
+	se->sigev_value.sival_ptr = ctio;
 
 	return (ctio);
 }
