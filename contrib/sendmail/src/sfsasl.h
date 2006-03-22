@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 1999, 2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999, 2000, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sfsasl.h,v 8.17 2000/09/19 21:30:49 ca Exp $"
+ *	$Id: sfsasl.h,v 8.19 2006/02/27 19:53:37 ca Exp $"
  */
 
 #ifndef SFSASL_H
@@ -17,6 +17,8 @@ extern int	sfdcsasl __P((SM_FILE_T **, SM_FILE_T **, sasl_conn_t *));
 #endif /* SASL */
 
 # if STARTTLS
+extern int	tls_retry __P((SSL *, int, int, time_t, int, int,
+				const char *));
 extern int	sfdctls __P((SM_FILE_T **, SM_FILE_T **, SSL *));
 # endif /* STARTTLS */
 

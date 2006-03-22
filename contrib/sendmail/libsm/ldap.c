@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.62 2005/02/24 00:30:01 ca Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.67 2005/12/14 00:08:03 ca Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -47,6 +47,18 @@ static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, 
 **
 */
 
+#if _FFR_LDAP_VERSION
+# if defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX
+    ERROR FFR_LDAP_VERSION > _LDAP_VERSION_MAX
+# endif /* defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX */
+# if defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN
+    ERROR FFR_LDAP_VERSION < _LDAP_VERSION_MIN
+# endif /* defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN */
+# define SM_LDAP_VERSION_DEFAULT	_FFR_LDAP_VERSION
+#else /* _FFR_LDAP_VERSION */
+# define SM_LDAP_VERSION_DEFAULT	0
+#endif /* _FFR_LDAP_VERSION */
+
 void
 sm_ldap_clear(lmap)
 	SM_LDAP_STRUCT *lmap;
@@ -57,7 +69,7 @@ sm_ldap_clear(lmap)
 	lmap->ldap_host = NULL;
 	lmap->ldap_port = LDAP_PORT;
 	lmap->ldap_uri = NULL;
-	lmap->ldap_version = 0;
+	lmap->ldap_version = SM_LDAP_VERSION_DEFAULT;
 	lmap->ldap_deref = LDAP_DEREF_NEVER;
 	lmap->ldap_timelimit = LDAP_NO_LIMIT;
 	lmap->ldap_sizelimit = LDAP_NO_LIMIT;
@@ -614,6 +626,16 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				statp = EX_OK;
 				continue;
 			}
+
+#if _FFR_LDAP_SINGLEDN
+			if (bitset(SM_LDAP_SINGLEDN, flags) && *result != NULL)
+			{
+				/* only wanted one match */
+				SM_LDAP_ERROR_CLEANUP();
+				errno = ENOENT;
+				return EX_NOTFOUND;
+			}
+#endif /* _FFR_LDAP_SINGLEDN */
 
 			/* record completed DN's to prevent loops */
 			dn = ldap_get_dn(lmap->ldap_ld, entry);

@@ -8,12 +8,12 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: b-strcmp.c,v 1.13 2004/08/03 20:07:59 ca Exp $")
+SM_RCSID("@(#)$Id: b-strcmp.c,v 1.14 2005/06/14 23:07:20 ca Exp $")
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <sm/string.h>
 
 #define toseconds(x, y)	(x.tv_sec - y.tv_sec)

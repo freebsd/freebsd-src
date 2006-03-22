@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 8.15 2004/07/20 20:25:10 ca Exp $
+#	$Id: Makefile,v 8.16 2006/01/05 22:03:31 ca Exp $
 
 DIR=		smm/08.sendmailop
 SRCS=		op.me
@@ -22,6 +22,7 @@ all: ${OBJS}
 op.ps: ${SRCS}
 	rm -f $@
 	${PIC} ${SRCS} | ${EQNPS} | ${ROFFPS} > $@
+	test -s $@ || ${ROFFPS} -p -e ${SRCS} > $@
 
 op.txt: ${SRCS}
 	rm -f $@
