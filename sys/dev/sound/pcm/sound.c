@@ -900,7 +900,7 @@ pcm_unregister(device_t dev)
 		}
 	}
 
-	if (mixer_uninit(dev)) {
+	if (mixer_uninit(dev) == EBUSY) {
 		device_printf(dev, "unregister: mixer busy\n");
 		snd_mtxunlock(d->lock);
 		sndstat_release();
