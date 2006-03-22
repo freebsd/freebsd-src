@@ -3,17 +3,18 @@
 
 This directory has the latest sendmail(TM) software from Sendmail, Inc.
 
-Report any bugs to sendmail-bugs@sendmail.ORG
+Report any bugs to sendmail-bugs-YYYY@support.sendmail.org
+where YYYY is the current year, e.g., 2005.
 
-There is a web site at http://WWW.Sendmail.ORG/ -- see that site for
+There is a web site at http://www.sendmail.org/ -- see that site for
 the latest updates.
 
 +--------------+
 | INTRODUCTION |
 +--------------+
 
-0. The vast majority of queries to <sendmail-questions@sendmail.org>
-   are answered in the README files noted below.
+0. The vast majority of queries about sendmail are answered in the
+   README files noted below.
 
 1. Read this README file, especially this introduction, and the DIRECTORY
    PERMISSIONS sections.
@@ -463,4 +464,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.91 $, Last updated $Date: 2002/11/09 23:33:07 $
+$Revision: 8.93 $, Last updated $Date: 2005/09/16 20:08:50 $

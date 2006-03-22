@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2002, 2005 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -12,7 +12,7 @@ divert(-1)
 ifdef(`DNSBL_MAP', `', `define(`DNSBL_MAP', `dns -R A')')
 divert(0)
 ifdef(`_DNSBL_R_',`dnl',`dnl
-VERSIONID(`$Id: dnsbl.m4,v 8.29 2002/08/09 21:02:08 ca Exp $')
+VERSIONID(`$Id: dnsbl.m4,v 8.30 2005/07/25 20:56:53 ca Exp $')
 define(`_DNSBL_R_',`')
 LOCAL_CONFIG
 # map for DNS based blacklist lookups
@@ -28,6 +28,6 @@ R$-.$-.$-.$-		$: <?> $(dnsbl $4.$3.$2.$1._DNSBL_SRV_. $: OK $)
 R<?>OK			$: OKSOFAR
 ifelse(len(X`'_ARG3_),`1',
 `R<?>$+<TMP>		$: TMPOK',
-`R<?>$+<TMP>		$#error $@ 4.7.1 $: _DNSBL_MSG_TMP_')
+`R<?>$+<TMP>		$#error $@ 4.4.3 $: _DNSBL_MSG_TMP_')
 R<?>$+			$#error $@ 5.7.1 $: _DNSBL_MSG_
 divert(-1)

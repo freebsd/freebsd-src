@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004-2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: local.h,v 1.53 2004/01/09 18:34:22 ca Exp $
+ *	$Id: local.h,v 1.57 2006/02/28 18:48:25 ca Exp $
  */
 
 /*
@@ -19,7 +19,7 @@
 **  in particular, macros and private variables.
 */
 
-#include <sys/time.h>
+#include <sm/time.h>
 #if !SM_CONF_MEMCHR
 # include <memory.h>
 #endif /* !SM_CONF_MEMCHR */
@@ -74,42 +74,6 @@ int	sm_syslogclose __P((SM_FILE_T *));
 int	sm_syslogopen __P((SM_FILE_T *, const void *, int, const void *));
 int	sm_syslogsetinfo __P((SM_FILE_T *, int , void *));
 int	sm_sysloggetinfo __P((SM_FILE_T *, int , void *));
-
-/* should be defined in sys/time.h */
-#ifndef timersub
-# define timersub(tvp, uvp, vvp)					\
-	do								\
-	{								\
-		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0)					\
-		{							\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_usec += 1000000;			\
-		}							\
-	} while (0)
-#endif /* !timersub */
-
-#ifndef timeradd
-# define timeradd(tvp, uvp, vvp)					\
-	do								\
-	{								\
-		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec >= 1000000)				\
-		{							\
-			(vvp)->tv_sec++;				\
-			(vvp)->tv_usec -= 1000000;			\
-		}							\
-	} while (0)
-#endif /* !timeradd */
-
-#ifndef timercmp
-# define timercmp(tvp, uvp, cmp)					\
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
-	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
-	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#endif /* !timercmp */
 
 extern bool Sm_IO_DidInit;
 
@@ -192,7 +156,7 @@ extern const char SmFileMagic[];
 	else \
 	{ \
 		(time)->tv_sec = (val) / 1000; \
-		(time)->tv_usec = ((val) - ((time)->tv_sec * 1000)) * 10; \
+		(time)->tv_usec = ((val) - ((time)->tv_sec * 1000)) * 1000; \
 	} \
 	if ((val) == SM_TIME_FOREVER) \
 	{ \
@@ -276,7 +240,7 @@ extern const char SmFileMagic[];
 	else \
 	{ \
 		sm_io_to.tv_sec = (to) / 1000; \
-		sm_io_to.tv_usec = ((to) - (sm_io_to.tv_sec * 1000)) * 10; \
+		sm_io_to.tv_usec = ((to) - (sm_io_to.tv_sec * 1000)) * 1000; \
 	} \
 	if (FD_SETSIZE > 0 && (fd) >= FD_SETSIZE) \
 	{ \
@@ -289,8 +253,11 @@ extern const char SmFileMagic[];
 	FD_SET((fd), &sm_io_x_mask); \
 	if (gettimeofday(&sm_io_to_before, NULL) < 0) \
 		return SM_IO_EOF; \
-	sm_io_to_sel = select((fd) + 1, NULL, &sm_io_to_mask, &sm_io_x_mask, \
-			      &sm_io_to); \
+	do \
+	{	\
+		sm_io_to_sel = select((fd) + 1, NULL, &sm_io_to_mask, \
+					&sm_io_x_mask, &sm_io_to); \
+	} while (sm_io_to_sel < 0 && errno == EINTR); \
 	if (sm_io_to_sel < 0) \
 	{ \
 		/* something went wrong, errno set */ \
@@ -305,10 +272,9 @@ extern const char SmFileMagic[];
 	/* else loop again */ \
 	if (gettimeofday(&sm_io_to_after, NULL) < 0) \
 		return SM_IO_EOF; \
-	timersub(&sm_io_to_before, &sm_io_to_after, &sm_io_to_diff); \
-	timersub(&sm_io_to, &sm_io_to_diff, &sm_io_to); \
-	(to) -= (sm_io_to.tv_sec * 1000); \
-	(to) -= (sm_io_to.tv_usec / 10); \
+	timersub(&sm_io_to_after, &sm_io_to_before, &sm_io_to_diff); \
+	(to) -= (sm_io_to_diff.tv_sec * 1000); \
+	(to) -= (sm_io_to_diff.tv_usec / 1000); \
 	if ((to) < 0) \
 		(to) = 0; \
 }

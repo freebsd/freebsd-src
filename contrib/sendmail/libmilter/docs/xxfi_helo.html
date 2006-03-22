@@ -2,7 +2,7 @@
 <head><title>xxfi_helo</title></head>
 <body>
 <!--
-$Id: xxfi_helo.html,v 1.8 2003/03/05 19:57:55 ca Exp $
+$Id: xxfi_helo.html,v 1.9 2005/08/30 23:41:45 ca Exp $
 -->
 <h1>xxfi_helo</h1>
 
@@ -24,8 +24,10 @@ Handle the HELO/EHLO command.
 <table border="1" cellspacing=1 cellpadding=4>
 <tr align="left" valign=top>
 <th width="80">Called When</th> <td>xxfi_helo is called whenever the client
-sends a HELO/EHLO command.  It may therefore be called between zero and 
-three times</td>
+sends a HELO/EHLO command.
+It may therefore be called several times or even not at all;
+some restrictions can be imposed by the MTA configuration.
+</td>
 </tr>
 <tr align="left" valign=top>
 <th>Default Behavior</th>
@@ -52,7 +54,7 @@ three times</td>
 
 <hr size="1">
 <font size="-1">
-Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000, 2003, 2005 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set
