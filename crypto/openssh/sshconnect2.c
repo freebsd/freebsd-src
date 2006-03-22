@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.142 2005/08/30 22:08:05 djm Exp $");
+RCSID("$OpenBSD: sshconnect2.c,v 1.143 2005/10/14 02:17:59 stevesk Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -702,7 +702,7 @@ input_gssapi_error(int type, u_int32_t plen, void *ctxt)
 
 	packet_check_eom();
 
-	debug("Server GSSAPI Error:\n%s\n", msg);
+	debug("Server GSSAPI Error:\n%s", msg);
 	xfree(msg);
 	xfree(lang);
 }

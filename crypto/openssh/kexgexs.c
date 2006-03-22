@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexgexs.c,v 1.1 2003/02/16 17:09:57 markus Exp $");
+RCSID("$OpenBSD: kexgexs.c,v 1.2 2005/11/04 05:15:59 djm Exp $");
 
 #include "xmalloc.h"
 #include "key.h"
@@ -43,7 +43,7 @@ kexgex_server(Kex *kex)
 	Key *server_host_key;
 	DH *dh;
 	u_char *kbuf, *hash, *signature = NULL, *server_host_key_blob = NULL;
-	u_int sbloblen, klen, kout, slen;
+	u_int sbloblen, klen, kout, slen, hashlen;
 	int min = -1, max = -1, nbits = -1, type;
 
 	if (kex->load_host_key == NULL)
@@ -137,8 +137,9 @@ kexgex_server(Kex *kex)
 	if (type == SSH2_MSG_KEX_DH_GEX_REQUEST_OLD)
 		min = max = -1;
 
-	/* calc H */			/* XXX depends on 'kex' */
-	hash = kexgex_hash(
+	/* calc H */
+	kexgex_hash(
+	    kex->evp_md,
 	    kex->client_version_string,
 	    kex->server_version_string,
 	    buffer_ptr(&kex->peer), buffer_len(&kex->peer),
@@ -148,21 +149,20 @@ kexgex_server(Kex *kex)
 	    dh->p, dh->g,
 	    dh_client_pub,
 	    dh->pub_key,
-	    shared_secret
+	    shared_secret,
+	    &hash, &hashlen
 	);
 	BN_clear_free(dh_client_pub);
 
 	/* save session id := H */
-	/* XXX hashlen depends on KEX */
 	if (kex->session_id == NULL) {
-		kex->session_id_len = 20;
+		kex->session_id_len = hashlen;
 		kex->session_id = xmalloc(kex->session_id_len);
 		memcpy(kex->session_id, hash, kex->session_id_len);
 	}
 
 	/* sign H */
-	/* XXX hashlen depends on KEX */
-	PRIVSEP(key_sign(server_host_key, &signature, &slen, hash, 20));
+	PRIVSEP(key_sign(server_host_key, &signature, &slen, hash, hashlen));
 
 	/* destroy_sensitive_data(); */
 
@@ -179,7 +179,7 @@ kexgex_server(Kex *kex)
 	/* have keys, free DH */
 	DH_free(dh);
 
-	kex_derive_keys(kex, hash, shared_secret);
+	kex_derive_keys(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 
 	kex_finish(kex);

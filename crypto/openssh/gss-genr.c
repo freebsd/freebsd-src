@@ -1,4 +1,4 @@
-/*	$OpenBSD: gss-genr.c,v 1.4 2005/07/17 07:17:55 djm Exp $	*/
+/*	$OpenBSD: gss-genr.c,v 1.6 2005/10/13 22:24:31 stevesk Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -30,9 +30,7 @@
 
 #include "xmalloc.h"
 #include "bufaux.h"
-#include "compat.h"
 #include "log.h"
-#include "monitor_wrap.h"
 #include "ssh2.h"
 
 #include "ssh-gss.h"
@@ -270,7 +268,8 @@ ssh_gssapi_buildmic(Buffer *b, const char *user, const char *service,
 }
 
 OM_uint32
-ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid) {
+ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid)
+{
 	if (*ctx)
 		ssh_gssapi_delete_ctx(ctx);
 	ssh_gssapi_build_ctx(ctx);

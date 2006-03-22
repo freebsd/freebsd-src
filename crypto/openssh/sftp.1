@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.61 2005/03/01 17:19:35 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.63 2006/01/20 00:14:55 dtucker Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -78,7 +78,7 @@ to start in a remote directory.
 The final usage format allows for automated sessions using the
 .Fl b
 option.
-In such cases, it is usually necessary to configure public key authentication
+In such cases, it is necessary to configure non-interactive authentication
 to obviate the need to enter a password at connection time (see
 .Xr sshd 8
 and
@@ -180,6 +180,7 @@ For full details of the options listed below, and their possible values, see
 .It Protocol
 .It ProxyCommand
 .It PubkeyAuthentication
+.It RekeyLimit
 .It RhostsRSAAuthentication
 .It RSAAuthentication
 .It SendEnv
