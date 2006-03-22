@@ -192,7 +192,7 @@ extern const char SmFileMagic[];
 	else \
 	{ \
 		(time)->tv_sec = (val) / 1000; \
-		(time)->tv_usec = ((val) - ((time)->tv_sec * 1000)) * 10; \
+		(time)->tv_usec = ((val) - ((time)->tv_sec * 1000)) * 1000; \
 	} \
 	if ((val) == SM_TIME_FOREVER) \
 	{ \
@@ -276,7 +276,7 @@ extern const char SmFileMagic[];
 	else \
 	{ \
 		sm_io_to.tv_sec = (to) / 1000; \
-		sm_io_to.tv_usec = ((to) - (sm_io_to.tv_sec * 1000)) * 10; \
+		sm_io_to.tv_usec = ((to) - (sm_io_to.tv_sec * 1000)) * 1000; \
 	} \
 	if (FD_SETSIZE > 0 && (fd) >= FD_SETSIZE) \
 	{ \
@@ -289,8 +289,11 @@ extern const char SmFileMagic[];
 	FD_SET((fd), &sm_io_x_mask); \
 	if (gettimeofday(&sm_io_to_before, NULL) < 0) \
 		return SM_IO_EOF; \
-	sm_io_to_sel = select((fd) + 1, NULL, &sm_io_to_mask, &sm_io_x_mask, \
-			      &sm_io_to); \
+	do \
+	{	\
+		sm_io_to_sel = select((fd) + 1, NULL, &sm_io_to_mask, \
+					&sm_io_x_mask, &sm_io_to); \
+	} while (sm_io_to_sel < 0 && errno == EINTR); \
 	if (sm_io_to_sel < 0) \
 	{ \
 		/* something went wrong, errno set */ \
@@ -305,10 +308,9 @@ extern const char SmFileMagic[];
 	/* else loop again */ \
 	if (gettimeofday(&sm_io_to_after, NULL) < 0) \
 		return SM_IO_EOF; \
-	timersub(&sm_io_to_before, &sm_io_to_after, &sm_io_to_diff); \
-	timersub(&sm_io_to, &sm_io_to_diff, &sm_io_to); \
-	(to) -= (sm_io_to.tv_sec * 1000); \
-	(to) -= (sm_io_to.tv_usec / 10); \
+	timersub(&sm_io_to_after, &sm_io_to_before, &sm_io_to_diff); \
+	(to) -= (sm_io_to_diff.tv_sec * 1000); \
+	(to) -= (sm_io_to_diff.tv_usec / 1000); \
 	if ((to) < 0) \
 		(to) = 0; \
 }

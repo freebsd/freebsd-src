@@ -15,7 +15,6 @@
 
 SM_RCSID("@(#)$Id: collect.c,v 8.242.2.8 2003/07/08 01:16:35 ca Exp $")
 
-static void	collecttimeout __P((time_t));
 static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -264,10 +263,6 @@ collect_dfopen(e)
 **		If data file cannot be created, the process is terminated.
 */
 
-static jmp_buf	CtxCollectTimeout;
-static bool	volatile CollectProgress;
-static SM_EVENT	*volatile CollectTimeout = NULL;
-
 /* values for input state machine */
 #define IS_NORM		0	/* middle of line */
 #define IS_BOL		1	/* beginning of line */
@@ -290,26 +285,30 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	bool rsetsize;
 {
 	register SM_FILE_T *volatile df;
-	volatile bool ignrdot;
-	volatile time_t dbto;
+	bool ignrdot;
+	int dbto;
 	register char *volatile bp;
-	volatile int c;
-	volatile bool inputerr;
+	int c;
+	bool inputerr;
 	bool headeronly;
-	char *volatile buf;
-	volatile int buflen;
-	volatile int istate;
-	volatile int mstate;
-	volatile int hdrslen;
-	volatile int numhdrs;
-	volatile int afd;
-	unsigned char *volatile pbp;
+	char *buf;
+	int buflen;
+	int istate;
+	int mstate;
+	int hdrslen;
+	int numhdrs;
+	int afd;
+	unsigned char *pbp;
 	unsigned char peekbuf[8];
 	char bufbuf[MAXLINE];
 
 	df = NULL;
 	ignrdot = smtpmode ? false : IgnrDot;
-	dbto = smtpmode ? TimeOuts.to_datablock : 0;
+
+	/* timeout for I/O functions is in milliseconds */
+	dbto = smtpmode ? ((int) TimeOuts.to_datablock * 1000)
+			: SM_TIME_FOREVER;
+	sm_io_setinfo(fp, SM_IO_WHAT_TIMEOUT, &dbto);
 	c = SM_IO_EOF;
 	inputerr = false;
 	headeronly = hdrp != NULL;
@@ -321,7 +320,6 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	pbp = peekbuf;
 	istate = IS_BOL;
 	mstate = SaveFrom ? MS_HEADER : MS_UFROM;
-	CollectProgress = false;
 
 	/*
 	**  Tell ARPANET to go ahead.
@@ -341,32 +339,6 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	**	hidden dots; the message state machine is handling
 	**	the larger picture (e.g., header versus body).
 	*/
-
-	if (dbto != 0)
-	{
-		/* handle possible input timeout */
-		if (setjmp(CtxCollectTimeout) != 0)
-		{
-			if (LogLevel > 2)
-				sm_syslog(LOG_NOTICE, e->e_id,
-					  "timeout waiting for input from %s during message collect",
-					  CURHOSTNAME);
-			errno = 0;
-			if (smtpmode)
-			{
-				/*
-				**  Override e_message in usrerr() as this
-				**  is the reason for failure that should
-				**  be logged for undelivered recipients.
-				*/
-
-				e->e_message = NULL;
-			}
-			usrerr("451 4.4.1 timeout waiting for input during message collect");
-			goto readerr;
-		}
-		CollectTimeout = sm_setevent(dbto, collecttimeout, dbto);
-	}
 
 	if (rsetsize)
 		e->e_msgsize = 0;
@@ -391,9 +363,26 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 						sm_io_clearerr(fp);
 						continue;
 					}
+
+					/* timeout? */
+					if (c == SM_IO_EOF && errno == EAGAIN
+					    && smtpmode)
+					{
+						/*
+						**  Override e_message in
+						**  usrerr() as this is the
+						**  reason for failure that
+						**  should be logged for
+						**  undelivered recipients.
+						*/
+
+						e->e_message = NULL;
+						errno = 0;
+						inputerr = true;
+						goto readabort;
+					}
 					break;
 				}
-				CollectProgress = true;
 				if (TrafficLogFile != NULL && !headeronly)
 				{
 					if (istate == IS_BOL)
@@ -540,6 +529,18 @@ bufferchar:
 					buflen *= 2;
 				else
 					buflen += MEMCHUNKSIZE;
+				if (buflen <= 0)
+				{
+					sm_syslog(LOG_NOTICE, e->e_id,
+						  "header overflow from %s during message collect",
+						  CURHOSTNAME);
+					errno = 0;
+					e->e_flags |= EF_CLRQUEUE;
+					e->e_status = "5.6.0";
+					usrerrenh(e->e_status,
+						  "552 Headers too large");
+					goto discard;
+				}
 				buf = xalloc(buflen);
 				memmove(buf, obuf, bp - obuf);
 				bp = &buf[bp - obuf];
@@ -583,6 +584,7 @@ bufferchar:
 					usrerrenh(e->e_status,
 						  "552 Headers too large (%d max)",
 						  MaxHeadersLength);
+  discard:
 					mstate = MS_DISCARD;
 				}
 			}
@@ -622,6 +624,24 @@ nextstate:
 				sm_io_clearerr(fp);
 				errno = 0;
 				c = sm_io_getc(fp, SM_TIME_DEFAULT);
+
+				/* timeout? */
+				if (c == SM_IO_EOF && errno == EAGAIN
+				    && smtpmode)
+				{
+					/*
+					**  Override e_message in
+					**  usrerr() as this is the
+					**  reason for failure that
+					**  should be logged for
+					**  undelivered recipients.
+					*/
+
+					e->e_message = NULL;
+					errno = 0;
+					inputerr = true;
+					goto readabort;
+				}
 			} while (c == SM_IO_EOF && errno == EINTR);
 			if (c != SM_IO_EOF)
 				(void) sm_io_ungetc(fp, SM_TIME_DEFAULT, c);
@@ -631,8 +651,12 @@ nextstate:
 				continue;
 			}
 
-			/* trim off trailing CRLF or NL */
 			SM_ASSERT(bp > buf);
+
+			/* guaranteed by isheader(buf) */
+			SM_ASSERT(*(bp - 1) != '\n' || bp > buf + 1);
+
+			/* trim off trailing CRLF or NL */
 			if (*--bp != '\n' || *--bp != '\r')
 				bp++;
 			*bp = '\0';
@@ -697,10 +721,6 @@ readerr:
 				"collect: premature EOM: %s", errmsg);
 		inputerr = true;
 	}
-
-	/* reset global timer */
-	if (CollectTimeout != NULL)
-		sm_clrevent(CollectTimeout);
 
 	if (headeronly)
 		return;
@@ -779,6 +799,7 @@ readerr:
 	}
 
 	/* An EOF when running SMTP is an error */
+  readabort:
 	if (inputerr && (OpMode == MD_SMTP || OpMode == MD_DAEMON))
 	{
 		char *host;
@@ -801,13 +822,14 @@ readerr:
 				problem, host,
 				shortenstring(e->e_from.q_paddr, MAXSHORTSTR));
 		if (sm_io_eof(fp))
-			usrerr("451 4.4.1 collect: %s on connection from %s, from=%s",
+			usrerr("421 4.4.1 collect: %s on connection from %s, from=%s",
 				problem, host,
 				shortenstring(e->e_from.q_paddr, MAXSHORTSTR));
 		else
-			syserr("451 4.4.1 collect: %s on connection from %s, from=%s",
+			syserr("421 4.4.1 collect: %s on connection from %s, from=%s",
 				problem, host,
 				shortenstring(e->e_from.q_paddr, MAXSHORTSTR));
+		flush_errors(true);
 
 		/* don't return an error indication */
 		e->e_to = NULL;
@@ -904,39 +926,6 @@ readerr:
 	}
 }
 
-static void
-collecttimeout(timeout)
-	time_t timeout;
-{
-	int save_errno = errno;
-
-	/*
-	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
-	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
-	**	DOING.
-	*/
-
-	if (CollectProgress)
-	{
-		/* reset the timeout */
-		CollectTimeout = sm_sigsafe_setevent(timeout, collecttimeout,
-						     timeout);
-		CollectProgress = false;
-	}
-	else
-	{
-		/* event is done */
-		CollectTimeout = NULL;
-	}
-
-	/* if no progress was made or problem resetting event, die now */
-	if (CollectTimeout == NULL)
-	{
-		errno = ETIMEDOUT;
-		longjmp(CtxCollectTimeout, 1);
-	}
-	errno = save_errno;
-}
 /*
 **  DFERROR -- signal error on writing the data file.
 **
