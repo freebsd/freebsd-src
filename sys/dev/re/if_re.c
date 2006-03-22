@@ -167,6 +167,8 @@ static struct rl_type re_devs[] = {
 		"D-Link DGE-528(T) Gigabit Ethernet Adapter" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_HWREV_8139CPLUS,
 		"RealTek 8139C+ 10/100BaseTX" },
+	{ RT_VENDORID, RT_DEVICEID_8111B, RL_HWREV_8111B,
+		"Realtek 8111B Single-Chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169,
 		"RealTek 8169 Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169S,
@@ -197,6 +199,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8110S, RL_8169, "8110S"},
 	{ RL_HWREV_8100, RL_8139, "8100"},
 	{ RL_HWREV_8101, RL_8139, "8101"},
+	{ RL_HWREV_8111B, RL_8169, "8111B"},
 	{ 0, 0, NULL }
 };
 
