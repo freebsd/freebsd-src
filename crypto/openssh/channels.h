@@ -1,4 +1,4 @@
-/*	$OpenBSD: channels.h,v 1.79 2005/07/17 06:49:04 djm Exp $	*/
+/*	$OpenBSD: channels.h,v 1.83 2005/12/30 15:56:37 reyk Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -63,7 +63,8 @@ struct Channel;
 typedef struct Channel Channel;
 
 typedef void channel_callback_fn(int, void *);
-typedef int channel_filter_fn(struct Channel *, char *, int);
+typedef int channel_infilter_fn(struct Channel *, char *, int);
+typedef u_char *channel_outfilter_fn(struct Channel *, u_char **, u_int *);
 
 struct Channel {
 	int     type;		/* channel type/state */
@@ -106,11 +107,15 @@ struct Channel {
 
 	/* callback */
 	channel_callback_fn	*confirm;
-	channel_callback_fn	*detach_user;
 	void			*confirm_ctx;
+	channel_callback_fn	*detach_user;
+	int			detach_close;
 
 	/* filter */
-	channel_filter_fn	*input_filter;
+	channel_infilter_fn	*input_filter;
+	channel_outfilter_fn	*output_filter;
+
+	int     datagram;	/* keep boundaries */
 };
 
 #define CHAN_EXTENDED_IGNORE		0
@@ -142,6 +147,8 @@ struct Channel {
 #define CHAN_EOF_SENT			0x04
 #define CHAN_EOF_RCVD			0x08
 
+#define CHAN_RBUF	16*1024
+
 /* check whether 'efd' is still in use */
 #define CHANNEL_EFD_INPUT_ACTIVE(c) \
 	(compat20 && c->extended_usage == CHAN_EXTENDED_READ && \
@@ -154,6 +161,7 @@ struct Channel {
 
 /* channel management */
 
+Channel	*channel_by_id(int);
 Channel	*channel_lookup(int);
 Channel *channel_new(char *, int, int, int, int, u_int, u_int, int, char *, int);
 void	 channel_set_fds(int, int, int, int, int, int, u_int);
@@ -163,9 +171,9 @@ void	 channel_stop_listening(void);
 
 void	 channel_send_open(int);
 void	 channel_request_start(int, char *, int);
-void	 channel_register_cleanup(int, channel_callback_fn *);
+void	 channel_register_cleanup(int, channel_callback_fn *, int);
 void	 channel_register_confirm(int, channel_callback_fn *, void *);
-void	 channel_register_filter(int, channel_filter_fn *);
+void	 channel_register_filter(int, channel_infilter_fn *, channel_outfilter_fn *);
 void	 channel_cancel_cleanup(int);
 int	 channel_close_fd(int *);
 void	 channel_send_window_changes(void);

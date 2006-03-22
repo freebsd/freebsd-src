@@ -73,7 +73,6 @@ extern struct monitor *pmonitor;
 extern Buffer input, output;
 extern Buffer loginmsg;
 extern ServerOptions options;
-extern Buffer loginmsg;
 
 int
 mm_is_monitor(void)

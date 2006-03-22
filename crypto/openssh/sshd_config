@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.72 2005/07/25 11:59:40 markus Exp $
+#	$OpenBSD: sshd_config,v 1.73 2005/12/06 22:38:28 reyk Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -14,7 +14,7 @@
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
 
-#VersionAddendum FreeBSD-20050903
+#VersionAddendum FreeBSD-20060322
 
 #Port 22
 #Protocol 2
@@ -101,6 +101,7 @@
 #UseDNS yes
 #PidFile /var/run/sshd.pid
 #MaxStartups 10
+#PermitTunnel no
 
 # no default banner path
 #Banner /some/path
