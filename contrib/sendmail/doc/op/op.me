@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.704 2005/02/01 00:40:57 ca Exp $
+.\"	$Id: op.me,v 8.708 2005/11/12 02:08:04 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.704 $
+.Ve $Revision: 8.708 $
 .rm Ve
 .sp
 For Sendmail Version 8.13
@@ -1475,6 +1475,18 @@ option, so that it may be shared between several invocations of
 .i sendmail .
 This allows mail to be queued immediately or skipped during a queue run if
 there has been a recent failure in connecting to a remote machine.
+Note: information about a remote system is stored in a file
+whose pathname consists of the components of the hostname in reverse order.
+For example, the information for
+.b host.example.com
+is stored in
+.b com./example./host .
+For top-level domains like
+.b com
+this can create a large number of subdirectories
+which on some filesystems can exhaust some limits.
+Moreover, the performance of lookups in directory with thousands of entries
+can be fairly slow depending on the filesystem implementation.
 .pp
 Additionally enabling
 .b SingleThreadDelivery
@@ -7282,6 +7294,16 @@ will refuse connections when it has more than
 .i N
 children processing incoming mail or automatic queue runs.
 This does not limit the number of outgoing connections.
+If the default
+.b DeliveryMode
+(background) is used, then
+.i sendmail
+may create an almost unlimited number of children
+(depending on the number of transactions and the
+relative execution times of mail receiption and mail delivery).
+If the limit should be enforced, then a
+.b DeliveryMode
+other than background must be used.
 If not set, there is no limit to the number of children --
 that is, the system load averaging controls this.
 .ip MaxHeadersLength=\fIN\fP
@@ -9086,7 +9108,7 @@ For example,
 .)b
 is equivalent to
 .(b
--H ldap://server.example.com:389/dc=example,dc=com
+-H ldap://server.example.com:389 -b dc=example,dc=com
 .)b
 If the LDAP library supports it,
 the LDAP URI format however can also request LDAP over SSL by using
@@ -9095,13 +9117,13 @@ instead of
 .b ldap:// .
 For example:
 .(b
-O LDAPDefaultSpec=-H ldaps://ldap.example.com/dc=example,dc=com
+O LDAPDefaultSpec=-H ldaps://ldap.example.com -b dc=example,dc=com
 .)b
 Similarly, if the LDAP library supports it,
 It can also be used to specify a UNIX domain socket using
 .b ldapi:// :
 .(b
-O LDAPDefaultSpec=-H ldapi://socketfile/dc=example,dc=com
+O LDAPDefaultSpec=-H ldapi://socketfile -b dc=example,dc=com
 .)b
 .ip "\-b\fIbase\fP"
 LDAP search base.
@@ -11317,7 +11339,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.704 $
+.\"Version $Revision: 8.708 $
 .\".ce 0
 .bp 3
 .ce

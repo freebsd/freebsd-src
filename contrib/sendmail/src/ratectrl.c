@@ -45,7 +45,7 @@
  */
 
 #include <sendmail.h>
-SM_RCSID("@(#)$Id: ratectrl.c,v 8.9 2004/07/07 21:23:57 ca Exp $")
+SM_RCSID("@(#)$Id: ratectrl.c,v 8.10 2005/06/14 23:07:23 ca Exp $")
 
 /*
 **  stuff included - given some warnings (inet_ntoa)
@@ -56,7 +56,7 @@ SM_RCSID("@(#)$Id: ratectrl.c,v 8.9 2004/07/07 21:23:57 ca Exp $")
 # include <arpa/inet.h>
 #endif	/* NETINET || NETINET6 */
 
-#include <sys/time.h>
+#include <sm/time.h>
 
 #ifndef HASH_ALG
 # define HASH_ALG	2

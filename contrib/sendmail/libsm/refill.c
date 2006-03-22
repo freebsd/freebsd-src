@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2005-2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,13 +13,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: refill.c,v 1.50 2002/09/09 21:50:10 gshapiro Exp $")
+SM_RCSID("@(#)$Id: refill.c,v 1.53 2006/02/28 18:48:25 ca Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sm/io.h>
@@ -76,8 +76,11 @@ static int sm_lflush __P((SM_FILE_T *, int *));
 	FD_SET((fd), &sm_io_x_mask);					\
 	if (gettimeofday(&sm_io_to_before, NULL) < 0)			\
 		return SM_IO_EOF;					\
-	(sel_ret) = select((fd) + 1, &sm_io_to_mask, NULL,		\
-			   &sm_io_x_mask, (to));			\
+	do								\
+	{								\
+		(sel_ret) = select((fd) + 1, &sm_io_to_mask, NULL,	\
+			   	&sm_io_x_mask, (to));			\
+	} while ((sel_ret) < 0 && errno == EINTR);			\
 	if ((sel_ret) < 0)						\
 	{								\
 		/* something went wrong, errno set */			\
@@ -94,7 +97,7 @@ static int sm_lflush __P((SM_FILE_T *, int *));
 	/* calulate wall-clock time used */				\
 	if (gettimeofday(&sm_io_to_after, NULL) < 0)			\
 		return SM_IO_EOF;					\
-	timersub(&sm_io_to_before, &sm_io_to_after, &sm_io_to_diff);	\
+	timersub(&sm_io_to_after, &sm_io_to_before, &sm_io_to_diff);	\
 	timersub((to), &sm_io_to_diff, (to));				\
 }
 

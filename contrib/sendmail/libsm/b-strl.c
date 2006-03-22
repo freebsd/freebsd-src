@@ -19,12 +19,12 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: b-strl.c,v 1.24 2001/09/11 04:04:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: b-strl.c,v 1.25 2005/06/14 23:07:20 ca Exp $")
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <sm/string.h>
 
 #define SRC_SIZE	512
