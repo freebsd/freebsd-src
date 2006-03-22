@@ -118,11 +118,18 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   struct opie opie;
   int rval, n = 499, i, mode = MODE_DEFAULT, force = 0;
   char seed[OPIE_SEED_MAX+1];
+  char *username;
+  uid_t ruid;
   struct passwd *pp;
 
   memset(seed, 0, sizeof(seed));
 
-  if (!(pp = getpwnam(getlogin()))) {
+  ruid = getuid();
+  username = getlogin();
+  pp = getpwnam(username);
+  if (username == NULL || pp == NULL || pp->pw_uid != ruid)
+    pp = getpwuid(ruid);
+  if (pp == NULL) {
     fprintf(stderr, "Who are you?");
     return 1;
   }

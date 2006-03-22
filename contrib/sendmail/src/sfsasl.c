@@ -541,6 +541,125 @@ tls_close(fp)
 # define MAX_TLS_IOS	4
 
 /*
+**  TLS_RETRY -- check whether a failed SSL operation can be retried
+**
+**	Parameters:
+**		ssl -- TLS structure
+**		rfd -- read fd
+**		wfd -- write fd
+**		tlsstart -- start time of TLS operation
+**		timeout -- timeout for TLS operation
+**		err -- SSL error
+**		where -- description of operation
+**
+**	Results:
+**		>0 on success
+**		0 on timeout
+**		<0 on error
+*/
+
+int
+tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
+	SSL *ssl;
+	int rfd;
+	int wfd;
+	time_t tlsstart;
+	int timeout;
+	int err;
+	const char *where;
+{
+	int ret;
+	time_t left;
+	time_t now = curtime();
+	struct timeval tv;
+
+	ret = -1;
+
+	/*
+	**  For SSL_ERROR_WANT_{READ,WRITE}:
+	**  There is not a complete SSL record available yet
+	**  or there is only a partial SSL record removed from
+	**  the network (socket) buffer into the SSL buffer.
+	**  The SSL_connect will only succeed when a full
+	**  SSL record is available (assuming a "real" error
+	**  doesn't happen). To handle when a "real" error
+	**  does happen the select is set for exceptions too.
+	**  The connection may be re-negotiated during this time
+	**  so both read and write "want errors" need to be handled.
+	**  A select() exception loops back so that a proper SSL
+	**  error message can be gotten.
+	*/
+
+	left = timeout - (now - tlsstart);
+	if (left <= 0)
+		return 0;	/* timeout */
+	tv.tv_sec = left;
+	tv.tv_usec = 0;
+
+	if (LogLevel > 14)
+	{
+		sm_syslog(LOG_INFO, NOQID,
+			  "STARTTLS=%s, info: fds=%d/%d, err=%d",
+			  where, rfd, wfd, err);
+	}
+
+	if (FD_SETSIZE > 0 &&
+	    ((err == SSL_ERROR_WANT_READ && rfd >= FD_SETSIZE) ||
+	     (err == SSL_ERROR_WANT_WRITE && wfd >= FD_SETSIZE)))
+	{
+		if (LogLevel > 5)
+		{
+			sm_syslog(LOG_ERR, NOQID,
+				  "STARTTLS=%s, error: fd %d/%d too large",
+				  where, rfd, wfd);
+		if (LogLevel > 8)
+			tlslogerr(where);
+		}
+		errno = EINVAL;
+	}
+	else if (err == SSL_ERROR_WANT_READ)
+	{
+		fd_set ssl_maskr, ssl_maskx;
+
+		FD_ZERO(&ssl_maskr);
+		FD_SET(rfd, &ssl_maskr);
+		FD_ZERO(&ssl_maskx);
+		FD_SET(rfd, &ssl_maskx);
+		do
+		{
+			ret = select(rfd + 1, &ssl_maskr, NULL, &ssl_maskx,
+					&tv);
+		} while (ret < 0 && errno == EINTR);
+		if (ret < 0 && errno > 0)
+			ret = -errno;
+	}
+	else if (err == SSL_ERROR_WANT_WRITE)
+	{
+		fd_set ssl_maskw, ssl_maskx;
+
+		FD_ZERO(&ssl_maskw);
+		FD_SET(wfd, &ssl_maskw);
+		FD_ZERO(&ssl_maskx);
+		FD_SET(rfd, &ssl_maskx);
+		do
+		{
+			ret = select(wfd + 1, NULL, &ssl_maskw, &ssl_maskx,
+					&tv);
+		} while (ret < 0 && errno == EINTR);
+		if (ret < 0 && errno > 0)
+			ret = -errno;
+	}
+	return ret;
+}
+
+/* errno to force refill() etc to stop (see IS_IO_ERROR()) */
+#ifdef ETIMEDOUT
+# define SM_ERR_TIMEOUT	ETIMEDOUT
+#else /* ETIMEDOUT */
+# define SM_ERR_TIMEOUT	EIO
+#endif /* ETIMEDOUT */
+
+/*
 **  TLS_READ -- read secured information for the caller
 **
 **	Parameters:
@@ -561,38 +680,42 @@ tls_read(fp, buf, size)
 	char *buf;
 	size_t size;
 {
-	int r;
-	static int again = MAX_TLS_IOS;
+	int r, rfd, wfd, try, ssl_err;
 	struct tls_obj *so = (struct tls_obj *) fp->f_cookie;
+	time_t tlsstart;
 	char *err;
 
+	try = 99;
+	err = NULL;
+	tlsstart = curtime();
+
+  retry:
 	r = SSL_read(so->con, (char *) buf, size);
 
 	if (r > 0)
-	{
-		again = MAX_TLS_IOS;
 		return r;
-	}
 
 	err = NULL;
-	switch (SSL_get_error(so->con, r))
+	switch (ssl_err = SSL_get_error(so->con, r))
 	{
 	  case SSL_ERROR_NONE:
 	  case SSL_ERROR_ZERO_RETURN:
-		again = MAX_TLS_IOS;
 		break;
 	  case SSL_ERROR_WANT_WRITE:
-		if (--again <= 0)
-			err = "read W BLOCK";
-		else
-			errno = EAGAIN;
-		break;
+		err = "read W BLOCK";
+		/* FALLTHROUGH */
 	  case SSL_ERROR_WANT_READ:
-		if (--again <= 0)
+		if (err == NULL)
 			err = "read R BLOCK";
-		else
-			errno = EAGAIN;
+		rfd = SSL_get_rfd(so->con);
+		wfd = SSL_get_wfd(so->con);
+		try = tls_retry(so->con, rfd, wfd, tlsstart,
+				TimeOuts.to_datablock, ssl_err, "read");
+		if (try > 0)
+			goto retry;
+		errno = SM_ERR_TIMEOUT;
 		break;
+
 	  case SSL_ERROR_WANT_X509_LOOKUP:
 		err = "write X BLOCK";
 		break;
@@ -625,15 +748,22 @@ tls_read(fp, buf, size)
 		int save_errno;
 
 		save_errno = (errno == 0) ? EIO : errno;
-		again = MAX_TLS_IOS;
-		if (LogLevel > 9)
+		if (try == 0 && save_errno == SM_ERR_TIMEOUT)
+		{
+			if (LogLevel > 7)
+				sm_syslog(LOG_WARNING, NOQID,
+					  "STARTTLS: read error=timeout");
+		}
+		else if (LogLevel > 8)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS: read error=%s (%d), errno=%d, get_error=%s",
+				  "STARTTLS: read error=%s (%d), errno=%d, get_error=%s, retry=%d, ssl_err=%d",
 				  err, r, errno,
-				  ERR_error_string(ERR_get_error(), NULL));
+				  ERR_error_string(ERR_get_error(), NULL), try,
+				  ssl_err);
 		else if (LogLevel > 7)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS: read error=%s (%d)", err, r);
+				  "STARTTLS: read error=%s (%d), retry=%d, ssl_err=%d",
+				  err, r, errno, try, ssl_err);
 		errno = save_errno;
 	}
 	return r;
@@ -660,36 +790,39 @@ tls_write(fp, buf, size)
 	const char *buf;
 	size_t size;
 {
-	int r;
-	static int again = MAX_TLS_IOS;
+	int r, rfd, wfd, try, ssl_err;
 	struct tls_obj *so = (struct tls_obj *) fp->f_cookie;
+	time_t tlsstart;
 	char *err;
 
+	try = 99;
+	err = NULL;
+	tlsstart = curtime();
+
+  retry:
 	r = SSL_write(so->con, (char *) buf, size);
 
 	if (r > 0)
-	{
-		again = MAX_TLS_IOS;
 		return r;
-	}
 	err = NULL;
-	switch (SSL_get_error(so->con, r))
+	switch (ssl_err = SSL_get_error(so->con, r))
 	{
 	  case SSL_ERROR_NONE:
 	  case SSL_ERROR_ZERO_RETURN:
-		again = MAX_TLS_IOS;
 		break;
 	  case SSL_ERROR_WANT_WRITE:
-		if (--again <= 0)
-			err = "write W BLOCK";
-		else
-			errno = EAGAIN;
-		break;
+		err = "read W BLOCK";
+		/* FALLTHROUGH */
 	  case SSL_ERROR_WANT_READ:
-		if (--again <= 0)
-			err = "write R BLOCK";
-		else
-			errno = EAGAIN;
+		if (err == NULL)
+			err = "read R BLOCK";
+		rfd = SSL_get_rfd(so->con);
+		wfd = SSL_get_wfd(so->con);
+		try = tls_retry(so->con, rfd, wfd, tlsstart,
+				DATA_PROGRESS_TIMEOUT, ssl_err, "write");
+		if (try > 0)
+			goto retry;
+		errno = SM_ERR_TIMEOUT;
 		break;
 	  case SSL_ERROR_WANT_X509_LOOKUP:
 		err = "write X BLOCK";
@@ -722,15 +855,22 @@ tls_write(fp, buf, size)
 		int save_errno;
 
 		save_errno = (errno == 0) ? EIO : errno;
-		again = MAX_TLS_IOS;
-		if (LogLevel > 9)
+		if (try == 0 && save_errno == SM_ERR_TIMEOUT)
+		{
+			if (LogLevel > 7)
+				sm_syslog(LOG_WARNING, NOQID,
+					  "STARTTLS: write error=timeout");
+		}
+		else if (LogLevel > 8)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS: write error=%s (%d), errno=%d, get_error=%s",
+				  "STARTTLS: write error=%s (%d), errno=%d, get_error=%s, retry=%d, ssl_err=%d",
 				  err, r, errno,
-				  ERR_error_string(ERR_get_error(), NULL));
+				  ERR_error_string(ERR_get_error(), NULL), try,
+				  ssl_err);
 		else if (LogLevel > 7)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS: write error=%s (%d)", err, r);
+				  "STARTTLS: write error=%s (%d), errno=%d, retry=%d, ssl_err=%d",
+				  err, r, errno, try, ssl_err);
 		errno = save_errno;
 	}
 	return r;

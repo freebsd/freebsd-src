@@ -504,7 +504,6 @@ smtp(nullserver, d_flags, e)
 #endif /* SASL */
 	int r;
 #if STARTTLS
-	int fdfl;
 	int rfd, wfd;
 	volatile bool tls_active = false;
 	volatile bool smtps = bitnset(D_SMTPS, d_flags);
@@ -1693,97 +1692,26 @@ smtp(nullserver, d_flags, e)
 #  define SSL_ACC(s)	SSL_accept(s)
 
 			tlsstart = curtime();
-			fdfl = fcntl(rfd, F_GETFL);
-			if (fdfl != -1)
-				fcntl(rfd, F_SETFL, fdfl|O_NONBLOCK);
   ssl_retry:
 			if ((r = SSL_ACC(srv_ssl)) <= 0)
 			{
-				int i;
-				bool timedout;
-				time_t left;
-				time_t now = curtime();
-				struct timeval tv;
+				int i, ssl_err;
 
-				/* what to do in this case? */
-				i = SSL_get_error(srv_ssl, r);
+				ssl_err = SSL_get_error(srv_ssl, r);
+				i = tls_retry(srv_ssl, rfd, wfd, tlsstart,
+						TimeOuts.to_starttls, ssl_err,
+						"server");
+				if (i > 0)
+					goto ssl_retry;
 
-				/*
-				**  For SSL_ERROR_WANT_{READ,WRITE}:
-				**  There is no SSL record available yet
-				**  or there is only a partial SSL record
-				**  removed from the network (socket) buffer
-				**  into the SSL buffer. The SSL_accept will
-				**  only succeed when a full SSL record is
-				**  available (assuming a "real" error
-				**  doesn't happen). To handle when a "real"
-				**  error does happen the select is set for
-				**  exceptions too.
-				**  The connection may be re-negotiated
-				**  during this time so both read and write
-				**  "want errors" need to be handled.
-				**  A select() exception loops back so that
-				**  a proper SSL error message can be gotten.
-				*/
-
-				left = TimeOuts.to_starttls - (now - tlsstart);
-				timedout = left <= 0;
-				if (!timedout)
-				{
-					tv.tv_sec = left;
-					tv.tv_usec = 0;
-				}
-
-				if (!timedout && FD_SETSIZE > 0 &&
-				    (rfd >= FD_SETSIZE ||
-				     (i == SSL_ERROR_WANT_WRITE &&
-				      wfd >= FD_SETSIZE)))
-				{
-					if (LogLevel > 5)
-					{
-						sm_syslog(LOG_ERR, NOQID,
-							  "STARTTLS=server, error: fd %d/%d too large",
-							  rfd, wfd);
-						if (LogLevel > 8)
-							tlslogerr("server");
-					}
-					goto tlsfail;
-				}
-
-				/* XXX what about SSL_pending() ? */
-				if (!timedout && i == SSL_ERROR_WANT_READ)
-				{
-					fd_set ssl_maskr, ssl_maskx;
-
-					FD_ZERO(&ssl_maskr);
-					FD_SET(rfd, &ssl_maskr);
-					FD_ZERO(&ssl_maskx);
-					FD_SET(rfd, &ssl_maskx);
-					if (select(rfd + 1, &ssl_maskr, NULL,
-						   &ssl_maskx, &tv) > 0)
-						goto ssl_retry;
-				}
-				if (!timedout && i == SSL_ERROR_WANT_WRITE)
-				{
-					fd_set ssl_maskw, ssl_maskx;
-
-					FD_ZERO(&ssl_maskw);
-					FD_SET(wfd, &ssl_maskw);
-					FD_ZERO(&ssl_maskx);
-					FD_SET(rfd, &ssl_maskx);
-					if (select(wfd + 1, NULL, &ssl_maskw,
-						   &ssl_maskx, &tv) > 0)
-						goto ssl_retry;
-				}
 				if (LogLevel > 5)
 				{
 					sm_syslog(LOG_WARNING, NOQID,
-						  "STARTTLS=server, error: accept failed=%d, SSL_error=%d, timedout=%d, errno=%d",
-						  r, i, (int) timedout, errno);
+						  "STARTTLS=server, error: accept failed=%d, SSL_error=%d, errno=%d, retry=%d",
+						  r, ssl_err, errno, i);
 					if (LogLevel > 8)
 						tlslogerr("server");
 				}
-tlsfail:
 				tls_ok_srv = false;
 				SSL_free(srv_ssl);
 				srv_ssl = NULL;
@@ -1797,9 +1725,6 @@ tlsfail:
 				e->e_sendqueue = NULL;
 				goto doquit;
 			}
-
-			if (fdfl != -1)
-				fcntl(rfd, F_SETFL, fdfl);
 
 			/* ignore return code for now, it's in {verify} */
 			(void) tls_get_info(srv_ssl, true,
