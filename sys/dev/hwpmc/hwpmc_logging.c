@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Joseph Koshy
+ * Copyright (c) 2005-2006 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -619,10 +619,8 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	if ((po->po_flags & PMC_PO_OWNS_LOGFILE) == 0)
 		return EINVAL;
 
-	/* remove this owner from the global SS pmc owner list */
-	if (po->po_sscount)
-		LIST_REMOVE(po, po_ssnext);
-
+	KASSERT(po->po_sscount == 0,
+	    ("[pmc,%d] po=%p still owning SS PMCs", __LINE__, po));
 	KASSERT(po->po_file != NULL,
 	    ("[pmc,%d] po=%p no log file", __LINE__, po));
 
