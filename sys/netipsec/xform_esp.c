@@ -555,6 +555,23 @@ esp_input_cb(struct cryptop *crp)
 	 */
 	m->m_flags |= M_DECRYPTED;
 
+	/*
+	 * Update replay sequence number, if appropriate.
+	 */
+	if (sav->replay) {
+		u_int32_t seq;
+
+		m_copydata(m, skip + offsetof(struct newesp, esp_seq),
+			   sizeof (seq), (caddr_t) &seq);
+		if (ipsec_updatereplay(ntohl(seq), sav)) {
+			DPRINTF(("%s: packet replay check for %s\n", __func__,
+			    ipsec_logsastr(sav)));
+			espstat.esps_replay++;
+			error = ENOBUFS;
+			goto bad;
+		}
+	}
+
 	/* Determine the ESP header length */
 	if (sav->flags & SADB_X_EXT_OLD)
 		hlen = sizeof (struct esp) + sav->ivlen;
