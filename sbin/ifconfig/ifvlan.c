@@ -62,6 +62,8 @@ static struct vlanreq		__vreq;
 static int			__have_dev = 0;
 static int			__have_tag = 0;
 
+static void			vlan_set(int);
+
 static void
 vlan_status(int s)
 {
@@ -93,6 +95,7 @@ setvlantag(const char *val, int d, int s, const struct afswtch	*afp)
 		errx(1, "value for vlan out of range");
 	/* the kernel will do more specific checks on vlr_tag */
 	__have_tag = 1;
+	vlan_set(s);	/* try setting vlan params in kernel */
 }
 
 static void
@@ -101,6 +104,7 @@ setvlandev(const char *val, int d, int s, const struct afswtch	*afp)
 
 	strncpy(__vreq.vlr_parent, val, sizeof(__vreq.vlr_parent));
 	__have_dev = 1;
+	vlan_set(s);	/* try setting vlan params in kernel */
 }
 
 static void
@@ -130,6 +134,11 @@ vlan_cb(int s, void *arg)
 
 	if (__have_tag ^ __have_dev)
 		errx(1, "both vlan and vlandev must be specified");
+}
+
+static void
+vlan_set(int s)
+{
 
 	if (__have_tag && __have_dev) {
 		ifr.ifr_data = (caddr_t)&__vreq;
