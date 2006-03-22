@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.214 2005/02/04 22:01:45 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.216 2005/07/12 22:27:44 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -48,11 +48,9 @@ static int	mci_read_persistent __P((SM_FILE_T *, MCI *));
 **	MciCacheTimeout is the time (in seconds) that a connection
 **	is permitted to survive without activity.
 **
-**	We actually try any cached connections by sending a NOOP
-**	before we use them; if the NOOP fails we close down the
-**	connection and reopen it.  Note that this means that a
-**	server SMTP that doesn't support NOOP will hose the
-**	algorithm -- but that doesn't seem too likely.
+**	We actually try any cached connections by sending a RSET
+**	before we use them; if the RSET fails we close down the
+**	connection and reopen it (see smtpprobe()).
 **
 **	The persistent MCI code is donated by Mark Lovell and Paul
 **	Vixie.  It is based on the long term host status code in KJS
@@ -1127,6 +1125,9 @@ mci_traverse_persistent(action, pathname)
 		char *newptr;
 		struct dirent *e;
 		char newpath[MAXPATHLEN];
+#if MAXPATHLEN <= MAXNAMLEN - 3
+ ERROR "MAXPATHLEN <= MAXNAMLEN - 3"
+#endif /* MAXPATHLEN  <= MAXNAMLEN - 3 */
 
 		if ((d = opendir(pathname)) == NULL)
 		{
