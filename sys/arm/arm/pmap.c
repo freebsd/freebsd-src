@@ -3535,7 +3535,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pmap_tlb_flushD_SE(pmap, va);
 
 
-		pmap_vac_me_harder(m, pmap, va);
+		if (m)
+			pmap_vac_me_harder(m, pmap, va);
 	}
 	vm_page_unlock_queues();
 }
