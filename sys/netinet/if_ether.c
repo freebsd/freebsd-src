@@ -140,7 +140,7 @@ arptimer(void * __unused unused)
 		struct rtentry *rt = la->la_rt;
 
 		RT_LOCK(rt);
-		if (rt->rt_expire && rt->rt_expire <= time_uptime) {
+		if (rt->rt_expire && rt->rt_expire <= time_second) {
 			struct sockaddr_dl *sdl = SDL(rt->rt_gateway);
 
 			KASSERT(sdl->sdl_family == AF_LINK, ("sdl_family %d",
@@ -208,7 +208,7 @@ arp_rtrequest(req, rt, info)
 			gate = rt->rt_gateway;
 			SDL(gate)->sdl_type = rt->rt_ifp->if_type;
 			SDL(gate)->sdl_index = rt->rt_ifp->if_index;
-			rt->rt_expire = time_uptime;
+			rt->rt_expire = time_second;
 			break;
 		}
 		/* Announce a new entry if requested. */
@@ -438,7 +438,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 * Check the address family and length is valid, the address
 	 * is resolved; otherwise, try to resolve.
 	 */
-	if ((rt->rt_expire == 0 || rt->rt_expire > time_uptime) &&
+	if ((rt->rt_expire == 0 || rt->rt_expire > time_second) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
 
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
@@ -448,7 +448,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		 * send an ARP request.
 		 */
 		if ((rt->rt_expire != 0) &&
-		    (time_uptime + la->la_preempt > rt->rt_expire)) {
+		    (time_second + la->la_preempt > rt->rt_expire)) {
 			struct in_addr sin = 
 			    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
 
@@ -495,11 +495,11 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	else
 		error = (rt == rt0) ? EHOSTDOWN : EHOSTUNREACH;
 
-	if (la->la_asked++ == 0 || rt->rt_expire != time_uptime) {
+	if (la->la_asked++ == 0 || rt->rt_expire != time_second) {
 		struct in_addr sin =
 		    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
 
-		rt->rt_expire = time_uptime;
+		rt->rt_expire = time_second;
 		RT_UNLOCK(rt);
 
 		arprequest(ifp, &sin, &SIN(dst)->sin_addr,
@@ -792,7 +792,7 @@ match:
 		th->rcf = trld->trld_rcf;
 	}
 	if (rt->rt_expire)
-		rt->rt_expire = time_uptime + arpt_keep;
+		rt->rt_expire = time_second + arpt_keep;
 	la->la_asked = 0;
 	la->la_preempt = arp_maxtries;
 	hold = la->la_hold;
