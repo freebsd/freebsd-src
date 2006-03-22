@@ -693,7 +693,11 @@ ich_init(struct sc_info *sc)
 		}
 	}
 
+#if 0
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD | ICH_GLOB_CTL_PRES, 4);
+#else
+	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD, 4);
+#endif
 
 	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 1))
 		return ENXIO;
