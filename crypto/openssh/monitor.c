@@ -25,7 +25,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor.c,v 1.63 2005/03/10 22:01:05 deraadt Exp $");
+RCSID("$OpenBSD: monitor.c,v 1.64 2005/10/13 22:24:31 stevesk Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/dh.h>
@@ -843,9 +843,7 @@ mm_answer_pam_account(int sock, Buffer *m)
 	ret = do_pam_account();
 
 	buffer_put_int(m, ret);
-	buffer_append(&loginmsg, "\0", 1);
-	buffer_put_cstring(m, buffer_ptr(&loginmsg));
-	buffer_clear(&loginmsg);
+	buffer_put_string(m, buffer_ptr(&loginmsg), buffer_len(&loginmsg));
 
 	mm_request_send(sock, MONITOR_ANS_PAM_ACCOUNT, m);
 
@@ -1840,7 +1838,7 @@ mm_answer_gss_setup_ctx(int sock, Buffer *m)
 	buffer_clear(m);
 	buffer_put_int(m, major);
 
-	mm_request_send(sock,MONITOR_ANS_GSSSETUP, m);
+	mm_request_send(sock, MONITOR_ANS_GSSSETUP, m);
 
 	/* Now we have a context, enable the step */
 	monitor_permit(mon_dispatch, MONITOR_REQ_GSSSTEP, 1);
@@ -1853,7 +1851,7 @@ mm_answer_gss_accept_ctx(int sock, Buffer *m)
 {
 	gss_buffer_desc in;
 	gss_buffer_desc out = GSS_C_EMPTY_BUFFER;
-	OM_uint32 major,minor;
+	OM_uint32 major, minor;
 	OM_uint32 flags = 0; /* GSI needs this */
 	u_int len;
 
@@ -1870,7 +1868,7 @@ mm_answer_gss_accept_ctx(int sock, Buffer *m)
 
 	gss_release_buffer(&minor, &out);
 
-	if (major==GSS_S_COMPLETE) {
+	if (major == GSS_S_COMPLETE) {
 		monitor_permit(mon_dispatch, MONITOR_REQ_GSSSTEP, 0);
 		monitor_permit(mon_dispatch, MONITOR_REQ_GSSUSEROK, 1);
 		monitor_permit(mon_dispatch, MONITOR_REQ_GSSCHECKMIC, 1);
@@ -1919,7 +1917,7 @@ mm_answer_gss_userok(int sock, Buffer *m)
 	debug3("%s: sending result %d", __func__, authenticated);
 	mm_request_send(sock, MONITOR_ANS_GSSUSEROK, m);
 
-	auth_method="gssapi-with-mic";
+	auth_method = "gssapi-with-mic";
 
 	/* Monitor loop will terminate if authenticated */
 	return (authenticated);
