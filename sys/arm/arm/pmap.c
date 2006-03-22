@@ -2021,6 +2021,8 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	 */
 	if (user && (pte & L2_S_PROT_U) == 0)
 		goto out;
+	if (va == vector_page)
+		goto out;
 
 	pa = l2pte_pa(pte);
 
