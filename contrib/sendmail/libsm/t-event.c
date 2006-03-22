@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-event.c,v 1.12 2004/08/03 20:50:32 ca Exp $")
+SM_RCSID("@(#)$Id: t-event.c,v 1.13 2005/06/14 23:07:20 ca Exp $")
 
 #include <stdio.h>
 
@@ -16,7 +16,7 @@ SM_RCSID("@(#)$Id: t-event.c,v 1.12 2004/08/03 20:50:32 ca Exp $")
 #include <unistd.h>
 # include <sys/wait.h>
 #if SM_CONF_SETITIMER
-# include <sys/time.h>
+# include <sm/time.h>
 #endif /* SM_CONF_SETITIMER */
 
 #include <sm/clock.h>

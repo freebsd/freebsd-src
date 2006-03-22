@@ -12,12 +12,12 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.46 2004/08/03 19:57:22 ca Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.47 2005/06/14 23:07:20 ca Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
 #if SM_CONF_SETITIMER
-# include <sys/time.h>
+# include <sm/time.h>
 #endif /* SM_CONF_SETITIMER */
 #include <sm/heap.h>
 #include <sm/debug.h>

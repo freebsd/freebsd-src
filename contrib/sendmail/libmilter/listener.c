@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.111 2004/09/20 21:11:15 msk Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.115 2006/01/24 00:48:39 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -458,11 +458,15 @@ mi_milteropen(conn, backlog, rmsocket, name)
 		return INVALID_SOCKET;
 	}
 
-	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *) &sockopt,
+	if (
+#if NETUNIX
+	    addr.sa.sa_family != AF_UNIX &&
+#endif /* NETUNIX */
+	    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *) &sockopt,
 		       sizeof(sockopt)) == -1)
 	{
 		smi_log(SMI_LOG_ERR,
-			"%s: Unable to setsockopt: %s", name,
+			"%s: set reuseaddr failed (%s)", name,
 			sm_errstring(errno));
 		(void) closesocket(sock);
 		return INVALID_SOCKET;
@@ -564,9 +568,6 @@ mi_thread_handle_wrapper(arg)
 
 /*
 **  MI_CLOSENER -- close listen socket
-**
-**	NOTE: It is assumed that this function is called from a
-**	      function that has a mutex lock (currently mi_stop_milters()).
 **
 **	Parameters:
 **		none.
@@ -872,7 +873,8 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		if (setsockopt(connfd, SOL_SOCKET, SO_KEEPALIVE,
 				(void *) &sockopt, sizeof sockopt) < 0)
 		{
-			smi_log(SMI_LOG_WARN, "%s: setsockopt() failed (%s)",
+			smi_log(SMI_LOG_WARN,
+				"%s: set keepalive failed (%s)",
 				smfi->xxfi_name, sm_errstring(errno));
 			/* XXX: continue? */
 		}

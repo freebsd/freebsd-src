@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,9 +12,9 @@
  */
 
 #include <sendmail.h>
-#include <sys/time.h>
+#include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.986 2005/03/05 02:28:50 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1000 2006/03/02 01:37:39 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -1201,13 +1201,13 @@ should_try_fbsh(e, tried_fallbacksmarthost, hostbuf, hbsz, status)
 	int status;
 {
 	/*
-	**  If the host was not found and a FallbackSmartHost is defined
-	**  (and we have not yet tried it), then make one last try with
-	**  it as the host.
+	**  If the host was not found or a temporary failure occurred
+	**  and a FallbackSmartHost is defined (and we have not yet
+	**  tried it), then make one last try with it as the host.
 	*/
 
-	if (status == EX_NOHOST && FallbackSmartHost != NULL &&
-	    !*tried_fallbacksmarthost)
+	if ((status == EX_NOHOST || status == EX_TEMPFAIL) &&
+	    FallbackSmartHost != NULL && !*tried_fallbacksmarthost)
 	{
 		*tried_fallbacksmarthost = true;
 		expand(FallbackSmartHost, hostbuf, hbsz, e);
@@ -2992,6 +2992,9 @@ reconnect:	/* after switching to an encrypted connection */
 					  case EX_SOFTWARE:
 						s = "SOFTWARE";
 						break;
+					  case EX_UNAVAILABLE:
+						s = "NONE";
+						break;
 
 					  /* everything else is a failure */
 					  default:
@@ -3257,16 +3260,33 @@ do_transfer:
 	}
 	else if (!clever)
 	{
+		bool ok;
+
 		/*
 		**  Format and send message.
 		*/
 
-		putfromline(mci, e);
-		(*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
-		(*e->e_putbody)(mci, e, NULL);
+		rcode = EX_OK;
+		errno = 0;
+		ok = putfromline(mci, e);
+		if (ok)
+			ok = (*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
+		if (ok)
+			ok = (*e->e_putbody)(mci, e, NULL);
 
-		/* get the exit status */
+		/*
+		**  Ignore an I/O error that was caused by EPIPE.
+		**  Some broken mailers don't read the entire body
+		**  but just exit() thus causing an I/O error.
+		*/
+
+		if (!ok && (sm_io_error(mci->mci_out) && errno == EPIPE))
+			ok = true;
+
+		/* (always) get the exit status */
 		rcode = endmailer(mci, e, pv);
+		if (!ok)
+			rcode = EX_TEMPFAIL;
 		if (rcode == EX_TEMPFAIL && SmtpError[0] == '\0')
 		{
 			/*
@@ -4430,13 +4450,13 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 **		e -- the envelope.
 **
 **	Returns:
-**		none
+**		true iff line was written successfully
 **
 **	Side Effects:
 **		outputs some text to fp.
 */
 
-void
+bool
 putfromline(mci, e)
 	register MCI *mci;
 	ENVELOPE *e;
@@ -4446,7 +4466,7 @@ putfromline(mci, e)
 	char xbuf[MAXLINE];
 
 	if (bitnset(M_NHDR, mci->mci_mailer->m_flags))
-		return;
+		return true;
 
 	mci->mci_flags |= MCIF_INHEADER;
 
@@ -4487,8 +4507,9 @@ putfromline(mci, e)
 		}
 	}
 	expand(template, buf, sizeof buf, e);
-	putxline(buf, strlen(buf), mci, PXLF_HEADER);
+	return putxline(buf, strlen(buf), mci, PXLF_HEADER);
 }
+
 /*
 **  PUTBODY -- put the body of a message.
 **
@@ -4499,24 +4520,26 @@ putfromline(mci, e)
 **			not be permitted in the resulting message.
 **
 **	Returns:
-**		none.
+**		true iff message was written successfully
 **
 **	Side Effects:
 **		The message is written onto fp.
 */
 
 /* values for output state variable */
-#define OS_HEAD		0	/* at beginning of line */
-#define OS_CR		1	/* read a carriage return */
-#define OS_INLINE	2	/* putting rest of line */
+#define OSTATE_HEAD	0	/* at beginning of line */
+#define OSTATE_CR	1	/* read a carriage return */
+#define OSTATE_INLINE	2	/* putting rest of line */
 
-void
+bool
 putbody(mci, e, separator)
 	register MCI *mci;
 	register ENVELOPE *e;
 	char *separator;
 {
 	bool dead = false;
+	bool ioerr = false;
+	int save_errno;
 	char buf[MAXLINE];
 #if MIME8TO7
 	char *boundaries[MAXMIMENESTING + 1];
@@ -4546,10 +4569,12 @@ putbody(mci, e, separator)
 	{
 		if (bitset(MCIF_INHEADER, mci->mci_flags))
 		{
-			putline("", mci);
+			if (!putline("", mci))
+				goto writeerr;
 			mci->mci_flags &= ~MCIF_INHEADER;
 		}
-		putline("<<< No Message Collected >>>", mci);
+		if (!putline("<<< No Message Collected >>>", mci))
+			goto writeerr;
 		goto endofmessage;
 	}
 
@@ -4570,6 +4595,10 @@ putbody(mci, e, separator)
 	/* paranoia: the data file should always be in a rewound state */
 	(void) bfrewind(e->e_dfp);
 
+	/* simulate an I/O timeout when used as source */
+	if (tTd(84, 101))
+		sleep(319);
+
 #if MIME8TO7
 	if (bitset(MCIF_CVT8TO7, mci->mci_flags))
 	{
@@ -4578,26 +4607,31 @@ putbody(mci, e, separator)
 		*/
 
 		/* make sure it looks like a MIME message */
-		if (hvalue("MIME-Version", e->e_header) == NULL)
-			putline("MIME-Version: 1.0", mci);
+		if (hvalue("MIME-Version", e->e_header) == NULL &&
+		    !putline("MIME-Version: 1.0", mci))
+			goto writeerr;
 
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
 			(void) sm_snprintf(buf, sizeof buf,
 					   "Content-Type: text/plain; charset=%s",
 					   defcharset(e));
-			putline(buf, mci);
+			if (!putline(buf, mci))
+				goto writeerr;
 		}
 
 		/* now do the hard work */
 		boundaries[0] = NULL;
 		mci->mci_flags |= MCIF_INHEADER;
-		(void) mime8to7(mci, e->e_header, e, boundaries, M87F_OUTER);
+		if (mime8to7(mci, e->e_header, e, boundaries, M87F_OUTER) ==
+								SM_IO_EOF)
+			goto writeerr;
 	}
 # if MIME7TO8
 	else if (bitset(MCIF_CVT7TO8, mci->mci_flags))
 	{
-		(void) mime7to8(mci, e->e_header, e);
+		if (!mime7to8(mci, e->e_header, e))
+			goto writeerr;
 	}
 # endif /* MIME7TO8 */
 	else if (MaxMimeHeaderLength > 0 || MaxMimeFieldLength > 0)
@@ -4619,8 +4653,9 @@ putbody(mci, e, separator)
 		if (bitset(EF_DONT_MIME, e->e_flags))
 			SuprErrs = true;
 
-		(void) mime8to7(mci, e->e_header, e, boundaries,
-				M87F_OUTER|M87F_NO8TO7);
+		if (mime8to7(mci, e->e_header, e, boundaries,
+				M87F_OUTER|M87F_NO8TO7) == SM_IO_EOF)
+			goto writeerr;
 
 		/* restore SuprErrs */
 		SuprErrs = oldsuprerrs;
@@ -4640,7 +4675,8 @@ putbody(mci, e, separator)
 
 		if (bitset(MCIF_INHEADER, mci->mci_flags))
 		{
-			putline("", mci);
+			if (!putline("", mci))
+				goto writeerr;
 			mci->mci_flags &= ~MCIF_INHEADER;
 		}
 
@@ -4651,7 +4687,7 @@ putbody(mci, e, separator)
 			buflim = &buf[mci->mci_mailer->m_linelimit - 1];
 
 		/* copy temp file to output with mapping */
-		ostate = OS_HEAD;
+		ostate = OSTATE_HEAD;
 		bp = buf;
 		pbp = peekbuf;
 		while (!sm_io_error(mci->mci_out) && !dead)
@@ -4665,7 +4701,7 @@ putbody(mci, e, separator)
 				c &= 0x7f;
 			switch (ostate)
 			{
-			  case OS_HEAD:
+			  case OSTATE_HEAD:
 				if (c == '\0' &&
 				    bitnset(M_NONULLS,
 					    mci->mci_mailer->m_flags))
@@ -4731,11 +4767,6 @@ putbody(mci, e, separator)
 						dead = true;
 						continue;
 					}
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 					pos++;
 				}
 				for (xp = buf; xp < bp; xp++)
@@ -4748,11 +4779,6 @@ putbody(mci, e, separator)
 						dead = true;
 						break;
 					}
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 				}
 				if (dead)
 					continue;
@@ -4763,11 +4789,6 @@ putbody(mci, e, separator)
 							mci->mci_mailer->m_eol)
 							== SM_IO_EOF)
 						break;
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 					pos = 0;
 				}
 				else
@@ -4785,14 +4806,14 @@ putbody(mci, e, separator)
 
 				/* determine next state */
 				if (c == '\n')
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 				else if (c == '\r')
-					ostate = OS_CR;
+					ostate = OSTATE_CR;
 				else
-					ostate = OS_INLINE;
+					ostate = OSTATE_INLINE;
 				continue;
 
-			  case OS_CR:
+			  case OSTATE_CR:
 				if (c == '\n')
 				{
 					/* got CRLF */
@@ -4801,11 +4822,6 @@ putbody(mci, e, separator)
 							mci->mci_mailer->m_eol)
 							== SM_IO_EOF)
 						continue;
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 
 					if (TrafficLogFile != NULL)
 					{
@@ -4813,7 +4829,7 @@ putbody(mci, e, separator)
 								   SM_TIME_DEFAULT,
 								   mci->mci_mailer->m_eol);
 					}
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 					continue;
 				}
 
@@ -4821,13 +4837,13 @@ putbody(mci, e, separator)
 				SM_ASSERT(pbp < peekbuf + sizeof(peekbuf));
 				*pbp++ = c;
 				c = '\r';
-				ostate = OS_INLINE;
+				ostate = OSTATE_INLINE;
 				goto putch;
 
-			  case OS_INLINE:
+			  case OSTATE_INLINE:
 				if (c == '\r')
 				{
-					ostate = OS_CR;
+					ostate = OSTATE_CR;
 					continue;
 				}
 				if (c == '\0' &&
@@ -4867,11 +4883,6 @@ putch:
 							dead = true;
 							continue;
 						}
-						else
-						{
-							/* record progress for DATA timeout */
-							DataProgress = true;
-						}
 						pos++;
 						continue;
 					}
@@ -4887,11 +4898,6 @@ putch:
 						dead = true;
 						continue;
 					}
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 
 					if (TrafficLogFile != NULL)
 					{
@@ -4900,7 +4906,7 @@ putch:
 								     "!%s",
 								     mci->mci_mailer->m_eol);
 					}
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 					SM_ASSERT(pbp < peekbuf +
 							sizeof(peekbuf));
 					*pbp++ = c;
@@ -4917,13 +4923,8 @@ putch:
 							mci->mci_mailer->m_eol)
 							== SM_IO_EOF)
 						continue;
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 					pos = 0;
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 				}
 				else
 				{
@@ -4939,13 +4940,8 @@ putch:
 						dead = true;
 						continue;
 					}
-					else
-					{
-						/* record progress for DATA timeout */
-						DataProgress = true;
-					}
 					pos++;
-					ostate = OS_INLINE;
+					ostate = OSTATE_INLINE;
 				}
 				break;
 			}
@@ -4970,11 +4966,6 @@ putch:
 					dead = true;
 					break;
 				}
-				else
-				{
-					/* record progress for DATA timeout */
-					DataProgress = true;
-				}
 			}
 			pos += bp - buf;
 		}
@@ -4984,11 +4975,9 @@ putch:
 				(void) sm_io_fputs(TrafficLogFile,
 						   SM_TIME_DEFAULT,
 						   mci->mci_mailer->m_eol);
-			(void) sm_io_fputs(mci->mci_out, SM_TIME_DEFAULT,
-					   mci->mci_mailer->m_eol);
-
-			/* record progress for DATA timeout */
-			DataProgress = true;
+			if (sm_io_fputs(mci->mci_out, SM_TIME_DEFAULT,
+					   mci->mci_mailer->m_eol) == SM_IO_EOF)
+				goto writeerr;
 		}
 	}
 
@@ -4998,6 +4987,7 @@ putch:
 		       qid_printqueue(e->e_dfqgrp, e->e_dfqdir),
 		       DATAFL_LETTER, e->e_id);
 		ExitStat = EX_IOERR;
+		ioerr = true;
 	}
 
 endofmessage:
@@ -5012,23 +5002,35 @@ endofmessage:
 	**  offset to match.
 	*/
 
+	save_errno = errno;
 	if (e->e_dfp != NULL)
 		(void) bfrewind(e->e_dfp);
 
 	/* some mailers want extra blank line at end of message */
 	if (!dead && bitnset(M_BLANKEND, mci->mci_mailer->m_flags) &&
 	    buf[0] != '\0' && buf[0] != '\n')
-		putline("", mci);
-
-	(void) sm_io_flush(mci->mci_out, SM_TIME_DEFAULT);
-	if (sm_io_error(mci->mci_out) && errno != EPIPE)
 	{
-		syserr("putbody: write error");
-		ExitStat = EX_IOERR;
+		if (!putline("", mci))
+			goto writeerr;
 	}
 
-	errno = 0;
+	if (!dead &&
+	    (sm_io_flush(mci->mci_out, SM_TIME_DEFAULT) == SM_IO_EOF ||
+	     (sm_io_error(mci->mci_out) && errno != EPIPE)))
+	{
+		save_errno = errno;
+		syserr("putbody: write error");
+		ExitStat = EX_IOERR;
+		ioerr = true;
+	}
+
+	errno = save_errno;
+	return !dead && !ioerr;
+
+  writeerr:
+	return false;
 }
+
 /*
 **  MAILFILE -- Send a message to a file.
 **
@@ -5559,14 +5561,14 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		}
 #endif /* MIME7TO8 */
 
-		putfromline(&mcibuf, e);
-		(*e->e_puthdr)(&mcibuf, e->e_header, e, M87F_OUTER);
-		(*e->e_putbody)(&mcibuf, e, NULL);
-		putline("\n", &mcibuf);
-		if (sm_io_flush(f, SM_TIME_DEFAULT) != 0 ||
+		if (!putfromline(&mcibuf, e) ||
+		    !(*e->e_puthdr)(&mcibuf, e->e_header, e, M87F_OUTER) ||
+		    !(*e->e_putbody)(&mcibuf, e, NULL) ||
+		    !putline("\n", &mcibuf) ||
+		    (sm_io_flush(f, SM_TIME_DEFAULT) != 0 ||
 		    (SuperSafe != SAFE_NO &&
 		     fsync(sm_io_getinfo(f, SM_IO_WHAT_FD, NULL)) < 0) ||
-		    sm_io_error(f))
+		    sm_io_error(f)))
 		{
 			setstat(EX_IOERR);
 #if !NOFTRUNCATE
@@ -6079,12 +6081,16 @@ starttls(m, mci, e)
 			XS_STARTTLS);
 
 	/* check return code from server */
-	if (smtpresult == 454)
+	if (REPLYTYPE(smtpresult) == 4)
 		return EX_TEMPFAIL;
 	if (smtpresult == 501)
 		return EX_USAGE;
 	if (smtpresult == -1)
 		return smtpresult;
+
+	/* not an expected reply but we have to deal with it */
+	if (REPLYTYPE(smtpresult) == 5)
+		return EX_UNAVAILABLE;
 	if (smtpresult != 220)
 		return EX_PROTOCOL;
 
@@ -6128,86 +6134,23 @@ starttls(m, mci, e)
 ssl_retry:
 	if ((result = SSL_connect(clt_ssl)) <= 0)
 	{
-		int i;
-		bool timedout;
-		time_t left;
-		time_t now = curtime();
-		struct timeval tv;
+		int i, ssl_err;
 
-		/* what to do in this case? */
-		i = SSL_get_error(clt_ssl, result);
+		ssl_err = SSL_get_error(clt_ssl, result);
+		i = tls_retry(clt_ssl, rfd, wfd, tlsstart,
+			TimeOuts.to_starttls, ssl_err, "client");
+		if (i > 0)
+			goto ssl_retry;
 
-		/*
-		**  For SSL_ERROR_WANT_{READ,WRITE}:
-		**  There is not a complete SSL record available yet
-		**  or there is only a partial SSL record removed from
-		**  the network (socket) buffer into the SSL buffer.
-		**  The SSL_connect will only succeed when a full
-		**  SSL record is available (assuming a "real" error
-		**  doesn't happen). To handle when a "real" error
-		**  does happen the select is set for exceptions too.
-		**  The connection may be re-negotiated during this time
-		**  so both read and write "want errors" need to be handled.
-		**  A select() exception loops back so that a proper SSL
-		**  error message can be gotten.
-		*/
-
-		left = TimeOuts.to_starttls - (now - tlsstart);
-		timedout = left <= 0;
-		if (!timedout)
-		{
-			tv.tv_sec = left;
-			tv.tv_usec = 0;
-		}
-
-		if (!timedout && FD_SETSIZE > 0 &&
-		    (rfd >= FD_SETSIZE ||
-		     (i == SSL_ERROR_WANT_WRITE && wfd >= FD_SETSIZE)))
-		{
-			if (LogLevel > 5)
-			{
-				sm_syslog(LOG_ERR, e->e_id,
-					  "STARTTLS=client, error: fd %d/%d too large",
-					  rfd, wfd);
-			if (LogLevel > 8)
-				tlslogerr("client");
-			}
-			errno = EINVAL;
-			goto tlsfail;
-		}
-		if (!timedout && i == SSL_ERROR_WANT_READ)
-		{
-			fd_set ssl_maskr, ssl_maskx;
-
-			FD_ZERO(&ssl_maskr);
-			FD_SET(rfd, &ssl_maskr);
-			FD_ZERO(&ssl_maskx);
-			FD_SET(rfd, &ssl_maskx);
-			if (select(rfd + 1, &ssl_maskr, NULL, &ssl_maskx, &tv)
-			    > 0)
-				goto ssl_retry;
-		}
-		if (!timedout && i == SSL_ERROR_WANT_WRITE)
-		{
-			fd_set ssl_maskw, ssl_maskx;
-
-			FD_ZERO(&ssl_maskw);
-			FD_SET(wfd, &ssl_maskw);
-			FD_ZERO(&ssl_maskx);
-			FD_SET(rfd, &ssl_maskx);
-			if (select(wfd + 1, NULL, &ssl_maskw, &ssl_maskx, &tv)
-			    > 0)
-				goto ssl_retry;
-		}
 		if (LogLevel > 5)
 		{
-			sm_syslog(LOG_ERR, e->e_id,
-				  "STARTTLS=client, error: connect failed=%d, SSL_error=%d, timedout=%d, errno=%d",
-				  result, i, (int) timedout, errno);
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=client, error: connect failed=%d, SSL_error=%d, errno=%d, retry=%d",
+				  result, ssl_err, errno, i);
 			if (LogLevel > 8)
 				tlslogerr("client");
 		}
-tlsfail:
+
 		SSL_free(clt_ssl);
 		clt_ssl = NULL;
 		return EX_SOFTWARE;

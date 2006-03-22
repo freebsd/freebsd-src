@@ -13,10 +13,10 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: fpos.c,v 1.38 2004/08/03 20:17:38 ca Exp $")
+SM_RCSID("@(#)$Id: fpos.c,v 1.39 2005/06/14 23:07:20 ca Exp $")
 #include <errno.h>
 #include <setjmp.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <sm/heap.h>
 #include <sm/signal.h>
 #include <sm/clock.h>
