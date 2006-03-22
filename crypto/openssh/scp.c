@@ -71,7 +71,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: scp.c,v 1.125 2005/07/27 10:39:03 dtucker Exp $");
+RCSID("$OpenBSD: scp.c,v 1.130 2006/01/31 10:35:43 djm Exp $");
 
 #include "xmalloc.h"
 #include "atomicio.h"
@@ -118,6 +118,48 @@ killchild(int signo)
 	exit(1);
 }
 
+static int
+do_local_cmd(arglist *a)
+{
+	u_int i;
+	int status;
+	pid_t pid;
+
+	if (a->num == 0)
+		fatal("do_local_cmd: no arguments");
+
+	if (verbose_mode) {
+		fprintf(stderr, "Executing:");
+		for (i = 0; i < a->num; i++)
+			fprintf(stderr, " %s", a->list[i]);
+		fprintf(stderr, "\n");
+	}
+	if ((pid = fork()) == -1)
+		fatal("do_local_cmd: fork: %s", strerror(errno));
+
+	if (pid == 0) {
+		execvp(a->list[0], a->list);
+		perror(a->list[0]);
+		exit(1);
+	}
+
+	do_cmd_pid = pid;
+	signal(SIGTERM, killchild);
+	signal(SIGINT, killchild);
+	signal(SIGHUP, killchild);
+
+	while (waitpid(pid, &status, 0) == -1)
+		if (errno != EINTR)
+			fatal("do_local_cmd: waitpid: %s", strerror(errno));
+
+	do_cmd_pid = -1;
+
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+		return (-1);
+
+	return (0);
+}
+
 /*
  * This function executes the given command as the specified user on the
  * given host.  This returns < 0 if execution fails, and >= 0 otherwise. This
@@ -162,7 +204,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc)
 		close(pin[0]);
 		close(pout[1]);
 
-		args.list[0] = ssh_program;
+		replacearg(&args, 0, "%s", ssh_program);
 		if (remuser != NULL)
 			addargs(&args, "-l%s", remuser);
 		addargs(&args, "%s", host);
@@ -222,12 +264,17 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	__progname = ssh_get_progname(argv[0]);
 
+	memset(&args, '\0', sizeof(args));
 	args.list = NULL;
-	addargs(&args, "ssh");		/* overwritten with ssh_program */
+	addargs(&args, "%s", ssh_program);
 	addargs(&args, "-x");
 	addargs(&args, "-oForwardAgent no");
+	addargs(&args, "-oPermitLocalCommand no");
 	addargs(&args, "-oClearAllForwardings yes");
 
 	fflag = tflag = 0;
@@ -336,9 +383,9 @@ main(int argc, char **argv)
 	if ((targ = colon(argv[argc - 1])))	/* Dest is remote host. */
 		toremote(targ, argc, argv);
 	else {
-		tolocal(argc, argv);	/* Dest is local host. */
 		if (targetshouldbedirectory)
 			verifydir(argv[argc - 1]);
+		tolocal(argc, argv);	/* Dest is local host. */
 	}
 	/*
 	 * Finally check the exit status of the ssh process, if one was forked
@@ -364,6 +411,10 @@ toremote(char *targ, int argc, char **argv)
 {
 	int i, len;
 	char *bp, *host, *src, *suser, *thost, *tuser, *arg;
+	arglist alist;
+
+	memset(&alist, '\0', sizeof(alist));
+	alist.list = NULL;
 
 	*targ++ = 0;
 	if (*targ == 0)
@@ -381,56 +432,48 @@ toremote(char *targ, int argc, char **argv)
 		tuser = NULL;
 	}
 
+	if (tuser != NULL && !okname(tuser)) {
+		xfree(arg);
+		return;
+	}
+
 	for (i = 0; i < argc - 1; i++) {
 		src = colon(argv[i]);
 		if (src) {	/* remote to remote */
-			static char *ssh_options =
-			    "-x -o'ClearAllForwardings yes'";
+			freeargs(&alist);
+			addargs(&alist, "%s", ssh_program);
+			if (verbose_mode)
+				addargs(&alist, "-v");
+			addargs(&alist, "-x");
+			addargs(&alist, "-oClearAllForwardings yes");
+			addargs(&alist, "-n");
+
 			*src++ = 0;
 			if (*src == 0)
 				src = ".";
 			host = strrchr(argv[i], '@');
-			len = strlen(ssh_program) + strlen(argv[i]) +
-			    strlen(src) + (tuser ? strlen(tuser) : 0) +
-			    strlen(thost) + strlen(targ) +
-			    strlen(ssh_options) + CMDNEEDS + 20;
-			bp = xmalloc(len);
+
 			if (host) {
 				*host++ = 0;
 				host = cleanhostname(host);
 				suser = argv[i];
 				if (*suser == '\0')
 					suser = pwd->pw_name;
-				else if (!okname(suser)) {
-					xfree(bp);
+				else if (!okname(suser))
 					continue;
-				}
-				if (tuser && !okname(tuser)) {
-					xfree(bp);
-					continue;
-				}
-				snprintf(bp, len,
-				    "%s%s %s -n "
-				    "-l %s %s %s %s '%s%s%s:%s'",
-				    ssh_program, verbose_mode ? " -v" : "",
-				    ssh_options, suser, host, cmd, src,
-				    tuser ? tuser : "", tuser ? "@" : "",
-				    thost, targ);
+				addargs(&alist, "-l");
+				addargs(&alist, "%s", suser);
 			} else {
 				host = cleanhostname(argv[i]);
-				snprintf(bp, len,
-				    "exec %s%s %s -n %s "
-				    "%s %s '%s%s%s:%s'",
-				    ssh_program, verbose_mode ? " -v" : "",
-				    ssh_options, host, cmd, src,
-				    tuser ? tuser : "", tuser ? "@" : "",
-				    thost, targ);
 			}
-			if (verbose_mode)
-				fprintf(stderr, "Executing: %s\n", bp);
-			if (system(bp) != 0)
+			addargs(&alist, "%s", host);
+			addargs(&alist, "%s", cmd);
+			addargs(&alist, "%s", src);
+			addargs(&alist, "%s%s%s:%s",
+			    tuser ? tuser : "", tuser ? "@" : "",
+			    thost, targ);
+			if (do_local_cmd(&alist) != 0)
 				errs = 1;
-			(void) xfree(bp);
 		} else {	/* local to remote */
 			if (remin == -1) {
 				len = strlen(targ) + CMDNEEDS + 20;
@@ -454,20 +497,23 @@ tolocal(int argc, char **argv)
 {
 	int i, len;
 	char *bp, *host, *src, *suser;
+	arglist alist;
+
+	memset(&alist, '\0', sizeof(alist));
+	alist.list = NULL;
 
 	for (i = 0; i < argc - 1; i++) {
 		if (!(src = colon(argv[i]))) {	/* Local to local. */
-			len = strlen(_PATH_CP) + strlen(argv[i]) +
-			    strlen(argv[argc - 1]) + 20;
-			bp = xmalloc(len);
-			(void) snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
-			    iamrecursive ? " -r" : "", pflag ? " -p" : "",
-			    argv[i], argv[argc - 1]);
-			if (verbose_mode)
-				fprintf(stderr, "Executing: %s\n", bp);
-			if (system(bp))
+			freeargs(&alist);
+			addargs(&alist, "%s", _PATH_CP);
+			if (iamrecursive)
+				addargs(&alist, "-r");
+			if (pflag)
+				addargs(&alist, "-p");
+			addargs(&alist, "%s", argv[i]);
+			addargs(&alist, "%s", argv[argc-1]);
+			if (do_local_cmd(&alist))
 				++errs;
-			(void) xfree(bp);
 			continue;
 		}
 		*src++ = 0;
@@ -560,7 +606,7 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 #define	FILEMODEMASK	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 		snprintf(buf, sizeof buf, "C%04o %lld %s\n",
 		    (u_int) (stb.st_mode & FILEMODEMASK),
-		    (int64_t)stb.st_size, last);
+		    (long long)stb.st_size, last);
 		if (verbose_mode) {
 			fprintf(stderr, "Sending file modes: %s", buf);
 		}
@@ -568,7 +614,10 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 		if (response() < 0)
 			goto next;
 		if ((bp = allocbuf(&buffer, fd, 2048)) == NULL) {
-next:			(void) close(fd);
+next:			if (fd != -1) {
+				(void) close(fd);
+				fd = -1;
+			}
 			continue;
 		}
 		if (showprogress)
@@ -597,8 +646,11 @@ next:			(void) close(fd);
 		if (showprogress)
 			stop_progress_meter();
 
-		if (close(fd) < 0 && !haderr)
-			haderr = errno;
+		if (fd != -1) {
+			if (close(fd) < 0 && !haderr)
+				haderr = errno;
+			fd = -1;
+		}
 		if (!haderr)
 			(void) atomicio(vwrite, remout, "", 1);
 		else

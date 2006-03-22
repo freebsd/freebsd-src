@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.168 2005/07/17 07:17:55 djm Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.171 2005/12/06 22:38:27 reyk Exp $");
 
 #include <openssl/bn.h>
 
@@ -31,13 +31,12 @@ RCSID("$OpenBSD: sshconnect.c,v 1.168 2005/07/17 07:17:55 djm Exp $");
 #include "readconf.h"
 #include "atomicio.h"
 #include "misc.h"
-
 #include "dns.h"
 
 char *client_version_string = NULL;
 char *server_version_string = NULL;
 
-int matching_host_key_dns = 0;
+static int matching_host_key_dns = 0;
 
 /* import */
 extern Options options;
@@ -604,7 +603,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	file_key = key_new(host_key->type);
 
 	/*
-	 * Check if the host key is present in the user\'s list of known
+	 * Check if the host key is present in the user's list of known
 	 * hosts or in the systemwide list.
 	 */
 	host_file = user_hostfile;
@@ -1034,4 +1033,40 @@ warn_changed_key(Key *host_key)
 	error("Please contact your system administrator.");
 
 	xfree(fp);
+}
+
+/*
+ * Execute a local command
+ */
+int
+ssh_local_cmd(const char *args)
+{
+	char *shell;
+	pid_t pid;
+	int status;
+
+	if (!options.permit_local_command ||
+	    args == NULL || !*args)
+		return (1);
+
+	if ((shell = getenv("SHELL")) == NULL)
+		shell = _PATH_BSHELL;
+
+	pid = fork();
+	if (pid == 0) {
+		debug3("Executing %s -c \"%s\"", shell, args);
+		execl(shell, shell, "-c", args, (char *)NULL);
+		error("Couldn't execute %s -c \"%s\": %s",
+		    shell, args, strerror(errno));
+		_exit(1);
+	} else if (pid == -1)
+		fatal("fork failed: %.100s", strerror(errno));
+	while (waitpid(pid, &status, 0) == -1)
+		if (errno != EINTR)
+			fatal("Couldn't wait for child: %s", strerror(errno));
+
+	if (!WIFEXITED(status))
+		return (1);
+
+	return (WEXITSTATUS(status));
 }
