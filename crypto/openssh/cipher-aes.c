@@ -23,17 +23,17 @@
  */
 
 #include "includes.h"
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
+
+/* compatibility with old or broken OpenSSL versions */
+#include "openbsd-compat/openssl-compat.h"
+
+#ifdef USE_BUILTIN_RIJNDAEL
 RCSID("$OpenBSD: cipher-aes.c,v 1.2 2003/11/26 21:44:29 djm Exp $");
 
 #include <openssl/evp.h>
 #include "rijndael.h"
 #include "xmalloc.h"
 #include "log.h"
-
-#if OPENSSL_VERSION_NUMBER < 0x00906000L
-#define SSH_OLD_EVP
-#endif
 
 #define RIJNDAEL_BLOCKSIZE 16
 struct ssh_rijndael_ctx
@@ -157,4 +157,4 @@ evp_rijndael(void)
 #endif
 	return (&rijndal_cbc);
 }
-#endif /* OPENSSL_VERSION_NUMBER */
+#endif /* USE_BUILTIN_RIJNDAEL */

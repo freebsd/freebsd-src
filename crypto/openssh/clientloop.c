@@ -59,7 +59,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: clientloop.c,v 1.141 2005/07/16 01:35:24 djm Exp $");
+RCSID("$OpenBSD: clientloop.c,v 1.149 2005/12/30 15:56:37 reyk Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -77,6 +77,7 @@ RCSID("$OpenBSD: clientloop.c,v 1.141 2005/07/16 01:35:24 djm Exp $");
 #include "log.h"
 #include "readconf.h"
 #include "clientloop.h"
+#include "sshconnect.h"
 #include "authfd.h"
 #include "atomicio.h"
 #include "sshpty.h"
@@ -113,7 +114,7 @@ extern char *host;
 static volatile sig_atomic_t received_window_change_signal = 0;
 static volatile sig_atomic_t received_signal = 0;
 
-/* Flag indicating whether the user\'s terminal is in non-blocking mode. */
+/* Flag indicating whether the user's terminal is in non-blocking mode. */
 static int in_non_blocking_mode = 0;
 
 /* Common data for the client loop code. */
@@ -266,7 +267,7 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 			}
 		}
 		snprintf(cmd, sizeof(cmd),
-		    "%s %s%s list %s . 2>" _PATH_DEVNULL,
+		    "%s %s%s list %s 2>" _PATH_DEVNULL,
 		    xauth_path,
 		    generated ? "-f " : "" ,
 		    generated ? xauthfile : "",
@@ -914,6 +915,15 @@ process_cmdline(void)
 		logit("      -Lport:host:hostport    Request local forward");
 		logit("      -Rport:host:hostport    Request remote forward");
 		logit("      -KRhostport             Cancel remote forward");
+		if (!options.permit_local_command)
+			goto out;
+		logit("      !args                   Execute local command");
+		goto out;
+	}
+
+	if (*s == '!' && options.permit_local_command) {
+		s++;
+		ssh_local_cmd(s);
 		goto out;
 	}
 
@@ -1376,10 +1386,10 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		session_ident = ssh2_chan_id;
 		if (escape_char != SSH_ESCAPECHAR_NONE)
 			channel_register_filter(session_ident,
-			    simple_escape_filter);
+			    simple_escape_filter, NULL);
 		if (session_ident != -1)
 			channel_register_cleanup(session_ident,
-			    client_channel_closed);
+			    client_channel_closed, 0);
 	} else {
 		/* Check if we should immediately send eof on stdin. */
 		client_check_initial_eof_on_stdin();
@@ -1678,7 +1688,7 @@ client_request_x11(const char *request_type, int rchan)
 
 	if (!options.forward_x11) {
 		error("Warning: ssh server tried X11 forwarding.");
-		error("Warning: this is probably a break in attempt by a malicious server.");
+		error("Warning: this is probably a break-in attempt by a malicious server.");
 		return NULL;
 	}
 	originator = packet_get_string(NULL);
@@ -1711,7 +1721,7 @@ client_request_agent(const char *request_type, int rchan)
 
 	if (!options.forward_agent) {
 		error("Warning: ssh server tried agent forwarding.");
-		error("Warning: this is probably a break in attempt by a malicious server.");
+		error("Warning: this is probably a break-in attempt by a malicious server.");
 		return NULL;
 	}
 	sock =  ssh_get_authentication_socket();
@@ -1880,7 +1890,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			/* Split */
 			name = xstrdup(env[i]);
 			if ((val = strchr(name, '=')) == NULL) {
-				free(name);
+				xfree(name);
 				continue;
 			}
 			*val++ = '\0';
@@ -1894,7 +1904,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			}
 			if (!matched) {
 				debug3("Ignored env %s", name);
-				free(name);
+				xfree(name);
 				continue;
 			}
 
@@ -1903,7 +1913,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			packet_put_cstring(name);
 			packet_put_cstring(val);
 			packet_send();
-			free(name);
+			xfree(name);
 		}
 	}
 

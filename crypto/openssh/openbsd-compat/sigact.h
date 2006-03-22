@@ -1,7 +1,7 @@
-/*	$OpenBSD: SigAction.h,v 1.2 1999/06/27 08:15:19 millert Exp $	*/
+/*	$OpenBSD: SigAction.h,v 1.3 2001/01/22 18:01:32 millert Exp $	*/
 
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,11 +34,13 @@
  ****************************************************************************/
 
 /*
- * $From: SigAction.h,v 1.5 1999/06/19 23:00:54 tom Exp $
+ * $From: SigAction.h,v 1.6 2000/12/10 02:36:10 tom Exp $
  *
  * This file exists to handle non-POSIX systems which don't have <unistd.h>,
  * and usually no sigaction() nor <termios.h>
  */
+
+/* OPENBSD ORIGINAL: lib/libcurses/SigAction.h */
 
 #ifndef _SIGACTION_H
 #define _SIGACTION_H

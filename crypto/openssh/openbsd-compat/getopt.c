@@ -1,5 +1,3 @@
-/* OPENBSD ORIGINAL: lib/libc/stdlib/getopt.c */
-
 /*
  * Copyright (c) 1987, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -28,6 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+/* OPENBSD ORIGINAL: lib/libc/stdlib/getopt.c */
 
 #include "includes.h"
 #if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)

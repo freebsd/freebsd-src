@@ -1,4 +1,4 @@
-/*	$OpenBSD: readconf.h,v 1.67 2005/06/08 11:25:09 djm Exp $	*/
+/*	$OpenBSD: readconf.h,v 1.68 2005/12/06 22:38:27 reyk Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -114,6 +114,14 @@ typedef struct {
 	int	control_master;
 
 	int	hash_known_hosts;
+
+	int	tun_open;	/* tun(4) */
+	int     tun_local;	/* force tun device (optional) */
+	int     tun_remote;	/* force tun device (optional) */
+
+	char	*local_command;
+	int	permit_local_command;
+
 }       Options;
 
 #define SSHCTL_MASTER_NO	0

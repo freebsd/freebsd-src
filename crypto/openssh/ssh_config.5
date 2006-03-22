@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.61 2005/07/08 12:53:10 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.76 2006/01/20 11:21:45 jmc Exp $
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
 .Os
@@ -263,8 +263,10 @@ with
 set to
 .Dq no
 (the default).
-These sessions will reuse the master instance's network connection rather
-than initiating new ones.
+These sessions will try to reuse the master instance's network connection
+rather than initiating new ones, but will fall back to connecting normally
+if the control socket does not exist, or is not listening.
+.Pp
 Setting this to
 .Dq ask
 will cause
@@ -283,7 +285,7 @@ will continue without connecting to a master instance.
 X11 and
 .Xr ssh-agent 1
 forwarding is supported over these multiplexed connections, however the
-display and agent fowarded will be the one belonging to the master
+display and agent forwarded will be the one belonging to the master
 connection i.e. it is not possible to forward multiple displays or agents.
 .Pp
 Two additional options allow for opportunistic multiplexing: try to use a
@@ -316,11 +318,33 @@ used for opportunistic connection sharing include
 all three of these escape sequences.
 This ensures that shared connections are uniquely identified.
 .It Cm DynamicForward
-Specifies that a TCP/IP port on the local machine be forwarded
+Specifies that a TCP port on the local machine be forwarded
 over the secure channel, and the application
 protocol is then used to determine where to connect to from the
 remote machine.
-The argument must be a port number.
+.Pp
+The argument must be
+.Sm off
+.Oo Ar bind_address : Oc Ar port .
+.Sm on
+IPv6 addresses can be specified by enclosing addresses in square brackets or
+by using an alternative syntax:
+.Oo Ar bind_address Ns / Oc Ns Ar port .
+By default, the local port is bound in accordance with the
+.Cm GatewayPorts
+setting.
+However, an explicit
+.Ar bind_address
+may be used to bind the connection to a specific address.
+The
+.Ar bind_address
+of
+.Dq localhost
+indicates that the listening port be bound for local use only, while an
+empty address or
+.Sq *
+indicates that the port should be available from all interfaces.
+.Pp
 Currently the SOCKS4 and SOCKS5 protocols are supported, and
 .Nm ssh
 will act as a SOCKS server.
@@ -493,6 +517,24 @@ Default is the name given on the command line.
 Numeric IP addresses are also permitted (both on the command line and in
 .Cm HostName
 specifications).
+.It Cm IdentitiesOnly
+Specifies that
+.Nm ssh
+should only use the authentication identity files configured in the
+.Nm
+files,
+even if the
+.Nm ssh-agent
+offers more identities.
+The argument to this keyword must be
+.Dq yes
+or
+.Dq no .
+This option is intended for situations where
+.Nm ssh-agent
+offers many different identities.
+The default is
+.Dq no .
 .It Cm IdentityFile
 Specifies a file from which the user's RSA or DSA authentication identity
 is read.
@@ -510,30 +552,20 @@ syntax to refer to a user's home directory.
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
-.It Cm IdentitiesOnly
-Specifies that
-.Nm ssh
-should only use the authentication identity files configured in the
-.Nm
-files,
-even if the
-.Nm ssh-agent
-offers more identities.
-The argument to this keyword must be
-.Dq yes
-or
-.Dq no .
-This option is intented for situations where
-.Nm ssh-agent
-offers many different identities.
-The default is
-.Dq no .
 .It Cm KbdInteractiveDevices
 Specifies the list of methods to use in keyboard-interactive authentication.
 Multiple method names must be comma-separated.
 The default is to use the server specified list.
+.It Cm LocalCommand
+Specifies a command to execute on the local machine after successfully
+connecting to the server.
+The command string extends to the end of the line, and is executed with
+.Pa /bin/sh .
+This directive is ignored unless
+.Cm PermitLocalCommand
+has been enabled.
 .It Cm LocalForward
-Specifies that a TCP/IP port on the local machine be forwarded over
+Specifies that a TCP port on the local machine be forwarded over
 the secure channel to the specified host and port from the remote machine.
 The first argument must be
 .Sm off
@@ -601,6 +633,19 @@ or
 .Dq no .
 The default is
 .Dq yes .
+.It Cm PermitLocalCommand
+Allow local command execution via the
+.Ic LocalCommand
+option or using the
+.Ic !\& Ns Ar command
+escape sequence in
+.Xr ssh 1 .
+The argument must be
+.Dq yes
+or
+.Dq no .
+The default is
+.Dq no .
 .It Cm Port
 Specifies the port number to connect on the remote host.
 Default is 22.
@@ -673,8 +718,23 @@ or
 The default is
 .Dq yes .
 This option applies to protocol version 2 only.
+.It Cm RekeyLimit
+Specifies the maximum amount of data that may be transmitted before the
+session key is renegotiated.
+The argument is the number of bytes, with an optional suffix of
+.Sq K ,
+.Sq M ,
+or
+.Sq G
+to indicate Kilobytes, Megabytes, or Gigabytes, respectively.
+The default is between
+.Dq 1G
+and
+.Dq 4G ,
+depending on the cipher.
+This option applies to protocol version 2 only.
 .It Cm RemoteForward
-Specifies that a TCP/IP port on the remote machine be forwarded over
+Specifies that a TCP port on the remote machine be forwarded over
 the secure channel to the specified host and port from the local machine.
 The first argument must be
 .Sm off
@@ -751,17 +811,8 @@ across multiple
 .Cm SendEnv
 directives.
 The default is not to send any environment variables.
-.It Cm ServerAliveInterval
-Sets a timeout interval in seconds after which if no data has been received
-from the server,
-.Nm ssh
-will send a message through the encrypted
-channel to request a response from the server.
-The default
-is 0, indicating that these messages will not be sent to the server.
-This option applies to protocol version 2 only.
 .It Cm ServerAliveCountMax
-Sets the number of server alive messages (see above) which may be
+Sets the number of server alive messages (see below) which may be
 sent without
 .Nm ssh
 receiving any messages back from the server.
@@ -783,10 +834,19 @@ server depend on knowing when a connection has become inactive.
 The default value is 3.
 If, for example,
 .Cm ServerAliveInterval
-(above) is set to 15, and
+(see below) is set to 15, and
 .Cm ServerAliveCountMax
 is left at the default, if the server becomes unresponsive ssh
 will disconnect after approximately 45 seconds.
+.It Cm ServerAliveInterval
+Sets a timeout interval in seconds after which if no data has been received
+from the server,
+.Nm ssh
+will send a message through the encrypted
+channel to request a response from the server.
+The default
+is 0, indicating that these messages will not be sent to the server.
+This option applies to protocol version 2 only.
 .It Cm SmartcardDevice
 Specifies which smartcard device to use.
 The argument to this keyword is the device
@@ -846,6 +906,25 @@ This is important in scripts, and many users want it too.
 .Pp
 To disable TCP keepalive messages, the value should be set to
 .Dq no .
+.It Cm Tunnel
+Request starting
+.Xr tun 4
+device forwarding between the client and the server.
+This option also allows requesting layer 2 (ethernet)
+instead of layer 3 (point-to-point) tunneling from the server.
+The argument must be
+.Dq yes ,
+.Dq point-to-point ,
+.Dq ethernet
+or
+.Dq no .
+The default is
+.Dq no .
+.It Cm TunnelDevice
+Force a specified
+.Xr tun 4
+device on the client.
+Without this option, the next available device will be used.
 .It Cm UsePrivilegedPort
 Specifies whether to use a privileged port for outgoing connections.
 The argument must be

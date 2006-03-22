@@ -1,5 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/stdlib/strtoll.c */
-
+/* $OpenBSD: strtoll.c,v 1.6 2005/11/10 10:00:17 espie Exp $ */
 /*-
  * Copyright (c) 1992 The Regents of the University of California.
  * All rights reserved.
@@ -29,12 +28,10 @@
  * SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/stdlib/strtoll.c */
+
 #include "includes.h"
 #ifndef HAVE_STRTOLL
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$OpenBSD: strtoll.c,v 1.4 2005/03/30 18:51:49 pat Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 

@@ -1,5 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/gen/getcwd.c */
-
+/*	$OpenBSD: getcwd.c,v 1.14 2005/08/08 08:05:34 espie Exp $ */
 /*
  * Copyright (c) 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,13 +28,11 @@
  * SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/gen/getcwd.c */
+
 #include "includes.h"
 
 #if !defined(HAVE_GETCWD)
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: getcwd.c,v 1.9 2003/06/11 21:03:10 deraadt Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -54,12 +51,12 @@ static char rcsid[] = "$OpenBSD: getcwd.c,v 1.9 2003/06/11 21:03:10 deraadt Exp 
 char *
 getcwd(char *pt, size_t size)
 {
-	register struct dirent *dp;
-	register DIR *dir = NULL;
-	register dev_t dev;
-	register ino_t ino;
-	register int first;
-	register char *bpt, *bup;
+	struct dirent *dp;
+	DIR *dir = NULL;
+	dev_t dev;
+	ino_t ino;
+	int first;
+	char *bpt, *bup;
 	struct stat s;
 	dev_t root_dev;
 	ino_t root_ino;
@@ -80,7 +77,7 @@ getcwd(char *pt, size_t size)
 		}
 		ept = pt + size;
 	} else {
-		if ((pt = malloc(ptsize = 1024 - 4)) == NULL)
+		if ((pt = malloc(ptsize = MAXPATHLEN)) == NULL)
 			return (NULL);
 		ept = pt + ptsize;
 	}
@@ -88,13 +85,13 @@ getcwd(char *pt, size_t size)
 	*bpt = '\0';
 
 	/*
-	 * Allocate bytes (1024 - malloc space) for the string of "../"'s.
+	 * Allocate bytes for the string of "../"'s.
 	 * Should always be enough (it's 340 levels).  If it's not, allocate
 	 * as necessary.  Special * case the first stat, it's ".", not "..".
 	 */
-	if ((up = malloc(upsize = 1024 - 4)) == NULL)
+	if ((up = malloc(upsize = MAXPATHLEN)) == NULL)
 		goto err;
-	eup = up + MAXPATHLEN;
+	eup = up + upsize;
 	bup = up;
 	up[0] = '.';
 	up[1] = '\0';
@@ -139,18 +136,16 @@ getcwd(char *pt, size_t size)
 
 			if ((nup = realloc(up, upsize *= 2)) == NULL)
 				goto err;
+			bup = nup + (bup - up);
 			up = nup;
-			bup = up;
 			eup = up + upsize;
 		}
 		*bup++ = '.';
 		*bup++ = '.';
 		*bup = '\0';
 
-		/* Open and stat parent directory. 
-		 * RACE?? - replaced fstat(dirfd(dir), &s) w/ lstat(up,&s) 
-                 */
-		if (!(dir = opendir(up)) || lstat(up,&s))
+		/* Open and stat parent directory. */
+		if (!(dir = opendir(up)) || fstat(dirfd(dir), &s))
 			goto err;
 
 		/* Add trailing slash for next directory. */
@@ -175,7 +170,7 @@ getcwd(char *pt, size_t size)
 					goto notfound;
 				if (ISDOT(dp))
 					continue;
-				memmove(bup, dp->d_name, dp->d_namlen + 1);
+				memcpy(bup, dp->d_name, dp->d_namlen + 1);
 
 				/* Save the first error for later. */
 				if (lstat(up, &s)) {
@@ -193,19 +188,18 @@ getcwd(char *pt, size_t size)
 		 * leading slash.
 		 */
 		if (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
-			size_t len, off;
+			size_t len;
 			char *npt;
 
 			if (!ptsize) {
 				errno = ERANGE;
 				goto err;
 			}
-			off = bpt - pt;
 			len = ept - bpt;
 			if ((npt = realloc(pt, ptsize *= 2)) == NULL)
 				goto err;
+			bpt = npt + (bpt - pt);
 			pt = npt;
-			bpt = pt + off;
 			ept = pt + ptsize;
 			memmove(ept - len, bpt, len);
 			bpt = ept - len;
@@ -213,7 +207,7 @@ getcwd(char *pt, size_t size)
 		if (!first)
 			*--bpt = '/';
 		bpt -= dp->d_namlen;
-		memmove(bpt, dp->d_name, dp->d_namlen);
+		memcpy(bpt, dp->d_name, dp->d_namlen);
 		(void)closedir(dir);
 
 		/* Truncate any file name. */
@@ -230,12 +224,16 @@ notfound:
 		errno = save_errno ? save_errno : ENOENT;
 	/* FALLTHROUGH */
 err:
+	save_errno = errno;
+
 	if (ptsize)
 		free(pt);
-	if (up)
-		free(up);
+	free(up);
 	if (dir)
 		(void)closedir(dir);
+
+	errno = save_errno;
+
 	return (NULL);
 }
 

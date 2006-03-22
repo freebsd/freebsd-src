@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.30 2005/08/26 20:15:20 tim Exp $ */
+/* $Id: openbsd-compat.h,v 1.33 2005/12/31 05:33:37 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -142,6 +142,10 @@ unsigned int arc4random(void);
 void arc4random_stir(void);
 #endif /* !HAVE_ARC4RANDOM */
 
+#ifndef HAVE_ASPRINTF
+int asprintf(char **, const char *, ...);
+#endif 
+
 #ifndef HAVE_OPENPTY
 int openpty(int *, int *, char *, struct termios *, struct winsize *);
 #endif /* HAVE_OPENPTY */
@@ -152,8 +156,16 @@ int openpty(int *, int *, char *, struct termios *, struct winsize *);
 int snprintf(char *, size_t, const char *, ...);
 #endif 
 
+#ifndef HAVE_STRTOLL
+long long strtoll(const char *, char **, int);
+#endif
+
 #ifndef HAVE_STRTONUM
 long long strtonum(const char *, long long, long long, const char **);
+#endif
+
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **, const char *, va_list);
 #endif
 
 #ifndef HAVE_VSNPRINTF
@@ -174,5 +186,6 @@ char *shadow_pw(struct passwd *pw);
 #include "port-irix.h"
 #include "port-aix.h"
 #include "port-uw.h"
+#include "port-tun.h"
 
 #endif /* _OPENBSD_COMPAT_H */

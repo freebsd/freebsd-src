@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect1.c,v 1.61 2005/06/17 02:44:33 djm Exp $");
+RCSID("$OpenBSD: sshconnect1.c,v 1.62 2005/10/30 08:52:18 djm Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/md5.h>
@@ -84,7 +84,7 @@ try_agent_authentication(void)
 		/* Wait for server's response. */
 		type = packet_read();
 
-		/* The server sends failure if it doesn\'t like our key or
+		/* The server sends failure if it doesn't like our key or
 		   does not support RSA authentication. */
 		if (type == SSH_SMSG_FAILURE) {
 			debug("Server refused our key.");
@@ -215,8 +215,8 @@ try_rsa_authentication(int idx)
 	type = packet_read();
 
 	/*
-	 * The server responds with failure if it doesn\'t like our key or
-	 * doesn\'t support RSA authentication.
+	 * The server responds with failure if it doesn't like our key or
+	 * doesn't support RSA authentication.
 	 */
 	if (type == SSH_SMSG_FAILURE) {
 		debug("Server refused our key.");
