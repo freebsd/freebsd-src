@@ -71,8 +71,9 @@ struct old_pfloghdr {
 #ifdef _KERNEL
 
 #ifdef __FreeBSD__
-/* XXX */
-#include <net/pfvar.h>
+struct pf_rule;
+struct pf_ruleset;
+struct pfi_kif;
 
 typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     u_int8_t, u_int8_t, struct pf_rule *, struct pf_rule *,
