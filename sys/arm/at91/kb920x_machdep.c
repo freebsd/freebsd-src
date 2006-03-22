@@ -195,6 +195,10 @@ initarm(void *arg, void *arg2)
 	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize = 32 * 1024 * 1024;
+	vm_offset_t lastaddr;
+#ifdef DDB
+	vm_offset_t zstart = 0, zend = 0;
+#endif
 
 	i = 0;
 
@@ -215,6 +219,23 @@ initarm(void *arg, void *arg2)
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
 	fake_preload[i++] = (uint32_t)&end - KERNBASE;
+#ifdef DDB
+	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
+		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
+		fake_preload[i++] = sizeof(vm_offset_t);
+		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
+		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_ESYM;
+		fake_preload[i++] = sizeof(vm_offset_t);
+		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 8);
+		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
+		zend = lastaddr;
+		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
+		ksym_start = zstart;
+		ksym_end = zend;
+	} else
+#endif
+		lastaddr = (vm_offset_t)&end;
+		
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
@@ -224,7 +245,7 @@ initarm(void *arg, void *arg2)
 	PCPU_SET(curthread, &thread0);
 
 #define KERNEL_TEXT_BASE (KERNBASE)
-	freemempos = ((vm_offset_t)&end + PAGE_MASK) & ~PAGE_MASK;
+	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)                   \
 	alloc_pages((var).pv_va, (np));         \
@@ -280,9 +301,9 @@ initarm(void *arg, void *arg2)
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x100000,
 		    &kernel_pt_table[KERNEL_PT_KERN + i]);
 	pmap_map_chunk(l1pagetable, KERNBASE, KERNPHYSADDR,
-	   (((uint32_t)(&end) - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
+	   (((uint32_t)(lastaddr) - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	afterkern = round_page(((vm_offset_t)&end + L1_S_SIZE) & ~(L1_S_SIZE 
+	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
