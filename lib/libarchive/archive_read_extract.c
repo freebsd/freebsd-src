@@ -1484,8 +1484,10 @@ set_xattrs(struct archive *a, int fd, struct archive_entry *entry)
 	static int warning_done = 0;
 	(void)a; /* UNUSED */
 	(void)fd; /* UNUSED */
-	(void)entry; /* UNUSED */
-	if (!warning_done) {
+
+	/* If there aren't any extended attributes, then it's okay not
+	 * to extract them, otherwise, issue a single warning. */
+	if (archive_entry_xattr_count(entry) != 0 && !warning_done) {
 		warning_done = 1;
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Cannot restore extended attributes on this system");
