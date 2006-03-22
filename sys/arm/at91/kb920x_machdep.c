@@ -203,7 +203,6 @@ initarm(void *arg, void *arg2)
 	i = 0;
 
 	set_cpufuncs();
-	cninit();
 
 	fake_preload[i++] = MODINFO_NAME;
 	fake_preload[i++] = strlen("elf kernel") + 1;
@@ -343,6 +342,7 @@ initarm(void *arg, void *arg2)
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
+	cninit();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -415,7 +415,6 @@ initarm(void *arg, void *arg2)
 	init_param2(memsize / PAGE_SIZE);
 	avail_end = KERNPHYSADDR + memsize - 1;
 	kdb_init();
-	boothowto = RB_SINGLE;
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
