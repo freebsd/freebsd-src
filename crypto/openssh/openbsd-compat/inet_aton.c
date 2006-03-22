@@ -1,6 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/net/inet_addr.c */
-
-/*	$OpenBSD: inet_addr.c,v 1.7 2003/06/02 20:18:35 millert Exp $	*/
+/*	$OpenBSD: inet_addr.c,v 1.9 2005/08/06 20:30:03 espie Exp $	*/
 
 /*
  * Copyright (c) 1983, 1990, 1993
@@ -51,18 +49,11 @@
  * --Copyright--
  */
 
+/* OPENBSD ORIGINAL: lib/libc/net/inet_addr.c */
+
 #include "includes.h"
 
 #if !defined(HAVE_INET_ATON)
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static char rcsid[] = "$From: inet_addr.c,v 8.5 1996/08/05 08:31:35 vixie Exp $";
-#else
-static char rcsid[] = "$OpenBSD: inet_addr.c,v 1.7 2003/06/02 20:18:35 millert Exp $";
-#endif
-#endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -76,8 +67,7 @@ static char rcsid[] = "$OpenBSD: inet_addr.c,v 1.7 2003/06/02 20:18:35 millert E
  * The value returned is in network order.
  */
 in_addr_t
-inet_addr(cp)
-	register const char *cp;
+inet_addr(const char *cp)
 {
 	struct in_addr val;
 
@@ -97,11 +87,11 @@ inet_addr(cp)
 int
 inet_aton(const char *cp, struct in_addr *addr)
 {
-	register u_int32_t val;
-	register int base, n;
-	register char c;
-	unsigned int parts[4];
-	register unsigned int *pp = parts;
+	u_int32_t val;
+	int base, n;
+	char c;
+	u_int parts[4];
+	u_int *pp = parts;
 
 	c = *cp;
 	for (;;) {

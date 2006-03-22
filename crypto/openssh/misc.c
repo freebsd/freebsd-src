@@ -24,7 +24,11 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: misc.c,v 1.34 2005/07/08 09:26:18 dtucker Exp $");
+RCSID("$OpenBSD: misc.c,v 1.42 2006/01/31 10:19:02 djm Exp $");
+
+#ifdef SSH_TUN_OPENBSD
+#include <net/if.h>
+#endif
 
 #include "misc.h"
 #include "log.h"
@@ -194,6 +198,37 @@ a2port(const char *s)
 	return port;
 }
 
+int
+a2tun(const char *s, int *remote)
+{
+	const char *errstr = NULL;
+	char *sp, *ep;
+	int tun;
+
+	if (remote != NULL) {
+		*remote = SSH_TUNID_ANY;
+		sp = xstrdup(s);
+		if ((ep = strchr(sp, ':')) == NULL) {
+			xfree(sp);
+			return (a2tun(s, NULL));
+		}
+		ep[0] = '\0'; ep++;
+		*remote = a2tun(ep, NULL);
+		tun = a2tun(sp, NULL);
+		xfree(sp);
+		return (*remote == SSH_TUNID_ERR ? *remote : tun);
+	}
+
+	if (strcasecmp(s, "any") == 0)
+		return (SSH_TUNID_ANY);
+
+	tun = strtonum(s, 0, SSH_TUNID_MAX, &errstr);
+	if (errstr != NULL)
+		return (SSH_TUNID_ERR);
+
+	return (tun);
+}
+
 #define SECONDS		1
 #define MINUTES		(SECONDS * 60)
 #define HOURS		(MINUTES * 60)
@@ -356,12 +391,15 @@ void
 addargs(arglist *args, char *fmt, ...)
 {
 	va_list ap;
-	char buf[1024];
+	char *cp;
 	u_int nalloc;
+	int r;
 
 	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
+	r = vasprintf(&cp, fmt, ap);
 	va_end(ap);
+	if (r == -1)
+		fatal("addargs: argument too long");
 
 	nalloc = args->nalloc;
 	if (args->list == NULL) {
@@ -372,8 +410,42 @@ addargs(arglist *args, char *fmt, ...)
 
 	args->list = xrealloc(args->list, nalloc * sizeof(char *));
 	args->nalloc = nalloc;
-	args->list[args->num++] = xstrdup(buf);
+	args->list[args->num++] = cp;
 	args->list[args->num] = NULL;
+}
+
+void
+replacearg(arglist *args, u_int which, char *fmt, ...)
+{
+	va_list ap;
+	char *cp;
+	int r;
+
+	va_start(ap, fmt);
+	r = vasprintf(&cp, fmt, ap);
+	va_end(ap);
+	if (r == -1)
+		fatal("replacearg: argument too long");
+
+	if (which >= args->num)
+		fatal("replacearg: tried to replace invalid arg %d >= %d",
+		    which, args->num);
+	xfree(args->list[which]);
+	args->list[which] = cp;
+}
+
+void
+freeargs(arglist *args)
+{
+	u_int i;
+
+	if (args->list != NULL) {
+		for (i = 0; i < args->num; i++)
+			xfree(args->list[i]);
+		xfree(args->list);
+		args->nalloc = args->num = 0;
+		args->list = NULL;
+	}
 }
 
 /*
@@ -505,6 +577,99 @@ read_keyfile_line(FILE *f, const char *filename, char *buf, size_t bufsz,
 		}
 	}
 	return -1;
+}
+
+int
+tun_open(int tun, int mode)
+{
+#if defined(CUSTOM_SYS_TUN_OPEN)
+	return (sys_tun_open(tun, mode));
+#elif defined(SSH_TUN_OPENBSD)
+	struct ifreq ifr;
+	char name[100];
+	int fd = -1, sock;
+
+	/* Open the tunnel device */
+	if (tun <= SSH_TUNID_MAX) {
+		snprintf(name, sizeof(name), "/dev/tun%d", tun);
+		fd = open(name, O_RDWR);
+	} else if (tun == SSH_TUNID_ANY) {
+		for (tun = 100; tun >= 0; tun--) {
+			snprintf(name, sizeof(name), "/dev/tun%d", tun);
+			if ((fd = open(name, O_RDWR)) >= 0)
+				break;
+		}
+	} else {
+		debug("%s: invalid tunnel %u", __func__, tun);
+		return (-1);
+	}
+
+	if (fd < 0) {
+		debug("%s: %s open failed: %s", __func__, name, strerror(errno));
+		return (-1);
+	}
+
+	debug("%s: %s mode %d fd %d", __func__, name, mode, fd);
+
+	/* Set the tunnel device operation mode */
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "tun%d", tun);
+	if ((sock = socket(PF_UNIX, SOCK_STREAM, 0)) == -1)
+		goto failed;
+
+	if (ioctl(sock, SIOCGIFFLAGS, &ifr) == -1)
+		goto failed;
+
+	/* Set interface mode */
+	ifr.ifr_flags &= ~IFF_UP;
+	if (mode == SSH_TUNMODE_ETHERNET)
+		ifr.ifr_flags |= IFF_LINK0;
+	else
+		ifr.ifr_flags &= ~IFF_LINK0;
+	if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
+		goto failed;
+
+	/* Bring interface up */
+	ifr.ifr_flags |= IFF_UP;
+	if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
+		goto failed;
+
+	close(sock);
+	return (fd);
+
+ failed:
+	if (fd >= 0)
+		close(fd);
+	if (sock >= 0)
+		close(sock);
+	debug("%s: failed to set %s mode %d: %s", __func__, name,
+	    mode, strerror(errno));
+	return (-1);
+#else
+	error("Tunnel interfaces are not supported on this platform");
+	return (-1);
+#endif
+}
+
+void
+sanitise_stdfd(void)
+{
+	int nullfd, dupfd;
+
+	if ((nullfd = dupfd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+		fprintf(stderr, "Couldn't open /dev/null: %s", strerror(errno));
+		exit(1);
+	}
+	while (++dupfd <= 2) {
+		/* Only clobber closed fds */
+		if (fcntl(dupfd, F_GETFL, 0) >= 0)
+			continue;
+		if (dup2(nullfd, dupfd) == -1) {
+			fprintf(stderr, "dup2: %s", strerror(errno));
+			exit(1);
+		}
+	}
+	if (nullfd > 2)
+		close(nullfd);
 }
 
 char *

@@ -1,5 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/stdlib/setenv.c */
-
+/*	$OpenBSD: setenv.c,v 1.9 2005/08/08 08:05:37 espie Exp $ */
 /*
  * Copyright (c) 1987 Regents of the University of California.
  * All rights reserved.
@@ -29,36 +28,31 @@
  * SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/stdlib/setenv.c */
+
 #include "includes.h"
 #if !defined(HAVE_SETENV) || !defined(HAVE_UNSETENV)
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: setenv.c,v 1.6 2003/06/02 20:18:38 millert Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 #include <stdlib.h>
 #include <string.h>
 
-char *__findenv(const char *name, int *offset);
+extern char **environ;
 
+/* OpenSSH Portable: __findenv is from getenv.c rev 1.8, made static */
 /*
  * __findenv --
  *	Returns pointer to value associated with name, if any, else NULL.
  *	Sets offset to be the offset of the name/value combination in the
  *	environmental array, for use by setenv(3) and unsetenv(3).
  *	Explicitly removes '=' in argument name.
- *
- *	This routine *should* be a static; don't use it.
  */
-char *
-__findenv(name, offset)
-	register const char *name;
-	int *offset;
+static char *
+__findenv(const char *name, int *offset)
 {
 	extern char **environ;
-	register int len, i;
-	register const char *np;
-	register char **p, *cp;
+	int len, i;
+	const char *np;
+	char **p, *cp;
 
 	if (name == NULL || environ == NULL)
 		return (NULL);
@@ -84,14 +78,10 @@ __findenv(name, offset)
  *	"value".  If rewrite is set, replace any current value.
  */
 int
-setenv(name, value, rewrite)
-	register const char *name;
-	register const char *value;
-	int rewrite;
+setenv(const char *name, const char *value, int rewrite)
 {
-	extern char **environ;
-	static int alloced;			/* if allocated space before */
-	register char *C;
+	static char **lastenv;			/* last value of environ */
+	char *C;
 	int l_value, offset;
 
 	if (*value == '=')			/* no `=' in value */
@@ -106,30 +96,23 @@ setenv(name, value, rewrite)
 			return (0);
 		}
 	} else {					/* create new slot */
-		register int	cnt;
-		register char	**P;
+		size_t cnt;
+		char **P;
 
-		for (P = environ, cnt = 0; *P; ++P, ++cnt);
-		if (alloced) {			/* just increase size */
-			P = (char **)realloc((void *)environ,
-			    (size_t)(sizeof(char *) * (cnt + 2)));
-			if (!P)
-				return (-1);
-			environ = P;
-		}
-		else {				/* get new space */
-			alloced = 1;		/* copy old entries into it */
-			P = (char **)malloc((size_t)(sizeof(char *) *
-			    (cnt + 2)));
-			if (!P)
-				return (-1);
-			memmove(P, environ, cnt * sizeof(char *));
-			environ = P;
-		}
-		environ[cnt + 1] = NULL;
+		for (P = environ; *P != NULL; P++)
+			;
+		cnt = P - environ;
+		P = (char **)realloc(lastenv, sizeof(char *) * (cnt + 2));
+		if (!P)
+			return (-1);
+		if (lastenv != environ)
+			memcpy(P, environ, cnt * sizeof(char *));
+		lastenv = environ = P;
 		offset = cnt;
+		environ[cnt + 1] = NULL;
 	}
-	for (C = (char *)name; *C && *C != '='; ++C);	/* no `=' in name */
+	for (C = (char *)name; *C && *C != '='; ++C)
+		;				/* no `=' in name */
 	if (!(environ[offset] =			/* name + `=' + value */
 	    malloc((size_t)((int)(C - name) + l_value + 2))))
 		return (-1);
@@ -147,15 +130,12 @@ setenv(name, value, rewrite)
  *	Delete environmental variable "name".
  */
 void
-unsetenv(name)
-	const char	*name;
+unsetenv(const char *name)
 {
-	extern char **environ;
-	register char **P;
+	char **P;
 	int offset;
-	char *__findenv();
 
-	while (__findenv(name, &offset))		/* if set multiple times */
+	while (__findenv(name, &offset))	/* if set multiple times */
 		for (P = &environ[offset];; ++P)
 			if (!(*P = *(P + 1)))
 				break;

@@ -4,7 +4,7 @@
 tid="yes pipe head"
 
 for p in 1 2; do
-	lines=`${SSH} -$p -F $OBJ/ssh_proxy thishost 'sh -c "while true;do echo yes;done | head -2000"' | (sleep 3 ; wc -l)`
+	lines=`${SSH} -$p -F $OBJ/ssh_proxy thishost 'sh -c "while true;do echo yes;done | _POSIX2_VERSION=199209 head -2000"' | (sleep 3 ; wc -l)`
 	if [ $? -ne 0 ]; then
 		fail "yes|head test failed"
 		lines = 0;

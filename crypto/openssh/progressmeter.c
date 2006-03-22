@@ -85,8 +85,8 @@ format_rate(char *buf, int size, off_t bytes)
 		bytes = (bytes + 512) / 1024;
 	}
 	snprintf(buf, size, "%3lld.%1lld%c%s",
-	    (int64_t) (bytes + 5) / 100,
-	    (int64_t) (bytes + 5) / 10 % 10,
+	    (long long) (bytes + 5) / 100,
+	    (long long) (bytes + 5) / 10 % 10,
 	    unit[i],
 	    i ? "B" : " ");
 }
@@ -99,7 +99,7 @@ format_size(char *buf, int size, off_t bytes)
 	for (i = 0; bytes >= 10000 && unit[i] != 'T'; i++)
 		bytes = (bytes + 512) / 1024;
 	snprintf(buf, size, "%4lld%c%s",
-	    (int64_t) bytes,
+	    (long long) bytes,
 	    unit[i],
 	    i ? "B" : " ");
 }

@@ -353,7 +353,7 @@ else
 	# Create user if required
 	[ "\$DO_PASSWD" = yes ]  &&  {
 		# Use uid of 67 if possible
-		if cut -f3 -d: \${PKG_INSTALL_ROOT}/etc/passwd | egrep '^'$SSHDGID'\$' >/dev/null
+		if cut -f3 -d: \${PKG_INSTALL_ROOT}/etc/passwd | egrep '^'$SSHDUID'\$' >/dev/null
 		then
 			:
 		else
