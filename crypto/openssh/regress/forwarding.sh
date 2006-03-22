@@ -1,4 +1,4 @@
-#	$OpenBSD: forwarding.sh,v 1.4 2002/03/15 13:08:56 markus Exp $
+#	$OpenBSD: forwarding.sh,v 1.5 2005/03/10 10:20:39 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="local and remote forwarding"
@@ -30,5 +30,36 @@ for p in 1 2; do
 	test -f $OBJ/ls.copy			|| fail "failed copy $DATA"
 	cmp $DATA $OBJ/ls.copy			|| fail "corrupted copy of $DATA"
 
+	sleep 10
+done
+
+for p in 1 2; do
+	trace "simple clear forwarding proto $p"
+	${SSH} -$p -F $OBJ/ssh_config -oClearAllForwardings=yes somehost true
+
+	trace "clear local forward proto $p"
+	${SSH} -$p -f -F $OBJ/ssh_config -L ${base}01:127.0.0.1:$PORT \
+	    -oClearAllForwardings=yes somehost sleep 10
+	if [ $? != 0 ]; then
+		fail "connection failed with cleared local forwarding"
+	else
+		# this one should fail
+		${SSH} -$p -F $OBJ/ssh_config -p ${base}01 true \
+		     2>${TEST_SSH_LOGFILE} && \
+			fail "local forwarding not cleared"
+	fi
+	sleep 10
+	
+	trace "clear remote forward proto $p"
+	${SSH} -$p -f -F $OBJ/ssh_config -R ${base}01:127.0.0.1:$PORT \
+	    -oClearAllForwardings=yes somehost sleep 10
+	if [ $? != 0 ]; then
+		fail "connection failed with cleared remote forwarding"
+	else
+		# this one should fail
+		${SSH} -$p -F $OBJ/ssh_config -p ${base}01 true \
+		     2>${TEST_SSH_LOGFILE} && \
+			fail "remote forwarding not cleared"
+	fi
 	sleep 10
 done

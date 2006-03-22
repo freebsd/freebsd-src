@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexdh.c,v 1.19 2003/02/16 17:09:57 markus Exp $");
+RCSID("$OpenBSD: kexdh.c,v 1.20 2005/11/04 05:15:59 djm Exp $");
 
 #include <openssl/evp.h>
 
@@ -32,7 +32,7 @@ RCSID("$OpenBSD: kexdh.c,v 1.19 2003/02/16 17:09:57 markus Exp $");
 #include "ssh2.h"
 #include "kex.h"
 
-u_char *
+void
 kex_dh_hash(
     char *client_version_string,
     char *server_version_string,
@@ -41,7 +41,8 @@ kex_dh_hash(
     u_char *serverhostkeyblob, int sbloblen,
     BIGNUM *client_dh_pub,
     BIGNUM *server_dh_pub,
-    BIGNUM *shared_secret)
+    BIGNUM *shared_secret,
+    u_char **hash, u_int *hashlen)
 {
 	Buffer b;
 	static u_char digest[EVP_MAX_MD_SIZE];
@@ -77,5 +78,6 @@ kex_dh_hash(
 #ifdef DEBUG_KEX
 	dump_digest("hash", digest, EVP_MD_size(evp_md));
 #endif
-	return digest;
+	*hash = digest;
+	*hashlen = EVP_MD_size(evp_md);
 }

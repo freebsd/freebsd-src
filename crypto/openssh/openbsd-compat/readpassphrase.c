@@ -1,6 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/gen/readpassphrase.c */
-
-/*	$OpenBSD: readpassphrase.c,v 1.16 2003/06/17 21:56:23 millert Exp $	*/
+/*	$OpenBSD: readpassphrase.c,v 1.18 2005/08/08 08:05:34 espie Exp $	*/
 
 /*
  * Copyright (c) 2000-2002 Todd C. Miller <Todd.Miller@courtesan.com>
@@ -22,9 +20,7 @@
  * Materiel Command, USAF, under agreement number F39502-99-1-0512.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$OpenBSD: readpassphrase.c,v 1.16 2003/06/17 21:56:23 millert Exp $";
-#endif /* LIBC_SCCS and not lint */
+/* OPENBSD ORIGINAL: lib/libc/gen/readpassphrase.c */
 
 #include "includes.h"
 
