@@ -512,6 +512,10 @@ release rerelease:
 	# NB: these may fail if the host is running w/o devfs
 	echo "umount /dev >/dev/null 2>&1 || true" >> ${_MK}
 	echo "mount -t devfs devfs /dev >/dev/null 2>&1 || true"	>> ${_MK}
+	echo "if [ ! -c /dev/null ]; then" >> ${_MK}
+	echo "	echo /dev/null is not a device!" >> ${_MK}
+	echo "	exit 1" >> ${_MK}
+	echo "fi" >> ${_MK}
 	echo "if [ -x /etc/rc.d/ldconfig ]; then" >> ${_MK}
 	echo "	/etc/rc.d/ldconfig start"	>> ${_MK}
 	echo "else"				>> ${_MK}
