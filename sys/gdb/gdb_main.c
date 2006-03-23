@@ -50,6 +50,7 @@ GDB_DBGPORT(null, NULL, NULL, NULL, NULL, NULL, NULL);
 SET_DECLARE(gdb_dbgport_set, struct gdb_dbgport);
 
 struct gdb_dbgport *gdb_cur = NULL;
+int gdb_listening = 0;
 
 static int
 gdb_init(void)
@@ -82,9 +83,10 @@ gdb_init(void)
 		gdb_cur->gdb_init();
 		printf("GDB: current port: %s\n", gdb_cur->gdb_name);
 	}
-	if (gdb_cur != NULL)
+	if (gdb_cur != NULL) {
 		cur_pri = (boothowto & RB_GDB) ? 2 : 0;
-	else
+		gdb_consinit();
+	} else
 		cur_pri = -1;
 	return (cur_pri);
 }
@@ -94,6 +96,7 @@ gdb_trap(int type, int code)
 {
 	struct thread *thr_iter;
 
+	gdb_listening = 0;
 	/*
 	 * Send a T packet. We currently do not support watchpoints (the
 	 * awatch, rwatch or watch elements).
@@ -126,6 +129,7 @@ gdb_trap(int type, int code)
 				gdb_cpu_setreg(GDB_REG_PC, &pc);
 			}
 			kdb_cpu_clear_singlestep();
+			gdb_listening = 1;
 			return (1);
 		}
 		case 'C': {	/* Continue with signal. */
@@ -137,6 +141,7 @@ gdb_trap(int type, int code)
 				gdb_cpu_setreg(GDB_REG_PC, &pc);
 			}
 			kdb_cpu_clear_singlestep();
+			gdb_listening = 1;
 			return (1);
 		}
 		case 'g': {	/* Read registers. */
@@ -171,6 +176,7 @@ gdb_trap(int type, int code)
 		}
 		case 'k':	/* Kill request. */
 			kdb_cpu_clear_singlestep();
+			gdb_listening = 1;
 			return (1);
 		case 'm': {	/* Read memory. */
 			uintmax_t addr, size;
@@ -243,6 +249,7 @@ gdb_trap(int type, int code)
 				gdb_cpu_setreg(GDB_REG_PC, &pc);
 			}
 			kdb_cpu_set_singlestep();
+			gdb_listening = 1;
 			return (1);
 		}
 		case 'S': {	/* Step with signal. */
@@ -254,6 +261,7 @@ gdb_trap(int type, int code)
 				gdb_cpu_setreg(GDB_REG_PC, &pc);
 			}
 			kdb_cpu_set_singlestep();
+			gdb_listening = 1;
 			return (1);
 		}
 		case 'T': {	/* Thread alive. */
