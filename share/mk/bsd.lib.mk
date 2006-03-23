@@ -127,7 +127,7 @@ _vgen=  ${path}/${VERSION_GEN}
 .endif
 .endfor
 
-${VERSION_MAP}:
+${VERSION_MAP}: ${VERSION_DEF} ${_vgen} ${SYMBOL_MAPS}
 	awk -v vfile=${VERSION_DEF} -f ${_vgen} ${SYMBOL_MAPS} \
 	    > ${.TARGET}
 .endif	# !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
@@ -354,6 +354,9 @@ clean:
 .endif
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
+.endif
+.if !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
+	rm -f ${VERSION_MAP}
 .endif
 .endif
 
