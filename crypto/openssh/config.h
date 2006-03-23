@@ -392,7 +392,7 @@
 #define HAVE_HEADER_AD 1
 
 /* Define if you have ut_host in utmp.h */
-/* #undef HAVE_HOST_IN_UTMP */
+#define HAVE_HOST_IN_UTMP 1
 
 /* Define if you have ut_host in utmpx.h */
 /* #undef HAVE_HOST_IN_UTMPX */
@@ -897,7 +897,7 @@
 #define HAVE_TIME_H 1
 
 /* Define if you have ut_time in utmp.h */
-/* #undef HAVE_TIME_IN_UTMP */
+#define HAVE_TIME_IN_UTMP 1
 
 /* Define if you have ut_time in utmpx.h */
 /* #undef HAVE_TIME_IN_UTMPX */
