@@ -36,6 +36,9 @@
 #define	LIO_NOP			0x0
 #define LIO_WRITE		0x1
 #define	LIO_READ		0x2
+#ifdef _KERNEL
+#define	LIO_SYNC		0x3
+#endif
 
 /*
  * LIO modes
@@ -121,6 +124,7 @@ int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 
 int	aio_waitcomplete(struct aiocb **, struct timespec *);
 
+int	aio_fsync(int op, struct aiocb *aiocbp);
 __END_DECLS
 
 #else
