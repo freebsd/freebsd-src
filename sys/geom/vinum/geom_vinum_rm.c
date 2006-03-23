@@ -143,7 +143,7 @@ gv_resetconfig(struct g_geom *gp, struct gctl_req *req)
 	s = NULL;
 	s2 = NULL;
 	flags = GV_FLAG_R;
-        sc = gp->softc;
+	sc = gp->softc;
 	/* First loop through to make sure no volumes are up */
         LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2) {
 		if (gv_is_open(v->geom)) {
