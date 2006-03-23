@@ -189,7 +189,7 @@ fd_last_used(struct filedesc *fdp, int low, int size)
 	for (minoff = NDSLOT(low); off >= minoff; --off)
 		if (map[off] != 0)
 			return (off * NDENTRIES + flsl(map[off]) - 1);
-	return (size - 1);
+	return (low - 1);
 }
 
 static int
@@ -1406,6 +1406,7 @@ fdinit(struct filedesc *fdp)
 	newfdp->fd_fd.fd_ofileflags = newfdp->fd_dfileflags;
 	newfdp->fd_fd.fd_nfiles = NDFILE;
 	newfdp->fd_fd.fd_map = newfdp->fd_dmap;
+	newfdp->fd_fd.fd_lastfile = -1;
 	return (&newfdp->fd_fd);
 }
 
