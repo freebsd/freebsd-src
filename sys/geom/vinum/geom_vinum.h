@@ -57,6 +57,7 @@ void	gv_rename(struct g_geom *, struct gctl_req *);
 
 /* geom_vinum_rm.c */
 void	gv_remove(struct g_geom *, struct gctl_req *);
+int	gv_resetconfig(struct g_geom *, struct gctl_req *);
 int	gv_rm_sd(struct gv_softc *sc, struct gctl_req *req,
 	    struct gv_sd *s, int flags);
 
