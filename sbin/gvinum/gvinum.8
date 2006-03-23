@@ -165,6 +165,10 @@ the beginning of the plex if the
 .Fl f
 flag is specified, or otherwise at the location of the parity check pointer.
 All subdisks in the plex must be up for a parity check.
+.It Ic resetconfig
+Reset the complete
+.Nm
+configuration.
 .It Xo
 .Ic rm
 .Op Fl r
@@ -365,10 +369,6 @@ Create a volume label.
 .Ar drives
 .Xc
 Create a mirrored volume from the specified drives.
-.It Ic resetconfig
-Reset the complete
-.Nm
-configuration.
 .It Xo
 .Ic resetstats
 .Op Fl r

@@ -396,6 +396,9 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 
 	} else if (!strcmp(verb, "rename")) {
 		gv_rename(gp, req);
+	
+	} else if (!strcmp(verb, "resetconfig")) {
+		gv_resetconfig(gp, req);
 
 	} else if (!strcmp(verb, "start")) {
 		gv_start_obj(gp, req);

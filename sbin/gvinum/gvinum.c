@@ -61,6 +61,7 @@ void	gvinum_move(int, char **);
 void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
 void	gvinum_rename(int, char **);
+void	gvinum_resetconfig(void);
 void	gvinum_rm(int, char **);
 void	gvinum_saveconfig(void);
 void	gvinum_setstate(int, char **);
@@ -349,6 +350,8 @@ gvinum_help(void)
 	    "        Change the name of the specified object.\n"
 	    "rebuildparity plex [-f]\n"
 	    "        Rebuild the parity blocks of a RAID-5 plex.\n"
+	    "resetconfig\n"
+	    "        Reset the complete gvinum configuration\n"
 	    "rm [-r] volume | plex | subdisk | drive\n"
 	    "        Remove an object.\n"
 	    "saveconfig\n"
@@ -729,6 +732,42 @@ gvinum_rm(int argc, char **argv)
 }
 
 void
+gvinum_resetconfig(void)
+{
+	struct gctl_req *req;
+	const char *errstr;
+	char reply[32];
+
+	if (!isatty(STDIN_FILENO)) {
+		warn("Please enter this command from a tty device\n");
+		return;
+	}
+	printf(" WARNING!  This command will completely wipe out your gvinum"
+	    "configuration.\n"
+	    " All data will be lost.  If you really want to do this,"
+	    " enter the text\n\n"
+	    " NO FUTURE\n"
+	    " Enter text -> ");
+	fgets(reply, sizeof(reply), stdin);
+	if (strcmp(reply, "NO FUTURE\n")) {
+		printf("\n No change\n");
+		return;
+	}
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "resetconfig");
+	errstr = gctl_issue(req);
+	if (errstr != NULL) {
+		warnx("can't reset config: %s", errstr);
+		gctl_free(req);
+		return;
+	}
+	gctl_free(req);
+	gvinum_list(0, NULL);
+	printf("gvinum configuration obliterated\n");
+}
+
+void
 gvinum_saveconfig(void)
 {
 	struct gctl_req *req;
@@ -846,6 +885,8 @@ parseline(int argc, char **argv)
 		gvinum_printconfig(argc, argv);
 	else if (!strcmp(argv[0], "rename"))
 		gvinum_rename(argc, argv);
+	else if (!strcmp(argv[0], "resetconfig"))
+		gvinum_resetconfig();
 	else if (!strcmp(argv[0], "rm"))
 		gvinum_rm(argc, argv);
 	else if (!strcmp(argv[0], "saveconfig"))
