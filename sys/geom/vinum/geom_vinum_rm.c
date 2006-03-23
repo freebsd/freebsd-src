@@ -125,6 +125,45 @@ gv_remove(struct g_geom *gp, struct gctl_req *req)
 	gv_save_config_all(sc);
 }
 
+/* Resets configuration */
+int
+gv_resetconfig(struct g_geom *gp, struct gctl_req *req)
+{
+	struct gv_softc *sc;
+	struct gv_drive *d, *d2;
+	struct gv_volume *v, *v2;
+	struct gv_plex *p, *p2;
+	struct gv_sd *s, *s2;
+	int flags;
+
+	d = NULL;
+	d2 = NULL;
+	p = NULL;
+	p2 = NULL;
+	s = NULL;
+	s2 = NULL;
+	flags = GV_FLAG_R;
+        sc = gp->softc;
+	/* First loop through to make sure no volumes are up */
+        LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2) {
+		if (gv_is_open(v->geom)) {
+			gctl_error(req, "volume '%s' is busy", v->name);
+			return (-1);
+		}
+	}
+	/* Then if not, we remove everything. */
+	LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2)
+		gv_rm_vol(sc, req, v, flags);
+	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2)
+		gv_rm_plex(sc, req, p, flags);
+	LIST_FOREACH_SAFE(s, &sc->subdisks, sd, s2)
+		gv_rm_sd(sc, req, s, flags);
+	LIST_FOREACH_SAFE(d, &sc->drives, drive, d2)
+		gv_rm_drive(sc, req, d, flags);
+	gv_save_config_all(sc);
+	return (0);
+}
+
 /* Remove a volume. */
 static int
 gv_rm_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, int flags)
