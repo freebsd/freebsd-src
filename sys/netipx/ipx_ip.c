@@ -75,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_ip.h>
 #include <netipx/ipx_var.h>
 
+NET_NEEDS_GIANT("ipx_ip");
+
 static struct	ifnet ipxipif;
 static int	ipxipif_units;
 
