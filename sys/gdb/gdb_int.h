@@ -31,6 +31,9 @@
 
 extern struct gdb_dbgport *gdb_cur;
 
+extern int gdb_listening;
+void gdb_consinit(void);
+
 extern char *gdb_rxp;
 extern size_t gdb_rxsz;
 extern char *gdb_txp;
