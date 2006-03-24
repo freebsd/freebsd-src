@@ -254,10 +254,6 @@ __FBSDID("$FreeBSD$");
 #define	CACHELINE_2POW 6
 #define	CACHELINE ((size_t)(1 << CACHELINE_2POW))
 
-/* Minimum size class that is a power of 2, and smaller than the quantum. */
-#define TINY_MIN_2POW 1
-#define TINY_MIN (1 << TINY_MIN_2POW)
-
 /*
  * Maximum size class that is a multiple of the quantum, but not (necessarily)
  * a power of 2.  Above this size, allocations are rounded up to the nearest
@@ -459,16 +455,16 @@ struct arena_run_s {
 	unsigned	regs_mask[REGS_MASK_NELMS];
 
 	/* Index of first element that might have a free region. */
-	unsigned	regs_minelm;
+	unsigned	regs_minelm:(RUN_MIN_REGS_2POW + 2);
 
 	/* Number of free regions in run. */
-	unsigned	nfree:(RUN_MIN_REGS_2POW + 1);
+	unsigned	nfree:(RUN_MIN_REGS_2POW + 2);
 
 	/*
-	 * Current quartile for this run, one of: {RUN_QEMPTY, RUN_Q0, RUN_25,
+	 * Current quartile for this run, one of: {RUN_QINIT, RUN_Q0, RUN_25,
 	 * RUN_Q50, RUN_Q75, RUN_Q100}.
 	 */
-#define RUN_QEMPTY	0
+#define RUN_QINIT	0
 #define RUN_Q0		1
 #define RUN_Q25		2
 #define RUN_Q50		3
@@ -481,8 +477,8 @@ struct arena_run_s {
 	 * run is currently in.  If nfree goes outside these limits, the run
 	 * is moved to a different fullness quartile.
 	 */
-	unsigned	free_max:(RUN_MIN_REGS_2POW + 1);
-	unsigned	free_min:(RUN_MIN_REGS_2POW + 1);
+	unsigned	free_max:(RUN_MIN_REGS_2POW + 2);
+	unsigned	free_min:(RUN_MIN_REGS_2POW + 2);
 };
 
 /* Used for run ring headers, where the run isn't actually used. */
@@ -620,6 +616,7 @@ static unsigned		nqbins; /* Number of quantum-spaced bins. */
 static unsigned		npbins; /* Number of (2^n)-spaced bins. */
 static size_t		small_min;
 static size_t		small_max;
+static unsigned		tiny_min_2pow;
 
 /* Various quantum-related settings. */
 static size_t		quantum;
@@ -1568,7 +1565,7 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	} else {
 		/* Demote. */
 		assert(run->free_max < run->nfree);
-		assert(run->quartile > RUN_QEMPTY);
+		assert(run->quartile > RUN_QINIT);
 		run->quartile--;
 #ifdef MALLOC_STATS
 		bin->stats.ndemote++;
@@ -1578,7 +1575,7 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	/* Re-file run. */
 	qr_remove(run, link);
 	switch (run->quartile) {
-		case RUN_QEMPTY:
+		case RUN_QINIT:
 #ifdef MALLOC_STATS
 			bin->stats.curruns--;
 #endif
@@ -1593,30 +1590,40 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 			qr_before_insert((arena_run_t *)&bin->runs0, run, link);
 			run->free_max = run->bin->nregs - 1;
 			run->free_min = (run->bin->nregs >> 1) + 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q25:
 			qr_before_insert((arena_run_t *)&bin->runs25, run,
 			    link);
 			run->free_max = ((run->bin->nregs >> 2) * 3) - 1;
 			run->free_min = (run->bin->nregs >> 2) + 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q50:
 			qr_before_insert((arena_run_t *)&bin->runs50, run,
 			    link);
 			run->free_max = (run->bin->nregs >> 1) - 1;
 			run->free_min = 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q75:
 			qr_before_insert((arena_run_t *)&bin->runs75, run,
 			    link);
 			run->free_max = (run->bin->nregs >> 2) - 1;
 			run->free_min = 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q100:
 			assert(bin->runcur == run);
 			bin->runcur = NULL;
 			run->free_max = 0;
 			run->free_min = 0;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
 			break;
 		default:
 			assert(0);
@@ -1806,7 +1813,7 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 	run->regs_minelm = 0;
 
 	run->nfree = bin->nregs;
-	run->quartile = RUN_QEMPTY;
+	run->quartile = RUN_QINIT;
 	run->free_max = bin->nregs;
 	run->free_min = ((bin->nregs >> 2) * 3) + 1;
 #ifdef MALLOC_DEBUG
@@ -1858,6 +1865,7 @@ arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin, size_t size)
 	if (bin->runcur == NULL)
 		return (NULL);
 	assert(bin->runcur->magic == ARENA_RUN_MAGIC);
+	assert(bin->runcur->nfree > 0);
 
 	return (arena_bin_malloc_easy(arena, bin, bin->runcur, size));
 }
@@ -1879,14 +1887,14 @@ arena_malloc(arena_t *arena, size_t size)
 
 		if (size < small_min) {
 			size = pow2_ceil(size);
-			bin = &arena->bins[ffs(size >> (TINY_MIN_2POW + 1))];
+			bin = &arena->bins[ffs(size >> (tiny_min_2pow + 1))];
 #ifdef MALLOC_STATS
 			/* 
 			 * Bin calculation is always correct, but we may need to
 			 * fix size for the purposes of stats accuracy.
 			 */
-			if (size < (1 << TINY_MIN_2POW))
-				size = (1 << TINY_MIN_2POW);
+			if (size < (1 << tiny_min_2pow))
+				size = (1 << tiny_min_2pow);
 #endif
 		} else if (size <= small_max) {
 			size = QUANTUM_CEILING(size);
@@ -1937,8 +1945,8 @@ arena_ralloc(arena_t *arena, void *ptr, size_t size, size_t oldsize)
 	 */
 	if (size < small_min) {
 		if (oldsize < small_min &&
-		    ffs(pow2_ceil(size) >> (TINY_MIN_2POW + 1))
-		    == ffs(pow2_ceil(oldsize) >> (TINY_MIN_2POW + 1)))
+		    ffs(pow2_ceil(size) >> (tiny_min_2pow + 1))
+		    == ffs(pow2_ceil(oldsize) >> (tiny_min_2pow + 1)))
 			goto IN_PLACE;
 	} else if (size <= small_max) {
 		if (oldsize >= small_min && oldsize <= small_max && 
@@ -2115,7 +2123,7 @@ arena_new(arena_t *arena)
 		qr_new((arena_run_t *)&bin->runs50, link);
 		qr_new((arena_run_t *)&bin->runs75, link);
 
-		bin->reg_size = (1 << (TINY_MIN_2POW + i));
+		bin->reg_size = (1 << (tiny_min_2pow + i));
 
 		/* 
 		 * Calculate how large of a run to allocate.  Make sure that at
@@ -3061,7 +3069,12 @@ malloc_init_hard(void)
 
 	/* Set bin-related variables. */
 	bin_maxclass = (pagesize >> 1);
-	ntbins = opt_quantum_2pow - TINY_MIN_2POW;
+	if (pagesize_2pow > RUN_MIN_REGS_2POW + 1)
+		tiny_min_2pow = pagesize_2pow - (RUN_MIN_REGS_2POW + 1);
+	else
+		tiny_min_2pow = 1;
+	assert(opt_quantum_2pow >= tiny_min_2pow);
+	ntbins = opt_quantum_2pow - tiny_min_2pow;
 	assert(ntbins <= opt_quantum_2pow);
 	nqbins = (small_max >> opt_quantum_2pow);
 	npbins = pagesize_2pow - opt_small_max_2pow - 1;
@@ -3069,7 +3082,10 @@ malloc_init_hard(void)
 	/* Set variables according to the value of opt_quantum_2pow. */
 	quantum = (1 << opt_quantum_2pow);
 	quantum_mask = quantum - 1;
-	small_min = (quantum >> 1) + 1;
+	if (ntbins > 0)
+		small_min = (quantum >> 1) + 1;
+	else
+		small_min = 1;
 	assert(small_min <= quantum);
 
 	/* Set variables according to the value of opt_chunk_2pow. */
