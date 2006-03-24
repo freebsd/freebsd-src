@@ -656,7 +656,7 @@ get_prefix(struct rainfo *rai)
 		memcpy(&pp->prefix, a, sizeof(*a));
 		p = (u_char *)&pp->prefix;
 		ep = (u_char *)(&pp->prefix + 1);
-		while (m < lim)
+		while (m < lim && p < ep)
 			*p++ &= *m++;
 		while (p < ep)
 			*p++ = 0x00;
