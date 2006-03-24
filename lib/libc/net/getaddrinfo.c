@@ -2455,6 +2455,10 @@ res_searchN(name, target, res)
 		case NO_DATA:
 		case HOST_NOT_FOUND:
 			break;
+		case TRY_AGAIN:
+			if (hp->rcode == SERVFAIL)
+				break;
+			/* FALLTHROUGH */
 		default:
 			return (-1);
 		}
@@ -2514,9 +2518,9 @@ res_searchN(name, target, res)
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
+				got_servfail++;
 				if (hp->rcode == SERVFAIL) {
 					/* try next search element, if any */
-					got_servfail++;
 					break;
 				}
 				/* FALLTHROUGH */
@@ -2537,6 +2541,10 @@ res_searchN(name, target, res)
 	case NO_DATA:
 	case HOST_NOT_FOUND:
 		break;
+	case TRY_AGAIN:
+		if (hp->rcode == SERVFAIL)
+			break;
+		/* FALLTHROUGH */
 	default:
 		goto giveup;
 	}
