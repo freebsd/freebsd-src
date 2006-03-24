@@ -114,6 +114,7 @@ static void nd6_slowtimo __P((void *));
 static int regen_tmpaddr __P((struct in6_ifaddr *));
 static struct llinfo_nd6 *nd6_free __P((struct rtentry *, int));
 static void nd6_llinfo_timer __P((void *));
+static void clear_llinfo_pqueue __P((struct llinfo_nd6 *));
 
 struct callout nd6_slowtimo_ch;
 struct callout nd6_timer_ch;
@@ -460,13 +461,19 @@ nd6_llinfo_timer(arg)
 		} else {
 			struct mbuf *m = ln->ln_hold;
 			if (m) {
+				struct mbuf *m0;
+
 				/*
 				 * assuming every packet in ln_hold has the
 				 * same IP header
 				 */
-				ln->ln_hold = NULL;
+				m0 = m->m_nextpkt;
+				m->m_nextpkt = NULL;
 				icmp6_error2(m, ICMP6_DST_UNREACH,
 				    ICMP6_DST_UNREACH_ADDR, 0, rt->rt_ifp);
+
+				ln->ln_hold = m0;
+				clear_llinfo_pqueue(ln);
 			}
 			if (rt)
 				(void)nd6_free(rt, 0);
@@ -1403,8 +1410,7 @@ nd6_rtrequest(req, rt, info)
 		nd6_llinfo_settimer(ln, -1);
 		rt->rt_llinfo = 0;
 		rt->rt_flags &= ~RTF_LLINFO;
-		if (ln->ln_hold)
-			m_freem(ln->ln_hold);
+		clear_llinfo_pqueue(ln);
 		Free((caddr_t)ln);
 	}
 }
@@ -2078,7 +2084,7 @@ again:
 		while (i >= nd6_maxqueuelen) {
 			m_hold = ln->ln_hold;
 			ln->ln_hold = ln->ln_hold->m_nextpkt;
-			m_free(m_hold);
+			m_freem(m_hold);
 			i--;
 		}
 	} else {
@@ -2234,6 +2240,22 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 
 	bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 	return (0);
+}
+
+static void 
+clear_llinfo_pqueue(ln)
+	struct llinfo_nd6 *ln;
+{
+	struct mbuf *m_hold, *m_hold_next;
+
+	for (m_hold = ln->ln_hold; m_hold; m_hold = m_hold_next) {
+		m_hold_next = m_hold->m_nextpkt;
+		m_hold->m_nextpkt = NULL;
+		m_freem(m_hold);
+	}
+
+	ln->ln_hold = NULL;
+	return;
 }
 
 static int nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS);
