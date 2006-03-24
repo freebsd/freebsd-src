@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2004-2005 Robert N. M. Watson
- * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 1995, Mike Mitchell
+ * Copyright (c) 2004-2006 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,6 +64,7 @@ ipx_pcballoc(so, head, td)
 {
 	register struct ipxpcb *ipxp;
 
+	KASSERT(so->so_pcb == NULL, ("ipx_pcballoc: so_pcb != NULL"));
 	IPX_LIST_LOCK_ASSERT();
 
 	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT | M_ZERO);
