@@ -533,6 +533,7 @@ USB_DETACH(ural)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
+	ural_stop(sc);
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->amrr_ch);
