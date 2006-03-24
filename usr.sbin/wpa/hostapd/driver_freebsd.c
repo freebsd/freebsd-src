@@ -40,6 +40,8 @@
 #include "wpa.h"
 #include "radius.h"
 #include "ieee802_11.h"
+#include "common.h"
+#include "hostap_common.h"
 
 struct bsd_driver_data {
 	struct driver_ops ops;			/* base class */
@@ -274,7 +276,7 @@ bsd_set_ieee8021x(void *priv, int enabled)
 	}
 	if (!conf->wpa && !conf->ieee802_1x) {
 		hostapd_logger(hapd, NULL, HOSTAPD_MODULE_DRIVER,
-			HOSTAPD_LEVEL_WARNING, "No 802.1x or WPA enabled!");
+			HOSTAPD_LEVEL_WARNING, "No 802.1X or WPA enabled!");
 		return -1;
 	}
 	if (conf->wpa && bsd_configure_wpa(drv) != 0) {
@@ -285,7 +287,7 @@ bsd_set_ieee8021x(void *priv, int enabled)
 	if (set80211param(priv, IEEE80211_IOC_AUTHMODE,
 		(conf->wpa ?  IEEE80211_AUTH_WPA : IEEE80211_AUTH_8021X))) {
 		hostapd_logger(hapd, NULL, HOSTAPD_MODULE_DRIVER,
-			HOSTAPD_LEVEL_WARNING, "Error enabling WPA/802.1x!");
+			HOSTAPD_LEVEL_WARNING, "Error enabling WPA/802.1X!");
 		return -1;
 	}
 	return bsd_set_iface_flags(priv, 1);
@@ -455,6 +457,22 @@ bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 }
 
 static int
+bsd_sta_clear_stats(void *priv, u8 *addr)
+{
+	struct bsd_driver_data *drv = priv;
+	hostapd *hapd = drv->hapd;
+	struct ieee80211req_sta_stats stats;
+	
+	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "%s: addr=%s\n",
+		      __func__, ether_sprintf(addr));
+
+	/* zero station statistics */
+	memset(&stats, 0, sizeof(stats));
+	memcpy(stats.is_u.macaddr, addr, IEEE80211_ADDR_LEN);
+	return set80211var(drv, IEEE80211_IOC_STA_STATS, &stats, sizeof(stats));
+}
+
+static int
 bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 {
 	/*
@@ -584,7 +602,7 @@ bsd_new_sta(struct bsd_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 	if (new_assoc) {
 		if (conf->wpa)
 			wpa_sm_event(hapd, sta, WPA_ASSOC);
-		hostapd_new_assoc_sta(hapd, sta);
+		hostapd_new_assoc_sta(hapd, sta, !new_assoc);
 	} else {
 		if (conf->wpa)
 			wpa_sm_event(hapd, sta, WPA_REAUTH);
@@ -726,7 +744,7 @@ bsd_send_eapol(void *priv, u8 *addr, u8 *data, size_t data_len, int encrypt)
 	if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MSGDUMPS))
 		hostapd_hexdump("TX EAPOL", bp, len);
 
-	status = l2_packet_send(drv->sock_xmit, bp, len);
+	status = l2_packet_send(drv->sock_xmit, addr, ETH_P_EAPOL, bp, len);
 
 	if (bp != buf)
 		free(bp);
@@ -734,7 +752,7 @@ bsd_send_eapol(void *priv, u8 *addr, u8 *data, size_t data_len, int encrypt)
 }
 
 static void
-handle_read(void *ctx, unsigned char *src_addr, unsigned char *buf, size_t len)
+handle_read(void *ctx, const u8 *src_addr, const u8 *buf, size_t len)
 {
 	struct bsd_driver_data *drv = ctx;
 	hostapd *hapd = drv->hapd;
@@ -747,7 +765,8 @@ handle_read(void *ctx, unsigned char *src_addr, unsigned char *buf, size_t len)
 		/* XXX cannot happen */
 		return;
 	}
-	ieee802_1x_receive(hapd, src_addr, buf, len);
+	ieee802_1x_receive(hapd, src_addr, buf + sizeof(struct l2_ethhdr),
+			   len - sizeof(struct l2_ethhdr));
 }
 
 static int
@@ -776,6 +795,15 @@ bsd_set_ssid(void *priv, u8 *buf, int len)
 }
 
 static int
+bsd_set_countermeasures(void *priv, int enabled)
+{
+	struct bsd_driver_data *drv = priv;
+
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
+	return set80211param(drv, IEEE80211_IOC_COUNTERMEASURES, enabled);
+}
+
+static int
 bsd_init(struct hostapd_data *hapd)
 {
 	struct bsd_driver_data *drv;
@@ -797,7 +825,7 @@ bsd_init(struct hostapd_data *hapd)
 	memcpy(drv->iface, hapd->conf->iface, sizeof(drv->iface));
 
 	drv->sock_xmit = l2_packet_init(drv->iface, NULL, ETH_P_EAPOL,
-				handle_read, drv);
+					handle_read, drv, 1);
 	if (drv->sock_xmit == NULL)
 		goto bad;
 	if (l2_packet_get_own_addr(drv->sock_xmit, hapd->own_addr))
@@ -852,6 +880,8 @@ static const struct driver_ops bsd_driver_ops = {
 	.sta_deauth		= bsd_sta_deauth,
 	.set_ssid		= bsd_set_ssid,
 	.get_ssid		= bsd_get_ssid,
+	.set_countermeasures	= bsd_set_countermeasures,
+	.sta_clear_stats        = bsd_sta_clear_stats,
 };
 
 void bsd_driver_register(void)

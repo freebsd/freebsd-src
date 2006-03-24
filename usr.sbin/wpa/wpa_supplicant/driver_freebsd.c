@@ -78,7 +78,8 @@ get80211var(struct wpa_driver_bsd_data *drv, int op, void *arg, int arg_len)
 	ireq.i_data = arg;
 
 	if (ioctl(drv->sock, SIOCG80211, &ireq) < 0) {
-		perror("ioctl[SIOCG80211]");
+		fprintf(stderr, "ioctl[SIOCG80211, op %u, len %u]: %s\n",
+			op, arg_len, strerror(errno));
 		return -1;
 	}
 	return ireq.i_len;
