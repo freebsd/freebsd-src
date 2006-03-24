@@ -1,7 +1,7 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi> and
+Copyright (c) 2003-2006, Jouni Malinen <jkmaline@cc.hut.fi> and
 contributors
 All Rights Reserved.
 
@@ -89,6 +89,7 @@ Supported WPA/IEEE 802.11i features:
   * EAP-SIM
   * EAP-AKA
   * EAP-PSK
+  * EAP-PAX
   * LEAP (note: requires special support from the driver for IEEE 802.11
 	  authentication)
   (following methods are supported, but since they do not generate keying
@@ -97,8 +98,6 @@ Supported WPA/IEEE 802.11i features:
   * EAP-MSCHAPv2
   * EAP-GTC
   * EAP-OTP
-  Alternatively, an external program, e.g., Xsupplicant, can be used for EAP
-  authentication.
 - key management for CCMP, TKIP, WEP104, WEP40
 - RSN/WPA2 (IEEE 802.11i)
   * pre-authentication
@@ -112,6 +111,7 @@ Requirements
 Current hardware/software requirements:
 - Linux kernel 2.4.x or 2.6.x with Linux Wireless Extensions v15 or newer
 - FreeBSD 6-CURRENT
+- NetBSD-current
 - Microsoft Windows with WinPcap (at least WinXP, may work with other versions)
 - drivers:
 	Host AP driver for Prism2/2.5/3 (development snapshot/v0.2.x)
@@ -164,8 +164,10 @@ Current hardware/software requirements:
 	used with IEEE 802.1X (i.e., not WPA) when using ap_scan=0 option in
 	configuration file.
 
+	Wired Ethernet drivers (with ap_scan=0)
+
 	BSD net80211 layer (e.g., Atheros driver)
-	At the moment, this is for FreeBSD 6-CURRENT branch.
+	At the moment, this is for FreeBSD 6-CURRENT branch and NetBSD-current.
 
 	Windows NDIS
 	The current Windows port requires WinPcap (http://winpcap.polito.it/).
@@ -173,7 +175,8 @@ Current hardware/software requirements:
 
 wpa_supplicant was designed to be portable for different drivers and
 operating systems. Hopefully, support for more wlan cards and OSes will be
-added in the future. See developer.txt for more information about the
+added in the future. See developer's documentation
+(http://hostap.epitest.fi/wpa_supplicant/devel/) for more information about the
 design of wpa_supplicant and porting to other drivers. One main goal
 is to add full WPA/WPA2 support to Linux wireless extensions to allow
 new drivers to be supported without having to implement new
@@ -221,8 +224,7 @@ networks that require some kind of security. Task group I (Security)
 of IEEE 802.11 working group (http://www.ieee802.org/11/) has worked
 to address the flaws of the base standard and has in practice
 completed its work in May 2004. The IEEE 802.11i amendment to the IEEE
-802.11 standard was approved in June 2004 and this amendment is likely
-to be published in July 2004.
+802.11 standard was approved in June 2004 and published in July 2004.
 
 Wi-Fi Alliance (http://www.wi-fi.org/) used a draft version of the
 IEEE 802.11i work (draft 3.0) to define a subset of the security
@@ -277,14 +279,6 @@ robust encryption algorithm (CCMP: AES in Counter mode with CBC-MAC)
 to replace TKIP and optimizations for handoff (reduced number of
 messages in initial key handshake, pre-authentication, and PMKSA caching).
 
-Some wireless LAN vendors are already providing support for CCMP in
-their WPA products. There is no "official" interoperability
-certification for CCMP and/or mixed modes using both TKIP and CCMP, so
-some interoperability issues can be expected even though many
-combinations seem to be working with equipment from different vendors.
-Certification for WPA2 is likely to start during the second half of
-2004.
-
 
 
 wpa_supplicant
@@ -307,9 +301,9 @@ Following steps are used when associating with an AP using WPA:
 - wpa_supplicant selects a BSS based on its configuration
 - wpa_supplicant requests the kernel driver to associate with the chosen
   BSS
-- If WPA-EAP: integrated IEEE 802.1X Supplicant or external Xsupplicant
-  completes EAP authentication with the authentication server (proxied
-  by the Authenticator in the AP)
+- If WPA-EAP: integrated IEEE 802.1X Supplicant completes EAP
+  authentication with the authentication server (proxied by the
+  Authenticator in the AP)
 - If WPA-EAP: master key is received from the IEEE 802.1X Supplicant
 - If WPA-PSK: wpa_supplicant uses PSK as the master session key
 - wpa_supplicant completes WPA 4-Way Handshake and Group Key Handshake
@@ -352,6 +346,7 @@ CONFIG_EAP_OTP=y
 CONFIG_EAP_SIM=y
 CONFIG_EAP_AKA=y
 CONFIG_EAP_PSK=y
+CONFIG_EAP_PAX=y
 CONFIG_EAP_LEAP=y
 
 Following option can be used to include GSM SIM/USIM interface for GSM/UMTS
@@ -366,13 +361,12 @@ interface with libpcap/libdnet.
 CONFIG_DNET_PCAP=y
 
 Following options can be added to .config to select which driver
-interfaces are included. Prism54.org driver is not yet complete and
-Hermes driver interface needs to be downloaded from Agere (see above).
-Most Linux driver need to include CONFIG_WIRELESS_EXTENSION.
+interfaces are included. Hermes driver interface needs to be downloaded
+from Agere (see above). CONFIG_WIRELESS_EXTENSION will be used
+automatically if any of the selected drivers need it.
 
 CONFIG_WIRELESS_EXTENSION=y
 CONFIG_DRIVER_HOSTAP=y
-CONFIG_DRIVER_PRISM54=y
 CONFIG_DRIVER_HERMES=y
 CONFIG_DRIVER_MADWIFI=y
 CONFIG_DRIVER_ATMEL=y
@@ -387,7 +381,6 @@ Following example includes all features and driver interfaces that are
 included in the wpa_supplicant package:
 
 CONFIG_DRIVER_HOSTAP=y
-CONFIG_DRIVER_PRISM54=y
 CONFIG_DRIVER_HERMES=y
 CONFIG_DRIVER_MADWIFI=y
 CONFIG_DRIVER_ATMEL=y
@@ -409,6 +402,7 @@ CONFIG_EAP_OTP=y
 CONFIG_EAP_SIM=y
 CONFIG_EAP_AKA=y
 CONFIG_EAP_PSK=y
+CONFIG_EAP_PAX=y
 CONFIG_EAP_LEAP=y
 CONFIG_PCSC=y
 
@@ -463,8 +457,6 @@ options:
   -d = increase debugging verbosity (-dd even more)
   -K = include keys (passwords, etc.) in debug output
   -t = include timestamp in debug messages
-  -e = use external IEEE 802.1X Supplicant (e.g., xsupplicant)
-       (this disables the internal Supplicant)
   -h = show this help text
   -L = show license (GPL and BSD)
   -q = decrease debugging verbosity (-qq even less)
@@ -475,8 +467,6 @@ options:
 drivers:
   hostap = Host AP driver (Intersil Prism2/2.5/3) [default]
 	(this can also be used with Linuxant DriverLoader)
-  prism54 = Prism54.org driver (Intersil Prism GT/Duette/Indigo)
-	not yet fully implemented
   hermes = Agere Systems Inc. driver (Hermes-I/Hermes-II)
   madwifi = MADWIFI 802.11 support (Atheros, etc.)
   atmel = ATMEL AT76C5XXx (USB, PCMCIA)
@@ -484,6 +474,7 @@ drivers:
   ndiswrapper = Linux ndiswrapper
   broadcom = Broadcom wl.o driver
   ipw = Intel ipw2100/2200 driver
+  wired = wpa_supplicant wired Ethernet driver
   bsd = BSD 802.11 support (Atheros, etc.)
   ndis = Windows NDIS driver
 
@@ -647,6 +638,21 @@ network={
 }
 
 
+6) Authentication for wired Ethernet. This can be used with 'wired' interface
+   (-Dwired on command line).
+
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+ap_scan=0
+network={
+	key_mgmt=IEEE8021X
+	eap=MD5
+	identity="user"
+	password="password"
+	eapol_flags=0
+}
+
+
 
 Certificates
 ------------
@@ -681,7 +687,7 @@ wpa_supplicant. It is used to query current status, change
 configuration, trigger events, and request interactive user input.
 
 wpa_cli can show the current authentication status, selected security
-mode, dot11 and dot1x MIBs, etc. In addition, it can configuring some
+mode, dot11 and dot1x MIBs, etc. In addition, it can configure some
 variables like EAPOL state machine parameters and trigger events like
 reassociation and IEEE 802.1X logoff/logon. wpa_cli provides a user
 interface to request authentication information, like username and
@@ -757,9 +763,81 @@ wpa_cli commands
   preauthenticate <BSSID> = force preauthentication
   identity <network id> <identity> = configure identity for an SSID
   password <network id> <password> = configure password for an SSID
+  pin <network id> <pin> = configure pin for an SSID
   otp <network id> <password> = configure one-time-password for an SSID
+  passphrase <network id> <passphrase> = configure private key passphrase
+    for an SSID
+  bssid <network id> <BSSID> = set preferred BSSID for an SSID
+  list_networks = list configured networks
+  select_network <network id> = select a network (disable others)
+  enable_network <network id> = enable a network
+  disable_network <network id> = disable a network
+  add_network = add a network
+  remove_network <network id> = remove a network
+  set_network <network id> <variable> <value> = set network variables (shows
+    list of variables when run without arguments)
+  get_network <network id> <variable> = get network variables
+  save_config = save the current configuration
+  disconnect = disconnect and wait for reassociate command before connecting
+  scan = request new BSS scan
+  scan_results = get latest scan results
+  get_capability <eap/pairwise/group/key_mgmt/proto/auth_alg> = get capabilies
   terminate = terminate wpa_supplicant
   quit = exit wpa_cli
+
+
+wpa_cli command line options
+
+wpa_cli [-p<path to ctrl sockets>] [-i<ifname>] [-hvB] [-a<action file>] \
+        [-P<pid file>] [-g<global ctrl>]  [command..]
+  -h = help (show this usage text)
+  -v = shown version information
+  -a = run in daemon mode executing the action file based on events from
+       wpa_supplicant
+  -B = run a daemon in the background
+  default path: /var/run/wpa_supplicant
+  default interface: first interface found in socket path
+
+
+Using wpa_cli to run external program on connect/disconnect
+-----------------------------------------------------------
+
+wpa_cli can used to run external programs whenever wpa_supplicant
+connects or disconnects from a network. This can be used, e.g., to
+update network configuration and/or trigget DHCP client to update IP
+addresses, etc.
+
+One wpa_cli process in "action" mode needs to be started for each
+interface. For example, the following command starts wpa_cli for the
+default ingterface (-i can be used to select the interface in case of
+more than one interface being used at the same time):
+
+wpa_cli -a/sbin/wpa_action.sh -B
+
+The action file (-a option, /sbin/wpa_action.sh in this example) will
+be executed whenever wpa_supplicant completes authentication (connect
+event) or detects disconnection). The action script will be called
+with two command line arguments: interface name and event (CONNECTED
+or DISCONNECTED). If the action script needs to get more information
+about the current network, it can use 'wpa_cli status' to query
+wpa_supplicant for more information.
+
+Following example can be used as a simple template for an action
+script:
+
+#!/bin/sh
+
+IFNAME=$1
+CMD=$2
+
+if [ "$CMD" == "CONNECTED" ]; then
+    SSID=`wpa_cli -i$IFNAME status | grep ^ssid= | cut -f2- -d=`
+    # configure network, signal DHCP client, etc.
+fi
+
+if [ "$CMD" == "DISCONNECTED" ]; then
+    # remove network configuration, if needed
+fi
 
 
 
@@ -804,55 +882,38 @@ started--and will then negotiate keys with the AP.
 
 
 
-Optional integration with Xsupplicant
--------------------------------------
+Dynamic interface add and operation without configuration files
+---------------------------------------------------------------
 
-wpa_supplicant has an integrated IEEE 802.1X Supplicant that supports
-most commonly used EAP methods. In addition, wpa_supplicant has an
-experimental interface for integrating it with Xsupplicant
-(http://www.open1x.org/) for the WPA with EAP authentication.
+wpa_supplicant can be started without any configuration files or
+network interfaces. When used in this way, a global (i.e., per
+wpa_supplicant process) control interface is used to add and remove
+network interfaces. Each network interface can then be configured
+through a per-network interface control interface. For example,
+following commands show how to start wpa_supplicant without any
+network interfaces and then add a network interface and configure a
+network (SSID):
 
-When using WPA-EAP, both wpa_supplicant and Xsupplicant must be
-configured with the network security policy. See Xsupplicant documents
-for information about its configuration. Please also note, that a new
-command line option -W (enable WPA) must be used when starting
-xsupplicant.
+# Start wpa_supplicant in the background
+wpa_supplicant -g/var/run/wpa_supplicant-global -B
 
-Example configuration for xsupplicant:
+# Add a new interface (wlan0, no configuration file, driver=wext, and
+# enable control interface)
+wpa_cli -g/var/run/wpa_supplicant-global interface_add wlan0 \
+	"" wext /var/run/wpa_supplicant
 
-network_list = all
-default_netname = jkm
+# Configure a network using the newly added network interface:
+wpa_cli -iwlan0 add_network
+wpa_cli -iwlan0 set_network 0 ssid '"test"'
+wpa_cli -iwlan0 set_network 0 key_mgmt WPA-PSK
+wpa_cli -iwlan0 set_network 0 psk '"12345678"'
+wpa_cli -iwlan0 set_network 0 pairwise TKIP
+wpa_cli -iwlan0 set_network 0 group TKIP
+wpa_cli -iwlan0 set_network 0 proto WPA
+wpa_cli -iwlan0 enable_network 0
 
-jkm
-{
-	type = wireless
-	allow_types = eap_peap
-	identity = <BEGIN_ID>jkm<END_ID>
-	eap-peap {
-		random_file = /dev/urandom
-		root_cert = /home/jkm/CA.pem
-		chunk_size = 1398
-		allow_types = eap_mschapv2
-		eap-mschapv2 {
-			username = <BEGIN_UNAME>jkm<END_UNAME>
-			password = <BEGIN_PASS>jkm<END_PASS>
-		}
-	}
-}
+# At this point, the new network interface should start trying to associate
+# with the WPA-PSK network using SSID test.
 
-
-Example configuration for wpa_supplicant:
-
-network={
-	ssid="jkm"
-	key_mgmt=WPA-EAP
-}
-
-
-Both wpa_supplicant and xsupplicant need to be started. Please remember
-to add '-W' option for xsupplicant in order to provide keying material
-for wpa_supplicant and '-e' option for wpa_supplicant to disable internal
-IEEE 802.1X implementation.
-
-wpa_supplicant -iwlan0 -cwpa_supplicant.conf -e
-xsupplicant -iwlan0 -cxsupplicant.conf -W
+# Remove network interface
+wpa_cli -g/var/run/wpa_supplicant-global interface_remove wlan0

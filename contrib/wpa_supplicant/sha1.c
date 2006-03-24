@@ -19,36 +19,38 @@
 #include "common.h"
 #include "sha1.h"
 #include "md5.h"
+#include "crypto.h"
 
 
-void sha1_mac(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
-	      u8 *mac)
-{
-	SHA1_CTX context;
-	SHA1Init(&context);
-	SHA1Update(&context, key, key_len);
-	SHA1Update(&context, data, data_len);
-	SHA1Update(&context, key, key_len);
-	SHA1Final(mac, &context);
-}
-
-
-/* HMAC code is based on RFC 2104 */
+/**
+ * hmac_sha1_vector - HMAC-SHA1 over data vector (RFC 2104)
+ * @key: Key for HMAC operations
+ * @key_len: Length of the key in bytes
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash (20 bytes)
+ */
 void hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 		      const u8 *addr[], const size_t *len, u8 *mac)
 {
-	SHA1_CTX context;
-	unsigned char k_ipad[65]; /* inner padding - key XORd with ipad */
-	unsigned char k_opad[65]; /* outer padding - key XORd with opad */
+	unsigned char k_pad[64]; /* padding - key XORd with ipad/opad */
 	unsigned char tk[20];
 	int i;
+	const u8 *_addr[6];
+	size_t _len[6];
+
+	if (num_elem > 5) {
+		/*
+		 * Fixed limit on the number of fragments to avoid having to
+		 * allocate memory (which could fail).
+		 */
+		return;
+	}
 
         /* if key is longer than 64 bytes reset it to key = SHA1(key) */
         if (key_len > 64) {
-		SHA1Init(&context);
-		SHA1Update(&context, key, key_len);
-		SHA1Final(tk, &context);
-
+		sha1_vector(1, &key, &key_len, tk);
 		key = tk;
 		key_len = 20;
         }
@@ -62,35 +64,45 @@ void hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 	 * opad is the byte 0x5c repeated 64 times
 	 * and text is the data being protected */
 
-	/* start out by storing key in pads */
-	memset(k_ipad, 0, sizeof(k_ipad));
-	memset(k_opad, 0, sizeof(k_opad));
-	memcpy(k_ipad, key, key_len);
-	memcpy(k_opad, key, key_len);
-
-	/* XOR key with ipad and opad values */
-	for (i = 0; i < 64; i++) {
-		k_ipad[i] ^= 0x36;
-		k_opad[i] ^= 0x5c;
-	}
+	/* start out by storing key in ipad */
+	memset(k_pad, 0, sizeof(k_pad));
+	memcpy(k_pad, key, key_len);
+	/* XOR key with ipad values */
+	for (i = 0; i < 64; i++)
+		k_pad[i] ^= 0x36;
 
 	/* perform inner SHA1 */
-	SHA1Init(&context);                   /* init context for 1st pass */
-	SHA1Update(&context, k_ipad, 64);     /* start with inner pad */
-	/* then text of datagram; all fragments */
+	_addr[0] = k_pad;
+	_len[0] = 64;
 	for (i = 0; i < num_elem; i++) {
-		SHA1Update(&context, addr[i], len[i]);
+		_addr[i + 1] = addr[i];
+		_len[i + 1] = len[i];
 	}
-	SHA1Final(mac, &context);             /* finish up 1st pass */
+	sha1_vector(1 + num_elem, _addr, _len, mac);
+
+	memset(k_pad, 0, sizeof(k_pad));
+	memcpy(k_pad, key, key_len);
+	/* XOR key with opad values */
+	for (i = 0; i < 64; i++)
+		k_pad[i] ^= 0x5c;
 
 	/* perform outer SHA1 */
-	SHA1Init(&context);                   /* init context for 2nd pass */
-	SHA1Update(&context, k_opad, 64);     /* start with outer pad */
-	SHA1Update(&context, mac, 20);        /* then results of 1st hash */
-	SHA1Final(mac, &context);             /* finish up 2nd pass */
+	_addr[0] = k_pad;
+	_len[0] = 64;
+	_addr[1] = mac;
+	_len[1] = SHA1_MAC_LEN;
+	sha1_vector(2, _addr, _len, mac);
 }
 
 
+/**
+ * hmac_sha1 - HMAC-SHA1 over data buffer (RFC 2104)
+ * @key: Key for HMAC operations
+ * @key_len: Length of the key in bytes
+ * @data: Pointers to the data area
+ * @data_len: Length of the data area
+ * @mac: Buffer for the hash (20 bytes)
+ */
 void hmac_sha1(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
 	       u8 *mac)
 {
@@ -98,6 +110,19 @@ void hmac_sha1(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
 }
 
 
+/**
+ * sha1_prf - SHA1-based Pseudo-Random Function (PRF) (IEEE 802.11i, 8.5.1.1)
+ * @key: Key for PRF
+ * @key_len: Length of the key in bytes
+ * @label: A unique label for each purpose of the PRF
+ * @data: Extra data to bind into the key
+ * @data_len: Length of the data
+ * @buf: Buffer for the generated pseudo-random key
+ * @buf_len: Number of bytes of key to generate
+ *
+ * This function is used to derive new, cryptographically separate keys from a
+ * given key (e.g., PMK in IEEE 802.11i).
+ */
 void sha1_prf(const u8 *key, size_t key_len, const char *label,
 	      const u8 *data, size_t data_len, u8 *buf, size_t buf_len)
 {
@@ -135,7 +160,20 @@ void sha1_prf(const u8 *key, size_t key_len, const char *label,
 }
 
 
-/* draft-cam-winget-eap-fast-00.txt */
+/**
+ * sha1_t_prf - EAP-FAST Pseudo-Random Function (T-PRF)
+ * @key: Key for PRF
+ * @key_len: Length of the key in bytes
+ * @label: A unique label for each purpose of the PRF
+ * @seed: Seed value to bind into the key
+ * @seed_len: Length of the seed
+ * @buf: Buffer for the generated pseudo-random key
+ * @buf_len: Number of bytes of key to generate
+ *
+ * This function is used to derive new, cryptographically separate keys from a
+ * given key for EAP-FAST. T-PRF is defined in
+ * draft-cam-winget-eap-fast-02.txt, Appendix B.
+ */
 void sha1_t_prf(const u8 *key, size_t key_len, const char *label,
 		const u8 *seed, size_t seed_len, u8 *buf, size_t buf_len)
 {
@@ -177,7 +215,19 @@ void sha1_t_prf(const u8 *key, size_t key_len, const char *label,
 }
 
 
-/* RFC 2246 */
+/**
+ * tls_prf - Pseudo-Random Function for TLS (TLS-PRF, RFC 2246)
+ * @secret: Key for PRF
+ * @secret_len: Length of the key in bytes
+ * @label: A unique label for each purpose of the PRF
+ * @seed: Seed value to bind into the key
+ * @seed_len: Length of the seed
+ * @out: Buffer for the generated pseudo-random key
+ * @outlen: Number of bytes of key to generate
+*
+ * This function is used to derive new, cryptographically separate keys from a
+ * given key in TLS. This PRF is defined in RFC 2246, Chapter 5.
+ */
 int tls_prf(const u8 *secret, size_t secret_len, const char *label,
 	    const u8 *seed, size_t seed_len, u8 *out, size_t outlen)
 {
@@ -285,6 +335,19 @@ static void pbkdf2_sha1_f(const char *passphrase, const char *ssid,
 }
 
 
+/**
+ * pbkdf2_sha1 - SHA1-based key derivation function (PBKDF2) for IEEE 802.11i
+ * @passphrase: ASCII passphrase
+ * @ssid: SSID
+ * @ssid_len: SSID length in bytes
+ * @interations: Number of iterations to run
+ * @buf: Buffer for the generated key
+ * @buflen: Length of the buffer in bytes
+ *
+ * This function is used to derive PSK for WPA-PSK. For this protocol,
+ * iterations is set to 4096 and buflen to 32. This function is described in
+ * IEEE Std 802.11-2004, Clause H.4. The main construction is from PKCS#5 v2.0.
+ */
 void pbkdf2_sha1(const char *passphrase, const char *ssid, size_t ssid_len,
 		 int iterations, u8 *buf, size_t buflen)
 {
@@ -305,20 +368,27 @@ void pbkdf2_sha1(const char *passphrase, const char *ssid, size_t ssid_len,
 }
 
 
-void sha1_transform(u8 *state, u8 data[64])
-{
-#ifdef EAP_TLS_FUNCS
-	SHA_CTX context;
-	memset(&context, 0, sizeof(context));
-	memcpy(&context.h0, state, 5 * 4);
-	SHA1_Transform(&context, data);
-	memcpy(state, &context.h0, 5 * 4);
-#else /* EAP_TLS_FUNCS */
-	SHA1Transform((u32 *) state, data);
-#endif /* EAP_TLS_FUNCS */
-}
+#ifndef EAP_TLS_FUNCS
+
+typedef struct {
+	u32 state[5];
+	u32 count[2];
+	unsigned char buffer[64];
+} SHA1_CTX;
+
+static void SHA1Init(SHA1_CTX *context);
+static void SHA1Update(SHA1_CTX *context, const void *data, u32 len);
+static void SHA1Final(unsigned char digest[20], SHA1_CTX* context);
+static void SHA1Transform(u32 state[5], const unsigned char buffer[64]);
 
 
+/**
+ * sha1_vector - SHA-1 hash for data vector
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash
+ */
 void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len,
 		 u8 *mac)
 {
@@ -332,7 +402,21 @@ void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len,
 }
 
 
-#ifndef EAP_TLS_FUNCS
+/**
+ * sha1_transform - Perform one SHA-1 transform step
+ * @state: SHA-1 state
+ * @data: Input data for the SHA-1 transform
+ *
+ * This function is used to implement random number generation specified in
+ * NIST FIPS Publication 186-2 for EAP-SIM. This PRF uses a function that is
+ * similar to SHA-1, but has different message padding and as such, access to
+ * just part of the SHA-1 is needed.
+ */
+void sha1_transform(u8 *state, const u8 data[64])
+{
+	SHA1Transform((u32 *) state, data);
+}
+
 
 /* ===== start - public domain SHA1 implementation ===== */
 
@@ -462,7 +546,7 @@ void SHAPrintContext(SHA1_CTX *context, char *msg)
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(u32 state[5], const unsigned char buffer[64])
+static void SHA1Transform(u32 state[5], const unsigned char buffer[64])
 {
 	u32 a, b, c, d, e;
 	typedef union {
@@ -520,7 +604,7 @@ void SHA1Transform(u32 state[5], const unsigned char buffer[64])
 
 /* SHA1Init - Initialize new context */
 
-void SHA1Init(SHA1_CTX* context)
+static void SHA1Init(SHA1_CTX* context)
 {
 	/* SHA1 initialization constants */
 	context->state[0] = 0x67452301;
@@ -534,7 +618,7 @@ void SHA1Init(SHA1_CTX* context)
 
 /* Run your data through this. */
 
-void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
+static void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
 {
 	u32 i, j;
 	const unsigned char *data = _data;
@@ -564,7 +648,7 @@ void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
 
 /* Add padding and return the message digest. */
 
-void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
+static void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
 {
 	u32 i;
 	unsigned char finalcount[8];

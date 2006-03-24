@@ -22,7 +22,7 @@
 #include "wpa_supplicant.h"
 #include "config_ssid.h"
 #include "ms_funcs.h"
-#include "md5.h"
+#include "crypto.h"
 #include "tls.h"
 #include "eap_ttls.h"
 
@@ -183,7 +183,7 @@ static void eap_ttls_deinit(struct eap_sm *sm, void *priv)
 
 
 static int eap_ttls_encrypt(struct eap_sm *sm, struct eap_ttls_data *data,
-			    int id, u8 *plain, size_t plain_len,
+			    int id, const u8 *plain, size_t plain_len,
 			    u8 **out_data, size_t *out_len)
 {
 	int res;
@@ -312,7 +312,7 @@ static int eap_ttls_phase2_nak(struct eap_sm *sm,
 static int eap_ttls_phase2_request_eap(struct eap_sm *sm,
 				       struct eap_ttls_data *data,
 				       struct eap_method_ret *ret,
-				       struct eap_hdr *req,
+				       const struct eap_hdr *req,
 				       struct eap_hdr *hdr,
 				       u8 **resp, size_t *resp_len)
 {
@@ -400,7 +400,7 @@ static int eap_ttls_phase2_request_eap(struct eap_sm *sm,
 static int eap_ttls_phase2_request_mschapv2(struct eap_sm *sm,
 					    struct eap_ttls_data *data,
 					    struct eap_method_ret *ret,
-					    struct eap_hdr *req,
+					    const struct eap_hdr *req,
 					    struct eap_hdr *hdr,
 					    u8 **resp, size_t *resp_len)
 {
@@ -506,7 +506,7 @@ static int eap_ttls_phase2_request_mschapv2(struct eap_sm *sm,
 static int eap_ttls_phase2_request_mschap(struct eap_sm *sm,
 					  struct eap_ttls_data *data,
 					  struct eap_method_ret *ret,
-					  struct eap_hdr *req,
+					  const struct eap_hdr *req,
 					  struct eap_hdr *hdr,
 					  u8 **resp, size_t *resp_len)
 {
@@ -576,7 +576,7 @@ static int eap_ttls_phase2_request_mschap(struct eap_sm *sm,
 static int eap_ttls_phase2_request_pap(struct eap_sm *sm,
 				       struct eap_ttls_data *data,
 				       struct eap_method_ret *ret,
-				       struct eap_hdr *req,
+				       const struct eap_hdr *req,
 				       struct eap_hdr *hdr,
 				       u8 **resp, size_t *resp_len)
 {
@@ -624,13 +624,14 @@ static int eap_ttls_phase2_request_pap(struct eap_sm *sm,
 static int eap_ttls_phase2_request_chap(struct eap_sm *sm,
 					struct eap_ttls_data *data,
 					struct eap_method_ret *ret,
-					struct eap_hdr *req,
+					const struct eap_hdr *req,
 					struct eap_hdr *hdr,
 					u8 **resp, size_t *resp_len)
 {
 	struct wpa_ssid *config = eap_get_config(sm);
 	u8 *buf, *pos, *challenge;
-	MD5_CTX context;
+	const u8 *addr[3];
+	size_t len[3];
 
 	wpa_printf(MSG_DEBUG, "EAP-TTLS: Phase 2 CHAP Request");
 
@@ -665,11 +666,13 @@ static int eap_ttls_phase2_request_chap(struct eap_sm *sm,
 	*pos++ = data->ident;
 
 	/* MD5(Ident + Password + Challenge) */
-	MD5Init(&context);
-	MD5Update(&context, &data->ident, 1);
-	MD5Update(&context, config->password, config->password_len);
-	MD5Update(&context, challenge, EAP_TTLS_CHAP_CHALLENGE_LEN);
-	MD5Final(pos, &context);
+	addr[0] = &data->ident;
+	len[0] = 1;
+	addr[1] = config->password;
+	len[1] = config->password_len;
+	addr[2] = challenge;
+	len[2] = EAP_TTLS_CHAP_CHALLENGE_LEN;
+	md5_vector(3, addr, len, pos);
 
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-TTLS: CHAP username",
 			  config->identity, config->identity_len);
@@ -698,7 +701,7 @@ static int eap_ttls_phase2_request_chap(struct eap_sm *sm,
 static int eap_ttls_phase2_request(struct eap_sm *sm,
 				   struct eap_ttls_data *data,
 				   struct eap_method_ret *ret,
-				   struct eap_hdr *req,
+				   const struct eap_hdr *req,
 				   struct eap_hdr *hdr,
 				   u8 **resp, size_t *resp_len)
 {
@@ -763,12 +766,13 @@ static int eap_ttls_phase2_request(struct eap_sm *sm,
 
 
 static int eap_ttls_decrypt(struct eap_sm *sm, struct eap_ttls_data *data,
-			    struct eap_method_ret *ret, struct eap_hdr *req,
-			    u8 *in_data, size_t in_len,
+			    struct eap_method_ret *ret,
+			    const struct eap_hdr *req,
+			    const u8 *in_data, size_t in_len,
 			    u8 **out_data, size_t *out_len)
 {
 	u8 *in_decrypted = NULL, *pos;
-	int buf_len, len_decrypted = 0, len, left, retval = 0, res;
+	int buf_len, len_decrypted = 0, len, left, retval = 0;
 	struct eap_hdr *hdr = NULL;
 	u8 *resp = NULL, *mschapv2 = NULL, *eapdata = NULL;
 	size_t resp_len, eap_len = 0;
@@ -776,6 +780,9 @@ static int eap_ttls_decrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 	u8 recv_response[20];
 	int mschapv2_error = 0;
 	struct wpa_ssid *config = eap_get_config(sm);
+	const u8 *msg;
+	size_t msg_len;
+	int need_more_input;
 
 	wpa_printf(MSG_DEBUG, "EAP-TTLS: received %lu bytes encrypted data for"
 		   " Phase 2", (unsigned long) in_len);
@@ -839,11 +846,10 @@ static int eap_ttls_decrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 		goto process_eap;
 	}
 
-	res = eap_tls_data_reassemble(sm, &data->ssl, &in_data, &in_len);
-	if (res < 0 || res == 1) {
-		retval = res;
-		goto done;
-	}
+	msg = eap_tls_data_reassemble(sm, &data->ssl, in_data, in_len,
+				      &msg_len, &need_more_input);
+	if (msg == NULL)
+		return need_more_input ? 1 : -1;
 
 	buf_len = in_len;
 	if (data->ssl.tls_in_total > buf_len)
@@ -860,7 +866,7 @@ static int eap_ttls_decrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 	}
 
 	len_decrypted = tls_connection_decrypt(sm->ssl_ctx, data->ssl.conn,
-					       in_data, in_len,
+					       msg, msg_len,
 					       in_decrypted, buf_len);
 	free(data->ssl.tls_in);
 	data->ssl.tls_in = NULL;
@@ -1117,7 +1123,8 @@ continue_req:
 		free(resp);
 	} else if (config->pending_req_identity ||
 		   config->pending_req_password ||
-		   config->pending_req_otp) {
+		   config->pending_req_otp ||
+		   config->pending_req_new_password) {
 		free(data->pending_phase2_req);
 		data->pending_phase2_req = malloc(len_decrypted);
 		if (data->pending_phase2_req) {
@@ -1142,62 +1149,22 @@ done:
 
 static u8 * eap_ttls_process(struct eap_sm *sm, void *priv,
 			     struct eap_method_ret *ret,
-			     u8 *reqData, size_t reqDataLen,
+			     const u8 *reqData, size_t reqDataLen,
 			     size_t *respDataLen)
 {
-	struct eap_hdr *req;
-	int left, res;
-	unsigned int tls_msg_len;
-	u8 flags, *pos, *resp, id;
+	const struct eap_hdr *req;
+	size_t left;
+	int res;
+	u8 flags, *resp, id;
+	const u8 *pos;
 	struct eap_ttls_data *data = priv;
 
-	if (tls_get_errors(sm->ssl_ctx)) {
-		wpa_printf(MSG_INFO, "EAP-TTLS: TLS errors detected");
-		ret->ignore = TRUE;
+	pos = eap_tls_process_init(sm, &data->ssl, EAP_TYPE_TTLS, ret,
+				   reqData, reqDataLen, &left, &flags);
+	if (pos == NULL)
 		return NULL;
-	}
-
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
-	if (reqDataLen < sizeof(*req) + 2 || *pos != EAP_TYPE_TTLS ||
-	    (left = be_to_host16(req->length)) > reqDataLen) {
-		wpa_printf(MSG_INFO, "EAP-TTLS: Invalid frame");
-		ret->ignore = TRUE;
-		return NULL;
-	}
-	left -= sizeof(struct eap_hdr);
+	req = (const struct eap_hdr *) reqData;
 	id = req->identifier;
-	pos++;
-	flags = *pos++;
-	left -= 2;
-	wpa_printf(MSG_DEBUG, "EAP-TTLS: Received packet(len=%lu) - "
-		   "Flags 0x%02x", (unsigned long) reqDataLen, flags);
-	if (flags & EAP_TLS_FLAGS_LENGTH_INCLUDED) {
-		if (left < 4) {
-			wpa_printf(MSG_INFO, "EAP-TTLS: Short frame with TLS "
-				   "length");
-			ret->ignore = TRUE;
-			return NULL;
-		}
-		tls_msg_len = (pos[0] << 24) | (pos[1] << 16) | (pos[2] << 8) |
-			pos[3];
-		wpa_printf(MSG_DEBUG, "EAP-TTLS: TLS Message Length: %d",
-			   tls_msg_len);
-		if (data->ssl.tls_in_left == 0) {
-			data->ssl.tls_in_total = tls_msg_len;
-			data->ssl.tls_in_left = tls_msg_len;
-			free(data->ssl.tls_in);
-			data->ssl.tls_in = NULL;
-			data->ssl.tls_in_len = 0;
-		}
-		pos += 4;
-		left -= 4;
-	}
-
-	ret->ignore = FALSE;
-	ret->methodState = METHOD_CONT;
-	ret->decision = DECISION_FAIL;
-	ret->allowNotifications = TRUE;
 
 	if (flags & EAP_TLS_FLAGS_START) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS: Start");

@@ -35,48 +35,50 @@ F) failed
 -) server did not support
 ?) not tested
 
-hostapd --------------------------------------------------------.
-Cisco Aironet 1200 AP (local RADIUS server) ----------------.   |
-Corriente Elektron -------------------------------------.   |   |
-Lucent NavisRadiator -------------------------------.   |   |   |
-Interlink RAD-Series ---------------------------.   |   |   |   |
-Radiator -----------------------------------.   |   |   |   |   |
-Meetinghouse Aegis ---------------------.   |   |   |   |   |   |
-Funk Steel-Belted ------------------.   |   |   |   |   |   |   |
-Funk Odyssey -------------------.   |   |   |   |   |   |   |   |
-Microsoft IAS --------------.   |   |   |   |   |   |   |   |   |
-FreeRADIUS -------------.   |   |   |   |   |   |   |   |   |   |
-			|   |   |   |   |   |   |   |   |   |   |
+Cisco ACS ----------------------------------------------------------.
+hostapd --------------------------------------------------------.   |
+Cisco Aironet 1200 AP (local RADIUS server) ----------------.   |   |
+Corriente Elektron -------------------------------------.   |   |   |
+Lucent NavisRadius ---------------------------------.   |   |   |   |
+Interlink RAD-Series ---------------------------.   |   |   |   |   |
+Radiator -----------------------------------.   |   |   |   |   |   |
+Meetinghouse Aegis ---------------------.   |   |   |   |   |   |   |
+Funk Steel-Belted ------------------.   |   |   |   |   |   |   |   |
+Funk Odyssey -------------------.   |   |   |   |   |   |   |   |   |
+Microsoft IAS --------------.   |   |   |   |   |   |   |   |   |   |
+FreeRADIUS -------------.   |   |   |   |   |   |   |   |   |   |   |
+			|   |   |   |   |   |   |   |   |   |   |   |
 
-EAP-MD5			+   -   -   +   +   +   +   +   -   -   +
-EAP-GTC			+   -   -   ?   +   +   +   +   -   -   +
-EAP-OTP			-   -   -   -   -   +   -   -   -   -   -
-EAP-MSCHAPv2		+   -   -   +   +   +   +   +   -   -   +
-EAP-TLS			+   +   +   +   +   +   +   +   -   -   +
-EAP-PEAPv0/MSCHAPv2	+   +   +   +   +   +   +   +   +   -   +
-EAP-PEAPv0/GTC		+   -   +   -   +   +   +   +   -   -   +
-EAP-PEAPv0/OTP		-   -   -   -   -   +   -   -   -   -   -
-EAP-PEAPv0/MD5		+   -   -   +   +   +   +   +   -   -   +
-EAP-PEAPv0/TLS		-   +   -   +   +   +   F   +   -   -   -
-EAP-PEAPv1/MSCHAPv2	-   -   +   +   +   +1  +   +5  +8  -   +
-EAP-PEAPv1/GTC		-   -   +   +   +   +1  +   +5  -   -   +
-EAP-PEAPv1/OTP		-   -   -   -   -   +1  -   -   -   -   -
-EAP-PEAPv1/MD5		-   -   -   +   +   +1  +   +5  -   -   +
-EAP-PEAPv1/TLS		-   -   -   +   +   +1  F   +5  -   -   -
-EAP-TTLS/CHAP		+   -   +2  +   +   +   +   +   +   -   +
-EAP-TTLS/MSCHAP		+   -   +   +   +   +   +   +   +   -   +
-EAP-TTLS/MSCHAPv2	+   -   +   +   +   +   +   +   +   -   +
-EAP-TTLS/PAP		+   -   +   +   +   +   +   +   +   -   +
-EAP-TTLS/EAP-MD5	+   -   +2  +   +   +   +   +   -   -   +
-EAP-TTLS/EAP-GTC	+   -   +2  ?   +   +   +   +   -   -   +
-EAP-TTLS/EAP-OTP	-   -   -   -   -   +   -   -   -   -   -
-EAP-TTLS/EAP-MSCHAPv2	+   -   +2  +   +   +   +   +   +   -   +
-EAP-TTLS/EAP-TLS	-   -   +2  +   F   +   +   +   -   -   -
-EAP-SIM			+3  -   -   ?   -   +   -   ?   -   -   +
-EAP-AKA			-   -   -   -   -   +   -   -   -   -   -
-EAP-PSK			+7  -   -   -   -   -   -   -   -   -   -
-EAP-FAST		-   -   -   -   -   -   -   -   -   +   -
-LEAP			+   -   +   +   +   +   F   +6  -   +   -
+EAP-MD5			+   -   -   +   +   +   +   +   -   -   +   +
+EAP-GTC			+   -   -   ?   +   +   +   +   -   -   +   -
+EAP-OTP			-   -   -   -   -   +   -   -   -   -   -   -
+EAP-MSCHAPv2		+   -   -   +   +   +   +   +   -   -   +   -
+EAP-TLS			+   +   +   +   +   +   +   +   -   -   +   +
+EAP-PEAPv0/MSCHAPv2	+   +   +   +   +   +   +   +   +   -   +   +
+EAP-PEAPv0/GTC		+   -   +   -   +   +   +   +   -   -   +   +
+EAP-PEAPv0/OTP		-   -   -   -   -   +   -   -   -   -   -   -
+EAP-PEAPv0/MD5		+   -   -   +   +   +   +   +   -   -   +   -
+EAP-PEAPv0/TLS		-   +   -   +   +   +   F   +   -   -   -   -
+EAP-PEAPv1/MSCHAPv2	-   -   +   +   +   +1  +   +5  +8  -   +   +
+EAP-PEAPv1/GTC		-   -   +   +   +   +1  +   +5  -   -   +   +
+EAP-PEAPv1/OTP		-   -   -   -   -   +1  -   -   -   -   -   -
+EAP-PEAPv1/MD5		-   -   -   +   +   +1  +   +5  -   -   +   -
+EAP-PEAPv1/TLS		-   -   -   +   +   +1  F   +5  -   -   -   -
+EAP-TTLS/CHAP		+   -   +2  +   +   +   +   +   +   -   +   -
+EAP-TTLS/MSCHAP		+   -   +   +   +   +   +   +   +   -   +   -
+EAP-TTLS/MSCHAPv2	+   -   +   +   +   +   +   +   +   -   +   -
+EAP-TTLS/PAP		+   -   +   +   +   +   +   +   +   -   +   -
+EAP-TTLS/EAP-MD5	+   -   +2  +   +   +   +   +   -   -   +   -
+EAP-TTLS/EAP-GTC	+   -   +2  ?   +   +   +   +   -   -   +   -
+EAP-TTLS/EAP-OTP	-   -   -   -   -   +   -   -   -   -   -   -
+EAP-TTLS/EAP-MSCHAPv2	+   -   +2  +   +   +   +   +   +   -   +   -
+EAP-TTLS/EAP-TLS	-   -   +2  +   F   +   +   +   -   -   -   -
+EAP-SIM			+3  -   -   ?   -   +   -   ?   -   -   +   -
+EAP-AKA			-   -   -   -   -   +   -   -   -   -   -   -
+EAP-PSK			+7  -   -   -   -   -   -   -   -   -   +   -
+EAP-PAX			-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST		-   -   -   -   -   -   -   -   -   +   -   +
+LEAP			+   -   +   +   +   +   F   +6  -   +   -   +
 
 1) PEAPv1 required new label, "client PEAP encryption" instead of "client EAP
    encryption", during key derivation (requires phase1="peaplabel=1" in the
@@ -309,7 +311,13 @@ hostapd v0.3.3
 - EAP-TTLS / EAP-GTC
 - EAP-TTLS / EAP-MSCHAPv2
 - EAP-SIM
+- EAP-PAX
 
+Cisco Secure ACS 3.3(1) for Windows Server
+- PEAPv1/GTC worked, but PEAPv0/GTC failed in the end after password was
+  sent successfully; ACS is replying with empty PEAP packet (TLS ACK);
+  wpa_supplicant tries to decrypt this.. Replying with TLS ACK and and
+  marking the connection completed was enough to make this work.
 
 
 PEAPv1:

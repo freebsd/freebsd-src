@@ -21,7 +21,7 @@
 #include "wpa_supplicant.h"
 #include "config_ssid.h"
 #include "ms_funcs.h"
-#include "md5.h"
+#include "crypto.h"
 
 #define LEAP_VERSION 1
 #define LEAP_CHALLENGE_LEN 8
@@ -68,18 +68,20 @@ static void eap_leap_deinit(struct eap_sm *sm, void *priv)
 
 static u8 * eap_leap_process_request(struct eap_sm *sm, void *priv,
 				     struct eap_method_ret *ret,
-				     u8 *reqData, size_t reqDataLen,
+				     const u8 *reqData, size_t reqDataLen,
 				     size_t *respDataLen)
 {
 	struct eap_leap_data *data = priv;
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_hdr *req, *resp;
-	u8 *pos, *challenge, challenge_len;
+	const struct eap_hdr *req;
+	struct eap_hdr *resp;
+	const u8 *pos, *challenge;
+	u8 challenge_len, *rpos;
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Processing EAP-Request");
 
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
+	req = (const struct eap_hdr *) reqData;
+	pos = (const u8 *) (req + 1);
 	if (reqDataLen < sizeof(*req) + 4 || *pos != EAP_TYPE_LEAP) {
 		wpa_printf(MSG_INFO, "EAP-LEAP: Invalid EAP-Request frame");
 		ret->ignore = TRUE;
@@ -121,17 +123,18 @@ static u8 * eap_leap_process_request(struct eap_sm *sm, void *priv,
 	resp->code = EAP_CODE_RESPONSE;
 	resp->identifier = req->identifier;
 	resp->length = host_to_be16(*respDataLen);
-	pos = (u8 *) (resp + 1);
-	*pos++ = EAP_TYPE_LEAP;
-	*pos++ = LEAP_VERSION;
-	*pos++ = 0; /* unused */
-	*pos++ = LEAP_RESPONSE_LEN;
+	rpos = (u8 *) (resp + 1);
+	*rpos++ = EAP_TYPE_LEAP;
+	*rpos++ = LEAP_VERSION;
+	*rpos++ = 0; /* unused */
+	*rpos++ = LEAP_RESPONSE_LEN;
 	nt_challenge_response(challenge,
-			      config->password, config->password_len, pos);
-	memcpy(data->peer_response, pos, LEAP_RESPONSE_LEN);
-	wpa_hexdump(MSG_MSGDUMP, "EAP-LEAP: Response", pos, LEAP_RESPONSE_LEN);
-	pos += LEAP_RESPONSE_LEN;
-	memcpy(pos, config->identity, config->identity_len);
+			      config->password, config->password_len, rpos);
+	memcpy(data->peer_response, rpos, LEAP_RESPONSE_LEN);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-LEAP: Response",
+		    rpos, LEAP_RESPONSE_LEN);
+	rpos += LEAP_RESPONSE_LEN;
+	memcpy(rpos, config->identity, config->identity_len);
 
 	data->state = LEAP_WAIT_SUCCESS;
 
@@ -141,12 +144,13 @@ static u8 * eap_leap_process_request(struct eap_sm *sm, void *priv,
 
 static u8 * eap_leap_process_success(struct eap_sm *sm, void *priv,
 				     struct eap_method_ret *ret,
-				     u8 *reqData, size_t reqDataLen,
+				     const u8 *reqData, size_t reqDataLen,
 				     size_t *respDataLen)
 {
 	struct eap_leap_data *data = priv;
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_hdr *req, *resp;
+	const struct eap_hdr *req;
+	struct eap_hdr *resp;
 	u8 *pos;
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Processing EAP-Success");
@@ -158,7 +162,7 @@ static u8 * eap_leap_process_success(struct eap_sm *sm, void *priv,
 		return NULL;
 	}
 
-	req = (struct eap_hdr *) reqData;
+	req = (const struct eap_hdr *) reqData;
 
 	*respDataLen = sizeof(struct eap_hdr) + 1 + 3 + LEAP_CHALLENGE_LEN +
 		config->identity_len;
@@ -194,19 +198,20 @@ static u8 * eap_leap_process_success(struct eap_sm *sm, void *priv,
 
 static u8 * eap_leap_process_response(struct eap_sm *sm, void *priv,
 				      struct eap_method_ret *ret,
-				      u8 *reqData, size_t reqDataLen,
+				      const u8 *reqData, size_t reqDataLen,
 				      size_t *respDataLen)
 {
 	struct eap_leap_data *data = priv;
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_hdr *resp;
-	u8 *pos, response_len, pw_hash[16], pw_hash_hash[16],
+	const struct eap_hdr *resp;
+	const u8 *pos;
+	u8 response_len, pw_hash[16], pw_hash_hash[16],
 		expected[LEAP_RESPONSE_LEN];
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Processing EAP-Response");
 
-	resp = (struct eap_hdr *) reqData;
-	pos = (u8 *) (resp + 1);
+	resp = (const struct eap_hdr *) reqData;
+	pos = (const u8 *) (resp + 1);
 	if (reqDataLen < sizeof(*resp) + 4 || *pos != EAP_TYPE_LEAP) {
 		wpa_printf(MSG_INFO, "EAP-LEAP: Invalid EAP-Response frame");
 		ret->ignore = TRUE;
@@ -270,11 +275,11 @@ static u8 * eap_leap_process_response(struct eap_sm *sm, void *priv,
 
 static u8 * eap_leap_process(struct eap_sm *sm, void *priv,
 			     struct eap_method_ret *ret,
-			     u8 *reqData, size_t reqDataLen,
+			     const u8 *reqData, size_t reqDataLen,
 			     size_t *respDataLen)
 {
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_hdr *eap;
+	const struct eap_hdr *eap;
 	size_t len;
 
 	if (config == NULL || config->password == NULL) {
@@ -284,7 +289,7 @@ static u8 * eap_leap_process(struct eap_sm *sm, void *priv,
 		return NULL;
 	}
 
-	eap = (struct eap_hdr *) reqData;
+	eap = (const struct eap_hdr *) reqData;
 
 	if (reqDataLen < sizeof(*eap) ||
 	    (len = be_to_host16(eap->length)) > reqDataLen) {
@@ -295,7 +300,7 @@ static u8 * eap_leap_process(struct eap_sm *sm, void *priv,
 
 	ret->ignore = FALSE;
 	ret->allowNotifications = TRUE;
-	ret->methodState = METHOD_CONT;
+	ret->methodState = METHOD_MAY_CONT;
 	ret->decision = DECISION_FAIL;
 
 	sm->leap_done = FALSE;
@@ -331,7 +336,8 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	struct eap_leap_data *data = priv;
 	struct wpa_ssid *config = eap_get_config(sm);
 	u8 *key, pw_hash_hash[16], pw_hash[16];
-	MD5_CTX context;
+	const u8 *addr[5];
+	size_t elen[5];
 
 	if (data->state != LEAP_DONE)
 		return NULL;
@@ -353,13 +359,17 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	wpa_hexdump(MSG_DEBUG, "EAP-LEAP: ap_response",
 		    data->ap_response, LEAP_RESPONSE_LEN);
 
-	MD5Init(&context);
-	MD5Update(&context, pw_hash_hash, 16);
-	MD5Update(&context, data->ap_challenge, LEAP_CHALLENGE_LEN);
-	MD5Update(&context, data->ap_response, LEAP_RESPONSE_LEN);
-	MD5Update(&context, data->peer_challenge, LEAP_CHALLENGE_LEN);
-	MD5Update(&context, data->peer_response, LEAP_RESPONSE_LEN);
-	MD5Final(key, &context);
+	addr[0] = pw_hash_hash;
+	elen[0] = 16;
+	addr[1] = data->ap_challenge;
+	elen[1] = LEAP_CHALLENGE_LEN;
+	addr[2] = data->ap_response;
+	elen[2] = LEAP_RESPONSE_LEN;
+	addr[3] = data->peer_challenge;
+	elen[3] = LEAP_CHALLENGE_LEN;
+	addr[4] = data->peer_response;
+	elen[4] = LEAP_RESPONSE_LEN;
+	md5_vector(5, addr, elen, key);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-LEAP: master key", key, LEAP_KEY_LEN);
 	*len = LEAP_KEY_LEN;
 

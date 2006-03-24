@@ -193,7 +193,7 @@ static void eap_peap_deinit(struct eap_sm *sm, void *priv)
 
 
 static int eap_peap_encrypt(struct eap_sm *sm, struct eap_peap_data *data,
-			    int id, u8 *plain, size_t plain_len,
+			    int id, const u8 *plain, size_t plain_len,
 			    u8 **out_data, size_t *out_len)
 {
 	int res;
@@ -263,7 +263,7 @@ static int eap_peap_phase2_nak(struct eap_sm *sm,
 static int eap_peap_phase2_request(struct eap_sm *sm,
 				   struct eap_peap_data *data,
 				   struct eap_method_ret *ret,
-				   struct eap_hdr *req,
+				   const struct eap_hdr *req,
 				   struct eap_hdr *hdr,
 				   u8 **resp, size_t *resp_len)
 {
@@ -348,7 +348,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 
 	if (*resp == NULL &&
 	    (config->pending_req_identity || config->pending_req_password ||
-	     config->pending_req_otp)) {
+	     config->pending_req_otp || config->pending_req_new_password)) {
 		free(data->pending_phase2_req);
 		data->pending_phase2_req = malloc(len);
 		if (data->pending_phase2_req) {
@@ -361,18 +361,20 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 }
 
 
-static int eap_peap_decrypt(struct eap_sm *sm,
-			    struct eap_peap_data *data,
+static int eap_peap_decrypt(struct eap_sm *sm, struct eap_peap_data *data,
 			    struct eap_method_ret *ret,
-			    struct eap_hdr *req,
-			    u8 *in_data, size_t in_len,
+			    const struct eap_hdr *req,
+			    const u8 *in_data, size_t in_len,
 			    u8 **out_data, size_t *out_len)
 {
 	u8 *in_decrypted;
-	int buf_len, len_decrypted, len, skip_change = 0, res;
+	int buf_len, len_decrypted, len, skip_change = 0;
 	struct eap_hdr *hdr, *rhdr;
 	u8 *resp = NULL;
 	size_t resp_len;
+	const u8 *msg;
+	size_t msg_len;
+	int need_more_input;
 
 	wpa_printf(MSG_DEBUG, "EAP-PEAP: received %lu bytes encrypted data for"
 		   " Phase 2", (unsigned long) in_len);
@@ -393,9 +395,10 @@ static int eap_peap_decrypt(struct eap_sm *sm,
 		goto continue_req;
 	}
 
-	res = eap_tls_data_reassemble(sm, &data->ssl, &in_data, &in_len);
-	if (res < 0 || res == 1)
-		return res;
+	msg = eap_tls_data_reassemble(sm, &data->ssl, in_data, in_len,
+				      &msg_len, &need_more_input);
+	if (msg == NULL)
+		return need_more_input ? 1 : -1;
 
 	if (in_len == 0 && sm->workaround && data->phase2_success) {
 		/*
@@ -424,7 +427,7 @@ static int eap_peap_decrypt(struct eap_sm *sm,
 	}
 
 	len_decrypted = tls_connection_decrypt(sm->ssl_ctx, data->ssl.conn,
-					       in_data, in_len,
+					       msg, msg_len,
 					       in_decrypted, buf_len);
 	free(data->ssl.tls_in);
 	data->ssl.tls_in = NULL;
@@ -613,62 +616,22 @@ continue_req:
 
 static u8 * eap_peap_process(struct eap_sm *sm, void *priv,
 			     struct eap_method_ret *ret,
-			     u8 *reqData, size_t reqDataLen,
+			     const u8 *reqData, size_t reqDataLen,
 			     size_t *respDataLen)
 {
-	struct eap_hdr *req;
-	int left, res;
-	unsigned int tls_msg_len;
-	u8 flags, *pos, *resp, id;
+	const struct eap_hdr *req;
+	size_t left;
+	int res;
+	u8 flags, *resp, id;
+	const u8 *pos;
 	struct eap_peap_data *data = priv;
 
-	if (tls_get_errors(sm->ssl_ctx)) {
-		wpa_printf(MSG_INFO, "EAP-PEAP: TLS errors detected");
-		ret->ignore = TRUE;
+	pos = eap_tls_process_init(sm, &data->ssl, EAP_TYPE_PEAP, ret,
+				   reqData, reqDataLen, &left, &flags);
+	if (pos == NULL)
 		return NULL;
-	}
-
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
-	if (reqDataLen < sizeof(*req) + 2 || *pos != EAP_TYPE_PEAP ||
-	    (left = be_to_host16(req->length)) > reqDataLen) {
-		wpa_printf(MSG_INFO, "EAP-PEAP: Invalid frame");
-		ret->ignore = TRUE;
-		return NULL;
-	}
-	left -= sizeof(struct eap_hdr);
+	req = (const struct eap_hdr *) reqData;
 	id = req->identifier;
-	pos++;
-	flags = *pos++;
-	left -= 2;
-	wpa_printf(MSG_DEBUG, "EAP-PEAP: Received packet(len=%lu) - "
-		   "Flags 0x%02x", (unsigned long) reqDataLen, flags);
-	if (flags & EAP_TLS_FLAGS_LENGTH_INCLUDED) {
-		if (left < 4) {
-			wpa_printf(MSG_INFO, "EAP-PEAP: Short frame with TLS "
-				   "length");
-			ret->ignore = TRUE;
-			return NULL;
-		}
-		tls_msg_len = (pos[0] << 24) | (pos[1] << 16) | (pos[2] << 8) |
-			pos[3];
-		wpa_printf(MSG_DEBUG, "EAP-PEAP: TLS Message Length: %d",
-			   tls_msg_len);
-		if (data->ssl.tls_in_left == 0) {
-			data->ssl.tls_in_total = tls_msg_len;
-			data->ssl.tls_in_left = tls_msg_len;
-			free(data->ssl.tls_in);
-			data->ssl.tls_in = NULL;
-			data->ssl.tls_in_len = 0;
-		}
-		pos += 4;
-		left -= 4;
-	}
-
-	ret->ignore = FALSE;
-	ret->methodState = METHOD_CONT;
-	ret->decision = DECISION_FAIL;
-	ret->allowNotifications = TRUE;
 
 	if (flags & EAP_TLS_FLAGS_START) {
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Start (server ver=%d, own "
@@ -733,12 +696,12 @@ static u8 * eap_peap_process(struct eap_sm *sm, void *priv,
 					   "derive key");
 			}
 
-			if (sm->workaround && data->peap_version == 1 &&
-			    data->resuming) {
+			if (sm->workaround && data->resuming) {
 				/*
-				 * At least one RADIUS server (Aegis v1.1.6;
-				 * but not v1.1.4) seems to be terminating
-				 * PEAPv1 session resumption with outer
+				 * At least few RADIUS servers (Aegis v1.1.6;
+				 * but not v1.1.4; and Cisco ACS) seem to be
+				 * terminating PEAPv1 (Aegis) or PEAPv0 (Cisco
+				 * ACS) session resumption with outer
 				 * EAP-Success. This does not seem to follow
 				 * draft-josefsson-pppext-eap-tls-eap-05.txt
 				 * section 4.2, so only allow this if EAP
@@ -746,7 +709,7 @@ static u8 * eap_peap_process(struct eap_sm *sm, void *priv,
 				 */
 				wpa_printf(MSG_DEBUG, "EAP-PEAP: Workaround - "
 					   "allow outer EAP-Success to "
-					   "terminate PEAPv1 resumption");
+					   "terminate PEAP resumption");
 				ret->decision = DECISION_COND_SUCC;
 				data->phase2_success = 1;
 			}

@@ -7,7 +7,7 @@ CFLAGS = -MMD -O2 -Wall -g
 endif
 
 # Include directories for CVS version
-CFLAGS += -I../driver/modules -I../utils -I../hostapd
+CFLAGS += -I. -I../utils -I../hostapd
 
 ALL=wpa_supplicant wpa_passphrase wpa_cli
 
@@ -37,7 +37,7 @@ install: all
 
 OBJS = config.o \
 	eloop.o common.o md5.o \
-	rc4.o sha1.o aes_wrap.o
+	rc4.o sha1.o
 OBJS_p = wpa_passphrase.o sha1.o md5.o
 OBJS_c = wpa_cli.o wpa_ctrl.o
 
@@ -47,9 +47,18 @@ ifdef CONFIG_EAPOL_TEST
 CFLAGS += -Werror -DEAPOL_TEST
 endif
 
+ifndef CONFIG_BACKEND
+CONFIG_BACKEND=file
+endif
+
+ifeq ($(CONFIG_BACKEND), file)
+OBJS += config_file.o base64.o
+CFLAGS += -DCONFIG_BACKEND_FILE
+endif
+
 ifdef CONFIG_DRIVER_HOSTAP
 CFLAGS += -DCONFIG_DRIVER_HOSTAP
-OBJS += driver_hostap.o
+OBJS_d += driver_hostap.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
@@ -60,72 +69,87 @@ endif
 
 ifdef CONFIG_DRIVER_PRISM54
 CFLAGS += -DCONFIG_DRIVER_PRISM54
-OBJS += driver_prism54.o
+OBJS_d += driver_prism54.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
 ifdef CONFIG_DRIVER_HERMES
 CFLAGS += -DCONFIG_DRIVER_HERMES
-OBJS += driver_hermes.o
+OBJS_d += driver_hermes.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
 ifdef CONFIG_DRIVER_MADWIFI
 CFLAGS += -DCONFIG_DRIVER_MADWIFI
-OBJS += driver_madwifi.o
+OBJS_d += driver_madwifi.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
 ifdef CONFIG_DRIVER_ATMEL
 CFLAGS += -DCONFIG_DRIVER_ATMEL
-OBJS += driver_atmel.o
+OBJS_d += driver_atmel.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
 ifdef CONFIG_DRIVER_NDISWRAPPER
 CFLAGS += -DCONFIG_DRIVER_NDISWRAPPER
-OBJS += driver_ndiswrapper.o
+OBJS_d += driver_ndiswrapper.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
 ifdef CONFIG_DRIVER_BROADCOM
 CFLAGS += -DCONFIG_DRIVER_BROADCOM
-OBJS += driver_broadcom.o
+OBJS_d += driver_broadcom.o
 endif
 
 ifdef CONFIG_DRIVER_IPW
 CFLAGS += -DCONFIG_DRIVER_IPW
-OBJS += driver_ipw.o
+OBJS_d += driver_ipw.o
 CONFIG_WIRELESS_EXTENSION=y
 endif
 
 ifdef CONFIG_DRIVER_BSD
 CFLAGS += -DCONFIG_DRIVER_BSD
-OBJS += driver_bsd.o
+OBJS_d += driver_bsd.o
 CONFIG_DNET_PCAP=y
+CONFIG_L2_FREEBSD=y
 endif
 
 ifdef CONFIG_DRIVER_NDIS
 CFLAGS += -DCONFIG_DRIVER_NDIS
-OBJS += driver_ndis.o driver_ndis_.o
+OBJS_d += driver_ndis.o driver_ndis_.o
 CONFIG_DNET_PCAP=y
 CONFIG_WINPCAP=y
 endif
 
+ifdef CONFIG_DRIVER_WIRED
+CFLAGS += -DCONFIG_DRIVER_WIRED
+OBJS_d += driver_wired.o
+endif
+
 ifdef CONFIG_DRIVER_TEST
 CFLAGS += -DCONFIG_DRIVER_TEST
-OBJS += driver_test.o
+OBJS_d += driver_test.o
 endif
 
 ifdef CONFIG_DNET_PCAP
 CFLAGS += -DUSE_DNET_PCAP
 ifdef CONFIG_WINPCAP
+OBJS += l2_packet_pcap.o
 CFLAGS += -DCONFIG_WINPCAP
 LIBS += -lwpcap -lpacket
 LIBS_w += -lwpcap
 else
+ifdef CONFIG_L2_FREEBSD
+OBJS += l2_packet_freebsd.o
+LIBS += -lpcap
+else
+OBJS += l2_packet_pcap.o
 LIBS += -ldnet -lpcap
 endif
+endif
+else
+OBJS += l2_packet_linux.o
 endif
 
 ifdef CONFIG_EAP_TLS
@@ -209,8 +233,9 @@ endif
 ifdef CONFIG_EAP_PSK
 # EAP-PSK
 CFLAGS += -DEAP_PSK
-OBJS += eap_psk.o
+OBJS += eap_psk.o eap_psk_common.o
 CONFIG_IEEE8021X_EAPOL=y
+NEED_AES=y
 endif
 
 ifdef CONFIG_EAP_AKA
@@ -223,6 +248,7 @@ endif
 
 ifdef CONFIG_EAP_SIM_COMMON
 OBJS += eap_sim_common.o
+NEED_AES=y
 endif
 
 ifdef CONFIG_EAP_TLV
@@ -236,6 +262,13 @@ ifdef CONFIG_EAP_FAST
 CFLAGS += -DEAP_FAST
 OBJS += eap_fast.o
 TLS_FUNCS=y
+endif
+
+ifdef CONFIG_EAP_PAX
+# EAP-PAX
+CFLAGS += -DEAP_PAX
+OBJS += eap_pax.o eap_pax_common.o
+CONFIG_IEEE8021X_EAPOL=y
 endif
 
 ifdef CONFIG_IEEE8021X_EAPOL
@@ -252,12 +285,38 @@ OBJS += pcsc_funcs.o
 LIBS += -lpcsclite -lpthread
 endif
 
+ifndef CONFIG_TLS
+CONFIG_TLS=openssl
+endif
+
 ifdef TLS_FUNCS
-# Shared TLS functions (needed for EAP_TLS, EAP_PEAP, and EAP_TTLS)
+# Shared TLS functions (needed for EAP_TLS, EAP_PEAP, EAP_TTLS, and EAP_FAST)
 CFLAGS += -DEAP_TLS_FUNCS
-OBJS += eap_tls_common.o tls_openssl.o
+OBJS += eap_tls_common.o
+ifeq ($(CONFIG_TLS), openssl)
+OBJS += tls_openssl.o
 LIBS += -lssl -lcrypto
 LIBS_p += -lcrypto
+endif
+ifeq ($(CONFIG_TLS), gnutls)
+OBJS += tls_gnutls.o
+LIBS += -lgnutls -lgcrypt -lgpg-error
+LIBS_p += -lgcrypt
+endif
+ifeq ($(CONFIG_TLS), schannel)
+OBJS += tls_schannel.o
+# Using OpenSSL for crypto at the moment; to be replaced
+LIBS += -lcrypto
+LIBS_p += -lcrypto
+endif
+ifdef CONFIG_SMARTCARD
+ifndef CONFIG_NATIVE_WINDOWS
+ifndef CONFIG_L2_FREEBSD
+LIBS += -ldl
+endif
+endif
+endif
+NEED_CRYPTO=y
 else
 OBJS += tls_none.o
 endif
@@ -266,25 +325,54 @@ ifdef CONFIG_PKCS12
 CFLAGS += -DPKCS12_FUNCS
 endif
 
-ifdef MS_FUNCS
-ifndef TLS_FUNCS
-LIBS += -lcrypto
+ifdef CONFIG_SMARTCARD
+CFLAGS += -DCONFIG_SMARTCARD
 endif
-OBJS += ms_funcs.o crypto.o
+
+ifdef MS_FUNCS
+OBJS += ms_funcs.o
+NEED_CRYPTO=y
+endif
+
+ifdef NEED_CRYPTO
+ifndef TLS_FUNCS
+ifeq ($(CONFIG_TLS), openssl)
+LIBS += -lcrypto
+LIBS_p += -lcrypto
+endif
+ifeq ($(CONFIG_TLS), gnutls)
+LIBS += -lgcrypt
+LIBS_p += -lgcrypt
+endif
+ifeq ($(CONFIG_TLS), schannel)
+# Using OpenSSL for crypto at the moment; to be replaced
+LIBS += -lcrypto
+LIBS_p += -lcrypto
+endif
+endif
+ifeq ($(CONFIG_TLS), openssl)
+OBJS += crypto.o
+OBJS_p += crypto.o
+endif
+ifeq ($(CONFIG_TLS), gnutls)
+OBJS += crypto_gnutls.o
+OBJS_p += crypto_gnutls.o
+endif
+ifeq ($(CONFIG_TLS), schannel)
+# Using OpenSSL for crypto at the moment; to be replaced
+OBJS += crypto.o
+OBJS_p += crypto.o
+endif
 endif
 
 ifdef CONFIG_WIRELESS_EXTENSION
 CFLAGS += -DCONFIG_WIRELESS_EXTENSION
-OBJS += driver_wext.o
+OBJS_d += driver_wext.o
 endif
 
 ifdef CONFIG_CTRL_IFACE
 CFLAGS += -DCONFIG_CTRL_IFACE
 OBJS += ctrl_iface.o
-endif
-
-ifdef CONFIG_XSUPPLICANT_IFACE
-CFLAGS += -DCONFIG_XSUPPLICANT_IFACE
 endif
 
 ifdef CONFIG_READLINE
@@ -294,13 +382,34 @@ endif
 
 ifdef CONFIG_NATIVE_WINDOWS
 CFLAGS += -DCONFIG_NATIVE_WINDOWS -DCONFIG_CTRL_IFACE_UDP
-LIBS += -lws2_32 -lgdi32
+LIBS += -lws2_32 -lgdi32 -lcrypt32
 LIBS_c += -lws2_32
 endif
 
+ifdef CONFIG_NO_STDOUT_DEBUG
+CFLAGS += -DCONFIG_NO_STDOUT_DEBUG
+endif
+
+ifdef CONFIG_IPV6
+# for eapol_test only
+CFLAGS += -DCONFIG_IPV6
+endif
+
+ifndef CONFIG_NO_WPA
+OBJS += wpa.o preauth.o
+NEED_AES=y
+else
+CFLAGS += -DCONFIG_NO_WPA
+endif
+
+ifdef NEED_AES
+OBJS += aes_wrap.o
+endif
+
+OBJS += wpa_supplicant.o events.o
 OBJS_t := $(OBJS) eapol_test.o radius.o radius_client.o
-OBJS_t2 := $(OBJS) preauth_test.o l2_packet.o
-OBJS += wpa_supplicant.o wpa.o l2_packet.o drivers.o
+OBJS_t2 := $(OBJS) preauth_test.o
+OBJS += main.o drivers.o $(OBJS_d)
 
 wpa_supplicant: .config $(OBJS)
 	$(CC) -o wpa_supplicant $(OBJS) $(LIBS)
@@ -342,30 +451,38 @@ wpa_passphrase.exe: wpa_passphrase
 	mv -f $< $@
 win_if_list.exe: win_if_list
 	mv -f $< $@
+eapol_test.exe: eapol_test
+	mv -f $< $@
 
 WINALL=wpa_supplicant.exe wpa_cli.exe wpa_passphrase.exe win_if_list.exe
 
 windows-bin: $(WINALL)
 	$(STRIP) $(WINALL)
 
+wpa_gui/Makefile:
+	qmake -o wpa_gui/Makefile wpa_gui/wpa_gui.pro 
+
+wpa_gui: wpa_gui/Makefile
+	$(MAKE) -C wpa_gui
+
 TEST_SRC_MS_FUNCS = ms_funcs.c crypto.c sha1.c md5.c
 test-ms_funcs: $(TEST_SRC_MS_FUNCS)
 	$(CC) -o test-ms_funcs -Wall -Werror $(TEST_SRC_MS_FUNCS) \
-		-DTEST_MAIN_MS_FUNCS -lcrypto -I../hostapd
+		-DTEST_MAIN_MS_FUNCS -lcrypto -I../hostapd -I.
 	./test-ms_funcs
 	rm test-ms_funcs
 
 TEST_SRC_SHA1 = sha1.c
 test-sha1: $(TEST_SRC_SHA1)
 	$(CC) -o test-sha1 -Wall -Werror $(TEST_SRC_SHA1) \
-		-DTEST_MAIN -I../hostad
+		-DTEST_MAIN -I../hostad -I.
 	./test-sha1
 	rm test-sha1
 
 TEST_SRC_AES_WRAP = aes_wrap.c
 test-aes_wrap: $(TEST_SRC_AES_WRAP)
 	$(CC) -o test-aes_wrap -Wall -Werror $(TEST_SRC_AES_WRAP) \
-		-DTEST_MAIN -I../hostad
+		-DTEST_MAIN -I../hostad -I.
 	./test-aes_wrap
 	rm test-aes_wrap
 
@@ -373,7 +490,7 @@ TEST_SRC_EAP_SIM_COMMON = eap_sim_common.c sha1.c md5.c \
 	aes_wrap.c common.c
 test-eap_sim_common: $(TEST_SRC_EAP_SIM_COMMON)
 	$(CC) -o test-eap_sim_common -Wall -Werror $(TEST_SRC_EAP_SIM_COMMON) \
-		-DTEST_MAIN_EAP_SIM_COMMON -I../hostapd
+		-DTEST_MAIN_EAP_SIM_COMMON -I../hostapd -I.
 	./test-eap_sim_common
 	rm test-eap_sim_common
 
@@ -381,5 +498,26 @@ tests: test-ms_funcs test-sha1 test-aes_wrap test-eap_sim_common
 
 clean:
 	rm -f core *~ *.o *.d $(ALL) $(WINALL)
+
+%.eps: %.fig
+	fig2dev -L eps $*.fig $*.eps
+
+%.png: %.fig
+	fig2dev -L png -m 3 $*.fig | pngtopnm | pnmscale 0.4 | pnmtopng \
+		> $*.png
+
+docs-pics: doc/wpa_supplicant.png doc/wpa_supplicant.eps
+
+docs: docs-pics
+	doxygen doc/doxygen.full
+	$(MAKE) -C doc/latex
+	cp doc/latex/refman.pdf wpa_supplicant-devel.pdf
+
+docs-fast: docs-pics
+	doxygen doc/doxygen.fast
+
+clean-docs:
+	rm -rf doc/latex doc/html
+	rm -f doc/wpa_supplicant.{eps,png} wpa_supplicant-devel.pdf
 
 -include $(OBJS:%.o=%.d)

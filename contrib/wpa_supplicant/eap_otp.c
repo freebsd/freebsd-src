@@ -35,31 +35,29 @@ static void eap_otp_deinit(struct eap_sm *sm, void *priv)
 
 static u8 * eap_otp_process(struct eap_sm *sm, void *priv,
 			    struct eap_method_ret *ret,
-			    u8 *reqData, size_t reqDataLen,
+			    const u8 *reqData, size_t reqDataLen,
 			    size_t *respDataLen)
 {
 	struct wpa_ssid *config = eap_get_config(sm);
-	struct eap_hdr *req, *resp;
-	u8 *pos, *password;
+	const struct eap_hdr *req;
+	struct eap_hdr *resp;
+	const u8 *pos, *password;
+	u8 *rpos;
 	size_t password_len, len;
 
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
-	if (reqDataLen < sizeof(*req) + 1 || *pos != EAP_TYPE_OTP ||
-	    (len = be_to_host16(req->length)) > reqDataLen) {
-		wpa_printf(MSG_INFO, "EAP-OTP: Invalid frame");
+	pos = eap_hdr_validate(EAP_TYPE_OTP, reqData, reqDataLen, &len);
+	if (pos == NULL) {
 		ret->ignore = TRUE;
 		return NULL;
 	}
-	pos++;
+	req = (const struct eap_hdr *) reqData;
 	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-OTP: Request message",
-			  pos, len - sizeof(*req) - 1);
+			  pos, len);
 
 	if (config == NULL ||
 	    (config->password == NULL && config->otp == NULL)) {
 		wpa_printf(MSG_INFO, "EAP-OTP: Password not configured");
-		eap_sm_request_otp(sm, config, (char *) pos,
-				   len - sizeof(*req) - 1);
+		eap_sm_request_otp(sm, config, (const char *) pos, len);
 		ret->ignore = TRUE;
 		return NULL;
 	}
@@ -85,9 +83,9 @@ static u8 * eap_otp_process(struct eap_sm *sm, void *priv,
 	resp->code = EAP_CODE_RESPONSE;
 	resp->identifier = req->identifier;
 	resp->length = host_to_be16(*respDataLen);
-	pos = (u8 *) (resp + 1);
-	*pos++ = EAP_TYPE_OTP;
-	memcpy(pos, password, password_len);
+	rpos = (u8 *) (resp + 1);
+	*rpos++ = EAP_TYPE_OTP;
+	memcpy(rpos, password, password_len);
 	wpa_hexdump_ascii_key(MSG_MSGDUMP, "EAP-OTP: Response",
 			      password, password_len);
 
