@@ -44,6 +44,8 @@
 #define DBG_MSG(x...)
 #endif
 
+#define MAX_THREADS		100000
+
 /*
  * Define a high water mark for the maximum number of threads that
  * will be cached.  Once this level is reached, any extra threads
@@ -61,6 +63,7 @@ static umtx_t			free_thread_lock;
 static umtx_t			tcb_lock;
 static int			free_thread_count = 0;
 static int			inited = 0;
+static int			total_threads;
 
 LIST_HEAD(thread_hash_head, pthread);
 #define HASH_QUEUES	128
@@ -75,6 +78,7 @@ _thr_list_init(void)
 	int i;
 
 	_gc_count = 0;
+	total_threads = 1;
 	_thr_umtx_init(&_thr_list_lock);
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&free_threadq);
@@ -152,9 +156,14 @@ _thr_alloc(struct pthread *curthread)
 		}
 	}
 	if (thread == NULL) {
-		thread = malloc(sizeof(struct pthread));
-		if (thread == NULL)
+		if (total_threads > MAX_THREADS)
 			return (NULL);
+		atomic_fetchadd_int(&total_threads, 1);
+		thread = malloc(sizeof(struct pthread));
+		if (thread == NULL) {
+			atomic_fetchadd_int(&total_threads, -1);
+			return (NULL);
+		}
 	}
 	if (curthread != NULL) {
 		THR_LOCK_ACQUIRE(curthread, &tcb_lock);
@@ -168,6 +177,7 @@ _thr_alloc(struct pthread *curthread)
 		thread->tcb = tcb;
 	} else {
 		thr_destroy(curthread, thread);
+		atomic_fetchadd_int(&total_threads, -1);
 		thread = NULL;
 	}
 	return (thread);
@@ -193,6 +203,7 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 	thread->tcb = NULL;
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
 		thr_destroy(curthread, thread);
+		atomic_fetchadd_int(&total_threads, -1);
 	} else {
 		/*
 		 * Add the thread to the free thread list, this also avoids
