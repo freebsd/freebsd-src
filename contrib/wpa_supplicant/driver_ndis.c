@@ -393,6 +393,20 @@ static int wpa_driver_ndis_get_bssid(void *priv, u8 *bssid)
 {
 	struct wpa_driver_ndis_data *drv = priv;
 
+	if (drv->wired) {
+		/*
+		 * Report PAE group address as the "BSSID" for wired
+		 * connection.
+		 */
+		bssid[0] = 0x01;
+		bssid[1] = 0x80;
+		bssid[2] = 0xc2;
+		bssid[3] = 0x00;
+		bssid[4] = 0x00;
+		bssid[5] = 0x03;
+		return 0;
+	}
+
 	return ndis_get_oid(drv, OID_802_11_BSSID, bssid, ETH_ALEN) < 0 ?
 		-1 : 0;
 }
@@ -406,8 +420,13 @@ static int wpa_driver_ndis_get_ssid(void *priv, u8 *ssid)
 	int res;
 
 	res = ndis_get_oid(drv, OID_802_11_SSID, (char *) &buf, sizeof(buf));
-	if (!res) {
+	if (res < 4) {
 		wpa_printf(MSG_DEBUG, "NDIS: Failed to get SSID");
+		if (drv->wired) {
+			wpa_printf(MSG_DEBUG, "NDIS: Allow get_ssid failure "
+				   "with a wired interface");
+			return 0;
+		}
 		return -1;
 	}
 	memcpy(ssid, buf.Ssid, buf.SsidLength);
@@ -423,6 +442,12 @@ static int wpa_driver_ndis_set_ssid(struct wpa_driver_ndis_data *drv,
 	memset(&buf, 0, sizeof(buf));
 	buf.SsidLength = ssid_len;
 	memcpy(buf.Ssid, ssid, ssid_len);
+	/*
+	 * Make sure radio is marked enabled here so that scan request will not
+	 * force SSID to be changed to a random one in order to enable radio at
+	 * that point.
+	 */
+	drv->radio_enabled = 1;
 	return ndis_set_oid(drv, OID_802_11_SSID, (char *) &buf, sizeof(buf));
 }
 
@@ -562,7 +587,7 @@ static int wpa_driver_ndis_get_scan_results(void *priv,
 		memcpy(results[i].ssid, bss->Ssid.Ssid, bss->Ssid.SsidLength);
 		results[i].ssid_len = bss->Ssid.SsidLength;
 		if (bss->Privacy)
-			results[i].caps = 1; /* FIX? */
+			results[i].caps |= IEEE80211_CAP_PRIVACY;
 		results[i].level = (int) bss->Rssi;
 		results[i].freq = bss->Configuration.DSConfig / 1000;
 		for (j = 0; j < sizeof(bss->SupportedRates); j++) {
@@ -574,6 +599,8 @@ static int wpa_driver_ndis_get_scan_results(void *priv,
 		}
 		wpa_driver_ndis_get_ies(&results[i], bss->IEs, bss->IELength);
 		pos += bss->Length;
+		if (pos > (char *) b + blen)
+			break;
 	}
 
 	free(b);
@@ -928,10 +955,12 @@ static int wpa_driver_ndis_flush_pmkid(void *priv)
 
 static int wpa_driver_ndis_get_associnfo(struct wpa_driver_ndis_data *drv)
 {
-	char buf[512];
+	char buf[512], *pos;
 	NDIS_802_11_ASSOCIATION_INFORMATION *ai;
-	int len;
+	int len, i;
 	union wpa_event_data data;
+	NDIS_802_11_BSSID_LIST_EX *b;
+	size_t blen;
 
 	len = ndis_get_oid(drv, OID_802_11_ASSOCIATION_INFORMATION, buf,
 			   sizeof(buf));
@@ -990,7 +1019,46 @@ static int wpa_driver_ndis_get_associnfo(struct wpa_driver_ndis_data *drv)
 	data.assoc_info.req_ies_len = ai->RequestIELength;
 	data.assoc_info.resp_ies = buf + ai->OffsetResponseIEs;
 	data.assoc_info.resp_ies_len = ai->ResponseIELength;
+
+	blen = 65535;
+	b = malloc(blen);
+	if (b == NULL)
+		goto skip_scan_results;
+	memset(b, 0, blen);
+	len = ndis_get_oid(drv, OID_802_11_BSSID_LIST, (char *) b, blen);
+	if (len < 0) {
+		wpa_printf(MSG_DEBUG, "NDIS: failed to get scan results");
+		free(b);
+		b = NULL;
+		goto skip_scan_results;
+	}
+	wpa_printf(MSG_DEBUG, "NDIS: %d BSSID items to process for AssocInfo",
+		   (unsigned int) b->NumberOfItems);
+
+	pos = (char *) &b->Bssid[0];
+	for (i = 0; i < b->NumberOfItems; i++) {
+		NDIS_WLAN_BSSID_EX *bss = (NDIS_WLAN_BSSID_EX *) pos;
+		if (memcmp(drv->bssid, bss->MacAddress, ETH_ALEN) == 0 &&
+		    bss->IELength > sizeof(NDIS_802_11_FIXED_IEs)) {
+			data.assoc_info.beacon_ies =
+				((u8 *) bss->IEs) +
+				sizeof(NDIS_802_11_FIXED_IEs);
+			data.assoc_info.beacon_ies_len =
+				bss->IELength - sizeof(NDIS_802_11_FIXED_IEs);
+			wpa_hexdump(MSG_MSGDUMP, "NDIS: Beacon IEs",
+				    data.assoc_info.beacon_ies,
+				    data.assoc_info.beacon_ies_len);
+			break;
+		}
+		pos += bss->Length;
+		if (pos > (char *) b + blen)
+			break;
+	}
+
+skip_scan_results:
 	wpa_supplicant_event(drv->ctx, EVENT_ASSOCINFO, &data);
+
+	free(b);
 
 	return 0;
 }
@@ -1000,6 +1068,9 @@ static void wpa_driver_ndis_poll_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_driver_ndis_data *drv = eloop_ctx;
 	u8 bssid[ETH_ALEN];
+
+	if (drv->wired)
+		return;
 
 	if (wpa_driver_ndis_get_bssid(drv, bssid)) {
 		/* Disconnected */
@@ -1339,39 +1410,63 @@ static const u8 * wpa_driver_ndis_get_mac_addr(void *priv)
 
 static int wpa_driver_ndis_get_names(struct wpa_driver_ndis_data *drv)
 {
-	PTSTR names, pos;
+	PTSTR names, pos, pos2;
 	ULONG len;
 	BOOLEAN res;
-	const int MAX_ADAPTERS = 16;
+	const int MAX_ADAPTERS = 32;
 	char *name[MAX_ADAPTERS];
 	char *desc[MAX_ADAPTERS];
 	int num_name, num_desc, i, found_name, found_desc;
 	size_t dlen;
 
-	len = 1024;
+	wpa_printf(MSG_DEBUG, "NDIS: Packet.dll version: %s",
+		   PacketGetVersion());
+
+	len = 8192;
 	names = malloc(len);
 	if (names == NULL)
 		return -1;
 	memset(names, 0, len);
 
 	res = PacketGetAdapterNames(names, &len);
-	if (!res && len > 1024) {
+	if (!res && len > 8192) {
 		free(names);
 		names = malloc(len);
 		if (names == NULL)
 			return -1;
 		memset(names, 0, len);
 		res = PacketGetAdapterNames(names, &len);
-		if (!res) {
-			free(names);
-			return -1;
-		}
+	}
+
+	if (!res) {
+		wpa_printf(MSG_ERROR, "NDIS: Failed to get adapter list "
+			   "(PacketGetAdapterNames)");
+		free(names);
+		return -1;
 	}
 
 	/* wpa_hexdump_ascii(MSG_DEBUG, "NDIS: AdapterNames", names, len); */
 
+	if (names[0] && names[1] == '\0' && names[2] && names[3] == '\0') {
+		wpa_printf(MSG_DEBUG, "NDIS: Looks like adapter names are in "
+			   "UNICODE");
+		/* Convert to ASCII */
+		pos2 = pos = names;
+		while (pos2 < names + len) {
+			if (pos2[0] == '\0' && pos2[1] == '\0' &&
+			    pos2[2] == '\0' && pos2[3] == '\0') {
+				pos2 += 4;
+				break;
+			}
+			*pos++ = pos2[0];
+			pos2 += 2;
+		}
+		memcpy(pos + 2, names, pos - names);
+		pos += 2;
+	} else
+		pos = names;
+
 	num_name = 0;
-	pos = names;
 	while (pos < names + len) {
 		name[num_name] = pos;
 		while (*pos && pos < names + len)
@@ -1419,6 +1514,13 @@ static int wpa_driver_ndis_get_names(struct wpa_driver_ndis_data *drv)
 			break;
 		}
 	}
+
+	/*
+	 * Windows 98 with Packet.dll 3.0 alpha3 does not include adapter
+	 * descriptions. Fill in dummy descriptors to work around this.
+	 */
+	while (num_desc < num_name)
+		desc[num_desc++] = "dummy description";
 
 	if (num_name != num_desc) {
 		wpa_printf(MSG_DEBUG, "NDIS: mismatch in adapter name and "
@@ -1537,6 +1639,13 @@ static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 			   "OID_802_11_INFRASTRUCTURE_MODE (%d)",
 			   (int) mode);
 		/* Try to continue anyway */
+
+		if (!drv->has_capability && drv->capa.enc == 0) {
+			wpa_printf(MSG_DEBUG, "NDIS: Driver did not provide "
+				   "any wireless capabilities - assume it is "
+				   "a wired interface");
+			drv->wired = 1;
+		}
 	}
 
 	return drv;
@@ -1565,7 +1674,7 @@ static void wpa_driver_ndis_deinit(void *priv)
 }
 
 
-struct wpa_driver_ops wpa_driver_ndis_ops = {
+const struct wpa_driver_ops wpa_driver_ndis_ops = {
 	.name = "ndis",
 	.desc = "Windows NDIS driver",
 	.init = wpa_driver_ndis_init,

@@ -24,10 +24,12 @@
 #include "tls.h"
 #include "eap_tlv.h"
 #include "sha1.h"
+#include "config.h"
 
 /* TODO:
  * - encrypt PAC-Key in the PAC file
  * - test session resumption and enable it if it interoperates
+ * - password change (pending mschapv2 packet; replay decrypted packet)
  */
 
 #define EAP_FAST_VERSION 1
@@ -36,7 +38,8 @@
 
 #define TLS_EXT_PAC_OPAQUE 35
 
-static char *pac_file_hdr = "wpa_supplicant EAP-FAST PAC file - version 1";
+static const char *pac_file_hdr =
+	"wpa_supplicant EAP-FAST PAC file - version 1";
 
 
 static void eap_fast_deinit(struct eap_sm *sm, void *priv);
@@ -58,28 +61,18 @@ struct pac_tlv_hdr {
 };
 
 
-/* draft-cam-winget-eap-fast-00.txt, 6.2 EAP-FAST Authentication Phase 1 */
+/* draft-cam-winget-eap-fast-02.txt:
+ * 6.2 EAP-FAST Authentication Phase 1: Key Derivations */
 struct eap_fast_key_block_auth {
-	/* RC4-128-SHA */
-	u8 client_write_MAC_secret[20];
-	u8 server_write_MAC_secret[20];
-	u8 client_write_key[16];
-	u8 server_write_key[16];
-	/* u8 client_write_IV[0]; */
-	/* u8 server_write_IV[0]; */
+	/* Extra key material after TLS key_block */
 	u8 session_key_seed[40];
 };
 
 
-/* draft-cam-winget-eap-fast-00.txt, 7.3 EAP-FAST Provisioning Exchange */
+/* draft-cam-winget-eap-fast-provisioning-01.txt:
+ * 3.4 Key Derivations Used in the EAP-FAST Provisioning Exchange */
 struct eap_fast_key_block_provisioning {
-	/* AES128-SHA */
-	u8 client_write_MAC_secret[20];
-	u8 server_write_MAC_secret[20];
-	u8 client_write_key[16];
-	u8 server_write_key[16];
-	u8 client_write_IV[16];
-	u8 server_write_IV[16];
+	/* Extra key material after TLS key_block */
 	u8 session_key_seed[40];
 	u8 server_challenge[16];
 	u8 client_challenge[16];
@@ -249,12 +242,34 @@ static int eap_fast_add_pac(struct eap_fast_data *data,
 }
 
 
-static int eap_fast_read_line(FILE *f, char *buf, size_t buf_len)
+struct eap_fast_read_ctx {
+	FILE *f;
+	const char *pos;
+	const char *end;
+};
+
+static int eap_fast_read_line(struct eap_fast_read_ctx *rc, char *buf,
+			      size_t buf_len)
 {
 	char *pos;
 
-	if (fgets(buf, buf_len, f) == NULL) {
-		return -1;
+	if (rc->f) {
+		if (fgets(buf, buf_len, rc->f) == NULL)
+			return -1;
+	} else {
+		const char *l_end;
+		size_t len;
+		if (rc->pos >= rc->end)
+			return -1;
+		l_end = rc->pos;
+		while (l_end < rc->end && *l_end != '\n')
+			l_end++;
+		len = l_end - rc->pos;
+		if (len >= buf_len)
+			len = buf_len - 1;
+		memcpy(buf, rc->pos, len);
+		buf[len] = '\0';
+		rc->pos = l_end + 1;
 	}
 
 	buf[buf_len - 1] = '\0';
@@ -293,9 +308,10 @@ static u8 * eap_fast_parse_hex(const char *value, size_t *len)
 }
 
 
-static int eap_fast_load_pac(struct eap_fast_data *data, const char *pac_file)
+static int eap_fast_load_pac(struct eap_sm *sm, struct eap_fast_data *data,
+			     const char *pac_file)
 {
-	FILE *f;
+	struct eap_fast_read_ctx rc;
 	struct eap_fast_pac *pac = NULL;
 	int count = 0;
 	char *buf, *pos;
@@ -305,11 +321,27 @@ static int eap_fast_load_pac(struct eap_fast_data *data, const char *pac_file)
 	if (pac_file == NULL)
 		return -1;
 
-	f = fopen(pac_file, "r");
-	if (f == NULL) {
-		wpa_printf(MSG_INFO, "EAP-FAST: No PAC file '%s' - assume no "
-			   "PAC entries have been provisioned", pac_file);
-		return 0;
+	memset(&rc, 0, sizeof(rc));
+
+	if (strncmp(pac_file, "blob://", 7) == 0) {
+		const struct wpa_config_blob *blob;
+		blob = eap_get_config_blob(sm, pac_file + 7);
+		if (blob == NULL) {
+			wpa_printf(MSG_INFO, "EAP-FAST: No PAC blob '%s' - "
+				   "assume no PAC entries have been "
+				   "provisioned", pac_file + 7);
+			return 0;
+		}
+		rc.pos = (char *) blob->data;
+		rc.end = (char *) blob->data + blob->len;
+	} else {
+		rc.f = fopen(pac_file, "r");
+		if (rc.f == NULL) {
+			wpa_printf(MSG_INFO, "EAP-FAST: No PAC file '%s' - "
+				   "assume no PAC entries have been "
+				   "provisioned", pac_file);
+			return 0;
+		}
 	}
 
 	buf = malloc(buf_len);
@@ -318,16 +350,17 @@ static int eap_fast_load_pac(struct eap_fast_data *data, const char *pac_file)
 	}
 
 	line++;
-	if (eap_fast_read_line(f, buf, buf_len) < 0 ||
+	if (eap_fast_read_line(&rc, buf, buf_len) < 0 ||
 	    strcmp(pac_file_hdr, buf) != 0) {
 		wpa_printf(MSG_INFO, "EAP-FAST: Unrecognized header line in "
 			   "PAC file '%s'", pac_file);
 		free(buf);
-		fclose(f);
+		if (rc.f)
+			fclose(rc.f);
 		return -1;
 	}
 
-	while (eap_fast_read_line(f, buf, buf_len) == 0) {
+	while (eap_fast_read_line(&rc, buf, buf_len) == 0) {
 		line++;
 		pos = strchr(buf, '=');
 		if (pos) {
@@ -423,7 +456,8 @@ static int eap_fast_load_pac(struct eap_fast_data *data, const char *pac_file)
 	}
 
 	free(buf);
-	fclose(f);
+	if (rc.f)
+		fclose(rc.f);
 
 	if (ret == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: read %d PAC entries from "
@@ -434,67 +468,124 @@ static int eap_fast_load_pac(struct eap_fast_data *data, const char *pac_file)
 }
 
 
-static void eap_fast_write(FILE *f, const char *field, const u8 *data,
+static void eap_fast_write(char **buf, char **pos, size_t *buf_len,
+			   const char *field, const u8 *data,
 			   size_t len, int txt)
 {
 	int i;
+	size_t need;
 
-	if (data == NULL)
+	if (data == NULL || *buf == NULL)
 		return;
 
-	fprintf(f, "%s=", field);
-	for (i = 0; i < len; i++) {
-		fprintf(f, "%02x", data[i]);
+	need = strlen(field) + len * 2 + 30;
+	if (txt)
+		need += strlen(field) + len + 20;
+
+	if (*pos - *buf + need > *buf_len) {
+		char *nbuf = realloc(*buf, *buf_len + need);
+		if (nbuf == NULL) {
+			free(*buf);
+			*buf = NULL;
+			return;
+		}
+		*buf = nbuf;
+		*buf_len += need;
 	}
-	fprintf(f, "\n");
+
+	*pos += snprintf(*pos, *buf + *buf_len - *pos, "%s=", field);
+	for (i = 0; i < len; i++) {
+		*pos += snprintf(*pos, *buf + *buf_len - *pos,
+				 "%02x", data[i]);
+	}
+	*pos += snprintf(*pos, *buf + *buf_len - *pos, "\n");
 
 	if (txt) {
-		fprintf(f, "%s-txt=", field);
+		*pos += snprintf(*pos, *buf + *buf_len - *pos,
+				 "%s-txt=", field);
 		for (i = 0; i < len; i++) {
-			fprintf(f, "%c", data[i]);
+			*pos += snprintf(*pos, *buf + *buf_len - *pos,
+					 "%c", data[i]);
 		}
-		fprintf(f, "\n");
+		*pos += snprintf(*pos, *buf + *buf_len - *pos, "\n");
 	}
 }
 
 
-static int eap_fast_save_pac(struct eap_fast_data *data, const char *pac_file)
+static int eap_fast_save_pac(struct eap_sm *sm, struct eap_fast_data *data,
+			     const char *pac_file)
 {
 	FILE *f;
 	struct eap_fast_pac *pac;
 	int count = 0;
+	char *buf, *pos;
+	size_t buf_len;
 
 	if (pac_file == NULL)
 		return -1;
 
-	f = fopen(pac_file, "w");
-	if (f == NULL) {
-		wpa_printf(MSG_INFO, "EAP-FAST: Failed to open PAC file '%s' "
-			   "for writing", pac_file);
+	buf_len = 1024;
+	pos = buf = malloc(buf_len);
+	if (buf == NULL)
 		return -1;
-	}
 
-	fprintf(f, "%s\n", pac_file_hdr);
+	pos += snprintf(pos, buf + buf_len - pos, "%s\n", pac_file_hdr);
 
 	pac = data->pac;
 	while (pac) {
-		fprintf(f, "START\n");
-		eap_fast_write(f, "PAC-Key", pac->pac_key,
+		pos += snprintf(pos, buf + buf_len - pos, "START\n");
+		eap_fast_write(&buf, &pos, &buf_len, "PAC-Key", pac->pac_key,
 			       EAP_FAST_PAC_KEY_LEN, 0);
-		eap_fast_write(f, "PAC-Opaque", pac->pac_opaque,
-			       pac->pac_opaque_len, 0);
-		eap_fast_write(f, "PAC-Info", pac->pac_info,
+		eap_fast_write(&buf, &pos, &buf_len, "PAC-Opaque",
+			       pac->pac_opaque, pac->pac_opaque_len, 0);
+		eap_fast_write(&buf, &pos, &buf_len, "PAC-Info", pac->pac_info,
 			       pac->pac_info_len, 0);
-		eap_fast_write(f, "A-ID", pac->a_id, pac->a_id_len, 0);
-		eap_fast_write(f, "I-ID", pac->i_id, pac->i_id_len, 1);
-		eap_fast_write(f, "A-ID-Info", pac->a_id_info,
-			       pac->a_id_info_len, 1);
-		fprintf(f, "END\n");
+		eap_fast_write(&buf, &pos, &buf_len, "A-ID", pac->a_id,
+			       pac->a_id_len, 0);
+		eap_fast_write(&buf, &pos, &buf_len, "I-ID", pac->i_id,
+			       pac->i_id_len, 1);
+		eap_fast_write(&buf, &pos, &buf_len, "A-ID-Info",
+			       pac->a_id_info, pac->a_id_info_len, 1);
+		pos += snprintf(pos, buf + buf_len - pos, "END\n");
 		count++;
 		pac = pac->next;
+
+		if (buf == NULL) {
+			wpa_printf(MSG_DEBUG, "EAP-FAST: No memory for PAC "
+				   "data");
+			return -1;
+		}
 	}
 
-	fclose(f);
+	if (strncmp(pac_file, "blob://", 7) == 0) {
+		struct wpa_config_blob *blob;
+		blob = malloc(sizeof(*blob));
+		if (blob == NULL) {
+			free(buf);
+			return -1;
+		}
+		memset(blob, 0, sizeof(*blob));
+		blob->data = (u8 *) buf;
+		blob->len = pos - buf;
+		buf = NULL;
+		blob->name = strdup(pac_file + 7);
+		if (blob->name == NULL) {
+			wpa_config_free_blob(blob);
+			return -1;
+		}
+		eap_set_config_blob(sm, blob);
+	} else {
+		f = fopen(pac_file, "w");
+		if (f == NULL) {
+			wpa_printf(MSG_INFO, "EAP-FAST: Failed to open PAC "
+				   "file '%s' for writing", pac_file);
+			free(buf);
+			return -1;
+		}
+		fprintf(f, "%s", buf);
+		free(buf);
+		fclose(f);
+	}
 
 	wpa_printf(MSG_DEBUG, "EAP-FAST: wrote %d PAC entries into '%s'",
 		   count, pac_file);
@@ -590,7 +681,7 @@ static void * eap_fast_init(struct eap_sm *sm)
 	 * TODO: consider making this configurable */
 	tls_connection_enable_workaround(sm->ssl_ctx, data->ssl.conn);
 
-	if (eap_fast_load_pac(data, config->pac_file) < 0) {
+	if (eap_fast_load_pac(sm, data, config->pac_file) < 0) {
 		eap_fast_deinit(sm, data);
 		return NULL;
 	}
@@ -632,7 +723,7 @@ static void eap_fast_deinit(struct eap_sm *sm, void *priv)
 
 
 static int eap_fast_encrypt(struct eap_sm *sm, struct eap_fast_data *data,
-			    int id, u8 *plain, size_t plain_len,
+			    int id, const u8 *plain, size_t plain_len,
 			    u8 **out_data, size_t *out_len)
 {
 	int res;
@@ -799,32 +890,37 @@ static u8 * eap_fast_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 				char *label, size_t len)
 {
 	struct tls_keys keys;
-	u8 *random;
+	u8 *rnd;
 	u8 *out;
+	int block_size;
 
 	if (tls_connection_get_keys(sm->ssl_ctx, data->conn, &keys))
 		return NULL;
-	out = malloc(len);
-	random = malloc(keys.client_random_len + keys.server_random_len);
-	if (out == NULL || random == NULL) {
+	block_size = tls_connection_get_keyblock_size(sm->ssl_ctx, data->conn);
+	if (block_size < 0)
+		return NULL;
+	out = malloc(block_size + len);
+	rnd = malloc(keys.client_random_len + keys.server_random_len);
+	if (out == NULL || rnd == NULL) {
 		free(out);
-		free(random);
+		free(rnd);
 		return NULL;
 	}
-	memcpy(random, keys.server_random, keys.server_random_len);
-	memcpy(random + keys.server_random_len, keys.client_random,
+	memcpy(rnd, keys.server_random, keys.server_random_len);
+	memcpy(rnd + keys.server_random_len, keys.client_random,
 	       keys.client_random_len);
 
 	wpa_hexdump_key(MSG_MSGDUMP, "EAP-FAST: master_secret for key "
 			"expansion", keys.master_key, keys.master_key_len);
 	if (tls_prf(keys.master_key, keys.master_key_len,
-		    label, random, keys.client_random_len +
-		    keys.server_random_len, out, len)) {
-		free(random);
+		    label, rnd, keys.client_random_len +
+		    keys.server_random_len, out, block_size + len)) {
+		free(rnd);
 		free(out);
 		return NULL;
 	}
-	free(random);
+	free(rnd);
+	memmove(out, out + block_size, len);
 	return out;
 }
 
@@ -836,6 +932,11 @@ static void eap_fast_derive_key_auth(struct eap_sm *sm,
 	data->key_block_a = (struct eap_fast_key_block_auth *)
 		eap_fast_derive_key(sm, &data->ssl, "key expansion",
 				    sizeof(*data->key_block_a));
+	if (data->key_block_a == NULL) {
+		wpa_printf(MSG_DEBUG, "EAP-FAST: Failed to derive "
+			   "session_key_seed");
+		return;
+	}
 	wpa_hexdump_key(MSG_DEBUG, "EAP-FAST: session_key_seed",
 			data->key_block_a->session_key_seed,
 			sizeof(data->key_block_a->session_key_seed));
@@ -878,7 +979,7 @@ static void eap_fast_derive_keys(struct eap_sm *sm, struct eap_fast_data *data)
 static int eap_fast_phase2_request(struct eap_sm *sm,
 				   struct eap_fast_data *data,
 				   struct eap_method_ret *ret,
-				   struct eap_hdr *req,
+				   const struct eap_hdr *req,
 				   struct eap_hdr *hdr,
 				   u8 **resp, size_t *resp_len)
 {
@@ -1333,7 +1434,7 @@ static u8 * eap_fast_process_pac(struct eap_sm *sm, struct eap_fast_data *data,
 	}
 
 	eap_fast_add_pac(data, &entry);
-	eap_fast_save_pac(data, config->pac_file);
+	eap_fast_save_pac(sm, data, config->pac_file);
 
 	if (data->provisioning) {
 		/* EAP-FAST provisioning does not provide keying material and
@@ -1356,12 +1457,13 @@ static u8 * eap_fast_process_pac(struct eap_sm *sm, struct eap_fast_data *data,
 
 
 static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
-			    struct eap_method_ret *ret, struct eap_hdr *req,
-			    u8 *in_data, size_t in_len,
+			    struct eap_method_ret *ret,
+			    const struct eap_hdr *req,
+			    const u8 *in_data, size_t in_len,
 			    u8 **out_data, size_t *out_len)
 {
 	u8 *in_decrypted, *pos, *end;
-	int buf_len, len_decrypted, len, res;
+	int buf_len, len_decrypted, len;
 	struct eap_hdr *hdr;
 	u8 *resp = NULL;
 	size_t resp_len;
@@ -1371,13 +1473,17 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 	int iresult = 0, result = 0;
 	struct eap_tlv_crypto_binding__tlv *crypto_binding = NULL;
 	size_t crypto_binding_len = 0;
+	const u8 *msg;
+	size_t msg_len;
+	int need_more_input;
 
 	wpa_printf(MSG_DEBUG, "EAP-FAST: received %lu bytes encrypted data for"
 		   " Phase 2", (unsigned long) in_len);
 
-	res = eap_tls_data_reassemble(sm, &data->ssl, &in_data, &in_len);
-	if (res < 0 || res == 1)
-		return res;
+	msg = eap_tls_data_reassemble(sm, &data->ssl, in_data, in_len,
+				      &msg_len, &need_more_input);
+	if (msg == NULL)
+		return need_more_input ? 1 : -1;
 
 	buf_len = in_len;
 	if (data->ssl.tls_in_total > buf_len)
@@ -1393,7 +1499,7 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 	}
 
 	len_decrypted = tls_connection_decrypt(sm->ssl_ctx, data->ssl.conn,
-					       in_data, in_len,
+					       msg, msg_len,
 					       in_decrypted, buf_len);
 	free(data->ssl.tls_in);
 	data->ssl.tls_in = NULL;
@@ -1417,11 +1523,12 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 
 	pos = in_decrypted;
 	end = in_decrypted + len_decrypted;
-	while (pos < end) {
+	while (pos + 4 < end) {
 		mandatory = pos[0] & 0x80;
-		tlv_type = ((pos[0] & 0x3f) << 8) | pos[1];
-		len = (pos[2] << 8) | pos[3];
-		pos += 4;
+		tlv_type = WPA_GET_BE16(pos) & 0x3fff;
+		pos += 2;
+		len = WPA_GET_BE16(pos);
+		pos += 2;
 		if (pos + len > end) {
 			free(in_decrypted);
 			wpa_printf(MSG_INFO, "EAP-FAST: TLV overflow");
@@ -1447,7 +1554,7 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 				result = EAP_TLV_RESULT_FAILURE;
 				break;
 			}
-			result = (pos[0] << 16) | pos[1];
+			result = WPA_GET_BE16(pos);
 			if (result != EAP_TLV_RESULT_SUCCESS &&
 			    result != EAP_TLV_RESULT_FAILURE) {
 				wpa_printf(MSG_DEBUG, "EAP-FAST: Unknown "
@@ -1467,7 +1574,7 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 				iresult = EAP_TLV_RESULT_FAILURE;
 				break;
 			}
-			iresult = (pos[0] << 16) | pos[1];
+			iresult = WPA_GET_BE16(pos);
 			if (iresult != EAP_TLV_RESULT_SUCCESS &&
 			    iresult != EAP_TLV_RESULT_FAILURE) {
 				wpa_printf(MSG_DEBUG, "EAP-FAST: Unknown "
@@ -1584,7 +1691,7 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 
 	if (!resp && pac && result != EAP_TLV_RESULT_SUCCESS) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: PAC TLV without Result TLV "
-			   "acnowledging success");
+			   "acknowledging success");
 		resp = eap_fast_tlv_result(EAP_TLV_RESULT_FAILURE, 0,
 					   &resp_len);
 		if (!resp) {
@@ -1607,7 +1714,7 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 	if (resp == NULL) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: No recognized TLVs - send "
 			   "empty response packet");
-		resp = malloc(0);
+		resp = malloc(1);
 		if (resp == NULL)
 			return 0;
 		resp_len = 0;
@@ -1628,65 +1735,25 @@ static int eap_fast_decrypt(struct eap_sm *sm, struct eap_fast_data *data,
 
 static u8 * eap_fast_process(struct eap_sm *sm, void *priv,
 			     struct eap_method_ret *ret,
-			     u8 *reqData, size_t reqDataLen,
+			     const u8 *reqData, size_t reqDataLen,
 			     size_t *respDataLen)
 {
-	struct eap_hdr *req;
-	int left, res;
-	unsigned int tls_msg_len;
-	u8 flags, *pos, *resp, id;
+	const struct eap_hdr *req;
+	size_t left;
+	int res;
+	u8 flags, *resp, id;
+	const u8 *pos;
 	struct eap_fast_data *data = priv;
 
-	if (tls_get_errors(sm->ssl_ctx)) {
-		wpa_printf(MSG_INFO, "EAP-FAST: TLS errors detected");
-		ret->ignore = TRUE;
+	pos = eap_tls_process_init(sm, &data->ssl, EAP_TYPE_FAST, ret,
+				   reqData, reqDataLen, &left, &flags);
+	if (pos == NULL)
 		return NULL;
-	}
-
-	req = (struct eap_hdr *) reqData;
-	pos = (u8 *) (req + 1);
-	if (reqDataLen < sizeof(*req) + 2 || *pos != EAP_TYPE_FAST ||
-	    (left = host_to_be16(req->length)) > reqDataLen) {
-		wpa_printf(MSG_INFO, "EAP-FAST: Invalid frame");
-		ret->ignore = TRUE;
-		return NULL;
-	}
-	left -= sizeof(struct eap_hdr);
+	req = (const struct eap_hdr *) reqData;
 	id = req->identifier;
-	pos++;
-	flags = *pos++;
-	left -= 2;
-	wpa_printf(MSG_DEBUG, "EAP-FAST: Received packet(len=%lu) - "
-		   "Flags 0x%02x", (unsigned long) reqDataLen, flags);
-	if (flags & EAP_TLS_FLAGS_LENGTH_INCLUDED) {
-		if (left < 4) {
-			wpa_printf(MSG_INFO, "EAP-FAST: Short frame with TLS "
-				   "length");
-			ret->ignore = TRUE;
-			return NULL;
-		}
-		tls_msg_len = (pos[0] << 24) | (pos[1] << 16) | (pos[2] << 8) |
-			pos[3];
-		wpa_printf(MSG_DEBUG, "EAP-FAST: TLS Message Length: %d",
-			   tls_msg_len);
-		if (data->ssl.tls_in_left == 0) {
-			data->ssl.tls_in_total = tls_msg_len;
-			data->ssl.tls_in_left = tls_msg_len;
-			free(data->ssl.tls_in);
-			data->ssl.tls_in = NULL;
-			data->ssl.tls_in_len = 0;
-		}
-		pos += 4;
-		left -= 4;
-	}
-
-	ret->ignore = FALSE;
-	ret->methodState = METHOD_CONT;
-	ret->decision = DECISION_FAIL;
-	ret->allowNotifications = TRUE;
 
 	if (flags & EAP_TLS_FLAGS_START) {
-		u8 *a_id;
+		const u8 *a_id;
 		size_t a_id_len;
 		struct pac_tlv_hdr *hdr;
 
