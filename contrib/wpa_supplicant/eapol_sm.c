@@ -20,15 +20,17 @@
 #include "eapol_sm.h"
 #include "eap.h"
 #include "eloop.h"
-#include "wpa_supplicant.h"
 #include "l2_packet.h"
 #include "wpa.h"
 #include "md5.h"
 #include "rc4.h"
 
 
-/* IEEE 802.1aa/D6.1 - Supplicant */
+/* IEEE 802.1X-2004 - Supplicant - EAPOL state machines */
 
+/**
+ * struct eapol_sm - Internal data for EAPOL state machines
+ */
 struct eapol_sm {
 	/* Timers */
 	unsigned int authWhile;
@@ -118,7 +120,7 @@ struct eapol_sm {
 	unsigned int dot1xSuppLastEapolFrameVersion;
 	unsigned char dot1xSuppLastEapolFrameSource[6];
 
-	/* Miscellaneous variables (not defined in IEEE 802.1aa/D6.1) */
+	/* Miscellaneous variables (not defined in IEEE 802.1X-2004) */
 	Boolean changed;
 	struct eap_sm *eap;
 	struct wpa_ssid *config;
@@ -141,6 +143,38 @@ struct eapol_sm {
 };
 
 
+#define IEEE8021X_REPLAY_COUNTER_LEN 8
+#define IEEE8021X_KEY_SIGN_LEN 16
+#define IEEE8021X_KEY_IV_LEN 16
+
+#define IEEE8021X_KEY_INDEX_FLAG 0x80
+#define IEEE8021X_KEY_INDEX_MASK 0x03
+
+struct ieee802_1x_eapol_key {
+	u8 type;
+	/* Note: key_length is unaligned */
+	u8 key_length[2];
+	/* does not repeat within the life of the keying material used to
+	 * encrypt the Key field; 64-bit NTP timestamp MAY be used here */
+	u8 replay_counter[IEEE8021X_REPLAY_COUNTER_LEN];
+	u8 key_iv[IEEE8021X_KEY_IV_LEN]; /* cryptographically random number */
+	u8 key_index; /* key flag in the most significant bit:
+		       * 0 = broadcast (default key),
+		       * 1 = unicast (key mapping key); key index is in the
+		       * 7 least significant bits */
+	/* HMAC-MD5 message integrity check computed with MS-MPPE-Send-Key as
+	 * the key */
+	u8 key_signature[IEEE8021X_KEY_SIGN_LEN];
+
+	/* followed by key: if packet body length = 44 + key length, then the
+	 * key field (of key_length bytes) contains the key in encrypted form;
+	 * if packet body length = 44, key field is absent and key_length
+	 * represents the number of least significant octets from
+	 * MS-MPPE-Send-Key attribute to be used as the keying material;
+	 * RC4 key used in encryption = Key-IV + MS-MPPE-Recv-Key */
+} __attribute__ ((packed));
+
+
 static void eapol_sm_txLogoff(struct eapol_sm *sm);
 static void eapol_sm_txStart(struct eapol_sm *sm);
 static void eapol_sm_processKey(struct eapol_sm *sm);
@@ -149,8 +183,6 @@ static void eapol_sm_txSuppRsp(struct eapol_sm *sm);
 static void eapol_sm_abortSupp(struct eapol_sm *sm);
 static void eapol_sm_abort_cached(struct eapol_sm *sm);
 static void eapol_sm_step_timeout(void *eloop_ctx, void *timeout_ctx);
-
-static struct eapol_callbacks eapol_cb;
 
 
 /* Definitions for clarifying state machine implementation */
@@ -182,17 +214,26 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 {
 	struct eapol_sm *sm = timeout_ctx;
 
-	if (sm->authWhile > 0)
+	if (sm->authWhile > 0) {
 		sm->authWhile--;
-	if (sm->heldWhile > 0)
+		if (sm->authWhile == 0)
+			wpa_printf(MSG_DEBUG, "EAPOL: authWhile --> 0");
+	}
+	if (sm->heldWhile > 0) {
 		sm->heldWhile--;
-	if (sm->startWhen > 0)
+		if (sm->heldWhile == 0)
+			wpa_printf(MSG_DEBUG, "EAPOL: heldWhile --> 0");
+	}
+	if (sm->startWhen > 0) {
 		sm->startWhen--;
-	if (sm->idleWhile > 0)
+		if (sm->startWhen == 0)
+			wpa_printf(MSG_DEBUG, "EAPOL: startWhen --> 0");
+	}
+	if (sm->idleWhile > 0) {
 		sm->idleWhile--;
-	wpa_printf(MSG_MSGDUMP, "EAPOL: Port Timers tick - authWhile=%d "
-		   "heldWhile=%d startWhen=%d idleWhile=%d",
-		   sm->authWhile, sm->heldWhile, sm->startWhen, sm->idleWhile);
+		if (sm->idleWhile == 0)
+			wpa_printf(MSG_DEBUG, "EAPOL: idleWhile --> 0");
+	}
 
 	eloop_register_timeout(1, 0, eapol_port_timers_tick, eloop_ctx, sm);
 	eapol_sm_step(sm);
@@ -224,11 +265,24 @@ SM_STATE(SUPP_PAE, DISCONNECTED)
 
 SM_STATE(SUPP_PAE, CONNECTING)
 {
+	int send_start = sm->SUPP_PAE_state == SUPP_PAE_CONNECTING;
 	SM_ENTRY(SUPP_PAE, CONNECTING);
-	sm->startWhen = sm->startPeriod;
-	sm->startCount++;
+	if (send_start) {
+		sm->startWhen = sm->startPeriod;
+		sm->startCount++;
+	} else {
+		/*
+		 * Do not send EAPOL-Start immediately since in most cases,
+		 * Authenticator is going to start authentication immediately
+		 * after association and an extra EAPOL-Start is just going to
+		 * delay authentication. Use a short timeout to send the first
+		 * EAPOL-Start if Authenticator does not start authentication.
+		 */
+		sm->startWhen = 3;
+	}
 	sm->eapolEap = FALSE;
-	eapol_sm_txStart(sm);
+	if (send_start)
+		eapol_sm_txStart(sm);
 }
 
 
@@ -532,8 +586,8 @@ SM_STEP(SUPP_BE)
 static void eapol_sm_txLogoff(struct eapol_sm *sm)
 {
 	wpa_printf(MSG_DEBUG, "EAPOL: txLogoff");
-	sm->ctx->eapol_send(sm->ctx->ctx, IEEE802_1X_TYPE_EAPOL_LOGOFF,
-			    (u8 *) "", 0);
+	sm->ctx->eapol_send(sm->ctx->eapol_send_ctx,
+			    IEEE802_1X_TYPE_EAPOL_LOGOFF, (u8 *) "", 0);
 	sm->dot1xSuppEapolLogoffFramesTx++;
 	sm->dot1xSuppEapolFramesTx++;
 }
@@ -542,8 +596,8 @@ static void eapol_sm_txLogoff(struct eapol_sm *sm)
 static void eapol_sm_txStart(struct eapol_sm *sm)
 {
 	wpa_printf(MSG_DEBUG, "EAPOL: txStart");
-	sm->ctx->eapol_send(sm->ctx->ctx, IEEE802_1X_TYPE_EAPOL_START,
-			    (u8 *) "", 0);
+	sm->ctx->eapol_send(sm->ctx->eapol_send_ctx,
+			    IEEE802_1X_TYPE_EAPOL_START, (u8 *) "", 0);
 	sm->dot1xSuppEapolStartFramesTx++;
 	sm->dot1xSuppEapolFramesTx++;
 }
@@ -566,6 +620,7 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 	u8 orig_key_sign[IEEE8021X_KEY_SIGN_LEN], datakey[32];
 	u8 ekey[IEEE8021X_KEY_IV_LEN + IEEE8021X_ENCR_KEY_LEN];
 	int key_len, res, sign_key_len, encr_key_len;
+	u16 rx_key_length;
 
 	wpa_printf(MSG_DEBUG, "EAPOL: processKey");
 	if (sm->last_rx_key == NULL)
@@ -584,11 +639,13 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 		wpa_printf(MSG_WARNING, "EAPOL: Too short EAPOL-Key frame");
 		return;
 	}
+	rx_key_length = WPA_GET_BE16(key->key_length);
 	wpa_printf(MSG_DEBUG, "EAPOL: RX IEEE 802.1X ver=%d type=%d len=%d "
 		   "EAPOL-Key: type=%d key_length=%d key_index=0x%x",
 		   hdr->version, hdr->type, be_to_host16(hdr->length),
-		   key->type, be_to_host16(key->key_length), key->key_index);
+		   key->type, rx_key_length, key->key_index);
 
+	eapol_sm_notify_lower_layer_success(sm);
 	sign_key_len = IEEE8021X_SIGN_KEY_LEN;
 	encr_key_len = IEEE8021X_ENCR_KEY_LEN;
 	res = eapol_sm_get_key(sm, (u8 *) &keydata, sizeof(keydata));
@@ -645,12 +702,12 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 	wpa_printf(MSG_DEBUG, "EAPOL: EAPOL-Key key signature verified");
 
 	key_len = be_to_host16(hdr->length) - sizeof(*key);
-	if (key_len > 32 || be_to_host16(key->key_length) > 32) {
+	if (key_len > 32 || rx_key_length > 32) {
 		wpa_printf(MSG_WARNING, "EAPOL: Too long key data length %d",
-			   key_len ? key_len : be_to_host16(key->key_length));
+			   key_len ? key_len : rx_key_length);
 		return;
 	}
-	if (key_len == be_to_host16(key->key_length)) {
+	if (key_len == rx_key_length) {
 		memcpy(ekey, key->key_iv, IEEE8021X_KEY_IV_LEN);
 		memcpy(ekey + IEEE8021X_KEY_IV_LEN, keydata.encr_key,
 		       encr_key_len);
@@ -660,22 +717,23 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 		wpa_hexdump_key(MSG_DEBUG, "EAPOL: Decrypted(RC4) key",
 				datakey, key_len);
 	} else if (key_len == 0) {
-		/* IEEE 802.1X-REV specifies that least significant Key Length
+		/*
+		 * IEEE 802.1X-2004 specifies that least significant Key Length
 		 * octets from MS-MPPE-Send-Key are used as the key if the key
 		 * data is not present. This seems to be meaning the beginning
 		 * of the MS-MPPE-Send-Key. In addition, MS-MPPE-Send-Key in
 		 * Supplicant corresponds to MS-MPPE-Recv-Key in Authenticator.
 		 * Anyway, taking the beginning of the keying material from EAP
-		 * seems to interoperate with Authenticators. */
-		key_len = be_to_host16(key->key_length);
+		 * seems to interoperate with Authenticators.
+		 */
+		key_len = rx_key_length;
 		memcpy(datakey, keydata.encr_key, key_len);
 		wpa_hexdump_key(MSG_DEBUG, "EAPOL: using part of EAP keying "
 				"material data encryption key",
 				datakey, key_len);
 	} else {
 		wpa_printf(MSG_DEBUG, "EAPOL: Invalid key data length %d "
-			   "(key_length=%d)", key_len,
-			   be_to_host16(key->key_length));
+			   "(key_length=%d)", key_len, rx_key_length);
 		return;
 	}
 
@@ -741,8 +799,8 @@ static void eapol_sm_txSuppRsp(struct eapol_sm *sm)
 	}
 
 	/* Send EAP-Packet from the EAP layer to the Authenticator */
-	sm->ctx->eapol_send(sm->ctx->ctx, IEEE802_1X_TYPE_EAP_PACKET,
-			    resp, resp_len);
+	sm->ctx->eapol_send(sm->ctx->eapol_send_ctx,
+			    IEEE802_1X_TYPE_EAP_PACKET, resp, resp_len);
 
 	/* eapRespData is not used anymore, so free it here */
 	free(resp);
@@ -768,63 +826,20 @@ static void eapol_sm_abortSupp(struct eapol_sm *sm)
 }
 
 
-struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
-{
-	struct eapol_sm *sm;
-	sm = malloc(sizeof(*sm));
-	if (sm == NULL)
-		return NULL;
-	memset(sm, 0, sizeof(*sm));
-	sm->ctx = ctx;
-
-	sm->portControl = Auto;
-
-	/* Supplicant PAE state machine */
-	sm->heldPeriod = 60;
-	sm->startPeriod = 30;
-	sm->maxStart = 3;
-
-	/* Supplicant Backend state machine */
-	sm->authPeriod = 30;
-
-	sm->eap = eap_sm_init(sm, &eapol_cb, sm->ctx->msg_ctx);
-	if (sm->eap == NULL) {
-		free(sm);
-		return NULL;
-	}
-
-	/* Initialize EAPOL state machines */
-	sm->initialize = TRUE;
-	eapol_sm_step(sm);
-	sm->initialize = FALSE;
-	eapol_sm_step(sm);
-
-	eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm);
-
-	return sm;
-}
-
-
-void eapol_sm_deinit(struct eapol_sm *sm)
-{
-	if (sm == NULL)
-		return;
-	eloop_cancel_timeout(eapol_sm_step_timeout, NULL, sm);
-	eloop_cancel_timeout(eapol_port_timers_tick, NULL, sm);
-	eap_sm_deinit(sm->eap);
-	free(sm->last_rx_key);
-	free(sm->eapReqData);
-	free(sm->ctx);
-	free(sm);
-}
-
-
 static void eapol_sm_step_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	eapol_sm_step(timeout_ctx);
 }
 
 
+/**
+ * eapol_sm_step - EAPOL state machine step function
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * This function is called to notify the state machine about changed external
+ * variables. It will step through the EAPOL state machines in loop to process
+ * all triggered state changes.
+ */
 void eapol_sm_step(struct eapol_sm *sm)
 {
 	int i;
@@ -929,6 +944,17 @@ static const char * eapol_port_control(PortControl ctrl)
 }
 
 
+/**
+ * eapol_sm_configure - Set EAPOL variables
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @heldPeriod: dot1xSuppHeldPeriod
+ * @authPeriod: dot1xSuppAuthPeriod
+ * @startPeriod: dot1xSuppStartPeriod
+ * @maxStart: dot1xSuppMaxStart
+ *
+ * Set configurable EAPOL state machine variables. Each variable can be set to
+ * the given value or ignored if set to -1 (to set only some of the variables).
+ */
 void eapol_sm_configure(struct eapol_sm *sm, int heldPeriod, int authPeriod,
 			int startPeriod, int maxStart)
 {
@@ -945,6 +971,19 @@ void eapol_sm_configure(struct eapol_sm *sm, int heldPeriod, int authPeriod,
 }
 
 
+/**
+ * eapol_sm_get_status - Get EAPOL state machine status
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @buf: Buffer for status information
+ * @buflen: Maximum buffer length
+ * @verbose: Whether to include verbose status information
+ * Returns: Number of bytes written to buf.
+ *
+ * Query EAPOL state machine for status information. This function fills in a
+ * text area with current status information from the EAPOL state machine. If
+ * the buffer (buf) is not large enough, status information will be truncated
+ * to fit the buffer.
+ */
 int eapol_sm_get_status(struct eapol_sm *sm, char *buf, size_t buflen,
 			int verbose)
 {
@@ -960,10 +999,10 @@ int eapol_sm_get_status(struct eapol_sm *sm, char *buf, size_t buflen,
 
 	if (verbose) {
 		len += snprintf(buf + len, buflen - len,
-				"heldPeriod=%d\n"
-				"authPeriod=%d\n"
-				"startPeriod=%d\n"
-				"maxStart=%d\n"
+				"heldPeriod=%u\n"
+				"authPeriod=%u\n"
+				"startPeriod=%u\n"
+				"maxStart=%u\n"
 				"portControl=%s\n"
 				"Supplicant Backend state=%s\n",
 				sm->heldPeriod,
@@ -980,6 +1019,18 @@ int eapol_sm_get_status(struct eapol_sm *sm, char *buf, size_t buflen,
 }
 
 
+/**
+ * eapol_sm_get_mib - Get EAPOL state machine MIBs
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @buf: Buffer for MIB information
+ * @buflen: Maximum buffer length
+ * Returns: Number of bytes written to buf.
+ *
+ * Query EAPOL state machine for MIB information. This function fills in a
+ * text area with current MIB information from the EAPOL state machine. If
+ * the buffer (buf) is not large enough, MIB information will be truncated to
+ * fit the buffer.
+ */
 int eapol_sm_get_mib(struct eapol_sm *sm, char *buf, size_t buflen)
 {
 	int len;
@@ -987,22 +1038,22 @@ int eapol_sm_get_mib(struct eapol_sm *sm, char *buf, size_t buflen)
 		return 0;
 	len = snprintf(buf, buflen,
 		       "dot1xSuppPaeState=%d\n"
-		       "dot1xSuppHeldPeriod=%d\n"
-		       "dot1xSuppAuthPeriod=%d\n"
-		       "dot1xSuppStartPeriod=%d\n"
-		       "dot1xSuppMaxStart=%d\n"
+		       "dot1xSuppHeldPeriod=%u\n"
+		       "dot1xSuppAuthPeriod=%u\n"
+		       "dot1xSuppStartPeriod=%u\n"
+		       "dot1xSuppMaxStart=%u\n"
 		       "dot1xSuppSuppControlledPortStatus=%s\n"
 		       "dot1xSuppBackendPaeState=%d\n"
-		       "dot1xSuppEapolFramesRx=%d\n"
-		       "dot1xSuppEapolFramesTx=%d\n"
-		       "dot1xSuppEapolStartFramesTx=%d\n"
-		       "dot1xSuppEapolLogoffFramesTx=%d\n"
-		       "dot1xSuppEapolRespFramesTx=%d\n"
-		       "dot1xSuppEapolReqIdFramesRx=%d\n"
-		       "dot1xSuppEapolReqFramesRx=%d\n"
-		       "dot1xSuppInvalidEapolFramesRx=%d\n"
-		       "dot1xSuppEapLengthErrorFramesRx=%d\n"
-		       "dot1xSuppLastEapolFrameVersion=%d\n"
+		       "dot1xSuppEapolFramesRx=%u\n"
+		       "dot1xSuppEapolFramesTx=%u\n"
+		       "dot1xSuppEapolStartFramesTx=%u\n"
+		       "dot1xSuppEapolLogoffFramesTx=%u\n"
+		       "dot1xSuppEapolRespFramesTx=%u\n"
+		       "dot1xSuppEapolReqIdFramesRx=%u\n"
+		       "dot1xSuppEapolReqFramesRx=%u\n"
+		       "dot1xSuppInvalidEapolFramesRx=%u\n"
+		       "dot1xSuppEapLengthErrorFramesRx=%u\n"
+		       "dot1xSuppLastEapolFrameVersion=%u\n"
 		       "dot1xSuppLastEapolFrameSource=" MACSTR "\n",
 		       sm->SUPP_PAE_state,
 		       sm->heldPeriod,
@@ -1027,20 +1078,31 @@ int eapol_sm_get_mib(struct eapol_sm *sm, char *buf, size_t buflen)
 }
 
 
-void eapol_sm_rx_eapol(struct eapol_sm *sm, u8 *src, u8 *buf, size_t len)
+/**
+ * eapol_sm_rx_eapol - Process received EAPOL frames
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @src: Source MAC address of the EAPOL packet
+ * @buf: Pointer to the beginning of the EAPOL data (EAPOL header)
+ * @len: Length of the EAPOL frame
+ * Returns: 1 = EAPOL frame processed, 0 = not for EAPOL state machine,
+ * -1 failure
+ */
+int eapol_sm_rx_eapol(struct eapol_sm *sm, const u8 *src, const u8 *buf,
+		      size_t len)
 {
-	struct ieee802_1x_hdr *hdr;
-	struct ieee802_1x_eapol_key *key;
+	const struct ieee802_1x_hdr *hdr;
+	const struct ieee802_1x_eapol_key *key;
 	int plen, data_len;
+	int res = 1;
 
 	if (sm == NULL)
-		return;
+		return 0;
 	sm->dot1xSuppEapolFramesRx++;
 	if (len < sizeof(*hdr)) {
 		sm->dot1xSuppInvalidEapolFramesRx++;
-		return;
+		return 0;
 	}
-	hdr = (struct ieee802_1x_hdr *) buf;
+	hdr = (const struct ieee802_1x_hdr *) buf;
 	sm->dot1xSuppLastEapolFrameVersion = hdr->version;
 	memcpy(sm->dot1xSuppLastEapolFrameSource, src, ETH_ALEN);
 	if (hdr->version < EAPOL_VERSION) {
@@ -1049,7 +1111,7 @@ void eapol_sm_rx_eapol(struct eapol_sm *sm, u8 *src, u8 *buf, size_t len)
 	plen = be_to_host16(hdr->length);
 	if (plen > len - sizeof(*hdr)) {
 		sm->dot1xSuppEapLengthErrorFramesRx++;
-		return;
+		return 0;
 	}
 	data_len = plen + sizeof(*hdr);
 
@@ -1080,12 +1142,13 @@ void eapol_sm_rx_eapol(struct eapol_sm *sm, u8 *src, u8 *buf, size_t len)
 				   "frame received");
 			break;
 		}
-		key = (struct ieee802_1x_eapol_key *) (hdr + 1);
+		key = (const struct ieee802_1x_eapol_key *) (hdr + 1);
 		if (key->type == EAPOL_KEY_TYPE_WPA ||
 		    key->type == EAPOL_KEY_TYPE_RSN) {
 			/* WPA Supplicant takes care of this frame. */
 			wpa_printf(MSG_DEBUG, "EAPOL: Ignoring WPA EAPOL-Key "
 				   "frame in EAPOL state machines");
+			res = 0;
 			break;
 		}
 		if (key->type != EAPOL_KEY_TYPE_RC4) {
@@ -1110,9 +1173,18 @@ void eapol_sm_rx_eapol(struct eapol_sm *sm, u8 *src, u8 *buf, size_t len)
 		sm->dot1xSuppInvalidEapolFramesRx++;
 		break;
 	}
+
+	return res;
 }
 
 
+/**
+ * eapol_sm_notify_tx_eapol_key - Notification about transmitted EAPOL packet
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * Notify EAPOL station machine about transmitted EAPOL packet from an external
+ * component, e.g., WPA. This will update the statistics.
+ */
 void eapol_sm_notify_tx_eapol_key(struct eapol_sm *sm)
 {
 	if (sm)
@@ -1120,6 +1192,13 @@ void eapol_sm_notify_tx_eapol_key(struct eapol_sm *sm)
 }
 
 
+/**
+ * eapol_sm_notify_portEnabled - Notification about portEnabled change
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @enabled: New portEnabled value
+ *
+ * Notify EAPOL station machine about new portEnabled value.
+ */
 void eapol_sm_notify_portEnabled(struct eapol_sm *sm, Boolean enabled)
 {
 	if (sm == NULL)
@@ -1131,6 +1210,13 @@ void eapol_sm_notify_portEnabled(struct eapol_sm *sm, Boolean enabled)
 }
 
 
+/**
+ * eapol_sm_notify_portValid - Notification about portValid change
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @valid: New portValid value
+ *
+ * Notify EAPOL station machine about new portValid value.
+ */
 void eapol_sm_notify_portValid(struct eapol_sm *sm, Boolean valid)
 {
 	if (sm == NULL)
@@ -1142,6 +1228,17 @@ void eapol_sm_notify_portValid(struct eapol_sm *sm, Boolean valid)
 }
 
 
+/**
+ * eapol_sm_notify_eap_success - Notification of external EAP success trigger
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @success: %TRUE = set success, %FALSE = clear success
+ *
+ * Notify EAPOL station machine that external event has forced EAP state to
+ * success (success = %TRUE). This can be cleared by setting success = %FALSE.
+ *
+ * This function is called to update EAP state when WPA-PSK key handshake has
+ * been completed successfully since WPA-PSK does not use EAP state machine.
+ */
 void eapol_sm_notify_eap_success(struct eapol_sm *sm, Boolean success)
 {
 	if (sm == NULL)
@@ -1156,6 +1253,14 @@ void eapol_sm_notify_eap_success(struct eapol_sm *sm, Boolean success)
 }
 
 
+/**
+ * eapol_sm_notify_eap_fail - Notification of external EAP failure trigger
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @fail: %TRUE = set failure, %FALSE = clear failure
+ *
+ * Notify EAPOL station machine that external event has forced EAP state to
+ * failure (fail = %TRUE). This can be cleared by setting fail = %FALSE.
+ */
 void eapol_sm_notify_eap_fail(struct eapol_sm *sm, Boolean fail)
 {
 	if (sm == NULL)
@@ -1168,8 +1273,20 @@ void eapol_sm_notify_eap_fail(struct eapol_sm *sm, Boolean fail)
 }
 
 
+/**
+ * eapol_sm_notify_config - Notification of EAPOL configuration change
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @config: Pointer to current network configuration
+ * @conf: Pointer to EAPOL configuration data
+ *
+ * Notify EAPOL station machine that configuration has changed. config will be
+ * stored as a backpointer to network configuration. This can be %NULL to clear
+ * the stored pointed. conf will be copied to local EAPOL/EAP configuration
+ * data. If conf is %NULL, this part of the configuration change will be
+ * skipped.
+ */
 void eapol_sm_notify_config(struct eapol_sm *sm, struct wpa_ssid *config,
-			    struct eapol_config *conf)
+			    const struct eapol_config *conf)
 {
 	if (sm == NULL)
 		return;
@@ -1185,13 +1302,25 @@ void eapol_sm_notify_config(struct eapol_sm *sm, struct wpa_ssid *config,
 	if (sm->eap) {
 		eap_set_fast_reauth(sm->eap, conf->fast_reauth);
 		eap_set_workaround(sm->eap, conf->workaround);
+		eap_set_force_disabled(sm->eap, conf->eap_disabled);
 	}
 }
 
 
+/**
+ * eapol_sm_get_key - Get master session key (MSK) from EAP
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @key: Pointer for key buffer
+ * @len: Number of bytes to copy to key
+ * Returns: 0 on success (len of key available), maximum available key len
+ * (>0) if key is available but it is shorter than len, or -1 on failure.
+ *
+ * Fetch EAP keying material (MSK, eapKeyData) from EAP state machine. The key
+ * is available only after a successful authentication.
+ */
 int eapol_sm_get_key(struct eapol_sm *sm, u8 *key, size_t len)
 {
-	u8 *eap_key;
+	const u8 *eap_key;
 	size_t eap_len;
 
 	if (sm == NULL || !eap_key_available(sm->eap))
@@ -1206,6 +1335,13 @@ int eapol_sm_get_key(struct eapol_sm *sm, u8 *key, size_t len)
 }
 
 
+/**
+ * eapol_sm_notify_logoff - Notification of logon/logoff commands
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @logoff: Whether command was logoff
+ *
+ * Notify EAPOL state machines that user requested logon/logoff.
+ */
 void eapol_sm_notify_logoff(struct eapol_sm *sm, Boolean logoff)
 {
 	if (sm) {
@@ -1215,6 +1351,13 @@ void eapol_sm_notify_logoff(struct eapol_sm *sm, Boolean logoff)
 }
 
 
+/**
+ * eapol_sm_notify_pmkid_attempt - Notification of successful PMKSA caching
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * Notify EAPOL state machines that PMKSA caching was successful. This is used
+ * to move EAPOL and EAP state machines into authenticated/successful state.
+ */
 void eapol_sm_notify_cached(struct eapol_sm *sm)
 {
 	if (sm == NULL)
@@ -1225,6 +1368,13 @@ void eapol_sm_notify_cached(struct eapol_sm *sm)
 }
 
 
+/**
+ * eapol_sm_notify_pmkid_attempt - Notification of PMKSA caching
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @attempt: Whether PMKSA caching is tried
+ *
+ * Notify EAPOL state machines whether PMKSA caching is used.
+ */
 void eapol_sm_notify_pmkid_attempt(struct eapol_sm *sm, int attempt)
 {
 	if (sm == NULL)
@@ -1252,6 +1402,14 @@ static void eapol_sm_abort_cached(struct eapol_sm *sm)
 }
 
 
+/**
+ * eapol_sm_register_scard_ctx - Notification of smart card context
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @ctx: Context data for smart card operations
+ *
+ * Notify EAPOL state machines of context data for smart card operations. This
+ * context data will be used as a parameter for scard_*() functions.
+ */
 void eapol_sm_register_scard_ctx(struct eapol_sm *sm, void *ctx)
 {
 	if (sm) {
@@ -1261,6 +1419,13 @@ void eapol_sm_register_scard_ctx(struct eapol_sm *sm, void *ctx)
 }
 
 
+/**
+ * eapol_sm_notify_portControl - Notification of portControl changes
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * @portControl: New value for portControl variable
+ *
+ * Notify EAPOL state machines that portControl variable has changed.
+ */
 void eapol_sm_notify_portControl(struct eapol_sm *sm, PortControl portControl)
 {
 	if (sm == NULL)
@@ -1272,6 +1437,13 @@ void eapol_sm_notify_portControl(struct eapol_sm *sm, PortControl portControl)
 }
 
 
+/**
+ * eapol_sm_notify_ctrl_attached - Notification of attached monitor
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * Notify EAPOL state machines that a monitor was attached to the control
+ * interface to trigger re-sending of pending requests for user input.
+ */
 void eapol_sm_notify_ctrl_attached(struct eapol_sm *sm)
 {
 	if (sm == NULL)
@@ -1280,6 +1452,13 @@ void eapol_sm_notify_ctrl_attached(struct eapol_sm *sm)
 }
 
 
+/**
+ * eapol_sm_notify_ctrl_response - Notification of received user input
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * Notify EAPOL state machines that a control response, i.e., user
+ * input, was received in order to trigger retrying of a pending EAP request.
+ */
 void eapol_sm_notify_ctrl_response(struct eapol_sm *sm)
 {
 	if (sm == NULL)
@@ -1292,6 +1471,37 @@ void eapol_sm_notify_ctrl_response(struct eapol_sm *sm)
 		sm->eapReq = TRUE;
 		eapol_sm_step(sm);
 	}
+}
+
+
+/**
+ * eapol_sm_request_reauth - Request reauthentication
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * This function can be used to request EAPOL reauthentication, e.g., when the
+ * current PMKSA entry is nearing expiration.
+ */
+void eapol_sm_request_reauth(struct eapol_sm *sm)
+{
+	if (sm == NULL || sm->SUPP_PAE_state != SUPP_PAE_AUTHENTICATED)
+		return;
+	eapol_sm_txStart(sm);
+}
+
+
+/**
+ * eapol_sm_notify_lower_layer_success - Notification of lower layer success
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * Notify EAPOL (and EAP) state machines that a lower layer has detected a
+ * successful authentication. This is used to recover from dropped EAP-Success
+ * messages.
+ */
+void eapol_sm_notify_lower_layer_success(struct eapol_sm *sm)
+{
+	if (sm == NULL)
+		return;
+	eap_notify_lower_layer_success(sm->eap);
 }
 
 
@@ -1409,6 +1619,25 @@ static void eapol_sm_set_int(void *ctx, enum eapol_int_var variable,
 }
 
 
+static void eapol_sm_set_config_blob(void *ctx, struct wpa_config_blob *blob)
+{
+	struct eapol_sm *sm = ctx;
+	if (sm && sm->ctx && sm->ctx->set_config_blob)
+		sm->ctx->set_config_blob(sm->ctx->ctx, blob);
+}
+
+
+static const struct wpa_config_blob *
+eapol_sm_get_config_blob(void *ctx, const char *name)
+{
+	struct eapol_sm *sm = ctx;
+	if (sm && sm->ctx && sm->ctx->get_config_blob)
+		return sm->ctx->get_config_blob(sm->ctx->ctx, name);
+	else
+		return NULL;
+}
+
+
 static struct eapol_callbacks eapol_cb =
 {
 	.get_config = eapol_sm_get_config,
@@ -1417,4 +1646,77 @@ static struct eapol_callbacks eapol_cb =
 	.get_int = eapol_sm_get_int,
 	.set_int = eapol_sm_set_int,
 	.get_eapReqData = eapol_sm_get_eapReqData,
+	.set_config_blob = eapol_sm_set_config_blob,
+	.get_config_blob = eapol_sm_get_config_blob,
 };
+
+
+/**
+ * eapol_sm_init - Initialize EAPOL state machine
+ * @ctx: Pointer to EAPOL context data; this needs to be an allocated buffer
+ * and EAPOL state machine will free it in eapol_sm_deinit()
+ * Returns: Pointer to the allocated EAPOL state machine or %NULL on failure
+ *
+ * Allocate and initialize an EAPOL state machine.
+ */
+struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
+{
+	struct eapol_sm *sm;
+	struct eap_config conf;
+	sm = malloc(sizeof(*sm));
+	if (sm == NULL)
+		return NULL;
+	memset(sm, 0, sizeof(*sm));
+	sm->ctx = ctx;
+
+	sm->portControl = Auto;
+
+	/* Supplicant PAE state machine */
+	sm->heldPeriod = 60;
+	sm->startPeriod = 30;
+	sm->maxStart = 3;
+
+	/* Supplicant Backend state machine */
+	sm->authPeriod = 30;
+
+	memset(&conf, 0, sizeof(conf));
+	conf.opensc_engine_path = ctx->opensc_engine_path;
+	conf.pkcs11_engine_path = ctx->pkcs11_engine_path;
+	conf.pkcs11_module_path = ctx->pkcs11_module_path;
+
+	sm->eap = eap_sm_init(sm, &eapol_cb, sm->ctx->msg_ctx, &conf);
+	if (sm->eap == NULL) {
+		free(sm);
+		return NULL;
+	}
+
+	/* Initialize EAPOL state machines */
+	sm->initialize = TRUE;
+	eapol_sm_step(sm);
+	sm->initialize = FALSE;
+	eapol_sm_step(sm);
+
+	eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm);
+
+	return sm;
+}
+
+
+/**
+ * eapol_sm_deinit - Deinitialize EAPOL state machine
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ *
+ * Deinitialize and free EAPOL state machine.
+ */
+void eapol_sm_deinit(struct eapol_sm *sm)
+{
+	if (sm == NULL)
+		return;
+	eloop_cancel_timeout(eapol_sm_step_timeout, NULL, sm);
+	eloop_cancel_timeout(eapol_port_timers_tick, NULL, sm);
+	eap_sm_deinit(sm->eap);
+	free(sm->last_rx_key);
+	free(sm->eapReqData);
+	free(sm->ctx);
+	free(sm);
+}
