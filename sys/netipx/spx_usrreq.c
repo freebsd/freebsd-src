@@ -72,6 +72,7 @@ static int	spx_hardnosed;
 static int	spx_use_delack = 0;
 static int	traceallspxs = 0;
 static struct	spx_istat spx_istat;
+static int	spxrexmtthresh = 3;
 
 /* Following was struct spxstat spxstat; */
 #ifndef spxstat
@@ -380,8 +381,6 @@ bad:
 	IPX_LIST_UNLOCK();
 	m_freem(m);
 }
-
-static int spxrexmtthresh = 3;
 
 /*
  * This is structurally similar to the tcp reassembly routine
