@@ -715,13 +715,13 @@ cbb_detect_voltage(device_t brdev)
 
 	psr = cbb_get(sc, CBB_SOCKET_STATE);
 
-	if (psr & CBB_STATE_5VCARD)
+	if (psr & CBB_STATE_5VCARD && psr & CBB_STATE_5VSOCK)
 		vol |= CARD_5V_CARD;
-	if (psr & CBB_STATE_3VCARD)
+	if (psr & CBB_STATE_3VCARD && psr & CBB_STATE_3VSOCK)
 		vol |= CARD_3V_CARD;
-	if (psr & CBB_STATE_XVCARD)
+	if (psr & CBB_STATE_XVCARD && psr & CBB_STATE_XVSOCK)
 		vol |= CARD_XV_CARD;
-	if (psr & CBB_STATE_YVCARD)
+	if (psr & CBB_STATE_YVCARD && psr & CBB_STATE_YVSOCK)
 		vol |= CARD_YV_CARD;
 
 	return (vol);
