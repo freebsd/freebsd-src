@@ -47,6 +47,8 @@ __weak_reference(__aio_return, _aio_return);
 __weak_reference(__aio_return, aio_return);
 __weak_reference(__aio_waitcomplete, _aio_waitcomplete);
 __weak_reference(__aio_waitcomplete, aio_waitcomplete);
+__weak_reference(__aio_fsync, _aio_fsync);
+__weak_reference(__aio_fsync, aio_fsync);
 
 typedef void (*aio_func)(union sigval val, struct aiocb *iocb);
 
@@ -55,6 +57,7 @@ extern int __sys_aio_write(struct aiocb *iocb);
 extern int __sys_aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout);
 extern int __sys_aio_return(struct aiocb *iocb);
 extern int __sys_aio_error(struct aiocb *iocb);
+extern int __sys_aio_fsync(int op, struct aiocb *iocb);
 
 static void
 aio_dispatch(struct sigev_node *sn)
@@ -62,6 +65,34 @@ aio_dispatch(struct sigev_node *sn)
 	aio_func f = sn->sn_func;
 
 	f(sn->sn_value, (struct aiocb *)sn->sn_id);
+}
+
+static int
+aio_sigev_alloc(struct aiocb *iocb, struct sigev_node **sn,
+	struct sigevent *saved_ev)
+{
+	if (__sigev_check_init()) {
+		/* This might be that thread library is not enabled. */
+		errno = EINVAL;
+		return (-1);
+	}
+
+	*sn = __sigev_alloc(SI_ASYNCIO, &iocb->aio_sigevent, NULL, 1);
+	if (*sn == NULL) {
+		errno = EAGAIN;
+		return (-1);
+	}
+	
+	*saved_ev = iocb->aio_sigevent;
+	(*sn)->sn_id = (sigev_id_t)iocb;
+	__sigev_get_sigevent(*sn, &iocb->aio_sigevent, (*sn)->sn_id);
+	(*sn)->sn_dispatch = aio_dispatch;
+
+	__sigev_list_lock();
+	__sigev_register(*sn);
+	__sigev_list_unlock();
+
+	return (0);
 }
 
 static int
@@ -76,30 +107,11 @@ aio_io(struct aiocb *iocb, int (*sysfunc)(struct aiocb *iocb))
 		return (ret);
 	}
 
-	if (__sigev_check_init()) {
-		/* This might be that thread library is not enabled. */
-		errno = EINVAL;
-		return (-1);
-	}
-
-	sn = __sigev_alloc(SI_ASYNCIO, &iocb->aio_sigevent, NULL, 1);
-	if (sn == NULL) {
-		errno = EAGAIN;
-		return (-1);
-	}
-	
-	saved_ev = iocb->aio_sigevent;
-	sn->sn_id = (sigev_id_t)iocb;
-	__sigev_get_sigevent(sn, &iocb->aio_sigevent, sn->sn_id);
-
-	__sigev_list_lock();
-	__sigev_register(sn);
-	__sigev_list_unlock();
-
-	sn->sn_dispatch = aio_dispatch;
+	ret = aio_sigev_alloc(iocb, &sn, &saved_ev);
+	if (ret)
+		return (ret);
 	ret = sysfunc(iocb);
 	iocb->aio_sigevent = saved_ev;
-
 	if (ret != 0) {
 		err = errno;
 		__sigev_list_lock();
@@ -156,4 +168,29 @@ __aio_return(struct aiocb *iocb)
 	}
 
 	return __sys_aio_return(iocb);
+}
+
+int
+__aio_fsync(int op, struct aiocb *iocb)
+{
+	struct sigev_node *sn;
+	struct sigevent saved_ev;
+	int ret, err;
+
+	if (iocb->aio_sigevent.sigev_notify != SIGEV_THREAD)
+		return __sys_aio_fsync(op, iocb);
+
+	ret = aio_sigev_alloc(iocb, &sn, &saved_ev);
+	if (ret)
+		return (ret);
+	ret = __sys_aio_fsync(op, iocb);
+	iocb->aio_sigevent = saved_ev;
+	if (ret != 0) {
+		err = errno;
+		__sigev_list_lock();
+		__sigev_delete_node(sn);
+		__sigev_list_unlock();
+		errno = err;
+	}
+	return (ret);
 }
