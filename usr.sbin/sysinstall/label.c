@@ -1522,6 +1522,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
     if (UsrChunk == NULL && !variable_get(VAR_NO_USR)) {
 	sz = requested_part_size(VAR_USR_SIZE, USR_NOMINAL_SIZE, USR_DEFAULT_SIZE, perc);
 #if AUTO_HOME == 0
+	if (sz < space_free(label_chunk_info[here].c))
 	    sz = space_free(label_chunk_info[here].c);
 #endif
 	if (sz) {
