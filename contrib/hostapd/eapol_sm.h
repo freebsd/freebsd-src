@@ -110,6 +110,16 @@ struct eapol_ctrl_dir {
 
 struct eap_sm;
 
+struct radius_attr_data {
+	u8 *data;
+	size_t len;
+};
+
+struct radius_class_data {
+	struct radius_attr_data *attr;
+	size_t count;
+};
+
 struct eapol_state_machine {
 	/* timers */
 	int aWhile;
@@ -175,8 +185,7 @@ struct eapol_state_machine {
 	size_t last_eap_radius_len;
 	u8 *identity;
 	size_t identity_len;
-	u8 *radius_class;
-	size_t radius_class_len;
+	struct radius_class_data radius_class;
 
 	/* Keys for encrypting and signing EAPOL-Key frames */
 	u8 *eapol_key_sign;

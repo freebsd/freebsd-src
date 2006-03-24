@@ -19,7 +19,7 @@
 
 #include "hostapd.h"
 #include "common.h"
-#include "sha1.h"
+#include "crypto.h"
 #include "eap_i.h"
 #include "eap_sim_common.h"
 #include "eap_sim_db.h"

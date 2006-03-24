@@ -47,6 +47,7 @@ static struct radius_msg * accounting_msg(hostapd *hapd, struct sta_info *sta,
 	char buf[128];
 	u8 *val;
 	size_t len;
+	int i;
 
 	msg = radius_msg_new(RADIUS_CODE_ACCOUNTING_REQUEST,
 			     radius_client_get_id(hapd->radius));
@@ -99,11 +100,21 @@ static struct radius_msg * accounting_msg(hostapd *hapd, struct sta_info *sta,
 		}
 	}
 
-	if (!radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
-				 (u8 *) &hapd->conf->own_ip_addr, 4)) {
+	if (hapd->conf->own_ip_addr.af == AF_INET &&
+	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
+				 (u8 *) &hapd->conf->own_ip_addr.u.v4, 4)) {
 		printf("Could not add NAS-IP-Address\n");
 		goto fail;
 	}
+
+#ifdef CONFIG_IPV6
+	if (hapd->conf->own_ip_addr.af == AF_INET6 &&
+	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IPV6_ADDRESS,
+				 (u8 *) &hapd->conf->own_ip_addr.u.v6, 16)) {
+		printf("Could not add NAS-IPv6-Address\n");
+		goto fail;
+	}
+#endif /* CONFIG_IPV6 */
 
 	if (hapd->conf->nas_identifier &&
 	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IDENTIFIER,
@@ -150,11 +161,17 @@ static struct radius_msg * accounting_msg(hostapd *hapd, struct sta_info *sta,
 			goto fail;
 		}
 
-		val = ieee802_1x_get_radius_class(sta->eapol_sm, &len);
-		if (val &&
-		    !radius_msg_add_attr(msg, RADIUS_ATTR_CLASS, val, len)) {
-			printf("Could not add Class\n");
-			goto fail;
+		for (i = 0; ; i++) {
+			val = ieee802_1x_get_radius_class(sta->eapol_sm, &len,
+							  i);
+			if (val == NULL)
+				break;
+
+			if (!radius_msg_add_attr(msg, RADIUS_ATTR_CLASS,
+						 val, len)) {
+				printf("Could not add Class\n");
+				goto fail;
+			}
 		}
 	}
 
@@ -225,7 +242,7 @@ void accounting_sta_start(hostapd *hapd, struct sta_info *sta)
 	sta->acct_input_gigawords = sta->acct_output_gigawords = 0;
 	hostapd_sta_clear_stats(hapd, sta->addr);
 
-	if (!hapd->conf->acct_server)
+	if (!hapd->conf->radius->acct_server)
 		return;
 
 	if (sta->acct_interim_interval)
@@ -250,7 +267,7 @@ void accounting_sta_report(hostapd *hapd, struct sta_info *sta, int stop)
 	struct hostap_sta_driver_data data;
 	u32 gigawords;
 
-	if (!hapd->conf->acct_server)
+	if (!hapd->conf->radius->acct_server)
 		return;
 
 	msg = accounting_msg(hapd, sta,
@@ -380,8 +397,7 @@ accounting_receive(struct radius_msg *msg, struct radius_msg *req,
 		return RADIUS_RX_UNKNOWN;
 	}
 
-	if (radius_msg_verify_acct(msg, shared_secret, shared_secret_len, req))
-	{
+	if (radius_msg_verify(msg, shared_secret, shared_secret_len, req, 0)) {
 		printf("Incoming RADIUS packet did not have correct "
 		       "Authenticator - dropped\n");
 		return RADIUS_RX_INVALID_AUTHENTICATOR;
@@ -395,7 +411,7 @@ static void accounting_report_state(struct hostapd_data *hapd, int on)
 {
 	struct radius_msg *msg;
 
-	if (!hapd->conf->acct_server || hapd->radius == NULL)
+	if (!hapd->conf->radius->acct_server || hapd->radius == NULL)
 		return;
 
 	/* Inform RADIUS server that accounting will start/stop so that the

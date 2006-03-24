@@ -12,7 +12,13 @@
  * See README and COPYING for more details.
  */
 
-void * tls_init(void)
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "common.h"
+#include "tls.h"
+
+void * tls_init(const struct tls_config *conf)
 {
 	return (void *) 1;
 }

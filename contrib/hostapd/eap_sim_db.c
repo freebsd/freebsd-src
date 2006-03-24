@@ -108,6 +108,7 @@ int eap_sim_db_get_gsm_triplets(void *priv, const u8 *identity,
 	if (identity_len < 2 || identity[0] != '1') {
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
 				  identity, identity_len);
+		fclose(f);
 		return -1;
 	}
 	identity++;
