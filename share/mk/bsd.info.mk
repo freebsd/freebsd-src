@@ -145,6 +145,7 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}:
+	lockf -k ${DESTDIR}${INFODIR}/${INFODIRFILE} \
 	${INSTALLINFO} ${INSTALLINFOFLAGS} \
 	    --defsection=${INFOSECTION} \
 	    --defentry=${INFOENTRY_${x}} \
