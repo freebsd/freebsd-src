@@ -104,6 +104,7 @@ int termwidth = 80;		/* default terminal width */
 
 /* flags */
        int f_accesstime;	/* use time of last access */
+       int f_birthtime;		/* use time of birth */
        int f_flags;		/* show flags associated with a file */
        int f_humanval;		/* show human-readable file sizes */
        int f_inode;		/* print inode */
@@ -178,7 +179,7 @@ main(int argc, char *argv[])
 
 	fts_options = FTS_PHYSICAL;
  	while ((ch = getopt(argc, argv,
-	    "1ABCFGHILPRSTWZabcdfghiklmnopqrstuwx")) != -1) {
+	    "1ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C, -x and -l options all override each other so
@@ -207,13 +208,20 @@ main(int argc, char *argv[])
 			f_longform = 0;
 			f_singlecol = 0;
 			break;
-		/* The -c and -u options override each other. */
+		/* The -c, -u, and -U options override each other. */
 		case 'c':
 			f_statustime = 1;
 			f_accesstime = 0;
+			f_birthtime = 0;
 			break;
 		case 'u':
 			f_accesstime = 1;
+			f_statustime = 0;
+			f_birthtime = 0;
+			break;
+		case 'U':
+			f_birthtime = 1;
+			f_accesstime = 0;
 			f_statustime = 0;
 			break;
 		case 'F':
@@ -410,6 +418,8 @@ main(int argc, char *argv[])
 			sortfcn = revnamecmp;
 		else if (f_accesstime)
 			sortfcn = revacccmp;
+		else if (f_birthtime)
+			sortfcn = revbirthcmp;
 		else if (f_statustime)
 			sortfcn = revstatcmp;
 		else if (f_sizesort)
@@ -421,6 +431,8 @@ main(int argc, char *argv[])
 			sortfcn = namecmp;
 		else if (f_accesstime)
 			sortfcn = acccmp;
+		else if (f_birthtime)
+			sortfcn = birthcmp;
 		else if (f_statustime)
 			sortfcn = statcmp;
 		else if (f_sizesort)
