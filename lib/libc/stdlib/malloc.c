@@ -442,13 +442,13 @@ RB_HEAD(arena_chunk_tree_s, arena_chunk_s);
 
 typedef struct arena_run_s arena_run_t;
 struct arena_run_s {
-#ifdef MALLOC_DEBUG
-	uint32_t		magic;
-#  define ARENA_RUN_MAGIC 0x384adf93
-#endif
-
 	/* Linkage for run rings. */
 	qr(arena_run_t)	link;
+
+#ifdef MALLOC_DEBUG
+	uint32_t	magic;
+#  define ARENA_RUN_MAGIC 0x384adf93
+#endif
 
 	/* Bin this run is associated with. */
 	arena_bin_t	*bin;
@@ -485,6 +485,13 @@ struct arena_run_s {
 	unsigned	free_min:(RUN_MIN_REGS_2POW + 1);
 };
 
+/* Used for run ring headers, where the run isn't actually used. */
+typedef struct arena_run_link_s arena_run_link_t;
+struct arena_run_link_s {
+	/* Linkage for run rings. */
+	qr(arena_run_t)	link;
+};
+
 struct arena_bin_s {
 	/*
 	 * Current run being used to service allocations of this bin's size
@@ -519,12 +526,12 @@ struct arena_bin_s {
 	 * may be nearly completely full.  Still, we look there as a last
 	 * resort in order to avoid allocating a new run if at all possible.
 	 */
-	/* arena_run_t	runsempty;  0% <= fullness <   25% */
-	arena_run_t	runs0;  /*  0% <  fullness <   50% */
-	arena_run_t	runs25; /* 25% <  fullness <   75% */
-	arena_run_t	runs50; /* 50% <  fullness <  100% */
-	arena_run_t	runs75; /* 75% <  fullness <  100% */
-	/* arena_run_t	runs100;          fullness == 100% */
+	/* arena_run_link_t	runsempty;  0% <= fullness <   25% */
+	arena_run_link_t	runs0;  /*  0% <  fullness <   50% */
+	arena_run_link_t	runs25; /* 25% <  fullness <   75% */
+	arena_run_link_t	runs50; /* 50% <  fullness <  100% */
+	arena_run_link_t	runs75; /* 75% <  fullness <  100% */
+	/* arena_run_link_t	runs100;          fullness == 100% */
 
 	/* Size of regions in a run for this bin's size class. */
 	size_t		reg_size;
@@ -927,30 +934,19 @@ base_alloc(size_t size)
 	/* Make sure there's enough space for the allocation. */
 	if ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
 		void *tchunk;
-		size_t alloc_size;
 
-		/*
-		 * If chunk_size and opt_ndelay are sufficiently small and
-		 * large, respectively, it's possible for an allocation request
-		 * to exceed a single chunk here.  Deal with this, but don't
-		 * worry about internal fragmentation.
-		 */
+		assert(csize <= chunk_size);
 
-		if (csize <= chunk_size)
-			alloc_size = chunk_size;
-		else
-			alloc_size = CHUNK_CEILING(csize);
-
-		tchunk = chunk_alloc(alloc_size);
+		tchunk = chunk_alloc(chunk_size);
 		if (tchunk == NULL) {
 			ret = NULL;
 			goto RETURN;
 		}
 		base_chunk = tchunk;
 		base_next_addr = (void *)base_chunk;
-		base_past_addr = (void *)((uintptr_t)base_chunk + alloc_size);
+		base_past_addr = (void *)((uintptr_t)base_chunk + chunk_size);
 #ifdef MALLOC_STATS
-		base_total += alloc_size;
+		base_total += chunk_size;
 #endif
 	}
 
@@ -1212,12 +1208,12 @@ chunk_alloc(size_t size)
 				 * Calculate how much padding is necessary to
 				 * chunk-align the end of brk.
 				 */
-				incr = (char *)chunk_size
-				    - (char *)CHUNK_ADDR2OFFSET(brk_cur);
+				incr = (intptr_t)chunk_size
+				    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
 				if (incr == chunk_size) {
 					ret = brk_cur;
 				} else {
-					ret = (char *)brk_cur + incr;
+					ret = (void *)(intptr_t)brk_cur + incr;
 					incr += chunk_size;
 				}
 
@@ -1281,29 +1277,28 @@ RETURN:
 static void
 chunk_dealloc(void *chunk, size_t size)
 {
+	size_t offset;
+	chunk_node_t *node;
 
 	assert(chunk != NULL);
 	assert(CHUNK_ADDR2BASE(chunk) == chunk);
 	assert(size != 0);
 	assert(size % chunk_size == 0);
 
-	if (size == chunk_size) {
-		chunk_node_t *node;
-
+	for (offset = 0; offset < size; offset += chunk_size) {
 		node = base_chunk_node_alloc();
+		if (node == NULL)
+			break;
 
+		/*
+		 * Create a record of this chunk before deallocating it, so
+		 * that the address range can be recycled if memory usage
+		 * increases later on.
+		 */
 		malloc_mutex_lock(&chunks_mtx);
-		if (node != NULL) {
-			/*
-			 * Create a record of this chunk before deallocating
-			 * it, so that the address range can be recycled if
-			 * memory usage increases later on.
-			 */
-			node->chunk = chunk;
-			node->size = size;
-
-			RB_INSERT(chunk_tree_s, &old_chunks, node);
-		}
+		node->chunk = (void *)((uintptr_t)chunk + (uintptr_t)offset);
+		node->size = chunk_size;
+		RB_INSERT(chunk_tree_s, &old_chunks, node);
 		malloc_mutex_unlock(&chunks_mtx);
 	}
 
@@ -1595,22 +1590,25 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 			arena_run_dalloc(arena, run, bin->run_size);
 			break;
 		case RUN_Q0:
-			qr_before_insert(&bin->runs0, run, link);
+			qr_before_insert((arena_run_t *)&bin->runs0, run, link);
 			run->free_max = run->bin->nregs - 1;
 			run->free_min = (run->bin->nregs >> 1) + 1;
 			break;
 		case RUN_Q25:
-			qr_before_insert(&bin->runs25, run, link);
+			qr_before_insert((arena_run_t *)&bin->runs25, run,
+			    link);
 			run->free_max = ((run->bin->nregs >> 2) * 3) - 1;
 			run->free_min = (run->bin->nregs >> 2) + 1;
 			break;
 		case RUN_Q50:
-			qr_before_insert(&bin->runs50, run, link);
+			qr_before_insert((arena_run_t *)&bin->runs50, run,
+			    link);
 			run->free_max = (run->bin->nregs >> 1) - 1;
 			run->free_min = 1;
 			break;
 		case RUN_Q75:
-			qr_before_insert(&bin->runs75, run, link);
+			qr_before_insert((arena_run_t *)&bin->runs75, run,
+			    link);
 			run->free_max = (run->bin->nregs >> 2) - 1;
 			run->free_min = 1;
 			break;
@@ -1772,10 +1770,14 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 	unsigned i, remainder;
 
 	/* Look for a usable run. */
-	if ((run = qr_next(&bin->runs50, link)) != &bin->runs50
-	    || (run = qr_next(&bin->runs25, link)) != &bin->runs25
-	    || (run = qr_next(&bin->runs0, link)) != &bin->runs0
-	    || (run = qr_next(&bin->runs75, link)) != &bin->runs75) {
+	if ((run = qr_next((arena_run_t *)&bin->runs50, link))
+	    != (arena_run_t *)&bin->runs50
+	    || (run = qr_next((arena_run_t *)&bin->runs25, link))
+	    != (arena_run_t *)&bin->runs25
+	    || (run = qr_next((arena_run_t *)&bin->runs0, link))
+	    != (arena_run_t *)&bin->runs0
+	    || (run = qr_next((arena_run_t *)&bin->runs75, link))
+	    != (arena_run_t *)&bin->runs75) {
 		/* run is guaranteed to have available space. */
 		qr_remove(run, link);
 		return (run);
@@ -2108,10 +2110,10 @@ arena_new(arena_t *arena)
 	for (i = 0; i < ntbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		qr_new(&bin->runs0, link);
-		qr_new(&bin->runs25, link);
-		qr_new(&bin->runs50, link);
-		qr_new(&bin->runs75, link);
+		qr_new((arena_run_t *)&bin->runs0, link);
+		qr_new((arena_run_t *)&bin->runs25, link);
+		qr_new((arena_run_t *)&bin->runs50, link);
+		qr_new((arena_run_t *)&bin->runs75, link);
 
 		bin->reg_size = (1 << (TINY_MIN_2POW + i));
 
@@ -2145,10 +2147,10 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		qr_new(&bin->runs0, link);
-		qr_new(&bin->runs25, link);
-		qr_new(&bin->runs50, link);
-		qr_new(&bin->runs75, link);
+		qr_new((arena_run_t *)&bin->runs0, link);
+		qr_new((arena_run_t *)&bin->runs25, link);
+		qr_new((arena_run_t *)&bin->runs50, link);
+		qr_new((arena_run_t *)&bin->runs75, link);
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
@@ -2179,10 +2181,10 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins + npbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		qr_new(&bin->runs0, link);
-		qr_new(&bin->runs25, link);
-		qr_new(&bin->runs50, link);
-		qr_new(&bin->runs75, link);
+		qr_new((arena_run_t *)&bin->runs0, link);
+		qr_new((arena_run_t *)&bin->runs25, link);
+		qr_new((arena_run_t *)&bin->runs50, link);
+		qr_new((arena_run_t *)&bin->runs75, link);
 
 		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
 
@@ -3104,14 +3106,57 @@ malloc_init_hard(void)
 	RB_INIT(&old_chunks);
 
 	/* Initialize base allocation data structures. */
-	base_chunk = NULL;
-	base_next_addr = NULL;
-	base_past_addr = NULL;
-	base_chunk_nodes = NULL;
-	malloc_mutex_init(&base_mtx);
 #ifdef MALLOC_STATS
 	base_total = 0;
 #endif
+#ifdef USE_BRK
+	/*
+	 * Do special brk allocation here, since the base chunk doesn't really
+	 * need to be chunk-aligned.
+	 */
+	{
+		void *brk_cur;
+		intptr_t incr;
+
+		do {
+			/* Get the current end of brk. */
+			brk_cur = sbrk(0);
+
+			/*
+			 * Calculate how much padding is necessary to
+			 * chunk-align the end of brk.  Don't worry about
+			 * brk_cur not being chunk-aligned though.
+			 */
+			incr = (intptr_t)chunk_size
+			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
+
+			brk_prev = sbrk(incr);
+			if (brk_prev == brk_cur) {
+				/* Success. */
+				break;
+			}
+		} while (brk_prev != (void *)-1);
+
+		base_chunk = brk_cur;
+		base_next_addr = base_chunk;
+		base_past_addr = (void *)((uintptr_t)base_chunk + incr);
+#ifdef MALLOC_STATS
+		base_total += incr;
+		stats_chunks.nchunks = 1;
+		stats_chunks.curchunks = 1;
+		stats_chunks.highchunks = 1;
+#endif
+	}
+#else
+	/*
+	 * The first base chunk will be allocated when needed by base_alloc().
+	 */
+	base_chunk = NULL;
+	base_next_addr = NULL;
+	base_past_addr = NULL;
+#endif
+	base_chunk_nodes = NULL;
+	malloc_mutex_init(&base_mtx);
 
 	if (ncpus > 1) {
 		/* 
