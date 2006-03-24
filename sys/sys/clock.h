@@ -47,7 +47,7 @@
  * to a struct timespec.
  */
 struct clocktime {
-	int	year;			/* year - 1900 */
+	int	year;			/* year (4 digit year) */
 	int	mon;			/* month (1 - 12) */
 	int	day;			/* day (1 - 31) */
 	int	hour;			/* hour (0 - 23) */
