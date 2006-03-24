@@ -191,6 +191,13 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 		data->state = FAILURE;
 		return;
 	}
+
+	if (tls_connection_get_write_alerts(sm->ssl_ctx, data->ssl.conn) > 1) {
+		wpa_printf(MSG_INFO, "EAP-TLS: Locally detected fatal error "
+			   "in TLS processing");
+		data->state = FAILURE;
+		return;
+	}
 }
 
 

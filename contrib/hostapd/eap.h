@@ -32,6 +32,7 @@ struct eapol_callbacks {
 			       size_t eapKeyDataLen);
 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
 			    int phase2, struct eap_user *user);
+	const char * (*get_eap_req_id_text)(void *ctx, size_t *len);
 };
 
 struct eap_config {
@@ -41,7 +42,7 @@ struct eap_config {
 };
 
 
-#ifdef EAP_AUTHENTICATOR
+#ifdef EAP_SERVER
 
 struct eap_sm * eap_sm_init(void *eapol_ctx, struct eapol_callbacks *eapol_cb,
 			    struct eap_config *eap_conf);
@@ -52,7 +53,7 @@ void eap_set_eapRespData(struct eap_sm *sm, const u8 *eapRespData,
 			 size_t eapRespDataLen);
 void eap_sm_notify_cached(struct eap_sm *sm);
 
-#else /* EAP_AUTHENTICATOR */
+#else /* EAP_SERVER */
 
 static inline struct eap_sm * eap_sm_init(void *eapol_ctx,
 					  struct eapol_callbacks *eapol_cb,
@@ -85,6 +86,6 @@ static inline void eap_sm_notify_cached(struct eap_sm *sm)
 {
 }
 
-#endif /* EAP_AUTHENTICATOR */
+#endif /* EAP_SERVER */
 
 #endif /* EAP_H */

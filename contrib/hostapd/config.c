@@ -28,18 +28,20 @@
 #include "driver.h"
 #include "sha1.h"
 #include "eap.h"
+#include "radius_client.h"
 
 
 static struct hostapd_config *hostapd_config_defaults(void)
 {
 	struct hostapd_config *conf;
 
-	conf = malloc(sizeof(*conf));
+	conf = malloc(sizeof(*conf) + sizeof(struct hostapd_radius_servers));
 	if (conf == NULL) {
 		printf("Failed to allocate memory for configuration data.\n");
 		return NULL;
 	}
-	memset(conf, 0, sizeof(*conf));
+	memset(conf, 0, sizeof(*conf) + sizeof(struct hostapd_radius_servers));
+	conf->radius = (struct hostapd_radius_servers *) (conf + 1);
 
 	/* set default driver based on configuration */
 	conf->driver = driver_lookup("default");
@@ -68,6 +70,24 @@ static struct hostapd_config *hostapd_config_defaults(void)
 	conf->radius_server_auth_port = 1812;
 
 	return conf;
+}
+
+
+static int hostapd_parse_ip_addr(const char *txt, struct hostapd_ip_addr *addr)
+{
+	if (inet_aton(txt, &addr->u.v4)) {
+		addr->af = AF_INET;
+		return 0;
+	}
+
+#ifdef CONFIG_IPV6
+	if (inet_pton(AF_INET6, txt, &addr->u.v6) > 0) {
+		addr->af = AF_INET6;
+		return 0;
+	}
+#endif /* CONFIG_IPV6 */
+
+	return -1;
 }
 
 
@@ -269,12 +289,12 @@ int hostapd_setup_wpa_psk(struct hostapd_config *conf)
 }
 
 
-#ifdef EAP_AUTHENTICATOR
+#ifdef EAP_SERVER
 static int hostapd_config_read_eap_user(const char *fname,
 					struct hostapd_config *conf)
 {
 	FILE *f;
-	char buf[512], *pos, *start;
+	char buf[512], *pos, *start, *pos2;
 	int line = 0, ret = 0, num_methods;
 	struct hostapd_eap_user *user, *tail = NULL;
 
@@ -410,30 +430,53 @@ static int hostapd_config_read_eap_user(const char *fname,
 			goto done;
 		}
 
-		if (*pos != '"') {
-			printf("Invalid EAP password (no \" in start) on "
-			       "line %d in '%s'\n", line, fname);
-			goto failed;
-		}
-		pos++;
-		start = pos;
-		while (*pos != '"' && *pos != '\0')
+		if (*pos == '"') {
 			pos++;
-		if (*pos == '\0') {
-			printf("Invalid EAP password (no \" in end) on "
-			       "line %d in '%s'\n", line, fname);
-			goto failed;
+			start = pos;
+			while (*pos != '"' && *pos != '\0')
+				pos++;
+			if (*pos == '\0') {
+				printf("Invalid EAP password (no \" in end) "
+				       "on line %d in '%s'\n", line, fname);
+				goto failed;
+			}
+
+			user->password = malloc(pos - start);
+			if (user->password == NULL) {
+				printf("Failed to allocate memory for EAP "
+				       "password\n");
+				goto failed;
+			}
+			memcpy(user->password, start, pos - start);
+			user->password_len = pos - start;
+
+			pos++;
+		} else {
+			pos2 = pos;
+			while (*pos2 != '\0' && *pos2 != ' ' &&
+			       *pos2 != '\t' && *pos2 != '#')
+				pos2++;
+			if ((pos2 - pos) & 1) {
+				printf("Invalid hex password on line %d in "
+				       "'%s'\n", line, fname);
+				goto failed;
+			}
+			user->password = malloc((pos2 - pos) / 2);
+			if (user->password == NULL) {
+				printf("Failed to allocate memory for EAP "
+				       "password\n");
+				goto failed;
+			}
+			if (hexstr2bin(pos, user->password,
+				       (pos2 - pos) / 2) < 0) {
+				printf("Invalid hex password on line %d in "
+				       "'%s'\n", line, fname);
+				goto failed;
+			}
+			user->password_len = (pos2 - pos) / 2;
+			pos = pos2;
 		}
 
-		user->password = malloc(pos - start);
-		if (user->password == NULL) {
-			printf("Failed to allocate memory for EAP password\n");
-			goto failed;
-		}
-		memcpy(user->password, start, pos - start);
-		user->password_len = pos - start;
-
-		pos++;
 		while (*pos == ' ' || *pos == '\t')
 			pos++;
 		if (strncmp(pos, "[2]", 3) == 0) {
@@ -462,7 +505,7 @@ static int hostapd_config_read_eap_user(const char *fname,
 
 	return ret;
 }
-#endif /* EAP_AUTHENTICATOR */
+#endif /* EAP_SERVER */
 
 
 static int
@@ -485,7 +528,7 @@ hostapd_config_read_radius_addr(struct hostapd_radius_server **server,
 
 	memset(nserv, 0, sizeof(*nserv));
 	nserv->port = def_port;
-	ret = !inet_aton(val, &nserv->addr);
+	ret = hostapd_parse_ip_addr(val, &nserv->addr);
 	nserv->index = server_index++;
 
 	return ret;
@@ -589,8 +632,8 @@ static int hostapd_config_parse_cipher(int line, const char *value)
 
 static int hostapd_config_check(struct hostapd_config *conf)
 {
-	if (conf->ieee802_1x && !conf->eap_authenticator &&
-	    !conf->auth_servers) {
+	if (conf->ieee802_1x && !conf->eap_server &&
+	    !conf->radius->auth_servers) {
 		printf("Invalid IEEE 802.1X configuration (no EAP "
 		       "authenticator configured).\n");
 		return -1;
@@ -616,9 +659,9 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 	int line = 0;
 	int errors = 0;
 	char *accept_mac_file = NULL, *deny_mac_file = NULL;
-#ifdef EAP_AUTHENTICATOR
+#ifdef EAP_SERVER
 	char *eap_user_file = NULL;
-#endif /* EAP_AUTHENTICATOR */
+#endif /* EAP_SERVER */
 
 	f = fopen(fname, "r");
 	if (f == NULL) {
@@ -722,9 +765,13 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 			conf->assoc_ap = 1;
 		} else if (strcmp(buf, "ieee8021x") == 0) {
 			conf->ieee802_1x = atoi(pos);
-#ifdef EAP_AUTHENTICATOR
+#ifdef EAP_SERVER
 		} else if (strcmp(buf, "eap_authenticator") == 0) {
-			conf->eap_authenticator = atoi(pos);
+			conf->eap_server = atoi(pos);
+			printf("Line %d: obsolete eap_authenticator used; "
+			       "this has been renamed to eap_server\n", line);
+		} else if (strcmp(buf, "eap_server") == 0) {
+			conf->eap_server = atoi(pos);
 		} else if (strcmp(buf, "eap_user_file") == 0) {
 			free(eap_user_file);
 			eap_user_file = strdup(pos);
@@ -744,14 +791,33 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 		} else if (strcmp(buf, "private_key_passwd") == 0) {
 			free(conf->private_key_passwd);
 			conf->private_key_passwd = strdup(pos);
+		} else if (strcmp(buf, "check_crl") == 0) {
+			conf->check_crl = atoi(pos);
 #ifdef EAP_SIM
 		} else if (strcmp(buf, "eap_sim_db") == 0) {
 			free(conf->eap_sim_db);
 			conf->eap_sim_db = strdup(pos);
 #endif /* EAP_SIM */
-#endif /* EAP_AUTHENTICATOR */
+#endif /* EAP_SERVER */
 		} else if (strcmp(buf, "eap_message") == 0) {
+			char *term;
 			conf->eap_req_id_text = strdup(pos);
+			if (conf->eap_req_id_text == NULL) {
+				printf("Line %d: Failed to allocate memory "
+				       "for eap_req_id_text\n", line);
+				errors++;
+				continue;
+			}
+			conf->eap_req_id_text_len =
+				strlen(conf->eap_req_id_text);
+			term = strstr(conf->eap_req_id_text, "\\0");
+			if (term) {
+				*term++ = '\0';
+				memmove(term, term + 1,
+					conf->eap_req_id_text_len -
+					(term - conf->eap_req_id_text) - 1);
+				conf->eap_req_id_text_len--;
+			}
 		} else if (strcmp(buf, "wep_key_len_broadcast") == 0) {
 			conf->default_wep_key_len = atoi(pos);
 			if (conf->default_wep_key_len > 13) {
@@ -796,7 +862,7 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 				 "%s", pos);
 #endif /* CONFIG_IAPP */
 		} else if (strcmp(buf, "own_ip_addr") == 0) {
-			if (!inet_aton(pos, &conf->own_ip_addr)) {
+			if (hostapd_parse_ip_addr(pos, &conf->own_ip_addr)) {
 				printf("Line %d: invalid IP address '%s'\n",
 				       line, pos);
 				errors++;
@@ -805,17 +871,17 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 			conf->nas_identifier = strdup(pos);
 		} else if (strcmp(buf, "auth_server_addr") == 0) {
 			if (hostapd_config_read_radius_addr(
-				    &conf->auth_servers,
-				    &conf->num_auth_servers, pos, 1812,
-				    &conf->auth_server)) {
+				    &conf->radius->auth_servers,
+				    &conf->radius->num_auth_servers, pos, 1812,
+				    &conf->radius->auth_server)) {
 				printf("Line %d: invalid IP address '%s'\n",
 				       line, pos);
 				errors++;
 			}
-		} else if (conf->auth_server &&
+		} else if (conf->radius->auth_server &&
 			   strcmp(buf, "auth_server_port") == 0) {
-			conf->auth_server->port = atoi(pos);
-		} else if (conf->auth_server &&
+			conf->radius->auth_server->port = atoi(pos);
+		} else if (conf->radius->auth_server &&
 			   strcmp(buf, "auth_server_shared_secret") == 0) {
 			int len = strlen(pos);
 			if (len == 0) {
@@ -824,21 +890,22 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 				       "allowed.\n", line);
 				errors++;
 			}
-			conf->auth_server->shared_secret = (u8 *) strdup(pos);
-			conf->auth_server->shared_secret_len = len;
+			conf->radius->auth_server->shared_secret =
+				(u8 *) strdup(pos);
+			conf->radius->auth_server->shared_secret_len = len;
 		} else if (strcmp(buf, "acct_server_addr") == 0) {
 			if (hostapd_config_read_radius_addr(
-				    &conf->acct_servers,
-				    &conf->num_acct_servers, pos, 1813,
-				    &conf->acct_server)) {
+				    &conf->radius->acct_servers,
+				    &conf->radius->num_acct_servers, pos, 1813,
+				    &conf->radius->acct_server)) {
 				printf("Line %d: invalid IP address '%s'\n",
 				       line, pos);
 				errors++;
 			}
-		} else if (conf->acct_server &&
+		} else if (conf->radius->acct_server &&
 			   strcmp(buf, "acct_server_port") == 0) {
-			conf->acct_server->port = atoi(pos);
-		} else if (conf->acct_server &&
+			conf->radius->acct_server->port = atoi(pos);
+		} else if (conf->radius->acct_server &&
 			   strcmp(buf, "acct_server_shared_secret") == 0) {
 			int len = strlen(pos);
 			if (len == 0) {
@@ -847,12 +914,13 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 				       "allowed.\n", line);
 				errors++;
 			}
-			conf->acct_server->shared_secret = (u8 *) strdup(pos);
-			conf->acct_server->shared_secret_len = len;
+			conf->radius->acct_server->shared_secret =
+				(u8 *) strdup(pos);
+			conf->radius->acct_server->shared_secret_len = len;
 		} else if (strcmp(buf, "radius_retry_primary_interval") == 0) {
-			conf->radius_retry_primary_interval = atoi(pos);
+			conf->radius->retry_primary_interval = atoi(pos);
 		} else if (strcmp(buf, "radius_acct_interim_interval") == 0) {
-			conf->radius_acct_interim_interval = atoi(pos);
+			conf->radius->acct_interim_interval = atoi(pos);
 		} else if (strcmp(buf, "auth_algs") == 0) {
 			conf->auth_algs = atoi(pos);
 			if (conf->auth_algs == 0) {
@@ -944,6 +1012,7 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 			grp = getgrnam(group);
 			if (grp) {
 				conf->ctrl_interface_gid = grp->gr_gid;
+				conf->ctrl_interface_gid_set = 1;
 				wpa_printf(MSG_DEBUG, "ctrl_interface_group=%d"
 					   " (from group name '%s')",
 					   conf->ctrl_interface_gid, group);
@@ -958,6 +1027,7 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 				errors++;
 				continue;
 			}
+			conf->ctrl_interface_gid_set = 1;
 			wpa_printf(MSG_DEBUG, "ctrl_interface_group=%d",
 				   conf->ctrl_interface_gid);
 #ifdef RADIUS_SERVER
@@ -966,7 +1036,14 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 			conf->radius_server_clients = strdup(pos);
 		} else if (strcmp(buf, "radius_server_auth_port") == 0) {
 			conf->radius_server_auth_port = atoi(pos);
+		} else if (strcmp(buf, "radius_server_ipv6") == 0) {
+			conf->radius_server_ipv6 = atoi(pos);
 #endif /* RADIUS_SERVER */
+		} else if (strcmp(buf, "test_socket") == 0) {
+			free(conf->test_socket);
+			conf->test_socket = strdup(pos);
+		} else if (strcmp(buf, "use_pae_group_addr") == 0) {
+			conf->use_pae_group_addr = atoi(pos);
 		} else {
 			printf("Line %d: unknown configuration item '%s'\n",
 			       line, buf);
@@ -985,14 +1062,14 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 		errors++;
 	free(deny_mac_file);
 
-#ifdef EAP_AUTHENTICATOR
+#ifdef EAP_SERVER
 	if (hostapd_config_read_eap_user(eap_user_file, conf))
 		errors++;
 	free(eap_user_file);
-#endif /* EAP_AUTHENTICATOR */
+#endif /* EAP_SERVER */
 
-	conf->auth_server = conf->auth_servers;
-	conf->acct_server = conf->acct_servers;
+	conf->radius->auth_server = conf->radius->auth_servers;
+	conf->radius->acct_server = conf->radius->acct_servers;
 
 	if (hostapd_config_check(conf))
 		errors++;
@@ -1058,8 +1135,10 @@ void hostapd_config_free(struct hostapd_config *conf)
 	free(conf->accept_mac);
 	free(conf->deny_mac);
 	free(conf->nas_identifier);
-	hostapd_config_free_radius(conf->auth_servers, conf->num_auth_servers);
-	hostapd_config_free_radius(conf->acct_servers, conf->num_acct_servers);
+	hostapd_config_free_radius(conf->radius->auth_servers,
+				   conf->radius->num_auth_servers);
+	hostapd_config_free_radius(conf->radius->acct_servers,
+				   conf->radius->num_acct_servers);
 	free(conf->rsn_preauth_interfaces);
 	free(conf->ctrl_interface);
 	free(conf->ca_cert);
@@ -1068,6 +1147,7 @@ void hostapd_config_free(struct hostapd_config *conf)
 	free(conf->private_key_passwd);
 	free(conf->eap_sim_db);
 	free(conf->radius_server_clients);
+	free(conf->test_socket);
 	free(conf);
 }
 

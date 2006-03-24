@@ -1,10 +1,13 @@
 /*
- * AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
- * One-Key CBC MAC (OMAC1) hash with AES-128
- * AES-128 CTR mode encryption
- * AES-128 EAX mode encryption/decryption
- * AES-128 CBC
- * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * AES-based functions
+ *
+ * - AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
+ * - One-Key CBC MAC (OMAC1) hash with AES-128
+ * - AES-128 CTR mode encryption
+ * - AES-128 EAX mode encryption/decryption
+ * - AES-128 CBC
+ *
+ * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,43 +24,26 @@
 #include <string.h>
 #include "common.h"
 #include "aes_wrap.h"
+#include "crypto.h"
 
-#ifdef EAP_TLS_FUNCS
-
-#include <openssl/aes.h>
-
-#else /* EAP_TLS_FUNCS */
-
+#ifndef EAP_TLS_FUNCS
 #include "aes.c"
-
-struct aes_key_st {
-	u32 rk[44];
-};
-typedef struct aes_key_st AES_KEY;
-
-#define AES_set_encrypt_key(userKey, bits, key) \
-	rijndaelKeySetupEnc((key)->rk, (userKey))
-#define AES_set_decrypt_key(userKey, bits, key) \
-	rijndaelKeySetupDec((key)->rk, (userKey))
-#define AES_encrypt(in, out, key) \
-	rijndaelEncrypt((key)->rk, in, out)
-#define AES_decrypt(in, out, key) \
-	rijndaelDecrypt((key)->rk, in, out)
-
 #endif /* EAP_TLS_FUNCS */
 
 
-/*
- * @kek: key encryption key (KEK)
- * @n: length of the wrapped key in 64-bit units; e.g., 2 = 128-bit = 16 bytes
- * @plain: plaintext key to be wrapped, n * 64 bit
- * @cipher: wrapped key, (n + 1) * 64 bit
+/**
+ * aes_wrap - Wrap keys with AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
+ * @kek: Key encryption key (KEK)
+ * @n: Length of the wrapped key in 64-bit units; e.g., 2 = 128-bit = 16 bytes
+ * @plain: Plaintext key to be wrapped, n * 64 bit
+ * @cipher: Wrapped key, (n + 1) * 64 bit
+ * Returns: 0 on success, -1 on failure
  */
-void aes_wrap(u8 *kek, int n, u8 *plain, u8 *cipher)
+int aes_wrap(const u8 *kek, int n, const u8 *plain, u8 *cipher)
 {
 	u8 *a, *r, b[16];
 	int i, j;
-	AES_KEY key;
+	void *ctx;
 
 	a = cipher;
 	r = cipher + 8;
@@ -66,7 +52,9 @@ void aes_wrap(u8 *kek, int n, u8 *plain, u8 *cipher)
 	memset(a, 0xa6, 8);
 	memcpy(r, plain, 8 * n);
 
-	AES_set_encrypt_key(kek, 128, &key);
+	ctx = aes_encrypt_init(kek, 16);
+	if (ctx == NULL)
+		return -1;
 
 	/* 2) Calculate intermediate values.
 	 * For j = 0 to 5
@@ -80,40 +68,47 @@ void aes_wrap(u8 *kek, int n, u8 *plain, u8 *cipher)
 		for (i = 1; i <= n; i++) {
 			memcpy(b, a, 8);
 			memcpy(b + 8, r, 8);
-			AES_encrypt(b, b, &key);
+			aes_encrypt(ctx, b, b);
 			memcpy(a, b, 8);
 			a[7] ^= n * j + i;
 			memcpy(r, b + 8, 8);
 			r += 8;
 		}
 	}
+	aes_encrypt_deinit(ctx);
 
 	/* 3) Output the results.
 	 *
 	 * These are already in @cipher due to the location of temporary
 	 * variables.
 	 */
+
+	return 0;
 }
 
 
-/*
- * @kek: key encryption key (KEK)
- * @n: length of the wrapped key in 64-bit units; e.g., 2 = 128-bit = 16 bytes
- * @cipher: wrapped key to be unwrapped, (n + 1) * 64 bit
- * @plain: plaintext key, n * 64 bit
+/**
+ * aes_unwrap - Unwrap key with AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
+ * @kek: Key encryption key (KEK)
+ * @n: Length of the wrapped key in 64-bit units; e.g., 2 = 128-bit = 16 bytes
+ * @cipher: Wrapped key to be unwrapped, (n + 1) * 64 bit
+ * @plain: Plaintext key, n * 64 bit
+ * Returns: 0 on success, -1 on failure (e.g., integrity verification failed)
  */
-int aes_unwrap(u8 *kek, int n, u8 *cipher, u8 *plain)
+int aes_unwrap(const u8 *kek, int n, const u8 *cipher, u8 *plain)
 {
 	u8 a[8], *r, b[16];
 	int i, j;
-	AES_KEY key;
+	void *ctx;
 
 	/* 1) Initialize variables. */
 	memcpy(a, cipher, 8);
 	r = plain;
 	memcpy(r, cipher + 8, 8 * n);
 
-	AES_set_decrypt_key(kek, 128, &key);
+	ctx = aes_decrypt_init(kek, 16);
+	if (ctx == NULL)
+		return -1;
 
 	/* 2) Compute intermediate values.
 	 * For j = 5 to 0
@@ -129,12 +124,13 @@ int aes_unwrap(u8 *kek, int n, u8 *cipher, u8 *plain)
 			b[7] ^= n * j + i;
 
 			memcpy(b + 8, r, 8);
-			AES_decrypt(b, b, &key);
+			aes_decrypt(ctx, b, b);
 			memcpy(a, b, 8);
 			memcpy(r, b + 8, 8);
 			r -= 8;
 		}
 	}
+	aes_decrypt_deinit(ctx);
 
 	/* 3) Output results.
 	 *
@@ -165,27 +161,37 @@ static void gf_mulx(u8 *pad)
 }
 
 
-void omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
+/**
+ * omac1_aes_128 - One-Key CBC MAC (OMAC1) hash with AES-128
+ * @key: Key for the hash operation
+ * @data: Data buffer for which a MAC is determined
+ * @data: Length of data buffer in bytes
+ * @mac: Buffer for MAC (128 bits, i.e., 16 bytes)
+ * Returns: 0 on success, -1 on failure
+ */
+int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
 {
-	AES_KEY akey;
+	void *ctx;
 	u8 cbc[BLOCK_SIZE], pad[BLOCK_SIZE];
 	const u8 *pos = data;
 	int i;
 	size_t left = data_len;
 
-	AES_set_encrypt_key(key, 128, &akey);
+	ctx = aes_encrypt_init(key, 16);
+	if (ctx == NULL)
+		return -1;
 	memset(cbc, 0, BLOCK_SIZE);
 
 	while (left >= BLOCK_SIZE) {
 		for (i = 0; i < BLOCK_SIZE; i++)
 			cbc[i] ^= *pos++;
 		if (left > BLOCK_SIZE)
-			AES_encrypt(cbc, cbc, &akey);
+			aes_encrypt(ctx, cbc, cbc);
 		left -= BLOCK_SIZE;
 	}
 
 	memset(pad, 0, BLOCK_SIZE);
-	AES_encrypt(pad, pad, &akey);
+	aes_encrypt(ctx, pad, pad);
 	gf_mulx(pad);
 
 	if (left || data_len == 0) {
@@ -197,32 +203,55 @@ void omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
 
 	for (i = 0; i < BLOCK_SIZE; i++)
 		pad[i] ^= cbc[i];
-	AES_encrypt(pad, mac, &akey);
+	aes_encrypt(ctx, pad, mac);
+	aes_encrypt_deinit(ctx);
+	return 0;
 }
 
 
-void aes_128_encrypt_block(const u8 *key, const u8 *in, u8 *out)
+/**
+ * aes_128_encrypt_block - Perform one AES 128-bit block operation
+ * @key: Key for AES
+ * @in: Input data (16 bytes)
+ * @out: Output of the AES block operation (16 bytes)
+ * Returns: 0 on success, -1 on failure
+ */
+int aes_128_encrypt_block(const u8 *key, const u8 *in, u8 *out)
 {
-	AES_KEY akey;
-	AES_set_encrypt_key(key, 128, &akey);
-	AES_encrypt(in, out, &akey);
+	void *ctx;
+	ctx = aes_encrypt_init(key, 16);
+	if (ctx == NULL)
+		return -1;
+	aes_encrypt(ctx, in, out);
+	aes_encrypt_deinit(ctx);
+	return 0;
 }
 
 
-void aes_128_ctr_encrypt(const u8 *key, const u8 *nonce,
-			 u8 *data, size_t data_len)
+/**
+ * aes_128_ctr_encrypt - AES-128 CTR mode encryption
+ * @key: Key for encryption (16 bytes)
+ * @nonce: Nonce for counter mode (16 bytes)
+ * @data: Data to encrypt in-place
+ * @data_len: Length of data in bytes
+ * Returns: 0 on success, -1 on failure
+ */
+int aes_128_ctr_encrypt(const u8 *key, const u8 *nonce,
+			u8 *data, size_t data_len)
 {
-	AES_KEY akey;
+	void *ctx;
 	size_t len, left = data_len;
 	int i;
 	u8 *pos = data;
 	u8 counter[BLOCK_SIZE], buf[BLOCK_SIZE];
 
-	AES_set_encrypt_key(key, 128, &akey);
+	ctx = aes_encrypt_init(key, 16);
+	if (ctx == NULL)
+		return -1;
 	memcpy(counter, nonce, BLOCK_SIZE);
 
 	while (left > 0) {
-		AES_encrypt(counter, buf, &akey);
+		aes_encrypt(ctx, counter, buf);
 
 		len = (left < BLOCK_SIZE) ? left : BLOCK_SIZE;
 		for (i = 0; i < len; i++)
@@ -236,9 +265,23 @@ void aes_128_ctr_encrypt(const u8 *key, const u8 *nonce,
 				break;
 		}
 	}
+	aes_encrypt_deinit(ctx);
+	return 0;
 }
 
 
+/**
+ * aes_128_eax_encrypt - AES-128 EAX mode encryption
+ * @key: Key for encryption (16 bytes)
+ * @nonce: Nonce for counter mode
+ * @nonce_len: Nonce length in bytes
+ * @hdr: Header data to be authenticity protected
+ * @hdr_len: Length of the header data bytes
+ * @data: Data to encrypt in-place
+ * @data_len: Length of data in bytes
+ * @tag: 16-byte tag value
+ * Returns: 0 on success, -1 on failure
+ */
 int aes_128_eax_encrypt(const u8 *key, const u8 *nonce, size_t nonce_len,
 			const u8 *hdr, size_t hdr_len,
 			u8 *data, size_t data_len, u8 *tag)
@@ -284,6 +327,18 @@ int aes_128_eax_encrypt(const u8 *key, const u8 *nonce, size_t nonce_len,
 }
 
 
+/**
+ * aes_128_eax_decrypt - AES-128 EAX mode decryption
+ * @key: Key for decryption (16 bytes)
+ * @nonce: Nonce for counter mode
+ * @nonce_len: Nonce length in bytes
+ * @hdr: Header data to be authenticity protected
+ * @hdr_len: Length of the header data bytes
+ * @data: Data to encrypt in-place
+ * @data_len: Length of data in bytes
+ * @tag: 16-byte tag value
+ * Returns: 0 on success, -1 on failure, -2 if tag does not match
+ */
 int aes_128_eax_decrypt(const u8 *key, const u8 *nonce, size_t nonce_len,
 			const u8 *hdr, size_t hdr_len,
 			u8 *data, size_t data_len, const u8 *tag)
@@ -332,48 +387,70 @@ int aes_128_eax_decrypt(const u8 *key, const u8 *nonce, size_t nonce_len,
 }
 
 
-void aes_128_cbc_encrypt(const u8 *key, const u8 *iv, u8 *data,
-			 size_t data_len)
+/**
+ * aes_128_cbc_encrypt - AES-128 CBC encryption
+ * @key: Encryption key
+ * @iv: Encryption IV for CBC mode (16 bytes)
+ * @data: Data to encrypt in-place
+ * @data_len: Length of data in bytes (must be divisible by 16)
+ * Returns: 0 on success, -1 on failure
+ */
+int aes_128_cbc_encrypt(const u8 *key, const u8 *iv, u8 *data, size_t data_len)
 {
-	AES_KEY akey;
+	void *ctx;
 	u8 cbc[BLOCK_SIZE];
 	u8 *pos = data;
 	int i, j, blocks;
 
-	AES_set_encrypt_key(key, 128, &akey);
+	ctx = aes_encrypt_init(key, 16);
+	if (ctx == NULL)
+		return -1;
 	memcpy(cbc, iv, BLOCK_SIZE);
 
 	blocks = data_len / BLOCK_SIZE;
 	for (i = 0; i < blocks; i++) {
 		for (j = 0; j < BLOCK_SIZE; j++)
 			cbc[j] ^= pos[j];
-		AES_encrypt(cbc, cbc, &akey);
+		aes_encrypt(ctx, cbc, cbc);
 		memcpy(pos, cbc, BLOCK_SIZE);
 		pos += BLOCK_SIZE;
 	}
+	aes_encrypt_deinit(ctx);
+	return 0;
 }
 
 
-void aes_128_cbc_decrypt(const u8 *key, const u8 *iv, u8 *data,
-			 size_t data_len)
+/**
+ * aes_128_cbc_decrypt - AES-128 CBC decryption
+ * @key: Decryption key
+ * @iv: Decryption IV for CBC mode (16 bytes)
+ * @data: Data to decrypt in-place
+ * @data_len: Length of data in bytes (must be divisible by 16)
+ * Returns: 0 on success, -1 on failure
+ */
+int aes_128_cbc_decrypt(const u8 *key, const u8 *iv, u8 *data, size_t data_len)
 {
-	AES_KEY akey;
+	void *ctx;
 	u8 cbc[BLOCK_SIZE], tmp[BLOCK_SIZE];
 	u8 *pos = data;
 	int i, j, blocks;
 
-	AES_set_decrypt_key(key, 128, &akey);
+	ctx = aes_decrypt_init(key, 16);
+	if (ctx == NULL)
+		return -1;
 	memcpy(cbc, iv, BLOCK_SIZE);
 
 	blocks = data_len / BLOCK_SIZE;
 	for (i = 0; i < blocks; i++) {
 		memcpy(tmp, pos, BLOCK_SIZE);
-		AES_decrypt(pos, pos, &akey);
+		aes_decrypt(ctx, pos, pos);
 		for (j = 0; j < BLOCK_SIZE; j++)
 			pos[j] ^= cbc[j];
 		memcpy(cbc, tmp, BLOCK_SIZE);
 		pos += BLOCK_SIZE;
 	}
+	aes_decrypt_deinit(ctx);
+	return 0;
 }
 
 
@@ -388,25 +465,28 @@ static void test_aes_perf(void)
 	const int num_iters = 10;
 	int i;
 	unsigned int start, end;
-	AES_KEY akey;
 	u8 key[16], pt[16], ct[16];
+	void *ctx;
 
 	printf("keySetupEnc:");
 	for (i = 0; i < num_iters; i++) {
 		rdtscll(start);
-		AES_set_encrypt_key(key, 128, &akey);
+		ctx = aes_encrypt_init(key, 16);
 		rdtscll(end);
+		aes_encrypt_deinit(ctx);
 		printf(" %d", end - start);
 	}
 	printf("\n");
 
 	printf("Encrypt:");
+	ctx = aes_encrypt_init(key, 16);
 	for (i = 0; i < num_iters; i++) {
 		rdtscll(start);
-		AES_encrypt(pt, ct, &akey);
+		aes_encrypt(ctx, pt, ct);
 		rdtscll(end);
 		printf(" %d", end - start);
 	}
+	aes_encrypt_deinit(ctx);
 	printf("\n");
 }
 #endif /* __i386__ */
@@ -599,7 +679,10 @@ int main(int argc, char *argv[])
 	int ret = 0, i;
 	struct omac1_test_vector *tv;
 
-	aes_wrap(kek, 2, plain, result);
+	if (aes_wrap(kek, 2, plain, result)) {
+		printf("AES-WRAP-128-128 reported failure\n");
+		ret++;
+	}
 	if (memcmp(result, crypt, 24) != 0) {
 		printf("AES-WRAP-128-128 failed\n");
 		ret++;
