@@ -304,11 +304,14 @@ main(int argc, char *argv[])
 		case 'T':
 			f_sectime = 1;
 			break;
+		/* The -t and -S options override each other. */
 		case 't':
 			f_timesort = 1;
+			f_sizesort = 0;
 			break;
 		case 'S':
 			f_sizesort = 1;
+			f_timesort = 0;
 			break;
 		case 'W':
 			f_whiteout = 1;
