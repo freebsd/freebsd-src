@@ -1,6 +1,51 @@
 #ifndef RADIUS_CLIENT_H
 #define RADIUS_CLIENT_H
 
+#include "config_types.h"
+
+struct radius_msg;
+
+struct hostapd_radius_server {
+	/* MIB prefix for shared variables:
+	 * @ = radiusAuth or radiusAcc depending on the type of the server */
+	struct hostapd_ip_addr addr; /* @ServerAddress */
+	int port; /* @ClientServerPortNumber */
+	u8 *shared_secret;
+	size_t shared_secret_len;
+
+	/* Dynamic (not from configuration file) MIB data */
+	int index; /* @ServerIndex */
+	int round_trip_time; /* @ClientRoundTripTime; in hundredths of a
+			      * second */
+	u32 requests; /* @Client{Access,}Requests */
+	u32 retransmissions; /* @Client{Access,}Retransmissions */
+	u32 access_accepts; /* radiusAuthClientAccessAccepts */
+	u32 access_rejects; /* radiusAuthClientAccessRejects */
+	u32 access_challenges; /* radiusAuthClientAccessChallenges */
+	u32 responses; /* radiusAccClientResponses */
+	u32 malformed_responses; /* @ClientMalformed{Access,}Responses */
+	u32 bad_authenticators; /* @ClientBadAuthenticators */
+	u32 timeouts; /* @ClientTimeouts */
+	u32 unknown_types; /* @ClientUnknownTypes */
+	u32 packets_dropped; /* @ClientPacketsDropped */
+	/* @ClientPendingRequests: length of hapd->radius->msgs for matching
+	 * msg_type */
+};
+
+struct hostapd_radius_servers {
+	/* RADIUS Authentication and Accounting servers in priority order */
+	struct hostapd_radius_server *auth_servers, *auth_server;
+	int num_auth_servers;
+	struct hostapd_radius_server *acct_servers, *acct_server;
+	int num_acct_servers;
+
+	int retry_primary_interval;
+	int acct_interim_interval;
+
+	int msg_dumps;
+};
+
+
 typedef enum {
 	RADIUS_AUTH,
 	RADIUS_ACCT,
@@ -32,7 +77,8 @@ int radius_client_send(struct radius_client_data *radius,
 u8 radius_client_get_id(struct radius_client_data *radius);
 
 void radius_client_flush(struct radius_client_data *radius);
-struct radius_client_data * radius_client_init(struct hostapd_data *hapd);
+struct radius_client_data *
+radius_client_init(void *ctx, struct hostapd_radius_servers *conf);
 void radius_client_deinit(struct radius_client_data *radius);
 void radius_client_flush_auth(struct radius_client_data *radius, u8 *addr);
 int radius_client_get_mib(struct radius_client_data *radius, char *buf,

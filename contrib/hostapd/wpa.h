@@ -16,6 +16,9 @@ struct rsn_pmksa_cache {
 	time_t expiration;
 	int akmp; /* WPA_KEY_MGMT_* */
 	u8 spa[ETH_ALEN];
+	u8 *identity;
+	size_t identity_len;
+	struct radius_class_data radius_class;
 };
 
 struct rsn_preauth_interface {
@@ -167,7 +170,7 @@ enum {
 };
 	
 int wpa_validate_wpa_ie(struct hostapd_data *hapd, struct sta_info *sta,
-			u8 *wpa_ie, size_t wpa_ie_len, int version);
+			const u8 *wpa_ie, size_t wpa_ie_len, int version);
 void wpa_new_station(struct hostapd_data *hapd, struct sta_info *sta);
 void wpa_free_station(struct sta_info *sta);
 void wpa_receive(struct hostapd_data *hapd, struct sta_info *sta,

@@ -68,6 +68,9 @@ static void sm_ ## machine ## _Step(struct eapol_state_machine *sm)
 #define SM_STEP_RUN(machine) sm_ ## machine ## _Step(sm)
 
 
+static void eapol_sm_step_run(struct eapol_state_machine *sm);
+static void eapol_sm_step_cb(void *eloop_ctx, void *timeout_ctx);
+
 
 /* Port Timers state machine - implemented as a function that will be called
  * once a second as a registered event loop timeout */
@@ -76,19 +79,34 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 {
 	struct eapol_state_machine *state = timeout_ctx;
 
-	if (state->aWhile > 0)
+	if (state->aWhile > 0) {
 		state->aWhile--;
-	if (state->quietWhile > 0)
+		if (state->aWhile == 0) {
+			wpa_printf(MSG_DEBUG, "IEEE 802.1X: " MACSTR
+				   " - aWhile --> 0",
+				   MAC2STR(state->addr));
+		}
+	}
+
+	if (state->quietWhile > 0) {
 		state->quietWhile--;
-	if (state->reAuthWhen > 0)
+		if (state->quietWhile == 0) {
+			wpa_printf(MSG_DEBUG, "IEEE 802.1X: " MACSTR
+				   " - quietWhile --> 0",
+				   MAC2STR(state->addr));
+		}
+	}
+
+	if (state->reAuthWhen > 0) {
 		state->reAuthWhen--;
+		if (state->reAuthWhen == 0) {
+			wpa_printf(MSG_DEBUG, "IEEE 802.1X: " MACSTR
+				   " - reAuthWhen --> 0",
+				   MAC2STR(state->addr));
+		}
+	}
 
-	if (state->hapd->conf->debug >= HOSTAPD_DEBUG_MSGDUMPS)
-		printf("IEEE 802.1X: " MACSTR " Port Timers TICK "
-		       "(timers: %d %d %d)\n", MAC2STR(state->addr),
-		       state->aWhile, state->quietWhile, state->reAuthWhen);
-
-	eapol_sm_step(state);
+	eapol_sm_step_run(state);
 
 	eloop_register_timeout(1, 0, eapol_port_timers_tick, eloop_ctx, state);
 }
@@ -359,6 +377,19 @@ SM_STATE(BE_AUTH, REQUEST)
 	txReq();
 	sm->be_auth.eapReq = FALSE;
 	sm->be_auth.backendOtherRequestsToSupplicant++;
+
+	/*
+	 * Clearing eapolEap here is not specified in IEEE Std 802.1X-2004, but
+	 * it looks like this would be logical thing to do there since the old
+	 * EAP response would not be valid anymore after the new EAP request
+	 * was sent out.
+	 *
+	 * A race condition has been reported, in which hostapd ended up
+	 * sending out EAP-Response/Identity as a response to the first
+	 * EAP-Request from the main EAP method. This can be avoided by
+	 * clearing eapolEap here.
+	 */
+	sm->eapolEap = FALSE;
 }
 
 
@@ -705,7 +736,7 @@ eapol_sm_alloc(hostapd *hapd, struct sta_info *sta)
 	else
 		sm->portValid = TRUE;
 
-	if (hapd->conf->eap_authenticator) {
+	if (hapd->conf->eap_server) {
 		struct eap_config eap_conf;
 		memset(&eap_conf, 0, sizeof(eap_conf));
 		eap_conf.ssl_ctx = hapd->ssl_ctx;
@@ -729,6 +760,7 @@ void eapol_sm_free(struct eapol_state_machine *sm)
 		return;
 
 	eloop_cancel_timeout(eapol_port_timers_tick, sm->hapd, sm);
+	eloop_cancel_timeout(eapol_sm_step_cb, sm, NULL);
 	if (sm->eap)
 		eap_sm_deinit(sm->eap);
 	free(sm);
@@ -745,59 +777,86 @@ static int eapol_sm_sta_entry_alive(struct hostapd_data *hapd, u8 *addr)
 }
 
 
-void eapol_sm_step(struct eapol_state_machine *sm)
+static void eapol_sm_step_run(struct eapol_state_machine *sm)
 {
 	struct hostapd_data *hapd = sm->hapd;
 	u8 addr[ETH_ALEN];
 	int prev_auth_pae, prev_be_auth, prev_reauth_timer, prev_auth_key_tx,
 		prev_key_rx, prev_ctrl_dir;
-
-	/* FIX: could re-run eapol_sm_step from registered timeout (after
-	 * 0 sec) to make sure that other possible timeouts/events are
-	 * processed */
+	int max_steps = 100;
 
 	memcpy(addr, sm->sta->addr, ETH_ALEN);
-restart:
-	do {
-		prev_auth_pae = sm->auth_pae.state;
-		prev_be_auth = sm->be_auth.state;
-		prev_reauth_timer = sm->reauth_timer.state;
-		prev_auth_key_tx = sm->auth_key_tx.state;
-		prev_key_rx = sm->key_rx.state;
-		prev_ctrl_dir = sm->ctrl_dir.state;
 
-		SM_STEP_RUN(AUTH_PAE);
-		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
-			break;
+	/*
+	 * Allow EAPOL state machines to run as long as there are state
+	 * changes, but exit and return here through event loop if more than
+	 * 100 steps is needed as a precaution against infinite loops inside
+	 * eloop callback.
+	 */
+restart:
+	prev_auth_pae = sm->auth_pae.state;
+	prev_be_auth = sm->be_auth.state;
+	prev_reauth_timer = sm->reauth_timer.state;
+	prev_auth_key_tx = sm->auth_key_tx.state;
+	prev_key_rx = sm->key_rx.state;
+	prev_ctrl_dir = sm->ctrl_dir.state;
+
+	SM_STEP_RUN(AUTH_PAE);
+	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
 		SM_STEP_RUN(BE_AUTH);
-		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
-			break;
+	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
 		SM_STEP_RUN(REAUTH_TIMER);
-		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
-			break;
+	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
 		SM_STEP_RUN(AUTH_KEY_TX);
-		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
-			break;
+	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
 		SM_STEP_RUN(KEY_RX);
-		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
-			break;
+	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
 		SM_STEP_RUN(CTRL_DIR);
-		if (!sm->initializing && !eapol_sm_sta_entry_alive(hapd, addr))
-			break;
-	} while (prev_auth_pae != sm->auth_pae.state ||
-		 prev_be_auth != sm->be_auth.state ||
-		 prev_reauth_timer != sm->reauth_timer.state ||
-		 prev_auth_key_tx != sm->auth_key_tx.state ||
-		 prev_key_rx != sm->key_rx.state ||
-		 prev_ctrl_dir != sm->ctrl_dir.state);
+
+	if (prev_auth_pae != sm->auth_pae.state ||
+	    prev_be_auth != sm->be_auth.state ||
+	    prev_reauth_timer != sm->reauth_timer.state ||
+	    prev_auth_key_tx != sm->auth_key_tx.state ||
+	    prev_key_rx != sm->key_rx.state ||
+	    prev_ctrl_dir != sm->ctrl_dir.state) {
+		if (--max_steps > 0)
+			goto restart;
+		/* Re-run from eloop timeout */
+		eapol_sm_step(sm);
+		return;
+	}
 
 	if (eapol_sm_sta_entry_alive(hapd, addr) && sm->eap) {
-		if (eap_sm_step(sm->eap))
-			goto restart;
+		if (eap_sm_step(sm->eap)) {
+			if (--max_steps > 0)
+				goto restart;
+			/* Re-run from eloop timeout */
+			eapol_sm_step(sm);
+			return;
+		}
 	}
 
 	if (eapol_sm_sta_entry_alive(hapd, addr))
 		wpa_sm_notify(sm->hapd, sm->sta);
+}
+
+
+static void eapol_sm_step_cb(void *eloop_ctx, void *timeout_ctx)
+{
+	struct eapol_state_machine *sm = eloop_ctx;
+	eapol_sm_step_run(sm);
+}
+
+
+void eapol_sm_step(struct eapol_state_machine *sm)
+{
+	/*
+	 * Run eapol_sm_step_run from a registered timeout to make sure that
+	 * other possible timeouts/events are processed and to avoid long
+	 * function call chains.
+	 */
+
+	eloop_register_timeout(0, 0, eapol_sm_step_cb, sm, NULL);
 }
 
 
@@ -807,9 +866,9 @@ void eapol_sm_initialize(struct eapol_state_machine *sm)
 	/* Initialize the state machines by asserting initialize and then
 	 * deasserting it after one step */
 	sm->initialize = TRUE;
-	eapol_sm_step(sm);
+	eapol_sm_step_run(sm);
 	sm->initialize = FALSE;
-	eapol_sm_step(sm);
+	eapol_sm_step_run(sm);
 	sm->initializing = FALSE;
 
 	/* Start one second tick for port timers state machine */
@@ -1183,6 +1242,14 @@ static int eapol_sm_get_eap_user(void *ctx, const u8 *identity,
 }
 
 
+static const char * eapol_sm_get_eap_req_id_text(void *ctx, size_t *len)
+{
+	struct eapol_state_machine *sm = ctx;
+	*len = sm->hapd->conf->eap_req_id_text_len;
+	return sm->hapd->conf->eap_req_id_text;
+}
+
+
 static struct eapol_callbacks eapol_cb =
 {
 	.get_bool = eapol_sm_get_bool,
@@ -1190,4 +1257,5 @@ static struct eapol_callbacks eapol_cb =
 	.set_eapReqData = eapol_sm_set_eapReqData,
 	.set_eapKeyData = eapol_sm_set_eapKeyData,
 	.get_eap_user = eapol_sm_get_eap_user,
+	.get_eap_req_id_text = eapol_sm_get_eap_req_id_text,
 };

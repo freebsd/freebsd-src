@@ -53,6 +53,7 @@
 #include "iapp.h"
 #include "eloop.h"
 #include "sta_info.h"
+#include "hostap_common.h"
 
 
 #define IAPP_MULTICAST "224.0.1.178"
