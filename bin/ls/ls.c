@@ -416,27 +416,27 @@ main(int argc, char *argv[])
 	if (f_reversesort) {
 		if (!f_timesort && !f_sizesort)
 			sortfcn = revnamecmp;
+		else if (f_sizesort)
+			sortfcn = revsizecmp;
 		else if (f_accesstime)
 			sortfcn = revacccmp;
 		else if (f_birthtime)
 			sortfcn = revbirthcmp;
 		else if (f_statustime)
 			sortfcn = revstatcmp;
-		else if (f_sizesort)
-			sortfcn = revsizecmp;
 		else		/* Use modification time. */
 			sortfcn = revmodcmp;
 	} else {
 		if (!f_timesort && !f_sizesort)
 			sortfcn = namecmp;
+		else if (f_sizesort)
+			sortfcn = sizecmp;
 		else if (f_accesstime)
 			sortfcn = acccmp;
 		else if (f_birthtime)
 			sortfcn = birthcmp;
 		else if (f_statustime)
 			sortfcn = statcmp;
-		else if (f_sizesort)
-			sortfcn = sizecmp;
 		else		/* Use modification time. */
 			sortfcn = modcmp;
 	}
