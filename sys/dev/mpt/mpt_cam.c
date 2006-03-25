@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include "dev/mpt/mpilib/mpi_ioc.h" /* XXX Fix Event Handling!!! */
 #include "dev/mpt/mpilib/mpi_init.h"
 #include "dev/mpt/mpilib/mpi_targ.h"
+#include "dev/mpt/mpilib/mpi_fc.h"
 
 #include <sys/callout.h>
 #include <sys/kthread.h>
@@ -112,9 +113,12 @@ static int mpt_setsync(struct mpt_softc *, int, int, int);
 static void mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 static mpt_reply_handler_t mpt_scsi_reply_handler;
 static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
+static mpt_reply_handler_t mpt_fc_els_reply_handler;
+static mpt_reply_handler_t mpt_scsi_tgt_reply_handler;
 static int mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 					MSG_DEFAULT_REPLY *reply_frame);
 static int mpt_bus_reset(struct mpt_softc *, int /*sleep_ok*/);
+static int mpt_fc_reset_link(struct mpt_softc *, int);
 
 static int mpt_spawn_recovery_thread(struct mpt_softc *mpt);
 static void mpt_terminate_recovery_thread(struct mpt_softc *mpt);
@@ -123,13 +127,25 @@ static int mpt_scsi_send_tmf(struct mpt_softc *, u_int /*type*/,
 			     u_int /*flags*/, u_int /*channel*/,
 			     u_int /*target*/, u_int /*lun*/,
 			     u_int /*abort_ctx*/, int /*sleep_ok*/);
+
+static void mpt_fc_add_els(struct mpt_softc *mpt, request_t *);
+static void mpt_post_target_command(struct mpt_softc *, request_t *, int);
+static void mpt_add_target_commands(struct mpt_softc *mpt);
+static int mpt_enable_lun(struct mpt_softc *, target_id_t, lun_id_t);
+static int mpt_disable_lun(struct mpt_softc *, target_id_t, lun_id_t);
+static void mpt_target_start_io(struct mpt_softc *, union ccb *);
+static cam_status mpt_abort_target_ccb(struct mpt_softc *, union ccb *);
+static cam_status mpt_abort_target_cmd(struct mpt_softc *, request_t *);
+
 static void mpt_recover_commands(struct mpt_softc *mpt);
 
 static uint32_t scsi_io_handler_id = MPT_HANDLER_ID_NONE;
 static uint32_t scsi_tmf_handler_id = MPT_HANDLER_ID_NONE;
+static uint32_t fc_els_handler_id = MPT_HANDLER_ID_NONE;
 
 static mpt_probe_handler_t	mpt_cam_probe;
 static mpt_attach_handler_t	mpt_cam_attach;
+static mpt_enable_handler_t	mpt_cam_enable;
 static mpt_event_handler_t	mpt_cam_event;
 static mpt_reset_handler_t	mpt_cam_ioc_reset;
 static mpt_detach_handler_t	mpt_cam_detach;
@@ -139,6 +155,7 @@ static struct mpt_personality mpt_cam_personality =
 	.name		= "mpt_cam",
 	.probe		= mpt_cam_probe,
 	.attach		= mpt_cam_attach,
+	.enable		= mpt_cam_enable,
 	.event		= mpt_cam_event,
 	.reset		= mpt_cam_ioc_reset,
 	.detach		= mpt_cam_detach,
@@ -150,13 +167,14 @@ int
 mpt_cam_probe(struct mpt_softc *mpt)
 {
 	/*
-	 * Only attach to nodes that support the initiator
-	 * role or have RAID physical devices that need
-	 * CAM pass-thru support.
+	 * Only attach to nodes that support the initiator or target
+	 * role or have RAID physical devices that need CAM pass-thru support.
 	 */
 	if ((mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_INITIATOR) != 0
-	 || (mpt->ioc_page2 != NULL && mpt->ioc_page2->MaxPhysDisks != 0))
+	 || (mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_TARGET) != 0
+	 || (mpt->ioc_page2 != NULL && mpt->ioc_page2->MaxPhysDisks != 0)) {
 		return (0);
+	}
 	return (ENODEV);
 }
 
@@ -168,22 +186,73 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	int		 maxq;
 	int		 error;
 
-	MPTLOCK_2_CAMLOCK(mpt);
 	TAILQ_INIT(&mpt->request_timeout_list);
-	mpt->bus = 0;
 	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS(mpt))?
 	    mpt->mpt_global_credits : MPT_MAX_REQUESTS(mpt);
 
 	handler.reply_handler = mpt_scsi_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &scsi_io_handler_id);
-	if (error != 0)
+	if (error != 0) {
 		goto cleanup;
+	}
+
 	handler.reply_handler = mpt_scsi_tmf_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &scsi_tmf_handler_id);
-	if (error != 0)
+	if (error != 0) {
 		goto cleanup;
+	}
+
+	/*
+	 * We keep two requests reserved for ELS replies/responses
+	 * if we're fibre channel and target mode.
+	 */
+	if (mpt->is_fc && (mpt->role & MPT_ROLE_TARGET) != 0) {
+		request_t *req;
+		int i;
+
+		handler.reply_handler = mpt_fc_els_reply_handler;
+		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
+		    &fc_els_handler_id);
+		if (error != 0) {
+			goto cleanup;
+		}
+
+		/*
+		 * Feed the chip some ELS buffer resources
+		 */
+		for (i = 0; i < MPT_MAX_ELS; i++) {
+			req = mpt_get_request(mpt, FALSE);
+			if (req == NULL) {
+				break;
+			}
+			mpt_fc_add_els(mpt, req);
+		}
+		if (i == 0) {
+			mpt_prt(mpt, "Unable to add ELS buffer resources\n");
+			goto cleanup;
+		}
+		maxq -= i;
+	}
+
+	/*
+	 * If we're in target mode, register a reply
+	 * handler for it and add some commands.
+	 */
+	if ((mpt->role & MPT_ROLE_TARGET) != 0) {
+		handler.reply_handler = mpt_scsi_tgt_reply_handler;
+		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
+		    &mpt->scsi_tgt_handler_id);
+		if (error != 0) {
+			goto cleanup;
+		}
+
+		/*
+		 * Add some target command resources
+		 */
+		mpt_add_target_commands(mpt);
+	}
 
 	/*
 	 * We keep one request reserved for timeout TMF requests.
@@ -252,9 +321,9 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Only register a second bus for RAID physical
 	 * devices if the controller supports RAID.
 	 */
-	if (mpt->ioc_page2 == NULL
-	 || mpt->ioc_page2->MaxPhysDisks == 0)
+	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0) {
 		return (0);
+	}
 
 	/*
 	 * Create a "bus" to export all hidden disks to CAM.
@@ -283,13 +352,410 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		error = ENOMEM;
 		goto cleanup;
 	}
-
-	CAMLOCK_2_MPTLOCK(mpt);
 	return (0);
 cleanup:
-	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_cam_detach(mpt);
 	return (error);
+}
+
+/*
+ * Read FC configuration information
+ */
+static int
+mpt_read_config_info_fc(struct mpt_softc *mpt)
+{
+	char *topology = NULL;
+	int rv, speed = 0;
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_FC_PORT, 0,
+	    0, &mpt->mpt_fcport_page0.Header, FALSE, 5000);
+	if (rv) {
+		return (-1);
+	}
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "FC Port Page 0 Header: %x %x %x %x\n",
+		 mpt->mpt_fcport_page0.Header.PageVersion,
+		 mpt->mpt_fcport_page0.Header.PageLength,
+		 mpt->mpt_fcport_page0.Header.PageNumber,
+		 mpt->mpt_fcport_page0.Header.PageType);
+
+
+	rv = mpt_read_cur_cfg_page(mpt, 0, &mpt->mpt_fcport_page0.Header,
+	    sizeof(mpt->mpt_fcport_page0), FALSE, 5000);
+	if (rv) {
+		mpt_prt(mpt, "failed to read FC Port Page 0\n");
+		return (-1);
+	}
+
+	speed = mpt->mpt_fcport_page0.CurrentSpeed;
+
+	switch (mpt->mpt_fcport_page0.Flags &
+	    MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK) {
+	case MPI_FCPORTPAGE0_FLAGS_ATTACH_NO_INIT:
+		speed = 0;
+		topology = "<NO LOOP>";
+		break;
+	case MPI_FCPORTPAGE0_FLAGS_ATTACH_POINT_TO_POINT:
+		topology = "N-Port";
+		break;
+	case MPI_FCPORTPAGE0_FLAGS_ATTACH_PRIVATE_LOOP:
+		topology = "NL-Port";
+		break;
+	case MPI_FCPORTPAGE0_FLAGS_ATTACH_FABRIC_DIRECT:
+		topology = "F-Port";
+		break;
+	case MPI_FCPORTPAGE0_FLAGS_ATTACH_PUBLIC_LOOP:
+		topology = "FL-Port";
+		break;
+	default:
+		speed = 0;
+		topology = "?";
+		break;
+	}
+
+	mpt_lprt(mpt, MPT_PRT_INFO,
+	    "FC Port Page 0: Topology <%s> WWNN 0x%08x%08x WWPN 0x%08x%08x "
+	    "Speed %u-Gbit\n", topology,
+	    mpt->mpt_fcport_page0.WWNN.High,
+	    mpt->mpt_fcport_page0.WWNN.Low,
+	    mpt->mpt_fcport_page0.WWPN.High,
+	    mpt->mpt_fcport_page0.WWPN.Low,
+	    speed);
+
+	return (0);
+}
+
+/*
+ * Set FC configuration information.
+ */
+static int
+mpt_set_initial_config_fc(struct mpt_softc *mpt)
+{
+#if	0
+	CONFIG_PAGE_FC_PORT_1 fc;
+	U32 fl;
+	int r, doit = 0;
+
+	r = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_FC_PORT, 1, 0,
+	    &fc.Header, FALSE, 5000);
+	if (r) {
+		return (mpt_fc_reset_link(mpt, 1));
+	}
+
+	r = mpt_read_cfg_page(mpt, MPI_CONFIG_ACTION_PAGE_READ_CURRENT, 0,
+	    &fc.Header, sizeof (fc), FALSE, 5000);
+	if (r) {
+		return (mpt_fc_reset_link(mpt, 1));
+	}
+
+	fl = le32toh(fc.Flags);
+	if ((fl & MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID) == 0) {
+		fl |= MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID;
+		doit = 1;
+	}
+	if ((fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT) &&
+	    (mpt->role & MPT_ROLE_INITIATOR) == 0) {
+		fl &= ~MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT;
+		doit = 1;
+	}
+	if ((fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG) &&
+	    (mpt->role & MPT_ROLE_TARGET) == 0) {
+		fl &= ~MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG;
+		doit = 1;
+	}
+	if (doit) {
+		const char *cc;
+
+		mpt_lprt(mpt, MPT_PRT_INFO,
+		    "FC Port Page 1: New Flags %x \n", fl);
+		fc.Flags = htole32(fl);
+		r = mpt_write_cfg_page(mpt,
+		    MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT, 0, &fc.Header,
+		    sizeof(fc), FALSE, 5000);
+		if (r != 0) {
+			cc = "FC PORT PAGE1 UPDATE: FAILED\n";
+		} else {
+			cc = "FC PORT PAGE1 UPDATED: SYSTEM NEEDS RESET\n";
+		}
+		mpt_prt(mpt, cc);
+	}
+#endif
+	return (mpt_fc_reset_link(mpt, 1));
+}
+
+/*
+ * Read SAS configuration information. Nothing to do yet.
+ */
+static int
+mpt_read_config_info_sas(struct mpt_softc *mpt)
+{
+	return (0);
+}
+
+/*
+ * Set SAS configuration information. Nothing to do yet.
+ */
+static int
+mpt_set_initial_config_sas(struct mpt_softc *mpt)
+{
+	return (0);
+}
+
+/*
+ * Read SCSI configuration information
+ */
+static int
+mpt_read_config_info_spi(struct mpt_softc *mpt)
+{
+	int rv, i;
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 0,
+				 0, &mpt->mpt_port_page0.Header,
+				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	if (rv)
+		return (-1);
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
+		 "SPI Port Page 0 Header: %x %x %x %x\n",
+		 mpt->mpt_port_page0.Header.PageVersion,
+		 mpt->mpt_port_page0.Header.PageLength,
+		 mpt->mpt_port_page0.Header.PageNumber,
+		 mpt->mpt_port_page0.Header.PageType);
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 1,
+				 0, &mpt->mpt_port_page1.Header,
+				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	if (rv)
+		return (-1);
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "SPI Port Page 1 Header: %x %x %x %x\n",
+		 mpt->mpt_port_page1.Header.PageVersion,
+		 mpt->mpt_port_page1.Header.PageLength,
+		 mpt->mpt_port_page1.Header.PageNumber,
+		 mpt->mpt_port_page1.Header.PageType);
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 2,
+				 /*PageAddress*/0, &mpt->mpt_port_page2.Header,
+				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	if (rv)
+		return (-1);
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
+		 "SPI Port Page 2 Header: %x %x %x %x\n",
+		 mpt->mpt_port_page1.Header.PageVersion,
+		 mpt->mpt_port_page1.Header.PageLength,
+		 mpt->mpt_port_page1.Header.PageNumber,
+		 mpt->mpt_port_page1.Header.PageType);
+
+	for (i = 0; i < 16; i++) {
+		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
+					 0, i, &mpt->mpt_dev_page0[i].Header,
+					 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+		if (rv)
+			return (-1);
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			 "SPI Target %d Device Page 0 Header: %x %x %x %x\n",
+			 i, mpt->mpt_dev_page0[i].Header.PageVersion,
+			 mpt->mpt_dev_page0[i].Header.PageLength,
+			 mpt->mpt_dev_page0[i].Header.PageNumber,
+			 mpt->mpt_dev_page0[i].Header.PageType);
+		
+		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
+					 1, i, &mpt->mpt_dev_page1[i].Header,
+					 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+		if (rv)
+			return (-1);
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			 "SPI Target %d Device Page 1 Header: %x %x %x %x\n",
+			 i, mpt->mpt_dev_page1[i].Header.PageVersion,
+			 mpt->mpt_dev_page1[i].Header.PageLength,
+			 mpt->mpt_dev_page1[i].Header.PageNumber,
+			 mpt->mpt_dev_page1[i].Header.PageType);
+	}
+
+	/*
+	 * At this point, we don't *have* to fail. As long as we have
+	 * valid config header information, we can (barely) lurch
+	 * along.
+	 */
+
+	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
+				   &mpt->mpt_port_page0.Header,
+				   sizeof(mpt->mpt_port_page0),
+				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	if (rv) {
+		mpt_prt(mpt, "failed to read SPI Port Page 0\n");
+	} else {
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x\n",
+		    mpt->mpt_port_page0.Capabilities,
+		    mpt->mpt_port_page0.PhysicalInterface);
+	}
+
+	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
+				   &mpt->mpt_port_page1.Header,
+				   sizeof(mpt->mpt_port_page1),
+				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	if (rv) {
+		mpt_prt(mpt, "failed to read SPI Port Page 1\n");
+	} else {
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "SPI Port Page 1: Configuration %x OnBusTimerValue %x\n",
+		    mpt->mpt_port_page1.Configuration,
+		    mpt->mpt_port_page1.OnBusTimerValue);
+	}
+
+	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
+				   &mpt->mpt_port_page2.Header,
+				   sizeof(mpt->mpt_port_page2),
+				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	if (rv) {
+		mpt_prt(mpt, "failed to read SPI Port Page 2\n");
+	} else {
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "SPI Port Page 2: Flags %x Settings %x\n",
+		    mpt->mpt_port_page2.PortFlags,
+		    mpt->mpt_port_page2.PortSettings);
+		for (i = 0; i < 16; i++) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+		  	    "SPI Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
+			    i, mpt->mpt_port_page2.DeviceSettings[i].Timeout,
+			    mpt->mpt_port_page2.DeviceSettings[i].SyncFactor,
+			    mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags);
+		}
+	}
+
+	for (i = 0; i < 16; i++) {
+		rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
+					   &mpt->mpt_dev_page0[i].Header,
+					   sizeof(*mpt->mpt_dev_page0),
+					   /*sleep_ok*/FALSE,
+					   /*timeout_ms*/5000);
+		if (rv) {
+			mpt_prt(mpt,
+			    "cannot read SPI Tgt %d Device Page 0\n", i);
+			continue;
+		}
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			 "SPI Tgt %d Page 0: NParms %x Information %x",
+			 i, mpt->mpt_dev_page0[i].NegotiatedParameters,
+			 mpt->mpt_dev_page0[i].Information);
+
+		rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
+					   &mpt->mpt_dev_page1[i].Header,
+					   sizeof(*mpt->mpt_dev_page1),
+					   /*sleep_ok*/FALSE,
+					   /*timeout_ms*/5000);
+		if (rv) {
+			mpt_prt(mpt,
+			    "cannot read SPI Tgt %d Device Page 1\n", i);
+			continue;
+		}
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			 "SPI Tgt %d Page 1: RParms %x Configuration %x\n",
+			 i, mpt->mpt_dev_page1[i].RequestedParameters,
+			 mpt->mpt_dev_page1[i].Configuration);
+	}
+	return (0);
+}
+
+/*
+ * Validate SPI configuration information.
+ *
+ * In particular, validate SPI Port Page 1.
+ */
+static int
+mpt_set_initial_config_spi(struct mpt_softc *mpt)
+{
+	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
+	int error;
+
+	mpt->mpt_disc_enable = 0xff;
+	mpt->mpt_tag_enable = 0;
+
+	if (mpt->mpt_port_page1.Configuration != pp1val) {
+		CONFIG_PAGE_SCSI_PORT_1 tmp;
+
+		mpt_prt(mpt,
+		    "SPI Port Page 1 Config value bad (%x)- should be %x\n",
+		    mpt->mpt_port_page1.Configuration, pp1val);
+		tmp = mpt->mpt_port_page1;
+		tmp.Configuration = pp1val;
+		error = mpt_write_cur_cfg_page(mpt, /*PageAddress*/0,
+					       &tmp.Header, sizeof(tmp),
+					       /*sleep_ok*/FALSE,
+					       /*timeout_ms*/5000);
+		if (error)
+			return (-1);
+		error = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
+					      &tmp.Header, sizeof(tmp),
+					      /*sleep_ok*/FALSE,
+					      /*timeout_ms*/5000);
+		if (error)
+			return (-1);
+		if (tmp.Configuration != pp1val) {
+			mpt_prt(mpt,
+			    "failed to reset SPI Port Page 1 Config value\n");
+			return (-1);
+		}
+		mpt->mpt_port_page1 = tmp;
+	}
+
+	for (i = 0; i < 16; i++) {
+		CONFIG_PAGE_SCSI_DEVICE_1 tmp;
+		tmp = mpt->mpt_dev_page1[i];
+		tmp.RequestedParameters = 0;
+		tmp.Configuration = 0;
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			 "Set Tgt %d SPI DevicePage 1 values to %x 0 %x\n",
+			 i, tmp.RequestedParameters, tmp.Configuration);
+		error = mpt_write_cur_cfg_page(mpt, /*PageAddress*/i,
+					       &tmp.Header, sizeof(tmp),
+					       /*sleep_ok*/FALSE,
+					       /*timeout_ms*/5000);
+		if (error)
+			return (-1);
+		error = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
+					      &tmp.Header, sizeof(tmp),
+					      /*sleep_ok*/FALSE,
+					      /*timeout_ms*/5000);
+		if (error)
+			return (-1);
+		mpt->mpt_dev_page1[i] = tmp;
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			 "SPI Tgt %d Page 1: RParm %x Configuration %x\n", i,
+			 mpt->mpt_dev_page1[i].RequestedParameters,
+			 mpt->mpt_dev_page1[i].Configuration);
+	}
+	return (0);
+}
+
+int
+mpt_cam_enable(struct mpt_softc *mpt)
+{
+	if (mpt->is_fc) {
+		if (mpt_read_config_info_fc(mpt)) {
+			return (EIO);
+		}
+		if (mpt_set_initial_config_fc(mpt)) {
+			return (EIO);
+		}
+	} else if (mpt->is_sas) {
+		if (mpt_read_config_info_sas(mpt)) {
+			return (EIO);
+		}
+		if (mpt_set_initial_config_sas(mpt)) {
+			return (EIO);
+		}
+	} else {
+		if (mpt_read_config_info_spi(mpt)) {
+			return (EIO);
+		}
+		if (mpt_set_initial_config_spi(mpt)) {
+			return (EIO);
+		}
+	}
+	return (0);
 }
 
 void
@@ -305,6 +771,12 @@ mpt_cam_detach(struct mpt_softc *mpt)
 	handler.reply_handler = mpt_scsi_tmf_reply_handler;
 	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
 			       scsi_tmf_handler_id);
+	handler.reply_handler = mpt_fc_els_reply_handler;
+	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
+			       fc_els_handler_id);
+	handler.reply_handler = mpt_scsi_tgt_reply_handler;
+	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
+			       mpt->scsi_tgt_handler_id);
 
 	if (mpt->tmf_req != NULL) {
 		mpt_free_request(mpt, mpt->tmf_req);
@@ -326,8 +798,7 @@ mpt_cam_detach(struct mpt_softc *mpt)
 	}
 }
 
-/* This routine is used after a system crash to dump core onto the
- * swap device.
+/* This routine is used after a system crash to dump core onto the swap device.
  */
 static void
 mpt_poll(struct cam_sim *sim)
@@ -361,7 +832,7 @@ mpt_timeout(void *arg)
 
 	MPT_LOCK(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
-	mpt_prt(mpt, "Request %p:serno Timed out.\n", req, req->serno);
+	mpt_prt(mpt, "Request %p Timed out.\n", req);
 	if ((req->state & REQ_STATE_QUEUED) == REQ_STATE_QUEUED) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		TAILQ_INSERT_TAIL(&mpt->request_timeout_list, req, links);
@@ -379,7 +850,7 @@ mpt_timeout(void *arg)
  * aborted the transaction.
  */
 static void
-mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
 	request_t *req, *trq;
 	char *mpt_off;
@@ -387,8 +858,8 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct mpt_softc *mpt;
 	int seg, first_lim;
 	uint32_t flags, nxt_off;
-	bus_dmasync_op_t op;
-	MSG_SCSI_IO_REQUEST *mpt_req;
+	void *sglp;
+	MSG_REQUEST_HEADER *hdrp;
 	SGE_SIMPLE64 *se;
 	SGE_CHAIN64 *ce;
 
@@ -397,8 +868,16 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 	req = ccb->ccb_h.ccb_req_ptr;
-	mpt_req = req->req_vbuf;
+
+	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
+
+	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+		sglp = &((PTR_MSG_SCSI_IO_REQUEST)hdrp)->SGL;
+	} else /* if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) */ {
+		sglp = &((PTR_MSG_TARGET_ASSIST_REQUEST)hdrp)->SGL;
+	}
+
 
 	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
 		error = EFBIG;
@@ -406,13 +885,14 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 bad:
 	if (error != 0) {
-		if (error != EFBIG && error != ENOMEM)
+		if (error != EFBIG && error != ENOMEM) {
 			mpt_prt(mpt, "mpt_execute_req: err %d\n", error);
-		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
-			xpt_freeze_devq(ccb->ccb_h.path, 1);
-			ccb->ccb_h.status = CAM_DEV_QFRZN;
+		}
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
+			cam_status status;
+			mpt_freeze_ccb(ccb);
 			if (error == EFBIG) {
-				ccb->ccb_h.status |= CAM_REQ_TOO_BIG;
+				status = CAM_REQ_TOO_BIG;
 			} else if (error == ENOMEM) {
 				if (mpt->outofbeer == 0) {
 					mpt->outofbeer = 1;
@@ -420,11 +900,21 @@ bad:
 					mpt_lprt(mpt, MPT_PRT_DEBUG,
 					    "FREEZEQ\n");
 				}
-				ccb->ccb_h.status |= CAM_REQUEUE_REQ;
-			} else
-				ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
+				status = CAM_REQUEUE_REQ;
+			} else {
+				status = CAM_REQ_CMP_ERR;
+			}
+			mpt_set_ccb_status(ccb, status);
+		}
+		if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+			request_t *cmd_req =
+				MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+			MPT_TGT_STATE(mpt, cmd_req)->state = TGT_STATE_IN_CAM;
+			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
+			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
 		xpt_done(ccb);
 		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
@@ -438,29 +928,45 @@ bad:
 	 */
 
 	if (mpt->verbose >= MPT_PRT_DEBUG) {
-		int tidx = ((char *)&mpt_req->SGL) - mpt_off;
+		int tidx = ((char *)sglp) - mpt_off;
 		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
 	}
 
 	if (nseg == 0) {
-		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) &mpt_req->SGL;
+		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) sglp;
 		MPI_pSGE_SET_FLAGS(se1,
 		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 		    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
 		goto out;
 	}
 
-	mpt_req->DataLength = ccb->csio.dxfer_len;
-	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_64_BIT_ADDRESSING;
-	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
-		flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
 
-	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		op = BUS_DMASYNC_PREREAD;
+	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_64_BIT_ADDRESSING;
+	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
+			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+		}
 	} else {
-		op = BUS_DMASYNC_PREWRITE;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+		}
 	}
+
 	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
+		bus_dmasync_op_t op;
+		if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+				op = BUS_DMASYNC_PREREAD;
+			} else {
+				op = BUS_DMASYNC_PREWRITE;
+			}
+		} else {
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+				op = BUS_DMASYNC_PREWRITE;
+			} else {
+				op = BUS_DMASYNC_PREREAD;
+			}
+		}
 		bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
 	}
 
@@ -483,7 +989,7 @@ bad:
 		first_lim = MPT_NSGL_FIRST(mpt) - 1;
 	}
 
-	se = (SGE_SIMPLE64 *) &mpt_req->SGL;
+	se = (SGE_SIMPLE64 *) sglp;
 	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
 		uint32_t tf;
 
@@ -511,7 +1017,7 @@ bad:
 	/*
 	 * Tell the IOC where to find the first chain element.
 	 */
-	mpt_req->ChainOffset = ((char *)se - (char *)mpt_req) >> 2;
+	hdrp->ChainOffset = ((char *)se - (char *)hdrp) >> 2;
 	nxt_off = MPT_RQSL(mpt);
 	trq = req;
 
@@ -650,7 +1156,6 @@ bad:
 			}
 			trq = nrq;
 			mpt_off = trq->req_vbuf;
-			mpt_req = trq->req_vbuf;
 			if (mpt->verbose >= MPT_PRT_DEBUG) {
 				memset(mpt_off, 0xff, MPT_REQUEST_AREA);
 			}
@@ -662,18 +1167,30 @@ out:
 	/*
 	 * Last time we need to check if this CCB needs to be aborted.
 	 */
-	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
-		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0)
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
+		if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+			request_t *cmd_req =
+				MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+			MPT_TGT_STATE(mpt, cmd_req)->state = TGT_STATE_IN_CAM;
+			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
+			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
+		}
+		mpt_prt(mpt,
+		    "mpt_execute_req_a64: I/O cancelled (status 0x%x)\n",
+		    ccb->ccb_h.status & CAM_STATUS_MASK);
+		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
 			bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
+		}
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
+		xpt_done(ccb);
 		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
 		MPTLOCK_2_CAMLOCK(mpt);
-		xpt_done(ccb);
 		return;
 	}
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-	CAMLOCK_2_MPTLOCK(mpt);
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		ccb->ccb_h.timeout_ch =
 			timeout(mpt_timeout, (caddr_t)ccb,
@@ -683,12 +1200,390 @@ out:
 	}
 	if (mpt->verbose >= MPT_PRT_DEBUG) {
 		int nc = 0;
-		mpt_print_scsi_io_request(req->req_vbuf);
+		mpt_print_request(req->req_vbuf);
 		for (trq = req->chain; trq; trq = trq->chain) {
 			printf("  Additional Chain Area %d\n", nc++);
 			mpt_dump_sgl(trq->req_vbuf, 0);
 		}
 	}
+	if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+		request_t *cmd_req = MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) &&
+		    csio->scsi_status == SCSI_STATUS_OK && tgt->resid == 0) {
+			tgt->state = TGT_STATE_MOVING_DATA_AND_STATUS;
+		} else {
+			tgt->state = TGT_STATE_MOVING_DATA;
+		}
+#else
+		tgt->state = TGT_STATE_MOVING_DATA;
+#endif
+	}
+	CAMLOCK_2_MPTLOCK(mpt);
+	mpt_send_cmd(mpt, req);
+	MPTLOCK_2_CAMLOCK(mpt);
+}
+
+static void
+mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+{
+	request_t *req, *trq;
+	char *mpt_off;
+	union ccb *ccb;
+	struct mpt_softc *mpt;
+	int seg, first_lim;
+	uint32_t flags, nxt_off;
+	void *sglp;
+	MSG_REQUEST_HEADER *hdrp;
+	SGE_SIMPLE32 *se;
+	SGE_CHAIN32 *ce;
+
+	req = (request_t *)arg;
+	ccb = req->ccb;
+
+	mpt = ccb->ccb_h.ccb_mpt_ptr;
+	req = ccb->ccb_h.ccb_req_ptr;
+
+	hdrp = req->req_vbuf;
+	mpt_off = req->req_vbuf;
+
+
+	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+		sglp = &((PTR_MSG_SCSI_IO_REQUEST)hdrp)->SGL;
+	} else /* if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) */ {
+		sglp = &((PTR_MSG_TARGET_ASSIST_REQUEST)hdrp)->SGL;
+	}
+
+
+	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
+		error = EFBIG;
+		mpt_prt(mpt, "segment count %d too large (max %u)\n",
+		    nseg, mpt->max_seg_cnt);
+	}
+
+bad:
+	if (error != 0) {
+		if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+			request_t *cmd_req =
+				MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+			MPT_TGT_STATE(mpt, cmd_req)->state = TGT_STATE_IN_CAM;
+			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
+			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
+		}
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
+			cam_status status;
+			mpt_freeze_ccb(ccb);
+			if (error == EFBIG) {
+				status = CAM_REQ_TOO_BIG;
+			} else if (error == ENOMEM) {
+				if (mpt->outofbeer == 0) {
+					mpt->outofbeer = 1;
+					xpt_freeze_simq(mpt->sim, 1);
+					mpt_lprt(mpt, MPT_PRT_DEBUG,
+					    "FREEZEQ\n");
+				}
+				status = CAM_REQUEUE_REQ;
+			} else {
+				status = CAM_REQ_CMP_ERR;
+			}
+			mpt_set_ccb_status(ccb, status);
+		}
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
+		xpt_done(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
+		mpt_free_request(mpt, req);
+		MPTLOCK_2_CAMLOCK(mpt);
+		return;
+	}
+
+	/*
+	 * No data to transfer?
+	 * Just make a single simple SGL with zero length.
+	 */
+
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		int tidx = ((char *)sglp) - mpt_off;
+		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
+	}
+
+	if (nseg == 0) {
+		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) sglp;
+		MPI_pSGE_SET_FLAGS(se1,
+		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
+		    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
+		goto out;
+	}
+
+
+	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
+	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
+			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+		}
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+		}
+	}
+
+	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
+		bus_dmasync_op_t op;
+		if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+				op = BUS_DMASYNC_PREREAD;
+			} else {
+				op = BUS_DMASYNC_PREWRITE;
+			}
+		} else {
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+				op = BUS_DMASYNC_PREWRITE;
+			} else {
+				op = BUS_DMASYNC_PREREAD;
+			}
+		}
+		bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
+	}
+
+	/*
+	 * Okay, fill in what we can at the end of the command frame.
+	 * If we have up to MPT_NSGL_FIRST, we can fit them all into
+	 * the command frame.
+	 *
+	 * Otherwise, we fill up through MPT_NSGL_FIRST less one
+	 * SIMPLE32 pointers and start doing CHAIN32 entries after
+	 * that.
+	 */
+
+	if (nseg < MPT_NSGL_FIRST(mpt)) {
+		first_lim = nseg;
+	} else {
+		/*
+		 * Leave room for CHAIN element
+		 */
+		first_lim = MPT_NSGL_FIRST(mpt) - 1;
+	}
+
+	se = (SGE_SIMPLE32 *) sglp;
+	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
+		uint32_t tf;
+
+		bzero(se, sizeof (*se));
+		se->Address = dm_segs->ds_addr;
+		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
+		tf = flags;
+		if (seg == first_lim - 1) {
+			tf |= MPI_SGE_FLAGS_LAST_ELEMENT;
+		}
+		if (seg == nseg - 1) {
+			tf |=	MPI_SGE_FLAGS_END_OF_LIST |
+				MPI_SGE_FLAGS_END_OF_BUFFER;
+		}
+		MPI_pSGE_SET_FLAGS(se, tf);
+	}
+
+	if (seg == nseg) {
+		goto out;
+	}
+
+	/*
+	 * Tell the IOC where to find the first chain element.
+	 */
+	hdrp->ChainOffset = ((char *)se - (char *)hdrp) >> 2;
+	nxt_off = MPT_RQSL(mpt);
+	trq = req;
+
+	/*
+	 * Make up the rest of the data segments out of a chain element
+	 * (contiained in the current request frame) which points to
+	 * SIMPLE32 elements in the next request frame, possibly ending
+	 * with *another* chain element (if there's more).
+	 */
+	while (seg < nseg) {
+		int this_seg_lim;
+		uint32_t tf, cur_off;
+		bus_addr_t chain_list_addr;
+
+		/*
+		 * Point to the chain descriptor. Note that the chain
+		 * descriptor is at the end of the *previous* list (whether
+		 * chain or simple).
+		 */
+		ce = (SGE_CHAIN32 *) se;
+
+		/*
+		 * Before we change our current pointer, make  sure we won't
+		 * overflow the request area with this frame. Note that we
+		 * test against 'greater than' here as it's okay in this case
+		 * to have next offset be just outside the request area.
+		 */
+		if ((nxt_off + MPT_RQSL(mpt)) > MPT_REQUEST_AREA) {
+			nxt_off = MPT_REQUEST_AREA;
+			goto next_chain;
+		}
+
+		/*
+		 * Set our SGE element pointer to the beginning of the chain
+		 * list and update our next chain list offset.
+		 */
+		se = (SGE_SIMPLE32 *) &mpt_off[nxt_off];
+		cur_off = nxt_off;
+		nxt_off += MPT_RQSL(mpt);
+
+		/*
+		 * Now initialized the chain descriptor.
+		 */
+		bzero(ce, sizeof (SGE_CHAIN32));
+
+		/*
+		 * Get the physical address of the chain list.
+		 */
+		chain_list_addr = trq->req_pbuf;
+		chain_list_addr += cur_off;
+		ce->Address = chain_list_addr;
+		ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
+
+		/*
+		 * If we have more than a frame's worth of segments left,
+		 * set up the chain list to have the last element be another
+		 * chain descriptor.
+		 */
+		if ((nseg - seg) > MPT_NSGL(mpt)) {
+			this_seg_lim = seg + MPT_NSGL(mpt) - 1;
+			/*
+			 * The length of the chain is the length in bytes of the
+			 * number of segments plus the next chain element.
+			 *
+			 * The next chain descriptor offset is the length,
+			 * in words, of the number of segments.
+			 */
+			ce->Length = (this_seg_lim - seg) *
+			    sizeof (SGE_SIMPLE32);
+			ce->NextChainOffset = ce->Length >> 2;
+			ce->Length += sizeof (SGE_CHAIN32);
+		} else {
+			this_seg_lim = nseg;
+			ce->Length = (this_seg_lim - seg) *
+			    sizeof (SGE_SIMPLE32);
+		}
+
+		/*
+		 * Fill in the chain list SGE elements with our segment data.
+		 *
+		 * If we're the last element in this chain list, set the last
+		 * element flag. If we're the completely last element period,
+		 * set the end of list and end of buffer flags.
+		 */
+		while (seg < this_seg_lim) {
+			bzero(se, sizeof (*se));
+			se->Address = dm_segs->ds_addr;
+			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
+			tf = flags;
+			if (seg ==  this_seg_lim - 1) {
+				tf |=	MPI_SGE_FLAGS_LAST_ELEMENT;
+			}
+			if (seg == nseg - 1) {
+				tf |=	MPI_SGE_FLAGS_END_OF_LIST |
+					MPI_SGE_FLAGS_END_OF_BUFFER;
+			}
+			MPI_pSGE_SET_FLAGS(se, tf);
+			se++;
+			seg++;
+			dm_segs++;
+		}
+
+    next_chain:
+		/*
+		 * If we have more segments to do and we've used up all of
+		 * the space in a request area, go allocate another one
+		 * and chain to that.
+		 */
+		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
+			request_t *nrq = mpt_get_request(mpt, FALSE);
+
+			if (nrq == NULL) {
+				error = ENOMEM;
+				goto bad;
+			}
+
+			/*
+			 * Append the new request area on the tail of our list.
+			 */
+			if ((trq = req->chain) == NULL) {
+				req->chain = nrq;
+			} else {
+				while (trq->chain != NULL) {
+					trq = trq->chain;
+				}
+				trq->chain = nrq;
+			}
+			trq = nrq;
+			mpt_off = trq->req_vbuf;
+			if (mpt->verbose >= MPT_PRT_DEBUG) {
+				memset(mpt_off, 0xff, MPT_REQUEST_AREA);
+			}
+			nxt_off = 0;
+		}
+	}
+out:
+
+	/*
+	 * Last time we need to check if this CCB needs to be aborted.
+	 */
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
+		if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+			request_t *cmd_req =
+				MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+			MPT_TGT_STATE(mpt, cmd_req)->state = TGT_STATE_IN_CAM;
+			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
+			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
+		}
+		mpt_prt(mpt, "mpt_execute_req: I/O cancelled (status 0x%x)\n",
+		    ccb->ccb_h.status & CAM_STATUS_MASK);
+		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
+			bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
+		}
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
+		xpt_done(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
+		mpt_free_request(mpt, req);
+		MPTLOCK_2_CAMLOCK(mpt);
+		return;
+	}
+
+	ccb->ccb_h.status |= CAM_SIM_QUEUED;
+	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
+		ccb->ccb_h.timeout_ch =
+			timeout(mpt_timeout, (caddr_t)ccb,
+				(ccb->ccb_h.timeout * hz) / 1000);
+	} else {
+		callout_handle_init(&ccb->ccb_h.timeout_ch);
+	}
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		int nc = 0;
+		mpt_print_request(req->req_vbuf);
+		for (trq = req->chain; trq; trq = trq->chain) {
+			printf("  Additional Chain Area %d\n", nc++);
+			mpt_dump_sgl(trq->req_vbuf, 0);
+		}
+	}
+	if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+		request_t *cmd_req = MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) &&
+		    csio->scsi_status == SCSI_STATUS_OK && tgt->resid == 0) {
+			tgt->state = TGT_STATE_MOVING_DATA_AND_STATUS;
+		} else {
+			tgt->state = TGT_STATE_MOVING_DATA;
+		}
+#else
+		tgt->state = TGT_STATE_MOVING_DATA;
+#endif
+	}
+	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
 	MPTLOCK_2_CAMLOCK(mpt);
 }
@@ -701,6 +1596,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	MSG_SCSI_IO_REQUEST *mpt_req;
 	struct ccb_scsiio *csio = &ccb->csio;
 	struct ccb_hdr *ccbh = &ccb->ccb_h;
+	bus_dmamap_callback_t *cb;
 	int raid_passthru;
 
 	/* Get the pointer for the physical addapter */
@@ -715,13 +1611,19 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			xpt_freeze_simq(mpt->sim, 1);
 			mpt_lprt(mpt, MPT_PRT_DEBUG, "FREEZEQ\n");
 		}
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
 		MPTLOCK_2_CAMLOCK(mpt);
-		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		xpt_done(ccb);
 		return;
 	}
-
 	MPTLOCK_2_CAMLOCK(mpt);
+
+	if (sizeof (bus_addr_t) > 4) {
+		cb = mpt_execute_req_a64;
+	} else {
+		cb = mpt_execute_req;
+	}
 
 #if 0
 	COWWWWW
@@ -743,10 +1645,11 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	bzero(mpt_req, sizeof *mpt_req);
 
 	mpt_req->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
-	if (raid_passthru)
+	if (raid_passthru) {
 		mpt_req->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
+	}
 
-	mpt_req->Bus = mpt->bus;
+	mpt_req->Bus = 0;	/* we don't have multiport devices yet */
 
 	mpt_req->SenseBufferLength =
 		(csio->sense_len < MPT_SENSE_SIZE) ?
@@ -760,10 +1663,14 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 
 	/* Which physical device to do the I/O on */
 	mpt_req->TargetID = ccb->ccb_h.target_id;
-	/*
-	 * XXX Assumes Single level, Single byte, CAM LUN type.
-	 */
-	mpt_req->LUN[1] = ccb->ccb_h.target_lun;
+
+	/* We assume a single level LUN type */
+	if (ccb->ccb_h.target_lun >= 256) {
+		mpt_req->LUN[0] = 0x40 | ((ccb->ccb_h.target_lun >> 8) & 0x3f);
+		mpt_req->LUN[1] = ccb->ccb_h.target_lun & 0xff;
+	} else {
+		mpt_req->LUN[1] = ccb->ccb_h.target_lun;
+	}
 
 	/* Set the direction of the transfer */
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
@@ -829,10 +1736,11 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 				 * one or more physical address ranges.
 				 */
 				int error;
-
+				int s = splsoftvm();
 				error = bus_dmamap_load(mpt->buffer_dmat,
 				    req->dmap, csio->data_ptr, csio->dxfer_len,
-				    mpt_execute_req, req, 0);
+				    cb, req, 0);
+				splx(s);
 				if (error == EINPROGRESS) {
 					/*
 					 * So as to maintain ordering,
@@ -852,7 +1760,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 				seg.ds_addr = 
 				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
 				seg.ds_len = csio->dxfer_len;
-				mpt_execute_req(req, &seg, 1, 0);
+				(*cb)(req, &seg, 1, 0);
 			}
 		} else {
 			/*
@@ -863,15 +1771,15 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			 */
 			struct bus_dma_segment *segs;
 			if ((ccbh->flags & CAM_SG_LIST_PHYS) == 0) {
-				mpt_execute_req(req, NULL, 0, EFAULT);
+				(*cb)(req, NULL, 0, EFAULT);
 			} else {
 				/* Just use the segments provided */
 				segs = (struct bus_dma_segment *)csio->data_ptr;
-				mpt_execute_req(req, segs, csio->sglist_cnt, 0);
+				(*cb)(req, segs, csio->sglist_cnt, 0);
 			}
 		}
 	} else {
-		mpt_execute_req(req, NULL, 0, 0);
+		(*cb)(req, NULL, 0, 0);
 	}
 }
 
@@ -917,11 +1825,34 @@ mpt_bus_reset(struct mpt_softc *mpt, int sleep_ok)
 }
 
 static int
+mpt_fc_reset_link(struct mpt_softc *mpt, int dowait)
+{
+	int r = 0;
+	request_t *req;
+	PTR_MSG_FC_PRIMITIVE_SEND_REQUEST fc;
+
+ 	req = mpt_get_request(mpt, FALSE);
+	if (req == NULL) {
+		return (ENOMEM);
+	}
+	fc = req->req_vbuf;
+	memset(fc, 0, sizeof(*fc));
+	fc->SendFlags = MPI_FC_PRIM_SEND_FLAGS_RESET_LINK;
+	fc->Function = MPI_FUNCTION_FC_PRIMITIVE_SEND;
+	fc->MsgContext = htole32(req->index | fc_els_handler_id);
+	mpt_send_cmd(mpt, req);
+	if (dowait) {
+		r = mpt_wait_req(mpt, req, REQ_STATE_DONE,
+		    REQ_STATE_DONE, FALSE, 60 * 1000);
+		mpt_free_request(mpt, req);
+	}
+	return (r);
+}
+
+static int
 mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	      MSG_EVENT_NOTIFY_REPLY *msg)
 {
-	mpt_lprt(mpt, MPT_PRT_ALWAYS, "mpt_cam_event: 0x%x\n",
-                 msg->Event & 0xFF);
 	switch(msg->Event & 0xFF) {
 	case MPI_EVENT_UNIT_ATTENTION:
 		mpt_prt(mpt, "Bus: 0x%02x TargetID: 0x%02x\n",
@@ -937,7 +1868,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 
 	case MPI_EVENT_EXT_BUS_RESET:
 		/* Someone else generated a bus reset */
-		mpt_prt(mpt, "Ext Bus Reset\n");
+		mpt_prt(mpt, "External Bus Reset Detected\n");
 		/*
 		 * These replies don't return EventData like the MPI
 		 * spec says they do
@@ -972,26 +1903,26 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			switch ((msg->Data[0] >> 8) & 0xff) {
 			case 0xF7:
 				if ((msg->Data[0] & 0xff) == 0xF7) {
-					printf("Device needs AL_PA\n");
+					mpt_prt(mpt, "Device needs AL_PA\n");
 				} else {
-					printf("Device %02x doesn't like "
+					mpt_prt(mpt, "Device %02x doesn't like "
 					    "FC performance\n",
 					    msg->Data[0] & 0xFF);
 				}
 				break;
 			case 0xF8:
 				if ((msg->Data[0] & 0xff) == 0xF7) {
-					printf("Device had loop failure at its "
-					    "receiver prior to acquiring "
-					    "AL_PA\n");
+					mpt_prt(mpt, "Device had loop failure "
+					    "at its receiver prior to acquiring"
+					    " AL_PA\n");
 				} else {
-					printf("Device %02x detected loop "
-					    "failure at its receiver\n", 
+					mpt_prt(mpt, "Device %02x detected loop"
+					    " failure at its receiver\n", 
 					    msg->Data[0] & 0xFF);
 				}
 				break;
 			default:
-				printf("Device %02x requests that device "
+				mpt_prt(mpt, "Device %02x requests that device "
 				    "%02x reset itself\n", 
 				    msg->Data[0] & 0xFF,
 				    (msg->Data[0] >> 8) & 0xFF);
@@ -1038,6 +1969,8 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		    "mpt_cam_event: MPI_EVENT_SAS_DEVICE_STATUS_CHANGE\n");
 		break;
 	default:
+		mpt_lprt(mpt, MPT_PRT_WARN, "mpt_cam_event: 0x%x\n",
+		    msg->Event & 0xFF);
 		return (/*handled*/0);
 	}
 	return (/*handled*/1);
@@ -1055,7 +1988,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
  */
 static int
 mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
-		       MSG_DEFAULT_REPLY *reply_frame)
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	MSG_SCSI_IO_REQUEST *scsi_req;
 	union ccb *ccb;
@@ -1084,8 +2017,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 	if (reply_frame == NULL) {
 		/*
-		 * Context only reply, completion
-		 * without error status.
+		 * Context only reply, completion without error status.
 		 */
 		ccb->csio.resid = 0;
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
@@ -1099,13 +2031,9 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		mpt->outofbeer = 0;
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 	}
-	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-	MPTLOCK_2_CAMLOCK(mpt);
-	if (scsi_req->Function == MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH
-	 && scsi_req->CDB[0] == INQUIRY
-	 && (scsi_req->CDB[1] & SI_EVPD) == 0) {
+	if (scsi_req->Function == MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH &&
+	    scsi_req->CDB[0] == INQUIRY && (scsi_req->CDB[1] & SI_EVPD) == 0) {
 		struct scsi_inquiry_data *inq;
-
 		/*
 		 * Fake out the device type so that only the
 		 * pass-thru device will attach.
@@ -1114,13 +2042,16 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		inq->device &= ~0x1F;
 		inq->device |= T_NODEVICE;
 	}
+	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+	KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
 	CAMLOCK_2_MPTLOCK(mpt);
-	if ((req->state & REQ_STATE_TIMEDOUT) == 0)
+	if ((req->state & REQ_STATE_TIMEDOUT) == 0) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
-	else
+	} else {
 		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
-
+	}
 	if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
 		mpt_free_request(mpt, req);
 		return (/*free_reply*/TRUE);
@@ -1133,7 +2064,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 static int
 mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
-			   MSG_DEFAULT_REPLY *reply_frame)
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	MSG_SCSI_TASK_MGMT_REPLY *tmf_reply;
 	uint16_t		  status;
@@ -1156,6 +2087,884 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 		mpt->tmf_req->state = REQ_STATE_FREE;
 
 	return (/*free_reply*/TRUE);
+}
+
+
+/*
+ * XXX: Move to definitions file
+ */
+#define	ELS	0x22
+#define	FC4LS	0x32
+#define	ABTS	0x81
+#define	BA_ACC	0x84
+
+#define	LS_RJT	0x01 
+#define	LS_ACC	0x02
+#define	PLOGI	0x03
+#define	LOGO	0x05
+#define SRR	0x14
+#define PRLI	0x20
+#define PRLO	0x21
+#define ADISC	0x52
+#define RSCN	0x61
+
+static void
+mpt_fc_els_send_response(struct mpt_softc *mpt, request_t *req,
+    PTR_MSG_LINK_SERVICE_BUFFER_POST_REPLY rp, U8 length)
+{
+	MSG_LINK_SERVICE_RSP_REQUEST tmp;
+	PTR_MSG_LINK_SERVICE_RSP_REQUEST rsp;
+
+	/*
+	 * We are going to reuse the ELS request to send this response back.
+	 */
+	rsp = &tmp;
+	memset(rsp, 0, sizeof(*rsp));
+
+#ifdef	USE_IMMEDIATE_LINK_DATA
+	/*
+	 * Apparently the IMMEDIATE stuff doesn't seem to work.
+	 */
+	rsp->RspFlags = LINK_SERVICE_RSP_FLAGS_IMMEDIATE;
+#endif
+	rsp->RspLength = length;
+	rsp->Function = MPI_FUNCTION_FC_LINK_SRVC_RSP;
+	rsp->MsgContext = htole32(req->index | fc_els_handler_id);
+
+	/*
+	 * Copy over information from the original reply frame to
+	 * it's correct place in the response.
+	 */
+	memcpy((U8 *)rsp + 0x0c, (U8 *)rp + 0x1c, 24);
+
+	/*
+	 * And now copy back the temporary area to the original frame.
+	 */
+	memcpy(req->req_vbuf, rsp, sizeof (MSG_LINK_SERVICE_RSP_REQUEST));
+	rsp = req->req_vbuf;
+
+#ifdef	USE_IMMEDIATE_LINK_DATA
+	memcpy((U8 *)&rsp->SGL, &((U8 *)req->req_vbuf)[MPT_RQSL(mpt)], length);
+#else
+{
+	PTR_SGE_SIMPLE32 se = (PTR_SGE_SIMPLE32) &rsp->SGL;
+	bus_addr_t paddr = req->req_pbuf;
+	paddr += MPT_RQSL(mpt);
+
+	se->FlagsLength =
+		MPI_SGE_FLAGS_HOST_TO_IOC	|
+		MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
+		MPI_SGE_FLAGS_LAST_ELEMENT	|
+		MPI_SGE_FLAGS_END_OF_LIST	|
+		MPI_SGE_FLAGS_END_OF_BUFFER;
+	se->FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
+	se->FlagsLength |= (length);
+	se->Address = (uint32_t) paddr;
+}
+#endif
+
+	/*
+	 * Send it on...
+	 */
+	mpt_send_cmd(mpt, req);
+}
+
+static int
+mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
+{
+	PTR_MSG_LINK_SERVICE_BUFFER_POST_REPLY rp =
+	    (PTR_MSG_LINK_SERVICE_BUFFER_POST_REPLY) reply_frame;
+	U8 rctl;
+	U8 type;
+	U8 cmd;
+	U16 status = le16toh(reply_frame->IOCStatus);
+	U32 *elsbuf;
+	int do_refresh = TRUE;
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "FC_ELS Complete: req %p:%u, reply %p\n",
+		 req, req->serno, reply_frame);
+
+	if  (status != MPI_IOCSTATUS_SUCCESS) {
+		mpt_prt(mpt, "ELS REPLY STATUS 0x%x for Function %x\n",
+		    status, reply_frame->Function);
+		if (status == MPI_IOCSTATUS_INVALID_STATE) {
+			/*
+			 * XXX: to get around shutdown issue
+			 */
+			mpt->disabled = 1;
+			return (TRUE);
+		}
+		return (TRUE);
+	}
+
+	/*
+	 * If the function of a link service response, we recycle the
+	 * response to be a refresh for a new link service request.
+	 */
+	if (rp->Function == MPI_FUNCTION_FC_LINK_SRVC_RSP) {
+		mpt_fc_add_els(mpt, req);
+		return (TRUE);
+	}
+
+	if (rp->Function == MPI_FUNCTION_FC_PRIMITIVE_SEND) {
+		req->state &= ~REQ_STATE_QUEUED;
+		req->state |= REQ_STATE_DONE;
+		if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "Async Primitive Send Complete\n");
+			mpt_free_request(mpt, req);
+		} else {
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "Sync Primitive Send Complete\n");
+			wakeup(req);
+		}
+		return (TRUE);
+	}
+
+	if (rp->Function != MPI_FUNCTION_FC_LINK_SRVC_BUF_POST) {
+		mpt_prt(mpt, "unexpected ELS_REPLY: Function 0x%x Flags %x "
+		    "Length %d Message Flags %x\n", rp->Function, rp->Flags,
+		    rp->MsgLength, rp->MsgFlags);
+		return (TRUE);
+	}
+
+	if (rp->MsgLength <= 5) {
+		/*
+		 * This is just a ack of an original ELS buffer post
+		 */
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "Recv'd ACK of FC_ELS buf post %p:%u\n", req, req->serno);
+		return (TRUE);
+	}
+
+
+	rctl = (le32toh(rp->Rctl_Did) & MPI_FC_RCTL_MASK) >> MPI_FC_RCTL_SHIFT;
+	type = (le32toh(rp->Type_Fctl) & MPI_FC_TYPE_MASK) >> MPI_FC_TYPE_SHIFT;
+
+	elsbuf = &((U32 *)req->req_vbuf)[MPT_RQSL(mpt)/sizeof (U32)];
+	cmd = be32toh(elsbuf[0]) >> 24;
+
+	if (rp->Flags & MPI_LS_BUF_POST_REPLY_FLAG_NO_RSP_NEEDED) {
+		mpt_lprt(mpt, MPT_PRT_ALWAYS, "ELS_REPLY: response unneeded\n");
+		return (TRUE);
+	}
+
+
+	if (rctl == ELS && type == 1) {
+		switch (cmd) {
+		case PRLI:
+			/*
+			 * Send back a PRLI ACC
+			 */
+			mpt_prt(mpt, "PRLI from 0x%08x%08x\n",
+			    le32toh(rp->Wwn.PortNameHigh),
+			    le32toh(rp->Wwn.PortNameLow));
+			elsbuf[0] = htobe32(0x02100014);
+			elsbuf[1] |= htobe32(0x00000100);
+			elsbuf[4] = htobe32(0x00000002);
+			if (mpt->role & MPT_ROLE_TARGET)
+				elsbuf[4] |= htobe32(0x00000010);
+			if (mpt->role & MPT_ROLE_INITIATOR)
+				elsbuf[4] |= htobe32(0x00000020);
+			mpt_fc_els_send_response(mpt, req, rp, 20);
+			do_refresh = FALSE;
+			break;
+		case PRLO:
+			memset(elsbuf, 0, 5 * (sizeof (U32)));
+			elsbuf[0] = htobe32(0x02100014);
+			elsbuf[1] = htobe32(0x08000100);
+			mpt_prt(mpt, "PRLO from 0x%08x%08x\n",
+			    le32toh(rp->Wwn.PortNameHigh),
+			    le32toh(rp->Wwn.PortNameLow));
+			mpt_fc_els_send_response(mpt, req, rp, 20);
+			do_refresh = FALSE;
+			break;
+		default:
+			mpt_prt(mpt, "ELS TYPE 1 COMMAND: %x\n", cmd);
+			break;
+		}
+	} else if (rctl == ABTS && type == 0) {
+		uint16_t rx_id = le16toh(rp->Rxid);
+		uint16_t ox_id = le16toh(rp->Oxid);
+		request_t *tgt_req = NULL;
+
+		mpt_prt(mpt,
+		    "ELS: ABTS OX_ID 0x%x RX_ID 0x%x from 0x%08x%08x\n",
+		    ox_id, rx_id, le32toh(rp->Wwn.PortNameHigh),
+		    le32toh(rp->Wwn.PortNameLow));
+		if (rx_id >= mpt->mpt_max_tgtcmds) {
+			mpt_prt(mpt, "Bad RX_ID 0x%x\n", rx_id);
+		} else if (mpt->tgt_cmd_ptrs == NULL) {
+			mpt_prt(mpt, "No TGT CMD PTRS\n");
+		} else {
+			tgt_req = mpt->tgt_cmd_ptrs[rx_id];
+		}
+		if (tgt_req) {
+			mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, tgt_req);
+			uint8_t *vbuf;
+			union ccb *ccb = tgt->ccb;
+			cam_status cs;
+			uint32_t ct_id;
+
+			vbuf = tgt_req->req_vbuf;
+			vbuf += MPT_RQSL(mpt);
+
+			/*
+			 * Check to make sure we have the correct command
+			 * The reply descriptor in the target state should
+			 * should contain an IoIndex that should match the
+			 * RX_ID.
+			 *
+			 * It'd be nice to have OX_ID to crosscheck with
+			 * as well.
+			 */
+			ct_id = GET_IO_INDEX(tgt->reply_desc);
+
+			if (ct_id != rx_id) {
+				mpt_lprt(mpt, MPT_PRT_ERROR, "ABORT Mismatch: "
+				    "RX_ID received=0x%x; RX_ID in cmd=0x%x\n",
+				    rx_id, ct_id);
+				goto skip;
+			}
+
+			ccb = tgt->ccb;
+			if (ccb) {
+				mpt_prt(mpt,
+				    "CCB (%p): lun %u flags %x status %x\n",
+				    ccb, ccb->ccb_h.target_lun,
+				    ccb->ccb_h.flags, ccb->ccb_h.status);
+			}
+			mpt_prt(mpt, "target state 0x%x resid %u xfrd %u rpwrd "
+			    "%x nxfers %x flags %x\n", tgt->state,
+			    tgt->resid, tgt->bytes_xfered, tgt->reply_desc,
+			    tgt->nxfers, tgt->flags);
+  skip:
+			cs  = mpt_abort_target_cmd(mpt, tgt_req);
+			if (cs != CAM_REQ_INPROG) {
+				mpt_prt(mpt, "unable to do TargetAbort (%x)\n",
+				    cs);
+			}
+		} else {
+			mpt_prt(mpt, "no back pointer for RX_ID 0x%x\n", rx_id);
+		}
+		memset(elsbuf, 0, 5 * (sizeof (U32)));
+		elsbuf[0] = htobe32(0);
+		elsbuf[1] = htobe32((ox_id << 16) | rx_id);
+		elsbuf[2] = htobe32(0x000ffff);
+		/*
+		 * Dork with the reply frame so that the reponse to it
+		 * will be correct.
+		 */
+		rp->Rctl_Did += ((BA_ACC - ABTS) << MPI_FC_RCTL_SHIFT);
+		mpt_fc_els_send_response(mpt, req, rp, 12);
+		do_refresh = FALSE;
+	} else {
+		mpt_prt(mpt, "ELS: RCTL %x TYPE %x CMD %x\n", rctl, type, cmd);
+	}
+	if (do_refresh == TRUE) {
+		mpt_fc_add_els(mpt, req);
+	}
+	return (TRUE);
+}
+
+/*
+ * WE_TRUST_AUTO_GOOD_STATUS- I've found that setting 
+ * TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS leads the
+ * FC929 to set bogus FC_RSP fields (nonzero residuals
+ * but w/o RESID fields set). This causes QLogic initiators
+ * to think maybe that a frame was lost.
+ *
+ * WE_CAN_USE_AUTO_REPOST- we can't use AUTO_REPOST because
+ * we use allocated requests to do TARGET_ASSIST and we
+ * need to know when to release them.
+ */
+
+static void
+mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
+    uint8_t status, uint8_t const *sense_data)
+{
+	uint8_t *cmd_vbuf;
+	mpt_tgt_state_t *tgt;
+	PTR_MSG_TARGET_STATUS_SEND_REQUEST tp;
+	request_t *req;
+	bus_addr_t paddr;
+	int resplen = 0;
+
+	cmd_vbuf = cmd_req->req_vbuf;
+	cmd_vbuf += MPT_RQSL(mpt);
+	tgt = MPT_TGT_STATE(mpt, cmd_req);
+
+	req = mpt_get_request(mpt, FALSE);
+	if (req == NULL) {
+		if (ccb) {
+			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
+			MPTLOCK_2_CAMLOCK(mpt);
+			xpt_done(ccb);
+			CAMLOCK_2_MPTLOCK(mpt);
+		} else {
+			/*
+			 * XXX: put in deferred processing if we cannot allocate
+			 */
+			mpt_prt(mpt,
+			    "XXXX could not allocate status req- dropping\n");
+		}
+		return;
+	}
+	req->ccb = ccb;
+	if (ccb) {
+		ccb->ccb_h.ccb_mpt_ptr = mpt;
+		ccb->ccb_h.ccb_req_ptr = req;
+	}
+
+	/*
+	 * Record the currently active ccb, if any, and the
+	 * request for it in our target state area.
+	 */
+	tgt->ccb = ccb;
+	tgt->req = req;
+	tgt->state = TGT_STATE_SENDING_STATUS;
+
+	tp = req->req_vbuf;
+	paddr = req->req_pbuf;
+	paddr += MPT_RQSL(mpt);
+
+	memset(tp, 0, sizeof (*tp));
+	tp->Function = MPI_FUNCTION_TARGET_STATUS_SEND;
+	if (mpt->is_fc) {
+		PTR_MPI_TARGET_FCP_CMD_BUFFER fc =
+		    (PTR_MPI_TARGET_FCP_CMD_BUFFER) cmd_vbuf;
+		uint8_t *sts_vbuf;
+		uint32_t *rsp;
+
+		sts_vbuf = req->req_vbuf;
+		sts_vbuf += MPT_RQSL(mpt);
+		rsp = (uint32_t *) sts_vbuf;
+		memcpy(tp->LUN, fc->FcpLun, sizeof (tp->LUN));
+
+		/*
+		 * The MPI_TARGET_FCP_RSP_BUFFER define is unfortunate.
+		 * It has to be big-endian in memory and is organized
+		 * in 32 bit words, which are much easier to deal with
+		 * as words which are swizzled as needed.
+		 *
+		 * All we're filling here is the FC_RSP payload.
+		 * We may just have the chip synthesize it if
+		 * we have no residual and an OK status.
+		 *
+		 */
+		memset(rsp, 0, sizeof (MPI_TARGET_FCP_RSP_BUFFER));
+
+		rsp[2] = status;
+		if (tgt->resid) {
+			rsp[2] |= 0x800;
+			rsp[3] = htobe32(tgt->resid);
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
+#endif
+		}
+		if (status == SCSI_STATUS_CHECK_COND) {
+			int i;
+
+			rsp[2] |= 0x200;
+			rsp[4] = htobe32(MPT_SENSE_SIZE);
+			memcpy(&rsp[8], sense_data, MPT_SENSE_SIZE);
+			for (i = 8; i < (8 + (MPT_SENSE_SIZE >> 2)); i++) {
+				rsp[i] = htobe32(rsp[i]);
+			}
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
+#endif
+		}
+#ifndef	WE_TRUST_AUTO_GOOD_STATUS
+		resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
+#endif
+		rsp[2] = htobe32(rsp[2]);
+	} else if (mpt->is_sas) {
+		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp =
+		    (PTR_MPI_TARGET_SSP_CMD_BUFFER) cmd_vbuf;
+		memcpy(tp->LUN, ssp->LogicalUnitNumber, sizeof (tp->LUN));
+	} else {
+		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp =
+		    (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) cmd_vbuf;
+		tp->StatusCode = status;
+		tp->QueueTag = htole16(sp->Tag);
+		memcpy(tp->LUN, sp->LogicalUnitNumber, sizeof (tp->LUN));
+	}
+
+	tp->ReplyWord = htole32(tgt->reply_desc);
+	tp->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
+
+#ifdef	WE_CAN_USE_AUTO_REPOST
+	tp->MsgFlags = TARGET_STATUS_SEND_FLAGS_REPOST_CMD_BUFFER;
+#endif
+	if (status == SCSI_STATUS_OK && resplen == 0) {
+		tp->MsgFlags |= TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS;
+	} else {
+		tp->StatusDataSGE.u.Address32 = (uint32_t) paddr;
+		tp->StatusDataSGE.FlagsLength =
+			MPI_SGE_FLAGS_HOST_TO_IOC	|
+			MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
+			MPI_SGE_FLAGS_LAST_ELEMENT	|
+			MPI_SGE_FLAGS_END_OF_LIST	|
+			MPI_SGE_FLAGS_END_OF_BUFFER;
+		tp->StatusDataSGE.FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
+		tp->StatusDataSGE.FlagsLength |= resplen;
+	}
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG, 
+	    "STATUS_CCB %p (wit%s sense) tag %x req %p:%u resid %u\n",
+	    ccb, sense_data?"h" : "hout", ccb? ccb->csio.tag_id : -1, req,
+	    req->serno, tgt->resid);
+	if (ccb) {
+		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
+		ccb->ccb_h.timeout_ch = timeout(mpt_timeout, (caddr_t)ccb, hz);
+	}
+	mpt_send_cmd(mpt, req);
+}
+
+static void
+mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
+    tgt_resource_t *trtp, int init_id)
+{
+	struct ccb_immed_notify *inot;
+	mpt_tgt_state_t *tgt;
+
+	tgt = MPT_TGT_STATE(mpt, req);
+	inot = (struct ccb_immed_notify *) STAILQ_FIRST(&trtp->inots);
+	if (inot == NULL) {
+		mpt_lprt(mpt, MPT_PRT_WARN, "no INOTSs- sending back BSY\n");
+		mpt_scsi_tgt_status(mpt, NULL, req, SCSI_STATUS_BUSY, NULL);
+		return;
+	}
+	STAILQ_REMOVE_HEAD(&trtp->inots, sim_links.stqe);
+	mpt_lprt(mpt, MPT_PRT_DEBUG1,
+	    "Get FREE INOT %p lun %d\n", inot, inot->ccb_h.target_lun);
+
+	memset(&inot->sense_data, 0, sizeof (inot->sense_data));
+	inot->sense_len = 0;
+	memset(inot->message_args, 0, sizeof (inot->message_args));
+	inot->initiator_id = init_id;	/* XXX */
+
+	/*
+	 * This is a somewhat grotesque attempt to map from task management
+	 * to old style SCSI messages. God help us all.
+	 */
+	switch (fc) {
+	case MPT_ABORT_TASK_SET:
+		inot->message_args[0] = MSG_ABORT_TAG;
+		break;
+	case MPT_CLEAR_TASK_SET:
+		inot->message_args[0] = MSG_CLEAR_TASK_SET;
+		break;
+	case MPT_TARGET_RESET:
+		inot->message_args[0] = MSG_TARGET_RESET;
+		break;
+	case MPT_CLEAR_ACA:
+		inot->message_args[0] = MSG_CLEAR_ACA;
+		break;
+	case MPT_TERMINATE_TASK:
+		inot->message_args[0] = MSG_ABORT_TAG;
+		break;
+	default:
+		inot->message_args[0] = MSG_NOOP;
+		break;
+	}
+	tgt->ccb = (union ccb *) inot;
+	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
+        MPTLOCK_2_CAMLOCK(mpt);
+	xpt_done((union ccb *)inot);
+        CAMLOCK_2_MPTLOCK(mpt);
+}
+
+static void
+mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
+{
+	struct ccb_accept_tio *atiop;
+	lun_id_t lun;
+	int tag_action = 0;
+	mpt_tgt_state_t *tgt;
+	tgt_resource_t *trtp;
+	U8 *lunptr;
+	U8 *vbuf;
+	U16 itag;
+	U16 ioindex;
+	mpt_task_mgmt_t fct = MPT_NIL_TMT_VALUE;
+	uint8_t *cdbp;
+
+	/*
+	 * First, DMA sync the received command- which is in the *request*
+	 * phys area.
+	 * XXX: We could optimize this for a range
+	 */
+	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+            BUS_DMASYNC_POSTREAD);
+
+	/*
+	 * Stash info for the current command where we can get at it later.
+	 */
+	vbuf = req->req_vbuf;
+	vbuf += MPT_RQSL(mpt);
+
+	/*
+	 * Get our state pointer set up.
+	 */
+	tgt = MPT_TGT_STATE(mpt, req);
+	KASSERT(tgt->state == TGT_STATE_LOADED,
+	    ("bad target state %x in mpt_scsi_tgt_atio for req %p\n",
+	    tgt->state, req));
+	memset(tgt, 0, sizeof (mpt_tgt_state_t));
+	tgt->state = TGT_STATE_IN_CAM;
+	tgt->reply_desc = reply_desc;
+	ioindex = GET_IO_INDEX(reply_desc);
+
+	if (mpt->is_fc) {
+		PTR_MPI_TARGET_FCP_CMD_BUFFER fc;
+		fc = (PTR_MPI_TARGET_FCP_CMD_BUFFER) vbuf;
+		if (fc->FcpCntl[2]) {
+			/*
+			 * Task Management Request
+			 */
+			switch (fc->FcpCntl[2]) {
+			case 0x2:
+				fct = MPT_ABORT_TASK_SET;
+				break;
+			case 0x4:
+				fct = MPT_CLEAR_TASK_SET;
+				break;
+			case 0x20:
+				fct = MPT_TARGET_RESET;
+				break;
+			case 0x40:
+				fct = MPT_CLEAR_ACA;
+				break;
+			case 0x80:
+				fct = MPT_TERMINATE_TASK;
+				break;
+			default:
+				mpt_prt(mpt, "CORRUPTED TASK MGMT BITS: 0x%x\n",
+				    fc->FcpCntl[2]);
+				mpt_scsi_tgt_status(mpt, 0, req,
+				    SCSI_STATUS_OK, 0);
+				return;
+			}
+			return;
+		}
+		switch (fc->FcpCntl[1]) {
+		case 0:
+			tag_action = MSG_SIMPLE_Q_TAG;
+			break;
+		case 1:
+			tag_action = MSG_HEAD_OF_Q_TAG;
+			break;
+		case 2:
+			tag_action = MSG_ORDERED_Q_TAG;
+			break;
+		default:
+			/*
+			 * Bah. Ignore Untagged Queing and ACA
+			 */
+			tag_action = MSG_SIMPLE_Q_TAG;
+			break;
+		}
+		tgt->resid = be32toh(fc->FcpDl);
+		cdbp = fc->FcpCdb;
+		lunptr = fc->FcpLun;
+		itag = be16toh(fc->OptionalOxid);
+	} else if (mpt->is_sas) {
+		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp;
+		ssp = (PTR_MPI_TARGET_SSP_CMD_BUFFER) vbuf;
+		cdbp = ssp->CDB;
+		lunptr = ssp->LogicalUnitNumber;
+		itag = ssp->InitiatorTag;
+	} else {
+		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp;
+		sp = (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) vbuf;
+		cdbp = sp->CDB;
+		lunptr = sp->LogicalUnitNumber;
+		itag = sp->Tag;
+	}
+
+	/*
+	 * Generate a simple lun
+	 */
+	switch (lunptr[0] & 0xc0) {
+	case 0x40:
+		lun = ((lunptr[0] & 0x3f) << 8) | lunptr[1];
+		break;
+	case 0:
+		lun = lunptr[1];
+		break;
+	default:
+		mpt_lprt(mpt, MPT_PRT_ERROR, "cannot handle this type lun\n");
+		lun = 0xffff;
+		break;
+	}
+
+	/*
+	 * Deal with non-enabled or bad luns here.
+	 */
+	if (lun >= MPT_MAX_LUNS || mpt->tenabled == 0 ||
+	    mpt->trt[lun].enabled == 0) {
+		if (mpt->twildcard) {
+			trtp = &mpt->trt_wildcard;
+		} else {
+			const uint8_t sp[MPT_SENSE_SIZE] = {
+				0xf0, 0, 0x5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0x25
+			};
+			mpt_scsi_tgt_status(mpt, NULL, req,
+			    SCSI_STATUS_CHECK_COND, sp);
+			return;
+		}
+	} else {
+		trtp = &mpt->trt[lun];
+	}
+
+	if (fct != MPT_NIL_TMT_VALUE) {
+		/* undo any tgt residual settings */
+		tgt->resid = 0;
+		mpt_scsi_tgt_tsk_mgmt(mpt, req, fct, trtp,
+		    GET_INITIATOR_INDEX(reply_desc));
+		return;
+	}
+
+	atiop = (struct ccb_accept_tio *) STAILQ_FIRST(&trtp->atios);
+	if (atiop == NULL) {
+		mpt_lprt(mpt, MPT_PRT_WARN,
+		    "no ATIOs for lun %u- sending back %s\n", lun,
+		    mpt->tenabled? "QUEUE FULL" : "BUSY");
+		mpt_scsi_tgt_status(mpt, NULL, req,
+		    mpt->tenabled? SCSI_STATUS_QUEUE_FULL : SCSI_STATUS_BUSY,
+		    NULL);
+		return;
+	}
+	STAILQ_REMOVE_HEAD(&trtp->atios, sim_links.stqe);
+	mpt_lprt(mpt, MPT_PRT_DEBUG1,
+	    "Get FREE ATIO %p lun %d\n", atiop, atiop->ccb_h.target_lun);
+	atiop->ccb_h.ccb_mpt_ptr = mpt;
+        atiop->ccb_h.status = CAM_CDB_RECVD;
+	atiop->ccb_h.target_lun = lun;
+	atiop->sense_len = 0;
+        atiop->init_id = GET_INITIATOR_INDEX(reply_desc);
+        atiop->cdb_len = mpt_cdblen(cdbp[0], 16);
+        memcpy(atiop->cdb_io.cdb_bytes, cdbp, atiop->cdb_len);
+
+	/*
+	 * The tag we construct here allows us to find the
+	 * original request that the command came in with.
+	 *
+	 * This way we don't have to depend on anything but the
+	 * tag to find things when CCBs show back up from CAM.
+	 */
+        atiop->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
+	if (tag_action) {
+                atiop->tag_action = tag_action;
+		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+	}
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		int i;
+		mpt_prt(mpt, "START_CCB %p for lun %u CDB=<", atiop,
+		    atiop->ccb_h.target_lun);
+		for (i = 0; i < atiop->cdb_len; i++) {
+			mpt_prtc(mpt, "%02x%c", cdbp[i] & 0xff,
+			    (i == (atiop->cdb_len - 1))? '>' : ' ');
+		}
+		mpt_prtc(mpt, " itag %x tag %x rdesc %x dl=%u\n",
+	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
+	}
+	tgt->ccb = (union ccb *) atiop;
+	
+        MPTLOCK_2_CAMLOCK(mpt);
+	xpt_done((union ccb *)atiop);
+        CAMLOCK_2_MPTLOCK(mpt);
+}
+
+static int
+mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
+{
+	int dbg;
+	union ccb *ccb;
+	U16 status;
+
+	if (reply_frame == NULL) {
+		/*
+		 * Figure out if this is a new command or a target assist
+		 * completing.
+		 */
+		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
+		char serno[8];
+
+		if (tgt->req) {
+			snprintf(serno, 8, "%u", tgt->req->serno);
+		} else {
+			strncpy(serno, "??", 8);
+		}
+
+		switch(tgt->state) {
+		case TGT_STATE_LOADED:
+			mpt_scsi_tgt_atio(mpt, req, reply_desc);
+			break;
+		case TGT_STATE_MOVING_DATA:
+		{
+			uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
+
+			ccb = tgt->ccb;
+			tgt->ccb = NULL;
+			tgt->nxfers++;
+			untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "TARGET_ASSIST %p (req %p:%s) done tag 0x%x\n",
+			    ccb, tgt->req, serno, ccb->csio.tag_id);
+			/*
+			 * Free the Target Assist Request
+			 */
+			KASSERT(tgt->req && tgt->req->ccb == ccb,
+			    ("tgt->req %p:%s tgt->req->ccb %p", tgt->req,
+			    serno, tgt->req? tgt->req->ccb : NULL));
+			mpt_free_request(mpt, tgt->req);
+			tgt->req = NULL;
+			/*
+			 * Do we need to send status now? That is, are
+			 * we done with all our data transfers?
+			 */
+			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) == 0) {
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+				KASSERT(ccb->ccb_h.status,
+				    ("zero ccb sts at %d\n", __LINE__));
+				tgt->state = TGT_STATE_IN_CAM;
+				MPTLOCK_2_CAMLOCK(mpt);
+				xpt_done(ccb);
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
+				sp = sense;
+				memcpy(sp, &ccb->csio.sense_data,
+				   min(ccb->csio.sense_len, MPT_SENSE_SIZE));
+			}
+			mpt_scsi_tgt_status(mpt, ccb, req,
+			    ccb->csio.scsi_status, sp);
+			break;
+		}
+		case TGT_STATE_SENDING_STATUS:
+		case TGT_STATE_MOVING_DATA_AND_STATUS:
+		{
+			int ioindex;
+			ccb = tgt->ccb;
+
+			if (ccb) {
+				tgt->ccb = NULL;
+				tgt->nxfers++;
+				untimeout(mpt_timeout, ccb,
+				    ccb->ccb_h.timeout_ch);
+				if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
+					ccb->ccb_h.status |= CAM_SENT_SENSE;
+				}
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "TARGET_STATUS tag %x sts %x flgs %x req "
+				    "%p\n", ccb->csio.tag_id, ccb->ccb_h.status,
+				    ccb->ccb_h.flags, tgt->req);
+				/*
+				 * Free the Target Send Status Request
+				 */
+				KASSERT(tgt->req && tgt->req->ccb == ccb,
+				    ("tgt->req %p:%s tgt->req->ccb %p",
+				    tgt->req, serno,
+				    tgt->req? tgt->req->ccb : NULL));
+				/*
+				 * Notify CAM that we're done
+				 */
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+				KASSERT(ccb->ccb_h.status,
+				    ("ZERO ccb sts at %d\n", __LINE__));
+				tgt->ccb = NULL;
+			} else {
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "TARGET_STATUS non-CAM for  req %p:%s\n",
+				    tgt->req, serno);
+			}
+			mpt_free_request(mpt, tgt->req);
+			tgt->req = NULL;
+
+			/*
+			 * And re-post the Command Buffer.
+			 */
+			ioindex = GET_IO_INDEX(reply_desc);
+			mpt_post_target_command(mpt, req, ioindex);
+
+			/*
+			 * And post a done for anyone who cares
+			 */
+			if (ccb) {
+				MPTLOCK_2_CAMLOCK(mpt);
+				xpt_done(ccb);
+				CAMLOCK_2_MPTLOCK(mpt);
+			}
+			break;
+		}
+		case TGT_STATE_NIL:	/* XXX This Never Happens XXX */
+			tgt->state = TGT_STATE_LOADED;
+			break;
+		default:
+			mpt_prt(mpt, "Unknown Target State 0x%x in Context "
+			    "Reply Function\n", tgt->state);
+		}
+		return (TRUE);
+	}
+
+	status = le16toh(reply_frame->IOCStatus);
+	if (status != MPI_IOCSTATUS_SUCCESS) {
+		dbg = MPT_PRT_ERROR;
+	} else {
+		dbg = MPT_PRT_DEBUG1;
+	}
+
+	mpt_lprt(mpt, dbg,
+	    "SCSI_TGT REPLY: req=%p:%u reply=%p func=%x IOCstatus 0x%x\n",
+	     req, req->serno, reply_frame, reply_frame->Function, status);
+
+	switch (reply_frame->Function) {
+	case MPI_FUNCTION_TARGET_CMD_BUFFER_POST:
+		KASSERT(MPT_TGT_STATE(mpt,
+		    req)->state == TGT_STATE_NIL,
+		    ("bad state %x on reply to buffer post\n",
+		    MPT_TGT_STATE(mpt, req)->state));
+		MPT_TGT_STATE(mpt, req)->state = TGT_STATE_LOADED;
+		break;
+	case MPI_FUNCTION_TARGET_ASSIST:
+		mpt_prt(mpt,
+		    "TARGET_ASSIST err for request %p:%u (%x): status 0x%x\n",
+		    req, req->serno, req->index, status);
+		mpt_free_request(mpt, req);
+		break;
+	case MPI_FUNCTION_TARGET_STATUS_SEND:
+		mpt_prt(mpt,
+		    "TARGET_STATUS_SEND error for request %p:%u(%x): status "
+		    "0x%x\n", req, req->serno, req->index, status);
+		mpt_free_request(mpt, req);
+		break;
+	case MPI_FUNCTION_TARGET_MODE_ABORT:
+	{
+		PTR_MSG_TARGET_MODE_ABORT_REPLY abtrp =
+		    (PTR_MSG_TARGET_MODE_ABORT_REPLY) reply_frame;
+		PTR_MSG_TARGET_MODE_ABORT abtp =
+		    (PTR_MSG_TARGET_MODE_ABORT) req->req_vbuf;
+		uint32_t cc = GET_IO_INDEX(le32toh(abtp->ReplyWord));
+		mpt_prt(mpt, "ABORT RX_ID 0x%x Complete; status 0x%x cnt %u\n",
+		    cc, le16toh(abtrp->IOCStatus), le32toh(abtrp->AbortCount));
+		mpt_free_request(mpt, req);
+		break;
+	}
+	default:
+		mpt_prt(mpt, "Unknown Target Address Reply Function code: "
+		    "0x%x\n", reply_frame->Function);
+		break;
+	}
+	return (TRUE);
 }
 
 /*
@@ -1354,12 +3163,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	raid_passthru = (sim == mpt->phydisk_sim);
 
 	tgt = ccb->ccb_h.target_id;
-	if (raid_passthru
-	 && ccb->ccb_h.func_code != XPT_PATH_INQ
-	 && ccb->ccb_h.func_code != XPT_RESET_BUS) {
+	if (raid_passthru && ccb->ccb_h.func_code != XPT_PATH_INQ &&
+	    ccb->ccb_h.func_code != XPT_RESET_BUS) {
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
-			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			return;
@@ -1376,7 +3185,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
-				ccb->ccb_h.status = CAM_REQ_INVALID;
+				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+				mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 				xpt_done(ccb);
 				break;
 			}
@@ -1385,7 +3195,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		/* XXX Unless we implement the new 32byte message type */
 		if (ccb->csio.cdb_len >
 		    sizeof (((PTR_MSG_SCSI_IO_REQUEST)0)->CDB)) {
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			xpt_done(ccb);
 			return;
 		}
@@ -1405,17 +3216,35 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 * will fall back to a hard reset should a bus
 		 * reset attempt fail.
 		 */
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		xpt_done(ccb);
 		break;
 		
 	case XPT_ABORT:
-		/*
-		 * XXX: Need to implement
-		 */
-		ccb->ccb_h.status = CAM_UA_ABORT;
+	{
+		union ccb *accb = ccb->cab.abort_ccb;
+		CAMLOCK_2_MPTLOCK(mpt);
+		switch (accb->ccb_h.func_code) {
+		case XPT_ACCEPT_TARGET_IO:
+		case XPT_IMMED_NOTIFY:
+        		ccb->ccb_h.status = mpt_abort_target_ccb(mpt, ccb);
+			break;
+		case XPT_CONT_TARGET_IO:
+			mpt_prt(mpt, "cannot abort active CTIOs yet\n");
+			ccb->ccb_h.status = CAM_UA_ABORT;
+			break;
+		case XPT_SCSI_IO:
+			ccb->ccb_h.status = CAM_UA_ABORT;
+			break;
+		default:
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			break;
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
 		break;
+	}
 
 #ifdef	CAM_NEW_TRAN_CODE
 #define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
@@ -1440,7 +3269,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cts = &ccb->cts;
 		if (!IS_CURRENT_SETTINGS(cts)) {
 			mpt_prt(mpt, "Attempt to set User settings\n");
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			xpt_done(ccb);
 			break;
 		}
@@ -1521,8 +3351,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			}
 			if (dval & DP_WIDTH) {
 				if (mpt_setwidth(mpt, tgt, dval & DP_WIDE)) {
-mpt_prt(mpt, "Set width Failed!\n");
-					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+					mpt_prt(mpt, "Set width Failed!\n");
+					ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+					mpt_set_ccb_status(ccb,
+					    CAM_REQ_CMP_ERR);
 					MPTLOCK_2_CAMLOCK(mpt);
 					xpt_done(ccb);
 					break;
@@ -1530,8 +3362,10 @@ mpt_prt(mpt, "Set width Failed!\n");
 			}
 			if (dval & DP_SYNC) {
 				if (mpt_setsync(mpt, tgt, period, offset)) {
-mpt_prt(mpt, "Set sync Failed!\n");
-					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+					mpt_prt(mpt, "Set sync Failed!\n");
+					ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+					mpt_set_ccb_status(ccb,
+					    CAM_REQ_CMP_ERR);
 					MPTLOCK_2_CAMLOCK(mpt);
 					xpt_done(ccb);
 					break;
@@ -1542,7 +3376,8 @@ mpt_prt(mpt, "Set sync Failed!\n");
 				 "SET tgt %d flags %x period %x off %x\n",
 				 tgt, dval, period, offset);
 		}
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		xpt_done(ccb);
 		break;
 
@@ -1722,7 +3557,8 @@ mpt_prt(mpt, "Set sync Failed!\n");
 			       ? "ACTIVE" : "NVRAM",
 				 tgt, dval, pval, oval);
 		}
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		xpt_done(ccb);
 		break;
 
@@ -1732,12 +3568,13 @@ mpt_prt(mpt, "Set sync Failed!\n");
 
 		ccg = &ccb->ccg;
 		if (ccg->block_size == 0) {
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			xpt_done(ccb);
 			break;
 		}
-
 		mpt_calc_geometry(ccg, /*extended*/1);
+		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
 		xpt_done(ccb);
 		break;
 	}
@@ -1766,16 +3603,16 @@ mpt_prt(mpt, "Set sync Failed!\n");
 				    PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			}
 		} else if (mpt->is_fc) {
-/* XXX SHOULD BE BASED UPON IOC FACTS XXX */
+			/* XXX SHOULD BE BASED UPON IOC FACTS XXX XXX */
 			cpi->max_target = 255;
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->initiator_id = cpi->max_target + 1;
+			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else if (mpt->is_sas) {
 			cpi->max_target = 63;	/* XXX */
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->initiator_id = cpi->max_target;
+			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
@@ -1786,6 +3623,15 @@ mpt_prt(mpt, "Set sync Failed!\n");
 			cpi->max_target = 15;
 		}
 
+		if ((mpt->role & MPT_ROLE_INITIATOR) == 0) {
+			cpi->hba_misc |= PIM_NOINITIATOR;
+		}
+		if ((mpt->role & MPT_ROLE_TARGET) != 0) {
+			cpi->target_sprt =
+			    PIT_PROCESSOR | PIT_DISCONNECT | PIT_TERM_IO;
+		} else {
+			cpi->target_sprt = 0;
+		}
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSI", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -1794,6 +3640,73 @@ mpt_prt(mpt, "Set sync Failed!\n");
 		xpt_done(ccb);
 		break;
 	}
+	case XPT_EN_LUN:		/* Enable LUN as a target */
+	{
+		int result;
+
+		CAMLOCK_2_MPTLOCK(mpt);
+		if (ccb->cel.enable)
+			result = mpt_enable_lun(mpt,
+			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
+		else
+			result = mpt_disable_lun(mpt,
+			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
+		MPTLOCK_2_CAMLOCK(mpt);
+		if (result == 0) {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+		} else {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
+		}
+		xpt_done(ccb);
+		break;
+	}
+	case XPT_NOTIFY_ACK:		/* recycle notify ack */
+	case XPT_IMMED_NOTIFY:		/* Add Immediate Notify Resource */
+	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
+	{
+		tgt_resource_t *trtp;
+		lun_id_t lun = ccb->ccb_h.target_lun;
+		ccb->ccb_h.sim_priv.entries[0].field = 0;
+		ccb->ccb_h.sim_priv.entries[1].ptr = mpt;
+		ccb->ccb_h.flags = 0;
+
+		if (lun == CAM_LUN_WILDCARD) {
+			if (ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
+				mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
+				xpt_done(ccb);
+				break;
+			}
+			trtp = &mpt->trt_wildcard;
+		} else if (lun >= MPT_MAX_LUNS) {
+			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
+			xpt_done(ccb);
+			break;
+		} else {
+			trtp = &mpt->trt[lun];
+		}
+		CAMLOCK_2_MPTLOCK(mpt);
+		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG1,
+			    "Put FREE ATIO %p lun %d\n", ccb, lun);
+			STAILQ_INSERT_TAIL(&trtp->atios, &ccb->ccb_h,
+			    sim_links.stqe);
+		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG1,
+			    "Put FREE INOT lun %d\n", lun);
+			STAILQ_INSERT_TAIL(&trtp->inots, &ccb->ccb_h,
+			    sim_links.stqe);
+		} else {
+			mpt_lprt(mpt, MPT_PRT_ALWAYS, "Got Notify ACK\n");
+		}
+		mpt_set_ccb_status(ccb, CAM_REQ_INPROG);
+		MPTLOCK_2_CAMLOCK(mpt);
+		break;
+	}
+	case XPT_CONT_TARGET_IO:
+		CAMLOCK_2_MPTLOCK(mpt);
+		mpt_target_start_io(mpt, ccb);
+		MPTLOCK_2_CAMLOCK(mpt);
+		break;
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
@@ -1892,6 +3805,10 @@ mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
 	uint32_t size_mb;
 	uint32_t secs_per_cylinder;
 
+	if (ccg->block_size == 0) {
+		ccg->ccb_h.status = CAM_REQ_INVALID;
+		return;
+	}
 	size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
 	if (size_mb > 1024 && extended) {
 		ccg->heads = 255;
@@ -1918,16 +3835,10 @@ mpt_spawn_recovery_thread(struct mpt_softc *mpt)
 	return (error);
 }
 
-/*
- * Lock is not held on entry.
- */
 static void
 mpt_terminate_recovery_thread(struct mpt_softc *mpt)
 {
-
-	MPT_LOCK(mpt);
 	if (mpt->recovery_thread == NULL) {
-		MPT_UNLOCK(mpt);
 		return;
 	}
 	mpt->shutdwn_recovery = 1;
@@ -1937,7 +3848,6 @@ mpt_terminate_recovery_thread(struct mpt_softc *mpt)
 	 * for this interlock just for added safety.
 	 */
 	mpt_sleep(mpt, &mpt->recovery_thread, PUSER, "thtrm", 0);
-	MPT_UNLOCK(mpt);
 }
 
 static void
@@ -1956,12 +3866,10 @@ mpt_recovery_thread(void *arg)
 		 && mpt->shutdwn_recovery == 0)
 			mpt_sleep(mpt, mpt, PUSER, "idle", 0);
 
-		if (mpt->shutdwn_recovery != 0)
+		if (mpt->shutdwn_recovery != 0) {
 			break;
-
-		MPT_UNLOCK(mpt);
+		}
 		mpt_recover_commands(mpt);
-		MPT_LOCK(mpt);
 	}
 	mpt->recovery_thread = NULL;
 	wakeup(&mpt->recovery_thread);
@@ -2016,10 +3924,441 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type,
 	if (mpt->verbose > MPT_PRT_DEBUG)
 		mpt_print_request(tmf_req);
 
-	error = mpt_send_handshake_cmd(mpt, sizeof(*tmf_req), tmf_req);
-	if (error != 0)
+	if (mpt->is_fc || mpt->is_sas) {
+		mpt_send_cmd(mpt, mpt->tmf_req);
+		error = MPT_OK;
+	} else  {
+		error = mpt_send_handshake_cmd(mpt, sizeof(*tmf_req), tmf_req);
+	}
+	if (error != MPT_OK) {
 		mpt_reset(mpt, /*reinit*/TRUE);
+	}
 	return (error);
+}
+
+static void
+mpt_fc_add_els(struct mpt_softc *mpt, request_t *req)
+{
+	MSG_LINK_SERVICE_BUFFER_POST_REQUEST *fc;
+	PTR_SGE_TRANSACTION32 tep;
+	PTR_SGE_SIMPLE32 se;
+	bus_addr_t paddr;
+
+	paddr = req->req_pbuf;
+	paddr += MPT_RQSL(mpt);
+
+	fc = req->req_vbuf;
+	memset(fc, 0, MPT_REQUEST_AREA);
+	fc->BufferCount = 1;
+	fc->Function = MPI_FUNCTION_FC_LINK_SRVC_BUF_POST;
+	fc->MsgContext = htole32(req->index | fc_els_handler_id);
+
+	/*
+	 * Okay, set up ELS buffer pointers. ELS buffer pointers
+	 * consist of a TE SGL element (with details length of zero)
+	 * followe by a SIMPLE SGL element which holds the address
+	 * of the buffer.
+	 */
+
+	tep = (PTR_SGE_TRANSACTION32) &fc->SGL;
+
+	tep->ContextSize = 4;
+	tep->Flags = 0;
+	tep->TransactionContext[0] = htole32(req->index | fc_els_handler_id);
+
+	se = (PTR_SGE_SIMPLE32) &tep->TransactionDetails[0];
+	se->FlagsLength =
+		MPI_SGE_FLAGS_HOST_TO_IOC	|
+		MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
+		MPI_SGE_FLAGS_LAST_ELEMENT	|
+		MPI_SGE_FLAGS_END_OF_LIST	|
+		MPI_SGE_FLAGS_END_OF_BUFFER;
+	se->FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
+	se->FlagsLength |= (MPT_NRFM(mpt) - MPT_RQSL(mpt));
+	se->Address = (uint32_t) paddr;
+	mpt_check_doorbell(mpt);
+	mpt_send_cmd(mpt, req);
+}
+
+static void
+mpt_post_target_command(struct mpt_softc *mpt, request_t *req, int ioindex)
+{
+	PTR_MSG_TARGET_CMD_BUFFER_POST_REQUEST fc;
+	PTR_CMD_BUFFER_DESCRIPTOR cb;
+	bus_addr_t paddr;
+
+	paddr = req->req_pbuf;
+	paddr += MPT_RQSL(mpt);
+	memset(req->req_vbuf, 0, MPT_REQUEST_AREA);
+
+	fc = req->req_vbuf;
+	fc->BufferCount = 1;
+	fc->Function = MPI_FUNCTION_TARGET_CMD_BUFFER_POST;
+	fc->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
+
+	cb = &fc->Buffer[0];
+	cb->IoIndex = htole16(ioindex);
+	cb->u.PhysicalAddress32 = (U32) paddr;
+
+	mpt_check_doorbell(mpt);
+	mpt_send_cmd(mpt, req);
+}
+
+static void
+mpt_add_target_commands(struct mpt_softc *mpt)
+{
+	int i, max;
+
+	if (mpt->tgt_cmd_ptrs) {
+		return;
+	}
+
+	max = MPT_MAX_REQUESTS(mpt) >> 1;
+	if (max > mpt->mpt_max_tgtcmds) {
+		max = mpt->mpt_max_tgtcmds;
+	}
+	mpt->tgt_cmd_ptrs =
+	    malloc(max * sizeof (void *), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (mpt->tgt_cmd_ptrs == NULL) {
+		mpt_prt(mpt, "could not allocate cmdptrs\n");
+		return;
+	}
+	mpt->tgt_cmds_allocated = max;
+
+	for (i = 0; i < max; i++) {
+		request_t *req;
+
+		req = mpt_get_request(mpt, FALSE);
+		if (req == NULL) {
+			break;
+		}
+		mpt->tgt_cmd_ptrs[i] = req;
+		mpt_post_target_command(mpt, req, i);
+	}
+
+	if (i == 0) {
+		mpt_lprt(mpt, MPT_PRT_ERROR, "could not add any target bufs\n");
+		free(mpt->tgt_cmd_ptrs, M_DEVBUF);
+		mpt->tgt_cmd_ptrs = NULL;
+		mpt->tgt_cmds_allocated = 0;
+	} else if (i < max) {
+		mpt_lprt(mpt, MPT_PRT_WARN, "added %d of %d target bufs\n",
+		    i, max);
+	}
+}
+
+static int
+mpt_enable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
+{
+	if (tgt == CAM_TARGET_WILDCARD && lun == CAM_LUN_WILDCARD) {
+		mpt->twildcard = 1;
+	} else if (lun >= MPT_MAX_LUNS) {
+		return (EINVAL);
+	} else if (tgt != CAM_TARGET_WILDCARD && tgt != 0) {
+		return (EINVAL);
+	}
+	if (mpt->tenabled == 0) {
+#if	0
+		if (mpt->is_fc) {
+			(void) mpt_fc_reset_link(mpt, 0);
+		}
+#endif
+		mpt->tenabled = 1;
+	}
+	if (lun == CAM_LUN_WILDCARD) {
+		mpt->trt_wildcard.enabled = 1;
+	} else {
+		mpt->trt[lun].enabled = 1;
+	}
+	return (0);
+}
+
+static int
+mpt_disable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
+{
+	int i;
+	if (tgt == CAM_TARGET_WILDCARD && lun == CAM_LUN_WILDCARD) {
+		mpt->twildcard = 0;
+	} else if (lun >= MPT_MAX_LUNS) {
+		return (EINVAL);
+	} else if (tgt != CAM_TARGET_WILDCARD && tgt != 0) {
+		return (EINVAL);
+	}
+	if (lun == CAM_LUN_WILDCARD) {
+		mpt->trt_wildcard.enabled = 0;
+	} else {
+		mpt->trt[lun].enabled = 0;
+	}
+	for (i = 0; i < MPT_MAX_LUNS; i++) {
+		if (mpt->trt[lun].enabled) {
+			break;
+		}
+	}
+	if (i == MPT_MAX_LUNS && mpt->twildcard == 0) {
+		mpt->tenabled = 0;
+#if	0
+		if (mpt->is_fc) {
+			(void) mpt_fc_reset_link(mpt, 0);
+		}
+#endif
+	}
+	return (0);
+}
+
+/*
+ * Called with MPT lock held
+ */
+static void
+mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
+{
+	struct ccb_scsiio *csio = &ccb->csio;
+	request_t *cmd_req = MPT_TAG_2_REQ(mpt, csio->tag_id);
+	mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
+
+
+	if (tgt->state != TGT_STATE_IN_CAM) {
+		mpt_prt(mpt, "tag 0x%08x in state %x when starting I/O\n",
+		    csio->tag_id, tgt->state);
+		mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
+		MPTLOCK_2_CAMLOCK(mpt);
+		xpt_done(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
+		return;
+	}
+
+	if (csio->dxfer_len) {
+		bus_dmamap_callback_t *cb;
+		PTR_MSG_TARGET_ASSIST_REQUEST ta;
+		request_t *req;
+
+		KASSERT((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE,
+		    ("dxfer_len %u but direction is NONE\n", csio->dxfer_len));
+
+		req = mpt_get_request(mpt, FALSE);
+		if (req == NULL) {
+			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
+			MPTLOCK_2_CAMLOCK(mpt);
+			xpt_done(ccb);
+			CAMLOCK_2_MPTLOCK(mpt);
+			return;
+		}
+
+		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
+		if (sizeof (bus_addr_t) > 4) {
+			cb = mpt_execute_req_a64;
+		} else {
+			cb = mpt_execute_req;
+		}
+
+		req->ccb = ccb;
+		ccb->ccb_h.ccb_req_ptr = req;
+
+		/*
+		 * Record the currently active ccb and the
+		 * request for it in our target state area.
+		 */
+		tgt->ccb = ccb;
+		tgt->req = req;
+
+		memset(req->req_vbuf, 0, MPT_RQSL(mpt));
+		ta = req->req_vbuf;
+
+		if (mpt->is_fc) {
+			;
+		} else if (mpt->is_sas == 0) {
+			PTR_MPI_TARGET_SSP_CMD_BUFFER ssp =
+			     cmd_req->req_vbuf;
+			ta->QueueTag = ssp->InitiatorTag;
+		} else {
+			PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp =
+			     cmd_req->req_vbuf;
+			ta->QueueTag = sp->Tag;
+		}
+		ta->Function = MPI_FUNCTION_TARGET_ASSIST;
+		ta->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
+		ta->ReplyWord = htole32(tgt->reply_desc);
+		if (csio->ccb_h.target_lun > 256) {
+			ta->LUN[0] =
+			    0x40 | ((csio->ccb_h.target_lun >> 8) & 0x3f);
+			ta->LUN[1] = csio->ccb_h.target_lun & 0xff;
+		} else {
+			ta->LUN[1] = csio->ccb_h.target_lun;
+		}
+
+		ta->RelativeOffset = tgt->bytes_xfered;
+		ta->DataLength = ccb->csio.dxfer_len;
+		if (ta->DataLength > tgt->resid) {
+			ta->DataLength = tgt->resid;
+		}
+
+		/*
+		 * XXX Should be done after data transfer completes?
+		 */
+		tgt->resid -= csio->dxfer_len;
+		tgt->bytes_xfered += csio->dxfer_len;
+
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			ta->TargetAssistFlags |=
+			    TARGET_ASSIST_FLAGS_DATA_DIRECTION;
+		}
+
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) &&
+		    csio->scsi_status == SCSI_STATUS_OK && tgt->resid == 0) {
+			ta->TargetAssistFlags |=
+			    TARGET_ASSIST_FLAGS_AUTO_STATUS;
+		}
+#endif
+		tgt->state = TGT_STATE_SETTING_UP_FOR_DATA;
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG, 
+		    "DATA_CCB %p tag %x %u bytes %u resid flg %x req %p:%u "
+		    "nxtstate=%d\n", csio, csio->tag_id, csio->dxfer_len,
+		    tgt->resid, ccb->ccb_h.flags, req, req->serno, tgt->state);
+
+		MPTLOCK_2_CAMLOCK(mpt);
+		if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+			if ((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0) {
+				int error;
+				int s = splsoftvm();
+				error = bus_dmamap_load(mpt->buffer_dmat,
+				    req->dmap, csio->data_ptr, csio->dxfer_len,
+				    cb, req, 0);
+				splx(s);
+				if (error == EINPROGRESS) {
+					xpt_freeze_simq(mpt->sim, 1);
+					ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+				}
+			} else {
+				/*
+				 * We have been given a pointer to single
+				 * physical buffer.
+				 */
+				struct bus_dma_segment seg;
+				seg.ds_addr = (bus_addr_t)
+				    (vm_offset_t)csio->data_ptr;
+				seg.ds_len = csio->dxfer_len;
+				(*cb)(req, &seg, 1, 0);
+			}
+		} else {
+			/*
+			 * We have been given a list of addresses.
+			 * This case could be easily supported but they are not
+			 * currently generated by the CAM subsystem so there
+			 * is no point in wasting the time right now.
+			 */
+			struct bus_dma_segment *sgs;
+			if ((ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
+				(*cb)(req, NULL, 0, EFAULT);
+			} else {
+				/* Just use the segments provided */
+				sgs = (struct bus_dma_segment *)csio->data_ptr;
+				(*cb)(req, sgs, csio->sglist_cnt, 0);
+			}
+		}
+		CAMLOCK_2_MPTLOCK(mpt);
+	} else {
+		uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
+
+		/*
+		 * XXX: I don't know why this seems to happen, but
+		 * XXX: completing the CCB seems to make things happy.
+		 * XXX: This seems to happen if the initiator requests
+		 * XXX: enough data that we have to do multiple CTIOs.
+		 */
+		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) == 0) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "Meaningless STATUS CCB (%p): flags %x status %x "
+			    "resid %d bytes_xfered %u\n", ccb, ccb->ccb_h.flags,
+			    ccb->ccb_h.status, tgt->resid, tgt->bytes_xfered);
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			tgt->flags |= BOGUS_JO;
+			MPTLOCK_2_CAMLOCK(mpt);
+			xpt_done(ccb);
+			CAMLOCK_2_MPTLOCK(mpt);
+			return;
+		}
+		if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
+			sp = sense;
+			memcpy(sp, &csio->sense_data,
+			   min(csio->sense_len, MPT_SENSE_SIZE));
+		}
+		mpt_scsi_tgt_status(mpt, ccb, cmd_req, csio->scsi_status, sp);
+	}
+}
+
+/*
+ * Abort queued up CCBs
+ */
+static cam_status
+mpt_abort_target_ccb(struct mpt_softc *mpt, union ccb *ccb)
+{
+	struct mpt_hdr_stailq *lp;
+	struct ccb_hdr *srch;
+	int found = 0;
+	union ccb *accb = ccb->cab.abort_ccb;
+	tgt_resource_t *trtp;
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "aborting ccb %p\n", accb);
+
+	if (ccb->ccb_h.target_lun == CAM_LUN_WILDCARD) {
+		trtp = &mpt->trt_wildcard;
+	} else {
+		trtp = &mpt->trt[ccb->ccb_h.target_lun];
+	}
+
+	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
+		lp = &trtp->atios;
+	} else if (accb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+		lp = &trtp->inots;
+	} else {
+		return (CAM_REQ_INVALID);
+	}
+
+	STAILQ_FOREACH(srch, lp, sim_links.stqe) {
+		if (srch == &accb->ccb_h) {
+			found = 1;
+			STAILQ_REMOVE(lp, srch, ccb_hdr, sim_links.stqe);
+			break;
+		}
+	}
+	if (found) {
+		accb->ccb_h.status = CAM_REQ_ABORTED;
+		xpt_done(accb);
+		return (CAM_REQ_CMP);
+	}
+	mpt_prt(mpt, "mpt_abort_tgt_ccb: CCB %p not found\n", ccb);
+	return (CAM_PATH_INVALID);
+}
+
+/*
+ * Ask the MPT to abort the current target command
+ */ 
+static cam_status
+mpt_abort_target_cmd(struct mpt_softc *mpt, request_t *cmd_req)
+{
+	int error;
+	request_t *req;
+	PTR_MSG_TARGET_MODE_ABORT abtp;
+
+	req = mpt_get_request(mpt, FALSE);
+	if (req == NULL) {
+		return (CAM_RESRC_UNAVAIL);
+	}
+	abtp = req->req_vbuf;
+	memset(abtp, 0, sizeof (*abtp));
+
+	abtp->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
+	abtp->AbortType = TARGET_MODE_ABORT_TYPE_EXACT_IO;
+	abtp->Function = MPI_FUNCTION_TARGET_MODE_ABORT;
+	abtp->ReplyWord = htole32(MPT_TGT_STATE(mpt, cmd_req)->reply_desc);
+	if (mpt->is_fc || mpt->is_sas) {
+		mpt_send_cmd(mpt, req);
+	} else {
+		error = mpt_send_handshake_cmd(mpt, sizeof(*req), req);
+	}
+	return (CAM_REQ_INPROG);
 }
 
 /*
@@ -2037,13 +4376,11 @@ mpt_recover_commands(struct mpt_softc *mpt)
 	union ccb	   *ccb;
 	int		    error;
 
-	MPT_LOCK(mpt);
 	if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
 		/*
 		 * No work to do- leave.
 		 */
 		mpt_prt(mpt, "mpt_recover_commands: no requests.\n");
-                MPT_UNLOCK(mpt);
 		return;
 	}
 
@@ -2064,7 +4401,6 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		mpt_prt(mpt, "Timedout requests already complete. "
                        "Interrupts may not be functioning.\n");
                 mpt_enable_ints(mpt);
-                MPT_UNLOCK(mpt);
                 return;
 	}
 
@@ -2075,20 +4411,18 @@ mpt_recover_commands(struct mpt_softc *mpt)
 	 */
 	while ((req = TAILQ_FIRST(&mpt->request_timeout_list)) != NULL) {
 		u_int status;
-		u_int32_t serno = req->serno;
 
-		mpt_prt(mpt, "Attempting to Abort Req %p:%u\n", req, serno);
+		mpt_prt(mpt, "Attempting to Abort Req %p\n", req);
+
 		ccb = req->ccb;
 		mpt_set_ccb_status(ccb, CAM_CMD_TIMEOUT);
 		error = mpt_scsi_send_tmf(mpt,
 		    MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
-		    /*MsgFlags*/0, mpt->bus, ccb->ccb_h.target_id,
+		    /*MsgFlags*/0, /*Bus*/0, ccb->ccb_h.target_id,
 		    ccb->ccb_h.target_lun,
 		    htole32(req->index | scsi_io_handler_id), /*sleep_ok*/TRUE);
 
 		if (error != 0) {
-			mpt_prt(mpt, "Abort Req %p:%u failed to start TMF\n",
-			    req, serno);
 			/*
 			 * mpt_scsi_send_tmf hard resets on failure, so no
 			 * need to do so here.  Our queue should be emptied
@@ -2107,8 +4441,8 @@ mpt_recover_commands(struct mpt_softc *mpt)
 			 * If we've errored out and the transaction is still
 			 * pending, reset the controller.
 			 */
-			mpt_prt(mpt, "Abort Req %p:%d timed-out. "
-			    "Resetting controller\n", req, serno);
+			mpt_prt(mpt, "mpt_recover_commands: Abort timed-out. "
+				"Resetting controller\n");
 			mpt_reset(mpt, /*reinit*/TRUE);
 			continue;
 		}
@@ -2122,9 +4456,8 @@ mpt_recover_commands(struct mpt_softc *mpt)
 			continue;
 
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "Abort Req %p: %u Failed "
-			 "with status 0x%x\n.  Resetting bus.",
-			 req, serno, status);
+			 "mpt_recover_commands: Abort Failed "
+			 "with status 0x%x\n.  Resetting bus", status);
 
 		/*
 		 * If the abort attempt fails for any reason, reset the bus.
@@ -2133,6 +4466,4 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		 */
 		mpt_bus_reset(mpt, /*sleep_ok*/TRUE);
 	}
-	
-	MPT_UNLOCK(mpt);
 }

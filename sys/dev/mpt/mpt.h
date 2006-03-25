@@ -121,6 +121,10 @@
 #include <machine/cpu.h>
 #include <machine/resource.h>
 
+#if __FreeBSD_version < 500000  
+#include <machine/bus.h>
+#endif
+
 #include <sys/rman.h>
 
 #if __FreeBSD_version < 500000  
@@ -153,6 +157,12 @@
 
 #define NUM_ELEMENTS(array) (sizeof(array) / sizeof(*array))
 
+#define	MPT_ROLE_NONE		0
+#define	MPT_ROLE_INITIATOR	1
+#define	MPT_ROLE_TARGET		2
+#define	MPT_ROLE_BOTH		3
+#define	MPT_ROLE_DEFAULT	MPT_ROLE_INITIATOR
+
 /**************************** Forward Declarations ****************************/
 struct mpt_softc;
 struct mpt_personality;
@@ -162,6 +172,7 @@ typedef struct req_entry request_t;
 typedef int mpt_load_handler_t(struct mpt_personality *);
 typedef int mpt_probe_handler_t(struct mpt_softc *);
 typedef int mpt_attach_handler_t(struct mpt_softc *);
+typedef int mpt_enable_handler_t(struct mpt_softc *);
 typedef int mpt_event_handler_t(struct mpt_softc *, request_t *,
 				MSG_EVENT_NOTIFY_REPLY *);
 typedef void mpt_reset_handler_t(struct mpt_softc *, int /*type*/);
@@ -179,6 +190,7 @@ struct mpt_personality
 #define MPT_PERS_FIRST_HANDLER(pers) (&(pers)->load)
 	mpt_probe_handler_t	*probe;		/* configure personailty */
 	mpt_attach_handler_t	*attach;	/* initialize device instance */
+	mpt_enable_handler_t	*enable;	/* enable device */
 	mpt_event_handler_t	*event;		/* Handle MPI event. */
 	mpt_reset_handler_t	*reset;		/* Re-init after reset. */
 	mpt_shutdown_handler_t	*shutdown;	/* Shutdown instance. */
@@ -280,7 +292,7 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
-	uint32_t	serno;		/* serial number */
+	uint16_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
@@ -289,6 +301,59 @@ struct req_entry {
 	bus_dmamap_t	dmap;		/* DMA map for data buffer */
 	struct req_entry *chain;	/* for SGE overallocations */
 };
+
+/**************************** MPI Target State Info ***************************/
+
+typedef struct {
+	uint32_t reply_desc;	/* current reply descriptor */
+	uint32_t resid;		/* current data residual */
+	uint32_t bytes_xfered;	/* current relative offset */
+	union ccb *ccb;		/* pointer to currently active ccb */
+	request_t *req;		/* pointer to currently active assist request */
+	int	flags;
+#define	BOGUS_JO	0x01
+	int	nxfers;
+	enum {
+		TGT_STATE_NIL,
+		TGT_STATE_LOADED,
+		TGT_STATE_IN_CAM,
+                TGT_STATE_SETTING_UP_FOR_DATA,
+                TGT_STATE_MOVING_DATA,
+                TGT_STATE_MOVING_DATA_AND_STATUS,
+                TGT_STATE_SENDING_STATUS
+	} state;
+} mpt_tgt_state_t;
+
+/*
+ * When we get an incoming command it has its own tag which is called the
+ * IoIndex. This is the value we gave that particular command buffer when
+ * we originally assigned it. It's just a number, really. The FC card uses
+ * it as an RX_ID. We can use it to index into mpt->tgt_cmd_ptrs, which
+ * contains pointers the request_t structures related to that IoIndex.
+ *
+ * What *we* do is construct a tag out of the index for the target command
+ * which owns the incoming ATIO plus a rolling sequence number.
+ */
+#define	MPT_MAKE_TAGID(mpt, req, ioindex)	\
+	((ioindex << 16) | (mpt->sequence++))
+
+#ifdef	INVARIANTS
+#define	MPT_TAG_2_REQ(a, b)		mpt_tag_2_req(a, (uint32_t) b)
+#else
+#define	MPT_TAG_2_REQ(mpt, tag)		mpt->tgt_cmd_ptrs[tag >> 16]
+#endif
+
+#define	MPT_TGT_STATE(mpt, req) ((mpt_tgt_state_t *) \
+    (&((uint8_t *)req->req_vbuf)[MPT_RQSL(mpt) - sizeof (mpt_tgt_state_t)]))
+
+STAILQ_HEAD(mpt_hdr_stailq, ccb_hdr);
+#define	MPT_MAX_LUNS	256
+typedef struct {
+	struct mpt_hdr_stailq	atios;
+	struct mpt_hdr_stailq	inots;
+	int enabled;
+} tgt_resource_t;
+#define	MPT_MAX_ELS	8
 
 /**************************** Handler Registration ****************************/
 /*
@@ -311,12 +376,12 @@ struct req_entry {
  * all commonly executed handlers fit in a single cache
  * line.
  */
-#define MPT_NUM_REPLY_HANDLERS		(16)
+#define MPT_NUM_REPLY_HANDLERS		(32)
 #define MPT_REPLY_HANDLER_EVENTS	MPT_CBI_TO_HID(0)
 #define MPT_REPLY_HANDLER_CONFIG	MPT_CBI_TO_HID(MPT_NUM_REPLY_HANDLERS-1)
 #define MPT_REPLY_HANDLER_HANDSHAKE	MPT_CBI_TO_HID(MPT_NUM_REPLY_HANDLERS-2)
 typedef int mpt_reply_handler_t(struct mpt_softc *mpt, request_t *request,
-				 MSG_DEFAULT_REPLY *reply_frame);
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame);
 typedef union {
 	mpt_reply_handler_t	*reply_handler;
 } mpt_handler_t;
@@ -417,21 +482,24 @@ struct mpt_softc {
 	struct mtx		mpt_lock;
 #endif
 	uint32_t		mpt_pers_mask;
-	uint32_t		: 14,
-		is_sas		: 1,
+	uint32_t		: 8,
+		unit		: 8,
+				: 1,
+		twildcard	: 1,
+		tenabled	: 1,
+		cap 		: 2,	/* none, ini, target, both */
+		role		: 2,	/* none, ini, target, both */
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
 		shutdwn_recovery: 1,
-		unit		: 8,
 		outofbeer	: 1,
 		mpt_locksetup	: 1,
 		disabled	: 1,
-		is_fc		: 1,
-		bus		: 1;	/* FC929/1030 have two busses */
+		is_sas		: 1,
+		is_fc		: 1;
 
 	u_int			verbose;
-	uint32_t	cmd_serno;
 
 	/*
 	 * IOC Facts
@@ -449,6 +517,7 @@ struct mpt_softc {
 	uint16_t	mpt_ini_id;
 	uint16_t	mpt_port_type;
 	uint16_t	mpt_proto_flags;
+	uint16_t	mpt_max_tgtcmds;
 
 	/*
 	 * Device Configuration Information
@@ -475,7 +544,8 @@ struct mpt_softc {
 #define	mpt_update_params0	cfg.spi._update_params0
 #define	mpt_update_params1	cfg.spi._update_params1
 		struct mpi_fc_cfg {
-			uint8_t	nada;
+			CONFIG_PAGE_FC_PORT_0 _port_page0;
+#define	mpt_fcport_page0	cfg.fc._port_page0
 		} fc;
 	} cfg;
 
@@ -528,7 +598,7 @@ struct mpt_softc {
 	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
 	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
 	uint8_t		       *request;	/* KVA of Request memory */
-	bus_addr_t		request_phys;	/* BusADdr of request memory */
+	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
 	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
 
@@ -560,9 +630,28 @@ struct mpt_softc {
 	struct proc	       *recovery_thread;
 	request_t	       *tmf_req;
 
-	uint32_t		sequence;	/* Sequence Number */
-	uint32_t		timeouts;	/* timeout count */
-	uint32_t		success;	/* successes afer timeout */
+	/*
+	 * Target Mode Support
+	 */
+	uint32_t		scsi_tgt_handler_id;
+	request_t **		tgt_cmd_ptrs;
+
+	/*
+	 * *snork*- this is chosen to be here *just in case* somebody
+	 * forgets to point to it exactly and we index off of trt with
+	 * CAM_LUN_WILDCARD.
+	 */
+	tgt_resource_t		trt_wildcard;	/* wildcard luns */
+	tgt_resource_t		trt[MPT_MAX_LUNS];
+	uint16_t		tgt_cmds_allocated;
+
+	/*
+	 * Stuff..
+	 */
+	uint16_t		sequence;	/* Sequence Number */
+	uint16_t		timeouts;	/* timeout count */
+	uint16_t		success;	/* successes afer timeout */
+
 
 	/* Opposing port in a 929 or 1030, or NULL */
 	struct mpt_softc *	mpt2;
@@ -580,7 +669,7 @@ struct mpt_softc {
 	TAILQ_ENTRY(mpt_softc)	links;
 };
 
-/***************************** Locking Primatives *****************************/
+/***************************** Locking Primitives *****************************/
 #if __FreeBSD_version < 500000  
 #define	MPT_IFLAGS		INTR_TYPE_CAM
 #define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
@@ -631,7 +720,7 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	saved_spl = mpt->mpt_splsaved;
 	mpt->mpt_islocked = 0;
 	error = tsleep(ident, priority, wmesg, timo);
-	KASSERT(mpt->mpt_islocked = 0, ("Invalid lock count on wakeup"));
+	KASSERT(mpt->mpt_islocked == 0, ("Invalid lock count on wakeup"));
 	mpt->mpt_islocked = saved_cnt;
 	mpt->mpt_splsaved = saved_spl;
 	return (error);
@@ -709,19 +798,27 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
 
+/*
+ * Must be less than 16384 in order for target mode to work
+ */
 #define MPT_MAX_REQUESTS(mpt)	512
 #define MPT_REQUEST_AREA	512
 #define MPT_SENSE_SIZE		32	/* included in MPT_REQUEST_AREA */
 #define MPT_REQ_MEM_SIZE(mpt)	(MPT_MAX_REQUESTS(mpt) * MPT_REQUEST_AREA)
 
-#define MPT_CONTEXT_CB_SHIFT	(16)
-#define MPT_CBI(handle)	(handle >> MPT_CONTEXT_CB_SHIFT)
+/*
+ * Currently we try to pack both callbacks and request indices into 14 bits
+ * so that we don't have to get fancy when we get a target mode context
+ * reply (which only has 14 bits of IoIndex value) or a normal scsi
+ * initiator context reply (where we get bits 28..0 of context).
+ */
+#define MPT_CONTEXT_CB_SHIFT	(14)
+#define MPT_CBI(handle)		(handle >> MPT_CONTEXT_CB_SHIFT)
 #define MPT_CBI_TO_HID(cbi)	((cbi) << MPT_CONTEXT_CB_SHIFT)
 #define MPT_CONTEXT_TO_CBI(x)	\
     (((x) >> MPT_CONTEXT_CB_SHIFT) & (MPT_NUM_REPLY_HANDLERS - 1))
-#define MPT_CONTEXT_REQI_MASK 0xFFFF
-#define MPT_CONTEXT_TO_REQI(x)	\
-    ((x) & MPT_CONTEXT_REQI_MASK)
+#define MPT_CONTEXT_REQI_MASK	0x3FFF
+#define MPT_CONTEXT_TO_REQI(x)	((x) & MPT_CONTEXT_REQI_MASK)
 
 /*
  * Convert a 32bit physical address returned from IOC to an
@@ -786,7 +883,7 @@ void mpt_complete_request_chain(struct mpt_softc *mpt,
 /***************************** IOC Initialization *****************************/
 int mpt_reset(struct mpt_softc *, int /*reinit*/);
 
-/****************************** Debugging/Logging *****************************/
+/****************************** Debugging ************************************/
 typedef struct mpt_decode_entry {
 	char    *name;
 	u_int	 value;
@@ -804,10 +901,14 @@ enum {
 	MPT_PRT_WARN,
 	MPT_PRT_INFO,
 	MPT_PRT_DEBUG,
+	MPT_PRT_DEBUG1,
+	MPT_PRT_DEBUG2,
+	MPT_PRT_DEBUG3,
 	MPT_PRT_TRACE,
 	MPT_PRT_NONE=100
 };
 
+#if __FreeBSD_version > 500000
 #define mpt_lprt(mpt, level, ...)		\
 do {						\
 	if (level <= (mpt)->verbose)		\
@@ -819,9 +920,56 @@ do {						 \
 	if (level <= (mpt)->debug_level)	 \
 		mpt_prtc(mpt, __VA_ARGS__);	 \
 } while (0)
+#else
+void mpt_lprt(struct mpt_softc *, int, const char *, ...)
+	__printflike(3, 4);
+void mpt_lprtc(struct mpt_softc *, int, const char *, ...)
+	__printflike(3, 4);
+#endif
+void mpt_prt(struct mpt_softc *, const char *, ...)
+	__printflike(2, 3);
+void mpt_prtc(struct mpt_softc *, const char *, ...)
+	__printflike(2, 3);
 
-void mpt_prt(struct mpt_softc *, const char *, ...);
-void mpt_prtc(struct mpt_softc *, const char *, ...);
+/**************************** Target Mode Related ***************************/
+static __inline int mpt_cdblen(uint8_t, int);
+static __inline int
+mpt_cdblen(uint8_t cdb0, int maxlen)
+{
+	int group = cdb0 >> 5;
+	switch (group) {
+	case 0:
+		return (6);
+	case 1:
+		return (10);
+	case 4:
+	case 5:
+		return (12);
+	default:
+		return (16);
+	}
+}
+#ifdef	INVARIANTS
+static __inline request_t * mpt_tag_2_req(struct mpt_softc *, uint32_t);
+static __inline request_t *
+mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
+{
+	uint16_t rtg = (tag >> 16);
+	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d\n", tag));
+	KASSERT(mpt->tgt_cmd_ptrs, ("no cmd backpointer array"));
+	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
+	return (mpt->tgt_cmd_ptrs[rtg]);
+}
+#endif
+
+typedef enum {
+	MPT_ABORT_TASK_SET=1234,
+	MPT_CLEAR_TASK_SET,
+	MPT_TARGET_RESET,
+	MPT_CLEAR_ACA,
+	MPT_TERMINATE_TASK,
+	MPT_NIL_TMT_VALUE=5678
+} mpt_task_mgmt_t;
 
 /**************************** Unclassified Routines ***************************/
 void		mpt_send_cmd(struct mpt_softc *mpt, request_t *req);
