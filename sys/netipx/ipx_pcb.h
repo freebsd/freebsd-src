@@ -2,7 +2,7 @@
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1995, Mike Mitchell
- * Copyright (c) 2004-2005 Robert N. M. Watson
+ * Copyright (c) 2004-2006 Robert N. M. Watson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,13 +68,15 @@ extern struct ipxpcbhead ipxrawpcb_list;
 extern struct mtx	ipxpcb_list_mtx;
 #endif
 
-/* possible flags */
-
-#define IPXP_IN_ABORT		0x1	/* calling abort through socket */
-#define IPXP_RAWIN		0x2	/* show headers on input */
-#define IPXP_RAWOUT		0x4	/* show header on output */
-#define IPXP_ALL_PACKETS	0x8	/* Turn off higher proto processing */
-#define	IPXP_CHECKSUM		0x10	/* use checksum on this socket */
+/*
+ * IPX/SPX PCB flags.
+ */
+#define IPXP_IN_ABORT		0x1	/* Calling abort through socket. */
+#define IPXP_RAWIN		0x2	/* Show headers on input. */
+#define IPXP_RAWOUT		0x4	/* Show header on output. */
+#define IPXP_ALL_PACKETS	0x8	/* Turn off higher proto processing. */
+#define	IPXP_CHECKSUM		0x10	/* Use checksum on this socket. */
+#define	IPXP_DROPPED		0x20	/* Connection dropped. */
 
 #define	IPX_WILDCARD		1
 
@@ -98,6 +100,7 @@ int	ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam,
 			    struct thread *p);
 void	ipx_pcbdetach(struct ipxpcb *ipxp);
 void	ipx_pcbdisconnect(struct ipxpcb *ipxp);
+void	ipx_pcbfree(struct ipxpcb *ipxp);
 struct ipxpcb *
 	ipx_pcblookup(struct ipx_addr *faddr, int lport, int wildp);
 void	ipx_setpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam);
