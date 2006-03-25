@@ -155,6 +155,16 @@ tcmd_handle(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, io_ops event)
 		}
 		last_cmd = h;
 	}
+
+	/* call completion and exit */
+	if (event != ATIO_WORK) {
+		if (last_cmd->done != NULL)
+			last_cmd->done(atio, ctio, event);
+		else
+			free_ccb((union ccb *)ctio);
+		return (1);
+	}
+
 	if (last_cmd->cmd == ILLEGAL_CDB) {
 		if (event != ATIO_WORK) {
 			warnx("no done func for %#x???", a_descr->cdb[0]);
@@ -165,15 +175,6 @@ tcmd_handle(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, io_ops event)
 		tcmd_illegal_req(atio, ctio);
 		send_ccb((union ccb *)ctio, /*priority*/1);
 		return (0);
-	}
-
-	/* call completion and exit */
-	if (event != ATIO_WORK) {
-		if (last_cmd->done != NULL)
-			last_cmd->done(atio, ctio, event);
-		else
-			free_ccb((union ccb *)ctio);
-		return (1);
 	}
 
 	istate = tcmd_get_istate(ctio->init_id);
