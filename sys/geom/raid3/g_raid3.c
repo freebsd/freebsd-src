@@ -2015,7 +2015,7 @@ g_raid3_worker(void *arg)
 				mtx_unlock(&sc->sc_queue_mtx);
 				if (g_raid3_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
-					G_RAID3_DEBUG(0, "Thread exiting.");
+					G_RAID3_DEBUG(1, "Thread exiting.");
 					kthread_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
