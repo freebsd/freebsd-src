@@ -132,8 +132,8 @@ do
 	cat $m/src.conf >> $H
 	echo "</PRE></TD>" >> $H
 	echo "<TD><PRE>" >> $H
-	if [ -f $m/w/_.sc ] ; then
-		comm -13 ${RDIR}/Ref/_.sc $m/w/_.sc >> $H
+	if [ -f $m/bw/_.sc ] ; then
+		comm -13 ${RDIR}/Ref/_.sc $m/bw/_.sc >> $H
 	fi
 	echo "</PRE></TD>" >> $H
 
