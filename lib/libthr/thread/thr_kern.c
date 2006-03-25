@@ -51,13 +51,11 @@ _thr_setthreaded(int threaded)
 		return (0);
 
 	__isthreaded = threaded;
-#if 0
 	if (threaded != 0) {
 		_thr_rtld_init();
 	} else {
 		_thr_rtld_fini();
 	}
-#endif
 	return (0);
 }
 
