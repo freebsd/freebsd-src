@@ -274,8 +274,6 @@ ipx_pcbdisconnect(ipxp)
 	IPX_LOCK_ASSERT(ipxp);
 
 	ipxp->ipxp_faddr = zeroipx_addr;
-	if (ipxp->ipxp_socket->so_state & SS_NOFDREF)
-		ipx_pcbdetach(ipxp);
 }
 
 void
@@ -287,10 +285,20 @@ ipx_pcbdetach(ipxp)
 	IPX_LIST_LOCK_ASSERT();
 	IPX_LOCK_ASSERT(ipxp);
 
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
 	so->so_pcb = NULL;
-	sotryfree(so);
+	ipxp->ipxp_socket = NULL;
+}
+
+void
+ipx_pcbfree(ipxp)
+	struct ipxpcb *ipxp;
+{
+
+	KASSERT(ipxp->ipxp_socket == NULL,
+	    ("ipx_pcbfree: ipxp_socket != NULL"));
+	IPX_LIST_LOCK_ASSERT();
+	IPX_LOCK_ASSERT(ipxp);
+
 	if (ipxp->ipxp_route.ro_rt != NULL)
 		RTFREE(ipxp->ipxp_route.ro_rt);
 	LIST_REMOVE(ipxp, ipxp_list);
