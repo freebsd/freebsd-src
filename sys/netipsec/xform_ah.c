@@ -201,7 +201,7 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 	bzero(cria, sizeof (*cria));
 	cria->cri_alg = sav->tdb_authalgxform->type;
 	cria->cri_klen = _KEYBITS(sav->key_auth);
-	cria->cri_key = _KEYBUF(sav->key_auth);
+	cria->cri_key = sav->key_auth->key_data;
 
 	return 0;
 }
@@ -231,7 +231,7 @@ ah_zeroize(struct secasvar *sav)
 	int err;
 
 	if (sav->key_auth)
-		bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
+		bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
 
 	err = crypto_freesession(sav->tdb_cryptoid);
 	sav->tdb_cryptoid = 0;
@@ -622,8 +622,8 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 	/* Authentication operation. */
 	crda->crd_alg = ahx->type;
-	crda->crd_key = _KEYBUF(sav->key_auth);
 	crda->crd_klen = _KEYBITS(sav->key_auth);
+	crda->crd_key = sav->key_auth->key_data;
 
 	/* Find out if we've already done crypto. */
 	for (mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, NULL);
@@ -1020,7 +1020,7 @@ ah_output(
 
 	/* Authentication operation. */
 	crda->crd_alg = ahx->type;
-	crda->crd_key = _KEYBUF(sav->key_auth);
+	crda->crd_key = sav->key_auth->key_data;
 	crda->crd_klen = _KEYBITS(sav->key_auth);
 
 	/* Allocate IPsec-specific opaque crypto info. */
