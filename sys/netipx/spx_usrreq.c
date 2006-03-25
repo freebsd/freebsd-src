@@ -371,9 +371,6 @@ dropwithreset:
 		cb = NULL;
 	}
 	IPX_LIST_UNLOCK();
-	si->si_seq = ntohs(si->si_seq);
-	si->si_ack = ntohs(si->si_ack);
-	si->si_alo = ntohs(si->si_alo);
 	m_freem(dtom(si));
 	if (cb == NULL || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
 	    traceallspxs)
