@@ -327,8 +327,7 @@ do { \
 	((x) == (y) || (/*CONSTCOND*/(w) && ((x) == ANY || (y) == ANY)))
 
 void
-freeaddrinfo(ai)
-	struct addrinfo *ai;
+freeaddrinfo(struct addrinfo *ai)
 {
 	struct addrinfo *next;
 
@@ -343,8 +342,7 @@ freeaddrinfo(ai)
 }
 
 static int
-str2number(p)
-	const char *p;
+str2number(const char *p)
 {
 	char *ep;
 	unsigned long v;
@@ -361,10 +359,8 @@ str2number(p)
 }
 
 int
-getaddrinfo(hostname, servname, hints, res)
-	const char *hostname, *servname;
-	const struct addrinfo *hints;
-	struct addrinfo **res;
+getaddrinfo(const char *hostname, const char *servname,
+    const struct addrinfo *hints, struct addrinfo **res)
 {
 	struct addrinfo sentinel;
 	struct addrinfo *cur;
@@ -599,8 +595,7 @@ bad:
 }
 
 static int
-reorder(sentinel)
-	struct addrinfo *sentinel;
+reorder(struct addrinfo *sentinel)
 {
 	struct addrinfo *ai, **aip;
 	struct ai_order *aio;
@@ -655,8 +650,7 @@ reorder(sentinel)
 }
 
 static int
-get_addrselectpolicy(head)
-	struct policyhead *head;
+get_addrselectpolicy(struct policyhead *head)
 {
 #ifdef INET6
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_ADDRCTLPOLICY };
@@ -693,8 +687,7 @@ get_addrselectpolicy(head)
 }
 
 static void
-free_addrselectpolicy(head)
-	struct policyhead *head;
+free_addrselectpolicy(struct policyhead *head)
 {
 	struct policyqueue *ent, *nent;
 
@@ -706,9 +699,7 @@ free_addrselectpolicy(head)
 }
 
 static struct policyqueue *
-match_addrselectpolicy(addr, head)
-	struct sockaddr *addr;
-	struct policyhead *head;
+match_addrselectpolicy(struct sockaddr *addr, struct policyhead *head)
 {
 #ifdef INET6
 	struct policyqueue *ent, *bestent = NULL;
@@ -775,9 +766,7 @@ match_addrselectpolicy(addr, head)
 }
 
 static void
-set_source(aio, ph)
-	struct ai_order *aio;
-	struct policyhead *ph;
+set_source(struct ai_order *aio, struct policyhead *ph)
 {
 	struct addrinfo ai = *aio->aio_ai;
 	struct sockaddr_storage ss;
@@ -843,8 +832,7 @@ set_source(aio, ph)
 }
 
 static int
-matchlen(src, dst)
-	struct sockaddr *src, *dst;
+matchlen(struct sockaddr *src, struct sockaddr *dst)
 {
 	int match = 0;
 	u_char *s, *d;
@@ -883,8 +871,7 @@ matchlen(src, dst)
 }
 
 static int
-comp_dst(arg1, arg2)
-	const void *arg1, *arg2;
+comp_dst(const void *arg1, const void *arg2)
 {
 	const struct ai_order *dst1 = arg1, *dst2 = arg2;
 
@@ -1000,8 +987,7 @@ comp_dst(arg1, arg2)
  * library.
  */
 static int
-gai_addr2scopetype(sa)
-	struct sockaddr *sa;
+gai_addr2scopetype(struct sockaddr *sa)
 {
 #ifdef INET6
 	struct sockaddr_in6 *sa6;
@@ -1063,10 +1049,8 @@ gai_addr2scopetype(sa)
  * non-passive socket -> localhost (127.0.0.1 or ::1)
  */
 static int
-explore_null(pai, servname, res)
-	const struct addrinfo *pai;
-	const char *servname;
-	struct addrinfo **res;
+explore_null(const struct addrinfo *pai, const char *servname,
+    struct addrinfo **res)
 {
 	int s;
 	const struct afd *afd;
@@ -1127,12 +1111,8 @@ free:
  * numeric hostname
  */
 static int
-explore_numeric(pai, hostname, servname, res, canonname)
-	const struct addrinfo *pai;
-	const char *hostname;
-	const char *servname;
-	struct addrinfo **res;
-	const char *canonname;
+explore_numeric(const struct addrinfo *pai, const char *hostname,
+    const char *servname, struct addrinfo **res, const char *canonname)
 {
 	const struct afd *afd;
 	struct addrinfo *cur;
@@ -1213,11 +1193,8 @@ bad:
  * numeric hostname with scope
  */
 static int
-explore_numeric_scope(pai, hostname, servname, res)
-	const struct addrinfo *pai;
-	const char *hostname;
-	const char *servname;
-	struct addrinfo **res;
+explore_numeric_scope(const struct addrinfo *pai, const char *hostname,
+    const char *servname, struct addrinfo **res)
 {
 #if !defined(SCOPE_DELIMITER) || !defined(INET6)
 	return explore_numeric(pai, hostname, servname, res, hostname);
@@ -1279,10 +1256,7 @@ explore_numeric_scope(pai, hostname, servname, res)
 }
 
 static int
-get_canonname(pai, ai, str)
-	const struct addrinfo *pai;
-	struct addrinfo *ai;
-	const char *str;
+get_canonname(const struct addrinfo *pai, struct addrinfo *ai, const char *str)
 {
 	if ((pai->ai_flags & AI_CANONNAME) != 0) {
 		ai->ai_canonname = strdup(str);
@@ -1293,10 +1267,7 @@ get_canonname(pai, ai, str)
 }
 
 static struct addrinfo *
-get_ai(pai, afd, addr)
-	const struct addrinfo *pai;
-	const struct afd *afd;
-	const char *addr;
+get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 {
 	char *p;
 	struct addrinfo *ai;
@@ -1364,9 +1335,7 @@ get_ai(pai, afd, addr)
 }
 
 static int
-get_portmatch(ai, servname)
-	const struct addrinfo *ai;
-	const char *servname;
+get_portmatch(const struct addrinfo *ai, const char *servname)
 {
 
 	/* get_port does not touch first argument when matchonly == 1. */
@@ -1375,10 +1344,7 @@ get_portmatch(ai, servname)
 }
 
 static int
-get_port(ai, servname, matchonly)
-	struct addrinfo *ai;
-	const char *servname;
-	int matchonly;
+get_port(struct addrinfo *ai, const char *servname, int matchonly)
 {
 	const char *proto;
 	struct servent *sp;
@@ -1457,8 +1423,7 @@ get_port(ai, servname, matchonly)
 }
 
 static const struct afd *
-find_afd(af)
-	int af;
+find_afd(int af)
 {
 	const struct afd *afd;
 
@@ -1481,8 +1446,7 @@ find_afd(af)
  * _dns_getaddrinfo.
  */
 static int
-addrconfig(pai)
-	struct addrinfo *pai;
+addrconfig(struct addrinfo *pai)
 {
 	int s, af;
 
@@ -1517,10 +1481,7 @@ addrconfig(pai)
 #ifdef INET6
 /* convert a string to a scope identifier. XXX: IPv6 specific */
 static int
-ip6_str2scopeid(scope, sin6, scopeid)
-	char *scope;
-	struct sockaddr_in6 *sin6;
-	u_int32_t *scopeid;
+ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
 {
 	u_long lscopeid;
 	struct in6_addr *a6;
@@ -1568,11 +1529,8 @@ ip6_str2scopeid(scope, sin6, scopeid)
  * FQDN hostname, DNS lookup
  */
 static int
-explore_fqdn(pai, hostname, servname, res)
-	const struct addrinfo *pai;
-	const char *hostname;
-	const char *servname;
-	struct addrinfo **res;
+explore_fqdn(const struct addrinfo *pai, const char *hostname,
+    const char *servname, struct addrinfo **res)
 {
 	struct addrinfo *result;
 	struct addrinfo *cur;
@@ -1628,13 +1586,8 @@ static const char AskedForGot[] =
 #endif
 
 static struct addrinfo *
-getanswer(answer, anslen, qname, qtype, pai, res)
-	const querybuf *answer;
-	int anslen;
-	const char *qname;
-	int qtype;
-	const struct addrinfo *pai;
-	res_state res;
+getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
+    const struct addrinfo *pai, res_state res)
 {
 	struct addrinfo sentinel, *cur;
 	struct addrinfo ai;
@@ -1866,7 +1819,7 @@ addr4sort(struct addrinfo *sentinel, res_state res)
 	for (ai = sentinel->ai_next; ai; ai = ai->ai_next) {
 		sin = (struct sockaddr_in *)ai->ai_addr;
 		for (j = 0; (unsigned)j < res->nsort; j++) {
-			if (res->sort_list[j].addr.s_addr == 
+			if (res->sort_list[j].addr.s_addr ==
 			    (sin->sin_addr.s_addr & res->sort_list[j].mask))
 				break;
 		}
@@ -1906,10 +1859,7 @@ addr4sort(struct addrinfo *sentinel, res_state res)
 
 /*ARGSUSED*/
 static int
-_dns_getaddrinfo(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 {
 	struct addrinfo *ai;
 	querybuf *buf, *buf2;
@@ -2108,10 +2058,7 @@ found:
 
 /*ARGSUSED*/
 static int
-_files_getaddrinfo(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_files_getaddrinfo(void *rv, void *cb_data, va_list ap)
 {
 	const char *name;
 	const struct addrinfo *pai;
@@ -2142,9 +2089,7 @@ _files_getaddrinfo(rv, cb_data, ap)
 #ifdef YP
 /*ARGSUSED*/
 static struct addrinfo *
-_yphostent(line, pai)
-	char *line;
-	const struct addrinfo *pai;
+_yphostent(char *line, const struct addrinfo *pai)
 {
 	struct addrinfo sentinel, *cur;
 	struct addrinfo hints, *res, *res0;
@@ -2220,10 +2165,7 @@ done:
 
 /*ARGSUSED*/
 static int
-_yp_getaddrinfo(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_yp_getaddrinfo(void *rv, void *cb_data, va_list ap)
 {
 	struct addrinfo sentinel, *cur;
 	struct addrinfo *ai = NULL;
@@ -2293,10 +2235,7 @@ _yp_getaddrinfo(rv, cb_data, ap)
  * Caller must parse answer and determine whether it answers the question.
  */
 static int
-res_queryN(name, target, res)
-	const char *name;	/* domain name */
-	struct res_target *target;
-	res_state res;
+res_queryN(const char *name, struct res_target *target, res_state res)
 {
 	u_char *buf;
 	HEADER *hp;
@@ -2407,10 +2346,7 @@ res_queryN(name, target, res)
  * is detected.  Error code, if any, is left in h_errno.
  */
 static int
-res_searchN(name, target, res)
-	const char *name;	/* domain name */
-	struct res_target *target;
-	res_state res;
+res_searchN(const char *name, struct res_target *target, res_state res)
 {
 	const char *cp, * const *domain;
 	HEADER *hp = (HEADER *)(void *)target->answer;	/*XXX*/
@@ -2583,10 +2519,8 @@ giveup:
  * removing a trailing dot from name if domain is NULL.
  */
 static int
-res_querydomainN(name, domain, target, res)
-	const char *name, *domain;
-	struct res_target *target;
-	res_state res;
+res_querydomainN(const char *name, const char *domain,
+    struct res_target *target, res_state res)
 {
 	char nbuf[MAXDNAME];
 	const char *longname = nbuf;
