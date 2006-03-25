@@ -178,10 +178,6 @@ COMPRESS_EXT?=	.gz
 # The NO_* variables should only be set by makefiles.
 #
 
-.if ${MACHINE_ARCH} == "amd64"
-_LIB32=		LIB32
-.endif
-
 #
 # Supported NO_* options (if defined, MK_* will be forced to "no",
 # regardless of user's setting).
@@ -236,7 +232,7 @@ WITHOUT_${var}=
     IPFILTER \
     IPX \
     KERBEROS \
-    ${_LIB32} \
+    LIB32 \
     LIBC_R \
     LIBPTHREAD \
     LIBTHR \
@@ -322,7 +318,7 @@ WITH_IDEA=
     IPFILTER \
     IPX \
     KERBEROS \
-    ${_LIB32} \
+    LIB32 \
     LIBC_R \
     LIBPTHREAD \
     LIBTHR \
