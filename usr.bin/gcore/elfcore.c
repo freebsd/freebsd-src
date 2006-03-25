@@ -495,15 +495,15 @@ readmap(pid_t pid)
 	linkp = &map;
 	while (pos < mapsize) {
 		vm_map_entry_t ent;
-		vm_offset_t start;
-		vm_offset_t end;
+		u_long start;
+		u_long end;
 		char prot[4];
 		char type[16];
 		int n;
 		int len;
 
 		len = 0;
-		n = sscanf(mapbuf + pos, "%x %x %*d %*d %*x %3[-rwx]"
+		n = sscanf(mapbuf + pos, "%lx %lx %*d %*d %*x %3[-rwx]"
 		    " %*d %*d %*x %*s %*s %16s %*s%*[\n]%n",
 		    &start, &end, prot, type, &len);
 		if (n != 4 || len == 0)
