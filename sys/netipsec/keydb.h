@@ -60,14 +60,39 @@ struct secasindex {
 					/* see IPSEC_MANUAL_REQID_MAX. */
 };
 
+/* 
+ * In order to split out the keydb implementation from that of the
+ * PF_KEY sockets we need to define a few structures that while they
+ * may seem common are likely to diverge over time. 
+ */
+
+/* sadb_identity */
+struct secident {
+	u_int16_t type;
+	u_int64_t id;
+};
+
+/* sadb_key */
+struct seckey {
+	u_int16_t bits;
+	char *key_data;
+};
+
+struct seclifetime {
+	u_int32_t allocations;
+	u_int64_t bytes;
+	u_int64_t addtime;
+	u_int64_t usetime;
+};
+
 /* Security Association Data Base */
 struct secashead {
 	LIST_ENTRY(secashead) chain;
 
 	struct secasindex saidx;
 
-	struct sadb_ident *idents;	/* source identity */
-	struct sadb_ident *identd;	/* destination identity */
+	struct secident *idents;	/* source identity */
+	struct secident *identd;	/* destination identity */
 					/* XXX I don't know how to use them. */
 
 	u_int8_t state;			/* MATURE or DEAD. */
@@ -97,8 +122,8 @@ struct secasvar {
 	u_int32_t spi;			/* SPI Value, network byte order */
 	u_int32_t flags;		/* holder for SADB_KEY_FLAGS */
 
-	struct sadb_key *key_auth;	/* Key for Authentication */
-	struct sadb_key *key_enc;	/* Key for Encryption */
+	struct seckey *key_auth;	/* Key for Authentication */
+	struct seckey *key_enc;	        /* Key for Encryption */
 	caddr_t iv;			/* Initilization Vector */
 	u_int ivlen;			/* length of IV */
 	void *sched;			/* intermediate encryption key */
@@ -107,9 +132,9 @@ struct secasvar {
 	struct secreplay *replay;	/* replay prevention */
 	time_t created;			/* for lifetime */
 
-	struct sadb_lifetime *lft_c;	/* CURRENT lifetime, it's constant. */
-	struct sadb_lifetime *lft_h;	/* HARD lifetime */
-	struct sadb_lifetime *lft_s;	/* SOFT lifetime */
+	struct seclifetime *lft_c;	/* CURRENT lifetime, it's constant. */
+	struct seclifetime *lft_h;	/* HARD lifetime */
+	struct seclifetime *lft_s;	/* SOFT lifetime */
 
 	u_int32_t seq;			/* sequence number */
 	pid_t pid;			/* message's pid */

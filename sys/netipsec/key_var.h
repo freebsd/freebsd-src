@@ -66,8 +66,8 @@
 
 #ifdef _KERNEL
 #define _ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))
-#define _KEYLEN(key) ((u_int)((key)->sadb_key_bits >> 3))
-#define _KEYBITS(key) ((u_int)((key)->sadb_key_bits))
+#define _KEYLEN(key) ((u_int)((key)->bits >> 3))
+#define _KEYBITS(key) ((u_int)((key)->bits))
 #define _KEYBUF(key) ((caddr_t)((caddr_t)(key) + sizeof(struct sadb_key)))
 #endif /*_KERNEL*/
 
