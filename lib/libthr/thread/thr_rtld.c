@@ -146,14 +146,14 @@ _thr_rtld_lock_release(void *lock)
 	
 	if ((l->lock & WAFLAG) == 0) {
 		atomic_add_rel_int(&l->lock, -RC_INCR);
-		if (l->wr_waiters) {
+		if (l->lock == 0 && l->wr_waiters) {
 			atomic_add_long(&l->wr_cv, 1);
 			_thr_umtx_wake(&l->wr_cv, l->wr_waiters);
 		}
 		THR_CRITICAL_LEAVE(curthread);
 	} else {
 		atomic_add_rel_int(&l->lock, -WAFLAG);
-		if (l->wr_waiters) {
+		if (l->lock == 0 && l->wr_waiters) {
 			atomic_add_long(&l->wr_cv, 1);
 			_thr_umtx_wake(&l->wr_cv, l->wr_waiters);
 		} else if (l->rd_waiters) {
