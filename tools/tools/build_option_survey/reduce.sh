@@ -2,13 +2,9 @@
 # This file is in the public domain
 # $FreeBSD$
 
-if [ "x$1" != "x" ] ; then
-	OPLIST=$1
-else
-	OPLIST=no_list
-fi
+set -e
 
-OPLIST=_.options
+OPLIST=`sh listallopts.sh`
 
 ODIR=/usr/obj/`pwd`
 RDIR=${ODIR}/_.result
@@ -24,23 +20,23 @@ compa ( ) (
 	fi
 	
 	mtree -k uid,gid,mode,nlink,size,link,type,flags \
-	    -f ${1}/_.mtree -f $2/_.mtree > $2/_.mtree.all.txt
-	grep '^		' $2/_.mtree.all.txt > $4/$3.mtree.chg.txt
-	grep '^[^	]' $2/_.mtree.all.txt > $4/$3.mtree.sub.txt
-	grep '^	[^	]' $2/_.mtree.all.txt > $4/$3.mtree.add.txt
+	    -f ${1}/_.mtree -f $2/_.mtree > $2/_.mtree.all.txt || true
+	grep '^		' $2/_.mtree.all.txt > $4/$3.mtree.chg.txt || true
+	grep '^[^	]' $2/_.mtree.all.txt > $4/$3.mtree.sub.txt || true
+	grep '^	[^	]' $2/_.mtree.all.txt > $4/$3.mtree.add.txt || true
 	a=`wc -l < $4/$3.mtree.add.txt`
 	s=`wc -l < $4/$3.mtree.sub.txt`
 	c=`wc -l < $4/$3.mtree.chg.txt`
-	c=`expr $c / 2`
+	c=`expr $c / 2 || true`
 
 	br=`awk 'NR == 2 {print $3}' $1/_.df`
 	bt=`awk 'NR == 2 {print $3}' $2/_.df`
 	echo $3 A $a S $s C $c B $bt D `expr $br - $bt`
 )
 
-grep -v '^[ 	]*#' $OPLIST | while read o
+for o in $OPLIST
 do
-	md=`echo "$o=/dev/YES" | md5`
+	md=`echo "${o}=foo" | md5`
 	m=${RDIR}/$md
 	if [ ! -d $m ] ; then
 		continue
@@ -48,28 +44,34 @@ do
 	if [ ! -d $m/iw -a ! -d $m/bw -a ! -d $m/w ] ; then
 		continue
 	fi
+	echo "=== reduce ${o}"
 
 	echo
 	echo -------------------------------------------------------------
 	echo $md
-	cat $m/make.conf
+	cat $m/src.conf
 	echo -------------------------------------------------------------
-	if [ -f $m/iw/done -a ! -f $m/iw/_.mtree ] ; then
+	if [ ! -f $m/iw/done ] ; then
+		echo "IW pending"
+	elif [ ! -f $m/iw/_.success ] ; then
 		echo "IW failed"
 	fi
-	if [ -f $m/bw/done -a ! -f $m/bw/_.mtree ] ; then
+	if [ ! -f $m/bw/done ] ; then
+		echo "BW pending"
+	elif [ ! -f $m/bw/_.success ] ; then
 		echo "BW failed"
 	fi
-	if [ -f $m/w/done -a ! -f $m/w/_.mtree ] ; then
+	if [ ! -f $m/w/done ] ; then
+		echo "W pending"
+	elif [ ! -f $m/w/_.success ] ; then
 		echo "W failed"
 	fi
 	(
-	compa ${RDIR}/Ref/ $m/iw R-IW $m
-	compa ${RDIR}/Ref/ $m/bw R-BW $m
-	compa ${RDIR}/Ref/ $m/w R-W $m
-	compa $m/iw $m/w IW-W $m
-	compa $m/bw $m/w BW-W $m
-	compa $m/bw $m/iw BW-IW $m
+	for x in iw bw w
+	do
+		compa ${RDIR}/Ref/ $m/$x r-$x $m
+	done
 	) > $m/stats
 	cat $m/stats
 done
+echo "== reduce done"
