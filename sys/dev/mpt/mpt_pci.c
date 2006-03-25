@@ -242,7 +242,7 @@ mpt_pci_probe(device_t dev)
 	return (0);
 }
 
-#ifdef	RELENG_4
+#if	__FreeBSD_version < 500000  
 static void
 mpt_set_options(struct mpt_softc *mpt)
 {
@@ -261,7 +261,24 @@ mpt_set_options(struct mpt_softc *mpt)
 			mpt->verbose = MPT_PRT_DEBUG;
 		}
 	}
-
+	bitmap = 0;
+	if (getenv_int("mpt_target", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->role = MPT_ROLE_TARGET;
+		}
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_none", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->role = MPT_ROLE_NONE;
+		}
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_initiator", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->role = MPT_ROLE_INITIATOR;
+		}
+	}
 }
 #else
 static void
@@ -278,6 +295,12 @@ mpt_set_options(struct mpt_softc *mpt)
 	if (resource_int_value(device_get_name(mpt->dev),
 	    device_get_unit(mpt->dev), "debug", &tval) == 0 && tval != 0) {
 		mpt->verbose += tval;
+	}
+	tval = 0;
+	if (resource_int_value(device_get_name(mpt->dev),
+	    device_get_unit(mpt->dev), "role", &tval) == 0 && tval != 0 &&
+	    tval <= 3) {
+		mpt->role = tval;
 	}
 }
 #endif
@@ -354,6 +377,7 @@ mpt_pci_attach(device_t dev)
 	mpt->raid_mwce_setting = MPT_RAID_MWCE_DEFAULT;
 	mpt->raid_queue_depth = MPT_RAID_QUEUE_DEPTH_DEFAULT;
 	mpt->verbose = MPT_PRT_NONE;
+	mpt->role = MPT_ROLE_DEFAULT;
 	mpt_set_options(mpt);
 	if (mpt->verbose == MPT_PRT_NONE) {
 		mpt->verbose = MPT_PRT_WARN;
@@ -474,16 +498,44 @@ mpt_pci_attach(device_t dev)
 	 */
 	pci_disable_io(dev, SYS_RES_IOPORT);
 
+	switch (mpt->role) {
+	case MPT_ROLE_TARGET:
+		break;
+	case MPT_ROLE_INITIATOR:
+		break;
+	case MPT_ROLE_TARGET|MPT_ROLE_INITIATOR:
+		mpt->disabled = 1;
+		mpt_prt(mpt, "dual roles unsupported\n");
+		goto bad;
+	case MPT_ROLE_NONE:
+		device_printf(dev, "role of NONE same as disable\n");
+		mpt->disabled = 1;
+		goto bad;
+	}
+
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
-
 		MPT_LOCK(mpt);
 		if (mpt_attach(mpt) != 0) {
 			MPT_UNLOCK(mpt);
 			goto bad;
 		}
+		MPT_UNLOCK(mpt);
+	} else {
+		mpt_prt(mpt, "device disabled at user request\n");
+		goto bad;
 	}
 
+	mpt->eh = EVENTHANDLER_REGISTER(shutdown_post_sync, mpt_pci_shutdown,
+	    dev, SHUTDOWN_PRI_DEFAULT);
+
+	if (mpt->eh == NULL) {
+		mpt_prt(mpt, "shutdown event registration failed\n");
+		MPT_LOCK(mpt);
+		(void) mpt_detach(mpt);
+		MPT_UNLOCK(mpt);
+		goto bad;
+	}
 	return (0);
 
 bad:
@@ -535,24 +587,23 @@ mpt_pci_detach(device_t dev)
 	struct mpt_softc *mpt;
 
 	mpt  = (struct mpt_softc*)device_get_softc(dev);
-	mpt_prt(mpt, "mpt_detach\n");
 
 	if (mpt) {
+		MPT_LOCK(mpt);
 		mpt_disable_ints(mpt);
 		mpt_detach(mpt);
 		mpt_reset(mpt, /*reinit*/FALSE);
 		mpt_dma_mem_free(mpt);
 		mpt_free_bus_resources(mpt);
-		if (mpt->raid_volumes != NULL
-		 && mpt->ioc_page2 != NULL) {
+		if (mpt->raid_volumes != NULL && mpt->ioc_page2 != NULL) {
 			int i;
-
 			for (i = 0; i < mpt->ioc_page2->MaxVolumes; i++) {
 				struct mpt_raid_volume *mpt_vol;
 				
 				mpt_vol = &mpt->raid_volumes[i];
-				if (mpt_vol->config_page)
+				if (mpt_vol->config_page) {
 					free(mpt_vol->config_page, M_DEVBUF);
+				}
 			}
 		}
 		if (mpt->ioc_page2 != NULL)
@@ -565,6 +616,7 @@ mpt_pci_detach(device_t dev)
 			free(mpt->raid_disks, M_DEVBUF);
 		if (mpt->eh != NULL)
                         EVENTHANDLER_DEREGISTER(shutdown_final, mpt->eh);
+		MPT_UNLOCK(mpt);
 	}
 	return(0);
 }
@@ -572,7 +624,6 @@ mpt_pci_detach(device_t dev)
 
 /*
  * Disable the hardware
- * XXX - Called too early by New Bus!!!  ???
  */
 static int
 mpt_pci_shutdown(device_t dev)
@@ -580,8 +631,13 @@ mpt_pci_shutdown(device_t dev)
 	struct mpt_softc *mpt;
 
 	mpt = (struct mpt_softc *)device_get_softc(dev);
-	if (mpt)
-		return (mpt_shutdown(mpt));
+	if (mpt) {
+		int r;
+		MPT_LOCK(mpt);
+		r = mpt_shutdown(mpt);
+		MPT_UNLOCK(mpt);
+		return (r);
+	}
 	return(0);
 }
 
