@@ -1859,22 +1859,21 @@ spx_timers(struct spxpcb *cb, int timer)
 
 	cb->s_force = 1 + timer;
 	switch (timer) {
-
-	/*
-	 * 2 MSL timeout in shutdown went off.  TCP deletes connection
-	 * control block.
-	 */
 	case SPXT_2MSL:
+		/*
+		 * 2 MSL timeout in shutdown went off.  TCP deletes
+		 * connection control block.
+		 */
 		printf("spx: SPXT_2MSL went off for no reason\n");
 		cb->s_timer[timer] = 0;
 		break;
 
-	/*
-	 * Retransmission timer went off.  Message has not been acked within
-	 * retransmit interval.  Back off to a longer retransmit interval and
-	 * retransmit one packet.
-	 */
 	case SPXT_REXMT:
+		/*
+		 * Retransmission timer went off.  Message has not been acked
+		 * within retransmit interval.  Back off to a longer
+		 * retransmit interval and retransmit one packet.
+		 */
 		if (++cb->s_rxtshift > SPX_MAXRXTSHIFT) {
 			cb->s_rxtshift = SPX_MAXRXTSHIFT;
 			spxstat.spxs_timeoutdrop++;
@@ -1950,6 +1949,9 @@ spx_timers(struct spxpcb *cb, int timer)
 		spx_drop(cb, ETIMEDOUT);
 		cb = NULL;
 		break;
+
+	default:
+		panic("spx_timers: unknown timer %d", timer);
 	}
 	return (cb);
 }
