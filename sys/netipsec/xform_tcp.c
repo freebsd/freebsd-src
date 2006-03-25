@@ -117,7 +117,7 @@ tcpsignature_zeroize(struct secasvar *sav)
 {
 
 	if (sav->key_auth)
-		bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
+		bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
 
 	sav->tdb_cryptoid = 0;
 	sav->tdb_authalgxform = NULL;
