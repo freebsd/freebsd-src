@@ -243,7 +243,7 @@ static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
 #endif
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
-static const ns_src default_src[] = { 
+static const ns_src default_src[] = {
 	{ NSSRC_FILES, NS_SUCCESS },
 	{ NSSRC_DNS, NS_SUCCESS },
 #ifdef ICMPNL
@@ -841,8 +841,7 @@ _hpreorder(struct hostent *hp)
 }
 
 static int
-get_addrselectpolicy(head)
-	struct policyhead *head;
+get_addrselectpolicy(struct policyhead *head)
 {
 #ifdef INET6
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_ADDRCTLPOLICY };
@@ -879,8 +878,7 @@ get_addrselectpolicy(head)
 }
 
 static void
-free_addrselectpolicy(head)
-	struct policyhead *head;
+free_addrselectpolicy(struct policyhead *head)
 {
 	struct policyqueue *ent, *nent;
 
@@ -892,9 +890,7 @@ free_addrselectpolicy(head)
 }
 
 static struct policyqueue *
-match_addrselectpolicy(addr, head)
-	struct sockaddr *addr;
-	struct policyhead *head;
+match_addrselectpolicy(struct sockaddr *addr, struct policyhead *head)
 {
 #ifdef INET6
 	struct policyqueue *ent, *bestent = NULL;
@@ -961,9 +957,7 @@ match_addrselectpolicy(addr, head)
 }
 
 static void
-set_source(aio, ph)
-	struct hp_order *aio;
-	struct policyhead *ph;
+set_source(struct hp_order *aio, struct policyhead *ph)
 {
 	struct sockaddr_storage ss = aio->aio_un.aiou_ss;
 	socklen_t srclen;
@@ -1022,8 +1016,7 @@ set_source(aio, ph)
 }
 
 static int
-matchlen(src, dst)
-	struct sockaddr *src, *dst;
+matchlen(struct sockaddr *src, struct sockaddr *dst)
 {
 	int match = 0;
 	u_char *s, *d;
@@ -1062,8 +1055,7 @@ matchlen(src, dst)
 }
 
 static int
-comp_dst(arg1, arg2)
-	const void *arg1, *arg2;
+comp_dst(const void *arg1, const void *arg2)
 {
 	const struct hp_order *dst1 = arg1, *dst2 = arg2;
 
@@ -1178,8 +1170,7 @@ comp_dst(arg1, arg2)
  * library.
  */
 static int
-gai_addr2scopetype(sa)
-	struct sockaddr *sa;
+gai_addr2scopetype(struct sockaddr *sa)
 {
 #ifdef INET6
 	struct sockaddr_in6 *sa6;
@@ -1253,7 +1244,7 @@ static int
 _files_ghbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
-	int af; 
+	int af;
 	int *errp;
 	int match, nalias;
 	char *p, *line, *addrstr, *cname;
@@ -1325,9 +1316,9 @@ _files_ghbyname(void *rval, void *cb_data, va_list ap)
 static int
 _files_ghbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	const void *addr; 
-	int addrlen; 
-	int af; 
+	const void *addr;
+	int addrlen;
+	int af;
 	int *errp;
 	int nalias;
 	char *p, *line;
@@ -1439,13 +1430,8 @@ static struct hostent *getanswer(const querybuf *, int, const char *, int,
  * we don't need to take care about sorting, nor IPv4 mapped address here.
  */
 static struct hostent *
-getanswer(answer, anslen, qname, qtype, template, errp)
-	const querybuf *answer;
-	int anslen;
-	const char *qname;
-	int qtype;
-	struct hostent *template;
-	int *errp;
+getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
+    struct hostent *template, int *errp)
 {
 	const HEADER *hp;
 	const u_char *cp;
