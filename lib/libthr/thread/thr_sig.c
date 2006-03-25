@@ -50,8 +50,6 @@ sigcancel_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
 	struct pthread *curthread = _get_curthread();
 
-	if (curthread->cancelflags & THR_CANCEL_AT_POINT)
-		pthread_testcancel();
 	_thr_ast(curthread);
 }
 
@@ -59,6 +57,9 @@ void
 _thr_ast(struct pthread *curthread)
 {
 	if (!THR_IN_CRITICAL(curthread)) {
+		if (__predict_false(curthread->cancelflags &
+			THR_CANCEL_AT_POINT))
+			_pthread_testcancel();
 		if (__predict_false((curthread->flags &
 		    (THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
 			== THR_FLAGS_NEED_SUSPEND))
