@@ -27,7 +27,7 @@
 .\"	from: OpenBSD: clock.4,v 1.3 2004/09/24 07:04:15 miod Exp
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2005
+.Dd February 15, 2006
 .Dt EEPROM 4 sparc64
 .Os
 .Sh NAME
@@ -45,13 +45,15 @@ driver is a front-end for the machine-independent
 MK48Txx driver.
 The
 .Tn Mostek
-MK48Txx driver provides access to the real time clock part of the chips it
-supports to
+MK48Txx driver provides access to the real time clock and the watchdog part
+of the supported chips to
 .Fx
-by interfacing with the generic clock code.
+by interfacing them with the generic clock code and
+.Xr watchdog 4
+respectively.
 .Pp
 .Tn Mostek
-MK48Txx chips are found on the
+MK48Txx chips providing real time clock functionality are found on the
 .Tn EBus ,
 .Tn FireHose
 and
@@ -59,10 +61,38 @@ and
 busses of
 .Tn UltraSPARC
 systems.
-On systems where the hostid is stored in the NVRAM part of the Mostek MK48Txx
-chip the
+On systems where the hostid is stored in the NVRAM part of the
+.Tn Mostek
+MK48Txx chip the
 .Nm
 driver prints out the hostid on attach.
+.Pp
+On
+.Tn Sun Enterprise
+250 and 450 systems additionally the watchdog functionality of the
+.Tn Mostek
+MK48Txx chips is available.
+The
+.Nm
+driver automatically registers the watchdog part with
+.Xr watchdog 4
+on these systems.
+Thus it can be used with
+.Xr watchdog 8
+and
+.Xr watchdogd 8 .
+The timeout interval supported by the
+.Tn Mostek
+MK48Txx watchdog is 1/16 second to 128 seconds.
+In the
+.Tn Sun Enterprise
+machines a system reset is triggered when the
+.Tn Mostek
+MK48Txx watchdog times out regardless of what the
+.Tn Open Firmware
+environment variable
+.Va watchdog-reboot?
+is set to.
 .Sh DIAGNOSTICS
 The following driver specific error message may be reported:
 .Bl -diag
@@ -79,7 +109,10 @@ system real time clock that otherwise would not have been chosen.
 .Xr ebus 4 ,
 .Xr fhc 4 ,
 .Xr rtc 4 ,
-.Xr sbus 4
+.Xr sbus 4 ,
+.Xr watchdog 4 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8
 .Sh HISTORY
 The
 .Nm
