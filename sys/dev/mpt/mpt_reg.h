@@ -125,7 +125,7 @@ enum _MPT_INTR_REQ_BITS {
 #define	MPT_DB_INTR(v)    (((v) & MPT_INTR_DB_READY) != 0)
 #define	MPT_REPLY_INTR(v) (((v) & MPT_INTR_REPLY_READY) != 0)
 
-/* Function Maps for INTERRUPT make register */
+/* Function Maps for INTERRUPT mask register */
 enum _MPT_INTR_MASK_BITS {
 	MPT_INTR_REPLY_MASK	= 0x00000008,
 	MPT_INTR_DB_MASK	= 0x00000001
