@@ -100,6 +100,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mpt/mpilib/mpi.h>
 #include <dev/mpt/mpilib/mpi_ioc.h>
+#include <dev/mpt/mpilib/mpi_fc.h>
+#include <dev/mpt/mpilib/mpi_targ.h>
 
 #include <sys/sysctl.h>
 
@@ -123,7 +125,7 @@ static int mpt_send_event_request(struct mpt_softc *mpt, int onoff);
 static int mpt_soft_reset(struct mpt_softc *mpt);
 static void mpt_hard_reset(struct mpt_softc *mpt);
 static int mpt_configure_ioc(struct mpt_softc *mpt);
-static int mpt_enable_ioc(struct mpt_softc *mpt);
+static int mpt_enable_ioc(struct mpt_softc *mpt, int);
 
 /************************* Personality Module Support *************************/
 /*
@@ -150,7 +152,7 @@ mpt_pers_find(struct mpt_softc *mpt, u_int start_at)
 }
 
 /*
- * Used infrequenstly, so no need to optimize like a forward
+ * Used infrequently, so no need to optimize like a forward
  * traversal where we use the MAX+1 is guaranteed to be NULL
  * trick.
  */
@@ -179,6 +181,7 @@ mpt_pers_find_reverse(struct mpt_softc *mpt, u_int start_at)
 static mpt_load_handler_t      mpt_stdload;
 static mpt_probe_handler_t     mpt_stdprobe;
 static mpt_attach_handler_t    mpt_stdattach;
+static mpt_enable_handler_t    mpt_stdenable;
 static mpt_event_handler_t     mpt_stdevent;
 static mpt_reset_handler_t     mpt_stdreset;
 static mpt_shutdown_handler_t  mpt_stdshutdown;
@@ -189,6 +192,7 @@ static struct mpt_personality mpt_default_personality =
 	.load		= mpt_stdload,
 	.probe		= mpt_stdprobe,
 	.attach		= mpt_stdattach,
+	.enable		= mpt_stdenable,
 	.event		= mpt_stdevent,
 	.reset		= mpt_stdreset,
 	.shutdown	= mpt_stdshutdown,
@@ -198,6 +202,7 @@ static struct mpt_personality mpt_default_personality =
 
 static mpt_load_handler_t      mpt_core_load;
 static mpt_attach_handler_t    mpt_core_attach;
+static mpt_enable_handler_t    mpt_core_enable;
 static mpt_reset_handler_t     mpt_core_ioc_reset;
 static mpt_event_handler_t     mpt_core_event;
 static mpt_shutdown_handler_t  mpt_core_shutdown;
@@ -208,6 +213,7 @@ static struct mpt_personality mpt_core_personality =
 	.name		= "mpt_core",
 	.load		= mpt_core_load,
 	.attach		= mpt_core_attach,
+	.enable		= mpt_core_enable,
 	.event		= mpt_core_event,
 	.reset		= mpt_core_ioc_reset,
 	.shutdown	= mpt_core_shutdown,
@@ -226,8 +232,7 @@ static moduledata_t mpt_core_mod = {
 DECLARE_MODULE(mpt_core, mpt_core_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(mpt_core, 1);
 
-#define MPT_PERS_ATACHED(pers, mpt) \
-	((mpt)->pers_mask & (0x1 << pers->id))
+#define MPT_PERS_ATTACHED(pers, mpt) ((mpt)->mpt_pers_mask & (0x1 << pers->id))
 
 
 int
@@ -274,8 +279,10 @@ mpt_modevent(module_t mod, int type, void *data)
 	}
 	case MOD_SHUTDOWN:
 		break;
+#if __FreeBSD_version >= 500000
 	case MOD_QUIESCE:
 		break;
+#endif
 	case MOD_UNLOAD:
 		error = pers->unload(pers);
 		mpt_personalities[pers->id] = NULL;
@@ -305,6 +312,13 @@ int
 mpt_stdattach(struct mpt_softc *mpt)
 {
 	/* Attach is always successfull. */
+	return (0);
+}
+
+int
+mpt_stdenable(struct mpt_softc *mpt)
+{
+	/* Enable is always successfull. */
 	return (0);
 }
 
@@ -385,13 +399,14 @@ mpt_register_handler(struct mpt_softc *mpt, mpt_handler_type type,
 			 * that the full table is checked to see if
 			 * this handler was previously registered.
 			 */
-			if (free_cbi == MPT_HANDLER_ID_NONE
-			 && (mpt_reply_handlers[cbi]
+			if (free_cbi == MPT_HANDLER_ID_NONE &&
+			    (mpt_reply_handlers[cbi]
 			  == mpt_default_reply_handler))
 				free_cbi = cbi;
 		}
-		if (free_cbi == MPT_HANDLER_ID_NONE)
+		if (free_cbi == MPT_HANDLER_ID_NONE) {
 			return (ENOMEM);
+		}
 		mpt_reply_handlers[free_cbi] = handler.reply_handler;
 		*phandler_id = MPT_CBI_TO_HID(free_cbi);
 		break;
@@ -429,22 +444,23 @@ mpt_deregister_handler(struct mpt_softc *mpt, mpt_handler_type type,
 
 static int
 mpt_default_reply_handler(struct mpt_softc *mpt, request_t *req,
-			  MSG_DEFAULT_REPLY *reply_frame)
+	uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
-	mpt_prt(mpt, "XXXX Default Handler Called.  Req %p, Frame %p\n",
-		req, reply_frame);
+	mpt_prt(mpt,
+	    "Default Handler Called: req=%p:%u reply_descriptor=%x frame=%p\n",
+	    req, req->serno, reply_desc, reply_frame);
 
 	if (reply_frame != NULL)
 		mpt_dump_reply_frame(mpt, reply_frame);
 
-	mpt_prt(mpt, "XXXX Reply Frame Ignored\n");
+	mpt_prt(mpt, "Reply Frame Ignored\n");
 
 	return (/*free_reply*/TRUE);
 }
 
 static int
 mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
-				MSG_DEFAULT_REPLY *reply_frame)
+ uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	if (req != NULL) {
 
@@ -471,7 +487,7 @@ mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 static int
 mpt_handshake_reply_handler(struct mpt_softc *mpt, request_t *req,
-			 MSG_DEFAULT_REPLY *reply_frame)
+ uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	/* Nothing to be done. */
 	return (/*free_reply*/TRUE);
@@ -479,12 +495,13 @@ mpt_handshake_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 static int
 mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
-			MSG_DEFAULT_REPLY *reply_frame)
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	int free_reply;
 
 	if (reply_frame == NULL) {
-		mpt_prt(mpt, "Event Handler: req %p - Unexpected NULL reply\n");
+		mpt_prt(mpt, "Event Handler: req %p:%u - Unexpected NULL reply\n",
+		    req, req->serno);
 		return (/*free_reply*/TRUE);
 	}
 
@@ -619,13 +636,15 @@ void
 mpt_intr(void *arg)
 {
 	struct mpt_softc *mpt;
-	uint32_t     reply_desc;
+	uint32_t reply_desc;
+	int ntrips = 0;
 
 	mpt = (struct mpt_softc *)arg;
 	while ((reply_desc = mpt_pop_reply_queue(mpt)) != MPT_REPLY_EMPTY) {
 		request_t	  *req;
 		MSG_DEFAULT_REPLY *reply_frame;
 		uint32_t	   reply_baddr;
+		uint32_t           ctxt_idx;
 		u_int		   cb_index;
 		u_int		   req_index;
 		int		   free_rf;
@@ -635,27 +654,102 @@ mpt_intr(void *arg)
 		reply_baddr = 0;
 		if ((reply_desc & MPI_ADDRESS_REPLY_A_BIT) != 0) {
 			u_int offset;
-
 			/*
 			 * Insure that the reply frame is coherent.
 			 */
 			reply_baddr = (reply_desc << 1);
 			offset = reply_baddr - (mpt->reply_phys & 0xFFFFFFFF);
-			bus_dmamap_sync_range(mpt->reply_dmat, mpt->reply_dmap,
-					      offset, MPT_REPLY_SIZE,
-					      BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync_range(mpt->reply_dmat,
+			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
+			    BUS_DMASYNC_POSTREAD);
 			reply_frame = MPT_REPLY_OTOV(mpt, offset);
-			reply_desc = le32toh(reply_frame->MsgContext);
-		}
-		cb_index = MPT_CONTEXT_TO_CBI(reply_desc);
-		req_index = MPT_CONTEXT_TO_REQI(reply_desc);
-		if (req_index < MPT_MAX_REQUESTS(mpt))
-			req = &mpt->request_pool[req_index];
+			ctxt_idx = le32toh(reply_frame->MsgContext);
+		} else {
+			uint32_t type;
 
-		free_rf = mpt_reply_handlers[cb_index](mpt, req, reply_frame);
+			type = MPI_GET_CONTEXT_REPLY_TYPE(reply_desc);
+			ctxt_idx = reply_desc;
+			mpt_lprt(mpt, MPT_PRT_DEBUG1, "Context Reply: 0x%08x\n",
+				    reply_desc);
+
+			switch (type) {
+			case MPI_CONTEXT_REPLY_TYPE_SCSI_INIT:
+				ctxt_idx &= MPI_CONTEXT_REPLY_CONTEXT_MASK;
+				break;
+			case MPI_CONTEXT_REPLY_TYPE_SCSI_TARGET:
+				ctxt_idx = GET_IO_INDEX(reply_desc);
+				if (mpt->tgt_cmd_ptrs == NULL) {
+					mpt_prt(mpt,
+					    "mpt_intr: no target cmd ptrs\n");
+					reply_desc = MPT_REPLY_EMPTY;
+					break;
+				}
+				if (ctxt_idx >= mpt->tgt_cmds_allocated) {
+					mpt_prt(mpt,
+					    "mpt_intr: bad tgt cmd ctxt %u\n",
+					    ctxt_idx);
+					reply_desc = MPT_REPLY_EMPTY;
+					ntrips = 1000;
+					break;
+				}
+				req = mpt->tgt_cmd_ptrs[ctxt_idx];
+				if (req == NULL) {
+					mpt_prt(mpt, "no request backpointer "
+					    "at index %u", ctxt_idx);
+					reply_desc = MPT_REPLY_EMPTY;
+					ntrips = 1000;
+					break;
+				}
+				/*
+				 * Reformulate ctxt_idx to be just as if
+				 * it were another type of context reply
+				 * so the code below will find the request
+				 * via indexing into the pool.
+				 */
+				ctxt_idx =
+				    req->index | mpt->scsi_tgt_handler_id;
+				req = NULL;
+				break;
+			case MPI_CONTEXT_REPLY_TYPE_LAN:
+				mpt_prt(mpt, "LAN CONTEXT REPLY: 0x%08x\n",
+				    reply_desc);
+				reply_desc = MPT_REPLY_EMPTY;
+				break;
+			default:
+				mpt_prt(mpt, "Context Reply 0x%08x?\n", type);
+				reply_desc = MPT_REPLY_EMPTY;
+				break;
+			}
+			if (reply_desc == MPT_REPLY_EMPTY) {
+				if (ntrips++ > 1000) {
+					break;
+				}
+				continue;
+			}
+		}
+
+		cb_index = MPT_CONTEXT_TO_CBI(ctxt_idx);
+		req_index = MPT_CONTEXT_TO_REQI(ctxt_idx);
+		if (req_index < MPT_MAX_REQUESTS(mpt)) {
+			req = &mpt->request_pool[req_index];
+		}
+
+		free_rf = mpt_reply_handlers[cb_index](mpt, req,
+		    reply_desc, reply_frame);
 
 		if (reply_frame != NULL && free_rf)
 			mpt_free_reply(mpt, reply_baddr);
+
+		/*
+		 * If we got ourselves disabled, don't get stuck in a loop
+		 */
+		if (mpt->disabled) {
+			mpt_disable_ints(mpt);
+			break;
+		}
+		if (ntrips++ > 1000) {
+			break;
+		}
 	}
 }
 
@@ -678,7 +772,8 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
 		cb_index = MPT_CONTEXT_TO_CBI(le32toh(msg_hdr->MsgContext));
-		mpt_reply_handlers[cb_index](mpt, req, &ioc_status_frame);
+		mpt_reply_handlers[cb_index](mpt, req, msg_hdr->MsgContext,
+		    &ioc_status_frame);
 	}
 }
 
@@ -718,12 +813,11 @@ mpt_wait_db_ack(struct mpt_softc *mpt)
 	for (i=0; i < MPT_MAX_WAIT; i++) {
 		if (!MPT_DB_IS_BUSY(mpt_rd_intr(mpt))) {
 			maxwait_ack = i > maxwait_ack ? i : maxwait_ack;
-			return MPT_OK;
+			return (MPT_OK);
 		}
-
-		DELAY(1000);
+		DELAY(200);
 	}
-	return MPT_FAIL;
+	return (MPT_FAIL);
 }
 
 /* Busy wait for a door bell interrupt */
@@ -738,7 +832,7 @@ mpt_wait_db_int(struct mpt_softc *mpt)
 		}
 		DELAY(100);
 	}
-	return MPT_FAIL;
+	return (MPT_FAIL);
 }
 
 /* Wait for IOC to transition to a give state */
@@ -782,7 +876,7 @@ mpt_soft_reset(struct mpt_softc *mpt)
 	/* Have to use hard reset if we are not in Running state */
 	if (MPT_STATE(mpt_rd_db(mpt)) != MPT_DB_STATE_RUNNING) {
 		mpt_prt(mpt, "soft reset failed: device not running\n");
-		return MPT_FAIL;
+		return (MPT_FAIL);
 	}
 
 	/* If door bell is in use we don't have a chance of getting
@@ -791,7 +885,7 @@ mpt_soft_reset(struct mpt_softc *mpt)
 	 */
 	if (MPT_DB_IS_IN_USE(mpt_rd_db(mpt))) {
 		mpt_prt(mpt, "soft reset failed: doorbell wedged\n");
-		return MPT_FAIL;
+		return (MPT_FAIL);
 	}
 
 	/* Send the reset request to the IOC */
@@ -799,13 +893,13 @@ mpt_soft_reset(struct mpt_softc *mpt)
 	    MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET << MPI_DOORBELL_FUNCTION_SHIFT);
 	if (mpt_wait_db_ack(mpt) != MPT_OK) {
 		mpt_prt(mpt, "soft reset failed: ack timeout\n");
-		return MPT_FAIL;
+		return (MPT_FAIL);
 	}
 
 	/* Wait for the IOC to reload and come out of reset state */
 	if (mpt_wait_state(mpt, MPT_DB_STATE_READY) != MPT_OK) {
 		mpt_prt(mpt, "soft reset failed: device did not restart\n");
-		return MPT_FAIL;
+		return (MPT_FAIL);
 	}
 
 	return MPT_OK;
@@ -979,7 +1073,7 @@ mpt_reset(struct mpt_softc *mpt, int reinit)
 	}
 
 	if (reinit != 0) {
-		ret = mpt_enable_ioc(mpt);
+		ret = mpt_enable_ioc(mpt, 1);
 		if (ret == MPT_OK) {
 			mpt_enable_ints(mpt);
 		}
@@ -1010,7 +1104,10 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	req->ccb = NULL;
 	req->state = REQ_STATE_FREE;
 	if (LIST_EMPTY(&mpt->ack_frames)) {
-		TAILQ_INSERT_HEAD(&mpt->request_free_list, req, links);
+		/*
+		 * Insert free ones at the tail
+		 */
+		TAILQ_INSERT_TAIL(&mpt->request_free_list, req, links);
 		if (mpt->getreqwaiter != 0) {
 			mpt->getreqwaiter = 0;
 			wakeup(&mpt->request_free_list);
@@ -1043,9 +1140,7 @@ retry:
 		TAILQ_REMOVE(&mpt->request_free_list, req, links);
 		req->state = REQ_STATE_ALLOCATED;
 		req->chain = NULL;
-		if ((req->serno = ++(mpt->cmd_serno)) == 0) {
-			req->serno = ++(mpt->cmd_serno);
-		}
+		req->serno = mpt->sequence++;
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);
@@ -1063,8 +1158,13 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 	pReq = req->req_vbuf;
 	if (mpt->verbose > MPT_PRT_TRACE) {
 		int offset;
-		mpt_prt(mpt, "Send Request %d (0x%x):",
-		    req->index, req->req_pbuf);
+#if __FreeBSD_version >= 500000
+		mpt_prt(mpt, "Send Request %d (%jx):",
+		    req->index, (uintmax_t) req->req_pbuf);
+#else
+		mpt_prt(mpt, "Send Request %d (%llx):",
+		    req->index, (unsigned long long) req->req_pbuf);
+#endif
 		for (offset = 0; offset < mpt->request_frame_size; offset++) {
 			if ((offset & 0x7) == 0) {
 				mpt_prtc(mpt, "\n");
@@ -1108,16 +1208,15 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 	 * Convert to ticks or 500us units depending on
 	 * our sleep mode.
 	 */
-	if (sleep_ok != 0)
+	if (sleep_ok != 0) {
 		timeout = (time_ms * hz) / 1000;
-	else
+	} else {
 		timeout = time_ms * 2;
+	}
 	req->state |= REQ_STATE_NEED_WAKEUP;
 	mask &= ~REQ_STATE_NEED_WAKEUP;
 	saved_cnt = mpt->reset_cnt;
-	while ((req->state & mask) != state
-            && mpt->reset_cnt == saved_cnt) {
-
+	while ((req->state & mask) != state && mpt->reset_cnt == saved_cnt) {
 		if (sleep_ok != 0) {
 			error = mpt_sleep(mpt, req, PUSER, "mptreq", timeout);
 			if (error == EWOULDBLOCK) {
@@ -1126,7 +1225,6 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 			}
 		} else {
 			if (time_ms != 0 && --timeout == 0) {
-				mpt_prt(mpt, "mpt_wait_req timed out\n");
 				break;
 			}
 			DELAY(500);
@@ -1134,10 +1232,14 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 		}
 	}
 	req->state &= ~REQ_STATE_NEED_WAKEUP;
-	if (mpt->reset_cnt != saved_cnt)
+	if (mpt->reset_cnt != saved_cnt) {
 		return (EIO);
-	if (time_ms && timeout <= 0)
+	}
+	if (time_ms && timeout <= 0) {
+		MSG_REQUEST_HEADER *msg_hdr = req->req_vbuf;
+		mpt_prt(mpt, "mpt_wait_req(%x) timed out\n", msg_hdr->Function);
 		return (ETIMEDOUT);
+	}
 	return (0);
 }
 
@@ -1436,8 +1538,6 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 	return (error);
 }
 
-#define	CFG_DATA_OFF	128
-
 int
 mpt_read_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 		  CONFIG_PAGE_HEADER *hdr, size_t len, int sleep_ok,
@@ -1455,7 +1555,7 @@ mpt_read_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
 				  hdr->PageLength, hdr->PageNumber,
 				  hdr->PageType & MPI_CONFIG_PAGETYPE_MASK,
-				  PageAddress, req->req_pbuf + CFG_DATA_OFF,
+				  PageAddress, req->req_pbuf + MPT_RQSL(mpt),
 				  len, sleep_ok, timeout_ms);
 	if (error != 0) {
 		mpt_prt(mpt, "read_cfg_page(%d) timed out\n", Action);
@@ -1470,7 +1570,7 @@ mpt_read_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 	}
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 	    BUS_DMASYNC_POSTREAD);
-	memcpy(hdr, ((uint8_t *)req->req_vbuf)+CFG_DATA_OFF, len);
+	memcpy(hdr, ((uint8_t *)req->req_vbuf)+MPT_RQSL(mpt), len);
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -1497,14 +1597,14 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 	if (req == NULL)
 		return (-1);
 
-	memcpy(((caddr_t)req->req_vbuf)+CFG_DATA_OFF, hdr, len);
+	memcpy(((caddr_t)req->req_vbuf)+MPT_RQSL(mpt), hdr, len);
 	/* Restore stripped out attributes */
 	hdr->PageType |= hdr_attr;
 
 	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
 				  hdr->PageLength, hdr->PageNumber,
 				  hdr->PageType & MPI_CONFIG_PAGETYPE_MASK,
-				  PageAddress, req->req_pbuf + CFG_DATA_OFF,
+				  PageAddress, req->req_pbuf + MPT_RQSL(mpt),
 				  len, sleep_ok, timeout_ms);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_write_cfg_page timed out\n");
@@ -1674,236 +1774,6 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 }
 
 /*
- * Read SCSI configuration information
- */
-static int
-mpt_read_config_info_spi(struct mpt_softc *mpt)
-{
-	int rv, i;
-
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 0,
-				 0, &mpt->mpt_port_page0.Header,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
-		return (-1);
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "SPI Port Page 0 Header: %x %x %x %x\n",
-		 mpt->mpt_port_page0.Header.PageVersion,
-		 mpt->mpt_port_page0.Header.PageLength,
-		 mpt->mpt_port_page0.Header.PageNumber,
-		 mpt->mpt_port_page0.Header.PageType);
-
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 1,
-				 0, &mpt->mpt_port_page1.Header,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
-		return (-1);
-
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "SPI Port Page 1 Header: %x %x %x %x\n",
-		 mpt->mpt_port_page1.Header.PageVersion,
-		 mpt->mpt_port_page1.Header.PageLength,
-		 mpt->mpt_port_page1.Header.PageNumber,
-		 mpt->mpt_port_page1.Header.PageType);
-
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 2,
-				 /*PageAddress*/0, &mpt->mpt_port_page2.Header,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
-		return (-1);
-
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "SPI Port Page 2 Header: %x %x %x %x\n",
-		 mpt->mpt_port_page1.Header.PageVersion,
-		 mpt->mpt_port_page1.Header.PageLength,
-		 mpt->mpt_port_page1.Header.PageNumber,
-		 mpt->mpt_port_page1.Header.PageType);
-
-	for (i = 0; i < 16; i++) {
-		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
-					 0, i, &mpt->mpt_dev_page0[i].Header,
-					 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-		if (rv)
-			return (-1);
-
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Target %d Device Page 0 Header: %x %x %x %x\n",
-			 i, mpt->mpt_dev_page0[i].Header.PageVersion,
-			 mpt->mpt_dev_page0[i].Header.PageLength,
-			 mpt->mpt_dev_page0[i].Header.PageNumber,
-			 mpt->mpt_dev_page0[i].Header.PageType);
-		
-		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
-					 1, i, &mpt->mpt_dev_page1[i].Header,
-					 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-		if (rv)
-			return (-1);
-
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Target %d Device Page 1 Header: %x %x %x %x\n",
-			 i, mpt->mpt_dev_page1[i].Header.PageVersion,
-			 mpt->mpt_dev_page1[i].Header.PageLength,
-			 mpt->mpt_dev_page1[i].Header.PageNumber,
-			 mpt->mpt_dev_page1[i].Header.PageType);
-	}
-
-	/*
-	 * At this point, we don't *have* to fail. As long as we have
-	 * valid config header information, we can (barely) lurch
-	 * along.
-	 */
-
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->mpt_port_page0.Header,
-				   sizeof(mpt->mpt_port_page0),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv) {
-		mpt_prt(mpt, "failed to read SPI Port Page 0\n");
-	} else {
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x\n",
-		    mpt->mpt_port_page0.Capabilities,
-		    mpt->mpt_port_page0.PhysicalInterface);
-	}
-
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->mpt_port_page1.Header,
-				   sizeof(mpt->mpt_port_page1),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv) {
-		mpt_prt(mpt, "failed to read SPI Port Page 1\n");
-	} else {
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SPI Port Page 1: Configuration %x OnBusTimerValue %x\n",
-		    mpt->mpt_port_page1.Configuration,
-		    mpt->mpt_port_page1.OnBusTimerValue);
-	}
-
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->mpt_port_page2.Header,
-				   sizeof(mpt->mpt_port_page2),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv) {
-		mpt_prt(mpt, "failed to read SPI Port Page 2\n");
-	} else {
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SPI Port Page 2: Flags %x Settings %x\n",
-		    mpt->mpt_port_page2.PortFlags,
-		    mpt->mpt_port_page2.PortSettings);
-		for (i = 0; i < 16; i++) {
-			mpt_lprt(mpt, MPT_PRT_DEBUG,
-		  	    "SPI Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
-			    i, mpt->mpt_port_page2.DeviceSettings[i].Timeout,
-			    mpt->mpt_port_page2.DeviceSettings[i].SyncFactor,
-			    mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags);
-		}
-	}
-
-	for (i = 0; i < 16; i++) {
-		rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
-					   &mpt->mpt_dev_page0[i].Header,
-					   sizeof(*mpt->mpt_dev_page0),
-					   /*sleep_ok*/FALSE,
-					   /*timeout_ms*/5000);
-		if (rv) {
-			mpt_prt(mpt,
-			    "cannot read SPI Tgt %d Device Page 0\n", i);
-			continue;
-		}
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Tgt %d Page 0: NParms %x Information %x",
-			 i, mpt->mpt_dev_page0[i].NegotiatedParameters,
-			 mpt->mpt_dev_page0[i].Information);
-
-		rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
-					   &mpt->mpt_dev_page1[i].Header,
-					   sizeof(*mpt->mpt_dev_page1),
-					   /*sleep_ok*/FALSE,
-					   /*timeout_ms*/5000);
-		if (rv) {
-			mpt_prt(mpt,
-			    "cannot read SPI Tgt %d Device Page 1\n", i);
-			continue;
-		}
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Tgt %d Page 1: RParms %x Configuration %x\n",
-			 i, mpt->mpt_dev_page1[i].RequestedParameters,
-			 mpt->mpt_dev_page1[i].Configuration);
-	}
-	return (0);
-}
-
-/*
- * Validate SPI configuration information.
- *
- * In particular, validate SPI Port Page 1.
- */
-static int
-mpt_set_initial_config_spi(struct mpt_softc *mpt)
-{
-	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
-	int error;
-
-	mpt->mpt_disc_enable = 0xff;
-	mpt->mpt_tag_enable = 0;
-
-	if (mpt->mpt_port_page1.Configuration != pp1val) {
-		CONFIG_PAGE_SCSI_PORT_1 tmp;
-
-		mpt_prt(mpt,
-		    "SPI Port Page 1 Config value bad (%x)- should be %x\n",
-		    mpt->mpt_port_page1.Configuration, pp1val);
-		tmp = mpt->mpt_port_page1;
-		tmp.Configuration = pp1val;
-		error = mpt_write_cur_cfg_page(mpt, /*PageAddress*/0,
-					       &tmp.Header, sizeof(tmp),
-					       /*sleep_ok*/FALSE,
-					       /*timeout_ms*/5000);
-		if (error)
-			return (-1);
-		error = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-					      &tmp.Header, sizeof(tmp),
-					      /*sleep_ok*/FALSE,
-					      /*timeout_ms*/5000);
-		if (error)
-			return (-1);
-		if (tmp.Configuration != pp1val) {
-			mpt_prt(mpt,
-			    "failed to reset SPI Port Page 1 Config value\n");
-			return (-1);
-		}
-		mpt->mpt_port_page1 = tmp;
-	}
-
-	for (i = 0; i < 16; i++) {
-		CONFIG_PAGE_SCSI_DEVICE_1 tmp;
-		tmp = mpt->mpt_dev_page1[i];
-		tmp.RequestedParameters = 0;
-		tmp.Configuration = 0;
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "Set Tgt %d SPI DevicePage 1 values to %x 0 %x\n",
-			 i, tmp.RequestedParameters, tmp.Configuration);
-		error = mpt_write_cur_cfg_page(mpt, /*PageAddress*/i,
-					       &tmp.Header, sizeof(tmp),
-					       /*sleep_ok*/FALSE,
-					       /*timeout_ms*/5000);
-		if (error)
-			return (-1);
-		error = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
-					      &tmp.Header, sizeof(tmp),
-					      /*sleep_ok*/FALSE,
-					      /*timeout_ms*/5000);
-		if (error)
-			return (-1);
-		mpt->mpt_dev_page1[i] = tmp;
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Tgt %d Page 1: RParm %x Configuration %x\n", i,
-			 mpt->mpt_dev_page1[i].RequestedParameters,
-			 mpt->mpt_dev_page1[i].Configuration);
-	}
-	return (0);
-}
-
-/*
  * Enable IOC port
  */
 static int
@@ -1918,7 +1788,7 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 		return (-1);
 
 	enable_req = req->req_vbuf;
-	bzero(enable_req, sizeof *enable_req);
+	bzero(enable_req, MPT_RQSL(mpt));
 
 	enable_req->Function   = MPI_FUNCTION_PORT_ENABLE;
 	enable_req->MsgContext = htole32(req->index | MPT_REPLY_HANDLER_CONFIG);
@@ -1932,10 +1802,11 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 	    /*sleep_ok*/FALSE,
 	    /*time_ms*/(mpt->is_sas || mpt->is_fc)? 30000 : 3000);
 	if (error != 0) {
-		mpt_prt(mpt, "port enable timed out\n");
+		mpt_prt(mpt, "port %d enable timed out\n", port);
 		return (-1);
 	}
 	mpt_free_request(mpt, req);
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "enabled port %d\n", port);
 	return (0);
 }
 
@@ -1992,27 +1863,28 @@ mpt_disable_ints(struct mpt_softc *mpt)
 static void
 mpt_sysctl_attach(struct mpt_softc *mpt)
 {
+#if __FreeBSD_version >= 500000
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "debug", CTLFLAG_RW, &mpt->verbose, 0,
 		       "Debugging/Verbose level");
+#endif
 }
 
 int
 mpt_attach(struct mpt_softc *mpt)
 {
+	struct mpt_personality *pers;
 	int i;
+	int error;
 
 	for (i = 0; i < MPT_MAX_PERSONALITIES; i++) {
-		struct mpt_personality *pers;
-		int error;
-
 		pers = mpt_personalities[i];
-		if (pers == NULL)
+		if (pers == NULL) {
 			continue;
-
+		}
 		if (pers->probe(mpt) == 0) {
 			error = pers->attach(mpt);
 			if (error != 0) {
@@ -2024,6 +1896,24 @@ mpt_attach(struct mpt_softc *mpt)
 		}
 	}
 
+	/*
+	 * Now that we've attached everything, do the enable function
+	 * for all of the personalities. This allows the personalities
+	 * to do setups that are appropriate for them prior to enabling
+	 * any ports.
+	 */
+	for (i = 0; i < MPT_MAX_PERSONALITIES; i++) {
+		pers = mpt_personalities[i];
+		if (pers != NULL  && MPT_PERS_ATTACHED(pers, mpt) != 0) {
+			error = pers->enable(mpt);
+			if (error != 0) {
+				mpt_prt(mpt, "personality %s attached but would"
+				    " not enable (%d)\n", pers->name, error);
+				mpt_detach(mpt);
+				return (error);
+			}
+		}
+	}
 	return (0);
 }
 
@@ -2032,10 +1922,9 @@ mpt_shutdown(struct mpt_softc *mpt)
 {
 	struct mpt_personality *pers;
 
-	MPT_PERS_FOREACH_REVERSE(mpt, pers)
+	MPT_PERS_FOREACH_REVERSE(mpt, pers) {
 		pers->shutdown(mpt);
-
-	mpt_reset(mpt, /*reinit*/FALSE);
+	}
 	return (0);
 }
 
@@ -2062,8 +1951,9 @@ mpt_core_load(struct mpt_personality *pers)
 	 * Setup core handlers and insert the default handler
 	 * into all "empty slots".
 	 */
-	for (i = 0; i < MPT_NUM_REPLY_HANDLERS; i++)
+	for (i = 0; i < MPT_NUM_REPLY_HANDLERS; i++) {
 		mpt_reply_handlers[i] = mpt_default_reply_handler;
+	}
 
 	mpt_reply_handlers[MPT_CBI(MPT_REPLY_HANDLER_EVENTS)] =
 	    mpt_event_reply_handler;
@@ -2071,7 +1961,6 @@ mpt_core_load(struct mpt_personality *pers)
 	    mpt_config_reply_handler;
 	mpt_reply_handlers[MPT_CBI(MPT_REPLY_HANDLER_HANDSHAKE)] =
 	    mpt_handshake_reply_handler;
-
 	return (0);
 }
 
@@ -2085,32 +1974,92 @@ mpt_core_attach(struct mpt_softc *mpt)
         int val;
 	int error;
 
+
 	LIST_INIT(&mpt->ack_frames);
 
 	/* Put all request buffers on the free list */
 	TAILQ_INIT(&mpt->request_pending_list);
 	TAILQ_INIT(&mpt->request_free_list);
-	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++)
+	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
 		mpt_free_request(mpt, &mpt->request_pool[val]);
+	}
+
+	for (val = 0; val < MPT_MAX_LUNS; val++) {
+		STAILQ_INIT(&mpt->trt[val].atios);
+		STAILQ_INIT(&mpt->trt[val].inots);
+	}
+	STAILQ_INIT(&mpt->trt_wildcard.atios);
+	STAILQ_INIT(&mpt->trt_wildcard.inots);
+
+	mpt->scsi_tgt_handler_id = MPT_HANDLER_ID_NONE;
 
 	mpt_sysctl_attach(mpt);
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "doorbell req = %s\n",
-		 mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
+	    mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
 
 	error = mpt_configure_ioc(mpt);
 
 	return (error);
 }
 
+int
+mpt_core_enable(struct mpt_softc *mpt)
+{
+	/*
+	 * We enter with the IOC enabled, but async events
+	 * not enabled, ports not enabled and interrupts
+	 * not enabled.
+	 */
+
+	/*
+	 * Enable asynchronous event reporting- all personalities
+	 * have attached so that they should be able to now field
+	 * async events.
+	 */
+	mpt_send_event_request(mpt, 1);
+
+	/*
+	 * Catch any pending interrupts
+	 *
+	 * This seems to be crucial- otherwise
+	 * the portenable below times out.
+	 */
+	mpt_intr(mpt);
+
+	/*
+	 * Enable Interrupts
+	 */
+	mpt_enable_ints(mpt);
+
+	/*
+	 * Catch any pending interrupts
+	 *
+	 * This seems to be crucial- otherwise
+	 * the portenable below times out.
+	 */
+	mpt_intr(mpt);
+
+	/*
+	 * Enable the port- but only if we are not MPT_ROLE_NONE.
+	 */
+	if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
+		mpt_prt(mpt, "failed to enable port 0\n");
+		return (ENXIO);
+	}
+	return (0);
+}
+
 void
 mpt_core_shutdown(struct mpt_softc *mpt)
 {
+	mpt_disable_ints(mpt);
 }
 
 void
 mpt_core_detach(struct mpt_softc *mpt)
 {
+	mpt_disable_ints(mpt);
 }
 
 int
@@ -2262,10 +2211,11 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		 * first channel is ok, the second will not require a hard
 		 * reset.
 		 */
-		if (needreset || (mpt_rd_db(mpt) & MPT_DB_STATE_MASK) !=
+		if (needreset || MPT_STATE(mpt_rd_db(mpt)) !=
 		    MPT_DB_STATE_READY) {
-			if (mpt_reset(mpt, /*reinit*/FALSE) != MPT_OK)
+			if (mpt_reset(mpt, FALSE) != MPT_OK) {
 				continue;
+			}
 		}
 		needreset = 0;
 
@@ -2408,10 +2358,8 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 			    pfp.PortType);
 			return (ENXIO);
 		}
-		if (!(pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR)) {
-			mpt_prt(mpt, "initiator role unsupported\n");
-			return (ENXIO);
-		}
+		mpt->mpt_max_tgtcmds = le16toh(pfp.MaxPostedCmdBuffers);
+
 		if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_FC) {
 			mpt->is_fc = 1;
 			mpt->is_sas = 0;
@@ -2425,29 +2373,48 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		mpt->mpt_ini_id = pfp.PortSCSIID;
 		mpt->mpt_max_devices = pfp.MaxDevices;
 
-		if (mpt_enable_ioc(mpt) != 0) {
-			mpt_prt(mpt, "Unable to initialize IOC\n");
+		/*
+		 * Match our expected role with what this port supports.
+		 *
+		 * We only do this to meet expectations. That is, if the
+		 * user has specified they want initiator role, and we
+		 * don't support it, that's an error we return back upstream.
+		 */
+
+		mpt->cap = MPT_ROLE_NONE;
+		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
+			mpt->cap |= MPT_ROLE_INITIATOR;
+		}
+		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
+			mpt->cap |= MPT_ROLE_TARGET;
+		}
+		if (mpt->cap == MPT_ROLE_NONE) {
+			mpt_prt(mpt, "port does not support either target or "
+			    "initiator role\n");
+			return (ENXIO);
+		}
+
+		if ((mpt->role & MPT_ROLE_INITIATOR) &&
+		    (mpt->cap & MPT_ROLE_INITIATOR) == 0) {
+			mpt_prt(mpt, "port does not support initiator role\n");
+			return (ENXIO);
+		}
+
+		if ((mpt->role & MPT_ROLE_TARGET) &&
+		    (mpt->cap & MPT_ROLE_TARGET) == 0) {
+			mpt_prt(mpt, "port does not support target role\n");
+			return (ENXIO);
+		}
+
+		if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
+			mpt_prt(mpt, "unable to initialize IOC\n");
 			return (ENXIO);
 		}
 
 		/*
-		 * Read and set up initial configuration information
-		 * (IOC and SPI only for now)
-		 *
-		 * XXX Should figure out what "personalities" are
-		 * available and defer all initialization junk to
-		 * them.
+		 * Read IOC configuration information.
 		 */
 		mpt_read_config_info_ioc(mpt);
-
-		if (mpt->is_fc == 0 && mpt->is_sas == 0) {
-			if (mpt_read_config_info_spi(mpt)) {
-				return (EIO);
-			}
-			if (mpt_set_initial_config_spi(mpt)) {
-				return (EIO);
-			}
-		}
 
 		/* Everything worked */
 		break;
@@ -2458,14 +2425,11 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		return (EIO);
 	}
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "enabling interrupts\n");
-
-	mpt_enable_ints(mpt);
 	return (0);
 }
 
 static int
-mpt_enable_ioc(struct mpt_softc *mpt)
+mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 {
 	uint32_t pptr;
 	int val;
@@ -2496,20 +2460,20 @@ mpt_enable_ioc(struct mpt_softc *mpt)
 			break;
 	}
 
-	/*
-	 * Enable asynchronous event reporting
-	 */
-	mpt_send_event_request(mpt, 1);
 
 	/*
-	 * Enable the port
+	 * Enable the port if asked
 	 */
-	if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
-		mpt_prt(mpt, "failed to enable port 0\n");
-		return (ENXIO);
+	if (portenable) {
+		/*
+		 * Enable asynchronous event reporting
+		 */
+		mpt_send_event_request(mpt, 1);
+
+		if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
+			mpt_prt(mpt, "failed to enable port 0\n");
+			return (ENXIO);
+		}
 	}
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "enabled port 0\n");
-
-
 	return (MPT_OK);
 }

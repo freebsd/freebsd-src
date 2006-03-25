@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpilib/mpi_ioc.h>
 #include <dev/mpt/mpilib/mpi_init.h>
 #include <dev/mpt/mpilib/mpi_fc.h>
+#include <dev/mpt/mpilib/mpi_targ.h>
 
 #include <cam/scsi/scsi_all.h>
 
@@ -574,6 +575,35 @@ mpt_print_scsi_tmf_request(MSG_SCSI_TASK_MGMT *msg)
 	printf("\tTaskMsgContext  0x%08x\n", msg->TaskMsgContext);
 }
 
+
+static void
+mpt_print_scsi_target_assist_request(PTR_MSG_TARGET_ASSIST_REQUEST msg)
+{
+	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
+	printf("\tStatusCode    0x%02x\n", msg->StatusCode);
+	printf("\tTargetAssist  0x%02x\n", msg->TargetAssistFlags);
+	printf("\tQueueTag      0x%04x\n", msg->QueueTag);
+	printf("\tReplyWord     0x%08x\n", msg->ReplyWord);
+	printf("\tLun           0x%02x\n", msg->LUN[1]);
+	printf("\tRelativeOff   0x%08x\n", msg->RelativeOffset);
+	printf("\tDataLength    0x%08x\n", msg->DataLength);
+	mpt_dump_sgl(msg->SGL, 0);
+}
+
+static void
+mpt_print_scsi_target_status_send_request(MSG_TARGET_STATUS_SEND_REQUEST *msg)
+{
+	SGE_IO_UNION x;
+	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
+	printf("\tStatusCode    0x%02x\n", msg->StatusCode);
+	printf("\tStatusFlags   0x%02x\n", msg->StatusFlags);
+	printf("\tQueueTag      0x%04x\n", msg->QueueTag);
+	printf("\tReplyWord     0x%08x\n", msg->ReplyWord);
+	printf("\tLun           0x%02x\n", msg->LUN[1]);
+	x.u.Simple = msg->StatusDataSGE;
+	mpt_dump_sgl(&x, 0);
+}
+
 void
 mpt_print_request(void *vreq)
 {
@@ -585,6 +615,15 @@ mpt_print_request(void *vreq)
 		break;
 	case MPI_FUNCTION_SCSI_TASK_MGMT:
 		mpt_print_scsi_tmf_request((MSG_SCSI_TASK_MGMT *)req);
+		break;
+	case MPI_FUNCTION_TARGET_ASSIST:
+		mpt_print_scsi_target_assist_request(
+		    (PTR_MSG_TARGET_ASSIST_REQUEST)req);
+		break;
+	case MPI_FUNCTION_TARGET_STATUS_SEND:
+		mpt_print_scsi_target_status_send_request(
+		    (MSG_TARGET_STATUS_SEND_REQUEST *)req);
+		break;
 	default:
 		mpt_print_request_hdr(req);
 		break;
@@ -753,6 +792,31 @@ mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 		}
 	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && nxtaddr < lim);
 }
+
+#if __FreeBSD_version < 500000
+void
+mpt_lprt(struct mpt_softc *mpt, int level, const char *fmt, ...)
+{
+	va_list ap;
+        if (level <= mpt->verbose) {
+		printf("%s: ", device_get_nameunit(mpt->dev));
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+		va_end(ap);
+	}
+}
+
+void
+mpt_lprtc(struct mpt_softc *mpt, int level, const char *fmt, ...)
+{
+	va_list ap;
+        if (level <= mpt->verbose) {
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+		va_end(ap);
+	}
+}
+#endif
 
 void
 mpt_prt(struct mpt_softc *mpt, const char *fmt, ...)
