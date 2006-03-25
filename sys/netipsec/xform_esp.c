@@ -215,7 +215,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	bzero(&crie, sizeof (crie));
 	crie.cri_alg = sav->tdb_encalgxform->type;
 	crie.cri_klen = _KEYBITS(sav->key_enc);
-	crie.cri_key = _KEYBUF(sav->key_enc);
+	crie.cri_key = sav->key_enc->key_data;
 	/* XXX Rounds ? */
 
 	if (sav->tdb_authalgxform && sav->tdb_encalgxform) {
@@ -248,7 +248,7 @@ esp_zeroize(struct secasvar *sav)
 	int error = ah_zeroize(sav);
 
 	if (sav->key_enc)
-		bzero(_KEYBUF(sav->key_enc), _KEYLEN(sav->key_enc));
+		bzero(sav->key_enc->key_data, _KEYLEN(sav->key_enc));
 	if (sav->iv) {
 		free(sav->iv, M_XDATA);
 		sav->iv = NULL;
@@ -381,7 +381,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		crda->crd_inject = m->m_pkthdr.len - alen;
 
 		crda->crd_alg = esph->type;
-		crda->crd_key = _KEYBUF(sav->key_auth);
+		crda->crd_key = sav->key_auth->key_data;
 		crda->crd_klen = _KEYBITS(sav->key_auth);
 
 		/* Copy the authenticator */
@@ -418,7 +418,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		crde->crd_inject = skip + hlen - sav->ivlen;
 
 		crde->crd_alg = espx->type;
-		crde->crd_key = _KEYBUF(sav->key_enc);
+		crde->crd_key = sav->key_enc->key_data;
 		crde->crd_klen = _KEYBITS(sav->key_enc);
 		/* XXX Rounds ? */
 	}
@@ -825,7 +825,7 @@ esp_output(
 
 		/* Encryption operation. */
 		crde->crd_alg = espx->type;
-		crde->crd_key = _KEYBUF(sav->key_enc);
+		crde->crd_key = sav->key_enc->key_data;
 		crde->crd_klen = _KEYBITS(sav->key_enc);
 		/* XXX Rounds ? */
 	} else
@@ -864,7 +864,7 @@ esp_output(
 
 		/* Authentication operation. */
 		crda->crd_alg = esph->type;
-		crda->crd_key = _KEYBUF(sav->key_auth);
+		crda->crd_key = sav->key_auth->key_data;
 		crda->crd_klen = _KEYBITS(sav->key_auth);
 	}
 

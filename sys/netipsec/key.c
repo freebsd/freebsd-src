@@ -420,7 +420,10 @@ static struct mbuf *key_setsadbaddr __P((u_int16_t,
 static struct mbuf *key_setsadbxsa2 __P((u_int8_t, u_int32_t, u_int32_t));
 static struct mbuf *key_setsadbxpolicy __P((u_int16_t, u_int8_t,
 	u_int32_t));
-static void *key_dup(const void *, u_int, struct malloc_type *);
+static struct seckey *key_dup_keymsg(const struct sadb_key *, u_int, 
+				     struct malloc_type *);
+static struct seclifetime *key_dup_lifemsg(const struct sadb_lifetime *src,
+					    struct malloc_type *type);
 #ifdef INET6
 static int key_ismyaddr6 __P((struct sockaddr_in6 *));
 #endif
@@ -488,6 +491,10 @@ static int key_promisc __P((struct socket *, struct mbuf *,
 static int key_senderror __P((struct socket *, struct mbuf *, int));
 static int key_validate_ext __P((const struct sadb_ext *, int));
 static int key_align __P((struct mbuf *, struct sadb_msghdr *));
+static struct mbuf *key_setlifetime(struct seclifetime *src, 
+				     u_int16_t exttype);
+static struct mbuf *key_setkey(struct seckey *src, u_int16_t exttype);
+
 #if 0
 static const char *key_getfqdn __P((void));
 static const char *key_getuserfqdn __P((void));
@@ -909,8 +916,8 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 
 		/* What the best method is to compare ? */
 		if (key_preferred_oldsa) {
-			if (candidate->lft_c->sadb_lifetime_addtime >
-					sav->lft_c->sadb_lifetime_addtime) {
+			if (candidate->lft_c->addtime >
+					sav->lft_c->addtime) {
 				candidate = sav;
 			}
 			continue;
@@ -918,8 +925,8 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 		}
 
 		/* preferred new sa rather than old sa */
-		if (candidate->lft_c->sadb_lifetime_addtime <
-				sav->lft_c->sadb_lifetime_addtime) {
+		if (candidate->lft_c->addtime <
+				sav->lft_c->addtime) {
 			d = candidate;
 			candidate = sav;
 		} else
@@ -930,7 +937,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 		 * suitable candidate and the lifetime of the SA is not
 		 * permanent.
 		 */
-		if (d->lft_c->sadb_lifetime_addtime != 0) {
+		if (d->lft_c->addtime != 0) {
 			struct mbuf *m, *result;
 			u_int8_t satype;
 
@@ -2787,15 +2794,19 @@ key_cleansav(struct secasvar *sav)
 	} else {
 		KASSERT(sav->iv == NULL, ("iv but no xform"));
 		if (sav->key_auth != NULL)
-			bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
+			bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
 		if (sav->key_enc != NULL)
-			bzero(_KEYBUF(sav->key_enc), _KEYLEN(sav->key_enc));
+			bzero(sav->key_enc->key_data, _KEYLEN(sav->key_enc));
 	}
 	if (sav->key_auth != NULL) {
+		if (sav->key_auth->key_data != NULL)
+			free(sav->key_auth->key_data, M_IPSEC_MISC);
 		free(sav->key_auth, M_IPSEC_MISC);
 		sav->key_auth = NULL;
 	}
 	if (sav->key_enc != NULL) {
+		if (sav->key_enc->key_data != NULL)
+			free(sav->key_enc->key_data, M_IPSEC_MISC);
 		free(sav->key_enc, M_IPSEC_MISC);
 		sav->key_enc = NULL;
 	}
@@ -3038,9 +3049,11 @@ key_setsaval(sav, m, mhp)
 			goto fail;
 		}
 
-		sav->key_auth = key_dup(key0, len, M_IPSEC_MISC);
-		if (sav->key_auth == NULL) {
-			ipseclog((LOG_DEBUG, "%s: No more memory.\n",__func__));
+		sav->key_auth = (struct seckey *)key_dup_keymsg(key0, len,
+								M_IPSEC_MISC);
+		if (sav->key_auth == NULL ) {
+			ipseclog((LOG_DEBUG, "%s: No more memory.\n",
+				  __func__));
 			error = ENOBUFS;
 			goto fail;
 		}
@@ -3066,7 +3079,9 @@ key_setsaval(sav, m, mhp)
 				error = EINVAL;
 				break;
 			}
-			sav->key_enc = key_dup(key0, len, M_IPSEC_MISC);
+			sav->key_enc = (struct seckey *)key_dup_keymsg(key0,
+								       len,
+								       M_IPSEC_MISC);
 			if (sav->key_enc == NULL) {
 				ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 					__func__));
@@ -3126,13 +3141,10 @@ key_setsaval(sav, m, mhp)
 		goto fail;
 	}
 
-	sav->lft_c->sadb_lifetime_len =
-	    PFKEY_UNIT64(sizeof(struct sadb_lifetime));
-	sav->lft_c->sadb_lifetime_exttype = SADB_EXT_LIFETIME_CURRENT;
-	sav->lft_c->sadb_lifetime_allocations = 0;
-	sav->lft_c->sadb_lifetime_bytes = 0;
-	sav->lft_c->sadb_lifetime_addtime = time_second;
-	sav->lft_c->sadb_lifetime_usetime = 0;
+	sav->lft_c->allocations = 0;
+	sav->lft_c->bytes = 0;
+	sav->lft_c->addtime = time_second;
+	sav->lft_c->usetime = 0;
 
 	/* lifetimes for HARD and SOFT */
     {
@@ -3144,7 +3156,7 @@ key_setsaval(sav, m, mhp)
 			error = EINVAL;
 			goto fail;
 		}
-		sav->lft_h = key_dup(lft0, sizeof(*lft0), M_IPSEC_MISC);
+		sav->lft_h = key_dup_lifemsg(lft0, M_IPSEC_MISC);
 		if (sav->lft_h == NULL) {
 			ipseclog((LOG_DEBUG, "%s: No more memory.\n",__func__));
 			error = ENOBUFS;
@@ -3159,7 +3171,7 @@ key_setsaval(sav, m, mhp)
 			error = EINVAL;
 			goto fail;
 		}
-		sav->lft_s = key_dup(lft0, sizeof(*lft0), M_IPSEC_MISC);
+		sav->lft_s = key_dup_lifemsg(lft0, M_IPSEC_MISC);
 		if (sav->lft_s == NULL) {
 			ipseclog((LOG_DEBUG, "%s: No more memory.\n",__func__));
 			error = ENOBUFS;
@@ -3271,9 +3283,7 @@ key_setdumpsa(sav, type, satype, seq, pid)
 	u_int32_t seq, pid;
 {
 	struct mbuf *result = NULL, *tres = NULL, *m;
-	int l = 0;
 	int i;
-	void *p;
 	int dumporder[] = {
 		SADB_EXT_SA, SADB_X_EXT_SA2,
 		SADB_EXT_LIFETIME_HARD, SADB_EXT_LIFETIME_SOFT,
@@ -3290,7 +3300,6 @@ key_setdumpsa(sav, type, satype, seq, pid)
 
 	for (i = sizeof(dumporder)/sizeof(dumporder[0]) - 1; i >= 0; i--) {
 		m = NULL;
-		p = NULL;
 		switch (dumporder[i]) {
 		case SADB_EXT_SA:
 			m = key_setsadbsa(sav);
@@ -3325,36 +3334,45 @@ key_setdumpsa(sav, type, satype, seq, pid)
 		case SADB_EXT_KEY_AUTH:
 			if (!sav->key_auth)
 				continue;
-			l = PFKEY_UNUNIT64(sav->key_auth->sadb_key_len);
-			p = sav->key_auth;
+			m = key_setkey(sav->key_auth, SADB_EXT_KEY_AUTH);
+			if (!m)
+				goto fail;
 			break;
 
 		case SADB_EXT_KEY_ENCRYPT:
 			if (!sav->key_enc)
 				continue;
-			l = PFKEY_UNUNIT64(sav->key_enc->sadb_key_len);
-			p = sav->key_enc;
+			m = key_setkey(sav->key_enc, SADB_EXT_KEY_ENCRYPT);
+			if (!m)
+				goto fail;
 			break;
 
 		case SADB_EXT_LIFETIME_CURRENT:
 			if (!sav->lft_c)
 				continue;
-			l = PFKEY_UNUNIT64(((struct sadb_ext *)sav->lft_c)->sadb_ext_len);
-			p = sav->lft_c;
+			m = key_setlifetime(sav->lft_c, 
+					    SADB_EXT_LIFETIME_CURRENT);
+			if (!m)
+				goto fail;
 			break;
 
 		case SADB_EXT_LIFETIME_HARD:
 			if (!sav->lft_h)
 				continue;
-			l = PFKEY_UNUNIT64(((struct sadb_ext *)sav->lft_h)->sadb_ext_len);
-			p = sav->lft_h;
+			m = key_setlifetime(sav->lft_h, 
+					    SADB_EXT_LIFETIME_HARD);
+			if (!m)
+				goto fail;
 			break;
 
 		case SADB_EXT_LIFETIME_SOFT:
 			if (!sav->lft_s)
 				continue;
-			l = PFKEY_UNUNIT64(((struct sadb_ext *)sav->lft_s)->sadb_ext_len);
-			p = sav->lft_s;
+			m = key_setlifetime(sav->lft_h, 
+					    SADB_EXT_LIFETIME_SOFT);
+
+			if (!m)
+				goto fail;
 			break;
 
 		case SADB_EXT_ADDRESS_PROXY:
@@ -3366,29 +3384,15 @@ key_setdumpsa(sav, type, satype, seq, pid)
 			continue;
 		}
 
-		if ((!m && !p) || (m && p))
+		if (!m)
 			goto fail;
-		if (p && tres) {
-			M_PREPEND(tres, l, M_DONTWAIT);
-			if (!tres)
-				goto fail;
-			bcopy(p, mtod(tres, caddr_t), l);
-			continue;
-		}
-		if (p) {
-			m = key_alloc_mbuf(l);
-			if (!m)
-				goto fail;
-			m_copyback(m, 0, l, p);
-		}
-
 		if (tres)
 			m_cat(m, tres);
 		tres = m;
+		  
 	}
 
 	m_cat(result, tres);
-
 	if (result->m_len < sizeof(struct sadb_msg)) {
 		result = m_pullup(result, sizeof(struct sadb_msg));
 		if (result == NULL)
@@ -3609,21 +3613,63 @@ key_setsadbxpolicy(type, dir, id)
 }
 
 /* %%% utilities */
-/*
- * copy a buffer into the new buffer allocated.
+/* Take a key message (sadb_key) from the socket and turn it into one
+ * of the kernel's key structures (seckey).
+ *
+ * IN: pointer to the src
+ * OUT: NULL no more memory
  */
-static void *
-key_dup(const void *src, u_int len, struct malloc_type *type)
+struct seckey *
+key_dup_keymsg(const struct sadb_key *src, u_int len,
+	       struct malloc_type *type)
 {
-	void *copy;
+	struct seckey *dst;
+	dst = (struct seckey *)malloc(sizeof(struct seckey), type, M_NOWAIT);
+	if (dst != NULL) {
+		dst->bits = src->sadb_key_bits;
+		dst->key_data = (char *)malloc(len, type, M_NOWAIT);
+		if (dst->key_data != NULL) {
+			bcopy((const char *)src + sizeof(struct sadb_key), 
+			      dst->key_data, len);
+		} else {
+			ipseclog((LOG_DEBUG, "%s: No more memory.\n", 
+				  __func__));
+			free(dst, type);
+			dst = NULL;
+		}
+	} else {
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", 
+			  __func__));
 
-	copy = malloc(len, type, M_NOWAIT);
-	if (copy == NULL) {
+	}
+	return dst;
+}
+
+/* Take a lifetime message (sadb_lifetime) passed in on a socket and
+ * turn it into one of the kernel's lifetime structures (seclifetime).
+ *
+ * IN: pointer to the destination, source and malloc type
+ * OUT: NULL, no more memory
+ */
+
+static struct seclifetime *
+key_dup_lifemsg(const struct sadb_lifetime *src,
+		 struct malloc_type *type)
+{
+	struct seclifetime *dst = NULL;
+
+	dst = (struct seclifetime *)malloc(sizeof(struct seclifetime), 
+					   type, M_NOWAIT);
+	if (dst == NULL) {
 		/* XXX counter */
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
-	} else
-		bcopy(src, copy, len);
-	return copy;
+	} else {
+		dst->allocations = src->sadb_lifetime_allocations;
+		dst->bytes = src->sadb_lifetime_bytes;
+		dst->addtime = src->sadb_lifetime_addtime;
+		dst->usetime = src->sadb_lifetime_usetime;
+	}
+	return dst;
 }
 
 /* compare my own address
@@ -4071,13 +4117,13 @@ key_flush_sad(time_t now)
 			}
 
 			/* check SOFT lifetime */
-			if (sav->lft_s->sadb_lifetime_addtime != 0 &&
-			    now - sav->created > sav->lft_s->sadb_lifetime_addtime) {
+			if (sav->lft_s->addtime != 0 &&
+			    now - sav->created > sav->lft_s->addtime) {
 				/*
 				 * check SA to be used whether or not.
 				 * when SA hasn't been used, delete it.
 				 */
-				if (sav->lft_c->sadb_lifetime_usetime == 0) {
+				if (sav->lft_c->usetime == 0) {
 					key_sa_chgstate(sav, SADB_SASTATE_DEAD);
 					KEY_FREESAV(&sav);
 				} else {
@@ -4096,8 +4142,8 @@ key_flush_sad(time_t now)
 			 * when new SA is installed.  Caution when it's
 			 * installed too big lifetime by time.
 			 */
-			else if (sav->lft_s->sadb_lifetime_bytes != 0 &&
-			    sav->lft_s->sadb_lifetime_bytes < sav->lft_c->sadb_lifetime_bytes) {
+			else if (sav->lft_s->bytes != 0 &&
+			    sav->lft_s->bytes < sav->lft_c->bytes) {
 
 				key_sa_chgstate(sav, SADB_SASTATE_DYING);
 				/*
@@ -4122,15 +4168,15 @@ key_flush_sad(time_t now)
 				continue;
 			}
 
-			if (sav->lft_h->sadb_lifetime_addtime != 0 &&
-			    now - sav->created > sav->lft_h->sadb_lifetime_addtime) {
+			if (sav->lft_h->addtime != 0 &&
+			    now - sav->created > sav->lft_h->addtime) {
 				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
 				KEY_FREESAV(&sav);
 			}
 #if 0	/* XXX Should we keep to send expire message until HARD lifetime ? */
 			else if (sav->lft_s != NULL
-			      && sav->lft_s->sadb_lifetime_addtime != 0
-			      && now - sav->created > sav->lft_s->sadb_lifetime_addtime) {
+			      && sav->lft_s->addtime != 0
+			      && now - sav->created > sav->lft_s->addtime) {
 				/*
 				 * XXX: should be checked to be
 				 * installed the valid SA.
@@ -4144,8 +4190,8 @@ key_flush_sad(time_t now)
 			}
 #endif
 			/* check HARD lifetime by bytes */
-			else if (sav->lft_h->sadb_lifetime_bytes != 0 &&
-			    sav->lft_h->sadb_lifetime_bytes < sav->lft_c->sadb_lifetime_bytes) {
+			else if (sav->lft_h->bytes != 0 &&
+			    sav->lft_h->bytes < sav->lft_c->bytes) {
 				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
 				KEY_FREESAV(&sav);
 			}
@@ -4977,20 +5023,23 @@ key_setident(sah, m, mhp)
 	}
 
 	/* make structure */
-	sah->idents = malloc(idsrclen, M_IPSEC_MISC, M_NOWAIT);
+	sah->idents = malloc(sizeof(struct secident), M_IPSEC_MISC, M_NOWAIT);
 	if (sah->idents == NULL) {
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		return ENOBUFS;
 	}
-	sah->identd = malloc(iddstlen, M_IPSEC_MISC, M_NOWAIT);
+	sah->identd = malloc(sizeof(struct secident), M_IPSEC_MISC, M_NOWAIT);
 	if (sah->identd == NULL) {
 		free(sah->idents, M_IPSEC_MISC);
 		sah->idents = NULL;
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		return ENOBUFS;
 	}
-	bcopy(idsrc, sah->idents, idsrclen);
-	bcopy(iddst, sah->identd, iddstlen);
+	sah->idents->type = idsrc->sadb_ident_type;
+	sah->idents->id = idsrc->sadb_ident_id;
+
+	sah->identd->type = iddst->sadb_ident_type;
+	sah->identd->id = iddst->sadb_ident_id;
 
 	return 0;
 }
@@ -6262,10 +6311,10 @@ key_expire(struct secasvar *sav)
 	lt = mtod(m, struct sadb_lifetime *);
 	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
 	lt->sadb_lifetime_exttype = SADB_EXT_LIFETIME_CURRENT;
-	lt->sadb_lifetime_allocations = sav->lft_c->sadb_lifetime_allocations;
-	lt->sadb_lifetime_bytes = sav->lft_c->sadb_lifetime_bytes;
-	lt->sadb_lifetime_addtime = sav->lft_c->sadb_lifetime_addtime;
-	lt->sadb_lifetime_usetime = sav->lft_c->sadb_lifetime_usetime;
+	lt->sadb_lifetime_allocations = sav->lft_c->allocations;
+	lt->sadb_lifetime_bytes = sav->lft_c->bytes;
+	lt->sadb_lifetime_addtime = sav->lft_c->addtime;
+	lt->sadb_lifetime_usetime = sav->lft_c->usetime;
 	lt = (struct sadb_lifetime *)(mtod(m, caddr_t) + len / 2);
 	bcopy(sav->lft_s, lt, sizeof(*lt));
 	m_cat(result, m);
@@ -7103,21 +7152,21 @@ key_sa_recordxfer(sav, m)
 	 * XXX Currently, there is a difference of bytes size
 	 * between inbound and outbound processing.
 	 */
-	sav->lft_c->sadb_lifetime_bytes += m->m_pkthdr.len;
+	sav->lft_c->bytes += m->m_pkthdr.len;
 	/* to check bytes lifetime is done in key_timehandler(). */
 
 	/*
 	 * We use the number of packets as the unit of
-	 * sadb_lifetime_allocations.  We increment the variable
+	 * allocations.  We increment the variable
 	 * whenever {esp,ah}_{in,out}put is called.
 	 */
-	sav->lft_c->sadb_lifetime_allocations++;
+	sav->lft_c->allocations++;
 	/* XXX check for expires? */
 
 	/*
-	 * NOTE: We record CURRENT sadb_lifetime_usetime by using wall clock,
+	 * NOTE: We record CURRENT usetime by using wall clock,
 	 * in seconds.  HARD and SOFT lifetime are measured by the time
-	 * difference (again in seconds) from sadb_lifetime_usetime.
+	 * difference (again in seconds) from usetime.
 	 *
 	 *	usetime
 	 *	v     expire   expire
@@ -7125,7 +7174,7 @@ key_sa_recordxfer(sav, m)
 	 *	<--------------> HARD
 	 *	<-----> SOFT
 	 */
-	sav->lft_c->sadb_lifetime_usetime = time_second;
+	sav->lft_c->usetime = time_second;
 	/* XXX check for expires? */
 
 	return;
@@ -7213,4 +7262,81 @@ key_alloc_mbuf(l)
 	}
 
 	return m;
+}
+
+/*
+ * Take one of the kernel's security keys and convert it into a PF_KEY
+ * structure within an mbuf, suitable for sending up to a waiting
+ * application in user land.
+ * 
+ * IN: 
+ *    src: A pointer to a kernel security key.
+ *    exttype: Which type of key this is. Refer to the PF_KEY data structures.
+ * OUT:
+ *    a valid mbuf or NULL indicating an error
+ *
+ */
+
+static struct mbuf *
+key_setkey(struct seckey *src, u_int16_t exttype) 
+{
+	struct mbuf *m;
+	struct sadb_key *p;
+	int len = PFKEY_ALIGN8(sizeof(struct sadb_key) + _KEYLEN(src));
+
+	if (src == NULL)
+		return NULL;
+
+	m = key_alloc_mbuf(len);
+	if (m == NULL)
+		return NULL;
+	p = mtod(m, struct sadb_key *);
+	bzero(p, len);
+	p->sadb_key_len = PFKEY_UNIT64(len);
+	p->sadb_key_exttype = exttype;
+	p->sadb_key_bits = src->bits;
+	bcopy(src->key_data, _KEYBUF(p), _KEYLEN(src));
+
+	return m;
+}
+
+/*
+ * Take one of the kernel's lifetime data structures and convert it
+ * into a PF_KEY structure within an mbuf, suitable for sending up to
+ * a waiting application in user land.
+ * 
+ * IN: 
+ *    src: A pointer to a kernel lifetime structure.
+ *    exttype: Which type of lifetime this is. Refer to the PF_KEY 
+ *             data structures for more information.
+ * OUT:
+ *    a valid mbuf or NULL indicating an error
+ *
+ */
+
+static struct mbuf *
+key_setlifetime(struct seclifetime *src, u_int16_t exttype)
+{
+	struct mbuf *m = NULL;
+	struct sadb_lifetime *p;
+	int len = PFKEY_ALIGN8(sizeof(struct sadb_lifetime));
+
+	if (src == NULL)
+		return NULL;
+
+	m = key_alloc_mbuf(len);
+	if (m == NULL)
+		return m;
+	p = mtod(m, struct sadb_lifetime *);
+
+	bzero(p, len);
+	p->sadb_lifetime_len = PFKEY_UNIT64(len);
+	p->sadb_lifetime_exttype = exttype;
+	p->sadb_lifetime_allocations = src->allocations;
+	p->sadb_lifetime_bytes = src->bytes;
+	p->sadb_lifetime_addtime = src->addtime;
+	p->sadb_lifetime_usetime = src->usetime;
+	
+	return m;
+
 }
