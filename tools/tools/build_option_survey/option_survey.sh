@@ -2,110 +2,149 @@
 # This file is in the public domain
 # $FreeBSD$
 
-if [ "x$1" != "x" ] ; then
-	OPLIST=$1
-else
-	OPLIST=no_list
-fi
+set -ex
 
-OPLIST=_.options
+OPLIST=`sh listallopts.sh`
 
-set -e
+MDUNIT=47
+export MDUNIT
+
+ODIR=/usr/obj/`pwd`
+FDIR=${ODIR}/files
+MNT=${ODIR}/_.mnt
+RDIR=${ODIR}/_.result
+
+export ODIR MNT RDIR FDIR
 
 bw ( ) (
 	cd ../../.. 
+	make showconfig \
+		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
+		> ${FDIR}/_.sc 2>&1
+	a=$?
+	echo retval $a
+	if [ $a -ne 0 ] ; then
+		exit 1
+	fi
 	make -j 4 buildworld \
-		__MAKE_CONF=${ODIR}/make.conf \
-		> ${ODIR}/_.bw 2>&1
+		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
+		> ${FDIR}/_.bw 2>&1
+	a=$?
+	echo retval $a
+	if [ $a -ne 0 ] ; then
+		exit 1
+	fi
 	make -j 4 buildkernel \
 		KERNCONF=GENERIC \
-		__MAKE_CONF=${ODIR}/make.conf \
-		> ${ODIR}/_.bk 2>&1
+		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
+		> ${FDIR}/_.bk 2>&1
+	a=$?
+	echo retval $a
+	if [ $a -ne 0 ] ; then
+		exit 1
+	fi
+	exit 0
 )
 
 iw ( ) (
-	dd if=/dev/zero of=${ODIR}/_.i bs=1m count=200
+	trap "umount ${MNT} || true" 1 2 15 EXIT
+	newfs -O1 -U -b 4096 -f 512 /dev/md$MDUNIT
 	mkdir -p ${MNT}
-	MD=`mdconfig -a -t vnode -f ${ODIR}/_.i`
-	trap "umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
-	newfs -O1 -U -b 4096 -f 512 /dev/$MD
-	mount /dev/${MD} ${MNT}
+	mount /dev/md${MDUNIT} ${MNT}
 
 	cd ../../..
 	make installworld \
-		__MAKE_CONF=${ODIR}/make.conf \
+		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
 		DESTDIR=${MNT} \
-		> ${ODIR}/_.iw 2>&1
+		> ${FDIR}/_.iw 2>&1
+	a=$?
+	echo retval $a
+	if [ $a -ne 0 ] ; then
+		exit 1
+	fi
 	cd etc
 	make distribution \
-		__MAKE_CONF=${ODIR}/make.conf \
+		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
 		DESTDIR=${MNT} \
-		> ${ODIR}/_.etc 2>&1
+		> ${FDIR}/_.etc 2>&1
+	a=$?
+	echo retval $a
+	if [ $a -ne 0 ] ; then
+		exit 1
+	fi
 	cd ..
 	make installkernel \
 		KERNCONF=GENERIC \
 		DESTDIR=${MNT} \
-		__MAKE_CONF=${ODIR}/make.conf \
-		> ${ODIR}/_.ik 2>&1
+		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
+		> ${FDIR}/_.ik 2>&1
+	a=$?
+	echo retval $a
+	if [ $a -ne 0 ] ; then
+		exit 1
+	fi
 
 	sync ${MNT}
-	( cd ${MNT} && mtree -c ) > ${ODIR}/_.mtree
-	( cd ${MNT} && du ) > ${ODIR}/_.du
-	( df -i ${MNT} ) > ${ODIR}/_.df
+	( cd ${MNT} && mtree -c ) > ${FDIR}/_.mtree
+	( cd ${MNT} && du ) > ${FDIR}/_.du
+	( df -i ${MNT} ) > ${FDIR}/_.df
+	echo success > ${FDIR}/_.success
+	sync
+	sleep 1
+	sync
+	sleep 1
+	trap "" 1 2 15 EXIT
+	umount ${MNT}
+	echo "iw done"
 )
 
-ODIR=/usr/obj/`pwd`
-MNT=${ODIR}/_.mnt
-RDIR=${ODIR}/_.result
-export ODIR MNT RDIR
 
+# Clean and recreate the ODIR
 
-# Clean and recrate the ODIR
-
-if false ; then 
+if true ; then 
+	echo "=== Clean and recreate ${ODIR}"
 	if rm -rf ${ODIR} ; then
 		true
 	else
 		chflags -R noschg ${ODIR}
 		rm -rf ${ODIR}
 	fi
-	mkdir -p ${ODIR}
+	mkdir -p ${ODIR} ${FDIR} ${MNT}
 
 fi
 
-# Build the reference world
+trap "umount ${MNT} || true; mdconfig -d -u $MDUNIT" 1 2 15 EXIT
 
-if false ; then 
-	echo '' > ${ODIR}/make.conf
+umount $MNT || true
+mdconfig -d -u $MDUNIT || true
+dd if=/dev/zero of=${ODIR}/imgfile bs=1m count=250 
+mdconfig -a -t vnode -f ${ODIR}/imgfile -u $MDUNIT
+
+# Build & install the reference world
+
+if true ; then 
+	echo "=== Build reference world"
+	echo '' > ${ODIR}/src.conf
 	MAKEOBJDIRPREFIX=$ODIR/_.ref 
 	export MAKEOBJDIRPREFIX
 	bw
-fi
-
-# Parse option list into subdirectories with make.conf files.
-
-if false ; then
-	rm -rf ${RDIR}
-	grep -v '^[ 	]*#' $OPLIST | while read o
-	do
-		echo "$o=/dev/YES" > ${ODIR}/_make.conf
-		m=`md5 < ${ODIR}/_make.conf`
-		mkdir -p ${RDIR}/$m
-		mv ${ODIR}/_make.conf ${RDIR}/$m/make.conf
-	done
-fi
-
-# Do the reference installworld 
-
-if false ; then
-	echo '' > ${ODIR}/make.conf
-	MAKEOBJDIRPREFIX=$ODIR/_.ref 
-	export MAKEOBJDIRPREFIX
+	echo "=== Install reference world"
 	mkdir -p ${RDIR}/Ref
 	iw
-	cp ${ODIR}/_.df ${RDIR}/Ref
-	cp ${ODIR}/_.mtree ${RDIR}/Ref
-	cp ${ODIR}/_.du ${RDIR}/Ref
+	mv ${FDIR}/_.* ${RDIR}/Ref
+fi
+
+# Parse option list into subdirectories with src.conf files.
+
+if true ; then
+	rm -rf ${RDIR}/[0-9a-f]*
+	for o in $OPLIST
+	do
+		echo "${o}=foo" > ${FDIR}/_src.conf
+		m=`md5 < ${FDIR}/_src.conf`
+		mkdir -p ${RDIR}/$m
+		mv ${FDIR}/_src.conf ${RDIR}/$m/src.conf
+	done
 fi
 
 # Run through each testtarget in turn
@@ -117,58 +156,42 @@ if true ; then
 			continue;
 		fi
 		echo '------------------------------------------------'
-		cat $d/make.conf
+		cat $d/src.conf
 		echo '------------------------------------------------'
-		cp $d/make.conf ${ODIR}/make.conf
+		cp $d/src.conf ${ODIR}/src.conf
 
 		if [ ! -f $d/iw/done ] ; then
-			echo "# Trying IW"
+			MAKEOBJDIRPREFIX=$ODIR/_.ref
+			export MAKEOBJDIRPREFIX
+			echo "# BW(ref)+IW(ref) `cat $d/src.conf`"
 			rm -rf $d/iw
 			mkdir -p $d/iw
-			MAKEOBJDIRPREFIX=$ODIR/_.ref 
-			export MAKEOBJDIRPREFIX
-			if iw ; then
-				cp ${ODIR}/_.df $d/iw
-				cp ${ODIR}/_.mtree $d/iw
-				cp ${ODIR}/_.du $d/iw
-			else
-				cp ${ODIR}/_.iw $d/iw || true
-				cp ${ODIR}/_.ik $d/iw || true
-			fi
+			iw || true
+			mv ${FDIR}/_.* $d/iw || true
 			touch $d/iw/done
 		fi
 		if [ ! -f $d/bw/done ] ; then
-			echo "# Trying BW"
 			MAKEOBJDIRPREFIX=$ODIR/_.tst 
 			export MAKEOBJDIRPREFIX
+			echo "# BW(opt) `cat $d/src.conf`"
+			rm -rf $d/w $d/bw
+			mkdir -p $d/w $d/bw
 			if bw ; then
-				mkdir -p $d/w
-				if iw ; then
-					cp ${ODIR}/_.df $d/w
-					cp ${ODIR}/_.mtree $d/w
-					cp ${ODIR}/_.du $d/w
-				else
-					cp ${ODIR}/_.iw $d/w || true
-					cp ${ODIR}/_.ik $d/w || true
-				fi
+				mv ${FDIR}/_.* $d/bw || true
+
+				echo "# BW(opt)+IW(opt) `cat $d/src.conf`"
+				iw || true
+				mv ${FDIR}/_.* $d/w || true
 				touch $d/w/done
-				echo "# Trying W"
-				mkdir -p $d/bw
-				echo '' > ${ODIR}/make.conf
-				if iw ; then
-					cp ${ODIR}/_.df $d/bw
-					cp ${ODIR}/_.mtree $d/bw
-					cp ${ODIR}/_.du $d/bw
-				else
-					cp ${ODIR}/_.iw $d/bw || true
-					cp ${ODIR}/_.ik $d/bw || true
-				fi
+
+				echo "# BW(opt)+IW(ref) `cat $d/src.conf`"
+				echo '' > ${ODIR}/src.conf
+				iw || true
+				mv ${FDIR}/_.* $d/bw || true
 				touch $d/bw/done
 			else
-				mkdir -p $d/bw
-				cp ${ODIR}/_.bw $d/bw || true
-				cp ${ODIR}/_.bk $d/bw || true
-				touch $d/bw/done
+				mv ${FDIR}/_.* $d/bw || true
+				touch $d/bw/done $d/w/done
 			fi
 		fi
 	done
