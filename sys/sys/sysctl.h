@@ -602,6 +602,7 @@ SYSCTL_DECL(_hw_bus);
 SYSCTL_DECL(_machdep);
 SYSCTL_DECL(_user);
 SYSCTL_DECL(_compat);
+SYSCTL_DECL(_regression);
 
 extern char	machine[];
 extern char	osrelease[];
