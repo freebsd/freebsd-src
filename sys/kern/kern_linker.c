@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -50,6 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include "linker_if.h"
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #ifdef KLD_DEBUG
 int kld_debug = 0;
@@ -751,6 +756,9 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 int
 kldload(struct thread *td, struct kldload_args *uap)
 {
+#ifdef HWPMC_HOOKS
+	struct pmckern_map_in pkm;
+#endif
 	char *kldname, *modname;
 	char *pathname = NULL;
 	linker_file_t lf;
@@ -786,6 +794,11 @@ kldload(struct thread *td, struct kldload_args *uap)
 	if (error)
 		goto out;
 
+#ifdef HWPMC_HOOKS
+	pkm.pm_file = lf->filename;
+	pkm.pm_address = (uintptr_t) lf->address;
+	PMC_CALL_HOOK(td, PMC_FN_KLD_LOAD, (void *) &pkm);
+#endif
 	lf->userrefs++;
 	td->td_retval[0] = lf->id;
 out:
@@ -801,6 +814,9 @@ out:
 static int
 kern_kldunload(struct thread *td, int fileid, int flags)
 {
+#ifdef HWPMC_HOOKS
+	struct pmckern_map_out pkm;
+#endif
 	linker_file_t lf;
 	int error = 0;
 
@@ -825,11 +841,21 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 			goto out;
 		}
 		lf->userrefs--;
+#ifdef HWPMC_HOOKS
+		/* Save data needed by hwpmc(4) before unloading the kld. */
+		pkm.pm_address = (uintptr_t) lf->address;
+		pkm.pm_size = lf->size;
+#endif
 		error = linker_file_unload(lf, flags);
 		if (error)
 			lf->userrefs++;
 	} else
 		error = ENOENT;
+
+#ifdef HWPMC_HOOKS
+	if (error == 0)
+		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
+#endif
 out:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1658,6 +1684,58 @@ linker_basename(const char *path)
 		filename++;
 	return (filename);
 }
+
+#ifdef HWPMC_HOOKS
+
+/*
+ * Inform hwpmc about the set of kernel modules currently loaded.
+ */
+void *
+linker_hwpmc_list_objects(void)
+{
+	int nobjects, nmappings;
+	linker_file_t lf;
+	struct pmckern_map_in *ko, *kobase;
+
+	nmappings = 15;	/* a reasonable default */
+
+ retry:
+	/* allocate nmappings+1 entries */
+	MALLOC(kobase, struct pmckern_map_in *,
+	    (nmappings + 1) * sizeof(struct pmckern_map_in), M_LINKER,
+	    M_WAITOK | M_ZERO);
+
+	nobjects = 0;
+	mtx_lock(&kld_mtx);
+	TAILQ_FOREACH(lf, &linker_files, link)
+		nobjects++;
+
+	KASSERT(nobjects > 0, ("linker_hpwmc_list_objects: no kernel "
+		"objects?"));
+
+	if (nobjects > nmappings) {
+		nmappings = nobjects;
+		FREE(kobase, M_LINKER);
+		mtx_unlock(&kld_mtx);
+		goto retry;
+	}
+
+	ko = kobase;
+	TAILQ_FOREACH(lf, &linker_files, link) {
+		ko->pm_file = lf->filename;
+		ko->pm_address = (uintptr_t) lf->address;
+		ko++;
+	}
+
+	/* The last entry of the malloced area comprises of all zeros. */
+	KASSERT(ko->pm_file == NULL,
+	    ("linker_hwpmc_list_objects: last object not NULL"));
+
+	mtx_unlock(&kld_mtx);
+
+	return ((void *) kobase);
+}
+#endif
 
 /*
  * Find a file which contains given module and load it, if "parent" is not
