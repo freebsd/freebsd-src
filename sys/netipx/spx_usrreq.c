@@ -1427,7 +1427,9 @@ spx_pcbdetach(struct ipxpcb *ipxp)
 	cb = ipxtospxpcb(ipxp);
 	KASSERT(cb != NULL, ("spx_pcbdetach: cb == NULL"));
 
-	for (s = cb->s_q.si_next; s != NULL; s = cb->s_q.si_next) {
+	s = cb->s_q.si_next;
+	while (s != &(cb->s_q)) {
+		s = s->si_next;
 		remque(s);
 		m = dtom(s);
 		m_freem(m);
