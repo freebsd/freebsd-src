@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005, Joseph Koshy
+ * Copyright (c) 2003-2006, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,9 +50,9 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x01
-#define	PMC_VERSION_MINOR	0x02
-#define	PMC_VERSION_PATCH	0x0003
+#define	PMC_VERSION_MAJOR	0x02
+#define	PMC_VERSION_MINOR	0x00
+#define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
 	PMC_VERSION_MINOR << 16 | PMC_VERSION_PATCH)
@@ -538,7 +538,7 @@ struct pmc_op_getmsr {
 #define	PMC_MTXPOOL_SIZE			32
 #define	PMC_LOG_BUFFER_SIZE			4
 #define	PMC_NLOGBUFFERS				16
-#define	PMC_NSAMPLES				16
+#define	PMC_NSAMPLES				32
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 

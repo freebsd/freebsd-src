@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005, Joseph Koshy
+ * Copyright (c) 2003-2006, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <limits.h>
 #include <math.h>
 #include <pmc.h>
@@ -110,7 +111,7 @@ pmcstat_cleanup(struct pmcstat_args *a)
 	}
 
 	if (a->pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
-		pmcstat_shutdown_logging();
+		pmcstat_shutdown_logging(a);
 }
 
 void
@@ -317,6 +318,7 @@ pmcstat_show_usage(void)
 	    "\t -C\t\t (toggle) show cumulative counts\n"
 	    "\t -D path\t create profiles in directory \"path\"\n"
 	    "\t -E\t\t (toggle) show counts at process exit\n"
+	    "\t -M file\t print executable/gmon file map to \"file\"\n"
 	    "\t -O file\t send log output to \"file\"\n"
 	    "\t -P spec\t allocate a process-private sampling PMC\n"
 	    "\t -R file\t read events from \"file\"\n"
@@ -325,12 +327,15 @@ pmcstat_show_usage(void)
 	    "\t -c cpu\t\t set cpu for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
-	    "\t -k file\t set the path to the kernel\n"
+	    "\t -k dir\t set the path to the kernel\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
 	    "\t -p spec\t allocate a process-private counting PMC\n"
+	    "\t -q\t\t suppress verbosity\n"
+	    "\t -r fsroot\t specify FS root directory\n"
 	    "\t -s spec\t allocate a system-wide counting PMC\n"
 	    "\t -t pid\t\t attach to running process with pid \"pid\"\n"
+	    "\t -v\t\t increase verbosity\n"
 	    "\t -w secs\t set printing time interval"
 	);
 }
@@ -350,7 +355,7 @@ main(int argc, char **argv)
 	int pipefd[2];
 	int use_cumulative_counts;
 	pid_t pid;
-	char *end;
+	char *end, *tmp;
 	const char *errmsg;
 	enum pmcstat_state runstate;
 	struct pmc_driverstats ds_start, ds_end;
@@ -359,6 +364,7 @@ main(int argc, char **argv)
 	struct kevent kev;
 	struct winsize ws;
 	struct stat sb;
+	char buffer[PATH_MAX];
 
 	check_driver_stats      = 0;
 	current_cpu 		= 0;
@@ -369,19 +375,22 @@ main(int argc, char **argv)
 	use_cumulative_counts   = 0;
 	args.pa_required	= 0;
 	args.pa_flags		= 0;
+	args.pa_verbosity	= 1;
 	args.pa_pid		= (pid_t) -1;
 	args.pa_logfd		= -1;
+	args.pa_fsroot		= "";
+	args.pa_kernel		= strdup("/boot/kernel");
 	args.pa_samplesdir	= ".";
-	args.pa_kernel		= "/boot/kernel/kernel";
 	args.pa_printfile	= stderr;
 	args.pa_interval	= DEFAULT_WAIT_INTERVAL;
+	args.pa_mapfilename	= NULL;
 	STAILQ_INIT(&args.pa_head);
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
 
-	while ((option = getopt(argc, argv, "CD:EO:P:R:S:Wc:dgk:n:o:p:s:t:w:"))
-	    != -1)
+	while ((option = getopt(argc, argv,
+	    "CD:EM:O:P:R:S:Wc:dgk:n:o:p:qr:s:t:vw:")) != -1)
 		switch (option) {
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
@@ -419,7 +428,8 @@ main(int argc, char **argv)
 			break;
 
 		case 'k':	/* pathname to the kernel */
-			args.pa_kernel = optarg;
+			free(args.pa_kernel);
+			args.pa_kernel = strdup(optarg);
 			args.pa_required |= FLAG_DO_GPROF;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
 			break;
@@ -428,6 +438,10 @@ main(int argc, char **argv)
 			do_logprocexit = !do_logprocexit;
 			args.pa_required |= (FLAG_HAS_PROCESS_PMCS |
 			    FLAG_HAS_COUNTING_PMCS | FLAG_HAS_OUTPUT_LOGFILE);
+			break;
+
+		case 'M':	/* mapfile */
+			args.pa_mapfilename = optarg;
 			break;
 
 		case 'p':	/* process virtual counting PMC */
@@ -523,6 +537,14 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_HAS_OUTPUT_LOGFILE;
 			break;
 
+		case 'q':	/* quiet mode */
+			args.pa_verbosity = 0;
+			break;
+
+		case 'r':	/* root FS path */
+			args.pa_fsroot = optarg;
+			break;
+
 		case 'R':	/* read an existing log file */
 			if (args.pa_logparser != NULL)
 				errx(EX_USAGE, "ERROR: option -R may only be "
@@ -542,6 +564,10 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_HAS_PID;
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
 			args.pa_pid = pid;
+			break;
+
+		case 'v':	/* verbose */
+			args.pa_verbosity++;
 			break;
 
 		case 'w':	/* wait interval */
@@ -658,14 +684,22 @@ main(int argc, char **argv)
 		    "ERROR: option -O is used only with options "
 		    "-E, -P, -S and -W.");
 
-	/* -D dir and -k kernel path require -g */
+	/* -D dir and -k kernel path require -g or -R */
 	if ((args.pa_flags & FLAG_HAS_KERNELPATH) &&
-	    ((args.pa_flags & FLAG_DO_GPROF) == 0))
-	    errx(EX_USAGE, "ERROR: option -k is only used with -g.");
+	    (args.pa_flags & FLAG_DO_GPROF) == 0 &&
+	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
+	    errx(EX_USAGE, "ERROR: option -k is only used with -g/-R.");
 
 	if ((args.pa_flags & FLAG_HAS_SAMPLESDIR) &&
-	    ((args.pa_flags & FLAG_DO_GPROF) == 0))
-	    errx(EX_USAGE, "ERROR: option -D is only used with -g.");
+	    (args.pa_flags & FLAG_DO_GPROF) == 0 &&
+	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
+	    errx(EX_USAGE, "ERROR: option -D is only used with -g/-R.");
+
+	/* -M mapfile requires -g or -R */
+	if (args.pa_mapfilename != NULL &&
+	    (args.pa_flags & FLAG_DO_GPROF) == 0 &&
+	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
+	    errx(EX_USAGE, "ERROR: option -M is only used with -g/-R.");
 
 	/*
 	 * Disallow textual output of sampling PMCs if counting PMCs
@@ -678,6 +712,35 @@ main(int argc, char **argv)
 		errx(EX_USAGE, "ERROR: option -O is required if counting and "
 		    "sampling PMCs are specified together.");
 
+	/*
+	 * Check if "-k kerneldir" was specified, and if whether 'kerneldir'
+	 * actually refers to a a file.  If so, use `dirname path` to determine
+	 * the kernel directory.
+	 */
+	if (args.pa_flags & FLAG_HAS_KERNELPATH) {
+		(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
+		    args.pa_kernel);
+		if (stat(buffer, &sb) < 0)
+			err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+			    buffer);
+		if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
+			errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+			    buffer);
+		if (!S_ISDIR(sb.st_mode)) {
+			tmp = args.pa_kernel;
+			args.pa_kernel = strdup(dirname(args.pa_kernel));
+			free(tmp);
+			(void) snprintf(buffer, sizeof(buffer), "%s%s",
+			    args.pa_fsroot, args.pa_kernel);
+			if (stat(buffer, &sb) < 0)
+				err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
+				    buffer);
+			if (!S_ISDIR(sb.st_mode))
+				errx(EX_USAGE, "ERROR: \"%s\" is not a "
+				    "directory.", buffer);
+		}
+	}
+		
 	/* if we've been asked to process a log file, do that and exit */
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		/*
@@ -688,13 +751,14 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_DO_PRINT;
 
 		pmcstat_initialize_logging(&args);
-		if ((args.pa_logfd = pmcstat_open(args.pa_inputpath,
+		if ((args.pa_logfd = pmcstat_open_log(args.pa_inputpath,
 		    PMCSTAT_OPEN_FOR_READ)) < 0)
 			err(EX_OSERR, "ERROR: Cannot open \"%s\" for "
 			    "reading", args.pa_inputpath);
 		if ((args.pa_logparser = pmclog_open(args.pa_logfd)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot create parser");
 		pmcstat_process_log(&args);
+		pmcstat_shutdown_logging(&args);
 		exit(EX_OK);
 	}
 
@@ -721,7 +785,8 @@ main(int argc, char **argv)
 	 */
 	if (args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) {
 		if (args.pa_outputpath) {
-			if ((args.pa_logfd = pmcstat_open(args.pa_outputpath,
+			if ((args.pa_logfd =
+			    pmcstat_open_log(args.pa_outputpath,
 			    PMCSTAT_OPEN_FOR_WRITE)) < 0)
 				err(EX_OSERR, "ERROR: Cannot open \"%s\" for "
 				    "writing", args.pa_outputpath);
@@ -966,17 +1031,21 @@ main(int argc, char **argv)
 
 	pmcstat_cleanup(&args);
 
+	free(args.pa_kernel);
+
 	/* check if the driver lost any samples or events */
 	if (check_driver_stats) {
 		if (pmc_get_driver_stats(&ds_end) < 0)
 			err(EX_OSERR, "ERROR: Cannot retrieve driver "
 			    "statistics");
-		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull)
+		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull &&
+		    args.pa_verbosity > 0)
 			warnx("WARNING: some samples were dropped.  Please "
 			    "consider tuning the \"kern.hwpmc.nsamples\" "
 			    "tunable.");
 		if (ds_start.pm_buffer_requests_failed !=
-		    ds_end.pm_buffer_requests_failed)
+		    ds_end.pm_buffer_requests_failed &&
+		    args.pa_verbosity > 0)
 			warnx("WARNING: some events were discarded.  Please "
 			    "consider tuning the \"kern.hwpmc.nbuffers\" "
 			    "tunable.");

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Joseph Koshy
+ * Copyright (c) 2005-2006, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,11 @@
 #include <sys/pmc.h>
 
 enum pmclog_type {
+	/* V1 ABI */
 	PMCLOG_TYPE_CLOSELOG,
 	PMCLOG_TYPE_DROPNOTIFY,
 	PMCLOG_TYPE_INITIALIZE,
-	PMCLOG_TYPE_MAPPINGCHANGE,
+	PMCLOG_TYPE_MAPPINGCHANGE, /* unused in v1 */
 	PMCLOG_TYPE_PCSAMPLE,
 	PMCLOG_TYPE_PMCALLOCATE,
 	PMCLOG_TYPE_PMCATTACH,
@@ -45,11 +46,19 @@ enum pmclog_type {
 	PMCLOG_TYPE_PROCEXIT,
 	PMCLOG_TYPE_PROCFORK,
 	PMCLOG_TYPE_SYSEXIT,
-	PMCLOG_TYPE_USERDATA
+	PMCLOG_TYPE_USERDATA,
+	/*
+	 * V2 ABI
+	 *
+	 * The MAP_{IN,OUT} event types obsolete the MAPPING_CHANGE
+	 * event type of the older (V1) ABI.
+	 */
+	PMCLOG_TYPE_MAP_IN,
+	PMCLOG_TYPE_MAP_OUT
 };
 
-#define	PMCLOG_MAPPING_INSERT			0x01
-#define	PMCLOG_MAPPING_DELETE			0x02
+#define	PMCLOG_MAPPING_INSERT			0x01	/* obsolete */
+#define	PMCLOG_MAPPING_DELETE			0x02	/* obsolete */
 
 /*
  * A log entry descriptor comprises of a 32 bit header and a 64 bit
@@ -98,15 +107,19 @@ struct pmclog_initialize {
 	uint32_t		pl_cpu;		/* enum pmc_cputype */
 } __packed;
 
-struct pmclog_mappingchange {
+struct pmclog_map_in {
 	PMCLOG_ENTRY_HEADER
-	uint32_t		pl_type;
-	uintfptr_t		pl_start;	/* 8 byte aligned */
-	uintfptr_t		pl_end;
 	uint32_t		pl_pid;
+	uintfptr_t		pl_start;	/* 8 byte aligned */
 	char			pl_pathname[PATH_MAX];
 } __packed;
 
+struct pmclog_map_out {
+	PMCLOG_ENTRY_HEADER
+	uint32_t		pl_pid;
+	uintfptr_t		pl_start;	/* 8 byte aligned */
+	uintfptr_t		pl_end;
+} __packed;
 
 struct pmclog_pcsample {
 	PMCLOG_ENTRY_HEADER
@@ -178,6 +191,8 @@ union pmclog_entry {		/* only used to size scratch areas */
 	struct pmclog_closelog		pl_cl;
 	struct pmclog_dropnotify	pl_dn;
 	struct pmclog_initialize	pl_i;
+	struct pmclog_map_in		pl_mi;
+	struct pmclog_map_out		pl_mo;
 	struct pmclog_pcsample		pl_s;
 	struct pmclog_pmcallocate	pl_a;
 	struct pmclog_pmcattach		pl_t;
@@ -212,8 +227,10 @@ int	pmclog_flush(struct pmc_owner *_po);
 void	pmclog_initialize(void);
 void	pmclog_process_closelog(struct pmc_owner *po);
 void	pmclog_process_dropnotify(struct pmc_owner *po);
-void	pmclog_process_mappingchange(struct pmc_owner *po, pid_t pid, int type,
-    uintfptr_t start, uintfptr_t end, char *path);
+void	pmclog_process_map_in(struct pmc_owner *po, pid_t pid,
+    uintfptr_t start, const char *path);
+void	pmclog_process_map_out(struct pmc_owner *po, pid_t pid,
+    uintfptr_t start, uintfptr_t end);
 void	pmclog_process_pcsample(struct pmc *_pm, struct pmc_sample *_ps);
 void	pmclog_process_pmcallocate(struct pmc *_pm);
 void	pmclog_process_pmcattach(struct pmc *_pm, pid_t _pid, char *_path);
