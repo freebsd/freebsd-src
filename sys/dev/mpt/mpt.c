@@ -1342,7 +1342,7 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	/* With the second word, we can now look at the length */
 	if (((reply_len >> 1) != hdr->MsgLength)) {
 		mpt_prt(mpt, "reply length does not match message length: "
-			"got 0x%02x, expected 0x%02x\n",
+			"got 0x%02x, expected 0x%02zx\n",
 			hdr->MsgLength << 2, reply_len << 1);
 	}
 
@@ -1644,7 +1644,7 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	if (rv)
 		return (rv);
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %x, "
+	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %zx, "
 		 "num %x, type %x\n", hdr.PageVersion,
 		 hdr.PageLength * sizeof(uint32_t),
 		 hdr.PageNumber, hdr.PageType);
