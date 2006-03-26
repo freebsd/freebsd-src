@@ -9,36 +9,33 @@
  * $FreeBSD$
  *
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <inttypes.h>
-#include <libutil.h>
-#include <string.h>
-#include <err.h>
-#include <assert.h>
-
-#include <sys/ioctl.h>
 #include <sys/param.h>
-#include <sys/module.h>
+#include <sys/ioctl.h>
 #include <sys/linker.h>
 #include <sys/mdioctl.h>
+#include <sys/module.h>
 #include <sys/stat.h>
 
-int	 list(const int);
-int	 query(const int, const int);
-void	 usage(void);
+#include <assert.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <libutil.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-struct md_ioctl mdio;
+static int	 list(const int);
+static int	 query(const int, const int);
+static void	 usage(void);
 
-enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
+static struct md_ioctl mdio;
+static enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
+static int nflag;
 
-int nflag;
-
-void
+static void
 usage()
 {
 	fprintf(stderr,
@@ -277,7 +274,7 @@ mdunitcmp(const void *a, const void *b)
 	return (*(int *)a - *(int *)b);
 }
 
-int
+static int
 list(const int fd)
 {
 	int unit;
@@ -308,7 +305,7 @@ prthumanval(int64_t bytes)
 	(void)printf("%6s", buf);
 }
 
-int
+static int
 query(const int fd, const int unit)
 {
 
