@@ -742,6 +742,8 @@ thread_single(int mode)
 	else
 		remaining = p->p_numthreads - p->p_suspcount;
 	while (remaining != 1) {
+		if (P_SHOULDSTOP(p) != P_STOPPED_SINGLE)
+			goto stopme;
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
@@ -797,10 +799,12 @@ thread_single(int mode)
 		if (remaining == 1)
 			break;
 
+stopme:
 		/*
 		 * Wake us up when everyone else has suspended.
 		 * In the mean time we suspend as well.
 		 */
+		thread_stopped(p);
 		thread_suspend_one(td);
 		PROC_UNLOCK(p);
 		mi_switch(SW_VOL, NULL);
