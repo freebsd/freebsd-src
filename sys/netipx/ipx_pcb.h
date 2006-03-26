@@ -77,6 +77,7 @@ extern struct mtx	ipxpcb_list_mtx;
 #define IPXP_ALL_PACKETS	0x8	/* Turn off higher proto processing. */
 #define	IPXP_CHECKSUM		0x10	/* Use checksum on this socket. */
 #define	IPXP_DROPPED		0x20	/* Connection dropped. */
+#define	IPXP_SPX		0x40	/* SPX PCB. */
 
 #define	IPX_WILDCARD		1
 
