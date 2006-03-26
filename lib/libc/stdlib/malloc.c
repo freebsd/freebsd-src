@@ -28,8 +28,9 @@
  *
  *******************************************************************************
  *
- * Following is a brief list of features that distinguish this malloc
- * implementation:
+ * This allocator implementation is designed to provide scalable performance
+ * for multi-threaded programs on multi-processor systems.  The following
+ * features are included for this purpose:
  *
  *   + Multiple arenas are used if there are multiple CPUs, which reduces lock
  *     contention and cache sloshing.
@@ -37,10 +38,58 @@
  *   + Cache line sharing between arenas is avoided for internal data
  *     structures.
  *
- *   + Memory is managed in chunks and runs, rather than as individual pages.
+ *   + Memory is managed in chunks and runs (chunks can be split into runs using
+ *     a binary buddy scheme), rather than as individual pages.  This provides
+ *     a constant-time mechanism for associating allocations with particular
+ *     arenas.
  *
- *   + Data structures for huge allocations are stored separately from
- *     allocations, which reduces thrashing during low memory conditions.
+ * Allocation requests are rounded up to the nearest size class, and no record
+ * of the original request size is maintained.  Allocations are broken into
+ * categories according to size class.  Assuming runtime defaults, 4 kB pages
+ * and a 16 byte quantum, the size classes in each category are as follows:
+ *
+ *   |====================================|
+ *   | Category | Subcategory    |   Size |
+ *   |====================================|
+ *   | Small    | Tiny           |      2 |
+ *   |          |                |      4 |
+ *   |          |                |      8 |
+ *   |          |----------------+--------|
+ *   |          | Quantum-spaced |     16 |
+ *   |          |                |     32 |
+ *   |          |                |     48 |
+ *   |          |                |    ... |
+ *   |          |                |    480 |
+ *   |          |                |    496 |
+ *   |          |                |    512 |
+ *   |          |----------------+--------|
+ *   |          | Sub-page       |   1 kB |
+ *   |          |                |   2 kB |
+ *   |====================================|
+ *   | Medium                    |   4 kB |
+ *   |                           |   8 kB |
+ *   |                           |  16 kB |
+ *   |                           |    ... |
+ *   |                           | 256 kB |
+ *   |                           | 512 kB |
+ *   |                           |   1 MB |
+ *   |====================================|
+ *   | Large                     |   2 MB |
+ *   |                           |   4 MB |
+ *   |                           |   6 MB |
+ *   |                           |    ... |
+ *   |====================================|
+ *
+ * A different mechanism is used for each category:
+ *
+ *   Small : Each size class is segregated into its own set of runs.  Each run
+ *           maintains a bitmap of which regions are free/allocated.
+ *
+ *   Medium : Each allocation is backed by a dedicated run.  Metadata are stored
+ *            in the associated arena chunk header maps.
+ *
+ *   Large : Each allocation is backed by a dedicated contiguous set of chunks.
+ *           Metadata are stored in a separate red-black tree.
  *
  *******************************************************************************
  */
@@ -122,7 +171,7 @@
 
 /******************************************************************************/
 
-/* 
+/*
  * In order to disable various extra features that may have negative
  * performance impacts, (assertions, expanded statistics, redzones), define
  * NO_MALLOC_EXTRAS.
@@ -329,6 +378,9 @@ struct malloc_bin_stats_s {
 
 typedef struct arena_stats_s arena_stats_t;
 struct arena_stats_s {
+	/* Total byte count of allocated memory, not including overhead. */
+	size_t		allocated;
+
 	/* Number of times each function was called. */
 	uint64_t	nmalloc;
 	uint64_t	npalloc;
@@ -498,7 +550,7 @@ struct arena_bin_s {
 	/*
 	 * Links into rings of runs, of various fullnesses (names indicate
 	 * approximate lower bounds).  A new run conceptually starts off in
-	 * runsempty, and it isn't inserted into the runs0 ring until it
+	 * runsinit, and it isn't inserted into the runs0 ring until it
 	 * reaches 25% full (hysteresis mechanism).  For the run to be moved
 	 * again, it must become either empty or 50% full.  Thus, each ring
 	 * contains runs that are within 50% above the advertised fullness for
@@ -518,11 +570,11 @@ struct arena_bin_s {
 	 *   3) runs0
 	 *   4) runs75
 	 *
-	 * runs75 isn't a good place to look, because it contains runs that
-	 * may be nearly completely full.  Still, we look there as a last
-	 * resort in order to avoid allocating a new run if at all possible.
+	 * runs75 isn't a good place to look, because it contains runs that may
+	 * be nearly completely full.  Still, we look there as a last resort in
+	 * order to avoid allocating a new run if at all possible.
 	 */
-	/* arena_run_link_t	runsempty;  0% <= fullness <   25% */
+	/* arena_run_link_t	runsinit;   0% <= fullness <   25% */
 	arena_run_link_t	runs0;  /*  0% <  fullness <   50% */
 	arena_run_link_t	runs25; /* 25% <  fullness <   75% */
 	arena_run_link_t	runs50; /* 50% <  fullness <  100% */
@@ -557,9 +609,6 @@ struct arena_s {
 	malloc_mutex_t		mtx;
 
 #ifdef MALLOC_STATS
-	/* Total byte count of allocated memory, not including overhead. */
-	size_t			allocated;
-
 	arena_stats_t		stats;
 #endif
 
@@ -613,7 +662,7 @@ static unsigned		pagesize_2pow;
 static size_t		bin_maxclass; /* Max size class for bins. */
 static unsigned		ntbins; /* Number of (2^n)-spaced tiny bins. */
 static unsigned		nqbins; /* Number of quantum-spaced bins. */
-static unsigned		npbins; /* Number of (2^n)-spaced bins. */
+static unsigned		nsbins; /* Number of (2^n)-spaced sub-page bins. */
 static size_t		small_min;
 static size_t		small_max;
 static unsigned		tiny_min_2pow;
@@ -675,8 +724,8 @@ static chunk_tree_t	old_chunks;
 /*
  * Current chunk that is being used for internal memory allocations.  This
  * chunk is carved up in cacheline-size quanta, so that there is no chance of
- * false cache line sharing. 
- * */
+ * false cache line sharing.
+ */
 static void		*base_chunk;
 static void		*base_next_addr;
 static void		*base_past_addr; /* Addr immediately past base_chunk. */
@@ -691,7 +740,7 @@ static uint64_t		base_total;
  * Arenas.
  */
 
-/* 
+/*
  * Arenas that are used to service external requests.  Not all elements of the
  * arenas array are necessarily used; arenas are created lazily as needed.
  */
@@ -707,7 +756,7 @@ static malloc_mutex_t	arenas_mtx; /* Protects arenas initialization. */
  * Map of pthread_self() --> arenas[???], used for selecting an arena to use
  * for allocations.
  */
-static __thread arena_t *arenas_map;
+static __thread arena_t	*arenas_map;
 #endif
 
 #ifdef MALLOC_STATS
@@ -783,13 +832,10 @@ static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin,
 static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin,
     size_t size);
 static void	*arena_malloc(arena_t *arena, size_t size);
+static size_t	arena_salloc(arena_t *arena, const void *ptr);
 static void	*arena_ralloc(arena_t *arena, void *ptr, size_t size,
     size_t oldsize);
-static size_t	arena_salloc(arena_t *arena, void *ptr);
 static void	arena_dalloc(arena_t *arena, void *ptr);
-#ifdef MALLOC_STATS
-static size_t	arena_allocated(arena_t *arena);
-#endif
 static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
 #ifndef NO_TLS
@@ -801,12 +847,9 @@ static void	huge_dalloc(void *ptr);
 static void	*imalloc(arena_t *arena, size_t size);
 static void	*ipalloc(arena_t *arena, size_t alignment, size_t size);
 static void	*icalloc(arena_t *arena, size_t size);
+static size_t	isalloc(const void *ptr);
 static void	*iralloc(arena_t *arena, void *ptr, size_t size);
-static size_t	isalloc(void *ptr);
 static void	idalloc(void *ptr);
-#ifdef MALLOC_STATS
-static void	istats(size_t *allocated, size_t *total);
-#endif
 static void	malloc_print_stats(void);
 static bool	malloc_init_hard(void);
 
@@ -993,6 +1036,8 @@ stats_print(arena_t *arena)
 	unsigned i;
 	int gap_start;
 
+	malloc_printf("allocated: %zu\n", arena->stats.allocated);
+
 	malloc_printf("calls:\n");
 	malloc_printf(" %12s %12s %12s %12s %12s %12s\n", "nmalloc", "npalloc",
 	    "ncalloc", "ndalloc", "nralloc", "nmadvise");
@@ -1004,7 +1049,7 @@ stats_print(arena_t *arena)
 	malloc_printf("%13s %1s %4s %5s %8s %9s %5s %6s %7s %6s %6s\n",
 	    "bin", "", "size", "nregs", "run_size", "nrequests", "nruns",
 	    "hiruns", "curruns", "npromo", "ndemo");
-	for (i = 0, gap_start = -1; i < ntbins + nqbins + npbins; i++) {
+	for (i = 0, gap_start = -1; i < ntbins + nqbins + nsbins; i++) {
 		if (arena->bins[i].stats.nrequests == 0) {
 			if (gap_start == -1)
 				gap_start = i;
@@ -1024,7 +1069,7 @@ stats_print(arena_t *arena)
 			    "%13u %1s %4u %5u %8u %9llu %5llu"
 			    " %6lu %7lu %6llu %6llu\n",
 			    i,
-			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" : "P",
+			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" : "S",
 			    arena->bins[i].reg_size,
 			    arena->bins[i].nregs,
 			    arena->bins[i].run_size,
@@ -1282,6 +1327,7 @@ chunk_dealloc(void *chunk, size_t size)
 	assert(size != 0);
 	assert(size % chunk_size == 0);
 
+	malloc_mutex_lock(&chunks_mtx);
 	for (offset = 0; offset < size; offset += chunk_size) {
 		node = base_chunk_node_alloc();
 		if (node == NULL)
@@ -1292,11 +1338,9 @@ chunk_dealloc(void *chunk, size_t size)
 		 * that the address range can be recycled if memory usage
 		 * increases later on.
 		 */
-		malloc_mutex_lock(&chunks_mtx);
 		node->chunk = (void *)((uintptr_t)chunk + (uintptr_t)offset);
 		node->size = chunk_size;
 		RB_INSERT(chunk_tree_s, &old_chunks, node);
-		malloc_mutex_unlock(&chunks_mtx);
 	}
 
 #ifdef USE_BRK
@@ -1308,10 +1352,9 @@ chunk_dealloc(void *chunk, size_t size)
 		pages_unmap(chunk, size);
 
 #ifdef MALLOC_STATS
-	malloc_mutex_lock(&chunks_mtx);
 	stats_chunks.curchunks -= (size / chunk_size);
-	malloc_mutex_unlock(&chunks_mtx);
 #endif
+	malloc_mutex_unlock(&chunks_mtx);
 }
 
 /*
@@ -1387,7 +1430,7 @@ arena_run_search(arena_run_t *run)
 				    + bit - 1);
 			}
 		} else {
-			/* 
+			/*
 			 * Make a note that nothing before this element
 			 * contains a free region.
 			 */
@@ -1550,8 +1593,8 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 		if (run->quartile == RUN_Q75) {
 			/*
 			 * Skip RUN_Q75 during promotion from RUN_Q50.
-			 * Separate handling of RUN_Q75 and RUN_Q100 allows
-			 * us to keep completely full runs in RUN_Q100, thus
+			 * Separate handling of RUN_Q75 and RUN_Q100 allows us
+			 * to keep completely full runs in RUN_Q100, thus
 			 * guaranteeing that runs in RUN_Q75 are only mostly
 			 * full.  This provides a method for avoiding a linear
 			 * search for non-full runs, which avoids some
@@ -1649,6 +1692,11 @@ AGAIN:
 	assert(rep <= 2);
 #endif
 
+	/*
+	 * Search through arena's chunks in address order for a run that is
+	 * large enough.  Look for a precise fit, but do not pass up a chunk
+	 * that has a run which is large enough to split.
+	 */
 	min_ind = ffs(size / pagesize) - 1;
 	RB_FOREACH(chunk, arena_chunk_tree_s, &arena->chunks) {
 		for (i = min_ind;
@@ -1658,12 +1706,12 @@ AGAIN:
 				arena_chunk_map_t *map = chunk->map;
 
 				/* Scan chunk's map for free run. */
-				for (j = 0; 
+				for (j = 0;
 				    j < arena_chunk_maplen;
 				    j += map[j].npages) {
 					if (map[j].free
 					    && map[j].npages == (1 << i))
-		{
+		{/*<----------------------------*/
 			run = (arena_run_t *)&((char *)chunk)[j
 			    << pagesize_2pow];
 
@@ -1674,7 +1722,7 @@ AGAIN:
 			arena_run_split(arena, run, large, size);
 
 			return (run);
-		}
+		}/*---------------------------->*/
 				}
 				/* Not reached. */
 				assert(0);
@@ -1713,8 +1761,8 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 	}
 
 	/*
-	 * Tell the kernel that we don't need the data in this run, but only
-	 * if requested via runtime configuration.
+	 * Tell the kernel that we don't need the data in this run, but only if
+	 * requested via runtime configuration.
 	 */
 	if (opt_hint) {
 		madvise(run, size, MADV_FREE);
@@ -1756,11 +1804,10 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 			chunk->map[base_run_ind + i].pos = i;
 		}
 
-		/* Update run_ind to be the begginning of the coalesced run. */
+		/* Update run_ind to be the beginning of the coalesced run. */
 		run_ind = base_run_ind;
 	}
 
-	/* Insert coalesced run into ring of free runs. */
 	chunk->nfree_runs[log2_run_pages]++;
 
 	/* Free pages, to the extent possible. */
@@ -1789,6 +1836,7 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 		qr_remove(run, link);
 		return (run);
 	}
+	/* No existing runs have any space available. */
 
 	/* Allocate a new run. */
 	run = arena_run_alloc(arena, false, bin->run_size);
@@ -1829,6 +1877,7 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 	return (run);
 }
 
+/* bin->runcur must have space available before this function is called. */
 static inline void *
 arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
     size_t size)
@@ -1855,6 +1904,7 @@ arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	return (ret);
 }
 
+/* Re-fill bin->runcur, then call arena_bin_malloc_easy(). */
 static void *
 arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin, size_t size)
 {
@@ -1885,11 +1935,14 @@ arena_malloc(arena_t *arena, size_t size)
 		arena_bin_t *bin;
 		arena_run_t *run;
 
+		/* Small allocation. */
+
 		if (size < small_min) {
+			/* Tiny. */
 			size = pow2_ceil(size);
 			bin = &arena->bins[ffs(size >> (tiny_min_2pow + 1))];
 #ifdef MALLOC_STATS
-			/* 
+			/*
 			 * Bin calculation is always correct, but we may need to
 			 * fix size for the purposes of stats accuracy.
 			 */
@@ -1897,10 +1950,12 @@ arena_malloc(arena_t *arena, size_t size)
 				size = (1 << tiny_min_2pow);
 #endif
 		} else if (size <= small_max) {
+			/* Quantum-spaced. */
 			size = QUANTUM_CEILING(size);
 			bin = &arena->bins[ntbins + (size >> opt_quantum_2pow)
 			    - 1];
 		} else {
+			/* Sub-page. */
 			size = pow2_ceil(size);
 			bin = &arena->bins[ntbins + nqbins
 			    + (ffs(size >> opt_small_max_2pow) - 2)];
@@ -1916,13 +1971,14 @@ arena_malloc(arena_t *arena, size_t size)
 		bin->stats.nrequests++;
 #endif
 	} else {
+		/* Medium allocation. */
 		size = pow2_ceil(size);
 		ret = (void *)arena_run_alloc(arena, true, size);
 	}
 
 #ifdef MALLOC_STATS
 	if (ret != NULL)
-		arena->allocated += size;
+		arena->stats.allocated += size;
 #endif
 
 	malloc_mutex_unlock(&arena->mtx);
@@ -1934,56 +1990,9 @@ arena_malloc(arena_t *arena, size_t size)
 	return (ret);
 }
 
-static void *
-arena_ralloc(arena_t *arena, void *ptr, size_t size, size_t oldsize)
-{
-	void *ret;
-
-	/*
-	 * Avoid moving the allocation if the size class would not
-	 * change.
-	 */
-	if (size < small_min) {
-		if (oldsize < small_min &&
-		    ffs(pow2_ceil(size) >> (tiny_min_2pow + 1))
-		    == ffs(pow2_ceil(oldsize) >> (tiny_min_2pow + 1)))
-			goto IN_PLACE;
-	} else if (size <= small_max) {
-		if (oldsize >= small_min && oldsize <= small_max && 
-		    (QUANTUM_CEILING(size) >> opt_quantum_2pow)
-		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
-			goto IN_PLACE;
-	} else {
-		if (oldsize > small_max &&
-		    pow2_ceil(size) == pow2_ceil(oldsize))
-			goto IN_PLACE;
-	}
-
-	/*
-	 * If we get here, then size and oldsize are different enough
-	 * that we need to use a different size class.  In that case,
-	 * fall back to allocating new space and copying.
-	 */
-	ret = arena_malloc(arena, size);
-	if (ret == NULL)
-		return (NULL);
-
-	if (size < oldsize)
-		memcpy(ret, ptr, size);
-	else
-		memcpy(ret, ptr, oldsize);
-	idalloc(ptr);
-	return (ret);
-IN_PLACE:
-	if (opt_junk && size < oldsize)
-		memset(&((char *)ptr)[size], 0x5a, oldsize - size);
-	else if (opt_zero && size > oldsize)
-		memset(&((char *)ptr)[size], 0, size - oldsize);
-	return (ptr);
-}
-
+/* Return the size of the allocation pointed to by ptr. */
 static size_t
-arena_salloc(arena_t *arena, void *ptr)
+arena_salloc(arena_t *arena, const void *ptr)
 {
 	size_t ret;
 	arena_chunk_t *chunk;
@@ -2006,16 +2015,61 @@ arena_salloc(arena_t *arena, void *ptr)
 
 		pageind -= mapelm->pos;
 		mapelm = &chunk->map[pageind];
-		
+
 		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
 		assert(run->magic == ARENA_RUN_MAGIC);
 		ret = run->bin->reg_size;
 	} else
 		ret = mapelm->npages << pagesize_2pow;
-		
+
 	malloc_mutex_unlock(&arena->mtx);
 
 	return (ret);
+}
+
+static void *
+arena_ralloc(arena_t *arena, void *ptr, size_t size, size_t oldsize)
+{
+	void *ret;
+
+	/* Avoid moving the allocation if the size class would not change. */
+	if (size < small_min) {
+		if (oldsize < small_min &&
+		    ffs(pow2_ceil(size) >> (tiny_min_2pow + 1))
+		    == ffs(pow2_ceil(oldsize) >> (tiny_min_2pow + 1)))
+			goto IN_PLACE;
+	} else if (size <= small_max) {
+		if (oldsize >= small_min && oldsize <= small_max &&
+		    (QUANTUM_CEILING(size) >> opt_quantum_2pow)
+		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
+			goto IN_PLACE;
+	} else {
+		if (oldsize > small_max &&
+		    pow2_ceil(size) == pow2_ceil(oldsize))
+			goto IN_PLACE;
+	}
+
+	/*
+	 * If we get here, then size and oldsize are different enough that we
+	 * need to use a different size class.  In that case, fall back to
+	 * allocating new space and copying.
+	 */
+	ret = arena_malloc(arena, size);
+	if (ret == NULL)
+		return (NULL);
+
+	if (size < oldsize)
+		memcpy(ret, ptr, size);
+	else
+		memcpy(ret, ptr, oldsize);
+	idalloc(ptr);
+	return (ret);
+IN_PLACE:
+	if (opt_junk && size < oldsize)
+		memset(&((char *)ptr)[size], 0x5a, oldsize - size);
+	else if (opt_zero && size > oldsize)
+		memset(&((char *)ptr)[size], 0, size - oldsize);
+	return (ptr);
 }
 
 static void
@@ -2035,12 +2089,15 @@ arena_dalloc(arena_t *arena, void *ptr)
 	malloc_mutex_lock(&arena->mtx);
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	assert(chunk->arena == arena);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = &chunk->map[pageind];
 	assert(mapelm->free == false);
 	if (mapelm->large == false) {
 		arena_run_t *run;
 		unsigned regind;
+
+		/* Small allocation. */
 
 		pageind -= mapelm->pos;
 		mapelm = &chunk->map[pageind];
@@ -2062,6 +2119,8 @@ arena_dalloc(arena_t *arena, void *ptr)
 			arena_bin_run_refile(arena, run->bin, run, size, false);
 		}
 	} else {
+		/* Medium allocation. */
+
 		size = mapelm->npages << pagesize_2pow;
 
 		if (opt_junk)
@@ -2071,28 +2130,11 @@ arena_dalloc(arena_t *arena, void *ptr)
 	}
 
 #ifdef MALLOC_STATS
-	arena->allocated -= size;
+	arena->stats.allocated -= size;
 #endif
 
 	malloc_mutex_unlock(&arena->mtx);
 }
-
-#ifdef MALLOC_STATS
-static size_t
-arena_allocated(arena_t *arena)
-{
-	size_t ret;
-
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
-
-	malloc_mutex_lock(&arena->mtx);
-	ret = arena->allocated;
-	malloc_mutex_unlock(&arena->mtx);
-
-	return (ret);
-}
-#endif
 
 static bool
 arena_new(arena_t *arena)
@@ -2104,8 +2146,6 @@ arena_new(arena_t *arena)
 	malloc_mutex_init(&arena->mtx);
 
 #ifdef MALLOC_STATS
-	arena->allocated = 0;
-
 	memset(&arena->stats, 0, sizeof(arena_stats_t));
 #endif
 
@@ -2125,7 +2165,7 @@ arena_new(arena_t *arena)
 
 		bin->reg_size = (1 << (tiny_min_2pow + i));
 
-		/* 
+		/*
 		 * Calculate how large of a run to allocate.  Make sure that at
 		 * least RUN_MIN_REGS regions fit in the run.
 		 */
@@ -2162,7 +2202,7 @@ arena_new(arena_t *arena)
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
-		/* 
+		/*
 		 * Calculate how large of a run to allocate.  Make sure that at
 		 * least RUN_MIN_REGS regions fit in the run.
 		 */
@@ -2185,8 +2225,8 @@ arena_new(arena_t *arena)
 #endif
 	}
 
-	/* (2^n)-spaced bins. */
-	for (; i < ntbins + nqbins + npbins; i++) {
+	/* (2^n)-spaced sub-page bins. */
+	for (; i < ntbins + nqbins + nsbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
 		qr_new((arena_run_t *)&bin->runs0, link);
@@ -2196,7 +2236,7 @@ arena_new(arena_t *arena)
 
 		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
 
-		/* 
+		/*
 		 * Calculate how large of a run to allocate.  Make sure that at
 		 * least RUN_MIN_REGS regions fit in the run.
 		 */
@@ -2233,7 +2273,7 @@ arenas_extend(unsigned ind)
 
 	/* Allocate enough space for trailing bins. */
 	ret = (arena_t *)base_alloc(sizeof(arena_t)
-	    + (sizeof(arena_bin_t) * (ntbins + nqbins + npbins - 1)));
+	    + (sizeof(arena_bin_t) * (ntbins + nqbins + nsbins - 1)));
 	if (ret != NULL && arena_new(ret) == false) {
 		arenas[ind] = ret;
 		return (ret);
@@ -2283,7 +2323,7 @@ choose_arena(void)
 #else
 	if (__isthreaded) {
 		unsigned long ind;
-		
+
 		/*
 		 * Hash _pthread_self() to one of the arenas.  There is a prime
 		 * number of arenas, so this has a reasonable chance of
@@ -2404,23 +2444,15 @@ huge_ralloc(void *ptr, size_t size, size_t oldsize)
 {
 	void *ret;
 
-	/*
-	 * Avoid moving the allocation if the size class would not
-	 * change.
-	 */
+	/* Avoid moving the allocation if the size class would not change. */
 	if (oldsize > arena_maxclass &&
-	    CHUNK_CEILING(size) == CHUNK_CEILING(oldsize)) {
-		if (opt_junk && size < oldsize)
-			memset(&((char *)ptr)[size], 0x5a, oldsize - size);
-		else if (opt_zero && size > oldsize)
-			memset(&((char *)ptr)[size], 0, size - oldsize);
+	    CHUNK_CEILING(size) == CHUNK_CEILING(oldsize))
 		return (ptr);
-	}
 
 	/*
-	 * If we get here, then size and oldsize are different enough
-	 * that we need to use a different size class.  In that case,
-	 * fall back to allocating new space and copying.
+	 * If we get here, then size and oldsize are different enough that we
+	 * need to use a different size class.  In that case, fall back to
+	 * allocating new space and copying.
 	 */
 	ret = huge_malloc(size);
 	if (ret == NULL)
@@ -2506,9 +2538,9 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
 
-	/* 
+	/*
 	 * Round up to the nearest power of two that is >= alignment and
-	 * >= size. 
+	 * >= size.
 	 */
 	if (size > alignment)
 		pow2_size = pow2_ceil(size);
@@ -2642,7 +2674,7 @@ icalloc(arena_t *arena, size_t size)
 #ifdef USE_BRK
 		else if ((uintptr_t)ret >= (uintptr_t)brk_base
 		    && (uintptr_t)ret < (uintptr_t)brk_max) {
-			/* 
+			/*
 			 * This may be a re-used brk chunk.  Therefore, zero
 			 * the memory.
 			 */
@@ -2656,6 +2688,41 @@ icalloc(arena_t *arena, size_t size)
 	arena->stats.ncalloc++;
 	malloc_mutex_unlock(&arena->mtx);
 #endif
+
+	return (ret);
+}
+
+static size_t
+isalloc(const void *ptr)
+{
+	size_t ret;
+	arena_chunk_t *chunk;
+
+	assert(ptr != NULL);
+	assert(ptr != &nil);
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	if (chunk != ptr) {
+		/* Region. */
+		assert(chunk->arena->magic == ARENA_MAGIC);
+
+		ret = arena_salloc(chunk->arena, ptr);
+	} else {
+		chunk_node_t *node, key;
+
+		/* Chunk (huge allocation). */
+
+		malloc_mutex_lock(&chunks_mtx);
+
+		/* Extract from tree of huge allocations. */
+		key.chunk = (void *)ptr;
+		node = RB_FIND(chunk_tree_s, &huge, &key);
+		assert(node != NULL);
+
+		ret = node->size;
+
+		malloc_mutex_unlock(&chunks_mtx);
+	}
 
 	return (ret);
 }
@@ -2687,41 +2754,6 @@ iralloc(arena_t *arena, void *ptr, size_t size)
 	return (ret);
 }
 
-static size_t
-isalloc(void *ptr)
-{
-	size_t ret;
-	arena_chunk_t *chunk;
-
-	assert(ptr != NULL);
-	assert(ptr != &nil);
-
-	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	if (chunk != ptr) {
-		/* Region. */
-		assert(chunk->arena->magic == ARENA_MAGIC);
-
-		ret = arena_salloc(chunk->arena, ptr);
-	} else {
-		chunk_node_t *node, key;
-
-		/* Chunk (huge allocation). */
-
-		malloc_mutex_lock(&chunks_mtx);
-
-		/* Extract from tree of huge allocations. */
-		key.chunk = ptr;
-		node = RB_FIND(chunk_tree_s, &huge, &key);
-		assert(node != NULL);
-
-		ret = node->size;
-
-		malloc_mutex_unlock(&chunks_mtx);
-	}
-
-	return (ret);
-}
-
 static void
 idalloc(void *ptr)
 {
@@ -2743,33 +2775,6 @@ idalloc(void *ptr)
 		huge_dalloc(ptr);
 }
 
-#ifdef MALLOC_STATS
-static void
-istats(size_t *allocated, size_t *total)
-{
-	size_t tallocated, ttotal;
-	unsigned i;
-
-	tallocated = 0;
-
-	/* arenas. */
-	for (i = 0; i < narenas; i++) {
-		if (arenas[i] != NULL)
-			tallocated += arena_allocated(arenas[i]);
-	}
-
-	/* huge. */
-	malloc_mutex_lock(&chunks_mtx);
-	tallocated += huge_allocated;
-	ttotal = stats_chunks.curchunks * chunk_size;
-	malloc_mutex_unlock(&chunks_mtx);
-
-	/* Return results. */
-	*allocated = tallocated;
-	*total = ttotal;
-}
-#endif
-
 static void
 malloc_print_stats(void)
 {
@@ -2780,7 +2785,7 @@ malloc_print_stats(void)
 		malloc_printf("Number of arenas: %u\n", narenas);
 		malloc_printf("Chunk size: %zu (2^%zu)\n", chunk_size,
 		    opt_chunk_2pow);
-		malloc_printf("Quantum size: %zu (2^%zu)\n", quantum, 
+		malloc_printf("Quantum size: %zu (2^%zu)\n", quantum,
 		    opt_quantum_2pow);
 		malloc_printf("Max small size: %zu\n", small_max);
 		malloc_printf("Pointer size: %u\n", sizeof(void *));
@@ -2793,17 +2798,31 @@ malloc_print_stats(void)
 		    );
 
 #ifdef MALLOC_STATS
-		{
-			size_t a, b;
-
-			istats(&a, &b);
-			malloc_printf("Allocated: %zu, space used: %zu\n", a,
-			    b);
-		}
 
 		{
-			arena_t *arena;
+			size_t allocated, total;
 			unsigned i;
+			arena_t *arena;
+
+			/* Calculate and print allocated/total stats. */
+
+			/* arenas. */
+			for (i = 0, allocated = 0; i < narenas; i++) {
+				if (arenas[i] != NULL) {
+					malloc_mutex_lock(&arenas[i]->mtx);
+					allocated += arenas[i]->stats.allocated;
+					malloc_mutex_unlock(&arenas[i]->mtx);
+				}
+			}
+
+			/* huge. */
+			malloc_mutex_lock(&chunks_mtx);
+			allocated += huge_allocated;
+			total = stats_chunks.curchunks * chunk_size;
+			malloc_mutex_unlock(&chunks_mtx);
+
+			malloc_printf("Allocated: %zu, space used: %zu\n",
+			    allocated, total);
 
 			/* Print chunk stats. */
 			{
@@ -2817,7 +2836,7 @@ malloc_print_stats(void)
 				malloc_printf(" %13s%13s%13s\n", "nchunks",
 				    "highchunks", "curchunks");
 				malloc_printf(" %13llu%13lu%13lu\n",
-				    chunks_stats.nchunks, 
+				    chunks_stats.nchunks,
 				    chunks_stats.highchunks,
 				    chunks_stats.curchunks);
 			}
@@ -2838,9 +2857,6 @@ malloc_print_stats(void)
 					malloc_mutex_lock(&arena->mtx);
 					stats_print(arena);
 					malloc_mutex_unlock(&arena->mtx);
-				} else {
-					malloc_printf("\narenas[%u] statistics:"
-					    " unused arena\n", i);
 				}
 			}
 		}
@@ -2855,10 +2871,10 @@ malloc_print_stats(void)
  * initialization.
  *
  * atomic_init_start() returns true if it started initializing.  In that case,
- * the caller must also call atomic_init_finish(), just before returning
- * to its caller.  This delayed finalization of initialization is critical,
- * since otherwise choose_arena() has no way to know whether it's safe
- * to call _pthread_self().
+ * the caller must also call atomic_init_finish(), just before returning to its
+ * caller.  This delayed finalization of initialization is critical, since
+ * otherwise choose_arena() has no way to know whether it's safe to call
+ * _pthread_self().
  */
 static inline bool
 malloc_init(void)
@@ -3077,7 +3093,7 @@ malloc_init_hard(void)
 	ntbins = opt_quantum_2pow - tiny_min_2pow;
 	assert(ntbins <= opt_quantum_2pow);
 	nqbins = (small_max >> opt_quantum_2pow);
-	npbins = pagesize_2pow - opt_small_max_2pow - 1;
+	nsbins = pagesize_2pow - opt_small_max_2pow - 1;
 
 	/* Set variables according to the value of opt_quantum_2pow. */
 	quantum = (1 << opt_quantum_2pow);
@@ -3175,7 +3191,7 @@ malloc_init_hard(void)
 	malloc_mutex_init(&base_mtx);
 
 	if (ncpus > 1) {
-		/* 
+		/*
 		 * For SMP systems, create four times as many arenas as there
 		 * are CPUs by default.
 		 */
@@ -3373,7 +3389,7 @@ RETURN:
 	if (ret == NULL) {
 		if (opt_xmalloc) {
 			malloc_printf("%s: (malloc) Error in"
-			    " calloc(%zu, %zu): out of memory\n", 
+			    " calloc(%zu, %zu): out of memory\n",
 			    _getprogname(), num, size);
 			abort();
 		}
