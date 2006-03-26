@@ -1,5 +1,6 @@
 #
 # $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#10 $
+# $FreeBSD$
 #
 0:AUE_NULL:indir system call:no
 1:AUE_EXIT:exit(2):pc
