@@ -28,7 +28,9 @@
 
 /*
  * Simple regression test to open and then immediately close various types of
- * PF_IPX sockets.
+ * PF_IPX sockets.  Run with various waits in order to make sure that the
+ * various IPX/SPX timers have a chance to walk the pcb lists and hit the
+ * sockets.
  */
 
 #include <sys/types.h>
@@ -39,34 +41,53 @@
 #include <err.h>
 #include <unistd.h>
 
+static int
+maybe_sleep(int sec)
+{
+
+	if (sec == 0)
+		return (0);
+	return (sleep(sec));
+}
+
 int
 main(int argc, char *argv[])
 {
-	int s;
+	int delay, s;
 
-	s = socket(PF_IPX, SOCK_DGRAM, 0);
-	if (s < 0)
-		warn("socket(PF_IPX, SOCK_DGRAM, 0)");
-	else
-		close(s);
+	for (delay = 0; delay < 5; delay++) {
+		s = socket(PF_IPX, SOCK_DGRAM, 0);
+		if (s < 0)
+			warn("socket(PF_IPX, SOCK_DGRAM, 0)");
+		else {
+			maybe_sleep(delay);
+			close(s);
+		}
 
-	s = socket(PF_IPX, SOCK_STREAM, 0);
-	if (s < 0)
-		warn("socket(PF_IPX, SOCK_STREAM, 0)");
-	else
-		close(s);
+		s = socket(PF_IPX, SOCK_STREAM, 0);
+		if (s < 0)
+			warn("socket(PF_IPX, SOCK_STREAM, 0)");
+		else {
+			maybe_sleep(delay);
+			close(s);
+		}
 
-	s = socket(PF_IPX, SOCK_SEQPACKET, 0);
-	if (s < 0)
-		warn("socket(PF_IPX, SOCK_SEQPACKET, 0)");
-	else
-		close(s);
+		s = socket(PF_IPX, SOCK_SEQPACKET, 0);
+		if (s < 0)
+			warn("socket(PF_IPX, SOCK_SEQPACKET, 0)");
+		else {
+			maybe_sleep(delay);
+			close(s);
+		}
 
-	s = socket(PF_IPX, SOCK_RAW, 0);
-	if (s < 0)
-		warn("socket(PF_IPX, SOCK_RAW, 0)");
-	else
-		close(s);
+		s = socket(PF_IPX, SOCK_RAW, 0);
+		if (s < 0)
+			warn("socket(PF_IPX, SOCK_RAW, 0)");
+		else {
+			maybe_sleep(delay);
+			close(s);
+		}
+	}
 
 	return (0);
 }
