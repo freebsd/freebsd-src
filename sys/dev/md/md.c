@@ -120,6 +120,8 @@ static g_init_t g_md_init;
 static g_fini_t g_md_fini;
 static g_start_t g_md_start;
 static g_access_t g_md_access;
+static void g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
+    struct g_consumer *cp __unused, struct g_provider *pp);
 
 static int	mdunits;
 static struct cdev *status_dev = 0;
@@ -140,6 +142,7 @@ struct g_class g_md_class = {
 	.fini = g_md_fini,
 	.start = g_md_start,
 	.access = g_md_access,
+	.dumpconf = g_md_dumpconf,
 };
 
 DECLARE_GEOM_CLASS(g_md_class, g_md);
@@ -1175,6 +1178,65 @@ g_md_init(struct g_class *mp __unused)
 	status_dev = make_dev(&mdctl_cdevsw, MAXMINOR, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
 	g_topology_lock();
+}
+
+static void
+g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
+    struct g_consumer *cp __unused, struct g_provider *pp)
+{
+	struct md_s *mp;
+	char *type;
+
+	mp = gp->softc;
+	if (mp == NULL)
+		return;
+
+	switch (mp->type) {
+	case MD_MALLOC:
+		type = "malloc";
+		break;
+	case MD_PRELOAD:
+		type = "preload";
+		break;
+	case MD_VNODE:
+		type = "vnode";
+		break;
+	case MD_SWAP:
+		type = "swap";
+		break;
+	default:
+		type = "unknown";
+		break;
+	}
+
+	if (pp != NULL) {
+		if (indent == NULL) {
+			sbuf_printf(sb, " u %d", mp->unit);
+			sbuf_printf(sb, " s %ju", (uintmax_t) mp->sectorsize);
+			sbuf_printf(sb, " f %ju", (uintmax_t) mp->fwheads);
+			sbuf_printf(sb, " fs %ju", (uintmax_t) mp->fwsectors);
+			sbuf_printf(sb, " l %ju", (uintmax_t) mp->mediasize);
+			sbuf_printf(sb, " t %s", type);
+			if (mp->type == MD_VNODE && mp->vnode != NULL)
+				sbuf_printf(sb, " file %s", mp->file);
+		} else {
+			sbuf_printf(sb, "%s<unit>%d</unit>\n", indent,
+			    mp->unit);
+			sbuf_printf(sb, "%s<sectorsize>%ju</sectorsize>\n",
+			    indent, (uintmax_t) mp->sectorsize);
+			sbuf_printf(sb, "%s<fwheads>%ju</fwheads>\n",
+			    indent, (uintmax_t) mp->fwheads);
+			sbuf_printf(sb, "%s<fwsectors>%ju</fwsectors>\n",
+			    indent, (uintmax_t) mp->fwsectors);
+			sbuf_printf(sb, "%s<length>%ju</length>\n",
+			    indent, (uintmax_t) mp->mediasize);
+			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
+			    type);
+			if (mp->type == MD_VNODE && mp->vnode != NULL)
+				sbuf_printf(sb, "%s<file>%s</file>\n",
+				    indent, mp->file);
+		}
+	}
 }
 
 static void
