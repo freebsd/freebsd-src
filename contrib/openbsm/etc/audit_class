@@ -1,5 +1,6 @@
 #
 # $P4: //depot/projects/trustedbsd/openbsm/etc/audit_class#4 $
+# $FreeBSD$
 #
 # This file must match audit.h
 #
