@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Joseph Koshy
+ * Copyright (c) 2005-2006, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,14 +93,17 @@ struct pmcstat_ev {
 struct pmcstat_args {
 	int	pa_flags;		/* argument flags */
 	int	pa_required;		/* required features */
+	int	pa_verbosity;		/* verbosity level */
 	pid_t	pa_pid;			/* attached to pid */
 	FILE	*pa_printfile;		/* where to send printed output */
 	int	pa_logfd;		/* output log file */
 	char	*pa_inputpath;		/* path to input log */
 	char	*pa_outputpath;		/* path to output log */
 	void	*pa_logparser;		/* log file parser */
-	const char	*pa_kernel;	/* pathname of the kernel */
+	const char	*pa_fsroot;	/* FS root where executables reside */
+	char	*pa_kernel;		/* pathname of the kernel */
 	const char	*pa_samplesdir;	/* directory for profile files */
+	const char	*pa_mapfilename;/* mapfile name */
 	double	pa_interval;		/* printing interval in seconds */
 	int	pa_argc;
 	char	**pa_argv;
@@ -111,17 +114,15 @@ struct pmcstat_args {
 void	pmcstat_cleanup(struct pmcstat_args *_a);
 int	pmcstat_close_log(struct pmcstat_args *_a);
 void	pmcstat_initialize_logging(struct pmcstat_args *_a);
-int	pmcstat_open(const char *_p, int _mode);
+int	pmcstat_open_log(const char *_p, int _mode);
 void	pmcstat_print_counters(struct pmcstat_args *_a);
 void	pmcstat_print_headers(struct pmcstat_args *_a);
 void	pmcstat_print_pmcs(struct pmcstat_args *_a);
 void	pmcstat_setup_process(struct pmcstat_args *_a);
 void	pmcstat_show_usage(void);
-void	pmcstat_shutdown_logging(void);
+void	pmcstat_shutdown_logging(struct pmcstat_args *_a);
 void	pmcstat_start_pmcs(struct pmcstat_args *_a);
 void	pmcstat_start_process(struct pmcstat_args *_a);
 int	pmcstat_process_log(struct pmcstat_args *_a);
-int	pmcstat_print_log(struct pmcstat_args *_a);
-int	pmcstat_convert_log(struct pmcstat_args *_a);
 
 #endif	/* _PMCSTAT_H_ */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005, Joseph Koshy
+ * Copyright (c) 2003-2006, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,10 +43,24 @@
 #define	PMC_FN_CSW_IN			2
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
+#define	PMC_FN_KLD_LOAD			5
+#define	PMC_FN_KLD_UNLOAD		6
+#define	PMC_FN_MMAP			7
+#define	PMC_FN_MUNMAP			8
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
-	uintptr_t	pm_entryaddr;
+	uintfptr_t	pm_entryaddr;
+};
+
+struct pmckern_map_in {
+	void		*pm_file;	/* filename or vnode pointer */
+	uintfptr_t	pm_address;	/* address object is loaded at */
+};
+
+struct pmckern_map_out {
+	uintfptr_t	pm_address;	/* start address of region */
+	size_t		pm_size;	/* size of unmapped region */
 };
 
 /* hook */

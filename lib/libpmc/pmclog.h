@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Joseph Koshy
+ * Copyright (c) 2005-2006 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,12 +49,16 @@ struct pmclog_ev_initialize {
 	uint32_t	pl_arch;
 };
 
-struct pmclog_ev_mappingchange {
-	uint32_t	pl_type;
+struct pmclog_ev_map_in {
+	pid_t		pl_pid;
+	uintfptr_t	pl_start;
+	char		pl_pathname[PATH_MAX];
+};
+
+struct pmclog_ev_map_out {
 	pid_t		pl_pid;
 	uintfptr_t	pl_start;
 	uintfptr_t	pl_end;
-	char		pl_pathname[PATH_MAX];
 };
 
 struct pmclog_ev_pcsample {
@@ -124,7 +128,8 @@ struct pmclog_ev {
 		struct pmclog_ev_closelog	pl_cl;
 		struct pmclog_ev_dropnotify	pl_dn;
 		struct pmclog_ev_initialize	pl_i;
-		struct pmclog_ev_mappingchange	pl_m;
+		struct pmclog_ev_map_in		pl_mi;
+		struct pmclog_ev_map_out	pl_mo;
 		struct pmclog_ev_pcsample	pl_s;
 		struct pmclog_ev_pmcallocate	pl_a;
 		struct pmclog_ev_pmcattach	pl_t;

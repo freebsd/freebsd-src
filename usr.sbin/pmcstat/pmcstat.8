@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2003-2006 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2005
+.Dd March 26, 2006
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
@@ -34,6 +34,7 @@
 .Op Fl C
 .Op Fl D Ar pathname
 .Op Fl E
+.Op Fl M Ar mapfilename
 .Op Fl O Ar logfilename
 .Op Fl P Ar event-spec
 .Op Fl R Ar logfilename
@@ -42,12 +43,15 @@
 .Op Fl c Ar cpu
 .Op Fl d
 .Op Fl g
-.Op Fl k Ar kernelfile
+.Op Fl k Ar kerneldir
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
 .Op Fl p Ar event-spec
+.Op Fl q
+.Op Fl r Ar fsroot
 .Op Fl s Ar event-spec
 .Op Fl t Ar pid
+.Op Fl v
 .Op Fl w Ar secs
 .Op Ar command Op Ar args
 .Sh DESCRIPTION
@@ -116,6 +120,21 @@ complex pipeline of processes when used in conjunction with the
 .Fl d
 option.
 The default is to not to enable per-process tracking.
+.It Fl M Ar mapfilename
+Write the mapping between executable objects encountered in the event
+log and the abbreviated pathnames used for
+.Xr gprof 1
+profiles to file
+.Ar mapfilename .
+If this option is not specified, mapping information is not written.
+Argument
+.Ar mapfilename
+may be a
+.Dq Li -
+in which case this mapping information is sent to the output
+file configured by the
+.Fl o
+option.
 .It Fl O Ar logfilename
 Send logging output to file
 .Ar logfilename .
@@ -159,11 +178,14 @@ A separate profile file is generated for each executable object
 encountered.
 Profile files are placed in sub-directories named by their PMC
 event name.
-.It Fl k Ar kernelfile
-Set the pathname of the kernel to argument
-.Ar kernelfile .
+.It Fl k Ar kerneldir
+Set the pathname of the kernel directory to argument
+.Ar kerneldir .
+This directory specifies where
+.Nm
+should look for the kernel and its modules.
 The default is
-.Pa /boot/kernel/kernel .
+.Pa /boot/kernel .
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
 PMCs specified on the command line.
@@ -179,6 +201,14 @@ The default is to send output to
 Allocate a process mode counting PMC measuring hardware events
 specified in
 .Ar event-spec .
+.It Fl q
+Decrease verbosity.
+.It Fl r Ar fsroot
+Set the top of the filesystem hierarchy under which executables
+are located to argument
+.Ar fsroot .
+The default is
+.Pa / .
 .It Fl s Ar event-spec
 Allocate a system mode counting PMC measuring hardware events
 specified in
@@ -189,6 +219,8 @@ Attach all process mode PMCs allocated to the process with PID
 The option is not allowed in conjunction with specifying a
 command using
 .Ar command .
+.It Fl v
+Increase verbosity.
 .It Fl w Ar secs
 Print the values of all counting mode PMCs every
 .Ar secs

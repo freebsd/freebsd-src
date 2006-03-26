@@ -44,6 +44,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -78,6 +79,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -201,6 +206,9 @@ mmap(td, uap)
 	struct thread *td;
 	struct mmap_args *uap;
 {
+#ifdef HWPMC_HOOKS
+	struct pmckern_map_in pkm;
+#endif
 	struct file *fp;
 	struct vnode *vp;
 	vm_offset_t addr;
@@ -364,6 +372,15 @@ mmap(td, uap)
 
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle_type, handle, pos);
+#ifdef HWPMC_HOOKS
+	/* inform hwpmc(4) if an executable is being mapped */
+	if (error == 0 && handle_type == OBJT_VNODE &&
+	    (prot & PROT_EXEC)) {
+		pkm.pm_file = handle;
+		pkm.pm_address = (uintptr_t) addr;
+		PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+	}
+#endif
 	if (error == 0)
 		td->td_retval[0] = (register_t) (addr + pageoff);
 done:
@@ -495,6 +512,10 @@ munmap(td, uap)
 	struct thread *td;
 	struct munmap_args *uap;
 {
+#ifdef HWPMC_HOOKS
+	struct pmckern_map_out pkm;
+	vm_map_entry_t entry;
+#endif
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
 	vm_map_t map;
@@ -525,6 +546,26 @@ munmap(td, uap)
 		vm_map_unlock(map);
 		return (EINVAL);
 	}
+#ifdef HWPMC_HOOKS
+	/*
+	 * Inform hwpmc if the address range being unmapped contains
+	 * an executable region.
+	 */
+	if (vm_map_lookup_entry(map, addr, &entry)) {
+		for (;
+		     entry != &map->header && entry->start < addr + size;
+		     entry = entry->next) {
+			if (vm_map_check_protection(map, entry->start,
+				entry->end, VM_PROT_EXECUTE) == TRUE) {
+				pkm.pm_address = (uintptr_t) addr;
+				pkm.pm_size = (size_t) size;
+				PMC_CALL_HOOK(td, PMC_FN_MUNMAP,
+				    (void *) &pkm);
+				break;
+			}
+		}
+	}
+#endif
 	/* returns nothing but KERN_SUCCESS anyway */
 	vm_map_delete(map, addr, addr + size);
 	vm_map_unlock(map);
