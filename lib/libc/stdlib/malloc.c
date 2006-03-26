@@ -3200,8 +3200,22 @@ malloc_init_hard(void)
 
 	/* Determine how many arenas to use. */
 	narenas = ncpus;
-	if (opt_narenas_lshift > 0)
-		narenas <<= opt_narenas_lshift;
+	if (opt_narenas_lshift > 0) {
+		if ((narenas << opt_narenas_lshift) > narenas)
+			narenas <<= opt_narenas_lshift;
+		/*
+		 * Make sure not to exceed the limits of what base_malloc()
+		 * can handle.
+		 */
+		if (narenas * sizeof(arena_t *) > chunk_size)
+			narenas = chunk_size / sizeof(arena_t *);
+	} else if (opt_narenas_lshift < 0) {
+		if ((narenas << opt_narenas_lshift) < narenas)
+			narenas <<= opt_narenas_lshift;
+		/* Make sure there is at least one arena. */
+		if (narenas == 0)
+			narenas = 1;
+	}
 
 #ifdef NO_TLS
 	if (narenas > 1) {
