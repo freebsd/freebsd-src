@@ -1340,7 +1340,7 @@ spx_accept(struct socket *so, struct sockaddr **nam)
 	struct sockaddr_ipx *sipx, ssipx;
 
 	ipxp = sotoipxpcb(so);
-	KASSERT(ipxp == NULL, ("spx_accept: ipxp == NULL"));
+	KASSERT(ipxp != NULL, ("spx_accept: ipxp == NULL"));
 
 	sipx = &ssipx;
 	bzero(sipx, sizeof *sipx);
