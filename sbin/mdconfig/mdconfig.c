@@ -10,30 +10,47 @@
  *
  */
 #include <sys/param.h>
+#include <sys/devicestat.h>
 #include <sys/ioctl.h>
 #include <sys/linker.h>
 #include <sys/mdioctl.h>
 #include <sys/module.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 
 #include <assert.h>
+#include <devstat.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libgeom.h>
 #include <libutil.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-static int	 list(const int);
-static int	 query(const int, const int);
-static void	 usage(void);
 
 static struct md_ioctl mdio;
 static enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 static int nflag;
+
+static void usage(void);
+static int md_find(char *, const char *);
+static int md_query(char *name);
+static int md_list(char *units, int opt);
+static char *geom_config_get(struct gconf *g, char *name);
+static void geom_config_dump(struct gconf *g);
+static void md_prthumanval(char *length);
+
+#define OPT_VERBOSE	0x01
+#define OPT_UNIT	0x02
+#define OPT_DONE	0x04
+#define OPT_LIST	0x10
+
+#define CLASS_NAME_MD	"MD"
 
 static void
 usage()
@@ -58,6 +75,7 @@ main(int argc, char **argv)
 	int ch, fd, i;
 	char *p;
 	int cmdline = 0;
+	char *mdunit;
 
 	bzero(&mdio, sizeof(mdio));
 	mdio.md_file = malloc(PATH_MAX);
@@ -195,13 +213,7 @@ main(int argc, char **argv)
 		case 'u':
 			if (cmdline != 2 && cmdline != 3)
 				usage();
-			if (!strncmp(optarg, "/dev/", 5))
-				optarg += 5;
-			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
-				optarg += sizeof(MD_NAME) - 1;
-			mdio.md_unit = strtoul(optarg, &p, 0);
-			if (mdio.md_unit == (unsigned)ULONG_MAX || *p != '\0')
-				errx(1, "bad unit: %s", optarg);
+			mdunit = optarg;
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
 		case 'x':
@@ -244,10 +256,15 @@ main(int argc, char **argv)
 		}
 	}
 	if (action == LIST) {
-		if (mdio.md_options & MD_AUTOUNIT)
-			list(fd);
-		else
-			query(fd, mdio.md_unit);
+		if (mdio.md_options & MD_AUTOUNIT) {
+			/* 
+			 * Listing all devices. This is why we pass NULL
+			 * together with OPT_LIST.
+			 */
+			md_list(NULL, OPT_LIST);
+		} else {
+			md_query(mdunit);
+		}
 	} else if (action == ATTACH) {
 		if (cmdline < 2)
 			usage();
@@ -268,73 +285,149 @@ main(int argc, char **argv)
 	return (0);
 }
 
+/*
+ * Lists md(4) disks. Is used also as a query routine, since it handles XML
+ * interface. 'units' can be NULL for listing memory disks. It might be
+ * coma-separated string containing md(4) disk names. 'opt' distinguished
+ * between list and query mode.
+ */
 static int
-mdunitcmp(const void *a, const void *b)
+md_list(char *units, int opt)
 {
-	return (*(int *)a - *(int *)b);
+	struct gmesh gm;
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	struct gconf *gc;
+	struct gconfig *gce;
+	struct gident *gid;
+	struct devstat *gsp, *gsq;
+	struct ggeom *gg;
+	struct gclass *gcl;
+	void *sq;
+	int retcode;
+	signed int ch;
+	int nl;
+	char *type, *file, *length;
+
+	type = file = length = NULL;
+
+	retcode = geom_gettree(&gm);
+	if (retcode != 0)
+		return (-1);
+	retcode = geom_stats_open();
+	if (retcode != 0)
+		return (-1);
+	sq = geom_stats_snapshot_get();
+	if (sq == NULL)
+		return (-1);
+
+	while ((gsp = geom_stats_snapshot_next(sq)) != NULL) {
+		gid = geom_lookupid(&gm, gsp->id);
+		if (gid == NULL)
+			continue;
+		if (gid->lg_what == ISPROVIDER) {
+			pp = gid->lg_ptr;
+			gg = pp->lg_geom;
+			gcl = gg->lg_class;
+			if (strcmp(gcl->lg_name, CLASS_NAME_MD) != 0)
+				continue;
+			if ((opt & OPT_UNIT) && (units != NULL)) {
+				retcode = md_find(units, pp->lg_name);
+				if (retcode != 1)
+					continue;
+			}
+			gc = &pp->lg_config;
+			printf("%s", pp->lg_name);
+			if (opt & OPT_VERBOSE || opt & OPT_UNIT) {
+				type = geom_config_get(gc, "type");
+				if (strcmp(type, "vnode") == 0)
+					file = geom_config_get(gc, "file");
+				length = geom_config_get(gc, "length");
+				if (length == NULL)
+					length = "<a>";
+				printf("\t%s\t", type);
+				md_prthumanval(length);
+				if (file != NULL) {
+					printf("\t%s", file);
+					file = NULL;
+				}
+			}
+			opt |= OPT_DONE;
+			if (opt & OPT_LIST)
+				printf(" ");
+			else
+				printf("\n");
+		}
+	}
+	if ((opt & OPT_LIST) && (opt & OPT_DONE))
+		printf("\n");
+	/* XXX: Check if it's enough to clean everything. */
+	geom_stats_snapshot_free(sq);
+	return (-1);
 }
 
-static int
-list(const int fd)
+/*
+ * Returns value of 'name' from gconfig structure.
+ */
+static char *
+geom_config_get(struct gconf *g, char *name)
 {
-	int unit;
-	int mdcount;
+	struct gconfig *gce;
 
-	if (ioctl(fd, MDIOCLIST, &mdio) < 0)
-		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
-	mdcount = mdio.md_pad[0];
-	assert(mdcount < MDNPAD - 1);
-	if (mdcount > 0)
-		qsort(&mdio.md_pad[1], mdcount, sizeof(mdio.md_pad[0]), mdunitcmp);
-	for (unit = 0; unit < mdcount; unit++) {
-		printf("%s%s%d", unit > 0 ? " " : "",
-		    nflag ? "" : MD_NAME, mdio.md_pad[unit + 1]);
+	LIST_FOREACH(gce, g, lg_config) {
+		if (strcmp(gce->lg_name, name) == 0)
+			return (gce->lg_val);
 	}
-	if (unit > 0)
-		printf("\n");
-	return (0);
+	return (NULL);
+}
+
+/*
+ * List is comma separated list of MD disks. name is a
+ * device name we look for.  Returns 1 if found and 0
+ * otherwise.
+ */
+static int
+md_find(char *list, const char *name)
+{
+	int ret;
+	char num[16];
+	char *ptr, *p, *u;
+
+	ret = 0;
+	ptr = strdup(list);
+	if (ptr == NULL)
+		return (-1);
+	for (p = ptr; (u = strsep(&p, ",")) != NULL;) {
+		if (strncmp(u, "/dev/", 5) == 0)
+			u += 5;
+		/* Just in case user specified number instead of full name */
+		snprintf(num, sizeof(num), "md%s", u);
+		if (strcmp(u, name) == 0 || strcmp(num, name) == 0) {
+			ret = 1;
+			break;
+		}
+	}
+	free(ptr);
+	return (ret);
 }
 
 static void
-prthumanval(int64_t bytes)
+md_prthumanval(char *length)
 {
 	char buf[6];
+	uint64_t bytes;
+	char *endptr;
 
+	bytes = strtoul(length, &endptr, 10);
+	if (bytes == (unsigned)ULONG_MAX || *endptr != '\0')
+		return;
 	humanize_number(buf, sizeof(buf) - (bytes < 0 ? 0 : 1),
 	    bytes, "", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 	(void)printf("%6s", buf);
 }
 
-static int
-query(const int fd, const int unit)
+int
+md_query(char *name)
 {
-
-	mdio.md_version = MDIOVERSION;
-	mdio.md_unit = unit;
-
-	if (ioctl(fd, MDIOCQUERY, &mdio) < 0)
-		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
-
-	(void)printf("%s%d\t", MD_NAME, mdio.md_unit);
-	switch (mdio.md_type) {
-	case MD_MALLOC:
-		(void)printf("malloc");
-		break;
-	case MD_PRELOAD:
-		(void)printf("preload");
-		break;
-	case MD_SWAP:
-		(void)printf("swap");
-		break;
-	case MD_VNODE:
-		(void)printf("vnode");
-		break;
-	}
-	printf("\t");
-	prthumanval(mdio.md_mediasize);
-	if (mdio.md_type == MD_VNODE)
-		printf("\t%s", mdio.md_file);
-	printf("\n");
-
-	return (0);
+	return (md_list(name, OPT_UNIT));
 }
