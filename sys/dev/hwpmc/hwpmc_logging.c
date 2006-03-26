@@ -137,10 +137,11 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 
 CTASSERT(sizeof(struct pmclog_closelog) == 3*4);
 CTASSERT(sizeof(struct pmclog_dropnotify) == 3*4);
-CTASSERT(sizeof(struct pmclog_mappingchange) == PATH_MAX +
-    5*4 + 2*sizeof(uintfptr_t));
-CTASSERT(offsetof(struct pmclog_mappingchange,pl_pathname) ==
-    5*4 + 2*sizeof(uintfptr_t));
+CTASSERT(sizeof(struct pmclog_map_in) == PATH_MAX +
+    4*4 + sizeof(uintfptr_t));
+CTASSERT(offsetof(struct pmclog_map_in,pl_pathname) ==
+    4*4 + sizeof(uintfptr_t));
+CTASSERT(sizeof(struct pmclog_map_out) == 4*4 + 2*sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_pcsample) == 6*4 + sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_pmcallocate) == 6*4);
 CTASSERT(sizeof(struct pmclog_pmcattach) == 5*4 + PATH_MAX);
@@ -728,24 +729,36 @@ pmclog_process_dropnotify(struct pmc_owner *po)
 }
 
 void
-pmclog_process_mappingchange(struct pmc_owner *po, pid_t pid, int type,
-    uintfptr_t start, uintfptr_t end, char *path)
+pmclog_process_map_in(struct pmc_owner *po, pid_t pid, uintfptr_t start,
+    const char *path)
 {
 	int pathlen, recordlen;
 
+	KASSERT(path != NULL, ("[pmclog,%d] map-in, null path", __LINE__));
+
 	pathlen = strlen(path) + 1;	/* #bytes for path name */
-	recordlen = offsetof(struct pmclog_mappingchange, pl_pathname) +
+	recordlen = offsetof(struct pmclog_map_in, pl_pathname) +
 	    pathlen;
 
-	PMCLOG_RESERVE(po,MAPPINGCHANGE,recordlen);
-	PMCLOG_EMIT32(type);
-	PMCLOG_EMITADDR(start);
-	PMCLOG_EMITADDR(end);
+	PMCLOG_RESERVE(po, MAP_IN, recordlen);
 	PMCLOG_EMIT32(pid);
+	PMCLOG_EMITADDR(start);
 	PMCLOG_EMITSTRING(path,pathlen);
 	PMCLOG_DESPATCH(po);
 }
 
+void
+pmclog_process_map_out(struct pmc_owner *po, pid_t pid, uintfptr_t start,
+    uintfptr_t end)
+{
+	KASSERT(start <= end, ("[pmclog,%d] start > end", __LINE__));
+
+	PMCLOG_RESERVE(po, MAP_OUT, sizeof(struct pmclog_map_out));
+	PMCLOG_EMIT32(pid);
+	PMCLOG_EMITADDR(start);
+	PMCLOG_EMITADDR(end);
+	PMCLOG_DESPATCH(po);
+}
 
 void
 pmclog_process_pcsample(struct pmc *pm, struct pmc_sample *ps)

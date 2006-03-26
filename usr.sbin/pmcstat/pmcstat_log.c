@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Joseph Koshy
+ * Copyright (c) 2005-2006, Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,26 +24,13 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Transform a hwpmc(4) log into human readable form, and into
+ * gprof(1) compatible profiles.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-/*
- * Transform a hwpmc(4) log into human readable form and into gprof(1)
- * compatible profiles.
- *
- * Each executable object encountered in the log gets one 'gmon.out'
- * profile per PMC.  We currently track:
- * 	- program executables
- *	- shared libraries loaded by the runtime loader
- *	- the runtime loader itself
- *	- the kernel.
- * We do not track shared objects mapped in by dlopen() yet (this
- * needs additional support from hwpmc(4)).
- *
- * 'gmon.out' profiles generated for a given sampling PMC are
- * aggregates of all the samples for that particular executable
- * object.
- */
 
 #include <sys/param.h>
 #include <sys/endian.h>
@@ -78,19 +65,47 @@ __FBSDID("$FreeBSD$");
 #define	max(A,B)		((A) > (B) ? (A) : (B))
 
 /*
- * A simple implementation of interned strings.  Each interned string
- * is assigned a unique address, so that subsequent string compares
- * can be done by a simple pointer comparision instead of with
- * strcmp().
+ * PUBLIC INTERFACES
+ *
+ * pmcstat_initialize_logging()	initialize this module, called first
+ * pmcstat_shutdown_logging()		orderly shutdown, called last
+ * pmcstat_open_log()			open an eventlog for processing
+ * pmcstat_process_log()		print/convert an event log
+ * pmcstat_close_log()			finish processing an event log
+ *
+ * IMPLEMENTATION OF GMON OUTPUT
+ *
+ * We correlate each 'sample' seen in the event log back to an
+ * executable object in the system. Executable objects include:
+ * 	- program executables,
+ *	- shared libraries loaded by the runtime loader,
+ *	- dlopen()'ed objects loaded by the program,
+ *	- the runtime loader itself,
+ *	- the kernel and kernel modules.
+ *
+ * Each such executable object gets one 'gmon.out' profile, per PMC in
+ * use.  Creation of 'gmon.out' profiles is done lazily.  The
+ * 'gmon.out' profiles generated for a given sampling PMC are
+ * aggregates of all the samples for that particular executable
+ * object.
+ *
+ * Each process that we know about is treated as a set of regions that
+ * map to executable objects.  Processes are described by
+ * 'pmcstat_process' structures.  Executable objects are tracked by
+ * 'pmcstat_image' structures.  The kernel and kernel modules are
+ * common to all processes (they reside at the same virtual addresses
+ * for all processes).  Individual processes can have their text
+ * segments and shared libraries loaded at process-specific locations.
+ *
+ * A given executable object can be in use by multiple processes
+ * (e.g., libc.so) and loaded at a different address in each.
+ * pmcstat_pcmap structures track per-image mappings.
+ *
+ * The sample log could have samples from multiple PMCs; we
+ * generate one 'gmon.out' profile per PMC.
  */
-struct pmcstat_string {
-	LIST_ENTRY(pmcstat_string)	ps_next;	/* hash link */
-	int		ps_len;
-	int		ps_hash;
-	const char	*ps_string;
-};
 
-static LIST_HEAD(,pmcstat_string)	pmcstat_string_hash[PMCSTAT_NHASH];
+typedef const void *pmcstat_interned_string;
 
 /*
  * 'pmcstat_pmcrecord' is a mapping from PMC ids to human-readable
@@ -99,8 +114,8 @@ static LIST_HEAD(,pmcstat_string)	pmcstat_string_hash[PMCSTAT_NHASH];
 
 struct pmcstat_pmcrecord {
 	LIST_ENTRY(pmcstat_pmcrecord)	pr_next;
-	pmc_id_t	pr_pmcid;
-	const char 	*pr_pmcname;
+	pmc_id_t			pr_pmcid;
+	pmcstat_interned_string	pr_pmcname;
 };
 
 static LIST_HEAD(,pmcstat_pmcrecord)	pmcstat_pmcs =
@@ -114,19 +129,17 @@ static LIST_HEAD(,pmcstat_pmcrecord)	pmcstat_pmcs =
 
 struct pmcstat_gmonfile {
 	LIST_ENTRY(pmcstat_gmonfile)	pgf_next; /* list of entries */
+	int		pgf_overflow;	/* whether a count overflowed */
 	pmc_id_t	pgf_pmcid;	/* id of the associated pmc */
 	size_t		pgf_nbuckets;	/* #buckets in this gmon.out */
-	const char	*pgf_name;	/* pathname of gmon.out file */
+	pmcstat_interned_string pgf_name;	/* pathname of gmon.out file */
 	size_t		pgf_ndatabytes;	/* number of bytes mapped */
 	void		*pgf_gmondata;	/* pointer to mmap'ed data */
 };
 
-static TAILQ_HEAD(,pmcstat_gmonfile)	pmcstat_gmonfiles =
-	TAILQ_HEAD_INITIALIZER(pmcstat_gmonfiles);
-
 /*
  * A 'pmcstat_image' structure describes an executable program on
- * disk.  'pi_internedpath' is a cookie representing the pathname of
+ * disk.  'pi_execpath' is a cookie representing the pathname of
  * the executable.  'pi_start' and 'pi_end' are the least and greatest
  * virtual addresses for the text segments in the executable.
  * 'pi_gmonlist' contains a linked list of gmon.out files associated
@@ -134,31 +147,52 @@ static TAILQ_HEAD(,pmcstat_gmonfile)	pmcstat_gmonfiles =
  */
 
 enum pmcstat_image_type {
-	PMCSTAT_IMAGE_UNKNOWN = 0,
-	PMCSTAT_IMAGE_ELF,
-	PMCSTAT_IMAGE_AOUT
+	PMCSTAT_IMAGE_UNKNOWN = 0,	/* never looked at the image */
+	PMCSTAT_IMAGE_INDETERMINABLE,	/* can't tell what the image is */
+	PMCSTAT_IMAGE_ELF32,		/* ELF 32 bit object */
+	PMCSTAT_IMAGE_ELF64,		/* ELF 64 bit object */
+	PMCSTAT_IMAGE_AOUT		/* AOUT object */
 };
 
 struct pmcstat_image {
 	LIST_ENTRY(pmcstat_image) pi_next;	/* hash link */
 	TAILQ_ENTRY(pmcstat_image) pi_lru;	/* LRU list */
-	const char	*pi_internedpath;	/* cookie */
-	const char	*pi_samplename;		/* sample path name */
+	pmcstat_interned_string	pi_execpath;/* cookie */
+	pmcstat_interned_string pi_samplename;  /* sample path name */
 
 	enum pmcstat_image_type pi_type;	/* executable type */
+
+	/*
+	 * Executables have pi_start and pi_end; these are zero
+	 * for shared libraries.
+	 */
 	uintfptr_t	pi_start;		/* start address (inclusive) */
 	uintfptr_t	pi_end;			/* end address (exclusive) */
 	uintfptr_t	pi_entry;		/* entry address */
-	int		pi_isdynamic;		/* whether a dynamic object */
-	const char	*pi_dynlinkerpath;	/* path in .interp section */
+	uintfptr_t	pi_vaddr;		/* virtual address where loaded */
+	int		pi_isdynamic;		/* whether a dynamic
+						 * object */
+	int		pi_iskernelmodule;
+	pmcstat_interned_string pi_dynlinkerpath; /* path in .interp */
 
+	/*
+	 * An image can be associated with one or more gmon.out files;
+	 * one per PMC.
+	 */
 	LIST_HEAD(,pmcstat_gmonfile) pi_gmlist;
 };
 
+/*
+ * All image descriptors are kept in a hash table.
+ */
 static LIST_HEAD(,pmcstat_image)	pmcstat_image_hash[PMCSTAT_NHASH];
 static TAILQ_HEAD(,pmcstat_image)	pmcstat_image_lru =
 	TAILQ_HEAD_INITIALIZER(pmcstat_image_lru);
 
+/*
+ * A 'pmcstat_pcmap' structure maps a virtual address range to an
+ * underlying 'pmcstat_image' descriptor.
+ */
 struct pmcstat_pcmap {
 	TAILQ_ENTRY(pmcstat_pcmap) ppm_next;
 	uintfptr_t	ppm_lowpc;
@@ -167,7 +201,15 @@ struct pmcstat_pcmap {
 };
 
 /*
- * A 'pmcstat_process' structure tracks processes.
+ * A 'pmcstat_process' structure models processes.  Each process is
+ * associated with a set of pmcstat_pcmap structures that map
+ * addresses inside it to executable objects.  This set is implemented
+ * as a list, kept sorted in ascending order of mapped addresses.
+ *
+ * 'pp_pid' holds the pid of the process.  When a process exits, the
+ * 'pp_isactive' field is set to zero, but the process structure is
+ * not immediately reclaimed because there may still be samples in the
+ * log for this process.
  */
 
 struct pmcstat_process {
@@ -178,9 +220,25 @@ struct pmcstat_process {
 	TAILQ_HEAD(,pmcstat_pcmap) pp_map;	/* address range map */
 };
 
+#define	PMCSTAT_ALLOCATE		1
+
+/*
+ * All process descriptors are kept in a hash table.
+ */
 static LIST_HEAD(,pmcstat_process) pmcstat_process_hash[PMCSTAT_NHASH];
 
 static struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
+
+/* Misc. statistics */
+static struct pmcstat_stats {
+	int ps_exec_aout;	/* # a.out executables seen */
+	int ps_exec_elf;	/* # elf executables seen */
+	int ps_exec_errors;	/* # errors processing executables */
+	int ps_exec_indeterminable; /* # unknown executables seen */
+	int ps_samples_total;	/* total number of samples processed */
+	int ps_samples_unknown_offset;	/* #samples not in any map */
+	int ps_samples_indeterminable;	/* #samples in indeterminable images */
+} pmcstat_stats;
 
 /*
  * Prototypes
@@ -188,35 +246,174 @@ static struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
 
 static void	pmcstat_gmon_create_file(struct pmcstat_gmonfile *_pgf,
     struct pmcstat_image *_image);
-static const char *pmcstat_gmon_create_name(const char *_sd,
+static pmcstat_interned_string pmcstat_gmon_create_name(const char *_sd,
     struct pmcstat_image *_img, pmc_id_t _pmcid);
 static void	pmcstat_gmon_map_file(struct pmcstat_gmonfile *_pgf);
 static void	pmcstat_gmon_unmap_file(struct pmcstat_gmonfile *_pgf);
 
-static struct pmcstat_image *pmcstat_image_from_path(const char *_path);
-static enum pmcstat_image_type pmcstat_image_get_type(const char *_p);
-static void pmcstat_image_get_elf_params(struct pmcstat_image *_image);
+static void pmcstat_image_determine_type(struct pmcstat_image *_image,
+    struct pmcstat_args *_a);
+static struct pmcstat_image *pmcstat_image_from_path(pmcstat_interned_string
+    _path, int _iskernelmodule);
+static void pmcstat_image_get_aout_params(struct pmcstat_image *_image,
+    struct pmcstat_args *_a);
+static void pmcstat_image_get_elf_params(struct pmcstat_image *_image,
+    struct pmcstat_args *_a);
 static void	pmcstat_image_increment_bucket(struct pmcstat_pcmap *_pcm,
     uintfptr_t _pc, pmc_id_t _pmcid, struct pmcstat_args *_a);
 static void	pmcstat_image_link(struct pmcstat_process *_pp,
-    struct pmcstat_image *_i, uintfptr_t _lpc, uintfptr_t _hpc);
+    struct pmcstat_image *_i, uintfptr_t _lpc);
 
-static void	pmcstat_pmcid_add(pmc_id_t _pmcid, const char *_name,
-    struct pmcstat_args *_a);
+static void	pmcstat_pmcid_add(pmc_id_t _pmcid,
+    pmcstat_interned_string _name, struct pmcstat_args *_a);
 static const char *pmcstat_pmcid_to_name(pmc_id_t _pmcid);
 
-static void	pmcstat_process_add_elf_image(struct pmcstat_process *_pp,
-    const char *_path, uintfptr_t _entryaddr);
+static void	pmcstat_process_aout_exec(struct pmcstat_process *_pp,
+    struct pmcstat_image *_image, uintfptr_t _entryaddr,
+    struct pmcstat_args *_a);
+static void	pmcstat_process_elf_exec(struct pmcstat_process *_pp,
+    struct pmcstat_image *_image, uintfptr_t _entryaddr,
+    struct pmcstat_args *_a);
 static void	pmcstat_process_exec(struct pmcstat_process *_pp,
-    const char *_path, uintfptr_t _entryaddr);
-static struct pmcstat_process *pmcstat_process_lookup(pid_t _pid, int _allocate);
+    pmcstat_interned_string _path, uintfptr_t _entryaddr,
+    struct pmcstat_args *_ao);
+static struct pmcstat_process *pmcstat_process_lookup(pid_t _pid,
+    int _allocate);
 static struct pmcstat_pcmap *pmcstat_process_find_map(
     struct pmcstat_process *_p, uintfptr_t _pc);
 
 static int	pmcstat_string_compute_hash(const char *_string);
-static const char *pmcstat_string_intern(const char *_s);
-static struct pmcstat_string *pmcstat_string_lookup(const char *_s);
+static void pmcstat_string_initialize(void);
+static pmcstat_interned_string pmcstat_string_intern(const char *_s);
+static pmcstat_interned_string pmcstat_string_lookup(const char *_s);
+static int	pmcstat_string_lookup_hash(pmcstat_interned_string _is);
+static void pmcstat_string_shutdown(void);
+static const char *pmcstat_string_unintern(pmcstat_interned_string _is);
 
+
+/*
+ * A simple implementation of interned strings.  Each interned string
+ * is assigned a unique address, so that subsequent string compares
+ * can be done by a simple pointer comparision instead of using
+ * strcmp().  This speeds up hash table lookups and saves memory if
+ * duplicate strings are the norm.
+ */
+struct pmcstat_string {
+	LIST_ENTRY(pmcstat_string)	ps_next;	/* hash link */
+	int		ps_len;
+	int		ps_hash;
+	char		*ps_string;
+};
+
+static LIST_HEAD(,pmcstat_string)	pmcstat_string_hash[PMCSTAT_NHASH];
+
+/*
+ * Compute a 'hash' value for a string.
+ */
+
+static int
+pmcstat_string_compute_hash(const char *s)
+{
+	int hash;
+
+	for (hash = 0; *s; s++)
+		hash ^= *s;
+
+	return (hash & PMCSTAT_HASH_MASK);
+}
+
+/*
+ * Intern a copy of string 's', and return a pointer to the
+ * interned structure.
+ */
+
+static pmcstat_interned_string
+pmcstat_string_intern(const char *s)
+{
+	struct pmcstat_string *ps;
+	const struct pmcstat_string *cps;
+	int hash, len;
+
+	if ((cps = pmcstat_string_lookup(s)) != NULL)
+		return (cps);
+
+	hash = pmcstat_string_compute_hash(s);
+	len  = strlen(s);
+
+	if ((ps = malloc(sizeof(*ps))) == NULL)
+		err(EX_OSERR, "ERROR: Could not intern string");
+	ps->ps_len = len;
+	ps->ps_hash = hash;
+	ps->ps_string = strdup(s);
+	LIST_INSERT_HEAD(&pmcstat_string_hash[hash], ps, ps_next);
+	return ((pmcstat_interned_string) ps);
+}
+
+static const char *
+pmcstat_string_unintern(pmcstat_interned_string str)
+{
+	const char *s;
+
+	s = ((const struct pmcstat_string *) str)->ps_string;
+	return (s);
+}
+
+static pmcstat_interned_string
+pmcstat_string_lookup(const char *s)
+{
+	struct pmcstat_string *ps;
+	int hash, len;
+
+	hash = pmcstat_string_compute_hash(s);
+	len = strlen(s);
+
+	LIST_FOREACH(ps, &pmcstat_string_hash[hash], ps_next)
+	    if (ps->ps_len == len && ps->ps_hash == hash &&
+		strcmp(ps->ps_string, s) == 0)
+		    return (ps);
+	return (NULL);
+}
+
+static int
+pmcstat_string_lookup_hash(pmcstat_interned_string s)
+{
+	const struct pmcstat_string *ps;
+
+	ps = (const struct pmcstat_string *) s;
+	return (ps->ps_hash);
+}
+
+/*
+ * Initialize the string interning facility.
+ */
+
+static void
+pmcstat_string_initialize(void)
+{
+	int i;
+
+	for (i = 0; i < PMCSTAT_NHASH; i++)
+		LIST_INIT(&pmcstat_string_hash[i]);
+}
+
+/*
+ * Destroy the string table, free'ing up space.
+ */
+
+static void
+pmcstat_string_shutdown(void)
+{
+	int i;
+	struct pmcstat_string *ps, *pstmp;
+
+	for (i = 0; i < PMCSTAT_NHASH; i++)
+		LIST_FOREACH_SAFE(ps, &pmcstat_string_hash[i], ps_next,
+		    pstmp) {
+			LIST_REMOVE(ps, ps_next);
+			free(ps->ps_string);
+			free(ps);
+		}
+}
 
 /*
  * Create a gmon.out file and size it.
@@ -229,11 +426,13 @@ pmcstat_gmon_create_file(struct pmcstat_gmonfile *pgf,
 	int fd;
 	size_t count;
 	struct gmonhdr gm;
+	const char *pathname;
 	char buffer[DEFAULT_BUFFER_SIZE];
 
-	if ((fd = open(pgf->pgf_name, O_RDWR|O_NOFOLLOW|O_CREAT,
+	pathname = pmcstat_string_unintern(pgf->pgf_name);
+	if ((fd = open(pathname, O_RDWR|O_NOFOLLOW|O_CREAT,
 		 S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0)
-		err(EX_OSERR, "ERROR: Cannot open \"%s\"", pgf->pgf_name);
+		err(EX_OSERR, "ERROR: Cannot open \"%s\"", pathname);
 
 	gm.lpc = image->pi_start;
 	gm.hpc = image->pi_end;
@@ -261,15 +460,22 @@ pmcstat_gmon_create_file(struct pmcstat_gmonfile *pgf,
 	if (write(fd, &buffer, count) < 0)
 		goto error;
 
+	/* TODO size the arc table */
+
 	(void) close(fd);
 
 	return;
 
  error:
-	err(EX_OSERR, "ERROR: Cannot write \"%s\"", pgf->pgf_name);
+	err(EX_OSERR, "ERROR: Cannot write \"%s\"", pathname);
 }
 
-const char *
+/*
+ * Determine the full pathname of a gmon.out file for a given
+ * (image,pmcid) combination.  Return the interned string.
+ */
+
+pmcstat_interned_string
 pmcstat_gmon_create_name(const char *samplesdir, struct pmcstat_image *image,
     pmc_id_t pmcid)
 {
@@ -279,34 +485,40 @@ pmcstat_gmon_create_name(const char *samplesdir, struct pmcstat_image *image,
 	pmcname = pmcstat_pmcid_to_name(pmcid);
 
 	(void) snprintf(fullpath, sizeof(fullpath),
-	    "%s/%s/%s", samplesdir, pmcname, image->pi_samplename);
+	    "%s/%s/%s", samplesdir, pmcname,
+	    pmcstat_string_unintern(image->pi_samplename));
 
-	return pmcstat_string_intern(fullpath);
+	return (pmcstat_string_intern(fullpath));
 }
 
+
+/*
+ * Mmap in a gmon.out file for processing.
+ */
 
 static void
 pmcstat_gmon_map_file(struct pmcstat_gmonfile *pgf)
 {
 	int fd;
+	const char *pathname;
+
+	pathname = pmcstat_string_unintern(pgf->pgf_name);
 
 	/* the gmon.out file must already exist */
-	if ((fd = open(pgf->pgf_name, O_RDWR | O_NOFOLLOW, 0)) < 0)
-		err(EX_OSERR, "ERROR: cannot open \"%s\"",
-		    pgf->pgf_name);
+	if ((fd = open(pathname, O_RDWR | O_NOFOLLOW, 0)) < 0)
+		err(EX_OSERR, "ERROR: cannot open \"%s\"", pathname);
 
 	pgf->pgf_gmondata = mmap(NULL, pgf->pgf_ndatabytes,
 	    PROT_READ|PROT_WRITE, MAP_NOSYNC|MAP_SHARED, fd, 0);
 
 	if (pgf->pgf_gmondata == MAP_FAILED)
-		/* XXX unmap a few files and try again? */
-		err(EX_OSERR, "ERROR: cannot map \"%s\"", pgf->pgf_name);
+		err(EX_OSERR, "ERROR: cannot map \"%s\"", pathname);
 
 	(void) close(fd);
 }
 
 /*
- * Unmap the data mapped from a gmon.out file.
+ * Unmap a gmon.out file after sync'ing its data to disk.
  */
 
 static void
@@ -318,11 +530,66 @@ pmcstat_gmon_unmap_file(struct pmcstat_gmonfile *pgf)
 	pgf->pgf_gmondata = NULL;
 }
 
+/*
+ * Determine whether a given executable image is an A.OUT object, and
+ * if so, fill in its parameters from the text file.
+ * Sets image->pi_type.
+ */
+
 static void
-pmcstat_image_get_elf_params(struct pmcstat_image *image)
+pmcstat_image_get_aout_params(struct pmcstat_image *image,
+    struct pmcstat_args *a)
+{
+	int fd;
+	ssize_t nbytes;
+	struct exec ex;
+	const char *path;
+	char buffer[PATH_MAX];
+
+	path = pmcstat_string_unintern(image->pi_execpath);
+	assert(path != NULL);
+
+	if (image->pi_iskernelmodule)
+		errx(EX_SOFTWARE, "ERROR: a.out kernel modules are "
+		    "unsupported \"%s\"", path);
+
+	(void) snprintf(buffer, sizeof(buffer), "%s%s",
+	    a->pa_fsroot, path);
+
+	if ((fd = open(buffer, O_RDONLY, 0)) < 0 ||
+	    (nbytes = read(fd, &ex, sizeof(ex))) < 0) {
+		warn("WARNING: Cannot determine type of \"%s\"", path);
+		image->pi_type = PMCSTAT_IMAGE_INDETERMINABLE;
+		if (fd != -1)
+			(void) close(fd);
+		return;
+	}
+
+	(void) close(fd);
+
+	if ((unsigned) nbytes != sizeof(ex) ||
+	    N_BADMAG(ex))
+		return;
+
+	image->pi_type = PMCSTAT_IMAGE_AOUT;
+
+	/* TODO: the rest of a.out processing */
+
+	return;
+}
+
+/*
+ * Examine an ELF file to determine the size of its text segment.
+ * Sets image->pi_type if anything conclusive can be determined about
+ * this image.
+ */
+
+static void
+pmcstat_image_get_elf_params(struct pmcstat_image *image,
+    struct pmcstat_args *a)
 {
 	int fd, i;
-	struct stat st;
+	const char *path;
 	void *mapbase;
 	uintfptr_t minva, maxva;
 	const Elf_Ehdr *h;
@@ -333,34 +600,58 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	const Elf32_Phdr *ph32;
 	const Elf32_Shdr *sh32;
 #endif
-	const char *path;
+	enum pmcstat_image_type image_type;
+	struct stat st;
+	char buffer[PATH_MAX];
 
 	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
 
 	minva = ~(uintfptr_t) 0;
 	maxva = (uintfptr_t) 0;
-	path = image->pi_internedpath;
+	path = pmcstat_string_unintern(image->pi_execpath);
 
-	if ((fd = open(path, O_RDONLY, 0)) < 0)
-		err(EX_OSERR, "ERROR: Cannot open \"%s\"", path);
+	assert(path != NULL);
 
-	if (fstat(fd, &st) < 0)
-		err(EX_OSERR, "ERROR: Cannot stat \"%s\"", path);
+	/*
+	 * Look for kernel modules under FSROOT/KERNELPATH/NAME,
+	 * and user mode executable objects under FSROOT/PATHNAME.
+	 */
+	if (image->pi_iskernelmodule)
+		(void) snprintf(buffer, sizeof(buffer), "%s%s/%s",
+		    a->pa_fsroot, a->pa_kernel, path);
+	else
+		(void) snprintf(buffer, sizeof(buffer), "%s%s",
+		    a->pa_fsroot, path);
 
-	if ((mapbase = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) ==
-	    MAP_FAILED)
-		err(EX_OSERR, "ERROR: Cannot mmap \"%s\"", path);
+	if ((fd = open(buffer, O_RDONLY, 0)) < 0 ||
+	    fstat(fd, &st) < 0 ||
+	    (mapbase = mmap(0, st.st_size, PROT_READ, MAP_SHARED,
+		fd, 0)) == MAP_FAILED) {
+		warn("WARNING: Cannot determine type of \"%s\"", buffer);
+		image->pi_type = PMCSTAT_IMAGE_INDETERMINABLE;
+		if (fd != -1)
+			(void) close(fd);
+		return;
+	}
 
 	(void) close(fd);
 
+	/* Punt on non-ELF objects */
 	h = (const Elf_Ehdr *) mapbase;
 	if (!IS_ELF(*h))
-		err(EX_SOFTWARE, "ERROR: \"%s\" not an ELF file", path);
+		return;
 
-	/* we only handle executable objects */
-	if (h->e_type != ET_EXEC && h->e_type != ET_DYN)
-		err(EX_DATAERR, "ERROR: Unknown file type for \"%s\"",
-		    image->pi_internedpath);
+	/*
+	 * We only handle executable ELF objects and kernel
+	 * modules.
+	 */
+	if (h->e_type != ET_EXEC && h->e_type != ET_DYN &&
+	    !(image->pi_iskernelmodule && h->e_type == ET_REL))
+		return;
+
+	image->pi_isdynamic = 0;
+	image->pi_dynlinkerpath = NULL;
+	image->pi_vaddr = 0;
 
 #define	GET_VA(H, SH, MINVA, MAXVA) do {				\
 		for (i = 0; i < (H)->e_shnum; i++)			\
@@ -381,16 +672,17 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 			case PT_INTERP:					\
 				image->pi_dynlinkerpath =		\
 				    pmcstat_string_intern(		\
-				        (char *) mapbase +		\
+					(char *) mapbase +		\
 					(PH)[i].p_offset);		\
+				break;					\
+			case PT_LOAD:					\
+				if ((PH)[i].p_offset == 0)		\
+				    image->pi_vaddr = 			\
+					(PH)[i].p_vaddr;		\
 				break;					\
 			}						\
 		}							\
 	} while (0)
-
-	image->pi_type = PMCSTAT_IMAGE_ELF;
-	image->pi_isdynamic = 0;
-	image->pi_dynlinkerpath = NULL;
 
 	switch (h->e_machine) {
 	case EM_386:
@@ -409,6 +701,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 			    h32->e_phoff);
 			GET_PHDR_INFO(h32, ph32, image);
 		}
+		image_type = PMCSTAT_IMAGE_ELF32;
 		break;
 #endif
 	default:
@@ -423,6 +716,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 			    h->e_phoff);
 			GET_PHDR_INFO(h, ph, image);
 		}
+		image_type = PMCSTAT_IMAGE_ELF64;
 		break;
 	}
 
@@ -430,36 +724,68 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 #undef	GET_VA
 
 	image->pi_start = minva;
-	image->pi_end = maxva;
+	image->pi_end   = maxva;
+	image->pi_type  = image_type;
 
 	if (munmap(mapbase, st.st_size) < 0)
 		err(EX_OSERR, "ERROR: Cannot unmap \"%s\"", path);
+	return;
+}
 
+/*
+ * Given an image descriptor, determine whether it is an ELF, or AOUT.
+ * If no handler claims the image, set its type to 'INDETERMINABLE'.
+ */
+
+static void
+pmcstat_image_determine_type(struct pmcstat_image *image,
+    struct pmcstat_args *a)
+{
+	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
+
+	/* Try each kind of handler in turn */
+	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+		pmcstat_image_get_elf_params(image, a);
+	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+		pmcstat_image_get_aout_params(image, a);
+
+	/*
+	 * Otherwise, remember that we tried to determine
+	 * the object's type and had failed.
+	 */
+	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+		image->pi_type = PMCSTAT_IMAGE_INDETERMINABLE;
 }
 
 /*
  * Locate an image descriptor given an interned path, adding a fresh
  * descriptor to the cache if necessary.  This function also finds a
  * suitable name for this image's sample file.
+ *
+ * We defer filling in the file format specific parts of the image
+ * structure till the time we actually see a sample that would fall
+ * into this image.
  */
 
 static struct pmcstat_image *
-pmcstat_image_from_path(const char *internedpath)
+pmcstat_image_from_path(pmcstat_interned_string internedpath,
+    int iskernelmodule)
 {
 	int count, hash, nlen;
 	struct pmcstat_image *pi;
 	char *sn;
 	char name[NAME_MAX];
 
-	hash = pmcstat_string_compute_hash(internedpath);
+	hash = pmcstat_string_lookup_hash(internedpath);
 
-	/* Look for an existing entry. */
+	/* First, look for an existing entry. */
 	LIST_FOREACH(pi, &pmcstat_image_hash[hash], pi_next)
-	    if (pi->pi_internedpath == internedpath) {
+	    if (pi->pi_execpath == internedpath &&
+		  pi->pi_iskernelmodule == iskernelmodule) {
 		    /* move descriptor to the head of the lru list */
 		    TAILQ_REMOVE(&pmcstat_image_lru, pi, pi_lru);
 		    TAILQ_INSERT_HEAD(&pmcstat_image_lru, pi, pi_lru);
-		    return pi;
+		    return (pi);
 	    }
 
 	/*
@@ -468,13 +794,14 @@ pmcstat_image_from_path(const char *internedpath)
 	 */
 	pi = malloc(sizeof(*pi));
 	if (pi == NULL)
-		return NULL;
+		return (NULL);
 
 	pi->pi_type = PMCSTAT_IMAGE_UNKNOWN;
-	pi->pi_internedpath = internedpath;
+	pi->pi_execpath = internedpath;
 	pi->pi_start = ~0;
 	pi->pi_entry = ~0;
 	pi->pi_end = 0;
+	pi->pi_iskernelmodule = iskernelmodule;
 
 	/*
 	 * Look for a suitable name for the sample files associated
@@ -483,23 +810,31 @@ pmcstat_image_from_path(const char *internedpath)
 	 * `basename(path)`+ "~" + NNN + ".gmon" till we get a free
 	 * entry.
 	 */
-	if ((sn = basename(internedpath)) == NULL)
-		err(EX_OSERR, "ERROR: Cannot process \"%s\"", internedpath);
+	if ((sn = basename(pmcstat_string_unintern(internedpath))) == NULL)
+		err(EX_OSERR, "ERROR: Cannot process \"%s\"",
+		    pmcstat_string_unintern(internedpath));
 
 	nlen = strlen(sn);
-	nlen = min(nlen, (int) sizeof(name) - 6);	/* ".gmon\0" */
+	nlen = min(nlen, (int) (sizeof(name) - sizeof(".gmon")));
 
 	snprintf(name, sizeof(name), "%.*s.gmon", nlen, sn);
 
+	/* try use the unabridged name first */
 	if (pmcstat_string_lookup(name) == NULL)
 		pi->pi_samplename = pmcstat_string_intern(name);
 	else {
+		/*
+		 * Otherwise use a prefix from the original name and
+		 * upto 3 digits.
+		 */
 		nlen = strlen(sn);
-		nlen = min(nlen, (int) sizeof(name)-10); /* "~ddd.gmon\0" */
+		nlen = min(nlen, (int) (sizeof(name)-sizeof("~NNN.gmon")));
 		count = 0;
 		do {
-			count++;
-			snprintf(name, sizeof(name), "%.*s~%3.3d",
+			if (++count > 999)
+				errx(EX_CANTCREAT, "ERROR: cannot create a gmon "
+				    "file for \"%s\"", name);
+			snprintf(name, sizeof(name), "%.*s~%3.3d.gmon",
 			    nlen, sn, count);
 			if (pmcstat_string_lookup(name) == NULL) {
 				pi->pi_samplename = pmcstat_string_intern(name);
@@ -508,51 +843,13 @@ pmcstat_image_from_path(const char *internedpath)
 		} while (count > 0);
 	}
 
+
 	LIST_INIT(&pi->pi_gmlist);
 
 	LIST_INSERT_HEAD(&pmcstat_image_hash[hash], pi, pi_next);
 	TAILQ_INSERT_HEAD(&pmcstat_image_lru, pi, pi_lru);
 
-	return pi;
-}
-
-/*
- * Given an open file, determine its file type.
- */
-
-static enum pmcstat_image_type
-pmcstat_image_get_type(const char *path)
-{
-	int fd;
-	Elf_Ehdr eh;
-	struct exec ex;
-	ssize_t nbytes;
-	char buffer[DEFAULT_BUFFER_SIZE];
-
-	if ((fd = open(path, O_RDONLY)) < 0)
-		err(EX_OSERR, "ERROR: Cannot open \"%s\"", path);
-
-	nbytes = max(sizeof(eh), sizeof(ex));
-	if ((nbytes = pread(fd, buffer, nbytes, 0)) < 0)
-		err(EX_OSERR, "ERROR: Cannot read \"%s\"", path);
-
-	(void) close(fd);
-
-	/* check if its an ELF file */
-	if ((unsigned) nbytes >= sizeof(Elf_Ehdr)) {
-		bcopy(buffer, &eh, sizeof(eh));
-		if (IS_ELF(eh))
-			return PMCSTAT_IMAGE_ELF;
-	}
-
-	/* Look for an A.OUT header */
-	if ((unsigned) nbytes >= sizeof(struct exec)) {
-		bcopy(buffer, &ex, sizeof(ex));
-		if (!N_BADMAG(ex))
-			return PMCSTAT_IMAGE_AOUT;
-	}
-
-	return PMCSTAT_IMAGE_UNKNOWN;
+	return (pi);
 }
 
 /*
@@ -571,13 +868,27 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 
 	assert(pc >= map->ppm_lowpc && pc < map->ppm_highpc);
 
+	image = map->ppm_image;
+
+	/*
+	 * If this is the first time we are seeing a sample for
+	 * this executable image, try determine its parameters.
+	 */
+	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+		pmcstat_image_determine_type(image, a);
+
+	assert(image->pi_type != PMCSTAT_IMAGE_UNKNOWN);
+
+	/* Ignore samples in images that we know nothing about. */
+	if (image->pi_type == PMCSTAT_IMAGE_INDETERMINABLE) {
+		pmcstat_stats.ps_samples_indeterminable++;
+		return;
+	}
+
 	/*
 	 * Find the gmon file corresponding to 'pmcid', creating it if
 	 * needed.
 	 */
-
-	image = map->ppm_image;
-
 	LIST_FOREACH(pgf, &image->pi_gmlist, pgf_next)
 	    if (pgf->pgf_pmcid == pmcid)
 		    break;
@@ -609,6 +920,12 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 	if (pgf->pgf_gmondata == NULL)
 		pmcstat_gmon_map_file(pgf);
 
+	assert(pgf->pgf_gmondata != NULL);
+
+	/*
+	 *
+	 */
+
 	bucket = (pc - map->ppm_lowpc) / FUNCTION_ALIGNMENT;
 
 	assert(bucket < pgf->pgf_nbuckets);
@@ -617,31 +934,45 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 	    sizeof(struct gmonhdr));
 
 	/* saturating add */
-	if (hc[bucket] < 0xFFFF)
+	if (hc[bucket] < 0xFFFFU)  /* XXX tie this to sizeof(HISTCOUNTER) */
 		hc[bucket]++;
-
+	else /* mark that an overflow occurred */
+		pgf->pgf_overflow = 1;
 }
 
 /*
- * Record the fact that PC values from 'lowpc' to 'highpc' come from
+ * Record the fact that PC values from 'start' to 'end' come from
  * image 'image'.
  */
 
 static void
 pmcstat_image_link(struct pmcstat_process *pp, struct pmcstat_image *image,
-    uintfptr_t lowpc, uintfptr_t highpc)
+    uintfptr_t start)
 {
 	struct pmcstat_pcmap *pcm, *pcmnew;
+	uintfptr_t offset;
+
+	assert(image->pi_type != PMCSTAT_IMAGE_UNKNOWN &&
+	    image->pi_type != PMCSTAT_IMAGE_INDETERMINABLE);
 
 	if ((pcmnew = malloc(sizeof(*pcmnew))) == NULL)
-		err(EX_OSERR, "ERROR: ");
+		err(EX_OSERR, "ERROR: Cannot create a map entry");
 
-	pcmnew->ppm_lowpc  = lowpc;
-	pcmnew->ppm_highpc = highpc;
+	/*
+	 * Adjust the map entry to only cover the text portion
+	 * of the object.
+	 */
+
+	offset = start - image->pi_vaddr;
+	pcmnew->ppm_lowpc  = image->pi_start + offset;
+	pcmnew->ppm_highpc = image->pi_end + offset;
 	pcmnew->ppm_image  = image;
 
+	assert(pcmnew->ppm_lowpc < pcmnew->ppm_highpc);
+
+	/* Overlapped mmap()'s are assumed to never occur. */
 	TAILQ_FOREACH(pcm, &pp->pp_map, ppm_next)
-	    if (pcm->ppm_lowpc < lowpc)
+	    if (pcm->ppm_lowpc >= pcmnew->ppm_highpc)
 		    break;
 
 	if (pcm == NULL)
@@ -651,11 +982,79 @@ pmcstat_image_link(struct pmcstat_process *pp, struct pmcstat_image *image,
 }
 
 /*
+ * Unmap images in the range [start..end) associated with process
+ * 'pp'.
+ */
+
+static void
+pmcstat_image_unmap(struct pmcstat_process *pp, uintfptr_t start,
+    uintfptr_t end)
+{
+	struct pmcstat_pcmap *pcm, *pcmtmp, *pcmnew;
+
+	assert(pp != NULL);
+	assert(start < end);
+
+	/*
+	 * Cases:
+	 * - we could have the range completely in the middle of an
+	 *   existing pcmap; in this case we have to split the pcmap
+	 *   structure into two (i.e., generate a 'hole').
+	 * - we could have the range covering multiple pcmaps; these
+	 *   will have to be removed.
+	 * - we could have either 'start' or 'end' falling in the
+	 *   middle of a pcmap; in this case shorten the entry.
+	 */
+
+	TAILQ_FOREACH_SAFE(pcm, &pp->pp_map, ppm_next, pcmtmp) {
+		assert(pcm->ppm_lowpc < pcm->ppm_highpc);
+		if (pcm->ppm_highpc <= start)
+			continue;
+		if (pcm->ppm_lowpc > end)
+			return;
+		if (pcm->ppm_lowpc >= start && pcm->ppm_highpc <= end) {
+			/*
+			 * The current pcmap is completely inside the
+			 * unmapped range: remove it entirely.
+			 */
+			TAILQ_REMOVE(&pp->pp_map, pcm, ppm_next);
+			free(pcm);
+		} else if (pcm->ppm_lowpc < start && pcm->ppm_highpc > end) {
+			/*
+			 * Split this pcmap into two; curtail the
+			 * current map to end at [start-1], and start
+			 * the new one at [end].
+			 */
+			if ((pcmnew = malloc(sizeof(*pcmnew))) == NULL)
+				err(EX_OSERR, "ERROR: Cannot split a map "
+				    "entry");
+
+			pcmnew->ppm_image = pcm->ppm_image;
+
+			pcmnew->ppm_lowpc = end;
+			pcmnew->ppm_highpc = pcm->ppm_highpc;
+
+			pcm->ppm_highpc = start;
+
+			TAILQ_INSERT_AFTER(&pp->pp_map, pcm, pcmnew, ppm_next);
+
+			return;
+		} else if (pcm->ppm_lowpc < start)
+			pcm->ppm_lowpc = start;
+		else if (pcm->ppm_highpc > end)
+			pcm->ppm_highpc = end;
+		else
+			assert(0);
+	}
+}
+
+/*
  * Add a {pmcid,name} mapping.
  */
 
 static void
-pmcstat_pmcid_add(pmc_id_t pmcid, const char *name, struct pmcstat_args *a)
+pmcstat_pmcid_add(pmc_id_t pmcid, pmcstat_interned_string ps,
+    struct pmcstat_args *a)
 {
 	struct pmcstat_pmcrecord *pr;
 	struct stat st;
@@ -663,7 +1062,7 @@ pmcstat_pmcid_add(pmc_id_t pmcid, const char *name, struct pmcstat_args *a)
 
 	LIST_FOREACH(pr, &pmcstat_pmcs, pr_next)
 	    if (pr->pr_pmcid == pmcid) {
-		    pr->pr_pmcname = name;
+		    pr->pr_pmcname = ps;
 		    return;
 	    }
 
@@ -671,11 +1070,11 @@ pmcstat_pmcid_add(pmc_id_t pmcid, const char *name, struct pmcstat_args *a)
 		err(EX_OSERR, "ERROR: Cannot allocate pmc record");
 
 	pr->pr_pmcid = pmcid;
-	pr->pr_pmcname = name;
+	pr->pr_pmcname = ps;
 	LIST_INSERT_HEAD(&pmcstat_pmcs, pr, pr_next);
 
 	(void) snprintf(fullpath, sizeof(fullpath), "%s/%s", a->pa_samplesdir,
-	    name);
+	    pmcstat_string_unintern(ps));
 
 	/* If the path name exists, it should be a directory */
 	if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode))
@@ -687,7 +1086,7 @@ pmcstat_pmcid_add(pmc_id_t pmcid, const char *name, struct pmcstat_args *a)
 }
 
 /*
- * Given a pmcid in use, find its human-readable name, or a 
+ * Given a pmcid in use, find its human-readable name.
  */
 
 static const char *
@@ -698,7 +1097,7 @@ pmcstat_pmcid_to_name(pmc_id_t pmcid)
 
 	LIST_FOREACH(pr, &pmcstat_pmcs, pr_next)
 	    if (pr->pr_pmcid == pmcid)
-		    return pr->pr_pmcname;
+		    return (pmcstat_string_unintern(pr->pr_pmcname));
 
 	/* create a default name and add this entry */
 	if ((pr = malloc(sizeof(*pr))) == NULL)
@@ -710,35 +1109,42 @@ pmcstat_pmcid_to_name(pmc_id_t pmcid)
 
 	LIST_INSERT_HEAD(&pmcstat_pmcs, pr, pr_next);
 
-	return pr->pr_pmcname;
+	return (pmcstat_string_unintern(pr->pr_pmcname));
 }
 
 /*
- * Associate an ELF image with a process.  Argument 'path' names the
- * executable while 'fd' is an already open descriptor to it.
+ * Associate an AOUT image with a process.
  */
 
 static void
-pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
-    uintfptr_t entryaddr)
+pmcstat_process_aout_exec(struct pmcstat_process *pp,
+    struct pmcstat_image *image, uintfptr_t entryaddr,
+    struct pmcstat_args *a)
 {
-	size_t linelen;
-	FILE *rf;
-	char *line;
+	(void) pp;
+	(void) image;
+	(void) entryaddr;
+	(void) a;
+	/* TODO Implement a.out handling */
+}
+
+/*
+ * Associate an ELF image with a process.
+ */
+
+static void
+pmcstat_process_elf_exec(struct pmcstat_process *pp,
+    struct pmcstat_image *image, uintfptr_t entryaddr,
+    struct pmcstat_args *a)
+{
 	uintmax_t libstart;
-	struct pmcstat_image *image, *rtldimage;
-	char libname[PATH_MAX], libpath[PATH_MAX];
-	char command[PATH_MAX + sizeof(PMCSTAT_LDD_COMMAND) + 1];
+	struct pmcstat_image *rtldimage;
 
-	/* Look up path in the cache. */
-	if ((image = pmcstat_image_from_path(path)) == NULL)
-		return;
-
-	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
-		pmcstat_image_get_elf_params(image);
+	assert(image->pi_type == PMCSTAT_IMAGE_ELF32 ||
+	    image->pi_type == PMCSTAT_IMAGE_ELF64);
 
 	/* Create a map entry for the base executable. */
-	pmcstat_image_link(pp, image, image->pi_start, image->pi_end);
+	pmcstat_image_link(pp, image, image->pi_vaddr);
 
 	/*
 	 * For dynamically linked executables we need to:
@@ -747,6 +1153,7 @@ pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
 	 * (b) find all the executable objects that the dynamic linker
 	 *     brought in.
 	 */
+
 	if (image->pi_isdynamic) {
 
 		/*
@@ -756,6 +1163,7 @@ pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
 		 * [  TEXT DATA BSS HEAP -->*RTLD  SHLIBS   <--STACK]
 		 * ^					            ^
 		 * 0				   VM_MAXUSER_ADDRESS
+
 		 *
 		 * The exact address where the loader gets mapped in
 		 * will vary according to the size of the executable
@@ -766,59 +1174,27 @@ pmcstat_process_add_elf_image(struct pmcstat_process *pp, const char *path,
 		 * this we can figure out the address where the
 		 * runtime loader's file object had been mapped to.
 		 */
-		rtldimage = pmcstat_image_from_path(image->pi_dynlinkerpath);
-		if (rtldimage == NULL)
-			err(EX_OSERR, "ERROR: Cannot find image for "
-			    "\"%s\"", image->pi_dynlinkerpath);
-		if (rtldimage->pi_type == PMCSTAT_IMAGE_UNKNOWN)
-			pmcstat_image_get_elf_params(rtldimage);
-
-		libstart = entryaddr - rtldimage->pi_entry;
-		pmcstat_image_link(pp, rtldimage, libstart,
-		    libstart + rtldimage->pi_end - rtldimage->pi_start);
-
-		/* Process all other objects loaded by this executable. */
-		(void) snprintf(command, sizeof(command), "%s %s",
-		    PMCSTAT_LDD_COMMAND, path);
-
-		if ((rf = popen(command, "r")) == NULL)
-			err(EX_OSERR, "ERROR: Cannot create pipe");
-
-		(void) fgetln(rf, &linelen);
-
-		while (!feof(rf) && !ferror(rf)) {
-
-			if ((line = fgetln(rf, &linelen)) == NULL)
-				continue;
-			line[linelen-1] = '\0';
-
-			libstart = 0;
-			libpath[0] = libname[0] = '\0';
-			if (sscanf(line, "%s \"%[^\"]\" %jx",
-				libname, libpath, &libstart) != 3)
-				continue;
-
-			if (libstart == 0) {
-				warnx("WARNING: object \"%s\" was not found "
-				    "for program \"%s\".", libname, path);
-				continue;
-			}
-
-			image = pmcstat_image_from_path(
-				pmcstat_string_intern(libpath));
-			if (image == NULL)
-				err(EX_OSERR, "ERROR: Cannot process "
-				    "\"%s\"", libpath);
-
-			if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
-				pmcstat_image_get_elf_params(image);
-
-			pmcstat_image_link(pp, image, libstart + image->pi_start,
-			    libstart + image->pi_end);
+		rtldimage = pmcstat_image_from_path(image->pi_dynlinkerpath,
+		    0);
+		if (rtldimage == NULL) {
+			warnx("WARNING: Cannot find image for \"%s\".",
+			    pmcstat_string_unintern(image->pi_dynlinkerpath));
+			pmcstat_stats.ps_exec_errors++;
+			return;
 		}
 
-		(void) pclose(rf);
+		if (rtldimage->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+			pmcstat_image_get_elf_params(rtldimage, a);
 
+		if (rtldimage->pi_type != PMCSTAT_IMAGE_ELF32 &&
+		    rtldimage->pi_type != PMCSTAT_IMAGE_ELF64) {
+			warnx("WARNING: rtld not an ELF object \"%s\".",
+			    pmcstat_string_unintern(image->pi_dynlinkerpath));
+			return;
+		}
+
+		libstart = entryaddr - rtldimage->pi_entry;
+		pmcstat_image_link(pp, rtldimage, libstart);
 	}
 }
 
@@ -843,7 +1219,7 @@ pmcstat_process_lookup(pid_t pid, int allocate)
 	LIST_FOREACH_SAFE(pp, &pmcstat_process_hash[hash], pp_next, pptmp)
 	    if (pp->pp_pid == pid) {
 		    /* Found a descriptor, check and process zombies */
-		    if (allocate && !pp->pp_isactive) {
+		    if (allocate && pp->pp_isactive == 0) {
 			    /* remove maps */
 			    TAILQ_FOREACH_SAFE(ppm, &pp->pp_map, ppm_next,
 				ppmtmp) {
@@ -855,11 +1231,11 @@ pmcstat_process_lookup(pid_t pid, int allocate)
 			    free(pp);
 			    break;
 		    }
-		    return pp;
+		    return (pp);
 	    }
 
 	if (!allocate)
-		return NULL;
+		return (NULL);
 
 	if ((pp = malloc(sizeof(*pp))) == NULL)
 		err(EX_OSERR, "ERROR: Cannot allocate pid descriptor");
@@ -870,7 +1246,7 @@ pmcstat_process_lookup(pid_t pid, int allocate)
 	TAILQ_INIT(&pp->pp_map);
 
 	LIST_INSERT_HEAD(&pmcstat_process_hash[hash], pp, pp_next);
-	return pp;
+	return (pp);
 }
 
 /*
@@ -878,31 +1254,41 @@ pmcstat_process_lookup(pid_t pid, int allocate)
  */
 
 static void
-pmcstat_process_exec(struct pmcstat_process *pp, const char *path,
-    uintfptr_t entryaddr)
+pmcstat_process_exec(struct pmcstat_process *pp,
+    pmcstat_interned_string path, uintfptr_t entryaddr,
+    struct pmcstat_args *a)
 {
-	enum pmcstat_image_type filetype;
 	struct pmcstat_image *image;
 
-	if ((image = pmcstat_image_from_path(path)) == NULL)
+	if ((image = pmcstat_image_from_path(path, 0)) == NULL) {
+		pmcstat_stats.ps_exec_errors++;
 		return;
+	}
 
 	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
-		filetype = pmcstat_image_get_type(path);
-	else
-		filetype = image->pi_type;
+		pmcstat_image_determine_type(image, a);
 
-	switch (filetype) {
-	case PMCSTAT_IMAGE_ELF:
-		pmcstat_process_add_elf_image(pp, path, entryaddr);
+	assert(image->pi_type != PMCSTAT_IMAGE_UNKNOWN);
+
+	switch (image->pi_type) {
+	case PMCSTAT_IMAGE_ELF32:
+	case PMCSTAT_IMAGE_ELF64:
+		pmcstat_stats.ps_exec_elf++;
+		pmcstat_process_elf_exec(pp, image, entryaddr, a);
 		break;
 
 	case PMCSTAT_IMAGE_AOUT:
+		pmcstat_stats.ps_exec_aout++;
+		pmcstat_process_aout_exec(pp, image, entryaddr, a);
+		break;
+
+	case PMCSTAT_IMAGE_INDETERMINABLE:
+		pmcstat_stats.ps_exec_indeterminable++;
 		break;
 
 	default:
 		err(EX_SOFTWARE, "ERROR: Unsupported executable type for "
-		    "\"%s\"", path);
+		    "\"%s\"", pmcstat_string_unintern(path));
 	}
 }
 
@@ -916,108 +1302,85 @@ pmcstat_process_find_map(struct pmcstat_process *p, uintfptr_t pc)
 {
 	struct pmcstat_pcmap *ppm;
 
-	TAILQ_FOREACH(ppm, &p->pp_map, ppm_next)
-	    if (pc >= ppm->ppm_lowpc && pc < ppm->ppm_highpc)
-		    return ppm;
+	TAILQ_FOREACH(ppm, &p->pp_map, ppm_next) {
+		if (pc >= ppm->ppm_lowpc && pc < ppm->ppm_highpc)
+			return (ppm);
+		if (pc < ppm->ppm_lowpc)
+			return (NULL);
+	}
 
-	return NULL;
+	return (NULL);
 }
 
 
-/*
- * Compute a 'hash' value for a string.
- */
 
 static int
-pmcstat_string_compute_hash(const char *s)
-{
-	int hash;
-
-	for (hash = 0; *s; s++)
-		hash ^= *s;
-
-	return hash & PMCSTAT_HASH_MASK;
-}
-
-/*
- * Intern a copy of string 's', and return a pointer to it.
- */
-
-static const char *
-pmcstat_string_intern(const char *s)
-{
-	struct pmcstat_string *ps;
-	int hash, len;
-
-	hash = pmcstat_string_compute_hash(s);
-	len  = strlen(s);
-
-	if ((ps = pmcstat_string_lookup(s)) != NULL)
-		return ps->ps_string;
-
-	if ((ps = malloc(sizeof(*ps))) == NULL)
-		err(EX_OSERR, "ERROR: Could not intern string");
-	ps->ps_len = len;
-	ps->ps_hash = hash;
-	ps->ps_string = strdup(s);
-	LIST_INSERT_HEAD(&pmcstat_string_hash[hash], ps, ps_next);
-	return ps->ps_string;
-}
-
-static struct pmcstat_string *
-pmcstat_string_lookup(const char *s)
-{
-	struct pmcstat_string *ps;
-	int hash, len;
-
-	hash = pmcstat_string_compute_hash(s);
-	len = strlen(s);
-
-	LIST_FOREACH(ps, &pmcstat_string_hash[hash], ps_next)
-	    if (ps->ps_len == len && ps->ps_hash == hash &&
-		strcmp(ps->ps_string, s) == 0)
-		    return ps;
-	return NULL;
-}
-
-/*
- * Public Interfaces.
- */
-
-/*
- * Close a logfile, after first flushing all in-module queued data.
- */
-
-int
-pmcstat_close_log(struct pmcstat_args *a)
-{
-	if (pmc_flush_logfile() < 0 ||
-	    pmc_configure_logfile(-1) < 0)
-		err(EX_OSERR, "ERROR: logging failed");
-	a->pa_flags &= ~(FLAG_HAS_OUTPUT_LOGFILE | FLAG_HAS_PIPE);
-	return a->pa_flags & FLAG_HAS_PIPE ? PMCSTAT_EXITING :
-	    PMCSTAT_FINISHED;
-}
-
-
-int
 pmcstat_convert_log(struct pmcstat_args *a)
 {
 	uintfptr_t pc;
+	pid_t pid;
+	struct pmcstat_image *image;
 	struct pmcstat_process *pp, *ppnew;
 	struct pmcstat_pcmap *ppm, *ppmtmp;
 	struct pmclog_ev ev;
-	const char *image_path;
+	pmcstat_interned_string image_path;
 
 	while (pmclog_read(a->pa_logparser, &ev) == 0) {
 		assert(ev.pl_state == PMCLOG_OK);
 
 		switch (ev.pl_type) {
-		case PMCLOG_TYPE_MAPPINGCHANGE:
+		case PMCLOG_TYPE_INITIALIZE:
+			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
+			    PMC_VERSION_MAJOR << 24 && a->pa_verbosity > 0)
+				warnx("WARNING: Log version 0x%x does not "
+				    "match compiled version 0x%x.",
+				    ev.pl_u.pl_i.pl_version,
+				    PMC_VERSION_MAJOR);
+			break;
+		case PMCLOG_TYPE_MAP_IN:
 			/*
 			 * Introduce an address range mapping for a
-			 * process.
+			 * userland process or the kernel (pid == -1).
+			 *
+			 * We always allocate a process descriptor so
+			 * that subsequent samples seen for this
+			 * address range are mapped to the current
+			 * object being mapped in.
 			 */
+			pid = ev.pl_u.pl_mi.pl_pid;
+			if (pid == -1)
+				pp = pmcstat_kernproc;
+			else
+				pp = pmcstat_process_lookup(pid,
+				    PMCSTAT_ALLOCATE);
+
+			assert(pp != NULL);
+
+			image_path = pmcstat_string_intern(ev.pl_u.pl_mi.
+			    pl_pathname);
+			image = pmcstat_image_from_path(image_path, pid == -1);
+			if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
+				pmcstat_image_determine_type(image, a);
+			if (image->pi_type != PMCSTAT_IMAGE_INDETERMINABLE)
+				pmcstat_image_link(pp, image,
+				    ev.pl_u.pl_mi.pl_start);
+			break;
+
+		case PMCLOG_TYPE_MAP_OUT:
+			/*
+			 * Remove an address map.
+			 */
+			pid = ev.pl_u.pl_mo.pl_pid;
+			if (pid == -1)
+				pp = pmcstat_kernproc;
+			else
+				pp = pmcstat_process_lookup(pid, 0);
+
+			if (pp == NULL)	/* unknown process */
+				break;
+
+			pmcstat_image_unmap(pp, ev.pl_u.pl_mo.pl_start,
+			    ev.pl_u.pl_mo.pl_end);
 			break;
 
 		case PMCLOG_TYPE_PCSAMPLE:
@@ -1028,12 +1391,17 @@ pmcstat_convert_log(struct pmcstat_args *a)
 			 * pair and increment the appropriate entry
 			 * bin inside this.
 			 */
+			pmcstat_stats.ps_samples_total++;
+
 			pc = ev.pl_u.pl_s.pl_pc;
-			pp = pmcstat_process_lookup(ev.pl_u.pl_s.pl_pid, 1);
+			pp = pmcstat_process_lookup(ev.pl_u.pl_s.pl_pid,
+			    PMCSTAT_ALLOCATE);
 			if ((ppm = pmcstat_process_find_map(pp, pc)) == NULL &&
 			    (ppm = pmcstat_process_find_map(pmcstat_kernproc,
-				pc)) == NULL)
-				break; /* unknown process,offset pair */
+				pc)) == NULL) {	/* unknown process,offset pair */
+				pmcstat_stats.ps_samples_unknown_offset++;
+				break;
+			}
 
 			pmcstat_image_increment_bucket(ppm, pc,
 			    ev.pl_u.pl_s.pl_pmcid, a);
@@ -1055,7 +1423,8 @@ pmcstat_convert_log(struct pmcstat_args *a)
 			 * Change the executable image associated with
 			 * a process.
 			 */
-			pp = pmcstat_process_lookup(ev.pl_u.pl_x.pl_pid, 1);
+			pp = pmcstat_process_lookup(ev.pl_u.pl_x.pl_pid,
+			    PMCSTAT_ALLOCATE);
 
 			/* delete the current process map */
 			TAILQ_FOREACH_SAFE(ppm, &pp->pp_map, ppm_next, ppmtmp) {
@@ -1063,13 +1432,12 @@ pmcstat_convert_log(struct pmcstat_args *a)
 				free(ppm);
 			}
 
-			/* locate the descriptor for the new 'base' image */
+			/* associate this process  image */
 			image_path = pmcstat_string_intern(
 				ev.pl_u.pl_x.pl_pathname);
-
-			/* link to the new image */
+			assert(image_path != NULL);
 			pmcstat_process_exec(pp, image_path,
-			    ev.pl_u.pl_x.pl_entryaddr);
+			    ev.pl_u.pl_x.pl_entryaddr, a);
 			break;
 
 		case PMCLOG_TYPE_PROCEXIT:
@@ -1086,7 +1454,7 @@ pmcstat_convert_log(struct pmcstat_args *a)
 			pp = pmcstat_process_lookup(ev.pl_u.pl_e.pl_pid, 0);
 			if (pp == NULL)
 				break;
-			pp->pp_isactive = 0;	/* make a zombie */
+			pp->pp_isactive = 0;	/* mark as a zombie */
 			break;
 
 		case PMCLOG_TYPE_SYSEXIT:
@@ -1099,20 +1467,23 @@ pmcstat_convert_log(struct pmcstat_args *a)
 		case PMCLOG_TYPE_PROCFORK:
 
 			/*
-			 * If we had been tracking 'oldpid', then clone
-			 * its pid descriptor.
+			 * Allocate a process descriptor for the new
+			 * (child) process.
+			 */
+			ppnew =
+			    pmcstat_process_lookup(ev.pl_u.pl_f.pl_newpid,
+				PMCSTAT_ALLOCATE);
+
+			/*
+			 * If we had been tracking the parent, clone
+			 * its address maps.
 			 */
 			pp = pmcstat_process_lookup(ev.pl_u.pl_f.pl_oldpid, 0);
 			if (pp == NULL)
 				break;
-
-			ppnew =
-			    pmcstat_process_lookup(ev.pl_u.pl_f.pl_newpid, 1);
-
-			/* copy the old process' address maps */
 			TAILQ_FOREACH(ppm, &pp->pp_map, ppm_next)
 			    pmcstat_image_link(ppnew, ppm->ppm_image,
-				ppm->ppm_lowpc, ppm->ppm_highpc);
+				ppm->ppm_lowpc);
 			break;
 
 		default:	/* other types of entries are not relevant */
@@ -1121,47 +1492,19 @@ pmcstat_convert_log(struct pmcstat_args *a)
 	}
 
 	if (ev.pl_state == PMCLOG_EOF)
-		return PMCSTAT_FINISHED;
+		return (PMCSTAT_FINISHED);
 	else if (ev.pl_state == PMCLOG_REQUIRE_DATA)
-		return PMCSTAT_RUNNING;
+		return (PMCSTAT_RUNNING);
 
 	err(EX_DATAERR, "ERROR: event parsing failed (record %jd, "
 	    "offset 0x%jx)", (uintmax_t) ev.pl_count + 1, ev.pl_offset);
-}
-
-
-/*
- * Open a log file, for reading or writing.
- *
- * The function returns the fd of a successfully opened log or -1 in
- * case of failure.
- */
-
-int
-pmcstat_open(const char *path, int mode)
-{
-	int fd;
-
-	/*
-	 * If 'path' is "-" then open one of stdin or stdout depending
-	 * on the value of 'mode'.  Otherwise, treat 'path' as a file
-	 * name and open that.
-	 */
-	if (path[0] == '-' && path[1] == '\0')
-		fd = (mode == PMCSTAT_OPEN_FOR_READ) ? 0 : 1;
-	else
-		fd = open(path, mode == PMCSTAT_OPEN_FOR_READ ?
-		    O_RDONLY : (O_WRONLY|O_CREAT|O_TRUNC),
-		    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-
-	return fd;
 }
 
 /*
  * Print log entries as text.
  */
 
-int
+static int
 pmcstat_print_log(struct pmcstat_args *a)
 {
 	struct pmclog_ev ev;
@@ -1180,14 +1523,17 @@ pmcstat_print_log(struct pmcstat_args *a)
 			    ev.pl_u.pl_i.pl_version,
 			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
 			break;
-		case PMCLOG_TYPE_MAPPINGCHANGE:
-			PMCSTAT_PRINT_ENTRY(a,"mapping","%s %d %p %p \"%s\"",
-			    ev.pl_u.pl_m.pl_type == PMCLOG_MAPPING_INSERT ?
-			    	"insert" : "delete",
-			    ev.pl_u.pl_m.pl_pid,
-			    (void *) ev.pl_u.pl_m.pl_start,
-			    (void *) ev.pl_u.pl_m.pl_end,
-			    ev.pl_u.pl_m.pl_pathname);
+		case PMCLOG_TYPE_MAP_IN:
+			PMCSTAT_PRINT_ENTRY(a,"map-in","%d %p \"%s\"",
+			    ev.pl_u.pl_mi.pl_pid,
+			    (void *) ev.pl_u.pl_mi.pl_start,
+			    ev.pl_u.pl_mi.pl_pathname);
+			break;
+		case PMCLOG_TYPE_MAP_OUT:
+			PMCSTAT_PRINT_ENTRY(a,"map-out","%d %p %p",
+			    ev.pl_u.pl_mo.pl_pid,
+			    (void *) ev.pl_u.pl_mo.pl_start,
+			    (void *) ev.pl_u.pl_mo.pl_end);
 			break;
 		case PMCLOG_TYPE_PCSAMPLE:
 			PMCSTAT_PRINT_ENTRY(a,"sample","0x%x %d %p %c",
@@ -1252,14 +1598,62 @@ pmcstat_print_log(struct pmcstat_args *a)
 	}
 
 	if (ev.pl_state == PMCLOG_EOF)
-		return PMCSTAT_FINISHED;
+		return (PMCSTAT_FINISHED);
 	else if (ev.pl_state ==  PMCLOG_REQUIRE_DATA)
-		return PMCSTAT_RUNNING;
+		return (PMCSTAT_RUNNING);
 
 	err(EX_DATAERR, "ERROR: event parsing failed "
 	    "(record %jd, offset 0x%jx)",
 	    (uintmax_t) ev.pl_count + 1, ev.pl_offset);
 	/*NOTREACHED*/
+}
+
+/*
+ * Public Interfaces.
+ */
+
+/*
+ * Close a logfile, after first flushing all in-module queued data.
+ */
+
+int
+pmcstat_close_log(struct pmcstat_args *a)
+{
+	if (pmc_flush_logfile() < 0 ||
+	    pmc_configure_logfile(-1) < 0)
+		err(EX_OSERR, "ERROR: logging failed");
+	a->pa_flags &= ~(FLAG_HAS_OUTPUT_LOGFILE | FLAG_HAS_PIPE);
+	return (a->pa_flags & FLAG_HAS_PIPE ? PMCSTAT_EXITING :
+	    PMCSTAT_FINISHED);
+}
+
+
+
+/*
+ * Open a log file, for reading or writing.
+ *
+ * The function returns the fd of a successfully opened log or -1 in
+ * case of failure.
+ */
+
+int
+pmcstat_open_log(const char *path, int mode)
+{
+	int fd;
+
+	/*
+	 * If 'path' is "-" then open one of stdin or stdout depending
+	 * on the value of 'mode'.  Otherwise, treat 'path' as a file
+	 * name and open that.
+	 */
+	if (path[0] == '-' && path[1] == '\0')
+		fd = (mode == PMCSTAT_OPEN_FOR_READ) ? 0 : 1;
+	else
+		fd = open(path, mode == PMCSTAT_OPEN_FOR_READ ?
+		    O_RDONLY : (O_WRONLY|O_CREAT|O_TRUNC),
+		    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+
+	return (fd);
 }
 
 /*
@@ -1275,66 +1669,88 @@ pmcstat_process_log(struct pmcstat_args *a)
 	 * log to the current output file.
 	 */
 	if (a->pa_flags & FLAG_DO_PRINT)
-		return pmcstat_print_log(a);
+		return (pmcstat_print_log(a));
 	else
 		/* convert the log to gprof compatible profiles */
-		return pmcstat_convert_log(a);
+		return (pmcstat_convert_log(a));
 }
+
+/*
+ * Initialize module.
+ */
 
 void
 pmcstat_initialize_logging(struct pmcstat_args *a)
 {
 	int i;
-	const char *kernpath;
-	struct pmcstat_image *img;
+
+	(void) a;
 
 	/* use a convenient format for 'ldd' output */
 	if (setenv("LD_TRACE_LOADED_OBJECTS_FMT1","%o \"%p\" %x\n",1) != 0)
-		goto error;
+		err(EX_OSERR, "ERROR: Cannot setenv");
 
 	/* Initialize hash tables */
+	pmcstat_string_initialize();
 	for (i = 0; i < PMCSTAT_NHASH; i++) {
 		LIST_INIT(&pmcstat_image_hash[i]);
 		LIST_INIT(&pmcstat_process_hash[i]);
-		LIST_INIT(&pmcstat_string_hash[i]);
 	}
 
-	/* create a fake 'process' entry for the kernel with pid == -1 */
-	if ((pmcstat_kernproc = pmcstat_process_lookup((pid_t) -1, 1)) == NULL)
-		goto error;
-
-	if ((kernpath = pmcstat_string_intern(a->pa_kernel)) == NULL)
-		goto error;
-
-	img = pmcstat_image_from_path(kernpath);
-
-	pmcstat_image_get_elf_params(img);
-	pmcstat_image_link(pmcstat_kernproc, img, img->pi_start, img->pi_end);
-
-	return;
-
- error:
-	err(EX_OSERR, "ERROR: Cannot initialize logging");
+	/*
+	 * Create a fake 'process' entry for the kernel with pid -1.
+	 * hwpmc(4) will subsequently inform us about where the kernel
+	 * and any loaded kernel modules are mapped.
+	 */
+	if ((pmcstat_kernproc = pmcstat_process_lookup((pid_t) -1,
+		 PMCSTAT_ALLOCATE)) == NULL)
+		err(EX_OSERR, "ERROR: Cannot initialize logging");
 }
 
+/*
+ * Shutdown module.
+ */
+
 void
-pmcstat_shutdown_logging(void)
+pmcstat_shutdown_logging(struct pmcstat_args *a)
 {
 	int i;
+	FILE *mf;
 	struct pmcstat_gmonfile *pgf, *pgftmp;
 	struct pmcstat_image *pi, *pitmp;
 	struct pmcstat_process *pp, *pptmp;
-	struct pmcstat_string *ps, *pstmp;
+
+	/* determine where to send the map file */
+	mf = NULL;
+	if (a->pa_mapfilename != NULL)
+		mf = (strcmp(a->pa_mapfilename, "-") == 0) ?
+		    a->pa_printfile : fopen(a->pa_mapfilename, "w");
+
+	if (mf == NULL && a->pa_flags & FLAG_DO_GPROF &&
+	    a->pa_verbosity >= 2)
+		mf = a->pa_printfile;
+
+	if (mf)
+		(void) fprintf(mf, "MAP:\n");
 
 	for (i = 0; i < PMCSTAT_NHASH; i++) {
 		LIST_FOREACH_SAFE(pi, &pmcstat_image_hash[i], pi_next, pitmp) {
 			/* flush gmon.out data to disk */
 			LIST_FOREACH_SAFE(pgf, &pi->pi_gmlist, pgf_next,
 			    pgftmp) {
-			    pmcstat_gmon_unmap_file(pgf);
-			    LIST_REMOVE(pgf, pgf_next);
-			    free(pgf);
+				pmcstat_gmon_unmap_file(pgf);
+			    	LIST_REMOVE(pgf, pgf_next);
+
+				if (pgf->pgf_overflow && a->pa_verbosity >= 1)
+					warnx("WARNING: profile \"%s\" "
+					    "overflowed.",
+					    pmcstat_string_unintern(pgf->pgf_name));
+			    	free(pgf);
 			}
+			if (mf)
+				(void) fprintf(mf, " \"%s\" -> \"%s\"\n",
+				    pmcstat_string_unintern(pi->pi_execpath),
+				    pmcstat_string_unintern(pi->pi_samplename));
 
 			LIST_REMOVE(pi, pi_next);
 			free(pi);
@@ -1344,10 +1760,31 @@ pmcstat_shutdown_logging(void)
 			LIST_REMOVE(pp, pp_next);
 			free(pp);
 		}
-		LIST_FOREACH_SAFE(ps, &pmcstat_string_hash[i], ps_next,
-		    pstmp) {
-			LIST_REMOVE(ps, ps_next);
-			free(ps);
-		}
 	}
+
+	pmcstat_string_shutdown();
+
+	/*
+	 * Print errors unless -q was specified.  Print all statistics
+	 * if verbosity > 1.
+	 */
+#define	PRINT(N,V,A) do {						\
+		if (pmcstat_stats.ps_##V || (A)->pa_verbosity >= 2)	\
+			(void) fprintf((A)->pa_printfile, " %-40s %d\n",\
+			    N, pmcstat_stats.ps_##V);			\
+	} while (0)
+
+	if (a->pa_verbosity >= 1 && a->pa_flags & FLAG_DO_GPROF) {
+		(void) fprintf(a->pa_printfile, "CONVERSION STATISTICS:\n");
+		PRINT("#exec/a.out", exec_aout, a);
+		PRINT("#exec/elf", exec_elf, a);
+		PRINT("#exec/unknown", exec_indeterminable, a);
+		PRINT("#exec handling errors", exec_errors, a);
+		PRINT("#samples/total", samples_total, a);
+		PRINT("#samples/unclaimed", samples_unknown_offset, a);
+		PRINT("#samples/unknown-object", samples_indeterminable, a);
+	}
+
+	if (mf)
+		(void) fclose(mf);
 }

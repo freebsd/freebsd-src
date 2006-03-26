@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2005-2006 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2005
+.Dd March 26, 2006
 .Os
 .Dt PMCLOG 3
 .Sh NAME
@@ -82,15 +82,21 @@ struct pmclog_ev {
        struct timespec   pl_ts;		/* log entry timestamp */
        enum pmclog_type  pl_type;	/* log entry kind */
        union {				/* log entry data */
-		struct pmclog_ev_allocate   pl_a;
-		struct pmclog_ev_proccsw    pl_c;
-		struct pmclog_ev_dropnotify pl_d;
-		struct pmclog_ev_procexit   pl_e;
-		struct pmclog_ev_initialize pl_i;
-		struct pmclog_ev_pcsample   pl_s;
-		struct pmclog_ev_pmcattach  pl_t;
-		struct pmclog_ev_userdata   pl_u;
-		struct pmclog_ev_procexec   pl_x;
+		struct pmclog_ev_closelog    pl_cl;
+		struct pmclog_ev_dropnotify  pl_d;
+		struct pmclog_ev_initialize  pl_i;
+		struct pmclog_ev_map_in      pl_mi;
+		struct pmclog_ev_map_out     pl_mo;
+		struct pmclog_ev_pcsample    pl_s;
+		struct pmclog_ev_pmcallocate pl_a;
+		struct pmclog_ev_pmcattach   pl_t;
+		struct pmclog_ev_pmcdetach   pl_d;
+		struct pmclog_ev_proccsw     pl_c;
+		struct pmclog_ev_procexec    pl_x;
+		struct pmclog_ev_procexit    pl_e;
+		struct pmclog_ev_procfork    pl_f;
+		struct pmclog_ev_sysexit     pl_e;
+		struct pmclog_ev_userdata    pl_u;
        } pl_u;
 };
 .Ed
@@ -149,8 +155,20 @@ had to drop data due to a resource constraint.
 .It Dv PMCLOG_TYPE_INITIALIZE
 An initialization record.
 This is the first record in a log file.
-.It Dv PMCLOG_TYPE_MAPPINGCHANGE
-A record describing an address space change for a process.
+.It Dv PMCLOG_TYPE_MAP_IN
+A record describing the introduction of a mapping to an executable
+object by a
+.Xr kldload 2 
+or
+.Xr mmap 2
+system call.
+.It Dv PMCLOG_TYPE_MAP_OUT
+A record describing the removal of a mapping to an executable
+object by a
+.Xr kldunload 2
+or
+.Xr munmap 2
+system call.
 .It Dv PMCLOG_TYPE_PCSAMPLE
 A record containing an instruction pointer sample.
 .It Dv PMCLOG_TYPE_PMCALLOCATE

@@ -172,6 +172,9 @@ int linker_ddb_search_symbol(caddr_t _value, c_linker_sym_t *_sym,
 int linker_ddb_symbol_values(c_linker_sym_t _sym, linker_symval_t *_symval);
 
 
+/* HWPMC helper */
+void *linker_hwpmc_list_objects(void);
+
 #endif	/* _KERNEL */
 
 /*

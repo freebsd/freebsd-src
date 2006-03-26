@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2003-2006 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+
+#include <sys/linker.h>		/* needs to be after <sys/malloc.h> */
 
 #include <machine/atomic.h>
 #include <machine/md_var.h>
@@ -1411,19 +1413,138 @@ pmc_process_csw_out(struct thread *td)
 }
 
 /*
+ * Log a KLD operation.
+ */
+
+static void
+pmc_process_kld_load(struct pmckern_map_in *pkm)
+{
+	struct pmc_owner *po;
+
+	sx_assert(&pmc_sx, SX_LOCKED);
+
+	/*
+	 * Notify owners of system sampling PMCs about KLD operations.
+	 */
+
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+	    	pmclog_process_map_in(po, (pid_t) -1, pkm->pm_address,
+		    (char *) pkm->pm_file);
+
+	/*
+	 * TODO: Notify owners of (all) process-sampling PMCs too.
+	 */
+
+	return;
+}
+
+static void
+pmc_process_kld_unload(struct pmckern_map_out *pkm)
+{
+	struct pmc_owner *po;
+
+	sx_assert(&pmc_sx, SX_LOCKED);
+
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+		pmclog_process_map_out(po, (pid_t) -1,
+		    pkm->pm_address, pkm->pm_address + pkm->pm_size);
+		    
+	/*
+	 * TODO: Notify owners of process-sampling PMCs.
+	 */
+}
+
+/*
+ * A mapping change for a process.
+ */
+
+static void
+pmc_process_mmap(struct thread *td, struct pmckern_map_in *pkm)
+{
+	int ri;
+	pid_t pid;
+	char *fullpath, *freepath;
+	const struct pmc *pm;
+	struct pmc_owner *po;
+	const struct pmc_process *pp;
+
+	freepath = fullpath = NULL;
+	pmc_getfilename((struct vnode *) pkm->pm_file, &fullpath, &freepath);
+
+	pid = td->td_proc->p_pid;
+
+	/* Inform owners of all system-wide sampling PMCs. */
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+		pmclog_process_map_in(po, pid, pkm->pm_address, fullpath);
+
+	if ((pp = pmc_find_process_descriptor(td->td_proc, 0)) == NULL)
+		goto done;
+
+	/*
+	 * Inform sampling PMC owners tracking this process.
+	 */
+	for (ri = 0; ri < md->pmd_npmc; ri++)
+		if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL &&
+		    PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
+			pmclog_process_map_in(pm->pm_owner,
+			    pid, pkm->pm_address, fullpath);
+
+  done:
+	if (freepath)
+		FREE(freepath, M_TEMP);
+}
+
+
+/*
+ * Log an munmap request.
+ */
+
+static void
+pmc_process_munmap(struct thread *td, struct pmckern_map_out *pkm)
+{
+	int ri;
+	pid_t pid;
+	struct pmc_owner *po;
+	const struct pmc *pm;
+	const struct pmc_process *pp;
+
+	pid = td->td_proc->p_pid;
+
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+		pmclog_process_map_out(po, pid, pkm->pm_address,
+		    pkm->pm_address + pkm->pm_size);
+
+	if ((pp = pmc_find_process_descriptor(td->td_proc, 0)) == NULL)
+		return;
+
+	for (ri = 0; ri < md->pmd_npmc; ri++)
+		if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL &&
+		    PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
+			pmclog_process_map_out(po, pid, pkm->pm_address,
+			    pkm->pm_address + pkm->pm_size);
+}
+
+/*
  * The 'hook' invoked from the kernel proper
  */
 
 
 #ifdef	DEBUG
 const char *pmc_hooknames[] = {
+	/* these strings correspond to PMC_FN_* in <sys/pmckern.h> */
 	"",
-	"EXIT",
 	"EXEC",
-	"FORK",
 	"CSW-IN",
 	"CSW-OUT",
-	"SAMPLE"
+	"SAMPLE",
+	"KLDLOAD",
+	"KLDUNLOAD",
+	"MMAP",
+	"MUNMAP"
 };
 #endif
 
@@ -1583,6 +1704,27 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		 */
 		atomic_clear_int(&pmc_cpumask, (1 << PCPU_GET(cpuid)));
 		pmc_process_samples(PCPU_GET(cpuid));
+		break;
+
+
+	case PMC_FN_KLD_LOAD:
+		sx_assert(&pmc_sx, SX_LOCKED);
+		pmc_process_kld_load((struct pmckern_map_in *) arg);
+		break;
+
+	case PMC_FN_KLD_UNLOAD:
+		sx_assert(&pmc_sx, SX_LOCKED);
+		pmc_process_kld_unload((struct pmckern_map_out *) arg);
+		break;
+
+	case PMC_FN_MMAP:
+		sx_assert(&pmc_sx, SX_LOCKED);
+		pmc_process_mmap(td, (struct pmckern_map_in *) arg);
+		break;
+
+	case PMC_FN_MUNMAP:
+		sx_assert(&pmc_sx, SX_LOCKED);
+		pmc_process_munmap(td, (struct pmckern_map_out *) arg);
 		break;
 
 	default:
@@ -2237,6 +2379,8 @@ pmc_start(struct pmc *pm)
 		po->po_sscount++;
 	}
 
+	/* TODO: dump system wide process mappings to the log? */
+
 	/*
 	 * Move to the CPU associated with this
 	 * PMC, and start the hardware.
@@ -2408,10 +2552,11 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 	case PMC_OP_CONFIGURELOG:
 	{
+		struct proc *p;
 		struct pmc *pm;
 		struct pmc_owner *po;
+		struct pmckern_map_in *km, *kmbase;
 		struct pmc_op_configurelog cl;
-		struct proc *p;
 
 		sx_assert(&pmc_sx, SX_XLOCKED);
 
@@ -2446,6 +2591,21 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			}
 		} else
 			error = EINVAL;
+
+		if (error)
+			break;
+
+		/*
+		 * Log the current set of kernel modules.
+		 */
+		kmbase = linker_hwpmc_list_objects();
+		for (km = kmbase; km->pm_file != NULL; km++) {
+			PMCDBG(LOG,REG,1,"%s %p", (char *) km->pm_file,
+			    (void *) km->pm_address);
+			pmclog_process_map_in(po, (pid_t) -1, km->pm_address,
+			    km->pm_file);
+		}
+		FREE(kmbase, M_LINKER);
 	}
 	break;
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Joseph Koshy
+ * Copyright (c) 2005-2006 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -322,13 +322,16 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		ps->ps_arch = ev->pl_u.pl_i.pl_arch;
 		ps->ps_initialized = 1;
 		break;
-	case PMCLOG_TYPE_MAPPINGCHANGE:
-		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_mappingchange);
-		PMCLOG_READ32(le,ev->pl_u.pl_m.pl_type);
-		PMCLOG_READADDR(le,ev->pl_u.pl_m.pl_start);
-		PMCLOG_READADDR(le,ev->pl_u.pl_m.pl_end);
-		PMCLOG_READ32(le,ev->pl_u.pl_m.pl_pid);
-		PMCLOG_READSTRING(le, ev->pl_u.pl_m.pl_pathname, pathlen);
+	case PMCLOG_TYPE_MAP_IN:
+		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_map_in);
+		PMCLOG_READ32(le,ev->pl_u.pl_mi.pl_pid);
+		PMCLOG_READADDR(le,ev->pl_u.pl_mi.pl_start);
+		PMCLOG_READSTRING(le, ev->pl_u.pl_mi.pl_pathname, pathlen);
+		break;
+	case PMCLOG_TYPE_MAP_OUT:
+		PMCLOG_READ32(le,ev->pl_u.pl_mo.pl_pid);
+		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_start);
+		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_end);
 		break;
 	case PMCLOG_TYPE_PCSAMPLE:
 		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_pid);
