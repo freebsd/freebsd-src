@@ -1983,11 +1983,15 @@ _rl_make_prompt_for_search (pchar)
      int pchar;
 {
   int len;
-  char *pmt;
+  char *pmt, *p;
 
   rl_save_prompt ();
 
-  if (saved_local_prompt == 0)
+  /* We've saved the prompt, and can do anything with the various prompt
+     strings we need before they're restored.  We want the unexpanded
+     portion of the prompt string after any final newline. */
+  p = rl_prompt ? strrchr (rl_prompt, '\n') : 0;
+  if (p == 0)
     {
       len = (rl_prompt && *rl_prompt) ? strlen (rl_prompt) : 0;
       pmt = (char *)xmalloc (len + 2);
@@ -1998,19 +2002,17 @@ _rl_make_prompt_for_search (pchar)
     }
   else
     {
-      len = *saved_local_prompt ? strlen (saved_local_prompt) : 0;
+      p++;
+      len = strlen (p);
       pmt = (char *)xmalloc (len + 2);
       if (len)
-	strcpy (pmt, saved_local_prompt);
+	strcpy (pmt, p);
       pmt[len] = pchar;
       pmt[len+1] = '\0';
-      local_prompt = savestring (pmt);
-      prompt_last_invisible = saved_last_invisible;
-      prompt_visible_length = saved_visible_length + 1;
-    }
+    }  
 
+  /* will be overwritten by expand_prompt, called from rl_message */
   prompt_physical_chars = saved_physical_chars + 1;
-
   return pmt;
 }
 

@@ -1071,8 +1071,6 @@ int
 rl_delete (count, key)
      int count, key;
 {
-  int r;
-
   if (count < 0)
     return (_rl_rubout_char (-count, key));
 
@@ -1090,17 +1088,17 @@ rl_delete (count, key)
       else
 	rl_forward_byte (count, key);
 
-      r = rl_kill_text (orig_point, rl_point);
+      rl_kill_text (orig_point, rl_point);
       rl_point = orig_point;
-      return r;
     }
   else
     {
       int new_point;
 
       new_point = MB_NEXTCHAR (rl_line_buffer, rl_point, 1, MB_FIND_NONZERO);
-      return (rl_delete_text (rl_point, new_point));
+      rl_delete_text (rl_point, new_point);
     }
+  return 0;
 }
 
 /* Delete the character under the cursor, unless the insertion
