@@ -1411,7 +1411,7 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	if ((error = suser_cred(p->p_ucred, SUSER_ALLOWJAIL)))
+	if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)))
 		return (error);
 	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname, 
 		 args->len, 0, 0));
