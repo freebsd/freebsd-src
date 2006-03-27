@@ -134,11 +134,11 @@ CRUNCH_PROGS_sbin+= ipf
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+= -lalias -lbsdxml -lcam -lcurses -ldevstat -lipsec
+CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
 .if ${MK_IPX} != "no"
 CRUNCH_LIBS+= -lipx
 .endif
-CRUNCH_LIBS+= -lgeom -lkiconv -lmd -lreadline -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lreadline -lsbuf -lufs -lz
 
 .if ${MACHINE_ARCH} == "i386"
 CRUNCH_PROGS_sbin+= sconfig fdisk
