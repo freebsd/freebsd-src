@@ -255,6 +255,8 @@ sub tinderbox($$$) {
     my $config = expand('CONFIG');
     my $start = time();
 
+    $0 = "tbmaster: building $branch for $arch/$machine";
+
     $CONFIG{'BRANCH'} = $branch;
     $CONFIG{'ARCH'} = $arch;
     $CONFIG{'MACHINE'} = $machine;
