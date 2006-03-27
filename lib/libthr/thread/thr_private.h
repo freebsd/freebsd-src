@@ -312,10 +312,6 @@ enum pthread_state {
 	PS_DEAD
 };
 
-union pthread_wait_data {
-	pthread_mutex_t	mutex;
-};
-
 struct pthread_specific_elem {
 	const void	*data;
 	int		seqno;
@@ -332,21 +328,14 @@ struct pthread_key {
  * Thread structure.
  */
 struct pthread {
-	/*
-	 * Magic value to help recognize a valid thread structure
-	 * from an invalid one:
-	 */
-#define	THR_MAGIC		((u_int32_t) 0xd09ba115)
-	u_int32_t		magic;
+	/* Kernel thread id. */
+	long			tid;
+#define	TID_TERMINATED		1
 
 	/*
 	 * Lock for accesses to this thread structure.
 	 */
 	umtx_t			lock;
-
-	/* Kernel thread id. */
-	long			tid;
-#define	TID_TERMINATED		1
 
 	/* Internal condition variable cycle number. */
 	umtx_t			cycle;
@@ -424,12 +413,6 @@ struct pthread {
 	 */
 	TAILQ_ENTRY(pthread)	sqe;
 
-	/* Wait data. */
-	union pthread_wait_data data;
-
-	int			sflags;
-#define THR_FLAGS_IN_SYNCQ	0x0001
-
 	/* Miscellaneous flags; only set with scheduling lock held. */
 	int			flags;
 #define THR_FLAGS_PRIVATE	0x0001
@@ -469,14 +452,8 @@ struct pthread {
 	 */
 	char			active_priority;
 
-	/* Number of priority ceiling or protection mutexes owned. */
-	int			priority_mutex_count;
-
 	/* Queue of currently owned simple type mutexes. */
 	TAILQ_HEAD(, pthread_mutex)	mutexq;
-
-	/* Queue of currently owned priority type mutexs. */
-	TAILQ_HEAD(, pthread_mutex)	pri_mutexq;
 
 	void				*ret;
 	struct pthread_specific_elem	*specific;
@@ -494,6 +471,13 @@ struct pthread {
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup	*cleanup;
+
+	/*
+	 * Magic value to help recognize a valid thread structure
+	 * from an invalid one:
+	 */
+#define	THR_MAGIC		((u_int32_t) 0xd09ba115)
+	u_int32_t		magic;
 
 	/* Enable event reporting */
 	int			report_events;
@@ -602,8 +586,6 @@ do {								\
 
 #define GC_NEEDED()	(_gc_count >= 5)
 
-#define	THR_IN_SYNCQ(thrd)	(((thrd)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
-
 #define SHOULD_REPORT_EVENT(curthr, e)			\
 	(curthr->report_events && 			\
 	 (((curthr)->event_mask | _thread_event_mask ) & e) != 0)
@@ -664,7 +646,6 @@ __BEGIN_DECLS
 int	_thr_setthreaded(int) __hidden;
 int	_mutex_cv_lock(pthread_mutex_t *) __hidden;
 int	_mutex_cv_unlock(pthread_mutex_t *) __hidden;
-void	_mutex_notify_priochange(struct pthread *, struct pthread *, int) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
 void	_mutex_unlock_private(struct pthread *) __hidden;
@@ -731,7 +712,6 @@ void	_thr_unlink(struct pthread *, struct pthread *) __hidden;
 void	_thr_suspend_check(struct pthread *) __hidden;
 void	_thr_assert_lock_level(void) __hidden __dead2;
 void	_thr_ast(struct pthread *) __hidden;
-void	_thr_timer_init(void) __hidden;
 void	_thr_once_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
 			   struct pthread *newthread) __hidden;
