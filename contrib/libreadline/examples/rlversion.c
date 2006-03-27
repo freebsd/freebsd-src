@@ -30,6 +30,12 @@
 #include <sys/types.h>
 #include "posixstat.h"
 
+#ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+#else
+extern void exit();
+#endif
+
 #ifdef READLINE_LIBRARY
 #  include "readline.h"
 #else
