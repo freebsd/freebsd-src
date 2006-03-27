@@ -73,6 +73,7 @@ struct hostapd_config {
 				* EAP Request-Identity */
 	size_t eap_req_id_text_len;
 	int eapol_key_index_workaround;
+	int eapol_version;
 
 	size_t default_wep_key_len;
 	int individual_wep_key_len;
