@@ -30,7 +30,7 @@ MAN=	libthr.3
 
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
-CFLAGS+=-g
+#CFLAGS+=-g
 
 PRECIOUSLIB=
 
