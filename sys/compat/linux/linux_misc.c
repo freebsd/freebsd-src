@@ -1405,7 +1405,6 @@ linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 int
 linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 {
-	struct proc *p = td->td_proc;
 	int name[2];
 	int error;
 
