@@ -1,6 +1,6 @@
 /* input.c -- character input functions for readline. */
 
-/* Copyright (C) 1994 Free Software Foundation, Inc.
+/* Copyright (C) 1994-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -444,6 +444,10 @@ rl_getc (stream)
 
   while (1)
     {
+#if defined (__MINGW32__)
+      if (isatty (fileno (stream)))
+	return (getch ());
+#endif
       result = read (fileno (stream), &c, sizeof (unsigned char));
 
       if (result == sizeof (unsigned char))
@@ -519,6 +523,12 @@ _rl_read_mbchar (mbchar, size)
 	  ps = ps_back;
 	  continue;
 	} 
+      else if (mbchar_bytes_length == 0)
+	{
+	  mbchar[0] = '\0';	/* null wide character */
+	  mb_len = 1;
+	  break;
+	}
       else if (mbchar_bytes_length > (size_t)(0))
 	break;
     }

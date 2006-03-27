@@ -1,6 +1,6 @@
 /* history.c -- standalone history library */
 
-/* Copyright (C) 1989-2003 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2005 Free Software Foundation, Inc.
 
    This file contains the GNU History Library (the Library), a set of
    routines for managing the text of previously typed lines.
@@ -204,7 +204,7 @@ history_get (offset)
   int local_index;
 
   local_index = offset - history_base;
-  return (local_index >= history_length || local_index < 0 || !the_history)
+  return (local_index >= history_length || local_index < 0 || the_history == 0)
 		? (HIST_ENTRY *)NULL
 		: the_history[local_index];
 }
@@ -340,7 +340,7 @@ replace_history_entry (which, line, data)
 {
   HIST_ENTRY *temp, *old_value;
 
-  if (which >= history_length)
+  if (which < 0 || which >= history_length)
     return ((HIST_ENTRY *)NULL);
 
   temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
@@ -364,17 +364,15 @@ remove_history (which)
   HIST_ENTRY *return_value;
   register int i;
 
-  if (which >= history_length || !history_length)
-    return_value = (HIST_ENTRY *)NULL;
-  else
-    {
-      return_value = the_history[which];
+  if (which < 0 || which >= history_length || history_length ==  0 || the_history == 0)
+    return ((HIST_ENTRY *)NULL);
 
-      for (i = which; i < history_length; i++)
-	the_history[i] = the_history[i + 1];
+  return_value = the_history[which];
 
-      history_length--;
-    }
+  for (i = which; i < history_length; i++)
+    the_history[i] = the_history[i + 1];
+
+  history_length--;
 
   return (return_value);
 }
