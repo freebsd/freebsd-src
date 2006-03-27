@@ -40,6 +40,8 @@ INCLUDES = -I$(srcdir) -I$(top_srcdir) -I..
 CCFLAGS  = $(DEFS) $(LOCAL_CFLAGS) $(CPPFLAGS) $(INCLUDES) $(CFLAGS)
 LDFLAGS = -g -L.. @LDFLAGS@
 
+PURIFY = @PURIFY@
+
 READLINE_LIB = ../libreadline.a
 HISTORY_LIB = ../libhistory.a
 
@@ -53,30 +55,32 @@ EXECUTABLES = fileman rltest rl rlcat rlversion histexamp
 OBJECTS = fileman.o rltest.o rl.o rlcat.o rlversion.o histexamp.o
 
 all: $(EXECUTABLES)
-everything: all rlfe
+everything: all
 
 rl: rl.o $(READLINE_LIB)
-	$(CC) $(LDFLAGS) -o $@ rl.o -lreadline $(TERMCAP_LIB)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ rl.o $(READLINE_LIB) $(TERMCAP_LIB)
 
 rlcat: rlcat.o $(READLINE_LIB)
-	$(CC) $(LDFLAGS) -o $@ rlcat.o -lreadline $(TERMCAP_LIB)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ rlcat.o $(READLINE_LIB) $(TERMCAP_LIB)
 
 fileman: fileman.o $(READLINE_LIB)
-	$(CC) $(LDFLAGS) -o $@ fileman.o -lreadline $(TERMCAP_LIB)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ fileman.o $(READLINE_LIB) $(TERMCAP_LIB)
 
 rltest: rltest.o $(READLINE_LIB)
-	$(CC) $(LDFLAGS) -o $@ rltest.o -lreadline $(TERMCAP_LIB)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ rltest.o $(READLINE_LIB) $(TERMCAP_LIB)
+
+rlptytest: rlptytest.o $(READLINE_LIB)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ rlptytest.o $(READLINE_LIB) $(TERMCAP_LIB)
 
 rlversion: rlversion.o $(READLINE_LIB)
-	$(CC) $(LDFLAGS) -o $@ rlversion.o -lreadline $(TERMCAP_LIB)
+	$(CC) $(LDFLAGS) -o $@ rlversion.o $(READLINE_LIB) $(TERMCAP_LIB)
 
 histexamp: histexamp.o $(HISTORY_LIB)
-	$(CC) $(LDFLAGS) -o $@ histexamp.o -lhistory $(TERMCAP_LIB)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ histexamp.o -lhistory $(TERMCAP_LIB)
 
 clean mostlyclean:
 	$(RM) $(OBJECTS)
 	$(RM) $(EXECUTABLES) *.exe
-	$(RM) rlfe.o rlfe
 
 distclean maintainer-clean: clean
 	$(RM) Makefile
@@ -86,19 +90,13 @@ rltest.o: rltest.c
 rl.o: rl.c
 rlversion.o: rlversion.c
 histexamp.o: histexamp.c
+rlcat.o: rlcat.c
+rlptytest.o: rlptytest.c
 
 fileman.o: $(top_srcdir)/readline.h
 rltest.o: $(top_srcdir)/readline.h
 rl.o: $(top_srcdir)/readline.h
 rlversion.o: $(top_srcdir)/readline.h
 histexamp.o: $(top_srcdir)/history.h
-
-# Stuff for Per Bothner's `rlfe' program
- 
-rlfe: rlfe.o $(READLINE_LIB) $(HISTORY_LIB)
-	$(CC) $(LDFLAGS) -o $@ rlfe.o -lreadline -lhistory ${TERMCAP_LIB}
-
-rlfe.o: rlfe.c
-
-rlfe.o: $(top_srcdir)/readline.h
-rlfe.o: $(top_srcdir)/history.h
+rlcat.o: $(top_srcdir)/readline.h $(top_srcdir)/history.h
+rlptytest.o: $(top_srcdir)/readline.h $(top_srcdir)/history.h
