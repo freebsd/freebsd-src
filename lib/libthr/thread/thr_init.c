@@ -68,7 +68,7 @@ atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
 umtx_t		_thr_atfork_lock;
 
 struct pthread_attr _pthread_attr_default = {
-	.sched_policy = SCHED_RR,
+	.sched_policy = SCHED_OTHER,
 	.sched_inherit = 0,
 	.sched_interval = TIMESLICE_USEC,
 	.prio = THR_DEFAULT_PRIORITY,
@@ -424,7 +424,6 @@ init_main_thread(struct pthread *thread)
 
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&thread->mutexq);
-	TAILQ_INIT(&thread->pri_mutexq);
 
 	thread->state = PS_RUNNING;
 

@@ -30,8 +30,6 @@ SRCS+= \
 	thr_multi_np.c \
 	thr_mutex.c \
 	thr_mutexattr.c \
-	thr_mutex_prioceiling.c \
-	thr_mutex_protocol.c \
 	thr_once.c \
 	thr_printf.c \
 	thr_pspinlock.c \
