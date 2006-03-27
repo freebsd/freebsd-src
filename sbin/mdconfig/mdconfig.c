@@ -42,7 +42,6 @@ static int md_find(char *, const char *);
 static int md_query(char *name);
 static int md_list(char *units, int opt);
 static char *geom_config_get(struct gconf *g, char *name);
-static void geom_config_dump(struct gconf *g);
 static void md_prthumanval(char *length);
 
 #define OPT_VERBOSE	0x01
@@ -303,17 +302,13 @@ md_list(char *units, int opt)
 {
 	struct gmesh gm;
 	struct gprovider *pp;
-	struct gconsumer *cp;
 	struct gconf *gc;
-	struct gconfig *gce;
 	struct gident *gid;
-	struct devstat *gsp, *gsq;
+	struct devstat *gsp;
 	struct ggeom *gg;
 	struct gclass *gcl;
 	void *sq;
 	int retcode;
-	signed int ch;
-	int nl;
 	char *type, *file, *length;
 
 	type = file = length = NULL;
