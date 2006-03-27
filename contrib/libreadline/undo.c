@@ -237,7 +237,12 @@ rl_revert_line (count, key)
     {
       while (rl_undo_list)
 	rl_do_undo ();
+#if defined (VI_MODE)
+      if (rl_editing_mode == vi_mode)
+	rl_point = rl_mark = 0;		/* rl_end should be set correctly */
+#endif
     }
+    
   return 0;
 }
 

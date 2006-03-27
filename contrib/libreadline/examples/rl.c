@@ -31,12 +31,19 @@
 
 #include <stdio.h>
 #include <sys/types.h>
-#include "posixstat.h"
+
+#ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+#else 
+extern void exit();
+#endif
 
 #if defined (READLINE_LIBRARY)
+#  include "posixstat.h"
 #  include "readline.h"
 #  include "history.h"
 #else
+#  include <sys/stat.h>
 #  include <readline/readline.h>
 #  include <readline/history.h>
 #endif
