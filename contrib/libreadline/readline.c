@@ -282,6 +282,7 @@ rl_set_prompt (prompt)
 {
   FREE (rl_prompt);
   rl_prompt = prompt ? savestring (prompt) : (char *)NULL;
+  rl_display_prompt = rl_prompt ? rl_prompt : "";
 
   rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
   return 0;
@@ -714,7 +715,7 @@ _rl_dispatch_subseq (key, map, got_subseq)
 
 	  rl_dispatching = 1;
 	  RL_SETSTATE(RL_STATE_DISPATCHING);
-	  r = (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
+	  (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
 	  RL_UNSETSTATE(RL_STATE_DISPATCHING);
 	  rl_dispatching = 0;
 
