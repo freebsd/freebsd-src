@@ -40,6 +40,12 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+#else 
+extern void exit();
+#endif
+
 #ifndef errno
 extern int errno;
 #endif

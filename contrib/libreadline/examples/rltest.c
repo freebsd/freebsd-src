@@ -31,6 +31,12 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+#else 
+extern void exit();
+#endif
+
 #ifdef READLINE_LIBRARY
 #  include "readline.h"
 #  include "history.h"

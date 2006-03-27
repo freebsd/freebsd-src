@@ -1,0 +1,176 @@
+#
+# Makefile template for rlfe 
+#
+# See machine dependant config.h for more configuration options.
+#
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+DESTDIR = 
+
+# Where to install screen.
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+# don't forget to change mandir and infodir in doc/Makefile.
+bindir  = $(exec_prefix)/bin
+
+VERSION = @VERSION@
+SCREEN = screen-$(VERSION)
+
+CC = @CC@
+CFLAGS = @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+#LDFLAGS = -L$(READLINE_DIR)
+LDFLAGS = @LDFLAGS@
+LIBS = -lreadline -lhistory -lncurses
+
+CPP=@CPP@
+CPP_DEPEND=$(CC) -MM
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+AWK = @AWK@
+
+OPTIONS=
+#OPTIONS= -DDEBUG
+
+SHELL=/bin/sh
+
+CFILES=	rlfe.c pty.c
+HFILES= extern.h os.h screen.h
+EXTRA_DIST=configure.in configure Makefile.in config.h.in ChangeLog README
+OFILES=	rlfe.o pty.o
+
+all:	rlfe
+
+rlfe: $(OFILES)
+	$(CC) $(LDFLAGS) -o $@ $(OFILES) $(LIBS)
+
+rlfe-$(VERSION).tar.gz:
+	tar czf $@ $(CFILES) $(HFILES) $(EXTRA_DIST)
+
+.c.o:
+	$(CC) -c -I. -I$(srcdir) $(M_CFLAGS) $(DEFS) $(OPTIONS) $(CFLAGS) $<
+
+install_bin: .version screen
+	-if [ -f $(DESTDIR)$(bindir)/$(SCREEN) ] && [ ! -f $(DESTDIR)$(bindir)/$(SCREEN).old ]; \
+		then mv $(DESTDIR)$(bindir)/$(SCREEN) $(DESTDIR)$(bindir)/$(SCREEN).old; fi
+	$(INSTALL_PROGRAM) screen $(DESTDIR)$(bindir)/$(SCREEN)
+	-chown root $(DESTDIR)$(bindir)/$(SCREEN) && chmod 4755 $(DESTDIR)$(bindir)/$(SCREEN)
+# This doesn't work if $(bindir)/screen is a symlink
+	-if [ -f $(DESTDIR)$(bindir)/screen ] && [ ! -f $(DESTDIR)$(bindir)/screen.old ]; then mv $(DESTDIR)$(bindir)/screen $(DESTDIR)$(bindir)/screen.old; fi
+	rm -f $(DESTDIR)$(bindir)/screen
+	(cd $(DESTDIR)$(bindir) && ln -sf $(SCREEN) screen)
+	cp $(srcdir)/utf8encodings/?? $(DESTDIR)$(SCREENENCODINGS)
+
+
+uninstall: .version
+	rm -f $(DESTDIR)$(bindir)/$(SCREEN)
+	rm -f $(DESTDIR)$(bindir)/screen
+	-mv $(DESTDIR)$(bindir)/screen.old $(DESTDIR)$(bindir)/screen
+	rm -f $(DESTDIR)$(ETCSCREENRC)
+	cd doc; $(MAKE) uninstall
+
+shadow:
+	mkdir shadow;
+	cd shadow; ln -s ../*.[ch] ../*.in ../*.sh ../configure ../doc ../terminfo ../etc .
+	rm -f shadow/term.h shadow/tty.c shadow/comm.h shadow/osdef.h
+	echo "install all Makefiles and config:" > shadow/Makefile
+	echo "	rm -f config.cache" >> shadow/Makefile
+	echo "	sh ./configure" >> shadow/Makefile
+
+term.h: term.c term.sh
+	AWK=$(AWK) srcdir=$(srcdir) sh $(srcdir)/term.sh
+
+kmapdef.c: term.h
+
+tty.c:	tty.sh 
+	sh $(srcdir)/tty.sh tty.c
+
+mostlyclean:
+	rm -f $(OFILES) rlfe *.o
+
+clean celan: mostlyclean
+	rm -f tty.c term.h comm.h osdef.h kmapdef.c core
+
+# Delete all files from the current directory that are created by 
+# configuring or building the program.
+# building of term.h/comm.h requires awk. Keep it in the distribution
+# we keep config.h, as this file knows where 'make dist' finds the ETCSCREENRC.
+#distclean:	mostlyclean
+#	rm -f $(SCREEN).tar $(SCREEN).tar.gz
+#	rm -f config.status Makefile
+#	rm -f osdef.h doc/Makefile
+
+maintainer-clean:
+	@echo "This command is not even intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+
+# Delete everything from the current directory that can be
+# reconstructed with this Makefile.
+realclean: .version mostlyclean
+	rm -f $(SCREEN).tar $(SCREEN).tar.gz
+	rm -f config.status Makefile doc/Makefile
+	rm -f tty.c term.h comm.h osdef.h kmapdef.c
+	rm -f config.h
+	echo "install all Makefiles and config:" > Makefile
+	echo "  sh ./configure" >> Makefile
+
+tags TAGS: $(CFILES)
+	-ctags    *.sh $(CFILES) *.h
+	-ctags -e *.sh $(CFILES) *.h
+
+dist: .version $(SCREEN).tar.gz
+
+
+# Perform self-tests (if any).
+check:
+
+config:
+	rm -f config.cache
+	sh ./configure
+
+
+###############################################################################
+
+.version:
+	@rev=`sed < $(srcdir)/patchlevel.h -n -e '/#define REV/s/#define REV  *//p'`; \
+	vers=`sed < $(srcdir)/patchlevel.h -n -e '/#define VERS/s/#define VERS  *//p'`; \
+	pat=`sed < $(srcdir)/patchlevel.h -n -e '/#define PATCHLEVEL/s/#define PATCHLEVEL  *//p'`; \
+	if [ "$${rev}.$${vers}.$${pat}" != "$(VERSION)" ]; then \
+	echo "This distribution is screen-$${rev}.$${vers}.$${pat}, but"; \
+	echo "the Makefile is from $(VERSION). Please update!"; exit 1; fi
+
+###############################################################################
+
+mdepend: $(CFILES) term.h
+	@rm -f DEPEND ; \
+	for i in ${CFILES} ; do \
+	  echo "$$i" ; \
+	  echo `echo "$$i" | sed -e 's/.c$$/.o/'`": $$i" `\
+            cc -E $$i |\
+            grep '^# .*"\./.*\.h"' |\
+            (sort -t'"' -u -k 2,2 2>/dev/null || sort -t'"' -u +1 -2) |\
+            sed -e 's/.*"\.\/\(.*\)".*/\1/'\
+          ` >> DEPEND ; \
+	done
+
+depend: depend.in
+	./config.status || ./configure
+
+depend.in: $(CFILES) term.h
+	cp Makefile.in Makefile.in~
+	sed -e '/\#\#\# Dependencies/q' < Makefile.in > tmp_make
+	for i in $(CFILES); do echo $$i; $(CPP_DEPEND) $$i >> tmp_make; done 
+	mv tmp_make Makefile.in
+
+###############################################################################
+
+### Dependencies:
+pty.o: pty.c config.h
