@@ -28,3 +28,22 @@ Modifications Copyright (c) 1995, John Hay
 Modifications Copyright (c) 2004-2006 Robert N. M. Watson
 
 */
+
+--- TODO ---
+
+(1) netipx default socket buffer sizes are very small by contemporary
+    standards, and should be increased following testing and measurement.
+
+(2) SPX will free the PCB and socket buffer memory on close(), which means
+    close() in effects terminates the transfer of any outstanding buffered
+    but unsent data.  As with TCP, it should instead grab its own
+    reference to the socket so that it is not released, as hold onto it
+    until the data transfer is complete.
+
+(3) Raw socket capture of IPX output intercepts packets in the SPX output
+    routine in order to feed them back into the raw socket.  This results
+    in recursion into the socket code in the transmit path; instead,
+    captured packets should be fed into a netisr that reinjects them into
+    raw sockets from a new (asynchronous) context.
+
+(4) IPX over IP encapsulation needs work to make it properly MPSAFE.
