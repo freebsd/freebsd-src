@@ -1,8 +1,7 @@
 /* $FreeBSD$ */
-
 /* terminal.c -- controlling the terminal with termcap. */
 
-/* Copyright (C) 1996 Free Software Foundation, Inc.
+/* Copyright (C) 1996-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -70,6 +69,8 @@
 
 #define CUSTOM_REDISPLAY_FUNC() (rl_redisplay_function != rl_redisplay)
 #define CUSTOM_INPUT_FUNC() (rl_getc_function != rl_getc)
+
+int rl_prefer_env_winsize;
 
 /* **************************************************************** */
 /*								    */
@@ -147,6 +148,9 @@ static char *_rl_term_kh;
 static char *_rl_term_kH;
 static char *_rl_term_at7;	/* @7 */
 
+/* Delete key */
+static char *_rl_term_kD;
+
 /* Insert key */
 static char *_rl_term_kI;
 
@@ -193,12 +197,14 @@ _rl_get_screen_size (tty, ignore_env)
 #if defined (TIOCGWINSZ)
   struct winsize window_size;
 #endif /* TIOCGWINSZ */
+  int wr, wc;
 
+  wr = wc = -1;
 #if defined (TIOCGWINSZ)
   if (ioctl (tty, TIOCGWINSZ, &window_size) == 0)
     {
-      _rl_screenwidth = (int) window_size.ws_col;
-      _rl_screenheight = (int) window_size.ws_row;
+      wc = (int) window_size.ws_col;
+      wr = (int) window_size.ws_row;
     }
 #endif /* TIOCGWINSZ */
 
@@ -206,12 +212,24 @@ _rl_get_screen_size (tty, ignore_env)
   _emx_get_screensize (&_rl_screenwidth, &_rl_screenheight);
 #endif
 
+  if (ignore_env || rl_prefer_env_winsize == 0)
+    {
+      _rl_screenwidth = wc;
+      _rl_screenheight = wr;
+    }
+  else
+    _rl_screenwidth = _rl_screenheight = -1;
+
   /* Environment variable COLUMNS overrides setting of "co" if IGNORE_ENV
-     is unset. */
+     is unset.  If we prefer the environment, check it first before
+     assigning the value returned by the kernel. */
   if (_rl_screenwidth <= 0)
     {
       if (ignore_env == 0 && (ss = sh_get_env_value ("COLUMNS")))
 	_rl_screenwidth = atoi (ss);
+
+      if (_rl_screenwidth <= 0)
+        _rl_screenwidth = wc;
 
 #if !defined (__DJGPP__)
       if (_rl_screenwidth <= 0 && term_string_buffer)
@@ -225,6 +243,9 @@ _rl_get_screen_size (tty, ignore_env)
     {
       if (ignore_env == 0 && (ss = sh_get_env_value ("LINES")))
 	_rl_screenheight = atoi (ss);
+
+      if (_rl_screenheight <= 0)
+        _rl_screenheight = wr;
 
 #if !defined (__DJGPP__)
       if (_rl_screenheight <= 0 && term_string_buffer)
@@ -254,16 +275,17 @@ void
 _rl_set_screen_size (rows, cols)
      int rows, cols;
 {
-  if (rows == 0 || cols == 0)
-    return;
+  if (rows > 0)
+    _rl_screenheight = rows;
+  if (cols > 0)
+    {
+      _rl_screenwidth = cols;
+      if (_rl_term_autowrap == 0)
+	_rl_screenwidth--;
+    }
 
-  _rl_screenheight = rows;
-  _rl_screenwidth = cols;
-
-  if (_rl_term_autowrap == 0)
-    _rl_screenwidth--;
-
-  _rl_screenchars = _rl_screenwidth * _rl_screenheight;
+  if (rows > 0 || cols > 0)
+    _rl_screenchars = _rl_screenwidth * _rl_screenheight;
 }
 
 void
@@ -281,6 +303,12 @@ rl_get_screen_size (rows, cols)
     *rows = _rl_screenheight;
   if (cols)
     *cols = _rl_screenwidth;
+}
+
+void
+rl_reset_screen_size ()
+{
+  _rl_get_screen_size (fileno (rl_instream), 0);
 }
      
 void
@@ -315,6 +343,7 @@ static struct _tc_string tc_strings[] =
   { "ei", &_rl_term_ei },
   { "ic", &_rl_term_ic },
   { "im", &_rl_term_im },
+  { "kD", &_rl_term_kD },	/* delete */
   { "kH", &_rl_term_kH },	/* home down ?? */
   { "kI", &_rl_term_kI },	/* insert */
   { "kd", &_rl_term_kd },
@@ -365,7 +394,6 @@ _rl_init_terminal_io (terminal_name)
   term = terminal_name ? terminal_name : sh_get_env_value ("TERM");
   _rl_term_clrpag = _rl_term_cr = _rl_term_clreol = (char *)NULL;
   tty = rl_instream ? fileno (rl_instream) : 0;
-  _rl_screenwidth = _rl_screenheight = 0;
 
   if (term == 0)
     term = "dumb";
@@ -398,12 +426,17 @@ _rl_init_terminal_io (terminal_name)
 
       _rl_term_autowrap = 0;	/* used by _rl_get_screen_size */
 
+      /* Allow calling application to set default height and width, using
+	 rl_set_screen_size */
+      if (_rl_screenwidth <= 0 || _rl_screenheight <= 0)
+	{
 #if defined (__EMX__)
-      _emx_get_screensize (&_rl_screenwidth, &_rl_screenheight);
-      _rl_screenwidth--;
+	  _emx_get_screensize (&_rl_screenwidth, &_rl_screenheight);
+	  _rl_screenwidth--;
 #else /* !__EMX__ */
-      _rl_get_screen_size (tty, 0);
+	  _rl_get_screen_size (tty, 0);
 #endif /* !__EMX__ */
+	}
 
       /* Defaults. */
       if (_rl_screenwidth <= 0 || _rl_screenheight <= 0)
@@ -418,7 +451,7 @@ _rl_init_terminal_io (terminal_name)
       _rl_term_im = _rl_term_ei = _rl_term_ic = _rl_term_IC = (char *)NULL;
       _rl_term_up = _rl_term_dc = _rl_term_DC = _rl_visible_bell = (char *)NULL;
       _rl_term_ku = _rl_term_kd = _rl_term_kl = _rl_term_kr = (char *)NULL;
-      _rl_term_kh = _rl_term_kH = _rl_term_kI = (char *)NULL;
+      _rl_term_kh = _rl_term_kH = _rl_term_kI = _rl_term_kD = (char *)NULL;
       _rl_term_ks = _rl_term_ke = _rl_term_at7 = (char *)NULL;
       _rl_term_mm = _rl_term_mo = (char *)NULL;
       _rl_term_ve = _rl_term_vs = (char *)NULL;
@@ -450,7 +483,10 @@ _rl_init_terminal_io (terminal_name)
 
   _rl_term_autowrap = tgetflag ("am") && tgetflag ("xn");
 
-  _rl_get_screen_size (tty, 0);
+  /* Allow calling application to set default height and width, using
+     rl_set_screen_size */
+  if (_rl_screenwidth <= 0 || _rl_screenheight <= 0)
+    _rl_get_screen_size (tty, 0);
 
   /* "An application program can assume that the terminal can do
       character insertion if *any one of* the capabilities `IC',
@@ -495,6 +531,8 @@ bind_termcap_arrow_keys (map)
   rl_bind_keyseq_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
   rl_bind_keyseq_if_unbound (_rl_term_at7, rl_end_of_line);	/* End */
 
+  rl_bind_keyseq_if_unbound (_rl_term_kD, rl_delete);
+
   _rl_keymap = xkeymap;
 }
 
@@ -520,6 +558,7 @@ int
 rl_reset_terminal (terminal_name)
      const char *terminal_name;
 {
+  _rl_screenwidth = _rl_screenheight = 0;
   _rl_init_terminal_io (terminal_name);
   return 0;
 }
