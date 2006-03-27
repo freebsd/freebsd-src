@@ -26,11 +26,26 @@
 /* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
 #undef STAT_MACROS_BROKEN
 
+/* Define if you have the fcntl function. */
+#undef HAVE_FCNTL
+
+/* Define if you have the getpwent function. */
+#undef HAVE_GETPWENT
+
+/* Define if you have the getpwnam function. */
+#undef HAVE_GETPWNAM
+
+/* Define if you have the getpwuid function. */
+#undef HAVE_GETPWUID
+
 /* Define if you have the isascii function. */
 #undef HAVE_ISASCII
 
 /* Define if you have the isxdigit function. */
 #undef HAVE_ISXDIGIT
+
+/* Define if you have the kill function. */
+#undef HAVE_KILL
 
 /* Define if you have the lstat function. */
 #undef HAVE_LSTAT
@@ -87,6 +102,9 @@
 /* Define if you have the <dirent.h> header file.  */
 #undef HAVE_DIRENT_H
 
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
 /* Define if you have the <langinfo.h> header file.  */
 #undef HAVE_LANGINFO_H
 
@@ -101,6 +119,9 @@
 
 /* Define if you have the <ndir.h> header file.  */
 #undef HAVE_NDIR_H
+
+/* Define if you have the <pwd.h> header file.  */
+#undef HAVE_PWD_H
 
 /* Define if you have the <stdarg.h> header file.  */
 #undef HAVE_STDARG_H
