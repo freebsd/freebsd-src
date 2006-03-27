@@ -241,6 +241,7 @@ sub logstage($) {
     my $msg = shift;
 
     chomp($msg);
+    $0 = "tinderbox: [$branch $arch/$machine] $msg";
     print(STDERR strftime("TB --- %Y-%m-%d %H:%M:%S - $msg\n", localtime()));
 }
 
