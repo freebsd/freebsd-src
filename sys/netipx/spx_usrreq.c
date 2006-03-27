@@ -366,7 +366,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 
 dropwithreset:
 	IPX_LOCK_ASSERT(ipxp);
-	if (cb == NULL && (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
+	if (cb == NULL || (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
 	    traceallspxs))
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	IPX_UNLOCK(ipxp);
