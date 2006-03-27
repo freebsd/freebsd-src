@@ -42,7 +42,7 @@ SYSTEM_LD += -EB
 .endif
 
 
-.if !defined(DEBUG)
+.if !defined(DEBUG) && !defined(PROFLEVEL)
 CFLAGS += -mno-apcs-frame
 STRIP_FLAGS = -S
 .endif
