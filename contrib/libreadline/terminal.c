@@ -123,7 +123,7 @@ char *_rl_term_up;
 static char *_rl_visible_bell;
 
 /* Non-zero means the terminal can auto-wrap lines. */
-int _rl_term_autowrap;
+int _rl_term_autowrap = -1;
 
 /* Non-zero means that this terminal has a meta key. */
 static int term_has_meta;
@@ -275,6 +275,9 @@ void
 _rl_set_screen_size (rows, cols)
      int rows, cols;
 {
+  if (_rl_term_autowrap == -1)
+    _rl_init_terminal_io (rl_terminal_name);
+
   if (rows > 0)
     _rl_screenheight = rows;
   if (cols > 0)
