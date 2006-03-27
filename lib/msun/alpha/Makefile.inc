@@ -2,6 +2,7 @@
 
 ARCH_SRCS = s_copysign.S s_copysignf.S
 LDBL_PREC = 53
+SYM_MAPS += ${.CURDIR}/alpha/Symbol.map
 
 # XXX Comment from NetBSD/Alpha:
 # XXX LINT SIGFPEs in e_exp.c's strtod().  FP underflow/denorm software
