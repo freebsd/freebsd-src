@@ -1541,7 +1541,14 @@ AC_DEFUN(BASH_CHECK_DEV_FD,
 [AC_MSG_CHECKING(whether /dev/fd is available)
 AC_CACHE_VAL(bash_cv_dev_fd,
 [if test -d /dev/fd  && test -r /dev/fd/0 < /dev/null; then
-   bash_cv_dev_fd=standard
+# check for systems like FreeBSD 5 that only provide /dev/fd/[012]
+   exec 3<&0
+   if test -r /dev/fd/3; then
+     bash_cv_dev_fd=standard
+   else
+     bash_cv_dev_fd=absent
+   fi
+   exec 3<&-
  elif test -d /proc/self/fd && test -r /proc/self/fd/0 < /dev/null; then
    bash_cv_dev_fd=whacky
  else
@@ -1733,12 +1740,18 @@ AC_CACHE_VAL(ac_cv_rl_version,
 #include <stdio.h>
 #include <readline/readline.h>
 
+extern int rl_gnu_readline_p;
+
 main()
 {
 	FILE *fp;
 	fp = fopen("conftest.rlv", "w");
-	if (fp == 0) exit(1);
-	fprintf(fp, "%s\n", rl_library_version ? rl_library_version : "0.0");
+	if (fp == 0)
+		exit(1);
+	if (rl_gnu_readline_p != 1)
+		fprintf(fp, "0.0\n");
+	else
+		fprintf(fp, "%s\n", rl_library_version ? rl_library_version : "0.0");
 	fclose(fp);
 	exit(0);
 }
@@ -1849,6 +1862,39 @@ char	*v[];
 AC_MSG_RESULT($bash_cv_func_ctype_nonascii)
 if test $bash_cv_func_ctype_nonascii = yes; then
 AC_DEFINE(CTYPE_NON_ASCII)
+fi
+])
+
+AC_DEFUN(BASH_CHECK_WCONTINUED,
+[
+AC_MSG_CHECKING(whether WCONTINUED flag to waitpid is unavailable or available but broken)
+AC_CACHE_VAL(bash_cv_wcontinued_broken,
+[AC_TRY_RUN([
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <errno.h>
+
+#ifndef errno
+extern int errno;
+#endif
+main()
+{
+	int	x;
+
+	x = waitpid(-1, (int *)0, WNOHANG|WCONTINUED);
+	if (x == -1 && errno == EINVAL)
+		exit (1);
+	else
+		exit (0);
+}
+], bash_cv_wcontinued_broken=no,bash_cv_wcontinued_broken=yes,
+   [AC_MSG_WARN(cannot check WCONTINUED if cross compiling -- defaulting to no)
+    bash_cv_wcontinued_broken=no]
+)])
+AC_MSG_RESULT($bash_cv_wcontinued_broken)
+if test $bash_cv_wcontinued_broken = yes; then
+AC_DEFINE(WCONTINUED_BROKEN)
 fi
 ])
 
