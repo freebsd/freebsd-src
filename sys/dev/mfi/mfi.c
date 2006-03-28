@@ -911,6 +911,12 @@ mfi_add_ld(struct mfi_softc *sc, int id, uint64_t sectors, uint32_t secsize)
 	struct mfi_ld *ld;
 	device_t child;
 
+	if ((secsize == 0) || (sectors == 0)) {
+		device_printf(sc->mfi_dev, "Invalid capacity parameters for "
+		      "logical disk %d\n", id);
+		return (EINVAL);
+	}
+
 	ld = malloc(sizeof(struct mfi_ld), M_MFIBUF, M_NOWAIT|M_ZERO);
 	if (ld == NULL) {
 		device_printf(sc->mfi_dev, "Cannot allocate ld\n");
@@ -929,7 +935,6 @@ mfi_add_ld(struct mfi_softc *sc, int id, uint64_t sectors, uint32_t secsize)
 
 	device_set_ivars(child, ld);
 	device_set_desc(child, "MFI Logical Disk");
-	TAILQ_INSERT_TAIL(&sc->mfi_ld_tqh, ld, ld_link);
 	mtx_unlock(&sc->mfi_io_lock);
 	mtx_lock(&Giant);
 	bus_generic_attach(sc->mfi_dev);
