@@ -250,7 +250,7 @@ mfi_attach(struct mfi_softc *sc)
 		sc->mfi_sgsize = sizeof(struct mfi_sg64);
 		sc->mfi_flags |= MFI_FLAGS_SG64;
 	} else {
-		sc->mfi_sgsize = sizeof(struct mfi_sg64);
+		sc->mfi_sgsize = sizeof(struct mfi_sg32);
 	}
 	frames = (sc->mfi_sgsize * sc->mfi_total_sgl + MFI_FRAME_SIZE - 1) /
 	    MFI_FRAME_SIZE + 1;
@@ -1074,6 +1074,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	struct mfi_frame_header *hdr;
 	struct mfi_command *cm;
+	union mfi_sgl *sgl;
 	struct mfi_softc *sc;
 	int i, dir;
 
@@ -1082,17 +1083,20 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	cm = (struct mfi_command *)arg;
 	sc = cm->cm_sc;
-	hdr = (struct mfi_frame_header *)cm->cm_frame;
+	hdr = &cm->cm_frame->header;
+	sgl = cm->cm_sg;
 
-	for (i = 0; i < nsegs; i++) {
-		if ((cm->cm_flags & MFI_FLAGS_SG64) == 0) {
-			cm->cm_sg->sg32[i].addr = segs[i].ds_addr;
-			cm->cm_sg->sg32[i].len = segs[i].ds_len;
-		} else {
-			cm->cm_sg->sg64[i].addr = segs[i].ds_addr;
-			cm->cm_sg->sg64[i].len = segs[i].ds_len;
-			hdr->flags |= MFI_FRAME_SGL64;
+	if ((sc->mfi_flags & MFI_FLAGS_SG64) == 0) {
+		for (i = 0; i < nsegs; i++) {
+			sgl->sg32[i].addr = segs[i].ds_addr;
+			sgl->sg32[i].len = segs[i].ds_len;
 		}
+	} else {
+		for (i = 0; i < nsegs; i++) {
+			sgl->sg64[i].addr = segs[i].ds_addr;
+			sgl->sg64[i].len = segs[i].ds_len;
+		}
+		hdr->flags |= MFI_FRAME_SGL64;
 	}
 	hdr->sg_count = nsegs;
 
