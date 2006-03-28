@@ -1391,7 +1391,7 @@ struct _umtx_op_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char id_l_[PADL_(long)]; long id; char id_r_[PADR_(long)];
 	char uaddr_l_[PADL_(void *)]; void * uaddr; char uaddr_r_[PADR_(void *)];
-	char uaddr2_l_[PADL_(void *)]; const void * uaddr2; char uaddr2_r_[PADR_(void *)];
+	char uaddr2_l_[PADL_(void *)]; void * uaddr2; char uaddr2_r_[PADR_(void *)];
 };
 struct thr_new_args {
 	char param_l_[PADL_(struct thr_param *)]; struct thr_param * param; char param_r_[PADR_(struct thr_param *)];
