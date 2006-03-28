@@ -343,6 +343,8 @@ main(int argc, char *argv[])
 		(void)printf("Login incorrect\n");
 		failures++;
 
+		pwd = NULL;
+
 		/*
 		 * Allow up to 'retry' (10) attempts, but start
 		 * backing off after 'backoff' (3) attempts.
@@ -951,7 +953,8 @@ bail(int sec, int eval)
 {
 
 	pam_cleanup();
-	audit_logout();
+	if (pwd != NULL)
+		audit_logout();
 	(void)sleep(sec);
 	exit(eval);
 }
