@@ -52,10 +52,6 @@ LT10_COMPAT_DEFAULT(sem_timedwait);
 LT10_COMPAT_PRIVATE(_sem_post);
 LT10_COMPAT_DEFAULT(sem_post);
 
-extern int pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
-extern int pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *,
-		struct timespec *);
-
 __weak_reference(_sem_init, sem_init);
 __weak_reference(_sem_wait, sem_wait);
 __weak_reference(_sem_timedwait, sem_timedwait);
@@ -161,13 +157,13 @@ _sem_wait(sem_t *sem)
 		_thr_cancel_leave(curthread, retval != 0);
 	}
 	else {
-		pthread_testcancel();
+		_pthread_testcancel();
 		_pthread_mutex_lock(&(*sem)->lock);
 
 		while ((*sem)->count <= 0) {
 			(*sem)->nwaiters++;
 			THR_CLEANUP_PUSH(curthread, decrease_nwaiters, sem);
-			pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
+			_pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
 			THR_CLEANUP_POP(curthread, 0);
 			(*sem)->nwaiters--;
 		}
@@ -182,7 +178,7 @@ _sem_wait(sem_t *sem)
 
 int
 _sem_timedwait(sem_t * __restrict sem,
-    struct timespec * __restrict abs_timeout)
+    const struct timespec * __restrict abs_timeout)
 {
 	struct pthread *curthread;
 	int retval;
@@ -205,7 +201,7 @@ _sem_timedwait(sem_t * __restrict sem,
 		 * segfault on an invalid address doesn't end
 		 * up leaving the mutex locked.
 		 */
-		pthread_testcancel();
+		_pthread_testcancel();
 		timeout_invalid = (abs_timeout->tv_nsec >= 1000000000) ||
 		    (abs_timeout->tv_nsec < 0);
 		_pthread_mutex_lock(&(*sem)->lock);
@@ -217,10 +213,10 @@ _sem_timedwait(sem_t * __restrict sem,
 				return (-1);
 			}
 			(*sem)->nwaiters++;
-			pthread_cleanup_push(decrease_nwaiters, sem);
-			pthread_cond_timedwait(&(*sem)->gtzero,
+			_pthread_cleanup_push(decrease_nwaiters, sem);
+			_pthread_cond_timedwait(&(*sem)->gtzero,
 			    &(*sem)->lock, abs_timeout);
-			pthread_cleanup_pop(0);
+			_pthread_cleanup_pop(0);
 			(*sem)->nwaiters--;
 		}
 		if ((*sem)->count == 0) {
