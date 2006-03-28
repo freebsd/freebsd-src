@@ -203,6 +203,16 @@
 #define		recvfrom			_recvfrom
 #define		recvmsg				_recvmsg
 #define		select				_select
+#define		sem_close			_sem_close
+#define		sem_destroy			_sem_destroy
+#define		sem_getvalue			_sem_getvalue
+#define		sem_init			_sem_init
+#define		sem_open			_sem_open
+#define		sem_post			_sem_post
+#define		sem_timedwait			_sem_timedwait
+#define		sem_trywait			_sem_trywait
+#define		sem_unlink			_sem_unlink
+#define		sem_wait			_sem_wait
 #define		sendmsg				_sendmsg
 #define		sendto				_sendto
 #define		setsockopt			_setsockopt
@@ -233,8 +243,6 @@
 #define		msync				_msync
 #define		nfssvc				_nfssvc
 #define		pause				_pause
-#define		pthread_rwlockattr_init		_pthread_rwlockattr_init
-#define		pthread_rwlockattr_destroy	_pthread_rwlockattr_destroy
 #define		sched_yield			_sched_yield
 #define		sendfile			_sendfile
 #define		shutdown			_shutdown
