@@ -2707,7 +2707,7 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 
     size = tls_static_space;
 
-    tls = malloc(size);
+    tls = calloc(1, size);
     dtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
 
     *(Elf_Addr**) tls = dtv;
