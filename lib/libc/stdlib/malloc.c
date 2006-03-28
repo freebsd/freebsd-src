@@ -3489,6 +3489,26 @@ free(void *ptr)
  */
 /******************************************************************************/
 /*
+ * Begin non-standard functions.
+ */
+
+size_t
+malloc_usable_size(const void *ptr)
+{
+
+	assert(ptr != NULL);
+
+	if (ptr == &nil)
+		return (0);
+	else
+		return (isalloc(ptr));
+}
+
+/*
+ * End non-standard functions.
+ */
+/******************************************************************************/
+/*
  * Begin library-private functions, used by threading libraries for protection
  * of malloc during fork().  These functions are only called if the program is
  * running in threaded mode, so there is no need to check whether the program
