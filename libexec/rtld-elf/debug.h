@@ -45,9 +45,9 @@ extern void debug_printf(const char *, ...) __printflike(1, 2);
 extern int debug;
 
 #ifdef DEBUG
-#define dbg(format, args...)	debug_printf(format , ## args)
+#define dbg(...)	debug_printf(__VA_ARGS__)
 #else
-#define dbg(format, args...)	((void) 0)
+#define dbg(...)	((void) 0)
 #endif
 
 #ifndef COMPAT_32BIT
