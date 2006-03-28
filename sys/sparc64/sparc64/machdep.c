@@ -321,6 +321,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 			break;
 	}
 
+	/*
+	 * Initialize the tick counter.  Must be before the console is inited
+	 * in order to provide the low-level console drivers with a working
+	 * DELAY().
+	 */
 	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
 	tick_init(clock);
 
@@ -330,7 +335,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cninit();
 
 	/*
-	 * Panic is there is no metadata.  Most likely the kernel was booted
+	 * Panic if there is no metadata.  Most likely the kernel was booted
 	 * directly, instead of through loader(8).
 	 */
 	if (mdp == NULL || kmdp == NULL) {
