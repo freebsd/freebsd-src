@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060328: remove redundant rc.d script
+OLD_FILES+=etc/rc.d/ike
 # 20060127: revert libdisk to static-only
 OLD_FILES+=usr/lib/libdisk.so
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
