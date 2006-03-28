@@ -53,6 +53,7 @@ FBSD_1.0 {
 	calloc;
 	realloc;
 	free;
+	malloc_usable_size;
 	mergesort;
 	putenv;
 	qsort_r;
