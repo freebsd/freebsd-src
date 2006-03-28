@@ -1028,3 +1028,12 @@ swcr_init(void)
 #undef REGISTER
 }
 SYSINIT(cryptosoft_init, SI_SUB_PSEUDO, SI_ORDER_ANY, swcr_init, NULL)
+
+static void
+swcr_uninit(void)
+{
+
+	if (swcr_sessions != NULL)
+		FREE(swcr_sessions, M_CRYPTO_DATA);
+}
+SYSUNINIT(cryptosoft_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY, swcr_uninit, NULL);
