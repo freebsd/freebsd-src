@@ -3469,15 +3469,6 @@ ipsec_copypkt(m)
 					MGETHDR(mnew, M_DONTWAIT, MT_HEADER);
 					if (mnew == NULL)
 						goto fail;
-					mnew->m_pkthdr = n->m_pkthdr;
-#if 0
-					/* XXX: convert to m_tag or delete? */
-					if (n->m_pkthdr.aux) {
-						mnew->m_pkthdr.aux =
-						    m_copym(n->m_pkthdr.aux,
-						    0, M_COPYALL, M_DONTWAIT);
-					}
-#endif
 					M_MOVE_PKTHDR(mnew, n);
 				}
 				else {
