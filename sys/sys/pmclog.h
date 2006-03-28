@@ -57,9 +57,6 @@ enum pmclog_type {
 	PMCLOG_TYPE_MAP_OUT
 };
 
-#define	PMCLOG_MAPPING_INSERT			0x01	/* obsolete */
-#define	PMCLOG_MAPPING_DELETE			0x02	/* obsolete */
-
 /*
  * A log entry descriptor comprises of a 32 bit header and a 64 bit
  * time stamp followed by as many 32 bit words are required to record

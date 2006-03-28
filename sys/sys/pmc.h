@@ -533,7 +533,6 @@ struct pmc_op_getmsr {
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 
-#define	PMC_REQUEST_POOL_SIZE			32
 #define	PMC_HASH_SIZE				16
 #define	PMC_MTXPOOL_SIZE			32
 #define	PMC_LOG_BUFFER_SIZE			4
