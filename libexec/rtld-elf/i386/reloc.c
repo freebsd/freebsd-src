@@ -336,7 +336,7 @@ allocate_initial_tls(Obj_Entry *objs)
      * use.
      */
     tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
-    tls = allocate_tls(objs, NULL, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
+    tls = allocate_tls(objs, NULL, 3*sizeof(Elf_Addr), sizeof(Elf_Addr));
     i386_set_gsbase(tls);
 }
 

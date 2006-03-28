@@ -131,7 +131,7 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign __unused)
 	if (size < tcbsize)
 		size = tcbsize;
 
-	tls = malloc(size);
+	tls = calloc(1, size);
 	dtv = malloc(3 * sizeof(Elf_Addr));
 
 	*(Elf_Addr **) tls = dtv;
@@ -202,7 +202,7 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 	size = round(tls_static_space, tcbalign);
 
 	assert(tcbsize >= 2*sizeof(Elf_Addr));
-	tls = malloc(size + tcbsize);
+	tls = calloc(1, size + tcbsize);
 	dtv = malloc(3 * sizeof(Elf_Addr));
 
 	segbase = (Elf_Addr)(tls + size);
@@ -309,7 +309,7 @@ _init_tls()
 		}
 	}
 
-	tls = _rtld_allocate_tls(NULL, 2*sizeof(Elf_Addr),
+	tls = _rtld_allocate_tls(NULL, 3*sizeof(Elf_Addr),
 	    sizeof(Elf_Addr));
 
 	_set_tp(tls);
