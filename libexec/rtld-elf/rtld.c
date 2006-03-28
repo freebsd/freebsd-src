@@ -2804,7 +2804,7 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     size = round(tls_static_space, tcbalign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
-    tls = malloc(size + tcbsize);
+    tls = calloc(1, size + tcbsize);
     dtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
 
     segbase = (Elf_Addr)(tls + size);
