@@ -58,7 +58,7 @@ struct umtx {
 int _umtx_lock(struct umtx *mtx);
 /* deprecated becaues it can only use thread id */
 int _umtx_unlock(struct umtx *mtx);
-int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr, void *uaddr2);
+int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr, const void *uaddr2);
 
 /*
  * Standard api.  Try uncontested acquire/release and asks the
@@ -100,7 +100,7 @@ umtx_timedlock(struct umtx *umtx, long id, const struct timespec *timeout)
 {
 	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
 	    (void *)id) == 0)
-		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, (void *)timeout) == -1)
+		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, timeout) == -1)
 			return (errno);
 	return (0);
 }
@@ -118,7 +118,7 @@ umtx_unlock(struct umtx *umtx, long id)
 static __inline int
 umtx_wait(struct umtx *umtx, long id, const struct timespec *timeout)
 {
-	if (_umtx_op(umtx, UMTX_OP_WAIT, id, 0, (void *)timeout) == -1)
+	if (_umtx_op(umtx, UMTX_OP_WAIT, id, 0, timeout) == -1)
 		return (errno);
 	return (0);
 }
