@@ -674,12 +674,18 @@ p4_init(int cpu)
 static int
 p4_cleanup(int cpu)
 {
+	int i;
 	struct p4_cpu *pcs;
 
 	PMCDBG(MDP,INI,0, "p4-cleanup cpu=%d", cpu);
 
 	if ((pcs = (struct p4_cpu *) pmc_pcpu[cpu]) == NULL)
 		return 0;
+
+	/* Turn off all PMCs on this CPU */
+	for (i = 0; i < P4_NPMCS - 1; i++)
+		wrmsr(P4_CCCR_MSR_FIRST + i,
+		    rdmsr(P4_CCCR_MSR_FIRST + i) & ~P4_CCCR_ENABLE);
 
 	/*
 	 * If the CPU is physical we need to teardown the
