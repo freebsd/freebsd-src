@@ -184,6 +184,16 @@
 #undef		recvfrom
 #undef		recvmsg
 #undef		select
+#undef		sem_close
+#undef		sem_destroy
+#undef		sem_getvalue
+#undef		sem_init
+#undef		sem_open
+#undef		sem_post
+#undef		sem_timedwait
+#undef		sem_trywait
+#undef		sem_unlink
+#undef		sem_wait
 #undef		sendmsg
 #undef		sendto
 #undef		setsockopt
@@ -206,8 +216,6 @@
 #undef		msync
 #undef		nfssvc
 #undef		pause
-#undef		pthread_rwlockattr_init
-#undef		pthread_rwlockattr_destroy
 #undef		sched_yield
 #undef		sendfile
 #undef		shutdown
