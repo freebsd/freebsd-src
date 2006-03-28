@@ -990,7 +990,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	fp = nfp;
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | MPSAFE, pathseg, path, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
 	error = vn_open(&nd, &flags, cmode, indx);
 	if (error) {
