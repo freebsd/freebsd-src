@@ -111,8 +111,9 @@ vn_open_cred(ndp, flagp, cmode, cred, fdidx)
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
-	int vfslocked;
+	int vfslocked, mpsafe;
 
+	mpsafe = ndp->ni_cnd.cn_flags & MPSAFE;
 restart:
 	vfslocked = 0;
 	fmode = *flagp;
@@ -125,8 +126,9 @@ restart:
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
-		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
-		ndp->ni_cnd.cn_flags &= ~MPSAFE;
+		vfslocked = NDHASGIANT(ndp);
+		if (!mpsafe)
+			ndp->ni_cnd.cn_flags &= ~MPSAFE;
 		if (ndp->ni_vp == NULL) {
 			VATTR_NULL(vap);
 			vap->va_type = VREG;
@@ -182,8 +184,9 @@ restart:
 		    LOCKSHARED | LOCKLEAF | MPSAFE | AUDITVNODE1;
 		if ((error = namei(ndp)) != 0)
 			return (error);
-		ndp->ni_cnd.cn_flags &= ~MPSAFE;
-		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+		if (!mpsafe)
+			ndp->ni_cnd.cn_flags &= ~MPSAFE;
+		vfslocked = NDHASGIANT(ndp);
 		vp = ndp->ni_vp;
 	}
 	if (vp->v_type == VLNK) {
@@ -230,7 +233,7 @@ restart:
 		vp->v_writecount++;
 	*flagp = fmode;
 	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
-	if (fdidx == -1)
+	if (!mpsafe)
 		VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 bad:
