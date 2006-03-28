@@ -32,11 +32,11 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2006
+.Dd March 28, 2006
 .Dt MALLOC 3
 .Os
 .Sh NAME
-.Nm malloc , calloc , realloc , free , reallocf
+.Nm malloc , calloc , realloc , free , reallocf , malloc_usable_size
 .Nd general purpose memory allocation functions
 .Sh LIBRARY
 .Lb libc
@@ -58,6 +58,9 @@
 .Fo \*(lp*_malloc_message\*(rp
 .Fa "const char *p1" "const char *p2" "const char *p3" "const char *p4"
 .Fc
+.In malloc_np.h
+.Ft size_t
+.Fn malloc_usable_size "const void *ptr"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -133,6 +136,21 @@ If
 is
 .Dv NULL ,
 no action occurs.
+.Pp
+The
+.Fn malloc_usable_size
+function returns the usable size of the allocation pointed to by
+.Fa ptr .
+The return value may be larger than the size that was requested during
+allocation.
+.Fn malloc_usable_size
+is not a mechanism for in-place
+.Fn realloc ;
+rather it is provided soley as a tool for introspection purposes.
+Any discrepancy between the requested allocation size and the size reported by
+.Fn malloc_usable_size
+should not be depended on, since such behavior is entirely
+implementation-dependent.
 .Sh TUNING
 Once, when the first call is made to one of these memory allocation
 routines, various flags will be set or reset, which affect the
@@ -443,3 +461,8 @@ The
 .Fn reallocf
 function first appeared in
 .Fx 3.0 .
+.Pp
+The
+.Fn malloc_usable_size
+function first appeared in
+.Fx 7.0 .
