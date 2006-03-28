@@ -180,7 +180,7 @@ g_raid3_uma_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct g_raid3_zone *sz = arg;
 
-	if (sz->sz_inuse == sz->sz_max)
+	if (sz->sz_max > 0 && sz->sz_inuse == sz->sz_max)
 		return (ENOMEM);
 	sz->sz_inuse++;
 	return (0);
