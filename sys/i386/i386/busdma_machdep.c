@@ -28,6 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kdb.h>
+#include <ddb/ddb.h>
+#include <ddb/db_output.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
@@ -285,8 +288,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 		/* Must bounce */
 
-		if ((error = alloc_bounce_zone(newtag)) != 0)
+		if ((error = alloc_bounce_zone(newtag)) != 0) {
+			free(newtag, M_DEVBUF);
 			return (error);
+		}
 		bz = newtag->bounce_zone;
 
 		if (ptoa(bz->total_bpages) < maxsize) {
