@@ -159,7 +159,7 @@ int
 acct(struct thread *td, struct acct_args *uap)
 {
 	struct nameidata nd;
-	int error, flags;
+	int error, flags, vfslocked;
 
 	/* Make sure that the caller is root. */
 	error = suser(td);
@@ -168,38 +168,38 @@ acct(struct thread *td, struct acct_args *uap)
 
 	/*
 	 * If accounting is to be started to a file, open that file for
-	 * appending and make sure it's a 'normal'.  While we could
-	 * conditionally acquire Giant here, we're actually interacting with
-	 * vnodes from possibly two file systems, making the logic a bit
-	 * complicated.  For now, use Giant unconditionally.
+	 * appending and make sure it's a 'normal'.
 	 */
-	mtx_lock(&Giant);
 	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_USERSPACE,
+		    uap->path, td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, -1);
 		if (error)
-			goto done;
+			return (error);
+		vfslocked = NDHASGIANT(&nd);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
 		error = mac_check_system_acct(td->td_ucred, nd.ni_vp);
 		if (error) {
 			VOP_UNLOCK(nd.ni_vp, 0, td);
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
-			goto done;
+			VFS_UNLOCK_GIANT(vfslocked);
+			return (error);
 		}
 #endif
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
-			error = EACCES;
-			goto done;
+			VFS_UNLOCK_GIANT(vfslocked);
+			return (EACCES);
 		}
+		VFS_UNLOCK_GIANT(vfslocked);
 #ifdef MAC
 	} else {
 		error = mac_check_system_acct(td->td_ucred, NULL);
 		if (error)
-			goto done;
+			return (error);
 #endif
 	}
 
@@ -216,15 +216,18 @@ acct(struct thread *td, struct acct_args *uap)
 	 * enabled.
 	 */
 	acct_suspended = 0;
-	if (acct_vp != NULL)
+	if (acct_vp != NULL) {
+		vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
 		error = acct_disable(td);
+		VFS_UNLOCK_GIANT(vfslocked);
+	}
 	if (uap->path == NULL) {
 		if (acct_state & ACCT_RUNNING) {
 			acct_state |= ACCT_EXITREQ;
 			wakeup(&acct_state);
 		}
 		sx_xunlock(&acct_sx);
-		goto done;
+		return (error);
 	}
 
 	/*
@@ -245,20 +248,20 @@ acct(struct thread *td, struct acct_args *uap)
 		error = kthread_create(acct_thread, NULL, NULL, 0, 0,
 		    "accounting");
 		if (error) {
+			vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
 			(void) vn_close(acct_vp, acct_flags, acct_cred, td);
+			VFS_UNLOCK_GIANT(vfslocked);
 			crfree(acct_cred);
 			acct_vp = NULL;
 			acct_cred = NULL;
 			acct_flags = 0;
 			sx_xunlock(&acct_sx);
 			log(LOG_NOTICE, "Unable to start accounting thread\n");
-			goto done;
+			return (error);
 		}
 	}
 	sx_xunlock(&acct_sx);
 	log(LOG_NOTICE, "Accounting enabled\n");
-done:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
