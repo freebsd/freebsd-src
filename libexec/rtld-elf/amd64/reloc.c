@@ -384,7 +384,7 @@ allocate_initial_tls(Obj_Entry *objs)
      */
     tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
     amd64_set_fsbase(allocate_tls(objs, 0,
-				  2*sizeof(Elf_Addr), sizeof(Elf_Addr)));
+				  3*sizeof(Elf_Addr), sizeof(Elf_Addr)));
 }
 
 void *__tls_get_addr(tls_index *ti)
