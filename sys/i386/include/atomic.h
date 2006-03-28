@@ -415,24 +415,42 @@ u_long	atomic_readandclear_long(volatile u_long *);
 #define	atomic_fetchadd_32	atomic_fetchadd_int
 
 /* Operations on pointers. */
-#define	atomic_set_ptr		atomic_set_int
-#define	atomic_set_acq_ptr	atomic_set_acq_int
-#define	atomic_set_rel_ptr	atomic_set_rel_int
-#define	atomic_clear_ptr	atomic_clear_int
-#define	atomic_clear_acq_ptr	atomic_clear_acq_int
-#define	atomic_clear_rel_ptr	atomic_clear_rel_int
-#define	atomic_add_ptr		atomic_add_int
-#define	atomic_add_acq_ptr	atomic_add_acq_int
-#define	atomic_add_rel_ptr	atomic_add_rel_int
-#define	atomic_subtract_ptr	atomic_subtract_int
-#define	atomic_subtract_acq_ptr	atomic_subtract_acq_int
-#define	atomic_subtract_rel_ptr	atomic_subtract_rel_int
-#define	atomic_load_acq_ptr	atomic_load_acq_int
-#define	atomic_store_rel_ptr	atomic_store_rel_int
-#define	atomic_cmpset_ptr	atomic_cmpset_int
-#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_int
-#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_int
-#define	atomic_readandclear_ptr	atomic_readandclear_int
+#define	atomic_set_ptr(p, v) \
+	atomic_set_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_set_acq_ptr(p, v) \
+	atomic_set_acq_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_set_rel_ptr(p, v) \
+	atomic_set_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_ptr(p, v) \
+	atomic_clear_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_acq_ptr(p, v) \
+	atomic_clear_acq_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_rel_ptr(p, v) \
+	atomic_clear_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_ptr(p, v) \
+	atomic_add_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_acq_ptr(p, v) \
+	atomic_add_acq_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_rel_ptr(p, v) \
+	atomic_add_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_ptr(p, v) \
+	atomic_subtract_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_acq_ptr(p, v) \
+	atomic_subtract_acq_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_rel_ptr(p, v) \
+	atomic_subtract_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_load_acq_ptr(p) \
+	atomic_load_acq_int((volatile u_int *)(p))
+#define	atomic_store_rel_ptr(p, v) \
+	atomic_store_rel_int((volatile u_int *)(p), (v))
+#define	atomic_cmpset_ptr(dst, old, new) \
+	atomic_cmpset_int((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
+#define	atomic_cmpset_acq_ptr(dst, old, new) \
+	atomic_cmpset_acq_int((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
+#define	atomic_cmpset_rel_ptr(dst, old, new) \
+	atomic_cmpset_rel_int((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
+#define	atomic_readandclear_ptr(p) \
+	atomic_readandclear_int((volatile u_int *)(p))
 
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */
