@@ -2240,6 +2240,7 @@ res_queryN(const char *name, struct res_target *target, res_state res)
 	u_char *buf;
 	HEADER *hp;
 	int n;
+	u_int oflags;
 	struct res_target *t;
 	int rcode;
 	int ancount;
@@ -2259,13 +2260,18 @@ res_queryN(const char *name, struct res_target *target, res_state res)
 		int anslen;
 
 		hp = (HEADER *)(void *)t->answer;
-		hp->rcode = NOERROR;	/* default */
 
 		/* make it easier... */
 		class = t->qclass;
 		type = t->qtype;
 		answer = t->answer;
 		anslen = t->anslen;
+
+		oflags = res->_flags;
+
+again:
+		hp->rcode = NOERROR;	/* default */
+
 #ifdef DEBUG
 		if (res->options & RES_DEBUG)
 			printf(";; res_query(%s, %d, %d)\n", name, class, type);
@@ -2273,7 +2279,8 @@ res_queryN(const char *name, struct res_target *target, res_state res)
 
 		n = res_nmkquery(res, QUERY, name, class, type, NULL, 0, NULL,
 		    buf, MAXPACKET);
-		if (n > 0 && (res->options & RES_USE_EDNS0) != 0)
+		if (n > 0 && (res->_flags & RES_F_EDNS0ERR) == 0 &&
+		    (res->options & (RES_USE_EDNS0|RES_USE_DNSSEC)) != 0U)
 			n = res_nopt(res, n, buf, MAXPACKET, anslen);
 		if (n <= 0) {
 #ifdef DEBUG
@@ -2285,21 +2292,30 @@ res_queryN(const char *name, struct res_target *target, res_state res)
 			return (n);
 		}
 		n = res_nsend(res, buf, n, answer, anslen);
-#if 0
 		if (n < 0) {
+			/*
+			 * if the query choked with EDNS0, retry
+			 * without EDNS0
+			 */
+			if ((res->options & (RES_USE_EDNS0|RES_USE_DNSSEC))
+			    != 0U &&
+			    ((oflags ^ res->_flags) & RES_F_EDNS0ERR) != 0) {
+				res->_flags |= RES_F_EDNS0ERR;
+				if (res->options & RES_DEBUG)
+					printf(";; res_nquery: retry without EDNS0\n");
+				goto again;
+			}
+			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
 			if (res->options & RES_DEBUG)
 				printf(";; res_query: send error\n");
 #endif
-			free(buf);
-			RES_SET_H_ERRNO(res, TRY_AGAIN);
-			return (n);
+			continue;
 		}
-#endif
 
 		if (n > anslen)
 			hp->rcode = FORMERR; /* XXX not very informative */
-		if (n < 0 || hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
+		if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
 			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
 			if (res->options & RES_DEBUG)
