@@ -119,6 +119,7 @@ mfi_disk_attach(device_t dev)
 		free(sc->ld_ld, M_MFIBUF);
 		return (EINVAL);
 	}
+	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, ld, ld_link);
 
 	device_printf(dev, "%juMB (%ju sectors) RAID\n",
 	    sectors / (1024 * 1024 / secsize), sectors);
