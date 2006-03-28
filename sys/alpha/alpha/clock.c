@@ -137,7 +137,6 @@ static	u_char	timer2_state;
 static void calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc,
     u_int32_t *timer);
 static void set_timer_freq(u_int freq, int intr_freq);
-static uint64_t read_cycle_count(void);
 
 void
 clockattach(device_t dev)

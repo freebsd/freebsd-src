@@ -88,11 +88,12 @@ extern char etext[];
 
 #define	cpu_getstack(td)	(alpha_pal_rdusp())
 #define	cpu_spinwait()		/* nothing */
-#define	get_cyclecount		alpha_rpcc
+#define	get_cyclecount()	read_cycle_count()
 
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);					/* MAGIC */
+uint64_t read_cycle_count(void);
 void	swi_vm(void *);
 
 #endif /* _KERNEL */
