@@ -598,7 +598,7 @@ ktrace(td, uap)
 	int ops = KTROP(uap->ops);
 	int descend = uap->ops & KTRFLAG_DESCEND;
 	int nfound, ret = 0;
-	int flags, error = 0;
+	int flags, error = 0, vfslocked;
 	struct nameidata nd;
 	struct ucred *cred;
 
@@ -613,25 +613,25 @@ ktrace(td, uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_USERSPACE,
+		    uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
-		mtx_lock(&Giant);
 		error = vn_open(&nd, &flags, 0, -1);
 		if (error) {
-			mtx_unlock(&Giant);
 			ktrace_exit(td);
 			return (error);
 		}
+		vfslocked = NDHASGIANT(&nd);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vp = nd.ni_vp;
 		VOP_UNLOCK(vp, 0, td);
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-			mtx_unlock(&Giant);
+			VFS_UNLOCK_GIANT(vfslocked);
 			ktrace_exit(td);
 			return (EACCES);
 		}
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	/*
 	 * Clear all uses of the tracefile.
@@ -649,10 +649,10 @@ ktrace(td, uap)
 					p->p_traceflag = 0;
 					mtx_unlock(&ktrace_mtx);
 					PROC_UNLOCK(p);
-					mtx_lock(&Giant);
+					vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 					(void) vn_close(vp, FREAD|FWRITE,
 						cred, td);
-					mtx_unlock(&Giant);
+					VFS_UNLOCK_GIANT(vfslocked);
 					crfree(cred);
 				} else {
 					PROC_UNLOCK(p);
@@ -732,9 +732,9 @@ ktrace(td, uap)
 		error = EPERM;
 done:
 	if (vp != NULL) {
-		mtx_lock(&Giant);
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_close(vp, FWRITE, td->td_ucred, td);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	ktrace_exit(td);
 	return (error);
@@ -888,7 +888,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	struct iovec aiov[3];
 	struct mount *mp;
 	int datalen, buflen, vrele_count;
-	int error;
+	int error, vfslocked;
 
 	/*
 	 * We hold the vnode and credential for use in I/O in case ktrace is
@@ -944,7 +944,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		auio.uio_iovcnt++;
 	}
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
@@ -956,7 +956,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	vrele(vp);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (!error)
 		return;
 	/*
@@ -1000,10 +1000,10 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	 * them but not yet committed them, as those are per-thread.  The
 	 * thread will have to clear it itself on system call return.
 	 */
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	while (vrele_count-- > 0)
 		vrele(vp);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 /*

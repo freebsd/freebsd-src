@@ -3062,6 +3062,7 @@ coredump(struct thread *td)
 	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
+	int vfslocked;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
@@ -3085,21 +3086,17 @@ coredump(struct thread *td)
 	if (limit == 0)
 		return (EFBIG);
 
-	mtx_lock(&Giant);
 restart:
 	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);
-	if (name == NULL) {
-		mtx_unlock(&Giant);
+	if (name == NULL)
 		return (EINVAL);
-	}
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td); /* XXXKSE */
+	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
 	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR, -1);
 	free(name, M_TEMP);
-	if (error) {
-		mtx_unlock(&Giant);		
+	if (error)
 		return (error);
-	}
+	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
@@ -3108,7 +3105,7 @@ restart:
 	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0, td);
 		error = EFAULT;
-		goto out;
+		goto close;
 	}
 
 	VOP_UNLOCK(vp, 0, td);
@@ -3123,9 +3120,10 @@ restart:
 		if (locked)
 			VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 		if ((error = vn_close(vp, FWRITE, cred, td)) != 0)
-			return (error);
+			goto out;
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
-			return (error);
+			goto out;
+		VFS_UNLOCK_GIANT(vfslocked);
 		goto restart;
 	}
 
@@ -3150,11 +3148,12 @@ restart:
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
 	vn_finished_write(mp);
-out:
+close:
 	error1 = vn_close(vp, FWRITE, cred, td);
-	mtx_unlock(&Giant);
 	if (error == 0)
 		error = error1;
+out:
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
