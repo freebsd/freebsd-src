@@ -2386,9 +2386,9 @@ res_queryN(name, target)
 		}
 #endif
 
-		if (n < 0 || n > anslen)
+		if (n > anslen)
 			hp->rcode = FORMERR; /* XXX not very informative */
-		if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
+		if (n < 0 || hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
 			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
 			if (_res.options & RES_DEBUG)
@@ -2486,6 +2486,10 @@ res_searchN(name, target)
 		case NO_DATA:
 		case HOST_NOT_FOUND:
 			break;
+		case TRY_AGAIN:
+			if (hp->rcode == SERVFAIL)
+				break;
+			/* FALLTHROUGH */
 		default:
 			return (-1);
 		}
@@ -2545,9 +2549,9 @@ res_searchN(name, target)
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
+				got_servfail++;
 				if (hp->rcode == SERVFAIL) {
 					/* try next search element, if any */
-					got_servfail++;
 					break;
 				}
 				/* FALLTHROUGH */
@@ -2568,6 +2572,10 @@ res_searchN(name, target)
 	case NO_DATA:
 	case HOST_NOT_FOUND:
 		break;
+	case TRY_AGAIN:
+		if (hp->rcode == SERVFAIL)
+			break;
+		/* FALLTHROUGH */
 	default:
 		goto giveup;
 	}
