@@ -13,13 +13,13 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: vfscanf.c,v 1.52 2004/08/03 20:56:32 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: vfscanf.c,v 1.53 2005/06/14 23:07:20 ca Exp $")
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <setjmp.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <sm/varargs.h>
 #include <sm/config.h>
 #include <sm/io.h>

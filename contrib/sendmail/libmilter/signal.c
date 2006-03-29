@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: signal.c,v 8.42 2004/08/20 21:10:30 ca Exp $")
+SM_RCSID("@(#)$Id: signal.c,v 8.44 2006/03/03 03:42:04 ca Exp $")
 
 #include "libmilter.h"
 
@@ -90,7 +90,7 @@ static void *
 mi_signal_thread(name)
 	void *name;
 {
-	int sig, errs;
+	int sig, errs, sigerr;
 	sigset_t set;
 
 	(void) sigemptyset(&set);
@@ -103,19 +103,23 @@ mi_signal_thread(name)
 
 	for (;;)
 	{
-		sig = 0;
+		sigerr = sig = 0;
 #if defined(SOLARIS) || defined(__svr5__)
 		if ((sig = sigwait(&set)) < 0)
 #else /* defined(SOLARIS) || defined(__svr5__) */
-		if (sigwait(&set, &sig) != 0)
+		if ((sigerr = sigwait(&set, &sig)) != 0)
 #endif /* defined(SOLARIS) || defined(__svr5__) */
 		{
+			/* some OS return -1 and set errno: copy it */
+			if (sigerr <= 0)
+				sigerr = errno;
+
 			/* this can happen on OSF/1 (at least) */
-			if (errno == EINTR)
+			if (sigerr == EINTR)
 				continue;
 			smi_log(SMI_LOG_ERR,
 				"%s: sigwait returned error: %d",
-				(char *)name, errno);
+				(char *)name, sigerr);
 			if (++errs > MAX_FAILS_T)
 			{
 				mi_stop_milters(MILTER_ABRT);

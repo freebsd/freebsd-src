@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.261 2005/02/16 23:38:51 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.272 2006/03/02 19:09:26 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -327,6 +327,10 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	if (smtpmode)
 		message("354 Enter mail, end with \".\" on a line by itself");
 
+	/* simulate an I/O timeout when used as sink */
+	if (tTd(83, 101))
+		sleep(319);
+
 	if (tTd(30, 2))
 		sm_dprintf("collect\n");
 
@@ -435,7 +439,8 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 					  OpMode != MD_ARPAFTP))
 
 				{
-					SM_ASSERT(pbp < peekbuf + sizeof(peekbuf));
+					SM_ASSERT(pbp < peekbuf +
+							sizeof(peekbuf));
 					*pbp++ = c;
 					c = '.';
 				}
@@ -447,7 +452,8 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 				else
 				{
 					/* push back the ".\rx" */
-					SM_ASSERT(pbp < peekbuf + sizeof(peekbuf));
+					SM_ASSERT(pbp < peekbuf +
+							sizeof(peekbuf));
 					*pbp++ = c;
 					if (OpMode != MD_SMTP &&
 					    OpMode != MD_DAEMON &&

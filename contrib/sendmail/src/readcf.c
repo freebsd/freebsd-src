@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.642 2004/08/04 21:17:57 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.651 2006/03/02 19:17:09 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -679,7 +679,7 @@ readcf(cfname, safe, e)
 			p = strchr(bp, '=');
 			if (p != NULL)
 				*p++ = '\0';
-			setuserenv(&bp[1], p);
+			sm_setuserenv(&bp[1], p);
 			break;
 
 		  case 'X':		/* mail filter */
@@ -2191,6 +2191,26 @@ static struct optioninfo
 # define O_HELONAME 0xd8
 	{ "HeloName",   O_HELONAME,     OI_NONE },
 #endif /* _FFR_HELONAME */
+#if _FFR_MEMSTAT
+# define O_REFUSELOWMEM	0xd9
+	{ "RefuseLowMem",	O_REFUSELOWMEM,	OI_NONE },
+# define O_QUEUELOWMEM	0xda
+	{ "QueueLowMem",	O_QUEUELOWMEM,	OI_NONE },
+# define O_MEMRESOURCE	0xdb
+	{ "MemoryResource",	O_MEMRESOURCE,	OI_NONE },
+#endif /* _FFR_MEMSTAT */
+#if _FFR_MAXNOOPCOMMANDS
+# define O_MAXNOOPCOMMANDS 0xdc
+	{ "MaxNOOPCommands",	O_MAXNOOPCOMMANDS,	OI_NONE },
+#endif /* _FFR_MAXNOOPCOMMANDS */
+#if _FFR_MSG_ACCEPT
+# define O_MSG_ACCEPT 0xdd
+	{ "MessageAccept",	O_MSG_ACCEPT,	OI_NONE },
+#endif /* _FFR_MSG_ACCEPT */
+#if _FFR_QUEUE_RUN_PARANOIA
+# define O_CHK_Q_RUNNERS 0xde
+	{ "CheckQueueRunners",	O_CHK_Q_RUNNERS,	OI_NONE },
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
 
 	{ NULL,				'\0',		OI_NONE	}
 };
@@ -2231,10 +2251,10 @@ setoption(opt, val, safe, sticky, e)
 #if _FFR_ALLOW_SASLINFO
 	extern unsigned int SubmitMode;
 #endif /* _FFR_ALLOW_SASLINFO */
-#if STARTTLS
+#if STARTTLS || (_FFR_SELECT_SHM && SM_CONF_SHM)
 	char *newval;
 	char exbuf[MAXLINE];
-#endif /* STARTTLS */
+#endif /* STARTTLS || (_FFR_SELECT_SHM && SM_CONF_SHM) */
 
 	errno = 0;
 	if (opt == ' ')
@@ -2472,6 +2492,10 @@ setoption(opt, val, safe, sticky, e)
 		  case SM_DEFER:	/* queue only and defer map lookups */
 		  case SM_DELIVER:	/* do everything */
 		  case SM_FORK:		/* fork after verification */
+#if _FFR_DM_ONE
+		/* deliver first TA in background, then queue */
+		  case SM_DM_ONE:
+#endif /* _FFR_DM_ONE */
 			set_delivery_mode(*val, e);
 			break;
 
@@ -3707,9 +3731,38 @@ setoption(opt, val, safe, sticky, e)
 
 #if _FFR_HELONAME
 	  case O_HELONAME:
-	        HeloName = newstr(val);
-	        break;
+		HeloName = newstr(val);
+		break;
 #endif /* _FFR_HELONAME */
+#if _FFR_MEMSTAT
+	  case O_REFUSELOWMEM:
+		RefuseLowMem = atoi(val);
+		break;
+	  case O_QUEUELOWMEM:
+		QueueLowMem = atoi(val);
+		break;
+	  case O_MEMRESOURCE:
+		MemoryResource = newstr(val);
+		break;
+#endif /* _FFR_MEMSTAT */
+
+#if _FFR_MAXNOOPCOMMANDS
+	  case O_MAXNOOPCOMMANDS:
+		MaxNOOPCommands = atoi(val);
+		break;
+#endif /* _FFR_MAXNOOPCOMMANDS */
+
+#if _FFR_MSG_ACCEPT
+	  case O_MSG_ACCEPT:
+		MessageAccept = newstr(val);
+		break;
+#endif /* _FFR_MSG_ACCEPT */
+
+#if _FFR_QUEUE_RUN_PARANOIA
+	  case O_CHK_Q_RUNNERS:
+		CheckQueueRunners = atoi(val);
+		break;
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
 
 	  default:
 		if (tTd(37, 1))

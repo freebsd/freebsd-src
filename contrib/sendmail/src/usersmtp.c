@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.463 2005/03/16 00:36:09 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.467 2006/03/19 06:07:56 ca Exp $")
 
 #include <sysexits.h>
 
@@ -33,7 +33,6 @@ extern void	sm_sasl_free __P((void *));
 **	This protocol is described in RFC821.
 */
 
-#define REPLYTYPE(r)	((r) / 100)		/* first digit of reply code */
 #define REPLYCLASS(r)	(((r) / 10) % 10)	/* second digit of reply code */
 #define SMTPCLOSING	421			/* "Service Shutting Down" */
 
@@ -2501,7 +2500,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	register int r;
 	int rstat;
 	int xstat;
-	time_t timeout;
+	int timeout;
 	char *enhsc;
 
 	/*
@@ -2973,6 +2972,8 @@ smtprset(m, mci, e)
 
 	if (mci->mci_state != MCIS_SSD && mci->mci_state != MCIS_CLOSED)
 		mci->mci_state = MCIS_OPEN;
+	else if (mci->mci_exitstat == EX_OK)
+		mci_setstat(mci, EX_TEMPFAIL, "4.5.0", NULL);
 }
 /*
 **  SMTPPROBE -- check the connection state

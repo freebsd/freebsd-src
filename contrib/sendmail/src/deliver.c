@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,9 +12,9 @@
  */
 
 #include <sendmail.h>
-#include <sys/time.h>
+#include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.986 2005/03/05 02:28:50 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1000 2006/03/02 01:37:39 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -1201,13 +1201,13 @@ should_try_fbsh(e, tried_fallbacksmarthost, hostbuf, hbsz, status)
 	int status;
 {
 	/*
-	**  If the host was not found and a FallbackSmartHost is defined
-	**  (and we have not yet tried it), then make one last try with
-	**  it as the host.
+	**  If the host was not found or a temporary failure occurred
+	**  and a FallbackSmartHost is defined (and we have not yet
+	**  tried it), then make one last try with it as the host.
 	*/
 
-	if (status == EX_NOHOST && FallbackSmartHost != NULL &&
-	    !*tried_fallbacksmarthost)
+	if ((status == EX_NOHOST || status == EX_TEMPFAIL) &&
+	    FallbackSmartHost != NULL && !*tried_fallbacksmarthost)
 	{
 		*tried_fallbacksmarthost = true;
 		expand(FallbackSmartHost, hostbuf, hbsz, e);
@@ -2992,6 +2992,9 @@ reconnect:	/* after switching to an encrypted connection */
 					  case EX_SOFTWARE:
 						s = "SOFTWARE";
 						break;
+					  case EX_UNAVAILABLE:
+						s = "NONE";
+						break;
 
 					  /* everything else is a failure */
 					  default:
@@ -4524,9 +4527,9 @@ putfromline(mci, e)
 */
 
 /* values for output state variable */
-#define OS_HEAD		0	/* at beginning of line */
-#define OS_CR		1	/* read a carriage return */
-#define OS_INLINE	2	/* putting rest of line */
+#define OSTATE_HEAD	0	/* at beginning of line */
+#define OSTATE_CR	1	/* read a carriage return */
+#define OSTATE_INLINE	2	/* putting rest of line */
 
 bool
 putbody(mci, e, separator)
@@ -4591,6 +4594,10 @@ putbody(mci, e, separator)
 
 	/* paranoia: the data file should always be in a rewound state */
 	(void) bfrewind(e->e_dfp);
+
+	/* simulate an I/O timeout when used as source */
+	if (tTd(84, 101))
+		sleep(319);
 
 #if MIME8TO7
 	if (bitset(MCIF_CVT8TO7, mci->mci_flags))
@@ -4680,7 +4687,7 @@ putbody(mci, e, separator)
 			buflim = &buf[mci->mci_mailer->m_linelimit - 1];
 
 		/* copy temp file to output with mapping */
-		ostate = OS_HEAD;
+		ostate = OSTATE_HEAD;
 		bp = buf;
 		pbp = peekbuf;
 		while (!sm_io_error(mci->mci_out) && !dead)
@@ -4694,7 +4701,7 @@ putbody(mci, e, separator)
 				c &= 0x7f;
 			switch (ostate)
 			{
-			  case OS_HEAD:
+			  case OSTATE_HEAD:
 				if (c == '\0' &&
 				    bitnset(M_NONULLS,
 					    mci->mci_mailer->m_flags))
@@ -4799,14 +4806,14 @@ putbody(mci, e, separator)
 
 				/* determine next state */
 				if (c == '\n')
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 				else if (c == '\r')
-					ostate = OS_CR;
+					ostate = OSTATE_CR;
 				else
-					ostate = OS_INLINE;
+					ostate = OSTATE_INLINE;
 				continue;
 
-			  case OS_CR:
+			  case OSTATE_CR:
 				if (c == '\n')
 				{
 					/* got CRLF */
@@ -4822,7 +4829,7 @@ putbody(mci, e, separator)
 								   SM_TIME_DEFAULT,
 								   mci->mci_mailer->m_eol);
 					}
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 					continue;
 				}
 
@@ -4830,13 +4837,13 @@ putbody(mci, e, separator)
 				SM_ASSERT(pbp < peekbuf + sizeof(peekbuf));
 				*pbp++ = c;
 				c = '\r';
-				ostate = OS_INLINE;
+				ostate = OSTATE_INLINE;
 				goto putch;
 
-			  case OS_INLINE:
+			  case OSTATE_INLINE:
 				if (c == '\r')
 				{
-					ostate = OS_CR;
+					ostate = OSTATE_CR;
 					continue;
 				}
 				if (c == '\0' &&
@@ -4899,7 +4906,7 @@ putch:
 								     "!%s",
 								     mci->mci_mailer->m_eol);
 					}
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 					SM_ASSERT(pbp < peekbuf +
 							sizeof(peekbuf));
 					*pbp++ = c;
@@ -4917,7 +4924,7 @@ putch:
 							== SM_IO_EOF)
 						continue;
 					pos = 0;
-					ostate = OS_HEAD;
+					ostate = OSTATE_HEAD;
 				}
 				else
 				{
@@ -4934,7 +4941,7 @@ putch:
 						continue;
 					}
 					pos++;
-					ostate = OS_INLINE;
+					ostate = OSTATE_INLINE;
 				}
 				break;
 			}
@@ -6074,12 +6081,16 @@ starttls(m, mci, e)
 			XS_STARTTLS);
 
 	/* check return code from server */
-	if (smtpresult == 454)
+	if (REPLYTYPE(smtpresult) == 4)
 		return EX_TEMPFAIL;
 	if (smtpresult == 501)
 		return EX_USAGE;
 	if (smtpresult == -1)
 		return smtpresult;
+
+	/* not an expected reply but we have to deal with it */
+	if (REPLYTYPE(smtpresult) == 5)
+		return EX_UNAVAILABLE;
 	if (smtpresult != 220)
 		return EX_PROTOCOL;
 

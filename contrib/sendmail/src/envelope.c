@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.294 2005/02/16 23:38:51 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.295 2005/06/15 20:32:18 ca Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope
@@ -75,6 +75,10 @@ newenvelope(e, parent, rpool)
 	register ENVELOPE *parent;
 	SM_RPOOL_T *rpool;
 {
+#if _FFR_DM_PER_DAEMON
+	int		sendmode;
+#endif /* _FFR_DM_PER_DAEMON */
+
 	/*
 	**  This code used to read:
 	**	if (e == parent && e->e_parent != NULL)
@@ -83,6 +87,13 @@ newenvelope(e, parent, rpool)
 	**  set e->e_parent = e, which creates a loop in the e_parent chain.
 	**  This meant macvalue() could go into an infinite loop.
 	*/
+
+#if _FFR_DM_PER_DAEMON
+	if (parent != NULL)
+		sendmode = parent->e_sendmode;
+	else
+		sendmode = DM_NOTSET;
+#endif /* _FFR_DM_PER_DAEMON */
 
 	if (e == parent)
 		parent = e->e_parent;
@@ -119,6 +130,10 @@ newenvelope(e, parent, rpool)
 	e->e_putbody = putbody;
 	if (CurEnv->e_xfp != NULL)
 		(void) sm_io_flush(CurEnv->e_xfp, SM_TIME_DEFAULT);
+#if _FFR_DM_PER_DAEMON
+	if (sendmode != DM_NOTSET)
+		e->e_sendmode = sendmode;
+#endif /* _FFR_DM_PER_DAEMON */
 
 	return e;
 }

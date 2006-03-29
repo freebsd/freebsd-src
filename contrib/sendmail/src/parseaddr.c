@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.381 2005/02/04 22:01:45 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.383 2006/02/01 19:46:11 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -1415,7 +1415,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			char **key_rvp;
 			char **arg_rvp;
 			char **default_rvp;
-			char cbuf[MAXNAME + 1];
+			char cbuf[MAXKEY];
 			char *pvpb1[MAXATOM + 1];
 			char *argvect[MAX_MAP_ARGS];
 			char pvpbuf[PSBUFSIZE];
