@@ -67,7 +67,7 @@ static void	*sigev_service_loop(void *);
 static void	*worker_routine(void *);
 static void	worker_cleanup(void *);
 
-#pragma weak pthread_create
+#pragma weak _pthread_create
 
 static void
 attrcopy(pthread_attr_t *src, pthread_attr_t *dst)
@@ -102,7 +102,7 @@ attrcopy(pthread_attr_t *src, pthread_attr_t *dst)
 static __inline int
 have_threads(void)
 {
-	return (&pthread_create != NULL);
+	return (&_pthread_create != NULL);
 }
 
 void
@@ -333,7 +333,7 @@ sigev_thread_create(int usedefault)
 	sigdelset(&set, SIGSEGV);
 	sigdelset(&set, SIGTRAP);
 	_sigprocmask(SIG_SETMASK, &set, &oset);
-	ret = pthread_create(&tn->tn_thread, &sigev_default_attr,
+	ret = _pthread_create(&tn->tn_thread, &sigev_default_attr,
 		 sigev_service_loop, tn);
 	_sigprocmask(SIG_SETMASK, &oset, NULL);
 
@@ -410,7 +410,7 @@ sigev_service_loop(void *arg)
 		sn->sn_flags |= SNF_WORKING;
 		__sigev_list_unlock();
 
-		ret = pthread_create(&td, &sn->sn_attr, worker_routine, sn);
+		ret = _pthread_create(&td, &sn->sn_attr, worker_routine, sn);
 		if (ret != 0) {
 			if (failure++ < 5)
 				warnc(ret, "%s:%s failed to create thread.\n",
