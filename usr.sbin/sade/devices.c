@@ -90,6 +90,7 @@ static struct _devname {
     DISK("twed%d",	"3ware ATA RAID array",			4),
     DISK("aacd%d",	"Adaptec FSA RAID array",		4),
     DISK("ipsd%d",	"IBM ServeRAID RAID array",		4),
+    DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
     SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
     NETWORK("an",	"Aironet 4500/4800 802.11 wireless adapter"),
