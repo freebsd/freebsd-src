@@ -152,6 +152,7 @@ SUBDIR=	${_3dfx} \
 	mcd \
 	md \
 	mem \
+	mfi \
 	mii \
 	mlx \
 	${_mly} \

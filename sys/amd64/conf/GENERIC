@@ -137,6 +137,7 @@ device		twa		# 3ware 9000 series PATA/SATA RAID
 device		aac		# Adaptec FSA RAID
 device		aacp		# SCSI passthrough for aac (requires CAM)
 device		ida		# Compaq Smart RAID
+device		mfi		# LSI MegaRAID SAS
 device		mlx		# Mylex DAC960 family
 #XXX pointer/int warnings
 #device		pst		# Promise Supertrak SX6000
