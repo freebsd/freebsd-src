@@ -186,15 +186,21 @@ propagate_priority(struct thread *td)
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 
 		/*
-		 * XXX: The owner of a turnstile can be stale if it is the
-		 * first thread to grab a rlock of a rw lock.  In that case
-		 * it is possible for us to be at SSLEEP or some other
-		 * weird state.  We should probably just return if the state
-		 * isn't SRUN or SLOCK.
+		 * If the thread is asleep, then we are probably about
+		 * to deadlock.  To make debugging this easier, just
+		 * panic and tell the user which thread misbehaved so
+		 * they can hopefully get a stack trace from the truly
+		 * misbehaving thread.
 		 */
-		KASSERT(!TD_IS_SLEEPING(td),
-		    ("sleeping thread (tid %d) owns a non-sleepable lock",
-		    td->td_tid));
+		if (TD_IS_SLEEPING(td)) {
+			printf(
+		"Sleeping thread (tid %d, pid %d) owns a non-sleepable lock\n",
+			    td->td_tid, td->td_proc->p_pid);
+#ifdef DDB
+			db_trace_thread(td, -1);
+#endif
+			panic("sleeping thread");
+		}
 
 		/*
 		 * If this thread already has higher priority than the
