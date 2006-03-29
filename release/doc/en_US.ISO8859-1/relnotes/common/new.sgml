@@ -379,7 +379,7 @@
       to 9.3.2.</para>
 
     <para><application>sendmail</application> has been updated from
-      version 8.13.3 to version 8.13.4.</para>
+      version 8.13.3 to version 8.13.6.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005g</application> release to the
