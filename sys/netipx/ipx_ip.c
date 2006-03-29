@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -73,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_ip.h>
 #include <netipx/ipx_var.h>
+
+NET_NEEDS_GIANT("ipx_ip");
 
 static struct	ifnet ipxipif;
 static int	ipxipif_units;
