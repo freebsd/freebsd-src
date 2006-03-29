@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.101 2004/12/15 22:45:55 ca Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.113 2006/03/02 19:18:27 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <errno.h>
@@ -223,6 +223,9 @@ sasl_read(fp, buf, size)
 				     (unsigned int) len, &outbuf, &outlen);
 		if (result != SASL_OK)
 		{
+			if (LogLevel > 7)
+				sm_syslog(LOG_WARNING, NOQID,
+					"AUTH: sasl_decode error=%d", result);
 			outbuf = NULL;
 			offset = 0;
 			outlen = 0;
@@ -304,7 +307,7 @@ sasl_write(fp, buf, size)
 	*/
 
 	result = sasl_getprop(so->conn, SASL_MAXOUTBUF,
-                             (const void **) &maxencode);
+				(const void **) &maxencode);
 	if (result == SASL_OK && size > *maxencode && *maxencode > 0)
 		size = *maxencode;
 
@@ -312,7 +315,12 @@ sasl_write(fp, buf, size)
 			     (unsigned int) size, &outbuf, &outlen);
 
 	if (result != SASL_OK)
+	{
+		if (LogLevel > 7)
+			sm_syslog(LOG_WARNING, NOQID,
+				"AUTH: sasl_encode error=%d", result);
 		return -1;
+	}
 
 	if (outbuf != NULL)
 	{

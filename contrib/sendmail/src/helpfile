@@ -1,6 +1,6 @@
 #vers	2
 cpyr
-cpyr	Copyright (c) 1998-2000, 2002, 2004 Sendmail, Inc. and its suppliers.
+cpyr	Copyright (c) 1998-2000, 2002, 2004, 2005 Sendmail, Inc. and its suppliers.
 cpyr	    All rights reserved.
 cpyr	Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 cpyr	Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	$$Id: helpfile,v 8.43 2004/10/29 18:05:39 ca Exp $$
+cpyr	$$Id: helpfile,v 8.45 2005/09/13 00:05:23 ca Exp $$
 cpyr
 smtp	This is sendmail version $v
 smtp	Topics:
@@ -48,10 +48,10 @@ ehlo		STARTTLS	Secure SMTP			[RFC2487]
 ehlo		AUTH		Authentication			[RFC2554]
 ehlo		ENHANCEDSTATUSCODES	Enhanced status codes	[RFC2034]
 ehlo		DELIVERBY	Deliver By			[RFC2852]
-mail	MAIL FROM: <sender> [ <parameters> ]
+mail	MAIL From:<sender> [ <parameters> ]
 mail		Specifies the sender.  Parameters are ESMTP extensions.
 mail		See "HELP DSN" for details.
-rcpt	RCPT TO: <recipient> [ <parameters> ]
+rcpt	RCPT To:<recipient> [ <parameters> ]
 rcpt		Specifies the recipient.  Can be used any number of times.
 rcpt		Parameters are ESMTP extensions.  See "HELP DSN" for details.
 data	DATA
@@ -91,7 +91,7 @@ saml		implementation.
 turn	TURN
 turn		Reverses the direction of the connection.  Not currently
 turn		implemented.
-etrn	ETRN [ <hostname> | @<domain> | #<queuename> ]
+etrn	ETRN [ <hostname> | @<domain> | \#<queuename> ]
 etrn		Run the queue for the specified <hostname>, or
 etrn		all hosts within a given <domain>, or a specially-named
 etrn		<queuename> (implementation-specific).

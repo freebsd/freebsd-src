@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2005 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,13 +13,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: stdio.c,v 1.69 2004/08/03 20:46:34 ca Exp $")
+SM_RCSID("@(#)$Id: stdio.c,v 1.71 2005/06/14 23:07:20 ca Exp $")
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>	/* FreeBSD: FD_ZERO needs <string.h> */
 #include <sys/stat.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <sm/heap.h>
 #include <sm/assert.h>
 #include <sm/varargs.h>
@@ -221,7 +221,7 @@ sm_stdclose(fp)
 **		Failure: -1 and sets errno
 */
 
-int
+static int
 sm_stdsetmode(fp, mode)
 	SM_FILE_T *fp;
 	const int *mode;

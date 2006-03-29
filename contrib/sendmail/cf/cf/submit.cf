@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Sun Mar 27 16:38:48 PST 2005
-##### in /extra/home/ca/sm-8.13.4/OpenSource/sendmail-8.13.4/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Sun Mar 19 22:37:26 PST 2006
+##### in /extra/home/ca/sm-8.13.6/OpenSource/sendmail-8.13.6/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -35,7 +35,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.711 2004/08/04 21:29:55 ca Exp $  #####
+#####  $Id: proto.m4,v 8.718 2005/08/24 18:07:23 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.13.4/Submit
+DZ8.13.6/Submit
 
 
 ###############
@@ -252,7 +252,7 @@ O PrivacyOptions=goaway,noetrn,restrictqrun
 #O MinQueueAge=30m
 
 # how many jobs can you process in the queue?
-#O MaxQueueRunSize=10000
+#O MaxQueueRunSize=0
 
 # perform initial split of envelope without checking MX records
 #O FastSplit=1
@@ -380,13 +380,13 @@ O TimeZoneSpec=
 #O HostsFile=/etc/hosts
 
 # dialup line delay on connection failure
-#O DialDelay=10s
+#O DialDelay=0s
 
 # action to take if there are no recipients in the message
-#O NoRecipientAction=add-to-undisclosed
+#O NoRecipientAction=none
 
 # chrooted environment for writing to files
-#O SafeFileEnvironment=/arch
+#O SafeFileEnvironment
 
 # are colons OK in addresses?
 #O ColonOkInAddr=True

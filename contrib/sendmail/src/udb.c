@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.160 2003/04/03 16:32:46 ca Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.161 2005/08/31 21:34:20 ca Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.160 2003/04/03 16:32:46 ca Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.161 2005/08/31 21:34:20 ca Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB
@@ -137,7 +137,7 @@ udbexpand(a, sendq, aliaslevel, e)
 	int keylen;
 	int naddrs;
 	char *user;
-	char keybuf[MAXKEY];
+	char keybuf[MAXUDBKEY];
 
 	memset(&key, '\0', sizeof key);
 	memset(&info, '\0', sizeof info);
@@ -597,7 +597,7 @@ udbmatch(user, field, rpool)
 	int i;
 	int keylen;
 	DBT key, info;
-	char keybuf[MAXKEY];
+	char keybuf[MAXUDBKEY];
 
 	if (tTd(28, 1))
 		sm_dprintf("udbmatch(%s, %s)\n", user, field);
@@ -1232,7 +1232,7 @@ hes_udb_get(key, info)
 {
 	char *name, *type;
 	char **hp;
-	char kbuf[MAXKEY + 1];
+	char kbuf[MAXUDBKEY + 1];
 
 	if (sm_strlcpy(kbuf, key->data, sizeof kbuf) >= sizeof kbuf)
 		return 0;

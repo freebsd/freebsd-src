@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004-2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: local.h,v 1.53 2004/01/09 18:34:22 ca Exp $
+ *	$Id: local.h,v 1.57 2006/02/28 18:48:25 ca Exp $
  */
 
 /*
@@ -19,7 +19,7 @@
 **  in particular, macros and private variables.
 */
 
-#include <sys/time.h>
+#include <sm/time.h>
 #if !SM_CONF_MEMCHR
 # include <memory.h>
 #endif /* !SM_CONF_MEMCHR */
@@ -74,42 +74,6 @@ int	sm_syslogclose __P((SM_FILE_T *));
 int	sm_syslogopen __P((SM_FILE_T *, const void *, int, const void *));
 int	sm_syslogsetinfo __P((SM_FILE_T *, int , void *));
 int	sm_sysloggetinfo __P((SM_FILE_T *, int , void *));
-
-/* should be defined in sys/time.h */
-#ifndef timersub
-# define timersub(tvp, uvp, vvp)					\
-	do								\
-	{								\
-		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0)					\
-		{							\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_usec += 1000000;			\
-		}							\
-	} while (0)
-#endif /* !timersub */
-
-#ifndef timeradd
-# define timeradd(tvp, uvp, vvp)					\
-	do								\
-	{								\
-		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec >= 1000000)				\
-		{							\
-			(vvp)->tv_sec++;				\
-			(vvp)->tv_usec -= 1000000;			\
-		}							\
-	} while (0)
-#endif /* !timeradd */
-
-#ifndef timercmp
-# define timercmp(tvp, uvp, cmp)					\
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
-	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
-	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#endif /* !timercmp */
 
 extern bool Sm_IO_DidInit;
 

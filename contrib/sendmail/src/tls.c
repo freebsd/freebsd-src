@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.97 2005/03/08 22:20:52 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.102 2006/03/02 19:18:27 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -497,6 +497,15 @@ tls_safe_f(var, sff, srv)
 **		succeeded?
 */
 
+/*
+**  The session_id_context identifies the service that created a session.
+**  This information is used to distinguish between multiple TLS-based
+**  servers running on the same server. We use the name of the mail system.
+**  Note: the session cache is not persistent.
+*/
+
+static char server_session_id_context[] = "sendmail8";
+
 bool
 inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	SSL_CTX **ctx;
@@ -972,8 +981,20 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 
 	/* XXX do we need this cache here? */
 	if (bitset(TLS_I_CACHE, req))
-		SSL_CTX_sess_set_cache_size(*ctx, 128);
-	/* timeout? SSL_CTX_set_timeout(*ctx, TimeOut...); */
+	{
+		SSL_CTX_sess_set_cache_size(*ctx, 1);
+		SSL_CTX_set_timeout(*ctx, 1);
+		SSL_CTX_set_session_id_context(*ctx,
+			(void *) &server_session_id_context,
+			sizeof(server_session_id_context));
+		(void) SSL_CTX_set_session_cache_mode(*ctx,
+				SSL_SESS_CACHE_SERVER);
+	}
+	else
+	{
+		(void) SSL_CTX_set_session_cache_mode(*ctx,
+				SSL_SESS_CACHE_OFF);
+	}
 
 	/* load certificate locations and default CA paths */
 	if (bitset(TLS_S_CERTP_EX, status) && bitset(TLS_S_CERTF_EX, status))
@@ -1557,7 +1578,7 @@ tls_verify_cb(ctx, unused)
 
 void
 tlslogerr(who)
-	char *who;
+	const char *who;
 {
 	unsigned long l;
 	int line, flags;
