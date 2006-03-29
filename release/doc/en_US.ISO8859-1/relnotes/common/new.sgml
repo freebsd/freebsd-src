@@ -392,7 +392,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>sendmail</application> has been updated from
+         8.13.4 to 8.13.6. &merged;</para>
     </sect3>
   </sect2>
 
