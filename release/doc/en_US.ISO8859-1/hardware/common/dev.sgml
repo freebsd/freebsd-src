@@ -115,6 +115,8 @@
 
     &hwlist.isp;
 
+    &hwlist.mfi;
+
     &hwlist.mlx;
 
       <note>
