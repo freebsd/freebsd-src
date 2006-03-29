@@ -195,6 +195,7 @@ res_search(name, class, type, answer, anslen)
 	int anslen;		/* size of answer */
 {
 	const char *cp, * const *domain;
+	HEADER *hp = (HEADER *) answer;
 	char tmp[MAXDNAME];
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
@@ -237,6 +238,10 @@ res_search(name, class, type, answer, anslen)
 		case NO_DATA:
 		case HOST_NOT_FOUND:
 			break;
+		case TRY_AGAIN:
+			if (hp->rcode == SERVFAIL)
+				break;
+			/* FALLTHROUGH */
 		default:
 			return (-1);
 		}
@@ -304,10 +309,10 @@ res_search(name, class, type, answer, anslen)
 				 * ((HEADER *)answer)->rcode may not be set
 				 * to SERVFAIL in the case of a timeout.
 				 *
-				 * Either way we must terminate the search
-				 * and return TRY_AGAIN in order to avoid
-				 * non-deterministic return codes.  For
-				 * example, loaded name servers or races
+				 * Either way we must return TRY_AGAIN in
+				 * order to avoid non-deterministic
+				 * return codes.
+				 * For example, loaded name servers or races
 				 * against network startup/validation (dhcp,
 				 * ppp, etc) can cause the search to timeout
 				 * on one search element, e.g. 'fu.bar.com',
@@ -315,6 +320,10 @@ res_search(name, class, type, answer, anslen)
 				 * next search element, e.g. 'fu.'.
 				 */
 				++got_servfail;
+				if (hp->rcode == SERVFAIL) {
+					/* try next search element, if any */
+					break;
+				}
 				/* FALLTHROUGH */
 			default:
 				/* anything else implies that we're done */
@@ -333,6 +342,10 @@ res_search(name, class, type, answer, anslen)
 	case NO_DATA:
 	case HOST_NOT_FOUND:
 		break;
+	case TRY_AGAIN:
+		if (hp->rcode == SERVFAIL)
+			break;
+		/* FALLTHROUGH */
 	default:
 		goto giveup;
 	}
