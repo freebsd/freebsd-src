@@ -96,6 +96,10 @@
 #define		AA_FIREPLANE_ADDRESS		0x8	/* US-III Cu */
 
 #define	ASI_ESTATE_ERROR_EN_REG			0x4b
+#define		AA_ESTATE_CEEN			0x1
+#define		AA_ESTATE_NCEEN			0x2
+#define		AA_ESTATE_ISAPEN		0x4
+
 #define	ASI_AFSR				0x4c
 #define	ASI_AFAR				0x4d
 
@@ -179,7 +183,13 @@
  * Exceptions are AA_SDB_INTR_D6 and AA_SDB_INTR_D7, which were appended
  * at the end.
  */
+#define	ASI_SDB_ERROR_W				0x77
+#define	ASI_SDB_CONTROL_W			0x77
 #define	ASI_SDB_INTR_W				0x77
+#define		AA_SDB_ERR_HIGH			0x0
+#define		AA_SDB_ERR_LOW			0x18
+#define		AA_SDB_CNTL_HIGH		0x20
+#define		AA_SDB_CNTL_LOW			0x38
 #define		AA_SDB_INTR_D0			0x40
 #define		AA_SDB_INTR_D0A			0x48	/* US-III family */
 #define		AA_SDB_INTR_D1			0x50
@@ -195,6 +205,12 @@
 
 #define	ASI_ECACHE_R				0x7e
 
+/*
+ * These have the same registers as their corresponding write versions
+ * except for AA_INTR_SEND.
+ */
+#define	ASI_SDB_ERROR_R				0x7f
+#define	ASI_SDB_CONTROL_R			0x7f
 #define	ASI_SDB_INTR_R				0x7f
 
 #define	ASI_PST8_P				0xc0
