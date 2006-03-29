@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	$Id: Makefile,v 8.59 2004/08/06 03:54:05 gshapiro Exp $
+#	$Id: Makefile,v 8.60 2005/06/14 02:16:34 gshapiro Exp $
 #
 
 #
@@ -168,6 +168,7 @@ M4FILES=\
 	${CFDIR}/ostype/dynix3.2.m4 \
 	${CFDIR}/ostype/freebsd4.m4 \
 	${CFDIR}/ostype/freebsd5.m4 \
+	${CFDIR}/ostype/freebsd6.m4 \
 	${CFDIR}/ostype/gnu.m4 \
 	${CFDIR}/ostype/hpux10.m4 \
 	${CFDIR}/ostype/hpux11.m4 \

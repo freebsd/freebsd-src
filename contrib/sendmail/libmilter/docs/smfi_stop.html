@@ -2,7 +2,7 @@
 <head><title>smfi_stop</title></head>
 <body>
 <!--
-$Id: smfi_stop.html,v 1.2 2003/11/24 23:38:26 ca Exp $
+$Id: smfi_stop.html,v 1.3 2005/10/27 06:08:57 ca Exp $
 -->
 <h1>smfi_stop</h1>
 
@@ -13,8 +13,8 @@ $Id: smfi_stop.html,v 1.2 2003/11/24 23:38:26 ca Exp $
 #include &lt;libmilter/mfapi.h&gt;
 int smfi_stop(void);
 </pre>
-Start an orderly shutdown of the milter. No connections will be accepted
-after this call.
+Shutdown the milter.
+No connections will be accepted after this call.
 </td></tr>
 
 <!----------- Description ---------->
@@ -27,10 +27,11 @@ or any error-handling routines at any time.</td>
 </tr>
 <tr align="left" valign=top>
 <th width="80">Effects</th>
-<td>The smfi_stop routine
-causes each thread to finish its current connection, then exit.
-When all threads have exited, the call
-to <a href="smfi_main.html">smfi_main</a> returns to your calling program,
+<td>The smfi_stop routine prevents that new connections
+will be accepted,
+however, it does not wait for existing connections (threads) to terminate.
+It will cause
+<a href="smfi_main.html">smfi_main</a> to return to the calling program,
 which may then exit or warm-restart.
 </td>
 </tr>
@@ -63,7 +64,7 @@ which may then exit or warm-restart.
 
 <hr size="1">
 <font size="-1">
-Copyright (c) 2003 Sendmail, Inc. and its suppliers.
+Copyright (c) 2003, 2005 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set

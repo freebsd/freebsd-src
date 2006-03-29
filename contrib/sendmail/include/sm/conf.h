@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.120 2005/03/22 22:07:53 ca Exp $
+ *	$Id: conf.h,v 1.128 2006/01/27 18:43:44 ca Exp $
  */
 
 /*
@@ -406,6 +406,9 @@ typedef int		pid_t;
 #   if SOLARIS >= 20500 || (SOLARIS < 10000 && SOLARIS >= 205)
 #    define HASSETREUID	1		/* setreuid works as of 2.5 */
 #    define HASSETREGID	1	/* use setregid(2) to set saved gid */
+#   if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
+#    define HASSNPRINTF 1	/* has snprintf(3c) starting in 2.6 */
+#   endif /* SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) */
 #    if SOLARIS < 207 || (SOLARIS > 10000 && SOLARIS < 20700)
 #     ifndef LA_TYPE
 #      define LA_TYPE	LA_KSTAT	/* use kstat(3k) -- may work in < 2.5 */
@@ -734,8 +737,8 @@ typedef int		pid_t;
 #  define HASFLOCK		1	/* has flock(2) */
 #  define HASUNAME		1	/* has uname(2) */
 #  define HASUNSETENV		1	/* has unsetenv(3) */
-#  define HASSETSID	1	/* has POSIX setsid(2) call */
-#  define HASINITGROUPS	1	/* has initgroups(3) */
+#  define HASSETSID		1	/* has POSIX setsid(2) call */
+#  define HASINITGROUPS		1	/* has initgroups(3) */
 #  define HASSETVBUF		1	/* has setvbuf (3) */
 #  define HASSETREUID		0	/* setreuid(2) unusable */
 #  define HASSETEUID		1	/* has seteuid(2) */
@@ -748,13 +751,22 @@ typedef int		pid_t;
 #  define HASWAITPID		1	/* has waitpid(2) */
 #  define HASGETDTABLESIZE	1	/* has getdtablesize(2) */
 #  define HAS_ST_GEN		1	/* has st_gen field in struct stat */
-#  define HASURANDOMDEV	1	/* has urandom(4) */
+#  define HASURANDOMDEV		1	/* has urandom(4) */
 #  define HASSTRERROR		1	/* has strerror(3) */
 #  define HASGETUSERSHELL	1	/* had getusershell(3) */
 #  define GIDSET_T		gid_t	/* getgroups(2) takes gid_t */
 #  define LA_TYPE		LA_SUBR	/* use getloadavg(3) */
 #  define SFS_TYPE		SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
-#  define SPT_TYPE		SPT_PSSTRINGS	/* use magic PS_STRINGS pointer for setproctitle */
+#  if DARWIN >= 70000
+#   define SOCKADDR_LEN_T	socklen_t
+#  endif
+#  if DARWIN >= 80000
+#   define SPT_TYPE		SPT_REUSEARGV
+#   define SPT_PADCHAR		'\0'
+#   define SOCKOPT_LEN_T	socklen_t
+#  else
+#   define SPT_TYPE		SPT_PSSTRINGS	/* use magic PS_STRINGS pointer for setproctitle */
+#  endif
 #  define ERRLIST_PREDEFINED		/* don't declare sys_errlist */
 #  define BSD4_4_SOCKADDR		/* struct sockaddr has sa_len */
 #  define SAFENFSPATHCONF	0	/* unverified: pathconf(2) doesn't work on NFS */
@@ -773,7 +785,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 **	See also BSD defines.
 */
 
-# if defined(BSD4_4) && !defined(__bsdi__) && !defined(__GNU__)
+# if defined(BSD4_4) && !defined(__bsdi__) && !defined(__GNU__) && !defined(DARWIN)
 #  include <paths.h>
 #  define HASUNSETENV	1	/* has unsetenv(3) call */
 #  define USESETEUID	1	/* has usable seteuid(2) call */
@@ -791,7 +803,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  endif /* ! LA_TYPE */
 #  define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
 #  define SPT_TYPE	SPT_PSSTRINGS	/* use PS_STRINGS pointer */
-# endif /* defined(BSD4_4) && !defined(__bsdi__) && !defined(__GNU__) */
+# endif /* defined(BSD4_4) && !defined(__bsdi__) && !defined(__GNU__) && !defined(DARWIN)*/
 
 
 /*
@@ -899,11 +911,14 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  define NETLINK	1	/* supports AF_LINK */
 #  define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
 #  define GIDSET_T	gid_t
-#  define QUAD_T		unsigned long long
+#  define QUAD_T	unsigned long long
+#  define HASSNPRINTF	1	/* has snprintf(3) (all versions?) */
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_SUBR
 #  endif /* ! LA_TYPE */
-#  if defined(__NetBSD__) && defined(__NetBSD_Version__) && __NetBSD_Version__ >= 200040000
+#  if defined(__NetBSD__) && defined(__NetBSD_Version__) && \
+    ((__NetBSD_Version__ >= 200040000 && __NetBSD_Version__ < 200090000) || \
+    (__NetBSD_Version__ >= 299000900))
 #   undef SFS_TYPE
 #   define SFS_TYPE	SFS_STATVFS
 #  else
@@ -919,7 +934,9 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  if defined(__NetBSD__) && defined(__NetBSD_Version__) && __NetBSD_Version__ >= 104170000
 #   define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
 #  endif
-#  if defined(__NetBSD__) && defined(__NetBSD_Version__) && __NetBSD_Version__ >= 200060000
+#  if defined(__NetBSD__) && defined(__NetBSD_Version__) && \
+    ((__NetBSD_Version__ >= 200060000 && __NetBSD_Version__ < 200090000) || \
+    (__NetBSD_Version__ >= 299000900))
 #   define HASCLOSEFROM	1	/* closefrom(3) added in 2.0F */
 #  endif
 #  if defined(__NetBSD__)
@@ -994,6 +1011,9 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   if OpenBSD >= 200405
 #    define HASCLOSEFROM	1	/* closefrom(3) added in 3.5 */
 #   endif /* OpenBSD >= 200405 */
+#   if OpenBSD >= 200505
+#    undef NETISO	/* iso.h removed in 3.7 */
+#   endif /* OpenBSD >= 200505 */
 #  endif /* defined(__OpenBSD__) */
 # endif /* defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) */
 
