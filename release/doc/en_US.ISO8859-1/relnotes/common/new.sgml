@@ -238,6 +238,9 @@
       <para><application>BIND</application> has been updated from 9.3.1
 	to 9.3.2.</para>
 
+      <para><application>sendmail</application> has been updated from
+	8.13.4 to 8.13.6.</para>
+
       <para>The timezone database has been updated from the
 	<application>tzdata2005l</application> release to the
 	<application>tzdata2005r</application> release.</para>
