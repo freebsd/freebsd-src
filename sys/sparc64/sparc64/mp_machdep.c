@@ -108,6 +108,7 @@ vm_offset_t mp_tramp;
 
 u_int	mp_boot_mid;
 
+static u_int		cpuid_to_mid[MAXCPU];
 static volatile u_int	shutdown_cpus;
 
 void cpu_mp_unleash(void *);
@@ -238,6 +239,8 @@ cpu_mp_start(void)
 	    -1, NULL, NULL);
 	intr_setup(PIL_STOP, cpu_ipi_stop, -1, NULL, NULL);
 
+	cpuid_to_mid[PCPU_GET(cpuid)] = mp_boot_mid;
+
 	root = OF_peer(0);
 	csa = &cpu_start_args;
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
@@ -266,6 +269,7 @@ cpu_mp_start(void)
 		intr_restore(s);
 
 		cpuid = mp_ncpus++;
+		cpuid_to_mid[cpuid] = mid;
 		cpu_identify(csa->csa_ver, clock, cpuid);
 
 		va = kmem_alloc(kernel_map, PCPU_PAGES * PAGE_SIZE);
@@ -413,20 +417,19 @@ cpu_ipi_stop(struct trapframe *tf)
 void
 cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 {
-	struct pcpu *pc;
 	u_int cpu;
 
 	while (cpus) {
 		cpu = ffs(cpus) - 1;
 		cpus &= ~(1 << cpu);
-		pc = pcpu_find(cpu);
-		cpu_ipi_send(pc->pc_mid, d0, d1, d2);
+		cpu_ipi_send(cpuid_to_mid[cpu], d0, d1, d2);
 	}
 }
 
 void
 cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 {
+	u_long ids;
 	u_long s;
 	int i;
 
@@ -438,11 +441,20 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
 		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
 		stxa(AA_INTR_SEND | (mid << 14), ASI_SDB_INTR_W, 0);
+		/*
+		 * Workaround for SpitFire erratum #54; do a dummy read
+		 * from a SDB internal register before the MEMBAR #Sync
+		 * for the write to ASI_SDB_INTR_W (requiring another
+		 * MEMBAR #Sync in order to make sure the write has
+		 * occurred before the load).
+		 */
 		membar(Sync);
-		while (ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_BUSY)
+		(void)ldxa(AA_SDB_CNTL_HIGH, ASI_SDB_CONTROL_R);
+		membar(Sync);
+		while ((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) & IDR_BUSY)
 			;
 		intr_restore(s);
-		if ((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_NACK) == 0)
+		if ((ids & IDR_NACK) == 0)
 			return;
 	}
 	if (
