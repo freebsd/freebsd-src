@@ -200,12 +200,13 @@ extern struct gmonparam _gmonparam;
 
 #ifdef _KERNEL
 
-#ifdef GUPROF
-
-#define	CALIB_SCALE	1000
 #define	KCOUNT(p,index) \
 	((p)->kcount[(index) / (HISTFRACTION * sizeof(HISTCOUNTER))])
 #define	PC_TO_I(p, pc)	((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
+
+#ifdef GUPROF
+
+#define	CALIB_SCALE	1000
 
 extern int	cputime_bias;
 
