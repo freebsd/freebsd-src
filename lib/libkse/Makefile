@@ -25,7 +25,7 @@ CFLAGS+=-fno-builtin
 # Uncomment this if you want libpthread to contain debug information for
 # thread locking.
 CFLAGS+=-D_LOCK_DEBUG
-#CFLAGS+= -g
+WARNS?=2
 
 # Uncomment this if you want to build a 1:1 threading mode library
 # however it is no longer strictly conformed to POSIX
