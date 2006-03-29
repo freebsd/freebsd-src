@@ -277,8 +277,10 @@ if_nametosdl(char *name)
 		return(NULL);
 	}
 
-	if ((ret_sdl = malloc(sdl->sdl_len)) == NULL)
+	if ((ret_sdl = malloc(sdl->sdl_len)) == NULL) {
+		free(buf);
 		return(NULL);
+	}
 	memcpy((caddr_t)ret_sdl, (caddr_t)sdl, sdl->sdl_len);
 
 	free(buf);
