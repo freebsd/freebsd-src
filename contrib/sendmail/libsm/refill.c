@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2005-2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,13 +13,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: refill.c,v 1.50 2002/09/09 21:50:10 gshapiro Exp $")
+SM_RCSID("@(#)$Id: refill.c,v 1.53 2006/02/28 18:48:25 ca Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <sm/time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sm/io.h>

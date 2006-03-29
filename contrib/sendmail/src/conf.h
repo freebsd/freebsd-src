@@ -10,7 +10,10 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.567 2004/07/23 20:45:01 gshapiro Exp $
+ *	$Id: conf.h,v 8.570 2005/12/09 18:37:27 ca Exp $
+ *
+ *	$FreeBSD$
+ *
  */
 
 /*
@@ -59,31 +62,40 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 **	If you do, be careful, none should be set anywhere near INT_MAX
 **********************************************************************/
 
-#define MAXLINE		2048		/* max line length */
-#define MAXNAME		256		/* max length of a name */
+#define MAXLINE		2048	/* max line length */
+#define MAXNAME		256	/* max length of a name */
 #ifndef MAXAUTHINFO
-# define MAXAUTHINFO	100		/* max length of authinfo token */
+# define MAXAUTHINFO	100	/* max length of authinfo token */
 #endif /* ! MAXAUTHINFO */
-#define MAXPV		256		/* max # of parms to mailers */
-#define MAXATOM		1000		/* max atoms per address */
-#define MAXRWSETS	200		/* max # of sets of rewriting rules */
-#define MAXPRIORITIES	25		/* max values for Precedence: field */
-#define MAXMXHOSTS	100		/* max # of MX records for one host */
-#define SMTPLINELIM	990		/* maximum SMTP line length */
-#define MAXKEY		128		/* maximum size of a database key */
-#define MEMCHUNKSIZE	1024		/* chunk size for memory allocation */
-#define MAXUSERENVIRON	100		/* max envars saved, must be >= 3 */
-#define MAXMAPSTACK	12		/* max # of stacked or sequenced maps */
+#define MAXPV		256	/* max # of parms to mailers */
+#define MAXATOM		1000	/* max atoms per address */
+#define MAXRWSETS	200	/* max # of sets of rewriting rules */
+#define MAXPRIORITIES	25	/* max values for Precedence: field */
+#define MAXMXHOSTS	100	/* max # of MX records for one host */
+#define SMTPLINELIM	990	/* max SMTP line length */
+#define MAXUDBKEY	128	/* max size of a database key (udb only) */
+#if _FFR_MAXKEY
+# define MAXKEY		1024	/* max size of a database key */
+#else /* _FFR_MAXKEY */
+# define MAXKEY		(MAXNAME + 1)	/* max size of a database key */
+#endif /* _FFR_MAXKEY */
+#define MEMCHUNKSIZE	1024	/* chunk size for memory allocation */
+#define MAXUSERENVIRON	100	/* max envars saved, must be >= 3 */
+#define MAXMAPSTACK	12	/* max # of stacked or sequenced maps */
 #if MILTER
-# define MAXFILTERS	25		/* max # of milter filters */
-# define MAXFILTERMACROS 50		/* max # of macros per milter cmd */
+# define MAXFILTERS	25	/* max # of milter filters */
+# define MAXFILTERMACROS 50	/* max # of macros per milter cmd */
 #endif /* MILTER */
-#define MAXSMTPARGS	20		/* max # of ESMTP args for MAIL/RCPT */
-#define MAXTOCLASS	8		/* max # of message timeout classes */
-#define MAXRESTOTYPES	3		/* max # of resolver timeout types */
-#define MAXMIMEARGS	20		/* max args in Content-Type: */
-#define MAXMIMENESTING	20		/* max MIME multipart nesting */
-#define QUEUESEGSIZE	1000		/* increment for queue size */
+#define MAXSMTPARGS	20	/* max # of ESMTP args for MAIL/RCPT */
+#define MAXTOCLASS	8	/* max # of message timeout classes */
+#define MAXRESTOTYPES	3	/* max # of resolver timeout types */
+#define MAXMIMEARGS	20	/* max args in Content-Type: */
+#define MAXMIMENESTING	20	/* max MIME multipart nesting */
+#define QUEUESEGSIZE	1000	/* increment for queue size */
+
+#ifndef MAXNOOPCOMMANDS
+# define MAXNOOPCOMMANDS 20	/* max "noise" commands before slowdown */
+#endif /* ! MAXNOOPCOMMANDS */
 
 /*
 **  MAXQFNAME == 2 (size of "qf", "df" prefix)

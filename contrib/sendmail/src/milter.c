@@ -10,14 +10,14 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.229 2005/03/02 02:32:34 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.232 2005/08/05 21:49:04 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
 # include <libmilter/mfdef.h>
 
 # include <errno.h>
-# include <sys/time.h>
+# include <sm/time.h>
 # include <sys/uio.h>
 
 # if NETINET || NETINET6
@@ -1962,10 +1962,19 @@ milter_send_command(m, command, data, sz, e, state)
 
 #if SMFI_VERSION > 2
 	  case SMFIC_UNKNOWN:
+		skipflag = SMFIP_NOUNKNOWN;
 		action = "unknown";
 		defresponse = "550 5.7.1 Command rejected";
 		break;
 #endif /* SMFI_VERSION > 2 */
+
+#if SMFI_VERSION > 3
+	  case SMFIC_DATA:
+		skipflag = SMFIP_NODATA;
+		action = "data";
+		defresponse = "550 5.7.1 Command rejected";
+		break;
+#endif /* SMFI_VERSION > 3 */
 
 	  case SMFIC_BODYEOB:
 	  case SMFIC_OPTNEG:
@@ -2184,8 +2193,9 @@ milter_negotiate(m, e)
 	mi_int32 fvers;
 	mi_int32 fflags;
 	mi_int32 pflags;
-	char *response;
+	mi_int32 curr_prot;
 	ssize_t rlen;
+	char *response;
 	char data[MILTER_OPTLEN];
 
 	/* sanity check */
@@ -2201,7 +2211,18 @@ milter_negotiate(m, e)
 
 	fvers = htonl(SMFI_VERSION);
 	fflags = htonl(SMFI_CURR_ACTS);
-	pflags = htonl(SMFI_CURR_PROT);
+	curr_prot = SMFI_V2_PROT
+#if _FFR_MILTER_NOHDR_RESP
+			| SMFIP_NOHREPL
+#endif /* _FFR_MILTER_NOHDR_RESP */
+#if SMFI_VERSION >= 3
+			| SMFIP_NOUNKNOWN
+# if SMFI_VERSION >= 4
+			| SMFIP_NODATA
+# endif /* SMFI_VERSION >= 4 */
+#endif /* SMFI_VERSION >= 3 */
+			;
+	pflags = htonl(curr_prot);
 	(void) memcpy(data, (char *) &fvers, MILTER_LEN_BYTES);
 	(void) memcpy(data + MILTER_LEN_BYTES,
 		      (char *) &fflags, MILTER_LEN_BYTES);
@@ -2310,20 +2331,25 @@ milter_negotiate(m, e)
 	}
 
 	/* check for protocol feature mismatch */
-	if ((m->mf_pflags & SMFI_CURR_PROT) != m->mf_pflags)
+	if ((m->mf_pflags & curr_prot) != m->mf_pflags)
 	{
 		if (tTd(64, 5))
 			sm_dprintf("milter_negotiate(%s): protocol abilities 0x%x != MTA milter abilities 0x%lx\n",
 				m->mf_name, m->mf_pflags,
-				(unsigned long) SMFI_CURR_PROT);
+				(unsigned long) curr_prot);
 		if (MilterLogLevel > 0)
 			sm_syslog(LOG_ERR, e->e_id,
 				  "Milter (%s): negotiate: protocol abilities 0x%x != MTA milter abilities 0x%lx",
 				  m->mf_name, m->mf_pflags,
-				  (unsigned long) SMFI_CURR_PROT);
+				  (unsigned long) curr_prot);
 		milter_error(m, e);
 		return -1;
 	}
+
+	if (m->mf_fvers <= 2)
+		m->mf_pflags |= SMFIP_NOUNKNOWN;
+	if (m->mf_fvers <= 3)
+		m->mf_pflags |= SMFIP_NODATA;
 
 	if (tTd(64, 5))
 		sm_dprintf("milter_negotiate(%s): version %u, fflags 0x%x, pflags 0x%x\n",
@@ -2689,10 +2715,10 @@ milter_addheader(response, rlen, e)
 **	Returns:
 **		none
 **
-**  	Notes:
-**  		Unlike milter_addheader(), this does not attempt to determine
-**  		if the header already exists in the envelope, even a
-**  		deleted version.  It just blindly inserts.
+**	Notes:
+**		Unlike milter_addheader(), this does not attempt to determine
+**		if the header already exists in the envelope, even a
+**		deleted version.  It just blindly inserts.
 */
 
 static void
@@ -2752,7 +2778,7 @@ milter_insheader(response, rlen, e)
 		sm_dprintf("Insert (%d) %s: %s\n", idx, response, val);
 	if (MilterLogLevel > 8)
 		sm_syslog(LOG_INFO, e->e_id,
-		          "Milter insert (%d): header: %s: %s",
+			  "Milter insert (%d): header: %s: %s",
 			  idx, field, val);
 	insheader(idx, newstr(field), val, H_USER, e);
 }
