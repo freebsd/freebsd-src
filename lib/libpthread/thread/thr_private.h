@@ -107,12 +107,16 @@
 /*
  * Kernel fatal error handler macro.
  */
-#define PANIC(string)   _thr_exit(__FILE__,__LINE__,string)
+#define PANIC(string)   _thr_exit(__FILE__, __LINE__, string)
 
 
 /* Output debug messages like this: */
-#define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
-#define stderr_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
+#ifdef STDOUT_FILENO
+#define stdout_debug(...)	_thread_printf(STDOUT_FILENO, __VA_ARGS__)
+#endif
+#ifdef STDERR_FILENO
+#define stderr_debug(...)	_thread_printf(STDERR_FILENO, __VA_ARGS__)
+#endif
 
 #define	DBG_MUTEX	0x0001
 #define	DBG_SIG		0x0002
@@ -449,7 +453,7 @@ struct pthread_spinlock {
  */
 struct pthread_cleanup {
 	struct pthread_cleanup	*next;
-	void			(*routine) ();
+	void			(*routine) (void *);
 	void			*routine_arg;
 	int			onstack;
 };
@@ -486,7 +490,7 @@ struct pthread_attr {
 #define	THR_SIGNAL_THREAD	0x200	/* This is a signal thread */
 	int	flags;
 	void	*arg_attr;
-	void	(*cleanup_attr) ();
+	void	(*cleanup_attr) (void *);
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
@@ -1131,7 +1135,7 @@ kse_critical_t _kse_critical_enter(void);
 void	_kse_critical_leave(kse_critical_t);
 int	_kse_in_critical(void);
 void	_kse_free(struct pthread *, struct kse *);
-void	_kse_init();
+void	_kse_init(void);
 struct kse_group *_kseg_alloc(struct pthread *);
 void	_kse_lock_wait(struct lock *, struct lockuser *lu);
 void	_kse_lock_wakeup(struct lock *, struct lockuser *lu);

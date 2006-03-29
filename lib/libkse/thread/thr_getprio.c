@@ -31,8 +31,12 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_getprio);
@@ -46,7 +50,7 @@ _pthread_getprio(pthread_t pthread)
 	int policy, ret;
 	struct sched_param param;
 
-	if ((ret = pthread_getschedparam(pthread, &policy, &param)) == 0)
+	if ((ret = _pthread_getschedparam(pthread, &policy, &param)) == 0)
 		ret = param.sched_priority;
 	else {
 		/* Invalid thread: */
