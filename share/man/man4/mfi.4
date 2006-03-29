@@ -48,7 +48,9 @@ The
 name is derived from the phrase "MegaRAID Firmware Interface", which is
 substantially different than the old "MegaRAID" interface and thus requires
 a new driver.
-Older SCSI and SATA MegaRAID cards will not work with this driver.
+Older SCSI and SATA MegaRAID cards are supported by
+.Xr amr 4
+and will not work with this driver.
 .Pp
 .Sh HARDWARE
 The
@@ -71,16 +73,19 @@ array/logical disk interface
 management interface
 .El
 .Sh SEE ALSO
+.Xr amr 4 ,
 .Xr pci 4
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+driver first appeared in
 .Fx 7.0 .
 .Pp
 .El
 .Sh AUTHORS
-This manual page was written by
+The
+.Nm
+driver and this manual page were written by
 .An Scott Long Aq scottl@FreeBSD.org .
 .Sh BUGS
 The driver does not support big-endian architectures at this time.
