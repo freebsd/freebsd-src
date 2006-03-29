@@ -9,11 +9,13 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ *	$FreeBSD$
+ *
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 8.304 2004/10/06 21:36:06 ca Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 8.306 2006/02/25 02:16:53 ca Exp $")
 
 static bool	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
@@ -1467,9 +1469,9 @@ smtptodsn(smtpstat)
 		return "5.0.0";
 	}
 
-	if ((smtpstat / 100) == 2)
+	if (REPLYTYPE(smtpstat) == 2)
 		return "2.0.0";
-	if ((smtpstat / 100) == 4)
+	if (REPLYTYPE(smtpstat) == 4)
 		return "4.0.0";
 	return "5.0.0";
 }

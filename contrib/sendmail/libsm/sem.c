@@ -8,13 +8,14 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sem.c,v 1.12 2005/03/25 21:27:02 ca Exp $")
+SM_RCSID("@(#)$Id: sem.c,v 1.13 2005/08/12 20:39:59 ca Exp $")
 
 #if SM_CONF_SEM
 # include <stdlib.h>
 # include <unistd.h>
 # include <sm/sem.h>
 # include <sm/heap.h>
+# include <errno.h>
 
 /*
 **  SM_SEM_START -- initialize semaphores
@@ -37,7 +38,7 @@ sm_sem_start(key, nsem, semflg, owner)
 	int semflg;
 	bool owner;
 {
-	int semid, i;
+	int semid, i, err;
 	unsigned short *semvals;
 
 	semvals = NULL;
@@ -67,11 +68,12 @@ sm_sem_start(key, nsem, semflg, owner)
 	return semid;
 
 error:
+	err = errno;
 	if (semvals != NULL)
 		sm_free(semvals);
 	if (semid >= 0)
 		sm_sem_stop(semid);
-	return -1;
+	return (err > 0) ? (0 - err) : -1;
 }
 
 /*

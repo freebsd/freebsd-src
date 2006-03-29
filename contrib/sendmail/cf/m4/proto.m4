@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.711 2004/08/04 21:29:55 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.718 2005/08/24 18:07:23 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -388,7 +388,7 @@ _OPTION(QueueSortOrder, `confQUEUE_SORT_ORDER', `priority')
 _OPTION(MinQueueAge, `confMIN_QUEUE_AGE', `30m')
 
 # how many jobs can you process in the queue?
-_OPTION(MaxQueueRunSize, `confMAX_QUEUE_RUN_SIZE', `10000')
+_OPTION(MaxQueueRunSize, `confMAX_QUEUE_RUN_SIZE', `0')
 
 # perform initial split of envelope without checking MX records
 _OPTION(FastSplit, `confFAST_SPLIT', `1')
@@ -520,13 +520,13 @@ _OPTION(ServiceSwitchFile, `confSERVICE_SWITCH_FILE', `MAIL_SETTINGS_DIR`'servic
 _OPTION(HostsFile, `confHOSTS_FILE', `/etc/hosts')
 
 # dialup line delay on connection failure
-_OPTION(DialDelay, `confDIAL_DELAY', `10s')
+_OPTION(DialDelay, `confDIAL_DELAY', `0s')
 
 # action to take if there are no recipients in the message
-_OPTION(NoRecipientAction, `confNO_RCPT_ACTION', `add-to-undisclosed')
+_OPTION(NoRecipientAction, `confNO_RCPT_ACTION', `none')
 
 # chrooted environment for writing to files
-_OPTION(SafeFileEnvironment, `confSAFE_FILE_ENV', `/arch')
+_OPTION(SafeFileEnvironment, `confSAFE_FILE_ENV', `')
 
 # are colons OK in addresses?
 _OPTION(ColonOkInAddr, `confCOLON_OK_IN_ADDR', `True')
@@ -2698,6 +2698,11 @@ RSOFTWARE $| <$-:$+> $* 	$#error $@ $2 $: $1 " TLS handshake failed."
 dnl no <reply:dns> i.e. not requirements in the access map
 dnl use default error
 RSOFTWARE $| $* 		$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') TLS handshake failed."
+# deal with TLS protocol errors: abort
+RPROTOCOL $| <$-:$+> $* 	$#error $@ $2 $: $1 " STARTTLS failed."
+dnl no <reply:dns> i.e. not requirements in the access map
+dnl use default error
+RPROTOCOL $| $* 		$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') STARTTLS failed."
 R$* $| <$*> <VERIFY>		$: <$2> <VERIFY> <> $1
 dnl separate optional requirements
 R$* $| <$*> <VERIFY + $+>	$: <$2> <VERIFY> <$3> $1

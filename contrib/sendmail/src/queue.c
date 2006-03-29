@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.944 2005/02/17 23:58:58 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.951 2006/03/02 19:13:38 ca Exp $")
 
 #include <dirent.h>
 
@@ -2853,7 +2853,8 @@ gatherq(qgrp, qdir, doall, full, more)
 		if (cf != NULL)
 			(void) sm_io_close(cf, SM_TIME_DEFAULT);
 
-		if ((!doall && shouldqueue(w->w_pri, w->w_ctime)) ||
+		if ((!doall && (shouldqueue(w->w_pri, w->w_ctime) ||
+		    w->w_tooyoung)) ||
 		    bitset(HAS_QUARANTINE, i) ||
 		    bitset(NEED_QUARANTINE, i) ||
 		    bitset(NEED_R|NEED_S, i))
@@ -2930,10 +2931,6 @@ sortq(max)
 
 	if (WorkList == NULL || wc <= 0)
 		return 0;
-
-	/* Check if the per queue group item limit will be exceeded */
-	if (wc > max && max > 0)
-		wc = max;
 
 	/*
 	**  The sort now takes place using all of the items in WorkList.
@@ -3045,6 +3042,10 @@ sortq(max)
 		qsort((char *) WorkList, wc, sizeof *WorkList, workcmpf0);
 	}
 	/* else don't sort at all */
+
+	/* Check if the per queue group item limit will be exceeded */
+	if (wc > max && max > 0)
+		wc = max;
 
 	/*
 	**  Convert the work list into canonical form.
@@ -3443,13 +3444,13 @@ init_shuffle_alphabet()
 		return;
 
 	/* fill the ShuffledAlphabet */
-	for (i = 0; i < NCHAR; i++)
+	for (i = 0; i < NASCII; i++)
 		ShuffledAlphabet[i] = i;
 
 	/* mix it */
-	for (i = 1; i < NCHAR; i++)
+	for (i = 1; i < NASCII; i++)
 	{
-		register int j = get_random() % NCHAR;
+		register int j = get_random() % NASCII;
 		register int tmp;
 
 		tmp = ShuffledAlphabet[j];
@@ -3462,8 +3463,8 @@ init_shuffle_alphabet()
 		ShuffledAlphabet[i] = ShuffledAlphabet[i + 'a' - 'A'];
 
 	/* fill the upper part */
-	for (i = 0; i < NCHAR; i++)
-		ShuffledAlphabet[i + NCHAR] = ShuffledAlphabet[i];
+	for (i = 0; i < NASCII; i++)
+		ShuffledAlphabet[i + NASCII] = ShuffledAlphabet[i];
 	init = true;
 }
 
@@ -6266,7 +6267,8 @@ multiqueue_cache(basedir, blen, qg, qn, phash)
 **	If the directory does not exist, -1 is returned.
 **
 **	Parameters:
-**		path -- pathname of directory
+**		name -- name of directory (must be persistent!)
+**		path -- pathname of directory (name plus maybe "/df")
 **		add -- add to structure if not found.
 **
 **	Returns:
@@ -6277,14 +6279,15 @@ multiqueue_cache(basedir, blen, qg, qn, phash)
 **		FSF_NOT_FOUND: not in list
 */
 
-static short filesys_find __P((char *, bool));
+static short filesys_find __P((char *, char *, bool));
 
 #define FSF_NOT_FOUND	(-1)
 #define FSF_STAT_FAIL	(-2)
 #define FSF_TOO_MANY	(-3)
 
 static short
-filesys_find(path, add)
+filesys_find(name, path, add)
+	char *name;
 	char *path;
 	bool add;
 {
@@ -6310,7 +6313,7 @@ filesys_find(path, add)
 		return FSF_NOT_FOUND;
 
 	++NumFileSys;
-	FILE_SYS_NAME(i) = path;
+	FILE_SYS_NAME(i) = name;
 	FILE_SYS_DEV(i) = st.st_dev;
 	FILE_SYS_AVAIL(i) = 0;
 	FILE_SYS_BLKSIZE(i) = 1024; /* avoid divide by zero */
@@ -6350,8 +6353,12 @@ filesys_setup(add)
 		for (j = 0; j < Queue[i]->qg_numqueues; ++j)
 		{
 			QPATHS *qp = &Queue[i]->qg_qpaths[j];
+			char qddf[MAXPATHLEN];
 
-			fs = filesys_find(qp->qp_name, add);
+			(void) sm_strlcpyn(qddf, sizeof qddf, 2, qp->qp_name,
+					(bitset(QP_SUBDF, qp->qp_subdirs)
+						? "/df" : ""));
+			fs = filesys_find(qp->qp_name, qddf, add);
 			if (fs >= 0)
 				qp->qp_fsysidx = fs;
 			else
@@ -6679,6 +6686,22 @@ write_key_file(keypath, key)
 	}
 	else
 	{
+		if (geteuid() == 0 && RunAsUid != 0)
+		{
+#  if HASFCHOWN
+			int fd;
+
+			fd = keyf->f_file;
+			if (fd >= 0 && fchown(fd, RunAsUid, -1) < 0)
+			{
+				int err = errno;
+
+				sm_syslog(LOG_ALERT, NOQID,
+					  "ownership change on %s to %d failed: %s",
+					  keypath, RunAsUid, sm_errstring(err));
+			}
+#  endif /* HASFCHOWN */
+		}
 		ok = sm_io_fprintf(keyf, SM_TIME_DEFAULT, "%ld\n", key) !=
 		     SM_IO_EOF;
 		ok = (sm_io_close(keyf, SM_TIME_DEFAULT) != SM_IO_EOF) && ok;
@@ -6830,13 +6853,11 @@ init_shm(qn, owner, hash)
 #endif /* _FFR_SELECT_SHM */
 		if (owner && RunAsUid != 0)
 		{
-	    		i = sm_shmsetowner(ShmId, RunAsUid, RunAsGid,
-					0660);
+			i = sm_shmsetowner(ShmId, RunAsUid, RunAsGid, 0660);
 			if (i != 0)
 				sm_syslog(LOG_ERR, NOQID,
-		  			"key=%ld, sm_shmsetowner=%d, RunAsUid=%d, RunAsGid=%d",
-		  			(long) ShmKey, i,
-	    				RunAsUid, RunAsGid);
+					"key=%ld, sm_shmsetowner=%d, RunAsUid=%d, RunAsGid=%d",
+					(long) ShmKey, i, RunAsUid, RunAsGid);
 		}
 		p = (int *) Pshm;
 		if (owner)
@@ -7722,8 +7743,11 @@ dup_df(old, new)
 	**  are on the same file system.
 	*/
 
-	ofs = Queue[old->e_qgrp]->qg_qpaths[old->e_qdir].qp_fsysidx;
-	nfs = Queue[new->e_qgrp]->qg_qpaths[new->e_qdir].qp_fsysidx;
+	SM_REQUIRE(ISVALIDQGRP(old->e_dfqgrp) && ISVALIDQDIR(old->e_dfqdir));
+	SM_REQUIRE(ISVALIDQGRP(new->e_dfqgrp) && ISVALIDQDIR(new->e_dfqdir));
+
+	ofs = Queue[old->e_dfqgrp]->qg_qpaths[old->e_dfqdir].qp_fsysidx;
+	nfs = Queue[new->e_dfqgrp]->qg_qpaths[new->e_dfqdir].qp_fsysidx;
 	if (FILE_SYS_DEV(ofs) == FILE_SYS_DEV(nfs))
 	{
 		if (link(opath, npath) == 0)
