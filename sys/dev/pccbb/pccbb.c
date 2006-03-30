@@ -650,8 +650,19 @@ cbb_intr(void *arg)
 	struct cbb_softc *sc = arg;
 	uint32_t sockevent;
 
+	/*
+	 * Read the socket event.  Sometimes, the theory goes, the PCI
+	 * bus is so loaded that it cannot satisfy the read request, so
+	 * we get garbage back from the following read.  We have to filter
+	 * out the garbage so that we don't spontaneously reset the card
+	 * under high load.  PCI isn't supposed to act like this.  No doubt
+	 * this is a bug in the PCI bridge chipset (or cbb brige) that's being
+	 * used in certain amd64 laptops today.  Work around the issue by
+	 * assuming that any bits we don't know about being set means that
+	 * we got garbage.
+	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-	if (sockevent != 0) {
+	if (sockevent != 0 && (sockevent & CBB_SOCKET_EVENT_VALID_MASK) == 0) {
 		/* ack the interrupt */
 		cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
 
@@ -697,7 +708,7 @@ cbb_intr(void *arg)
 	 * indication above.
 	 *
 	 * We have to call this unconditionally because some bridges deliver
-	 * the even independent of the CBB_SOCKET_EVENT_CD above.
+	 * the event independent of the CBB_SOCKET_EVENT_CD above.
 	 */
 	exca_getb(&sc->exca[0], EXCA_CSC);
 }
