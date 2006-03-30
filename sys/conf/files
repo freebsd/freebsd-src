@@ -823,6 +823,12 @@ dev/rp/rp_pci.c			optional rp pci
 dev/sab/sab.c			optional sab ebus
 dev/safe/safe.c			optional safe
 dev/sbsh/if_sbsh.c		optional sbsh
+dev/scc/scc_if.m		optional	scc
+dev/scc/scc_bfe_ebus.c		optional	scc ebus
+dev/scc/scc_bfe_sbus.c		optional	scc sbus
+dev/scc/scc_core.c		optional	scc
+dev/scc/scc_dev_sab82532.c	optional	scc
+dev/scc/scc_dev_z8530.c		optional	scc
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/si/si.c			optional si
@@ -947,6 +953,7 @@ dev/uart/uart_bus_isa.c		optional	uart isa
 dev/uart/uart_bus_pccard.c	optional	uart pccard
 dev/uart/uart_bus_pci.c		optional	uart pci
 dev/uart/uart_bus_puc.c		optional	uart puc
+dev/uart/uart_bus_scc.c		optional	uart scc
 dev/uart/uart_core.c		optional	uart
 dev/uart/uart_dbg.c		optional	uart gdb
 dev/uart/uart_dev_ns8250.c	optional	uart
@@ -1307,6 +1314,7 @@ kern/md4c.c			optional netsmb
 kern/md5c.c			standard
 kern/sched_4bsd.c		optional sched_4bsd
 kern/sched_ule.c		optional sched_ule
+kern/serdev_if.m		optional scc
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
