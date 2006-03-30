@@ -306,10 +306,6 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	pcm_lock(d);
 	rdch = i_dev->si_drv1;
 	wrch = i_dev->si_drv2;
-	if (rdch && td->td_proc->p_pid != rdch->pid)
-		rdch = NULL;
-	if (wrch && td->td_proc->p_pid != wrch->pid)
-		wrch = NULL;
 	pcm_unlock(d);
 
 	if (rdch || wrch) {
@@ -431,11 +427,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	getchns(i_dev, &rdch, &wrch, 0);
 
 	kill = 0;
-	if (wrch && ((wrch->flags & CHN_F_DEAD) ||
-		    td->td_proc->p_pid != wrch->pid))
+	if (wrch && (wrch->flags & CHN_F_DEAD))
 		kill |= 1;
-	if (rdch && ((rdch->flags & CHN_F_DEAD) ||
-		    td->td_proc->p_pid != rdch->pid))
+	if (rdch && (rdch->flags & CHN_F_DEAD))
 		kill |= 2;
 	if (kill == 3) {
 		relchns(i_dev, rdch, wrch, 0);
