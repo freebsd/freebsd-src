@@ -65,6 +65,8 @@ puc_ebus_attach(device_t dev)
 	struct puc_device_description dd;
 	int i;
 
+	printf("NOTICE: Please configure device scc(1) into the kernel.\n");
+
 	bzero(&dd, sizeof(dd));
 	dd.name = device_get_desc(dev);
 	for (i = 0; i < 2; i++) {
