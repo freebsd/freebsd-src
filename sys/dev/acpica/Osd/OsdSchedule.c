@@ -66,7 +66,8 @@ struct acpi_task_ctx {
 };
 
 TASKQUEUE_DEFINE(acpi, taskqueue_thread_enqueue, &taskqueue_acpi,
-    taskqueue_start_threads(&taskqueue_acpi, 3, PWAIT, "acpi_task"));
+    taskqueue_start_threads(&taskqueue_acpi, acpi_max_threads, PWAIT,
+    "acpi_task"));
 
 /*
  * Bounce through this wrapper function since ACPI-CA doesn't understand
