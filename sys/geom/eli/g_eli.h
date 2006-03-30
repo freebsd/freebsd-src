@@ -159,6 +159,7 @@ static __inline void
 eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 {
 	MD5_CTX ctx;
+	uint32_t hash[4];	/* Need proper aligment here. */
 	u_char *p;
 
 	p = data;
@@ -175,13 +176,15 @@ eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 	bcopy(md->md_mkeys, p, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
 	MD5Init(&ctx);
 	MD5Update(&ctx, data, p - data);
-	MD5Final(md->md_hash, &ctx);
+	MD5Final((u_char *)hash, &ctx);
+	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	bcopy(md->md_hash, p, sizeof(md->md_hash));
 }
 static __inline int
 eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
+	uint32_t hash[4];	/* Need proper aligment here. */
 	const u_char *p;
 
 	p = data + sizeof(md->md_magic) + sizeof(md->md_version);
@@ -196,7 +199,8 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 	bcopy(p, md->md_mkeys, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
 	MD5Init(&ctx);
 	MD5Update(&ctx, data, p - data);
-	MD5Final(md->md_hash, &ctx);
+	MD5Final((u_char *)hash, &ctx);
+	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	if (bcmp(md->md_hash, p, 16) != 0)
 		return (EINVAL);
 	return (0);
