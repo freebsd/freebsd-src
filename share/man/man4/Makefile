@@ -267,6 +267,7 @@ MAN=	aac.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	sbsh.4 \
+	scc.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
