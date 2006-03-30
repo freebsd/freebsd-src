@@ -61,6 +61,8 @@ typedef struct ns_updrec ns_updrec;
 #define	res_freeupdrec	__res_freeupdrec
 #define	res_mkupdate	__res_mkupdate
 #define	res_mkupdrec	__res_mkupdrec
+#define	res_nmkupdate	__res_nmkupdate
+#define	res_nupdate	__res_nupdate
 #if 0
 #define	res_update	__res_update
 #endif
@@ -69,6 +71,8 @@ __BEGIN_DECLS
 void		res_freeupdrec(ns_updrec *);
 int		res_mkupdate(ns_updrec *, u_char *, int);
 ns_updrec *	res_mkupdrec(int, const char *, u_int, u_int, u_long);
+int		res_nmkupdate(res_state, ns_updrec *, u_char *, int);
+int		res_nupdate(res_state, ns_updrec *, ns_tsig_key *);
 int		res_update(ns_updrec *);
 __END_DECLS
 
