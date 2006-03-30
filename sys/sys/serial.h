@@ -65,6 +65,7 @@
 
 #define	SER_MASK_DELTA	SER_DELTA(SER_MASK_STATE)
 
+#ifdef _KERNEL
 /*
  * Specification of interrupt sources typical for serial ports. These are
  * useful when some umbrella driver like scc(4) has enough knowledge of
@@ -81,5 +82,11 @@
 
 #define	SER_INT_MASK	0xff0000
 #define	SER_INT_SIGMASK	(SER_MASK_DELTA | SER_MASK_STATE)
+
+#ifndef LOCORE
+typedef int serdev_intr_t(void*);
+#endif
+
+#endif	/* _KERNEL */
 
 #endif /* !_SYS_SERIAL_H_ */
