@@ -437,9 +437,9 @@ static int
 sab82532_bus_flush(struct uart_softc *sc, int what)
 {
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	sab82532_flush(&sc->sc_bas, what);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 
@@ -454,7 +454,7 @@ sab82532_bus_getsig(struct uart_softc *sc)
 	do {
 		old = sc->sc_hwsig;
 		sig = old;
-		mtx_lock_spin(&sc->sc_hwmtx);
+		uart_lock(sc->sc_hwmtx);
 		star = uart_getreg(bas, SAB_STAR);
 		SIGCHG(star & SAB_STAR_CTS, sig, SER_CTS, SER_DCTS);
 		vstr = uart_getreg(bas, SAB_VSTR);
@@ -469,7 +469,7 @@ sab82532_bus_getsig(struct uart_softc *sc)
 			break;
 		}
 		SIGCHG(pvr, sig, SER_DSR, SER_DDSR);
-		mtx_unlock_spin(&sc->sc_hwmtx);
+		uart_unlock(sc->sc_hwmtx);
 		new = sig & ~SER_MASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
@@ -484,7 +484,7 @@ sab82532_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 
 	bas = &sc->sc_bas;
 	error = 0;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	switch (request) {
 	case UART_IOCTL_BREAK:
 		dafo = uart_getreg(bas, SAB_DAFO);
@@ -520,7 +520,7 @@ sab82532_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		error = EINVAL;
 		break;
 	}
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (error);
 }
 
@@ -532,7 +532,7 @@ sab82532_bus_ipend(struct uart_softc *sc)
 	uint8_t isr0, isr1;
 
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	isr0 = uart_getreg(bas, SAB_ISR0);
 	isr1 = uart_getreg(bas, SAB_ISR1);
 	uart_barrier(bas);
@@ -542,7 +542,7 @@ sab82532_bus_ipend(struct uart_softc *sc)
 		uart_setreg(bas, SAB_CMDR, SAB_CMDR_RFRD);
 		uart_barrier(bas);
 	}
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 
 	ipend = 0;
 	if (isr1 & SAB_ISR1_BRKT)
@@ -567,9 +567,9 @@ sab82532_bus_param(struct uart_softc *sc, int baudrate, int databits,
 	int error;
 
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	error = sab82532_param(bas, baudrate, databits, stopbits, parity);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (error);
 }
 
@@ -617,7 +617,7 @@ sab82532_bus_receive(struct uart_softc *sc)
 	uint8_t s;
 
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	if (uart_getreg(bas, SAB_STAR) & SAB_STAR_RFNE) {
 		rbcl = uart_getreg(bas, SAB_RBCL) & 31;
 		if (rbcl == 0)
@@ -641,7 +641,7 @@ sab82532_bus_receive(struct uart_softc *sc)
 		;
 	uart_setreg(bas, SAB_CMDR, SAB_CMDR_RMC);
 	uart_barrier(bas);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 
@@ -666,7 +666,7 @@ sab82532_bus_setsig(struct uart_softc *sc, int sig)
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	/* Set DTR pin. */
 	pvr = uart_getreg(bas, SAB_PVR);
 	switch (bas->chan) {
@@ -693,7 +693,7 @@ sab82532_bus_setsig(struct uart_softc *sc, int sig)
 		mode |= SAB_MODE_FRTS;
 	uart_setreg(bas, SAB_MODE, mode);
 	uart_barrier(bas);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 
@@ -704,7 +704,7 @@ sab82532_bus_transmit(struct uart_softc *sc)
 	int i;
 
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	while (!(uart_getreg(bas, SAB_STAR) & SAB_STAR_XFW))
 		;
 	for (i = 0; i < sc->sc_txdatasz; i++)
@@ -714,6 +714,6 @@ sab82532_bus_transmit(struct uart_softc *sc)
 		;
 	uart_setreg(bas, SAB_CMDR, SAB_CMDR_XF);
 	sc->sc_txbusy = 1;
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
