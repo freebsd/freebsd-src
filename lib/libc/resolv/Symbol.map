@@ -100,4 +100,6 @@ FBSD_1.0 {
 	__res_close;
 	_res_close;
 	res_send;
+	__res_mkupdate;
+	res_update;		# Why is this not __res_update?
 };
