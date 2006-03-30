@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2003
+.Dd March 29, 2006
 .Dt UART 4
 .Os
 .\"
@@ -37,6 +37,9 @@
 .Cd "device uart"
 .Pp
 .Cd "device puc"
+.Cd "device uart"
+.Pp
+.Cd "device scc"
 .Cd "device uart"
 .\"
 .Sh DESCRIPTION
@@ -51,15 +54,21 @@ driver.
 The primary support for devices that contain multiple serial interfaces or
 that contain other functionality besides one or more serial interfaces is
 provided by the
-.Xr puc 4
-device driver.
+.Xr puc 4 ,
+or
+.Xr scc 4
+device drivers.
 However, the serial interfaces of those devices that are managed by the
-.Xr puc 4
-driver are controlled by the
+.Xr puc 4 ,
+or
+.Xr scc 4
+driver are each independently controlled by the
 .Nm
 driver.
 As such, the
-.Xr puc 4
+.Xr puc 4 ,
+or
+.Xr scc 4
 driver provides umbrella functionality for the
 .Nm
 driver and hides the complexities that are inherent when elementary components
@@ -112,13 +121,11 @@ driver supports the following classes of UARTs:
 .Bl -bullet -compact
 .It
 NS8250: standard hardware based on the 8250, 16450, 16550, 16650, 16750 or
-the 16950 UARTs
+the 16950 UARTs.
 .It
-SAB82532: Siemens SAB 82532 based serial communications controllers in
-asynchronous mode.
-.It
-Z8530: Zilog 8530 based serial communications controllers in asynchronous
-mode.
+SCC: serial communications controllers supported by the
+.Xr scc 4
+device driver.
 .El
 .\"
 .Sh FILES
@@ -136,7 +143,8 @@ for callout ports
 corresponding callout initial-state and lock-state devices
 .El
 .Sh SEE ALSO
-.Xr puc 4
+.Xr puc 4 ,
+.Xr scc 4
 .\"
 .Sh HISTORY
 The
@@ -144,5 +152,7 @@ The
 device driver first appeared in
 .Fx 5.2 .
 .Sh AUTHORS
-This manual page was written by
+The
+.Nm
+device driver and this manual page were written by
 .An Marcel Moolenaar Aq marcel@xcllnt.net .

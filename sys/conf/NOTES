@@ -1678,6 +1678,11 @@ options 	BREAK_TO_DEBUGGER	# A BREAK on a serial console goes to
 # Sun servers by the Remote Console.
 options 	ALT_BREAK_TO_DEBUGGER
 
+# Serial Communications Controller
+# Supports the Siemens SAB 82532 and Zilog Z8530 multi-channel
+# communications controllers.
+device		scc
+
 # PCI Universal Communications driver
 # Supports various single and multi port PCI serial cards. Maybe later
 # also the parallel ports on combination serial/parallel cards. New cards

@@ -210,6 +210,7 @@ SUBDIR=	${_3dfx} \
 	${_safe} \
 	${_sbni} \
 	sbsh \
+	scc \
 	scd \
 	${_scsi_low} \
 	sf \
