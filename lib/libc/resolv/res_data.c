@@ -35,9 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <netdb.h>
 #include <resolv.h>
-#ifndef _LIBC
 #include <res_update.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -156,7 +154,6 @@ res_mkquery(int op,			/* opcode of query */
 			     newrr_in, buf, buflen));
 }
 
-#ifndef _LIBC
 int
 res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
@@ -166,7 +163,6 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 
 	return (res_nmkupdate(&_res, rrecp_in, buf, buflen));
 }
-#endif
 
 int
 res_query(const char *name,	/* domain name */
@@ -227,7 +223,6 @@ res_close(void) {
 	res_nclose(&_res);
 }
 
-#ifndef _LIBC
 int
 res_update(ns_updrec *rrecp_in) {
 	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
@@ -237,7 +232,6 @@ res_update(ns_updrec *rrecp_in) {
 
 	return (res_nupdate(&_res, rrecp_in, NULL));
 }
-#endif
 
 int
 res_search(const char *name,	/* domain name */
