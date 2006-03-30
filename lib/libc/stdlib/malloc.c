@@ -279,6 +279,11 @@ __FBSDID("$FreeBSD$");
 #  define USE_BRK
 #endif
 
+/* sizeof(int) == (1 << SIZEOF_INT_2POW). */
+#ifndef SIZEOF_INT_2POW
+#  define SIZEOF_INT_2POW	2
+#endif
+
 /* We can't use TLS in non-PIC programs, since TLS relies on loader magic. */
 #if (!defined(PIC) && !defined(NO_TLS))
 #  define NO_TLS
@@ -383,11 +388,11 @@ struct arena_stats_s {
 
 	/* Number of times each function was called. */
 	uint64_t	nmalloc;
-	uint64_t	npalloc;
-	uint64_t	ncalloc;
 	uint64_t	ndalloc;
-	uint64_t	nralloc;
 	uint64_t	nmadvise;
+
+	/* Number of large allocation requests. */
+	uint64_t	large_nrequests;
 };
 
 typedef struct chunk_stats_s chunk_stats_t;
@@ -503,11 +508,11 @@ struct arena_run_s {
 
 	/* Bitmask of in-use regions (0: in use, 1: free). */
 #define REGS_MASK_NELMS							\
-	((1 << (RUN_MIN_REGS_2POW + 1)) / (sizeof(unsigned) << 3))
+	(1 << (RUN_MIN_REGS_2POW - SIZEOF_INT_2POW - 2))
 	unsigned	regs_mask[REGS_MASK_NELMS];
 
 	/* Index of first element that might have a free region. */
-	unsigned	regs_minelm:(RUN_MIN_REGS_2POW + 2);
+	unsigned	regs_minelm;
 
 	/* Number of free regions in run. */
 	unsigned	nfree:(RUN_MIN_REGS_2POW + 2);
@@ -522,15 +527,15 @@ struct arena_run_s {
 #define RUN_Q50		3
 #define RUN_Q75		4
 #define RUN_Q100	5
-	unsigned	quartile:3;
+	unsigned	quartile;
 
 	/*
 	 * Limits on the number of free regions for the fullness quartile this
 	 * run is currently in.  If nfree goes outside these limits, the run
 	 * is moved to a different fullness quartile.
 	 */
-	unsigned	free_max:(RUN_MIN_REGS_2POW + 2);
-	unsigned	free_min:(RUN_MIN_REGS_2POW + 2);
+	unsigned	free_max;
+	unsigned	free_min;
 };
 
 /* Used for run ring headers, where the run isn't actually used. */
@@ -819,12 +824,17 @@ static void	*pages_map(void *addr, size_t size);
 static void	pages_unmap(void *addr, size_t size);
 static void	*chunk_alloc(size_t size);
 static void	chunk_dealloc(void *chunk, size_t size);
+#ifndef NO_TLS
+static arena_t	*choose_arena_hard(void);
+#endif
 static void	arena_run_split(arena_t *arena, arena_run_t *run, bool large,
     size_t size);
 static arena_chunk_t *arena_chunk_alloc(arena_t *arena);
 static void	arena_chunk_dealloc(arena_chunk_t *chunk);
-static void	arena_bin_run_refile(arena_t *arena, arena_bin_t *bin,
-    arena_run_t *run, size_t size, bool promote);
+static void	arena_bin_run_promote(arena_t *arena, arena_bin_t *bin,
+    arena_run_t *run, size_t size);
+static void	arena_bin_run_demote(arena_t *arena, arena_bin_t *bin,
+    arena_run_t *run, size_t size);
 static arena_run_t *arena_run_alloc(arena_t *arena, bool large, size_t size);
 static void	arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size);
 static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin,
@@ -832,23 +842,19 @@ static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin,
 static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin,
     size_t size);
 static void	*arena_malloc(arena_t *arena, size_t size);
-static size_t	arena_salloc(arena_t *arena, const void *ptr);
-static void	*arena_ralloc(arena_t *arena, void *ptr, size_t size,
-    size_t oldsize);
-static void	arena_dalloc(arena_t *arena, void *ptr);
+static size_t	arena_salloc(const void *ptr);
+static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
+static void	arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr);
 static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
-#ifndef NO_TLS
-static arena_t	*choose_arena_hard(void);
-#endif
 static void	*huge_malloc(size_t size);
 static void	*huge_ralloc(void *ptr, size_t size, size_t oldsize);
 static void	huge_dalloc(void *ptr);
-static void	*imalloc(arena_t *arena, size_t size);
-static void	*ipalloc(arena_t *arena, size_t alignment, size_t size);
-static void	*icalloc(arena_t *arena, size_t size);
+static void	*imalloc(size_t size);
+static void	*ipalloc(size_t alignment, size_t size);
+static void	*icalloc(size_t size);
 static size_t	isalloc(const void *ptr);
-static void	*iralloc(arena_t *arena, void *ptr, size_t size);
+static void	*iralloc(void *ptr, size_t size);
 static void	idalloc(void *ptr);
 static void	malloc_print_stats(void);
 static bool	malloc_init_hard(void);
@@ -1039,15 +1045,15 @@ stats_print(arena_t *arena)
 	malloc_printf("allocated: %zu\n", arena->stats.allocated);
 
 	malloc_printf("calls:\n");
-	malloc_printf(" %12s %12s %12s %12s %12s %12s\n", "nmalloc", "npalloc",
-	    "ncalloc", "ndalloc", "nralloc", "nmadvise");
-	malloc_printf(" %12llu %12llu %12llu %12llu %12llu %12llu\n",
-	    arena->stats.nmalloc, arena->stats.npalloc, arena->stats.ncalloc,
-	    arena->stats.ndalloc, arena->stats.nralloc, arena->stats.nmadvise);
+	malloc_printf(" %12s %12s %12s\n", "nmalloc","ndalloc", "nmadvise");
+	malloc_printf(" %12llu %12llu %12llu\n",
+	    arena->stats.nmalloc, arena->stats.ndalloc, arena->stats.nmadvise);
+
+	malloc_printf("large requests: %llu\n", arena->stats.large_nrequests);
 
 	malloc_printf("bins:\n");
-	malloc_printf("%13s %1s %4s %5s %8s %9s %5s %6s %7s %6s %6s\n",
-	    "bin", "", "size", "nregs", "run_size", "nrequests", "nruns",
+	malloc_printf("%13s %1s %4s %5s %6s %9s %5s %6s %7s %6s %6s\n",
+	    "bin", "", "size", "nregs", "run_sz", "nrequests", "nruns",
 	    "hiruns", "curruns", "npromo", "ndemo");
 	for (i = 0, gap_start = -1; i < ntbins + nqbins + nsbins; i++) {
 		if (arena->bins[i].stats.nrequests == 0) {
@@ -1066,7 +1072,7 @@ stats_print(arena_t *arena)
 				gap_start = -1;
 			}
 			malloc_printf(
-			    "%13u %1s %4u %5u %8u %9llu %5llu"
+			    "%13u %1s %4u %5u %6u %9llu %5llu"
 			    " %6lu %7lu %6llu %6llu\n",
 			    i,
 			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" : "S",
@@ -1365,6 +1371,115 @@ chunk_dealloc(void *chunk, size_t size)
  * Begin arena.
  */
 
+/*
+ * Choose an arena based on a per-thread value (fast-path code, calls slow-path
+ * code if necessary.
+ */
+static inline arena_t *
+choose_arena(void)
+{
+	arena_t *ret;
+
+	/*
+	 * We can only use TLS if this is a PIC library, since for the static
+	 * library version, libc's malloc is used by TLS allocation, which
+	 * introduces a bootstrapping issue.
+	 */
+#ifndef NO_TLS
+	if (__isthreaded == false) {
+	    /*
+	     * Avoid the overhead of TLS for single-threaded operation.  If the
+	     * app switches to threaded mode, the initial thread may end up
+	     * being assigned to some other arena, but this one-time switch
+	     * shouldn't cause significant issues.
+	     * */
+	    return (arenas[0]);
+	}
+
+	ret = arenas_map;
+	if (ret == NULL)
+		ret = choose_arena_hard();
+#else
+	if (__isthreaded) {
+		unsigned long ind;
+
+		/*
+		 * Hash _pthread_self() to one of the arenas.  There is a prime
+		 * number of arenas, so this has a reasonable chance of
+		 * working.  Even so, the hashing can be easily thwarted by
+		 * inconvenient _pthread_self() values.  Without specific
+		 * knowledge of how _pthread_self() calculates values, we can't
+		 * do much better than this.
+		 */
+		ind = (unsigned long) _pthread_self() % narenas;
+
+		/*
+		 * Optimistially assume that arenas[ind] has been initialized.
+		 * At worst, we find out that some other thread has already
+		 * done so, after acquiring the lock in preparation.  Note that
+		 * this lazy locking also has the effect of lazily forcing
+		 * cache coherency; without the lock acquisition, there's no
+		 * guarantee that modification of arenas[ind] by another thread
+		 * would be seen on this CPU for an arbitrary amount of time.
+		 *
+		 * In general, this approach to modifying a synchronized value
+		 * isn't a good idea, but in this case we only ever modify the
+		 * value once, so things work out well.
+		 */
+		ret = arenas[ind];
+		if (ret == NULL) {
+			/*
+			 * Avoid races with another thread that may have already
+			 * initialized arenas[ind].
+			 */
+			malloc_mutex_lock(&arenas_mtx);
+			if (arenas[ind] == NULL)
+				ret = arenas_extend((unsigned)ind);
+			else
+				ret = arenas[ind];
+			malloc_mutex_unlock(&arenas_mtx);
+		}
+	} else
+		ret = arenas[0];
+#endif
+
+	assert(ret != NULL);
+	return (ret);
+}
+
+#ifndef NO_TLS
+/*
+ * Choose an arena based on a per-thread value (slow-path code only, called
+ * only by choose_arena()).
+ */
+static arena_t *
+choose_arena_hard(void)
+{
+	arena_t *ret;
+
+	assert(__isthreaded);
+
+	/* Assign one of the arenas to this thread, in a round-robin fashion. */
+	malloc_mutex_lock(&arenas_mtx);
+	ret = arenas[next_arena];
+	if (ret == NULL)
+		ret = arenas_extend(next_arena);
+	if (ret == NULL) {
+		/*
+		 * Make sure that this function never returns NULL, so that
+		 * choose_arena() doesn't have to check for a NULL return
+		 * value.
+		 */
+		ret = arenas[0];
+	}
+	next_arena = (next_arena + 1) % narenas;
+	malloc_mutex_unlock(&arenas_mtx);
+	arenas_map = ret;
+
+	return (ret);
+}
+#endif
+
 static inline int
 arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
 {
@@ -1391,10 +1506,10 @@ arena_run_mask_free_set(arena_run_t *run, unsigned reg)
 	assert(run->magic == ARENA_RUN_MAGIC);
 	assert(reg < run->bin->nregs);
 
-	elm = reg / (sizeof(unsigned) << 3);
+	elm = reg >> (SIZEOF_INT_2POW + 3);
 	if (elm < run->regs_minelm)
 		run->regs_minelm = elm;
-	bit = reg - (elm * (sizeof(unsigned) << 3));
+	bit = reg - (elm << (SIZEOF_INT_2POW + 3));
 	assert((run->regs_mask[elm] & (1 << bit)) == 0);
 	run->regs_mask[elm] |= (1 << bit);
 }
@@ -1407,8 +1522,8 @@ arena_run_mask_free_unset(arena_run_t *run, unsigned reg)
 	assert(run->magic == ARENA_RUN_MAGIC);
 	assert(reg < run->bin->nregs);
 
-	elm = reg / (sizeof(unsigned) << 3);
-	bit = reg - (elm * (sizeof(unsigned) << 3));
+	elm = reg >> (SIZEOF_INT_2POW + 3);
+	bit = reg - (elm << (SIZEOF_INT_2POW + 3));
 	assert((run->regs_mask[elm] & (1 << bit)) != 0);
 	run->regs_mask[elm] ^= (1 << bit);
 }
@@ -1426,7 +1541,7 @@ arena_run_search(arena_run_t *run)
 			bit = ffs(mask);
 			if (bit != 0) {
 				/* Usable allocation found. */
-				return ((i * (sizeof(unsigned) << 3))
+				return ((i << (SIZEOF_INT_2POW + 3))
 				    + bit - 1);
 			}
 		} else {
@@ -1578,19 +1693,51 @@ arena_chunk_dealloc(arena_chunk_t *chunk)
 }
 
 static void
-arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
-    size_t size, bool promote)
+arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
+    size_t size)
 {
 
 	assert(bin == run->bin);
 
-	/* Determine whether to promote or demote run. */
-	if (promote) {
-		/* Promote. */
-		assert(run->free_min > run->nfree);
-		assert(run->quartile < RUN_Q100);
-		run->quartile++;
-		if (run->quartile == RUN_Q75) {
+	/* Promote. */
+	assert(run->free_min > run->nfree);
+	assert(run->quartile < RUN_Q100);
+	run->quartile++;
+#ifdef MALLOC_STATS
+	bin->stats.npromote++;
+#endif
+
+	/* Re-file run. */
+	switch (run->quartile) {
+		case RUN_QINIT:
+			assert(0);
+			break;
+		case RUN_Q0:
+			qr_before_insert((arena_run_t *)&bin->runs0, run, link);
+			run->free_max = bin->nregs - 1;
+			run->free_min = (bin->nregs >> 1) + 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
+			break;
+		case RUN_Q25:
+			qr_remove(run, link);
+			qr_before_insert((arena_run_t *)&bin->runs25, run,
+			    link);
+			run->free_max = ((bin->nregs >> 2) * 3) - 1;
+			run->free_min = (bin->nregs >> 2) + 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
+			break;
+		case RUN_Q50:
+			qr_remove(run, link);
+			qr_before_insert((arena_run_t *)&bin->runs50, run,
+			    link);
+			run->free_max = (bin->nregs >> 1) - 1;
+			run->free_min = 1;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
+			break;
+		case RUN_Q75:
 			/*
 			 * Skip RUN_Q75 during promotion from RUN_Q50.
 			 * Separate handling of RUN_Q75 and RUN_Q100 allows us
@@ -1601,24 +1748,42 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 			 * pathological edge cases.
 			 */
 			run->quartile++;
-		}
-#ifdef MALLOC_STATS
-		bin->stats.npromote++;
-#endif
-	} else {
-		/* Demote. */
-		assert(run->free_max < run->nfree);
-		assert(run->quartile > RUN_QINIT);
-		run->quartile--;
-#ifdef MALLOC_STATS
-		bin->stats.ndemote++;
-#endif
+			/* Fall through. */
+		case RUN_Q100:
+			qr_remove(run, link);
+			assert(bin->runcur == run);
+			bin->runcur = NULL;
+			run->free_max = 0;
+			run->free_min = 0;
+			assert(run->nfree <= run->free_max);
+			assert(run->nfree >= run->free_min);
+			break;
+		default:
+			assert(0);
+			break;
 	}
+}
+
+
+static void
+arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
+    size_t size)
+{
+
+	assert(bin == run->bin);
+
+	/* Demote. */
+	assert(run->free_max < run->nfree);
+	assert(run->quartile > RUN_QINIT);
+	run->quartile--;
+#ifdef MALLOC_STATS
+	bin->stats.ndemote++;
+#endif
 
 	/* Re-file run. */
-	qr_remove(run, link);
 	switch (run->quartile) {
 		case RUN_QINIT:
+			qr_remove(run, link);
 #ifdef MALLOC_STATS
 			bin->stats.curruns--;
 #endif
@@ -1630,24 +1795,27 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 			arena_run_dalloc(arena, run, bin->run_size);
 			break;
 		case RUN_Q0:
+			qr_remove(run, link);
 			qr_before_insert((arena_run_t *)&bin->runs0, run, link);
-			run->free_max = run->bin->nregs - 1;
-			run->free_min = (run->bin->nregs >> 1) + 1;
+			run->free_max = bin->nregs - 1;
+			run->free_min = (bin->nregs >> 1) + 1;
 			assert(run->nfree <= run->free_max);
 			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q25:
+			qr_remove(run, link);
 			qr_before_insert((arena_run_t *)&bin->runs25, run,
 			    link);
-			run->free_max = ((run->bin->nregs >> 2) * 3) - 1;
-			run->free_min = (run->bin->nregs >> 2) + 1;
+			run->free_max = ((bin->nregs >> 2) * 3) - 1;
+			run->free_min = (bin->nregs >> 2) + 1;
 			assert(run->nfree <= run->free_max);
 			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q50:
+			qr_remove(run, link);
 			qr_before_insert((arena_run_t *)&bin->runs50, run,
 			    link);
-			run->free_max = (run->bin->nregs >> 1) - 1;
+			run->free_max = (bin->nregs >> 1) - 1;
 			run->free_min = 1;
 			assert(run->nfree <= run->free_max);
 			assert(run->nfree >= run->free_min);
@@ -1655,19 +1823,12 @@ arena_bin_run_refile(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 		case RUN_Q75:
 			qr_before_insert((arena_run_t *)&bin->runs75, run,
 			    link);
-			run->free_max = (run->bin->nregs >> 2) - 1;
+			run->free_max = (bin->nregs >> 2) - 1;
 			run->free_min = 1;
 			assert(run->nfree <= run->free_max);
 			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q100:
-			assert(bin->runcur == run);
-			bin->runcur = NULL;
-			run->free_max = 0;
-			run->free_min = 0;
-			assert(run->nfree <= run->free_max);
-			assert(run->nfree >= run->free_min);
-			break;
 		default:
 			assert(0);
 			break;
@@ -1847,11 +2008,11 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 	qr_new(run, link);
 	run->bin = bin;
 
-	for (i = 0; i < bin->nregs / (sizeof(unsigned) << 3); i++)
+	for (i = 0; i < (bin->nregs >> (SIZEOF_INT_2POW + 3)); i++)
 		run->regs_mask[i] = UINT_MAX;
-	remainder = bin->nregs % (sizeof(unsigned) << 3);
+	remainder = bin->nregs % (1 << (SIZEOF_INT_2POW + 3));
 	if (remainder != 0) {
-		run->regs_mask[i] = (UINT_MAX >> ((sizeof(unsigned) << 3)
+		run->regs_mask[i] = (UINT_MAX >> ((1 << (SIZEOF_INT_2POW + 3))
 		    - remainder));
 		i++;
 	}
@@ -1898,7 +2059,7 @@ arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	run->nfree--;
 	if (run->nfree < run->free_min) {
 		/* Promote run to higher fullness quartile. */
-		arena_bin_run_refile(arena, bin, run, size, true);
+		arena_bin_run_promote(arena, bin, run, size);
 	}
 
 	return (ret);
@@ -1930,7 +2091,6 @@ arena_malloc(arena_t *arena, size_t size)
 	assert(size != 0);
 	assert(QUANTUM_CEILING(size) <= arena_maxclass);
 
-	malloc_mutex_lock(&arena->mtx);
 	if (size <= bin_maxclass) {
 		arena_bin_t *bin;
 		arena_run_t *run;
@@ -1962,6 +2122,7 @@ arena_malloc(arena_t *arena, size_t size)
 		}
 		assert(size == bin->reg_size);
 
+		malloc_mutex_lock(&arena->mtx);
 		if ((run = bin->runcur) != NULL)
 			ret = arena_bin_malloc_easy(arena, bin, run, size);
 		else
@@ -1973,10 +2134,15 @@ arena_malloc(arena_t *arena, size_t size)
 	} else {
 		/* Medium allocation. */
 		size = pow2_ceil(size);
+		malloc_mutex_lock(&arena->mtx);
 		ret = (void *)arena_run_alloc(arena, true, size);
+#ifdef MALLOC_STATS
+		arena->stats.large_nrequests++;
+#endif
 	}
 
 #ifdef MALLOC_STATS
+	arena->stats.nmalloc++;
 	if (ret != NULL)
 		arena->stats.allocated += size;
 #endif
@@ -1992,43 +2158,41 @@ arena_malloc(arena_t *arena, size_t size)
 
 /* Return the size of the allocation pointed to by ptr. */
 static size_t
-arena_salloc(arena_t *arena, const void *ptr)
+arena_salloc(const void *ptr)
 {
 	size_t ret;
 	arena_chunk_t *chunk;
 	uint32_t pageind;
-	arena_chunk_map_t *mapelm;
+	arena_chunk_map_t mapelm;
 
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
 	assert(ptr != NULL);
 	assert(ptr != &nil);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
-	malloc_mutex_lock(&arena->mtx);
+	/*
+	 * No arena data structures that we query here can change in a way that
+	 * affects this function, so we don't need to lock.
+	 */
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
-	mapelm = &chunk->map[pageind];
-	assert(mapelm->free == false);
-	if (mapelm->large == false) {
+	mapelm = chunk->map[pageind];
+	assert(mapelm.free == false);
+	if (mapelm.large == false) {
 		arena_run_t *run;
 
-		pageind -= mapelm->pos;
-		mapelm = &chunk->map[pageind];
+		pageind -= mapelm.pos;
 
 		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
 		assert(run->magic == ARENA_RUN_MAGIC);
 		ret = run->bin->reg_size;
 	} else
-		ret = mapelm->npages << pagesize_2pow;
-
-	malloc_mutex_unlock(&arena->mtx);
+		ret = mapelm.npages << pagesize_2pow;
 
 	return (ret);
 }
 
 static void *
-arena_ralloc(arena_t *arena, void *ptr, size_t size, size_t oldsize)
+arena_ralloc(void *ptr, size_t size, size_t oldsize)
 {
 	void *ret;
 
@@ -2054,7 +2218,7 @@ arena_ralloc(arena_t *arena, void *ptr, size_t size, size_t oldsize)
 	 * need to use a different size class.  In that case, fall back to
 	 * allocating new space and copying.
 	 */
-	ret = arena_malloc(arena, size);
+	ret = arena_malloc(choose_arena(), size);
 	if (ret == NULL)
 		return (NULL);
 
@@ -2073,59 +2237,57 @@ IN_PLACE:
 }
 
 static void
-arena_dalloc(arena_t *arena, void *ptr)
+arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 {
-	arena_chunk_t *chunk;
 	unsigned pageind;
-	arena_chunk_map_t *mapelm;
+	arena_chunk_map_t mapelm;
 	size_t size;
 
 	assert(arena != NULL);
 	assert(arena->magic == ARENA_MAGIC);
+	assert(chunk->arena == arena);
 	assert(ptr != NULL);
 	assert(ptr != &nil);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
-	malloc_mutex_lock(&arena->mtx);
-
-	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	assert(chunk->arena == arena);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
-	mapelm = &chunk->map[pageind];
-	assert(mapelm->free == false);
-	if (mapelm->large == false) {
+	mapelm = chunk->map[pageind];
+	assert(mapelm.free == false);
+	if (mapelm.large == false) {
 		arena_run_t *run;
+		arena_bin_t *bin;
 		unsigned regind;
 
 		/* Small allocation. */
 
-		pageind -= mapelm->pos;
-		mapelm = &chunk->map[pageind];
+		pageind -= mapelm.pos;
 
 		run = (arena_run_t *)&((char *)chunk)[pageind << pagesize_2pow];
 		assert(run->magic == ARENA_RUN_MAGIC);
-		size = run->bin->reg_size;
+		bin = run->bin;
+		size = bin->reg_size;
 
 		if (opt_junk)
 			memset(ptr, 0x5a, size);
 
-		regind = (unsigned)(((uintptr_t)ptr
-		    - (uintptr_t)&((char *)run)[run->bin->reg0_offset])
-		    / run->bin->reg_size);
+		regind = (unsigned)(((uintptr_t)ptr - (uintptr_t)run
+		    - bin->reg0_offset) / size);
+		malloc_mutex_lock(&arena->mtx);
 		arena_run_mask_free_set(run, regind);
 		run->nfree++;
 		if (run->nfree > run->free_max) {
 			/* Demote run to lower fullness quartile. */
-			arena_bin_run_refile(arena, run->bin, run, size, false);
+			arena_bin_run_demote(arena, bin, run, size);
 		}
 	} else {
 		/* Medium allocation. */
 
-		size = mapelm->npages << pagesize_2pow;
+		size = mapelm.npages << pagesize_2pow;
 
 		if (opt_junk)
 			memset(ptr, 0x5a, size);
 
+		malloc_mutex_lock(&arena->mtx);
 		arena_run_dalloc(arena, (arena_run_t *)ptr, size);
 	}
 
@@ -2180,9 +2342,9 @@ arena_new(arena_t *arena)
 
 		assert(run_size >= sizeof(arena_run_t));
 		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
-		if (bin->nregs > REGS_MASK_NELMS * (sizeof(unsigned) << 3)) {
+		if (bin->nregs > (REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3))) {
 			/* Take care not to overflow regs_mask. */
-			bin->nregs = REGS_MASK_NELMS * (sizeof(unsigned) << 3);
+			bin->nregs = REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3);
 		}
 		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
 
@@ -2217,7 +2379,7 @@ arena_new(arena_t *arena)
 		bin->run_size = run_size;
 
 		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
-		assert(bin->nregs <= REGS_MASK_NELMS * (sizeof(unsigned) << 3));
+		assert(bin->nregs <= REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3));
 		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
 
 #ifdef MALLOC_STATS
@@ -2250,7 +2412,7 @@ arena_new(arena_t *arena)
 		bin->run_size = run_size;
 
 		bin->nregs = (run_size - sizeof(arena_run_t)) / bin->reg_size;
-		assert(bin->nregs <= REGS_MASK_NELMS * (sizeof(unsigned) << 3));
+		assert(bin->nregs <= REGS_MASK_NELMS << (SIZEOF_INT_2POW + 3));
 		bin->reg0_offset = run_size - (bin->nregs * bin->reg_size);
 
 #ifdef MALLOC_STATS
@@ -2301,97 +2463,6 @@ arenas_extend(unsigned ind)
 /*
  * Begin general internal functions.
  */
-
-/*
- * Choose an arena based on a per-thread value (fast-path code, calls slow-path
- * code if necessary.
- */
-static inline arena_t *
-choose_arena(void)
-{
-	arena_t *ret;
-
-	/*
-	 * We can only use TLS if this is a PIC library, since for the static
-	 * library version, libc's malloc is used by TLS allocation, which
-	 * introduces a bootstrapping issue.
-	 */
-#ifndef NO_TLS
-	ret = arenas_map;
-	if (ret == NULL)
-		ret = choose_arena_hard();
-#else
-	if (__isthreaded) {
-		unsigned long ind;
-
-		/*
-		 * Hash _pthread_self() to one of the arenas.  There is a prime
-		 * number of arenas, so this has a reasonable chance of
-		 * working.  Even so, the hashing can be easily thwarted by
-		 * inconvenient _pthread_self() values.  Without specific
-		 * knowledge of how _pthread_self() calculates values, we can't
-		 * do much better than this.
-		 */
-		ind = (unsigned long) _pthread_self() % narenas;
-
-		/*
-		 * Optimistially assume that arenas[ind] has been initialized.
-		 * At worst, we find out that some other thread has already
-		 * done so, after acquiring the lock in preparation.  Note that
-		 * this lazy locking also has the effect of lazily forcing
-		 * cache coherency; without the lock acquisition, there's no
-		 * guarantee that modification of arenas[ind] by another thread
-		 * would be seen on this CPU for an arbitrary amount of time.
-		 *
-		 * In general, this approach to modifying a synchronized value
-		 * isn't a good idea, but in this case we only ever modify the
-		 * value once, so things work out well.
-		 */
-		ret = arenas[ind];
-		if (ret == NULL) {
-			/*
-			 * Avoid races with another thread that may have already
-			 * initialized arenas[ind].
-			 */
-			malloc_mutex_lock(&arenas_mtx);
-			if (arenas[ind] == NULL)
-				ret = arenas_extend((unsigned)ind);
-			else
-				ret = arenas[ind];
-			malloc_mutex_unlock(&arenas_mtx);
-		}
-	} else
-		ret = arenas[0];
-#endif
-
-	return (ret);
-}
-
-#ifndef NO_TLS
-/*
- * Choose an arena based on a per-thread value (slow-path code only, called
- * only by choose_arena()).
- */
-static arena_t *
-choose_arena_hard(void)
-{
-	arena_t *ret;
-
-	/* Assign one of the arenas to this thread, in a round-robin fashion. */
-	if (__isthreaded) {
-		malloc_mutex_lock(&arenas_mtx);
-		ret = arenas[next_arena];
-		if (ret == NULL)
-			ret = arenas_extend(next_arena);
-		next_arena = (next_arena + 1) % narenas;
-		malloc_mutex_unlock(&arenas_mtx);
-	} else
-		ret = arenas[0];
-	arenas_map = ret;
-
-	return (ret);
-}
-#endif
 
 static void *
 huge_malloc(size_t size)
@@ -2507,36 +2578,25 @@ huge_dalloc(void *ptr)
 }
 
 static void *
-imalloc(arena_t *arena, size_t size)
+imalloc(size_t size)
 {
 	void *ret;
 
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
 	assert(size != 0);
 
 	if (size <= arena_maxclass)
-		ret = arena_malloc(arena, size);
+		ret = arena_malloc(choose_arena(), size);
 	else
 		ret = huge_malloc(size);
-
-#ifdef MALLOC_STATS
-	malloc_mutex_lock(&arena->mtx);
-	arena->stats.nmalloc++;
-	malloc_mutex_unlock(&arena->mtx);
-#endif
 
 	return (ret);
 }
 
 static void *
-ipalloc(arena_t *arena, size_t alignment, size_t size)
+ipalloc(size_t alignment, size_t size)
 {
 	void *ret;
 	size_t pow2_size;
-
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
 
 	/*
 	 * Round up to the nearest power of two that is >= alignment and
@@ -2553,7 +2613,7 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 	}
 
 	if (pow2_size <= arena_maxclass)
-		ret = arena_malloc(arena, pow2_size);
+		ret = arena_malloc(choose_arena(), pow2_size);
 	else {
 		if (alignment <= chunk_size)
 			ret = huge_malloc(size);
@@ -2636,25 +2696,17 @@ ipalloc(arena_t *arena, size_t alignment, size_t size)
 		}
 	}
 
-#ifdef MALLOC_STATS
-	malloc_mutex_lock(&arena->mtx);
-	arena->stats.npalloc++;
-	malloc_mutex_unlock(&arena->mtx);
-#endif
 	assert(((uintptr_t)ret & (alignment - 1)) == 0);
 	return (ret);
 }
 
 static void *
-icalloc(arena_t *arena, size_t size)
+icalloc(size_t size)
 {
 	void *ret;
 
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
-
 	if (size <= arena_maxclass) {
-		ret = arena_malloc(arena, size);
+		ret = arena_malloc(choose_arena(), size);
 		if (ret == NULL)
 			return (NULL);
 		memset(ret, 0, size);
@@ -2683,12 +2735,6 @@ icalloc(arena_t *arena, size_t size)
 #endif
 	}
 
-#ifdef MALLOC_STATS
-	malloc_mutex_lock(&arena->mtx);
-	arena->stats.ncalloc++;
-	malloc_mutex_unlock(&arena->mtx);
-#endif
-
 	return (ret);
 }
 
@@ -2706,7 +2752,7 @@ isalloc(const void *ptr)
 		/* Region. */
 		assert(chunk->arena->magic == ARENA_MAGIC);
 
-		ret = arena_salloc(chunk->arena, ptr);
+		ret = arena_salloc(ptr);
 	} else {
 		chunk_node_t *node, key;
 
@@ -2728,13 +2774,11 @@ isalloc(const void *ptr)
 }
 
 static void *
-iralloc(arena_t *arena, void *ptr, size_t size)
+iralloc(void *ptr, size_t size)
 {
 	void *ret;
 	size_t oldsize;
 
-	assert(arena != NULL);
-	assert(arena->magic == ARENA_MAGIC);
 	assert(ptr != NULL);
 	assert(ptr != &nil);
 	assert(size != 0);
@@ -2742,15 +2786,10 @@ iralloc(arena_t *arena, void *ptr, size_t size)
 	oldsize = isalloc(ptr);
 
 	if (size <= arena_maxclass)
-		ret = arena_ralloc(arena, ptr, size, oldsize);
+		ret = arena_ralloc(ptr, size, oldsize);
 	else
 		ret = huge_ralloc(ptr, size, oldsize);
 
-#ifdef MALLOC_STATS
-	malloc_mutex_lock(&arena->mtx);
-	arena->stats.nralloc++;
-	malloc_mutex_unlock(&arena->mtx);
-#endif
 	return (ret);
 }
 
@@ -2770,7 +2809,7 @@ idalloc(void *ptr)
 		chunk->arena->stats.ndalloc++;
 		malloc_mutex_unlock(&chunk->arena->mtx);
 #endif
-		arena_dalloc(chunk->arena, ptr);
+		arena_dalloc(chunk->arena, chunk, ptr);
 	} else
 		huge_dalloc(ptr);
 }
@@ -2869,12 +2908,6 @@ malloc_print_stats(void)
  * FreeBSD's pthreads implementation calls malloc(3), so the malloc
  * implementation has to take pains to avoid infinite recursion during
  * initialization.
- *
- * atomic_init_start() returns true if it started initializing.  In that case,
- * the caller must also call atomic_init_finish(), just before returning to its
- * caller.  This delayed finalization of initialization is critical, since
- * otherwise choose_arena() has no way to know whether it's safe to call
- * _pthread_self().
  */
 static inline bool
 malloc_init(void)
@@ -3232,7 +3265,7 @@ malloc_init_hard(void)
 		 * spread allocations evenly among the arenas.
 		 */
 		assert((narenas & 1) == 0); /* narenas must be even. */
-		nprimes = sizeof(primes) / sizeof(unsigned);
+		nprimes = (sizeof(primes) >> SIZEOF_INT_2POW);
 		parenas = primes[nprimes - 1]; /* In case not enough primes. */
 		for (i = 1; i < nprimes; i++) {
 			if (primes[i] > narenas) {
@@ -3284,7 +3317,6 @@ void *
 malloc(size_t size)
 {
 	void *ret;
-	arena_t *arena;
 
 	if (malloc_init()) {
 		ret = NULL;
@@ -3299,11 +3331,7 @@ malloc(size_t size)
 		goto RETURN;
 	}
 
-	arena = choose_arena();
-	if (arena != NULL)
-		ret = imalloc(arena, size);
-	else
-		ret = NULL;
+	ret = imalloc(size);
 
 RETURN:
 	if (ret == NULL) {
@@ -3323,7 +3351,6 @@ int
 posix_memalign(void **memptr, size_t alignment, size_t size)
 {
 	int ret;
-	arena_t *arena;
 	void *result;
 
 	if (malloc_init())
@@ -3344,11 +3371,7 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 			goto RETURN;
 		}
 
-		arena = choose_arena();
-		if (arena != NULL)
-			result = ipalloc(arena, alignment, size);
-		else
-			result = NULL;
+		result = ipalloc(alignment, size);
 	}
 
 	if (result == NULL) {
@@ -3374,30 +3397,27 @@ void *
 calloc(size_t num, size_t size)
 {
 	void *ret;
-	arena_t *arena;
+	size_t num_size;
 
 	if (malloc_init()) {
 		ret = NULL;
 		goto RETURN;
 	}
 
-	if (num * size == 0) {
+	num_size = num * size;
+	if (num_size == 0) {
 		if (opt_sysv == false)
 			ret = &nil;
 		else
 			ret = NULL;
 		goto RETURN;
-	} else if ((num * size) / size != num) {
+	} else if (num_size / size != num) {
 		/* size_t overflow. */
 		ret = NULL;
 		goto RETURN;
 	}
 
-	arena = choose_arena();
-	if (arena != NULL)
-		ret = icalloc(arena, num * size);
-	else
-		ret = NULL;
+	ret = icalloc(num_size);
 
 RETURN:
 	if (ret == NULL) {
@@ -3410,7 +3430,7 @@ RETURN:
 		errno = ENOMEM;
 	}
 
-	UTRACE(0, num * size, ret);
+	UTRACE(0, num_size, ret);
 	return (ret);
 }
 
@@ -3420,16 +3440,10 @@ realloc(void *ptr, size_t size)
 	void *ret;
 
 	if (size != 0) {
-		arena_t *arena;
-
 		if (ptr != &nil && ptr != NULL) {
 			assert(malloc_initialized);
 
-			arena = choose_arena();
-			if (arena != NULL)
-				ret = iralloc(arena, ptr, size);
-			else
-				ret = NULL;
+			ret = iralloc(ptr, size);
 
 			if (ret == NULL) {
 				if (opt_xmalloc) {
@@ -3443,13 +3457,8 @@ realloc(void *ptr, size_t size)
 		} else {
 			if (malloc_init())
 				ret = NULL;
-			else {
-				arena = choose_arena();
-				if (arena != NULL)
-					ret = imalloc(arena, size);
-				else
-					ret = NULL;
-			}
+			else
+				ret = imalloc(size);
 
 			if (ret == NULL) {
 				if (opt_xmalloc) {
