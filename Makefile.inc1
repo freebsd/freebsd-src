@@ -818,7 +818,7 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 _pwd_mkdb=	usr.sbin/pwd_mkdb
 .endif
 
-.if ${BOOTSTRAPPING} < 700014
+.if ${BOOTSTRAPPING} < 700015
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
