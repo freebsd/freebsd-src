@@ -220,7 +220,7 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = PPP_MTU;
-	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST | IFF_NEEDSGIANT;
 	ifp->if_hdrlen = PPP_HDRLEN;
 	ifp->if_ioctl = pppsioctl;
 	ifp->if_output = pppoutput;
