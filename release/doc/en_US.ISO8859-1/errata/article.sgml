@@ -114,6 +114,27 @@
 
 	<tbody>
 	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
+		>06:13.sendmail</ulink></entry>
+	    <entry>22&nbsp;March&nbsp;2006</entry>
+	    <entry><para>Race condition in sendmail</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc"
+		>06:12.opie</ulink></entry>
+	    <entry>22&nbsp;March&nbsp;2006</entry>
+	    <entry><para>OPIE arbitrary password change</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc"
+		>06:11.ipsec</ulink></entry>
+	    <entry>22&nbsp;March&nbsp;2006</entry>
+	    <entry><para>IPsec replay attack vulnerability</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
 		>06:10.nfs</ulink></entry>
 	    <entry>1&nbsp;March&nbsp;2006</entry>
