@@ -72,6 +72,7 @@ void	gv_update_vol_state(struct gv_volume *);
 
 /* geom_vinum_subr.c */
 void	gv_adjust_freespace(struct gv_sd *, off_t);
+void	gv_free_sd(struct gv_sd *);
 struct g_geom	*find_vinum_geom(void);
 struct gv_drive	*gv_find_drive(struct gv_softc *, char *);
 struct gv_plex	*gv_find_plex(struct gv_softc *, char *);
