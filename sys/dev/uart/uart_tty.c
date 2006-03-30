@@ -137,6 +137,10 @@ uart_tty_open(struct tty *tp, struct cdev *dev)
 	struct uart_softc *sc;
 
 	sc = tp->t_sc;
+
+	if (sc == NULL || sc->sc_leaving)
+		return (ENXIO);
+
 	sc->sc_opened = 1;
 	return (0);
 }
