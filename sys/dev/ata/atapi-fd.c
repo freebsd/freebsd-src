@@ -398,7 +398,7 @@ afd_describe(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
     struct afd_softc *fdp = device_get_ivars(dev);
-    char sizestring[16] = "";
+    char sizestring[16];
 
     if (fdp->mediasize > 1048576 * 5)
 	sprintf(sizestring, "%juMB", fdp->mediasize / 1048576);
