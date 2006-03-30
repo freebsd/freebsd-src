@@ -177,6 +177,7 @@
 #define	CBB_SOCKET_EVENT_CD2		0x04	/* Card Detect 2 */
 #define	CBB_SOCKET_EVENT_CD		0x06	/* Card Detect all */
 #define	CBB_SOCKET_EVENT_POWER		0x08	/* Power Cycle */
+#define	CBB_SOCKET_EVENT_VALID_MASK	0x0f	/* All socket events */
 
 #define	CBB_SOCKET_MASK_CSTS		0x01	/* Card Status Change */
 #define	CBB_SOCKET_MASK_CD		0x06	/* Card Detect */
@@ -220,26 +221,26 @@
 
 #define	CBB_SOCKET_CTRL_STOPCLK		0x80
 
-#define CBB_FORCE_CV_TEST		(1UL << 14)
-#define CBB_FORCE_3VCARD		(1UL << 11)
-#define CBB_FORCE_5VCARD		(1UL << 10)
-#define CBB_FORCE_BAD_VCC_REQ		(1UL <<  9)
-#define CBB_FORCE_DATA_LOST		(1UL <<  8)
-#define CBB_FORCE_NOT_A_CARD		(1UL <<  7)
-#define CBB_FORCE_CB_CARD		(1UL <<  5)
-#define CBB_FORCE_R2_CARD		(1UL <<  4)
-#define CBB_FORCE_POWER_CYCLE		(1UL <<  3)
-#define CBB_FORCE_CD2_CHANGE		(1UL <<  2)
-#define CBB_FORCE_CD1_CHANGE		(1UL <<  1)
-#define CBB_FORCE_CSTCHG		(1UL <<  0)
+#define	CBB_FORCE_CV_TEST		(1UL << 14)
+#define	CBB_FORCE_3VCARD		(1UL << 11)
+#define	CBB_FORCE_5VCARD		(1UL << 10)
+#define	CBB_FORCE_BAD_VCC_REQ		(1UL <<  9)
+#define	CBB_FORCE_DATA_LOST		(1UL <<  8)
+#define	CBB_FORCE_NOT_A_CARD		(1UL <<  7)
+#define	CBB_FORCE_CB_CARD		(1UL <<  5)
+#define	CBB_FORCE_R2_CARD		(1UL <<  4)
+#define	CBB_FORCE_POWER_CYCLE		(1UL <<  3)
+#define	CBB_FORCE_CD2_CHANGE		(1UL <<  2)
+#define	CBB_FORCE_CD1_CHANGE		(1UL <<  1)
+#define	CBB_FORCE_CSTCHG		(1UL <<  0)
 
 #include <dev/pccbb/pccbbdevid.h>
 
-#define CBB_SOCKET_EVENT		0x00
-#define CBB_SOCKET_MASK			0x04
-#define CBB_SOCKET_STATE		0x08
-#define CBB_SOCKET_FORCE		0x0c
-#define CBB_SOCKET_CONTROL		0x10
-#define CBB_SOCKET_POWER		0x14
+#define	CBB_SOCKET_EVENT		0x00
+#define	CBB_SOCKET_MASK			0x04
+#define	CBB_SOCKET_STATE		0x08
+#define	CBB_SOCKET_FORCE		0x0c
+#define	CBB_SOCKET_CONTROL		0x10
+#define	CBB_SOCKET_POWER		0x14
 
-#define CBB_EXCA_OFFSET			0x800	/* offset for exca regs */
+#define	CBB_EXCA_OFFSET			0x800	/* offset for exca regs */
