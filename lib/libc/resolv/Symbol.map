@@ -86,6 +86,7 @@ FBSD_1.0 {
 	__res_search;
 	__res_querydomain;
 	__res_setservers;
+	_res;
 	__res_state;
 	__res_vinit;
 	__hostalias;
