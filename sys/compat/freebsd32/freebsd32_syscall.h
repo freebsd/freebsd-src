@@ -198,7 +198,7 @@
 #define	FREEBSD32_SYS_msgsnd	226
 #define	FREEBSD32_SYS_msgrcv	227
 #define	FREEBSD32_SYS_shmat	228
-#define	FREEBSD32_SYS_shmctl	229
+#define	FREEBSD32_SYS_freebsd32_shmctl	229
 #define	FREEBSD32_SYS_shmdt	230
 #define	FREEBSD32_SYS_shmget	231
 #define	FREEBSD32_SYS_freebsd32_clock_gettime	232
