@@ -61,7 +61,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#include <netinet/ipprotosw.h>
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -129,11 +128,8 @@ ip4_input6(struct mbuf **m, int *offp, int proto)
  * Really only a wrapper for ipip_input(), for use with IPv4.
  */
 void
-ip4_input(struct mbuf *m, ...)
+ip4_input(struct mbuf *m, int off)
 {
-	va_list ap;
-	int iphlen;
-
 #if 0
 	/* If we do not accept IP-in-IP explicitly, drop.  */
 	if (!ipip_allow && (m->m_flags & M_IPSEC) == 0) {
@@ -143,11 +139,7 @@ ip4_input(struct mbuf *m, ...)
 		return;
 	}
 #endif
-	va_start(ap, m);
-	iphlen = va_arg(ap, int);
-	va_end(ap);
-
-	_ipip_input(m, iphlen, NULL);
+	_ipip_input(m, off, NULL);
 }
 #endif /* INET */
 
@@ -638,24 +630,24 @@ static struct xformsw ipe4_xformsw = {
 };
 
 extern struct domain inetdomain;
-static struct ipprotosw ipe4_protosw[] = {
+static struct protosw ipe4_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  (pr_in_input_t*) ip4_input,
+  ip4_input,
 		0, 		0,		rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
-},
+};
 #ifdef INET6
+static struct ip6protosw ipe6_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  (pr_in_input_t*) ip4_input,
+  ip4_input6,
 		0,	 	0,		rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
-}
-#endif
 };
+#endif
 
 /*
  * Check the encapsulated packet to see if we want it
@@ -679,10 +671,10 @@ ipe4_attach(void)
 	/* attach to encapsulation framework */
 	/* XXX save return cookie for detach on module remove */
 	(void) encap_attach_func(AF_INET, -1,
-		ipe4_encapcheck, (struct protosw*) &ipe4_protosw[0], NULL);
+		ipe4_encapcheck, &ipe4_protosw, NULL);
 #ifdef INET6
 	(void) encap_attach_func(AF_INET6, -1,
-		ipe4_encapcheck, (struct protosw*) &ipe4_protosw[1], NULL);
+		ipe4_encapcheck, (struct protosw *)&ipe6_protosw, NULL);
 #endif
 }
 SYSINIT(ipe4_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipe4_attach, NULL);
