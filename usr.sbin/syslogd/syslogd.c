@@ -1227,11 +1227,18 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_base = lf;
 		v->iov_len = 1;
 		if (writev(f->f_file, iov, 7) < 0) {
-			int e = errno;
-			(void)close(f->f_file);
-			f->f_type = F_UNUSED;
-			errno = e;
-			logerror(f->f_un.f_fname);
+			/*
+			 * If writev(2) fails for potentially transient errors
+			 * like the * filesystem being full, ignore it.
+			 * Otherwise remove * this logfile from the list.
+			 */
+			if (errno != ENOSPC) {
+				int e = errno;
+				(void)close(f->f_file);
+				f->f_type = F_UNUSED;
+				errno = e;
+				logerror(f->f_un.f_fname);
+			}
 		} else if ((flags & SYNC_FILE) && (f->f_flags & FFLAG_SYNC)) {
 			f->f_flags |= FFLAG_NEEDSYNC;
 			needdofsync = 1;
