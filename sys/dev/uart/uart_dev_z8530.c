@@ -348,9 +348,9 @@ z8530_bus_getsig(struct uart_softc *sc)
 	do {
 		old = sc->sc_hwsig;
 		sig = old;
-		mtx_lock_spin(&sc->sc_hwmtx);
+		uart_lock(sc->sc_hwmtx);
 		bes = uart_getmreg(&sc->sc_bas, RR_BES);
-		mtx_unlock_spin(&sc->sc_hwmtx);
+		uart_unlock(sc->sc_hwmtx);
 		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
 		SIGCHG(bes & BES_SYNC, sig, SER_DSR, SER_DDSR);
@@ -368,7 +368,7 @@ z8530_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 
 	bas = &sc->sc_bas;
 	error = 0;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	switch (request) {
 	case UART_IOCTL_BREAK:
 		if (data)
@@ -382,7 +382,7 @@ z8530_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		error = EINVAL;
 		break;
 	}
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (error);
 }
 
@@ -398,7 +398,7 @@ z8530_bus_ipend(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	ipend = 0;
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	switch (bas->chan) {
 	case 1:
 		ip = uart_getmreg(bas, RR_IP);
@@ -454,7 +454,7 @@ z8530_bus_ipend(struct uart_softc *sc)
 		uart_barrier(bas);
 	}
 
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 
 	return (ipend);
 }
@@ -466,10 +466,10 @@ z8530_bus_param(struct uart_softc *sc, int baudrate, int databits,
 	struct z8530_softc *z8530 = (struct z8530_softc*)sc;
 	int error;
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	error = z8530_param(&sc->sc_bas, baudrate, databits, stopbits, parity,
 	    &z8530->tpc);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (error);
 }
 
@@ -499,7 +499,7 @@ z8530_bus_receive(struct uart_softc *sc)
 	uint8_t bes, src;
 
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	bes = uart_getmreg(bas, RR_BES);
 	while (bes & BES_RXA) {
 		if (uart_rx_full(sc)) {
@@ -533,7 +533,7 @@ z8530_bus_receive(struct uart_softc *sc)
 		}
 		bes = uart_getmreg(bas, RR_BES);
 	}
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 
@@ -558,7 +558,7 @@ z8530_bus_setsig(struct uart_softc *sc, int sig)
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	if (new & SER_DTR)
 		z8530->tpc |= TPC_DTR;
 	else
@@ -569,7 +569,7 @@ z8530_bus_setsig(struct uart_softc *sc, int sig)
 		z8530->tpc &= ~TPC_RTS;
 	uart_setmreg(bas, WR_TPC, z8530->tpc);
 	uart_barrier(bas);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 
@@ -580,13 +580,13 @@ z8530_bus_transmit(struct uart_softc *sc)
 	struct uart_bas *bas;
 
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	while (!(uart_getmreg(bas, RR_BES) & BES_TXE))
 		;
 	uart_setreg(bas, REG_DATA, sc->sc_txbuf[0]);
 	uart_barrier(bas);
 	sc->sc_txbusy = 1;
 	z8530->txidle = 1;	/* Report SER_INT_TXIDLE again. */
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }

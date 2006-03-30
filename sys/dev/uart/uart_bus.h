@@ -81,7 +81,8 @@ struct uart_softc {
 	struct uart_bas	sc_bas;
 	device_t	sc_dev;
 
-	struct mtx	sc_hwmtx;	/* Spinlock protecting hardware. */
+	struct mtx	sc_hwmtx_s;	/* Spinlock protecting hardware. */
+	struct mtx	*sc_hwmtx;
 
 	struct resource	*sc_rres;	/* Register resource. */
 	int		sc_rrid;
@@ -139,7 +140,9 @@ extern char uart_driver_name[];
 
 int uart_bus_attach(device_t dev);
 int uart_bus_detach(device_t dev);
+serdev_intr_t *uart_bus_ihand(device_t dev, int ipend);
 int uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan);
+int uart_bus_sysdev(device_t dev);
 
 int uart_tty_attach(struct uart_softc *);
 int uart_tty_detach(struct uart_softc *);

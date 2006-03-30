@@ -71,6 +71,24 @@ uart_add_sysdev(struct uart_devinfo *di)
 }
 
 /*
+ * Schedule a soft interrupt. We do this on the 0 to !0 transition
+ * of the TTY pending interrupt status.
+ */
+static void
+uart_sched_softih(struct uart_softc *sc, uint32_t ipend)
+{
+	uint32_t new, old;
+
+	do {
+		old = sc->sc_ttypend;
+		new = old | ipend;
+	} while (!atomic_cmpset_32(&sc->sc_ttypend, old, new));
+
+	if ((old & SER_INT_MASK) == 0)
+		swi_sched(sc->sc_softih, 0);
+}
+
+/*
  * A break condition has been detected. We treat the break condition as
  * a special case that should not happen during normal operation. When
  * the break condition is to be passed to higher levels in the form of
@@ -79,18 +97,20 @@ uart_add_sysdev(struct uart_devinfo *di)
  * the exceptional nature of the break condition, so we permit ourselves
  * to be sloppy.
  */
-static void
-uart_intr_break(struct uart_softc *sc)
+static __inline int
+uart_intr_break(void *arg)
 {
+	struct uart_softc *sc = arg;
 
 #if defined(KDB) && defined(BREAK_TO_DEBUGGER)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		kdb_enter("Line break on console");
-		return;
+		return (0);
 	}
 #endif
 	if (sc->sc_opened)
-		atomic_set_32(&sc->sc_ttypend, SER_INT_BREAK);
+		uart_sched_softih(sc, SER_INT_BREAK);
+	return (0);
 }
 
 /*
@@ -108,25 +128,28 @@ uart_intr_break(struct uart_softc *sc)
  * token represents the loss of at least one, but possible more bytes in
  * the input stream.
  */
-static void
-uart_intr_overrun(struct uart_softc *sc)
+static __inline int
+uart_intr_overrun(void *arg)
 {
+	struct uart_softc *sc = arg;
 
 	if (sc->sc_opened) {
 		UART_RECEIVE(sc);
 		if (uart_rx_put(sc, UART_STAT_OVERRUN))
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
-		atomic_set_32(&sc->sc_ttypend, SER_INT_RXREADY);
+		uart_sched_softih(sc, SER_INT_RXREADY);
 	}
 	UART_FLUSH(sc, UART_FLUSH_RECEIVER);
+	return (0);
 }
 
 /*
  * Received data ready.
  */
-static void
-uart_intr_rxready(struct uart_softc *sc)
+static __inline int
+uart_intr_rxready(void *arg)
 {
+	struct uart_softc *sc = arg;
 	int rxp;
 
 	rxp = sc->sc_rxput;
@@ -142,9 +165,10 @@ uart_intr_rxready(struct uart_softc *sc)
 	}
 #endif
 	if (sc->sc_opened)
-		atomic_set_32(&sc->sc_ttypend, SER_INT_RXREADY);
+		uart_sched_softih(sc, SER_INT_RXREADY);
 	else
 		sc->sc_rxput = sc->sc_rxget;	/* Ignore received data. */
+	return (1);
 }
 
 /*
@@ -154,9 +178,10 @@ uart_intr_rxready(struct uart_softc *sc)
  * bits. This is to avoid loosing state transitions due to having more
  * than 1 hardware interrupt between software interrupts.
  */
-static void
-uart_intr_sigchg(struct uart_softc *sc)
+static __inline int
+uart_intr_sigchg(void *arg)
 {
+	struct uart_softc *sc = arg;
 	int new, old, sig;
 
 	sig = UART_GETSIG(sc);
@@ -169,24 +194,37 @@ uart_intr_sigchg(struct uart_softc *sc)
 		}
 	}
 
+	/*
+	 * Keep track of signal changes, even when the device is not
+	 * opened. This allows us to inform upper layers about a
+	 * possible loss of DCD and thus the existence of a (possibly)
+	 * different connection when we have DCD back, during the time
+	 * that the device was closed.
+	 */
 	do {
 		old = sc->sc_ttypend;
 		new = old & ~SER_MASK_STATE;
 		new |= sig & SER_INT_SIGMASK;
-		new |= SER_INT_SIGCHG;
 	} while (!atomic_cmpset_32(&sc->sc_ttypend, old, new));
+
+	if (sc->sc_opened)
+		uart_sched_softih(sc, SER_INT_SIGCHG);
+	return (1);
 }
 
 /*
  * The transmitter can accept more data.
  */
-static void
-uart_intr_txidle(struct uart_softc *sc)
+static __inline int
+uart_intr_txidle(void *arg)
 {
+	struct uart_softc *sc = arg;
+
 	if (sc->sc_txbusy) {
 		sc->sc_txbusy = 0;
-		atomic_set_32(&sc->sc_ttypend, SER_INT_TXIDLE);
+		uart_sched_softih(sc, SER_INT_TXIDLE);
 	}
+	return (0);
 }
 
 static void
@@ -195,13 +233,7 @@ uart_intr(void *arg)
 	struct uart_softc *sc = arg;
 	int ipend;
 
-	if (sc->sc_leaving)
-		return;
-
-	do {
-		ipend = UART_IPEND(sc);
-		if (ipend == 0)
-			break;
+	while (!sc->sc_leaving && (ipend = UART_IPEND(sc)) != 0) {
 		if (ipend & SER_INT_OVERRUN)
 			uart_intr_overrun(sc);
 		if (ipend & SER_INT_BREAK)
@@ -212,10 +244,35 @@ uart_intr(void *arg)
 			uart_intr_sigchg(sc);
 		if (ipend & SER_INT_TXIDLE)
 			uart_intr_txidle(sc);
-	} while (1);
+	}
+}
 
-	if (sc->sc_opened && sc->sc_ttypend != 0)
-		swi_sched(sc->sc_softih, 0);
+serdev_intr_t *
+uart_bus_ihand(device_t dev, int ipend)
+{
+
+	switch (ipend) {
+	case SER_INT_BREAK:
+		return (uart_intr_break);
+	case SER_INT_OVERRUN:
+		return (uart_intr_overrun);
+	case SER_INT_RXREADY:
+		return (uart_intr_rxready);
+	case SER_INT_SIGCHG:
+		return (uart_intr_sigchg);
+	case SER_INT_TXIDLE:
+		return (uart_intr_txidle);
+	}
+	return (NULL);
+}
+
+int
+uart_bus_sysdev(device_t dev)
+{
+	struct uart_softc *sc;
+
+	sc = device_get_softc(dev);
+	return ((sc->sc_sysdev != NULL) ? 1 : 0);
 }
 
 int
@@ -313,7 +370,9 @@ uart_bus_attach(device_t dev)
 	 */
 	sc->sc_leaving = 1;
 
-	mtx_init(&sc->sc_hwmtx, "uart_hwmtx", NULL, MTX_SPIN);
+	mtx_init(&sc->sc_hwmtx_s, "uart_hwmtx", NULL, MTX_SPIN);
+	if (sc->sc_hwmtx == NULL)
+		sc->sc_hwmtx = &sc->sc_hwmtx_s;
 
 	/*
 	 * Re-allocate. We expect that the softc contains the information
@@ -322,7 +381,7 @@ uart_bus_attach(device_t dev)
 	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
 	    0, ~0, sc->sc_class->uc_range, RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
-		mtx_destroy(&sc->sc_hwmtx);
+		mtx_destroy(&sc->sc_hwmtx_s);
 		return (ENXIO);
 	}
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
@@ -425,6 +484,9 @@ uart_bus_attach(device_t dev)
 	if (error)
 		goto fail;
 
+	if (sc->sc_sysdev != NULL)
+		sc->sc_sysdev->hwmtx = sc->sc_hwmtx;
+
 	sc->sc_leaving = 0;
 	uart_intr(sc);
 	return (0);
@@ -440,7 +502,7 @@ uart_bus_attach(device_t dev)
 	}
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 
-	mtx_destroy(&sc->sc_hwmtx);
+	mtx_destroy(&sc->sc_hwmtx_s);
 
 	return (error);
 }
@@ -453,6 +515,9 @@ uart_bus_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->sc_leaving = 1;
+
+	if (sc->sc_sysdev != NULL)
+		sc->sc_sysdev->hwmtx = NULL;
 
 	UART_DETACH(sc);
 
@@ -471,7 +536,7 @@ uart_bus_detach(device_t dev)
 	}
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 
-	mtx_destroy(&sc->sc_hwmtx);
+	mtx_destroy(&sc->sc_hwmtx_s);
 
 	if (sc->sc_class->size > sizeof(*sc)) {
 		device_set_softc(dev, NULL);

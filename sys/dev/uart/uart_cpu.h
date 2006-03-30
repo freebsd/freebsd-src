@@ -29,6 +29,10 @@
 #ifndef _DEV_UART_CPU_H_
 #define _DEV_UART_CPU_H_
 
+#include <sys/kdb.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 /*
  * Low-level operations for use by console and/or debug port support.
  */
@@ -68,6 +72,7 @@ struct uart_devinfo {
 	int	(*attach)(struct uart_softc*);
 	int	(*detach)(struct uart_softc*);
 	void	*cookie;		/* Type dependent use. */
+	struct mtx *hwmtx;
 };
 
 int uart_cpu_eqres(struct uart_bas *, struct uart_bas *);
@@ -80,41 +85,77 @@ void uart_add_sysdev(struct uart_devinfo *);
  * Operations for low-level access to the UART. Primarily for use
  * by console and debug port logic.
  */
+
+static __inline void
+uart_lock(struct mtx *hwmtx)
+{
+	if (!kdb_active && hwmtx != NULL)
+		mtx_lock_spin(hwmtx);
+}
+
+static __inline void
+uart_unlock(struct mtx *hwmtx)
+{
+	if (!kdb_active && hwmtx != NULL)
+		mtx_unlock_spin(hwmtx);
+}
+
 static __inline int
 uart_probe(struct uart_devinfo *di)
 {
-	return (di->ops.probe(&di->bas));
+	int res;
+
+	uart_lock(di->hwmtx);
+	res = di->ops.probe(&di->bas);
+	uart_unlock(di->hwmtx);
+	return (res);
 }
 
 static __inline void
 uart_init(struct uart_devinfo *di)
 {
+	uart_lock(di->hwmtx);
 	di->ops.init(&di->bas, di->baudrate, di->databits, di->stopbits,
 	    di->parity);
+	uart_unlock(di->hwmtx);
 }
 
 static __inline void
 uart_term(struct uart_devinfo *di)
 {
+	uart_lock(di->hwmtx);
 	di->ops.term(&di->bas);
+	uart_unlock(di->hwmtx);
 }
 
 static __inline void
 uart_putc(struct uart_devinfo *di, int c)
 {
+	uart_lock(di->hwmtx);
 	di->ops.putc(&di->bas, c);
+	uart_unlock(di->hwmtx);
 }
 
 static __inline int
 uart_poll(struct uart_devinfo *di)
 {
-	return (di->ops.poll(&di->bas));
+	int res;
+
+	uart_lock(di->hwmtx);
+	res = di->ops.poll(&di->bas);
+	uart_unlock(di->hwmtx);
+	return (res);
 }
 
 static __inline int
 uart_getc(struct uart_devinfo *di)
 {
-	return (di->ops.getc(&di->bas));
+	int res;
+
+	uart_lock(di->hwmtx);
+	res = di->ops.getc(&di->bas);
+	uart_unlock(di->hwmtx);
+	return (res);
 }
 
 #endif /* _DEV_UART_CPU_H_ */
