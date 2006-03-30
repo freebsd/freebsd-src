@@ -237,13 +237,16 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 		/* Find the volume this plex should be attached to. */
 		v = gv_find_vol(sc, p->volume);
-		if (v != NULL) {
-			if (v->plexcount)
-				p->flags |= GV_PLEX_ADDED;
-			p->vol_sc = v;
-			v->plexcount++;
-			LIST_INSERT_HEAD(&v->plexes, p, in_volume);
+		if (v == NULL) {
+			gctl_error(req, "volume '%s' not found", p->volume);
+			g_free(p);
+			continue;
 		}
+		if (v->plexcount)
+			p->flags |= GV_PLEX_ADDED;
+		p->vol_sc = v;
+		v->plexcount++;
+		LIST_INSERT_HEAD(&v->plexes, p, in_volume);
 
 		p->vinumconf = sc;
 		p->flags |= GV_PLEX_NEWBORN;
@@ -272,7 +275,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 		/* drive not found - XXX */
 		if (d == NULL) {
-			printf("FOO: drive '%s' not found\n", s->drive);
+			gctl_error(req, "drive '%s' not found", s->drive);
 			g_free(s);
 			continue;
 		}
@@ -282,7 +285,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 		/* plex not found - XXX */
 		if (p == NULL) {
-			printf("FOO: plex '%s' not found\n", s->plex);
+			gctl_error(req, "plex '%s' not found\n", s->plex);
 			g_free(s);
 			continue;
 		}
@@ -304,8 +307,34 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		 */
 		error = gv_sd_to_plex(p, s, 1);
 		if (error) {
-			printf("FOO: couldn't give sd '%s' to plex '%s'\n",
-			    s->name, p->name);
+			gctl_error(req, "GEOM_VINUM: couldn't give sd '%s' "
+			    "to plex '%s'\n", s->name, p->name);
+			if (s->drive_sc)
+				LIST_REMOVE(s, from_drive);
+			gv_free_sd(s);
+			g_free(s);
+			/*
+			 * If this subdisk can't be created, we won't create
+			 * the attached plex either, if it is also a new one.
+			 */
+			if (!(p->flags & GV_PLEX_NEWBORN))
+				continue;
+			LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
+				if (s->drive_sc)
+					LIST_REMOVE(s, from_drive);
+				p->sdcount--;
+				LIST_REMOVE(s, in_plex);
+				LIST_REMOVE(s, sd);
+				gv_free_sd(s);
+				g_free(s);
+			}
+			if (p->vol_sc != NULL) {
+				LIST_REMOVE(p, in_volume);
+				p->vol_sc->plexcount--;
+			}
+			LIST_REMOVE(p, plex);
+			g_free(p);
+			continue;
 		}
 		s->flags |= GV_SD_NEWBORN;
 
