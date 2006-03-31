@@ -1,6 +1,3 @@
-snmpd_mibII:
-	- handle HC counters by periodically polling the kernel counters.
-
 snmpd:
 	- rethink transports a little bit: make them loadable and make
 	a private subtree for transports:

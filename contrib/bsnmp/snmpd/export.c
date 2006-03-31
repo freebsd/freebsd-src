@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/export.c,v 1.7 2004/08/06 08:47:11 brandt Exp $
+ * $Begemot: bsnmp/snmpd/export.c,v 1.8 2006/02/14 09:04:20 brandt_h Exp $
  *
  * Support functions for modules.
  */
@@ -113,6 +113,30 @@ string_get(struct snmp_value *value, const u_char *ptr, ssize_t len)
 	}
 	if (len == -1)
 		len = strlen(ptr);
+	value->v.octetstring.len = (u_long)len;
+	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL)
+		return (SNMP_ERR_RES_UNAVAIL);
+	memcpy(value->v.octetstring.octets, ptr, (size_t)len);
+	return (SNMP_ERR_NOERROR);
+}
+
+/*
+ * Get a string value for a response packet but cut it if it is too long.
+ */
+int
+string_get_max(struct snmp_value *value, const u_char *ptr, ssize_t len,
+    size_t maxlen)
+{
+
+	if (ptr == NULL) {
+		value->v.octetstring.len = 0;
+		value->v.octetstring.octets = NULL;
+		return (SNMP_ERR_NOERROR);
+	}
+	if (len == -1)
+		len = strlen(ptr);
+	if ((size_t)len > maxlen)
+		len = maxlen;
 	value->v.octetstring.len = (u_long)len;
 	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL)
 		return (SNMP_ERR_RES_UNAVAIL);

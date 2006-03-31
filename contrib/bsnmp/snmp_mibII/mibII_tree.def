@@ -26,7 +26,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Begemot: bsnmp/snmp_mibII/mibII_tree.def,v 1.12 2004/08/06 08:47:05 brandt Exp $
+# $Begemot: bsnmp/snmp_mibII/mibII_tree.def,v 1.13 2006/02/14 09:04:19 brandt_h Exp $
 #
 # Definition of the standard interfaces and ip trees.
 #
@@ -230,6 +230,23 @@
       (50 udpMIB
       )
   ))
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+	  (3 begemotIp
+	    (1 begemotIpObjects
+	      (1 begemotMib2
+		(1 begemotIfMaxspeed COUNTER64 op_begemot_mibII GET)
+		(2 begemotIfPoll TIMETICKS op_begemot_mibII GET)
+		(3 begemotIfForcePoll TIMETICKS op_begemot_mibII GET SET)
+	      )
+	    )
+	  )
+        )
+      )
+    )
+  )
   (6 snmpV2
     (3 snmpModules
       (1 snmpMIB

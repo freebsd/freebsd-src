@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.31 2005/10/04 13:30:36 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/snmpmod.h,v 1.32 2006/02/14 09:04:20 brandt_h Exp $
  *
  * SNMP daemon data and functions exported to modules.
  */
@@ -400,6 +400,7 @@ int string_save(struct snmp_value *, struct snmp_context *, ssize_t, u_char **);
 void string_commit(struct snmp_context *);
 void string_rollback(struct snmp_context *, u_char **);
 int string_get(struct snmp_value *, const u_char *, ssize_t);
+int string_get_max(struct snmp_value *, const u_char *, ssize_t, size_t);
 void string_free(struct snmp_context *);
 
 int ip_save(struct snmp_value *, struct snmp_context *, u_char *);

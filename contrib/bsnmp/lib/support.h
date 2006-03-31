@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004
+ * Copyright (C) 2004-2005
  *	Hartmut Brandt.
  *	All rights reserved.
  *
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/support.h,v 1.1 2004/08/06 08:47:59 brandt Exp $
+ * $Begemot: bsnmp/lib/support.h,v 1.2 2005/10/06 07:14:59 brandt_h Exp $
  *
  * Functions that are missing on certain systems. This header file is not
  * to be installed.
@@ -65,6 +65,31 @@ int getaddrinfo(const char *, const char *, const struct addrinfo *,
     struct addrinfo **);
 const char *gai_strerror(int);
 void freeaddrinfo(struct addrinfo *);
+
+#endif
+
+/*
+ * For systems with missing stdint.h or inttypes.h
+ */
+#if !defined(INT32_MIN)
+#define	INT32_MIN	(-0x7fffffff-1)
+#endif
+#if !defined(INT32_MAX)
+#define	INT32_MAX	(0x7fffffff)
+#endif
+#if !defined(UINT32_MAX)
+#define	UINT32_MAX	(0xffffffff)
+#endif
+
+/*
+ * Systems missing SA_SIZE(). Taken from FreeBSD net/route.h:1.63
+ */
+#ifndef SA_SIZE
+
+#define SA_SIZE(sa)						\
+    (  (!(sa) || ((struct sockaddr *)(sa))->sa_len == 0) ?	\
+	sizeof(long)		:				\
+	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
 
 #endif
 
