@@ -2391,11 +2391,8 @@ vgonel(struct vnode *vp)
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
 	ASSERT_VOP_LOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
-#if 0
-	/* XXX Need to fix ttyvp before I enable this. */
 	VNASSERT(vp->v_holdcnt, vp,
 	    ("vgonel: vp %p has no reference.", vp));
-#endif
 	td = curthread;
 
 	/*
