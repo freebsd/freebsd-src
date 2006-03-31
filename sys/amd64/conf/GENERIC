@@ -148,6 +148,8 @@ device		atkbdc		# AT keyboard controller
 device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 
+device		kbdmux		# keyboard multiplexer
+
 device		vga		# VGA video card driver
 
 device		splash		# Splash screen and screen saver support
