@@ -138,13 +138,6 @@ tick_init(u_long clock)
 	tick_freq = clock;
 	tick_MHz = clock / 1000000;
 	tick_increment = clock / hz;
-	/*
-	 * Avoid stopping of hardclock in terms of a lost tick interrupt
-	 * by ensuring that the tick period is at least TICK_GRACE ticks.
-	 */
-	if (tick_increment < TICK_GRACE)
-		panic("%s: HZ to high, decrease to at least %ld", __func__,
-		    clock / TICK_GRACE);
 
 	/*
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
@@ -161,6 +154,18 @@ void
 tick_start(void)
 {
 	u_long base, s;
+
+	/*
+	 * Avoid stopping of hardclock in terms of a lost tick interrupt
+	 * by ensuring that the tick period is at least TICK_GRACE ticks.
+	 * This check would be better placed in tick_init(), however we
+	 * have to call tick_init() before cninit() in order to provide
+	 * the low-level console drivers with a working DELAY() which in
+	 * turn means we cannot use panic() in tick_init().
+	 */
+	if (tick_increment < TICK_GRACE)
+		panic("%s: HZ too high, decrease to at least %ld", __func__,
+		    tick_freq / TICK_GRACE);
 
 	if (PCPU_GET(cpuid) == 0)
 		intr_setup(PIL_TICK, (ih_func_t *)tick_hardclock, -1, NULL,
