@@ -102,7 +102,7 @@ static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
-static int flushbufqueues(int flushdeps);
+static int flushbufqueues(int, int);
 static void buf_daemon(void);
 static void bremfreel(struct buf *bp);
 
@@ -244,13 +244,14 @@ static struct mtx bpinlock;
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	5	/* number of free buffer queues */
+#define BUFFER_QUEUES	6	/* number of free buffer queues */
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_CLEAN	1	/* non-B_DELWRI buffers */
 #define QUEUE_DIRTY	2	/* B_DELWRI buffers */
-#define QUEUE_EMPTYKVA	3	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	4	/* empty buffer headers */
+#define QUEUE_DIRTY_GIANT 3	/* B_DELWRI buffers that need giant */
+#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
+#define QUEUE_EMPTY	5	/* empty buffer headers */
 
 /* Queues for free buffers with various properties */
 static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES] = { { 0 } };
@@ -1356,6 +1357,8 @@ brelse(struct buf *bp)
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
 	/* remaining buffers */
 	} else {
+		if (bp->b_flags & (B_DELWRI|B_NEEDSGIANT))
+			bp->b_qindex = QUEUE_DIRTY_GIANT;
 		if (bp->b_flags & B_DELWRI)
 			bp->b_qindex = QUEUE_DIRTY;
 		else
@@ -1446,8 +1449,11 @@ bqrelse(struct buf *bp)
 		panic("bqrelse: free buffer onto another queue???");
 	/* buffers with stale but valid contents */
 	if (bp->b_flags & B_DELWRI) {
-		bp->b_qindex = QUEUE_DIRTY;
-		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
+		if (bp->b_flags & B_NEEDSGIANT)
+			bp->b_qindex = QUEUE_DIRTY_GIANT;
+		else
+			bp->b_qindex = QUEUE_DIRTY;
+		TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	} else {
 		/*
 		 * XXX This lock may not be necessary since BKGRDINPROG
@@ -2001,7 +2007,6 @@ SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start, &buf_kp)
 static void
 buf_daemon()
 {
-	mtx_lock(&Giant);
 
 	/*
 	 * This process needs to be suspended prior to shutdown sync.
@@ -2027,13 +2032,28 @@ buf_daemon()
 		 * normally would so they can run in parallel with our drain.
 		 */
 		while (numdirtybuffers > lodirtybuffers) {
-			if (flushbufqueues(0) == 0) {
+			int flushed;
+
+			flushed = flushbufqueues(QUEUE_DIRTY, 0);
+			/* The list empty check here is slightly racy */
+			if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
+				mtx_lock(&Giant);
+				flushed += flushbufqueues(QUEUE_DIRTY_GIANT, 0);
+				mtx_unlock(&Giant);
+			}
+			if (flushed == 0) {
 				/*
 				 * Could not find any buffers without rollback
 				 * dependencies, so just write the first one
 				 * in the hopes of eventually making progress.
 				 */
-				flushbufqueues(1);
+				flushbufqueues(QUEUE_DIRTY, 1);
+				if (!TAILQ_EMPTY(
+				    &bufqueues[QUEUE_DIRTY_GIANT])) {
+					mtx_lock(&Giant);
+					flushbufqueues(QUEUE_DIRTY_GIANT, 1);
+					mtx_unlock(&Giant);
+				}
 				break;
 			}
 			uio_yield();
@@ -2081,7 +2101,7 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
     0, "Number of buffers flushed with dependecies that require rollbacks");
 
 static int
-flushbufqueues(int flushdeps)
+flushbufqueues(int queue, int flushdeps)
 {
 	struct thread *td = curthread;
 	struct buf sentinel;
@@ -2098,13 +2118,13 @@ flushbufqueues(int flushdeps)
 	flushed = 0;
 	bp = NULL;
 	mtx_lock(&bqlock);
-	TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], &sentinel, b_freelist);
+	TAILQ_INSERT_TAIL(&bufqueues[queue], &sentinel, b_freelist);
 	while (flushed != target) {
-		bp = TAILQ_FIRST(&bufqueues[QUEUE_DIRTY]);
+		bp = TAILQ_FIRST(&bufqueues[queue]);
 		if (bp == &sentinel)
 			break;
-		TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
-		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
+		TAILQ_REMOVE(&bufqueues[queue], bp, b_freelist);
+		TAILQ_INSERT_TAIL(&bufqueues[queue], bp, b_freelist);
 
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			continue;
@@ -2170,7 +2190,7 @@ flushbufqueues(int flushdeps)
 		vn_finished_write(mp);
 		BUF_UNLOCK(bp);
 	}
-	TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY], &sentinel, b_freelist);
+	TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
 	mtx_unlock(&bqlock);
 	return (flushed);
 }
@@ -2575,7 +2595,6 @@ loop:
 		 */
 		bp->b_blkno = bp->b_lblkno = blkno;
 		bp->b_offset = offset;
-
 		bgetvp(vp, bp);
 		BO_UNLOCK(bo);
 

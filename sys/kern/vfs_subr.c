@@ -1440,6 +1440,8 @@ bgetvp(struct vnode *vp, struct buf *bp)
 
 	ASSERT_VI_LOCKED(vp, "bgetvp");
 	vholdl(vp);
+	if (VFS_NEEDSGIANT(vp->v_mount))
+		bp->b_flags |= B_NEEDSGIANT;
 	bp->b_vp = vp;
 	bp->b_bufobj = &vp->v_bufobj;
 	/*
@@ -1477,6 +1479,7 @@ brelvp(struct buf *bp)
  		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
+	bp->b_flags &= ~B_NEEDSGIANT;
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	vdropl(vp);
