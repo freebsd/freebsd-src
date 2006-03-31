@@ -338,6 +338,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	VATTR_NULL(vap);
@@ -1103,6 +1104,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mntp, V_WAIT);
+	vfs_rel(mntp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	if (v3) {
@@ -1754,6 +1756,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -2058,6 +2061,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -2260,6 +2264,7 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -2394,6 +2399,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -2637,6 +2643,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvmtofh(dfhp);
@@ -2801,6 +2808,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -2991,6 +2999,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -3164,6 +3173,7 @@ nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
@@ -4024,6 +4034,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	vfs_rel(mp);		/* The write holds a ref. */
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	tl = nfsm_dissect_nonblock(u_int32_t *, 3 * NFSX_UNSIGNED);

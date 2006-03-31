@@ -259,6 +259,7 @@ restart:
 		wrtmp = NULL;
 	if (wrtmp != mp)
 		panic("ffs_snapshot: mount mismatch");
+	vfs_rel(wrtmp);
 	if (vn_start_write(NULL, &wrtmp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vput(nd.ni_dvp);
