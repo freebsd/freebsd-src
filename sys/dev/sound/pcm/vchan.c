@@ -289,36 +289,50 @@ sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
 	d = oidp->oid_arg1;
 	if (!(d->flags & SD_F_AUTOVCHAN) || d->vchancount < 1)
 		return EINVAL;
+	if (pcm_inprog(d, 1) != 1 && req->newptr != NULL) {
+		pcm_inprog(d, -1);
+		return EINPROGRESS;
+	}
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
 		CHN_LOCK(c);
 		if (c->direction == PCMDIR_PLAY) {
 			if (c->flags & CHN_F_VIRTUAL) {
+				/* Sanity check */
+				if (ch != NULL && ch != c->parentchannel) {
+					CHN_UNLOCK(c);
+					pcm_inprog(d, -1);
+					return EINVAL;
+				}
 				if (req->newptr != NULL &&
 						(c->flags & CHN_F_BUSY)) {
 					CHN_UNLOCK(c);
+					pcm_inprog(d, -1);
 					return EBUSY;
 				}
-				if (ch == NULL)
-					ch = c->parentchannel;
+			} else if (c->flags & CHN_F_HAS_VCHAN) {
+				/* No way!! */
+				if (ch != NULL) {
+					CHN_UNLOCK(c);
+					pcm_inprog(d, -1);
+					return EINVAL;
+				}
+				ch = c;
+				newspd = ch->speed;
 			}
 		}
 		CHN_UNLOCK(c);
 	}
-	if (ch != NULL) {
-		CHN_LOCK(ch);
-		newspd = ch->speed;
-		CHN_UNLOCK(ch);
+	if (ch == NULL) {
+		pcm_inprog(d, -1);
+		return EINVAL;
 	}
 	err = sysctl_handle_int(oidp, &newspd, sizeof(newspd), req);
 	if (err == 0 && req->newptr != NULL) {
-		if (ch == NULL || newspd < 1 ||
-				newspd < feeder_rate_ratemin ||
-				newspd > feeder_rate_ratemax)
-			return EINVAL;
-		if (pcm_inprog(d, 1) != 1) {
+		if (newspd < 1 || newspd < feeder_rate_ratemin ||
+				newspd > feeder_rate_ratemax) {
 			pcm_inprog(d, -1);
-			return EINPROGRESS;
+			return EINVAL;
 		}
 		CHN_LOCK(ch);
 		caps = chn_getcaps(ch);
@@ -349,8 +363,8 @@ sysctl_hw_snd_vchanrate(SYSCTL_HANDLER_ARGS)
 			}
 		} else
 			CHN_UNLOCK(ch);
-		pcm_inprog(d, -1);
 	}
+	pcm_inprog(d, -1);
 	return err;
 }
 #endif
@@ -522,7 +536,8 @@ vchan_destroy(struct pcm_channel *c)
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
 	struct snddev_channel *sce;
-	int err, last;
+	uint32_t spd;
+	int err;
 
 	CHN_LOCK(parent);
 	if (!(parent->flags & CHN_F_BUSY)) {
@@ -567,10 +582,11 @@ gotch:
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
 	free(pce, M_DEVBUF);
 
-	last = SLIST_EMPTY(&parent->children);
-	if (last) {
-		parent->flags &= ~CHN_F_BUSY;
-		parent->flags &= ~CHN_F_HAS_VCHAN;
+	if (SLIST_EMPTY(&parent->children)) {
+		parent->flags &= ~(CHN_F_BUSY | CHN_F_HAS_VCHAN);
+		spd = parent->speed;
+		if (chn_reset(parent, parent->format) == 0)
+			chn_setspeed(parent, spd);
 	}
 
 	/* remove us from our grandparent's channel list */
@@ -580,15 +596,6 @@ gotch:
 	/* destroy ourselves */
 	if (!err)
 		err = pcm_chn_destroy(c);
-
-#if 0
-	if (!err && last) {
-		CHN_LOCK(parent);
-		chn_reset(parent, chn_getcaps(parent)->fmtlist[0]);
-		chn_setspeed(parent, chn_getcaps(parent)->minspeed);
-		CHN_UNLOCK(parent);
-	}
-#endif
 
 	return err;
 }
