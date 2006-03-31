@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/asn1.c,v 1.29 2005/10/04 11:21:31 brandt_h Exp $
+ * $Begemot: bsnmp/lib/asn1.c,v 1.31 2005/10/06 07:14:58 brandt_h Exp $
  *
  * ASN.1 for SNMP.
  */
@@ -41,6 +41,8 @@
 #include <inttypes.h>
 #endif
 #include <assert.h>
+
+#include "support.h"
 #include "asn1.h"
 
 #if !defined(INT32_MIN)

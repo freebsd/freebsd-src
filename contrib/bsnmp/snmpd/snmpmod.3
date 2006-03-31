@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.14 2005/10/04 13:30:35 brandt_h Exp $
 .\"
-.Dd October 4, 2005
+.Dd February 27, 2006
 .Dt SNMPMOD 3
 .Os
 .Sh NAME
@@ -85,6 +85,7 @@
 .Nm string_commit ,
 .Nm string_rollback ,
 .Nm string_get ,
+.Nm string_get_max ,
 .Nm string_free ,
 .Nm ip_save ,
 .Nm ip_rollback ,
@@ -197,6 +198,8 @@ Begemot SNMP library
 .Fn string_rollback "struct snmp_context *ctx" "u_char **strp"
 .Ft int
 .Fn string_get "struct snmp_value *val" "const u_char *str" "ssize_t len"
+.Ft int
+.Fn string_get_max "struct snmp_value *val" "const u_char *str" "ssize_t len" "size_t maxlen"
 .Ft void
 .Fn string_free "struct snmp_context *ctx"
 .Ft int
@@ -771,6 +774,10 @@ simply frees the saved old value in the scratch area.
 frees the new value, and puts back the old one.
 .It Fn string_get
 is used for GET or GETNEXT.
+The function
+.It Fn string_get_max
+can be used instead of
+.Nf stringto ensure that the returned string has a certain maximum length.
 If
 .Fa len
 is -1, the length is computed via

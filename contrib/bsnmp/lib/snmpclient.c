@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.c,v 1.34 2005/10/04 14:32:42 brandt_h Exp $
+ * $Begemot: bsnmp/lib/snmpclient.c,v 1.36 2005/10/06 07:14:58 brandt_h Exp $
  *
  * Support functions for SNMP clients.
  */
