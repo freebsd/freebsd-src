@@ -239,7 +239,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
-	${_uart} \
+	uart \
 	ubsa \
 	ubsec \
 	ubser \
@@ -291,7 +291,6 @@ SUBDIR=	${_3dfx} \
 
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
-_uart=		uart
 _vpo=		vpo
 .endif
 
