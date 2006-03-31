@@ -639,12 +639,13 @@ unionlookup:
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
 		vput(dp);
+		VFS_UNLOCK_GIANT(dvfslocked);
 		dvfslocked = vfslocked;
 		vfslocked = VFS_LOCK_GIANT(mp);
 		VOP_UNLOCK(ndp->ni_dvp, 0, td);
 		error = VFS_ROOT(mp, cnp->cn_lkflags, &tdp, td);
-		VOP_LOCK(ndp->ni_dvp, cnp->cn_lkflags | LK_RETRY, td);
 		vfs_unbusy(mp, td);
+		vn_lock(ndp->ni_dvp, cnp->cn_lkflags | LK_RETRY, td);
 		if (error) {
 			dpunlocked = 1;
 			goto bad2;
