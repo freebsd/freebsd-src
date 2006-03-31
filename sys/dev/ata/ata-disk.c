@@ -71,7 +71,8 @@ ad_probe(device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
 
     if (!(atadev->param.config & ATA_PROTO_ATAPI) ||
-	(atadev->param.config == ATA_CFA_MAGIC))
+	(atadev->param.config == ATA_CFA_MAGIC1) ||
+	(atadev->param.config == ATA_CFA_MAGIC2))
 	return 0;
     else
 	return ENXIO;
@@ -295,8 +296,14 @@ ad_dump(void *arg, void *virtual, vm_offset_t physical,
     struct bio bp;
 
     /* length zero is special and really means flush buffers to media */
-    if (!length)
-	return ata_controlcmd(dp->d_drv1, ATA_FLUSHCACHE, 0, 0, 0);
+    if (!length) {
+        struct ata_device *atadev = device_get_softc(dp->d_drv1);
+	int error = 0;
+
+	if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
+	    error = ata_controlcmd(dp->d_drv1, ATA_FLUSHCACHE, 0, 0, 0);
+	return error;
+    }
 
     bzero(&bp, sizeof(struct bio));
     bp.bio_disk = dp;

@@ -485,7 +485,11 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 	if (ioc_request->flags & ATA_CMD_WRITE)
 	    request->flags |= ATA_R_WRITE;
 	ata_queue_request(request);
-	if (!(request->flags & ATA_R_ATAPI)) {
+	if (request->flags & ATA_R_ATAPI) {
+	    bcopy(&request->u.atapi.sense, &ioc_request->u.atapi.sense,
+		  sizeof(struct atapi_sense));
+	}
+	else {
 	    ioc_request->u.ata.command = request->u.ata.command;
 	    ioc_request->u.ata.feature = request->u.ata.feature;
 	    ioc_request->u.ata.lba = request->u.ata.lba;
