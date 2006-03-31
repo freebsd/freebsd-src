@@ -683,8 +683,7 @@ atausb_bbb_finish(usbd_xfer_handle xfer, usbd_private_handle priv,
 	else if (sc->csw.status == CSWSTATUS_FAILED) {
             if (atausbdebug)
 	        device_printf(sc->dev, "CSWSTATUS_FAILED\n");
-	    //request->result = ENODEV;
-	    request->error = ATA_SK_RESERVED;
+	    request->error = ATA_E_ATAPI_SENSE_MASK ;
 	    sc->state = ATAUSB_S_IDLE;
 	    ata_interrupt(device_get_softc(request->parent));
 	    return;
@@ -824,9 +823,6 @@ ata_usbchannel_end_transaction(struct ata_request *request)
 	    *ptr = ntohs(*ptr);
 	request->result = 0;
     }
-    if ((request->flags & ATA_R_ATAPI) &&
-	(request->u.atapi.ccb[0] == ATAPI_REQUEST_SENSE))
-	request->u.atapi.sense_key = request->u.atapi.sense_data.sense_key << 4;
     return ATA_OP_FINISHED;
 }
 
