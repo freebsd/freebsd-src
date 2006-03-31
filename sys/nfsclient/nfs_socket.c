@@ -1240,6 +1240,7 @@ nfs_timer(void *arg)
 			 */
 			rep->r_flags |= R_MUSTRESEND;
 			wakeup_nfsreq(rep);
+			rep->r_rtt = 0;
 			continue;
 		}
 		if ((so = nmp->nm_so) == NULL)
