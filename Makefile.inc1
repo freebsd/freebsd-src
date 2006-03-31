@@ -809,6 +809,10 @@ _gencat=	usr.bin/gencat
 _mklocale=	usr.bin/mklocale
 .endif
 
+.if ${BOOTSTRAPPING} < 700015
+_gensnmptree=	usr.sbin/bsnmpd/gensnmptree
+.endif
+
 .if ${MK_RESCUE} != "no" && \
     ${BOOTSTRAPPING} < 600008
 _crunchgen=	usr.sbin/crunch/crunchgen
@@ -816,10 +820,6 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 
 .if ${BOOTSTRAPPING} < 600020
 _pwd_mkdb=	usr.sbin/pwd_mkdb
-.endif
-
-.if ${BOOTSTRAPPING} < 700015
-_gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
 bootstrap-tools:
@@ -836,8 +836,8 @@ bootstrap-tools:
     ${_mklocale} \
     usr.bin/rpcgen \
     usr.bin/xinstall \
-    usr.sbin/config \
     ${_gensnmptree} \
+    usr.sbin/config \
     ${_crunchgen} \
     ${_pwd_mkdb}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
