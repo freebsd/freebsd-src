@@ -276,6 +276,8 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	*buf = *sp;
 out:
 	VFS_UNLOCK_GIANT(vfslocked);
+	if (mtx_owned(&Giant))
+		printf("statfs(%d): %s: %d\n", vfslocked, path, error);
 	return (error);
 }
 
@@ -2088,6 +2090,8 @@ kern_stat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
+	if (mtx_owned(&Giant))
+		printf("stat(%d): %s\n", vfslocked, path);
 	if (error)
 		return (error);
 	*sbp = sb;
@@ -4059,12 +4063,9 @@ fhopen(td, uap)
 	if (error)
 		return(error);
 	/* find the mount point */
-	vfslocked = 0;
 	mp = vfs_getvfs(&fhp.fh_fsid);
-	if (mp == NULL) {
-		error = ESTALE;
-		goto out;
-	}
+	if (mp == NULL)
+		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
 	/* now give me my vnode, it gets returned to me locked */
 	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
@@ -4196,6 +4197,7 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
+	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	td->td_retval[0] = indx;
 	return (0);
@@ -4203,6 +4205,7 @@ fhopen(td, uap)
 bad:
 	vput(vp);
 out:
+	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -4243,11 +4246,13 @@ fhstat(td, uap)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp))) {
+		vfs_rel(mp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
+	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
@@ -4305,17 +4310,11 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
 	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
+		vfs_rel(mp);
 		return (error);
 	}
-	sp = NULL;
-	mp = vp->v_mount;
-	if (mp)
-		vfs_ref(mp);
 	vput(vp);
-	if (mp == NULL) {
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (EBADF);
-	}
+	sp = NULL;
 	error = prison_canseemount(td->td_ucred, mp);
 	if (error)
 		goto out;
