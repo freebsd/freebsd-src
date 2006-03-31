@@ -27,6 +27,7 @@ dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+dev/uart/uart_cpu_powerpc.c	optional	uart
 geom/geom_apple.c		standard
 kern/syscalls.c			optional	ktr
 powerpc/powerpc/atomic.S	standard
