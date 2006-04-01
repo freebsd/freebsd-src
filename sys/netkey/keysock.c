@@ -295,8 +295,7 @@ key_attach(struct socket *so, int proto, struct thread *p)
 	struct keycb *kp;
 	int s, error;
 
-	if (sotorawcb(so) != 0)
-		return EISCONN;	/* XXX panic? */
+	KASSERT(sotorawcb(so) == NULL, ("key_attach: so_pcb != NULL"));
 	kp = (struct keycb *)malloc(sizeof *kp, M_PCB, M_WAITOK); /* XXX */
 	if (kp == 0)
 		return ENOBUFS;
