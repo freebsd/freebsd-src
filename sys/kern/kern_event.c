@@ -887,6 +887,8 @@ findkn:
 			kev->fflags = 0;
 			kev->data = 0;
 			kn->kn_kevent = *kev;
+			kn->kn_kevent.flags &= ~(EV_ADD | EV_DELETE |
+			    EV_ENABLE | EV_DISABLE);
 			kn->kn_status = KN_INFLUX|KN_DETACHED;
 
 			error = knote_attach(kn, kq);
