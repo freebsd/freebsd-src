@@ -676,16 +676,30 @@ in_pcbdisconnect(struct inpcb *inp)
 #ifdef IPSEC
 	ipsec_pcbdisconn(inp->inp_sp);
 #endif
-	if (inp->inp_socket->so_state & SS_NOFDREF)
-		in_pcbdetach(inp);
 }
 
+/*
+ * In the old world order, in_pcbdetach() served two functions: to detach the
+ * pcb from the socket/potentially free the socket, and to free the pcb
+ * itself.  In the new world order, the protocol code is responsible for
+ * managing the relationship with the socket, and this code simply frees the
+ * pcb.
+ */
 void
 in_pcbdetach(struct inpcb *inp)
 {
-	struct socket *so = inp->inp_socket;
+
+	KASSERT(inp->inp_socket != NULL, ("in_pcbdetach: inp_socket == NULL"));
+	inp->inp_socket->so_pcb = NULL;
+	inp->inp_socket = NULL;
+}
+
+void
+in_pcbfree(struct inpcb *inp)
+{
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
+	KASSERT(inp->inp_socket == NULL, ("in_pcbfree: inp_socket != NULL"));
 	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_LOCK_ASSERT(inp);
 
@@ -694,12 +708,6 @@ in_pcbdetach(struct inpcb *inp)
 #endif /*IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
-	if (so) {
-		ACCEPT_LOCK();
-		SOCK_LOCK(so);
-		so->so_pcb = NULL;
-		sotryfree(so);
-	}
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
 	ip_freemoptions(inp->inp_moptions);
@@ -744,10 +752,7 @@ in_setsockaddr(struct socket *so, struct sockaddr **nam,
 
 	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
-	if (!inp) {
-		INP_INFO_RUNLOCK(pcbinfo);
-		return ECONNRESET;
-	}
+	KASSERT(inp != NULL, ("in_setsockaddr: so_pcb == NULL"));
 	INP_LOCK(inp);
 	port = inp->inp_lport;
 	addr = inp->inp_laddr;
@@ -771,10 +776,7 @@ in_setpeeraddr(struct socket *so, struct sockaddr **nam,
 
 	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
-	if (!inp) {
-		INP_INFO_RUNLOCK(pcbinfo);
-		return ECONNRESET;
-	}
+	KASSERT(inp != NULL, ("in_setpeeraddr: so_pcb == NULL"));
 	INP_LOCK(inp);
 	port = inp->inp_fport;
 	addr = inp->inp_faddr;
@@ -1169,7 +1171,8 @@ in_pcbsosetlabel(struct socket *so)
 #ifdef MAC
 	struct inpcb *inp;
 
-	inp = (struct inpcb *)so->so_pcb;
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("in_pcbsosetlabel: so->so_pcb == NULL"));
 	INP_LOCK(inp);
 	SOCK_LOCK(so);
 	mac_inpcb_sosetlabel(so, inp);
