@@ -105,7 +105,7 @@ struct cryptoini;
 
 /* XF_IP4 */
 extern	int ip4_input6(struct mbuf **m, int *offp, int proto);
-extern	void ip4_input(struct mbuf *m, ...);
+extern	void ip4_input(struct mbuf *m, int);
 extern	int ipip_output(struct mbuf *, struct ipsecrequest *,
 			struct mbuf **, int, int);
 
