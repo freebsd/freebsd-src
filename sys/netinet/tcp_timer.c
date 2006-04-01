@@ -125,6 +125,10 @@ int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
 
 static int tcp_totbackoff = 2559;	/* sum of tcp_backoff[] */
 
+static int tcp_timer_race;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, timer_race, CTLFLAG_RD, &tcp_timer_race,
+    0, "Count of t_inpcb races on tcp_discardcb");
+
 /*
  * TCP timer processing.
  */
@@ -138,7 +142,15 @@ tcp_timer_delack(xtp)
 
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_delack: inp == NULL"));
+	 */
 	if (inp == NULL) {
+		tcp_timer_race++;
 		INP_INFO_RUNLOCK(&tcbinfo);
 		return;
 	}
@@ -167,10 +179,21 @@ tcp_timer_2msl(xtp)
 
 	ostate = tp->t_state;
 #endif
+	/*
+	 * XXXRW: Does this actually happen?
+	 */
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_2msl: inp == NULL"));
+	 */
 	if (inp == NULL) {
-		INP_INFO_WUNLOCK(&tcbinfo);
+		tcp_timer_race++;
+		INP_INFO_RUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
@@ -267,14 +290,12 @@ tcp_timer_2msl_tw(int reuse)
 	for (i = 0; i < 2; i++) {
 		twl = tw_2msl_list[i];
 		tw_tail = &twl->tw_tail;
-		for (;;) {
-			tw = LIST_FIRST(&twl->tw_list);
-			if (tw == tw_tail || (!reuse && tw->tw_time > ticks))
-				break;
-			INP_LOCK(tw->tw_inpcb);
-			if (tcp_twclose(tw, reuse) != NULL)
-				return (tw);
-		}
+		tw = LIST_FIRST(&twl->tw_list);
+		if (tw == tw_tail || (!reuse && tw->tw_time > ticks))
+			continue;
+		INP_LOCK(tw->tw_inpcb);
+		tcp_twclose(tw, reuse);
+		return (tw);
 	}
 	return (NULL);
 }
@@ -293,8 +314,16 @@ tcp_timer_keep(xtp)
 #endif
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
-	if (!inp) {
-		INP_INFO_WUNLOCK(&tcbinfo);
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_keep: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_RUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
@@ -375,8 +404,16 @@ tcp_timer_persist(xtp)
 #endif
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
-	if (!inp) {
-		INP_INFO_WUNLOCK(&tcbinfo);
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_persist: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_RUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
@@ -412,7 +449,7 @@ tcp_timer_persist(xtp)
 
 out:
 #ifdef TCPDEBUG
-	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
@@ -437,8 +474,16 @@ tcp_timer_rexmt(xtp)
 	INP_INFO_WLOCK(&tcbinfo);
 	headlocked = 1;
 	inp = tp->t_inpcb;
-	if (!inp) {
-		INP_INFO_WUNLOCK(&tcbinfo);
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_rexmt: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_RUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
