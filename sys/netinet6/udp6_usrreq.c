@@ -497,7 +497,7 @@ SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
 	    0, 0,
 	    udp6_getcred, "S,xucred", "Get the xucred of a UDP6 connection");
 
-static int
+static void
 udp6_abort(struct socket *so)
 {
 	struct inpcb *inp;
@@ -507,7 +507,7 @@ udp6_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;	/* ??? possible? panic instead? */
+		return;	/* ??? possible? panic instead? */
 	}
 	soisdisconnected(so);
 	s = splnet();
@@ -515,7 +515,6 @@ udp6_abort(struct socket *so)
 	in6_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 	splx(s);
-	return 0;
 }
 
 static int

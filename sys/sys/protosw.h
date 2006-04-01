@@ -196,7 +196,7 @@ struct uio;
  */
 struct pr_usrreqs {
 	double	__Break_the_struct_layout_for_now;
-	int	(*pru_abort)(struct socket *so);
+	void	(*pru_abort)(struct socket *so);
 	int	(*pru_accept)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_attach)(struct socket *so, int proto, struct thread *td);
 	int	(*pru_bind)(struct socket *so, struct sockaddr *nam,
@@ -246,7 +246,7 @@ struct pr_usrreqs {
  * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
 
-int	pru_abort_notsupp(struct socket *so);
+void	pru_abort_notsupp(struct socket *so);
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
 int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,

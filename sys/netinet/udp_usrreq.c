@@ -929,7 +929,7 @@ u_long	udp_recvspace = 40 * (1024 +
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
-static int
+static void
 udp_abort(struct socket *so)
 {
 	struct inpcb *inp;
@@ -938,13 +938,12 @@ udp_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;	/* ??? possible? panic instead? */
+		return;	/* ??? possible? panic instead? */
 	}
 	INP_LOCK(inp);
 	soisdisconnected(so);
 	in_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	return 0;
 }
 
 static int

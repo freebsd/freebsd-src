@@ -543,23 +543,41 @@ discard:
 }
 
 /*
- * soabort() must not be called with any socket locks held, as it calls
- * into the protocol, which will call back into the socket code causing
- * it to acquire additional socket locks that may cause recursion or lock
- * order reversals.
+ * soabort() allows the socket code or protocol code to detach a socket that
+ * has been in an incomplete or completed listen queue, but has not yet been
+ * accepted.
+ *
+ * This interface is tricky, because it is called on an unreferenced socket,
+ * and must be called only by a thread that has actually removed the socket
+ * from the listen queue it was on, or races with other threads are risked.
+ *
+ * This interface will call into the protocol code, so must not be called
+ * with any socket locks held.  Protocols do call it while holding their own
+ * recursible protocol mutexes, but this is something that should be subject
+ * to review in the future.
+ *
+ * XXXRW: Why do we maintain a distinction between pru_abort() and
+ * pru_detach()?
  */
 void
 soabort(so)
 	struct socket *so;
 {
-	int error;
 
-	error = (*so->so_proto->pr_usrreqs->pru_abort)(so);
-	if (error) {
-		ACCEPT_LOCK();
-		SOCK_LOCK(so);
-		sotryfree(so);	/* note: does not decrement the ref count */
-	}
+	/*
+	 * In as much as is possible, assert that no references to this
+	 * socket are held.  This is not quite the same as asserting that the
+	 * current thread is responsible for arranging for no references, but
+	 * is as close as we can get for now.
+	 */
+	KASSERT(so->so_count == 0, ("soabort: so_count"));
+	KASSERT(!(so->so_state & SS_PROTOREF), ("soabort: SS_PROTOREF"));
+	KASSERT(so->so_state & SS_NOFDREF, ("soabort: !SS_NOFDREF"));
+
+	(*so->so_proto->pr_usrreqs->pru_abort)(so);
+	ACCEPT_LOCK();
+	SOCK_LOCK(so);
+	sofree(so);
 }
 
 int

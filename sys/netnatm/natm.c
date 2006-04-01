@@ -83,7 +83,7 @@ static int natm_usr_send(struct socket *, int, struct mbuf *,
 static int natm_usr_peeraddr(struct socket *, struct sockaddr **);
 static int natm_usr_control(struct socket *, u_long, caddr_t,
     struct ifnet *, d_thread_t *);
-static int natm_usr_abort(struct socket *);
+static void natm_usr_abort(struct socket *);
 static int natm_usr_bind(struct socket *, struct sockaddr *, d_thread_t *);
 static int natm_usr_sockaddr(struct socket *, struct sockaddr **);
 
@@ -333,14 +333,10 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
     return (error);
 }
 
-static int
+static void
 natm_usr_abort(struct socket *so)
 {
     natm_usr_shutdown(so);
-    ACCEPT_LOCK();
-    SOCK_LOCK(so);
-    sotryfree(so);
-    return (0);
 }
 
 static int

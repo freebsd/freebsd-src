@@ -66,7 +66,7 @@ static int	atm_dgram_info(caddr_t);
  * New-style socket request routines
  */
 struct pr_usrreqs	atm_dgram_usrreqs = {
-	.pru_abort =		atm_proto_notsupp1,
+	.pru_abort =		atm_proto_notsupp5,
 	.pru_attach =		atm_dgram_attach,
 	.pru_bind =		atm_proto_notsupp2,
 	.pru_control =		atm_dgram_control,

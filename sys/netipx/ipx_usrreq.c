@@ -75,7 +75,7 @@ static int ipxrecvspace = IPXRCVQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
             &ipxrecvspace, 0, "");
 
-static	int ipx_usr_abort(struct socket *so);
+static	void ipx_usr_abort(struct socket *so);
 static	int ipx_attach(struct socket *so, int proto, struct thread *td);
 static	int ipx_bind(struct socket *so, struct sockaddr *nam, struct thread *td);
 static	int ipx_connect(struct socket *so, struct sockaddr *nam,
@@ -428,7 +428,7 @@ ipx_ctloutput(so, sopt)
 	return (error);
 }
 
-static int
+static void
 ipx_usr_abort(so)
 	struct socket *so;
 {
@@ -441,10 +441,6 @@ ipx_usr_abort(so)
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 	soisdisconnected(so);
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	sotryfree(so);
-	return (0);
 }
 
 static int

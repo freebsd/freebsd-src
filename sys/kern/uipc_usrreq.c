@@ -139,7 +139,7 @@ static int     unp_internalize(struct mbuf **, struct thread *);
 static int     unp_listen(struct socket *, struct unpcb *, int,
 		   struct thread *);
 
-static int
+static void
 uipc_abort(struct socket *so)
 {
 	struct unpcb *unp;
@@ -150,10 +150,6 @@ uipc_abort(struct socket *so)
 	unp_drop(unp, ECONNABORTED);
 	unp_detach(unp);
 	UNP_UNLOCK_ASSERT();
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	sotryfree(so);
-	return (0);
 }
 
 static int
