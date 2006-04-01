@@ -2090,6 +2090,10 @@ fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
  *
  * We bump the ref count on the returned socket.  XXX Also obtain the SX
  * lock in the future.
+ *
+ * XXXRW: fgetsock() and fputsock() are deprecated, as consumers should rely
+ * on their file descriptor reference to prevent the socket from being
+ * freed during use.
  */
 int
 fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
@@ -2119,8 +2123,10 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 }
 
 /*
- * Drop the reference count on the socket and XXX release the SX lock in
- * the future.  The last reference closes the socket.
+ * Drop the reference count on the socket and XXX release the SX lock in the
+ * future.  The last reference closes the socket.
+ *
+ * XXXRW: fputsock() is deprecated, see comment for fgetsock().
  */
 void
 fputsock(struct socket *so)
