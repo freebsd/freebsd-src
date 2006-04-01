@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include "scc_if.h"
 
-#define	DEFAULT_RCLK	307200
-
 static int z8530_bfe_attach(struct scc_softc *, int);
 static int z8530_bfe_iclear(struct scc_softc *, struct scc_chan *);
 static int z8530_bfe_ipend(struct scc_softc *);
@@ -65,8 +63,6 @@ struct scc_class scc_z8530_class = {
 	.cl_class = SCC_CLASS_Z8530,
 	.cl_modes = SCC_MODE_ASYNC | SCC_MODE_BISYNC | SCC_MODE_HDLC,
 	.cl_range = (CHAN_B - CHAN_A) << 1,
-	.cl_rclk = DEFAULT_RCLK,
-	.cl_regshft = 1,
 };
 
 /* Multiplexed I/O. */
