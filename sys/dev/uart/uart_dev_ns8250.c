@@ -217,7 +217,7 @@ static void ns8250_init(struct uart_bas *bas, int, int, int, int);
 static void ns8250_term(struct uart_bas *bas);
 static void ns8250_putc(struct uart_bas *bas, int);
 static int ns8250_poll(struct uart_bas *bas);
-static int ns8250_getc(struct uart_bas *bas);
+static int ns8250_getc(struct uart_bas *bas, struct mtx *);
 
 struct uart_ops uart_ns8250_ops = {
 	.probe = ns8250_probe,
@@ -321,16 +321,26 @@ ns8250_poll(struct uart_bas *bas)
 }
 
 static int
-ns8250_getc(struct uart_bas *bas)
+ns8250_getc(struct uart_bas *bas, struct mtx *hwmtx)
 {
-	int delay;
+	int c, delay;
+
+	uart_lock(hwmtx);
 
 	/* 1/10th the time to transmit 1 character (estimate). */
 	delay = ns8250_delay(bas);
 
-	while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) == 0)
+	while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) == 0) {
+		uart_unlock(hwmtx);
 		DELAY(delay);
-	return (uart_getreg(bas, REG_DATA));
+		uart_lock(hwmtx);
+	}
+
+	c = uart_getreg(bas, REG_DATA);
+
+	uart_unlock(hwmtx);
+
+	return (c);
 }
 
 /*
