@@ -114,19 +114,18 @@ static void mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 static mpt_reply_handler_t mpt_scsi_reply_handler;
 static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
 static mpt_reply_handler_t mpt_fc_els_reply_handler;
-static mpt_reply_handler_t mpt_scsi_tgt_reply_handler;
-static int mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
-					MSG_DEFAULT_REPLY *reply_frame);
-static int mpt_bus_reset(struct mpt_softc *, int /*sleep_ok*/);
+static int mpt_scsi_reply_frame_handler(struct mpt_softc *, request_t *,
+					MSG_DEFAULT_REPLY *);
+static int mpt_bus_reset(struct mpt_softc *, int);
 static int mpt_fc_reset_link(struct mpt_softc *, int);
 
 static int mpt_spawn_recovery_thread(struct mpt_softc *mpt);
 static void mpt_terminate_recovery_thread(struct mpt_softc *mpt);
 static void mpt_recovery_thread(void *arg);
-static int mpt_scsi_send_tmf(struct mpt_softc *, u_int /*type*/,
-			     u_int /*flags*/, u_int /*channel*/,
-			     u_int /*target*/, u_int /*lun*/,
-			     u_int /*abort_ctx*/, int /*sleep_ok*/);
+static void mpt_recover_commands(struct mpt_softc *mpt);
+
+static int mpt_scsi_send_tmf(struct mpt_softc *, u_int, u_int, u_int,
+    u_int, u_int, u_int, int);
 
 static void mpt_fc_add_els(struct mpt_softc *mpt, request_t *);
 static void mpt_post_target_command(struct mpt_softc *, request_t *, int);
@@ -135,9 +134,15 @@ static int mpt_enable_lun(struct mpt_softc *, target_id_t, lun_id_t);
 static int mpt_disable_lun(struct mpt_softc *, target_id_t, lun_id_t);
 static void mpt_target_start_io(struct mpt_softc *, union ccb *);
 static cam_status mpt_abort_target_ccb(struct mpt_softc *, union ccb *);
-static cam_status mpt_abort_target_cmd(struct mpt_softc *, request_t *);
-
-static void mpt_recover_commands(struct mpt_softc *mpt);
+static int mpt_abort_target_cmd(struct mpt_softc *, request_t *);
+static void mpt_scsi_tgt_status(struct mpt_softc *, union ccb *, request_t *,
+    uint8_t, uint8_t const *);
+static void
+mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *, request_t *, mpt_task_mgmt_t,
+    tgt_resource_t *, int);
+static void mpt_tgt_dump_tgt_state(struct mpt_softc *, request_t *);
+static void mpt_tgt_dump_req_state(struct mpt_softc *, request_t *);
+static mpt_reply_handler_t mpt_scsi_tgt_reply_handler;
 
 static uint32_t scsi_io_handler_id = MPT_HANDLER_ID_NONE;
 static uint32_t scsi_tmf_handler_id = MPT_HANDLER_ID_NONE;
@@ -257,7 +262,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	/*
 	 * We keep one request reserved for timeout TMF requests.
 	 */
-	mpt->tmf_req = mpt_get_request(mpt, /*sleep_ok*/FALSE);
+	mpt->tmf_req = mpt_get_request(mpt, FALSE);
 	if (mpt->tmf_req == NULL) {
 		mpt_prt(mpt, "Unable to allocate dedicated TMF request!\n");
 		error = ENOMEM;
@@ -435,6 +440,10 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 	U32 fl;
 	int r, doit = 0;
 
+	if ((mpt->role & MPT_ROLE_TARGET) == 0) {
+		return (0);
+	}
+
 	r = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_FC_PORT, 1, 0,
 	    &fc.Header, FALSE, 5000);
 	if (r) {
@@ -477,6 +486,10 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 			cc = "FC PORT PAGE1 UPDATED: SYSTEM NEEDS RESET\n";
 		}
 		mpt_prt(mpt, cc);
+	}
+#else
+	if ((mpt->role & MPT_ROLE_TARGET) == 0) {
+		return (0);
 	}
 #endif
 	return (mpt_fc_reset_link(mpt, 1));
@@ -822,17 +835,12 @@ mpt_timeout(void *arg)
 	request_t	 *req;
 
 	ccb = (union ccb *)arg;
-#ifdef NOTYET
-	mpt = mpt_find_softc(mpt);
-	if (mpt == NULL)
-		return;
-#else
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
-#endif
 
 	MPT_LOCK(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
-	mpt_prt(mpt, "Request %p Timed out.\n", req);
+	mpt_prt(mpt, "request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
+	    req->serno, ccb, req->ccb);
 	if ((req->state & REQ_STATE_QUEUED) == REQ_STATE_QUEUED) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		TAILQ_INSERT_TAIL(&mpt->request_timeout_list, req, links);
@@ -993,7 +1001,7 @@ bad:
 	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
 		uint32_t tf;
 
-		bzero(se, sizeof (*se));
+		memset(se, 0, sizeof (*se));
 		se->Address.Low = dm_segs->ds_addr;
 		if (sizeof(bus_addr_t) > 4) {
 			se->Address.High = ((uint64_t) dm_segs->ds_addr) >> 32;
@@ -1061,7 +1069,7 @@ bad:
 		/*
 		 * Now initialized the chain descriptor.
 		 */
-		bzero(ce, sizeof (SGE_CHAIN64));
+		memset(ce, 0, sizeof (*ce));
 
 		/*
 		 * Get the physical address of the chain list.
@@ -1108,7 +1116,7 @@ bad:
 		 * set the end of list and end of buffer flags.
 		 */
 		while (seg < this_seg_lim) {
-			bzero(se, sizeof (*se));
+			memset(se, 0, sizeof (*se));
 			se->Address.Low = dm_segs->ds_addr;
 			if (sizeof (bus_addr_t) > 4) {
 				se->Address.High =
@@ -1369,7 +1377,7 @@ bad:
 	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
 		uint32_t tf;
 
-		bzero(se, sizeof (*se));
+		memset(se, 0,sizeof (*se));
 		se->Address = dm_segs->ds_addr;
 		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 		tf = flags;
@@ -1434,7 +1442,7 @@ bad:
 		/*
 		 * Now initialized the chain descriptor.
 		 */
-		bzero(ce, sizeof (SGE_CHAIN32));
+		memset(ce, 0, sizeof (*ce));
 
 		/*
 		 * Get the physical address of the chain list.
@@ -1476,7 +1484,7 @@ bad:
 		 * set the end of list and end of buffer flags.
 		 */
 		while (seg < this_seg_lim) {
-			bzero(se, sizeof (*se));
+			memset(se, 0, sizeof (*se));
 			se->Address = dm_segs->ds_addr;
 			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 			tf = flags;
@@ -1604,8 +1612,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	raid_passthru = (sim == mpt->phydisk_sim);
 
 	CAMLOCK_2_MPTLOCK(mpt);
-	/* Get a request structure off the free list */
-	if ((req = mpt_get_request(mpt, /*sleep_ok*/FALSE)) == NULL) {
+	if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
 		if (mpt->outofbeer == 0) {
 			mpt->outofbeer = 1;
 			xpt_freeze_simq(mpt->sim, 1);
@@ -1642,15 +1649,13 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 
 	/* Now we build the command for the IOC */
 	mpt_req = req->req_vbuf;
-	bzero(mpt_req, sizeof *mpt_req);
+	memset(mpt_req, 0, sizeof (MSG_SCSI_IO_REQUEST));
 
 	mpt_req->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
 	if (raid_passthru) {
 		mpt_req->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
 	}
-
 	mpt_req->Bus = 0;	/* we don't have multiport devices yet */
-
 	mpt_req->SenseBufferLength =
 		(csio->sense_len < MPT_SENSE_SIZE) ?
 		 csio->sense_len : MPT_SENSE_SIZE;
@@ -1673,12 +1678,13 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	/* Set the direction of the transfer */
-	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		mpt_req->Control = MPI_SCSIIO_CONTROL_READ;
-	else if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+	} else if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 		mpt_req->Control = MPI_SCSIIO_CONTROL_WRITE;
-	else
+	} else {
 		mpt_req->Control = MPI_SCSIIO_CONTROL_NODATATRANSFER;
+	}
 
 	if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
 		switch(ccb->csio.tag_action) {
@@ -1697,11 +1703,12 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 	} else {
-		if (mpt->is_fc)
+		if (mpt->is_fc || mpt->is_sas) {
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_SIMPLEQ;
-		else
+		} else {
 			/* XXX No such thing for a target doing packetized. */
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_UNTAGGED;
+		}
 	}
 
 	if (mpt->is_fc == 0 && mpt->is_sas == 0) {
@@ -1711,18 +1718,18 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	/* Copy the scsi command block into place */
-	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0)
+	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 		bcopy(csio->cdb_io.cdb_ptr, mpt_req->CDB, csio->cdb_len);
-	else
+	} else {
 		bcopy(csio->cdb_io.cdb_bytes, mpt_req->CDB, csio->cdb_len);
+	}
 
 	mpt_req->CDBLength = csio->cdb_len;
 	mpt_req->DataLength = csio->dxfer_len;
 	mpt_req->SenseBufferLowAddr = req->sense_pbuf;
 
 	/*
-	 * If we have any data to send with this command,
-	 * map it into bus space.
+	 * If we have any data to send with this command map it into bus space.
 	 */
 
 	if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
@@ -1791,8 +1798,7 @@ mpt_bus_reset(struct mpt_softc *mpt, int sleep_ok)
 
 	error = mpt_scsi_send_tmf(mpt, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
 	    mpt->is_fc ? MPI_SCSITASKMGMT_MSGFLAGS_LIP_RESET_OPTION : 0,
-	    /*bus*/0, /*target_id*/0, /*target_lun*/0, /*abort_ctx*/0,
-	    sleep_ok);
+	    0, 0, 0, 0, sleep_ok);
 
 	if (error != 0) {
 		/*
@@ -1806,7 +1812,7 @@ mpt_bus_reset(struct mpt_softc *mpt, int sleep_ok)
 
 	/* Wait for bus reset to be processed by the IOC. */
 	error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
-	    REQ_STATE_DONE, sleep_ok, /*time_ms*/5000);
+	    REQ_STATE_DONE, sleep_ok, 5000);
 
 	status = mpt->tmf_req->IOCStatus;
 	mpt->tmf_req->state = REQ_STATE_FREE;
@@ -1844,7 +1850,9 @@ mpt_fc_reset_link(struct mpt_softc *mpt, int dowait)
 	if (dowait) {
 		r = mpt_wait_req(mpt, req, REQ_STATE_DONE,
 		    REQ_STATE_DONE, FALSE, 60 * 1000);
-		mpt_free_request(mpt, req);
+		if (r == 0) {
+			mpt_free_request(mpt, req);
+		}
 	}
 	return (r);
 }
@@ -1971,9 +1979,9 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	default:
 		mpt_lprt(mpt, MPT_PRT_WARN, "mpt_cam_event: 0x%x\n",
 		    msg->Event & 0xFF);
-		return (/*handled*/0);
+		return (0);
 	}
-	return (/*handled*/1);
+	return (1);
 }
 
 /*
@@ -1992,14 +2000,20 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 {
 	MSG_SCSI_IO_REQUEST *scsi_req;
 	union ccb *ccb;
-	
+
+	if (req->state == REQ_STATE_FREE) {
+		mpt_prt(mpt, "mpt_scsi_reply_handler: req already free\n");
+		return (TRUE);
+	}
+
 	scsi_req = (MSG_SCSI_IO_REQUEST *)req->req_vbuf;
 	ccb = req->ccb;
 	if (ccb == NULL) {
-		mpt_prt(mpt, "Completion without CCB. Flags %#x, Func %#x\n",
-			req->state, scsi_req->Function);
+		mpt_prt(mpt, "req %p:%u without CCB (state %#x "
+		    "func %#x index %u rf %p)\n", req, req->serno, req->state,
+		    scsi_req->Function, req->index, reply_frame);
 		mpt_print_scsi_io_request(scsi_req);
-		return (/*free_reply*/TRUE);
+		return (TRUE);
 	}
 
 	untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
@@ -2029,7 +2043,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	if (mpt->outofbeer) {
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		mpt->outofbeer = 0;
-		mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
+		mpt_lprt(mpt,  MPT_PRT_DEBUG, "THAWQ\n");
 	}
 	if (scsi_req->Function == MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH &&
 	    scsi_req->CDB[0] == INQUIRY && (scsi_req->CDB[1] & SI_EVPD) == 0) {
@@ -2076,17 +2090,16 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 	/* Record status of TMF for any waiters. */
 	req->IOCStatus = tmf_reply->IOCStatus;
 	status = le16toh(tmf_reply->IOCStatus);
-	mpt_lprt(mpt,
-	    (status == MPI_IOCSTATUS_SUCCESS)? MPT_PRT_DEBUG : MPT_PRT_ERROR,
-	    "TMF Complete: req %p:%u status 0x%x\n", req, req->serno, status);
+	mpt_lprt(mpt, MPT_PRT_INFO, "TMF complete: req %p:%u status 0x%x\n",
+	    req, req->serno, status);
 	TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
 		req->state |= REQ_STATE_DONE;
 		wakeup(req);
-	} else
+	} else {
 		mpt->tmf_req->state = REQ_STATE_FREE;
-
-	return (/*free_reply*/TRUE);
+	}
+	return (TRUE);
 }
 
 
@@ -2304,7 +2317,6 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 			mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, tgt_req);
 			uint8_t *vbuf;
 			union ccb *ccb = tgt->ccb;
-			cam_status cs;
 			uint32_t ct_id;
 
 			vbuf = tgt_req->req_vbuf;
@@ -2336,14 +2348,12 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 				    ccb->ccb_h.flags, ccb->ccb_h.status);
 			}
 			mpt_prt(mpt, "target state 0x%x resid %u xfrd %u rpwrd "
-			    "%x nxfers %x flags %x\n", tgt->state,
+			    "%x nxfers %x\n", tgt->state,
 			    tgt->resid, tgt->bytes_xfered, tgt->reply_desc,
-			    tgt->nxfers, tgt->flags);
+			    tgt->nxfers);
   skip:
-			cs  = mpt_abort_target_cmd(mpt, tgt_req);
-			if (cs != CAM_REQ_INPROG) {
-				mpt_prt(mpt, "unable to do TargetAbort (%x)\n",
-				    cs);
+			if (mpt_abort_target_cmd(mpt, tgt_req)) {
+				mpt_prt(mpt, "unable to start TargetAbort\n");
 			}
 		} else {
 			mpt_prt(mpt, "no back pointer for RX_ID 0x%x\n", rx_id);
@@ -2364,605 +2374,6 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 	}
 	if (do_refresh == TRUE) {
 		mpt_fc_add_els(mpt, req);
-	}
-	return (TRUE);
-}
-
-/*
- * WE_TRUST_AUTO_GOOD_STATUS- I've found that setting 
- * TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS leads the
- * FC929 to set bogus FC_RSP fields (nonzero residuals
- * but w/o RESID fields set). This causes QLogic initiators
- * to think maybe that a frame was lost.
- *
- * WE_CAN_USE_AUTO_REPOST- we can't use AUTO_REPOST because
- * we use allocated requests to do TARGET_ASSIST and we
- * need to know when to release them.
- */
-
-static void
-mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
-    uint8_t status, uint8_t const *sense_data)
-{
-	uint8_t *cmd_vbuf;
-	mpt_tgt_state_t *tgt;
-	PTR_MSG_TARGET_STATUS_SEND_REQUEST tp;
-	request_t *req;
-	bus_addr_t paddr;
-	int resplen = 0;
-
-	cmd_vbuf = cmd_req->req_vbuf;
-	cmd_vbuf += MPT_RQSL(mpt);
-	tgt = MPT_TGT_STATE(mpt, cmd_req);
-
-	req = mpt_get_request(mpt, FALSE);
-	if (req == NULL) {
-		if (ccb) {
-			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-			MPTLOCK_2_CAMLOCK(mpt);
-			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
-		} else {
-			/*
-			 * XXX: put in deferred processing if we cannot allocate
-			 */
-			mpt_prt(mpt,
-			    "XXXX could not allocate status req- dropping\n");
-		}
-		return;
-	}
-	req->ccb = ccb;
-	if (ccb) {
-		ccb->ccb_h.ccb_mpt_ptr = mpt;
-		ccb->ccb_h.ccb_req_ptr = req;
-	}
-
-	/*
-	 * Record the currently active ccb, if any, and the
-	 * request for it in our target state area.
-	 */
-	tgt->ccb = ccb;
-	tgt->req = req;
-	tgt->state = TGT_STATE_SENDING_STATUS;
-
-	tp = req->req_vbuf;
-	paddr = req->req_pbuf;
-	paddr += MPT_RQSL(mpt);
-
-	memset(tp, 0, sizeof (*tp));
-	tp->Function = MPI_FUNCTION_TARGET_STATUS_SEND;
-	if (mpt->is_fc) {
-		PTR_MPI_TARGET_FCP_CMD_BUFFER fc =
-		    (PTR_MPI_TARGET_FCP_CMD_BUFFER) cmd_vbuf;
-		uint8_t *sts_vbuf;
-		uint32_t *rsp;
-
-		sts_vbuf = req->req_vbuf;
-		sts_vbuf += MPT_RQSL(mpt);
-		rsp = (uint32_t *) sts_vbuf;
-		memcpy(tp->LUN, fc->FcpLun, sizeof (tp->LUN));
-
-		/*
-		 * The MPI_TARGET_FCP_RSP_BUFFER define is unfortunate.
-		 * It has to be big-endian in memory and is organized
-		 * in 32 bit words, which are much easier to deal with
-		 * as words which are swizzled as needed.
-		 *
-		 * All we're filling here is the FC_RSP payload.
-		 * We may just have the chip synthesize it if
-		 * we have no residual and an OK status.
-		 *
-		 */
-		memset(rsp, 0, sizeof (MPI_TARGET_FCP_RSP_BUFFER));
-
-		rsp[2] = status;
-		if (tgt->resid) {
-			rsp[2] |= 0x800;
-			rsp[3] = htobe32(tgt->resid);
-#ifdef	WE_TRUST_AUTO_GOOD_STATUS
-			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
-#endif
-		}
-		if (status == SCSI_STATUS_CHECK_COND) {
-			int i;
-
-			rsp[2] |= 0x200;
-			rsp[4] = htobe32(MPT_SENSE_SIZE);
-			memcpy(&rsp[8], sense_data, MPT_SENSE_SIZE);
-			for (i = 8; i < (8 + (MPT_SENSE_SIZE >> 2)); i++) {
-				rsp[i] = htobe32(rsp[i]);
-			}
-#ifdef	WE_TRUST_AUTO_GOOD_STATUS
-			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
-#endif
-		}
-#ifndef	WE_TRUST_AUTO_GOOD_STATUS
-		resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
-#endif
-		rsp[2] = htobe32(rsp[2]);
-	} else if (mpt->is_sas) {
-		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp =
-		    (PTR_MPI_TARGET_SSP_CMD_BUFFER) cmd_vbuf;
-		memcpy(tp->LUN, ssp->LogicalUnitNumber, sizeof (tp->LUN));
-	} else {
-		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp =
-		    (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) cmd_vbuf;
-		tp->StatusCode = status;
-		tp->QueueTag = htole16(sp->Tag);
-		memcpy(tp->LUN, sp->LogicalUnitNumber, sizeof (tp->LUN));
-	}
-
-	tp->ReplyWord = htole32(tgt->reply_desc);
-	tp->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
-
-#ifdef	WE_CAN_USE_AUTO_REPOST
-	tp->MsgFlags = TARGET_STATUS_SEND_FLAGS_REPOST_CMD_BUFFER;
-#endif
-	if (status == SCSI_STATUS_OK && resplen == 0) {
-		tp->MsgFlags |= TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS;
-	} else {
-		tp->StatusDataSGE.u.Address32 = (uint32_t) paddr;
-		tp->StatusDataSGE.FlagsLength =
-			MPI_SGE_FLAGS_HOST_TO_IOC	|
-			MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
-			MPI_SGE_FLAGS_LAST_ELEMENT	|
-			MPI_SGE_FLAGS_END_OF_LIST	|
-			MPI_SGE_FLAGS_END_OF_BUFFER;
-		tp->StatusDataSGE.FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
-		tp->StatusDataSGE.FlagsLength |= resplen;
-	}
-
-	mpt_lprt(mpt, MPT_PRT_DEBUG, 
-	    "STATUS_CCB %p (wit%s sense) tag %x req %p:%u resid %u\n",
-	    ccb, sense_data?"h" : "hout", ccb? ccb->csio.tag_id : -1, req,
-	    req->serno, tgt->resid);
-	if (ccb) {
-		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
-		ccb->ccb_h.timeout_ch = timeout(mpt_timeout, (caddr_t)ccb, hz);
-	}
-	mpt_send_cmd(mpt, req);
-}
-
-static void
-mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
-    tgt_resource_t *trtp, int init_id)
-{
-	struct ccb_immed_notify *inot;
-	mpt_tgt_state_t *tgt;
-
-	tgt = MPT_TGT_STATE(mpt, req);
-	inot = (struct ccb_immed_notify *) STAILQ_FIRST(&trtp->inots);
-	if (inot == NULL) {
-		mpt_lprt(mpt, MPT_PRT_WARN, "no INOTSs- sending back BSY\n");
-		mpt_scsi_tgt_status(mpt, NULL, req, SCSI_STATUS_BUSY, NULL);
-		return;
-	}
-	STAILQ_REMOVE_HEAD(&trtp->inots, sim_links.stqe);
-	mpt_lprt(mpt, MPT_PRT_DEBUG1,
-	    "Get FREE INOT %p lun %d\n", inot, inot->ccb_h.target_lun);
-
-	memset(&inot->sense_data, 0, sizeof (inot->sense_data));
-	inot->sense_len = 0;
-	memset(inot->message_args, 0, sizeof (inot->message_args));
-	inot->initiator_id = init_id;	/* XXX */
-
-	/*
-	 * This is a somewhat grotesque attempt to map from task management
-	 * to old style SCSI messages. God help us all.
-	 */
-	switch (fc) {
-	case MPT_ABORT_TASK_SET:
-		inot->message_args[0] = MSG_ABORT_TAG;
-		break;
-	case MPT_CLEAR_TASK_SET:
-		inot->message_args[0] = MSG_CLEAR_TASK_SET;
-		break;
-	case MPT_TARGET_RESET:
-		inot->message_args[0] = MSG_TARGET_RESET;
-		break;
-	case MPT_CLEAR_ACA:
-		inot->message_args[0] = MSG_CLEAR_ACA;
-		break;
-	case MPT_TERMINATE_TASK:
-		inot->message_args[0] = MSG_ABORT_TAG;
-		break;
-	default:
-		inot->message_args[0] = MSG_NOOP;
-		break;
-	}
-	tgt->ccb = (union ccb *) inot;
-	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
-        MPTLOCK_2_CAMLOCK(mpt);
-	xpt_done((union ccb *)inot);
-        CAMLOCK_2_MPTLOCK(mpt);
-}
-
-static void
-mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
-{
-	struct ccb_accept_tio *atiop;
-	lun_id_t lun;
-	int tag_action = 0;
-	mpt_tgt_state_t *tgt;
-	tgt_resource_t *trtp;
-	U8 *lunptr;
-	U8 *vbuf;
-	U16 itag;
-	U16 ioindex;
-	mpt_task_mgmt_t fct = MPT_NIL_TMT_VALUE;
-	uint8_t *cdbp;
-
-	/*
-	 * First, DMA sync the received command- which is in the *request*
-	 * phys area.
-	 * XXX: We could optimize this for a range
-	 */
-	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-            BUS_DMASYNC_POSTREAD);
-
-	/*
-	 * Stash info for the current command where we can get at it later.
-	 */
-	vbuf = req->req_vbuf;
-	vbuf += MPT_RQSL(mpt);
-
-	/*
-	 * Get our state pointer set up.
-	 */
-	tgt = MPT_TGT_STATE(mpt, req);
-	KASSERT(tgt->state == TGT_STATE_LOADED,
-	    ("bad target state %x in mpt_scsi_tgt_atio for req %p\n",
-	    tgt->state, req));
-	memset(tgt, 0, sizeof (mpt_tgt_state_t));
-	tgt->state = TGT_STATE_IN_CAM;
-	tgt->reply_desc = reply_desc;
-	ioindex = GET_IO_INDEX(reply_desc);
-
-	if (mpt->is_fc) {
-		PTR_MPI_TARGET_FCP_CMD_BUFFER fc;
-		fc = (PTR_MPI_TARGET_FCP_CMD_BUFFER) vbuf;
-		if (fc->FcpCntl[2]) {
-			/*
-			 * Task Management Request
-			 */
-			switch (fc->FcpCntl[2]) {
-			case 0x2:
-				fct = MPT_ABORT_TASK_SET;
-				break;
-			case 0x4:
-				fct = MPT_CLEAR_TASK_SET;
-				break;
-			case 0x20:
-				fct = MPT_TARGET_RESET;
-				break;
-			case 0x40:
-				fct = MPT_CLEAR_ACA;
-				break;
-			case 0x80:
-				fct = MPT_TERMINATE_TASK;
-				break;
-			default:
-				mpt_prt(mpt, "CORRUPTED TASK MGMT BITS: 0x%x\n",
-				    fc->FcpCntl[2]);
-				mpt_scsi_tgt_status(mpt, 0, req,
-				    SCSI_STATUS_OK, 0);
-				return;
-			}
-			return;
-		}
-		switch (fc->FcpCntl[1]) {
-		case 0:
-			tag_action = MSG_SIMPLE_Q_TAG;
-			break;
-		case 1:
-			tag_action = MSG_HEAD_OF_Q_TAG;
-			break;
-		case 2:
-			tag_action = MSG_ORDERED_Q_TAG;
-			break;
-		default:
-			/*
-			 * Bah. Ignore Untagged Queing and ACA
-			 */
-			tag_action = MSG_SIMPLE_Q_TAG;
-			break;
-		}
-		tgt->resid = be32toh(fc->FcpDl);
-		cdbp = fc->FcpCdb;
-		lunptr = fc->FcpLun;
-		itag = be16toh(fc->OptionalOxid);
-	} else if (mpt->is_sas) {
-		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp;
-		ssp = (PTR_MPI_TARGET_SSP_CMD_BUFFER) vbuf;
-		cdbp = ssp->CDB;
-		lunptr = ssp->LogicalUnitNumber;
-		itag = ssp->InitiatorTag;
-	} else {
-		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp;
-		sp = (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) vbuf;
-		cdbp = sp->CDB;
-		lunptr = sp->LogicalUnitNumber;
-		itag = sp->Tag;
-	}
-
-	/*
-	 * Generate a simple lun
-	 */
-	switch (lunptr[0] & 0xc0) {
-	case 0x40:
-		lun = ((lunptr[0] & 0x3f) << 8) | lunptr[1];
-		break;
-	case 0:
-		lun = lunptr[1];
-		break;
-	default:
-		mpt_lprt(mpt, MPT_PRT_ERROR, "cannot handle this type lun\n");
-		lun = 0xffff;
-		break;
-	}
-
-	/*
-	 * Deal with non-enabled or bad luns here.
-	 */
-	if (lun >= MPT_MAX_LUNS || mpt->tenabled == 0 ||
-	    mpt->trt[lun].enabled == 0) {
-		if (mpt->twildcard) {
-			trtp = &mpt->trt_wildcard;
-		} else {
-			const uint8_t sp[MPT_SENSE_SIZE] = {
-				0xf0, 0, 0x5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0x25
-			};
-			mpt_scsi_tgt_status(mpt, NULL, req,
-			    SCSI_STATUS_CHECK_COND, sp);
-			return;
-		}
-	} else {
-		trtp = &mpt->trt[lun];
-	}
-
-	if (fct != MPT_NIL_TMT_VALUE) {
-		/* undo any tgt residual settings */
-		tgt->resid = 0;
-		mpt_scsi_tgt_tsk_mgmt(mpt, req, fct, trtp,
-		    GET_INITIATOR_INDEX(reply_desc));
-		return;
-	}
-
-	atiop = (struct ccb_accept_tio *) STAILQ_FIRST(&trtp->atios);
-	if (atiop == NULL) {
-		mpt_lprt(mpt, MPT_PRT_WARN,
-		    "no ATIOs for lun %u- sending back %s\n", lun,
-		    mpt->tenabled? "QUEUE FULL" : "BUSY");
-		mpt_scsi_tgt_status(mpt, NULL, req,
-		    mpt->tenabled? SCSI_STATUS_QUEUE_FULL : SCSI_STATUS_BUSY,
-		    NULL);
-		return;
-	}
-	STAILQ_REMOVE_HEAD(&trtp->atios, sim_links.stqe);
-	mpt_lprt(mpt, MPT_PRT_DEBUG1,
-	    "Get FREE ATIO %p lun %d\n", atiop, atiop->ccb_h.target_lun);
-	atiop->ccb_h.ccb_mpt_ptr = mpt;
-        atiop->ccb_h.status = CAM_CDB_RECVD;
-	atiop->ccb_h.target_lun = lun;
-	atiop->sense_len = 0;
-        atiop->init_id = GET_INITIATOR_INDEX(reply_desc);
-        atiop->cdb_len = mpt_cdblen(cdbp[0], 16);
-        memcpy(atiop->cdb_io.cdb_bytes, cdbp, atiop->cdb_len);
-
-	/*
-	 * The tag we construct here allows us to find the
-	 * original request that the command came in with.
-	 *
-	 * This way we don't have to depend on anything but the
-	 * tag to find things when CCBs show back up from CAM.
-	 */
-        atiop->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
-	if (tag_action) {
-                atiop->tag_action = tag_action;
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
-	}
-	if (mpt->verbose >= MPT_PRT_DEBUG) {
-		int i;
-		mpt_prt(mpt, "START_CCB %p for lun %u CDB=<", atiop,
-		    atiop->ccb_h.target_lun);
-		for (i = 0; i < atiop->cdb_len; i++) {
-			mpt_prtc(mpt, "%02x%c", cdbp[i] & 0xff,
-			    (i == (atiop->cdb_len - 1))? '>' : ' ');
-		}
-		mpt_prtc(mpt, " itag %x tag %x rdesc %x dl=%u\n",
-	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
-	}
-	tgt->ccb = (union ccb *) atiop;
-	
-        MPTLOCK_2_CAMLOCK(mpt);
-	xpt_done((union ccb *)atiop);
-        CAMLOCK_2_MPTLOCK(mpt);
-}
-
-static int
-mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
-    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
-{
-	int dbg;
-	union ccb *ccb;
-	U16 status;
-
-	if (reply_frame == NULL) {
-		/*
-		 * Figure out if this is a new command or a target assist
-		 * completing.
-		 */
-		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
-		char serno[8];
-
-		if (tgt->req) {
-			snprintf(serno, 8, "%u", tgt->req->serno);
-		} else {
-			strncpy(serno, "??", 8);
-		}
-
-		switch(tgt->state) {
-		case TGT_STATE_LOADED:
-			mpt_scsi_tgt_atio(mpt, req, reply_desc);
-			break;
-		case TGT_STATE_MOVING_DATA:
-		{
-			uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
-
-			ccb = tgt->ccb;
-			tgt->ccb = NULL;
-			tgt->nxfers++;
-			untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
-			mpt_lprt(mpt, MPT_PRT_DEBUG,
-			    "TARGET_ASSIST %p (req %p:%s) done tag 0x%x\n",
-			    ccb, tgt->req, serno, ccb->csio.tag_id);
-			/*
-			 * Free the Target Assist Request
-			 */
-			KASSERT(tgt->req && tgt->req->ccb == ccb,
-			    ("tgt->req %p:%s tgt->req->ccb %p", tgt->req,
-			    serno, tgt->req? tgt->req->ccb : NULL));
-			mpt_free_request(mpt, tgt->req);
-			tgt->req = NULL;
-			/*
-			 * Do we need to send status now? That is, are
-			 * we done with all our data transfers?
-			 */
-			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) == 0) {
-				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-				KASSERT(ccb->ccb_h.status,
-				    ("zero ccb sts at %d\n", __LINE__));
-				tgt->state = TGT_STATE_IN_CAM;
-				MPTLOCK_2_CAMLOCK(mpt);
-				xpt_done(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
-				break;
-			}
-			if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
-				sp = sense;
-				memcpy(sp, &ccb->csio.sense_data,
-				   min(ccb->csio.sense_len, MPT_SENSE_SIZE));
-			}
-			mpt_scsi_tgt_status(mpt, ccb, req,
-			    ccb->csio.scsi_status, sp);
-			break;
-		}
-		case TGT_STATE_SENDING_STATUS:
-		case TGT_STATE_MOVING_DATA_AND_STATUS:
-		{
-			int ioindex;
-			ccb = tgt->ccb;
-
-			if (ccb) {
-				tgt->ccb = NULL;
-				tgt->nxfers++;
-				untimeout(mpt_timeout, ccb,
-				    ccb->ccb_h.timeout_ch);
-				if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
-					ccb->ccb_h.status |= CAM_SENT_SENSE;
-				}
-				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "TARGET_STATUS tag %x sts %x flgs %x req "
-				    "%p\n", ccb->csio.tag_id, ccb->ccb_h.status,
-				    ccb->ccb_h.flags, tgt->req);
-				/*
-				 * Free the Target Send Status Request
-				 */
-				KASSERT(tgt->req && tgt->req->ccb == ccb,
-				    ("tgt->req %p:%s tgt->req->ccb %p",
-				    tgt->req, serno,
-				    tgt->req? tgt->req->ccb : NULL));
-				/*
-				 * Notify CAM that we're done
-				 */
-				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-				KASSERT(ccb->ccb_h.status,
-				    ("ZERO ccb sts at %d\n", __LINE__));
-				tgt->ccb = NULL;
-			} else {
-				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "TARGET_STATUS non-CAM for  req %p:%s\n",
-				    tgt->req, serno);
-			}
-			mpt_free_request(mpt, tgt->req);
-			tgt->req = NULL;
-
-			/*
-			 * And re-post the Command Buffer.
-			 */
-			ioindex = GET_IO_INDEX(reply_desc);
-			mpt_post_target_command(mpt, req, ioindex);
-
-			/*
-			 * And post a done for anyone who cares
-			 */
-			if (ccb) {
-				MPTLOCK_2_CAMLOCK(mpt);
-				xpt_done(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
-			}
-			break;
-		}
-		case TGT_STATE_NIL:	/* XXX This Never Happens XXX */
-			tgt->state = TGT_STATE_LOADED;
-			break;
-		default:
-			mpt_prt(mpt, "Unknown Target State 0x%x in Context "
-			    "Reply Function\n", tgt->state);
-		}
-		return (TRUE);
-	}
-
-	status = le16toh(reply_frame->IOCStatus);
-	if (status != MPI_IOCSTATUS_SUCCESS) {
-		dbg = MPT_PRT_ERROR;
-	} else {
-		dbg = MPT_PRT_DEBUG1;
-	}
-
-	mpt_lprt(mpt, dbg,
-	    "SCSI_TGT REPLY: req=%p:%u reply=%p func=%x IOCstatus 0x%x\n",
-	     req, req->serno, reply_frame, reply_frame->Function, status);
-
-	switch (reply_frame->Function) {
-	case MPI_FUNCTION_TARGET_CMD_BUFFER_POST:
-		KASSERT(MPT_TGT_STATE(mpt,
-		    req)->state == TGT_STATE_NIL,
-		    ("bad state %x on reply to buffer post\n",
-		    MPT_TGT_STATE(mpt, req)->state));
-		MPT_TGT_STATE(mpt, req)->state = TGT_STATE_LOADED;
-		break;
-	case MPI_FUNCTION_TARGET_ASSIST:
-		mpt_prt(mpt,
-		    "TARGET_ASSIST err for request %p:%u (%x): status 0x%x\n",
-		    req, req->serno, req->index, status);
-		mpt_free_request(mpt, req);
-		break;
-	case MPI_FUNCTION_TARGET_STATUS_SEND:
-		mpt_prt(mpt,
-		    "TARGET_STATUS_SEND error for request %p:%u(%x): status "
-		    "0x%x\n", req, req->serno, req->index, status);
-		mpt_free_request(mpt, req);
-		break;
-	case MPI_FUNCTION_TARGET_MODE_ABORT:
-	{
-		PTR_MSG_TARGET_MODE_ABORT_REPLY abtrp =
-		    (PTR_MSG_TARGET_MODE_ABORT_REPLY) reply_frame;
-		PTR_MSG_TARGET_MODE_ABORT abtp =
-		    (PTR_MSG_TARGET_MODE_ABORT) req->req_vbuf;
-		uint32_t cc = GET_IO_INDEX(le32toh(abtp->ReplyWord));
-		mpt_prt(mpt, "ABORT RX_ID 0x%x Complete; status 0x%x cnt %u\n",
-		    cc, le16toh(abtrp->IOCStatus), le32toh(abtrp->AbortCount));
-		mpt_free_request(mpt, req);
-		break;
-	}
-	default:
-		mpt_prt(mpt, "Unknown Target Address Reply Function code: "
-		    "0x%x\n", reply_frame->Function);
-		break;
 	}
 	return (TRUE);
 }
@@ -3143,10 +2554,11 @@ XXXX
 		break;
 	}
 
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		mpt_freeze_ccb(ccb);
+	}
 
-	return (/*free_reply*/TRUE);
+	return (TRUE);
 }
 
 static void
@@ -3881,9 +3293,8 @@ mpt_recovery_thread(void *arg)
 }
 
 static int
-mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type,
-		  u_int flags, u_int channel, u_int target, u_int lun,
-		  u_int abort_ctx, int sleep_ok)
+mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
+    u_int channel, u_int target, u_int lun, u_int abort_ctx, int sleep_ok)
 {
 	MSG_SCSI_TASK_MGMT *tmf_req;
 	int		    error;
@@ -3895,15 +3306,18 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type,
 	error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_FREE, REQ_STATE_MASK,
 	    sleep_ok, MPT_TMF_MAX_TIMEOUT);
 	if (error != 0) {
-		mpt_reset(mpt, /*reinit*/TRUE);
+		mpt_reset(mpt, TRUE);
 		return (ETIMEDOUT);
 	}
 
+	if ((mpt->tmf_req->serno = mpt->sequence++) == 0) {
+		mpt->tmf_req->serno = mpt->sequence++;
+	}
 	mpt->tmf_req->state = REQ_STATE_ALLOCATED|REQ_STATE_QUEUED;
 	TAILQ_INSERT_HEAD(&mpt->request_pending_list, mpt->tmf_req, links);
 
 	tmf_req = (MSG_SCSI_TASK_MGMT *)mpt->tmf_req->req_vbuf;
-	bzero(tmf_req, sizeof(*tmf_req));
+	memset(tmf_req, 0, sizeof(*tmf_req));
 	tmf_req->TargetID = target;
 	tmf_req->Bus = channel;
 	tmf_req->ChainOffset = 0;
@@ -3914,13 +3328,19 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type,
 	tmf_req->MsgFlags = flags;
 	tmf_req->MsgContext =
 	    htole32(mpt->tmf_req->index | scsi_tmf_handler_id);
-	bzero(&tmf_req->LUN, sizeof(tmf_req->LUN) + sizeof(tmf_req->Reserved2));
-	tmf_req->LUN[1] = lun;
+	memset(&tmf_req->LUN, 0,
+	    sizeof(tmf_req->LUN) + sizeof(tmf_req->Reserved2));
+	if (lun > 256) {
+		tmf_req->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
+		tmf_req->LUN[1] = lun & 0xff;
+	} else {
+		tmf_req->LUN[1] = lun;
+	}
 	tmf_req->TaskMsgContext = abort_ctx;
 
 	mpt_lprt(mpt, MPT_PRT_INFO,
-		 "Issuing TMF %p with MsgContext of 0x%x\n", tmf_req,
-		 tmf_req->MsgContext);
+	    "Issuing TMF %p:%u with MsgContext of 0x%x\n", mpt->tmf_req,
+	    mpt->tmf_req->serno, tmf_req->MsgContext);
 	if (mpt->verbose > MPT_PRT_DEBUG)
 		mpt_print_request(tmf_req);
 
@@ -3931,11 +3351,121 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type,
 		error = mpt_send_handshake_cmd(mpt, sizeof(*tmf_req), tmf_req);
 	}
 	if (error != MPT_OK) {
-		mpt_reset(mpt, /*reinit*/TRUE);
+		mpt_reset(mpt, TRUE);
 	}
 	return (error);
 }
 
+/*
+ * When a command times out, it is placed on the requeust_timeout_list
+ * and we wake our recovery thread.  The MPT-Fusion architecture supports
+ * only a single TMF operation at a time, so we serially abort/bdr, etc,
+ * the timedout transactions.  The next TMF is issued either by the
+ * completion handler of the current TMF waking our recovery thread,
+ * or the TMF timeout handler causing a hard reset sequence.
+ */
+static void
+mpt_recover_commands(struct mpt_softc *mpt)
+{
+	request_t	   *req;
+	union ccb	   *ccb;
+	int		    error;
+
+	if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
+		/*
+		 * No work to do- leave.
+		 */
+		mpt_prt(mpt, "mpt_recover_commands: no requests.\n");
+		return;
+	}
+
+	/*
+	 * Flush any commands whose completion coincides with their timeout.
+	 */
+	mpt_intr(mpt);
+
+	if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
+		/*
+		 * The timedout commands have already
+		 * completed.  This typically means
+		 * that either the timeout value was on
+		 * the hairy edge of what the device
+		 * requires or - more likely - interrupts
+		 * are not happening.
+		 */
+		mpt_prt(mpt, "Timedout requests already complete. "
+                       "Interrupts may not be functioning.\n");
+                mpt_enable_ints(mpt);
+                return;
+	}
+
+	/*
+	 * We have no visibility into the current state of the
+	 * controller, so attempt to abort the commands in the
+	 * order they timed-out.
+	 */
+	while ((req = TAILQ_FIRST(&mpt->request_timeout_list)) != NULL) {
+		u_int status;
+
+		mpt_prt(mpt,
+		    "Attempting to abort req %p:%u\n", req, req->serno);
+		ccb = req->ccb;
+		mpt_set_ccb_status(ccb, CAM_CMD_TIMEOUT);
+		error = mpt_scsi_send_tmf(mpt,
+		    MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
+		    0, 0, ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
+		    htole32(req->index | scsi_io_handler_id), TRUE);
+
+		if (error != 0) {
+			/*
+			 * mpt_scsi_send_tmf hard resets on failure, so no
+			 * need to do so here.  Our queue should be emptied
+			 * by the hard reset.
+			 */
+			continue;
+		}
+
+		error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
+		    REQ_STATE_DONE, TRUE, 500);
+
+		if (error != 0) {
+			/*
+			 * If we've errored out and the transaction is still
+			 * pending, reset the controller.
+			 */
+			mpt_prt(mpt, "mpt_recover_commands: abort timed-out. "
+				"Resetting controller\n");
+			mpt_reset(mpt, TRUE);
+			continue;
+		}
+
+		/*
+		 * TMF is complete.
+		 */
+		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
+		mpt->tmf_req->state = REQ_STATE_FREE;
+
+		status = mpt->tmf_req->IOCStatus;
+		if ((status & MPI_IOCSTATUS_MASK) == MPI_SCSI_STATUS_SUCCESS) {
+			mpt_prt(mpt, "abort of req %p:%u completed\n",
+			    req, req->serno);
+			continue;
+		}
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_recover_commands: abort of "
+		    "%p:%u failed with status 0x%x\n. Resetting controller.",
+		    req, req->serno, status);
+
+		/*
+		 * If the abort attempt fails for any reason, reset the bus.
+		 * We should find all of the timed-out commands on our
+		 * list are in the done state after this completes.
+		 */
+		mpt_bus_reset(mpt, TRUE);
+	}
+}
+
+/************************ Target Mode Support ****************************/
 static void
 mpt_fc_add_els(struct mpt_softc *mpt, request_t *req)
 {
@@ -3990,6 +3520,7 @@ mpt_post_target_command(struct mpt_softc *mpt, request_t *req, int ioindex)
 	paddr = req->req_pbuf;
 	paddr += MPT_RQSL(mpt);
 	memset(req->req_vbuf, 0, MPT_REQUEST_AREA);
+	MPT_TGT_STATE(mpt, req)->state = TGT_STATE_LOADING;
 
 	fc = req->req_vbuf;
 	fc->BufferCount = 1;
@@ -4032,6 +3563,7 @@ mpt_add_target_commands(struct mpt_softc *mpt)
 		if (req == NULL) {
 			break;
 		}
+		req->state |= REQ_STATE_LOCKED;
 		mpt->tgt_cmd_ptrs[i] = req;
 		mpt_post_target_command(mpt, req, i);
 	}
@@ -4115,11 +3647,11 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 	request_t *cmd_req = MPT_TAG_2_REQ(mpt, csio->tag_id);
 	mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
 
-
 	if (tgt->state != TGT_STATE_IN_CAM) {
-		mpt_prt(mpt, "tag 0x%08x in state %x when starting I/O\n",
-		    csio->tag_id, tgt->state);
-		mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
+		mpt_prt(mpt, "ccb flags 0x%x tag 0x%08x had bad request "
+		    "starting I/O\n", csio->ccb_h.flags, csio->tag_id);
+		mpt_tgt_dump_req_state(mpt, cmd_req);
+		mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
 		CAMLOCK_2_MPTLOCK(mpt);
@@ -4134,15 +3666,19 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		KASSERT((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE,
 		    ("dxfer_len %u but direction is NONE\n", csio->dxfer_len));
 
-		req = mpt_get_request(mpt, FALSE);
-		if (req == NULL) {
+		if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
+			if (mpt->outofbeer == 0) {
+				mpt->outofbeer = 1;
+				xpt_freeze_simq(mpt->sim, 1);
+				mpt_lprt(mpt, MPT_PRT_DEBUG, "FREEZEQ\n");
+			}
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
 			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			CAMLOCK_2_MPTLOCK(mpt);
 			return;
 		}
-
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
 		if (sizeof (bus_addr_t) > 4) {
 			cb = mpt_execute_req_a64;
@@ -4273,7 +3809,6 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 			    ccb->ccb_h.status, tgt->resid, tgt->bytes_xfered);
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-			tgt->flags |= BOGUS_JO;
 			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			CAMLOCK_2_MPTLOCK(mpt);
@@ -4335,7 +3870,7 @@ mpt_abort_target_ccb(struct mpt_softc *mpt, union ccb *ccb)
 /*
  * Ask the MPT to abort the current target command
  */ 
-static cam_status
+static int
 mpt_abort_target_cmd(struct mpt_softc *mpt, request_t *cmd_req)
 {
 	int error;
@@ -4344,7 +3879,7 @@ mpt_abort_target_cmd(struct mpt_softc *mpt, request_t *cmd_req)
 
 	req = mpt_get_request(mpt, FALSE);
 	if (req == NULL) {
-		return (CAM_RESRC_UNAVAIL);
+		return (-1);
 	}
 	abtp = req->req_vbuf;
 	memset(abtp, 0, sizeof (*abtp));
@@ -4353,117 +3888,640 @@ mpt_abort_target_cmd(struct mpt_softc *mpt, request_t *cmd_req)
 	abtp->AbortType = TARGET_MODE_ABORT_TYPE_EXACT_IO;
 	abtp->Function = MPI_FUNCTION_TARGET_MODE_ABORT;
 	abtp->ReplyWord = htole32(MPT_TGT_STATE(mpt, cmd_req)->reply_desc);
+	error = 0;
 	if (mpt->is_fc || mpt->is_sas) {
 		mpt_send_cmd(mpt, req);
 	} else {
 		error = mpt_send_handshake_cmd(mpt, sizeof(*req), req);
 	}
-	return (CAM_REQ_INPROG);
+	return (error);
 }
 
 /*
- * When a command times out, it is placed on the requeust_timeout_list
- * and we wake our recovery thread.  The MPT-Fusion architecture supports
- * only a single TMF operation at a time, so we serially abort/bdr, etc,
- * the timedout transactions.  The next TMF is issued either by the
- * completion handler of the current TMF waking our recovery thread,
- * or the TMF timeout handler causing a hard reset sequence.
+ * WE_TRUST_AUTO_GOOD_STATUS- I've found that setting 
+ * TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS leads the
+ * FC929 to set bogus FC_RSP fields (nonzero residuals
+ * but w/o RESID fields set). This causes QLogic initiators
+ * to think maybe that a frame was lost.
+ *
+ * WE_CAN_USE_AUTO_REPOST- we can't use AUTO_REPOST because
+ * we use allocated requests to do TARGET_ASSIST and we
+ * need to know when to release them.
  */
-static void
-mpt_recover_commands(struct mpt_softc *mpt)
-{
-	request_t	   *req;
-	union ccb	   *ccb;
-	int		    error;
 
-	if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
+static void
+mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
+    uint8_t status, uint8_t const *sense_data)
+{
+	uint8_t *cmd_vbuf;
+	mpt_tgt_state_t *tgt;
+	PTR_MSG_TARGET_STATUS_SEND_REQUEST tp;
+	request_t *req;
+	bus_addr_t paddr;
+	int resplen = 0;
+
+	cmd_vbuf = cmd_req->req_vbuf;
+	cmd_vbuf += MPT_RQSL(mpt);
+	tgt = MPT_TGT_STATE(mpt, cmd_req);
+
+	if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
+		if (mpt->outofbeer == 0) {
+			mpt->outofbeer = 1;
+			xpt_freeze_simq(mpt->sim, 1);
+			mpt_lprt(mpt, MPT_PRT_DEBUG, "FREEZEQ\n");
+		}
+		if (ccb) {
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
+			MPTLOCK_2_CAMLOCK(mpt);
+			xpt_done(ccb);
+			CAMLOCK_2_MPTLOCK(mpt);
+		} else {
+			mpt_prt(mpt,
+			    "XXXX could not allocate status req- dropping\n");
+		}
+		return;
+	}
+	req->ccb = ccb;
+	if (ccb) {
+		ccb->ccb_h.ccb_mpt_ptr = mpt;
+		ccb->ccb_h.ccb_req_ptr = req;
+	}
+
+	/*
+	 * Record the currently active ccb, if any, and the
+	 * request for it in our target state area.
+	 */
+	tgt->ccb = ccb;
+	tgt->req = req;
+	tgt->state = TGT_STATE_SENDING_STATUS;
+
+	tp = req->req_vbuf;
+	paddr = req->req_pbuf;
+	paddr += MPT_RQSL(mpt);
+
+	memset(tp, 0, sizeof (*tp));
+	tp->Function = MPI_FUNCTION_TARGET_STATUS_SEND;
+	if (mpt->is_fc) {
+		PTR_MPI_TARGET_FCP_CMD_BUFFER fc =
+		    (PTR_MPI_TARGET_FCP_CMD_BUFFER) cmd_vbuf;
+		uint8_t *sts_vbuf;
+		uint32_t *rsp;
+
+		sts_vbuf = req->req_vbuf;
+		sts_vbuf += MPT_RQSL(mpt);
+		rsp = (uint32_t *) sts_vbuf;
+		memcpy(tp->LUN, fc->FcpLun, sizeof (tp->LUN));
+
 		/*
-		 * No work to do- leave.
+		 * The MPI_TARGET_FCP_RSP_BUFFER define is unfortunate.
+		 * It has to be big-endian in memory and is organized
+		 * in 32 bit words, which are much easier to deal with
+		 * as words which are swizzled as needed.
+		 *
+		 * All we're filling here is the FC_RSP payload.
+		 * We may just have the chip synthesize it if
+		 * we have no residual and an OK status.
+		 *
 		 */
-		mpt_prt(mpt, "mpt_recover_commands: no requests.\n");
+		memset(rsp, 0, sizeof (MPI_TARGET_FCP_RSP_BUFFER));
+
+		rsp[2] = status;
+		if (tgt->resid) {
+			rsp[2] |= 0x800;
+			rsp[3] = htobe32(tgt->resid);
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
+#endif
+		}
+		if (status == SCSI_STATUS_CHECK_COND) {
+			int i;
+
+			rsp[2] |= 0x200;
+			rsp[4] = htobe32(MPT_SENSE_SIZE);
+			memcpy(&rsp[8], sense_data, MPT_SENSE_SIZE);
+			for (i = 8; i < (8 + (MPT_SENSE_SIZE >> 2)); i++) {
+				rsp[i] = htobe32(rsp[i]);
+			}
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
+#endif
+		}
+#ifndef	WE_TRUST_AUTO_GOOD_STATUS
+		resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
+#endif
+		rsp[2] = htobe32(rsp[2]);
+	} else if (mpt->is_sas) {
+		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp =
+		    (PTR_MPI_TARGET_SSP_CMD_BUFFER) cmd_vbuf;
+		memcpy(tp->LUN, ssp->LogicalUnitNumber, sizeof (tp->LUN));
+	} else {
+		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp =
+		    (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) cmd_vbuf;
+		tp->StatusCode = status;
+		tp->QueueTag = htole16(sp->Tag);
+		memcpy(tp->LUN, sp->LogicalUnitNumber, sizeof (tp->LUN));
+	}
+
+	tp->ReplyWord = htole32(tgt->reply_desc);
+	tp->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
+
+#ifdef	WE_CAN_USE_AUTO_REPOST
+	tp->MsgFlags = TARGET_STATUS_SEND_FLAGS_REPOST_CMD_BUFFER;
+#endif
+	if (status == SCSI_STATUS_OK && resplen == 0) {
+		tp->MsgFlags |= TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS;
+	} else {
+		tp->StatusDataSGE.u.Address32 = (uint32_t) paddr;
+		tp->StatusDataSGE.FlagsLength =
+			MPI_SGE_FLAGS_HOST_TO_IOC	|
+			MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
+			MPI_SGE_FLAGS_LAST_ELEMENT	|
+			MPI_SGE_FLAGS_END_OF_LIST	|
+			MPI_SGE_FLAGS_END_OF_BUFFER;
+		tp->StatusDataSGE.FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
+		tp->StatusDataSGE.FlagsLength |= resplen;
+	}
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG, 
+	    "STATUS_CCB %p (wit%s sense) tag %x req %p:%u resid %u\n",
+	    ccb, sense_data?"h" : "hout", ccb? ccb->csio.tag_id : -1, req,
+	    req->serno, tgt->resid);
+	if (ccb) {
+		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
+		ccb->ccb_h.timeout_ch = timeout(mpt_timeout, (caddr_t)ccb, hz);
+	}
+	mpt_send_cmd(mpt, req);
+}
+
+static void
+mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
+    tgt_resource_t *trtp, int init_id)
+{
+	struct ccb_immed_notify *inot;
+	mpt_tgt_state_t *tgt;
+
+	tgt = MPT_TGT_STATE(mpt, req);
+	inot = (struct ccb_immed_notify *) STAILQ_FIRST(&trtp->inots);
+	if (inot == NULL) {
+		mpt_lprt(mpt, MPT_PRT_WARN, "no INOTSs- sending back BSY\n");
+		mpt_scsi_tgt_status(mpt, NULL, req, SCSI_STATUS_BUSY, NULL);
+		return;
+	}
+	STAILQ_REMOVE_HEAD(&trtp->inots, sim_links.stqe);
+	mpt_lprt(mpt, MPT_PRT_DEBUG1,
+	    "Get FREE INOT %p lun %d\n", inot, inot->ccb_h.target_lun);
+
+	memset(&inot->sense_data, 0, sizeof (inot->sense_data));
+	inot->sense_len = 0;
+	memset(inot->message_args, 0, sizeof (inot->message_args));
+	inot->initiator_id = init_id;	/* XXX */
+
+	/*
+	 * This is a somewhat grotesque attempt to map from task management
+	 * to old style SCSI messages. God help us all.
+	 */
+	switch (fc) {
+	case MPT_ABORT_TASK_SET:
+		inot->message_args[0] = MSG_ABORT_TAG;
+		break;
+	case MPT_CLEAR_TASK_SET:
+		inot->message_args[0] = MSG_CLEAR_TASK_SET;
+		break;
+	case MPT_TARGET_RESET:
+		inot->message_args[0] = MSG_TARGET_RESET;
+		break;
+	case MPT_CLEAR_ACA:
+		inot->message_args[0] = MSG_CLEAR_ACA;
+		break;
+	case MPT_TERMINATE_TASK:
+		inot->message_args[0] = MSG_ABORT_TAG;
+		break;
+	default:
+		inot->message_args[0] = MSG_NOOP;
+		break;
+	}
+	tgt->ccb = (union ccb *) inot;
+	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
+        MPTLOCK_2_CAMLOCK(mpt);
+	xpt_done((union ccb *)inot);
+        CAMLOCK_2_MPTLOCK(mpt);
+}
+
+static void
+mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
+{
+	struct ccb_accept_tio *atiop;
+	lun_id_t lun;
+	int tag_action = 0;
+	mpt_tgt_state_t *tgt;
+	tgt_resource_t *trtp;
+	U8 *lunptr;
+	U8 *vbuf;
+	U16 itag;
+	U16 ioindex;
+	mpt_task_mgmt_t fct = MPT_NIL_TMT_VALUE;
+	uint8_t *cdbp;
+
+	/*
+	 * First, DMA sync the received command- which is in the *request*
+	 * phys area.
+	 * XXX: We could optimize this for a range
+	 */
+	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+            BUS_DMASYNC_POSTREAD);
+
+	/*
+	 * Stash info for the current command where we can get at it later.
+	 */
+	vbuf = req->req_vbuf;
+	vbuf += MPT_RQSL(mpt);
+
+	/*
+	 * Get our state pointer set up.
+	 */
+	tgt = MPT_TGT_STATE(mpt, req);
+	if (tgt->state != TGT_STATE_LOADED) {
+		mpt_tgt_dump_req_state(mpt, req);
+		panic("bad target state in mpt_scsi_tgt_atio");
+	}
+	memset(tgt, 0, sizeof (mpt_tgt_state_t));
+	tgt->state = TGT_STATE_IN_CAM;
+	tgt->reply_desc = reply_desc;
+	ioindex = GET_IO_INDEX(reply_desc);
+
+	if (mpt->is_fc) {
+		PTR_MPI_TARGET_FCP_CMD_BUFFER fc;
+		fc = (PTR_MPI_TARGET_FCP_CMD_BUFFER) vbuf;
+		if (fc->FcpCntl[2]) {
+			/*
+			 * Task Management Request
+			 */
+			switch (fc->FcpCntl[2]) {
+			case 0x2:
+				fct = MPT_ABORT_TASK_SET;
+				break;
+			case 0x4:
+				fct = MPT_CLEAR_TASK_SET;
+				break;
+			case 0x20:
+				fct = MPT_TARGET_RESET;
+				break;
+			case 0x40:
+				fct = MPT_CLEAR_ACA;
+				break;
+			case 0x80:
+				fct = MPT_TERMINATE_TASK;
+				break;
+			default:
+				mpt_prt(mpt, "CORRUPTED TASK MGMT BITS: 0x%x\n",
+				    fc->FcpCntl[2]);
+				mpt_scsi_tgt_status(mpt, 0, req,
+				    SCSI_STATUS_OK, 0);
+				return;
+			}
+			return;
+		}
+		switch (fc->FcpCntl[1]) {
+		case 0:
+			tag_action = MSG_SIMPLE_Q_TAG;
+			break;
+		case 1:
+			tag_action = MSG_HEAD_OF_Q_TAG;
+			break;
+		case 2:
+			tag_action = MSG_ORDERED_Q_TAG;
+			break;
+		default:
+			/*
+			 * Bah. Ignore Untagged Queing and ACA
+			 */
+			tag_action = MSG_SIMPLE_Q_TAG;
+			break;
+		}
+		tgt->resid = be32toh(fc->FcpDl);
+		cdbp = fc->FcpCdb;
+		lunptr = fc->FcpLun;
+		itag = be16toh(fc->OptionalOxid);
+	} else if (mpt->is_sas) {
+		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp;
+		ssp = (PTR_MPI_TARGET_SSP_CMD_BUFFER) vbuf;
+		cdbp = ssp->CDB;
+		lunptr = ssp->LogicalUnitNumber;
+		itag = ssp->InitiatorTag;
+	} else {
+		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp;
+		sp = (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) vbuf;
+		cdbp = sp->CDB;
+		lunptr = sp->LogicalUnitNumber;
+		itag = sp->Tag;
+	}
+
+	/*
+	 * Generate a simple lun
+	 */
+	switch (lunptr[0] & 0xc0) {
+	case 0x40:
+		lun = ((lunptr[0] & 0x3f) << 8) | lunptr[1];
+		break;
+	case 0:
+		lun = lunptr[1];
+		break;
+	default:
+		mpt_lprt(mpt, MPT_PRT_ERROR, "cannot handle this type lun\n");
+		lun = 0xffff;
+		break;
+	}
+
+	/*
+	 * Deal with non-enabled or bad luns here.
+	 */
+	if (lun >= MPT_MAX_LUNS || mpt->tenabled == 0 ||
+	    mpt->trt[lun].enabled == 0) {
+		if (mpt->twildcard) {
+			trtp = &mpt->trt_wildcard;
+		} else {
+			const uint8_t sp[MPT_SENSE_SIZE] = {
+				0xf0, 0, 0x5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0x25
+			};
+			mpt_scsi_tgt_status(mpt, NULL, req,
+			    SCSI_STATUS_CHECK_COND, sp);
+			return;
+		}
+	} else {
+		trtp = &mpt->trt[lun];
+	}
+
+	if (fct != MPT_NIL_TMT_VALUE) {
+		/* undo any tgt residual settings */
+		tgt->resid = 0;
+		mpt_scsi_tgt_tsk_mgmt(mpt, req, fct, trtp,
+		    GET_INITIATOR_INDEX(reply_desc));
 		return;
 	}
 
-	/*
-	 * Flush any commands whose completion coincides with their timeout.
-	 */
-	mpt_intr(mpt);
-
-	if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
-		/*
-		 * The timedout commands have already
-		 * completed.  This typically means
-		 * that either the timeout value was on
-		 * the hairy edge of what the device
-		 * requires or - more likely - interrupts
-		 * are not happening.
-		 */
-		mpt_prt(mpt, "Timedout requests already complete. "
-                       "Interrupts may not be functioning.\n");
-                mpt_enable_ints(mpt);
-                return;
+	atiop = (struct ccb_accept_tio *) STAILQ_FIRST(&trtp->atios);
+	if (atiop == NULL) {
+		mpt_lprt(mpt, MPT_PRT_WARN,
+		    "no ATIOs for lun %u- sending back %s\n", lun,
+		    mpt->tenabled? "QUEUE FULL" : "BUSY");
+		mpt_scsi_tgt_status(mpt, NULL, req,
+		    mpt->tenabled? SCSI_STATUS_QUEUE_FULL : SCSI_STATUS_BUSY,
+		    NULL);
+		return;
 	}
+	STAILQ_REMOVE_HEAD(&trtp->atios, sim_links.stqe);
+	mpt_lprt(mpt, MPT_PRT_DEBUG1,
+	    "Get FREE ATIO %p lun %d\n", atiop, atiop->ccb_h.target_lun);
+	atiop->ccb_h.ccb_mpt_ptr = mpt;
+        atiop->ccb_h.status = CAM_CDB_RECVD;
+	atiop->ccb_h.target_lun = lun;
+	atiop->sense_len = 0;
+        atiop->init_id = GET_INITIATOR_INDEX(reply_desc);
+        atiop->cdb_len = mpt_cdblen(cdbp[0], 16);
+        memcpy(atiop->cdb_io.cdb_bytes, cdbp, atiop->cdb_len);
 
 	/*
-	 * We have no visibility into the current state of the
-	 * controller, so attempt to abort the commands in the
-	 * order they timed-out.
+	 * The tag we construct here allows us to find the
+	 * original request that the command came in with.
+	 *
+	 * This way we don't have to depend on anything but the
+	 * tag to find things when CCBs show back up from CAM.
 	 */
-	while ((req = TAILQ_FIRST(&mpt->request_timeout_list)) != NULL) {
-		u_int status;
+        atiop->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
+	tgt->tag_id = atiop->tag_id;
+	if (tag_action) {
+                atiop->tag_action = tag_action;
+		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+	}
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		int i;
+		mpt_prt(mpt, "START_CCB %p for lun %u CDB=<", atiop,
+		    atiop->ccb_h.target_lun);
+		for (i = 0; i < atiop->cdb_len; i++) {
+			mpt_prtc(mpt, "%02x%c", cdbp[i] & 0xff,
+			    (i == (atiop->cdb_len - 1))? '>' : ' ');
+		}
+		mpt_prtc(mpt, " itag %x tag %x rdesc %x dl=%u\n",
+	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
+	}
+	tgt->ccb = (union ccb *) atiop;
+	
+        MPTLOCK_2_CAMLOCK(mpt);
+	xpt_done((union ccb *)atiop);
+        CAMLOCK_2_MPTLOCK(mpt);
+}
 
-		mpt_prt(mpt, "Attempting to Abort Req %p\n", req);
+static void
+mpt_tgt_dump_tgt_state(struct mpt_softc *mpt, request_t *req)
+{
+	mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
 
-		ccb = req->ccb;
-		mpt_set_ccb_status(ccb, CAM_CMD_TIMEOUT);
-		error = mpt_scsi_send_tmf(mpt,
-		    MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
-		    /*MsgFlags*/0, /*Bus*/0, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun,
-		    htole32(req->index | scsi_io_handler_id), /*sleep_ok*/TRUE);
+	mpt_prt(mpt, "req %p:%u tgt:rdesc 0x%x resid %u xfrd %u ccb %p treq %p "
+	    "nx %d tag %08x state=%d\n", req, req->serno, tgt->reply_desc,
+	    tgt->resid, tgt->bytes_xfered, tgt->ccb, tgt->req, tgt->nxfers,
+	    tgt->tag_id, tgt->state);
+}
 
-		if (error != 0) {
-			/*
-			 * mpt_scsi_send_tmf hard resets on failure, so no
-			 * need to do so here.  Our queue should be emptied
-			 * by the hard reset.
-			 */
-			continue;
+static void
+mpt_tgt_dump_req_state(struct mpt_softc *mpt, request_t *req)
+{
+	mpt_prt(mpt, "req %p:%u index %u (%x) state %x\n", req, req->serno,
+	    req->index, req->index, req->state);
+	mpt_tgt_dump_tgt_state(mpt, req);
+}
+
+static int
+mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
+{
+	int dbg;
+	union ccb *ccb;
+	U16 status;
+
+	if (reply_frame == NULL) {
+		/*
+		 * Figure out if this is a new command or a target assist
+		 * completing.
+		 */
+		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
+		char serno[8];
+
+		if (tgt->req) {
+			snprintf(serno, 8, "%u", tgt->req->serno);
+		} else {
+			strncpy(serno, "??", 8);
 		}
 
-		error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
-		    REQ_STATE_DONE, /*sleep_ok*/TRUE, /*time_ms*/500);
+		switch(tgt->state) {
+		case TGT_STATE_LOADED:
+			mpt_scsi_tgt_atio(mpt, req, reply_desc);
+			break;
+		case TGT_STATE_MOVING_DATA:
+		{
+			uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
 
-		status = mpt->tmf_req->IOCStatus;
-		if (error != 0) {
+			ccb = tgt->ccb;
+			tgt->ccb = NULL;
+			tgt->nxfers++;
+			untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "TARGET_ASSIST %p (req %p:%s) done tag 0x%x\n",
+			    ccb, tgt->req, serno, ccb->csio.tag_id);
+			/*
+			 * Free the Target Assist Request
+			 */
+			KASSERT(tgt->req && tgt->req->ccb == ccb,
+			    ("tgt->req %p:%s tgt->req->ccb %p", tgt->req,
+			    serno, tgt->req? tgt->req->ccb : NULL));
+			mpt_free_request(mpt, tgt->req);
+			tgt->req = NULL;
+			/*
+			 * Do we need to send status now? That is, are
+			 * we done with all our data transfers?
+			 */
+			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) == 0) {
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+				KASSERT(ccb->ccb_h.status,
+				    ("zero ccb sts at %d\n", __LINE__));
+				tgt->state = TGT_STATE_IN_CAM;
+				if (mpt->outofbeer) {
+					ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+					mpt->outofbeer = 0;
+					mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
+				}
+				MPTLOCK_2_CAMLOCK(mpt);
+				xpt_done(ccb);
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
+				sp = sense;
+				memcpy(sp, &ccb->csio.sense_data,
+				   min(ccb->csio.sense_len, MPT_SENSE_SIZE));
+			}
+			mpt_scsi_tgt_status(mpt, ccb, req,
+			    ccb->csio.scsi_status, sp);
+			break;
+		}
+		case TGT_STATE_SENDING_STATUS:
+		case TGT_STATE_MOVING_DATA_AND_STATUS:
+		{
+			int ioindex;
+			ccb = tgt->ccb;
+
+			if (ccb) {
+				tgt->ccb = NULL;
+				tgt->nxfers++;
+				untimeout(mpt_timeout, ccb,
+				    ccb->ccb_h.timeout_ch);
+				if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
+					ccb->ccb_h.status |= CAM_SENT_SENSE;
+				}
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "TARGET_STATUS tag %x sts %x flgs %x req "
+				    "%p\n", ccb->csio.tag_id, ccb->ccb_h.status,
+				    ccb->ccb_h.flags, tgt->req);
+				/*
+				 * Free the Target Send Status Request
+				 */
+				KASSERT(tgt->req && tgt->req->ccb == ccb,
+				    ("tgt->req %p:%s tgt->req->ccb %p",
+				    tgt->req, serno,
+				    tgt->req? tgt->req->ccb : NULL));
+				/*
+				 * Notify CAM that we're done
+				 */
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+				KASSERT(ccb->ccb_h.status,
+				    ("ZERO ccb sts at %d\n", __LINE__));
+				tgt->ccb = NULL;
+			} else {
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "TARGET_STATUS non-CAM for  req %p:%s\n",
+				    tgt->req, serno);
+			}
+			mpt_free_request(mpt, tgt->req);
+			tgt->req = NULL;
 
 			/*
-			 * If we've errored out and the transaction is still
-			 * pending, reset the controller.
+			 * And re-post the Command Buffer.
 			 */
-			mpt_prt(mpt, "mpt_recover_commands: Abort timed-out. "
-				"Resetting controller\n");
-			mpt_reset(mpt, /*reinit*/TRUE);
-			continue;
+			ioindex = GET_IO_INDEX(reply_desc);
+			mpt_post_target_command(mpt, req, ioindex);
+
+			/*
+			 * And post a done for anyone who cares
+			 */
+			if (ccb) {
+				if (mpt->outofbeer) {
+					ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+					mpt->outofbeer = 0;
+					mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
+				}
+				MPTLOCK_2_CAMLOCK(mpt);
+				xpt_done(ccb);
+				CAMLOCK_2_MPTLOCK(mpt);
+			}
+			break;
 		}
-
-		/*
-		 * TMF is complete.
-		 */
-		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
-		mpt->tmf_req->state = REQ_STATE_FREE;
-		if ((status & MPI_IOCSTATUS_MASK) == MPI_SCSI_STATUS_SUCCESS)
-			continue;
-
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "mpt_recover_commands: Abort Failed "
-			 "with status 0x%x\n.  Resetting bus", status);
-
-		/*
-		 * If the abort attempt fails for any reason, reset the bus.
-		 * We should find all of the timed-out commands on our
-		 * list are in the done state after this completes.
-		 */
-		mpt_bus_reset(mpt, /*sleep_ok*/TRUE);
+		case TGT_STATE_NIL:	/* XXX This Never Happens XXX */
+			tgt->state = TGT_STATE_LOADED;
+			break;
+		default:
+			mpt_prt(mpt, "Unknown Target State 0x%x in Context "
+			    "Reply Function\n", tgt->state);
+		}
+		return (TRUE);
 	}
+
+	status = le16toh(reply_frame->IOCStatus);
+	if (status != MPI_IOCSTATUS_SUCCESS) {
+		dbg = MPT_PRT_ERROR;
+	} else {
+		dbg = MPT_PRT_DEBUG1;
+	}
+
+	mpt_lprt(mpt, dbg,
+	    "SCSI_TGT REPLY: req=%p:%u reply=%p func=%x IOCstatus 0x%x\n",
+	     req, req->serno, reply_frame, reply_frame->Function, status);
+
+	switch (reply_frame->Function) {
+	case MPI_FUNCTION_TARGET_CMD_BUFFER_POST:
+	{
+		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
+		KASSERT(tgt->state == TGT_STATE_LOADING,
+		    ("bad state 0%x on reply to buffer post\n", tgt->state));
+		if ((req->serno = mpt->sequence++) == 0) {
+			req->serno = mpt->sequence++;
+		}
+		tgt->state = TGT_STATE_LOADED;
+		break;
+	}
+	case MPI_FUNCTION_TARGET_ASSIST:
+		mpt_free_request(mpt, req);
+		break;
+	case MPI_FUNCTION_TARGET_STATUS_SEND:
+		mpt_free_request(mpt, req);
+		break;
+	case MPI_FUNCTION_TARGET_MODE_ABORT:
+	{
+		PTR_MSG_TARGET_MODE_ABORT_REPLY abtrp =
+		    (PTR_MSG_TARGET_MODE_ABORT_REPLY) reply_frame;
+		PTR_MSG_TARGET_MODE_ABORT abtp =
+		    (PTR_MSG_TARGET_MODE_ABORT) req->req_vbuf;
+		uint32_t cc = GET_IO_INDEX(le32toh(abtp->ReplyWord));
+		mpt_prt(mpt, "ABORT RX_ID 0x%x Complete; status 0x%x cnt %u\n",
+		    cc, le16toh(abtrp->IOCStatus), le32toh(abtrp->AbortCount));
+		mpt_free_request(mpt, req);
+		break;
+	}
+	default:
+		mpt_prt(mpt, "Unknown Target Address Reply Function code: "
+		    "0x%x\n", reply_frame->Function);
+		break;
+	}
+	return (TRUE);
 }

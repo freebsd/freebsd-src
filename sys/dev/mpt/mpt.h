@@ -278,12 +278,14 @@ u64toh(U64 s)
 
 /**************************** MPI Transaction State ***************************/
 typedef enum {
-	REQ_STATE_FREE		= 0x00,
-	REQ_STATE_ALLOCATED	= 0x01,
-	REQ_STATE_QUEUED	= 0x02,
-	REQ_STATE_DONE		= 0x04,
-	REQ_STATE_TIMEDOUT	= 0x08,
-	REQ_STATE_NEED_WAKEUP	= 0x10,
+	REQ_STATE_NIL		= 0x00,
+	REQ_STATE_FREE		= 0x01,
+	REQ_STATE_ALLOCATED	= 0x02,
+	REQ_STATE_QUEUED	= 0x04,
+	REQ_STATE_DONE		= 0x08,
+	REQ_STATE_TIMEDOUT	= 0x10,
+	REQ_STATE_NEED_WAKEUP	= 0x20,
+	REQ_STATE_LOCKED	= 0x80,	/* can't be freed */
 	REQ_STATE_MASK		= 0xFF
 } mpt_req_state_t; 
 
@@ -292,7 +294,7 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
-	uint16_t	serno;		/* serial number */
+	uint32_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
@@ -310,11 +312,11 @@ typedef struct {
 	uint32_t bytes_xfered;	/* current relative offset */
 	union ccb *ccb;		/* pointer to currently active ccb */
 	request_t *req;		/* pointer to currently active assist request */
-	int	flags;
-#define	BOGUS_JO	0x01
 	int	nxfers;
+	uint32_t tag_id;
 	enum {
 		TGT_STATE_NIL,
+		TGT_STATE_LOADING,
 		TGT_STATE_LOADED,
 		TGT_STATE_IN_CAM,
                 TGT_STATE_SETTING_UP_FOR_DATA,
@@ -335,12 +337,12 @@ typedef struct {
  * which owns the incoming ATIO plus a rolling sequence number.
  */
 #define	MPT_MAKE_TAGID(mpt, req, ioindex)	\
-	((ioindex << 16) | (mpt->sequence++))
+ ((ioindex << 18) | (((mpt->sequence++) & 0x3f) << 12) | (req->index & 0xfff))
 
 #ifdef	INVARIANTS
 #define	MPT_TAG_2_REQ(a, b)		mpt_tag_2_req(a, (uint32_t) b)
 #else
-#define	MPT_TAG_2_REQ(mpt, tag)		mpt->tgt_cmd_ptrs[tag >> 16]
+#define	MPT_TAG_2_REQ(mpt, tag)		mpt->tgt_cmd_ptrs[tag >> 18]
 #endif
 
 #define	MPT_TGT_STATE(mpt, req) ((mpt_tgt_state_t *) \
@@ -509,6 +511,7 @@ struct mpt_softc {
 	uint8_t		mpt_max_devices;
 	uint8_t		mpt_max_buses;
 	uint8_t		ioc_facts_flags;
+	uint8_t		padding0;
 
 	/*
 	 * Port Facts
@@ -615,11 +618,6 @@ struct mpt_softc {
 	struct req_queue	request_pending_list;
 	struct req_queue	request_timeout_list;
 
-	/*
-	 * Deferred frame acks due to resource shortage.
-	 */
-	struct mpt_evtf_list	ack_frames;
-
 
 	struct cam_sim	       *sim;
 	struct cam_path	       *path;
@@ -630,6 +628,10 @@ struct mpt_softc {
 	struct proc	       *recovery_thread;
 	request_t	       *tmf_req;
 
+	/*
+	 * Deferred frame acks due to resource shortage.
+	 */
+	struct mpt_evtf_list	ack_frames;
 	/*
 	 * Target Mode Support
 	 */
@@ -644,13 +646,11 @@ struct mpt_softc {
 	tgt_resource_t		trt_wildcard;	/* wildcard luns */
 	tgt_resource_t		trt[MPT_MAX_LUNS];
 	uint16_t		tgt_cmds_allocated;
+	uint16_t		padding1;
 
-	/*
-	 * Stuff..
-	 */
-	uint16_t		sequence;	/* Sequence Number */
 	uint16_t		timeouts;	/* timeout count */
 	uint16_t		success;	/* successes afer timeout */
+	uint32_t		sequence;	/* Sequence Number */
 
 
 	/* Opposing port in a 929 or 1030, or NULL */
@@ -806,18 +806,12 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 #define MPT_SENSE_SIZE		32	/* included in MPT_REQUEST_AREA */
 #define MPT_REQ_MEM_SIZE(mpt)	(MPT_MAX_REQUESTS(mpt) * MPT_REQUEST_AREA)
 
-/*
- * Currently we try to pack both callbacks and request indices into 14 bits
- * so that we don't have to get fancy when we get a target mode context
- * reply (which only has 14 bits of IoIndex value) or a normal scsi
- * initiator context reply (where we get bits 28..0 of context).
- */
-#define MPT_CONTEXT_CB_SHIFT	(14)
+#define MPT_CONTEXT_CB_SHIFT	(16)
 #define MPT_CBI(handle)		(handle >> MPT_CONTEXT_CB_SHIFT)
 #define MPT_CBI_TO_HID(cbi)	((cbi) << MPT_CONTEXT_CB_SHIFT)
 #define MPT_CONTEXT_TO_CBI(x)	\
     (((x) >> MPT_CONTEXT_CB_SHIFT) & (MPT_NUM_REPLY_HANDLERS - 1))
-#define MPT_CONTEXT_REQI_MASK	0x3FFF
+#define MPT_CONTEXT_REQI_MASK	0xFFFF
 #define MPT_CONTEXT_TO_REQI(x)	((x) & MPT_CONTEXT_REQI_MASK)
 
 /*
@@ -857,8 +851,9 @@ mpt_pop_reply_queue(struct mpt_softc *mpt)
      return mpt_read(mpt, MPT_OFFSET_REPLY_Q);
 }
 
-void mpt_complete_request_chain(struct mpt_softc *mpt,
-				struct req_queue *chain, u_int iocstatus);
+void
+mpt_complete_request_chain(struct mpt_softc *, struct req_queue *, u_int);
+
 /************************** Scatter Gather Managment **************************/
 /* MPT_RQSL- size of request frame, in bytes */
 #define	MPT_RQSL(mpt)		(mpt->request_frame_size << 2)
@@ -954,7 +949,7 @@ static __inline request_t * mpt_tag_2_req(struct mpt_softc *, uint32_t);
 static __inline request_t *
 mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
 {
-	uint16_t rtg = (tag >> 16);
+	uint16_t rtg = (tag >> 18);
 	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d\n", tag));
 	KASSERT(mpt->tgt_cmd_ptrs, ("no cmd backpointer array"));
 	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
