@@ -1292,10 +1292,10 @@ sbcreatecontrol(p, size, type, level)
  * Some routines that return EOPNOTSUPP for entry points that are not
  * supported by a protocol.  Fill in as needed.
  */
-int
+void
 pru_abort_notsupp(struct socket *so)
 {
-	return EOPNOTSUPP;
+
 }
 
 int

@@ -78,7 +78,7 @@ static int	atm_aal5_disconnect(struct socket *);
 static int	atm_aal5_shutdown(struct socket *);
 static int	atm_aal5_send(struct socket *, int, KBuffer *,
 			struct sockaddr *, KBuffer *, struct thread *td);
-static int	atm_aal5_abort(struct socket *);
+static void	atm_aal5_abort(struct socket *);
 static int	atm_aal5_control(struct socket *, u_long, caddr_t, 
 			struct ifnet *, struct thread *td);
 static int	atm_aal5_sense(struct socket *, struct stat *);
@@ -204,6 +204,11 @@ static Atm_attributes	atm_aal5_defattr = {
 	;
 #endif /* DIAGNOSTIC */
 
+#define	ATM_INTRO_NOERR(f)					\
+	int		s;					\
+	s = splnet();						\
+	;
+
 #define	ATM_OUTRO()						\
 	/*							\
 	 * Drain any deferred calls				\
@@ -211,6 +216,14 @@ static Atm_attributes	atm_aal5_defattr = {
 	STACK_DRAIN();						\
 	(void) splx(s);						\
 	return (err);						\
+	;
+
+#define	ATM_OUTRO_NOERR()					\
+	/*							\
+	 * Drain any deferred calls				\
+	 */							\
+	STACK_DRAIN();						\
+	(void) splx(s);						\
 	;
 
 #define	ATM_RETERR(errno) {					\
@@ -546,16 +559,16 @@ out:
  *	errno	error processing request - reason indicated
  *
  */
-static int
+static void
 atm_aal5_abort(so)
 	struct socket	*so;
 {
-	ATM_INTRO("abort");
+	ATM_INTRO_NOERR("abort");
 
 	so->so_error = ECONNABORTED;
-	err = atm_sock_detach(so);
+	atm_sock_detach(so);
 
-	ATM_OUTRO();
+	ATM_OUTRO_NOERR();
 }
 
 

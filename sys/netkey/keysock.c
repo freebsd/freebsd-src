@@ -278,14 +278,11 @@ key_sendup_mbuf(so, m, target)
  * key_abort()
  * derived from net/rtsock.c:rts_abort()
  */
-static int
+static void
 key_abort(struct socket *so)
 {
-	int s, error;
-	s = splnet();
-	error = raw_usrreqs.pru_abort(so);
-	splx(s);
-	return error;
+
+	raw_usrreqs.pru_abort(so);
 }
 
 /*

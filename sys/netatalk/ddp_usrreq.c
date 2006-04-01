@@ -200,7 +200,7 @@ out:
 	return (error);
 }
 
-static int
+static void
 ddp_abort(struct socket *so)
 {
 	struct ddpcb	*ddp;
@@ -211,8 +211,6 @@ ddp_abort(struct socket *so)
 	DDP_LOCK(ddp);
 	at_pcbdetach(so, ddp);
 	DDP_LIST_XUNLOCK();
-	/* XXXRW: Should be calling sotryfree() here? */
-	return (0);
 }
 
 void 
