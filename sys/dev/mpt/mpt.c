@@ -1398,11 +1398,11 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	    (hdr->Function != MPI_FUNCTION_IOC_FACTS)){
 #if __FreeBSD_version >= 500000
 		mpt_prt(mpt, "reply length does not match message length: "
-			"got %x; expected %x for function %x\n",
+			"got %x; expected %zx for function %x\n",
 			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
 #else
 		mpt_prt(mpt, "reply length does not match message length: "
-			"got %x; expected %zx for function %x\n",
+			"got %x; expected %x for function %x\n",
 			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
 #endif
 	}
