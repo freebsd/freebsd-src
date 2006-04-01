@@ -549,27 +549,18 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	struct icmp6_filter *filter;
 	int error, s;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		panic("rip6_attach");
-	}
-	if (td && (error = suser(td)) != 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	KASSERT(inp == NULL, ("rip6_attach: inp != NULL"));
+	if (td && (error = suser(td)) != 0)
 		return error;
-	}
 	error = soreserve(so, rip_sendspace, rip_recvspace);
-	if (error) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	if (error)
 		return error;
-	}
 	MALLOC(filter, struct icmp6_filter *,
 	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
-	if (filter == NULL) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	if (filter == NULL)
 		return ENOMEM;
-	}
+	INP_INFO_WLOCK(&ripcbinfo);
 	s = splnet();
 	error = in_pcballoc(so, &ripcbinfo, "raw6inp");
 	splx(s);
@@ -596,12 +587,8 @@ rip6_detach(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		panic("rip6_detach");
-	}
+	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
 	/* xxx: RSVP */
 	if (so == ip6_mrouter)
 		ip6_mrouter_done();
@@ -609,8 +596,10 @@ rip6_detach(struct socket *so)
 		FREE(inp->in6p_icmp6filt, M_PCB);
 		inp->in6p_icmp6filt = NULL;
 	}
+	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	in6_pcbdetach(inp);
+	in6_pcbfree(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 }
 
@@ -630,7 +619,7 @@ rip6_disconnect(struct socket *so)
 		return ENOTCONN;
 	inp->in6p_faddr = in6addr_any;
 	rip6_abort(so);
-	return 0;
+	return (0);
 }
 
 static int
@@ -641,6 +630,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct ifaddr *ia = NULL;
 	int error = 0;
 
+	KASSERT(inp != NULL, ("rip6_bind: inp == NULL"));
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 	if (TAILQ_EMPTY(&ifnet) || addr->sin6_family != AF_INET6)
@@ -674,6 +664,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct ifnet *ifp = NULL;
 	int error = 0, scope_ambiguous = 0;
 
+	KASSERT(inp != NULL, ("rip6_connect: inp == NULL"));
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 	if (TAILQ_EMPTY(&ifnet))
@@ -726,10 +717,9 @@ rip6_shutdown(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip6_shutdown: inp == NULL"));
 	INP_LOCK(inp);
-	INP_INFO_RUNLOCK(&ripcbinfo);
 	socantsendmore(so);
 	INP_UNLOCK(inp);
 	return 0;
@@ -744,6 +734,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct sockaddr_in6 *dst;
 	int ret;
 
+	KASSERT(inp != NULL, ("rip6_send: inp == NULL"));
 	INP_INFO_WLOCK(&ripcbinfo);
 	/* always copy sockaddr to avoid overwrites */
 	/* Unlocked read. */
