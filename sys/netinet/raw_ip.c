@@ -653,7 +653,7 @@ rip_detach(struct socket *so)
 	return 0;
 }
 
-static int
+static void
 rip_abort(struct socket *so)
 {
 	struct inpcb *inp;
@@ -662,7 +662,7 @@ rip_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
-		return EINVAL;	/* ??? possible? panic instead? */
+		return;	/* ??? possible? panic instead? */
 	}
 	INP_LOCK(inp);
 	soisdisconnected(so);
@@ -671,7 +671,6 @@ rip_abort(struct socket *so)
 	else
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
-	return 0;
 }
 
 static int
@@ -679,7 +678,8 @@ rip_disconnect(struct socket *so)
 {
 	if ((so->so_state & SS_ISCONNECTED) == 0)
 		return ENOTCONN;
-	return rip_abort(so);
+	rip_abort(so);
+	return 0;
 }
 
 static int

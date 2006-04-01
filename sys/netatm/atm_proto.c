@@ -184,3 +184,17 @@ atm_proto_notsupp4(so, i, m, addr, m2, td)
 {
 	return (EOPNOTSUPP);
 }
+
+/*
+ * Protocol request not supported
+ *
+ * Arguments:
+ *	so	pointer to socket
+ *
+ */
+void
+atm_proto_notsupp5(so)
+	struct socket	*so;
+{
+
+}

@@ -97,7 +97,7 @@ static	void spx_template(struct spxpcb *cb);
 static	void spx_timers(struct spxpcb *cb, int timer);
 static	void spx_usrclosed(struct spxpcb *cb);
 
-static	int spx_usr_abort(struct socket *so);
+static	void spx_usr_abort(struct socket *so);
 static	int spx_accept(struct socket *so, struct sockaddr **nam);
 static	int spx_attach(struct socket *so, int proto, struct thread *td);
 static	int spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td);
@@ -1305,7 +1305,7 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
-static int
+static void
 spx_usr_abort(struct socket *so)
 {
 	struct ipxpcb *ipxp;
@@ -1324,10 +1324,6 @@ spx_usr_abort(struct socket *so)
 	ipx_pcbdetach(ipxp);
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	sotryfree(so);
-	return (0);
 }
 
 /*

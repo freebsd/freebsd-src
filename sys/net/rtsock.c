@@ -137,11 +137,11 @@ rts_input(struct mbuf *m)
  * It really doesn't make any sense at all for this code to share much
  * with raw_usrreq.c, since its functionality is so restricted.  XXX
  */
-static int
+static void
 rts_abort(struct socket *so)
 {
 
-	return (raw_usrreqs.pru_abort(so));
+	raw_usrreqs.pru_abort(so);
 }
 
 /* pru_accept is EOPNOTSUPP */

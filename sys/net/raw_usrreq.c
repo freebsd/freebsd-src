@@ -138,19 +138,14 @@ raw_ctlinput(cmd, arg, dummy)
 	/* INCOMPLETE */
 }
 
-static int
+static void
 raw_uabort(struct socket *so)
 {
 	struct rawcb *rp = sotorawcb(so);
 
-	if (rp == 0)
-		return EINVAL;
+	KASSERT(rp != NULL, ("raw_uabort: rp == NULL"));
 	raw_disconnect(rp);
 	soisdisconnected(so);
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	sotryfree(so);
-	return 0;
 }
 
 /* pru_accept is EOPNOTSUPP */

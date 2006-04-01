@@ -1912,12 +1912,12 @@ ng_btsocket_l2cap_init(void)
  * Abort connection on socket
  */
 
-int
+void
 ng_btsocket_l2cap_abort(struct socket *so)
 {
 	so->so_error = ECONNABORTED;
 
-	return (ng_btsocket_l2cap_detach(so));
+	ng_btsocket_l2cap_detach(so);
 } /* ng_btsocket_l2cap_abort */
 
 /*

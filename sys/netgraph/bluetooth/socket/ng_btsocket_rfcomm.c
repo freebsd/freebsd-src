@@ -343,12 +343,12 @@ ng_btsocket_rfcomm_init(void)
  * Abort connection on socket
  */
 
-int
+void
 ng_btsocket_rfcomm_abort(struct socket *so)
 {
 	so->so_error = ECONNABORTED;
 
-	return (ng_btsocket_rfcomm_detach(so));
+	ng_btsocket_rfcomm_detach(so);
 } /* ng_btsocket_rfcomm_abort */
 
 /*
