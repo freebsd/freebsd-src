@@ -37,3 +37,7 @@ FBSD_1.0 {
 	# FreeBSD additions
 	strtold;
 };
+
+FBSDprivate {
+	__gdtoa;
+};
