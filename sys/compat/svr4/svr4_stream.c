@@ -167,6 +167,10 @@ svr4_sendit(td, s, mp, flags)
 	struct uio *ktruio = NULL;
 #endif
 
+	/*
+	 * XXXRW: Instead of using fgetsock(), just rely on the file
+	 * descriptor reference.
+	 */
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 
@@ -263,6 +267,10 @@ svr4_recvit(td, s, mp, namelenp)
 	struct uio *ktruio = NULL;
 #endif
 
+	/*
+	 * XXXRW: Instead of using fgetsock(), just rely on the file
+	 * descriptor reference.
+	 */
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 
