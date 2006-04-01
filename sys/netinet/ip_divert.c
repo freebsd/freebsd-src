@@ -394,21 +394,14 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcb *inp;
 	int error;
 
-	INP_INFO_WLOCK(&divcbinfo);
 	inp  = sotoinpcb(so);
-	if (inp != 0) {
-		INP_INFO_WUNLOCK(&divcbinfo);
-		return EINVAL;
-	}
-	if (td && (error = suser(td)) != 0) {
-		INP_INFO_WUNLOCK(&divcbinfo);
+	KASSERT(inp == NULL, ("div_attach: inp != NULL"));
+	if (td && (error = suser(td)) != 0)
 		return error;
-	}
 	error = soreserve(so, div_sendspace, div_recvspace);
-	if (error) {
-		INP_INFO_WUNLOCK(&divcbinfo);
+	if (error)
 		return error;
-	}
+	INP_INFO_WLOCK(&divcbinfo);
 	error = in_pcballoc(so, &divcbinfo, "divinp");
 	if (error) {
 		INP_INFO_WUNLOCK(&divcbinfo);
@@ -429,14 +422,12 @@ div_detach(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&divcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&divcbinfo);
-		return;
-	}
+	KASSERT(inp != NULL, ("div_detach: inp == NULL"));
+	INP_INFO_WLOCK(&divcbinfo);
 	INP_LOCK(inp);
 	in_pcbdetach(inp);
+	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&divcbinfo);
 }
 
@@ -446,12 +437,8 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	int error;
 
-	INP_INFO_WLOCK(&divcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&divcbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp == NULL, ("div_bind: inp == NULL"));
 	/* in_pcbbind assumes that nam is a sockaddr_in
 	 * and in_pcbbind requires a valid address. Since divert
 	 * sockets don't we need to make sure the address is
@@ -460,13 +447,12 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	 * and should probably have its own family.
 	 */
 	if (nam->sa_family != AF_INET)
-		error = EAFNOSUPPORT;
-	else {
-		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
-		INP_LOCK(inp);
-		error = in_pcbbind(inp, nam, td->td_ucred);
-		INP_UNLOCK(inp);
-	}
+		return EAFNOSUPPORT;
+	((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
+	INP_INFO_WLOCK(&divcbinfo);
+	INP_LOCK(inp);
+	error = in_pcbbind(inp, nam, td->td_ucred);
+	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&divcbinfo);
 	return error;
 }
@@ -476,14 +462,9 @@ div_shutdown(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&divcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_RUNLOCK(&divcbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("div_shutdown: inp == NULL"));
 	INP_LOCK(inp);
-	INP_INFO_RUNLOCK(&divcbinfo);
 	socantsendmore(so);
 	INP_UNLOCK(inp);
 	return 0;

@@ -934,15 +934,13 @@ udp_abort(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-		return;	/* ??? possible? panic instead? */
-	}
+	KASSERT(inp != NULL, ("udp_abort: inp == NULL"));
+	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
 	soisdisconnected(so);
 	in_pcbdetach(inp);
+	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 }
 
@@ -952,12 +950,9 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcb *inp;
 	int error;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp != 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp == NULL, ("udp_attach: inp != NULL"));
+	INP_INFO_WLOCK(&udbinfo);
 	error = soreserve(so, udp_sendspace, udp_recvspace);
 	if (error) {
 		INP_INFO_WUNLOCK(&udbinfo);
@@ -984,12 +979,9 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	int error;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("udp_bind: inp == NULL"));
+	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
 	error = in_pcbbind(inp, nam, td->td_ucred);
 	INP_UNLOCK(inp);
@@ -1004,12 +996,9 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 	struct sockaddr_in *sin;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("udp_connect: inp == NULL"));
+	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
 	if (inp->inp_faddr.s_addr != INADDR_ANY) {
 		INP_UNLOCK(inp);
@@ -1032,13 +1021,12 @@ udp_detach(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-	}
+	KASSERT(inp != NULL, ("udp_detach: inp == NULL"));
+	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
 	in_pcbdetach(inp);
+	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 }
 
@@ -1047,12 +1035,9 @@ udp_disconnect(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("udp_disconnect: inp == NULL"));
+	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
 	if (inp->inp_faddr.s_addr == INADDR_ANY) {
 		INP_INFO_WUNLOCK(&udbinfo);
@@ -1075,6 +1060,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
 	return udp_output(inp, m, addr, control, td);
 }
 
@@ -1083,14 +1069,9 @@ udp_shutdown(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_RUNLOCK(&udbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("udp_shutdown: inp == NULL"));
 	INP_LOCK(inp);
-	INP_INFO_RUNLOCK(&udbinfo);
 	socantsendmore(so);
 	INP_UNLOCK(inp);
 	return 0;
