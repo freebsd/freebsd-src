@@ -1823,10 +1823,14 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	struct inpcb *inp;
 
 	/*
-	 * At this point, we should have an inpcb<->twtcp pair, with no
-	 * associated socket.  Validate that this is the case.
+	 * At this point, we are in one of two situations:
 	 *
-	 * XXXRW: This comment stale -- could still have socket ...?
+	 * (1) We have no socket, just an inpcb<->twtcp pair.  Release it all
+	 * after validating.
+	 *
+	 * (2) We have a socket, which we may or may now own the reference
+	 * for.  If we own the reference, release all the state after
+	 * validating.  If not, leave it for the socket close to clean up.
 	 */
 	inp = tw->tw_inpcb;
 	KASSERT((inp->inp_vflag & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
@@ -1840,32 +1844,45 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	inp->inp_vflag |= INP_DROPPED;
 
 	so = inp->inp_socket;
-	if (so != NULL && inp->inp_vflag & INP_SOCKREF) {
-		KASSERT(so->so_state & SS_PROTOREF,
-		    ("tcp_twclose: !SS_PROTOREF"));
-		inp->inp_vflag &= ~INP_SOCKREF;
+	if (so != NULL) {
+		if (inp->inp_vflag & INP_SOCKREF) {
+			/*
+			 * If a socket is present, and we own the only
+			 * reference, we need to tear down the socket and the
+			 * inpcb.
+			 */
+			inp->inp_vflag &= ~INP_SOCKREF;
 #ifdef INET6
-		if (inp->inp_vflag & INP_IPV6PROTO) {
-			in6_pcbdetach(inp);
-			in6_pcbfree(inp);
-		} else {
-			in_pcbdetach(inp);
-			in_pcbfree(inp);
-		}
+			if (inp->inp_vflag & INP_IPV6PROTO) {
+				in6_pcbdetach(inp);
+				in6_pcbfree(inp);
+			} else {
+				in_pcbdetach(inp);
+				in_pcbfree(inp);
+			}
 #endif
-		ACCEPT_LOCK();
-		SOCK_LOCK(so);
-		so->so_state &= ~SS_PROTOREF;
-		sofree(so);
-	} else if (so == NULL) {
+			ACCEPT_LOCK();
+			SOCK_LOCK(so);
+			KASSERT(so->so_state & SS_PROTOREF,
+			    ("tcp_twclose: INP_SOCKREF && !SS_PROTOREF"));
+			so->so_state &= ~SS_PROTOREF;
+			sofree(so);
+		} else {
+			/*
+			 * If we don't own the only reference, the socket and
+			 * inpcb need to be left around to be handled by
+			 * tcp_usr_detach() later.
+			 */
+			INP_UNLOCK(inp);
+		}
+	} else {
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6PROTO)
 			in6_pcbfree(inp);
 		else
 #endif
 			in_pcbfree(inp);
-	} else
-		printf("tcp_twclose: so != NULL but !INP_SOCKREF");
+	}
 	tcpstat.tcps_closed++;
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
