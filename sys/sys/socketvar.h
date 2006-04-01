@@ -208,6 +208,13 @@ extern struct mtx accept_mtx;
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
+/*
+ * Protocols can mark a socket as SS_PROTOREF to indicate that, following
+ * pru_detach, they still want the socket to persist, and will free it
+ * themselves when they are done.  Protocols should only ever call sofree()
+ * following setting this flag in pru_detach(), and never otherwise, as
+ * sofree() bypasses socket reference counting.
+ */
 #define	SS_PROTOREF		0x4000	/* strong protocol reference */
 
 /*
