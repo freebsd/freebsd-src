@@ -24,15 +24,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2006
+.Dd April 1, 2006
 .Dt MFI 4
 .Os
 .Sh NAME
 .Nm mfi
 .Nd "LSI MegaRAID SAS driver"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device pci"
 .Cd "device mfi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mfi_load="YES"
+.Ed
 .Sh DESCRIPTION
 This driver is for LSI's next generation PCI Express SAS RAID controllers.
 Access to RAID arrays (logical disks) from this driver is provided via
