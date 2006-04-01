@@ -42,7 +42,7 @@ struct uart_ops {
 	void (*term)(struct uart_bas *);
 	void (*putc)(struct uart_bas *, int);
 	int (*poll)(struct uart_bas *);
-	int (*getc)(struct uart_bas *);
+	int (*getc)(struct uart_bas *, struct mtx *);
 };
 
 extern struct uart_ops uart_i8251_ops;
@@ -150,12 +150,8 @@ uart_poll(struct uart_devinfo *di)
 static __inline int
 uart_getc(struct uart_devinfo *di)
 {
-	int res;
 
-	uart_lock(di->hwmtx);
-	res = di->ops.getc(&di->bas);
-	uart_unlock(di->hwmtx);
-	return (res);
+	return (di->ops.getc(&di->bas, di->hwmtx));
 }
 
 #endif /* _DEV_UART_CPU_H_ */

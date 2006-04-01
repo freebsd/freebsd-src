@@ -174,7 +174,7 @@ static void sab82532_init(struct uart_bas *bas, int, int, int, int);
 static void sab82532_term(struct uart_bas *bas);
 static void sab82532_putc(struct uart_bas *bas, int);
 static int sab82532_poll(struct uart_bas *bas);
-static int sab82532_getc(struct uart_bas *bas);
+static int sab82532_getc(struct uart_bas *bas, struct mtx *);
 
 struct uart_ops uart_sab82532_ops = {
 	.probe = sab82532_probe,
@@ -307,20 +307,25 @@ sab82532_poll(struct uart_bas *bas)
 {
 
 	if (uart_getreg(bas, SAB_STAR) & SAB_STAR_RFNE)
-		return (sab82532_getc(bas));
+		return (sab82532_getc(bas, NULL));
 	return (-1);
 }
 
 static int
-sab82532_getc(struct uart_bas *bas)
+sab82532_getc(struct uart_bas *bas, struct mtx *hwmtx)
 {
 	int c, delay;
+
+	uart_lock(hwmtx);
 
 	/* 1/10th the time to transmit 1 character (estimate). */
 	delay = sab82532_delay(bas);
 
-	while (!(uart_getreg(bas, SAB_STAR) & SAB_STAR_RFNE))
+	while (!(uart_getreg(bas, SAB_STAR) & SAB_STAR_RFNE)) {
+		uart_unlock(hwmtx);
 		DELAY(delay);
+		uart_lock(hwmtx);
+	}
 
 	while (uart_getreg(bas, SAB_STAR) & SAB_STAR_CEC)
 		;
@@ -338,6 +343,9 @@ sab82532_getc(struct uart_bas *bas)
 		;
 	uart_setreg(bas, SAB_CMDR, SAB_CMDR_RMC);
 	uart_barrier(bas);
+
+	uart_unlock(hwmtx);
+
 	return (c);
 }
 
