@@ -395,6 +395,10 @@ MK_BIND_NAMED:=	no
 MK_BIND_UTILS:=	no
 .endif
 
+.if ${MK_BIND_MTREE} == "no"
+MK_BIND_ETC:=	no
+.endif
+
 .if ${MK_CRYPT} == "no"
 MK_OPENSSL:=	no
 MK_OPENSSH:=	no
