@@ -153,7 +153,6 @@ games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
 sbin/dhclient/Makefile.inc:MAINTAINER=     mbr
 sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
-sys/dev/asr/MAINTAINER:MAINTAINER = obrien@freebsd, scott_long@btc.adaptec.com, mark_salyzyn@adaptec.com
 sys/dev/bktr/CHANGELOG.TXT: * MAINTAINER = Roger Hardiman <roger@freebsd.org>
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
