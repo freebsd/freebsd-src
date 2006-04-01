@@ -213,7 +213,6 @@ SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, stab, CTLFLAG_RW,
 uma_zone_t sack_hole_zone;
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
-static void	tcp_discardcb(struct tcpcb *);
 static void	tcp_isn_tick(void *);
 
 /*
@@ -665,7 +664,7 @@ tcp_drop(tp, errno)
 	return (tcp_close(tp));
 }
 
-static void
+void
 tcp_discardcb(tp)
 	struct tcpcb *tp;
 {
@@ -676,6 +675,12 @@ tcp_discardcb(tp)
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
 
+	/*
+	 * XXXRW: This is all very well and good, but actually, we might be
+	 * discarding the tcpcb after the socket is gone, so we can't do
+	 * this:
+	KASSERT(so != NULL, ("tcp_discardcb: so == NULL"));
+	 */
 	INP_LOCK_ASSERT(inp);
 
 	/*
@@ -755,7 +760,12 @@ tcp_discardcb(tp)
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
 	uma_zfree(tcpcb_zone, tp);
-	soisdisconnected(so);
+
+	/*
+	 * XXXRW: This seems a bit unclean.
+	 */
+	if (so != NULL)
+		soisdisconnected(so);
 }
 
 /*
@@ -769,22 +779,40 @@ tcp_close(tp)
 	struct tcpcb *tp;
 {
 	struct inpcb *inp = tp->t_inpcb;
-#ifdef INET6
-	struct socket *so = inp->inp_socket;
-#endif
+	struct socket *so;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-	tcp_discardcb(tp);
-#ifdef INET6
-	if (INP_CHECK_SOCKAF(so, AF_INET6))
-		in6_pcbdetach(inp);
-	else
-#endif
-		in_pcbdetach(inp);
+	inp->inp_vflag |= INP_DROPPED;
+
 	tcpstat.tcps_closed++;
-	return (NULL);
+	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
+	so = inp->inp_socket;
+	soisdisconnected(so);
+	if (inp->inp_vflag & INP_SOCKREF) {
+		KASSERT(so->so_state & SS_PROTOREF,
+		    ("tcp_close: !SS_PROTOREF"));
+		inp->inp_vflag &= ~INP_SOCKREF;
+		tcp_discardcb(tp);
+#ifdef INET6
+		if (inp->inp_vflag & INP_IPV6PROTO) {
+			in6_pcbdetach(inp);
+			in6_pcbfree(inp);
+		} else {
+#endif
+			in_pcbdetach(inp);
+			in_pcbfree(inp);
+#ifdef INET6
+		}
+#endif
+		ACCEPT_LOCK();
+		SOCK_LOCK(so);
+		so->so_state &= ~SS_PROTOREF;
+		sofree(so);
+		return (NULL);
+	}
+	return (tp);
 }
 
 void
@@ -857,8 +885,11 @@ tcp_notify(inp, error)
 		return (inp);
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
 	    tp->t_softerror) {
-		tcp_drop(tp, error);
-		return (struct inpcb *)0;
+		tp = tcp_drop(tp, error);
+		if (tp != NULL)
+			return (inp);
+		else
+			return (NULL);
 	} else {
 		tp->t_softerror = error;
 		return (inp);
@@ -1433,8 +1464,11 @@ tcp_drop_syn_sent(inp, errno)
 	INP_LOCK_ASSERT(inp);
 
 	if (tp != NULL && tp->t_state == TCPS_SYN_SENT) {
-		tcp_drop(tp, errno);
-		return (NULL);
+		tp = tcp_drop(tp, errno);
+		if (tp != NULL)
+			return (inp);
+		else
+			return (NULL);
 	}
 	return (inp);
 }
@@ -1670,7 +1704,9 @@ tcp_twstart(tp)
 	if (tw == NULL) {
 		tw = tcp_timer_2msl_tw(1);
 		if (tw == NULL) {
-			tcp_close(tp);
+			tp = tcp_close(tp);
+			if (tp != NULL)
+				INP_UNLOCK(tp->t_inpcb);
 			return;
 		}
 	}
@@ -1705,21 +1741,45 @@ tcp_twstart(tp)
  */
 	tw_time = 2 * tcp_msl;
 	acknow = tp->t_flags & TF_ACKNOW;
+
+	/*
+	 * First, discard tcpcb state, which includes stopping its timers and
+	 * freeing it.  tcp_discardcb() used to also release the inpcb, but
+	 * that work is now done in the caller.
+	 */
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
-	ACCEPT_LOCK();
 	SOCK_LOCK(so);
-	so->so_pcb = NULL;
 	tw->tw_cred = crhold(so->so_cred);
 	tw->tw_so_options = so->so_options;
-	sotryfree(so);
-	inp->inp_socket = NULL;
+	SOCK_UNLOCK(so);
 	if (acknow)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = (caddr_t)tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
 	tcp_timer_2msl_reset(tw, tw_time);
-	INP_UNLOCK(inp);
+
+	/*
+	 * If the inpcb owns the sole reference to the socket, then we can
+	 * detach and free the socket as it is not needed in time wait.
+	 */
+	if (inp->inp_vflag & INP_SOCKREF) {
+		KASSERT(so->so_state & SS_PROTOREF,
+		    ("tcp_twstart: !SS_PROTOREF"));
+		inp->inp_vflag &= ~INP_SOCKREF;
+#ifdef INET6
+		if (inp->inp_vflag & INP_IPV6PROTO)
+			in6_pcbdetach(inp);
+		else
+#endif
+			in_pcbdetach(inp);
+		INP_UNLOCK(inp);
+		ACCEPT_LOCK();
+		SOCK_LOCK(so);
+		so->so_state &= ~SS_PROTOREF;
+		sofree(so);
+	} else
+		INP_UNLOCK(inp);
 }
 
 /*
@@ -1756,31 +1816,62 @@ tcp_twrecycleable(struct tcptw *tw)
 		return (0);
 }
 
-struct tcptw *
+void
 tcp_twclose(struct tcptw *tw, int reuse)
 {
+	struct socket *so;
 	struct inpcb *inp;
 
+	/*
+	 * At this point, we should have an inpcb<->twtcp pair, with no
+	 * associated socket.  Validate that this is the case.
+	 *
+	 * XXXRW: This comment stale -- could still have socket ...?
+	 */
 	inp = tw->tw_inpcb;
+	KASSERT((inp->inp_vflag & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
+	KASSERT(inp->inp_ppcb == (void *)tw, ("tcp_twclose: inp_ppcb != tw"));
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_stop(). */
 	INP_LOCK_ASSERT(inp);
 
 	tw->tw_inpcb = NULL;
 	tcp_timer_2msl_stop(tw);
 	inp->inp_ppcb = NULL;
+	inp->inp_vflag |= INP_DROPPED;
+
+	so = inp->inp_socket;
+	if (so != NULL && inp->inp_vflag & INP_SOCKREF) {
+		KASSERT(so->so_state & SS_PROTOREF,
+		    ("tcp_twclose: !SS_PROTOREF"));
+		inp->inp_vflag &= ~INP_SOCKREF;
 #ifdef INET6
-	if (inp->inp_vflag & INP_IPV6PROTO)
-		in6_pcbdetach(inp);
-	else
+		if (inp->inp_vflag & INP_IPV6PROTO) {
+			in6_pcbdetach(inp);
+			in6_pcbfree(inp);
+		} else {
+			in_pcbdetach(inp);
+			in_pcbfree(inp);
+		}
 #endif
-		in_pcbdetach(inp);
+		ACCEPT_LOCK();
+		SOCK_LOCK(so);
+		so->so_state &= ~SS_PROTOREF;
+		sofree(so);
+	} else if (so == NULL) {
+#ifdef INET6
+		if (inp->inp_vflag & INP_IPV6PROTO)
+			in6_pcbfree(inp);
+		else
+#endif
+			in_pcbfree(inp);
+	} else
+		printf("tcp_twclose: so != NULL but !INP_SOCKREF");
 	tcpstat.tcps_closed++;
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
 	if (reuse)
-		return (tw);
+		return;
 	uma_zfree(tcptw_zone, tw);
-	return (NULL);
 }
 
 int
@@ -2233,11 +2324,10 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 		INP_LOCK(inp);
 		if ((tw = intotw(inp)) &&
 		    (inp->inp_vflag & INP_TIMEWAIT) != 0) {
-			(void) tcp_twclose(tw, 0);
+			tcp_twclose(tw, 0);
 		} else if ((tp = intotcpcb(inp)) &&
 		    ((inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
-			tp = tcp_drop(tp, ECONNABORTED);
-			if (tp != NULL)
+			if (tcp_drop(tp, ECONNABORTED) != NULL)
 				INP_UNLOCK(inp);
 		} else
 			INP_UNLOCK(inp);
