@@ -283,6 +283,9 @@ done:
 /*
  * accept1()
  * MPSAFE
+ *
+ * XXXRW: Use getsock() instead of fgetsock() here to avoid additional mutex
+ * operations due to soref()/sorele().
  */
 static int
 accept1(td, uap, compat)
