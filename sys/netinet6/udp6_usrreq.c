@@ -117,7 +117,7 @@
  */
 
 extern	struct protosw inetsw[];
-static	int udp6_detach __P((struct socket *so));
+static	void udp6_detach __P((struct socket *so));
 
 int
 udp6_input(mp, offp, proto)
@@ -665,7 +665,7 @@ out:
 	return error;
 }
 
-static int
+static void
 udp6_detach(struct socket *so)
 {
 	struct inpcb *inp;
@@ -675,14 +675,13 @@ udp6_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;
+		return;
 	}
 	INP_LOCK(inp);
 	s = splnet();
 	in6_pcbdetach(inp);
 	splx(s);
 	INP_INFO_WUNLOCK(&udbinfo);
-	return 0;
 }
 
 static int

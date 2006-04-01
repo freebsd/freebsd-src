@@ -674,13 +674,12 @@ ng_btsocket_rfcomm_ctloutput(struct socket *so, struct sockopt *sopt)
  * Detach and destroy socket
  */
 
-int
+void
 ng_btsocket_rfcomm_detach(struct socket *so)
 {
 	ng_btsocket_rfcomm_pcb_p	pcb = so2rfcomm_pcb(so);
 
-	if (pcb == NULL)
-		return (EINVAL);
+	KASSERT(pcb != NULL, ("ng_btsocket_rfcomm_detach: pcb == NULL"));
 
 	mtx_lock(&pcb->pcb_mtx);
 
@@ -726,12 +725,7 @@ ng_btsocket_rfcomm_detach(struct socket *so)
 	FREE(pcb, M_NETGRAPH_BTSOCKET_RFCOMM);
 
 	soisdisconnected(so);
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
 	so->so_pcb = NULL;
-	sotryfree(so);
-
-	return (0);
 } /* ng_btsocket_rfcomm_detach */
 
 /*

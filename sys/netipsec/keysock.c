@@ -456,24 +456,20 @@ key_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
  * key_detach()
  * derived from net/rtsock.c:rts_detach()
  */
-static int
+static void
 key_detach(struct socket *so)
 {
 	struct keycb *kp = (struct keycb *)sotorawcb(so);
 	int s, error;
 
-	s = splnet();
-	if (kp != 0) {
-		if (kp->kp_raw.rcb_proto.sp_protocol
-		    == PF_KEY) /* XXX: AF_KEY */
-			key_cb.key_count--;
-		key_cb.any_count--;
+	KASSERT(kp != NULL, ("key_detach: kp == NULL"));
+	if (kp->kp_raw.rcb_proto.sp_protocol
+	    == PF_KEY) /* XXX: AF_KEY */
+		key_cb.key_count--;
+	key_cb.any_count--;
 
-		key_freereg(so);
-	}
-	error = raw_usrreqs.pru_detach(so);
-	splx(s);
-	return error;
+	key_freereg(so);
+	raw_usrreqs.pru_detach(so);
 }
 
 /*

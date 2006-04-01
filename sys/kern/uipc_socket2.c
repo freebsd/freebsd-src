@@ -1335,10 +1335,10 @@ pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
 	return EOPNOTSUPP;
 }
 
-int
+void
 pru_detach_notsupp(struct socket *so)
 {
-	return EOPNOTSUPP;
+
 }
 
 int

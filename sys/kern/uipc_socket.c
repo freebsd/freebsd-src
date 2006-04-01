@@ -387,13 +387,18 @@ solisten_proto(so, backlog)
 /*
  * Attempt to free a socket.  This should really be sotryfree().
  *
- * We free the socket if the protocol is no longer interested in the socket,
- * there's no file descriptor reference, and the refcount is 0.  While the
- * calling macro sotryfree() tests the refcount, sofree() has to test it
- * again as it's possible to race with an accept()ing thread if the socket is
- * in an listen queue of a listen socket, as being in the listen queue
- * doesn't elevate the reference count.  sofree() acquires the accept mutex
- * early for this test in order to avoid that race.
+ * sofree() will succeed if:
+ *
+ * - There are no outstanding file descriptor references or related consumers
+ *   (so_count == 0).
+ *
+ * - The socket has been closed by user space, if ever open (SS_NOFDREF).
+ *
+ * - The protocol does not have an outstanding strong reference on the socket
+ *   (SS_PROTOREF).
+ *
+ * Otherwise, it will quietly abort so that a future call to sofree(), when
+ * conditions are right, can succeed.
  */
 void
 sofree(so)
@@ -404,8 +409,8 @@ sofree(so)
 	ACCEPT_LOCK_ASSERT();
 	SOCK_LOCK_ASSERT(so);
 
-	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0 ||
-	    so->so_count != 0 || (so->so_state & SS_PROTOREF)) {
+	if ((so->so_state & SS_NOFDREF) == 0 || so->so_count != 0 ||
+	    (so->so_state & SS_PROTOREF)) {
 		SOCK_UNLOCK(so);
 		ACCEPT_UNLOCK();
 		return;
@@ -447,6 +452,7 @@ sofree(so)
 	    so->so_qstate & SQ_COMP, so->so_qstate & SQ_INCOMP));
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
+
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
 	(void)sblock(&so->so_snd, M_WAITOK);
@@ -507,8 +513,6 @@ soclose(so)
 		}
 		ACCEPT_UNLOCK();
 	}
-	if (so->so_pcb == NULL)
-		goto discard;
 	if (so->so_state & SS_ISCONNECTED) {
 		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
 			error = sodisconnect(so);
@@ -527,13 +531,9 @@ soclose(so)
 			}
 		}
 	}
+
 drop:
-	if (so->so_pcb != NULL) {
-		int error2 = (*so->so_proto->pr_usrreqs->pru_detach)(so);
-		if (error == 0)
-			error = error2;
-	}
-discard:
+	(*so->so_proto->pr_usrreqs->pru_detach)(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
@@ -1602,7 +1602,7 @@ dontblock:
 			 * Notify the protocol that some data has been
 			 * drained before blocking.
 			 */
-			if (pr->pr_flags & PR_WANTRCVD && so->so_pcb != NULL) {
+			if (pr->pr_flags & PR_WANTRCVD) {
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 				SOCKBUF_LOCK(&so->so_rcv);
@@ -1646,7 +1646,7 @@ dontblock:
 		 * ACK will be generated on return to TCP.
 		 */
 		if (!(flags & MSG_SOCALLBCK) && 
-		    (pr->pr_flags & PR_WANTRCVD) && so->so_pcb) {
+		    (pr->pr_flags & PR_WANTRCVD)) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 			SOCKBUF_LOCK(&so->so_rcv);

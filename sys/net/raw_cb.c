@@ -98,10 +98,9 @@ raw_detach(rp)
 {
 	struct socket *so = rp->rcb_socket;
 
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	so->so_pcb = 0;
-	sotryfree(so);
+	KASSERT(so->so_pcb == rp, ("raw_detach: so_pcb != rp"));
+
+	so->so_pcb = NULL;
 	mtx_lock(&rawcb_mtx);
 	LIST_REMOVE(rp, list);
 	mtx_unlock(&rawcb_mtx);

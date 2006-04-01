@@ -591,7 +591,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	return 0;
 }
 
-static int
+static void
 rip6_detach(struct socket *so)
 {
 	struct inpcb *inp;
@@ -612,7 +612,6 @@ rip6_detach(struct socket *so)
 	INP_LOCK(inp);
 	in6_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
-	return 0;
 }
 
 static void
