@@ -477,12 +477,12 @@ mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
 		req->state &= ~REQ_STATE_QUEUED;
 		req->state |= REQ_STATE_DONE;
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
-
-		if ((req->state & REQ_STATE_NEED_WAKEUP) != 0)
+		if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
 			wakeup(req);
+		}
 	}
 
-	return (/*free_reply*/TRUE);
+	return (TRUE);
 }
 
 static int
@@ -490,7 +490,7 @@ mpt_handshake_reply_handler(struct mpt_softc *mpt, request_t *req,
  uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	/* Nothing to be done. */
-	return (/*free_reply*/TRUE);
+	return (TRUE);
 }
 
 static int
@@ -499,11 +499,8 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 {
 	int free_reply;
 
-	if (reply_frame == NULL) {
-		mpt_prt(mpt, "Event Handler: req %p:%u - Unexpected NULL reply\n",
-		    req, req->serno);
-		return (/*free_reply*/TRUE);
-	}
+	KASSERT(reply_frame != NULL, ("null reply in mpt_event_reply_handler"));
+	KASSERT(req != NULL, ("null request in mpt_event_reply_handler"));
 
 	free_reply = TRUE;
 	switch (reply_frame->Function) {
@@ -535,7 +532,7 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 			uint32_t context;
 
 			context = htole32(req->index|MPT_REPLY_HANDLER_EVENTS);
-			ack_req = mpt_get_request(mpt, /*sleep_ok*/FALSE);
+			ack_req = mpt_get_request(mpt, FALSE);
 			if (ack_req == NULL) {
 				struct mpt_evtf_record *evtf;
 
@@ -546,32 +543,59 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 				break;
 			}
 			mpt_send_event_ack(mpt, ack_req, msg, context);
+			/*
+			 * Don't check for CONTINUATION_REPLY here
+			 */
+			return (free_reply);
 		}
 		break;
 	}
 	case MPI_FUNCTION_PORT_ENABLE:
-		mpt_lprt(mpt, MPT_PRT_DEBUG, "enable port reply\n");
+		mpt_lprt(mpt, MPT_PRT_DEBUG , "enable port reply\n");
 		break;
 	case MPI_FUNCTION_EVENT_ACK:
 		break;
 	default:
-		mpt_prt(mpt, "Unknown Event Function: %x\n",
+		mpt_prt(mpt, "unknown event function: %x\n",
 			reply_frame->Function);
 		break;
 	}
 
-	if (req != NULL
-	 && (reply_frame->MsgFlags & MPI_MSGFLAGS_CONTINUATION_REPLY) == 0) {
-
-		req->state &= ~REQ_STATE_QUEUED;
-		req->state |= REQ_STATE_DONE;
+	/*
+	 * I'm not sure that this continuation stuff works as it should.
+	 *
+	 * I've had FC async events occur that free the frame up because
+	 * the continuation bit isn't set, and then additional async events
+	 * then occur using the same context. As you might imagine, this
+	 * leads to Very Bad Thing.
+	 *
+	 *  Let's just be safe for now and not free them up until we figure
+	 * out what's actually happening here.
+	 */
+#if	0
+	if ((reply_frame->MsgFlags & MPI_MSGFLAGS_CONTINUATION_REPLY) == 0) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
-
-		if ((req->state & REQ_STATE_NEED_WAKEUP) != 0)
-			wakeup(req);
-		else
-			mpt_free_request(mpt, req);
+		mpt_free_request(mpt, req);
+		mpt_prt(mpt, "event_reply %x for req %p:%u NOT a continuation",
+		    reply_frame->Function, req, req->serno);
+		if (reply_frame->Function == MPI_FUNCTION_EVENT_NOTIFICATION) {
+			MSG_EVENT_NOTIFY_REPLY *msg =
+			    (MSG_EVENT_NOTIFY_REPLY *)reply_frame;
+			mpt_prtc(mpt, " Event=0x%x AckReq=%d",
+			    msg->Event, msg->AckRequired);
+		}
+	} else {
+		mpt_prt(mpt, "event_reply %x for %p:%u IS a continuation",
+		    reply_frame->Function, req, req->serno);
+		if (reply_frame->Function == MPI_FUNCTION_EVENT_NOTIFICATION) {
+			MSG_EVENT_NOTIFY_REPLY *msg =
+			    (MSG_EVENT_NOTIFY_REPLY *)reply_frame;
+			mpt_prtc(mpt, " Event=0x%x AckReq=%d",
+			    msg->Event, msg->AckRequired);
+		}
+		mpt_prtc(mpt, "\n");
 	}
+#endif
 	return (free_reply);
 }
 
@@ -609,10 +633,10 @@ mpt_core_event(struct mpt_softc *mpt, request_t *req,
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
 		break;
 	default:
-		return (/*handled*/0);
+		return (0);
 		break;
 	}
-	return (/*handled*/1);
+	return (1);
 }
 
 static void
@@ -622,7 +646,7 @@ mpt_send_event_ack(struct mpt_softc *mpt, request_t *ack_req,
 	MSG_EVENT_ACK *ackp;
 
 	ackp = (MSG_EVENT_ACK *)ack_req->req_vbuf;
-	bzero(ackp, sizeof *ackp);
+	memset(ackp, 0, sizeof (*ackp));
 	ackp->Function = MPI_FUNCTION_EVENT_ACK;
 	ackp->Event = msg->Event;
 	ackp->EventContext = msg->EventContext;
@@ -637,6 +661,7 @@ mpt_intr(void *arg)
 {
 	struct mpt_softc *mpt;
 	uint32_t reply_desc;
+	uint32_t last_reply_desc = MPT_REPLY_EMPTY;
 	int ntrips = 0;
 
 	mpt = (struct mpt_softc *)arg;
@@ -649,6 +674,15 @@ mpt_intr(void *arg)
 		u_int		   req_index;
 		int		   free_rf;
 
+		if (reply_desc == last_reply_desc) {
+			mpt_prt(mpt, "debounce reply_desc 0x%x\n", reply_desc);
+			if (ntrips++ == 1000) {
+				break;
+			}
+			continue;
+		}
+		last_reply_desc = reply_desc;
+
 		req = NULL;
 		reply_frame = NULL;
 		reply_baddr = 0;
@@ -657,7 +691,7 @@ mpt_intr(void *arg)
 			/*
 			 * Insure that the reply frame is coherent.
 			 */
-			reply_baddr = (reply_desc << 1);
+			reply_baddr = MPT_REPLY_BADDR(reply_desc);
 			offset = reply_baddr - (mpt->reply_phys & 0xFFFFFFFF);
 			bus_dmamap_sync_range(mpt->reply_dmat,
 			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
@@ -732,13 +766,17 @@ mpt_intr(void *arg)
 		req_index = MPT_CONTEXT_TO_REQI(ctxt_idx);
 		if (req_index < MPT_MAX_REQUESTS(mpt)) {
 			req = &mpt->request_pool[req_index];
+		} else {
+			mpt_prt(mpt, "WARN: mpt_intr index == %d (reply_desc =="
+			    " 0x%x)\n", req_index, reply_desc);
 		}
 
 		free_rf = mpt_reply_handlers[cb_index](mpt, req,
 		    reply_desc, reply_frame);
 
-		if (reply_frame != NULL && free_rf)
+		if (reply_frame != NULL && free_rf) {
 			mpt_free_reply(mpt, reply_baddr);
+		}
 
 		/*
 		 * If we got ourselves disabled, don't get stuck in a loop
@@ -761,12 +799,13 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 	MSG_DEFAULT_REPLY  ioc_status_frame;
 	request_t	  *req;
 
-	bzero(&ioc_status_frame, sizeof(ioc_status_frame));
+	memset(&ioc_status_frame, 0, sizeof(ioc_status_frame));
 	ioc_status_frame.MsgLength = roundup2(sizeof(ioc_status_frame), 4);
 	ioc_status_frame.IOCStatus = iocstatus;
 	while((req = TAILQ_FIRST(chain)) != NULL) {
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
+
 		TAILQ_REMOVE(chain, req, links);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
@@ -784,7 +823,6 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 void
 mpt_dump_reply_frame(struct mpt_softc *mpt, MSG_DEFAULT_REPLY *reply_frame)
 {
-
 	mpt_prt(mpt, "Address Reply:\n");
 	mpt_print_reply(reply_frame);
 }
@@ -1072,7 +1110,7 @@ mpt_reset(struct mpt_softc *mpt, int reinit)
 			pers->reset(mpt, ret);
 	}
 
-	if (reinit != 0) {
+	if (reinit) {
 		ret = mpt_enable_ioc(mpt, 1);
 		if (ret == MPT_OK) {
 			mpt_enable_ints(mpt);
@@ -1100,13 +1138,18 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 		req->chain = NULL;
 		mpt_free_request(mpt, nxt);	/* NB: recursion */
 	}
-	req->serno = 0;
+
+	KASSERT(req->state != REQ_STATE_FREE, ("freeing free request"));
+	KASSERT(!(req->state & REQ_STATE_LOCKED), ("freeing locked request"));
+
 	req->ccb = NULL;
-	req->state = REQ_STATE_FREE;
+
 	if (LIST_EMPTY(&mpt->ack_frames)) {
 		/*
 		 * Insert free ones at the tail
 		 */
+		req->serno = 0;
+		req->state = REQ_STATE_FREE;
 		TAILQ_INSERT_TAIL(&mpt->request_free_list, req, links);
 		if (mpt->getreqwaiter != 0) {
 			mpt->getreqwaiter = 0;
@@ -1120,6 +1163,10 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	 */
 	record = LIST_FIRST(&mpt->ack_frames);
 	LIST_REMOVE(record, links);
+	req->state = REQ_STATE_ALLOCATED;
+	if ((req->serno = mpt->sequence++) == 0) {
+		req->serno = mpt->sequence++;
+	}
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
 	reply_baddr = (uint32_t)((uint8_t *)record - mpt->reply)
 		    + (mpt->reply_phys & 0xFFFFFFFF);
@@ -1137,16 +1184,20 @@ retry:
 	if (req != NULL) {
 		KASSERT(req == &mpt->request_pool[req->index],
 		    ("mpt_get_request: corrupted request free list\n"));
+		KASSERT(req->state == REQ_STATE_FREE,
+		    ("req not free on free list %x", req->state));
 		TAILQ_REMOVE(&mpt->request_free_list, req, links);
 		req->state = REQ_STATE_ALLOCATED;
 		req->chain = NULL;
-		req->serno = mpt->sequence++;
+		if ((req->serno = mpt->sequence++) == 0) {
+			req->serno = mpt->sequence++;
+		}
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);
 		goto retry;
 	}
-	return req;
+	return (req);
 }
 
 /* Pass the command to the IOC */
@@ -1339,11 +1390,21 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	*data16++ = mpt_read(mpt, MPT_OFFSET_DOORBELL) & MPT_DB_DATA_MASK;
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
-	/* With the second word, we can now look at the length */
-	if (((reply_len >> 1) != hdr->MsgLength)) {
+	/*
+	 * With the second word, we can now look at the length.
+	 * Warn about a reply that's too short (except for IOC FACTS REPLY)
+	 */
+	if ((reply_len >> 1) != hdr->MsgLength &&
+	    (hdr->Function != MPI_FUNCTION_IOC_FACTS)){
+#if __FreeBSD_version >= 500000
 		mpt_prt(mpt, "reply length does not match message length: "
-			"got 0x%02x, expected 0x%02zx\n",
-			hdr->MsgLength << 2, reply_len << 1);
+			"got %x; expected %x for function %x\n",
+			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
+#else
+		mpt_prt(mpt, "reply length does not match message length: "
+			"got %x; expected %zx for function %x\n",
+			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
+#endif
 	}
 
 	/* Get rest of the reply; but don't overflow the provided buffer */
@@ -1386,7 +1447,7 @@ mpt_get_iocfacts(struct mpt_softc *mpt, MSG_IOC_FACTS_REPLY *freplp)
 	MSG_IOC_FACTS f_req;
 	int error;
 	
-	bzero(&f_req, sizeof f_req);
+	memset(&f_req, 0, sizeof f_req);
 	f_req.Function = MPI_FUNCTION_IOC_FACTS;
 	f_req.MsgContext = htole32(MPT_REPLY_HANDLER_HANDSHAKE);
 	error = mpt_send_handshake_cmd(mpt, sizeof f_req, &f_req);
@@ -1426,7 +1487,7 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	MSG_IOC_INIT init;
 	MSG_IOC_INIT_REPLY reply;
 
-	bzero(&init, sizeof init);
+	memset(&init, 0, sizeof init);
 	init.WhoInit = who;
 	init.Function = MPI_FUNCTION_IOC_INIT;
 	if (mpt->is_fc) {
@@ -1644,10 +1705,17 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	if (rv)
 		return (rv);
 
+#if __FreeBSD_version >= 500000
 	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %zx, "
 		 "num %x, type %x\n", hdr.PageVersion,
 		 hdr.PageLength * sizeof(uint32_t),
 		 hdr.PageNumber, hdr.PageType);
+#else
+	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %z, "
+		 "num %x, type %x\n", hdr.PageVersion,
+		 hdr.PageLength * sizeof(uint32_t),
+		 hdr.PageNumber, hdr.PageType);
+#endif
 
 	len = hdr.PageLength * sizeof(uint32_t);
 	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1788,7 +1856,7 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 		return (-1);
 
 	enable_req = req->req_vbuf;
-	bzero(enable_req, MPT_RQSL(mpt));
+	memset(enable_req, 0,  MPT_RQSL(mpt));
 
 	enable_req->Function   = MPI_FUNCTION_PORT_ENABLE;
 	enable_req->MsgContext = htole32(req->index | MPT_REPLY_HANDLER_CONFIG);
@@ -1812,9 +1880,6 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 
 /*
  * Enable/Disable asynchronous event reporting.
- *
- * NB: this is the first command we send via shared memory
- * instead of the handshake register.
  */
 static int
 mpt_send_event_request(struct mpt_softc *mpt, int onoff)
@@ -1822,20 +1887,24 @@ mpt_send_event_request(struct mpt_softc *mpt, int onoff)
 	request_t *req;
 	MSG_EVENT_NOTIFY *enable_req;
 
-	req = mpt_get_request(mpt, /*sleep_ok*/FALSE);
-
+	req = mpt_get_request(mpt, FALSE);
+	if (req == NULL) {
+		return (ENOMEM);
+	}
 	enable_req = req->req_vbuf;
-	bzero(enable_req, sizeof *enable_req);
+	memset(enable_req, 0, sizeof *enable_req);
 
 	enable_req->Function   = MPI_FUNCTION_EVENT_NOTIFICATION;
 	enable_req->MsgContext = htole32(req->index | MPT_REPLY_HANDLER_EVENTS);
 	enable_req->Switch     = onoff;
 
 	mpt_check_doorbell(mpt);
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "%sabling async events\n", onoff ? "en" : "dis");
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "%sabling async events\n",
+	    onoff ? "en" : "dis");
+	/*
+	 * Send the command off, but don't wait for it.
+	 */
 	mpt_send_cmd(mpt, req);
-
 	return (0);
 }
 
@@ -1980,8 +2049,11 @@ mpt_core_attach(struct mpt_softc *mpt)
 	/* Put all request buffers on the free list */
 	TAILQ_INIT(&mpt->request_pending_list);
 	TAILQ_INIT(&mpt->request_free_list);
+	TAILQ_INIT(&mpt->request_timeout_list);
 	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
-		mpt_free_request(mpt, &mpt->request_pool[val]);
+		request_t *req = &mpt->request_pool[val];
+		req->state = REQ_STATE_ALLOCATED;
+		mpt_free_request(mpt, req);
 	}
 
 	for (val = 0; val < MPT_MAX_LUNS; val++) {
@@ -2462,7 +2534,8 @@ mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 
 
 	/*
-	 * Enable the port if asked
+	 * Enable the port if asked. This is only done if we're resetting
+	 * the IOC after initial startup.
 	 */
 	if (portenable) {
 		/*
