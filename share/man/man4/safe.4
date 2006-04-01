@@ -25,14 +25,28 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd September 12, 2004
+.Dd April 1, 2006
 .Dt SAFE 4
 .Os
 .Sh NAME
 .Nm safe
 .Nd SafeNet crypto accelerator
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device cryptodev"
 .Cd "device safe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+safe_load="YES"
+.Ed
 .Pp
 .Nm sysctl Va hw.safe.debug
 .Nm sysctl Va hw.safe.dump
