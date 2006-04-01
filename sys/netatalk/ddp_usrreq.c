@@ -94,6 +94,7 @@ ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_bind: ddp == NULL"));
+
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	error = at_pcbsetaddr(ddp, nam, td);
@@ -110,6 +111,7 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_connect: ddp == NULL"));
+
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
@@ -134,6 +136,7 @@ ddp_disconnect(struct socket *so)
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_disconnect: ddp == NULL"));
+
 	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_addr.s_node == ATADDR_ANYNODE) {
 	    DDP_UNLOCK(ddp);
@@ -154,6 +157,7 @@ ddp_shutdown(struct socket *so)
 
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_shutdown: ddp == NULL"));
+
 	socantsendmore(so);
 	return (0);
 }
@@ -168,9 +172,8 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_send: ddp == NULL"));
 
-    	if (control && control->m_len) {
+    	if (control && control->m_len)
 		return (EINVAL);
-    	}
 
 	if (addr != NULL) {
 		DDP_LIST_XLOCK();
@@ -206,6 +209,7 @@ ddp_abort(struct socket *so)
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_abort: ddp == NULL"));
+
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	at_pcbdetach(so, ddp);
