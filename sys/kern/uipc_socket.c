@@ -307,6 +307,8 @@ sodealloc(struct socket *so)
 {
 
 	KASSERT(so->so_count == 0, ("sodealloc(): so_count %d", so->so_count));
+	KASSERT(so->so_pcb == NULL, ("sodealloc(): so_pcb != NULL"));
+
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
 	mtx_unlock(&so_global_mtx);
