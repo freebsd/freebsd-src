@@ -250,6 +250,7 @@ mpt_ioc_function(int code)
 	snprintf(buf, sizeof buf, "Unknown (0x%08x)", code);
 	return buf;
 }
+
 static char *
 mpt_ioc_event(int code)
 {
@@ -263,6 +264,7 @@ mpt_ioc_event(int code)
 	snprintf(buf, sizeof buf, "Unknown (0x%08x)", code);
 	return buf;
 }
+
 static char *
 mpt_scsi_state(int code)
 {

@@ -350,7 +350,7 @@ mpt_pci_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENOMEM);
 	}
-	bzero(mpt, sizeof(struct mpt_softc));
+	memset(mpt, 0, sizeof(struct mpt_softc));
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
 	case PCI_PRODUCT_LSI_FC909A:
@@ -663,7 +663,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 		device_printf(dev, "cannot allocate request pool\n");
 		return (1);
 	}
-	bzero(mpt->request_pool, len);
+	memset(mpt->request_pool, 0, len);
 #else
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 	if (mpt->request_pool == NULL) {
