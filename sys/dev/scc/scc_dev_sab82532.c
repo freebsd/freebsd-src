@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include "scc_if.h"
 
-#define	DEFAULT_RCLK	29491200
-
 static int sab82532_bfe_attach(struct scc_softc *, int);
 static int sab82532_bfe_iclear(struct scc_softc *, struct scc_chan *);
 static int sab82532_bfe_ipend(struct scc_softc *);
@@ -65,8 +63,6 @@ struct scc_class scc_sab82532_class = {
 	.cl_class = SCC_CLASS_SAB82532,
 	.cl_modes = SCC_MODE_ASYNC | SCC_MODE_BISYNC | SCC_MODE_HDLC,
 	.cl_range = SAB_CHANLEN,
-	.cl_rclk = DEFAULT_RCLK,
-	.cl_regshft = 0
 };
 
 static int

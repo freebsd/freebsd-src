@@ -313,7 +313,7 @@ scc_bfe_detach(device_t dev)
 }
 
 int
-scc_bfe_probe(device_t dev)
+scc_bfe_probe(device_t dev, u_int regshft, u_int rclk)
 {
 	struct scc_softc *sc;
 	struct scc_class *cl;
@@ -362,8 +362,8 @@ scc_bfe_probe(device_t dev)
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 	sc->sc_bas.range = size;
-	sc->sc_bas.rclk = sc->sc_class->cl_rclk;
-	sc->sc_bas.regshft = sc->sc_class->cl_regshft;
+	sc->sc_bas.rclk = rclk;
+	sc->sc_bas.regshft = regshft;
 
 	error = SCC_PROBE(sc);
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
@@ -442,13 +442,13 @@ scc_bus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		*result = cl->cl_class;
 		break;
 	case SCC_IVAR_CLOCK:
-		*result = cl->cl_rclk;
+		*result = sc->sc_bas.rclk;
 		break;
 	case SCC_IVAR_MODE:
 		*result = m->m_mode;
 		break;
 	case SCC_IVAR_REGSHFT:
-		*result = cl->cl_regshft;
+		*result = sc->sc_bas.regshft;
 		break;
 	case SCC_IVAR_HWMTX:
 		*result = (uintptr_t)&sc->sc_hwmtx;

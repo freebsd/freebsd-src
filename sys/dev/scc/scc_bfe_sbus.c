@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/scc/scc_bfe.h>
 
+#define	SBUS_REGSHFT	1
+#define	SBUS_RCLK	307200
+
 static int
 scc_sbus_probe(device_t dev)
 {
@@ -53,7 +56,7 @@ scc_sbus_probe(device_t dev)
 	if (!strcmp(nm, "zs")) {
 		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
 		sc->sc_class = &scc_z8530_class;
-		return (scc_bfe_probe(dev));
+		return (scc_bfe_probe(dev, SBUS_REGSHFT, SBUS_RCLK));
 	}
 	return (ENXIO);
 }
