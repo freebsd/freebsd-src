@@ -422,17 +422,23 @@ in6_pcbdisconnect(inp)
 #ifdef IPSEC
 	ipsec_pcbdisconn(inp->inp_sp);
 #endif
-	if (inp->inp_socket->so_state & SS_NOFDREF)
-		in6_pcbdetach(inp);
 }
 
 void
-in6_pcbdetach(inp)
-	struct inpcb *inp;
+in6_pcbdetach(struct inpcb *inp)
 {
-	struct socket *so = inp->inp_socket;
+
+	KASSERT(inp->inp_socket != NULL, ("in6_pcbdetach: inp_socket == NULL"));
+	inp->inp_socket->so_pcb = NULL;
+	inp->inp_socket = NULL;
+}
+
+void
+in6_pcbfree(struct inpcb *inp)
+{
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
+	KASSERT(inp->inp_socket == NULL, ("in6_pcbfree: inp_socket != NULL"));
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
@@ -442,14 +448,6 @@ in6_pcbdetach(inp)
 #endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
-
-	if (so) {
-		ACCEPT_LOCK();
-		SOCK_LOCK(so);
-		so->so_pcb = NULL;
-		sotryfree(so);
-	}
-
  	ip6_freepcbopts(inp->in6p_outputopts);
  	ip6_freemoptions(inp->in6p_moptions);
 	/* Check and free IPv4 related resources in case of mapped addr */
