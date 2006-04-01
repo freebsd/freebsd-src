@@ -578,32 +578,18 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcb *inp;
 	int error;
 
-	/* XXX why not lower? */
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp) {
-		/* XXX counter, printf */
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		return EINVAL;
-	}
-	if (jailed(td->td_ucred) && !jail_allow_raw_sockets) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	KASSERT(inp == NULL, ("rip_attach: inp != NULL"));
+	if (jailed(td->td_ucred) && !jail_allow_raw_sockets)
 		return (EPERM);
-	}
-	if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)) != 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)) != 0)
 		return error;
-	}
-	if (proto >= IPPROTO_MAX || proto < 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	if (proto >= IPPROTO_MAX || proto < 0)
 		return EPROTONOSUPPORT;
-	}
-
 	error = soreserve(so, rip_sendspace, rip_recvspace);
-	if (error) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+	if (error)
 		return error;
-	}
+	INP_INFO_WLOCK(&ripcbinfo);
 	error = in_pcballoc(so, &ripcbinfo, "rawinp");
 	if (error) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
@@ -633,6 +619,7 @@ rip_pcbdetach(struct socket *so, struct inpcb *inp)
 	if (so == ip_rsvpd)
 		ip_rsvp_done();
 	in_pcbdetach(inp);
+	in_pcbfree(inp);
 }
 
 static void
@@ -640,13 +627,9 @@ rip_detach(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		/* XXX counter, printf */
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		return;
-	}
+	KASSERT(inp != NULL, ("rip_detach: inp == NULL"));
+	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	rip_pcbdetach(so, inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
@@ -657,18 +640,12 @@ rip_abort(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		return;	/* ??? possible? panic instead? */
-	}
+	KASSERT(inp != NULL, ("rip_abort: inp == NULL"));
+	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	soisdisconnected(so);
-	if (so->so_state & SS_NOFDREF)
-		rip_pcbdetach(so, inp);
-	else
-		INP_UNLOCK(inp);
+	rip_pcbdetach(so, inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 }
 
@@ -678,7 +655,7 @@ rip_disconnect(struct socket *so)
 	if ((so->so_state & SS_ISCONNECTED) == 0)
 		return ENOTCONN;
 	rip_abort(so);
-	return 0;
+	return (0);
 }
 
 static int
@@ -704,12 +681,9 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	     ifa_ifwithaddr((struct sockaddr *)addr) == 0))
 		return EADDRNOTAVAIL;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
+	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	inp->inp_laddr = addr->sin_addr;
 	INP_UNLOCK(inp);
@@ -730,12 +704,9 @@ rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK)
 		return EAFNOSUPPORT;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("rip_connect: inp == NULL"));
+	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	inp->inp_faddr = addr->sin_addr;
 	soisconnected(so);
@@ -749,14 +720,9 @@ rip_shutdown(struct socket *so)
 {
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_RUNLOCK(&ripcbinfo);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("rip_shutdown: inp == NULL"));
 	INP_LOCK(inp);
-	INP_INFO_RUNLOCK(&ripcbinfo);
 	socantsendmore(so);
 	INP_UNLOCK(inp);
 	return 0;
@@ -768,28 +734,26 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 {
 	struct inpcb *inp;
 	u_long dst;
-	int ret;
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_send: inp == NULL"));
+	/*
+	 * Note: 'dst' reads below are unlocked.
+	 */
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
-			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return EISCONN;
 		}
-		dst = inp->inp_faddr.s_addr;
+		dst = inp->inp_faddr.s_addr;	/* Unlocked read. */
 	} else {
 		if (nam == NULL) {
-			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return ENOTCONN;
 		}
 		dst = ((struct sockaddr_in *)nam)->sin_addr.s_addr;
 	}
-	ret = rip_output(m, so, dst);
-	INP_INFO_WUNLOCK(&ripcbinfo);
-	return ret;
+	return rip_output(m, so, dst);
 }
 
 static int
