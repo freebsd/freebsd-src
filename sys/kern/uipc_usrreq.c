@@ -228,7 +228,7 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 
 /* control is EOPNOTSUPP */
 
-static int
+static void
 uipc_detach(struct socket *so)
 {
 	struct unpcb *unp;
@@ -238,7 +238,6 @@ uipc_detach(struct socket *so)
 	UNP_LOCK();
 	unp_detach(unp);
 	UNP_UNLOCK_ASSERT();
-	return (0);
 }
 
 static int

@@ -125,7 +125,7 @@ SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
 static void udp_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
 		int off, struct sockaddr_in *udp_in);
 
-static int udp_detach(struct socket *so);
+static void udp_detach(struct socket *so);
 static	int udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		struct mbuf *, struct thread *);
 
@@ -1027,7 +1027,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	return error;
 }
 
-static int
+static void
 udp_detach(struct socket *so)
 {
 	struct inpcb *inp;
@@ -1036,12 +1036,10 @@ udp_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&udbinfo);
-		return EINVAL;
 	}
 	INP_LOCK(inp);
 	in_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	return 0;
 }
 
 static int

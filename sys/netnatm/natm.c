@@ -74,7 +74,7 @@ struct mtx natm_mtx;
  * user requests
  */
 static int natm_usr_attach(struct socket *, int, d_thread_t *);
-static int natm_usr_detach(struct socket *);
+static void natm_usr_detach(struct socket *);
 static int natm_usr_connect(struct socket *, struct sockaddr *, d_thread_t *);
 static int natm_usr_disconnect(struct socket *);
 static int natm_usr_shutdown(struct socket *);
@@ -111,7 +111,7 @@ out:
     return (error);
 }
 
-static int
+static void
 natm_usr_detach(struct socket *so)
 {
     struct natmpcb *npcb;
@@ -122,7 +122,6 @@ natm_usr_detach(struct socket *so)
     npcb_free(npcb, NPCB_DESTROY);	/* drain */
     so->so_pcb = NULL;
     NATM_UNLOCK();
-    return (0);
 }
 
 static int

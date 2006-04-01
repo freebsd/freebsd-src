@@ -2316,15 +2316,15 @@ ng_btsocket_l2cap_ctloutput(struct socket *so, struct sockopt *sopt)
  * Detach and destroy socket
  */
 
-int
+void
 ng_btsocket_l2cap_detach(struct socket *so)
 {
 	ng_btsocket_l2cap_pcb_p	pcb = so2l2cap_pcb(so);
 
-	if (pcb == NULL)
-		return (EINVAL);
+	KASSERT(pcb != NULL, ("ng_btsocket_l2cap_detach: pcb == NULL"));
+
 	if (ng_btsocket_l2cap_node == NULL) 
-		return (EINVAL);
+		return;
 
 	mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
 	mtx_lock(&pcb->pcb_mtx);
@@ -2350,12 +2350,7 @@ ng_btsocket_l2cap_detach(struct socket *so)
 	FREE(pcb, M_NETGRAPH_BTSOCKET_L2CAP);
 
 	soisdisconnected(so);
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
 	so->so_pcb = NULL;
-	sotryfree(so);
-
-	return (0);
 } /* ng_btsocket_l2cap_detach */
 
 /*

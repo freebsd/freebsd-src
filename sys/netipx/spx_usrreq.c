@@ -103,7 +103,7 @@ static	int spx_attach(struct socket *so, int proto, struct thread *td);
 static	int spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td);
 static	int spx_connect(struct socket *so, struct sockaddr *nam,
 			struct thread *td);
-static	int spx_detach(struct socket *so);
+static	void spx_detach(struct socket *so);
 static	void spx_pcbdetach(struct ipxpcb *ipxp);
 static	int spx_usr_disconnect(struct socket *so);
 static	int spx_listen(struct socket *so, int backlog, struct thread *td);
@@ -1512,7 +1512,7 @@ spx_connect_end:
 	return (error);
 }
 
-static int
+static void
 spx_detach(struct socket *so)
 {
 	struct ipxpcb *ipxp;
@@ -1534,7 +1534,6 @@ spx_detach(struct socket *so)
 	ipx_pcbdetach(ipxp);
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
-	return (0);
 }
 
 /*

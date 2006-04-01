@@ -178,16 +178,15 @@ raw_uconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 /* pru_connect2 is EOPNOTSUPP */
 /* pru_control is EOPNOTSUPP */
 
-static int
+static void
 raw_udetach(struct socket *so)
 {
 	struct rawcb *rp = sotorawcb(so);
 
 	if (rp == 0)
-		return EINVAL;
+		return;
 
 	raw_detach(rp);
-	return 0;
 }
 
 static int

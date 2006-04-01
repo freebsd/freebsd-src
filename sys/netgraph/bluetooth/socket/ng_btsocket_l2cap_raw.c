@@ -1094,15 +1094,14 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
  * Detach and destroy socket
  */
 
-int
+void
 ng_btsocket_l2cap_raw_detach(struct socket *so)
 {
 	ng_btsocket_l2cap_raw_pcb_p	pcb = so2l2cap_raw_pcb(so);
 
-	if (pcb == NULL)
-		return (EINVAL);
+	KASSERT(pcb != NULL, ("nt_btsocket_l2cap_raw_detach: pcb == NULL"));
 	if (ng_btsocket_l2cap_raw_node == NULL) 
-		return (EINVAL);
+		return;
 
 	mtx_lock(&ng_btsocket_l2cap_raw_sockets_mtx);
 	mtx_lock(&pcb->pcb_mtx);
@@ -1117,12 +1116,7 @@ ng_btsocket_l2cap_raw_detach(struct socket *so)
 	bzero(pcb, sizeof(*pcb));
 	FREE(pcb, M_NETGRAPH_BTSOCKET_L2CAP_RAW);
 
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
 	so->so_pcb = NULL;
-	sotryfree(so);
-
-	return (0);
 } /* ng_btsocket_l2cap_raw_detach */
 
 /*

@@ -146,12 +146,8 @@ atm_sock_attach(so, send, recv)
  * Arguments:
  *	so	pointer to socket
  *
- * Returns:
- *	0	detach successful
- *	errno	detach failed - reason indicated
- *
  */
-int
+void
 atm_sock_detach(so)
 	struct socket	*so;
 {
@@ -160,8 +156,7 @@ atm_sock_detach(so)
 	/*
 	 * Make sure we're still attached
 	 */
-	if (atp == NULL)
-		return (ENOTCONN);
+	KASSERT(atp != NULL, ("atm_sock_detach: atp == NULL"));
 
 	/*
 	 * Terminate any (possibly pending) connection
@@ -170,17 +165,9 @@ atm_sock_detach(so)
 		(void) atm_sock_disconnect(so);
 	}
 
-	/*
-	 * Break links and free control blocks
-	 */
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
 	so->so_pcb = NULL;
-	sotryfree(so);
 
 	uma_zfree(atm_pcb_zone, atp);
-
-	return (0);
 }
 
 

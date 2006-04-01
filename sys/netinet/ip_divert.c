@@ -424,7 +424,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	return 0;
 }
 
-static int
+static void
 div_detach(struct socket *so)
 {
 	struct inpcb *inp;
@@ -433,12 +433,11 @@ div_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&divcbinfo);
-		return EINVAL;
+		return;
 	}
 	INP_LOCK(inp);
 	in_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&divcbinfo);
-	return 0;
 }
 
 static int

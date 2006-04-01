@@ -72,7 +72,7 @@ ddp_attach(struct socket *so, int proto, struct thread *td)
 	return (error);
 }
 
-static int
+static void
 ddp_detach(struct socket *so)
 {
 	struct ddpcb	*ddp;
@@ -84,7 +84,6 @@ ddp_detach(struct socket *so)
 	DDP_LOCK(ddp);
 	at_pcbdetach(so, ddp);
 	DDP_LIST_XUNLOCK();
-	return (0);
 }
 
 static int      
