@@ -635,7 +635,7 @@ rip_pcbdetach(struct socket *so, struct inpcb *inp)
 	in_pcbdetach(inp);
 }
 
-static int
+static void
 rip_detach(struct socket *so)
 {
 	struct inpcb *inp;
@@ -645,12 +645,11 @@ rip_detach(struct socket *so)
 	if (inp == 0) {
 		/* XXX counter, printf */
 		INP_INFO_WUNLOCK(&ripcbinfo);
-		return EINVAL;
+		return;
 	}
 	INP_LOCK(inp);
 	rip_pcbdetach(so, inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
-	return 0;
 }
 
 static void

@@ -151,7 +151,7 @@ int		atm_create_stack(Atm_connvc *, struct stack_list *,
 	/* atm_socket.c */
 void		atm_sock_init(void);
 int		atm_sock_attach(struct socket *, u_long, u_long);
-int		atm_sock_detach(struct socket *);
+void		atm_sock_detach(struct socket *);
 int		atm_sock_bind(struct socket *, struct sockaddr *);
 int		atm_sock_listen(struct socket *, Atm_endpoint *, int);
 int		atm_sock_connect(struct socket *, struct sockaddr *,

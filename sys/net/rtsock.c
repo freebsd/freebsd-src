@@ -152,8 +152,8 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	struct rawcb *rp;
 	int s, error;
 
-	if (sotorawcb(so) != NULL)
-		return EISCONN;	/* XXX panic? */
+	KASSERT(so->so_pcb == NULL, ("rts_attach: so_pcb != NULL"));
+
 	/* XXX */
 	MALLOC(rp, struct rawcb *, sizeof *rp, M_PCB, M_WAITOK | M_ZERO);
 	if (rp == NULL)
@@ -214,32 +214,28 @@ rts_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 /* pru_connect2 is EOPNOTSUPP */
 /* pru_control is EOPNOTSUPP */
 
-static int
+static void
 rts_detach(struct socket *so)
 {
 	struct rawcb *rp = sotorawcb(so);
-	int s, error;
 
-	s = splnet();
-	if (rp != NULL) {
-		RTSOCK_LOCK();
-		switch(rp->rcb_proto.sp_protocol) {
-		case AF_INET:
-			route_cb.ip_count--;
-			break;
-		case AF_INET6:
-			route_cb.ip6_count--;
-			break;
-		case AF_IPX:
-			route_cb.ipx_count--;
-			break;
-		}
-		route_cb.any_count--;
-		RTSOCK_UNLOCK();
+	KASSERT(rp != NULL, ("rts_detach: rp == NULL"));
+
+	RTSOCK_LOCK();
+	switch(rp->rcb_proto.sp_protocol) {
+	case AF_INET:
+		route_cb.ip_count--;
+		break;
+	case AF_INET6:
+		route_cb.ip6_count--;
+		break;
+	case AF_IPX:
+		route_cb.ipx_count--;
+		break;
 	}
-	error = raw_usrreqs.pru_detach(so);
-	splx(s);
-	return error;
+	route_cb.any_count--;
+	RTSOCK_UNLOCK();
+	raw_usrreqs.pru_detach(so);
 }
 
 static int

@@ -66,7 +66,7 @@ u_long		atm_aal5_recvspace = 64 * 1024;	/* XXX */
  * Local functions
  */
 static int	atm_aal5_attach(struct socket *, int, struct thread *td);
-static int	atm_aal5_detach(struct socket *);
+static void	atm_aal5_detach(struct socket *);
 static int	atm_aal5_bind(struct socket *, struct sockaddr *, 
 			struct thread *td);
 static int	atm_aal5_listen(struct socket *, int backlog,
@@ -290,15 +290,15 @@ out:
  *	errno	error processing request - reason indicated
  *
  */
-static int
+static void
 atm_aal5_detach(so)
 	struct socket	*so;
 {
-	ATM_INTRO("detach");
+	ATM_INTRO_NOERR("detach");
 
-	err = atm_sock_detach(so);
+	atm_sock_detach(so);
 
-	ATM_OUTRO();
+	ATM_OUTRO_NOERR();
 }
 
 

@@ -75,7 +75,7 @@ int  ng_btsocket_hci_raw_connect    (struct socket *, struct sockaddr *,
 int  ng_btsocket_hci_raw_control    (struct socket *, u_long, caddr_t,
                                      struct ifnet *, struct thread *);
 int  ng_btsocket_hci_raw_ctloutput  (struct socket *, struct sockopt *);
-int  ng_btsocket_hci_raw_detach     (struct socket *);
+void ng_btsocket_hci_raw_detach     (struct socket *);
 int  ng_btsocket_hci_raw_disconnect (struct socket *);
 int  ng_btsocket_hci_raw_peeraddr   (struct socket *, struct sockaddr **);
 int  ng_btsocket_hci_raw_send       (struct socket *, int, struct mbuf *,
