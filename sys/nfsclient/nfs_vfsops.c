@@ -248,9 +248,14 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 #ifndef nolint
 	sfp = NULL;
 #endif
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = vfs_busy(mp, LK_NOWAIT, NULL, td);
 	if (error)
 		return (error);
+	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	if (error) {
+		vfs_unbusy(mp, td);
+		return (error);
+	}
 	vp = NFSTOV(np);
 	if (v3 && (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, td->td_ucred, td);
@@ -292,6 +297,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	m_freem(mrep);
 nfsmout:
 	vput(vp);
+	vfs_unbusy(mp, td);
 	return (error);
 }
 
