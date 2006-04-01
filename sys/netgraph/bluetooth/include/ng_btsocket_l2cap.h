@@ -100,7 +100,7 @@ int  ng_btsocket_l2cap_raw_connect    (struct socket *, struct sockaddr *,
                                        struct thread *);
 int  ng_btsocket_l2cap_raw_control    (struct socket *, u_long, caddr_t,
                                        struct ifnet *, struct thread *);
-int  ng_btsocket_l2cap_raw_detach     (struct socket *);
+void ng_btsocket_l2cap_raw_detach     (struct socket *);
 int  ng_btsocket_l2cap_raw_disconnect (struct socket *);
 int  ng_btsocket_l2cap_raw_peeraddr   (struct socket *, struct sockaddr **);
 int  ng_btsocket_l2cap_raw_send       (struct socket *, int, struct mbuf *,
@@ -193,7 +193,7 @@ int  ng_btsocket_l2cap_connect    (struct socket *, struct sockaddr *,
 int  ng_btsocket_l2cap_control    (struct socket *, u_long, caddr_t,
                                    struct ifnet *, struct thread *);
 int  ng_btsocket_l2cap_ctloutput  (struct socket *, struct sockopt *);
-int  ng_btsocket_l2cap_detach     (struct socket *);
+void ng_btsocket_l2cap_detach     (struct socket *);
 int  ng_btsocket_l2cap_disconnect (struct socket *);
 int  ng_btsocket_l2cap_listen     (struct socket *, int, struct thread *);
 int  ng_btsocket_l2cap_peeraddr   (struct socket *, struct sockaddr **);

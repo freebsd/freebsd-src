@@ -1399,15 +1399,15 @@ ng_btsocket_hci_raw_ctloutput(struct socket *so, struct sockopt *sopt)
  * Detach raw HCI socket
  */
 
-int
+void
 ng_btsocket_hci_raw_detach(struct socket *so)
 {
 	ng_btsocket_hci_raw_pcb_p	pcb = so2hci_raw_pcb(so);
 
-	if (pcb == NULL)
-		return (EINVAL);
+	KASSERT(pcb != NULL, ("ng_btsocket_hci_raw_detach: pcb == NULL"));
+
 	if (ng_btsocket_hci_raw_node == NULL)
-		return (EINVAL);
+		return;
 
 	mtx_lock(&ng_btsocket_hci_raw_sockets_mtx);
 	mtx_lock(&pcb->pcb_mtx);
@@ -1422,12 +1422,7 @@ ng_btsocket_hci_raw_detach(struct socket *so)
 	bzero(pcb, sizeof(*pcb));
 	FREE(pcb, M_NETGRAPH_BTSOCKET_HCI_RAW);
 
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
 	so->so_pcb = NULL;
-	sotryfree(so);
-
-	return (0);
 } /* ng_btsocket_hci_raw_detach */
 
 /*

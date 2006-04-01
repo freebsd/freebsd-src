@@ -206,7 +206,7 @@ struct pr_usrreqs {
 	int	(*pru_connect2)(struct socket *so1, struct socket *so2);
 	int	(*pru_control)(struct socket *so, u_long cmd, caddr_t data,
 		    struct ifnet *ifp, struct thread *td);
-	int	(*pru_detach)(struct socket *so);
+	void	(*pru_detach)(struct socket *so);
 	int	(*pru_disconnect)(struct socket *so);
 	int	(*pru_listen)(struct socket *so, int backlog,
 		    struct thread *td);
@@ -256,7 +256,7 @@ int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
 int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
 int	pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
 	    struct ifnet *ifp, struct thread *td);
-int	pru_detach_notsupp(struct socket *so);
+void	pru_detach_notsupp(struct socket *so);
 int	pru_disconnect_notsupp(struct socket *so);
 int	pru_listen_notsupp(struct socket *so, int backlog, struct thread *td);
 int	pru_peeraddr_notsupp(struct socket *so, struct sockaddr **nam);

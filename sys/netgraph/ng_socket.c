@@ -185,15 +185,13 @@ ngc_attach(struct socket *so, int proto, struct thread *td)
 	return (ng_attach_cntl(so));
 }
 
-static int
+static void
 ngc_detach(struct socket *so)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (pcbp == NULL)
-		return (EINVAL);
+	KASSERT(pcbp != NULL, ("ngc_detach: pcbp == NULL"));
 	ng_detach_common(pcbp, NG_CONTROL);
-	return (0);
 }
 
 static int
@@ -395,15 +393,13 @@ ngd_attach(struct socket *so, int proto, struct thread *td)
 	return (ng_attach_data(so));
 }
 
-static int
+static void
 ngd_detach(struct socket *so)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (pcbp == NULL)
-		return (EINVAL);
+	KASSERT(pcbp == NULL, ("ngd_detach: pcbp == NULL"));
 	ng_detach_common(pcbp, NG_DATA);
-	return (0);
 }
 
 static int

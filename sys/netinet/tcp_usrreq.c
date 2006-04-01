@@ -148,10 +148,9 @@ out:
  * which may finish later; embryonic TCB's can just
  * be discarded here.
  */
-static int
+static void
 tcp_usr_detach(struct socket *so)
 {
-	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	TCPDEBUG0;
@@ -160,7 +159,7 @@ tcp_usr_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == NULL) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		return error;
+		return;
 	}
 	INP_LOCK(inp);
 	tp = intotcpcb(inp);
@@ -171,7 +170,6 @@ tcp_usr_detach(struct socket *so)
 	if (tp)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	return error;
 }
 
 #define INI_NOLOCK	0

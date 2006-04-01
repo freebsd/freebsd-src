@@ -80,7 +80,7 @@ static	int ipx_attach(struct socket *so, int proto, struct thread *td);
 static	int ipx_bind(struct socket *so, struct sockaddr *nam, struct thread *td);
 static	int ipx_connect(struct socket *so, struct sockaddr *nam,
 			struct thread *td);
-static	int ipx_detach(struct socket *so);
+static	void ipx_detach(struct socket *so);
 static	int ipx_disconnect(struct socket *so);
 static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
 		     struct sockaddr *addr, struct mbuf *control,
@@ -505,7 +505,7 @@ out:
 	return (error);
 }
 
-static int
+static void
 ipx_detach(so)
 	struct socket *so;
 {
@@ -517,7 +517,6 @@ ipx_detach(so)
 	ipx_pcbdetach(ipxp);
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
-	return (0);
 }
 
 static int
