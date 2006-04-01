@@ -31,6 +31,63 @@
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
  */
 
+/*
+ * Comments on the socket life cycle:
+ *
+ * soalloc() sets of socket layer state for a socket, called only by
+ * socreate() and sonewconn().  Socket layer private.
+ *
+ * sdealloc() tears down socket layer state for a socket, called only by
+ * sofree() and sonewconn().  Socket layer private.
+ *
+ * pru_attach() associates protocol layer state with an allocated socket;
+ * called only once, may fail, aborting socket allocation.  This is called
+ * from socreate() and sonewconn().  Socket layer private.
+ *
+ * pru_detach() disassociates protocol layer state from an attached socket,
+ * and will be called exactly once for sockets in which pru_attach() has
+ * been successfully called.  If pru_attach() returned an error,
+ * pru_detach() will not be called.  Socket layer private.
+ *
+ * socreate() creates a socket and attaches protocol state.  This is a public
+ * interface that may be used by socket layer consumers to create new
+ * sockets.
+ *
+ * sonewconn() creates a socket and attaches protocol state.  This is a
+ * public interface  that may be used by protocols to create new sockets when
+ * a new connection is received and will be available for accept() on a
+ * listen socket.
+ *
+ * soclose() destroys a socket after possibly waiting for it to disconnect.
+ * This is a public interface that socket consumers should use to close and
+ * release a socket when done with it.
+ *
+ * soabort() destroys a socket without waiting for it to disconnect (used
+ * only for incoming connections that are already partially or fully
+ * connected).  This is used internally by the socket layer when clearing
+ * listen socket queues (due to overflow or close on the listen socket), but
+ * is also a public interface protocols may use to abort connections in
+ * their incomplete listen queues should they no longer be required.  Sockets
+ * placed in completed connection listen queues should not be aborted.
+ *
+ * sofree() will free a socket and its protocol state if all references on
+ * the socket have been released, and is the public interface to attempt to
+ * free a socket when a reference is removed.  This is a socket layer private
+ * interface.
+ *
+ * NOTE: In addition to socreate() and soclose(), which provide a single
+ * socket reference to the consumer to be managed as required, there are two
+ * calls to explicitly manage socket references, soref(), and sorele().
+ * Currently, these are generally required only when transitioning a socket
+ * from a listen queue to a file descriptor, in order to prevent garbage
+ * collection of the socket at an untimely moment.  For a number of reasons,
+ * these interfaces are not preferred, and should be avoided.
+ *
+ * XXXRW: The behavior of sockets after soclose() but before the last
+ * sorele() is poorly defined.  We can probably entirely eliminate them with
+ * a little work, since consumers are managing references anyway.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
