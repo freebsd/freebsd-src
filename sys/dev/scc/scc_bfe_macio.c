@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2006 Marcel Moolenaar
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,31 +42,28 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/scc/scc_bfe.h>
 
-#define	EBUS_REGSHFT	0
-#define	EBUS_RCLK	29491200
+#define	MACIO_REGSHFT	4
+#define	MACIO_RCLK	230400
 
 static int
-scc_ebus_probe(device_t dev)
+scc_macio_probe(device_t dev)
 {
 	struct scc_softc *sc;
-	const char *cmpt, *nm;
+	const char *nm;
 
 	sc = device_get_softc(dev);
 	nm = ofw_bus_get_name(dev);
-	cmpt = ofw_bus_get_compat(dev);
-	if (cmpt == NULL)
-		cmpt = "";
-	if (!strcmp(nm, "se") || !strcmp(cmpt, "sab82532")) {
-		device_set_desc(dev, "Siemens SAB 82532 dual channel SCC");
-		sc->sc_class = &scc_sab82532_class;
-		return (scc_bfe_probe(dev, EBUS_REGSHFT, EBUS_RCLK));
+	if (!strcmp(nm, "escc")) {
+		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
+		sc->sc_class = &scc_z8530_class;
+		return (scc_bfe_probe(dev, MACIO_REGSHFT, MACIO_RCLK));
 	}
 	return (ENXIO);
 }
 
-static device_method_t scc_ebus_methods[] = {
+static device_method_t scc_macio_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		scc_ebus_probe),
+	DEVMETHOD(device_probe,		scc_macio_probe),
 	DEVMETHOD(device_attach,	scc_bfe_attach),
 	DEVMETHOD(device_detach,	scc_bfe_detach),
 
@@ -81,10 +78,10 @@ static device_method_t scc_ebus_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t scc_ebus_driver = {
+static driver_t scc_macio_driver = {
 	scc_driver_name,
-	scc_ebus_methods,
+	scc_macio_methods,
 	sizeof(struct scc_softc),
 };
 
-DRIVER_MODULE(scc, ebus, scc_ebus_driver, scc_devclass, 0, 0);
+DRIVER_MODULE(scc, macio, scc_macio_driver, scc_devclass, 0, 0);

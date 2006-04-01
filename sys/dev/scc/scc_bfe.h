@@ -103,8 +103,6 @@ struct scc_class {
 	u_int		cl_class;	/* SCC bus class ID. */
 	u_int		cl_modes;	/* Supported modes (bitset). */
 	int		cl_range;
-	u_int		cl_rclk;
-	u_int		cl_regshft;
 };
 
 extern struct scc_class scc_sab82532_class;
@@ -139,7 +137,7 @@ extern char scc_driver_name[];
 
 int scc_bfe_attach(device_t dev);
 int scc_bfe_detach(device_t dev);
-int scc_bfe_probe(device_t dev);
+int scc_bfe_probe(device_t dev, u_int, u_int);
 
 struct resource *scc_bus_alloc_resource(device_t, device_t, int, int *,
     u_long, u_long, u_long, u_int);
