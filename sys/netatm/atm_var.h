@@ -136,6 +136,7 @@ int		atm_proto_notsupp2(struct socket *, struct sockaddr *,
 int		atm_proto_notsupp3(struct socket *, struct sockaddr **);
 int		atm_proto_notsupp4(struct socket *, int, KBuffer *, 
 			struct sockaddr *, KBuffer *, struct thread *);
+void		atm_proto_notsupp5(struct socket *);
 
 	/* atm_signal.c */
 int		atm_sigmgr_register(struct sigmgr *);

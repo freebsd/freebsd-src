@@ -755,17 +755,25 @@ out:
 /*
  * Abort the TCP.
  */
-static int
+static void
 tcp_usr_abort(struct socket *so)
 {
-	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	const int inirw = INI_WRITE;
+	TCPDEBUG0;
 
-	COMMON_START();
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == NULL)
+		return;
+	INP_LOCK(inp);
+	tp  = intotcpcb(inp);
+	TCPDEBUG1();
 	tp = tcp_drop(tp, ECONNABORTED);
-	COMMON_END(PRU_ABORT);
+	TCPDEBUG2(PRU_ABORT);
+	if (tp)
+		INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
 /*

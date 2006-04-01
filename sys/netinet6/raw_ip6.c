@@ -615,11 +615,11 @@ rip6_detach(struct socket *so)
 	return 0;
 }
 
-static int
+static void
 rip6_abort(struct socket *so)
 {
 	soisdisconnected(so);
-	return rip6_detach(so);
+	rip6_detach(so);
 }
 
 static int
@@ -630,7 +630,8 @@ rip6_disconnect(struct socket *so)
 	if ((so->so_state & SS_ISCONNECTED) == 0)
 		return ENOTCONN;
 	inp->in6p_faddr = in6addr_any;
-	return rip6_abort(so);
+	rip6_abort(so);
+	return 0;
 }
 
 static int
