@@ -56,7 +56,7 @@ tcp_server(pid_t partner)
 	listen_fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (listen_fd < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "tcp_server: socket");
 	}
@@ -69,14 +69,14 @@ tcp_server(pid_t partner)
 
 	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "tcp_server: bind");
 	}
 
 	if (listen(listen_fd, -1) < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "tcp_server: listen");
 	}
@@ -84,7 +84,7 @@ tcp_server(pid_t partner)
 	accept_fd = accept(listen_fd, NULL, NULL);
 	if (accept_fd < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "tcp_server: accept");
 	}
@@ -103,7 +103,7 @@ tcp_client(pid_t partner, int secs)
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "socket");
 	}
@@ -116,14 +116,14 @@ tcp_client(pid_t partner, int secs)
 
 	if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "connect");
 	}
 
 	if (shutdown(sock, SHUT_RDWR) < 0) {
 		error = errno;
-		(void)kill(partner, SIGKILL);
+		(void)kill(partner, SIGTERM);
 		errno = error;
 		err(-1, "shutdown");
 	}
@@ -152,8 +152,11 @@ main(int argc, char *argv[])
 	if (child_pid == 0) {
 		child_pid = getpid();
 		tcp_server(child_pid);
+		exit(0);
 	} else
 		tcp_client(parent_pid, 1);
+	(void)kill(child_pid, SIGTERM);
+	sleep(5);
 
 	parent_pid = getpid();
 	child_pid = fork();
