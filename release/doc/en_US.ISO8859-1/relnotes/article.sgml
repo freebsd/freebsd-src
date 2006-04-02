@@ -178,8 +178,21 @@
       command.  This takes a wait channel as an argument and looks
       for a sleep queue associated with that wait channel.</para>
 
+    <para>A bug in file descriptor handling such that simple
+      <literal>close(0); dup(fd)</literal> does not return
+      descriptor <literal>0</literal> in some cases, has been fixed.</para>
+
     <para>The &man.firmware.9; subsystem has been added.  This allows
       to load binary data into the kernel via a specially crafted module.</para>
+
+    <para>The &man.gdb.1; remote debugging interface now supports
+      copying console messages to a remote debugger instance.
+      To enable this, set <literal>debug.gdbcons="1"</literal>
+      in <filename>loader.conf</filename>, enter <literal>boot -d;
+	gdb; step</literal> from the loader prompt,
+      then attach &man.gdb.1; from a remote machine.
+      The sysctl variable <varname>debug.gdbcons</varname> can be
+      used to turn on/off this functionality.</para>
 
     <para>The &man.random.4; entropy device driver is now MPSAFE.</para>
 
@@ -316,8 +329,19 @@
 	or at runtime via &man.kldload.8; and releasing the active
 	keyboard.</para>
 
+      <para>The &man.kbdmux.4; has been included in the
+	<filename>GENERIC</filename> kernel by default.
+	Also, the <quote>Boot FreeBSD with USB keyboard</quote>
+	menu item in the boot loader menu has been removed
+	since this fixes USB keyboard probing problems.</para>
+
       <para arch="ia64">The loader tunable <varname>debug.mpsafevfs</varname>
 	is set to <literal>1</literal> by default.</para>
+
+      <para>The &man.scc.4; driver has been added.
+	This provides generic support for serial communications
+	controllers and delegates the control over each channel
+	and mode to a subordinate driver such as &man.uart.4;.</para>
 
       <para arch="amd64">The smbios(4) driver support for amd64 has been
 	added.</para>
@@ -534,6 +558,10 @@ pipe tablearg ip from table(1) to any</programlisting>
 	when the server sent FIN.  This problem had occurred
 	with Solaris NFS servers.</para>
 
+      <para>The sysctl variable <varname>net.inet.ip.portrange.reservedhigh</varname>
+	and <varname>net.inet.ip.portrange.reservedlow</varname>
+	can be used with IPv6 now.</para>
+
       <para>A new sysctl variable <varname>net.inet.icmp.reply_from_interface</varname>
 	has been added.  This allows the &man.icmp.4;
 	reply to non-local packets generated with
@@ -610,11 +638,21 @@ pipe tablearg ip from table(1) to any</programlisting>
 	and Promise PDC40718 and PDC40719 chip found in Promise
 	Fasttrak TX4300.</para>
 
-      <para>The &man.ata.4; driver now supports DMA for kernel dump
-	and dumping to &man.ataraid.4; device.</para>
+      <para>The &man.ata.4; driver now supports DMA for kernel crash dump
+	and crash dumping to &man.ataraid.4; device.</para>
+
+      <para>The &man.ata.4; driver now supports USB mass storage class
+	devices.  To enable it, a line <literal>device atausb</literal>
+	in the kernel configuration file or loading the
+	<filename>atausb</filename> kernel module is needed.
+	Note that this conflicts &man.umass.4; and cannot coexist with
+	each other.</para>
 
       <para>The &man.ataraid.4; driver now supports
 	JMicron ATA RAID metadata.</para>
+
+      <para>The <literal>GEOM_MIRROR</literal> class now supports
+	kernel crash dump to the GEOM providers.</para>
 
       <para>The <literal>GEOM_MIRROR</literal> and <literal>GEOM_RAID3</literal>
 	classes now support sysctl variables
@@ -632,6 +670,18 @@ pipe tablearg ip from table(1) to any</programlisting>
 	or <command>graid3 list</command> output with flag
 	<literal>BROKEN</literal>.</para>
 
+      <para>The <literal>GEOM_MIRROR</literal> and <literal>GEOM_RAID3</literal>
+	classes now support parallel I/O request handling.  New sysctl variables
+	<varname>kern.geom.mirror.sync_requests</varname> and
+	<varname>kern.geom.raid3.sync_requests</varname>
+	define how many parallel I/O requests should be used.
+	Also, sysctl variables
+	<varname>kern.geom.mirror.reqs_per_sync</varname>,
+	<varname>kern.geom.mirror.syncs_per_sec</varname>,
+	<varname>kern.geom.raid3.reqs_per_sync</varname>, and
+	<varname>kern.geom.raid3.syncs_per_sec</varname>
+	have been removed.</para>
+
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
 	It creates very huge provider (41PB) <filename>/dev/gzero</filename>
 	and mainly for performance testing.
@@ -648,6 +698,9 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.hptmv.4; driver has been updated and now supports
 	amd64 as well as PAE.</para>
+
+      <para>The &man.mfi.4; driver, which supports
+	LSI MegaRAID SAS controller family has been added.</para>
 
       <para>The &man.mpt.4; driver has been updated to support
 	various new features such as RAID volume and RAID member
@@ -779,11 +832,18 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <option>-k</option> and <option>-K</option> options
       to specify a key file in addition to a passphrase.</para>
 
+    <para>The &man.getfacl.1; utility now supports
+      a <option>-q</option> flag to suppress the per-file header
+      comment listing the file name, owner, and group.</para>
+
     <para>The &man.gpt.8; utility now supports setting GPT partition labels.</para>
 
     <para>The &man.gvinum.8; utility now supports commands
       to rename objects and to move a subdisk from
       one drive to another.</para>
+
+    <para>The &man.gvinum.8; utility now supports
+      <command>resetconfig</command> sub-command.</para>
 
     <para>An implementation of Generic Security Service API (GSS-API)
       version 2 and its C binding described in RFC2743 and RFC2744
@@ -828,12 +888,18 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       and be able to patch memory on a live system.</para>
 
     <para>The &man.libarchive.3; library now supports
-      <quote>tp</quote> format, which was the standard system
-      archiver for Fourth Edition through Sixth Edition Unix and
-      replaced by tar in Seventh Edition.</para>
+      POSIX.1e-style Extended Attribute.</para>
+
+    <para>The <application>libc</application> library now includes
+      initial implementation of symbol maps and symbol version
+      definitions.</para>
 
     <para>The <application>libedit</application> library has been
       updated from the NetBSD source tree as of August 2005.</para>
+
+    <para>The <application>libm</application> library now includes
+      initial implementation of symbol maps and symbol version
+      definitions.</para>
 
     <para>The &man.libmemstat.3; library has been added.
       This is for use by debugging and monitoring applications
@@ -853,6 +919,19 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.ls.1; utility now supports
       an <option>-I</option> flag to disable the automatic
       <option>-A</option> flag for the superuser.</para>
+
+    <para>The &man.ls.1; utility now supports
+      an <option>-U</option> flag to use the file creation
+      time for sorting.</para>
+
+    <para>The &man.mdconfig.8; utility now supports XML
+      output of the device listing.  Currently
+      <command>list</command> and <command>query</command>
+      sub-command support this feature.</para>
+
+    <para>The &man.mdconfig.8; utility's <option>-u</option> option
+      now supports specifying multiple devices separated
+      by comma character.</para>
 
     <para>The &man.mdmfs.8; utility now supports a <option>-P</option> flag
       to allow skipping &man.newfs.8; process
@@ -923,6 +1002,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.powerd.8; program now supports a
       <option>-P</option> option which allows to specify pidfile.</para>
 
+    <para>The DNS resolver library in &os;'s <application>libc</application>
+      has been updated to BIND9's one.</para>
+
     <para>The &man.rfcomm.pppd.8; now supports service name
       in addition to <option>-c</option> option with channel number.
       The supported names are: DUN (Dial-Up Networking), FAX (Fax),
@@ -941,6 +1023,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.sh.1; utility now supports <literal>times</literal>
       built-in command.</para>
+
+    <para>The &man.strtonum.3; library function has been implemented
+      based on OpenBSD's implementation.  This is an improved version of
+      &man.strtoll.3;.</para>
 
     <para>The &man.sysctl.8; utility now supports a <option>-q</option>
       flag to suppress a limited set of warnings and errors.</para>
@@ -1005,6 +1091,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	scripts has been added for &man.geli.8; device
 	configuration on boot.</para>
 
+      <para>The <filename>ike</filename> script for
+	IPsec IKE daemon has been removed because no such daemon
+	is included in the base system.</para>
+
       <para>The <filename>hcsecd</filename> and
 	<filename>sdpd</filename> scripts have been added.
 	for &man.hcsecd.8; and &man.sdpd.8; daemons.
@@ -1061,8 +1151,17 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
 
+    <para><application>GNU Readline library</application>
+      has been updated from 5.0 to 5.1.</para>
+
     <para><application>IPFilter</application> has been updated from
       4.1.8 to 4.1.10.</para>
+
+    <para><application>OpenSSH</application> has been updated from
+      4.2p1 to 4.3p1. &merged;</para>
+
+    <para><application>hostapd</application>
+      has been updated from version 0.3.9 to version 0.4.8.</para>
 
     <para><application>sendmail</application> has been updated from
       8.13.4 to 8.13.6. &merged;</para>
@@ -1070,10 +1169,20 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
       <application>tzdata2005r</application> release. &merged;</para>
+
+    <para><application>WPA Supplicant</application>
+      has been updated from version 0.3.9 to version 0.4.8.</para>
+
+    <para><application>zlib</application>
+      has been updated from version 1.2.2 to version 1.2.3.</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
+
+    <para>The &man.pkg.add.1; now supports an <option>-F</option>
+      flag to disable checking whether the same package is already
+      installed or not.</para>
 
     <para>The &man.pkg.add.1; now supports an <option>-P</option>
       flag, which is the same as the <option>-p</option> flag
@@ -1098,6 +1207,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       has been added into the &os; base system.  This is a secure,
       easy to use, fast, lightweight, and generally good way for
       users to keep their ports trees up to date.</para>
+
+    <para>A incorrect handling of <varname>HTTP_PROXY_AUTH</varname>
+      in the &man.portsnap.8; utility has been fixed.</para>
 
     <para>The startup scripts from the <varname>local_startup</varname>
       directory now evaluated by using &man.rcorder.8; with scripts
@@ -1194,6 +1306,15 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>A bug that <filename>CHECKSUM.MD5</filename> includes
       an incorrect checksum of the file itself has been fixed.</para>
+
+    <para>A new &man.make.1; target <command>make showconfig</command>
+      has been added in <filename>src/Makefile</filename>
+      to show build configuration of the &os; source tree.</para>
+
+    <para>The <filename>src.conf</filename> file, which
+      contains settings that will apply to every build involving
+      the &os; source tree, has been added.
+      For details, see &man.build.7; and &man.src.conf.5;.</para>
 
     <para>The supported version of
       the <application>GNOME</application> desktop environment
