@@ -194,6 +194,12 @@
       The sysctl variable <varname>debug.gdbcons</varname> can be
       used to turn on/off this functionality.</para>
 
+    <para>&man.hwpmc.4; and &man.pmcstat.8; now support profiling
+      of dynamically loaded kernel modules and
+      <function>dlopen()</function>'ed shared objects.
+      &man.pmcstat.8; can now log over a network socket
+      to a remote host.</para>
+
     <para>The &man.random.4; entropy device driver is now MPSAFE.</para>
 
     <para>The <literal>SIGCHLD</literal> signal queuing has been
@@ -671,7 +677,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 	<literal>BROKEN</literal>.</para>
 
       <para>The <literal>GEOM_MIRROR</literal> and <literal>GEOM_RAID3</literal>
-	classes now support parallel I/O request handling.  New sysctl variables
+	classes now use parallel I/O request for synchronization
+	to improve the performance.  New sysctl variables
 	<varname>kern.geom.mirror.sync_requests</varname> and
 	<varname>kern.geom.raid3.sync_requests</varname>
 	define how many parallel I/O requests should be used.
@@ -680,7 +687,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	<varname>kern.geom.mirror.syncs_per_sec</varname>,
 	<varname>kern.geom.raid3.reqs_per_sync</varname>, and
 	<varname>kern.geom.raid3.syncs_per_sec</varname>
-	have been removed.</para>
+	are deprecated and have been removed.</para>
 
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
 	It creates very huge provider (41PB) <filename>/dev/gzero</filename>
