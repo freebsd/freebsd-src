@@ -213,7 +213,8 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 	sc->sc_if.if_softc = sc;
 	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 	sc->sc_if.if_mtu = PPP_MTU;
-	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	sc->sc_if.if_type = IFT_PPP;
 	sc->sc_if.if_hdrlen = PPP_HDRLEN;
 	sc->sc_if.if_ioctl = pppsioctl;
