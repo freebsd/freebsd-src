@@ -443,7 +443,7 @@ ns8250_bus_flush(struct uart_softc *sc, int what)
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	if (sc->sc_hasfifo) {
+	if (sc->sc_rxfifosz > 1) {
 		ns8250_flush(bas, what);
 		uart_setreg(bas, REG_FCR, ns8250->fcr);
 		uart_barrier(bas);
@@ -635,14 +635,14 @@ ns8250_bus_probe(struct uart_softc *sc)
 	 */
 	uart_setreg(bas, REG_FCR, FCR_ENABLE);
 	uart_barrier(bas);
-	sc->sc_hasfifo = (uart_getreg(bas, REG_IIR) & IIR_FIFO_MASK) ? 1 : 0;
-	if (!sc->sc_hasfifo) {
+	if (!(uart_getreg(bas, REG_IIR) & IIR_FIFO_MASK)) {
 		/*
 		 * NS16450 or INS8250. We don't bother to differentiate
 		 * between them. They're too old to be interesting.
 		 */
 		uart_setreg(bas, REG_MCR, mcr);
 		uart_barrier(bas);
+		sc->sc_rxfifosz = sc->sc_txfifosz = 1;
 		device_set_desc(sc->sc_dev, "8250 or 16450 or compatible");
 		return (0);
 	}
