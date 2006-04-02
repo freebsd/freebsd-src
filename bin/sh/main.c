@@ -316,19 +316,21 @@ int
 dotcmd(int argc, char **argv)
 {
 	struct strlist *sp;
+	char *fullname;
+
+	if (argc < 2)
+		error("missing filename");
+
 	exitstatus = 0;
 
 	for (sp = cmdenviron; sp ; sp = sp->next)
 		setvareq(savestr(sp->text), VSTRFIXED|VTEXTFIXED);
 
-	if (argc >= 2) {		/* That's what SVR2 does */
-		char *fullname = find_dot_file(argv[1]);
-
-		setinputfile(fullname, 1);
-		commandname = fullname;
-		cmdloop(0);
-		popfile();
-	}
+	fullname = find_dot_file(argv[1]);
+	setinputfile(fullname, 1);
+	commandname = fullname;
+	cmdloop(0);
+	popfile();
 	return exitstatus;
 }
 
