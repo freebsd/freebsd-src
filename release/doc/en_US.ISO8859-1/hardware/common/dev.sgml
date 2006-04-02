@@ -480,6 +480,8 @@
 
     &hwlist.uart;
 
+    &hwlist.scc;
+
     <para arch="i386,alpha,amd64">AST 4 port serial card using shared IRQ</para>
 
     <para arch="i386">ARNET serial cards (&man.ar.4; driver)
