@@ -2088,7 +2088,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 				i = min(mc->m_pkthdr.len, max_protohdr);
 				mc = m_copyup(mc, i, ETHER_ALIGN);
 				if (mc == NULL) {
-					sc->sc_ifp->if_oerrors++;
+					sc->sc_if.if_oerrors++;
 					continue;
 				}
 			}
