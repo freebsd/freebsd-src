@@ -66,7 +66,6 @@ uart_ebus_probe(device_t dev)
 	const char *nm, *cmpt;
 	struct uart_softc *sc;
 	struct uart_devinfo dummy;
-	int error;
 
 	sc = device_get_softc(dev);
 	sc->sc_class = NULL;
