@@ -920,11 +920,11 @@ findkn:
 		 * which will remove it from the list, and NULL kn_knlist.
 		 */
 		event = kn->kn_fop->f_event(kn, 0);
-		KN_LIST_UNLOCK(kn);
 		KQ_LOCK(kq);
 		if (event)
 			KNOTE_ACTIVATE(kn, 1);
 		kn->kn_status &= ~KN_INFLUX;
+		KN_LIST_UNLOCK(kn);
 	} else if (kev->flags & EV_DELETE) {
 		kn->kn_status |= KN_INFLUX;
 		KQ_UNLOCK(kq);
