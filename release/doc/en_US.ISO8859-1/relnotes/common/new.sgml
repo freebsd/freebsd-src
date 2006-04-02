@@ -1013,7 +1013,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The DNS resolver library in &os;'s <application>libc</application>
       has been updated to BIND9's one.</para>
 
-    <para>The &man.rfcomm.pppd.8; now supports service name
+    <para>The &man.rfcomm.sppd.1; now supports service name
       in addition to <option>-c</option> option with channel number.
       The supported names are: DUN (Dial-Up Networking), FAX (Fax),
       LAN (LAN Access Using PPP), and SP (Serial Port).</para>
