@@ -93,7 +93,6 @@ struct uart_softc {
 
 	int		sc_callout:1;	/* This UART is opened for callout. */
 	int		sc_fastintr:1;	/* This UART uses fast interrupts. */
-	int		sc_hasfifo:1;	/* This UART has FIFOs. */
 	int		sc_hwiflow:1;	/* This UART has HW input flow ctl. */
 	int		sc_hwoflow:1;	/* This UART has HW output flow ctl. */
 	int		sc_leaving:1;	/* This UART is going away. */
