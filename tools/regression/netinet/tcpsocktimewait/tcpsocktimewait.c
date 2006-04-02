@@ -161,9 +161,9 @@ main(int argc, char *argv[])
 		err(-1, "fork");
 	if (child_pid == 0) {
 		child_pid = getpid();
-		tcp_server(child_pid);
+		tcp_server(parent_pid);
 	} else
-		tcp_client(parent_pid, 800);
+		tcp_client(child_pid, 800);
 
 	return (0);
 }
