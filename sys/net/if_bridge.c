@@ -2047,7 +2047,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	struct bridge_iflist *bif;
 	struct mbuf *mc;
 	struct ifnet *dst_if;
-	int error = 0, used = 0;
+	int error = 0, used = 0, i;
 
 	BRIDGE_LOCK_ASSERT(sc);
 	BRIDGE_LOCK2REF(sc, error);
@@ -2092,7 +2092,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			mc = m;
 			used = 1;
 		} else {
-			mc = m_copypacket(m, M_DONTWAIT);
+			mc = m_dup(m, M_DONTWAIT);
 			if (mc == NULL) {
 				sc->sc_ifp->if_oerrors++;
 				continue;
@@ -2109,6 +2109,15 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		    || inet6_pfil_hook.ph_busy_count >= 0
 #endif
 		    )) {
+			if (used == 0) {
+				/* Keep the layer3 header aligned */
+				i = min(mc->m_pkthdr.len, max_protohdr);
+				mc = m_copyup(mc, i, ETHER_ALIGN);
+				if (mc == NULL) {
+					sc->sc_ifp->if_oerrors++;
+					continue;
+				}
+			}
 			if (bridge_pfil(&mc, NULL, dst_if, PFIL_OUT) != 0)
 				continue;
 			if (mc == NULL)
@@ -2550,6 +2559,9 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 
 	snap = 0;
 	error = -1;	/* Default error if not error == 0 */
+
+	/* we may return with the IP fields swapped, ensure its not shared */
+	KASSERT(M_WRITABLE(*mp), ("%s: modifying a shared mbuf", __func__));
 
 	if (pfil_bridge == 0 && pfil_member == 0 && pfil_ipfw == 0)
 		return 0; /* filtering is disabled */
