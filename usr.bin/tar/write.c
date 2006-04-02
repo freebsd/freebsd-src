@@ -629,15 +629,18 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 */
 		switch(symlink_mode) {
 		case 'H':
-			/* 'H': First item (from command line) like 'L'. */
-			lst = tree_current_stat(tree);
 			/* 'H': After the first item, rest like 'P'. */
 			symlink_mode = 'P';
-			break;
+			/* 'H': First item (from command line) like 'L'. */
+			/* FALLTHROUGH */
 		case 'L':
 			/* 'L': Do descend through a symlink to dir. */
 			/* 'L': Archive symlink to file as file. */
 			lst = tree_current_stat(tree);
+			/* If stat fails, we have a broken symlink;
+			 * in that case, archive the link as such. */
+			if (lst == NULL)
+				lst = tree_current_lstat(tree);
 			break;
 		default:
 			/* 'P': Don't descend through a symlink to dir. */
