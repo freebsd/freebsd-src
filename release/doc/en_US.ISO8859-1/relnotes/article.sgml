@@ -329,7 +329,7 @@
 	or at runtime via &man.kldload.8; and releasing the active
 	keyboard.</para>
 
-      <para>The &man.kbdmux.4; has been included in the
+      <para arch="amd64,i386">The &man.kbdmux.4; has been included in the
 	<filename>GENERIC</filename> kernel by default.
 	Also, the <quote>Boot FreeBSD with USB keyboard</quote>
 	menu item in the boot loader menu has been removed
@@ -349,7 +349,7 @@
       <para>The tnt4882(4) driver which supports National Instruments
 	PCI-GPIB card has been added.</para>
 
-      <para>The &man.uart.4; driver has been included in the
+      <para arch="alpha,amd64,i386,ia64,sparc64">The &man.uart.4; driver has been included in the
 	<filename>GENERIC</filename> kernel by default.
 	When both &man.sio.4; and &man.uart.4; can handle a serial port,
 	&man.sio.4; will claim it.</para>
@@ -389,7 +389,7 @@
 
 	<para>The &man.snd.via82c686.4; driver is now MPSAFE.</para>
 
-	<para>The &man.speaker.4; driver now supports &os;/amd64.</para>
+	<para arch="amd64">The &man.speaker.4; driver now supports &os;/amd64.</para>
 
 	<para>The &man.uaudio.4; driver now supports 24/32 bit audio
 	  formats and conversion.</para>
@@ -696,7 +696,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	has been renamed to <filename>geom_md.ko</filename>
 	for consistency.</para>
 
-      <para>The &man.hptmv.4; driver has been updated and now supports
+      <para arch="amd64,i386">The &man.hptmv.4; driver has been updated and now supports
 	amd64 as well as PAE.</para>
 
       <para>The &man.mfi.4; driver, which supports
@@ -794,6 +794,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       &man.auditd.8;,
       &man.auditreduce.1;,
       &man.praudit.1; have been added.</para>
+
     <para>The &man.bsdiff.1; and &man.bspatch.1; utilities
       have been added.  These are tools for constructing and
       applying binary patches.</para>
@@ -861,16 +862,16 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       parameter, which is just an alias for <option>deletetunnel</option>,
       yet is more convenient and easier to type.</para>
 
-    <para>The &man.jail.8; utility now supports a <option>-J
-	<replaceable>jid_file</replaceable></option> option to
-      write out a JidFile, similar to a PidFile, containing
-      the jailid, path, hostname, ip and the command used to start
-      the jail.</para>
-
     <para>The <option>-vlandev</option> parameter to &man.ifconfig.8;
       no longer requires a network interface as its argument.  The
       argument still is supported for backward compatibility, but now
       it is deprecated and its use is discouraged.</para>
+
+    <para>The &man.jail.8; utility pports a <option>-J
+	<replaceable>jid_file</replaceable></option> option to
+      write out a JidFile, similar to a PidFile, containing
+      the jailid, path, hostname, IP and the command used to start
+      the jail.</para>
 
     <para>The &man.kdump.1; now supports a <option>-H</option>
       flag, which causes kdump to print an additional field holding
@@ -1076,7 +1077,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	and can be overridden by using
 	<filename>/etc/bluetooth/<replaceable>$device</replaceable>.conf</filename>
 	(where <replaceable>$device</replaceable> is <devicename>ubt0</devicename>,
-	<devicename>btcc0</devicename>, and so on.
+	<devicename>btcc0</devicename>, and so on.)
 	For more details, see &man.bluetooth.conf.5;.</para>
 
       <para>The <filename>ftpd</filename> script for
@@ -1096,7 +1097,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	is included in the base system.</para>
 
       <para>The <filename>hcsecd</filename> and
-	<filename>sdpd</filename> scripts have been added.
+	<filename>sdpd</filename> scripts have been added
 	for &man.hcsecd.8; and &man.sdpd.8; daemons.
 	These daemons can run even if no Bluetooth devices
 	are attached to the system, but both daemons depend on
@@ -1158,7 +1159,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       4.1.8 to 4.1.10.</para>
 
     <para><application>OpenSSH</application> has been updated from
-      4.2p1 to 4.3p1. &merged;</para>
+      4.2p1 to 4.3p1.</para>
 
     <para><application>hostapd</application>
       has been updated from version 0.3.9 to version 0.4.8.</para>
