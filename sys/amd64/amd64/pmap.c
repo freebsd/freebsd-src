@@ -208,6 +208,8 @@ static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 		vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
+static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
+    vm_page_t m);
 
 static vm_page_t pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
@@ -1584,6 +1586,29 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 }
 
 /*
+ * Conditionally create a pv entry.
+ */
+static boolean_t
+pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pv_entry_t pv;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (pv_entry_count < pv_entry_high_water && 
+	    (pv = uma_zalloc(pvzone, M_NOWAIT)) != NULL) {
+		pv_entry_count++;
+		pv->pv_va = va;
+		pv->pv_pmap = pmap;
+		TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		m->md.pv_list_count++;
+		return (TRUE);
+	} else
+		return (FALSE);
+}
+
+/*
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
@@ -2370,7 +2395,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	vm_offset_t addr;
 	vm_offset_t end_addr = src_addr + len;
 	vm_offset_t va_next;
-	vm_page_t m;
 
 	if (dst_addr != src_addr)
 		return;
@@ -2396,15 +2420,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (addr >= UPT_MIN_ADDRESS)
 			panic("pmap_copy: invalid to pmap_copy page tables");
 
-		/*
-		 * Don't let optional prefaulting of pages make us go
-		 * way below the low water mark of free pages or way
-		 * above high water mark of used pv entries.
-		 */
-		if (cnt.v_free_count < cnt.v_free_reserved ||
-		    pv_entry_count > pv_entry_high_water)
-			break;
-		
 		pml4e = pmap_pml4e(src_pmap, addr);
 		if ((*pml4e & PG_V) == 0) {
 			va_next = (addr + NBPML4) & ~PML4MASK;
@@ -2467,16 +2482,16 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				dst_pte = (pt_entry_t *)
 				    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
 				dst_pte = &dst_pte[pmap_pte_index(addr)];
-				if (*dst_pte == 0) {
+				if (*dst_pte == 0 &&
+				    pmap_try_insert_pv_entry(dst_pmap, addr,
+				    PHYS_TO_VM_PAGE(ptetemp & PG_FRAME))) {
 					/*
 					 * Clear the modified and
 					 * accessed (referenced) bits
 					 * during the copy.
 					 */
-					m = PHYS_TO_VM_PAGE(ptetemp & PG_FRAME);
 					*dst_pte = ptetemp & ~(PG_M | PG_A);
 					dst_pmap->pm_stats.resident_count++;
-					pmap_insert_entry(dst_pmap, addr, m);
 	 			} else
 					pmap_unwire_pte_hold(dst_pmap, addr, dstmpte);
 				if (dstmpte->wire_count >= srcmpte->wire_count)
