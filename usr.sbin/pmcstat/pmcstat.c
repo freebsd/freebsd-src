@@ -751,10 +751,8 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_DO_PRINT;
 
 		pmcstat_initialize_logging(&args);
-		if ((args.pa_logfd = pmcstat_open_log(args.pa_inputpath,
-		    PMCSTAT_OPEN_FOR_READ)) < 0)
-			err(EX_OSERR, "ERROR: Cannot open \"%s\" for "
-			    "reading", args.pa_inputpath);
+		args.pa_logfd = pmcstat_open_log(args.pa_inputpath,
+		    PMCSTAT_OPEN_FOR_READ);
 		if ((args.pa_logparser = pmclog_open(args.pa_logfd)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot create parser");
 		pmcstat_process_log(&args);
@@ -784,13 +782,10 @@ main(int argc, char **argv)
 	 * consumer via a pipe.
 	 */
 	if (args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) {
-		if (args.pa_outputpath) {
-			if ((args.pa_logfd =
-			    pmcstat_open_log(args.pa_outputpath,
-			    PMCSTAT_OPEN_FOR_WRITE)) < 0)
-				err(EX_OSERR, "ERROR: Cannot open \"%s\" for "
-				    "writing", args.pa_outputpath);
-		} else {
+		if (args.pa_outputpath)
+			args.pa_logfd = pmcstat_open_log(args.pa_outputpath,
+			    PMCSTAT_OPEN_FOR_WRITE);
+		else {
 			/*
 			 * process the log on the fly by reading it in
 			 * through a pipe.
