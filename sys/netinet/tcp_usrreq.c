@@ -161,10 +161,24 @@ tcp_usr_detach(struct socket *so)
 	INP_LOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("tcp_usr_detach: inp_socket == NULL"));
-
 	TCPDEBUG1();
-	tp = intotcpcb(inp);
 
+	/*
+	 * First, if we still have full TCP state, and we're not dropped,
+	 * initiate a disconnect.
+	 */
+	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
+	    !(inp->inp_vflag & INP_DROPPED)) {
+		tp = intotcpcb(inp);
+		tcp_disconnect(tp);
+	}
+
+	/*
+	 * Second, release any protocol state that we can reasonably release.
+	 * Note that the call to tcp_disconnect() may actually have changed
+	 * the TCP state, so we have to re-evaluate INP_TIMEWAIT and
+	 * INP_DROPPED.
+	 */
 	if (inp->inp_vflag & INP_TIMEWAIT) {
 		if (inp->inp_vflag & INP_DROPPED) {
 			/*
@@ -225,10 +239,6 @@ tcp_usr_detach(struct socket *so)
 			}
 #endif
 		} else {
-			/*
-			 * Connection state still required, as is socket, so
-			 * mark socket for TCP to free later.
-			 */
 			SOCK_LOCK(so);
 			so->so_state |= SS_PROTOREF;
 			SOCK_UNLOCK(so);
@@ -1450,7 +1460,8 @@ tcp_disconnect(tp)
 		soisdisconnecting(so);
 		sbflush(&so->so_rcv);
 		tcp_usrclosed(tp);
-		tcp_output(tp);
+		if (!(inp->inp_vflag & INP_DROPPED))
+			tcp_output(tp);
 	}
 }
 
