@@ -37,8 +37,10 @@
  *
  *      from: @(#)trap.c        7.4 (Berkeley) 5/13/91
  * 	from: FreeBSD: src/sys/i386/i386/trap.c,v 1.197 2001/07/19
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"
@@ -165,7 +167,7 @@ const char *trap_msg[] = {
 	"kernel stack fault",
 };
 
-const int trap_sig[] = {
+static const int trap_sig[] = {
 	SIGILL,			/* reserved */
 	SIGILL,			/* instruction access exception */
 	SIGILL,			/* instruction access error */
@@ -233,6 +235,7 @@ trap(struct trapframe *tf)
 	struct proc *p;
 	int error;
 	int sig;
+	register_t addr;
 	ksiginfo_t ksi;
 
 	td = PCPU_GET(curthread);
@@ -250,12 +253,15 @@ trap(struct trapframe *tf)
 		p = td->td_proc;
 		td->td_pticks = 0;
 		td->td_frame = tf;
+		addr = tf->tf_tpc;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
 
 		switch (tf->tf_type) {
 		case T_DATA_MISS:
 		case T_DATA_PROTECTION:
+			addr = tf->tf_sfar;
+			/* FALLTHROUGH */
 		case T_INSTRUCTION_MISS:
 			sig = trap_pfault(td, tf);
 			break;
@@ -288,7 +294,7 @@ trap(struct trapframe *tf)
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = sig;
 			ksi.ksi_code = (int)tf->tf_type; /* XXX not POSIX */
-			/* ksi.ksi_addr = ? */
+			ksi.ksi_addr = (void *)addr;
 			ksi.ksi_trapno = (int)tf->tf_type;
 			trapsignal(td, &ksi);
 		}
