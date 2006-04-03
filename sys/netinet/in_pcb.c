@@ -865,6 +865,7 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
     u_int lport_arg, int wild_okay)
 {
 	struct inpcb *inp;
+	struct tcptw *tw;
 #ifdef INET6
 	int matchwild = 3 + INP_LOOKUP_MAPPED_PCB_COST;
 #else
@@ -948,9 +949,10 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				 * are clogging up needed local ports.
 				 */
 				if ((inp->inp_vflag & INP_TIMEWAIT) != 0) {
-					if (tcp_twrecycleable((struct tcptw *)inp->inp_ppcb)) {
+					tw = intotw(inp);
+					if (tcp_twrecycleable(tw)) {
 						INP_LOCK(inp);
-						tcp_twclose((struct tcptw *)inp->inp_ppcb, 0);
+						tcp_twclose(tw, 0);
 						match = NULL;
 						goto retrylookup;
 					}
