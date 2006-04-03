@@ -2339,15 +2339,15 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	}
 	if (inp != NULL) {
 		INP_LOCK(inp);
-		if ((tw = intotw(inp)) &&
-		    (inp->inp_vflag & INP_TIMEWAIT) != 0) {
+		if (inp->inp_vflag & INP_TIMEWAIT) {
+			tw = intotw(inp);
 			tcp_twclose(tw, 0);
-		} else if ((tp = intotcpcb(inp)) &&
-		    ((inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
-			if (tcp_drop(tp, ECONNABORTED) != NULL)
-				INP_UNLOCK(inp);
-		} else
-			INP_UNLOCK(inp);
+		} else if (!(inp->inp_vflag & INP_DROPPED) &&
+			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
+			tp = intotcpcb(inp);
+			tcp_drop(tp, ECONNABORTED);
+		}
+		INP_UNLOCK(inp);
 	} else
 		error = ESRCH;
 	INP_INFO_WUNLOCK(&tcbinfo);
