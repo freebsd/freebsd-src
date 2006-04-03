@@ -760,8 +760,7 @@ findpcb:
 		 */
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, 1);
-		if (tcp_timewait((struct tcptw *)inp->inp_ppcb,
-		    &to, th, m, tlen))
+		if (tcp_timewait(intotw(inp), &to, th, m, tlen))
 			goto findpcb;
 		/*
 		 * tcp_timewait unlocks inp.
