@@ -76,6 +76,7 @@ struct ufsmount {
 	struct workhead softdep_workitem_pending; /* softdep work queue */
 	struct worklist *softdep_worklist_tail;	/* Tail pointer for above */
 	int	softdep_on_worklist;		/* Items on the worklist */
+	int	softdep_on_worklist_inprogress;	/* Busy items on worklist */
 	int	softdep_deps;			/* Total dependency count */
 	int	softdep_accdeps;		/* accumulated dep count */
 	int	softdep_req;			/* Wakeup when deps hits 0. */
