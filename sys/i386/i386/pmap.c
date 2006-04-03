@@ -2611,9 +2611,7 @@ pmap_page_exists_quick(pmap, m)
  * in the case of running down an entire address space.
  */
 void
-pmap_remove_pages(pmap, sva, eva)
-	pmap_t pmap;
-	vm_offset_t sva, eva;
+pmap_remove_pages(pmap_t pmap)
 {
 	pt_entry_t *pte, tpte;
 	vm_page_t m;
@@ -2629,11 +2627,6 @@ pmap_remove_pages(pmap, sva, eva)
 	PMAP_LOCK(pmap);
 	sched_pin();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
-
-		if (pv->pv_va >= eva || pv->pv_va < sva) {
-			npv = TAILQ_NEXT(pv, pv_plist);
-			continue;
-		}
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 		pte = vtopte(pv->pv_va);
