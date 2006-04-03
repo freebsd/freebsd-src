@@ -438,7 +438,7 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	inp = sotoinpcb(so);
-	KASSERT(inp == NULL, ("div_bind: inp == NULL"));
+	KASSERT(inp != NULL, ("div_bind: inp == NULL"));
 	/* in_pcbbind assumes that nam is a sockaddr_in
 	 * and in_pcbbind requires a valid address. Since divert
 	 * sockets don't we need to make sure the address is
