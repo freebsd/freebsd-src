@@ -42,7 +42,7 @@
 .Ft void
 .Fn pmap_remove_all "vm_page_t m"
 .Ft void
-.Fn pmap_remove_pages "pmap_t pmap" "vm_offset_t sva" "vm_offset_t eva"
+.Fn pmap_remove_pages "pmap_t pmap"
 .Sh DESCRIPTION
 The
 .Fn pmap_remove
@@ -72,12 +72,8 @@ bits to the appropriate pager.
 .Pp
 The
 .Fn pmap_remove_pages
-function removes all pages from the physical map
-.Fa pmap ,
-within the range of physical addresses bounded by
-.Fa sva
-and
-.Fa eva .
+function removes all user pages from the physical map
+.Fa pmap .
 This function is called when a process exits to run down its address space
 more quickly than would be the case for calling
 .Fn pmap_remove .
