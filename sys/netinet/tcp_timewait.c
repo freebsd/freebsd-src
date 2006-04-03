@@ -242,10 +242,10 @@ static uma_zone_t tcptw_zone;
 struct callout isn_callout;
 
 /*
- * Tcp initialization
+ * TCP initialization.
  */
 void
-tcp_init()
+tcp_init(void)
 {
 	int hashsize = TCBHASHSIZE;
 
@@ -306,11 +306,10 @@ tcp_init()
 }
 
 void
-tcp_fini(xtp)
-	void *xtp;
+tcp_fini(void *xtp)
 {
-	callout_stop(&isn_callout);
 
+	callout_stop(&isn_callout);
 }
 
 /*
@@ -319,10 +318,7 @@ tcp_fini(xtp)
  * of the tcpcb each time to conserve mbufs.
  */
 void
-tcpip_fillheaders(inp, ip_ptr, tcp_ptr)
-	struct inpcb *inp;
-	void *ip_ptr;
-	void *tcp_ptr;
+tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 {
 	struct tcphdr *th = (struct tcphdr *)tcp_ptr;
 
@@ -377,8 +373,7 @@ tcpip_fillheaders(inp, ip_ptr, tcp_ptr)
  * use for this function is in keepalives, which use tcp_respond.
  */
 struct tcptemp *
-tcpip_maketemplate(inp)
-	struct inpcb *inp;
+tcpip_maketemplate(struct inpcb *inp)
 {
 	struct mbuf *m;
 	struct tcptemp *n;
@@ -408,13 +403,8 @@ tcpip_maketemplate(inp)
  * NOTE: If m != NULL, then ti must point to *inside* the mbuf.
  */
 void
-tcp_respond(tp, ipgen, th, m, ack, seq, flags)
-	struct tcpcb *tp;
-	void *ipgen;
-	register struct tcphdr *th;
-	register struct mbuf *m;
-	tcp_seq ack, seq;
-	int flags;
+tcp_respond(struct tcpcb *tp, void *ipgen, register struct tcphdr *th,
+    register struct mbuf *m, tcp_seq ack, tcp_seq seq, int flags)
 {
 	register int tlen;
 	int win = 0;
@@ -581,8 +571,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
  * come from the zone allocator set up in tcp_init().
  */
 struct tcpcb *
-tcp_newtcpcb(inp)
-	struct inpcb *inp;
+tcp_newtcpcb(struct inpcb *inp)
 {
 	struct tcpcb_mem *tm;
 	struct tcpcb *tp;
@@ -643,9 +632,7 @@ tcp_newtcpcb(inp)
  * then send a RST to peer.
  */
 struct tcpcb *
-tcp_drop(tp, errno)
-	register struct tcpcb *tp;
-	int errno;
+tcp_drop(struct tcpcb *tp, int errno)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 
@@ -665,8 +652,7 @@ tcp_drop(tp, errno)
 }
 
 void
-tcp_discardcb(tp)
-	struct tcpcb *tp;
+tcp_discardcb(struct tcpcb *tp)
 {
 	struct tseg_qent *q;
 	struct inpcb *inp = tp->t_inpcb;
@@ -773,8 +759,7 @@ tcp_discardcb(tp)
  * the socket if we hold the only reference.
  */
 struct tcpcb *
-tcp_close(tp)
-	struct tcpcb *tp;
+tcp_close(struct tcpcb *tp)
 {
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
@@ -814,10 +799,10 @@ tcp_close(tp)
 }
 
 void
-tcp_drain()
+tcp_drain(void)
 {
-	if (do_tcpdrain)
-	{
+
+	if (do_tcpdrain) {
 		struct inpcb *inpb;
 		struct tcpcb *tcpb;
 		struct tseg_qent *te;
@@ -861,9 +846,7 @@ tcp_drain()
  * reporting soft errors (yet - a kqueue filter may be added).
  */
 static struct inpcb *
-tcp_notify(inp, error)
-	struct inpcb *inp;
-	int error;
+tcp_notify(struct inpcb *inp, int error)
 {
 	struct tcpcb *tp = (struct tcpcb *)inp->inp_ppcb;
 
@@ -1131,10 +1114,7 @@ SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
 
 
 void
-tcp_ctlinput(cmd, sa, vip)
-	int cmd;
-	struct sockaddr *sa;
-	void *vip;
+tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 	struct ip *ip = vip;
 	struct tcphdr *th;
@@ -1249,10 +1229,7 @@ tcp_ctlinput(cmd, sa, vip)
 
 #ifdef INET6
 void
-tcp6_ctlinput(cmd, sa, d)
-	int cmd;
-	struct sockaddr *sa;
-	void *d;
+tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
 	struct tcphdr th;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
@@ -1380,8 +1357,7 @@ static u_int32_t isn_offset, isn_offset_old;
 static MD5_CTX isn_ctx;
 
 tcp_seq
-tcp_new_isn(tp)
-	struct tcpcb *tp;
+tcp_new_isn(struct tcpcb *tp)
 {
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
@@ -1430,8 +1406,7 @@ tcp_new_isn(tp)
  * increments have already pushed us past the projected offset, do nothing.
  */
 static void
-tcp_isn_tick(xtp)
-	void *xtp;
+tcp_isn_tick(void *xtp)
 {
 	u_int32_t projected_offset;
 
@@ -1452,9 +1427,7 @@ tcp_isn_tick(xtp)
  * is controlled by the icmp_may_rst sysctl.
  */
 struct inpcb *
-tcp_drop_syn_sent(inp, errno)
-	struct inpcb *inp;
-	int errno;
+tcp_drop_syn_sent(struct inpcb *inp, int errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
@@ -1478,9 +1451,7 @@ tcp_drop_syn_sent(inp, errno)
  * This duplicates some code in the tcp_mss() function in tcp_input.c.
  */
 struct inpcb *
-tcp_mtudisc(inp, errno)
-	struct inpcb *inp;
-	int errno;
+tcp_mtudisc(struct inpcb *inp, int errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
@@ -1576,8 +1547,7 @@ tcp_mtudisc(inp, errno)
  * to get the interface MTU.
  */
 u_long
-tcp_maxmtu(inc)
-	struct in_conninfo *inc;
+tcp_maxmtu(struct in_conninfo *inc)
 {
 	struct route sro;
 	struct sockaddr_in *dst;
@@ -1607,8 +1577,7 @@ tcp_maxmtu(inc)
 
 #ifdef INET6
 u_long
-tcp_maxmtu6(inc)
-	struct in_conninfo *inc;
+tcp_maxmtu6(struct in_conninfo *inc)
 {
 	struct route_in6 sro6;
 	struct ifnet *ifp;
@@ -1640,8 +1609,7 @@ tcp_maxmtu6(inc)
 #ifdef IPSEC
 /* compute ESP/AH header size for TCP, including outer IP header. */
 size_t
-ipsec_hdrsiz_tcp(tp)
-	struct tcpcb *tp;
+ipsec_hdrsiz_tcp(struct tcpcb *tp)
 {
 	struct inpcb *inp;
 	struct mbuf *m;
@@ -1687,8 +1655,7 @@ ipsec_hdrsiz_tcp(tp)
  *    inp is locked, and is unlocked before returning.
  */
 void
-tcp_twstart(tp)
-	struct tcpcb *tp;
+tcp_twstart(struct tcpcb *tp)
 {
 	struct tcptw *tw;
 	struct inpcb *inp;
