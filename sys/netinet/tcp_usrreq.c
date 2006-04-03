@@ -218,14 +218,16 @@ tcp_usr_detach(struct socket *so)
 			INP_UNLOCK(inp);
 		}
 	} else {
+		/*
+		 * If not in timewait, there are two possible paths.  First,
+		 * the TCP connection is either embryonic or done, in which
+		 * case we tear down all state.  Second, it may still be
+		 * active, in which case we acquire a reference to the socket
+		 * and will free it later when TCP is done.
+		 */
 		tp = intotcpcb(inp);
 		if (inp->inp_vflag & INP_DROPPED ||
 		    tp->t_state < TCPS_SYN_SENT) {
-			/*
-			 * Connection has been dropped or is a listen socket,
-			 * tear down all pcb state and allow socket to be
-			 * freed.
-			 */
 			tcp_discardcb(tp);
 #ifdef INET6
 			if (isipv6) {
