@@ -456,7 +456,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 #ifdef SMP
 	int did_stop_cpus;
 #endif
-	int handled;
+	int handled, intr;
 
 	if (kdb_dbbe == NULL || kdb_dbbe->dbbe_trap == NULL)
 		return (0);
@@ -465,7 +465,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	if (kdb_active)
 		return (0);
 
-	critical_enter();
+	intr = intr_disable();
 
 	kdb_active++;
 
@@ -491,7 +491,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 	kdb_active--;
 
-	critical_exit();
+	intr_restore(intr);
 
 	return (handled);
 }
