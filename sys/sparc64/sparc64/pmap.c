@@ -1698,7 +1698,7 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
  * an entire address space.  Only works for the current pmap.
  */
 void
-pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
+pmap_remove_pages(pmap_t pm)
 {
 }
 
