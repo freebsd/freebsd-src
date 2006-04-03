@@ -117,7 +117,7 @@ struct inpcb {
 	/* local and foreign ports, local and foreign addr */
 	struct	in_conninfo inp_inc;
 
-	caddr_t	inp_ppcb;		/* pointer to per-protocol pcb */
+	void	*inp_ppcb;		/* pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* PCB list info */
 	struct	socket *inp_socket;	/* back pointer to socket */
 					/* list for this PCB's local port */
