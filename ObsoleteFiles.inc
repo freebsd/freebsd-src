@@ -2877,3 +2877,4 @@ OLD_DIRS+=usr/share/doc/bind/html
 OLD_DIRS+=usr/share/doc/bind/misc
 OLD_DIRS+=usr/share/doc/bind/
 
+.include "tools/build/mk/OptionalObsoleteFiles.inc"
