@@ -769,10 +769,8 @@ tcp_discardcb(tp)
 }
 
 /*
- * Close a TCP control block:
- *    discard all space held by the tcp
- *    discard internet protocol block
- *    wake up any sleepers
+ * Attempt to close a TCP control block, marking it as dropped, and freeing
+ * the socket if we hold the only reference.
  */
 struct tcpcb *
 tcp_close(tp)
