@@ -85,8 +85,7 @@ CODE {
 		return;
 	}
 
-	static void mmu_null_remove_pages(mmu_t mmu, pmap_t pmap,
-	    vm_offset_t start, vm_offset_t end)
+	static void mmu_null_remove_pages(mmu_t mmu, pmap_t pmap)
 	{
 		return;
 	}
@@ -543,8 +542,6 @@ METHOD void remove_all {
 METHOD void remove_pages {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
-	vm_offset_t	_start;
-	vm_offset_t	_end;
 } DEFAULT mmu_null_remove_pages;
 
 
