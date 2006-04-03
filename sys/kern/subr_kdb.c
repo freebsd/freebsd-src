@@ -43,10 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 
 #ifdef SMP
-#if defined (__i386__) || defined(__amd64__) || defined(__sparc64__) || defined(__alpha__)
-#define	HAVE_STOPPEDPCBS
 #include <machine/smp.h>
-#endif
 #endif
 
 int kdb_active = 0;
@@ -358,19 +355,17 @@ kdb_reenter(void)
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
 {  
-#ifdef HAVE_STOPPEDPCBS
+#if defined(SMP) && defined(KDB_STOPPEDPCB)
 	struct pcpu *pc;
-	u_int cpuid;
 #endif
-  
+ 
 	if (thr == curthread) 
 		return (&kdb_pcb);
 
-#ifdef HAVE_STOPPEDPCBS
+#if defined(SMP) && defined(KDB_STOPPEDPCB)
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)  {
-		cpuid = pc->pc_cpuid;
-		if (pc->pc_curthread == thr && (stopped_cpus & (1 << cpuid)))
-			return (&stoppcbs[cpuid]);
+		if (pc->pc_curthread == thr && (stopped_cpus & pc->pc_cpumask))
+			return (KDB_STOPPEDPCB(pc));
 	}
 #endif
 	return (thr->td_pcb);
