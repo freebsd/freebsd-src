@@ -28,11 +28,13 @@
 
 /*
  * TCP regression test which opens a loopback TCP session, and closes it
- * before the remote endpoint (server) can accept it.
+ * before the remote endpoint (server) can accept it.  Run the test twice,
+ * once using an explicit close() from the client, a second using a tcp drop.
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 
@@ -44,7 +46,25 @@
 #include <string.h>
 #include <unistd.h>
 
-#define	TCP_PORT	9001
+#define	TCP_PORT	9005
+
+static int
+tcp_drop(struct sockaddr_in *sin_local, struct sockaddr_in *sin_remote)
+{
+	struct sockaddr_storage addrs[2];
+
+	/*
+	 * Sysctl accepts an array of two sockaddr's, the first being the
+	 * 'foreign' sockaddr, the second being the 'local' sockaddr.
+	 */
+
+	bcopy(sin_remote, &addrs[0], sizeof(*sin_remote));
+	bcopy(sin_local, &addrs[1], sizeof(*sin_local));
+
+	return (sysctlbyname("net.inet.tcp.drop", NULL, 0, addrs,
+	    sizeof(addrs)));
+}
+
 
 static void
 tcp_server(pid_t partner)
@@ -94,10 +114,11 @@ tcp_server(pid_t partner)
 }
 
 static void
-tcp_client(pid_t partner)
+tcp_client(pid_t partner, int dropflag)
 {
-	struct sockaddr_in sin;
+	struct sockaddr_in sin, sin_local;
 	int error, sock;
+	socklen_t slen;
 
 	sleep(1);
 
@@ -122,6 +143,23 @@ tcp_client(pid_t partner)
 		err(-1, "connect");
 	}
 
+	slen = sizeof(sin_local);
+	if (getsockname(sock, (struct sockaddr *)&sin_local, &slen) < 0) {
+		error = errno;
+		(void)kill(partner, SIGKILL);
+		errno = error;
+		err(-1, "getsockname");
+	}
+
+	if (dropflag) {
+		if (tcp_drop(&sin_local, &sin) < 0) {
+			error = errno;
+			(void)kill(partner, SIGKILL);
+			errno = error;
+			err(-1, "tcp_drop");
+		}
+		sleep(2);
+	}
 	close(sock);
 }
 
@@ -140,8 +178,24 @@ main(int argc, char *argv[])
 	if (child_pid == 0) {
 		child_pid = getpid();
 		tcp_server(parent_pid);
+		return (0);
 	} else
-		tcp_client(child_pid);
+		tcp_client(child_pid, 0);
+	(void)kill(child_pid, SIGTERM);
+
+	sleep(5);
+
+	parent_pid = getpid();
+	child_pid = fork();
+	if (child_pid < 0)
+		err(-1, "fork");
+	if (child_pid == 0) {
+		child_pid = getpid();
+		tcp_server(parent_pid);
+		return (0);
+	} else
+		tcp_client(child_pid, 1);
+	(void)kill(child_pid, SIGTERM);
 
 	return (0);
 }
