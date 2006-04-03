@@ -688,6 +688,13 @@ KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
 
+# options for the Atheros driver
+ATH_DEBUG		opt_ath.h
+ATH_TXBUF		opt_ath.h
+ATH_RXBUF		opt_ath.h
+ATH_DIAGAPI		opt_ath.h
+ATH_TX99_DIAG		opt_ath.h
+
 # options for the Atheros HAL (only useful with source code)
 AH_SUPPORT_AR5210	opt_ah.h
 AH_SUPPORT_AR5211	opt_ah.h
@@ -695,6 +702,7 @@ AH_SUPPORT_AR5212	opt_ah.h
 AH_SUPPORT_5111		opt_ah.h
 AH_SUPPORT_5112		opt_ah.h
 AH_SUPPORT_2413		opt_ah.h
+AH_SUPPORT_5413		opt_ah.h
 AH_DEBUG		opt_ah.h
 AH_DEBUG_ALQ		opt_ah.h
 AH_ASSERT		opt_ah.h
