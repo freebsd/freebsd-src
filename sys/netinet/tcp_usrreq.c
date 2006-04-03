@@ -590,16 +590,14 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	in_port_t port = 0;
 	TCPDEBUG0;
 
-	if (so->so_state & SS_ISDISCONNECTED) {
-		error = ECONNABORTED;
-		goto out;
-	}
+	if (so->so_state & SS_ISDISCONNECTED)
+		return (ECONNABORTED);
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+		error = ECONNABORTED;
 		goto out;
 	}
 	tp = intotcpcb(inp);
