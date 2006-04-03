@@ -234,10 +234,10 @@ nextarg(OPTION *option, char ***argvp)
 } /* nextarg() */
 
 /*
- * The value of n for the inode times (atime, ctime, and mtime) is a range,
- * i.e. n matches from (n - 1) to n 24 hour periods.  This interacts with
- * -n, such that "-mtime -1" would be less than 0 days, which isn't what the
- * user wanted.  Correct so that -1 is "less than 1".
+ * The value of n for the inode times (atime, birthtime, ctime, mtime) is a
+ * range, i.e. n matches from (n - 1) to n 24 hour periods.  This interacts
+ * with -n, such that "-mtime -1" would be less than 0 days, which isn't what
+ * the user wanted.  Correct so that -1 is "less than 1".
  */
 #define	TIME_CORRECT(p) \
 	if (((p)->flags & F_ELG_MASK) == F_LESSTHAN) \
@@ -248,6 +248,7 @@ nextarg(OPTION *option, char ***argvp)
  *
  *    True if the difference between the
  *		file access time (-amin)
+ *		file birth time (-Bmin)
  *		last change of file status information (-cmin)
  *		file modification time (-mmin)
  *    and the current time is n min periods.
@@ -260,6 +261,9 @@ f_Xmin(PLAN *plan, FTSENT *entry)
 		    60 - 1) / 60, plan->t_data);
 	} else if (plan->flags & F_TIME_A) {
 		COMPARE((now - entry->fts_statp->st_atime +
+		    60 - 1) / 60, plan->t_data);
+	} else if (plan->flags & F_TIME_B) {
+		COMPARE((now - entry->fts_statp->st_birthtime +
 		    60 - 1) / 60, plan->t_data);
 	} else {
 		COMPARE((now - entry->fts_statp->st_mtime +
@@ -287,6 +291,7 @@ c_Xmin(OPTION *option, char ***argvp)
  *
  *	True if the difference between the
  *		file access time (-atime)
+ *		file birth time (-Btime)
  *		last change of file status information (-ctime)
  *		file modification time (-mtime)
  *	and the current time is n 24 hour periods.
@@ -299,6 +304,8 @@ f_Xtime(PLAN *plan, FTSENT *entry)
 
 	if (plan->flags & F_TIME_A)
 		xtime = entry->fts_statp->st_atime;
+	else if (plan->flags & F_TIME_B)
+		xtime = entry->fts_statp->st_birthtime;
 	else if (plan->flags & F_TIME_C)
 		xtime = entry->fts_statp->st_ctime;
 	else
@@ -1065,6 +1072,8 @@ f_newer(PLAN *plan, FTSENT *entry)
 		return entry->fts_statp->st_ctime > plan->t_data;
 	else if (plan->flags & F_TIME_A)
 		return entry->fts_statp->st_atime > plan->t_data;
+	else if (plan->flags & F_TIME_B)
+		return entry->fts_statp->st_birthtime > plan->t_data;
 	else
 		return entry->fts_statp->st_mtime > plan->t_data;
 }
