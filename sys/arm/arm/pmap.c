@@ -2811,7 +2811,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
  * in the case of running down an entire address space.
  */
 void
-pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_remove_pages(pmap_t pmap)
 {
 	struct pv_entry *pv, *npv;
 	struct l2_bucket *l2b = NULL;
@@ -2820,10 +2820,6 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	
 	vm_page_lock_queues();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
-		if (pv->pv_va >= eva || pv->pv_va < sva) {
-			npv = TAILQ_NEXT(pv, pv_plist);
-			continue;
-		}
 		if (pv->pv_flags & PVF_WIRED) {
 			/* The page is wired, cannot remove it now. */
 			npv = TAILQ_NEXT(pv, pv_plist);

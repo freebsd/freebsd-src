@@ -1862,7 +1862,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
  * in the case of running down an entire address space.
  */
 void
-pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_remove_pages(pmap_t pmap)
 {
 	pmap_t oldpmap;
 	pv_entry_t pv, npv;
@@ -1880,9 +1880,6 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		struct ia64_lpte *pte;
 
 		npv = TAILQ_NEXT(pv, pv_plist);
-
-		if (pv->pv_va >= eva || pv->pv_va < sva)
-			continue;
 
 		pte = pmap_find_vhpt(pv->pv_va);
 		KASSERT(pte != NULL, ("pte"));

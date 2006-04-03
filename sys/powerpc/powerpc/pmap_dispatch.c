@@ -244,9 +244,9 @@ pmap_remove_all(vm_page_t m)
 }
 
 void
-pmap_remove_pages(pmap_t pmap, vm_offset_t start, vm_offset_t end)
+pmap_remove_pages(pmap_t pmap)
 {
-	MMU_REMOVE_PAGES(mmu_obj, pmap, start, end);
+	MMU_REMOVE_PAGES(mmu_obj, pmap);
 }
 
 void
