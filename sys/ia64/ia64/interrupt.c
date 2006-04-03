@@ -220,20 +220,17 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		smp_rendezvous_action();
 	} else if (vector == ipi_vector[IPI_STOP]) {
-		u_int32_t mybit = PCPU_GET(cpumask);
+		register_t intr;
+		cpumask_t mybit = PCPU_GET(cpumask);
 
-		CTR1(KTR_SMP, "IPI_STOP, cpuid=%d", PCPU_GET(cpuid));
+		intr = intr_disable();
 		savectx(PCPU_GET(pcb));
-		stopped_cpus |= mybit;
+		atomic_set_int(&stopped_cpus, mybit);
 		while ((started_cpus & mybit) == 0)
 			/* spin */;
-		started_cpus &= ~mybit;
-		stopped_cpus &= ~mybit;
-		if (PCPU_GET(cpuid) == 0 && cpustop_restartfunc != NULL) {
-			void (*f)(void) = cpustop_restartfunc;
-			cpustop_restartfunc = NULL;
-			(*f)();
-		}
+		atomic_clear_int(&started_cpus, mybit);
+		atomic_clear_int(&stopped_cpus, mybit);
+		intr_restore(intr);
 	} else if (vector == ipi_vector[IPI_TEST]) {
 		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
 		mp_ipi_test++;
