@@ -453,10 +453,11 @@ kdb_thr_select(struct thread *thr)
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
+	register_t intr;
 #ifdef SMP
 	int did_stop_cpus;
 #endif
-	int handled, intr;
+	int handled;
 
 	if (kdb_dbbe == NULL || kdb_dbbe->dbbe_trap == NULL)
 		return (0);
