@@ -174,6 +174,35 @@ primary.
 .El
 .Sh PRIMARIES
 .Bl -tag -width indent
+.It Ic -Bmin Ar n
+True if the difference between the time of a file's inode creation
+and the time
+.Nm
+was started, rounded up to the next full minute, is
+.Ar n
+minutes.
+.It Ic -Bnewer Ar file
+Same as
+.Ic -newerBm .
+.It Ic -Btime Ar n Ns Op Cm smhdw
+If no units are specified, this primary evaluates to
+true if the difference between the time of a file's inode creation
+and the time
+.Nm
+was started, rounded up to the next full 24-hour period, is
+.Ar n
+24-hour periods.
+.Pp
+If units are specified, this primary evaluates to
+true if the difference between the time of last change of file status
+information and the time
+.Nm
+was started is exactly
+.Ar n
+units.
+Please refer to the
+.Ic -atime
+primary description for information on supported time units.
 .It Ic -acl
 May be used in conjunction with other options to locate
 files with extended ACLs.
@@ -497,12 +526,16 @@ True if the current file has a more recent last modification time than
 .It Ic -newer Ns Ar X Ns Ar Y Ar file
 True if the current file has a more recent last access time
 .Ar ( X Ns = Ns Cm a ) ,
+inode creation time
+.Ar ( X Ns = Ns Cm B ) ,
 change time
 .Ar ( X Ns = Ns Cm c ) ,
 or modification time
 .Ar ( X Ns = Ns Cm m )
 than the last access time
 .Ar ( Y Ns = Ns Cm a ) ,
+inode creation time
+.Ar ( Y Ns = Ns Cm B ) ,
 change time
 .Ar ( Y Ns = Ns Cm c ) ,
 or modification time
