@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet.h"
+#include "opt_ath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -82,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #endif
 
-#define	AR_DEBUG
 #include <dev/ath/if_athvar.h>
 #include <contrib/dev/ath/ah_desc.h>
 #include <contrib/dev/ath/ah_devid.h>		/* XXX for softled */
@@ -216,7 +216,7 @@ SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RD, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
 
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 static	int ath_debug = 0;
 SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
 	    0, "control debugging printfs");
@@ -1316,7 +1316,7 @@ ath_media_change(struct ifnet *ifp)
 #undef IS_UP
 }
 
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 static void
 ath_keyprint(const char *tag, u_int ix,
 	const HAL_KEYVAL *hk, const u_int8_t mac[IEEE80211_ADDR_LEN])
@@ -2831,7 +2831,7 @@ ath_rx_proc(void *arg, int npending)
 		 */
 		status = ath_hal_rxprocdesc(ah, ds,
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link));
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(bf, 0, status == HAL_OK); 
 #endif
@@ -3781,7 +3781,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		ds0 = &bf->bf_desc[0];
 		ds = &bf->bf_desc[bf->bf_nseg - 1];
 		status = ath_hal_txprocdesc(ah, ds);
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
 			ath_printtxbuf(bf, txq->axq_qnum, 0, status == HAL_OK);
 #endif
@@ -3959,7 +3959,7 @@ ath_tx_proc(void *arg, int npending)
 static void
 ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
 #endif
 	struct ieee80211_node *ni;
@@ -3980,11 +3980,11 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
 		ATH_TXQ_UNLOCK(txq);
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET)
 			ath_printtxbuf(bf, txq->axq_qnum, ix,
 				ath_hal_txprocdesc(ah, bf->bf_desc) == HAL_OK);
-#endif /* AR_DEBUG */
+#endif /* ATH_DEBUG */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		m_freem(bf->bf_m);
 		bf->bf_m = NULL;
@@ -4057,7 +4057,7 @@ ath_stoprecv(struct ath_softc *sc)
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
 	DELAY(3000);			/* 3ms is long enough for 1 frame */
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {
 		struct ath_buf *bf;
 		u_int ix;
@@ -4851,7 +4851,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 #undef N
 }
 
-#ifdef AR_DEBUG
+#ifdef ATH_DEBUG
 static void
 ath_printrxbuf(struct ath_buf *bf, u_int ix, int done)
 {
@@ -4886,7 +4886,7 @@ ath_printtxbuf(struct ath_buf *bf, u_int qnum, u_int ix, int done)
 		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
 	}
 }
-#endif /* AR_DEBUG */
+#endif /* ATH_DEBUG */
 
 static void
 ath_watchdog(struct ifnet *ifp)
@@ -4909,6 +4909,7 @@ ath_watchdog(struct ifnet *ifp)
 	ieee80211_watchdog(ic);
 }
 
+#ifdef ATH_DIAGAPI
 /*
  * Diagnostic interface to the HAL.  This is used by various
  * tools to do things like retrieve register contents for
@@ -4969,6 +4970,7 @@ bad:
 		free(outdata, M_TEMP);
 	return error;
 }
+#endif /* ATH_DIAGAPI */
 
 static int
 ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
@@ -5029,11 +5031,13 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 */
 		return copyout(&sc->sc_stats,
 				ifr->ifr_data, sizeof (sc->sc_stats));
+#ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
 		ATH_UNLOCK(sc);
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
 		ATH_LOCK(sc);
 		break;
+#endif
 	default:
 		error = ieee80211_ioctl(ic, cmd, data);
 		if (error == ENETRESET) {
@@ -5279,7 +5283,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"regdomain", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_regdomain, "I", "EEPROM regdomain code");
-#ifdef	AR_DEBUG
+#ifdef	ATH_DEBUG
 	sc->sc_debug = ath_debug;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
