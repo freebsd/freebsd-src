@@ -622,7 +622,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = ip_defttl;
-	inp->inp_ppcb = (caddr_t)tp;
+	inp->inp_ppcb = tp;
 	return (tp);		/* XXX */
 }
 
@@ -848,10 +848,11 @@ tcp_drain(void)
 static struct inpcb *
 tcp_notify(struct inpcb *inp, int error)
 {
-	struct tcpcb *tp = (struct tcpcb *)inp->inp_ppcb;
+	struct tcpcb *tp;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
+	tp = intotcpcb(inp);
 
 	/*
 	 * Ignore some errors if we are hooked up.
@@ -958,7 +959,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		inp = inp_list[i];
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
-			caddr_t inp_ppcb;
+			void *inp_ppcb;
 
 			bzero(&xt, sizeof(xt));
 			xt.xt_len = sizeof xt;
@@ -1429,10 +1430,11 @@ tcp_isn_tick(void *xtp)
 struct inpcb *
 tcp_drop_syn_sent(struct inpcb *inp, int errno)
 {
-	struct tcpcb *tp = intotcpcb(inp);
+	struct tcpcb *tp;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
+	tp = intotcpcb(inp);
 
 	if (tp != NULL && tp->t_state == TCPS_SYN_SENT) {
 		tp = tcp_drop(tp, errno);
@@ -1453,7 +1455,7 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 struct inpcb *
 tcp_mtudisc(struct inpcb *inp, int errno)
 {
-	struct tcpcb *tp = intotcpcb(inp);
+	struct tcpcb *tp;
 	struct socket *so = inp->inp_socket;
 	u_int maxmtu;
 	u_int romtu;
@@ -1463,6 +1465,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 #endif /* INET6 */
 
 	INP_LOCK_ASSERT(inp);
+	tp = intotcpcb(inp);
 	if (tp != NULL) {
 #ifdef INET6
 		isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
@@ -1720,7 +1723,7 @@ tcp_twstart(struct tcpcb *tp)
 	SOCK_UNLOCK(so);
 	if (acknow)
 		tcp_twrespond(tw, TH_ACK);
-	inp->inp_ppcb = (caddr_t)tw;
+	inp->inp_ppcb = tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
 	tcp_timer_2msl_reset(tw, tw_time);
 
@@ -1799,7 +1802,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	 */
 	inp = tw->tw_inpcb;
 	KASSERT((inp->inp_vflag & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
-	KASSERT(inp->inp_ppcb == (void *)tw, ("tcp_twclose: inp_ppcb != tw"));
+	KASSERT(intotw(inp) == tw, ("tcp_twclose: inp_ppcb != tw"));
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_stop(). */
 	INP_LOCK_ASSERT(inp);
 
