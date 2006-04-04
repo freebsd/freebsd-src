@@ -366,7 +366,6 @@ bfe_attach(device_t dev)
 	if (bfe_dma_alloc(dev)) {
 		printf("bfe%d: failed to allocate DMA resources\n",
 		    sc->bfe_unit);
-		bfe_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
@@ -421,7 +420,6 @@ bfe_attach(device_t dev)
 			bfe_intr, sc, &sc->bfe_intrhand);
 
 	if (error) {
-		bfe_release_resources(sc);
 		printf("bfe%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
