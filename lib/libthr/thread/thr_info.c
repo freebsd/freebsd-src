@@ -32,9 +32,12 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
+#include "namespace.h"
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
+#include <pthread_np.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
@@ -42,7 +45,7 @@ __weak_reference(_pthread_set_name_np, pthread_set_name_np);
 
 /* Set the thread name for debug. */
 void
-_pthread_set_name_np(pthread_t thread, char *name)
+_pthread_set_name_np(pthread_t thread, const char *name)
 {
 	struct pthread *curthread = _get_curthread();
 	int ret = 0;

@@ -64,6 +64,7 @@
  *
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/param.h>
@@ -87,22 +88,75 @@
 #include <termios.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
-extern int __creat(const char *, mode_t);
-extern int __pause(void);
-extern int __pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
-		const struct timespec *timo, const sigset_t *mask);
-extern unsigned int __sleep(unsigned int);
-extern int __system(const char *);
-extern int __tcdrain(int);
-extern int __usleep(useconds_t);
-extern pid_t __wait(int *);
-extern pid_t __sys_wait4(pid_t, int *, int, struct rusage *);
-extern pid_t __waitpid(pid_t, int *, int);
+extern int	__creat(const char *, mode_t);
+extern int	__pause(void);
+extern int	__pselect(int, fd_set *, fd_set *, fd_set *,
+			const struct timespec *, const sigset_t *);
+extern unsigned	__sleep(unsigned int);
+extern int	__system(const char *);
+extern int	__tcdrain(int);
+extern int	__usleep(useconds_t);
+extern pid_t	__wait(int *);
+extern pid_t	__waitpid(pid_t, int *, int);
+extern int	__sys_aio_suspend(const struct aiocb * const[], int,
+			const struct timespec *);
+extern int	__sys_accept(int, struct sockaddr *, socklen_t *);
+extern int	__sys_connect(int, const struct sockaddr *, socklen_t);
+extern int	__sys_fsync(int);
+extern int	__sys_msync(void *, size_t, int);
+extern int	__sys_poll(struct pollfd *, unsigned, int);
+extern ssize_t	__sys_recv(int, void *, size_t, int);
+extern ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+extern ssize_t	__sys_recvmsg(int, struct msghdr *, int);
+extern int	__sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+extern int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *,
+			off_t *, int);
+extern ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
+extern ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
+extern ssize_t	__sys_readv(int, const struct iovec *, int);
+extern pid_t	__sys_wait4(pid_t, int *, int, struct rusage *);
+extern ssize_t	__sys_writev(int, const struct iovec *, int);
+
+int	___creat(const char *, mode_t);
+int	__accept(int, struct sockaddr *, socklen_t *);
+int	__close(int);
+int	__connect(int, const struct sockaddr *, socklen_t);
+int	__fcntl(int, int,...);
+int	__fsync(int);
+int	__msync(void *, size_t, int);
+int	__nanosleep(const struct timespec *, struct timespec *);
+int	__open(const char *, int,...);
+int	__poll(struct pollfd *, unsigned int, int);
+ssize_t	__read(int, void *buf, size_t);
+ssize_t	__readv(int, const struct iovec *, int);
+ssize_t	__recvfrom(int, void *, size_t, int f, struct sockaddr *, socklen_t *);
+ssize_t	__recvmsg(int, struct msghdr *, int);
+int	__select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+ssize_t	__sendmsg(int, const struct msghdr *, int);
+ssize_t	__sendto(int, const void *, size_t, int,
+		const struct sockaddr *, socklen_t);
+pid_t	__wait4(pid_t, int *, int, struct rusage *);
+ssize_t	__write(int, const void *, size_t);
+ssize_t	__writev(int, const struct iovec *, int);
+int	_aio_suspend(const struct aiocb * const iocbs[], int,
+		const struct timespec *);
+int	_pause(void);
+int	_pselect(int, fd_set *, fd_set *, fd_set *, 
+		const struct timespec *, const sigset_t *);
+int	_raise(int);
+unsigned	_sleep(unsigned);
+int	_system(const char *);
+int	_tcdrain(int);
+int	_vfork(void);
+pid_t	_wait(int *);
+
 
 __weak_reference(__accept, accept);
+
 int
 __accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {

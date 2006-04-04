@@ -32,9 +32,11 @@
  * $FreeBSD$
  */
 
-#include <errno.h>
+#include "namespace.h"
 #include <sys/param.h>
+#include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 

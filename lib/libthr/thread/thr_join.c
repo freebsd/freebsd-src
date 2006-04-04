@@ -27,11 +27,15 @@
  *
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
+int	_pthread_timedjoin_np(pthread_t pthread, void **thread_return,
+	const struct timespec *abstime);
 static int join_common(pthread_t, void **, const struct timespec *);
 
 __weak_reference(_pthread_join, pthread_join);

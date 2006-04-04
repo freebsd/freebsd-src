@@ -27,6 +27,7 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <errno.h>
@@ -34,6 +35,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
@@ -242,7 +244,7 @@ thread_start(struct pthread *curthread)
 	THR_UNLOCK(curthread);
 
 	/* Run the current thread's start routine with argument: */
-	pthread_exit(curthread->start_routine(curthread->arg));
+	_pthread_exit(curthread->start_routine(curthread->arg));
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");

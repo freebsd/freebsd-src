@@ -65,10 +65,14 @@
  *
  */
 
+#include "namespace.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+#include <pthread_np.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 __weak_reference(_pthread_mutexattr_init, pthread_mutexattr_init);

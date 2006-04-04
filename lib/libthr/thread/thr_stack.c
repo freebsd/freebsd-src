@@ -113,7 +113,7 @@ static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
  * high memory
  *
  */
-static void *last_stack = NULL;
+static char *last_stack = NULL;
 
 /*
  * Round size up to the nearest multiple of
@@ -236,8 +236,9 @@ _thr_stack_free(struct pthread_attr *attr)
 
 	if ((attr != NULL) && ((attr->flags & THR_STACK_USER) == 0)
 	    && (attr->stackaddr_attr != NULL)) {
-		spare_stack = (attr->stackaddr_attr + attr->stacksize_attr
-		    - sizeof(struct stack));
+		spare_stack = (struct stack *)
+			((char *)attr->stackaddr_attr +
+			attr->stacksize_attr - sizeof(struct stack));
 		spare_stack->stacksize = round_up(attr->stacksize_attr);
 		spare_stack->guardsize = round_up(attr->guardsize_attr);
 		spare_stack->stackaddr = attr->stackaddr_attr;

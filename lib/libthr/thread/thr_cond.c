@@ -26,17 +26,22 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
 #include <limits.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
 /*
  * Prototypes
  */
+int	__pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
+int	__pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+		       const struct timespec * abstime);
 static int cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 static int cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 		    const struct timespec *abstime, int cancel);
