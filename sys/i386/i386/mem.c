@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/memrange.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -71,17 +72,36 @@ __FBSDID("$FreeBSD$");
  */
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 
+static struct sx memsxlock;
+SX_SYSINIT(memsxlockinit, &memsxlock, "/dev/mem lock");
+
+
 /* ARGSUSED */
 int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	int o;
-	u_int c = 0, v;
+	u_int c = 0;
+	vm_paddr_t pa;
 	struct iovec *iov;
 	int error = 0;
-	vm_offset_t addr, eaddr;
+	vm_offset_t addr;
 
+	/* XXX UPS Why ? */
 	GIANT_REQUIRED;
+
+
+	if (minor(dev) != CDEV_MINOR_MEM && minor(dev) != CDEV_MINOR_KMEM)
+		return EIO;
+
+	if ( minor(dev) == CDEV_MINOR_KMEM && uio->uio_resid > 0) {
+		if (uio->uio_offset < (vm_offset_t)VADDR(PTDPTDI, 0))
+				return (EFAULT);
+
+		if (!kernacc((caddr_t)(int)uio->uio_offset, uio->uio_resid,
+		    uio->uio_rw == UIO_READ ?  VM_PROT_READ : VM_PROT_WRITE))
+			return (EFAULT);
+	}
 
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
@@ -93,43 +113,47 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			continue;
 		}
 		if (minor(dev) == CDEV_MINOR_MEM) {
-			v = uio->uio_offset;
-			v &= ~PAGE_MASK;
-			pmap_kenter((vm_offset_t)ptvmmap, v);
-			o = (int)uio->uio_offset & PAGE_MASK;
-			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
-			c = min(c, (u_int)(PAGE_SIZE - o));
-			c = min(c, (u_int)iov->iov_len);
-			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
-			pmap_qremove((vm_offset_t)ptvmmap, 1);
-			continue;
-		}
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
-			c = iov->iov_len;
-
+			pa = uio->uio_offset;
+			pa &= ~PAGE_MASK;
+		} else {
 			/*
-			 * Make sure that all of the pages are currently
-			 * resident so that we don't create any zero-fill
-			 * pages.
+			 * Extract the physical page since the mapping may
+			 * change at any time. This avoids panics on page 
+			 * fault in this case but will cause reading/writing
+			 * to the wrong page.
+			 * Hopefully an application will notice the wrong
+			 * data on read access and refrain from writing.
+			 * This should be replaced by a special uiomove
+			 * type function that just returns an error if there
+			 * is a page fault on a kernel page. 
 			 */
 			addr = trunc_page(uio->uio_offset);
-			eaddr = round_page(uio->uio_offset + c);
+			pa = pmap_extract(kernel_pmap, addr);
+			if (pa == 0) 
+				return EFAULT;
 
-			if (addr < (vm_offset_t)VADDR(PTDPTDI, 0))
-				return (EFAULT);
-			for (; addr < eaddr; addr += PAGE_SIZE) 
-				if (pmap_extract(kernel_pmap, addr) == 0)
-					return (EFAULT);
-
-			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
-			    uio->uio_rw == UIO_READ ? 
-			    VM_PROT_READ : VM_PROT_WRITE))
-				return (EFAULT);
-			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
-			continue;
 		}
-		/* else panic! */
+		
+		/* 
+		 * XXX UPS This should just use sf_buf_alloc.
+		 * Unfortunately sf_buf_alloc needs a vm_page
+		 * and we may want to look at memory not covered
+		 * by the page array.
+		 */
+
+		sx_xlock(&memsxlock);
+		pmap_kenter((vm_offset_t)ptvmmap, pa);
+		pmap_invalidate_page(kernel_pmap,(vm_offset_t)ptvmmap);
+
+		o = (int)uio->uio_offset & PAGE_MASK;
+		c = PAGE_SIZE - o;
+		c = min(c, (u_int)iov->iov_len);
+		error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
+		pmap_qremove((vm_offset_t)ptvmmap, 1);
+		sx_xunlock(&memsxlock);
+		
 	}
+
 	return (error);
 }
 
