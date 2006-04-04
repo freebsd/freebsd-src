@@ -1,7 +1,7 @@
-# $NetBSD: rc.subr,v 1.60 2003/07/26 05:13:47 lukem Exp $
+# $NetBSD: rc.subr,v 1.65 2004/10/12 14:45:29 lukem Exp $
 # $FreeBSD$
 #
-# Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
+# Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
 # This code is derived from software contributed to The NetBSD Foundation
@@ -38,6 +38,8 @@
 # rc.subr
 #	functions used by various rc scripts
 #
+
+: ${rcvar_manpage:='rc.conf(5)'}
 
 #
 #	Operating System dependent/independent variables
@@ -138,12 +140,13 @@ checkyesno()
 		return 1
 		;;
 	*)
-		warn "\$${1} is not set properly - see rc.conf(5)."
+		warn "\$${1} is not set properly - see ${rcvar_manpage}."
 		return 1
 		;;
 	esac
 }
 
+#
 # reverse_list list
 #	print the list in reverse order
 #
@@ -598,7 +601,7 @@ run_rc_command()
 
 		start)
 			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
-				echo "${name} already running? (pid=$rc_pid)."
+				echo 1>&2 "${name} already running? (pid=$rc_pid)."
 				return 1
 			fi
 
@@ -612,7 +615,7 @@ run_rc_command()
 					#
 			for _f in $required_vars; do
 				if ! checkyesno $_f; then
-					warn "\$${_f} is not set."
+					warn "\$${_f} is not enabled."
 					if [ -z "$rc_force" ]; then
 						return 1
 					fi
@@ -684,10 +687,10 @@ $command $rc_flags $command_args"
 			if [ -z "$rc_pid" ]; then
 				[ -n "$rc_fast" ] && return 0
 				if [ -n "$pidfile" ]; then
-					echo \
+					echo 1>&2 \
 				    "${name} not running? (check $pidfile)."
 				else
-					echo "${name} not running?"
+					echo 1>&2 "${name} not running?"
 				fi
 				return 1
 			fi
@@ -729,10 +732,10 @@ $command $rc_flags $command_args"
 		reload)
 			if [ -z "$rc_pid" ]; then
 				if [ -n "$pidfile" ]; then
-					echo \
+					echo 1>&2 \
 				    "${name} not running? (check $pidfile)."
 				else
-					echo "${name} not running?"
+					echo 1>&2 "${name} not running?"
 				fi
 				return 1
 			fi
@@ -854,7 +857,7 @@ run_rc_script()
 }
 
 #
-# load_rc_config
+# load_rc_config command
 #	Source in the configuration file for a given command.
 #
 load_rc_config()
@@ -897,6 +900,25 @@ load_rc_config()
 		[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
 		;;
 	esac
+}
+  
+#
+# load_rc_config_var cmd var
+#	Read the rc.conf(5) var for cmd and set in the
+#	current shell, using load_rc_config in a subshell to prevent
+#	unwanted side effects from other variable assignments.
+#
+load_rc_config_var()
+{
+	if [ $# -ne 2 ]; then
+		err 3 'USAGE: load_rc_config_var cmd var'
+	fi
+	eval $(eval '(
+		load_rc_config '$1' >/dev/null;
+                if [ -n "${'$2'}" -o "${'$2'-UNSET}" != "UNSET" ]; then
+			echo '$2'=\'\''${'$2'}\'\'';
+		fi
+	)' )
 }
 
 #
@@ -1064,6 +1086,8 @@ backup_file()
 		esac
 	fi
 }
+
+_rc_subr_loaded=:
 
 # make_symlink src link
 #	Make a symbolic link 'link' to src from basedir. If the
