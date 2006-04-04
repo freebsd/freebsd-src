@@ -640,6 +640,7 @@ static void
 vnlru_free(int count)
 {
 	struct vnode *vp;
+	int vfslocked;
 
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
 	for (; count > 0; count--) {
@@ -667,7 +668,9 @@ vnlru_free(int count)
 		vholdl(vp);
 		mtx_unlock(&vnode_free_list_mtx);
 		VI_UNLOCK(vp);
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vtryrecycle(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
 		/*
 		 * If the recycled succeeded this vdrop will actually free
 		 * the vnode.  If not it will simply place it back on
