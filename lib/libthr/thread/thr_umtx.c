@@ -33,7 +33,8 @@
 int
 __thr_umtx_lock(volatile umtx_t *mtx, long id)
 {
-	while (_umtx_op((struct umtx *)mtx, UMTX_OP_LOCK, id, 0, 0))
+	 while (_umtx_op(__DEVOLATILE(struct umtx *, mtx), 
+		UMTX_OP_LOCK, id, 0, 0))
 		;
 	return (0);
 }
@@ -45,8 +46,8 @@ __thr_umtx_timedlock(volatile umtx_t *mtx, long id,
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
 		timeout->tv_nsec <= 0)))
 		return (ETIMEDOUT);
-	if (_umtx_op((struct umtx *)mtx, UMTX_OP_LOCK, id, 0,
-		(void *)timeout) == 0)
+	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_LOCK, id, 0,
+		__DECONST(void *, timeout)) == 0)
 		return (0);
 	return (errno);
 }
@@ -54,7 +55,8 @@ __thr_umtx_timedlock(volatile umtx_t *mtx, long id,
 int
 __thr_umtx_unlock(volatile umtx_t *mtx, long id)
 {
-	if (_umtx_op((struct umtx *)mtx, UMTX_OP_UNLOCK, id, 0, 0) == 0)
+	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_UNLOCK,
+		id, 0, 0) == 0)
 		return (0);
 	return (errno);
 }
@@ -65,8 +67,8 @@ _thr_umtx_wait(volatile umtx_t *mtx, long id, const struct timespec *timeout)
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
 		timeout->tv_nsec <= 0)))
 		return (ETIMEDOUT);
-	if (_umtx_op((struct umtx *)mtx, UMTX_OP_WAIT, id, 0,
-		(void*) timeout) == 0)
+	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_WAIT, id, 0,
+		__DECONST(void*, timeout)) == 0)
 		return (0);
 	return (errno);
 }
@@ -74,7 +76,8 @@ _thr_umtx_wait(volatile umtx_t *mtx, long id, const struct timespec *timeout)
 int
 _thr_umtx_wake(volatile umtx_t *mtx, int nr_wakeup)
 {
-	if (_umtx_op((struct umtx *)mtx, UMTX_OP_WAKE, nr_wakeup, 0, 0) == 0)
+	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_WAKE,
+		nr_wakeup, 0, 0) == 0)
 		return (0);
 	return (errno);
 }

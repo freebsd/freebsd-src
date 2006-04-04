@@ -31,7 +31,11 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 __weak_reference(_pthread_setprio, pthread_setprio);
@@ -42,9 +46,9 @@ _pthread_setprio(pthread_t pthread, int prio)
 	int ret, policy;
 	struct sched_param param;
 
-	if ((ret = pthread_getschedparam(pthread, &policy, &param)) == 0) {
+	if ((ret = _pthread_getschedparam(pthread, &policy, &param)) == 0) {
 		param.sched_priority = prio;
-		ret = pthread_setschedparam(pthread, policy, &param);
+		ret = _pthread_setschedparam(pthread, policy, &param);
 	}
 
 	/* Return the error status: */

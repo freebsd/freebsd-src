@@ -310,7 +310,8 @@ _thr_ref_delete(struct pthread *curthread, struct pthread *thread)
 }
 
 void
-_thr_ref_delete_unlocked(struct pthread *curthread, struct pthread *thread)
+_thr_ref_delete_unlocked(struct pthread *curthread __unused,
+	struct pthread *thread)
 {
 	if (thread != NULL) {
 		thread->refcount--;
@@ -321,7 +322,7 @@ _thr_ref_delete_unlocked(struct pthread *curthread, struct pthread *thread)
 }
 
 int
-_thr_find_thread(struct pthread *curthread, struct pthread *thread,
+_thr_find_thread(struct pthread *curthread __unused, struct pthread *thread,
     int include_dead)
 {
 	struct pthread *pthread;

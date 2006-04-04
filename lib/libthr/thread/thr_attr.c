@@ -96,11 +96,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread_np.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 

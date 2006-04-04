@@ -31,8 +31,11 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <pthread.h>
 #include <pthread_np.h>
+#include "un-namespace.h"
 
 __weak_reference(_pthread_multi_np, pthread_multi_np);
 
@@ -45,6 +48,6 @@ _pthread_multi_np()
 	 * XXX - Do we want to do this?
 	 * __is_threaded = 1;
 	 */
-	pthread_resume_all_np();
+	_pthread_resume_all_np();
 	return (0);
 }

@@ -33,12 +33,15 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 #if defined(_PTHREADS_INVARIANTS)
@@ -64,8 +67,15 @@
 /*
  * Prototypes
  */
-static int	mutex_self_trylock(struct pthread *, pthread_mutex_t);
-static int	mutex_self_lock(struct pthread *, pthread_mutex_t,
+int	__pthread_mutex_init(pthread_mutex_t *mutex,
+		const pthread_mutexattr_t *mutex_attr);
+int	__pthread_mutex_trylock(pthread_mutex_t *mutex);
+int	__pthread_mutex_lock(pthread_mutex_t *mutex);
+int	__pthread_mutex_timedlock(pthread_mutex_t *mutex,
+		const struct timespec *abstime);
+
+static int	mutex_self_trylock(pthread_mutex_t);
+static int	mutex_self_lock(pthread_mutex_t,
 				const struct timespec *abstime);
 static int	mutex_unlock_common(pthread_mutex_t *, int);
 
@@ -265,7 +275,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 		MUTEX_ASSERT_NOT_OWNED(m);
 		TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
 	} else if (m->m_owner == curthread) {
-		ret = mutex_self_trylock(curthread, m);
+		ret = mutex_self_trylock(m);
 	} /* else {} */
 
 	return (ret);
@@ -321,7 +331,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		MUTEX_ASSERT_NOT_OWNED(m);
 		TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
 	} else if (m->m_owner == curthread) {
-		ret = mutex_self_lock(curthread, m, abstime);
+		ret = mutex_self_lock(m, abstime);
 	} else {
 		if (abstime == NULL) {
 			THR_UMTX_LOCK(curthread, &m->m_lock);
@@ -461,7 +471,7 @@ _mutex_cv_lock(pthread_mutex_t *m)
 }
 
 static int
-mutex_self_trylock(struct pthread *curthread, pthread_mutex_t m)
+mutex_self_trylock(pthread_mutex_t m)
 {
 	int	ret;
 
@@ -489,8 +499,7 @@ mutex_self_trylock(struct pthread *curthread, pthread_mutex_t m)
 }
 
 static int
-mutex_self_lock(struct pthread *curthread, pthread_mutex_t m,
-	const struct timespec *abstime)
+mutex_self_lock(pthread_mutex_t m, const struct timespec *abstime)
 {
 	struct timespec	ts1, ts2;
 	int	ret;
@@ -607,8 +616,10 @@ _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 		ret = EINVAL;
 	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
-	else
-		ret = (*mutex)->m_prio;
+	else {
+		*prioceiling = (*mutex)->m_prio;
+		ret = 0;
+	}
 
 	return(ret);
 }
@@ -624,10 +635,10 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		ret = EINVAL;
 	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
-	else if ((ret = pthread_mutex_lock(mutex)) == 0) {
+	else if ((ret = _pthread_mutex_lock(mutex)) == 0) {
 		tmp = (*mutex)->m_prio;
 		(*mutex)->m_prio = prioceiling;
-		ret = pthread_mutex_unlock(mutex);
+		ret = _pthread_mutex_unlock(mutex);
 
 		/* Return the old ceiling. */
 		*old_ceiling = tmp;
