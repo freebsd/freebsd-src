@@ -350,7 +350,11 @@ typedef struct {
 	spinlock_t	lock;
 } malloc_mutex_t;
 
+/* Set to true once the allocator has been initialized. */
 static bool malloc_initialized = false;
+
+/* Used to avoid initialization races. */
+static malloc_mutex_t init_lock = {_SPINLOCK_INITIALIZER};
 
 /******************************************************************************/
 /*
@@ -2969,12 +2973,6 @@ static inline bool
 malloc_init(void)
 {
 
-	/*
-	 * We always initialize before threads are created, since any thread
-	 * creation first triggers allocations.
-	 */
-	assert(__isthreaded == 0 || malloc_initialized);
-
 	if (malloc_initialized == false)
 		return (malloc_init_hard());
 
@@ -2988,6 +2986,16 @@ malloc_init_hard(void)
 	int linklen;
 	char buf[PATH_MAX + 1];
 	const char *opts;
+
+	malloc_mutex_lock(&init_lock);
+	if (malloc_initialized) {
+		/*
+		 * Another thread initialized the allocator before this one
+		 * acquired init_lock.
+		 */
+		malloc_mutex_unlock(&init_lock);
+		return (false);
+	}
 
 	/* Get number of CPUs. */
 	{
@@ -3339,8 +3347,10 @@ malloc_init_hard(void)
 
 	/* Allocate and initialize arenas. */
 	arenas = (arena_t **)base_alloc(sizeof(arena_t *) * narenas);
-	if (arenas == NULL)
+	if (arenas == NULL) {
+		malloc_mutex_unlock(&init_lock);
 		return (true);
+	}
 	/*
 	 * Zero the array.  In practice, this should always be pre-zeroed,
 	 * since it was just mmap()ed, but let's be sure.
@@ -3352,12 +3362,15 @@ malloc_init_hard(void)
 	 * arena_choose_hard().
 	 */
 	arenas_extend(0);
-	if (arenas[0] == NULL)
+	if (arenas[0] == NULL) {
+		malloc_mutex_unlock(&init_lock);
 		return (true);
+	}
 
 	malloc_mutex_init(&arenas_mtx);
 
 	malloc_initialized = true;
+	malloc_mutex_unlock(&init_lock);
 	return (false);
 }
 
