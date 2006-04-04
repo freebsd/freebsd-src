@@ -40,12 +40,6 @@ gdb_cpu_regsz(int regnum)
 }
 
 static __inline int
-gdb_cpu_signal(int type, int code __unused)
-{
-	return (type);
-}
-
-static __inline int
 gdb_cpu_query(void)
 {
 	return (0);
@@ -53,5 +47,6 @@ gdb_cpu_query(void)
 
 void *gdb_cpu_getreg(int, size_t *);
 void gdb_cpu_setreg(int, void *);
+int gdb_cpu_signal(int, int);
 
 #endif /* !_MACHINE_GDB_MACHDEP_H_ */
