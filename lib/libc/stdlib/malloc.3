@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2006
+.Dd April 4, 2006
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -316,6 +316,11 @@ deallocates it in this case.
 The
 .Fn free
 function returns no value.
+.Pp
+The
+.Fn malloc_usable_size
+function returns the usable size of the allocation pointed to by
+.Fa ptr .
 .Sh IMPLEMENTATION NOTES
 This allocator uses multiple arenas in order to reduce lock contention for
 threaded programs on multi-processor systems.
