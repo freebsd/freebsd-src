@@ -71,7 +71,7 @@ z8530_divisor(int rclk, int baudrate)
 		return (0);
 
 	divisor = (rclk + baudrate) / (baudrate << 1) - 2;
-	if (divisor >= 65536)
+	if (divisor < 0 || divisor >= 65536)
 		return (0);
 	act_baud = rclk / 2 / (divisor + 2);
 
