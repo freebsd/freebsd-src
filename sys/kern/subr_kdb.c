@@ -463,12 +463,12 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 	intr = intr_disable();
 
-	kdb_active++;
-
 #ifdef SMP
 	if ((did_stop_cpus = kdb_stop_cpus) != 0)
 		stop_cpus(PCPU_GET(other_cpus));
 #endif
+
+	kdb_active++;
 
 	kdb_frame = tf;
 
@@ -480,12 +480,12 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 	handled = kdb_dbbe->dbbe_trap(type, code);
 
+	kdb_active--;
+
 #ifdef SMP
 	if (did_stop_cpus)
 		restart_cpus(stopped_cpus);
 #endif
-
-	kdb_active--;
 
 	intr_restore(intr);
 
