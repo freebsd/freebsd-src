@@ -66,7 +66,7 @@
  *   |          | Sub-page       |   1 kB |
  *   |          |                |   2 kB |
  *   |====================================|
- *   | Medium                    |   4 kB |
+ *   | Large                     |   4 kB |
  *   |                           |   8 kB |
  *   |                           |  16 kB |
  *   |                           |    ... |
@@ -74,7 +74,7 @@
  *   |                           | 512 kB |
  *   |                           |   1 MB |
  *   |====================================|
- *   | Large                     |   2 MB |
+ *   | Huge                      |   2 MB |
  *   |                           |   4 MB |
  *   |                           |   6 MB |
  *   |                           |    ... |
@@ -85,11 +85,11 @@
  *   Small : Each size class is segregated into its own set of runs.  Each run
  *           maintains a bitmap of which regions are free/allocated.
  *
- *   Medium : Each allocation is backed by a dedicated run.  Metadata are stored
- *            in the associated arena chunk header maps.
+ *   Large : Each allocation is backed by a dedicated run.  Metadata are stored
+ *           in the associated arena chunk header maps.
  *
- *   Large : Each allocation is backed by a dedicated contiguous set of chunks.
- *           Metadata are stored in a separate red-black tree.
+ *   Huge : Each allocation is backed by a dedicated contiguous set of chunks.
+ *          Metadata are stored in a separate red-black tree.
  *
  *******************************************************************************
  */
@@ -143,8 +143,10 @@
 	(a_qr_b)->a_field.qre_prev = t;					\
 } while (0)
 
-/* qr_meld() and qr_split() are functionally equivalent, so there's no need to
- * have two copies of the code. */
+/*
+ * qr_meld() and qr_split() are functionally equivalent, so there's no need to
+ * have two copies of the code.
+ */
 #define	qr_split(a_qr_a, a_qr_b, a_type, a_field)			\
 	qr_meld((a_qr_a), (a_qr_b), a_type, a_field)
 
@@ -173,7 +175,7 @@
 
 /*
  * In order to disable various extra features that may have negative
- * performance impacts, (assertions, expanded statistics, redzones), define
+ * performance impacts, (assertions, expanded statistics), define
  * NO_MALLOC_EXTRAS.
  */
 /* #define NO_MALLOC_EXTRAS */
@@ -654,7 +656,7 @@ struct arena_s {
  */
 
 /* Used as a special "nil" return value for malloc(0). */
-static int		nil;
+static const int	nil;
 
 /* Number of CPUs. */
 static unsigned		ncpus;
@@ -1498,52 +1500,29 @@ arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
 /* Generate red-black tree code for arena chunks. */
 RB_GENERATE_STATIC(arena_chunk_tree_s, arena_chunk_s, link, arena_chunk_comp);
 
-static inline void
-arena_run_mask_free_set(arena_run_t *run, unsigned reg)
+static inline void *
+arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 {
-	unsigned elm, bit;
-
-	assert(run->magic == ARENA_RUN_MAGIC);
-	assert(reg < run->bin->nregs);
-
-	elm = reg >> (SIZEOF_INT_2POW + 3);
-	if (elm < run->regs_minelm)
-		run->regs_minelm = elm;
-	bit = reg - (elm << (SIZEOF_INT_2POW + 3));
-	assert((run->regs_mask[elm] & (1 << bit)) == 0);
-	run->regs_mask[elm] |= (1 << bit);
-}
-
-static inline void
-arena_run_mask_free_unset(arena_run_t *run, unsigned reg)
-{
-	unsigned elm, bit;
-
-	assert(run->magic == ARENA_RUN_MAGIC);
-	assert(reg < run->bin->nregs);
-
-	elm = reg >> (SIZEOF_INT_2POW + 3);
-	bit = reg - (elm << (SIZEOF_INT_2POW + 3));
-	assert((run->regs_mask[elm] & (1 << bit)) != 0);
-	run->regs_mask[elm] ^= (1 << bit);
-}
-
-static inline unsigned
-arena_run_search(arena_run_t *run)
-{
-	unsigned i, mask, bit;
+	void *ret;
+	unsigned i, mask, bit, regind;
 
 	assert(run->magic == ARENA_RUN_MAGIC);
 
 	for (i = run->regs_minelm; i < REGS_MASK_NELMS; i++) {
 		mask = run->regs_mask[i];
 		if (mask != 0) {
-			bit = ffs(mask);
-			if (bit != 0) {
-				/* Usable allocation found. */
-				return ((i << (SIZEOF_INT_2POW + 3))
-				    + bit - 1);
-			}
+			/* Usable allocation found. */
+			bit = ffs(mask) - 1;
+
+			regind = ((i << (SIZEOF_INT_2POW + 3)) + bit);
+			ret = (void *)&((char *)run)[bin->reg0_offset
+			    + (bin->reg_size * regind)];
+
+			/* Clear bit. */
+			mask ^= (1 << bit);
+			run->regs_mask[i] = mask;
+
+			return (ret);
 		} else {
 			/*
 			 * Make a note that nothing before this element
@@ -1552,8 +1531,94 @@ arena_run_search(arena_run_t *run)
 			run->regs_minelm = i + 1;
 		}
 	}
+	/* Not reached. */
+	assert(0);
+}
 
-	return (UINT_MAX);
+static inline void
+arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
+{
+	unsigned diff, regind, elm, bit;
+
+	assert(run->magic == ARENA_RUN_MAGIC);
+
+	/*
+	 * Avoid doing division with a variable divisor if possible.  This
+	 * single operation can reduce allocator throughput by around 20%!
+	 */
+#define POW2_CASE(p)							\
+		case (1 << (p)):					\
+			regind = diff >> (p);				\
+			break;
+#define QUANTUM_CASE(n)							\
+		case ((n) << QUANTUM_2POW_MIN):				\
+			regind = diff / ((n) << QUANTUM_2POW_MIN);	\
+			break;
+
+	/*
+	 * These assertions make sure that the switch statement matches
+	 * compile-time configuration.
+	 */
+	assert(tiny_min_2pow >= 1);
+	assert(QUANTUM_2POW_MIN >= 3 && QUANTUM_2POW_MIN <= 4);
+	assert(SMALL_MAX_2POW_DEFAULT == 9);
+
+	diff = (unsigned)((uintptr_t)ptr - (uintptr_t)run - bin->reg0_offset);
+	switch (size) {
+		POW2_CASE(1)
+		POW2_CASE(2)
+#if (QUANTUM_2POW_MIN > 3)
+		POW2_CASE(3)
+#endif
+		QUANTUM_CASE(1)
+		QUANTUM_CASE(2)
+		QUANTUM_CASE(3)
+		QUANTUM_CASE(4)
+		QUANTUM_CASE(5)
+		QUANTUM_CASE(6)
+		QUANTUM_CASE(7)
+		QUANTUM_CASE(8)
+		QUANTUM_CASE(9)
+		QUANTUM_CASE(10)
+		QUANTUM_CASE(11)
+		QUANTUM_CASE(12)
+		QUANTUM_CASE(13)
+		QUANTUM_CASE(14)
+		QUANTUM_CASE(15)
+		QUANTUM_CASE(16)
+		QUANTUM_CASE(17)
+		QUANTUM_CASE(18)
+		QUANTUM_CASE(19)
+		QUANTUM_CASE(20)
+		QUANTUM_CASE(21)
+		QUANTUM_CASE(22)
+		QUANTUM_CASE(23)
+		QUANTUM_CASE(24)
+		QUANTUM_CASE(25)
+		QUANTUM_CASE(26)
+		QUANTUM_CASE(27)
+		QUANTUM_CASE(28)
+		QUANTUM_CASE(29)
+		QUANTUM_CASE(30)
+		QUANTUM_CASE(31)
+		QUANTUM_CASE(32)
+
+		POW2_CASE(10)
+		POW2_CASE(11)
+		POW2_CASE(12) /* Handle up to 8 kB pages. */
+		default:
+			regind = diff / size;
+	}
+#undef POW2_CASE
+#undef QUANTUM_CASE
+	assert(regind < bin->nregs);
+
+	elm = regind >> (SIZEOF_INT_2POW + 3);
+	if (elm < run->regs_minelm)
+		run->regs_minelm = elm;
+	bit = regind - (elm << (SIZEOF_INT_2POW + 3));
+	assert((run->regs_mask[elm] & (1 << bit)) == 0);
+	run->regs_mask[elm] |= (1 << bit);
 }
 
 static void
@@ -1638,7 +1703,7 @@ arena_chunk_alloc(arena_t *arena)
 		header_size += pagesize - (header_size % pagesize);
 	}
 
-	header_npages = header_size / pagesize;
+	header_npages = header_size >> pagesize_2pow;
 	pow2_header_npages = pow2_ceil(header_npages);
 
 	/*
@@ -1665,7 +1730,7 @@ arena_chunk_alloc(arena_t *arena)
 	 * the beginning of the chunk, which we just took care of by
 	 * "allocating" the leading pages.
 	 */
-	while (map_offset < (chunk_size / pagesize)) {
+	while (map_offset < (chunk_size >> pagesize_2pow)) {
 		log2_run_pages = ffs(map_offset) - 1;
 		run_pages = (1 << log2_run_pages);
 		for (i = 0; i < run_pages; i++) {
@@ -1858,7 +1923,7 @@ AGAIN:
 	 * large enough.  Look for a precise fit, but do not pass up a chunk
 	 * that has a run which is large enough to split.
 	 */
-	min_ind = ffs(size / pagesize) - 1;
+	min_ind = ffs(size >> pagesize_2pow) - 1;
 	RB_FOREACH(chunk, arena_chunk_tree_s, &arena->chunks) {
 		for (i = min_ind;
 		    i < (opt_chunk_2pow - pagesize_2pow);
@@ -2044,18 +2109,12 @@ arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
     size_t size)
 {
 	void *ret;
-	unsigned regind;
 
 	assert(run->magic == ARENA_RUN_MAGIC);
 	assert(run->nfree > 0);
 
-	regind = arena_run_search(run);
-	assert(regind != UINT_MAX);
-	assert(regind < bin->nregs);
-
-	ret = (void *)&((char *)run)[bin->reg0_offset + (bin->reg_size
-	    * regind)];
-	arena_run_mask_free_unset(run, regind);
+	ret = arena_run_reg_alloc(run, bin);
+	assert(ret != NULL);
 	run->nfree--;
 	if (run->nfree < run->free_min) {
 		/* Promote run to higher fullness quartile. */
@@ -2256,7 +2315,6 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 	if (mapelm.large == false) {
 		arena_run_t *run;
 		arena_bin_t *bin;
-		unsigned regind;
 
 		/* Small allocation. */
 
@@ -2270,10 +2328,8 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 		if (opt_junk)
 			memset(ptr, 0x5a, size);
 
-		regind = (unsigned)(((uintptr_t)ptr - (uintptr_t)run
-		    - bin->reg0_offset) / size);
 		malloc_mutex_lock(&arena->mtx);
-		arena_run_mask_free_set(run, regind);
+		arena_run_reg_dalloc(run, bin, ptr, size);
 		run->nfree++;
 		if (run->nfree > run->free_max) {
 			/* Demote run to lower fullness quartile. */
@@ -3325,7 +3381,7 @@ malloc(size_t size)
 
 	if (size == 0) {
 		if (opt_sysv == false)
-			ret = &nil;
+			ret = (void *)&nil;
 		else
 			ret = NULL;
 		goto RETURN;
@@ -3407,11 +3463,17 @@ calloc(size_t num, size_t size)
 	num_size = num * size;
 	if (num_size == 0) {
 		if (opt_sysv == false)
-			ret = &nil;
+			ret = (void *)&nil;
 		else
 			ret = NULL;
 		goto RETURN;
-	} else if (num_size / size != num) {
+	/*
+	 * Try to avoid division here.  We know that it isn't possible to
+	 * overflow during multiplication if neither operand uses any of the
+	 * most significant half of the bits in a size_t.
+	 */
+	} else if (((num | size) & (SIZE_T_MAX << (sizeof(size_t) << 2)))
+	    && (num_size / size != num)) {
 		/* size_t overflow. */
 		ret = NULL;
 		goto RETURN;
@@ -3474,7 +3536,7 @@ realloc(void *ptr, size_t size)
 		if (ptr != &nil && ptr != NULL)
 			idalloc(ptr);
 
-		ret = &nil;
+		ret = (void *)&nil;
 	}
 
 	UTRACE(ptr, size, ret);
