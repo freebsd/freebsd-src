@@ -153,8 +153,6 @@ iicsmb_attach(device_t dev)
 {
 	struct iicsmb_softc *sc = (struct iicsmb_softc *)device_get_softc(dev);
 
-	bzero(sc, sizeof(*sc));
-
 	sc->smbus = device_add_child(dev, "smbus", -1);
 
 	/* probe and attach the smbus */

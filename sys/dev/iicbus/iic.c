@@ -122,15 +122,9 @@ iic_attach(device_t dev)
 {
 	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
 
-	if (!sc)
-		return (ENOMEM);
-
-	bzero(sc, sizeof(struct iic_softc));
-
 	sc->sc_devnode = make_dev(&iic_cdevsw, device_get_unit(dev),
 			UID_ROOT, GID_WHEEL,
 			0600, "iic%d", device_get_unit(dev));
-
 	return (0);
 }
 
@@ -146,7 +140,7 @@ iic_detach(device_t dev)
 }
 
 static int
-iicopen (struct cdev *dev, int flags, int fmt, struct thread *td)
+iicopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 
