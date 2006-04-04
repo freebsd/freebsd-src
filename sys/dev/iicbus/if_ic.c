@@ -132,9 +132,8 @@ icattach(device_t dev)
 	struct ifnet *ifp;
 
 	ifp = sc->ic_ifp = if_alloc(IFT_PARA);
-	if (ifp == NULL) {
+	if (ifp == NULL)
 		return (ENOSPC);
-	}
 
 	sc->ic_addr = PCF_MASTER_ADDRESS;	/* XXX only PCF masters */
 
@@ -162,121 +161,106 @@ icattach(device_t dev)
 static int
 icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    device_t icdev = devclass_get_device(ic_devclass, ifp->if_dunit);
-    device_t parent = device_get_parent(icdev);
-    struct ic_softc *sc = (struct ic_softc *)device_get_softc(icdev);
+	device_t icdev = devclass_get_device(ic_devclass, ifp->if_dunit);
+	device_t parent = device_get_parent(icdev);
+	struct ic_softc *sc = (struct ic_softc *)device_get_softc(icdev);
 
-    struct ifaddr *ifa = (struct ifaddr *)data;
-    struct ifreq *ifr = (struct ifreq *)data;
+	struct ifaddr *ifa = (struct ifaddr *)data;
+	struct ifreq *ifr = (struct ifreq *)data;
 
-    u_char *iptr, *optr;
-    int error;
+	u_char *iptr, *optr;
+	int error;
 
-    switch (cmd) {
+	switch (cmd) {
 
-    case SIOCSIFDSTADDR:
-    case SIOCAIFADDR:
-    case SIOCSIFADDR:
-	if (ifa->ifa_addr->sa_family != AF_INET)
-	    return EAFNOSUPPORT;
-	ifp->if_flags |= IFF_UP;
-	/* FALLTHROUGH */
-    case SIOCSIFFLAGS:
-	if ((!(ifp->if_flags & IFF_UP)) &&
-	  (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	case SIOCSIFDSTADDR:
+	case SIOCAIFADDR:
+	case SIOCSIFADDR:
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			return (EAFNOSUPPORT);
+		ifp->if_flags |= IFF_UP;
+		/* FALLTHROUGH */
+	case SIOCSIFFLAGS:
+		if ((!(ifp->if_flags & IFF_UP)) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 
-	    /* XXX disable PCF */
-	    ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			/* XXX disable PCF */
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
-	    /* IFF_UP is not set, try to release the bus anyway */
-	    iicbus_release_bus(parent, icdev);
-	    break;
-	}
-	if (((ifp->if_flags & IFF_UP)) &&
-	  (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+			/* IFF_UP is not set, try to release the bus anyway */
+			iicbus_release_bus(parent, icdev);
+			break;
+		}
+		if (((ifp->if_flags & IFF_UP)) &&
+		    (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+			if ((error = iicbus_request_bus(parent, icdev,
+			    IIC_WAIT | IIC_INTR)))
+				return (error);
+			sc->ic_obuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
+			    M_DEVBUF, M_WAITOK);
+			if (!sc->ic_obuf) {
+				iicbus_release_bus(parent, icdev);
+				return (ENOBUFS);
+			}
+			sc->ic_ifbuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
+			    M_DEVBUF, M_WAITOK);
+			if (!sc->ic_ifbuf) {
+				iicbus_release_bus(parent, icdev);
+				return (ENOBUFS);
+			}
+			iicbus_reset(parent, IIC_FASTEST, 0, NULL);
+			ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		}
+		break;
 
-	    if ((error = iicbus_request_bus(parent, icdev, IIC_WAIT|IIC_INTR)))
-		return (error);
+	case SIOCSIFMTU:
+		/* save previous buffers */
+		iptr = sc->ic_ifbuf;
+		optr = sc->ic_obuf;
 
-	    sc->ic_obuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
-				  M_DEVBUF, M_WAITOK);
-	    if (!sc->ic_obuf) {
-		iicbus_release_bus(parent, icdev);
-		return ENOBUFS;
-	    }
+		/* allocate input buffer */
+		sc->ic_ifbuf = malloc(ifr->ifr_mtu+ICHDRLEN, M_DEVBUF, M_NOWAIT);
+		if (!sc->ic_ifbuf) {
+			sc->ic_ifbuf = iptr;
+			sc->ic_obuf = optr;
+			return (ENOBUFS);
+		}
 
-	    sc->ic_ifbuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
-				  M_DEVBUF, M_WAITOK);
-	    if (!sc->ic_ifbuf) {
-		iicbus_release_bus(parent, icdev);
-		return ENOBUFS;
-	    }
+		/* allocate output buffer */
+		sc->ic_ifbuf = malloc(ifr->ifr_mtu+ICHDRLEN, M_DEVBUF, M_NOWAIT);
+		if (!sc->ic_obuf) {
+			free(sc->ic_ifbuf,M_DEVBUF);
+			sc->ic_ifbuf = iptr;
+			sc->ic_obuf = optr;
+			return (ENOBUFS);
+		}
 
-	    iicbus_reset(parent, IIC_FASTEST, 0, NULL);
+		if (iptr)
+			free(iptr,M_DEVBUF);
+		if (optr)
+			free(optr,M_DEVBUF);
+		sc->ic_ifp->if_mtu = ifr->ifr_mtu;
+		break;
 
-	    ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	}
-	break;
+	case SIOCGIFMTU:
+		ifr->ifr_mtu = sc->ic_ifp->if_mtu;
+		break;
 
-    case SIOCSIFMTU:
-	/* save previous buffers */
-	iptr = sc->ic_ifbuf;
-	optr = sc->ic_obuf;
-
-	/* allocate input buffer */
-	sc->ic_ifbuf = malloc(ifr->ifr_mtu+ICHDRLEN, M_DEVBUF, M_NOWAIT);
-	if (!sc->ic_ifbuf) {
-
-	    sc->ic_ifbuf = iptr;
-	    sc->ic_obuf = optr;
-
-	    return ENOBUFS;
-	}
-
-	/* allocate output buffer */
-	sc->ic_ifbuf = malloc(ifr->ifr_mtu+ICHDRLEN, M_DEVBUF, M_NOWAIT);
-	if (!sc->ic_obuf) {
-
-	    free(sc->ic_ifbuf,M_DEVBUF);
-
-	    sc->ic_ifbuf = iptr;
-	    sc->ic_obuf = optr;
-
-	    return ENOBUFS;
-	}
-
-	if (iptr)
-	    free(iptr,M_DEVBUF);
-
-	if (optr)
-	    free(optr,M_DEVBUF);
-
-	sc->ic_ifp->if_mtu = ifr->ifr_mtu;
-	break;
-
-    case SIOCGIFMTU:
-	ifr->ifr_mtu = sc->ic_ifp->if_mtu;
-	break;
-
-    case SIOCADDMULTI:
-    case SIOCDELMULTI:
-	if (ifr == 0) {
-	    return EAFNOSUPPORT;		/* XXX */
-	}
-	switch (ifr->ifr_addr.sa_family) {
-
-	case AF_INET:
-	    break;
-
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifr == 0)
+			return (EAFNOSUPPORT);		/* XXX */
+		switch (ifr->ifr_addr.sa_family) {
+		case AF_INET:
+			break;
+		default:
+			return (EAFNOSUPPORT);
+		}
+		break;
 	default:
-	    return EAFNOSUPPORT;
+		return (EINVAL);
 	}
-	break;
-
-    default:
-	return EINVAL;
-    }
-    return 0;
+	return (0);
 }
 
 /*
@@ -302,44 +286,34 @@ icintr (device_t dev, int event, char *ptr)
 
 	case INTR_STOP:
 
-	  /* if any error occured during transfert,
-	   * drop the packet */
-	  if (sc->ic_iferrs)
-	    goto err;
-
-	  if ((len = sc->ic_xfercnt) == 0)
-		break;					/* ignore */
-
-	  if (len <= ICHDRLEN)
-	    goto err;
-
-	  len -= ICHDRLEN;
-	  sc->ic_ifp->if_ipackets ++;
-	  sc->ic_ifp->if_ibytes += len;
-
-	  BPF_TAP(sc->ic_ifp, sc->ic_ifbuf, len + ICHDRLEN);
-
-	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
-
-	  if (top)
-	    netisr_dispatch(NETISR_IP, top);
-	  break;
-
+		/* if any error occured during transfert,
+		 * drop the packet */
+		if (sc->ic_iferrs)
+			goto err;
+		if ((len = sc->ic_xfercnt) == 0)
+			break;					/* ignore */
+		if (len <= ICHDRLEN)
+			goto err;
+		len -= ICHDRLEN;
+		sc->ic_ifp->if_ipackets++;
+		sc->ic_ifp->if_ibytes += len;
+		BPF_TAP(sc->ic_ifp, sc->ic_ifbuf, len + ICHDRLEN);
+		top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
+		if (top)
+			netisr_dispatch(NETISR_IP, top);
+		break;
 	err:
-	  printf("ic%d: errors (%d)!\n", unit, sc->ic_iferrs);
-
-	  sc->ic_iferrs = 0;			/* reset error count */
-	  sc->ic_ifp->if_ierrors ++;
-
-	  break;
+		printf("ic%d: errors (%d)!\n", unit, sc->ic_iferrs);
+		sc->ic_iferrs = 0;			/* reset error count */
+		sc->ic_ifp->if_ierrors++;
+		break;
 
 	case INTR_RECEIVE:
 		if (sc->ic_xfercnt >= sc->ic_ifp->if_mtu+ICHDRLEN) {
-			sc->ic_iferrs ++;
-
+			sc->ic_iferrs++;
 		} else {
 			*sc->ic_cp++ = *ptr;
-			sc->ic_xfercnt ++;
+			sc->ic_xfercnt++;
 		}
 		break;
 
@@ -351,7 +325,7 @@ icintr (device_t dev, int event, char *ptr)
 	  	break;
 
 	case INTR_ERROR:
-		sc->ic_iferrs ++;
+		sc->ic_iferrs++;
 		break;
 
 	default:
@@ -390,7 +364,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 
 	/* already sending? */
 	if (sc->ic_sending) {
-		ifp->if_oerrors ++;
+		ifp->if_oerrors++;
 		goto error;
 	}
 		
@@ -403,7 +377,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 	do {
 		if (len + mm->m_len > sc->ic_ifp->if_mtu) {
 			/* packet to large */
-			ifp->if_oerrors ++;
+			ifp->if_oerrors++;
 			goto error;
 		}
 			
@@ -424,9 +398,9 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 	if (iicbus_block_write(parent, sc->ic_addr, sc->ic_obuf,
 				len + ICHDRLEN, &sent))
 
-		ifp->if_oerrors ++;
+		ifp->if_oerrors++;
 	else {
-		ifp->if_opackets ++;
+		ifp->if_opackets++;
 		ifp->if_obytes += len;
 	}
 
