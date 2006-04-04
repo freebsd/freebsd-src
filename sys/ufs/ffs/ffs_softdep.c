@@ -718,6 +718,7 @@ softdep_flush(void)
 {
 	struct mount *nmp;
 	struct mount *mp;
+	struct ufsmount *ump;
 	struct thread *td;
 	int remaining;
 	int vfslocked;
@@ -752,7 +753,9 @@ softdep_flush(void)
 				continue;
 			vfslocked = VFS_LOCK_GIANT(mp);
 			softdep_process_worklist(mp, 0);
-			remaining += VFSTOUFS(mp)->softdep_on_worklist;
+			ump = VFSTOUFS(mp);
+			remaining += ump->softdep_on_worklist -
+				ump->softdep_on_worklist_inprogress;
 			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -914,11 +917,13 @@ process_worklist_item(mp, flags)
 		if ((flags & LK_NOWAIT) == 0 || wk->wk_type != D_DIRREM)
 			break;
 		wk->wk_state |= INPROGRESS;
+		ump->softdep_on_worklist_inprogress++;
 		FREE_LOCK(&lk);
 		ffs_vget(mp, WK_DIRREM(wk)->dm_oldinum,
 		    LK_NOWAIT | LK_EXCLUSIVE, &vp);
 		ACQUIRE_LOCK(&lk);
 		wk->wk_state &= ~INPROGRESS;
+		ump->softdep_on_worklist_inprogress--;
 		if (vp != NULL)
 			break;
 	}
