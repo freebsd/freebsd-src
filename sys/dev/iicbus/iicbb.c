@@ -115,13 +115,9 @@ static int iicbb_attach(device_t dev)
 {
 	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
 
-	bzero(sc, sizeof(struct iicbb_softc));
-
 	sc->iicbus = device_add_child(dev, "iicbus", -1);
-
 	if (!sc->iicbus)
 		return (ENXIO);
-
 	bus_generic_attach(dev);
 
 	return (0);
