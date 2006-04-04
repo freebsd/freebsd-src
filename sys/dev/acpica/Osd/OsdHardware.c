@@ -41,9 +41,9 @@ __FBSDID("$FreeBSD$");
 
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
- * troublesome insofar as there is no easy way for us to know in advance 
+ * troublesome insofar as there is no easy way for us to know in advance
  * exactly which I/O resources it's going to want to use.
- * 
+ *
  * In order to deal with this, we ignore resource ownership entirely, and simply
  * use the native I/O space accessor functionality.  This is Evil, but it works.
  *
@@ -107,7 +107,7 @@ acpi_os_check_port(UINT32 addr, UINT32 width)
 	error = 0;
 	for (port = illegal_bios_ports; *port != -1; port += 2) {
 		if ((addr >= port[0] && addr <= port[1]) ||
-		    (addr < port[0] && addr + (width / 8) >= port[0])) {
+		    (addr < port[0] && addr + (width / 8) > port[0])) {
 			if (block_bad_io)
 			    error = -1;
 			else
@@ -209,7 +209,7 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, void *Value,
 	/* debug trap goes here */
 	break;
     }
-    
+
     return (AE_OK);
 }
 
@@ -256,7 +256,7 @@ acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
     status = AcpiGetParent(curr, &parent);
     if (ACPI_FAILURE(status))
 	return (bus);
-    
+
     /* First, recurse up the tree until we find the host bus. */
     bus = acpi_bus_number(root, parent, PciId);
 
