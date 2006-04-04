@@ -60,12 +60,14 @@
  *
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <spinlock.h>
+#include "un-namespace.h"
 
 #include "libc_private.h"
 #include "thr_private.h"
@@ -95,6 +97,8 @@ _pthread_atfork(void (*prepare)(void), void (*parent)(void),
 }
 
 __weak_reference(_fork, fork);
+
+pid_t _fork(void);
 
 pid_t
 _fork(void)

@@ -31,8 +31,11 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <pthread.h>
-#include "thr_private.h"
+#include <sched.h>
+#include "un-namespace.h"
 
 __weak_reference(_pthread_yield, pthread_yield);
 

@@ -32,11 +32,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
@@ -103,7 +105,7 @@ _thread_cleanupspecific(void)
 {
 	struct pthread	*curthread = _get_curthread();
 	void		(*destructor)( void *);
-	void		*data = NULL;
+	const void	*data = NULL;
 	int		key;
 	int		i;
 
@@ -122,8 +124,7 @@ _thread_cleanupspecific(void)
 			    (curthread->specific[key].data != NULL)) {
 				if (curthread->specific[key].seqno ==
 				    _thread_keytable[key].seqno) {
-					data = (void *)
-					    curthread->specific[key].data;
+					data = curthread->specific[key].data;
 					destructor = _thread_keytable[key].destructor;
 				}
 				curthread->specific[key].data = NULL;
@@ -140,7 +141,7 @@ _thread_cleanupspecific(void)
 				 * destructor:
 				 */
 				THR_LOCK_RELEASE(curthread, &_keytable_lock);
-				destructor(data);
+				destructor(__DECONST(void *, data));
 				THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 			}
 		}
@@ -203,7 +204,7 @@ void *
 _pthread_getspecific(pthread_key_t key)
 {
 	struct pthread	*pthread;
-	void		*data;
+	const void	*data;
 
 	/* Point to the running thread: */
 	pthread = _get_curthread();
@@ -214,7 +215,7 @@ _pthread_getspecific(pthread_key_t key)
 		if (_thread_keytable[key].allocated &&
 		    (pthread->specific[key].seqno == _thread_keytable[key].seqno)) {
 			/* Return the value: */
-			data = (void *) pthread->specific[key].data;
+			data = pthread->specific[key].data;
 		} else {
 			/*
 			 * This key has not been used before, so return NULL
@@ -225,5 +226,5 @@ _pthread_getspecific(pthread_key_t key)
 	} else
 		/* No specific data has been created, so just return NULL: */
 		data = NULL;
-	return (data);
+	return (__DECONST(void *, data));
 }

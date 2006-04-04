@@ -44,7 +44,7 @@ void	_pthread_exit(void *status);
 __weak_reference(_pthread_exit, pthread_exit);
 
 void
-_thread_exit(char *fname, int lineno, char *msg)
+_thread_exit(const char *fname, int lineno, const char *msg)
 {
 
 	/* Write an error message to the standard error file descriptor: */
@@ -105,9 +105,7 @@ _pthread_exit(void *status)
 	while (curthread->cleanup != NULL) {
 		pthread_cleanup_pop(1);
 	}
-	if (curthread->attr.cleanup_attr != NULL) {
-		curthread->attr.cleanup_attr(curthread->attr.arg_attr);
-	}
+
 	/* Check if there is thread specific data: */
 	if (curthread->specific != NULL) {
 		/* Run the thread-specific data destructors: */

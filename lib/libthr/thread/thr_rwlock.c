@@ -53,7 +53,7 @@ __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
  */
 
 static int
-rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
+rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr __unused)
 {
 	pthread_rwlock_t prwlock;
 	int ret;

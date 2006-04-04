@@ -65,7 +65,7 @@ static void	init_spinlock(spinlock_t *lck);
 void
 _spinunlock(spinlock_t *lck)
 {
-	THR_UMTX_UNLOCK(_get_curthread(), (umtx_t *)&lck->access_lock);
+	THR_UMTX_UNLOCK(_get_curthread(), (volatile umtx_t *)&lck->access_lock);
 }
 
 void
@@ -77,11 +77,11 @@ _spinlock(spinlock_t *lck)
 		PANIC("Spinlocks not initialized.");
 	if (lck->fname == NULL)
 		init_spinlock(lck);
-	THR_UMTX_LOCK(_get_curthread(), (umtx_t *)&lck->access_lock);
+	THR_UMTX_LOCK(_get_curthread(), (volatile umtx_t *)&lck->access_lock);
 }
 
 void
-_spinlock_debug(spinlock_t *lck, char *fname, int lineno)
+_spinlock_debug(spinlock_t *lck, char *fname __unused, int lineno __unused)
 {
 	_spinlock(lck);
 }
@@ -118,7 +118,8 @@ _thr_spinlock_init(void)
 		 * it is better to do pthread_atfork in libc.
 		 */
 		for (i = 0; i < spinlock_count; i++)
-			_thr_umtx_init((umtx_t *)&extra[i].owner->access_lock);
+			_thr_umtx_init((volatile umtx_t *)
+				&extra[i].owner->access_lock);
 	} else {
 		initialized = 1;
 	}

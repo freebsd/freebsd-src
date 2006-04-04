@@ -26,9 +26,12 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 #define SPIN_COUNT 100000

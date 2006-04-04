@@ -27,7 +27,9 @@
  *
  */
 
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
@@ -35,8 +37,6 @@ __weak_reference(_pthread_cancel, pthread_cancel);
 __weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
 __weak_reference(_pthread_setcanceltype, pthread_setcanceltype);
 __weak_reference(_pthread_testcancel, pthread_testcancel);
-
-int _pthread_setcanceltype(int type, int *oldtype);
 
 int
 _pthread_cancel(pthread_t pthread)
@@ -78,7 +78,7 @@ testcancel(struct pthread *curthread)
 
 	newval = curthread->cancelflags;
 	if (SHOULD_CANCEL(newval) && !THR_IN_CRITICAL(curthread))
-		pthread_exit(PTHREAD_CANCELED);
+		_pthread_exit(PTHREAD_CANCELED);
 }
 
 int

@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
@@ -35,6 +36,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
@@ -45,8 +47,14 @@
 #define DBG_MSG(x...)
 #endif
 
+int	__sigtimedwait(const sigset_t *set, siginfo_t *info,
+	const struct timespec * timeout);
+int	__sigwaitinfo(const sigset_t *set, siginfo_t *info);
+int	__sigwait(const sigset_t *set, int *sig);
+
 static void
-sigcancel_handler(int sig, siginfo_t *info, ucontext_t *ucp)
+sigcancel_handler(int sig __unused,
+	siginfo_t *info __unused, ucontext_t *ucp __unused)
 {
 	struct pthread *curthread = _get_curthread();
 
