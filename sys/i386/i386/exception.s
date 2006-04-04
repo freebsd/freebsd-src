@@ -118,8 +118,9 @@ IDTVEC(xmm)
 	/*
 	 * alltraps entry point.  Interrupts are enabled if this was a trap
 	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
-	 * Note that int0x80_syscall is a trap gate.  Only page faults
-	 * use an interrupt gate.
+	 * Note that int0x80_syscall is a trap gate.   Interrupt gates are
+	 * used by page faults, non-maskable interrupts, debug and breakpoint
+	 * exceptions.
 	 */
 
 	SUPERALIGN_TEXT
