@@ -31,20 +31,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2004
+.Dd April 1, 2006
 .Dt FIREWIRE 4
 .Os
 .Sh NAME
 .Nm firewire
 .Nd IEEE1394 High-performance Serial Bus
 .Sh SYNOPSIS
-.Cd "kldload firewire"
-.Pp
-or
-.Pp
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device firewire"
+.Ed
 .Pp
-.In dev/firewire/firewire.h
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+firewire_load="YES"
+.Ed
 .Sh DESCRIPTION
 .Fx
 provides machine-independent bus support and raw drivers for
