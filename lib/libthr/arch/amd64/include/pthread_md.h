@@ -96,8 +96,6 @@ extern struct pthread *_thr_initial;
 static __inline struct pthread *
 _get_curthread(void)
 {
-	if (_thr_initial)
-		return (TCB_GET64(tcb_thread));
-	return (NULL);
+	return (TCB_GET64(tcb_thread));
 }
 #endif

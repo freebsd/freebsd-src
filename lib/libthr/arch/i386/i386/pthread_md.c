@@ -39,14 +39,11 @@ struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
-	void *oldtls;
 
 	if (initial)
-		__asm __volatile("movl %%gs:0, %0" : "=r" (oldtls));
+		__asm __volatile("movl %%gs:0, %0" : "=r" (tcb));
 	else
-		oldtls = NULL;
-
-	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
+		tcb = _rtld_allocate_tls(NULL, sizeof(struct tcb), 16);
 	if (tcb)
 		tcb->tcb_thread = thread;
 	return (tcb);
