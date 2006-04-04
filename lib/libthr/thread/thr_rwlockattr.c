@@ -26,10 +26,12 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdlib.h>
-
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 __weak_reference(_pthread_rwlockattr_destroy, pthread_rwlockattr_destroy);

@@ -45,7 +45,6 @@
 #include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <sched.h>
 #include <unistd.h>
 #include <ucontext.h>
 #include <sys/thr.h>
@@ -203,7 +202,7 @@ struct pthread_spinlock {
  */
 struct pthread_cleanup {
 	struct pthread_cleanup	*next;
-	void			(*routine)();
+	void			(*routine)(void *args);
 	void			*routine_arg;
 	int			onstack;
 };
@@ -239,7 +238,6 @@ struct pthread_attr {
 #define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
 	int	flags;
 	void	*arg_attr;
-	void	(*cleanup_attr)();
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
@@ -596,7 +594,7 @@ extern int __isthreaded;
  * Global variables for the pthread kernel.
  */
 
-extern void		*_usrstack __hidden;
+extern char		*_usrstack __hidden;
 extern struct pthread	*_thr_initial __hidden;
 extern int		_thr_scope_system __hidden;
 
@@ -625,9 +623,9 @@ extern struct pthread_mutex_attr _pthread_mutexattr_default __hidden;
 extern struct pthread_cond_attr _pthread_condattr_default __hidden;
 
 extern pid_t	_thr_pid __hidden;
-extern int	_thr_guard_default __hidden;
-extern int	_thr_stack_default __hidden;
-extern int	_thr_stack_initial __hidden;
+extern size_t	_thr_guard_default __hidden;
+extern size_t	_thr_stack_default __hidden;
+extern size_t	_thr_stack_initial __hidden;
 extern int	_thr_page_size __hidden;
 /* Garbage thread count. */
 extern int	_gc_count __hidden;
@@ -650,37 +648,8 @@ int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
 void	_mutex_unlock_private(struct pthread *) __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
-void	*_pthread_getspecific(pthread_key_t);
-int	_pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
-int	_pthread_cond_destroy(pthread_cond_t *);
-int	_pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
-int	_pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *,
-	    const struct timespec *);
-int	_pthread_cond_signal(pthread_cond_t *);
-int	_pthread_cond_broadcast(pthread_cond_t *);
-int	_pthread_create(pthread_t * thread, const pthread_attr_t * attr,
-	    void *(*start_routine) (void *), void *arg);
-int	_pthread_key_create(pthread_key_t *, void (*) (void *));
-int	_pthread_key_delete(pthread_key_t);
-int	_pthread_mutex_destroy(pthread_mutex_t *);
-int	_pthread_mutex_init(pthread_mutex_t *, const pthread_mutexattr_t *);
-int	_pthread_mutex_lock(pthread_mutex_t *);
-int	_pthread_mutex_trylock(pthread_mutex_t *);
-int	_pthread_mutex_unlock(pthread_mutex_t *);
-int	_pthread_mutexattr_init(pthread_mutexattr_t *);
-int	_pthread_mutexattr_destroy(pthread_mutexattr_t *);
-int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
-int	_pthread_once(pthread_once_t *, void (*) (void));
-int	_pthread_rwlock_init(pthread_rwlock_t *, const pthread_rwlockattr_t *);
-int	_pthread_rwlock_destroy (pthread_rwlock_t *);
-struct pthread *_pthread_self(void);
-int	_pthread_setspecific(pthread_key_t, const void *);
-void	_pthread_testcancel(void);
-void	_pthread_yield(void);
-void	_pthread_cleanup_push(void (*routine) (void *), void *routine_arg);
-void	_pthread_cleanup_pop(int execute);
 struct pthread *_thr_alloc(struct pthread *) __hidden;
-void	_thread_exit(char *, int, char *) __hidden __dead2;
+void	_thread_exit(const char *, int, const char *) __hidden __dead2;
 void	_thr_exit_cleanup(void) __hidden;
 int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
@@ -714,30 +683,15 @@ void	_thr_assert_lock_level(void) __hidden __dead2;
 void	_thr_ast(struct pthread *) __hidden;
 void	_thr_once_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
-			   struct pthread *newthread) __hidden;
+	    struct pthread *newthread) __hidden;
 void	_thr_report_death(struct pthread *curthread) __hidden;
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
-
-/* #include <sys/aio.h> */
-#ifdef _SYS_AIO_H_
-int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
-#endif
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
 int     __sys_fcntl(int, int, ...);
 int     __sys_open(const char *, int, ...);
-#endif
-
-/* #include <sys/ioctl.h> */
-#ifdef _SYS_IOCTL_H_
-int	__sys_ioctl(int, unsigned long, ...);
-#endif
-
-/* #inclde <sched.h> */
-#ifdef	_SCHED_H_
-int	__sys_sched_yield(void);
 #endif
 
 /* #include <signal.h> */
@@ -749,25 +703,10 @@ int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int     __sys_sigsuspend(const sigset_t *);
 int     __sys_sigreturn(ucontext_t *);
 int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-#endif
-
-/* #include <sys/socket.h> */
-#ifdef _SYS_SOCKET_H_
-int	__sys_accept(int, struct sockaddr *, socklen_t *);
-int	__sys_connect(int, const struct sockaddr *, socklen_t);
-ssize_t __sys_recv(int, void *, size_t, int);
-ssize_t __sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
-ssize_t __sys_recvmsg(int, struct msghdr *, int);
-int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *,
-	    off_t *, int);
-ssize_t __sys_sendmsg(int, const struct msghdr *, int);
-ssize_t __sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
-#endif
-
-/* #include <sys/uio.h> */
-#ifdef  _SYS_UIO_H_
-ssize_t __sys_readv(int, const struct iovec *, int);
-ssize_t __sys_writev(int, const struct iovec *, int);
+int	__sys_sigwait(const sigset_t *, int *);
+int	__sys_sigtimedwait(const sigset_t *, siginfo_t *,
+		const struct timespec *);
+int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 #endif
 
 /* #include <time.h> */
@@ -778,28 +717,11 @@ int	__sys_nanosleep(const struct timespec *, struct timespec *);
 /* #include <unistd.h> */
 #ifdef  _UNISTD_H_
 int     __sys_close(int);
-int     __sys_execve(const char *, char * const *, char * const *);
 int	__sys_fork(void);
-int	__sys_fsync(int);
 pid_t	__sys_getpid(void);
-int     __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
-int	__sys_sigwait(const sigset_t *, int *);
-int	__sys_sigtimedwait(const sigset_t *, siginfo_t *,
-		const struct timespec *);
-int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
-#endif
-
-/* #include <poll.h> */
-#ifdef _SYS_POLL_H_
-int 	__sys_poll(struct pollfd *, unsigned, int);
-#endif
-
-/* #include <sys/mman.h> */
-#ifdef _SYS_MMAN_H_
-int	__sys_msync(void *, size_t, int);
 #endif
 
 static inline int

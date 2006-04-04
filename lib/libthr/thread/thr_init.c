@@ -55,7 +55,7 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-void		*_usrstack;
+char		*_usrstack;
 struct pthread	*_thr_initial;
 int		_thr_scope_system;
 int		_libthr_debug;
@@ -75,7 +75,6 @@ struct pthread_attr _pthread_attr_default = {
 	.suspend = THR_CREATE_RUNNING,
 	.flags = PTHREAD_SCOPE_SYSTEM,
 	.arg_attr = NULL,
-	.cleanup_attr = NULL,
 	.stackaddr_attr = NULL,
 	.stacksize_attr = THR_STACK_DEFAULT,
 	.guardsize_attr = 0
@@ -95,9 +94,9 @@ struct pthread_cond_attr _pthread_condattr_default = {
 };
 
 pid_t		_thr_pid;
-int		_thr_guard_default;
-int		_thr_stack_default = THR_STACK_DEFAULT;
-int		_thr_stack_initial = THR_STACK_INITIAL;
+size_t		_thr_guard_default;
+size_t		_thr_stack_default = THR_STACK_DEFAULT;
+size_t		_thr_stack_initial = THR_STACK_INITIAL;
 int		_thr_page_size;
 int		_gc_count;
 umtx_t		_mutex_static_lock;
@@ -120,26 +119,10 @@ static void init_main_thread(struct pthread *thread);
  * This is so that static libraries will work.
  */
 STATIC_LIB_REQUIRE(_accept);
-STATIC_LIB_REQUIRE(_bind);
 STATIC_LIB_REQUIRE(_close);
 STATIC_LIB_REQUIRE(_connect);
-STATIC_LIB_REQUIRE(_dup);
-STATIC_LIB_REQUIRE(_dup2);
-STATIC_LIB_REQUIRE(_execve);
 STATIC_LIB_REQUIRE(_fcntl);
-STATIC_LIB_REQUIRE(_flock);
-STATIC_LIB_REQUIRE(_flockfile);
-STATIC_LIB_REQUIRE(_fstat);
-STATIC_LIB_REQUIRE(_fstatfs);
 STATIC_LIB_REQUIRE(_fsync);
-STATIC_LIB_REQUIRE(_getdirentries);
-STATIC_LIB_REQUIRE(_getlogin);
-STATIC_LIB_REQUIRE(_getpeername);
-STATIC_LIB_REQUIRE(_getsockname);
-STATIC_LIB_REQUIRE(_getsockopt);
-STATIC_LIB_REQUIRE(_ioctl);
-STATIC_LIB_REQUIRE(_kevent);
-STATIC_LIB_REQUIRE(_listen);
 STATIC_LIB_REQUIRE(_nanosleep);
 STATIC_LIB_REQUIRE(_open);
 STATIC_LIB_REQUIRE(_pthread_getspecific);
@@ -162,7 +145,6 @@ STATIC_LIB_REQUIRE(_recvmsg);
 STATIC_LIB_REQUIRE(_select);
 STATIC_LIB_REQUIRE(_sendmsg);
 STATIC_LIB_REQUIRE(_sendto);
-STATIC_LIB_REQUIRE(_setsockopt);
 STATIC_LIB_REQUIRE(_sigaction);
 STATIC_LIB_REQUIRE(_sigprocmask);
 STATIC_LIB_REQUIRE(_sigsuspend);
@@ -332,7 +314,7 @@ _libpthread_init(struct pthread *curthread)
 			PANIC("Can't open console");
 		if (setlogin("root") == -1)
 			PANIC("Can't set login to root");
-		if (__sys_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
+		if (_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
 	}
 
@@ -389,7 +371,7 @@ init_main_thread(struct pthread *thread)
 	 * resource limits, so this stack needs an explicitly mapped
 	 * red zone to protect the thread stack that is just beyond.
 	 */
-	if (mmap((void *)_usrstack - _thr_stack_initial -
+	if (mmap(_usrstack - _thr_stack_initial -
 	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
 	    -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
@@ -403,7 +385,7 @@ init_main_thread(struct pthread *thread)
 	 *       actually free() it; it just puts it in the free
 	 *       stack queue for later reuse.
 	 */
-	thread->attr.stackaddr_attr = (void *)_usrstack - _thr_stack_initial;
+	thread->attr.stackaddr_attr = _usrstack - _thr_stack_initial;
 	thread->attr.stacksize_attr = _thr_stack_initial;
 	thread->attr.guardsize_attr = _thr_guard_default;
 	thread->attr.flags |= THR_STACK_USER;
