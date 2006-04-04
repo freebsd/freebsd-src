@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.907
+     Original revision: 1.910
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -173,6 +173,10 @@
 	gdb; step</literal>， 再从远程机器挂接 &man.gdb.1;。
       sysctl 变量 <varname>debug.gdbcons</varname> 可以用来控制这一功能的开关状态。</para>
 
+    <para>&man.hwpmc.4; 和 &man.pmcstat.8; 提供了对动态加载的内核模块以及通过
+      <function>dlopen()</function> 加载的动态连接库的性能分析支持。
+      &man.pmcstat.8; 新增了通过网络 socket 将数据记录到远程主机的能力。</para>
+
     <para>&man.random.4; 熵设备驱动程序是 MPSAFE 的了。</para>
 
     <para>新增了 <literal>SIGCHLD</literal> 信号队列的功能。
@@ -287,7 +291,7 @@
 	<literal>kbdmux</literal> 内核模块，
 	或在运行状态通过 &man.kldload.8; 加载模块并移去当前键盘来完成。</para>
 
-      <para>&man.kbdmux.4; 已被加入默认的
+      <para arch="amd64,i386">&man.kbdmux.4; 已被加入默认的
 	<filename>GENERIC</filename> 内核。
 	此外， 由于这一变动修正了 USB 键盘探测问题，
 	因此引导加载器菜单中的 <quote>Boot FreeBSD with USB keyboard</quote>
@@ -304,7 +308,7 @@
       <para>加入了 tnt4882(4) 驱动， 它能够支持 National Instruments
 	PCI-GPIB 卡。</para>
 
-      <para>&man.uart.4; 驱动放入了默认的
+      <para arch="alpha,amd64,i386,ia64,sparc64">&man.uart.4; 驱动放入了默认的
 	<filename>GENERIC</filename> 内核。
 	当 &man.sio.4; 和 &man.uart.4; 都能控制串口时，
 	&man.sio.4; 优先。</para>
@@ -342,7 +346,7 @@
 
 	<para>&man.snd.via82c686.4; 驱动是 MPSAFE 的了。</para>
 
-	<para>The &man.speaker.4; 支持 &os;/amd64 了。</para>
+	<para arch="amd64">The &man.speaker.4; 支持 &os;/amd64 了。</para>
 
 	<para>The &man.uaudio.4; 支持 24/32 位 声音文件格式及其转换了。</para>
       </sect4>
@@ -594,7 +598,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	<literal>BROKEN</literal>。</para>
 
       <para><literal>GEOM_MIRROR</literal> 和 <literal>GEOM_RAID3</literal>
-	这两个 class 新增了并行 I/O 请求支持。 新增的 sysctl 变量
+	这两个 class 采用了并发 I/O 请求来获得更好的同步性能。 新增的 sysctl 变量
 	<varname>kern.geom.mirror.sync_requests</varname> 和
 	<varname>kern.geom.raid3.sync_requests</varname>
 	用于定义允许多少个并发的 I/O 请求。 此外， sysctl 变量
@@ -602,7 +606,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	<varname>kern.geom.mirror.syncs_per_sec</varname>、
 	<varname>kern.geom.raid3.reqs_per_sync</varname>， 以及
 	<varname>kern.geom.raid3.syncs_per_sec</varname>
-	则已删去。</para>
+	则过时， 并已删去。</para>
 
       <para>新增了 GEOM class <literal>GEOM_ZERO</literal>。
 	它提供了一个非常大 (41PB) <filename>/dev/gzero</filename> 的 provider，
@@ -617,7 +621,7 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>为与其它模块的命名保持一致， GEOM class 内核模块 <filename>g_md.ko</filename>
 	已更名为 <filename>geom_md.ko</filename>。</para>
 
-      <para>对 &man.hptmv.4; 驱动进行了更新， 提供了对于
+      <para arch="amd64,i386">对 &man.hptmv.4; 驱动进行了更新， 提供了对于
 	amd64 和 PAE 的支持。</para>
 
       <para>新增了&man.mfi.4; 驱动， 用以支持
@@ -890,7 +894,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>在 &os; 的 <application>libc</application> 中的 DNS 解析库，
       已更新为 BIND9 的版本。</para>
 
-    <para>&man.rfcomm.pppd.8; 能够支持在指定服务名的同时指定
+    <para>&man.rfcomm.sppd.1; 能够支持在指定服务名的同时指定
       <option>-c</option> 选项和通道号了。
       支持的名字包括： DUN (拨号网络)、 FAX (传真)、
       LAN (使用 PPP 访问 LAN)， 以及 SP (串口)。</para>
