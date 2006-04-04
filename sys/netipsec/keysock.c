@@ -460,7 +460,6 @@ static void
 key_detach(struct socket *so)
 {
 	struct keycb *kp = (struct keycb *)sotorawcb(so);
-	int s, error;
 
 	KASSERT(kp != NULL, ("key_detach: kp == NULL"));
 	if (kp->kp_raw.rcb_proto.sp_protocol
