@@ -134,17 +134,24 @@ scc_bfe_attach(device_t dev)
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 
-	sc->sc_irid = 0;
-	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	/*
+	 * Allocate interrupt resources. There may be a different interrupt
+	 * per channel. We allocate them all...
+	 */
+	sc->sc_chan = malloc(sizeof(struct scc_chan) * cl->cl_channels,
+	    M_SCC, M_WAITOK | M_ZERO);
+	for (c = 0; c < cl->cl_channels; c++) {
+		ch = &sc->sc_chan[c];
+		ch->ch_irid = c;
+		ch->ch_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &ch->ch_irid, RF_ACTIVE | RF_SHAREABLE);
+	}
 
 	/*
 	 * Create the control structures for our children. Probe devices
 	 * and query them to see if we can reset the hardware.
 	 */
 	sysdev = 0;
-	sc->sc_chan = malloc(sizeof(struct scc_chan) * cl->cl_channels,
-	    M_SCC, M_WAITOK | M_ZERO);
 	base = rman_get_start(sc->sc_rres);
 	start = base + ((cl->cl_range < 0) ? size * (cl->cl_channels - 1) : 0);
 	for (c = 0; c < cl->cl_channels; c++) {
@@ -163,7 +170,8 @@ scc_bfe_attach(device_t dev)
 
 		resource_list_add(&ch->ch_rlist, SYS_RES_IRQ, 0, c, c, 1);
 		rle = resource_list_find(&ch->ch_rlist, SYS_RES_IRQ, 0);
-		rle->res = sc->sc_ires;
+		rle->res = (ch->ch_ires != NULL) ? ch->ch_ires :
+			    sc->sc_chan[0].ch_ires;
 
 		for (mode = 0; mode < SCC_NMODES; mode++) {
 			m = &ch->ch_mode[mode];
@@ -204,27 +212,31 @@ scc_bfe_attach(device_t dev)
 	 * Of course, if we can't setup a fast handler, we make it MPSAFE
 	 * right away.
 	 */
-	if (sc->sc_ires != NULL) {
-		error = bus_setup_intr(dev, sc->sc_ires,
+	for (c = 0; c < cl->cl_channels; c++) {
+		ch = &sc->sc_chan[c];
+		if (ch->ch_ires == NULL)
+			continue;
+		error = bus_setup_intr(dev, ch->ch_ires,
 		    INTR_TYPE_TTY | INTR_FAST, scc_bfe_intr, sc,
-		    &sc->sc_icookie);
+		    &ch->ch_icookie);
 		if (error) {
-			error = bus_setup_intr(dev, sc->sc_ires,
+			error = bus_setup_intr(dev, ch->ch_ires,
 			    INTR_TYPE_TTY | INTR_MPSAFE, scc_bfe_intr, sc,
-			    &sc->sc_icookie);
+			    &ch->ch_icookie);
 		} else
 			sc->sc_fastintr = 1;
 
 		if (error) {
 			device_printf(dev, "could not activate interrupt\n");
-			bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
-			    sc->sc_ires);
-			sc->sc_ires = NULL;
+			bus_release_resource(dev, SYS_RES_IRQ, ch->ch_irid,
+			    ch->ch_ires);
+			ch->ch_ires = NULL;
 		}
 	}
-	if (sc->sc_ires == NULL) {
-		/* XXX no interrupt resource. Force polled mode. */
-		sc->sc_polled = 1;
+	sc->sc_polled = 1;
+	for (c = 0; c < cl->cl_channels; c++) {
+		if (sc->sc_chan[0].ch_ires != NULL)
+			sc->sc_polled = 0;
 	}
 
 	/*
@@ -260,10 +272,12 @@ scc_bfe_attach(device_t dev)
 	return (0);
 
  fail:
-	if (sc->sc_ires != NULL) {
-		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
-		    sc->sc_ires);
+	for (c = 0; c < cl->cl_channels; c++) {
+		ch = &sc->sc_chan[c];
+		if (ch->ch_ires == NULL)
+			continue;
+		bus_release_resource(dev, SYS_RES_IRQ, ch->ch_irid,
+		    ch->ch_ires);
 	}
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 	return (error);
@@ -299,10 +313,13 @@ scc_bfe_detach(device_t dev)
 	if (error)
 		return (error);
 
-	if (sc->sc_ires != NULL) {
-		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
-		    sc->sc_ires);
+	for (chan = 0; chan < cl->cl_channels; chan++) {
+		ch = &sc->sc_chan[chan];
+		if (ch->ch_ires == NULL)
+			continue;
+		bus_teardown_intr(dev, ch->ch_ires, ch->ch_icookie);
+		bus_release_resource(dev, SYS_RES_IRQ, ch->ch_irid,
+		    ch->ch_ires);
 	}
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 
@@ -480,9 +497,10 @@ int
 scc_bus_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
     void (*ihand)(void *), void *arg, void **cookiep)
 {
+	struct scc_chan *ch;
 	struct scc_mode *m;
 	struct scc_softc *sc;
-	int i, isrc;
+	int c, i, isrc;
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -497,9 +515,15 @@ scc_bus_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 
 	if (sc->sc_fastintr && !(flags & INTR_FAST)) {
 		sc->sc_fastintr = 0;
-		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
-		bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_TTY | INTR_MPSAFE,
-		    scc_bfe_intr, sc, &sc->sc_icookie);
+		for (c = 0; c < sc->sc_class->cl_channels; c++) {
+			ch = &sc->sc_chan[c];
+			if (ch->ch_ires == NULL)
+				continue;
+			bus_teardown_intr(dev, ch->ch_ires, ch->ch_icookie);
+			bus_setup_intr(dev, ch->ch_ires,
+			    INTR_TYPE_TTY | INTR_MPSAFE, scc_bfe_intr, sc,
+			    &ch->ch_icookie);
+		}
 	}
 
 	m = device_get_ivars(child);
