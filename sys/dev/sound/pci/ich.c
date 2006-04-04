@@ -63,6 +63,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define NVIDIA_NFORCE3	0x00da
 #define NVIDIA_NFORCE3_250	0x00ea
 #define NVIDIA_NFORCE4	0x0059
+#define NVIDIA_NFORCE_410_MCP	0x026b
 #define AMD_768		0x7445
 #define AMD_8111	0x746d
 
@@ -111,6 +112,8 @@ static const struct ich_type {
 		"nVidia nForce3 250" },
 	{ NVIDIA_VENDORID,	NVIDIA_NFORCE4,	0,
 		"nVidia nForce4" },
+	{ NVIDIA_VENDORID,	NVIDIA_NFORCE_410_MCP,	0,
+		"nVidia nForce 410 MCP" },
 	{ AMD_VENDORID,		AMD_768,	0,
 		"AMD-768" },
 	{ AMD_VENDORID,		AMD_8111,	0,
@@ -693,7 +696,11 @@ ich_init(struct sc_info *sc)
 		}
 	}
 
+#if 0
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD | ICH_GLOB_CTL_PRES, 4);
+#else
+	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD, 4);
+#endif
 
 	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 1))
 		return ENXIO;
