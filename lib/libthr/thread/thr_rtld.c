@@ -165,7 +165,7 @@ _thr_rtld_lock_release(void *lock)
 }
 
 static int
-_thr_rtld_set_flag(int mask __unused)
+_thr_rtld_set_flag(int mask)
 {
 	/*
 	 * The caller's code in rtld-elf is broken, it is not signal safe,
@@ -175,7 +175,7 @@ _thr_rtld_set_flag(int mask __unused)
 }
 
 static int
-_thr_rtld_clr_flag(int mask __unused)
+_thr_rtld_clr_flag(int mask)
 {
 	return (0);
 }

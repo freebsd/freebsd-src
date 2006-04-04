@@ -50,8 +50,6 @@ sigcancel_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
 	struct pthread *curthread = _get_curthread();
 
-	if (curthread->cancelflags & THR_CANCEL_AT_POINT)
-		pthread_testcancel();
 	_thr_ast(curthread);
 }
 
@@ -59,6 +57,9 @@ void
 _thr_ast(struct pthread *curthread)
 {
 	if (!THR_IN_CRITICAL(curthread)) {
+		if (__predict_false(
+		    SHOULD_ASYNC_CANCEL(curthread->cancelflags)))
+			_pthread_testcancel();
 		if (__predict_false((curthread->flags &
 		    (THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
 			== THR_FLAGS_NEED_SUSPEND))
@@ -70,7 +71,9 @@ void
 _thr_suspend_check(struct pthread *curthread)
 {
 	umtx_t cycle;
+	int err;
 
+	err = errno;
 	/* 
 	 * Blocks SIGCANCEL which other threads must send.
 	 */
@@ -114,6 +117,7 @@ _thr_suspend_check(struct pthread *curthread)
 	 * have one nesting signal frame, this should be fine.
 	 */
 	_thr_signal_unblock(curthread);
+	errno = err;
 }
 
 void
