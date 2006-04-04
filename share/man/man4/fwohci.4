@@ -39,11 +39,19 @@
 .Nm fwohci
 .Nd OHCI FireWire chipset device driver
 .Sh SYNOPSIS
-.Cd "kldload firewire"
-.Pp
-or
-.Pp
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device firewire"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+firewire_load="YES"
+.Ed
 .Sh HARDWARE
 The
 .Nm
