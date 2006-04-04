@@ -1357,7 +1357,8 @@ brelse(struct buf *bp)
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
 	/* remaining buffers */
 	} else {
-		if (bp->b_flags & (B_DELWRI|B_NEEDSGIANT))
+		if ((bp->b_flags & (B_DELWRI|B_NEEDSGIANT)) ==
+		    (B_DELWRI|B_NEEDSGIANT))
 			bp->b_qindex = QUEUE_DIRTY_GIANT;
 		if (bp->b_flags & B_DELWRI)
 			bp->b_qindex = QUEUE_DIRTY;
