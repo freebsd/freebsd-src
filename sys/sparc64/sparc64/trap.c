@@ -354,14 +354,13 @@ trap(struct trapframe *tf)
 			break;
 		case T_DATA_ERROR:
 			/*
-			 * handle PCI poke/peek as per UltraSPARC IIi
-			 * User's Manual 16.2.1.
+			 * Handle PCI poke/peek as per UltraSPARC IIi
+			 * User's Manual 16.2.1, modulo checking the
+			 * TPC as USIII CPUs generate a precise trap
+			 * instead of a special deferred one.
 			 */
-#define MEMBARSYNC_INST	((u_int32_t)0x8143e040)
 			if (tf->tf_tpc > (u_long)fas_nofault_begin &&
-			    tf->tf_tpc < (u_long)fas_nofault_end &&
-			    *(u_int32_t *)tf->tf_tpc == MEMBARSYNC_INST &&
-			    ((u_int32_t *)tf->tf_tpc)[-2] == MEMBARSYNC_INST) {
+			    tf->tf_tpc < (u_long)fas_nofault_end) {
 				cache_flush();
 				cache_enable();
 				tf->tf_tpc = (u_long)fas_fault;
@@ -369,7 +368,6 @@ trap(struct trapframe *tf)
 				error = 0;
 				break;
 			}
-#undef MEMBARSYNC_INST
 			error = 1;
 			break;
 		default:
