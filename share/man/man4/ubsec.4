@@ -31,14 +31,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2004
+.Dd April 1, 2006
 .Dt UBSEC 4
 .Os
 .Sh NAME
 .Nm ubsec
 .Nd Broadcom and BlueSteel uBsec 5x0x crypto accelerator
 .Sh SYNOPSIS
-.Cd device ubsec
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device cryptodev"
+.Cd "device ubsec"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ubsec_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
