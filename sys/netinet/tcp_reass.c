@@ -3156,6 +3156,15 @@ tcp_timewait(tw, to, th, m, tlen)
 	const int isipv6 = 0;
 #endif
 
+	/*
+	 * XXXRW: Time wait state for inpcb has been recycled, but inpcb is
+	 * still present.  This is undesirable, but temporarily necessary
+	 * until we work out how to handle inpcb's who's timewait state has
+	 * been removed.
+	 */
+	if (tw == NULL)
+		goto drop;
+
 	/* tcbinfo lock required for tcp_twclose(), tcp_2msl_reset. */
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tw->tw_inpcb);
