@@ -108,6 +108,7 @@ MAN=	accept_filter.9 \
 	g_provider_by_name.9 \
 	groupmember.9 \
 	g_wither_geom.9 \
+	hash.9 \
 	hashinit.9 \
 	hexdump.9 \
 	ieee80211.9 \
