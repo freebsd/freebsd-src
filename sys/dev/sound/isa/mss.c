@@ -2027,8 +2027,10 @@ pnpmss_attach(device_t dev)
 	    mss->conf_rid = 3;
 	    mss->bd_id = MD_OPTI924;
 	    mss->bd_flags |= BD_F_924PNP;
-	    if(opti_init(dev, mss) != 0)
+	    if(opti_init(dev, mss) != 0) {
+		    free(mss, M_DEVBUF);
 		    return ENXIO;
+	    }
 	    break;
 
 	case 0x1022b839:			/* NMX2210 */
@@ -2037,8 +2039,10 @@ pnpmss_attach(device_t dev)
 
 	case 0x01005407:			/* AZT0001 */
 	    /* put into MSS mode first (snatched from NetBSD) */
-	    if (azt2320_mss_mode(mss, dev) == -1)
+	    if (azt2320_mss_mode(mss, dev) == -1) {
+		    free(mss, M_DEVBUF);
 		    return ENXIO;
+	    }
 
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
 	    mss->io_rid = 2;
