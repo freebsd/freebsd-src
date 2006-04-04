@@ -946,10 +946,13 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			 * TCP state changes, is not quite right, but for
 			 * now, better than nothing.
 			 */
-			if (inp->inp_vflag & INP_TIMEWAIT)
-				error = cr_cansee(req->td->td_ucred,
-				    intotw(inp)->tw_cred);
-			else
+			if (inp->inp_vflag & INP_TIMEWAIT) {
+				if (intotw(inp) != NULL)
+					error = cr_cansee(req->td->td_ucred,
+					    intotw(inp)->tw_cred);
+				else
+					error = EINVAL;	/* Skip this inp. */
+			} else
 				error = cr_canseesocket(req->td->td_ucred,
 				    inp->inp_socket);
 			if (error == 0)
@@ -2323,8 +2326,15 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	if (inp != NULL) {
 		INP_LOCK(inp);
 		if (inp->inp_vflag & INP_TIMEWAIT) {
+			/*
+			 * XXXRW: There currently exists a state where an
+			 * inpcb is present, but its timewait state has been
+			 * discarded.  For now, don't allow dropping of this
+			 * type of inpcb.
+			 */
 			tw = intotw(inp);
-			tcp_twclose(tw, 0);
+			if (tw != NULL)
+				tcp_twclose(tw, 0);
 		} else if (!(inp->inp_vflag & INP_DROPPED) &&
 			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
 			tp = intotcpcb(inp);
