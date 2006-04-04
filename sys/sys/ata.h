@@ -349,6 +349,48 @@ struct ata_ioc_devices {
 #define IOCATADETACH            _IOW('a',  4, int)
 #define IOCATADEVICES           _IOWR('a',  5, struct ata_ioc_devices)
 
+/* ATAPI request sense structure */
+struct atapi_sense {
+    u_int8_t	error;				/* current or deferred errors */
+#define	ATA_SENSE_VALID			0x80
+
+    u_int8_t	segment;			/* segment number */
+    u_int8_t	key;				/* sense key */
+#define ATA_SENSE_KEY_MASK		0x0f    /* sense key mask */
+#define ATA_SENSE_NO_SENSE		0x00    /* no specific sense key info */
+#define ATA_SENSE_RECOVERED_ERROR 	0x01    /* command OK, data recovered */
+#define ATA_SENSE_NOT_READY		0x02    /* no access to drive */
+#define ATA_SENSE_MEDIUM_ERROR		0x03    /* non-recovered data error */
+#define ATA_SENSE_HARDWARE_ERROR	0x04    /* non-recoverable HW failure */
+#define ATA_SENSE_ILLEGAL_REQUEST	0x05    /* invalid command param(s) */
+#define ATA_SENSE_UNIT_ATTENTION	0x06    /* media changed */
+#define ATA_SENSE_DATA_PROTECT		0x07    /* write protect */
+#define ATA_SENSE_BLANK_CHECK		0x08    /* blank check */
+#define ATA_SENSE_VENDOR_SPECIFIC	0x09    /* vendor specific skey */
+#define ATA_SENSE_COPY_ABORTED		0x0a    /* copy aborted */
+#define ATA_SENSE_ABORTED_COMMAND	0x0b    /* command aborted, try again */
+#define ATA_SENSE_EQUAL			0x0c    /* equal */
+#define ATA_SENSE_VOLUME_OVERFLOW	0x0d    /* volume overflow */
+#define ATA_SENSE_MISCOMPARE		0x0e    /* data dont match the medium */
+#define ATA_SENSE_RESERVED		0x0f
+#define	ATA_SENSE_ILI			0x20;
+#define	ATA_SENSE_EOM			0x40;
+#define	ATA_SENSE_FILEMARK		0x80;
+
+    u_int32_t   cmd_info;		/* cmd information */
+    u_int8_t	sense_length;		/* additional sense len (n-7) */
+    u_int32_t   cmd_specific_info;	/* additional cmd spec info */
+    u_int8_t    asc;			/* additional sense code */
+    u_int8_t    ascq;			/* additional sense code qual */
+    u_int8_t    replaceable_unit_code;	/* replaceable unit code */
+    u_int8_t	specific;		/* sense key specific */
+#define	ATA_SENSE_SPEC_VALID	0x80
+#define	ATA_SENSE_SPEC_MASK	0x7f
+	
+    u_int8_t	specific1;		/* sense key specific */
+    u_int8_t	specific2;		/* sense key specific */
+} __packed;
+
 struct ata_ioc_request {
     union {
 	struct {
@@ -359,6 +401,7 @@ struct ata_ioc_request {
 	} ata;
 	struct {
 	    char                ccb[16];
+	    struct atapi_sense	sense;
 	} atapi;
     } u;
     caddr_t             data;
