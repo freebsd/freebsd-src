@@ -269,10 +269,14 @@ int
 mixer_uninit(device_t dev)
 {
 	int i;
+	struct snddev_info *d;
 	struct snd_mixer *m;
 	struct cdev *pdev;
 
+	d = device_get_softc(dev);
 	pdev = mixer_get_devt(dev);
+	if (d == NULL || pdev == NULL || pdev->si_drv1 == NULL)
+		return EBADF;
 	m = pdev->si_drv1;
 	snd_mtxlock(m->lock);
 
@@ -293,6 +297,8 @@ mixer_uninit(device_t dev)
 
 	snd_mtxfree(m->lock);
 	kobj_delete((kobj_t)m, M_MIXER);
+
+	d->mixer_dev = NULL;
 
 	return 0;
 }
@@ -465,10 +471,16 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 	int v = -1, j = cmd & 0xff;
 
 	m = i_dev->si_drv1;
-	if (mode != -1 && !m->busy)
+
+	if (m == NULL)
 		return EBADF;
 
 	snd_mtxlock(m->lock);
+	if (mode != -1 && !m->busy) {
+		snd_mtxunlock(m->lock);
+		return EBADF;
+	}
+
 	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
 		if (j == SOUND_MIXER_RECSRC)
 			ret = mixer_setrecsrc(m, *arg_i);
