@@ -115,7 +115,7 @@ static struct atapi_hcb *allocate_hcb(struct atapi_xpt_softc *, int, int, union 
 static void free_hcb(struct atapi_hcb *hcb);
 static void free_softc(struct atapi_xpt_softc *scp);
 
-static MALLOC_DEFINE(M_ATACAM, "ATA CAM transport", "ATA driver CAM-XPT layer");
+static MALLOC_DEFINE(M_ATACAM, "ata_cam", "ATA driver CAM-XPT layer");
 
 static device_method_t atapi_cam_methods[] = {
 	DEVMETHOD(device_identify,      atapi_cam_identify),
@@ -661,7 +661,7 @@ atapi_cb(struct ata_request *request)
     csio = &hcb->ccb->csio;
 
 #ifdef CAMDEBUG
-# define err (request->u.atapi.sense_key)
+# define err (request->u.atapi.sense.key)
     if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
 	printf("atapi_cb: hcb@%p error = %02x: (sk = %02x%s%s%s)\n",
 	       hcb, err, err >> 4,
@@ -704,7 +704,7 @@ atapi_cb(struct ata_request *request)
 	    /* The ATA driver has already requested sense for us. */
 	    if (request->error == 0) {
 		/* The ATA autosense suceeded. */
-		bcopy (&request->u.atapi.sense_data, &csio->sense_data, sizeof(struct atapi_sense));
+		bcopy (&request->u.atapi.sense, &csio->sense_data, sizeof(struct atapi_sense));
 		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
 	    }
 #endif

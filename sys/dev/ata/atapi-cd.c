@@ -702,10 +702,10 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 	request->timeout = 5;
 	ata_queue_request(request);
 	if (!request->error &&
-	    (request->u.atapi.sense_data.sense_key == 2 ||
-	     request->u.atapi.sense_data.sense_key == 7) &&
-	    request->u.atapi.sense_data.asc == 4 &&
-	    request->u.atapi.sense_data.ascq == 1)
+	    (request->u.atapi.sense.key == 2 ||
+	     request->u.atapi.sense.key == 7) &&
+	    request->u.atapi.sense.asc == 4 &&
+	    request->u.atapi.sense.ascq == 1)
 	    tsleep(&timeout, PRIBIO, "acdld", hz / 2);
 	else
 	    break;
@@ -1008,7 +1008,7 @@ acd_read_toc(device_t dev)
 		      cdp->disk_size, cdp->block_size,
 		      cdp->toc.hdr.ending_track-cdp->toc.hdr.starting_track+1);
 	if (cdp->toc.tab[0].control & 4)
-	    printf("%dMB\n", cdp->disk_size / 512);
+	    printf("%dMB\n", cdp->disk_size * cdp->block_size / 1048576);
 	else
 	    printf("%d:%d audio\n",
 		   cdp->disk_size / 75 / 60, cdp->disk_size / 75 % 60);
@@ -1234,9 +1234,9 @@ acd_get_progress(device_t dev, int *finished)
     request->flags = ATA_R_ATAPI | ATA_R_READ;
     request->timeout = 30;
     ata_queue_request(request);
-    if (!request->error && request->u.atapi.sense_data.sksv)
-	*finished = ((request->u.atapi.sense_data.sk_specific2 |
-		     (request->u.atapi.sense_data.sk_specific1<<8))*100)/65535;
+    if (!request->error && request->u.atapi.sense.error & ATA_SENSE_VALID)
+	*finished = ((request->u.atapi.sense.specific2 |
+		     (request->u.atapi.sense.specific1 << 8)) * 100) / 65535;
     else
 	*finished = 0;
     ata_free_request(request);

@@ -51,13 +51,20 @@ static char *ata_skey2str(u_int8_t);
 void
 ata_queue_request(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_channel *ch;
 
-    /* mark request as virgin (this might be a ATA_R_REQUEUE) */
+    /* treat request as virgin (this might be an ATA_R_REQUEUE) */
     request->result = request->status = request->error = 0;
-    request->parent = device_get_parent(request->dev);
-    callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
 
+    /* check that that the device is still valid */
+    if (!(request->parent = device_get_parent(request->dev))) {
+	request->result = ENXIO;
+	if (request->callback)
+	    (request->callback)(request);
+	return;
+    }
+    ch = device_get_softc(request->parent);
+    callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))
 	sema_init(&request->done, 0, "ATA request done");
 
@@ -368,16 +375,15 @@ ata_completed(void *context, int dummy)
 	    break;
 
 	/* if we have a sensekey -> request sense from device */
-	if (request->error & ATA_SK_MASK &&
-	    request->u.atapi.ccb[0] != ATAPI_REQUEST_SENSE) {
+	if ((request->error & ATA_E_ATAPI_SENSE_MASK) &&
+	    (request->u.atapi.ccb[0] != ATAPI_REQUEST_SENSE)) {
 	    static u_int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
 					sizeof(struct atapi_sense),
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	    request->u.atapi.sense_key = request->error;
-	    request->u.atapi.sense_cmd = request->u.atapi.ccb[0];
+	    request->u.atapi.saved_cmd = request->u.atapi.ccb[0];
 	    bcopy(ccb, request->u.atapi.ccb, 16);
-	    request->data = (caddr_t)&request->u.atapi.sense_data;
+	    request->data = (caddr_t)&request->u.atapi.sense;
 	    request->bytecount = sizeof(struct atapi_sense);
 	    request->donecount = 0;
 	    request->transfersize = sizeof(struct atapi_sense);
@@ -389,21 +395,21 @@ ata_completed(void *context, int dummy)
 	    return;
 	}
 
-	switch (request->u.atapi.sense_key & ATA_SK_MASK) {
-	case ATA_SK_RECOVERED_ERROR:
+	switch (request->u.atapi.sense.key & ATA_SENSE_KEY_MASK) {
+	case ATA_SENSE_RECOVERED_ERROR:
 	    device_printf(request->dev, "WARNING - %s recovered error\n",
 			  ata_cmd2str(request));
 	    /* FALLTHROUGH */
 
-	case ATA_SK_NO_SENSE:
+	case ATA_SENSE_NO_SENSE:
 	    request->result = 0;
 	    break;
 
-	case ATA_SK_NOT_READY: 
+	case ATA_SENSE_NOT_READY: 
 	    request->result = EBUSY;
 	    break;
 
-	case ATA_SK_UNIT_ATTENTION:
+	case ATA_SENSE_UNIT_ATTENTION:
 	    atadev->flags |= ATA_D_MEDIA_CHANGED;
 	    request->result = EIO;
 	    break;
@@ -416,22 +422,19 @@ ata_completed(void *context, int dummy)
 	    device_printf(request->dev,
 			  "FAILURE - %s %s asc=0x%02x ascq=0x%02x ",
 			  ata_cmd2str(request), ata_skey2str(
-			  (request->u.atapi.sense_key & ATA_SK_MASK) >> 4),
-			  request->u.atapi.sense_data.asc,
-			  request->u.atapi.sense_data.ascq);
-	    if (request->u.atapi.sense_data.sksv)
-		printf("sks=0x%02x 0x%02x 0x%02x ",
-		       request->u.atapi.sense_data.sk_specific,
-		       request->u.atapi.sense_data.sk_specific1,
-		       request->u.atapi.sense_data.sk_specific2);
-	    printf("error=%b\n",
-		   (request->u.atapi.sense_key & ATA_E_MASK),
-		   "\20\4MEDIA_CHANGE_REQUEST\3ABORTED"
-		   "\2NO_MEDIA\1ILLEGAL_LENGTH");
+			  (request->u.atapi.sense.key & ATA_SENSE_KEY_MASK)),
+			  request->u.atapi.sense.asc,
+			  request->u.atapi.sense.ascq);
+	    if (request->u.atapi.sense.specific & ATA_SENSE_SPEC_VALID)
+		printf("sks=0x%02x 0x%02x 0x%02x\n",
+		       request->u.atapi.sense.specific & ATA_SENSE_SPEC_MASK,
+		       request->u.atapi.sense.specific1,
+		       request->u.atapi.sense.specific2);
 	}
 
-	if ((request->u.atapi.sense_key ?
-	     request->u.atapi.sense_key : request->error) & ATA_E_MASK)
+	if ((request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ?
+	     request->u.atapi.sense.key & ATA_SENSE_KEY_MASK : 
+	     request->error))
 	    request->result = EIO;
     }
 
@@ -625,8 +628,8 @@ ata_cmd2str(struct ata_request *request)
     static char buffer[20];
 
     if (request->flags & ATA_R_ATAPI) {
-	switch (request->u.atapi.sense_key ?
-		request->u.atapi.sense_cmd : request->u.atapi.ccb[0]) {
+	switch (request->u.atapi.sense.key ?
+		request->u.atapi.saved_cmd : request->u.atapi.ccb[0]) {
 	case 0x00: return ("TEST_UNIT_READY");
 	case 0x01: return ("REZERO");
 	case 0x03: return ("REQUEST_SENSE");

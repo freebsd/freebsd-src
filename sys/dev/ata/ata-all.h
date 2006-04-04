@@ -53,24 +53,7 @@
 #define         ATA_E_MC                0x20    /* media changed */
 #define         ATA_E_UNC               0x40    /* uncorrectable data */
 #define         ATA_E_ICRC              0x80    /* UDMA crc error */
-#define         ATA_E_MASK              0x0f    /* error mask */
-#define         ATA_SK_MASK             0xf0    /* sense key mask */
-#define         ATA_SK_NO_SENSE         0x00    /* no specific sense key info */
-#define         ATA_SK_RECOVERED_ERROR  0x10    /* command OK, data recovered */
-#define         ATA_SK_NOT_READY        0x20    /* no access to drive */
-#define         ATA_SK_MEDIUM_ERROR     0x30    /* non-recovered data error */
-#define         ATA_SK_HARDWARE_ERROR   0x40    /* non-recoverable HW failure */
-#define         ATA_SK_ILLEGAL_REQUEST  0x50    /* invalid command param(s) */
-#define         ATA_SK_UNIT_ATTENTION   0x60    /* media changed */
-#define         ATA_SK_DATA_PROTECT     0x70    /* write protect */
-#define         ATA_SK_BLANK_CHECK      0x80    /* blank check */
-#define         ATA_SK_VENDOR_SPECIFIC  0x90    /* vendor specific skey */
-#define         ATA_SK_COPY_ABORTED     0xa0    /* copy aborted */
-#define         ATA_SK_ABORTED_COMMAND  0xb0    /* command aborted, try again */
-#define         ATA_SK_EQUAL            0xc0    /* equal */
-#define         ATA_SK_VOLUME_OVERFLOW  0xd0    /* volume overflow */
-#define         ATA_SK_MISCOMPARE       0xe0    /* data dont match the medium */
-#define         ATA_SK_RESERVED         0xf0
+#define		ATA_E_ATAPI_SENSE_MASK	0xf0	/* ATAPI sense key mask */
 
 #define ATA_IREASON                     9       /* (R) interrupt reason */
 #define         ATA_I_CMD               0x01    /* cmd (1) | data (0) */
@@ -284,7 +267,8 @@
 #define ATA_PC98_BANKADDR_RID           9
 #define ATA_IRQ_RID                     0
 #define ATA_DEV(device)                 ((device == ATA_MASTER) ? 0 : 1)
-#define ATA_CFA_MAGIC                   0x848A
+#define ATA_CFA_MAGIC1                  0x844A
+#define ATA_CFA_MAGIC2                  0x848A
 #define ATAPI_MAGIC_LSB                 0x14
 #define ATAPI_MAGIC_MSB                 0xeb
 #define ATAPI_P_READ                    (ATA_S_DRQ | ATA_I_IN)
@@ -297,28 +281,6 @@
 #define ATA_OP_CONTINUES                0
 #define ATA_OP_FINISHED                 1
 #define ATA_MAX_28BIT_LBA               268435455UL
-
-/* ATAPI request sense structure */
-struct atapi_sense {
-    u_int8_t    error_code      :7;             /* current or deferred errors */
-    u_int8_t    valid           :1;             /* follows ATAPI spec */
-    u_int8_t    segment;                        /* Segment number */
-    u_int8_t    sense_key       :4;             /* sense key */
-    u_int8_t    reserved2_4     :1;             /* reserved */
-    u_int8_t    ili             :1;             /* incorrect length indicator */
-    u_int8_t    eom             :1;             /* end of medium */
-    u_int8_t    filemark        :1;             /* filemark */
-    u_int32_t   cmd_info __packed;              /* cmd information */
-    u_int8_t    sense_length;                   /* additional sense len (n-7) */
-    u_int32_t   cmd_specific_info __packed;     /* additional cmd spec info */
-    u_int8_t    asc;                            /* additional sense code */
-    u_int8_t    ascq;                           /* additional sense code qual */
-    u_int8_t    replaceable_unit_code;          /* replaceable unit code */
-    u_int8_t    sk_specific     :7;             /* sense key specific */
-    u_int8_t    sksv            :1;             /* sense key specific info OK */
-    u_int8_t    sk_specific1;                   /* sense key specific */
-    u_int8_t    sk_specific2;                   /* sense key specific */
-};
 
 /* structure used for composite atomic operations */
 #define MAX_COMPOSITES          32              /* u_int32_t bits */
@@ -348,9 +310,8 @@ struct ata_request {
 	} ata;
 	struct {
 	    u_int8_t            ccb[16];        /* ATAPI command block */
-	    struct atapi_sense  sense_data;     /* ATAPI request sense data */
-	    u_int8_t            sense_key;      /* ATAPI request sense key */
-	    u_int8_t            sense_cmd;      /* ATAPI saved command */
+	    struct atapi_sense  sense;          /* ATAPI request sense data */
+	    u_int8_t            saved_cmd;      /* ATAPI saved command */
 	} atapi;
     } u;
     u_int32_t                   bytecount;      /* bytes to transfer */
