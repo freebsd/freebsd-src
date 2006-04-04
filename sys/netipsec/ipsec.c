@@ -92,7 +92,6 @@
 
 #include <machine/in_cksum.h>
 
-#define IPSEC_DEBUG
 #ifdef IPSEC_DEBUG
 int ipsec_debug = 1;
 #else
