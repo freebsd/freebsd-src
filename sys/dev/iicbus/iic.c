@@ -276,7 +276,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		break;
 
 	case I2CRSTCARD:
-		error = iicbus_reset(parent, 0, 0, NULL);
+		error = iicbus_reset(parent, IIC_UNKNOWN, 0, NULL);
 		break;
 
 	case I2CWRITE:
