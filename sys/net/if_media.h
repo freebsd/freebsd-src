@@ -269,6 +269,15 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_AVALID	0x00000001	/* Active bit valid */
 #define	IFM_ACTIVE	0x00000002	/* Interface attached to working net */
 
+/* Mask of "status valid" bits, for ifconfig(8). */
+#define	IFM_STATUS_VALID	IFM_AVALID
+
+/* List of "status valid" bits, for ifconfig(8). */
+#define IFM_STATUS_VALID_LIST {						\
+        IFM_AVALID,							\
+        0								\
+}
+
 /*
  * Macros to extract various bits of information from the media word.
  */
@@ -601,4 +610,33 @@ struct ifmedia_baudrate {
 	{ 0, 0 },							\
 }
 
+/*
+ * Status descriptions for the various media types.
+ */
+struct ifmedia_status_description {
+	int	   ifms_type;
+	int	   ifms_valid;
+	int	   ifms_bit;
+	const char *ifms_string[2];
+};
+
+#define IFM_STATUS_DESC(ifms, bit)					\
+	(ifms)->ifms_string[((ifms)->ifms_bit & (bit)) ? 1 : 0]
+
+#define IFM_STATUS_DESCRIPTIONS {					\
+	{ IFM_ETHER,		IFM_AVALID,	IFM_ACTIVE,		\
+	    { "no carrier", "active" } },				\
+	{ IFM_FDDI,		IFM_AVALID,	IFM_ACTIVE,		\
+	    { "no ring", "inserted" } },				\
+	{ IFM_TOKEN,		IFM_AVALID,	IFM_ACTIVE,		\
+	    { "no ring", "inserted" } },				\
+	{ IFM_IEEE80211,	IFM_AVALID,	IFM_ACTIVE,		\
+	    { "no network", "active" } },				\
+	{ IFM_ATM,		IFM_AVALID,	IFM_ACTIVE,		\
+	    { "no network", "active" } },				\
+	{ IFM_CARP,		IFM_AVALID,	IFM_ACTIVE,		\
+	    { "backup", "master" } },					\
+	{ 0,			0,		0,			\
+	    { NULL, NULL } }						\
+}
 #endif	/* _NET_IF_MEDIA_H_ */
