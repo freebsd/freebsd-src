@@ -510,6 +510,13 @@ struct pthread {
 	(((thrd)->locklevel > 0) ||			\
 	((thrd)->critical_count > 0))
 
+#define THR_CRITICAL_ENTER(thrd)			\
+	(thrd)->critical_count++
+
+#define THR_CRITICAL_LEAVE(thrd)			\
+	(thrd)->critical_count--;			\
+	_thr_ast(thrd);
+
 #define THR_UMTX_TRYLOCK(thrd, lck)			\
 	_thr_umtx_trylock((lck), (thrd)->tid)
 
