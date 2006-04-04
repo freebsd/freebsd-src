@@ -77,7 +77,7 @@ testcancel(struct pthread *curthread)
 	int newval;
 
 	newval = curthread->cancelflags;
-	if (SHOULD_CANCEL(newval))
+	if (SHOULD_CANCEL(newval) && !THR_IN_CRITICAL(curthread))
 		pthread_exit(PTHREAD_CANCELED);
 }
 
