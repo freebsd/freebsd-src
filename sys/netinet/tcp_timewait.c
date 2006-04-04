@@ -177,6 +177,10 @@ static int	tcp_isn_reseed_interval = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
+static int	maxtcptw;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, maxtcptw, CTLFLAG_RDTUN,
+    &maxtcptw, 0, "Maximum number of compressed TCP TIME_WAIT entries");
+
 /*
  * TCP bandwidth limiting sysctls.  Note that the default lower bound of
  * 1024 exists only for debugging.  A good production default would be
@@ -290,9 +294,12 @@ tcp_init(void)
 	tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
+	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
+	if (maxtcptw == 0)
+		maxtcptw = maxsockets / 5;
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcptw_zone, maxsockets / 5);
+	uma_zone_set_max(tcptw_zone, maxtcptw);
 	tcp_timer_init();
 	syncache_init();
 	tcp_hc_init();
