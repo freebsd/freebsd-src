@@ -722,6 +722,8 @@ csa_releaseres(struct csa_info *csa, device_t dev)
 {
 	csa_res *resp;
 
+	KASSERT(csa != NULL, ("called with bogus resource structure"));
+
 	resp = &csa->res;
 	if (resp->irq != NULL) {
 		if (csa->ih)
@@ -741,10 +743,8 @@ csa_releaseres(struct csa_info *csa, device_t dev)
 		bus_dma_tag_destroy(csa->parent_dmat);
 		csa->parent_dmat = NULL;
 	}
-	if (csa != NULL) {
-		free(csa, M_DEVBUF);
-		csa = NULL;
-	}
+
+	free(csa, M_DEVBUF);
 }
 
 static int
