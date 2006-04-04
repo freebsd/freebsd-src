@@ -31,7 +31,7 @@
 
 #define	GDB_BUFSZ	500
 #define	GDB_NREGS	56
-#define	GDB_REG_PC	18
+#define	GDB_REG_PC	16
 
 static __inline size_t
 gdb_cpu_regsz(int regnum)
