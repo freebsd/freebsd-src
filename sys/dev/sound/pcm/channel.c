@@ -38,7 +38,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	DMA_ALIGN_THRESHOLD	4
 #define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
 #endif
-#define	DMA_ALIGN_MASK(bps)		(~((bps) - 1))
 
 #define CANCHANGE(c) (!(c->flags & CHN_F_TRIGGERED))
 
@@ -1247,6 +1246,7 @@ chn_trigger(struct pcm_channel *c, int go)
 int
 chn_getptr(struct pcm_channel *c)
 {
+#if 0
 	int hwptr;
 	int a = (1 << c->align) - 1;
 
@@ -1256,11 +1256,14 @@ chn_getptr(struct pcm_channel *c)
 #if 1
 	hwptr &= ~a ; /* Apply channel align mask */
 #endif
-#if 0
 	hwptr &= DMA_ALIGN_MASK; /* Apply DMA align mask */
-#endif
-	hwptr &= DMA_ALIGN_MASK(sndbuf_getbps(c->bufhard));
 	return hwptr;
+#endif
+	int hwptr;
+
+	CHN_LOCKASSERT(c);
+	hwptr = (c->flags & CHN_F_TRIGGERED)? CHANNEL_GETPTR(c->methods, c->devinfo) : 0;
+	return (hwptr - (hwptr % sndbuf_getbps(c->bufhard)));
 }
 
 struct pcmchan_caps *
