@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2006
+.Dd April 4, 2006
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -65,6 +65,8 @@
 .Ic info Ar message
 .It
 .Ic load_rc_config Ar command
+.It
+.Ic load_rc_config_var Ar command Ar var
 .It
 .Ic mount_critical_filesystems Ar type
 .It
@@ -325,6 +327,17 @@ arguments defined by the calling script, to provide an easy
 mechanism for an administrator to override the behaviour of a given
 .Xr rc.d 8
 script without requiring the editing of that script.
+.It Ic load_rc_config_var Ar command Ar var
+Read the
+.Xr rc.conf 5
+variable
+.Ar var
+for
+.Ar command
+and set in the current shell, using
+.Ic load_rc_config
+in a sub-shell to prevent unwanted side effects from other variable
+assignments.
 .It Ic mount_critical_filesystems Ar type
 Go through a list of critical file systems,
 as found in the
