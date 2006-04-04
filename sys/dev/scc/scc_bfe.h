@@ -85,6 +85,10 @@ struct scc_chan {
 	struct resource ch_rres;
 	struct resource_list ch_rlist;
 
+	struct resource *ch_ires;	/* Interrupt resource. */
+	void		*ch_icookie;
+	int		ch_irid;
+
 	struct scc_mode	ch_mode[SCC_NMODES];
 
 	u_int		ch_nr;
@@ -119,9 +123,6 @@ struct scc_softc {
 	struct resource	*sc_rres;	/* Register resource. */
 	int		sc_rrid;
 	int		sc_rtype;	/* SYS_RES_{IOPORT|MEMORY}. */
-	struct resource *sc_ires;	/* Interrupt resource. */
-	void		*sc_icookie;
-	int		sc_irid;
 
 	struct scc_chan	*sc_chan;
 
