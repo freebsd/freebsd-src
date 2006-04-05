@@ -22,7 +22,7 @@ crypto/blowfish/bf_enc.c	optional	crypto
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	crypto
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	netsmbcrypto
+crypto/des/des_enc.c		optional	netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
