@@ -2116,7 +2116,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 		 * if we have any disks and 'force' is true.
 		 */
 		ndisks = g_mirror_ndisks(sc, -1);
-		if ((force && ndisks) || sc->sc_ndisks == ndisks) {
+		if (sc->sc_ndisks == ndisks || (force && ndisks > 0)) {
 			;
 		} else if (ndisks == 0) {
 			/*
