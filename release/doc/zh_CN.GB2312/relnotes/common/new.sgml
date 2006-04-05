@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.43
+     Original revision: 1.761.2.56
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -17,6 +17,7 @@
     <year>2003</year>
     <year>2004</year>
     <year>2005</year>
+    <year>2006</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -94,7 +95,124 @@
   <sect2 id="security">
     <title>安全公告</title>
 
-    <para></para>
+    <para arch="i386,amd64">由于在使用超线程技术 (HTT)
+      的处理器上存在信息泄露漏洞， 增加了
+      <varname>machdep.hyperthreading_allowed</varname> sysctl
+      变量。 在 &os; CURRENT 上， 其值默认设为 <literal>1</literal>
+      (启用 HTT)， 而在 4-STABLE 和 5-STABLE 这两个开发分支，
+      以及受支持的安全修正分支上则是 <literal>0</literal> (禁用
+      HTT)。 要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>。
+      </para>
+
+    <para>发现并修正了 &man.tcpdump.1; 工具中一处使恶意的远程用户，
+      能够通过发出特制的数据包来引发拒绝服务的问题。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc">FreeBSD-SA-05:10.tcpdump</ulink>。
+      </para>
+
+    <para>发现并修正了 &man.gzip.1; 工具中的两处问题。
+      这些问题使得本地用户能够在解压缩文件时修改任意文件的属性，
+      并覆盖任意本地文件。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>。
+      </para>
+
+    <para发现并修正了 &man.ipfw.4; 中的一处可能导致包在查询表中无法正确匹配的问题。
+      这一问题只影响 SMP 和启用了
+      <literal>PREEMPTION</literal>(抢占) 内核选项的 UP 机器。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc">FreeBSD-SA-05:13.ipfw</ulink>。
+      </para>
+
+    <para>发现并修正了 &man.bzip2.1; 的两处安全问题。 这包括一处拒绝服务攻击问题，
+      以及非授权的文件权限修改问题。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>。
+      </para>
+
+    <para>修正了 &os; 的 TCP 协议栈中的两处问题。
+      这些问题会使得攻击者能够让暨存的 TCP 连接挂起，
+      从而导致拒绝服务。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>。
+      </para>
+
+    <para>发现并修正了 zlib 库中的两处缓冲区溢出问题。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:16.zlib.asc">FreeBSD-SA-05:16.zlib</ulink>
+      和
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:18.zlib.asc">FreeBSD-SA-05:18.zlib</ulink>。</para>
+
+    <para>发现并修正了可能导致在 &man.jail.2; 中运行的进程攫取隐藏的 &man.devfs.5;
+      文件节点访问权的问题。 要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:17.devfs.asc">FreeBSD-SA-05:17.devfs</ulink>。</para>
+
+    <para>发现并修正了在 &man.ipsec.4; 实现中的一处程序设计失误，
+      这个失误会导致 AES-XCBC-MAC 验证采用不变的密钥。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:19.ipsec.asc">FreeBSD-SA-05:19.ipsec</ulink>。</para>
+
+    <para>发现并修正了一个 &man.cvsbug.8; 在处理临时文件时的问题。
+      这一问题使得攻击者能够以执行 &man.cvsbug.8; 工具的用户身份修改或覆盖文件。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:20.cvsbug.asc">FreeBSD-SA-05:20.cvsbug</ulink>。</para>
+
+    <para>发现并修正了 OpenSSL 中一处导致允许攻击者强制使用较早版本 SSL
+      (包含已知的弱点) 的问题。
+      要了解进一步详情， 请参阅安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:21.openssl.asc">FreeBSD-SA-05:21.openssl</ulink>。</para>
+
+    <para>在 &man.texindex.1; 中发现并修正了一处临时文件漏洞，
+      这一漏洞可能导致本地的攻击者以运行 &man.texindex.1; 工具的用户身份覆盖文件。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc">FreeBSD-SA-06:01.texindex</ulink>。</para>
+
+    <para>在 &man.ee.1; 中发现并修正了一处临时文件漏洞，
+      这一漏洞可能导致本地的攻击者以运行 &man.ee.1; 的用户身份覆盖文件。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc">FreeBSD-SA-06:02.ee</ulink>。</para>
+
+    <para>发现并修正了 &man.cpio.1; 工具中的一系列漏洞。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc">FreeBSD-SA-06:03.cpio</ulink>。</para>
+
+    <para>发现并修正了两个可能导致一部分内核内存被泄露给用户的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:06.kmem.asc">FreeBSD-SA-06:06.kmem</ulink>。</para>
+
+    <para>发现并修正了 &man.pf.4; 中 IP 分片处理过程中一个可能导致在特定情况下崩溃的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>。</para>
+
+    <para>发现并修正了 TCP/IP 协议栈中 选择性确认 (SACK) 支持中的一个问题，
+      这个问题会导致内核在接收到特定的包序列时陷入死循环。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:08.sack.asc">FreeBSD-SA-06:08.sack</ulink>。</para>
+
+    <para>发现并修正了 OpenSSH 内部记帐机制中的一处问题，
+      这一问题会导致主进程误认为系统过载， 并停止接收客户端的请求。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:09.openssh.asc">FreeBSD-SA-06:09.openssh</ulink>。</para>
+
+    <para>发现并修正了 NFS 服务器代码中一处可能导致在服务器收到长度为零的消息时崩溃的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc">FreeBSD-SA-06:10.nfs</ulink>。</para>
+
+    <para>发现并修正了 &man.fast.ipsec.4; 实现中的一处可能导致安全关联序号无法更新，
+      进而导致数据包无条件地通过序号验证检查的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc">FreeBSD-SA-06:11.ipsec</ulink>。</para>
+
+    <para>发现并修正了 &man.opiepasswd.1; 中的一处可能导致非特权用户，
+      能够在某些情况下为 root 用户配置 OPIE 身份验证的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc">FreeBSD-SA-06:12.opie</ulink>。</para>
+
+    <para>发现并修正了 &man.sendmail.8; 中的一项可能导致远程攻击者以执行
+      sendmail 的用户， 通常是 root 身份执行任意代码的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>。</para>
 
   </sect2>
 
@@ -110,16 +228,26 @@
     <sect3 id="boot">
       <title>引导区和 loader 的变化</title>
 
-      <para></para>
+      <para><command>autoboot</command> 命令现在能够在当
+	<varname>autoboot_delay</varname> 变量设置为
+	<literal>-1</literal> 时完全阻止用户打断启动进程了。</para>
+
     </sect3>
 
     <sect3 id="proc">
       <title>硬件支持</title>
 
+      <para arch="i386,pc98">加入了用以支持 Cronyx Tau32-PCI 适配器的
+        &man.ce.4; 驱动。
+        </para>
+
       <para></para>
 
       <sect4 id="mm">
 	<title>多媒体支持</title>
+
+	<para>&man.uaudio.4; 驱动新增了一些功能，
+	  其中包括多输入音量控制， 以及某些设备上的录音能力。</para>
 
 	<para></para>
 
@@ -128,7 +256,18 @@
       <sect4 id="net-if">
 	<title>网络接口设备支持</title>
 
-	<para></para>
+	<para>&man.bge.4; 驱动能够支持 BCM5714 和 5789
+	  芯片了。</para>
+
+	<para>&man.ixgb.4; 驱动是 MPSAFE 的了。</para>
+
+	<para arch="i386,amd64">使用 &man.ndis.4; 驱动封装机制的设备驱动，
+	  采用了与之前不同的构建和加载机制。 &man.ndis.4;
+	  驱动现在可以作为模块预编译， 也可以静态联编导内核中了。
+	  驱动程序可以使用 &man.ndisgen.8; 工具来构建，
+	  其结果是生成能够使用 &man.kldload.8; 直接加载的内核模块。</para>
+
+	<para>&man.xl.4; 驱动支持 &man.polling.4; 了。</para>
 
       </sect4>
     </sect3>
@@ -165,12 +304,35 @@
   <sect2 id="userland">
     <title>应用程序变动</title>
 
-    <para></para>
+    <para>&man.gethostbyname.3;、 &man.gethostbyname2.3;， 以及
+      &man.gethostbyaddr.3; 这些函数是线程-安全的了。</para>
+
+    <para>&man.getnetent.3;、 &man.getnetbyname.3;， 以及
+      &man.getnetbyaddr.3; 这些函数是线程-安全的了。</para>
+
+    <para>&man.getprotoent.3;、 &man.getprotobyname.3;， 以及
+      &man.getprotobynumber.3; 这些函数是线程-安全的了。</para>
+
+    <para>&man.getservent.3;、 &man.getservbyname.3;， 以及
+      &man.getservbyport.3; 这些函数是线程-安全的了。</para>
+
+    <para>&man.kldstat.8; 工具新增了用于返回特定内核模块状态的
+      <option>-m</option> 选项。</para>
+
+    <para>在 <filename>libpthread</filename>、
+      <filename>libthr</filename>，
+      以及 <filename>libc_r</filename> 中的默认线程本地堆栈尺寸得以增加。 在 32-位
+      平台上， 主线程默认使用 2MB 的堆栈， 而其他线程则是 1MB 的堆栈。 在
+      64-位 平台上， 默认的堆栈尺寸则相应是 4MB 和 2MB。</para>
+
+    <para>&man.sed.1; 新增了用于启用输出行缓冲的 <option>-l</option> 选项。</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
 
-      <para></para>
+      <para><filename>rc.d/jail</filename> 启动脚本新增了
+	<varname>jail_<replaceable>name</replaceable>_flags</varname>
+	变量， 用于对应的设置 &man.jail.8; 的命令行参数。</para>
 
     </sect3>
   </sect2>
@@ -178,21 +340,43 @@
   <sect2 id="contrib">
     <title>基本系统包含的第三方软件</title>
 
-    <para></para>
+    <para><application>BIND</application> 从 9.3.1
+      更新到了 9.3.2。</para>
+
+    <para><application>sendmail</application> 从
+      8.13.3 更新到了 8.13.6。</para>
+
+    <para>时区数据库从
+      <application>tzdata2005g</application> 版升级到了
+      <application>tzdata2005r</application> 版。</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection 基础结构</title>
 
-    <para></para>
-
+    <para>&man.pkg.version.1; 新增了
+      <option>-I</option> 参数， 表示使用
+      <filename>INDEX</filename> 作为判断预编译包是否过时的唯一依据。</para>
   </sect2>
 
   <sect2 id="releng">
     <title>发行版建造工程和功能集成</title>
 
-    <para></para>
+    <para>支持的 <application>GNOME</application> 桌面环境
+      (<filename role="package">x11/gnome2</filename>) 的版本，
+      从 2.10.2 升级到了 2.12.3。</para>
 
+    <para>支持的 <application>KDE</application> 桌面环境
+      (<filename role="package">x11/kde2</filename>) 的版本，
+      从 3.4.2 升级到了 3.5.1。</para>
+
+    <para>支持的 <application>Perl</application> 解释器
+      (<filename role="package">lang/perl5.8</filename>) 的版本，
+      从 5.8.7 升级到了 5.8.8。</para>
+
+    <para>支持的 <application>&xorg;</application> 视窗系统
+      (<filename role="package">x11/xorg</filename>) 的版本，
+      从 6.8.2 升级到了 6.9.0。</para>
   </sect2>
 
   <sect2 id="doc">

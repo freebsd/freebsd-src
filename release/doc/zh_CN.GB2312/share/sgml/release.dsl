@@ -41,7 +41,7 @@
               (make element gi: "small"  
                 (literal "所有 FreeBSD ")
 		(literal (entity-text "release.branch"))
-		(literal " 的用户都应该订阅 ")
+		(literal " 的用户都应订阅 ")
                 (literal "<")
 		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
                   (literal "stable@FreeBSD.org"))
