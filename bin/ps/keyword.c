@@ -302,6 +302,8 @@ findvar(char *p, int user, char **header)
 	hp = strchr(p, '=');
 	if (hp)
 		*hp++ = '\0';
+	else
+		hp = p;
 
 	key.name = p;
 	v = bsearch(&key, var, sizeof(var)/sizeof(VAR) - 1, sizeof(VAR), vcmp);
