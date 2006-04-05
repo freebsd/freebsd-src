@@ -1,0 +1,281 @@
+<!--
+     The FreeBSD Simplified Chinese Project
+
+     Original revision: 1.883.2.15
+-->
+<articleinfo>
+  <title>&os;/&arch; &release.current; 发行说明</title>
+
+  <corpauthor>The &os; Project</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <year>2006</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+  </copyright>
+
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
+
+  <abstract>
+    <para>这份 &os; &release.current; 的发行说明， 概括了 &os; 基本系统在
+      &release.branch; 开发线上所做的改动。
+      本文档列举了自前一发行版本以来所有适用的安全公告， 以及对于
+      &os; 内核以及系统附带的应用程序所做的重要修改。
+      对在升级时需要注意的一些问题， 也进行了简略的介绍。</para>
+  </abstract>
+</articleinfo>
+
+<sect1 id="intro">
+  <title>简介</title>
+
+  <para>这篇文档包括了在 &arch.print; 硬件平台上 &os;
+    &release.current; 的发行说明。 它描述了最近刚刚加入、修改或删除了的
+    &os; 特性的说明。 同时，它也将给出如何从先前的 &os; 版本完成升级的说明。</para>
+
+<![ %release.type.current [
+
+  <para>这篇文档所介绍的 &release.type; 软件包，
+    介绍了 &release.branch; 开发分支自 &release.branch;
+    创建以来的进展。 关于这一分支上预编译的、 二进制版本的
+    &release.type; 软件包， 可以在 <ulink url="&release.url;"></ulink>
+    找到。</para>
+
+]]>
+
+<![ %release.type.snapshot [
+
+  <para>这份说明所说的 &release.type; 版本，
+    是在 &release.branch; 开发分支上 &release.prev; 到未来的 &release.next;
+    上的一点。 这一开发分支上预编译的二进制形式的 &release.type;
+    安装包， 可以在 <ulink url="&release.url;"></ulink> 找到。</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>这是一份 &os; &release.current; 的
+    &release.type; 发布包。 您可以从 <ulink
+    url="&release.url;"></ulink> 或其他镜像那里得到它的副本。
+    关于这个 (或其他) &release.type; 发布包的更多信息，可以在
+    <ulink url="&url.books.handbook;/">&os; 手册</ulink>
+    中的 <ulink url="&url.books.handbook;/mirrors.html"><quote>如何获得
+    &os;</quote>附录</ulink> 中找到。</para>
+
+]]>
+
+  <para>我们鼓励所有的用户在开始安装 &os; 之前首先参考这一版本所对应的勘误信息。
+    勘误文档将随时更新，以便为用户提供在发布工程后期或该版本发布之后
+    <quote>新发现的</quote> 问题和相关信息。
+    通常，这包括已知的 bug，安全公告，以及对于文档的修订内容。
+    最新的 &os; &release.current; 勘误信息可以从 &os; 网站获得。</para>
+
+</sect1>
+
+<sect1 id="new">
+  <title>最新变动</title>
+
+  <para>这一节描述了
+    &os; 自 &release.prev; 以来最明显的新功能和变化。
+    一般说来， 没有注明 &merged; 的那些新特性是 &release.branch; 所独有的。
+  </para>
+
+  <para>发行说明中的绝大多数条目是在说明自从
+    &release.prev;
+    以来的安全公告、新的驱动程序或硬件支持、新的命令或是选项、
+    重要的错误修补，以及基本系统中来自第三方的软件升级。
+    重要的 ports 和 packages 变动，或关于交付工程的变动也会在这份文档中体现。
+    显而易见地，发行说明不可能涵盖 &os; 版本之间的每一个微小变动；
+    这篇文档主要关注的，仍然是安全公告，用户可以察觉的修改，
+    以及重要的架构改良。</para>
+
+  <sect2 id="security">
+    <title>安全公告</title>
+
+    <para>在 &man.texindex.1; 中发现并修正了一处临时文件漏洞，
+      这一漏洞可能导致本地的攻击者以运行 &man.texindex.1; 工具的用户身份覆盖文件。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc">FreeBSD-SA-06:01.texindex</ulink>。</para>
+
+    <para>在 &man.ee.1; 中发现并修正了一处临时文件漏洞，
+      这一漏洞可能导致本地的攻击者以运行 &man.ee.1; 的用户身份覆盖文件。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc">FreeBSD-SA-06:02.ee</ulink>。</para>
+
+    <para>发现并修正了 &man.cpio.1; 工具中的一系列漏洞。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc">FreeBSD-SA-06:03.cpio</ulink>。</para>
+
+    <para>发现并修正了 &man.ipfw.4; IP 分片处理部分的一处可能导致崩溃的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:04.ipfw.asc">FreeBSD-SA-06:04.ipfw</ulink>。</para>
+
+    <para>发现并修正了 IEEE 802.11 扫描代码中的一处潜在的缓冲区溢出问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:05.80211.asc">FreeBSD-SA-06:05.80211</ulink>。</para>
+
+    <para>发现并修正了两个可能导致一部分内核内存被泄露给用户的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:06.kmem.asc">FreeBSD-SA-06:06.kmem</ulink>。</para>
+
+    <para>发现并修正了 &man.pf.4; 中 IP 分片处理过程中一个可能导致在特定情况下崩溃的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>。</para>
+
+    <para>发现并修正了 NFS 服务器代码中一处可能导致在服务器收到长度为零的消息时崩溃的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc">FreeBSD-SA-06:10.nfs</ulink>。</para>
+
+    <para>发现并修正了 &man.fast.ipsec.4; 实现中的一处可能导致安全关联序号无法更新，
+      进而导致数据包无条件地通过序号验证检查的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc">FreeBSD-SA-06:11.ipsec</ulink>。</para>
+
+    <para>发现并修正了 &man.opiepasswd.1; 中的一处可能导致非特权用户，
+      能够在某些情况下为 root 用户配置 OPIE 身份验证的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc">FreeBSD-SA-06:12.opie</ulink>。</para>
+
+    <para>发现并修正了 &man.sendmail.8; 中的一项可能导致远程攻击者以执行
+      sendmail 的用户， 通常是 root 身份执行任意代码的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>。</para>
+
+  </sect2>
+
+  <sect2 id="kernel">
+    <title>对内核的改动</title>
+
+    <para></para>
+
+    <!-- Above this line, sort kernel changes by manpage/keyword-->
+
+    <sect3 id="boot">
+      <title>引导区和 loader 的变化</title>
+
+      <para></para>
+      <!-- Above this line, order boot loader changes by keyword-->
+
+    </sect3>
+
+    <sect3 id="proc">
+      <title>硬件支持</title>
+
+      <para arch="i386,pc98">加入了用以支持 Cronyx Tau32-PCI 适配器的
+        &man.ce.4; 驱动。
+        </para>
+
+      <para></para>
+
+      <sect4 id="mm">
+	<title>多媒体支持</title>
+
+	<para></para>
+      </sect4>
+
+      <sect4 id="net-if">
+	<title>网络接口设备支持</title>
+
+	<para></para>
+      </sect4>
+    </sect3>
+
+    <sect3 id="net-proto">
+      <title>网络协议</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3 id="disks">
+      <title>磁盘及存储</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3 id="fs">
+      <title>文件系统</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3>
+      <title>基本系统附带的第三方软件</title>
+
+      <para><application>BIND</application> 从 9.3.1
+	更新到了 9.3.2。</para>
+
+      <para><application>sendmail</application> 从
+	8.13.4 更新到了 8.13.6。</para>
+
+      <para>时区数据库从
+	<application>tzdata2005l</application> 版升级到了
+	<application>tzdata2005r</application> 版。</para>
+
+    </sect3>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>应用程序变动</title>
+
+    <para></para>
+  </sect2>
+
+  <sect2 id="ports">
+    <title>Ports/Packages Collection 基础结构</title>
+
+    <para></para>
+  </sect2>
+
+  <sect2 id="releng">
+    <title>发行版建造工程和功能集成</title>
+
+    <para>支持的 <application>GNOME</application> 桌面环境
+      (<filename role="package">x11/gnome2</filename>) 的版本，
+      从 2.10.2 升级到了 2.12.3。</para>
+
+    <para>支持的 <application>KDE</application> 桌面环境
+      (<filename role="package">x11/kde2</filename>) 的版本，
+      从 3.4.2 升级到了 3.5.1。</para>
+
+    <para>支持的 <application>Perl</application> 解释器
+      (<filename role="package">lang/perl5.8</filename>) 的版本，
+      从 5.8.7 升级到了 5.8.8。</para>
+
+    <para>支持的 <application>&xorg;</application> 视窗系统
+      (<filename role="package">x11/xorg</filename>) 的版本，
+      从 6.8.2 升级到了 6.9.0。</para>
+  </sect2>
+
+  <sect2 id="doc">
+    <title>文档</title>
+
+    <para></para>
+  </sect2>
+</sect1>
+
+<sect1 id="upgrade">
+  <title>从先前版本的 &os; 升级</title>
+
+  <para>通过源代码升级到 &os; &release.current;，
+    则应使用 &os; 5.3-RELEASE 或更高版本。 使用旧版的系统的用户，
+    如果想要升级到 &release.current;， 则需要首先升级到 &os; 5.3
+    或更新的版本， 然后再升级到 &os; &release.current;。</para>
+
+  <important>
+    <para>很显然，升级 &os; 时，应该首先备份
+      <emphasis>所有</emphasis> 数据和配置文件。</para>
+  </important>
+</sect1>
