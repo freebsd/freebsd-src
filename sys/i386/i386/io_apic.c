@@ -88,6 +88,7 @@ struct ioapic_intsrc {
 	u_int io_edgetrigger:1;
 	u_int io_masked:1;
 	int io_bus:4;
+	uint32_t io_lowreg;
 };
 
 struct ioapic {
@@ -206,9 +207,7 @@ ioapic_enable_source(struct intsrc *isrc)
 
 	mtx_lock_spin(&icu_lock);
 	if (intpin->io_masked) {
-		flags = ioapic_read(io->io_addr,
-		    IOAPIC_REDTBL_LO(intpin->io_intpin));
-		flags &= ~(IOART_INTMASK);
+		flags = intpin->io_lowreg & ~IOART_INTMASK;
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
 		    flags);
 		intpin->io_masked = 0;
@@ -225,9 +224,7 @@ ioapic_disable_source(struct intsrc *isrc, int eoi)
 
 	mtx_lock_spin(&icu_lock);
 	if (!intpin->io_masked && !intpin->io_edgetrigger) {
-		flags = ioapic_read(io->io_addr,
-		    IOAPIC_REDTBL_LO(intpin->io_intpin));
-		flags |= IOART_INTMSET;
+		flags = intpin->io_lowreg | IOART_INTMSET;
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
 		    flags);
 		intpin->io_masked = 1;
@@ -312,6 +309,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 
 	/* Write the values to the APIC. */
 	mtx_lock_spin(&icu_lock);
+	intpin->io_lowreg = low;
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
 	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin));
 	value &= ~IOART_DEST;
