@@ -1409,6 +1409,7 @@ int
 nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
+	int toclient = 0;
 
 	NFSD_LOCK_DONTCARE();
 
@@ -1457,9 +1458,11 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 		if (tl == NULL)
 			return EBADRPC;
 		fxdr_nfsv3time(tl, &(a)->va_atime);
+		toclient = 1;
 		break;
 	case NFSV3SATTRTIME_TOSERVER:
 		getnanotime(&(a)->va_atime);
+		a->va_vaflags |= VA_UTIMES_NULL;
 		break;
 	}
 	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
@@ -1471,9 +1474,12 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 		if (tl == NULL)
 			return EBADRPC;
 		fxdr_nfsv3time(tl, &(a)->va_mtime);
+		a->va_vaflags &= ~VA_UTIMES_NULL;
 		break;
 	case NFSV3SATTRTIME_TOSERVER:
 		getnanotime(&(a)->va_mtime);
+		if (toclient == 0)
+			a->va_vaflags |= VA_UTIMES_NULL;
 		break;
 	}
 	return 0;
