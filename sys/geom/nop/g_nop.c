@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -331,7 +331,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param); 
+		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
@@ -342,7 +342,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		if (pp == NULL) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", name);
 			gctl_error(req, "Provider %s is invalid.", name);
-			return; 
+			return;
 		}
 		if (g_nop_create(req, mp, pp, (u_int)*failprob, (off_t)*offset,
 		    (off_t)*size, (u_int)*secsize) != 0) {
@@ -384,7 +384,7 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param); 
+		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
@@ -395,7 +395,7 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		if (pp == NULL || pp->geom->class != mp) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", name);
 			gctl_error(req, "Provider %s is invalid.", name);
-			return; 
+			return;
 		}
 		sc = pp->geom->softc;
 		sc->sc_failprob = (u_int)*failprob;
@@ -441,7 +441,7 @@ g_nop_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param); 
+		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
@@ -452,7 +452,7 @@ g_nop_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		if (gp == NULL) {
 			G_NOP_DEBUG(1, "Device %s is invalid.", name);
 			gctl_error(req, "Device %s is invalid.", name);
-			return; 
+			return;
 		}
 		error = g_nop_destroy(gp, *force);
 		if (error != 0) {
@@ -486,7 +486,7 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param); 
+		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
@@ -497,7 +497,7 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 		if (pp == NULL || pp->geom->class != mp) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", name);
 			gctl_error(req, "Provider %s is invalid.", name);
-			return; 
+			return;
 		}
 		sc = pp->geom->softc;
 		sc->sc_reads = 0;
