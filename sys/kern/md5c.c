@@ -60,10 +60,15 @@ static void
 Encode (unsigned char *output, u_int32_t *input, unsigned int len)
 {
 	unsigned int i;
-	u_int32_t *op = (u_int32_t *)output;
+	uint32_t ip;
 
-	for (i = 0; i < len / 4; i++)
-		op[i] = htole32(input[i]);
+	for (i = 0; i < len / 4; i++) {
+		ip = input[i];
+		*output++ = ip;
+		*output++ = ip >> 8;
+		*output++ = ip >> 16;
+		*output++ = ip >> 24;
+	}
 }
 
 /*
@@ -75,10 +80,11 @@ static void
 Decode (u_int32_t *output, const unsigned char *input, unsigned int len)
 {
 	unsigned int i;
-	const u_int32_t *ip = (const u_int32_t *)input;
 
-	for (i = 0; i < len / 4; i++)
-		output[i] = le32dec(&ip[i]);
+	for (i = 0; i < len; i += 4) { 
+		*output++ = input[i] | (input[i+1] << 8) | (input[i+2] << 16) |
+		    (input[i+3] << 24);
+	}
 }
 #endif
 
