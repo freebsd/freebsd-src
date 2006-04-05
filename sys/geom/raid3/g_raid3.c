@@ -180,7 +180,7 @@ g_raid3_uma_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct g_raid3_zone *sz = arg;
 
-	if (sz->sz_inuse == sz->sz_max)
+	if (sz->sz_max > 0 && sz->sz_inuse == sz->sz_max)
 		return (ENOMEM);
 	sz->sz_inuse++;
 	return (0);
@@ -2015,7 +2015,7 @@ g_raid3_worker(void *arg)
 				mtx_unlock(&sc->sc_queue_mtx);
 				if (g_raid3_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
-					G_RAID3_DEBUG(0, "Thread exiting.");
+					G_RAID3_DEBUG(1, "Thread exiting.");
 					kthread_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
