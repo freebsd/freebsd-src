@@ -235,7 +235,8 @@ NFS_ROOT	opt_nfsroot.h
 
 # SMB/CIFS requester
 NETSMB			opt_netsmb.h
-NETSMBCRYPTO		opt_netsmb.h
+# Obsolete
+NETSMBCRYPTO		opt_dontuse.h
 
 # Experimental support for large MS-DOS filesystems; SEE WARNING IN "NOTES"!
 MSDOSFS_LARGE	opt_msdosfs.h

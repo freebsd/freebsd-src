@@ -197,10 +197,8 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 				vcp->vc_chlen = sblen;
 				vcp->obj.co_flags |= SMBV_ENCRYPT;
 			}
-#ifdef NETSMBCRYPTO
 			if (sp->sv_sm & SMB_SM_SIGS_REQUIRE)
 				vcp->vc_hflags2 |= SMB_FLAGS2_SECURITY_SIGNATURE;
-#endif
 			vcp->vc_hflags2 |= SMB_FLAGS2_KNOWS_LONG_NAMES;
 			if (dp->d_id == SMB_DIALECT_NTLM0_12 &&
 			    sp->sv_maxtx < 4096 &&
