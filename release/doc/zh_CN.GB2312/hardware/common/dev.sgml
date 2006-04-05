@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.282.2.8
+	Original Revision: 1.282.2.9
 -->
 
 <!--
@@ -350,6 +350,8 @@
 
   <sect2 id="misc-network">
     <title>其他网络设备</title>
+
+    &hwlist.ce;
 
     &hwlist.cx;
 
