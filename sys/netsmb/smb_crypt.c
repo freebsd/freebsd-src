@@ -59,11 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_rq.h>
 #include <netsmb/smb_dev.h>
 
-#include "opt_netsmb.h"
-
-#ifdef NETSMBCRYPTO
-
 #include <crypto/des/des.h>
+
+#include "opt_netsmb.h"
 
 static u_char N8[] = {0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25};
 
@@ -87,13 +85,11 @@ smb_E(const u_char *key, u_char *data, u_char *dest)
 	des_ecb_encrypt((des_cblock *)data, (des_cblock *)dest, *ksp, 1);
 	free(ksp, M_SMBTEMP);
 }
-#endif
 
 
 int
 smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN)
 {
-#ifdef NETSMBCRYPTO
 	u_char *p, *P14, *S21;
 
 	p = malloc(14 + 21, M_SMBTEMP, M_WAITOK);
@@ -112,17 +108,11 @@ smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN)
 	smb_E(S21 + 14, C8, RN + 16);
 	free(p, M_SMBTEMP);
 	return 0;
-#else
-	SMBERROR("password encryption is not available\n");
-	bzero(RN, 24);
-	return EAUTH;
-#endif
 }
 
 int
 smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 {
-#ifdef NETSMBCRYPTO
 	u_char S21[21];
 	u_int16_t *unipwd;
 	MD4_CTX *ctxp;
@@ -146,11 +136,6 @@ smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 	smb_E(S21 + 7, C8, RN + 8);
 	smb_E(S21 + 14, C8, RN + 16);
 	return 0;
-#else
-	SMBERROR("password encryption is not available\n");
-	bzero(RN, 24);
-	return EAUTH;
-#endif
 }
 
 /*
@@ -159,7 +144,6 @@ smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 int
 smb_calcmackey(struct smb_vc *vcp)
 {
-#ifdef NETSMBCRYPTO
 	const char *pwd;
 	u_int16_t *unipwd;
 	int len;
@@ -210,10 +194,6 @@ smb_calcmackey(struct smb_vc *vcp)
 	smb_E(S21 + 14, vcp->vc_ch, vcp->vc_mackey + 32);
 
 	return (0);
-#else
-	panic("smb_calcmackey: encryption not available");
-	return (0);
-#endif	/* NETSMBCRYPTO */
 }
 
 /*
@@ -222,7 +202,6 @@ smb_calcmackey(struct smb_vc *vcp)
 int
 smb_rq_sign(struct smb_rq *rqp)
 {
-#ifdef NETSMBCRYPTO
 	struct smb_vc *vcp = rqp->sr_vc;
 	struct mbchain *mbp;
 	struct mbuf *mb;
@@ -278,10 +257,6 @@ smb_rq_sign(struct smb_rq *rqp)
 	bcopy(digest, rqp->sr_rqsig, 8);
 
 	return (0);
-#else
-	panic("smb_rq_sign: encryption not available");
-	return (0);
-#endif	/* NETSMBCRYPTO */
 }
 
 /*
@@ -290,7 +265,6 @@ smb_rq_sign(struct smb_rq *rqp)
 int
 smb_rq_verify(struct smb_rq *rqp)
 {
-#ifdef NETSMBCRYPTO
 	struct smb_vc *vcp = rqp->sr_vc;
 	struct mdchain *mdp;
 	u_char sigbuf[8];
@@ -332,8 +306,4 @@ smb_rq_verify(struct smb_rq *rqp)
 		return (EAUTH);
 
 	return (0);
-#else
-	panic("smb_rq_verify: encryption not available");
-	return (0);
-#endif	/* NETSMBCRYPTO */
 }
