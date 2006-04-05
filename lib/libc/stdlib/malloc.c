@@ -1639,14 +1639,9 @@ arena_run_split(arena_t *arena, arena_run_t *run, bool large, size_t size)
 	total_pages = chunk->map[run_ind].npages;
 	need_pages = (size >> pagesize_2pow);
 
-#ifdef MALLOC_DEBUG
-	for (i = 0; i < total_pages; i++) {
-		assert(chunk->map[run_ind + i].free);
-		assert(chunk->map[run_ind + i].large == false);
-		assert(chunk->map[run_ind + i].npages == total_pages);
-		assert(chunk->map[run_ind + i].pos == i);
-	}
-#endif
+	assert(chunk->map[run_ind].free);
+	assert(chunk->map[run_ind].large == false);
+	assert(chunk->map[run_ind].npages == total_pages);
 
 	/* Split enough pages from the front of run to fit allocation size. */
 	map_offset = run_ind;
@@ -1662,12 +1657,10 @@ arena_run_split(arena_t *arena, arena_run_t *run, bool large, size_t size)
 	while (map_offset < run_ind + total_pages) {
 		log2_run_pages = ffs(map_offset) - 1;
 		run_pages = (1 << log2_run_pages);
-		for (i = 0; i < run_pages; i++) {
-			chunk->map[map_offset + i].free = true;
-			chunk->map[map_offset + i].large = false;
-			chunk->map[map_offset + i].npages = run_pages;
-			chunk->map[map_offset + i].pos = i;
-		}
+
+		chunk->map[map_offset].free = true;
+		chunk->map[map_offset].large = false;
+		chunk->map[map_offset].npages = run_pages;
 
 		chunk->nfree_runs[log2_run_pages]++;
 
@@ -1737,12 +1730,10 @@ arena_chunk_alloc(arena_t *arena)
 	while (map_offset < (chunk_size >> pagesize_2pow)) {
 		log2_run_pages = ffs(map_offset) - 1;
 		run_pages = (1 << log2_run_pages);
-		for (i = 0; i < run_pages; i++) {
-			chunk->map[map_offset + i].free = true;
-			chunk->map[map_offset + i].large = false;
-			chunk->map[map_offset + i].npages = run_pages;
-			chunk->map[map_offset + i].pos = i;
-		}
+
+		chunk->map[map_offset].free = true;
+		chunk->map[map_offset].large = false;
+		chunk->map[map_offset].npages = run_pages;
 
 		chunk->nfree_runs[log2_run_pages]++;
 
@@ -1970,7 +1961,7 @@ static void
 arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 {
 	arena_chunk_t *chunk;
-	unsigned i, run_ind, buddy_ind, base_run_ind, run_pages, log2_run_pages;
+	unsigned run_ind, buddy_ind, base_run_ind, run_pages, log2_run_pages;
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
 	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
@@ -1983,12 +1974,9 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 	chunk->pages_used -= run_pages;
 
 	/* Mark run as deallocated. */
-	for (i = 0; i < run_pages; i++) {
-		chunk->map[run_ind + i].free = true;
-		chunk->map[run_ind + i].large = false;
-		chunk->map[run_ind + i].npages = run_pages;
-		chunk->map[run_ind + i].pos = i;
-	}
+	chunk->map[run_ind].free = true;
+	chunk->map[run_ind].large = false;
+	chunk->map[run_ind].npages = run_pages;
 
 	/*
 	 * Tell the kernel that we don't need the data in this run, but only if
@@ -2029,10 +2017,7 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 		chunk->nfree_runs[log2_run_pages]--;
 
 		/* Coalesce. */
-		for (i = 0; i < (run_pages << 1); i++) {
-			chunk->map[base_run_ind + i].npages = (run_pages << 1);
-			chunk->map[base_run_ind + i].pos = i;
-		}
+		chunk->map[base_run_ind].npages = (run_pages << 1);
 
 		/* Update run_ind to be the beginning of the coalesced run. */
 		run_ind = base_run_ind;
