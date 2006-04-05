@@ -135,6 +135,7 @@ struct pmcstat_gmonfile {
 	int		pgf_overflow;	/* whether a count overflowed */
 	pmc_id_t	pgf_pmcid;	/* id of the associated pmc */
 	size_t		pgf_nbuckets;	/* #buckets in this gmon.out */
+	unsigned int	pgf_nsamples;	/* #samples in this gmon.out */
 	pmcstat_interned_string pgf_name;	/* pathname of gmon.out file */
 	size_t		pgf_ndatabytes;	/* number of bytes mapped */
 	void		*pgf_gmondata;	/* pointer to mmap'ed data */
@@ -910,6 +911,7 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 		    FUNCTION_ALIGNMENT;	/* see <machine/profile.h> */
 		pgf->pgf_ndatabytes = sizeof(struct gmonhdr) +
 		    pgf->pgf_nbuckets * sizeof(HISTCOUNTER);
+		pgf->pgf_nsamples = 0;
 
 		pmcstat_gmon_create_file(pgf, image);
 
@@ -941,6 +943,8 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 		hc[bucket]++;
 	else /* mark that an overflow occurred */
 		pgf->pgf_overflow = 1;
+
+	pgf->pgf_nsamples++;
 }
 
 /*
@@ -1796,22 +1800,31 @@ pmcstat_shutdown_logging(struct pmcstat_args *a)
 
 	for (i = 0; i < PMCSTAT_NHASH; i++) {
 		LIST_FOREACH_SAFE(pi, &pmcstat_image_hash[i], pi_next, pitmp) {
+
+			if (mf)
+				(void) fprintf(mf, " \"%s\" => \"%s\"",
+				    pmcstat_string_unintern(pi->pi_execpath),
+				    pmcstat_string_unintern(pi->pi_samplename));
+
 			/* flush gmon.out data to disk */
 			LIST_FOREACH_SAFE(pgf, &pi->pi_gmlist, pgf_next,
 			    pgftmp) {
 				pmcstat_gmon_unmap_file(pgf);
 			    	LIST_REMOVE(pgf, pgf_next);
-
+				if (mf)
+					(void) fprintf(mf, " %s/%d",
+					    pmcstat_pmcid_to_name(pgf->pgf_pmcid),
+					    pgf->pgf_nsamples);
 				if (pgf->pgf_overflow && a->pa_verbosity >= 1)
 					warnx("WARNING: profile \"%s\" "
 					    "overflowed.",
-					    pmcstat_string_unintern(pgf->pgf_name));
+					    pmcstat_string_unintern(
+					        pgf->pgf_name));
 			    	free(pgf);
 			}
+
 			if (mf)
-				(void) fprintf(mf, " \"%s\" -> \"%s\"\n",
-				    pmcstat_string_unintern(pi->pi_execpath),
-				    pmcstat_string_unintern(pi->pi_samplename));
+				(void) fprintf(mf, "\n");
 
 			LIST_REMOVE(pi, pi_next);
 			free(pi);
