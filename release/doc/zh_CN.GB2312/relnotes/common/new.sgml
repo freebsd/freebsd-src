@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.12
+     Original revision: 1.883.2.15
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -135,6 +135,25 @@
       要了解进一步详情， 请参阅安全公告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>。</para>
 
+    <para>发现并修正了 NFS 服务器代码中一处可能导致在服务器收到长度为零的消息时崩溃的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc">FreeBSD-SA-06:10.nfs</ulink>。</para>
+
+    <para>发现并修正了 &man.fast.ipsec.4; 实现中的一处可能导致安全关联序号无法更新，
+      进而导致数据包无条件地通过序号验证检查的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc">FreeBSD-SA-06:11.ipsec</ulink>。</para>
+
+    <para>发现并修正了 &man.opiepasswd.1; 中的一处可能导致非特权用户，
+      能够在某些情况下为 root 用户配置 OPIE 身份验证的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc">FreeBSD-SA-06:12.opie</ulink>。</para>
+
+    <para>发现并修正了 &man.sendmail.8; 中的一项可能导致远程攻击者以执行
+      sendmail 的用户， 通常是 root 身份执行任意代码的问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>。</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -154,6 +173,10 @@
 
     <sect3 id="proc">
       <title>硬件支持</title>
+
+      <para arch="i386,pc98">加入了用以支持 Cronyx Tau32-PCI 适配器的
+        &man.ce.4; 驱动。
+        </para>
 
       <para></para>
 
@@ -193,6 +216,9 @@
 
       <para><application>BIND</application> 从 9.3.1
 	更新到了 9.3.2。</para>
+
+      <para><application>sendmail</application> 从
+	8.13.4 更新到了 8.13.6。</para>
 
       <para>时区数据库从
 	<application>tzdata2005l</application> 版升级到了
