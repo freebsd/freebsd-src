@@ -466,7 +466,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	 * Calculate how much memory do we need.
 	 * We need separate crypto operation for every single sector.
 	 * It is much faster to calculate total amount of needed memory here and
-	 * do the allocation once insteaf of allocate memory in pieces (many,
+	 * do the allocation once instead of allocating memory in pieces (many,
 	 * many pieces).
 	 */
 	size = sizeof(*crp) * nsec;
