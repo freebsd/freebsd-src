@@ -1537,6 +1537,7 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 	}
 	/* Not reached. */
 	assert(0);
+	return (NULL);
 }
 
 static inline void
