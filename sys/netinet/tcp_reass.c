@@ -3272,7 +3272,8 @@ tcp_timewait(tw, to, th, m, tlen)
 	return (0);
 
 drop:
-	INP_UNLOCK(tw->tw_inpcb);
+	if (tw != NULL)
+		INP_UNLOCK(tw->tw_inpcb);
 	m_freem(m);
 	return (0);
 }
