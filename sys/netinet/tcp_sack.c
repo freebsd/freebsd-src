@@ -604,6 +604,7 @@ tcp_sack_partialack(tp, th)
 	(void) tcp_output(tp);
 }
 
+#if 0
 /*
  * Debug version of tcp_sack_output() that walks the scoreboard. Used for
  * now to sanity check the hint.
@@ -627,6 +628,7 @@ tcp_sack_output_debug(struct tcpcb *tp, int *sack_bytes_rexmt)
 	}
 	return (p);
 }
+#endif
 
 /*
  * Returns the next hole to retransmit and the number of retransmitted bytes
@@ -648,11 +650,9 @@ tcp_sack_output_debug(struct tcpcb *tp, int *sack_bytes_rexmt)
 struct sackhole *
 tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 {
-	struct sackhole *hole = NULL, *dbg_hole = NULL;
-	int dbg_bytes_rexmt;
+	struct sackhole *hole = NULL;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	dbg_hole = tcp_sack_output_debug(tp, &dbg_bytes_rexmt);
 	*sack_bytes_rexmt = tp->sackhint.sack_bytes_rexmit;
 	hole = tp->sackhint.nexthole;
 	if (hole == NULL || SEQ_LT(hole->rxmit, hole->end))
@@ -664,16 +664,6 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 		}
 	}
 out:
-	if (dbg_hole != hole) {
-		printf("%s: Computed sack hole not the same as cached value\n", __func__);
-		hole = dbg_hole;
-	}
-	if (*sack_bytes_rexmt != dbg_bytes_rexmt) {
-		printf("%s: Computed sack_bytes_retransmitted (%d) not "
-		       "the same as cached value (%d)\n",
-		       __func__, dbg_bytes_rexmt, *sack_bytes_rexmt);
-		*sack_bytes_rexmt = dbg_bytes_rexmt;
-	}
 	return (hole);
 }
 
