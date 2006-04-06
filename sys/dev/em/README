@@ -2,7 +2,7 @@ $FreeBSD$
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 
-March 18, 2005
+January 4, 2006
 
 
 Contents
@@ -21,9 +21,9 @@ Contents
 Overview
 ========
 
-This file describes the FreeBSD* driver, version 2.1.x, for the Intel(R)
-PRO/1000 Family of Adapters. This driver has been developed for use with
-FreeBSD, version 5.x.
+This file describes the FreeBSD* driver for the Intel(R) PRO/1000 Family of
+Adapters. This driver has been developed for use with FreeBSD, Release 4.11
+and greater and Release 5.4.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel PRO/1000 adapter. All hardware requirements listed
@@ -36,12 +36,12 @@ Identifying Your Adapter
 For information on how to identify your adapter, go to the Adapter &
 Driver ID Guide at:
 
-http://support.intel.com/support/network/adapter/pro100/21397.htm
+http://support.intel.com/support/network/sb/cs-012904.htm
 
 
 For the latest Intel network drivers for FreeBSD, see:
 
-http://appsr.intel.com/scripts-df/support_intel.asp
+http://downloadfinder.intel.com/scripts-df-external/support_intel.aspx
 
 
 NOTE: Mobile adapters are not fully supported.
@@ -174,32 +174,62 @@ Additional Configurations
 =========================
 
 The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on
-all but the 82542-based adapters. For specific adapters, refer to the
+all but the 82542-based adapters.  For specific adapters, refer to the
 Identifying Your Adapter section.
 
   Jumbo Frames
   ------------
-  To enable Jumbo Frames, use the ifconfig utility to increase the MTU
-  beyond 1500 bytes.
+  To enable Jumbo Frames, use the ifconfig utility to set the Maximum
+  Transport Unit (MTU) frame size above its default of 1500 bytes.
 
-  NOTES: Only enable Jumbo Frames if your network infrastructure supports
-         them.
-
-         The Jumbo Frames setting on the switch must be set to at least
-         22 bytes larger than that of the MTU.
-
-         The Intel PRO/1000 PM Network Connection does not support jumbo
-         frames.
-
-
-  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16114. The default
-  MTU range is 1500. To modify the setting, enter the following:
+  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16110. To modify
+  the setting, enter the following:
 
         ifconfig em<interface_num> <hostname or IP address> mtu 9000
 
- To confirm the MTU used between two specific devices, use:
+  To confirm the MTU used between two specific devices, use:
 
         route get <destination_IP_address>
+
+  Notes:
+
+  - Only enable Jumbo Frames if your network infrastructure supports them.
+
+  - To enable Jumbo Frames, increase the MTU size on the interface beyond
+    1500.
+
+  - The Jumbo Frames setting on the switch must be set to at least 22 bytes
+    larger than that of the MTU.
+
+  - The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
+    with the maximum Jumbo Frames size of 16128.
+
+  - Some Intel gigabit adapters that support Jumbo Frames have a frame size
+    limit of 9238 bytes, with a corresponding MTU size limit of 9216 bytes.
+    The adapters with this limitation are based on the Intel(R) 82571EB,
+    82572EI, 82573L and 80003ES2LAN controller.  These correspond to the
+    following product names:
+     Intel(R) PRO/1000 PT Server Adapter
+     Intel(R) PRO/1000 PT Desktop Adapter
+     Intel(R) PRO/1000 PT Network Connection
+     Intel(R) PRO/1000 PT Dual Port Server Adapter
+     Intel(R) PRO/1000 PT Dual Port Network Connection
+     Intel(R) PRO/1000 PF Server Adapter
+     Intel(R) PRO/1000 PF Network Connection
+     Intel(R) PRO/1000 PF Dual Port Server Adapter
+     Intel(R) PRO/1000 PB Server Connection
+     Intel(R) PRO/1000 PL Network Connection
+     Intel(R) PRO/1000 EB Network Connection with I/O Acceleration
+     Intel(R) PRO/1000 EB Backplane Connection with I/O Acceleration
+
+  - Adapters based on the Intel(R) 82542 and 82573V/E controller do not
+    support Jumbo Frames. These correspond to the following product names:
+     Intel(R) PRO/1000 Gigabit Server Adapter
+     Intel(R) PRO/1000 PM Network Connection
+
+  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
+    loss of link.
+
 
   VLANs
   -----
@@ -224,6 +254,7 @@ Identifying Your Adapter section.
 
         ifconfig <vlan_name> destroy
 
+
   Polling
   -------
   To enable polling in the driver, add the following options to the kernel
@@ -233,9 +264,10 @@ Identifying Your Adapter section.
         options HZ=1000
 
   At runtime use:
-        sysctl kern.polling.enable=1 to turn polling on
+        ifconfig em0 polling to turn polling on
   Use:
-        sysctl kern.polling.enable=0 to turn polling off
+        ifconfig em0 -polling to turn polling off
+
 
   Checksum Offload
   ----------------
@@ -266,8 +298,14 @@ Identifying Your Adapter section.
 
   See the ifconfig man page for further information.
 
+
 Known Limitations
 =================
+
+  In FreeBSD version 4.x with Symmetric MultiProcessing (SMP), there is a known
+  issue on some newer hardware.  The problem is generic kernel and only in SMP
+  mode.  The workaround is to either use FreeBSD version 4.x in single processor
+  mode, or use FreeBSD 5.4 or later.
 
   There are known performance issues with this driver when running UDP traffic
   with Jumbo Frames.
@@ -312,6 +350,7 @@ For general information and support, go to the Intel support website at:
 
 If an issue is identified, support is through email only at:
 freebsdnic@mailbox.intel.com
+
 
 License
 =======
