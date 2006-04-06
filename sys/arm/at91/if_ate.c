@@ -86,13 +86,14 @@ struct ate_softc
 	struct callout tick_ch;		/* Tick callout */
 	bus_dma_tag_t mtag;		/* bus dma tag for mbufs */
 	bus_dmamap_t tx_map[ATE_MAX_TX_BUFFERS];
+	struct mbuf *sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
 	bus_dma_tag_t rxtag;
 	bus_dmamap_t rx_map[ATE_MAX_RX_BUFFERS];
+	void *rx_buf[ATE_MAX_RX_BUFFERS]; /* RX buffer space */
+	int rx_buf_ptr;
 	bus_dma_tag_t rx_desc_tag;
 	bus_dmamap_t rx_desc_map;
 	int txcur;			/* current tx map pointer */
-	struct mbuf *sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
-	struct mbuf *rx_mbuf[ATE_MAX_RX_BUFFERS]; /* RX mbufs */
 	bus_addr_t rx_desc_phys;
 	eth_rx_desc_t *rx_descs;
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
@@ -241,6 +242,30 @@ ate_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	sc->rx_desc_phys = segs[0].ds_addr;
 }
 
+static void
+ate_load_rx_buf(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct ate_softc *sc;
+	int i;
+
+	if (error != 0)
+		return;
+	sc = (struct ate_softc *)arg;
+	i = sc->rx_buf_ptr;
+
+	/*
+	 * For the last buffer, set the wrap bit so the controller
+	 * restarts from the first descriptor.
+	 */
+	if (i == ATE_MAX_RX_BUFFERS - 1)
+		sc->rx_descs[i].addr = segs[0].ds_addr | ETH_WRAP_BIT;
+	else
+		sc->rx_descs[i].addr = segs[0].ds_addr;
+	sc->rx_descs[i].status = 0;
+	/* Flush the memory in the mbuf */
+	bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREREAD);
+}
+
 /*
  * Compute the multicast filter for this device using the standard
  * algorithm.  I wonder why this isn't in ether somewhere as a lot
@@ -275,10 +300,8 @@ ate_setmcast(struct ate_softc *sc)
 	 * advantage of that.  Locks here are to avoid LOR with the
 	 * IF_ADDR_LOCK, but might not be strictly necessary.
 	 */
-	ATE_LOCK(sc);
 	WR4(sc, ETH_HSL, mcaf[0]);
 	WR4(sc, ETH_HSH, mcaf[1]);
-	ATE_UNLOCK(sc);
 }
 
 static int
@@ -342,33 +365,21 @@ ate_activate(device_t dev)
 	if (bus_dmamem_alloc(sc->rx_desc_tag, (void **)&sc->rx_descs,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &sc->rx_desc_map) != 0)
 		goto errout;
-	if (bus_dmamap_load(sc->rx_desc_tag, sc->rx_desc_map, 
+	if (bus_dmamap_load(sc->rx_desc_tag, sc->rx_desc_map,
 	    sc->rx_descs, ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t),
 	    ate_getaddr, sc, 0) != 0)
 		goto errout;
 	/* XXX TODO(5) Put this in ateinit_locked? */
 	for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
-		bus_dma_segment_t seg;
-		int nsegs;
-		
-		sc->rx_mbuf[i] = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
-		sc->rx_mbuf[i]->m_len = sc->rx_mbuf[i]->m_pkthdr.len =
-		    MCLBYTES;
-		if (bus_dmamap_load_mbuf_sg(sc->rxtag, sc->rx_map[i],
-		    sc->rx_mbuf[i], &seg, &nsegs, 0) != 0)
+		sc->rx_buf_ptr = i;
+		if (bus_dmamem_alloc(sc->rxtag, (void **)&sc->rx_buf[i],
+		      BUS_DMA_NOWAIT, &sc->rx_map[i]) != 0)
 			goto errout;
-		/*
-		 * For the last buffer, set the wrap bit so the controller
-		 * restarts from the first descriptor.
-		 */
-		if (i == ATE_MAX_RX_BUFFERS - 1)
-			sc->rx_descs[i].addr = seg.ds_addr | ETH_WRAP_BIT;
-		else
-			sc->rx_descs[i].addr = seg.ds_addr;
-		sc->rx_descs[i].status = 0;
-		/* Flush the memory in the mbuf */
-		bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREREAD);
+		if (bus_dmamap_load(sc->rxtag, sc->rx_map[i], sc->rx_buf[i],
+		    MCLBYTES, ate_load_rx_buf, sc, 0) != 0)
+			goto errout;
 	}
+	sc->rx_buf_ptr = 0;
 	/* Flush the memory for the EMAC rx descriptor */
 	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_PREWRITE);
 	/* Write the descriptor queue address. */
@@ -577,104 +588,47 @@ ate_intr(void *xsc)
 	struct ate_softc *sc = xsc;
 	int status;
 	int i;
-	struct mbuf *mb, *tmp_mbuf;
-	bus_dma_segment_t seg;
-	int rx_stat;
-	int nsegs;
+	void *bp;
+	struct mbuf *mb;
+	uint32_t rx_stat;
 
-		
 	status = RD4(sc, ETH_ISR);
 	if (status == 0)
 		return;
 	if (status & ETH_ISR_RCOM) {
 		bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 		    BUS_DMASYNC_POSTREAD);
-		for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
-			if ((sc->rx_descs[i].addr & ETH_CPU_OWNER) == 0)
-				continue;
-
-			mb = sc->rx_mbuf[i];
+		while (sc->rx_descs[sc->rx_buf_ptr].addr & ETH_CPU_OWNER) {
+			i = sc->rx_buf_ptr;
+			sc->rx_buf_ptr = (i + 1) % ATE_MAX_RX_BUFFERS;
+			bp = sc->rx_buf[i];
 			rx_stat = sc->rx_descs[i].status;
 			if ((rx_stat & ETH_LEN_MASK) == 0) {
 				printf("ignoring bogus 0 len packet\n");
-				bus_dmamap_load_mbuf_sg(sc->rxtag,
-				    sc->rx_map[i], sc->rx_mbuf[i],
-				    &seg, &nsegs, 0);
-				sc->rx_descs[i].status = 0;
-				sc->rx_descs[i].addr = seg.ds_addr;
-				if (i == ATE_MAX_RX_BUFFERS - 1)
-					sc->rx_descs[i].addr |=
-					    ETH_WRAP_BIT;
-				/* Flush memory for mbuf */
-				bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
-				    BUS_DMASYNC_PREREAD);
-				/* Flush rx dtor table rx_descs */
+				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
 				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 				    BUS_DMASYNC_PREWRITE);
 				continue;
 			}
-
 			/* Flush memory for mbuf so we don't get stale bytes */
 			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
 			    BUS_DMASYNC_POSTREAD);
-			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));
-			/*
-			 * Allocate a new buffer to replace this one.
-			 * if we cannot, then we drop this packet
-			 * and keep the old buffer we had.  Once allocated
-			 * the new buffer is loaded for dma.
-			 */
-			sc->rx_mbuf[i] = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-			if (!sc->rx_mbuf[i]) {
-				printf("Failed to get another mbuf -- discarding packet\n");
-				sc->rx_mbuf[i] = mb;
-				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
-				bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
-				    BUS_DMASYNC_PREREAD);
-				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
-				    BUS_DMASYNC_PREWRITE);
-				continue;
-			}
-			sc->rx_mbuf[i]->m_len =
-			    sc->rx_mbuf[i]->m_pkthdr.len = MCLBYTES;
-			bus_dmamap_unload(sc->rxtag, sc->rx_map[i]);
-			if (bus_dmamap_load_mbuf_sg(sc->rxtag, sc->rx_map[i],
-			    sc->rx_mbuf[i], &seg, &nsegs, 0) != 0) {
-				printf("Failed to load mbuf -- discarding packet -- reload old?\n");
-				sc->rx_mbuf[i] = mb;
-				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
-				bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
-				    BUS_DMASYNC_PREREAD);
-				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
-				    BUS_DMASYNC_PREWRITE);
-				continue;
-			}
+			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));	// XXX WHY? XXX imp
 			/*
 			 * The length returned by the device includes the
 			 * ethernet CRC calculation for the packet, but
 			 * ifnet drivers are supposed to discard it.
 			 */
-			mb->m_len = (rx_stat & ETH_LEN_MASK) - ETHER_CRC_LEN;
-			mb->m_pkthdr.len = mb->m_len;
-			mb->m_pkthdr.rcvif = sc->ifp;
-			tmp_mbuf = m_devget(mtod(mb, caddr_t), mb->m_len,
-			  ETHER_ALIGN, sc->ifp, NULL);
-			m_free(mb);
-			/*
-			 * For the last buffer, set the wrap bit so
-			 * the controller restarts from the first
-			 * descriptor.
-			 */
-			sc->rx_descs[i].status = 0;
-			sc->rx_descs[i].addr = seg.ds_addr;
-			if (i == ATE_MAX_RX_BUFFERS - 1)
-				sc->rx_descs[i].addr |= ETH_WRAP_BIT;
-			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
-			    BUS_DMASYNC_PREREAD);
+			mb = m_devget(sc->rx_buf[i],
+			    (rx_stat & ETH_LEN_MASK) - ETHER_CRC_LEN,
+			    ETHER_ALIGN, sc->ifp, NULL);
+			sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
 			bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 			    BUS_DMASYNC_PREWRITE);
-			if (tmp_mbuf != NULL)
-				(*sc->ifp->if_input)(sc->ifp, tmp_mbuf);
+			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
+			    BUS_DMASYNC_PREREAD);
+			if (mb != NULL)
+				(*sc->ifp->if_input)(sc->ifp, mb);
 		}
 	}
 	if (status & ETH_ISR_TCOM) {
@@ -760,7 +714,6 @@ ateinit_locked(void *xsc)
 	 * the byte order is big endian, not little endian, so we have some
 	 * swapping to do.  Again, if we need it (which I don't think we do).
 	 */
-
 	ate_setmcast(sc);
 
 	/*
@@ -926,6 +879,8 @@ static int
 ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ate_softc *sc = ifp->if_softc;
+ 	struct mii_data *mii;
+ 	struct ifreq *ifr = (struct ifreq *)data;	
 	int             error = 0;
 
 	switch (cmd) {
@@ -945,10 +900,17 @@ ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* update multicast filter list. */
+		ATE_LOCK(sc);
 		ate_setmcast(sc);
+		ATE_UNLOCK(sc);
 		error = 0;
 		break;
 
+  	case SIOCSIFMEDIA:
+  	case SIOCGIFMEDIA:
+ 		mii = device_get_softc(sc->miibus);
+ 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
+  		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
