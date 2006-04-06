@@ -599,6 +599,7 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_write)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
+	void	(*mpo_associate_nfsd_label)(struct ucred *cred);
 };
 
 /*
