@@ -54,7 +54,7 @@ static void sa1110_init(struct uart_bas *bas, int, int, int, int);
 static void sa1110_term(struct uart_bas *bas);
 static void sa1110_putc(struct uart_bas *bas, int);
 static int sa1110_poll(struct uart_bas *bas);
-static int sa1110_getc(struct uart_bas *bas);
+static int sa1110_getc(struct uart_bas *bas, struct mtx *mtx);
 
 int did_mmu = 0;
 
@@ -132,7 +132,7 @@ sa1110_poll(struct uart_bas *bas)
 }
 
 static int
-sa1110_getc(struct uart_bas *bas)
+sa1110_getc(struct uart_bas *bas, struct mtx *mtx)
 {
 	int c;
 	/* XXX: sigh. */
