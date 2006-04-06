@@ -80,7 +80,7 @@ static void at91_usart_init(struct uart_bas *bas, int, int, int, int);
 static void at91_usart_term(struct uart_bas *bas);
 static void at91_usart_putc(struct uart_bas *bas, int);
 static int at91_usart_poll(struct uart_bas *bas);
-static int at91_usart_getc(struct uart_bas *bas);
+static int at91_usart_getc(struct uart_bas *bas, struct mtx *mtx);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
@@ -248,7 +248,7 @@ at91_usart_poll(struct uart_bas *bas)
  * Block waiting for a character.
  */
 static int
-at91_usart_getc(struct uart_bas *bas)
+at91_usart_getc(struct uart_bas *bas, struct mtx *mtx)
 {
 	int c;
 
@@ -343,7 +343,7 @@ at91_usart_bus_transmit(struct uart_softc *sc)
 		return (EAGAIN);
 	bus_dmamap_sync(atsc->dmatag, atsc->tx_map, BUS_DMASYNC_PREWRITE);
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	sc->sc_txbusy = 1;
 	/*
 	 * Setup the PDC to transfer the data and interrupt us when it
@@ -352,7 +352,7 @@ at91_usart_bus_transmit(struct uart_softc *sc)
 	WR4(&sc->sc_bas, PDC_TPR, addr);
 	WR4(&sc->sc_bas, PDC_TCR, sc->sc_txdatasz);
 	WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_TXTEN);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 #ifdef USART0_CONSOLE
 	/*
 	 * XXX: Gross hack : Skyeye doesn't raise an interrupt once the
@@ -377,7 +377,7 @@ at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 			SIGCHG(sig & SER_RTS, new, SER_RTS, SER_DRTS);
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	bas = &sc->sc_bas;
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	cr = RD4(bas, USART_CR);
 	cr &= ~(USART_CR_DTREN | USART_CR_DTRDIS | USART_CR_RTSEN |
 	    USART_CR_RTSDIS);
@@ -390,16 +390,16 @@ at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 	else
 		cr |= USART_CR_RTSDIS;
 	WR4(bas, USART_CR, cr);
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 static int
 at91_usart_bus_receive(struct uart_softc *sc)
 {
 	
-	mtx_lock_spin(&sc->sc_hwmtx);
-	uart_rx_put(sc, at91_usart_getc(&sc->sc_bas));
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
+	uart_rx_put(sc, at91_usart_getc(&sc->sc_bas, NULL));
+	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
 static int
@@ -431,7 +431,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(atsc->dmatag, atsc->tx_map);
 	}
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	if (csr & USART_CSR_TXRDY && sc->sc_txbusy)
 		ipend |= SER_INT_TXIDLE;
 	if (csr & USART_CSR_ENDTX && sc->sc_txbusy)
@@ -444,7 +444,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		ipend |= SER_INT_BREAK;
 		WR4(&sc->sc_bas, USART_CR, cr);
 	}
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (ipend);
 }
 static int
@@ -459,7 +459,7 @@ at91_usart_bus_getsig(struct uart_softc *sc)
 	uint32_t new, sig;
 	uint8_t csr;
 
-	mtx_lock_spin(&sc->sc_hwmtx);
+	uart_lock(sc->sc_hwmtx);
 	csr = RD4(&sc->sc_bas, USART_CSR);
 	sig = 0;
 	if (csr & USART_CSR_CTS)
@@ -472,7 +472,7 @@ at91_usart_bus_getsig(struct uart_softc *sc)
 		sig |= SER_RI;
 	new = sig & ~SER_MASK_DELTA;
 	sc->sc_hwsig = new;
-	mtx_unlock_spin(&sc->sc_hwmtx);
+	uart_unlock(sc->sc_hwmtx);
 	return (sig);
 }
 
