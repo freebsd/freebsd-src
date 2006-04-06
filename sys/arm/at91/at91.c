@@ -201,11 +201,14 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 	struct at91_ivar *ivar;
 
 	kid = device_add_child_ordered(dev, prio, name, unit);
-	if (kid == NULL)
-		return;
+	if (kid == NULL) {
+	    printf("Can't add child %s%d ordered\n", name, unit);
+	    return;
+	}
 	ivar = malloc(sizeof(*ivar), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (ivar == NULL) {
 		device_delete_child(dev, kid);
+		printf("Can't add alloc ivar\n");
 		return;
 	}
 	device_set_ivars(kid, ivar);
