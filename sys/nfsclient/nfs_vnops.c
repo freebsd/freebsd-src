@@ -2880,6 +2880,21 @@ loop:
 			VI_UNLOCK(vp);
 			goto loop;
 		}
+		/* 
+		 * Wait for all the async IO requests to drain 
+		 */
+		while (np->n_directio_asyncwr > 0) {
+			np->n_flag |= NFSYNCWAIT;
+			error = nfs_tsleep(td, (caddr_t)&np->n_directio_asyncwr,
+					   slpflag | (PRIBIO + 1), "nfsfsync", 0);
+			if (error) {
+				if (nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
+					error = EINTR;
+					goto done;
+				}
+			}
+		}
+
 	}
 	VI_UNLOCK(vp);
 	if (np->n_flag & NWRITEERR) {
@@ -2887,7 +2902,7 @@ loop:
 		np->n_flag &= ~NWRITEERR;
 	}
   	if (commit && vp->v_bufobj.bo_dirty.bv_cnt == 0 &&
-	    vp->v_bufobj.bo_numoutput == 0)
+	    vp->v_bufobj.bo_numoutput == 0 && np->n_directio_asyncwr == 0)
   		np->n_flag &= ~NMODIFIED;
 done:
 	if (bvec != NULL && bvec != bvec_on_stack)
