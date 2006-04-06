@@ -76,6 +76,11 @@ static unsigned i80321_timer_get_timecount(struct timecounter *tc);
 
 static uint32_t counts_per_hz;
 
+#ifdef XSCALE_DISABLE_CCNT
+static uint32_t offset;
+static uint32_t last = -1;
+#endif
+
 static int ticked = 0;
 
 #ifndef COUNTS_PER_SEC
@@ -88,7 +93,11 @@ static struct timecounter i80321_timer_timecounter = {
 	i80321_timer_get_timecount, /* get_timecount */
 	NULL,			    /* no poll_pps */
 	~0u,			    /* counter_mask */
+#ifdef XSCALE_DISABLE_CCNT
+	COUNTS_PER_SEC,
+#else
 	COUNTS_PER_SEC * 3,	 	   /* frequency */
+#endif
 	"i80321 timer",		    /* name */
 	1000			    /* quality */
 };
@@ -241,11 +250,26 @@ tisr_read(void)
 static unsigned
 i80321_timer_get_timecount(struct timecounter *tc)
 {
+#ifdef XSCALE_DISABLE_CCNT
+	uint32_t cur = tcr0_read();
+
+	if (cur > last && last != -1) {
+		offset += counts_per_hz;
+		if (ticked > 0)
+			ticked--;
+	}
+	if (ticked) {
+		offset += ticked * counts_per_hz;
+		ticked = 0;
+	}
+	return (counts_per_hz - cur + offset);
+#else
 	uint32_t ret;
 
 	__asm __volatile("mrc p14, 0, %0, c1, c0, 0\n"
 	    : "=r" (ret));
 	return (ret);
+#endif
 }
 
 /*
@@ -327,12 +351,14 @@ cpu_initclocks(void)
 	tc_init(&i80321_timer_timecounter);
 	restore_interrupts(oldirqstate);
 	rid = 0;
+#ifndef XSCALE_DISABLE_CCNT
 	/* Enable the clock count register. */
 	__asm __volatile("mrc p14, 0, %0, c0, c0, 0\n" : "=r" (rid));
 	rid &= ~(1 <<  3);
 	rid |= (1 << 2) | 1;
 	__asm __volatile("mcr p14, 0, %0, c0, c0, 0\n"
 	    : : "r" (rid));
+#endif
 }
 
 
