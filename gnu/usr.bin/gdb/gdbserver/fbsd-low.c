@@ -19,22 +19,25 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "server.h"
-#include "linux-low.h"
+#include "fbsd-low.h"
 
 #include <sys/wait.h>
-#include <stdio.h>
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
-#include <signal.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 /* ``all_threads'' is keyed by the LWP ID - it should be the thread ID instead,
    however.  This requires changing the ID in place when we go from !using_threads
@@ -51,11 +54,11 @@ int stopping_threads;
 /* FIXME make into a target method?  */
 int using_threads;
 
-static void linux_resume_one_process (struct inferior_list_entry *entry,
+static void fbsd_resume_one_process (struct inferior_list_entry *entry,
 				      int step, int signal);
-static void linux_resume (struct thread_resume *resume_info);
+static void fbsd_resume (struct thread_resume *resume_info);
 static void stop_all_processes (void);
-static int linux_wait_for_event (struct thread_info *child);
+static int fbsd_wait_for_event (struct thread_info *child);
 
 struct pending_signals
 {
@@ -63,12 +66,8 @@ struct pending_signals
   struct pending_signals *prev;
 };
 
-#define PTRACE_ARG3_TYPE long
-#define PTRACE_XFER_TYPE long
-
-#ifdef HAVE_LINUX_REGSETS
-static int use_regsets_p = 1;
-#endif
+#define PTRACE_ARG3_TYPE caddr_t
+#define PTRACE_XFER_TYPE int
 
 int debug_threads = 0;
 
@@ -81,7 +80,7 @@ int debug_threads = 0;
    The SIGTRAP could mean several things.
 
    On i386, where decr_pc_after_break is non-zero:
-   If we were single-stepping this process using PTRACE_SINGLESTEP,
+   If we were single-stepping this process using PT_STEP,
    we will get only the one SIGTRAP (even if the instruction we
    stepped over was a breakpoint).  The value of $eip will be the
    next instruction.
@@ -133,20 +132,18 @@ add_process (int pid)
    ALLARGS is a vector of program-name and args. */
 
 static int
-linux_create_inferior (char *program, char **allargs)
+fbsd_create_inferior (char *program, char **allargs)
 {
   void *new_process;
   int pid;
 
-  pid = fork ();
+  pid = vfork ();
   if (pid < 0)
-    perror_with_name ("fork");
+    perror_with_name ("vfork");
 
   if (pid == 0)
     {
-      ptrace (PTRACE_TRACEME, 0, 0, 0);
-
-      signal (__SIGRTMIN + 1, SIG_DFL);
+      ptrace (PT_TRACE_ME, 0, 0, 0);
 
       setpgid (0, 0);
 
@@ -167,11 +164,11 @@ linux_create_inferior (char *program, char **allargs)
 /* Attach to an inferior process.  */
 
 void
-linux_attach_lwp (int pid, int tid)
+fbsd_attach_lwp (int pid, int tid)
 {
   struct process_info *new_process;
 
-  if (ptrace (PTRACE_ATTACH, pid, 0, 0) != 0)
+  if (ptrace (PT_ATTACH, pid, 0, 0) != 0)
     {
       fprintf (stderr, "Cannot attach to process %d: %s (%d)\n", pid,
 	       strerror (errno), errno);
@@ -189,7 +186,7 @@ linux_attach_lwp (int pid, int tid)
   /* The next time we wait for this LWP we'll see a SIGSTOP as PTRACE_ATTACH
      brings it to a halt.  We should ignore that SIGSTOP and resume the process
      (unless this is the first process, in which case the flag will be cleared
-     in linux_attach).
+     in fbsd_attach).
 
      On the other hand, if we are currently trying to stop all threads, we
      should treat the new thread as if we had sent it a SIGSTOP.  This works
@@ -201,11 +198,11 @@ linux_attach_lwp (int pid, int tid)
 }
 
 int
-linux_attach (int pid)
+fbsd_attach (int pid)
 {
   struct process_info *process;
 
-  linux_attach_lwp (pid, pid);
+  fbsd_attach_lwp (pid, pid);
 
   /* Don't ignore the initial SIGSTOP if we just attached to this process.  */
   process = (struct process_info *) find_inferior_id (&all_processes, pid);
@@ -217,7 +214,7 @@ linux_attach (int pid)
 /* Kill the inferior process.  Make us have no inferior.  */
 
 static void
-linux_kill_one_process (struct inferior_list_entry *entry)
+fbsd_kill_one_process (struct inferior_list_entry *entry)
 {
   struct thread_info *thread = (struct thread_info *) entry;
   struct process_info *process = get_thread_process (thread);
@@ -225,37 +222,37 @@ linux_kill_one_process (struct inferior_list_entry *entry)
 
   do
     {
-      ptrace (PTRACE_KILL, pid_of (process), 0, 0);
+      ptrace (PT_KILL, pid_of (process), 0, 0);
 
       /* Make sure it died.  The loop is most likely unnecessary.  */
-      wstat = linux_wait_for_event (thread);
+      wstat = fbsd_wait_for_event (thread);
     } while (WIFSTOPPED (wstat));
 }
 
 static void
-linux_kill (void)
+fbsd_kill (void)
 {
-  for_each_inferior (&all_threads, linux_kill_one_process);
+  for_each_inferior (&all_threads, fbsd_kill_one_process);
 }
 
 static void
-linux_detach_one_process (struct inferior_list_entry *entry)
+fbsd_detach_one_process (struct inferior_list_entry *entry)
 {
   struct thread_info *thread = (struct thread_info *) entry;
   struct process_info *process = get_thread_process (thread);
 
-  ptrace (PTRACE_DETACH, pid_of (process), 0, 0);
+  ptrace (PT_DETACH, pid_of (process), 0, 0);
 }
 
 static void
-linux_detach (void)
+fbsd_detach (void)
 {
-  for_each_inferior (&all_threads, linux_detach_one_process);
+  for_each_inferior (&all_threads, fbsd_detach_one_process);
 }
 
 /* Return nonzero if the given thread is still alive.  */
 static int
-linux_thread_alive (int tid)
+fbsd_thread_alive (int tid)
 {
   if (find_inferior_id (&all_threads, tid) != NULL)
     return 1;
@@ -339,7 +336,7 @@ status_pending_p (struct inferior_list_entry *entry, void *dummy)
 	   So instead of reporting the old SIGTRAP, pretend we got to
 	   the breakpoint just after it was removed instead of just
 	   before; resume the process.  */
-	linux_resume_one_process (&process->head, 0, 0);
+	fbsd_resume_one_process (&process->head, 0, 0);
 	return 0;
       }
 
@@ -347,7 +344,7 @@ status_pending_p (struct inferior_list_entry *entry, void *dummy)
 }
 
 static void
-linux_wait_for_process (struct process_info **childp, int *wstatp)
+fbsd_wait_for_process (struct process_info **childp, int *wstatp)
 {
   int ret;
   int to_wait_for = -1;
@@ -363,16 +360,6 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
 	{
 	  if (errno != ECHILD)
 	    perror_with_name ("waitpid");
-	}
-      else if (ret > 0)
-	break;
-
-      ret = waitpid (to_wait_for, wstatp, WNOHANG | __WCLONE);
-
-      if (ret == -1)
-	{
-	  if (errno != ECHILD)
-	    perror_with_name ("waitpid (WCLONE)");
 	}
       else if (ret > 0)
 	break;
@@ -404,7 +391,7 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
 }
 
 static int
-linux_wait_for_event (struct thread_info *child)
+fbsd_wait_for_event (struct thread_info *child)
 {
   CORE_ADDR stop_pc;
   struct process_info *event_child;
@@ -455,7 +442,7 @@ linux_wait_for_event (struct thread_info *child)
       else
 	event_child = get_thread_process (child);
 
-      linux_wait_for_process (&event_child, &wstat);
+      fbsd_wait_for_process (&event_child, &wstat);
 
       if (event_child == NULL)
 	error ("event from unknown child");
@@ -499,22 +486,20 @@ linux_wait_for_event (struct thread_info *child)
 	      if (debug_threads)
 		fprintf (stderr, "Expected stop.\n");
 	      event_child->stop_expected = 0;
-	      linux_resume_one_process (&event_child->head,
+	      fbsd_resume_one_process (&event_child->head,
 					event_child->stepping, 0);
 	      continue;
 	    }
 
 	  /* FIXME drow/2002-06-09: Get signal numbers from the inferior's
 	     thread library?  */
-	  if (WIFSTOPPED (wstat)
-	      && (WSTOPSIG (wstat) == __SIGRTMIN
-		  || WSTOPSIG (wstat) == __SIGRTMIN + 1))
+	  if (WIFSTOPPED (wstat))
 	    {
 	      if (debug_threads)
 		fprintf (stderr, "Ignored signal %d for %d (LWP %d).\n",
 			 WSTOPSIG (wstat), event_child->tid,
 			 event_child->head.id);
-	      linux_resume_one_process (&event_child->head,
+	      fbsd_resume_one_process (&event_child->head,
 					event_child->stepping,
 					WSTOPSIG (wstat));
 	      continue;
@@ -545,7 +530,7 @@ linux_wait_for_event (struct thread_info *child)
 	  event_child->bp_reinsert = 0;
 
 	  /* Clear the single-stepping flag and SIGTRAP as we resume.  */
-	  linux_resume_one_process (&event_child->head, 0, 0);
+	  fbsd_resume_one_process (&event_child->head, 0, 0);
 	  continue;
 	}
 
@@ -572,7 +557,7 @@ linux_wait_for_event (struct thread_info *child)
 	     be avoided where possible.
 
 	     If breakpoint_reinsert_addr is NULL, that means that we can
-	     use PTRACE_SINGLESTEP on this platform.  Uninsert the breakpoint,
+	     use PT_STEP on this platform.  Uninsert the breakpoint,
 	     mark it for reinsertion, and single-step.
 
 	     Otherwise, call the target function to figure out where we need
@@ -582,13 +567,13 @@ linux_wait_for_event (struct thread_info *child)
 	    {
 	      event_child->bp_reinsert = stop_pc;
 	      uninsert_breakpoint (stop_pc);
-	      linux_resume_one_process (&event_child->head, 1, 0);
+	      fbsd_resume_one_process (&event_child->head, 1, 0);
 	    }
 	  else
 	    {
 	      reinsert_breakpoint_by_bp
 		(stop_pc, (*the_low_target.breakpoint_reinsert_addr) ());
-	      linux_resume_one_process (&event_child->head, 0, 0);
+	      fbsd_resume_one_process (&event_child->head, 0, 0);
 	    }
 
 	  continue;
@@ -633,7 +618,7 @@ linux_wait_for_event (struct thread_info *child)
 /* Wait for process, returns status.  */
 
 static unsigned char
-linux_wait (char *status)
+fbsd_wait (char *status)
 {
   int w;
   struct thread_info *child = NULL;
@@ -656,18 +641,18 @@ retry:
 	  struct thread_resume resume_info;
 	  resume_info.thread = -1;
 	  resume_info.step = resume_info.sig = resume_info.leave_stopped = 0;
-	  linux_resume (&resume_info);
+	  fbsd_resume (&resume_info);
 	}
     }
 
   enable_async_io ();
   unblock_async_io ();
-  w = linux_wait_for_event (child);
+  w = fbsd_wait_for_event (child);
   stop_all_processes ();
   disable_async_io ();
 
   /* If we are waiting for a particular child, and it exited,
-     linux_wait_for_event will return its exit status.  Similarly if
+     fbsd_wait_for_event will return its exit status.  Similarly if
      the last child exited.  If this is not the last child, however,
      do not report it as exited until there is a 'thread exited' response
      available in the remote protocol.  Instead, just wait for another event.
@@ -746,7 +731,7 @@ wait_for_sigstop (struct inferior_list_entry *entry)
   saved_tid = ((struct inferior_list_entry *) saved_inferior)->id;
   thread = (struct thread_info *) find_inferior_id (&all_threads,
 						    process->tid);
-  wstat = linux_wait_for_event (thread);
+  wstat = fbsd_wait_for_event (thread);
 
   /* If we stopped with a non-SIGSTOP signal, save it for later
      and record the pending SIGSTOP.  If the process exited, just
@@ -761,7 +746,7 @@ wait_for_sigstop (struct inferior_list_entry *entry)
       process->stop_expected = 1;
     }
 
-  if (linux_thread_alive (saved_tid))
+  if (fbsd_thread_alive (saved_tid))
     current_inferior = saved_inferior;
   else
     {
@@ -787,7 +772,7 @@ stop_all_processes (void)
    If SIGNAL is nonzero, give it that signal.  */
 
 static void
-linux_resume_one_process (struct inferior_list_entry *entry,
+fbsd_resume_one_process (struct inferior_list_entry *entry,
 			  int step, int signal)
 {
   struct process_info *process = (struct process_info *) entry;
@@ -828,7 +813,7 @@ linux_resume_one_process (struct inferior_list_entry *entry,
      the reinsert happened right away and not lose any signals.
 
      Making this stack would also shrink the window in which breakpoints are
-     uninserted (see comment in linux_wait_for_process) but not enough for
+     uninserted (see comment in fbsd_wait_for_process) but not enough for
      complete correctness, so it won't solve that problem.  It may be
      worthwhile just to solve this one, however.  */
   if (process->bp_reinsert != 0)
@@ -871,7 +856,7 @@ linux_resume_one_process (struct inferior_list_entry *entry,
   errno = 0;
   process->stopped = 0;
   process->stepping = step;
-  ptrace (step ? PTRACE_SINGLESTEP : PTRACE_CONT, process->lwpid, 0, signal);
+  ptrace (step ? PT_STEP : PT_CONTINUE, process->lwpid, (PTRACE_ARG3_TYPE) 1, signal);
 
   current_inferior = saved_inferior;
   if (errno)
@@ -888,7 +873,7 @@ static struct thread_resume *resume_ptr;
    is small (and will remain small at least until GDB supports thread
    suspension).  */
 static void
-linux_set_resume_request (struct inferior_list_entry *entry)
+fbsd_set_resume_request (struct inferior_list_entry *entry)
 {
   struct process_info *process;
   struct thread_info *thread;
@@ -911,7 +896,7 @@ linux_set_resume_request (struct inferior_list_entry *entry)
    is used for stepping over gdbserver-placed breakpoints.  */
 
 static void
-linux_continue_one_thread (struct inferior_list_entry *entry)
+fbsd_continue_one_thread (struct inferior_list_entry *entry)
 {
   struct process_info *process;
   struct thread_info *thread;
@@ -928,7 +913,7 @@ linux_continue_one_thread (struct inferior_list_entry *entry)
   else
     step = process->resume->step;
 
-  linux_resume_one_process (&process->head, step, process->resume->sig);
+  fbsd_resume_one_process (&process->head, step, process->resume->sig);
 
   process->resume = NULL;
 }
@@ -941,7 +926,7 @@ linux_continue_one_thread (struct inferior_list_entry *entry)
    be re-issued if necessary.  */
 
 static void
-linux_queue_one_thread (struct inferior_list_entry *entry)
+fbsd_queue_one_thread (struct inferior_list_entry *entry)
 {
   struct process_info *process;
   struct thread_info *thread;
@@ -972,7 +957,7 @@ resume_status_pending_p (struct inferior_list_entry *entry, void *flag_p)
   struct process_info *process = (struct process_info *) entry;
 
   /* Processes which will not be resumed are not interesting, because
-     we might not wait for them next time through linux_wait.  */
+     we might not wait for them next time through fbsd_wait.  */
   if (process->resume->leave_stopped)
     return 0;
 
@@ -994,14 +979,14 @@ resume_status_pending_p (struct inferior_list_entry *entry, void *flag_p)
 }
 
 static void
-linux_resume (struct thread_resume *resume_info)
+fbsd_resume (struct thread_resume *resume_info)
 {
   int pending_flag;
 
   /* Yes, the use of a global here is rather ugly.  */
   resume_ptr = resume_info;
 
-  for_each_inferior (&all_threads, linux_set_resume_request);
+  for_each_inferior (&all_threads, fbsd_set_resume_request);
 
   /* If there is a thread which would otherwise be resumed, which
      has a pending status, then don't resume any threads - we can just
@@ -1019,133 +1004,15 @@ linux_resume (struct thread_resume *resume_info)
     }
 
   if (pending_flag)
-    for_each_inferior (&all_threads, linux_queue_one_thread);
+    for_each_inferior (&all_threads, fbsd_queue_one_thread);
   else
     {
       block_async_io ();
       enable_async_io ();
-      for_each_inferior (&all_threads, linux_continue_one_thread);
+      for_each_inferior (&all_threads, fbsd_continue_one_thread);
     }
 }
 
-#ifdef HAVE_LINUX_USRREGS
-
-int
-register_addr (int regnum)
-{
-  int addr;
-
-  if (regnum < 0 || regnum >= the_low_target.num_regs)
-    error ("Invalid register number %d.", regnum);
-
-  addr = the_low_target.regmap[regnum];
-
-  return addr;
-}
-
-/* Fetch one register.  */
-static void
-fetch_register (int regno)
-{
-  CORE_ADDR regaddr;
-  register int i;
-  char *buf;
-
-  if (regno >= the_low_target.num_regs)
-    return;
-  if ((*the_low_target.cannot_fetch_register) (regno))
-    return;
-
-  regaddr = register_addr (regno);
-  if (regaddr == -1)
-    return;
-  buf = alloca (register_size (regno));
-  for (i = 0; i < register_size (regno); i += sizeof (PTRACE_XFER_TYPE))
-    {
-      errno = 0;
-      *(PTRACE_XFER_TYPE *) (buf + i) =
-	ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) regaddr, 0);
-      regaddr += sizeof (PTRACE_XFER_TYPE);
-      if (errno != 0)
-	{
-	  /* Warning, not error, in case we are attached; sometimes the
-	     kernel doesn't let us at the registers.  */
-	  char *err = strerror (errno);
-	  char *msg = alloca (strlen (err) + 128);
-	  sprintf (msg, "reading register %d: %s", regno, err);
-	  error (msg);
-	  goto error_exit;
-	}
-    }
-  supply_register (regno, buf);
-
-error_exit:;
-}
-
-/* Fetch all registers, or just one, from the child process.  */
-static void
-usr_fetch_inferior_registers (int regno)
-{
-  if (regno == -1 || regno == 0)
-    for (regno = 0; regno < the_low_target.num_regs; regno++)
-      fetch_register (regno);
-  else
-    fetch_register (regno);
-}
-
-/* Store our register values back into the inferior.
-   If REGNO is -1, do this for all registers.
-   Otherwise, REGNO specifies which register (so we can save time).  */
-static void
-usr_store_inferior_registers (int regno)
-{
-  CORE_ADDR regaddr;
-  int i;
-  char *buf;
-
-  if (regno >= 0)
-    {
-      if (regno >= the_low_target.num_regs)
-	return;
-
-      if ((*the_low_target.cannot_store_register) (regno) == 1)
-	return;
-
-      regaddr = register_addr (regno);
-      if (regaddr == -1)
-	return;
-      errno = 0;
-      buf = alloca (register_size (regno));
-      collect_register (regno, buf);
-      for (i = 0; i < register_size (regno); i += sizeof (PTRACE_XFER_TYPE))
-	{
-	  errno = 0;
-	  ptrace (PTRACE_POKEUSER, inferior_pid, (PTRACE_ARG3_TYPE) regaddr,
-		  *(PTRACE_XFER_TYPE *) (buf + i));
-	  if (errno != 0)
-	    {
-	      if ((*the_low_target.cannot_store_register) (regno) == 0)
-		{
-		  char *err = strerror (errno);
-		  char *msg = alloca (strlen (err) + 128);
-		  sprintf (msg, "writing register %d: %s",
-			   regno, err);
-		  error (msg);
-		  return;
-		}
-	    }
-	  regaddr += sizeof (PTRACE_XFER_TYPE);
-	}
-    }
-  else
-    for (regno = 0; regno < the_low_target.num_regs; regno++)
-      usr_store_inferior_registers (regno);
-}
-#endif /* HAVE_LINUX_USRREGS */
-
-
-
-#ifdef HAVE_LINUX_REGSETS
 
 static int
 regsets_fetch_inferior_registers ()
@@ -1166,31 +1033,13 @@ regsets_fetch_inferior_registers ()
 	}
 
       buf = malloc (regset->size);
-      res = ptrace (regset->get_request, inferior_pid, 0, buf);
+      res = ptrace (regset->get_request, inferior_pid, (PTRACE_ARG3_TYPE) buf, 0);
       if (res < 0)
 	{
-	  if (errno == EIO)
-	    {
-	      /* If we get EIO on the first regset, do not try regsets again.
-		 If we get EIO on a later regset, disable that regset.  */
-	      if (regset == target_regsets)
-		{
-		  use_regsets_p = 0;
-		  return -1;
-		}
-	      else
-		{
-		  regset->size = 0;
-		  continue;
-		}
-	    }
-	  else
-	    {
-	      char s[256];
-	      sprintf (s, "ptrace(regsets_fetch_inferior_registers) PID=%d",
-		       inferior_pid);
-	      perror (s);
-	    }
+	  char s[256];
+	  sprintf (s, "ptrace(regsets_fetch_inferior_registers) PID=%d",
+		   inferior_pid);
+	  perror (s);
 	}
       regset->store_function (buf);
       regset ++;
@@ -1218,28 +1067,10 @@ regsets_store_inferior_registers ()
 
       buf = malloc (regset->size);
       regset->fill_function (buf);
-      res = ptrace (regset->set_request, inferior_pid, 0, buf);
+      res = ptrace (regset->set_request, inferior_pid, (PTRACE_ARG3_TYPE) buf, 0);
       if (res < 0)
 	{
-	  if (errno == EIO)
-	    {
-	      /* If we get EIO on the first regset, do not try regsets again.
-		 If we get EIO on a later regset, disable that regset.  */
-	      if (regset == target_regsets)
-		{
-		  use_regsets_p = 0;
-		  return -1;
-		}
-	      else
-		{
-		  regset->size = 0;
-		  continue;
-		}
-	    }
-	  else
-	    {
-	      perror ("Warning: ptrace(regsets_store_inferior_registers)");
-	    }
+	  perror ("Warning: ptrace(regsets_store_inferior_registers)");
 	}
       regset ++;
       free (buf);
@@ -1247,37 +1078,16 @@ regsets_store_inferior_registers ()
   return 0;
 }
 
-#endif /* HAVE_LINUX_REGSETS */
-
-
 void
-linux_fetch_registers (int regno)
+fbsd_fetch_registers (int regno)
 {
-#ifdef HAVE_LINUX_REGSETS
-  if (use_regsets_p)
-    {
-      if (regsets_fetch_inferior_registers () == 0)
-	return;
-    }
-#endif
-#ifdef HAVE_LINUX_USRREGS
-  usr_fetch_inferior_registers (regno);
-#endif
+      regsets_fetch_inferior_registers ();
 }
 
 void
-linux_store_registers (int regno)
+fbsd_store_registers (int regno)
 {
-#ifdef HAVE_LINUX_REGSETS
-  if (use_regsets_p)
-    {
-      if (regsets_store_inferior_registers () == 0)
-	return;
-    }
-#endif
-#ifdef HAVE_LINUX_USRREGS
-  usr_store_inferior_registers (regno);
-#endif
+      regsets_store_inferior_registers ();
 }
 
 
@@ -1285,7 +1095,7 @@ linux_store_registers (int regno)
    to debugger memory starting at MYADDR.  */
 
 static int
-linux_read_memory (CORE_ADDR memaddr, char *myaddr, int len)
+fbsd_read_memory (CORE_ADDR memaddr, char *myaddr, int len)
 {
   register int i;
   /* Round starting address down to longword boundary.  */
@@ -1302,7 +1112,7 @@ linux_read_memory (CORE_ADDR memaddr, char *myaddr, int len)
   for (i = 0; i < count; i++, addr += sizeof (PTRACE_XFER_TYPE))
     {
       errno = 0;
-      buffer[i] = ptrace (PTRACE_PEEKTEXT, inferior_pid, (PTRACE_ARG3_TYPE) addr, 0);
+      buffer[i] = ptrace (PT_READ_D, inferior_pid, (PTRACE_ARG3_TYPE) (intptr_t)addr, 0);
       if (errno)
 	return errno;
     }
@@ -1319,7 +1129,7 @@ linux_read_memory (CORE_ADDR memaddr, char *myaddr, int len)
    returns the value of errno.  */
 
 static int
-linux_write_memory (CORE_ADDR memaddr, const char *myaddr, int len)
+fbsd_write_memory (CORE_ADDR memaddr, const char *myaddr, int len)
 {
   register int i;
   /* Round starting address down to longword boundary.  */
@@ -1338,14 +1148,14 @@ linux_write_memory (CORE_ADDR memaddr, const char *myaddr, int len)
 
   /* Fill start and end extra bytes of buffer with existing memory data.  */
 
-  buffer[0] = ptrace (PTRACE_PEEKTEXT, inferior_pid,
-		      (PTRACE_ARG3_TYPE) addr, 0);
+  buffer[0] = ptrace (PT_READ_D, inferior_pid,
+		      (PTRACE_ARG3_TYPE) (intptr_t)addr, 0);
 
   if (count > 1)
     {
       buffer[count - 1]
-	= ptrace (PTRACE_PEEKTEXT, inferior_pid,
-		  (PTRACE_ARG3_TYPE) (addr + (count - 1)
+	= ptrace (PT_READ_D, inferior_pid,
+		  (PTRACE_ARG3_TYPE) (intptr_t) (addr + (count - 1)
 				      * sizeof (PTRACE_XFER_TYPE)),
 		  0);
     }
@@ -1359,7 +1169,7 @@ linux_write_memory (CORE_ADDR memaddr, const char *myaddr, int len)
   for (i = 0; i < count; i++, addr += sizeof (PTRACE_XFER_TYPE))
     {
       errno = 0;
-      ptrace (PTRACE_POKETEXT, inferior_pid, (PTRACE_ARG3_TYPE) addr, buffer[i]);
+      ptrace (PT_WRITE_D, inferior_pid, (PTRACE_ARG3_TYPE) (intptr_t)addr, buffer[i]);
       if (errno)
 	return errno;
     }
@@ -1368,7 +1178,7 @@ linux_write_memory (CORE_ADDR memaddr, const char *myaddr, int len)
 }
 
 static void
-linux_look_up_symbols (void)
+fbsd_look_up_symbols (void)
 {
 #ifdef USE_THREAD_DB
   if (using_threads)
@@ -1379,7 +1189,7 @@ linux_look_up_symbols (void)
 }
 
 static void
-linux_send_signal (int signum)
+fbsd_send_signal (int signum)
 {
   extern int signal_pid;
 
@@ -1398,7 +1208,7 @@ linux_send_signal (int signum)
    to debugger memory starting at MYADDR.  */
 
 static int
-linux_read_auxv (CORE_ADDR offset, char *myaddr, unsigned int len)
+fbsd_read_auxv (CORE_ADDR offset, char *myaddr, unsigned int len)
 {
   char filename[PATH_MAX];
   int fd, n;
@@ -1421,38 +1231,35 @@ linux_read_auxv (CORE_ADDR offset, char *myaddr, unsigned int len)
 }
 
 
-static struct target_ops linux_target_ops = {
-  linux_create_inferior,
-  linux_attach,
-  linux_kill,
-  linux_detach,
-  linux_thread_alive,
-  linux_resume,
-  linux_wait,
-  linux_fetch_registers,
-  linux_store_registers,
-  linux_read_memory,
-  linux_write_memory,
-  linux_look_up_symbols,
-  linux_send_signal,
-  linux_read_auxv,
+static struct target_ops fbsd_target_ops = {
+  fbsd_create_inferior,
+  fbsd_attach,
+  fbsd_kill,
+  fbsd_detach,
+  fbsd_thread_alive,
+  fbsd_resume,
+  fbsd_wait,
+  fbsd_fetch_registers,
+  fbsd_store_registers,
+  fbsd_read_memory,
+  fbsd_write_memory,
+  fbsd_look_up_symbols,
+  fbsd_send_signal,
+  fbsd_read_auxv,
 };
 
 static void
-linux_init_signals ()
+fbsd_init_signals ()
 {
-  /* FIXME drow/2002-06-09: As above, we should check with LinuxThreads
-     to find what the cancel signal actually is.  */
-  signal (__SIGRTMIN+1, SIG_IGN);
 }
 
 void
 initialize_low (void)
 {
   using_threads = 0;
-  set_target_ops (&linux_target_ops);
+  set_target_ops (&fbsd_target_ops);
   set_breakpoint_data (the_low_target.breakpoint,
 		       the_low_target.breakpoint_len);
   init_registers ();
-  linux_init_signals ();
+  fbsd_init_signals ();
 }

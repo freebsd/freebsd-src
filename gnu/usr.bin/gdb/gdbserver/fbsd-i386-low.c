@@ -19,28 +19,33 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "server.h"
-#include "linux-low.h"
+#include "fbsd-low.h"
 #include "i387-fp.h"
 
 #ifdef HAVE_SYS_REG_H
 #include <sys/reg.h>
+#else
+#include <machine/reg.h>
 #endif
 
 /* This module only supports access to the general purpose registers.  */
 
 #define i386_num_regs 16
 
-/* This stuff comes from i386-linux-nat.c.  */
+/* This stuff comes from i386-fbsd-nat.c.  */
 
 /* Mapping between the general-purpose registers in `struct user'
    format and GDB's register array layout.  */
 static int i386_regmap[] = 
 {
-  EAX * 4, ECX * 4, EDX * 4, EBX * 4,
-  UESP * 4, EBP * 4, ESI * 4, EDI * 4,
-  EIP * 4, EFL * 4, CS * 4, SS * 4,
-  DS * 4, ES * 4, FS * 4, GS * 4
+  tEAX * 4, tECX * 4, tEDX * 4, tEBX * 4,
+  tESP * 4, tEBP * 4, tESI * 4, tEDI * 4,
+  tEIP * 4, tEFLAGS * 4, tCS * 4, tSS * 4,
+  tDS * 4, tES * 4, tFS * 4, tGS * 4
 };
 
 static int
@@ -56,7 +61,6 @@ i386_cannot_fetch_register (int regno)
 }
 
 
-#ifdef HAVE_LINUX_REGSETS
 #include <sys/procfs.h>
 #include <sys/ptrace.h>
 
@@ -68,7 +72,6 @@ i386_fill_gregset (void *buf)
   for (i = 0; i < i386_num_regs; i++)
     collect_register (i, ((char *) buf) + i386_regmap[i]);
 
-  collect_register_by_name ("orig_eax", ((char *) buf) + ORIG_EAX * 4);
 }
 
 static void
@@ -79,7 +82,6 @@ i386_store_gregset (const void *buf)
   for (i = 0; i < i386_num_regs; i++)
     supply_register (i, ((char *) buf) + i386_regmap[i]);
 
-  supply_register_by_name ("orig_eax", ((char *) buf) + ORIG_EAX * 4);
 }
 
 static void
@@ -108,7 +110,7 @@ i386_store_fpxregset (const void *buf)
 
 
 struct regset_info target_regsets[] = {
-  { PTRACE_GETREGS, PTRACE_SETREGS, sizeof (elf_gregset_t),
+  { PT_GETREGS, PT_SETREGS, sizeof (struct reg),
     GENERAL_REGS,
     i386_fill_gregset, i386_store_gregset },
 #ifdef HAVE_PTRACE_GETFPXREGS
@@ -116,13 +118,11 @@ struct regset_info target_regsets[] = {
     EXTENDED_REGS,
     i386_fill_fpxregset, i386_store_fpxregset },
 #endif
-  { PTRACE_GETFPREGS, PTRACE_SETFPREGS, sizeof (elf_fpregset_t),
+  { PT_GETFPREGS, PT_SETFPREGS, sizeof (struct fpreg),
     FP_REGS,
     i386_fill_fpregset, i386_store_fpregset },
   { 0, 0, -1, -1, NULL, NULL }
 };
-
-#endif /* HAVE_LINUX_REGSETS */
 
 static const char i386_breakpoint[] = { 0xCC };
 #define i386_breakpoint_len 1
@@ -161,7 +161,7 @@ i386_breakpoint_at (CORE_ADDR pc)
   return 0;
 }
 
-struct linux_target_ops the_low_target = {
+struct fbsd_target_ops the_low_target = {
   i386_num_regs,
   i386_regmap,
   i386_cannot_fetch_register,

@@ -18,7 +18,10 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#ifdef HAVE_LINUX_REGSETS
+/*
+ * $FreeBSD$
+ */
+
 typedef void (*regset_fill_func) (void *);
 typedef void (*regset_store_func) (const void *);
 enum regset_type {
@@ -36,9 +39,8 @@ struct regset_info
   regset_store_func store_function;
 };
 extern struct regset_info target_regsets[];
-#endif
 
-struct linux_target_ops
+struct fbsd_target_ops
 {
   int num_regs;
   int *regmap;
@@ -59,7 +61,7 @@ struct linux_target_ops
   int (*breakpoint_at) (CORE_ADDR pc);
 };
 
-extern struct linux_target_ops the_low_target;
+extern struct fbsd_target_ops the_low_target;
 
 #define get_process(inf) ((struct process_info *)(inf))
 #define get_thread_process(thr) (get_process (inferior_target_data (thr)))
@@ -108,13 +110,13 @@ struct process_info
   struct pending_signals *pending_signals;
 
   /* A link used when resuming.  It is initialized from the resume request,
-     and then processed and cleared in linux_resume_one_process.  */
+     and then processed and cleared in fbsd_resume_one_process.  */
 
   struct thread_resume *resume;
 };
 
 extern struct inferior_list all_processes;
 
-void linux_attach_lwp (int pid, int tid);
+void fbsd_attach_lwp (int pid, int tid);
 
 int thread_db_init (void);
