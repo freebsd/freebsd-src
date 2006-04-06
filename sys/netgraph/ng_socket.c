@@ -398,7 +398,7 @@ ngd_detach(struct socket *so)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	KASSERT(pcbp == NULL, ("ngd_detach: pcbp == NULL"));
+	KASSERT(pcbp != NULL, ("ngd_detach: pcbp == NULL"));
 	ng_detach_common(pcbp, NG_DATA);
 }
 
