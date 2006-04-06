@@ -234,10 +234,8 @@ npx_intr(dummy)
 }
 
 /*
- * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
- * whether the device exists or not (XXX should be elsewhere).  Set flags
- * to tell npxattach() what to do.  Modify device struct if npx doesn't
- * need to use interrupts.  Return 0 if device exists.
+ * Probe routine.  Set flags to tell npxattach() what to do.  Set up an
+ * interrupt handler if npx needs to use interrupts.
  */
 static int
 npx_probe(dev)
@@ -249,6 +247,20 @@ npx_probe(dev)
 	int ioport_rid, irq_num, irq_rid;
 	u_short control;
 	u_short status;
+
+	device_set_desc(dev, "math processor");
+
+	/*
+	 * Modern CPUs all have an FPU that uses the INT16 interface
+	 * and provide a simple way to verify that, so handle the
+	 * common case right away.
+	 */
+	if (cpu_feature & CPUID_FPU) {
+		hw_float = npx_exists = 1;
+		npx_ex16 = 1;
+		device_quiet(dev);
+		return (0);
+	}
 
 	save_idt_npxtrap = idt[IDT_MF];
 	setidt(IDT_MF, probetrap, SDT_SYS386TGT, SEL_KPL,
@@ -277,24 +289,10 @@ npx_probe(dev)
 	outb(IO_NPX, 0);
 
 	/*
-	 * Prepare to trap all ESC (i.e., NPX) instructions and all WAIT
-	 * instructions.  We must set the CR0_MP bit and use the CR0_TS
-	 * bit to control the trap, because setting the CR0_EM bit does
-	 * not cause WAIT instructions to trap.  It's important to trap
-	 * WAIT instructions - otherwise the "wait" variants of no-wait
-	 * control instructions would degenerate to the "no-wait" variants
-	 * after FP context switches but work correctly otherwise.  It's
-	 * particularly important to trap WAITs when there is no NPX -
-	 * otherwise the "wait" variants would always degenerate.
-	 *
-	 * Try setting CR0_NE to get correct error reporting on 486DX's.
-	 * Setting it should fail or do nothing on lesser processors.
-	 */
-	load_cr0(rcr0() | CR0_MP | CR0_NE);
-	/*
-	 * But don't trap while we're probing.
+	 * Don't trap while we're probing.
 	 */
 	stop_emulating();
+
 	/*
 	 * Finish resetting the coprocessor, if any.  If there is an error
 	 * pending, then we may get a bogus IRQ13, but npx_intr() will handle
@@ -302,8 +300,6 @@ npx_probe(dev)
 	 * IRQ13 and cleared the BUSY# latch early to handle them anyway.
 	 */
 	fninit();
-
-	device_set_desc(dev, "math processor");
 
 	/*
 	 * Don't use fwait here because it might hang.
@@ -406,10 +402,10 @@ npx_attach(dev)
 
 	if (npx_irq13)
 		device_printf(dev, "IRQ 13 interface\n");
-	else if (npx_ex16)
-		device_printf(dev, "INT 16 interface\n");
-	else
+	else if (!npx_ex16)
 		device_printf(dev, "WARNING: no FPU!\n");
+	else if (!device_is_quiet(dev) || bootverbose)
+		device_printf(dev, "INT 16 interface\n");
 
 	npxinit(__INITIAL_NPXCW__);
 
