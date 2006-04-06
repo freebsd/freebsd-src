@@ -28,24 +28,24 @@
 #define AT91USARTREG_H_
 
 #define USART_CR		0x00 /* Control register */
-#define USART_CR_RSTRX		(1 << 2) /* Reset Receiver */
-#define USART_CR_RSTTX		(1 << 3) /* Reset Transmitter */
-#define USART_CR_RXEN		(1 << 4) /* Receiver Enable */
-#define USART_CR_RXDIS		(1 << 5) /* Receiver Disable */
-#define USART_CR_TXEN		(1 << 6) /* Transmitter Enable */
-#define USART_CR_TXDIS		(1 << 7) /* Transmitter Disable */
-#define USART_CR_RSTSTA		(1 << 8) /* Reset Status Bits */
-#define USART_CR_STTBRK		(1 << 9) /* Start Break */
-#define USART_CR_STPBRK		(1 << 10) /* Stop Break */
-#define USART_CR_STTTO		(1 << 11) /* Start Time-out */
-#define USART_CR_SENDA		(1 << 12) /* Send Address */
-#define USART_CR_RSTIT		(1 << 13) /* Reset Iterations */
-#define USART_CR_RSTNACK	(1 << 14) /* Reset Non Acknowledge */
-#define USART_CR_RETTO		(1 << 15) /* Rearm Time-out */
-#define USART_CR_DTREN		(1 << 16) /* Data Terminal ready Enable */
-#define USART_CR_DTRDIS		(1 << 17) /* Data Terminal ready Disable */
-#define USART_CR_RTSEN		(1 << 18) /* Request to Send enable */
-#define USART_CR_RTSDIS		(1 << 19) /* Request to Send Disable */
+#define USART_CR_RSTRX		(1UL << 2) /* Reset Receiver */
+#define USART_CR_RSTTX		(1UL << 3) /* Reset Transmitter */
+#define USART_CR_RXEN		(1UL << 4) /* Receiver Enable */
+#define USART_CR_RXDIS		(1UL << 5) /* Receiver Disable */
+#define USART_CR_TXEN		(1UL << 6) /* Transmitter Enable */
+#define USART_CR_TXDIS		(1UL << 7) /* Transmitter Disable */
+#define USART_CR_RSTSTA		(1UL << 8) /* Reset Status Bits */
+#define USART_CR_STTBRK		(1UL << 9) /* Start Break */
+#define USART_CR_STPBRK		(1UL << 10) /* Stop Break */
+#define USART_CR_STTTO		(1UL << 11) /* Start Time-out */
+#define USART_CR_SENDA		(1UL << 12) /* Send Address */
+#define USART_CR_RSTIT		(1UL << 13) /* Reset Iterations */
+#define USART_CR_RSTNACK	(1UL << 14) /* Reset Non Acknowledge */
+#define USART_CR_RETTO		(1UL << 15) /* Rearm Time-out */
+#define USART_CR_DTREN		(1UL << 16) /* Data Terminal ready Enable */
+#define USART_CR_DTRDIS		(1UL << 17) /* Data Terminal ready Disable */
+#define USART_CR_RTSEN		(1UL << 18) /* Request to Send enable */
+#define USART_CR_RTSDIS		(1UL << 19) /* Request to Send Disable */
 
 #define USART_MR		0x04 /* Mode register */
 #define USART_MR_MODE_NORMAL	0	/* Normal/Async/3-wire rs-232 */
@@ -91,28 +91,28 @@
 #define USART_IMR		0x10 /* Interrupt mask register */
 #define USART_CSR		0x14 /* Channel status register */
 
-#define USART_CSR_RXRDY		(1U << 0) /* Receiver ready */
-#define USART_CSR_TXRDY		(1U << 1) /* Transmitter ready */
-#define USART_CSR_RXBRK		(1U << 2) /* Break received */
-#define USART_CSR_ENDRX		(1U << 3) /* End of Transfer RX from PDC */
-#define USART_CSR_ENDTX		(1U << 4) /* End of Transfer TX from PDC */
-#define USART_CSR_OVRE		(1U << 5) /* Overrun error */
-#define USART_CSR_FRAME		(1U << 6) /* Framing error */
-#define USART_CSR_PARE		(1U << 7) /* Parity Error */
-#define USART_CSR_TIMEOUT	(1U << 8) /* Timeout since start-timeout */
-#define USART_CSR_TXEMPTY	(1U << 9) /* Transmitter empty */
-#define USART_CSR_ITERATION	(1U << 10) /* max repetitions since RSIT */
-#define USART_CSR_TXBUFE	(1U << 11) /* Buffer empty from PDC */
-#define USART_CSR_RXBUFF	(1U << 12) /* Buffer full from PDC */
-#define USART_CSR_NACK		(1U << 13) /* NACK since last RSTNACK */
-#define USART_CSR_RIIC		(1U << 16) /* RI delta since last csr read */
-#define USART_CSR_DSRIC		(1U << 17) /* DSR delta */
-#define USART_CSR_DCDIC		(1U << 18) /* DCD delta */
-#define USART_CSR_CTSIC		(1U << 19) /* CTS delta */
-#define USART_CSR_RI		(1U << 20) /* RI status */
-#define USART_CSR_DSR		(1U << 21) /* DSR status */
-#define USART_CSR_DCD		(1U << 22) /* DCD status */
-#define USART_CSR_CTS		(1U << 23) /* CTS status */
+#define USART_CSR_RXRDY		(1UL << 0) /* Receiver ready */
+#define USART_CSR_TXRDY		(1UL << 1) /* Transmitter ready */
+#define USART_CSR_RXBRK		(1UL << 2) /* Break received */
+#define USART_CSR_ENDRX		(1UL << 3) /* End of Transfer RX from PDC */
+#define USART_CSR_ENDTX		(1UL << 4) /* End of Transfer TX from PDC */
+#define USART_CSR_OVRE		(1UL << 5) /* Overrun error */
+#define USART_CSR_FRAME		(1UL << 6) /* Framing error */
+#define USART_CSR_PARE		(1UL << 7) /* Parity Error */
+#define USART_CSR_TIMEOUT	(1UL << 8) /* Timeout since start-timeout */
+#define USART_CSR_TXEMPTY	(1UL << 9) /* Transmitter empty */
+#define USART_CSR_ITERATION	(1UL << 10) /* max repetitions since RSIT */
+#define USART_CSR_TXBUFE	(1UL << 11) /* Buffer empty from PDC */
+#define USART_CSR_RXBUFF	(1UL << 12) /* Buffer full from PDC */
+#define USART_CSR_NACK		(1UL << 13) /* NACK since last RSTNACK */
+#define USART_CSR_RIIC		(1UL << 16) /* RI delta since last csr read */
+#define USART_CSR_DSRIC		(1UL << 17) /* DSR delta */
+#define USART_CSR_DCDIC		(1UL << 18) /* DCD delta */
+#define USART_CSR_CTSIC		(1UL << 19) /* CTS delta */
+#define USART_CSR_RI		(1UL << 20) /* RI status */
+#define USART_CSR_DSR		(1UL << 21) /* DSR status */
+#define USART_CSR_DCD		(1UL << 22) /* DCD status */
+#define USART_CSR_CTS		(1UL << 23) /* CTS status */
 
 #define USART_RHR		0x18 /* Receiver holding register */
 #define USART_THR		0x1c /* Transmitter holding register */
@@ -124,25 +124,5 @@
 #define USART_NER		0x44 /* Number of errors register */
 /* 0x48 reserved */
 #define USART_IFR		0x48 /* IrDA filter register */
-
-
-#define UART_RXRDY		(0x1 << 0)	/* RXRDY Interrupt */
-#define UART_TXRDY		(0x1 << 1)	/* TXRDY Interrupt */
-#define UART_RXBRK		(0x1 << 2)	/* Break Received/End of Break */
-#define UART_ENDRX		(0x1 << 3)	/* End of Receive Transfer Interrupt */
-#define UART_ENDTX		(0x1 << 4)	/* End of Transmit Interrupt */
-#define UART_OVRE		(0x1 << 5)	/* Overrun Interrupt */
-#define UART_FRAME		(0x1 << 6)	/* Framing Error Interrupt */
-#define UART_PARE		(0x1 << 7)	/* Parity Error Interrupt */
-#define UART_TIMEOUT	( 0x1 << 8)	/* (USART) Receiver Time-out */
-#define UART_TXEMPTY      ( 0x1 << 9)	/* (USART) TXEMPTY Interrupt */
-#define UART_ITERATION    ( 0x1 << 10)	/* (USART) Max number of Repetitions Reached */
-#define UART_TXBUFE       ( 0x1 << 11)	/* (USART) TXBUFE Interrupt */
-#define UART_RXBUFF       ( 0x1 << 12)	/* (USART) RXBUFF Interrupt */
-#define UART_NACK         ( 0x1 << 13)	/* (USART) Non Acknowledge */
-#define UART_RIIC         ( 0x1 << 16)	/* (USART) Ring INdicator Input Change Flag */
-#define AT91RM92_US_DSRIC        ( 0x1 << 17)	/* (USART) Data Set Ready Input Change Flag */
-#define AT91RM92_US_DCDIC        ( 0x1 << 18)	/* (USART) Data Carrier Flag */
-#define AT91RM92_US_CTSIC        ( 0x1 << 19)	/* (USART) Clear To Send Input Change Flag */
 
 #endif /* AT91RM92REG_H_ */
