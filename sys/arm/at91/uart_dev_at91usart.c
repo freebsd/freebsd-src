@@ -41,10 +41,27 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_usartreg.h>
+#include <arm/at91/at91_pdcreg.h>
 
 #include "uart_if.h"
 
-#define      DEFAULT_RCLK    AT91C_MASTER_CLOCK
+/*
+ * High-level UART interface.
+ */
+struct at91_usart_softc {
+	struct uart_softc base;
+	bus_dma_tag_t dmatag;		/* bus dma tag for mbufs */
+	bus_dmamap_t tx_map;
+	bus_dmamap_t rx_map;
+};
+
+#define DEFAULT_RCLK		AT91C_MASTER_CLOCK
+#define	USART_BUFFER_SIZE	128
+
+#define	RD4(bas, reg)		\
+	bus_space_read_4((bas)->bst, (bas)->bsh, uart_regofs(bas, reg))
+#define	WR4(bas, reg, value)	\
+	bus_space_write_4((bas)->bst, (bas)->bsh, uart_regofs(bas, reg), value)
 
 #define	SIGCHG(c, i, s, d)				\
 	do {						\
@@ -183,10 +200,13 @@ at91_usart_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 
 	/* Turn on rx and tx */
 	cr = USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX;
-	uart_setreg(bas, USART_CR, cr);
-	uart_setreg(bas, USART_CR, USART_CR_RXEN | USART_CR_TXEN);
-	uart_setreg(bas, USART_IER, USART_CSR_TXRDY | USART_CSR_RXRDY |
-	    USART_CSR_RXBRK);
+	WR4(bas, USART_CR, cr);
+	WR4(bas, USART_CR, USART_CR_RXEN | USART_CR_TXEN);
+	WR4(bas, USART_IER, USART_CSR_TIMEOUT |
+	    USART_CSR_TXRDY | USART_CSR_RXRDY |
+	    USART_CSR_RXBRK | USART_CSR_ENDRX | USART_CSR_ENDTX);
+	/* Set the receive timeout to be 1.5 character times. */
+	WR4(bas, USART_RTOR, 12);
 }
 
 /*
@@ -207,9 +227,9 @@ static void
 at91_usart_putc(struct uart_bas *bas, int c)
 {
 
-	while (!(uart_getreg(bas, USART_CSR) & 
+	while (!(RD4(bas, USART_CSR) & 
 	    USART_CSR_TXRDY));
-	uart_setreg(bas, USART_THR, c);
+	WR4(bas, USART_THR, c);
 }
 
 /*
@@ -219,9 +239,9 @@ static int
 at91_usart_poll(struct uart_bas *bas)
 {
 
-	if (!(uart_getreg(bas, USART_CSR) & USART_CSR_RXRDY))
+	if (!(RD4(bas, USART_CSR) & USART_CSR_RXRDY))
 		return (-1);
-	return (uart_getreg(bas, USART_RHR) & 0xff);
+	return (RD4(bas, USART_RHR) & 0xff);
 }
 
 /*
@@ -232,9 +252,9 @@ at91_usart_getc(struct uart_bas *bas)
 {
 	int c;
 
-	while (!(uart_getreg(bas, USART_CSR) & USART_CSR_RXRDY)) 
+	while (!(RD4(bas, USART_CSR) & USART_CSR_RXRDY)) 
 		;
-	c = uart_getreg(bas, USART_RHR);
+	c = RD4(bas, USART_RHR);
 	c &= 0xff;
 	return (c);
 }
@@ -274,28 +294,71 @@ at91_usart_bus_probe(struct uart_softc *sc)
 static int
 at91_usart_bus_attach(struct uart_softc *sc)
 {
-	sc->sc_txfifosz = 1;
-	sc->sc_rxfifosz = 1;
+	int err;
+	struct at91_usart_softc *atsc;
+
+	atsc = (struct at91_usart_softc *)sc;
+
+	sc->sc_txfifosz = USART_BUFFER_SIZE;
+	sc->sc_rxfifosz = USART_BUFFER_SIZE;
 	sc->sc_hwiflow = 0;
-	return (0);
+
+	/*
+	 * Allocate DMA tags and maps
+	 */
+	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, USART_BUFFER_SIZE, 1,
+	    USART_BUFFER_SIZE, BUS_DMA_ALLOCNOW, NULL, NULL, &atsc->dmatag);
+	if (err != 0)
+		goto errout;
+	err = bus_dmamap_create(atsc->dmatag, 0, &atsc->tx_map);
+	if (err != 0)
+	    goto errout;
+	err = bus_dmamap_create(atsc->dmatag, 0, &atsc->rx_map);
+	if (err != 0)
+	    goto errout;
+errout:;
+	// XXX bad
+	return (err);
 }
+
+static void
+at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	if (error != 0)
+		return;
+	*(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
+
 static int
 at91_usart_bus_transmit(struct uart_softc *sc)
 {
-	int i;
+	bus_addr_t addr;
+	struct at91_usart_softc *atsc;
 
-	/* XXX VERY sub-optimial */
+	atsc = (struct at91_usart_softc *)sc;
+	if (bus_dmamap_load(atsc->dmatag, atsc->tx_map, sc->sc_txbuf,
+	    sc->sc_txdatasz, at91_getaddr, &addr, 0) != 0)
+		return (EAGAIN);
+	bus_dmamap_sync(atsc->dmatag, atsc->tx_map, BUS_DMASYNC_PREWRITE);
+
 	mtx_lock_spin(&sc->sc_hwmtx);
 	sc->sc_txbusy = 1;
-	for (i = 0; i < sc->sc_txdatasz; i++)
-		at91_usart_putc(&sc->sc_bas, sc->sc_txbuf[i]);
+	/*
+	 * Setup the PDC to transfer the data and interrupt us when it
+	 * is done.  We've already requested the interrupt.
+	 */
+	WR4(&sc->sc_bas, PDC_TPR, addr);
+	WR4(&sc->sc_bas, PDC_TCR, sc->sc_txdatasz);
+	WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_TXTEN);
 	mtx_unlock_spin(&sc->sc_hwmtx);
 #ifdef USART0_CONSOLE
 	/*
 	 * XXX: Gross hack : Skyeye doesn't raise an interrupt once the
 	 * transfer is done, so simulate it.
 	 */
-	uart_setreg(&sc->sc_bas, USART_IER, USART_CSR_TXRDY);
+	WR4(&sc->sc_bas, USART_IER, USART_CSR_TXRDY);
 #endif
 	return (0);
 }
@@ -315,7 +378,7 @@ at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	bas = &sc->sc_bas;
 	mtx_lock_spin(&sc->sc_hwmtx);
-	cr = uart_getreg(bas, USART_CR);
+	cr = RD4(bas, USART_CR);
 	cr &= ~(USART_CR_DTREN | USART_CR_DTRDIS | USART_CR_RTSEN |
 	    USART_CR_RTSDIS);
 	if (new & SER_DTR)
@@ -326,7 +389,7 @@ at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 		cr |= USART_CR_RTSEN;
 	else
 		cr |= USART_CR_RTSDIS;
-	uart_setreg(bas, USART_CR, cr);
+	WR4(bas, USART_CR, cr);
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
@@ -349,9 +412,11 @@ at91_usart_bus_param(struct uart_softc *sc, int baudrate, int databits,
 static int
 at91_usart_bus_ipend(struct uart_softc *sc)
 {
-	int csr = uart_getreg(&sc->sc_bas, USART_CSR);
+	int csr = RD4(&sc->sc_bas, USART_CSR);
 	int ipend = 0;
-	
+	struct at91_usart_softc *atsc;
+
+	atsc = (struct at91_usart_softc *)sc;
 #ifdef USART0_CONSOLE
 	/* 
 	 * XXX: We have to cheat for skyeye, as it will return 0xff for all
@@ -361,16 +426,23 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		return (0);
 #endif
 	   
+	if (csr & USART_CSR_ENDTX) {
+		bus_dmamap_sync(atsc->dmatag, atsc->tx_map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(atsc->dmatag, atsc->tx_map);
+	}
 	mtx_lock_spin(&sc->sc_hwmtx);
 	if (csr & USART_CSR_TXRDY && sc->sc_txbusy)
 		ipend |= SER_INT_TXIDLE;
-	if (csr & USART_CSR_RXRDY)
+	if (csr & USART_CSR_ENDTX && sc->sc_txbusy)
+		ipend |= SER_INT_TXIDLE;
+	if (csr & (USART_CSR_RXRDY /* | USART_CSR_ENDRX | USART_CSR_TIMEOUT */))
 		ipend |= SER_INT_RXREADY;
 	if (csr & USART_CSR_RXBRK) {
 		unsigned int cr = USART_CR_RSTSTA;
 
 		ipend |= SER_INT_BREAK;
-		uart_setreg(&sc->sc_bas, USART_CR, cr);
+		WR4(&sc->sc_bas, USART_CR, cr);
 	}
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (ipend);
@@ -388,7 +460,7 @@ at91_usart_bus_getsig(struct uart_softc *sc)
 	uint8_t csr;
 
 	mtx_lock_spin(&sc->sc_hwmtx);
-	csr = uart_getreg(&sc->sc_bas, USART_CSR);
+	csr = RD4(&sc->sc_bas, USART_CSR);
 	sig = 0;
 	if (csr & USART_CSR_CTS)
 		sig |= SER_CTS;
@@ -412,7 +484,7 @@ at91_usart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 struct uart_class at91_usart_class = {
 	"at91_usart class",
 	at91_usart_methods,
-	1,
+	sizeof(struct at91_usart_softc),
 	.uc_range = 8,
 	.uc_rclk = DEFAULT_RCLK
 };
