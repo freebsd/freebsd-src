@@ -118,6 +118,7 @@ struct filedesc_to_leader {
 		mtx_unlock(&(fd)->fd_mtx);						\
 	} while (0)
 
+#ifdef	SMP
 #define	FILEDESC_LOCK_FAST(fd)								\
 	do {										\
 		mtx_lock(&(fd)->fd_mtx);						\
@@ -137,7 +138,10 @@ struct filedesc_to_leader {
 			wakeup(&(fd)->fd_locked);					\
 		mtx_unlock(&(fd)->fd_mtx);						\
 	} while (0)
-
+#else
+#define FILEDESC_LOCK_FAST(fdp)		critical_enter()
+#define FILEDESC_UNLOCK_FAST(fdp)	critical_exit()
+#endif	/* SMP */
 #ifdef INVARIANT_SUPPORT
 #define	FILEDESC_LOCK_ASSERT(fd, arg)							\
 	do {										\
