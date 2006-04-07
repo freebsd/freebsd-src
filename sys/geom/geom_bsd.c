@@ -635,8 +635,8 @@ g_bsd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	gsp = gp->softc;
 	ms = gsp->softc;
 	if (!strcmp(verb, "read mbroffset")) {
-		gctl_set_param(req, "mbroffset",
-		    &ms->mbroffset, sizeof(ms->mbroffset));
+		gctl_set_param_err(req, "mbroffset", &ms->mbroffset,
+		    sizeof(ms->mbroffset));
 		return;
 	} else if (!strcmp(verb, "write label")) {
 		label = gctl_get_paraml(req, "label", LABELSIZE);
