@@ -88,6 +88,7 @@ device		pass		# Passthrough device (direct SCSI access)
 
 # syscons is the default console driver, resembling an SCO console
 device		sc
+device		kbdmux
 options		SC_OFWFB	# OFW frame buffer
 options		SC_DFLT_FONT	# compile font in
 makeoptions	SC_DFLT_FONT=cp437
