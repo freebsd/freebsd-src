@@ -310,12 +310,8 @@ MAIN:{
     tzset();
 
     # Set defaults
-    $arch = `/usr/bin/uname -p`;
-    chomp($arch);
     $hostname = `/usr/bin/uname -n`;
     chomp($hostname);
-    $machine = `/usr/bin/uname -m`;
-    chomp($machine);
     $branch = "HEAD";
     $jobs = 0;
     $repository = "/home/ncvs";
@@ -350,6 +346,14 @@ MAIN:{
 	error("invalid source branch");
     }
     $branch = ($1 eq 'CURRENT') ? 'HEAD' : $1;
+    if (!defined($arch)) {
+	$arch = `/usr/bin/uname -p`;
+	chomp($arch);
+	if (!defined($machine)) {
+	    $machine = `/usr/bin/uname -m`;
+	    chomp($machine);
+	}
+    }
     if ($arch !~ m|^(\w+)$|) {
 	error("invalid target architecture");
     }
