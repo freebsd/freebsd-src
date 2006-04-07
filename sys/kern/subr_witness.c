@@ -380,6 +380,7 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef __i386__
 	{ "cy", &lock_class_mtx_spin },
 #endif
+	{ "scc_hwmtx", &lock_class_mtx_spin },
 	{ "uart_hwmtx", &lock_class_mtx_spin },
 	{ "sabtty", &lock_class_mtx_spin },
 	{ "zstty", &lock_class_mtx_spin },
