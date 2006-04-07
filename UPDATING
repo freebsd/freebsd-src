@@ -429,7 +429,7 @@ COMMON ITEMS:
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
 	make installworld DESTDIR=${CURRENT_ROOT}
-	cd src/etc; make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
+	make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
 	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
 	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
 	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
