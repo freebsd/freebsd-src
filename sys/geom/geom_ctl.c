@@ -268,8 +268,9 @@ gctl_dump(struct gctl_req *req)
 	}
 }
 
-void
-gctl_set_param(struct gctl_req *req, const char *param, void const *ptr, int len)
+int
+gctl_set_param(struct gctl_req *req, const char *param, void const *ptr,
+    int len)
 {
 	int i;
 	struct gctl_req_arg *ap;
@@ -278,20 +279,35 @@ gctl_set_param(struct gctl_req *req, const char *param, void const *ptr, int len
 		ap = &req->arg[i];
 		if (strcmp(param, ap->name))
 			continue;
-		if (!(ap->flag & GCTL_PARAM_WR)) {
-			gctl_error(req, "No write access %s argument", param);
-			return;
-		}
+		if (!(ap->flag & GCTL_PARAM_WR))
+			return (EPERM);
+		ap->flag |= GCTL_PARAM_CHANGED;
 		if (ap->len < len) {
-			gctl_error(req, "Wrong length %s argument", param);
-			return;
+			bcopy(ptr, ap->kvalue, ap->len);
+			return (ENOSPC);
 		}
 		bcopy(ptr, ap->kvalue, len);
-		ap->flag |= GCTL_PARAM_CHANGED;
-		return;
+		return (0);
 	}
-	gctl_error(req, "Missing %s argument", param);
-	return;
+	return (EINVAL);
+}
+
+void
+gctl_set_param_err(struct gctl_req *req, const char *param, void const *ptr,
+    int len)
+{
+
+	switch (gctl_set_param(req, param, ptr, len)) {
+	case EPERM:
+		gctl_error(req, "No write access %s argument", param);
+		break;
+	case ENOSPC:
+		gctl_error(req, "Wrong length %s argument", param);
+		break;
+	case EINVAL:
+		gctl_error(req, "Missing %s argument", param);
+		break;
+	}
 }
 
 void *

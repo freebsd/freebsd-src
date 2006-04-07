@@ -782,7 +782,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	else
 		sbuf_printf(sb, "concatenated\n");
 	sbuf_finish(sb);
-	gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	gctl_set_param_err(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 }
 
@@ -833,7 +833,7 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 		sbuf_printf(sb, "\n");
 	}
 	sbuf_finish(sb);
-	gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	gctl_set_param_err(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 }
 
