@@ -523,7 +523,7 @@ set_class_name(void)
 	s1 = class_name;
 	for (; *s1 != '\0'; s1++)
 		*s1 = tolower(*s1);
-	gclass_name = malloc(strlen(class_name));
+	gclass_name = malloc(strlen(class_name) + 1);
 	if (gclass_name == NULL)
 		errx(EXIT_FAILURE, "No memory");
 	s1 = gclass_name;
