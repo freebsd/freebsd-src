@@ -33,9 +33,10 @@ init_variables()
 	jail_procdir="${jail_rootdir}/proc"
 	eval jail_hostname=\"\$jail_${_j}_hostname\"
 	eval jail_ip=\"\$jail_${_j}_ip\"
+	eval jail_interface=\"\${jail_${_j}_interface:-${jail_interface}}\"
 	eval jail_exec=\"\$jail_${_j}_exec\"
-	eval jail_exec_start=\"\$jail_${_j}_exec_start\"
-	eval jail_exec_stop=\"\$jail_${_j}_exec_stop\"
+	eval jail_exec_start=\"\${jail_${_j}_exec_start:-${jail_exec_start}}\"
+	eval jail_exec_stop=\"\${jail_${_j}_exec_stop:-${jail_exec_stop}}\"
 	if [ -n "${jail_exec}" ]; then
 		#   simple/backward-compatible execution
 		jail_exec_start="${jail_exec}"
@@ -51,20 +52,20 @@ init_variables()
 	fi
 
 	# The default jail ruleset will be used by rc.subr if none is specified.
-	eval jail_ruleset=\"\$jail_${_j}_devfs_ruleset\"
-	eval jail_devfs=\"\$jail_${_j}_devfs_enable\"
+	eval jail_ruleset=\"\${jail_${_j}_devfs_ruleset:-${jail_devfs_ruleset}}\"
+	eval jail_devfs=\"\${jail_${_j}_devfs_enable:-${jail_devfs_enable}}\"
 	[ -z "${jail_devfs}" ] && jail_devfs="NO"
-	eval jail_fdescfs=\"\$jail_${_j}_fdescfs_enable\"
+	eval jail_fdescfs=\"\${jail_${_j}_fdescfs_enable:-${jail_fdescfs_enable}}\"
 	[ -z "${jail_fdescfs}" ] && jail_fdescfs="NO"
-	eval jail_procfs=\"\$jail_${_j}_procfs_enable\"
+	eval jail_procfs=\"\${jail_${_j}_procfs_enable:-${jail_procfs_enable}}\"
 	[ -z "${jail_procfs}" ] && jail_procfs="NO"
 
-	eval jail_mount=\"\$jail_${_j}_mount_enable\"
+	eval jail_mount=\"\${jail_${_j}_mount_enable:-${jail_mount_enable}}\"
 	[ -z "${jail_mount}" ] && jail_mount="NO"
 	# "/etc/fstab.${_j}" will be used for {,u}mount(8) if none is specified.
-	eval jail_fstab=\"\$jail_${_j}_fstab\"
+	eval jail_fstab=\"\${jail_${_j}_fstab:-${jail_fstab}}\"
 	[ -z "${jail_fstab}" ] && jail_fstab="/etc/fstab.${_j}"
-	eval jail_flags=\"\$jail_${_j}_flags\"
+	eval jail_flags=\"\${jail_${_j}_flags:-${jail_flags}}\"
 	[ -z "${jail_flags}" ] && jail_flags="-l -U root"
 
 	# Debugging aid
@@ -75,6 +76,7 @@ init_variables()
 	debug "$_j mount enable: $jail_mount"
 	debug "$_j hostname: $jail_hostname"
 	debug "$_j ip: $jail_ip"
+	debug "$_j interface: $jail_interface"
 	debug "$_j root: $jail_rootdir"
 	debug "$_j devdir: $jail_devdir"
 	debug "$_j fdescdir: $jail_fdescdir"
@@ -162,6 +164,9 @@ jail_start()
 			echo -n " [${jail_hostname} already running (/var/run/jail_${_jail}.id exists)]"
 			continue;
 		fi
+		if [ -n ${jail_interface} ]; then
+			ifconfig ${jail_interface} alias ${jail_ip} netmask 255.255.255.255
+		fi
 		if checkyesno jail_mount; then
 			info "Mounting fstab for jail ${_jail} (${jail_fstab})"
 			if [ ! -f "${jail_fstab}" ]; then
@@ -233,6 +238,9 @@ jail_stop()
 				killall -j ${_jail_id} -KILL > /dev/null 2>&1
 				jail_umount_fs
 				echo -n " $jail_hostname"
+			fi
+			if [ -n ${jail_interface} ]; then
+				ifconfig ${jail_interface} -alias ${jail_ip}
 			fi
 			rm /var/run/jail_${_jail}.id
 		else

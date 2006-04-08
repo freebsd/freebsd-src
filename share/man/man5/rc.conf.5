@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2006
+.Dd April 8, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2975,13 +2975,184 @@ you would have the following dependent variables:
 jail_vjail_hostname="jail.example.com"
 jail_vjail_ip="192.168.1.100"
 jail_vjail_rootdir="/var/jails/vjail/root"
-jail_vjail_exec="/bin/sh /etc/rc"
 .Ed
 .Pp
-The last one is optional.
-It defaults to
-.Pa /etc/rc
-if it is not set.
+.It Va jail_flags
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jid Ac Ns Va _flags
+for every jail in
+.Va jail_list .
+.It Va jail_interface
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jid Ac Ns Va _interface
+for every jail in
+.Va jail_list .
+.It Va jail_fstab
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jid Ac Ns Va _fstab
+for every jail in
+.Va jail_list .
+.It Va jail_mount_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+sets
+.Va jail_ Ns Ao Ar jid Ac Ns Va _mount_enable
+to YES by default for every jail in
+.Va jail_list .
+.It Va jail_devfs_ruleset
+.Pq Vt str
+Unset by default.
+When set, sets
+.Va jail_ Ns Ao Ar jid Ac Ns Va _devfs_ruleset
+to given value for every jail in
+.Va jail_list .
+.It Va jail_devfs_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+sets
+.Va jail_ Ns Ao Ar jid Ac Ns Va _devfs_enable
+to YES by default for every jail in
+.Va jail_list .
+.It Va jail_fdescfs_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+sets
+.Va jail_ Ns Ao Ar jid Ac Ns Va _fdescfs_enable
+to YES by default for every jail in
+.Va jail_list .
+.It Va jail_procfs_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+sets
+.Va jail_ Ns Ao Ar jid Ac Ns Va _fdescfs_enable
+to YES by default for every jail in
+.Va jail_list .
+.It Va jail_exec_start
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jid Ac Ns Va _exec_start
+for every jail in 
+.Va jail_list .
+.It Va jail_exec_stop
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jid Ac Ns Va _exec_stop
+for every jail in
+.Va jail_list .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _rootdir
+.Pq Vt str
+Unset by default.
+Set to the root directory used by jail
+.Va jid .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _hostname
+.Pq Vt str
+Unset by default.
+Set to the fully qualified domain name (FQDN) assigned to jail
+.Va jid .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _ip
+.Pq Vt str
+Unset by default.
+Set to the IP address assigned to jail
+.Va jid .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _flags
+.Pq Vt str
+Set to
+.Dq Li -l -U root
+by default.
+These are flags to pass to
+.Xr jail .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _interface
+.Pq Vt str
+Unset by default.
+When set, sets the interface to use when setting IP address alias.
+Note that the alias is created at jail startup and removed at jail shutdown.
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _fstab
+.Pq Vt str
+Set to
+.Pa /etc/fstab. Ns Ao Ar jid Ac
+by default.
+This is the file system information file to use for jail
+.Va jid .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _mount_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+mount all file systems from
+.Va jail_ Ns Ao Ar jid Ac Ns Va _fstab
+at jail startup.
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _devfs_ruleset
+.Pq Vt str
+Unset by default.
+When set, defines the device file system ruleset file to use for jail
+.Va jid .
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _devfs_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+mount the device file system inside jail
+.Ar jid
+at jail startup.
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _fdescfs_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+mount the file-descriptor file system inside jail
+.Ar jid
+at jail startup.
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _procfs_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+When set to
+.Dq Li YES ,
+mount the process file system inside jail
+.Ar jid
+at jail startup.
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _exec_start
+.Pq Vt str
+Set to
+.Dq Li /bin/sh /etc/rc
+by default.
+This is the command executed at jail startup.
+.It Va jail_ Ns Ao Ar jid Ac Ns Va _exec_stop
+.Pq Vt str
+Set to
+.Dq Li /bin/sh /etc/rc.shutdown
+by default.
+This is the command executed at jail shutdown.
 .It Va jail_set_hostname_allow
 .Pq Vt bool
 If set to
