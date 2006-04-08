@@ -642,8 +642,8 @@ extern umtx_t	_thr_event_lock __hidden;
  */
 __BEGIN_DECLS
 int	_thr_setthreaded(int) __hidden;
-int	_mutex_cv_lock(pthread_mutex_t *) __hidden;
-int	_mutex_cv_unlock(pthread_mutex_t *) __hidden;
+int	_mutex_cv_lock(pthread_mutex_t *, int count) __hidden;
+int	_mutex_cv_unlock(pthread_mutex_t *, int *count) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
 void	_mutex_unlock_private(struct pthread *) __hidden;

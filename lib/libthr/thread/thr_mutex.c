@@ -77,7 +77,7 @@ int	__pthread_mutex_timedlock(pthread_mutex_t *mutex,
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
 				const struct timespec *abstime);
-static int	mutex_unlock_common(pthread_mutex_t *, int);
+static int	mutex_unlock_common(pthread_mutex_t *);
 
 __weak_reference(__pthread_mutex_init, pthread_mutex_init);
 __weak_reference(__pthread_mutex_lock, pthread_mutex_lock);
@@ -285,34 +285,36 @@ int
 __pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	struct pthread *curthread = _get_curthread();
-	int ret = 0;
+	int ret;
 
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	if ((*mutex != NULL) ||
-	    ((ret = init_static(curthread, mutex)) == 0))
-		ret = mutex_trylock_common(curthread, mutex);
-
-	return (ret);
+	if (__predict_false(*mutex == NULL)) {
+		ret = init_static(curthread, mutex);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return (mutex_trylock_common(curthread, mutex));
 }
 
 int
 _pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	struct pthread	*curthread = _get_curthread();
-	int	ret = 0;
+	int	ret;
 
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking the mutex private (delete safe):
 	 */
-	if ((*mutex != NULL) ||
-	    ((ret = init_static_private(curthread, mutex)) == 0))
-		ret = mutex_trylock_common(curthread, mutex);
-
-	return (ret);
+	if (__predict_false(*mutex == NULL)) {
+		ret = init_static_private(curthread, mutex);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return (mutex_trylock_common(curthread, mutex));
 }
 
 static int
@@ -321,7 +323,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 {
 	struct  timespec ts, ts2;
 	struct	pthread_mutex *m;
-	int	ret = 0;
+	int	ret;
 
 	m = *mutex;
 	ret = THR_UMTX_TRYLOCK(curthread, &m->m_lock);
@@ -336,6 +338,10 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		if (abstime == NULL) {
 			THR_UMTX_LOCK(curthread, &m->m_lock);
 			ret = 0;
+		} else if (__predict_false(
+			   abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
+			   abstime->tv_nsec >= 1000000000)) {
+			ret = EINVAL;
 		} else {
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
@@ -361,7 +367,7 @@ int
 __pthread_mutex_lock(pthread_mutex_t *m)
 {
 	struct pthread *curthread;
-	int	ret = 0;
+	int	ret;
 
 	_thr_check_init();
 
@@ -371,17 +377,19 @@ __pthread_mutex_lock(pthread_mutex_t *m)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	if ((*m != NULL) || ((ret = init_static(curthread, m)) == 0))
-		ret = mutex_lock_common(curthread, m, NULL);
-
-	return (ret);
+	if (__predict_false(*m == NULL)) {
+		ret = init_static(curthread, m);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return (mutex_lock_common(curthread, m, NULL));
 }
 
 int
 _pthread_mutex_lock(pthread_mutex_t *m)
 {
 	struct pthread *curthread;
-	int	ret = 0;
+	int	ret;
 
 	_thr_check_init();
 
@@ -391,24 +399,21 @@ _pthread_mutex_lock(pthread_mutex_t *m)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking it private (delete safe):
 	 */
-	if ((*m != NULL) ||
-	    ((ret = init_static_private(curthread, m)) == 0))
-		ret = mutex_lock_common(curthread, m, NULL);
-
-	return (ret);
+	if (__predict_false(*m == NULL)) {
+		ret = init_static_private(curthread, m);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return (mutex_lock_common(curthread, m, NULL));
 }
 
 int
 __pthread_mutex_timedlock(pthread_mutex_t *m, const struct timespec *abstime)
 {
 	struct pthread *curthread;
-	int	ret = 0;
+	int	ret;
 
 	_thr_check_init();
-
-	if (abstime != NULL && (abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
-	    abstime->tv_nsec >= 1000000000))
-		return (EINVAL);
 
 	curthread = _get_curthread();
 
@@ -416,23 +421,21 @@ __pthread_mutex_timedlock(pthread_mutex_t *m, const struct timespec *abstime)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	if ((*m != NULL) || ((ret = init_static(curthread, m)) == 0))
-		ret = mutex_lock_common(curthread, m, abstime);
-
-	return (ret);
+	if (__predict_false(*m == NULL)) {
+		ret = init_static(curthread, m);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return (mutex_lock_common(curthread, m, abstime));
 }
 
 int
 _pthread_mutex_timedlock(pthread_mutex_t *m, const struct timespec *abstime)
 {
 	struct pthread	*curthread;
-	int	ret = 0;
+	int	ret;
 
 	_thr_check_init();
-
-	if (abstime != NULL && (abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
-	    abstime->tv_nsec >= 1000000000))
-		return (EINVAL);
 
 	curthread = _get_curthread();
 
@@ -440,33 +443,30 @@ _pthread_mutex_timedlock(pthread_mutex_t *m, const struct timespec *abstime)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking it private (delete safe):
 	 */
-	if ((*m != NULL) ||
-	    ((ret = init_static_private(curthread, m)) == 0))
-		ret = mutex_lock_common(curthread, m, abstime);
-
-	return (ret);
+	if (__predict_false(*m == NULL)) {
+		ret = init_static_private(curthread, m);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return (mutex_lock_common(curthread, m, abstime));
 }
 
 int
 _pthread_mutex_unlock(pthread_mutex_t *m)
 {
-	return (mutex_unlock_common(m, /* add reference */ 0));
+	return (mutex_unlock_common(m));
 }
 
 int
-_mutex_cv_unlock(pthread_mutex_t *m)
-{
-	return (mutex_unlock_common(m, /* add reference */ 1));
-}
-
-int
-_mutex_cv_lock(pthread_mutex_t *m)
+_mutex_cv_lock(pthread_mutex_t *m, int count)
 {
 	int	ret;
 
 	ret = mutex_lock_common(_get_curthread(), m, NULL);
-	if (ret == 0)
+	if (ret == 0) {
 		(*m)->m_refcount--;
+		(*m)->m_count += count;
+	}
 	return (ret);
 }
 
@@ -557,11 +557,10 @@ mutex_self_lock(pthread_mutex_t m, const struct timespec *abstime)
 }
 
 static int
-mutex_unlock_common(pthread_mutex_t *mutex, int add_reference)
+mutex_unlock_common(pthread_mutex_t *mutex)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread_mutex *m;
-	int ret = 0;
 
 	if (__predict_false((m = *mutex) == NULL))
 		return (EINVAL);
@@ -569,29 +568,52 @@ mutex_unlock_common(pthread_mutex_t *mutex, int add_reference)
 	/*
 	 * Check if the running thread is not the owner of the mutex.
 	 */
-	if (__predict_false(m->m_owner != curthread)) {
-		ret = EPERM;
-	} else if (__predict_false(
+	if (__predict_false(m->m_owner != curthread))
+		return (EPERM);
+
+	if (__predict_false(
 		m->m_type == PTHREAD_MUTEX_RECURSIVE &&
 		m->m_count > 0)) {
 		m->m_count--;
-		if (add_reference)
-			m->m_refcount++;
 	} else {
-		/*
-		 * Clear the count in case this is a recursive mutex.
-		 */
-		m->m_count = 0;
 		m->m_owner = NULL;
 		/* Remove the mutex from the threads queue. */
 		MUTEX_ASSERT_IS_OWNED(m);
 		TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
 		MUTEX_INIT_LINK(m);
-		if (add_reference)
-			m->m_refcount++;
 		THR_UMTX_UNLOCK(curthread, &m->m_lock);
 	}
-	return (ret);
+	return (0);
+}
+
+int
+_mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
+{
+	struct pthread *curthread = _get_curthread();
+	struct pthread_mutex *m;
+
+	if (__predict_false((m = *mutex) == NULL))
+		return (EINVAL);
+
+	/*
+	 * Check if the running thread is not the owner of the mutex.
+	 */
+	if (__predict_false(m->m_owner != curthread))
+		return (EPERM);
+
+	/*
+	 * Clear the count in case this is a recursive mutex.
+	 */
+	*count = m->m_count;
+	m->m_refcount++;
+	m->m_count = 0;
+	m->m_owner = NULL;
+	/* Remove the mutex from the threads queue. */
+	MUTEX_ASSERT_IS_OWNED(m);
+	TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
+	MUTEX_INIT_LINK(m);
+	THR_UMTX_UNLOCK(curthread, &m->m_lock);
+	return (0);
 }
 
 void
