@@ -383,6 +383,9 @@ amr_free(struct amr_softc *sc)
 
     if (mtx_initialized(&sc->amr_list_lock))
 	mtx_destroy(&sc->amr_list_lock);
+
+    if (mtx_initialized(&sc->amr_wait_lock))
+	mtx_destroy(&sc->amr_wait_lock);
 }
 
 /*******************************************************************************
@@ -1322,7 +1325,8 @@ static int
 amr_wait_command(struct amr_command *ac)
 {
     int			error = 0;
-    
+    struct amr_softc	*sc = ac->ac_sc;
+
     debug_called(1);
 
     ac->ac_complete = NULL;
@@ -1331,9 +1335,12 @@ amr_wait_command(struct amr_command *ac)
 	return(error);
     }
     
+    mtx_lock(&sc->amr_wait_lock);
     while ((ac->ac_flags & AMR_CMD_BUSY) && (error != EWOULDBLOCK)) {
-	error = tsleep(ac, PRIBIO, "amrwcmd", 0);
+	error = msleep(ac,&sc->amr_wait_lock, PRIBIO, "amrwcmd", 0);
     }
+    mtx_unlock(&sc->amr_wait_lock);
+
     return(error);
 }
 
@@ -1995,21 +2002,27 @@ amr_complete(void *context, int pending)
 	/* unmap the command's data buffer */
 	amr_unmapcmd(ac);
 
-	/* unbusy the command */
-	ac->ac_flags &= ~AMR_CMD_BUSY;
-	    
 	/* 
 	 * Is there a completion handler? 
 	 */
 	if (ac->ac_complete != NULL) {
+	    /* unbusy the command */
+	    ac->ac_flags &= ~AMR_CMD_BUSY;
 	    ac->ac_complete(ac);
 	    
 	    /* 
 	     * Is someone sleeping on this one?
 	     */
 	} else if (ac->ac_flags & AMR_CMD_SLEEP) {
+	    mtx_lock(&sc->amr_wait_lock);
+	    /* unbusy the command */
+	    ac->ac_flags &= ~AMR_CMD_BUSY;
+	    mtx_unlock(&sc->amr_wait_lock);
 	    wakeup(ac);
-	}
+	} else {
+	    /* unbusy the command */
+	    ac->ac_flags &= ~AMR_CMD_BUSY;
+	}	
 
 	if(!sc->amr_busyslots) {
 	    wakeup(sc);

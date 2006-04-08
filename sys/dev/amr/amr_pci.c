@@ -331,6 +331,7 @@ amr_pci_attach(device_t dev)
      */
     mtx_init(&sc->amr_list_lock, "AMR List Lock", NULL, MTX_DEF);
     mtx_init(&sc->amr_hw_lock, "AMR HW Lock", NULL, MTX_DEF);
+    mtx_init(&sc->amr_wait_lock, "AMR Wait Lock", NULL, MTX_DEF);
     if ((error = amr_setup_mbox(sc)) != 0)
 	goto out;
 
