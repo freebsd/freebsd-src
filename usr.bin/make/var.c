@@ -1701,6 +1701,10 @@ Var_Quote(const char *str)
  *		words which match the given <pattern>.
  *		<pattern> is of the standard file
  *		wildcarding form.
+ *	:N<pattern>
+ *		words which do not match the given <pattern>
+ *		<pattern> is of the standard file
+ *		wildcarding form.
  *	:S<d><pat1><d><pat2><d>[g]
  *		Substitute <pat2> for <pat1> in the value
  *	:C<d><pat1><d><pat2><d>[g]
@@ -1716,9 +1720,8 @@ Var_Quote(const char *str)
  *		the invocation.
  *	:U	Converts variable to upper-case.
  *	:L	Converts variable to lower-case.
+ *	:O	("Order") Alphabeticaly sort words in variable.
  *	:u	("uniq") Remove adjacent duplicate words.
- *
- * XXXHB update this comment or remove it and point to the man page.
  */
 static char *
 ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
