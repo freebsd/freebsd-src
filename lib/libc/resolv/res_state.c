@@ -48,7 +48,7 @@ free_res(void *ptr)
 {
 	res_state statp = ptr;
 
-	if (statp->options & RES_INIT)
+	if (statp->_u._ext.ext != NULL)
 		res_ndestroy(statp);
 	free(statp);
 }
