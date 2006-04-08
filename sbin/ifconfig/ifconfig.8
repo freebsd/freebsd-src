@@ -801,6 +801,20 @@ Only the super-user can initiate a scan.
 Depending on the capabilities of the APs, the following
 flags can be included in the output:
 .Bl -tag -width 3n
+.It Li A
+Channel Agility.
+Indicates that the station support channel hopping as described by the
+IEEE 802.11b specification.
+.It Li B
+Packet Binary Convolution Code (PBCC).
+A modulation alternative to the standard OFDM method.
+.It Dv C
+Pollreq
+.It Dv c
+Pollable
+.It Dv D
+Direct Sequence Spread Spectrum (DSSSOFDM).
+Indicates the the station supports DSSS modulation.
 .It Li E
 Extended Service Set (ESS).
 Indicates that the station is part of an infrastructure network
@@ -816,6 +830,10 @@ exchanged within the BSS.
 This means that this BSS requires the station to
 use cryptographic means such as WEP, TKIP or AES-CCMP to
 encrypt/decrypt data frames being exchanged with others.
+.It Dv R
+Robust Security Network (RSN).
+Indicates that the station supports the IEEE 802.11i authentication
+and key management protocol.
 .It Li S
 Short Preamble.
 Indicates that the network is using short preambles (defined
