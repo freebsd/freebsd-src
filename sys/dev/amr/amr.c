@@ -383,9 +383,6 @@ amr_free(struct amr_softc *sc)
 
     if (mtx_initialized(&sc->amr_list_lock))
 	mtx_destroy(&sc->amr_list_lock);
-
-    if (mtx_initialized(&sc->amr_wait_lock))
-	mtx_destroy(&sc->amr_wait_lock);
 }
 
 /*******************************************************************************
@@ -601,7 +598,6 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    mtx_lock(&sc->amr_list_lock); 
 	    while ((ac = amr_alloccmd(sc)) == NULL)
 		msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
-	    mtx_unlock(&sc->amr_list_lock);
 
 	    ac_flags = AMR_CMD_DATAIN|AMR_CMD_DATAOUT|AMR_CMD_CCB_DATAIN|AMR_CMD_CCB_DATAOUT;
 	    bzero(&ac->ac_mailbox, sizeof(ac->ac_mailbox));
@@ -615,6 +611,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    temp = (void *)(uintptr_t)ap->ap_data_transfer_address;
 
 	    error = amr_wait_command(ac);
+	    mtx_unlock(&sc->amr_list_lock);
 	    if (error)
 		break;
 
@@ -655,7 +652,6 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    mtx_lock(&sc->amr_list_lock); 
 	    while ((ac = amr_alloccmd(sc)) == NULL)
 		msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
-	    mtx_unlock(&sc->amr_list_lock); 
 
 	    ac_flags = AMR_CMD_DATAIN|AMR_CMD_DATAOUT;
 	    bzero(&ac->ac_mailbox, sizeof(ac->ac_mailbox));
@@ -666,6 +662,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    ac->ac_flags = ac_flags;
 
 	    error = amr_wait_command(ac);
+	    mtx_unlock(&sc->amr_list_lock); 
 	    if (error)
 		break;
 
@@ -812,7 +809,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     mtx_lock(&sc->amr_list_lock); 
     while ((ac = amr_alloccmd(sc)) == NULL)
 	msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
-    mtx_unlock(&sc->amr_list_lock); 
 
     /* handle SCSI passthrough command */
     if (au_cmd[0] == AMR_CMD_PASS) {
@@ -863,7 +859,9 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     ac->ac_flags = ac_flags;
 
     /* run the command */
-    if ((error = amr_wait_command(ac)) != 0)
+    error = amr_wait_command(ac);
+    mtx_unlock(&sc->amr_list_lock); 
+    if (error)
 	goto out;
 
     /* copy out data and set status */
@@ -1335,11 +1333,9 @@ amr_wait_command(struct amr_command *ac)
 	return(error);
     }
     
-    mtx_lock(&sc->amr_wait_lock);
     while ((ac->ac_flags & AMR_CMD_BUSY) && (error != EWOULDBLOCK)) {
-	error = msleep(ac,&sc->amr_wait_lock, PRIBIO, "amrwcmd", 0);
+	error = msleep(ac,&sc->amr_list_lock, PRIBIO, "amrwcmd", 0);
     }
-    mtx_unlock(&sc->amr_wait_lock);
 
     return(error);
 }
@@ -2013,16 +2009,15 @@ amr_complete(void *context, int pending)
 	    /* 
 	     * Is someone sleeping on this one?
 	     */
-	} else if (ac->ac_flags & AMR_CMD_SLEEP) {
-	    mtx_lock(&sc->amr_wait_lock);
-	    /* unbusy the command */
-	    ac->ac_flags &= ~AMR_CMD_BUSY;
-	    mtx_unlock(&sc->amr_wait_lock);
-	    wakeup(ac);
 	} else {
-	    /* unbusy the command */
+	    mtx_lock(&sc->amr_list_lock);
 	    ac->ac_flags &= ~AMR_CMD_BUSY;
-	}	
+	    if (ac->ac_flags & AMR_CMD_SLEEP) {
+		/* unbusy the command */
+		wakeup(ac);
+	    }
+	    mtx_unlock(&sc->amr_list_lock);
+	}
 
 	if(!sc->amr_busyslots) {
 	    wakeup(sc);

@@ -244,7 +244,6 @@ struct amr_softc
     int				amr_linux_no_adapters;
     int				amr_ld_del_supported;
     struct mtx			amr_hw_lock;
-    struct mtx			amr_wait_lock;
 };
 
 /*
