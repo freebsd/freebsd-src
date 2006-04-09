@@ -658,8 +658,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* Now locate the command. */
 	if (argc == 0) {
+		/* Variable assignment(s) without command */
 		cmdentry.cmdtype = CMDBUILTIN;
 		cmdentry.u.index = BLTINCMD;
+		cmdentry.special = 1;
 	} else {
 		static const char PATH[] = "PATH=";
 		char *path = pathval();
@@ -705,7 +707,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				argv++;
 				if (--argc == 0)
 					break;
-				if ((cmdentry.u.index = find_builtin(*argv)) < 0) {
+				if ((cmdentry.u.index = find_builtin(*argv,
+				    &cmdentry.special)) < 0) {
 					outfmt(&errout, "%s: not found\n", *argv);
 					exitstatus = 127;
 					flushout(&errout);
@@ -812,7 +815,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			memout.bufsize = 64;
 			mode |= REDIR_BACKQ;
 		}
-		redirect(cmd->ncmd.redirect, mode);
 		savecmdname = commandname;
 		cmdenviron = varlist.list;
 		e = -1;
@@ -823,6 +825,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		savehandler = handler;
 		handler = &jmploc;
+		redirect(cmd->ncmd.redirect, mode);
+		if (cmdentry.special)
+			listsetvar(cmdenviron);
 		commandname = argv[0];
 		argptr = argv + 1;
 		optptr = NULL;			/* initialize nextopt */
@@ -842,14 +847,7 @@ cmddone:
 		handler = savehandler;
 		if (e != -1) {
 			if ((e != EXERROR && e != EXEXEC)
-			   || cmdentry.u.index == BLTINCMD
-			   || cmdentry.u.index == DOTCMD
-			   || cmdentry.u.index == EVALCMD
-#ifndef NO_HISTORY
-			   || cmdentry.u.index == HISTCMD
-#endif
-			   || cmdentry.u.index == EXECCMD
-			   || cmdentry.u.index == COMMANDCMD)
+			    || cmdentry.special)
 				exraise(e);
 			FORCEINTON;
 		}
@@ -925,14 +923,12 @@ prehash(union node *n)
  */
 
 /*
- * No command given, or a bltin command with no arguments.  Set the
- * specified variables.
+ * No command given, or a bltin command with no arguments.
  */
 
 int
 bltincmd(int argc __unused, char **argv __unused)
 {
-	listsetvar(cmdenviron);
 	/*
 	 * Preserve exitstatus of a previous possible redirection
 	 * as POSIX mandates
