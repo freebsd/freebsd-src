@@ -173,7 +173,7 @@ static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
 		     struct mbuf *);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
-static int	 tcp_timewait(struct tcptw *, struct tcpopt *,
+static int	 tcp_timewait(struct inpcb *, struct tcpopt *,
 		     struct tcphdr *, struct mbuf *, int);
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
@@ -760,7 +760,7 @@ findpcb:
 		 */
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, 1);
-		if (tcp_timewait(intotw(inp), &to, th, m, tlen))
+		if (tcp_timewait(inp, &to, th, m, tlen))
 			goto findpcb;
 		/*
 		 * tcp_timewait unlocks inp.
@@ -3141,13 +3141,14 @@ tcp_newreno_partial_ack(tp, th)
  * looking for a pcb in the listen state.  Returns 0 otherwise.
  */
 static int
-tcp_timewait(tw, to, th, m, tlen)
-	struct tcptw *tw;
+tcp_timewait(inp, to, th, m, tlen)
+	struct inpcb *inp;
 	struct tcpopt *to;
 	struct tcphdr *th;
 	struct mbuf *m;
 	int tlen;
 {
+	struct tcptw *tw;
 	int thflags;
 	tcp_seq seq;
 #ifdef INET6
@@ -3156,18 +3157,19 @@ tcp_timewait(tw, to, th, m, tlen)
 	const int isipv6 = 0;
 #endif
 
+	/* tcbinfo lock required for tcp_twclose(), tcp_2msl_reset. */
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	/*
 	 * XXXRW: Time wait state for inpcb has been recycled, but inpcb is
 	 * still present.  This is undesirable, but temporarily necessary
 	 * until we work out how to handle inpcb's who's timewait state has
 	 * been removed.
 	 */
+	tw = intotw(inp);
 	if (tw == NULL)
 		goto drop;
-
-	/* tcbinfo lock required for tcp_twclose(), tcp_2msl_reset. */
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(tw->tw_inpcb);
 
 	thflags = th->th_flags;
 
@@ -3268,12 +3270,11 @@ tcp_timewait(tw, to, th, m, tlen)
 		tcp_respond(NULL,
 		    mtod(m, void *), th, m, seq, 0, TH_RST|TH_ACK);
 	}
-	INP_UNLOCK(tw->tw_inpcb);
+	INP_UNLOCK(inp);
 	return (0);
 
 drop:
-	if (tw != NULL)
-		INP_UNLOCK(tw->tw_inpcb);
+	INP_UNLOCK(inp);
 	m_freem(m);
 	return (0);
 }
